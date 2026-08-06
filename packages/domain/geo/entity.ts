@@ -1,8 +1,27 @@
 /**
- * الغرض: الكيانات الجذرية (Aggregates/Entities) لوحدة geo — المواقع، المسافات، الجغرافيا
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: الموقع الأخير المعروف للسائق وصلاحيته الزمنية.
+ * الحالة: منفّذ فعلياً — المرحلة 2.1.
  * ينتمي إلى: domain/geo
- * يُتوقع أن يستخدمه لاحقاً: packages/application/geo/*, packages/infrastructure/geo/*
- * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني (مسافة + نصف قطر بحث من platform_settings).
+ * يُتوقع أن يستخدمه لاحقاً: domain/dispatch (استبعاد المواقع القديمة)، infrastructure/geo
+ * ملاحظات مستقبلية: مدة صلاحية الموقع قيمة في platform_settings عند تفعيل تحديث الموقع الحيّ.
  */
-export {};
+
+import type { CityId, DriverId } from "../../shared/kernel/index.ts";
+import type { Coordinates } from "./value-objects.ts";
+
+export interface DriverLocation {
+  readonly driverId: DriverId;
+  readonly cityId: CityId;
+  readonly at: Coordinates;
+  readonly recordedAt: Date;
+}
+
+/** هل الموقع حديث بما يكفي للاعتماد عليه في المطابقة؟ */
+export function isLocationFresh(
+  location: DriverLocation,
+  now: Date,
+  maxAgeSeconds: number,
+): boolean {
+  const ageSeconds = (now.getTime() - location.recordedAt.getTime()) / 1000;
+  return ageSeconds >= 0 && ageSeconds <= maxAgeSeconds;
+}

@@ -21,3 +21,13 @@
 ## وحدات تُفعَّل جزئياً في الأمر الثاني
 `transport` · `delivery` · `subscription` · `financial` (اشتراك فقط) · `dispatch` · `geo` · `identity` ·
 `capability` · `reputation` · `safety` · `dispute` · `messaging` · `notification` · `policy` · `audit`
+
+## سجل التنفيذ الفعلي — المرحلة 2.1
+
+- **الخطوة 1 (منجَزة)**: المخطط الحقيقي على Supabase — 12 جدولاً كلها بـ `city_id` و RLS، 7 دوال ذرّية،
+  4 مدن و52 صفّ إعدادات. تحقّق حقيقي على القاعدة: 5 سائقين متزامنين على طلب واحد ← فائز واحد و4 رفض
+  بـ `ORDER_NOT_CLAIMABLE`، وسائق من مدينة أخرى ← `CITY_MISMATCH`. التقرير: `docs/phase-2.1-step-01-report.md`.
+- **الخطوة 2 (منجَزة)**: طبقة الدومين الخالصة — geo، subscription، capability، dispatch، transport.
+  85 اختباراً ناجحاً، و4 بوابات CI جديدة. التقرير: `docs/phase-2.1-step-02-report.md`.
+- **الخطوة 3 (محجوبة)**: وصل البنية التحتية — تنتظر مفتاح `service_role` ورابط Upstash Redis ورموز البوتين
+  و12 معرّف مجموعة تلغرام.

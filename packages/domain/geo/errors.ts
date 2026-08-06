@@ -1,8 +1,28 @@
 /**
- * الغرض: أخطاء العمل المتوقعة لوحدة geo تُعاد عبر نمط Result بلا throw — المواقع، المسافات، الجغرافيا
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: أخطاء العمل المتوقعة لوحدة geo — تُعاد عبر Result بلا throw.
+ * الحالة: منفّذ فعلياً — المرحلة 2.1.
  * ينتمي إلى: domain/geo
- * يُتوقع أن يستخدمه لاحقاً: packages/application/geo/*, packages/infrastructure/geo/*
- * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني (مسافة + نصف قطر بحث من platform_settings).
+ * يُتوقع أن يستخدمه لاحقاً: application/*، apps/gateway
+ * ملاحظات مستقبلية: أي خطأ جديد يُضاف كصنف، ولا يُعاد كنص حرّ.
  */
-export {};
+
+export type InvalidCoordinatesReason =
+  | "NOT_FINITE"
+  | "LATITUDE_OUT_OF_RANGE"
+  | "LONGITUDE_OUT_OF_RANGE";
+
+export class InvalidCoordinatesError {
+  readonly code = "INVALID_COORDINATES" as const;
+  constructor(
+    readonly latitude: number,
+    readonly longitude: number,
+    readonly reason: InvalidCoordinatesReason,
+  ) {}
+}
+
+export class InvalidDistanceError {
+  readonly code = "INVALID_DISTANCE" as const;
+  constructor(readonly value: number) {}
+}
+
+export type GeoError = InvalidCoordinatesError | InvalidDistanceError;

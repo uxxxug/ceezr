@@ -1,8 +1,9 @@
 /**
  * الغرض: نقطة التصدير العامة لوحدة subscription — اشتراكات السائقين
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الحالة: منفّذ فعلياً — المرحلة 2.1. تُصدَّر فقط الرموز المنفَّذة، وما بقي هيكلاً لا يُصدَّر.
  * ينتمي إلى: domain/subscription
  * يُتوقع أن يستخدمه لاحقاً: packages/application/subscription/*, packages/infrastructure/subscription/*
- * ملاحظات مستقبلية: يُفعَّل في الأمر الثاني (المرحلة 2.1) عبر RPC ذرّي renew_subscription.
+ * ملاحظات مستقبلية: value-objects و events و errors ما زالت هياكل، فلا تُعاد تصديرها بعد.
  */
-export {};
+
+export * from "./entity.ts";
