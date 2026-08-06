@@ -69,3 +69,13 @@ jobs:
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
+
+      - name: تطابق قواميس اللغات
+        run: bun run scripts/check-i18n.ts
+
+      - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
+        run: |
+          if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
+            echo "❌ نصّ مباشر داخل منطق الحوار: كل نصّ يمرّ عبر i18n"; exit 1;
+          fi
+          echo "✅ كل نصوص الحوار من القواميس"
