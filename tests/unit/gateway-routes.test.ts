@@ -6,12 +6,12 @@
  * ملاحظات مستقبلية: عند تركيب grammY يُضاف اختبار يتحقّق أن التحديث وصل إلى المعالج الصحيح.
  */
 import { describe, expect, it } from "bun:test";
-import { createServer } from "../../apps/gateway/src/server.ts";
 import {
-  TELEGRAM_SECRET_HEADER,
-  secretsMatch,
   type BotKind,
+  secretsMatch,
+  TELEGRAM_SECRET_HEADER,
 } from "../../apps/gateway/src/routes/telegram-webhook.ts";
+import { createServer } from "../../apps/gateway/src/server.ts";
 
 const SECRET = "test-webhook-secret-value";
 const STARTED_AT = new Date("2026-08-06T12:00:00.000Z");
@@ -20,6 +20,7 @@ const NOW = new Date("2026-08-06T12:01:30.000Z");
 /** بيئة كاملة صالحة — لا مفتاح حقيقي، فقط قيم غير فارغة لاختبار الجهوزية. */
 const FULL_ENV: Record<string, string> = {
   SUPABASE_URL: "https://example.supabase.co",
+  DATABASE_URL: "postgres://user:pass@localhost:5432/postgres",
   SUPABASE_SERVICE_ROLE_KEY: "x",
   UPSTASH_REDIS_REST_URL: "https://example.upstash.io",
   UPSTASH_REDIS_REST_TOKEN: "x",
@@ -108,7 +109,10 @@ describe("GET /ready", () => {
     expect(res.status).toBe(503);
     const body = (await res.json()) as { status: string; missingEnv: string[] };
     expect(body.status).toBe("not_ready");
-    expect(body.missingEnv.sort()).toEqual(["SUPABASE_SERVICE_ROLE_KEY", "UPSTASH_REDIS_REST_TOKEN"]);
+    expect(body.missingEnv.sort()).toEqual([
+      "SUPABASE_SERVICE_ROLE_KEY",
+      "UPSTASH_REDIS_REST_TOKEN",
+    ]);
   });
 
   it("غير جاهز إن فشل فحص تبعية", async () => {

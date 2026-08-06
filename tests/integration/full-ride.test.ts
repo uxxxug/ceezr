@@ -1,0 +1,446 @@
+/**
+ * الغرض: السيناريو الحقيقي الكامل على قاعدة PostgreSQL فعلية، من HTTP webhook إلى صفوف في الجداول:
+ *   تسجيل سائق ← تجربة مجانية ← تحقّق الإدارة ← توافر وموقع ← تسجيل عميل ← طلب برحلة حقيقية
+ *   ← مطابقة وبثّ عرض ← قبول ذرّي ← الطلب matched. بلا مزدوج واحد إلا مُرسِل تلغرام.
+ * الحالة: اختبار تكامل فعلي — يتطلب TEST_DATABASE_URL.
+ * ينتمي إلى: tests/integration
+ * يُتوقع أن يستخدمه لاحقاً: CI (خدمة postgis)، وأي تعديل على المحوّلات
+ * ملاحظات مستقبلية: عند وصول رموز البوتين يُستبدل المُرسِل الملتقِط بمُرسِل حقيقي في اختبار دخان واحد.
+ */
+
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
+import { buildContainer } from "../../apps/gateway/src/container.ts";
+import { createServer } from "../../apps/gateway/src/server.ts";
+import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { translate } from "../../packages/shared/i18n/index.ts";
+
+const DATABASE_URL = process.env.TEST_DATABASE_URL;
+const WEBHOOK_SECRET = "integration-secret";
+const DRIVER_CHAT = 100_001;
+const RIDER_CHAT = 200_001;
+// جدة الحقيقية: نقطة انطلاق العميل وموقع السائق على بعد أقل من كيلومتر
+const PICKUP = { latitude: 21.5433, longitude: 39.1728 };
+const DRIVER_AT = { latitude: 21.5471, longitude: 39.1751 };
+
+interface SentMessage {
+  readonly chatId: string;
+  readonly text: string;
+  readonly markup: unknown;
+}
+
+function capturing(sent: SentMessage[]): TelegramSender {
+  return {
+    sendMessage: async (chatId, text, markup) => {
+      sent.push({ chatId, text, markup });
+    },
+  };
+}
+
+const config: AppConfig = {
+  env: "test",
+  port: 3999,
+  supabaseUrl: "https://local.test.supabase.co",
+  databaseUrl: DATABASE_URL ?? "postgres://invalid",
+  supabaseServiceKey: "local-test",
+  redisUrl: "http://localhost",
+  redisToken: "local-test",
+  driverBotToken: "driver-token",
+  riderBotToken: "rider-token",
+  telegramWebhookSecret: WEBHOOK_SECRET,
+};
+
+let sql: Sql;
+let app: ReturnType<typeof createServer>;
+let container: ReturnType<typeof buildContainer>;
+let driverSent: SentMessage[];
+let riderSent: SentMessage[];
+let cityId: string;
+
+async function post(bot: string, update: unknown): Promise<Response> {
+  return app.fetch(
+    new Request(`http://localhost/webhook/telegram/${bot}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-telegram-bot-api-secret-token": WEBHOOK_SECRET,
+      },
+      body: JSON.stringify(update),
+    }),
+  );
+}
+
+const message = (chatId: number, body: Record<string, unknown>) => ({
+  message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
+});
+const text = (chatId: number, value: string) => message(chatId, { text: value });
+const location = (chatId: number, at: { latitude: number; longitude: number }) =>
+  message(chatId, { location: at });
+const contact = (chatId: number, phone: string) =>
+  message(chatId, { contact: { phone_number: phone } });
+const callback = (chatId: number, data: string) => ({
+  callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
+});
+
+const ar = (key: string, params: Record<string, string | number> = {}) =>
+  translate("ar", key, params);
+
+const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
+if (DATABASE_URL === undefined) {
+  console.warn(
+    "⚠️  اختبارات التكامل مُتخطّاة: عيّن TEST_DATABASE_URL لقاعدة PostgreSQL بها الهجرات مطبَّقة.",
+  );
+}
+
+describeIf("المسار الكامل على قاعدة حقيقية", () => {
+  beforeAll(async () => {
+    sql = createSql({ connectionString: DATABASE_URL ?? "" });
+    const cities = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
+    const id = cities[0]?.id;
+    if (id === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
+    cityId = id;
+  });
+
+  afterAll(async () => {
+    await container.close();
+    await sql.end({ timeout: 5 });
+  });
+
+  beforeEach(async () => {
+    // قاعدة نظيفة قبل كل سيناريو: نمسح الحركة ونُبقي المدن والإعدادات المبذورة
+    await sql`truncate table audit_log, attendance_log, order_offers, orders,
+                             subscriptions, driver_capabilities, driver_availability,
+                             drivers, riders, users restart identity cascade`;
+    // تفعيل جدة يتطلب مجموعاتها الثلاث (قيد cities_active_requires_groups)
+    await sql`
+      update cities
+         set is_active = true,
+             telegram_support_group_id = -1001,
+             telegram_escalation_group_id = -1002,
+             telegram_unsubscribed_drivers_group_id = -1003
+       where id = ${cityId}
+    `;
+    driverSent = [];
+    riderSent = [];
+    container = buildContainer(config, {
+      driverSender: capturing(driverSent),
+      riderSender: capturing(riderSent),
+    });
+    app = createServer({
+      health: { now: () => new Date(), startedAt: new Date(), env: process.env },
+      webhook: { webhookSecret: WEBHOOK_SECRET, handler: container.handler },
+    });
+  });
+
+  async function registerDriver(): Promise<string> {
+    await post("driver", text(DRIVER_CHAT, "/start"));
+    await post("driver", text(DRIVER_CHAT, "أحمد العمري"));
+    await post("driver", contact(DRIVER_CHAT, "0501234567"));
+    await post("driver", callback(DRIVER_CHAT, `city:${cityId}`));
+    await post("driver", callback(DRIVER_CHAT, "service:transport"));
+    const rows = await sql<{ id: string }[]>`select id from drivers limit 1`;
+    const id = rows[0]?.id;
+    if (id === undefined) throw new Error("لم يُسجَّل السائق");
+    return id;
+  }
+
+  async function verifyAndActivate(driverId: string): Promise<void> {
+    // ما تفعله الإدارة يدوياً اليوم، وستفعله لوحة الإدارة في 2.4
+    await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    await post("driver", text(DRIVER_CHAT, "/available"));
+    await post("driver", location(DRIVER_CHAT, DRIVER_AT));
+  }
+
+  async function registerRider(): Promise<string> {
+    await post("rider", text(RIDER_CHAT, "/start"));
+    await post("rider", text(RIDER_CHAT, "سالم الحربي"));
+    await post("rider", callback(RIDER_CHAT, `city:${cityId}`));
+    const rows = await sql<{ id: string }[]>`select id from riders limit 1`;
+    const id = rows[0]?.id;
+    if (id === undefined) throw new Error("لم يُسجَّل العميل");
+    return id;
+  }
+
+  it("يسجّل سائقاً حقيقياً في users و drivers ويبدأ تجربته المجانية", async () => {
+    const driverId = await registerDriver();
+
+    const users = await sql<{ full_name: string; phone: string; role: string; city_id: string }[]>`
+      select full_name, phone, role, city_id from users where telegram_id = ${DRIVER_CHAT}
+    `;
+    expect(users[0]?.full_name).toBe("أحمد العمري");
+    // الجوال يُوحَّد في الدومين لا في القاعدة
+    expect(users[0]?.phone).toBe("+966501234567");
+    expect(users[0]?.role).toBe("driver");
+    expect(users[0]?.city_id).toBe(cityId);
+
+    const caps = await sql<{ service: string; is_enabled: boolean }[]>`
+      select service, is_enabled from driver_capabilities where driver_id = ${driverId}
+    `;
+    expect(caps.length).toBe(1);
+    expect(caps[0]?.service).toBe("transport");
+    expect(caps[0]?.is_enabled).toBe(true);
+
+    const subs = await sql<{ status: string; trial_ends_at: Date | null }[]>`
+      select status, trial_ends_at from subscriptions where driver_id = ${driverId}
+    `;
+    expect(subs[0]?.status).toBe("trialing");
+    // مدة التجربة من platform_settings لا من ثابت في الكود
+    const days = await sql<{ v: string }[]>`
+      select get_setting_number(${cityId}::uuid, 'trial_days')::text as v
+    `;
+    const expected = Number(days[0]?.v);
+    const endsAt = subs[0]?.trial_ends_at;
+    expect(endsAt).not.toBeNull();
+    const actualDays = Math.round(
+      ((endsAt as Date).getTime() - Date.now()) / (24 * 60 * 60 * 1000),
+    );
+    expect(actualDays).toBe(expected);
+  });
+
+  it("يمنع التوافر قبل تحقّق الإدارة، ويسمح به بعده ويسجّله في attendance_log", async () => {
+    const driverId = await registerDriver();
+
+    driverSent.length = 0;
+    await post("driver", text(DRIVER_CHAT, "/available"));
+    expect(driverSent.map((m) => m.text)).toEqual([ar("driver.not_verified")]);
+    const before = await sql<{ is_available: boolean }[]>`
+      select is_available from driver_availability where driver_id = ${driverId}
+    `;
+    expect(before[0]?.is_available).toBe(false);
+
+    await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    driverSent.length = 0;
+    await post("driver", text(DRIVER_CHAT, "/available"));
+    const after = await sql<{ is_available: boolean }[]>`
+      select is_available from driver_availability where driver_id = ${driverId}
+    `;
+    expect(after[0]?.is_available).toBe(true);
+    const log = await sql<{ is_available: boolean; source: string }[]>`
+      select is_available, source from attendance_log where driver_id = ${driverId}
+    `;
+    expect(log.length).toBe(1);
+    expect(log[0]?.is_available).toBe(true);
+    expect(log[0]?.source).toBe("driver_bot");
+  });
+
+  it("يعرض سعر مدينة السائق من platform_settings لا من قيمة مرمَّزة", async () => {
+    const driverId = await registerDriver();
+    // انتهت التجربة: عندئذٍ يُعرض السعر، ومصدره الإعدادات لا ثابت في الكود
+    await sql`update subscriptions set status = 'expired' where driver_id = ${driverId}`;
+    driverSent.length = 0;
+    await post("driver", text(DRIVER_CHAT, "/subscription"));
+
+    const price = await sql<{ v: string }[]>`
+      select get_setting_number(${cityId}::uuid, 'subscription_price_transport')::text as v
+    `;
+    const amount = Number(price[0]?.v);
+    expect(driverSent.some((m) => m.text.includes(String(amount)))).toBe(true);
+  });
+
+  it("ينشئ طلباً حقيقياً بموقع جغرافي ويبثّه على السائق المؤهل ثم يُسند بالقبول الذرّي", async () => {
+    const driverId = await registerDriver();
+    await verifyAndActivate(driverId);
+    await registerRider();
+
+    driverSent.length = 0;
+    riderSent.length = 0;
+    await post("rider", text(RIDER_CHAT, "/ride"));
+    await post("rider", location(RIDER_CHAT, PICKUP));
+    await post("rider", text(RIDER_CHAT, "/skip"));
+
+    // 1) الطلب مكتوب فعلاً بإحداثيات حقيقية
+    const orders = await sql<
+      {
+        id: string;
+        status: string;
+        lat: number;
+        lng: number;
+        broadcast_round: number;
+      }[]
+    >`
+      select id, status, st_y(pickup::geometry) as lat, st_x(pickup::geometry) as lng,
+             broadcast_round
+        from orders
+    `;
+    const order = orders[0];
+    expect(order?.status).toBe("searching");
+    expect(Number(order?.lat)).toBeCloseTo(PICKUP.latitude, 5);
+    expect(Number(order?.lng)).toBeCloseTo(PICKUP.longitude, 5);
+    expect(order?.broadcast_round).toBe(1);
+
+    // 2) العرض مكتوب في order_offers بمسافة محسوبة حقيقية ومهلة من الإعدادات
+    const offers = await sql<
+      {
+        driver_id: string;
+        status: string;
+        round: number;
+        distance_km: string;
+      }[]
+    >`
+      select driver_id, status, round, distance_km from order_offers
+    `;
+    expect(offers).toHaveLength(1);
+    expect(offers[0]?.driver_id).toBe(driverId);
+    expect(offers[0]?.status).toBe("pending");
+    expect(Number(offers[0]?.distance_km)).toBeGreaterThan(0);
+    expect(Number(offers[0]?.distance_km)).toBeLessThan(1);
+
+    // 3) السائق أُخطر فعلاً برسالة فيها زرّا قبول ورفض
+    const offerMessage = driverSent.find(
+      (m) => m.text.includes(ar("driver.offer_accept_button")) === false,
+    );
+    expect(offerMessage).toBeDefined();
+    expect(offerMessage?.chatId).toBe(String(DRIVER_CHAT));
+    expect(JSON.stringify(offerMessage?.markup)).toContain(`offer:accept:${order?.id}`);
+
+    // 4) القبول يمرّ عبر claim_ride فيصير الطلب matched والعرض accepted
+    driverSent.length = 0;
+    await post("driver", callback(DRIVER_CHAT, `offer:accept:${order?.id}`));
+    expect(driverSent.map((m) => m.text)).toEqual([ar("driver.offer_accepted")]);
+
+    const afterClaim = await sql<{ status: string; assigned_driver_id: string | null }[]>`
+      select status, assigned_driver_id from orders where id = ${order?.id ?? ""}
+    `;
+    expect(afterClaim[0]?.status).toBe("matched");
+    expect(afterClaim[0]?.assigned_driver_id).toBe(driverId);
+
+    const acceptedOffer = await sql<{ status: string }[]>`
+      select status from order_offers where order_id = ${order?.id ?? ""}
+    `;
+    expect(acceptedOffer[0]?.status).toBe("accepted");
+
+    // 5) أثرٌ مدقَّق في audit_log — لا إسناد صامت
+    const audit = await sql<{ action: string }[]>`
+      select action from audit_log where entity_id = ${order?.id ?? ""}
+    `;
+    expect(audit.map((row) => row.action)).toContain("order.claimed");
+  });
+
+  it("لا يبثّ على سائق غير متاح، ويبقى الطلب في البحث بلا عرض", async () => {
+    const driverId = await registerDriver();
+    await verifyAndActivate(driverId);
+    await post("driver", text(DRIVER_CHAT, "/unavailable"));
+    await registerRider();
+
+    await post("rider", text(RIDER_CHAT, "/ride"));
+    await post("rider", location(RIDER_CHAT, PICKUP));
+    await post("rider", text(RIDER_CHAT, "/skip"));
+
+    const offers = await sql<{ id: string }[]>`select id from order_offers`;
+    expect(offers).toHaveLength(0);
+    const orders = await sql<{ status: string }[]>`select status from orders`;
+    expect(orders[0]?.status).toBe("searching");
+  });
+
+  it("سائقان يتنافسان: الأول يظفر والثاني يُبلَّغ بأن الطلب أُخذ", async () => {
+    const firstDriver = await registerDriver();
+    await verifyAndActivate(firstDriver);
+
+    // سائق ثانٍ حقيقي في نفس المدينة، أبعد قليلاً
+    const secondChat = 100_002;
+    await post("driver", text(secondChat, "/start"));
+    await post("driver", text(secondChat, "خالد الزهراني"));
+    await post("driver", contact(secondChat, "0559876543"));
+    await post("driver", callback(secondChat, `city:${cityId}`));
+    await post("driver", callback(secondChat, "service:transport"));
+    const secondRows = await sql<{ id: string }[]>`
+      select d.id from drivers d join users u on u.id = d.user_id where u.telegram_id = ${secondChat}
+    `;
+    const secondDriver = secondRows[0]?.id ?? "";
+    await sql`update drivers set verification_status = 'verified' where id = ${secondDriver}`;
+    await post("driver", text(secondChat, "/available"));
+    await post("driver", location(secondChat, { latitude: 21.5501, longitude: 39.1801 }));
+
+    await registerRider();
+    await post("rider", text(RIDER_CHAT, "/ride"));
+    await post("rider", location(RIDER_CHAT, PICKUP));
+    await post("rider", text(RIDER_CHAT, "/skip"));
+
+    const orders = await sql<{ id: string }[]>`select id from orders`;
+    const orderId = orders[0]?.id ?? "";
+    const offers = await sql<{ driver_id: string; score: string }[]>`
+      select driver_id, score from order_offers order by score desc
+    `;
+    expect(offers).toHaveLength(2);
+    // الأقرب أعلى نقاطاً — والمعادلة من الدومين لا من القاعدة
+    expect(offers[0]?.driver_id).toBe(firstDriver);
+
+    driverSent.length = 0;
+    await post("driver", callback(DRIVER_CHAT, `offer:accept:${orderId}`));
+    await post("driver", callback(secondChat, `offer:accept:${orderId}`));
+
+    const texts = driverSent.map((m) => m.text);
+    expect(texts[0]).toBe(ar("driver.offer_accepted"));
+    expect(texts[1]).toBe(ar("driver.offer_taken"));
+
+    const finalOffers = await sql<{ driver_id: string; status: string }[]>`
+      select driver_id, status from order_offers
+    `;
+    const accepted = finalOffers.filter((row) => row.status === "accepted");
+    expect(accepted).toHaveLength(1);
+    expect(accepted[0]?.driver_id).toBe(firstDriver);
+  });
+
+  it("رفض السائق يُسجَّل فوراً فلا يُعاد عرضه عليه في الدورة التالية", async () => {
+    const driverId = await registerDriver();
+    await verifyAndActivate(driverId);
+    await registerRider();
+
+    await post("rider", text(RIDER_CHAT, "/ride"));
+    await post("rider", location(RIDER_CHAT, PICKUP));
+    await post("rider", text(RIDER_CHAT, "/skip"));
+
+    const orders = await sql<{ id: string }[]>`select id from orders`;
+    const orderId = orders[0]?.id ?? "";
+
+    driverSent.length = 0;
+    await post("driver", callback(DRIVER_CHAT, `offer:reject:${orderId}`));
+    expect(driverSent.map((m) => m.text)).toEqual([ar("driver.offer_rejected")]);
+
+    const rejected = await sql<{ status: string; responded_at: Date | null }[]>`
+      select status, responded_at from order_offers where order_id = ${orderId}
+    `;
+    expect(rejected[0]?.status).toBe("rejected");
+    expect(rejected[0]?.responded_at).not.toBeNull();
+
+    // القبول بعد الرفض مرفوض: العرض لم يعد معلَّقاً
+    driverSent.length = 0;
+    await post("driver", callback(DRIVER_CHAT, `offer:accept:${orderId}`));
+    expect(driverSent[0]?.text).not.toBe(ar("driver.offer_accepted"));
+    const stillSearching = await sql<{ status: string }[]>`
+      select status from orders where id = ${orderId}
+    `;
+    expect(stillSearching[0]?.status).toBe("searching");
+  });
+
+  it("يلغي العميل طلبه النشط فعلاً", async () => {
+    const driverId = await registerDriver();
+    await verifyAndActivate(driverId);
+    await registerRider();
+    await post("rider", text(RIDER_CHAT, "/ride"));
+    await post("rider", location(RIDER_CHAT, PICKUP));
+    await post("rider", text(RIDER_CHAT, "/skip"));
+
+    riderSent.length = 0;
+    await post("rider", text(RIDER_CHAT, "/cancel"));
+    expect(riderSent.map((m) => m.text)).toContain(ar("rider.order_cancelled"));
+
+    const orders = await sql<{ status: string; cancelled_reason: string | null }[]>`
+      select status, cancelled_reason from orders
+    `;
+    expect(orders[0]?.status).toBe("cancelled");
+    expect(orders[0]?.cancelled_reason).toBe("rider_cancelled");
+  });
+
+  it("لا يعرض مدينة غير مفعَّلة على أي مستخدم", async () => {
+    await sql`update cities set is_active = false where id = ${cityId}`;
+    driverSent.length = 0;
+    await post("driver", text(DRIVER_CHAT, "/start"));
+    await post("driver", text(DRIVER_CHAT, "أحمد العمري"));
+    await post("driver", contact(DRIVER_CHAT, "0501234567"));
+    expect(driverSent[driverSent.length - 1]?.text).toBe(ar("common.no_active_city"));
+    const drivers = await sql<{ id: string }[]>`select id from drivers`;
+    expect(drivers).toHaveLength(0);
+  });
+});

@@ -7,20 +7,20 @@
  *   وتبقى هذه المزدوجات للاختبار الوحدوي فقط.
  */
 
-import type { CityId, Clock, OrderId } from "../../packages/shared/kernel/index.ts";
-import { err, ok, type Result } from "../../packages/shared/result/index.ts";
+import {
+  type DriverCandidateRepository,
+  type OfferRepository,
+  type OrderRepository,
+  PortFailureError,
+  type SettingsRepository,
+} from "../../packages/application/ports/index.ts";
 import type { DriverCandidate } from "../../packages/domain/dispatch/entity.ts";
 import type { Offer } from "../../packages/domain/dispatch/value-objects.ts";
 import type { RawSetting, SettingKey } from "../../packages/domain/policy/entity.ts";
 import { SETTING_KEYS } from "../../packages/domain/policy/entity.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
-import {
-  PortFailureError,
-  type DriverCandidateRepository,
-  type OfferRepository,
-  type OrderRepository,
-  type SettingsRepository,
-} from "../../packages/application/ports/index.ts";
+import type { CityId, Clock, OrderId } from "../../packages/shared/kernel/index.ts";
+import { err, ok, type Result } from "../../packages/shared/result/index.ts";
 
 /** القيم المبذورة فعلياً في المخطط (20260806120200_phase_2_1_seed_cities_and_settings.sql). */
 export const SEEDED_SETTINGS: Readonly<Record<SettingKey, unknown>> = {

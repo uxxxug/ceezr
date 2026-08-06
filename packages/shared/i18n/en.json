@@ -46,5 +46,13 @@
   "rider.must_register_first": "Register first by sending /start",
   "rider.order_cancelled": "Your order was cancelled.",
   "rider.no_active_order": "No active order to cancel.",
-  "rider.outside_city": "The location you sent is outside the {city} service area."
+  "rider.outside_city": "The location you sent is outside the {city} service area.",
+  "rider.drivers_notified": "{count} driver(s) were notified about your request.",
+  "driver.offer_received": "New request {distance} km away. You have {seconds} seconds to reply.",
+  "driver.offer_accept_button": "Accept",
+  "driver.offer_reject_button": "Reject",
+  "driver.ask_location": "Send your current location to receive nearby requests.",
+  "driver.share_location_button": "Send my location",
+  "driver.location_saved": "Your location was saved. Nearby requests will reach you.",
+  "driver.location_invalid": "Invalid location. Please resend using the location button."
 }

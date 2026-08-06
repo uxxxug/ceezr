@@ -16,16 +16,11 @@ export interface DriverCapability {
 }
 
 /** هل السائق مفعِّل هذه الخدمة الآن؟ */
-export function canServe(
-  capabilities: readonly DriverCapability[],
-  service: ServiceType,
-): boolean {
+export function canServe(capabilities: readonly DriverCapability[], service: ServiceType): boolean {
   return capabilities.some((c) => c.service === service && c.isEnabled);
 }
 
 /** الخدمات المفعَّلة فعلياً — تُقارن لاحقاً بما تغطيه خطة الاشتراك. */
-export function enabledServices(
-  capabilities: readonly DriverCapability[],
-): readonly ServiceType[] {
+export function enabledServices(capabilities: readonly DriverCapability[]): readonly ServiceType[] {
   return capabilities.filter((c) => c.isEnabled).map((c) => c.service);
 }

@@ -7,14 +7,14 @@
  */
 import { describe, expect, it } from "bun:test";
 import {
-  expireOffers,
   type ExpireOffersRpcPort,
+  expireOffers,
   type PendingOfferRepository,
 } from "../../apps/workers/src/jobs/expire-offers.ts";
+import { PortFailureError } from "../../packages/application/ports/index.ts";
+import type { Offer } from "../../packages/domain/dispatch/value-objects.ts";
 import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
-import type { Offer } from "../../packages/domain/dispatch/value-objects.ts";
-import { PortFailureError } from "../../packages/application/ports/index.ts";
 import {
   failingSettingsRepo,
   fixedClock,

@@ -7,17 +7,17 @@
  * ملاحظات مستقبلية: عند تفعيل التقييم الحقيقي (2.5) تُضاف حالة تعادل نقاط بفروق تقييم دقيقة.
  */
 import { describe, expect, it } from "bun:test";
-import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
 import {
+  type DriverCandidate,
   evaluateCandidates,
+  type MatchingParameters,
+  type OrderContext,
   rejectionReasonFor,
   scoreCandidate,
   selectBroadcastBatch,
-  type DriverCandidate,
-  type MatchingParameters,
-  type OrderContext,
 } from "../../packages/domain/dispatch/entity.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
+import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
 
 const JED = "city-jed" as CityId;
 const MKK = "city-mkk" as CityId;
@@ -88,13 +88,15 @@ describe("rejectionReasonFor", () => {
   });
 
   it("يستبعد غير الموثَّق", () => {
-    expect(rejectionReasonFor(candidate({ driverId: D("d2"), isVerified: false }), ORDER, PARAMS, NOW))
-      .toBe("NOT_VERIFIED");
+    expect(
+      rejectionReasonFor(candidate({ driverId: D("d2"), isVerified: false }), ORDER, PARAMS, NOW),
+    ).toBe("NOT_VERIFIED");
   });
 
   it("يستبعد غير المتاح", () => {
-    expect(rejectionReasonFor(candidate({ driverId: D("d3"), isAvailable: false }), ORDER, PARAMS, NOW))
-      .toBe("NOT_AVAILABLE");
+    expect(
+      rejectionReasonFor(candidate({ driverId: D("d3"), isAvailable: false }), ORDER, PARAMS, NOW),
+    ).toBe("NOT_AVAILABLE");
   });
 
   it("يستبعد من لم يفعّل نوع الخدمة", () => {
@@ -106,8 +108,9 @@ describe("rejectionReasonFor", () => {
   });
 
   it("يستبعد من لا اشتراك له", () => {
-    expect(rejectionReasonFor(candidate({ driverId: D("d5"), subscription: null }), ORDER, PARAMS, NOW))
-      .toBe("NO_LIVE_SUBSCRIPTION");
+    expect(
+      rejectionReasonFor(candidate({ driverId: D("d5"), subscription: null }), ORDER, PARAMS, NOW),
+    ).toBe("NO_LIVE_SUBSCRIPTION");
   });
 
   it("يستبعد منتهي الاشتراك", () => {
@@ -130,8 +133,9 @@ describe("rejectionReasonFor", () => {
 
   it("يستبعد المستبعدين في هذه الدورة", () => {
     const order: OrderContext = { ...ORDER, excludedDriverIds: [D("d9")] };
-    expect(rejectionReasonFor(candidate({ driverId: D("d9") }), order, PARAMS, NOW))
-      .toBe("EXCLUDED_THIS_ROUND");
+    expect(rejectionReasonFor(candidate({ driverId: D("d9") }), order, PARAMS, NOW)).toBe(
+      "EXCLUDED_THIS_ROUND",
+    );
   });
 
   it("يقبل المرشح المؤهل", () => {
@@ -187,22 +191,29 @@ describe("evaluateCandidates", () => {
   it("ترتيب حتمي عند تعادل النقاط والمسافة", () => {
     const a = candidate({ driverId: D("aaa"), ratingAverage: 4 });
     const b = candidate({ driverId: D("bbb"), ratingAverage: 4 });
-    const first = evaluateCandidates([b, a], ORDER, PARAMS, NOW).eligible.map((c) => String(c.driverId));
-    const second = evaluateCandidates([a, b], ORDER, PARAMS, NOW).eligible.map((c) => String(c.driverId));
+    const first = evaluateCandidates([b, a], ORDER, PARAMS, NOW).eligible.map((c) =>
+      String(c.driverId),
+    );
+    const second = evaluateCandidates([a, b], ORDER, PARAMS, NOW).eligible.map((c) =>
+      String(c.driverId),
+    );
     expect(first).toEqual(second);
     expect(first).toEqual(["aaa", "bbb"]);
   });
 
   it("يحسب المسافة لكل مرشح مؤهل", () => {
     const result = evaluateCandidates([near], ORDER, PARAMS, NOW);
-    expect(result.eligible[0]!.distanceKm).toBeGreaterThan(4);
-    expect(result.eligible[0]!.distanceKm).toBeLessThan(5);
+    expect(result.eligible[0]?.distanceKm).toBeGreaterThan(4);
+    expect(result.eligible[0]?.distanceKm).toBeLessThan(5);
   });
 });
 
 describe("selectBroadcastBatch", () => {
   const many = Array.from({ length: 9 }, (_, i) =>
-    candidate({ driverId: D(`d${i}`), location: { latitude: 21.4858 + i * 0.002, longitude: 39.1925 } }),
+    candidate({
+      driverId: D(`d${i}`),
+      location: { latitude: 21.4858 + i * 0.002, longitude: 39.1925 },
+    }),
   );
 
   it("يبثّ لأفضل خمسة فقط بحجم الدفعة المبذور", () => {

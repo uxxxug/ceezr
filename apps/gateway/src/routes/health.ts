@@ -3,7 +3,7 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.1.
  * ينتمي إلى: apps/gateway/src/routes
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/server.ts، لوحة Render، تنبيهات المراقبة
- * ملاحظات مستقبلية: عند وصل Supabase و Redis يضاف فحص اتصال فعلي إلى /ready بلا تغيير العقد.
+ * ملاحظات مستقبلية: فحص قاعدة البيانات مركَّب فعلاً في index.ts؛ يُضاف فحص Redis بنفس الشكل.
  */
 
 import { Hono } from "hono";
@@ -30,9 +30,7 @@ export function createHealthRoutes(deps: HealthDependencies): Hono {
   app.get("/health", (c) =>
     c.json({
       status: "ok",
-      uptimeSeconds: Math.floor(
-        (deps.now().getTime() - deps.startedAt.getTime()) / MS_PER_SECOND,
-      ),
+      uptimeSeconds: Math.floor((deps.now().getTime() - deps.startedAt.getTime()) / MS_PER_SECOND),
     }),
   );
 

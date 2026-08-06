@@ -32,9 +32,6 @@
 - **الخطوة 3 (منجَزة)**: سجل `platform_settings` المُتحقَّق منه، مهلة العرض، المنافذ، وحالة الاستخدام `matchOrder`.
   130 اختباراً ناجحاً، 7 بوابات CI، و`docs/adr/0004-ports-live-in-application.md`.
   التقرير: `docs/phase-2.1-step-03-report.md`.
-- **الخطوة 4 (محجوبة)**: محوّلات `packages/infrastructure` التي تنفّذ المنافذ الخمسة، ثم `apps/gateway`.
-  تنتظر مفتاح `service_role` ورابط Upstash Redis ورموز البوتين و12 معرّف مجموعة تلغرام.
-
 - **الخطوة 4 — بوابة HTTP تعمل فعلاً (منجَزة)**: `apps/gateway` صار خادم Hono حقيقياً يُقلع ويجيب:
   `/health`، `/ready` (يسمّي المتغيرات الناقصة)، و`POST /webhook/telegram/:bot` بتحقّق سرّ بزمن ثابت.
   و`apps/workers/src/jobs/expire-offers.ts` منفَّذ ومُختبَر. الاختبارات: 166 ناجحاً.
@@ -43,4 +40,15 @@
 - **الخطوة 5 — منطق البوتين (منجَزة)**: حوار السائق والعميل مكتوب ومُختبَر بالكامل
   (`packages/application/bots/*`)، ومحوّل grammY يرسل فعلاً (`apps/gateway/src/bots/*`)،
   و48 مفتاح نصّ في ثلاث لغات، وبوابتا CI جديدتان. 220 اختباراً ناجحاً.
-  المتبقي: محوّلات Supabase — تحتاج مفتاح الخدمة. التفصيل في `docs/phase-2.1-step-05-report.md`.
+  التفصيل في `docs/phase-2.1-step-05-report.md`.
+
+- **الخطوة 6 — الوصل بقاعدة حقيقية (منجَزة)**: `packages/infrastructure` صار محوّلات منفَّذة على
+  PostgreSQL فعلاً (لا هياكل)، و`apps/gateway/src/container.ts` يوصّل 11 منفذاً بمحوّلاتها،
+  و`index.ts` بلا معالج وهمي. حالة استخدام جديدة `broadcastOffers` تكتب العروض وتُخطر السائقين.
+  9 اختبارات تكامل تعمل على قاعدة PostgreSQL+PostGIS محلية عبر HTTP webhook حتى صفوف الجداول.
+  `lint` صار Biome حقيقياً منفصلاً عن `typecheck`. 229 اختبار وحدة + 9 تكامل.
+  التفصيل في `docs/phase-2.1-step-06-report.md`.
+
+- **المتبقي لإنهاء 2.1**: مفاتيح الإنتاج (service_role/DATABASE_URL، Upstash، رمزا البوتين،
+  سرّ الويبهوك، 12 معرّف مجموعة تلغرام)، ثم دورات البثّ التالية وعامل انتهاء المهلة على Cron حقيقي،
+  ثم 20–30 رحلة مكتملة فعلاً بلا تدخّل يدوي في القاعدة.

@@ -14,6 +14,8 @@ export interface AppConfig {
   readonly env: EnvName;
   readonly port: number;
   readonly supabaseUrl: string;
+  /** رابط اتصال Postgres المباشر بقاعدة Supabase — عليه تعمل كل المحوّلات. */
+  readonly databaseUrl: string;
   readonly supabaseServiceKey: string;
   readonly redisUrl: string;
   readonly redisToken: string;
@@ -26,6 +28,7 @@ export interface AppConfig {
 export const REQUIRED_ENV_KEYS = [
   "SUPABASE_URL",
   "SUPABASE_SERVICE_ROLE_KEY",
+  "DATABASE_URL",
   "UPSTASH_REDIS_REST_URL",
   "UPSTASH_REDIS_REST_TOKEN",
   "DRIVER_BOT_TOKEN",
@@ -91,10 +94,18 @@ export function tryLoadConfig(
     return err(new InvalidEnvVarError("SUPABASE_URL", "يجب أن يبدأ بـ https://"));
   }
 
+  const databaseUrl = source.DATABASE_URL as string;
+  if (!databaseUrl.startsWith("postgres://") && !databaseUrl.startsWith("postgresql://")) {
+    return err(
+      new InvalidEnvVarError("DATABASE_URL", "يجب أن يبدأ بـ postgres:// أو postgresql://"),
+    );
+  }
+
   return ok({
     env,
     port,
     supabaseUrl,
+    databaseUrl,
     supabaseServiceKey: source.SUPABASE_SERVICE_ROLE_KEY as string,
     redisUrl: source.UPSTASH_REDIS_REST_URL as string,
     redisToken: source.UPSTASH_REDIS_REST_TOKEN as string,
@@ -108,9 +119,7 @@ export function tryLoadConfig(
  * نسخة تُوقف الإقلاع فوراً — تُستخدم في نقطة تشغيل التطبيق فقط،
  * حيث الفشل السريع مطلوب ولا يوجد مستخدم ليتلقى Result.
  */
-export function loadConfig(
-  source: Record<string, string | undefined> = process.env,
-): AppConfig {
+export function loadConfig(source: Record<string, string | undefined> = process.env): AppConfig {
   const result = tryLoadConfig(source);
   if (!result.ok) throw result.error;
   return result.value;

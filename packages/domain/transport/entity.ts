@@ -68,8 +68,10 @@ export function transition(order: Order, to: OrderStatus): Result<Order, OrderEr
     return err(new IllegalTransitionError(order.status, to));
   }
   // لا حالة تشغيلية بلا سائق مُسنَد — نفس القيد مفروض في القاعدة أيضاً
-  if ((to === "matched" || to === "in_progress" || to === "completed") &&
-      order.assignedDriverId === null) {
+  if (
+    (to === "matched" || to === "in_progress" || to === "completed") &&
+    order.assignedDriverId === null
+  ) {
     return err(new MissingAssignedDriverError(order.id));
   }
   return ok({ ...order, status: to });

@@ -7,12 +7,12 @@
  * ملاحظات مستقبلية: كل منفذ يعيد Result، ولا يرمي استثناءً لخطأ متوقَّع (القسم 2.5).
  */
 
-import type { CityId, DriverId, OrderId } from "../../shared/kernel/index.ts";
-import type { Result } from "../../shared/result/index.ts";
 import type { DriverCandidate } from "../../domain/dispatch/entity.ts";
 import type { Offer } from "../../domain/dispatch/value-objects.ts";
 import type { RawSetting } from "../../domain/policy/entity.ts";
 import type { Order } from "../../domain/transport/entity.ts";
+import type { CityId, DriverId, OrderId } from "../../shared/kernel/index.ts";
+import type { Result } from "../../shared/result/index.ts";
 
 /** خطأ منفذ: عطل تقني (شبكة/قاعدة)، لا خطأ أعمال. */
 export class PortFailureError {
@@ -42,7 +42,9 @@ export interface DriverCandidateRepository {
    * السائقون المرشَّحون مبدئياً في المدينة: متاحون وموثَّقون ومواقعهم حديثة.
    * الفلترة النهائية والترتيب مسؤولية الدومين لا المستودع.
    */
-  findAvailableInCity(cityId: CityId): Promise<Result<readonly DriverCandidate[], PortFailureError>>;
+  findAvailableInCity(
+    cityId: CityId,
+  ): Promise<Result<readonly DriverCandidate[], PortFailureError>>;
 }
 
 /** إسناد العرض ذرّياً — يقابل الدالة claim_ride في القاعدة. */
@@ -50,5 +52,7 @@ export interface DispatchRpcPort {
   claimRide(
     orderId: OrderId,
     driverId: DriverId,
-  ): Promise<Result<{ readonly claimed: boolean; readonly reason: string | null }, PortFailureError>>;
+  ): Promise<
+    Result<{ readonly claimed: boolean; readonly reason: string | null }, PortFailureError>
+  >;
 }

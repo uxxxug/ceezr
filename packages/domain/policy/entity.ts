@@ -65,7 +65,7 @@ export type SettingKey = keyof typeof SETTING_SPECS;
 export const SETTING_KEYS = Object.keys(SETTING_SPECS) as readonly SettingKey[];
 
 export function isSettingKey(key: string): key is SettingKey {
-  return Object.prototype.hasOwnProperty.call(SETTING_SPECS, key);
+  return Object.hasOwn(SETTING_SPECS, key);
 }
 
 export class MissingSettingError {
@@ -148,7 +148,9 @@ function validateOne(
     return err(new InvalidSettingError(cityId, key, "يجب أن تكون مصفوفة نصوص غير فارغة"));
   }
   if (raw.length < spec.minLength) {
-    return err(new InvalidSettingError(cityId, key, `يجب أن تحتوي ${spec.minLength} عنصراً على الأقل`));
+    return err(
+      new InvalidSettingError(cityId, key, `يجب أن تحتوي ${spec.minLength} عنصراً على الأقل`),
+    );
   }
   return ok(raw as readonly string[]);
 }
@@ -215,10 +217,7 @@ export function toMatchingParameters(settings: CitySettings): MatchingParameters
 }
 
 /** سعر خطة الاشتراك حسب الخدمات المطلوبة — لا رقم مرمَّز، القيم كلها من اللقطة. */
-export function subscriptionPriceFor(
-  settings: CitySettings,
-  plan: ServiceType | "both",
-): number {
+export function subscriptionPriceFor(settings: CitySettings, plan: ServiceType | "both"): number {
   if (plan === "both") return settings.subscriptionPriceBoth;
   if (plan === "transport") return settings.subscriptionPriceTransport;
   return settings.subscriptionPriceDelivery;

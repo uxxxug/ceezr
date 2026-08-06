@@ -6,16 +6,7 @@
  * ملاحظات مستقبلية: تُستبدل بمحوّلات Supabase الحقيقية في اختبارات التكامل عند وصول المفتاح.
  */
 
-import type {
-  CityId,
-  DriverId,
-  OrderId,
-  RiderId,
-  ServiceType,
-} from "../../packages/shared/kernel/index.ts";
-import { err, ok, type Result } from "../../packages/shared/result/index.ts";
-import type { Subscription } from "../../packages/domain/subscription/entity.ts";
-import { PortFailureError } from "../../packages/application/ports/index.ts";
+import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
 import type {
   CityDirectory,
   CityRef,
@@ -28,7 +19,23 @@ import type {
   SubscriptionReader,
   TrialRpcPort,
 } from "../../packages/application/bots/types.ts";
-import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
+import type {
+  DriverNotifier,
+  OfferNotification,
+  OfferWriter,
+  OpenRoundInput,
+} from "../../packages/application/dispatch/broadcast-offers.ts";
+import { PortFailureError } from "../../packages/application/ports/index.ts";
+import type { Coordinates } from "../../packages/domain/geo/value-objects.ts";
+import type { Subscription } from "../../packages/domain/subscription/entity.ts";
+import type {
+  CityId,
+  DriverId,
+  OrderId,
+  RiderId,
+  ServiceType,
+} from "../../packages/shared/kernel/index.ts";
+import { err, ok, type Result } from "../../packages/shared/result/index.ts";
 
 export const JEDDAH: CityRef = {
   id: "11111111-1111-1111-1111-111111111111" as CityId,
@@ -59,16 +66,19 @@ export interface DriverDirectoryDouble extends DriverDirectory {
     service: ServiceType;
   }[];
   readonly availabilityCalls: { driverId: DriverId; isAvailable: boolean }[];
+  readonly locationCalls: { driverId: DriverId; location: Coordinates }[];
 }
 
 export function driverDirectory(existing: DriverProfile | null = null): DriverDirectoryDouble {
   const registrations: DriverDirectoryDouble["registrations"] = [];
   const availabilityCalls: DriverDirectoryDouble["availabilityCalls"] = [];
+  const locationCalls: DriverDirectoryDouble["locationCalls"] = [];
   let current = existing;
 
   return {
     registrations,
     availabilityCalls,
+    locationCalls,
     findByTelegramId: async () => ok(current),
     register: async (input) => {
       registrations.push({
@@ -86,8 +96,13 @@ export function driverDirectory(existing: DriverProfile | null = null): DriverDi
         phone: input.phone,
         isVerified: false,
         isAvailable: false,
+        hasLocation: false,
       };
       return ok(current);
+    },
+    updateLocation: async (driverId, location) => {
+      locationCalls.push({ driverId, location });
+      return ok(undefined);
     },
     setAvailability: async (driverId, isAvailable) => {
       availabilityCalls.push({ driverId, isAvailable });
@@ -105,6 +120,7 @@ export function verifiedDriver(overrides: Partial<DriverProfile> = {}): DriverPr
     phone: "+966501234567",
     isVerified: true,
     isAvailable: false,
+    hasLocation: true,
     ...overrides,
   };
 }
@@ -215,3 +231,35 @@ export function failingSender(detail: string): TelegramSender {
 }
 
 export type { Result };
+
+/** كاتب عروض في الذاكرة — يسجّل كل دورة بثّ كما تُكتب في order_offers. */
+export interface OfferWriterDouble extends OfferWriter {
+  readonly rounds: OpenRoundInput[];
+}
+
+export function offerWriterDouble(): OfferWriterDouble {
+  const rounds: OpenRoundInput[] = [];
+  return {
+    rounds,
+    openRound: async (input) => {
+      rounds.push(input);
+      return ok(undefined);
+    },
+  };
+}
+
+/** مُخطِر سائقين في الذاكرة؛ unreachable تُحاكي سائقاً حجب البوت. */
+export interface NotifierDouble extends DriverNotifier {
+  readonly sent: OfferNotification[];
+}
+
+export function notifierDouble(unreachable: readonly string[] = []): NotifierDouble {
+  const sent: OfferNotification[] = [];
+  return {
+    sent,
+    notifyOffer: async (notification) => {
+      sent.push(notification);
+      return ok(!unreachable.includes(notification.driverId));
+    },
+  };
+}

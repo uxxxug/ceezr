@@ -12,9 +12,9 @@ import {
   type RiderBotDependencies,
 } from "../../../../../packages/application/bots/rider-dialog.ts";
 import type { BotReply } from "../../../../../packages/application/bots/types.ts";
-import { toTelegramMarkup } from "../shared/keyboards.ts";
-import { toIncomingUpdate, type RawTelegramUpdate } from "../shared/telegram-mapper.ts";
 import type { TelegramSender } from "../driver/index.ts";
+import { toTelegramMarkup } from "../shared/keyboards.ts";
+import { type RawTelegramUpdate, toIncomingUpdate } from "../shared/telegram-mapper.ts";
 
 export interface RiderBotAdapter {
   handleUpdate(raw: RawTelegramUpdate): Promise<boolean>;

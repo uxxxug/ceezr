@@ -6,28 +6,28 @@
  * ملاحظات مستقبلية: عند وصل الحوار بمجموعات تلغرام يُضاف اختبار لبثّ بطاقة الطلب.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
+import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
 import {
-  handleDriverUpdate,
   type DriverBotDependencies,
+  handleDriverUpdate,
 } from "../../packages/application/bots/driver-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
-import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
-import type { DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
-import { ok } from "../../packages/shared/result/index.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
-import { fixedClock, seededRows, settingsRepo } from "../support/in-memory-ports.ts";
+import type { DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
+import { ok } from "../../packages/shared/result/index.ts";
 import {
+  cityDirectory,
+  type DriverDirectoryDouble,
+  driverDirectory,
   JEDDAH,
   MAKKAH,
-  cityDirectory,
-  driverDirectory,
   offerDecisionPort,
   subscriptionReader,
   trialPort,
   verifiedDriver,
-  type DriverDirectoryDouble,
 } from "../support/bot-doubles.ts";
+import { fixedClock, seededRows, settingsRepo } from "../support/in-memory-ports.ts";
 
 const NOW = new Date("2026-08-06T12:00:00.000Z");
 const SENDER: Sender = { telegramUserId: "900", chatId: "900", languageHint: "ar" };
@@ -100,9 +100,7 @@ describe("تسجيل السائق — المسار الكامل", () => {
     expect(city[0]?.text).toBe(ar("driver.ask_service"));
 
     const service = await handleDriverUpdate(callback("service:transport"), deps);
-    expect(service[0]?.text).toBe(
-      ar("driver.registered", { name: "أحمد العمري", city: "جدة" }),
-    );
+    expect(service[0]?.text).toBe(ar("driver.registered", { name: "أحمد العمري", city: "جدة" }));
     // مدة التجربة تأتي من platform_settings لا من ثابت في الكود
     expect(service[1]?.text).toBe(ar("driver.trial_started", { days: 30 }));
 
@@ -151,7 +149,10 @@ describe("تسجيل السائق — المسار الكامل", () => {
     await handleDriverUpdate(text("/start"), deps);
     await handleDriverUpdate(text("أحمد العمري"), deps);
     await handleDriverUpdate(text("0501234567"), deps);
-    const forged = await handleDriverUpdate(callback("city:99999999-9999-9999-9999-999999999999"), deps);
+    const forged = await handleDriverUpdate(
+      callback("city:99999999-9999-9999-9999-999999999999"),
+      deps,
+    );
     expect(forged[0]?.text).toBe(ar("common.no_active_city"));
     expect(drivers.registrations).toHaveLength(0);
   });
@@ -198,7 +199,9 @@ describe("التوافر", () => {
       ar("driver.now_available"),
       ar("driver.no_live_subscription"),
     ]);
-    expect(verified.availabilityCalls).toEqual([{ driverId: "driver-1" as DriverId, isAvailable: true }]);
+    expect(verified.availabilityCalls).toEqual([
+      { driverId: "driver-1" as DriverId, isAvailable: true },
+    ]);
   });
 
   it("لا ينبّه إلى الاشتراك إن كان سارياً", async () => {
@@ -211,7 +214,10 @@ describe("التوافر", () => {
     } as Subscription;
     const replies = await handleDriverUpdate(
       text("/available"),
-      build({ drivers: driverDirectory(verifiedDriver()), subscriptions: subscriptionReader(live) }),
+      build({
+        drivers: driverDirectory(verifiedDriver()),
+        subscriptions: subscriptionReader(live),
+      }),
     );
     expect(replies.map((r) => r.text)).toEqual([ar("driver.now_available")]);
   });
@@ -220,7 +226,9 @@ describe("التوافر", () => {
     const unverified = driverDirectory(verifiedDriver({ isVerified: false }));
     const replies = await handleDriverUpdate(text("/unavailable"), build({ drivers: unverified }));
     expect(replies[0]?.text).toBe(ar("driver.now_unavailable"));
-    expect(unverified.availabilityCalls).toEqual([{ driverId: "driver-1" as DriverId, isAvailable: false }]);
+    expect(unverified.availabilityCalls).toEqual([
+      { driverId: "driver-1" as DriverId, isAvailable: false },
+    ]);
   });
 
   it("يطلب التسجيل من غير المسجَّل", async () => {
@@ -261,7 +269,10 @@ describe("الاشتراك", () => {
     } as Subscription;
     const replies = await handleDriverUpdate(
       text("/subscription"),
-      build({ drivers: driverDirectory(verifiedDriver()), subscriptions: subscriptionReader(live) }),
+      build({
+        drivers: driverDirectory(verifiedDriver()),
+        subscriptions: subscriptionReader(live),
+      }),
     );
     expect(replies[0]?.text).toBe(
       ar("driver.subscription_live", { plan: "both", until: "2026-09-01" }),
@@ -307,7 +318,9 @@ describe("قبول ورفض العرض", () => {
       callback("offer:reject:order-77"),
       build({ drivers: driverDirectory(verifiedDriver()), offers }),
     );
-    expect(offers.rejections).toEqual([{ orderId: "order-77" as OrderId, driverId: "driver-1" as DriverId }]);
+    expect(offers.rejections).toEqual([
+      { orderId: "order-77" as OrderId, driverId: "driver-1" as DriverId },
+    ]);
     expect(replies[0]?.text).toBe(ar("driver.offer_rejected"));
   });
 
@@ -363,11 +376,45 @@ describe("متانة الحوار", () => {
     expect(replies[0]?.text).toBe(translate("en", "driver.help"));
   });
 
-  it("لا يعالج موقعاً في بوت السائق كأمر", async () => {
+  it("يحفظ موقع السائق المسجَّل فعلاً", async () => {
+    const drivers = driverDirectory(verifiedDriver({ hasLocation: false }));
     const replies = await handleDriverUpdate(
       { kind: "location", from: SENDER, location: { latitude: 21.4, longitude: 39.2 } },
-      deps,
+      build({ drivers }),
     );
-    expect(replies[0]?.text).toBe(ar("common.unknown_command"));
+    expect(replies[0]?.text).toBe(ar("driver.location_saved"));
+    expect(drivers.locationCalls).toEqual([
+      { driverId: "driver-1" as DriverId, location: { latitude: 21.4, longitude: 39.2 } },
+    ]);
+  });
+
+  it("لا يحفظ موقعاً لغير مسجَّل", async () => {
+    const drivers = driverDirectory(null);
+    const replies = await handleDriverUpdate(
+      { kind: "location", from: SENDER, location: { latitude: 21.4, longitude: 39.2 } },
+      build({ drivers }),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.must_register_first"));
+    expect(drivers.locationCalls).toHaveLength(0);
+  });
+
+  it("يرفض إحداثيات مستحيلة ولا يكتبها", async () => {
+    const drivers = driverDirectory(verifiedDriver());
+    const replies = await handleDriverUpdate(
+      { kind: "location", from: SENDER, location: { latitude: 999, longitude: 39.2 } },
+      build({ drivers }),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.location_invalid"));
+    expect(drivers.locationCalls).toHaveLength(0);
+  });
+
+  it("يطلب الموقع عند /available من سائق بلا موقع", async () => {
+    const drivers = driverDirectory(verifiedDriver({ hasLocation: false }));
+    const replies = await handleDriverUpdate(text("/available"), build({ drivers }));
+    expect(replies.map((r) => r.text)).toContain(ar("driver.ask_location"));
+    expect(replies[1]?.keyboard).toEqual({
+      kind: "request_location",
+      label: ar("driver.share_location_button"),
+    });
   });
 });

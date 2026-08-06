@@ -6,17 +6,17 @@
  * ملاحظات مستقبلية: التسعير المسبق يُضاف في 2.2 بقراءة تعرفة المدينة من platform_settings.
  */
 
-import type { Clock, OrderId } from "../../shared/kernel/index.ts";
-import { t } from "../../shared/i18n/index.ts";
-import { parseFullName } from "../../domain/identity/value-objects.ts";
 import { makeCoordinates } from "../../domain/geo/value-objects.ts";
-import { matchOrder, type MatchOrderDependencies } from "../dispatch/match-order.ts";
+import { parseFullName } from "../../domain/identity/value-objects.ts";
+import { t } from "../../shared/i18n/index.ts";
+import type { Clock, OrderId } from "../../shared/kernel/index.ts";
+import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
-  INITIAL_STATE,
   type BotReply,
   type CityDirectory,
   type CityRef,
   type DialogState,
+  INITIAL_STATE,
   type IncomingUpdate,
   type Keyboard,
   type OrderWriter,
@@ -33,8 +33,8 @@ export interface RiderBotDependencies {
   readonly orders: OrderWriter;
   /** آخر طلب نشط للعميل — لمعرفة ما يُلغى عند /cancel. */
   readonly activeOrderOf: (riderId: RiderProfile["id"]) => Promise<OrderId | null>;
-  /** تبعيات المطابقة نفسها المستخدمة في matchOrder — لا تكرار للمنطق. */
-  readonly matching: MatchOrderDependencies;
+  /** تبعيات المطابقة والبثّ نفسها المستخدمة في broadcastOffers — لا تكرار للمنطق. */
+  readonly matching: BroadcastDependencies;
   readonly clock: Clock;
 }
 
@@ -292,11 +292,14 @@ async function createOrderAndMatch(
 
   const replies: BotReply[] = [reply(sender, tr("rider.searching"), { kind: "remove" })];
 
-  // البثّ يبدأ فوراً: قرار المطابقة نفسه المُختبَر في matchOrder، بلا نسخة ثانية من المنطق
-  const matched = await matchOrder({ orderId: created.value }, deps.matching);
-  if (!matched.ok && matched.error.code === "NO_ELIGIBLE_DRIVER") {
-    // لا سائق الآن: الطلب يبقى في حالة البحث وتتولّى دورات البثّ التالية أمره
-    return replies;
-  }
-  return replies;
+  // البثّ الحقيقي يبدأ فوراً: تُكتب العروض في order_offers ويُخطَر السائقون.
+  // لا سائق الآن؟ الطلب يبقى في حالة البحث وتتولّاه دورات البثّ التالية — والعميل يُخبَر بصدق.
+  const broadcast = await broadcastOffers({ orderId: created.value }, deps.matching);
+  if (!broadcast.ok) return replies;
+  if (broadcast.value.notified.length === 0) return replies;
+
+  return [
+    ...replies,
+    reply(sender, tr("rider.drivers_notified", { count: broadcast.value.notified.length })),
+  ];
 }

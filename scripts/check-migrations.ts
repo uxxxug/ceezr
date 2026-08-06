@@ -20,27 +20,29 @@ interface Violation {
 function findTableBlocks(sql: string): { name: string; body: string }[] {
   const blocks: { name: string; body: string }[] = [];
   const pattern = /create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)\s*\(/gi;
-  let match: RegExpExecArray | null;
-
-  while ((match = pattern.exec(sql)) !== null) {
+  for (const match of sql.matchAll(pattern)) {
     const name = match[1];
     if (name === undefined) continue;
 
+    // بداية جسم الجدول: مباشرة بعد القوس المفتوح الذي التقطه النمط
+    const bodyStart = match.index + match[0].length;
     let depth = 1;
-    let i = pattern.lastIndex;
+    let i = bodyStart;
     while (i < sql.length && depth > 0) {
       const ch = sql[i];
       if (ch === "(") depth += 1;
       else if (ch === ")") depth -= 1;
       i += 1;
     }
-    blocks.push({ name, body: sql.slice(pattern.lastIndex, i - 1) });
+    blocks.push({ name, body: sql.slice(bodyStart, i - 1) });
   }
   return blocks;
 }
 
 function main(): void {
-  const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort();
+  const files = readdirSync(MIGRATIONS_DIR)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
   const violations: Violation[] = [];
   const allTables: string[] = [];
   let combined = "";
@@ -67,8 +69,9 @@ function main(): void {
 
   for (const table of allTables) {
     const rlsEnabled =
-      new RegExp(`alter\\s+table\\s+${table}\\s+enable\\s+row\\s+level\\s+security`, "i").test(combined) ||
-      /foreach\s+t\s+in\s+array/i.test(combined);
+      new RegExp(`alter\\s+table\\s+${table}\\s+enable\\s+row\\s+level\\s+security`, "i").test(
+        combined,
+      ) || /foreach\s+t\s+in\s+array/i.test(combined);
     if (!rlsEnabled) {
       violations.push({ file: "—", table, problem: "RLS غير مفعّلة" });
     }

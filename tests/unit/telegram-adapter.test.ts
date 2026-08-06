@@ -7,16 +7,30 @@
  */
 import { describe, expect, it } from "bun:test";
 import { createDriverBot } from "../../apps/gateway/src/bots/driver/index.ts";
-import { createUpdateHandler } from "../../apps/gateway/src/container.ts";
-import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
 import {
   isCallbackDataValid,
   toTelegramMarkup,
 } from "../../apps/gateway/src/bots/shared/keyboards.ts";
+import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
 import { toIncomingUpdate } from "../../apps/gateway/src/bots/shared/telegram-mapper.ts";
+import { createUpdateHandler } from "../../apps/gateway/src/container.ts";
 import type { DriverBotDependencies } from "../../packages/application/bots/driver-dialog.ts";
-import { ok } from "../../packages/shared/result/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
+import { ok } from "../../packages/shared/result/index.ts";
+import {
+  capturingSender,
+  cityDirectory,
+  driverDirectory,
+  failingSender,
+  JEDDAH,
+  notifierDouble,
+  offerDecisionPort,
+  offerWriterDouble,
+  orderWriter,
+  riderDirectory,
+  subscriptionReader,
+  trialPort,
+} from "../support/bot-doubles.ts";
 import {
   candidateRepo,
   fixedClock,
@@ -25,18 +39,6 @@ import {
   seededRows,
   settingsRepo,
 } from "../support/in-memory-ports.ts";
-import {
-  JEDDAH,
-  capturingSender,
-  cityDirectory,
-  driverDirectory,
-  failingSender,
-  offerDecisionPort,
-  orderWriter,
-  riderDirectory,
-  subscriptionReader,
-  trialPort,
-} from "../support/bot-doubles.ts";
 
 const NOW = new Date("2026-08-06T12:00:00.000Z");
 
@@ -93,7 +95,9 @@ describe("toIncomingUpdate", () => {
   it("يعيد null لما لا يخصّنا بلا خطأ", () => {
     expect(toIncomingUpdate({})).toBeNull();
     expect(toIncomingUpdate({ message: { text: "بلا مُرسِل" } })).toBeNull();
-    expect(toIncomingUpdate({ callback_query: { from: { id: 1 }, message: { chat: { id: 1 } } } })).toBeNull();
+    expect(
+      toIncomingUpdate({ callback_query: { from: { id: 1 }, message: { chat: { id: 1 } } } }),
+    ).toBeNull();
   });
 
   it("رسالة بلا نص ولا موقع تُصنَّف غير مدعومة لا مهمَلة", () => {
@@ -152,7 +156,9 @@ describe("محوّل بوت السائق", () => {
     const shared = deps();
     const bot = createDriverBot(shared, sender);
     await bot.handleUpdate({ message: { chat: { id: 900 }, from: { id: 900 }, text: "/start" } });
-    await bot.handleUpdate({ message: { chat: { id: 900 }, from: { id: 900 }, text: "أحمد العمري" } });
+    await bot.handleUpdate({
+      message: { chat: { id: 900 }, from: { id: 900 }, text: "أحمد العمري" },
+    });
     const last = sender.sent[sender.sent.length - 1];
     expect(last?.markup).toMatchObject({
       keyboard: [[{ request_contact: true }]],
@@ -177,14 +183,20 @@ describe("محوّل بوت السائق", () => {
   it("يسجّل ويفشل بلا إرسال إن تجاوزت بيانات زرّ حدّ تلغرام", async () => {
     const sender = capturingSender();
     const logs: string[] = [];
-    const longCity = { id: ("c".repeat(90) as unknown) as typeof JEDDAH.id, code: "LNG", name: "مدينة" };
+    const longCity = {
+      id: "c".repeat(90) as unknown as typeof JEDDAH.id,
+      code: "LNG",
+      name: "مدينة",
+    };
     const bot = createDriverBot(
       { ...deps(), cities: cityDirectory([longCity]) },
       sender,
       (message) => logs.push(message),
     );
     await bot.handleUpdate({ message: { chat: { id: 900 }, from: { id: 900 }, text: "/start" } });
-    await bot.handleUpdate({ message: { chat: { id: 900 }, from: { id: 900 }, text: "أحمد العمري" } });
+    await bot.handleUpdate({
+      message: { chat: { id: 900 }, from: { id: 900 }, text: "أحمد العمري" },
+    });
     const handled = await bot.handleUpdate({
       message: { chat: { id: 900 }, from: { id: 900 }, contact: { phone_number: "0501234567" } },
     });
@@ -250,6 +262,8 @@ describe("تركيب التبعيات (container)", () => {
             offers: offerRepo([]),
             candidates: candidateRepo([]),
             settings: settingsRepo(seededRows(JEDDAH.id)),
+            offerWriter: offerWriterDouble(),
+            notifier: notifierDouble(),
             clock: fixedClock(NOW),
           },
           clock: fixedClock(NOW),
@@ -281,6 +295,8 @@ describe("تركيب التبعيات (container)", () => {
             offers: offerRepo([]),
             candidates: candidateRepo([]),
             settings: settingsRepo(seededRows(JEDDAH.id)),
+            offerWriter: offerWriterDouble(),
+            notifier: notifierDouble(),
             clock: fixedClock(NOW),
           },
           clock: fixedClock(NOW),

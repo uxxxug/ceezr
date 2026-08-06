@@ -6,16 +6,17 @@
  * ملاحظات مستقبلية: عند وصول مفاتيح Supabase يُضاف نظير تكاملي في tests/integration يستدعي القاعدة الحقيقية.
  */
 import { describe, expect, it } from "bun:test";
-import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
-import { isErr, isOk } from "../../packages/shared/result/index.ts";
+import {
+  type MatchOrderDependencies,
+  matchOrder,
+} from "../../packages/application/dispatch/match-order.ts";
 import type { DriverCandidate } from "../../packages/domain/dispatch/entity.ts";
 import type { Offer } from "../../packages/domain/dispatch/value-objects.ts";
+import type { SettingKey } from "../../packages/domain/policy/entity.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
-import {
-  matchOrder,
-  type MatchOrderDependencies,
-} from "../../packages/application/dispatch/match-order.ts";
+import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
+import { isErr, isOk } from "../../packages/shared/result/index.ts";
 import {
   candidateRepo,
   failingOrderRepo,
@@ -26,7 +27,6 @@ import {
   seededRows,
   settingsRepo,
 } from "../support/in-memory-ports.ts";
-import type { SettingKey } from "../../packages/domain/policy/entity.ts";
 
 const JED = "city-jed" as CityId;
 const MKK = "city-mkk" as CityId;

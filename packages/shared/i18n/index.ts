@@ -21,7 +21,7 @@ const dictionaries: Record<string, Dictionary> = {
 export const DEFAULT_LANGUAGE = "ar";
 
 export function hasLanguage(lang: string): boolean {
-  return Object.prototype.hasOwnProperty.call(dictionaries, lang);
+  return Object.hasOwn(dictionaries, lang);
 }
 
 export function translate(
@@ -29,10 +29,11 @@ export function translate(
   key: string,
   params: Record<string, string | number> = {},
 ): string {
-  const dict = dictionaries[lang] ?? dictionaries[DEFAULT_LANGUAGE]!;
-  const template = dict[key] ?? dictionaries[DEFAULT_LANGUAGE]![key] ?? key;
+  const fallback: Dictionary = dictionaries[DEFAULT_LANGUAGE] ?? {};
+  const dict = dictionaries[lang] ?? fallback;
+  const template = dict[key] ?? fallback[key] ?? key;
   return template.replace(/\{(\w+)\}/g, (match, name: string) =>
-    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : match,
+    Object.hasOwn(params, name) ? String(params[name]) : match,
   );
 }
 

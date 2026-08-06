@@ -6,18 +6,18 @@
  * ملاحظات مستقبلية: يقابل هذين الاختبارين قيدان في القاعدة، فالحماية مزدوجة.
  */
 import { describe, expect, it } from "bun:test";
-import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
+import {
+  canServe,
+  type DriverCapability,
+  enabledServices,
+} from "../../packages/domain/capability/entity.ts";
 import {
   coversService,
   isSubscriptionLive,
-  servicesCoveredByPlan,
   type Subscription,
+  servicesCoveredByPlan,
 } from "../../packages/domain/subscription/entity.ts";
-import {
-  canServe,
-  enabledServices,
-  type DriverCapability,
-} from "../../packages/domain/capability/entity.ts";
+import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
 
 const CITY = "city-jed" as CityId;
 const DRIVER = "driver-1" as DriverId;
@@ -52,19 +52,27 @@ describe("isSubscriptionLive", () => {
   });
 
   it("الشهر المجاني المنتهي = غير فعّال", () => {
-    expect(isSubscriptionLive(sub({ status: "trialing", trialEndsAt: YESTERDAY }), NOW)).toBe(false);
+    expect(isSubscriptionLive(sub({ status: "trialing", trialEndsAt: YESTERDAY }), NOW)).toBe(
+      false,
+    );
   });
 
   it("المدفوع الساري = فعّال", () => {
-    expect(isSubscriptionLive(sub({ status: "active", currentPeriodEnd: TOMORROW }), NOW)).toBe(true);
+    expect(isSubscriptionLive(sub({ status: "active", currentPeriodEnd: TOMORROW }), NOW)).toBe(
+      true,
+    );
   });
 
   it("المدفوع المنتهي زمنياً = غير فعّال", () => {
-    expect(isSubscriptionLive(sub({ status: "active", currentPeriodEnd: YESTERDAY }), NOW)).toBe(false);
+    expect(isSubscriptionLive(sub({ status: "active", currentPeriodEnd: YESTERDAY }), NOW)).toBe(
+      false,
+    );
   });
 
   it("الملغى غير فعّال حتى لو تاريخه في المستقبل", () => {
-    expect(isSubscriptionLive(sub({ status: "cancelled", currentPeriodEnd: TOMORROW }), NOW)).toBe(false);
+    expect(isSubscriptionLive(sub({ status: "cancelled", currentPeriodEnd: TOMORROW }), NOW)).toBe(
+      false,
+    );
   });
 
   it("حالة trialing بلا تاريخ انتهاء = غير فعّال", () => {
@@ -80,7 +88,9 @@ describe("coversService", () => {
     expect(coversService(sub({ plan: "both" }), "delivery", NOW)).toBe(true);
   });
   it("خطة both منتهية لا تغطي شيئاً", () => {
-    expect(coversService(sub({ plan: "both", currentPeriodEnd: YESTERDAY }), "transport", NOW)).toBe(false);
+    expect(
+      coversService(sub({ plan: "both", currentPeriodEnd: YESTERDAY }), "transport", NOW),
+    ).toBe(false);
   });
 });
 

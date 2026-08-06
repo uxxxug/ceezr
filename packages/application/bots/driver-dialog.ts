@@ -7,27 +7,25 @@
  * ملاحظات مستقبلية: كل قيمة تجارية (السعر، مدة التجربة) تُقرأ من platform_settings عبر منفذ الإعدادات.
  */
 
-import type { Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
-import { t } from "../../shared/i18n/index.ts";
+import { type Coordinates, makeCoordinates } from "../../domain/geo/value-objects.ts";
 import { parseFullName, parsePhone } from "../../domain/identity/value-objects.ts";
 import {
-  isSubscriptionLive,
-  type SubscriptionPlan,
-} from "../../domain/subscription/entity.ts";
-import {
+  type CitySettings,
   parseCitySettings,
   subscriptionPriceFor,
-  type CitySettings,
 } from "../../domain/policy/entity.ts";
+import { isSubscriptionLive, type SubscriptionPlan } from "../../domain/subscription/entity.ts";
+import { t } from "../../shared/i18n/index.ts";
+import type { Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
-  INITIAL_STATE,
   type BotReply,
   type CityDirectory,
   type CityRef,
   type DialogState,
   type DriverDirectory,
   type DriverProfile,
+  INITIAL_STATE,
   type IncomingUpdate,
   type Keyboard,
   type OfferDecisionPort,
@@ -65,10 +63,7 @@ function languageOf(state: DialogState): string {
   return state.language;
 }
 
-async function loadState(
-  deps: DriverBotDependencies,
-  sender: Sender,
-): Promise<DialogState> {
+async function loadState(deps: DriverBotDependencies, sender: Sender): Promise<DialogState> {
   const stored = await deps.sessions.load(sender.telegramUserId);
   if (stored.ok && stored.value !== null) return stored.value;
   return { ...INITIAL_STATE, language: sender.languageHint === "en" ? "en" : "ar" };
@@ -99,7 +94,8 @@ export async function handleDriverUpdate(
 
   if (update.kind === "callback") return handleCallback(update.data, sender, state, deps);
   if (update.kind === "contact") return handlePhone(update.phone, sender, state, deps);
-  if (update.kind === "location" || update.kind === "unsupported") {
+  if (update.kind === "location") return handleLocation(update.location, sender, state, deps);
+  if (update.kind === "unsupported") {
     return [reply(sender, t(languageOf(state))("common.unknown_command"))];
   }
 
@@ -165,6 +161,15 @@ async function handleCommand(
       const replies: BotReply[] = [
         reply(sender, tr(goingAvailable ? "driver.now_available" : "driver.now_unavailable")),
       ];
+
+      if (goingAvailable && !driver.hasLocation) {
+        replies.push(
+          reply(sender, tr("driver.ask_location"), {
+            kind: "request_location",
+            label: tr("driver.share_location_button"),
+          }),
+        );
+      }
 
       if (goingAvailable) {
         const live = await liveSubscription(deps, driver.id);
@@ -390,11 +395,9 @@ async function handleServiceSelected(
     : "";
 
   const replies: BotReply[] = [
-    reply(
-      sender,
-      tr("driver.registered", { name: registered.value.fullName, city: cityName }),
-      { kind: "remove" },
-    ),
+    reply(sender, tr("driver.registered", { name: registered.value.fullName, city: cityName }), {
+      kind: "remove",
+    }),
   ];
 
   const trialResult = await deps.trial.startTrial(registered.value.id, serviceRaw);
@@ -404,7 +407,9 @@ async function handleServiceSelected(
       replies.push(reply(sender, tr("driver.trial_started", { days: settings.trialDays })));
     }
   } else if (trialResult.ok && trialResult.value.reason !== null) {
-    replies.push(reply(sender, tr("driver.trial_not_started", { reason: trialResult.value.reason })));
+    replies.push(
+      reply(sender, tr("driver.trial_not_started", { reason: trialResult.value.reason })),
+    );
   }
 
   return replies;
@@ -442,6 +447,31 @@ async function handleOfferDecision(
 
   if (claim.value.claimed) return [reply(sender, tr("driver.offer_accepted"))];
 
-  const key = claim.value.reason === "offer_expired" ? "driver.offer_expired" : "driver.offer_taken";
+  const key =
+    claim.value.reason === "offer_expired" ? "driver.offer_expired" : "driver.offer_taken";
   return [reply(sender, tr(key))];
+}
+
+/**
+ * موقع السائق يُحفظ فوراً: بلا موقع لا مطابقة، ومع موقع قديم تكون المطابقة كاذبة.
+ * السائق غير المسجَّل لا يُحفظ له موقع إطلاقاً.
+ */
+async function handleLocation(
+  location: Coordinates,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const existing = await deps.drivers.findByTelegramId(sender.telegramUserId);
+  if (!existing.ok) return technicalFailure(sender, state);
+  const driver = existing.value;
+  if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+
+  const coordinates = makeCoordinates(location.latitude, location.longitude);
+  if (!coordinates.ok) return [reply(sender, tr("driver.location_invalid"))];
+
+  const saved = await deps.drivers.updateLocation(driver.id, coordinates.value);
+  if (!saved.ok) return technicalFailure(sender, state);
+  return [reply(sender, tr("driver.location_saved"), { kind: "remove" })];
 }

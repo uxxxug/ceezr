@@ -6,15 +6,15 @@
  * ملاحظات مستقبلية: القيم المرجعية هنا مأخوذة من ملف البذر نفسه، فأي تغيير في البذر يُكشف هنا.
  */
 import { describe, expect, it } from "bun:test";
-import type { CityId } from "../../packages/shared/kernel/index.ts";
-import { isErr, isOk } from "../../packages/shared/result/index.ts";
 import {
-  SETTING_KEYS,
   isSettingKey,
   parseCitySettings,
+  SETTING_KEYS,
   subscriptionPriceFor,
   toMatchingParameters,
 } from "../../packages/domain/policy/entity.ts";
+import type { CityId } from "../../packages/shared/kernel/index.ts";
+import { isErr, isOk } from "../../packages/shared/result/index.ts";
 import { SEEDED_SETTINGS, seededRows } from "../support/in-memory-ports.ts";
 
 const JED = "city-jed" as CityId;
@@ -86,7 +86,9 @@ describe("parseCitySettings — الرفض", () => {
   });
 
   it("يرفض وزناً خارج المدى [0,1]", () => {
-    expect(isErr(parseCitySettings(JED, seededRows(JED, { match_weight_proximity: 1.4 })))).toBe(true);
+    expect(isErr(parseCitySettings(JED, seededRows(JED, { match_weight_proximity: 1.4 })))).toBe(
+      true,
+    );
   });
 
   it("يرفض وزنين لا يجمعان واحداً — أهم حماية للمعادلة", () => {
@@ -120,7 +122,9 @@ describe("parseCitySettings — الرفض", () => {
   });
 
   it("يرفض قائمة لغات ليست نصوصاً", () => {
-    expect(isErr(parseCitySettings(JED, seededRows(JED, { supported_languages: [1, 2] })))).toBe(true);
+    expect(isErr(parseCitySettings(JED, seededRows(JED, { supported_languages: [1, 2] })))).toBe(
+      true,
+    );
   });
 
   it("يرفض صفّاً ينتمي إلى مدينة أخرى — عزل المدن (القاعدة 0.4)", () => {

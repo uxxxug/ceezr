@@ -34,10 +34,7 @@ export function mapErr<T, E, F>(r: Result<T, E>, fn: (error: E) => F): Result<T,
   return r.ok ? r : err(fn(r.error));
 }
 
-export function andThen<T, U, E>(
-  r: Result<T, E>,
-  fn: (value: T) => Result<U, E>,
-): Result<U, E> {
+export function andThen<T, U, E>(r: Result<T, E>, fn: (value: T) => Result<U, E>): Result<U, E> {
   return r.ok ? fn(r.value) : r;
 }
 

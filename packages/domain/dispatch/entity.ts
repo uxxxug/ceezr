@@ -10,8 +10,8 @@
 import type { CityId, DriverId, ServiceType } from "../../shared/kernel/index.ts";
 import type { DriverCapability } from "../capability/entity.ts";
 import { canServe } from "../capability/entity.ts";
-import type { Coordinates, DistanceKm } from "../geo/value-objects.ts";
 import { haversineKm, proximityFactor } from "../geo/index.ts";
+import type { Coordinates, DistanceKm } from "../geo/value-objects.ts";
 import type { Subscription } from "../subscription/entity.ts";
 import { coversService } from "../subscription/entity.ts";
 

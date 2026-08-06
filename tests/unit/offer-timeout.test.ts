@@ -6,15 +6,15 @@
  * ملاحظات مستقبلية: الإلغاء الفعلي يتم بالدالة الذرّية expire_stale_offers، وهذا يختبر القرار فقط.
  */
 import { describe, expect, it } from "bun:test";
-import type { DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 import {
   driversToExclude,
   isOfferExpired,
-  offerExpiresAt,
-  secondsRemaining,
   type Offer,
   type OfferStatus,
+  offerExpiresAt,
+  secondsRemaining,
 } from "../../packages/domain/dispatch/value-objects.ts";
+import type { DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 
 const ORDER = "order-1" as OrderId;
 const TIMEOUT = 45; // من platform_settings.offer_timeout_seconds المبذور
@@ -26,23 +26,27 @@ function offer(driverId: string, status: OfferStatus, sentAt: Date = SENT): Offe
 
 describe("offerExpiresAt", () => {
   it("يضيف المهلة بالثواني إلى لحظة الإرسال", () => {
-    expect(offerExpiresAt(offer("d1", "pending"), TIMEOUT).toISOString())
-      .toBe("2026-08-06T12:00:45.000Z");
+    expect(offerExpiresAt(offer("d1", "pending"), TIMEOUT).toISOString()).toBe(
+      "2026-08-06T12:00:45.000Z",
+    );
   });
 });
 
 describe("isOfferExpired", () => {
   it("غير منتهٍ قبل المهلة بثانية", () => {
-    expect(isOfferExpired(offer("d1", "pending"), TIMEOUT, new Date("2026-08-06T12:00:44.000Z")))
-      .toBe(false);
+    expect(
+      isOfferExpired(offer("d1", "pending"), TIMEOUT, new Date("2026-08-06T12:00:44.000Z")),
+    ).toBe(false);
   });
   it("منتهٍ عند بلوغ المهلة بالضبط", () => {
-    expect(isOfferExpired(offer("d1", "pending"), TIMEOUT, new Date("2026-08-06T12:00:45.000Z")))
-      .toBe(true);
+    expect(
+      isOfferExpired(offer("d1", "pending"), TIMEOUT, new Date("2026-08-06T12:00:45.000Z")),
+    ).toBe(true);
   });
   it("العرض المقبول لا تنتهي مهلته", () => {
-    expect(isOfferExpired(offer("d1", "accepted"), TIMEOUT, new Date("2026-08-06T13:00:00.000Z")))
-      .toBe(false);
+    expect(
+      isOfferExpired(offer("d1", "accepted"), TIMEOUT, new Date("2026-08-06T13:00:00.000Z")),
+    ).toBe(false);
   });
   it("تغيير المهلة في الإعدادات يغيّر النتيجة فعلياً", () => {
     const at30s = new Date("2026-08-06T12:00:30.000Z");
@@ -56,8 +60,9 @@ describe("secondsRemaining", () => {
     expect(secondsRemaining(offer("d1", "pending"), TIMEOUT, SENT)).toBe(45);
   });
   it("لا يعيد رقماً سالباً بعد انتهاء المهلة", () => {
-    expect(secondsRemaining(offer("d1", "pending"), TIMEOUT, new Date("2026-08-06T12:05:00.000Z")))
-      .toBe(0);
+    expect(
+      secondsRemaining(offer("d1", "pending"), TIMEOUT, new Date("2026-08-06T12:05:00.000Z")),
+    ).toBe(0);
   });
 });
 
@@ -70,12 +75,17 @@ describe("driversToExclude", () => {
       offer("cancelled-one", "cancelled"),
       offer("expired-one", "expired"),
     ];
-    expect(driversToExclude(offers, TIMEOUT, now).map(String).sort())
-      .toEqual(["cancelled-one", "expired-one", "rejecter"]);
+    expect(driversToExclude(offers, TIMEOUT, now).map(String).sort()).toEqual([
+      "cancelled-one",
+      "expired-one",
+      "rejecter",
+    ]);
   });
 
   it("يستبعد من لديه عرض معلَّق ما زال سارياً — منعاً لعرضين على سائق واحد", () => {
-    expect(driversToExclude([offer("busy", "pending")], TIMEOUT, now)).toEqual(["busy" as DriverId]);
+    expect(driversToExclude([offer("busy", "pending")], TIMEOUT, now)).toEqual([
+      "busy" as DriverId,
+    ]);
   });
 
   it("لا يستبعد من انتهت مهلته المعلَّقة فعلياً فيصبح متاحاً لدورة جديدة", () => {

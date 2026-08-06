@@ -44,11 +44,7 @@ function senderFrom(
 export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null {
   if (raw.callback_query !== undefined) {
     const query = raw.callback_query;
-    const sender = senderFrom(
-      query.from?.id,
-      query.message?.chat?.id,
-      query.from?.language_code,
-    );
+    const sender = senderFrom(query.from?.id, query.message?.chat?.id, query.from?.language_code);
     if (sender === null || query.data === undefined || query.data === "") return null;
     return { kind: "callback", from: sender, data: query.data };
   }

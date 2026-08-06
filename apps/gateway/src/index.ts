@@ -3,11 +3,11 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.1.
  * ينتمي إلى: apps/gateway
  * يُتوقع أن يستخدمه لاحقاً: Render (أمر التشغيل)، docker/Dockerfile.gateway
- * ملاحظات مستقبلية: معالج التحديثات الحقيقي (grammY) يُركَّب في container.ts عند وصول رموز البوتين؛
- *   حتى ذلك الحين يبدأ الخادم ويجيب /health، ويسجّل كل تحديث غير معالَج بلا ادّعاء نجاح.
+ * ملاحظات مستقبلية: مخزن الجلسات يصير Redis بتبديل سطر واحد في container.ts.
  */
 
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
+import { buildContainer } from "./container.ts";
 import { createServer } from "./server.ts";
 
 function log(message: string, meta: Record<string, unknown> = {}): void {
@@ -31,22 +31,37 @@ if (!configResult.ok) {
 const config = configResult.value;
 const startedAt = new Date();
 
+// التركيب الحقيقي: اتصال قاعدة واحد ومحوّلات فعلية لكل منفذ.
+const container = buildContainer(config, { log });
+
+async function shutdown(signal: string): Promise<void> {
+  log("إيقاف البوابة", { signal });
+  await container.close();
+  process.exit(0);
+}
+process.on("SIGTERM", () => void shutdown("SIGTERM"));
+process.on("SIGINT", () => void shutdown("SIGINT"));
+
 const app = createServer({
   health: {
     now: () => new Date(),
     startedAt,
     env: process.env,
+    // فحص جاهزية حقيقي: استعلام فعلي على القاعدة، لا افتراض أن الرابط صحيح
+    readinessChecks: [
+      {
+        name: "database",
+        check: async () => {
+          const rows = await container.sql<{ ok: number }[]>`select 1 as ok`;
+          return rows[0]?.ok === 1;
+        },
+      },
+    ],
   },
   webhook: {
     webhookSecret: config.telegramWebhookSecret,
     log,
-    handler: {
-      // لا يوجد معالج حقيقي بعد: نسجّل ونعيد false بلا ادّعاء معالجة.
-      handle: async (bot, _update) => {
-        log("تحديث وارد بلا معالج مركَّب بعد", { bot });
-        return false;
-      },
-    },
+    handler: container.handler,
   },
 });
 

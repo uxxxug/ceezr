@@ -7,10 +7,10 @@
  * ملاحظات مستقبلية: مع تعدّد نسخ الخادم على Render يصبح Redis إلزامياً لا تحسيناً.
  */
 
+import type { DialogState, SessionStore } from "../../../../../packages/application/bots/types.ts";
+import type { PortFailureError } from "../../../../../packages/application/ports/index.ts";
 import type { Clock } from "../../../../../packages/shared/kernel/index.ts";
 import { ok, type Result } from "../../../../../packages/shared/result/index.ts";
-import type { PortFailureError } from "../../../../../packages/application/ports/index.ts";
-import type { DialogState, SessionStore } from "../../../../../packages/application/bots/types.ts";
 
 /** مهلة الجلسة التقنية (ليست قيمة تجارية): حوار متروك نصف ساعة يُنسى. */
 export const SESSION_TTL_SECONDS = 1800;

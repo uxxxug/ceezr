@@ -8,22 +8,22 @@
  *   ولذلك تعيد هذه الدالة الدفعة المقرَّرة ولا ترسل شيئاً.
  */
 
-import type { CityId, Clock, OrderId } from "../../shared/kernel/index.ts";
-import { err, ok, type Result } from "../../shared/result/index.ts";
 import {
-  evaluateCandidates,
-  selectBroadcastBatch,
   type CandidateEvaluation,
+  evaluateCandidates,
   type ScoredCandidate,
+  selectBroadcastBatch,
 } from "../../domain/dispatch/entity.ts";
 import { driversToExclude } from "../../domain/dispatch/value-objects.ts";
 import {
-  parseCitySettings,
-  toMatchingParameters,
   type CitySettings,
+  parseCitySettings,
   type SettingsError,
+  toMatchingParameters,
 } from "../../domain/policy/entity.ts";
 import { hasExhaustedBroadcastRounds, type Order } from "../../domain/transport/entity.ts";
+import type { CityId, Clock, OrderId } from "../../shared/kernel/index.ts";
+import { err, ok, type Result } from "../../shared/result/index.ts";
 import type {
   DriverCandidateRepository,
   OfferRepository,
@@ -123,11 +123,7 @@ export async function matchOrder(
   if (!candidatesResult.ok) return candidatesResult;
 
   const now = deps.clock.now();
-  const excludedDriverIds = driversToExclude(
-    offersResult.value,
-    settings.offerTimeoutSeconds,
-    now,
-  );
+  const excludedDriverIds = driversToExclude(offersResult.value, settings.offerTimeoutSeconds, now);
 
   const matchingParameters = toMatchingParameters(settings);
   const evaluation = evaluateCandidates(

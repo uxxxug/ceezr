@@ -10,12 +10,12 @@
 
 import { Api } from "grammy";
 import {
-  handleDriverUpdate,
   type DriverBotDependencies,
+  handleDriverUpdate,
 } from "../../../../../packages/application/bots/driver-dialog.ts";
 import type { BotReply } from "../../../../../packages/application/bots/types.ts";
 import { isCallbackDataValid, toTelegramMarkup } from "../shared/keyboards.ts";
-import { toIncomingUpdate, type RawTelegramUpdate } from "../shared/telegram-mapper.ts";
+import { type RawTelegramUpdate, toIncomingUpdate } from "../shared/telegram-mapper.ts";
 
 /** منفذ الإرسال — grammY ينفّذه في الإنتاج، ومزدوج يلتقط الرسائل في الاختبار. */
 export interface TelegramSender {

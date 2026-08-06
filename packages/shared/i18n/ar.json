@@ -46,5 +46,13 @@
   "rider.must_register_first": "سجّل أولاً بإرسال /start",
   "rider.order_cancelled": "تم إلغاء طلبك.",
   "rider.no_active_order": "لا يوجد طلب نشط لإلغائه.",
-  "rider.outside_city": "الموقع الذي أرسلته خارج نطاق خدمة {city}."
+  "rider.outside_city": "الموقع الذي أرسلته خارج نطاق خدمة {city}.",
+  "rider.drivers_notified": "تم إشعار {count} سائقاً بطلبك. سيصلك رد قريباً.",
+  "driver.offer_received": "طلب جديد على بعد {distance} كم. لديك {seconds} ثانية للردّ.",
+  "driver.offer_accept_button": "قبول",
+  "driver.offer_reject_button": "رفض",
+  "driver.ask_location": "أرسل موقعك الحالي ليصلك أقرب الطلبات.",
+  "driver.share_location_button": "إرسال موقعي",
+  "driver.location_saved": "حُفظ موقعك. ستصلك الطلبات القريبة منك.",
+  "driver.location_invalid": "الموقع غير صالح. أعد الإرسال من زرّ الموقع."
 }

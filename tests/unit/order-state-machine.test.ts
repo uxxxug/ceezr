@@ -6,16 +6,16 @@
  * ملاحظات مستقبلية: القيد orders_matched_requires_driver في القاعدة يحمي نفس القاعدة تخزينياً.
  */
 import { describe, expect, it } from "bun:test";
-import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 import {
   canTransition,
   hasExhaustedBroadcastRounds,
   isTerminal,
-  returnToSearching,
-  transition,
   type Order,
   type OrderStatus,
+  returnToSearching,
+  transition,
 } from "../../packages/domain/transport/entity.ts";
+import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 import { isErr, isOk } from "../../packages/shared/result/index.ts";
 
 const DRIVER = "driver-1" as DriverId;
@@ -120,7 +120,9 @@ describe("transition", () => {
 
 describe("returnToSearching", () => {
   it("يزيد رقم الدورة ويُفرّغ السائق", () => {
-    const r = returnToSearching(order({ status: "matched", assignedDriverId: DRIVER, broadcastRound: 1 }));
+    const r = returnToSearching(
+      order({ status: "matched", assignedDriverId: DRIVER, broadcastRound: 1 }),
+    );
     expect(isOk(r)).toBe(true);
     if (isOk(r)) {
       expect(r.value.status).toBe("searching");
@@ -130,7 +132,9 @@ describe("returnToSearching", () => {
   });
 
   it("يرفض إعادة طلب منتهٍ للبحث", () => {
-    expect(isErr(returnToSearching(order({ status: "completed", assignedDriverId: DRIVER })))).toBe(true);
+    expect(isErr(returnToSearching(order({ status: "completed", assignedDriverId: DRIVER })))).toBe(
+      true,
+    );
   });
 });
 

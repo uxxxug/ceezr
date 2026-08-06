@@ -35,12 +35,7 @@ jobs:
           fi
 
       - name: منع الأرقام التجارية المرمَّزة داخل الكود
-        run: |
-          if grep -rnE "(^|[^0-9a-zA-Z_.])(250|400)([^0-9a-zA-Z_]|$)" \
-               --include="*.ts" apps packages/domain packages/application; then
-            echo "::error::سعر مرمَّز داخل الكود ممنوع — مكانه platform_settings (القاعدة 0.3)"
-            exit 1
-          fi
+        run: bun run scripts/check-business-constants.ts
 
       - name: منع استيراد infrastructure داخل domain
         run: |
@@ -79,3 +74,67 @@ jobs:
             echo "❌ نصّ مباشر داخل منطق الحوار: كل نصّ يمرّ عبر i18n"; exit 1;
           fi
           echo "✅ كل نصوص الحوار من القواميس"
+
+  integration:
+    name: تكامل على PostgreSQL حقيقي
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: waslah
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install
+        run: bun install --frozen-lockfile || bun install
+
+      - name: أدوار Supabase التي تفترضها الهجرات
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then
+              create role anon nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+              create role authenticated nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then
+              create role service_role nologin noinherit bypassrls;
+            end if;
+          end $$;
+          SQL
+
+      - name: تطبيق الهجرات بالترتيب
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for file in $(ls supabase/migrations/*.sql | sort); do
+            echo "▶ $file"
+            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
+          done
+
+      - name: اختبارات التكامل على قاعدة حقيقية
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run test:integration
+
+      - name: منع تخطّي اختبارات التكامل صامتاً
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: |
+          if bun run test:integration 2>&1 | grep -q "مُتخطّاة"; then
+            echo "::error::اختبارات التكامل تُخطَّت — لا يمرّ CI بلا قاعدة حقيقية"
+            exit 1
+          fi

@@ -6,15 +6,24 @@
  * ملاحظات مستقبلية: عند إضافة التسعير المسبق يُضاف اختبار يقارن التقدير بالتعرفة المخزَّنة.
  */
 import { beforeEach, describe, expect, it } from "bun:test";
+import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
 import {
   handleRiderUpdate,
   type RiderBotDependencies,
 } from "../../packages/application/bots/rider-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
-import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
-import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/index.ts";
-import { translate } from "../../packages/shared/i18n/index.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
+import { translate } from "../../packages/shared/i18n/index.ts";
+import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/index.ts";
+import {
+  cityDirectory,
+  JEDDAH,
+  notifierDouble,
+  type OrderWriterDouble,
+  offerWriterDouble,
+  orderWriter,
+  riderDirectory,
+} from "../support/bot-doubles.ts";
 import {
   candidateRepo,
   fixedClock,
@@ -23,13 +32,6 @@ import {
   seededRows,
   settingsRepo,
 } from "../support/in-memory-ports.ts";
-import {
-  JEDDAH,
-  cityDirectory,
-  orderWriter,
-  riderDirectory,
-  type OrderWriterDouble,
-} from "../support/bot-doubles.ts";
 
 const NOW = new Date("2026-08-06T12:00:00.000Z");
 const SENDER: Sender = { telegramUserId: "500", chatId: "500", languageHint: "ar" };
@@ -81,6 +83,8 @@ beforeEach(() => {
       offers: offerRepo([]),
       candidates: candidateRepo([]),
       settings: settingsRepo(seededRows(JEDDAH.id)),
+      offerWriter: offerWriterDouble(),
+      notifier: notifierDouble(),
       clock: fixedClock(NOW),
     },
     clock: fixedClock(NOW),
@@ -243,7 +247,12 @@ describe("المطابقة بعد الإنشاء", () => {
             isVerified: true,
             ratingAverage: 4.8,
             capabilities: [
-              { driverId: "driver-1" as DriverId, cityId: JEDDAH.id, service: "transport", isEnabled: true },
+              {
+                driverId: "driver-1" as DriverId,
+                cityId: JEDDAH.id,
+                service: "transport",
+                isEnabled: true,
+              },
             ],
             subscription: {
               driverId: "driver-1" as DriverId,

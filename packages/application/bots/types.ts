@@ -7,16 +7,10 @@
  * ملاحظات مستقبلية: أي منصّة أخرى (واتساب مثلاً) تُوصَل بمحوّل جديد بلا لمس منطق الحوار.
  */
 
-import type {
-  CityId,
-  DriverId,
-  OrderId,
-  RiderId,
-  ServiceType,
-} from "../../shared/kernel/index.ts";
-import type { Result } from "../../shared/result/index.ts";
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
 import type { Subscription } from "../../domain/subscription/entity.ts";
+import type { CityId, DriverId, OrderId, RiderId, ServiceType } from "../../shared/kernel/index.ts";
+import type { Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
 
 /** ما يصل من المنصّة، مُجرَّداً من شكل تلغرام. */
@@ -110,6 +104,8 @@ export interface DriverProfile {
   readonly phone: string;
   readonly isVerified: boolean;
   readonly isAvailable: boolean;
+  /** بلا موقع محفوظ لا يدخل السائق المطابقة إطلاقاً — المسافة ركن في المعادلة. */
+  readonly hasLocation: boolean;
 }
 
 export interface RegisterDriverInput {
@@ -122,13 +118,16 @@ export interface RegisterDriverInput {
 }
 
 export interface DriverDirectory {
-  findByTelegramId(
-    telegramUserId: string,
-  ): Promise<Result<DriverProfile | null, PortFailureError>>;
+  findByTelegramId(telegramUserId: string): Promise<Result<DriverProfile | null, PortFailureError>>;
   register(input: RegisterDriverInput): Promise<Result<DriverProfile, PortFailureError>>;
   setAvailability(
     driverId: DriverId,
     isAvailable: boolean,
+  ): Promise<Result<void, PortFailureError>>;
+  /** يحفظ آخر موقع للسائق — يغذّي المطابقة مباشرة. */
+  updateLocation(
+    driverId: DriverId,
+    location: Coordinates,
   ): Promise<Result<void, PortFailureError>>;
 }
 
@@ -161,7 +160,9 @@ export interface TrialRpcPort {
   startTrial(
     driverId: DriverId,
     service: ServiceType,
-  ): Promise<Result<{ readonly started: boolean; readonly reason: string | null }, PortFailureError>>;
+  ): Promise<
+    Result<{ readonly started: boolean; readonly reason: string | null }, PortFailureError>
+  >;
 }
 
 export interface CreateOrderInput {

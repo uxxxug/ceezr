@@ -7,13 +7,14 @@
  */
 import { describe, expect, it } from "bun:test";
 import {
-  REQUIRED_ENV_KEYS,
   missingEnvKeys,
+  REQUIRED_ENV_KEYS,
   tryLoadConfig,
 } from "../../packages/shared/config/index.ts";
 
 const FULL: Record<string, string> = {
   SUPABASE_URL: "https://project.supabase.co",
+  DATABASE_URL: "postgres://user:pass@db.project.supabase.co:5432/postgres",
   SUPABASE_SERVICE_ROLE_KEY: "service-key",
   UPSTASH_REDIS_REST_URL: "https://redis.upstash.io",
   UPSTASH_REDIS_REST_TOKEN: "redis-token",
@@ -91,5 +92,21 @@ describe("missingEnvKeys", () => {
   });
   it("يعيد كل المفاتيح لبيئة خالية", () => {
     expect(missingEnvKeys({}).length).toBe(REQUIRED_ENV_KEYS.length);
+  });
+});
+
+describe("DATABASE_URL", () => {
+  it("يرفض رابطاً ليس رابط Postgres", () => {
+    const result = tryLoadConfig({ ...FULL, DATABASE_URL: "https://db.example.com" });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.error.code).toBe("INVALID_ENV_VAR");
+  });
+
+  it("يقبل postgresql:// كما يقبل postgres://", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      DATABASE_URL: "postgresql://user:pass@host:5432/postgres",
+    });
+    expect(result.ok).toBe(true);
   });
 });

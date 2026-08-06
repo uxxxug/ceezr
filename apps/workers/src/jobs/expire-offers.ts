@@ -6,18 +6,18 @@
  * ملاحظات مستقبلية: لا تُلغِ العرض المقبول أبداً — القيد order_offers_single_accepted يحرس ذلك في القاعدة.
  */
 
-import type { CityId, Clock } from "../../../../packages/shared/kernel/index.ts";
-import { ok, type Result } from "../../../../packages/shared/result/index.ts";
-import { isOfferExpired, type Offer } from "../../../../packages/domain/dispatch/value-objects.ts";
-import {
-  parseCitySettings,
-  type SettingsError,
-} from "../../../../packages/domain/policy/entity.ts";
 import type {
   OfferRepository,
   PortFailureError,
   SettingsRepository,
 } from "../../../../packages/application/ports/index.ts";
+import { isOfferExpired, type Offer } from "../../../../packages/domain/dispatch/value-objects.ts";
+import {
+  parseCitySettings,
+  type SettingsError,
+} from "../../../../packages/domain/policy/entity.ts";
+import type { CityId, Clock } from "../../../../packages/shared/kernel/index.ts";
+import { ok, type Result } from "../../../../packages/shared/result/index.ts";
 
 /** منفذ الكتابة الذرّية — يقابل الدالة expire_stale_offers في القاعدة. */
 export interface ExpireOffersRpcPort {
