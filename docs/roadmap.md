@@ -34,3 +34,8 @@
   التقرير: `docs/phase-2.1-step-03-report.md`.
 - **الخطوة 4 (محجوبة)**: محوّلات `packages/infrastructure` التي تنفّذ المنافذ الخمسة، ثم `apps/gateway`.
   تنتظر مفتاح `service_role` ورابط Upstash Redis ورموز البوتين و12 معرّف مجموعة تلغرام.
+
+- **الخطوة 4 — بوابة HTTP تعمل فعلاً (منجَزة)**: `apps/gateway` صار خادم Hono حقيقياً يُقلع ويجيب:
+  `/health`، `/ready` (يسمّي المتغيرات الناقصة)، و`POST /webhook/telegram/:bot` بتحقّق سرّ بزمن ثابت.
+  و`apps/workers/src/jobs/expire-offers.ts` منفَّذ ومُختبَر. الاختبارات: 166 ناجحاً.
+  الباقي في `apps/` هيكل حتى وصول رموز البوتين ومفتاح الخدمة. التفصيل في `docs/phase-2.1-step-04-report.md`.

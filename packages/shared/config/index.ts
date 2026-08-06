@@ -6,6 +6,8 @@
  * ملاحظات مستقبلية: ممنوع منعاً باتاً وضع سعر/مهلة/وزن مطابقة هنا — مكانها جدول platform_settings.
  */
 
+import { err, ok, type Result } from "../result/index.ts";
+
 export type EnvName = "development" | "test" | "production";
 
 export interface AppConfig {
@@ -20,35 +22,96 @@ export interface AppConfig {
   readonly telegramWebhookSecret: string;
 }
 
+/** المتغيرات التي بلا قيمة صالحة لها لا يمكن للنظام أن يعمل إطلاقاً. */
+export const REQUIRED_ENV_KEYS = [
+  "SUPABASE_URL",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "UPSTASH_REDIS_REST_URL",
+  "UPSTASH_REDIS_REST_TOKEN",
+  "DRIVER_BOT_TOKEN",
+  "RIDER_BOT_TOKEN",
+  "TELEGRAM_WEBHOOK_SECRET",
+] as const;
+
+export type RequiredEnvKey = (typeof REQUIRED_ENV_KEYS)[number];
+
 export class MissingEnvVarError extends Error {
-  constructor(public readonly key: string) {
-    super(`Missing required environment variable: ${key}`);
+  readonly code = "MISSING_ENV_VARS" as const;
+  constructor(public readonly keys: readonly string[]) {
+    super(`متغيرات بيئة ناقصة: ${keys.join(", ")}`);
     this.name = "MissingEnvVarError";
   }
 }
 
-function required(source: Record<string, string | undefined>, key: string): string {
-  const value = source[key];
-  if (value === undefined || value.trim() === "") {
-    throw new MissingEnvVarError(key);
+export class InvalidEnvVarError extends Error {
+  readonly code = "INVALID_ENV_VAR" as const;
+  constructor(
+    public readonly key: string,
+    public readonly reason: string,
+  ) {
+    super(`متغير بيئة غير صالح ${key}: ${reason}`);
+    this.name = "InvalidEnvVarError";
   }
-  return value;
 }
 
-export function loadConfig(source: Record<string, string | undefined> = process.env): AppConfig {
-  const rawEnv = source.NODE_ENV ?? "development";
-  const env: EnvName =
-    rawEnv === "production" || rawEnv === "test" ? rawEnv : "development";
+export type ConfigError = MissingEnvVarError | InvalidEnvVarError;
 
-  return {
+function isBlank(value: string | undefined): boolean {
+  return value === undefined || value.trim() === "";
+}
+
+/** كل المتغيرات الناقصة، لا أولها فقط — ليعرف المشغّل ما ينقصه في نظرة واحدة. */
+export function missingEnvKeys(
+  source: Record<string, string | undefined> = process.env,
+): readonly RequiredEnvKey[] {
+  return REQUIRED_ENV_KEYS.filter((key) => isBlank(source[key]));
+}
+
+/**
+ * يقرأ الإعدادات ويعيد Result — بلا throw، ويجمع كل النواقص معاً.
+ * لا يقرأ أي قيمة تجارية: تلك مكانها platform_settings.
+ */
+export function tryLoadConfig(
+  source: Record<string, string | undefined> = process.env,
+): Result<AppConfig, ConfigError> {
+  const missing = missingEnvKeys(source);
+  if (missing.length > 0) return err(new MissingEnvVarError(missing));
+
+  const rawPort = source.PORT ?? "3000";
+  const port = Number.parseInt(rawPort, 10);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    return err(new InvalidEnvVarError("PORT", `ليس منفذاً صالحاً: ${rawPort}`));
+  }
+
+  const rawEnv = source.NODE_ENV ?? "development";
+  const env: EnvName = rawEnv === "production" || rawEnv === "test" ? rawEnv : "development";
+
+  const supabaseUrl = source.SUPABASE_URL as string;
+  if (!supabaseUrl.startsWith("https://")) {
+    return err(new InvalidEnvVarError("SUPABASE_URL", "يجب أن يبدأ بـ https://"));
+  }
+
+  return ok({
     env,
-    port: Number.parseInt(source.PORT ?? "3000", 10),
-    supabaseUrl: required(source, "SUPABASE_URL"),
-    supabaseServiceKey: required(source, "SUPABASE_SERVICE_ROLE_KEY"),
-    redisUrl: required(source, "UPSTASH_REDIS_REST_URL"),
-    redisToken: required(source, "UPSTASH_REDIS_REST_TOKEN"),
-    driverBotToken: required(source, "DRIVER_BOT_TOKEN"),
-    riderBotToken: required(source, "RIDER_BOT_TOKEN"),
-    telegramWebhookSecret: required(source, "TELEGRAM_WEBHOOK_SECRET"),
-  };
+    port,
+    supabaseUrl,
+    supabaseServiceKey: source.SUPABASE_SERVICE_ROLE_KEY as string,
+    redisUrl: source.UPSTASH_REDIS_REST_URL as string,
+    redisToken: source.UPSTASH_REDIS_REST_TOKEN as string,
+    driverBotToken: source.DRIVER_BOT_TOKEN as string,
+    riderBotToken: source.RIDER_BOT_TOKEN as string,
+    telegramWebhookSecret: source.TELEGRAM_WEBHOOK_SECRET as string,
+  });
+}
+
+/**
+ * نسخة تُوقف الإقلاع فوراً — تُستخدم في نقطة تشغيل التطبيق فقط،
+ * حيث الفشل السريع مطلوب ولا يوجد مستخدم ليتلقى Result.
+ */
+export function loadConfig(
+  source: Record<string, string | undefined> = process.env,
+): AppConfig {
+  const result = tryLoadConfig(source);
+  if (!result.ok) throw result.error;
+  return result.value;
 }
