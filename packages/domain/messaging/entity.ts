@@ -1,0 +1,8 @@
+/**
+ * الغرض: الكيانات الجذرية (Aggregates/Entities) لوحدة messaging — التواصل بين الأطراف عبر البوت (Relay) بإخفاء الأرقام
+ * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * ينتمي إلى: domain/messaging
+ * يُتوقع أن يستخدمه لاحقاً: packages/application/messaging/*, packages/infrastructure/messaging/*
+ * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني.
+ */
+export {};

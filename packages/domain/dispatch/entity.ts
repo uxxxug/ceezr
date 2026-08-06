@@ -1,0 +1,8 @@
+/**
+ * الغرض: الكيانات الجذرية (Aggregates/Entities) لوحدة dispatch — محرك المطابقة والتوزيع
+ * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * ينتمي إلى: domain/dispatch
+ * يُتوقع أن يستخدمه لاحقاً: packages/application/dispatch/*, packages/infrastructure/dispatch/*
+ * ملاحظات مستقبلية: يُفعَّل جزئياً — مطابقة بسيطة أولاً (القسم 3.3).
+ */
+export {};

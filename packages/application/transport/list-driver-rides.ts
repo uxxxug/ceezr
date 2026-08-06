@@ -1,0 +1,8 @@
+/**
+ * الغرض: حالة استخدام مستقبلية: list-driver-rides ضمن رحلات المشاوير
+ * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * ينتمي إلى: application/transport
+ * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الـ Webhooks)، apps/workers، apps/admin-dashboard
+ * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function listDriverRides(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: list_driver_rides. يُفعَّل جزئياً في الأمر الثاني (المرحلة 2.1).
+ */
+export {};

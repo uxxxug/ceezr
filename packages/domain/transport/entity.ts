@@ -1,0 +1,8 @@
+/**
+ * الغرض: الكيانات الجذرية (Aggregates/Entities) لوحدة transport — رحلات المشاوير
+ * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * ينتمي إلى: domain/transport
+ * يُتوقع أن يستخدمه لاحقاً: packages/application/transport/*, packages/infrastructure/transport/*
+ * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني (المرحلة 2.1).
+ */
+export {};

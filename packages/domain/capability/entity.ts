@@ -1,0 +1,8 @@
+/**
+ * الغرض: الكيانات الجذرية (Aggregates/Entities) لوحدة capability — نوع الخدمة التي يقدّمها السائق ونوع مركبته
+ * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * ينتمي إلى: domain/capability
+ * يُتوقع أن يستخدمه لاحقاً: packages/application/capability/*, packages/infrastructure/capability/*
+ * ملاحظات مستقبلية: يُفعَّل في الأمر الثاني (المرحلة 2.1).
+ */
+export {};

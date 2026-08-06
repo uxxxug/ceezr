@@ -1,0 +1,10 @@
+FROM oven/bun:1 AS base
+WORKDIR /app
+
+COPY package.json tsconfig.json ./
+COPY packages ./packages
+COPY apps/workers ./apps/workers
+RUN bun install
+
+ENV NODE_ENV=production
+CMD ["bun", "run", "apps/workers/src/index.ts"]
