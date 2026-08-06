@@ -29,5 +29,8 @@
   بـ `ORDER_NOT_CLAIMABLE`، وسائق من مدينة أخرى ← `CITY_MISMATCH`. التقرير: `docs/phase-2.1-step-01-report.md`.
 - **الخطوة 2 (منجَزة)**: طبقة الدومين الخالصة — geo، subscription، capability، dispatch، transport.
   85 اختباراً ناجحاً، و4 بوابات CI جديدة. التقرير: `docs/phase-2.1-step-02-report.md`.
-- **الخطوة 3 (محجوبة)**: وصل البنية التحتية — تنتظر مفتاح `service_role` ورابط Upstash Redis ورموز البوتين
-  و12 معرّف مجموعة تلغرام.
+- **الخطوة 3 (منجَزة)**: سجل `platform_settings` المُتحقَّق منه، مهلة العرض، المنافذ، وحالة الاستخدام `matchOrder`.
+  130 اختباراً ناجحاً، 7 بوابات CI، و`docs/adr/0004-ports-live-in-application.md`.
+  التقرير: `docs/phase-2.1-step-03-report.md`.
+- **الخطوة 4 (محجوبة)**: محوّلات `packages/infrastructure` التي تنفّذ المنافذ الخمسة، ثم `apps/gateway`.
+  تنتظر مفتاح `service_role` ورابط Upstash Redis ورموز البوتين و12 معرّف مجموعة تلغرام.

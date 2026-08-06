@@ -50,6 +50,22 @@ jobs:
             exit 1
           fi
 
+      - name: منع استيراد application داخل domain
+        run: |
+          if grep -rnE "^\s*(import|export)[^;]*from\s+['\"][^'\"]*application" \
+               --include="*.ts" packages/domain; then
+            echo "::error::domain لا يعتمد على application (ADR 0002)"
+            exit 1
+          fi
+
+      - name: منع استيراد مزدوجات الاختبار في كود الإنتاج
+        run: |
+          if grep -rnE "^\s*(import|export)[^;]*from\s+['\"][^'\"]*tests/" \
+               --include="*.ts" packages apps; then
+            echo "::error::ممنوع استيراد أي شيء من tests/ داخل packages أو apps (القاعدة 0.1)"
+            exit 1
+          fi
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts

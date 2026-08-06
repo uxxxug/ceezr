@@ -8,6 +8,7 @@
 
 import type { CityId, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
+import type { Coordinates } from "../geo/value-objects.ts";
 
 export type OrderStatus =
   | "searching"
@@ -22,6 +23,9 @@ export interface Order {
   readonly cityId: CityId;
   readonly service: ServiceType;
   readonly status: OrderStatus;
+  /** نقطة الانطلاق — تقابل عمود pickup من نوع geography(Point,4326). */
+  readonly pickup: Coordinates;
+  readonly dropoff: Coordinates | null;
   readonly assignedDriverId: DriverId | null;
   readonly broadcastRound: number;
 }

@@ -26,6 +26,8 @@ function order(over: Partial<Order> = {}): Order {
     cityId: "city-jed" as CityId,
     service: "transport",
     status: "searching",
+    pickup: { latitude: 21.4858, longitude: 39.1925 },
+    dropoff: null,
     assignedDriverId: null,
     broadcastRound: 1,
     ...over,
