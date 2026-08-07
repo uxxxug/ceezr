@@ -7,4 +7,10 @@
  *   لأنها تحتاج مفاتيح Supabase و Redis وتلغرام، فلا تُصدَّر بعد.
  */
 
+export * from "./escalate-unmatched-order.ts";
 export * from "./match-order.ts";
+export * from "./publish-to-unsubscribed-group.ts";
+export * from "./register-unsubscribed-claim.ts";
+export * from "./relay-negotiation-message.ts";
+export * from "./republish-order-card.ts";
+export * from "./rotate-negotiation-turn.ts";

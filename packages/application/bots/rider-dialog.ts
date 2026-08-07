@@ -14,6 +14,15 @@ import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
 import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
+  type RelayDependencies,
+  relayNegotiationMessage,
+} from "../dispatch/relay-negotiation-message.ts";
+import {
+  advanceNegotiationTurn,
+  type RotateNegotiationDependencies,
+  settleNegotiation,
+} from "../dispatch/rotate-negotiation-turn.ts";
+import {
   type BotReply,
   type CityDirectory,
   type CityRef,
@@ -38,6 +47,11 @@ export interface RiderBotDependencies {
   /** تبعيات المطابقة والبثّ نفسها المستخدمة في broadcastOffers — لا تكرار للمنطق. */
   readonly matching: BroadcastDependencies;
   readonly clock: Clock;
+  /** مسار التفاوض مع غير المشتركين (المرحلة 2.3) — اختياري كما في بوت السائق. */
+  readonly negotiation?: {
+    readonly rotation: RotateNegotiationDependencies;
+    readonly relay: RelayDependencies;
+  };
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -73,6 +87,7 @@ export async function handleRiderUpdate(
     const [prefix, ...rest] = update.data.split(":");
     if (prefix === "city") return handleCitySelected(rest.join(":"), sender, state, deps);
     if (prefix === "svc") return handleServiceSelected(rest.join(":"), sender, state, deps);
+    if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
     return [reply(sender, tr("common.unknown_command"))];
   }
 
@@ -93,6 +108,75 @@ export async function handleRiderUpdate(
     // لا نقبل عنواناً نصياً مكان إحداثيات: الموقع الوهمي أسوأ من لا موقع
     return [reply(sender, tr("rider.location_required"))];
   }
+  return handleFreeText(text, sender, state, deps);
+}
+
+/** نصّ حرّ من عميل لا يمرّ بخطوة حوار: يُمرّر للسائق صاحب الدور إن وُجِد. */
+async function handleFreeText(
+  text: string,
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const negotiation = deps.negotiation;
+  if (negotiation === undefined) return [reply(sender, tr("common.unknown_command"))];
+
+  const found = await deps.riders.findByTelegramId(sender.telegramUserId);
+  if (!found.ok) return technicalFailure(sender, state);
+  const rider = found.value;
+  if (rider === null) return [reply(sender, tr("common.unknown_command"))];
+
+  const relayed = await relayNegotiationMessage(
+    { from: "rider", driverId: null, riderId: rider.id, text },
+    negotiation.relay,
+  );
+  if (!relayed.ok) return technicalFailure(sender, state);
+
+  const report = relayed.value;
+  if (report.reason === "NO_ACTIVE_NEGOTIATION" || report.reason === "EMPTY_MESSAGE") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  if (report.reason === "UNREACHABLE") return [reply(sender, tr("negotiation.relay_unreachable"))];
+  if (report.redacted > 0) return [reply(sender, tr("negotiation.relay_redacted"))];
+  return [];
+}
+
+/**
+ * قرار العميل في التفاوض: «تم الاتفاق» يثبّت الإسناد، و«السائق التالي» يغلق القناة
+ * ويفتحها مع التالي فوراً. الإخطارات من حالة الاستخدام نفسها، فلا تكرار هنا.
+ */
+async function handleNegotiationDecision(
+  rest: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const negotiation = deps.negotiation;
+  const [action, negotiationId] = rest;
+  if (negotiation === undefined || negotiationId === undefined) {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+
+  if (action === "agree") {
+    const settled = await settleNegotiation({ negotiationId }, negotiation.rotation);
+    if (!settled.ok) return technicalFailure(sender, state);
+    if (!settled.value.settled) return [reply(sender, tr("negotiation.rider_turn_closed"))];
+    return [];
+  }
+
+  if (action === "decline") {
+    const moved = await advanceNegotiationTurn(
+      { negotiationId, reason: "declined" },
+      negotiation.rotation,
+    );
+    if (!moved.ok) return technicalFailure(sender, state);
+    // نفاد الثلاثة يُبلَّغ للعميل هنا؛ إعادة النشر أو التصعيد مسؤولية المهمة الدورية.
+    if (moved.value.exhausted) return [reply(sender, tr("negotiation.exhausted_rider"))];
+    return [];
+  }
+
   return [reply(sender, tr("common.unknown_command"))];
 }
 

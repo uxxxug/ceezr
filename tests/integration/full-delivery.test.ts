@@ -39,6 +39,8 @@ function capturing(sent: SentMessage[]): TelegramSender {
   return {
     sendMessage: async (chatId, text, markup) => {
       sent.push({ chatId, text, markup });
+      // معرّف حقيقي ومتزايد داخل المزدوج: لا نعيد null لأن المسار الحقيقي يعيد معرّفاً
+      return String(sent.length);
     },
   };
 }

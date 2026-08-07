@@ -17,6 +17,14 @@ import {
 import { isSubscriptionLive, type SubscriptionPlan } from "../../domain/subscription/entity.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
+import {
+  type RegisterUnsubscribedClaimDependencies,
+  registerUnsubscribedClaim,
+} from "../dispatch/register-unsubscribed-claim.ts";
+import {
+  type RelayDependencies,
+  relayNegotiationMessage,
+} from "../dispatch/relay-negotiation-message.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
   type BotReply,
@@ -45,10 +53,26 @@ export interface DriverBotDependencies {
   readonly dispatch: DispatchRpcPort;
   readonly offers: OfferDecisionPort;
   readonly clock: Clock;
+  /**
+   * مسار قروب غير المشتركين (المرحلة 2.3). اختياري لأن الاختبارات القائمة
+   * تختبر التسجيل والعروض وحدها؛ غيابه يعني أن أزرار القروب لا تُعالَج، لا أن تُعالَج خطأ.
+   */
+  readonly negotiation?: {
+    readonly claims: RegisterUnsubscribedClaimDependencies;
+    readonly relay: RelayDependencies;
+  };
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
   return { chatId: sender.chatId, text, keyboard };
+}
+
+/**
+ * ردّ إلى محادثة الشخص الخاصة مهما كان مصدر التحديث. في القروبات chatId هو القروب،
+ * والردّ عليه يكشف تفاصيل فردية للجميع؛ ومعرّف مستخدم تلغرام هو نفسه معرّف محادثته الخاصة.
+ */
+function privateReply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
+  return { chatId: sender.telegramUserId, text, keyboard };
 }
 
 function cityKeyboard(cities: readonly CityRef[]): Keyboard {
@@ -108,8 +132,101 @@ export async function handleDriverUpdate(
     case "awaiting_phone":
       return handlePhone(text, sender, state, deps);
     default:
-      return [reply(sender, t(languageOf(state))("common.unknown_command"))];
+      // قبل ردّ "أمر غير معروف": إن كان السائق طرفاً في تفاوض نشط، فهذا نصّ موجّه للعميل
+      return handleFreeText(text, sender, state, deps);
   }
+}
+
+/**
+ * نصّ حرّ من سائق مسجّل وليس في خطوة حوار: يُمرّر للعميل إن كان دوره مفتوحاً.
+ * من ليس طرفاً في تفاوض نشط لا تُمرّر رسالته — وهذا ما يمنع مخاطبة العميل خارج الدور.
+ */
+async function handleFreeText(
+  text: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const negotiation = deps.negotiation;
+  if (negotiation === undefined) return [reply(sender, tr("common.unknown_command"))];
+
+  const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
+  if (!found.ok) return technicalFailure(sender, state);
+  const driver = found.value;
+  if (driver === null) return [reply(sender, tr("common.unknown_command"))];
+
+  const relayed = await relayNegotiationMessage(
+    { from: "driver", driverId: driver.id, riderId: null, text },
+    negotiation.relay,
+  );
+  if (!relayed.ok) return technicalFailure(sender, state);
+
+  const report = relayed.value;
+  if (report.reason === "NO_ACTIVE_NEGOTIATION" || report.reason === "EMPTY_MESSAGE") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  if (report.reason === "UNREACHABLE") {
+    return [reply(sender, tr("negotiation.relay_unreachable"))];
+  }
+  // تنبيه الحجب يُرسَل فقط عند الحجب فعلاً؛ الرسالة مُرّرت في الحالتين.
+  if (report.redacted > 0) return [reply(sender, tr("negotiation.relay_redacted"))];
+  return [];
+}
+
+const CLAIM_REASON_KEYS: Readonly<Record<string, string>> = {
+  ALREADY_CLAIMED: "negotiation.claim_rejected_already",
+  SLOTS_FULL: "negotiation.claim_rejected_full",
+  EXCLUDED_PREVIOUS_CYCLE: "negotiation.claim_rejected_excluded",
+  COLLECT_WINDOW_CLOSED: "negotiation.claim_rejected_closed",
+  NEGOTIATION_CLOSED: "negotiation.claim_rejected_closed",
+  NEGOTIATION_NOT_FOUND: "negotiation.claim_rejected_closed",
+};
+
+/**
+ * زرّ «قبول» داخل قروب غير المشتركين. الردّ يذهب لمحادثة السائق الخاصة لا للقروب:
+ * إعلان ترتيب المسجّلين أمام الجميع يفتح باب المزايدة والضغط على من لم يلحق.
+ */
+async function handleUnsubscribedClaim(
+  rest: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const negotiation = deps.negotiation;
+  const [action, negotiationId] = rest;
+  if (negotiation === undefined || action !== "claim" || negotiationId === undefined) {
+    return [privateReply(sender, tr("common.unknown_command"))];
+  }
+
+  const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
+  if (!found.ok) return technicalFailure(sender, state);
+  const driver = found.value;
+  if (driver === null) return [privateReply(sender, tr("driver.not_registered"))];
+
+  const claimed = await registerUnsubscribedClaim(
+    { negotiationId, driverId: driver.id },
+    negotiation.claims,
+  );
+  if (!claimed.ok) return technicalFailure(sender, state);
+
+  const report = claimed.value;
+  if (!report.registered) {
+    const key = CLAIM_REASON_KEYS[report.reason ?? ""] ?? "negotiation.claim_rejected_closed";
+    return [privateReply(sender, tr(key))];
+  }
+
+  // صاحب الدور الأول أُخطِر أصلاً من حالة الاستخدام عبر المُخطِر؛ لا نكرّر عليه.
+  if (report.isActive) return [];
+  return [
+    privateReply(
+      sender,
+      tr("negotiation.claim_registered_waiting", {
+        position: report.position ?? 0,
+      }),
+    ),
+  ];
 }
 
 async function handleCommand(
@@ -316,6 +433,8 @@ async function handleCallback(
       return handleServiceSelected(rest.join(":"), sender, state, deps);
     case "offer":
       return handleOfferDecision(rest, sender, state, deps);
+    case "unsub":
+      return handleUnsubscribedClaim(rest, sender, state, deps);
     default:
       return [reply(sender, tr("common.unknown_command"))];
   }

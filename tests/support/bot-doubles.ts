@@ -237,6 +237,8 @@ export function capturingSender(): TelegramSender & {
     sent,
     sendMessage: async (chatId, text, markup) => {
       sent.push({ chatId, text, markup });
+      // المعرّف المتزايد يحاكي معرّفات تلغرام: تصاعدية وفريدة داخل المحادثة
+      return String(sent.length);
     },
   };
 }

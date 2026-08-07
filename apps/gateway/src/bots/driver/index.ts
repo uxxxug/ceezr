@@ -19,18 +19,23 @@ import { type RawTelegramUpdate, toIncomingUpdate } from "../shared/telegram-map
 
 /** منفذ الإرسال — grammY ينفّذه في الإنتاج، ومزدوج يلتقط الرسائل في الاختبار. */
 export interface TelegramSender {
-  sendMessage(chatId: string, text: string, markup: unknown): Promise<void>;
+  /**
+   * يعيد معرّف الرسالة المُرسَلة. بطاقة قروب غير المشتركين تُحفَظ بمعرّفها لتُعدَّل
+   * أو يُشار إليها لاحقاً، ولا يجوز اختلاق معرّف؛ فمن لا يعرف المعرّف يعيد null.
+   */
+  sendMessage(chatId: string, text: string, markup: unknown): Promise<string | null>;
 }
 
 export function grammyTelegramSender(token: string): TelegramSender {
   const api = new Api(token);
   return {
     sendMessage: async (chatId, text, markup) => {
-      await api.sendMessage(
+      const sent = await api.sendMessage(
         chatId,
         text,
         markup === undefined ? {} : { reply_markup: markup as never },
       );
+      return String(sent.message_id);
     },
   };
 }

@@ -11,6 +11,10 @@
 import type { DriverBotDependencies } from "../../../packages/application/bots/driver-dialog.ts";
 import type { RiderBotDependencies } from "../../../packages/application/bots/rider-dialog.ts";
 import type { Keyboard } from "../../../packages/application/bots/types.ts";
+import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
+import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
+import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
+import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
   createDispatchRpc,
@@ -19,6 +23,17 @@ import {
   createOfferRepository,
   createOfferWriter,
 } from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
+import {
+  createActiveNegotiationLookup,
+  createClaimRegistrationPort,
+  createEscalationPort,
+  createNegotiationPartiesReader,
+  createNegotiationRotationPort,
+  createNegotiationSnapshotReader,
+  createNegotiationTimeoutReader,
+  createOrderNotesReader,
+  createUnsubscribedCyclePort,
+} from "../../../packages/infrastructure/dispatch/negotiation-adapters.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import {
   createDriverDirectory,
@@ -28,6 +43,13 @@ import {
   createTelegramDriverNotifier,
   type OutboundSender,
 } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import {
+  createEscalationGroupPublisher,
+  createTelegramNegotiationNotifier,
+  createTelegramRelaySender,
+  createUnsubscribedGroupPublisher,
+  type IdentifyingSender,
+} from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import {
   createSubscriptionReader,
@@ -86,10 +108,37 @@ export function asOutboundSender(sender: TelegramSender): OutboundSender {
   };
 }
 
+/** مُرسِل يُبقي معرّف الرسالة — تحتاجه بطاقات القروبات لا الرسائل الفردية. */
+export function asIdentifyingSender(sender: TelegramSender): IdentifyingSender {
+  return {
+    sendReturningId: async (chatId, text, keyboard: Keyboard | null) => {
+      try {
+        return await sender.sendMessage(chatId, text, toTelegramMarkup(keyboard));
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
 export interface Container {
   readonly handler: UpdateHandler;
   readonly sql: Sql;
+  /**
+   * تبعيات دورة غير المشتركين مكشوفة لأن مُشغّل الجوبات واختبارات التكامل
+   * تحتاج تشغيل الدورة خارج مسار الـ webhook — وبنفس المحوّلات لا بنسخة موازية.
+   */
+  readonly negotiation: NegotiationWiring;
   close(): Promise<void>;
+}
+
+export interface NegotiationWiring {
+  readonly snapshots: ReturnType<typeof createNegotiationSnapshotReader>;
+  readonly rotate: RotateNegotiationDependencies;
+  readonly republish: RepublishDependencies;
+  readonly escalate: EscalateUnmatchedOrderDependencies;
+  readonly publish: PublishToUnsubscribedGroupDependencies;
+  readonly clock: typeof systemClock;
 }
 
 export interface ContainerOverrides {
@@ -128,6 +177,46 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     clock: systemClock,
   };
 
+  // مسار قروب غير المشتركين: مُرسِل السائق هو من ينشر في القروب، لأن أزراره
+  // يضغطها سائقون ويجب أن تصل ردودها لبوت السائق لا بوت العميل.
+  const driverOut = asOutboundSender(driverSender);
+  const riderOut = asOutboundSender(riderSender);
+  const negotiationNotifier = createTelegramNegotiationNotifier(driverOut, riderOut);
+  const rotationPort = createNegotiationRotationPort(sql);
+  const partiesReader = createNegotiationPartiesReader(sql);
+
+  const relayDeps = {
+    lookup: createActiveNegotiationLookup(sql),
+    sender: createTelegramRelaySender(driverOut, riderOut),
+  };
+
+  const claimDeps = {
+    claims: createClaimRegistrationPort(sql),
+    parties: partiesReader,
+    notifier: negotiationNotifier,
+    timeouts: createNegotiationTimeoutReader(sql),
+  };
+
+  const rotationDeps = {
+    rotation: rotationPort,
+    parties: partiesReader,
+    notifier: negotiationNotifier,
+    timeouts: createNegotiationTimeoutReader(sql),
+  };
+
+  const publishDeps = {
+    orders,
+    notes: createOrderNotesReader(sql),
+    cycles: createUnsubscribedCyclePort(sql),
+    publisher: createUnsubscribedGroupPublisher(asIdentifyingSender(driverSender)),
+  };
+
+  const escalationDeps = {
+    orders,
+    escalation: createEscalationPort(sql),
+    publisher: createEscalationGroupPublisher(asIdentifyingSender(driverSender)),
+  };
+
   const driverDeps: DriverBotDependencies = {
     sessions: createMemorySessionStore(systemClock),
     drivers,
@@ -138,6 +227,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     dispatch: createDispatchRpc(sql),
     offers: createOfferDecisionPort(sql),
     clock: systemClock,
+    negotiation: { claims: claimDeps, relay: relayDeps },
   };
 
   const riderDeps: RiderBotDependencies = {
@@ -148,6 +238,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     activeOrderOf: createActiveOrderLookup(sql),
     matching,
     clock: systemClock,
+    negotiation: { rotation: rotationDeps, relay: relayDeps },
   };
 
   return {
@@ -157,6 +248,14 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       log,
     }),
     sql,
+    negotiation: {
+      snapshots: createNegotiationSnapshotReader(sql),
+      rotate: rotationDeps,
+      republish: publishDeps,
+      escalate: escalationDeps,
+      publish: publishDeps,
+      clock: systemClock,
+    },
     close: async () => {
       await sql.end({ timeout: 5 });
     },
