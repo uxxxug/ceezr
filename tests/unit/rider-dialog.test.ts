@@ -106,11 +106,23 @@ describe("تسجيل العميل وطلب رحلة", () => {
     await handleRiderUpdate(text("سالم"), withRiders);
     const city = await handleRiderUpdate(callback(`city:${JEDDAH.id}`), withRiders);
     expect(city[0]?.text).toBe(ar("rider.registered", { name: "سالم", city: "جدة" }));
+    // بعد التسجيل يُسأل العميل عن الخدمة: النقل والتوصيل مساران مختلفان من أول خطوة
+    expect(city[1]?.text).toBe(ar("rider.ask_service"));
     expect(city[1]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [{ label: ar("rider.service_transport"), data: "svc:transport" }],
+        [{ label: ar("rider.service_delivery"), data: "svc:delivery" }],
+      ],
+    });
+    expect(riders.registrations).toHaveLength(1);
+
+    const chosen = await handleRiderUpdate(callback("svc:transport"), withRiders);
+    expect(chosen[0]?.text).toBe(ar("rider.ask_pickup"));
+    expect(chosen[0]?.keyboard).toEqual({
       kind: "request_location",
       label: ar("rider.share_location_button"),
     });
-    expect(riders.registrations).toHaveLength(1);
 
     const pickup = await handleRiderUpdate(location(PICKUP), withRiders);
     expect(pickup[0]?.text).toBe(ar("rider.ask_dropoff"));
@@ -270,5 +282,130 @@ describe("المطابقة بعد الإنشاء", () => {
     await handleRiderUpdate(location(PICKUP), d);
     const replies = await handleRiderUpdate(text("/skip"), d);
     expect(replies[0]?.text).toBe(ar("rider.searching"));
+  });
+});
+
+describe("مسار التوصيل في حوار العميل", () => {
+  const REGISTERED = {
+    id: "rider-9" as RiderId,
+    cityId: JEDDAH.id,
+    telegramUserId: "500",
+    fullName: "سالم",
+  };
+
+  const DELIVERY_ORDER: Order = {
+    id: ORDER_ID,
+    cityId: JEDDAH.id,
+    service: "delivery",
+    status: "searching",
+    pickup: PICKUP,
+    dropoff: DROPOFF,
+    assignedDriverId: null,
+    broadcastRound: 0,
+  };
+
+  function deliveryDeps(): RiderBotDependencies {
+    return build({
+      riders: riderDirectory(REGISTERED),
+      matching: { ...deps.matching, orders: orderRepo([DELIVERY_ORDER]) },
+    });
+  }
+
+  it("‏/start لعميل مسجَّل يعرض اختيار الخدمة لا موقع الانطلاق مباشرة", async () => {
+    const d = deliveryDeps();
+    const replies = await handleRiderUpdate(text("/start"), d);
+    expect(replies[0]?.text).toBe(ar("rider.ask_service"));
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [{ label: ar("rider.service_transport"), data: "svc:transport" }],
+        [{ label: ar("rider.service_delivery"), data: "svc:delivery" }],
+      ],
+    });
+  });
+
+  it("‏/delivery يمضي: استلام ← تسليم ← وصف الطرد ← طلب delivery بوصفه في notes", async () => {
+    const d = deliveryDeps();
+
+    const started = await handleRiderUpdate(text("/delivery"), d);
+    expect(started[0]?.text).toBe(ar("rider.ask_parcel_pickup"));
+
+    const pickup = await handleRiderUpdate(location(PICKUP), d);
+    expect(pickup[0]?.text).toBe(ar("rider.ask_parcel_dropoff"));
+
+    const dropoff = await handleRiderUpdate(location(DROPOFF), d);
+    expect(dropoff[0]?.text).toBe(ar("rider.ask_parcel"));
+
+    const done = await handleRiderUpdate(text("صندوق كتب متوسط"), d);
+    expect(done[0]?.text).toBe(ar("rider.delivery_searching"));
+
+    expect(orders.createdFull).toEqual([
+      {
+        cityId: JEDDAH.id,
+        riderId: REGISTERED.id,
+        service: "delivery",
+        pickup: PICKUP,
+        dropoff: DROPOFF,
+        notes: "صندوق كتب متوسط",
+      },
+    ]);
+  });
+
+  it("زرّ svc:delivery يسلك نفس مسار /delivery", async () => {
+    const d = deliveryDeps();
+    await handleRiderUpdate(text("/start"), d);
+    const chosen = await handleRiderUpdate(callback("svc:delivery"), d);
+    expect(chosen[0]?.text).toBe(ar("rider.ask_parcel_pickup"));
+  });
+
+  it("لا يقبل /skip في التوصيل: الوجهة ركن لا خيار", async () => {
+    const d = deliveryDeps();
+    await handleRiderUpdate(text("/delivery"), d);
+    await handleRiderUpdate(location(PICKUP), d);
+    const refused = await handleRiderUpdate(text("/skip"), d);
+    expect(refused[0]?.text).toBe(ar("rider.delivery_dropoff_required"));
+    expect(orders.createdFull).toHaveLength(0);
+  });
+
+  it("يرفض وصف طرد قصيراً ويبقى في نفس الخطوة حتى يصحّ", async () => {
+    const d = deliveryDeps();
+    await handleRiderUpdate(text("/delivery"), d);
+    await handleRiderUpdate(location(PICKUP), d);
+    await handleRiderUpdate(location(DROPOFF), d);
+
+    const refused = await handleRiderUpdate(text("أب"), d);
+    expect(refused[0]?.text).toBe(ar("rider.parcel_invalid"));
+    expect(orders.createdFull).toHaveLength(0);
+
+    const accepted = await handleRiderUpdate(text("كيس ملابس"), d);
+    expect(accepted[0]?.text).toBe(ar("rider.delivery_searching"));
+    expect(orders.createdFull).toHaveLength(1);
+  });
+
+  it("يرفض وصفاً أطول من الحد ولا ينشئ طلباً", async () => {
+    const d = deliveryDeps();
+    await handleRiderUpdate(text("/delivery"), d);
+    await handleRiderUpdate(location(PICKUP), d);
+    await handleRiderUpdate(location(DROPOFF), d);
+    const refused = await handleRiderUpdate(text("ط".repeat(201)), d);
+    expect(refused[0]?.text).toBe(ar("rider.parcel_too_long"));
+    expect(orders.createdFull).toHaveLength(0);
+  });
+
+  it("يرفض نصاً مكان موقع التسليم", async () => {
+    const d = deliveryDeps();
+    await handleRiderUpdate(text("/delivery"), d);
+    await handleRiderUpdate(location(PICKUP), d);
+    const refused = await handleRiderUpdate(text("حي الصفا"), d);
+    expect(refused[0]?.text).toBe(ar("rider.location_required"));
+  });
+
+  it("‏/ride يبقى مسار نقل خالصاً بلا وصف طرد", async () => {
+    const d = deliveryDeps();
+    await handleRiderUpdate(text("/ride"), d);
+    await handleRiderUpdate(location(PICKUP), d);
+    await handleRiderUpdate(location(DROPOFF), d);
+    expect(orders.createdFull[0]?.service).toBe("transport");
+    expect(orders.createdFull[0]?.notes).toBeNull();
   });
 });

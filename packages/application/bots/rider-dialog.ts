@@ -1,15 +1,17 @@
 /**
- * الغرض: منطق حوار بوت العميل: التسجيل، طلب رحلة بموقع حقيقي، ثم بدء البحث عن سائق.
- * الحالة: منفّذ فعلياً — المرحلة 2.1.
+ * الغرض: منطق حوار بوت العميل: التسجيل، اختيار الخدمة (نقل/توصيل)، الطلب بموقع حقيقي،
+ *   ثم بدء البحث عن سائق. مسار التوصيل يمرّ بحالة الاستخدام requestDelivery ولا يكرّر منطقها.
+ * الحالة: منفّذ فعلياً — المرحلة 2.1، ووُسّع للتوصيل في المرحلة 2.2.
  * ينتمي إلى: application/bots
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/bots/rider/index.ts
- * ملاحظات مستقبلية: التسعير المسبق يُضاف في 2.2 بقراءة تعرفة المدينة من platform_settings.
+ * ملاحظات مستقبلية: التسعير المسبق يُضاف بقراءة تعرفة المدينة من platform_settings.
  */
 
 import { makeCoordinates } from "../../domain/geo/value-objects.ts";
 import { parseFullName } from "../../domain/identity/value-objects.ts";
 import { t } from "../../shared/i18n/index.ts";
-import type { Clock, OrderId } from "../../shared/kernel/index.ts";
+import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
+import { requestDelivery } from "../delivery/request-delivery.ts";
 import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
   type BotReply,
@@ -70,6 +72,7 @@ export async function handleRiderUpdate(
   if (update.kind === "callback") {
     const [prefix, ...rest] = update.data.split(":");
     if (prefix === "city") return handleCitySelected(rest.join(":"), sender, state, deps);
+    if (prefix === "svc") return handleServiceSelected(rest.join(":"), sender, state, deps);
     return [reply(sender, tr("common.unknown_command"))];
   }
 
@@ -85,6 +88,7 @@ export async function handleRiderUpdate(
   if (text.startsWith("/")) return handleCommand(text, sender, state, deps);
 
   if (state.step === "awaiting_name") return handleName(text, sender, state, deps);
+  if (state.step === "awaiting_parcel") return handleParcel(text, sender, state, deps);
   if (state.step === "awaiting_pickup" || state.step === "awaiting_dropoff") {
     // لا نقبل عنواناً نصياً مكان إحداثيات: الموقع الوهمي أسوأ من لا موقع
     return [reply(sender, tr("rider.location_required"))];
@@ -107,7 +111,7 @@ async function handleCommand(
 
   switch (name) {
     case "/start": {
-      if (rider !== null) return startRideFlow(sender, state, deps);
+      if (rider !== null) return askService(sender, state, deps);
       const saved = await deps.sessions.save(sender.telegramUserId, {
         ...state,
         step: "awaiting_name",
@@ -118,7 +122,12 @@ async function handleCommand(
 
     case "/ride": {
       if (rider === null) return [reply(sender, tr("rider.must_register_first"))];
-      return startRideFlow(sender, state, deps);
+      return startServiceFlow("transport", sender, state, deps);
+    }
+
+    case "/delivery": {
+      if (rider === null) return [reply(sender, tr("rider.must_register_first"))];
+      return startServiceFlow("delivery", sender, state, deps);
     }
 
     case "/skip": {
@@ -126,6 +135,10 @@ async function handleCommand(
         return [reply(sender, tr("common.unknown_command"))];
       }
       if (rider === null) return [reply(sender, tr("rider.must_register_first"))];
+      // الطرد يُسلَّم إلى مكان محدَّد: تخطّي الوجهة مسموح في النقل وحده
+      if (state.draftService === "delivery") {
+        return [reply(sender, tr("rider.delivery_dropoff_required"))];
+      }
       return createOrderAndMatch(sender, state, rider, state.draftPickup, null, deps);
     }
 
@@ -148,7 +161,49 @@ async function handleCommand(
   }
 }
 
-async function startRideFlow(
+/** اختيار نوع الخدمة قبل أي موقع: النقل والتوصيل مساران مختلفان من أول خطوة. */
+async function askService(
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_service",
+    draftPickup: null,
+    draftDropoff: null,
+    draftService: null,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+  return [
+    reply(sender, tr("rider.ask_service"), {
+      kind: "inline",
+      rows: [
+        [{ label: tr("rider.service_transport"), data: "svc:transport" }],
+        [{ label: tr("rider.service_delivery"), data: "svc:delivery" }],
+      ],
+    }),
+  ];
+}
+
+function isServiceType(value: string): value is ServiceType {
+  return value === "transport" || value === "delivery";
+}
+
+async function handleServiceSelected(
+  raw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  if (!isServiceType(raw)) return [reply(sender, tr("common.unknown_command"))];
+  return startServiceFlow(raw, sender, state, deps);
+}
+
+async function startServiceFlow(
+  service: ServiceType,
   sender: Sender,
   state: DialogState,
   deps: RiderBotDependencies,
@@ -157,11 +212,13 @@ async function startRideFlow(
   const saved = await deps.sessions.save(sender.telegramUserId, {
     ...state,
     step: "awaiting_pickup",
+    draftService: service,
     draftPickup: null,
+    draftDropoff: null,
   });
   if (!saved.ok) return technicalFailure(sender, state);
   return [
-    reply(sender, tr("rider.ask_pickup"), {
+    reply(sender, tr(service === "delivery" ? "rider.ask_parcel_pickup" : "rider.ask_pickup"), {
       kind: "request_location",
       label: tr("rider.share_location_button"),
     }),
@@ -216,21 +273,12 @@ async function handleCitySelected(
   });
   if (!registered.ok) return technicalFailure(sender, state);
 
-  const saved = await deps.sessions.save(sender.telegramUserId, {
-    ...state,
-    step: "awaiting_pickup",
-    draftCityId: city.id,
-  });
-  if (!saved.ok) return technicalFailure(sender, state);
-
+  // askService هي من تحفظ الخطوة التالية — لا حفظان متتاليان للجلسة نفسها
   return [
     reply(sender, tr("rider.registered", { name: registered.value.fullName, city: city.name }), {
       kind: "remove",
     }),
-    reply(sender, tr("rider.ask_pickup"), {
-      kind: "request_location",
-      label: tr("rider.share_location_button"),
-    }),
+    ...(await askService(sender, { ...state, draftCityId: city.id }, deps)),
   ];
 }
 
@@ -252,6 +300,8 @@ async function handleLocation(
   if (found.value === null) return [reply(sender, tr("rider.must_register_first"))];
   const rider = found.value;
 
+  const isDelivery = state.draftService === "delivery";
+
   if (state.step === "awaiting_pickup") {
     const saved = await deps.sessions.save(sender.telegramUserId, {
       ...state,
@@ -259,14 +309,81 @@ async function handleLocation(
       draftPickup: location,
     });
     if (!saved.ok) return technicalFailure(sender, state);
-    return [reply(sender, tr("rider.ask_dropoff"), { kind: "remove" })];
+    const key = isDelivery ? "rider.ask_parcel_dropoff" : "rider.ask_dropoff";
+    return [reply(sender, tr(key), { kind: "remove" })];
   }
 
   if (state.step === "awaiting_dropoff" && state.draftPickup !== null) {
+    // التوصيل لا ينتهي عند الوجهة: يبقى وصف الطرد، وهو ركن لا خيار
+    if (isDelivery) {
+      const saved = await deps.sessions.save(sender.telegramUserId, {
+        ...state,
+        step: "awaiting_parcel",
+        draftDropoff: location,
+      });
+      if (!saved.ok) return technicalFailure(sender, state);
+      return [reply(sender, tr("rider.ask_parcel"), { kind: "remove" })];
+    }
     return createOrderAndMatch(sender, state, rider, state.draftPickup, location, deps);
   }
 
   return [reply(sender, tr("common.unknown_command"))];
+}
+
+/**
+ * آخر خطوة في التوصيل: وصف الطرد. التحقّق كله في الدومين، وهنا ترجمة الخطأ إلى رسالة.
+ * الطلب يُكتب ويُبثّ عبر requestDelivery — لا نسخة ثانية من المنطق هنا.
+ */
+async function handleParcel(
+  raw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+
+  const found = await deps.riders.findByTelegramId(sender.telegramUserId);
+  if (!found.ok) return technicalFailure(sender, state);
+  if (found.value === null) return [reply(sender, tr("rider.must_register_first"))];
+  const rider = found.value;
+
+  if (state.draftPickup === null || state.draftDropoff === null) {
+    // جلسة ناقصة: نعيد المسار من أوله بدل إنشاء طلب نصف مكتمل
+    await deps.sessions.clear(sender.telegramUserId);
+    return [reply(sender, tr("rider.delivery_dropoff_required"))];
+  }
+
+  const requested = await requestDelivery(
+    {
+      cityId: rider.cityId,
+      riderId: rider.id,
+      pickup: state.draftPickup,
+      dropoff: state.draftDropoff,
+      parcelDescription: raw,
+    },
+    { orders: deps.orders, matching: deps.matching },
+  );
+
+  if (!requested.ok) {
+    if (requested.error.code === "DELIVERY_DROPOFF_REQUIRED") {
+      return [reply(sender, tr("rider.delivery_dropoff_required"))];
+    }
+    if (requested.error.code === "INVALID_PARCEL_DESCRIPTION") {
+      const key =
+        requested.error.reason === "too_long" ? "rider.parcel_too_long" : "rider.parcel_invalid";
+      return [reply(sender, tr(key))];
+    }
+    return technicalFailure(sender, state);
+  }
+
+  await deps.sessions.clear(sender.telegramUserId);
+
+  const replies: BotReply[] = [reply(sender, tr("rider.delivery_searching"), { kind: "remove" })];
+  if (requested.value.notified.length === 0) return replies;
+  return [
+    ...replies,
+    reply(sender, tr("rider.drivers_notified", { count: requested.value.notified.length })),
+  ];
 }
 
 async function createOrderAndMatch(
@@ -279,6 +396,7 @@ async function createOrderAndMatch(
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
 
+  // مسار النقل حصراً: التوصيل يُنشَأ في handleParcel عبر requestDelivery
   const created = await deps.orders.create({
     cityId: rider.cityId,
     riderId: rider.id,

@@ -184,14 +184,25 @@ export interface OrderWriterDouble extends OrderWriter {
     pickup: { latitude: number; longitude: number };
     dropoff: { latitude: number; longitude: number } | null;
   }[];
+  /** ما أُرسِل كاملاً — يشمل نوع الخدمة ووصف الطرد، ليُتحقّق منهما في اختبار التوصيل. */
+  readonly createdFull: {
+    cityId: CityId;
+    riderId: RiderId;
+    service: ServiceType;
+    pickup: { latitude: number; longitude: number };
+    dropoff: { latitude: number; longitude: number } | null;
+    notes: string | null;
+  }[];
   readonly cancellations: OrderId[];
 }
 
 export function orderWriter(orderId = "order-1" as OrderId): OrderWriterDouble {
   const created: OrderWriterDouble["created"] = [];
+  const createdFull: OrderWriterDouble["createdFull"] = [];
   const cancellations: OrderId[] = [];
   return {
     created,
+    createdFull,
     cancellations,
     create: async (input) => {
       created.push({
@@ -199,6 +210,14 @@ export function orderWriter(orderId = "order-1" as OrderId): OrderWriterDouble {
         riderId: input.riderId,
         pickup: input.pickup,
         dropoff: input.dropoff,
+      });
+      createdFull.push({
+        cityId: input.cityId,
+        riderId: input.riderId,
+        service: input.service,
+        pickup: input.pickup,
+        dropoff: input.dropoff,
+        notes: input.notes ?? null,
       });
       return ok(orderId);
     },

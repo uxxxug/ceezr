@@ -1,8 +1,15 @@
 /**
  * الغرض: تجميع حالات استخدام وحدة delivery
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الحالة: منفّذ جزئياً — المرحلة 2.2 فعّلت request-delivery؛ وبقية الملفات هياكل معلنة.
  * ينتمي إلى: application/delivery
  * يُتوقع أن يستخدمه لاحقاً: apps/*
- * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني (المرحلة 2.2).
+ * ملاحظات مستقبلية: pickup-parcel و deliver-parcel و estimate-delivery-fare تُفعَّل
+ *   عند تفعيل انتقالات الرحلة (بدء/إنهاء) بدوال RPC ذرّية، لا بتحديث مباشر.
  */
-export {};
+
+export {
+  type RequestDeliveryDependencies,
+  type RequestDeliveryError,
+  type RequestDeliveryResult,
+  requestDelivery,
+} from "./request-delivery.ts";

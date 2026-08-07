@@ -65,7 +65,7 @@ export function createOrderWriter(sql: Sql): OrderWriter {
     create: (input: CreateOrderInput) =>
       guard("orders.create", async () => {
         const rows = await sql<{ id: string }[]>`
-          insert into orders (city_id, rider_id, service, status, pickup, dropoff)
+          insert into orders (city_id, rider_id, service, status, pickup, dropoff, notes)
           values (
             ${input.cityId}, ${input.riderId}, ${input.service}::service_type, 'searching',
             st_setsrid(st_makepoint(${input.pickup.longitude}, ${input.pickup.latitude}), 4326)::geography,
@@ -73,7 +73,8 @@ export function createOrderWriter(sql: Sql): OrderWriter {
               input.dropoff === null
                 ? sql`null`
                 : sql`st_setsrid(st_makepoint(${input.dropoff.longitude}, ${input.dropoff.latitude}), 4326)::geography`
-            }
+            },
+            ${input.notes ?? null}
           )
           returning id
         `;

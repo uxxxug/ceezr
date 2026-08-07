@@ -57,7 +57,9 @@ export type DialogStep =
   | "awaiting_city"
   | "awaiting_service"
   | "awaiting_pickup"
-  | "awaiting_dropoff";
+  | "awaiting_dropoff"
+  /** خاصّ بالتوصيل: وصف الطرد بعد تثبيت نقطتي الانطلاق والوصول. */
+  | "awaiting_parcel";
 
 export interface DialogState {
   readonly step: DialogStep;
@@ -67,6 +69,8 @@ export interface DialogState {
   readonly draftCityId: CityId | null;
   readonly draftService: ServiceType | null;
   readonly draftPickup: Coordinates | null;
+  /** وجهة محفوظة بين خطوتين — يحتاجها التوصيل لأن وصف الطرد يأتي بعدها. */
+  readonly draftDropoff: Coordinates | null;
 }
 
 export const INITIAL_STATE: DialogState = {
@@ -77,6 +81,7 @@ export const INITIAL_STATE: DialogState = {
   draftCityId: null,
   draftService: null,
   draftPickup: null,
+  draftDropoff: null,
 };
 
 export interface SessionStore {
@@ -171,6 +176,8 @@ export interface CreateOrderInput {
   readonly service: ServiceType;
   readonly pickup: Coordinates;
   readonly dropoff: Coordinates | null;
+  /** ملاحظة العميل على الطلب — وصف الطرد في التوصيل. تُكتب في orders.notes. */
+  readonly notes?: string | null;
 }
 
 export interface OrderWriter {

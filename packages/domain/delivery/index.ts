@@ -1,8 +1,21 @@
 /**
  * الغرض: نقطة التصدير العامة لوحدة delivery — توصيل الطرود
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الحالة: منفّذ فعلياً — المرحلة 2.2.
  * ينتمي إلى: domain/delivery
  * يُتوقع أن يستخدمه لاحقاً: packages/application/delivery/*, packages/infrastructure/delivery/*
- * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني (المرحلة 2.2).
+ * ملاحظات مستقبلية: أي تصدير جديد يمرّ من هنا لا من مسار الملف مباشرة.
  */
-export {};
+
+export {
+  DELIVERY_SERVICE,
+  type DeliveryRequest,
+  type DeliveryRequestInput,
+  makeDeliveryRequest,
+} from "./entity.ts";
+export {
+  DeliveryDropoffRequiredError,
+  type DeliveryRequestError,
+  InvalidParcelDescriptionError,
+} from "./errors.ts";
+export type { DeliveryEvent, DeliveryRequestedEvent } from "./events.ts";
+export { type ParcelDescription, parseParcelDescription } from "./value-objects.ts";
