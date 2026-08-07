@@ -218,6 +218,7 @@ describe("مخزن الجلسات", () => {
       draftService: null,
       draftPickup: null,
       draftDropoff: null,
+      draftSupportType: null,
     });
     const loaded = await store.load("1");
     expect(loaded.ok && loaded.value?.draftName).toBe("سالم");
@@ -238,6 +239,7 @@ describe("مخزن الجلسات", () => {
       draftService: null,
       draftPickup: null,
       draftDropoff: null,
+      draftSupportType: null,
     });
     now = new Date(NOW.getTime() + 61_000);
     const loaded = await store.load("1");

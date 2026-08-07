@@ -27,6 +27,7 @@ const FULL_ENV: Record<string, string> = {
   DRIVER_BOT_TOKEN: "x",
   RIDER_BOT_TOKEN: "x",
   TELEGRAM_WEBHOOK_SECRET: SECRET,
+  BOOTSTRAP_ADMIN_TELEGRAM_ID: "900000",
 };
 
 function buildApp(opts: {

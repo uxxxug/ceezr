@@ -230,14 +230,18 @@ export function orderWriter(orderId = "order-1" as OrderId): OrderWriterDouble {
 
 /** يلتقط كل ما كان سيُرسَل إلى تلغرام بدل إرساله. */
 export function capturingSender(): TelegramSender & {
-  readonly sent: { chatId: string; text: string; markup: unknown }[];
+  readonly sent: { chatId: string; text: string; markup: unknown; photoFileId?: string }[];
 } {
-  const sent: { chatId: string; text: string; markup: unknown }[] = [];
+  const sent: { chatId: string; text: string; markup: unknown; photoFileId?: string }[] = [];
   return {
     sent,
     sendMessage: async (chatId, text, markup) => {
       sent.push({ chatId, text, markup });
       // المعرّف المتزايد يحاكي معرّفات تلغرام: تصاعدية وفريدة داخل المحادثة
+      return String(sent.length);
+    },
+    sendPhoto: async (chatId, fileId, caption, markup) => {
+      sent.push({ chatId, text: caption, markup, photoFileId: fileId });
       return String(sent.length);
     },
   };
@@ -246,6 +250,9 @@ export function capturingSender(): TelegramSender & {
 export function failingSender(detail: string): TelegramSender {
   return {
     sendMessage: async () => {
+      throw new Error(detail);
+    },
+    sendPhoto: async () => {
       throw new Error(detail);
     },
   };

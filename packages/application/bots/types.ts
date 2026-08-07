@@ -19,6 +19,16 @@ export type IncomingUpdate =
   | { readonly kind: "callback"; readonly from: Sender; readonly data: string }
   | { readonly kind: "location"; readonly from: Sender; readonly location: Coordinates }
   | { readonly kind: "contact"; readonly from: Sender; readonly phone: string }
+  /**
+   * صورة: نحمل معرّف الملف عند تلغرام ولا نُنزّل الصورة ولا نخزّنها عندنا.
+   * إعادة إرسالها للدعم تتم بالمعرّف نفسه، فلا تكلفة تخزين ولا تسريب لملفات المستخدمين.
+   */
+  | {
+      readonly kind: "photo";
+      readonly from: Sender;
+      readonly fileId: string;
+      readonly caption: string | null;
+    }
   | { readonly kind: "unsupported"; readonly from: Sender };
 
 export interface Sender {
@@ -47,6 +57,11 @@ export interface BotReply {
   readonly chatId: string;
   readonly text: string;
   readonly keyboard: Keyboard | null;
+  /**
+   * إن وُجد، تُرسَل صورة بهذا المعرّف والنصّ تعليقاً عليها بدل رسالة نصّية.
+   * يحتاجه الدعم: إيصال التحويل يجب أن يظهر صورةً في القروب لا رابطاً لا يفتحه أحد.
+   */
+  readonly photoFileId?: string;
 }
 
 /** حالة الحوار المحفوظة بين رسالتين. لا تحمل قيمة تجارية، فقط تقدّم المستخدم. */
@@ -59,7 +74,11 @@ export type DialogStep =
   | "awaiting_pickup"
   | "awaiting_dropoff"
   /** خاصّ بالتوصيل: وصف الطرد بعد تثبيت نقطتي الانطلاق والوصول. */
-  | "awaiting_parcel";
+  | "awaiting_parcel"
+  /** اختيار نوع الشكوى بعد /support: اشتراك أم نزاع رحلة. */
+  | "awaiting_support_type"
+  /** انتظار نصّ الشكوى أو صورتها بعد اختيار النوع. */
+  | "awaiting_support_message";
 
 export interface DialogState {
   readonly step: DialogStep;
@@ -71,6 +90,8 @@ export interface DialogState {
   readonly draftPickup: Coordinates | null;
   /** وجهة محفوظة بين خطوتين — يحتاجها التوصيل لأن وصف الطرد يأتي بعدها. */
   readonly draftDropoff: Coordinates | null;
+  /** نوع تذكرة الدعم المختار، محفوظاً حتى تصل رسالة الشكوى. */
+  readonly draftSupportType: "subscription" | "ride_dispute" | null;
 }
 
 export const INITIAL_STATE: DialogState = {
@@ -82,6 +103,7 @@ export const INITIAL_STATE: DialogState = {
   draftService: null,
   draftPickup: null,
   draftDropoff: null,
+  draftSupportType: null,
 };
 
 export interface SessionStore {

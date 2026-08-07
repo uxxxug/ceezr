@@ -21,6 +21,7 @@ const FULL: Record<string, string> = {
   DRIVER_BOT_TOKEN: "driver-token",
   RIDER_BOT_TOKEN: "rider-token",
   TELEGRAM_WEBHOOK_SECRET: "secret",
+  BOOTSTRAP_ADMIN_TELEGRAM_ID: "900000",
 };
 
 describe("tryLoadConfig", () => {

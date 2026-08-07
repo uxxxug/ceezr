@@ -23,6 +23,12 @@ import {
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
 import {
+  handleSupportGroupAction,
+  type SupportDialogDependencies,
+  startSupportDialog,
+  submitSupportMessage,
+} from "./support-dialog.ts";
+import {
   type BotReply,
   type CityDirectory,
   type CityRef,
@@ -52,6 +58,8 @@ export interface RiderBotDependencies {
     readonly rotation: RotateNegotiationDependencies;
     readonly relay: RelayDependencies;
   };
+  /** مسار الدعم (المرحلة 2.4) — نزاعات الرحلات فقط: العميل لا اشتراك له. */
+  readonly support?: SupportDialogDependencies;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -88,11 +96,31 @@ export async function handleRiderUpdate(
     if (prefix === "city") return handleCitySelected(rest.join(":"), sender, state, deps);
     if (prefix === "svc") return handleServiceSelected(rest.join(":"), sender, state, deps);
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
+    if (prefix === "sup") {
+      return deps.support === undefined
+        ? [reply(sender, tr("common.unknown_command"))]
+        : handleSupportGroupAction(rest, sender, state, deps.support);
+    }
     return [reply(sender, tr("common.unknown_command"))];
   }
 
   if (update.kind === "location") {
     return handleLocation(update.location, sender, state, deps);
+  }
+
+  if (update.kind === "photo") {
+    if (state.step !== "awaiting_support_message" || deps.support === undefined) {
+      return [reply(sender, tr("common.unknown_command"))];
+    }
+    return submitSupportMessage(
+      {
+        message: update.caption ?? tr("support.photo_only_message"),
+        attachmentFileId: update.fileId,
+      },
+      sender,
+      state,
+      deps.support,
+    );
   }
 
   if (update.kind === "contact" || update.kind === "unsupported") {
@@ -103,6 +131,16 @@ export async function handleRiderUpdate(
   if (text.startsWith("/")) return handleCommand(text, sender, state, deps);
 
   if (state.step === "awaiting_name") return handleName(text, sender, state, deps);
+  if (state.step === "awaiting_support_message") {
+    return deps.support === undefined
+      ? [reply(sender, tr("common.unknown_command"))]
+      : submitSupportMessage(
+          { message: text, attachmentFileId: null },
+          sender,
+          state,
+          deps.support,
+        );
+  }
   if (state.step === "awaiting_parcel") return handleParcel(text, sender, state, deps);
   if (state.step === "awaiting_pickup" || state.step === "awaiting_dropoff") {
     // لا نقبل عنواناً نصياً مكان إحداثيات: الموقع الوهمي أسوأ من لا موقع
@@ -224,6 +262,13 @@ async function handleCommand(
         return [reply(sender, tr("rider.delivery_dropoff_required"))];
       }
       return createOrderAndMatch(sender, state, rider, state.draftPickup, null, deps);
+    }
+
+    case "/support": {
+      if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
+      if (rider === null) return [reply(sender, tr("support.not_registered"))];
+      // العميل لا يملك اشتراكاً، فسؤاله عن نوع المشكلة يولّد تذاكر مرفوضة حتماً
+      return startSupportDialog(sender, state, deps.support, { allowSubscriptionType: false });
     }
 
     case "/cancel": {

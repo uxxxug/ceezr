@@ -1,8 +1,12 @@
 /**
- * الغرض: نقطة التصدير العامة لوحدة dispute — النزاعات والشكاوى عبر قروبات الدعم
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: نقطة التصدير العامة لوحدة dispute.
+ * الحالة: منفّذ فعلياً — المرحلة 2.4.
  * ينتمي إلى: domain/dispute
- * يُتوقع أن يستخدمه لاحقاً: packages/application/dispute/*, packages/infrastructure/dispute/*
- * ملاحظات مستقبلية: يُفعَّل في الأمر الثاني (المرحلة 2.4).
+ * يُتوقع أن يستخدمه لاحقاً: application/dispute، apps/*
+ * ملاحظات مستقبلية: لا تُصدَّر إلا الملفات المنفَّذة فعلاً.
  */
-export {};
+
+export * from "./entity.ts";
+export * from "./errors.ts";
+export * from "./events.ts";
+export * from "./value-objects.ts";

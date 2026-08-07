@@ -16,6 +16,9 @@ export interface RawTelegramUpdate {
     readonly text?: string;
     readonly location?: { readonly latitude?: number; readonly longitude?: number };
     readonly contact?: { readonly phone_number?: string };
+    /** تلغرام يرسل الصورة بعدّة مقاسات مرتّبة تصاعدياً. */
+    readonly photo?: readonly { readonly file_id?: string }[];
+    readonly caption?: string;
   };
   readonly callback_query?: {
     readonly data?: string;
@@ -67,6 +70,24 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
   const phone = message.contact?.phone_number;
   if (phone !== undefined && phone !== "") {
     return { kind: "contact", from: sender, phone };
+  }
+
+  /**
+   * نأخذ آخر عنصر: هو أعلى مقاس رفعه تلغرام. إيصال التحويل بمقاس مصغّر
+   * غير مقروء غالباً، وطلب إعادة إرساله يُضيّع دورة دعم كاملة.
+   */
+  const photos = message.photo;
+  if (photos !== undefined && photos.length > 0) {
+    const fileId = photos[photos.length - 1]?.file_id;
+    if (fileId !== undefined && fileId !== "") {
+      const caption = message.caption?.trim();
+      return {
+        kind: "photo",
+        from: sender,
+        fileId,
+        caption: caption === undefined || caption === "" ? null : caption,
+      };
+    }
   }
 
   if (message.text !== undefined && message.text.trim() !== "") {

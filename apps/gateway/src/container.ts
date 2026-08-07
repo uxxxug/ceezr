@@ -10,6 +10,7 @@
 
 import type { DriverBotDependencies } from "../../../packages/application/bots/driver-dialog.ts";
 import type { RiderBotDependencies } from "../../../packages/application/bots/rider-dialog.ts";
+import type { SupportDialogDependencies } from "../../../packages/application/bots/support-dialog.ts";
 import type { Keyboard } from "../../../packages/application/bots/types.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
@@ -34,7 +35,15 @@ import {
   createOrderNotesReader,
   createUnsubscribedCyclePort,
 } from "../../../packages/infrastructure/dispatch/negotiation-adapters.ts";
+import {
+  createSupportCardRecorder,
+  createSupportClaimPort,
+  createSupportResolutionPort,
+  createSupportTicketContextReader,
+  createSupportTicketPort,
+} from "../../../packages/infrastructure/dispute/support-adapters.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
+import { createBootstrapAdminPort } from "../../../packages/infrastructure/identity/bootstrap-admin.ts";
 import {
   createDriverDirectory,
   createRiderDirectory,
@@ -50,6 +59,11 @@ import {
   createUnsubscribedGroupPublisher,
   type IdentifyingSender,
 } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
+import {
+  createSupportCardPublisher,
+  createTicketOwnerNotifier,
+  type SupportSender,
+} from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import {
   createSubscriptionReader,
@@ -121,6 +135,29 @@ export function asIdentifyingSender(sender: TelegramSender): IdentifyingSender {
   };
 }
 
+/**
+ * مُرسِل بطاقات الدعم: نصّاً أو صورةً. الصورة تُعاد بمعرّفها لأن إيصال التحويل
+ * يجب أن يظهر صورةً أمام الفريق لا رابطاً لا يفتحه أحد.
+ */
+export function asSupportSender(sender: TelegramSender): SupportSender {
+  return {
+    sendReturningId: async (chatId, text, keyboard) => {
+      try {
+        return await sender.sendMessage(chatId, text, keyboard);
+      } catch {
+        return null;
+      }
+    },
+    sendPhotoReturningId: async (chatId, fileId, caption, keyboard) => {
+      try {
+        return await sender.sendPhoto(chatId, fileId, caption, keyboard);
+      } catch {
+        return null;
+      }
+    },
+  };
+}
+
 export interface Container {
   readonly handler: UpdateHandler;
   readonly sql: Sql;
@@ -157,6 +194,11 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
 
   const driverSender = overrides.driverSender ?? grammyTelegramSender(config.driverBotToken);
   const riderSender = overrides.riderSender ?? grammyTelegramSender(config.riderBotToken);
+
+  // مخزنان منفصلان: حالة حوار السائق لا تخصّ العميل، ودمجهما كان سيخلط خطوتين
+  // لشخص واحد يستخدم البوتين بمعرّف تلغرام واحد.
+  const driverSessions = createMemorySessionStore(systemClock);
+  const riderSessions = createMemorySessionStore(systemClock);
 
   const settings = createSettingsRepository(sql);
   const cities = createCityDirectory(sql);
@@ -217,8 +259,43 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     publisher: createEscalationGroupPublisher(asIdentifyingSender(driverSender)),
   };
 
+  /**
+   * مسار الدعم: بطاقة التذكرة تُنشر بمُرسِل بوت السائق لأن أزرارها يضغطها فريق الدعم
+   * في قروب مرتبط ببوت السائق، وردّ الضغطة يجب أن يعود إلى البوت الذي نشرها.
+   * التبليغ الفردي يذهب بمُرسِل البوت نفسه الذي يخاطبه صاحب التذكرة.
+   */
+  const supportSender = asSupportSender(driverSender);
+  const supportCore = {
+    open: { tickets: createSupportTicketPort(sql) },
+    card: {
+      context: createSupportTicketContextReader(sql),
+      publisher: createSupportCardPublisher(supportSender),
+      recorder: createSupportCardRecorder(sql),
+    },
+    claims: { claims: createSupportClaimPort(sql) },
+  };
+  const resolutionPort = createSupportResolutionPort(sql);
+
+  const driverSupport: SupportDialogDependencies = {
+    ...supportCore,
+    sessions: driverSessions,
+    resolutions: {
+      resolutions: resolutionPort,
+      notifier: createTicketOwnerNotifier(supportSender),
+    },
+  };
+
+  const riderSupport: SupportDialogDependencies = {
+    ...supportCore,
+    sessions: riderSessions,
+    resolutions: {
+      resolutions: resolutionPort,
+      notifier: createTicketOwnerNotifier(asSupportSender(riderSender)),
+    },
+  };
+
   const driverDeps: DriverBotDependencies = {
-    sessions: createMemorySessionStore(systemClock),
+    sessions: driverSessions,
     drivers,
     cities,
     settings,
@@ -228,10 +305,15 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     offers: createOfferDecisionPort(sql),
     clock: systemClock,
     negotiation: { claims: claimDeps, relay: relayDeps },
+    support: driverSupport,
+    bootstrapAdmin: {
+      telegramId: config.bootstrapAdminTelegramId,
+      grant: (telegramId) => createBootstrapAdminPort(sql).grant(telegramId),
+    },
   };
 
   const riderDeps: RiderBotDependencies = {
-    sessions: createMemorySessionStore(systemClock),
+    sessions: riderSessions,
     riders,
     cities,
     orders: orderWriter,
@@ -239,6 +321,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     matching,
     clock: systemClock,
     negotiation: { rotation: rotationDeps, relay: relayDeps },
+    support: riderSupport,
   };
 
   return {

@@ -24,6 +24,16 @@ export interface TelegramSender {
    * أو يُشار إليها لاحقاً، ولا يجوز اختلاق معرّف؛ فمن لا يعرف المعرّف يعيد null.
    */
   sendMessage(chatId: string, text: string, markup: unknown): Promise<string | null>;
+  /**
+   * إرسال صورة بمعرّف ملف تلغرام والنصّ تعليقاً عليها. نمرّر المعرّف كما وصل
+   * ولا نُنزّل الصورة: التنزيل يعني تخزين ملفات مستخدمين بلا حاجة ولا سياسة حذف.
+   */
+  sendPhoto(
+    chatId: string,
+    fileId: string,
+    caption: string,
+    markup: unknown,
+  ): Promise<string | null>;
 }
 
 export function grammyTelegramSender(token: string): TelegramSender {
@@ -35,6 +45,13 @@ export function grammyTelegramSender(token: string): TelegramSender {
         text,
         markup === undefined ? {} : { reply_markup: markup as never },
       );
+      return String(sent.message_id);
+    },
+    sendPhoto: async (chatId, fileId, caption, markup) => {
+      const sent = await api.sendPhoto(chatId, fileId, {
+        caption,
+        ...(markup === undefined ? {} : { reply_markup: markup as never }),
+      });
       return String(sent.message_id);
     },
   };
@@ -75,7 +92,11 @@ export function createDriverBot(
           }
         }
         try {
-          await sender.sendMessage(reply.chatId, reply.text, markup);
+          if (reply.photoFileId === undefined) {
+            await sender.sendMessage(reply.chatId, reply.text, markup);
+          } else {
+            await sender.sendPhoto(reply.chatId, reply.photoFileId, reply.text, markup);
+          }
         } catch (error) {
           log("تعذّر إرسال رسالة إلى تلغرام", { detail: String(error) });
           return false;

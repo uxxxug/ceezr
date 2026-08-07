@@ -9,12 +9,12 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
+import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const WEBHOOK_SECRET = "integration-secret";
@@ -23,22 +23,6 @@ const RIDER_CHAT = 200_001;
 // جدة الحقيقية: نقطة انطلاق العميل وموقع السائق على بعد أقل من كيلومتر
 const PICKUP = { latitude: 21.5433, longitude: 39.1728 };
 const DRIVER_AT = { latitude: 21.5471, longitude: 39.1751 };
-
-interface SentMessage {
-  readonly chatId: string;
-  readonly text: string;
-  readonly markup: unknown;
-}
-
-function capturing(sent: SentMessage[]): TelegramSender {
-  return {
-    sendMessage: async (chatId, text, markup) => {
-      sent.push({ chatId, text, markup });
-      // معرّف حقيقي ومتزايد داخل المزدوج: لا نعيد null لأن المسار الحقيقي يعيد معرّفاً
-      return String(sent.length);
-    },
-  };
-}
 
 const config: AppConfig = {
   env: "test",
@@ -51,6 +35,7 @@ const config: AppConfig = {
   driverBotToken: "driver-token",
   riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,
+  bootstrapAdminTelegramId: "990001",
 };
 
 let sql: Sql;

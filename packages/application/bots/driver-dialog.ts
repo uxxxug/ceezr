@@ -27,6 +27,14 @@ import {
 } from "../dispatch/relay-negotiation-message.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
+  handleActivateCommand,
+  handleSupportGroupAction,
+  handleSupportTypeChoice,
+  type SupportDialogDependencies,
+  startSupportDialog,
+  submitSupportMessage,
+} from "./support-dialog.ts";
+import {
   type BotReply,
   type CityDirectory,
   type CityRef,
@@ -60,6 +68,19 @@ export interface DriverBotDependencies {
   readonly negotiation?: {
     readonly claims: RegisterUnsubscribedClaimDependencies;
     readonly relay: RelayDependencies;
+  };
+  /**
+   * مسار الدعم (المرحلة 2.4). اختياري بنفس منطق negotiation: غيابه يعني أن /support
+   * يردّ «أمر غير معروف» بدل أن يفتح حواراً لا نهاية له.
+   */
+  readonly support?: SupportDialogDependencies;
+  /**
+   * منح المسؤول الأول (§6.2ب من التوجيه). بلا هذا المسار لا توجد طريقة لتعيين
+   * أول مسؤول في نظام كل صلاحياته في القاعدة، إلا تعديل صفّ يدوياً في الإنتاج.
+   */
+  readonly bootstrapAdmin?: {
+    readonly telegramId: string;
+    grant(telegramId: string): Promise<unknown>;
   };
 }
 
@@ -119,6 +140,22 @@ export async function handleDriverUpdate(
   if (update.kind === "callback") return handleCallback(update.data, sender, state, deps);
   if (update.kind === "contact") return handlePhone(update.phone, sender, state, deps);
   if (update.kind === "location") return handleLocation(update.location, sender, state, deps);
+  if (update.kind === "photo") {
+    if (state.step !== "awaiting_support_message" || deps.support === undefined) {
+      return [reply(sender, t(languageOf(state))("common.unknown_command"))];
+    }
+    return submitSupportMessage(
+      // صورة بلا تعليق ليست شكوى بلا وصف: الإيصال نفسه هو الوصف، ونصّه ثابت مفهوم للدعم
+      {
+        message: update.caption ?? t(languageOf(state))("support.photo_only_message"),
+        attachmentFileId: update.fileId,
+      },
+      sender,
+      state,
+      deps.support,
+    );
+  }
+
   if (update.kind === "unsupported") {
     return [reply(sender, t(languageOf(state))("common.unknown_command"))];
   }
@@ -131,6 +168,15 @@ export async function handleDriverUpdate(
       return handleName(text, sender, state, deps);
     case "awaiting_phone":
       return handlePhone(text, sender, state, deps);
+    case "awaiting_support_message":
+      return deps.support === undefined
+        ? [reply(sender, t(languageOf(state))("common.unknown_command"))]
+        : submitSupportMessage(
+            { message: text, attachmentFileId: null },
+            sender,
+            state,
+            deps.support,
+          );
     default:
       // قبل ردّ "أمر غير معروف": إن كان السائق طرفاً في تفاوض نشط، فهذا نصّ موجّه للعميل
       return handleFreeText(text, sender, state, deps);
@@ -242,6 +288,16 @@ async function handleCommand(
   if (!existing.ok) return technicalFailure(sender, state);
   const driver = existing.value;
 
+  // ترقية المسؤول الأول: idempotent، وتُحاول عند كل /start لأن الحساب قد لا يكون
+  // مسجَّلاً في أوّل مرة. فشلها لا يمنع الحوار: هي مسار إداري لا شرط استخدام.
+  if (
+    name === "/start" &&
+    deps.bootstrapAdmin !== undefined &&
+    deps.bootstrapAdmin.telegramId === sender.telegramUserId
+  ) {
+    await deps.bootstrapAdmin.grant(sender.telegramUserId);
+  }
+
   switch (name) {
     case "/start": {
       if (driver !== null) {
@@ -293,6 +349,17 @@ async function handleCommand(
         if (live === null) replies.push(reply(sender, tr("driver.no_live_subscription")));
       }
       return replies;
+    }
+
+    case "/support": {
+      if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
+      if (driver === null) return [reply(sender, tr("support.not_registered"))];
+      return startSupportDialog(sender, state, deps.support, { allowSubscriptionType: true });
+    }
+
+    case "/activate": {
+      if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
+      return handleActivateCommand(command, sender, state, deps.support);
     }
 
     case "/subscription": {
@@ -435,6 +502,14 @@ async function handleCallback(
       return handleOfferDecision(rest, sender, state, deps);
     case "unsub":
       return handleUnsubscribedClaim(rest, sender, state, deps);
+    case "sup": {
+      if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
+      const [action, ...tail] = rest;
+      if (action === "type") {
+        return handleSupportTypeChoice(tail.join(":"), sender, state, deps.support);
+      }
+      return handleSupportGroupAction(rest, sender, state, deps.support);
+    }
     default:
       return [reply(sender, tr("common.unknown_command"))];
   }
@@ -505,6 +580,14 @@ async function handleServiceSelected(
     language: languageOf(state),
   });
   if (!registered.ok) return technicalFailure(sender, state);
+
+  // بعد اكتمال التسجيل مباشرة: أوّل /start لم يجد حساباً ليرقّيه، وهذه أوّل لحظة يوجد فيها
+  if (
+    deps.bootstrapAdmin !== undefined &&
+    deps.bootstrapAdmin.telegramId === sender.telegramUserId
+  ) {
+    await deps.bootstrapAdmin.grant(sender.telegramUserId);
+  }
 
   await deps.sessions.clear(sender.telegramUserId);
 

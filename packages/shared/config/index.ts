@@ -22,6 +22,11 @@ export interface AppConfig {
   readonly driverBotToken: string;
   readonly riderBotToken: string;
   readonly telegramWebhookSecret: string;
+  /**
+   * معرّف تلغرام لأول مسؤول. بدونه لا يوجد أي مسار لتعيين مسؤول في نظام
+   * كل صلاحياته في القاعدة: تعديل الصفّ يدوياً في الإنتاج ليس مساراً بل التفاف عليه.
+   */
+  readonly bootstrapAdminTelegramId: string;
 }
 
 /** المتغيرات التي بلا قيمة صالحة لها لا يمكن للنظام أن يعمل إطلاقاً. */
@@ -34,6 +39,7 @@ export const REQUIRED_ENV_KEYS = [
   "DRIVER_BOT_TOKEN",
   "RIDER_BOT_TOKEN",
   "TELEGRAM_WEBHOOK_SECRET",
+  "BOOTSTRAP_ADMIN_TELEGRAM_ID",
 ] as const;
 
 export type RequiredEnvKey = (typeof REQUIRED_ENV_KEYS)[number];
@@ -101,6 +107,13 @@ export function tryLoadConfig(
     );
   }
 
+  const bootstrapAdminTelegramId = (source.BOOTSTRAP_ADMIN_TELEGRAM_ID as string).trim();
+  if (!/^\d+$/.test(bootstrapAdminTelegramId)) {
+    return err(
+      new InvalidEnvVarError("BOOTSTRAP_ADMIN_TELEGRAM_ID", "يجب أن يكون معرّف تلغرام رقمياً"),
+    );
+  }
+
   return ok({
     env,
     port,
@@ -112,6 +125,7 @@ export function tryLoadConfig(
     driverBotToken: source.DRIVER_BOT_TOKEN as string,
     riderBotToken: source.RIDER_BOT_TOKEN as string,
     telegramWebhookSecret: source.TELEGRAM_WEBHOOK_SECRET as string,
+    bootstrapAdminTelegramId,
   });
 }
 

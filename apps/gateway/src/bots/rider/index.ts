@@ -39,8 +39,13 @@ export function createRiderBot(
       }
 
       for (const reply of replies) {
+        const markup = toTelegramMarkup(reply.keyboard);
         try {
-          await sender.sendMessage(reply.chatId, reply.text, toTelegramMarkup(reply.keyboard));
+          if (reply.photoFileId === undefined) {
+            await sender.sendMessage(reply.chatId, reply.text, markup);
+          } else {
+            await sender.sendPhoto(reply.chatId, reply.photoFileId, reply.text, markup);
+          }
         } catch (error) {
           log("تعذّر إرسال رسالة إلى تلغرام", { detail: String(error) });
           return false;
