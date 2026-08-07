@@ -33,6 +33,7 @@ interface CandidateRow {
   readonly is_available: boolean | null;
   readonly verification_status: string;
   readonly rating_average: string | null;
+  readonly rating_count: number;
   readonly services: readonly string[] | null;
   readonly sub_plan: string | null;
   readonly sub_status: string | null;
@@ -67,6 +68,7 @@ function toCandidate(row: CandidateRow): DriverCandidate {
     isAvailable: row.is_available === true,
     isVerified: row.verification_status === "verified",
     ratingAverage: row.rating_average === null ? null : Number(row.rating_average),
+    ratingCount: Number(row.rating_count ?? 0),
     capabilities,
     subscription,
   };
@@ -85,6 +87,7 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  a.is_available,
                  d.verification_status,
                  d.rating_average,
+                 d.rating_count,
                  (select array_agg(c.service::text)
                     from driver_capabilities c
                    where c.driver_id = d.id and c.is_enabled) as services,

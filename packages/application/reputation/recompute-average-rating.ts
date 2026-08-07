@@ -1,8 +1,29 @@
 /**
- * الغرض: حالة استخدام مستقبلية: recompute-average-rating ضمن التقييم المتبادل بين السائق والزبون
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: إعادة حساب المتوسطات من المصدر — تصحيح أي انحراف عن التحديث الفوري.
+ * الحالة: منفّذ فعلياً — المرحلة 2.5.
  * ينتمي إلى: application/reputation
- * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الـ Webhooks)، apps/workers، apps/admin-dashboard
- * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function recomputeAverageRating(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: recompute_average_rating. يُفعَّل في الأمر الثاني (المرحلة 2.5).
+ * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/jobs/recompute-ratings.ts
+ * ملاحظات مستقبلية: عند تضخّم البيانات تُقسَّم الدالّة في القاعدة على دفعات، والتوقيع باقٍ.
  */
-export {};
+
+import type { Result } from "../../shared/result/index.ts";
+import type { PortFailureError } from "../ports/index.ts";
+
+export interface RecomputeOutcome {
+  readonly driversUpdated: number;
+  readonly ridersUpdated: number;
+}
+
+export interface RatingRecomputePort {
+  recompute(): Promise<Result<RecomputeOutcome, PortFailureError>>;
+}
+
+/**
+ * تعيد عدد الصفوف التي تغيّرت فعلاً. صفرٌ ليس فشلاً بل الحالة السليمة:
+ * التحديث الفوري عند التقييم يسبقها، فلا تجد ما تصحّحه إلا عند انحراف حقيقي.
+ */
+export async function recomputeAverageRatings(deps: {
+  readonly recompute: RatingRecomputePort;
+}): Promise<Result<RecomputeOutcome, PortFailureError>> {
+  return deps.recompute.recompute();
+}

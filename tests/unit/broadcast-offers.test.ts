@@ -63,6 +63,7 @@ function driver(id: string, location: { latitude: number; longitude: number }): 
     isAvailable: true,
     isVerified: true,
     ratingAverage: null,
+    ratingCount: 0,
     capabilities: [{ driverId, cityId: JED, service: "transport", isEnabled: true }],
     subscription,
   };

@@ -115,6 +115,7 @@ function candidate(
     isAvailable: true,
     isVerified: true,
     ratingAverage: null,
+    ratingCount: 0,
     capabilities: [{ driverId, cityId: JEDDAH.id, service, isEnabled: true }],
     subscription: {
       driverId,
@@ -231,6 +232,7 @@ const PARAMS: MatchingParameters = {
   weightProximity: 0.7,
   weightRating: 0.3,
   broadcastBatchSize: 5,
+  ratingMinCountForTrust: 3,
   defaultRating: 4.5,
 };
 

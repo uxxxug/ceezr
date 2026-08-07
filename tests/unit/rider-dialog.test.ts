@@ -258,6 +258,7 @@ describe("المطابقة بعد الإنشاء", () => {
             isAvailable: true,
             isVerified: true,
             ratingAverage: 4.8,
+            ratingCount: 12,
             capabilities: [
               {
                 driverId: "driver-1" as DriverId,

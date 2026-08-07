@@ -66,6 +66,10 @@ import {
 } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import {
+  createRatingPort,
+  createRideLifecyclePort,
+} from "../../../packages/infrastructure/reputation/rating-adapters.ts";
+import {
   createSubscriptionReader,
   createTrialRpc,
 } from "../../../packages/infrastructure/subscription/subscription-adapters.ts";
@@ -78,6 +82,7 @@ import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { systemClock } from "../../../packages/shared/kernel/index.ts";
 import { createDriverBot, grammyTelegramSender, type TelegramSender } from "./bots/driver/index.ts";
 import { createRiderBot } from "./bots/rider/index.ts";
+import { counterpartNotifier } from "./bots/shared/counterpart-notifier.ts";
 import { toTelegramMarkup } from "./bots/shared/keyboards.ts";
 import { createMemorySessionStore } from "./bots/shared/session.ts";
 import type { RawTelegramUpdate } from "./bots/shared/telegram-mapper.ts";
@@ -294,6 +299,13 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     },
   };
 
+  /**
+   * التقييم المتبادل: منفذا الرحلة والتقييم واحدان للبوتين، فالسلوك واحد في الاتجاهين.
+   * بوت العميل لا يحتاج منفذ دورة الرحلة لأن البدء والإنهاء بيد السائق وحده.
+   */
+  const ratingPort = createRatingPort(sql);
+  const lifecyclePort = createRideLifecyclePort(sql);
+
   const driverDeps: DriverBotDependencies = {
     sessions: driverSessions,
     drivers,
@@ -306,6 +318,13 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     clock: systemClock,
     negotiation: { claims: claimDeps, relay: relayDeps },
     support: driverSupport,
+    rating: {
+      sessions: driverSessions,
+      lifecycle: lifecyclePort,
+      ratings: ratingPort,
+      // الجسر إلى بوت العميل: من أنهى الرحلة سائقٌ، ومن يُبلَّغ بها عميلٌ على بوت آخر
+      counterpart: counterpartNotifier(riderSender),
+    },
     bootstrapAdmin: {
       telegramId: config.bootstrapAdminTelegramId,
       grant: (telegramId) => createBootstrapAdminPort(sql).grant(telegramId),
@@ -322,6 +341,12 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     clock: systemClock,
     negotiation: { rotation: rotationDeps, relay: relayDeps },
     support: riderSupport,
+    rating: {
+      sessions: riderSessions,
+      lifecycle: lifecyclePort,
+      ratings: ratingPort,
+      counterpart: counterpartNotifier(driverSender),
+    },
   };
 
   return {

@@ -80,6 +80,7 @@ function driver(
     isAvailable: true,
     isVerified: true,
     ratingAverage: null,
+    ratingCount: 0,
     capabilities: [{ driverId, cityId: JED, service: "transport", isEnabled: true }],
     subscription: liveSub(driverId),
     ...over,
@@ -134,8 +135,9 @@ describe("matchOrder — المسار السليم", () => {
 
   it("تغيير الوزنين في الإعدادات يقلب الترتيب بلا نشر كود", async () => {
     const candidates = [
-      driver("near-low-rating", NEAR, { ratingAverage: 3 }),
-      driver("far-high-rating", MID, { ratingAverage: 5 }),
+      // العدد فوق عتبة الثقة في الطرفين: المقارنة على المتوسط الحقيقي
+      driver("near-low-rating", NEAR, { ratingAverage: 3, ratingCount: 9 }),
+      driver("far-high-rating", MID, { ratingAverage: 5, ratingCount: 9 }),
     ];
     const proximityHeavy = await matchOrder({ orderId: ORDER_ID }, deps({ candidates }));
     const ratingHeavy = await matchOrder(

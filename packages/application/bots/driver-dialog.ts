@@ -27,6 +27,13 @@ import {
 } from "../dispatch/relay-negotiation-message.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
+  handleCompleteRide,
+  handleRatingCallback,
+  handleStartRide,
+  type RatingDialogDependencies,
+  startRideKeyboard,
+} from "./rating-dialog.ts";
+import {
   handleActivateCommand,
   handleSupportGroupAction,
   handleSupportTypeChoice,
@@ -78,6 +85,11 @@ export interface DriverBotDependencies {
    * منح المسؤول الأول (§6.2ب من التوجيه). بلا هذا المسار لا توجد طريقة لتعيين
    * أول مسؤول في نظام كل صلاحياته في القاعدة، إلا تعديل صفّ يدوياً في الإنتاج.
    */
+  /**
+   * دورة الرحلة والتقييم (المرحلة 2.5). اختياري بنفس منطق ما قبله: غيابه يعني أن
+   * زرّ بدء الرحلة لا يظهر، لا أن يظهر ويفشل.
+   */
+  readonly rating?: RatingDialogDependencies;
   readonly bootstrapAdmin?: {
     readonly telegramId: string;
     grant(telegramId: string): Promise<unknown>;
@@ -502,6 +514,25 @@ async function handleCallback(
       return handleOfferDecision(rest, sender, state, deps);
     case "unsub":
       return handleUnsubscribedClaim(rest, sender, state, deps);
+    case "ride": {
+      if (deps.rating === undefined) return [reply(sender, tr("common.unknown_command"))];
+      const [action, orderIdRaw] = rest;
+      if (orderIdRaw === undefined || orderIdRaw === "") {
+        return [reply(sender, tr("common.unknown_command"))];
+      }
+      const rideOrderId = orderIdRaw as OrderId;
+      if (action === "start") {
+        return handleStartRide(rideOrderId, sender, languageOf(state), deps.rating);
+      }
+      if (action === "complete") {
+        return handleCompleteRide(rideOrderId, sender, languageOf(state), deps.rating);
+      }
+      return [reply(sender, tr("common.unknown_command"))];
+    }
+    case "rate": {
+      if (deps.rating === undefined) return [reply(sender, tr("common.unknown_command"))];
+      return handleRatingCallback(data, sender, languageOf(state), deps.rating);
+    }
     case "sup": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
       const [action, ...tail] = rest;
@@ -647,7 +678,12 @@ async function handleOfferDecision(
   const claim = await deps.dispatch.claimRide(orderId, driver.id);
   if (!claim.ok) return technicalFailure(sender, state);
 
-  if (claim.value.claimed) return [reply(sender, tr("driver.offer_accepted"))];
+  if (claim.value.claimed) {
+    // زرّ البدء يخرج مع تأكيد القبول: السائق لا يحفظ معرّف الطلب ولا يُطلب منه كتابته
+    const keyboard =
+      deps.rating === undefined ? null : startRideKeyboard(String(orderId), languageOf(state));
+    return [reply(sender, tr("driver.offer_accepted"), keyboard)];
+  }
 
   const key =
     claim.value.reason === "offer_expired" ? "driver.offer_expired" : "driver.offer_taken";

@@ -57,6 +57,8 @@ export const SETTING_SPECS = {
   match_weight_proximity: { kind: "number", min: 0, max: 1, integer: false },
   match_weight_rating: { kind: "number", min: 0, max: 1, integer: false },
   default_rating_for_new_driver: { kind: "number", min: 0, max: 5, integer: false },
+  rating_min_count_for_trust: { kind: "number", min: 1, max: 100, integer: true },
+  rating_prompt_window_hours: { kind: "number", min: 1, max: 720, integer: true },
   supported_languages: { kind: "string[]", minLength: 1 },
 } as const satisfies Record<string, SettingSpec>;
 
@@ -107,6 +109,8 @@ export interface CitySettings {
   readonly matchWeightProximity: number;
   readonly matchWeightRating: number;
   readonly defaultRatingForNewDriver: number;
+  readonly ratingMinCountForTrust: number;
+  readonly ratingPromptWindowHours: number;
   readonly supportedLanguages: readonly string[];
 }
 
@@ -201,6 +205,8 @@ export function parseCitySettings(
     matchWeightProximity: proximity,
     matchWeightRating: rating,
     defaultRatingForNewDriver: num("default_rating_for_new_driver"),
+    ratingMinCountForTrust: num("rating_min_count_for_trust"),
+    ratingPromptWindowHours: num("rating_prompt_window_hours"),
     supportedLanguages: values.get("supported_languages") as readonly string[],
   });
 }
@@ -213,6 +219,7 @@ export function toMatchingParameters(settings: CitySettings): MatchingParameters
     weightRating: settings.matchWeightRating,
     broadcastBatchSize: settings.broadcastBatchSize,
     defaultRating: settings.defaultRatingForNewDriver,
+    ratingMinCountForTrust: settings.ratingMinCountForTrust,
   };
 }
 

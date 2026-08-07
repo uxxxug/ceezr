@@ -12,11 +12,16 @@ import type { DriverCapability } from "../capability/entity.ts";
 import { canServe } from "../capability/entity.ts";
 import { haversineKm, proximityFactor } from "../geo/index.ts";
 import type { Coordinates, DistanceKm } from "../geo/value-objects.ts";
+import { effectiveRating, normalizeRating } from "../reputation/entity.ts";
+import { MAX_STARS } from "../reputation/value-objects.ts";
 import type { Subscription } from "../subscription/entity.ts";
 import { coversService } from "../subscription/entity.ts";
 
-/** الحد الأعلى لمقياس التقييم — معيار ثابت للمقياس نفسه، لا قرار تجاري. */
-export const MAX_RATING = 5;
+/**
+ * الحد الأعلى لمقياس التقييم. مصدره وحدة reputation وحدها: مقياسان مختلفان في
+ * وحدتين يعنيان ترتيباً خاطئاً صامتاً يوم يتغيّر أحدهما.
+ */
+export const MAX_RATING = MAX_STARS;
 
 export interface MatchingParameters {
   /** platform_settings.search_radius_km */
@@ -29,6 +34,8 @@ export interface MatchingParameters {
   readonly broadcastBatchSize: number;
   /** platform_settings.default_rating_for_new_driver */
   readonly defaultRating: number;
+  /** platform_settings.rating_min_count_for_trust */
+  readonly ratingMinCountForTrust: number;
 }
 
 export interface DriverCandidate {
@@ -38,6 +45,8 @@ export interface DriverCandidate {
   readonly isAvailable: boolean;
   readonly isVerified: boolean;
   readonly ratingAverage: number | null;
+  /** عدد التقييمات غير المُعلَّمة — بلا عدد لا يُعرف هل المتوسط يُعتدّ به. */
+  readonly ratingCount: number;
   readonly capabilities: readonly DriverCapability[];
   readonly subscription: Subscription | null;
 }
@@ -63,6 +72,9 @@ export interface ScoredCandidate {
   readonly driverId: DriverId;
   readonly distanceKm: DistanceKm;
   readonly score: number;
+  /** التقييم الذي دخل المعادلة فعلاً — يُبيّن هل رُتّب بمتوسطه أم بالافتراضي. */
+  readonly effectiveRating: number;
+  readonly ratingCount: number;
 }
 
 export interface CandidateEvaluation {
@@ -102,11 +114,15 @@ export function scoreCandidate(
   distanceKm: DistanceKm,
   ratingAverage: number | null,
   params: MatchingParameters,
+  ratingCount = 0,
 ): number {
   const proximity = proximityFactor(distanceKm, params.searchRadiusKm);
-  const rating = ratingAverage ?? params.defaultRating;
-  const normalizedRating = Math.min(1, Math.max(0, rating / MAX_RATING));
-  return params.weightProximity * proximity + params.weightRating * normalizedRating;
+  const rating = effectiveRating(
+    { average: ratingAverage, count: ratingCount },
+    params.ratingMinCountForTrust,
+    params.defaultRating,
+  );
+  return params.weightProximity * proximity + params.weightRating * normalizeRating(rating);
 }
 
 /** تقييم كل المرشحين: المؤهلون مرتَّبون تنازلياً بالنقاط، والمستبعدون بأسبابهم. */
@@ -126,10 +142,17 @@ export function evaluateCandidates(
       continue;
     }
     const distanceKm = haversineKm(order.pickup, candidate.location);
+    const snapshot = { average: candidate.ratingAverage, count: candidate.ratingCount };
     eligible.push({
       driverId: candidate.driverId,
       distanceKm,
-      score: scoreCandidate(distanceKm, candidate.ratingAverage, params),
+      score: scoreCandidate(distanceKm, candidate.ratingAverage, params, candidate.ratingCount),
+      effectiveRating: effectiveRating(
+        snapshot,
+        params.ratingMinCountForTrust,
+        params.defaultRating,
+      ),
+      ratingCount: candidate.ratingCount,
     });
   }
 

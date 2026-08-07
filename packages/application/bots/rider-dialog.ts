@@ -22,6 +22,7 @@ import {
   type RotateNegotiationDependencies,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
+import { handleRatingCallback, type RatingDialogDependencies } from "./rating-dialog.ts";
 import {
   handleSupportGroupAction,
   type SupportDialogDependencies,
@@ -60,6 +61,8 @@ export interface RiderBotDependencies {
   };
   /** مسار الدعم (المرحلة 2.4) — نزاعات الرحلات فقط: العميل لا اشتراك له. */
   readonly support?: SupportDialogDependencies;
+  /** التقييم (المرحلة 2.5) — العميل يقيّم السائق فقط، فلا يحتاج منفذ دورة الرحلة. */
+  readonly rating?: RatingDialogDependencies;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -96,6 +99,11 @@ export async function handleRiderUpdate(
     if (prefix === "city") return handleCitySelected(rest.join(":"), sender, state, deps);
     if (prefix === "svc") return handleServiceSelected(rest.join(":"), sender, state, deps);
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
+    if (prefix === "rate") {
+      return deps.rating === undefined
+        ? [reply(sender, tr("common.unknown_command"))]
+        : handleRatingCallback(update.data, sender, state.language, deps.rating);
+    }
     if (prefix === "sup") {
       return deps.support === undefined
         ? [reply(sender, tr("common.unknown_command"))]

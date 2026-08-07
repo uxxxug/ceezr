@@ -29,6 +29,8 @@ export const SEEDED_SETTINGS: Readonly<Record<SettingKey, unknown>> = {
   subscription_price_both: 400,
   currency: "SAR",
   trial_days: 30,
+  rating_min_count_for_trust: 3,
+  rating_prompt_window_hours: 48,
   search_radius_km: 10,
   offer_timeout_seconds: 45,
   broadcast_batch_size: 5,

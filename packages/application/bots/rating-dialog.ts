@@ -1,0 +1,213 @@
+/**
+ * الغرض: قسم دورة الرحلة والتقييم المشترك بين البوتين: بدء الرحلة، إنهاؤها بملخّص،
+ *   ثم طلب تقييم من الطرفين وتسجيله. مشترك لأن سلوك التقييم واحد في الاتجاهين.
+ * الحالة: منفّذ فعلياً — المرحلة 2.5.
+ * ينتمي إلى: application/bots
+ * يُتوقع أن يستخدمه لاحقاً: driver-dialog، rider-dialog، لوحة الإدارة (نفس حالات الاستخدام)
+ * ملاحظات مستقبلية: عند إضافة تعليق نصّي بعد النجوم تُضاف خطوة awaiting_rating_comment.
+ */
+
+import { parseStars, starsBar } from "../../domain/reputation/index.ts";
+import { t } from "../../shared/i18n/index.ts";
+import type { OrderId } from "../../shared/kernel/index.ts";
+import type { RatingPort, RideLifecyclePort } from "../reputation/index.ts";
+import { completeRide, startRide, submitRating } from "../reputation/index.ts";
+import type { BotReply, Keyboard, Sender, SessionStore } from "./types.ts";
+
+/**
+ * تبليغ الطرف المقابل. لازم لأن إنهاء الرحلة يقع في بوت السائق بينما العميل على بوت
+ * آخر: إعادة رسالة موجَّهة إليه من مُرسِل بوت السائق تذهب إلى بوت لا يحادثه أصلاً.
+ */
+/** لوحة أزرار داخلية حصراً — النوع المضيَّق يجعل الاختبار يقرأ rows بلا تضييق يدوي. */
+export type InlineKeyboard = Extract<Keyboard, { readonly kind: "inline" }>;
+
+export interface CounterpartNotifier {
+  notify(telegramId: string, text: string, keyboard: Keyboard | null): Promise<void>;
+}
+
+export interface RatingDialogDependencies {
+  readonly sessions: SessionStore;
+  readonly lifecycle: RideLifecyclePort;
+  readonly ratings: RatingPort;
+  /** غيابه يعني أن الطرف المقابل لا يُبلَّغ، لا أن يُبلَّغ على البوت الخطأ. */
+  readonly counterpart?: CounterpartNotifier;
+}
+
+function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
+  return { chatId: sender.chatId, text, keyboard };
+}
+
+/** أوّل ثمانية أحرف تكفي للإشارة البشرية إلى الرحلة، والمعرّف الكامل في الزرّ. */
+export function shortOrderId(orderId: string): string {
+  return orderId.slice(0, 8);
+}
+
+/** لوحة نجوم من خمسة أزرار في صفّ واحد — الضغطة أسهل من كتابة رقم وأقلّ خطأً. */
+export function starsKeyboard(orderId: string, language: string): InlineKeyboard {
+  const tr = t(language);
+  return {
+    kind: "inline",
+    rows: [
+      [1, 2, 3, 4, 5].map((value) => ({
+        label: tr("rating.star_button", { stars: value }),
+        data: `rate:${value}:${orderId}`,
+      })),
+    ],
+  };
+}
+
+/** زرّ بدء الرحلة — يحمل معرّف الطلب فلا يحتاج السائق أن يحفظه أو يكتبه. */
+export function startRideKeyboard(orderId: string, language: string): InlineKeyboard {
+  return {
+    kind: "inline",
+    rows: [[{ label: t(language)("rating.start_button"), data: `ride:start:${orderId}` }]],
+  };
+}
+
+/** زرّ إنهاء الرحلة — يظهر بعد البدء فقط، فلا يُنهي أحد رحلة لم تبدأ. */
+export function completeRideKeyboard(orderId: string, language: string): InlineKeyboard {
+  return {
+    kind: "inline",
+    rows: [[{ label: t(language)("rating.complete_button"), data: `ride:complete:${orderId}` }]],
+  };
+}
+
+/** يحوّل الثواني إلى «د دقيقة» أو «س ساعة و د دقيقة» بلا مكتبة تواريخ. */
+export function formatDuration(seconds: number, language: string): string {
+  const tr = t(language);
+  const minutes = Math.max(1, Math.round(seconds / 60));
+  if (minutes < 60) return tr("rating.duration_minutes", { minutes });
+  return tr("rating.duration_hours", {
+    hours: Math.floor(minutes / 60),
+    minutes: minutes % 60,
+  });
+}
+
+/** يبدأ السائق الرحلة المُسنَدة إليه. أي طلب ليس في حالة matched يُرفض في القاعدة. */
+export async function handleStartRide(
+  orderId: OrderId,
+  sender: Sender,
+  language: string,
+  deps: RatingDialogDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(language);
+  const result = await startRide(
+    { orderId, driverTelegramId: sender.telegramUserId },
+    { lifecycle: deps.lifecycle },
+  );
+  if (!result.ok) return [reply(sender, tr("common.error_try_again"))];
+  if (!result.value.started) return [reply(sender, tr("rating.ride_not_startable"))];
+  return [
+    reply(sender, tr("rating.ride_started"), completeRideKeyboard(String(orderId), language)),
+  ];
+}
+
+/**
+ * إنهاء الرحلة: ملخّص للسائق، وملخّص للعميل، ثم طلب تقييم من كلٍّ منهما بلغته.
+ * الطلبان يخرجان معاً لا واحداً بعد الآخر: من انتظر دوره في التقييم لا يقيّم.
+ */
+export async function handleCompleteRide(
+  orderId: OrderId,
+  sender: Sender,
+  language: string,
+  deps: RatingDialogDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(language);
+  const result = await completeRide(
+    { orderId, driverTelegramId: sender.telegramUserId },
+    { lifecycle: deps.lifecycle },
+  );
+  if (!result.ok) return [reply(sender, tr("common.error_try_again"))];
+
+  const summary = result.value.summary;
+  if (!result.value.completed || summary === null) {
+    return [reply(sender, tr("rating.ride_not_completable"))];
+  }
+
+  const driverLang = summary.driver.languageCode;
+  const riderLang = summary.rider.languageCode;
+  const duration = (lang: string) => formatDuration(summary.durationSeconds, lang);
+  const short = shortOrderId(String(summary.orderId));
+
+  // العميل يُبلَّغ عبر بوته هو، بلغته هو. فشل تبليغه لا يُبطل رحلة اكتملت فعلاً في القاعدة.
+  if (deps.counterpart !== undefined) {
+    await deps.counterpart.notify(
+      summary.rider.telegramId,
+      t(riderLang)("rating.completed_rider", {
+        order: short,
+        duration: duration(riderLang),
+        driver: summary.driver.fullName,
+      }),
+      null,
+    );
+    await deps.counterpart.notify(
+      summary.rider.telegramId,
+      t(riderLang)("rating.ask_rating_driver", { driver: summary.driver.fullName }),
+      starsKeyboard(String(summary.orderId), riderLang),
+    );
+  }
+
+  return [
+    reply(
+      sender,
+      t(driverLang)("rating.completed_driver", {
+        order: short,
+        duration: duration(driverLang),
+        rider: summary.rider.fullName,
+      }),
+    ),
+    reply(
+      sender,
+      t(driverLang)("rating.ask_rating_rider", { rider: summary.rider.fullName }),
+      starsKeyboard(String(summary.orderId), driverLang),
+    ),
+  ];
+}
+
+/**
+ * ضغطة نجمة: `rate:<نجوم>:<معرّف الطلب>`. الاتجاه يُستنتج في القاعدة من هوية الضاغط،
+ * فلا يستطيع أحد أن يقيّم نيابة عن طرف آخر ولو زوَّر بيانات الزرّ.
+ */
+export async function handleRatingCallback(
+  data: string,
+  sender: Sender,
+  language: string,
+  deps: RatingDialogDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(language);
+  const [, rawStars, orderId] = data.split(":");
+  if (rawStars === undefined || orderId === undefined || orderId.length === 0) {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+
+  const stars = parseStars(rawStars);
+  if (!stars.ok) return [reply(sender, tr("rating.invalid_stars"))];
+
+  const result = await submitRating(
+    {
+      orderId: orderId as OrderId,
+      raterTelegramId: sender.telegramUserId,
+      stars: stars.value,
+      comment: null,
+    },
+    { ratings: deps.ratings },
+  );
+  if (!result.ok) return [reply(sender, tr("common.error_try_again"))];
+
+  if (!result.value.recorded) {
+    switch (result.value.reason) {
+      case "ALREADY_RATED":
+        return [reply(sender, tr("rating.already_rated"))];
+      case "RATING_WINDOW_CLOSED":
+        return [reply(sender, tr("rating.window_closed"))];
+      case "ORDER_NOT_COMPLETED":
+        return [reply(sender, tr("rating.ride_not_completed"))];
+      case "RATER_NOT_PARTY_TO_ORDER":
+        return [reply(sender, tr("rating.not_a_party"))];
+      default:
+        return [reply(sender, tr("common.error_try_again"))];
+    }
+  }
+
+  return [reply(sender, tr("rating.thanks", { bar: starsBar(stars.value) }))];
+}

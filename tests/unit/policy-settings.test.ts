@@ -21,8 +21,8 @@ const JED = "city-jed" as CityId;
 const MKK = "city-mkk" as CityId;
 
 describe("سجل المفاتيح", () => {
-  it("ثلاثة عشر مفتاحاً كما في مخطط البذر", () => {
-    expect(SETTING_KEYS).toHaveLength(13);
+  it("خمسة عشر مفتاحاً كما في مخطط البذر", () => {
+    expect(SETTING_KEYS).toHaveLength(15);
   });
   it("يتعرّف على مفتاح معروف ويرفض المجهول", () => {
     expect(isSettingKey("search_radius_km")).toBe(true);
@@ -145,6 +145,7 @@ describe("toMatchingParameters", () => {
       weightRating: 0.3,
       broadcastBatchSize: 5,
       defaultRating: 4.5,
+      ratingMinCountForTrust: 3,
     });
   });
 });

@@ -34,6 +34,7 @@ const PARAMS: MatchingParameters = {
   weightRating: 0.3,
   broadcastBatchSize: 5,
   defaultRating: 4.5,
+  ratingMinCountForTrust: 3,
 };
 
 function liveSub(cityId: CityId, plan: Subscription["plan"] = "both"): Subscription {
@@ -60,6 +61,7 @@ function candidate(over: Partial<DriverCandidate> & { driverId: DriverId }): Dri
     isAvailable: true,
     isVerified: true,
     ratingAverage: null,
+    ratingCount: 0,
     subscription: liveSub(JED),
     ...over,
     driverId: id,
@@ -144,13 +146,16 @@ describe("rejectionReasonFor", () => {
 });
 
 describe("scoreCandidate", () => {
+  /** عدد تقييمات يتجاوز العتبة (3)، فيُعتدّ بالمتوسط لا بالافتراضي. */
+  const TRUSTED = 12;
+
   it("أقصى نقاط عند مسافة صفر وتقييم كامل", () => {
-    expect(scoreCandidate(0, 5, PARAMS)).toBeCloseTo(1, 10);
+    expect(scoreCandidate(0, 5, PARAMS, TRUSTED)).toBeCloseTo(1, 10);
   });
 
   it("مكوّن التقييم وحده عند حدّ نصف القطر", () => {
     // القرب = 0، فالنتيجة = وزن التقييم × (4/5)
-    expect(scoreCandidate(10, 4, PARAMS)).toBeCloseTo(0.3 * 0.8, 10);
+    expect(scoreCandidate(10, 4, PARAMS, TRUSTED)).toBeCloseTo(0.3 * 0.8, 10);
   });
 
   it("يستخدم التقييم الافتراضي للسائق الجديد", () => {
@@ -158,13 +163,39 @@ describe("scoreCandidate", () => {
   });
 
   it("يحصر التقييم الشاذ داخل المدى", () => {
-    expect(scoreCandidate(0, 99, PARAMS)).toBeCloseTo(1, 10);
+    expect(scoreCandidate(0, 99, PARAMS, TRUSTED)).toBeCloseTo(1, 10);
+  });
+
+  /**
+   * جوهر المرحلة 2.5: متوسط هشّ لا يُرتَّب به أحد. تقييم واحد بخمس نجوم لا يقدّم
+   * صاحبه على من له أربعون تقييماً، فما دون العتبة يُعامَل بالافتراضي.
+   */
+  it("يتجاهل المتوسط تحت عتبة الثقة ويستعمل الافتراضي", () => {
+    expect(scoreCandidate(10, 5, PARAMS, 1)).toBeCloseTo(0.3 * (4.5 / 5), 10);
+    expect(scoreCandidate(10, 5, PARAMS, 1)).toBe(scoreCandidate(10, null, PARAMS));
+  });
+
+  it("يعتدّ بالمتوسط عند بلوغ العتبة بالضبط", () => {
+    expect(scoreCandidate(10, 5, PARAMS, 3)).toBeCloseTo(0.3, 10);
+  });
+
+  it("تقييم منخفض موثوق يضرّ صاحبه فعلاً، بخلاف المنخفض الهشّ", () => {
+    const fragile = scoreCandidate(10, 2, PARAMS, 1);
+    const trusted = scoreCandidate(10, 2, PARAMS, TRUSTED);
+    expect(trusted).toBeLessThan(fragile);
+    expect(trusted).toBeCloseTo(0.3 * (2 / 5), 10);
   });
 });
 
 describe("evaluateCandidates", () => {
-  const near = candidate({ driverId: D("near"), location: NEAR, ratingAverage: 3.0 });
-  const far = candidate({ driverId: D("far"), location: FAR, ratingAverage: 5.0 });
+  // عدد التقييمات فوق العتبة في الطرفين، فالمقارنة على المتوسط الحقيقي لا على الافتراضي
+  const near = candidate({
+    driverId: D("near"),
+    location: NEAR,
+    ratingAverage: 3.0,
+    ratingCount: 9,
+  });
+  const far = candidate({ driverId: D("far"), location: FAR, ratingAverage: 5.0, ratingCount: 9 });
 
   it("يرتّب الأقرب أولاً عندما يغلب وزن القرب", () => {
     const result = evaluateCandidates([far, near], ORDER, PARAMS, NOW);
@@ -189,8 +220,8 @@ describe("evaluateCandidates", () => {
   });
 
   it("ترتيب حتمي عند تعادل النقاط والمسافة", () => {
-    const a = candidate({ driverId: D("aaa"), ratingAverage: 4 });
-    const b = candidate({ driverId: D("bbb"), ratingAverage: 4 });
+    const a = candidate({ driverId: D("aaa"), ratingAverage: 4, ratingCount: 9 });
+    const b = candidate({ driverId: D("bbb"), ratingAverage: 4, ratingCount: 9 });
     const first = evaluateCandidates([b, a], ORDER, PARAMS, NOW).eligible.map((c) =>
       String(c.driverId),
     );
