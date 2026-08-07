@@ -333,7 +333,7 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     expect(orders[0]?.status).toBe("searching");
   });
 
-  it("سائقان يتنافسان: الأول يظفر والثاني يُبلَّغ بأن الطلب أُخذ", async () => {
+  it("سائقان يتنافسان تزامناً: واحد فقط يظفر مهما كان ترتيب الوصول", async () => {
     const firstDriver = await registerDriver();
     await verifyAndActivate(firstDriver);
 
@@ -367,19 +367,40 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     expect(offers[0]?.driver_id).toBe(firstDriver);
 
     driverSent.length = 0;
-    await post("driver", callback(DRIVER_CHAT, `offer:accept:${orderId}`));
-    await post("driver", callback(secondChat, `offer:accept:${orderId}`));
+    // تنافس فعلي لا تتابعي: الطلبان ينطلقان معاً ويصلان للقاعدة متداخلين.
+    // الذرّية مسؤولية claim_ride في القاعدة، لا ترتيب الاستدعاء في الاختبار.
+    const [firstResponse, secondResponse] = await Promise.all([
+      post("driver", callback(DRIVER_CHAT, `offer:accept:${orderId}`)),
+      post("driver", callback(secondChat, `offer:accept:${orderId}`)),
+    ]);
+    expect(firstResponse.status).toBe(200);
+    expect(secondResponse.status).toBe(200);
 
+    // بصرف النظر عن ترتيب الوصول: ظافرٌ واحد ومحرومٌ واحد، لا أكثر ولا أقل.
     const texts = driverSent.map((m) => m.text);
-    expect(texts[0]).toBe(ar("driver.offer_accepted"));
-    expect(texts[1]).toBe(ar("driver.offer_taken"));
+    expect(texts).toHaveLength(2);
+    expect(texts.filter((t) => t === ar("driver.offer_accepted"))).toHaveLength(1);
+    expect(texts.filter((t) => t === ar("driver.offer_taken"))).toHaveLength(1);
 
     const finalOffers = await sql<{ driver_id: string; status: string }[]>`
       select driver_id, status from order_offers
     `;
     const accepted = finalOffers.filter((row) => row.status === "accepted");
+    // الشرط الجوهري: صفٌّ مقبول واحد بالضبط مهما تسابق السائقان
     expect(accepted).toHaveLength(1);
-    expect(accepted[0]?.driver_id).toBe(firstDriver);
+
+    // والطلب مُسنَد لنفس السائق الظافر لا لغيره — لا إسناد مزدوج ولا معلَّق
+    const claimedBy = accepted[0]?.driver_id ?? "";
+    expect([firstDriver, secondDriver]).toContain(claimedBy);
+    const finalOrder = await sql<{ status: string; assigned_driver_id: string | null }[]>`
+      select status, assigned_driver_id from orders where id = ${orderId}
+    `;
+    expect(finalOrder[0]?.status).toBe("matched");
+    expect(finalOrder[0]?.assigned_driver_id).toBe(claimedBy);
+
+    // والخاسر عرضه لم يبقَ معلَّقاً
+    const loser = finalOffers.find((row) => row.driver_id !== claimedBy);
+    expect(loser?.status).not.toBe("pending");
   });
 
   it("رفض السائق يُسجَّل فوراً فلا يُعاد عرضه عليه في الدورة التالية", async () => {
