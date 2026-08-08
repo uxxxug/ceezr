@@ -9,6 +9,12 @@
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { buildContainer } from "./container.ts";
+import {
+  createMemoryRateLimiter,
+  createRedisRateLimiter,
+  type RateLimiter,
+} from "./rate-limit/fixed-window.ts";
+import { createUpstashRedis } from "./redis/upstash.ts";
 import { createAdminApiRoutes } from "./routes/admin-api.ts";
 import { createAdminUiRoutes } from "./routes/admin-ui.ts";
 import { createServer } from "./server.ts";
@@ -45,6 +51,38 @@ async function shutdown(signal: string): Promise<void> {
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
+/**
+ * حدود تقنية لا تجارية: لا مكان لها في platform_settings.
+ *
+ * - محاولات السرّ الخاطئ: من يجرّب أكثر من عشرين سرّاً في الدقيقة لا يُخطئ بل يُخمّن.
+ * - تحديثات المستخدم الواحد: ثلاثون في عشر ثوانٍ — ثلاث ضغطات في الثانية بلا توقّف،
+ *   وهو فوق ما تبلغه يد إنسان وتحت ما يزعج مستخدماً سريعاً.
+ */
+const PROBE_LIMIT = { limit: 20, windowSeconds: 60 } as const;
+const USER_LIMIT = { limit: 30, windowSeconds: 10 } as const;
+
+/**
+ * الحدّ على Redis عند تعدّد النسخ، وفي الذاكرة عند نسخة واحدة: حدٌّ يعدّ كل نسخة
+ * وحدها ليس حدّاً بل قسمةً له على عددها. يُربَط بنفس مفتاح SESSION_STORE لأن كليهما
+ * يجيب سؤالاً واحداً: هل نحن أكثر من عملية؟ (ADR 0011)
+ */
+const rateRedis =
+  config.sessionStore === "redis"
+    ? createUpstashRedis({
+        url: config.redisUrl,
+        token: config.redisToken,
+      })
+    : null;
+
+function limiter(options: { readonly limit: number; readonly windowSeconds: number }): RateLimiter {
+  return rateRedis === null
+    ? createMemoryRateLimiter(options)
+    : createRedisRateLimiter(rateRedis, {
+        ...options,
+        onFailure: (detail) => log("rate_limit.redis_failed", { detail }),
+      });
+}
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -59,12 +97,26 @@ const app = createServer({
           return rows[0]?.ok === 1;
         },
       },
+      // Redis يُفحَص فقط حين يكون في المسار الحرج فعلاً. فحصه دائماً كان سيُسقط
+      // الجهوزية في بيئةٍ لا تستعمله أصلاً، فيصير الفحص كذباً في الاتجاه المعاكس.
+      ...(rateRedis === null
+        ? []
+        : [
+            {
+              name: "redis",
+              check: async (): Promise<boolean> => {
+                const result = await rateRedis.command(["PING"]);
+                return result.ok;
+              },
+            },
+          ]),
     ],
   },
   webhook: {
     webhookSecret: config.telegramWebhookSecret,
     log,
     handler: container.handler,
+    rateLimits: { probes: limiter(PROBE_LIMIT), users: limiter(USER_LIMIT) },
   },
 });
 

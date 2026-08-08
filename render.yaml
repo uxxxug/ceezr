@@ -1,0 +1,100 @@
+# الغرض: تعريف خدمات Render كبنيةٍ في المستودع لا كنقراتٍ في لوحة تحكّم — البوابة
+#   والعامل الخلفي، بمتغيّراتهما وفحوصهما وسياسة نشرهما.
+# الحالة: منفّذ فعلياً — القسم 2 البند د.3.
+# ينتمي إلى: جذر المستودع (Render Blueprint)
+# يُتوقع أن يستخدمه لاحقاً: من ينشر أول مرة، وكل تغيير في متغيّرات البيئة
+# ملاحظات مستقبلية:
+#   - القيم الحسّاسة كلها `sync: false`: تُدخَل في لوحة Render مرّة ولا تُكتب هنا
+#     أبداً. من كتب رمز بوت في ملف مدفوع فقد البوت لا الملف.
+#   - عند رفع numInstances فوق 1 يصير SESSION_STORE=redis إلزامياً لا اختيارياً
+#     (ADR 0011)، ويصير حدّ المعدّل موزّعاً تلقائياً على نفس المفتاح.
+#   - الانتقال إلى Fly.io البحرين لاحقاً يُبدّل هذا الملف ولا يُبدّل شيئاً في الكود:
+#     كل ما هنا متغيّرات بيئة وأوامر، ولا شيء منه مستورَد في أي مصدر.
+
+services:
+  # ── البوابة: تستقبل ويبهوك تلغرام، وتُخدّم لوحة الإدارة ──────────────────────
+  - type: web
+    name: waslah-gateway
+    runtime: docker
+    dockerfilePath: ./docker/Dockerfile.gateway
+    region: frankfurt # أقرب منطقة Render إلى السعودية حتى الانتقال إلى البحرين
+    plan: starter
+    # /ready لا /health: الأول يسأل القاعدة فعلاً، والثاني يجيب بمجرّد أن العملية
+    # حيّة — ونسخة حيّة بلا قاعدة تستقبل تحديثات لتفقدها.
+    healthCheckPath: /ready
+    numInstances: 1
+    autoDeploy: false # النشر بأمر لا بكل دفعة إلى main
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      # مخزن الجلسات: memory صالح لنسخة واحدة فقط. راجع docs/render-deployment-vars.md
+      - key: SESSION_STORE
+        value: memory
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: DRIVER_BOT_TOKEN
+        sync: false
+      - key: RIDER_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: BOOTSTRAP_ADMIN_TELEGRAM_ID
+        sync: false
+      - key: TRANSLATION_PROVIDER
+        value: none # قرار المزوّد الإنتاجي مفتوح — ADR 0010
+      - key: TRANSLATION_API_KEY
+        sync: false
+      - key: TRANSLATION_CONTACT_EMAIL
+        sync: false
+
+  # ── العامل الخلفي: المهامّ الدورية بقفل موزَّع ────────────────────────────────
+  - type: worker
+    name: waslah-worker
+    runtime: docker
+    dockerfilePath: ./docker/Dockerfile.worker
+    region: frankfurt
+    plan: starter
+    numInstances: 1
+    autoDeploy: false
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # العامل لا يخدّم حواراً فلا يقرأ جلسات؛ يُترك memory بلا أثر.
+      - key: SESSION_STORE
+        value: memory
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false
+      - key: DRIVER_BOT_TOKEN
+        sync: false
+      - key: RIDER_BOT_TOKEN
+        sync: false
+      # العامل لا يستقبل ويبهوك، والمتغيّر إلزامي في الإعداد فيُمرَّر نفس القيمة
+      # كي لا يفشل الإقلاع على تحقّقٍ لا يخصّه.
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+      - key: BOOTSTRAP_ADMIN_TELEGRAM_ID
+        sync: false
+      - key: TRANSLATION_PROVIDER
+        value: none
+      - key: TRANSLATION_API_KEY
+        sync: false
+      - key: TRANSLATION_CONTACT_EMAIL
+        sync: false
