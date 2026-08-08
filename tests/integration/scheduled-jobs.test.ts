@@ -10,7 +10,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { buildWorkerContainer } from "../../apps/workers/src/container.ts";
+import { buildWorkerContainer, MAX_JOB_CONCURRENCY } from "../../apps/workers/src/container.ts";
 import { createJobRunner, type JobLogger } from "../../apps/workers/src/runner.ts";
 import type { ExpiryWarningSender } from "../../packages/application/subscription/expire-subscriptions.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
@@ -63,6 +63,11 @@ function collectingLog(): JobLogger & { readonly lines: string[] } {
 }
 
 let sql: Sql;
+/**
+ * تجمّع منفصل للأقفال كما في الإنتاج تماماً. لو تقاسم القفل تجمّع الاستعلامات
+ * لاستُنزف التجمّع فور تشغيل ستّ مهامّ متوازية — وهذا ما وقع فعلاً قبل الفصل.
+ */
+let lockSql: Sql;
 let cityId: string;
 let container: ReturnType<typeof buildWorkerContainer>;
 let warnings: WarningOut[];
@@ -78,6 +83,7 @@ if (DATABASE_URL === undefined) {
 describeIf("مشغّل الجوبات المركزي على قاعدة حقيقية", () => {
   beforeAll(async () => {
     sql = createSql({ connectionString: DATABASE_URL ?? "" });
+    lockSql = createSql({ connectionString: DATABASE_URL ?? "", max: MAX_JOB_CONCURRENCY + 1 });
     const cities = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
     const id = cities[0]?.id;
     if (id === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
@@ -85,6 +91,7 @@ describeIf("مشغّل الجوبات المركزي على قاعدة حقيق�
   });
 
   afterAll(async () => {
+    await lockSql.end({ timeout: 5 });
     await sql.end({ timeout: 5 });
   });
 
@@ -116,6 +123,7 @@ describeIf("مشغّل الجوبات المركزي على قاعدة حقيق�
     log = collectingLog();
     container = buildWorkerContainer(config, {
       sql,
+      lockSql,
       warningSender: capturingWarningSender(warnings),
       log,
       // المُرسِلان الحقيقيان يفتحان اتصالاً بتيليجرام. هنا نمنعهما بمزدوجين صامتين:
@@ -149,6 +157,10 @@ describeIf("مشغّل الجوبات المركزي على قاعدة حقيق�
     const jobs = await container.jobs();
     const runner = createJobRunner({
       jobs: jobs.map((job) => ({ ...job, runOnStart: true })),
+      // القفل الحقيقي لا مُعطَّل: كل شوط في هذا الملفّ يمرّ فعلاً بأخذ القفل
+      // وتحريره على اتصال محجوز، فلو تسرَّب قفلٌ بلا تحرير لتوقّف الملفّ كلّه.
+      lock: container.lock,
+      maxConcurrency: MAX_JOB_CONCURRENCY,
       clock: { now: () => new Date() },
       log,
     });

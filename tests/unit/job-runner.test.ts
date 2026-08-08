@@ -13,6 +13,7 @@ import {
   type JobDefinition,
   type JobLogger,
 } from "../../apps/workers/src/runner.ts";
+import { createNoopLock } from "../../packages/application/scheduling/distributed-lock.ts";
 import type { Clock } from "../../packages/shared/kernel/index.ts";
 
 function fakeClock(startMs: number): Clock & { advance: (ms: number) => void } {
@@ -62,7 +63,7 @@ describe("createJobRunner", () => {
       },
     ];
 
-    const runner = createJobRunner({ jobs, clock, log: silentLog() });
+    const runner = createJobRunner({ lock: createNoopLock(), jobs, clock, log: silentLog() });
     const first = await runner.runDue();
 
     expect(eagerRuns).toBe(1);
@@ -86,7 +87,7 @@ describe("createJobRunner", () => {
       },
     ];
 
-    const runner = createJobRunner({ jobs, clock, log: silentLog() });
+    const runner = createJobRunner({ lock: createNoopLock(), jobs, clock, log: silentLog() });
     await runner.runDue();
     expect(runs).toBe(1);
 
@@ -127,7 +128,7 @@ describe("createJobRunner", () => {
       },
     ];
 
-    const runner = createJobRunner({ jobs, clock, log });
+    const runner = createJobRunner({ lock: createNoopLock(), jobs, clock, log });
     const outcomes = await runner.runDue();
 
     expect(healthyRuns).toBe(1);
@@ -152,7 +153,7 @@ describe("createJobRunner", () => {
       },
     ];
 
-    const runner = createJobRunner({ jobs, clock, log: silentLog() });
+    const runner = createJobRunner({ lock: createNoopLock(), jobs, clock, log: silentLog() });
     await runner.runDue();
     await runner.runDue();
     await runner.runDue();
@@ -186,7 +187,7 @@ describe("createJobRunner", () => {
       },
     ];
 
-    const runner = createJobRunner({ jobs, clock, log: silentLog() });
+    const runner = createJobRunner({ lock: createNoopLock(), jobs, clock, log: silentLog() });
     const firstRun = runner.runDue();
     // ننتظر دورة حدث واحدة حتى يدخل الشوط الأول فعلاً في الانتظار.
     await new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -204,6 +205,7 @@ describe("createJobRunner", () => {
   test("start و stop يعكسان حالة التشغيل ولا يتكرّران", () => {
     const clock = fakeClock(0);
     const runner = createJobRunner({
+      lock: createNoopLock(),
       jobs: [],
       clock,
       log: silentLog(),
@@ -219,5 +221,100 @@ describe("createJobRunner", () => {
     expect(runner.running).toBe(false);
     runner.stop();
     expect(runner.running).toBe(false);
+  });
+
+  test("قفل مرفوض يعطي skipped_locked_elsewhere ولا يُشغّل المهمّة ولا يُسجّل وقتاً", async () => {
+    const clock = fakeClock(0);
+    let ran = 0;
+    const runner = createJobRunner({
+      // قفل يرفض دائماً: يحاكي نسخة أخرى تعمل الآن على نفس المهمّة.
+      lock: { withLock: async () => ({ acquired: false }) },
+      jobs: [
+        {
+          name: "locked",
+          everySeconds: 60,
+          runOnStart: true,
+          run: async () => {
+            ran += 1;
+            return "لا ينبغي أن يُنفَّذ";
+          },
+        },
+      ],
+      clock,
+      log: silentLog(),
+    });
+
+    const first = await runner.runDue();
+    expect(first[0]?.status).toBe("skipped_locked_elsewhere");
+    expect(ran).toBe(0);
+
+    // الوقت لم يُسجَّل، فالمهمّة لا تزال مستحقّة في النبضة التالية بلا انتظار فاصل.
+    const second = await runner.runDue();
+    expect(second[0]?.status).toBe("skipped_locked_elsewhere");
+  });
+
+  test("مهمّة تخطّاها القفل تعمل في الشوط التالي حين يتحرّر", async () => {
+    const clock = fakeClock(0);
+    let allow = false;
+    const runner = createJobRunner({
+      lock: {
+        withLock: async (_key, run) =>
+          allow ? { acquired: true as const, value: await run() } : { acquired: false as const },
+      },
+      jobs: [{ name: "eventual", everySeconds: 60, runOnStart: true, run: async () => "تمّ" }],
+      clock,
+      log: silentLog(),
+    });
+
+    expect((await runner.runDue())[0]?.status).toBe("skipped_locked_elsewhere");
+    allow = true;
+    const after = await runner.runDue();
+    expect(after[0]?.status).toBe("ran");
+    expect(after[0]?.detail).toBe("تمّ");
+  });
+
+  test("التوازي محدود بالسقف: لا تعمل مهامّ أكثر منه في اللحظة نفسها", async () => {
+    const clock = fakeClock(0);
+    let active = 0;
+    let peak = 0;
+
+    const jobs: JobDefinition[] = Array.from({ length: 9 }, (_, index) => ({
+      name: `job-${index}`,
+      everySeconds: 60,
+      runOnStart: true,
+      run: async () => {
+        active += 1;
+        peak = Math.max(peak, active);
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        active -= 1;
+        return "تمّ";
+      },
+    }));
+
+    const outcomes = await createJobRunner({
+      lock: createNoopLock(),
+      jobs,
+      clock,
+      log: silentLog(),
+      maxConcurrency: 3,
+    }).runDue();
+
+    // الذروة ثلاثة لا تسعة: كل مهمّة جارية تحتجز اتصال قفل، فالتوازي غير المحدود
+    // يستنزف تجمّع الاتصالات ويُسقط المهامّ جميعاً بمهلة انتظار.
+    expect(peak).toBe(3);
+    expect(outcomes.filter((outcome) => outcome.status === "ran").length).toBe(9);
+  });
+
+  test("سقف توازٍ صفر أو سالب يُصحَّح إلى واحد لا يُعطّل المشغّل", async () => {
+    const clock = fakeClock(0);
+    const outcomes = await createJobRunner({
+      lock: createNoopLock(),
+      jobs: [{ name: "solo", everySeconds: 60, runOnStart: true, run: async () => "تمّ" }],
+      clock,
+      log: silentLog(),
+      maxConcurrency: 0,
+    }).runDue();
+
+    expect(outcomes[0]?.status).toBe("ran");
   });
 });

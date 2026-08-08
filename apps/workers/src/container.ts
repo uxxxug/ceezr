@@ -4,11 +4,12 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.6 الخطوة 02.
  * ينتمي إلى: apps/workers
  * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/index.ts، واختبارات جوبات العامل
- * ملاحظات مستقبلية: عند تعدّد نسخ العامل يلزم قفل موزَّع قبل تشغيل نسختين على نفس المدينة.
+ * ملاحظات مستقبلية: القفل الموزَّع يُبنى هنا ويُسلَّم للمشغّل، فيحمي كل مهمّة مسجَّلة.
  */
 
 import { Api } from "grammy";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
+import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
 import type { ExpiryWarningSender } from "../../../packages/application/subscription/expire-subscriptions.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
@@ -26,6 +27,7 @@ import type { OutboundSender } from "../../../packages/infrastructure/notificati
 import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { createRatingRecomputePort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
+import { createAdvisoryLock } from "../../../packages/infrastructure/scheduling/advisory-lock.ts";
 import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/scheduling/availability-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
@@ -53,10 +55,21 @@ const AVAILABILITY_FALLBACK_MINUTES = 180;
 /** أيام التحذير الافتراضية حين يغيب الإعداد. */
 const WARNING_FALLBACK_DAYS = 2;
 
+/**
+ * أقصى تواز للمهامّ، ومعه حجم تجمّع اتصالات القفل. الرقمان مرتبطان بالضرورة لا
+ * بالاختيار: كل مهمّة جارية تحتجز اتصال قفل واحداً طول عملها، فتجمّع القفل يجب أن
+ * يتّسع للتوازي كلّه وإلّا انتظرت مهمّة اتصالاً لن يتحرّر إلّا بانتهاء مهمّة أخرى.
+ */
+export const MAX_JOB_CONCURRENCY = 4;
+
 export interface WorkerContainerOverrides {
   readonly sql?: Sql;
   readonly warningSender?: ExpiryWarningSender;
   readonly log?: JobLogger;
+  /** يُستبدل في اختبار الوحدة بقفل لا يقفل؛ الافتراضي هو القفل الحقيقي على القاعدة. */
+  readonly lock?: DistributedLock;
+  /** تجمّع اتصالات القفل وحده — يُمرَّر في الاختبار لتقاسم قاعدة الاختبار نفسها. */
+  readonly lockSql?: Sql;
   /** مُرسِلا تيليجرام الحقيقيان — يُستبدلان في الاختبار بمُرسِل يجمع بلا شبكة. */
   readonly driverOut?: OutboundSender;
   readonly riderOut?: OutboundSender;
@@ -83,6 +96,8 @@ export function grammyWarningSender(token: string): ExpiryWarningSender {
 
 export interface WorkerContainer {
   readonly sql: Sql;
+  /** القفل الموزَّع الذي يُسلَّم للمشغّل — مكشوف حتى يُثبته الاختبار لا يفترضه. */
+  readonly lock: DistributedLock;
   /** قائمة الجوبات كما ستُسلَّم للمشغّل — تُبنى مرّة عند الإقلاع. */
   jobs(): Promise<readonly JobDefinition[]>;
   close(): Promise<void>;
@@ -99,6 +114,28 @@ export function buildWorkerContainer(
     error: (message, fields) =>
       console.error(JSON.stringify({ level: "error", message, ...fields })),
   };
+
+  /**
+   * تجمّع اتصالات مستقلّ للأقفال، وهذا ليس ترفاً.
+   *
+   * القفل الاستشاري ملكُ الجلسة، فالمهمّة تحتجز اتصالها طول عملها بينما هو خاملٌ
+   * لا يُنفّذ استعلاماً. لو خرج هذا الاتصال من تجمّع الاستعلامات لتنافس الخاملُ
+   * المحتجزُ مع العاملِ المحتاج على نفس الميزانية — وهو ما حدث فعلاً أوّل تشغيل:
+   * ستّ مهامّ متوازية احتجزت أقفالها من تجمّع سعته خمسة، فلم يبقَ اتصال لاستعلاماتها
+   * وسقط الملفّ كلّه بمهلة انتظار لا بخطأ مفهوم. الميزانيتان منفصلتان بحكم طبيعتَي
+   * الاستهلاك: واحدة للانتظار وأخرى للعمل.
+   */
+  const lockSql =
+    overrides.lockSql ??
+    createSql({
+      connectionString: config.databaseUrl,
+      max: MAX_JOB_CONCURRENCY + 1,
+      prepare: false,
+    });
+
+  // الافتراضي هو القفل الحقيقي لا المُعطَّل: نسيان تمريره في الإنتاج يجب أن يكون
+  // مستحيلاً، لا أن يكون خطأً صامتاً يظهر بعد مضاعفة عدد النسخ على Render.
+  const lock = overrides.lock ?? createAdvisoryLock(lockSql);
 
   const cities = createCityDirectory(sql);
   const settings = createSettingsRepository(sql);
@@ -146,6 +183,7 @@ export function buildWorkerContainer(
 
   return {
     sql,
+    lock,
 
     jobs: async (): Promise<readonly JobDefinition[]> => {
       const cityIds = await activeCityIds();
@@ -257,7 +295,10 @@ export function buildWorkerContainer(
     },
 
     close: async () => {
-      await sql.end({ timeout: 5 });
+      // تجمّع القفل يُغلق أولاً: اتصالٌ يحمل قفلاً يُنهى فيسقط القفل معه فوراً،
+      // فلا تنتظر النسخة التالية انقضاء مهلة اتصال ميت لتأخذ ما هو متروك أصلاً.
+      if (overrides.lockSql === undefined) await lockSql.end({ timeout: 5 });
+      if (overrides.sql === undefined) await sql.end({ timeout: 5 });
     },
   };
 }

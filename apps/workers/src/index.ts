@@ -4,11 +4,11 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.6 الخطوة 02.
  * ينتمي إلى: apps/workers
  * يُتوقع أن يستخدمه لاحقاً: docker/Dockerfile.worker كأمر تشغيل الخدمة
- * ملاحظات مستقبلية: عند تشغيل أكثر من نسخة عامل يلزم قفل موزَّع، وإلّا كرّرت النسختان العمل.
+ * ملاحظات مستقبلية: القفل الموزَّع يأتي من الحاوية، فتشغيل عدّة نسخ آمن بلا تعديل هنا.
  */
 
 import { tryLoadConfig } from "../../../packages/shared/config/index.ts";
-import { buildWorkerContainer } from "./container.ts";
+import { buildWorkerContainer, MAX_JOB_CONCURRENCY } from "./container.ts";
 import { createJobRunner, type JobLogger } from "./runner.ts";
 
 const log: JobLogger = {
@@ -32,7 +32,13 @@ async function main(): Promise<void> {
     log.error("worker.no_jobs", { hint: "لا مدينة مفعَّلة ولا مهامّ عامّة — راجع جدول cities" });
   }
 
-  const runner = createJobRunner({ jobs, clock: { now: () => new Date() }, log });
+  const runner = createJobRunner({
+    jobs,
+    lock: container.lock,
+    maxConcurrency: MAX_JOB_CONCURRENCY,
+    clock: { now: () => new Date() },
+    log,
+  });
   runner.start();
   log.info("worker.started", { jobCount: jobs.length });
 
