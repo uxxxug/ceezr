@@ -46,6 +46,11 @@
   "group.unsub_accept_button": "✅ قبول",
   "group.unsub_card": "🚕 طلب متاح — الدورة {cycle}\n\n🔧 الخدمة: {service}\n📍 المنطقة التقريبية: {area}\n📝 ملاحظات: {notes}\n\nأول ثلاثة يضغطون «قبول» يدخلون الدور بالترتيب.",
   "group.unsub_no_notes": "لا توجد",
+  "language.changed": "✅ تم — لغتك الآن {language}.",
+  "language.choose": "🌐 اختر لغتك — كل رسائل البوت ستصلك بها، ورسائل الطرف الآخر ستُترجَم إليها.",
+  "language.not_registered": "⚠️ أرسل /start أولاً لنعرفك، ثم اختر لغتك.",
+  "language.unchanged": "✅ لغتك {language} بالفعل، لم يتغيّر شيء.",
+  "language.unsupported": "⚠️ هذه اللغة غير مدعومة بعد. المتاح: العربية والإنجليزية والأردية.",
   "negotiation.agreed_driver": "✅ تم الاتفاق، والطلب لك. ستصلك تفاصيل الانطلاق الآن.",
   "negotiation.agreed_rider": "✅ تم تثبيت الاتفاق مع السائق. رحلة موفّقة.",
   "negotiation.claim_registered_active": "✅ دورك الآن. تحدّث مع العميل هنا مباشرة — أرسل رسالتك وستصله. لديك {seconds} ثانية للاتفاق.",
@@ -150,5 +155,9 @@
   "support.ticket_created": "✅ وصلت شكواك إلى فريق الدعم.\nرقم التذكرة: {ticket}\n⏳ سيصلك الردّ هنا في هذه المحادثة، ولا حاجة لإعادة الإرسال.",
   "support.ticket_not_found": "⚠️ لا توجد تذكرة بهذا الرقم.",
   "support.type_ride_button": "🚗 نزاع على رحلة",
-  "support.type_subscription_button": "💳 مشكلة اشتراك"
+  "support.type_subscription_button": "💳 مشكلة اشتراك",
+  "translation.language_name.ar": "العربية",
+  "translation.language_name.en": "الإنجليزية",
+  "translation.language_name.ur": "الأردية",
+  "translation.original_note": "🌐 الأصل ({language}):\n«{original}»"
 }

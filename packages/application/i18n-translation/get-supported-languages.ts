@@ -1,8 +1,23 @@
 /**
- * الغرض: حالة استخدام مستقبلية: get-supported-languages ضمن اختيار اللغة والترجمة المتبادلة
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: قائمة اللغات المعروضة للاختيار، كلٌّ باسمها بلغتها هي.
+ * الحالة: منفّذ فعلياً — المرحلة 2.6.
  * ينتمي إلى: application/i18n-translation
- * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الـ Webhooks)، apps/workers، apps/admin-dashboard
- * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function getSupportedLanguages(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: get_supported_languages. هيكل فقط الآن — يُفعَّل في آخر مراحل الأمر الثاني (2.6).
+ * يُتوقع أن يستخدمه لاحقاً: packages/application/bots/*، apps/admin-dashboard
+ * ملاحظات مستقبلية: تُقرأ من القاعدة حين تصير اللغات قابلة للتفعيل لكل مدينة.
  */
-export {};
+
+import {
+  LANGUAGE_LABELS,
+  SUPPORTED_LANGUAGES,
+  type SupportedLanguage,
+} from "../../domain/i18n-translation/index.ts";
+
+export interface LanguageOption {
+  readonly code: SupportedLanguage;
+  /** الاسم بلغته هو: من لا يقرأ العربية لن يجد «الإنجليزية» مكتوبةً بالعربية. */
+  readonly label: string;
+}
+
+export function getSupportedLanguages(): readonly LanguageOption[] {
+  return SUPPORTED_LANGUAGES.map((code) => ({ code, label: LANGUAGE_LABELS[code] }));
+}

@@ -27,6 +27,11 @@ import {
 } from "../dispatch/relay-negotiation-message.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
+  handleLanguageCallback,
+  handleLanguageCommand,
+  type LanguageDialogDependencies,
+} from "./language-dialog.ts";
+import {
   handleCompleteRide,
   handleRatingCallback,
   handleStartRide,
@@ -90,6 +95,11 @@ export interface DriverBotDependencies {
    * زرّ بدء الرحلة لا يظهر، لا أن يظهر ويفشل.
    */
   readonly rating?: RatingDialogDependencies;
+  /**
+   * اختيار اللغة (المرحلة 2.6). اختياري بنفس منطق ما قبله: غيابه يجعل /language
+   * يردّ «أمر غير معروف» بدل أن يعرض قائمة لا تُكتب نتيجتها في القاعدة.
+   */
+  readonly language?: LanguageDialogDependencies;
   readonly bootstrapAdmin?: {
     readonly telegramId: string;
     grant(telegramId: string): Promise<unknown>;
@@ -326,6 +336,11 @@ async function handleCommand(
     case "/help":
       return [reply(sender, tr("driver.help"))];
 
+    case "/language":
+      return deps.language === undefined
+        ? [reply(sender, tr("common.unknown_command"))]
+        : handleLanguageCommand(sender, languageOf(state));
+
     case "/cancel": {
       await deps.sessions.clear(sender.telegramUserId);
       return [reply(sender, tr("common.cancelled"), { kind: "remove" })];
@@ -506,6 +521,10 @@ async function handleCallback(
   const [prefix, ...rest] = data.split(":");
 
   switch (prefix) {
+    case "lang":
+      return deps.language === undefined
+        ? [reply(sender, tr("common.unknown_command"))]
+        : handleLanguageCallback(data, sender, languageOf(state), deps.language);
     case "city":
       return handleCitySelected(rest.join(":"), sender, state, deps);
     case "service":

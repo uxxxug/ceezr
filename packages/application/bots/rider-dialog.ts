@@ -22,6 +22,11 @@ import {
   type RotateNegotiationDependencies,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
+import {
+  handleLanguageCallback,
+  handleLanguageCommand,
+  type LanguageDialogDependencies,
+} from "./language-dialog.ts";
 import { handleRatingCallback, type RatingDialogDependencies } from "./rating-dialog.ts";
 import {
   handleSupportGroupAction,
@@ -63,6 +68,8 @@ export interface RiderBotDependencies {
   readonly support?: SupportDialogDependencies;
   /** التقييم (المرحلة 2.5) — العميل يقيّم السائق فقط، فلا يحتاج منفذ دورة الرحلة. */
   readonly rating?: RatingDialogDependencies;
+  /** اختيار اللغة (المرحلة 2.6) — نفس الحوار المستخدَم في بوت السائق حرفياً. */
+  readonly language?: LanguageDialogDependencies;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -96,6 +103,11 @@ export async function handleRiderUpdate(
 
   if (update.kind === "callback") {
     const [prefix, ...rest] = update.data.split(":");
+    if (prefix === "lang") {
+      return deps.language === undefined
+        ? [reply(sender, tr("common.unknown_command"))]
+        : handleLanguageCallback(update.data, sender, state.language, deps.language);
+    }
     if (prefix === "city") return handleCitySelected(rest.join(":"), sender, state, deps);
     if (prefix === "svc") return handleServiceSelected(rest.join(":"), sender, state, deps);
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
@@ -289,6 +301,11 @@ async function handleCommand(
       if (!cancelled.value) return [reply(sender, tr("rider.no_active_order"))];
       return [reply(sender, tr("rider.order_cancelled"), { kind: "remove" })];
     }
+
+    case "/language":
+      return deps.language === undefined
+        ? [reply(sender, tr("common.unknown_command"))]
+        : handleLanguageCommand(sender, state.language);
 
     case "/help":
       return [reply(sender, tr("rider.help"))];

@@ -1,8 +1,12 @@
 /**
- * الغرض: نقطة التصدير العامة لوحدة i18n-translation — اختيار اللغة والترجمة المتبادلة
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: واجهة وحدة الترجمة في الدومين.
+ * الحالة: منفّذ فعلياً — المرحلة 2.6.
  * ينتمي إلى: domain/i18n-translation
- * يُتوقع أن يستخدمه لاحقاً: packages/application/i18n-translation/*, packages/infrastructure/i18n-translation/*
- * ملاحظات مستقبلية: هيكل فقط الآن — يُفعَّل في آخر مراحل الأمر الثاني (2.6).
+ * يُتوقع أن يستخدمه لاحقاً: packages/application/*، packages/infrastructure/*
+ * ملاحظات مستقبلية: يبقى تصديراً صرفاً بلا منطق.
  */
-export {};
+
+export * from "./entity.ts";
+export * from "./errors.ts";
+export * from "./events.ts";
+export * from "./value-objects.ts";

@@ -25,6 +25,11 @@ import type {
   RelaySender,
   RelaySide,
 } from "../../application/dispatch/relay-negotiation-message.ts";
+import {
+  renderLocalizedTemplate,
+  type TranslateMessageDependencies,
+} from "../../application/i18n-translation/index.ts";
+import { normalizeLanguageTag } from "../../domain/i18n-translation/index.ts";
 import { DEFAULT_LANGUAGE, t } from "../../shared/i18n/index.ts";
 import { guard } from "../db/client.ts";
 import type { OutboundSender } from "./telegram-driver-notifier.ts";
@@ -173,27 +178,49 @@ export function createTelegramNegotiationNotifier(
 }
 
 /** التمرير: من السائق إلى العميل والعكس، كلٌّ ببوته هو لأن المحادثتين منفصلتان. */
+/**
+ * الترجمة المتبادلة (المرحلة 2.6): حين تختلف لغتا الطرفين تُترجَم رسالة كلٍّ منهما
+ * إلى لغة الآخر قبل الإرسال. التبعية اختيارية لأن غياب مزوّد ترجمة حالةٌ سليمة —
+ * النظام يعمل بلا ترجمة، والرسالة تصل بلغتها الأصلية بدل أن تُحجب.
+ */
 export function createTelegramRelaySender(
   driverSender: OutboundSender,
   riderSender: OutboundSender,
+  translation?: TranslateMessageDependencies,
 ): RelaySender {
+  const deps: TranslateMessageDependencies = translation ?? { provider: null };
+
   return {
     relay: (parties: NegotiationParties, from: RelaySide, text: string) =>
       guard("relay.send", async () => {
+        const driverLanguage = normalizeLanguageTag(parties.driverLanguage) ?? DEFAULT_LANGUAGE;
+        const riderLanguage = normalizeLanguageTag(parties.riderLanguage) ?? DEFAULT_LANGUAGE;
+
+        // اللغتان تُطبَّعان أولاً: وسم مثل ar-SA قادم من تيليجرام يجب ألّا يُقارَن
+        // نصّياً بـ ar فيُحسب اختلافاً لغوياً فتُطلَب ترجمة من العربية إلى العربية.
         if (from === "driver") {
-          const tr = t(parties.riderLanguage);
-          return riderSender.send(
-            parties.riderChatId,
-            tr("negotiation.relay_from_driver", { text }),
-            null,
+          const rendered = await renderLocalizedTemplate(
+            {
+              templateKey: "negotiation.relay_from_driver",
+              body: text,
+              from: driverLanguage,
+              to: riderLanguage,
+            },
+            deps,
           );
+          return riderSender.send(parties.riderChatId, rendered.text, null);
         }
-        const tr = t(parties.driverLanguage);
-        return driverSender.send(
-          parties.driverChatId,
-          tr("negotiation.relay_from_rider", { text }),
-          null,
+
+        const rendered = await renderLocalizedTemplate(
+          {
+            templateKey: "negotiation.relay_from_rider",
+            body: text,
+            from: riderLanguage,
+            to: driverLanguage,
+          },
+          deps,
         );
+        return driverSender.send(parties.driverChatId, rendered.text, null);
       }),
   };
 }

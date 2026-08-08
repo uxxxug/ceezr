@@ -42,6 +42,9 @@ const config: AppConfig = {
   riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,
   bootstrapAdminTelegramId: String(BOOTSTRAP_ADMIN_CHAT),
+  translationProvider: "none" as const,
+  translationApiKey: null,
+  translationContactEmail: null,
 };
 
 let sql: Sql;

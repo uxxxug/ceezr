@@ -46,6 +46,11 @@
   "group.unsub_accept_button": "✅ قبول",
   "group.unsub_card": "🚕 دستیاب درخواست — راؤنڈ {cycle}\n\n🔧 سروس: {service}\n📍 تخمینی علاقہ: {area}\n📝 نوٹس: {notes}\n\nپہلے تین جو «قبول» دبائیں گے، ترتیب سے باری پائیں گے۔",
   "group.unsub_no_notes": "کوئی نہیں",
+  "language.changed": "✅ ہو گیا — اب آپ کی زبان {language} ہے۔",
+  "language.choose": "🌐 اپنی زبان منتخب کریں — بوٹ کے تمام پیغامات اسی میں آئیں گے، اور دوسرے فریق کے پیغامات اسی میں ترجمہ ہوں گے۔",
+  "language.not_registered": "⚠️ پہلے /start بھیجیں تاکہ ہم آپ کو جان لیں، پھر زبان منتخب کریں۔",
+  "language.unchanged": "✅ آپ کی زبان پہلے ہی {language} ہے، کچھ تبدیل نہیں ہوا۔",
+  "language.unsupported": "⚠️ یہ زبان ابھی معاون نہیں ہے۔ دستیاب: عربی، انگریزی، اردو۔",
   "negotiation.agreed_driver": "✅ اتفاق ہو گیا — درخواست آپ کی ہے۔ روانگی کی تفصیلات ابھی آ رہی ہیں۔",
   "negotiation.agreed_rider": "✅ ڈرائیور کے ساتھ اتفاق طے پا گیا۔ سفر خوشگوار ہو۔",
   "negotiation.claim_registered_active": "✅ اب آپ کی باری ہے۔ گاہک سے یہیں بات کریں — پیغام بھیجیں، اُن تک پہنچ جائے گا۔ اتفاق کے لیے {seconds} سیکنڈ ہیں۔",
@@ -150,5 +155,9 @@
   "support.ticket_created": "✅ آپ کی شکایت سپورٹ ٹیم تک پہنچ گئی۔\nٹکٹ: {ticket}\n⏳ جواب اسی چیٹ میں آئے گا، دوبارہ بھیجنے کی ضرورت نہیں۔",
   "support.ticket_not_found": "⚠️ اس نمبر کا کوئی ٹکٹ نہیں۔",
   "support.type_ride_button": "🚗 سفر پر تنازع",
-  "support.type_subscription_button": "💳 سبسکرپشن مسئلہ"
+  "support.type_subscription_button": "💳 سبسکرپشن مسئلہ",
+  "translation.language_name.ar": "عربی",
+  "translation.language_name.en": "انگریزی",
+  "translation.language_name.ur": "اردو",
+  "translation.original_note": "🌐 اصل ({language}):\n«{original}»"
 }

@@ -16,6 +16,8 @@ import type { EscalateUnmatchedOrderDependencies } from "../../../packages/appli
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
+import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
+import type { TranslationFailure } from "../../../packages/domain/i18n-translation/index.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
   createDispatchRpc,
@@ -43,6 +45,11 @@ import {
   createSupportTicketPort,
 } from "../../../packages/infrastructure/dispute/support-adapters.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
+import {
+  createLanguagePreferencePort,
+  createMemoryTranslationCache,
+  createTranslationProvider,
+} from "../../../packages/infrastructure/i18n-translation/index.ts";
 import { createBootstrapAdminPort } from "../../../packages/infrastructure/identity/bootstrap-admin.ts";
 import {
   createDriverDirectory,
@@ -187,6 +194,11 @@ export interface ContainerOverrides {
   readonly driverSender?: TelegramSender;
   readonly riderSender?: TelegramSender;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * مزوّد ترجمة بديل. يُحقن في الاختبار بمزوّد حتمي بلا شبكة، فيُثبَت مسار
+   * الترجمة كاملاً في CI بلا اعتماد على خدمة خارجية ولا على منفذ إنترنت.
+   */
+  readonly translationProvider?: TranslationProvider | null;
 }
 
 /**
@@ -232,9 +244,52 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const rotationPort = createNegotiationRotationPort(sql);
   const partiesReader = createNegotiationPartiesReader(sql);
 
+  // الترجمة المتبادلة (المرحلة 2.6). الذاكرة المؤقتة في العملية الآن، وتنتقل إلى
+  // Redis في القسم 5 بتبديل سطر واحد: المنفذ نفسه بتنفيذ آخر.
+  const translationProvider =
+    overrides.translationProvider !== undefined
+      ? overrides.translationProvider
+      : createTranslationProvider({
+          provider: config.translationProvider,
+          ...(config.translationApiKey === null ? {} : { apiKey: config.translationApiKey }),
+          ...(config.translationContactEmail === null
+            ? {}
+            : { contactEmail: config.translationContactEmail }),
+        });
+
+  const translation = {
+    provider: translationProvider,
+    cache: createMemoryTranslationCache(systemClock),
+    onFailure: (failure: TranslationFailure) => {
+      // فشل المزوّد يُسجَّل ولا يُوقف الرسالة: الرسالة تصل بلغتها الأصلية.
+      log("translation.failed", {
+        kind: failure.kind,
+        provider: failure.provider,
+        detail: failure.detail,
+        retryable: failure.retryable,
+      });
+    },
+  };
+
+  const languagePreferences = createLanguagePreferencePort(sql);
+
+  /**
+   * حوار اللغة لكل بوت بمخزن جلسته هو. الجلسة تُحدَّث بعد نجاح الكتابة في القاعدة
+   * فقط: لو حدّثناها قبل ذلك لتغيّرت لغة الرسائل مع بقاء القاعدة على القديمة،
+   * فيعود المستخدم بعد انتهاء الجلسة إلى لغة لم يخترها.
+   */
+  const languageDeps = (sessions: ReturnType<typeof createMemorySessionStore>) => ({
+    preferences: languagePreferences,
+    rememberLanguage: async (telegramId: string, language: string): Promise<void> => {
+      const stored = await sessions.load(telegramId);
+      if (!stored.ok || stored.value === null) return;
+      await sessions.save(telegramId, { ...stored.value, language });
+    },
+  });
+
   const relayDeps = {
     lookup: createActiveNegotiationLookup(sql),
-    sender: createTelegramRelaySender(driverOut, riderOut),
+    sender: createTelegramRelaySender(driverOut, riderOut, translation),
   };
 
   const claimDeps = {
@@ -325,6 +380,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       // الجسر إلى بوت العميل: من أنهى الرحلة سائقٌ، ومن يُبلَّغ بها عميلٌ على بوت آخر
       counterpart: counterpartNotifier(riderSender),
     },
+    language: languageDeps(driverSessions),
     bootstrapAdmin: {
       telegramId: config.bootstrapAdminTelegramId,
       grant: (telegramId) => createBootstrapAdminPort(sql).grant(telegramId),
@@ -347,6 +403,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       ratings: ratingPort,
       counterpart: counterpartNotifier(driverSender),
     },
+    language: languageDeps(riderSessions),
   };
 
   return {

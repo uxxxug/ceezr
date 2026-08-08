@@ -1,8 +1,13 @@
 /**
- * الغرض: تجميع حالات استخدام وحدة i18n-translation
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: واجهة حالات استخدام اللغة والترجمة.
+ * الحالة: منفّذ فعلياً — المرحلة 2.6.
  * ينتمي إلى: application/i18n-translation
  * يُتوقع أن يستخدمه لاحقاً: apps/*
- * ملاحظات مستقبلية: هيكل فقط الآن — يُفعَّل في آخر مراحل الأمر الثاني (2.6).
+ * ملاحظات مستقبلية: يبقى تصديراً صرفاً بلا منطق.
  */
-export {};
+
+export * from "./detect-language.ts";
+export * from "./get-supported-languages.ts";
+export * from "./render-localized-template.ts";
+export * from "./select-language.ts";
+export * from "./translate-message.ts";

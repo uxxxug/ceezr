@@ -27,7 +27,28 @@ export interface AppConfig {
    * كل صلاحياته في القاعدة: تعديل الصفّ يدوياً في الإنتاج ليس مساراً بل التفاف عليه.
    */
   readonly bootstrapAdminTelegramId: string;
+  /**
+   * مزوّد الترجمة الآلية (المرحلة 2.6). ليس في REQUIRED_ENV_KEYS عن قصد:
+   * `none` قيمة صالحة تعني «شغّل بلا ترجمة»، والنظام يعمل كاملاً بدونها.
+   * جعله إلزامياً كان سيمنع الإقلاع لغياب خدمة مساعِدة.
+   */
+  readonly translationProvider: TranslationProviderName;
+  /** مفتاح المزوّد — مطلوب لـ deepl و google، وغير مطلوب لـ mymemory. */
+  readonly translationApiKey: string | null;
+  /** بريد تواصل يرفع الحصّة المجانية عند مزوّدات تشترطه في شروطها. */
+  readonly translationContactEmail: string | null;
 }
+
+/** أسماء المزوّدات المدعومة. `none` ليست غياباً بل اختياراً صريحاً. */
+export const TRANSLATION_PROVIDER_NAMES = [
+  "none",
+  "deepl",
+  "google",
+  "google-web",
+  "mymemory",
+] as const;
+
+export type TranslationProviderName = (typeof TRANSLATION_PROVIDER_NAMES)[number];
 
 /** المتغيرات التي بلا قيمة صالحة لها لا يمكن للنظام أن يعمل إطلاقاً. */
 export const REQUIRED_ENV_KEYS = [
@@ -114,6 +135,35 @@ export function tryLoadConfig(
     );
   }
 
+  const rawProvider = (source.TRANSLATION_PROVIDER ?? "none").trim().toLowerCase();
+  if (!(TRANSLATION_PROVIDER_NAMES as readonly string[]).includes(rawProvider)) {
+    return err(
+      new InvalidEnvVarError(
+        "TRANSLATION_PROVIDER",
+        `المتاح: ${TRANSLATION_PROVIDER_NAMES.join(", ")} — وردت: ${rawProvider}`,
+      ),
+    );
+  }
+  const translationProvider = rawProvider as TranslationProviderName;
+
+  const translationApiKey = isBlank(source.TRANSLATION_API_KEY)
+    ? null
+    : (source.TRANSLATION_API_KEY as string).trim();
+
+  // المزوّد المضبوط بلا مفتاحه يفشل عند أول رسالة لا عند الإقلاع، وهذا أسوأ
+  // أنواع الفشل: يظهر للمستخدم لا للمشغّل. فيُرفض هنا صريحاً.
+  if (
+    (translationProvider === "deepl" || translationProvider === "google") &&
+    translationApiKey === null
+  ) {
+    return err(
+      new InvalidEnvVarError(
+        "TRANSLATION_API_KEY",
+        `مطلوب مع TRANSLATION_PROVIDER=${translationProvider}`,
+      ),
+    );
+  }
+
   return ok({
     env,
     port,
@@ -126,6 +176,11 @@ export function tryLoadConfig(
     riderBotToken: source.RIDER_BOT_TOKEN as string,
     telegramWebhookSecret: source.TELEGRAM_WEBHOOK_SECRET as string,
     bootstrapAdminTelegramId,
+    translationProvider,
+    translationApiKey,
+    translationContactEmail: isBlank(source.TRANSLATION_CONTACT_EMAIL)
+      ? null
+      : (source.TRANSLATION_CONTACT_EMAIL as string).trim(),
   });
 }
 
