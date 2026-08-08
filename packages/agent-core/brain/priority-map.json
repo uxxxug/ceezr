@@ -1,0 +1,38 @@
+{
+  "_comment_ar": "خريطة الأولوية. إعداد لا كود: تعديلها قرار تشغيلي لمن يدير الدعم، وليس نشر كود. الأنواع الثلاثة الأخيرة محجوزة ولا يُنتجها أحد اليوم — أولويتها هنا استعداداً لا تفعيلاً.",
+  "defaultLevel": "normal",
+  "byEventType": {
+    "support_ticket_opened": {
+      "level": "normal",
+      "rationale": "تذكرة دعم: تستحق نظراً في دورة العمل العادية لا قبلها"
+    },
+    "operational_anomaly_detected": {
+      "level": "high",
+      "rationale": "شذوذ تشغيلي: يمس خدمة قائمة لا شكوى فرد (محجوز — لا وكيل له)"
+    },
+    "fraud_signal_raised": {
+      "level": "critical",
+      "rationale": "إشارة احتيال: التأخير فيها يكلف مالاً لا وقتاً (محجوز — لا وكيل له)"
+    },
+    "growth_opportunity_spotted": {
+      "level": "low",
+      "rationale": "فرصة نمو: قيمتها لا تنقص بالتأجيل (محجوز — لا وكيل له)"
+    }
+  },
+  "escalatingKeywords": [
+    "حادث",
+    "شرطة",
+    "خطر",
+    "تهديد",
+    "اعتداء",
+    "سرقة",
+    "طوارئ",
+    "إسعاف",
+    "accident",
+    "police",
+    "emergency",
+    "danger",
+    "threat",
+    "assault"
+  ]
+}

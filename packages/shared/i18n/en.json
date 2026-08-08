@@ -131,6 +131,8 @@
   "support.ask_message": "📝 Describe your problem in one message. If you have a transfer receipt, send the photo directly — a photo with a short caption is enough.",
   "support.blocked": "⚠️ Your account is currently suspended and can't open a support ticket.",
   "support.card": "🎫 Ticket {ticket_short} — {type}\n👤 {name}\n📞 {phone}\n🆔 {telegram}\n📍 {city}\n💳 {subscription}\n\n📝 {message}",
+  "support.advice_card": "🤖 Automated suggestion for ticket {ticket_short}\n⚠️ Read-only suggestion — the decision is yours, and no action was taken.\n\n🏷️ Initial classification: {classification}\n📊 Confidence: {confidence}%\n\n💬 Suggested reply:\n{suggestion}",
+  "support.advice_unclassified": "Unclassified",
   "support.card_no_subscription": "No subscription",
   "support.card_subscription": "{plan} — {status} (until {until})",
   "support.card_subscription_expired": "{plan} — {status} ⚠️ not live",

@@ -131,6 +131,8 @@
   "support.ask_message": "📝 اپنا مسئلہ ایک پیغام میں تفصیل سے لکھیں۔ اگر رسید ہے تو تصویر بھیجیں — مختصر کیپشن کے ساتھ تصویر کافی ہے۔",
   "support.blocked": "⚠️ آپ کا اکاؤنٹ معطل ہے، ٹکٹ نہیں کھل سکتا۔",
   "support.card": "🎫 ٹکٹ {ticket_short} — {type}\n👤 {name}\n📞 {phone}\n🆔 {telegram}\n📍 {city}\n💳 {subscription}\n\n📝 {message}",
+  "support.advice_card": "🤖 ٹکٹ {ticket_short} کے لیے خودکار تجویز\n⚠️ صرف پڑھنے کے لیے تجویز — فیصلہ آپ کا ہے، کوئی کارروائی نہیں کی گئی۔\n\n🏷️ ابتدائی درجہ بندی: {classification}\n📊 اعتماد: {confidence}%\n\n💬 تجویز کردہ جواب:\n{suggestion}",
+  "support.advice_unclassified": "غیر درجہ بند",
   "support.card_no_subscription": "کوئی سبسکرپشن نہیں",
   "support.card_subscription": "{plan} — {status} ({until} تک)",
   "support.card_subscription_expired": "{plan} — {status} ⚠️ غیر فعال",

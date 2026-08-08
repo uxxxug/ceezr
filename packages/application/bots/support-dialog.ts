@@ -13,12 +13,14 @@ import type {
   ClaimDisputeDependencies,
   OpenDisputeDependencies,
   PostDisputeCardDependencies,
+  PostTicketAdviceDependencies,
   ResolveDisputeDependencies,
 } from "../dispute/index.ts";
 import {
   claimDispute,
   openSupportTicket,
   postDisputeCard,
+  postTicketAdvice,
   resolveDispute,
 } from "../dispute/index.ts";
 import type { BotReply, DialogState, Keyboard, Sender, SessionStore } from "./types.ts";
@@ -30,6 +32,11 @@ export interface SupportDialogDependencies {
   readonly card: PostDisputeCardDependencies;
   readonly claims: ClaimDisputeDependencies;
   readonly resolutions: ResolveDisputeDependencies;
+  /**
+   * مستشار التذاكر — **اختياري عمداً**. غيابه هو الحالة الافتراضية وهو ما كان
+   * عليه النظام قبل طبقة الذكاء الاصطناعي. راجع `dispute/ticket-advisor.ts`.
+   */
+  readonly advice?: PostTicketAdviceDependencies;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -190,7 +197,32 @@ export async function submitSupportMessage(
     return [reply(sender, tr("support.city_group_missing"))];
   }
 
+  // ── نقطة الربط الوحيدة بطبقة الذكاء الاصطناعي (القسم ج) ──────────────────
+  // **بعد** نشر البطاقة ونجاحه، و**قبل** ردّ المستخدم — ولا يؤثّر في أيّهما.
+  // الردّ أدناه هو نفسه سواءٌ نُشر اقتراح أم لم يُنشر أم لم توجد الطبقة أصلاً.
+  await adviseQuietly(ticketId, type, deps);
+
   return [reply(sender, tr("support.ticket_created", { ticket: shortTicketId(ticketId) }))];
+}
+
+/**
+ * استدعاء المستشار بلا أي أثر على المسار. الغياب والفشل سواء: كلاهما «لا اقتراح».
+ *
+ * ⚠️ `try/catch` هنا ليس تهرّباً من الخطأ بل هو **حدّ الطبقة**: كل ما دون هذا
+ * السطر تجربةٌ جديدة غير مثبتة، وكل ما فوقه مسارٌ يعمل منذ المرحلة 2.4. لا يجوز
+ * لخطأ في الأولى أن يمسّ الثانية بحال.
+ */
+async function adviseQuietly(
+  ticketId: string,
+  type: SupportTicketType,
+  deps: SupportDialogDependencies,
+): Promise<void> {
+  if (deps.advice === undefined) return;
+  try {
+    await postTicketAdvice({ ticketId, type }, deps.advice);
+  } catch {
+    // صامت عمداً: التسجيل يقع داخل الطبقة نفسها، وتذكرةٌ وصلت بلا اقتراح ليست عطلاً.
+  }
 }
 
 /**

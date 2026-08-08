@@ -68,6 +68,9 @@ jobs:
       - name: تطابق قواميس اللغات
         run: bun run scripts/check-i18n.ts
 
+      - name: عزل طبقة الذكاء الاصطناعي — اتجاه اعتماد واحد
+        run: bun run scripts/check-agent-core-isolation.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

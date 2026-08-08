@@ -131,6 +131,8 @@
   "support.ask_message": "📝 اكتب مشكلتك بالتفصيل في رسالة واحدة. إن كان لديك إيصال تحويل فأرسل صورته مباشرة — الصورة وحدها تكفي مع تعليق قصير عليها.",
   "support.blocked": "⚠️ حسابك موقوف حالياً، ولا يمكن فتح تذكرة دعم منه.",
   "support.card": "🎫 تذكرة {ticket_short} — {type}\n👤 {name}\n📞 {phone}\n🆔 {telegram}\n📍 {city}\n💳 {subscription}\n\n📝 {message}",
+  "support.advice_card": "🤖 اقتراح آلي للتذكرة {ticket_short}\n⚠️ اقتراح للقراءة فقط — القرار لكم، ولم يُنفَّذ أي إجراء.\n\n🏷️ التصنيف المبدئي: {classification}\n📊 درجة الثقة: {confidence}%\n\n💬 الردّ المقترح:\n{suggestion}",
+  "support.advice_unclassified": "غير مصنَّف",
   "support.card_no_subscription": "لا يوجد اشتراك",
   "support.card_subscription": "{plan} — {status} (حتى {until})",
   "support.card_subscription_expired": "{plan} — {status} ⚠️ غير فعّال",

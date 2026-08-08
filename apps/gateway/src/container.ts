@@ -82,6 +82,11 @@ import {
 } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { systemClock } from "../../../packages/shared/kernel/index.ts";
+import {
+  createAgentCore,
+  createSupportAdvicePublisher,
+  createTicketAdvisor,
+} from "./agent-advisor.ts";
 import { createDriverBot, grammyTelegramSender, type TelegramSender } from "./bots/driver/index.ts";
 import { createRiderBot } from "./bots/rider/index.ts";
 import { counterpartNotifier } from "./bots/shared/counterpart-notifier.ts";
@@ -311,14 +316,35 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    * التبليغ الفردي يذهب بمُرسِل البوت نفسه الذي يخاطبه صاحب التذكرة.
    */
   const supportSender = asSupportSender(driverSender);
+  const ticketContext = createSupportTicketContextReader(sql);
+
+  /**
+   * طبقة الذكاء الاصطناعي المعزولة — **معطّلة ما لم يُضبط `AGENT_CORE_ENABLED=true`**.
+   * حين تُعطّل يُحذف `advice` من الاعتمادات أصلاً، فيعود مسار الدعم إلى ما كان
+   * عليه حرفاً بحرف قبل وجود هذه الطبقة — لا فرعٌ مُعطّل بل **غيابٌ تام**.
+   */
+  const agentCore = createAgentCore({
+    log: (message, meta) =>
+      console.log(JSON.stringify({ at: new Date().toISOString(), message, ...meta })),
+  });
+  const advice = agentCore.enabled
+    ? {
+        context: ticketContext,
+        advisor: createTicketAdvisor(agentCore),
+        publisher: createSupportAdvicePublisher(supportSender),
+      }
+    : undefined;
+
   const supportCore = {
     open: { tickets: createSupportTicketPort(sql) },
     card: {
-      context: createSupportTicketContextReader(sql),
+      context: ticketContext,
       publisher: createSupportCardPublisher(supportSender),
       recorder: createSupportCardRecorder(sql),
     },
     claims: { claims: createSupportClaimPort(sql) },
+    // `exactOptionalPropertyTypes`: الحقل يُنشر عند وجوده ولا يُضاف `undefined` صراحةً.
+    ...(advice === undefined ? {} : { advice }),
   };
   const resolutionPort = createSupportResolutionPort(sql);
 

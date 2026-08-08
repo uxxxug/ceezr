@@ -10,4 +10,6 @@ export * from "./claim-dispute.ts";
 export * from "./close-dispute.ts";
 export * from "./open-dispute.ts";
 export * from "./post-dispute-card.ts";
+export * from "./post-ticket-advice.ts";
 export * from "./resolve-dispute.ts";
+export * from "./ticket-advisor.ts";
