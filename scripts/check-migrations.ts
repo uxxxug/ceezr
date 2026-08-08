@@ -4,6 +4,9 @@
  * ينتمي إلى: scripts
  * يُتوقع أن يستخدمه لاحقاً: .github/workflows/ci.yml
  * ملاحظات مستقبلية: cities مستثنى من فحص المفتاح الأجنبي لأن عموده مولَّد من id نفسه.
+ *   فحص RLS يجمع الأسماء من مصدرين (أمر مباشر، وحلقة foreach على مصفوفة أسماء) ثم
+ *   يتحقق من العضوية اسماً باسم؛ الصيغة القديمة كانت تقبل وجود أيّ حلقة في أيّ ملف
+ *   كدليل على تفعيل RLS لكل الجداول، وهي ثغرة نجاح كاذب لأي جدول مستقبلي.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -39,17 +42,56 @@ function findTableBlocks(sql: string): { name: string; body: string }[] {
   return blocks;
 }
 
+/**
+ * أسماء الجداول التي فُعِّلت عليها RLS فعلياً في نصّ الهجرات.
+ *
+ * مصدران معترف بهما، وكلاهما يُنتج اسماً صريحاً:
+ *   1) `alter table <name> enable row level security`
+ *   2) `do $$ … foreach t in array array['a','b',…] loop … enable row level security … end loop`
+ *
+ * الحلقة تُقبل بشرطين: أن تكون على مصفوفة نصوص حرفية، وأن يظهر داخل جسمها فعلاً
+ * أمر التفعيل. حلقة تُنفّذ شيئاً آخر (منح صلاحيات على دوالّ مثلاً) لا تُحتسب.
+ * ما لا يُقبل عمداً: أسماء مبنية بجمع نصوص أو قادمة من استعلام — لأن فاحصاً ساكناً
+ * لا يعرف قيمتها، وقبولها يعني الثقة بما لا يُقرأ.
+ */
+export function tablesWithRlsEnabled(sql: string): Set<string> {
+  const enabled = new Set<string>();
+
+  const direct =
+    /alter\s+table\s+(?:if\s+exists\s+)?([a-z_][a-z0-9_]*)\s+enable\s+row\s+level\s+security/gi;
+  for (const match of sql.matchAll(direct)) {
+    const name = match[1];
+    if (name !== undefined) enabled.add(name);
+  }
+
+  const loops =
+    /foreach\s+[a-z_][a-z0-9_]*\s+in\s+array\s+array\s*\[([^\]]*)\]\s*loop([\s\S]*?)end\s+loop/gi;
+  for (const match of sql.matchAll(loops)) {
+    const arrayLiteral = match[1];
+    const loopBody = match[2];
+    if (arrayLiteral === undefined || loopBody === undefined) continue;
+    if (!/enable\s+row\s+level\s+security/i.test(loopBody)) continue;
+
+    for (const item of arrayLiteral.matchAll(/'([a-z_][a-z0-9_]*)'/gi)) {
+      const name = item[1];
+      if (name !== undefined) enabled.add(name);
+    }
+  }
+
+  return enabled;
+}
+
 function main(): void {
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
     .sort();
   const violations: Violation[] = [];
   const allTables: string[] = [];
-  let combined = "";
+  const rlsEnabled = new Set<string>();
 
   for (const file of files) {
     const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf8");
-    combined += `\n${sql}`;
+    for (const name of tablesWithRlsEnabled(sql)) rlsEnabled.add(name);
 
     for (const { name, body } of findTableBlocks(sql)) {
       allTables.push(name);
@@ -68,12 +110,24 @@ function main(): void {
   }
 
   for (const table of allTables) {
-    const rlsEnabled =
-      new RegExp(`alter\\s+table\\s+${table}\\s+enable\\s+row\\s+level\\s+security`, "i").test(
-        combined,
-      ) || /foreach\s+t\s+in\s+array/i.test(combined);
-    if (!rlsEnabled) {
-      violations.push({ file: "—", table, problem: "RLS غير مفعّلة" });
+    if (!rlsEnabled.has(table)) {
+      violations.push({
+        file: "—",
+        table,
+        problem: "RLS غير مفعّلة: لا أمر مباشر ولا عضوية في مصفوفة حلقة تفعيل",
+      });
+    }
+  }
+
+  // اسم في قائمة التفعيل بلا جدول يقابله يعني إمّا خطأ كتابي أو جدولاً حُذف
+  // ونُسي اسمه في الحلقة — وكلاهما يستحقّ أن يُرى لا أن يُتجاهل.
+  for (const table of rlsEnabled) {
+    if (!allTables.includes(table)) {
+      violations.push({
+        file: "—",
+        table,
+        problem: "مذكور في تفعيل RLS بلا create table يقابله",
+      });
     }
   }
 
@@ -85,7 +139,12 @@ function main(): void {
     process.exit(1);
   }
 
-  console.log(`✅ ${allTables.length} جدولاً: كلها تحمل city_id و RLS مفعّلة.`);
+  console.log(
+    `✅ ${allTables.length} جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (${rlsEnabled.size} اسماً في قائمة التفعيل).`,
+  );
 }
 
-main();
+// الحماية تجعل الملفّ قابلاً للاستيراد في اختبار وحدة بلا تشغيل الفحص وإسقاط العملية.
+if (import.meta.main) {
+  main();
+}
