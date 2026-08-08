@@ -44,6 +44,7 @@ import {
   createMemoryTranslationCache,
   createMyMemoryProvider,
   createTranslationProvider,
+  TRANSLATION_RETRY_BACKOFF_MS,
 } from "../../packages/infrastructure/i18n-translation/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { Clock } from "../../packages/shared/kernel/index.ts";
@@ -78,11 +79,38 @@ function echoProvider(name = "stub"): TranslationProvider & { readonly calls: nu
 
 /** fetch محقون يعيد جسماً ثابتاً — تفسير الردّ يُختبَر بلا شبكة. */
 function jsonFetch(body: unknown, status = 200): typeof fetch {
-  return (async () =>
-    new Response(JSON.stringify(body), {
-      status,
-      headers: { "content-type": "application/json" },
-    })) as unknown as typeof fetch;
+  return (async () => jsonResponse(body, status)) as unknown as typeof fetch;
+}
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+/** لا انتظار حقيقي في الاختبار: التراجع سلوك يُثبَّت لا مدّة تُقضى. */
+const noSleep = async (): Promise<void> => {};
+
+/**
+ * fetch يعيد ردّاً مختلفاً لكل نداء ويعدّ النداءات — به يُقاس عدد المحاولات
+ * لا مجرّد نتيجتها. الزائد عن القائمة يأخذ آخر ردّ مكرّراً.
+ */
+function countingFetch(responses: readonly Response[]): {
+  readonly fetch: typeof fetch;
+  readonly calls: number;
+} {
+  let calls = 0;
+  return {
+    fetch: (async () => {
+      const index = Math.min(calls, responses.length - 1);
+      calls += 1;
+      return responses[index]?.clone();
+    }) as unknown as typeof fetch,
+    get calls() {
+      return calls;
+    },
+  };
 }
 
 describe("قيم اللغة", () => {
@@ -344,7 +372,7 @@ describe("تفسير ردود المزوّدات", () => {
   });
 
   it("خطأ HTTP عام يُصنَّف تعذّر مزوّد", async () => {
-    const provider = createMyMemoryProvider({ fetchImpl: jsonFetch({}, 503) });
+    const provider = createMyMemoryProvider({ fetchImpl: jsonFetch({}, 503), sleepImpl: noSleep });
     const outcome = await provider.translate({ text: "س", pair: AR_EN });
     expect(!outcome.ok && outcome.error.kind).toBe("provider_unavailable");
   });
@@ -356,6 +384,115 @@ describe("تفسير ردود المزوّدات", () => {
     expect(createTranslationProvider({ provider: "mymemory" })?.name).toBe("mymemory");
     expect(createTranslationProvider({ provider: "google-web" })?.name).toBe("google-web");
     expect(createTranslationProvider({ provider: "deepl", apiKey: "k" })?.name).toBe("deepl");
+  });
+});
+
+/**
+ * البند ج.1: محاولة واحدة إضافية لا أكثر، وللعطل العابر وحده. كل اختبار هنا يعدّ
+ * النداءات الفعلية، لا يكتفي بالنتيجة — فالنتيجة نفسها تظهر بمحاولة وبعشر.
+ */
+describe("إعادة المحاولة عند العطل العابر", () => {
+  it("503 يُعاد مرّة واحدة فقط، وينجح إن نجحت الثانية", async () => {
+    const counter = countingFetch([
+      new Response("", { status: 503 }),
+      jsonResponse({
+        responseStatus: 200,
+        responseData: { translatedText: "Hello" },
+      }),
+    ]);
+    const provider = createMyMemoryProvider({ fetchImpl: counter.fetch, sleepImpl: noSleep });
+
+    const outcome = await provider.translate({ text: "مرحبا", pair: AR_EN });
+    expect(outcome.ok && outcome.value.text).toBe("Hello");
+    expect(counter.calls).toBe(2);
+  });
+
+  it("الفشل المتكرّر يُسلّم بعد محاولتين لا ثلاث", async () => {
+    const counter = countingFetch([
+      new Response("", { status: 503 }),
+      new Response("", { status: 503 }),
+      jsonResponse({ responseStatus: 200, responseData: { translatedText: "لن يُقرأ" } }),
+    ]);
+    const provider = createMyMemoryProvider({ fetchImpl: counter.fetch, sleepImpl: noSleep });
+
+    const outcome = await provider.translate({ text: "مرحبا", pair: AR_EN });
+    expect(!outcome.ok && outcome.error.kind).toBe("provider_unavailable");
+    expect(counter.calls).toBe(2);
+  });
+
+  it("انقطاع الشبكة (بلا ردّ أصلاً) يستحقّ إعادة", async () => {
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls === 1) throw new TypeError("fetch failed");
+      return jsonResponse({ responseStatus: 200, responseData: { translatedText: "Hi" } });
+    }) as unknown as typeof fetch;
+
+    const provider = createMyMemoryProvider({ fetchImpl, sleepImpl: noSleep });
+    const outcome = await provider.translate({ text: "مرحبا", pair: AR_EN });
+    expect(outcome.ok && outcome.value.text).toBe("Hi");
+    expect(calls).toBe(2);
+  });
+
+  it("429 لا يُعاد: من قيل له «أكثرتَ» لا يزيد", async () => {
+    const counter = countingFetch([new Response("", { status: 429 })]);
+    const provider = createMyMemoryProvider({ fetchImpl: counter.fetch, sleepImpl: noSleep });
+
+    const outcome = await provider.translate({ text: "مرحبا", pair: AR_EN });
+    expect(!outcome.ok && outcome.error.kind).toBe("rate_limited");
+    expect(counter.calls).toBe(1);
+  });
+
+  it("401 لا يُعاد: مفتاح خاطئ لا يصحّ بالتكرار", async () => {
+    const counter = countingFetch([new Response("", { status: 401 })]);
+    const provider = createDeepLProvider("bad:fx", {
+      fetchImpl: counter.fetch,
+      sleepImpl: noSleep,
+    });
+
+    const outcome = await provider.translate({ text: "مرحبا", pair: AR_EN });
+    expect(!outcome.ok && outcome.error.kind).toBe("provider_unavailable");
+    expect(counter.calls).toBe(1);
+  });
+
+  it("الردّ المشوَّه لا يُعاد: المزوّد أجاب ولكن بما لا يُفهم", async () => {
+    const counter = countingFetch([jsonResponse({ responseStatus: 403 })]);
+    const provider = createMyMemoryProvider({ fetchImpl: counter.fetch, sleepImpl: noSleep });
+
+    const outcome = await provider.translate({ text: "مرحبا", pair: AR_EN });
+    expect(!outcome.ok && outcome.error.kind).toBe("bad_response");
+    expect(counter.calls).toBe(1);
+  });
+
+  it("الميزانية الكلّية سقفّ لا يكسره التكرار: مهلة ضيّقة تمنع المحاولة الثانية", async () => {
+    const counter = countingFetch([new Response("", { status: 503 })]);
+    // 600ms ميزانية كلّية: بعد تراجع 200ms لا يبقى ما يكفي محاولة ثانية
+    const provider = createMyMemoryProvider({
+      fetchImpl: counter.fetch,
+      sleepImpl: noSleep,
+      timeoutMs: 600,
+    });
+
+    const outcome = await provider.translate({ text: "مرحبا", pair: AR_EN });
+    expect(outcome.ok).toBe(false);
+    expect(counter.calls).toBe(1);
+  });
+
+  it("التراجع يُنتظر فعلاً قبل المحاولة الثانية وبقدر معلوم", async () => {
+    const waits: number[] = [];
+    const counter = countingFetch([
+      new Response("", { status: 503 }),
+      jsonResponse({ responseStatus: 200, responseData: { translatedText: "Hello" } }),
+    ]);
+    const provider = createMyMemoryProvider({
+      fetchImpl: counter.fetch,
+      sleepImpl: async (ms: number) => {
+        waits.push(ms);
+      },
+    });
+
+    await provider.translate({ text: "مرحبا", pair: AR_EN });
+    expect(waits).toEqual([TRANSLATION_RETRY_BACKOFF_MS]);
   });
 });
 

@@ -18,23 +18,43 @@ import { err, ok, type Result } from "../../shared/result/index.ts";
 /** مهلة تقنية: محادثة بين سائق وعميل في الشارع لا تحتمل انتظار مزوّد بطيء. */
 export const TRANSLATION_TIMEOUT_MS = 4000;
 
+/**
+ * تراجع قصير قبل المحاولة الثانية والأخيرة. قصيرٌ عمداً: عطل الشبكة العابر يزول في
+ * أجزاء الثانية، وما لم يزل فيها لن يزول في ثانية أيضاً — والعميل ينتظر ردّاً.
+ */
+export const TRANSLATION_RETRY_BACKOFF_MS = 200;
+
+/** أقلّ ما يستحقّ أن تُبدأ به محاولة: ما دون ذلك يُهدر ولا يُنتج. */
+const MIN_ATTEMPT_BUDGET_MS = 500;
+
+/** محاولتان لا أكثر: الأولى، ثم واحدة بعد التراجع. */
+const MAX_ATTEMPTS = 2;
+
 export interface HttpTranslationOptions {
   readonly timeoutMs?: number;
   /** يُحقن في الاختبار ليُثبَّت السلوك بلا شبكة. */
   readonly fetchImpl?: typeof fetch;
+  /** يُحقن في الاختبار ليُثبَّت التراجع بلا انتظار حقيقي. */
+  readonly sleepImpl?: (ms: number) => Promise<void>;
 }
+
+const defaultSleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 type ProviderResult = Promise<Result<TranslationSuccess, TranslationFailure>>;
 
-async function requestJson(
+/**
+ * محاولة واحدة: نداء واحد بميزانية زمنية محدَّدة. لا تعرف شيئاً عن الإعادة.
+ */
+async function attemptJson(
   name: string,
   url: string,
   init: RequestInit,
-  options: HttpTranslationOptions,
+  budgetMs: number,
+  doFetch: typeof fetch,
 ): Promise<Result<unknown, TranslationFailure>> {
-  const doFetch = options.fetchImpl ?? fetch;
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? TRANSLATION_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), budgetMs);
 
   try {
     const response = await doFetch(url, { ...init, signal: controller.signal });
@@ -54,6 +74,67 @@ async function requestJson(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * ما يستحقّ محاولةً ثانية وما لا يستحقّ — والتمييز مقصود لا كسل:
+ *
+ *   * `provider_unavailable` مع رمز 5xx أو بلا رمز (انقطاع شبكة، اتصال مرفوض):
+ *     عطل عابر بطبيعته، وإعادة المحاولة هي بالضبط ما يُصلحه.
+ *   * `provider_unavailable` مع 4xx (مفتاح خاطئ 401، نداء غير صالح 400): لن يتغيّر
+ *     شيء في المحاولة الثانية. إعادتها تُضاعف الكلفة وتؤخّر ردّاً محسوماً.
+ *   * `rate_limited` (429): المزوّد قال صراحةً «أكثرتَ». الردّ على ذلك بنداء ثانٍ
+ *     فوري إساءةٌ للمزوّد وإطالةٌ للحظر، لا علاج له.
+ *   * `timeout`: يستحقّ الإعادة مبدئياً، لكنه يكون قد استهلك الميزانية كلّها عادةً
+ *     فتُلغى الإعادة تلقائياً بشرط الميزانية أدناه لا باستثناء خاصّ هنا.
+ */
+function deservesRetry(failure: TranslationFailure): boolean {
+  if (failure.kind === "timeout") return true;
+  if (failure.kind !== "provider_unavailable") return false;
+
+  const status = /HTTP (\d{3})/.exec(failure.detail)?.[1];
+  if (status === undefined) return true; // عطل شبكة لا ردّ فيه
+  return Number(status) >= 500;
+}
+
+/**
+ * نداء المزوّد بمحاولة واحدة إضافية عند العطل العابر وحده.
+ *
+ * القرار الذي يستحقّ التسمية: **الميزانية الكلّية لا تتغيّر.** المهلة المُعلَنة
+ * (`TRANSLATION_TIMEOUT_MS`) تبقى سقفاً لكامل العملية بمحاولتيها وتراجعها، لا سقفاً
+ * لكل محاولة. لو كانت لكل محاولة لصار أسوأ انتظار للعميل الواقف في الشارع ثمانيَ
+ * ثوانٍ بدل أربع — أي أن «الإصلاح» يكسر الوعد الذي بُني عليه الرقم أصلاً.
+ *
+ * أثر ذلك الصريح: انتهاء المهلة في المحاولة الأولى يعني عادةً ألّا تكون هناك ثانية،
+ * لأن الميزانية نفدت. والمكسب الحقيقي يقع حيث يقع العطل العابر فعلاً: ردّ 503 فوري،
+ * أو اتصال مرفوض، أو قطع اتصال — وكلّها تفشل في أجزاء الثانية وتترك ميزانية وافرة.
+ */
+async function requestJson(
+  name: string,
+  url: string,
+  init: RequestInit,
+  options: HttpTranslationOptions,
+): Promise<Result<unknown, TranslationFailure>> {
+  const doFetch = options.fetchImpl ?? fetch;
+  const sleep = options.sleepImpl ?? defaultSleep;
+  const totalBudget = options.timeoutMs ?? TRANSLATION_TIMEOUT_MS;
+  const startedAt = Date.now();
+
+  // المحاولة الأولى تُنفَّذ دائماً ولو كانت الميزانية المضبوطة أقصر من الحدّ الأدنى:
+  // من ضبط مهلة قصيرة أراد نداءً قصيراً، لا أن يُلغى النداء. الشرط يحكم الإعادة وحدها.
+  let last = await attemptJson(name, url, init, totalBudget, doFetch);
+
+  for (let attempt = 2; attempt <= MAX_ATTEMPTS; attempt += 1) {
+    if (last.ok || !deservesRetry(last.error)) return last;
+
+    const remaining = totalBudget - (Date.now() - startedAt) - TRANSLATION_RETRY_BACKOFF_MS;
+    if (remaining < MIN_ATTEMPT_BUDGET_MS) return last;
+
+    await sleep(TRANSLATION_RETRY_BACKOFF_MS);
+    last = await attemptJson(name, url, init, remaining, doFetch);
+  }
+
+  return last;
 }
 
 function readString(value: unknown): string | null {
