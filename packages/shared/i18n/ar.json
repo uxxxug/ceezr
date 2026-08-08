@@ -118,6 +118,8 @@
   "rider.service_transport": "نقل أشخاص",
   "rider.share_location_button": "مشاركة موقعي",
   "rider.welcome": "مرحباً بك في وَصْلة. اطلب رحلتك في خطوتين.",
+  "subscription.expiring_soon": "⏳ تنبيه: اشتراكك ينتهي بعد {days} يوماً — بتاريخ {date}.\nجدّده قبل انتهائه حتى لا تتوقف الطلبات عنك. أرسل /subscription للتفاصيل.",
+  "subscription.expiring_tomorrow": "⚠️ اشتراكك ينتهي غداً {date}. جدّده اليوم حتى لا تتوقف الطلبات عنك.",
   "support.action_done_activate": "✅ فُعِّل الاشتراك وأُبلِغ صاحبه — التذكرة {ticket_short} مغلقة.",
   "support.action_done_reject": "⛔ رُفض الطلب وأُبلِغ صاحبه — التذكرة {ticket_short} مغلقة.",
   "support.action_done_terminate": "🛑 أُنهي الاشتراك وأُبلِغ صاحبه — التذكرة {ticket_short} مغلقة.",

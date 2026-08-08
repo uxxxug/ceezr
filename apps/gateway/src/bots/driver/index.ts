@@ -8,54 +8,17 @@
  *   driver-dialog لأن تفريقها بملفات محوّل يكرّر المنطق؛ تبقى هيكلاً حتى تُحتاج فعلاً.
  */
 
-import { Api } from "grammy";
 import {
   type DriverBotDependencies,
   handleDriverUpdate,
 } from "../../../../../packages/application/bots/driver-dialog.ts";
 import type { BotReply } from "../../../../../packages/application/bots/types.ts";
+import type { TelegramSender as TelegramSenderType } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { isCallbackDataValid, toTelegramMarkup } from "../shared/keyboards.ts";
 import { type RawTelegramUpdate, toIncomingUpdate } from "../shared/telegram-mapper.ts";
 
-/** منفذ الإرسال — grammY ينفّذه في الإنتاج، ومزدوج يلتقط الرسائل في الاختبار. */
-export interface TelegramSender {
-  /**
-   * يعيد معرّف الرسالة المُرسَلة. بطاقة قروب غير المشتركين تُحفَظ بمعرّفها لتُعدَّل
-   * أو يُشار إليها لاحقاً، ولا يجوز اختلاق معرّف؛ فمن لا يعرف المعرّف يعيد null.
-   */
-  sendMessage(chatId: string, text: string, markup: unknown): Promise<string | null>;
-  /**
-   * إرسال صورة بمعرّف ملف تلغرام والنصّ تعليقاً عليها. نمرّر المعرّف كما وصل
-   * ولا نُنزّل الصورة: التنزيل يعني تخزين ملفات مستخدمين بلا حاجة ولا سياسة حذف.
-   */
-  sendPhoto(
-    chatId: string,
-    fileId: string,
-    caption: string,
-    markup: unknown,
-  ): Promise<string | null>;
-}
-
-export function grammyTelegramSender(token: string): TelegramSender {
-  const api = new Api(token);
-  return {
-    sendMessage: async (chatId, text, markup) => {
-      const sent = await api.sendMessage(
-        chatId,
-        text,
-        markup === undefined ? {} : { reply_markup: markup as never },
-      );
-      return String(sent.message_id);
-    },
-    sendPhoto: async (chatId, fileId, caption, markup) => {
-      const sent = await api.sendPhoto(chatId, fileId, {
-        caption,
-        ...(markup === undefined ? {} : { reply_markup: markup as never }),
-      });
-      return String(sent.message_id);
-    },
-  };
-}
+export type { TelegramSender } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
+export { grammyTelegramSender } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
 
 export interface DriverBotAdapter {
   /** يعيد false إن تعذّرت المعالجة، فتسجّلها البوابة بلا ادّعاء نجاح. */
@@ -64,7 +27,7 @@ export interface DriverBotAdapter {
 
 export function createDriverBot(
   deps: DriverBotDependencies,
-  sender: TelegramSender,
+  sender: TelegramSenderType,
   log: (message: string, meta: Record<string, unknown>) => void = () => {},
 ): DriverBotAdapter {
   return {

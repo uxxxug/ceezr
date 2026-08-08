@@ -7,11 +7,14 @@
  */
 
 import type {
-  OfferRepository,
+  ExpireOffersRpcPort,
+  PendingOfferRepository,
+} from "../../../../packages/application/dispatch/expire-offers-ports.ts";
+import type {
   PortFailureError,
   SettingsRepository,
 } from "../../../../packages/application/ports/index.ts";
-import { isOfferExpired, type Offer } from "../../../../packages/domain/dispatch/value-objects.ts";
+import { isOfferExpired } from "../../../../packages/domain/dispatch/value-objects.ts";
 import {
   parseCitySettings,
   type SettingsError,
@@ -19,20 +22,10 @@ import {
 import type { CityId, Clock } from "../../../../packages/shared/kernel/index.ts";
 import { ok, type Result } from "../../../../packages/shared/result/index.ts";
 
-/** منفذ الكتابة الذرّية — يقابل الدالة expire_stale_offers في القاعدة. */
-export interface ExpireOffersRpcPort {
-  expireStaleOffers(
-    cityId: CityId,
-    offerIds: readonly string[],
-  ): Promise<Result<number, PortFailureError>>;
-}
-
-export interface PendingOfferRepository extends OfferRepository {
-  /** كل العروض المعلَّقة في المدينة مع معرّف كل عرض. */
-  findPendingInCity(
-    cityId: CityId,
-  ): Promise<Result<readonly (Offer & { readonly id: string })[], PortFailureError>>;
-}
+export type {
+  ExpireOffersRpcPort,
+  PendingOfferRepository,
+} from "../../../../packages/application/dispatch/expire-offers-ports.ts";
 
 export interface ExpireOffersDependencies {
   readonly offers: PendingOfferRepository;

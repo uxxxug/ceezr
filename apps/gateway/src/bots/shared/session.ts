@@ -23,7 +23,7 @@ interface StoredEntry {
 export function createMemorySessionStore(
   clock: Clock,
   ttlSeconds: number = SESSION_TTL_SECONDS,
-): SessionStore & { readonly size: () => number } {
+): SessionStore & { readonly size: () => number; readonly prune: () => number } {
   const entries = new Map<string, StoredEntry>();
 
   function purgeExpired(nowMs: number): void {
@@ -34,6 +34,17 @@ export function createMemorySessionStore(
 
   return {
     size: () => entries.size,
+
+    /**
+     * التنظيف يجري ضمناً عند كل قراءة أو كتابة، لكنه معلَّق على وجود حركة: ليلةٌ
+     * هادئة تترك جلسات منتهية في الذاكرة حتى أول رسالة صباحاً. هذه الدالّة تجعل
+     * التنظيف مستقلاً عن الحركة، وتعيد عدد ما أُسقط ليُرى في سجلّ المهمّة.
+     */
+    prune: (): number => {
+      const before = entries.size;
+      purgeExpired(clock.now().getTime());
+      return before - entries.size;
+    },
 
     load: async (telegramUserId): Promise<Result<DialogState | null, PortFailureError>> => {
       const nowMs = clock.now().getTime();

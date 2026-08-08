@@ -10,6 +10,10 @@
 import type { OfferDecisionPort } from "../../application/bots/types.ts";
 import type { OfferWriter, OpenRoundInput } from "../../application/dispatch/broadcast-offers.ts";
 import type {
+  ExpireOffersRpcPort,
+  PendingOfferRepository,
+} from "../../application/dispatch/expire-offers-ports.ts";
+import type {
   DispatchRpcPort,
   DriverCandidateRepository,
   OfferRepository,
@@ -207,5 +211,57 @@ export function createDriverLocationWriter(sql: Sql) {
              updated_at = now()
        where id = ${driverId}
     `;
+  };
+}
+
+/**
+ * العروض المعلَّقة في مدينة واحدة مع معرّفاتها. المعرّف ضروري لأن مهمّة الإنهاء
+ * تقرّر بالمهلة التجارية للمدينة ثم تُنهي عروضاً بعينها، لا كل ما مضى وقته.
+ */
+export function createPendingOfferRepository(sql: Sql): PendingOfferRepository {
+  const base = createOfferRepository(sql);
+  return {
+    findByOrder: base.findByOrder,
+
+    findPendingInCity: (cityId: CityId) =>
+      guard("offers.findPendingInCity", async () => {
+        const rows = await sql<(OfferRow & { readonly id: string })[]>`
+          select id, order_id, driver_id, status, created_at, round
+            from order_offers
+           where city_id = ${cityId}
+             and status = 'pending'
+           order by created_at
+        `;
+        return rows.map((row) => ({
+          id: row.id,
+          orderId: row.order_id as OrderId,
+          driverId: row.driver_id as DriverId,
+          status: row.status as OfferStatus,
+          sentAt: row.created_at,
+          round: row.round,
+        }));
+      }),
+  };
+}
+
+/**
+ * إنهاء عروض بعينها في عبارة واحدة. شرط status = 'pending' جزءٌ من العبارة نفسها لا
+ * فحصٌ قبلها: سائقٌ يقبل في نفس اللحظة التي تعمل فيها المهمّة يجب أن يفوز بالقبول،
+ * والقيد order_offers_single_accepted يحرس النتيجة في القاعدة على كل حال.
+ */
+export function createExpireOffersRpc(sql: Sql): ExpireOffersRpcPort {
+  return {
+    expireStaleOffers: (_cityId: CityId, offerIds: readonly string[]) =>
+      guard("offers.expireStaleOffers", async () => {
+        if (offerIds.length === 0) return 0;
+        const rows = await sql<{ id: string }[]>`
+          update order_offers
+             set status = 'expired', responded_at = now(), updated_at = now()
+           where id = any(${sql.array(offerIds as string[])}::uuid[])
+             and status = 'pending'
+          returning id
+        `;
+        return rows.length;
+      }),
   };
 }

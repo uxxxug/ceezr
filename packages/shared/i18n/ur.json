@@ -118,6 +118,8 @@
   "rider.service_transport": "سواری",
   "rider.share_location_button": "Share my location",
   "rider.welcome": "Welcome to Waslah. Request a ride in two steps.",
+  "subscription.expiring_soon": "⏳ اطلاع: آپ کی سبسکرپشن {days} دن میں ختم ہو رہی ہے — {date} کو۔\nاس سے پہلے تجدید کر لیں تاکہ آرڈرز آتے رہیں۔ تفصیل کے لیے /subscription بھیجیں۔",
+  "subscription.expiring_tomorrow": "⚠️ آپ کی سبسکرپشن کل {date} کو ختم ہو رہی ہے۔ آج ہی تجدید کریں تاکہ آرڈرز آتے رہیں۔",
   "support.action_done_activate": "✅ سبسکرپشن فعال اور صارف کو اطلاع دی گئی — ٹکٹ {ticket_short} بند۔",
   "support.action_done_reject": "⛔ درخواست مسترد اور صارف کو اطلاع دی گئی — ٹکٹ {ticket_short} بند۔",
   "support.action_done_terminate": "🛑 سبسکرپشن ختم اور صارف کو اطلاع دی گئی — ٹکٹ {ticket_short} بند۔",

@@ -11,7 +11,6 @@
 import type { DriverBotDependencies } from "../../../packages/application/bots/driver-dialog.ts";
 import type { RiderBotDependencies } from "../../../packages/application/bots/rider-dialog.ts";
 import type { SupportDialogDependencies } from "../../../packages/application/bots/support-dialog.ts";
-import type { Keyboard } from "../../../packages/application/bots/types.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
@@ -55,21 +54,16 @@ import {
   createDriverDirectory,
   createRiderDirectory,
 } from "../../../packages/infrastructure/identity/directories.ts";
-import {
-  createTelegramDriverNotifier,
-  type OutboundSender,
-} from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import {
   createEscalationGroupPublisher,
   createTelegramNegotiationNotifier,
   createTelegramRelaySender,
   createUnsubscribedGroupPublisher,
-  type IdentifyingSender,
 } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import {
   createSupportCardPublisher,
   createTicketOwnerNotifier,
-  type SupportSender,
 } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import {
@@ -90,7 +84,6 @@ import { systemClock } from "../../../packages/shared/kernel/index.ts";
 import { createDriverBot, grammyTelegramSender, type TelegramSender } from "./bots/driver/index.ts";
 import { createRiderBot } from "./bots/rider/index.ts";
 import { counterpartNotifier } from "./bots/shared/counterpart-notifier.ts";
-import { toTelegramMarkup } from "./bots/shared/keyboards.ts";
 import { createMemorySessionStore } from "./bots/shared/session.ts";
 import type { RawTelegramUpdate } from "./bots/shared/telegram-mapper.ts";
 import type { BotKind, UpdateHandler } from "./routes/telegram-webhook.ts";
@@ -121,54 +114,13 @@ export function createUpdateHandler(wiring: BotWiring): UpdateHandler {
 }
 
 /** يجعل مُرسِل البوت صالحاً كمنفذ إخطار عام (يُستخدم لبثّ العروض على السائقين). */
-export function asOutboundSender(sender: TelegramSender): OutboundSender {
-  return {
-    send: async (chatId, text, keyboard: Keyboard | null) => {
-      try {
-        await sender.sendMessage(chatId, text, toTelegramMarkup(keyboard));
-        return true;
-      } catch {
-        return false;
-      }
-    },
-  };
-}
+import {
+  asIdentifyingSender,
+  asOutboundSender,
+  asSupportSender,
+} from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
 
-/** مُرسِل يُبقي معرّف الرسالة — تحتاجه بطاقات القروبات لا الرسائل الفردية. */
-export function asIdentifyingSender(sender: TelegramSender): IdentifyingSender {
-  return {
-    sendReturningId: async (chatId, text, keyboard: Keyboard | null) => {
-      try {
-        return await sender.sendMessage(chatId, text, toTelegramMarkup(keyboard));
-      } catch {
-        return null;
-      }
-    },
-  };
-}
-
-/**
- * مُرسِل بطاقات الدعم: نصّاً أو صورةً. الصورة تُعاد بمعرّفها لأن إيصال التحويل
- * يجب أن يظهر صورةً أمام الفريق لا رابطاً لا يفتحه أحد.
- */
-export function asSupportSender(sender: TelegramSender): SupportSender {
-  return {
-    sendReturningId: async (chatId, text, keyboard) => {
-      try {
-        return await sender.sendMessage(chatId, text, keyboard);
-      } catch {
-        return null;
-      }
-    },
-    sendPhotoReturningId: async (chatId, fileId, caption, keyboard) => {
-      try {
-        return await sender.sendPhoto(chatId, fileId, caption, keyboard);
-      } catch {
-        return null;
-      }
-    },
-  };
-}
+export { asIdentifyingSender, asOutboundSender, asSupportSender };
 
 export interface Container {
   readonly handler: UpdateHandler;

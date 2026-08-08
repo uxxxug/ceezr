@@ -1,0 +1,263 @@
+/**
+ * الغرض: تركيب تبعيات العامل الخلفي وبناء قائمة الجوبات الفعلية لكل مدينة مفعَّلة.
+ *   هذا هو الموضع الوحيد الذي يعرف فيه العامل قاعدةً ومرسِلَ تيليجرام.
+ * الحالة: منفّذ فعلياً — المرحلة 2.6 الخطوة 02.
+ * ينتمي إلى: apps/workers
+ * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/index.ts، واختبارات جوبات العامل
+ * ملاحظات مستقبلية: عند تعدّد نسخ العامل يلزم قفل موزَّع قبل تشغيل نسختين على نفس المدينة.
+ */
+
+import { Api } from "grammy";
+import { PortFailureError } from "../../../packages/application/ports/index.ts";
+import type { ExpiryWarningSender } from "../../../packages/application/subscription/expire-subscriptions.ts";
+import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
+import {
+  createExpireOffersRpc,
+  createPendingOfferRepository,
+} from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
+import { createNegotiationWiring } from "../../../packages/infrastructure/dispatch/negotiation-wiring.ts";
+import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
+import {
+  asIdentifyingSender,
+  asOutboundSender,
+  grammyTelegramSender,
+} from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
+import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
+import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
+import { createRatingRecomputePort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
+import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/scheduling/availability-adapters.ts";
+import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
+import type { AppConfig } from "../../../packages/shared/config/index.ts";
+import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
+import { err, ok } from "../../../packages/shared/result/index.ts";
+import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
+import { expireOffers } from "./jobs/expire-offers.ts";
+import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
+import { recomputeRatings } from "./jobs/recompute-ratings.ts";
+import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
+import type { JobDefinition, JobLogger } from "./runner.ts";
+
+/** تواتر كل مهمّة بالثواني. تقنيّة لا تجارية: لا تُقرأ من platform_settings. */
+export const JOB_INTERVALS = {
+  expireOffers: 60,
+  rotateNegotiations: 60,
+  cleanupStale: 1800,
+  expireSubscriptions: 900,
+  warnExpiring: 21_600,
+  recomputeRatings: 3600,
+} as const;
+
+/** المهلة الافتراضية للتوفّر البائت حين يغيب الإعداد — ثلاث ساعات. */
+const AVAILABILITY_FALLBACK_MINUTES = 180;
+/** أيام التحذير الافتراضية حين يغيب الإعداد. */
+const WARNING_FALLBACK_DAYS = 2;
+
+export interface WorkerContainerOverrides {
+  readonly sql?: Sql;
+  readonly warningSender?: ExpiryWarningSender;
+  readonly log?: JobLogger;
+  /** مُرسِلا تيليجرام الحقيقيان — يُستبدلان في الاختبار بمُرسِل يجمع بلا شبكة. */
+  readonly driverOut?: OutboundSender;
+  readonly riderOut?: OutboundSender;
+  readonly identifyingDriver?: IdentifyingSender;
+}
+
+/** مرسِل التحذيرات عبر واجهة تيليجرام الحقيقية، ملفوفاً في Result بلا استثناءات. */
+export function grammyWarningSender(token: string): ExpiryWarningSender {
+  const api = new Api(token);
+  return {
+    send: async ({ chatId, text }) => {
+      try {
+        await api.sendMessage(chatId, text);
+        return ok(undefined);
+      } catch (error) {
+        // سائق حجب البوت يرمي هنا. هذا ليس عطل نظام بل حقيقة عن سائق واحد،
+        // فيُعاد فشلاً محصوراً به ولا يُوقف بقية الدفعة.
+        const detail = error instanceof Error ? error.message : String(error);
+        return err(new PortFailureError("telegram.sendMessage", detail));
+      }
+    },
+  };
+}
+
+export interface WorkerContainer {
+  readonly sql: Sql;
+  /** قائمة الجوبات كما ستُسلَّم للمشغّل — تُبنى مرّة عند الإقلاع. */
+  jobs(): Promise<readonly JobDefinition[]>;
+  close(): Promise<void>;
+}
+
+export function buildWorkerContainer(
+  config: AppConfig,
+  overrides: WorkerContainerOverrides = {},
+): WorkerContainer {
+  const sql =
+    overrides.sql ?? createSql({ connectionString: config.databaseUrl, max: 5, prepare: false });
+  const log: JobLogger = overrides.log ?? {
+    info: (message, fields) => console.log(JSON.stringify({ level: "info", message, ...fields })),
+    error: (message, fields) =>
+      console.error(JSON.stringify({ level: "error", message, ...fields })),
+  };
+
+  const cities = createCityDirectory(sql);
+  const settings = createSettingsRepository(sql);
+  const offers = createPendingOfferRepository(sql);
+  const expireRpc = createExpireOffersRpc(sql);
+  const lifecycleRpc = createSubscriptionLifecycleRpc(sql);
+  const availabilityRpc = createStaleAvailabilityRpc(sql);
+  const recomputePort = createRatingRecomputePort(sql);
+  const warningSender = overrides.warningSender ?? grammyWarningSender(config.driverBotToken);
+
+  /**
+   * العامل ينشر في قروب غير المشتركين ويصعّد الطلبات، فيحتاج مُرسِلاً حقيقياً تماماً
+   * كالبوابة. المُرسِل المبني على رمز بوت السائق هو الصحيح: أزرار القروب يضغطها
+   * سائقون، وردّ الضغطة يجب أن يعود إلى البوت الذي نشرها لا إلى بوت العميل.
+   */
+  const telegram = grammyTelegramSender(config.driverBotToken);
+  const driverOut = overrides.driverOut ?? asOutboundSender(telegram);
+
+  const negotiation = createNegotiationWiring(sql, {
+    driverOut,
+    riderOut: overrides.riderOut ?? driverOut,
+    identifyingDriver: overrides.identifyingDriver ?? asIdentifyingSender(telegram),
+  });
+
+  /**
+   * المدن تُقرأ عند بناء القائمة لا في كل شوط: تفعيل مدينة جديدة حدثٌ نادر
+   * يستحقّ إعادة نشر العامل، واستعلامُ المدن كل دقيقة إنفاقٌ بلا مقابل.
+   */
+  async function activeCityIds(): Promise<readonly CityId[]> {
+    const list = await cities.listActive();
+    if (!list.ok) {
+      log.error("worker.cities_failed", { detail: list.error.detail });
+      return [];
+    }
+    return list.value.map((city) => city.id);
+  }
+
+  async function warningDays(cityId: CityId): Promise<number> {
+    const raw = await settings.findByCity(cityId);
+    if (!raw.ok) return WARNING_FALLBACK_DAYS;
+    const row = raw.value.find((entry) => entry.key === "subscription_expiry_warning_days");
+    const parsed = row === undefined ? Number.NaN : Number(row.value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : WARNING_FALLBACK_DAYS;
+  }
+
+  return {
+    sql,
+
+    jobs: async (): Promise<readonly JobDefinition[]> => {
+      const cityIds = await activeCityIds();
+      if (cityIds.length === 0) {
+        // لا مدينة مفعَّلة يعني نظاماً لم يُفتَح بعد. المهامّ العامّة تبقى، والمدنية
+        // تغيب — وهذا يُسجَّل صراحةً لأن عاملاً بلا مهامّ مدنية عرضٌ مشبوه.
+        log.info("worker.no_active_cities", {});
+      }
+
+      const perCity: JobDefinition[] = cityIds.flatMap((cityId): JobDefinition[] => [
+        {
+          name: `expire-offers:${cityId}`,
+          everySeconds: JOB_INTERVALS.expireOffers,
+          runOnStart: true,
+          run: async () => {
+            const report = await expireOffers(cityId, {
+              offers,
+              settings,
+              rpc: expireRpc,
+              clock: systemClock,
+            });
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            return `examined=${report.value.examined} expired=${report.value.appliedCount}`;
+          },
+        },
+        {
+          name: `rotate-negotiations:${cityId}`,
+          everySeconds: JOB_INTERVALS.rotateNegotiations,
+          runOnStart: true,
+          run: async () => {
+            const report = await rotateUnsubscribedNegotiations(cityId, {
+              snapshots: negotiation.snapshots,
+              rotate: negotiation.rotate,
+              republish: negotiation.republish,
+              escalate: negotiation.escalate,
+              clock: systemClock,
+              log: (message, meta) => log.info(message, meta),
+            });
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            const value = report.value;
+            return `advanced=${value.advanced.length} republished=${value.republished.length} escalated=${value.escalated.length} failures=${value.failures.length}`;
+          },
+        },
+        {
+          name: `cleanup-stale:${cityId}`,
+          everySeconds: JOB_INTERVALS.cleanupStale,
+          run: async () => {
+            const report = await cleanupStaleSessions(
+              { cityId },
+              {
+                settings,
+                rpc: availabilityRpc,
+                fallbackMinutes: AVAILABILITY_FALLBACK_MINUTES,
+              },
+            );
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            return `deactivated=${report.value.availability.deactivated} staleMinutes=${report.value.availability.staleMinutes}`;
+          },
+        },
+        {
+          name: `warn-expiring:${cityId}`,
+          everySeconds: JOB_INTERVALS.warnExpiring,
+          runOnStart: true,
+          run: async () => {
+            const days = await warningDays(cityId);
+            const report = await warnExpiringSoon(
+              { days },
+              {
+                rpc: lifecycleRpc,
+                sender: warningSender,
+                onSendFailure: (subscriptionId, failure) =>
+                  log.error("warn_expiring.send_failed", {
+                    subscriptionId,
+                    detail: failure.detail,
+                  }),
+              },
+            );
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            return `days=${days} examined=${report.value.examined} warned=${report.value.warned} failed=${report.value.failed.length}`;
+          },
+        },
+      ]);
+
+      // مهامّ لا تخصّ مدينة بعينها: الدالّتان تعملان على القاعدة كلّها في نداء واحد،
+      // فتشغيلهما لكل مدينة كان سيكرّر نفس العمل بعدد المدن.
+      const global: JobDefinition[] = [
+        {
+          name: "expire-subscriptions",
+          everySeconds: JOB_INTERVALS.expireSubscriptions,
+          runOnStart: true,
+          run: async () => {
+            const report = await expireSubscriptions({ rpc: lifecycleRpc });
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            return `expired=${report.value.expiredCount}`;
+          },
+        },
+        {
+          name: "recompute-ratings",
+          everySeconds: JOB_INTERVALS.recomputeRatings,
+          run: async () => {
+            const report = await recomputeRatings({ recompute: recomputePort });
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            return `drivers=${report.value.driversUpdated} riders=${report.value.ridersUpdated}`;
+          },
+        },
+      ];
+
+      return [...perCity, ...global];
+    },
+
+    close: async () => {
+      await sql.end({ timeout: 5 });
+    },
+  };
+}
