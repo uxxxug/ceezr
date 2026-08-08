@@ -87,6 +87,7 @@
   "rating.ride_started": "🚗 Ride started. Have a safe trip — send /complete on arrival.",
   "rating.star_button": "{stars} ⭐",
   "rating.start_button": "🚗 Start ride",
+  "rating.started_rider": "🚗 Your driver {driver} is on the way — ride {order} has started.\nYou will be asked to rate on arrival.",
   "rating.summary_as_driver": "🚗 As a driver: {average} from {count} ratings",
   "rating.summary_as_rider": "👤 As a rider: {average} from {count} ratings",
   "rating.summary_header": "⭐ Your rating",

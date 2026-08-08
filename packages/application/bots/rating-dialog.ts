@@ -97,6 +97,22 @@ export async function handleStartRide(
   );
   if (!result.ok) return [reply(sender, tr("common.error_try_again"))];
   if (!result.value.started) return [reply(sender, tr("rating.ride_not_startable"))];
+
+  // العميل يقف في الشارع ولا يعلم أن سائقه انطلق ما لم يُبلَّغ. النمط نفسه المستعمل
+  // في الإنهاء: بوته هو، لغته هو، وفشل التبليغ لا يُبطل بدءاً وقع فعلاً في القاعدة.
+  const summary = result.value.summary;
+  if (deps.counterpart !== undefined && summary !== null) {
+    const riderLang = summary.rider.languageCode;
+    await deps.counterpart.notify(
+      summary.rider.telegramId,
+      t(riderLang)("rating.started_rider", {
+        driver: summary.driver.fullName,
+        order: shortOrderId(String(summary.orderId)),
+      }),
+      null,
+    );
+  }
+
   return [
     reply(sender, tr("rating.ride_started"), completeRideKeyboard(String(orderId), language)),
   ];

@@ -87,6 +87,7 @@
   "rating.ride_started": "🚗 بدأت الرحلة. رحلة موفّقة — أرسل /complete عند الوصول.",
   "rating.star_button": "{stars} ⭐",
   "rating.start_button": "🚗 بدء الرحلة",
+  "rating.started_rider": "🚗 انطلق سائقك {driver} — الرحلة {order} بدأت الآن.\nسيصلك طلب التقييم عند الوصول.",
   "rating.summary_as_driver": "🚗 كسائق: {average} من {count} تقييماً",
   "rating.summary_as_rider": "👤 كعميل: {average} من {count} تقييماً",
   "rating.summary_header": "⭐ تقييمك",

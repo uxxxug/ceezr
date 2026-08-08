@@ -22,6 +22,7 @@ import type {
   CompletionSummary,
   RatingPort,
   RideLifecyclePort,
+  StartSummary,
 } from "../../packages/application/reputation/index.ts";
 import {
   averageOf,
@@ -146,6 +147,14 @@ function deps(overrides: {
   ratings?: Partial<RatingPort>;
   counterpartSink?: { telegramId: string; text: string }[];
 }): RatingDialogDependencies {
+  const startSummary: StartSummary = {
+    orderId: ORDER,
+    service: "transport",
+    pickupLabel: null,
+    dropoffLabel: null,
+    driver: { telegramId: "500", languageCode: "ar", fullName: "خالد" },
+    rider: { telegramId: "600", languageCode: "en", fullName: "Mona" },
+  };
   const summary: CompletionSummary = {
     orderId: ORDER,
     durationSeconds: 900,
@@ -158,7 +167,7 @@ function deps(overrides: {
   return {
     sessions: createMemorySessionStore(fixedClock(new Date("2026-08-07T12:00:00Z"))),
     lifecycle: {
-      start: async () => ({ ok: true, value: { ok: true, reason: null } }),
+      start: async () => ({ ok: true, value: { ok: true, reason: null, summary: startSummary } }),
       complete: async () => ({ ok: true, value: { ok: true, reason: null, summary } }),
       ...overrides.lifecycle,
     } as RideLifecyclePort,
@@ -198,11 +207,57 @@ describe("حوار الرحلة والتقييم", () => {
       "ar",
       deps({
         lifecycle: {
-          start: async () => ({ ok: true, value: { ok: false, reason: "ORDER_NOT_STARTABLE" } }),
+          start: async () => ({
+            ok: true,
+            value: { ok: false, reason: "ORDER_NOT_STARTABLE", summary: null },
+          }),
         },
       }),
     );
     expect(replies[0]?.text).toBe(ar("rating.ride_not_startable"));
+  });
+
+  /**
+   * البند ب.2: العميل يُبلَّغ عند البدء لا عند الإنهاء وحده. الاختبار يُثبت
+   * استدعاء `counterpart.notify` نفسه، لا مجرّد أن السائق رأى رسالته.
+   */
+  it("بدء الرحلة يُبلّغ العميل على بوته هو وبلغته هو", async () => {
+    const sink: { telegramId: string; text: string }[] = [];
+    const replies = await handleStartRide(ORDER, sender, "ar", deps({ counterpartSink: sink }));
+
+    // السائق يرى رسالته وزرّ الإنهاء كما كان — الإضافة لا تسرق شيئاً منه
+    expect(replies).toHaveLength(1);
+    expect(replies[0]?.text).toBe(ar("rating.ride_started"));
+
+    // والعميل يُبلَّغ مرّة واحدة بالإنجليزية لأن لغته en لا بلغة من بدأ
+    expect(sink).toHaveLength(1);
+    expect(sink[0]?.telegramId).toBe("600");
+    expect(sink[0]?.text).toBe(
+      translate("en", "rating.started_rider", {
+        driver: "خالد",
+        order: String(ORDER).slice(0, 8),
+      }),
+    );
+  });
+
+  /** رفض البدء لا يُبلّغ أحداً: من لم تبدأ رحلته لا يُقال له «انطلق سائقك». */
+  it("رفض البدء لا يُرسل إشعاراً للعميل", async () => {
+    const sink: { telegramId: string; text: string }[] = [];
+    await handleStartRide(
+      ORDER,
+      sender,
+      "ar",
+      deps({
+        counterpartSink: sink,
+        lifecycle: {
+          start: async () => ({
+            ok: true,
+            value: { ok: false, reason: "ORDER_NOT_STARTABLE", summary: null },
+          }),
+        },
+      }),
+    );
+    expect(sink).toHaveLength(0);
   });
 
   it("الإنهاء يخاطب كل طرف بلغته هو لا بلغة من أنهى", async () => {

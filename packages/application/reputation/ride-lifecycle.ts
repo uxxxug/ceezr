@@ -18,6 +18,19 @@ export interface RideParty {
   readonly fullName: string;
 }
 
+/**
+ * ملخّص البدء: أقلّ ما يلزم لمخاطبة الطرفين كلٍّ بلغته لحظةَ انطلاق الرحلة.
+ * لا مدّة فيه لأن الرحلة لم تنتهِ بعد — والفرق عن ملخّص الإنهاء مقصود لا سهو.
+ */
+export interface StartSummary {
+  readonly orderId: OrderId;
+  readonly service: string;
+  readonly pickupLabel: string | null;
+  readonly dropoffLabel: string | null;
+  readonly driver: RideParty;
+  readonly rider: RideParty;
+}
+
 export interface CompletionSummary {
   readonly orderId: OrderId;
   readonly durationSeconds: number;
@@ -32,7 +45,12 @@ export interface RideLifecyclePort {
   start(input: {
     readonly orderId: OrderId;
     readonly driverTelegramId: string;
-  }): Promise<Result<{ ok: boolean; reason: RideLifecycleReason | null }, PortFailureError>>;
+  }): Promise<
+    Result<
+      { ok: boolean; reason: RideLifecycleReason | null; summary: StartSummary | null },
+      PortFailureError
+    >
+  >;
   complete(input: {
     readonly orderId: OrderId;
     readonly driverTelegramId: string;
@@ -47,6 +65,8 @@ export interface RideLifecyclePort {
 export interface StartReport {
   readonly started: boolean;
   readonly reason: RideLifecycleReason | null;
+  /** غيابه مع `started=true` ممكن نظرياً فقط عند ردٍّ مشوَّه، فيُعامَل كغياب لا كعطل. */
+  readonly summary: StartSummary | null;
 }
 
 export interface CompleteReport {
@@ -61,7 +81,11 @@ export async function startRide(
 ): Promise<Result<StartReport, PortFailureError>> {
   const outcome = await deps.lifecycle.start(input);
   if (!outcome.ok) return outcome;
-  return ok({ started: outcome.value.ok, reason: outcome.value.reason });
+  return ok({
+    started: outcome.value.ok,
+    reason: outcome.value.reason,
+    summary: outcome.value.summary,
+  });
 }
 
 export async function completeRide(

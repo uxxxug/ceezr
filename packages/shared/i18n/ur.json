@@ -87,6 +87,7 @@
   "rating.ride_started": "🚗 سفر شروع ہو گیا۔ سفر بخیر — پہنچنے پر /complete بھیجیں۔",
   "rating.star_button": "{stars} ⭐",
   "rating.start_button": "🚗 سفر شروع کریں",
+  "rating.started_rider": "🚗 آپ کا ڈرائیور {driver} روانہ ہو گیا — سفر {order} شروع ہو گیا۔\nپہنچنے پر آپ سے درجہ بندی مانگی جائے گی۔",
   "rating.summary_as_driver": "🚗 بطور ڈرائیور: {count} درجہ بندیوں میں سے {average}",
   "rating.summary_as_rider": "👤 بطور مسافر: {count} درجہ بندیوں میں سے {average}",
   "rating.summary_header": "⭐ آپ کی درجہ بندی",

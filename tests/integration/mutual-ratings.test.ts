@@ -223,6 +223,11 @@ describeIf("التقييم المتبادل وأثره في المطابقة ع�
     expect(started?.status).toBe("in_progress");
     expect(started?.started_at).not.toBeNull();
 
+    // البند ب.2 على قاعدة حقيقية: العميل يعلم أن سائقه انطلق، لا ينتظر إلى الوصول
+    expect(riderMessages(RIDER).at(-1)?.text).toBe(
+      ar("rating.started_rider", { driver: "خالد السائق", order: String(orderId).slice(0, 8) }),
+    );
+
     await post("driver", privateCallback(DRIVER_A, `ride:complete:${orderId}`));
     const [completed] = await sql<{ status: string; completed_at: Date | null }[]>`
       select status, completed_at from orders where id = ${orderId}

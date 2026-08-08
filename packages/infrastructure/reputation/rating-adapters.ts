@@ -13,6 +13,7 @@ import type {
   RatingRecomputePort,
   ReputationReader,
   RideLifecyclePort,
+  StartSummary,
 } from "../../application/reputation/index.ts";
 import type {
   FlagRatingReason,
@@ -73,11 +74,23 @@ export function createRideLifecyclePort(sql: Sql): RideLifecyclePort {
           select start_ride(${input.orderId}::uuid, ${input.driverTelegramId}::bigint) as result
         `;
         const envelope = readEnvelope(rows[0]?.result);
-        if (envelope === null) return { ok: false, reason: null };
-        return {
-          ok: envelope.ok,
-          reason: envelope.ok ? null : ((envelope.error ?? null) as RideLifecycleReason | null),
+        if (envelope === null) return { ok: false, reason: null, summary: null };
+        if (!envelope.ok) {
+          return {
+            ok: false,
+            reason: (envelope.error ?? null) as RideLifecycleReason | null,
+            summary: null,
+          };
+        }
+        const summary: StartSummary = {
+          orderId: String(envelope.order_id) as OrderId,
+          service: String(envelope.service ?? ""),
+          pickupLabel: (envelope.pickup_label as string | null) ?? null,
+          dropoffLabel: (envelope.dropoff_label as string | null) ?? null,
+          driver: party(envelope.driver),
+          rider: party(envelope.rider),
         };
+        return { ok: true, reason: null, summary };
       }),
 
     complete: (input) =>
