@@ -7,7 +7,10 @@
  */
 
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
+import { createAdminAuthPort } from "./admin/auth.ts";
 import { buildContainer } from "./container.ts";
+import { createAdminApiRoutes } from "./routes/admin-api.ts";
+import { createAdminUiRoutes } from "./routes/admin-ui.ts";
 import { createServer } from "./server.ts";
 
 function log(message: string, meta: Record<string, unknown> = {}): void {
@@ -65,6 +68,29 @@ const app = createServer({
   },
 });
 
+// لوحة الإدارة: موجّهان منفصلان يُركَّبان هنا لا في server.ts (ADR 0007).
+const adminAuth = createAdminAuthPort(container.sql);
+// الأخصّ أولاً: /admin/api قبل /admin، وإلا التقط حارس الصفحات نداءات JSON
+app.route("/admin/api", createAdminApiRoutes({ sql: container.sql, auth: adminAuth }));
+
+app.route(
+  "/admin",
+  createAdminUiRoutes({
+    sql: container.sql,
+    auth: adminAuth,
+    codeSender: {
+      send: async (telegramId, text) => {
+        try {
+          await container.driverSender.sendMessage(telegramId, text, undefined);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    },
+    log,
+  }),
+);
 log("البوابة تعمل", {
   port: config.port,
   env: config.env,

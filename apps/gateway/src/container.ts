@@ -126,6 +126,11 @@ export interface Container {
   readonly handler: UpdateHandler;
   readonly sql: Sql;
   /**
+   * مُرسِل بوت السائق مكشوف لأن لوحة الإدارة تسلّم رمز الدخول في محادثة المسؤول
+   * الخاصة معه — القناة نفسها لا قناة ثانية بمفتاح ثانٍ يُنسى تدويره.
+   */
+  readonly driverSender: TelegramSender;
+  /**
    * تبعيات دورة غير المشتركين مكشوفة لأن مُشغّل الجوبات واختبارات التكامل
    * تحتاج تشغيل الدورة خارج مسار الـ webhook — وبنفس المحوّلات لا بنسخة موازية.
    */
@@ -365,6 +370,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       log,
     }),
     sql,
+    driverSender,
     negotiation: {
       snapshots: createNegotiationSnapshotReader(sql),
       rotate: rotationDeps,
