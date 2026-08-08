@@ -38,6 +38,7 @@ const config: AppConfig = {
   supabaseServiceKey: "local-test",
   redisUrl: "http://localhost",
   redisToken: "local-test",
+  sessionStore: "memory",
   driverBotToken: "driver-token",
   riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,

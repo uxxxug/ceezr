@@ -11,6 +11,7 @@
 import type { DriverBotDependencies } from "../../../packages/application/bots/driver-dialog.ts";
 import type { RiderBotDependencies } from "../../../packages/application/bots/rider-dialog.ts";
 import type { SupportDialogDependencies } from "../../../packages/application/bots/support-dialog.ts";
+import type { SessionStore } from "../../../packages/application/bots/types.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
@@ -84,8 +85,10 @@ import { systemClock } from "../../../packages/shared/kernel/index.ts";
 import { createDriverBot, grammyTelegramSender, type TelegramSender } from "./bots/driver/index.ts";
 import { createRiderBot } from "./bots/rider/index.ts";
 import { counterpartNotifier } from "./bots/shared/counterpart-notifier.ts";
+import { createRedisSessionStore } from "./bots/shared/redis-session.ts";
 import { createMemorySessionStore } from "./bots/shared/session.ts";
 import type { RawTelegramUpdate } from "./bots/shared/telegram-mapper.ts";
+import { createUpstashRedis, type RedisClient } from "./redis/upstash.ts";
 import type { BotKind, UpdateHandler } from "./routes/telegram-webhook.ts";
 
 export interface BotWiring {
@@ -156,6 +159,11 @@ export interface ContainerOverrides {
    * الترجمة كاملاً في CI بلا اعتماد على خدمة خارجية ولا على منفذ إنترنت.
    */
   readonly translationProvider?: TranslationProvider | null;
+  /**
+   * عميل Redis بديل. يُحقن في الاختبار بعميل في الذاكرة، فيُثبَت مسار الجلسات
+   * على Redis كاملاً في CI بلا خادم Redis ولا منفذ إنترنت.
+   */
+  readonly redis?: RedisClient;
 }
 
 /**
@@ -170,9 +178,30 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const riderSender = overrides.riderSender ?? grammyTelegramSender(config.riderBotToken);
 
   // مخزنان منفصلان: حالة حوار السائق لا تخصّ العميل، ودمجهما كان سيخلط خطوتين
-  // لشخص واحد يستخدم البوتين بمعرّف تلغرام واحد.
-  const driverSessions = createMemorySessionStore(systemClock);
-  const riderSessions = createMemorySessionStore(systemClock);
+  // لشخص واحد يستخدم البوتين بمعرّف تلغرام واحد. الفصل في الذاكرة بخريطتين،
+  // وفي Redis بفضاء مفتاح لكل بوت — نفس الضمان بآليتين (ADR 0011).
+  const redis =
+    overrides.redis ??
+    (config.sessionStore === "redis"
+      ? createUpstashRedis({ url: config.redisUrl, token: config.redisToken })
+      : null);
+
+  const onSessionFailure = (failure: {
+    readonly kind: string;
+    readonly detail: string;
+    readonly operation: string;
+  }): void => {
+    log("session.redis_failed", failure);
+  };
+
+  const makeSessions = (namespace: "driver" | "rider"): SessionStore =>
+    config.sessionStore === "redis" && redis !== null
+      ? createRedisSessionStore(redis, namespace, { onFailure: onSessionFailure })
+      : createMemorySessionStore(systemClock);
+
+  const driverSessions = makeSessions("driver");
+  const riderSessions = makeSessions("rider");
+  log("session.store_selected", { store: config.sessionStore });
 
   const settings = createSettingsRepository(sql);
   const cities = createCityDirectory(sql);
@@ -235,7 +264,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    * فقط: لو حدّثناها قبل ذلك لتغيّرت لغة الرسائل مع بقاء القاعدة على القديمة،
    * فيعود المستخدم بعد انتهاء الجلسة إلى لغة لم يخترها.
    */
-  const languageDeps = (sessions: ReturnType<typeof createMemorySessionStore>) => ({
+  const languageDeps = (sessions: SessionStore) => ({
     preferences: languagePreferences,
     rememberLanguage: async (telegramId: string, language: string): Promise<void> => {
       const stored = await sessions.load(telegramId);

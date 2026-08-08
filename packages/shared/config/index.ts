@@ -37,7 +37,17 @@ export interface AppConfig {
   readonly translationApiKey: string | null;
   /** بريد تواصل يرفع الحصّة المجانية عند مزوّدات تشترطه في شروطها. */
   readonly translationContactEmail: string | null;
+  /**
+   * أين تُحفظ جلسات الحوار. ليست في REQUIRED_ENV_KEYS: الافتراضي `memory` يعمل
+   * كاملاً لنسخة واحدة، و`redis` شرطٌ عند تعدّد النسخ لا تحسين (ADR 0011).
+   */
+  readonly sessionStore: SessionStoreName;
 }
+
+/** مخازن الجلسات المدعومة. */
+export const SESSION_STORE_NAMES = ["memory", "redis"] as const;
+
+export type SessionStoreName = (typeof SESSION_STORE_NAMES)[number];
 
 /** أسماء المزوّدات المدعومة. `none` ليست غياباً بل اختياراً صريحاً. */
 export const TRANSLATION_PROVIDER_NAMES = [
@@ -146,6 +156,16 @@ export function tryLoadConfig(
   }
   const translationProvider = rawProvider as TranslationProviderName;
 
+  const rawSessionStore = (source.SESSION_STORE ?? "memory").trim().toLowerCase();
+  if (!(SESSION_STORE_NAMES as readonly string[]).includes(rawSessionStore)) {
+    return err(
+      new InvalidEnvVarError(
+        "SESSION_STORE",
+        `المتاح: ${SESSION_STORE_NAMES.join(", ")} — وردت: ${rawSessionStore}`,
+      ),
+    );
+  }
+
   const translationApiKey = isBlank(source.TRANSLATION_API_KEY)
     ? null
     : (source.TRANSLATION_API_KEY as string).trim();
@@ -181,6 +201,7 @@ export function tryLoadConfig(
     translationContactEmail: isBlank(source.TRANSLATION_CONTACT_EMAIL)
       ? null
       : (source.TRANSLATION_CONTACT_EMAIL as string).trim(),
+    sessionStore: rawSessionStore as SessionStoreName,
   });
 }
 
