@@ -61,14 +61,36 @@ export function createTicketAdvisor(core: AgentCoreGateway): TicketAdvisor {
         classification: decision.classification,
         suggestion: decision.recommendedAction,
         confidence: decision.confidence,
+        agentId: decision.agentId,
+        allowedToolLevel: decision.allowedToolLevel,
       };
     },
   };
 }
 
 /**
- * ناشر الاقتراح. **رسالة منفصلة بلا أزرار قرار** — أزرار البطاقة وحدها هي التي
- * تُغيّر حالة، وإلحاق زرٍّ باقتراحٍ آليّ كان سيجعل النقر عليه فعلاً لا مراجعة.
+ * أزرار تقييم الاقتراح.
+ *
+ * `sup:advice:ok|no:<traceId>` — يحمل **معرّف الأثر لا معرّف التذكرة**، فالحكم على
+ * قرارٍ بعينه لا على التذكرة. طوله دون الـ 64 بايت التي يفرضها تليجرام.
+ */
+function feedbackKeyboard(traceId: string, tr: (key: string) => string): unknown {
+  return {
+    inline_keyboard: [
+      [
+        { text: tr("support.advice_helpful_button"), callback_data: `sup:advice:ok:${traceId}` },
+        { text: tr("support.advice_unhelpful_button"), callback_data: `sup:advice:no:${traceId}` },
+      ],
+    ],
+  };
+}
+
+/**
+ * ناشر الاقتراح. **رسالة منفصلة بلا أزرار قرار** — وفيها زرّا تقييم فحسب.
+ *
+ * والتمييز ليس لفظياً: زرّ القرار يمرّ على `resolveDispute` فيغيّر حالة تذكرة
+ * أو اشتراكاً؛ وزرّ التقييم يمرّ على `recordAdviceFeedback` فيكتب صفّ قياس لا غير.
+ * فسقف `SUGGEST` محفوظ: لا مسار من هذه الرسالة يبلغ فعلاً على التذكرة أصلاً.
  */
 export function createSupportAdvicePublisher(sender: SupportSender): SupportAdvicePublisher {
   return {
@@ -81,7 +103,11 @@ export function createSupportAdvicePublisher(sender: SupportSender): SupportAdvi
           confidence: Math.round(card.confidence * 100),
           suggestion: card.suggestion,
         });
-        const messageId = await sender.sendReturningId(card.groupId, text, undefined);
+        const messageId = await sender.sendReturningId(
+          card.groupId,
+          text,
+          feedbackKeyboard(card.traceId, tr),
+        );
         return messageId !== null;
       } catch {
         return false;

@@ -171,7 +171,7 @@ describeIf("محادثة بلغتين عبر الترجمة على قاعدة ح
   }
 
   beforeEach(async () => {
-    await sql`truncate table audit_log, attendance_log, ratings, support_tickets,
+    await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, ratings, support_tickets,
                              unsubscribed_claims, unsubscribed_negotiations, order_offers,
                              orders, subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;

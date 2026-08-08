@@ -7,9 +7,14 @@
  * ملاحظات مستقبلية: مدّة حدّ التكرار ومدّة التفعيل تُقرآن من platform_settings داخل الدوال الذرّية.
  */
 
-import { isSupportResolution, type SupportTicketType } from "../../domain/dispute/index.ts";
+import {
+  isSupportResolution,
+  type SupportResolution,
+  type SupportTicketType,
+} from "../../domain/dispute/index.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type {
+  AgentMeasurementPort,
   ClaimDisputeDependencies,
   OpenDisputeDependencies,
   PostDisputeCardDependencies,
@@ -18,9 +23,11 @@ import type {
 } from "../dispute/index.ts";
 import {
   claimDispute,
+  inferAdviceOutcome,
   openSupportTicket,
   postDisputeCard,
   postTicketAdvice,
+  recordAdviceFeedback,
   resolveDispute,
 } from "../dispute/index.ts";
 import type { BotReply, DialogState, Keyboard, Sender, SessionStore } from "./types.ts";
@@ -37,6 +44,11 @@ export interface SupportDialogDependencies {
    * عليه النظام قبل طبقة الذكاء الاصطناعي. راجع `dispute/ticket-advisor.ts`.
    */
   readonly advice?: PostTicketAdviceDependencies;
+  /**
+   * مخزن القياس — **اختياري بتبعيّة `advice`**. غيابه يعني أن الطبقة
+   * معطّلة، فلا قرار يُقاس ولا زرّ يُنقَر ولا استنتاج يُجرى.
+   */
+  readonly measurement?: AgentMeasurementPort;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -226,6 +238,57 @@ async function adviseQuietly(
 }
 
 /**
+ * حكم الموظّف على الاقتراح — نقرةٌ تُسجّل ولا تفعل شيئاً أخرى.
+ *
+ * ⚠️ لا يمسّ تذكرةً ولا اشتراكاً ولا صلاحيةً. أقصى أثره صفّ في `agent_outcomes`،
+ * وهذا هو الفرق بين زرّ تقييم وزرّ قرار.
+ */
+async function handleAdviceFeedback(
+  parts: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: SupportDialogDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const [verdict, traceId] = parts;
+  if (deps.measurement === undefined || traceId === undefined || traceId === "") {
+    return [privateReply(sender, tr("common.unknown_command"))];
+  }
+  if (verdict !== "ok" && verdict !== "no") {
+    return [privateReply(sender, tr("common.unknown_command"))];
+  }
+
+  const recorded = await recordAdviceFeedback(
+    { traceId, helpful: verdict === "ok", actorTelegramId: sender.telegramUserId },
+    deps.measurement,
+  );
+  if (!recorded.ok) return [privateReply(sender, tr("common.error_try_again"))];
+
+  // الردّ خاصٌّ لا في القروب: رأي موظّف في اقتراح آلي لا يعني بقيّة الفريق،
+  // وإعلانه للجميع يجعل التقييم موقفاً أمام الزملاء فيقلّ صدقه.
+  return [privateReply(sender, tr("support.advice_feedback_thanks"))];
+}
+
+/**
+ * استنتاج الحكم من فعل الموظّف بعد حسم التذكرة.
+ *
+ * ⚠️ صامت ولا يُفشل شيئاً: التذكرة حُسمت قبل أن يُستدعى، وقياسٌ فاته سطر أهون
+ * من حسمٍ تعطّل. وهو يُهمَل تلقائياً إن سبقته نقرة إنسان — تفرضه القاعدة لا هذا الملف.
+ */
+async function measureQuietly(
+  ticketId: string,
+  resolution: SupportResolution,
+  deps: SupportDialogDependencies,
+): Promise<void> {
+  if (deps.measurement === undefined) return;
+  try {
+    await inferAdviceOutcome({ ticketId, resolution }, deps.measurement);
+  } catch {
+    // صامت عمداً — كـ`adviseQuietly` حرفاً، وللسبب نفسه.
+  }
+}
+
+/**
  * أزرار قروب الدعم. الردّ يذهب للقروب حين يفيد الفريق كلّه (من استلم، وماذا تقرّر)،
  * وللمحادثة الخاصة حين يخصّ الضاغط وحده (أنت غير مخوَّل).
  */
@@ -240,6 +303,10 @@ export async function handleSupportGroupAction(
   if (action === undefined || ticketId === undefined || ticketId === "") {
     return [reply(sender, tr("common.unknown_command"))];
   }
+
+  // يُلتقط قبل كل شيء: تقييم اقتراح لا فعل على تذكرة. وما بعده يفترض أن
+  // `parts[1]` معرّف تذكرة — وهو هنا معرّف أثر، فخلطهما يفسد المسارين.
+  if (action === "advice") return handleAdviceFeedback(parts.slice(1), sender, state, deps);
 
   if (action === "claim") {
     const claimed = await claimDispute(
@@ -291,6 +358,9 @@ export async function handleSupportGroupAction(
         return [privateReply(sender, tr("common.error_try_again"))];
     }
   }
+
+  // بعد حسمٍ ناجح وحده: فعلٌ وقع فعلاً هو وحده ما يصلح للحكم على اقتراح.
+  await measureQuietly(ticketId, action, deps);
 
   const key =
     action === "activate"

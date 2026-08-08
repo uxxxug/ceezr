@@ -43,6 +43,16 @@ export interface TicketAdvice {
   /** النصّ المقترح. `null` يعني: لا اقتراح — وهي نتيجة صحيحة لا خطأ. */
   readonly suggestion: string | null;
   readonly confidence: number;
+  /** الوكيل الذي أنتج الاقتراح. يُخزَّن ليُعرف لاحقاً أيّ وكيل يُحسِن وأيّ يُسيء. */
+  readonly agentId: string | null;
+  /**
+   * سقف الصلاحية وقت القرار كما أقرّته سياسات الطبقة.
+   *
+   * يُنقل ويُخزَّن **ليصير القيد قابلاً للتفتيش في البيانات لا في التوثيق وحده**:
+   * صفٌّ واحد بغير `SUGGEST` في `agent_decisions` يعني أن شيئاً جوهرياً انكسر،
+   * ويُكتشف باستعلام بدل مراجعة كود.
+   */
+  readonly allowedToolLevel: string;
 }
 
 export interface TicketAdvisor {

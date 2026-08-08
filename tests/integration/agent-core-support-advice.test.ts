@@ -104,7 +104,7 @@ describeIf("القسم ج — اقتراح آلي على تذكرة دعم حق�
   });
 
   beforeEach(async () => {
-    await sql`truncate table audit_log, attendance_log, support_tickets, unsubscribed_claims,
+    await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, support_tickets, unsubscribed_claims,
                              unsubscribed_negotiations, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
@@ -240,11 +240,41 @@ describeIf("القسم ج — اقتراح آلي على تذكرة دعم حق�
       expect(after.map((row) => row.status)).toEqual(before.map((row) => row.status));
     });
 
-    it("⚠️ الاقتراح بلا أزرار — لا نقرة تُغيّر حالة", async () => {
+    /**
+     * ═══ تعديل مقصود لهذا الاختبار ═══
+     *
+     * كان يؤكّد «لا أزرار أصلاً»، وذلك **كان يقيس الوسيلة لا الغاية**. الغاية
+     * أن لا يوجد **زرّ قرار** تحت الاقتراح، لا أن تخلو الرسالة من كل زرّ.
+     * فأُبدِل بما هو أقوى منه: ليس في الرسالة إلا `sup:advice:*`، ولا أثر فيها
+     * لـ `activate` أو `terminate` أو `reject` — وهي أفعال الدنيا الثلاثة.
+     */
+    it("⚠️ الاقتراح بلا أزرار قرار — زرّا تقييم لا غير", async () => {
       await registerDriver(DRIVER_CHAT);
       await openTicket(DRIVER_CHAT, "اشتراكي منتهي وأبغى أفعّل الباقة");
-      const advice = groupMessages().at(-1);
-      expect(advice?.markup ?? null).toBeNull();
+      const markup = JSON.stringify(groupMessages().at(-1)?.markup ?? null);
+
+      expect(markup).toContain("sup:advice:ok:");
+      expect(markup).toContain("sup:advice:no:");
+      // ⚠️ ولا واحد من أفعال القرار يبلغ هذه الرسالة.
+      for (const decisionAction of ["activate", "terminate", "reject", "claim"]) {
+        expect(markup).not.toContain(`sup:${decisionAction}:`);
+      }
+    });
+
+    it("القرار يُحفظ في `agent_decisions` بسقف SUGGEST لا غير", async () => {
+      await registerDriver(DRIVER_CHAT);
+      await openTicket(DRIVER_CHAT, "اشتراكي منتهي وأبغى أفعّل الباقة");
+
+      const rows = await sql<
+        { trace_id: string; allowed_tool_level: string; published: boolean; city_id: string }[]
+      >`select trace_id, allowed_tool_level, published, city_id from agent_decisions`;
+
+      // قرارٌ واحد محفوظ — فبلا صفّ لا قياس لاحقاً مهما نُقِر من أزرار.
+      expect(rows.length).toBe(1);
+      expect(rows[0]?.published).toBe(true);
+      expect(rows[0]?.city_id).not.toBeNull();
+      // ⚠️ القيد مكتوب في البيانات: صفّ بغير SUGGEST يعني أن شيئاً جوهرياً انكسر.
+      expect(rows[0]?.allowed_tool_level).toBe("SUGGEST");
     });
 
     it("نصّ مهذّب بلا شكوى: تُفتح التذكرة وتُنشر بطاقتها بلا اقتراح", async () => {

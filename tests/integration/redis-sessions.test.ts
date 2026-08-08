@@ -134,7 +134,7 @@ describeIf("جلسات الحوار على Redis بحاوية حقيقية", () 
   });
 
   beforeEach(async () => {
-    await sql`truncate table audit_log, attendance_log, order_offers, orders,
+    await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
     await sql`

@@ -100,7 +100,7 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
 
   beforeEach(async () => {
     // قاعدة نظيفة قبل كل سيناريو: نمسح الحركة ونُبقي المدن والإعدادات المبذورة
-    await sql`truncate table audit_log, attendance_log, order_offers, orders,
+    await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
     // تفعيل جدة يتطلب مجموعاتها الثلاث (قيد cities_active_requires_groups)

@@ -118,7 +118,7 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
   });
 
   beforeEach(async () => {
-    await sql`truncate table audit_log, attendance_log, support_tickets, unsubscribed_claims,
+    await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, support_tickets, unsubscribed_claims,
                              unsubscribed_negotiations, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;

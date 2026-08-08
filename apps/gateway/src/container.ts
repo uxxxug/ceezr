@@ -37,6 +37,7 @@ import {
   createOrderNotesReader,
   createUnsubscribedCyclePort,
 } from "../../../packages/infrastructure/dispatch/negotiation-adapters.ts";
+import { createAgentMeasurementPort } from "../../../packages/infrastructure/dispute/agent-measurement-adapters.ts";
 import {
   createSupportCardRecorder,
   createSupportClaimPort,
@@ -327,13 +328,18 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     log: (message, meta) =>
       console.log(JSON.stringify({ at: new Date().toISOString(), message, ...meta })),
   });
-  const advice = agentCore.enabled
-    ? {
-        context: ticketContext,
-        advisor: createTicketAdvisor(agentCore),
-        publisher: createSupportAdvicePublisher(supportSender),
-      }
-    : undefined;
+  // مخزن القياس يُبنى مع الطبقة ويُطفأ معها: بلا طبقة لا قرارات تُقاس، وزرٌّ لا
+  // يُنشَر أصلاً لا يحتاج مستقبِلاً. وربطهما بشرطٍ واحد يمنع نصفاً مفعَّلاً بلا نصفه.
+  const measurement = agentCore.enabled ? createAgentMeasurementPort(sql) : undefined;
+  const advice =
+    agentCore.enabled && measurement !== undefined
+      ? {
+          context: ticketContext,
+          advisor: createTicketAdvisor(agentCore),
+          publisher: createSupportAdvicePublisher(supportSender),
+          measurement,
+        }
+      : undefined;
 
   const supportCore = {
     open: { tickets: createSupportTicketPort(sql) },
@@ -345,6 +351,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     claims: { claims: createSupportClaimPort(sql) },
     // `exactOptionalPropertyTypes`: الحقل يُنشر عند وجوده ولا يُضاف `undefined` صراحةً.
     ...(advice === undefined ? {} : { advice }),
+    ...(measurement === undefined ? {} : { measurement }),
   };
   const resolutionPort = createSupportResolutionPort(sql);
 
