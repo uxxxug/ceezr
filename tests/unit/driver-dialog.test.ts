@@ -41,8 +41,12 @@ function text(value: string): IncomingUpdate {
 function callback(data: string): IncomingUpdate {
   return { kind: "callback", from: SENDER, data };
 }
-function contact(phone: string): IncomingUpdate {
-  return { kind: "contact", from: SENDER, phone };
+/** الافتراضي: البطاقة للمرسِل نفسه — وهو ما يفعله زرّ "مشاركة رقمي". */
+function contact(
+  phone: string,
+  ownerTelegramId: string | null = SENDER.telegramUserId,
+): IncomingUpdate {
+  return { kind: "contact", from: SENDER, phone, ownerTelegramId };
 }
 
 let drivers: DriverDirectoryDouble;
@@ -121,7 +125,7 @@ describe("تسجيل السائق — المسار الكامل", () => {
       deps = build({ drivers, sessions: createMemorySessionStore(fixedClock(NOW)) });
       await handleDriverUpdate(text("/start"), deps);
       await handleDriverUpdate(text("أحمد العمري"), deps);
-      await handleDriverUpdate(text(input), deps);
+      await handleDriverUpdate(contact(input), deps);
       await handleDriverUpdate(callback(`city:${JEDDAH.id}`), deps);
       await handleDriverUpdate(callback("service:delivery"), deps);
       expect(drivers.registrations[0]?.phone).toBe("+966501234567");
@@ -131,10 +135,40 @@ describe("تسجيل السائق — المسار الكامل", () => {
   it("يرفض رقماً غير سعودي ولا ينتقل للخطوة التالية", async () => {
     await handleDriverUpdate(text("/start"), deps);
     await handleDriverUpdate(text("أحمد العمري"), deps);
-    const bad = await handleDriverUpdate(text("0301234567"), deps);
+    const bad = await handleDriverUpdate(contact("0301234567"), deps);
     expect(bad[0]?.text).toBe(ar("driver.phone_invalid"));
-    const stillPhone = await handleDriverUpdate(text("0501234567"), deps);
+    const stillPhone = await handleDriverUpdate(contact("0501234567"), deps);
     expect(stillPhone[0]?.text).toBe(ar("driver.ask_city"));
+  });
+
+  it("يرفض رقماً مكتوباً بلا زرّ ويعيد عرض الزرّ", async () => {
+    await handleDriverUpdate(text("/start"), deps);
+    await handleDriverUpdate(text("أحمد العمري"), deps);
+    const typed = await handleDriverUpdate(text("0501234567"), deps);
+    expect(typed[0]?.text).toBe(ar("driver.phone_must_use_button"));
+    expect(typed[0]?.keyboard?.kind).toBe("request_contact");
+    // ولم ينتقل: الزرّ الحقيقي ما زال يعمل بعده
+    const shared = await handleDriverUpdate(contact("0501234567"), deps);
+    expect(shared[0]?.text).toBe(ar("driver.ask_city"));
+  });
+
+  it("يرفض بطاقة جهة اتصال لشخص آخر ولا يخزّن رقمها", async () => {
+    await handleDriverUpdate(text("/start"), deps);
+    await handleDriverUpdate(text("أحمد العمري"), deps);
+    const forwarded = await handleDriverUpdate(contact("0509999999", "999999"), deps);
+    expect(forwarded[0]?.text).toBe(ar("driver.phone_not_yours"));
+    const shared = await handleDriverUpdate(contact("0501234567"), deps);
+    expect(shared[0]?.text).toBe(ar("driver.ask_city"));
+    await handleDriverUpdate(callback(`city:${JEDDAH.id}`), deps);
+    await handleDriverUpdate(callback("service:delivery"), deps);
+    expect(drivers.registrations[0]?.phone).toBe("+966501234567");
+  });
+
+  it("يرفض بطاقة بلا حساب تلغرام", async () => {
+    await handleDriverUpdate(text("/start"), deps);
+    await handleDriverUpdate(text("أحمد العمري"), deps);
+    const manual = await handleDriverUpdate(contact("0501234567", null), deps);
+    expect(manual[0]?.text).toBe(ar("driver.phone_not_yours"));
   });
 
   it("يرفض اسماً قصيراً أو أمراً مكان الاسم", async () => {
@@ -148,7 +182,7 @@ describe("تسجيل السائق — المسار الكامل", () => {
   it("لا يقبل مدينة غير مفعَّلة حتى لو ضُغط زرّها", async () => {
     await handleDriverUpdate(text("/start"), deps);
     await handleDriverUpdate(text("أحمد العمري"), deps);
-    await handleDriverUpdate(text("0501234567"), deps);
+    await handleDriverUpdate(contact("0501234567"), deps);
     const forged = await handleDriverUpdate(
       callback("city:99999999-9999-9999-9999-999999999999"),
       deps,
@@ -177,7 +211,7 @@ describe("تسجيل السائق — المسار الكامل", () => {
     const withReason = build({ trial: trialPort(false, "already_used") });
     await handleDriverUpdate(text("/start"), withReason);
     await handleDriverUpdate(text("أحمد العمري"), withReason);
-    await handleDriverUpdate(text("0501234567"), withReason);
+    await handleDriverUpdate(contact("0501234567"), withReason);
     await handleDriverUpdate(callback(`city:${JEDDAH.id}`), withReason);
     const done = await handleDriverUpdate(callback("service:transport"), withReason);
     expect(done[1]?.text).toBe(ar("driver.trial_not_started", { reason: "already_used" }));

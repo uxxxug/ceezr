@@ -27,6 +27,7 @@ import {
   handleLanguageCommand,
   type LanguageDialogDependencies,
 } from "./language-dialog.ts";
+import { nameErrorKey } from "./name-errors.ts";
 import { handleRatingCallback, type RatingDialogDependencies } from "./rating-dialog.ts";
 import {
   handleSupportGroupAction,
@@ -110,6 +111,7 @@ export async function handleRiderUpdate(
     }
     if (prefix === "city") return handleCitySelected(rest.join(":"), sender, state, deps);
     if (prefix === "svc") return handleServiceSelected(rest.join(":"), sender, state, deps);
+    if (prefix === "back") return handleBack(rest.join(":"), sender, state, deps);
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
     if (prefix === "rate") {
       return deps.rating === undefined
@@ -336,9 +338,34 @@ async function askService(
       rows: [
         [{ label: tr("rider.service_transport"), data: "svc:transport" }],
         [{ label: tr("rider.service_delivery"), data: "svc:delivery" }],
+        [{ label: tr("common.back_button"), data: "back:city" }],
       ],
     }),
   ];
+}
+
+/** رجوع خطوة واحدة: يعيد سؤال المدينة بلا مسح الاسم. */
+async function handleBack(
+  target: string,
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  if (target !== "city" || state.step !== "awaiting_service") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const cities = await deps.cities.listActive();
+  if (!cities.ok) return technicalFailure(sender, state);
+  if (cities.value.length === 0) return [reply(sender, tr("common.no_active_city"))];
+
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_city",
+    draftCityId: null,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+  return [reply(sender, tr("rider.ask_city"), cityKeyboard(cities.value))];
 }
 
 function isServiceType(value: string): value is ServiceType {
@@ -387,7 +414,7 @@ async function handleName(
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
   const parsed = parseFullName(text);
-  if (!parsed.ok) return [reply(sender, tr("driver.name_too_short"))];
+  if (!parsed.ok) return [reply(sender, tr(nameErrorKey(parsed.error.reason)))];
 
   const cities = await deps.cities.listActive();
   if (!cities.ok) return technicalFailure(sender, state);

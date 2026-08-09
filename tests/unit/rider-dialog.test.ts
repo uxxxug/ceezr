@@ -113,6 +113,7 @@ describe("تسجيل العميل وطلب رحلة", () => {
       rows: [
         [{ label: ar("rider.service_transport"), data: "svc:transport" }],
         [{ label: ar("rider.service_delivery"), data: "svc:delivery" }],
+        [{ label: ar("common.back_button"), data: "back:city" }],
       ],
     });
     expect(riders.registrations).toHaveLength(1);
@@ -321,6 +322,7 @@ describe("مسار التوصيل في حوار العميل", () => {
       rows: [
         [{ label: ar("rider.service_transport"), data: "svc:transport" }],
         [{ label: ar("rider.service_delivery"), data: "svc:delivery" }],
+        [{ label: ar("common.back_button"), data: "back:city" }],
       ],
     });
   });

@@ -15,7 +15,11 @@ export interface RawTelegramUpdate {
     readonly from?: { readonly id?: number | string; readonly language_code?: string };
     readonly text?: string;
     readonly location?: { readonly latitude?: number; readonly longitude?: number };
-    readonly contact?: { readonly phone_number?: string };
+    /**
+     * `user_id` حاسم لا تكميلي: بطاقة جهة اتصال *شخص آخر* تصل بنفس شكل
+     * زرّ "مشاركة رقمي" تماماً. بلا هذا الحقل لا سبيل للتفريق بينهما.
+     */
+    readonly contact?: { readonly phone_number?: string; readonly user_id?: number | string };
     /** تلغرام يرسل الصورة بعدّة مقاسات مرتّبة تصاعدياً. */
     readonly photo?: readonly { readonly file_id?: string }[];
     readonly caption?: string;
@@ -69,7 +73,14 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
 
   const phone = message.contact?.phone_number;
   if (phone !== undefined && phone !== "") {
-    return { kind: "contact", from: sender, phone };
+    const ownerId = message.contact?.user_id;
+    return {
+      kind: "contact",
+      from: sender,
+      phone,
+      // غيابه يعني بطاقة يدوية بلا حساب تلغرام — تُعامَل كغير مملوكة
+      ownerTelegramId: ownerId === undefined ? null : String(ownerId),
+    };
   }
 
   /**

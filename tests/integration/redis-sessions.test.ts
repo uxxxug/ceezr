@@ -113,7 +113,7 @@ const contact = (phone: string) => ({
   message: {
     chat: { id: DRIVER_CHAT },
     from: { id: DRIVER_CHAT, language_code: "ar" },
-    contact: { phone_number: phone },
+    contact: { user_id: DRIVER_CHAT, phone_number: phone },
   },
 });
 

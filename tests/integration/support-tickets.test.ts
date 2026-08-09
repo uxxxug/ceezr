@@ -75,7 +75,7 @@ const text = (chatId: number, value: string) => message(chatId, { text: value })
 const location = (chatId: number, at: { latitude: number; longitude: number }) =>
   message(chatId, { location: at });
 const contact = (chatId: number, phone: string) =>
-  message(chatId, { contact: { phone_number: phone } });
+  message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 /**
  * صورة كما يرسلها تلغرام: عدّة مقاسات مرتّبة تصاعدياً. نتعمّد وضع أكثر من مقاس
  * لنُثبت أن المحوّل يختار الأكبر — الإيصال المصغّر غير مقروء.

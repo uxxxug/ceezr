@@ -18,7 +18,17 @@ export type IncomingUpdate =
   | { readonly kind: "text"; readonly from: Sender; readonly text: string }
   | { readonly kind: "callback"; readonly from: Sender; readonly data: string }
   | { readonly kind: "location"; readonly from: Sender; readonly location: Coordinates }
-  | { readonly kind: "contact"; readonly from: Sender; readonly phone: string }
+  /**
+   * `ownerTelegramId`: صاحب البطاقة كما يُقرّه تلغرام، لا كما يدّعي المرسِل.
+   * يساوي `from.telegramUserId` حين يضغط المستخدم زرّ مشاركة رقمه،
+   * ويختلف عنه حين يُعيد توجيه بطاقة شخص آخر. `null` = بطاقة بلا حساب.
+   */
+  | {
+      readonly kind: "contact";
+      readonly from: Sender;
+      readonly phone: string;
+      readonly ownerTelegramId: string | null;
+    }
   /**
    * صورة: نحمل معرّف الملف عند تلغرام ولا نُنزّل الصورة ولا نخزّنها عندنا.
    * إعادة إرسالها للدعم تتم بالمعرّف نفسه، فلا تكلفة تخزين ولا تسريب لملفات المستخدمين.

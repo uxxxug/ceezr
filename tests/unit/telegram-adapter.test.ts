@@ -87,7 +87,11 @@ describe("toIncomingUpdate", () => {
     expect(loc).toMatchObject({ kind: "location", location: { latitude: 21.5, longitude: 39.1 } });
 
     const phone = toIncomingUpdate({
-      message: { chat: { id: 1 }, from: { id: 1 }, contact: { phone_number: "+966501234567" } },
+      message: {
+        chat: { id: 1 },
+        from: { id: 1 },
+        contact: { user_id: 1, phone_number: "+966501234567" },
+      },
     });
     expect(phone).toMatchObject({ kind: "contact", phone: "+966501234567" });
   });
@@ -198,7 +202,11 @@ describe("محوّل بوت السائق", () => {
       message: { chat: { id: 900 }, from: { id: 900 }, text: "أحمد العمري" },
     });
     const handled = await bot.handleUpdate({
-      message: { chat: { id: 900 }, from: { id: 900 }, contact: { phone_number: "0501234567" } },
+      message: {
+        chat: { id: 900 },
+        from: { id: 900 },
+        contact: { user_id: 900, phone_number: "0501234567" },
+      },
     });
     expect(handled).toBe(false);
     expect(logs).toContain("بيانات زرّ تتجاوز حدّ تلغرام");

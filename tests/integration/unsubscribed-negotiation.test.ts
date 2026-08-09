@@ -76,7 +76,7 @@ const text = (chatId: number, value: string) => message(chatId, { text: value })
 const location = (chatId: number, at: { latitude: number; longitude: number }) =>
   message(chatId, { location: at });
 const contact = (chatId: number, phone: string) =>
-  message(chatId, { contact: { phone_number: phone } });
+  message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 /** ضغطة زرّ داخل قروب: chatId هو القروب لا المستخدم — هذا هو واقع تلغرام. */
 const groupCallback = (userId: number, data: string) => ({
   callback_query: { data, from: { id: userId }, message: { chat: { id: UNSUB_GROUP } } },

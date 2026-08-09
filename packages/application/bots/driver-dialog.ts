@@ -31,6 +31,7 @@ import {
   handleLanguageCommand,
   type LanguageDialogDependencies,
 } from "./language-dialog.ts";
+import { nameErrorKey } from "./name-errors.ts";
 import {
   handleCompleteRide,
   handleRatingCallback,
@@ -160,7 +161,21 @@ export async function handleDriverUpdate(
   const state = await loadState(deps, sender);
 
   if (update.kind === "callback") return handleCallback(update.data, sender, state, deps);
-  if (update.kind === "contact") return handlePhone(update.phone, sender, state, deps);
+  if (update.kind === "contact") {
+    /**
+     * الرقم يُقبل فقط إن أقرّ تلغرام أن البطاقة للمرسِل نفسه. إعادة توجيه بطاقة
+     * شخص آخر تصل بنفس شكل زرّ "مشاركة رقمي" — الفرق الوحيد هذا الحقل.
+     */
+    if (update.ownerTelegramId !== sender.telegramUserId) {
+      return [
+        reply(sender, t(languageOf(state))("driver.phone_not_yours"), {
+          kind: "request_contact",
+          label: t(languageOf(state))("driver.share_phone_button"),
+        }),
+      ];
+    }
+    return handlePhone(update.phone, sender, state, deps);
+  }
   if (update.kind === "location") return handleLocation(update.location, sender, state, deps);
   if (update.kind === "photo") {
     if (state.step !== "awaiting_support_message" || deps.support === undefined) {
@@ -189,7 +204,16 @@ export async function handleDriverUpdate(
     case "awaiting_name":
       return handleName(text, sender, state, deps);
     case "awaiting_phone":
-      return handlePhone(text, sender, state, deps);
+      /**
+       * رقم مكتوب بلا زرّ = رقم غير مثبَت لصاحبه. لا نرفضه بعد تخزينه بل قبله:
+       * ما يُخزَّن في `driver.phone` يجب أن يكون مضموناً بتلغرام دائماً.
+       */
+      return [
+        reply(sender, t(languageOf(state))("driver.phone_must_use_button"), {
+          kind: "request_contact",
+          label: t(languageOf(state))("driver.share_phone_button"),
+        }),
+      ];
     case "awaiting_support_message":
       return deps.support === undefined
         ? [reply(sender, t(languageOf(state))("common.unknown_command"))]
@@ -457,13 +481,7 @@ async function handleName(
   const tr = t(languageOf(state));
   const parsed = parseFullName(text);
   if (!parsed.ok) {
-    const key =
-      parsed.error.reason === "too_short"
-        ? "driver.name_too_short"
-        : parsed.error.reason === "too_long"
-          ? "driver.name_too_long"
-          : "driver.name_is_command";
-    return [reply(sender, tr(key))];
+    return [reply(sender, tr(nameErrorKey(parsed.error.reason)))];
   }
 
   const saved = await deps.sessions.save(sender.telegramUserId, {
@@ -529,6 +547,8 @@ async function handleCallback(
       return handleCitySelected(rest.join(":"), sender, state, deps);
     case "service":
       return handleServiceSelected(rest.join(":"), sender, state, deps);
+    case "back":
+      return handleBack(rest.join(":"), sender, state, deps);
     case "offer":
       return handleOfferDecision(rest, sender, state, deps);
     case "unsub":
@@ -596,9 +616,35 @@ async function handleCitySelected(
       rows: [
         [{ label: tr("driver.service_transport"), data: "service:transport" }],
         [{ label: tr("driver.service_delivery"), data: "service:delivery" }],
+        // اختيار المدينة كان غير قابل للتراجع: تصحيحه يعني /cancel وإعادة الاسم والرقم
+        [{ label: tr("common.back_button"), data: "back:city" }],
       ],
     }),
   ];
+}
+
+/** رجوع خطوة واحدة داخل التسجيل. لا يمسح الاسم ولا الرقم — يعيد السؤال فقط. */
+async function handleBack(
+  target: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  if (target !== "city" || state.step !== "awaiting_service") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const cities = await deps.cities.listActive();
+  if (!cities.ok) return technicalFailure(sender, state);
+  if (cities.value.length === 0) return [reply(sender, tr("common.no_active_city"))];
+
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_city",
+    draftCityId: null,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+  return [reply(sender, tr("driver.ask_city"), cityKeyboard(cities.value))];
 }
 
 function isServiceType(value: string): value is ServiceType {
