@@ -15,6 +15,7 @@ import {
   ADMIN_SESSION_COOKIE,
   ADMIN_SESSION_TTL_SECONDS,
   type AdminAuthPort,
+  classifyAuth,
   csrfTokenFor,
   type SessionIdentity,
   safeEqual,
@@ -63,6 +64,7 @@ export function readSessionToken(c: Context): string | null {
 export function createAdminGuard(
   auth: AdminAuthPort,
   mode: "page" | "api",
+  log: (message: string, meta: Record<string, unknown>) => void = () => undefined,
 ): MiddlewareHandler<AdminEnv> {
   return async (c, next) => {
     const reject = (): Response =>
@@ -75,12 +77,20 @@ export function createAdminGuard(
 
     const tokenHash = sha256Hex(token);
     const result = await auth.touchSession(tokenHash);
-    if (!result.ok || !result.value.ok) {
+    const outcome = classifyAuth(result);
+    if (outcome.kind !== "ok") {
+      // بلا هذا التفريق يبدو انقطاع القاعدة مطابقاً تماماً لمن نُزعت عنه الصفة:
+      // كلاهما تحويل صامت إلى صفحة الدخول.
+      if (outcome.kind === "db") {
+        log("عطل قاعدة بيانات أثناء التحقّق من جلسة اللوحة", { detail: outcome.reason, mode });
+      } else {
+        log("سقطت جلسة اللوحة لسبب أعمال", { reason: outcome.reason, mode });
+      }
       clearSessionCookie(c);
       return reject();
     }
 
-    c.set("admin", result.value.value);
+    c.set("admin", outcome.value);
     c.set("csrfToken", csrfTokenFor(tokenHash));
     // تمديد صامت: الكعكة تُجدَّد مع كل طلب فلا تنتهي على مشغّل يعمل بلا توقّف
     writeSessionCookie(c, token);

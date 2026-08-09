@@ -27,6 +27,7 @@ import {
 import {
   type AdminAuthPort,
   type AdminCodeSender,
+  classifyAuth,
   generateLoginCode,
   generateSessionToken,
   loginCodeMessage,
@@ -168,10 +169,14 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const code = generateLoginCode();
     const issued = await deps.auth.issueCode(telegramId, sha256Hex(code));
 
-    if (!issued.ok || !issued.value.ok) {
-      log("رفض طلب رمز دخول للوحة", {
-        reason: issued.ok && !issued.value.ok ? issued.value.error : "PORT_FAILURE",
-      });
+    const issueOutcome = classifyAuth(issued);
+    if (issueOutcome.kind !== "ok") {
+      // سطران مختلفان لا سطر واحد: عطل القاعدة يستدعي مشغّلاً، ورفض الأعمال لا.
+      if (issueOutcome.kind === "db") {
+        log("عطل قاعدة بيانات أثناء إصدار رمز دخول اللوحة", { detail: issueOutcome.reason });
+      } else {
+        log("رُفض طلب رمز دخول للوحة لسبب أعمال", { reason: issueOutcome.reason });
+      }
       return c.html(
         renderLoginPage({ step: "identify", telegramId, error: GENERIC_LOGIN_ERROR }),
         HTML_UNPROCESSABLE,
@@ -180,11 +185,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
 
     // الرمز أُصدِر في القاعدة قبل إرساله: لو فشل التسليم يبقى الحساب سليماً وتُعاد المحاولة
     const delivered = await deps.codeSender.send(
-      issued.value.value.telegramId,
+      issueOutcome.value.telegramId,
       loginCodeMessage(code),
     );
     if (!delivered) {
-      log("تعذّر تسليم رمز دخول اللوحة على تلغرام", {});
+      // مميَّز عمداً عن عطل القاعدة: الرمز صدر بنجاح، والعطل في التسليم وحده.
+      log("تعذّر تسليم رمز دخول اللوحة على تلغرام", { stage: "telegram_delivery" });
       return c.html(
         renderLoginPage({
           step: "identify",
@@ -215,7 +221,15 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     }
 
     const consumed = await deps.auth.consumeCode(telegramId, sha256Hex(code));
-    if (!consumed.ok || !consumed.value.ok) {
+    const consumeOutcome = classifyAuth(consumed);
+    if (consumeOutcome.kind !== "ok") {
+      if (consumeOutcome.kind === "db") {
+        log("عطل قاعدة بيانات أثناء التحقّق من رمز دخول اللوحة", {
+          detail: consumeOutcome.reason,
+        });
+      } else {
+        log("رُفض رمز دخول للوحة لسبب أعمال", { reason: consumeOutcome.reason });
+      }
       return c.html(
         renderLoginPage({
           step: "verify",
@@ -228,11 +242,17 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
 
     const token = generateSessionToken();
     const opened = await deps.auth.openSession(
-      consumed.value.value.userId,
+      consumeOutcome.value.userId,
       sha256Hex(token),
       c.req.header("user-agent") ?? null,
     );
-    if (!opened.ok || !opened.value.ok) {
+    const openOutcome = classifyAuth(opened);
+    if (openOutcome.kind !== "ok") {
+      if (openOutcome.kind === "db") {
+        log("عطل قاعدة بيانات أثناء فتح جلسة اللوحة", { detail: openOutcome.reason });
+      } else {
+        log("رُفض فتح جلسة اللوحة لسبب أعمال", { reason: openOutcome.reason });
+      }
       return c.html(
         renderLoginPage({ step: "verify", telegramId, error: GENERIC_LOGIN_ERROR }),
         HTML_UNPROCESSABLE,
@@ -254,7 +274,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   // كل ما بعد هذا السطر يمرّ بالحارس
   // -------------------------------------------------------------------------
 
-  app.use("*", createAdminGuard(deps.auth, "page"));
+  app.use("*", createAdminGuard(deps.auth, "page", log));
 
   app.get("/", async (c) => {
     const stall = await stallSeconds(deps.sql, null);

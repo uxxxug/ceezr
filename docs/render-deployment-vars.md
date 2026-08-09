@@ -112,8 +112,45 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 
 ## 4. ترتيب النشر الأول
 
-1. **القاعدة أولاً:** طبّق الهجرات الاثنتي عشرة بترتيب أسمائها على مشروع Supabase.
+1. **القاعدة أولاً:** طبّق الهجرات الـ١٣ بترتيب أسمائها على مشروع Supabase.
    لا تُطبَّق تلقائياً في البناء عن قصد — الهجرة قرارٌ لا أثرٌ جانبي للنشر.
+
+   > **تخطي هذه الخطوة هو سبب أول عطل إنتاجي عندنا.** الخدمة تقلع سليمة
+   > ويعيد `/health` الرمز 200 والقاعدة فارغة، فلا يظهر العطل إلا حين يضغط
+   > أول مستخدم حقيقي `/start`. ومنذ 2026-08-09 تطبع البوابة تحذيراً صريحاً
+   > لحظة الإقلاع إن وجدت المخطط غير مطبَّق — ابحث في السجلّ عن
+   > `القاعدة متصلة لكن المخطط غير مُطبَّق`.
+
+   الأمر الجاهز للنسخ المباشر، من جذر المستودع:
+
+   ```bash
+   # ⚠️ الرابط هنا يجب أن يكون المباشر (Direct connection) لا الـ pooler.
+   # PgBouncer في وضع transaction يمنع كثيراً من عبارات DDL والجلسة
+   # (إنشاء الأنواع، advisory locks، set search_path، إلخ)، فتفشل الهجرات
+   # فشلاً غامضاً أو تُطبَّق جزئياً. خذه من:
+   #   Supabase ← Project Settings ← Database ← Connection string ← Direct connection
+   # ولاحظ أنه غير DATABASE_URL المضبوط في Render (ذاك Session pooler عمداً).
+   export MIGRATION_DATABASE_URL='postgresql://postgres:<كلمةالسر>@db.<ref>.supabase.co:5432/postgres'
+
+   for f in $(ls supabase/migrations/*.sql | sort); do
+     echo "▶ $f"
+     psql "$MIGRATION_DATABASE_URL" -v ON_ERROR_STOP=1 -f "$f" || {
+       echo "✖ توقّف عند $f"; break
+     }
+   done
+   ```
+
+   `ON_ERROR_STOP=1` ضروري: بدونه يواصل `psql` بعد أول خطأ ويترك مخططاً
+   ناقصاً يبدو ناجحاً. و`sort` صريحة لا اتكالاً على ترتيب الصدفة.
+
+   للتحقّق بعدها — يجب أن يعود ٢٠:
+
+   ```bash
+   psql "$MIGRATION_DATABASE_URL" -tAc \
+     "select count(*) from information_schema.tables
+       where table_schema='public' and table_type='BASE TABLE'
+         and table_name <> 'spatial_ref_sys'"
+   ```
 2. **بذر المدن:** المدن كلها تُبذَر `is_active = false`. المدينة لا تُفعَّل حتى
    تُضبَط معرّفات مجموعاتها الثلاث على تلغرام؛ تفعيلها بلا مجموعات يُنتج طلبات لا
    يراها أحد.
@@ -186,6 +223,9 @@ Redis يصير في المسار الحرج: عجزه يُسقط الحوارا�
 | `setWebhook` يرفض السرّ | محارف غير ASCII فيه | ولّده بـ `openssl rand -hex 32` |
 | حوارات تُعاد من بدايتها متقطّعاً | `numInstances > 1` مع `SESSION_STORE=memory` | اضبط `redis` وانشر ثم ارفع النسخ |
 | `worker.no_jobs` | لا مدينة `is_active = true` | فعّل مدينة بعد ضبط مجموعاتها الثلاث |
+| `القاعدة متصلة لكن المخطط غير مُطبَّق` عند الإقلاع | الهجرات لم تُطبَّق (§4 خطوة 1) | طبّقها بأمر `psql` في §4 |
+| `عطل قاعدة بيانات أثناء إصدار رمز دخول اللوحة` | اقرأ `detail` — فيه رسالة SQL الحقيقية | أكثر الأسباب: مخطط غير مطبَّق |
+| `رُفض طلب رمز دخول للوحة لسبب أعمال` | ليس أدمن/دعم، أو تجاوز حدّ المحاولات | سبب أعمال لا عطل — راجع `role` في `users` |
 | لوحة الإدارة ترفض المالك | `BOOTSTRAP_ADMIN_TELEGRAM_ID` استُهلك أو خاطئ | راجع `role` في `users` مباشرة |
 
 ---

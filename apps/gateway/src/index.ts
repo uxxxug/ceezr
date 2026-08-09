@@ -143,11 +143,35 @@ app.route(
     log,
   }),
 );
+/**
+ * فحص مخطط استباقي: الاتصال بالقاعدة ينجح تماماً ولو كانت فارغة بلا هجرات،
+ * فتقلع الخدمة سليمة ظاهراً ثم يكتشف العطلَ أولُ مستخدم حقيقي يضغط /start.
+ * هذا ما حدث فعلاً في أول نشر على Render.
+ *
+ * لا يمنع الإقلاع عمداً: الخدمة تبقى حيّة لـ /health ولتطبيق الهجرات عليها
+ * دون دورة إعادة تشغيل خانقة، لكن السبب يظهر في السجلّ لحظة الإقلاع لا بعد ساعات.
+ */
+async function verifySchemaApplied(): Promise<void> {
+  try {
+    await container.sql`select 1 from cities limit 1`;
+    log("مخطط القاعدة مُطبَّق", {});
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    log("⚠️ القاعدة متصلة لكن المخطط غير مُطبَّق — طبّق الهجرات قبل الاستخدام", {
+      detail,
+      remedy: "راجع docs/render-deployment-vars.md §4 — خطوة «القاعدة أولاً»",
+    });
+  }
+}
+
 log("البوابة تعمل", {
   port: config.port,
   env: config.env,
   missingEnv: missingEnvKeys(process.env),
 });
+
+// بعد سطر «البوابة تعمل» لا قبله، حتى لا يؤخّر استعلامٌ بطيء إعلانَ جاهزية المنفذ.
+void verifySchemaApplied();
 
 export default {
   port: config.port,

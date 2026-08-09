@@ -11,6 +11,7 @@
  */
 
 import { createHash, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
+import type { PortFailureError } from "../../../../packages/application/ports/index.ts";
 import { guard, readEnvelope, type Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { Result } from "../../../../packages/shared/result/index.ts";
 
@@ -77,23 +78,63 @@ export type AdminAuthOutcome<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: string };
 
-/** منفذ المصادقة كما يراه المسار: لا يعرف SQL ولا شكل الردّ. */
+/**
+ * منفذ المصادقة كما يراه المسار: لا يعرف SQL ولا شكل الردّ.
+ *
+ * نوع الخطأ هنا `PortFailureError` لا `unknown` عمداً.
+ *
+ * كان `unknown` سابقاً، وكان ذلك سبب عطل إنتاجي حقيقي: طمْس النوع جعل تفصيل
+ * الخطأ غير متاح عند نقطة النداء، فاضطُرّ المسجّل إلى كتابة النص الثابت
+ * "PORT_FAILURE" بدلاً منه. فلمّا فشل الدخول على الإنتاج لأن الهجرات لم تكن
+ * مطبَّقة، كان السجلّ يقول "PORT_FAILURE" فقط ويبتلع رسالة Postgres التي كانت
+ * تقول صراحةً إن الجدول غير موجود. التضييق يجعل التفصيل متاحاً بالأنواع لا
+ * بالتحويل القسري (cast).
+ */
 export interface AdminAuthPort {
   issueCode(
     telegramId: string,
     codeHash: string,
-  ): Promise<Result<AdminAuthOutcome<IssuedCode>, unknown>>;
+  ): Promise<Result<AdminAuthOutcome<IssuedCode>, PortFailureError>>;
   consumeCode(
     telegramId: string,
     codeHash: string,
-  ): Promise<Result<AdminAuthOutcome<{ userId: string; cityId: string }>, unknown>>;
+  ): Promise<Result<AdminAuthOutcome<{ userId: string; cityId: string }>, PortFailureError>>;
   openSession(
     userId: string,
     tokenHash: string,
     userAgent: string | null,
-  ): Promise<Result<AdminAuthOutcome<{ userId: string }>, unknown>>;
-  touchSession(tokenHash: string): Promise<Result<AdminAuthOutcome<SessionIdentity>, unknown>>;
-  closeSession(tokenHash: string): Promise<Result<boolean, unknown>>;
+  ): Promise<Result<AdminAuthOutcome<{ userId: string }>, PortFailureError>>;
+  touchSession(
+    tokenHash: string,
+  ): Promise<Result<AdminAuthOutcome<SessionIdentity>, PortFailureError>>;
+  closeSession(tokenHash: string): Promise<Result<boolean, PortFailureError>>;
+}
+
+/**
+ * سبب فشل مصنَّف: عطل تقني في القاعدة، أو رفض أعمال (ليس أدمن، رمز منتهٍ،
+ * تجاوز حدّ المحاولات). الخلط بينهما في سطر سجلّ واحد هو ما أضاع ساعات
+ * التشخيص، فصار التفريق نوعاً لا اصطلاحاً.
+ */
+export type AuthOutcome<T> =
+  | { readonly kind: "ok"; readonly value: T }
+  | { readonly kind: "db"; readonly reason: string }
+  | { readonly kind: "rejected"; readonly reason: string };
+
+/**
+ * اتحاد ثلاثي يحمل القيمة عند النجاح، لا `null`. السبب تقني: دالة تعيد
+ * `Failure | null` لا تُضيّق نوع وسيطها عند نقطة النداء، فيضطر المسار إلى
+ * فحص `result.value.ok` مرّة ثانية — وهو بالضبط التكرار الذي أخفى العطل أوّلاً.
+ */
+export function classifyAuth<T>(
+  result: Result<AdminAuthOutcome<T>, PortFailureError>,
+): AuthOutcome<T> {
+  if (!result.ok) {
+    const detail = result.error?.detail ?? "unknown";
+    const port = result.error?.port ?? "unknown";
+    return { kind: "db", reason: `PORT_FAILURE:${port}:${detail}` };
+  }
+  if (!result.value.ok) return { kind: "rejected", reason: result.value.error };
+  return { kind: "ok", value: result.value.value };
 }
 
 function outcome<T>(envelope: ReturnType<typeof readEnvelope>, read: () => T): AdminAuthOutcome<T> {
