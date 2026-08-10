@@ -9,6 +9,7 @@
 
 import { Hono } from "hono";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { createUpdateDeduplicator, type UpdateDeduplicator, updateIdOf } from "./update-dedup.ts";
 
 /** ترويسة تلغرام القياسية للسرّ المشترك. */
 export const TELEGRAM_SECRET_HEADER = "x-telegram-bot-api-secret-token";
@@ -43,6 +44,11 @@ export interface WebhookDependencies {
   readonly handler: UpdateHandler;
   /** تسجيل الأحداث — يُمرَّر ليكون صامتاً في الاختبار. */
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * مانع تكرار `update_id`. اختياري فلا يتغيّر أي اختبار قائم، ويُمرَّر في
+   * الاختبار للتحكّم بالزمن. عند الإغفال يُنشأ واحد لعمر الخادم.
+   */
+  readonly dedup?: UpdateDeduplicator;
   /**
    * حدّان مختلفان لتهديدين مختلفين، وكلاهما اختياري فلا يتغيّر أي اختبار قائم:
    *
@@ -155,6 +161,8 @@ export async function readBounded(
 }
 
 export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
+  // مانع واحد لعمر الخادم. يُمرَّر عبر deps في الاختبار للتحكّم بالزمن.
+  const dedup: UpdateDeduplicator = deps.dedup ?? createUpdateDeduplicator();
   const app = new Hono();
 
   app.post("/webhook/telegram/:bot", async (c) => {
@@ -206,6 +214,15 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
 
     if (typeof update !== "object" || update === null || Array.isArray(update)) {
       return c.json({ ok: false, error: "INVALID_UPDATE" }, 400);
+    }
+
+    // إزالة التكرار بعد التحقّق من الشكل وقبل حدّ المعدّل: التحديث المكرَّر
+    // لا يُحتسب على حدّ المستخدم، فإعادةُ إرسالٍ من تلغرام ليست إساءةً منه.
+    const updateId = updateIdOf(update);
+    if (updateId !== null && !dedup.admit(bot, updateId)) {
+      deps.log?.("تحديث مكرَّر أُهمل", { bot, updateId });
+      // 200 لا 4xx: التحديث مقبول ومعالَج سابقاً، فلا سبب لإعادة الإرسال
+      return c.json({ ok: true, duplicate: true }, 200);
     }
 
     const actorId = updateActorId(update);

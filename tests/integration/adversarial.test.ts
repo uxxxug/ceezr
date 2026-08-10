@@ -308,24 +308,40 @@ describe("الويبهوك تحت الضغط العدائي", () => {
     expect(handled.length).toBe(0);
   });
 
-  it("التحديث المكرَّر يصل مرّتين إلى المعالج — إسقاط التكرار مسؤوليته لا مسؤولية المسار", async () => {
+  /**
+   * **نقضٌ موثَّق لقرار سابق.** كان هذا الاختبار يُثبت أن المسار *لا* يُسقط
+   * التكرار، وأن ذلك مسؤولية المعالج وذرّية القاعدة. وقد نُقض القرار بتوجيه
+   * المالك الصريح: «عالج `update_id` بحيث لا تُعالَج الرسالة أكثر من مرة».
+   *
+   * وما بقي من القرار القديم صحيحاً فقد صحّ بالقياس: أعيد إرسال تحديث «قبول
+   * عرض» بنفس الرقم على قاعدة حقيقية فلم تتلف الحالة — العروض المقبولة بقيت
+   * واحداً. فذرّية القاعدة تحمي الحالة كما قيل. والذي أضافه المنع هو إسقاط
+   * الرسالة الصادرة المكرَّرة التي كانت تُربك المستخدم.
+   *
+   * فالمنع طبقةُ راحةٍ فوق الذرّية، لا بديلٌ عنها. انظر
+   * apps/gateway/src/routes/update-dedup.ts للحدود المعلَنة.
+   */
+  it("التحديث المكرَّر لا يصل إلى المعالج إلا مرّة", async () => {
     const update = JSON.stringify({ update_id: 777, message: { from: { id: 5 }, text: "مرحبا" } });
 
     const first = await webhookRequest(update, { secret: SECRET });
     const second = await webhookRequest(update, { secret: SECRET });
 
     expect(first.status).toBe(200);
+    // 200 لا 4xx: التحديث مقبول ومعالَج، فلا سبب يدفع تلغرام لإعادة الإرسال
     expect(second.status).toBe(200);
-    // توثيقٌ صريح للسلوك الحالي: الطبقة لا تُسقط التكرار، وتلغرام يُعيد الإرسال
-    // عند غياب 200. الحماية الحقيقية تقع في ذرّية عمليات القاعدة، لا هنا.
-    expect(handled.length).toBe(2);
+    expect(handled.length).toBe(1);
   });
 
   it("النصوص العدائية داخل تحديث سليم تمرّ إلى المعالج بلا تفسير ولا تنفيذ", async () => {
+    // رقم فريد لكل نصّ: غرض الاختبار سلوك النصّ لا التكرار، ولو تشابهت
+    // الأرقام لأسقط مانعُ التكرار ما بعد الأوّل فصار الاختبار يقيس لا شيء.
+    let hostileUpdateId = 8_100;
     for (const name of HOSTILE_NAMES) {
+      hostileUpdateId += 1;
       const response = await webhookRequest(
         JSON.stringify({
-          update_id: 1,
+          update_id: hostileUpdateId,
           message: { from: { id: 9 }, text: HOSTILE_TEXTS[name] },
         }),
         { secret: SECRET },

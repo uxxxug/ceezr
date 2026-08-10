@@ -352,6 +352,44 @@ describe("POST /webhook/telegram/:bot", () => {
     });
   });
 
+  describe("إزالة تكرار update_id", () => {
+    it("التحديث المكرَّر لا يبلغ المعالج ويُجاب 200 مع duplicate", async () => {
+      const received: { bot: BotKind; update: unknown }[] = [];
+      const app = buildApp({ received });
+      const update = { update_id: 4242, message: { text: "/start" } };
+
+      const first = await app.request(webhookRequest(update, { secret: SECRET }));
+      expect(first.status).toBe(200);
+      expect(received).toHaveLength(1);
+
+      const second = await app.request(webhookRequest(update, { secret: SECRET }));
+      expect(second.status).toBe(200);
+      expect(await second.json()).toEqual({ ok: true, duplicate: true });
+      // الأثر الفعلي: المعالج لم يُستدعَ ثانية
+      expect(received).toHaveLength(1);
+    });
+
+    it("تحديث بلا update_id يُعالَج دائماً: لا يُرفض شرعي بحجّة التكرار", async () => {
+      const received: { bot: BotKind; update: unknown }[] = [];
+      const app = buildApp({ received });
+      const update = { message: { text: "/start" } };
+
+      await app.request(webhookRequest(update, { secret: SECRET }));
+      await app.request(webhookRequest(update, { secret: SECRET }));
+      expect(received).toHaveLength(2);
+    });
+
+    it("لا يُلغي تحديثُ بوتٍ تحديثَ الآخر بالرقم نفسه", async () => {
+      const received: { bot: BotKind; update: unknown }[] = [];
+      const app = buildApp({ received });
+      const update = { update_id: 909, message: { text: "/start" } };
+
+      await app.request(webhookRequest(update, { secret: SECRET, bot: "driver" }));
+      await app.request(webhookRequest(update, { secret: SECRET, bot: "rider" }));
+      expect(received).toHaveLength(2);
+    });
+  });
+
   it("يرفض 400 لتحديث ليس كائناً", async () => {
     const res = await buildApp({}).request(webhookRequest([1, 2, 3], { secret: SECRET }));
     expect(res.status).toBe(400);
