@@ -99,11 +99,19 @@ const app = createServer({
       },
       // Redis يُفحَص فقط حين يكون في المسار الحرج فعلاً. فحصه دائماً كان سيُسقط
       // الجهوزية في بيئةٍ لا تستعمله أصلاً، فيصير الفحص كذباً في الاتجاه المعاكس.
+      //
+      // وهو `critical: false` عن قصد: انقطاع Redis يُضعف ولا يُعطّل — حدّ المعدّل
+      // يفشل مفتوحاً (fixed-window.ts: allowOnFailure)، والحوارات تعود إلى بدايتها
+      // ولا تفسد، والرحلات ولوحة الإدارة على القاعدة لا على Redis. وإعادة تشغيل
+      // النسخة لا تُعيد Redis. فإسقاط الجهوزية هنا كان سيجعل Render يقطع الحركة
+      // بعد 15 ثانية ثم يُعيد التشغيل بعد 60 — فيصير عطل Upstash انقطاعاً كاملاً
+      // للمنصّة كلها. العطل يبقى مرئياً في `degradedChecks` لا مكتوماً.
       ...(rateRedis === null
         ? []
         : [
             {
               name: "redis",
+              critical: false,
               check: async (): Promise<boolean> => {
                 const result = await rateRedis.command(["PING"]);
                 return result.ok;

@@ -33,7 +33,11 @@ const FULL_ENV: Record<string, string> = {
 function buildApp(opts: {
   env?: Record<string, string | undefined>;
   handled?: boolean;
-  readinessChecks?: readonly { name: string; check: () => Promise<boolean> }[];
+  readinessChecks?: readonly {
+    name: string;
+    check: () => Promise<boolean>;
+    critical?: boolean;
+  }[];
   received?: { bot: BotKind; update: unknown }[];
 }) {
   const received = opts.received ?? [];
@@ -98,7 +102,12 @@ describe("GET /ready", () => {
   it("جاهز عندما تكتمل المتغيرات", async () => {
     const res = await buildApp({}).request("http://localhost/ready");
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ status: "ready", missingEnv: [], failedChecks: [] });
+    expect(await res.json()).toEqual({
+      status: "ready",
+      missingEnv: [],
+      failedChecks: [],
+      degradedChecks: [],
+    });
   });
 
   it("غير جاهز 503 ويسمّي المتغيرات الناقصة", async () => {
@@ -138,6 +147,95 @@ describe("GET /ready", () => {
       ],
     }).request("http://localhost/ready");
     expect(res.status).toBe(503);
+  });
+
+  /**
+   * الفصل بين «لا تعمل» و«تعمل ناقصةً». راجع التعليق على ReadinessProbe:
+   * Render يقطع الحركة بعد 15 ثانية من فشل الفحص ويُعيد التشغيل بعد 60.
+   */
+  describe("تصنيف التبعيات: حرجة مقابل مُضعِفة", () => {
+    it("تبعية غير حرجة فاشلة تُبقي 200 مع degraded وتسمّيها", async () => {
+      const res = await buildApp({
+        readinessChecks: [
+          { name: "database", check: async () => true },
+          { name: "redis", critical: false, check: async () => false },
+        ],
+      }).request("http://localhost/ready");
+
+      expect(res.status).toBe(200);
+      expect(await res.json()).toEqual({
+        status: "degraded",
+        missingEnv: [],
+        failedChecks: [],
+        degradedChecks: ["redis"],
+      });
+    });
+
+    it("تبعية غير حرجة ترمي استثناءً تُضعِف ولا تُسقِط", async () => {
+      const res = await buildApp({
+        readinessChecks: [
+          {
+            name: "redis",
+            critical: false,
+            check: async () => {
+              throw new Error("connection refused");
+            },
+          },
+        ],
+      }).request("http://localhost/ready");
+
+      expect(res.status).toBe(200);
+      expect((await res.json()) as { degradedChecks: string[] }).toMatchObject({
+        status: "degraded",
+        degradedChecks: ["redis"],
+      });
+    });
+
+    it("القاعدة حرجة: سقوطها يُسقِط الجهوزية حتى لو كان Redis سليماً", async () => {
+      const res = await buildApp({
+        readinessChecks: [
+          { name: "database", check: async () => false },
+          { name: "redis", critical: false, check: async () => true },
+        ],
+      }).request("http://localhost/ready");
+
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({
+        status: "not_ready",
+        missingEnv: [],
+        failedChecks: ["database"],
+        degradedChecks: [],
+      });
+    });
+
+    it("سقوط الاثنين معاً: 503 وكلّ واحد في خانته", async () => {
+      const res = await buildApp({
+        readinessChecks: [
+          { name: "database", check: async () => false },
+          { name: "redis", critical: false, check: async () => false },
+        ],
+      }).request("http://localhost/ready");
+
+      expect(res.status).toBe(503);
+      expect(await res.json()).toEqual({
+        status: "not_ready",
+        missingEnv: [],
+        failedChecks: ["database"],
+        degradedChecks: ["redis"],
+      });
+    });
+
+    it("الافتراضي حرج: فحص بلا critical يُسقِط الجهوزية", async () => {
+      const res = await buildApp({
+        readinessChecks: [{ name: "تبعية جديدة", check: async () => false }],
+      }).request("http://localhost/ready");
+
+      expect(res.status).toBe(503);
+      expect((await res.json()) as { failedChecks: string[] }).toMatchObject({
+        failedChecks: ["تبعية جديدة"],
+        degradedChecks: [],
+      });
+    });
   });
 });
 
