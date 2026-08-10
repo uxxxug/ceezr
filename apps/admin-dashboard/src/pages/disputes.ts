@@ -25,6 +25,15 @@ export interface DisputeRow {
   readonly message: string;
   readonly claimedByName: string | null;
   readonly claimedAt: string | null;
+  /**
+   * اقتراح طبقة الذكاء الاصطناعي على هذه التذكرة، إن وُجد. **قراءةٌ فقط**: لا زرّ
+   * هنا ولا مسار حسم — الحلّ والاستلام يبقيان في قروب الدعم كما هما، والسقف
+   * `SUGGEST` محفوظ. عرضه هنا يجعل الاقتراح مقروءاً لمن يراجع لا لمن ينفّذ.
+   * `null` حين تكون الطبقة معطّلة أو لم تُنتج قراراً — وهي الحالة الافتراضية.
+   */
+  readonly agentSuggestion: string | null;
+  readonly agentClassification: string | null;
+  readonly agentConfidence: number | null;
 }
 
 export interface DisputesPageData {
@@ -64,6 +73,22 @@ const ROLE_LABEL: Readonly<Record<string, string>> = {
   driver: "سائق",
   rider: "عميل",
 };
+
+/**
+ * خلية الاقتراح. الثقة تُعرض نسبةً مئوية لأن «0.72» لا تعني شيئاً لمن يقرأ بسرعة،
+ * و«72%» تعني. والنبرة تتبع الثقة: اقتراحٌ ضعيف يجب أن يبدو ضعيفاً لا محايداً.
+ */
+function renderAdvice(row: DisputeRow): string {
+  if (row.agentSuggestion === null) return EMPTY_CELL;
+
+  const percent = row.agentConfidence === null ? null : Math.round(row.agentConfidence * 100);
+  const tone: BadgeTone = percent === null ? "muted" : percent >= 70 ? "ok" : "warn";
+  const label = row.agentClassification ?? "بلا تصنيف";
+  const header = percent === null ? label : `${label} · ${percent}%`;
+
+  return `<div>${badge(header, tone)}</div>
+     <div class="card-hint">${escapeHtml(row.agentSuggestion)}</div>`;
+}
 
 export function renderDisputesPage(data: DisputesPageData): string {
   const cityOptions = data.cities
@@ -112,6 +137,7 @@ export function renderDisputesPage(data: DisputesPageData): string {
       ? EMPTY_CELL
       : `<div>${escapeHtml(row.claimedByName)}</div>
          <div class="card-hint">${escapeHtml(formatDateTime(row.claimedAt))}</div>`,
+    renderAdvice(row),
     row.status === "open"
       ? badge(formatAge(row.createdAt, data.now), "bad")
       : escapeHtml(formatAge(row.createdAt, data.now)),
@@ -145,11 +171,13 @@ ${section(
       "الطلب",
       "النصّ",
       "المستلِم",
+      "اقتراح الطبقة",
       "العمر",
     ],
     rows,
     emptyText: "لا تذكرة تطابق هذا الفلتر.",
   }),
-  `الأقدم أولاً — آخر ${formatNumber(data.limit)} تذكرة كحدّ أقصى.`,
+  `الأقدم أولاً — آخر ${formatNumber(data.limit)} تذكرة كحدّ أقصى. ` +
+    `عمود «اقتراح الطبقة» للقراءة فقط: الحسم يبقى في قروب الدعم.`,
 )}`;
 }

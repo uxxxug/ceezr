@@ -347,12 +347,71 @@ describe("الصفحات الثماني", () => {
           message: "السائق لم يصل",
           claimedByName: null,
           claimedAt: null,
+          agentSuggestion: null,
+          agentClassification: null,
+          agentConfidence: null,
         },
       ],
     });
 
     expect(html).toContain("السائق لم يصل");
     expect(html).toContain("عميل غاضب");
+  });
+
+  it("النزاعات: تعرض اقتراح الطبقة للقراءة دون أي زرّ حسم", () => {
+    const base = {
+      now: NOW,
+      cities: CITIES,
+      cityId: null,
+      status: null,
+      openCount: 1,
+      claimedCount: 0,
+      resolvedDayCount: 0,
+      windowHours: 24,
+      limit: 200,
+    };
+    const row = {
+      ticketId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      createdAt: NOW.toISOString(),
+      type: "complaint",
+      status: "open",
+      cityCode: "JED",
+      partyName: "سائق",
+      partyRole: "driver",
+      partyTelegramId: "9401",
+      orderId: null,
+      message: "المبلغ خُصم مرّتين",
+      claimedByName: null,
+      claimedAt: null,
+    };
+
+    const withAdvice = renderDisputesPage({
+      ...base,
+      rows: [
+        {
+          ...row,
+          agentSuggestion: "راجِع سجلّ الدفع ثمّ أعِد المبلغ الزائد",
+          agentClassification: "شكوى دفع",
+          agentConfidence: 0.82,
+        },
+      ],
+    });
+
+    expect(withAdvice).toContain("اقتراح الطبقة");
+    expect(withAdvice).toContain("راجِع سجلّ الدفع");
+    expect(withAdvice).toContain("شكوى دفع");
+    expect(withAdvice).toContain("82%");
+    // ⚠️ قراءةٌ فقط: لا نموذج ولا زرّ حسم في محيط الاقتراح
+    expect(withAdvice).not.toContain("قبول الاقتراح");
+    expect(withAdvice).not.toContain("تطبيق الاقتراح");
+
+    // الطبقة معطّلة: العمود يبقى والخلية تفرغ، ولا تنكسر الصفحة
+    const without = renderDisputesPage({
+      ...base,
+      rows: [{ ...row, agentSuggestion: null, agentClassification: null, agentConfidence: null }],
+    });
+    expect(without).toContain("المبلغ خُصم مرّتين");
+    expect(without).not.toContain("شكوى دفع");
   });
 
   it("الخريطة: ترسم شبكة بعدد الخلايا المعلن، وتُظهر رسالة عند الفراغ", () => {

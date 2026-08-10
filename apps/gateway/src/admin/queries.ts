@@ -805,6 +805,9 @@ export async function listDisputes(
       message: string;
       claimed_by_name: string | null;
       claimed_at: string | null;
+      agent_suggestion: string | null;
+      agent_classification: string | null;
+      agent_confidence: string | null;
     }[]
   >`
     select t.id as ticket_id, t.created_at, t.type::text as type, t.status::text as status,
@@ -813,7 +816,10 @@ export async function listDisputes(
            case when t.driver_id is not null then 'driver' else 'rider' end as party_role,
            coalesce(du.telegram_id, ru.telegram_id)::text as party_telegram_id,
            t.order_id, t.message,
-           cu.full_name as claimed_by_name, t.claimed_at
+           cu.full_name as claimed_by_name, t.claimed_at,
+           ad.recommended_action as agent_suggestion,
+           ad.classification as agent_classification,
+           ad.confidence::text as agent_confidence
     from support_tickets t
     join cities c on c.id = t.city_id
     left join drivers d on d.id = t.driver_id
@@ -821,6 +827,16 @@ export async function listDisputes(
     left join riders r on r.id = t.rider_id
     left join users ru on ru.id = r.user_id
     left join users cu on cu.id = t.claimed_by_user_id
+    -- الاقتراح المنشور لهذه التذكرة — lateral لأن المطلوب أحدث قرار واحد لا
+    -- صفّ لكل قرار: الربط المباشر كان يُكرّر التذكرة مرّتين لو أُعيد تقييمها يوماً.
+    -- وشرط published مقصود: قرارٌ لم يره الدعم في القروب لا يُعرض هنا كأنّه معروض.
+    left join lateral (
+      select dec.recommended_action, dec.classification, dec.confidence
+        from agent_decisions dec
+       where dec.ticket_id = t.id and dec.published
+       order by dec.created_at desc
+       limit 1
+    ) ad on true
     where true
       ${cityId === null ? sql`` : sql`and t.city_id = ${cityId}::uuid`}
       ${
@@ -845,6 +861,10 @@ export async function listDisputes(
     message: row.message,
     claimedByName: row.claimed_by_name,
     claimedAt: row.claimed_at === null ? null : String(row.claimed_at),
+    agentSuggestion: row.agent_suggestion,
+    agentClassification: row.agent_classification,
+    // `numeric` يصل نصّاً من المُشغّل حفاظاً على الدقة؛ التحويل هنا لأن العرض نسبة مئوية.
+    agentConfidence: row.agent_confidence === null ? null : Number(row.agent_confidence),
   }));
 }
 
