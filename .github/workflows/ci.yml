@@ -141,3 +141,19 @@ jobs:
             echo "::error::اختبارات التكامل تُخطَّت — لا يمرّ CI بلا قاعدة حقيقية"
             exit 1
           fi
+
+      # e2e منفصلة عن التكامل لأنها أطول وتراكمية: ثلاثون رحلة على حالة واحدة
+      # لا تُنظَّف بينها. فصلها يجعل فشلها مقروءاً بذاته لا مبتلعاً في حزمة كبيرة.
+      - name: اختبارات e2e — رحلات متتابعة بلا تدخّل
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run test:e2e
+
+      - name: منع تخطّي اختبارات e2e صامتاً
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: |
+          if bun run test:e2e 2>&1 | grep -q "مُتخطّاة"; then
+            echo "::error::اختبارات e2e تُخطَّت — لا يمرّ CI بلا قاعدة حقيقية"
+            exit 1
+          fi
