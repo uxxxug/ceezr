@@ -1,0 +1,68 @@
+حقوق محفوظة — برمجيّة مملوكة
+All Rights Reserved — Proprietary Software
+
+مشروع وَصْلة (Waslah)
+حقوق النشر © 2026 مالك المستودع. جميع الحقوق محفوظة.
+
+--------------------------------------------------------------------------
+عربي
+--------------------------------------------------------------------------
+
+هذه البرمجيّة وما يصحبها من شفرة مصدرية ووثائق وهجرات قاعدة بيانات وأصول
+هي ملكية خاصّة وسرّية تعود لمالك المستودع.
+
+لا يُمنح بهذا الملفّ أيّ إذن باستعمال البرمجيّة أو نسخها أو تعديلها أو دمجها
+أو نشرها أو توزيعها أو الترخيص من الباطن أو بيع نسخ منها، كلّياً أو جزئياً،
+بأيّ وسيلة، إلا بإذن خطّي مسبق وصريح من المالك.
+
+ويشمل المنع على وجه الخصوص: الهندسة العكسية · اشتقاق أعمال منها ·
+استعمالها في تدريب نماذج تعلُّم آليّ · إتاحتها كخدمة لطرف ثالث.
+
+مَن حصل على وصول إلى هذه الشفرة بحكم عمل أو تعاقد فوصولُه مقصور على غرض
+ذلك العمل وحده، وينتهي بانتهائه.
+
+تُقدَّم البرمجيّة «كما هي» بلا أيّ ضمان، صريحاً كان أو ضمنياً، بما في ذلك
+ضمانات القابلية للتسويق أو الملاءمة لغرض معيّن أو عدم انتهاك حقوق الغير.
+ولا يتحمّل المالك أيّ مسؤولية عن أيّ مطالبة أو ضرر أو التزام آخر ينشأ عن
+البرمجيّة أو استعمالها أو التعامل بها.
+
+--------------------------------------------------------------------------
+English
+--------------------------------------------------------------------------
+
+This software, including all accompanying source code, documentation,
+database migrations, and assets, is the proprietary and confidential
+property of the repository owner.
+
+No license or permission is granted by this file to use, copy, modify,
+merge, publish, distribute, sublicense, or sell copies of this software,
+in whole or in part, by any means, except with the prior express written
+permission of the owner.
+
+Expressly prohibited: reverse engineering; creation of derivative works;
+use in training machine learning models; provision to third parties as a
+service.
+
+Access granted in the course of employment or contract is limited to the
+purpose of that engagement and terminates with it.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+OWNER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT
+OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+--------------------------------------------------------------------------
+ملاحظة برسم المالك / Note to the owner
+--------------------------------------------------------------------------
+
+اختير هذا النصّ لأنه الخيار الوحيد الذي لا يتنازل عن أيّ حقّ: أيّ ترخيص
+آخر يمنح صلاحيات يصعب سحبها بعد نشرها. فإن أردتَ ترخيصاً مفتوحاً (MIT أو
+Apache-2.0 أو غيرهما) أو صيغة تجارية مختلفة، فذلك قرارك أنت لا قرار
+المنفّذ، واستبدال هذا الملفّ حينها كافٍ.
+
+This text was chosen because it is the only option that forfeits no right.
+Any other license grants permissions that are hard to revoke once
+published. Selecting an open or different commercial license is the
+owner's decision; replacing this file is then sufficient.

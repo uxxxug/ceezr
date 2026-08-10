@@ -16,6 +16,12 @@ bun run typecheck   # يجب أن ينجح تماماً
 bun run test
 ```
 
+## قبل أوّل تشغيل
+البناء يفترض مسبقاً: امتداد `postgis`، والأدوار `anon` و`authenticated`
+و`service_role` — **لا تُنشئها الهجرات**، وغيابها يُسقط أوّل هجرة.
+التفصيل في [`docs/runtime-prerequisites.md`](docs/runtime-prerequisites.md).
+واجهات النظام في [`docs/api.md`](docs/api.md).
+
 ## الهيكل
 | المسار | المحتوى |
 |---|---|
