@@ -45,8 +45,10 @@ const config: AppConfig = {
 function fakeRedis(nowMs: () => number): RedisClient & {
   readonly keys: () => string[];
   readonly rawOf: (key: string) => string | undefined;
+  readonly setDown: (down: boolean) => void;
 } {
   const entries = new Map<string, { value: string; expiresAtMs: number }>();
+  let down = false;
   const live = (key: string): string | undefined => {
     const entry = entries.get(key);
     if (entry === undefined) return undefined;
@@ -59,7 +61,12 @@ function fakeRedis(nowMs: () => number): RedisClient & {
   return {
     keys: () => [...entries.keys()].filter((key) => live(key) !== undefined),
     rawOf: live,
+    /** يحاكي انقطاع Upstash: كل أمر يفشل بعطل شبكة، والبيانات تبقى كما هي حتى العودة. */
+    setDown: (value: boolean) => {
+      down = value;
+    },
     command: async (args) => {
+      if (down) return { ok: false, error: { kind: "network", detail: "connection refused" } };
       const name = String(args[0]).toUpperCase();
       const key = String(args[1] ?? "");
       if (name === "GET") return { ok: true, value: live(key) ?? null };
@@ -200,5 +207,111 @@ describeIf("جلسات الحوار على Redis بحاوية حقيقية", () 
     `;
     expect(usersAfter[0]?.count).toBe("0");
     expect(driverSent.length).toBeGreaterThan(0);
+  });
+
+  /**
+   * سلوك المنصّة حين ينقطع Redis أثناء التشغيل، لا سلوك المخزن وحده.
+   *
+   * المطلوب إثباته أن الانقطاع **يُضعف ولا يُفسِد**: الويبهوك يبقى 200 حتى لا
+   * تُعيد تلغرام إرسال نفس التحديث بلا نهاية، والمستخدم يُبلَّغ بعطل بدل الصمت،
+   * والقاعدة لا تكتسب صفوفاً ناقصة، والخدمة تتعافى وحدها عند عودة Redis بلا
+   * إعادة تشغيل. هذا هو المبرّر السلوكي لتصنيف Redis `critical: false` في /ready.
+   */
+  describe("انقطاع Redis أثناء التشغيل", () => {
+    const ERROR_AR = "حدث عطل تقني مؤقّت. حاول بعد قليل.";
+
+    it("الويبهوك يبقى 200 والانقطاع لا يُسقط الطلب", async () => {
+      redis.setDown(true);
+
+      const res = await post(text("/start"));
+
+      // 200 مقصود: رمز خطأ هنا يجعل تلغرام تُعيد إرسال نفس التحديث مراراً،
+      // فيتحوّل عطل Redis إلى عاصفة إعادة إرسال فوق عطل قائم.
+      expect(res.status).toBe(200);
+    });
+
+    it("المستخدم يُبلَّغ بعطل صريح بدل الصمت حين تفشل الكتابة", async () => {
+      redis.setDown(true);
+      driverSent.length = 0;
+
+      await post(text("/start"));
+
+      expect(driverSent.length).toBeGreaterThan(0);
+      expect(driverSent.at(-1)?.text).toBe(ERROR_AR);
+    });
+
+    it("لا يكتب صفّاً ناقصاً في القاعدة طوال الانقطاع", async () => {
+      redis.setDown(true);
+
+      await post(text("/start"));
+      await post(text("عبدالله الحربي"));
+      await post(contact("+966500000111"));
+      await post(callback(`city:${cityId}`));
+      await post(callback("service:transport"));
+
+      const users = await sql<{ count: string }[]>`
+        select count(*)::text as count from users where telegram_id = ${DRIVER_CHAT}
+      `;
+      const drivers = await sql<{ count: string }[]>`
+        select count(*)::text as count from drivers
+      `;
+      expect(users[0]?.count).toBe("0");
+      expect(drivers[0]?.count).toBe("0");
+    });
+
+    it("لا يُفسَّر ردّ المستخدم على أنه إجابة خطوةٍ لم تُحفظ", async () => {
+      redis.setDown(true);
+      await post(text("/start"));
+
+      // لو ظنّ الحوار أن الخطوة awaiting_name حُفظت لسجّل هذا نصّاً اسماً.
+      driverSent.length = 0;
+      await post(text("عبدالله الحربي"));
+
+      // فشل القراءة يعني «لا جلسة»، فالحوار عند بدايته لا عند awaiting_name.
+      // النتيجة أن النصّ يقع خارج أي خطوة فيُردّ بإرشاد لا بقبولٍ صامت — وهذا
+      // أفضل من رسالة عطل تقني: المستخدم يُوجَّه بدل أن يُترك أمام خطأ مبهم.
+      expect(driverSent.at(-1)?.text).toContain("/help");
+      expect(driverSent.at(-1)?.text).not.toContain("عبدالله");
+      const rows = await sql<{ count: string }[]>`
+        select count(*)::text as count from users where telegram_id = ${DRIVER_CHAT}
+      `;
+      expect(rows[0]?.count).toBe("0");
+    });
+
+    it("تتعافى الخدمة وحدها عند عودة Redis بلا إعادة تشغيل", async () => {
+      redis.setDown(true);
+      await post(text("/start"));
+      await post(text("عبدالله الحربي"));
+      expect(redis.keys()).toHaveLength(0);
+
+      redis.setDown(false);
+
+      await post(text("/start"));
+      await post(text("عبدالله الحربي"));
+      await post(contact("+966500000111"));
+      await post(callback(`city:${cityId}`));
+      await post(callback("service:transport"));
+
+      const rows = await sql<{ full_name: string; phone: string }[]>`
+        select full_name, phone from users where telegram_id = ${DRIVER_CHAT}
+      `;
+      expect(rows[0]).toEqual({ full_name: "عبدالله الحربي", phone: "+966500000111" });
+    });
+
+    it("انقطاع وسط حوار لا يُتلف جلسةً محفوظة: تعود الخطوة كما كانت", async () => {
+      await post(text("/start"));
+      await post(text("عبدالله الحربي"));
+      const keyBefore = redis.keys();
+      expect(keyBefore).toHaveLength(1);
+      const rawBefore = redis.rawOf(keyBefore[0] ?? "");
+
+      redis.setDown(true);
+      await post(contact("+966500000111"));
+      redis.setDown(false);
+
+      // الحالة المحفوظة سليمة كما تُركت — الانقطاع منع التقدّم ولم يُتلف شيئاً
+      expect(redis.rawOf(keyBefore[0] ?? "")).toBe(rawBefore);
+      expect(JSON.parse(rawBefore ?? "{}").step).toBe("awaiting_phone");
+    });
   });
 });
