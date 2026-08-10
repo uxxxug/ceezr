@@ -22,7 +22,11 @@ export class InvalidPhoneError {
 
 export type IdentityError = InvalidFullNameError | InvalidPhoneError;
 
-const MIN_NAME_LENGTH = 3;
+/**
+ * حرفان يكفيان لاسم إنجليزي حقيقي مثل Li. أمّا حرف واحد فلا يمرّ أيضاً
+ * لأن شرط الحروف الأبجدية المختلفة أدناه يتطلب حرفين فعليين.
+ */
+const MIN_NAME_LENGTH = 2;
 const MAX_NAME_LENGTH = 80;
 /** أقلّ عدد حروف أبجدية فعلية — يرفض "123" و"!!!" و"😀😀" دون رفض "علي". */
 const MIN_ALPHABETIC_CHARS = 2;

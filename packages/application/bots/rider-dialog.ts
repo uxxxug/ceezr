@@ -294,10 +294,22 @@ async function handleCommand(
     }
 
     case "/cancel": {
-      if (rider === null) return [reply(sender, tr("rider.must_register_first"))];
+      // الإلغاء يخرج من أي خطوة حوار، حتى قبل اكتمال التسجيل. كان العميل الجديد
+      // يبقى في awaiting_name رغم ظهور «سجّل أولاً»، بخلاف بوت السائق.
+      if (rider === null) {
+        await deps.sessions.clear(sender.telegramUserId);
+        return [reply(sender, tr("common.cancelled"), { kind: "remove" })];
+      }
       const orderId = await deps.activeOrderOf(rider.id);
       await deps.sessions.clear(sender.telegramUserId);
-      if (orderId === null) return [reply(sender, tr("rider.no_active_order"))];
+      // لا نسمّي إلغاء مسودة رحلة أو تذكرة دعم «لا يوجد طلب»: المسودة أُلغيت فعلاً.
+      if (orderId === null) {
+        return [
+          reply(sender, tr(state.step === "idle" ? "rider.no_active_order" : "common.cancelled"), {
+            kind: "remove",
+          }),
+        ];
+      }
       const cancelled = await deps.orders.cancelByRider(orderId, rider.id);
       if (!cancelled.ok) return technicalFailure(sender, state);
       if (!cancelled.value) return [reply(sender, tr("rider.no_active_order"))];
@@ -379,7 +391,11 @@ async function handleServiceSelected(
   deps: RiderBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
-  if (!isServiceType(raw)) return [reply(sender, tr("common.unknown_command"))];
+  // أزرار تلغرام القديمة تبقى قابلة للضغط في السجل. قبولها خارج شاشة اختيار
+  // الخدمة قد يبدّل نوع طلبٍ جارٍ من نقل إلى توصيل بلا قصد المستخدم.
+  if (state.step !== "awaiting_service" || !isServiceType(raw)) {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
   return startServiceFlow(raw, sender, state, deps);
 }
 

@@ -112,6 +112,10 @@ export async function handleSupportTypeChoice(
   deps: SupportDialogDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
+  // زرّ نوع شكوى قديم لا يجوز أن يعيد فتح حوار ألغاه المستخدم أو يقطع حواراً آخر.
+  if (state.step !== "awaiting_support_type") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
   const type: SupportTicketType | null =
     raw === "subscription" ? "subscription" : raw === "ride_dispute" ? "ride_dispute" : null;
   if (type === null) return [reply(sender, tr("common.unknown_command"))];

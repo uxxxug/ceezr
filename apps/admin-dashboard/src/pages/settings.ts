@@ -13,6 +13,14 @@ import { formatDateTime } from "../format.ts";
 import { badge, escapeHtml, section, table } from "../layout.ts";
 import type { CityOption } from "./drivers.ts";
 
+export interface CityGroupStatus extends CityOption {
+  readonly isActive?: boolean;
+  /** سلاسل لا أرقام كي تبقى دقة bigint كاملة في HTML والنموذج. */
+  readonly supportGroupId?: string | null;
+  readonly escalationGroupId?: string | null;
+  readonly unsubscribedDriversGroupId?: string | null;
+}
+
 export interface SettingRow {
   readonly key: string;
   /** القيمة كما هي في القاعدة بصيغة JSON نصّية — تُعرض وتُحرَّر بنفس الصيغة. */
@@ -24,7 +32,7 @@ export interface SettingRow {
 }
 
 export interface SettingsPageData {
-  readonly cities: readonly CityOption[];
+  readonly cities: readonly CityGroupStatus[];
   readonly cityId: string;
   readonly cityName: string;
   readonly rows: readonly SettingRow[];
@@ -38,6 +46,20 @@ const TYPE_LABEL: Readonly<Record<string, string>> = {
   array: "قائمة",
 };
 
+function cityReadiness(city: CityGroupStatus): { label: string; tone: "ok" | "warn" | "bad" } {
+  const complete =
+    typeof city.supportGroupId === "string" &&
+    typeof city.escalationGroupId === "string" &&
+    typeof city.unsubscribedDriversGroupId === "string";
+  if (city.isActive && complete) return { label: "مفعّلة وجاهزة", tone: "ok" };
+  if (complete) return { label: "القروبات مكتملة؛ المدينة غير مفعّلة", tone: "warn" };
+  return { label: "غير جاهزة: حقول قروبات ناقصة", tone: "bad" };
+}
+
+function groupValue(value: string | null | undefined): string {
+  return value ?? "";
+}
+
 export function renderSettingsPage(data: SettingsPageData): string {
   const cityOptions = data.cities
     .map(
@@ -47,6 +69,11 @@ export function renderSettingsPage(data: SettingsPageData): string {
         }>${escapeHtml(city.nameAr)}</option>`,
     )
     .join("");
+  const selectedCity = data.cities.find((city) => city.id === data.cityId);
+  const selectedReadiness =
+    selectedCity === undefined
+      ? { label: "المدينة غير موجودة", tone: "bad" as const }
+      : cityReadiness(selectedCity);
 
   const rows = data.rows.map((row) => [
     `<div class="mono">${escapeHtml(row.key)}</div>
@@ -72,6 +99,59 @@ export function renderSettingsPage(data: SettingsPageData): string {
   <button type="submit">عرض</button>
 </form>
 ${section(
+  "قروبات تيليجرام للمدينة",
+  `<p class="note">الحالة الحالية: ${badge(selectedReadiness.label, selectedReadiness.tone)}.
+  لا تُفعّل المدينة إلا بعد حفظ معرّفات القروبات الثلاثة الصحيحة معاً. الحقول الفارغة
+  تُبقي المدينة غير مفعّلة.</p>
+  <form method="post" action="/admin/settings/${escapeHtml(data.cityId)}/group-ids">
+    <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
+    <label>معرّف قروب الدعم
+      <input type="text" name="support_group_id"
+             value="${escapeHtml(groupValue(selectedCity?.supportGroupId ?? null))}"
+             inputmode="numeric" class="mono" aria-label="معرّف قروب الدعم">
+    </label>
+    <label>معرّف قروب التصعيد
+      <input type="text" name="escalation_group_id"
+             value="${escapeHtml(groupValue(selectedCity?.escalationGroupId ?? null))}"
+             inputmode="numeric" class="mono" aria-label="معرّف قروب التصعيد">
+    </label>
+    <label>معرّف قروب السائقين غير المشتركين
+      <input type="text" name="unsubscribed_drivers_group_id"
+             value="${escapeHtml(groupValue(selectedCity?.unsubscribedDriversGroupId ?? null))}"
+             inputmode="numeric" class="mono" aria-label="معرّف قروب السائقين غير المشتركين">
+    </label>
+    <button type="submit">حفظ القروبات وتحديث حالة المدينة</button>
+  </form>`,
+  "تُقبل معرّفات القروبات السالبة كما يرسلها تيليجرام. لا تُكتب هذه القيم في متغيرات البيئة.",
+)}
+${section(
+  "حالة المدن",
+  table({
+    headers: ["المدينة", "الدعم", "التصعيد", "غير المشتركين", "حالة التفعيل"],
+    rows: data.cities.map((city) => {
+      const readiness = cityReadiness(city);
+      return [
+        `${escapeHtml(city.nameAr)} <span class="mono">(${escapeHtml(city.code)})</span>`,
+        `<span class="mono">${escapeHtml(groupValue(city.supportGroupId) || "—")}</span>`,
+        `<span class="mono">${escapeHtml(groupValue(city.escalationGroupId) || "—")}</span>`,
+        `<span class="mono">${escapeHtml(groupValue(city.unsubscribedDriversGroupId) || "—")}</span>`,
+        badge(readiness.label, readiness.tone),
+      ];
+    }),
+    emptyText: "لا مدن مزروعة.",
+  }),
+)}
+${section(
+  "طريقة الحصول على معرّف القروب",
+  `<ol>
+    <li>أنشئ قروب تيليجرام.</li>
+    <li>أضف بوت السائق عضواً في القروب.</li>
+    <li>أرسل رسالة اختبار إلى القروب.</li>
+    <li>افتح <span class="mono">getUpdates</span>.</li>
+    <li>انسخ <span class="mono">chat.id</span> والصقه في الحقل المناسب هنا.</li>
+  </ol>`,
+)}
+${section(
   "قيم التشغيل",
   table({
     headers: ["المفتاح", "النوع", "القيمة", "الحالة", "آخر تعديل"],
@@ -83,7 +163,7 @@ ${section(
 )}
 ${section(
   "ما لا يُعدَّل من هنا",
-  `<p class="note">معرّفات قروبات تلغرام وحالة تفعيل المدينة ليست إعدادات تشغيل يومي:
-  تغييرها يوجّه رسائل حقيقية إلى قروب آخر، ومكانها هجرة مراجَعة لا حقل نصّي في صفحة.</p>`,
+  `<p class="note">قيم التشغيل أدناه مستقلة عن قروبات تيليجرام. لا تنسخ معرّفات
+  القروبات إلى متغيرات البيئة؛ مصدرها الوحيد جدول المدن أعلاه.</p>`,
 )}`;
 }

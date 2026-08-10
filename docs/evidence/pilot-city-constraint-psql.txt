@@ -1,0 +1,10 @@
+=== محاولة تفعيل بلا قروبات ===
+ERROR:  new row for relation "cities" violates check constraint "cities_active_requires_groups"
+DETAIL:  Failing row contains (bee37316-c7fa-4ca9-ac31-2b1e68aa9414, bee37316-c7fa-4ca9-ac31-2b1e68aa9414, JED, جدة, Jeddah, t, null, null, null, 2026-08-10 06:32:53.950465+00, 2026-08-10 06:32:54.140185+00).
+=== تفعيل بعد اكتمال القروبات ===
+UPDATE 1
+ code | is_active | telegram_support_group_id | telegram_escalation_group_id | telegram_unsubscribed_drivers_group_id 
+------+-----------+---------------------------+------------------------------+----------------------------------------
+ JED  | t         |            -1009000000001 |               -1009000000002 |                         -1009000000003
+(1 row)
+

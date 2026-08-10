@@ -1,0 +1,1011 @@
+=== typecheck ===
+$ tsc --noEmit
+=== lint ===
+$ biome check .
+packages/agent-core/agents/supportTicketAgent.ts:132:12 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    131 │   if (best === undefined || best.document.suggestion === "") {
+  > 132 │     return `${heading} لم ي�عثر على مستند معرفة مطابق، فلا يوجد رد� جاهز مقترح — ` + "ي�راج�ع يدويا�.";
+        │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    133 │   }
+    134 │ 
+  
+  i Unsafe fix: Use a template literal.
+  
+    130 130 │   
+    131 131 │     if (best === undefined || best.document.suggestion === "") {
+    132     │ - ····return·`${heading}·لم·ي�عثر·على·مستند·معرفة·مطابق،·فلا·يوجد·رد�·جاهز·مقترح·—·`·+·"ي�راج�ع·يدويا�.";
+        132 │ + ····return·`${heading}·لم·ي�عثر·على·مستند·معرفة·مطابق،·فلا·يوجد·رد�·جاهز·مقترح·—·ي�راج�ع·يدويا�.`;
+    133 133 │     }
+    134 134 │   
+  
+
+packages/agent-core/config.ts:95:25 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    93 │   return {
+    94 │     enabled: readFlag(source, "AGENT_CORE_ENABLED"),
+  > 95 │     runtimeRoot: source["AGENT_CORE_RUNTIME_ROOT"] ?? DEFAULT_CONFIG.runtimeRoot,
+       │                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+    96 │     knowledgeRoot: source["AGENT_CORE_KNOWLEDGE_ROOT"] ?? DEFAULT_CONFIG.knowledgeRoot,
+    97 │     mediumTermMaxLines: readInt(
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     93  93 │     return {
+     94  94 │       enabled: readFlag(source, "AGENT_CORE_ENABLED"),
+     95     │ - ····runtimeRoot:·source["AGENT_CORE_RUNTIME_ROOT"]·??·DEFAULT_CONFIG.runtimeRoot,
+         95 │ + ····runtimeRoot:·source.AGENT_CORE_RUNTIME_ROOT·??·DEFAULT_CONFIG.runtimeRoot,
+     96  96 │       knowledgeRoot: source["AGENT_CORE_KNOWLEDGE_ROOT"] ?? DEFAULT_CONFIG.knowledgeRoot,
+     97  97 │       mediumTermMaxLines: readInt(
+  
+
+packages/agent-core/config.ts:96:27 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    94 │     enabled: readFlag(source, "AGENT_CORE_ENABLED"),
+    95 │     runtimeRoot: source["AGENT_CORE_RUNTIME_ROOT"] ?? DEFAULT_CONFIG.runtimeRoot,
+  > 96 │     knowledgeRoot: source["AGENT_CORE_KNOWLEDGE_ROOT"] ?? DEFAULT_CONFIG.knowledgeRoot,
+       │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    97 │     mediumTermMaxLines: readInt(
+    98 │       source,
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     94  94 │       enabled: readFlag(source, "AGENT_CORE_ENABLED"),
+     95  95 │       runtimeRoot: source["AGENT_CORE_RUNTIME_ROOT"] ?? DEFAULT_CONFIG.runtimeRoot,
+     96     │ - ····knowledgeRoot:·source["AGENT_CORE_KNOWLEDGE_ROOT"]·??·DEFAULT_CONFIG.knowledgeRoot,
+         96 │ + ····knowledgeRoot:·source.AGENT_CORE_KNOWLEDGE_ROOT·??·DEFAULT_CONFIG.knowledgeRoot,
+     97  97 │       mediumTermMaxLines: readInt(
+     98  98 │         source,
+  
+
+packages/agent-core/config.ts:118:32 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    116 │       DEFAULT_CONFIG.minSupportForCandidate,
+    117 │     ),
+  > 118 │     persistenceEnabled: source["AGENT_CORE_PERSISTENCE"] !== "false",
+        │                                ^^^^^^^^^^^^^^^^^^^^^^^^
+    119 │   };
+    120 │ }
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    116 116 │         DEFAULT_CONFIG.minSupportForCandidate,
+    117 117 │       ),
+    118     │ - ····persistenceEnabled:·source["AGENT_CORE_PERSISTENCE"]·!==·"false",
+        118 │ + ····persistenceEnabled:·source.AGENT_CORE_PERSISTENCE·!==·"false",
+    119 119 │     };
+    120 120 │   }
+  
+
+packages/agent-core/knowledge/knowledgeLoader.ts:91:20 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    89 │         const { meta, body } = parseFrontMatter(raw);
+    90 │         documents.push({
+  > 91 │           id: meta["id"] ?? name.replace(/\.md$/, ""),
+       │                    ^^^^
+    92 │           title: meta["title"] ?? name.replace(/\.md$/, ""),
+    93 │           label: meta["label"] ?? "general_inquiry",
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     89  89 │           const { meta, body } = parseFrontMatter(raw);
+     90  90 │           documents.push({
+     91     │ - ··········id:·meta["id"]·??·name.replace(/\.md$/,·""),
+         91 │ + ··········id:·meta.id·??·name.replace(/\.md$/,·""),
+     92  92 │             title: meta["title"] ?? name.replace(/\.md$/, ""),
+     93  93 │             label: meta["label"] ?? "general_inquiry",
+  
+
+packages/agent-core/knowledge/knowledgeLoader.ts:92:23 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    90 │         documents.push({
+    91 │           id: meta["id"] ?? name.replace(/\.md$/, ""),
+  > 92 │           title: meta["title"] ?? name.replace(/\.md$/, ""),
+       │                       ^^^^^^^
+    93 │           label: meta["label"] ?? "general_inquiry",
+    94 │           keywords: splitList(meta["keywords"]),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     90  90 │           documents.push({
+     91  91 │             id: meta["id"] ?? name.replace(/\.md$/, ""),
+     92     │ - ··········title:·meta["title"]·??·name.replace(/\.md$/,·""),
+         92 │ + ··········title:·meta.title·??·name.replace(/\.md$/,·""),
+     93  93 │             label: meta["label"] ?? "general_inquiry",
+     94  94 │             keywords: splitList(meta["keywords"]),
+  
+
+packages/agent-core/knowledge/knowledgeLoader.ts:93:23 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    91 │           id: meta["id"] ?? name.replace(/\.md$/, ""),
+    92 │           title: meta["title"] ?? name.replace(/\.md$/, ""),
+  > 93 │           label: meta["label"] ?? "general_inquiry",
+       │                       ^^^^^^^
+    94 │           keywords: splitList(meta["keywords"]),
+    95 │           body: body.trim(),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     91  91 │             id: meta["id"] ?? name.replace(/\.md$/, ""),
+     92  92 │             title: meta["title"] ?? name.replace(/\.md$/, ""),
+     93     │ - ··········label:·meta["label"]·??·"general_inquiry",
+         93 │ + ··········label:·meta.label·??·"general_inquiry",
+     94  94 │             keywords: splitList(meta["keywords"]),
+     95  95 │             body: body.trim(),
+  
+
+packages/agent-core/knowledge/knowledgeLoader.ts:94:36 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    92 │           title: meta["title"] ?? name.replace(/\.md$/, ""),
+    93 │           label: meta["label"] ?? "general_inquiry",
+  > 94 │           keywords: splitList(meta["keywords"]),
+       │                                    ^^^^^^^^^^
+    95 │           body: body.trim(),
+    96 │           suggestion: extractSuggestion(body),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     92  92 │             title: meta["title"] ?? name.replace(/\.md$/, ""),
+     93  93 │             label: meta["label"] ?? "general_inquiry",
+     94     │ - ··········keywords:·splitList(meta["keywords"]),
+         94 │ + ··········keywords:·splitList(meta.keywords),
+     95  95 │             body: body.trim(),
+     96  96 │             suggestion: extractSuggestion(body),
+  
+
+packages/agent-core/planning/missingDataDetector.ts:68:46 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    66 │   if (input.classification === "ride_dispute") {
+    67 │     // `attributes` قيمها بدائية لا نص�ية حتما� — ت�طب��ع قبل الفحص بدل أن ي�فترض شكلها.
+  > 68 │     const reference = input.event.attributes["order_id"];
+       │                                              ^^^^^^^^^^
+    69 │     const hasReference =
+    70 │       (reference !== undefined && reference !== null && String(reference).trim() !== "") ||
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    66 66 │     if (input.classification === "ride_dispute") {
+    67 67 │       // `attributes` قيمها بدائية لا نص�ية حتما� — ت�طب��ع قبل الفحص بدل أن ي�فترض شكلها.
+    68    │ - ····const·reference·=·input.event.attributes["order_id"];
+       68 │ + ····const·reference·=·input.event.attributes.order_id;
+    69 69 │       const hasReference =
+    70 70 │         (reference !== undefined && reference !== null && String(reference).trim() !== "") ||
+  
+
+Checked 527 files in 531ms. No fixes applied.
+Found 9 infos.
+=== tests ===
+bun test v1.3.14 (0d9b296a)
+
+tests/unit/shared-i18n.test.ts:
+(pass) i18n > اللغة الافتراضية عربية ومدعومة [0.18ms]
+(pass) i18n > يرجع نص اللغة المطلوبة [0.30ms]
+(pass) i18n > يعود للعربية عند لغة غير مدعومة [0.04ms]
+
+tests/unit/rate-limit.test.ts:
+(pass) عدّاد النافذة الثابتة في الذاكرة > يسمح حتى الحدّ ويمنع ما بعده [0.78ms]
+(pass) عدّاد النافذة الثابتة في الذاكرة > مفاتيح مختلفة عدّادات مستقلّة [0.14ms]
+(pass) عدّاد النافذة الثابتة في الذاكرة > النافذة تُفتح من جديد بعد انتهائها [0.13ms]
+(pass) عدّاد النافذة الثابتة في الذاكرة > resetSeconds يتقلّص مع تقدّم النافذة فلا يُطلب انتظار أطول من الحقيقي [0.08ms]
+(pass) عدّاد النافذة الثابتة في الذاكرة > العدّادات المنتهية تُنظَّف فلا تتكدّس بمفاتيح مهاجم يبدّل عنوانه [0.99ms]
+(pass) عدّاد النافذة الثابتة على Redis > يعدّ عبر Redis ويمنع بعد الحدّ [0.37ms]
+(pass) عدّاد النافذة الثابتة على Redis > المهلة تُضبَط عند أول طلب وحده، وإلا لم تنتهِ النافذة أبداً [0.17ms]
+(pass) عدّاد النافذة الثابتة على Redis > عجز Redis يسمح ولا يمنع: الحدّ حماية لا مصادقة [0.16ms]
+(pass) عدّاد النافذة الثابتة على Redis > جواب INCR غير رقمي يُعدّ عجزاً فيُسمح، لا يُقرأ NaN بوصفه عدداً [0.14ms]
+(pass) قراءة عنوان المُرسِل ومعرّف صاحب التحديث > أول عنوان في x-forwarded-for هو العميل لا آخره [0.08ms]
+(pass) قراءة عنوان المُرسِل ومعرّف صاحب التحديث > ترويسة غائبة أو فارغة تُعطي unknown لا نصّاً فارغاً يخلط المفاتيح [0.03ms]
+(pass) قراءة عنوان المُرسِل ومعرّف صاحب التحديث > يقرأ المعرّف من الرسالة ومن الزرّ على السواء [0.05ms]
+(pass) قراءة عنوان المُرسِل ومعرّف صاحب التحديث > تحديث بلا صاحب معلوم لا يُحسب على أحد [0.04ms]
+(pass) حدّ المعدّل على مسار الويبهوك > من يجرّب أسراراً خاطئة يُقفل عليه بـ429 وRetry-After [3.81ms]
+(pass) حدّ المعدّل على مسار الويبهوك > عنوان مقفول عليه لا يُقفل على غيره [0.68ms]
+(pass) حدّ المعدّل على مسار الويبهوك > حدّ المحاولات لا يُحتسب على تلغرام: سرّ صحيح مهما تكرّر لا يُقفل [0.85ms]
+(pass) حدّ المعدّل على مسار الويبهوك > مستخدم واحد يتجاوز حدّه فيُمنع، ولا يتأثّر غيره [0.56ms]
+(pass) حدّ المعدّل على مسار الويبهوك > تحديث بلا صاحب معلوم يمرّ بلا احتساب على أحد [0.35ms]
+(pass) حدّ المعدّل على مسار الويبهوك > بلا حدود مضبوطة يعمل المسار كما كان تماماً [1.57ms]
+
+tests/unit/subscription-capability.test.ts:
+(pass) servicesCoveredByPlan > both يغطي الخدمتين [0.05ms]
+(pass) servicesCoveredByPlan > transport يغطي المشاوير فقط [0.01ms]
+(pass) isSubscriptionLive > الشهر المجاني الساري = فعّال [0.07ms]
+(pass) isSubscriptionLive > الشهر المجاني المنتهي = غير فعّال [0.02ms]
+(pass) isSubscriptionLive > المدفوع الساري = فعّال [0.02ms]
+(pass) isSubscriptionLive > المدفوع المنتهي زمنياً = غير فعّال [0.01ms]
+(pass) isSubscriptionLive > الملغى غير فعّال حتى لو تاريخه في المستقبل [0.01ms]
+(pass) isSubscriptionLive > حالة trialing بلا تاريخ انتهاء = غير فعّال [0.01ms]
+(pass) coversService > سائق مشاوير فقط لا يغطي التوصيل [0.03ms]
+(pass) coversService > خطة both تغطي التوصيل [0.02ms]
+(pass) coversService > خطة both منتهية لا تغطي شيئاً [0.01ms]
+(pass) capability > يخدم المشاوير [0.07ms]
+(pass) capability > لا يخدم التوصيل لأنه معطَّل [0.01ms]
+(pass) capability > الخدمات المفعَّلة هي المشاوير فقط [0.09ms]
+(pass) capability > قائمة فارغة لا تخدم شيئاً [0.01ms]
+
+tests/unit/config-loading.test.ts:
+(pass) tryLoadConfig > ينجح ببيئة كاملة ويستخدم المنفذ الافتراضي 3000 [0.33ms]
+(pass) tryLoadConfig > يجمع كل المتغيرات الناقصة في خطأ واحد [0.17ms]
+(pass) tryLoadConfig > يعتبر القيمة الفراغية ناقصة لا موجودة [0.05ms]
+(pass) tryLoadConfig > يرفض منفذاً غير صالح [0.18ms]
+(pass) tryLoadConfig > يرفض رابط Supabase بلا https [0.03ms]
+(pass) tryLoadConfig > يميّز بيئة الإنتاج والاختبار ويردّ ما سواهما إلى التطوير [0.06ms]
+(pass) tryLoadConfig > لا يقرأ أي قيمة تجارية من البيئة [0.06ms]
+(pass) missingEnvKeys > يعيد قائمة فارغة لبيئة كاملة [0.02ms]
+(pass) missingEnvKeys > يعيد كل المفاتيح لبيئة خالية [0.03ms]
+(pass) DATABASE_URL > يرفض رابطاً ليس رابط Postgres [0.06ms]
+(pass) DATABASE_URL > يقبل postgresql:// كما يقبل postgres:// [0.02ms]
+
+tests/unit/driver-dialog.test.ts:
+(pass) تسجيل السائق — المسار الكامل > يمضي من /start إلى سائق مسجَّل في المدينة المختارة [3.33ms]
+(pass) تسجيل السائق — المسار الكامل > يوحّد صيغة الجوال أياً كانت الصيغة المُدخَلة [1.22ms]
+(pass) تسجيل السائق — المسار الكامل > يرفض رقماً غير سعودي ولا ينتقل للخطوة التالية [0.26ms]
+(pass) تسجيل السائق — المسار الكامل > يرفض رقماً مكتوباً بلا زرّ ويعيد عرض الزرّ [0.15ms]
+(pass) تسجيل السائق — المسار الكامل > يرفض بطاقة جهة اتصال لشخص آخر ولا يخزّن رقمها [0.35ms]
+(pass) تسجيل السائق — المسار الكامل > يرفض بطاقة بلا حساب تلغرام [0.14ms]
+(pass) تسجيل السائق — المسار الكامل > يرفض اسماً قصيراً أو أمراً مكان الاسم [0.19ms]
+(pass) تسجيل السائق — المسار الكامل > لا يقبل مدينة غير مفعَّلة حتى لو ضُغط زرّها [0.43ms]
+(pass) تسجيل السائق — المسار الكامل > لا يسجّل شيئاً إن كانت الجلسة قد ضاعت بين الخطوات [0.11ms]
+(pass) تسجيل السائق — المسار الكامل > يخبر بأنه مسجَّل مسبقاً ولا يعيد التسجيل [0.14ms]
+(pass) تسجيل السائق — المسار الكامل > يعلن سبب عدم بدء التجربة بدل الصمت [0.21ms]
+(pass) التوافر > يمنع التوافر قبل تحقّق الإدارة [0.13ms]
+(pass) التوافر > يفعّل التوافر وينبّه إلى غياب الاشتراك [0.24ms]
+(pass) التوافر > لا ينبّه إلى الاشتراك إن كان سارياً [0.14ms]
+(pass) التوافر > يوقف التوافر بلا شرط التحقّق [0.13ms]
+(pass) التوافر > يطلب التسجيل من غير المسجَّل [0.09ms]
+(pass) الاشتراك > يعرض السعر من platform_settings لا من قيمة مرمَّزة [0.29ms]
+(pass) الاشتراك > يتبع سعر المدينة عند اختلافه [0.26ms]
+(pass) الاشتراك > يعرض تاريخ نهاية الاشتراك السارِي [0.16ms]
+(pass) قبول ورفض العرض > القبول يمرّ عبر الدالة الذرّية ويعلن النجاح [0.36ms]
+(pass) قبول ورفض العرض > إن سبقه غيره يعلن ذلك ولا يدّعي النجاح [0.16ms]
+(pass) قبول ورفض العرض > يميّز انتهاء المهلة عن سبق سائق آخر [0.13ms]
+(pass) قبول ورفض العرض > الرفض يُسجَّل فوراً ليخرج السائق من الدورة القادمة [0.15ms]
+(pass) قبول ورفض العرض > زرّ بلا معرّف طلب يُرفض بلا استدعاء أي دالة [0.10ms]
+(pass) متانة الحوار > عطل تقني يُبلَّغ برسالة واحدة واضحة لا باستثناء [0.16ms]
+(pass) متانة الحوار > أمر مجهول لا يُسقط الحوار [0.07ms]
+(pass) متانة الحوار > /cancel يمحو الجلسة فيعود /start من البداية [0.21ms]
+(pass) متانة الحوار > لا يعيد زر نوع شكوى قديم فتح حوار ألغاه السائق [0.42ms]
+(pass) متانة الحوار > يردّ بالإنجليزية إن كانت لغة عميل تلغرام إنجليزية [0.11ms]
+(pass) متانة الحوار > يحفظ موقع السائق المسجَّل فعلاً [0.32ms]
+(pass) متانة الحوار > لا يحفظ موقعاً لغير مسجَّل [0.13ms]
+(pass) متانة الحوار > يرفض إحداثيات مستحيلة ولا يكتبها [0.18ms]
+(pass) متانة الحوار > يطلب الموقع عند /available من سائق بلا موقع [0.24ms]
+
+tests/unit/rider-dialog.test.ts:
+(pass) تسجيل العميل وطلب رحلة > يمضي من /start إلى طلب مُنشَأ بموقع حقيقي [2.82ms]
+(pass) تسجيل العميل وطلب رحلة > يقبل /skip فيُنشئ الطلب بلا نقطة وصول [0.56ms]
+(pass) تسجيل العميل وطلب رحلة > يرفض عنواناً نصياً مكان الموقع [0.17ms]
+(pass) تسجيل العميل وطلب رحلة > يرفض زر خدمة قديماً أثناء انتظار موقع الانطلاق ولا يبدّل نوع الطلب [0.19ms]
+(pass) تسجيل العميل وطلب رحلة > يلغي تسجيل العميل غير المكتمل ويمحو جلسته [0.37ms]
+(pass) تسجيل العميل وطلب رحلة > يسمّي إلغاء مسودة طلب إلغاءً بدلاً من نفي طلب نشط [0.18ms]
+(pass) تسجيل العميل وطلب رحلة > يرفض إحداثيات مستحيلة [0.12ms]
+(pass) تسجيل العميل وطلب رحلة > يطلب التسجيل قبل /ride [0.06ms]
+(pass) تسجيل العميل وطلب رحلة > لا يعرض مدناً إن لم تكن هناك مدينة مفعَّلة [0.09ms]
+(pass) الإلغاء > يلغي الطلب النشط فعلاً [0.17ms]
+(pass) الإلغاء > يخبر بعدم وجود طلب نشط ولا يستدعي الإلغاء [0.30ms]
+(pass) المطابقة بعد الإنشاء > ينشئ الطلب ويعلن البحث حتى لو لم يوجد سائق مؤهل الآن [0.19ms]
+(pass) المطابقة بعد الإنشاء > يبثّ على سائق مؤهل عند وجوده [0.59ms]
+(pass) مسار التوصيل في حوار العميل > ‏/start لعميل مسجَّل يعرض اختيار الخدمة لا موقع الانطلاق مباشرة [0.21ms]
+(pass) مسار التوصيل في حوار العميل > ‏/delivery يمضي: استلام ← تسليم ← وصف الطرد ← طلب delivery بوصفه في notes [0.58ms]
+(pass) مسار التوصيل في حوار العميل > زرّ svc:delivery يسلك نفس مسار /delivery [0.12ms]
+(pass) مسار التوصيل في حوار العميل > لا يقبل /skip في التوصيل: الوجهة ركن لا خيار [0.12ms]
+(pass) مسار التوصيل في حوار العميل > يرفض وصف طرد قصيراً ويبقى في نفس الخطوة حتى يصحّ [0.22ms]
+(pass) مسار التوصيل في حوار العميل > يرفض وصفاً أطول من الحد ولا ينشئ طلباً [0.22ms]
+(pass) مسار التوصيل في حوار العميل > يرفض نصاً مكان موقع التسليم [0.12ms]
+(pass) مسار التوصيل في حوار العميل > ‏/ride يبقى مسار نقل خالصاً بلا وصف طرد [0.16ms]
+
+tests/unit/dialog-back-navigation.test.ts:
+(pass) الرجوع من اختيار الخدمة إلى اختيار المدينة > زرّ الرجوع معروض فعلاً مع خيارات الخدمة [0.38ms]
+(pass) الرجوع من اختيار الخدمة إلى اختيار المدينة > الرجوع يعيد سؤال المدينة [0.43ms]
+(pass) الرجوع من اختيار الخدمة إلى اختيار المدينة > الرجوع لا يمسح الاسم ولا الرقم — لا يُعاد سؤالهما [0.26ms]
+(pass) الرجوع من اختيار الخدمة إلى اختيار المدينة > المدينة المصحَّحة هي التي تُسجَّل فعلاً، لا الأولى [0.30ms]
+(pass) الرجوع من اختيار الخدمة إلى اختيار المدينة > الرجوع خارج خطوته لا يفعل شيئاً غامضاً [0.10ms]
+(pass) الرجوع من اختيار الخدمة إلى اختيار المدينة > هدف رجوع غير معروف يُرفض بدل أن يُخمَّن [0.19ms]
+
+tests/unit/policy-settings.test.ts:
+(pass) سجل المفاتيح > خمسة عشر مفتاحاً كما في مخطط البذر [0.02ms]
+(pass) سجل المفاتيح > يتعرّف على مفتاح معروف ويرفض المجهول [0.02ms]
+(pass) سجل المفاتيح > لكل مفتاح في السجل قيمة مبذورة [0.05ms]
+(pass) parseCitySettings — المسار السليم > يقرأ القيم المبذورة كما هي بلا أي قيمة مرمَّزة في الكود [0.09ms]
+(pass) parseCitySettings — المسار السليم > يقبل القيم الرقمية القادمة كنصوص من jsonb [0.04ms]
+(pass) parseCitySettings — المسار السليم > يتجاهل مفاتيح مستقبلية مجهولة بلا إسقاط اللقطة [0.04ms]
+(pass) parseCitySettings — الرفض > يرفض نقص أي مفتاح ويسمّيه [0.09ms]
+(pass) parseCitySettings — الرفض > يرفض مهلة عرض غير صحيحة عدداً [0.06ms]
+(pass) parseCitySettings — الرفض > يرفض نصف قطر سالباً [0.10ms]
+(pass) parseCitySettings — الرفض > يرفض وزناً خارج المدى [0,1] [0.03ms]
+(pass) parseCitySettings — الرفض > يرفض وزنين لا يجمعان واحداً — أهم حماية للمعادلة [0.08ms]
+(pass) parseCitySettings — الرفض > يقبل توزيعاً مختلفاً للوزنين ما دام مجموعهما واحداً [0.05ms]
+(pass) parseCitySettings — الرفض > يرفض عملة فارغة [0.03ms]
+(pass) parseCitySettings — الرفض > يرفض قائمة لغات فارغة [0.05ms]
+(pass) parseCitySettings — الرفض > يرفض قائمة لغات ليست نصوصاً [0.05ms]
+(pass) parseCitySettings — الرفض > يرفض صفّاً ينتمي إلى مدينة أخرى — عزل المدن (القاعدة 0.4) [0.05ms]
+(pass) toMatchingParameters > يمرّر كل معاملات المطابقة من الإعدادات بلا استنباط [0.05ms]
+(pass) subscriptionPriceFor > سعر كل خطة يأتي من الإعدادات [0.04ms]
+(pass) subscriptionPriceFor > يتبع تغيير السعر في الإعدادات فوراً [0.10ms]
+
+tests/unit/admin-dashboard.test.ts:
+(pass) أدوات العرض > يهرب من HTML فلا يُحقن وسم من اسم مستخدم [0.08ms]
+(pass) أدوات العرض > يعيد نصّاً فارغاً للقيم الغائبة لا كلمة null [0.02ms]
+(pass) أدوات العرض > يصوغ المدد بالساعات والدقائق لا بالثواني الخام [0.20ms]
+(pass) أدوات العرض > يعرض النجوم مملوءةً وفارغة بعددها الصحيح [0.07ms]
+(pass) أدوات العرض > يقصّ المعرّفات الطويلة فلا يكسر الجدول [0.04ms]
+(pass) صفحة الدخول > تطلب المعرّف أولاً ثم الرمز، ولا تطلبهما معاً [0.09ms]
+(pass) صفحة الدخول > تعرض الخطأ نصّاً مهروباً لا كوداً [0.04ms]
+(pass) الصفحات الثماني > النظرة العامة تعرض العدادات ومؤشّرات الصحة [0.76ms]
+(pass) الصفحات الثماني > السائقون: يعرض الصفوف ونماذج الفعل مع رمز CSRF [0.54ms]
+(pass) الصفحات الثماني > الطلبات الحية: تُعلِّم المتعثّر ولا تُعلِّم الطازج [0.46ms]
+(pass) الصفحات الثماني > الحضور: يجمع الملخّص والأحداث في صفحة واحدة [0.35ms]
+(pass) الصفحات الثماني > التقييمات: تميّز المنخفض عن غيره [0.30ms]
+(pass) الصفحات الثماني > النزاعات: تعرض نصّ الشكوى وحالتها [0.27ms]
+(pass) الصفحات الثماني > الخريطة: ترسم شبكة بعدد الخلايا المعلن، وتُظهر رسالة عند الفراغ [0.46ms]
+(pass) الصفحات الثماني > الإعدادات: تُظهر القيم المبدئية معلَّمةً وتحمل رمز CSRF في كل نموذج [0.41ms]
+(pass) الصفحات الثماني > عناصر التنقّل ثمانية، وكلها تحت /admin [0.05ms]
+(pass) مصادقة اللوحة > لا يخزَّن الرمز نفسه بل بصمته [0.17ms]
+(pass) مصادقة اللوحة > رمز الدخول ستّ خانات رقمية دائماً [0.21ms]
+(pass) مصادقة اللوحة > رمز الجلسة طويل ولا يتكرّر [0.15ms]
+(pass) مصادقة اللوحة > رمز CSRF مشتقّ من بصمة الجلسة ويختلف عنها [0.06ms]
+(pass) مصادقة اللوحة > المقارنة الآمنة ترفض الطول المختلف والقيمة المختلفة [0.17ms]
+(pass) مصادقة اللوحة > رسالة الرمز تحمل الرمز وتحذيراً صريحاً لمن لم يطلبه [0.05ms]
+(pass) مصادقة اللوحة > اسم كعكة الجلسة ثابت لا يُشتقّ في كل موضع [0.02ms]
+
+tests/unit/negotiation.test.ts:
+(pass) decideRotation — قرار العامل لدورة واحدة > تفاوض جارٍ ومهلته لم تنتهِ: ينتظر ولا يقطع على السائق دوره [0.12ms]
+(pass) decideRotation — قرار العامل لدورة واحدة > انتهت مهلة التفاوض بلا اتفاق صريح: ينتقل للسائق التالي [0.04ms]
+(pass) decideRotation — قرار العامل لدورة واحدة > نافذة الجمع مفتوحة ولم يضغط أحد: ينتظر [0.02ms]
+(pass) decideRotation — قرار العامل لدورة واحدة > انتهت نافذة الجمع بلا ضغطة واحدة: يُعاد النشر بدورة تالية [0.02ms]
+(pass) decideRotation — قرار العامل لدورة واحدة > نفد الثلاثة والدورات باقية: يُعاد النشر لا يُصعَّد [0.02ms]
+(pass) decideRotation — قرار العامل لدورة واحدة > نفدت الدورة الأخيرة: يُصعَّد لقروب الإسناد [0.02ms]
+(pass) decideRotation — قرار العامل لدورة واحدة > الاتفاق والإلغاء لا يمسّهما العامل مهما مرّ الوقت [0.04ms]
+(pass) decideRotation — قرار العامل لدورة واحدة > المهلة المنتهية تماماً في اللحظة نفسها تُعدّ منتهية لا منتظِرة [0.03ms]
+(pass) hasFreeSlot و isEligibleToClaim > المقعد الثالث متاح والرابع لا [0.02ms]
+(pass) hasFreeSlot و isEligibleToClaim > من سجّل في هذه الدورة لا يسجّل مرّتين [0.03ms]
+(pass) hasFreeSlot و isEligibleToClaim > سائقو الدورة السابقة مباشرةً مستبعدون من التي تليها [0.02ms]
+(pass) approximateArea — بطاقة القروب لا تكشف باب البيت > يقرّب الإحداثيات لمنزلتين لا أكثر [0.05ms]
+(pass) approximateArea — بطاقة القروب لا تكشف باب البيت > نقطتان متجاورتان جداً تعطيان المنطقة نفسها — وهذا هو الغرض [0.03ms]
+(pass) redactPhoneNumbers — منع الالتفاف على قناة التمرير > يحجب رقم جوال سعودي متّصلاً [0.10ms]
+(pass) redactPhoneNumbers — منع الالتفاف على قناة التمرير > يحجب الرقم بصيغته الدولية وبفواصل ومسافات [0.03ms]
+(pass) redactPhoneNumbers — منع الالتفاف على قناة التمرير > لا يحجب سعراً ولا وقتاً: الرسائل المشروعة تمرّ كما هي [0.02ms]
+(pass) redactPhoneNumbers — منع الالتفاف على قناة التمرير > يحجب رقمين في رسالة واحدة ويعدّهما اثنين [0.01ms]
+(pass) redactPhoneNumbers — منع الالتفاف على قناة التمرير > ثماني خانات تمرّ وتسع تُحجب — الحدّ يُختبر عند حافّته [0.03ms]
+
+tests/unit/agent-core-policies.test.ts:
+(pass) سياسة الثقة > تقبل اقتراحاً واضح الدليل فوق العتبة [0.11ms]
+(pass) سياسة الثقة > ترفض ما دون العتبة [0.03ms]
+(pass) سياسة الثقة > تخصم على غياب الدليل — رقمٌ بلا سند ليس ثقة [0.03ms]
+(pass) سياسة الثقة > تخصم على نقص البيانات: اقتراحٌ عن حالة ناقصة اقتراحٌ عن غير ما وقع [0.03ms]
+(pass) سياسة التنفيذ > ⚠️ السقف SUGGEST — يفشل هذا الاختبار يوم يُرفع بلا أمر صريح [0.02ms]
+(pass) سياسة التنفيذ > تمنح SUGGEST لاقتراح يطلبه [0.06ms]
+(pass) سياسة التنفيذ > ⚠️ ترفض EXECUTE **ولا تخفضه بصمت** — الرفض يُرى والخفض يختفي [0.03ms]
+(pass) سياسة التنفيذ > لا مسار تجاوز مهما بلغت الثقة [0.02ms]
+(pass) سياسة القرار > تُنتج suggested لاقتراح واثق مسموح [0.10ms]
+(pass) سياسة القرار > ⚠️ انتهاك الصلاحية يحجب القرار **قبل** النظر في الثقة [0.04ms]
+(pass) سياسة القرار > ثقة ضعيفة تُنتج insufficient_confidence بلا نصّ مقترح [0.03ms]
+(pass) سياسة القرار > لا قرار يتجاوز SUGGEST في أي حال [0.06ms]
+(pass) سياسة التعلّم > ⚠️ الاعتماد الآلي ممنوع — لا استثناء ولا عتبة ثقة تفتحه [0.02ms]
+(pass) سياسة التعلّم > keyword و entity منفَّذان، policy و code لا [0.03ms]
+(pass) سياسة التعلّم > يقبل مرشَّحاً بدعم كافٍ [0.14ms]
+(pass) سياسة التعلّم > يرفض دعماً دون العتبة: مرّةٌ واحدة صدفة لا نمط [0.03ms]
+(pass) سياسة التعلّم > يرفض كلمة موجودة أصلاً في الذاكرة [0.02ms]
+(pass) سياسة التعلّم > يرفض الكلمات الوظيفية القصيرة — تتكرّر بلا أن تدلّ [0.02ms]
+(pass) سياسة التعلّم > يرفض الأرقام المجرّدة: رقم طلبٍ ليس معرفة عامّة [0.02ms]
+(pass) سجلّ الأدوات والصلاحيات > ⚠️ السجلّ الافتراضي **فارغ** — لا أداة EXECUTE واحدة مسجَّلة [0.19ms]
+(pass) سجلّ الأدوات والصلاحيات > ⚠️ التسجيل نفسه يرفض أي أداة فوق السقف [0.08ms]
+(pass) سجلّ الأدوات والصلاحيات > الصلاحيات ترفض افتراضاً: وكيلٌ بلا أدوات مسموحة لا ينفّذ شيئاً [0.08ms]
+(pass) سجلّ الأدوات والصلاحيات > وكيل مجهول مرفوض قطعاً [0.04ms]
+
+tests/unit/agent-measurement-infer.test.ts:
+(pass) inferVerdict — مقارنة الفعل بالدعوى لا بالصياغة > «مشكلة اشتراك» + تفعيل = صدق الوكيل [0.07ms]
+(pass) inferVerdict — مقارنة الفعل بالدعوى لا بالصياغة > «مشكلة اشتراك» + رفض أو إنهاء = أخطأ الوكيل [0.02ms]
+(pass) inferVerdict — مقارنة الفعل بالدعوى لا بالصياغة > نزاع رحلة: أيّ حسمٍ غير تفعيل الاشتراك موافقٌ لكونه نزاعاً [0.02ms]
+(pass) inferVerdict — مقارنة الفعل بالدعوى لا بالصياغة > بلا تصنيف: `ignored` لا `rejected` — لا حكم على من لم يدَّعِ [0.01ms]
+(pass) inferVerdict — مقارنة الفعل بالدعوى لا بالصياغة > `general_inquiry`: لا يُقابله فعلٌ في هذا المسار فلا يُحاكَم به [0.01ms]
+(pass) inferVerdict — مقارنة الفعل بالدعوى لا بالصياغة > تصنيف مجهول لم يُنتجه الوكيل بعد: `ignored` لا حكمٌ مخمَّن
+
+tests/unit/dispute.test.ts:
+(pass) نصّ الشكوى > يرفض ما دون الحدّ الأدنى ويميّز السبب [0.07ms]
+(pass) نصّ الشكوى > يرفض الأمر ويميّزه عن النصّ القصير — لأن الردّ عليهما مختلف [0.02ms]
+(pass) نصّ الشكوى > يرفض ما يتجاوز حدّ الرسالة الواحدة [0.03ms]
+(pass) نصّ الشكوى > يقصّ الفراغات ولا يغيّر حرفاً من نصّ المستخدم [0.02ms]
+(pass) نصّ الشكوى > الفراغات وحدها لا تصنع شكوى [0.02ms]
+(pass) معرّف المرفق > الفارغ والمعدوم كلاهما لا مرفق [0.04ms]
+(pass) معرّف المرفق > يمرَّر كما هو بلا تفسير لبنيته [0.01ms]
+(pass) حرّاس الأنواع > لا يقبلان قيمة خارج المجال [0.04ms]
+(pass) ما يُسمح على التذكرة > المحسومة لا تُستلم ولا يُتصرَّف فيها [0.09ms]
+(pass) ما يُسمح على التذكرة > الرفض ممكن على كل تذكرة غير محسومة — هو إقفال لا تصرّف في اشتراك [0.02ms]
+(pass) ما يُسمح على التذكرة > تذكرة نزاع بلا اشتراك لا تُعرض عليها أزرار الاشتراك [0.05ms]
+(pass) ما يُسمح على التذكرة > تذكرة اشتراك باشتراك فعّال تعرض التفعيل والإنهاء معاً [0.04ms]
+(pass) ما يُسمح على التذكرة > المستلَمة لا يُعرض عليها زرّ الاستلام مرة أخرى [0.02ms]
+(pass) ما يُسمح على التذكرة > المحسومة بلا أزرار إطلاقاً — الزرّ الذي لا يعمل أسوأ من غيابه [0.01ms]
+(pass) ترتيب الأولوية > المفتوحة قبل المستلَمة، والأقدم قبل الأحدث [0.09ms]
+
+tests/unit/check-migrations-rls.test.ts:
+(pass) استخراج جداول RLS من نصّ الهجرات > يلتقط الأمر المباشر باسمه [0.35ms]
+(pass) استخراج جداول RLS من نصّ الهجرات > يلتقط الأمر المباشر بصيغة if exists وبمسافات متعدّدة [0.04ms]
+(pass) استخراج جداول RLS من نصّ الهجرات > يلتقط كل اسم في مصفوفة حلقة التفعيل ولا شيء غيره [0.06ms]
+(pass) استخراج جداول RLS من نصّ الهجرات > جدول خارج المصفوفة لا يُحتسب — هذه هي الثغرة التي كانت قائمة [0.04ms]
+(pass) استخراج جداول RLS من نصّ الهجرات > حلقة لا تُفعّل RLS لا تُحتسب مهما كان في مصفوفتها [0.02ms]
+(pass) استخراج جداول RLS من نصّ الهجرات > حلقة تُفعّل RLS بأسماء مبنيّة لا حرفيّة لا تُحتسب: فاحص ساكن لا يعرف قيمتها [0.01ms]
+(pass) استخراج جداول RLS من نصّ الهجرات > الأمر المباشر والحلقة يتجمّعان بلا تكرار [0.02ms]
+(pass) استخراج جداول RLS من نصّ الهجرات > نصّ بلا تفعيل إطلاقاً يعطي مجموعة فارغة لا مجموعة مفترضة [0.11ms]
+
+tests/unit/agent-core-memory.test.ts:
+(pass) الذاكرة قصيرة المدى > تحفظ أثناء المعالجة وتُفرَّغ بالإفناء — لا تخزين بعدها إطلاقاً [0.14ms]
+(pass) الذاكرة متوسّطة المدى > تحفظ ثم تُقرأ [0.97ms]
+(pass) الذاكرة متوسّطة المدى > نافذة متدحرجة: الأقدم يُنسى عند بلوغ الحدّ [0.57ms]
+(pass) الذاكرة متوسّطة المدى > ⚠️ لا تحفظ نصّ التذكرة الخام — الطول فقط [0.25ms]
+(pass) الذاكرة طويلة المدى > تبدأ ببذرة معرفة فلا يبدأ الوكيل أعمى [0.37ms]
+(pass) الذاكرة طويلة المدى > المخزَّن يغلب البذرة عند التعارض [0.56ms]
+(pass) الذاكرة طويلة المدى > تنجو من إعادة الفتح: فقدانها عودة لحالة بلا معرفة سابقة لا كسر [0.43ms]
+(pass) ⚠️ حلقة التعلّم — الموافقة البشرية > المرشَّح يبقى معلَّقاً حتى يفصل فيه إنسان [0.45ms]
+(pass) ⚠️ حلقة التعلّم — الموافقة البشرية > ⚠️ لا اعتماد بلا اسم من اعتمده — حتى لو المرشَّح سليم [0.39ms]
+(pass) ⚠️ حلقة التعلّم — الموافقة البشرية > الاعتماد باسمٍ يكتب في الذاكرة الطويلة فعلاً [0.74ms]
+(pass) ⚠️ حلقة التعلّم — الموافقة البشرية > ⚠️ نوع غير منفَّذ يُرفض ولو وافق مراجع — policy لا تمرّ [0.25ms]
+(pass) ⚠️ حلقة التعلّم — الموافقة البشرية > المرفوض لا يُحيا مجدّداً بتكراره [0.41ms]
+(pass) ⚠️ حلقة التعلّم — الموافقة البشرية > لا يُفصل في مرشَّح مرّتين [0.48ms]
+
+tests/unit/order-state-machine.test.ts:
+(pass) canTransition > مشروع: searching → matched [0.03ms]
+(pass) canTransition > مشروع: searching → cancelled
+(pass) canTransition > مشروع: searching → failed
+(pass) canTransition > مشروع: matched → in_progress
+(pass) canTransition > مشروع: matched → searching
+(pass) canTransition > مشروع: in_progress → completed
+(pass) canTransition > مشروع: failed → searching
+(pass) canTransition > مرفوض: searching → in_progress [0.02ms]
+(pass) canTransition > مرفوض: searching → completed
+(pass) canTransition > مرفوض: matched → completed
+(pass) canTransition > مرفوض: completed → in_progress
+(pass) canTransition > مرفوض: cancelled → searching
+(pass) canTransition > مرفوض: completed → cancelled
+(pass) isTerminal > completed و cancelled نهائيتان [0.03ms]
+(pass) isTerminal > failed غير نهائية لأنها قابلة لإعادة البحث [0.01ms]
+(pass) transition > لا مطابقة بلا سائق مُسنَد [0.11ms]
+(pass) transition > مطابقة صحيحة مع سائق مُسنَد [0.03ms]
+(pass) transition > يرفض إنهاء رحلة لم تبدأ ويعيد سبباً واضحاً [0.05ms]
+(pass) transition > المسار الكامل: searching → matched → in_progress → completed [0.05ms]
+(pass) transition > لا يعدّل الكائن الأصلي [0.02ms]
+(pass) returnToSearching > يزيد رقم الدورة ويُفرّغ السائق [0.05ms]
+(pass) returnToSearching > يرفض إعادة طلب منتهٍ للبحث [0.02ms]
+(pass) hasExhaustedBroadcastRounds > لم تُستنفد عند دورة واحدة من ثلاث [0.02ms]
+(pass) hasExhaustedBroadcastRounds > استُنفدت عند بلوغ الحد المبذور [0.01ms]
+
+tests/unit/expire-offers-job.test.ts:
+(pass) expireOffers > ينهي المنتهية فقط ويترك السارية [0.50ms]
+(pass) expireOffers > لا يستدعي الدالة الذرّية إن لم ينتهِ شيء [0.12ms]
+(pass) expireOffers > لا يمسّ عرضاً مقبولاً ولا مرفوضاً مهما طال الزمن [0.11ms]
+(pass) expireOffers > يحترم مهلة المدينة نفسها لا قيمة مرمَّزة [0.10ms]
+(pass) expireOffers > ينقل فشل قراءة الإعدادات كـ Result لا كاستثناء [0.13ms]
+(pass) expireOffers > يفشل بوضوح إن كانت إعدادات المدينة ناقصة [0.12ms]
+(pass) expireOffers > ينقل فشل الدالة الذرّية كـ Result [0.12ms]
+(pass) expireOffers > يبلّغ العدد الذي طبّقته القاعدة فعلاً لا العدد الذي طلبه [0.16ms]
+
+tests/unit/job-runner.test.ts:
+(pass) createJobRunner > يشغّل مهمّة runOnStart في أول شوط، ولا يشغّل غيرها قبل استحقاقها [0.95ms]
+(pass) createJobRunner > لا يُعيد تشغيل مهمّة قبل انقضاء تواترها، ويُعيدها بعده [0.22ms]
+(pass) createJobRunner > عطل مهمّة لا يُسقط أختها في نفس الشوط [0.35ms]
+(pass) createJobRunner > مهمّة تفشل باستمرار لا تُشغَّل في كل نبضة: توقيت الفشل يُسجَّل أيضاً [0.20ms]
+(pass) createJobRunner > لا يبدأ شوطاً ثانياً لمهمّة لم ينتهِ شوطها الأول [1.39ms]
+(pass) createJobRunner > start و stop يعكسان حالة التشغيل ولا يتكرّران [0.16ms]
+(pass) createJobRunner > قفل مرفوض يعطي skipped_locked_elsewhere ولا يُشغّل المهمّة ولا يُسجّل وقتاً [0.16ms]
+(pass) createJobRunner > مهمّة تخطّاها القفل تعمل في الشوط التالي حين يتحرّر [0.23ms]
+(pass) createJobRunner > التوازي محدود بالسقف: لا تعمل مهامّ أكثر منه في اللحظة نفسها [61.59ms]
+(pass) createJobRunner > سقف توازٍ صفر أو سالب يُصحَّح إلى واحد لا يُعطّل المشغّل [0.27ms]
+
+tests/unit/agent-core-guards.test.ts:
+(pass) حارس المُدخَل > يقبل حدثاً سليماً بلا تعديل [0.35ms]
+(pass) حارس المُدخَل > يرفض نوع حدث غير معروف بدل أن يُمرّره [0.05ms]
+(pass) حارس المُدخَل > يرفض معرّف حدث فارغ — لا تجربة بلا مرجع [0.02ms]
+(pass) حارس المُدخَل > يقبل نصّاً فارغاً: حدثٌ بلا نصّ ليس حدثاً خبيثاً [0.04ms]
+(pass) حارس المُدخَل > ينزع محارف التحكّم بدل رفض الرسالة كلّها [0.04ms]
+(pass) حارس المُدخَل > ينزع محارف قلب الاتجاه — أداة إخفاء نصّ عن قارئه [0.02ms]
+(pass) حارس المُدخَل > يقصّ النصّ الطويل ولا يرفضه: شكوى مطوّلة شكوى صحيحة [0.07ms]
+(pass) حارس المُدخَل > يرفض كثرة الحقول الإضافية — بابٌ لتمرير الدومين كاملاً [0.17ms]
+(pass) حارس المُخرَج > يمرّر اقتراحاً سليماً [0.39ms]
+(pass) حارس المُخرَج > يحجب رقم جوّال سعودي تسرّب إلى الاقتراح [0.06ms]
+(pass) حارس المُخرَج > يحجب البريد الإلكتروني [0.05ms]
+(pass) حارس المُخرَج > يرفض محاولة حقن تعليمات في مخرَج يقرؤه بشر [0.05ms]
+(pass) حارس المُخرَج > ⚠️ يرفض مستوى صلاحية فوق السقف ولا يخفضه بصمت [0.04ms]
+(pass) حارس المُخرَج > يرفض ثقة خارج [0,1] — رقمٌ مستحيل يعني حساباً معطوباً [0.03ms]
+(pass) حارس المُخرَج > يقصّ الأدلّة الزائدة بدل رفض الاقتراح [0.08ms]
+(pass) حارس التنفيذ > ⚠️ التنفيذ معطَّل — هذا الاختبار يجب أن يفشل يوم يُفتَح بلا أمر صريح [0.02ms]
+(pass) حارس التنفيذ > يرفض أي طلب تنفيذ مهما كان مصدره [0.06ms]
+(pass) حارس التنفيذ > يمرّر READ — الحاجز الذي يمنعه هو السجلّ الفارغ لا هذا الحارس [0.04ms]
+(pass) حارس التنفيذ > يرفض ثقة معطوبة: مُدخَل فاسد لا «ثقة منخفضة» [0.02ms]
+
+tests/unit/agent-core-pipeline.test.ts:
+(pass) ⚠️ اختبار العزل الإلزامي — الطبقة معطَّلة > الافتراض هو التعطيل: لا تعمل الطبقة إلا بقرار صريح [0.14ms]
+(pass) ⚠️ اختبار العزل الإلزامي — الطبقة معطَّلة > ⚠️ معطَّلة: تعود بقرار فارغ ولا تقرأ ولا تكتب ولا تُنشئ مجلّداً [0.52ms]
+(pass) ⚠️ اختبار العزل الإلزامي — الطبقة معطَّلة > ⚠️ معطَّلة: `process` تعود فوراً بقرار «معطَّلة» بلا صلاحية ولا اقتراح [0.34ms]
+(pass) ⚠️ اختبار العزل الإلزامي — الطبقة معطَّلة > ⚠️ معطَّلة: كل الأبواب الأخرى مغلقة أيضاً — لا باب خلفي [0.20ms]
+(pass) المسار الكامل — الطبقة مفعّلة > مشكلة اشتراك: تُصنَّف ويُقترح ردّ بمستوى SUGGEST [5.62ms]
+(pass) المسار الكامل — الطبقة مفعّلة > نزاع رحلة يُصنَّف تصنيفه [2.10ms]
+(pass) المسار الكامل — الطبقة مفعّلة > نصّ غامض: لا يُخترع تصنيف ولا يُعرض اقتراح ضعيف [1.28ms]
+(pass) المسار الكامل — الطبقة مفعّلة > نصّ فارغ لا يكسر شيئاً [1.29ms]
+(pass) المسار الكامل — الطبقة مفعّلة > حدث محجوز (رصد شذوذ) لا وكيل له فيعود no_decision بلا كسر [1.02ms]
+(pass) المسار الكامل — الطبقة مفعّلة > حتمية: النصّ نفسه يُنتج التصنيف نفسه والثقة نفسها [1.89ms]
+(pass) المسار الكامل — الطبقة مفعّلة > لا يرمي أبداً — حتى مع حدث مشوّه تماماً [0.86ms]
+(pass) التجربة والنتيجة والتقييم > يُسجَّل القرار ثم تُسجَّل نتيجته ثم يُقيَّم [2.02ms]
+(pass) التجربة والنتيجة والتقييم > ⚠️ التعلّم لا يُنتج شيئاً معتمَداً تلقائياً مهما تكرّر النمط [8.07ms]
+
+tests/unit/offer-timeout.test.ts:
+(pass) offerExpiresAt > يضيف المهلة بالثواني إلى لحظة الإرسال [0.06ms]
+(pass) isOfferExpired > غير منتهٍ قبل المهلة بثانية [0.03ms]
+(pass) isOfferExpired > منتهٍ عند بلوغ المهلة بالضبط [0.02ms]
+(pass) isOfferExpired > العرض المقبول لا تنتهي مهلته [0.02ms]
+(pass) isOfferExpired > تغيير المهلة في الإعدادات يغيّر النتيجة فعلياً [0.02ms]
+(pass) secondsRemaining > المهلة كاملة عند لحظة الإرسال [0.04ms]
+(pass) secondsRemaining > لا يعيد رقماً سالباً بعد انتهاء المهلة [0.02ms]
+(pass) driversToExclude > يستبعد الرافض والمنتهي والملغى [0.05ms]
+(pass) driversToExclude > يستبعد من لديه عرض معلَّق ما زال سارياً — منعاً لعرضين على سائق واحد [0.02ms]
+(pass) driversToExclude > لا يستبعد من انتهت مهلته المعلَّقة فعلياً فيصبح متاحاً لدورة جديدة [0.02ms]
+(pass) driversToExclude > لا يكرّر السائق إن كان له عرضان في دورتين [0.02ms]
+(pass) driversToExclude > قائمة فارغة لا تستبعد أحداً [0.01ms]
+
+tests/unit/telegram-adapter.test.ts:
+(pass) toIncomingUpdate > يقرأ رسالة نصية [0.16ms]
+(pass) toIncomingUpdate > يقرأ ضغطة زرّ ويأخذ الدردشة من الرسالة المرفقة [0.04ms]
+(pass) toIncomingUpdate > يقرأ الموقع وجهة الاتصال [0.07ms]
+(pass) toIncomingUpdate > يعيد null لما لا يخصّنا بلا خطأ [0.03ms]
+(pass) toIncomingUpdate > رسالة بلا نص ولا موقع تُصنَّف غير مدعومة لا مهمَلة [0.02ms]
+(pass) toTelegramMarkup > يحوّل أزرار inline [0.08ms]
+(pass) toTelegramMarkup > يحوّل زرّ الموقع وزرّ الرقم [0.04ms]
+(pass) toTelegramMarkup > يحوّل إزالة اللوحة، ويعيد undefined لغياب اللوحة [0.03ms]
+(pass) toTelegramMarkup > يعرف حدّ تلغرام لبيانات الزرّ [0.04ms]
+(pass) محوّل بوت السائق > يرسل ردّي /start فعلاً بترتيبهما [0.56ms]
+(pass) محوّل بوت السائق > يمرّر لوحة الأزرار بصيغة تلغرام [0.22ms]
+(pass) محوّل بوت السائق > يعترف بالاستلام ولا يردّ على تحديث لا يخصّنا [0.09ms]
+(pass) محوّل بوت السائق > يعيد false إن فشل الإرسال فعلاً — بلا ادّعاء نجاح [0.22ms]
+(pass) محوّل بوت السائق > يسجّل ويفشل بلا إرسال إن تجاوزت بيانات زرّ حدّ تلغرام [0.28ms]
+(pass) مخزن الجلسات > يحفظ ويقرأ ثم يمحو [0.15ms]
+(pass) مخزن الجلسات > ينسى الجلسة بعد انتهاء مهلتها [0.14ms]
+(pass) تركيب التبعيات (container) > يوجّه تحديث السائق إلى بوت السائق وتحديث العميل إلى بوت العميل [0.53ms]
+(pass) تركيب التبعيات (container) > يرفض حمولة ليست كائناً بلا ادّعاء معالجة [0.16ms]
+
+tests/unit/admin-login-log-detail.test.ts:
+(pass) تصنيف فشل مصادقة اللوحة > عطل المنفذ يحمل التفصيل لا النص الثابت [0.09ms]
+(pass) تصنيف فشل مصادقة اللوحة > رفض الأعمال يُصنَّف rejected لا db [0.03ms]
+(pass) تصنيف فشل مصادقة اللوحة > النجاح لا يُنتج فشلاً [0.02ms]
+(pass) سجلّ فشل الدخول يفرّق بين الأسباب > عطل القاعدة: السطر يذكر القاعدة ويحمل رسالة SQL كاملة [2.86ms]
+(pass) سجلّ فشل الدخول يفرّق بين الأسباب > رفض الأعمال: سطر مختلف تماماً لا يذكر عطل القاعدة [0.80ms]
+(pass) سجلّ فشل الدخول يفرّق بين الأسباب > فشل تسليم تلغرام: مميَّز عن الاثنين، والرمز صدر بنجاح [0.70ms]
+(pass) سجلّ فشل الدخول يفرّق بين الأسباب > الرسائل الثلاث متمايزة نصّاً — لا رسالة عامة واحدة [1.27ms]
+
+tests/unit/geo.test.ts:
+(pass) makeCoordinates > يقبل إحداثيات صحيحة [0.03ms]
+(pass) makeCoordinates > يرفض خط عرض خارج المدى [0.03ms]
+(pass) makeCoordinates > يرفض خط طول خارج المدى [0.02ms]
+(pass) makeCoordinates > يرفض NaN [0.01ms]
+(pass) makeDistanceKm > يرفض المسافة السالبة [0.06ms]
+(pass) makeDistanceKm > يقبل الصفر [0.02ms]
+(pass) haversineKm > صفر لنفس النقطة [0.02ms]
+(pass) haversineKm > جدة إلى مكة نحو 69 كم [0.02ms]
+(pass) haversineKm > جدة إلى الرياض نحو 850 كم [0.01ms]
+(pass) haversineKm > متماثل في الاتجاهين [0.02ms]
+(pass) isWithinRadiusKm > مكة خارج نصف قطر 10 كم من جدة [0.03ms]
+(pass) isWithinRadiusKm > مكة داخل نصف قطر 100 كم من جدة [0.05ms]
+(pass) proximityFactor > واحد عند المسافة صفر [0.01ms]
+(pass) proximityFactor > صفر عند حدّ نصف القطر [0.01ms]
+(pass) proximityFactor > صفر خارج نصف القطر [0.01ms]
+(pass) proximityFactor > نصف عند منتصف المسافة [0.01ms]
+(pass) proximityFactor > صفر عند نصف قطر غير صالح
+
+tests/unit/dispatch-matching.test.ts:
+(pass) rejectionReasonFor > يستبعد سائق مدينة أخرى [0.03ms]
+(pass) rejectionReasonFor > يستبعد غير الموثَّق [0.03ms]
+(pass) rejectionReasonFor > يستبعد غير المتاح [0.02ms]
+(pass) rejectionReasonFor > يستبعد من لم يفعّل نوع الخدمة [0.03ms]
+(pass) rejectionReasonFor > يستبعد من لا اشتراك له [0.02ms]
+(pass) rejectionReasonFor > يستبعد منتهي الاشتراك [0.06ms]
+(pass) rejectionReasonFor > يستبعد من خطته لا تغطي الخدمة [0.03ms]
+(pass) rejectionReasonFor > يستبعد من هو خارج نصف القطر [0.04ms]
+(pass) rejectionReasonFor > يستبعد المستبعدين في هذه الدورة [0.03ms]
+(pass) rejectionReasonFor > يقبل المرشح المؤهل [0.02ms]
+(pass) scoreCandidate > أقصى نقاط عند مسافة صفر وتقييم كامل [0.03ms]
+(pass) scoreCandidate > مكوّن التقييم وحده عند حدّ نصف القطر [0.02ms]
+(pass) scoreCandidate > يستخدم التقييم الافتراضي للسائق الجديد [0.01ms]
+(pass) scoreCandidate > يحصر التقييم الشاذ داخل المدى [0.01ms]
+(pass) scoreCandidate > يتجاهل المتوسط تحت عتبة الثقة ويستعمل الافتراضي [0.02ms]
+(pass) scoreCandidate > يعتدّ بالمتوسط عند بلوغ العتبة بالضبط [0.01ms]
+(pass) scoreCandidate > تقييم منخفض موثوق يضرّ صاحبه فعلاً، بخلاف المنخفض الهشّ [0.02ms]
+(pass) evaluateCandidates > يرتّب الأقرب أولاً عندما يغلب وزن القرب [0.08ms]
+(pass) evaluateCandidates > ينقلب الترتيب فعلياً عند تغيير الوزنين وحدهما — بلا تعديل كود [0.05ms]
+(pass) evaluateCandidates > يسجّل سبب استبعاد كل مرشح غير مؤهل [0.04ms]
+(pass) evaluateCandidates > ترتيب حتمي عند تعادل النقاط والمسافة [0.11ms]
+(pass) evaluateCandidates > يحسب المسافة لكل مرشح مؤهل [0.03ms]
+(pass) selectBroadcastBatch > يبثّ لأفضل خمسة فقط بحجم الدفعة المبذور [0.08ms]
+(pass) selectBroadcastBatch > حجم الدفعة يُقرأ من المعاملات فعلياً [0.08ms]
+(pass) selectBroadcastBatch > دفعة صفرية لا تبثّ لأحد [0.06ms]
+(pass) selectBroadcastBatch > الدفعة هي رأس القائمة المرتَّبة نفسها [0.12ms]
+
+tests/unit/redis-session.test.ts:
+(pass) مخزن الجلسات على Redis > يحفظ ثم يقرأ الحالة كاملة بكل حقولها بلا فقد [0.58ms]
+(pass) مخزن الجلسات على Redis > جلسة غير موجودة تعني null لا خطأ [0.07ms]
+(pass) مخزن الجلسات على Redis > المسح يُزيل الجلسة فعلاً من Redis [0.17ms]
+(pass) مخزن الجلسات على Redis > بوتان مختلفان لنفس معرّف تلغرام لا تختلط جلستاهما [0.17ms]
+(pass) مخزن الجلسات على Redis > الحفظ يضع مهلة انتهاء صريحة فلا تبقى جلسة للأبد [0.09ms]
+(pass) مخزن الجلسات على Redis > مهلة مخصّصة تُحترم كما مُرّرت [0.06ms]
+(pass) مخزن الجلسات على Redis > انقطاع Redis يُعيد عطل منفذ لا جلسة فارغة صامتة [0.21ms]
+(pass) مخزن الجلسات على Redis > حالة فاسدة في Redis تُمحى وتُعامَل «لا جلسة» بدل تكرار الفشل كل رسالة [0.11ms]
+(pass) مخزن الجلسات على Redis > نصّ ليس JSON أصلاً يُعامَل معاملة الفاسد لا يُسقط الطلب [0.12ms]
+(pass) التحقّق من حالة الحوار القادمة من Redis > يقبل الحالة الابتدائية بعد دورة تسلسل كاملة [0.02ms]
+(pass) التحقّق من حالة الحوار القادمة من Redis > يرفض خطوة غير معروفة — نسخة أقدم كتبت خطوة حُذفت [0.02ms]
+(pass) التحقّق من حالة الحوار القادمة من Redis > يرفض حقلاً ناقصاً ولو كان الباقي سليماً [0.03ms]
+(pass) التحقّق من حالة الحوار القادمة من Redis > يرفض نوع خدمة لا وجود له في enum القاعدة [0.02ms]
+(pass) التحقّق من حالة الحوار القادمة من Redis > يرفض إحداثيات ناقصة أو غير رقمية [0.04ms]
+(pass) التحقّق من حالة الحوار القادمة من Redis > يرفض نصّاً صالح JSON لكنه ليس كائناً [0.02ms]
+(pass) عميل Upstash عبر REST > يرسل الأمر مصفوفةً في الجسم مع رمز الاعتماد [0.58ms]
+(pass) عميل Upstash عبر REST > قيمة غير موجودة تُعاد null كما هي لا خطأ [0.10ms]
+(pass) عميل Upstash عبر REST > خطأ Redis نفسه يُميَّز عن انقطاع الشبكة [0.09ms]
+(pass) عميل Upstash عبر REST > جواب HTTP فاشل يُبلَّغ بحالته [0.10ms]
+(pass) عميل Upstash عبر REST > جسم بلا حقل result يُعدّ مشوّهاً لا ناجحاً بقيمة undefined [0.09ms]
+(pass) عميل Upstash عبر REST > انقطاع الشبكة يُصنَّف network [0.17ms]
+(pass) عميل Upstash عبر REST > التأخّر فوق المهلة يُقطع ويُصنَّف timeout لا انتظاراً بلا نهاية [20.90ms]
+
+tests/unit/translation.test.ts:
+(pass) قيم اللغة > يطبّع الوسوم المركّبة إلى لغة مدعومة [0.10ms]
+(pass) قيم اللغة > يرفض ما لا قاموس له ويعيد null لا لغة افتراضية [0.02ms]
+(pass) قيم اللغة > يميّز الفراغ من غير المدعوم في سبب الرفض [0.07ms]
+(pass) قيم اللغة > يعرض اللغات الثلاث كلَّ واحدة باسمها بلغتها هي [0.11ms]
+(pass) قرار الترجمة > لا يترجم بين لغة ونفسها [0.08ms]
+(pass) قرار الترجمة > لا يترجم نصّاً بلا حرف واحد [0.05ms]
+(pass) قرار الترجمة > يمتنع عن النصّ الأطول من الحدّ بدل بتره صامتاً [0.03ms]
+(pass) قرار الترجمة > الإطفاء سبب صريح لا عطل [0.02ms]
+(pass) قرار الترجمة > يقتصّ النصّ في القرار فلا يدخل الفراغ مفتاح الذاكرة [0.04ms]
+(pass) قرار الترجمة > مفتاح الذاكرة يتغيّر بتغيّر الاتجاه [0.02ms]
+(pass) قرار الترجمة > الأصل يُعرض مع المترجَم فقط، ولا يُذيَّل تحت نصّ لم يُترجَم [0.05ms]
+(pass) حالة استخدام الترجمة > تترجم وتحفظ في الذاكرة، ثم تقرأ منها بلا نداء ثانٍ [0.52ms]
+(pass) حالة استخدام الترجمة > سقوط المزوّد يُبلَّغ ولا يُوقف الرسالة [0.22ms]
+(pass) حالة استخدام الترجمة > زوج لغتين لا يدعمه المزوّد لا يستحقّ إعادة محاولة [0.02ms]
+(pass) حالة استخدام الترجمة > مزوّد يعيد النصّ كما أرسلناه ليس ترجمة [0.11ms]
+(pass) حالة استخدام الترجمة > غياب المزوّد لا يرمي استثناءً [0.06ms]
+(pass) القالب المحلَّى بالترجمة > القالب من القاموس بلغة القارئ، والمترجَم هو النصّ الحرّ وحده، والأصل مذيَّل [0.22ms]
+(pass) القالب المحلَّى بالترجمة > بلا ترجمة: القالب وحده بلا تذييل [0.08ms]
+(pass) الذاكرة المؤقتة > تُسقط المُدخَل بعد انتهاء مهلته [0.11ms]
+(pass) الذاكرة المؤقتة > لا تتجاوز سقف المُدخَلات فتتسرّب الذاكرة [0.09ms]
+(pass) تفسير ردود المزوّدات > DeepL: يقرأ أول ترجمة [0.66ms]
+(pass) تفسير ردود المزوّدات > DeepL: يرفض الأردية صراحةً بدل أن يفشل عند المستخدم [0.09ms]
+(pass) تفسير ردود المزوّدات > Google v2: يفكّ كيانات HTML فلا تصل المستخدم [0.25ms]
+(pass) تفسير ردود المزوّدات > google-web: يوصل القطع بالترتيب [0.31ms]
+(pass) تفسير ردود المزوّدات > MyMemory: 429 يُصنَّف تجاوز حصّة لا عطلاً دائماً [0.27ms]
+(pass) تفسير ردود المزوّدات > MyMemory: تحذير المزوّد داخل حقل الترجمة لا يُسلَّم كترجمة [0.10ms]
+(pass) تفسير ردود المزوّدات > خطأ HTTP عام يُصنَّف تعذّر مزوّد [0.19ms]
+(pass) تفسير ردود المزوّدات > المصنع: none يعيد null، والمزوّد المفتاحي بلا مفتاح يعيد null [0.10ms]
+(pass) إعادة المحاولة عند العطل العابر > 503 يُعاد مرّة واحدة فقط، وينجح إن نجحت الثانية [0.24ms]
+(pass) إعادة المحاولة عند العطل العابر > الفشل المتكرّر يُسلّم بعد محاولتين لا ثلاث [0.13ms]
+(pass) إعادة المحاولة عند العطل العابر > انقطاع الشبكة (بلا ردّ أصلاً) يستحقّ إعادة [0.21ms]
+(pass) إعادة المحاولة عند العطل العابر > 429 لا يُعاد: من قيل له «أكثرتَ» لا يزيد [0.11ms]
+(pass) إعادة المحاولة عند العطل العابر > 401 لا يُعاد: مفتاح خاطئ لا يصحّ بالتكرار [0.11ms]
+(pass) إعادة المحاولة عند العطل العابر > الردّ المشوَّه لا يُعاد: المزوّد أجاب ولكن بما لا يُفهم [0.10ms]
+(pass) إعادة المحاولة عند العطل العابر > الميزانية الكلّية سقفّ لا يكسره التكرار: مهلة ضيّقة تمنع المحاولة الثانية [0.11ms]
+(pass) إعادة المحاولة عند العطل العابر > التراجع يُنتظر فعلاً قبل المحاولة الثانية وبقدر معلوم [0.16ms]
+(pass) كشف اللغة > يميّز الخطّ اللاتيني من العربي، ويرجّح الأردية بحروفها المنفردة [0.10ms]
+(pass) كشف اللغة > اللغة المُعلَنة أولى من الكشف دائماً [0.05ms]
+(pass) حوار اختيار اللغة > القائمة تُعرض بلغة المستخدم الحالية وفيها اللغات الثلاث [0.11ms]
+(pass) حوار اختيار اللغة > التأكيد يصل باللغة الجديدة، والجلسة تُحدَّث بعد نجاح الكتابة [0.34ms]
+(pass) حوار اختيار اللغة > اللغة نفسها: رسالة «لم يتغيّر شيء» لا رسالة نجاح تغيير [0.12ms]
+(pass) حوار اختيار اللغة > لغة غير مدعومة تُرفض قبل أي نداء قاعدة [0.08ms]
+(pass) حوار اختيار اللغة > فشل الكتابة يُترجَم إلى «سجّل أولاً» لا إلى عطل تقني [0.09ms]
+(pass) حوار اختيار اللغة > الردّ يذهب للمحادثة الخاصة لا لمصدر الضغطة [0.10ms]
+
+tests/unit/reputation.test.ts:
+(pass) تحليل النجوم > يقبل الأعداد الصحيحة من واحد إلى خمسة فقط [0.09ms]
+(pass) تحليل النجوم > يفرّق بين أسباب الرفض ولا يجمعها في «غير صحيح» [0.08ms]
+(pass) تحليل النجوم > يقبل النصّ الرقمي بمسافات حوله [0.02ms]
+(pass) تحليل النجوم > شريط النجوم يعكس العدد بصرياً [0.04ms]
+(pass) تحليل النجوم > التعليق يُقصّ من الأطراف ويُرفض إن تجاوز الحدّ [0.05ms]
+(pass) تحليل النجوم > الاتجاه المقابل ينقلب مرّتين فيعود [0.03ms]
+(pass) عتبة الثقة والتقييم الفعّال > لا يُوثَق بمتوسط تحت العتبة [0.03ms]
+(pass) عتبة الثقة والتقييم الفعّال > التقييم الفعّال يعود إلى الافتراضي تحت العتبة [0.02ms]
+(pass) عتبة الثقة والتقييم الفعّال > غياب التقييم ليس صفراً [0.02ms]
+(pass) عتبة الثقة والتقييم الفعّال > التطبيع يحصر القيمة بين صفر وواحد [0.02ms]
+(pass) عتبة الثقة والتقييم الفعّال > المتوسط يُحسب من السجلّ ويعيد غياباً عند خلوّه [0.12ms]
+(pass) عتبة الثقة والتقييم الفعّال > نافذة التقييم تُغلق بعد المهلة [0.04ms]
+(pass) حوار الرحلة والتقييم > البدء الناجح يُخرج زرّ الإنهاء لا رسالة مجرّدة [0.42ms]
+(pass) حوار الرحلة والتقييم > رفض البدء يُترجَم رسالةً مفهومة لا خطأً تقنياً [0.09ms]
+(pass) حوار الرحلة والتقييم > بدء الرحلة يُبلّغ العميل على بوته هو وبلغته هو [0.15ms]
+(pass) حوار الرحلة والتقييم > رفض البدء لا يُرسل إشعاراً للعميل [0.08ms]
+(pass) حوار الرحلة والتقييم > الإنهاء يخاطب كل طرف بلغته هو لا بلغة من أنهى [0.50ms]
+(pass) حوار الرحلة والتقييم > مدّة الرحلة تُصاغ دقائق أو ساعات بحسب طولها [0.20ms]
+(pass) حوار الرحلة والتقييم > لوحة النجوم خمسة أزرار في صفّ واحد تحمل معرّف الطلب [0.04ms]
+(pass) حوار الرحلة والتقييم > ضغطة النجمة تُشكر عند النجاح وتُشرح عند الرفض [0.53ms]
+(pass) حوار الرحلة والتقييم > بيانات زرّ مشوّهة تُرفض قبل أي مسّ بالقاعدة [0.12ms]
+(pass) حوار الرحلة والتقييم > فشل المنفذ لا يُظهر تفاصيل تقنية للمستخدم [0.11ms]
+(pass) إعادة حساب المتوسطات > تعيد ما تغيّر فعلاً، والصفر حالة سليمة لا فشل [0.19ms]
+
+tests/unit/broadcast-offers.test.ts:
+(pass) broadcastOffers > يفتح دورة عروض بمهلة الإعدادات ويُخطر كل سائق في الدفعة [0.45ms]
+(pass) broadcastOffers > سائق حجب البوت يُحسب unreachable ولا يُوقف بقية الدفعة [0.21ms]
+(pass) broadcastOffers > فشل كتابة الدورة يُوقف البثّ فلا يُخطَر أحد بعرض غير موجود [0.19ms]
+(pass) broadcastOffers > لا مرشحين مؤهلين: خطأ صريح بلا دورة ولا إخطار [0.15ms]
+
+tests/unit/gateway-routes.test.ts:
+(pass) secretsMatch > يطابق السرّ الصحيح [0.03ms]
+(pass) secretsMatch > يرفض سرّاً مختلفاً بنفس الطول [0.02ms]
+(pass) secretsMatch > يرفض سرّاً أقصر أو أطول [0.03ms]
+(pass) secretsMatch > يرفض السرّ الفارغ [0.01ms]
+(pass) GET /health > يجيب 200 مع مدة التشغيل المحسوبة [0.82ms]
+(pass) GET /ready > جاهز عندما تكتمل المتغيرات [0.49ms]
+(pass) GET /ready > غير جاهز 503 ويسمّي المتغيرات الناقصة [0.30ms]
+(pass) GET /ready > غير جاهز إن فشل فحص تبعية [0.29ms]
+(pass) GET /ready > الفحص الذي يرمي استثناءً يُعتبر فاشلاً لا ناجحاً [0.30ms]
+(pass) POST /webhook/telegram/:bot > يقبل تحديثاً بسرّ صحيح ويوصله إلى المعالج [0.45ms]
+(pass) POST /webhook/telegram/:bot > يميّز بوت العميل عن بوت السائق [0.29ms]
+(pass) POST /webhook/telegram/:bot > يرفض 401 بلا ترويسة السرّ ولا يستدعي المعالج [0.34ms]
+(pass) POST /webhook/telegram/:bot > يرفض 401 بسرّ خاطئ [0.26ms]
+(pass) POST /webhook/telegram/:bot > يرفض 404 لبوت مجهول [0.23ms]
+(pass) POST /webhook/telegram/:bot > يرفض 400 لجسم ليس JSON صالحاً [0.31ms]
+(pass) POST /webhook/telegram/:bot > يرفض 400 لتحديث ليس كائناً [0.25ms]
+(pass) POST /webhook/telegram/:bot > يجيب 200 مع NOT_HANDLED إن تعذّرت المعالجة، فلا يُعيد تلغرام الإرسال بلا نهاية [0.24ms]
+(pass) POST /webhook/telegram/:bot > لا يقبل GET على مسار الـ webhook [0.25ms]
+(pass) مسار مجهول > يجيب 404 بصيغة موحّدة [0.24ms]
+
+tests/unit/match-order.test.ts:
+(pass) matchOrder — المسار السليم > يرتّب المرشحين ويعيد دفعة البثّ ومهلة العرض من الإعدادات [0.37ms]
+(pass) matchOrder — المسار السليم > يحترم حجم الدفعة القادم من الإعدادات وحده [0.25ms]
+(pass) matchOrder — المسار السليم > تغيير الوزنين في الإعدادات يقلب الترتيب بلا نشر كود [0.21ms]
+(pass) matchOrder — المسار السليم > يستبعد صاحب العرض المعلَّق الساري ويُبقي من انتهت مهلته [0.22ms]
+(pass) matchOrder — المسار السليم > يستبعد من رفض العرض في دورة سابقة [0.20ms]
+(pass) matchOrder — الرفض بسبب واضح > طلب غير موجود [0.10ms]
+(pass) matchOrder — الرفض بسبب واضح > طلب ليس في حالة البحث [0.11ms]
+(pass) matchOrder — الرفض بسبب واضح > استُنفدت دورات البثّ عند الحد المبذور [0.18ms]
+(pass) matchOrder — الرفض بسبب واضح > لا سائق مؤهل، ويعيد سبب استبعاد كل مرشح [0.20ms]
+(pass) matchOrder — الرفض بسبب واضح > سائق من مدينة أخرى لا يدخل حتى قائمة المرشحين [0.13ms]
+(pass) matchOrder — الرفض بسبب واضح > إعدادات ناقصة تُوقف المطابقة بدل استخدام قيمة افتراضية مخفية [0.12ms]
+(pass) matchOrder — الرفض بسبب واضح > وزنان لا يجمعان واحداً يُوقفان المطابقة [0.10ms]
+(pass) matchOrder — أعطال المنافذ تُنقل كنتيجة لا كاستثناء > فشل مستودع الطلبات [0.11ms]
+(pass) matchOrder — أعطال المنافذ تُنقل كنتيجة لا كاستثناء > فشل مستودع الإعدادات [0.09ms]
+
+tests/unit/subscription-lifecycle-jobs.test.ts:
+(pass) expireDueSubscriptions > يعيد العدد كما أعادته القاعدة بلا حساب في الطبقة [0.22ms]
+(pass) expireDueSubscriptions > يمرّر عطل القاعدة كما هو بلا ادّعاء نجاح [0.10ms]
+(pass) warnExpiringSubscriptions > يُرسل ثم يُثبِّت — بهذا الترتيب لا عكسه [0.40ms]
+(pass) warnExpiringSubscriptions > لا يُثبِّت تحذيراً لم يخرج: فشل الإرسال يمنع التثبيت [0.21ms]
+(pass) warnExpiringSubscriptions > فشل سائق واحد لا يمنع تحذير من بعده [0.21ms]
+(pass) warnExpiringSubscriptions > نجاح الإرسال مع فشل التثبيت يُحسب تحذيراً — الرسالة وصلت فعلاً [0.13ms]
+(pass) warnExpiringSubscriptions > يوم واحد متبقٍّ يعطي صياغة «غداً»، ويومان يعطيان صياغة العدّ [0.12ms]
+(pass) warnExpiringSubscriptions > يخاطب كل سائق بلغته المسجَّلة لا بلغة النظام [0.12ms]
+(pass) warnExpiringSubscriptions > لا مشترك يقترب انتهاؤه: تقرير صفري وليس فشلاً [0.08ms]
+(pass) deactivateStaleAvailability > يستخدم المهلة من إعدادات المدينة لا القيمة الاحتياطية [0.29ms]
+(pass) deactivateStaleAvailability > يسقط إلى القيمة الاحتياطية حين يغيب الإعداد — ولا يُوقف المهمّة [0.11ms]
+(pass) deactivateStaleAvailability > قيمة إعداد غير رقمية لا تُمرَّر للقاعدة: تُستبدل بالاحتياطية [0.09ms]
+(pass) deactivateStaleAvailability > عطل القاعدة يُعاد كما هو ولا يُترجَم إلى صفر [0.09ms]
+
+tests/unit/full-name-validation.test.ts:
+(pass) parseFullName — يرفض العبث الواضح > يرفض "ههههههه" — حرف عربي واحد مكرّر [0.05ms]
+(pass) parseFullName — يرفض العبث الواضح > يرفض "ظظظظظظ" — حرف عربي آخر مكرّر
+(pass) parseFullName — يرفض العبث الواضح > يرفض "ےےےےےے" — حرف أردي واحد مكرّر
+(pass) parseFullName — يرفض العبث الواضح > يرفض "aaaaaa" — حرف لاتيني مكرّر
+(pass) parseFullName — يرفض العبث الواضح > يرفض "ه ه ه ه" — نفس الحرف مفصولاً بمسافات — لا يسقط بالتكرار المتتالي وحده
+(pass) parseFullName — يرفض العبث الواضح > يرفض "1234567" — أرقام فقط [0.03ms]
+(pass) parseFullName — يرفض العبث الواضح > يرفض "!!!???" — رموز فقط
+(pass) parseFullName — يرفض العبث الواضح > يرفض "😀😀😀😀" — إيموجي فقط
+(pass) parseFullName — يرفض العبث الواضح > يرفض "..." — نقاط فقط
+(pass) parseFullName — يرفض العبث الواضح > يرفض "ا123" — حرف أبجدي واحد فقط وسط أرقام — طوله كافٍ فلا يسقط بالقِصَر [0.01ms]
+(pass) parseFullName — يرفض العبث الواضح > يرفض الاسم القصير جداً بسببه الخاص لا كعبث [0.05ms]
+(pass) parseFullName — يرفض العبث الواضح > يرفض الاسم الطويل جداً بسببه الخاص [0.04ms]
+(pass) parseFullName — يرفض العبث الواضح > يرفض اسماً طويلاً متنوّع الحروف بسبب الطول تحديداً [0.05ms]
+(pass) parseFullName — يرفض العبث الواضح > يرفض الأمر ولا يخلطه بالعبث [0.02ms]
+(pass) parseFullName — يرفض العبث الواضح > يرفض النصّ الفارغ والمسافات وحدها [0.03ms]
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "محمد" — اسم عربي مفرد [0.02ms]
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "عبدالله بن سعيد" — اسم عربي مركّب [0.02ms]
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "نور الهدى" — اسم بأل التعريف
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "John Smith" — لاتيني
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "Anne-Marie O'Brien" — شُرطة وفاصلة عليا
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "محمد عبدالرحمن الشمري" — ثلاثي
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "مُحَمَّد" — بتشكيل — الشدّة تُضاعف الحرف بصرياً لا فعلياً
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "عزّام رؤوف" — بشدّة وهمزة
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "علي" — أقصر اسم عربي شائع
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "Li" — اسم لاتيني قصير حقيقي
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "Ali" — أقصر اسم لاتيني
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "راجيش كومار" — منقول عن الهندية
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "عائشہ نور" — اسم أردي بحروفه الشائعة
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "José Álvarez" — حروف بعلامات
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "李 明" — صيني — حرفان فقط ولا مسافة معتادة
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل "Abdullah Al-Otaibi" — لاتيني مركّب بشُرطة
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يقبل الاسم المكتوب بالكشيدة ويزيلها [0.02ms]
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يوحّد المسافات الزائدة بدل رفضها [0.02ms]
+(pass) parseFullName — يقبل الأسماء الحقيقية المتنوّعة > يزيل محارف التحكّم في الاتجاه — لا تُخزَّن في القاعدة خفيّةً [0.02ms]
+(pass) nameErrorKey — كل سبب له رسالته > لا سببان يتقاسمان مفتاحاً واحداً [0.02ms]
+(pass) nameErrorKey — كل سبب له رسالته > العبث له مفتاحه الخاص لا مفتاح القِصَر [0.02ms]
+
+tests/unit/shared-result.test.ts:
+(pass) Result > ok يحمل القيمة [0.04ms]
+(pass) Result > err لا يحمل قيمة ويعيد البديل [0.02ms]
+(pass) Result > map و andThen يتسلسلان بلا throw [0.06ms]
+
+tests/unit/delivery-request.test.ts:
+(pass) domain/delivery — صحّة طلب التوصيل > يقبل طلباً كامل الأركان ويثبّت نوع الخدمة delivery [0.06ms]
+(pass) domain/delivery — صحّة طلب التوصيل > يرفض غياب الوجهة — هذا هو الفرق الجوهري عن النقل [0.05ms]
+(pass) domain/delivery — صحّة طلب التوصيل > يرفض الأوصاف غير الصالحة بسببٍ صريح لكل حالة [0.09ms]
+(pass) application/delivery — requestDelivery > يكتب طلباً بخدمة delivery ووصف الطرد في notes ثم يبثّه على سائق التوصيل [0.38ms]
+(pass) application/delivery — requestDelivery > لا يكتب طلباً أصلاً إن كان المُدخَل غير صالح [0.14ms]
+(pass) application/delivery — requestDelivery > فشل البثّ لا يُلغي الطلب المكتوب بل يُعاد سببه صراحةً [0.18ms]
+(pass) عزل الخدمتين في المطابقة > سائق نقل فقط لا يدخل مرشحي التوصيل — والسبب SERVICE_NOT_ENABLED [0.07ms]
+(pass) عزل الخدمتين في المطابقة > سائق توصيل فقط لا يدخل مرشحي النقل [0.03ms]
+(pass) عزل الخدمتين في المطابقة > مفعِّل الخدمة باشتراك لا يغطّيها يُستبعد بسبب الاشتراك لا بسبب القدرة [0.02ms]
+(pass) عزل الخدمتين في المطابقة > طلب توصيل واحد بين ثلاثة سائقين: المؤهل واحد فقط [0.08ms]
+
+tests/integration/support-tickets.test.ts:
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > يخزّن التذكرة بمعرّف الصورة الأكبر ولا يخزّن الصورة نفسها [73.01ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > يعيد إرسال الصورة إلى القروب صورةً بمعرّفها، لا رابطاً نصّياً [50.22ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > بطاقة القروب تحمل الاسم والهاتف ومعرّف تلغرام والمدينة ونصّ الشكوى كما كُتب [48.95ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > حالة الاشتراك في البطاقة تُقرأ لحظة الإرسال لا من نسخة قديمة [45.91ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > يفعّل الدعم الاشتراك من زرّ القروب: تتغيّر القاعدة فعلاً ويصل التأكيد للسائق [54.12ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > ‏/activate بالرقم يسلك المسار نفسه تماماً كزرّ القروب [53.84ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > سائق غير مخوَّل لا يستطيع تفعيل اشتراك أحد ولو ضغط الزرّ [54.83ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > لا يُحسم القرار مرتين: الضغطة الثانية تُرفض ولا تمدّد الاشتراك [59.16ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > الاستلام لأوّل ضاغط فقط، والثاني يُخبَر بمن سبقه [62.23ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > حدّ التكرار يمنع تذكرة ثانية فوراً ويخبر السائق بالمدّة [44.77ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > رسالة قصيرة تُرفض بلا فتح تذكرة، والخطوة تبقى ليعيد الكتابة [45.85ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > العميل يفتح نزاع رحلة بلا سؤاله عن اشتراك لا يملكه [32.98ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > تذكرة نزاع بلا اشتراك لا تعرض زرّ التفعيل على الفريق [32.64ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > الرفض يُغلق التذكرة بلا لمس الاشتراك ويبلّغ صاحبها [51.45ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > الإنهاء اليدوي يوقف الاشتراك السارِي فعلاً [50.90ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > كل خطوة تُكتب في سجلّ التدقيق بمدينتها وفاعلها [55.43ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > يرقّي أوّل مسؤول من متغيّر البيئة عند التسجيل، ولا يمنح الصفة لغيره [55.31ms]
+(pass) مسار الدعم والاشتراك على قاعدة حقيقية > المسؤول المرقَّى يقدر فعلاً على حسم التذاكر [132.86ms]
+
+tests/integration/redis-sessions.test.ts:
+(pass) جلسات الحوار على Redis بحاوية حقيقية > خطوة الحوار تُكتب في Redis لا في ذاكرة العملية [33.49ms]
+(pass) جلسات الحوار على Redis بحاوية حقيقية > حوار تسجيل كامل يمضي عبر Redis وينتهي بصفّ سائق حقيقي في القاعدة [41.75ms]
+(pass) جلسات الحوار على Redis بحاوية حقيقية > انتهاء مهلة المفتاح في Redis يُعيد الحوار إلى بدايته لا إلى خطوة معلَّقة [24.97ms]
+
+tests/integration/distributed-lock.test.ts:
+(pass) القفل الموزَّع بين نسختَي عامل على قاعدة حقيقية > مفتاح القفل حتمي ومستقلّ عن القاعدة، ومختلف لأسماء مختلفة [0.11ms]
+(pass) القفل الموزَّع بين نسختَي عامل على قاعدة حقيقية > نسخة واحدة فقط تُنفّذ المهمّة، والثانية تتخطّى بهدوء ولا تنتظر [63.65ms]
+(pass) القفل الموزَّع بين نسختَي عامل على قاعدة حقيقية > القفل يُحرَّر حتى إذا رمت المهمّة استثناءً [1.05ms]
+(pass) القفل الموزَّع بين نسختَي عامل على قاعدة حقيقية > مهمّتان بمفتاحين مختلفين تعملان متزامنتين بلا تعطيل متبادل [0.66ms]
+(pass) القفل الموزَّع بين نسختَي عامل على قاعدة حقيقية > دورتان متتاليتان لنسختَي مشغّل: المهمّة تُنفَّذ مرّة واحدة في كل دورة لا مرّتين [1344.63ms]
+
+tests/integration/admin-dashboard.test.ts:
+(pass) لوحة الإدارة على قاعدة حقيقية > يرسل الرمز إلى محادثة المسؤول وحده ويفتح جلسة صالحة [59.55ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > لا يُرسَل رمز لمن ليس مسؤولاً، ولا يُكشف له أنه ليس مسؤولاً [22.81ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > رمز جديد يُبطِل السابق فلا يصلح رمزان معاً [32.69ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > محاولات خاطئة متتالية تُقفل الرمز ولو أُدخل الصحيح بعدها [33.50ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > طلب الرمز محدود بعدد في النافذة [20.35ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > الرمز يُستهلك مرّة واحدة [19.83ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > بلا كعكة: الصفحة تُحوَّل إلى الدخول والواجهة تُجيب 401 [17.48ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > الخروج يُبطل الجلسة فوراً [24.83ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > سحب صفة المسؤول يُسقط الجلسة في الطلب التالي لا بعد ساعات [26.29ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > الصفحات الثماني كلّها تُقدَّم بنجاح لجلسة صالحة [51.58ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > واجهة JSON تعيد نماذج القراءة نفسها [28.79ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > البحث الموحَّد يجد شخصاً باسمه وبمعرّف تلغرامه [25.74ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > توثيق سائق يُسجَّل في سجلّ التدقيق ويظهر أثره في الصفحة [28.78ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > سحب التوثيق يُنزل السائق عن الإتاحة في نفس العملية [27.54ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > حظر مستخدم يُبطل جلساته ويُنزله عن الإتاحة، والمسؤول لا يحظر نفسه [32.20ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > تعديل إعداد يُغيّر القيمة، ويرفض النوع الخاطئ، ويرفع صفة «مبدئي» [27.07ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > فعل كتابي بلا رمز CSRF مرفوض ولو كانت الجلسة صالحة [23.33ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > حفظ قروبات مدينة من الواجهة يكتب bigint السالب ويُفعّلها مع أثر تدقيق [25.28ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > الحفظ الجزئي يبقي المدينة غير مفعّلة ولا يظهرها كمدينة جاهزة [35.71ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > يرفض القيم غير الصالحة والمكررة ويحمي حفظ القروبات بـ CSRF والجلسة [25.74ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > الخريطة الحرارية تعدّ الطلب والعرض على شبكة واحدة [30.84ms]
+(pass) لوحة الإدارة على قاعدة حقيقية > ملخّص الحضور يحتسب من بقي متاحاً حتى الآن لا صفراً [25.62ms]
+
+tests/integration/bilingual-conversation.test.ts:
+(pass) محادثة بلغتين عبر الترجمة على قاعدة حقيقية > أمر /language يعرض اللغات الثلاث، والاختيار يُكتب في القاعدة ويُسجَّل في التدقيق [55.50ms]
+(pass) محادثة بلغتين عبر الترجمة على قاعدة حقيقية > اختيار اللغة نفسها نجاحٌ بلا كتابة ولا سجلّ تدقيق [106.44ms]
+(pass) محادثة بلغتين عبر الترجمة على قاعدة حقيقية > لغة غير مدعومة تُرفض بلا مساس بلغة المستخدم [107.85ms]
+(pass) محادثة بلغتين عبر الترجمة على قاعدة حقيقية > محادثة كاملة بلغتين: كلٌّ يقرأ بلغته، والأصل مذيَّل تحت الترجمة في الاتجاهين [79.30ms]
+(pass) محادثة بلغتين عبر الترجمة على قاعدة حقيقية > الترجمة الثانية للنصّ نفسه تأتي من الذاكرة بلا نداء مزوّد جديد [65.64ms]
+(pass) محادثة بلغتين عبر الترجمة على قاعدة حقيقية > طرفان بلغة واحدة: لا نداء مزوّد ولا تذييل أصل [64.53ms]
+(pass) محادثة بلغتين عبر الترجمة على قاعدة حقيقية > سقوط المزوّد لا يقطع المحادثة: الرسالة تصل بلغتها الأصلية [59.66ms]
+
+tests/integration/unsubscribed-negotiation.test.ts:
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > ينشر بطاقة في قروب المدينة بلا رقم هاتف ولا موقع دقيق، ويحفظ معرّف الرسالة [76.01ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > يسجّل أول ثلاث ضغطات بالترتيب، ويرفض الرابعة وتكرار الشخص نفسه [105.02ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > يفتح القناة مع الأول وحده: الثاني والثالث لا تصل رسالتهما للعميل [82.26ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > يحجب أرقام الهواتف داخل القناة في الاتجاهين وينبّه المرسِل [58.45ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > رفض العميل ينقل الدور للثاني ثم الثالث، وبعدها تنفد الدورة [77.80ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > «تم الاتفاق» يُسنِد الطلب فعلاً للسائق صاحب الدور ويُغلق ما سواه [66.07ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > العامل يُعيد النشر بعد النفاد، ويستبعد سائقي الدورة السابقة مباشرةً [90.94ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > نفاد الدورات كلها يُصعِّد لقروب الإسناد مرّة واحدة، ولا يُكرَّر كل مرور [63.29ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > العامل لا يمسّ دورة ما زالت في مهلتها [52.44ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > انتهاء مهلة التفاوض بلا قرار ينقل الدور تلقائياً ويُخطِر الطرفين [69.73ms]
+(pass) دورة قروب غير المشتركين على قاعدة حقيقية > لا تُفتح دورتان لطلب واحد مهما تكرّر النشر [52.12ms]
+
+tests/integration/scheduled-jobs.test.ts:
+(pass) مشغّل الجوبات المركزي على قاعدة حقيقية > يجمع مهامّ المدينة المفعَّلة والمهامّ العامّة معاً بأسماء ظاهرة [29.13ms]
+(pass) مشغّل الجوبات المركزي على قاعدة حقيقية > لا يبني مهامّ مدينة لمدينة غير مفعَّلة، ويبقي المهامّ العامّة [17.56ms]
+(pass) مشغّل الجوبات المركزي على قاعدة حقيقية > يُنهي اشتراكاً استحقّ الانتهاء ويكتب سطر تدقيق، ولا يمسّ اشتراكاً سارياً [49.15ms]
+(pass) مشغّل الجوبات المركزي على قاعدة حقيقية > يُحذّر سائقاً يقترب انتهاء اشتراكه برسالة بلغته، ولا يكرّر التحذير في الشوط التالي [54.32ms]
+(pass) مشغّل الجوبات المركزي على قاعدة حقيقية > يُطفئ توفّراً بائتاً ولا يمسّ سائقاً في رحلة قائمة، ثم لا يجد ما يُطفئه [36.78ms]
+(pass) مشغّل الجوبات المركزي على قاعدة حقيقية > يقرأ مهلة البياتة من إعدادات المدينة لا من رقم في الكود [28.13ms]
+(pass) مشغّل الجوبات المركزي على قاعدة حقيقية > يقرأ أيام التحذير من إعدادات المدينة: يومان لا يريان اشتراكاً ينتهي بعد خمسة [30.56ms]
+(pass) مشغّل الجوبات المركزي على قاعدة حقيقية > كل المهامّ تعمل على قاعدة فارغة بلا عطل وبتقارير صفرية [29.81ms]
+
+tests/integration/agent-core-support-advice.test.ts:
+(pass) القسم ج — اقتراح آلي على تذكرة دعم حقيقية > ⚠️ الطبقة معطَّلة — يجب ألّا يتغيّر شيء > فتح التذكرة ونشر بطاقتها وردّ السائق: كما كان تماماً [53.92ms]
+(pass) القسم ج — اقتراح آلي على تذكرة دعم حقيقية > ⚠️ الطبقة معطَّلة — يجب ألّا يتغيّر شيء > لا تُنشأ أي ملفات تشغيل للطبقة [18.13ms]
+{"at":"2026-08-10T06:43:35.046Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) القسم ج — اقتراح آلي على تذكرة دعم حقيقية > الطبقة مفعّلة — اقتراح يُقرأ لا فعل يُنفَّذ > يُنشَر اقتراح **منفصل** بعد البطاقة، وردّ السائق لا يتغيّر [47.85ms]
+{"at":"2026-08-10T06:43:35.092Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) القسم ج — اقتراح آلي على تذكرة دعم حقيقية > الطبقة مفعّلة — اقتراح يُقرأ لا فعل يُنفَّذ > ⚠️ الاقتراح لا يغيّر حالة التذكرة ولا الاشتراك — لا فعل يُنفَّذ [46.61ms]
+{"at":"2026-08-10T06:43:35.138Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) القسم ج — اقتراح آلي على تذكرة دعم حقيقية > الطبقة مفعّلة — اقتراح يُقرأ لا فعل يُنفَّذ > ⚠️ الاقتراح بلا أزرار قرار — زرّا تقييم لا غير [45.42ms]
+{"at":"2026-08-10T06:43:35.184Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) القسم ج — اقتراح آلي على تذكرة دعم حقيقية > الطبقة مفعّلة — اقتراح يُقرأ لا فعل يُنفَّذ > القرار يُحفظ في `agent_decisions` بسقف SUGGEST لا غير [45.89ms]
+{"at":"2026-08-10T06:43:35.232Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) القسم ج — اقتراح آلي على تذكرة دعم حقيقية > الطبقة مفعّلة — اقتراح يُقرأ لا فعل يُنفَّذ > نصّ مهذّب بلا شكوى: تُفتح التذكرة وتُنشر بطاقتها بلا اقتراح [48.76ms]
+
+tests/integration/agent-core-measurement.test.ts:
+{"at":"2026-08-10T06:43:35.300Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > زرّ «مفيد» يُسجّل حكماً موثوقاً بمصدر button ولا يمسّ التذكرة [60.05ms]
+{"at":"2026-08-10T06:43:35.355Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > زرّ «غير مفيد» يُسجّل rejected، والردّ خاصٌّ لا في القروب [49.01ms]
+{"at":"2026-08-10T06:43:35.404Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > نقرة على أثر لا وجود له لا تكتب شيئاً ولا تُسقط الطلب [25.47ms]
+{"at":"2026-08-10T06:43:35.431Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > تفعيل الاشتراك بعد اقتراح «مشكلة اشتراك» يُستنتج accepted [56.35ms]
+{"at":"2026-08-10T06:43:35.488Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > رفض التذكرة بعد الاقتراح نفسه يُستنتج rejected — الاستنتاج ليس مجاملة [56.94ms]
+{"at":"2026-08-10T06:43:35.543Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > ⚠️ استنتاجٌ بعد نقرةٍ لا يطمسها: الحكم النافذ يبقى للإنسان [54.08ms]
+{"at":"2026-08-10T06:43:35.597Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > نقرةٌ بعد استنتاج تَجُبّه: الأسبقية بالمصدر لا بالترتيب الزمني [55.46ms]
+{"at":"2026-08-10T06:43:35.657Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > التوسيم اليدوي يَغلب الاستنتاج ويَخضع للنقرة [59.61ms]
+{"at":"2026-08-10T06:43:35.714Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > ⚠️ التقرير يرى كل قرار مرّة واحدة — لا تضخيم بتكرار الأحكام [63.69ms]
+{"at":"2026-08-10T06:43:35.782Z","message":"agent_core.knowledge_loaded","count":7}
+(pass) قياس جدوى الاقتراحات — الحلقة مغلقة فعلاً > قرارٌ بلا أيّ حكم يظهر في التقرير معلَّقاً لا محسوباً [56.15ms]
+
+tests/integration/mutual-ratings.test.ts:
+(pass) التقييم المتبادل وأثره في المطابقة على قاعدة حقيقية > الرحلة تبدأ وتنتهي، ويُطلب التقييم من الطرفين، ويتحرّك المتوسط فعلاً [149.01ms]
+(pass) التقييم المتبادل وأثره في المطابقة على قاعدة حقيقية > لا يقيّم أحد مرّتين ولا يقيّم رحلة لم تنتهِ [63.15ms]
+(pass) التقييم المتبادل وأثره في المطابقة على قاعدة حقيقية > رحلة لا يملكها السائق لا تبدأ، ورحلة لم تبدأ لا تنتهي [63.33ms]
+(pass) التقييم المتبادل وأثره في المطابقة على قاعدة حقيقية > فارق التقييم الحقيقي يغيّر ترتيب order_offers.score فعلاً [71.61ms]
+(pass) التقييم المتبادل وأثره في المطابقة على قاعدة حقيقية > من دون عتبة الثقة يُعامَل بالتقييم الافتراضي لا بمتوسطه الهشّ [63.84ms]
+(pass) التقييم المتبادل وأثره في المطابقة على قاعدة حقيقية > إعادة الحساب تصحّح انحرافاً حقيقياً بعد تعليم تقييم مُسيء [65.63ms]
+
+tests/integration/pilot-city-activation.test.ts:
+(pass) تفعيل مدينة الـPilot على قاعدة حقيقية > قيد القاعدة يرفض التفعيل الناقص ثم يقبل السجل المكتمل بالمعرّفات السالبة [3.56ms]
+(pass) تفعيل مدينة الـPilot على قاعدة حقيقية > لا تعود المدينة غير المفعّلة لأي مستخدم حتى لو كانت قروباتها مكتملة [9.10ms]
+(pass) تفعيل مدينة الـPilot على قاعدة حقيقية > الويبهوك الحقيقي يحفظ الحوار، ويؤجّل الرسالة المحدودة ثم يقبل إعادة الإرسال [7.57ms]
+
+tests/integration/full-ride.test.ts:
+(pass) المسار الكامل على قاعدة حقيقية > يسجّل سائقاً حقيقياً في users و drivers ويبدأ تجربته المجانية [48.29ms]
+(pass) المسار الكامل على قاعدة حقيقية > يمنع التوافر قبل تحقّق الإدارة، ويسمح به بعده ويسجّله في attendance_log [37.79ms]
+(pass) المسار الكامل على قاعدة حقيقية > يعرض سعر مدينة السائق من platform_settings لا من قيمة مرمَّزة [48.30ms]
+(pass) المسار الكامل على قاعدة حقيقية > ينشئ طلباً حقيقياً بموقع جغرافي ويبثّه على السائق المؤهل ثم يُسند بالقبول الذرّي [53.83ms]
+(pass) المسار الكامل على قاعدة حقيقية > لا يبثّ على سائق غير متاح، ويبقى الطلب في البحث بلا عرض [56.26ms]
+(pass) المسار الكامل على قاعدة حقيقية > سائقان يتنافسان تزامناً: واحد فقط يظفر مهما كان ترتيب الوصول [68.15ms]
+(pass) المسار الكامل على قاعدة حقيقية > رفض السائق يُسجَّل فوراً فلا يُعاد عرضه عليه في الدورة التالية [56.21ms]
+(pass) المسار الكامل على قاعدة حقيقية > يلغي العميل طلبه النشط فعلاً [51.25ms]
+(pass) المسار الكامل على قاعدة حقيقية > لا يعرض مدينة غير مفعَّلة على أي مستخدم [30.47ms]
+
+tests/integration/full-delivery.test.ts:
+(pass) مسار التوصيل الكامل على قاعدة حقيقية > يسجّل سائق توصيل بقدرة delivery واشتراك تجريبي يغطّي التوصيل وحده [53.48ms]
+(pass) مسار التوصيل الكامل على قاعدة حقيقية > يمضي من /start إلى طلب توصيل مُسنَد: الوجهة ووصف الطرد محفوظان في القاعدة [58.97ms]
+(pass) مسار التوصيل الكامل على قاعدة حقيقية > عزل الخدمتين: سائق النقل لا يصله عرض توصيل ولو كان الأقرب [58.36ms]
+(pass) مسار التوصيل الكامل على قاعدة حقيقية > عزل الخدمتين بالعكس: سائق التوصيل لا يصله عرض نقل [61.73ms]
+(pass) مسار التوصيل الكامل على قاعدة حقيقية > لا يُنشئ طلب توصيل بوصف طرد غير صالح، ولا يترك صفاً يتيماً في القاعدة [53.55ms]
+(pass) مسار التوصيل الكامل على قاعدة حقيقية > لا يقبل /skip في التوصيل: الطلب لا يُنشأ بلا وجهة [50.94ms]
+
+ 690 pass
+ 0 fail
+ 2091 expect() calls
+Ran 690 tests across 48 files. [7.74s]
+=== scripts ===
+--- scripts/check-agent-core-isolation.ts ---
+✓ عزل agent-core سليم: لا استيراد داخل، ولا دخول إلا من البوّابة
+--- scripts/check-business-constants.ts ---
+✅ لا قيمة تجارية مرمَّزة في apps، packages/domain، packages/application.
+--- scripts/check-i18n.ts ---
+✅ 3 قواميس متطابقة، 173 مفتاحاً في كل منها
+--- scripts/check-migrations.ts ---
+✅ 20 جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (20 اسماً في قائمة التفعيل).

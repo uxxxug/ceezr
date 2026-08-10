@@ -170,6 +170,53 @@ describe("تسجيل العميل وطلب رحلة", () => {
     expect(orders.created).toHaveLength(0);
   });
 
+  it("يرفض زر خدمة قديماً أثناء انتظار موقع الانطلاق ولا يبدّل نوع الطلب", async () => {
+    const riders = riderDirectory({
+      id: "rider-9" as RiderId,
+      cityId: JEDDAH.id,
+      telegramUserId: "500",
+      fullName: "سالم",
+    });
+    const d = build({ riders });
+
+    await handleRiderUpdate(text("/ride"), d);
+    const stale = await handleRiderUpdate(callback("svc:delivery"), d);
+    expect(stale[0]?.text).toBe(ar("common.unknown_command"));
+
+    // لو قُبل الزرّ القديم لتحوّل السؤال إلى موقع استلام طرد؛ يبقى الطلب نقلاً.
+    const pickup = await handleRiderUpdate(location(PICKUP), d);
+    expect(pickup[0]?.text).toBe(ar("rider.ask_dropoff"));
+  });
+
+  it("يلغي تسجيل العميل غير المكتمل ويمحو جلسته", async () => {
+    const d = build();
+    await handleRiderUpdate(text("/start"), d);
+
+    const cancelled = await handleRiderUpdate(text("/cancel"), d);
+    expect(cancelled[0]?.text).toBe(ar("common.cancelled"));
+    expect(cancelled[0]?.keyboard).toEqual({ kind: "remove" });
+
+    const state = await d.sessions.load(SENDER.telegramUserId);
+    expect(state.ok && state.value).toBeNull();
+  });
+
+  it("يسمّي إلغاء مسودة طلب إلغاءً بدلاً من نفي طلب نشط", async () => {
+    const riders = riderDirectory({
+      id: "rider-9" as RiderId,
+      cityId: JEDDAH.id,
+      telegramUserId: "500",
+      fullName: "سالم",
+    });
+    const d = build({ riders });
+    await handleRiderUpdate(text("/ride"), d);
+
+    const cancelled = await handleRiderUpdate(text("/cancel"), d);
+    expect(cancelled[0]?.text).toBe(ar("common.cancelled"));
+
+    const state = await d.sessions.load(SENDER.telegramUserId);
+    expect(state.ok && state.value).toBeNull();
+  });
+
   it("يرفض إحداثيات مستحيلة", async () => {
     const riders = riderDirectory({
       id: "rider-9" as RiderId,

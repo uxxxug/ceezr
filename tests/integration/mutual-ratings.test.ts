@@ -186,8 +186,9 @@ describeIf("التقييم المتبادل وأثره في المطابقة ع�
 
   /** طلب نقل كامل من العميل حتى بثّ العروض. */
   async function placeOrder(chatId: number): Promise<string> {
-    await post("rider", text(chatId, "/order"));
-    await post("rider", privateCallback(chatId, "svc:transport"));
+    // ‏/ride يفتح مسار النقل مباشرةً؛ فلا تعتمد الإعادة على زر خدمة قديم بعد
+    // مسح جلسة الطلب السابق.
+    await post("rider", text(chatId, "/ride"));
     await post("rider", location(chatId, PICKUP));
     await post("rider", location(chatId, DROPOFF));
     const rows = await sql<{ id: string }[]>`

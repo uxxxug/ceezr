@@ -37,17 +37,39 @@ export const SEARCH_LIMIT = 8;
 
 export interface CityRecord extends CityOption {
   readonly isActive: boolean;
+  /** المعرفات تُعاد نصوصاً كي لا تفقد دقة bigint في JavaScript. */
+  readonly supportGroupId: string | null;
+  readonly escalationGroupId: string | null;
+  readonly unsubscribedDriversGroupId: string | null;
 }
 
 export async function listCities(sql: Sql): Promise<readonly CityRecord[]> {
-  const rows = await sql<{ id: string; code: string; name_ar: string; is_active: boolean }[]>`
-    select id, code, name_ar, is_active from cities order by code
+  const rows = await sql<
+    {
+      id: string;
+      code: string;
+      name_ar: string;
+      is_active: boolean;
+      telegram_support_group_id: string | null;
+      telegram_escalation_group_id: string | null;
+      telegram_unsubscribed_drivers_group_id: string | null;
+    }[]
+  >`
+    select id, code, name_ar, is_active,
+           telegram_support_group_id::text,
+           telegram_escalation_group_id::text,
+           telegram_unsubscribed_drivers_group_id::text
+      from cities
+     order by code
   `;
   return rows.map((row) => ({
     id: row.id,
     code: row.code,
     nameAr: row.name_ar,
     isActive: row.is_active,
+    supportGroupId: row.telegram_support_group_id,
+    escalationGroupId: row.telegram_escalation_group_id,
+    unsubscribedDriversGroupId: row.telegram_unsubscribed_drivers_group_id,
   }));
 }
 
@@ -1124,6 +1146,30 @@ export async function updateSetting(
   const rows = await sql<{ result: unknown }[]>`
     select admin_update_setting(
       ${actorUserId}::uuid, ${cityId}::uuid, ${key}::text, ${value}::text::jsonb
+    ) as result
+  `;
+  return readWrite(rows[0]?.result);
+}
+
+/**
+ * القروبات bigint لا number: رقم JavaScript يفقد الدقة قبل أن يصل إلى PostgreSQL.
+ * نمرّر النص ثم نُحوّله داخل الاستعلام بعد تحقق المسار من صيغته ونطاقه.
+ */
+export async function updateCityGroupIds(
+  sql: Sql,
+  actorUserId: string,
+  cityId: string,
+  supportGroupId: string | null,
+  escalationGroupId: string | null,
+  unsubscribedDriversGroupId: string | null,
+): Promise<WriteOutcome> {
+  const rows = await sql<{ result: unknown }[]>`
+    select admin_update_city_group_ids(
+      ${actorUserId}::uuid,
+      ${cityId}::uuid,
+      ${supportGroupId}::text::bigint,
+      ${escalationGroupId}::text::bigint,
+      ${unsubscribedDriversGroupId}::text::bigint
     ) as result
   `;
   return readWrite(rows[0]?.result);

@@ -31,6 +31,7 @@ let sql: Sql;
 let auth: AdminAuthPort;
 let app: Hono;
 let cityId: string;
+let cityGroupsId: string;
 let adminUserId: string;
 let sentCodes: { chatId: string; text: string }[];
 
@@ -112,6 +113,10 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     const id = cities[0]?.id;
     if (id === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
     cityId = id;
+    const cityGroups = await sql<{ id: string }[]>`select id from cities where code = 'MKK'`;
+    const cityGroupsRecord = cityGroups[0]?.id;
+    if (cityGroupsRecord === undefined) throw new Error("لم تُطبَّق هجرة بذر مدينة مكة");
+    cityGroupsId = cityGroupsRecord;
     auth = createAdminAuthPort(sql);
   });
 
@@ -125,6 +130,16 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
                              subscriptions, driver_capabilities, driver_availability,
                              admin_sessions, admin_login_codes,
                              drivers, riders, users restart identity cascade`;
+    // مكة مخصّصة لاختبارات قروبات المدن كي لا تتداخل مع مدينة جدة التي تستخدمها
+    // اختبارات المسارات التشغيلية الأخرى في نفس قاعدة PostgreSQL.
+    await sql`
+      update cities
+         set is_active = false,
+             telegram_support_group_id = null,
+             telegram_escalation_group_id = null,
+             telegram_unsubscribed_drivers_group_id = null
+       where id = ${cityGroupsId}
+    `;
 
     const admins = await sql<{ id: string }[]>`
       insert into users (city_id, telegram_id, full_name, phone, language_code, role)
@@ -493,6 +508,132 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
       select verification_status::text from drivers where id = ${driverId}
     `;
     expect(rows[0]?.verification_status).toBe("pending");
+  });
+
+  it("حفظ قروبات مدينة من الواجهة يكتب bigint السالب ويُفعّلها مع أثر تدقيق", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, `/admin/settings?city=${cityGroupsId}`);
+
+    const response = await request(`/admin/settings/${cityGroupsId}/group-ids`, {
+      method: "POST",
+      cookie,
+      body: form({
+        csrf,
+        support_group_id: "-1009000000001",
+        escalation_group_id: "-1009000000002",
+        unsubscribed_drivers_group_id: "-1009000000003",
+      }),
+    });
+    expect(response.status).toBe(303);
+
+    const rows = await sql<
+      {
+        is_active: boolean;
+        support: string | null;
+        escalation: string | null;
+        unsubscribed: string | null;
+      }[]
+    >`
+      select is_active, telegram_support_group_id::text as support,
+             telegram_escalation_group_id::text as escalation,
+             telegram_unsubscribed_drivers_group_id::text as unsubscribed
+        from cities where id = ${cityGroupsId}
+    `;
+    expect(rows[0]).toEqual({
+      is_active: true,
+      support: "-1009000000001",
+      escalation: "-1009000000002",
+      unsubscribed: "-1009000000003",
+    });
+    const audits = await sql<{ action: string }[]>`
+      select action from audit_log where entity_id = ${cityGroupsId}::uuid
+    `;
+    expect(audits.map((audit) => audit.action)).toContain("admin.city_group_ids_updated");
+
+    const page = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
+    const html = await page.text();
+    expect(html).toContain("-1009000000001");
+    expect(html).toContain("مفعّلة وجاهزة");
+    expect(html).toContain("طريقة الحصول على معرّف القروب");
+  });
+
+  it("الحفظ الجزئي يبقي المدينة غير مفعّلة ولا يظهرها كمدينة جاهزة", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, `/admin/settings?city=${cityGroupsId}`);
+
+    const response = await request(`/admin/settings/${cityGroupsId}/group-ids`, {
+      method: "POST",
+      cookie,
+      body: form({
+        csrf,
+        support_group_id: "-1009000000101",
+        escalation_group_id: "",
+        unsubscribed_drivers_group_id: "",
+      }),
+    });
+    expect(response.status).toBe(303);
+    const rows = await sql<{ is_active: boolean; support: string | null }[]>`
+      select is_active, telegram_support_group_id::text as support from cities where id = ${cityGroupsId}
+    `;
+    expect(rows[0]).toEqual({ is_active: false, support: "-1009000000101" });
+
+    const page = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
+    expect(await page.text()).toContain("غير جاهزة: حقول قروبات ناقصة");
+  });
+
+  it("يرفض القيم غير الصالحة والمكررة ويحمي حفظ القروبات بـ CSRF والجلسة", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, `/admin/settings?city=${cityGroupsId}`);
+    const invalid = await request(`/admin/settings/${cityGroupsId}/group-ids`, {
+      method: "POST",
+      cookie,
+      body: form({
+        csrf,
+        support_group_id: "ليس-رقماً",
+        escalation_group_id: "-1009000000202",
+        unsubscribed_drivers_group_id: "-1009000000203",
+      }),
+    });
+    expect(invalid.status).toBe(422);
+
+    const duplicate = await request(`/admin/settings/${cityGroupsId}/group-ids`, {
+      method: "POST",
+      cookie,
+      body: form({
+        csrf,
+        support_group_id: "-1009000000201",
+        escalation_group_id: "-1009000000201",
+        unsubscribed_drivers_group_id: "-1009000000203",
+      }),
+    });
+    expect(duplicate.status).toBe(422);
+
+    const csrfRejected = await request(`/admin/settings/${cityGroupsId}/group-ids`, {
+      method: "POST",
+      cookie,
+      body: form({
+        csrf: "0".repeat(64),
+        support_group_id: "-1009000000201",
+        escalation_group_id: "-1009000000202",
+        unsubscribed_drivers_group_id: "-1009000000203",
+      }),
+    });
+    expect(csrfRejected.status).toBe(403);
+    const anonymous = await request(`/admin/settings/${cityGroupsId}/group-ids`, {
+      method: "POST",
+      body: form({
+        csrf,
+        support_group_id: "-1009000000201",
+        escalation_group_id: "-1009000000202",
+        unsubscribed_drivers_group_id: "-1009000000203",
+      }),
+    });
+    expect(anonymous.status).toBe(303);
+
+    const rows = await sql<{ is_active: boolean; support: string | null }[]>`
+      select is_active, telegram_support_group_id::text as support from cities where id = ${cityGroupsId}
+    `;
+    expect(rows[0]).toEqual({ is_active: false, support: null });
   });
 
   it("الخريطة الحرارية تعدّ الطلب والعرض على شبكة واحدة", async () => {

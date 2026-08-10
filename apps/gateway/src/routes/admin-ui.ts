@@ -12,6 +12,7 @@ import { type Context, Hono } from "hono";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import {
   type AdminUser,
+  type CityGroupStatus,
   type CityOption,
   renderAttendancePage,
   renderDisputesPage,
@@ -72,6 +73,7 @@ import {
   setDriverVerification,
   setUserBlocked,
   stallSeconds,
+  updateCityGroupIds,
   updateSetting,
 } from "../admin/queries.ts";
 
@@ -89,6 +91,8 @@ const SEE_OTHER = 303;
 const HTML_UNPROCESSABLE = 422;
 const TELEGRAM_ID_PATTERN = /^[0-9]{5,20}$/;
 const CODE_PATTERN = /^[0-9]{6}$/;
+const MIN_BIGINT = -(2n ** 63n);
+const MAX_BIGINT = 2n ** 63n - 1n;
 
 /** رسائل الرفض موحَّدة عمداً: من يجرّب معرّفات لا يعرف أيّها موجود. */
 const GENERIC_LOGIN_ERROR = "تعذّر إرسال الرمز. تأكّد من المعرّف، أو راجع صاحب النظام.";
@@ -111,6 +115,46 @@ function toCityOptions(
   cities: readonly { id: string; code: string; nameAr: string }[],
 ): readonly CityOption[] {
   return cities.map((city) => ({ id: city.id, code: city.code, nameAr: city.nameAr }));
+}
+
+function toCityGroupStatuses(
+  cities: readonly {
+    id: string;
+    code: string;
+    nameAr: string;
+    isActive: boolean;
+    supportGroupId: string | null;
+    escalationGroupId: string | null;
+    unsubscribedDriversGroupId: string | null;
+  }[],
+): readonly CityGroupStatus[] {
+  return cities.map((city) => ({
+    id: city.id,
+    code: city.code,
+    nameAr: city.nameAr,
+    isActive: city.isActive,
+    supportGroupId: city.supportGroupId,
+    escalationGroupId: city.escalationGroupId,
+    unsubscribedDriversGroupId: city.unsubscribedDriversGroupId,
+  }));
+}
+
+/**
+ * فارغٌ يعني «غير مضبوط»؛ وغير ذلك يُفحص كـ bigint لا Number كي لا تضيع دقة
+ * معرّفات تيليجرام الكبيرة. الصفر ليس chat_id صالحاً، والسالب مقبول للقروبات.
+ */
+function groupIdFromForm(value: string | null): string | null {
+  if (value === null || value.trim() === "") return null;
+  const trimmed = value.trim();
+  if (!/^-?\d+$/.test(trimmed)) return null;
+  const parsed = BigInt(trimmed);
+  if (parsed === 0n || parsed < MIN_BIGINT || parsed > MAX_BIGINT) return null;
+  return parsed.toString();
+}
+
+function groupIdsAreDistinct(values: readonly (string | null)[]): boolean {
+  const present = values.filter((value): value is string => value !== null);
+  return new Set(present).size === present.length;
 }
 
 /**
@@ -486,7 +530,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const cities = await listCities(deps.sql);
     const requested = cityParam(c.req.query("city"));
     const cityId = requested ?? c.get("admin").cityId;
-    const options = toCityOptions(cities);
+    const options = toCityGroupStatuses(cities);
     const cityName = options.find((city) => city.id === cityId)?.nameAr ?? "—";
     const rows = await listSettings(deps.sql, cityId);
 
@@ -505,7 +549,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   });
 
   // -------------------------------------------------------------------------
-  // الأفعال الكتابية الثلاثة — كلها تمرّ بدوالّ ذرّية تتحقّق من الصفة في القاعدة
+  // الأفعال الكتابية الأربعة — كلها تمرّ بدوالّ ذرّية تتحقّق من الصفة في القاعدة
   // -------------------------------------------------------------------------
 
   app.post("/drivers/:id/verification", async (c) => {
@@ -540,6 +584,37 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     );
     log("تغيير حظر مستخدم من اللوحة", { ok: outcome.ok, error: outcome.error });
     return c.redirect(formText(checked.form, "back") ?? "/admin/drivers", SEE_OTHER);
+  });
+
+  // هذا المسار الأخصّ يجب أن يسبق :key، وإلا عومل group-ids كمفتاح إعداد عادي.
+  app.post("/settings/:cityId/group-ids", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const rawSupport = formText(checked.form, "support_group_id");
+    const rawEscalation = formText(checked.form, "escalation_group_id");
+    const rawUnsubscribed = formText(checked.form, "unsubscribed_drivers_group_id");
+    const values = [rawSupport, rawEscalation, rawUnsubscribed];
+    const parsed = values.map(groupIdFromForm);
+    const hasInvalid = values.some(
+      (value, index) => value !== null && value.trim() !== "" && parsed[index] === null,
+    );
+    if (hasInvalid || !groupIdsAreDistinct(parsed)) {
+      return c.text("INVALID_TELEGRAM_GROUP_ID", HTML_UNPROCESSABLE);
+    }
+
+    const cityId = c.req.param("cityId");
+    const outcome = await updateCityGroupIds(
+      deps.sql,
+      c.get("admin").userId,
+      cityId,
+      parsed[0] ?? null,
+      parsed[1] ?? null,
+      parsed[2] ?? null,
+    );
+    log("تعديل معرّفات قروبات المدينة من اللوحة", { ok: outcome.ok, error: outcome.error });
+    if (!outcome.ok) return c.text(outcome.error ?? "CITY_GROUP_IDS_REJECTED", HTML_UNPROCESSABLE);
+    return c.redirect(`/admin/settings?city=${encodeURIComponent(cityId)}`, SEE_OTHER);
   });
 
   app.post("/settings/:cityId/:key", async (c) => {

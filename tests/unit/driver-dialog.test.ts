@@ -11,6 +11,7 @@ import {
   type DriverBotDependencies,
   handleDriverUpdate,
 } from "../../packages/application/bots/driver-dialog.ts";
+import type { SupportDialogDependencies } from "../../packages/application/bots/support-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
@@ -398,6 +399,22 @@ describe("متانة الحوار", () => {
     expect(cancelled[0]?.keyboard).toEqual({ kind: "remove" });
     const again = await handleDriverUpdate(text("/start"), deps);
     expect(again[1]?.text).toBe(ar("driver.ask_name"));
+  });
+
+  it("لا يعيد زر نوع شكوى قديم فتح حوار ألغاه السائق", async () => {
+    const d = build({
+      drivers: driverDirectory(verifiedDriver()),
+      // هذا المسار لا يستدعي منافذ الدعم الأخرى: يكفي مخزن الجلسة لإثبات الحراسة.
+      support: { sessions: deps.sessions } as SupportDialogDependencies,
+    });
+
+    await handleDriverUpdate(text("/support"), d);
+    await handleDriverUpdate(text("/cancel"), d);
+    const stale = await handleDriverUpdate(callback("sup:type:subscription"), d);
+
+    expect(stale[0]?.text).toBe(ar("common.unknown_command"));
+    const state = await d.sessions.load(SENDER.telegramUserId);
+    expect(state.ok && state.value).toBeNull();
   });
 
   it("يردّ بالإنجليزية إن كانت لغة عميل تلغرام إنجليزية", async () => {
