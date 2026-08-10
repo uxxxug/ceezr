@@ -305,6 +305,7 @@ describe("المطابقة بعد الإنشاء", () => {
             location: { latitude: 21.545, longitude: 39.175 },
             isAvailable: true,
             isVerified: true,
+            isBlocked: false,
             ratingAverage: 4.8,
             ratingCount: 12,
             capabilities: [

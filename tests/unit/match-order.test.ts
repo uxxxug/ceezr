@@ -79,6 +79,7 @@ function driver(
     location,
     isAvailable: true,
     isVerified: true,
+    isBlocked: false,
     ratingAverage: null,
     ratingCount: 0,
     capabilities: [{ driverId, cityId: JED, service: "transport", isEnabled: true }],

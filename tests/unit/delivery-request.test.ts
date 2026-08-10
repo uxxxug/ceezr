@@ -114,6 +114,7 @@ function candidate(
     location: { latitude: 21.5471, longitude: 39.1751 },
     isAvailable: true,
     isVerified: true,
+    isBlocked: false,
     ratingAverage: null,
     ratingCount: 0,
     capabilities: [{ driverId, cityId: JEDDAH.id, service, isEnabled: true }],

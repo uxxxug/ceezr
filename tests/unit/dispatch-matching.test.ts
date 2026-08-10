@@ -60,6 +60,7 @@ function candidate(over: Partial<DriverCandidate> & { driverId: DriverId }): Dri
     location: PICKUP,
     isAvailable: true,
     isVerified: true,
+    isBlocked: false,
     ratingAverage: null,
     ratingCount: 0,
     subscription: liveSub(JED),

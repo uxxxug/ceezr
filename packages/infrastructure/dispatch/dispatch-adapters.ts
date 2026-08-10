@@ -36,6 +36,7 @@ interface CandidateRow {
   readonly lng: number | null;
   readonly is_available: boolean | null;
   readonly verification_status: string;
+  readonly is_blocked: boolean;
   readonly rating_average: string | null;
   readonly rating_count: number;
   readonly services: readonly string[] | null;
@@ -71,6 +72,7 @@ function toCandidate(row: CandidateRow): DriverCandidate {
     location: { latitude: Number(row.lat ?? 0), longitude: Number(row.lng ?? 0) },
     isAvailable: row.is_available === true,
     isVerified: row.verification_status === "verified",
+    isBlocked: row.is_blocked,
     ratingAverage: row.rating_average === null ? null : Number(row.rating_average),
     ratingCount: Number(row.rating_count ?? 0),
     capabilities,
@@ -90,6 +92,7 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  st_x(d.last_location::geometry) as lng,
                  a.is_available,
                  d.verification_status,
+                 u.is_blocked,
                  d.rating_average,
                  d.rating_count,
                  (select array_agg(c.service::text)
@@ -100,6 +103,7 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  s.trial_ends_at as sub_trial_ends_at,
                  s.current_period_end as sub_current_period_end
             from drivers d
+            join users u on u.id = d.user_id
             left join driver_availability a on a.driver_id = d.id
             left join subscriptions s
                    on s.driver_id = d.id and s.status in ('trialing', 'active')

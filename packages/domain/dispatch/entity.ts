@@ -44,6 +44,14 @@ export interface DriverCandidate {
   readonly location: Coordinates;
   readonly isAvailable: boolean;
   readonly isVerified: boolean;
+  /**
+   * `users.is_blocked`. المحجوب لا يُسنَد إليه شيء.
+   *
+   * الحقل هنا لا في الاستعلام وحده: لو اكتُفي بشرط في SQL لصار الحجب قاعدة
+   * قاعدة بيانات لا قاعدة عمل، فلا يظهر في أسباب الرفض ولا يُختبَر في الطبقة
+   * التي تملك القرار. وقد كان الحجب قبل ذلك مسجَّلاً وغير نافذ لهذا السبب.
+   */
+  readonly isBlocked: boolean;
   readonly ratingAverage: number | null;
   /** عدد التقييمات غير المُعلَّمة — بلا عدد لا يُعرف هل المتوسط يُعتدّ به. */
   readonly ratingCount: number;
@@ -61,6 +69,7 @@ export interface OrderContext {
 
 export type RejectionReason =
   | "CITY_MISMATCH"
+  | "BLOCKED"
   | "NOT_VERIFIED"
   | "NOT_AVAILABLE"
   | "SERVICE_NOT_ENABLED"
@@ -94,6 +103,8 @@ export function rejectionReasonFor(
 ): RejectionReason | null {
   if (candidate.cityId !== order.cityId) return "CITY_MISMATCH";
   if (order.excludedDriverIds.includes(candidate.driverId)) return "EXCLUDED_THIS_ROUND";
+  // الحجب قبل التحقّق والتوافر: هو أشدّ الأسباب، فلا يُحجب سببُه بسبب أهون
+  if (candidate.isBlocked) return "BLOCKED";
   if (!candidate.isVerified) return "NOT_VERIFIED";
   if (!candidate.isAvailable) return "NOT_AVAILABLE";
   if (!canServe(candidate.capabilities, order.service)) return "SERVICE_NOT_ENABLED";
