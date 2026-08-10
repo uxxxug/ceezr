@@ -13,6 +13,24 @@ import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 /** ترويسة تلغرام القياسية للسرّ المشترك. */
 export const TELEGRAM_SECRET_HEADER = "x-telegram-bot-api-secret-token";
 
+/**
+ * أقصى حجم مقبول لجسم التحديث.
+ *
+ * لماذا يلزم حدّ أصلاً: `c.req.json()` يُخزّن الجسم كاملاً في الذاكرة قبل أن
+ * يُتاح لنا فحصه. فبلا حدّ يصير حجمُ ما نحجزه من ذاكرة تحت سيطرة المُرسِل، لا
+ * تحت سيطرتنا — وذلك بالضبط تعريف إغراق الذاكرة. والخدمة بنسخة واحدة
+ * (numInstances: 1 في render.yaml) فليس ثمّة نظير يمتصّ السقوط.
+ *
+ * لماذا 256 كِبّي: أكبر تحديث واقعي من تلغرام أصغر من ذلك بكثير — نصّ الرسالة
+ * محدود بـ 4096 محرفاً، ومع الكيانات والاقتباس والتوجيه لا يبلغ عشرات الكِبّيات.
+ * فالحدّ متّسع بما لا يردّ تحديثاً شرعياً، وضيّق بما يمنع الحجز غير المحدود.
+ *
+ * لماذا رمز «الحمولة أكبر من اللازم» لا رمز «طلب غير صالح»: الأوّل يصف السبب
+ * بدقّة، وتلغرام لا يُعيد إرسال أخطاء العميل فلا تنشأ حلقة إعادة. والفرق مهمّ
+ * للمراقبة: تكراره إشارة هجوم لا خلل تنسيق.
+ */
+export const MAX_WEBHOOK_BODY_BYTES = 256 * 1024;
+
 export type BotKind = "driver" | "rider";
 
 export interface UpdateHandler {
@@ -95,6 +113,47 @@ function tooManyRequests(
   });
 }
 
+/**
+ * يقرأ التدفّق نصّاً بحدٍّ أعلى صارم، ويعيد `null` إن تجاوزه.
+ *
+ * الفارق عن `req.text()` ثم القياس: هنا يُلغى القارئ فور تجاوز الحدّ، فلا
+ * يُحجز من الذاكرة أكثر من الحدّ مهما بلغ ما يُرسله الخصم. القياس بالبايت لا
+ * بالمحارف، لأن الحرف العربي محرفان في UTF-8 فالقياس النصّي يسمح بضعف الحدّ.
+ */
+export async function readBounded(
+  body: ReadableStream<Uint8Array> | null,
+  maxBytes: number,
+): Promise<string | null> {
+  if (body === null) return "";
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value === undefined) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+}
+
 export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
   const app = new Hono();
 
@@ -121,9 +180,26 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
       return c.json({ ok: false, error: "INVALID_SECRET" }, 401);
     }
 
+    // الفحص بعد التحقّق من السرّ لا قبله، حفاظاً على ترتيب «لا نردّ على مجهول
+    // بأكثر من رفض». ولا يُضعِف ذلك الحماية: الجسم لم يُقرأ بعدُ إلى هنا.
+    const declaredLength = Number(c.req.header("content-length") ?? Number.NaN);
+    if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
+      deps.log?.("رُفض تحديث لتجاوزه حدّ الحجم", { bot, address, bytes: declaredLength });
+      return c.json({ ok: false, error: "PAYLOAD_TOO_LARGE" }, 413);
+    }
+
+    // الترويسة قد تغيب (نقل مقطَّع)، فلا يُكتفى بها. والقراءة نصّاً كاملاً ثم
+    // القياس تحجز أولاً وتسأل ثانياً — أي أنها لا تحمي شيئاً. فيُقرأ التدفّق
+    // مقطعاً مقطعاً ويُقطع فور تجاوز الحدّ، فلا يُحجز أكثر منه أبداً.
+    const raw = await readBounded(c.req.raw.body, MAX_WEBHOOK_BODY_BYTES);
+    if (raw === null) {
+      deps.log?.("رُفض تحديث لتجاوزه حدّ الحجم", { bot, address });
+      return c.json({ ok: false, error: "PAYLOAD_TOO_LARGE" }, 413);
+    }
+
     let update: unknown;
     try {
-      update = await c.req.json();
+      update = JSON.parse(raw);
     } catch {
       return c.json({ ok: false, error: "INVALID_JSON" }, 400);
     }

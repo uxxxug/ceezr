@@ -8,6 +8,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   type BotKind,
+  MAX_WEBHOOK_BODY_BYTES,
   secretsMatch,
   TELEGRAM_SECRET_HEADER,
 } from "../../apps/gateway/src/routes/telegram-webhook.ts";
@@ -288,6 +289,67 @@ describe("POST /webhook/telegram/:bot", () => {
     );
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ ok: false, error: "INVALID_JSON" });
+  });
+
+  describe("حدّ حجم الجسم", () => {
+    /** جسم JSON صالح بحجم مطلوب تقريباً، بالحشو في حقل نصّي. */
+    const bodyOfBytes = (bytes: number) =>
+      JSON.stringify({ update_id: 9, message: { text: "ح".repeat(Math.ceil(bytes / 2)) } });
+
+    it("يقبل تحديثاً كبيراً لكنه دون الحدّ", async () => {
+      const received: { bot: BotKind; update: unknown }[] = [];
+      const res = await buildApp({ received }).request(
+        webhookRequest(null, {
+          secret: SECRET,
+          rawBody: bodyOfBytes(MAX_WEBHOOK_BODY_BYTES - 4096),
+        }),
+      );
+      expect(res.status).toBe(200);
+      expect(received).toHaveLength(1);
+    });
+
+    it("يرفض 413 ما تجاوز الحدّ ولا يستدعي المعالج", async () => {
+      const received: { bot: BotKind; update: unknown }[] = [];
+      const res = await buildApp({ received }).request(
+        webhookRequest(null, {
+          secret: SECRET,
+          rawBody: bodyOfBytes(MAX_WEBHOOK_BODY_BYTES * 2),
+        }),
+      );
+      expect(res.status).toBe(413);
+      expect(await res.json()).toEqual({ ok: false, error: "PAYLOAD_TOO_LARGE" });
+      // الرفض قبل التحليل والمعالجة: لا يُحمَّل النظام بجسم رفضه
+      expect(received).toHaveLength(0);
+    });
+
+    it("لا يُقبل جسم مجهول الطول يتجاوز الحدّ: القياس على البايت لا على الترويسة", async () => {
+      const received: { bot: BotKind; update: unknown }[] = [];
+      // بلا content-length: تدفّق مقطَّع، وهو المسار الذي كان يفلت لو اكتُفي بالترويسة
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          const chunk = new TextEncoder().encode("ء".repeat(32 * 1024));
+          for (let i = 0; i < 20; i += 1) controller.enqueue(chunk);
+          controller.close();
+        },
+      });
+      const res = await buildApp({ received }).request(
+        new Request("http://localhost/webhook/telegram/driver", {
+          method: "POST",
+          headers: { "content-type": "application/json", [TELEGRAM_SECRET_HEADER]: SECRET },
+          body: stream,
+          // مطلوب في fetch لإرسال تدفّق بلا طول معروف
+          duplex: "half",
+        } as RequestInit),
+      );
+      expect(res.status).toBe(413);
+      expect(received).toHaveLength(0);
+    });
+
+    it("الحدّ يتّسع لأكبر رسالة تلغرام واقعية فلا يردّ شرعياً", () => {
+      // نصّ تلغرام محدود بـ 4096 محرفاً؛ بالعربية محرفان لكلٍّ في UTF-8
+      const largestRealistic = 4096 * 2;
+      expect(MAX_WEBHOOK_BODY_BYTES).toBeGreaterThan(largestRealistic * 4);
+    });
   });
 
   it("يرفض 400 لتحديث ليس كائناً", async () => {
