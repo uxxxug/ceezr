@@ -226,6 +226,9 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     offerWriter: createOfferWriter(sql),
     notifier: createTelegramDriverNotifier(sql, asOutboundSender(driverSender)),
     clock: systemClock,
+    // يوصل `dispatch.no_eligible_driver` وتعداد أسباب الرفض إلى سجلّ الإنتاج.
+    // دونه يبقى التشخيص حبيساً في قيمة راجعة يُسقطها منادي بوت العميل.
+    log,
   };
 
   // مسار قروب غير المشتركين: مُرسِل السائق هو من ينشر في القروب، لأن أزراره

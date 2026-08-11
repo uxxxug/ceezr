@@ -153,4 +153,49 @@ describe("broadcastOffers", () => {
     expect(offerWriter.rounds).toHaveLength(0);
     expect(notifier.sent).toHaveLength(0);
   });
+
+  /**
+   * البند 2.3: قبل هذا كان سبب الرفض يُرجع داخل الخطأ ثم يُسقطه منادي
+   * بوت العميل بـ`if (!broadcast.ok) return replies`، فلا يبقى لـ«لماذا لم يصل أحد؟»
+   * أي أثر في النظام. وإصلاح لا يراه أحد لا يُعتدّ به.
+   */
+  it("يُخرج تعداد أسباب الرفض إلى السجلّ — لا يدفنها في الخطأ", async () => {
+    const entries: { message: string; meta: Record<string, unknown> }[] = [];
+    const noLocation = { ...driver("no-loc", NEAR), location: null };
+    // مرشّح آخر بسبب مختلف ليُثبت أن التعداد يفصل الأسباب ولا يجمعها في واحد
+    const unverified = { ...driver("unverified", NEAR), isVerified: false };
+
+    const result = await broadcastOffers(
+      { orderId: ORDER_ID },
+      deps({
+        candidates: candidateRepo([noLocation, unverified]),
+        log: (message, meta) => entries.push({ message, meta }),
+      }),
+    );
+
+    expect(isErr(result)).toBe(true);
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.message).toBe("dispatch.no_eligible_driver");
+    expect(entries[0]?.meta.candidatesSeen).toBe(2);
+    expect(entries[0]?.meta.reasons).toEqual({ NO_LOCATION: 1, NOT_VERIFIED: 1 });
+  });
+
+  it("لا يسجّل شيئاً عند نجاح البثّ: السجلّ للإنذار لا للضجيج", async () => {
+    const entries: string[] = [];
+    const result = await broadcastOffers(
+      { orderId: ORDER_ID },
+      deps({ log: (message) => entries.push(message) }),
+    );
+
+    expect(isOk(result)).toBe(true);
+    expect(entries).toHaveLength(0);
+  });
+
+  it("يعمل بلا سجلّ مطلقاً: الحقل اختياري ولا يُسقط البثّ", async () => {
+    const result = await broadcastOffers(
+      { orderId: ORDER_ID },
+      deps({ candidates: candidateRepo([{ ...driver("no-loc", NEAR), location: null }]) }),
+    );
+    expect(isErr(result)).toBe(true);
+  });
 });

@@ -69,7 +69,15 @@ function toCandidate(row: CandidateRow): DriverCandidate {
   return {
     driverId,
     cityId,
-    location: { latitude: Number(row.lat ?? 0), longitude: Number(row.lng ?? 0) },
+    /**
+     * غياب الموقع يُمرّر كـ`null` لا كـ(0,0): الصفر إحداثية صالحة في المحيط الأطلسي،
+     * وتمريرها يجعل الدومين يحسب مسافة حقيقية من موقع مختلق ويردّ `OUT_OF_RADIUS`
+     * بدلاً من `NO_LOCATION` — فيُطارد المشغّل سبباً خاطئاً.
+     */
+    location:
+      row.lat === null || row.lng === null
+        ? null
+        : { latitude: Number(row.lat), longitude: Number(row.lng) },
     isAvailable: row.is_available === true,
     isVerified: row.verification_status === "verified",
     isBlocked: row.is_blocked,
@@ -82,7 +90,15 @@ function toCandidate(row: CandidateRow): DriverCandidate {
 
 export function createDriverCandidateRepository(sql: Sql): DriverCandidateRepository {
   return {
-    /** يجلب سائقي المدينة بموقع معروف؛ الفلترة والترتيب مسؤولية الدومين لا القاعدة. */
+    /**
+     * يجلب كلّ سائقي المدينة؛ الفلترة والترتيب مسؤولية الدومين لا القاعدة.
+     *
+     * حُذف شرط `and d.last_location is not null` قصداً: كان يجعل القاعدة تتخذ قرار
+     * استبعاد تملكه القواعد التجارية وحدها، فيختفي السائق قبل أن يُسمّى سببه — وهو
+     * نفس العلّة التي من أجلها نُقل `is_blocked` من SQL إلى الدومين سابقاً.
+     * الأثر العمليّ: سائق بلا موقع لا يُسنَد إليه شيء كما كان، لكنّه يظهر الآن في
+     * `evaluation.rejected` بـ`NO_LOCATION`، فيراه المشغّل ويُذكّر بإرسال موقعه.
+     */
     findAvailableInCity: (cityId: CityId) =>
       guard("candidates.findAvailableInCity", async () => {
         const rows = await sql<CandidateRow[]>`
@@ -108,7 +124,6 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
             left join subscriptions s
                    on s.driver_id = d.id and s.status in ('trialing', 'active')
            where d.city_id = ${cityId}
-             and d.last_location is not null
         `;
         return rows.map(toCandidate);
       }),

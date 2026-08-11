@@ -41,7 +41,20 @@ export interface MatchingParameters {
 export interface DriverCandidate {
   readonly driverId: DriverId;
   readonly cityId: CityId;
-  readonly location: Coordinates;
+  /**
+   * آخر موقع ورد من السائق، أو `null` إن لم يرسل موقعاً قطّ.
+   *
+   * السماح بـ`null` ليس تراخياً بل تصحيح عطب إنتاجي مُقاس: كان استعلام المرشّحين
+   * يشترط `d.last_location is not null` في SQL، فكان السائق بلا موقع **يختفي قبل أن
+   * يراه الدومين**، فلا يظهر في `rejected` بسبب مُسمّى: لا للمشغّل ولا في سجلّ
+   * `NoEligibleDriverError`. وقع هذا فعلاً: سائق موثّق ومتاح ومشترك في المدينة
+   * الصحيحة، ولم يصله طلب واحد، والإدارة ترى «لا مرشّحين» بلا أي سبب.
+   *
+   * البديل القديم كان أسوأ من الإخفاء: المحوّل كان يقرأ `Number(lat ?? 0)` فيُنتج
+   * إحداثية (0,0) — نقطة في المحيط الأطلسي — وهي كذبة تُحسَب فيها مسافة حقيقية.
+   * الغياب يُمثّل غياباً لا صفراً.
+   */
+  readonly location: Coordinates | null;
   readonly isAvailable: boolean;
   readonly isVerified: boolean;
   /**
@@ -72,6 +85,8 @@ export type RejectionReason =
   | "BLOCKED"
   | "NOT_VERIFIED"
   | "NOT_AVAILABLE"
+  /** متاح وموثّق لكنّه لم يرسل موقعاً قطّ — لا يمكن حساب مسافته، والسبب يُسمّى لا يُخفى. */
+  | "NO_LOCATION"
   | "SERVICE_NOT_ENABLED"
   | "NO_LIVE_SUBSCRIPTION"
   | "OUT_OF_RADIUS"
@@ -107,10 +122,17 @@ export function rejectionReasonFor(
   if (candidate.isBlocked) return "BLOCKED";
   if (!candidate.isVerified) return "NOT_VERIFIED";
   if (!candidate.isAvailable) return "NOT_AVAILABLE";
+  /**
+   * موضعه بعد التوفّر وقبل القدرة مقصود: فحص `null` أرخص من فحص القدرات،
+   * والسبب أولى بالإبلاغ: سائقٌ أعلن توفّره وينقصه الموقع ينتظر عملاً ولا يأتيه،
+   * وهو أحقّ بأن يُطالَب بموقعه من أن يُقال له إن خدمته غير مُفعّلة.
+   */
+  if (candidate.location === null) return "NO_LOCATION";
   if (!canServe(candidate.capabilities, order.service)) return "SERVICE_NOT_ENABLED";
   if (candidate.subscription === null) return "NO_LIVE_SUBSCRIPTION";
   if (!coversService(candidate.subscription, order.service, now)) return "NO_LIVE_SUBSCRIPTION";
   if (haversineKm(order.pickup, candidate.location) > params.searchRadiusKm) {
+    // المسافة أخيراً: أغلى الفحوص حساباً.
     return "OUT_OF_RADIUS";
   }
   return null;
@@ -148,8 +170,11 @@ export function evaluateCandidates(
 
   for (const candidate of candidates) {
     const reason = rejectionReasonFor(candidate, order, params, now);
-    if (reason !== null) {
-      rejected.push({ driverId: candidate.driverId, reason });
+    // الشرط الثاني تضييق نوعي لا فحص مكرَّر: `rejectionReasonFor` تُعيد `NO_LOCATION`
+    // عند غياب الموقع، لكن TypeScript لا يستنتج ذلك من قيمة راجعة، وإسكاته بـ`as`
+    // يعني أن أي تغيير مستقبلي في ترتيب الأسباب يمرّ صامتاً ثم يُحسب من (0,0).
+    if (reason !== null || candidate.location === null) {
+      rejected.push({ driverId: candidate.driverId, reason: reason ?? "NO_LOCATION" });
       continue;
     }
     const distanceKm = haversineKm(order.pickup, candidate.location);

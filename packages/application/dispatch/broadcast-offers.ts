@@ -61,6 +61,13 @@ export interface DriverNotifier {
 export interface BroadcastDependencies extends MatchOrderDependencies {
   readonly offerWriter: OfferWriter;
   readonly notifier: DriverNotifier;
+  /**
+   * اختياري فلا يكسر منادياً، ولكنّ غيابه كان علّة حقيقية: عند انعدام المؤهلين
+   * تُرجع `NoEligibleDriverError` ومعها أسباب الرفض كاملة، ومنادي بوت العميل
+   * يُسقط الخطأ بـ`if (!broadcast.ok) return replies` فتضيع الأسباب إلى غير رجعة.
+   * فكان السؤال «لماذا لا تصل الطلبات السائقين؟» بلا جواب في النظام كلّه.
+   */
+  readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
 export interface BroadcastResult {
@@ -74,12 +81,38 @@ export interface BroadcastResult {
 
 const MS_PER_SECOND = 1000;
 
+/**
+ * يُخرج أسباب الرفض معدودة بدل أن تموت داخل الخطأ.
+ * التعداد لا القائمة الكاملة: مدينة بمائة سائق تملأ السجلّ بلا فائدة،
+ * والمشغّل يحتاج أن يعرف «أربعة بلا موقع» لا معرّفاتهم الأربعة.
+ * المعرّفات تُرى في لوحة الإدارة، والسجلّ للإنذار لا للجرد.
+ */
+function logIneligibility(
+  orderId: OrderId,
+  error: MatchOrderError,
+  log?: (message: string, meta: Record<string, unknown>) => void,
+): void {
+  if (log === undefined || error.code !== "NO_ELIGIBLE_DRIVER") return;
+  const tally: Record<string, number> = {};
+  for (const entry of error.evaluation.rejected) {
+    tally[entry.reason] = (tally[entry.reason] ?? 0) + 1;
+  }
+  log("dispatch.no_eligible_driver", {
+    orderId,
+    candidatesSeen: error.evaluation.rejected.length,
+    reasons: tally,
+  });
+}
+
 export async function broadcastOffers(
   input: { readonly orderId: OrderId },
   deps: BroadcastDependencies,
 ): Promise<Result<BroadcastResult, MatchOrderError>> {
   const matched = await matchOrder(input, deps);
-  if (!matched.ok) return matched;
+  if (!matched.ok) {
+    logIneligibility(input.orderId, matched.error, deps.log);
+    return matched;
+  }
   const decision = matched.value;
 
   const expiresAt = new Date(

@@ -102,6 +102,41 @@ describe("rejectionReasonFor", () => {
     ).toBe("NOT_AVAILABLE");
   });
 
+  /**
+   * الحالة الإنتاجية بعينها (البند 2.3): السائق الوحيد في القاعدة كان
+   * `verification_status='verified'` و`is_available=true` وله اشتراك `trialing` وقدرة
+   * `transport` وفي مدينة الطلب نفسها — ومع ذلك لم يصله أي عرض (صفر أسطر في
+   * `order_offers`) ولم يظهر له أي سبب رفض. العلة الوحيدة: `last_location = NULL`.
+   */
+  it("يسمّي NO_LOCATION لمن هو موثّق ومتاح ومشترك ولم يرسل موقعاً قطّ", () => {
+    const c = candidate({ driverId: D("no-loc"), location: null });
+    expect(c.isVerified).toBe(true);
+    expect(c.isAvailable).toBe(true);
+    expect(c.subscription).not.toBeNull();
+    expect(rejectionReasonFor(c, ORDER, PARAMS, NOW)).toBe("NO_LOCATION");
+  });
+
+  /**
+   * لماذا قبل `SERVICE_NOT_ENABLED`: لو قُدّمت القدرة لقيل لسائقٍ ينقصه الموقع فقط
+   * إنّ خدمته غير مُفعّلة، فيذهب يفتش في مكان خاطئ.
+   */
+  it("NO_LOCATION يُقدّم على SERVICE_NOT_ENABLED عند تحقّق السببين", () => {
+    const c = candidate({
+      driverId: D("no-loc-2"),
+      location: null,
+      capabilities: [
+        { driverId: D("no-loc-2"), cityId: JED, service: "delivery", isEnabled: true },
+      ],
+    });
+    expect(rejectionReasonFor(c, ORDER, PARAMS, NOW)).toBe("NO_LOCATION");
+  });
+
+  /** التوفّر أشدّ: غير المتاح لا يُطالَب بموقعه أصلاً. */
+  it("NOT_AVAILABLE يُقدّم على NO_LOCATION", () => {
+    const c = candidate({ driverId: D("no-loc-3"), location: null, isAvailable: false });
+    expect(rejectionReasonFor(c, ORDER, PARAMS, NOW)).toBe("NOT_AVAILABLE");
+  });
+
   it("يستبعد من لم يفعّل نوع الخدمة", () => {
     const c = candidate({
       driverId: D("d4"),
@@ -231,6 +266,27 @@ describe("evaluateCandidates", () => {
     );
     expect(first).toEqual(second);
     expect(first).toEqual(["aaa", "bbb"]);
+  });
+
+  /**
+   * جوهر البند 2.3: قبل الإصلاح كان استعلام القاعدة يحجب هذا السائق تماماً،
+   * فتخرج `evaluation` فارغة من الطرفين: لا مؤهل ولا مرفوض. و`NoEligibleDriverError`
+   * تحمل هذه الـ`evaluation` إلى السجلّ ولوحة الإدارة، فكان الجواب «لا أحد» بلا سبب.
+   * المطلوب: أن يبقى غير مؤهل، وأن يُسمّى سببه.
+   */
+  it("يُبلِغ عن السائق بلا موقع بدل أن يختفي صامتاً", () => {
+    const noLocation = candidate({ driverId: D("no-loc"), location: null });
+    const result = evaluateCandidates([noLocation], ORDER, PARAMS, NOW);
+    expect(result.eligible).toHaveLength(0);
+    expect(result.rejected).toEqual([{ driverId: D("no-loc"), reason: "NO_LOCATION" }]);
+  });
+
+  it("لا يحسب مسافة من (0,0) لمن لا موقع له", () => {
+    const noLocation = candidate({ driverId: D("no-loc"), location: null });
+    const result = evaluateCandidates([noLocation, near], ORDER, PARAMS, NOW);
+    // لو مُرّرت (0,0) لكان السبب OUT_OF_RADIUS ولَطورد المشغّل نصف القطر بلا فائدة.
+    expect(result.rejected.map((r) => r.reason)).toEqual(["NO_LOCATION"]);
+    expect(result.eligible.map((c) => String(c.driverId))).toEqual(["near"]);
   });
 
   it("يحسب المسافة لكل مرشح مؤهل", () => {
