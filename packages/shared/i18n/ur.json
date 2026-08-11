@@ -231,5 +231,15 @@
   "translation.language_name.ar": "عربی",
   "translation.language_name.en": "انگریزی",
   "translation.language_name.ur": "اردو",
-  "translation.original_note": "🌐 اصل ({language}):\n«{original}»"
+  "translation.original_note": "🌐 اصل ({language}):\n«{original}»",
+  "menu.rider.history": "🧾 میرے سابقہ آرڈرز",
+  "menu.rider.history.description": "آپ کے مکمل شدہ آرڈرز",
+  "rider.history_heading": "🧾 آپ کے سابقہ آرڈرز (آخری 10):",
+  "rider.history_empty": "ابھی آپ کا کوئی مکمل شدہ آرڈر نہیں ہے۔",
+  "rider.history_completed": "✅ مکمل ہوا",
+  "rider.history_cancelled": "❌ منسوخ ہوا",
+  "rider.history_failed": "⚠️ مکمل نہیں ہوا",
+  "rider.history_driver": "ڈرائیور: {name}",
+  "rider.history_rated": "آپ کی درجہ بندی: {bar}",
+  "rider.history_unrated": "آپ نے اس سفر کی درجہ بندی نہیں کی۔"
 }

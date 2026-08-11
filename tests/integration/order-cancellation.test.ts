@@ -297,6 +297,47 @@ describeIf("إلغاء الطلب: أي طلب أُلغي، ومن عَلِم ب
     expect(after).toHaveLength(0);
   });
 
+  /**
+   * البند 5 — دورة الطلب تُغلق بأثرٍ يراه العميل لا بصمت.
+   *
+   * السطر الذي يُختبر هنا لا تكفيه اختبارات الوحدة: `createPastOrdersLookup`
+   * يقرأ `o.status in ('completed','cancelled','failed')` و`coalesce(completed_at,
+   * updated_at)` و`ratings.direction`، وكلّها أسماءٌ في القاعدة لا في التايبسكربت.
+   * منفذٌ مزدوج يمرّ وإن كان العمود غير موجود أو الحالة غير مسمّاة كما ظنّنا.
+   */
+  it("الطلب الملغى يظهر في «طلباتي السابقة» بعد الإلغاء لا يختفي", async () => {
+    await riderRegisters();
+    await orderRide();
+
+    const { createPastOrdersLookup } = await import(
+      "../../packages/infrastructure/transport/order-adapters.ts"
+    );
+    const pastOrdersOf = createPastOrdersLookup(sql);
+    const rows = await orderRows();
+    const riderId = (await sql<{ rider_id: string }[]>`select rider_id from orders limit 1`)[0]
+      ?.rider_id;
+    if (riderId === undefined) throw new Error("لم يُنشأ الطلب");
+
+    // قبل الإلغاء: الطلب حيٌّ فلا مكان له في السجلّ — وإلّا فالسجلّ يعرض الجاري
+    expect(await pastOrdersOf(riderId as never)).toHaveLength(0);
+    expect(rows[0]?.status).toBe("searching");
+
+    await post("rider", text(RIDER_CHAT, "/cancel"));
+
+    const past = await pastOrdersOf(riderId as never);
+    expect(past).toHaveLength(1);
+    expect(past[0]?.status).toBe("cancelled");
+    // لحظة الانتهاء موجودة فعلاً: الملغى لا completed_at له، و`coalesce` هو ما يحميه
+    expect(past[0]?.endedAt).not.toBeNull();
+    expect(past[0]?.driverName).toBeNull();
+    expect(past[0]?.ratingStars).toBeNull();
+
+    // ويُعرض للعميل نفسه عبر /history لا عبر المنفذ وحده
+    riderSent.length = 0;
+    await post("rider", text(RIDER_CHAT, "/history"));
+    expect(riderSent.some((sent) => sent.text.includes("طلباتك السابقة"))).toBe(true);
+  });
+
   it("تصفية المدينة لا تُخفي طلباً حيّاً ولا تُظهر ملغىً", async () => {
     // اللوحة تُفتح مصفّاةً بالمدينة أكثر ممّا تُفتح على «كل المدن»، فالتصفية
     // مسارٌ مستقلّ يجب أن يحمل نفس شرط الحالة لا أن يسقطه مع شرط المدينة

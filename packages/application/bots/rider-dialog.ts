@@ -53,6 +53,7 @@ import {
   type IncomingUpdate,
   type Keyboard,
   type OrderWriter,
+  type PastOrderSummary,
   type RiderDirectory,
   type RiderProfile,
   type Sender,
@@ -66,6 +67,13 @@ export interface RiderBotDependencies {
   readonly orders: OrderWriter;
   /** كل الطلبات النشطة للعميل — لا الأحدث وحده، فقد يملك مشواراً وطرداً معاً. */
   readonly activeOrdersOf: (riderId: RiderProfile["id"]) => Promise<readonly ActiveOrderSummary[]>;
+  /**
+   * سجلّ الطلبات المنتهية — البند 5.
+   *
+   * منفذٌ ثانٍ لا توسعةٌ للأول: `activeOrdersOf` يُنادى في كل `/help` و`/cancel`
+   * و`/status`، فتحميله بصفوفٍ منتهية يُثقل أكثر المسارات طَرْقاً لأجل أندرها.
+   */
+  readonly pastOrdersOf: (riderId: RiderProfile["id"]) => Promise<readonly PastOrderSummary[]>;
   /** تبعيات المطابقة والبثّ نفسها المستخدمة في broadcastOffers — لا تكرار للمنطق. */
   readonly matching: BroadcastDependencies;
   readonly clock: Clock;
@@ -260,6 +268,49 @@ function describeActiveOrder(order: ActiveOrderSummary, language: string): strin
   const place = order.dropoffLabel ?? order.pickupLabel;
   const time = order.createdAt.toISOString().slice(11, 16);
   return place === null ? `${service} — ${time}` : `${service} — ${place} — ${time}`;
+}
+
+/**
+ * سطر الطلب المنتهي في «طلباتي السابقة» — البند 5.
+ *
+ * التاريخ يُعرض واليومُ وحده لا يكفي: سجلٌّ بلا تاريخ يجعل طلبَ الأمس وطلبَ الشهر
+ * الماضي سطرين متشابهين، والسؤال الذي يُفتح لأجله السجلّ أصلاً «متى كانت تلك الرحلة؟».
+ *
+ * ونهاية الطلب تُقال بنصّها لا بحالتها الخام: «cancelled» كلمةٌ إنجليزية في رسالة
+ * عربية، ومن قرأها لا يعلم أهو ألغى أم أُلغي عليه.
+ */
+function describePastOrder(order: PastOrderSummary, language: string): string {
+  const tr = t(language);
+  const service = tr(
+    order.service === "delivery" ? "rider.service_delivery" : "rider.service_transport",
+  );
+  // لحظة الانتهاء أدقّ من لحظة الإنشاء في سجلٍّ مرتَّب بالانتهاء؛ ولطلبٍ لم تُكتب
+  // له نهاية يبقى الإنشاء أصدق ما يُعرف عنه.
+  const when = (order.endedAt ?? order.createdAt).toISOString().slice(0, 16).replace("T", " ");
+  const lines: string[] = [`${service} — ${when}`];
+
+  const place = order.dropoffLabel ?? order.pickupLabel;
+  if (place !== null && place.trim() !== "") lines.push(place);
+
+  if (order.status === "completed") lines.push(tr("rider.history_completed"));
+  else if (order.status === "cancelled") lines.push(tr("rider.history_cancelled"));
+  else lines.push(tr("rider.history_failed"));
+
+  if (order.driverName !== null && order.driverName.trim() !== "") {
+    lines.push(tr("rider.history_driver", { name: order.driverName }));
+  }
+
+  // التقييم يُعرض للمكتمل وحده: «لم تقيّم بعد» على طلبٍ أُلغي دعوةٌ إلى تقييم
+  // رحلةٍ لم تقع، وهي ما يرفضه `record_rating` في القاعدة أصلاً.
+  if (order.status === "completed") {
+    lines.push(
+      order.ratingStars === null
+        ? tr("rider.history_unrated")
+        : tr("rider.history_rated", { bar: "⭐".repeat(order.ratingStars) }),
+    );
+  }
+
+  return lines.join("\n");
 }
 
 /**
@@ -577,6 +628,14 @@ async function handleCommand(
       }
       const only = active[0] as ActiveOrderSummary;
       return cancelOne(only, sender, state, deps);
+    }
+
+    case "/history": {
+      if (rider === null) return [reply(sender, tr("rider.must_register_first"), menu(state))];
+      const past = await deps.pastOrdersOf(rider.id);
+      if (past.length === 0) return [reply(sender, tr("rider.history_empty"), menu(state))];
+      const body = past.map((order) => describePastOrder(order, state.language)).join("\n\n");
+      return [reply(sender, `${tr("rider.history_heading")}\n\n${body}`, menu(state))];
     }
 
     case "/language":

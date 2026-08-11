@@ -80,6 +80,7 @@ import {
   createActiveOrdersLookup,
   createOrderRepository,
   createOrderWriter,
+  createPastOrdersLookup,
 } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { systemClock } from "../../../packages/shared/kernel/index.ts";
@@ -437,6 +438,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     cities,
     orders: orderWriter,
     activeOrdersOf: createActiveOrdersLookup(sql),
+    pastOrdersOf: createPastOrdersLookup(sql),
     matching,
     clock: systemClock,
     negotiation: { rotation: rotationDeps, relay: relayDeps },

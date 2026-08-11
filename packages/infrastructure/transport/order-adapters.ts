@@ -11,6 +11,7 @@ import type {
   CancelNotifyTarget,
   CreateOrderInput,
   OrderWriter,
+  PastOrderSummary,
 } from "../../application/bots/types.ts";
 import type { OrderRepository } from "../../application/ports/index.ts";
 import type { Order, OrderStatus } from "../../domain/transport/entity.ts";
@@ -210,6 +211,69 @@ export function createActiveOrdersLookup(sql: Sql) {
               plateNumber: row.plate_number,
               vehiclePhotoFileId: row.vehicle_photo_file_id,
             },
+    }));
+  };
+}
+
+/**
+ * سجلّ الطلبات المنتهية للعميل — البند 5.
+ *
+ * الحدّ عشرة لا «كلّها»: رسالة تلغرام الواحدة محدودة بـ4096 محرفاً، وسجلٌّ بلا حدّ
+ * يصل يوماً إلى رسالة يرفض تلغرام إرسالها، فيرى العميل عدم استجابة لا سجلّاً.
+ * وعشرةٌ هي ما يُتذكَّر فعلاً؛ ومن أراد أقدم منها فسؤاله عن نزاعٍ بعينه، ومكانه الدعم.
+ * وهو رقم عرضٍ تقنيّ لا قيمةٌ تجارية: لا يقرّر ثمناً ولا مهلةً ولا استحقاقاً.
+ */
+const MAX_PAST_ORDERS = 10;
+
+export function createPastOrdersLookup(sql: Sql) {
+  return async (riderId: RiderId): Promise<readonly PastOrderSummary[]> => {
+    const rows = await sql<
+      {
+        id: string;
+        service: string;
+        status: string;
+        pickup_label: string | null;
+        dropoff_label: string | null;
+        created_at: Date;
+        ended_at: Date | null;
+        driver_name: string | null;
+        rating_stars: number | null;
+      }[]
+    >`
+      select o.id, o.service, o.status, o.pickup_label, o.dropoff_label, o.created_at,
+             -- المكتمل له completed_at، والملغى لا شيء له إلّا لحظة تغيّر صفّه؛
+             -- وعمود updated_at أصدق ما يُتاح لها، فهي لحظة كتابة الإلغاء نفسها.
+             coalesce(o.completed_at, o.updated_at) as ended_at,
+             du.full_name as driver_name,
+             -- تقييم العميل لهذا الطلب وحده: الاتجاه شرطٌ لا زينة، فبلا شرطه
+             -- قد يُعرض للعميل تقييمُ السائقِ له كأنّه تقييمه هو.
+             (select r.stars from ratings r
+               where r.order_id = o.id and r.direction = 'rider_to_driver'
+               limit 1) as rating_stars
+        from orders o
+        left join drivers d on d.id = o.assigned_driver_id
+        left join users du on du.id = d.user_id
+       where o.rider_id = ${riderId}
+         -- النهايات الثلاث كلّها: من أُلغي طلبه أو فشل يسأل عنه كما يسأل عن المكتمل،
+         -- وإخفاؤها يجعل السجلّ يبدو ناقصاً فيُظنّ عطباً.
+         and o.status in ('completed', 'cancelled', 'failed')
+       order by coalesce(o.completed_at, o.updated_at) desc
+       limit ${MAX_PAST_ORDERS}
+    `;
+    return rows.map((row) => ({
+      orderId: row.id as OrderId,
+      service: row.service as ServiceType,
+      status: row.status,
+      pickupLabel: row.pickup_label,
+      dropoffLabel: row.dropoff_label,
+      createdAt: new Date(row.created_at),
+      endedAt: row.ended_at === null ? null : new Date(row.ended_at),
+      driverName: row.driver_name,
+      // القاعدة تُعيد smallint، وقد يعود نصّاً من المحوّل — والصفر ليس تقييماً صحيحاً
+      ratingStars:
+        row.rating_stars === null || Number(row.rating_stars) === 0
+          ? null
+          : Number(row.rating_stars),
     }));
   };
 }

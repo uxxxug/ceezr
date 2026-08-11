@@ -231,5 +231,15 @@
   "translation.language_name.ar": "Arabic",
   "translation.language_name.en": "English",
   "translation.language_name.ur": "Urdu",
-  "translation.original_note": "🌐 Original ({language}):\n“{original}”"
+  "translation.original_note": "🌐 Original ({language}):\n“{original}”",
+  "menu.rider.history": "🧾 My past orders",
+  "menu.rider.history.description": "Your finished orders",
+  "rider.history_heading": "🧾 Your past orders (last 10):",
+  "rider.history_empty": "You have no finished orders yet.",
+  "rider.history_completed": "✅ Completed",
+  "rider.history_cancelled": "❌ Cancelled",
+  "rider.history_failed": "⚠️ Not completed",
+  "rider.history_driver": "Driver: {name}",
+  "rider.history_rated": "Your rating: {bar}",
+  "rider.history_unrated": "You have not rated this trip."
 }

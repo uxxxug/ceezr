@@ -315,6 +315,7 @@ describe("تركيب التبعيات (container)", () => {
           cities: cityDirectory([JEDDAH]),
           orders: orderWriter(),
           activeOrdersOf: async () => [],
+          pastOrdersOf: async () => [],
           matching: {
             orders: orderRepo([]),
             offers: offerRepo([]),
@@ -348,6 +349,7 @@ describe("تركيب التبعيات (container)", () => {
           cities: cityDirectory([JEDDAH]),
           orders: orderWriter(),
           activeOrdersOf: async () => [],
+          pastOrdersOf: async () => [],
           matching: {
             orders: orderRepo([]),
             offers: offerRepo([]),

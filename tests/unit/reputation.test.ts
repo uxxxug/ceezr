@@ -16,7 +16,7 @@ import {
   type RatingDialogDependencies,
   starsKeyboard,
 } from "../../packages/application/bots/rating-dialog.ts";
-import type { Sender } from "../../packages/application/bots/types.ts";
+import type { DialogState, Sender, SessionStore } from "../../packages/application/bots/types.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type {
   CompletionSummary,
@@ -146,6 +146,7 @@ function deps(overrides: {
   lifecycle?: Partial<RideLifecyclePort>;
   ratings?: Partial<RatingPort>;
   counterpartSink?: { telegramId: string; text: string }[];
+  sessions?: SessionStore;
 }): RatingDialogDependencies {
   const startSummary: StartSummary = {
     orderId: ORDER,
@@ -165,7 +166,8 @@ function deps(overrides: {
     rider: { telegramId: "600", languageCode: "en", fullName: "Mona" },
   };
   return {
-    sessions: createMemorySessionStore(fixedClock(new Date("2026-08-07T12:00:00Z"))),
+    sessions:
+      overrides.sessions ?? createMemorySessionStore(fixedClock(new Date("2026-08-07T12:00:00Z"))),
     lifecycle: {
       start: async () => ({ ok: true, value: { ok: true, reason: null, summary: startSummary } }),
       complete: async () => ({ ok: true, value: { ok: true, reason: null, summary } }),
@@ -380,6 +382,111 @@ describe("حوار الرحلة والتقييم", () => {
     );
     expect(replies[0]?.text).toBe(ar("common.error_try_again"));
     expect(replies[0]?.text).not.toContain("connection");
+  });
+
+  /**
+   * البند 5 — نهاية الرحلة نهايةُ جلسة.
+   *
+   * العطب المُثبَت بالكود قبل الإصلاح: `RatingDialogDependencies.sessions` كان
+   * مُعلَناً ومربوطاً في الحاوية و**بلا مستدعٍ واحد** في `rating-dialog.ts`، فكان
+   * التقييم يُكتب في القاعدة وتبقى خطوة الحوار كما كانت.
+   *
+   * ويُختبر بحالةٍ واقعية لا بجلسة فارغة: راكبٌ كان يكتب شكوى حين انتهت رحلته.
+   * بلا المحو تبقى `awaiting_support_message` فتخطف أوّل رسالة يكتبها بعدها.
+   */
+  it("التقييم الناجح يُنهي الجلسة فلا تبقى خطوة عالقة تخطف الرسالة التالية", async () => {
+    const store = createMemorySessionStore(fixedClock(new Date("2026-08-07T12:00:00Z")));
+    const stuck: DialogState = {
+      step: "awaiting_support_message",
+      language: "ar",
+      draftName: null,
+      draftPhone: null,
+      draftCityId: null,
+      draftService: null,
+      draftPickup: null,
+      draftDropoff: null,
+      draftSupportType: null,
+      draftVehicleType: null,
+      draftPlateNumber: null,
+      draftNationalId: null,
+      draftVehiclePhotoFileId: null,
+    };
+    await store.save(sender.telegramUserId, stuck);
+    const before = await store.load(sender.telegramUserId);
+    expect(isOk(before) && before.value?.step).toBe("awaiting_support_message");
+
+    const replies = await handleRatingCallback(
+      `rate:5:${ORDER}`,
+      sender,
+      "ar",
+      deps({ sessions: store }),
+    );
+
+    // الشكر يبقى كما كان: المحو إضافةٌ لا استبدال
+    expect(replies[0]?.text).toBe(ar("rating.thanks", { bar: starsBar(5) }));
+    const after = await store.load(sender.telegramUserId);
+    expect(isOk(after) && after.value).toBeNull();
+  });
+
+  /**
+   * فشل المحو لا يُبطل تقييماً كُتب في القاعدة فعلاً: الشكر حقٌّ للمستخدم بعد أن
+   * تمّ فعله، ورسالة خطأ مكانه تجعله يظنّ أن نجمته لم تُسجَّل فيعيدها.
+   */
+  it("فشل محو الجلسة لا يسرق شكر التقييم", async () => {
+    const failing: SessionStore = {
+      load: async () => ({ ok: true, value: null }),
+      save: async () => ({ ok: true, value: undefined }),
+      clear: async () => err(new PortFailureError("redis.clear", "connection reset")),
+    };
+    const replies = await handleRatingCallback(
+      `rate:4:${ORDER}`,
+      sender,
+      "ar",
+      deps({ sessions: failing }),
+    );
+    expect(replies[0]?.text).toBe(ar("rating.thanks", { bar: starsBar(4) }));
+  });
+
+  /**
+   * التقييم المرفوض لا يُنهي جلسة: من ضغط نجمةً على رحلةٍ ليست له، أو خارج
+   * النافذة، لم تنتهِ دورةُ طلبٍ عنده — ومحو خطوته يقطع عليه ما كان فيه بلا سبب.
+   */
+  it("التقييم المرفوض لا يمسّ الجلسة", async () => {
+    const store = createMemorySessionStore(fixedClock(new Date("2026-08-07T12:00:00Z")));
+    const state: DialogState = {
+      step: "awaiting_pickup",
+      language: "ar",
+      draftName: null,
+      draftPhone: null,
+      draftCityId: null,
+      draftService: "transport",
+      draftPickup: null,
+      draftDropoff: null,
+      draftSupportType: null,
+      draftVehicleType: null,
+      draftPlateNumber: null,
+      draftNationalId: null,
+      draftVehiclePhotoFileId: null,
+    };
+    await store.save(sender.telegramUserId, state);
+
+    const replies = await handleRatingCallback(
+      `rate:5:${ORDER}`,
+      sender,
+      "ar",
+      deps({
+        sessions: store,
+        ratings: {
+          submit: async () => ({
+            ok: true,
+            value: { ok: false, ratingId: null, direction: null, reason: "RATING_WINDOW_CLOSED" },
+          }),
+        },
+      }),
+    );
+    expect(replies[0]?.text).toBe(ar("rating.window_closed"));
+    const after = await store.load(sender.telegramUserId);
+    expect(isOk(after) && after.value?.step).toBe("awaiting_pickup");
   });
 });
 

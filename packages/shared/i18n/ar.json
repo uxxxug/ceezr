@@ -231,5 +231,15 @@
   "translation.language_name.ar": "العربية",
   "translation.language_name.en": "الإنجليزية",
   "translation.language_name.ur": "الأردية",
-  "translation.original_note": "🌐 الأصل ({language}):\n«{original}»"
+  "translation.original_note": "🌐 الأصل ({language}):\n«{original}»",
+  "menu.rider.history": "🧾 طلباتي السابقة",
+  "menu.rider.history.description": "سجلّ طلباتك المنتهية",
+  "rider.history_heading": "🧾 طلباتك السابقة (آخر ١٠):",
+  "rider.history_empty": "لا توجد لديك طلبات منتهية بعد.",
+  "rider.history_completed": "✅ اكتمل",
+  "rider.history_cancelled": "❌ أُلغي",
+  "rider.history_failed": "⚠️ لم يكتمل",
+  "rider.history_driver": "السائق: {name}",
+  "rider.history_rated": "تقييمك: {bar}",
+  "rider.history_unrated": "لم تقيّم هذه الرحلة."
 }

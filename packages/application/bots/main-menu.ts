@@ -41,6 +41,7 @@ export const RIDER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.rider.ride", command: "/ride" },
   { key: "menu.rider.delivery", command: "/delivery" },
   { key: "menu.rider.cancel", command: "/cancel" },
+  { key: "menu.rider.history", command: "/history" },
   { key: "menu.language", command: "/language" },
   { key: "menu.support", command: "/support" },
 ];

@@ -349,6 +349,33 @@ export interface ActiveOrderSummary {
   readonly assignedDriver?: AssignedDriverRef | null;
 }
 
+/**
+ * طلب منتهٍ في سجلّ العميل — البند 5.
+ *
+ * لماذا نوعٌ ثانٍ لا `ActiveOrderSummary` نفسه؟ لأن ما يهمّ في الطلب المنتهي غير ما
+ * يهمّ في الجاري: الجاريَ يُسأل عنه «أين سائقي؟» فيحتاج لوحةً وصورةَ مركبة، والمنتهي
+ * يُسأل عنه «ماذا جرى؟» فيحتاج وقتَ الانتهاء والتقييم. وحمْلُ نوعٍ واحد للحاجتين
+ * يجعل نصف حقوله `null` دائماً في كل استعمال، فلا يُقرأ منه ما هو حقيقةٌ وما هو غياب.
+ *
+ * ولا يُدرج هنا سعرٌ ولا مسافة: لا يُخزَّن للطلب سعرٌ في القاعدة اليوم، وعرضُ رقمٍ
+ * محسوبٍ في لحظة العرض يجعل السجلّ يقول ما لم يقع.
+ */
+export interface PastOrderSummary {
+  readonly orderId: OrderId;
+  readonly service: ServiceType;
+  /** `completed` أو `cancelled` أو `failed` — كلّها نهايات، ونهايةُ كلٍّ تُقال بنصّها. */
+  readonly status: string;
+  readonly pickupLabel: string | null;
+  readonly dropoffLabel: string | null;
+  readonly createdAt: Date;
+  /** لحظة الانتهاء الفعلية، و`null` لطلب أُلغي أو فشل قبل أن يكتمل. */
+  readonly endedAt: Date | null;
+  /** اسم السائق إن أُسنِد — والملغى قبل الإسناد لا سائق له فعلاً. */
+  readonly driverName: string | null;
+  /** نجوم العميل لهذا الطلب، و`null` تعني «لم تقيّم بعد» لا «صفر نجوم». */
+  readonly ratingStars: number | null;
+}
+
 /** رفض السائق للعرض — يُسجَّل فوراً ليخرج من دورة البثّ القادمة بلا انتظار المهلة. */
 export interface OfferDecisionPort {
   reject(orderId: OrderId, driverId: DriverId): Promise<Result<boolean, PortFailureError>>;

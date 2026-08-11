@@ -21,6 +21,7 @@ import type { SupportDialogDependencies } from "../../packages/application/bots/
 import type {
   ActiveOrderSummary,
   IncomingUpdate,
+  PastOrderSummary,
   Sender,
 } from "../../packages/application/bots/types.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
@@ -89,6 +90,7 @@ beforeEach(() => {
     cities: cityDirectory([JEDDAH]),
     orders,
     activeOrdersOf: async () => [],
+    pastOrdersOf: async () => [],
     matching: {
       orders: orderRepo([SEARCHING_ORDER]),
       offers: offerRepo([]),
@@ -844,5 +846,126 @@ describe("لوحة /help — البند 6.3", () => {
     // callback_data يأتي من جهاز المستخدم، فزرٌّ مصنوع بيده لا ينادي أوامر بوت السائق
     const replies = await handleRiderUpdate(callback("cmd:/available"), helpDeps());
     expect(replies[0]?.text).toBe(ar("common.unknown_command"));
+  });
+});
+
+/**
+ * البند 5 — «طلباتي السابقة».
+ *
+ * العطب الذي أوجبها: دورة الطلب كانت تنتهي بلا أثر يراه العميل. من أُلغي طلبه أو
+ * اكتمل لا يجد في البوت شيئاً يقول «هذا ما جرى»، فسؤال «متى كانت رحلتي؟» أو
+ * «هل أُلغي طلبي فعلاً؟» لا جواب له إلّا الدعم — وهو أغلى قناةٍ لأرخص سؤال.
+ */
+describe("سجلّ الطلبات: /history", () => {
+  const RIDER = {
+    id: "rider-h" as RiderId,
+    cityId: JEDDAH.id,
+    telegramUserId: "500",
+    fullName: "سالم",
+  };
+
+  const past = (overrides: Partial<PastOrderSummary> = {}): PastOrderSummary => ({
+    orderId: ORDER_ID,
+    service: "transport",
+    status: "completed",
+    pickupLabel: null,
+    dropoffLabel: "حي الصفا",
+    createdAt: new Date(NOW.getTime() - 3 * 3_600_000),
+    endedAt: new Date(NOW.getTime() - 2 * 3_600_000),
+    driverName: "خالد",
+    ratingStars: 5,
+    ...overrides,
+  });
+
+  const historyDeps = (rows: readonly PastOrderSummary[]) =>
+    build({ riders: riderDirectory(RIDER), pastOrdersOf: async () => rows });
+
+  it("زرّ «طلباتي السابقة» يُترجَم أمراً، فلا يردّ البوت «لم أفهم»", async () => {
+    // لوحة الردّ الدائمة ترسل نصّ الزرّ حرفياً؛ زرٌّ بلا مترجِم يبدو عطباً
+    const item = allItemsFor("rider").find((entry) => entry.command === "/history");
+    expect(item?.key).toBe("menu.rider.history");
+    const replies = await handleRiderUpdate(text(ar("menu.rider.history")), historyDeps([]));
+    expect(replies[0]?.text).toBe(ar("rider.history_empty"));
+  });
+
+  it("سجلٌّ فارغ يُقال صراحةً ومعه القائمة لا رسالة عارية", async () => {
+    const replies = await handleRiderUpdate(text("/history"), historyDeps([]));
+    expect(replies).toHaveLength(1);
+    expect(replies[0]?.text).toBe(ar("rider.history_empty"));
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar"));
+  });
+
+  it("غير المسجَّل يُوجَّه إلى التسجيل لا إلى سجلٍّ فارغ يضلّله", async () => {
+    let touched = false;
+    const replies = await handleRiderUpdate(
+      text("/history"),
+      build({
+        pastOrdersOf: async () => {
+          touched = true;
+          return [];
+        },
+      }),
+    );
+    expect(replies[0]?.text).toBe(ar("rider.must_register_first"));
+    // ولا يُستعلم عن سجلّ من لا معرّف له أصلاً
+    expect(touched).toBe(false);
+  });
+
+  it("الطلب المكتمل يُعرض بوقته ووجهته وسائقه وتقييمه", async () => {
+    const replies = await handleRiderUpdate(text("/history"), historyDeps([past()]));
+    const body = replies[0]?.text ?? "";
+    expect(body).toContain(ar("rider.history_heading"));
+    expect(body).toContain(ar("rider.service_transport"));
+    expect(body).toContain("حي الصفا");
+    expect(body).toContain(ar("rider.history_completed"));
+    expect(body).toContain(ar("rider.history_driver", { name: "خالد" }));
+    expect(body).toContain(ar("rider.history_rated", { bar: "⭐⭐⭐⭐⭐" }));
+    // التاريخ لا الساعة وحدها: السؤال الذي يُفتح لأجله السجلّ «متى كانت تلك الرحلة؟»
+    expect(body).toContain("2026-08-06 10:00");
+  });
+
+  it("المكتمل بلا تقييم يُدعى إلى التقييم، والملغى لا يُدعى إلى تقييم رحلة لم تقع", async () => {
+    const rated = await handleRiderUpdate(
+      text("/history"),
+      historyDeps([past({ ratingStars: null })]),
+    );
+    expect(rated[0]?.text).toContain(ar("rider.history_unrated"));
+
+    const cancelled = await handleRiderUpdate(
+      text("/history"),
+      historyDeps([past({ status: "cancelled", driverName: null, ratingStars: null })]),
+    );
+    const body = cancelled[0]?.text ?? "";
+    expect(body).toContain(ar("rider.history_cancelled"));
+    expect(body).not.toContain(ar("rider.history_unrated"));
+    expect(body).not.toContain(ar("rider.history_rated", { bar: "" }));
+    // ولا اسم سائق لطلبٍ أُلغي قبل الإسناد
+    expect(body).not.toContain("خالد");
+  });
+
+  it("النهاية تُقال بنصّ المستخدم لا بحالة القاعدة الخام", async () => {
+    for (const status of ["completed", "cancelled", "failed"]) {
+      const replies = await handleRiderUpdate(text("/history"), historyDeps([past({ status })]));
+      expect(replies[0]?.text).not.toContain(status);
+    }
+  });
+
+  it("لا نهاية بلا وقت: طلبٌ لم تُكتب له لحظة انتهاء يُعرض بوقت إنشائه", async () => {
+    const replies = await handleRiderUpdate(
+      text("/history"),
+      historyDeps([past({ status: "cancelled", endedAt: null, ratingStars: null })]),
+    );
+    expect(replies[0]?.text).toContain("2026-08-06 09:00");
+  });
+
+  it("طلبات كثيرة تُعرض كلّها في رسالة واحدة لا رسالة لكلٍّ", async () => {
+    const rows = [1, 2, 3].map((index) =>
+      past({ orderId: `order-${index}` as OrderId, dropoffLabel: `حي ${index}` }),
+    );
+    const replies = await handleRiderUpdate(text("/history"), historyDeps(rows));
+    expect(replies).toHaveLength(1);
+    for (const label of ["حي 1", "حي 2", "حي 3"]) {
+      expect(replies[0]?.text).toContain(label);
+    }
   });
 });
