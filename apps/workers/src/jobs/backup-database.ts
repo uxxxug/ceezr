@@ -9,10 +9,13 @@
  *   لا زمن — لأن الامتلاء دالّةٌ في عدد الملفات لا في عمرها.
  */
 
+import type {
+  BackupStoragePort,
+  RemoteBackupFile,
+} from "../../../../packages/infrastructure/backup/index.ts";
+import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { Clock } from "../../../../packages/shared/kernel/index.ts";
 import { err, ok, type Result } from "../../../../packages/shared/result/index.ts";
-import type { BackupStoragePort, RemoteBackupFile } from "../../../../packages/infrastructure/backup/index.ts";
-import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 
 export interface BackupConfig {
   /** رابط اتصال PostgreSQL — يُمرَّر إلى pg_dump. */

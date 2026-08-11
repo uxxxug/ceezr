@@ -9,7 +9,7 @@
  */
 
 import { formatDateTime } from "../format.ts";
-import { badge, escapeHtml, section, table, type BadgeTone } from "../layout.ts";
+import { type BadgeTone, badge, escapeHtml, section, table } from "../layout.ts";
 import type { CityOption } from "./drivers.ts";
 
 export interface PaymentTransactionRow {
@@ -37,9 +37,7 @@ export interface PaymentPageData {
 
 function statusBadge(status: string): string {
   const tone: BadgeTone =
-    status === "active" ? "ok" :
-    status === "pending" || status === "past_due" ? "warn" :
-    "bad";
+    status === "active" ? "ok" : status === "pending" || status === "past_due" ? "warn" : "bad";
   return badge(escapeHtml(status), tone);
 }
 
@@ -60,16 +58,20 @@ export function renderPaymentsPage(data: PaymentPageData): string {
     formatDateTime(tx.createdAt),
   ]);
 
-  const cityPicker = data.cityOptions.length > 0
-    ? `<div class="city-picker">
+  const cityPicker =
+    data.cityOptions.length > 0
+      ? `<div class="city-picker">
         <label>المدينة:</label>
         <select onchange="window.location.href='?city='+encodeURIComponent(this.value)">
-          ${data.cityOptions.map((city) =>
-            `<option value="${escapeHtml(city.id)}"${city.id === data.cityId ? " selected" : ""}>${escapeHtml(city.nameAr)}</option>`
-          ).join("")}
+          ${data.cityOptions
+            .map(
+              (city) =>
+                `<option value="${escapeHtml(city.id)}"${city.id === data.cityId ? " selected" : ""}>${escapeHtml(city.nameAr)}</option>`,
+            )
+            .join("")}
         </select>
       </div>`
-    : "";
+      : "";
 
   return section(
     "المدفوعات والاشتراكات",
@@ -81,7 +83,16 @@ export function renderPaymentsPage(data: PaymentPageData): string {
       ${badge(data.driverSubscriptionEnabled ? "اشتراك السائق مفعّل" : "اشتراك السائق معطّل", data.driverSubscriptionEnabled ? "ok" : "muted")}
     </div>
     ${table({
-      headers: ["السائق", "المدينة", "الغرض", "المبلغ", "المزوّد", "معرّف المزوّد", "الحالة", "التاريخ"],
+      headers: [
+        "السائق",
+        "المدينة",
+        "الغرض",
+        "المبلغ",
+        "المزوّد",
+        "معرّف المزوّد",
+        "الحالة",
+        "التاريخ",
+      ],
       rows,
       emptyText: "لا معاملات بعد",
     })}

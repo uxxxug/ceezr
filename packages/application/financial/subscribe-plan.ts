@@ -9,16 +9,11 @@
  *   بتفعيل الاشتراك عبر الدالة الذرّية `activate_subscription` القائمة.
  */
 
-import type { DriverId } from "../../shared/kernel/index.ts";
 import type { SubscriptionPlan } from "../../domain/subscription/entity.ts";
-import type { CityId } from "../../shared/kernel/index.ts";
+import type { CityId, DriverId } from "../../shared/kernel/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
-import type {
-  ChargeInitiation,
-  PaymentProvider,
-  PaymentRepository,
-} from "./ports.ts";
+import type { ChargeInitiation, PaymentProvider, PaymentRepository } from "./ports.ts";
 
 export interface SubscribePlanInput {
   readonly driverId: DriverId;
@@ -32,7 +27,10 @@ export interface SubscribePlanDeps {
   readonly payments: PaymentRepository;
   readonly provider: PaymentProvider;
   /** يقرأ سعر الاشتراك من platform_settings (لا قيمة تجارية في الكود). */
-  readonly priceReader: (cityId: CityId, plan: SubscriptionPlan) => Promise<Result<{ amount: number; currency: string }, PortFailureError>>;
+  readonly priceReader: (
+    cityId: CityId,
+    plan: SubscriptionPlan,
+  ) => Promise<Result<{ amount: number; currency: string }, PortFailureError>>;
 }
 
 export interface SubscribePlanOutcome {

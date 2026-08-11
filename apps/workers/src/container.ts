@@ -11,6 +11,7 @@ import { Api } from "grammy";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
 import type { ExpiryWarningSender } from "../../../packages/application/subscription/expire-subscriptions.ts";
+import { createGoogleDriveStorage } from "../../../packages/infrastructure/backup/index.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
   createExpireOffersRpc,
@@ -38,14 +39,13 @@ import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { DEFAULT_LANGUAGE, t } from "../../../packages/shared/i18n/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../../packages/shared/result/index.ts";
+import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
 import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
-import { runDatabaseBackup, createPgDumper, type BackupConfig } from "./jobs/backup-database.ts";
-import { createGoogleDriveStorage } from "../../../packages/infrastructure/backup/index.ts";
 import type { JobDefinition, JobLogger } from "./runner.ts";
 
 /** تواتر كل مهمّة بالثواني. تقنيّة لا تجارية: لا تُقرأ من platform_settings. */
@@ -75,7 +75,8 @@ function readBackupConfig(databaseUrl: string): BackupConfig | null {
   const folderId = process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID;
   if (!serviceAccountJson || !folderId) return null;
   const rawRetention = Number(process.env.BACKUP_RETENTION_COUNT ?? "14");
-  const retentionCount = Number.isFinite(rawRetention) && rawRetention > 0 ? Math.trunc(rawRetention) : 14;
+  const retentionCount =
+    Number.isFinite(rawRetention) && rawRetention > 0 ? Math.trunc(rawRetention) : 14;
   return { databaseUrl, retentionCount };
 }
 /**
@@ -350,12 +351,13 @@ export function buildWorkerContainer(
       // المهامّ العامة تشمل النسخ الاحتياطي اليوميّ إلى Google Drive (البند 7).
       // لا يُفعَّل إلا عند توفر اعتمادات Google Drive، فغيابها تخطّي صامت لا خطأ.
       const backupConfig = readBackupConfig(config.databaseUrl);
-      const backupStorage = backupConfig !== null
-        ? createGoogleDriveStorage({
-            serviceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON ?? "",
-            folderId: process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID ?? "",
-          })
-        : null;
+      const backupStorage =
+        backupConfig !== null
+          ? createGoogleDriveStorage({
+              serviceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON ?? "",
+              folderId: process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID ?? "",
+            })
+          : null;
 
       const global: JobDefinition[] = [
         {
@@ -387,7 +389,12 @@ export function buildWorkerContainer(
           run: async () => {
             const report = await runDatabaseBackup(
               backupConfig,
-              { storage: backupStorage, sql, clock: systemClock, log: (message, meta) => log.info(message, meta) },
+              {
+                storage: backupStorage,
+                sql,
+                clock: systemClock,
+                log: (message, meta) => log.info(message, meta),
+              },
               createPgDumper(),
             );
             if (!report.ok) throw new Error(report.error.detail);

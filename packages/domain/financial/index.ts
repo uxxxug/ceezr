@@ -7,10 +7,10 @@
 export {
   isPaymentOpen,
   isPaymentSuccessful,
-  money,
   type LedgerEntry,
   type LedgerEntryType,
   type Money,
+  money,
   type PaymentParty,
   type PaymentPurpose,
   type PaymentTransaction,

@@ -642,7 +642,8 @@ async function handleCommand(
       if (rider === null) return [reply(sender, tr("rider.must_register_first"), menu(state))];
       const cities = await deps.cities.listActive();
       if (!cities.ok) return technicalFailure(sender, state);
-      if (cities.value.length === 0) return [reply(sender, tr("common.no_active_city"), menu(state))];
+      if (cities.value.length === 0)
+        return [reply(sender, tr("common.no_active_city"), menu(state))];
       const saved = await deps.sessions.save(sender.telegramUserId, {
         ...state,
         step: "awaiting_city_change",

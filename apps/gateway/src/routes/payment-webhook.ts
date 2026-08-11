@@ -10,8 +10,14 @@
  */
 
 import { Hono } from "hono";
-import { confirmSubscriptionPayment, type ConfirmPaymentDeps } from "../../../../packages/application/financial/index.ts";
-import type { PaymentTransactionId, PaymentTransactionStatus } from "../../../../packages/domain/financial/index.ts";
+import {
+  type ConfirmPaymentDeps,
+  confirmSubscriptionPayment,
+} from "../../../../packages/application/financial/index.ts";
+import type {
+  PaymentTransactionId,
+  PaymentTransactionStatus,
+} from "../../../../packages/domain/financial/index.ts";
 
 /**
  * مقارنة زمن ثابت للسرّ — مُعاد استخدامها من نمط ويبهوك تلغرام لا اختراع جديد.

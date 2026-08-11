@@ -6,12 +6,7 @@
  * ينتمي إلى: packages/maps/core
  */
 
-import type {
-  LatLng,
-  RouteResult,
-  NearestResult,
-  ProviderName,
-} from "./types.ts";
+import type { LatLng, NearestResult, ProviderName, RouteResult } from "./types.ts";
 
 /** خيارات حساب المسار. */
 export interface RouteOptions {
@@ -51,7 +46,10 @@ export interface RoutingProvider {
   nearest(options: NearestOptions): Promise<Result<NearestResult, RoutingError>>;
 
   /** يحسب مصفوفة مسافات/أزمنة بين مجموعة مصادر ووجهات. */
-  table(sources: readonly LatLng[], destinations: readonly LatLng[]): Promise<Result<DistanceMatrix, RoutingError>>;
+  table(
+    sources: readonly LatLng[],
+    destinations: readonly LatLng[],
+  ): Promise<Result<DistanceMatrix, RoutingError>>;
 }
 
 /** نتيجة مصفوفة المسافات. */

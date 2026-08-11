@@ -6,9 +6,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import type { LatLng } from "../../packages/maps/core/types.ts";
 import { createOsrmProvider } from "../../packages/maps/providers/osrm/osrm-provider.ts";
 import { haversineMeters } from "../../packages/tracking/location-validator.ts";
-import type { LatLng } from "../../packages/maps/core/types.ts";
 
 describe("maps: OSRM provider", () => {
   it("ينشئ مزوّداً صحيحاً", () => {

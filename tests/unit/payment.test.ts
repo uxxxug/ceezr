@@ -7,22 +7,12 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { money } from "../../packages/domain/financial/entity.ts";
-import type {
-  PaymentTransaction,
-  PaymentTransactionId,
-  PaymentTransactionStatus,
-} from "../../packages/domain/financial/entity.ts";
-import type { DriverId } from "../../packages/shared/kernel/index.ts";
+import { paymentSecretsMatch } from "../../apps/gateway/src/routes/payment-webhook.ts";
 import {
-  confirmSubscriptionPayment,
   type ConfirmPaymentDeps,
   type ConfirmPaymentInput,
+  confirmSubscriptionPayment,
 } from "../../packages/application/financial/confirm-payment.ts";
-import {
-  subscribePlan,
-  type SubscribePlanDeps,
-} from "../../packages/application/financial/subscribe-plan.ts";
 import type {
   ChargeInitiation,
   CreatePaymentInput,
@@ -30,13 +20,20 @@ import type {
   PaymentRepository,
   WebhookEventStore,
 } from "../../packages/application/financial/ports.ts";
-import { err, ok } from "../../packages/shared/result/index.ts";
-import { PortFailureError } from "../../packages/application/ports/index.ts";
 import {
-  paymentSecretsMatch,
-} from "../../apps/gateway/src/routes/payment-webhook.ts";
+  type SubscribePlanDeps,
+  subscribePlan,
+} from "../../packages/application/financial/subscribe-plan.ts";
+import { PortFailureError } from "../../packages/application/ports/index.ts";
+import type {
+  PaymentTransaction,
+  PaymentTransactionId,
+  PaymentTransactionStatus,
+} from "../../packages/domain/financial/entity.ts";
+import { money } from "../../packages/domain/financial/entity.ts";
 import type { SubscriptionPlan } from "../../packages/domain/subscription/entity.ts";
-import type { CityId } from "../../packages/shared/kernel/index.ts";
+import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
+import { err, ok } from "../../packages/shared/result/index.ts";
 
 const driverId = "driver-1" as DriverId;
 const cityId = "city-1" as CityId;
@@ -84,8 +81,13 @@ function fakePaymentRepo(initial?: PaymentTransaction): {
       findById: async () => ok(state.tx),
       findByIdempotencyKey: async () => ok(state.tx),
       confirmPayment: async (input) => {
-        if (state.tx === null) return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
-        state.tx = { ...state.tx!, status: input.newStatus, providerTransactionId: input.providerTransactionId };
+        if (state.tx === null)
+          return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
+        state.tx = {
+          ...state.tx!,
+          status: input.newStatus,
+          providerTransactionId: input.providerTransactionId,
+        };
         return ok(state.tx);
       },
     },
@@ -177,11 +179,19 @@ describe("payment: subscribe-plan", () => {
       name: "track-provider",
       chargeSubscription: async () => {
         providerCallCount += 1;
-        return ok({ providerTransactionId: `prov-${providerCallCount}`, checkoutUrl: null, status: "pending" as const });
+        return ok({
+          providerTransactionId: `prov-${providerCallCount}`,
+          checkoutUrl: null,
+          status: "pending" as const,
+        });
       },
     };
     // معاملة موجودة سلفاً pending بلا providerTransactionId
-    const existing = makeTx({ id: "pending-key" as PaymentTransactionId, status: "pending", providerTransactionId: null });
+    const existing = makeTx({
+      id: "pending-key" as PaymentTransactionId,
+      status: "pending",
+      providerTransactionId: null,
+    });
     const { repo } = fakePaymentRepo(existing);
     const result = await subscribePlan(
       { driverId, cityId, plan: "transport" as SubscriptionPlan, idempotencyKey: "pending-key" },
@@ -197,11 +207,19 @@ describe("payment: subscribe-plan", () => {
       name: "track-provider",
       chargeSubscription: async () => {
         providerCallCount += 1;
-        return ok({ providerTransactionId: `prov-${providerCallCount}`, checkoutUrl: null, status: "pending" as const });
+        return ok({
+          providerTransactionId: `prov-${providerCallCount}`,
+          checkoutUrl: null,
+          status: "pending" as const,
+        });
       },
     };
     // معاملة موجودة pending لكن المزوّد دُعي بالفعل (providerTransactionId !== null)
-    const existing = makeTx({ id: "pending-prov" as PaymentTransactionId, status: "pending", providerTransactionId: "prov-1" });
+    const existing = makeTx({
+      id: "pending-prov" as PaymentTransactionId,
+      status: "pending",
+      providerTransactionId: "prov-1",
+    });
     const { repo } = fakePaymentRepo(existing);
     const result = await subscribePlan(
       { driverId, cityId, plan: "transport" as SubscriptionPlan, idempotencyKey: "pending-prov" },
@@ -217,7 +235,11 @@ describe("payment: subscribe-plan", () => {
       name: "track-provider",
       chargeSubscription: async () => {
         providerCallCount += 1;
-        return ok({ providerTransactionId: `prov-${providerCallCount}`, checkoutUrl: null, status: "pending" as const });
+        return ok({
+          providerTransactionId: `prov-${providerCallCount}`,
+          checkoutUrl: null,
+          status: "pending" as const,
+        });
       },
     };
     // محاكاة السباق: findByIdempotencyKey يُرجع null (لا توجد بعد)،
@@ -243,7 +265,11 @@ describe("payment: subscribe-plan", () => {
       payments: repo,
       provider: fakeProvider(),
       priceReader: async () =>
-        err({ code: "PORT_FAILURE", port: "settings", detail: "no price" } as unknown as PortFailureError),
+        err({
+          code: "PORT_FAILURE",
+          port: "settings",
+          detail: "no price",
+        } as unknown as PortFailureError),
     };
     const result = await subscribePlan(
       { driverId, cityId, plan: "transport" as SubscriptionPlan, idempotencyKey: "k" },
@@ -257,7 +283,11 @@ describe("payment: subscribe-plan", () => {
     const failingProvider: PaymentProvider = {
       name: "fail-provider",
       chargeSubscription: async () =>
-        err({ code: "PORT_FAILURE", port: "provider", detail: "charge failed" } as unknown as PortFailureError),
+        err({
+          code: "PORT_FAILURE",
+          port: "provider",
+          detail: "charge failed",
+        } as unknown as PortFailureError),
     };
     const result = await subscribePlan(
       { driverId, cityId, plan: "transport" as SubscriptionPlan, idempotencyKey: "k2" },
@@ -268,7 +298,10 @@ describe("payment: subscribe-plan", () => {
 });
 
 describe("payment: confirm-payment (webhook)", () => {
-  function confirmInput(eventId: string, status: PaymentTransactionStatus = "active"): ConfirmPaymentInput {
+  function confirmInput(
+    eventId: string,
+    status: PaymentTransactionStatus = "active",
+  ): ConfirmPaymentInput {
     return {
       transactionId: txId,
       providerTransactionId: "prov-tx-1",

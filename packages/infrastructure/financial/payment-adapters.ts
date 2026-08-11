@@ -136,7 +136,8 @@ export function createWebhookEventStore(sql: Sql): WebhookEventStore {
   return {
     record: (eventId, provider, payload) =>
       guard("rpc.record_webhook_event", async () => {
-        const rows = await sql`select record_webhook_event(${eventId}, ${provider}, ${payload}) as result`;
+        const rows =
+          await sql`select record_webhook_event(${eventId}, ${provider}, ${payload}) as result`;
         const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
         if (envelope === null) throw new Error("ردّ record_webhook_event غير مفهوم");
         if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");

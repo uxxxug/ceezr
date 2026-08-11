@@ -7,15 +7,17 @@
  */
 
 import type { LatLng } from "../maps/core/types.ts";
+import { type ValidatorConfig, validateGpsUpdate } from "./location-validator.ts";
 import type { GpsUpdate, TrackingEvent, ValidationResult } from "./types.ts";
-import { validateGpsUpdate, type ValidatorConfig } from "./location-validator.ts";
 
 /** منفذ تخزين الموقع الحالي (Redis عادةً). */
 export interface LocationStore {
   /** يخزّن الموقع الحالي للسائق. */
   setCurrent(driverId: string, position: LatLng, metadata: Record<string, unknown>): Promise<void>;
   /** يقرأ الموقع الحالي للسائق. */
-  getCurrent(driverId: string): Promise<{ position: LatLng; timestamp: number; metadata: Record<string, unknown> } | null>;
+  getCurrent(
+    driverId: string,
+  ): Promise<{ position: LatLng; timestamp: number; metadata: Record<string, unknown> } | null>;
   /** يحذف الموقع عند انتهاء الجلسة. */
   clear(driverId: string): Promise<void>;
 }
@@ -70,11 +72,17 @@ export class TrackingService {
   constructor(private readonly deps: TrackingDeps) {}
 
   /** يعالج تحديث GPS واحد: يتحقّق، يخزّن، ينشر. */
-  async handleGpsUpdate(update: GpsUpdate): Promise<{ accepted: boolean; reason?: string | undefined }> {
+  async handleGpsUpdate(
+    update: GpsUpdate,
+  ): Promise<{ accepted: boolean; reason?: string | undefined }> {
     const previous = this.previousPositions.get(update.driverId) ?? null;
 
     // التحقّق من صحة الموقع
-    const validation: ValidationResult = validateGpsUpdate(update, previous, this.deps.config.validator);
+    const validation: ValidationResult = validateGpsUpdate(
+      update,
+      previous,
+      this.deps.config.validator,
+    );
     if (!validation.valid) {
       // ننشر حدث تنبيه لكن لا نُخزّن الموقع الفاسد
       await this.deps.publisher.publish({

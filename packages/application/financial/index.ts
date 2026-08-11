@@ -9,24 +9,24 @@
  */
 
 export {
-  confirmSubscriptionPayment,
   type ConfirmPaymentDeps,
   type ConfirmPaymentInput,
   type ConfirmPaymentOutcome,
+  confirmSubscriptionPayment,
   WebhookConfirmationError,
 } from "./confirm-payment.ts";
+export type {
+  ChargeInitiation,
+  CreatePaymentInput,
+  CreatePaymentResult,
+  PaymentProvider,
+  PaymentRepository,
+  WebhookEventStore,
+} from "./ports.ts";
 export {
-  subscribePlan,
   type SubscribePlanDeps,
   type SubscribePlanInput,
   type SubscribePlanOutcome,
   SubscriptionPaymentError,
+  subscribePlan,
 } from "./subscribe-plan.ts";
-export {
-  type ChargeInitiation,
-  type CreatePaymentInput,
-  type CreatePaymentResult,
-  type PaymentProvider,
-  type PaymentRepository,
-  type WebhookEventStore,
-} from "./ports.ts";

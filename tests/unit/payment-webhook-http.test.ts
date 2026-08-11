@@ -10,8 +10,14 @@ import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
 } from "../../apps/gateway/src/routes/payment-webhook.ts";
-import type { PaymentRepository, WebhookEventStore } from "../../packages/application/financial/ports.ts";
-import type { PaymentTransaction, PaymentTransactionId } from "../../packages/domain/financial/entity.ts";
+import type {
+  PaymentRepository,
+  WebhookEventStore,
+} from "../../packages/application/financial/ports.ts";
+import type {
+  PaymentTransaction,
+  PaymentTransactionId,
+} from "../../packages/domain/financial/entity.ts";
 import type { DriverId } from "../../packages/shared/kernel/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 
@@ -19,7 +25,9 @@ const SECRET = "test-webhook-secret";
 const PROVIDER = "test-provider";
 const txId = "tx-wh-1" as PaymentTransactionId;
 
-function fakeRepo(initial?: PaymentTransaction): PaymentRepository & { txns: PaymentTransaction[] } {
+function fakeRepo(
+  initial?: PaymentTransaction,
+): PaymentRepository & { txns: PaymentTransaction[] } {
   const txns: PaymentTransaction[] = initial ? [initial] : [];
   return {
     txns,
@@ -100,7 +108,7 @@ describe("payment-webhook: HTTP route", () => {
     );
 
     expect(res.status).toBe(200);
-    const body = await res.json() as { ok: boolean; duplicate?: boolean };
+    const body = (await res.json()) as { ok: boolean; duplicate?: boolean };
     expect(body.ok).toBe(true);
     expect(body.duplicate).toBe(false);
   });
@@ -119,7 +127,7 @@ describe("payment-webhook: HTTP route", () => {
     );
 
     expect(res.status).toBe(401);
-    const body = await res.json() as { error: string };
+    const body = (await res.json()) as { error: string };
     expect(body.error).toBe("INVALID_SIGNATURE");
   });
 
@@ -147,7 +155,7 @@ describe("payment-webhook: HTTP route", () => {
       }),
     );
     expect(res2.status).toBe(200);
-    const body2 = await res2.json() as { ok: boolean; duplicate: boolean };
+    const body2 = (await res2.json()) as { ok: boolean; duplicate: boolean };
     expect(body2.ok).toBe(true);
     expect(body2.duplicate).toBe(true);
   });

@@ -9,8 +9,7 @@
  *   السطر الوحيد المكتوب فعلياً في dفتر الأستاذ الآن هو دفعة اشتراك السائق.
  */
 
-import type { Brand } from "../../shared/kernel/index.ts";
-import type { DriverId } from "../../shared/kernel/index.ts";
+import type { Brand, DriverId } from "../../shared/kernel/index.ts";
 
 /** معرّف معاملة دفع. */
 export type PaymentTransactionId = Brand<string, "PaymentTransactionId">;
@@ -79,7 +78,14 @@ export interface PaymentTransaction {
 }
 
 /** مدخل دفتر الأستاذ — سطر واحد لكل حركة مالية. الآن اشتراك السائق وحده. */
-export type LedgerEntryType = "debit" | "credit" | "fee" | "commission" | "refund" | "payout" | "settlement";
+export type LedgerEntryType =
+  | "debit"
+  | "credit"
+  | "fee"
+  | "commission"
+  | "refund"
+  | "payout"
+  | "settlement";
 
 export interface LedgerEntry {
   readonly id: string;

@@ -2,28 +2,75 @@
  * الغرض: مسار استقبال تحديثات GPS من بوت السائق أو الواجهة.
  *   POST /track/gps — يستقبل موقع السائق ويمرّره عبر TrackingService.
  *   GET /track/:driverId — يقرأ الموقع الحالي للسائق (للواجهة).
- * الحالة: منفّذ فعلياً — المرحلة 7.
+ *   POST /track/session/start — يبدأ جلسة تتبّع.
+ *   POST /track/session/end — ينهي جلسة تتبّع.
+ *
+ * الأمن: كل مسار يطلب رمز تتبّع صالح في ترويسة Authorization: Bearer <token>.
+ *   driverId يُشتقّ من الرمز لا من body — لا يمكن للعميل انتحال هوية سائق آخر.
+ *
+ * الحالة: منفّذ فعلياً — المرحلة P0 (أمن التتبّع).
  * ينتمي إلى: apps/gateway/src/routes
  * يُتوقع أن يستخدمه لاحقاً: الواجهة الأمامية، بوت السائق
  */
 
 import { Hono } from "hono";
 import type { TrackingService, LocationStore } from "../../../../packages/tracking/index.ts";
+import {
+  extractBearerToken,
+  toAuthResult,
+  type TrackingAuthResult,
+  type TrackingTokenStore,
+} from "../../../../packages/tracking/index.ts";
+import type { GpsUpdate } from "../../../../packages/tracking/types.ts";
 
 export interface TrackingRouteDeps {
   readonly tracking: TrackingService;
   readonly store: LocationStore;
+  readonly tokenStore: TrackingTokenStore;
   readonly log?: (message: string, meta?: Record<string, unknown>) => void;
+}
+
+/** مدة صلاحية رمز التتبّع بالثواني (8 ساعات). */
+const TRACKING_TOKEN_TTL_SECONDS = 28800;
+
+const UNAUTHORIZED_STATUS = 401 as const;
+
+function authErrorResponse(result: Extract<TrackingAuthResult, { ok: false }>): string {
+  return result.error;
 }
 
 export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
   const app = new Hono();
 
   /**
+   * مصادقة: تستخرج الرمز من الترويسة وتتحقق منه.
+   * تُرجع الهوية أو تستجيب بـ 401 مباشرة.
+   */
+  async function requireAuth(
+    c: import("hono").Context,
+  ): Promise<{ ok: true; driverId: string; tripId: string | null } | { ok: false; response: Response }> {
+    const authHeader = c.req.header("authorization");
+    const token = extractBearerToken(authHeader);
+    if (token === null) {
+      return { ok: false, response: c.json({ ok: false, error: "MISSING_TOKEN" }, 401) };
+    }
+    const payload = await deps.tokenStore.verify(token);
+    const result = toAuthResult(payload);
+    if (!result.ok) {
+      return { ok: false, response: c.json({ ok: false, error: authErrorResponse(result) }, UNAUTHORIZED_STATUS) };
+    }
+    return { ok: true, driverId: result.payload.driverId, tripId: result.payload.tripId };
+  }
+
+  /**
    * POST /track/gps
-   * Body: { driverId, tripId?, lat, lng, heading?, speed?, accuracy?, timestamp }
+   * Body: { lat, lng, heading?, speed?, accuracy?, timestamp }
+   * driverId يُشتقّ من الرمز لا من body.
    */
   app.post("/gps", async (c) => {
+    const auth = await requireAuth(c);
+    if (!auth.ok) return auth.response;
+
     let body: Record<string, unknown>;
     try {
       body = await c.req.json();
@@ -31,25 +78,29 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
       return c.json({ ok: false, error: "INVALID_JSON" }, 400);
     }
 
-    const driverId = String(body.driverId ?? "");
     const lat = Number(body.lat);
     const lng = Number(body.lng);
 
-    if (driverId === "" || Number.isNaN(lat) || Number.isNaN(lng)) {
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
       return c.json({ ok: false, error: "MISSING_REQUIRED_FIELDS" }, 400);
     }
 
-    const tripId = body.tripId !== undefined && body.tripId !== null
-      ? String(body.tripId)
-      : null;
+    // منع العميل من تحديد driverId في body — الهوية من الرمز فقط
+    if (body.driverId !== undefined && String(body.driverId) !== auth.driverId) {
+      deps.log?.("GPS update with mismatched driverId in body", {
+        tokenDriverId: auth.driverId,
+        bodyDriverId: body.driverId,
+      });
+      return c.json({ ok: false, error: "DRIVER_ID_MISMATCH" }, 403);
+    }
 
     const heading = body.heading !== undefined ? Number(body.heading) : undefined;
     const speed = body.speed !== undefined ? Number(body.speed) : undefined;
     const accuracy = body.accuracy !== undefined ? Number(body.accuracy) : undefined;
 
-    const update: import("../../../../packages/tracking/types.ts").GpsUpdate = {
-      driverId,
-      tripId,
+    const update: GpsUpdate = {
+      driverId: auth.driverId,
+      tripId: auth.tripId,
       position: { lat, lng },
       timestamp: body.timestamp !== undefined ? Number(body.timestamp) : Date.now(),
       ...(heading !== undefined ? { heading } : {}),
@@ -60,7 +111,7 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
     const result = await deps.tracking.handleGpsUpdate(update);
 
     if (!result.accepted) {
-      deps.log?.("GPS update rejected", { driverId, reason: result.reason });
+      deps.log?.("GPS update rejected", { driverId: auth.driverId, reason: result.reason });
       return c.json({ ok: false, error: result.reason ?? "REJECTED" }, 422);
     }
 
@@ -69,10 +120,23 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
 
   /**
    * GET /track/:driverId — يقرأ الموقع الحالي للسائق.
+   * يتطلب رمزاً صالحاً. لا يمكن قراءة موقع سائق آخر.
    */
   app.get("/:driverId", async (c) => {
-    const driverId = c.req.param("driverId");
-    const current = await deps.store.getCurrent(driverId);
+    const auth = await requireAuth(c);
+    if (!auth.ok) return auth.response;
+
+    // منع قراءة موقع سائق آخر
+    const requestedDriverId = c.req.param("driverId");
+    if (requestedDriverId !== auth.driverId) {
+      deps.log?.("Attempted to read another driver's location", {
+        tokenDriverId: auth.driverId,
+        requestedDriverId,
+      });
+      return c.json({ ok: false, error: "FORBIDDEN" }, 403);
+    }
+
+    const current = await deps.store.getCurrent(auth.driverId);
     if (current === null) {
       return c.json({ ok: false, error: "NO_LOCATION" }, 404);
     }
@@ -86,51 +150,52 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
 
   /**
    * POST /track/session/start — يبدأ جلسة تتبّع.
-   * Body: { driverId, tripId? }
+   * يصدر رمزاً جديداً مرتبطاً بالسائق والرحلة.
+   * Body: { tripId? }
    */
   app.post("/session/start", async (c) => {
+    const auth = await requireAuth(c);
+    if (!auth.ok) return auth.response;
+
     let body: Record<string, unknown>;
     try {
       body = await c.req.json();
     } catch {
-      return c.json({ ok: false, error: "INVALID_JSON" }, 400);
+      body = {};
     }
 
-    const driverId = String(body.driverId ?? "");
     const tripId = body.tripId !== undefined && body.tripId !== null
       ? String(body.tripId)
       : null;
 
-    if (driverId === "") {
-      return c.json({ ok: false, error: "MISSING_DRIVER_ID" }, 400);
-    }
+    await deps.tracking.startSession(auth.driverId, tripId);
 
-    await deps.tracking.startSession(driverId, tripId);
-    return c.json({ ok: true });
+    // إصدار رمز جديد مرتبط بالرحلة
+    const token = await deps.tokenStore.issue(
+      auth.driverId,
+      tripId,
+      TRACKING_TOKEN_TTL_SECONDS,
+    );
+
+    return c.json({ ok: true, token });
   });
 
   /**
    * POST /track/session/end — ينهي جلسة تتبّع.
-   * Body: { driverId, tripId? }
+   * يُبطل الرمز. لا يقبل driverId من body.
    */
   app.post("/session/end", async (c) => {
-    let body: Record<string, unknown>;
-    try {
-      body = await c.req.json();
-    } catch {
-      return c.json({ ok: false, error: "INVALID_JSON" }, 400);
+    const auth = await requireAuth(c);
+    if (!auth.ok) return auth.response;
+
+    await deps.tracking.endSession(auth.driverId, auth.tripId);
+
+    // إبطال الرمز المستخدم
+    const token = extractBearerToken(c.req.header("authorization"));
+    if (token !== null) {
+      await deps.tokenStore.revoke(token);
     }
 
-    const driverId = String(body.driverId ?? "");
-    const tripId = body.tripId !== undefined && body.tripId !== null
-      ? String(body.tripId)
-      : null;
-
-    if (driverId === "") {
-      return c.json({ ok: false, error: "MISSING_DRIVER_ID" }, 400);
-    }
-
-    await deps.tracking.endSession(driverId, tripId);
     return c.json({ ok: true });
   });
 

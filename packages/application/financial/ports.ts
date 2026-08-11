@@ -16,8 +16,8 @@ import type {
   PaymentTransactionStatus,
 } from "../../domain/financial/index.ts";
 import type { DriverId } from "../../shared/kernel/index.ts";
-import { PortFailureError } from "../ports/index.ts";
 import type { Result } from "../../shared/result/index.ts";
+import { PortFailureError } from "../ports/index.ts";
 
 /** خطأ منفذ دفع: PortFailureError القائم — ليتوافق مع guard<T>. */
 export type PaymentPortError = PortFailureError;
@@ -107,5 +107,9 @@ export interface WebhookEventStore {
    * يحاول تسجيل حدث ويبهوك. يعيد `true` إن كان جديداً (ويُعالَج)،
    * و`false` إن كان مكرَّراً (ويُهمل).
    */
-  record(eventId: string, provider: string, payload: string): Promise<Result<boolean, PortFailureError>>;
+  record(
+    eventId: string,
+    provider: string,
+    payload: string,
+  ): Promise<Result<boolean, PortFailureError>>;
 }

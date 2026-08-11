@@ -6,6 +6,10 @@
  * ملاحظات مستقبلية: مخزن الجلسات يصير Redis بتبديل سطر واحد في container.ts.
  */
 
+import {
+  createPaymentRepository,
+  createWebhookEventStore,
+} from "../../../packages/infrastructure/financial/payment-adapters.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { grammyCommandRegistrar, registerBotCommands } from "./bots/shared/register-commands.ts";
@@ -20,10 +24,6 @@ import { createUpstashRedis } from "./redis/upstash.ts";
 import { createAdminApiRoutes } from "./routes/admin-api.ts";
 import { createAdminUiRoutes } from "./routes/admin-ui.ts";
 import { createServer } from "./server.ts";
-import {
-  createPaymentRepository,
-  createWebhookEventStore,
-} from "../../../packages/infrastructure/financial/payment-adapters.ts";
 
 function log(message: string, meta: Record<string, unknown> = {}): void {
   console.log(JSON.stringify({ at: new Date().toISOString(), message, ...meta }));

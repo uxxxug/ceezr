@@ -77,7 +77,9 @@ function pemToDer(pem: string): ArrayBuffer {
 }
 
 /** يصدر توكن وصول من Google بحساب الخدمة. صالح ساعةً. */
-async function getAccessToken(config: GoogleDriveConfig): Promise<Result<string, BackupStorageError>> {
+async function getAccessToken(
+  config: GoogleDriveConfig,
+): Promise<Result<string, BackupStorageError>> {
   let key: ServiceAccountKey;
   try {
     key = JSON.parse(config.serviceAccountJson) as ServiceAccountKey;
@@ -85,9 +87,7 @@ async function getAccessToken(config: GoogleDriveConfig): Promise<Result<string,
     return err(new BackupStorageError("drive.parse_key", "JSON حساب الخدمة غير صالح"));
   }
   if (!key.client_email || !key.private_key) {
-    return err(
-      new BackupStorageError("drive.parse_key", "JSON يفتقد client_email أو private_key"),
-    );
+    return err(new BackupStorageError("drive.parse_key", "JSON يفتقد client_email أو private_key"));
   }
 
   const now = Math.floor(Date.now() / 1000);
@@ -146,14 +146,17 @@ export function createGoogleDriveStorage(config: GoogleDriveConfig): BackupStora
         ...new TextEncoder().encode(suffix),
       ]);
 
-      const response = await fetch(`${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,size,modifiedTime`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${token.value}`,
-          "content-type": `multipart/related; boundary=${boundary}`,
+      const response = await fetch(
+        `${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,size,modifiedTime`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${token.value}`,
+            "content-type": `multipart/related; boundary=${boundary}`,
+          },
+          body,
         },
-        body,
-      });
+      );
       if (!response.ok) {
         const text = await response.text().catch(() => "");
         return err(failure("drive.upload", `${response.status} ${text}`));
@@ -184,11 +187,13 @@ export function createGoogleDriveStorage(config: GoogleDriveConfig): BackupStora
       const body = (await response.json()) as {
         files?: readonly { id?: string; name?: string; modifiedTime?: string }[];
       };
-      const files = (body.files ?? []).map((f): RemoteBackupFile => ({
-        remoteFileId: f.id ?? "",
-        name: f.name ?? "",
-        uploadedAt: new Date(f.modifiedTime ?? Date.now()),
-      }));
+      const files = (body.files ?? []).map(
+        (f): RemoteBackupFile => ({
+          remoteFileId: f.id ?? "",
+          name: f.name ?? "",
+          uploadedAt: new Date(f.modifiedTime ?? Date.now()),
+        }),
+      );
       return ok(files);
     },
 

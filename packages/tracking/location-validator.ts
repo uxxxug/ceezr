@@ -55,7 +55,10 @@ export function validateGpsUpdate(
 ): ValidationResult {
   // 1) دقة GPS
   if (update.accuracy !== undefined && update.accuracy > config.maxAccuracyMeters) {
-    return { valid: false, reason: `GPS accuracy too low: ${update.accuracy}m > ${config.maxAccuracyMeters}m` };
+    return {
+      valid: false,
+      reason: `GPS accuracy too low: ${update.accuracy}m > ${config.maxAccuracyMeters}m`,
+    };
   }
 
   // 2) فرق زمني
@@ -73,7 +76,10 @@ export function validateGpsUpdate(
     const speedKmh = speedMs * 3.6;
 
     if (distance > config.teleportThresholdMeters) {
-      return { valid: false, reason: `Teleport detected: ${distance.toFixed(0)}m in ${timeDiffSec.toFixed(0)}s` };
+      return {
+        valid: false,
+        reason: `Teleport detected: ${distance.toFixed(0)}m in ${timeDiffSec.toFixed(0)}s`,
+      };
     }
 
     if (speedKmh > config.maxReasonableSpeedKmh) {

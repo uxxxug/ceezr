@@ -6,4 +6,4 @@
  * ينتمي إلى: domain/financial
  */
 
-export type { PaymentTransactionStatus, LedgerEntryType } from "./entity.ts";
+export type { LedgerEntryType, PaymentTransactionStatus } from "./entity.ts";

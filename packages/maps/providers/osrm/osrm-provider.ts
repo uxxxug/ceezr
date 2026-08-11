@@ -8,21 +8,21 @@
  */
 
 import { err, ok, type Result } from "../../../shared/result/index.ts";
+import {
+  type DistanceMatrix,
+  type DistanceMatrixRow,
+  type NearestOptions,
+  type RouteOptions,
+  RoutingError,
+  type RoutingProvider,
+} from "../../core/routing-provider.ts";
 import type {
   LatLng,
-  NearestResult,
   NearbyDriver,
+  NearestResult,
   ProviderName,
   RouteResult,
 } from "../../core/types.ts";
-import {
-  RoutingError,
-  type DistanceMatrix,
-  type DistanceMatrixRow,
-  type RouteOptions,
-  type NearestOptions,
-  type RoutingProvider,
-} from "../../core/routing-provider.ts";
 
 export interface OsrmConfig {
   /** عنوان خادم OSRM (مثال: http://router.project-osrm.org). */
@@ -72,7 +72,9 @@ export function createOsrmProvider(config: OsrmConfig): RoutingProvider {
       const data = (await res.json()) as T;
       return ok(data);
     } catch (e) {
-      return err(new RoutingError("osrm", `fetch failed: ${e instanceof Error ? e.message : String(e)}`));
+      return err(
+        new RoutingError("osrm", `fetch failed: ${e instanceof Error ? e.message : String(e)}`),
+      );
     }
   }
 

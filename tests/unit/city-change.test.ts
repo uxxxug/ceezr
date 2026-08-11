@@ -6,9 +6,15 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { driverDirectory, riderDirectory, verifiedDriver, JEDDAH, MAKKAH } from "../support/bot-doubles.ts";
 import type { RiderProfile } from "../../packages/application/bots/types.ts";
 import type { DriverId, RiderId } from "../../packages/shared/kernel/index.ts";
+import {
+  driverDirectory,
+  JEDDAH,
+  MAKKAH,
+  riderDirectory,
+  verifiedDriver,
+} from "../support/bot-doubles.ts";
 
 // These tests verify the integration of the /city command into the bot dialogs.
 // Since the full dialog tests require extensive test infrastructure, these tests

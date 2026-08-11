@@ -1,26 +1,32 @@
+export {
+  DEFAULT_VALIDATOR_CONFIG,
+  haversineMeters,
+  isSpeeding,
+  type ValidatorConfig,
+  validateGpsUpdate,
+} from "./location-validator.ts";
+export {
+  type Clock,
+  DEFAULT_TRACKING_CONFIG,
+  type LocationStore,
+  type TrackingConfig,
+  type TrackingDeps,
+  type TrackingEventPublisher,
+  TrackingService,
+} from "./tracking-service.ts";
 export type {
   GpsUpdate,
+  TrackingEvent,
+  TrackingEventType,
   TrackingSession,
   TrackingStatus,
   ValidationResult,
-  TrackingEvent,
-  TrackingEventType,
 } from "./types.ts";
-
 export {
-  validateGpsUpdate,
-  isSpeeding,
-  haversineMeters,
-  DEFAULT_VALIDATOR_CONFIG,
-  type ValidatorConfig,
-} from "./location-validator.ts";
-
-export {
-  TrackingService,
-  DEFAULT_TRACKING_CONFIG,
-  type TrackingDeps,
-  type TrackingConfig,
-  type LocationStore,
-  type TrackingEventPublisher,
-  type Clock,
-} from "./tracking-service.ts";
+  extractBearerToken,
+  toAuthResult,
+  type TrackingAuthError,
+  type TrackingAuthResult,
+  type TrackingTokenPayload,
+  type TrackingTokenStore,
+} from "./tracking-auth.ts";

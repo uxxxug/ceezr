@@ -9,20 +9,37 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { money } from "../../packages/domain/financial/entity.ts";
-import type { PaymentTransaction, PaymentTransactionId } from "../../packages/domain/financial/entity.ts";
-import { isPaymentSuccessful } from "../../packages/domain/financial/entity.ts";
-import { isSubscriptionLive } from "../../packages/domain/subscription/entity.ts";
-import { confirmSubscriptionPayment, type ConfirmPaymentDeps } from "../../packages/application/financial/confirm-payment.ts";
-import { subscribePlan, type SubscribePlanDeps } from "../../packages/application/financial/subscribe-plan.ts";
-import type { PaymentProvider, PaymentRepository, WebhookEventStore } from "../../packages/application/financial/ports.ts";
-import { runDatabaseBackup, type BackupConfig, type Dumper, type BackupDeps } from "../../apps/workers/src/jobs/backup-database.ts";
-import type { BackupStoragePort } from "../../packages/infrastructure/backup/backup-port.ts";
-import { ok, err } from "../../packages/shared/result/index.ts";
+import {
+  type BackupConfig,
+  type BackupDeps,
+  type Dumper,
+  runDatabaseBackup,
+} from "../../apps/workers/src/jobs/backup-database.ts";
+import {
+  type ConfirmPaymentDeps,
+  confirmSubscriptionPayment,
+} from "../../packages/application/financial/confirm-payment.ts";
+import type {
+  PaymentProvider,
+  PaymentRepository,
+  WebhookEventStore,
+} from "../../packages/application/financial/ports.ts";
+import {
+  type SubscribePlanDeps,
+  subscribePlan,
+} from "../../packages/application/financial/subscribe-plan.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
-import type { DriverId, CityId } from "../../packages/shared/kernel/index.ts";
+import type {
+  PaymentTransaction,
+  PaymentTransactionId,
+} from "../../packages/domain/financial/entity.ts";
+import { isPaymentSuccessful, money } from "../../packages/domain/financial/entity.ts";
 import type { SubscriptionPlan } from "../../packages/domain/subscription/entity.ts";
+import { isSubscriptionLive } from "../../packages/domain/subscription/entity.ts";
+import type { BackupStoragePort } from "../../packages/infrastructure/backup/backup-port.ts";
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
+import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
+import { err, ok } from "../../packages/shared/result/index.ts";
 
 const driverId = "driver-e2e-1" as DriverId;
 const cityId = "city-e2e-jed" as CityId;
@@ -104,7 +121,8 @@ function e2eBackupStorage(): BackupStoragePort & { uploads: { name: string; byte
       uploads.push({ name, bytes: content.byteLength });
       return ok(result);
     },
-    list: async () => ok(uploads.map((u) => ({ remoteFileId: u.name, name: u.name, uploadedAt: new Date() }))),
+    list: async () =>
+      ok(uploads.map((u) => ({ remoteFileId: u.name, name: u.name, uploadedAt: new Date() }))),
     delete: async () => ok(undefined as void),
   };
 }
@@ -131,10 +149,7 @@ describe("e2e: المسار الحيّ الكامل", () => {
       priceReader: e2ePriceReader(25000),
     };
 
-    const subResult = await subscribePlan(
-      { driverId, cityId, plan, idempotencyKey },
-      deps,
-    );
+    const subResult = await subscribePlan({ driverId, cityId, plan, idempotencyKey }, deps);
     expect(subResult.ok).toBe(true);
     if (!subResult.ok) return;
     expect(subResult.value.status).toBe("active");
@@ -163,10 +178,19 @@ describe("e2e: المسار الحيّ الكامل", () => {
 
     // 3) التحقّق من الدفع الناجح والاشتراك الفعّال
     expect(isPaymentSuccessful(confirmResult.value.status)).toBe(true);
-    expect(isSubscriptionLive(
-      { driverId, cityId, plan: "transport", status: "active", trialEndsAt: null, currentPeriodEnd: new Date("2026-09-10T15:00:00Z") },
-      new Date("2026-08-11T15:00:00Z"),
-    )).toBe(true);
+    expect(
+      isSubscriptionLive(
+        {
+          driverId,
+          cityId,
+          plan: "transport",
+          status: "active",
+          trialEndsAt: null,
+          currentPeriodEnd: new Date("2026-09-10T15:00:00Z"),
+        },
+        new Date("2026-08-11T15:00:00Z"),
+      ),
+    ).toBe(true);
 
     // 4) ويبهوك مكرر: Idempotency يمنع التفعيل مرّتين
     const dupResult = await confirmSubscriptionPayment(
@@ -208,8 +232,7 @@ describe("e2e: المسار الحيّ الكامل", () => {
     const repo = e2ePaymentRepo();
     const failingProvider: PaymentProvider = {
       name: "e2e-fail-provider",
-      chargeSubscription: async () =>
-        err(new PortFailureError("provider", "charge declined")),
+      chargeSubscription: async () => err(new PortFailureError("provider", "charge declined")),
     };
     const deps: SubscribePlanDeps = {
       payments: repo,

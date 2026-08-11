@@ -8,17 +8,21 @@
 
 import { describe, expect, it } from "bun:test";
 import {
+  type BackupConfig,
   createPgDumper,
+  type Dumper,
   gzip,
   runDatabaseBackup,
   selectForPruning,
-  type BackupConfig,
-  type Dumper,
 } from "../../apps/workers/src/jobs/backup-database.ts";
-import type { BackupStoragePort, BackupUploadResult, RemoteBackupFile } from "../../packages/infrastructure/backup/index.ts";
 import type { BackupStorageError } from "../../packages/infrastructure/backup/backup-port.ts";
-import { err, ok, type Result } from "../../packages/shared/result/index.ts";
+import type {
+  BackupStoragePort,
+  BackupUploadResult,
+  RemoteBackupFile,
+} from "../../packages/infrastructure/backup/index.ts";
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
+import { err, ok, type Result } from "../../packages/shared/result/index.ts";
 
 /** مزدوج التخزين: يجمع الرفعات والحذف في قوائم قابلة للفحص. */
 function fakeStorage(existing: RemoteBackupFile[] = []): {
@@ -93,9 +97,7 @@ describe("backup-database: selectForPruning", () => {
   });
 
   it("لا يحذف عند سقف صفر أو سالب", () => {
-    const files: RemoteBackupFile[] = [
-      { remoteFileId: "a", name: "x", uploadedAt: new Date() },
-    ];
+    const files: RemoteBackupFile[] = [{ remoteFileId: "a", name: "x", uploadedAt: new Date() }];
     expect(selectForPruning(files, 0).length).toBe(0);
   });
 });
@@ -111,11 +113,15 @@ describe("backup-database: runDatabaseBackup", () => {
     const sqlWrap = fakeSql();
     const config: BackupConfig = { databaseUrl: "postgres://test", retentionCount: 14 };
 
-    const result = await runDatabaseBackup(config, {
-      storage: fake.storage,
-      sql: sqlWrap.sql,
-      clock: fixedClock,
-    }, fakeDumper());
+    const result = await runDatabaseBackup(
+      config,
+      {
+        storage: fake.storage,
+        sql: sqlWrap.sql,
+        clock: fixedClock,
+      },
+      fakeDumper(),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -129,11 +135,15 @@ describe("backup-database: runDatabaseBackup", () => {
   it("يتخطّى بلا إعداد ولا يرمي", async () => {
     const fake = fakeStorage();
     const sqlWrap = fakeSql();
-    const result = await runDatabaseBackup(null, {
-      storage: fake.storage,
-      sql: sqlWrap.sql,
-      clock: fixedClock,
-    }, fakeDumper());
+    const result = await runDatabaseBackup(
+      null,
+      {
+        storage: fake.storage,
+        sql: sqlWrap.sql,
+        clock: fixedClock,
+      },
+      fakeDumper(),
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -149,11 +159,15 @@ describe("backup-database: runDatabaseBackup", () => {
     };
     const config: BackupConfig = { databaseUrl: "postgres://test", retentionCount: 14 };
 
-    const result = await runDatabaseBackup(config, {
-      storage: fake.storage,
-      sql,
-      clock: fixedClock,
-    }, failingDumper);
+    const result = await runDatabaseBackup(
+      config,
+      {
+        storage: fake.storage,
+        sql,
+        clock: fixedClock,
+      },
+      failingDumper,
+    );
 
     expect(result.ok).toBe(false);
     expect(fake.uploads.length).toBe(0);
@@ -164,21 +178,27 @@ describe("backup-database: runDatabaseBackup", () => {
     // استبدل upload بالفشل
     const failingStorage: BackupStoragePort = {
       upload: async () =>
-        err(new (class implements BackupStorageError {
-          readonly code = "BACKUP_STORAGE_FAILURE" as const;
-          port = "drive.upload";
-          detail = "401 unauthorized";
-        })() as unknown as BackupStorageError) as unknown as Result<BackupUploadResult, BackupStorageError>,
+        err(
+          new (class implements BackupStorageError {
+            readonly code = "BACKUP_STORAGE_FAILURE" as const;
+            port = "drive.upload";
+            detail = "401 unauthorized";
+          })() as unknown as BackupStorageError,
+        ) as unknown as Result<BackupUploadResult, BackupStorageError>,
       list: async () => ok([]),
       delete: async () => ok(undefined),
     };
     const config: BackupConfig = { databaseUrl: "postgres://test", retentionCount: 14 };
 
-    const result = await runDatabaseBackup(config, {
-      storage: failingStorage,
-      sql: sqlWrap.sql,
-      clock: fixedClock,
-    }, fakeDumper());
+    const result = await runDatabaseBackup(
+      config,
+      {
+        storage: failingStorage,
+        sql: sqlWrap.sql,
+        clock: fixedClock,
+      },
+      fakeDumper(),
+    );
 
     expect(result.ok).toBe(false);
     expect(sqlWrap.count()).toBe(0);

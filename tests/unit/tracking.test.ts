@@ -5,18 +5,18 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import {
-  validateGpsUpdate,
-  haversineMeters,
-  TrackingService,
-  DEFAULT_TRACKING_CONFIG,
-  type LocationStore,
-  type TrackingEventPublisher,
-  type GpsUpdate,
-  type TrackingEvent,
-  type Clock,
-} from "../../packages/tracking/index.ts";
 import type { LatLng } from "../../packages/maps/core/types.ts";
+import {
+  type Clock,
+  DEFAULT_TRACKING_CONFIG,
+  type GpsUpdate,
+  haversineMeters,
+  type LocationStore,
+  type TrackingEvent,
+  type TrackingEventPublisher,
+  TrackingService,
+  validateGpsUpdate,
+} from "../../packages/tracking/index.ts";
 
 const fixedClock: Clock = { now: () => new Date("2026-08-11T12:00:00Z") };
 
@@ -24,9 +24,13 @@ function fakeStore(): LocationStore & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>();
   return {
     data,
-    setCurrent: async (id, pos, meta) => { data.set(id, { position: pos, ...meta }); },
+    setCurrent: async (id, pos, meta) => {
+      data.set(id, { position: pos, ...meta });
+    },
     getCurrent: async (id) => (data.get(id) as any) ?? null,
-    clear: async (id) => { data.delete(id); },
+    clear: async (id) => {
+      data.delete(id);
+    },
   };
 }
 
@@ -34,11 +38,18 @@ function fakePublisher(): TrackingEventPublisher & { events: TrackingEvent[] } {
   const events: TrackingEvent[] = [];
   return {
     events,
-    publish: async (e) => { events.push(e); },
+    publish: async (e) => {
+      events.push(e);
+    },
   };
 }
 
-function makeUpdate(driverId: string, lat: number, lng: number, overrides: Partial<GpsUpdate> = {}): GpsUpdate {
+function makeUpdate(
+  driverId: string,
+  lat: number,
+  lng: number,
+  overrides: Partial<GpsUpdate> = {},
+): GpsUpdate {
   return {
     driverId,
     tripId: "trip-1",
@@ -50,7 +61,11 @@ function makeUpdate(driverId: string, lat: number, lng: number, overrides: Parti
 
 describe("tracking: location validator", () => {
   it("يقبل موقعاً صحيحاً بلا موقع سابق", () => {
-    const result = validateGpsUpdate(makeUpdate("d1", 21.5, 39.2), null, DEFAULT_TRACKING_CONFIG.validator);
+    const result = validateGpsUpdate(
+      makeUpdate("d1", 21.5, 39.2),
+      null,
+      DEFAULT_TRACKING_CONFIG.validator,
+    );
     expect(result.valid).toBe(true);
   });
 
@@ -122,7 +137,12 @@ describe("tracking: service", () => {
   it("يقبل تحديثاً صحيحاً ويخزّنه وينشر حدثاً", async () => {
     const store = fakeStore();
     const pub = fakePublisher();
-    const svc = new TrackingService({ store, publisher: pub, clock: fixedClock, config: DEFAULT_TRACKING_CONFIG });
+    const svc = new TrackingService({
+      store,
+      publisher: pub,
+      clock: fixedClock,
+      config: DEFAULT_TRACKING_CONFIG,
+    });
 
     const result = await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
     expect(result.accepted).toBe(true);
@@ -134,7 +154,12 @@ describe("tracking: service", () => {
   it("يرفض تحديثاً فاسداً ولا يخزّنه", async () => {
     const store = fakeStore();
     const pub = fakePublisher();
-    const svc = new TrackingService({ store, publisher: pub, clock: fixedClock, config: DEFAULT_TRACKING_CONFIG });
+    const svc = new TrackingService({
+      store,
+      publisher: pub,
+      clock: fixedClock,
+      config: DEFAULT_TRACKING_CONFIG,
+    });
 
     // تحديث صحيح أولاً
     await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
@@ -153,7 +178,12 @@ describe("tracking: service", () => {
   it("يبدا وينهي جلسة تتبّع", async () => {
     const store = fakeStore();
     const pub = fakePublisher();
-    const svc = new TrackingService({ store, publisher: pub, clock: fixedClock, config: DEFAULT_TRACKING_CONFIG });
+    const svc = new TrackingService({
+      store,
+      publisher: pub,
+      clock: fixedClock,
+      config: DEFAULT_TRACKING_CONFIG,
+    });
 
     await svc.startSession("d1", "trip-1");
     expect(pub.events[0]!.type).toBe("session_started");

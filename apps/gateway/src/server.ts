@@ -9,13 +9,13 @@
 import { Hono } from "hono";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import {
-  createTelegramWebhookRoutes,
-  type WebhookDependencies,
-} from "./routes/telegram-webhook.ts";
-import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
 } from "./routes/payment-webhook.ts";
+import {
+  createTelegramWebhookRoutes,
+  type WebhookDependencies,
+} from "./routes/telegram-webhook.ts";
 
 export interface ServerDependencies {
   readonly health: HealthDependencies;

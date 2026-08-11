@@ -6,8 +6,7 @@
  * ينتمي إلى: packages/maps/core
  */
 
-import type { ProviderName } from "./types.ts";
-import type { LatLng, MapPoint, Polyline } from "./types.ts";
+import type { LatLng, MapPoint, Polyline, ProviderName } from "./types.ts";
 
 /** تكوين عرض الخريطة. */
 export interface MapViewConfig {

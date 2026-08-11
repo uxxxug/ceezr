@@ -6,7 +6,10 @@
  * ينتمي إلى: application/financial
  */
 
-import type { PaymentTransactionId, PaymentTransactionStatus } from "../../domain/financial/index.ts";
+import type {
+  PaymentTransactionId,
+  PaymentTransactionStatus,
+} from "../../domain/financial/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { PaymentRepository, WebhookEventStore } from "./ports.ts";
 
@@ -45,11 +48,7 @@ export async function confirmSubscriptionPayment(
   deps: ConfirmPaymentDeps,
 ): Promise<Result<ConfirmPaymentOutcome, WebhookConfirmationError>> {
   // Idempotency: سجّل الحدث أولاً. إن كان مكرَّراً أوقف بلا معالجة.
-  const recorded = await deps.events.record(
-    input.webhookEventId,
-    input.provider,
-    input.rawPayload,
-  );
+  const recorded = await deps.events.record(input.webhookEventId, input.provider, input.rawPayload);
   if (!recorded.ok) {
     return err(new WebhookConfirmationError(recorded.error.detail));
   }

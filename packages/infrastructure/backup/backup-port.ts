@@ -35,7 +35,10 @@ export interface RemoteBackupFile {
  */
 export interface BackupStoragePort {
   /** يرفع ملفاً مضغوطاً إلى المجلد المضبوط. */
-  upload(name: string, content: Uint8Array): Promise<Result<BackupUploadResult, BackupStorageError>>;
+  upload(
+    name: string,
+    content: Uint8Array,
+  ): Promise<Result<BackupUploadResult, BackupStorageError>>;
 
   /** يعدّد النسخ الموجودة في المجلد مرتّبة من الأقدم للأحدث. */
   list(): Promise<Result<readonly RemoteBackupFile[], BackupStorageError>>;
