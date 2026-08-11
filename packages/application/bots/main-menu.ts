@@ -133,6 +133,56 @@ export function requestWithMenuKeyboard(
 }
 
 /**
+ * بادئة زرّ أمرٍ inline — البند 6.3.
+ *
+ * لوحة الردّ الدائمة تُرسل نصّ الزرّ، ولوحة inline تُرسل `callback_data`. فلوحتان
+ * لمعنى واحد تحتاجان مدخلين، وهما لا يجوز أن يتفرّقا: من هنا تُبنى لوحة
+ * inline من نفس `allItemsFor` التي تبني الدائمة وتسجّل `setMyCommands`.
+ */
+export const COMMAND_CALLBACK_PREFIX = "cmd";
+
+/**
+ * لوحة inline بكلّ أوامر البوت — تُستعمل في `/help`.
+ *
+ * العطب الذي أوجبها: نصّ `driver.help` و`rider.help` كان قائمة أوامر مكتوبة
+ * يداً في القاموس، فصار لقائمة الأوامر مصدران. وقد تباعدا فعلاً: «الدعم / شكوى»
+ * أُضيف في البند 2.1 و«أين طلبي؟» في البند 2.2، ولم يذكرهما نصّ `/help` في أي لغة —
+ * فمن لجأ إلى `/help` يسأل «كيف أشتكي؟» خرج منه ولم يعلم أنّ للشكوى زرّاً.
+ * ونسخة الأردية من `driver.help` كانت إنجليزية غير مترجمة أصلاً.
+ *
+ * ولماذا inline لا نصّ؟ لأن قائمة الأوامر نصّاً تطلب من المستخدم أن يكتب أمراً
+ * له زرّ أصلاً — وهو ما تعطّل فيه من لا يقرأ الإنجليزية ولا يعرف معنى «/available».
+ */
+export function helpKeyboard(
+  audience: BotAudience,
+  language: string,
+  context: MenuContext = {},
+): Keyboard {
+  const tr = t(language);
+  const items = menuItemsFor(audience, context);
+  const rows: { readonly label: string; readonly data: string }[][] = [];
+  for (let index = 0; index < items.length; index += 2) {
+    rows.push(
+      items.slice(index, index + 2).map((item) => ({
+        label: tr(item.key),
+        data: `${COMMAND_CALLBACK_PREFIX}:${item.command}`,
+      })),
+    );
+  }
+  return { kind: "inline", rows };
+}
+
+/**
+ * أمرٌ قادم من زرّ `cmd:` لا يُنفّذ حتّى يُعرف أنّه من أوامر هذا الجمهور.
+ *
+ * `callback_data` يأتي من جهاز المستخدم لا منّا، فتمريره إلى موجّه الأوامر بلا تدقيق
+ * يعني أنّ من يصنع زرّاً بيده ينادي أي أمر، ومنها أوامر الجمهور الآخر.
+ */
+export function isMenuCommand(audience: BotAudience, command: string): boolean {
+  return allItemsFor(audience).some((item) => item.command === command);
+}
+
+/**
  * يترجم نصّاً وصل من المستخدم إلى أمر، إن كان نصّ زرّ قائمة **بأي لغة مدعومة**.
  *
  * لماذا كل اللغات لا لغة الجلسة وحدها؟ لأن الحالة الحقيقية التي تكسر غير ذلك: مستخدم

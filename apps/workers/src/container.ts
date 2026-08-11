@@ -179,9 +179,15 @@ export function buildWorkerContainer(
   const unmatchedFinder = createUnmatchedOrderFinder(sql);
   const unmatchedNotifier = createUnmatchedRiderNotifier(riderOut, (order) => {
     const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
+    /**
+     * البند 6.3: النصّ كان يقول «أرسل /cancel» وللإلغاء زرّ في القائمة منذ البند 2.1.
+     * ومن لا يجد سائقاً هو أسوأ من يُطلب منه أن يتعلّم أمراً مكتوباً. واسم الزرّ
+     * يُقرأ من مفتاحه لا يُكتب في القاموس، فلا يكذب النصّ إن تغيّر الزرّ.
+     */
+    const params = { cancel_button: say("menu.rider.cancel") };
     return order.service === "delivery"
-      ? say("rider.no_driver_found_delivery")
-      : say("rider.no_driver_found");
+      ? say("rider.no_driver_found_delivery", params)
+      : say("rider.no_driver_found", params);
   });
 
   const negotiation = createNegotiationWiring(sql, {

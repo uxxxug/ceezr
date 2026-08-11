@@ -29,6 +29,8 @@ import {
 } from "./language-dialog.ts";
 import {
   commandForMenuText,
+  helpKeyboard,
+  isMenuCommand,
   type MenuContext,
   mainMenuKeyboard,
   requestWithMenuKeyboard,
@@ -140,6 +142,13 @@ export async function handleRiderUpdate(
     if (prefix === "back") return handleBack(rest.join(":"), sender, state, deps);
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
     if (prefix === "cancel") return handleCancelChoice(rest.join(":"), sender, state, deps);
+    // البند 6.3: زرّ أمرٍ من لوحة `/help` — يمرّ بنفس موجّه الأوامر لا بمسار ثانٍ
+    if (prefix === "cmd") {
+      const command = rest.join(":");
+      return isMenuCommand("rider", command)
+        ? handleCommand(command, sender, state, deps)
+        : [reply(sender, tr("common.unknown_command"))];
+    }
     if (prefix === "rate") {
       return deps.rating === undefined
         ? [reply(sender, tr("common.unknown_command"))]
@@ -331,7 +340,19 @@ async function handleStatus(
   const active = await deps.activeOrdersOf(rider.value.id);
   // القائمة تُصحّح نفسها هنا: من انتهى طلبه وبقي الزرّ معروضاً على جهازه
   // يردّ عليه بجواب صحيح وبلوحة بلا زرّ تتبّع، فيستوي المعروض مع الواقع.
-  if (active.length === 0) return [reply(sender, tr("rider.status_none"), menu(state))];
+  if (active.length === 0) {
+    // أسماء الأزرار تُقرأ من مفاتيحها لا تُكتب في النصّ: نصٌّ يسمّي زرّاً ثم يتغيّر الزرّ يكذب
+    return [
+      reply(
+        sender,
+        tr("rider.status_none", {
+          delivery_button: tr("menu.rider.delivery"),
+          ride_button: tr("menu.rider.ride"),
+        }),
+        menu(state),
+      ),
+    ];
+  }
 
   const now = deps.clock.now();
   return active.map((order, index) => {
@@ -567,9 +588,12 @@ async function handleCommand(
       // قراءة واحدة لتخرج القائمة مطابقةً للواقع: /help أوّل ما يلجأ إليه من ضاعت لوحته،
       // فلو أعادناها بلا زرّ تتبّع وله طلبٌ يبحث لسلبناه الزرّ في موطن طلب المساعدة.
       const active = rider === null ? [] : await deps.activeOrdersOf(rider.id);
+      const context: MenuContext = { hasActiveOrder: active.length > 0 };
+      // البند 6.3: الأوامر أزراراً لا نصّاً. لوحة inline على الرسالة لا تمسح الدائمة
+      // أسفل الشاشة، والردّ الثاني يُعيد تأكيدها بحال العميل الحقيقية.
       return [
-        reply(sender, tr("rider.help"), menu(state, { hasActiveOrder: active.length > 0 })),
-        reply(sender, tr("menu.hint")),
+        reply(sender, tr("rider.help"), helpKeyboard("rider", state.language, context)),
+        reply(sender, tr("menu.hint"), menu(state, context)),
       ];
     }
 

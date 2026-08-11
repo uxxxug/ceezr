@@ -8,6 +8,8 @@
 import { beforeEach, describe, expect, it } from "bun:test";
 import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
 import {
+  allItemsFor,
+  helpKeyboard,
   mainMenuKeyboard,
   requestWithMenuKeyboard,
 } from "../../packages/application/bots/main-menu.ts";
@@ -564,7 +566,15 @@ describe("تتبّع الطلب: /status", () => {
   it("يقول لا يوجد طلب، ويسحب زرّ التتبّع من اللوحة", async () => {
     const replies = await handleRiderUpdate(text("/status"), statusDeps([]));
     expect(replies).toHaveLength(1);
-    expect(replies[0]?.text).toBe(ar("rider.status_none"));
+    expect(replies[0]?.text).toBe(
+      // البند 6.3: يدلّ على الزرّين المعروضين أمامه لا على أمرين عليه أن يكتبهما
+      ar("rider.status_none", {
+        delivery_button: ar("menu.rider.delivery"),
+        ride_button: ar("menu.rider.ride"),
+      }),
+    );
+    expect(replies[0]?.text).toContain(ar("menu.rider.ride"));
+    expect(replies[0]?.text).not.toContain("/ride");
     expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar"));
   });
 
@@ -759,5 +769,80 @@ describe("زرّ الدعم لا يغيب في أي حالة — بوت العم
     const pressed = await handleRiderUpdate(text(supportLabel), d);
     expect(pressed[0]?.text).toBe(ar("support.ask_message"));
     expect(pressed[0]?.text).not.toBe(ar("rider.location_required"));
+  });
+});
+
+/**
+ * البند 6.3 — `/help` يعرض الأوامر أزراراً، ومصدرها واحد مع القائمة الدائمة.
+ *
+ * العطب الذي كان: نصّ `rider.help` قائمةُ أوامرٍ مكتوبة يداً، لم تذكر «الدعم / شكوى»
+ * (أُضيف في 2.1) ولا «أين طلبي؟» (أُضيف في 2.2) — فمن لجأ إليه لم يعلم بهما.
+ */
+describe("لوحة /help — البند 6.3", () => {
+  const HELP_RIDER = {
+    id: "rider-9" as RiderId,
+    cityId: JEDDAH.id,
+    telegramUserId: "500",
+    fullName: "سالم",
+  };
+
+  const active = (): ActiveOrderSummary => ({
+    orderId: ORDER_ID,
+    service: "transport",
+    status: "searching",
+    pickupLabel: null,
+    dropoffLabel: "حي الصفا",
+    createdAt: new Date(NOW.getTime() - 4 * 60_000),
+    assignedDriver: null,
+  });
+
+  const helpDeps = (orders: readonly ActiveOrderSummary[] = []) =>
+    build({ riders: riderDirectory(HELP_RIDER), activeOrdersOf: async () => orders });
+
+  it("يعرض أوامر العميل أزراراً inline لا نصّاً", async () => {
+    const replies = await handleRiderUpdate(text("/help"), helpDeps());
+    expect(replies).toHaveLength(2);
+    expect(replies[0]?.keyboard).toEqual(helpKeyboard("rider", "ar"));
+
+    const keyboard = replies[0]?.keyboard;
+    if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
+    const labels = keyboard.rows.flat().map((button) => button.label);
+    expect(labels).toContain(ar("menu.support"));
+    expect(labels).toContain(ar("menu.rider.ride"));
+    expect(replies[0]?.text).not.toContain("/ride");
+  });
+
+  it("زرّ التتبّع يظهر في /help متى كان للعميل طلب نشط وحده", async () => {
+    // نفس شرط القائمة الدائمة: زرٌّ يسأل عن طلب لا وجود له يربك لا يرشد
+    const without = await handleRiderUpdate(text("/help"), helpDeps([]));
+    const withOrder = await handleRiderUpdate(text("/help"), helpDeps([active()]));
+    const labelsOf = (keyboard: unknown) => {
+      const board = keyboard as { kind: string; rows: { label: string }[][] };
+      return board.rows.flat().map((button) => button.label);
+    };
+    expect(labelsOf(without[0]?.keyboard)).not.toContain(ar("menu.rider.status"));
+    expect(labelsOf(withOrder[0]?.keyboard)).toContain(ar("menu.rider.status"));
+    expect(withOrder[1]?.keyboard).toEqual(
+      mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }),
+    );
+  });
+
+  it("كل بند قائمة له زرّ ببياناته الصحيحة — فلا يتباعد المصدران", async () => {
+    const replies = await handleRiderUpdate(text("/help"), helpDeps([active()]));
+    const keyboard = replies[0]?.keyboard;
+    if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
+    const data = keyboard.rows.flat().map((button) => button.data);
+    for (const item of allItemsFor("rider")) expect(data).toContain(`cmd:${item.command}`);
+  });
+
+  it("ضغط زرّ أمرٍ يمرّ بنفس موجّه الأوامر — /status يردّ بحالة الطلب", async () => {
+    const replies = await handleRiderUpdate(callback("cmd:/status"), helpDeps([active()]));
+    expect(replies[0]?.text).toContain(ar("rider.status_heading"));
+  });
+
+  it("زرّ بأمرٍ ليس من أوامر العميل يُرفض ولا يُنفَّذ", async () => {
+    // callback_data يأتي من جهاز المستخدم، فزرٌّ مصنوع بيده لا ينادي أوامر بوت السائق
+    const replies = await handleRiderUpdate(callback("cmd:/available"), helpDeps());
+    expect(replies[0]?.text).toBe(ar("common.unknown_command"));
   });
 });

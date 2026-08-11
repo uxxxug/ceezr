@@ -37,7 +37,13 @@ import {
   handleLanguageCommand,
   type LanguageDialogDependencies,
 } from "./language-dialog.ts";
-import { commandForMenuText, mainMenuKeyboard, requestWithMenuKeyboard } from "./main-menu.ts";
+import {
+  commandForMenuText,
+  helpKeyboard,
+  isMenuCommand,
+  mainMenuKeyboard,
+  requestWithMenuKeyboard,
+} from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
 import {
   handleCompleteRide,
@@ -407,8 +413,16 @@ async function handleCommand(
       ];
     }
 
+    /**
+     * البند 6.3: الأوامر أزراراً لا نصّاً. اللوحة الأولى inline على الرسالة نفسها،
+     * ولا تمسح الدائمة لأن تلغرام يفصل بين لوحة الرسالة ولوحة أسفل الشاشة —
+     * والثانية تُعيد تأكيد الدائمة، إذ `/help` أوّل ما يلجأ إليه من ضاعت لوحته.
+     */
     case "/help":
-      return [reply(sender, tr("driver.help"), menu(state)), reply(sender, tr("menu.hint"))];
+      return [
+        reply(sender, tr("driver.help"), helpKeyboard("driver", languageOf(state))),
+        reply(sender, tr("menu.hint"), menu(state)),
+      ];
 
     case "/language":
       return deps.language === undefined
@@ -459,7 +473,17 @@ async function handleCommand(
 
       if (goingAvailable) {
         const live = await liveSubscription(deps, driver.id);
-        if (live === null) replies.push(reply(sender, tr("driver.no_live_subscription")));
+        if (live === null) {
+          // اسم الزرّ يُقرأ من مفتاحه لا يُكتب في النصّ: نصٌّ يسمّي زرّاً ثم يتغيّر الزرّ يكذب
+          replies.push(
+            reply(
+              sender,
+              tr("driver.no_live_subscription", {
+                subscription_button: tr("menu.driver.subscription"),
+              }),
+            ),
+          );
+        }
       }
       return replies;
     }
@@ -598,6 +622,14 @@ async function handleCallback(
   const [prefix, ...rest] = data.split(":");
 
   switch (prefix) {
+    // البند 6.3: زرّ أمرٍ من لوحة `/help` — يمرّ بنفس موجّه الأوامر لا بمسار ثانٍ
+    case "cmd": {
+      const command = rest.join(":");
+      if (!isMenuCommand("driver", command)) {
+        return [reply(sender, tr("common.unknown_command"))];
+      }
+      return handleCommand(command, sender, state, deps);
+    }
     case "lang":
       return deps.language === undefined
         ? [reply(sender, tr("common.unknown_command"))]

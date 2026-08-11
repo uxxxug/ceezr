@@ -12,6 +12,8 @@ import {
   handleDriverUpdate,
 } from "../../packages/application/bots/driver-dialog.ts";
 import {
+  allItemsFor,
+  helpKeyboard,
   mainMenuKeyboard,
   requestWithMenuKeyboard,
 } from "../../packages/application/bots/main-menu.ts";
@@ -258,8 +260,11 @@ describe("التوافر", () => {
     const replies = await handleDriverUpdate(text("/available"), build({ drivers: verified }));
     expect(replies.map((r) => r.text)).toEqual([
       ar("driver.now_available"),
-      ar("driver.no_live_subscription"),
+      // البند 6.3: النصّ يسمّي الزرّ بنصّه الحقيقي لا بأمرٍ مكتوب على السائق أن يتعلّمه
+      ar("driver.no_live_subscription", { subscription_button: ar("menu.driver.subscription") }),
     ]);
+    expect(replies[1]?.text).toContain(ar("menu.driver.subscription"));
+    expect(replies[1]?.text).not.toContain("/subscription");
     expect(verified.availabilityCalls).toEqual([
       { driverId: "driver-1" as DriverId, isAvailable: true },
     ]);
@@ -646,5 +651,55 @@ describe("زرّ الدعم لا يغيب في أي حالة — بوت السا
     const pressed = await handleDriverUpdate(text(supportLabel), d);
     expect(pressed[0]?.text).toBe(ar("support.not_registered"));
     expect(pressed[0]?.text).not.toBe(ar("driver.ask_phone"));
+  });
+});
+
+/**
+ * البند 6.3 — `/help` يعرض الأوامر أزراراً، ومصدرها واحد مع القائمة الدائمة.
+ *
+ * العطب الذي كان: نصّ `driver.help` قائمةُ أوامرٍ مكتوبة يداً في القاموس، فتباعد
+ * عن القائمة الحقيقية — لم يذكر «الدعم / شكوى» ولا «اللغة» أصلاً.
+ */
+describe("لوحة /help — البند 6.3", () => {
+  it("يعرض كل أوامر السائق أزراراً inline لا نصّاً", async () => {
+    const replies = await handleDriverUpdate(text("/help"), build());
+    expect(replies).toHaveLength(2);
+    expect(replies[0]?.keyboard).toEqual(helpKeyboard("driver", "ar"));
+
+    const keyboard = replies[0]?.keyboard;
+    if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
+    const labels = keyboard.rows.flat().map((button) => button.label);
+    const data = keyboard.rows.flat().map((button) => button.data);
+    // المصدر واحد: كل بند قائمة له زرّ، فلا يتباعد /help عن اللوحة الدائمة مرّة أخرى
+    for (const item of allItemsFor("driver")) {
+      expect(labels).toContain(ar(item.key));
+      expect(data).toContain(`cmd:${item.command}`);
+    }
+    expect(labels).toContain(ar("menu.support"));
+    // ولا يعود النصّ قائمة أوامر مكتوبة
+    expect(replies[0]?.text).not.toContain("/available");
+  });
+
+  it("الردّ الثاني يُعيد تأكيد القائمة الدائمة لا يتركها للحظّ", async () => {
+    const replies = await handleDriverUpdate(text("/help"), build());
+    expect(replies[1]?.text).toBe(ar("menu.hint"));
+    expect(replies[1]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+  });
+
+  it("ضغط زرّ أمرٍ يمرّ بنفس موجّه الأوامر — /support يفتح الدعم", async () => {
+    const d = build({
+      drivers: driverDirectory(verifiedDriver()),
+      support: { sessions: deps.sessions } as SupportDialogDependencies,
+    });
+    const replies = await handleDriverUpdate(callback("cmd:/support"), d);
+    expect(replies[0]?.text).toBe(ar("support.choose_type"));
+  });
+
+  it("زرّ بأمرٍ ليس من أوامر السائق يُرفض ولا يُنفَّذ", async () => {
+    // callback_data يأتي من جهاز المستخدم، فزرٌّ مصنوع بيده لا يجوز أن ينادي أي أمر
+    const drivers = driverDirectory(verifiedDriver());
+    const replies = await handleDriverUpdate(callback("cmd:/ride"), build({ drivers }));
+    expect(replies[0]?.text).toBe(ar("common.unknown_command"));
+    expect(drivers.availabilityCalls).toEqual([]);
   });
 });
