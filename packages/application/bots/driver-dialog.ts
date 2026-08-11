@@ -10,6 +10,12 @@
 import { type Coordinates, makeCoordinates } from "../../domain/geo/value-objects.ts";
 import { parseFullName, parsePhone } from "../../domain/identity/value-objects.ts";
 import {
+  parseNationalId,
+  parsePlateNumber,
+  parseVehicleType,
+  VEHICLE_TYPES,
+} from "../../domain/kyc/value-objects.ts";
+import {
   type CitySettings,
   parseCitySettings,
   subscriptionPriceFor,
@@ -178,6 +184,9 @@ export async function handleDriverUpdate(
   }
   if (update.kind === "location") return handleLocation(update.location, sender, state, deps);
   if (update.kind === "photo") {
+    if (state.step === "awaiting_vehicle_photo") {
+      return completeRegistration(update.fileId, sender, state, deps);
+    }
     if (state.step !== "awaiting_support_message" || deps.support === undefined) {
       return [reply(sender, t(languageOf(state))("common.unknown_command"))];
     }
@@ -214,6 +223,13 @@ export async function handleDriverUpdate(
           label: t(languageOf(state))("driver.share_phone_button"),
         }),
       ];
+    case "awaiting_plate_number":
+      return handlePlateNumber(text, sender, state, deps);
+    case "awaiting_national_id":
+      return handleNationalId(text, sender, state, deps);
+    case "awaiting_vehicle_photo":
+      // نصٌّ حيث تُنتظر صورة: يُقال له إنه يحتاج صورة فعلية، لا "أمر غير معروف".
+      return [reply(sender, t(languageOf(state))("driver.vehicle_photo_required"))];
     case "awaiting_support_message":
       return deps.support === undefined
         ? [reply(sender, t(languageOf(state))("common.unknown_command"))]
@@ -555,6 +571,8 @@ async function handleCallback(
       return handleCitySelected(rest.join(":"), sender, state, deps);
     case "service":
       return handleServiceSelected(rest.join(":"), sender, state, deps);
+    case "vehicle":
+      return handleVehicleTypeSelected(rest.join(":"), sender, state, deps);
     case "back":
       return handleBack(rest.join(":"), sender, state, deps);
     case "offer":
@@ -675,6 +693,118 @@ async function handleServiceSelected(
     return [reply(sender, tr("driver.must_register_first"))];
   }
 
+  /**
+   * التسجيل لم يعد ينتهي هنا. كان ينتهي، فيُنشأ سائقٌ لا يُعرف ما يقود ولا رقم
+   * لوحته ولا من هو — ويُوثَّق على هذا الفراغ. الآن تُجمَع بقية الملفّ في الجلسة
+   * ولا يُكتب صفٌّ في القاعدة إلا بعد اكتماله، حتى لا يرى موظّف التوثيق ملفّاً
+   * نصف مكتمل فيحسبه ملفّاً حقيقياً.
+   */
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_vehicle_type",
+    draftService: serviceRaw,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+
+  return [reply(sender, tr("driver.ask_vehicle_type"), vehicleTypeKeyboard(tr))];
+}
+
+/** لوحة أنواع المركبات — تُبنى من قائمة الدومين فلا تتفرّق النسختان. */
+function vehicleTypeKeyboard(tr: (key: string) => string): Keyboard {
+  return {
+    kind: "inline",
+    rows: VEHICLE_TYPES.map((type) => [
+      { label: tr(`driver.vehicle_${type}`), data: `vehicle:${type}` },
+    ]),
+  };
+}
+
+async function handleVehicleTypeSelected(
+  raw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  if (state.step !== "awaiting_vehicle_type") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const parsed = parseVehicleType(raw);
+  if (!parsed.ok) return [reply(sender, tr("common.unknown_command"))];
+
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_plate_number",
+    draftVehicleType: parsed.value,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+
+  return [reply(sender, tr("driver.ask_plate_number"))];
+}
+
+async function handlePlateNumber(
+  raw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const parsed = parsePlateNumber(raw);
+  // سبب الرفض يُقال بعينه: "غير صالح" وحدها تترك السائق يخمّن ما الخطأ.
+  if (!parsed.ok) return [reply(sender, tr(`driver.plate_invalid_${parsed.error.reason}`))];
+
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_national_id",
+    draftPlateNumber: parsed.value,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+
+  return [reply(sender, tr("driver.ask_national_id"))];
+}
+
+async function handleNationalId(
+  raw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const parsed = parseNationalId(raw);
+  if (!parsed.ok) return [reply(sender, tr(`driver.national_id_invalid_${parsed.error.reason}`))];
+
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_vehicle_photo",
+    draftNationalId: parsed.value,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+
+  return [reply(sender, tr("driver.ask_vehicle_photo"))];
+}
+
+/** آخر خطوة: تصل الصورة فيُكتب الصفّ كاملاً دفعة واحدة. */
+async function completeRegistration(
+  fileId: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  if (
+    state.draftName === null ||
+    state.draftPhone === null ||
+    state.draftCityId === null ||
+    state.draftService === null ||
+    state.draftVehicleType === null ||
+    state.draftPlateNumber === null ||
+    state.draftNationalId === null
+  ) {
+    await deps.sessions.clear(sender.telegramUserId);
+    return [reply(sender, tr("driver.must_register_first"))];
+  }
+
+  const serviceRaw = state.draftService;
   const registered = await deps.drivers.register({
     telegramUserId: sender.telegramUserId,
     cityId: state.draftCityId,
@@ -682,8 +812,23 @@ async function handleServiceSelected(
     phone: state.draftPhone,
     service: serviceRaw,
     language: languageOf(state),
+    vehicleType: state.draftVehicleType,
+    plateNumber: state.draftPlateNumber,
+    nationalId: state.draftNationalId,
+    vehiclePhotoFileId: fileId,
   });
-  if (!registered.ok) return technicalFailure(sender, state);
+  if (!registered.ok) {
+    /**
+     * ازدواج الهوية ليس عطلاً تقنياً بل رفضٌ مفهوم: شخصٌ يحاول حساباً ثانياً
+     * بنفس هويته. يُقال له السبب صراحةً بدل "حدث خطأ تقني" التي تدفعه للإعادة
+     * إلى ما لا نهاية. والجلسة تُمسح لأن إعادة المحاولة بنفس الرقم لن تنجح.
+     */
+    if (isDuplicateNationalId(registered.error)) {
+      await deps.sessions.clear(sender.telegramUserId);
+      return [reply(sender, tr("driver.national_id_taken"), { kind: "remove" })];
+    }
+    return technicalFailure(sender, state);
+  }
 
   // بعد اكتمال التسجيل مباشرة: أوّل /start لم يجد حساباً ليرقّيه، وهذه أوّل لحظة يوجد فيها
   if (
@@ -793,4 +938,13 @@ async function handleLocation(
       kind: "remove",
     }),
   ];
+}
+
+/**
+ * ازدواج الهوية يصل من القاعدة كخرق قيد فريد. نميّزه بالفهرس لا بنصّ عام:
+ * "duplicate key" وحدها كانت ستبتلع أي ازدواج آخر فتقول للسائق سبباً خاطئاً.
+ */
+function isDuplicateNationalId(error: { readonly detail?: string } | unknown): boolean {
+  const detail = (error as { readonly detail?: string }).detail ?? "";
+  return detail.includes("drivers_city_national_id_uniq");
 }

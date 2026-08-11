@@ -109,6 +109,13 @@ const text = (value: string) => ({
     text: value,
   },
 });
+const photo = (fileId: string) => ({
+  message: {
+    chat: { id: DRIVER_CHAT },
+    from: { id: DRIVER_CHAT, language_code: "ar" },
+    photo: [{ file_id: `${fileId}_thumb` }, { file_id: fileId }],
+  },
+});
 const callback = (data: string) => ({
   callback_query: {
     data,
@@ -182,6 +189,10 @@ describeIf("جلسات الحوار على Redis بحاوية حقيقية", () 
 
     await post(callback(`city:${cityId}`));
     await post(callback("service:transport"));
+    await post(callback("vehicle:sedan"));
+    await post(text("أ ب ج 1234"));
+    await post(text("1000310001"));
+    await post(photo("vphoto_310001"));
 
     const rows = await sql<{ full_name: string; phone: string }[]>`
       select full_name, phone from users where telegram_id = ${DRIVER_CHAT}
@@ -291,6 +302,10 @@ describeIf("جلسات الحوار على Redis بحاوية حقيقية", () 
       await post(contact("+966500000111"));
       await post(callback(`city:${cityId}`));
       await post(callback("service:transport"));
+      await post(callback("vehicle:sedan"));
+      await post(text("أ ب ج 1234"));
+      await post(text("1000310001"));
+      await post(photo("vphoto_310001"));
 
       const rows = await sql<{ full_name: string; phone: string }[]>`
         select full_name, phone from users where telegram_id = ${DRIVER_CHAT}

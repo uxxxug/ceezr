@@ -88,7 +88,36 @@ export type DialogStep =
   /** اختيار نوع الشكوى بعد /support: اشتراك أم نزاع رحلة. */
   | "awaiting_support_type"
   /** انتظار نصّ الشكوى أو صورتها بعد اختيار النوع. */
-  | "awaiting_support_message";
+  | "awaiting_support_message"
+  /** ملفّ السائق التوثيقي: نوع المركبة ثم لوحتها ثم الهوية ثم صورة المركبة. */
+  | "awaiting_vehicle_type"
+  | "awaiting_plate_number"
+  | "awaiting_national_id"
+  | "awaiting_vehicle_photo";
+
+/**
+ * القائمة نفسها كقيمة، ليتحقّق منها مخزن Redis عند القراءة.
+ * كانت مكرّرة يدوياً هناك، فأُضيفت خطواتٌ جديدة إلى النوع ولم تُضَف إلى القائمة:
+ * فصار المخزن يرفض كل جلسة تصلها خطوةٌ جديدة ويعيدها إلى الصفر بصمت — والاختبار
+ * في الذاكرة لا يراه لأنه لا يمرّ بالترجمة أصلاً. التكرار هو العطب، فأُزيل.
+ * `satisfies` يجعل أي انحراف بين النوع والقائمة خطأ ترجمة لا مفاجأة إنتاج.
+ */
+export const DIALOG_STEPS = [
+  "idle",
+  "awaiting_name",
+  "awaiting_phone",
+  "awaiting_city",
+  "awaiting_service",
+  "awaiting_pickup",
+  "awaiting_dropoff",
+  "awaiting_parcel",
+  "awaiting_support_type",
+  "awaiting_support_message",
+  "awaiting_vehicle_type",
+  "awaiting_plate_number",
+  "awaiting_national_id",
+  "awaiting_vehicle_photo",
+] as const satisfies readonly DialogStep[];
 
 export interface DialogState {
   readonly step: DialogStep;
@@ -102,6 +131,15 @@ export interface DialogState {
   readonly draftDropoff: Coordinates | null;
   /** نوع تذكرة الدعم المختار، محفوظاً حتى تصل رسالة الشكوى. */
   readonly draftSupportType: "subscription" | "ride_dispute" | null;
+  /**
+   * مسوّدة الملفّ التوثيقي. تُجمَع في الجلسة ولا تُكتب في القاعدة إلا مكتملة:
+   * سائقٌ يتوقّف في منتصف التسجيل لا يجوز أن يترك صفّاً نصف موثَّق يظنّه
+   * موظّف التوثيق ملفّاً حقيقياً.
+   */
+  readonly draftVehicleType: string | null;
+  readonly draftPlateNumber: string | null;
+  readonly draftNationalId: string | null;
+  readonly draftVehiclePhotoFileId: string | null;
 }
 
 export const INITIAL_STATE: DialogState = {
@@ -114,6 +152,10 @@ export const INITIAL_STATE: DialogState = {
   draftPickup: null,
   draftDropoff: null,
   draftSupportType: null,
+  draftVehicleType: null,
+  draftPlateNumber: null,
+  draftNationalId: null,
+  draftVehiclePhotoFileId: null,
 };
 
 export interface SessionStore {
@@ -152,6 +194,11 @@ export interface RegisterDriverInput {
   readonly phone: string;
   readonly service: ServiceType;
   readonly language: string;
+  /** الملفّ التوثيقي يُكتب مع التسجيل في عملية واحدة لا في تحديث لاحق. */
+  readonly vehicleType: string;
+  readonly plateNumber: string;
+  readonly nationalId: string;
+  readonly vehiclePhotoFileId: string;
 }
 
 export interface DriverDirectory {

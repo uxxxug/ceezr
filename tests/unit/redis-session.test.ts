@@ -19,6 +19,7 @@ import { type DialogState, INITIAL_STATE } from "../../packages/application/bots
 import type { CityId } from "../../packages/shared/kernel/index.ts";
 
 const FULL_STATE: DialogState = {
+  ...INITIAL_STATE,
   step: "awaiting_parcel",
   language: "ur",
   draftName: "علي",

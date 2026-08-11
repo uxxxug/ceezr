@@ -121,6 +121,8 @@ const message = (chatId: number, body: Record<string, unknown>) => ({
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
+const photo = (chatId: number, fileId: string) =>
+  message(chatId, { photo: [{ file_id: `${fileId}_thumb` }, { file_id: fileId }] });
 const location = (chatId: number, at: { latitude: number; longitude: number }) =>
   message(chatId, { location: at });
 const contact = (chatId: number, phone: string) =>
@@ -206,6 +208,10 @@ describeIf("محادثة بلغتين عبر الترجمة على قاعدة ح
     await post("driver", contact(DRIVER_CHAT, "0501234567"));
     await post("driver", privateCallback(DRIVER_CHAT, `city:${cityId}`));
     await post("driver", privateCallback(DRIVER_CHAT, "service:transport"));
+    await post("driver", privateCallback(DRIVER_CHAT, "vehicle:sedan"));
+    await post("driver", text(DRIVER_CHAT, "أ ب ج 1234"));
+    await post("driver", text(DRIVER_CHAT, "1000001002"));
+    await post("driver", photo(DRIVER_CHAT, "vphoto_1000001002"));
 
     const rows = await sql<{ id: string }[]>`
       select d.id from drivers d join users u on u.id = d.user_id where u.telegram_id = ${DRIVER_CHAT}

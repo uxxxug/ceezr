@@ -160,6 +160,10 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
     await post("driver", contact(chatId, phone));
     await post("driver", privateCallback(chatId, `city:${cityId}`));
     await post("driver", privateCallback(chatId, "service:transport"));
+    await post("driver", privateCallback(chatId, "vehicle:sedan"));
+    await post("driver", text(chatId, "أ ب ج 1234"));
+    await post("driver", text(chatId, `1${String(chatId).slice(-9).padStart(9, "0")}`));
+    await post("driver", photo(chatId, `vphoto_${chatId}`));
     const rows = await sql<{ id: string }[]>`
       select d.id from drivers d join users u on u.id = d.user_id where u.telegram_id = ${chatId}
     `;

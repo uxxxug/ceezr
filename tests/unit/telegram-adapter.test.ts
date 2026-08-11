@@ -15,6 +15,7 @@ import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/ses
 import { toIncomingUpdate } from "../../apps/gateway/src/bots/shared/telegram-mapper.ts";
 import { createUpdateHandler } from "../../apps/gateway/src/container.ts";
 import type { DriverBotDependencies } from "../../packages/application/bots/driver-dialog.ts";
+import { INITIAL_STATE } from "../../packages/application/bots/types.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 import {
@@ -218,6 +219,7 @@ describe("مخزن الجلسات", () => {
     const store = createMemorySessionStore(fixedClock(NOW));
     expect((await store.load("1")).ok && (await store.load("1")).ok).toBe(true);
     await store.save("1", {
+      ...INITIAL_STATE,
       step: "awaiting_phone",
       language: "ar",
       draftName: "سالم",
@@ -239,6 +241,7 @@ describe("مخزن الجلسات", () => {
     let now = NOW;
     const store = createMemorySessionStore({ now: () => now }, 60);
     await store.save("1", {
+      ...INITIAL_STATE,
       step: "awaiting_name",
       language: "ar",
       draftName: null,

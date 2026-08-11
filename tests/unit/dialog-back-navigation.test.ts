@@ -97,6 +97,13 @@ describe("الرجوع من اختيار الخدمة إلى اختيار الم
     await handleDriverUpdate(callback("back:city"), deps);
     await handleDriverUpdate(callback(`city:${MAKKAH.id}`), deps);
     await handleDriverUpdate(callback("service:transport"), deps);
+    await handleDriverUpdate(callback("vehicle:sedan"), deps);
+    await handleDriverUpdate(text("أ ب ج 1234"), deps);
+    await handleDriverUpdate(text("1012345678"), deps);
+    await handleDriverUpdate(
+      { kind: "photo", from: SENDER, fileId: "vphoto_900", caption: null },
+      deps,
+    );
     expect(drivers.registrations[0]?.cityId).toBe(MAKKAH.id);
     expect(drivers.registrations[0]?.phone).toBe("+966501234567");
   });

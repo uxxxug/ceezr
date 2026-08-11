@@ -84,10 +84,24 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
           const userId = users[0]?.id;
           if (userId === undefined) throw new Error("تعذّر إنشاء المستخدم");
 
+          /**
+           * الملفّ التوثيقي يُكتب هنا في نفس المعاملة لا في تحديث لاحق: تحديثٌ
+           * منفصل قد يفشل بعد نجاح الإدراج، فيبقى سائقٌ بلا مركبة ولا هوية —
+           * وهو بالضبط ما كانت عليه الحال قبل هذه المرحلة.
+           * ملاحظة: لا يُطبع national_id في أي سجل ولا رسالة خطأ.
+           */
           const drivers = await tx<{ id: string }[]>`
-            insert into drivers (city_id, user_id)
-            values (${input.cityId}, ${userId})
-            on conflict (user_id) do update set city_id = excluded.city_id, updated_at = now()
+            insert into drivers (city_id, user_id, vehicle_type, plate_number,
+                                 national_id, vehicle_photo_file_id)
+            values (${input.cityId}, ${userId}, ${input.vehicleType}, ${input.plateNumber},
+                    ${input.nationalId}, ${input.vehiclePhotoFileId})
+            on conflict (user_id) do update
+              set city_id = excluded.city_id,
+                  vehicle_type = excluded.vehicle_type,
+                  plate_number = excluded.plate_number,
+                  national_id = excluded.national_id,
+                  vehicle_photo_file_id = excluded.vehicle_photo_file_id,
+                  updated_at = now()
             returning id
           `;
           const driverId = drivers[0]?.id;

@@ -8,10 +8,11 @@
  *   بـ EX، فمهمّة التنظيف الدورية تتخطّاه كما هو موثّق في cleanup-stale-sessions.ts.
  */
 
-import type {
-  DialogState,
-  DialogStep,
-  SessionStore,
+import {
+  DIALOG_STEPS,
+  type DialogState,
+  type DialogStep,
+  type SessionStore,
 } from "../../../../../packages/application/bots/types.ts";
 import { PortFailureError } from "../../../../../packages/application/ports/index.ts";
 import type { CityId, ServiceType } from "../../../../../packages/shared/kernel/index.ts";
@@ -29,25 +30,23 @@ export const REDIS_SESSION_PREFIX = "waslah:session";
  */
 export type SessionNamespace = "driver" | "rider";
 
-const DIALOG_STEPS: readonly DialogStep[] = [
-  "idle",
-  "awaiting_name",
-  "awaiting_phone",
-  "awaiting_city",
-  "awaiting_service",
-  "awaiting_pickup",
-  "awaiting_dropoff",
-  "awaiting_parcel",
-  "awaiting_support_type",
-  "awaiting_support_message",
-];
-
 const SUPPORT_TYPES = ["subscription", "ride_dispute"] as const;
 const SERVICE_TYPES = ["transport", "delivery"] as const;
 
 function nullableString(value: unknown): string | null | undefined {
   if (value === null) return null;
   return typeof value === "string" ? value : undefined;
+}
+
+/**
+ * حقلٌ أُضيف بعد أن كُتبت جلساتٌ قائمة في Redis. الغياب يُقرأ null لا رفضاً:
+ * رفضُه كان سيُبطل كل جلسة جارية لحظة النشر، فيجد كل سائق ومستخدم نفسه في
+ * منتصف حوار قد بدأ من الصفر بلا سبب مفهوم. أمّا القيمة بنوعٍ خاطئ فتُرفض،
+ * لأنها ليست جلسةً قديمة بل جلسة مشوّهة.
+ */
+function addedNullableString(value: unknown): string | null | undefined {
+  if (value === undefined) return null;
+  return nullableString(value);
 }
 
 function nullableCoordinates(value: unknown): { latitude: number; longitude: number } | null | 0 {
@@ -91,6 +90,19 @@ export function parseDialogState(raw: string): DialogState | null {
     return null;
   }
 
+  const vehicleType = addedNullableString(candidate.draftVehicleType);
+  const plateNumber = addedNullableString(candidate.draftPlateNumber);
+  const nationalId = addedNullableString(candidate.draftNationalId);
+  const vehiclePhoto = addedNullableString(candidate.draftVehiclePhotoFileId);
+  if (
+    vehicleType === undefined ||
+    plateNumber === undefined ||
+    nationalId === undefined ||
+    vehiclePhoto === undefined
+  ) {
+    return null;
+  }
+
   const pickup = nullableCoordinates(candidate.draftPickup);
   const dropoff = nullableCoordinates(candidate.draftDropoff);
   if (pickup === 0 || dropoff === 0) return null;
@@ -105,6 +117,10 @@ export function parseDialogState(raw: string): DialogState | null {
     draftPickup: pickup,
     draftDropoff: dropoff,
     draftSupportType: supportType === null ? null : (supportType as (typeof SUPPORT_TYPES)[number]),
+    draftVehicleType: vehicleType,
+    draftPlateNumber: plateNumber,
+    draftNationalId: nationalId,
+    draftVehiclePhotoFileId: vehiclePhoto,
   };
 }
 

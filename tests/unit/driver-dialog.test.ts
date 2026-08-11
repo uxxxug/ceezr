@@ -42,6 +42,16 @@ function text(value: string): IncomingUpdate {
 function callback(data: string): IncomingUpdate {
   return { kind: "callback", from: SENDER, data };
 }
+function photo(fileId: string): IncomingUpdate {
+  return { kind: "photo", from: SENDER, fileId, caption: null };
+}
+/** الخطوات الأربع التي صار التسجيل يمرّ بها بعد اختيار الخدمة. */
+async function completeKyc(deps: DriverBotDependencies) {
+  await handleDriverUpdate(callback("vehicle:sedan"), deps);
+  await handleDriverUpdate(text("أ ب ج 1234"), deps);
+  await handleDriverUpdate(text("1012345678"), deps);
+  return handleDriverUpdate(photo("vphoto_900"), deps);
+}
 /** الافتراضي: البطاقة للمرسِل نفسه — وهو ما يفعله زرّ "مشاركة رقمي". */
 function contact(
   phone: string,
@@ -105,9 +115,14 @@ describe("تسجيل السائق — المسار الكامل", () => {
     expect(city[0]?.text).toBe(ar("driver.ask_service"));
 
     const service = await handleDriverUpdate(callback("service:transport"), deps);
-    expect(service[0]?.text).toBe(ar("driver.registered", { name: "أحمد العمري", city: "جدة" }));
+    // اختيار الخدمة لم يعد ينهي التسجيل: يليه الملفّ التوثيقي
+    expect(service[0]?.text).toBe(ar("driver.ask_vehicle_type"));
+    expect(drivers.registrations).toHaveLength(0);
+
+    const done = await completeKyc(deps);
+    expect(done[0]?.text).toBe(ar("driver.registered", { name: "أحمد العمري", city: "جدة" }));
     // مدة التجربة تأتي من platform_settings لا من ثابت في الكود
-    expect(service[1]?.text).toBe(ar("driver.trial_started", { days: 30 }));
+    expect(done[1]?.text).toBe(ar("driver.trial_started", { days: 30 }));
 
     expect(drivers.registrations).toEqual([
       {
@@ -129,6 +144,7 @@ describe("تسجيل السائق — المسار الكامل", () => {
       await handleDriverUpdate(contact(input), deps);
       await handleDriverUpdate(callback(`city:${JEDDAH.id}`), deps);
       await handleDriverUpdate(callback("service:delivery"), deps);
+      await completeKyc(deps);
       expect(drivers.registrations[0]?.phone).toBe("+966501234567");
     }
   });
@@ -162,6 +178,7 @@ describe("تسجيل السائق — المسار الكامل", () => {
     expect(shared[0]?.text).toBe(ar("driver.ask_city"));
     await handleDriverUpdate(callback(`city:${JEDDAH.id}`), deps);
     await handleDriverUpdate(callback("service:delivery"), deps);
+    await completeKyc(deps);
     expect(drivers.registrations[0]?.phone).toBe("+966501234567");
   });
 
@@ -214,7 +231,8 @@ describe("تسجيل السائق — المسار الكامل", () => {
     await handleDriverUpdate(text("أحمد العمري"), withReason);
     await handleDriverUpdate(contact("0501234567"), withReason);
     await handleDriverUpdate(callback(`city:${JEDDAH.id}`), withReason);
-    const done = await handleDriverUpdate(callback("service:transport"), withReason);
+    await handleDriverUpdate(callback("service:transport"), withReason);
+    const done = await completeKyc(withReason);
     expect(done[1]?.text).toBe(ar("driver.trial_not_started", { reason: "already_used" }));
   });
 });
