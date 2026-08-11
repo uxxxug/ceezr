@@ -38,6 +38,7 @@ const config: AppConfig = {
   translationProvider: "none",
   translationApiKey: null,
   translationContactEmail: null,
+  runWorkerInGateway: false,
 };
 
 let sql: Sql;

@@ -42,6 +42,24 @@ export interface AppConfig {
    * كاملاً لنسخة واحدة، و`redis` شرطٌ عند تعدّد النسخ لا تحسين (ADR 0011).
    */
   readonly sessionStore: SessionStoreName;
+  /**
+   * هل تُشغَّل المهامّ الدورية داخل عملية البوابة نفسها.
+   *
+   * الأصل أن العامل خدمةٌ مستقلّة (`render.yaml` قسم `waslah-worker`)، وهو الأنظف:
+   * إقلاعه وسجلّه ومقياسه منفصلة عن البوابة. لكن الفحص الحيّ للإنتاج أثبت أن تلك
+   * الخدمة **غير موجودة أصلاً**، فلم تُنفَّذ مهمّة دورية واحدة قطّ: لا إشعار «لا يوجد
+   * سائق»، ولا تصعيد إلى قروب الإسناد، ولا انتهاء مهلة عرض، ولا دوران تفاوض.
+   * راجع `docs/directive-item-0-live-diagnosis.md` القسم 0.2.
+   *
+   * فهذا المتغيّر مخرجٌ صريح لا افتراضي: من يملك خدمة عامل مستقلّة يتركه `false`
+   * فلا يتغيّر عليه شيء، ومن لا يملكها يضبطه `true` فتعمل المهامّ في نفس العملية.
+   * القفل الموزَّع في المشغّل هو ما يجعل هذا آمناً: لو أُقلعت الخدمتان معاً بالخطأ
+   * لما نُفِّذت مهمّة مرّتين، بل تخطّت إحداهما بحالة `skipped_locked_elsewhere`.
+   *
+   * الافتراضي `false` عن قصد: تشغيل مهامّ دورية داخل خادم ويب أثرٌ جانبي لا يجوز
+   * أن يحدث لمن لم يطلبه.
+   */
+  readonly runWorkerInGateway: boolean;
 }
 
 /** مخازن الجلسات المدعومة. */
@@ -98,6 +116,20 @@ export type ConfigError = MissingEnvVarError | InvalidEnvVarError;
 
 function isBlank(value: string | undefined): boolean {
   return value === undefined || value.trim() === "";
+}
+
+/**
+ * قراءة متغيّر بيئة منطقي. الغياب يعني `false`، و`true`/`1`/`yes`/`on` تعني `true`،
+ * وأي شيء آخر يعني `false`.
+ *
+ * لماذا لا يُرفض المجهول بخطأ إقلاع؟ لأن هذا المتغيّر مُفعِّل ميزة لا مفتاح اتصال:
+ * قيمةٌ مكتوبة خطأً تعني «لم يُفعَّل» وهو الحال الافتراضي أصلاً، لا انحرافاً صامتاً.
+ * أما أسماء المزوّدات فتُرفض صريحاً لأن الخطأ فيها يعني خدمةً تعمل بنصف إعداد.
+ */
+function parseBooleanEnv(value: string | undefined): boolean {
+  if (isBlank(value)) return false;
+  const normalized = (value as string).trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
 }
 
 /** كل المتغيرات الناقصة، لا أولها فقط — ليعرف المشغّل ما ينقصه في نظرة واحدة. */
@@ -202,6 +234,7 @@ export function tryLoadConfig(
       ? null
       : (source.TRANSLATION_CONTACT_EMAIL as string).trim(),
     sessionStore: rawSessionStore as SessionStoreName,
+    runWorkerInGateway: parseBooleanEnv(source.RUN_WORKER_IN_GATEWAY),
   });
 }
 

@@ -47,6 +47,7 @@ const config: AppConfig = {
   translationProvider: "none" as const,
   translationApiKey: null,
   translationContactEmail: null,
+  runWorkerInGateway: false,
 };
 
 let sql: Sql;

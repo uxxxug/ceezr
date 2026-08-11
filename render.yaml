@@ -57,6 +57,13 @@ services:
         sync: false
       - key: TRANSLATION_CONTACT_EMAIL
         sync: false
+      # المهامّ الدورية داخل عملية البوابة. `false` ما دامت خدمة `waslah-worker`
+      # أدناه موجودة فعلاً وتعمل. ومتى لم تُنشأ تلك الخدمة — وهو واقع الإنتاج
+      # الحالي حسب `docs/directive-item-0-live-diagnosis.md` §0.2 — فيُضبط `true` في
+      # لوحة Render وإلّا لم تُنفَّذ مهمّة دورية واحدة أبداً. تشغيلهما معاً ليس
+      # خطراً: القفل الموزَّع يجعل إحداهما تتخطّى بحالة skipped_locked_elsewhere.
+      - key: RUN_WORKER_IN_GATEWAY
+        sync: false
 
   # ── العامل الخلفي: المهامّ الدورية بقفل موزَّع ────────────────────────────────
   - type: worker

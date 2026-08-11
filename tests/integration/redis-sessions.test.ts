@@ -39,6 +39,7 @@ const config: AppConfig = {
   translationProvider: "none" as const,
   translationApiKey: null,
   translationContactEmail: null,
+  runWorkerInGateway: false,
 };
 
 /** Redis مزدوج يحترم EX بمنطق مهلة حقيقي، لأن انتهاء المهلة جزء من السلوك المختبَر. */

@@ -9,6 +9,7 @@
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { buildContainer } from "./container.ts";
+import { type EmbeddedWorkerHandle, startEmbeddedWorker } from "./embedded-worker.ts";
 import {
   createMemoryRateLimiter,
   createRedisRateLimiter,
@@ -43,8 +44,16 @@ const startedAt = new Date();
 // التركيب الحقيقي: اتصال قاعدة واحد ومحوّلات فعلية لكل منفذ.
 const container = buildContainer(config, { log });
 
+/**
+ * مقبض العامل المدمج إن كان مُفعَّلاً. يُملأ بعد إعلان جاهزية المنفذ لا قبله.
+ */
+let embeddedWorker: EmbeddedWorkerHandle | null = null;
+
 async function shutdown(signal: string): Promise<void> {
   log("إيقاف البوابة", { signal });
+  // العامل أولاً: مهمّة جارية تستعلم القاعدة، وإغلاق التجمّع تحتها يجعلها تفشل
+  // بخطأ اتصال لا معنى له بدل أن تنتهي أو تُوقَف نظيفة.
+  if (embeddedWorker !== null) await embeddedWorker.stop();
   await container.close();
   process.exit(0);
 }
@@ -180,6 +189,43 @@ log("البوابة تعمل", {
 
 // بعد سطر «البوابة تعمل» لا قبله، حتى لا يؤخّر استعلامٌ بطيء إعلانَ جاهزية المنفذ.
 void verifySchemaApplied();
+
+/**
+ * المهامّ الدورية داخل نفس العملية — خلف متغيّر بيئة صريح.
+ *
+ * لماذا هنا وليس في `server.ts`؟ لأن `server.ts` يُستدعى في اختبارات المسارات، وبدء
+ * مؤقّتات حقيقية وتجمّعات اتصال هناك كان سيجعل كل اختبار مسار يعلّق على القاعدة.
+ * هذا الموضع — نقطة التشغيل وحدها — لا يُستورد في أي اختبار.
+ *
+ * الإقلاع غير حاجز: بناء قائمة المهامّ يستعلم جدول المدن، ولا يجوز أن يؤخّر ذلك
+ * استجابة المنفذ فيقرأها Render فشلاً في فحص الجاهزية.
+ */
+if (config.runWorkerInGateway) {
+  void startEmbeddedWorker(config, {
+    info: (message, fields) => log(message, fields ?? {}),
+    error: (message, fields) =>
+      console.error(JSON.stringify({ at: new Date().toISOString(), message, ...fields })),
+  })
+    .then((handle) => {
+      embeddedWorker = handle;
+    })
+    .catch((cause: unknown) => {
+      // فشل إقلاع العامل لا يُسقط البوابة: بوابةٌ تعمل بلا مهامّ دورية أفضل من
+      // انعدام البوتَين معاً، والسبب يظهر في السجلّ لحظته.
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      console.error(
+        JSON.stringify({
+          at: new Date().toISOString(),
+          message: "embedded_worker.boot_failed",
+          detail,
+        }),
+      );
+    });
+} else {
+  log("العامل المدمج غير مُفعَّل", {
+    hint: "اضبط RUN_WORKER_IN_GATEWAY=true إن لم توجد خدمة waslah-worker مستقلّة",
+  });
+}
 
 export default {
   port: config.port,
