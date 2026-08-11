@@ -161,7 +161,13 @@ function groupIdsAreDistinct(values: readonly (string | null)[]): boolean {
  * كل صفحة تُعيد جسمها فقط، والهيكل يُلبس هنا مرّة واحدة: عنوان الصفحة، والتنقّل،
  * ومن الداخل، ورمز CSRF — فلا تتفرّق ثماني نسخ من الترويسة تختلف يوماً.
  */
-function page(c: Context<AdminEnv>, title: string, activePath: string, body: string): Response {
+function page(
+  c: Context<AdminEnv>,
+  title: string,
+  activePath: string,
+  body: string,
+  refreshSeconds?: number,
+): Response {
   const admin = c.get("admin");
   const user: AdminUser = {
     userId: admin.userId,
@@ -169,8 +175,24 @@ function page(c: Context<AdminEnv>, title: string, activePath: string, body: str
     telegramId: admin.telegramId,
     fullName: admin.fullName,
   };
-  return c.html(renderShell({ title, activePath, user, csrfToken: c.get("csrfToken"), body }));
+  return c.html(
+    renderShell({
+      title,
+      activePath,
+      user,
+      csrfToken: c.get("csrfToken"),
+      body,
+      ...(refreshSeconds === undefined ? {} : { refreshSeconds }),
+    }),
+  );
 }
+
+/**
+ * دورية تحديث الصفحات التشغيلية. الطلبات الحية أسرع لأنها الشاشة التي يُتابَع
+ * عليها ما يجري الآن — وهي التي رُئي فيها طلب ملغى معروضاً كأنه يبحث عن سائق.
+ */
+const LIVE_REFRESH_SECONDS = 20;
+const OVERVIEW_REFRESH_SECONDS = 60;
 
 const VERIFICATION_VALUES = new Set(["pending", "verified", "rejected", "suspended"]);
 const TICKET_STATUS_VALUES = new Set(["open", "claimed", "resolved", "rejected"]);
@@ -341,6 +363,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         health: healthIndicators(signals),
         windowHours: DAY_WINDOW_HOURS,
       }),
+      OVERVIEW_REFRESH_SECONDS,
     );
   });
 
@@ -362,6 +385,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         cityId,
         stallSeconds: stall,
       }),
+      LIVE_REFRESH_SECONDS,
     );
   });
 

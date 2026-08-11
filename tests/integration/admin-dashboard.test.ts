@@ -320,6 +320,22 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     }
   });
 
+  it("الصفحات التشغيلية تُحدِّث نفسها، وصفحات النماذج لا تفعل", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+
+    // اللوحة مُصيَّرة على الخادم بلا تحديث، فطلبٌ أُلغي كان يبقى معروضاً على
+    // شاشة المسؤول تحت «طلبات تبحث عن سائق» إلى أن يُحدِّث بنفسه.
+    const live = await (await request("/admin/live-orders", { cookie })).text();
+    expect(live).toContain("location.reload()");
+
+    const overview = await (await request("/admin", { cookie })).text();
+    expect(overview).toContain("location.reload()");
+
+    // الإعدادات تحمل نماذج: تحديثها تحت يد من يكتب فيها يمحو ما كتب
+    const settings = await (await request("/admin/settings", { cookie })).text();
+    expect(settings).not.toContain("location.reload()");
+  });
+
   it("واجهة JSON تعيد نماذج القراءة نفسها", async () => {
     const cookie = await login(ADMIN_TELEGRAM);
 

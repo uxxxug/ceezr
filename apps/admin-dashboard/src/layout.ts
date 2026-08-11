@@ -58,6 +58,13 @@ export interface ShellOptions {
   readonly body: string;
   /** رسالة نتيجة آخر فعل كتابي — تُمرَّر في الرابط بعد إعادة التوجيه. */
   readonly notice?: { readonly kind: "ok" | "error"; readonly text: string };
+  /**
+   * تحديث دوري للصفحات التشغيلية. اللوحة مُصيَّرة على الخادم بلا أي تحديث،
+   * فطلبٌ أُلغي أو أُسنِد يبقى معروضاً على شاشة المسؤول إلى أن يُحدِّث بنفسه.
+   * وقد شكا المالك من رؤية طلب ملغى تحت «طلبات تبحث عن سائق»؛ وهذا أحد سببيه.
+   * يُترك undefined في الصفحات التي تحمل نماذج، فتحديثها يمحو ما كُتب فيها.
+   */
+  readonly refreshSeconds?: number;
 }
 
 export function renderShell(options: ShellOptions): string {
@@ -107,8 +114,26 @@ ${notice}
 ${options.body}
 </main>
 <script>${SEARCH_SCRIPT}</script>
+${options.refreshSeconds === undefined ? "" : `<script>${refreshScript(options.refreshSeconds)}</script>`}
 </body>
 </html>`;
+}
+
+/**
+ * التحديث يتوقّف ما دام المسؤول يكتب في حقل أو يقرأ نتائج بحث مفتوحة: صفحة
+ * تُعيد تحميل نفسها تحت يد من يكتب فيها أسوأ من صفحة قديمة.
+ */
+function refreshScript(seconds: number): string {
+  return `(function(){
+  var ms = ${Math.max(1, Math.trunc(seconds))} * 1000;
+  setInterval(function(){
+    var el = document.activeElement;
+    if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT")) return;
+    var results = document.getElementById("search-results");
+    if (results && !results.hidden) return;
+    location.reload();
+  }, ms);
+})();`;
 }
 
 /** بطاقة رقم واحد في شبكة المؤشرات. */
