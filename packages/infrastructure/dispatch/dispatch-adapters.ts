@@ -37,6 +37,8 @@ interface CandidateRow {
   readonly is_available: boolean | null;
   readonly verification_status: string;
   readonly is_blocked: boolean;
+  readonly preferred_lat: number | null;
+  readonly preferred_lng: number | null;
   readonly rating_average: string | null;
   readonly rating_count: number;
   readonly services: readonly string[] | null;
@@ -78,6 +80,16 @@ function toCandidate(row: CandidateRow): DriverCandidate {
       row.lat === null || row.lng === null
         ? null
         : { latitude: Number(row.lat), longitude: Number(row.lng) },
+    /**
+     * المنطقة المفضّلة — البند 2.4. `null` هنا يعني «لا منطقة» لا «منطقة عند
+     * الصفر»: نفس السبب الذي مُنع من أجله `Number(lat ?? 0)` في `location`.
+     * وقيد `drivers_preferred_area_pair` يضمن أن العمودين يحضران أو يغيبان معاً،
+     * فالفحص على أحدهما لا يترك نصف نقطة تمرّ.
+     */
+    preferredArea:
+      row.preferred_lat === null || row.preferred_lng === null
+        ? null
+        : { latitude: Number(row.preferred_lat), longitude: Number(row.preferred_lng) },
     isAvailable: row.is_available === true,
     isVerified: row.verification_status === "verified",
     isBlocked: row.is_blocked,
@@ -106,6 +118,8 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  d.city_id,
                  st_y(d.last_location::geometry) as lat,
                  st_x(d.last_location::geometry) as lng,
+                 st_y(d.preferred_area_location::geometry) as preferred_lat,
+                 st_x(d.preferred_area_location::geometry) as preferred_lng,
                  a.is_available,
                  d.verification_status,
                  u.is_blocked,

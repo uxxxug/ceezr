@@ -116,7 +116,14 @@ export type DialogStep =
   | "awaiting_vehicle_type"
   | "awaiting_plate_number"
   | "awaiting_national_id"
-  | "awaiting_vehicle_photo";
+  | "awaiting_vehicle_photo"
+  /**
+   * البند 2.4 — خطوتان اختياريتان بعد اكتمال التسجيل: اسم المنطقة ثم موقعها.
+   * وُضعتا **بعد** كتابة الصفّ لا قبلها قصداً: تسجيلٌ يسقط عند خطوة اختيارية
+   * يضيّع كل ما سبقها، والمنطقة أهون من أن تُكلّف السائق ملفّه كلّه.
+   */
+  | "awaiting_preferred_area_label"
+  | "awaiting_preferred_area_location";
 
 /**
  * القائمة نفسها كقيمة، ليتحقّق منها مخزن Redis عند القراءة.
@@ -140,6 +147,8 @@ export const DIALOG_STEPS = [
   "awaiting_plate_number",
   "awaiting_national_id",
   "awaiting_vehicle_photo",
+  "awaiting_preferred_area_label",
+  "awaiting_preferred_area_location",
 ] as const satisfies readonly DialogStep[];
 
 export interface DialogState {
@@ -163,10 +172,13 @@ export interface DialogState {
   readonly draftPlateNumber: string | null;
   readonly draftNationalId: string | null;
   readonly draftVehiclePhotoFileId: string | null;
+  /** اسم المنطقة المفضّلة محفوظاً حتى تصل إحداثيتها — البند 2.4. */
+  readonly draftPreferredAreaLabel: string | null;
 }
 
 export const INITIAL_STATE: DialogState = {
   step: "idle",
+  draftPreferredAreaLabel: null,
   language: "ar",
   draftName: null,
   draftPhone: null,
@@ -235,6 +247,17 @@ export interface DriverDirectory {
   updateLocation(
     driverId: DriverId,
     location: Coordinates,
+  ): Promise<Result<void, PortFailureError>>;
+  /**
+   * يحفظ المنطقة المفضّلة أو يمسحها بتمرير `null` — البند 2.4.
+   *
+   * الاسم والإحداثية يُكتبان معاً أو يُمسحان معاً، لا واحد دون الآخر: قيد
+   * `drivers_preferred_area_pair` في القاعدة يرفض نصف المنطقة، وتوقيع الدالة
+   * يمنع كتابة ما سترفضه القاعدة بدل أن ينتظر خطأ تشغيل.
+   */
+  setPreferredArea(
+    driverId: DriverId,
+    area: { readonly label: string; readonly location: Coordinates } | null,
   ): Promise<Result<void, PortFailureError>>;
 }
 

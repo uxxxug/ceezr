@@ -30,6 +30,13 @@ export interface MatchingParameters {
   readonly weightProximity: number;
   /** platform_settings.match_weight_rating */
   readonly weightRating: number;
+  /**
+   * platform_settings.match_weight_preferred_area — البند 2.4.
+   *
+   * صفرٌ يعني «تجاهل المنطقة المفضّلة تماماً»، وهو المبذور في كل مدينة اليوم،
+   * فالمعادلة بلا تفعيلٍ صريح هي معادلة ما قبل هذا البند بحرفها.
+   */
+  readonly weightPreferredArea: number;
   /** platform_settings.broadcast_batch_size */
   readonly broadcastBatchSize: number;
   /** platform_settings.default_rating_for_new_driver */
@@ -55,6 +62,16 @@ export interface DriverCandidate {
    * الغياب يُمثّل غياباً لا صفراً.
    */
   readonly location: Coordinates | null;
+  /**
+   * مركز المنطقة التي يفضّل السائق العمل فيها، أو `null` لمن لا منطقة له —
+   * وهي حال كل سائق قائم اليوم (البند 2.4).
+   *
+   * تُقرأ من `drivers.preferred_area_location`، وهي **غير** `location`: الأولى
+   * نيّةٌ ثابتة يعلنها السائق مرّة، والثانية أين هو الآن. سائقٌ يسكن حيّاً ويعمل
+   * فيه قد يمرّ عابراً بحيٍّ بعيد، فيصير بموقعه اللحظي أقرب مرشّح لذلك الحيّ
+   * ويُبعَد عن حيّه — وهذا الفصل هو ما يمنعه.
+   */
+  readonly preferredArea?: Coordinates | null;
   readonly isAvailable: boolean;
   readonly isVerified: boolean;
   /**
@@ -98,6 +115,12 @@ export interface ScoredCandidate {
   readonly score: number;
   /** التقييم الذي دخل المعادلة فعلاً — يُبيّن هل رُتّب بمتوسطه أم بالافتراضي. */
   readonly effectiveRating: number;
+  /**
+   * عامل المنطقة المفضّلة الذي دخل المعادلة — البند 2.4. يُعرَض في النتيجة لا
+   * يُخفى: بلا كشفه لا يُعرف هل صعد السائق بمنطقته أم بقربه، وضبطُ الوزن يصير
+   * تخميناً على نتيجةٍ لا تُفسَّر.
+   */
+  readonly preferredAreaFactor: number;
   readonly ratingCount: number;
 }
 
@@ -148,6 +171,7 @@ export function scoreCandidate(
   ratingAverage: number | null,
   params: MatchingParameters,
   ratingCount = 0,
+  preferredAreaFactorValue = 0,
 ): number {
   const proximity = proximityFactor(distanceKm, params.searchRadiusKm);
   const rating = effectiveRating(
@@ -155,7 +179,31 @@ export function scoreCandidate(
     params.ratingMinCountForTrust,
     params.defaultRating,
   );
-  return params.weightProximity * proximity + params.weightRating * normalizeRating(rating);
+  return (
+    params.weightProximity * proximity +
+    params.weightRating * normalizeRating(rating) +
+    params.weightPreferredArea * preferredAreaFactorValue
+  );
+}
+
+/**
+ * قُرب **نقطة الالتقاط** من منطقة السائق المفضّلة، في المدى [0,1] — البند 2.4.
+ *
+ * تُقاس بنفس `proximityFactor` ونفس نصف قطر البحث لا بمقياس ثانٍ: مقياسان
+ * مختلفان في معادلة واحدة يجعلان الوزنين غير قابلين للمقارنة، فيصير ضبط
+ * الأوزان في لوحة الإدارة تخميناً.
+ *
+ * ومن لا منطقة له يأخذ صفراً لا نصفاً ولا واحداً: الواحد يجعل الجميع مفضَّلين
+ * فلا معنى للوزن، والصفر يقول الحقيقة — «لا نعلم عنه شيئاً في هذا العامل».
+ * وهو غير ضارٍّ ما دام الوزن صفراً كما هو مبذور في كل مدينة.
+ */
+export function preferredAreaFactor(
+  preferredArea: Coordinates | null | undefined,
+  pickup: Coordinates,
+  radiusKm: DistanceKm,
+): number {
+  if (preferredArea === null || preferredArea === undefined) return 0;
+  return proximityFactor(haversineKm(pickup, preferredArea), radiusKm);
 }
 
 /** تقييم كل المرشحين: المؤهلون مرتَّبون تنازلياً بالنقاط، والمستبعدون بأسبابهم. */
@@ -179,10 +227,22 @@ export function evaluateCandidates(
     }
     const distanceKm = haversineKm(order.pickup, candidate.location);
     const snapshot = { average: candidate.ratingAverage, count: candidate.ratingCount };
+    const areaFactor = preferredAreaFactor(
+      candidate.preferredArea,
+      order.pickup,
+      params.searchRadiusKm,
+    );
     eligible.push({
       driverId: candidate.driverId,
       distanceKm,
-      score: scoreCandidate(distanceKm, candidate.ratingAverage, params, candidate.ratingCount),
+      preferredAreaFactor: areaFactor,
+      score: scoreCandidate(
+        distanceKm,
+        candidate.ratingAverage,
+        params,
+        candidate.ratingCount,
+        areaFactor,
+      ),
       effectiveRating: effectiveRating(
         snapshot,
         params.ratingMinCountForTrust,

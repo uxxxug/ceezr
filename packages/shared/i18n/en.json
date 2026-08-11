@@ -241,5 +241,18 @@
   "rider.history_failed": "⚠️ Not completed",
   "rider.history_driver": "Driver: {name}",
   "rider.history_rated": "Your rating: {bar}",
-  "rider.history_unrated": "You have not rated this trip."
+  "rider.history_unrated": "You have not rated this trip.",
+  "menu.driver.area": "🏘 My preferred area",
+  "driver.preferred_area_ask_label": "Optional: which area do you prefer to work in? Type its name (e.g. Al Safa), or tap Skip.",
+  "driver.preferred_area_skip_button": "Skip",
+  "driver.preferred_area_pin_button": "📍 Send area location",
+  "driver.preferred_area_ask_pin": "Good. Now send the location of “{area}” using the button below.",
+  "driver.preferred_area_needs_pin": "Please send the location using the button below — typed coordinates are not accepted.",
+  "driver.preferred_area_saved": "Preferred area saved: {area}. It will affect order ranking once enabled in your city.",
+  "driver.preferred_area_skipped": "No problem, no preferred area. Ranking will use your distance and rating. You can add it later from “My preferred area”.",
+  "driver.preferred_area_failed": "Could not save the area right now. Your account works as usual; try again later from “My preferred area”.",
+  "driver.preferred_area_label_invalid_empty": "Type the area name, or tap Skip.",
+  "driver.preferred_area_label_invalid_too_short": "That name is too short. Type a clearer name, or tap Skip.",
+  "driver.preferred_area_label_invalid_too_long": "That name is too long. Shorten it to the district name, or tap Skip.",
+  "menu.driver.area.description": "Set or change the area you prefer to work in"
 }

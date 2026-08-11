@@ -32,6 +32,9 @@ export const DRIVER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.driver.available", command: "/available" },
   { key: "menu.driver.unavailable", command: "/unavailable" },
   { key: "menu.driver.subscription", command: "/subscription" },
+  // البند 2.4: المنطقة المفضّلة زرٌّ دائم لا خطوةَ تسجيلٍ وحدها — سائقو القاعدة
+  // كلّهم سجّلوا قبل وجودها، ومن غيّر حيّه يحتاج تغييرها بعد شهور من تسجيله.
+  { key: "menu.driver.area", command: "/area" },
   { key: "menu.language", command: "/language" },
   { key: "menu.support", command: "/support" },
 ];

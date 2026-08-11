@@ -19,10 +19,11 @@ import {
 } from "../../packages/application/bots/main-menu.ts";
 import type { SupportDialogDependencies } from "../../packages/application/bots/support-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
+import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
-import { ok } from "../../packages/shared/result/index.ts";
+import { err, ok } from "../../packages/shared/result/index.ts";
 import {
   cityDirectory,
   type DriverDirectoryDouble,
@@ -701,5 +702,115 @@ describe("لوحة /help — البند 6.3", () => {
     const replies = await handleDriverUpdate(callback("cmd:/ride"), build({ drivers }));
     expect(replies[0]?.text).toBe(ar("common.unknown_command"));
     expect(drivers.availabilityCalls).toEqual([]);
+  });
+});
+
+/**
+ * البند 2.4 — المنطقة المفضّلة.
+ *
+ * ما تحرسه هذه المجموعة تحديداً: أن خطوةً «اختيارية» اختياريةٌ فعلاً — لا تمنع
+ * تسجيلاً، ولا تحبس سائقاً، ولا تكتب نصف منطقة، ولا تصمت عند فشلها.
+ */
+describe("المنطقة المفضّلة للسائق", () => {
+  const AREA_PIN: IncomingUpdate = {
+    kind: "location",
+    from: SENDER,
+    location: { latitude: 21.5433, longitude: 39.1728 },
+  };
+
+  async function reachAreaStep(target: DriverBotDependencies = deps) {
+    await handleDriverUpdate(text("/start"), target);
+    await handleDriverUpdate(text("أحمد العمري"), target);
+    await handleDriverUpdate(contact("0501234567"), target);
+    await handleDriverUpdate(callback(`city:${JEDDAH.id}`), target);
+    await handleDriverUpdate(callback("service:transport"), target);
+    return completeKyc(target);
+  }
+
+  it("يُسأل عن المنطقة **بعد** اكتمال التسجيل لا قبله — الصفّ مكتوب على أي حال", async () => {
+    const done = await reachAreaStep();
+    expect(drivers.registrations).toHaveLength(1);
+    expect(done.at(-1)?.text).toBe(ar("driver.preferred_area_ask_label"));
+    // وزرّ التخطّي معروض مع السؤال نفسه لا في رسالة تالية
+    expect(done.at(-1)?.keyboard).toEqual({
+      kind: "inline",
+      rows: [[{ label: ar("driver.preferred_area_skip_button"), data: "area:skip" }]],
+    });
+  });
+
+  it("يحفظ الاسم والنقطة معاً — لا نصف منطقة", async () => {
+    await reachAreaStep();
+    const asked = await handleDriverUpdate(text("حي الصفا"), deps);
+    expect(asked[0]?.text).toBe(ar("driver.preferred_area_ask_pin", { area: "حي الصفا" }));
+    // لا شيء كُتب بعد الاسم وحده
+    expect(drivers.preferredAreaCalls).toHaveLength(0);
+
+    const saved = await handleDriverUpdate(AREA_PIN, deps);
+    expect(drivers.preferredAreaCalls).toEqual([
+      { label: "حي الصفا", location: { latitude: 21.5433, longitude: 39.1728 } },
+    ]);
+    expect(saved[0]?.text).toBe(ar("driver.preferred_area_saved", { area: "حي الصفا" }));
+  });
+
+  it("التخطّي لا يكتب منطقة ولا يترك السائق في خطوة معلّقة", async () => {
+    await reachAreaStep();
+    const skipped = await handleDriverUpdate(callback("area:skip"), deps);
+    expect(drivers.preferredAreaCalls).toHaveLength(0);
+    expect(skipped[0]?.text).toBe(ar("driver.preferred_area_skipped"));
+    // الجلسة أُغلقت: النصّ التالي لم يعد اسم منطقة
+    const after = await handleDriverUpdate(text("حي الصفا"), deps);
+    expect(after[0]?.text).not.toBe(ar("driver.preferred_area_ask_pin", { area: "حي الصفا" }));
+  });
+
+  it("نصٌّ حيث تُنتظر نقطة: يُطلب الزرّ لا يُردّ بأمر غير معروف", async () => {
+    await reachAreaStep();
+    await handleDriverUpdate(text("حي الصفا"), deps);
+    const typed = await handleDriverUpdate(text("21.54, 39.17"), deps);
+    expect(typed[0]?.text).toBe(ar("driver.preferred_area_needs_pin"));
+    expect(drivers.preferredAreaCalls).toHaveLength(0);
+  });
+
+  it("اسم فارغ أو مفرط الطول يُرفض بسببه ويبقى زرّ التخطّي معروضاً", async () => {
+    await reachAreaStep();
+    const short = await handleDriverUpdate(text("ا"), deps);
+    expect(short[0]?.text).toBe(ar("driver.preferred_area_label_invalid_too_short"));
+    const long = await handleDriverUpdate(text("ح".repeat(61)), deps);
+    expect(long[0]?.text).toBe(ar("driver.preferred_area_label_invalid_too_long"));
+    expect(long[0]?.keyboard).not.toBeNull();
+  });
+
+  it("فشل الكتابة لا يحبس السائق في الخطوة ولا يصمت عنه", async () => {
+    const failing = driverDirectory(null);
+    const target = build({
+      drivers: {
+        ...failing,
+        setPreferredArea: async () => err(new PortFailureError("DriverDirectory", "down")),
+      },
+    });
+    await reachAreaStep(target);
+    await handleDriverUpdate(text("حي الصفا"), target);
+    const failed = await handleDriverUpdate(AREA_PIN, target);
+    expect(failed[0]?.text).toBe(ar("driver.preferred_area_failed"));
+    // والجلسة أُغلقت رغم الفشل: حسابه مكتمل ولا معنى لحبسه في خطوة اختيارية
+    const after = await handleDriverUpdate(text("حي الصفا"), target);
+    expect(after[0]?.text).not.toBe(ar("driver.preferred_area_ask_pin", { area: "حي الصفا" }));
+  });
+
+  it("‏/area يفتح الخطوة لسائق مسجَّل من قبل وجودها", async () => {
+    const registered = driverDirectory(verifiedDriver());
+    const target = build({ drivers: registered });
+    const opened = await handleDriverUpdate(text("/area"), target);
+    expect(opened[0]?.text).toBe(ar("driver.preferred_area_ask_label"));
+
+    await handleDriverUpdate(text("حي النزهة"), target);
+    await handleDriverUpdate(AREA_PIN, target);
+    expect(registered.preferredAreaCalls).toEqual([
+      { label: "حي النزهة", location: { latitude: 21.5433, longitude: 39.1728 } },
+    ]);
+  });
+
+  it("‏/area لغير المسجَّل يردّ بطلب التسجيل لا بفتح خطوة بلا صاحب", async () => {
+    const opened = await handleDriverUpdate(text("/area"), deps);
+    expect(opened[0]?.text).toBe(ar("driver.must_register_first"));
   });
 });

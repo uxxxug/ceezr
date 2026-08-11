@@ -25,4 +25,10 @@ export class InvalidDistanceError {
   constructor(readonly value: number) {}
 }
 
-export type GeoError = InvalidCoordinatesError | InvalidDistanceError;
+/** اسم منطقة مرفوض — البند 2.4. */
+export class InvalidAreaLabelError {
+  readonly code = "INVALID_AREA_LABEL" as const;
+  constructor(readonly reason: "empty" | "too_short" | "too_long") {}
+}
+
+export type GeoError = InvalidCoordinatesError | InvalidDistanceError | InvalidAreaLabelError;

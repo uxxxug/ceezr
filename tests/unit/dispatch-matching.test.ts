@@ -12,6 +12,7 @@ import {
   evaluateCandidates,
   type MatchingParameters,
   type OrderContext,
+  preferredAreaFactor,
   rejectionReasonFor,
   scoreCandidate,
   selectBroadcastBatch,
@@ -32,6 +33,8 @@ const PARAMS: MatchingParameters = {
   searchRadiusKm: 10,
   weightProximity: 0.7,
   weightRating: 0.3,
+  // البند 2.4: صفرٌ هو المبذور، فالخطّ الأساسي هو معادلة ما قبل البند بحرفها
+  weightPreferredArea: 0,
   broadcastBatchSize: 5,
   defaultRating: 4.5,
   ratingMinCountForTrust: 3,
@@ -326,5 +329,88 @@ describe("selectBroadcastBatch", () => {
     expect(batch.map((c) => String(c.driverId))).toEqual(
       evaluation.eligible.slice(0, 5).map((c) => String(c.driverId)),
     );
+  });
+});
+
+/**
+ * البند 2.4 — المنطقة المفضّلة.
+ *
+ * الغرض من هذه المجموعة ليس إثبات أن الكود يعمل، بل إثبات أمرين متقابلين
+ * يطلبهما التوجيه صراحةً:
+ *   1) بالوزن المبذور (صفر) لا يتغيّر ترتيبُ أحد — أي أن الهجرة لا تمسّ الإنتاج.
+ *   2) برفع الوزن يتغيّر الترتيب **فعلياً وقابلاً للقياس** — لا مجرّد فرقٍ في
+ *      الرقم العشري لا يُغيّر من يصله العرض.
+ */
+describe("preferredAreaFactor والمنطقة المفضّلة في الترتيب", () => {
+  const homebody = candidate({
+    driverId: D("homebody"),
+    location: FAR,
+    ratingAverage: 3.0,
+    ratingCount: 9,
+    // يسكن عند نقطة الالتقاط ويعمل حولها، لكنّه الآن عابرٌ بعيداً عنها
+    preferredArea: PICKUP,
+  });
+  const passerby = candidate({
+    driverId: D("passerby"),
+    location: NEAR,
+    ratingAverage: 3.0,
+    ratingCount: 9,
+    preferredArea: null,
+  });
+
+  it("يعطي صفراً لمن لا منطقة له، وواحداً لمن نقطة الالتقاط في قلب منطقته", () => {
+    expect(preferredAreaFactor(null, PICKUP, 10 as MatchingParameters["searchRadiusKm"])).toBe(0);
+    expect(preferredAreaFactor(undefined, PICKUP, 10 as MatchingParameters["searchRadiusKm"])).toBe(
+      0,
+    );
+    expect(
+      preferredAreaFactor(PICKUP, PICKUP, 10 as MatchingParameters["searchRadiusKm"]),
+    ).toBeCloseTo(1, 10);
+  });
+
+  it("بالوزن المبذور صفراً: الترتيب هو ترتيب ما قبل البند بحرفه — الأقرب أولاً", () => {
+    const result = evaluateCandidates([homebody, passerby], ORDER, PARAMS, NOW);
+    expect(result.eligible.map((c) => String(c.driverId))).toEqual(["passerby", "homebody"]);
+    // والعامل يُحسب ويُكشف حتى وهو بلا وزن، ليراه المشغّل قبل أن يقرّر تفعيله
+    const homebodyRow = result.eligible.find((c) => String(c.driverId) === "homebody");
+    expect(homebodyRow?.preferredAreaFactor).toBeGreaterThan(0);
+  });
+
+  it("ينقلب الترتيب فعلياً عند رفع وزن المنطقة من الإعدادات وحدها — بلا تعديل كود", () => {
+    const areaHeavy: MatchingParameters = {
+      ...PARAMS,
+      weightProximity: 0.4,
+      weightRating: 0.1,
+      weightPreferredArea: 0.5,
+    };
+    const baseline = evaluateCandidates([homebody, passerby], ORDER, PARAMS, NOW);
+    const shifted = evaluateCandidates([homebody, passerby], ORDER, areaHeavy, NOW);
+
+    expect(baseline.eligible.map((c) => String(c.driverId))).toEqual(["passerby", "homebody"]);
+    expect(shifted.eligible.map((c) => String(c.driverId))).toEqual(["homebody", "passerby"]);
+
+    /**
+     * والقياس لا يكتفي بانقلاب الترتيب: من رُفع رُفع بمنطقته لا بصدفة تقريب.
+     * فرق النقاط يجب أن يكون في حدود الوزن المضروب في فرق العاملين، لا ضجيجاً.
+     */
+    const winner = shifted.eligible[0];
+    const loser = shifted.eligible[1];
+    if (winner === undefined || loser === undefined) throw new Error("مرشّحان متوقّعان");
+    expect(winner.score - loser.score).toBeGreaterThan(0.05);
+    expect(winner.preferredAreaFactor).toBeGreaterThan(loser.preferredAreaFactor);
+  });
+
+  it("من لا منطقة له لا يُعاقَب: صفرُ العامل لا يخصم من نقاط قربه", () => {
+    const withoutArea = candidate({ driverId: D("x"), location: NEAR, preferredArea: null });
+    const areaHeavy: MatchingParameters = {
+      ...PARAMS,
+      weightProximity: 0.4,
+      weightRating: 0.1,
+      weightPreferredArea: 0.5,
+    };
+    const scored = evaluateCandidates([withoutArea], ORDER, areaHeavy, NOW).eligible[0];
+    if (scored === undefined) throw new Error("مرشّح متوقّع");
+    expect(scored.preferredAreaFactor).toBe(0);
+    expect(scored.score).toBeGreaterThan(0);
   });
 });

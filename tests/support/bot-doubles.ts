@@ -68,18 +68,25 @@ export interface DriverDirectoryDouble extends DriverDirectory {
   }[];
   readonly availabilityCalls: { driverId: DriverId; isAvailable: boolean }[];
   readonly locationCalls: { driverId: DriverId; location: Coordinates }[];
+  readonly preferredAreaCalls: ({ label: string; location: Coordinates } | null)[];
 }
 
 export function driverDirectory(existing: DriverProfile | null = null): DriverDirectoryDouble {
   const registrations: DriverDirectoryDouble["registrations"] = [];
   const availabilityCalls: DriverDirectoryDouble["availabilityCalls"] = [];
   const locationCalls: DriverDirectoryDouble["locationCalls"] = [];
+  const preferredAreaCalls: DriverDirectoryDouble["preferredAreaCalls"] = [];
   let current = existing;
 
   return {
     registrations,
     availabilityCalls,
     locationCalls,
+    preferredAreaCalls,
+    setPreferredArea: async (_driverId, area) => {
+      preferredAreaCalls.push(area === null ? null : { ...area });
+      return ok(undefined);
+    },
     findByTelegramId: async () => ok(current),
     register: async (input) => {
       registrations.push({

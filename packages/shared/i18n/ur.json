@@ -241,5 +241,18 @@
   "rider.history_failed": "⚠️ مکمل نہیں ہوا",
   "rider.history_driver": "ڈرائیور: {name}",
   "rider.history_rated": "آپ کی درجہ بندی: {bar}",
-  "rider.history_unrated": "آپ نے اس سفر کی درجہ بندی نہیں کی۔"
+  "rider.history_unrated": "آپ نے اس سفر کی درجہ بندی نہیں کی۔",
+  "menu.driver.area": "🏘 میرا پسندیدہ علاقہ",
+  "driver.preferred_area_ask_label": "اختیاری: آپ کس علاقے میں کام کرنا پسند کرتے ہیں؟ اس کا نام لکھیں (مثلاً: الصفا)، یا Skip دبائیں۔",
+  "driver.preferred_area_skip_button": "چھوڑ دیں",
+  "driver.preferred_area_pin_button": "📍 علاقے کا مقام بھیجیں",
+  "driver.preferred_area_ask_pin": "بہت خوب۔ اب نیچے دیے بٹن سے «{area}» کا مقام بھیجیں۔",
+  "driver.preferred_area_needs_pin": "براہِ کرم نیچے دیے بٹن سے مقام بھیجیں — لکھے ہوئے کوآرڈینیٹس قبول نہیں ہوتے۔",
+  "driver.preferred_area_saved": "آپ کا پسندیدہ علاقہ محفوظ ہو گیا: {area}۔ آپ کے شہر میں فعال ہونے پر یہ آرڈر کی ترتیب میں شمار ہوگا۔",
+  "driver.preferred_area_skipped": "ٹھیک ہے، کوئی پسندیدہ علاقہ نہیں۔ ترتیب آپ کے فاصلے اور درجہ بندی پر ہوگی۔ بعد میں «میرا پسندیدہ علاقہ» سے شامل کر سکتے ہیں۔",
+  "driver.preferred_area_failed": "اس وقت علاقہ محفوظ نہیں ہو سکا۔ آپ کا اکاؤنٹ معمول کے مطابق کام کر رہا ہے؛ بعد میں «میرا پسندیدہ علاقہ» سے دوبارہ کوشش کریں۔",
+  "driver.preferred_area_label_invalid_empty": "علاقے کا نام لکھیں، یا Skip دبائیں۔",
+  "driver.preferred_area_label_invalid_too_short": "یہ نام بہت مختصر ہے۔ واضح نام لکھیں، یا Skip دبائیں۔",
+  "driver.preferred_area_label_invalid_too_long": "یہ نام بہت طویل ہے۔ اسے محلے کے نام تک مختصر کریں، یا Skip دبائیں۔",
+  "menu.driver.area.description": "وہ علاقہ مقرر یا تبدیل کریں جہاں آپ کام کرنا پسند کرتے ہیں"
 }

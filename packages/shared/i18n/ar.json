@@ -241,5 +241,18 @@
   "rider.history_failed": "⚠️ لم يكتمل",
   "rider.history_driver": "السائق: {name}",
   "rider.history_rated": "تقييمك: {bar}",
-  "rider.history_unrated": "لم تقيّم هذه الرحلة."
+  "rider.history_unrated": "لم تقيّم هذه الرحلة.",
+  "menu.driver.area": "🏘 منطقتي المفضّلة",
+  "driver.preferred_area_ask_label": "اختياري: ما اسم المنطقة التي تفضّل العمل فيها؟ اكتبها (مثال: حي الصفا)، أو اضغط تخطّي.",
+  "driver.preferred_area_skip_button": "تخطّي",
+  "driver.preferred_area_pin_button": "📍 إرسال موقع المنطقة",
+  "driver.preferred_area_ask_pin": "جيد. الآن أرسل موقع «{area}» بزرّ الموقع أدناه.",
+  "driver.preferred_area_needs_pin": "أرسل الموقع بالزرّ أدناه — الإحداثيات المكتوبة لا تُقبل.",
+  "driver.preferred_area_saved": "حُفظت منطقتك المفضّلة: {area}. ستُراعى في ترتيب الطلبات متى فُعّلت في مدينتك.",
+  "driver.preferred_area_skipped": "تمام، بلا منطقة مفضّلة. ترتيب الطلبات سيعتمد على قربك وتقييمك. يمكنك إضافتها لاحقاً من زرّ «منطقتي المفضّلة».",
+  "driver.preferred_area_failed": "تعذّر حفظ المنطقة الآن. حسابك يعمل كالمعتاد، وأعد المحاولة لاحقاً من زرّ «منطقتي المفضّلة».",
+  "driver.preferred_area_label_invalid_empty": "اكتب اسم المنطقة، أو اضغط تخطّي.",
+  "driver.preferred_area_label_invalid_too_short": "الاسم قصير جداً. اكتب اسماً أوضح، أو اضغط تخطّي.",
+  "driver.preferred_area_label_invalid_too_long": "الاسم طويل جداً. اختصره إلى اسم الحي، أو اضغط تخطّي.",
+  "menu.driver.area.description": "تحديد أو تغيير المنطقة التي تفضّل العمل فيها"
 }

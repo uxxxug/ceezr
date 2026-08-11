@@ -138,6 +138,29 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
         `;
       }),
 
+    /**
+     * البند 2.4 — المنطقة المفضّلة. الحقلان يُكتبان في جملة واحدة لا جملتين:
+     * جملتان متتاليتان تتركان نافذةً يكون فيها للسائق اسمُ منطقةٍ بلا إحداثية،
+     * وهي الحال التي يرفضها قيد القاعدة أصلاً.
+     */
+    setPreferredArea: (
+      driverId: DriverId,
+      area: { readonly label: string; readonly location: Coordinates } | null,
+    ) =>
+      guard("drivers.setPreferredArea", async () => {
+        await sql`
+          update drivers
+             set preferred_area_label = ${area === null ? null : area.label},
+                 preferred_area_location = ${
+                   area === null
+                     ? null
+                     : sql`st_setsrid(st_makepoint(${area.location.longitude}, ${area.location.latitude}), 4326)::geography`
+},
+                 updated_at = now()
+           where id = ${driverId}
+        `;
+      }),
+
     setAvailability: (driverId: DriverId, isAvailable: boolean) =>
       guard("drivers.setAvailability", async () => {
         const result = await sql<{ ok: boolean }[]>`

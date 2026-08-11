@@ -94,11 +94,14 @@ export function parseDialogState(raw: string): DialogState | null {
   const plateNumber = addedNullableString(candidate.draftPlateNumber);
   const nationalId = addedNullableString(candidate.draftNationalId);
   const vehiclePhoto = addedNullableString(candidate.draftVehiclePhotoFileId);
+  // البند 2.4: حقلٌ أُضيف بعد نشر جلسات قائمة، فيُعامَل بنفس تسامح سابقيه
+  const preferredAreaLabel = addedNullableString(candidate.draftPreferredAreaLabel);
   if (
     vehicleType === undefined ||
     plateNumber === undefined ||
     nationalId === undefined ||
-    vehiclePhoto === undefined
+    vehiclePhoto === undefined ||
+    preferredAreaLabel === undefined
   ) {
     return null;
   }
@@ -121,6 +124,7 @@ export function parseDialogState(raw: string): DialogState | null {
     draftPlateNumber: plateNumber,
     draftNationalId: nationalId,
     draftVehiclePhotoFileId: vehiclePhoto,
+    draftPreferredAreaLabel: preferredAreaLabel,
   };
 }
 

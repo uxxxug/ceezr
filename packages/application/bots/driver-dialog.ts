@@ -7,7 +7,11 @@
  * ملاحظات مستقبلية: كل قيمة تجارية (السعر، مدة التجربة) تُقرأ من platform_settings عبر منفذ الإعدادات.
  */
 
-import { type Coordinates, makeCoordinates } from "../../domain/geo/value-objects.ts";
+import {
+  type Coordinates,
+  makeCoordinates,
+  parseAreaLabel,
+} from "../../domain/geo/value-objects.ts";
 import { parseFullName, parsePhone } from "../../domain/identity/value-objects.ts";
 import {
   parseNationalId,
@@ -171,6 +175,31 @@ function locationRequest(state: DialogState): Keyboard {
   );
 }
 
+/**
+ * البند 2.4 — لوحة خطوة المنطقة المفضّلة.
+ *
+ * الخطوة اختيارية، فيجب أن يكون مخرجها ظاهراً بقدر ظهور مدخلها: زرّ «تخطّي»
+ * inline على الرسالة نفسها. بلا زرٍّ صريح يبقى السائق الجديد أمام سؤالٍ يظنّه
+ * إلزامياً في آخر خطوة من تسجيله — وهي أسوأ لحظة يُترك فيها حائراً.
+ */
+function preferredAreaSkipKeyboard(state: DialogState): Keyboard {
+  return {
+    kind: "inline",
+    rows: [
+      [{ label: t(languageOf(state))("driver.preferred_area_skip_button"), data: "area:skip" }],
+    ],
+  };
+}
+
+/** طلب نقطة المنطقة ومعه القائمة تحته — لنفس سبب `locationRequest`. */
+function preferredAreaLocationRequest(state: DialogState): Keyboard {
+  return requestWithMenuKeyboard(
+    { kind: "request_location", label: t(languageOf(state))("driver.preferred_area_pin_button") },
+    "driver",
+    languageOf(state),
+  );
+}
+
 async function loadState(deps: DriverBotDependencies, sender: Sender): Promise<DialogState> {
   const stored = await deps.sessions.load(sender.telegramUserId);
   if (stored.ok && stored.value !== null) return stored.value;
@@ -262,6 +291,17 @@ export async function handleDriverUpdate(
     case "awaiting_vehicle_photo":
       // نصٌّ حيث تُنتظر صورة: يُقال له إنه يحتاج صورة فعلية، لا "أمر غير معروف".
       return [reply(sender, t(languageOf(state))("driver.vehicle_photo_required"))];
+    case "awaiting_preferred_area_label":
+      return handlePreferredAreaLabel(text, sender, state, deps);
+    case "awaiting_preferred_area_location":
+      // إحداثية مكتوبة يدوياً لا تُقبل: نقطة تلغرام مضمونة الشكل، والنصّ ليس كذلك
+      return [
+        reply(
+          sender,
+          t(languageOf(state))("driver.preferred_area_needs_pin"),
+          preferredAreaLocationRequest(state),
+        ),
+      ];
     case "awaiting_support_message":
       return deps.support === undefined
         ? [reply(sender, t(languageOf(state))("common.unknown_command"))]
@@ -393,6 +433,25 @@ async function handleCommand(
   }
 
   switch (name) {
+    /**
+     * البند 2.4 — `/area` لمن سجّل قبل وجود هذه الخطوة، ولمن غيّر حيّه.
+     *
+     * بلا هذا الأمر تكون المنطقة المفضّلة حكراً على من يسجّل بعد اليوم، ويبقى
+     * كل سائق قائم في القاعدة بلا سبيل إليها إلّا حذف حسابه وإعادة إنشائه.
+     */
+    case "/area": {
+      if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+      const started = await deps.sessions.save(sender.telegramUserId, {
+        ...state,
+        step: "awaiting_preferred_area_label",
+        draftPreferredAreaLabel: null,
+      });
+      if (!started.ok) return technicalFailure(sender, state);
+      return [
+        reply(sender, tr("driver.preferred_area_ask_label"), preferredAreaSkipKeyboard(state)),
+      ];
+    }
+
     case "/start": {
       if (driver !== null) {
         return [
@@ -642,6 +701,11 @@ async function handleCallback(
       return handleVehicleTypeSelected(rest.join(":"), sender, state, deps);
     case "back":
       return handleBack(rest.join(":"), sender, state, deps);
+    // البند 2.4: تخطّي المنطقة المفضّلة — خطوة اختيارية يجب أن يكون لها مخرج ظاهر
+    case "area":
+      return rest[0] === "skip"
+        ? skipPreferredArea(sender, state, deps)
+        : [reply(sender, tr("common.unknown_command"))];
     case "offer":
       return handleOfferDecision(rest, sender, state, deps);
     case "unsub":
@@ -907,7 +971,16 @@ async function completeRegistration(
     await deps.bootstrapAdmin.grant(sender.telegramUserId);
   }
 
-  await deps.sessions.clear(sender.telegramUserId);
+  /**
+   * البند 2.4: الجلسة **لا** تُمسح هنا كما كانت، بل تُحوَّل إلى الخطوة الاختيارية.
+   * الصفّ كُتب فعلاً قبل هذا السطر، فسقوط الخطوة الاختيارية أو تخطّيها لا يكلّف
+   * السائق شيئاً — وهذا هو سبب وضعها بعد الكتابة لا قبلها.
+   */
+  const areaStep = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_preferred_area_label",
+    draftPreferredAreaLabel: null,
+  });
 
   const cities = await deps.cities.listActive();
   const cityName = cities.ok
@@ -933,6 +1006,18 @@ async function completeRegistration(
   } else if (trialResult.ok && trialResult.value.reason !== null) {
     replies.push(
       reply(sender, tr("driver.trial_not_started", { reason: trialResult.value.reason })),
+    );
+  }
+
+  /**
+   * سؤال المنطقة **آخر** الردود لا وسطها: خبر بدء التجربة المجانية هو ما ينتظره
+   * السائق، ووضعُ سؤالٍ اختياري قبله يدفنه. ويُطرح فقط إن نجح حفظ الجلسة —
+   * طرحُه مع جلسةٍ لم تُحفَظ يجعل جواب السائق يسقط في الفراغ ثم يُردّ عليه
+   * بـ«أمر غير معروف». ومن لم يُسأل يبقى بلا منطقة، وهي الحال الافتراضية أصلاً.
+   */
+  if (areaStep.ok) {
+    replies.push(
+      reply(sender, tr("driver.preferred_area_ask_label"), preferredAreaSkipKeyboard(state)),
     );
   }
 
@@ -1000,6 +1085,15 @@ async function handleLocation(
   const coordinates = makeCoordinates(location.latitude, location.longitude);
   if (!coordinates.ok) return [reply(sender, tr("driver.location_invalid"))];
 
+  /**
+   * البند 2.4: موقعٌ يصل في خطوة المنطقة المفضّلة هو مركز المنطقة لا موقع العمل
+   * الحالي. الفصل هنا لا في `updateLocation`: خلطهما كان سيجعل كل تحديث موقع
+   * يوميّ يُعيد رسم منطقة السائق المفضّلة، فتصير نيّتُه المعلنة ظلّاً لتحرّكه.
+   */
+  if (state.step === "awaiting_preferred_area_location") {
+    return savePreferredArea(driver, coordinates.value, sender, state, deps);
+  }
+
   const saved = await deps.drivers.updateLocation(driver.id, coordinates.value);
   if (!saved.ok) return technicalFailure(sender, state);
 
@@ -1016,6 +1110,85 @@ async function handleLocation(
       menu(state),
     ),
   ];
+}
+
+/**
+ * البند 2.4 — الخطوة الاختيارية الأولى: اسم المنطقة.
+ *
+ * لماذا الاسم قبل النقطة لا العكس؟ لأن النقطة بلا اسم لا تُراجَع: موظّف التوثيق
+ * يرى إحداثية عشرية لا يعرف أصحيحة هي أم أرسلها السائق وهو في مطار. والاسم
+ * أوّلاً يجعل السائق يقرّر منطقته بوعي قبل أن يضغط زرّ الموقع.
+ */
+async function handlePreferredAreaLabel(
+  raw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const parsed = parseAreaLabel(raw);
+  if (!parsed.ok) {
+    return [
+      reply(
+        sender,
+        tr(`driver.preferred_area_label_invalid_${parsed.error.reason}`),
+        preferredAreaSkipKeyboard(state),
+      ),
+    ];
+  }
+
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    step: "awaiting_preferred_area_location",
+    draftPreferredAreaLabel: parsed.value,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+
+  return [
+    reply(
+      sender,
+      tr("driver.preferred_area_ask_pin", { area: parsed.value }),
+      preferredAreaLocationRequest(state),
+    ),
+  ];
+}
+
+/**
+ * البند 2.4 — النقطة وصلت: تُكتب المنطقة كاملة وتُغلق الجلسة.
+ *
+ * فشل الكتابة لا يُعيد السائق إلى الخطوة: تسجيله مكتمل وحسابه يعمل، وحبسُه في
+ * خطوة اختيارية بسبب عطلٍ لا يدَ له فيه عقوبةٌ على لا شيء. يُقال له إن المنطقة
+ * لم تُحفَظ، وتُغلق الجلسة، وله أن يعيدها بـ/area متى شاء.
+ */
+async function savePreferredArea(
+  driver: DriverProfile,
+  location: Coordinates,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const label = state.draftPreferredAreaLabel;
+  if (label === null) {
+    await deps.sessions.clear(sender.telegramUserId);
+    return [reply(sender, tr("driver.preferred_area_skipped"), menu(state))];
+  }
+
+  const written = await deps.drivers.setPreferredArea(driver.id, { label, location });
+  await deps.sessions.clear(sender.telegramUserId);
+  if (!written.ok) return [reply(sender, tr("driver.preferred_area_failed"), menu(state))];
+
+  return [reply(sender, tr("driver.preferred_area_saved", { area: label }), menu(state))];
+}
+
+/** البند 2.4 — تخطّي صريح: لا منطقة، والترتيب بالقرب وحده كما كان. */
+async function skipPreferredArea(
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  await deps.sessions.clear(sender.telegramUserId);
+  return [reply(sender, t(languageOf(state))("driver.preferred_area_skipped"), menu(state))];
 }
 
 /**

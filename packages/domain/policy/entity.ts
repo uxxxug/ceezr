@@ -56,6 +56,11 @@ export const SETTING_SPECS = {
   max_broadcast_rounds: { kind: "number", min: 1, max: 100, integer: true },
   match_weight_proximity: { kind: "number", min: 0, max: 1, integer: false },
   match_weight_rating: { kind: "number", min: 0, max: 1, integer: false },
+  /**
+   * البند 2.4 — وزن المنطقة المفضّلة. مبذور بصفر في كل مدينة، فمعادلة الترتيب
+   * لا تتغيّر بمجرّد الهجرة؛ وتفعيله خصمٌ صريح من أحد الوزنين لا زيادةٌ عليهما.
+   */
+  match_weight_preferred_area: { kind: "number", min: 0, max: 1, integer: false },
   default_rating_for_new_driver: { kind: "number", min: 0, max: 5, integer: false },
   rating_min_count_for_trust: { kind: "number", min: 1, max: 100, integer: true },
   rating_prompt_window_hours: { kind: "number", min: 1, max: 720, integer: true },
@@ -108,6 +113,7 @@ export interface CitySettings {
   readonly maxBroadcastRounds: number;
   readonly matchWeightProximity: number;
   readonly matchWeightRating: number;
+  readonly matchWeightPreferredArea: number;
   readonly defaultRatingForNewDriver: number;
   readonly ratingMinCountForTrust: number;
   readonly ratingPromptWindowHours: number;
@@ -187,8 +193,15 @@ export function parseCitySettings(
 
   const proximity = num("match_weight_proximity");
   const rating = num("match_weight_rating");
-  if (Math.abs(proximity + rating - WEIGHTS_SUM) > WEIGHTS_TOLERANCE) {
-    return err(new InconsistentWeightsError(proximity + rating));
+  /**
+   * البند 2.4: الوزن الثالث يدخل نفس القيد لا قيداً موازياً. لو استُثني لكان
+   * بوسع المشغّل أن يضع 0.5 لمنطقةٍ فوق وزنين يجمعان 1، فتخرج النقاط من [0,1]
+   * وتصير غير قابلة للمقارنة بين مدينتين — وهو انحراف صامت لا رسالة خطأ له.
+   */
+  const preferredArea = num("match_weight_preferred_area");
+  const sum = proximity + rating + preferredArea;
+  if (Math.abs(sum - WEIGHTS_SUM) > WEIGHTS_TOLERANCE) {
+    return err(new InconsistentWeightsError(sum));
   }
 
   return ok({
@@ -204,6 +217,7 @@ export function parseCitySettings(
     maxBroadcastRounds: num("max_broadcast_rounds"),
     matchWeightProximity: proximity,
     matchWeightRating: rating,
+    matchWeightPreferredArea: preferredArea,
     defaultRatingForNewDriver: num("default_rating_for_new_driver"),
     ratingMinCountForTrust: num("rating_min_count_for_trust"),
     ratingPromptWindowHours: num("rating_prompt_window_hours"),
@@ -217,6 +231,7 @@ export function toMatchingParameters(settings: CitySettings): MatchingParameters
     searchRadiusKm: settings.searchRadiusKm,
     weightProximity: settings.matchWeightProximity,
     weightRating: settings.matchWeightRating,
+    weightPreferredArea: settings.matchWeightPreferredArea,
     broadcastBatchSize: settings.broadcastBatchSize,
     defaultRating: settings.defaultRatingForNewDriver,
     ratingMinCountForTrust: settings.ratingMinCountForTrust,

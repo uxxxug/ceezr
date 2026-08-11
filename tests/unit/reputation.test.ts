@@ -410,6 +410,7 @@ describe("حوار الرحلة والتقييم", () => {
       draftPlateNumber: null,
       draftNationalId: null,
       draftVehiclePhotoFileId: null,
+      draftPreferredAreaLabel: null,
     };
     await store.save(sender.telegramUserId, stuck);
     const before = await store.load(sender.telegramUserId);
@@ -467,6 +468,7 @@ describe("حوار الرحلة والتقييم", () => {
       draftPlateNumber: null,
       draftNationalId: null,
       draftVehiclePhotoFileId: null,
+      draftPreferredAreaLabel: null,
     };
     await store.save(sender.telegramUserId, state);
 

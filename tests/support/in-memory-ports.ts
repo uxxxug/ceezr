@@ -37,6 +37,8 @@ export const SEEDED_SETTINGS: Readonly<Record<SettingKey, unknown>> = {
   max_broadcast_rounds: 3,
   match_weight_proximity: 0.7,
   match_weight_rating: 0.3,
+  // البند 2.4: صفرٌ هو المبذور فعلاً في الهجرة، فالمعادلة كما كانت
+  match_weight_preferred_area: 0,
   default_rating_for_new_driver: 4.5,
   supported_languages: ["ar"],
 };

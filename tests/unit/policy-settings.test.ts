@@ -21,8 +21,10 @@ const JED = "city-jed" as CityId;
 const MKK = "city-mkk" as CityId;
 
 describe("سجل المفاتيح", () => {
-  it("خمسة عشر مفتاحاً كما في مخطط البذر", () => {
-    expect(SETTING_KEYS).toHaveLength(15);
+  it("ستّة عشر مفتاحاً كما في مخطط البذر", () => {
+    // البند 2.4 أضاف match_weight_preferred_area، مبذوراً في هجرة المنطقة المفضّلة
+    expect(SETTING_KEYS).toHaveLength(16);
+    expect(isSettingKey("match_weight_preferred_area")).toBe(true);
   });
   it("يتعرّف على مفتاح معروف ويرفض المجهول", () => {
     expect(isSettingKey("search_radius_km")).toBe(true);
@@ -143,6 +145,7 @@ describe("toMatchingParameters", () => {
       searchRadiusKm: 10,
       weightProximity: 0.7,
       weightRating: 0.3,
+      weightPreferredArea: 0,
       broadcastBatchSize: 5,
       defaultRating: 4.5,
       ratingMinCountForTrust: 3,

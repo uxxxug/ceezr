@@ -232,6 +232,8 @@ const PARAMS: MatchingParameters = {
   searchRadiusKm: 10 as DistanceKm,
   weightProximity: 0.7,
   weightRating: 0.3,
+  // البند 2.4: صفرٌ هو المبذور، فالخطّ الأساسي هو معادلة ما قبل البند بحرفها
+  weightPreferredArea: 0,
   broadcastBatchSize: 5,
   ratingMinCountForTrust: 3,
   defaultRating: 4.5,
