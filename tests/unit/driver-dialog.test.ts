@@ -257,6 +257,48 @@ describe("التوافر", () => {
     expect(replies.map((r) => r.text)).toEqual([ar("driver.now_available")]);
   });
 
+  /**
+   * الحالة التي وقعت في الإنتاج فعلاً: سائقٌ موثَّق ومتاح ومشترك، و
+   * `last_location = null`. فلم يصله طلبٌ واحد، وهو يظنّ نفسه عاملاً لأن
+   * البوت قال له «أنت الآن متاح». واستعلام المرشّحين يشترط
+   * `d.last_location is not null` فكان خفيّاً عن الإسناد تماماً.
+   */
+  it("لا يدّعي التوافر لمن لا موقع له، بل يقول الحقيقة ويطلب الموقع", async () => {
+    const noLocation = driverDirectory(verifiedDriver({ hasLocation: false }));
+    const replies = await handleDriverUpdate(text("/available"), build({ drivers: noLocation }));
+
+    const texts = replies.map((r) => r.text);
+    // الادّعاء الكاذب غائب
+    expect(texts).not.toContain(ar("driver.now_available"));
+    // والحقيقة حاضرة أوّلاً
+    expect(texts[0]).toBe(ar("driver.available_needs_location"));
+    expect(texts).toContain(ar("driver.ask_location"));
+    // والرغبة مسجَّلة رغم ذلك: فمتى وصل الموقع صار ظاهراً بلا أمرٍ جديد
+    expect(noLocation.availabilityCalls).toEqual([
+      { driverId: "driver-1" as DriverId, isAvailable: true },
+    ]);
+    // وزرّ الموقع مرفق لا مجرّد نصّ
+    expect(replies.some((r) => r.keyboard?.kind === "request_location")).toBe(true);
+  });
+
+  it("وصول الموقع لمن كان متاحاً يُخبره أنه صار ظاهراً فعلاً", async () => {
+    const drivers = driverDirectory(verifiedDriver({ hasLocation: false, isAvailable: true }));
+    const replies = await handleDriverUpdate(
+      { kind: "location", from: SENDER, location: { latitude: 21.5433, longitude: 39.1728 } },
+      build({ drivers }),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.location_saved_now_live"));
+  });
+
+  it("وصول الموقع لغير المتاح يبقى على الرسالة العادية", async () => {
+    const drivers = driverDirectory(verifiedDriver({ hasLocation: false, isAvailable: false }));
+    const replies = await handleDriverUpdate(
+      { kind: "location", from: SENDER, location: { latitude: 21.5433, longitude: 39.1728 } },
+      build({ drivers }),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.location_saved"));
+  });
+
   it("يوقف التوافر بلا شرط التحقّق", async () => {
     const unverified = driverDirectory(verifiedDriver({ isVerified: false }));
     const replies = await handleDriverUpdate(text("/unavailable"), build({ drivers: unverified }));

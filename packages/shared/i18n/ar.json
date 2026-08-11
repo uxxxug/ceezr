@@ -171,5 +171,7 @@
   "translation.language_name.ar": "العربية",
   "translation.language_name.en": "الإنجليزية",
   "translation.language_name.ur": "الأردية",
-  "translation.original_note": "🌐 الأصل ({language}):\n«{original}»"
+  "translation.original_note": "🌐 الأصل ({language}):\n«{original}»",
+  "driver.available_needs_location": "⚠️ سُجِّلت رغبتك في العمل — لكن لن يصلك أي طلب حتى ترسل موقعك.\nالإسناد يبحث عن أقرب سائق، ومن لا موقع له لا يظهر في البحث.",
+  "driver.location_saved_now_live": "✅ حُفظ موقعك، وأنت الآن ظاهر للطلبات فعلاً.\nستصلك الطلبات القريبة منك."
 }

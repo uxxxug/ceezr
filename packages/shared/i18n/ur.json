@@ -171,5 +171,7 @@
   "translation.language_name.ar": "عربی",
   "translation.language_name.en": "انگریزی",
   "translation.language_name.ur": "اردو",
-  "translation.original_note": "🌐 اصل ({language}):\n«{original}»"
+  "translation.original_note": "🌐 اصل ({language}):\n«{original}»",
+  "driver.available_needs_location": "⚠️ آپ کی دستیابی درج ہو گئی — لیکن جب تک آپ اپنا محل وقوع نہیں بھیجتے، کوئی آرڈر آپ تک نہیں پہنچے گا۔\nڈسپیچ قریب ترین ڈرائیور تلاش کرتا ہے، اور محل وقوع کے بغیر ڈرائیور اس تلاش میں نظر نہیں آتا۔",
+  "driver.location_saved_now_live": "✅ آپ کا محل وقوع محفوظ ہو گیا اور اب آپ واقعی ڈسپیچ کو نظر آ رہے ہیں۔\nقریبی آرڈر آپ تک پہنچنا شروع ہوں گے۔"
 }

@@ -382,16 +382,24 @@ async function handleCommand(
       const applied = await deps.drivers.setAvailability(driver.id, goingAvailable);
       if (!applied.ok) return technicalFailure(sender, state);
 
-      const replies: BotReply[] = [
-        reply(sender, tr(goingAvailable ? "driver.now_available" : "driver.now_unavailable")),
-      ];
+      // لا نقول «أنت الآن متاح» لمن لا موقع له. استعلام المرشّحين يشترط
+      // `d.last_location is not null`، فسائقٌ متاحٌ بلا موقع خفيٌّ عن الإسناد
+      // تماماً. وقد وقع هذا فعلاً في الإنتاج: سائق موثَّق ومتاح ومشترك، ولم
+      // يصله طلب واحد، وهو يظنّ نفسه عاملاً — لأن البوت أخبره بذلك.
+      // فالرسالة الآن تقول الحقيقة، والطلب يصير خطوةً ناقصة لا حاشية.
+      const replies: BotReply[] = [];
 
       if (goingAvailable && !driver.hasLocation) {
+        replies.push(reply(sender, tr("driver.available_needs_location")));
         replies.push(
           reply(sender, tr("driver.ask_location"), {
             kind: "request_location",
             label: tr("driver.share_location_button"),
           }),
+        );
+      } else {
+        replies.push(
+          reply(sender, tr(goingAvailable ? "driver.now_available" : "driver.now_unavailable")),
         );
       }
 
@@ -776,5 +784,13 @@ async function handleLocation(
 
   const saved = await deps.drivers.updateLocation(driver.id, coordinates.value);
   if (!saved.ok) return technicalFailure(sender, state);
-  return [reply(sender, tr("driver.location_saved"), { kind: "remove" })];
+
+  // من كان متاحاً وينقصه الموقع فقد اكتملت شروطه الآن، فيُخبَر أنه صار ظاهراً
+  // فعلاً — لا «حُفظ موقعك» وحدها، فهي لا تُعلمه أن الحجب عنه ارتفع.
+  const becameLive = !driver.hasLocation && driver.isAvailable;
+  return [
+    reply(sender, tr(becameLive ? "driver.location_saved_now_live" : "driver.location_saved"), {
+      kind: "remove",
+    }),
+  ];
 }

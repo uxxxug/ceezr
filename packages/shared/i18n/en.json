@@ -171,5 +171,7 @@
   "translation.language_name.ar": "Arabic",
   "translation.language_name.en": "English",
   "translation.language_name.ur": "Urdu",
-  "translation.original_note": "🌐 Original ({language}):\n“{original}”"
+  "translation.original_note": "🌐 Original ({language}):\n“{original}”",
+  "driver.available_needs_location": "⚠️ Your availability is recorded — but no order will reach you until you send your location.\nDispatch searches for the nearest driver, and a driver without a location does not appear in that search.",
+  "driver.location_saved_now_live": "✅ Your location is saved and you are now genuinely visible to dispatch.\nNearby orders will start reaching you."
 }
