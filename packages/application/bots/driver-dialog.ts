@@ -37,6 +37,7 @@ import {
   relayNegotiationMessage,
 } from "../dispatch/relay-negotiation-message.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
 import {
   handleLanguageCallback,
   handleLanguageCommand,
@@ -124,6 +125,16 @@ export interface DriverBotDependencies {
     readonly telegramId: string;
     grant(telegramId: string): Promise<unknown>;
   };
+  /**
+   * المرحلة ٦ — النقل اللحظي. اختياري بنفس منطق ما قبله: غيابه يعني أن
+   * الموقع يُحفظ ولا يُبَثّ — لا أن حفظه يفشل.
+   *
+   * ولماذا اختياري والنقل اللحظي مطلوب في الإنتاج؟ لأنّ فرضه يوجب على كل
+   * اختبار حوار قائم أن يبني ناقلاً وجلساتٍ ليختبر زرّ تسجيل — فيصير تغيير مسار
+   * التتبّع موجباً لتعديل عشرات الاختبارات التي لا تمسّه. ووصله في الحاوية
+   * ثابتٌ ويحميه اختبار تكامل صريح على قاعدة حقيقية.
+   */
+  readonly tracking?: LiveTrackingPort;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -1222,6 +1233,28 @@ async function handleLocation(
     verdict: assessment.verdict === "REJECT" ? "ALERT" : assessment.verdict,
   });
   if (!saved.ok) return technicalFailure(sender, state);
+
+  /**
+   * المرحلة ٦ — الجلسة والبثّ **بعد** استقرار الكتابة القانونية.
+   *
+   * وهذا هو ما كان ناقصاً فعلاً في المرحلة ٥ (الخطر R-15): الموقع كان يُكتب ولا
+   * جلسة تُفتح، فلا شيء يفصل سائقاً يبثّ الآن عن سائقٍ آخر موقعٍ له قبل يومين —
+   * وكلاهما صفٌّ في `drivers` له `last_location`.
+   *
+   * ولا `await` بلا حاجة؟ بل `await`: البثّ لا يرمي أصلاً (حاجزه داخله)، وتركُه
+   * بلا انتظار كان يعني وعداً معلّقاً بعد انتهاء الطلب — وفي بيئات الحوسبة
+   * الطرفية يُقتل ما لم يُنتظر، فيصير البثّ يعمل محلياً ويسقط في الإنتاج بلا أثر.
+   */
+  await deps.tracking?.onFix({
+    driverId: driver.id,
+    cityId: driver.cityId,
+    latitude: assessment.fix.coordinates.latitude,
+    longitude: assessment.fix.coordinates.longitude,
+    recordedAtMs: assessment.fix.recordedAtMs,
+    accuracyMeters: assessment.fix.accuracyMeters ?? null,
+    verdict: assessment.verdict === "REJECT" ? "ALERT" : assessment.verdict,
+    findings: assessment.findings.map((finding) => finding.code),
+  });
 
   // من كان متاحاً وينقصه الموقع فقد اكتملت شروطه الآن، فيُخبَر أنه صار ظاهراً
   // فعلاً — لا «حُفظ موقعك» وحدها، فهي لا تُعلمه أن الحجب عنه ارتفع.

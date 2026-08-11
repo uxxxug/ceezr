@@ -22,6 +22,7 @@ import {
 } from "./rate-limit/fixed-window.ts";
 import { createUpstashRedis } from "./redis/upstash.ts";
 import { createAdminApiRoutes } from "./routes/admin-api.ts";
+import { createAdminLiveRoutes } from "./routes/admin-live.ts";
 import { createAdminUiRoutes } from "./routes/admin-ui.ts";
 import { createServer } from "./server.ts";
 
@@ -170,6 +171,20 @@ const app = createServer({
 // لوحة الإدارة: موجّهان منفصلان يُركَّبان هنا لا في server.ts (ADR 0007).
 const adminAuth = createAdminAuthPort(container.sql);
 // الأخصّ أولاً: /admin/api قبل /admin، وإلا التقط حارس الصفحات نداءات JSON
+/**
+ * الأخصّ أولاً هنا أيضاً: /admin/api/live قبل /admin/api. ولو عُكس الترتيب لالتقط
+ * موجّه الـJSON المسار ثم أجاب 404 على مجرى SSE — لأن Hono يطابق أوّل موجّه يُطابق
+ * البادئة ولا يعود إلى ما بعده.
+ */
+app.route(
+  "/admin/api/live",
+  createAdminLiveRoutes({
+    sql: container.sql,
+    auth: adminAuth,
+    bus: container.tracking.bus,
+    log,
+  }),
+);
 app.route("/admin/api", createAdminApiRoutes({ sql: container.sql, auth: adminAuth }));
 
 app.route(

@@ -12,6 +12,7 @@ import { t } from "../../shared/i18n/index.ts";
 import type { OrderId } from "../../shared/kernel/index.ts";
 import type { RatingPort, RideLifecyclePort } from "../reputation/index.ts";
 import { completeRide, startRide, submitRating } from "../reputation/index.ts";
+import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
 import type { BotReply, Keyboard, Sender, SessionStore } from "./types.ts";
 
 /**
@@ -38,6 +39,15 @@ export interface RatingDialogDependencies {
   readonly ratings: RatingPort;
   /** غيابه يعني أن الطرف المقابل لا يُبلَّغ، لا أن يُبلَّغ على البوت الخطأ. */
   readonly counterpart?: CounterpartNotifier;
+  /**
+   * المرحلة ٦ — إغلاق جلسة التتبّع وإيقاف البثّ عن العميل عند نهاية الرحلة.
+   *
+   * ولماذا هنا لا في `completeRide`؟ لأن حالة الاستخدام تلك تكتب في القاعدة
+   * وتُعيد ملخّصاً، وليس من شأنها إيقاف ناقل. والحوار هو من يعرف أن الرحلة
+   * انتهت **وأن الإنهاء استقرّ**، فلا تُوقف خريطة عميلٍ رحلته مازالت جارية
+   * لأن الإنهاء رُفض في القاعدة.
+   */
+  readonly tracking?: LiveTrackingPort;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -146,6 +156,16 @@ export async function handleCompleteRide(
   if (!result.value.completed || summary === null) {
     return [reply(sender, tr("rating.ride_not_completable"))];
   }
+
+  /**
+   * المرحلة ٦ — الجلسة تُغلق قبل إرسال الملخّصات.
+   *
+   * الترتيب مقصود: لو أُرسلت الملخّصات أوّلاً لقرأ العميل «انتهت رحلتك»
+   * وفوقها خريطةٌ مازال سائقه يتحرّك عليها — وهو تناقضٌ يراه بعينه ويفتح بلاغاً.
+   * وإن فشل الإيقاف فلا يُبطِل رحلةً اكتملت: الحاجز داخل المنفذ، ومدّة البثّ
+   * تنتهي بنفسها على الأسوأ.
+   */
+  await deps.tracking?.onTripEnded(String(summary.orderId), "TRIP_COMPLETED");
 
   const driverLang = summary.driver.languageCode;
   const riderLang = summary.rider.languageCode;

@@ -51,9 +51,7 @@ export function extractBearerToken(authHeader: string | undefined): string | nul
 /**
  * يحوّل نتيجة التحقق من المخزن إلى نتيجة مصادقة موحّدة.
  */
-export function toAuthResult(
-  payload: TrackingTokenPayload | null,
-): TrackingAuthResult {
+export function toAuthResult(payload: TrackingTokenPayload | null): TrackingAuthResult {
   if (payload === null) {
     return { ok: false, error: "INVALID_TOKEN" };
   }

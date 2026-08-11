@@ -1485,3 +1485,99 @@ export async function setUserBlocked(
   `;
   return readWrite(rows[0]?.result);
 }
+
+// ---------------------------------------------------------------------------
+// مواضع السائقين الحيّة — المرحلة ٦
+//
+// اللقطة التي يبدأ بها مجرى SSE، وتُعاد قراءتها دورياً بعده. ولماذا لقطةٌ ثم
+// دلتا، لا دلتا وحدها؟ لأن المشغّل يفتح اللوحة في منتصف اليوم: لو بُنيت خريطته
+// من الأحداث وحدها لبقيت فارغةً حتى يتحرّك كل سائق مرّةً — ودقائقُ من فراغٍ في
+// شاشة إرسالٍ أسوأ من غيابها، لأنها تُقرأ «لا سائق متاح».
+//
+// وإعادة القراءة الدورية هي مِرساة الصحّة: هذه الدالّة تقرأ من القاعدة، فما
+// تعرضه اللوحة يعود دائماً إلى المصدر القانوني وإن سقط حدثٌ في الطريق.
+//
+// وحالة الجلسة (نشط/متأخّر) **لا تُحسب هنا**: تُعاد الوقائع الزمنية كما هي
+// ويحكم عليها المجال (`sessionStateAt`). فالسقف الزمني للتأخّر سياسةٌ واحدة في
+// موضع واحد، لا `interval` في SQL يخالف يوماً ثابتاً في TypeScript.
+// ---------------------------------------------------------------------------
+
+export interface LiveDriverPositionRow {
+  readonly driverId: string;
+  readonly driverName: string | null;
+  readonly cityId: string;
+  readonly cityCode: string;
+  readonly lat: number;
+  readonly lng: number;
+  readonly quality: string | null;
+  readonly accuracyMeters: number | null;
+  /** زمن جهاز السائق للإصلاحة (المرحلة ٥) — قد يغيب لموقعٍ كُتب قبلها. */
+  readonly recordedAt: string | null;
+  readonly sessionStartedAt: string;
+  readonly lastFixAt: string | null;
+  readonly tripId: string | null;
+  readonly tripStatus: string | null;
+}
+
+export async function listLiveDriverPositions(
+  sql: Sql,
+  cityId: string | null,
+): Promise<readonly LiveDriverPositionRow[]> {
+  const rows = await sql<
+    {
+      driver_id: string;
+      driver_name: string | null;
+      city_id: string;
+      city_code: string;
+      lat: number | null;
+      lng: number | null;
+      quality: string | null;
+      accuracy_m: number | null;
+      recorded_at: string | null;
+      session_started_at: string;
+      last_fix_at: string | null;
+      trip_id: string | null;
+      trip_status: string | null;
+    }[]
+  >`
+    select s.driver_id,
+           u.full_name as driver_name,
+           s.city_id, c.code as city_code,
+           st_y(d.last_location::geometry) as lat,
+           st_x(d.last_location::geometry) as lng,
+           d.last_location_quality as quality,
+           d.last_location_accuracy_m as accuracy_m,
+           d.last_location_recorded_at as recorded_at,
+           s.started_at as session_started_at,
+           s.last_fix_at,
+           s.trip_id,
+           o.status::text as trip_status
+      from tracking_sessions s
+      join drivers d on d.id = s.driver_id
+      join users u on u.id = d.user_id
+      join cities c on c.id = s.city_id
+      left join orders o on o.id = s.trip_id
+     where s.ended_at is null
+       and d.last_location is not null
+       ${cityId === null ? sql`` : sql`and s.city_id = ${cityId}::uuid`}
+     order by s.last_fix_at desc nulls last
+  `;
+
+  return rows
+    .filter((row) => row.lat !== null && row.lng !== null)
+    .map((row) => ({
+      driverId: row.driver_id,
+      driverName: row.driver_name,
+      cityId: row.city_id,
+      cityCode: row.city_code,
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+      quality: row.quality,
+      accuracyMeters: row.accuracy_m === null ? null : Number(row.accuracy_m),
+      recordedAt: row.recorded_at === null ? null : String(row.recorded_at),
+      sessionStartedAt: String(row.session_started_at),
+      lastFixAt: row.last_fix_at === null ? null : String(row.last_fix_at),
+      tripId: row.trip_id,
+      tripStatus: row.trip_status,
+    }));
+}

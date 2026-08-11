@@ -17,6 +17,14 @@ import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/a
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
+import {
+  createCustomerLiveRelay,
+  type LiveLocationChannel,
+} from "../../../packages/application/tracking/customer-live-relay.ts";
+import {
+  createLiveTracking,
+  type LiveTrackingPort,
+} from "../../../packages/application/tracking/live-tracking.ts";
 import type { TranslationFailure } from "../../../packages/domain/i18n-translation/index.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
@@ -58,6 +66,10 @@ import {
 } from "../../../packages/infrastructure/identity/directories.ts";
 import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import {
+  grammyLiveLocationChannel,
+  TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
+} from "../../../packages/infrastructure/notification/telegram-live-location.ts";
+import {
   createEscalationGroupPublisher,
   createTelegramNegotiationNotifier,
   createTelegramRelaySender,
@@ -77,6 +89,16 @@ import {
   createTrialRpc,
 } from "../../../packages/infrastructure/subscription/subscription-adapters.ts";
 import {
+  createTrackingEventBus,
+  type TrackingEventBus,
+} from "../../../packages/infrastructure/tracking/event-bus.ts";
+import { createTrackingSessionRepository } from "../../../packages/infrastructure/tracking/session-repository.ts";
+import {
+  createActiveTripReader,
+  createTrackingProofReader,
+  type TrackingProofReader,
+} from "../../../packages/infrastructure/tracking/tracking-queries.ts";
+import {
   createActiveOrdersLookup,
   createOrderRepository,
   createOrderWriter,
@@ -84,6 +106,7 @@ import {
 } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { systemClock } from "../../../packages/shared/kernel/index.ts";
+import type { TrackingSessionStore } from "../../../packages/tracking/session-store.ts";
 import {
   createAgentCore,
   createSupportAdvicePublisher,
@@ -167,7 +190,20 @@ export interface Container {
    * تحتاج تشغيل الدورة خارج مسار الـ webhook — وبنفس المحوّلات لا بنسخة موازية.
    */
   readonly negotiation: NegotiationWiring;
+  /**
+   * المرحلة ٦ — النقل اللحظي مكشوف لأن مسار SSE يحتاج نفس الناقل الذي ينشر
+   * فيه مسار البوت — لا ناقلاً ثانياً يُبنى في `index.ts`. والاختبارات تقرأ منه
+   * الجلسات والبراهين بنفس المحوّلات لا بنسخة موازية.
+   */
+  readonly tracking: TrackingWiring;
   close(): Promise<void>;
+}
+
+export interface TrackingWiring {
+  readonly bus: TrackingEventBus;
+  readonly sessions: TrackingSessionStore;
+  readonly proofs: TrackingProofReader;
+  readonly live: LiveTrackingPort;
 }
 
 export interface NegotiationWiring {
@@ -193,6 +229,11 @@ export interface ContainerOverrides {
    * على Redis كاملاً في CI بلا خادم Redis ولا منفذ إنترنت.
    */
   readonly redis?: RedisClient;
+  /**
+   * المرحلة ٦ — قناة الموقع الحيّ البديلة. تُحقن في الاختبار بقناةٍ تلتقط البثّ،
+   * فيُثبَت مسار الدفع إلى العميل كاملاً على قاعدة حقيقية بلا شبكة تلغرام.
+   */
+  readonly liveLocationChannel?: LiveLocationChannel;
 }
 
 /**
@@ -406,6 +447,49 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const ratingPort = createRatingPort(sql);
   const lifecyclePort = createRideLifecyclePort(sql);
 
+  /**
+   * المرحلة ٦ — النقل اللحظي. التركيب هنا لا داخل الحوار: الناقل **واحد**
+   * للعملية كلّها، ومن بناه في موضعين صار له مشتركون لا يرون أحداث بعضهم.
+   */
+  const trackingBus = createTrackingEventBus(log);
+  const trackingSessions = createTrackingSessionRepository(sql);
+  const trackingProofs = createTrackingProofReader(sql);
+
+  /**
+   * قناة الموقع الحيّ على **بوت العميل**: الخريطة تظهر في محادثة العميل،
+   * وإرسالها من بوت السائق يعني محادثةً لا يفتحها العميل أصلاً (وترفضها تلغرام
+   * لمن لم يبدأ المحادثة). وهو نفس منطق `counterpartNotifier` القائم.
+   */
+  const liveLocationChannel =
+    overrides.liveLocationChannel ?? grammyLiveLocationChannel(config.riderBotToken);
+
+  const customerRelay = createCustomerLiveRelay({
+    channel: liveLocationChannel,
+    customers: { resolve: (tripId) => trackingProofs.customerOf(tripId) },
+    clock: systemClock,
+    livePeriodSeconds: TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
+    log,
+  });
+
+  /**
+   * المُرحِّل يُشترك مرّةً واحدة عند التركيب لا لكل رحلة. البديل — اشتراكٌ عند بدء
+   * كل رحلة وفصلٌ عند نهايتها — يبدو أدقّ، وهو في الحقيقة تسريبٌ منتظر: رحلةٌ
+   * تنتهي بطريقةٍ لا يمرّ بها الفصل (إلغاء، إعادة نشر) تترك مشتركاً معلّقاً.
+   * والحصر هنا ليس بالاشتراك بل باشتقاق الوجهة من `orders` في كل حدث.
+   */
+  trackingBus.subscribe(
+    { kind: "operations", scope: { kind: "all_cities" } },
+    { deliver: (event) => customerRelay.handle(event) },
+  );
+
+  const liveTracking = createLiveTracking({
+    sessions: trackingSessions,
+    publisher: trackingBus,
+    trips: createActiveTripReader(sql),
+    clock: systemClock,
+    log,
+  });
+
   const driverDeps: DriverBotDependencies = {
     sessions: driverSessions,
     drivers,
@@ -418,12 +502,15 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     clock: systemClock,
     negotiation: { claims: claimDeps, relay: relayDeps },
     support: driverSupport,
+    tracking: liveTracking,
     rating: {
       sessions: driverSessions,
       lifecycle: lifecyclePort,
       ratings: ratingPort,
       // الجسر إلى بوت العميل: من أنهى الرحلة سائقٌ، ومن يُبلَّغ بها عميلٌ على بوت آخر
       counterpart: counterpartNotifier(riderSender),
+      // إنهاء الرحلة يُغلق الجلسة ويُوقف بثّ الموقع عن العميل — المرحلة ٦.
+      tracking: liveTracking,
     },
     language: languageDeps(driverSessions),
     bootstrapAdmin: {
@@ -479,6 +566,12 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     }),
     sql,
     driverSender,
+    tracking: {
+      bus: trackingBus,
+      sessions: trackingSessions,
+      proofs: trackingProofs,
+      live: liveTracking,
+    },
     negotiation: {
       snapshots: createNegotiationSnapshotReader(sql),
       rotate: rotationDeps,
