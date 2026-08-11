@@ -305,6 +305,21 @@ export interface OrderWriter {
  * طلبك» بلا تسمية، فيظنّ العميل أن الأقدم أُلغي وهو باقٍ يبحث عن سائق. هذا ما
  * حدث فعلاً في الإنتاج يوم 2026-08-11.
  */
+/**
+ * السائق المُسنَد إلى طلب، بالقدر الذي يطمئن به العميل ولا يزيد.
+ *
+ * لماذا اللوحة وصورة المركبة؟ لأن سؤال «أين سائقي؟» في الواقع سؤالان: هل أُسنِد
+ * أحد؟ وكيف أعرفه حين يصل؟ الاسم وحده لا يميّز سيارةً من سيارة على رصيف مزدحم.
+ * ولا يُدرج هنا هاتف السائق ولا هويّته: الأول قناة تواصل تُدار من المنصّة لا
+ * تُسلَّم نصّاً، والثانية لا تخرج من القاعدة إلى أي رسالة أبداً.
+ */
+export interface AssignedDriverRef {
+  readonly fullName: string;
+  readonly vehicleType: string | null;
+  readonly plateNumber: string | null;
+  readonly vehiclePhotoFileId: string | null;
+}
+
 export interface ActiveOrderSummary {
   readonly orderId: OrderId;
   readonly service: ServiceType;
@@ -312,6 +327,12 @@ export interface ActiveOrderSummary {
   readonly pickupLabel: string | null;
   readonly dropoffLabel: string | null;
   readonly createdAt: Date;
+  /**
+   * يُقرأ في نفس استعلام الطلب لا باستعلام لاحق: قراءتان منفصلتان قد تريان
+   * لحظتين مختلفتين، فيُعرض «مُسنَد» بلا سائق أو سائقٌ لطلب أُلغي بينهما.
+   * `null` تعني «لا سائق بعد» وهي الحال الطبيعية في `searching`.
+   */
+  readonly assignedDriver?: AssignedDriverRef | null;
 }
 
 /** رفض السائق للعرض — يُسجَّل فوراً ليخرج من دورة البثّ القادمة بلا انتظار المهلة. */

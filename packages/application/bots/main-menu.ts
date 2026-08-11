@@ -45,10 +45,41 @@ export const RIDER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.support", command: "/support" },
 ];
 
+/**
+ * زرّ التتبّع: يُضمّ إلى قائمة العميل متى كان له طلب نشط (البند 2.2).
+ *
+ * لماذا مشروطاً لا دائماً؟ لأن «أين سائقي؟» معروضاً على من لا طلب له يدعو
+ * إلى ضغطة جوابها الوحيد «لا يوجد طلب» — فتصير القائمة مربكة لا مرشدة. ومع ذلك
+ * تُطابق نصوصه دائماً في `commandForMenuText`، فلوحة قديمة باقية على جهاز العميل
+ * بعد انتهاء طلبه تبقى مفهومة وتردّ بجواب صحيح.
+ */
+export const RIDER_ORDER_MENU_ITEMS: readonly MenuItem[] = [
+  { key: "menu.rider.status", command: "/status" },
+];
+
 export type BotAudience = "driver" | "rider";
 
-export function menuItemsFor(audience: BotAudience): readonly MenuItem[] {
-  return audience === "driver" ? DRIVER_MENU_ITEMS : RIDER_MENU_ITEMS;
+/** ما يُضاف إلى القائمة تبعاً لحال المستخدم لحظةَ بناء اللوحة. */
+export interface MenuContext {
+  /** للعميل طلب في searching أو matched أو in_progress. */
+  readonly hasActiveOrder?: boolean;
+}
+
+export function menuItemsFor(
+  audience: BotAudience,
+  context: MenuContext = {},
+): readonly MenuItem[] {
+  if (audience === "driver") return DRIVER_MENU_ITEMS;
+  return context.hasActiveOrder === true
+    ? [...RIDER_ORDER_MENU_ITEMS, ...RIDER_MENU_ITEMS]
+    : RIDER_MENU_ITEMS;
+}
+
+/** كل ما يُحتمل أن يكون قد عُرِض زرّاً لهذا الجمهور يوماً — للمطابقة والتسجيل. */
+export function allItemsFor(audience: BotAudience): readonly MenuItem[] {
+  return audience === "driver"
+    ? DRIVER_MENU_ITEMS
+    : [...RIDER_ORDER_MENU_ITEMS, ...RIDER_MENU_ITEMS];
 }
 
 /**
@@ -58,9 +89,13 @@ export function menuItemsFor(audience: BotAudience): readonly MenuItem[] {
  * المحادثة نفسها، فيغلقها المستخدم — فتضيع الفائدة كلّها. وثلاثة في الصفّ تقطع النصّ
  * العربي في منتصفه على الشاشات الضيّقة.
  */
-export function mainMenuKeyboard(audience: BotAudience, language: string): Keyboard {
+export function mainMenuKeyboard(
+  audience: BotAudience,
+  language: string,
+  context: MenuContext = {},
+): Keyboard {
   const tr = t(language);
-  const labels = menuItemsFor(audience).map((item) => tr(item.key));
+  const labels = menuItemsFor(audience, context).map((item) => tr(item.key));
   const rows: string[][] = [];
   for (let index = 0; index < labels.length; index += 2) {
     rows.push(labels.slice(index, index + 2).filter((label) => label !== undefined));
@@ -81,7 +116,7 @@ export function commandForMenuText(audience: BotAudience, text: string): string 
   const needle = text.trim();
   if (needle.length === 0) return null;
 
-  for (const item of menuItemsFor(audience)) {
+  for (const item of allItemsFor(audience)) {
     for (const option of getSupportedLanguages()) {
       if (t(option.code)(item.key) === needle) return item.command;
     }
@@ -98,7 +133,8 @@ export function botCommandsFor(
   language: string,
 ): readonly { readonly command: string; readonly description: string }[] {
   const tr = t(language);
-  const fromMenu = menuItemsFor(audience).map((item) => ({
+  // قائمة تلغرام الرسمية تُسجّل مرّة للبوت كلّه لا لكل مستخدم بحاله، فتضمّ المشروط أيضاً
+  const fromMenu = allItemsFor(audience).map((item) => ({
     // تلغرام يرفض الشرطة المائلة في اسم الأمر المُسجَّل
     command: item.command.slice(1),
     description: tr(`${item.key}.description`),

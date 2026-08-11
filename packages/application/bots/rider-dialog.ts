@@ -27,7 +27,7 @@ import {
   handleLanguageCommand,
   type LanguageDialogDependencies,
 } from "./language-dialog.ts";
-import { commandForMenuText, mainMenuKeyboard } from "./main-menu.ts";
+import { commandForMenuText, type MenuContext, mainMenuKeyboard } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
 import { handleRatingCallback, type RatingDialogDependencies } from "./rating-dialog.ts";
 import {
@@ -80,8 +80,13 @@ function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): 
 }
 
 /** القائمة الدائمة بلغة الحالة الحالية — لغة الجلسة لا ثابتة، فالقائمة تُبنى عند كل ردّ. */
-function menu(state: DialogState): Keyboard {
-  return mainMenuKeyboard("rider", state.language);
+function menu(state: DialogState, context: MenuContext = {}): Keyboard {
+  return mainMenuKeyboard("rider", state.language, context);
+}
+
+/** قائمةٌ فيها زرّ التتبّع — تُستعمل حيث نعلم يقيناً أنّ للعميل طلباً نشطاً. */
+function trackingMenu(state: DialogState): Keyboard {
+  return menu(state, { hasActiveOrder: true });
 }
 
 function cityKeyboard(cities: readonly CityRef[]): Keyboard {
@@ -234,6 +239,102 @@ function describeActiveOrder(order: ActiveOrderSummary, language: string): strin
   return place === null ? `${service} — ${time}` : `${service} — ${place} — ${time}`;
 }
 
+/**
+ * من متى يطول الانتظار فيستحقّ أن ندلّ العميل على الدعم من تلقائنا.
+ * ربع ساعة بلا سائق في مدينة عاملة ليس تأخّراً طبيعياً، والسكوت عنه يترك العميل
+ * ينتظر بلا أداة فعل — وهي الشكوى التي تصل الدعم متأخّرةً دائماً.
+ */
+const LONG_WAIT_MINUTES = 15;
+
+/** دقائق الانتظار من إنشاء الطلب، غير سالبة أبداً (ساعة قاعدة تسبق ساعتنا ثوانٍ). */
+function waitedMinutes(order: ActiveOrderSummary, now: Date): number {
+  const elapsed = now.getTime() - order.createdAt.getTime();
+  return elapsed <= 0 ? 0 : Math.floor(elapsed / 60_000);
+}
+
+/**
+ * تقرير حالة طلب واحد: الحالة، والسائق ولوحته إن أُسنِد، ومدّة الانتظار.
+ *
+ * حالة غير معروفة لا تُسكِت الردّ: استعلام الطلبات النشطة قد يوسّع يوماً، فمن يسأل
+ * «أين طلبي؟» يجب أن يرى طلبه ووقته على الأقل، لا رسالة فارغة.
+ */
+function describeOrderStatus(
+  order: ActiveOrderSummary,
+  language: string,
+  now: Date,
+): { readonly text: string; readonly photoFileId?: string } {
+  const tr = t(language);
+  const lines: string[] = [tr("rider.status_heading"), describeActiveOrder(order, language)];
+
+  if (order.status === "matched") lines.push(tr("rider.status_matched"));
+  else if (order.status === "in_progress") lines.push(tr("rider.status_in_progress"));
+  else if (order.status === "searching") lines.push(tr("rider.status_searching"));
+
+  const driver = order.assignedDriver ?? null;
+  if (driver !== null) {
+    lines.push(tr("rider.status_driver", { name: driver.fullName }));
+    if (driver.vehicleType !== null && driver.vehicleType.trim() !== "") {
+      lines.push(tr("rider.status_vehicle", { vehicle: driver.vehicleType }));
+    }
+    // لوحة ناقصة تُقال صراحةً لا تُسكت: سطرٌ غائب يُقرأ «لم يُرسل البوت كلّ شيء»
+    lines.push(
+      driver.plateNumber === null || driver.plateNumber.trim() === ""
+        ? tr("rider.status_plate_missing")
+        : tr("rider.status_plate", { plate: driver.plateNumber }),
+    );
+  }
+
+  const minutes = waitedMinutes(order, now);
+  lines.push(
+    tr(minutes >= LONG_WAIT_MINUTES ? "rider.status_waiting_long" : "rider.status_waiting", {
+      minutes,
+    }),
+  );
+
+  const text = lines.join("\n");
+  const photo = driver?.vehiclePhotoFileId ?? null;
+  // صورة المركبة تُرسل مع التقرير تعليقاً لا رسالة ثانية: رسالتان قد تفترقان
+  // في محادثة مزدحمة، فيرى العميل صورة سيارة لا يعرف لأيّ طلب هي.
+  return photo === null || photo.trim() === "" ? { text } : { text, photoFileId: photo };
+}
+
+/**
+ * البند 2.2 — «أين طلبي؟ / أين سائقي؟» بضغطة واحدة.
+ *
+ * يُعرض كل طلب نشط لا الأحدث وحده، لنفس السبب الذي فرض ذلك على /cancel:
+ * من له مشوار وطرد معاً ورأى حالة أحدهما وحده يحسب الآخر منتهياً.
+ */
+async function handleStatus(
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
+  if (!rider.ok) return technicalFailure(sender, state);
+  if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
+
+  const active = await deps.activeOrdersOf(rider.value.id);
+  // القائمة تُصحّح نفسها هنا: من انتهى طلبه وبقي الزرّ معروضاً على جهازه
+  // يردّ عليه بجواب صحيح وبلوحة بلا زرّ تتبّع، فيستوي المعروض مع الواقع.
+  if (active.length === 0) return [reply(sender, tr("rider.status_none"), menu(state))];
+
+  const now = deps.clock.now();
+  return active.map((order, index) => {
+    const described = describeOrderStatus(order, state.language, now);
+    // اللوحة مع الردّ الأخير وحده: تلغرام يُبقي المعروضة أخيراً، وإرسالها مع كل ردّ تكرار بلا أثر
+    const keyboard = index === active.length - 1 ? trackingMenu(state) : null;
+    return described.photoFileId === undefined
+      ? reply(sender, described.text, keyboard)
+      : {
+          chatId: sender.chatId,
+          text: described.text,
+          keyboard,
+          photoFileId: described.photoFileId,
+        };
+  });
+}
+
 function cancelChoiceKeyboard(orders: readonly ActiveOrderSummary[], language: string): Keyboard {
   return {
     kind: "inline",
@@ -280,12 +381,16 @@ async function cancelOne(
     });
   }
 
+  // البند 2.2: من ألغى أحد طلبيه لا يجوز أن يُسلَب زرّ متابعة الطلب الباقي.
+  // قراءة بعد الإلغاء لا خصمٌ من القائمة القديمة: طلب قد يكتمل أو يُسنَد بينهما.
+  const remaining = await deps.activeOrdersOf(rider.value.id);
+
   // التأكيد يسمّي الطلب. «تم إلغاء طلبك» وحدها هي التي أوقعت العميل في الوهم.
   return [
     reply(
       sender,
       tr("rider.order_cancelled_named", { order: describeActiveOrder(order, state.language) }),
-      menu(state),
+      menu(state, { hasActiveOrder: remaining.length > 0 }),
     ),
   ];
 }
@@ -392,6 +497,10 @@ async function handleCommand(
       return createOrderAndMatch(sender, state, rider, state.draftPickup, null, deps);
     }
 
+    // البند 2.2: لا يُشترط له منفذ اختياري، فمنفذ الطلبات النشطة أساسي في الحوار أصلاً
+    case "/status":
+      return handleStatus(sender, state, deps);
+
     case "/support": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
       if (rider === null) return [reply(sender, tr("support.not_registered"))];
@@ -440,8 +549,15 @@ async function handleCommand(
         ? [reply(sender, tr("common.unknown_command"))]
         : handleLanguageCommand(sender, state.language);
 
-    case "/help":
-      return [reply(sender, tr("rider.help"), menu(state)), reply(sender, tr("menu.hint"))];
+    case "/help": {
+      // قراءة واحدة لتخرج القائمة مطابقةً للواقع: /help أوّل ما يلجأ إليه من ضاعت لوحته،
+      // فلو أعادناها بلا زرّ تتبّع وله طلبٌ يبحث لسلبناه الزرّ في موطن طلب المساعدة.
+      const active = rider === null ? [] : await deps.activeOrdersOf(rider.id);
+      return [
+        reply(sender, tr("rider.help"), menu(state, { hasActiveOrder: active.length > 0 })),
+        reply(sender, tr("menu.hint")),
+      ];
+    }
 
     default:
       return [reply(sender, tr("common.unknown_command"))];
@@ -699,7 +815,9 @@ async function handleParcel(
 
   await deps.sessions.clear(sender.telegramUserId);
 
-  const replies: BotReply[] = [reply(sender, tr("rider.delivery_searching"), menu(state))];
+  // البند 2.2: الطلب صار في searching قبل هذا السطر، فزرّ التتبّع يظهر مع أوّل ردّ
+  // يراه العميل بعد الطلب لا بعد رسالة تالية — ولحظة الطلب هي لحظة القلق.
+  const replies: BotReply[] = [reply(sender, tr("rider.delivery_searching"), trackingMenu(state))];
   if (requested.value.notified.length === 0) return replies;
   return [
     ...replies,
@@ -729,7 +847,8 @@ async function createOrderAndMatch(
 
   await deps.sessions.clear(sender.telegramUserId);
 
-  const replies: BotReply[] = [reply(sender, tr("rider.searching"), menu(state))];
+  // البند 2.2: كما في التوصيل — الزرّ يرافق إعلان بدء البحث نفسه
+  const replies: BotReply[] = [reply(sender, tr("rider.searching"), trackingMenu(state))];
 
   // البثّ الحقيقي يبدأ فوراً: تُكتب العروض في order_offers ويُخطَر السائقون.
   // لا سائق الآن؟ الطلب يبقى في حالة البحث وتتولّاه دورات البثّ التالية — والعميل يُخبَر بصدق.

@@ -7,12 +7,14 @@
 
 import { describe, expect, it } from "bun:test";
 import {
+  allItemsFor,
   botCommandsFor,
   commandForMenuText,
   DRIVER_MENU_ITEMS,
   mainMenuKeyboard,
   menuItemsFor,
   RIDER_MENU_ITEMS,
+  RIDER_ORDER_MENU_ITEMS,
 } from "../../packages/application/bots/main-menu.ts";
 import { SUPPORTED_LANGUAGES } from "../../packages/domain/i18n-translation/index.ts";
 import { toTelegramMarkup } from "../../packages/infrastructure/notification/telegram-markup.ts";
@@ -133,8 +135,56 @@ describe("أوامر البوت المُسجَّلة عند تلغرام", () =>
       expect(names).toContain("start");
       expect(names).toContain("help");
       expect(new Set(names).size).toBe(names.length);
-      expect(names.length).toBe(menuItemsFor(audience).length + 2);
+      // كل أزرار الجمهور مع المشروطة: قائمة تلغرام تُسجّل مرّة للبوت لا لكل مستخدم
+      expect(names.length).toBe(allItemsFor(audience).length + 2);
     }
+  });
+
+  it("تضمّ status في بوت العميل دائماً — أمرٌ مكتوب يعمل ولو غاب زرّه", () => {
+    const names = botCommandsFor("rider", "ar").map((command) => command.command);
+    expect(names).toContain("status");
+    expect(botCommandsFor("driver", "ar").map((c) => c.command)).not.toContain("status");
+  });
+});
+
+/**
+ * زرّ «أين طلبي؟» — البند 2.2. الشرطية هي المطلوب: زرّ معروض على من لا
+ * طلب له جوابه الوحيد «لا يوجد طلب»، ومع ذلك تبقى مطابقة نصّه لازمة لأنّ
+ * لوحة الردّ تبقى معروضة على جهاز العميل بعد انتهاء طلبه.
+ */
+describe("زرّ تتبّع الطلب المشروط", () => {
+  const statusLabel = t("ar")("menu.rider.status");
+
+  it("يظهر لمن له طلب نشط ولا يظهر لغيره", () => {
+    const idle = mainMenuKeyboard("rider", "ar");
+    const active = mainMenuKeyboard("rider", "ar", { hasActiveOrder: true });
+    if (idle.kind !== "reply" || active.kind !== "reply") throw new Error("متوقَّع reply");
+
+    expect(idle.rows.flat()).not.toContain(statusLabel);
+    expect(active.rows.flat()).toContain(statusLabel);
+    expect(active.rows.flat().length).toBe(idle.rows.flat().length + 1);
+  });
+
+  it("يتقدّم القائمة فلا يُطلَب من قلقٍ أن يفتّش", () => {
+    const active = mainMenuKeyboard("rider", "ar", { hasActiveOrder: true });
+    if (active.kind !== "reply") throw new Error("متوقَّع reply");
+    expect(active.rows[0]?.[0]).toBe(statusLabel);
+  });
+
+  it("يبقى مفهوماً بعد انتهاء الطلب — لوحة قديمة لا تصير عطباً", () => {
+    for (const language of SUPPORTED_LANGUAGES) {
+      expect(commandForMenuText("rider", t(language)("menu.rider.status"))).toBe("/status");
+    }
+  });
+
+  it("لا يوجد في بوت السائق بحال", () => {
+    expect(commandForMenuText("driver", statusLabel)).toBeNull();
+    expect(menuItemsFor("driver", { hasActiveOrder: true })).toEqual(DRIVER_MENU_ITEMS);
+  });
+
+  it("لا يكرّر أمراً موجوداً في القائمة الأساس", () => {
+    const base = RIDER_MENU_ITEMS.map((item) => item.command);
+    for (const item of RIDER_ORDER_MENU_ITEMS) expect(base).not.toContain(item.command);
   });
 });
 

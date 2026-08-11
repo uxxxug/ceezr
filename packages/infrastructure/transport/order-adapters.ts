@@ -173,13 +173,24 @@ export function createActiveOrdersLookup(sql: Sql) {
         pickup_label: string | null;
         dropoff_label: string | null;
         created_at: Date;
+        driver_name: string | null;
+        vehicle_type: string | null;
+        plate_number: string | null;
+        vehicle_photo_file_id: string | null;
       }[]
     >`
-      select id, service, status, pickup_label, dropoff_label, created_at
-        from orders
-       where rider_id = ${riderId}
-         and status in ('searching', 'matched', 'in_progress')
-       order by created_at asc
+      select o.id, o.service, o.status, o.pickup_label, o.dropoff_label, o.created_at,
+             du.full_name as driver_name, d.vehicle_type, d.plate_number,
+             d.vehicle_photo_file_id
+        from orders o
+        -- الربط اليساري مقصود: طلب في searching لا سائق له، وربطٌ داخلي
+        -- كان سيُخفي من قائمة الطلبات النشطة كلّ ما يزال يبحث — وهي أكثر
+        -- الحالات التي يُسأل فيها «أين طلبي؟».
+        left join drivers d on d.id = o.assigned_driver_id
+        left join users du on du.id = d.user_id
+       where o.rider_id = ${riderId}
+         and o.status in ('searching', 'matched', 'in_progress')
+       order by o.created_at asc
        limit ${MAX_ACTIVE_ORDERS}
     `;
     return rows.map((row) => ({
@@ -189,6 +200,16 @@ export function createActiveOrdersLookup(sql: Sql) {
       pickupLabel: row.pickup_label,
       dropoffLabel: row.dropoff_label,
       createdAt: new Date(row.created_at),
+      // الاسم هو شرط وجود السائق: صفّ سائق بلا مستخدم حالة تلف لا تُعرض
+      assignedDriver:
+        row.driver_name === null
+          ? null
+          : {
+              fullName: row.driver_name,
+              vehicleType: row.vehicle_type,
+              plateNumber: row.plate_number,
+              vehiclePhotoFileId: row.vehicle_photo_file_id,
+            },
     }));
   };
 }

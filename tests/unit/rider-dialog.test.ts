@@ -12,7 +12,11 @@ import {
   handleRiderUpdate,
   type RiderBotDependencies,
 } from "../../packages/application/bots/rider-dialog.ts";
-import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
+import type {
+  ActiveOrderSummary,
+  IncomingUpdate,
+  Sender,
+} from "../../packages/application/bots/types.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/index.ts";
@@ -502,5 +506,184 @@ describe("مسار التوصيل في حوار العميل", () => {
     await handleRiderUpdate(location(DROPOFF), d);
     expect(orders.createdFull[0]?.service).toBe("transport");
     expect(orders.createdFull[0]?.notes).toBeNull();
+  });
+});
+
+/**
+ * البند 2.2 — «أين طلبي؟ / أين سائقي؟». كل حالة هنا شكوى حقيقية محتملة:
+ * سائق أُسنِد ولا يعرف العميل كيف يميّزه، وانتظارٌ طال بلا أداة فعل، وطلبان
+ * نشطان يُعرض أحدهما فيُحسب الآخر منتهياً.
+ */
+describe("تتبّع الطلب: /status", () => {
+  const RIDER = {
+    id: "rider-9" as RiderId,
+    cityId: JEDDAH.id,
+    telegramUserId: "500",
+    fullName: "سالم",
+  };
+
+  const active = (overrides: Partial<ActiveOrderSummary> = {}): ActiveOrderSummary => ({
+    orderId: ORDER_ID,
+    service: "transport",
+    status: "searching",
+    pickupLabel: null,
+    dropoffLabel: "حي الصفا",
+    createdAt: new Date(NOW.getTime() - 4 * 60_000),
+    assignedDriver: null,
+    ...overrides,
+  });
+
+  const statusDeps = (orders: readonly ActiveOrderSummary[]) =>
+    build({ riders: riderDirectory(RIDER), activeOrdersOf: async () => orders });
+
+  it("يطلب التسجيل من غير المسجَّل ولا يقرأ طلبات أصلاً", async () => {
+    let reads = 0;
+    const d = build({
+      activeOrdersOf: async () => {
+        reads += 1;
+        return [];
+      },
+    });
+    const replies = await handleRiderUpdate(text("/status"), d);
+    expect(replies[0]?.text).toBe(ar("rider.must_register_first"));
+    expect(reads).toBe(0);
+  });
+
+  /**
+   * «لا يوجد طلب» تُرسل بلوحة **بلا** زرّ تتبّع: من انتهى طلبه وبقيت لوحته
+   * القديمة معروضة يُصحَّح معروضُه بنفس الردّ، فلا يبقى زرّ يسأل عن لا شيء.
+   */
+  it("يقول لا يوجد طلب، ويسحب زرّ التتبّع من اللوحة", async () => {
+    const replies = await handleRiderUpdate(text("/status"), statusDeps([]));
+    expect(replies).toHaveLength(1);
+    expect(replies[0]?.text).toBe(ar("rider.status_none"));
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar"));
+  });
+
+  it("في البحث: يقول لم يُسنَد أحد بعد ولا يخترع سائقاً", async () => {
+    const replies = await handleRiderUpdate(text("/status"), statusDeps([active()]));
+    expect(replies).toHaveLength(1);
+    const body = replies[0]?.text ?? "";
+    expect(body).toContain(ar("rider.status_searching"));
+    expect(body).toContain(ar("rider.status_waiting", { minutes: 4 }));
+    // لا سطر سائق ولا لوحة مركبة حين لا سائق
+    expect(body).not.toContain(ar("rider.status_driver", { name: "" }).trim());
+    expect(replies[0]?.photoFileId).toBeUndefined();
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }));
+  });
+
+  /**
+   * جوهر البند: الاسم وحده لا يميّز سيارةً على رصيف مزدحم. اللوحة وصورة
+   * المركبة هما ما يُعرَف به السائق فعلاً حين يصل.
+   */
+  it("عند الإسناد: يعرض الاسم واللوحة وصورة المركبة تعليقاً على التقرير", async () => {
+    const replies = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([
+        active({
+          status: "matched",
+          assignedDriver: {
+            fullName: "أحمد العمري",
+            vehicleType: "سيدان",
+            plateNumber: "ح ط ب 1234",
+            vehiclePhotoFileId: "photo-1",
+          },
+        }),
+      ]),
+    );
+    expect(replies).toHaveLength(1);
+    const body = replies[0]?.text ?? "";
+    expect(body).toContain(ar("rider.status_matched"));
+    expect(body).toContain(ar("rider.status_driver", { name: "أحمد العمري" }));
+    expect(body).toContain(ar("rider.status_plate", { plate: "ح ط ب 1234" }));
+    expect(body).toContain(ar("rider.status_vehicle", { vehicle: "سيدان" }));
+    // صورة واحدة مع التقرير لا رسالة ثانية تفترق عنه في محادثة مزدحمة
+    expect(replies[0]?.photoFileId).toBe("photo-1");
+  });
+
+  it("لوحة ناقصة تُقال صراحة ولا تُسكت", async () => {
+    const replies = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([
+        active({
+          status: "matched",
+          assignedDriver: {
+            fullName: "أحمد العمري",
+            vehicleType: null,
+            plateNumber: "   ",
+            vehiclePhotoFileId: null,
+          },
+        }),
+      ]),
+    );
+    const body = replies[0]?.text ?? "";
+    expect(body).toContain(ar("rider.status_plate_missing"));
+    expect(replies[0]?.photoFileId).toBeUndefined();
+  });
+
+  /**
+   * انتظار طال: الدلالة على الدعم تأتي من البوت لا من صبر العميل. الحدّ 15 دقيقة،
+   * وما دونه لا يُقلق أحداً بلا سبب.
+   */
+  it("يدلّ على الدعم متى طال الانتظار، ولا يفعل قبل ذلك", async () => {
+    const long = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([active({ createdAt: new Date(NOW.getTime() - 21 * 60_000) })]),
+    );
+    expect(long[0]?.text).toContain(ar("rider.status_waiting_long", { minutes: 21 }));
+
+    const short = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([active({ createdAt: new Date(NOW.getTime() - 14 * 60_000) })]),
+    );
+    expect(short[0]?.text).toContain(ar("rider.status_waiting", { minutes: 14 }));
+    expect(short[0]?.text).not.toContain(ar("rider.status_waiting_long", { minutes: 14 }));
+  });
+
+  it("ساعة قاعدة تسبق ساعتنا لا تُنتج انتظاراً سالباً", async () => {
+    const replies = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([active({ createdAt: new Date(NOW.getTime() + 5_000) })]),
+    );
+    expect(replies[0]?.text).toContain(ar("rider.status_waiting", { minutes: 0 }));
+  });
+
+  /**
+   * من له مشوار وطرد معاً ورأى حالة أحدهما وحده يحسب الآخر منتهياً — وهي نفس
+   * العلّة التي وقعت في /cancel.
+   */
+  it("يعرض كل طلب نشط لا الأحدث وحده، واللوحة مع الأخير", async () => {
+    const second = active({
+      orderId: "order-2" as OrderId,
+      service: "delivery",
+      status: "matched",
+    });
+    const replies = await handleRiderUpdate(text("/status"), statusDeps([active(), second]));
+    expect(replies).toHaveLength(2);
+    expect(replies[0]?.keyboard).toBeNull();
+    expect(replies[1]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }));
+    expect(replies[0]?.text).toContain(ar("rider.service_transport"));
+    expect(replies[1]?.text).toContain(ar("rider.service_delivery"));
+  });
+
+  it("زرّ «أين طلبي؟» يصل إلى /status نصّاً بأي لغة مدعومة", async () => {
+    const d = statusDeps([active()]);
+    for (const label of [
+      ar("menu.rider.status"),
+      translate("en", "menu.rider.status"),
+      translate("ur", "menu.rider.status"),
+    ]) {
+      const replies = await handleRiderUpdate(text(label), d);
+      expect(replies[0]?.text).toContain(ar("rider.status_heading"));
+    }
+  });
+
+  it("بدء البحث نفسه يعرض زرّ التتبّع فوراً، لا برسالة تالية", async () => {
+    const d = build({ riders: riderDirectory(RIDER) });
+    await handleRiderUpdate(text("/ride"), d);
+    await handleRiderUpdate(location(PICKUP), d);
+    const created = await handleRiderUpdate(text("/skip"), d);
+    expect(created[0]?.text).toBe(ar("rider.searching"));
+    expect(created[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }));
   });
 });
