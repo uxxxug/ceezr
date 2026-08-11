@@ -17,6 +17,7 @@
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { listLiveOrders } from "../../apps/gateway/src/admin/queries.ts";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
@@ -264,5 +265,46 @@ describeIf("إلغاء الطلب: أي طلب أُلغي، ومن عَلِم ب
     // السائق عَلِم فعلاً — لا مجرّد صفّ تغيّر في القاعدة
     const told = driverSent.some((sent) => sent.text.includes("أُلغي"));
     expect(told).toBe(true);
+  });
+
+  /**
+   * البند 6.1 — الطلب الملغى يخرج من لوحة الإدارة، لا يبقى «يبحث عن سائق».
+   *
+   * شكوى المالك يوم 2026-08-11 كانت مركّبة: طلبٌ ظنّ العميل أنه ألغاه بقي
+   * 'searching' خمس ساعات، فظلّ ظاهراً في اللوحة. الاختبارات فوق تُثبت أن الصفّ
+   * صار 'cancelled'، وهذا يُثبت الشقّ الثاني — أن ما تقرأه اللوحة يتبع الصفّ
+   * فعلاً — لأن الحالتين قد تنفصلان: استعلامٌ يقرأ `assigned_driver_id is null`
+   * أو `is_active` بدل الحالة يُظهر الملغى إلى الأبد وكل الاختبارات فوقه خضراء.
+   */
+  it("الطلب الملغى يغيب عن «الطلبات الحية» في لوحة الإدارة", async () => {
+    await riderRegisters();
+    await orderRide();
+
+    const before = await listLiveOrders(sql, null);
+    expect(before).toHaveLength(1);
+    const orderId = before[0]?.orderId;
+    if (orderId === undefined) throw new Error("لم يُنشأ الطلب");
+    expect(before[0]?.status).toBe("searching");
+
+    await post("rider", text(RIDER_CHAT, "/cancel"));
+
+    // الصفّ أُلغي فعلاً — وإلّا فالاختبار التالي يمرّ بلا معنى
+    const rows = await orderRows();
+    expect(rows[0]?.status).toBe("cancelled");
+
+    const after = await listLiveOrders(sql, null);
+    expect(after.map((row) => row.orderId)).not.toContain(orderId);
+    expect(after).toHaveLength(0);
+  });
+
+  it("تصفية المدينة لا تُخفي طلباً حيّاً ولا تُظهر ملغىً", async () => {
+    // اللوحة تُفتح مصفّاةً بالمدينة أكثر ممّا تُفتح على «كل المدن»، فالتصفية
+    // مسارٌ مستقلّ يجب أن يحمل نفس شرط الحالة لا أن يسقطه مع شرط المدينة
+    await riderRegisters();
+    await orderRide();
+    expect(await listLiveOrders(sql, cityId)).toHaveLength(1);
+
+    await post("rider", text(RIDER_CHAT, "/cancel"));
+    expect(await listLiveOrders(sql, cityId)).toHaveLength(0);
   });
 });
