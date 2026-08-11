@@ -42,6 +42,26 @@ export function isCallbackDataValid(data: string): boolean {
   return new TextEncoder().encode(data).length <= MAX_CALLBACK_DATA_BYTES;
 }
 
+/** زرّ طلبٍ (موقع أو رقم) أوّلاً، ثمّ أزرار القائمة الرئيسية تحته إن أُرفقت. */
+function requestMarkup(
+  button: {
+    readonly text: string;
+    readonly request_location?: true;
+    readonly request_contact?: true;
+  },
+  menuRows: readonly (readonly string[])[] | undefined,
+): ReplyMarkup {
+  if (menuRows === undefined || menuRows.length === 0) {
+    return { keyboard: [[button]], resize_keyboard: true, one_time_keyboard: true };
+  }
+  return {
+    keyboard: [[button], ...menuRows.map((row) => row.map((label) => ({ text: label })))],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+    is_persistent: true,
+  };
+}
+
 export function toTelegramMarkup(keyboard: Keyboard | null): TelegramMarkup | undefined {
   if (keyboard === null) return undefined;
 
@@ -65,18 +85,12 @@ export function toTelegramMarkup(keyboard: Keyboard | null): TelegramMarkup | un
             resize_keyboard: true,
             one_time_keyboard: true,
           };
+    // البند 4.3: القائمة المرفقة تجعل اللوحة دائمةً لا لمرّة: زرّ الدعم لا يجوز
+    // أن يطويه إرسال موقع، وإرسال الموقع نفسه قد يُعاد (موقع خارج المدينة يُرفض).
     case "request_location":
-      return {
-        keyboard: [[{ text: keyboard.label, request_location: true }]],
-        resize_keyboard: true,
-        one_time_keyboard: true,
-      };
+      return requestMarkup({ text: keyboard.label, request_location: true }, keyboard.menuRows);
     case "request_contact":
-      return {
-        keyboard: [[{ text: keyboard.label, request_contact: true }]],
-        resize_keyboard: true,
-        one_time_keyboard: true,
-      };
+      return requestMarkup({ text: keyboard.label, request_contact: true }, keyboard.menuRows);
     case "remove":
       return { remove_keyboard: true };
   }

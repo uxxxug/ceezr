@@ -130,6 +130,42 @@ describe("toTelegramMarkup", () => {
     });
   });
 
+  /**
+   * البند 4.3: لوحة الردّ في تلغرام واحدة لا تتراكم، فزرّ موقع وحده يمحو القائمة
+   * الدائمة — ومعها زرّ الدعم — في منتصف الطلب. القائمة المرفقة تحته هي الإصلاح،
+   * وتصير اللوحة دائمةً لا لمرّة لأن إرسال الموقع قد يُعاد (موقع خارج المدينة يُرفض).
+   */
+  it("يُرفِق القائمة تحت زرّ الطلب فتصير اللوحة دائمة", () => {
+    expect(
+      toTelegramMarkup({
+        kind: "request_location",
+        label: "موقعي",
+        menuRows: [["مشوار", "توصيل"], ["الدعم"]],
+      }),
+    ).toEqual({
+      keyboard: [
+        [{ text: "موقعي", request_location: true }],
+        [{ text: "مشوار" }, { text: "توصيل" }],
+        [{ text: "الدعم" }],
+      ],
+      resize_keyboard: true,
+      one_time_keyboard: false,
+      is_persistent: true,
+    });
+
+    expect(
+      toTelegramMarkup({ kind: "request_contact", label: "رقمي", menuRows: [["الدعم"]] }),
+    ).toMatchObject({ is_persistent: true, one_time_keyboard: false });
+  });
+
+  it("قائمة فارغة تُعيد سلوك الزرّ المفرد كما كان", () => {
+    expect(toTelegramMarkup({ kind: "request_location", label: "موقعي", menuRows: [] })).toEqual({
+      keyboard: [[{ text: "موقعي", request_location: true }]],
+      resize_keyboard: true,
+      one_time_keyboard: true,
+    });
+  });
+
   it("يحوّل إزالة اللوحة، ويعيد undefined لغياب اللوحة", () => {
     expect(toTelegramMarkup({ kind: "remove" })).toEqual({ remove_keyboard: true });
     expect(toTelegramMarkup(null)).toBeUndefined();
@@ -165,9 +201,16 @@ describe("محوّل بوت السائق", () => {
       message: { chat: { id: 900 }, from: { id: 900 }, text: "أحمد العمري" },
     });
     const last = sender.sent[sender.sent.length - 1];
-    expect(last?.markup).toMatchObject({
-      keyboard: [[{ request_contact: true }]],
-    });
+    const markup = last?.markup as
+      | { keyboard: { text: string; request_contact?: true }[][] }
+      | undefined;
+    expect(markup?.keyboard[0]).toEqual([
+      { text: translate("ar", "driver.share_phone_button"), request_contact: true },
+    ]);
+    // البند 4.3: زرّ الدعم حاضر في نفس اللوحة، فخطوة الرقم لا تسلبه من السائق الجديد
+    expect(markup?.keyboard.flat().map((button) => button.text)).toContain(
+      translate("ar", "menu.support"),
+    );
   });
 
   it("يعترف بالاستلام ولا يردّ على تحديث لا يخصّنا", async () => {

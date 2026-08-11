@@ -68,8 +68,22 @@ export type Keyboard =
       readonly rows: readonly (readonly string[])[];
       readonly persistent?: true;
     }
-  | { readonly kind: "request_location"; readonly label: string }
-  | { readonly kind: "request_contact"; readonly label: string }
+  /**
+   * زرّ إرسال الموقع. `menuRows` ليست تجميلاً: لوحة الردّ في تلغرام واحدة لا
+   * تتراكم، فكل لوحة طلبِ موقع تُرسَل **تمحو** القائمة الرئيسية من أسفل الشاشة —
+   * فيبقى العميل في منتصف طلبه بزرٍّ واحد لا زرّ دعم ولا لغة، وهو نقضٌ صريح
+   * لمطلب البند 4.3: الدعم بضغطة واحدة في كل الحالات. فتُضمّ القائمة تحت الزرّ.
+   */
+  | {
+      readonly kind: "request_location";
+      readonly label: string;
+      readonly menuRows?: readonly (readonly string[])[];
+    }
+  | {
+      readonly kind: "request_contact";
+      readonly label: string;
+      readonly menuRows?: readonly (readonly string[])[];
+    }
   | { readonly kind: "remove" };
 
 export interface BotReply {

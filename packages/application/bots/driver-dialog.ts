@@ -37,7 +37,7 @@ import {
   handleLanguageCommand,
   type LanguageDialogDependencies,
 } from "./language-dialog.ts";
-import { commandForMenuText, mainMenuKeyboard } from "./main-menu.ts";
+import { commandForMenuText, mainMenuKeyboard, requestWithMenuKeyboard } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
 import {
   handleCompleteRide,
@@ -143,6 +143,28 @@ function menu(state: DialogState): Keyboard {
   return mainMenuKeyboard("driver", languageOf(state));
 }
 
+/**
+ * طلب الرقم ومعه القائمة تحته — البند 4.3.
+ * خطوة الرقم أكثر مواضع تعثّر السائق الجديد (رقم مكتوب، بطاقة غيره، رقم دولي،
+ * خصوصية تمنع مشاركة الرقم) — وكانت لوحتها تمحو زرّ الدعم وزرّ اللغة معاً.
+ */
+function phoneRequest(state: DialogState): Keyboard {
+  return requestWithMenuKeyboard(
+    { kind: "request_contact", label: t(languageOf(state))("driver.share_phone_button") },
+    "driver",
+    languageOf(state),
+  );
+}
+
+/** طلب الموقع ومعه القائمة تحته — لنفس سبب `phoneRequest`. */
+function locationRequest(state: DialogState): Keyboard {
+  return requestWithMenuKeyboard(
+    { kind: "request_location", label: t(languageOf(state))("driver.share_location_button") },
+    "driver",
+    languageOf(state),
+  );
+}
+
 async function loadState(deps: DriverBotDependencies, sender: Sender): Promise<DialogState> {
   const stored = await deps.sessions.load(sender.telegramUserId);
   if (stored.ok && stored.value !== null) return stored.value;
@@ -179,12 +201,7 @@ export async function handleDriverUpdate(
      * شخص آخر تصل بنفس شكل زرّ "مشاركة رقمي" — الفرق الوحيد هذا الحقل.
      */
     if (update.ownerTelegramId !== sender.telegramUserId) {
-      return [
-        reply(sender, t(languageOf(state))("driver.phone_not_yours"), {
-          kind: "request_contact",
-          label: t(languageOf(state))("driver.share_phone_button"),
-        }),
-      ];
+      return [reply(sender, t(languageOf(state))("driver.phone_not_yours"), phoneRequest(state))];
     }
     return handlePhone(update.phone, sender, state, deps);
   }
@@ -230,10 +247,7 @@ export async function handleDriverUpdate(
        * ما يُخزَّن في `driver.phone` يجب أن يكون مضموناً بتلغرام دائماً.
        */
       return [
-        reply(sender, t(languageOf(state))("driver.phone_must_use_button"), {
-          kind: "request_contact",
-          label: t(languageOf(state))("driver.share_phone_button"),
-        }),
+        reply(sender, t(languageOf(state))("driver.phone_must_use_button"), phoneRequest(state)),
       ];
     case "awaiting_plate_number":
       return handlePlateNumber(text, sender, state, deps);
@@ -432,12 +446,7 @@ async function handleCommand(
 
       if (goingAvailable && !driver.hasLocation) {
         replies.push(reply(sender, tr("driver.available_needs_location")));
-        replies.push(
-          reply(sender, tr("driver.ask_location"), {
-            kind: "request_location",
-            label: tr("driver.share_location_button"),
-          }),
-        );
+        replies.push(reply(sender, tr("driver.ask_location"), locationRequest(state)));
       } else {
         replies.push(
           reply(
@@ -457,7 +466,7 @@ async function handleCommand(
 
     case "/support": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
-      if (driver === null) return [reply(sender, tr("support.not_registered"))];
+      if (driver === null) return [reply(sender, tr("support.not_registered"), menu(state))];
       return startSupportDialog(sender, state, deps.support, { allowSubscriptionType: true });
     }
 
@@ -544,12 +553,7 @@ async function handleName(
   });
   if (!saved.ok) return technicalFailure(sender, state);
 
-  return [
-    reply(sender, tr("driver.ask_phone"), {
-      kind: "request_contact",
-      label: tr("driver.share_phone_button"),
-    }),
-  ];
+  return [reply(sender, tr("driver.ask_phone"), phoneRequest(state))];
 }
 
 async function handlePhone(
@@ -569,7 +573,9 @@ async function handlePhone(
   const cities = await deps.cities.listActive();
   if (!cities.ok) return technicalFailure(sender, state);
   if (cities.value.length === 0) {
-    return [reply(sender, tr("common.no_active_city"), { kind: "remove" })];
+    // البند 4.3: إزالة اللوحة هنا كانت تسلب السائق زرّ الدعم في عطلٍ ليس من فعله
+    // («لا مدينة عاملة» خلل تشغيلي عندنا)، وهي بالضبط الحالة التي يجب أن يشتكي فيها.
+    return [reply(sender, tr("common.no_active_city"), menu(state))];
   }
 
   const saved = await deps.sessions.save(sender.telegramUserId, {
@@ -854,7 +860,9 @@ async function completeRegistration(
      */
     if (isDuplicateNationalId(registered.error)) {
       await deps.sessions.clear(sender.telegramUserId);
-      return [reply(sender, tr("driver.national_id_taken"), { kind: "remove" })];
+      // البند 4.3: رفضٌ مفهوم لا خروج من البوت — ومن رُفض لازدواج هويّة هو أوّل
+      // من يحتاج زرّ الدعم، فإزالة اللوحة كانت تسدّ عليه الطريق الوحيد للاعتراض.
+      return [reply(sender, tr("driver.national_id_taken"), menu(state))];
     }
     return technicalFailure(sender, state);
   }

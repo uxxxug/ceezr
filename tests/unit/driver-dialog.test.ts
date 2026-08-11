@@ -11,7 +11,10 @@ import {
   type DriverBotDependencies,
   handleDriverUpdate,
 } from "../../packages/application/bots/driver-dialog.ts";
-import { mainMenuKeyboard } from "../../packages/application/bots/main-menu.ts";
+import {
+  mainMenuKeyboard,
+  requestWithMenuKeyboard,
+} from "../../packages/application/bots/main-menu.ts";
 import type { SupportDialogDependencies } from "../../packages/application/bots/support-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
@@ -97,10 +100,14 @@ describe("تسجيل السائق — المسار الكامل", () => {
 
     const name = await handleDriverUpdate(text("أحمد   العمري"), deps);
     expect(name[0]?.text).toBe(ar("driver.ask_phone"));
-    expect(name[0]?.keyboard).toEqual({
-      kind: "request_contact",
-      label: ar("driver.share_phone_button"),
-    });
+    // البند 4.3: زرّ الرقم ومعه القائمة تحته لا يمحوها
+    expect(name[0]?.keyboard).toEqual(
+      requestWithMenuKeyboard(
+        { kind: "request_contact", label: ar("driver.share_phone_button") },
+        "driver",
+        "ar",
+      ),
+    );
 
     const phone = await handleDriverUpdate(contact("0501234567"), deps);
     expect(phone[0]?.text).toBe(ar("driver.ask_city"));
@@ -557,9 +564,87 @@ describe("متانة الحوار", () => {
     const drivers = driverDirectory(verifiedDriver({ hasLocation: false }));
     const replies = await handleDriverUpdate(text("/available"), build({ drivers }));
     expect(replies.map((r) => r.text)).toContain(ar("driver.ask_location"));
-    expect(replies[1]?.keyboard).toEqual({
-      kind: "request_location",
-      label: ar("driver.share_location_button"),
-    });
+    expect(replies[1]?.keyboard).toEqual(
+      requestWithMenuKeyboard(
+        { kind: "request_location", label: ar("driver.share_location_button") },
+        "driver",
+        "ar",
+      ),
+    );
+  });
+});
+
+/**
+ * البند 4.3 — الدعم بضغطة واحدة في كل الحالات. المطلب ليس وجود زرّ في القائمة
+ * (ذاك أُنجز في 2.1) بل **بقاؤه معروضاً**: لوحة الردّ في تلغرام واحدة لا تتراكم،
+ * فكل لوحة طلبِ رقم أو موقع أو إزالةٍ كانت تمحو القائمة — ومعها زرّ الدعم —
+ * في الخطوات الطويلة نفسها التي يتعثّر فيها المستخدم فيحتاج الدعم.
+ */
+describe("زرّ الدعم لا يغيب في أي حالة — بوت السائق", () => {
+  const supportLabel = ar("menu.support");
+
+  /** كل نصوص الأزرار المعروضة في لوحة ردّ واحدة، أيّاً كان نوعها. */
+  const labelsOf = (keyboard: unknown): readonly string[] => {
+    const board = keyboard as
+      | { kind: string; rows?: string[][]; label?: string; menuRows?: string[][] }
+      | null
+      | undefined;
+    if (board === null || board === undefined) return [];
+    if (board.kind === "reply") return (board.rows ?? []).flat();
+    if (board.kind === "request_location" || board.kind === "request_contact") {
+      return [board.label ?? "", ...(board.menuRows ?? []).flat()];
+    }
+    return [];
+  };
+
+  it("خطوة الرقم تُبقي زرّ الدعم — وهي أكثر مواضع تعثّر السائق الجديد", async () => {
+    await handleDriverUpdate(text("/start"), deps);
+    const asked = await handleDriverUpdate(text("أحمد العمري"), deps);
+    expect(labelsOf(asked[0]?.keyboard)).toContain(supportLabel);
+  });
+
+  it("رقم مكتوب بلا زرّ يُرفض والقائمة باقية", async () => {
+    await handleDriverUpdate(text("/start"), deps);
+    await handleDriverUpdate(text("أحمد العمري"), deps);
+    const typed = await handleDriverUpdate(text("0501234567"), deps);
+    expect(typed[0]?.text).toBe(ar("driver.phone_must_use_button"));
+    expect(labelsOf(typed[0]?.keyboard)).toContain(supportLabel);
+  });
+
+  it("طلب الموقع عند /available يُبقي زرّ الدعم", async () => {
+    const drivers = driverDirectory(verifiedDriver({ hasLocation: false }));
+    const replies = await handleDriverUpdate(text("/available"), build({ drivers }));
+    expect(labelsOf(replies[1]?.keyboard)).toContain(supportLabel);
+  });
+
+  /**
+   * «لا مدينة عاملة» خللٌ تشغيلي عندنا لا خطأ من السائق، وكان يُرسَل مع إزالة
+   * اللوحة — فيبقى في شاشة خالية بلا طريق شكوى من عطلٍ ليس من فعله.
+   */
+  it("غياب المدن العاملة لا يُخلي أسفل الشاشة", async () => {
+    await handleDriverUpdate(text("/start"), deps);
+    await handleDriverUpdate(text("أحمد العمري"), deps);
+    const replies = await handleDriverUpdate(
+      contact("0501234567"),
+      build({ cities: cityDirectory([]) }),
+    );
+    expect(replies[0]?.text).toBe(ar("common.no_active_city"));
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+  });
+
+  it("‏/support من غير مسجَّل يردّ بالقائمة لا بنصّ عارٍ", async () => {
+    const d = build({ support: { sessions: deps.sessions } as SupportDialogDependencies });
+    const replies = await handleDriverUpdate(text("/support"), d);
+    expect(replies[0]?.text).toBe(ar("support.not_registered"));
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+  });
+
+  /** ضغطة واحدة: زرّ الدعم نصّاً وسط خطوة تسجيل لا يُسجَّل اسماً ولا رقماً. */
+  it("زرّ الدعم وسط خطوة الاسم يفتح الدعم لا يُسجَّل اسماً", async () => {
+    const d = build({ support: { sessions: deps.sessions } as SupportDialogDependencies });
+    await handleDriverUpdate(text("/start"), d);
+    const pressed = await handleDriverUpdate(text(supportLabel), d);
+    expect(pressed[0]?.text).toBe(ar("support.not_registered"));
+    expect(pressed[0]?.text).not.toBe(ar("driver.ask_phone"));
   });
 });

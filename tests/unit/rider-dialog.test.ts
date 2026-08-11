@@ -7,11 +7,15 @@
  */
 import { beforeEach, describe, expect, it } from "bun:test";
 import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
-import { mainMenuKeyboard } from "../../packages/application/bots/main-menu.ts";
+import {
+  mainMenuKeyboard,
+  requestWithMenuKeyboard,
+} from "../../packages/application/bots/main-menu.ts";
 import {
   handleRiderUpdate,
   type RiderBotDependencies,
 } from "../../packages/application/bots/rider-dialog.ts";
+import type { SupportDialogDependencies } from "../../packages/application/bots/support-dialog.ts";
 import type {
   ActiveOrderSummary,
   IncomingUpdate,
@@ -157,10 +161,14 @@ describe("تسجيل العميل وطلب رحلة", () => {
 
     const chosen = await handleRiderUpdate(callback("svc:transport"), withRiders);
     expect(chosen[0]?.text).toBe(ar("rider.ask_pickup"));
-    expect(chosen[0]?.keyboard).toEqual({
-      kind: "request_location",
-      label: ar("rider.share_location_button"),
-    });
+    // البند 4.3: زرّ الموقع ومعه القائمة تحته، فزرّ الدعم لا يُمحى في منتصف الطلب
+    expect(chosen[0]?.keyboard).toEqual(
+      requestWithMenuKeyboard(
+        { kind: "request_location", label: ar("rider.share_location_button") },
+        "rider",
+        "ar",
+      ),
+    );
 
     const pickup = await handleRiderUpdate(location(PICKUP), withRiders);
     expect(pickup[0]?.text).toBe(ar("rider.ask_dropoff"));
@@ -685,5 +693,71 @@ describe("تتبّع الطلب: /status", () => {
     const created = await handleRiderUpdate(text("/skip"), d);
     expect(created[0]?.text).toBe(ar("rider.searching"));
     expect(created[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }));
+  });
+});
+
+/**
+ * البند 4.3 في بوت العميل. طلب المشوار خطوتا موقع على الأقلّ، وهي اللحظة التي
+ * كانت لوحة «أرسل موقعي» تمحو فيها القائمة الدائمة — فيبقى العميل بزرٍّ واحد
+ * لا زرّ دعم ولا لغة، وهو نفسه من قد لا يقرأ العربية.
+ */
+describe("زرّ الدعم لا يغيب في أي حالة — بوت العميل", () => {
+  const supportLabel = ar("menu.support");
+  const RIDER = {
+    id: "rider-9" as RiderId,
+    cityId: JEDDAH.id,
+    telegramUserId: "500",
+    fullName: "سالم",
+  };
+
+  const labelsOf = (keyboard: unknown): readonly string[] => {
+    const board = keyboard as
+      | { kind: string; rows?: string[][]; label?: string; menuRows?: string[][] }
+      | null
+      | undefined;
+    if (board === null || board === undefined) return [];
+    if (board.kind === "reply") return (board.rows ?? []).flat();
+    if (board.kind === "request_location" || board.kind === "request_contact") {
+      return [board.label ?? "", ...(board.menuRows ?? []).flat()];
+    }
+    return [];
+  };
+
+  it("طلب موقع الانطلاق يُبقي زرّ الدعم معروضاً", async () => {
+    const d = build({ riders: riderDirectory(RIDER) });
+    const asked = await handleRiderUpdate(text("/ride"), d);
+    expect(labelsOf(asked[0]?.keyboard)).toContain(supportLabel);
+  });
+
+  it("مسار التوصيل كذلك — لا فرق بين خدمة وخدمة في الوصول إلى الدعم", async () => {
+    const d = build({ riders: riderDirectory(RIDER) });
+    const asked = await handleRiderUpdate(text("/delivery"), d);
+    expect(labelsOf(asked[0]?.keyboard)).toContain(supportLabel);
+  });
+
+  it("عنوان نصّي مكان الموقع يُرفض والقائمة باقية على جهازه", async () => {
+    const d = build({ riders: riderDirectory(RIDER) });
+    await handleRiderUpdate(text("/ride"), d);
+    const refused = await handleRiderUpdate(text("حي الصفا"), d);
+    expect(refused[0]?.text).toBe(ar("rider.location_required"));
+  });
+
+  it("‏/support من غير مسجَّل يردّ بالقائمة لا بنصّ عارٍ", async () => {
+    const d = build({ support: { sessions: deps.sessions } as SupportDialogDependencies });
+    const replies = await handleRiderUpdate(text("/support"), d);
+    expect(replies[0]?.text).toBe(ar("support.not_registered"));
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar"));
+  });
+
+  /** ضغطة واحدة وسط انتظار الموقع: لا تُقرأ نصّاً فتُرفض بـ«الموقع مطلوب». */
+  it("زرّ الدعم وسط انتظار الموقع يفتح الدعم لا يُرفض كعنوان", async () => {
+    const d = build({
+      riders: riderDirectory(RIDER),
+      support: { sessions: deps.sessions } as SupportDialogDependencies,
+    });
+    await handleRiderUpdate(text("/ride"), d);
+    const pressed = await handleRiderUpdate(text(supportLabel), d);
+    expect(pressed[0]?.text).toBe(ar("support.ask_message"));
+    expect(pressed[0]?.text).not.toBe(ar("rider.location_required"));
   });
 });

@@ -94,13 +94,42 @@ export function mainMenuKeyboard(
   language: string,
   context: MenuContext = {},
 ): Keyboard {
+  return { kind: "reply", rows: menuRowsFor(audience, language, context), persistent: true };
+}
+
+/** أزرار القائمة صفوفاً — لتُرفَق تحت زرّ طلب موقع أو رقم أيضاً. */
+function menuRowsFor(
+  audience: BotAudience,
+  language: string,
+  context: MenuContext = {},
+): readonly (readonly string[])[] {
   const tr = t(language);
   const labels = menuItemsFor(audience, context).map((item) => tr(item.key));
   const rows: string[][] = [];
   for (let index = 0; index < labels.length; index += 2) {
     rows.push(labels.slice(index, index + 2).filter((label) => label !== undefined));
   }
-  return { kind: "reply", rows, persistent: true };
+  return rows;
+}
+
+/**
+ * طلب موقع أو رقم **مع** القائمة الرئيسية تحته — البند 4.3.
+ *
+ * لوحة الردّ في تلغرام واحدة لا تتراكم: لوحة فيها زرّ «أرسل موقعي» وحده تمحو
+ * القائمة الدائمة من أسفل الشاشة. وخطوات الطلب والتسجيل هي أطول ما يمرّ به
+ * المستخدم وأكثر مواضع تعثّره — فكان زرّ الدعم يغيب في اللحظة التي يُطلب فيها.
+ */
+export function requestWithMenuKeyboard(
+  request: { readonly kind: "request_location" | "request_contact"; readonly label: string },
+  audience: BotAudience,
+  language: string,
+  context: MenuContext = {},
+): Keyboard {
+  return {
+    kind: request.kind,
+    label: request.label,
+    menuRows: menuRowsFor(audience, language, context),
+  };
 }
 
 /**

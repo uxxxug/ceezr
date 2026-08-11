@@ -27,7 +27,12 @@ import {
   handleLanguageCommand,
   type LanguageDialogDependencies,
 } from "./language-dialog.ts";
-import { commandForMenuText, type MenuContext, mainMenuKeyboard } from "./main-menu.ts";
+import {
+  commandForMenuText,
+  type MenuContext,
+  mainMenuKeyboard,
+  requestWithMenuKeyboard,
+} from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
 import { handleRatingCallback, type RatingDialogDependencies } from "./rating-dialog.ts";
 import {
@@ -82,6 +87,15 @@ function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): 
 /** القائمة الدائمة بلغة الحالة الحالية — لغة الجلسة لا ثابتة، فالقائمة تُبنى عند كل ردّ. */
 function menu(state: DialogState, context: MenuContext = {}): Keyboard {
   return mainMenuKeyboard("rider", state.language, context);
+}
+
+/** طلب الموقع ومعه القائمة الرئيسية تحته — البند 4.3: لا تُمحى القائمة في منتصف الطلب. */
+function locationRequest(state: DialogState): Keyboard {
+  return requestWithMenuKeyboard(
+    { kind: "request_location", label: t(state.language)("rider.share_location_button") },
+    "rider",
+    state.language,
+  );
 }
 
 /** قائمةٌ فيها زرّ التتبّع — تُستعمل حيث نعلم يقيناً أنّ للعميل طلباً نشطاً. */
@@ -503,7 +517,7 @@ async function handleCommand(
 
     case "/support": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
-      if (rider === null) return [reply(sender, tr("support.not_registered"))];
+      if (rider === null) return [reply(sender, tr("support.not_registered"), menu(state))];
       // العميل لا يملك اشتراكاً، فسؤاله عن نوع المشكلة يولّد تذاكر مرفوضة حتماً
       return startSupportDialog(sender, state, deps.support, { allowSubscriptionType: false });
     }
@@ -650,10 +664,12 @@ async function startServiceFlow(
   });
   if (!saved.ok) return technicalFailure(sender, state);
   return [
-    reply(sender, tr(service === "delivery" ? "rider.ask_parcel_pickup" : "rider.ask_pickup"), {
-      kind: "request_location",
-      label: tr("rider.share_location_button"),
-    }),
+    // البند 4.3: زرّ الموقع ومعه القائمة، فلا يُمحى زرّ الدعم في منتصف الطلب
+    reply(
+      sender,
+      tr(service === "delivery" ? "rider.ask_parcel_pickup" : "rider.ask_pickup"),
+      locationRequest(state),
+    ),
   ];
 }
 
