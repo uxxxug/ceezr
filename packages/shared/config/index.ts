@@ -114,6 +114,12 @@ export class InvalidEnvVarError extends Error {
 
 export type ConfigError = MissingEnvVarError | InvalidEnvVarError;
 
+/** الحدّ الأدنى لطول سرّ الويبهوك في الإنتاج — مطابق لما تشترطه وثيقة النشر. */
+export const MIN_WEBHOOK_SECRET_LENGTH = 32;
+
+/** مجموعة المحارف التي يقبلها تلغرام في ترويسة secret_token. */
+const TELEGRAM_SECRET_CHARSET = /^[A-Za-z0-9_-]+$/;
+
 function isBlank(value: string | undefined): boolean {
   return value === undefined || value.trim() === "";
 }
@@ -168,6 +174,33 @@ export function tryLoadConfig(
     return err(
       new InvalidEnvVarError("DATABASE_URL", "يجب أن يبدأ بـ postgres:// أو postgresql://"),
     );
+  }
+
+  // سرّ الويبهوك هو الشيء الوحيد الذي يفصل بين تحديث تلغرام حقيقي وتحديث
+  // مزوَّر. ونموذج الهوية كله يثق بـ `update.message.from.id` بعد اجتيازه، أي
+  // أن تخمين هذا السرّ = انتحال أي سائق أو راكب. الوثائق تشترط ≥٣٢ محرفاً منذ
+  // البداية (docs/render-deployment-vars.md) لكن لم يُفرض ذلك في أي مكان، فبقي
+  // الشرط توصيةً تُخالَف بلا إنذار. الفرض هنا في الإنتاج وحده كي لا تُكسر
+  // اختبارات الوحدة التي تستعمل أسراراً قصيرة عمداً.
+  // المحارف المسموحة هي ما يقبله تلغرام نفسه في secret_token.
+  const telegramWebhookSecret = source.TELEGRAM_WEBHOOK_SECRET as string;
+  if (env === "production") {
+    if (telegramWebhookSecret.length < MIN_WEBHOOK_SECRET_LENGTH) {
+      return err(
+        new InvalidEnvVarError(
+          "TELEGRAM_WEBHOOK_SECRET",
+          `يجب ألا يقلّ عن ${MIN_WEBHOOK_SECRET_LENGTH} محرفاً في الإنتاج — وردت ${telegramWebhookSecret.length}`,
+        ),
+      );
+    }
+    if (!TELEGRAM_SECRET_CHARSET.test(telegramWebhookSecret)) {
+      return err(
+        new InvalidEnvVarError(
+          "TELEGRAM_WEBHOOK_SECRET",
+          "يقبل تلغرام في secret_token المحارف A-Z a-z 0-9 _ - فقط",
+        ),
+      );
+    }
   }
 
   const bootstrapAdminTelegramId = (source.BOOTSTRAP_ADMIN_TELEGRAM_ID as string).trim();
@@ -226,7 +259,7 @@ export function tryLoadConfig(
     redisToken: source.UPSTASH_REDIS_REST_TOKEN as string,
     driverBotToken: source.DRIVER_BOT_TOKEN as string,
     riderBotToken: source.RIDER_BOT_TOKEN as string,
-    telegramWebhookSecret: source.TELEGRAM_WEBHOOK_SECRET as string,
+    telegramWebhookSecret,
     bootstrapAdminTelegramId,
     translationProvider,
     translationApiKey,

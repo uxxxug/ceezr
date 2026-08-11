@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from "bun:test";
 import {
+  MIN_WEBHOOK_SECRET_LENGTH,
   missingEnvKeys,
   REQUIRED_ENV_KEYS,
   tryLoadConfig,
@@ -69,7 +70,13 @@ describe("tryLoadConfig", () => {
   });
 
   it("يميّز بيئة الإنتاج والاختبار ويردّ ما سواهما إلى التطوير", () => {
-    const prod = tryLoadConfig({ ...FULL, NODE_ENV: "production" });
+    // الإنتاج يفرض حدّاً أدنى لطول سرّ الويبهوك، وموضوع هذا الاختبار قراءة اسم
+    // البيئة لا قوّة السرّ، فيُمرَّر سرّ مستوفٍ حتى لا يقيس شيئين معاً.
+    const prod = tryLoadConfig({
+      ...FULL,
+      NODE_ENV: "production",
+      TELEGRAM_WEBHOOK_SECRET: "a".repeat(MIN_WEBHOOK_SECRET_LENGTH),
+    });
     const test = tryLoadConfig({ ...FULL, NODE_ENV: "test" });
     const weird = tryLoadConfig({ ...FULL, NODE_ENV: "staging" });
     expect(prod.ok && prod.value.env).toBe("production");
@@ -109,5 +116,54 @@ describe("DATABASE_URL", () => {
       DATABASE_URL: "postgresql://user:pass@host:5432/postgres",
     });
     expect(result.ok).toBe(true);
+  });
+
+  // سرّ الويبهوك هو الحدّ الوحيد بين محادثة حقيقية وانتحال كامل لهوية أي
+  // سائق أو راكب، لأن ما بعده يثق بـ from.id بلا تحقق إضافي.
+  describe("قوّة سرّ الويبهوك", () => {
+    const STRONG = "a".repeat(MIN_WEBHOOK_SECRET_LENGTH);
+
+    it("يرفض سرّاً أقصر من الحدّ الأدنى في الإنتاج", () => {
+      const result = tryLoadConfig({
+        ...FULL,
+        NODE_ENV: "production",
+        TELEGRAM_WEBHOOK_SECRET: "a".repeat(MIN_WEBHOOK_SECRET_LENGTH - 1),
+      });
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.code).toBe("INVALID_ENV_VAR");
+      if (result.error.code !== "INVALID_ENV_VAR") return;
+      expect(result.error.key).toBe("TELEGRAM_WEBHOOK_SECRET");
+    });
+
+    it("يرفض محارف لا يقبلها تلغرام حتى لو طال السرّ", () => {
+      const result = tryLoadConfig({
+        ...FULL,
+        NODE_ENV: "production",
+        TELEGRAM_WEBHOOK_SECRET: `${"س".repeat(MIN_WEBHOOK_SECRET_LENGTH)}`,
+      });
+      expect(result.ok).toBe(false);
+      if (result.ok) return;
+      expect(result.error.code).toBe("INVALID_ENV_VAR");
+      if (result.error.code !== "INVALID_ENV_VAR") return;
+      expect(result.error.key).toBe("TELEGRAM_WEBHOOK_SECRET");
+    });
+
+    it("يقبل سرّاً مستوفياً في الإنتاج", () => {
+      const result = tryLoadConfig({
+        ...FULL,
+        NODE_ENV: "production",
+        TELEGRAM_WEBHOOK_SECRET: STRONG,
+      });
+      expect(result.ok).toBe(true);
+    });
+
+    // القيد إنتاجي عمداً: التطوير والاختبار يستعملان أسراراً قصيرة مقروءة.
+    it("لا يفرض القيد خارج الإنتاج", () => {
+      expect(tryLoadConfig({ ...FULL, TELEGRAM_WEBHOOK_SECRET: "short" }).ok).toBe(true);
+      expect(
+        tryLoadConfig({ ...FULL, NODE_ENV: "test", TELEGRAM_WEBHOOK_SECRET: "short" }).ok,
+      ).toBe(true);
+    });
   });
 });
