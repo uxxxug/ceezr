@@ -98,11 +98,21 @@ function setupTestServer() {
   return { app, store, pub, tracking, tokenStore };
 }
 
+/**
+ * المرحلة ٥ — إصدار الرمز يفتح الجلسة معه.
+ *
+ * كان المزدوج يُصدر رمزاً بلا جلسة، وهي حالة **لا يمكن أن تقع في المسار
+ * الحقيقي**: `/track/session/start` هو الطريق الوحيد لإصدار رمز، وهو يفتح
+ * الجلسة في النداء نفسه. فكانت الاختبارات تُثبت سلوكاً على حالةٍ لا وجود لها،
+ * وتُخفي في الوقت ذاته أن الإصلاحات كانت تُقبل بلا جلسة أصلاً.
+ */
 async function issueToken(
   tokenStore: ReturnType<typeof fakeTokenStore>,
   driverId: string,
   tripId: string | null = null,
+  tracking?: TrackingService,
 ): Promise<string> {
+  await tracking?.startSession(driverId, tripId);
   return tokenStore.issue(driverId, tripId, 28800);
 }
 
@@ -175,8 +185,8 @@ describe("tracking route: authentication", () => {
 
 describe("tracking route: POST /track/gps (authenticated)", () => {
   it("يقبل تحديث GPS صحيح برمز صالح", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: {
@@ -195,8 +205,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
   });
 
   it("يرفض JSON غير صالح", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: {
@@ -209,8 +219,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
   });
 
   it("يرفض الحقول الناقصة (lat/lng)", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: {
@@ -223,8 +233,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
   });
 
   it("يرفض الانتقال اللحظي (teleport)", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
 
     // موقع صحيح أولاً
     await app.request("/track/gps", {
@@ -265,8 +275,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
   });
 
   it("يرفض إحداثية غير منتهية بـ400 قبل بلوغ الخدمة", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
@@ -276,8 +286,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
   });
 
   it("يرفض دقّة سالبة برموز مُعرَّفة", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
@@ -291,8 +301,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
 
 describe("tracking route: GET /track/:driverId (authenticated)", () => {
   it("يرجع 404 لسائق بلا موقع", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/d1", {
       headers: { authorization: `Bearer ${token}` },
     });
@@ -300,8 +310,8 @@ describe("tracking route: GET /track/:driverId (authenticated)", () => {
   });
 
   it("يرجع الموقع بعد تحديث GPS", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     await app.request("/track/gps", {
       method: "POST",
       headers: {

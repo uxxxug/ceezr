@@ -105,6 +105,7 @@ export function driverDirectory(existing: DriverProfile | null = null): DriverDi
         isVerified: false,
         isAvailable: false,
         hasLocation: false,
+        lastFix: null,
       };
       return ok(current);
     },
@@ -130,6 +131,7 @@ export function verifiedDriver(overrides: Partial<DriverProfile> = {}): DriverPr
     isVerified: true,
     isAvailable: false,
     hasLocation: true,
+    lastFix: null,
     ...overrides,
   };
 }

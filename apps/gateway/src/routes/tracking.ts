@@ -117,6 +117,24 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
 
     const result = await deps.tracking.handleGpsUpdate(update);
 
+    /**
+     * المرحلة ٥ — الرفضان يُفرَّق بينهما في الرمز وفي رمز الحالة.
+     *
+     * إصلاحةٌ سليمة بلا جلسةٍ نشطة ليست بياناً مرفوضاً (422) بل طلباً في غير
+     * أوانه (409): التطبيق يجب أن يفتح جلسةً ثم يُعيد الإرسال، لا أن يُصلح
+     * حسّاس موقعه. وخلطُهما كان سيجعل السائق يرى «موقع غير صالح» وموقعه سليم.
+     */
+    if (!result.accepted && result.rejection === "NO_ACTIVE_SESSION") {
+      deps.log?.("GPS update without active session", {
+        driverId: auth.driverId,
+        sessionState: result.sessionState,
+      });
+      return c.json(
+        { ok: false, error: "NO_ACTIVE_SESSION", sessionState: result.sessionState },
+        409,
+      );
+    }
+
     // الرموز مُعرَّفة لا نصوص حرّة: العميل يستطيع التفريع عليها، والسجلّ يُجمَّع بها.
     const rejections = result.assessment.findings
       .filter((f) => f.severity === "REJECT")

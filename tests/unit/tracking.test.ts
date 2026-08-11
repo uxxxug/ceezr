@@ -100,11 +100,13 @@ describe("tracking: service", () => {
       config: DEFAULT_TRACKING_CONFIG,
     });
 
+    // المرحلة ٥: الإصلاحة تحتاج جلسةً مفتوحة. كانت هذه الاختبارات تُرسل بلا جلسة
+    // وتنجح — وهو ما كشف أن `startSession` لم تكن تُنشئ شيئاً يُشترط وجوده.
+    await svc.startSession("d1", "trip-1");
     const result = await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
     expect(result.accepted).toBe(true);
     expect(store.data.has("d1")).toBe(true);
-    expect(pub.events.length).toBe(1);
-    expect(pub.events[0]!.type).toBe("location_updated");
+    expect(pub.events.map((e) => e.type)).toEqual(["session_started", "location_updated"]);
   });
 
   function service() {
@@ -119,8 +121,15 @@ describe("tracking: service", () => {
     return { store, pub, svc };
   }
 
+  async function startedService() {
+    const s = service();
+    await s.svc.startSession("d1", "trip-1");
+    s.pub.events.length = 0;
+    return s;
+  }
+
   it("يرفض إحداثيات غير صالحة فلا يخزّنها ولا ينشر عنها حدثاً", async () => {
-    const { store, pub, svc } = service();
+    const { store, pub, svc } = await startedService();
     const result = await svc.handleGpsUpdate(makeUpdate("d1", Number.NaN, 39.2));
     expect(result.accepted).toBe(false);
     expect(store.data.has("d1")).toBe(false);
@@ -129,13 +138,14 @@ describe("tracking: service", () => {
   });
 
   it("القفزة تُقبل وتُنشر كتنبيه — لا تُطرح", async () => {
-    const { store, pub, svc } = service();
+    const { store, pub, svc } = await startedService();
     await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
     const jump = await svc.handleGpsUpdate(
       makeUpdate("d1", 25.0, 45.0, { timestamp: NOW_MS + 1000 }),
     );
 
     expect(jump.accepted).toBe(true);
+    if (!jump.accepted) return;
     expect(jump.assessment.verdict).toBe("ALERT");
     expect(pub.events.some((e) => e.type === "teleport_detected")).toBe(true);
     // الموقع الأحدث هو أفضل ما نعرف عن السائق، فلا يُهمَل لصالح موقع ميت.
@@ -161,6 +171,7 @@ describe("tracking: service", () => {
       config: DEFAULT_TRACKING_CONFIG,
     });
 
+    await svc.startSession("d1", "trip-1");
     await svc.handleGpsUpdate(makeUpdate("d1", 21.4858, 39.1925, { timestamp: NOW_MS }));
 
     // خروج من نفق: الجهاز يستعيد الإشارة على بُعد ٨ كم — قفزة حقيقية لا احتيال.
@@ -174,6 +185,7 @@ describe("tracking: service", () => {
     );
 
     expect(after.accepted).toBe(true);
+    if (!after.accepted) return;
     expect(after.assessment.verdict).toBe("ACCEPT");
     expect(pub.events.filter((e) => e.type === "teleport_detected").length).toBe(1);
   });
@@ -198,5 +210,107 @@ describe("tracking: service", () => {
     expect(store.data.has("d1")).toBe(false);
     const endEvent = pub.events.find((e) => e.type === "session_ended");
     expect(endEvent).toBeDefined();
+  });
+
+  it("أحداث الجلسة لا تحمل إحداثية صفرية — «جزيرة الصفر» ليست موقعاً", async () => {
+    const { pub, svc } = service();
+    await svc.startSession("d1", "trip-1");
+    await svc.endSession("d1", "trip-1", "TRIP_COMPLETED");
+
+    // {lat:0,lng:0} نقطةٌ حقيقية في خليج غينيا تمرّ من كل تحقّق، فترسم السائق
+    // قبالة سواحل أفريقيا وتُنتج آلاف الكيلومترات في أي حساب مسافة.
+    for (const e of pub.events) expect(e.position).toBeNull();
+    expect(pub.events.find((e) => e.type === "session_ended")?.metadata).toEqual({
+      reason: "TRIP_COMPLETED",
+    });
+  });
+
+  it("إصلاحة بلا جلسة تُرفض برمز الجلسة لا برمز البيانات الفاسدة", async () => {
+    const { store, pub, svc } = service();
+    const result = await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
+
+    expect(result.accepted).toBe(false);
+    if (result.accepted) return;
+    expect(result.rejection).toBe("NO_ACTIVE_SESSION");
+    expect(store.data.has("d1")).toBe(false);
+    expect(pub.events.length).toBe(0);
+  });
+
+  it("إصلاحة متأخّرة بعد الإنهاء لا تُعيد السائق إلى الخريطة", async () => {
+    const { store, pub, svc } = service();
+    await svc.startSession("d1", "trip-1");
+    await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
+    await svc.endSession("d1", "trip-1", "TRIP_COMPLETED");
+    pub.events.length = 0;
+
+    const late = await svc.handleGpsUpdate(makeUpdate("d1", 21.51, 39.21));
+
+    expect(late.accepted).toBe(false);
+    if (late.accepted) return;
+    if (late.rejection !== "NO_ACTIVE_SESSION") return;
+    expect(late.sessionState).toBe("ENDED");
+    // وهذا هو الأثر الذي يهمّ العمليات: من أغلق تطبيقه لا يعود متاحاً.
+    expect(store.data.has("d1")).toBe(false);
+    expect(pub.events.length).toBe(0);
+  });
+
+  it("حالة الجلسة تُحسب من الزمن: ACTIVE ثم STALE بلا أي كتابة", async () => {
+    const store = fakeStore();
+    const pub = fakePublisher();
+    const clock = movableClock(NOW_MS);
+    const svc = new TrackingService({
+      store,
+      publisher: pub,
+      clock,
+      config: DEFAULT_TRACKING_CONFIG,
+    });
+
+    expect(svc.sessionState("d1")).toBeNull();
+    await svc.startSession("d1", "trip-1");
+    expect(svc.sessionState("d1")).toBe("CREATED");
+
+    await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
+    expect(svc.sessionState("d1")).toBe("ACTIVE");
+
+    clock.advance(31_000);
+    expect(svc.sessionState("d1")).toBe("STALE");
+
+    // والجلسة المنقطعة ما تزال تقبل: الانقطاع ليس إنهاءً.
+    const back = await svc.handleGpsUpdate(
+      makeUpdate("d1", 21.5005, 39.2005, { timestamp: NOW_MS + 31_000 }),
+    );
+    expect(back.accepted).toBe(true);
+    expect(svc.sessionState("d1")).toBe("ACTIVE");
+  });
+
+  it("بدء جلسة جديدة يُبطل سابقة الجلسة الماضية فلا تُقاس إزاحة عبر الفجوة", async () => {
+    const store = fakeStore();
+    const pub = fakePublisher();
+    const clock = movableClock(NOW_MS);
+    const svc = new TrackingService({
+      store,
+      publisher: pub,
+      clock,
+      config: DEFAULT_TRACKING_CONFIG,
+    });
+
+    await svc.startSession("d1", "trip-1");
+    await svc.handleGpsUpdate(makeUpdate("d1", 21.4858, 39.1925, { timestamp: NOW_MS }));
+    await svc.endSession("d1", "trip-1", "TRIP_COMPLETED");
+
+    // اليوم التالي، والسائق يبدأ من مكة لا من جدة.
+    clock.advance(20 * 60 * 60 * 1000);
+    const t2 = NOW_MS + 20 * 60 * 60 * 1000;
+    await svc.startSession("d1", "trip-2");
+    pub.events.length = 0;
+    const first = await svc.handleGpsUpdate(
+      makeUpdate("d1", 21.3891, 39.8579, { timestamp: t2, tripId: "trip-2" }),
+    );
+
+    expect(first.accepted).toBe(true);
+    if (!first.accepted) return;
+    // بلا إبطال السابقة كانت ٧٩ كم بين جلستين تُقرأ «انتقالاً لحظياً» وهمياً.
+    expect(first.assessment.verdict).toBe("ACCEPT");
+    expect(pub.events.some((e) => e.type === "teleport_detected")).toBe(false);
   });
 });

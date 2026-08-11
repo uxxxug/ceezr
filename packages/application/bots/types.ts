@@ -24,6 +24,15 @@ export interface LocationQualityHints {
 
 /** جودة الإصلاحة كما حكم عليها المجال، لا كما ادّعاها المصدر. */
 export interface StoredLocationQuality {
+  /**
+   * المرحلة ٥ — زمن **الجهاز** للإصلاحة، لا زمن الخادم.
+   *
+   * `last_location_at` تُكتب بـ`now()` وهي الصواب لسؤال «هل معرفتنا حديثة؟»
+   * والخطأ لقياس التتابع: مقارنة طابعِ جهازٍ جديد بطابعِ خادمٍ سابق تجعل المدة
+   * المقيسة زمنَ الشبكة لا زمن الرحلة، فتُقرأ ٢٥٠ متراً في ستين ثانية سرعةً
+   * لا نهائية. والفارق بين الساعتين متغيّر بطبيعته فلا يُصلَح بمعامل.
+   */
+  readonly recordedAtMs?: number | undefined;
   readonly accuracyMeters: number | null;
   readonly verdict: "ACCEPT" | "WARNING" | "ALERT";
 }
@@ -248,6 +257,17 @@ export interface DriverProfile {
   readonly isAvailable: boolean;
   /** بلا موقع محفوظ لا يدخل السائق المطابقة إطلاقاً — المسافة ركن في المعادلة. */
   readonly hasLocation: boolean;
+  /**
+   * المرحلة ٥ — آخر إصلاحة مقبولة كما هي في المصدر القانوني، أو `null` إن لم
+   * يُرسل السائق موقعاً قط. وجودها في الملفّ الشخصي مقصود: تحقّق التتابع يحتاج
+   * سابقةً، وجلبُها باستعلام ثانٍ كان سيفتح نافذةً تتغيّر فيها القيمة بين
+   * القراءتين — والأسوأ أنه يجعل السابقة تُقرأ من لحظةٍ غير لحظة الكتابة.
+   */
+  readonly lastFix: {
+    readonly latitude: number;
+    readonly longitude: number;
+    readonly recordedAtMs: number;
+  } | null;
 }
 
 export interface RegisterDriverInput {

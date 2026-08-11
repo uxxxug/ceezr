@@ -7,8 +7,12 @@
  * ملاحظات مستقبلية: كل قيمة تجارية (السعر، مدة التجربة) تُقرأ من platform_settings عبر منفذ الإعدادات.
  */
 
-import { assessGpsFix, DEFAULT_GPS_POLICY } from "../../domain/geo/gps-fix.ts";
-import { type Coordinates, parseAreaLabel } from "../../domain/geo/value-objects.ts";
+import { assessGpsFix, DEFAULT_GPS_POLICY, type PreviousFix } from "../../domain/geo/gps-fix.ts";
+import {
+  type Coordinates,
+  makeCoordinates,
+  parseAreaLabel,
+} from "../../domain/geo/value-objects.ts";
 import { parseFullName, parsePhone } from "../../domain/identity/value-objects.ts";
 import {
   parseNationalId,
@@ -1145,6 +1149,23 @@ async function handleOfferDecision(
  * موقع السائق يُحفظ فوراً: بلا موقع لا مطابقة، ومع موقع قديم تكون المطابقة كاذبة.
  * السائق غير المسجَّل لا يُحفظ له موقع إطلاقاً.
  */
+/**
+ * المرحلة ٥ — الإصلاحة السابقة للمُقيِّم. كانت `null` ثابتةً في المرحلة ٤، وهو
+ * ما كان يُعطّل نصف المُقيِّم في المسار الحيّ: الإحداثيات والدقّة والزمن كانت
+ * تُفحص، أمّا الإزاحة والانتقال اللحظي والسرعة المحسوبة فلا — لأنّها كلّها
+ * تُقاس بين نقطتين، والثانية لم تكن تصل.
+ *
+ * وأثرُه العملي أن جهازاً مُزوَّراً يقفز مئتي كيلومتر بين رسالتين كان يمرّ
+ * بلا أثر، فتراه المطابقة سائقاً قريباً من الراكب وهو في مدينة أخرى.
+ */
+function previousFixOf(driver: DriverProfile): PreviousFix | null {
+  if (driver.lastFix === null) return null;
+  const coordinates = makeCoordinates(driver.lastFix.latitude, driver.lastFix.longitude);
+  // إحداثيةٌ محفوظةٌ فاسدة لا تُوقف الحاضر: تُهمَل كسابقةٍ فيُفحص الجديد وحده.
+  if (!coordinates.ok) return null;
+  return { coordinates: coordinates.value, recordedAtMs: driver.lastFix.recordedAtMs };
+}
+
 async function handleLocation(
   location: Coordinates,
   sender: Sender,
@@ -1174,7 +1195,7 @@ async function handleLocation(
       headingDegrees: hints?.headingDegrees,
       recordedAtMs: hints?.recordedAtMs ?? deps.clock.now().getTime(),
     },
-    null,
+    previousFixOf(driver),
     deps.clock.now().getTime(),
     DEFAULT_GPS_POLICY,
   );
@@ -1196,6 +1217,7 @@ async function handleLocation(
    * حين يكون البديل أن يختفي السائق من الخريطة.
    */
   const saved = await deps.drivers.updateLocation(driver.id, coordinates.value, {
+    recordedAtMs: assessment.fix.recordedAtMs,
     accuracyMeters: assessment.fix.accuracyMeters,
     verdict: assessment.verdict === "REJECT" ? "ALERT" : assessment.verdict,
   });

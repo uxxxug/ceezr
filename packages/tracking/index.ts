@@ -37,9 +37,10 @@ export {
 } from "./tracking-service.ts";
 export type {
   GpsUpdate,
+  SessionEndReason,
   TrackingEvent,
   TrackingEventType,
-  TrackingSession,
-  TrackingStatus,
+  TrackingSessionFacts,
+  TrackingSessionState,
   ValidationResult,
 } from "./types.ts";
