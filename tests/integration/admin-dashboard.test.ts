@@ -435,6 +435,55 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     expect(rows[0]?.is_available).toBe(false);
   });
 
+  /**
+   * يقرأ قيمة الحقل من الصفحة المعروضة لا يكتبها بنفسه: الاختبار الذي كان هنا
+   * يُرسل "1" مباشرة فمرّ سنةً كاملة بينما الزرّ يُرسل "true" ولا يحظر أحداً.
+   * الاختبار الذي لا يمرّ بما تُخرجه الصفحة لا يختبر ما تنقره المشغّلة.
+   */
+  it("القيمة التي يُرسلها زرّ «حظر» في الصفحة نفسها تحظر فعلاً", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const { userId } = await createDriver();
+
+    const page = await request("/admin/drivers", { cookie });
+    const html = await page.text();
+    const csrf = html.match(/name="csrf" value="([0-9a-f]{64})"/)?.[1];
+    const blocked = html.match(/name="blocked" value="([^"]+)"/)?.[1];
+    expect(csrf).toBeDefined();
+    expect(blocked).toBeDefined();
+
+    await request(`/admin/users/${userId}/blocked`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf: csrf ?? "", blocked: blocked ?? "" }),
+    });
+
+    const users = await sql<{ is_blocked: boolean }[]>`
+      select is_blocked from users where id = ${userId}
+    `;
+    expect(users[0]?.is_blocked).toBe(true);
+  });
+
+  it("صفحة تفاصيل السائق تعرض ملفّه، ومعرّف مجهول يُردّ بـ 404", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const { driverId } = await createDriver();
+
+    const found = await request(`/admin/drivers/${driverId}`, { cookie });
+    expect(found.status).toBe(200);
+    const html = await found.text();
+    expect(html).toContain(driverId);
+    expect(html).toContain("بيانات التسجيل");
+
+    const NOT_FOUND = 404;
+    const missing = await request("/admin/drivers/00000000-0000-4000-8000-000000000000", {
+      cookie,
+    });
+    expect(missing.status).toBe(NOT_FOUND);
+
+    const HTML_UNPROCESSABLE = 422;
+    const invalid = await request("/admin/drivers/not-a-uuid", { cookie });
+    expect(invalid.status).toBe(HTML_UNPROCESSABLE);
+  });
+
   it("حظر مستخدم يُبطل جلساته ويُنزله عن الإتاحة، والمسؤول لا يحظر نفسه", async () => {
     const cookie = await login(ADMIN_TELEGRAM);
     const { driverId, userId } = await createDriver();

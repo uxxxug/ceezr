@@ -16,6 +16,8 @@ import type {
   AuditEntry,
   CityOption,
   DisputeRow,
+  DriverDetail,
+  DriverDetailPoint,
   DriverRow,
   HealthIndicator,
   HeatCell,
@@ -476,6 +478,267 @@ export async function listDrivers(
             },
       completedOrders: row.completed_orders,
       registeredAt: String(row.registered_at),
+    })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// سائق واحد — البند 6.4
+// ---------------------------------------------------------------------------
+
+/** حدود العرض في صفحة السائق: أحدثُ ما يُقرأ، لا كل ما وُجد. */
+export const DRIVER_ORDERS_LIMIT = 20;
+export const DRIVER_TICKETS_LIMIT = 20;
+
+interface DriverProfileSqlRow {
+  driver_id: string;
+  user_id: string;
+  full_name: string | null;
+  telegram_id: string;
+  telegram_username: string | null;
+  phone: string | null;
+  language_code: string;
+  city_code: string;
+  city_name_ar: string;
+  verification_status: string;
+  is_blocked: boolean;
+  vehicle_type: string | null;
+  plate_number: string | null;
+  national_id: string | null;
+  vehicle_photo_file_id: string | null;
+  preferred_area_label: string | null;
+  preferred_lat: number | null;
+  preferred_lng: number | null;
+  last_lat: number | null;
+  last_lng: number | null;
+  last_location_at: string | null;
+  stored_rating_average: number | null;
+  stored_rating_count: number;
+  live_rating_average: number | null;
+  live_rating_count: number;
+  flagged_rating_count: number;
+  is_available: boolean;
+  availability_changed_at: string | null;
+  registered_at: string;
+  services: string[] | null;
+  plan: string | null;
+  sub_status: string | null;
+  trial_ends_at: string | null;
+  current_period_end: string | null;
+  price_amount: string | null;
+  currency: string | null;
+  completed_orders: number;
+  cancelled_orders: number;
+}
+
+/**
+ * نقطةٌ تُبنى من عمودين أو لا تُبنى: نصفُ إحداثية أسوأ من غيابها، لأن (0,0)
+ * موضعٌ حقيقي في المحيط الأطلسي يظهر على الخريطة كأنه معلومة.
+ */
+function toPoint(lat: number | null, lng: number | null): DriverDetailPoint | null {
+  if (lat === null || lng === null) return null;
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  return { lat, lng };
+}
+
+/**
+ * صفحة السائق الواحد: ثلاثة استعلامات متوازية لا استعلامٌ واحد بوصلات متعدّدة —
+ * ضمُّ الرحلات والتذاكر في نفس الصفّ يضرب عددَ صفوفِ أحدهما في عدد الآخر،
+ * فتصير الحصيلة كذباً حسابياً لا بطئاً فقط.
+ *
+ * وعائد null يعني «لا سائق بهذا المعرّف»: يُميَّز عن الخطأ كي يُجيب المسار 404
+ * لا صفحةً فارغة تُقرأ كأنها سائقٌ بلا بيانات.
+ */
+export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDetail | null> {
+  const [profileRows, orderRows, ticketRows] = await Promise.all([
+    sql<DriverProfileSqlRow[]>`
+      select d.id as driver_id, d.user_id,
+             u.full_name, u.telegram_id::text as telegram_id, u.telegram_username, u.phone,
+             u.language_code, u.is_blocked,
+             c.code as city_code, c.name_ar as city_name_ar,
+             d.verification_status::text as verification_status,
+             d.vehicle_type::text as vehicle_type, d.plate_number, d.national_id,
+             d.vehicle_photo_file_id,
+             d.preferred_area_label,
+             st_y(d.preferred_area_location::geometry) as preferred_lat,
+             st_x(d.preferred_area_location::geometry) as preferred_lng,
+             st_y(d.last_location::geometry) as last_lat,
+             st_x(d.last_location::geometry) as last_lng,
+             d.last_location_at,
+             d.rating_average::float8 as stored_rating_average,
+             d.rating_count as stored_rating_count,
+             coalesce(da.is_available, false) as is_available,
+             da.changed_at as availability_changed_at,
+             d.created_at as registered_at,
+             (select array_agg(dc.service::text order by dc.service)
+                from driver_capabilities dc
+               where dc.driver_id = d.id and dc.is_enabled) as services,
+             s.plan::text as plan, s.status::text as sub_status,
+             s.trial_ends_at, s.current_period_end,
+             s.price_amount::text as price_amount, s.currency,
+             -- المتوسّط محسوباً الآن، مع استثناء المُعلَّم كما تفعله دالّة القاعدة
+             -- نفسها: لو استُثني هنا بشرط مختلف لصار الانحراف المعروض وهماً.
+             (select count(*) from ratings r
+               where r.ratee_user_id = d.user_id and r.direction = 'rider_to_driver'
+                 and r.is_flagged = false)::int as live_rating_count,
+             (select avg(r.stars)::float8 from ratings r
+               where r.ratee_user_id = d.user_id and r.direction = 'rider_to_driver'
+                 and r.is_flagged = false) as live_rating_average,
+             (select count(*) from ratings r
+               where r.ratee_user_id = d.user_id and r.direction = 'rider_to_driver'
+                 and r.is_flagged)::int as flagged_rating_count,
+             (select count(*) from orders o
+               where o.assigned_driver_id = d.id and o.status = 'completed')::int
+               as completed_orders,
+             (select count(*) from orders o
+               where o.assigned_driver_id = d.id and o.status = 'cancelled')::int
+               as cancelled_orders
+        from drivers d
+        join users u on u.id = d.user_id
+        join cities c on c.id = d.city_id
+        left join driver_availability da on da.driver_id = d.id
+        left join subscriptions s on s.driver_id = d.id and s.status in ('trialing', 'active')
+       where d.id = ${driverId}::uuid
+    `,
+    sql<
+      {
+        order_id: string;
+        service: string;
+        pickup_label: string | null;
+        dropoff_label: string | null;
+        matched_at: string | null;
+        started_at: string | null;
+        completed_at: string | null;
+        created_at: string;
+        rider_name: string | null;
+        rider_stars: number | null;
+      }[]
+    >`
+      select o.id as order_id, o.service::text as service,
+             o.pickup_label, o.dropoff_label,
+             o.matched_at, o.started_at, o.completed_at, o.created_at,
+             ru.full_name as rider_name,
+             (select r.stars from ratings r
+               where r.order_id = o.id and r.direction = 'rider_to_driver'
+                 and r.is_flagged = false
+               limit 1) as rider_stars
+        from orders o
+        left join riders rd on rd.id = o.rider_id
+        left join users ru on ru.id = rd.user_id
+       where o.assigned_driver_id = ${driverId}::uuid
+         and o.status = 'completed'
+       order by o.completed_at desc nulls last
+       limit ${DRIVER_ORDERS_LIMIT}
+    `,
+    sql<
+      {
+        ticket_id: string;
+        type: string;
+        status: string;
+        message: string;
+        order_id: string | null;
+        created_at: string;
+        resolved_at: string | null;
+        resolution: string | null;
+        claimed_by_name: string | null;
+        link_kind: string;
+        counterpart_name: string | null;
+      }[]
+    >`
+      -- الشرط شرطان لا شرط: تذكرةٌ فتحها السائق، **وتذكرةٌ فتحها راكبٌ عن طلبٍ
+      -- أُسنِد إليه**. الاقتصار على driver_id كان يُخفي شكوى الراكب على السائق —
+      -- وهي بالضبط التذكرة التي تُراجَع قبل تعليق حسابه.
+      select t.id as ticket_id, t.type::text as type, t.status::text as status, t.message,
+             t.order_id, t.created_at, t.resolved_at, t.resolution,
+             cu.full_name as claimed_by_name,
+             case when t.driver_id = ${driverId}::uuid then 'filed_by_driver'
+                  else 'about_driver_order' end as link_kind,
+             ru.full_name as counterpart_name
+        from support_tickets t
+        left join orders o on o.id = t.order_id
+        left join riders r on r.id = t.rider_id
+        left join users ru on ru.id = r.user_id
+        left join users cu on cu.id = t.claimed_by_user_id
+       where t.driver_id = ${driverId}::uuid
+          or o.assigned_driver_id = ${driverId}::uuid
+       order by t.created_at desc
+       limit ${DRIVER_TICKETS_LIMIT}
+    `,
+  ]);
+
+  const row = profileRows[0];
+  if (row === undefined) return null;
+
+  return {
+    profile: {
+      driverId: row.driver_id,
+      userId: row.user_id,
+      fullName: row.full_name,
+      telegramId: row.telegram_id,
+      telegramUsername: row.telegram_username,
+      phone: row.phone,
+      languageCode: row.language_code,
+      cityCode: row.city_code,
+      cityNameAr: row.city_name_ar,
+      verificationStatus: row.verification_status,
+      isBlocked: row.is_blocked,
+      isAvailable: row.is_available,
+      availabilityChangedAt:
+        row.availability_changed_at === null ? null : String(row.availability_changed_at),
+      nationalId: row.national_id,
+      vehicleType: row.vehicle_type,
+      plateNumber: row.plate_number,
+      vehiclePhotoFileId: row.vehicle_photo_file_id,
+      preferredAreaLabel: row.preferred_area_label,
+      preferredArea: toPoint(row.preferred_lat, row.preferred_lng),
+      lastLocation: toPoint(row.last_lat, row.last_lng),
+      lastLocationAt: row.last_location_at === null ? null : String(row.last_location_at),
+      storedRatingAverage: row.stored_rating_average,
+      storedRatingCount: row.stored_rating_count,
+      liveRatingAverage: row.live_rating_average,
+      liveRatingCount: row.live_rating_count,
+      flaggedRatingCount: row.flagged_rating_count,
+      services: row.services ?? [],
+      subscription:
+        row.plan === null || row.sub_status === null
+          ? null
+          : {
+              plan: row.plan,
+              status: row.sub_status,
+              trialEndsAt: row.trial_ends_at === null ? null : String(row.trial_ends_at),
+              currentPeriodEnd:
+                row.current_period_end === null ? null : String(row.current_period_end),
+              priceAmount: row.price_amount,
+              currency: row.currency,
+            },
+      completedOrders: row.completed_orders,
+      cancelledOrders: row.cancelled_orders,
+      registeredAt: String(row.registered_at),
+    },
+    orders: orderRows.map((order) => ({
+      orderId: order.order_id,
+      service: order.service,
+      pickupLabel: order.pickup_label,
+      dropoffLabel: order.dropoff_label,
+      matchedAt: order.matched_at === null ? null : String(order.matched_at),
+      startedAt: order.started_at === null ? null : String(order.started_at),
+      completedAt: order.completed_at === null ? null : String(order.completed_at),
+      createdAt: String(order.created_at),
+      riderName: order.rider_name,
+      riderStars: order.rider_stars === null ? null : Number(order.rider_stars),
+    })),
+    tickets: ticketRows.map((ticket) => ({
+      ticketId: ticket.ticket_id,
+      type: ticket.type,
+      status: ticket.status,
+      message: ticket.message,
+      orderId: ticket.order_id,
+      createdAt: String(ticket.created_at),
+      resolvedAt: ticket.resolved_at === null ? null : String(ticket.resolved_at),
+      resolution: ticket.resolution,
+      claimedByName: ticket.claimed_by_name,
+      linkKind: ticket.link_kind === "filed_by_driver" ? "filed_by_driver" : "about_driver_order",
+      counterpartName: ticket.counterpart_name,
     })),
   };
 }

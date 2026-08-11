@@ -16,6 +16,7 @@ import {
   type CityOption,
   renderAttendancePage,
   renderDisputesPage,
+  renderDriverDetailPage,
   renderDriversPage,
   renderHeatmapPage,
   renderLiveOrdersPage,
@@ -49,8 +50,10 @@ import {
   cityPulse,
   DAY_WINDOW_HOURS,
   DISPUTES_LIMIT,
+  DRIVER_TICKETS_LIMIT,
   DRIVERS_LIMIT,
   disputeTotals,
+  driverDetail,
   EVENTS_LIMIT,
   HEATMAP_CELL_FALLBACK_DEGREES,
   HEATMAP_WINDOWS,
@@ -90,6 +93,8 @@ const DEFAULT_HEATMAP_HOURS = 6;
 const SEE_OTHER = 303;
 const HTML_UNPROCESSABLE = 422;
 const TELEGRAM_ID_PATTERN = /^[0-9]{5,20}$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const NOT_FOUND = 404;
 const CODE_PATTERN = /^[0-9]{6}$/;
 const MIN_BIGINT = -(2n ** 63n);
 const MAX_BIGINT = 2n ** 63n - 1n;
@@ -105,6 +110,25 @@ function positiveInt(value: string | undefined, fallback: number): number {
   if (value === undefined) return fallback;
   const parsed = Number.parseInt(value, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+/**
+ * بوليانٌ من نموذج، وما لا يُفهم يُردّ لا يُحمَل على false.
+ *
+ * العطب الذي أوجب هذه الدالّة: كان المسار يكتب `formText(form,"blocked") === "1"`
+ * بينما صفحة السائقين تُرسل "true"/"false" — فزرّ «حظر» في اللوحة لم يكن يحظر
+ * أحداً قطّ: يُنادي الدالّة الذرّية بـ false فتُجيب ok وتُكتب في سجلّ التدقيق، وتُعاد
+ * الصفحة بلا رسالة خطأ، ويبقى المستخدم غير محظور. واختبار التكامل لم يمسكه لأنه
+ * يُرسل "1" مباشرة لا ما يُرسله الزرّ فعلاً.
+ *
+ * والردّ لا الحمل على false هو أصل الإصلاح: مقارنةٌ صامتة تجعل أي تغيير في قيمة
+ * النموذج عطلاً بلا أثر مرئي، والردّ بـ 422 يجعله مرئيّاً في أوّل نقرة.
+ */
+function formBoolean(form: FormData, key: string): boolean | null {
+  const raw = formText(form, key);
+  if (raw === "1" || raw === "true") return true;
+  if (raw === "0" || raw === "false") return false;
+  return null;
 }
 
 function optionalQuery(value: string | undefined): string | null {
@@ -412,6 +436,37 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     );
   });
 
+  /**
+   * مسار التفاصيل بعد مسار القائمة وليس قبله: `/drivers` حرفيٌ و`/drivers/:id`
+   * متغير، وفحص صيغة UUID قبل مسّ القاعدة يمنع خطأ 22P02 من أن يصير 500 تقرأه
+   * المشغّلة كعطل في اللوحة لا كرابط مكسور.
+   */
+  app.get("/drivers/:id", async (c) => {
+    const driverId = c.req.param("id");
+    if (!UUID_PATTERN.test(driverId)) {
+      return c.text("معرّف سائق غير صالح.", HTML_UNPROCESSABLE);
+    }
+
+    const detail = await driverDetail(deps.sql, driverId);
+    if (detail === null) {
+      return c.text("لا سائق بهذا المعرّف.", NOT_FOUND);
+    }
+
+    return page(
+      c,
+      detail.profile.fullName ?? "سائق",
+      "/admin/drivers",
+      renderDriverDetailPage({
+        now: new Date(),
+        profile: detail.profile,
+        orders: detail.orders,
+        tickets: detail.tickets,
+        ticketsLimit: DRIVER_TICKETS_LIMIT,
+        csrfToken: c.get("csrfToken"),
+      }),
+    );
+  });
+
   app.get("/attendance", async (c) => {
     const cityId = cityParam(c.req.query("city"));
     const windowHours = positiveInt(c.req.query("hours"), DAY_WINDOW_HOURS);
@@ -599,14 +654,15 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const checked = await requireCsrf(c);
     if (!checked.ok) return checked.response;
 
-    const blocked = formText(checked.form, "blocked") === "1";
+    const blocked = formBoolean(checked.form, "blocked");
+    if (blocked === null) return c.text("INVALID_BLOCKED", HTML_UNPROCESSABLE);
     const outcome = await setUserBlocked(
       deps.sql,
       c.get("admin").userId,
       c.req.param("id"),
       blocked,
     );
-    log("تغيير حظر مستخدم من اللوحة", { ok: outcome.ok, error: outcome.error });
+    log("تغيير حظر مستخدم من اللوحة", { ok: outcome.ok, error: outcome.error, blocked });
     return c.redirect(formText(checked.form, "back") ?? "/admin/drivers", SEE_OTHER);
   });
 

@@ -45,6 +45,16 @@ export {
 } from "./pages/attendance.ts";
 export { type DisputeRow, type DisputesPageData, renderDisputesPage } from "./pages/disputes.ts";
 export {
+  type DriverDetail,
+  type DriverDetailData,
+  type DriverDetailOrder,
+  type DriverDetailPoint,
+  type DriverDetailProfile,
+  type DriverDetailSubscription,
+  type DriverDetailTicket,
+  renderDriverDetailPage,
+} from "./pages/driver-detail.ts";
+export {
   type CityOption,
   type DriverRow,
   type DriverSubscription,

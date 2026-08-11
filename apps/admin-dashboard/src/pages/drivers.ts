@@ -121,7 +121,7 @@ function actionsCell(row: DriverRow, csrfToken: string): string {
 </form>
 <form class="inline" method="post" action="/admin/users/${escapeHtml(row.userId)}/blocked">
   ${csrf}
-  <input type="hidden" name="blocked" value="${row.isBlocked ? "false" : "true"}">
+  <input type="hidden" name="blocked" value="${row.isBlocked ? "0" : "1"}">
   <button class="ghost" type="submit">${row.isBlocked ? "رفع الحظر" : "حظر"}</button>
 </form>`;
 }
@@ -164,7 +164,11 @@ export function renderDriversPage(data: DriversPageData): string {
 </form>`;
 
   const rows = data.rows.map((row) => [
-    `<div>${escapeHtml(row.fullName ?? "بلا اسم")}</div>
+    // الاسم رابطٌ لا نصّ: القائمة تعرض عشرة أعمدة، ومراجعة سائق قبل توثيقه تحتاج
+    // ملفّه كاملاً لا عمودين منه. وبلا رابط من هنا تبقى صفحة التفاصيل موجودة ولا يصلها أحد.
+    `<div><a href="/admin/drivers/${escapeHtml(row.driverId)}">${escapeHtml(
+      row.fullName ?? "بلا اسم",
+    )}</a></div>
      <div class="card-hint mono">${escapeHtml(row.telegramId)}${
        row.phone === null ? "" : ` · ${escapeHtml(row.phone)}`
 }</div>`,
