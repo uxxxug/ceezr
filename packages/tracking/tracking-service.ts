@@ -6,9 +6,15 @@
  * ينتمي إلى: packages/tracking
  */
 
+import {
+  assessGpsFix,
+  DEFAULT_GPS_POLICY,
+  type GpsAssessment,
+  type GpsPolicy,
+  type PreviousFix,
+} from "../domain/geo/gps-fix.ts";
 import type { LatLng } from "../maps/core/types.ts";
-import { type ValidatorConfig, validateGpsUpdate } from "./location-validator.ts";
-import type { GpsUpdate, TrackingEvent, ValidationResult } from "./types.ts";
+import type { GpsUpdate, TrackingEvent, TrackingEventType } from "./types.ts";
 
 /** منفذ تخزين الموقع الحالي (Redis عادةً). */
 export interface LocationStore {
@@ -39,20 +45,15 @@ export interface TrackingConfig {
   readonly idleIntervalSeconds: number;
   /** الحد الأدنى للانزياف قبل الإرسال بالمتر. */
   readonly minDistanceMeters: number;
-  /** إعدادات التحقّق من صحة GPS. */
-  readonly validator: ValidatorConfig;
+  /** حدود التحقّق من صحة GPS — سياسة المجال. */
+  readonly validator: GpsPolicy;
 }
 
 export const DEFAULT_TRACKING_CONFIG: TrackingConfig = {
   gpsIntervalSeconds: 3,
   idleIntervalSeconds: 20,
   minDistanceMeters: 15,
-  validator: {
-    maxReasonableSpeedKmh: 200,
-    teleportThresholdMeters: 5000,
-    maxAccuracyMeters: 100,
-    maxTimeDriftSeconds: 30,
-  },
+  validator: DEFAULT_GPS_POLICY,
 };
 
 export interface TrackingDeps {
@@ -63,55 +64,87 @@ export interface TrackingDeps {
 }
 
 /**
+ * نوع الحدث يُشتقّ من رمز مُعرَّف لا من مطابقة نصّية على رسالة خطأ.
+ * ما كان `reason?.includes("Teleport")` قراراً تشغيلياً معلّقاً على تهجئة نصّ.
+ */
+function alertEventType(assessment: GpsAssessment): TrackingEventType {
+  return assessment.findings.some((f) => f.code === "DISPLACEMENT_IMPLAUSIBLE")
+    ? "teleport_detected"
+    : "speeding_detected";
+}
+
+/**
  * خدمة التتبّع — تتعامل مع تحديثات GPS الواردة.
  * ليست مسؤولة عن العرض (ذلك في طبقة Map UI).
  */
 export class TrackingService {
-  private readonly previousPositions = new Map<string, { position: LatLng; timestamp: number }>();
+  /**
+   * ذاكرة داخل العملية — محدودية معروفة (P1-7): تضيع عند إعادة التشغيل
+   * ولا تُشارَك بين نسخ. لم تُستبدَل هنا لأن مصدر الحقيقة للموقع قرار المرحلة ٤،
+   * وإقحام مخزن هنا قبله يُنشئ مصدراً ثانياً.
+   */
+  private readonly previousPositions = new Map<string, PreviousFix>();
 
   constructor(private readonly deps: TrackingDeps) {}
 
-  /** يعالج تحديث GPS واحد: يتحقّق، يخزّن، ينشر. */
+  /** يعالج تحديث GPS واحد: يُقيّم، يخزّن، ينشر. */
   async handleGpsUpdate(
     update: GpsUpdate,
-  ): Promise<{ accepted: boolean; reason?: string | undefined }> {
+  ): Promise<{ accepted: boolean; assessment: GpsAssessment }> {
     const previous = this.previousPositions.get(update.driverId) ?? null;
 
-    // التحقّق من صحة الموقع
-    const validation: ValidationResult = validateGpsUpdate(
-      update,
+    const assessment = assessGpsFix(
+      {
+        latitude: update.position.lat,
+        longitude: update.position.lng,
+        recordedAtMs: update.timestamp,
+        accuracyMeters: update.accuracy,
+        speedKmh: update.speed,
+        headingDegrees: update.heading,
+      },
       previous,
+      this.deps.clock.now().getTime(),
       this.deps.config.validator,
     );
-    if (!validation.valid) {
-      // ننشر حدث تنبيه لكن لا نُخزّن الموقع الفاسد
+
+    // المرفوض بيانات فاسدة لا سلوك مريب: لا يُخزّن ولا يُنشَر عنه حدث تشغيلي.
+    // إغراق العمليات بتنبيهات عن إحداثيات مشوّهة يدفن التنبيه الحقيقي.
+    if (assessment.fix === null) {
+      return { accepted: false, assessment };
+    }
+
+    const fix = assessment.fix;
+
+    await this.deps.store.setCurrent(update.driverId, update.position, {
+      heading: fix.headingDegrees,
+      speed: fix.speedKmh,
+      accuracy: fix.accuracyMeters,
+      timestamp: fix.recordedAtMs,
+      tripId: update.tripId,
+      quality: assessment.verdict,
+    });
+
+    /**
+     * المؤشّر السابق يتقدّم حتّى عند التنبيه. الطبقة القديمة لم تكن تقدّمه عند
+     * الرفض، فأول قفزة تُجمّده عند نقطة ميتة ثم تُقاس عليها كل إصلاحة تالية
+     * فتُرفض هي الأخرى — التتبّع يموت إلى آخر الجلسة.
+     */
+    this.previousPositions.set(update.driverId, {
+      coordinates: fix.coordinates,
+      recordedAtMs: fix.recordedAtMs,
+    });
+
+    if (assessment.verdict === "ALERT") {
       await this.deps.publisher.publish({
-        type: validation.reason?.includes("Teleport") ? "teleport_detected" : "speeding_detected",
+        type: alertEventType(assessment),
         driverId: update.driverId,
         tripId: update.tripId,
         position: update.position,
         timestamp: this.deps.clock.now(),
-        metadata: { reason: validation.reason },
+        metadata: { findings: assessment.findings },
       });
-      return { accepted: false, reason: validation.reason };
     }
 
-    // تخزين الموقع الحالي
-    await this.deps.store.setCurrent(update.driverId, update.position, {
-      heading: update.heading ?? 0,
-      speed: update.speed ?? 0,
-      accuracy: update.accuracy ?? 0,
-      timestamp: update.timestamp,
-      tripId: update.tripId,
-    });
-
-    // تحديث الموقع السابق
-    this.previousPositions.set(update.driverId, {
-      position: update.position,
-      timestamp: update.timestamp,
-    });
-
-    // نشر حدث تحديث الموقع
     await this.deps.publisher.publish({
       type: "location_updated",
       driverId: update.driverId,
@@ -119,13 +152,15 @@ export class TrackingService {
       position: update.position,
       timestamp: this.deps.clock.now(),
       metadata: {
-        heading: update.heading,
-        speed: update.speed,
-        accuracy: update.accuracy,
+        heading: fix.headingDegrees,
+        speed: fix.speedKmh,
+        accuracy: fix.accuracyMeters,
+        quality: assessment.verdict,
+        findings: assessment.findings.map((f) => f.code),
       },
     });
 
-    return { accepted: true };
+    return { accepted: true, assessment };
   }
 
   /** يبدأ جلسة تتبّع. */

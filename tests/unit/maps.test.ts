@@ -6,9 +6,13 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { haversineKm } from "../../packages/domain/geo/index.ts";
 import type { LatLng } from "../../packages/maps/core/types.ts";
 import { createOsrmProvider } from "../../packages/maps/providers/osrm/osrm-provider.ts";
-import { haversineMeters } from "../../packages/tracking/location-validator.ts";
+
+/** جسر للاختبارات: الدوال الجغرافية بالكيلومتر في المجال، وهذه الحالات بالمتر. */
+const haversineMeters = (a: LatLng, b: LatLng): number =>
+  haversineKm({ latitude: a.lat, longitude: a.lng }, { latitude: b.lat, longitude: b.lng }) * 1000;
 
 describe("maps: OSRM provider", () => {
   it("ينشئ مزوّداً صحيحاً", () => {

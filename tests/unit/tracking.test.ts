@@ -5,20 +5,35 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { haversineKm } from "../../packages/domain/geo/index.ts";
 import type { LatLng } from "../../packages/maps/core/types.ts";
 import {
   type Clock,
   DEFAULT_TRACKING_CONFIG,
   type GpsUpdate,
-  haversineMeters,
   type LocationStore,
   type TrackingEvent,
   type TrackingEventPublisher,
   TrackingService,
-  validateGpsUpdate,
 } from "../../packages/tracking/index.ts";
 
 const fixedClock: Clock = { now: () => new Date("2026-08-11T12:00:00Z") };
+const NOW_MS = new Date("2026-08-11T12:00:00Z").getTime();
+
+/** ساعة متحرّكة: سلوك التحقّق عند حدود الزمن يُختبر بلا انتظار حقيقي. */
+function movableClock(startMs: number): Clock & { advance(ms: number): void } {
+  let current = startMs;
+  return {
+    now: () => new Date(current),
+    advance: (ms) => {
+      current += ms;
+    },
+  };
+}
+
+/** جسر للاختبارات: المجال يحسب بالكيلومتر وهذه الحالات بالمتر. */
+const haversineMeters = (a: LatLng, b: LatLng): number =>
+  haversineKm({ latitude: a.lat, longitude: a.lng }, { latitude: b.lat, longitude: b.lng }) * 1000;
 
 function fakeStore(): LocationStore & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>();
@@ -54,71 +69,12 @@ function makeUpdate(
     driverId,
     tripId: "trip-1",
     position: { lat, lng },
-    timestamp: Date.now(),
+    timestamp: NOW_MS,
     ...overrides,
   };
 }
 
-describe("tracking: location validator", () => {
-  it("يقبل موقعاً صحيحاً بلا موقع سابق", () => {
-    const result = validateGpsUpdate(
-      makeUpdate("d1", 21.5, 39.2),
-      null,
-      DEFAULT_TRACKING_CONFIG.validator,
-    );
-    expect(result.valid).toBe(true);
-  });
-
-  it("يرفض دقة GPS منخفضة جداً", () => {
-    const result = validateGpsUpdate(
-      makeUpdate("d1", 21.5, 39.2, { accuracy: 200 }),
-      null,
-      DEFAULT_TRACKING_CONFIG.validator,
-    );
-    expect(result.valid).toBe(false);
-    expect(result.reason).toContain("accuracy");
-  });
-
-  it("يرفض الانتقال اللحظي (teleportation)", () => {
-    const now = Date.now();
-    const previous = { position: { lat: 21.5, lng: 39.2 } as LatLng, timestamp: now };
-    // 100km في ثانية واحدة
-    const result = validateGpsUpdate(
-      makeUpdate("d1", 22.4, 40.1, { timestamp: now + 1000 }),
-      previous,
-      DEFAULT_TRACKING_CONFIG.validator,
-    );
-    expect(result.valid).toBe(false);
-    expect(result.reason).toContain("Teleport");
-  });
-
-  it("يرفض سرعة غير معقولة", () => {
-    const now = Date.now();
-    const previous = { position: { lat: 21.5, lng: 39.2 } as LatLng, timestamp: now };
-    // ~2km في ثانية = 7200 كم/سا
-    const result = validateGpsUpdate(
-      makeUpdate("d1", 21.51, 39.22, { timestamp: now + 1000 }),
-      previous,
-      { ...DEFAULT_TRACKING_CONFIG.validator, teleportThresholdMeters: 100000 },
-    );
-    expect(result.valid).toBe(false);
-    expect(result.reason).toContain("speed");
-  });
-
-  it("يقبل حركة طبيعية (10م في 3 ثوانٍ)", () => {
-    const now = Date.now();
-    const previous = { position: { lat: 21.5, lng: 39.2 } as LatLng, timestamp: now };
-    // ~10 أمتار
-    const result = validateGpsUpdate(
-      makeUpdate("d1", 21.50009, 39.2, { timestamp: now + 3000 }),
-      previous,
-      DEFAULT_TRACKING_CONFIG.validator,
-    );
-    expect(result.valid).toBe(true);
-  });
-});
-
-describe("tracking: haversine", () => {
+describe("tracking: haversine (من المجال)", () => {
   it("المسافة بين نفس النقطة = 0", () => {
     expect(haversineMeters({ lat: 21.5, lng: 39.2 }, { lat: 21.5, lng: 39.2 })).toBe(0);
   });
@@ -151,7 +107,7 @@ describe("tracking: service", () => {
     expect(pub.events[0]!.type).toBe("location_updated");
   });
 
-  it("يرفض تحديثاً فاسداً ولا يخزّنه", async () => {
+  function service() {
     const store = fakeStore();
     const pub = fakePublisher();
     const svc = new TrackingService({
@@ -160,19 +116,66 @@ describe("tracking: service", () => {
       clock: fixedClock,
       config: DEFAULT_TRACKING_CONFIG,
     });
+    return { store, pub, svc };
+  }
 
-    // تحديث صحيح أولاً
-    await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
-
-    // ثم تحديث بانتقال لحظي
-    const now = Date.now();
-    const result = await svc.handleGpsUpdate(
-      makeUpdate("d1", 25.0, 45.0, { timestamp: now + 1000 }),
-    );
+  it("يرفض إحداثيات غير صالحة فلا يخزّنها ولا ينشر عنها حدثاً", async () => {
+    const { store, pub, svc } = service();
+    const result = await svc.handleGpsUpdate(makeUpdate("d1", Number.NaN, 39.2));
     expect(result.accepted).toBe(false);
-    // حدث تنبيه منشور
-    const alertEvent = pub.events.find((e) => e.type === "teleport_detected");
-    expect(alertEvent).toBeDefined();
+    expect(store.data.has("d1")).toBe(false);
+    // البيانات الفاسدة ليست إشارة تشغيلية: إغراق العمليات بها يدفن التنبيه الحقيقي.
+    expect(pub.events.length).toBe(0);
+  });
+
+  it("القفزة تُقبل وتُنشر كتنبيه — لا تُطرح", async () => {
+    const { store, pub, svc } = service();
+    await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
+    const jump = await svc.handleGpsUpdate(
+      makeUpdate("d1", 25.0, 45.0, { timestamp: NOW_MS + 1000 }),
+    );
+
+    expect(jump.accepted).toBe(true);
+    expect(jump.assessment.verdict).toBe("ALERT");
+    expect(pub.events.some((e) => e.type === "teleport_detected")).toBe(true);
+    // الموقع الأحدث هو أفضل ما نعرف عن السائق، فلا يُهمَل لصالح موقع ميت.
+    expect((store.data.get("d1") as { position: LatLng }).position).toEqual({
+      lat: 25.0,
+      lng: 45.0,
+    });
+  });
+
+  /**
+   * انحدار مثبت في الطبقة القديمة: كانت ترفض القفزة **ولا تُقدّم** المؤشّر السابق،
+   * فتُقاس كل إصلاحة تالية على نقطة ميتة فتُرفض هي الأخرى — التتبّع يموت إلى آخر
+   * الجلسة والعمليات ترى السائق واقفاً حيث لم يعد. هذا الاختبار يمنع عودتها.
+   */
+  it("لا يُقفل التتبّع بعد قفزة: الخطوة الطبيعية التالية تُقبل بلا تنبيه", async () => {
+    const store = fakeStore();
+    const pub = fakePublisher();
+    const clock = movableClock(NOW_MS);
+    const svc = new TrackingService({
+      store,
+      publisher: pub,
+      clock,
+      config: DEFAULT_TRACKING_CONFIG,
+    });
+
+    await svc.handleGpsUpdate(makeUpdate("d1", 21.4858, 39.1925, { timestamp: NOW_MS }));
+
+    // خروج من نفق: الجهاز يستعيد الإشارة على بُعد ٨ كم — قفزة حقيقية لا احتيال.
+    clock.advance(60_000);
+    await svc.handleGpsUpdate(makeUpdate("d1", 21.558, 39.1925, { timestamp: NOW_MS + 60_000 }));
+
+    // ثم يسير طبيعياً ١١٠ أمتار في دقيقة.
+    clock.advance(60_000);
+    const after = await svc.handleGpsUpdate(
+      makeUpdate("d1", 21.559, 39.1925, { timestamp: NOW_MS + 120_000 }),
+    );
+
+    expect(after.accepted).toBe(true);
+    expect(after.assessment.verdict).toBe("ACCEPT");
+    expect(pub.events.filter((e) => e.type === "teleport_detected").length).toBe(1);
   });
 
   it("يبدا وينهي جلسة تتبّع", async () => {

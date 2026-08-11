@@ -14,12 +14,12 @@
  */
 
 import { Hono } from "hono";
-import type { TrackingService, LocationStore } from "../../../../packages/tracking/index.ts";
+import type { LocationStore, TrackingService } from "../../../../packages/tracking/index.ts";
 import {
   extractBearerToken,
-  toAuthResult,
   type TrackingAuthResult,
   type TrackingTokenStore,
+  toAuthResult,
 } from "../../../../packages/tracking/index.ts";
 import type { GpsUpdate } from "../../../../packages/tracking/types.ts";
 
@@ -48,7 +48,9 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
    */
   async function requireAuth(
     c: import("hono").Context,
-  ): Promise<{ ok: true; driverId: string; tripId: string | null } | { ok: false; response: Response }> {
+  ): Promise<
+    { ok: true; driverId: string; tripId: string | null } | { ok: false; response: Response }
+  > {
     const authHeader = c.req.header("authorization");
     const token = extractBearerToken(authHeader);
     if (token === null) {
@@ -57,7 +59,10 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
     const payload = await deps.tokenStore.verify(token);
     const result = toAuthResult(payload);
     if (!result.ok) {
-      return { ok: false, response: c.json({ ok: false, error: authErrorResponse(result) }, UNAUTHORIZED_STATUS) };
+      return {
+        ok: false,
+        response: c.json({ ok: false, error: authErrorResponse(result) }, UNAUTHORIZED_STATUS),
+      };
     }
     return { ok: true, driverId: result.payload.driverId, tripId: result.payload.tripId };
   }
@@ -81,7 +86,9 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
     const lat = Number(body.lat);
     const lng = Number(body.lng);
 
-    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+    // `Number.isNaN` وحدها كانت تُمرّر Infinity: `Number("Infinity")` ليس NaN.
+    // الحدود والمدى يفحصهما المجال بعدُ، وهذا فحص شكل المدخل لا صحّته الجغرافية.
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       return c.json({ ok: false, error: "MISSING_REQUIRED_FIELDS" }, 400);
     }
 
@@ -110,12 +117,23 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
 
     const result = await deps.tracking.handleGpsUpdate(update);
 
+    // الرموز مُعرَّفة لا نصوص حرّة: العميل يستطيع التفريع عليها، والسجلّ يُجمَّع بها.
+    const rejections = result.assessment.findings
+      .filter((f) => f.severity === "REJECT")
+      .map((f) => f.code);
+
     if (!result.accepted) {
-      deps.log?.("GPS update rejected", { driverId: auth.driverId, reason: result.reason });
-      return c.json({ ok: false, error: result.reason ?? "REJECTED" }, 422);
+      deps.log?.("GPS update rejected", { driverId: auth.driverId, reasons: rejections });
+      return c.json({ ok: false, error: "REJECTED", reasons: rejections }, 422);
     }
 
-    return c.json({ ok: true });
+    // المقبول بتحفّظ يُبلَّغ به العميل: تطبيق السائق يستطيع أن يطلب إصلاحة أدقّ
+    // بدل أن يظنّ موقعه سليماً. الحجب الصامت للجودة يُخفي عن الطرفين ما يخصّهما.
+    return c.json({
+      ok: true,
+      quality: result.assessment.verdict,
+      findings: result.assessment.findings.map((f) => f.code),
+    });
   });
 
   /**
@@ -164,18 +182,12 @@ export function createTrackingRoutes(deps: TrackingRouteDeps): Hono {
       body = {};
     }
 
-    const tripId = body.tripId !== undefined && body.tripId !== null
-      ? String(body.tripId)
-      : null;
+    const tripId = body.tripId !== undefined && body.tripId !== null ? String(body.tripId) : null;
 
     await deps.tracking.startSession(auth.driverId, tripId);
 
     // إصدار رمز جديد مرتبط بالرحلة
-    const token = await deps.tokenStore.issue(
-      auth.driverId,
-      tripId,
-      TRACKING_TOKEN_TTL_SECONDS,
-    );
+    const token = await deps.tokenStore.issue(auth.driverId, tripId, TRACKING_TOKEN_TTL_SECONDS);
 
     return c.json({ ok: true, token });
   });

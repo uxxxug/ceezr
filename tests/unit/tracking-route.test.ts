@@ -14,12 +14,20 @@ import {
   type LocationStore,
   type TrackingEvent,
   type TrackingEventPublisher,
+  TrackingService,
   type TrackingTokenPayload,
   type TrackingTokenStore,
-  TrackingService,
 } from "../../packages/tracking/index.ts";
 
 const fixedClock = { now: () => new Date("2026-08-11T12:00:00Z") };
+
+/**
+ * الطوابع الزمنية تُشتقّ من الساعة المحقونة لا من الساعة العامّة.
+ * المُتحقِّق المحذوف كان يقرأ الساعة العامّة داخله متجاهلاً `Clock` المحقونة،
+ * فكان هذا الملف يختبر ضدّ وقت الجدار وهو يظنّ أنه يختبر ضدّ ساعة ثابتة.
+ * تنقية المُقيِّم من الساعة كشفت ذلك فوراً.
+ */
+const NOW_MS = fixedClock.now().getTime();
 
 function fakeStore(): LocationStore & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>();
@@ -104,7 +112,7 @@ describe("tracking route: authentication", () => {
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ lat: 21.5, lng: 39.2, timestamp: Date.now() }),
+      body: JSON.stringify({ lat: 21.5, lng: 39.2, timestamp: NOW_MS }),
     });
     expect(res.status).toBe(401);
     const body = (await res.json()) as { ok: boolean; error: string };
@@ -119,7 +127,7 @@ describe("tracking route: authentication", () => {
         "content-type": "application/json",
         authorization: "Bearer invalid-token",
       },
-      body: JSON.stringify({ lat: 21.5, lng: 39.2, timestamp: Date.now() }),
+      body: JSON.stringify({ lat: 21.5, lng: 39.2, timestamp: NOW_MS }),
     });
     expect(res.status).toBe(401);
     const body = (await res.json()) as { ok: boolean; error: string };
@@ -139,7 +147,7 @@ describe("tracking route: authentication", () => {
         driverId: "driver-B",
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
     expect(res.status).toBe(403);
@@ -178,7 +186,7 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
       body: JSON.stringify({
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
     expect(res.status).toBe(200);
@@ -228,7 +236,7 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
       body: JSON.stringify({
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
 
@@ -242,12 +250,42 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
       body: JSON.stringify({
         lat: 30.0,
         lng: 50.0,
-        timestamp: Date.now() + 1000,
+        timestamp: NOW_MS + 1000,
       }),
     });
+    /**
+     * تغيّر مقصود في المرحلة ٣: القفزة تنبيه لا رفض. الرفض كان يُجمّد المؤشّر
+     * السابق فيقتل التتبّع إلى آخر الجلسة (يُثبَت في tests/unit/tracking.test.ts).
+     */
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; quality: string; findings: string[] };
+    expect(body.ok).toBe(true);
+    expect(body.quality).toBe("ALERT");
+    expect(body.findings).toContain("DISPLACEMENT_IMPLAUSIBLE");
+  });
+
+  it("يرفض إحداثية غير منتهية بـ400 قبل بلوغ الخدمة", async () => {
+    const { app, tokenStore } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1");
+    const res = await app.request("/track/gps", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ lat: "Infinity", lng: 39.2, timestamp: NOW_MS }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("يرفض دقّة سالبة برموز مُعرَّفة", async () => {
+    const { app, tokenStore } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1");
+    const res = await app.request("/track/gps", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ lat: 21.5, lng: 39.2, accuracy: -5, timestamp: NOW_MS }),
+    });
     expect(res.status).toBe(422);
-    const body = (await res.json()) as { ok: boolean };
-    expect(body.ok).toBe(false);
+    const body = (await res.json()) as { reasons: string[] };
+    expect(body.reasons).toContain("ACCURACY_INVALID");
   });
 });
 
@@ -273,7 +311,7 @@ describe("tracking route: GET /track/:driverId (authenticated)", () => {
       body: JSON.stringify({
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
     const res = await app.request("/track/d1", {
@@ -319,7 +357,7 @@ describe("tracking route: session start/end (authenticated)", () => {
       body: JSON.stringify({
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
     expect(store.data.has("d1")).toBe(true);
