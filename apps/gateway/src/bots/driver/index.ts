@@ -15,6 +15,7 @@ import {
 import type { BotReply } from "../../../../../packages/application/bots/types.ts";
 import type { TelegramSender as TelegramSenderType } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { isCallbackDataValid, toTelegramMarkup } from "../shared/keyboards.ts";
+import type { LanguageHydration } from "../shared/language-middleware.ts";
 import { type RawTelegramUpdate, toIncomingUpdate } from "../shared/telegram-mapper.ts";
 
 export type { TelegramSender } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
@@ -25,15 +26,26 @@ export interface DriverBotAdapter {
   handleUpdate(raw: RawTelegramUpdate): Promise<boolean>;
 }
 
+/**
+ * `language` اختياري: المحوّل يعمل بدونه كما كان، ومئات الاختبارات القائمة
+ * لا تتغيّر. والتوجيه طلب توصيله في `server.ts`، ولا يصحّ تقنياً: `server.ts`
+ * توجيه نقل محض (يركّب المسارات ويتحقّق من السرّ) ولا تعرف مُرسِلَ التحديث
+ * ولا معرّفه أصلاً — فكّ التحديث يجري هنا في `toIncomingUpdate`. فوضعه في `server.ts`
+ * يوجب تكرار الفكّ مرّتين، وهذا هو المفصل الصحيح: أوّل موضع تُعرف فيه الهوية.
+ */
 export function createDriverBot(
   deps: DriverBotDependencies,
   sender: TelegramSenderType,
   log: (message: string, meta: Record<string, unknown>) => void = () => {},
+  language?: LanguageHydration,
 ): DriverBotAdapter {
   return {
     handleUpdate: async (raw) => {
       const incoming = toIncomingUpdate(raw);
       if (incoming === null) return true; // تحديث لا يخصّنا: نعترف بالاستلام ولا نردّ
+
+      // قبل الحوار لا بعده: الحوار يقرأ الجلسة في أوّل سطر، فلا ينفع ترطيبٌ بعده.
+      if (language !== undefined) await language.hydrate(incoming.from);
 
       let replies: readonly BotReply[];
       try {

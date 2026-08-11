@@ -37,6 +37,7 @@ import {
   handleLanguageCommand,
   type LanguageDialogDependencies,
 } from "./language-dialog.ts";
+import { commandForMenuText, mainMenuKeyboard } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
 import {
   handleCompleteRide,
@@ -137,6 +138,11 @@ function languageOf(state: DialogState): string {
   return state.language;
 }
 
+/** القائمة الدائمة بلغة الحالة الحالية — تُرفَق بكل ردّ يعود بالسائق إلى الجاهزية. */
+function menu(state: DialogState): Keyboard {
+  return mainMenuKeyboard("driver", languageOf(state));
+}
+
 async function loadState(deps: DriverBotDependencies, sender: Sender): Promise<DialogState> {
   const stored = await deps.sessions.load(sender.telegramUserId);
   if (stored.ok && stored.value !== null) return stored.value;
@@ -208,6 +214,12 @@ export async function handleDriverUpdate(
 
   const text = update.text.trim();
   if (text.startsWith("/")) return handleCommand(text, sender, state, deps);
+
+  // زرّ القائمة الدائمة يصل نصّاً لا بيانات (Reply Keyboard)، فيُترجَم إلى أمره هنا —
+  // **قبل** أي فحص خطوة، وهو ما يطلبه البند 4.3: ضغطة واحدة في كل الحالات.
+  // ولو تأخّر لصار زرّ «الدعم» يُسجَّل رقمَ لوحة السائق أو اسمَه في منتصف التسجيل.
+  const fromMenu = commandForMenuText("driver", text);
+  if (fromMenu !== null) return handleCommand(fromMenu, sender, state, deps);
 
   switch (state.step) {
     case "awaiting_name":
@@ -363,18 +375,26 @@ async function handleCommand(
   switch (name) {
     case "/start": {
       if (driver !== null) {
-        return [reply(sender, tr("driver.already_registered", { name: driver.fullName }))];
+        return [
+          reply(sender, tr("driver.already_registered", { name: driver.fullName }), menu(state)),
+        ];
       }
       const saved = await deps.sessions.save(sender.telegramUserId, {
         ...state,
         step: "awaiting_name",
       });
       if (!saved.ok) return technicalFailure(sender, state);
-      return [reply(sender, tr("driver.welcome")), reply(sender, tr("driver.ask_name"))];
+      // القائمة تُرفق بالترحيب لا بطلب الاسم: تلغرام يُبقي لوحة الردّ معروضة ما لم
+      // تُستبدل أو تُحذف، فتبقى معه من أول رسالة — وزرّ اللغة أول ما يحتاجه من لا
+      // يقرأ العربية، وهو أحوج الناس إليه وأقلّهم قدرةً على معرفة أمر /language.
+      return [
+        reply(sender, tr("driver.welcome"), menu(state)),
+        reply(sender, tr("driver.ask_name")),
+      ];
     }
 
     case "/help":
-      return [reply(sender, tr("driver.help"))];
+      return [reply(sender, tr("driver.help"), menu(state)), reply(sender, tr("menu.hint"))];
 
     case "/language":
       return deps.language === undefined
@@ -383,7 +403,10 @@ async function handleCommand(
 
     case "/cancel": {
       await deps.sessions.clear(sender.telegramUserId);
-      return [reply(sender, tr("common.cancelled"), { kind: "remove" })];
+      // كان يرسل `remove` فيُخلي أسفل الشاشة تماماً. وإلغاء خطوة ليس خروجاً من
+      // البوت: إزالة القائمة هنا تجعل أكثر لحظة يحتاج فيها المستخدم زرّاً أخلى لحظة
+      // منها، وتنقض مطلب البند 4.3 صراحةً: زرّ الدعم في كل الحالات.
+      return [reply(sender, tr("common.cancelled"), menu(state))];
     }
 
     case "/available":
@@ -399,10 +422,12 @@ async function handleCommand(
       if (!applied.ok) return technicalFailure(sender, state);
 
       // لا نقول «أنت الآن متاح» لمن لا موقع له. استعلام المرشّحين يشترط
-      // `d.last_location is not null`، فسائقٌ متاحٌ بلا موقع خفيٌّ عن الإسناد
-      // تماماً. وقد وقع هذا فعلاً في الإنتاج: سائق موثَّق ومتاح ومشترك، ولم
-      // يصله طلب واحد، وهو يظنّ نفسه عاملاً — لأن البوت أخبره بذلك.
+      // سبب رفض `NO_LOCATION` في الدومين، فسائقٌ متاحٌ بلا موقع لا تُحسَب له مسافة
+      // فلا يُسنَد إليه شيء. وقد وقع هذا فعلاً في الإنتاج: سائق موثَّق ومتاح ومشترك،
+      // ولم يصله طلب واحد، وهو يظنّ نفسه عاملاً — لأن البوت أخبره بذلك.
       // فالرسالة الآن تقول الحقيقة، والطلب يصير خطوةً ناقصة لا حاشية.
+      // (شرط SQL القديم `last_location is not null` رُفع في البند 2.3 ليظهر السبب
+      // للمشغّل بدل أن يختفي السائق صامتاً؛ والحجب عن الإسناد باقٍ كما هو.)
       const replies: BotReply[] = [];
 
       if (goingAvailable && !driver.hasLocation) {
@@ -415,7 +440,11 @@ async function handleCommand(
         );
       } else {
         replies.push(
-          reply(sender, tr(goingAvailable ? "driver.now_available" : "driver.now_unavailable")),
+          reply(
+            sender,
+            tr(goingAvailable ? "driver.now_available" : "driver.now_unavailable"),
+            menu(state),
+          ),
         );
       }
 
@@ -846,9 +875,13 @@ async function completeRegistration(
     : "";
 
   const replies: BotReply[] = [
-    reply(sender, tr("driver.registered", { name: registered.value.fullName, city: cityName }), {
-      kind: "remove",
-    }),
+    // كان `remove`: فينتهي التسجيل بإخلاء أسفل الشاشة تماماً، فيبقى السائق الجديد
+    // ولا يعرف ما يفعل بعدها — وهي أحرج لحظة في رحلته كلّها. ومن أجلها القائمة.
+    reply(
+      sender,
+      tr("driver.registered", { name: registered.value.fullName, city: cityName }),
+      mainMenuKeyboard("driver", languageOf(state)),
+    ),
   ];
 
   const trialResult = await deps.trial.startTrial(registered.value.id, serviceRaw);
@@ -933,10 +966,15 @@ async function handleLocation(
   // من كان متاحاً وينقصه الموقع فقد اكتملت شروطه الآن، فيُخبَر أنه صار ظاهراً
   // فعلاً — لا «حُفظ موقعك» وحدها، فهي لا تُعلمه أن الحجب عنه ارتفع.
   const becameLive = !driver.hasLocation && driver.isAvailable;
+  // كان `remove` هنا. ولوحة طلب الموقع تحلّ محلّ القائمة الدائمة مأموراً — تلغرام
+  // لا يعرف لوحتي ردّ في وقت واحد. فحذفها بعدها يترك السائق بلا قائمة إلى أن يكتب
+  // أمراً يدوياً — وهذا هو موضع الاسترداد الوحيد: أول رسالة بعد انتهاء الحاجة.
   return [
-    reply(sender, tr(becameLive ? "driver.location_saved_now_live" : "driver.location_saved"), {
-      kind: "remove",
-    }),
+    reply(
+      sender,
+      tr(becameLive ? "driver.location_saved_now_live" : "driver.location_saved"),
+      menu(state),
+    ),
   ];
 }
 

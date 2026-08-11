@@ -27,6 +27,7 @@ import {
   handleLanguageCommand,
   type LanguageDialogDependencies,
 } from "./language-dialog.ts";
+import { commandForMenuText, mainMenuKeyboard } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
 import { handleRatingCallback, type RatingDialogDependencies } from "./rating-dialog.ts";
 import {
@@ -76,6 +77,11 @@ export interface RiderBotDependencies {
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
   return { chatId: sender.chatId, text, keyboard };
+}
+
+/** القائمة الدائمة بلغة الحالة الحالية — لغة الجلسة لا ثابتة، فالقائمة تُبنى عند كل ردّ. */
+function menu(state: DialogState): Keyboard {
+  return mainMenuKeyboard("rider", state.language);
 }
 
 function cityKeyboard(cities: readonly CityRef[]): Keyboard {
@@ -153,6 +159,12 @@ export async function handleRiderUpdate(
 
   const text = update.text.trim();
   if (text.startsWith("/")) return handleCommand(text, sender, state, deps);
+
+  // زرّ القائمة الدائمة يصل نصّاً لا بيانات (Reply Keyboard)، فيُترجَم إلى أمره هنا —
+  // **قبل** أي فحص خطوة. الموضع هو المطلوب نفسه في البند 4.3: ضغطة واحدة في كل
+  // الحالات. ولو جاء الفحص بعد الخطوات لصار زرّ «الدعم» يُسجَّل اسماً للعميل الجديد.
+  const fromMenu = commandForMenuText("rider", text);
+  if (fromMenu !== null) return handleCommand(fromMenu, sender, state, deps);
 
   if (state.step === "awaiting_name") return handleName(text, sender, state, deps);
   if (state.step === "awaiting_support_message") {
@@ -273,9 +285,7 @@ async function cancelOne(
     reply(
       sender,
       tr("rider.order_cancelled_named", { order: describeActiveOrder(order, state.language) }),
-      {
-        kind: "remove",
-      },
+      menu(state),
     ),
   ];
 }
@@ -354,7 +364,10 @@ async function handleCommand(
         step: "awaiting_name",
       });
       if (!saved.ok) return technicalFailure(sender, state);
-      return [reply(sender, tr("rider.welcome")), reply(sender, tr("rider.ask_name"))];
+      // القائمة مع الترحيب لا مع طلب الاسم: تلغرام يُبقي لوحة الردّ معروضة ما لم
+      // تُستبدل، فترافق العميل من أوّل رسالة — وزرّ اللغة أول ما يحتاجه من لا يقرأ
+      // العربية، وهو أقلّ الناس قدرةً على معرفة أمر /language من نصّ عربيّ.
+      return [reply(sender, tr("rider.welcome"), menu(state)), reply(sender, tr("rider.ask_name"))];
     }
 
     case "/ride": {
@@ -389,18 +402,22 @@ async function handleCommand(
     case "/cancel": {
       // الإلغاء يخرج من أي خطوة حوار، حتى قبل اكتمال التسجيل. كان العميل الجديد
       // يبقى في awaiting_name رغم ظهور «سجّل أولاً»، بخلاف بوت السائق.
+      // إزالة اللوحة هنا (`remove` سابقاً) كانت تخلي أسفل الشاشة في أكثر لحظة
+      // يحتاج فيها العميل إلى طريق عودة أو إلى الدعم. الإلغاء رجوع للقائمة لا خروج.
       if (rider === null) {
         await deps.sessions.clear(sender.telegramUserId);
-        return [reply(sender, tr("common.cancelled"), { kind: "remove" })];
+        return [reply(sender, tr("common.cancelled"), menu(state))];
       }
       const active = await deps.activeOrdersOf(rider.id);
       await deps.sessions.clear(sender.telegramUserId);
       // لا نسمّي إلغاء مسودة رحلة أو تذكرة دعم «لا يوجد طلب»: المسودة أُلغيت فعلاً.
       if (active.length === 0) {
         return [
-          reply(sender, tr(state.step === "idle" ? "rider.no_active_order" : "common.cancelled"), {
-            kind: "remove",
-          }),
+          reply(
+            sender,
+            tr(state.step === "idle" ? "rider.no_active_order" : "common.cancelled"),
+            menu(state),
+          ),
         ];
       }
       // أكثر من طلب نشط: لا نختار عنه. كان النظام يُلغي الأحدث صامتاً ويقول
@@ -424,7 +441,7 @@ async function handleCommand(
         : handleLanguageCommand(sender, state.language);
 
     case "/help":
-      return [reply(sender, tr("rider.help"))];
+      return [reply(sender, tr("rider.help"), menu(state)), reply(sender, tr("menu.hint"))];
 
     default:
       return [reply(sender, tr("common.unknown_command"))];
@@ -574,9 +591,13 @@ async function handleCitySelected(
 
   // askService هي من تحفظ الخطوة التالية — لا حفظان متتاليان للجلسة نفسها
   return [
-    reply(sender, tr("rider.registered", { name: registered.value.fullName, city: city.name }), {
-      kind: "remove",
-    }),
+    // كان `remove`. ولوحة المدن التي قبلها inline لا reply، فلا شيء يستدعي الحذف؛
+    // وإنما كان يُفقد العميل قائمته لحظةً يكمل فيها تسجيله.
+    reply(
+      sender,
+      tr("rider.registered", { name: registered.value.fullName, city: city.name }),
+      menu(state),
+    ),
     ...(await askService(sender, { ...state, draftCityId: city.id }, deps)),
   ];
 }
@@ -609,7 +630,8 @@ async function handleLocation(
     });
     if (!saved.ok) return technicalFailure(sender, state);
     const key = isDelivery ? "rider.ask_parcel_dropoff" : "rider.ask_dropoff";
-    return [reply(sender, tr(key), { kind: "remove" })];
+    // القائمة بدل `remove`: المقصود إنهاء لوحة طلب الموقع لا ترك العميل عارياً.
+    return [reply(sender, tr(key), menu(state))];
   }
 
   if (state.step === "awaiting_dropoff" && state.draftPickup !== null) {
@@ -621,7 +643,7 @@ async function handleLocation(
         draftDropoff: location,
       });
       if (!saved.ok) return technicalFailure(sender, state);
-      return [reply(sender, tr("rider.ask_parcel"), { kind: "remove" })];
+      return [reply(sender, tr("rider.ask_parcel"), menu(state))];
     }
     return createOrderAndMatch(sender, state, rider, state.draftPickup, location, deps);
   }
@@ -677,7 +699,7 @@ async function handleParcel(
 
   await deps.sessions.clear(sender.telegramUserId);
 
-  const replies: BotReply[] = [reply(sender, tr("rider.delivery_searching"), { kind: "remove" })];
+  const replies: BotReply[] = [reply(sender, tr("rider.delivery_searching"), menu(state))];
   if (requested.value.notified.length === 0) return replies;
   return [
     ...replies,
@@ -707,7 +729,7 @@ async function createOrderAndMatch(
 
   await deps.sessions.clear(sender.telegramUserId);
 
-  const replies: BotReply[] = [reply(sender, tr("rider.searching"), { kind: "remove" })];
+  const replies: BotReply[] = [reply(sender, tr("rider.searching"), menu(state))];
 
   // البثّ الحقيقي يبدأ فوراً: تُكتب العروض في order_offers ويُخطَر السائقون.
   // لا سائق الآن؟ الطلب يبقى في حالة البحث وتتولّاه دورات البثّ التالية — والعميل يُخبَر بصدق.

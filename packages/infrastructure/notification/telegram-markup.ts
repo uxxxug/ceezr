@@ -20,7 +20,13 @@ export interface ReplyMarkup {
     readonly request_contact?: true;
   }[][];
   readonly resize_keyboard: true;
-  readonly one_time_keyboard: true;
+  readonly one_time_keyboard: boolean;
+  /**
+   * تلغرام يميّز بين حقلين: `one_time_keyboard` يطوي اللوحة بعد الضغطة،
+   * و`is_persistent` يمنع إخفاءها أصلاً. وضع الأول `false` وحده لا يكفي:
+   * يبقى للمستخدم زرّ طيّ يخفي القائمة فلا يراها بعدها، والمطلوب قائمة لا تغيب.
+   */
+  readonly is_persistent?: true;
 }
 
 export interface RemoveMarkup {
@@ -47,11 +53,18 @@ export function toTelegramMarkup(keyboard: Keyboard | null): TelegramMarkup | un
         ),
       };
     case "reply":
-      return {
-        keyboard: keyboard.rows.map((row) => row.map((label) => ({ text: label }))),
-        resize_keyboard: true,
-        one_time_keyboard: true,
-      };
+      return keyboard.persistent === true
+        ? {
+            keyboard: keyboard.rows.map((row) => row.map((label) => ({ text: label }))),
+            resize_keyboard: true,
+            one_time_keyboard: false,
+            is_persistent: true,
+          }
+        : {
+            keyboard: keyboard.rows.map((row) => row.map((label) => ({ text: label }))),
+            resize_keyboard: true,
+            one_time_keyboard: true,
+          };
     case "request_location":
       return {
         keyboard: [[{ text: keyboard.label, request_location: true }]],

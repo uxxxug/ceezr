@@ -8,6 +8,7 @@
 
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
+import { grammyCommandRegistrar, registerBotCommands } from "./bots/shared/register-commands.ts";
 import { buildContainer } from "./container.ts";
 import { type EmbeddedWorkerHandle, startEmbeddedWorker } from "./embedded-worker.ts";
 import {
@@ -225,6 +226,29 @@ if (config.runWorkerInGateway) {
   log("العامل المدمج غير مُفعَّل", {
     hint: "اضبط RUN_WORKER_IN_GATEWAY=true إن لم توجد خدمة waslah-worker مستقلّة",
   });
+}
+
+/**
+ * تسجيل قائمة الأوامر عند تلغرام — غير حاجز ولا مُسقِط.
+ *
+ * لماذا هنا وليس في `server.ts`: لنفس السبب في العامل المدمج — `server.ts`
+ * يُستورد في اختبارات المسارات، ونداء شبكة حقيقيّ إلى api.telegram.org هناك كان
+ * سيجعل كل اختبار مسار يخرج إلى الشبكة.
+ *
+ * وفشله لا يمسّ الخدمة: القائمة زينة في واجهة تلغرام، والأوامر نفسها تعمل
+ * مكتوبةً بلا تسجيل، والقائمة الدائمة أسفل الشاشة تعمل من داخل الحوار لا من هنا.
+ * فلا يجوز أن يمنع عجزٌ عن تزيين الواجهة إقلاعَ البوتَين.
+ */
+for (const [audience, token] of [
+  ["driver", config.driverBotToken],
+  ["rider", config.riderBotToken],
+] as const) {
+  void registerBotCommands(audience, grammyCommandRegistrar(token))
+    .then(() => log("bot_commands.registered", { audience }))
+    .catch((cause: unknown) => {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      log("bot_commands.register_failed", { audience, detail });
+    });
 }
 
 export default {

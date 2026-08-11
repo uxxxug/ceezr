@@ -14,21 +14,27 @@ import {
 import type { BotReply } from "../../../../../packages/application/bots/types.ts";
 import type { TelegramSender } from "../driver/index.ts";
 import { toTelegramMarkup } from "../shared/keyboards.ts";
+import type { LanguageHydration } from "../shared/language-middleware.ts";
 import { type RawTelegramUpdate, toIncomingUpdate } from "../shared/telegram-mapper.ts";
 
 export interface RiderBotAdapter {
   handleUpdate(raw: RawTelegramUpdate): Promise<boolean>;
 }
 
+/** `language` اختياري للسبب المشروح في محوّل السائق: المحوّل أوّل موضع تُعرف فيه الهوية. */
 export function createRiderBot(
   deps: RiderBotDependencies,
   sender: TelegramSender,
   log: (message: string, meta: Record<string, unknown>) => void = () => {},
+  language?: LanguageHydration,
 ): RiderBotAdapter {
   return {
     handleUpdate: async (raw) => {
       const incoming = toIncomingUpdate(raw);
       if (incoming === null) return true;
+
+      // قبل الحوار لا بعده: الحوار يقرأ الجلسة في أوّل سطر.
+      if (language !== undefined) await language.hydrate(incoming.from);
 
       let replies: readonly BotReply[];
       try {

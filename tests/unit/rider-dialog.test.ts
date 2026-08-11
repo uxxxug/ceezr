@@ -7,6 +7,7 @@
  */
 import { beforeEach, describe, expect, it } from "bun:test";
 import { createMemorySessionStore } from "../../apps/gateway/src/bots/shared/session.ts";
+import { mainMenuKeyboard } from "../../packages/application/bots/main-menu.ts";
 import {
   handleRiderUpdate,
   type RiderBotDependencies,
@@ -89,6 +90,38 @@ beforeEach(() => {
     },
     clock: fixedClock(NOW),
   };
+});
+
+describe("القائمة الدائمة في حوار العميل", () => {
+  it("ترافق الترحيب من أوّل رسالة", async () => {
+    const d = build();
+    const start = await handleRiderUpdate(text("/start"), d);
+    expect(start[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar"));
+  });
+
+  /**
+   * مطلب «ضغطة واحدة في كل الحالات»: لوحة الردّ ترسل **نصّ الزرّ حرفياً**
+   * كأنّ المستخدم كتبه. فبلا ترجمة قبل فحص الخطوة يُسجَّل نصّ الزرّ اسماً للعميل.
+   */
+  it("زرّ القائمة يعمل في منتصف التسجيل ولا يُسجَّل اسماً", async () => {
+    const d = build();
+    await handleRiderUpdate(text("/start"), d);
+
+    const pressed = await handleRiderUpdate(text(ar("menu.rider.cancel")), d);
+    // أُلغيت الخطوة فعلاً — لا «سُجّل اسمك» ولا «لم أفهم هذه الرسالة»
+    expect(pressed[0]?.text).toBe(ar("common.cancelled"));
+    expect(pressed[0]?.text).not.toBe(ar("common.unknown_command"));
+
+    const state = await d.sessions.load(SENDER.telegramUserId);
+    expect(state.ok && state.value).toBeNull();
+  });
+
+  it("يفهم زرّاً بلغة أخرى — لوحة قديمة باقية على جهاز المستخدم", async () => {
+    const d = build();
+    await handleRiderUpdate(text("/start"), d);
+    const pressed = await handleRiderUpdate(text(translate("en", "menu.rider.cancel")), d);
+    expect(pressed[0]?.text).toBe(ar("common.cancelled"));
+  });
 });
 
 describe("تسجيل العميل وطلب رحلة", () => {
@@ -194,7 +227,9 @@ describe("تسجيل العميل وطلب رحلة", () => {
 
     const cancelled = await handleRiderUpdate(text("/cancel"), d);
     expect(cancelled[0]?.text).toBe(ar("common.cancelled"));
-    expect(cancelled[0]?.keyboard).toEqual({ kind: "remove" });
+    // كان يثبّت `{kind:"remove"}`. والسلوك تغيّر عمداً: عميلٌ ألغى تسجيله ناقصاً
+    // أحوج الناس إلى طريق عودة وإلى زرّ الدعم، وإخلاء أسفل الشاشة يسلبه إيّاهما.
+    expect(cancelled[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar"));
 
     const state = await d.sessions.load(SENDER.telegramUserId);
     expect(state.ok && state.value).toBeNull();

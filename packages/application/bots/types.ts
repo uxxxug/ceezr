@@ -58,7 +58,16 @@ export interface Button {
 
 export type Keyboard =
   | { readonly kind: "inline"; readonly rows: readonly ButtonRow[] }
-  | { readonly kind: "reply"; readonly rows: readonly (readonly string[])[] }
+  /**
+   * لوحة أزرار أسفل الشاشة. `persistent` تفرق فرقاً جوهرياً لا تجميلياً:
+   * دونها يرسل تلغرام `one_time_keyboard` فتختفي اللوحة بعد أول ضغطة، وقائمة
+   * رئيسية تختفي بعد أول استعمال ليست قائمة دائمة ولا تفي بما طُلب في البند 2.1.
+   */
+  | {
+      readonly kind: "reply";
+      readonly rows: readonly (readonly string[])[];
+      readonly persistent?: true;
+    }
   | { readonly kind: "request_location"; readonly label: string }
   | { readonly kind: "request_contact"; readonly label: string }
   | { readonly kind: "remove" };

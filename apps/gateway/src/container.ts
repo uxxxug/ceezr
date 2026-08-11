@@ -91,6 +91,10 @@ import {
 import { createDriverBot, grammyTelegramSender, type TelegramSender } from "./bots/driver/index.ts";
 import { createRiderBot } from "./bots/rider/index.ts";
 import { counterpartNotifier } from "./bots/shared/counterpart-notifier.ts";
+import {
+  createLanguageHydration,
+  type LanguageHydration,
+} from "./bots/shared/language-middleware.ts";
 import { createRedisSessionStore } from "./bots/shared/redis-session.ts";
 import { createMemorySessionStore } from "./bots/shared/session.ts";
 import type { RawTelegramUpdate } from "./bots/shared/telegram-mapper.ts";
@@ -98,16 +102,34 @@ import { createUpstashRedis, type RedisClient } from "./redis/upstash.ts";
 import type { BotKind, UpdateHandler } from "./routes/telegram-webhook.ts";
 
 export interface BotWiring {
-  readonly driver: { readonly deps: DriverBotDependencies; readonly sender: TelegramSender };
-  readonly rider: { readonly deps: RiderBotDependencies; readonly sender: TelegramSender };
+  readonly driver: {
+    readonly deps: DriverBotDependencies;
+    readonly sender: TelegramSender;
+    readonly language?: LanguageHydration;
+  };
+  readonly rider: {
+    readonly deps: RiderBotDependencies;
+    readonly sender: TelegramSender;
+    readonly language?: LanguageHydration;
+  };
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
 /** يبني معالج التحديثات الحقيقي: كل بوت إلى محوّله، وما سواه يُرفض بلا ادّعاء معالجة. */
 export function createUpdateHandler(wiring: BotWiring): UpdateHandler {
   const log = wiring.log ?? (() => {});
-  const driverBot = createDriverBot(wiring.driver.deps, wiring.driver.sender, log);
-  const riderBot = createRiderBot(wiring.rider.deps, wiring.rider.sender, log);
+  const driverBot = createDriverBot(
+    wiring.driver.deps,
+    wiring.driver.sender,
+    log,
+    wiring.driver.language,
+  );
+  const riderBot = createRiderBot(
+    wiring.rider.deps,
+    wiring.rider.sender,
+    log,
+    wiring.rider.language,
+  );
 
   const routes: Readonly<Record<BotKind, (raw: RawTelegramUpdate) => Promise<boolean>>> = {
     driver: (raw) => driverBot.handleUpdate(raw),
@@ -430,8 +452,27 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
 
   return {
     handler: createUpdateHandler({
-      driver: { deps: driverDeps, sender: driverSender },
-      rider: { deps: riderDeps, sender: riderSender },
+      // ترطيب اللغة بمخزن جلسة كلّ بوت على حدة: من كتب لغته في بوت السائق يجدها
+      // مطبّقة في بوت الراكب أيضاً — فالقاعدة واحدة (`users.language_code`)، والفصل في
+      // الجلسة وحدها (ADR 0011) لا في التفضيل.
+      driver: {
+        deps: driverDeps,
+        sender: driverSender,
+        language: createLanguageHydration({
+          preferences: languagePreferences,
+          sessions: driverSessions,
+          log,
+        }),
+      },
+      rider: {
+        deps: riderDeps,
+        sender: riderSender,
+        language: createLanguageHydration({
+          preferences: languagePreferences,
+          sessions: riderSessions,
+          log,
+        }),
+      },
       log,
     }),
     sql,

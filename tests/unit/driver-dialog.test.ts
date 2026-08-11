@@ -11,6 +11,7 @@ import {
   type DriverBotDependencies,
   handleDriverUpdate,
 } from "../../packages/application/bots/driver-dialog.ts";
+import { mainMenuKeyboard } from "../../packages/application/bots/main-menu.ts";
 import type { SupportDialogDependencies } from "../../packages/application/bots/support-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
@@ -332,6 +333,35 @@ describe("التوافر", () => {
   });
 });
 
+describe("القائمة الدائمة في حوار السائق", () => {
+  it("ترافق الترحيب من أوّل رسالة", async () => {
+    const start = await handleDriverUpdate(text("/start"), deps);
+    expect(start[0]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+  });
+
+  /**
+   * لوحة الردّ ترسل **نصّ الزرّ حرفياً**، فبلا ترجمة قبل فحص الخطوة يُسجَّل
+   * نصّ الزرّ اسماً للسائق في منتصف تسجيله — وهو ما يمنعه هذا الاختبار.
+   */
+  it("زرّ القائمة يعمل في منتصف التسجيل ولا يُسجَّل اسماً", async () => {
+    await handleDriverUpdate(text("/start"), deps);
+
+    const pressed = await handleDriverUpdate(text(ar("menu.driver.available")), deps);
+    // وصل إلى /available فعلاً — لا «اسم غير صالح» ولا «لم أفهم هذه الرسالة»
+    expect(pressed[0]?.text).toBe(ar("driver.must_register_first"));
+
+    // والخطوة لم تتقدّم: لم يُأخذ نصّ الزرّ اسماً ويُسأل عن الهاتف
+    const state = await deps.sessions.load(SENDER.telegramUserId);
+    expect(state.ok && state.value?.step).toBe("awaiting_name");
+    expect(state.ok && state.value?.draftName).toBeNull();
+  });
+
+  it("يفهم زرّاً بلغة أخرى — لوحة قديمة باقية على جهاز السائق", async () => {
+    const pressed = await handleDriverUpdate(text(translate("ur", "menu.driver.available")), deps);
+    expect(pressed[0]?.text).toBe(ar("driver.must_register_first"));
+  });
+});
+
 describe("الاشتراك", () => {
   it("يعرض السعر من platform_settings لا من قيمة مرمَّزة", async () => {
     const replies = await handleDriverUpdate(
@@ -452,11 +482,15 @@ describe("متانة الحوار", () => {
     );
   });
 
-  it("/cancel يمحو الجلسة فيعود /start من البداية", async () => {
+  it("/cancel يمحو الجلسة فيعود /start من البداية ويُبقي القائمة الدائمة", async () => {
     await handleDriverUpdate(text("/start"), deps);
     await handleDriverUpdate(text("أحمد العمري"), deps);
     const cancelled = await handleDriverUpdate(text("/cancel"), deps);
-    expect(cancelled[0]?.keyboard).toEqual({ kind: "remove" });
+    // كان هذا الاختبار يثبّت `{kind:"remove"}`. وتغيّر السلوك عمداً: إخلاء أسفل
+    // الشاشة عند الإلغاء يسلب المستخدمَ زرَّ الدعم في أكثر لحظة يحتاجه فيها،
+    // وهو ما ينقض مطلب «زرّ الدعم في كل الحالات» نصّاً. فالإلغاء رجوعٌ للقائمة.
+    expect(cancelled[0]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+    // والمقصود الأصلي من الاختبار — محو الجلسة — يبقى مثبّتاً كما هو
     const again = await handleDriverUpdate(text("/start"), deps);
     expect(again[1]?.text).toBe(ar("driver.ask_name"));
   });
