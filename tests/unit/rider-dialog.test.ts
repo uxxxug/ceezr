@@ -77,7 +77,7 @@ beforeEach(() => {
     riders: riderDirectory(null),
     cities: cityDirectory([JEDDAH]),
     orders,
-    activeOrderOf: async () => null,
+    activeOrdersOf: async () => [],
     matching: {
       orders: orderRepo([SEARCHING_ORDER]),
       offers: offerRepo([]),
@@ -252,9 +252,18 @@ describe("الإلغاء", () => {
       telegramUserId: "500",
       fullName: "سالم",
     });
-    const d = build({ riders, activeOrderOf: async () => ORDER_ID });
+    const active = {
+      orderId: ORDER_ID,
+      service: "transport" as const,
+      status: "searching",
+      pickupLabel: null,
+      dropoffLabel: "النسيم",
+      createdAt: new Date("2026-08-11T05:29:00Z"),
+    };
+    const d = build({ riders, activeOrdersOf: async () => [active] });
     const replies = await handleRiderUpdate(text("/cancel"), d);
-    expect(replies[0]?.text).toBe(ar("rider.order_cancelled"));
+    // التأكيد يسمّي الطلب: «تم إلغاء طلبك» المجرّدة هي ما أوهم العميل في الإنتاج
+    expect(replies[0]?.text).toContain("النسيم");
     expect(orders.cancellations).toEqual([ORDER_ID]);
   });
 

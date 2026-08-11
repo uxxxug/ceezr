@@ -77,7 +77,7 @@ import {
   createTrialRpc,
 } from "../../../packages/infrastructure/subscription/subscription-adapters.ts";
 import {
-  createActiveOrderLookup,
+  createActiveOrdersLookup,
   createOrderRepository,
   createOrderWriter,
 } from "../../../packages/infrastructure/transport/order-adapters.ts";
@@ -411,7 +411,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     riders,
     cities,
     orders: orderWriter,
-    activeOrderOf: createActiveOrderLookup(sql),
+    activeOrdersOf: createActiveOrdersLookup(sql),
     matching,
     clock: systemClock,
     negotiation: { rotation: rotationDeps, relay: relayDeps },

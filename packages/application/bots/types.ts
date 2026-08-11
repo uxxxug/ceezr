@@ -259,9 +259,50 @@ export interface CreateOrderInput {
   readonly notes?: string | null;
 }
 
+/** سائق يجب إخطاره بالإلغاء — تُعيدهم دالّة cancel_order_by_rider الذرّية. */
+export interface CancelNotifyTarget {
+  readonly driverId: DriverId;
+  readonly wasAssigned: boolean;
+}
+
+/**
+ * نتيجة الإلغاء مفصَّلة، لا مجرّد صواب أو خطأ. كان الإلغاء يعيد boolean، فكان
+ * «لم يُلغَ» يعني في آن واحد: لا طلب لك، وطلبك بدأ فلا يُلغى. فيُقال للعميل
+ * «لا يوجد طلب نشط» عن طلب قائم يراه أمامه.
+ */
+export type CancelOutcome =
+  | {
+      readonly kind: "cancelled";
+      readonly orderId: OrderId;
+      readonly service: ServiceType;
+      readonly previousStatus: string;
+      readonly notify: readonly CancelNotifyTarget[];
+      readonly groupMessageIds: readonly string[];
+    }
+  | { readonly kind: "not_cancellable" }
+  | { readonly kind: "not_found" };
+
 export interface OrderWriter {
   create(input: CreateOrderInput): Promise<Result<OrderId, PortFailureError>>;
-  cancelByRider(orderId: OrderId, riderId: RiderId): Promise<Result<boolean, PortFailureError>>;
+  cancelByRider(
+    orderId: OrderId,
+    riderId: RiderId,
+  ): Promise<Result<CancelOutcome, PortFailureError>>;
+}
+
+/**
+ * ملخّص طلب نشط. كان النظام يقرأ «آخر طلب» فقط بـ limit 1، والعميل قد يملك أكثر
+ * من طلب في وقت واحد — مشوار وطرد مثلاً. فكان /cancel يُلغي الأحدث ويقول «أُلغي
+ * طلبك» بلا تسمية، فيظنّ العميل أن الأقدم أُلغي وهو باقٍ يبحث عن سائق. هذا ما
+ * حدث فعلاً في الإنتاج يوم 2026-08-11.
+ */
+export interface ActiveOrderSummary {
+  readonly orderId: OrderId;
+  readonly service: ServiceType;
+  readonly status: string;
+  readonly pickupLabel: string | null;
+  readonly dropoffLabel: string | null;
+  readonly createdAt: Date;
 }
 
 /** رفض السائق للعرض — يُسجَّل فوراً ليخرج من دورة البثّ القادمة بلا انتظار المهلة. */

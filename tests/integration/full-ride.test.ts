@@ -446,7 +446,9 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
 
     riderSent.length = 0;
     await post("rider", text(RIDER_CHAT, "/cancel"));
-    expect(riderSent.map((m) => m.text)).toContain(ar("rider.order_cancelled"));
+    // التأكيد صار يسمّي الطلب: «تم إلغاء طلبك» المجرّدة أوهمت عميلاً في الإنتاج
+    // أن مشواره أُلغي بينما أُلغي طرده، فبقي المشوار يبحث عن سائق خمس ساعات.
+    expect(riderSent.at(-1)?.text).toContain("تم إلغاء:");
 
     const orders = await sql<{ status: string; cancelled_reason: string | null }[]>`
       select status, cancelled_reason from orders

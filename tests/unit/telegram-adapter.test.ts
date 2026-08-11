@@ -271,7 +271,7 @@ describe("تركيب التبعيات (container)", () => {
           riders: riderDirectory(null),
           cities: cityDirectory([JEDDAH]),
           orders: orderWriter(),
-          activeOrderOf: async () => null,
+          activeOrdersOf: async () => [],
           matching: {
             orders: orderRepo([]),
             offers: offerRepo([]),
@@ -304,7 +304,7 @@ describe("تركيب التبعيات (container)", () => {
           riders: riderDirectory(null),
           cities: cityDirectory([JEDDAH]),
           orders: orderWriter(),
-          activeOrderOf: async () => null,
+          activeOrdersOf: async () => [],
           matching: {
             orders: orderRepo([]),
             offers: offerRepo([]),

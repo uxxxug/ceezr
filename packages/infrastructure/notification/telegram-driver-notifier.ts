@@ -9,6 +9,7 @@
 
 import type { Keyboard } from "../../application/bots/types.ts";
 import type {
+  CancellationNotice,
   DriverNotifier,
   OfferNotification,
 } from "../../application/dispatch/broadcast-offers.ts";
@@ -61,6 +62,28 @@ export function createTelegramDriverNotifier(sql: Sql, sender: OutboundSender): 
           ],
         };
         return sender.send(String(contact.telegram_id), text, keyboard);
+      }),
+
+    /**
+     * إخطار الإلغاء. بلا لوحة أزرار عمداً: الطلب انتهى، فأي زرّ باقٍ يدعو إلى
+     * فعل لا محلّ له. والمُسنَد يُخاطَب بنصّ آخر لأنه كان في طريقه فعلاً.
+     */
+    notifyCancelled: (notice: CancellationNotice) =>
+      guard("notifier.notifyCancelled", async () => {
+        const rows = await sql<DriverContactRow[]>`
+          select u.telegram_id, u.language_code
+            from drivers d
+            join users u on u.id = d.user_id
+           where d.id = ${notice.driverId}
+        `;
+        const contact = rows[0];
+        if (contact === undefined) return false;
+
+        const tr = t(contact.language_code);
+        const text = tr(
+          notice.wasAssigned ? "driver.order_cancelled_assigned" : "driver.order_cancelled_offer",
+        );
+        return sender.send(String(contact.telegram_id), text, null);
       }),
   };
 }

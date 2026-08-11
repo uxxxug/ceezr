@@ -39,9 +39,23 @@ export interface OfferNotification {
   readonly expiresInSeconds: number;
 }
 
+/**
+ * إخطار السائق بأن الطلب أُلغي. كان الإلغاء قبل هذا صامتاً تماماً في جهة السائق:
+ * تبقى بطاقة العرض في محادثته تدعوه إلى قبول طلب لم يعد قائماً، ويبقى السائق
+ * المُسنَد سائراً إلى موعد أُلغي. الصمت هنا ليس نقص ميزة بل معلومة كاذبة.
+ */
+export interface CancellationNotice {
+  readonly orderId: OrderId;
+  readonly driverId: DriverId;
+  /** المُسنَد يُخاطَب بغير ما يُخاطَب به صاحب عرض معلّق: أحدهما كان في طريقه. */
+  readonly wasAssigned: boolean;
+}
+
 export interface DriverNotifier {
   /** يعيد false إن تعذّر الوصول للسائق — ولا يرمي، فالبثّ يستمر لبقية الدفعة. */
   notifyOffer(notification: OfferNotification): Promise<Result<boolean, PortFailureError>>;
+  /** يعيد false إن تعذّر الوصول — الإلغاء نفسه تمّ، والإخطار لا يُبطله. */
+  notifyCancelled(notice: CancellationNotice): Promise<Result<boolean, PortFailureError>>;
 }
 
 export interface BroadcastDependencies extends MatchOrderDependencies {

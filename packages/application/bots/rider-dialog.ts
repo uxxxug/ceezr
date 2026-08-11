@@ -10,7 +10,7 @@
 import { makeCoordinates } from "../../domain/geo/value-objects.ts";
 import { parseFullName } from "../../domain/identity/value-objects.ts";
 import { t } from "../../shared/i18n/index.ts";
-import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
+import type { Clock, ServiceType } from "../../shared/kernel/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
 import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
@@ -36,6 +36,7 @@ import {
   submitSupportMessage,
 } from "./support-dialog.ts";
 import {
+  type ActiveOrderSummary,
   type BotReply,
   type CityDirectory,
   type CityRef,
@@ -55,8 +56,8 @@ export interface RiderBotDependencies {
   readonly riders: RiderDirectory;
   readonly cities: CityDirectory;
   readonly orders: OrderWriter;
-  /** آخر طلب نشط للعميل — لمعرفة ما يُلغى عند /cancel. */
-  readonly activeOrderOf: (riderId: RiderProfile["id"]) => Promise<OrderId | null>;
+  /** كل الطلبات النشطة للعميل — لا الأحدث وحده، فقد يملك مشواراً وطرداً معاً. */
+  readonly activeOrdersOf: (riderId: RiderProfile["id"]) => Promise<readonly ActiveOrderSummary[]>;
   /** تبعيات المطابقة والبثّ نفسها المستخدمة في broadcastOffers — لا تكرار للمنطق. */
   readonly matching: BroadcastDependencies;
   readonly clock: Clock;
@@ -113,6 +114,7 @@ export async function handleRiderUpdate(
     if (prefix === "svc") return handleServiceSelected(rest.join(":"), sender, state, deps);
     if (prefix === "back") return handleBack(rest.join(":"), sender, state, deps);
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
+    if (prefix === "cancel") return handleCancelChoice(rest.join(":"), sender, state, deps);
     if (prefix === "rate") {
       return deps.rating === undefined
         ? [reply(sender, tr("common.unknown_command"))]
@@ -206,6 +208,97 @@ async function handleFreeText(
  * قرار العميل في التفاوض: «تم الاتفاق» يثبّت الإسناد، و«السائق التالي» يغلق القناة
  * ويفتحها مع التالي فوراً. الإخطارات من حالة الاستخدام نفسها، فلا تكرار هنا.
  */
+/**
+ * وصف الطلب في قائمة الاختيار. لا نعرض معرّف UUID على العميل: هو لا يعرفه ولا
+ * يميّز به شيئاً. نعرض نوع الخدمة ووجهته ووقته، وهي ما يميّز طلباً عن آخر فعلاً.
+ */
+function describeActiveOrder(order: ActiveOrderSummary, language: string): string {
+  const tr = t(language);
+  const service = tr(
+    order.service === "delivery" ? "rider.service_delivery" : "rider.service_transport",
+  );
+  const place = order.dropoffLabel ?? order.pickupLabel;
+  const time = order.createdAt.toISOString().slice(11, 16);
+  return place === null ? `${service} — ${time}` : `${service} — ${place} — ${time}`;
+}
+
+function cancelChoiceKeyboard(orders: readonly ActiveOrderSummary[], language: string): Keyboard {
+  return {
+    kind: "inline",
+    rows: orders.map((order) => [
+      { label: describeActiveOrder(order, language), data: `cancel:${order.orderId}` },
+    ]),
+  };
+}
+
+/**
+ * الإلغاء الفعلي لطلب بعينه، ومعه إخطار كل من يعنيه الأمر.
+ *
+ * الإخطار يجري بعد نجاح الإلغاء لا قبله، وفشله لا يُبطل الإلغاء: العميل وافق
+ * وقُيّد قراره في القاعدة، فلا يصحّ أن يُلغى قراره لأن تيليجرام تعثّر.
+ */
+async function cancelOne(
+  order: ActiveOrderSummary,
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
+  if (!rider.ok) return technicalFailure(sender, state);
+  if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
+
+  const cancelled = await deps.orders.cancelByRider(order.orderId, rider.value.id);
+  if (!cancelled.ok) return technicalFailure(sender, state);
+
+  // «بدأت رحلتك فلا تُلغى بزرّ» ليست «لا يوجد طلب». الخلط بينهما يُخرج العميل
+  // معتقداً أن طلبه اختفى، وهو ماضٍ.
+  if (cancelled.value.kind === "not_cancellable") {
+    return [reply(sender, tr("rider.order_not_cancellable"))];
+  }
+  if (cancelled.value.kind === "not_found") {
+    return [reply(sender, tr("rider.no_active_order"))];
+  }
+
+  for (const target of cancelled.value.notify) {
+    await deps.matching.notifier.notifyCancelled({
+      orderId: cancelled.value.orderId,
+      driverId: target.driverId,
+      wasAssigned: target.wasAssigned,
+    });
+  }
+
+  // التأكيد يسمّي الطلب. «تم إلغاء طلبك» وحدها هي التي أوقعت العميل في الوهم.
+  return [
+    reply(
+      sender,
+      tr("rider.order_cancelled_named", { order: describeActiveOrder(order, state.language) }),
+      {
+        kind: "remove",
+      },
+    ),
+  ];
+}
+
+async function handleCancelChoice(
+  orderIdRaw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
+  if (!rider.ok) return technicalFailure(sender, state);
+  if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
+
+  // نُعيد القراءة بدل الوثوق بمعرّف قادم من زرّ قديم: الطلب قد يكون قُبل أو
+  // انتهى بين عرض القائمة والضغط عليها.
+  const active = await deps.activeOrdersOf(rider.value.id);
+  const chosen = active.find((order) => String(order.orderId) === orderIdRaw);
+  if (chosen === undefined) return [reply(sender, tr("rider.no_active_order"))];
+  return cancelOne(chosen, sender, state, deps);
+}
+
 async function handleNegotiationDecision(
   rest: readonly string[],
   sender: Sender,
@@ -300,20 +393,29 @@ async function handleCommand(
         await deps.sessions.clear(sender.telegramUserId);
         return [reply(sender, tr("common.cancelled"), { kind: "remove" })];
       }
-      const orderId = await deps.activeOrderOf(rider.id);
+      const active = await deps.activeOrdersOf(rider.id);
       await deps.sessions.clear(sender.telegramUserId);
       // لا نسمّي إلغاء مسودة رحلة أو تذكرة دعم «لا يوجد طلب»: المسودة أُلغيت فعلاً.
-      if (orderId === null) {
+      if (active.length === 0) {
         return [
           reply(sender, tr(state.step === "idle" ? "rider.no_active_order" : "common.cancelled"), {
             kind: "remove",
           }),
         ];
       }
-      const cancelled = await deps.orders.cancelByRider(orderId, rider.id);
-      if (!cancelled.ok) return technicalFailure(sender, state);
-      if (!cancelled.value) return [reply(sender, tr("rider.no_active_order"))];
-      return [reply(sender, tr("rider.order_cancelled"), { kind: "remove" })];
+      // أكثر من طلب نشط: لا نختار عنه. كان النظام يُلغي الأحدث صامتاً ويقول
+      // «تم إلغاء طلبك»، فيخرج العميل ظانّاً أن طلبه الآخر انتهى وهو باقٍ.
+      if (active.length > 1) {
+        return [
+          reply(
+            sender,
+            tr("rider.cancel_which_order"),
+            cancelChoiceKeyboard(active, state.language),
+          ),
+        ];
+      }
+      const only = active[0] as ActiveOrderSummary;
+      return cancelOne(only, sender, state, deps);
     }
 
     case "/language":
