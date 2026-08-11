@@ -234,19 +234,6 @@ export function createOfferDecisionPort(sql: Sql): OfferDecisionPort {
   };
 }
 
-/** تحديث موقع السائق — يغذّي المطابقة، فبلا موقع حديث لا يكون السائق مرشَّحاً. */
-export function createDriverLocationWriter(sql: Sql) {
-  return async (driverId: DriverId, latitude: number, longitude: number): Promise<void> => {
-    await sql`
-      update drivers
-         set last_location = st_setsrid(st_makepoint(${longitude}, ${latitude}), 4326)::geography,
-             last_location_at = now(),
-             updated_at = now()
-       where id = ${driverId}
-    `;
-  };
-}
-
 /**
  * العروض المعلَّقة في مدينة واحدة مع معرّفاتها. المعرّف ضروري لأن مهمّة الإنهاء
  * تقرّر بالمهلة التجارية للمدينة ثم تُنهي عروضاً بعينها، لا كل ما مضى وقته.

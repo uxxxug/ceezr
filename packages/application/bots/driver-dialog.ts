@@ -7,11 +7,8 @@
  * ملاحظات مستقبلية: كل قيمة تجارية (السعر، مدة التجربة) تُقرأ من platform_settings عبر منفذ الإعدادات.
  */
 
-import {
-  type Coordinates,
-  makeCoordinates,
-  parseAreaLabel,
-} from "../../domain/geo/value-objects.ts";
+import { assessGpsFix, DEFAULT_GPS_POLICY } from "../../domain/geo/gps-fix.ts";
+import { type Coordinates, parseAreaLabel } from "../../domain/geo/value-objects.ts";
 import { parseFullName, parsePhone } from "../../domain/identity/value-objects.ts";
 import {
   parseNationalId,
@@ -64,6 +61,7 @@ import {
   startSupportDialog,
   submitSupportMessage,
 } from "./support-dialog.ts";
+import type { LocationQualityHints } from "./types.ts";
 import {
   type BotReply,
   type CityDirectory,
@@ -240,7 +238,8 @@ export async function handleDriverUpdate(
     }
     return handlePhone(update.phone, sender, state, deps);
   }
-  if (update.kind === "location") return handleLocation(update.location, sender, state, deps);
+  if (update.kind === "location")
+    return handleLocation(update.location, sender, state, deps, update.quality);
   if (update.kind === "photo") {
     if (state.step === "awaiting_vehicle_photo") {
       return completeRegistration(update.fileId, sender, state, deps);
@@ -1151,6 +1150,7 @@ async function handleLocation(
   sender: Sender,
   state: DialogState,
   deps: DriverBotDependencies,
+  hints?: LocationQualityHints,
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
   const existing = await deps.drivers.findByTelegramId(sender.telegramUserId);
@@ -1158,8 +1158,28 @@ async function handleLocation(
   const driver = existing.value;
   if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
 
-  const coordinates = makeCoordinates(location.latitude, location.longitude);
-  if (!coordinates.ok) return [reply(sender, tr("driver.location_invalid"))];
+  /**
+   * المرحلة ٤ — المسار الحيّ صار يمرّ بمُقيِّم المجال لا بفحص الإحداثيات وحده.
+   *
+   * `makeCoordinates` تفحص الموضع ولا تفحص شيئاً سواه، فكانت إصلاحة بدقّة ثلاثة
+   * كيلومترات وأخرى بدقّة خمسة أمتار تُكتبان في القاعدة سواءً بسواء، ثم تقرؤهما
+   * المطابقة على أنهما نقطتان متساويتان في اليقين. والفصل هنا لا في المُقيِّم:
+   * المُقيِّم يحكم، وهذه الطبقة تُقرّر ماذا يُفعل بالحكم.
+   */
+  const assessment = assessGpsFix(
+    {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracyMeters: hints?.accuracyMeters,
+      headingDegrees: hints?.headingDegrees,
+      recordedAtMs: hints?.recordedAtMs ?? deps.clock.now().getTime(),
+    },
+    null,
+    deps.clock.now().getTime(),
+    DEFAULT_GPS_POLICY,
+  );
+  if (assessment.fix === null) return [reply(sender, tr("driver.location_invalid"))];
+  const coordinates = { ok: true as const, value: assessment.fix.coordinates };
 
   /**
    * البند 2.4: موقعٌ يصل في خطوة المنطقة المفضّلة هو مركز المنطقة لا موقع العمل
@@ -1170,7 +1190,15 @@ async function handleLocation(
     return savePreferredArea(driver, coordinates.value, sender, state, deps);
   }
 
-  const saved = await deps.drivers.updateLocation(driver.id, coordinates.value);
+  /**
+   * الحكم يُخزَّن مع الموضع لا يُطرح: WARNING تعني موقعاً صحيحاً متدهوّراً، ورفضُه
+   * كان سيترك العمليات بلا شيء بدل أن يتركها بشيءٍ موسوم — وهو الاختيار الأسوأ
+   * حين يكون البديل أن يختفي السائق من الخريطة.
+   */
+  const saved = await deps.drivers.updateLocation(driver.id, coordinates.value, {
+    accuracyMeters: assessment.fix.accuracyMeters,
+    verdict: assessment.verdict === "REJECT" ? "ALERT" : assessment.verdict,
+  });
   if (!saved.ok) return technicalFailure(sender, state);
 
   // من كان متاحاً وينقصه الموقع فقد اكتملت شروطه الآن، فيُخبَر أنه صار ظاهراً

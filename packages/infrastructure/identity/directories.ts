@@ -15,6 +15,7 @@ import type {
   RegisterRiderInput,
   RiderDirectory,
   RiderProfile,
+  StoredLocationQuality,
 } from "../../application/bots/types.ts";
 import type { PortFailureError } from "../../application/ports/index.ts";
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
@@ -126,13 +127,22 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
         }),
       ) as Promise<Result<DriverProfile, PortFailureError>>,
 
-    updateLocation: (driverId: DriverId, location: Coordinates) =>
+    /**
+     * الكاتب الوحيد لـ`drivers.last_location` — ADR-0015.
+     *
+     * الموضع وجودته يُكتبان في جملة واحدة: جملتان متتاليتان تتركان نافذةً تُقرأ
+     * فيها إحداثيةٌ جديدة مع حكمِ إحداثيةٍ قديمة — وهي أسوأ من غياب الحكم أصلاً،
+     * لأنّها تُلبِس إصلاحةً خشنةً شهادةَ دقّةٍ لإصلاحةٍ أخرى.
+     */
+    updateLocation: (driverId: DriverId, location: Coordinates, quality?: StoredLocationQuality) =>
       guard("drivers.updateLocation", async () => {
         await sql`
           update drivers
              set last_location = st_setsrid(
                    st_makepoint(${location.longitude}, ${location.latitude}), 4326)::geography,
                  last_location_at = now(),
+                 last_location_accuracy_m = ${quality?.accuracyMeters ?? null},
+                 last_location_quality = ${quality?.verdict ?? null},
                  updated_at = now()
            where id = ${driverId}
         `;

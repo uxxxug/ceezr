@@ -14,10 +14,35 @@ import type { Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
 
 /** ما يصل من المنصّة، مُجرَّداً من شكل تلغرام. */
+/** ما يُبلّغه المصدر عن إصلاحته. كلّه اختياري: بلاغٌ ناقص أصدق من بلاغٍ مُلفَّق. */
+export interface LocationQualityHints {
+  readonly accuracyMeters?: number | undefined;
+  readonly headingDegrees?: number | undefined;
+  /** ميلي‌ثانية Unix لزمن التقاط الإصلاحة — لا زمن وصولها إلى الخادم. */
+  readonly recordedAtMs?: number | undefined;
+}
+
+/** جودة الإصلاحة كما حكم عليها المجال، لا كما ادّعاها المصدر. */
+export interface StoredLocationQuality {
+  readonly accuracyMeters: number | null;
+  readonly verdict: "ACCEPT" | "WARNING" | "ALERT";
+}
+
 export type IncomingUpdate =
   | { readonly kind: "text"; readonly from: Sender; readonly text: string }
   | { readonly kind: "callback"; readonly from: Sender; readonly data: string }
-  | { readonly kind: "location"; readonly from: Sender; readonly location: Coordinates }
+  /**
+   * `quality` اختياري لأن المصادر تختلف فيما تُبلّغ عنه: زرّ الموقع في تلغرام
+   * يرسل الدقّة والاتجاه، والبطاقة اليدوية لا ترسل شيئاً. وغيابه ليس معناه
+   * إصلاحةً مثاليةً بل إصلاحةً بلا شهادة على نفسها، ومُقيِّم المجال يتعامل مع
+   * الحالتين على حِدَة.
+   */
+  | {
+      readonly kind: "location";
+      readonly from: Sender;
+      readonly location: Coordinates;
+      readonly quality?: LocationQualityHints;
+    }
   /**
    * `ownerTelegramId`: صاحب البطاقة كما يُقرّه تلغرام، لا كما يدّعي المرسِل.
    * يساوي `from.telegramUserId` حين يضغط المستخدم زرّ مشاركة رقمه،
@@ -246,10 +271,17 @@ export interface DriverDirectory {
     driverId: DriverId,
     isAvailable: boolean,
   ): Promise<Result<void, PortFailureError>>;
-  /** يحفظ آخر موقع للسائق — يغذّي المطابقة مباشرة. */
+  /**
+   * يحفظ آخر موقع للسائق — يغذّي المطابقة مباشرة.
+   *
+   * `quality` ليس زينةً في السجل: مُقيِّم المرحلة ٣ يُنتج ثلاثة أحكام، فإن خُزّن
+   * الموضع وحده ضاع الحكم وعادت المطابقة تُسوّي بين إصلاحة بدقّة ٥ أمتار وأخرى
+   * بدقّة ٣ كيلومترات. تمريره هنا يجعل الجودة جزءاً من المصدر القانوني (ADR-0015).
+   */
   updateLocation(
     driverId: DriverId,
     location: Coordinates,
+    quality?: StoredLocationQuality,
   ): Promise<Result<void, PortFailureError>>;
   /**
    * يحفظ المنطقة المفضّلة أو يمسحها بتمرير `null` — البند 2.4.
