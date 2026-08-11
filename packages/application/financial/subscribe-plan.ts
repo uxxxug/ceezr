@@ -62,12 +62,12 @@ export async function subscribePlan(
     return err(new SubscriptionPaymentError(price.error.detail));
   }
 
-  // الإيدمبوتنسي: إن وُجدت معاملة بنفس المفتاح سلفاً لا نُعيد الشحن.
-  // هذا الفحص قبل create يضمن أنّ أيّ معاملة قائمة — pending أو غيرها —
-  // لا تُستدعي لها المزوّد مرّتين. create نفسه idempotent لكنه لا يميّز
-  // بين الجديد والموجود في القيمة الراجعة.
+  // الإيدمبوتنسي (خط 1): فحص سريع قبل الإنشاء — يمنع معظم الاستدعاءات المكررة.
   const existing = await deps.payments.findByIdempotencyKey(input.idempotencyKey);
-  if (existing.ok && existing.value !== null) {
+  if (!existing.ok) {
+    return err(new SubscriptionPaymentError(existing.error.detail));
+  }
+  if (existing.value !== null) {
     return ok({
       transactionId: existing.value.id,
       checkoutUrl: null,
@@ -90,13 +90,14 @@ export async function subscribePlan(
     return err(new SubscriptionPaymentError(created.error.detail));
   }
 
-  // إن كانت المعاملة موجودة سلفاً (إيدمبوتنسي — سباق بين الفحص والإنشاء)،
-  // لا نُعيد الشحن.
-  if (created.value.status !== "pending") {
+  // الإيدمبوتنسي (خط 2 — حسم السباق): إن أعاد create معاملة موجودة سلفاً،
+  // لا نستدعي المزوّد. create_payment RPC ذرّي: يعيد already_exists=true
+  // عند التزاحم، فلا يُستدعى المزوّد مرّتين مهما حدث.
+  if (created.value.alreadyExists) {
     return ok({
-      transactionId: created.value.id,
+      transactionId: created.value.transaction.id,
       checkoutUrl: null,
-      status: created.value.status,
+      status: created.value.transaction.status,
     });
   }
 
@@ -114,7 +115,7 @@ export async function subscribePlan(
   // تحديث معرّف المزوّد إن بدأ العملية فوراً.
   if (charge.value.providerTransactionId !== null) {
     const confirmed = await deps.payments.confirmPayment({
-      transactionId: created.value.id,
+      transactionId: created.value.transaction.id,
       providerTransactionId: charge.value.providerTransactionId,
       newStatus: charge.value.status,
     });
@@ -129,7 +130,7 @@ export async function subscribePlan(
   }
 
   return ok({
-    transactionId: created.value.id,
+    transactionId: created.value.transaction.id,
     checkoutUrl: charge.value.checkoutUrl,
     status: charge.value.status,
   });

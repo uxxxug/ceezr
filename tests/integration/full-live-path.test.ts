@@ -33,7 +33,7 @@ function e2ePaymentRepo(): PaymentRepository & { txns: PaymentTransaction[] } {
     txns,
     create: async (input) => {
       const existing = txns.find((t) => t.id === input.idempotencyKey);
-      if (existing !== undefined) return ok(existing);
+      if (existing !== undefined) return ok({ transaction: existing, alreadyExists: true });
       const tx: PaymentTransaction = {
         id: input.idempotencyKey as PaymentTransactionId,
         payerId: input.driverId,
@@ -48,7 +48,7 @@ function e2ePaymentRepo(): PaymentRepository & { txns: PaymentTransaction[] } {
         updatedAt: new Date(),
       };
       txns.push(tx);
-      return ok(tx);
+      return ok({ transaction: tx, alreadyExists: false });
     },
     findById: async (id) => ok(txns.find((t) => t.id === id) ?? null),
     findByIdempotencyKey: async (key) => ok(txns.find((t) => t.id === key) ?? null),

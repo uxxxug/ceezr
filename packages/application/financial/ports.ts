@@ -66,13 +66,23 @@ export interface CreatePaymentInput {
 }
 
 /**
+ * نتيجة إنشاء معاملة دفع — تحمل المعاملة وعلم «كانت موجودة سلفاً».
+ * alreadyExists=true يعني أنّ المعاملة رُفض إنشاؤها ثانيةً وأُعيدت القائمة.
+ * هذا العلم حاسم لمنع استدعاء المزوّد مرّتين عند السباق (race condition).
+ */
+export interface CreatePaymentResult {
+  readonly transaction: PaymentTransaction;
+  readonly alreadyExists: boolean;
+}
+
+/**
  * منفذ مستودع معاملات الدفع — الكتابة والقراءة على القاعدة عبر RPC ذرّي.
  * Idempotency على مفتاح `idempotencyKey`: إنشاءٌ بنفس المفتاح مرّتين يُعيد
- * المعاملة الموجودة لا يُنشئ ثانية.
+ * المعاملة الموجودة لا يُنشئ ثانية، ويُعيّن alreadyExists=true.
  */
 export interface PaymentRepository {
   /** ينشئ معاملة ذرّياً مع حماية التكرار على مفتاح الإيدمبوتنسي. */
-  create(input: CreatePaymentInput): Promise<Result<PaymentTransaction, PortFailureError>>;
+  create(input: CreatePaymentInput): Promise<Result<CreatePaymentResult, PortFailureError>>;
 
   /** يقرأ معاملة بمعرّفها. */
   findById(id: PaymentTransactionId): Promise<Result<PaymentTransaction | null, PortFailureError>>;

@@ -27,6 +27,8 @@ export interface PaymentTransactionRow {
 
 export interface PaymentPageData {
   readonly cityOptions: readonly CityOption[];
+  readonly cityId: string;
+  readonly cityName: string;
   readonly transactions: readonly PaymentTransactionRow[];
   readonly providerName: string | null;
   readonly environment: string | null;
@@ -58,10 +60,22 @@ export function renderPaymentsPage(data: PaymentPageData): string {
     formatDateTime(tx.createdAt),
   ]);
 
+  const cityPicker = data.cityOptions.length > 0
+    ? `<div class="city-picker">
+        <label>المدينة:</label>
+        <select onchange="window.location.href='?city='+encodeURIComponent(this.value)">
+          ${data.cityOptions.map((city) =>
+            `<option value="${escapeHtml(city.id)}"${city.id === data.cityId ? " selected" : ""}>${escapeHtml(city.nameAr)}</option>`
+          ).join("")}
+        </select>
+      </div>`
+    : "";
+
   return section(
     "المدفوعات والاشتراكات",
     `
     <div class="pay-status-bar">
+      ${cityPicker}
       ${data.providerName !== null ? badge(`المزوّد: ${escapeHtml(data.providerName)}`, "ok") : ""}
       ${data.environment !== null ? badge(escapeHtml(data.environment), data.environment === "production" ? "bad" : "warn") : ""}
       ${badge(data.driverSubscriptionEnabled ? "اشتراك السائق مفعّل" : "اشتراك السائق معطّل", data.driverSubscriptionEnabled ? "ok" : "muted")}

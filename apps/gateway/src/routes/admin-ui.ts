@@ -632,13 +632,19 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   // المدفوعات — عرض معاملات الدفع وحالة الاشتراك (البند 8)
   // -------------------------------------------------------------------------
   app.get("/payments", async (c) => {
+    const cities = await listCities(deps.sql);
+    const requested = cityParam(c.req.query("city"));
+    const cityId = requested ?? c.get("admin").cityId;
+    const options = toCityGroupStatuses(cities);
+    const cityName = options.find((city) => city.id === cityId)?.nameAr ?? "—";
     const rows = await deps.sql`
-      select pt.id, d.telegram_name as driver_name, c.name_ar as city_name,
+      select pt.id, d.user_id as driver_id, c.name_ar as city_name,
              pt.purpose, pt.amount_minor, pt.currency, pt.provider,
              pt.provider_transaction_id, pt.status, pt.created_at
         from payment_transactions pt
         join drivers d on d.id = pt.payer_driver_id
         join cities c on c.id = pt.city_id
+       where pt.city_id = ${cityId}::uuid
        order by pt.created_at desc
        limit 50
     `;
@@ -648,10 +654,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       "المدفوعات",
       "/admin/payments",
       renderPaymentsPage({
-        cityOptions: [],
+        cityOptions: options.map((city) => ({ id: city.id, code: city.code, nameAr: city.nameAr })),
+        cityId,
+        cityName,
         transactions: rows.map((r: Record<string, unknown>) => ({
           id: String(r.id),
-          driverName: String(r.driver_name ?? "—"),
+          driverName: String(r.driver_id ?? "—"),
           cityName: String(r.city_name ?? "—"),
           purpose: String(r.purpose),
           amountMinor: Number(r.amount_minor),

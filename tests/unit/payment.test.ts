@@ -69,20 +69,23 @@ function fakePaymentRepo(initial?: PaymentTransaction): {
   return {
     repo: {
       create: async (input: CreatePaymentInput) => {
-        if (state.tx !== null) return ok(state.tx); // idempotency
+        if (state.tx !== null) {
+          // idempotency: RPC يعيد المعاملة الموجودة مع already_exists=true
+          return ok({ transaction: state.tx, alreadyExists: true });
+        }
         state.tx = makeTx({
           id: input.idempotencyKey as PaymentTransactionId,
           status: input.status,
           provider: input.provider,
           amount: input.amount,
         });
-        return ok(state.tx);
+        return ok({ transaction: state.tx, alreadyExists: false });
       },
       findById: async () => ok(state.tx),
       findByIdempotencyKey: async () => ok(state.tx),
       confirmPayment: async (input) => {
         if (state.tx === null) return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
-        state.tx = { ...state.tx, status: input.newStatus, providerTransactionId: input.providerTransactionId };
+        state.tx = { ...state.tx!, status: input.newStatus, providerTransactionId: input.providerTransactionId };
         return ok(state.tx);
       },
     },
@@ -206,6 +209,32 @@ describe("payment: subscribe-plan", () => {
     );
     expect(result.ok).toBe(true);
     expect(providerCallCount).toBe(0); // لم يُستدعَ المزوّد
+  });
+
+  it("السباق (race): findByIdempotencyKey يُرجع null لكن create يُرجع alreadyExists=true — لا يُستدعى المزوّد", async () => {
+    let providerCallCount = 0;
+    const trackingProvider: PaymentProvider = {
+      name: "track-provider",
+      chargeSubscription: async () => {
+        providerCallCount += 1;
+        return ok({ providerTransactionId: `prov-${providerCallCount}`, checkoutUrl: null, status: "pending" as const });
+      },
+    };
+    // محاكاة السباق: findByIdempotencyKey يُرجع null (لا توجد بعد)،
+    // لكن create يُرجع alreadyExists=true (طرفٌ آخر أنشأها بين الفحص والإنشاء).
+    const raceTx = makeTx({ id: "race-tx" as PaymentTransactionId, status: "pending" });
+    const raceRepo: PaymentRepository = {
+      create: async () => ok({ transaction: raceTx, alreadyExists: true }),
+      findById: async () => ok(raceTx),
+      findByIdempotencyKey: async () => ok(null), // لا توجد (فحص سابق)
+      confirmPayment: async () => ok(raceTx),
+    };
+    const result = await subscribePlan(
+      { driverId, cityId, plan: "transport" as SubscriptionPlan, idempotencyKey: "race-tx" },
+      subscribeDeps(raceRepo, trackingProvider),
+    );
+    expect(result.ok).toBe(true);
+    expect(providerCallCount).toBe(0); // المزوّد لم يُستدعَ — alreadyExists=true حسم السباق
   });
 
   it("يفشل عند فشل قراءة السعر", async () => {

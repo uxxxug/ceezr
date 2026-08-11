@@ -25,6 +25,7 @@ export {
 export {
   type ChargeInitiation,
   type CreatePaymentInput,
+  type CreatePaymentResult,
   type PaymentProvider,
   type PaymentRepository,
   type WebhookEventStore,

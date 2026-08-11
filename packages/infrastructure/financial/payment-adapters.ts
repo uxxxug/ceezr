@@ -8,6 +8,7 @@
  */
 
 import type {
+  CreatePaymentResult,
   PaymentRepository,
   WebhookEventStore,
 } from "../../application/financial/ports.ts";
@@ -83,7 +84,10 @@ export function createPaymentRepository(
             id, city_id, payer_driver_id, payee_id, purpose, amount_minor, currency,
             provider, provider_transaction_id, status, metadata, created_at, updated_at
           from payment_transactions where id = ${String(envelope.transaction_id)}::uuid`;
-        return toTransaction(txRows[0] as unknown as PaymentRow);
+        return {
+          transaction: toTransaction(txRows[0] as unknown as PaymentRow),
+          alreadyExists: Boolean(envelope.already_exists),
+        } satisfies CreatePaymentResult;
       }),
 
     findById: (id) =>

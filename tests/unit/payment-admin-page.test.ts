@@ -11,6 +11,8 @@ import { renderPaymentsPage, type PaymentPageData } from "../../apps/admin-dashb
 function emptyData(overrides: Partial<PaymentPageData> = {}): PaymentPageData {
   return {
     cityOptions: [],
+    cityId: "test-city",
+    cityName: "—",
     transactions: [],
     providerName: null,
     environment: null,
@@ -35,6 +37,21 @@ describe("admin-payments: render", () => {
     expect(html).toContain("tap");
     expect(html).toContain("sandbox");
     expect(html).toContain("اشتراك السائق مفعّل");
+  });
+
+  it("يعرض منتقي المدينة عند توفّر الخيارات", () => {
+    const html = renderPaymentsPage(emptyData({
+      cityOptions: [
+        { id: "c1", code: "JED", nameAr: "جدة" },
+        { id: "c2", code: "MKK", nameAr: "مكة" },
+      ],
+      cityId: "c1",
+      cityName: "جدة",
+    }));
+    expect(html).toContain("المدينة:");
+    expect(html).toContain("جدة");
+    expect(html).toContain("مكة");
+    expect(html).toContain("selected");
   });
 
   it("يعرض معاملة بنجاح", () => {

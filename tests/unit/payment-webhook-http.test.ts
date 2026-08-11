@@ -38,7 +38,7 @@ function fakeRepo(initial?: PaymentTransaction): PaymentRepository & { txns: Pay
         updatedAt: new Date(),
       };
       txns.push(tx);
-      return ok(tx);
+      return ok({ transaction: tx, alreadyExists: false });
     },
     findById: async () => ok(txns[0] ?? null),
     findByIdempotencyKey: async () => ok(txns[0] ?? null),
