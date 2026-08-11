@@ -44,6 +44,8 @@ import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptio
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
+import { runDatabaseBackup, createPgDumper, type BackupConfig } from "./jobs/backup-database.ts";
+import { createGoogleDriveStorage } from "../../../packages/infrastructure/backup/index.ts";
 import type { JobDefinition, JobLogger } from "./runner.ts";
 
 /** تواتر كل مهمّة بالثواني. تقنيّة لا تجارية: لا تُقرأ من platform_settings. */
@@ -55,12 +57,27 @@ export const JOB_INTERVALS = {
   warnExpiring: 21_600,
   sweepUnmatched: 60,
   recomputeRatings: 3600,
+  backupDatabase: 86400, // يوميّ لا أقلّ — البند 7.2
 } as const;
 
 /** المهلة الافتراضية للتوفّر البائت حين يغيب الإعداد — ثلاث ساعات. */
 const AVAILABILITY_FALLBACK_MINUTES = 180;
 /** أيام التحذير الافتراضية حين يغيب الإعداد. */
 const WARNING_FALLBACK_DAYS = 2;
+
+/**
+ * يقرأ إعداد النسخ الاحتياطي من متغيّرات البيئة. يعيد `null` إذا غاب اعتماد
+ * Google Drive — فالنسخ الاحتياطي ميزة اختيارية لا توقف الإقلاع بغيابها.
+ * لا قيمة تجارية في الكود: عدد النسخ المحفوظة من متغيّر بيئة، والافتراضي 14.
+ */
+function readBackupConfig(databaseUrl: string): BackupConfig | null {
+  const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
+  const folderId = process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID;
+  if (!serviceAccountJson || !folderId) return null;
+  const rawRetention = Number(process.env.BACKUP_RETENTION_COUNT ?? "14");
+  const retentionCount = Number.isFinite(rawRetention) && rawRetention > 0 ? Math.trunc(rawRetention) : 14;
+  return { databaseUrl, retentionCount };
+}
 /**
  * العتبة الاحتياطية حين يغيب الإعداد: 180 ثانية. الغياب لا يجوز أن يعني
  * "لا تُصعّد أبداً" — فذلك يُعيد بالضبط العطب الذي جاءت هذه المهمة لإصلاحه.
@@ -330,6 +347,16 @@ export function buildWorkerContainer(
 
       // مهامّ لا تخصّ مدينة بعينها: الدالّتان تعملان على القاعدة كلّها في نداء واحد،
       // فتشغيلهما لكل مدينة كان سيكرّر نفس العمل بعدد المدن.
+      // المهامّ العامة تشمل النسخ الاحتياطي اليوميّ إلى Google Drive (البند 7).
+      // لا يُفعَّل إلا عند توفر اعتمادات Google Drive، فغيابها تخطّي صامت لا خطأ.
+      const backupConfig = readBackupConfig(config.databaseUrl);
+      const backupStorage = backupConfig !== null
+        ? createGoogleDriveStorage({
+            serviceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON ?? "",
+            folderId: process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID ?? "",
+          })
+        : null;
+
       const global: JobDefinition[] = [
         {
           name: "expire-subscriptions",
@@ -351,6 +378,26 @@ export function buildWorkerContainer(
           },
         },
       ];
+
+      // النسخ الاحتياطي مهمّة عامّة لا لكل مدينة: قاعدة واحدة نسخة واحدة.
+      if (backupStorage !== null && backupConfig !== null) {
+        global.push({
+          name: "backup-database",
+          everySeconds: JOB_INTERVALS.backupDatabase,
+          run: async () => {
+            const report = await runDatabaseBackup(
+              backupConfig,
+              { storage: backupStorage, sql, clock: systemClock, log: (message, meta) => log.info(message, meta) },
+              createPgDumper(),
+            );
+            if (!report.ok) throw new Error(report.error.detail);
+            const v = report.value;
+            return v.status === "uploaded"
+              ? `uploaded bytes=${v.bytes ?? 0} pruned=${v.pruned ?? 0}`
+              : `skipped (${v.status})`;
+          },
+        });
+      }
 
       return [...perCity, ...global];
     },

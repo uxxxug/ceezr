@@ -20,6 +20,10 @@ import { createUpstashRedis } from "./redis/upstash.ts";
 import { createAdminApiRoutes } from "./routes/admin-api.ts";
 import { createAdminUiRoutes } from "./routes/admin-ui.ts";
 import { createServer } from "./server.ts";
+import {
+  createPaymentRepository,
+  createWebhookEventStore,
+} from "../../../packages/infrastructure/financial/payment-adapters.ts";
 
 function log(message: string, meta: Record<string, unknown> = {}): void {
   console.log(JSON.stringify({ at: new Date().toISOString(), message, ...meta }));
@@ -93,6 +97,30 @@ function limiter(options: { readonly limit: number; readonly windowSeconds: numb
       });
 }
 
+/**
+ * ويبهوك الدفع — اختياري: يُفعَّل فقط عند توفّر أسرار الدفع (البند 8).
+ * غيابها يُعطّل المسار بصمت لا يوقف الإقلاع.
+ */
+const paymentWebhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
+const paymentProviderName = process.env.PAYMENT_PROVIDER ?? null;
+const paymentWebhook =
+  paymentWebhookSecret !== undefined && paymentWebhookSecret !== "" && paymentProviderName !== null
+    ? {
+        webhookSecret: paymentWebhookSecret,
+        providerName: paymentProviderName,
+        confirmDeps: {
+          payments: createPaymentRepository(container.sql, async (driverId) => {
+            const rows = await container.sql<{ city_id: string }[]>`
+              select city_id from drivers where id = ${driverId}::uuid
+            `;
+            return rows[0]?.city_id ?? null;
+          }),
+          events: createWebhookEventStore(container.sql),
+        },
+        log,
+      }
+    : undefined;
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -136,6 +164,7 @@ const app = createServer({
     handler: container.handler,
     rateLimits: { probes: limiter(PROBE_LIMIT), users: limiter(USER_LIMIT) },
   },
+  ...(paymentWebhook === undefined ? {} : { paymentWebhook }),
 });
 
 // لوحة الإدارة: موجّهان منفصلان يُركَّبان هنا لا في server.ts (ADR 0007).

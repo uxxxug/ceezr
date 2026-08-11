@@ -1,8 +1,19 @@
 /**
- * الغرض: نقطة التصدير العامة لوحدة financial — المحافظ، الفواتير، التسويات
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: نقطة التصدير العامة لوحدة financial.
+ * الحالة: منفّذ فعلياً — البند 8 (اشتراك السائق الشهري فقط مفعّل).
  * ينتمي إلى: domain/financial
- * يُتوقع أن يستخدمه لاحقاً: packages/application/financial/*, packages/infrastructure/financial/*
- * ملاحظات مستقبلية: يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني.
  */
-export {};
+
+export {
+  isPaymentOpen,
+  isPaymentSuccessful,
+  money,
+  type LedgerEntry,
+  type LedgerEntryType,
+  type Money,
+  type PaymentParty,
+  type PaymentPurpose,
+  type PaymentTransaction,
+  type PaymentTransactionId,
+  type PaymentTransactionStatus,
+} from "./entity.ts";

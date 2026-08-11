@@ -1,8 +1,12 @@
 /**
- * الغرض: محوّلات (Adapters) التكاملات الخارجية لوحدة financial — تنفيذ منافذ الدومين (ports)
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: محوّلات (Adapters) وحدة financial — تنفيذ منافذ الدفع على القاعدة.
+ * الحالة: منفّذ فعلياً — البند 8.
  * ينتمي إلى: infrastructure/financial
  * يُتوقع أن يستخدمه لاحقاً: apps/* عبر حقن التبعيات فقط، ولا يستوردها packages/domain/financial إطلاقاً
- * ملاحظات مستقبلية: يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني.
+ * ملاحظات مستقبلية: مزوّد الدفع الفعلي (PaymentProvider) معلَّق حتى يحدده المالك.
  */
-export {};
+
+export {
+  createPaymentRepository,
+  createWebhookEventStore,
+} from "./payment-adapters.ts";

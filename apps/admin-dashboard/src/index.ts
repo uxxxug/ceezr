@@ -88,3 +88,8 @@ export {
   type SettingRow,
   type SettingsPageData,
 } from "./pages/settings.ts";
+export {
+  type PaymentPageData,
+  type PaymentTransactionRow,
+  renderPaymentsPage,
+} from "./pages/payments.ts";

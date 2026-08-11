@@ -38,7 +38,7 @@ export interface NavItem {
   readonly label: string;
 }
 
-/** الصفحات الثماني بترتيب استخدامها التشغيلي لا بترتيب بنائها. */
+/** الصفحات التسع بترتيب استخدامها التشغيلي لا بترتيب بنائها. */
 export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/admin", label: "نظرة عامة" },
   { path: "/admin/live-orders", label: "الطلبات الحية" },
@@ -47,6 +47,7 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/admin/disputes", label: "النزاعات" },
   { path: "/admin/ratings", label: "التقييمات" },
   { path: "/admin/attendance", label: "الحضور" },
+  { path: "/admin/payments", label: "المدفوعات" },
   { path: "/admin/settings", label: "الإعدادات" },
 ];
 

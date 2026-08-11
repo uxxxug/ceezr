@@ -20,6 +20,7 @@ import {
   renderDriversPage,
   renderHeatmapPage,
   renderLiveOrdersPage,
+  renderPaymentsPage,
   renderLoginPage,
   renderOverviewPage,
   renderRatingsPage,
@@ -623,6 +624,46 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         cityName,
         rows,
         csrfToken: c.get("csrfToken"),
+      }),
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // المدفوعات — عرض معاملات الدفع وحالة الاشتراك (البند 8)
+  // -------------------------------------------------------------------------
+  app.get("/payments", async (c) => {
+    const rows = await deps.sql`
+      select pt.id, d.telegram_name as driver_name, c.name_ar as city_name,
+             pt.purpose, pt.amount_minor, pt.currency, pt.provider,
+             pt.provider_transaction_id, pt.status, pt.created_at
+        from payment_transactions pt
+        join drivers d on d.id = pt.payer_driver_id
+        join cities c on c.id = pt.city_id
+       order by pt.created_at desc
+       limit 50
+    `;
+
+    return page(
+      c,
+      "المدفوعات",
+      "/admin/payments",
+      renderPaymentsPage({
+        cityOptions: [],
+        transactions: rows.map((r: Record<string, unknown>) => ({
+          id: String(r.id),
+          driverName: String(r.driver_name ?? "—"),
+          cityName: String(r.city_name ?? "—"),
+          purpose: String(r.purpose),
+          amountMinor: Number(r.amount_minor),
+          currency: String(r.currency),
+          provider: String(r.provider),
+          providerTransactionId: r.provider_transaction_id === null ? null : String(r.provider_transaction_id),
+          status: String(r.status),
+          createdAt: r.created_at instanceof Date ? r.created_at : new Date(String(r.created_at)),
+        })),
+        providerName: process.env.PAYMENT_PROVIDER ?? null,
+        environment: process.env.PAYMENT_ENVIRONMENT ?? null,
+        driverSubscriptionEnabled: process.env.ENABLE_DRIVER_SUBSCRIPTION === "true",
       }),
     );
   });

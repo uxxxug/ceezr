@@ -1,8 +1,31 @@
 /**
- * الغرض: تجميع حالات استخدام وحدة financial
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: تجميع حالات استخدام وحدة financial — اشتراك السائق الشهري فقط مفعّل (البند 8).
+ * الحالة: منفّذ فعلياً — البند 8.
  * ينتمي إلى: application/financial
- * يُتوقع أن يستخدمه لاحقاً: apps/*
- * ملاحظات مستقبلية: يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني.
+ * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الويبهوك)، apps/workers، apps/admin-dashboard
+ * ملاحظات مستقبلية: دفع العملاء/التجار/المؤسسات والمصاريف والتسويات هياكل فقط
+ *   حتى أمر تفعيل صريح. البنية وحدها قائمة، وحالة الاستخدام الوحيدة المفعّلة:
+ *   اشتراك السائق الشهري.
  */
-export {};
+
+export {
+  confirmSubscriptionPayment,
+  type ConfirmPaymentDeps,
+  type ConfirmPaymentInput,
+  type ConfirmPaymentOutcome,
+  WebhookConfirmationError,
+} from "./confirm-payment.ts";
+export {
+  subscribePlan,
+  type SubscribePlanDeps,
+  type SubscribePlanInput,
+  type SubscribePlanOutcome,
+  SubscriptionPaymentError,
+} from "./subscribe-plan.ts";
+export {
+  type ChargeInitiation,
+  type CreatePaymentInput,
+  type PaymentProvider,
+  type PaymentRepository,
+  type WebhookEventStore,
+} from "./ports.ts";

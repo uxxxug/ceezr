@@ -12,10 +12,16 @@ import {
   createTelegramWebhookRoutes,
   type WebhookDependencies,
 } from "./routes/telegram-webhook.ts";
+import {
+  createPaymentWebhookRoutes,
+  type PaymentWebhookDependencies,
+} from "./routes/payment-webhook.ts";
 
 export interface ServerDependencies {
   readonly health: HealthDependencies;
   readonly webhook: WebhookDependencies;
+  /** منفذ ويبهوك الدفع — اختياري: يُفعَّل فقط عند توفّر أسرار الدفع (البند 8). */
+  readonly paymentWebhook?: PaymentWebhookDependencies;
 }
 
 export function createServer(deps: ServerDependencies): Hono {
@@ -23,6 +29,9 @@ export function createServer(deps: ServerDependencies): Hono {
 
   app.route("/", createHealthRoutes(deps.health));
   app.route("/", createTelegramWebhookRoutes(deps.webhook));
+  if (deps.paymentWebhook !== undefined) {
+    app.route("/", createPaymentWebhookRoutes(deps.paymentWebhook));
+  }
 
   app.notFound((c) => c.json({ ok: false, error: "NOT_FOUND" }, 404));
 

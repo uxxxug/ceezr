@@ -481,9 +481,9 @@ describe("الصفحات الثماني", () => {
     expect(html).toContain("مبدئي");
   });
 
-  it("عناصر التنقّل ثمانية، وكلها تحت /admin", () => {
-    const eight = 8;
-    expect(NAV_ITEMS.length).toBe(eight);
+  it("عناصر التنقّل تسعة، وكلها تحت /admin", () => {
+    const nine = 9;
+    expect(NAV_ITEMS.length).toBe(nine);
     for (const item of NAV_ITEMS) expect(item.path.startsWith("/admin")).toBe(true);
     // اسم المستخدم يظهر في الهيكل: أثبتناه ضمناً عبر الصفحات أعلاه
     expect(user.fullName).toBe("مسؤول النظام");
