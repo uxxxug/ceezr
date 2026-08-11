@@ -171,3 +171,54 @@ describe("redactPhoneNumbers — منع الالتفاف على قناة الت�
     expect(redactPhoneNumbers("123456789").redacted).toBe(1);
   });
 });
+
+/**
+ * المرحلة ٢ — الالتفاف على الحجب. الحالات أدناه كانت تمرّ كلّها قبل الإصلاح،
+ * وأخطرها الأولى: لوحة المفاتيح العربية تُخرج ـ٠-٩ افتراضياً على كثير من
+ * الأجهزة، و`\d` في JavaScript لا تطابق إلا ASCII. أي أن الطريقة الطبيعية
+ * لكتابة رقم في تطبيق عربي كانت تخترق الحجب تماماً — بلا محاولة تحايل أصلاً.
+ */
+describe("redactPhoneNumbers — مقاومة الالتفاف", () => {
+  test("يحجب الأرقام العربية-الهندية — وهي مخرج لوحة المفاتيح العربية الافتراضي", () => {
+    const out = redactPhoneNumbers("كلمني على ٠٥٠٩٩٩٨٨٧٧");
+    expect(out.redacted).toBe(1);
+    expect(out.text).not.toContain("٩٩٩");
+  });
+
+  test("يحجب الأرقام الفارسية (امتداد العربية-الهندية)", () => {
+    expect(redactPhoneNumbers("۰۵۰۹۹۹۸۸۷۷").redacted).toBe(1);
+  });
+
+  test("يحجب مع فواصل غير مألوفة: نقطة، شرطة سفلية، مائلة", () => {
+    expect(redactPhoneNumbers("050.999.8877").redacted).toBe(1);
+    expect(redactPhoneNumbers("050_999_8877").redacted).toBe(1);
+    expect(redactPhoneNumbers("050/999/8877").redacted).toBe(1);
+  });
+
+  test("يحجب خليط العربي واللاتيني في رقم واحد", () => {
+    expect(redactPhoneNumbers("٠٥٠0123456").redacted).toBe(1);
+  });
+
+  // الحجب لا يجوز أن يُعيد كتابة رسالة المستخدم: من كتب سعره بالعربية
+  // يجب أن يصل بالعربية. التوحيد للمطابقة وحدها.
+  test("لا يقلب أرقام المستخدم العربية إلى لاتينية حين لا يوجد ما يُحجب", () => {
+    const out = redactPhoneNumbers("السعر ٤٥ ريال");
+    expect(out.redacted).toBe(0);
+    expect(out.text).toBe("السعر ٤٥ ريال");
+  });
+
+  test("يحفظ مواضع المحارف خارج BMP (إيموجي) فلا يحجب الموضع الخطأ", () => {
+    const out = redactPhoneNumbers("🚗 رقمي ٠٥٠٩٩٩٨٨٧٧ اتصل 🙂");
+    expect(out.redacted).toBe(1);
+    expect(out.text.startsWith("🚗 رقمي ")).toBe(true);
+    expect(out.text.endsWith("🙂")).toBe(true);
+    expect(out.text).not.toContain("٠٥٠");
+  });
+
+  // حدّ معروف ومقبول: مطاردة التمويه بالكلمات غير محدودة بطبعها، ومحاولة
+  // حلّها بالأنماط تولّد حجباً زائداً يقطع المفاوضة المشروعة. يُوثَّق لا يُدّعى إغلاقه،
+  // ويُعالَج في المرحلة ٢٧ بضابط سلوكي (تكرار محاولات تبادل التواصل) لا بنمط.
+  test("موثَّق: الفواصل الحرفية لا تُلتقط — حدّ معروف لا ادّعاء بإغلاقه", () => {
+    expect(redactPhoneNumbers("رقمي 050 خط 999 خط 8877").redacted).toBe(0);
+  });
+});

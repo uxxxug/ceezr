@@ -139,23 +139,82 @@ export function approximateArea(point: Coordinates): string {
  */
 const PHONE_DIGIT_THRESHOLD = 9;
 
-const PHONE_LIKE = new RegExp(`[+\\d][\\d\\s\\-()]{${PHONE_DIGIT_THRESHOLD - 1},}`, "g");
+/**
+ * محارف تفصل بين مجموعات الأرقام دون أن تكسر الرقم في عين قارئه.
+ * أُضيفت `.` و`_` و`/` والفاصلة العربية إلى المسافة والشرطة والقوسين،
+ * لأن `050.999.8877` و`050_999_8877` كانتا تمرّان كاملتين: الفاصل غير المعروف
+ * كان يقطّع السلسلة إلى ثلاث قطع تحت الحدّ.
+ */
+const PHONE_SEPARATORS = "\\s\\-()./_،";
+
+/** الأرقام العربية-الهندية (٠-٩) وامتدادها الفارسي (۰-۹). */
+const ARABIC_INDIC_ZERO = 0x0660;
+const EXTENDED_ARABIC_INDIC_ZERO = 0x06f0;
+const DIGITS_PER_SET = 10;
+
+/**
+ * يوحّد أشكال الأرقام إلى ASCII حرفاً بحرف.
+ *
+ * التحويل واحد-لواحد على مستوى المحرف، فمواضع النصّ تبقى متطابقة تماماً
+ * مع الأصل. وعلى هذا يعتمد `redactPhoneNumbers`: يطابق على النسخة الموحّدة
+ * ثم يحجب في الأصل بالموقع، فلا تُعاد كتابة رسالة المستخدم بأرقام لم يكتبها.
+ *
+ * مُصدَّرة لأن نفس الثغرة قائمة في `packages/agent-core/guardrails/outputGuard.ts`
+ * (أنماطه تستعمل `\d` وحدها)؛ تُعالَج هناك في المرحلة ٢١ باستيراد هذه
+ * الدالة لا بتكرارها — مصدر واحد للحقيقة.
+ */
+export function normalizeDigits(text: string): string {
+  let out = "";
+  for (const char of text) {
+    const code = char.codePointAt(0) ?? 0;
+    if (code >= ARABIC_INDIC_ZERO && code < ARABIC_INDIC_ZERO + DIGITS_PER_SET) {
+      out += String(code - ARABIC_INDIC_ZERO);
+    } else if (
+      code >= EXTENDED_ARABIC_INDIC_ZERO &&
+      code < EXTENDED_ARABIC_INDIC_ZERO + DIGITS_PER_SET
+    ) {
+      out += String(code - EXTENDED_ARABIC_INDIC_ZERO);
+    } else {
+      out += char;
+    }
+  }
+  return out;
+}
+
+const PHONE_LIKE = new RegExp(`[+\\d][\\d${PHONE_SEPARATORS}]{${PHONE_DIGIT_THRESHOLD - 1},}`, "g");
+
+/** ما يحلّ محلّ الرقم المحجوب. */
+const REDACTION_MARK = "▒▒▒▒";
 
 /**
  * يحجب ما يشبه رقم هاتف داخل رسالة مُمرَّرة. قناة التمرير تمنع كشف الأرقام من النظام،
  * وهذه تمنع كشفها من الطرفين أنفسهما داخل القناة — وهو ما يلتفّ على الشرط لولاها.
  * تعيد النصّ ومعه عدد ما حُجب، فيعرف المتصل أن يُنبّه المرسِل.
+ *
+ * المطابقة تجري على نسخة موحّدة الأرقام، والحجب يجري على الأصل بالموقع،
+ * لأن إعادة النص الموحّد كانت ستقلب أرقام المستخدم العربية إلى لاتينية في كل رسالة.
  */
 export function redactPhoneNumbers(text: string): {
   readonly text: string;
   readonly redacted: number;
 } {
+  const normalized = normalizeDigits(text);
   let redacted = 0;
-  const cleaned = text.replace(PHONE_LIKE, (match) => {
-    const digits = match.replace(/\D/g, "").length;
-    if (digits < PHONE_DIGIT_THRESHOLD) return match;
-    redacted += 1;
-    return "▒▒▒▒";
-  });
-  return { text: cleaned, redacted };
+  let out = "";
+  let cursor = 0;
+
+  PHONE_LIKE.lastIndex = 0;
+  let match = PHONE_LIKE.exec(normalized);
+  while (match !== null) {
+    const digits = match[0].replace(/\D/g, "").length;
+    if (digits >= PHONE_DIGIT_THRESHOLD) {
+      redacted += 1;
+      out += text.slice(cursor, match.index) + REDACTION_MARK;
+      cursor = match.index + match[0].length;
+    }
+    match = PHONE_LIKE.exec(normalized);
+  }
+  out += text.slice(cursor);
+
+  return { text: out, redacted };
 }
