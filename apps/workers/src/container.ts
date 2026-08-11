@@ -17,6 +17,10 @@ import {
   createPendingOfferRepository,
 } from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createNegotiationWiring } from "../../../packages/infrastructure/dispatch/negotiation-wiring.ts";
+import {
+  createUnmatchedOrderFinder,
+  createUnmatchedRiderNotifier,
+} from "../../../packages/infrastructure/dispatch/unmatched-adapters.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import {
   asIdentifyingSender,
@@ -31,6 +35,7 @@ import { createAdvisoryLock } from "../../../packages/infrastructure/scheduling/
 import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/scheduling/availability-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
+import { DEFAULT_LANGUAGE, t } from "../../../packages/shared/i18n/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../../packages/shared/result/index.ts";
 import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
@@ -38,6 +43,7 @@ import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
+import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
 import type { JobDefinition, JobLogger } from "./runner.ts";
 
 /** تواتر كل مهمّة بالثواني. تقنيّة لا تجارية: لا تُقرأ من platform_settings. */
@@ -47,6 +53,7 @@ export const JOB_INTERVALS = {
   cleanupStale: 1800,
   expireSubscriptions: 900,
   warnExpiring: 21_600,
+  sweepUnmatched: 60,
   recomputeRatings: 3600,
 } as const;
 
@@ -54,6 +61,11 @@ export const JOB_INTERVALS = {
 const AVAILABILITY_FALLBACK_MINUTES = 180;
 /** أيام التحذير الافتراضية حين يغيب الإعداد. */
 const WARNING_FALLBACK_DAYS = 2;
+/**
+ * العتبة الاحتياطية حين يغيب الإعداد: 180 ثانية. الغياب لا يجوز أن يعني
+ * "لا تُصعّد أبداً" — فذلك يُعيد بالضبط العطب الذي جاءت هذه المهمة لإصلاحه.
+ */
+const UNMATCHED_FALLBACK_SECONDS = 180;
 
 /**
  * أقصى تواز للمهامّ، ومعه حجم تجمّع اتصالات القفل. الرقمان مرتبطان بالضرورة لا
@@ -154,9 +166,27 @@ export function buildWorkerContainer(
   const telegram = grammyTelegramSender(config.driverBotToken);
   const driverOut = overrides.driverOut ?? asOutboundSender(telegram);
 
+  /**
+   * الراكب يُراسَل ببوت الراكب لا ببوت السائق. كان الافتراضي هنا driverOut،
+   * وهو خطأ صامت لا يظهر في أي اختبار لأن الاختبارات تمرّر riderOut دائماً:
+   * الراكب لم يبدأ محادثة مع بوت السائق قط، وتيليجرام يرفض أن يبتدئ بوتٌ
+   * محادثةً مع مستخدم لم يفتحها. فكل رسالة تفاوض موجَّهة للراكب كانت تسقط
+   * في الإنتاج بـ403 بلا أثر مرئي — لا خطأ يوقظ أحداً، ولا رسالة تصل.
+   */
+  const riderTelegram = grammyTelegramSender(config.riderBotToken);
+  const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
+
+  const unmatchedFinder = createUnmatchedOrderFinder(sql);
+  const unmatchedNotifier = createUnmatchedRiderNotifier(riderOut, (order) => {
+    const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
+    return order.service === "delivery"
+      ? say("rider.no_driver_found_delivery")
+      : say("rider.no_driver_found");
+  });
+
   const negotiation = createNegotiationWiring(sql, {
     driverOut,
-    riderOut: overrides.riderOut ?? driverOut,
+    riderOut,
     identifyingDriver: overrides.identifyingDriver ?? asIdentifyingSender(telegram),
   });
 
@@ -179,6 +209,14 @@ export function buildWorkerContainer(
     const row = raw.value.find((entry) => entry.key === "subscription_expiry_warning_days");
     const parsed = row === undefined ? Number.NaN : Number(row.value);
     return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : WARNING_FALLBACK_DAYS;
+  }
+
+  async function unmatchedThreshold(cityId: CityId): Promise<number> {
+    const raw = await settings.findByCity(cityId);
+    if (!raw.ok) return UNMATCHED_FALLBACK_SECONDS;
+    const row = raw.value.find((entry) => entry.key === "unmatched_escalate_after_seconds");
+    const parsed = row === undefined ? Number.NaN : Number(row.value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : UNMATCHED_FALLBACK_SECONDS;
   }
 
   return {
@@ -207,6 +245,23 @@ export function buildWorkerContainer(
             });
             if (!report.ok) throw new Error(JSON.stringify(report.error));
             return `examined=${report.value.examined} expired=${report.value.appliedCount}`;
+          },
+        },
+        {
+          name: `sweep-unmatched:${cityId}`,
+          everySeconds: JOB_INTERVALS.sweepUnmatched,
+          runOnStart: true,
+          run: async () => {
+            const report = await runSweepUnmatchedOrders(cityId, {
+              finder: unmatchedFinder,
+              escalate: negotiation.escalate,
+              notifier: unmatchedNotifier,
+              staleAfterSeconds: await unmatchedThreshold(cityId),
+              log: (message, meta) => log.info(message, meta),
+            });
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            const value = report.value;
+            return `examined=${value.examined} escalated=${value.escalated.length} notified=${value.notified.length} already=${value.alreadyEscalated} failed=${value.failed}`;
           },
         },
         {

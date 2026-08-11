@@ -1,4 +1,5 @@
 {
+  "common.back_button": "◀️ تغيير المدينة",
   "common.cancelled": "تم الإلغاء.",
   "common.error_try_again": "حدث عطل تقني مؤقّت. حاول بعد قليل.",
   "common.language_prompt": "اختر لغتك المفضلة:",
@@ -11,10 +12,11 @@
   "driver.ask_name": "أرسل اسمك الكامل كما في الهوية:",
   "driver.ask_phone": "📱 اضغط زرّ مشاركة الرقم أدناه — ضغطة واحدة تكفي.",
   "driver.ask_service": "ما الخدمة التي تريد تقديمها؟",
-  "common.back_button": "◀️ تغيير المدينة",
+  "driver.available_needs_location": "⚠️ سُجِّلت رغبتك في العمل — لكن لن يصلك أي طلب حتى ترسل موقعك.\nالإسناد يبحث عن أقرب سائق، ومن لا موقع له لا يظهر في البحث.",
   "driver.help": "الأوامر:\n/available بدء استقبال الطلبات\n/unavailable إيقاف الاستقبال\n/subscription حالة اشتراكك\n/help هذه القائمة",
   "driver.location_invalid": "الموقع غير صالح. أعد الإرسال من زرّ الموقع.",
   "driver.location_saved": "حُفظ موقعك. ستصلك الطلبات القريبة منك.",
+  "driver.location_saved_now_live": "✅ حُفظ موقعك، وأنت الآن ظاهر للطلبات فعلاً.\nستصلك الطلبات القريبة منك.",
   "driver.must_register_first": "سجّل أولاً بإرسال /start",
   "driver.name_is_command": "هذا أمر لا اسم. أرسل اسمك الكامل.",
   "driver.name_looks_invalid": "🤔 ما ظهر لي أن هذا اسم حقيقي. أرسل اسمك كما تُنادى به — لا رموزاً ولا حروفاً مكرّرة.",
@@ -32,8 +34,8 @@
   "driver.offer_rejected": "تم تخطّي الطلب.",
   "driver.offer_taken": "سبقك سائق آخر إلى هذا الطلب.",
   "driver.phone_invalid": "الرقم غير صالح. الصيغة المقبولة: 05XXXXXXXX",
-  "driver.phone_not_yours": "🤝 هذه بطاقة شخص آخر. اضغط الزرّ أدناه لمشاركة رقمك أنت — لأن الرقم سيكون وسيلة العملاء للوصول إليك.",
   "driver.phone_must_use_button": "📱 اضغط زرّ مشاركة الرقم أدناه بدل كتابته — بضغطة واحدة، ويضمن وصول العملاء إليك على رقمك الصحيح.",
+  "driver.phone_not_yours": "🤝 هذه بطاقة شخص آخر. اضغط الزرّ أدناه لمشاركة رقمك أنت — لأن الرقم سيكون وسيلة العملاء للوصول إليك.",
   "driver.registered": "تم تسجيلك يا {name} في {city}. حسابك بانتظار التحقّق من الإدارة.",
   "driver.service_delivery": "توصيل طلبات",
   "driver.service_transport": "نقل أشخاص",
@@ -113,6 +115,8 @@
   "rider.location_required": "📍 أحتاج موقعك عبر زرّ الموقع في تلغرام — العنوان المكتوب لا يكفي للسائق.\nلا يعمل الزرّ؟ أرسل /cancel وابدأ من جديد.",
   "rider.must_register_first": "سجّل أولاً بإرسال /start",
   "rider.no_active_order": "لا يوجد طلب نشط لإلغائه.",
+  "rider.no_driver_found": "🚫 لم نجد سائقاً متاحاً لطلبك حتى الآن.\n\nأحلنا طلبك إلى فريق الإسناد وسيتابعه يدوياً. سنخبرك فور توفّر سائق.\n\nإن لم تعد بحاجة إليه أرسل /cancel.",
+  "rider.no_driver_found_delivery": "🚫 لم نجد مندوب توصيل متاحاً لطلبك حتى الآن.\n\nأحلنا طلبك إلى فريق الإسناد وسيتابعه يدوياً. سنخبرك فور توفّر مندوب.\n\nإن لم تعد بحاجة إليه أرسل /cancel.",
   "rider.order_cancelled": "تم إلغاء طلبك.",
   "rider.outside_city": "الموقع الذي أرسلته خارج نطاق خدمة {city}.",
   "rider.parcel_invalid": "الوصف قصير جداً. اكتب وصفاً واضحاً للطرد.",
@@ -171,7 +175,5 @@
   "translation.language_name.ar": "العربية",
   "translation.language_name.en": "الإنجليزية",
   "translation.language_name.ur": "الأردية",
-  "translation.original_note": "🌐 الأصل ({language}):\n«{original}»",
-  "driver.available_needs_location": "⚠️ سُجِّلت رغبتك في العمل — لكن لن يصلك أي طلب حتى ترسل موقعك.\nالإسناد يبحث عن أقرب سائق، ومن لا موقع له لا يظهر في البحث.",
-  "driver.location_saved_now_live": "✅ حُفظ موقعك، وأنت الآن ظاهر للطلبات فعلاً.\nستصلك الطلبات القريبة منك."
+  "translation.original_note": "🌐 الأصل ({language}):\n«{original}»"
 }
