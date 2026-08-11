@@ -243,6 +243,7 @@
   "rider.history_rated": "آپ کی درجہ بندی: {bar}",
   "rider.history_unrated": "آپ نے اس سفر کی درجہ بندی نہیں کی۔",
   "menu.driver.area": "🏘 میرا پسندیدہ علاقہ",
+  "menu.driver.city": "🏙 شہر تبدیل کریں",
   "driver.preferred_area_ask_label": "اختیاری: آپ کس علاقے میں کام کرنا پسند کرتے ہیں؟ اس کا نام لکھیں (مثلاً: الصفا)، یا Skip دبائیں۔",
   "driver.preferred_area_skip_button": "چھوڑ دیں",
   "driver.preferred_area_pin_button": "📍 علاقے کا مقام بھیجیں",
@@ -254,5 +255,13 @@
   "driver.preferred_area_label_invalid_empty": "علاقے کا نام لکھیں، یا Skip دبائیں۔",
   "driver.preferred_area_label_invalid_too_short": "یہ نام بہت مختصر ہے۔ واضح نام لکھیں، یا Skip دبائیں۔",
   "driver.preferred_area_label_invalid_too_long": "یہ نام بہت طویل ہے۔ اسے محلے کے نام تک مختصر کریں، یا Skip دبائیں۔",
-  "menu.driver.area.description": "وہ علاقہ مقرر یا تبدیل کریں جہاں آپ کام کرنا پسند کرتے ہیں"
+  "menu.driver.area.description": "وہ علاقہ مقرر یا تبدیل کریں جہاں آپ کام کرنا پسند کرتے ہیں",
+  "menu.driver.city.description": "سفر یا منتقلی کے وقت اپنا شہر تبدیل کریں",
+  "menu.rider.city": "🏙 شہر تبدیل کریں",
+  "menu.rider.city.description": "سفر یا منتقلی کے وقت اپنا شہر تبدیل کریں",
+  "city.change.prompt": "اپنا نیا شہر منتخب کریں:",
+  "city.change.success": "آپ کا شہر تبدیل کر کے {city} کر دیا گیا ہے۔",
+  "city.change.same": "آپ پہلے ہی اس شہر میں ہیں۔",
+  "city.change.active_order": "فعال آرڈر کے دوران شہر نہیں بدلا جا سکتا۔ پہلے آرڈر منسوخ کریں۔",
+  "city.change.failed": "ابھی شہر تبدیل نہیں ہو سکا۔ بعد میں کوشش کریں۔"
 }

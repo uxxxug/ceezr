@@ -35,6 +35,7 @@ export const DRIVER_MENU_ITEMS: readonly MenuItem[] = [
   // البند 2.4: المنطقة المفضّلة زرٌّ دائم لا خطوةَ تسجيلٍ وحدها — سائقو القاعدة
   // كلّهم سجّلوا قبل وجودها، ومن غيّر حيّه يحتاج تغييرها بعد شهور من تسجيله.
   { key: "menu.driver.area", command: "/area" },
+  { key: "menu.driver.city", command: "/city" },
   { key: "menu.language", command: "/language" },
   { key: "menu.support", command: "/support" },
 ];
@@ -44,6 +45,7 @@ export const RIDER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.rider.ride", command: "/ride" },
   { key: "menu.rider.delivery", command: "/delivery" },
   { key: "menu.rider.cancel", command: "/cancel" },
+  { key: "menu.rider.city", command: "/city" },
   { key: "menu.rider.history", command: "/history" },
   { key: "menu.language", command: "/language" },
   { key: "menu.support", command: "/support" },

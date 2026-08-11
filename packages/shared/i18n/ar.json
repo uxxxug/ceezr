@@ -243,6 +243,7 @@
   "rider.history_rated": "تقييمك: {bar}",
   "rider.history_unrated": "لم تقيّم هذه الرحلة.",
   "menu.driver.area": "🏘 منطقتي المفضّلة",
+  "menu.driver.city": "🏙 تغيير مدينتي",
   "driver.preferred_area_ask_label": "اختياري: ما اسم المنطقة التي تفضّل العمل فيها؟ اكتبها (مثال: حي الصفا)، أو اضغط تخطّي.",
   "driver.preferred_area_skip_button": "تخطّي",
   "driver.preferred_area_pin_button": "📍 إرسال موقع المنطقة",
@@ -254,5 +255,13 @@
   "driver.preferred_area_label_invalid_empty": "اكتب اسم المنطقة، أو اضغط تخطّي.",
   "driver.preferred_area_label_invalid_too_short": "الاسم قصير جداً. اكتب اسماً أوضح، أو اضغط تخطّي.",
   "driver.preferred_area_label_invalid_too_long": "الاسم طويل جداً. اختصره إلى اسم الحي، أو اضغط تخطّي.",
-  "menu.driver.area.description": "تحديد أو تغيير المنطقة التي تفضّل العمل فيها"
+  "menu.driver.area.description": "تحديد أو تغيير المنطقة التي تفضّل العمل فيها",
+  "menu.driver.city.description": "تغيير مدينتك عند الانتقال أو السفر",
+  "menu.rider.city": "🏙 تغيير مدينتي",
+  "menu.rider.city.description": "تغيير مدينتك عند الانتقال أو السفر",
+  "city.change.prompt": "اختر مدينتك الجديدة:",
+  "city.change.success": "تم تغيير مدينتك إلى {city}.",
+  "city.change.same": "أنت في هذه المدينة بالفعل.",
+  "city.change.active_order": "لا يمكن تغيير المدينة أثناء طلب نشط. أنهِ طلبك أولاً.",
+  "city.change.failed": "تعذّر تغيير المدينة الآن. حاول لاحقاً."
 }

@@ -638,6 +638,19 @@ async function handleCommand(
       return [reply(sender, `${tr("rider.history_heading")}\n\n${body}`, menu(state))];
     }
 
+    case "/city": {
+      if (rider === null) return [reply(sender, tr("rider.must_register_first"), menu(state))];
+      const cities = await deps.cities.listActive();
+      if (!cities.ok) return technicalFailure(sender, state);
+      if (cities.value.length === 0) return [reply(sender, tr("common.no_active_city"), menu(state))];
+      const saved = await deps.sessions.save(sender.telegramUserId, {
+        ...state,
+        step: "awaiting_city_change",
+      });
+      if (!saved.ok) return technicalFailure(sender, state);
+      return [reply(sender, tr("city.change.prompt"), cityKeyboard(cities.value))];
+    }
+
     case "/language":
       return deps.language === undefined
         ? [reply(sender, tr("common.unknown_command"))]
@@ -787,6 +800,12 @@ async function handleCitySelected(
   deps: RiderBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
+
+  // فرع تغيير المدينة بعد التسجيل — للانتقال والسفر
+  if (state.step === "awaiting_city_change") {
+    return handleRiderCityChange(cityIdRaw, sender, state, deps);
+  }
+
   if (state.step !== "awaiting_city" || state.draftName === null) {
     return [reply(sender, tr("common.unknown_command"))];
   }
@@ -815,6 +834,43 @@ async function handleCitySelected(
     ),
     ...(await askService(sender, { ...state, draftCityId: city.id }, deps)),
   ];
+}
+
+/**
+ * تغيير مدينة العميل بعد التسجيل — للانتقال والسفر.
+ * يستدعي RPC ذرّياً ويعيد العميل إلى الجاهزية.
+ */
+async function handleRiderCityChange(
+  cityIdRaw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+
+  const cities = await deps.cities.listActive();
+  if (!cities.ok) return technicalFailure(sender, state);
+  const city = cities.value.find((candidate) => candidate.id === cityIdRaw);
+  if (city === undefined) return [reply(sender, tr("common.no_active_city"))];
+
+  // نحتاج معرّف العميل — نقرأه من الملف
+  const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
+  if (!rider.ok) return technicalFailure(sender, state);
+  if (rider.value === null) return [reply(sender, tr("rider.must_register_first"), menu(state))];
+
+  const result = await deps.riders.changeCity(rider.value.id, city.id);
+  if (!result.ok) return technicalFailure(sender, state);
+
+  await deps.sessions.clear(sender.telegramUserId);
+
+  if (!result.value.ok) {
+    if (result.value.error === "ACTIVE_ORDER_IN_PROGRESS") {
+      return [reply(sender, tr("city.change.active_order"), menu(state))];
+    }
+    return [reply(sender, tr("city.change.failed"), menu(state))];
+  }
+
+  return [reply(sender, tr("city.change.success", { city: city.name }), menu(state))];
 }
 
 async function handleLocation(

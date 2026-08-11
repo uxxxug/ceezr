@@ -452,6 +452,19 @@ async function handleCommand(
       ];
     }
 
+    case "/city": {
+      if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+      const cities = await deps.cities.listActive();
+      if (!cities.ok) return technicalFailure(sender, state);
+      if (cities.value.length === 0) return [reply(sender, tr("common.no_active_city"))];
+      const saved = await deps.sessions.save(sender.telegramUserId, {
+        ...state,
+        step: "awaiting_city_change",
+      });
+      if (!saved.ok) return technicalFailure(sender, state);
+      return [reply(sender, tr("city.change.prompt"), cityKeyboard(cities.value))];
+    }
+
     case "/start": {
       if (driver !== null) {
         return [
@@ -749,6 +762,12 @@ async function handleCitySelected(
   deps: DriverBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
+
+  // فرع تغيير المدينة بعد التسجيل — للانتقال والسفر
+  if (state.step === "awaiting_city_change") {
+    return handleCityChange(cityIdRaw, sender, state, deps);
+  }
+
   if (state.step !== "awaiting_city") {
     return [reply(sender, tr("common.unknown_command"))];
   }
@@ -778,6 +797,46 @@ async function handleCitySelected(
       ],
     }),
   ];
+}
+
+/**
+ * تغيير مدينة السائق بعد التسجيل — للانتقال والسفر.
+ * يستدعي RPC ذرّياً ويعيد السائق إلى الجاهزية.
+ */
+async function handleCityChange(
+  cityIdRaw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+
+  const cities = await deps.cities.listActive();
+  if (!cities.ok) return technicalFailure(sender, state);
+
+  const city = cities.value.find((candidate) => candidate.id === cityIdRaw);
+  if (city === undefined) return [reply(sender, tr("common.no_active_city"))];
+
+  // نحتاج معرّف السائق — نقرأه من الملف
+  const driver = await deps.drivers.findByTelegramId(sender.telegramUserId);
+  if (!driver.ok) return technicalFailure(sender, state);
+  if (driver.value === null) return [reply(sender, tr("driver.must_register_first"))];
+
+  const result = await deps.drivers.changeCity(driver.value.id, city.id);
+  if (!result.ok) return technicalFailure(sender, state);
+
+  // العودة إلى الجاهزية
+  await deps.sessions.clear(sender.telegramUserId);
+
+  if (!result.value.ok) {
+    if (result.value.error === "ACTIVE_ORDER_IN_PROGRESS") {
+      return [reply(sender, tr("city.change.active_order"), menu(state))];
+    }
+    return [reply(sender, tr("city.change.failed"), menu(state))];
+  }
+
+  // same=true يعني أنّ المدينة لم تتغير
+  return [reply(sender, tr("city.change.success", { city: city.name }), menu(state))];
 }
 
 /** رجوع خطوة واحدة داخل التسجيل. لا يمسح الاسم ولا الرقم — يعيد السؤال فقط. */

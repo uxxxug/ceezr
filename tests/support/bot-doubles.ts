@@ -116,6 +116,7 @@ export function driverDirectory(existing: DriverProfile | null = null): DriverDi
       availabilityCalls.push({ driverId, isAvailable });
       return ok(undefined);
     },
+    changeCity: async (_driverId, _newCityId) => ok({ ok: true, error: null }),
   };
 }
 
@@ -151,6 +152,7 @@ export function riderDirectory(existing: RiderProfile | null = null): RiderDirec
       registrations.push(current);
       return ok(current);
     },
+    changeCity: async (_riderId, _newCityId) => ok({ ok: true, error: null }),
   };
 }
 

@@ -168,6 +168,16 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
         `;
         if (result[0]?.ok !== true) throw new Error("record_attendance رفض التغيير");
       }),
+
+    changeCity: (driverId: DriverId, newCityId: CityId) =>
+      guard("drivers.changeCity", async () => {
+        const rows = await sql<{ ok: boolean; error: string | null }[]>`
+          select * from update_driver_city(${driverId}::uuid, ${newCityId}::uuid)
+        `;
+        const row = rows[0];
+        if (row === undefined) throw new Error("update_driver_city لم تُعِد نتيجة");
+        return { ok: row.ok, error: row.error };
+      }),
   };
 }
 
@@ -235,5 +245,15 @@ export function createRiderDirectory(sql: Sql): RiderDirectory {
           return toRiderProfile(row);
         }),
       ) as Promise<Result<RiderProfile, PortFailureError>>,
+
+    changeCity: (riderId: RiderId, newCityId: CityId) =>
+      guard("riders.changeCity", async () => {
+        const rows = await sql<{ ok: boolean; error: string | null }[]>`
+          select * from update_rider_city(${riderId}::uuid, ${newCityId}::uuid)
+        `;
+        const row = rows[0];
+        if (row === undefined) throw new Error("update_rider_city لم تُعِد نتيجة");
+        return { ok: row.ok, error: row.error };
+      }),
   };
 }

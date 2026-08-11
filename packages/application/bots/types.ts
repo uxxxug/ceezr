@@ -123,7 +123,9 @@ export type DialogStep =
    * يضيّع كل ما سبقها، والمنطقة أهون من أن تُكلّف السائق ملفّه كلّه.
    */
   | "awaiting_preferred_area_label"
-  | "awaiting_preferred_area_location";
+  | "awaiting_preferred_area_location"
+  /** تغيير المدينة بعد التسجيل — للانتقال والسفر. */
+  | "awaiting_city_change";
 
 /**
  * القائمة نفسها كقيمة، ليتحقّق منها مخزن Redis عند القراءة.
@@ -149,6 +151,7 @@ export const DIALOG_STEPS = [
   "awaiting_vehicle_photo",
   "awaiting_preferred_area_label",
   "awaiting_preferred_area_location",
+  "awaiting_city_change",
 ] as const satisfies readonly DialogStep[];
 
 export interface DialogState {
@@ -259,6 +262,14 @@ export interface DriverDirectory {
     driverId: DriverId,
     area: { readonly label: string; readonly location: Coordinates } | null,
   ): Promise<Result<void, PortFailureError>>;
+  /**
+   * يغيّر مدينة السائق ذرّياً عبر RPC — للانتقال والسفر.
+   * يتحقق RPC من: المدينة مُفعّلة، لا يوجد طلب نشط.
+   */
+  changeCity(
+    driverId: DriverId,
+    newCityId: CityId,
+  ): Promise<Result<{ readonly ok: boolean; readonly error: string | null }, PortFailureError>>;
 }
 
 export interface RiderProfile {
@@ -278,6 +289,14 @@ export interface RegisterRiderInput {
 export interface RiderDirectory {
   findByTelegramId(telegramUserId: string): Promise<Result<RiderProfile | null, PortFailureError>>;
   register(input: RegisterRiderInput): Promise<Result<RiderProfile, PortFailureError>>;
+  /**
+   * يغيّر مدينة العميل ذرّياً عبر RPC — للانتقال والسفر.
+   * يتحقق RPC من: المدينة مُفعّلة، لا يوجد طلب نشط.
+   */
+  changeCity(
+    riderId: RiderId,
+    newCityId: CityId,
+  ): Promise<Result<{ readonly ok: boolean; readonly error: string | null }, PortFailureError>>;
 }
 
 export interface SubscriptionReader {

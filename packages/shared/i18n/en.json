@@ -243,6 +243,7 @@
   "rider.history_rated": "Your rating: {bar}",
   "rider.history_unrated": "You have not rated this trip.",
   "menu.driver.area": "🏘 My preferred area",
+  "menu.driver.city": "🏙 Change my city",
   "driver.preferred_area_ask_label": "Optional: which area do you prefer to work in? Type its name (e.g. Al Safa), or tap Skip.",
   "driver.preferred_area_skip_button": "Skip",
   "driver.preferred_area_pin_button": "📍 Send area location",
@@ -254,5 +255,13 @@
   "driver.preferred_area_label_invalid_empty": "Type the area name, or tap Skip.",
   "driver.preferred_area_label_invalid_too_short": "That name is too short. Type a clearer name, or tap Skip.",
   "driver.preferred_area_label_invalid_too_long": "That name is too long. Shorten it to the district name, or tap Skip.",
-  "menu.driver.area.description": "Set or change the area you prefer to work in"
+  "menu.driver.area.description": "Set or change the area you prefer to work in",
+  "menu.driver.city.description": "Change your city when you travel or relocate",
+  "menu.rider.city": "🏙 Change my city",
+  "menu.rider.city.description": "Change your city when you travel or relocate",
+  "city.change.prompt": "Choose your new city:",
+  "city.change.success": "Your city has been changed to {city}.",
+  "city.change.same": "You are already in this city.",
+  "city.change.active_order": "Cannot change city while you have an active order. Cancel it first.",
+  "city.change.failed": "Could not change city right now. Try again later."
 }
