@@ -18,6 +18,7 @@ import type { RepublishDependencies } from "../../../packages/application/dispat
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
 import {
+  type CustomerLiveRelay,
   createCustomerLiveRelay,
   type LiveLocationChannel,
 } from "../../../packages/application/tracking/customer-live-relay.ts";
@@ -204,6 +205,12 @@ export interface TrackingWiring {
   readonly sessions: TrackingSessionStore;
   readonly proofs: TrackingProofReader;
   readonly live: LiveTrackingPort;
+  /**
+   * المُرحِّل نفسه — لا نسخةٌ عنه. يُعرَض لأن عدد البثوث المفتوحة حالةٌ في
+   * الذاكرة لا أثر لها في القاعدة، فبلا عرضها لا يستطيع اختبارٌ ولا مقياسُ
+   * تشغيلٍ أن يشهد على تسريبٍ فيها إلا بالاستدلال من رسائل تلغرام.
+   */
+  readonly relay: CustomerLiveRelay;
 }
 
 export interface NegotiationWiring {
@@ -571,6 +578,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       sessions: trackingSessions,
       proofs: trackingProofs,
       live: liveTracking,
+      relay: customerRelay,
     },
     negotiation: {
       snapshots: createNegotiationSnapshotReader(sql),
