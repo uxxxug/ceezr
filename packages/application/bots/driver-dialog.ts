@@ -291,8 +291,18 @@ export async function handleDriverUpdate(
     case "awaiting_vehicle_photo":
       // نصٌّ حيث تُنتظر صورة: يُقال له إنه يحتاج صورة فعلية، لا "أمر غير معروف".
       return [reply(sender, t(languageOf(state))("driver.vehicle_photo_required"))];
-    case "awaiting_preferred_area_label":
+    case "awaiting_preferred_area_label": {
+      /**
+       * خطوة المنطقة المفضّلة **اختيارية ومفتوحة زمنياً**: التسجيل يتركه فيها
+       * ولا شيء يُخرجه منها إلّا تخطٍّ صريح. والتفاوض **إلزامي ومحدود بمهلة**.
+       * لو بقيت الأولوية للخطوة الاختيارية لابتلعت كل نصّ حرّ من سائق حديث
+       * التسجيل، فلا تصل رسالة تفاوض واحدة إلى العميل حتى تنتهي المهلة.
+       * لذلك: إن كان له دور تفاوض مفتوح فالنصّ له، وإلّا فهو اسم الحيّ كما كان.
+       */
+      const relayed = await relayIfNegotiating(text, sender, state, deps);
+      if (relayed !== null) return relayed;
       return handlePreferredAreaLabel(text, sender, state, deps);
+    }
     case "awaiting_preferred_area_location":
       // إحداثية مكتوبة يدوياً لا تُقبل: نقطة تلغرام مضمونة الشكل، والنصّ ليس كذلك
       return [
@@ -311,30 +321,37 @@ export async function handleDriverUpdate(
             state,
             deps.support,
           );
-    default:
+    default: {
       // قبل ردّ "أمر غير معروف": إن كان السائق طرفاً في تفاوض نشط، فهذا نصّ موجّه للعميل
-      return handleFreeText(text, sender, state, deps);
+      const relayed = await relayIfNegotiating(text, sender, state, deps);
+      return relayed ?? [reply(sender, t(languageOf(state))("common.unknown_command"))];
+    }
   }
 }
 
 /**
- * نصّ حرّ من سائق مسجّل وليس في خطوة حوار: يُمرّر للعميل إن كان دوره مفتوحاً.
+ * نصّ حرّ من سائق: يُمرّر للعميل إن كان دوره في التفاوض مفتوحاً.
+ *
+ * القيمة `null` تعني "لا تفاوض نشط لهذا السائق" — وهي إشارة للمنادي بأن يتصرّف
+ * في النصّ بمنطقه هو (اسم حيّ، أو ردّ "أمر غير معروف"). التمييز مقصود: الدالة
+ * لم تعد تفترض أن غياب التفاوض يساوي أمراً مجهولاً، لأنها صارت تُنادى من خطوة
+ * حوار قائمة أيضاً لا من الحالة الافتراضية وحدها.
  * من ليس طرفاً في تفاوض نشط لا تُمرّر رسالته — وهذا ما يمنع مخاطبة العميل خارج الدور.
  */
-async function handleFreeText(
+async function relayIfNegotiating(
   text: string,
   sender: Sender,
   state: DialogState,
   deps: DriverBotDependencies,
-): Promise<readonly BotReply[]> {
+): Promise<readonly BotReply[] | null> {
   const tr = t(languageOf(state));
   const negotiation = deps.negotiation;
-  if (negotiation === undefined) return [reply(sender, tr("common.unknown_command"))];
+  if (negotiation === undefined) return null;
 
   const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
   if (!found.ok) return technicalFailure(sender, state);
   const driver = found.value;
-  if (driver === null) return [reply(sender, tr("common.unknown_command"))];
+  if (driver === null) return null;
 
   const relayed = await relayNegotiationMessage(
     { from: "driver", driverId: driver.id, riderId: null, text },
@@ -344,7 +361,7 @@ async function handleFreeText(
 
   const report = relayed.value;
   if (report.reason === "NO_ACTIVE_NEGOTIATION" || report.reason === "EMPTY_MESSAGE") {
-    return [reply(sender, tr("common.unknown_command"))];
+    return null;
   }
   if (report.reason === "UNREACHABLE") {
     return [reply(sender, tr("negotiation.relay_unreachable"))];
