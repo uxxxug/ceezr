@@ -456,13 +456,24 @@ describeIf("التقييم المتبادل وأثره في المطابقة ع�
     // المُسيء يُعلَّم ولا يُمحى: السجلّ يبقى للمراجعة، والمتوسط وحده يُصحَّح
     expect(stillThere?.is_flagged).toBe(true);
 
-    // التعليم وحده لا يمسّ المتوسط، فهنا يظهر الانحراف الذي وُجدت المهمة لأجله
-    const [drifted] = await sql<{ rating_average: string | null }[]>`
-      select rating_average from drivers where id = ${driverId}
+    // تحديث مقصود لهذا التأكيد بتاريخ 2026-08-13 (بوابة D): كان هنا تأكيدٌ على أن
+    // «التعليم وحده لا يمسّ المتوسط» فيبقى 1.00 حتى تمرّ المهمة الدورية. وذلك
+    // وصفٌ لعيب لا عقد: قرار الشطب غرضه كلّه رفع أثر تقييم عابث، فبقاؤه بلا أثر
+    // إلى حين المهمة الدورية يعني أن المتضرِّر يحمل وزر التقييم المشطوب مدّةً
+    // كاملة. أُصلح ذلك في هجرة 20260813000000 بجعل flag_rating تُعيد الحساب فوراً،
+    // فصار التأكيد هنا على العقد الصحيح: الأثر فوريّ.
+    const [immediate] = await sql<{ rating_average: string | null; rating_count: number }[]>`
+      select rating_average, rating_count from drivers where id = ${driverId}
     `;
-    expect(Number(drifted?.rating_average)).toBeCloseTo(1, 2);
+    expect(immediate?.rating_average).toBeNull();
+    expect(immediate?.rating_count).toBe(0);
 
-    // ثم المهمة الدورية تصحّحه فعلاً: غياب تقييم ليس تقييماً بصفر، بل غياب
+    // ويبقى غرض المهمة الدورية قائماً ومُختبَراً: الانحراف لا يأتي من الشطب وحده،
+    // بل من أي كتابة تتجاوز الدالّات — ترحيل بيانات، أو إصلاح يدويّ، أو هجرة
+    // تاريخية. فنصنع انحرافاً بكتابة مباشرة، ثم نُثبت أن المهمة تُرجعه إلى الحقيقة.
+    await sql`
+      update drivers set rating_average = 4.75, rating_count = 9 where id = ${driverId}
+    `;
     const [fixed] = await sql<{ result: { drivers_updated: number } }[]>`
       select recompute_rating_averages() as result
     `;
