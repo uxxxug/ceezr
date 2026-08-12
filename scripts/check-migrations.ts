@@ -20,9 +20,19 @@ interface Violation {
   readonly problem: string;
 }
 
-function findTableBlocks(sql: string): { name: string; body: string }[] {
+/**
+ * أجسام تعريفات `create table` في نصّ الهجرات، مقرونةً بأسمائها.
+ *
+ * الاسم يُقبل مؤهّلاً بمخطّط (`public.orders`) ومقتبساً بعلامات مزدوجة
+ * (`"orders"`)، ويُجرّد من المخطّط والعلامات ليطابق أسماء تفعيل RLS. الصيغة
+ * الأولى كانت تقبل الاسم المجرّد وحده، فـ`create table public.foo (…)` يمرّ بلا
+ * أي فحص لا لـcity_id ولا لـRLS — ثقب نجاحٍ كاذب لم يستغلّه أحد بعد، ولأنّه
+ * لم يُستغلّ ما كان ليظهر في أي تشغيل — فسُدّ قبل أن يُستغلّ.
+ */
+export function findTableBlocks(sql: string): { name: string; body: string }[] {
   const blocks: { name: string; body: string }[] = [];
-  const pattern = /create\s+table\s+(?:if\s+not\s+exists\s+)?([a-z_][a-z0-9_]*)\s*\(/gi;
+  const pattern =
+    /create\s+table\s+(?:if\s+not\s+exists\s+)?(?:"?[a-z_][a-z0-9_]*"?\s*\.\s*)?"?([a-z_][a-z0-9_]*)"?\s*\(/gi;
   for (const match of sql.matchAll(pattern)) {
     const name = match[1];
     if (name === undefined) continue;
@@ -57,8 +67,10 @@ function findTableBlocks(sql: string): { name: string; body: string }[] {
 export function tablesWithRlsEnabled(sql: string): Set<string> {
   const enabled = new Set<string>();
 
+  // الاسم هنا يُقبل مؤهّلاً بمخطّط ومقتبساً، مثل اسم الجدول في findTableBlocks:
+  // لو قُبِل في أحدهما دون الآخر لاختلفت المجموعتان فأبلغ الحرس مخالفةً وهميّة.
   const direct =
-    /alter\s+table\s+(?:if\s+exists\s+)?([a-z_][a-z0-9_]*)\s+enable\s+row\s+level\s+security/gi;
+    /alter\s+table\s+(?:if\s+exists\s+)?(?:"?[a-z_][a-z0-9_]*"?\s*\.\s*)?"?([a-z_][a-z0-9_]*)"?\s+enable\s+row\s+level\s+security/gi;
   for (const match of sql.matchAll(direct)) {
     const name = match[1];
     if (name !== undefined) enabled.add(name);

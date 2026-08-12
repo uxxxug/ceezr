@@ -22,6 +22,7 @@ interface SubscriptionRow {
   readonly status: string;
   readonly trial_ends_at: Date | null;
   readonly current_period_end: Date | null;
+  readonly cancel_at_period_end: boolean;
 }
 
 function toSubscription(row: SubscriptionRow): Subscription {
@@ -32,6 +33,7 @@ function toSubscription(row: SubscriptionRow): Subscription {
     status: row.status as SubscriptionStatus,
     trialEndsAt: row.trial_ends_at,
     currentPeriodEnd: row.current_period_end,
+    cancelAtPeriodEnd: row.cancel_at_period_end,
   };
 }
 
@@ -40,7 +42,8 @@ export function createSubscriptionReader(sql: Sql): SubscriptionReader {
     findLive: (driverId: DriverId) =>
       guard("subscriptions.findLive", async () => {
         const rows = await sql<SubscriptionRow[]>`
-          select driver_id, city_id, plan, status, trial_ends_at, current_period_end
+          select driver_id, city_id, plan, status, trial_ends_at, current_period_end,
+                 cancel_at_period_end
             from subscriptions
            where driver_id = ${driverId}
              and status in ('trialing', 'active')

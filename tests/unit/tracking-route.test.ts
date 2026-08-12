@@ -29,6 +29,8 @@ const fixedClock = { now: () => new Date("2026-08-11T12:00:00Z") };
  */
 const NOW_MS = fixedClock.now().getTime();
 
+type StoredLocation = Awaited<ReturnType<LocationStore["getCurrent"]>>;
+
 function fakeStore(): LocationStore & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>();
   return {
@@ -36,7 +38,7 @@ function fakeStore(): LocationStore & { data: Map<string, unknown> } {
     setCurrent: async (id, pos, meta) => {
       data.set(id, { position: pos, ...meta });
     },
-    getCurrent: async (id) => (data.get(id) as any) ?? null,
+    getCurrent: async (id) => (data.get(id) as StoredLocation) ?? null,
     clear: async (id) => {
       data.delete(id);
     },

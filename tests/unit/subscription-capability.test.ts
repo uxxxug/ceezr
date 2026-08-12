@@ -33,6 +33,7 @@ function sub(partial: Partial<Subscription>): Subscription {
     status: "active",
     trialEndsAt: null,
     currentPeriodEnd: TOMORROW,
+    cancelAtPeriodEnd: false,
     ...partial,
   };
 }

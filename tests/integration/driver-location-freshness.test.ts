@@ -199,9 +199,11 @@ describeIf("المرحلة ٨ — عمر موقع السائق في الإسنا
 
   /** ضبط الحدّ في `platform_settings` — لا ثابتٌ في الكود ولا حقنٌ في الحاوية. */
   async function setMaxAge(seconds: number): Promise<void> {
-    const value = JSON.stringify(seconds);
+    // `${text}::jsonb` يجعل السائق يُلفّف النصّ ثانيةً فيُخزَّن jsonb من نوع
+    // `string` مع value_type='number' — تلويثٌ صامت للقاعدة المشتركة. النمط
+    // الصحيح `to_jsonb(int)` (أو `::text::jsonb` كما في admin/queries.ts:1436).
     await sql`
-      update platform_settings set value = ${value}::jsonb
+      update platform_settings set value = to_jsonb(${seconds}::int)
        where city_id = ${cityId} and key = 'driver_location_max_age_seconds'
     `;
   }

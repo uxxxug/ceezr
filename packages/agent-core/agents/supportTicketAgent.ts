@@ -129,7 +129,7 @@ function composeSuggestion(
   const heading = `التصنيف المقترح: ${CLASSIFICATION_LABELS_AR[classification]}.`;
 
   if (best === undefined || best.document.suggestion === "") {
-    return `${heading} لم يُعثر على مستند معرفة مطابق، فلا يوجد ردّ جاهز مقترح — ` + "يُراجَع يدوياً.";
+    return `${heading} لم يُعثر على مستند معرفة مطابق، فلا يوجد ردّ جاهز مقترح — يُراجَع يدوياً.`;
   }
 
   const caution = missing.length === 0 ? "" : ` تنبيه قبل الإرسال: ${missing.join("؛ ")}.`;

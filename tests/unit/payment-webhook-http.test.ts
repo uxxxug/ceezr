@@ -51,9 +51,10 @@ function fakeRepo(
     findById: async () => ok(txns[0] ?? null),
     findByIdempotencyKey: async () => ok(txns[0] ?? null),
     confirmPayment: async (input) => {
-      if (txns.length === 0) return ok({} as PaymentTransaction);
+      const first = txns[0];
+      if (first === undefined) return ok({} as PaymentTransaction);
       const updated: PaymentTransaction = {
-        ...txns[0]!,
+        ...first,
         status: input.newStatus,
         providerTransactionId: input.providerTransactionId,
       };
@@ -63,11 +64,18 @@ function fakeRepo(
   };
 }
 
-function fakeEventStore(): WebhookEventStore & { seen: Set<string> } {
+function fakeEventStore(): WebhookEventStore & {
+  seen: Set<string>;
+  recordedTransactionIds: string[];
+} {
   const seen = new Set<string>();
+  const recordedTransactionIds: string[] = [];
   return {
     seen,
-    record: async (eventId) => {
+    recordedTransactionIds,
+    // معرّف المعاملة محفوظ لا مُهمَل: منه تُقرأ مدينة الحدث في القاعدة.
+    record: async (eventId, _provider, _payload, transactionId) => {
+      recordedTransactionIds.push(transactionId);
       if (seen.has(eventId)) return ok(false);
       seen.add(eventId);
       return ok(true);
@@ -111,6 +119,10 @@ describe("payment-webhook: HTTP route", () => {
     const body = (await res.json()) as { ok: boolean; duplicate?: boolean };
     expect(body.ok).toBe(true);
     expect(body.duplicate).toBe(false);
+
+    // معرّف المعاملة وصل للمخزن فعلاً: منه تُقرأ city_id في القاعدة،
+    // فلو فُقد لرُفض الصفّ في الإنتاج بقيد not null ومرّ الاختبار هنا كاذباً.
+    expect(events.recordedTransactionIds).toEqual([txId]);
   });
 
   it("التوقيع الخاطئ يُرفض بـ 401", async () => {

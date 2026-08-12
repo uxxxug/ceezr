@@ -1,0 +1,82 @@
+=== دليل البوابة B: الجرد الجنائي وتصنيف ملفات «هيكل فقط» ===
+
+$ grep -rl "هيكل فقط" --include="*.ts" . | wc -l
+246
+
+التصنيف الكامل ملفاً ملفاً في: docs/production-readiness/skeleton-classification-20260812.md
+الأرقام الأوّلية (تصنيف آليّ بغياب اسم الفعل): 101 خارج النطاق + 122 مُستبدَل + 23 «فجوة» = 246.
+
+--- تصحيح التصنيف بدليل المستودع نفسه (§3: الكود والوثائق الملزمة تعلو على الاستدلال) ---
+معيار التصنيف الآليّ كان «غياب اسم الفعل» وهو معيار ناقص، لأن كل ملف هيكل يُعلن بنفسه
+مرحلة تفعيله في سطر «ملاحظات مستقبلية». استخراج ذلك الإعلان من الـ23:
+
+  الملف                         إعلانه في المستودع
+  trigger-sos                        يُفعَّل جزئياً عبر قروب الإسناد في الأمر الثاني
+  resolve-safety-incident            يُفعَّل جزئياً عبر قروب الإسناد في الأمر الثاني
+  refund-payment                     يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني
+  settle-driver-payout               يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني
+  get-wallet-balance                 يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني
+  create-wallet                      يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني
+  top-up-wallet                      يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني
+  issue-invoice                      يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني
+  charge-subscription-fee            يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني
+  export-audit-report                يُفعَّل جزئياً منذ الأمر الثاني
+  estimate-ride-fare                 يُفعَّل جزئياً في الأمر الثاني (المرحلة 2
+  estimate-delivery-fare             يُفعَّل جزئياً في الأمر الثاني (المرحلة 2
+  resolve-location                   يُفعَّل جزئياً في الأمر الثاني (مسافة + نصف قطر بحث من platform_settings)
+  validate-city-boundary             يُفعَّل جزئياً في الأمر الثاني (مسافة + نصف قطر بحث من platform_settings)
+  send-bulk-notification             يُفعَّل جزئياً في الأمر الثاني
+  schedule-notification              يُفعَّل جزئياً في الأمر الثاني
+  get-user-notifications             يُفعَّل جزئياً في الأمر الثاني
+  mark-notification-read             يُفعَّل جزئياً في الأمر الثاني
+  get-relay-transcript               يُفعَّل جزئياً في الأمر الثاني
+  list-driver-rides                  يُفعَّل جزئياً في الأمر الثاني (المرحلة 2
+  cancel-subscription                يُفعَّل في الأمر الثاني (المرحلة 2
+  upgrade-plan                       يُفعَّل في الأمر الثاني (المرحلة 2
+  evaluate-pricing-policy            (لا إعلان تفعيل)
+  evaluate-cancellation-policy       (لا إعلان تفعيل)
+
+«يُفعَّل جزئياً» تعني بنصّها أن القدرة مُنجَزة بتنفيذٍ باسمٍ آخر — أي الفئة ٢ لا الفئة ٣.
+وقد تحقّقتُ من كل ادّعاء «جزئياً» بـgrep مستقل لا باسم الفعل:
+  - financial (اشتراك فقط): subscribe-plan.ts + confirm-payment.ts + payment-adapters.ts:115 select confirm_payment(
+  - notification: packages/infrastructure/notification/{telegram-driver-notifier,telegram-negotiation-notifier,telegram-support-notifier,telegram-live-location}.ts
+  - messaging: packages/application/dispatch/relay-negotiation-message.ts:60 + redactPhoneNumbers
+  - audit: audit_log مكتوبٌ فيه من RPCs (20260806120100:68 insert into audit_log) ومقروءٌ في apps/gateway/src/admin/queries.ts:240
+  - safety: packages/application/dispatch/escalate-unmatched-order.ts + tracking/customer-live-relay.ts + قروب الإسناد
+  - geo: نصف قطر البحث والمسافة من platform_settings (لا حدود مضلَّعة، وهو المُعلَن)
+  - transport/list-driver-rides: createPastOrdersLookup(sql) موصولٌ في container.ts:632
+
+--- النموذج التجاري يُبطل ثلاثة ادّعاءات فجوة من أصلها ---
+$ grep -A30 'create table if not exists orders' ... | grep -iE 'price|fare|amount|cost'  -> لا نتيجة
+أي: لا عمود سعرٍ في orders إطلاقاً. المنصّة لا تتقاضى أجرة مشوار؛ نموذجها اشتراك السائق
+(docs/MASTER_DIRECTIVE.md:144 و196) والسعر بين الراكب والسائق تفاوضاً. فـestimate-ride-fare
+وestimate-delivery-fare وevaluate-pricing-policy هياكل مستقبلية بحقّ (الفئة ١) لا فجوات.
+
+--- تصحيح جوهري لافتراض §8 من التوجيه ---
+docs/MASTER_DIRECTIVE.md:95 نصّاً:
+| `financial` | المحافظ، الفواتير، التسويات — تُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني |
+أي أن المحافظ والفواتير والتسويات مُستثناة صراحةً من الأمر الثاني، والمُفعَّل منها الاشتراك وحده
+— وهو مُنفَّذ فعلاً ومُختبَر. فبناء create-wallet/top-up-wallet/issue-invoice/refund-payment/
+settle-driver-payout/get-wallet-balance/charge-subscription-fee = توسيع نطاق يخالف §1.3،
+لا إغلاق فجوة. ولذلك لم تُلمس، وتُرفع للمالك قراراً صريحاً لا يُتخذ صامتاً.
+
+--- الفجوة الصامتة الحقيقية بعد التصحيح: ملفان فقط ---
+الملفان الوحيدان اللذان يُعلنان تفعيلاً كاملاً في الأمر الثاني ولا تنفيذ لهما في أي مكان:
+  1) packages/application/subscription/cancel-subscription.ts
+  2) packages/application/subscription/upgrade-plan.ts
+$ grep -rIn -E 'cancelSubscription|cancel_subscription|upgradePlan|upgrade_plan' packages apps supabase/migrations
+  packages/application/subscription/upgrade-plan.ts:6: * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function upgradePlan(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: upgrade_plan. يُفعَّل في الأمر الثاني (المرحلة 2.1) عبر RPC ذرّي renew_subscription.
+  packages/application/subscription/cancel-subscription.ts:6: * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function cancelSubscription(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: cancel_subscription. يُفعَّل في الأمر الثاني (المرحلة 2.1) عبر RPC ذرّي renew_subscription.
+  (النتيجتان الوحيدتان هما سطرا التعليق داخل ملفَّي الهيكل نفسيهما — لا تنفيذ.)
+
+$ grep -hoE 'create or replace function (start_trial|activate_subscription|expire_due_subscriptions|record_subscription_warning|subscriptions_expiring_soon)\(' supabase/migrations/*.sql | sort -u
+  create or replace function activate_subscription(
+  create or replace function expire_due_subscriptions(
+  create or replace function record_subscription_warning(
+  create or replace function start_trial(
+  create or replace function subscriptions_expiring_soon(
+  ولا يوجد renew_subscription رغم أن docs/MASTER_DIRECTIVE.md:35 يسمّيه مثالاً على تسمية RPCs،
+  والتجديد يجري فعلياً عبر activate_subscription + expire_due_subscriptions.
+
+أثر تجاري مباشر: سائقٌ اشترك «مشاوير فقط» لا يملك مساراً لترقية خطته إلى «كلاهما» (400)
+وهو نصّ المرحلة 2.2 في docs/MASTER_DIRECTIVE.md:197، ولا مساراً لإلغاء اشتراكه بنفسه.

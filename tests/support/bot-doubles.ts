@@ -27,8 +27,15 @@ import type {
   OpenRoundInput,
 } from "../../packages/application/dispatch/broadcast-offers.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
+import type {
+  CancellationOutcome,
+  ResumeOutcome,
+  SubscriptionChangeRpcPort,
+  UpgradeApplied,
+  UpgradeQuote,
+} from "../../packages/application/subscription/ports.ts";
 import type { Coordinates } from "../../packages/domain/geo/value-objects.ts";
-import type { Subscription } from "../../packages/domain/subscription/entity.ts";
+import type { Subscription, SubscriptionPlan } from "../../packages/domain/subscription/entity.ts";
 import type {
   CityId,
   DriverId,
@@ -160,6 +167,90 @@ export function riderDirectory(existing: RiderProfile | null = null): RiderDirec
 
 export function subscriptionReader(subscription: Subscription | null): SubscriptionReader {
   return { findLive: async () => ok(subscription) };
+}
+
+/** استدعاءات منفذ تغييرات الاشتراك — تُقرأ في التوكيدات بدل تخمين ما نودي به. */
+export interface SubscriptionChangeCalls {
+  readonly cancels: { driverId: DriverId; reason: string | null }[];
+  readonly resumes: DriverId[];
+  readonly quotes: { driverId: DriverId; plan: SubscriptionPlan }[];
+  readonly upgrades: { driverId: DriverId; plan: SubscriptionPlan; transactionId: string | null }[];
+}
+
+/**
+ * مزدوج منفذ تغييرات الاشتراك. لا يحسب سعراً ولا يقرّر ترقية: يعيد ما يُلقَّنه
+ * حرفياً — لأنّ الحساب في القاعدة، ومزدوجٌ يحسب يخفي فرقاً بين ما يُعرض وما يُطبَّق.
+ */
+export function subscriptionChangePort(
+  responses: {
+    readonly cancel?: Partial<CancellationOutcome>;
+    readonly resume?: Partial<ResumeOutcome>;
+    readonly quote?: Partial<UpgradeQuote>;
+    readonly upgrade?: Partial<UpgradeApplied>;
+    readonly failOn?: "cancel" | "resume" | "quote" | "upgrade";
+  } = {},
+): SubscriptionChangeRpcPort & { readonly calls: SubscriptionChangeCalls } {
+  const calls: SubscriptionChangeCalls = { cancels: [], resumes: [], quotes: [], upgrades: [] };
+  const failure = (name: string) => err(new PortFailureError(name, "PORT_DOWN"));
+  return {
+    calls,
+    requestCancellation: async (driverId, reason) => {
+      calls.cancels.push({ driverId, reason });
+      if (responses.failOn === "cancel") return failure("rpc.cancel_subscription");
+      return ok({
+        ok: true,
+        error: null,
+        subscriptionId: "sub-1",
+        alreadyCancelled: false,
+        status: "active",
+        serviceUntil: new Date("2026-09-01T00:00:00.000Z"),
+        ...responses.cancel,
+      });
+    },
+    resume: async (driverId) => {
+      calls.resumes.push(driverId);
+      if (responses.failOn === "resume") return failure("rpc.resume_subscription");
+      return ok({
+        ok: true,
+        error: null,
+        subscriptionId: "sub-1",
+        alreadyActive: false,
+        status: "active",
+        ...responses.resume,
+      });
+    },
+    quoteUpgrade: async (driverId, plan) => {
+      calls.quotes.push({ driverId, plan });
+      if (responses.failOn === "quote") return failure("rpc.plan_upgrade_quote");
+      return ok({
+        ok: true,
+        error: null,
+        subscriptionId: "sub-1",
+        cityId: null,
+        currentPlan: "transport",
+        newPlan: plan,
+        amountDue: 150,
+        paymentRequired: true,
+        currency: "SAR",
+        periodEnd: new Date("2026-09-01T00:00:00.000Z"),
+        status: "active",
+        ...responses.quote,
+      });
+    },
+    applyUpgrade: async (driverId, plan, transactionId) => {
+      calls.upgrades.push({ driverId, plan, transactionId });
+      if (responses.failOn === "upgrade") return failure("rpc.upgrade_plan");
+      return ok({
+        ok: true,
+        error: null,
+        subscriptionId: "sub-1",
+        alreadyOnPlan: false,
+        plan,
+        periodEnd: null,
+        ...responses.upgrade,
+      });
+    },
+  };
 }
 
 export function trialPort(

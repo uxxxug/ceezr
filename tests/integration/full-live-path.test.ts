@@ -71,9 +71,11 @@ function e2ePaymentRepo(): PaymentRepository & { txns: PaymentTransaction[] } {
     findByIdempotencyKey: async (key) => ok(txns.find((t) => t.id === key) ?? null),
     confirmPayment: async (input) => {
       const idx = txns.findIndex((t) => t.id === input.transactionId);
-      if (idx === -1) return err(new PortFailureError("payments", "NOT_FOUND"));
+      const current = txns[idx];
+      if (idx === -1 || current === undefined)
+        return err(new PortFailureError("payments", "NOT_FOUND"));
       const updated: PaymentTransaction = {
-        ...txns[idx]!,
+        ...current,
         status: input.newStatus,
         providerTransactionId: input.providerTransactionId,
         updatedAt: new Date(),
@@ -96,11 +98,18 @@ function e2eProvider(): PaymentProvider {
   };
 }
 
-function e2eEventStore(): WebhookEventStore & { seen: Set<string> } {
+function e2eEventStore(): WebhookEventStore & {
+  seen: Set<string>;
+  recordedTransactionIds: string[];
+} {
   const seen = new Set<string>();
+  const recordedTransactionIds: string[] = [];
   return {
     seen,
-    record: async (eventId) => {
+    recordedTransactionIds,
+    // معرّف المعاملة محفوظ لا مُهمَل: منه تُقرأ مدينة الحدث في القاعدة.
+    record: async (eventId, _provider, _payload, transactionId) => {
+      recordedTransactionIds.push(transactionId);
       if (seen.has(eventId)) return ok(false);
       seen.add(eventId);
       return ok(true);
@@ -123,7 +132,7 @@ function e2eBackupStorage(): BackupStoragePort & { uploads: { name: string; byte
     },
     list: async () =>
       ok(uploads.map((u) => ({ remoteFileId: u.name, name: u.name, uploadedAt: new Date() }))),
-    delete: async () => ok(undefined as void),
+    delete: async () => ok(undefined),
   };
 }
 
@@ -187,6 +196,7 @@ describe("e2e: المسار الحيّ الكامل", () => {
           status: "active",
           trialEndsAt: null,
           currentPeriodEnd: new Date("2026-09-10T15:00:00Z"),
+          cancelAtPeriodEnd: false,
         },
         new Date("2026-08-11T15:00:00Z"),
       ),

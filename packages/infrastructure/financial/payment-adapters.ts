@@ -5,6 +5,14 @@
  * ينتمي إلى: infrastructure/financial
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway (ويبهوك الدفع)، apps/workers
  * ملاحظات مستقبلية: لا مزوّد دفع فعلي مدمج — المنفذ (PaymentProvider) وحده معلَّق.
+ *
+ * تصحيح خلل مُثبَت بالتشغيل (2026-08-12): كان `metadata` يُمرَّر
+ *   `${JSON.stringify(input.metadata ?? {})}::jsonb`، فيُلفّف السائق النصّ ثانيةً
+ *   ويُخزَّن في القاعدة jsonb من نوع `string` لا `object`. النتيجة أنّ
+ *   `confirm_payment` كانت تقرأ `metadata->>'plan'` فتجده `null` وتقع على
+ *   `coalesce(..., 'both')` — فكل سائق يدفع ٢٥٠ ريالاً لخطّة «نقل» تُفعَّل له
+ *   خطّة «الاثنين» التي ثمنها ٤٠٠. قياسٌ على القاعدة: ٤ من ٤ معاملات مخزّنة
+ *   بالنوع `string`. الصواب `sql.json(...)` الذي يُمرّر jsonb كما هو.
  */
 
 import type {
@@ -74,7 +82,7 @@ export function createPaymentRepository(
             ${input.providerTransactionId},
             ${input.status},
             ${input.idempotencyKey},
-            ${JSON.stringify(input.metadata ?? {})}::jsonb
+            ${sql.json((input.metadata ?? {}) as never)}
           ) as result`;
         const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
         if (envelope === null) throw new Error("ردّ create_payment غير مفهوم");
@@ -134,10 +142,10 @@ export function createPaymentRepository(
 
 export function createWebhookEventStore(sql: Sql): WebhookEventStore {
   return {
-    record: (eventId, provider, payload) =>
+    record: (eventId, provider, payload, transactionId) =>
       guard("rpc.record_webhook_event", async () => {
         const rows =
-          await sql`select record_webhook_event(${eventId}, ${provider}, ${payload}) as result`;
+          await sql`select record_webhook_event(${eventId}, ${provider}, ${payload}, ${transactionId}) as result`;
         const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
         if (envelope === null) throw new Error("ردّ record_webhook_event غير مفهوم");
         if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");
