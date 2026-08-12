@@ -51,9 +51,10 @@ function fakeRepo(
     findById: async () => ok(txns[0] ?? null),
     findByIdempotencyKey: async () => ok(txns[0] ?? null),
     confirmPayment: async (input) => {
-      if (txns.length === 0) return ok({} as PaymentTransaction);
+      const first = txns[0];
+      if (first === undefined) return ok({} as PaymentTransaction);
       const updated: PaymentTransaction = {
-        ...txns[0]!,
+        ...first,
         status: input.newStatus,
         providerTransactionId: input.providerTransactionId,
       };

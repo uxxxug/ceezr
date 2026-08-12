@@ -41,6 +41,18 @@ import { type CityId, systemClock } from "../../packages/shared/kernel/index.ts"
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL ?? "";
+
+/**
+ * الحرس نفسه المستخدم في بقية اختبارات التكامل: بلا قاعدةٍ حقيقيةٍ يُتخطّى الوصف
+ * بهدوءٍ بدل أن يسقط بـECONNREFUSED. وCI يفرض عدم التخطّي لأنّه يوفّر القاعدة،
+ * فالحرس لا يخفي فشلاً — إنّما يفصل «لا قاعدة» عن «القاعدة ترفض».
+ */
+const describeIf = DATABASE_URL === "" ? describe.skip : describe;
+if (DATABASE_URL === "") {
+  console.warn(
+    "⚠️  اختبارات التكامل مُتخطّاة: عيّن TEST_DATABASE_URL لقاعدة PostgreSQL بها الهجرات مطبَّقة.",
+  );
+}
 const WEBHOOK_SECRET = "redispatch-secret";
 const D1 = 122_501;
 const R1 = 222_501;
@@ -160,6 +172,8 @@ function redispatchDeps() {
 }
 
 beforeAll(async () => {
+  // الخطّافات علوية فتعمل حتّى مع describe.skip — فيُحرَس مدخلُها صراحةً.
+  if (DATABASE_URL === "") return;
   sql = createSql({ connectionString: DATABASE_URL });
   const cities = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
   cityId = (cities[0]?.id ?? "") as CityId;
@@ -210,11 +224,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (DATABASE_URL === "") return;
   await container.close();
   await sql.end({ timeout: 5 });
 });
 
-describe("إعادة عرض الطلبات الباحثة — المرحلة ١٤", () => {
+describeIf("إعادة عرض الطلبات الباحثة — المرحلة ١٤", () => {
   it("خطّ الأساس: الطلب أُنشئ ووصل عرضٌ واحدٌ في الدورة الأولى", async () => {
     const shape = await orderShape();
     expect(shape.status).toBe("searching");

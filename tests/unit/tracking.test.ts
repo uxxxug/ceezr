@@ -35,6 +35,8 @@ function movableClock(startMs: number): Clock & { advance(ms: number): void } {
 const haversineMeters = (a: LatLng, b: LatLng): number =>
   haversineKm({ latitude: a.lat, longitude: a.lng }, { latitude: b.lat, longitude: b.lng }) * 1000;
 
+type StoredLocation = Awaited<ReturnType<LocationStore["getCurrent"]>>;
+
 function fakeStore(): LocationStore & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>();
   return {
@@ -42,7 +44,7 @@ function fakeStore(): LocationStore & { data: Map<string, unknown> } {
     setCurrent: async (id, pos, meta) => {
       data.set(id, { position: pos, ...meta });
     },
-    getCurrent: async (id) => (data.get(id) as any) ?? null,
+    getCurrent: async (id) => (data.get(id) as StoredLocation) ?? null,
     clear: async (id) => {
       data.delete(id);
     },
@@ -201,7 +203,7 @@ describe("tracking: service", () => {
     });
 
     await svc.startSession("d1", "trip-1");
-    expect(pub.events[0]!.type).toBe("session_started");
+    expect(pub.events[0]?.type).toBe("session_started");
 
     await svc.handleGpsUpdate(makeUpdate("d1", 21.5, 39.2));
     expect(store.data.has("d1")).toBe(true);

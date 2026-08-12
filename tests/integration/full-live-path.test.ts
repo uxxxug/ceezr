@@ -71,9 +71,11 @@ function e2ePaymentRepo(): PaymentRepository & { txns: PaymentTransaction[] } {
     findByIdempotencyKey: async (key) => ok(txns.find((t) => t.id === key) ?? null),
     confirmPayment: async (input) => {
       const idx = txns.findIndex((t) => t.id === input.transactionId);
-      if (idx === -1) return err(new PortFailureError("payments", "NOT_FOUND"));
+      const current = txns[idx];
+      if (idx === -1 || current === undefined)
+        return err(new PortFailureError("payments", "NOT_FOUND"));
       const updated: PaymentTransaction = {
-        ...txns[idx]!,
+        ...current,
         status: input.newStatus,
         providerTransactionId: input.providerTransactionId,
         updatedAt: new Date(),
@@ -123,7 +125,7 @@ function e2eBackupStorage(): BackupStoragePort & { uploads: { name: string; byte
     },
     list: async () =>
       ok(uploads.map((u) => ({ remoteFileId: u.name, name: u.name, uploadedAt: new Date() }))),
-    delete: async () => ok(undefined as void),
+    delete: async () => ok(undefined),
   };
 }
 

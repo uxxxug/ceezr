@@ -1,0 +1,77 @@
+=== دليل البوابتين D/E: قاعدة PostgreSQL+PostGIS حقيقية والهجرات ===
+لا Docker ولا psql في هذه البيئة، فأُنشئت قاعدة حقيقية عبر micromamba/conda-forge:
+  postgresql 18.4 + postgis 3.6.4، PGDATA=/home/user/pgdata، منفذ 5432، قاعدة waslah.
+هذا يطابق ما يفعله .github/workflows/ci.yml (خدمة postgis/postgis:17-3.5) في الترتيب نفسه:
+  إنشاء أدوار anon/authenticated/service_role، ثم تطبيق الهجرات بـ ls | sort، ثم الاختبارات.
+
+$ psql -d waslah -tAc "select version()"
+PostgreSQL 18.4 on x86_64-conda-linux-gnu, compiled by x86_64-conda-linux-gnu-cc (conda-forge gcc 14.3.0-19) 14.3.0, 64-bit
+$ psql -d waslah -tAc "select postgis_version()"
+3.6 USE_GEOS=1 USE_PROJ=1 USE_STATS=1
+$ psql -d waslah -tAc "select rolname from pg_roles where rolname in ('anon','authenticated','service_role') order by 1"
+anon
+authenticated
+service_role
+
+--- تطبيق كل الهجرات بالترتيب: 31/31 بلا خطأ واحد (ON_ERROR_STOP=1) ---
+ok  20260806120000_phase_2_1_core_schema.sql
+ok  20260806120100_phase_2_1_atomic_rpcs.sql
+ok  20260806120200_phase_2_1_seed_cities_and_settings.sql
+ok  20260807100000_phase_2_3_unsubscribed_negotiation.sql
+ok  20260807130000_phase_2_4_support_tickets.sql
+ok  20260807170000_phase_2_5_mutual_ratings.sql
+ok  20260807190000_phase_2_6_language_selection.sql
+ok  20260808040000_phase_2_6_scheduled_jobs.sql
+ok  20260808120000_phase_2_7_start_ride_parties.sql
+ok  20260808140000_phase_2_7_admin_dashboard.sql
+ok  20260808180000_phase_3_agent_measurement.sql
+ok  20260809000000_phase_3_close_postgrest_surface.sql
+ok  20260809001000_phase_3_close_postgrest_surface_fix.sql
+ok  20260810100000_phase_5_city_group_ids_admin.sql
+ok  20260810160000_phase_6_fix_login_code_race.sql
+ok  20260810170000_phase_6_fix_support_ticket_cooldown_race.sql
+ok  20260811060000_seed_madinah_city.sql
+ok  20260811070000_unmatched_escalation_setting.sql
+ok  20260811080000_driver_kyc_profile.sql
+ok  20260811090000_cancel_order_fanout.sql
+ok  20260811120000_driver_preferred_area.sql
+ok  20260811130000_seed_remaining_cities.sql
+ok  20260811140000_db_backups_table.sql
+ok  20260811150000_payment_core.sql
+ok  20260811160000_payment_rls_policies.sql
+ok  20260811170000_city_change_rpc.sql
+ok  20260812000000_phase_1_seal_definer_surface.sql
+ok  20260812010000_phase_4_location_quality.sql
+ok  20260812020000_phase_5_fix_recorded_at.sql
+ok  20260812030000_phase_6_tracking_sessions.sql
+ok  20260812040000_phase_8_driver_location_max_age.sql
+
+$ psql -d waslah -tAc "select count(*) from information_schema.tables where table_schema='public'"
+30
+$ psql -d waslah -tAc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'"
+863
+$ psql -d waslah -tAc "select count(*) from cities" ; select code,name_ar,is_active
+ code |     name_ar     | is_active 
+------+-----------------+-----------
+ JED  | جدة             | t
+ MED  | المدينة المنورة | f
+ MKK  | مكة             | f
+ RUH  | الرياض          | f
+ TIF  | الطائف          | f
+(5 rows)
+
+
+--- كل جدول له city_id (حرس CI) ---
+$ bun run scripts/check-migrations.ts
+❌ مخالفات في المخططات:
+  - [20260811140000_db_backups_table.sql] db_backups: لا يحمل عمود city_id (القاعدة 0.4)
+  - [20260811150000_payment_core.sql] webhook_events: لا يحمل عمود city_id (القاعدة 0.4)
+
+=== نتائج الاختبارات على القاعدة الحقيقية (TEST_DATABASE_URL مضبوط) ===
+$ bun run test:integration  -> 262 pass / 0 fail / 1454 expect عبر 29 ملفاً [20.73s]
+$ bun run test:e2e          -> 8 pass / 0 fail / 193 expect عبر ملفين [6.78s]
+$ bun test (الحزمة كاملة)   -> 1420 pass / 0 fail / 0 skip / 5219 expect عبر 99 ملفاً [48.16s]
+
+=== نفس الحزمة من بيئة نظيفة بلا قاعدة (إثبات §14: bun run ci يمرّ) ===
+$ env -u TEST_DATABASE_URL bun run ci -> 1168 pass / 310 skip / 0 fail  exit=0
+قبل الإصلاح كان النفس الأمر: 2 fail — والفرق كله في حرس غياب القاعدة لا في تعطيل اختبار.

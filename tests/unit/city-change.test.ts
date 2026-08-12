@@ -81,14 +81,14 @@ describe("city change: menu items", () => {
     const { DRIVER_MENU_ITEMS } = await import("../../packages/application/bots/main-menu.ts");
     const cityItem = DRIVER_MENU_ITEMS.find((item) => item.command === "/city");
     expect(cityItem).toBeDefined();
-    expect(cityItem!.key).toBe("menu.driver.city");
+    expect(cityItem?.key).toBe("menu.driver.city");
   });
 
   it("rider menu includes /city command", async () => {
     const { RIDER_MENU_ITEMS } = await import("../../packages/application/bots/main-menu.ts");
     const cityItem = RIDER_MENU_ITEMS.find((item) => item.command === "/city");
     expect(cityItem).toBeDefined();
-    expect(cityItem!.key).toBe("menu.rider.city");
+    expect(cityItem?.key).toBe("menu.rider.city");
   });
 
   it("isMenuCommand recognizes /city for driver", async () => {

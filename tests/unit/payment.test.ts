@@ -81,10 +81,10 @@ function fakePaymentRepo(initial?: PaymentTransaction): {
       findById: async () => ok(state.tx),
       findByIdempotencyKey: async () => ok(state.tx),
       confirmPayment: async (input) => {
-        if (state.tx === null)
-          return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
+        const current = state.tx;
+        if (current === null) return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
         state.tx = {
-          ...state.tx!,
+          ...current,
           status: input.newStatus,
           providerTransactionId: input.providerTransactionId,
         };
