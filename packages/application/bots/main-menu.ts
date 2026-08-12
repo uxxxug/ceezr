@@ -43,6 +43,7 @@ export const DRIVER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.driver.area", command: "/area" },
   { key: "menu.driver.city", command: "/city" },
   { key: "menu.language", command: "/language" },
+  { key: "safety.menu_sos", command: "/sos" },
   { key: "menu.support", command: "/support" },
 ];
 
@@ -54,6 +55,7 @@ export const RIDER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.rider.city", command: "/city" },
   { key: "menu.rider.history", command: "/history" },
   { key: "menu.language", command: "/language" },
+  { key: "safety.menu_sos", command: "/sos" },
   { key: "menu.support", command: "/support" },
 ];
 

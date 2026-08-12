@@ -92,6 +92,10 @@ import {
   createRideLifecyclePort,
 } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
 import {
+  createSafetyResolutionPort,
+  createTriggerSosPort,
+} from "../../../packages/infrastructure/safety/safety-adapters.ts";
+import {
   createSubscriptionReader,
   createTrialRpc,
 } from "../../../packages/infrastructure/subscription/subscription-adapters.ts";
@@ -461,6 +465,12 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     ...(measurement === undefined ? {} : { measurement }),
   };
   const resolutionPort = createSupportResolutionPort(sql);
+  // SOS يكتب الحادث وoutbox في RPC ذرّي؛ العامل، لا webhook، هو من يرسل البطاقة.
+  // المنفذ نفسه يُمرَّر لبوت العميل والسائق حتى لا يوجد مساران مختلفان للطوارئ.
+  const safety = {
+    trigger: { incidents: createTriggerSosPort(sql) },
+    resolutions: { incidents: createSafetyResolutionPort(sql) },
+  };
 
   const driverSupport: SupportDialogDependencies = {
     ...supportCore,
@@ -613,6 +623,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     clock: systemClock,
     negotiation: { claims: claimDeps, relay: relayDeps },
     support: driverSupport,
+    safety,
     tracking: liveTracking,
     tripCards: driverTripCards,
     // المرحلة ١٥ — الحقل يُسقَط عند `null` لا يُمرَّر: `exactOptionalPropertyTypes`.
@@ -648,6 +659,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     clock: systemClock,
     negotiation: { rotation: rotationDeps, relay: relayDeps },
     support: riderSupport,
+    safety: { trigger: safety.trigger },
     rating: {
       sessions: riderSessions,
       lifecycle: lifecyclePort,

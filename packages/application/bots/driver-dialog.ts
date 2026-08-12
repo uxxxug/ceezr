@@ -42,6 +42,11 @@ import {
   relayNegotiationMessage,
 } from "../dispatch/relay-negotiation-message.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import {
+  type ResolveSafetyIncidentDeps,
+  resolveSafetyIncident,
+} from "../safety/resolve-safety-incident.ts";
+import { type TriggerSosDeps, triggerSos } from "../safety/trigger-sos.ts";
 import { cancelSubscription, resumeSubscription } from "../subscription/cancel-subscription.ts";
 import type { SubscriptionChangeRpcPort } from "../subscription/ports.ts";
 import type { DriverTripCardReader, DriverTripKey } from "../tracking/driver-trip-card.ts";
@@ -190,6 +195,11 @@ export interface DriverBotDependencies {
    * فوراً لأنّها بلا مقابل فعلاً.
    */
   readonly subscriptionChanges?: SubscriptionChangeRpcPort;
+  /** SOS: فتح من السائق وقرارات قروب الإسناد من بوت السائق الذي نشر البطاقة. */
+  readonly safety?: {
+    readonly trigger: TriggerSosDeps;
+    readonly resolutions: ResolveSafetyIncidentDeps;
+  };
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -661,6 +671,30 @@ async function handleCommand(
       if (driver === null) return [reply(sender, tr("support.not_registered"), menu(state))];
       return startSupportDialog(sender, state, deps.support, { allowSubscriptionType: true });
     }
+    case "/sos": {
+      if (deps.safety === undefined || deps.tripCards === undefined) {
+        return [reply(sender, tr("common.unknown_command"))];
+      }
+      if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+      const trip = await deps.tripCards.cardOf({ driverId: driver.id });
+      if (trip === null) return [reply(sender, tr("safety.no_active_order"), menu(state))];
+      const raised = await triggerSos(
+        {
+          orderId: trip.trip.tripId,
+          actorTelegramId: sender.telegramUserId,
+          reporterRole: "driver",
+        },
+        deps.safety.trigger,
+      );
+      if (!raised.ok) return [reply(sender, tr("common.error_try_again"))];
+      return [
+        reply(
+          sender,
+          tr(raised.value.created ? "safety.sent" : "safety.already_sent"),
+          menu(state),
+        ),
+      ];
+    }
 
     case "/activate": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
@@ -699,6 +733,43 @@ async function handleCommand(
     default:
       return [reply(sender, tr("common.unknown_command"))];
   }
+}
+
+/** أزرار قروب الإسناد: تسجل قرار إنسان فقط، ولا تتخذ أي قرار من محتوى الحادث. */
+async function handleSafetyGroupAction(
+  parts: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const [action, incidentId] = parts;
+  if (deps.safety === undefined || incidentId === undefined || incidentId === "") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const mapped =
+    action === "claim"
+      ? "claim"
+      : action === "close"
+        ? "close"
+        : action === "block"
+          ? "block_reporter"
+          : null;
+  if (mapped === null) return [reply(sender, tr("common.unknown_command"))];
+  const resolved = await resolveSafetyIncident(
+    { incidentId, actorTelegramId: sender.telegramUserId, action: mapped },
+    deps.safety.resolutions,
+  );
+  if (!resolved.ok) {
+    const key =
+      resolved.error.detail === "ACTOR_NOT_AUTHORIZED"
+        ? "safety.not_authorized"
+        : "safety.already_handled";
+    return [{ chatId: sender.telegramUserId, text: tr(key), keyboard: null }];
+  }
+  if (mapped === "claim")
+    return [reply(sender, tr("safety.claimed", { actor: sender.telegramUserId }))];
+  return [reply(sender, tr(mapped === "block_reporter" ? "safety.blocked" : "safety.closed"))];
 }
 
 async function liveSubscription(deps: DriverBotDependencies, driverId: DriverId) {
@@ -1120,6 +1191,8 @@ async function handleCallback(
       }
       return handleSupportGroupAction(rest, sender, state, deps.support);
     }
+    case "sos":
+      return handleSafetyGroupAction(rest, sender, state, deps);
     default:
       return [reply(sender, tr("common.unknown_command"))];
   }

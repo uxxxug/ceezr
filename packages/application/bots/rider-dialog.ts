@@ -24,6 +24,7 @@ import {
   type RotateNegotiationDependencies,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
+import { type TriggerSosDeps, triggerSos } from "../safety/trigger-sos.ts";
 import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
 import {
   handleLanguageCallback,
@@ -104,6 +105,8 @@ export interface RiderBotDependencies {
    * لا أن يفشل.
    */
   readonly tracking?: LiveTrackingPort;
+  /** SOS اختياري في الاختبارات القديمة، ومربوط دائماً في الحاوية الحية. */
+  readonly safety?: { readonly trigger: TriggerSosDeps };
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -166,6 +169,7 @@ export async function handleRiderUpdate(
     if (prefix === "back") return handleBack(rest.join(":"), sender, state, deps);
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
     if (prefix === "cancel") return handleCancelChoice(rest.join(":"), sender, state, deps);
+    if (prefix === "sos") return handleSosCallback(rest, sender, state, deps);
     // البند 6.3: زرّ أمرٍ من لوحة `/help` — يمرّ بنفس موجّه الأوامر لا بمسار ثانٍ
     if (prefix === "cmd") {
       const command = rest.join(":");
@@ -649,6 +653,39 @@ async function handleCancelChoice(
   return cancelOne(chosen, sender, state, deps);
 }
 
+async function handleSosCallback(
+  parts: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const [action, orderId] = parts;
+  if (action !== "trigger" || orderId === undefined || deps.safety === undefined) {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
+  if (!rider.ok) return technicalFailure(sender, state);
+  if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
+  // يعاد فحص الطلب النشط قبل RPC؛ والـRPC نفسه يثبت الملكية في حال سباق.
+  const active = await deps.activeOrdersOf(rider.value.id);
+  if (!active.some((order) => String(order.orderId) === orderId)) {
+    return [reply(sender, tr("safety.no_active_order"))];
+  }
+  const result = await triggerSos(
+    { orderId, actorTelegramId: sender.telegramUserId, reporterRole: "rider" },
+    deps.safety.trigger,
+  );
+  if (!result.ok) return [reply(sender, tr("common.error_try_again"))];
+  return [
+    reply(
+      sender,
+      tr(result.value.created ? "safety.sent" : "safety.already_sent"),
+      trackingMenu(state),
+    ),
+  ];
+}
+
 async function handleNegotiationDecision(
   rest: readonly string[],
   sender: Sender,
@@ -735,6 +772,25 @@ async function handleCommand(
     // البند 2.2: لا يُشترط له منفذ اختياري، فمنفذ الطلبات النشطة أساسي في الحوار أصلاً
     case "/status":
       return handleStatus(sender, state, deps);
+    case "/sos": {
+      if (deps.safety === undefined) return [reply(sender, tr("common.unknown_command"))];
+      const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
+      if (!rider.ok) return technicalFailure(sender, state);
+      if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
+      const active = await deps.activeOrdersOf(rider.value.id);
+      if (active.length === 0) return [reply(sender, tr("safety.no_active_order"), menu(state))];
+      return [
+        reply(sender, tr("safety.choose_order"), {
+          kind: "inline",
+          rows: active.map((order) => [
+            {
+              label: describeActiveOrder(order, state.language),
+              data: `sos:trigger:${order.orderId}`,
+            },
+          ]),
+        }),
+      ];
+    }
 
     case "/support": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
