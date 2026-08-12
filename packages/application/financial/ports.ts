@@ -117,3 +117,82 @@ export interface WebhookEventStore {
     transactionId: PaymentTransactionId,
   ): Promise<Result<boolean, PortFailureError>>;
 }
+
+/** منافذ محفظة ائتمان الاشتراك. كل كتابة تقابل RPC ذرّياً في القاعدة. */
+export interface SubscriptionWalletRpcPort {
+  createWallet(driverId: DriverId): Promise<Result<WalletCreation, PortFailureError>>;
+  getBalance(driverId: DriverId): Promise<Result<WalletBalance, PortFailureError>>;
+  topUp(input: WalletTopUpRequest): Promise<Result<WalletMutation, PortFailureError>>;
+  refund(
+    input: SubscriptionRefundRequest,
+  ): Promise<Result<SubscriptionRefundOutcome, PortFailureError>>;
+  issueInvoice(
+    paymentId: PaymentTransactionId,
+  ): Promise<Result<SubscriptionInvoiceOutcome, PortFailureError>>;
+  settleSystemError(
+    input: SystemErrorSettlementRequest,
+  ): Promise<Result<WalletMutation, PortFailureError>>;
+}
+
+export interface WalletCreation {
+  readonly ok: boolean;
+  readonly error: string | null;
+  readonly walletId: string | null;
+  readonly currency: string | null;
+  readonly alreadyExists: boolean;
+}
+export interface WalletBalance {
+  readonly ok: boolean;
+  readonly error: string | null;
+  readonly walletId: string | null;
+  readonly currency: string | null;
+  readonly balanceMinor: number | null;
+}
+export interface WalletMutation {
+  readonly ok: boolean;
+  readonly error: string | null;
+  readonly walletId: string | null;
+  readonly entryId: string | null;
+  readonly alreadyExists: boolean;
+  readonly balanceMinor: number | null;
+}
+export interface WalletTopUpRequest {
+  readonly driverId: DriverId;
+  readonly paymentId: PaymentTransactionId | null;
+  readonly amountMinor: number | null;
+  readonly actorUserId: string | null;
+  readonly reason: string | null;
+  readonly reference: string | null;
+  readonly idempotencyKey: string;
+}
+export interface SubscriptionRefundRequest {
+  readonly paymentId: PaymentTransactionId;
+  readonly amountMinor: number;
+  readonly destination: "wallet_credit" | "provider_refund";
+  readonly actorUserId: string | null;
+  readonly reason: string;
+  readonly reference: string;
+}
+export interface SubscriptionRefundOutcome {
+  readonly ok: boolean;
+  readonly error: string | null;
+  readonly refundId: string | null;
+  readonly walletId: string | null;
+  readonly alreadyRefunded: boolean;
+  readonly destination: string | null;
+}
+export interface SubscriptionInvoiceOutcome {
+  readonly ok: boolean;
+  readonly error: string | null;
+  readonly invoiceId: string | null;
+  readonly invoiceNumber: string | null;
+  readonly alreadyIssued: boolean;
+}
+export interface SystemErrorSettlementRequest {
+  readonly driverId: DriverId;
+  readonly adjustmentMinor: number;
+  readonly actorUserId: string;
+  readonly reason: string;
+  readonly reference: string;
+  readonly idempotencyKey: string;
+}

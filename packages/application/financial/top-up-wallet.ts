@@ -1,8 +1,47 @@
 /**
- * الغرض: حالة استخدام مستقبلية: top-up-wallet ضمن المحافظ، الفواتير، التسويات
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
- * ينتمي إلى: application/financial
- * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الـ Webhooks)، apps/workers، apps/admin-dashboard
- * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function topUpWallet(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: top_up_wallet. يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني.
+ * الغرض: إضافة ائتمان اشتراك من دفعة مؤكدة أو قرار إداري موثق.
+ * الحالة: منفّذ فعلياً في 2026-08-13؛ كان الملف هيكلاً (`export {}`) وصدر أمر التفعيل.
+ * القرار ومسوّغه: المفتاح الإيدمبوتنسي يُمرر للـRPC الذري؛ دفعة الويبهوك الواحدة لا تضاف مرتين مهما أعيد إرسالها.
  */
-export {};
+
+import type { PaymentTransactionId } from "../../domain/financial/index.ts";
+import type { DriverId } from "../../shared/kernel/index.ts";
+import { err, ok, type Result } from "../../shared/result/index.ts";
+import type { SubscriptionWalletRpcPort } from "./ports.ts";
+export interface TopUpWalletInput {
+  readonly driverId: DriverId;
+  readonly paymentId: PaymentTransactionId | null;
+  readonly amountMinor: number | null;
+  readonly actorUserId: string | null;
+  readonly reason: string | null;
+  readonly reference: string | null;
+  readonly idempotencyKey: string;
+}
+export interface TopUpWalletDeps {
+  readonly wallets: SubscriptionWalletRpcPort;
+}
+export interface TopUpWalletOutcome {
+  readonly walletId: string;
+  readonly entryId: string;
+  readonly alreadyExists: boolean;
+  readonly balanceMinor: number | null;
+}
+export class TopUpWalletError {
+  readonly code = "TOP_UP_WALLET_FAILURE" as const;
+  constructor(readonly detail: string) {}
+}
+export async function topUpWallet(
+  input: TopUpWalletInput,
+  deps: TopUpWalletDeps,
+): Promise<Result<TopUpWalletOutcome, TopUpWalletError>> {
+  const result = await deps.wallets.topUp(input);
+  if (!result.ok) return err(new TopUpWalletError(result.error.detail));
+  if (!result.value.ok || result.value.walletId === null || result.value.entryId === null)
+    return err(new TopUpWalletError(result.value.error ?? "WALLET_TOP_UP_REJECTED"));
+  return ok({
+    walletId: result.value.walletId,
+    entryId: result.value.entryId,
+    alreadyExists: result.value.alreadyExists,
+    balanceMinor: result.value.balanceMinor,
+  });
+}

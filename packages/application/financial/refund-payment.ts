@@ -1,8 +1,44 @@
 /**
- * الغرض: حالة استخدام مستقبلية: refund-payment ضمن المحافظ، الفواتير، التسويات
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
- * ينتمي إلى: application/financial
- * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الـ Webhooks)، apps/workers، apps/admin-dashboard
- * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function refundPayment(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: refund_payment. يُفعَّل جزئياً (اشتراك فقط) في الأمر الثاني.
+ * الغرض: استرداد دفعة اشتراك إلى ائتمان المحفظة أو إلى المزوّد.
+ * الحالة: منفّذ فعلياً في 2026-08-13؛ كان الملف هيكلاً (`export {}`) وصدر أمر التفعيل.
+ * القرار ومسوّغه: القاعدة تقفل دفعة الاشتراك وتحفظ سجلاً فريداً لكل دفعة، فتمنع استرداداً ثانياً أو مبلغاً يتجاوز المدفوع.
  */
-export {};
+import type { PaymentTransactionId } from "../../domain/financial/index.ts";
+import { err, ok, type Result } from "../../shared/result/index.ts";
+import type { SubscriptionWalletRpcPort } from "./ports.ts";
+export interface RefundPaymentInput {
+  readonly paymentId: PaymentTransactionId;
+  readonly amountMinor: number;
+  readonly destination: "wallet_credit" | "provider_refund";
+  readonly actorUserId: string | null;
+  readonly reason: string;
+  readonly reference: string;
+}
+export interface RefundPaymentDeps {
+  readonly wallets: SubscriptionWalletRpcPort;
+}
+export interface RefundPaymentOutcome {
+  readonly refundId: string;
+  readonly walletId: string | null;
+  readonly alreadyRefunded: boolean;
+  readonly destination: string | null;
+}
+export class RefundPaymentError {
+  readonly code = "REFUND_PAYMENT_FAILURE" as const;
+  constructor(readonly detail: string) {}
+}
+export async function refundPayment(
+  input: RefundPaymentInput,
+  deps: RefundPaymentDeps,
+): Promise<Result<RefundPaymentOutcome, RefundPaymentError>> {
+  const result = await deps.wallets.refund(input);
+  if (!result.ok) return err(new RefundPaymentError(result.error.detail));
+  if (!result.value.ok || result.value.refundId === null)
+    return err(new RefundPaymentError(result.value.error ?? "REFUND_REJECTED"));
+  return ok({
+    refundId: result.value.refundId,
+    walletId: result.value.walletId,
+    alreadyRefunded: result.value.alreadyRefunded,
+    destination: result.value.destination,
+  });
+}
