@@ -10,3 +10,4 @@ export {
   createPaymentRepository,
   createWebhookEventStore,
 } from "./payment-adapters.ts";
+export { createSubscriptionWalletRpc } from "./subscription-wallet-adapters.ts";

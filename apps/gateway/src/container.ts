@@ -17,6 +17,7 @@ import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/a
 import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
+import type { SubscriptionWalletRpcPort } from "../../../packages/application/financial/ports.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
 import {
   type CustomerLiveRelay,
@@ -58,6 +59,7 @@ import {
   createSupportTicketContextReader,
   createSupportTicketPort,
 } from "../../../packages/infrastructure/dispute/support-adapters.ts";
+import { createSubscriptionWalletRpc } from "../../../packages/infrastructure/financial/subscription-wallet-adapters.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import {
   createLanguagePreferencePort,
@@ -89,6 +91,10 @@ import {
   createRatingPort,
   createRideLifecyclePort,
 } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
+import {
+  createSafetyResolutionPort,
+  createTriggerSosPort,
+} from "../../../packages/infrastructure/safety/safety-adapters.ts";
 import {
   createSubscriptionReader,
   createTrialRpc,
@@ -201,6 +207,12 @@ export interface Container {
    */
   readonly negotiation: NegotiationWiring;
   /**
+   * عمليات الائتمان والاسترداد والفاتورة والتصحيح مالية إدارية/ويبهوك فقط؛ لا
+   * تُوصل لحوار السائق حتى لا يصبح البوت قناة قرار استرداد أو تسوية. لوحة الإدارة
+   * ومسار الويبهوك يستعملان هذا المحول الإنتاجي نفسه عند تفعيل واجهتهما.
+   */
+  readonly financial: SubscriptionWalletRpcPort;
+  /**
    * المرحلة ٦ — النقل اللحظي مكشوف لأن مسار SSE يحتاج نفس الناقل الذي ينشر
    * فيه مسار البوت — لا ناقلاً ثانياً يُبنى في `index.ts`. والاختبارات تقرأ منه
    * الجلسات والبراهين بنفس المحوّلات لا بنسخة موازية.
@@ -305,6 +317,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   log("session.store_selected", { store: config.sessionStore });
 
   const settings = createSettingsRepository(sql);
+  const financial = createSubscriptionWalletRpc(sql);
   const cities = createCityDirectory(sql);
   const drivers = createDriverDirectory(sql);
   const riders = createRiderDirectory(sql);
@@ -452,6 +465,12 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     ...(measurement === undefined ? {} : { measurement }),
   };
   const resolutionPort = createSupportResolutionPort(sql);
+  // SOS يكتب الحادث وoutbox في RPC ذرّي؛ العامل، لا webhook، هو من يرسل البطاقة.
+  // المنفذ نفسه يُمرَّر لبوت العميل والسائق حتى لا يوجد مساران مختلفان للطوارئ.
+  const safety = {
+    trigger: { incidents: createTriggerSosPort(sql) },
+    resolutions: { incidents: createSafetyResolutionPort(sql) },
+  };
 
   const driverSupport: SupportDialogDependencies = {
     ...supportCore,
@@ -604,6 +623,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     clock: systemClock,
     negotiation: { claims: claimDeps, relay: relayDeps },
     support: driverSupport,
+    safety,
     tracking: liveTracking,
     tripCards: driverTripCards,
     // المرحلة ١٥ — الحقل يُسقَط عند `null` لا يُمرَّر: `exactOptionalPropertyTypes`.
@@ -639,6 +659,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     clock: systemClock,
     negotiation: { rotation: rotationDeps, relay: relayDeps },
     support: riderSupport,
+    safety: { trigger: safety.trigger },
     rating: {
       sessions: riderSessions,
       lifecycle: lifecyclePort,
@@ -679,6 +700,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     }),
     sql,
     driverSender,
+    financial,
     tracking: {
       bus: trackingBus,
       sessions: trackingSessions,
