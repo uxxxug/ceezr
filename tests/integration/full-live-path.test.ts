@@ -98,11 +98,18 @@ function e2eProvider(): PaymentProvider {
   };
 }
 
-function e2eEventStore(): WebhookEventStore & { seen: Set<string> } {
+function e2eEventStore(): WebhookEventStore & {
+  seen: Set<string>;
+  recordedTransactionIds: string[];
+} {
   const seen = new Set<string>();
+  const recordedTransactionIds: string[] = [];
   return {
     seen,
-    record: async (eventId) => {
+    recordedTransactionIds,
+    // معرّف المعاملة محفوظ لا مُهمَل: منه تُقرأ مدينة الحدث في القاعدة.
+    record: async (eventId, _provider, _payload, transactionId) => {
+      recordedTransactionIds.push(transactionId);
       if (seen.has(eventId)) return ok(false);
       seen.add(eventId);
       return ok(true);

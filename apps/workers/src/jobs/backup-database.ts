@@ -4,7 +4,10 @@
  *   النتيجة في جدول `db_backups` لتراها لوحة الإدارة بلا فحص يدويّ.
  * الحالة: منفّذ فعلياً — البند 7.
  * ينتمي إلى: apps/workers/src/jobs
- * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/container.ts (مهمّة عامّة لا لكل مدينة)
+ * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/container.ts (تُشغَّل مرّة واحدة لا لكل مدينة)
+ *   التشغيل واحد لأنّ pg_dump يفرّغ العنقود كلّه، لكنّ التسجيل صفٌّ لكل مدينة: الملف
+ *   الواحد يضمّ بيانات كل مدينة موجودة وقت أخذه، وهذه شهادةٌ صادقة لكل مدينة على حِدة
+ *   لا تكرارٌ زائد — وبها يحمل db_backups مدينةً حقيقية بلا استثناء من القاعدة 0.4.
  * ملاحظات مستقبلية: التردد يوميّ لا أقلّ (البند 7.2). الاحتفاظ بعدد محدود (افتراضيّ 14)
  *   لا زمن — لأن الامتلاء دالّةٌ في عدد الملفات لا في عمرها.
  */
@@ -147,12 +150,25 @@ export async function runDatabaseBackup(
     log("backup.list_failed", { detail: listed.error.detail });
   }
 
-  // تسجيل النسخة الناجحة في القاعدة لتراها لوحة الإدارة.
+  // تسجيل النسخة الناجحة في القاعدة لتراها لوحة الإدارة: صفٌّ لكل مدينة، بمعرّف
+  // تفريغٍ واحد يجمعها. عبارة insert…select واحدة، فالصفوف كلها تظهر معاً أو لا تظهر —
+  // لا حاجة إلى منطق تزامن في التطبيق، ولا إلى قائمة مدن مكتوبة في الكود.
+  //
+  // معرّف التفريغ يُولَّد هنا مرّة واحدة لا بـgen_random_uuid() داخل الـselect:
+  // تلك دالة متقلّبة (volatile) تُقََيّم لكل صفٍّ فتُعطي كل مدينة معرّفاً مختلفاً
+  // وتُبطِل الجمع الذي وُضِع لأجله — معرّف هويّة لا قيمة تجاريّة، فتوليده في التطبيق مقبول.
+  const backupRunId = crypto.randomUUID();
   try {
-    await deps.sql`
-      insert into db_backups (remote_file_id, file_name, bytes, status)
-      values (${uploaded.value.remoteFileId}, ${name}, ${uploaded.value.bytes}, 'success')
+    const inserted = await deps.sql`
+      insert into db_backups (city_id, backup_run_id, remote_file_id, file_name, bytes, status)
+      select c.id, ${backupRunId}, ${uploaded.value.remoteFileId}, ${name}, ${uploaded.value.bytes}, 'success'
+        from cities c
     `;
+    // قاعدة بلا مدن تعني ملفاً مرفوعاً لا تراه لوحة الإدارة. لا تُختلق له مدينة،
+    // ولا يُمرّ الصمت: يُسجّل صراحةً لأنّه خلل تهيئة لا حالة طبيعيّة.
+    if (inserted.count === 0) {
+      log("backup.record_no_cities", { fileName: name, backupRunId });
+    }
   } catch (cause) {
     // فشل التسجيل لا يُبطل النسخة: الملف مرفوع فعلاً. السجلّ يكشف الفقدان.
     log("backup.record_failed", { detail: cause instanceof Error ? cause.message : String(cause) });

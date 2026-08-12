@@ -112,15 +112,23 @@ function fakeProvider(overrides: Partial<ChargeInitiation> = {}): PaymentProvide
   };
 }
 
-/** مزدوج متجر أحداث الويبهوك. */
+/**
+ * مزدوج متجر أحداث الويبهوك.
+ *
+ * يسجّل `transactionId` الممرّر لا ليُزيّن التوقيع بل ليُمكِّن توكيده: منه تُقرأ
+ * مدينة الصفّ في القاعدة، فمزدوجٌ يتجاهله يُخفي تمريراً خاطئاً أو مفقوداً.
+ */
 function fakeEventStore(known = new Set<string>()): {
   store: WebhookEventStore;
   seen: string[];
+  recordedTransactionIds: string[];
 } {
   const seen: string[] = [];
+  const recordedTransactionIds: string[] = [];
   return {
     store: {
-      record: async (eventId) => {
+      record: async (eventId, _provider, _payload, transactionId) => {
+        recordedTransactionIds.push(transactionId);
         if (known.has(eventId)) {
           seen.push(eventId);
           return ok(false);
@@ -131,6 +139,7 @@ function fakeEventStore(known = new Set<string>()): {
       },
     },
     seen,
+    recordedTransactionIds,
   };
 }
 

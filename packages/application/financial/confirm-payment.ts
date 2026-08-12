@@ -48,7 +48,12 @@ export async function confirmSubscriptionPayment(
   deps: ConfirmPaymentDeps,
 ): Promise<Result<ConfirmPaymentOutcome, WebhookConfirmationError>> {
   // Idempotency: سجّل الحدث أولاً. إن كان مكرَّراً أوقف بلا معالجة.
-  const recorded = await deps.events.record(input.webhookEventId, input.provider, input.rawPayload);
+  const recorded = await deps.events.record(
+    input.webhookEventId,
+    input.provider,
+    input.rawPayload,
+    input.transactionId,
+  );
   if (!recorded.ok) {
     return err(new WebhookConfirmationError(recorded.error.detail));
   }

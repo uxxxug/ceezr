@@ -16,10 +16,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import {
-  executableLines,
-  findHardcodedValues,
-} from "../../scripts/check-business-constants.ts";
+import { executableLines, findHardcodedValues } from "../../scripts/check-business-constants.ts";
 
 describe("حرس القيم التجارية: تعليق أم كود", () => {
   it("رقم ممنوع داخل تعليق سطريّ لا يُحتسب مخالفة", () => {
@@ -53,7 +50,7 @@ describe("حرس القيم التجارية: تعليق أم كود", () => {
   });
 
   it("رموز حالة HTTP تبقى مقبولة داخل الاستجابة", () => {
-    expect(findHardcodedValues('return c.json({ ok: false }, 400);\n')).toEqual([]);
+    expect(findHardcodedValues("return c.json({ ok: false }, 400);\n")).toEqual([]);
   });
 
   it("عدد الأسطر المُخرَجة يساوي عدد أسطر المصدر فتبقى أرقام الأسطر صحيحة", () => {

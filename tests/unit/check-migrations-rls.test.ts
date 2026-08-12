@@ -10,9 +10,10 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { tablesWithRlsEnabled } from "../../scripts/check-migrations.ts";
+import { findTableBlocks, tablesWithRlsEnabled } from "../../scripts/check-migrations.ts";
 
 const set = (sql: string) => [...tablesWithRlsEnabled(sql)].sort();
+const tableNames = (sql: string) => findTableBlocks(sql).map((b) => b.name);
 
 describe("استخراج جداول RLS من نصّ الهجرات", () => {
   test("يلتقط الأمر المباشر باسمه", () => {
@@ -98,5 +99,34 @@ describe("استخراج جداول RLS من نصّ الهجرات", () => {
 
   test("نصّ بلا تفعيل إطلاقاً يعطي مجموعة فارغة لا مجموعة مفترضة", () => {
     expect(set("create table x (id uuid); select 1;")).toEqual([]);
+  });
+
+  test("يلتقط الأمر المباشر ولو كان الاسم مؤهّلاً أو مقتبساً", () => {
+    expect(set("alter table public.orders enable row level security;")).toEqual(["orders"]);
+    expect(set('alter table "ratings" enable row level security;')).toEqual(["ratings"]);
+  });
+});
+
+describe("استخراج تعريفات الجداول", () => {
+  test("يلتقط الجدول ولو كان اسمه مؤهّلاً بمخطّط أو مقتبساً", () => {
+    // جدولٌ لا يراه المستخرج لا يُفحص city_id له ولا RLS — يمرّ بنجاحٍ كاذب.
+    expect(tableNames("create table public.foo (id uuid);")).toEqual(["foo"]);
+    expect(tableNames('create table if not exists "bar" (id uuid);')).toEqual(["bar"]);
+    expect(tableNames('create table public . "baz" (id uuid);')).toEqual(["baz"]);
+  });
+
+  test("يقرأ جسم الجدول كاملاً مع الأقواس المتداخلة", () => {
+    const blocks = findTableBlocks(
+      "create table t (id uuid, amount numeric(10, 2), city_id uuid not null references cities(id));",
+    );
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]?.body).toContain("numeric(10, 2)");
+    expect(blocks[0]?.body).toContain("references cities(id)");
+  });
+
+  test("الجدول المؤهّل بمخطّط وبلا city_id لم يعد يمرّ صامتاً", () => {
+    const blocks = findTableBlocks("create table public.sneaky (id uuid, note text);");
+    expect(blocks).toHaveLength(1);
+    expect(/\bcity_id\b/.test(blocks[0]?.body ?? "")).toBe(false);
   });
 });

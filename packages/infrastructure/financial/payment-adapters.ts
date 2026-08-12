@@ -134,10 +134,10 @@ export function createPaymentRepository(
 
 export function createWebhookEventStore(sql: Sql): WebhookEventStore {
   return {
-    record: (eventId, provider, payload) =>
+    record: (eventId, provider, payload, transactionId) =>
       guard("rpc.record_webhook_event", async () => {
         const rows =
-          await sql`select record_webhook_event(${eventId}, ${provider}, ${payload}) as result`;
+          await sql`select record_webhook_event(${eventId}, ${provider}, ${payload}, ${transactionId}) as result`;
         const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
         if (envelope === null) throw new Error("ردّ record_webhook_event غير مفهوم");
         if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");

@@ -106,10 +106,14 @@ export interface WebhookEventStore {
   /**
    * يحاول تسجيل حدث ويبهوك. يعيد `true` إن كان جديداً (ويُعالَج)،
    * و`false` إن كان مكرَّراً (ويُهمل).
+   *
+   * `transactionId` ليس زينة: منه تُقرأ مدينة الصفّ (city_id) داخل القاعدة،
+   * فحدثٌ لمعاملةٍ مجهولة يُردّ بفشلٍ صريح لا يُسجَّل بمدينةٍ مفترضة.
    */
   record(
     eventId: string,
     provider: string,
     payload: string,
+    transactionId: PaymentTransactionId,
   ): Promise<Result<boolean, PortFailureError>>;
 }

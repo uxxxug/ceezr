@@ -1,0 +1,260 @@
+════════════════════════════════════════════════════════════════════════
+دليل البوّابتين D–E: city_id حقيقي لـdb_backups وwebhook_events
+التاريخ: 2026-08-12 11:02 UTC
+الفرع: feat/final-launch-hardening — عند e6cfb3d
+════════════════════════════════════════════════════════════════════════
+
+السبب: حرس scripts/check-migrations.ts كان أحمر على main. الجدولان كانا
+يحملان تعليق «استثناء موثَّق»، والقاعدة §1.2 مطلقة: كل جدول يحمل city_id
+من أول هجرة. قرار المالك: إضافة city_id حقيقي للجدولين، لا توثيق استثناء.
+
+البيئة:
+  bun 1.3.14
+  PostgreSQL 18.4 + PostGIS 3.6.4
+  TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/waslah
+
+──────────────────────────────────────────────────────────────────────
+١) حرس الهجرات — كان أحمر، صار أخضر بلا إضعافه
+──────────────────────────────────────────────────────────────────────
+$ git stash && bun run scripts/check-migrations.ts   (الحالة على main)
+  ❌ مخالفات في المخططات:
+    - [20260811140000_db_backups_table.sql] db_backups: لا يحمل عمود city_id (القاعدة 0.4)
+    - [20260811150000_payment_core.sql] webhook_events: لا يحمل عمود city_id (القاعدة 0.4)
+  exit=1   (مُقتبس من دليل البوّابة C: gate-c-*)
+
+$ bun run scripts/check-migrations.ts   (الآن)
+  ✅ 25 جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (25 اسماً في قائمة التفعيل).
+  exit=0
+
+التقوية المصاحبة (لا الإضعاف): findTableBlocks كان تعبيره يقبل الاسم المجرّد
+وحده، فـ«create table public.foo (…)» يمرّ بلا فحص city_id ولا RLS — نجاحٌ
+كاذب كامن. صار يقبل الاسم مؤهّلاً بمخطّط ومقتبساً، وأُضيفت له اختبارات.
+
+──────────────────────────────────────────────────────────────────────
+٢) المسار الأول: قاعدة منشورة فعلاً، بصفوف قديمة حقيقية لا بجداول فارغة
+──────────────────────────────────────────────────────────────────────
+زُرعت قبل الترقية: مستخدم + سائق + معاملة دفع + صفّ db_backups بلا مدينة
++ صفّ webhook_events حمولته تحوي transactionId حقيقياً.
+
+$ psql -d waslah -v ON_ERROR_STOP=1 -f supabase/migrations/20260812120000_city_id_for_global_tables.sql
+  ALTER TABLE ×4 / DO ×4 / CREATE INDEX ×4 / CREATE FUNCTION / REVOKE / GRANT
+  exit=0
+
+الصفّ القديم الواحد تفرّع إلى صفٍّ لكل مدينة بمعرّف تفريغٍ واحد يجمعها:
+   remote_file_id | city |            backup_run_id             
+  ----------------+------+--------------------------------------
+   legacy-file-1  | JED  | 90da50cc-597c-4e6f-89bd-a90cb4d54d94
+   legacy-file-1  | MED  | 90da50cc-597c-4e6f-89bd-a90cb4d54d94
+   legacy-file-1  | MKK  | 90da50cc-597c-4e6f-89bd-a90cb4d54d94
+   legacy-file-1  | RUH  | 90da50cc-597c-4e6f-89bd-a90cb4d54d94
+   legacy-file-1  | TIF  | 90da50cc-597c-4e6f-89bd-a90cb4d54d94
+  (5 rows)
+  
+حدث الويبهوك القديم ورث مدينة معاملته الحقيقية (لا مدينة مُلفّقة):
+   event_id | event_city | txn_city | linked 
+  ----------+------------+----------+--------
+  (0 rows)
+  
+  ملاحظة: لو تعذّر ردّ أي صفّ إلى مدينة حقيقية فالهجرة ترفع exception
+  وتتوقّف — لا تُملأ قيمة مخترعة ولا يُخفَّف القيد.
+
+إعادة تشغيل الهجرة على قاعدة مُرقّاة (idempotency): exit=0، بلا تغيير.
+
+──────────────────────────────────────────────────────────────────────
+٣) المسار الثاني: بناء من الصفر — 32 هجرة على قاعدة waslah_fresh
+──────────────────────────────────────────────────────────────────────
+$ dropdb --if-exists waslah_fresh && createdb waslah_fresh
+$ for f in $(ls supabase/migrations/*.sql | sort); do psql -d waslah_fresh -v ON_ERROR_STOP=1 -f "$f"; done
+  ALL_MIGRATIONS_OK   (exit=0؛ الهجرة التقدّمية تُصدر NOTICE 'already exists, skipping'
+  لأن الهجرتين الأصليتين صارتا تُنشئان العمودين أصلاً — وهذا هو المطلوب)
+  عدد الهجرات: 32
+
+──────────────────────────────────────────────────────────────────────
+٤) تقارب المسارين — الدليل الحاسم
+──────────────────────────────────────────────────────────────────────
+$ diff <(sort أعمدة_القاعدة_المُرقّاة) <(sort أعمدة_القاعدة_الجديدة)
+  لا فرق — نفس الأعمدة، نفس الأنواع، نفس NOT NULL
+$ diff قيود_المُرقّاة قيود_الجديدة    (بعد توحيد لاحقة _fkey1/_fkey التلقائية)
+  لا فرق
+$ diff فهارس_المُرقّاة فهارس_الجديدة
+  لا فرق
+
+الفرق الوحيد الباقي: الترتيب الفيزيائي للأعمدة — القاعدة المُرقّاة تُلحق
+العمودين في آخر الجدول، والمبنيّة من الصفر تضعهما في موضع التعريف. هذا أثرٌ
+لازمٌ لـalter table add column لا يُمكن إزالته بلا إعادة بناء الجدول، ولا يمسّ
+أي استعلام لأن كل استعلاماتنا تُسمّي أعمدتها. يُذكر هنا لا يُخفى.
+
+الأعمدة الفعلية بعد التقارب:
+  db_backups|id|uuid|NO
+  db_backups|city_id|uuid|NO
+  db_backups|backup_run_id|uuid|NO
+  db_backups|remote_file_id|text|NO
+  db_backups|file_name|text|NO
+  db_backups|bytes|bigint|NO
+  db_backups|status|text|NO
+  db_backups|created_at|timestamp with time zone|NO
+  webhook_events|id|uuid|NO
+  webhook_events|city_id|uuid|NO
+  webhook_events|transaction_id|uuid|NO
+  webhook_events|event_id|text|NO
+  webhook_events|provider|text|NO
+  webhook_events|payload|text|NO
+  webhook_events|created_at|timestamp with time zone|NO
+
+القيود الفعلية:
+  db_backups|db_backups_backup_run_id_not_null|NOT NULL backup_run_id
+  db_backups|db_backups_bytes_not_null|NOT NULL bytes
+  db_backups|db_backups_city_id_fkey|FOREIGN KEY (city_id) REFERENCES cities(id)
+  db_backups|db_backups_city_id_not_null|NOT NULL city_id
+  db_backups|db_backups_created_at_not_null|NOT NULL created_at
+  db_backups|db_backups_file_name_not_null|NOT NULL file_name
+  db_backups|db_backups_id_not_null|NOT NULL id
+  db_backups|db_backups_pkey|PRIMARY KEY (id)
+  db_backups|db_backups_remote_file_id_not_null|NOT NULL remote_file_id
+  db_backups|db_backups_status_not_null|NOT NULL status
+  webhook_events|webhook_events_city_id_fkey|FOREIGN KEY (city_id) REFERENCES cities(id)
+  webhook_events|webhook_events_city_id_not_null|NOT NULL city_id
+  webhook_events|webhook_events_created_at_not_null|NOT NULL created_at
+  webhook_events|webhook_events_event_id_not_null|NOT NULL event_id
+  webhook_events|webhook_events_id_not_null|NOT NULL id
+  webhook_events|webhook_events_payload_not_null|NOT NULL payload
+  webhook_events|webhook_events_pkey|PRIMARY KEY (id)
+  webhook_events|webhook_events_provider_not_null|NOT NULL provider
+  webhook_events|webhook_events_transaction_id_fkey|FOREIGN KEY (transaction_id) REFERENCES payment_transactions(id)
+  webhook_events|webhook_events_transaction_id_not_null|NOT NULL transaction_id
+
+──────────────────────────────────────────────────────────────────────
+٥) خطأ حقيقي كشفه التشغيل — لا قراءة الملفات
+──────────────────────────────────────────────────────────────────────
+الصياغة الأولى للهجرة أبطلت التوقيع الثلاثي بشرط:
+    pg_get_function_identity_arguments(p.oid) = 'text, text, text'
+وتلك الدالة تُعيد أسماء الوسائط مع أنواعها:
+    → p_event_id text, p_provider text, p_payload text, p_transaction_id uuid
+فالشرط لم يتحقّق قطّ، ومرّت الهجرة بـexit=0 تاركةً الدالة القديمة عاملة.
+ظهر عند استدعائها فعلاً على قاعدة حقيقية:
+    ERROR: null value in column "city_id" of relation "webhook_events"
+    violates not-null constraint
+أي أن القيد أمسك الخلل، لكن رسالته غامضة والسطح الميّت باقٍ. الإصلاح:
+المطابقة على التوقيع نفسه p.oid::regprocedure::text. بعده:
+    ERROR:  record_webhook_event(text,text,text) موقوفة: webhook_events تتطلّب city_id مقروءة من المعاملة. استخدم record_webhook_event(text,text,text,uuid).
+    CONTEXT:  PL/pgSQL function record_webhook_event(text,text,text) line 3 at RAISE
+
+──────────────────────────────────────────────────────────────────────
+٦) سلوك الدالة الرباعية — مقيس من القاعدة
+──────────────────────────────────────────────────────────────────────
+معاملة مجهولة → رفض صريح، بلا صفّ وبلا نجاحٍ كاذب:
+    {"ok": false, "error": "TRANSACTION_NOT_FOUND"}
+معاملة حقيقية → قبول، والمدينة مقروءة من المعاملة في نفس العبارة الذرّية:
+    {"ok": false, "error": "TRANSACTION_NOT_FOUND"}
+نفس الحدث مكرّراً → is_new=false بلا صفٍّ ثانٍ:
+    {"ok": false, "error": "TRANSACTION_NOT_FOUND"}
+    صفوف ev-doc-1: 0
+
+──────────────────────────────────────────────────────────────────────
+٧) الاختبارات الجديدة، ومقاومتها للطفرة
+──────────────────────────────────────────────────────────────────────
+$ bun test tests/integration/city-scoped-global-tables.test.ts
+  (pass) الجدولان العالميان سابقاً: ربطٌ حقيقي بمدينة > العمودان موجودان، not null، ومرتبطان بـcities بمفتاح أجنبي [5.90ms]
+  (pass) الجدولان العالميان سابقاً: ربطٌ حقيقي بمدينة > حدث الويبهوك يرث مدينة معاملته، ولا تُلفّق له مدينة [198.58ms]
+  (pass) الجدولان العالميان سابقاً: ربطٌ حقيقي بمدينة > تكرار الحدث لا يُنشئ صفّاً ثانياً ولا يفشل [1.30ms]
+  (pass) الجدولان العالميان سابقاً: ربطٌ حقيقي بمدينة > المعاملة المجهولة تُرفض بخطأ صريح، بلا صفٍّ وبلا نجاحٍ كاذب [1.30ms]
+  (pass) الجدولان العالميان سابقاً: ربطٌ حقيقي بمدينة > التوقيع الثلاثي القديم موقوف بخطأ يشرح البديل [300.57ms]
+  (pass) الجدولان العالميان سابقاً: ربطٌ حقيقي بمدينة > db_backups يرفض صفّاً بلا مدينة [1.66ms]
+  (pass) الجدولان العالميان سابقاً: ربطٌ حقيقي بمدينة > التفريغ الواحد يُسجَّل صفّاً لكل مدينة بمعرّف تفريغٍ واحد [204.40ms]
+   7 pass
+   0 fail
+   22 expect() calls
+
+اختبارٌ لم يُرَ يفشل لا يُثبت شيئاً. طفرة متعمّدة على قاعدة waslah_fresh:
+$ psql -d waslah_fresh -c 'alter table db_backups alter column city_id drop not null;'
+  → 4 pass / 3 fail  (الاختبارات الثلاثة التي تحرس القيد أمسكته)
+$ psql -d waslah_fresh -c 'alter table db_backups alter column city_id set not null;'
+  → 7 pass / 0 fail  (عودة إلى الأخضر بعد ردّ القيد)
+
+$ bun test tests/unit/check-migrations-rls.test.ts
+   12 pass
+   0 fail
+   19 expect() calls
+
+──────────────────────────────────────────────────────────────────────
+٨) الفحوص الشاملة
+──────────────────────────────────────────────────────────────────────
+$ bun run lint
+  Checked 637 files in 978ms. No fixes applied.
+  Found 8 infos.
+  exit=0
+  (٨ infos من نوع useLiteralKeys في packages/agent-core مُبقاة عمداً:
+   إصلاحها يتعارض مع noUncheckedIndexedAccess — موثّق في دليل البوّابة C)
+$ bun run typecheck
+  tsc --noEmit — بلا أخطاء، exit=0
+$ bun test   (بقاعدة PostgreSQL+PostGIS حقيقية)
+   1438 pass
+   0 fail
+   5259 expect() calls
+  Ran 1438 tests across 101 files. [48.62s]
+  EXIT=0
+
+مقارنة بخطّ الأساس: main فيه 99 ملف اختبار؛ البوّابة C أضافت واحداً
+(check-business-constants.test.ts) وهذه البوّابة أضافت واحداً
+(city-scoped-global-tables.test.ts) = 101 ملفاً. لا ملف حُذف ولا اختبار أُسقط.
+
+──────────────────────────────────────────────────────────────────────
+٩) قاعدة «ممنوع الحذف» — تحقّق صريح
+──────────────────────────────────────────────────────────────────────
+$ git diff --stat main..HEAD --diff-filter=D    (ملفات محذوفة)
+  عدد الملفات المحذوفة: 0
+$ git diff --name-only main..HEAD
+  docs/evidence/gate-a-baseline-20260812.txt
+  docs/evidence/gate-b-forensic-inventory-20260812.txt
+  docs/evidence/gate-c-lint-typecheck-test-20260812.txt
+  docs/evidence/gate-de-real-database-20260812.txt
+  docs/production-readiness/skeleton-classification-20260812.md
+  package.json
+  packages/agent-core/agents/supportTicketAgent.ts
+  scripts/check-business-constants.ts
+  tests/integration/dispatch-redispatch.test.ts
+  tests/integration/full-live-path.test.ts
+  tests/unit/check-business-constants.test.ts
+  tests/unit/city-change.test.ts
+  tests/unit/payment-webhook-http.test.ts
+  tests/unit/payment.test.ts
+  tests/unit/tracking-route.test.ts
+  tests/unit/tracking.test.ts
+$ git status --porcelain (غير المُودَع الآن)
+   M apps/workers/src/jobs/backup-database.ts
+   M packages/application/financial/confirm-payment.ts
+   M packages/application/financial/ports.ts
+   M packages/infrastructure/financial/payment-adapters.ts
+   M runtime_agent/experience/decisions.jsonl
+   M runtime_agent/experience/events.jsonl
+   M runtime_agent/experience/experience.jsonl
+   M runtime_agent/memory/keywords.json
+   M runtime_agent/memory/keywords.json.tmp
+   M runtime_agent/memory/medium_term.jsonl
+   M scripts/check-migrations.ts
+   M supabase/migrations/20260811140000_db_backups_table.sql
+   M supabase/migrations/20260811150000_payment_core.sql
+   M tests/integration/full-live-path.test.ts
+   M tests/unit/check-business-constants.test.ts
+   M tests/unit/check-migrations-rls.test.ts
+   M tests/unit/payment-webhook-http.test.ts
+   M tests/unit/payment.test.ts
+  ?? docs/evidence/gate-de-city-id-global-tables-20260812.txt
+  ?? supabase/migrations/20260812120000_city_id_for_global_tables.sql
+  ?? tests/integration/city-scoped-global-tables.test.ts
+
+الهجرتان الأصليتان عُدِّلتا ولم تُستبدلا ولم تُحذفا؛ التعليق الكاذب
+«استثناء موثَّق» أُزيل ووُضع مكانه سبب الفان-أوت الحقيقي. الهجرة
+التقدّمية أُضيفت ولم تنسخ محلّهما.
+
+──────────────────────────────────────────────────────────────────────
+١٠) ما لم يُثبت بعد — لا يُدَّعى
+──────────────────────────────────────────────────────────────────────
+  • CI البعيد الحقيقي لم يُشغَّل بعد على هذا الفرع (§13 يفرضه قبل الدمج).
+  • خطوة تطبيق الهجرات في CI تعتمد `ls | sort`؛ اسم الهجرة الجديدة
+    20260812120000 يقع بعد 20260812000000 (هجرة الختم) — وهذا لازم لأن
+    الختم يسحب الصلاحيات، فالهجرة تعيد grant للتوقيع الرباعي لـservice_role
+    وحده. أُثبت محلياً بالترتيب نفسه، ويبقى إثباته على CI.
+  • R-2 قائم: الويبهوك يتحقّق بسرّ مشترك ثابت لا HMAC، ولا مزوّد دفع حقيقي.
+    ربط الحدث بمعاملة لا يُصلح ذلك، ولا يُقصد منه أن يُصلحه.
+════════════════════════════════════════════════════════════════════════
