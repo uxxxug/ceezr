@@ -26,6 +26,7 @@ import type {
   NearestResult,
   ProviderName,
   RouteResult,
+  RouteSnap,
   SnappedPoint,
 } from "../../core/types.ts";
 
@@ -78,6 +79,12 @@ interface OsrmRouteResponse {
     duration?: number;
     geometry?: { coordinates?: readonly [number, number][] };
   }[];
+  /**
+   * OSRM يردّ مع كلّ مسارٍ نقاطَ الطريق المُلصَقة، و`distance` فيها **ليست مسافةَ
+   * قيادة** بل بُعدُ الإحداثية المطلوبة عن الطريق. وكان المزوّد يقرأ هذا الحقل
+   * في `/nearest` ويُسقطه في `/route` — وهو في الموضعين نفسُ المعلومة.
+   */
+  waypoints?: readonly { distance?: number }[];
 }
 
 /** استجابة OSRM للأقرب. */
@@ -274,12 +281,32 @@ export function createOsrmProvider(config: OsrmConfig): RoutingProvider {
         return err(fail("route missing distance/duration/geometry", "protocol"));
       }
 
+      /**
+       * الإلصاقُ يُقرأ من **أوّل نقطةٍ وأخيرتِها** لا من الفهرسين ٠ و١: النقاطُ
+       * الوسيطة (`waypoints` في `RouteOptions`) تدخل في القائمة، فالفهرس ١ مع
+       * نقطةٍ وسيطةٍ يكون إلصاقَ الوسيطة لا المقصد — ولا شيءَ يصيح بذلك.
+       *
+       * وتُشترط مطابقةُ العدد لما طُلب: قائمةٌ أقصرُ تعني أنّ المحرّك دمج نقاطاً أو
+       * أنّ الردّ ليس للسؤال — وحينها «لا أعلم» أصدقُ من رقمٍ يخصّ موضعاً أخر.
+       */
+      const wps = result.value.waypoints;
+      const first = wps?.[0]?.distance;
+      const last = wps === undefined ? undefined : wps[wps.length - 1]?.distance;
+      const snap: RouteSnap =
+        wps !== undefined &&
+        wps.length === points.length &&
+        typeof first === "number" &&
+        typeof last === "number"
+          ? { known: true, originMeters: first, destinationMeters: last }
+          : { known: false };
+
       return ok({
         distanceMeters: route.distance,
         durationSeconds: route.duration,
         geometry: {
           points: coordinates.map(([lng, lat]) => ({ lat, lng })),
         },
+        snap,
       });
     },
 

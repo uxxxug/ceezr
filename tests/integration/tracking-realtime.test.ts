@@ -75,6 +75,9 @@ const config: AppConfig = {
   mapStyleUrl: null,
   mapTilesPublicKey: null,
   maplibreSri: null,
+  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
+  routingProvider: "none",
+  osrmBaseUrl: null,
 };
 
 interface LiveCall {
@@ -824,5 +827,121 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
     const rows = await sessionsOf(driverId);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.ended_at).toBeNull();
+  });
+
+  /**
+   * المرحلة ١٥ — إغلاق R-28. القياسُ قبل هذه المرحلة أثبت أن `createOsrmProvider`
+   * لا يُستدعى إلاّ في الاختبارات، وأن `OSRM_BASE_URL` مذكورٌ في `.env.example`
+   * و`render.yaml` ولا يُقرأ في الضبط قط — أي أنّ محرّك التوجيه كان **غيرَ قابلٍ
+   * للبناء في الإنتاج**. ولا تُغلَق تلك الثغرة باختبارِ وحدةٍ يبني المزوّد بيده:
+   * ذلك يُثبِت أنّ المزوّد يعمل، لا أنّ **الحاوية توصله**. فالإثباتُ هنا يمرّ من
+   * `buildContainer` بضبطٍ حقيقيّ، إلى خادم OSRM مُزيَّفٍ يُصغي على منفذٍ حقيقيّ،
+   * إلى نصّ الرسالة التي يقرؤها السائق.
+   */
+  describe("المرحلة ١٥: زمن الوصول موصولٌ في الحاوية", () => {
+    const ROUTE_BODY = {
+      code: "Ok",
+      routes: [
+        { distance: 1731.4, duration: 714.9, geometry: { coordinates: [[39.1751, 21.5534]] } },
+      ],
+      waypoints: [{ distance: 12.3 }, { distance: 27.4 }],
+    };
+
+    /** يبني حاويةً بضبطِ توجيهٍ مُعطى، ويردّ دالّةَ إرسالٍ إلى بوت السائق. */
+    function appWith(routingConfig: Partial<AppConfig>): {
+      readonly send: (update: unknown) => Promise<Response>;
+      readonly sent: SentMessage[];
+    } {
+      const sent: SentMessage[] = [];
+      const built = buildContainer({ ...config, ...routingConfig } as AppConfig, {
+        driverSender: capturing(sent),
+        riderSender: capturing(riderSent),
+      });
+      const server = createServer({
+        health: { now: () => new Date(), startedAt: new Date(), env: process.env },
+        webhook: { webhookSecret: WEBHOOK_SECRET, handler: built.handler },
+      });
+      return {
+        sent,
+        send: async (update: unknown) =>
+          server.fetch(
+            new Request("http://localhost/webhook/telegram/driver", {
+              method: "POST",
+              headers: {
+                "content-type": "application/json",
+                "x-telegram-bot-api-secret-token": WEBHOOK_SECRET,
+              },
+              body: JSON.stringify(update),
+            }),
+          ),
+      };
+    }
+
+    it("‏ROUTING_PROVIDER=osrm يجعل السائق يقرأ زمن وصولٍ محسوباً بمسار الطريق", async () => {
+      const osrm = Bun.serve({
+        port: 0,
+        fetch: () =>
+          new Response(JSON.stringify(ROUTE_BODY), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      });
+      try {
+        const driverId = await registerDriver();
+        await seedAssignedTrip(driverId, RIDER_CHAT);
+        await post("driver", location(DRIVER_CHAT, JEDDAH_MOVED));
+
+        const bot = appWith({
+          routingProvider: "osrm",
+          osrmBaseUrl: `http://localhost:${osrm.port}`,
+        });
+        await bot.send(text(DRIVER_CHAT, "/trip"));
+
+        const card = bot.sent.filter((m) => m.location === undefined)[0]?.text ?? "";
+        // ‏٧١٤.٩ ثانية = ١٢ دقيقة بعد التدوير — الرقمُ من الخادم لا من افتراض
+        expect(card).toContain(ar("driver.trip_eta_routed", { minutes: 12 }));
+        expect(card).not.toContain(ar("driver.trip_eta_unavailable"));
+        // ولا يُفقد ما كان يُقال قبل المرحلة: زمنُ الوصول إضافةٌ لا استبدال
+        expect(card).toContain(ar("driver.trip_header"));
+        expect(card).toContain(ar("driver.trip_distance_straight", { km: 1.7 }));
+        expect(card).not.toContain("{");
+      } finally {
+        osrm.stop(true);
+      }
+    });
+
+    it("خادمُ توجيهٍ ساقطٌ يُقال عنه صراحةً ولا يُسقط بقيّةَ البطاقة", async () => {
+      const driverId = await registerDriver();
+      await seedAssignedTrip(driverId, RIDER_CHAT);
+      await post("driver", location(DRIVER_CHAT, JEDDAH_MOVED));
+
+      // منفذٌ ١ لا يُصغي عليه شيء: انقطاعٌ حقيقيّ لا مُحاكى بتزييف الدالّة
+      const bot = appWith({ routingProvider: "osrm", osrmBaseUrl: "http://127.0.0.1:1" });
+      await bot.send(text(DRIVER_CHAT, "/trip"));
+
+      const card = bot.sent.filter((m) => m.location === undefined)[0]?.text ?? "";
+      expect(card).toContain(ar("driver.trip_eta_unavailable"));
+      expect(card).toContain(ar("driver.trip_header"));
+      expect(card).toContain(ar("driver.trip_distance_straight", { km: 1.7 }));
+    });
+
+    /**
+     * ولماذا يُثبَّت الصمتُ صراحةً: منصّةٌ بلا محرّكِ توجيهٍ لا تملك ما تقوله عن
+     * زمن الوصول، وسطرُ «غير متاح الآن» فيها ضجيجٌ دائمٌ في كلّ بطاقةٍ لكلّ سائق.
+     * فالامتناعُ عن السؤال ليس فشلاً يُبلَّغ عنه.
+     */
+    it("وبلا مزوّدٍ مضبوطٍ لا يُذكَر زمنُ الوصول أصلاً — لا رقماً ولا شكوى", async () => {
+      const driverId = await registerDriver();
+      await seedAssignedTrip(driverId, RIDER_CHAT);
+      await post("driver", location(DRIVER_CHAT, JEDDAH_MOVED));
+
+      const bot = appWith({ routingProvider: "none", osrmBaseUrl: null });
+      await bot.send(text(DRIVER_CHAT, "/trip"));
+
+      const card = bot.sent.filter((m) => m.location === undefined)[0]?.text ?? "";
+      expect(card).not.toContain(ar("driver.trip_eta_unavailable"));
+      expect(card).not.toContain("زمن الوصول");
+      expect(card).toContain(ar("driver.trip_header"));
+    });
   });
 });

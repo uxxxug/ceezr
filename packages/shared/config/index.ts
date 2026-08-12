@@ -83,6 +83,21 @@ export interface AppConfig {
    * لا سياسةٌ جديدة: القاعدة (بصمةٌ أو لا نصّ) كما هي.
    */
   readonly maplibreSri: string | null;
+  /**
+   * مزوّد التوجيه (Routing) — منه تُشتقّ مدّةُ الوصول في المرحلة ١٥.
+   *
+   * منفصلٌ عن `mapProvider` عن قصد، لأنّهما شيئان لا وجهان: `maplibre` يرسم
+   * بلاطاتٍ في متصفّح، و`osrm` يحسب مساراً على خادم. وقد قيس أنّهما يُنشران
+   * منفصلين فعلاً: خريطةٌ تعمل ببلاطاتٍ مُستضافةٍ بلا أيّ محرّك توجيه، ومحرّكُ
+   * توجيهٍ يخدم زمنَ الوصول في تلغرام بلا أيّ خريطةٍ مرسومة. فمفتاحٌ واحدٌ
+   * لهما كان يُلزم المشغّلَ بتشغيل ما لا يحتاج، أو يمنعه ممّا يحتاج.
+   */
+  readonly routingProvider: RoutingProviderName;
+  /**
+   * عنوان خادم OSRM. `null` يعني غيرَ مُهيَّأ — وحينها زمنُ الوصول **غيرُ متاح**
+   * ويُقال ذلك صراحةً، لا يُقدَّر تقديراً تقريبياً (ADR 0024).
+   */
+  readonly osrmBaseUrl: string | null;
 }
 
 /** مخازن الجلسات المدعومة. */
@@ -101,6 +116,16 @@ export type SessionStoreName = (typeof SESSION_STORE_NAMES)[number];
 export const MAP_PROVIDER_NAMES = ["none", "maplibre"] as const;
 
 export type MapProviderName = (typeof MAP_PROVIDER_NAMES)[number];
+
+/**
+ * مزوّدات التوجيه المدعومة. `none` اختيارٌ صريح: «اعمل بلا زمن وصول».
+ *
+ * القائمةُ هنا لا في `packages/maps` لنفس سبب `MAP_PROVIDER_NAMES` أعلاه:
+ * الاتجاه القائم `maps → shared`، وقلبُه يجعل أدنى الطبقات معتمداً على ما فوقه.
+ */
+export const ROUTING_PROVIDER_NAMES = ["none", "osrm"] as const;
+
+export type RoutingProviderName = (typeof ROUTING_PROVIDER_NAMES)[number];
 
 /** أسماء المزوّدات المدعومة. `none` ليست غياباً بل اختياراً صريحاً. */
 export const TRANSLATION_PROVIDER_NAMES = [
@@ -279,6 +304,42 @@ export function tryLoadConfig(
     );
   }
 
+  // مزوّد التوجيه — نفس منهاج `MAP_PROVIDER`: قيمةٌ مجهولةٌ تُرفض عند الإقلاع لا
+  // تُهمَل، لأنّ إهمالها يعني مشغّلاً يظنّ أنّه فعّل زمنَ وصولٍ لم يُفعَّل.
+  const rawRoutingProvider = (source.ROUTING_PROVIDER ?? "none").trim().toLowerCase();
+  if (!(ROUTING_PROVIDER_NAMES as readonly string[]).includes(rawRoutingProvider)) {
+    return err(
+      new InvalidEnvVarError(
+        "ROUTING_PROVIDER",
+        `المتاح: ${ROUTING_PROVIDER_NAMES.join(", ")} — وردت: ${rawRoutingProvider}`,
+      ),
+    );
+  }
+
+  const osrmBaseUrl = isBlank(source.OSRM_BASE_URL)
+    ? null
+    : (source.OSRM_BASE_URL as string).trim();
+
+  /**
+   * `ROUTING_PROVIDER=osrm` بلا عنوانٍ يُرفض عند الإقلاع.
+   *
+   * وهذا بالضبط ما لم يكن موجوداً حتى المرحلة ١٥: `OSRM_BASE_URL` كان مُعلَناً في
+   * `.env.example` و`render.yaml` ولا يُقرأ في الضبط أصلاً (الخطر R-28). فكان
+   * المشغّلُ يضبطه فلا يحدث شيء، ولا رسالةَ خطأٍ تُخبره — أسوأ من غيابٍ صريح.
+   * والرفضُ هنا لا في أوّل نداءٍ توجيه: خطأُ ضبطٍ يجب أن يراه المشغّل لا العميل.
+   */
+  if (rawRoutingProvider === "osrm" && osrmBaseUrl === null) {
+    return err(new InvalidEnvVarError("OSRM_BASE_URL", "مطلوب مع ROUTING_PROVIDER=osrm"));
+  }
+
+  // عنوانٌ غيرُ صالحٍ يُرفض هنا أيضاً: `new URL` في المزوّد كان سيُلقي استثناءً في
+  // أوّل نداءٍ — أي في وجه عميلٍ ينتظر، لا في سجلّ إقلاعٍ يقرؤه المشغّل.
+  if (osrmBaseUrl !== null && !/^https?:\/\/.+/i.test(osrmBaseUrl)) {
+    return err(
+      new InvalidEnvVarError("OSRM_BASE_URL", `يجب أن يبدأ بـhttp(s):// — وردت: ${osrmBaseUrl}`),
+    );
+  }
+
   const translationApiKey = isBlank(source.TRANSLATION_API_KEY)
     ? null
     : (source.TRANSLATION_API_KEY as string).trim();
@@ -322,6 +383,8 @@ export function tryLoadConfig(
       ? null
       : (source.MAP_TILES_PUBLIC_KEY as string).trim(),
     maplibreSri: isBlank(source.MAPLIBRE_SRI) ? null : (source.MAPLIBRE_SRI as string).trim(),
+    routingProvider: rawRoutingProvider as RoutingProviderName,
+    osrmBaseUrl,
   });
 }
 

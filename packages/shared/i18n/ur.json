@@ -285,5 +285,7 @@
   "menu.driver.trip": "🧭 میرا جاری سفر",
   "menu.driver.trip.description": "اپنا جاری سفر دیکھیں: پک اپ، منزل اور فاصلہ",
   "driver.trip_destination_unset": "🔴 منزل: ابھی طے نہیں — مسافر سے پوچھیں۔",
-  "driver.trip_target_unset": "📍 آپ کی موجودہ منزل: منزل طے ہونے کا انتظار۔"
+  "driver.trip_target_unset": "📍 آپ کی موجودہ منزل: منزل طے ہونے کا انتظار۔",
+  "driver.trip_eta_routed": "🕒 متوقع آمد: {minutes} منٹ (سڑک کے راستے کے مطابق)۔",
+  "driver.trip_eta_unavailable": "🕒 آمد کا وقت اس وقت دستیاب نہیں ہے۔"
 }

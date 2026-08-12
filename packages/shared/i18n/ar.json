@@ -285,5 +285,7 @@
   "menu.driver.trip": "🧭 رحلتي الجارية",
   "menu.driver.trip.description": "عرض رحلتك الجارية: الانطلاق والمقصد والمسافة",
   "driver.trip_destination_unset": "🔴 المقصد: لم يُحدَّد بعد — اسأل الراكب عنه.",
-  "driver.trip_target_unset": "📍 وجهتك الآن: بانتظار تحديد المقصد."
+  "driver.trip_target_unset": "📍 وجهتك الآن: بانتظار تحديد المقصد.",
+  "driver.trip_eta_routed": "🕒 زمن الوصول التقديري: {minutes} دقيقة (حسب مسار الطريق).",
+  "driver.trip_eta_unavailable": "🕒 زمن الوصول غير متاح الآن."
 }

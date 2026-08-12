@@ -233,3 +233,97 @@ describe("ضبط الخريطة (المرحلة ١٠)", () => {
     expect(result.value.mapTilesPublicKey).toBeNull();
   });
 });
+
+/**
+ * المرحلة ١٥ — `OSRM_BASE_URL` كان مذكوراً في `.env.example` و`render.yaml` منذ
+ * المرحلة ٩ ولا يُقرأ في الضبط قط. فمن ضبطه ظنّ أنّه شغّل التوجيه وهو معطَّل.
+ * وهذه الاختبارات تمنع عودةَ ذلك الصمت: إمّا يُقرأ، أو يُرفَض الإقلاعُ بسببٍ مبيَّن.
+ */
+describe("الضبط: مزوّد التوجيه (المرحلة ١٥)", () => {
+  it("الافتراضُ «لا مزوّد» لا «osrm بلا عنوان»: منصّةٌ لم تُضبَط تُقلع وتصمت", () => {
+    const result = tryLoadConfig(FULL);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.routingProvider).toBe("none");
+    expect(result.value.osrmBaseUrl).toBeNull();
+  });
+
+  it("المتغيّران يُقرآن فعلاً — وهذا ما لم يكن يحدث قبل المرحلة", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      ROUTING_PROVIDER: "osrm",
+      OSRM_BASE_URL: "http://osrm.internal:5000",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.routingProvider).toBe("osrm");
+    expect(result.value.osrmBaseUrl).toBe("http://osrm.internal:5000");
+  });
+
+  it("‏osrm بلا عنوانٍ يمنع الإقلاع: خدمةٌ موعودٌ بها ولا وجود لها أسوأ من غيابها", () => {
+    const result = tryLoadConfig({ ...FULL, ROUTING_PROVIDER: "osrm" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("INVALID_ENV_VAR");
+    // ولماذا يُقاس المفتاح لا الرمزُ وحده: المشغّلُ يقرأ سجلَّ الإقلاع ليعرف **أيَّ**
+    // متغيّرٍ يُصلح. ورمزٌ صحيحٌ بمفتاحٍ خطأ يُرسله إلى المتغيّر الخطأ.
+    expect(result.error).toHaveProperty("key", "OSRM_BASE_URL");
+  });
+
+  it("مزوّدٌ مجهولٌ يمنع الإقلاع ولا يُقبل بصمت", () => {
+    for (const ROUTING_PROVIDER of ["valhalla", "graphhopper", "google", "مزيّف", "non"]) {
+      const result = tryLoadConfig({ ...FULL, ROUTING_PROVIDER, OSRM_BASE_URL: "http://x:5000" });
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe("INVALID_ENV_VAR");
+      expect(result.error).toHaveProperty("key", "ROUTING_PROVIDER");
+    }
+  });
+
+  it("عنوانٌ بلا مِخطاطٍ يُرفَض: `fetch` عليه يُلقي في كلّ نداءٍ بعد الإقلاع", () => {
+    for (const OSRM_BASE_URL of ["osrm.internal:5000", "localhost", "ftp://osrm", "//osrm", ""]) {
+      const result = tryLoadConfig({ ...FULL, ROUTING_PROVIDER: "osrm", OSRM_BASE_URL });
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe("INVALID_ENV_VAR");
+      expect(result.error).toHaveProperty("key", "OSRM_BASE_URL");
+    }
+  });
+
+  it("‏https مقبولٌ كـ http: النشرُ داخل الشبكة وخارجها كلاهما مشروع", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      ROUTING_PROVIDER: "osrm",
+      OSRM_BASE_URL: "https://osrm.example.org",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.osrmBaseUrl).toBe("https://osrm.example.org");
+  });
+
+  it("تسويةُ الحالة والمسافات على نفس سابقة MAP_PROVIDER", () => {
+    for (const ROUTING_PROVIDER of ["OSRM", "osrm ", " Osrm"]) {
+      const result = tryLoadConfig({
+        ...FULL,
+        ROUTING_PROVIDER,
+        OSRM_BASE_URL: "http://osrm.internal:5000",
+      });
+      expect(result.ok).toBe(true);
+      if (!result.ok) continue;
+      expect(result.value.routingProvider).toBe("osrm");
+    }
+  });
+
+  it("عنوانُ التوجيه مستقلٌّ عن مزوّد البلاطات: الخدمتان تُنشران منفصلتين", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      MAP_PROVIDER: "none",
+      ROUTING_PROVIDER: "osrm",
+      OSRM_BASE_URL: "http://osrm.internal:5000",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.mapProvider).toBe("none");
+    expect(result.value.routingProvider).toBe("osrm");
+  });
+});

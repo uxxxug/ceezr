@@ -87,7 +87,11 @@ services:
         sync: false
       - key: ENABLE_DRIVER_SUBSCRIPTION
         sync: false
-      # ── طبقة الخرائط والتوجيه (البند 9) ──────────────────────────────────
+      # ── طبقة الخرائط والتوجيه (البند 9 والمرحلة 15) ──────────────────────
+      # ‏ROUTING_PROVIDER: none افتراضاً. ضبطه على osrm يُلزم OSRM_BASE_URL،
+      # وإلاّ مُنع الإقلاع — وهو أسلمُ من خدمةٍ موعودٍ بها وصامتة.
+      - key: ROUTING_PROVIDER
+        sync: false
       - key: OSRM_BASE_URL
         sync: false
       - key: MAP_STYLE_URL
@@ -174,7 +178,11 @@ services:
         sync: false
       - key: ENABLE_DRIVER_SUBSCRIPTION
         sync: false
-      # ── طبقة الخرائط والتوجيه (البند 9) ──────────────────────────────────
+      # ── طبقة الخرائط والتوجيه (البند 9 والمرحلة 15) ──────────────────────
+      # ‏ROUTING_PROVIDER: none افتراضاً. ضبطه على osrm يُلزم OSRM_BASE_URL،
+      # وإلاّ مُنع الإقلاع — وهو أسلمُ من خدمةٍ موعودٍ بها وصامتة.
+      - key: ROUTING_PROVIDER
+        sync: false
       - key: OSRM_BASE_URL
         sync: false
       - key: MAP_STYLE_URL

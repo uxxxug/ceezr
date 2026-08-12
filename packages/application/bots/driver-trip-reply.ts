@@ -18,9 +18,45 @@
  * كما هو كانت ستُنتج «🟢 الانطلاق: null» — وهو نصٌّ يُفقد الثقة بالبوت كلّه.
  */
 
+import type { EtaUnavailableReason, EtaVerdict } from "../../domain/eta/index.ts";
 import type { DriverTripView, TripWaypoint } from "../../domain/tracking/driver-trip-view.ts";
 
 type Translate = (key: string, params?: Record<string, string | number>) => string;
+
+/**
+ * أيُّ أسبابِ الامتناع تستحقّ سطراً يراه السائق.
+ *
+ * والقاعدةُ واحدة: **يُقال «غير متاح» حين سُئِل المحرّك فلم يُفد، ويُسكتُ
+ * حين لم يُسأل أصلاً**.
+ *
+ *   * `NOT_CONFIGURED`: منصّةٌ تعمل بلا توجيه قرارُ مشغّلٍ لا عطل. وطباعةُ «زمن
+ *     الوصول غير متاح» في **كلّ** بطاقةٍ أبدَ الدّهر تعلّم السائقَ تجاهلَ السطر،
+ *     فيوم يعطل المحرّك حقّاً لا يرى أحدٌ فرقاً.
+ *   * `NO_INPUT`: لا موقعَ للسائق أو لا مقصدَ محدَّد — وسطرا المسافة والمقصد أعلاه
+ *     يقولان ذلك أصلاً. وتكرارُ خبرٍ واحدٍ مرّتين يُطيل الرسالة بلا فائدة.
+ *
+ * وما سواهما يُعرَض: السائق رأى زمناً في بطاقةٍ قبل دقيقة، وغيابُ السطر بلا
+ * كلمةٍ يجعله يعيد الأمر مرّاتٍ يطلب رقماً لن يأتي.
+ */
+function etaFailureIsWorthSaying(reason: EtaUnavailableReason): boolean {
+  return reason !== "NOT_CONFIGURED" && reason !== "NO_INPUT";
+}
+
+/**
+ * سطرُ زمنِ الوصول، أو لا سطر.
+ *
+ * والوسمُ في النصّ مقصود: المسافةُ في السطر الذي قبله **خطٌّ مستقيم** والزمنُ
+ * هنا **مسارُ طريق**، فالرقمان لا يتّفقان ولا يجوز أن يتّفقا: قيست نسبةُ مسافة
+ * الطريق إلى المستقيم في جدّة فبلغت 2.834 في أسوأ حالة (٦.٢٦ كم مستقيماً مقابل
+ * ١٧.٧٥ كم طريقاً). وسائقٌ يرى «٦ كم» و«٢٥ دقيقة» بلا وسمٍ يظنّ أحدَهما
+ * خطأً ويفقد الثقة بالرقمَين.
+ */
+function etaLines(eta: EtaVerdict, tr: Translate): readonly string[] {
+  if (eta.kind === "ROUTED") {
+    return [tr("driver.trip_eta_routed", { minutes: eta.minutes })];
+  }
+  return etaFailureIsWorthSaying(eta.reason) ? [tr("driver.trip_eta_unavailable")] : [];
+}
 
 /**
  * الاسم إن وُجد، وإلاّ إحداثيةٌ مقروءة.
@@ -44,7 +80,7 @@ function nameOf(point: TripWaypoint, tr: Translate): string {
 }
 
 /** نصّ البطاقة: المرحلة، ثم النقطتان، ثم الوجهة الآن، ثم المسافة الموسومة. */
-export function driverTripText(view: DriverTripView, tr: Translate): string {
+export function driverTripText(view: DriverTripView, eta: EtaVerdict, tr: Translate): string {
   const lines = [
     tr("driver.trip_header"),
     view.leg === "TO_PICKUP"
@@ -68,6 +104,11 @@ export function driverTripText(view: DriverTripView, tr: Translate): string {
             ? tr("driver.trip_distance_unknown")
             : tr("driver.trip_distance_straight", { km: view.distanceToTargetKm }),
         ]),
+    /**
+     * وسطرُ الزمن مشروطٌ بوجود وجهةٍ كذلك: بلا وجهةٍ لا مقصدَ للحساب، والحُكمُ
+     * يكون `NO_INPUT` فيُسكت عنه مرّتين — والشرطُ مكتوبٌ صراحةً لا متّكلاً على ذلك.
+     */
+    ...(view.target === null ? [] : etaLines(eta, tr)),
   ];
   return lines.join("\n");
 }

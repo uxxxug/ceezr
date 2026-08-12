@@ -8,6 +8,7 @@
  */
 
 import { parseStars, starsBar } from "../../domain/reputation/index.ts";
+import type { RoutingProvider } from "../../maps/core/index.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { OrderId } from "../../shared/kernel/index.ts";
 import type { RatingPort, RideLifecyclePort } from "../reputation/index.ts";
@@ -60,6 +61,8 @@ export interface RatingDialogDependencies {
    * `lifecycle.start` أعلاه، فلا معيار تصريحٍ ثانٍ في نفس الدالّة.
    */
   readonly tripCards?: DriverTripCardReader;
+  /** المرحلة ١٥ — مزوّد التوجيه لزمن الوصول في بطاقة بدء الرحلة. */
+  readonly routing?: RoutingProvider;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -153,12 +156,13 @@ export async function handleStartRide(
    * لمن رُفض بدؤه في القاعدة (طلبٌ ليس `matched`)، فيقود إلى مقصد رحلةٍ لم تبدأ.
    * والحالة الآن `in_progress` فالبطاقة تُظهر المقصد لا نقطة الانطلاق.
    */
-  const view = await driverTripCard(
+  const cardResult = await driverTripCard(
     { driverTelegramId: sender.telegramUserId },
-    { cards: deps.tripCards },
+    { cards: deps.tripCards, routing: deps.routing ?? null },
   );
-  if (view === null) return [started];
-  const card = reply(sender, driverTripText(view, tr));
+  if (cardResult === null) return [started];
+  const { view, eta } = cardResult;
+  const card = reply(sender, driverTripText(view, eta, tr));
   const pin = driverTripPin(view, tr);
   return [started, pin === undefined ? card : { ...card, mapPin: pin }];
 }

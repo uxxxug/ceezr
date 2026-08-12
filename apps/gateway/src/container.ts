@@ -111,6 +111,8 @@ import {
   createOrderWriter,
   createPastOrdersLookup,
 } from "../../../packages/infrastructure/transport/order-adapters.ts";
+import type { RoutingProvider } from "../../../packages/maps/index.ts";
+import { createOsrmProvider } from "../../../packages/maps/index.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import type { TrackingSessionStore } from "../../../packages/tracking/session-store.ts";
@@ -537,6 +539,24 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    */
   const driverTripCards = createDriverTripCardReader(sql);
 
+  /**
+   * المرحلة ١٥ — مزوّد التوجيه يُبنى من الضبط هنا، وهذا **أولُ موضعٍ يُبنى
+   * فيه في المستودع كلّه خارج الاختبارات**.
+   *
+   * وقياسُ ما كان قبله: `createOsrmProvider` لا يُستدعى إلاّ في ثلاثة ملفّات
+   * اختبار، و`RoutingProvider` لا يُذكر خارج `packages/maps` ألبتّة، و`OSRM_BASE_URL`
+   * مُعلَنٌ في `render.yaml` ولا يُقرأ في الضبط (الخطر R-28). فكان المحرّك
+   * **غيرَ قابلٍ للبناء في الإنتاج** لا «موجوداً غيرَ مفعّل».
+   *
+   * و`null` عند `none` لا مزوّدٌ صوريٌّ يُجيب أرقاماً: مزوّدٌ يكذب أخطر من غيابٍ
+   * موصوف. والضبط يرفض `osrm` بلا عنوانٍ عند الإقلاع، فالفحص هنا تضييقُ نوعٍ
+   * لا منطقٌ ثانٍ للقرار.
+   */
+  const routing: RoutingProvider | null =
+    config.routingProvider === "osrm" && config.osrmBaseUrl !== null
+      ? createOsrmProvider({ baseUrl: config.osrmBaseUrl })
+      : null;
+
   const liveTracking = createLiveTracking({
     sessions: trackingSessions,
     publisher: trackingBus,
@@ -581,6 +601,8 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     support: driverSupport,
     tracking: liveTracking,
     tripCards: driverTripCards,
+    // المرحلة ١٥ — الحقل يُسقَط عند `null` لا يُمرَّر: `exactOptionalPropertyTypes`.
+    ...(routing === null ? {} : { routing }),
     redispatch: redispatchDeps,
     rating: {
       sessions: driverSessions,
@@ -588,6 +610,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       ratings: ratingPort,
       // المرحلة ١٢ — المقصد يُعرَض لحظةَ بدء الرحلة، لا بعد أن يسأل السائق عنه.
       tripCards: driverTripCards,
+      ...(routing === null ? {} : { routing }),
       // الجسر إلى بوت العميل: من أنهى الرحلة سائقٌ، ومن يُبلَّغ بها عميلٌ على بوت آخر
       counterpart: counterpartNotifier(riderSender),
       // إنهاء الرحلة يُغلق الجلسة ويُوقف بثّ الموقع عن العميل — المرحلة ٦.

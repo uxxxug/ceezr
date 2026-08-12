@@ -14,6 +14,7 @@ import {
   driverTripPin,
   driverTripText,
 } from "../../packages/application/bots/driver-trip-reply.ts";
+import type { EtaVerdict } from "../../packages/domain/eta/index.ts";
 import {
   type DriverTripFacts,
   driverTripView,
@@ -45,6 +46,13 @@ const facts = (over: Partial<DriverTripFacts> = {}): DriverTripFacts => ({
   destination: AIRPORT,
   ...over,
 });
+
+/**
+ * المرحلة ١٥ — هذه الاختبارات تقيس **النصّ** لا زمنَ الوصول. وحُكمُ الامتناع
+ * `NOT_CONFIGURED` هو ما يُسكت سطرَ الزمن كلّياً، فتبقى هذه التوكيدات تقيس ما
+ * كانت تقيسه بحرفه: منصّةٌ بلا مزوّد توجيهٍ تعرض بطاقةً كما كانت قبل المرحلة.
+ */
+const NO_ETA: EtaVerdict = { kind: "UNAVAILABLE", reason: "NOT_CONFIGURED" };
 
 describe("مرحلة السائق تُشتقّ من حالة الطلب", () => {
   it("matched يعني في الطريق إلى الانطلاق، وin_progress يعني إلى المقصد", () => {
@@ -97,7 +105,7 @@ describe("مشهد رحلة السائق يفصح عمّا لا يعرفه", () 
 describe("نصّ البطاقة ودبّوسها", () => {
   it("يذكر المرحلة والنقطتين بأسمائهما، ويوسم المسافة بأنها مستقيمة", () => {
     const view = driverTripView(facts(), { latitude: 21.5534, longitude: 39.1751 });
-    const text = driverTripText(view, tr);
+    const text = driverTripText(view, NO_ETA, tr);
     expect(text).toContain(tr("driver.trip_header"));
     expect(text).toContain(tr("driver.trip_leg_to_pickup"));
     expect(text).toContain("الحرم");
@@ -110,7 +118,7 @@ describe("نصّ البطاقة ودبّوسها", () => {
 
   it("النقطة بلا اسم تُذكَر بإحداثيتها لا بنصٍّ مبهم يتكرّر", () => {
     const view = driverTripView(facts({ pickup: UNNAMED, destination: UNNAMED }), null);
-    const text = driverTripText(view, tr);
+    const text = driverTripText(view, NO_ETA, tr);
     expect(text).toContain("21.5534");
     expect(text).toContain("39.1751");
     expect(text).not.toContain("null");
@@ -121,7 +129,7 @@ describe("نصّ البطاقة ودبّوسها", () => {
       facts({ status: "in_progress", destination: null }),
       HARAM.coordinates,
     );
-    const text = driverTripText(view, tr);
+    const text = driverTripText(view, NO_ETA, tr);
     expect(text).toContain(tr("driver.trip_destination_unset"));
     expect(text).toContain(tr("driver.trip_target_unset"));
     expect(text).not.toContain(tr("driver.trip_distance_unknown"));

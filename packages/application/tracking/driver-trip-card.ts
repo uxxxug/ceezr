@@ -19,9 +19,12 @@
  * لا خطأ عنده — فيُعيد المحاولة على ما لا يتغيّر.
  */
 
+import type { EtaVerdict } from "../../domain/eta/index.ts";
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
 import type { DriverTripFacts, DriverTripView } from "../../domain/tracking/driver-trip-view.ts";
 import { driverTripView } from "../../domain/tracking/driver-trip-view.ts";
+import type { RoutingProvider } from "../../maps/core/index.ts";
+import { estimateArrival } from "./estimate-arrival.ts";
 
 /** وقائع البطاقة كما تُقرأ من القاعدة: الرحلة، وآخر موقعٍ قانوني للسائق. */
 export interface DriverTripCardFacts {
@@ -48,13 +51,47 @@ export interface DriverTripCardReader {
 
 export interface DriverTripCardDeps {
   readonly cards: DriverTripCardReader;
+  /**
+   * مزوّد التوجيه. `null` = غيرُ مضبوطٍ (`ROUTING_PROVIDER=none`).
+   *
+   * إلزامٌّ يقبل `null` لا اختياريٌّ: الاختياريُّ هو بالضبط كيف وقع الخطر R-28:
+   * مزوّدٌ مكتوبٌ ومُختبَرٌ لا يُحقن في موضعٍ واحد، ولا مُصرِّفَ يشتكي. فمن يُركّب
+   * البطاقة ملزمٌ بأن يقرّر صراحةً: مزوّدٌ أم لا زمنَ وصول.
+   */
+  readonly routing: RoutingProvider | null;
+}
+
+/**
+ * البطاقةُ وحُكمُ زمنِ الوصول معاً.
+ *
+ * ولماذا لا يوضع زمنُ الوصول حقلاً داخل `DriverTripView`؟ لأنّ `DriverTripView`
+ * نتيجةُ دالّةٍ **نقيّة** في المجال، وزمنُ الوصول يحتاج نداءَ شبكة. وحشوه هناك كان
+ * سيُدخل مزوّداً إلى المجال أو يجعل الدالّةَ غيرَ نقيّة — وكلاهما ينقل قرارَ طبقة.
+ */
+export interface DriverTripCardResult {
+  readonly view: DriverTripView;
+  /**
+   * دائماً موجودٌ ولو كان امتناعاً: الحقلُ الاختياريُّ يُقرأ «لم يُحسب بعد» وهو
+   * غيرُ «حُسِب فتعَذّر»، والفرقُ بينهما هو موضعُ العطل حين يُبحَث.
+   */
+  readonly eta: EtaVerdict;
 }
 
 export async function driverTripCard(
   key: DriverTripKey,
   deps: DriverTripCardDeps,
-): Promise<DriverTripView | null> {
+): Promise<DriverTripCardResult | null> {
   const facts = await deps.cards.cardOf(key);
   if (facts === null) return null;
-  return driverTripView(facts.trip, facts.driverLocation);
+  const view = driverTripView(facts.trip, facts.driverLocation);
+  /**
+   * المقصدُ `view.target` لا `facts.trip.pickup`: المجالُ حسم أيَّ النقطتين يقصد
+   * السائق الأن، وإعادةُ حسمه هنا تُنشئ مصدرَ حقيقةٍ ثانياً يتباعد مع أول تعديل:
+   * فيصير الزمنُ إلى نقطة الانطلاق والدبّوسُ على المقصد.
+   */
+  const eta = await estimateArrival(
+    { from: view.driverLocation, to: view.target?.coordinates ?? null },
+    { routing: deps.routing },
+  );
+  return { view, eta };
 }

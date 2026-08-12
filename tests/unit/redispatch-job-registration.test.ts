@@ -57,6 +57,9 @@ const config: AppConfig = {
   mapStyleUrl: null,
   mapTilesPublicKey: null,
   maplibreSri: null,
+  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
+  routingProvider: "none",
+  osrmBaseUrl: null,
 };
 
 /** قاعدة مزيَّفة تُعيد مدينةً واحدةً مفعَّلة — الغرض قراءة القائمة لا تنفيذُ المهامّ. */

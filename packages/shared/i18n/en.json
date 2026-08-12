@@ -285,5 +285,7 @@
   "menu.driver.trip": "🧭 My active trip",
   "menu.driver.trip.description": "Show your active trip: pickup, destination and distance",
   "driver.trip_destination_unset": "🔴 Destination: not set yet — ask the passenger.",
-  "driver.trip_target_unset": "📍 Your current target: waiting for the destination."
+  "driver.trip_target_unset": "📍 Your current target: waiting for the destination.",
+  "driver.trip_eta_routed": "🕒 Estimated arrival: {minutes} min (by road route).",
+  "driver.trip_eta_unavailable": "🕒 Arrival time is unavailable right now."
 }

@@ -26,6 +26,7 @@ import {
   subscriptionPriceFor,
 } from "../../domain/policy/entity.ts";
 import { isSubscriptionLive, type SubscriptionPlan } from "../../domain/subscription/entity.ts";
+import type { RoutingProvider } from "../../maps/core/index.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { CityId, Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import {
@@ -164,6 +165,11 @@ export interface DriverBotDependencies {
    * الاختبارات التي لا تقيس الرحلة على تهيئةٍ أصغر.
    */
   readonly tripCards?: DriverTripCardReader;
+  /**
+   * المرحلة ١٥ — مزوّد التوجيه لزمن الوصول. غيابه = لا سطرَ زمنٍ، ولا سطرَ
+   * فشلٍ أيضاً (`NOT_CONFIGURED` يُسكت عنه) — فالبطاقة تبقى كما كانت قبل المرحلة.
+   */
+  readonly routing?: RoutingProvider;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -660,7 +666,14 @@ async function handleCommand(
     case "/trip": {
       if (deps.tripCards === undefined) return [reply(sender, tr("common.unknown_command"))];
       if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
-      return tripCardReplies(sender, state, { driverId: driver.id }, deps.tripCards, menu(state));
+      return tripCardReplies(
+        sender,
+        state,
+        { driverId: driver.id },
+        deps.tripCards,
+        deps.routing ?? null,
+        menu(state),
+      );
     }
 
     default:
@@ -1214,7 +1227,13 @@ async function handleOfferDecision(
      * وزرّ. لا مسار جديد يُفرض على تركيبٍ لم يطلبه.
      */
     if (deps.tripCards === undefined) return [confirmation];
-    const card = await tripCardReplies(sender, state, { driverId: driver.id }, deps.tripCards);
+    const card = await tripCardReplies(
+      sender,
+      state,
+      { driverId: driver.id },
+      deps.tripCards,
+      deps.routing ?? null,
+    );
     return [confirmation, ...card];
   }
 
@@ -1235,12 +1254,14 @@ export async function tripCardReplies(
   state: DialogState,
   key: DriverTripKey,
   cards: DriverTripCardReader,
+  routing: RoutingProvider | null,
   keyboard: Keyboard | null = null,
 ): Promise<BotReply[]> {
   const tr = t(languageOf(state));
-  const view = await driverTripCard(key, { cards });
-  if (view === null) return [reply(sender, tr("driver.trip_none"), keyboard)];
-  const base = reply(sender, driverTripText(view, tr), keyboard);
+  const card = await driverTripCard(key, { cards, routing });
+  if (card === null) return [reply(sender, tr("driver.trip_none"), keyboard)];
+  const { view, eta } = card;
+  const base = reply(sender, driverTripText(view, eta, tr), keyboard);
   /**
    * الحقل يُسقَط ولا يُمرَّر `undefined`: التركيب يعمل بـ`exactOptionalPropertyTypes`،
    * فـ`mapPin: undefined` ليس كغياب `mapPin` — والمترجم أوقف هذا فعلاً.
