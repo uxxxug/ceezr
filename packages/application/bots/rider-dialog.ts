@@ -7,8 +7,10 @@
  * ملاحظات مستقبلية: التسعير المسبق يُضاف بقراءة تعرفة المدينة من platform_settings.
  */
 
+import { haversineKm } from "../../domain/geo/index.ts";
 import { makeCoordinates } from "../../domain/geo/value-objects.ts";
 import { parseFullName } from "../../domain/identity/value-objects.ts";
+import { DEFAULT_SESSION_POLICY } from "../../domain/tracking/session.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { Clock, ServiceType } from "../../shared/kernel/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
@@ -22,6 +24,7 @@ import {
   type RotateNegotiationDependencies,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
+import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
 import {
   handleLanguageCallback,
   handleLanguageCommand,
@@ -88,6 +91,19 @@ export interface RiderBotDependencies {
   readonly rating?: RatingDialogDependencies;
   /** اختيار اللغة (المرحلة 2.6) — نفس الحوار المستخدَم في بوت السائق حرفياً. */
   readonly language?: LanguageDialogDependencies;
+  /**
+   * منفذ التتبّع اللحظي — المرحلة ١١، للإلغاء وحده.
+   *
+   * ولماذا يدخل حوارَ العميل وقد كان في حوار التقييم فقط؟ لأن للرحلة نهايتين لا
+   * نهايةً واحدة: تكتمل فتُغلقها `rating-dialog` بـ`TRIP_COMPLETED`، أو تُلغى —
+   * ولم يكن للإلغاء مسارٌ إلى التتبّع إطلاقاً. فكان العميل يُلغي طلبه وتبقى في
+   * محادثته خريطةٌ تُعلنها تلغرام «حيّة» على آخر موضعٍ لسائقٍ لم تعد له به صلة.
+   *
+   * اختياريٌّ كـ`rating`: التتبّع **عونٌ لا شرط** (نفس مبدأ الحاجز في
+   * `live-tracking.ts`)، فحوارٌ يُركَّب بلا تتبّع في اختبارٍ يجب أن يُلغي الطلب
+   * لا أن يفشل.
+   */
+  readonly tracking?: LiveTrackingPort;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -327,6 +343,95 @@ function waitedMinutes(order: ActiveOrderSummary, now: Date): number {
 }
 
 /**
+ * حدّ قدم الموقع المعروض للعميل — المرحلة ١١.
+ *
+ * ولا يُكتب رقمٌ جديد هنا: هو **نفس** الحدّ الذي يحكم به المجال على جلسة
+ * التتبّع أنّها `STALE`. وحدٌّ ثانٍ أطول «لأن العميل لا يحتمل الإزعاج» يُنتج
+ * حالاً يرى فيها المشغّل سائقاً منقطعاً ويرى العميل موقعاً يُعرَض بلا تحفّظ —
+ * واختلافُ الحكمين على الواقعة نفسها هو ما يُمنع.
+ */
+export const DRIVER_LOCATION_STALE_SECONDS = DEFAULT_SESSION_POLICY.staleAfterSeconds;
+
+/**
+ * قرب السائق من المرجع الذي يعني العميل في هذه اللحظة — دالةٌ نقيّة لتُختبر
+ * مباشرةً بلا بوتٍ ولا قاعدة.
+ *
+ * `null` لا «صفر متر» عند الجهل: مسافةٌ مخترعةٌ تقود عميلاً إلى الرصيف لسائقٍ
+ * لم يُرسل موقعاً قطّ، وسطرٌ غائبٌ أصدق من رقمٍ كاذب.
+ */
+export function driverProximity(
+  order: ActiveOrderSummary,
+  now: Date,
+): {
+  readonly meters: number;
+  readonly towards: "PICKUP" | "DROPOFF";
+  readonly ageSeconds: number;
+  readonly stale: boolean;
+} | null {
+  const at = order.assignedDriver?.lastLocation ?? null;
+  if (at === null) return null;
+
+  /**
+   * المرجع يتبع الحالة لا ثابتاً واحداً، لأن السّؤال نفسه يتغيّر:
+   *  - `matched`: العميل واقفٌ عند موضع الانطلاق يسأل «كم بقي ليصلَني؟»
+   *  - `in_progress`: العميل داخل المركبة يسأل «كم بقي لأصلَ؟»
+   * وقياسٌ واحد للحالتين يُعطي «يبعد عنك ٥٠ متراً» لمن هو جالسٌ في السيّارة.
+   *
+   * وما سوى الحالتين لا مرجع له: `searching` لا سائق له أصلاً.
+   */
+  const reference =
+    order.status === "in_progress"
+      ? (order.dropoff ?? null)
+      : order.status === "matched"
+        ? (order.pickup ?? null)
+        : null;
+  if (reference === null) return null;
+
+  const meters =
+    haversineKm(
+      { latitude: at.lat, longitude: at.lng },
+      { latitude: reference.lat, longitude: reference.lng },
+    ) * 1000;
+
+  // غير سالبٍ أبداً — نفس علّة `waitedMinutes`: ساعةُ جهاز السائق قد تسبق ساعتنا
+  // ثوانٍ، و«قبل ٣- ثانية» تقرأ عطلاً لا حداثةً.
+  const elapsed = now.getTime() - at.recordedAt.getTime();
+  const ageSeconds = elapsed <= 0 ? 0 : Math.floor(elapsed / 1000);
+
+  return {
+    meters,
+    towards: order.status === "in_progress" ? "DROPOFF" : "PICKUP",
+    ageSeconds,
+    stale: ageSeconds > DRIVER_LOCATION_STALE_SECONDS,
+  };
+}
+
+/**
+ * سطر المسافة — والتقريب فيه أمانةٌ لا تراخٍ.
+ *
+ * فـ`haversineKm` تقيس خطّاً مستقيماً لا مسار طريق، ودقةُ GPS نفسها بعشرات
+ * الأمتار. فـ«١٤٧٣ متراً» تدّعي دقّةً لا نملكها مرتين: في الموضع وفي الطريق.
+ * ولذلك لا يُذكر وقتٌ متوقّع (ETA) ألبتّة: الوقت يحتاج مساراً حقيقيّاً من OSRM
+ * وهو غير موصول (خطر R-28)، وETA مشتقٌّ من خطٍّ مستقيم وعدٌ للعميل بما لا نعرفه.
+ */
+function distanceLine(
+  tr: (key: string, vars?: Record<string, string | number>) => string,
+  meters: number,
+  towards: "PICKUP" | "DROPOFF",
+): string {
+  const suffix = towards === "DROPOFF" ? "dropoff" : "pickup";
+  if (meters < 1000) {
+    // لأقرب مئة متر، وبحدّ أدنى مئة: «صفر متر» تُقرأ «وصل» ولمّا يصل.
+    return tr(`rider.status_distance_${suffix}_m`, {
+      meters: Math.max(100, Math.round(meters / 100) * 100),
+    });
+  }
+  return tr(`rider.status_distance_${suffix}_km`, {
+    km: (Math.round(meters / 100) / 10).toFixed(1),
+  });
+}
+
+/**
  * تقرير حالة طلب واحد: الحالة، والسائق ولوحته إن أُسنِد، ومدّة الانتظار.
  *
  * حالة غير معروفة لا تُسكِت الردّ: استعلام الطلبات النشطة قد يوسّع يوماً، فمن يسأل
@@ -356,6 +461,34 @@ function describeOrderStatus(
         ? tr("rider.status_plate_missing")
         : tr("rider.status_plate", { plate: driver.plateNumber }),
     );
+
+    /**
+     * المرحلة ١١ — وأخيراً يجيب `/status` عن السّؤال الذي بُني له.
+     *
+     * وكان يقول اسم السائق ولوحته ولا يقول أين هو — والموقع مخزّنٌ في
+     * `drivers.last_location` والمسافة تُحسب بـ`haversineKm` الموجودة والمستعملة
+     * في الإسناد. فالنقص لم يكن في البيانات ولا في الحساب، بل في أن أحداً
+     * لم يوصل الأوّل بالثاني عند العميل.
+     *
+     * والسطر يُحذف كلّه عند الجهل لا يُكتب «غير معروف»: اللوحة الناقصة تُقال
+     * صراحةً لأنّها **عيب تسجيل** يُطلب من الدعم إصلاحه، وموقعٌ لم يُرسل
+     * بعد حالٌ طبيعيّة في أوّل لحظات الإسناد لا يفعل العميل لها شيئاً.
+     */
+    const near = driverProximity(order, now);
+    if (near !== null) {
+      lines.push(distanceLine(tr, near.meters, near.towards));
+      // والتحفّز لا يُكتب إلا حين يلزم: سطرٌ يُلازم كلّ تحديثٍ يُقرأ زخرفاً فيُتجاهل
+      // حين يصدق فعلاً — وهو أسوأ من غيابه.
+      if (near.stale) {
+        lines.push(
+          near.ageSeconds < 60
+            ? tr("rider.status_location_stale_seconds", { seconds: near.ageSeconds })
+            : tr("rider.status_location_stale_minutes", {
+                minutes: Math.floor(near.ageSeconds / 60),
+              }),
+        );
+      }
+    }
   }
 
   const minutes = waitedMinutes(order, now);
@@ -458,6 +591,22 @@ async function cancelOne(
   if (cancelled.value.kind === "not_found") {
     return [reply(sender, tr("rider.no_active_order"))];
   }
+
+  /**
+   * المرحلة ١١ — إغلاق التتبّع قبل الإخطارات، وبنفس ترتيب `rating-dialog` وبنفس
+   * علّته: لو أُخطر السائق والعميل أوّلاً لقرأ العميل «أُلغي طلبك» وفوقها خريطةٌ
+   * مازال سائقه يتحرّك عليها.
+   *
+   * ولماذا هنا لا في `cancel_order_by_rider` في القاعدة؟ لأن إغلاق الجلسة ينشر
+   * حدثاً على ناقلٍ **في العملية** يُوقف رسالةَ تلغرام، والقاعدةُ لا تعرف الناقل
+   * ولا تُرسل رسائل. وهو نفس السبب الذي جعل `onTripEnded` في التطبيق أصلاً.
+   *
+   * ويُستدعى بلا شرطٍ على الحالة السابقة: `closeByTrip` لا يُغلق إلا جلسةً قائمة،
+   * ولا يُنشر الحدث إلا لجلسةٍ أُغلقت فعلاً (`for (const session of closed)`).
+   * فطلبٌ أُلغي في `searching` لا سائق له لا جلسة له، والنداء عليه بلا أثر — وشرطٌ
+   * نكتبه هنا يكون مصدراً ثانياً لقاعدة «متى توجد جلسة» ينحرف عن الأوّل.
+   */
+  await deps.tracking?.onTripEnded(String(cancelled.value.orderId), "TRIP_CANCELLED");
 
   for (const target of cancelled.value.notify) {
     await deps.matching.notifier.notifyCancelled({

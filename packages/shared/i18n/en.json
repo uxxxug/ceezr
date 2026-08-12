@@ -263,5 +263,11 @@
   "city.change.success": "Your city has been changed to {city}.",
   "city.change.same": "You are already in this city.",
   "city.change.active_order": "Cannot change city while you have an active order. Cancel it first.",
-  "city.change.failed": "Could not change city right now. Try again later."
+  "city.change.failed": "Could not change city right now. Try again later.",
+  "rider.status_distance_pickup_km": "📍 Your driver is about {km} km away (straight line, not road distance).",
+  "rider.status_distance_pickup_m": "📍 Your driver is about {meters} m away (straight line, not road distance).",
+  "rider.status_distance_dropoff_km": "📍 About {km} km left to your destination (straight line, not road distance).",
+  "rider.status_distance_dropoff_m": "📍 About {meters} m left to your destination (straight line, not road distance).",
+  "rider.status_location_stale_seconds": "⚠️ Your driver's location was last updated {seconds} seconds ago.",
+  "rider.status_location_stale_minutes": "⚠️ Your driver's location was last updated {minutes} minutes ago — the distance above may be out of date."
 }

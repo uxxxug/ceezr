@@ -28,7 +28,11 @@ import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createAdminLiveRoutes } from "../../apps/gateway/src/routes/admin-live.ts";
 import { createAdminUiRoutes } from "../../apps/gateway/src/routes/admin-ui.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
-import type { LivePosition } from "../../packages/application/tracking/customer-live-relay.ts";
+import {
+  DEFAULT_RELAY_MIN_INTERVAL_MS,
+  type LivePosition,
+} from "../../packages/application/tracking/customer-live-relay.ts";
+import { DEFAULT_SESSION_POLICY } from "../../packages/domain/tracking/session.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
@@ -74,6 +78,8 @@ const config: AppConfig = {
 interface LiveCall {
   readonly op: "start" | "update" | "stop";
   readonly chatId: string;
+  /** المرحلة ١١: مدّةُ البثّ المطلوبة — تُلتقط لأنها مفتاحُ الرجل الميّت لا زينة. */
+  readonly livePeriodSeconds?: number;
 }
 
 let sql: Sql;
@@ -83,6 +89,12 @@ let container: ReturnType<typeof buildContainer>;
 let cityId: string;
 let liveCalls: LiveCall[];
 let adminCodes: string[];
+/**
+ * المرحلة ١١: رسائل بوت العميل صارت مقيسةً في هذا الملف (تقرير `/status`)، فرُفع
+ * المصفوف إلى نطاق الوحدة. وهو يُستبدل في كل `beforeEach` لا يُفرَّغ: التفريغ
+ * يترك المُرسِل المُركَّب في الحاوية السابقة يكتب في نفس المصفوف.
+ */
+let riderSent: SentMessage[];
 
 async function post(bot: string, update: unknown): Promise<Response> {
   return app.fetch(
@@ -228,14 +240,14 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
     liveCalls = [];
     adminCodes = [];
     const driverSent: SentMessage[] = [];
-    const riderSent: SentMessage[] = [];
+    riderSent = [];
 
     container = buildContainer(config, {
       driverSender: capturing(driverSent),
       riderSender: capturing(riderSent),
       liveLocationChannel: {
-        start: async (chatId: string, _position: LivePosition, _live: number) => {
-          liveCalls.push({ op: "start", chatId });
+        start: async (chatId: string, _position: LivePosition, live: number) => {
+          liveCalls.push({ op: "start", chatId, livePeriodSeconds: live });
           return `msg-${liveCalls.length}`;
         },
         update: async (chatId: string) => {
@@ -412,7 +424,8 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
     expect(rows[0]?.trip_id).toBe(mine.tripId);
 
     expect(liveCalls.length).toBe(1);
-    expect(liveCalls[0]).toEqual({ op: "start", chatId: String(RIDER_CHAT) });
+    expect(liveCalls[0]?.op).toBe("start");
+    expect(liveCalls[0]?.chatId).toBe(String(RIDER_CHAT));
   });
 
   it("سائقٌ بلا رحلة مُسنَدة لا يُدفع موقعه إلى أيّ عميل", async () => {
@@ -447,6 +460,171 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
     // وإيقاف البثّ لا تركُه ينتهي وحده: خريطةٌ حيّة بعد الرحلة تتبّعٌ بلا سند.
     expect(liveCalls.map((c) => c.op)).toEqual(["start", "stop"]);
     expect(liveCalls[1]?.chatId).toBe(String(RIDER_CHAT));
+  });
+
+  /**
+   * المرحلة ١١ — العيب P11-1 مقيساً على المسار الحقيقيّ: لا منفذٌ يُنادى من
+   * الاختبار بل رسالة `/cancel` تدخل من الويبهوك كما تدخل في الإنتاج — لأن
+   * المقيس أنّ **التركيب في الحاوية حاصلٌ فعلاً**. وقد كان `riderDeps` بلا `tracking`
+   * أصلاً، فاختبارٌ ينادي المنفذ مباشرةً كان ليمرّ والعيب قائم.
+   *
+   * والمنفذ هو **نفس المتغيرّ** المُمرّر لبوت السائق لا نسخةً ثانية: حالة
+   * البثّ في الذاكرة، فمنفذان يعنيان خريطتين لا تعرف إحداهما الأخرى.
+   */
+  it("إلغاء العميل من الويبهوك يُغلق جلسته ويوقف خريطته", async () => {
+    const driverId = await registerDriver();
+    const mine = await seedAssignedTrip(driverId, RIDER_CHAT);
+    // الإلغاء من حقّ العميل قبل الركوب؛ و`seedAssignedTrip` تبدأ `in_progress`.
+    await sql`update orders set status = 'matched' where id = ${mine.tripId}::uuid`;
+
+    await post("driver", location(DRIVER_CHAT, JEDDAH));
+    expect(liveCalls.map((c) => c.op)).toEqual(["start"]);
+
+    await post("rider", text(RIDER_CHAT, "/cancel"));
+
+    const statuses = await sql<{ status: string }[]>`
+      select status from orders where id = ${mine.tripId}::uuid
+    `;
+    expect(statuses[0]?.status).toBe("cancelled");
+
+    const rows = await sessionsOf(driverId);
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.end_reason).toBe("TRIP_CANCELLED");
+    expect(rows[0]?.ended_at).not.toBeNull();
+    expect(liveCalls.map((c) => c.op)).toEqual(["start", "stop"]);
+    expect(liveCalls[1]?.chatId).toBe(String(RIDER_CHAT));
+  });
+
+  /**
+   * والعيب P11-2 كان أسوأ من خريطةٍ معلّقة: السائق يأخذ رحلةً ثانية بعد
+   * الملغاة، فيبقى بثّ الأول مفتوحاً في خريطة `broadcasts` ولا شيء يمسحه دون إعادة
+   * تشغيل. والمقيس هنا أن العميل الأول لا يتلقّى تعديلاً واحداً بعد إلغائه.
+   */
+  it("رحلةٌ تالية لنفس السائق لا تُحدّث خريطة العميل الملغي", async () => {
+    const driverId = await registerDriver();
+    const first = await seedAssignedTrip(driverId, RIDER_CHAT);
+    await sql`update orders set status = 'matched' where id = ${first.tripId}::uuid`;
+
+    await post("driver", location(DRIVER_CHAT, JEDDAH));
+    await post("rider", text(RIDER_CHAT, "/cancel"));
+    expect(liveCalls.map((c) => c.op)).toEqual(["start", "stop"]);
+
+    // راكبٌ ثانٍ ورحلةٌ جديدة لنفس السائق، وموقعٌ يتجاوز حدّ الحركة.
+    await seedAssignedTrip(driverId, OTHER_RIDER_CHAT);
+    await post("driver", location(DRIVER_CHAT, JEDDAH_MOVED));
+
+    const ops = liveCalls.filter((c) => c.chatId === String(RIDER_CHAT)).map((c) => c.op);
+    expect(ops).toEqual(["start", "stop"]);
+    // والعميل الثاني يحصل على خريطته هو: الحراسة ليست حجباً شاملاً.
+    expect(liveCalls.some((c) => c.chatId === String(OTHER_RIDER_CHAT) && c.op === "start")).toBe(
+      true,
+    );
+  });
+
+  /**
+   * والعيب P11-3 مقيساً على قاعدةٍ حقيقيّة: حدثٌ يُنشر على الناقل لرحلةٍ حالتُها
+   * في القاعدة `completed`. والنشر مباشرةً لا برسالة سائق — **وهو المقيس نفسه**:
+   * رسالةُ السائق تمرّ بـ`activeTripOf` التي تُرشِّح `matched/in_progress`، فتُنتج
+   * حدثاً بلا `tripId` فلا يبلغ المرحّل أصلاً. فاختبارٌ يمرّ من الرسالة كان
+   * ليَخضَرّ بلا أن يلمس الحراسة ألبتّة — وقد جرّبناه فمرّ والحراسة مُعطَّلة.
+   *
+   * والحدث المنشور مباشرةً ليس افتراضاً: هو حدثٌ متأخّرٌ في الرتل، أو إعادةُ نشرٍ
+   * بعد إعادة تشغيل، أو رحلةٌ انتهت بين لحظة ربط الجلسة ولحظة وصول الإصلاحة.
+   * والمرحّل يشترك `operations/all_cities` فيمرّ بـ`canOperationsWatch` التي تُجيز
+   * كلّ شيء ولا تلمس `isTripLive` — فكان يُفتح بثٌّ لعميلٍ انتهت رحلته، ولا شيء
+   * يوقفه بعدئذ لأن `session_ended` قد مرّ أصلاً.
+   */
+  it("حدثٌ متأخّر لرحلةٍ مكتملة في القاعدة لا يفتح خريطةً للعميل", async () => {
+    const driverId = await registerDriver();
+    const mine = await seedAssignedTrip(driverId, RIDER_CHAT);
+
+    // خطّ الأساس: ما دامت حيّةً يُفتح البثّ — فالحراسة ليست حجباً شاملاً.
+    await container.tracking.bus.publish({
+      type: "location_updated",
+      driverId,
+      tripId: mine.tripId,
+      cityId,
+      position: { lat: JEDDAH.latitude, lng: JEDDAH.longitude },
+      timestamp: new Date(),
+    });
+    expect(liveCalls.map((c) => c.op)).toEqual(["start"]);
+    /**
+     * ومدّةُ البثّ المطلوبة من الحاوية الحقيقيّة سقفُ الجلسة لا سقفُ تلغرام:
+     * بثٌّ يعيش ضعفَ عمر الجلسة التي وُلد منها يترك نقطةً مجمّدة في هاتف العميل
+     * اثنتي عشرة ساعة إضافيّة إن لم يبلغ المرحّلَ حدثٌ آخر أبداً.
+     */
+    expect(liveCalls[0]?.livePeriodSeconds).toBe(DEFAULT_SESSION_POLICY.maxSessionSeconds);
+
+    // ثم تنتهي الرحلة في القاعدة، ويصل حدثٌ ثانٍ بعد حدّ الزمن.
+    liveCalls = [];
+    await sql`update orders set status = 'completed' where id = ${mine.tripId}::uuid`;
+    /**
+     * انتظارٌ حقيقيّ لأن ساعة الحاوية `systemClock` لا تُحقَن. وهو مقصودٌ لا
+     * محتمَل: خمس ثوانٍ هي الحدّ الفعليّ الذي يعيشه العميل، فاختبارٌ يتجاوزه
+     * بساعةٍ مزيّفة لا يقيس ما يحدث في الإنتاج.
+     */
+    await Bun.sleep(DEFAULT_RELAY_MIN_INTERVAL_MS + 200);
+    /**
+     * و**نفس** الإحداثيات لا موقعٌ متحرّك: سائقٌ أوقف سيّارته. وهي الحالة التي
+     * أسقطت هذا الاختبار أوّلاً حين كان فحص الحياة بعد حدّ الحركة — فلا يتجاوزه
+     * واقفٌ قطّ، فتبقى خريطة العميل حيّةً إلى انتهاء مدّة تلغرام كلها.
+     */
+    await container.tracking.bus.publish({
+      type: "location_updated",
+      driverId,
+      tripId: mine.tripId,
+      cityId,
+      position: { lat: JEDDAH.latitude, lng: JEDDAH.longitude },
+      timestamp: new Date(),
+    });
+
+    // يُوقَف لا يُحدَّث: الخريطة المفتوحة مسؤوليّةٌ لا تُترك للمهلة.
+    expect(liveCalls.map((c) => c.op)).toEqual(["stop"]);
+
+    // وبثٌّ جديد لا يُفتح لها بعد ذلك ألبتّة.
+    liveCalls = [];
+    await container.tracking.bus.publish({
+      type: "location_updated",
+      driverId,
+      tripId: mine.tripId,
+      cityId,
+      position: { lat: JEDDAH_MOVED.latitude, lng: JEDDAH_MOVED.longitude },
+      timestamp: new Date(),
+    });
+    expect(liveCalls.length).toBe(0);
+    // مهلةٌ موسَّعة: الانتظار الحقيقيّ لحدّ الخنق يتجاوز مهلة bun الافتراضيّة.
+  }, 20_000);
+
+  /**
+   * المرحلة ١١ — العيب P11-5 مقيساً من طرفه إلى طرفه: الموقع يُكتب في
+   * `drivers.last_location` من رسالة السائق الحقيقيّة (لا بإدراجٍ يدويّ)، ثم يُقرأ
+   * في `/status`. والمقيس هنا ما لا تقيسه الوحدات: أن SQL الاستعلام تستخرج
+   * `ST_Y/ST_X` بالترتيب الصحيح — وقلبهما خطأٌ تمرّ منه كلّ اختبارات الوحدة
+   * لأنّها تبني النقطة بيدها، ويُنتج في الإنتاج مسافةً بألوف الكيلومترات.
+   */
+  it("تقرير العميل يقرأ موقع السائق المخزّن ويُنتج مسافةً معقولة", async () => {
+    const driverId = await registerDriver();
+    const mine = await seedAssignedTrip(driverId, RIDER_CHAT);
+    await sql`update orders set status = 'matched' where id = ${mine.tripId}::uuid`;
+
+    // الموقع يدخل من مساره الوحيد المشروع (ADR-0015): رسالة السائق.
+    await post("driver", location(DRIVER_CHAT, JEDDAH_MOVED));
+    const stored = await sql<{ lat: number }[]>`
+      select st_y(last_location::geometry) as lat from drivers where id = ${driverId}::uuid
+    `;
+    expect(stored[0]?.lat).toBeCloseTo(JEDDAH_MOVED.latitude, 4);
+
+    riderSent.length = 0;
+    await post("rider", text(RIDER_CHAT, "/status"));
+    const body = riderSent.map((m) => m.text).join("\n");
+
+    /**
+     * والتأكيد على الرقم لا على وجود السطر: موضع الانطلاق (٢١.٥٤٧١) وموقع
+     * السائق (٢١.٥٥٣٤) يفصلهما نحو ٧٠٠ متر — فإن قُلب إحداثيّان أو خُلطت
+     * الوحدات صار الرقم ألوفاً وسقط الاختبار.
+     */
+    expect(body).toContain("700");
+    expect(body).toContain("خطّ مستقيم");
   });
 
   it("مجرى العمليات يُرفض بلا جلسة لوحة", async () => {

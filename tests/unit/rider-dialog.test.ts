@@ -318,6 +318,73 @@ describe("الإلغاء", () => {
     expect(orders.cancellations).toEqual([ORDER_ID]);
   });
 
+  /**
+   * المرحلة ١١ — العيب P11-1: للرحلة نهايتان، إتمامٌ وإلغاء. وكان `onTripEnded`
+   * له موضع نداءٍ واحد (حوار التقييم بـ`TRIP_COMPLETED`)، فالإلغاء كان يترك خريطة
+   * العميل تتحرّك ورحلته ملغاة — و`TRIP_CANCELLED` كان سبباً مُعرّفاً ولا منتج له.
+   */
+  it("الإلغاء يُنهي تتبّع الرحلة بسببها الصحيح وقبل إبلاغ أحد", async () => {
+    const riders = riderDirectory({
+      id: "rider-9" as RiderId,
+      cityId: JEDDAH.id,
+      telegramUserId: "500",
+      fullName: "سالم",
+    });
+    const active = {
+      orderId: ORDER_ID,
+      service: "transport" as const,
+      status: "matched",
+      pickupLabel: null,
+      dropoffLabel: "النسيم",
+      createdAt: new Date("2026-08-11T05:29:00Z"),
+    };
+    const ended: { tripId: string; reason: string }[] = [];
+    const d = build({
+      riders,
+      activeOrdersOf: async () => [active],
+      tracking: {
+        // `onFix` مسار السائق ولا شأن للإلغاء به — ووجوده هنا لأن المنفذ واحد.
+        onFix: async () => {
+          throw new Error("لا يُنادى في مسار الإلغاء");
+        },
+        onTripEnded: async (tripId: string, reason: string) => {
+          ended.push({ tripId, reason });
+        },
+      },
+    });
+
+    await handleRiderUpdate(text("/cancel"), d);
+
+    expect(ended).toEqual([{ tripId: String(ORDER_ID), reason: "TRIP_CANCELLED" }]);
+  });
+
+  /**
+   * والمنفذ اختياريٌّ قصداً: التتبّع عونٌ لا شرط، وإلغاءٌ يفشل لأن التتبّع غير
+   * مركّب يحبس العميل في رحلةٍ لا يريدها — وهو أسوأ من خريطةٍ تبقى دقيقةً زائدة.
+   */
+  it("الإلغاء ينجح ولو لم يُركّب التتبّع أصلاً", async () => {
+    const riders = riderDirectory({
+      id: "rider-9" as RiderId,
+      cityId: JEDDAH.id,
+      telegramUserId: "500",
+      fullName: "سالم",
+    });
+    const active = {
+      orderId: ORDER_ID,
+      service: "transport" as const,
+      status: "matched",
+      pickupLabel: null,
+      dropoffLabel: "النسيم",
+      createdAt: new Date("2026-08-11T05:29:00Z"),
+    };
+    const replies = await handleRiderUpdate(
+      text("/cancel"),
+      build({ riders, activeOrdersOf: async () => [active] }),
+    );
+    expect(replies[0]?.text).toContain("النسيم");
+    expect(orders.cancellations).toEqual([ORDER_ID]);
+  });
+
   it("يخبر بعدم وجود طلب نشط ولا يستدعي الإلغاء", async () => {
     const riders = riderDirectory({
       id: "rider-9" as RiderId,
@@ -684,6 +751,107 @@ describe("تتبّع الطلب: /status", () => {
     expect(replies[1]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }));
     expect(replies[0]?.text).toContain(ar("rider.service_transport"));
     expect(replies[1]?.text).toContain(ar("rider.service_delivery"));
+  });
+
+  /**
+   * المرحلة ١١ — العيب P11-5: كان التقرير يقول من السائق وماذا يركب، ولا
+   * يقول أين هو — والموقع مخزّنٌ في القاعدة والمسافة تُحسب في الإسناد.
+   */
+  it("عند الإسناد مع موقع طازج: يُعرض بعد السائق بلا تحفّز وبلا وقتٍ متوقّع", async () => {
+    const replies = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([
+        active({
+          status: "matched",
+          pickup: { lat: 21.5433, lng: 39.1728 },
+          dropoff: { lat: 21.6003, lng: 39.1502 },
+          assignedDriver: {
+            fullName: "أحمد",
+            vehicleType: null,
+            plateNumber: "ح ط ب 1234",
+            vehiclePhotoFileId: null,
+            // نحو ١.٦ كم شمال موضع الانطلاق، مسجّلٌ قبل عشر ثوانٍ.
+            lastLocation: {
+              lat: 21.5578,
+              lng: 39.1728,
+              recordedAt: new Date(NOW.getTime() - 10_000),
+            },
+          },
+        }),
+      ]),
+    );
+    const body = replies[0]?.text ?? "";
+    expect(body).toContain(ar("rider.status_distance_pickup_km", { km: "1.6" }));
+    // ولا تحفّز لموقعٍ عمره عشر ثوانٍ: سطرٌ يُلازم كلّ تحديثٍ يُقرأ زخرفاً.
+    expect(body).not.toContain("⚠️");
+    /**
+     * والنصّ يقول صراحةً إنّه خطٌّ مستقيم لا مسار طريق — والفحص مقصودٌ لا زائد:
+     * الخطوة الطبيعيّة لمن يرى مسافةً أن يقسمها على سرعةٍ مفترضة ويقرأها وعداً
+     * بالوصول. والوعد يحتاج مساراً من OSRM وهو غير موصول (خطر R-28)، ومرحلته ١٥.
+     * فحذف التحفّز من النصّ ليس تجميلاً لغويّاً بل يُنشئ وعداً لم نلتزمه.
+     */
+    expect(body).toContain("خطّ مستقيم");
+  });
+
+  it("موقعٌ قديمٌ يُعرض ومعه تحفّزٌ صريح لا يُكتم ولا يُحجب الرقم", async () => {
+    const withAge = async (secondsAgo: number) => {
+      const replies = await handleRiderUpdate(
+        text("/status"),
+        statusDeps([
+          active({
+            status: "matched",
+            pickup: { lat: 21.5433, lng: 39.1728 },
+            assignedDriver: {
+              fullName: "أحمد",
+              vehicleType: null,
+              plateNumber: null,
+              vehiclePhotoFileId: null,
+              lastLocation: {
+                lat: 21.5578,
+                lng: 39.1728,
+                recordedAt: new Date(NOW.getTime() - secondsAgo * 1000),
+              },
+            },
+          }),
+        ]),
+      );
+      return replies[0]?.text ?? "";
+    };
+
+    // دون الدقيقة: بالثواني لا بـ«قبل دقيقة» — تقريبٌ لأعلى يُقلق بلا موجب.
+    const short = await withAge(45);
+    expect(short).toContain(ar("rider.status_location_stale_seconds", { seconds: 45 }));
+    // والرقم يُعرض مع التحفّز لا بدلاً منه: حجبه يترك العميل بلا شيء.
+    expect(short).toContain(ar("rider.status_distance_pickup_km", { km: "1.6" }));
+
+    const long = await withAge(5 * 60 + 20);
+    expect(long).toContain(ar("rider.status_location_stale_minutes", { minutes: 5 }));
+    expect(long).not.toContain(ar("rider.status_location_stale_seconds", { seconds: 320 }));
+  });
+
+  it("سائقٌ مُسنَد بلا موقعٍ بعد: لا سطر مسافة ولا «غير معروف»", async () => {
+    const replies = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([
+        active({
+          status: "matched",
+          pickup: { lat: 21.5433, lng: 39.1728 },
+          assignedDriver: {
+            fullName: "أحمد",
+            vehicleType: null,
+            plateNumber: "ح ط ب 1234",
+            vehiclePhotoFileId: null,
+            lastLocation: null,
+          },
+        }),
+      ]),
+    );
+    const body = replies[0]?.text ?? "";
+    // لا يُكتب سطرٌ ألبتّة — ومع ذلك يبقى التقرير كاملاً لا مقتوعاً.
+    expect(body).not.toContain("📍");
+    expect(body).toContain(ar("rider.status_driver", { name: "أحمد" }));
+    expect(body).toContain(ar("rider.status_plate", { plate: "ح ط ب 1234" }));
+    expect(body).toContain(ar("rider.status_waiting", { minutes: 4 }));
   });
 
   it("زرّ «أين طلبي؟» يصل إلى /status نصّاً بأي لغة مدعومة", async () => {

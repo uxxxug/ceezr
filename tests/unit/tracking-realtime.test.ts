@@ -29,6 +29,7 @@ import {
   canOperationsWatch,
   isTripLive,
   type TripAssignmentProof,
+  type WatchedTripStatus,
 } from "../../packages/domain/tracking/visibility.ts";
 import { createTrackingEventBus } from "../../packages/infrastructure/tracking/event-bus.ts";
 import { createMemoryTrackingSessionStore } from "../../packages/tracking/session-store.ts";
@@ -286,11 +287,18 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
     riderTelegramId: "555",
     driverId: DRIVER,
     riderLanguage: "ar",
+    // المرحلة ١١: الحالة صارت جزءاً من الوجهة، و`matched` هي حال التتبّع الطبيعية.
+    status: "matched" as WatchedTripStatus,
   };
 
   const buildRelay = (
     nowMsRef: { value: number },
-    over: { readonly failUpdate?: boolean; readonly resolved?: typeof target | null } = {},
+    over: {
+      readonly failUpdate?: boolean;
+      readonly resolved?: typeof target | null;
+      /** مرجعٌ متغيّر: تُمكِّن الاختبار من تحويل الحالة **بين** إصلاحتين. */
+      readonly statusRef?: { value: WatchedTripStatus };
+    } = {},
   ) => {
     const captured = captureChannel({
       ...(over.failUpdate === undefined ? {} : { failUpdate: over.failUpdate }),
@@ -298,7 +306,12 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
     const relay = createCustomerLiveRelay({
       channel: captured.channel,
       customers: {
-        resolve: async () => (over.resolved === undefined ? target : over.resolved),
+        resolve: async () => {
+          if (over.resolved !== undefined) return over.resolved;
+          return over.statusRef === undefined
+            ? target
+            : { ...target, status: over.statusRef.value };
+        },
       },
       clock: { now: () => new Date(nowMsRef.value) },
       livePeriodSeconds: 3600,
@@ -370,6 +383,129 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
     await relay.handle(ended);
 
     expect(calls.filter((c) => c.op === "stop").length).toBe(1);
+    expect(relay.openBroadcasts).toBe(0);
+  });
+
+  /**
+   * المرحلة ١١ — العيب P11-3 مقيساً: أقوى قاعدةٍ في المجال (`isTripLive`)
+   * كانت غائبةً عن مسار العميل الفعليّ. والسبب أن المرحّل يشترك بوصفه
+   * `operations/all_cities`، و`canOperationsWatch` تأذن دائماً فلا تمرّ بـ`isTripLive`
+   * أصلاً — فإصلاحةٌ متأخّرة لرحلةٍ منتهية كانت **تفتح** خريطةً لعميل رحلته
+   * انتهت. والحراسة في المرحّل لا في سياسة الاشتراك: المشغّل له أن يرى كلّ
+   * شيء، والعميل ليس له — وهما حكمان مختلفان على الاشتراك الواحد.
+   */
+  it("رحلةٌ غير حيّة لا يُفتح لها بثٌّ ولو وصل موقعٌ أصلاً", async () => {
+    for (const dead of ["completed", "cancelled"] as readonly WatchedTripStatus[]) {
+      const now = { value: 1_000_000 };
+      const { relay, calls } = buildRelay(now, { statusRef: { value: dead } });
+      await relay.handle(positionEvent());
+      expect(calls.length).toBe(0);
+      expect(relay.openBroadcasts).toBe(0);
+    }
+  });
+
+  it("الحالتان الحيّتان وحدهما تفتحان بثٌّاً — فلا يصير الحراس حجباً شاملاً", async () => {
+    for (const live of ["matched", "in_progress"] as readonly WatchedTripStatus[]) {
+      expect(isTripLive(live)).toBe(true);
+      const now = { value: 1_000_000 };
+      const { relay, calls } = buildRelay(now, { statusRef: { value: live } });
+      await relay.handle(positionEvent());
+      expect(calls.map((c) => c.op)).toEqual(["start"]);
+    }
+  });
+
+  /**
+   * والحراسة عند الفتح وحده لا تكفي: الرحلة تنتهي **بين** إصلاحتين، والبثّ حينها
+   * مفتوحٌ أصلاً. ومن الممكن أن تنتهي بـRPC لا يمرّ بـ`onTripEnded` أصلاً — أو أن
+   * يُعاد تشغيل الخدمة فيُفقد الحدث. فالوجهة تُقرأ ثانيةً عند كلّ تعديل: القاعدة
+   * مصدر الحقيقة لا الذاكرة المحليّة للمرحّل.
+   */
+  it("انتهاء الرحلة أثناء بثٍّ مفتوح يُوقفه عند التعديل التالي لا يُحدّثه", async () => {
+    const now = { value: 1_000_000 };
+    const statusRef = { value: "matched" as WatchedTripStatus };
+    const { relay, calls } = buildRelay(now, { statusRef });
+
+    await relay.handle(positionEvent());
+    expect(calls.map((c) => c.op)).toEqual(["start"]);
+
+    // أُلغيت الرحلة ولم يصل `session_ended`، ثم وصلت إصلاحةٌ تستحقّ تعديلاً.
+    statusRef.value = "cancelled";
+    now.value += 10_000;
+    await relay.handle(positionEvent({ position: { lat: 21.56, lng: 39.1751 } }));
+
+    expect(calls.map((c) => c.op)).toEqual(["start", "stop"]);
+    expect(relay.openBroadcasts).toBe(0);
+  });
+
+  /**
+   * وترتيب الحراس مع الخنق هو البند نفسه لا تفصيلاً فيه: فحص الحياة بعد
+   * **حدّ الحركة** يترك نصف العيب قائماً: سائقٌ أُلغيت رحلته ثم أوقف سيّارته
+   * لا يتجاوز حدّ الحركة قطّ، فلا تُقرأ الحالة أبداً وتبقى خريطة العميل حيّةً
+   * إلى انتهاء مدّة تلغرام. وقد وُضع الفحص هناك أولاً فأسقط هذا الاختبار
+   * واختبارَ التكامل معاً — وهو ما نقله إلى ما بين حدّ الزمن وحدّ الحركة.
+   */
+  it("سائقٌ واقفٌ ورحلةٌ انتهت: يُغلق البثّ ولو لم يتحرّك متراً", async () => {
+    const now = { value: 1_000_000 };
+    const statusRef = { value: "in_progress" as WatchedTripStatus };
+    const { relay, calls } = buildRelay(now, { statusRef });
+
+    await relay.handle(positionEvent());
+    expect(calls.map((c) => c.op)).toEqual(["start"]);
+
+    statusRef.value = "completed";
+    now.value += 10_000;
+    // إصلاحةٌ بـ**نفس** الإحداثيّات: لا تجتاز حدّ الحركة ألبتّة.
+    await relay.handle(positionEvent());
+
+    expect(calls.map((c) => c.op)).toEqual(["start", "stop"]);
+    expect(relay.openBroadcasts).toBe(0);
+  });
+
+  it("اختفاء الوجهة أثناء بثٍّ مفتوح يُوقفه لا يتركه معلّقاً", async () => {
+    const now = { value: 1_000_000 };
+    const resolvedRef: { value: typeof target | null } = { value: target };
+    const captured = captureChannel({});
+    const relay = createCustomerLiveRelay({
+      channel: captured.channel,
+      customers: { resolve: async () => resolvedRef.value },
+      clock: { now: () => new Date(now.value) },
+      livePeriodSeconds: 3600,
+    });
+
+    await relay.handle(positionEvent());
+    expect(captured.calls.map((c) => c.op)).toEqual(["start"]);
+
+    resolvedRef.value = null;
+    now.value += 10_000;
+    await relay.handle(positionEvent({ position: { lat: 21.56, lng: 39.1751 } }));
+
+    expect(captured.calls.map((c) => c.op)).toEqual(["start", "stop"]);
+    expect(relay.openBroadcasts).toBe(0);
+  });
+
+  /**
+   * وإعادة الإسناد أثناء البثّ أخطر من الانتهاء: الخريطة تبقى مفتوحةً تُري
+   * العميل موقع سائقٍ لم يعد سائقَه — وهو لا يعلم أنّ من ينتظره غير من يراه.
+   */
+  it("تغيّر سائق الرحلة أثناء بثٍّ مفتوح يُوقفه", async () => {
+    const now = { value: 1_000_000 };
+    const driverRef = { value: DRIVER };
+    const captured = captureChannel({});
+    const relay = createCustomerLiveRelay({
+      channel: captured.channel,
+      customers: { resolve: async () => ({ ...target, driverId: driverRef.value }) },
+      clock: { now: () => new Date(now.value) },
+      livePeriodSeconds: 3600,
+    });
+
+    await relay.handle(positionEvent());
+    expect(captured.calls.map((c) => c.op)).toEqual(["start"]);
+
+    driverRef.value = "driver-77" as typeof DRIVER;
+    now.value += 10_000;
+    await relay.handle(positionEvent({ position: { lat: 21.56, lng: 39.1751 } }));
+
+    expect(captured.calls.map((c) => c.op)).toEqual(["start", "stop"]);
     expect(relay.openBroadcasts).toBe(0);
   });
 

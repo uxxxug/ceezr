@@ -164,6 +164,19 @@ type CancelRpcResult =
  */
 const MAX_ACTIVE_ORDERS = 10;
 
+/**
+ * نقطةٌ من زوج أعمدة، أو `null` إن غاب أحدهما — المرحلة ١١.
+ *
+ * والشرط على الاثنين لا على أحدهما: `ST_X` و`ST_Y` لموضعٍ معدوم تعودان
+ * `null` معاً، وفحصُ واحدٍ منهما يجعل `0` درجةً تُقرأ إحداثيّةً في خليج غينيا.
+ */
+function pointOf(
+  lat: number | null,
+  lng: number | null,
+): { readonly lat: number; readonly lng: number } | null {
+  return lat === null || lng === null ? null : { lat, lng };
+}
+
 export function createActiveOrdersLookup(sql: Sql) {
   return async (riderId: RiderId): Promise<readonly ActiveOrderSummary[]> => {
     const rows = await sql<
@@ -178,11 +191,35 @@ export function createActiveOrdersLookup(sql: Sql) {
         vehicle_type: string | null;
         plate_number: string | null;
         vehicle_photo_file_id: string | null;
+        pickup_lat: number | null;
+        pickup_lng: number | null;
+        dropoff_lat: number | null;
+        dropoff_lng: number | null;
+        driver_lat: number | null;
+        driver_lng: number | null;
+        driver_location_recorded_at: Date | null;
       }[]
     >`
       select o.id, o.service, o.status, o.pickup_label, o.dropoff_label, o.created_at,
              du.full_name as driver_name, d.vehicle_type, d.plate_number,
-             d.vehicle_photo_file_id
+             d.vehicle_photo_file_id,
+             -- المرحلة ١١: الإحداثيّات تُقرأ في **نفس** الاستعلام لا في ثانٍ،
+             -- لنفس السبب المكتوب في assignedDriver: قراءتان تريان لحظتين،
+             -- فتُحسب مسافةٌ من موقع سائقٍ إلى مقصد طلبٍ لم يعد له.
+             --
+             -- والإسقاط إلى geometry قبل ST_X/ST_Y لازمٌ لا تجميلٌ: الدالتان
+             -- غير مُعرّفتين لـgeography، والإسقاط بلا تحويلٍ لأن كليهما 4326.
+             -- ولا تُحسب المسافة بـST_Distance هنا مع أنه أدقّ: المنصّة تقيس
+             -- المسافات بـhaversineKm في المجال (الإسناد نفسه يقيس به)،
+             -- ورقمان مختلفان لنفس المسافة يعنيان عميلاً يرى «٣ كم» ومشغّلاً
+             -- يرى «٢.٩ كم» للحادثة نفسها — وهو مصدرٌ ثانٍ للحقيقة ممنوع.
+             ST_Y(o.pickup::geometry) as pickup_lat,
+             ST_X(o.pickup::geometry) as pickup_lng,
+             ST_Y(o.dropoff::geometry) as dropoff_lat,
+             ST_X(o.dropoff::geometry) as dropoff_lng,
+             ST_Y(d.last_location::geometry) as driver_lat,
+             ST_X(d.last_location::geometry) as driver_lng,
+             d.last_location_recorded_at as driver_location_recorded_at
         from orders o
         -- الربط اليساري مقصود: طلب في searching لا سائق له، وربطٌ داخلي
         -- كان سيُخفي من قائمة الطلبات النشطة كلّ ما يزال يبحث — وهي أكثر
@@ -201,6 +238,8 @@ export function createActiveOrdersLookup(sql: Sql) {
       pickupLabel: row.pickup_label,
       dropoffLabel: row.dropoff_label,
       createdAt: new Date(row.created_at),
+      pickup: pointOf(row.pickup_lat, row.pickup_lng),
+      dropoff: pointOf(row.dropoff_lat, row.dropoff_lng),
       // الاسم هو شرط وجود السائق: صفّ سائق بلا مستخدم حالة تلف لا تُعرض
       assignedDriver:
         row.driver_name === null
@@ -210,6 +249,26 @@ export function createActiveOrdersLookup(sql: Sql) {
               vehicleType: row.vehicle_type,
               plateNumber: row.plate_number,
               vehiclePhotoFileId: row.vehicle_photo_file_id,
+              /**
+               * المرحلة ١١ — والوقت شرطٌ في الموقع لا حقلٌ زائد: موضعٌ بلا
+               * `recorded_at` لا يُعرف أمن دقيقةٍ هو أم من أمس، وعرضه بلا زمنه
+               * يقول للعميل ما لم يقع. فموقعٌ بلا وقتٍ يُعامل معاملة المعدوم.
+               *
+               * ويُقرأ `last_location_recorded_at` (زمن جهاز السائق) لا
+               * `last_location_at` (زمن وصول الإصلاحة إلينا): المرحلة ٣ قرّرت
+               * أن وقت الجهاز هو حين **كان السائق هناك فعلاً**، ووقتُ وصولِ
+               * رسالةٍ تأخّرت في الشبكة يجعل موقعاً قديماً يبدو طازجاً.
+               */
+              lastLocation:
+                row.driver_lat === null ||
+                row.driver_lng === null ||
+                row.driver_location_recorded_at === null
+                  ? null
+                  : {
+                      lat: row.driver_lat,
+                      lng: row.driver_lng,
+                      recordedAt: new Date(row.driver_location_recorded_at),
+                    },
             },
     }));
   };

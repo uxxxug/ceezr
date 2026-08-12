@@ -263,5 +263,11 @@
   "city.change.success": "تم تغيير مدينتك إلى {city}.",
   "city.change.same": "أنت في هذه المدينة بالفعل.",
   "city.change.active_order": "لا يمكن تغيير المدينة أثناء طلب نشط. أنهِ طلبك أولاً.",
-  "city.change.failed": "تعذّر تغيير المدينة الآن. حاول لاحقاً."
+  "city.change.failed": "تعذّر تغيير المدينة الآن. حاول لاحقاً.",
+  "rider.status_distance_pickup_km": "📍 سائقك يبعد عنك حوالي {km} كم (خطّ مستقيم لا مسار طريق).",
+  "rider.status_distance_pickup_m": "📍 سائقك يبعد عنك حوالي {meters} متر (خطّ مستقيم لا مسار طريق).",
+  "rider.status_distance_dropoff_km": "📍 بقي حوالي {km} كم إلى وجهتك (خطّ مستقيم لا مسار طريق).",
+  "rider.status_distance_dropoff_m": "📍 بقي حوالي {meters} متر إلى وجهتك (خطّ مستقيم لا مسار طريق).",
+  "rider.status_location_stale_seconds": "⚠️ آخر تحديث لموقع سائقك قبل {seconds} ثانية.",
+  "rider.status_location_stale_minutes": "⚠️ آخر تحديث لموقع سائقك قبل {minutes} دقيقة — المسافة أعلاه قد تكون قديمة."
 }

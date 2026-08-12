@@ -263,5 +263,11 @@
   "city.change.success": "آپ کا شہر تبدیل کر کے {city} کر دیا گیا ہے۔",
   "city.change.same": "آپ پہلے ہی اس شہر میں ہیں۔",
   "city.change.active_order": "فعال آرڈر کے دوران شہر نہیں بدلا جا سکتا۔ پہلے آرڈر منسوخ کریں۔",
-  "city.change.failed": "ابھی شہر تبدیل نہیں ہو سکا۔ بعد میں کوشش کریں۔"
+  "city.change.failed": "ابھی شہر تبدیل نہیں ہو سکا۔ بعد میں کوشش کریں۔",
+  "rider.status_distance_pickup_km": "📍 آپ کا ڈرائیور تقریباً {km} کلومیٹر دور ہے (سیدھی لکیر، سڑک کا فاصلہ نہیں)۔",
+  "rider.status_distance_pickup_m": "📍 آپ کا ڈرائیور تقریباً {meters} میٹر دور ہے (سیدھی لکیر، سڑک کا فاصلہ نہیں)۔",
+  "rider.status_distance_dropoff_km": "📍 آپ کی منزل تک تقریباً {km} کلومیٹر باقی ہے (سیدھی لکیر، سڑک کا فاصلہ نہیں)۔",
+  "rider.status_distance_dropoff_m": "📍 آپ کی منزل تک تقریباً {meters} میٹر باقی ہے (سیدھی لکیر، سڑک کا فاصلہ نہیں)۔",
+  "rider.status_location_stale_seconds": "⚠️ آپ کے ڈرائیور کا مقام {seconds} سیکنڈ پہلے اپ ڈیٹ ہوا تھا۔",
+  "rider.status_location_stale_minutes": "⚠️ آپ کے ڈرائیور کا مقام {minutes} منٹ پہلے اپ ڈیٹ ہوا تھا — اوپر کا فاصلہ پرانا ہو سکتا ہے۔"
 }

@@ -21,6 +21,7 @@
  */
 
 import { haversineKm } from "../../domain/geo/index.ts";
+import { isTripLive, type WatchedTripStatus } from "../../domain/tracking/visibility.ts";
 import type { TrackingEvent } from "../../tracking/index.ts";
 
 export interface LivePosition {
@@ -53,6 +54,16 @@ export interface CustomerChannelResolver {
   resolve(tripId: string): Promise<{
     readonly riderTelegramId: string;
     readonly driverId: string;
+    /**
+     * حالة الرحلة لحظةَ الاشتقاق — أُضيفت في المرحلة ١١.
+     *
+     * ولماذا تعود الحالة ولا يُرشَّح بها في `where`؟ لأن «أيُ حالاتٍ تُتابع» حكمٌ
+     * للمجال قرّره `isTripLive` مرّةً واحدة؛ ومُرشَّحٌ في SQL يكون تجسيداً
+     * ثانياً لنفس القاعدة ينحرف عنها أوّل مرّةٍ تُضاف حالةٌ للطلبات. وفرقٌ عمليٌّ
+     * أيضاً: المُرشَّح يردُّ `null` فلا يميّز «رحلةٌ انتهت فأغلقِ بثّها» من «رحلةٍ
+     * لا وجود لها»، والأوّل يوجب إيقافاً.
+     */
+    readonly status: WatchedTripStatus;
   } | null>;
 }
 
@@ -135,6 +146,23 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
            * ولحظة الإرسال). والثانية ليست تكراراً للأولى بل تُغلق سباقاً.
            */
           if (target.driverId !== event.driverId) return;
+          /**
+           * المرحلة ١١ — أقوى قاعدةٍ في مجال التتبّع تُطبَّق أخيراً على مسار العميل
+           * الحقيقي: لا بثَّ لرحلةٍ غير حيّة.
+           *
+           * وكانت غائبةً لا لأنها غير مكتوبة، بل لأن مَن يكتبها (`canCustomerWatch`)
+           * لم يكن على هذا المسار: المُرحِّل يشترك بنطاق `operations/all_cities`،
+           * فيمرّ بـ`canOperationsWatch` الذي يسمح دائماً، ولا يلمس `isTripLive`
+           * إطلاقاً. فكان حدثُ موقعٍ لرحلةٍ مكتملةٍ أو مُلغاة **يفتح بثّاً**.
+           *
+           * وهذا ليس تكراراً لإغلاق الإلغاء في `rider-dialog`: ذاك يُغلق بثّاً
+           * قائماً عند حدثٍ نعرف وقته، وهذا يمنع فتحَ بثٍّ لرحلةٍ ميتة أصلاً —
+           * فيصحّح كل نهايةٍ لا تمرّ بنا (إلغاءُ مشرف، فشلٌ، تعديلٌ في القاعدة).
+           */
+          if (!isTripLive(target.status)) {
+            log("tracking.live_location_skipped_not_live", { tripId, status: target.status });
+            return;
+          }
 
           const messageId = await deps.channel.start(
             target.riderTelegramId,
@@ -152,6 +180,42 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
           return;
         }
 
+        // حدّ الزمن أوّلاً: أرخص فحصٍ في المسار، ويحمي كلّ ما بعده من التكرار.
+        if (nowMs - open.sentAtMs < minIntervalMs) return;
+
+        /**
+         * المرحلة ١١ — إعادة اشتقاق الوجهة، **بعد حدّ الزمن وقبل حدّ الحركة**.
+         * والترتيب هو جوهر البند لا تفصيلاً فيه:
+         *
+         *  - بلا هذه القراءة أصلاً يبقى نصفُ العيب قائماً: بثٌّ فُتح وهو حيٌّ يظلّ
+         *    يُعدَّل إلى الأبد، لأن `resolve` لا تُنادى إلا حين `open === undefined`.
+         *    فرحلةٌ انتهت بطريقٍ لا يمرّ بـ`session_ended` تبقى خريطتها تتحرّك.
+         *
+         *  - وبعد **حدّ الحركة** — وهو ما جرّبناه أوّلاً — يبقى نصفُ النصف: سائقٌ
+         *    أُلغيت رحلته ثم أوقف سيّارته لا يتجاوز حدّ الحركة قطّ، فلا تُقرأ الحالة
+         *    أبداً وتبقى خريطة العميل حيّةً إلى انتهاء مدّة تلغرام. وأسقط ذلك
+         *    اختبارَ التكامل فعلاً، وهو ما نقل الفحص إلى هنا.
+         *
+         *  - وقبل **حدّ الزمن** يعني قراءةَ صفٍّ لكل إصلاحة (نحو واحدة في الثانية
+         *    لكل سائقٍ متتبَّع) — كلفةٌ بلا مقابل، لأن الغلق المتأخّر ثوانٍ قليلة
+         *    لا يضرّ أحداً.
+         *
+         * فالموضع الحالي يعني: قراءةٌ واحدة كل خمس ثوان لكل بثٍّ مفتوح على أكثر
+         * تقدير، وغلقٌ مضمونٌ ولو لم يتحرّك السائق مترا واحداً.
+         *
+         * وفحصُ السائق يُعاد هنا كذلك: إعادةُ إسنادٍ أثناء بثٍّ مفتوح كانت تُرسل
+         * موقعَ سائقٍ إلى عميلٍ لم يعد سائقَه.
+         */
+        const target = await deps.customers.resolve(tripId);
+        if (target === null || !isTripLive(target.status) || target.driverId !== event.driverId) {
+          log("tracking.live_location_closed_not_live", {
+            tripId,
+            status: target?.status ?? null,
+          });
+          await closeTrip(tripId);
+          return;
+        }
+
         /**
          * الخنق بشرطين معاً — زمنٍ **و**مسافة:
          *  - الزمن وحده يُرسل تعديلاً لسائقٍ واقفٍ في إشارة، فيُستهلك معدّل تلغرام
@@ -159,7 +223,6 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
          *  - المسافة وحدها تُرسل تعديلاً لكل قفزةٍ من ضجيج GPS في وقوفٍ طويل.
          * والاجتماع بينهما يعني: تعديلٌ حين تحرّك فعلاً، وبفاصلٍ محترم.
          */
-        if (nowMs - open.sentAtMs < minIntervalMs) return;
         const movedMeters =
           haversineKm(
             { latitude: open.lat, longitude: open.lng },

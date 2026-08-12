@@ -27,6 +27,7 @@ import {
   type LiveTrackingPort,
 } from "../../../packages/application/tracking/live-tracking.ts";
 import type { TranslationFailure } from "../../../packages/domain/i18n-translation/index.ts";
+import { DEFAULT_SESSION_POLICY } from "../../../packages/domain/tracking/session.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
   createDispatchRpc,
@@ -474,7 +475,27 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     channel: liveLocationChannel,
     customers: { resolve: (tripId) => trackingProofs.customerOf(tripId) },
     clock: systemClock,
-    livePeriodSeconds: TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
+    /**
+     * المرحلة ١١ — مدّةُ البثّ سقفُ الجلسة في المجال لا سقفُ تلغرام.
+     *
+     * `live_period` ليست إعداد جودة: هي مفتاحُ الرجل الميّت — الشيء الوحيد الذي
+     * يُغلق خريطة العميل حين لا يبلغ المرحّلَ حدثٌ آخر أبداً (انهيار البوّابة،
+     * موتُ تطبيق السائق، فشلُ كلّ تعديل). وكانت مضبوطةً على
+     * `TELEGRAM_MAX_LIVE_PERIOD_SECONDS` = ٢٤ ساعة، وهو خطأٌ تعريفيّ لا مجرّد
+     * سخاء: `DEFAULT_SESSION_POLICY.maxSessionSeconds` = ١٢ ساعة تعني أنّ أطول
+     * جلسة تتبّعٍ ممكنة نصفُ ذلك — فكان البثُّ يبقى «حيّاً» في هاتف العميل
+     * ضعفَ عمر الجلسة التي وُلد منها، ونقطةٌ مجمّدةٌ اثنتي عشرة ساعة أسوأ من
+     * خريطةٍ مغلقة: العميل يقرؤها موقعاً راهناً.
+     *
+     * والاشتقاق من سياسة المجال لا رقمٌ مكتوبٌ بيدٍ هنا: مصدرُ الحقيقة لعمر
+     * الجلسة واحد، ورقمٌ ثانٍ كان سينحرف عنه عند أوّل تعديل. وسقفُ تلغرام يبقى
+     * مستورداً لأن القناة تحصر القيمة فيه أصلاً — فالاشتقاق آمنٌ ولو رُفعت
+     * السياسة فوق اليوم.
+     */
+    livePeriodSeconds: Math.min(
+      DEFAULT_SESSION_POLICY.maxSessionSeconds,
+      TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
+    ),
     log,
   });
 
@@ -544,6 +565,10 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       counterpart: counterpartNotifier(driverSender),
     },
     language: languageDeps(riderSessions),
+    // المرحلة ١١: **نفس** المنفذ المُمرّر لبوت السائق لا نسخةٌ ثانية: جلسات التتبّع
+    // والبثّات المفتوحة حالةٌ في الذاكرة، ومنفذٌ ثانٍ فوقها يعني مُغلقاً يقرأ خريطة غير
+    // التي كتبتها إصلاحات السائق — فلا يُغلق شيئاً.
+    tracking: liveTracking,
   };
 
   return {

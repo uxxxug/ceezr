@@ -27,6 +27,17 @@ export interface CustomerChannelTarget {
   readonly riderTelegramId: string;
   readonly driverId: string;
   readonly riderLanguage: string;
+  /**
+   * المرحلة ١١: حالة الطلب تُعاد مع الوجهة لا في قراءةٍ ثانية.
+   *
+   * والسبب ليس توفيرَ نداء: قراءتان منفصلتان قد تريان لحظتين، فيُفتح
+   * بثٌّ لرحلةٍ قُرئت حيّةً ثم أُلغيت، أو يُرفض بثٌّ لرحلةٍ أُسندت بينهما. وهو
+   * نفس التعليل المكتوب في `ActiveOrderSummary.assignedDriver`.
+   *
+   * ولماذا `WatchedTripStatus` لا `string`؟ لأن المُستهلِك يمرّرها إلى `isTripLive`؛
+   * و`string` تجعل خطأً مطبعيّاً في حالةٍ يمرّ بلا صراخ، فيُقرأ «غير حيّ».
+   */
+  readonly status: WatchedTripStatus;
 }
 
 export interface TrackingProofReader {
@@ -99,10 +110,11 @@ export function createTrackingProofReader(sql: Sql): TrackingProofReader {
           telegram_id: string;
           language_code: string | null;
           assigned_driver_id: string | null;
+          status: string;
         }[]
       >`
         select o.id, o.rider_id, u.telegram_id::text as telegram_id,
-               u.language_code, o.assigned_driver_id
+               u.language_code, o.assigned_driver_id, o.status::text as status
           from orders o
           join riders r on r.id = o.rider_id
           join users u on u.id = r.user_id
@@ -117,6 +129,10 @@ export function createTrackingProofReader(sql: Sql): TrackingProofReader {
         riderTelegramId: row.telegram_id,
         driverId: row.assigned_driver_id,
         riderLanguage: row.language_code ?? "ar",
+        // نفس الإسقاط المستخدم في `proofOf` حرفيّاً: قيد `orders_status_check` في
+        // القاعدة و`WatchedTripStatus` في المجال يسردان نفس القيم، فالإسقاط يقرّر
+        // ما تضمنه القاعدة؛ وفحصٌ يدويٌّ هنا يكون سرداً ثالثاً ينحرف عنهما.
+        status: row.status as WatchedTripStatus,
       };
     },
   };

@@ -421,11 +421,32 @@ export interface OrderWriter {
  * ولا يُدرج هنا هاتف السائق ولا هويّته: الأول قناة تواصل تُدار من المنصّة لا
  * تُسلَّم نصّاً، والثانية لا تخرج من القاعدة إلى أي رسالة أبداً.
  */
+/** موضعٌ مقروء مع وقته — الوقت جزءٌ منه لا ملحقٌ به: موضعٌ بلا زمنٍ لا يُعرف أصادقٌ هو. */
+export interface TimestampedPoint {
+  readonly lat: number;
+  readonly lng: number;
+  /** وقت تسجيل الإصلاحة على جهاز السائق (`drivers.last_location_recorded_at`). */
+  readonly recordedAt: Date;
+}
+
 export interface AssignedDriverRef {
   readonly fullName: string;
   readonly vehicleType: string | null;
   readonly plateNumber: string | null;
   readonly vehiclePhotoFileId: string | null;
+  /**
+   * المرحلة ١١: موقع السائق القانوني كما كتبته `directories.updateLocation`
+   * (ADR-0015) — لا مصدرٌ ثانٍ ولا نسخةٌ في الذاكرة.
+   *
+   * ولماذا داخل `AssignedDriverRef` لا في `ActiveOrderSummary`؟ لأن الموقع وصفٌ
+   * للسائق لا للطلب، ووضعُه على الطلب يجعل حقلاً يُقرأ ولا سائق له في
+   * `searching` — فيُكتب له فحصٌ منفصلٌ قد يُنسى.
+   *
+   * `undefined` لا `null` في التوقيع: مساراتٌ قائمةٌ تبني هذا النوع بيدها
+   * (واختباراتٌ كثيرة) لا يصحّ أن تُكسَر لإضافة سطرٍ إلى `/status`؛
+   * و`null` تعني «لم يُرسل موقعاً قطّ» وهي حالةٌ حقيقيّة تُميَّز عن «لم يُقرأ».
+   */
+  readonly lastLocation?: TimestampedPoint | null;
 }
 
 export interface ActiveOrderSummary {
@@ -441,6 +462,16 @@ export interface ActiveOrderSummary {
    * `null` تعني «لا سائق بعد» وهي الحال الطبيعية في `searching`.
    */
   readonly assignedDriver?: AssignedDriverRef | null;
+  /**
+   * المرحلة ١١: نقطتا الطلب بإحداثيّاتهما لا بوسميهما وحدهما — لأن
+   * «كم يبعد سائقي؟» يحتاج مرجعاً يُقاس إليه، والوسم نصٌّ لا يُقاس.
+   *
+   * `pickup` غير قابلة للإعدام في القاعدة، ومع ذلك تُكتب اختياريّةً هنا: من يبني
+   * `ActiveOrderSummary` بيده في اختبارٍ لا يعنيه الموقع، وحقلٌ إلزاميٌّ يُوجِب
+   * تعديل عشرات المواضع لأجل سطرٍ واحد.
+   */
+  readonly pickup?: { readonly lat: number; readonly lng: number } | null;
+  readonly dropoff?: { readonly lat: number; readonly lng: number } | null;
 }
 
 /**
