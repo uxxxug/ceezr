@@ -25,7 +25,11 @@ import {
   parseCitySettings,
   subscriptionPriceFor,
 } from "../../domain/policy/entity.ts";
-import { isSubscriptionLive, type SubscriptionPlan } from "../../domain/subscription/entity.ts";
+import {
+  isSubscriptionLive,
+  type Subscription,
+  type SubscriptionPlan,
+} from "../../domain/subscription/entity.ts";
 import type { RoutingProvider } from "../../maps/core/index.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { CityId, Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
@@ -38,6 +42,8 @@ import {
   relayNegotiationMessage,
 } from "../dispatch/relay-negotiation-message.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import { cancelSubscription, resumeSubscription } from "../subscription/cancel-subscription.ts";
+import type { SubscriptionChangeRpcPort } from "../subscription/ports.ts";
 import type { DriverTripCardReader, DriverTripKey } from "../tracking/driver-trip-card.ts";
 import { driverTripCard } from "../tracking/driver-trip-card.ts";
 import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
@@ -170,6 +176,20 @@ export interface DriverBotDependencies {
    * فشلٍ أيضاً (`NOT_CONFIGURED` يُسكت عنه) — فالبطاقة تبقى كما كانت قبل المرحلة.
    */
   readonly routing?: RoutingProvider;
+  /**
+   * تغييرات الاشتراك — الإلغاء والتراجع عنه وترقية الخطّة (أمر المالك 2026-08-12).
+   *
+   * اختياريٌّ بنفس منطق `rating` و`tracking`: غيابه يعني أنّ أزرار التغيير لا
+   * تظهر في بطاقة `/subscription` أصلاً، لا أنّها تظهر ثمّ تفشل. ووصله في
+   * الحاوية ثابتٌ ويحميه اختبار تكامل على قاعدة حقيقية.
+   *
+   * ولماذا المنفذ الذرّي مباشرةً لا مستودعُ دفعٍ معه؟ لأنّ مسار الترقية
+   * المدفوعة في هذه المرحلة تحصيلٌ يدويّ عبر الدعم — لا مزوّد دفع مُعتمَد بعد
+   * (§1.3 من التوجيه) — فبطاقةُ الحوار تعرض الفرق المستحقّ من القاعدة نفسها
+   * ولا تُنشئ معاملةً لا سبيل لدفعها. والترقية داخل التجربة المجّانية تُطبَّق
+   * فوراً لأنّها بلا مقابل فعلاً.
+   */
+  readonly subscriptionChanges?: SubscriptionChangeRpcPort;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -687,6 +707,252 @@ async function liveSubscription(deps: DriverBotDependencies, driverId: DriverId)
   return isSubscriptionLive(found.value, deps.clock.now()) ? found.value : null;
 }
 
+/**
+ * تاريخٌ لم تُعِده القاعدة لا يُخترع ولا يُترك فارغاً في نصٍّ يقرأه السائق:
+ * الشرطة تقول «غير معروف» بلا إيهامٍ بيومٍ بعينه.
+ */
+const UNKNOWN_DATE = "—";
+
+/** التاريخ يوماً واحداً بلا ساعة — الساعة تُوهم السائق بدقّةٍ لا تخدمه في قرارٍ يوميّ. */
+function dayOf(at: Date): string {
+  return at.toISOString().slice(0, 10);
+}
+
+/**
+ * أزرار بطاقة الاشتراك. تُبنى من حالة الصفّ لا من ذاكرة الحوار: ما يُعرض على
+ * السائق هو ما في القاعدة لحظةَ العرض، فلا يظهر «إلغاء» لمن ألغى، ولا
+ * «ترقية» لمن هو على الخطّة الشاملة أصلاً.
+ */
+function subscriptionActionsKeyboard(
+  subscription: Subscription,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Keyboard | null {
+  if (deps.subscriptionChanges === undefined) return null;
+  const tr = t(languageOf(state));
+  const rows: { readonly label: string; readonly data: string }[][] = [];
+  // من طلب الإلغاء لا يُعرض عليه أن يزيد ما يدفع: يُقدَّم له التراجع أولاً،
+  // ثم تظهر الترقية في بطاقةٍ تالية. وعرضُ الاثنين معاً يبيع لمن يودّع.
+  if (subscription.plan !== "both" && !subscription.cancelAtPeriodEnd) {
+    rows.push([{ label: tr("driver.subscription_upgrade_button"), data: "sub:upgrade:both" }]);
+  }
+  rows.push(
+    subscription.cancelAtPeriodEnd
+      ? [{ label: tr("driver.subscription_resume_button"), data: "sub:resume" }]
+      : [{ label: tr("driver.subscription_cancel_button"), data: "sub:cancel" }],
+  );
+  return { kind: "inline", rows };
+}
+
+/**
+ * أزرار تغييرات الاشتراك — البادئة `sub`.
+ *
+ * ولا يُقرأ معرّف السائق من الزرّ ولا من نصّ الرسالة: العلاقة تُثبَت في الخادم
+ * من معرّف تلغرام، وإلا كان زرّاً منسوخاً كافياً لإلغاء اشتراك غيره.
+ */
+async function handleSubscriptionChange(
+  rest: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const changes = deps.subscriptionChanges;
+  if (changes === undefined) return [reply(sender, tr("common.unknown_command"))];
+
+  const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
+  if (!found.ok) return technicalFailure(sender, state);
+  const driver = found.value;
+  if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+
+  const [action, ...tail] = rest;
+  switch (action) {
+    case "cancel":
+      return tail[0] === "yes"
+        ? confirmCancellation(sender, state, driver, changes, deps)
+        : askCancellationConfirmation(sender, state, driver, deps);
+    case "resume":
+      return applyResume(sender, state, driver, changes);
+    case "upgrade":
+      return handleUpgradeButton(tail, sender, state, driver, changes);
+    default:
+      return [reply(sender, tr("common.unknown_command"))];
+  }
+}
+
+/**
+ * الإلغاء لا يقع بضغطةٍ واحدة: زرٌّ واحد بين السائق وبين توقّف رزقه خطرٌ لا
+ * يُبرّره اختصارُ خطوة، والخطوة الثانية تقول له بالنصّ ما يخسره ومتى.
+ */
+async function askCancellationConfirmation(
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const live = await liveSubscription(deps, driver.id);
+  const until = live === null ? null : (live.currentPeriodEnd ?? live.trialEndsAt);
+  if (until === null) {
+    return [reply(sender, tr("driver.subscription_change_no_live"), menu(state))];
+  }
+  return [
+    reply(sender, tr("driver.subscription_cancel_confirm", { until: dayOf(until) }), {
+      kind: "inline",
+      rows: [[{ label: tr("driver.subscription_cancel_confirm_button"), data: "sub:cancel:yes" }]],
+    }),
+  ];
+}
+
+async function confirmCancellation(
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  changes: SubscriptionChangeRpcPort,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const outcome = await cancelSubscription({ driverId: driver.id }, { changes });
+  if (!outcome.ok) {
+    return outcome.error.detail === "NO_LIVE_SUBSCRIPTION"
+      ? [reply(sender, tr("driver.subscription_change_no_live"), menu(state))]
+      : technicalFailure(sender, state);
+  }
+  const value = outcome.value;
+  // `serviceUntil` يكون فارغاً داخل التجربة المجّانية بلا دورة مدفوعة: يُقرأ
+  // حينها من نهاية التجربة، ولا يُخترع تاريخٌ لم تُعِده القاعدة.
+  const live = value.serviceUntil === null ? await liveSubscription(deps, driver.id) : null;
+  const until = value.serviceUntil ?? live?.trialEndsAt ?? null;
+  const params = { until: until === null ? UNKNOWN_DATE : dayOf(until) };
+  return [
+    reply(
+      sender,
+      value.alreadyCancelled
+        ? tr("driver.subscription_cancel_already", params)
+        : tr("driver.subscription_cancelled", params),
+      menu(state),
+    ),
+  ];
+}
+
+async function applyResume(
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  changes: SubscriptionChangeRpcPort,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const outcome = await resumeSubscription({ driverId: driver.id }, { changes });
+  if (!outcome.ok) {
+    return outcome.error.detail === "NO_LIVE_SUBSCRIPTION"
+      ? [reply(sender, tr("driver.subscription_change_no_live"), menu(state))]
+      : technicalFailure(sender, state);
+  }
+  return [
+    reply(
+      sender,
+      outcome.value.alreadyActive
+        ? tr("driver.subscription_resume_already")
+        : tr("driver.subscription_resumed"),
+      menu(state),
+    ),
+  ];
+}
+
+/**
+ * الترقية خطوتان: عرضُ سعرٍ يُقرأ من القاعدة، ثمّ تأكيد.
+ *
+ * والفرقُ المعروض لا يُحسب في هذه الطبقة أبداً: `plan_upgrade_quote` تقرأ
+ * `platform_settings`، فلا يختلف الرقمُ الذي يراه السائق عن الرقم الذي
+ * تتحقّق منه الترقية في القاعدة.
+ */
+async function handleUpgradeButton(
+  tail: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  changes: SubscriptionChangeRpcPort,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const confirmed = tail[0] === "confirm";
+  const planRaw = confirmed ? tail[1] : tail[0];
+  if (planRaw !== "both" && planRaw !== "transport" && planRaw !== "delivery") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const newPlan: SubscriptionPlan = planRaw;
+
+  const quoted = await changes.quoteUpgrade(driver.id, newPlan);
+  if (!quoted.ok) return technicalFailure(sender, state);
+  const quote = quoted.value;
+  if (!quote.ok) {
+    switch (quote.error) {
+      case "NO_LIVE_SUBSCRIPTION":
+        return [reply(sender, tr("driver.subscription_change_no_live"), menu(state))];
+      case "ALREADY_ON_PLAN":
+        return [
+          reply(sender, tr("driver.subscription_upgrade_already", { plan: newPlan }), menu(state)),
+        ];
+      case "PLAN_NOT_AN_UPGRADE":
+      case "UPGRADE_PRICE_NOT_HIGHER":
+        return [reply(sender, tr("driver.subscription_upgrade_not_available"), menu(state))];
+      default:
+        return technicalFailure(sender, state);
+    }
+  }
+
+  const until = quote.periodEnd === null ? UNKNOWN_DATE : dayOf(quote.periodEnd);
+
+  // المسار المدفوع: يُعرض الفرق ويُدَلّ على قناة التحصيل القائمة فعلاً (الدعم).
+  // ولا يُنشأ طلب دفعٍ من هنا: لا مزوّد دفع مُعتمَد بعد (§1.3 من التوجيه)،
+  // وإنشاء معاملةٍ معلّقة لا سبيل لدفعها يترك في القاعدة سجلّاً لا يُغلق.
+  if (quote.paymentRequired) {
+    const money = { amount: quote.amountDue, currency: quote.currency ?? "" };
+    return [
+      reply(
+        sender,
+        tr("driver.subscription_upgrade_quote_paid", { plan: newPlan, ...money, until }),
+      ),
+      reply(sender, tr("driver.subscription_upgrade_manual_payment", money), menu(state)),
+    ];
+  }
+
+  // المسار المجّاني (التجربة): بلا مقابل فعلاً، فيُطبَّق ذرّياً بعد تأكيدٍ صريح.
+  if (!confirmed) {
+    return [
+      reply(sender, tr("driver.subscription_upgrade_quote_free", { plan: newPlan }), {
+        kind: "inline",
+        rows: [
+          [
+            {
+              label: tr("driver.subscription_upgrade_confirm_button"),
+              data: `sub:upgrade:confirm:${newPlan}`,
+            },
+          ],
+        ],
+      }),
+    ];
+  }
+
+  const applied = await changes.applyUpgrade(driver.id, newPlan, null);
+  if (!applied.ok) return technicalFailure(sender, state);
+  const value = applied.value;
+  if (!value.ok) {
+    return value.error === "ALREADY_ON_PLAN"
+      ? [reply(sender, tr("driver.subscription_upgrade_already", { plan: newPlan }), menu(state))]
+      : technicalFailure(sender, state);
+  }
+  // داخل التجربة لا `current_period_end`، فتاريخ الانتهاء المعروض هو نهاية
+  // التجربة كما أعادها عرض السعر — لا تاريخٌ يُخترع هنا.
+  const appliedUntil = value.periodEnd === null ? until : dayOf(value.periodEnd);
+  return [
+    reply(
+      sender,
+      tr("driver.subscription_upgraded", { plan: value.plan ?? newPlan, until: appliedUntil }),
+      menu(state),
+    ),
+  ];
+}
+
 async function describeSubscription(
   sender: Sender,
   state: DialogState,
@@ -703,13 +969,14 @@ async function describeSubscription(
     subscription.currentPeriodEnd !== null &&
     isSubscriptionLive(subscription, deps.clock.now())
   ) {
+    const until = dayOf(subscription.currentPeriodEnd);
     return [
       reply(
         sender,
-        tr("driver.subscription_live", {
-          plan: subscription.plan,
-          until: subscription.currentPeriodEnd.toISOString().slice(0, 10),
-        }),
+        subscription.cancelAtPeriodEnd
+          ? tr("driver.subscription_cancel_pending", { plan: subscription.plan, until })
+          : tr("driver.subscription_live", { plan: subscription.plan, until }),
+        subscriptionActionsKeyboard(subscription, state, deps),
       ),
     ];
   }
@@ -842,6 +1109,9 @@ async function handleCallback(
       if (deps.rating === undefined) return [reply(sender, tr("common.unknown_command"))];
       return handleRatingCallback(data, sender, languageOf(state), deps.rating);
     }
+    // تغييرات الاشتراك: الإلغاء والتراجع عنه والترقية — أمر المالك 2026-08-12.
+    case "sub":
+      return handleSubscriptionChange(rest, sender, state, deps);
     case "sup": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
       const [action, ...tail] = rest;

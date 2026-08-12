@@ -49,6 +49,7 @@ function liveSub(cityId: CityId, plan: Subscription["plan"] = "both"): Subscript
     status: "active",
     trialEndsAt: null,
     currentPeriodEnd: FUTURE,
+    cancelAtPeriodEnd: false,
   };
 }
 

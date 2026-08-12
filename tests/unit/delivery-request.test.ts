@@ -125,6 +125,7 @@ function candidate(
       status: "trialing",
       trialEndsAt: new Date(NOW.getTime() + 86_400_000),
       currentPeriodEnd: null,
+      cancelAtPeriodEnd: false,
     },
   };
 }

@@ -1,0 +1,201 @@
+================================================================================
+دليل بوّابة: إلغاء الاشتراك وترقية الخطّة — من الفجوة الصامتة إلى مسارٍ يعمل
+التاريخ: 2026-08-12 | الفرع: feat/final-launch-hardening | الأصل: main @ 5ac3445
+الأمر الحاكم: WASLAH-FINAL-UNIFIED-DIRECTIVE.md (§1.2, §7, §9, §10.3, §11, §14)
+قرار المالك المُنفَّذ: «أنجزهما فعلاً» — لا توثيق فجوة، بل تنفيذٌ مُختبَر.
+================================================================================
+
+البيئة الحرفية
+--------------
+bun 1.3.14 (0d9b296a)
+PostgreSQL 18.4 + PostGIS 3.6.4 (محليّاً، لا محاكاة)
+TEST_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5432/waslah_fresh
+DATABASE_URL=نفسها
+node/python: python3 لـ scripts/audit-plpgsql.py، وبرامج pg على PATH
+
+--------------------------------------------------------------------------------
+١) ما كانت عليه الحال (البوّابة B — الجرد الجنائي)
+--------------------------------------------------------------------------------
+`packages/application/subscription/cancel-subscription.ts` و`upgrade-plan.ts`
+كانا `export {}` بترويسةٍ تُعلن التنفيذ. الأثر العملي: سائقٌ لا يملك طريقاً
+لإلغاء اشتراكه بنفسه، ولا طريقاً لترقية خطّته. وهذه هي الفجوة الصامتة الوحيدة
+التي أخرجها جردُ الملفّات الـ246.
+
+--------------------------------------------------------------------------------
+٢) ما بُني (كلّه مُختبَر على قاعدة حقيقية)
+--------------------------------------------------------------------------------
+قاعدة البيانات — supabase/migrations/20260812130000_subscription_cancel_and_upgrade.sql
+  • request_subscription_cancellation / resume_subscription
+  • plan_upgrade_quote / upgrade_plan
+  • أعمدة: cancel_at_period_end, cancellation_requested_at, cancellation_reason
+  • CHECK subscriptions_cancellation_coherent
+  • فهرس جزئي subscriptions_cancel_pending_idx
+  • إعداد subscription_period_days (كانت مدّة الدورة المدفوعة تُقرأ من trial_days)
+  • confirm_payment تُدرك الترقية وتتحقّق من metadata قبل أي تفعيل
+  • CHECK platform_settings_value_type_coherent مع إصلاحٍ قبل التقييد
+
+قاعدة البيانات — supabase/migrations/20260812150000_capabilities_follow_plan.sql
+  • services_covered_by_plan / sync_driver_capabilities_to_plan
+  • تُنادى من start_trial و activate_subscription و upgrade_plan داخل ذرّيتها
+  • إصلاح بيانات لما مضى + تسجيله في audit_log
+
+التطبيق والبنية التحتية
+  • packages/application/subscription/{cancel-subscription,upgrade-plan}.ts (تنفيذ فعلي)
+  • packages/application/subscription/ports.ts
+  • packages/infrastructure/subscription/subscription-change-adapters.ts
+  • apps/gateway/src/container.ts: subscriptionChanges موصولٌ فعلاً
+  • packages/application/bots/driver-dialog.ts: أزرار إلغاء/تراجع/ترقية بتأكيدٍ من خطوتين
+  • 18 مفتاح ترجمة × 3 قواميس (307 مفتاحاً لكل قاموس، check-i18n أخضر)
+
+لا حذف: 779 ملفاً متتبَّعاً في خطّ الأساس → 788 الآن. الملفّات الهيكلية
+المُستبدلة بُقيت وأُشير في ترويستها إلى موضع التنفيذ الحقيقي (§1.1).
+
+--------------------------------------------------------------------------------
+٣) قرارات تجارية صريحة (§1.2: لا قيمة تجارية في الكود)
+--------------------------------------------------------------------------------
+• الإلغاء = إلغاءٌ في نهاية الدورة، لا قطعٌ فوري. لا بنية استرداد
+  (docs/MASTER_DIRECTIVE.md:95)، وقطعُ خدمةٍ مدفوعة سلبٌ بلا ردّ.
+• الترقية = تغييرُ خطّةٍ في مكانها؛ current_period_end لا يُمَسّ.
+• الأسعار كلّها من platform_settings عبر get_setting_number — لا رقم في الكود.
+• التقسيط الزمنيّ (proration) غير مُنفَّذ عن قصد: ينتظر سياسة المالك.
+• الترقية المدفوعة لا تُنشئ معاملة دفع: لا مزوّد دفع مُعتمَد (§1.3)، ومعاملةٌ
+  معلّقة لا يستطيع أحدٌ دفعها تترك صفّاً لا يُغلق. تُعرض قيمة الفرق المحسوبة
+  من القاعدة ويُوجَّه السائق إلى «مشكلة اشتراك» في /support — القناة العاملة اليوم.
+
+--------------------------------------------------------------------------------
+٤) عطوبٌ حقيقية كشفها التشغيل لا القراءة (§10.3: إصلاح السبب لا الاختبار)
+--------------------------------------------------------------------------------
+[١] فقدانُ إيرادٍ في مسارٍ إنتاجي قائم — payment-adapters.ts:77
+    كان يمرّر ${JSON.stringify(metadata)}::jsonb، فيُعيد postgres.js ترميزه:
+    payment_transactions.metadata مخزَّن بنوع jsonb = string (4 من 4 صفوف).
+    فتقرأ confirm_payment metadata->>'plan' فتجد NULL فتقع على
+    coalesce(..., 'both'): كلّ من دفع ٢٥٠ ريالاً لخطّة «نقل» كان يُفعَّل له ما
+    ثمنه ٤٠٠. أُعيد إنتاجه حيّاً على القاعدة. أُصلح الطرفان: sql.json في
+    المحوّل، وإزالة الافتراض من الدالّة مع رموز صريحة
+    (TRANSACTION_METADATA_NOT_OBJECT / _MISSING_PLAN / _UNKNOWN_PLAN) وإبقاء
+    المعاملة pending بدل تفعيلٍ مخطوء.
+
+[٢] عطبٌ في أوّل نسخة كتبتُها — Money.amount بالوحدات الصغرى
+    (packages/domain/financial/entity.ts:41). كانت ستطالب بـ1.5 ريالاً بدل ١٥٠.
+    أُصلح بـ toMinorUnits ويحرسه اختبار.
+
+[٣] عطبٌ في المخطَّط — platform_settings بلا قيدِ تطابق نوع.
+    صفّان فاسدان فعلاً: trial_days في جِدّة نصٌّ مزدوج التلفيف (SQLSTATE 22P02)،
+    وdriver_location_max_age_seconds = "0". السبب أنّ get_setting_number
+    ((v #>> '{}')::numeric) يتحمّل طبقة تلفيفٍ واحدة صامتاً وينفجر بطبقتين.
+    الهجرة تُصلح ثمّ تُقيّد، وأُثبتت أسنانُ القيد برفض '"5"'::jsonb.
+
+[٤] الترقية كانت اسميّة لا فعليّة (كُشف بهذه الدفعة، وأصلُه أقدم من الفرع)
+    أهليّة الإسناد تشترط أمرين (packages/domain/dispatch/entity.ts:184-186):
+    قدرةً مُفعَّلة في driver_capabilities، وخطّةً سارية تغطّي الخدمة. و
+    driver_capabilities لم يكن يُكتب إلا مرّةً واحدة عند التسجيل
+    (packages/infrastructure/identity/directories.ts:137)، ولا تمسّه أيُّ دالّة
+    اشتراك. فمن رقّى إلى الشاملة يدفع ٤٠٠ ريالاً ويُرفض بـSERVICE_NOT_ENABLED
+    ولا يصله عرضُ توصيلٍ واحد أبداً. والعطب يشمل مسار activate_subscription
+    القائم قبل هذا الفرع.
+    الإصلاح في القاعدة لا في التطبيق: sync_driver_capabilities_to_plan تُنادى
+    داخل المعاملة نفسها في start_trial و activate_subscription و upgrade_plan.
+    تفعيلٌ فقط بلا إطفاء (الإطفاء يُتلف خياراً اختاره السائق، وفحص الاشتراك
+    كافٍ للمنع). وأُصلحت البيانات القائمة: 20 قدرة على 14 سائقاً، بسطر تدقيق
+    driver.capabilities_synced_to_plan لكلٍّ منهم.
+
+[٥] عطبٌ سلوكيّ في بطاقة /subscription كشفه اختبار الوحدة: كان زرّ الترقية
+    يُعرض لسائقٍ طلب الإلغاء. لا يُعرض على المُودِّع أن يزيد ما يدفع.
+
+--------------------------------------------------------------------------------
+٥) حقائق صحّحها التشغيل (كانت افتراضاتي، لا افتراضات الكود)
+--------------------------------------------------------------------------------
+• التسجيل نفسه يبدأ التجربة (driver-dialog.ts:1429)، فحالة «لا اشتراك سارٍ»
+  لا تُصنع بغيابه بل بانتهائه. صُحِّح الاختبار ليصنعها بالانتهاء.
+• activate_subscription تُنهي الصفّ السابق وتُدخل صفّاً جديداً، فعددُ الصفوف
+  اثنان بحقّ؛ الحصر الصحيح على الصفوف السارية لا على كلّها.
+• expire-subscriptions.ts منفَّذٌ بالكامل. الفجوة المعلنة الباقية الوحيدة هي
+  renew-subscription.ts: لا دالّة renew_subscription رغم MASTER_DIRECTIVE:35.
+
+--------------------------------------------------------------------------------
+٦) إثبات الحساسية — أنّ الاختبارات تُسقط العطب فعلاً (§11)
+--------------------------------------------------------------------------------
+أ) عطبا metadata و minor-units أُعيد إدخالهما (نسخ /tmp/pa.bak و /tmp/up.bak):
+   $ bun test tests/unit/subscription-changes.test.ts        → 10 pass / 1 fail
+   $ bun test tests/integration/subscription-cancel-upgrade  → 11 pass / 6 fail
+     (الترقية المدفوعة، الويبهوك المكرَّر، مدّة الدورة، وثلاثة اختبارات metadata)
+   بعد الاستعادة:                                            → 11/0 و 17/0
+
+ب) مواءمة القدرات مُعطَّلة (استُبدلت الدالّة بـ`select 0`):
+   $ bun test tests/integration/subscription-cancel-upgrade.test.ts
+      19 pass
+      3 fail
+      89 expect() calls
+      Ran 22 tests across 1 file. [204.00ms]
+   ثمّ أُعيدت الهجرة:
+      22 pass
+      0 fail
+      91 expect() calls
+      Ran 22 tests across 1 file. [194.00ms]
+   NOTICE: مُوائمة القدرات: 20 قدرة على 14 سائقاً
+
+--------------------------------------------------------------------------------
+٧) نتائج التشغيل الكامل (حرفياً، من بيئةٍ فيها قاعدة حقيقية)
+--------------------------------------------------------------------------------
+$ bun run lint
+Checked 643 files in 942ms. No fixes applied.
+Found 11 infos.
+exit=0
+  (الـ11 كلّها useLiteralKeys مقصودة على مفاتيح قواميس، لا تُخفى ولا تُسكَت)
+
+$ bun run typecheck
+$ tsc --noEmit
+exit=0
+
+$ bun test          # مع TEST_DATABASE_URL و DATABASE_URL على PostgreSQL+PostGIS
+ 1498 pass
+ 0 fail
+ 5457 expect() calls
+Ran 1498 tests across 104 files. [42.01s]
+exit=0
+  (كانت 1455 قبل هذه البوّابة: +43 اختباراً جديداً، ولا اختبار حُذف ولا تُخطّي)
+
+$ bun test tests/unit/driver-dialog.test.ts
+ 74 pass / 0 fail / 169 expect()
+
+$ bun test tests/integration/subscription-dialog-changes.test.ts \
+           tests/integration/subscription-cancel-upgrade.test.ts
+ 27 pass / 0 fail   (ثمّ 22/0 للملفّ الثاني وحده بعد إضافة اختبارات القدرات)
+
+الحرّاس الخمسة وسكربتات التزامن:
+check-business-constants         exit=0
+check-migrations                 exit=0     (كان أحمر على main: جدولان بلا city_id)
+check-i18n                       exit=0     (307 مفاتيح متطابقة في 3 قواميس)
+check-agent-core-isolation       exit=0
+check-map-matching-scope         exit=0
+audit-plpgsql.py                 exit=0
+race-subscription-changes        exit=0     ✅ كل السباقات سليمة (3 سباقات × 30 متزامناً)
+race-login-code                  exit=0
+
+$ git grep -n "In production this would" -- '*.ts' | wc -l
+0
+
+$ git ls-files | wc -l
+788        (خطّ الأساس 779 — لا حذف، §14)
+
+--------------------------------------------------------------------------------
+٨) ما لم يُنفَّذ، ويُعلَن صريحاً بلا تجميل (§17)
+--------------------------------------------------------------------------------
+• التقسيط الزمنيّ للترقية: بانتظار سياسة المالك.
+• admin_apply_manual_upgrade: صُمِّم ولم يُبنَ. اليوم يعتمد المسار الإداري على
+  activate_subscription التي تختار الخطّة من أحدث صفٍّ للسائق ولا تأخذ معامل
+  خطّة — فترقيةٌ مدفوعة يُطبّقها الدعم تتوقّف على هذا السلوك.
+• resolve_support_ticket action=terminate يُحدّث status='cancelled' مباشرةً،
+  فيتجاوز مسارَ الإلغاء في نهاية الدورة ويترك cancel_at_period_end كما هو.
+  القيد يتحمّله (لا انكسار) والتفاعل غير مُختبَر بعد.
+• سائقٌ trialing بـcurrentPeriodEnd = null يقع على driver.subscription_none
+  في describeSubscription: تجربتُه حقيقية والبطاقة تقول لا اشتراك. مساعدات
+  الإلغاء/الترقية تتراجع إلى trialEndsAt، والبطاقة نفسها لم تُمَسّ بعد.
+• الاختبارات تُعدّل ملفّات runtime_agent/ المتتبَّعة: الصحيح أن تُعيَّن
+  AGENT_CORE_RUNTIME_ROOT إلى مجلّد مؤقّت. تُستعاد بـgit checkout قبل التثبيت.
+• تفعيل المدن: على قاعدةٍ نظيفة المدنُ الخمس is_active=false ومعرّفات مجموعات
+  تلغرام NULL، والقيد cities_active_requires_groups يمنع التفعيل حتى تكون
+  المعرّفات الثلاثة لكل مدينة غير فارغة ومتمايزة وغير صفرية: أي ١٥ معرّفاً
+  حقيقياً يجب أن تأتي من المالك. لم يُخترَع منها شيء.
+
+================================================================================

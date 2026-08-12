@@ -64,6 +64,7 @@ function liveSub(driverId: DriverId, plan: Subscription["plan"] = "both"): Subsc
     status: "active",
     trialEndsAt: null,
     currentPeriodEnd: FUTURE,
+    cancelAtPeriodEnd: false,
   };
 }
 

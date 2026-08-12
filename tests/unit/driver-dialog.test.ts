@@ -31,6 +31,7 @@ import {
   JEDDAH,
   MAKKAH,
   offerDecisionPort,
+  subscriptionChangePort,
   subscriptionReader,
   trialPort,
   verifiedDriver,
@@ -812,5 +813,278 @@ describe("المنطقة المفضّلة للسائق", () => {
   it("‏/area لغير المسجَّل يردّ بطلب التسجيل لا بفتح خطوة بلا صاحب", async () => {
     const opened = await handleDriverUpdate(text("/area"), deps);
     expect(opened[0]?.text).toBe(ar("driver.must_register_first"));
+  });
+});
+
+/**
+ * تغييرات الاشتراك من بطاقة `/subscription` — أمر المالك 2026-08-12.
+ *
+ * ولماذا اختبار الحوار وقد اختُبرت الدوالّ الذرّية على قاعدة حقيقية؟ لأنّ
+ * السائق لا يُنادي دالّةً: يضغط زرّاً. وبين الزرّ والدالّة أسئلةٌ لا تجيب عنها
+ * اختبارات القاعدة: أيظهر «إلغاء» لمن ألغى؟ أيقع الإلغاء بضغطةٍ واحدة؟
+ * أيُنشئ المسار المدفوع معاملةً لا سبيل لدفعها؟
+ */
+describe("تغييرات الاشتراك من بطاقة /subscription", () => {
+  const liveSub = (overrides: Partial<Subscription> = {}): Subscription => ({
+    driverId: "driver-1" as DriverId,
+    cityId: JEDDAH.id,
+    plan: "transport",
+    status: "active",
+    trialEndsAt: null,
+    currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z"),
+    cancelAtPeriodEnd: false,
+    ...overrides,
+  });
+
+  function withChanges(
+    subscription: Subscription,
+    changes: ReturnType<typeof subscriptionChangePort>,
+  ): DriverBotDependencies {
+    return build({
+      drivers: driverDirectory(verifiedDriver()),
+      subscriptions: subscriptionReader(subscription),
+      subscriptionChanges: changes,
+    });
+  }
+
+  it("يعرض زرّي الترقية والإلغاء على اشتراك سارٍ غير مُلغى", async () => {
+    const replies = await handleDriverUpdate(
+      text("/subscription"),
+      withChanges(liveSub(), subscriptionChangePort()),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [{ label: ar("driver.subscription_upgrade_button"), data: "sub:upgrade:both" }],
+        [{ label: ar("driver.subscription_cancel_button"), data: "sub:cancel" }],
+      ],
+    });
+  });
+
+  it("لا يعرض زرّ ترقية لمن هو على الخطّة الشاملة", async () => {
+    const replies = await handleDriverUpdate(
+      text("/subscription"),
+      withChanges(liveSub({ plan: "both" }), subscriptionChangePort()),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [[{ label: ar("driver.subscription_cancel_button"), data: "sub:cancel" }]],
+    });
+  });
+
+  it("يعرض للمُلغي أنّ خدمته مستمرّة، وزرّ تراجعٍ لا زرّ إلغاءٍ ثانٍ", async () => {
+    const replies = await handleDriverUpdate(
+      text("/subscription"),
+      withChanges(liveSub({ cancelAtPeriodEnd: true }), subscriptionChangePort()),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_cancel_pending", { plan: "transport", until: "2026-09-01" }),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [[{ label: ar("driver.subscription_resume_button"), data: "sub:resume" }]],
+    });
+  });
+
+  it("بلا منفذ تغييرات: بطاقة بلا أزرار — لا زرٌّ يظهر ثمّ يفشل", async () => {
+    const replies = await handleDriverUpdate(
+      text("/subscription"),
+      build({
+        drivers: driverDirectory(verifiedDriver()),
+        subscriptions: subscriptionReader(liveSub()),
+      }),
+    );
+    expect(replies[0]?.keyboard).toBeNull();
+    const pressed = await handleDriverUpdate(
+      callback("sub:cancel"),
+      build({ drivers: driverDirectory(verifiedDriver()) }),
+    );
+    expect(pressed[0]?.text).toBe(ar("common.unknown_command"));
+  });
+
+  it("الضغطة الأولى تسأل التأكيد ولا تُلغي شيئاً", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_cancel_confirm", { until: "2026-09-01" }),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [[{ label: ar("driver.subscription_cancel_confirm_button"), data: "sub:cancel:yes" }]],
+    });
+    expect(changes.calls.cancels).toEqual([]);
+  });
+
+  it("التأكيد يُنادي المنفذ مرّةً ويُبلّغ بتاريخ آخر خدمة", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      withChanges(liveSub(), changes),
+    );
+    expect(changes.calls.cancels.length).toBe(1);
+    expect(replies[0]?.text).toBe(ar("driver.subscription_cancelled", { until: "2026-09-01" }));
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+  });
+
+  it("طلب إلغاءٍ مكرَّر ليس خطأً: يُقال إنّه مسجَّل سابقاً", async () => {
+    const changes = subscriptionChangePort({ cancel: { alreadyCancelled: true } });
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      withChanges(liveSub({ cancelAtPeriodEnd: true }), changes),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_cancel_already", { until: "2026-09-01" }),
+    );
+  });
+
+  it("رفض القاعدة «لا اشتراك سارٍ» يُترجَم نصّاً مفهوماً لا عطلاً تقنياً", async () => {
+    const changes = subscriptionChangePort({
+      cancel: { ok: false, error: "NO_LIVE_SUBSCRIPTION", subscriptionId: null },
+    });
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_change_no_live"));
+  });
+
+  it("عطل المنفذ لا يُبتلع: يُقال عطلٌ تقنيّ ولا يُدّعى نجاح", async () => {
+    const changes = subscriptionChangePort({ failOn: "cancel" });
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("common.error_try_again"));
+  });
+
+  it("التراجع عن الإلغاء يُنادي resume ويُبلّغ باستمرار الاشتراك", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:resume"),
+      withChanges(liveSub({ cancelAtPeriodEnd: true }), changes),
+    );
+    expect(changes.calls.resumes.length).toBe(1);
+    expect(replies[0]?.text).toBe(ar("driver.subscription_resumed"));
+  });
+
+  it("تراجعٌ عن اشتراكٍ غير مُلغى: يُقال لا طلب إلغاء", async () => {
+    const changes = subscriptionChangePort({ resume: { alreadyActive: true } });
+    const replies = await handleDriverUpdate(
+      callback("sub:resume"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_resume_already"));
+  });
+
+  it("الترقية المدفوعة تعرض الفرق من القاعدة ولا تُطبّق شيئاً ولا تُنشئ معاملة", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:both"),
+      withChanges(liveSub(), changes),
+    );
+    expect(changes.calls.quotes).toEqual([{ driverId: "driver-1" as DriverId, plan: "both" }]);
+    expect(changes.calls.upgrades).toEqual([]);
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_upgrade_quote_paid", {
+        plan: "both",
+        amount: 150,
+        currency: "SAR",
+        until: "2026-09-01",
+      }),
+    );
+    expect(replies[1]?.text).toBe(
+      ar("driver.subscription_upgrade_manual_payment", { amount: 150, currency: "SAR" }),
+    );
+  });
+
+  it("داخل التجربة المجانية: عرضٌ بلا مقابل ثمّ تأكيدٌ يُطبّق الترقية ذرّياً", async () => {
+    const trialQuote = {
+      quote: {
+        amountDue: 0,
+        paymentRequired: false,
+        status: "trialing" as const,
+        periodEnd: new Date("2026-08-20T00:00:00.000Z"),
+      },
+    };
+    const changes = subscriptionChangePort(trialQuote);
+    const trialing = liveSub({
+      status: "trialing",
+      trialEndsAt: new Date("2026-08-20T00:00:00.000Z"),
+    });
+
+    const shown = await handleDriverUpdate(
+      callback("sub:upgrade:both"),
+      withChanges(trialing, changes),
+    );
+    expect(shown[0]?.text).toBe(ar("driver.subscription_upgrade_quote_free", { plan: "both" }));
+    expect(shown[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [
+          {
+            label: ar("driver.subscription_upgrade_confirm_button"),
+            data: "sub:upgrade:confirm:both",
+          },
+        ],
+      ],
+    });
+    expect(changes.calls.upgrades).toEqual([]);
+
+    const applied = await handleDriverUpdate(
+      callback("sub:upgrade:confirm:both"),
+      withChanges(trialing, changes),
+    );
+    expect(changes.calls.upgrades).toEqual([
+      { driverId: "driver-1" as DriverId, plan: "both", transactionId: null },
+    ]);
+    expect(applied[0]?.text).toBe(
+      ar("driver.subscription_upgraded", { plan: "both", until: "2026-08-20" }),
+    );
+  });
+
+  it("خطّةٌ ليست ترقية: يُقال لا ترقية متاحة ولا تُنادى upgrade_plan", async () => {
+    const changes = subscriptionChangePort({
+      quote: { ok: false, error: "PLAN_NOT_AN_UPGRADE", subscriptionId: null },
+    });
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:delivery"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_upgrade_not_available"));
+    expect(changes.calls.upgrades).toEqual([]);
+  });
+
+  it("من هو على الخطّة أصلاً: يُقال ذلك بلا ترقيةٍ ثانية", async () => {
+    const changes = subscriptionChangePort({
+      quote: { ok: false, error: "ALREADY_ON_PLAN", subscriptionId: null },
+    });
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:both"),
+      withChanges(liveSub({ plan: "both" }), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_upgrade_already", { plan: "both" }));
+  });
+
+  it("زرّ خطّةٍ مجهولة يُرفض ولا يمسّ القاعدة", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:premium"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("common.unknown_command"));
+    expect(changes.calls.quotes).toEqual([]);
+  });
+
+  it("غير المسجَّل لا يُلغي اشتراكاً: يُطلب منه التسجيل أولاً", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      build({ drivers: driverDirectory(null), subscriptionChanges: changes }),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.must_register_first"));
+    expect(changes.calls.cancels).toEqual([]);
   });
 });

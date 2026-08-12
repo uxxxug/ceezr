@@ -93,6 +93,7 @@ import {
   createSubscriptionReader,
   createTrialRpc,
 } from "../../../packages/infrastructure/subscription/subscription-adapters.ts";
+import { createSubscriptionChangeRpc } from "../../../packages/infrastructure/subscription/subscription-change-adapters.ts";
 import {
   createTrackingEventBus,
   type TrackingEventBus,
@@ -594,6 +595,10 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     settings,
     subscriptions: createSubscriptionReader(sql),
     trial: createTrialRpc(sql),
+    // تغييرات الاشتراك (أمر المالك 2026-08-12): الإلغاء آخرَ الدورة، والتراجع
+    // عنه، وترقية الخطّة. المنفذ نفسه الذي تختبره اختبارات التكامل على قاعدة
+    // حقيقية — لا نسخةٌ ثانية بسلوكٍ ثانٍ.
+    subscriptionChanges: createSubscriptionChangeRpc(sql),
     dispatch: createDispatchRpc(sql),
     offers: createOfferDecisionPort(sql),
     clock: systemClock,

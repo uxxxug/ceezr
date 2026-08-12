@@ -453,6 +453,7 @@ describe("المطابقة بعد الإنشاء", () => {
               status: "active",
               trialEndsAt: null,
               currentPeriodEnd: new Date(NOW.getTime() + 86_400_000),
+              cancelAtPeriodEnd: false,
             },
           },
         ]),

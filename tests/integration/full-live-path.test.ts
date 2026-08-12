@@ -196,6 +196,7 @@ describe("e2e: المسار الحيّ الكامل", () => {
           status: "active",
           trialEndsAt: null,
           currentPeriodEnd: new Date("2026-09-10T15:00:00Z"),
+          cancelAtPeriodEnd: false,
         },
         new Date("2026-08-11T15:00:00Z"),
       ),

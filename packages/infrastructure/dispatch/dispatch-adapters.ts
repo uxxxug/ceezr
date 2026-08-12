@@ -52,6 +52,7 @@ interface CandidateRow {
   readonly sub_status: string | null;
   readonly sub_trial_ends_at: Date | null;
   readonly sub_current_period_end: Date | null;
+  readonly sub_cancel_at_period_end: boolean | null;
 }
 
 function toCandidate(row: CandidateRow): DriverCandidate {
@@ -73,6 +74,7 @@ function toCandidate(row: CandidateRow): DriverCandidate {
           status: row.sub_status as SubscriptionStatus,
           trialEndsAt: row.sub_trial_ends_at,
           currentPeriodEnd: row.sub_current_period_end,
+          cancelAtPeriodEnd: row.sub_cancel_at_period_end === true,
         };
   return {
     driverId,
@@ -146,7 +148,8 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  s.plan as sub_plan,
                  s.status as sub_status,
                  s.trial_ends_at as sub_trial_ends_at,
-                 s.current_period_end as sub_current_period_end
+                 s.current_period_end as sub_current_period_end,
+                 s.cancel_at_period_end as sub_cancel_at_period_end
             from drivers d
             join users u on u.id = d.user_id
             left join driver_availability a on a.driver_id = d.id
