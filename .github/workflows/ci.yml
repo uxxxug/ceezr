@@ -71,6 +71,9 @@ jobs:
       - name: عزل طبقة الذكاء الاصطناعي — اتجاه اعتماد واحد
         run: bun run scripts/check-agent-core-isolation.ts
 
+      - name: حدّ النطاق — مطابقة المسار خارج الإصدار (ADR 0025)
+        run: bun run scripts/check-map-matching-scope.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
