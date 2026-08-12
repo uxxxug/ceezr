@@ -32,9 +32,11 @@
 import {
   acceptsFixes,
   DEFAULT_SESSION_POLICY,
+  type DriverDutyState,
   recordFix,
   type SessionEndReason,
   type SessionPolicy,
+  sessionShouldRun,
   type TrackingSessionFacts,
 } from "../../domain/tracking/session.ts";
 import type { TrackingEvent, TrackingEventPublisher } from "../../tracking/index.ts";
@@ -69,6 +71,16 @@ export interface LiveTrackingPort {
   onFix(fix: StoredFix): Promise<void>;
   /** يُستدعى بعد نجاح إنهاء/إلغاء الرحلة. لا يرمي أبداً. */
   onTripEnded(tripId: string, reason: SessionEndReason): Promise<void>;
+  /**
+   * المرحلة ١٢ — يُستدعى بعد نجاح إخراج السائق من الإتاحة. لا يرمي أبداً.
+   *
+   * ولماذا نداءٌ صريح مع أنّ `onFix` تفحص الخدمة أصلاً؟ لأن السائق الذي يخرج من
+   * الخدمة قد لا يُرسل إصلاحةً أخرى أبداً — وهو الغالب: يضغط الزرّ ويُغلق التطبيق.
+   * فلو كان الإغلاق معلّقاً على إصلاحةٍ تالية لبقيت جلستُه مفتوحةً إلى السقف
+   * الزمني، وهو نفس العيب المقيس. والفحص في `onFix` يمنع **العودة**، وهذا النداء
+   * يُنهي **الحاضر**؛ ولا يكفي أحدهما وحده.
+   */
+  onDutyEnded(driverId: string): Promise<void>;
 }
 
 /**
@@ -84,10 +96,24 @@ export interface ActiveTripReader {
   activeTripOf(driverId: string): Promise<string | null>;
 }
 
+/**
+ * قارئ حالة الخدمة. منفصلٌ عن `ActiveTripReader` لأن سؤاله مختلف: ذاك يسأل
+ * «أيّ رحلة؟» وهذا يسأل «أفي الخدمة؟» — ودمجهما كان سيُجبر كل مستهلكٍ لأحدهما
+ * على تنفيذ الآخر.
+ */
+export interface DriverDutyReader {
+  isOnDuty(driverId: string): Promise<boolean>;
+}
+
 export interface LiveTrackingDeps {
   readonly sessions: TrackingSessionStore;
   readonly publisher: TrackingEventPublisher;
   readonly trips: ActiveTripReader;
+  /**
+   * إلزاميّ لا اختياريّ بقصد: لو كان اختيارياً لكان نسيانُه في الحاوية يُعيد
+   * العيب صامتاً في الإنتاج، والاختبارات خضراء. فالمُترجِم هو من يمنع النسيان.
+   */
+  readonly duty: DriverDutyReader;
   readonly clock: { now(): Date };
   readonly policy?: SessionPolicy;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
@@ -112,6 +138,30 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
 
   const publish = async (event: TrackingEvent): Promise<void> => {
     await deps.publisher.publish(event);
+  };
+
+  /**
+   * إغلاقٌ بمعرّف السائق مع إعلان الحدث. موحّدٌ لأن للإغلاق في المرحلة ١٢
+   * موضعان (خروجٌ صريح، وإصلاحةٌ من خارج الخدمة)، وإغلاقٌ بلا حدث يترك
+   * رسالة الموقع الحيّ تدور على جهاز العميل والصفّ على خريطة العمليات —
+   * أي إغلاقٌ في الجدول وحده، وهو أسوأ من لا إغلاق: عيبٌ يُرى مغلقاً في القاعدة.
+   */
+  const closeAndAnnounce = async (
+    driverId: string,
+    tripId: string | null,
+    reason: SessionEndReason,
+    nowMs: number,
+  ): Promise<void> => {
+    const closed = await deps.sessions.close(driverId, reason, nowMs);
+    if (closed === null) return;
+    await publish({
+      type: "session_ended",
+      driverId,
+      tripId,
+      position: null,
+      timestamp: new Date(nowMs),
+      metadata: { reason },
+    });
   };
 
   /**
@@ -169,6 +219,29 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
         const nowMs = deps.clock.now().getTime();
 
         /**
+         * المرحلة ١٢ — بوّابة الخدمة **قبل** فتح الجلسة لا بعدها.
+         *
+         * الموقع القانوني حُفِظ قبل الوصول إلى هنا (ADR-0015)، ولا يُمسّ. والذي
+         * يُمنع هو **الجلسة والبثّ**: أي أن يُعرض سائقٌ خارج الخدمة على خريطة
+         * العمليات حيّاً، أو أن يُراقب موقعه وهو في وقته الخاص.
+         *
+         * والفرق مقصود: من يرسل موقعه ليصير متاحاً (والبوت يطلب منه ذلك صراحةً
+         * في `driver.available_needs_location`) يجب أن يُحفظ موقعه ولو لم تُفتح له جلسة.
+         */
+        const duty: DriverDutyState = {
+          isOnDuty: await deps.duty.isOnDuty(fix.driverId),
+          hasActiveTrip: (await deps.trips.activeTripOf(fix.driverId)) !== null,
+        };
+        if (!sessionShouldRun(duty)) {
+          const open = await deps.sessions.openSessionOf(fix.driverId);
+          if (open !== null) {
+            await closeAndAnnounce(fix.driverId, open.tripId, "DRIVER_STOPPED", nowMs);
+          }
+          log("tracking.fix_off_duty", { driverId: fix.driverId });
+          return;
+        }
+
+        /**
          * الجلسة تبدأ **بزمن الإصلاحة التي فتحتها** لا بزمن الخادم. وهذا ليس
          * تجميلاً: طابع تلغرام بالثواني، فزمن الجهاز يسبق زمن الخادم دائماً بجزءٍ
          * من الثانية إلى ثانية. ولو بدأت الجلسة بزمن الخادم لكانت أوّل إصلاحة
@@ -220,6 +293,26 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
             findings: fix.findings,
           },
         });
+      }),
+
+    onDutyEnded: (driverId) =>
+      guarded("onDutyEnded", async () => {
+        const nowMs = deps.clock.now().getTime();
+
+        /**
+         * الرحلة الجارية تغلب خروجَ الإتاحة: سائقٌ أوقف استقبال الطلبات وهو
+         * يقود راكباً الآن لا تُقطع خريطة راكبه — وهو فعلٌ مشروع يفعله من يريد
+         * أن تكون رحلته هذه الأخيرة في اليوم. وجلستُه تُغلق عند إنهاء الرحلة
+         * بمسارها القائم (`onTripEnded`)، وإن لم يعد فأوّل إصلاحةٍ بعدها تجده خارج
+         * الخدمة بلا رحلة فتُغلق. فلا مسار يبقى مفتوحاً بلا نهاية.
+         */
+        if ((await deps.trips.activeTripOf(driverId)) !== null) {
+          log("tracking.duty_ended_trip_active", { driverId });
+          return;
+        }
+        const open = await deps.sessions.openSessionOf(driverId);
+        if (open === null) return;
+        await closeAndAnnounce(driverId, open.tripId, "DRIVER_STOPPED", nowMs);
       }),
 
     onTripEnded: (tripId, reason) =>

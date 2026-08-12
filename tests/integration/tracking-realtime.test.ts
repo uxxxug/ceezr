@@ -35,6 +35,7 @@ import {
 import { DEFAULT_SESSION_POLICY } from "../../packages/domain/tracking/session.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { translate } from "../../packages/shared/i18n/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -95,6 +96,11 @@ let adminCodes: string[];
  * يترك المُرسِل المُركَّب في الحاوية السابقة يكتب في نفس المصفوف.
  */
 let riderSent: SentMessage[];
+/**
+ * المرحلة ١٢: رسائل بوت السائق صارت مقيسةً هنا (بطاقة الرحلة ودبّوسها)، فرُفعت
+ * إلى نطاق الوحدة لنفس السبب المذكور أعلاه في `riderSent`.
+ */
+let driverSent: SentMessage[];
 
 async function post(bot: string, update: unknown): Promise<Response> {
   return app.fetch(
@@ -239,7 +245,7 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
 
     liveCalls = [];
     adminCodes = [];
-    const driverSent: SentMessage[] = [];
+    driverSent = [];
     riderSent = [];
 
     container = buildContainer(config, {
@@ -302,6 +308,21 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
     `;
     const driverId = rows[0]?.id;
     if (driverId === undefined) throw new Error("لم يُسجَّل السائق");
+
+    /**
+     * المرحلة ١٢ — السائق يُدخل الخدمة بعد توثيقه.
+     *
+     * ولماذا أُضيف هذا الآن؟ لأن اختبارات المرحلة ٦ كانت تقيس ميكانيكا الجلسة
+     * (تُفتح، تتقدّم، تنتهي بالسقف) على سائقٍ **لم يدخل الخدمة قطّ** — وهي حالةٌ لا
+     * تقع في الإنتاج لمن يُتتبَّع فعلاً. فمقصد الاختبارات باقٍ كما هو، والمهيّئ وحده
+     * صار يماثل الواقع. وسلوك من هو خارج الخدمة يُقاس في اختباراته الخاصة
+     * لا بأن يُحمَّل على اختباراتٍ تسأل سؤالاً آخر.
+     *
+     * والإدخال بدالة `record_attendance` لا بإدراجٍ يدويّ: هي كاتب الإتاحة في
+     * الإنتاج، ومهيّئٌ يكتب الصفّ بيده يختبر حالةً لا تنتجها الشيفرة أبداً.
+     */
+    await sql`update drivers set verification_status = 'verified' where id = ${driverId}::uuid`;
+    await sql`select record_attendance(${driverId}::uuid, true, 'test_seed')`;
     return driverId;
   }
 
@@ -655,5 +676,152 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
     const payload = await firstSseEvent(response);
     expect(payload).toContain("event: snapshot");
     expect(payload).toContain(driverId);
+  });
+
+  /**
+   * ## المرحلة ١٢ — بطاقة رحلة السائق ودورة حياة التتبّع
+   *
+   * قياسُ ما قبل هذه المرحلة (بمسبار تنفيذٍ على هذه القاعدة، لا بمراجعة نظرية)
+   * أظهر أربعة عيوب: السائق يُؤمَر بالتوجّه «إلى نقطة الانطلاق» بلا إحداثية ولا
+   * اسم؛ و`/trip` و`/status` و`/route` كلّها تُجيب «لم أفهم»؛ وجلسة التتبّع تبقى
+   * مفتوحةً بعد خروجه من الخدمة فيظلّ على خريطة العمليات إلى سقف الاثنتي عشرة
+   * ساعة؛ ورسالة بدء الرحلة بلا مقصد. وهذه الاختبارات تُقيّد إغلاقها.
+   */
+  const ar = (key: string, params?: Record<string, string | number>) =>
+    translate("ar", key, params ?? {});
+
+  it("‏/trip بلا رحلة يقول ذلك صراحةً ولا يُجيب «لم أفهم»", async () => {
+    await registerDriver();
+    driverSent.length = 0;
+    await post("driver", text(DRIVER_CHAT, "/trip"));
+
+    const texts = driverSent.map((m) => m.text);
+    expect(texts).toEqual([ar("driver.trip_none")]);
+    // العيب المقيس: الأمر كان يسقط في المُلتقِط العامّ
+    expect(texts[0]).not.toContain("لم أفهم");
+    expect(driverSent.filter((m) => m.location !== undefined)).toHaveLength(0);
+  });
+
+  it("‏/trip برحلةٍ جارية يُعطي النقطتين والمرحلة ودبّوساً على المقصد", async () => {
+    const driverId = await registerDriver();
+    await seedAssignedTrip(driverId, RIDER_CHAT);
+    // موقعٌ قانوني للسائق: به تُحسَب المسافة، وبلا موقعٍ تكون `null` لا صفراً
+    await post("driver", location(DRIVER_CHAT, JEDDAH_MOVED));
+    driverSent.length = 0;
+    await post("driver", text(DRIVER_CHAT, "/trip"));
+
+    const cards = driverSent.filter((m) => m.location === undefined);
+    expect(cards).toHaveLength(1);
+    const card = cards[0]?.text ?? "";
+    expect(card).toContain(ar("driver.trip_header"));
+    // الرحلة `in_progress` فمرحلته إلى المقصد لا إلى الانطلاق
+    expect(card).toContain(ar("driver.trip_leg_to_destination"));
+    expect(card).toContain("الحرم");
+    expect(card).toContain("المطار");
+    // ‏JEDDAH_MOVED إلى المطار: ١٫٧ كم بالخطّ المستقيم — رقمٌ محسوبٌ لا مُقرَّب يدوياً
+    expect(card).toContain(ar("driver.trip_distance_straight", { km: 1.7 }));
+
+    const pins = driverSent.filter((m) => m.location !== undefined);
+    expect(pins).toHaveLength(1);
+    // الدبّوس على المطار: الوجهة الآن، لا على الانطلاق الذي تجاوزه
+    expect(pins[0]?.location).toEqual({ latitude: 21.5601, longitude: 39.1901 });
+  });
+
+  it("القارئ يجيب بنفس الرحلة بمفتاح السائق وبمفتاح تلغرام معاً", async () => {
+    /**
+     * المفتاحان كلاهما مُثبَتٌ في الخادم، ومسارا الاستخدام مختلفان (القبول يعرف
+     * `driverId`، وبدء الرحلة يعرف `telegramId` فقط). فلو تباعد جوابهما لرأى
+     * السائق بطاقةً في موضعٍ ولا يراها في آخر — وهو عيبٌ يصعب تفسيره.
+     */
+    const driverId = await registerDriver();
+    const { tripId } = await seedAssignedTrip(driverId, RIDER_CHAT);
+    const reader = container.tracking.tripCards;
+
+    const byId = await reader.cardOf({ driverId });
+    const byTelegram = await reader.cardOf({ driverTelegramId: String(DRIVER_CHAT) });
+    expect(byId?.trip.tripId).toBe(tripId);
+    expect(byTelegram?.trip.tripId).toBe(tripId);
+    expect(byTelegram?.trip).toEqual(byId?.trip);
+  });
+
+  it("سائقٌ آخر لا يرى رحلة غيره: القارئ يجيب null لا بطاقةً مسروقة", async () => {
+    const driverId = await registerDriver();
+    await seedAssignedTrip(driverId, RIDER_CHAT);
+    const others = await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, full_name, phone, language_code, role)
+      values (${cityId}, ${DRIVER_CHAT + 7}::bigint, 'سائق آخر', '+966500000707', 'ar', 'driver')
+      returning id
+    `;
+    const otherUser = others[0]?.id;
+    if (otherUser === undefined) throw new Error("تعذّر إنشاء المستخدم الثاني");
+    const drivers = await sql<{ id: string }[]>`
+      insert into drivers (city_id, user_id, national_id, plate_number, vehicle_type,
+                           verification_status)
+      values (${cityId}, ${otherUser}::uuid, '1000007070', 'د ه و 7070', 'sedan', 'verified')
+      returning id
+    `;
+    const otherDriver = drivers[0]?.id;
+    if (otherDriver === undefined) throw new Error("تعذّر إنشاء السائق الثاني");
+
+    const reader = container.tracking.tripCards;
+    expect(await reader.cardOf({ driverId: otherDriver })).toBeNull();
+    expect(await reader.cardOf({ driverTelegramId: String(DRIVER_CHAT + 7) })).toBeNull();
+  });
+
+  it("الخروج من الخدمة يُغلق الجلسة فوراً بسبب DRIVER_STOPPED", async () => {
+    /**
+     * هذا هو إغلاق P12-3، وهو عيبُ خصوصيةٍ لا عيبُ عرض: `listLiveDriverPositions`
+     * تُرشِّح `ended_at is null` وحدها، فسائقٌ خرج من الخدمة كان يبقى على خريطة
+     * العمليات إلى سقف الاثنتي عشرة ساعة — يُرصَد موقعه وهو يعتقد أنه انصرف.
+     */
+    const driverId = await registerDriver();
+    await post("driver", location(DRIVER_CHAT, JEDDAH));
+    expect((await sessionsOf(driverId))[0]?.ended_at).toBeNull();
+
+    await post("driver", text(DRIVER_CHAT, "/unavailable"));
+
+    const rows = await sessionsOf(driverId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.ended_at).not.toBeNull();
+    expect(rows[0]?.end_reason).toBe("DRIVER_STOPPED");
+  });
+
+  it("إصلاحةٌ تصل من سائقٍ خارج الخدمة تُغلق جلسته ولا تُفتح له أخرى", async () => {
+    /**
+     * موضعُ إغلاقٍ ثانٍ مستقلّ عن الأول: `/unavailable` يُغلق فوراً، وهذا يُغلق
+     * إصلاحةً وصلت بعد خروجٍ **لم يمرّ عبر البوت** — كتغيير المسؤول لحالة التوثيق،
+     * أو مهمّة `expire_stale_availability` المجدولة. وفحصُ تحويرٍ على هذا السطر
+     * وحده نجا قبل إضافة هذا الاختبار، فهو ليس تكراراً للذي قبله.
+     */
+    const driverId = await registerDriver();
+    await post("driver", location(DRIVER_CHAT, JEDDAH));
+    expect((await sessionsOf(driverId))[0]?.ended_at).toBeNull();
+
+    // خروجٌ من الخدمة في القاعدة مباشرةً: كما يفعله المسؤول والمهمّة المجدولة
+    await sql`select record_attendance(${driverId}::uuid, false, 'test_admin')`;
+    await post("driver", location(DRIVER_CHAT, JEDDAH_MOVED));
+
+    const rows = await sessionsOf(driverId);
+    // جلسةٌ واحدة مُغلقة: لا جلسةٌ جديدة تُفتح لمن ليس في الخدمة
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.ended_at).not.toBeNull();
+    expect(rows[0]?.end_reason).toBe("DRIVER_STOPPED");
+  });
+
+  it("لكن الخروج من الخدمة لا يقطع تتبّع رحلةٍ جارية", async () => {
+    /**
+     * ولماذا هذا القيد؟ لأن `claim_ride` لا يلمس `driver_availability` إطلاقاً،
+     * فالسائق المُسنَد قد يكون «خارج الخدمة» في الجدول ورحلته جارية في الواقع.
+     * وإغلاق جلسته حينها يعني عميلاً يفقد أثر سيّارةٍ هو راكبٌ فيها.
+     */
+    const driverId = await registerDriver();
+    await seedAssignedTrip(driverId, RIDER_CHAT);
+    await post("driver", location(DRIVER_CHAT, JEDDAH));
+
+    await post("driver", text(DRIVER_CHAT, "/unavailable"));
+
+    const rows = await sessionsOf(driverId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.ended_at).toBeNull();
   });
 });

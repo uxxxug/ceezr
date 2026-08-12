@@ -14,6 +14,12 @@ export interface SentMessage {
   readonly markup: unknown;
   /** يُملأ حين تُرسَل صورة — يثبت أن الصورة أُعيد إرسالها بمعرّفها لا كرابط نصّي. */
   readonly photoFileId?: string;
+  /**
+   * المرحلة ١٢ — يُملأ حين يُرسَل دبّوس موقع. ووجوده حقلاً مستقلاً يجعل
+   * الاختبار يتحقّق من إحداثيةٍ أُرسلت فعلاً لا من نصٍّ يذكر رقمين: النصّ يُعاد
+   * صوغه ويُترجم، والدبّوس إمّا أُرسل بإحداثيته أو لم يُرسل.
+   */
+  readonly location?: { readonly latitude: number; readonly longitude: number };
 }
 
 /**
@@ -28,6 +34,10 @@ export function capturing(sent: SentMessage[]): TelegramSender {
     },
     sendPhoto: async (chatId, fileId, caption, markup) => {
       sent.push({ chatId, text: caption, markup, photoFileId: fileId });
+      return String(sent.length);
+    },
+    sendLocation: async (chatId, latitude, longitude) => {
+      sent.push({ chatId, text: "", markup: undefined, location: { latitude, longitude } });
       return String(sent.length);
     },
   };

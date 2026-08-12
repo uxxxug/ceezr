@@ -277,7 +277,25 @@ describeIf("مسار التوصيل الكامل على قاعدة حقيقية"
     // 5) القبول ذرّي عبر claim_ride: الطلب matched والعرض accepted
     driverSent.length = 0;
     await post("driver", callback(COURIER_CHAT, `offer:accept:${order?.id}`));
-    expect(driverSent.map((m) => m.text)).toEqual([ar("driver.offer_accepted")]);
+    /**
+     * وهذا المسار — بخلاف النقل — له مقصدٌ بإحداثية، فتُثبَت النقطتان معاً
+     * ويُثبَت تمايزهما: قبل المرحلة ١٢ كانت الاحتياطية نصّاً واحداً لكلتيهما،
+     * فيقرأ المندوب سطرين متطابقين. الآن لكلٍّ إحداثيته.
+     */
+    const acceptTexts = driverSent.filter((m) => m.location === undefined).map((m) => m.text);
+    expect(acceptTexts).toHaveLength(2);
+    expect(acceptTexts[0]).toBe(ar("driver.offer_accepted"));
+    const tripCard = acceptTexts[1] ?? "";
+    expect(tripCard).toContain(ar("driver.trip_header"));
+    expect(tripCard).toContain(ar("driver.trip_leg_to_pickup"));
+    expect(tripCard).toContain(PICKUP.latitude.toFixed(4));
+    expect(tripCard).toContain(DROPOFF.latitude.toFixed(4));
+    expect(tripCard).not.toContain(ar("driver.trip_destination_unset"));
+
+    // الدبّوس على الانطلاق لا على المقصد: مرحلته الآن إلى نقطة الاستلام
+    const pins = driverSent.filter((m) => m.location !== undefined);
+    expect(pins).toHaveLength(1);
+    expect(pins[0]?.location).toEqual(PICKUP);
 
     const afterClaim = await sql<{ status: string; assigned_driver_id: string | null }[]>`
       select status, assigned_driver_id from orders where id = ${order?.id ?? ""}

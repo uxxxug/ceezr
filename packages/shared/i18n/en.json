@@ -269,5 +269,21 @@
   "rider.status_distance_dropoff_km": "📍 About {km} km left to your destination (straight line, not road distance).",
   "rider.status_distance_dropoff_m": "📍 About {meters} m left to your destination (straight line, not road distance).",
   "rider.status_location_stale_seconds": "⚠️ Your driver's location was last updated {seconds} seconds ago.",
-  "rider.status_location_stale_minutes": "⚠️ Your driver's location was last updated {minutes} minutes ago — the distance above may be out of date."
+  "rider.status_location_stale_minutes": "⚠️ Your driver's location was last updated {minutes} minutes ago — the distance above may be out of date.",
+  "driver.trip_none": "You have no active trip right now. Send /available to start receiving orders.",
+  "driver.trip_header": "🧭 Your active trip",
+  "driver.trip_leg_to_pickup": "Stage: heading to the pickup point",
+  "driver.trip_leg_to_destination": "Stage: passenger on board — heading to the destination",
+  "driver.trip_pickup_line": "🟢 Pickup: {pickup}",
+  "driver.trip_destination_line": "🔴 Destination: {destination}",
+  "driver.trip_target_line": "📍 Your current target: {target}",
+  "driver.trip_distance_straight": "📏 {km} km away in a straight line (not road distance).",
+  "driver.trip_distance_unknown": "📏 We have not received your location yet — send it to get the distance.",
+  "driver.trip_waypoint_unnamed": "unnamed point ({latitude}, {longitude})",
+  "driver.trip_pin_pickup": "Pickup point",
+  "driver.trip_pin_destination": "Destination",
+  "menu.driver.trip": "🧭 My active trip",
+  "menu.driver.trip.description": "Show your active trip: pickup, destination and distance",
+  "driver.trip_destination_unset": "🔴 Destination: not set yet — ask the passenger.",
+  "driver.trip_target_unset": "📍 Your current target: waiting for the destination."
 }

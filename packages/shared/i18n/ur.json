@@ -269,5 +269,21 @@
   "rider.status_distance_dropoff_km": "📍 آپ کی منزل تک تقریباً {km} کلومیٹر باقی ہے (سیدھی لکیر، سڑک کا فاصلہ نہیں)۔",
   "rider.status_distance_dropoff_m": "📍 آپ کی منزل تک تقریباً {meters} میٹر باقی ہے (سیدھی لکیر، سڑک کا فاصلہ نہیں)۔",
   "rider.status_location_stale_seconds": "⚠️ آپ کے ڈرائیور کا مقام {seconds} سیکنڈ پہلے اپ ڈیٹ ہوا تھا۔",
-  "rider.status_location_stale_minutes": "⚠️ آپ کے ڈرائیور کا مقام {minutes} منٹ پہلے اپ ڈیٹ ہوا تھا — اوپر کا فاصلہ پرانا ہو سکتا ہے۔"
+  "rider.status_location_stale_minutes": "⚠️ آپ کے ڈرائیور کا مقام {minutes} منٹ پہلے اپ ڈیٹ ہوا تھا — اوپر کا فاصلہ پرانا ہو سکتا ہے۔",
+  "driver.trip_none": "اس وقت آپ کا کوئی سفر جاری نہیں۔ آرڈر لینے کے لیے /available بھیجیں۔",
+  "driver.trip_header": "🧭 آپ کا جاری سفر",
+  "driver.trip_leg_to_pickup": "مرحلہ: پک اپ پوائنٹ کی طرف",
+  "driver.trip_leg_to_destination": "مرحلہ: مسافر ساتھ ہے — منزل کی طرف",
+  "driver.trip_pickup_line": "🟢 پک اپ: {pickup}",
+  "driver.trip_destination_line": "🔴 منزل: {destination}",
+  "driver.trip_target_line": "📍 آپ کی موجودہ منزل: {target}",
+  "driver.trip_distance_straight": "📏 سیدھی لائن میں {km} کلومیٹر دور (سڑک کا فاصلہ نہیں)۔",
+  "driver.trip_distance_unknown": "📏 ہمیں ابھی آپ کا مقام نہیں ملا — فاصلہ جاننے کے لیے مقام بھیجیں۔",
+  "driver.trip_waypoint_unnamed": "بےنام مقام ({latitude}, {longitude})",
+  "driver.trip_pin_pickup": "پک اپ پوائنٹ",
+  "driver.trip_pin_destination": "منزل",
+  "menu.driver.trip": "🧭 میرا جاری سفر",
+  "menu.driver.trip.description": "اپنا جاری سفر دیکھیں: پک اپ، منزل اور فاصلہ",
+  "driver.trip_destination_unset": "🔴 منزل: ابھی طے نہیں — مسافر سے پوچھیں۔",
+  "driver.trip_target_unset": "📍 آپ کی موجودہ منزل: منزل طے ہونے کا انتظار۔"
 }

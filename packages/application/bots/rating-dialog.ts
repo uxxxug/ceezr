@@ -12,7 +12,10 @@ import { t } from "../../shared/i18n/index.ts";
 import type { OrderId } from "../../shared/kernel/index.ts";
 import type { RatingPort, RideLifecyclePort } from "../reputation/index.ts";
 import { completeRide, startRide, submitRating } from "../reputation/index.ts";
+import type { DriverTripCardReader } from "../tracking/driver-trip-card.ts";
+import { driverTripCard } from "../tracking/driver-trip-card.ts";
 import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
+import { driverTripPin, driverTripText } from "./driver-trip-reply.ts";
 import type { BotReply, Keyboard, Sender, SessionStore } from "./types.ts";
 
 /**
@@ -48,6 +51,15 @@ export interface RatingDialogDependencies {
    * لأن الإنهاء رُفض في القاعدة.
    */
   readonly tracking?: LiveTrackingPort;
+  /**
+   * المرحلة ١٢ — بطاقة الرحلة عند بدئها. قياسٌ بمسبار تنفيذ: ردّ البدء كان
+   * «🚗 بدأت الرحلة. رحلة موفّقة» بلا مقصدٍ ولا إحداثية — أي أن اللحظة التي
+   * يبدأ فيها السائق القيادة إلى المقصد هي بالضبط اللحظة التي لا يُخبَر فيها به.
+   *
+   * والمفتاح `driverTelegramId` لا معرّف السائق: هو نفس المفتاح الذي تُصرَّح به
+   * `lifecycle.start` أعلاه، فلا معيار تصريحٍ ثانٍ في نفس الدالّة.
+   */
+  readonly tripCards?: DriverTripCardReader;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -130,9 +142,25 @@ export async function handleStartRide(
     );
   }
 
-  return [
-    reply(sender, tr("rating.ride_started"), completeRideKeyboard(String(orderId), language)),
-  ];
+  const started = reply(
+    sender,
+    tr("rating.ride_started"),
+    completeRideKeyboard(String(orderId), language),
+  );
+  if (deps.tripCards === undefined) return [started];
+  /**
+   * البطاقة تُقرأ **بعد** نجاح البدء لا قبله: قراءتها قبله كانت ستعرض المقصد
+   * لمن رُفض بدؤه في القاعدة (طلبٌ ليس `matched`)، فيقود إلى مقصد رحلةٍ لم تبدأ.
+   * والحالة الآن `in_progress` فالبطاقة تُظهر المقصد لا نقطة الانطلاق.
+   */
+  const view = await driverTripCard(
+    { driverTelegramId: sender.telegramUserId },
+    { cards: deps.tripCards },
+  );
+  if (view === null) return [started];
+  const card = reply(sender, driverTripText(view, tr));
+  const pin = driverTripPin(view, tr);
+  return [started, pin === undefined ? card : { ...card, mapPin: pin }];
 }
 
 /**

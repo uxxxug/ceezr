@@ -269,5 +269,21 @@
   "rider.status_distance_dropoff_km": "📍 بقي حوالي {km} كم إلى وجهتك (خطّ مستقيم لا مسار طريق).",
   "rider.status_distance_dropoff_m": "📍 بقي حوالي {meters} متر إلى وجهتك (خطّ مستقيم لا مسار طريق).",
   "rider.status_location_stale_seconds": "⚠️ آخر تحديث لموقع سائقك قبل {seconds} ثانية.",
-  "rider.status_location_stale_minutes": "⚠️ آخر تحديث لموقع سائقك قبل {minutes} دقيقة — المسافة أعلاه قد تكون قديمة."
+  "rider.status_location_stale_minutes": "⚠️ آخر تحديث لموقع سائقك قبل {minutes} دقيقة — المسافة أعلاه قد تكون قديمة.",
+  "driver.trip_none": "لا رحلة جارية لك الآن. أرسل /available لاستقبال الطلبات.",
+  "driver.trip_header": "🧭 رحلتك الجارية",
+  "driver.trip_leg_to_pickup": "المرحلة: في الطريق إلى نقطة الانطلاق",
+  "driver.trip_leg_to_destination": "المرحلة: الراكب معك — في الطريق إلى المقصد",
+  "driver.trip_pickup_line": "🟢 الانطلاق: {pickup}",
+  "driver.trip_destination_line": "🔴 المقصد: {destination}",
+  "driver.trip_target_line": "📍 وجهتك الآن: {target}",
+  "driver.trip_distance_straight": "📏 تبعد عنها {km} كم بالخطّ المستقيم (لا بمسافة الطريق).",
+  "driver.trip_distance_unknown": "📏 لم يصلنا موقعك بعد — أرسل موقعك لتُحسب المسافة.",
+  "driver.trip_waypoint_unnamed": "نقطة بلا اسم ({latitude}, {longitude})",
+  "driver.trip_pin_pickup": "نقطة الانطلاق",
+  "driver.trip_pin_destination": "المقصد",
+  "menu.driver.trip": "🧭 رحلتي الجارية",
+  "menu.driver.trip.description": "عرض رحلتك الجارية: الانطلاق والمقصد والمسافة",
+  "driver.trip_destination_unset": "🔴 المقصد: لم يُحدَّد بعد — اسأل الراكب عنه.",
+  "driver.trip_target_unset": "📍 وجهتك الآن: بانتظار تحديد المقصد."
 }

@@ -42,6 +42,7 @@ const SECRET = "load-test-secret";
 const silentSender: TelegramSender = {
   sendMessage: async () => "1",
   sendPhoto: async () => "1",
+  sendLocation: async () => "1",
 };
 
 const config: AppConfig = {

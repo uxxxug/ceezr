@@ -525,7 +525,10 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
 });
 
 describe("تركيب الجلسة على المسار الحيّ", () => {
-  const buildLive = (nowMsRef: { value: number }, over: { readonly trip?: string | null } = {}) => {
+  const buildLive = (
+    nowMsRef: { value: number },
+    over: { readonly trip?: string | null; readonly onDuty?: boolean } = {},
+  ) => {
     const sessions = createMemoryTrackingSessionStore();
     const events: TrackingEvent[] = [];
     const live = createLiveTracking({
@@ -536,6 +539,11 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
         },
       },
       trips: { activeTripOf: async () => (over.trip === undefined ? null : over.trip) },
+      /**
+       * المرحلة ١٢ — الأصل «في الخدمة»: اختبارات هذه المجموعة تقيس ميلاد
+       * الجلسة وتقدّمها وانتهاءها بالسقف، وكلّها تفترض سائقاً عاملاً.
+       */
+      duty: { isOnDuty: async () => over.onDuty !== false },
       clock: { now: () => new Date(nowMsRef.value) },
     });
     return { live, sessions, events };
@@ -633,6 +641,7 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
         },
       },
       trips: { activeTripOf: async () => null },
+      duty: { isOnDuty: async () => true },
       clock: { now: () => new Date(10_000_000) },
     });
 

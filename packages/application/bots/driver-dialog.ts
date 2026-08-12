@@ -37,7 +37,10 @@ import {
   relayNegotiationMessage,
 } from "../dispatch/relay-negotiation-message.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import type { DriverTripCardReader, DriverTripKey } from "../tracking/driver-trip-card.ts";
+import { driverTripCard } from "../tracking/driver-trip-card.ts";
 import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
+import { driverTripPin, driverTripText } from "./driver-trip-reply.ts";
 import {
   handleLanguageCallback,
   handleLanguageCommand,
@@ -135,6 +138,12 @@ export interface DriverBotDependencies {
    * ثابتٌ ويحميه اختبار تكامل صريح على قاعدة حقيقية.
    */
   readonly tracking?: LiveTrackingPort;
+  /**
+   * المرحلة ١٢ — قارئ بطاقة الرحلة. اختياريٌّ بنفس منطق `rating` و`tracking`:
+   * غيابه يجعل `/trip` يردّ «أمر غير معروف» بدل أن يعرض بطاقةً فارغة، ويُبقي
+   * الاختبارات التي لا تقيس الرحلة على تهيئةٍ أصغر.
+   */
+  readonly tripCards?: DriverTripCardReader;
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -552,6 +561,16 @@ async function handleCommand(
       const applied = await deps.drivers.setAvailability(driver.id, goingAvailable);
       if (!applied.ok) return technicalFailure(sender, state);
 
+      /**
+       * المرحلة ١٢ — الخروج من الخدمة يُغلق جلسة التتبّع.
+       *
+       * وقبله كان السائق يضغط «أوقف استقبال الطلبات» فيُجاب «أوقفت»، وتبقى
+       * جلسته مفتوحةً في `tracking_sessions` فيُرى على خريطة العمليات حيّاً — والاستعلام
+       * يقرأ `ended_at is null` لا الإتاحة. والنداء **بعد** نجاح الكتابة لا قبلها:
+       * إغلاق جلسةٍ لخروجٍ لم يُكتب يُنزل السائق من الخريطة وهو في الخدمة فعلاً.
+       */
+      if (!goingAvailable) await deps.tracking?.onDutyEnded(driver.id);
+
       // لا نقول «أنت الآن متاح» لمن لا موقع له. استعلام المرشّحين يشترط
       // سبب رفض `NO_LOCATION` في الدومين، فسائقٌ متاحٌ بلا موقع لا تُحسَب له مسافة
       // فلا يُسنَد إليه شيء. وقد وقع هذا فعلاً في الإنتاج: سائق موثَّق ومتاح ومشترك،
@@ -605,6 +624,23 @@ async function handleCommand(
     case "/subscription": {
       if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
       return describeSubscription(sender, state, driver, deps);
+    }
+
+    /**
+     * المرحلة ١٢ — `/trip`: أين أنا، وإلى أين، وكم بقي.
+     *
+     * قبله كان `/trip` و`/mytrip` و`/route` و`/map` كلّها تردّ «لم أفهم هذه
+     * الرسالة» — قياساً بمسبار تنفيذٍ لا استنتاجاً. فالسائق الذي نسي وسم
+     * الانطلاق لم يكن له سبيلٌ إلى استرجاعه إلا بالعودة إلى رسالةٍ قديمة في
+     * محادثةٍ تتحرّك، أو بمكالمة الراكب.
+     *
+     * ولا يُقرأ `driver.id` من رسالةٍ ولا من زرّ: القارئ يسأل «ما رحلة هذا
+     * السائق؟» فالعلاقة تُثبَت في الخادم (المرحلة ١).
+     */
+    case "/trip": {
+      if (deps.tripCards === undefined) return [reply(sender, tr("common.unknown_command"))];
+      if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+      return tripCardReplies(sender, state, { driverId: driver.id }, deps.tripCards, menu(state));
     }
 
     default:
@@ -1148,12 +1184,49 @@ async function handleOfferDecision(
     // زرّ البدء يخرج مع تأكيد القبول: السائق لا يحفظ معرّف الطلب ولا يُطلب منه كتابته
     const keyboard =
       deps.rating === undefined ? null : startRideKeyboard(String(orderId), languageOf(state));
-    return [reply(sender, tr("driver.offer_accepted"), keyboard)];
+    const confirmation = reply(sender, tr("driver.offer_accepted"), keyboard);
+    /**
+     * المرحلة ١٢ — التأكيد يبقى، وتُلحق به البطاقة. ولماذا لا يُدمجان في رسالة؟
+     * لأن زرّ «بدء الرحلة» مُعلَّقٌ على التأكيد، والدبّوس رسالةٌ منفصلة في تلغرام
+     * أصلاً — فدمجُهما كان سيُنتج رسالةً واحدة طويلة يختفي زرّها تحت الدبّوس.
+     *
+     * وإن غاب القارئ (تهيئةٌ لا تعرض الرحلات) بقي السلوك كما كان بحرفه: تأكيدٌ
+     * وزرّ. لا مسار جديد يُفرض على تركيبٍ لم يطلبه.
+     */
+    if (deps.tripCards === undefined) return [confirmation];
+    const card = await tripCardReplies(sender, state, { driverId: driver.id }, deps.tripCards);
+    return [confirmation, ...card];
   }
 
   const key =
     claim.value.reason === "offer_expired" ? "driver.offer_expired" : "driver.offer_taken";
   return [reply(sender, tr(key))];
+}
+
+/**
+ * المرحلة ١٢ — بطاقة الرحلة كردودٍ جاهزة للإرسال. تُستخدم في ثلاثة مواضع:
+ * `/trip`، وردّ قبول العرض، وردّ بدء الرحلة — بصيغةٍ واحدة لا ثلاث.
+ *
+ * وتُعيد مصفوفةً لأن «لا رحلة لك» ردٌّ واحد، والبطاقة ردٌّ واحد بدبّوس. ولا
+ * تُلقي عند غياب الرحلة: السائق الذي أنهى رحلته وضغط `/trip` ليس في حالة عطل.
+ */
+export async function tripCardReplies(
+  sender: Sender,
+  state: DialogState,
+  key: DriverTripKey,
+  cards: DriverTripCardReader,
+  keyboard: Keyboard | null = null,
+): Promise<BotReply[]> {
+  const tr = t(languageOf(state));
+  const view = await driverTripCard(key, { cards });
+  if (view === null) return [reply(sender, tr("driver.trip_none"), keyboard)];
+  const base = reply(sender, driverTripText(view, tr), keyboard);
+  /**
+   * الحقل يُسقَط ولا يُمرَّر `undefined`: التركيب يعمل بـ`exactOptionalPropertyTypes`،
+   * فـ`mapPin: undefined` ليس كغياب `mapPin` — والمترجم أوقف هذا فعلاً.
+   */
+  const pin = driverTripPin(view, tr);
+  return [pin === undefined ? base : { ...base, mapPin: pin }];
 }
 
 /**

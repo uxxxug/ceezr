@@ -347,6 +347,9 @@ describe("الإلغاء", () => {
         onFix: async () => {
           throw new Error("لا يُنادى في مسار الإلغاء");
         },
+        onDutyEnded: async () => {
+          throw new Error("لا يُنادى في مسار الإلغاء");
+        },
         onTripEnded: async (tripId: string, reason: string) => {
           ended.push({ tripId, reason });
         },

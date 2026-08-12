@@ -247,11 +247,24 @@ export function orderWriter(orderId = "order-1" as OrderId): OrderWriterDouble {
   };
 }
 
+/**
+ * ما أُرسل إلى تلغرام. `location` موجودة للدبّوس (المرحلة ١٢): الاختبار يتحقّق
+ * من إحداثيةٍ أُرسلت فعلاً لا من نصٍّ يذكرها — والفرق أنّ نصّاً قد يُترجَم أو
+ * يُعاد صوغه، والدبّوس إمّا أُرسل بإحداثيته أو لم يُرسل.
+ */
+export interface SentToTelegram {
+  readonly chatId: string;
+  readonly text: string;
+  readonly markup: unknown;
+  readonly photoFileId?: string;
+  readonly location?: { readonly latitude: number; readonly longitude: number };
+}
+
 /** يلتقط كل ما كان سيُرسَل إلى تلغرام بدل إرساله. */
 export function capturingSender(): TelegramSender & {
-  readonly sent: { chatId: string; text: string; markup: unknown; photoFileId?: string }[];
+  readonly sent: SentToTelegram[];
 } {
-  const sent: { chatId: string; text: string; markup: unknown; photoFileId?: string }[] = [];
+  const sent: SentToTelegram[] = [];
   return {
     sent,
     sendMessage: async (chatId, text, markup) => {
@@ -263,6 +276,10 @@ export function capturingSender(): TelegramSender & {
       sent.push({ chatId, text: caption, markup, photoFileId: fileId });
       return String(sent.length);
     },
+    sendLocation: async (chatId, latitude, longitude) => {
+      sent.push({ chatId, text: "", markup: undefined, location: { latitude, longitude } });
+      return String(sent.length);
+    },
   };
 }
 
@@ -272,6 +289,9 @@ export function failingSender(detail: string): TelegramSender {
       throw new Error(detail);
     },
     sendPhoto: async () => {
+      throw new Error(detail);
+    },
+    sendLocation: async () => {
       throw new Error(detail);
     },
   };

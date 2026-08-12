@@ -29,6 +29,12 @@ export interface MenuItem {
  * يُدرج مع تنفيذه لا قبله.
  */
 export const DRIVER_MENU_ITEMS: readonly MenuItem[] = [
+  /**
+   * المرحلة ١٢ — «رحلتي» أوّلاً: السائق الذي في رحلةٍ هو أكثر من يفتح القائمة،
+   * وسؤاله الوحيد حينها «إلى أين؟». والزرّ يُدرَج الآن لا قبل الآن لأن `/trip`
+   * صار له مُعالِجٌ في الحوار — وهي قاعدة هذا الملفّ نفسها.
+   */
+  { key: "menu.driver.trip", command: "/trip" },
   { key: "menu.driver.available", command: "/available" },
   { key: "menu.driver.unavailable", command: "/unavailable" },
   { key: "menu.driver.subscription", command: "/subscription" },

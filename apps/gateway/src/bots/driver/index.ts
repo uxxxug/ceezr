@@ -72,6 +72,25 @@ export function createDriverBot(
           } else {
             await sender.sendPhoto(reply.chatId, reply.photoFileId, reply.text, markup);
           }
+          /**
+           * الدبّوس بعد النصّ لا قبله: النصّ يشرح ما هذه النقطة، فوصوله ثانياً
+           * يجعل السائق يرى دبّوساً لا يعرف ما هو ثم يُشرَح له.
+           *
+           * ولماذا `try` هنا وليس في نفس المحاولة؟ لأن فشل الدبّوس لا يُبطل
+           * الرسالة التي وصلت: السائق قرأ انطلاقه ووسمه، وإرجاع false كان
+           * سيجعل الويبهوك يُعيد المحاولة فيصله النصّ مرّتين.
+           */
+          if (reply.mapPin !== undefined) {
+            try {
+              await sender.sendLocation(
+                reply.chatId,
+                reply.mapPin.latitude,
+                reply.mapPin.longitude,
+              );
+            } catch (error) {
+              log("تعذّر إرسال دبّوس الموقع — النصّ وصل", { detail: String(error) });
+            }
+          }
         } catch (error) {
           log("تعذّر إرسال رسالة إلى تلغرام", { detail: String(error) });
           return false;

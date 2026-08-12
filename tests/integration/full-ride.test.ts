@@ -300,7 +300,26 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     // 4) القبول يمرّ عبر claim_ride فيصير الطلب matched والعرض accepted
     driverSent.length = 0;
     await post("driver", callback(DRIVER_CHAT, `offer:accept:${order?.id}`));
-    expect(driverSent.map((m) => m.text)).toEqual([ar("driver.offer_accepted")]);
+    /**
+     * القبول صار يُنتج ثلاث رسائل لا واحدة: نصّ القبول، ثمّ بطاقة الرحلة، ثمّ
+     * دبّوس الموقع. وهذا هو مقصد المرحلة ١٢: السائق كان يُؤمَر بالتوجّه «إلى نقطة
+     * الانطلاق» بلا إحداثية ولا اسم. فتُثبَت البطاقة والدبّوس هنا صراحةً — لا
+     * يُتساهَل في وجودهما — كي لا يعود الصمت خِلسةً.
+     */
+    const acceptTexts = driverSent.filter((m) => m.location === undefined).map((m) => m.text);
+    expect(acceptTexts).toHaveLength(2);
+    expect(acceptTexts[0]).toBe(ar("driver.offer_accepted"));
+    const tripCard = acceptTexts[1] ?? "";
+    expect(tripCard).toContain(ar("driver.trip_header"));
+    expect(tripCard).toContain(ar("driver.trip_leg_to_pickup"));
+    // لا اسم لنقطة الانطلاق في هذا الطلب، فتُذكَر إحداثيتها لا نصٌّ مبهم
+    expect(tripCard).toContain(PICKUP.latitude.toFixed(4));
+    // ولا مقصد محدَّد في هذا المسار، فيُقال ذلك صراحةً بدل ادّعاء وجهة
+    expect(tripCard).toContain(ar("driver.trip_destination_unset"));
+
+    const pins = driverSent.filter((m) => m.location !== undefined);
+    expect(pins).toHaveLength(1);
+    expect(pins[0]?.location).toEqual(PICKUP);
 
     const afterClaim = await sql<{ status: string; assigned_driver_id: string | null }[]>`
       select status, assigned_driver_id from orders where id = ${order?.id ?? ""}
@@ -384,10 +403,14 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     expect(secondResponse.status).toBe(200);
 
     // بصرف النظر عن ترتيب الوصول: ظافرٌ واحد ومحرومٌ واحد، لا أكثر ولا أقل.
-    const texts = driverSent.map((m) => m.text);
-    expect(texts).toHaveLength(2);
+    const texts = driverSent.filter((m) => m.location === undefined).map((m) => m.text);
+    // ظافرٌ واحد (قبول + بطاقة) ومحرومٌ واحد (الطلب أُخِذ)
+    expect(texts).toHaveLength(3);
     expect(texts.filter((t) => t === ar("driver.offer_accepted"))).toHaveLength(1);
     expect(texts.filter((t) => t === ar("driver.offer_taken"))).toHaveLength(1);
+    // البطاقة تُرسَل للظافر وحده: لا رؤية عبر الرحلات (المرحلة ١)
+    expect(texts.filter((t) => t.includes(ar("driver.trip_header")))).toHaveLength(1);
+    expect(driverSent.filter((m) => m.location !== undefined)).toHaveLength(1);
 
     const finalOffers = await sql<{ driver_id: string; status: string }[]>`
       select driver_id, status from order_offers

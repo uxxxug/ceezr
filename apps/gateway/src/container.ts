@@ -22,6 +22,7 @@ import {
   createCustomerLiveRelay,
   type LiveLocationChannel,
 } from "../../../packages/application/tracking/customer-live-relay.ts";
+import type { DriverTripCardReader } from "../../../packages/application/tracking/driver-trip-card.ts";
 import {
   createLiveTracking,
   type LiveTrackingPort,
@@ -97,6 +98,8 @@ import {
 import { createTrackingSessionRepository } from "../../../packages/infrastructure/tracking/session-repository.ts";
 import {
   createActiveTripReader,
+  createDriverDutyReader,
+  createDriverTripCardReader,
   createTrackingProofReader,
   type TrackingProofReader,
 } from "../../../packages/infrastructure/tracking/tracking-queries.ts";
@@ -212,6 +215,13 @@ export interface TrackingWiring {
    * تشغيلٍ أن يشهد على تسريبٍ فيها إلا بالاستدلال من رسائل تلغرام.
    */
   readonly relay: CustomerLiveRelay;
+  /**
+   * قارئ بطاقة رحلة السائق — يُعرَض لنفس سبب عرض `relay`: بلا عرضه لا يستطيع
+   * اختبارٌ أن يشهد على أنّ المفتاحين (معرّف السائق ومعرّف تلغرام) يجيبان بنفس
+   * الرحلة، ولا على أنّ سائقاً لا يرى رحلة غيره، إلا بالاستدلال من نصّ رسالة.
+   * والاستدلالُ من النصّ يُخفي فرقاً في الاستعلام نفسه.
+   */
+  readonly tripCards: DriverTripCardReader;
 }
 
 export interface NegotiationWiring {
@@ -510,10 +520,18 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     { deliver: (event) => customerRelay.handle(event) },
   );
 
+  /**
+   * المرحلة ١٢ — قارئٌ واحد يُمرَّر إلى حوار السائق وحوار التقييم: نسختان منه
+   * لا تُنتجان بيانات مختلفة (كلتاهما تقرأ `orders`)، لكنّهما موضعان لتعديل
+   * الاستعلام يُنسى أحدهما. والمصدر واحد فالقارئ واحد.
+   */
+  const driverTripCards = createDriverTripCardReader(sql);
+
   const liveTracking = createLiveTracking({
     sessions: trackingSessions,
     publisher: trackingBus,
     trips: createActiveTripReader(sql),
+    duty: createDriverDutyReader(sql),
     clock: systemClock,
     log,
   });
@@ -531,10 +549,13 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     negotiation: { claims: claimDeps, relay: relayDeps },
     support: driverSupport,
     tracking: liveTracking,
+    tripCards: driverTripCards,
     rating: {
       sessions: driverSessions,
       lifecycle: lifecyclePort,
       ratings: ratingPort,
+      // المرحلة ١٢ — المقصد يُعرَض لحظةَ بدء الرحلة، لا بعد أن يسأل السائق عنه.
+      tripCards: driverTripCards,
       // الجسر إلى بوت العميل: من أنهى الرحلة سائقٌ، ومن يُبلَّغ بها عميلٌ على بوت آخر
       counterpart: counterpartNotifier(riderSender),
       // إنهاء الرحلة يُغلق الجلسة ويُوقف بثّ الموقع عن العميل — المرحلة ٦.
@@ -604,6 +625,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       proofs: trackingProofs,
       live: liveTracking,
       relay: customerRelay,
+      tripCards: driverTripCards,
     },
     negotiation: {
       snapshots: createNegotiationSnapshotReader(sql),

@@ -16,7 +16,15 @@
  * آخر. المصدر واحد والقارئ اثنان — وذلك هو الفصل الصحيح بين نماذج القراءة.
  */
 
-import type { ActiveTripReader } from "../../application/tracking/live-tracking.ts";
+import type {
+  DriverTripCardReader,
+  DriverTripKey,
+} from "../../application/tracking/driver-trip-card.ts";
+import type {
+  ActiveTripReader,
+  DriverDutyReader,
+} from "../../application/tracking/live-tracking.ts";
+import type { DriverTripStatus } from "../../domain/tracking/driver-trip-view.ts";
 import type { TripAssignmentProof, WatchedTripStatus } from "../../domain/tracking/visibility.ts";
 import type { Sql } from "../db/client.ts";
 
@@ -70,6 +78,142 @@ export function createActiveTripReader(sql: Sql): ActiveTripReader {
          limit 1
       `;
       return rows[0]?.id ?? null;
+    },
+  };
+}
+
+/**
+ * المرحلة ١٢ — أفي الخدمة؟ `driver_availability` وحده الحكم.
+ *
+ * ولماذا لا يُفحص التوثيق (`verification_status`) معه؟ لأن القاعدة تحسمه أصلاً:
+ * تغيير حالة التوثيق إلى غير `verified` يُنزل `is_available` إلى `false` في نفس
+ * المعاملة (دالة لوحة المسؤول). ففحصه هنا شرطٌ مكرّر، ومصدرٌ ثانٍ لنفس
+ * الحقيقة يختلف عن الأوّل عند أوّل تعديل يمسّ أحدهما (القاعدة ٥).
+ *
+ * وغياب الصفّ = خارج الخدمة: سائقٌ لم يُعلن إتاحته قطّ ليس متاحاً،
+ * و`coalesce` تجعل الحكم واحداً في الحالتين بلا تفريعٍ في الطبقة الأعلى.
+ */
+export function createDriverDutyReader(sql: Sql): DriverDutyReader {
+  return {
+    isOnDuty: async (driverId) => {
+      const rows = await sql<{ on_duty: boolean }[]>`
+        select coalesce(
+                 (select a.is_available from driver_availability a
+                   where a.driver_id = ${driverId}::uuid),
+                 false
+               ) as on_duty
+      `;
+      return rows[0]?.on_duty === true;
+    },
+  };
+}
+
+/**
+ * المرحلة ١٢ — بطاقة رحلة السائق من المصدر القانوني: `orders` و`drivers`.
+ *
+ * ## لماذا استعلامٌ واحد لا اثنان
+ *
+ * لأن الرحلة وموقع السائق يُقرأان ليُحسب بينهما مسافة. وقراءتهما في
+ * استعلامين تعني لحطتين مختلفتين: رحلةٌ قد تكون انتهت بينهما، فتُعرض مسافةٌ
+ * إلى مقصدٍ لم يبق مقصداً.
+ *
+ * ## ولماذا `assigned_driver_id` في الشرط لا في التحقق بعده
+ *
+ * لأن الشرط يمنع الصفّ من الخروج من القاعدة أصلاً، والتحقق بعده يجعل
+ * بيانات رحلة غيره تمرّ في الذاكرة وتعتمد على سطرٍ واحد لا يُنسى. والفرق
+ * بينهما هو الفرق بين استحالةٍ وسهو.
+ */
+export function createDriverTripCardReader(sql: Sql): DriverTripCardReader {
+  return {
+    cardOf: async (key: DriverTripKey) => {
+      /**
+       * المفتاحان في استعلامٍ واحد بشرطين حصريين: `driver_id` المُمرَّر أو `null`.
+       * وكتابةُ استعلامين متطابقين إلا في سطر `where` كانت ستجعل تصحيح أحدهما
+       * دون الآخر ممكناً — وهو بالضبط ما يُنتج «الوسم يظهر هنا ولا يظهر هناك».
+       */
+      const byId = "driverId" in key ? key.driverId : null;
+      const byTelegram = "driverTelegramId" in key ? key.driverTelegramId : null;
+      const rows = await sql<
+        {
+          id: string;
+          status: string;
+          pickup_lat: number | null;
+          pickup_lng: number | null;
+          pickup_label: string | null;
+          dropoff_lat: number | null;
+          dropoff_lng: number | null;
+          dropoff_label: string | null;
+          driver_lat: number | null;
+          driver_lng: number | null;
+        }[]
+      >`
+        select o.id,
+               o.status::text                        as status,
+               st_y(o.pickup::geometry)              as pickup_lat,
+               st_x(o.pickup::geometry)              as pickup_lng,
+               o.pickup_label,
+               st_y(o.dropoff::geometry)             as dropoff_lat,
+               st_x(o.dropoff::geometry)             as dropoff_lng,
+               o.dropoff_label,
+               st_y(d.last_location::geometry)       as driver_lat,
+               st_x(d.last_location::geometry)       as driver_lng
+          from orders o
+          join drivers d on d.id = o.assigned_driver_id
+          join users u on u.id = d.user_id
+         where (
+                 (${byId}::uuid is not null and o.assigned_driver_id = ${byId}::uuid)
+                 or (${byTelegram}::text is not null and u.telegram_id = ${byTelegram}::bigint)
+               )
+           and o.status in ('matched', 'in_progress')
+         limit 1
+      `;
+
+      const row = rows[0];
+      if (row === undefined) return null;
+
+      /**
+       * الانطلاق وحده إلزام: `orders.pickup` لا يقبل الفراغ في القاعدة، فغيابه
+       * يعني صفّاً مستحيلاً لا حالةً تُعرَض. أمّا `dropoff` فيقبل الفراغ فعلاً
+       * (راكبٌ يحدّد مقصده في السيّارة) — وردّ `null` للبطاقة كلّها بسببه كان
+       * يكتم رحلةً جارية بأكملها، وهو ما أسقط أربعة اختبارات تكامل.
+       */
+      if (row.pickup_lat === null || row.pickup_lng === null) return null;
+      /**
+       * الحالة تُضيَّق هنا لا تُحوَّل: `as` كان سيُمرّر أيّ حالةٍ تُضاف إلى التعداد
+       * غداً (`arrived` مثلاً) إلى الدومين بلا مرحلةٍ معروفة لها. والشرط يجعل
+       * المترجم هو من يمنع ذلك، فإضافة حالةٍ جديدة تُفشل الترجمة لا الإنتاج.
+       */
+      const status: DriverTripStatus | null =
+        row.status === "matched" ? "matched" : row.status === "in_progress" ? "in_progress" : null;
+      if (status === null) return null;
+
+      return {
+        trip: {
+          tripId: row.id,
+          status,
+          pickup: {
+            coordinates: {
+              latitude: Number(row.pickup_lat),
+              longitude: Number(row.pickup_lng),
+            },
+            label: row.pickup_label,
+          },
+          destination:
+            row.dropoff_lat === null || row.dropoff_lng === null
+              ? null
+              : {
+                  coordinates: {
+                    latitude: Number(row.dropoff_lat),
+                    longitude: Number(row.dropoff_lng),
+                  },
+                  label: row.dropoff_label,
+                },
+        },
+        driverLocation:
+          row.driver_lat === null || row.driver_lng === null
+            ? null
+            : { latitude: Number(row.driver_lat), longitude: Number(row.driver_lng) },
+      };
     },
   };
 }

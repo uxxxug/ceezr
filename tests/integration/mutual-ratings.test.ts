@@ -220,8 +220,16 @@ describeIf("التقييم المتبادل وأثره في المطابقة ع�
     const orderId = await placeOrder(RIDER);
 
     await post("driver", privateCallback(DRIVER_A, `offer:accept:${orderId}`));
-    const accepted = driverMessages(DRIVER_A).at(-1);
-    expect(accepted?.text).toBe(ar("driver.offer_accepted"));
+    /**
+     * لم يعد نصّ القبول آخر رسالة: بطاقة الرحلة ودبّوسها يليانه (المرحلة ١٢).
+     * فيُنتقى بنصّه لا بموضعه، لأنّ التثبيت على الموضع يكسر عند كل إضافة صحيحة.
+     */
+    const accepted = driverMessages(DRIVER_A).find((m) => m.text === ar("driver.offer_accepted"));
+    expect(accepted).toBeDefined();
+    const cardAfterAccept = driverMessages(DRIVER_A).find((m) =>
+      m.text.includes(ar("driver.trip_header")),
+    );
+    expect(cardAfterAccept?.text).toContain(ar("driver.trip_leg_to_pickup"));
     // زرّ البدء يخرج مع القبول: السائق لا يُطالَب بحفظ معرّف الطلب
     const acceptMarkup = accepted?.markup as {
       inline_keyboard: { text: string; callback_data: string }[][];
