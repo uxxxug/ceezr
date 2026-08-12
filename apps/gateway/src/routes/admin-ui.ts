@@ -80,6 +80,7 @@ import {
   updateCityGroupIds,
   updateSetting,
 } from "../admin/queries.ts";
+import { createAdminSecurityHeaders } from "../admin/security-headers.ts";
 
 export interface AdminUiDependencies {
   readonly sql: Sql;
@@ -87,6 +88,13 @@ export interface AdminUiDependencies {
   /** قناة تسليم رمز الدخول: بوت السائق يراسل المسؤول في محادثته الخاصة. */
   readonly codeSender: AdminCodeSender;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * أصولُ الخريطة المسموحة في سياسة أمن المحتوى، مُشتقّةً من `resolveMapStyle`
+   * (المرحلة ١٠). تُمرَّر ولا تُحسب هنا: هذا الموجّه لا يقرأ الضبط، وحسابُها هنا
+   * كان سيصنع مصدرَ حقيقةٍ ثانياً لنمط الخريطة إلى جانب `packages/maps`.
+   * الافتراض عند الغياب: لا أصلَ خارجيّاً — أضيقُ سياسةٍ ممكنة.
+   */
+  readonly mapOrigins?: readonly string[];
 }
 
 const AUDIT_PREVIEW_LIMIT = 12;
@@ -206,6 +214,7 @@ function page(
       activePath,
       user,
       csrfToken: c.get("csrfToken"),
+      cspNonce: c.get("cspNonce"),
       body,
       ...(refreshSeconds === undefined ? {} : { refreshSeconds }),
     }),
@@ -231,6 +240,10 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   const app = new Hono<AdminEnv>();
   const log = deps.log ?? ((): void => undefined);
 
+  // قبل كل مسار، ومنها /login: الدخول هو الصفحة التي تُرسَل فيها كلمةُ المرور
+  // الوقتية، فإخراجُها من السياسة كان سيترك أضعفَ صفحةٍ بلا حماية.
+  app.use("*", createAdminSecurityHeaders({ mapOrigins: deps.mapOrigins ?? [] }));
+
   // -------------------------------------------------------------------------
   // الدخول — خارج الحارس، وإلا استحال الدخول أصلاً
   // -------------------------------------------------------------------------
@@ -239,6 +252,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const notice = c.req.query("sent") === "1" ? "أُرسِل الرمز إلى محادثتك مع بوت السائق." : null;
     return c.html(
       renderLoginPage({
+        cspNonce: c.get("cspNonce"),
         step: notice === null ? "identify" : "verify",
         ...(notice === null ? {} : { notice }),
         ...(c.req.query("tg") === undefined ? {} : { telegramId: String(c.req.query("tg")) }),
@@ -252,7 +266,11 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
 
     if (telegramId === null || !TELEGRAM_ID_PATTERN.test(telegramId)) {
       return c.html(
-        renderLoginPage({ step: "identify", error: "معرّف تلغرام يُكتب أرقاماً فقط." }),
+        renderLoginPage({
+          cspNonce: c.get("cspNonce"),
+          step: "identify",
+          error: "معرّف تلغرام يُكتب أرقاماً فقط.",
+        }),
         HTML_UNPROCESSABLE,
       );
     }
@@ -269,7 +287,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         log("رُفض طلب رمز دخول للوحة لسبب أعمال", { reason: issueOutcome.reason });
       }
       return c.html(
-        renderLoginPage({ step: "identify", telegramId, error: GENERIC_LOGIN_ERROR }),
+        renderLoginPage({
+          cspNonce: c.get("cspNonce"),
+          step: "identify",
+          telegramId,
+          error: GENERIC_LOGIN_ERROR,
+        }),
         HTML_UNPROCESSABLE,
       );
     }
@@ -284,6 +307,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       log("تعذّر تسليم رمز دخول اللوحة على تلغرام", { stage: "telegram_delivery" });
       return c.html(
         renderLoginPage({
+          cspNonce: c.get("cspNonce"),
           step: "identify",
           telegramId,
           error: "تعذّر تسليم الرمز على تلغرام. ابدأ محادثة مع بوت السائق ثم أعِد المحاولة.",
@@ -303,6 +327,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     if (telegramId === null || code === null || !CODE_PATTERN.test(code)) {
       return c.html(
         renderLoginPage({
+          cspNonce: c.get("cspNonce"),
           step: "verify",
           ...(telegramId === null ? {} : { telegramId }),
           error: "الرمز ستّ خانات رقمية.",
@@ -323,6 +348,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       }
       return c.html(
         renderLoginPage({
+          cspNonce: c.get("cspNonce"),
           step: "verify",
           telegramId,
           error: "رمز غير صحيح أو منتهٍ. اطلب رمزاً جديداً.",
@@ -345,7 +371,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         log("رُفض فتح جلسة اللوحة لسبب أعمال", { reason: openOutcome.reason });
       }
       return c.html(
-        renderLoginPage({ step: "verify", telegramId, error: GENERIC_LOGIN_ERROR }),
+        renderLoginPage({
+          cspNonce: c.get("cspNonce"),
+          step: "verify",
+          telegramId,
+          error: GENERIC_LOGIN_ERROR,
+        }),
         HTML_UNPROCESSABLE,
       );
     }

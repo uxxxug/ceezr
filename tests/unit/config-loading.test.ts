@@ -167,3 +167,69 @@ describe("DATABASE_URL", () => {
     });
   });
 });
+
+describe("ضبط الخريطة (المرحلة ١٠)", () => {
+  it("الافتراض بلا متغيّرات: none وبلا نمطٍ ولا مفتاح", () => {
+    const result = tryLoadConfig(FULL);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.mapProvider).toBe("none");
+    expect(result.value.mapStyleUrl).toBeNull();
+    expect(result.value.mapTilesPublicKey).toBeNull();
+  });
+
+  it("المتغيّرات الثلاثة تُقرأ فعلاً — كانت تُهمَل كلُّها قبل هذه المرحلة", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      MAP_PROVIDER: "maplibre",
+      MAP_STYLE_URL: "https://tiles.example.org/style.json",
+      MAP_TILES_PUBLIC_KEY: "pk-123",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.mapProvider).toBe("maplibre");
+    expect(result.value.mapStyleUrl).toBe("https://tiles.example.org/style.json");
+    expect(result.value.mapTilesPublicKey).toBe("pk-123");
+  });
+
+  it("مزوّدٌ مجهول يمنع الإقلاع — لا يُقبل بصمتٍ كما كان", () => {
+    // `google` مدرجٌ قصداً: كان موعوداً به في `.env.example` ولم يُنفّذ، فمن يضبطه
+    // يجب أن يُمنع لا أن يُعطى لوحةً بلا خريطةٍ بلا سبب.
+    for (const MAP_PROVIDER of ["leaflet", "google", "mapbox", "مزيّف", "non"]) {
+      const result = tryLoadConfig({ ...FULL, MAP_PROVIDER });
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe("INVALID_ENV_VAR");
+    }
+  });
+
+  it("تسويةُ الحالة والمسافات مقصودة، وعلى نفس سابقة TRANSLATION_PROVIDER", () => {
+    // من يكتب متغيّرات البيئة إنسان، و`MapLibre ` ليس خطأً في النيّة بل في الرسم.
+    // ورفضُه كان سيخالف ما يفعله `TRANSLATION_PROVIDER` في نفس الدالّة، فيصير
+    // للملفّ قاعدتان مختلفتان لنفس الشيء.
+    for (const MAP_PROVIDER of ["MapLibre", "maplibre ", " MAPLIBRE"]) {
+      const result = tryLoadConfig({ ...FULL, MAP_PROVIDER });
+      expect(result.ok).toBe(true);
+      if (!result.ok) continue;
+      expect(result.value.mapProvider).toBe("maplibre");
+    }
+  });
+
+  it("MAP_TILES_URL لم يُعد اسماً معروفاً: اسمٌ واحد لا اسمان", () => {
+    // كان `.env.example` يُعلن MAP_TILES_URL و`render.yaml` يُعلن MAP_STYLE_URL،
+    // وكلاهما لم يُقرأ. الاسم القانوني الآن MAP_STYLE_URL وحده، وهذا الاختبار
+    // يمنع عودةَ الاسم الميت من باب التوافق.
+    const result = tryLoadConfig({ ...FULL, MAP_TILES_URL: "https://old.example.org/t.json" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.mapStyleUrl).toBeNull();
+  });
+
+  it("القيم الفارغة أو المسافات تُقرأ null لا نصّاً فارغاً", () => {
+    const result = tryLoadConfig({ ...FULL, MAP_STYLE_URL: "   ", MAP_TILES_PUBLIC_KEY: "" });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.mapStyleUrl).toBeNull();
+    expect(result.value.mapTilesPublicKey).toBeNull();
+  });
+});

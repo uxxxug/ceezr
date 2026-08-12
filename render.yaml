@@ -92,7 +92,9 @@ services:
         sync: false
       - key: MAP_STYLE_URL
         sync: false
-      - key: MAP_TILE_PROVIDER
+      - key: MAP_PROVIDER
+        sync: false
+      - key: MAP_TILES_PUBLIC_KEY
         sync: false
       # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
       - key: TRACKING_GPS_INTERVAL_SECONDS
@@ -177,7 +179,9 @@ services:
         sync: false
       - key: MAP_STYLE_URL
         sync: false
-      - key: MAP_TILE_PROVIDER
+      - key: MAP_PROVIDER
+        sync: false
+      - key: MAP_TILES_PUBLIC_KEY
         sync: false
       # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
       - key: TRACKING_GPS_INTERVAL_SECONDS

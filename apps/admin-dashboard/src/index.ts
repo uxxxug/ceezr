@@ -37,6 +37,19 @@ export {
 
 export { type LoginPageData, renderLoginPage } from "./login.ts";
 
+/**
+ * لوحُ الخريطة (المرحلة ١٠) — مكوّنٌ بلا مسارٍ ولا عنصرِ تنقّل بعد. تركيبُه في
+ * صفحةٍ من نطاق المرحلة ١٣، وعرضُه للراكب من ١١ وللسائق من ١٢. ويُصدَّر الآن لأن
+ * تعريفَه واختبارَه أُنجزا فعلاً، لا لأن أحداً يستهلكه — وهذا مُعلَنٌ في التقرير.
+ */
+export {
+  centerOf,
+  isUsableIntegrity,
+  jsonForScript,
+  type MapPanelOptions,
+  renderMapPanel,
+} from "./map.ts";
+
 export {
   type AttendanceEvent,
   type AttendancePageData,

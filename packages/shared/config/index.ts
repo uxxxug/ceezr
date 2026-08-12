@@ -60,12 +60,37 @@ export interface AppConfig {
    * أن يحدث لمن لم يطلبه.
    */
   readonly runWorkerInGateway: boolean;
+  /**
+   * مزوّد عرض الخريطة. الافتراضي `none`: منصّةٌ بلا خريطة تعمل كاملةً، وهي حالُها
+   * قبل هذه المرحلة. جعلُه إلزامياً كان سيمنع الإقلاع لأجل واجهةٍ عرض.
+   */
+  readonly mapProvider: MapProviderName;
+  /** رابط ملفّ نمط الخريطة (style.json) — `null` يعني غيرَ مُهيَّأ. */
+  readonly mapStyleUrl: string | null;
+  /**
+   * مفتاح خدمة البلاطات. **عامٌّ بالتصميم**: المتصفّح هو من يطلب البلاطات فيظهر
+   * المفتاح في كل طلب. الاسم يقول ذلك صراحةً حتى لا يوضع فيه مفتاحٌ بلا تقييد
+   * نطاقٍ ولا سقفِ استخدام. يُنظر `MapStyleInput.publicApiKey`.
+   */
+  readonly mapTilesPublicKey: string | null;
 }
 
 /** مخازن الجلسات المدعومة. */
 export const SESSION_STORE_NAMES = ["memory", "redis"] as const;
 
 export type SessionStoreName = (typeof SESSION_STORE_NAMES)[number];
+
+/**
+ * مزوّدات عرض الخريطة المدعومة. `none` اختيارٌ صريح: «اعمل بلا خريطة».
+ *
+ * تسكن القائمة هنا لا في `packages/maps` لأن هذا موضعُ مفردات الضبط، والاتجاه
+ * القائم في المستودع هو `maps → shared` (نمط `Result`). ووضعُها هناك واستيرادُها
+ * هنا كان سيقلب الاتجاه فيصير أدنى الطبقات معتمداً على طبقةٍ فوقه.
+ * وكتابتُها في الموضعين كانت ستُنتج ضبطاً يقبل ما لا يُحلّله المزوّد.
+ */
+export const MAP_PROVIDER_NAMES = ["none", "maplibre"] as const;
+
+export type MapProviderName = (typeof MAP_PROVIDER_NAMES)[number];
 
 /** أسماء المزوّدات المدعومة. `none` ليست غياباً بل اختياراً صريحاً. */
 export const TRANSLATION_PROVIDER_NAMES = [
@@ -231,6 +256,19 @@ export function tryLoadConfig(
     );
   }
 
+  // مزوّد الخريطة يُرفض إن كان مجهولاً، بخلاف `RUN_WORKER_IN_GATEWAY` المنطقي:
+  // قيمةٌ مكتوبةٌ خطأً هنا تعني مشغّلاً يظنّ أنه فعّل خريطةً لم تُفعَّل، وهو
+  // انحرافٌ صامت بين ما ضُبِط وما يعمل — لا حالاً افتراضياً مقبولاً.
+  const rawMapProvider = (source.MAP_PROVIDER ?? "none").trim().toLowerCase();
+  if (!(MAP_PROVIDER_NAMES as readonly string[]).includes(rawMapProvider)) {
+    return err(
+      new InvalidEnvVarError(
+        "MAP_PROVIDER",
+        `المتاح: ${MAP_PROVIDER_NAMES.join(", ")} — وردت: ${rawMapProvider}`,
+      ),
+    );
+  }
+
   const translationApiKey = isBlank(source.TRANSLATION_API_KEY)
     ? null
     : (source.TRANSLATION_API_KEY as string).trim();
@@ -268,6 +306,11 @@ export function tryLoadConfig(
       : (source.TRANSLATION_CONTACT_EMAIL as string).trim(),
     sessionStore: rawSessionStore as SessionStoreName,
     runWorkerInGateway: parseBooleanEnv(source.RUN_WORKER_IN_GATEWAY),
+    mapProvider: rawMapProvider as MapProviderName,
+    mapStyleUrl: isBlank(source.MAP_STYLE_URL) ? null : (source.MAP_STYLE_URL as string).trim(),
+    mapTilesPublicKey: isBlank(source.MAP_TILES_PUBLIC_KEY)
+      ? null
+      : (source.MAP_TILES_PUBLIC_KEY as string).trim(),
   });
 }
 

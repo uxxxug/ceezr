@@ -16,6 +16,8 @@ export interface LoginPageData {
   readonly telegramId?: string;
   readonly error?: string;
   readonly notice?: string;
+  /** nonce سياسة أمن المحتوى — صفحة الدخول تحمل وسمَ أنماطٍ داخلياً فتحتاجه. */
+  readonly cspNonce: string;
 }
 
 export function renderLoginPage(data: LoginPageData): string {
@@ -53,7 +55,7 @@ export function renderLoginPage(data: LoginPageData): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>دخول لوحة وَصْلة</title>
-<style>
+<style nonce="${escapeHtml(data.cspNonce)}">
 body{margin:0;background:#0f1115;color:#e7e9ee;font-family:"Segoe UI",Tahoma,sans-serif}
 .login{max-width:380px;margin:12vh auto;background:#171a21;border:1px solid #262b36;
 border-radius:12px;padding:22px}

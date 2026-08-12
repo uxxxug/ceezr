@@ -80,17 +80,21 @@ describe("أدوات العرض", () => {
 
 describe("صفحة الدخول", () => {
   it("تطلب المعرّف أولاً ثم الرمز، ولا تطلبهما معاً", () => {
-    const identify = renderLoginPage({ step: "identify" });
+    const identify = renderLoginPage({ cspNonce: "test-nonce", step: "identify" });
     expect(identify).toContain("/admin/login/code");
     expect(identify).not.toContain("/admin/login/verify");
 
-    const verify = renderLoginPage({ step: "verify", telegramId: "12345678" });
+    const verify = renderLoginPage({
+      cspNonce: "test-nonce",
+      step: "verify",
+      telegramId: "12345678",
+    });
     expect(verify).toContain("/admin/login/verify");
     expect(verify).toContain("12345678");
   });
 
   it("تعرض الخطأ نصّاً مهروباً لا كوداً", () => {
-    const page = renderLoginPage({ step: "identify", error: "<b>خطأ</b>" });
+    const page = renderLoginPage({ cspNonce: "test-nonce", step: "identify", error: "<b>خطأ</b>" });
     expect(page).not.toContain("<b>خطأ</b>");
     expect(page).toContain("&lt;b&gt;");
   });

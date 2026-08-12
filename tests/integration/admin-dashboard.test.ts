@@ -164,6 +164,8 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
       createAdminUiRoutes({
         sql,
         auth,
+        // أصلٌ واحد يُمرَّر لإثبات أن السياسة تتبع الضبط لا قائمةً مكتوبةً في الموجّه.
+        mapOrigins: ["https://tiles.example.org", "https://unpkg.com"],
         codeSender: {
           send: async (chatId, text) => {
             sentCodes.push({ chatId, text });
@@ -334,6 +336,70 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     // الإعدادات تحمل نماذج: تحديثها تحت يد من يكتب فيها يمحو ما كتب
     const settings = await (await request("/admin/settings", { cookie })).text();
     expect(settings).not.toContain("location.reload()");
+  });
+
+  // -------------------------------------------------------------------------
+  // ترويسات الأمن (المرحلة ١٠)
+  // -------------------------------------------------------------------------
+
+  it("كل صفحةٍ تحمل سياسةَ أمن محتوىً بـnonce يطابق وسومَها فعلاً", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    for (const path of ["/admin", "/admin/live-orders", "/admin/settings", "/admin/payments"]) {
+      const res = await request(path, { cookie });
+      expect(res.status).toBe(200);
+      const csp = res.headers.get("content-security-policy");
+      expect(csp).not.toBeNull();
+      if (csp === null) continue;
+
+      // المطابقة هي المقصود: nonce في الترويسة لا يوافق ما في الصفحة يعني
+      // لوحةً تُرفض وسومُها فيتوقّف البحثُ والتحديث بلا رسالة خطأ ظاهرة.
+      const nonce = /'nonce-([^']+)'/.exec(csp)?.[1];
+      expect(nonce).toBeDefined();
+      const html = await res.text();
+      expect(html).toContain(`<style nonce="${nonce}">`);
+      expect(html).toContain(`<script nonce="${nonce}">`);
+      // ولا يبقى وسمٌ بلا nonce: واحدٌ منسيّ = وظيفةٌ معطّلةٌ في صفحةٍ واحدة.
+      expect(html.split("<script").length - 1).toBe(html.split('<script nonce="').length - 1);
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).not.toContain("'unsafe-inline'; script-src");
+    }
+  });
+
+  it("الـnonce يتغيّر في كل طلب: قيمةٌ ثابتة تُخمَّن فتُبطل السياسة", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const first = (await request("/admin", { cookie })).headers.get("content-security-policy");
+    const second = (await request("/admin", { cookie })).headers.get("content-security-policy");
+    expect(first).not.toBe(second);
+  });
+
+  it("صفحةُ الدخول محميّةٌ كذلك — وهي أضعفُ صفحةٍ إذ تُرسَل فيها كلمةُ المرور الوقتية", async () => {
+    const res = await request("/admin/login");
+    expect(res.status).toBe(200);
+    const csp = res.headers.get("content-security-policy");
+    expect(csp).toContain("script-src 'nonce-");
+    const nonce = /'nonce-([^']+)'/.exec(csp ?? "")?.[1];
+    expect(await res.text()).toContain(`<style nonce="${nonce}">`);
+  });
+
+  it("بقيّةُ الترويسات: تأطيرٌ ممنوع، ولا تخمينَ نوع، ولا مُحيلٌ يُسرِّب المعرّفات", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const res = await request("/admin/drivers", { cookie });
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    // مسارات اللوحة تحمل معرّفات سائقين في الرابط؛ إرسالُها في `Referer` إلى
+    // مضيف بلاطاتٍ خارجي تسريبُ بيانات لا مجرّد ضعفٍ نظري.
+    expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(res.headers.get("permissions-policy")).toContain("geolocation=()");
+  });
+
+  it("لا سمةَ حدثٍ داخلية في أي صفحة: السياسة لا تُجيزها فتتوقّف الوظيفة صامتةً", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    for (const path of ["/admin", "/admin/payments", "/admin/heatmap", "/admin/drivers"]) {
+      const html = await (await request(path, { cookie })).text();
+      for (const attribute of ["onsubmit=", "onclick=", "onchange=", "onload=", "onerror="]) {
+        expect(html).not.toContain(attribute);
+      }
+    }
   });
 
   it("واجهة JSON تعيد نماذج القراءة نفسها", async () => {

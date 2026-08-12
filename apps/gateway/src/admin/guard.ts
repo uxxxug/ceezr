@@ -25,6 +25,12 @@ import {
 export interface AdminVariables {
   readonly admin: SessionIdentity;
   readonly csrfToken: string;
+  /**
+   * nonce سياسة أمن المحتوى، يضعه وسيطُ الترويسات (المرحلة ١٠). مُعرَّف هنا لا في
+   * وحدة الترويسات لأن `AdminEnv` هو عقدُ السياق الواحد لهذا الموجّه؛ وتعريفُ
+   * بيئةٍ ثانية كان سيجعل الوسيط والحارس يعملان على سياقين لا يعرف أحدهما الآخر.
+   */
+  readonly cspNonce: string;
 }
 
 export type AdminEnv = { Variables: AdminVariables };

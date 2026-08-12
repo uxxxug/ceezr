@@ -1,10 +1,12 @@
 export type {
-  MapRenderer,
-  MapView,
-  MapViewConfig,
+  MapProviderName,
+  MapStyleInput,
+  MapViewModel,
   PolylineOptions,
+  RenderedPolyline,
+  ResolvedMapStyle,
 } from "./map-provider.ts";
-export { MapProviderError } from "./map-provider.ts";
+export { MapConfigError } from "./map-provider.ts";
 export type {
   DistanceMatrix,
   DistanceMatrixElement,

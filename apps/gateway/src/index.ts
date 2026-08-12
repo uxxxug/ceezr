@@ -10,6 +10,7 @@ import {
   createPaymentRepository,
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/payment-adapters.ts";
+import { resolveMapStyle } from "../../../packages/maps/index.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { grammyCommandRegistrar, registerBotCommands } from "./bots/shared/register-commands.ts";
@@ -170,6 +171,30 @@ const app = createServer({
 
 // لوحة الإدارة: موجّهان منفصلان يُركَّبان هنا لا في server.ts (ADR 0007).
 const adminAuth = createAdminAuthPort(container.sql);
+
+/**
+ * نمطُ الخريطة يُحلَّل مرّةً عند الإقلاع لا في كل طلب: الضبط ثابتٌ في عمر العملية،
+ * وتحليلُه في كل طلب كان سيدفع ثمنَ تفكيك روابطٍ بلا فائدةٍ ويُخفي خطأَ ضبطٍ إلى
+ * أول زيارةٍ للصفحة بدل أن يظهر في السجل عند الإقلاع.
+ *
+ * وضبطٌ خاطئ (نمطٌ على http، أو مفتاحٌ في موضعين) **لا يُسقط البوابة**: الخريطة
+ * زينةُ لوحةٍ إدارية، وإسقاطُ استقبال طلبات تلغرام لأجلها كان سيُوقف الخدمةَ كلَّها
+ * بسبب ميزةٍ ثانوية. يُسجَّل بوضوح، وتبقى السياسة أضيقَ ما يمكن (لا أصلَ خارجي).
+ */
+const mapStyle = resolveMapStyle({
+  provider: config.mapProvider,
+  styleUrl: config.mapStyleUrl,
+  publicApiKey: config.mapTilesPublicKey,
+});
+if (!mapStyle.ok) {
+  log("map.config.invalid", { key: mapStyle.error.key, detail: mapStyle.error.detail });
+} else if (!mapStyle.value.configured) {
+  log("map.disabled", { reason: mapStyle.value.reason });
+} else {
+  log("map.enabled", { origins: mapStyle.value.origins });
+}
+const mapOrigins: readonly string[] =
+  mapStyle.ok && mapStyle.value.configured ? mapStyle.value.origins : [];
 // الأخصّ أولاً: /admin/api قبل /admin، وإلا التقط حارس الصفحات نداءات JSON
 /**
  * الأخصّ أولاً هنا أيضاً: /admin/api/live قبل /admin/api. ولو عُكس الترتيب لالتقط
@@ -192,6 +217,7 @@ app.route(
   createAdminUiRoutes({
     sql: container.sql,
     auth: adminAuth,
+    mapOrigins,
     codeSender: {
       send: async (telegramId, text) => {
         try {

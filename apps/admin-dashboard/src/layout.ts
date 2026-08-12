@@ -66,6 +66,15 @@ export interface ShellOptions {
    * يُترك undefined في الصفحات التي تحمل نماذج، فتحديثها يمحو ما كُتب فيها.
    */
   readonly refreshSeconds?: number;
+  /**
+   * قيمة `nonce` الموافقة لسياسة أمن المحتوى في ترويسة الردّ (المرحلة ١٠).
+   *
+   * إلزامية لا اختيارية: مع `script-src 'nonce-…'` يرفض المتصفّح كلّ وسم نصّ لا
+   * يحمل القيمة نفسها — فقيمةٌ خاطئة أو غائبة تُعطّل البحث والتحديث الدوري بلا
+   * أي رسالة خطأ في الصفحة. وجعلُها اختيارية كان سيسمح بنسيانها في مُتصِلٍ واحد
+   * فتُشلّ صفحةٌ واحدة دون غيرها، وهو أسوأ أنواع العطل: متقطّع وصامت.
+   */
+  readonly cspNonce: string;
 }
 
 export function renderShell(options: ShellOptions): string {
@@ -90,12 +99,12 @@ export function renderShell(options: ShellOptions): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>${escapeHtml(options.title)} — لوحة وَصْلة</title>
-<style>${STYLE}</style>
+<style nonce="${escapeHtml(options.cspNonce)}">${STYLE}</style>
 </head>
 <body>
 <header class="top">
   <div class="brand">وَصْلة · لوحة الإدارة</div>
-  <form class="search" role="search" onsubmit="return waslahSearch(event)">
+  <form id="search-form" class="search" role="search">
     <input id="q" name="q" type="search" placeholder="ابحث: اسم، جوال، معرّف تلغرام، رقم طلب…"
            autocomplete="off" aria-label="بحث موحَّد">
     <button type="submit">بحث</button>
@@ -114,8 +123,12 @@ export function renderShell(options: ShellOptions): string {
 ${notice}
 ${options.body}
 </main>
-<script>${SEARCH_SCRIPT}</script>
-${options.refreshSeconds === undefined ? "" : `<script>${refreshScript(options.refreshSeconds)}</script>`}
+<script nonce="${escapeHtml(options.cspNonce)}">${SEARCH_SCRIPT}</script>
+${
+  options.refreshSeconds === undefined
+    ? ""
+    : `<script nonce="${escapeHtml(options.cspNonce)}">${refreshScript(options.refreshSeconds)}</script>`
+}
 </body>
 </html>`;
 }
@@ -224,6 +237,10 @@ border:1px solid transparent}
 .badge--warn{background:rgba(200,144,31,.15);color:#e0b45c;border-color:rgba(200,144,31,.4)}
 .badge--bad{background:rgba(192,74,74,.15);color:#e08a8a;border-color:rgba(192,74,74,.4)}
 .badge--muted{background:#1c202a;color:var(--muted);border-color:var(--line)}
+/* لوحُ الخريطة (المرحلة ١٠): يبقى في الورقة الوحيدة لا في وسمٍ ثانٍ، فورقتان
+   تتنافسان على نفس الأصناف وتنجرفان. */
+.map-canvas{width:100%;border-radius:8px;border:1px solid #262b36;background:#0d0f14}
+.maplibregl-popup-content{background:#171a21;color:#e7e9ee;font-family:inherit}
 .empty{color:var(--muted);margin:0;padding:12px 0}
 .notice{padding:10px 14px;border-radius:8px;margin-bottom:14px}
 .notice--ok{background:rgba(47,158,99,.15);border:1px solid rgba(47,158,99,.4)}
@@ -276,7 +293,7 @@ async function waslahSearch(event){
       }
       html+='</ul>';
     }
-    html+='<button class="ghost" onclick="document.getElementById(\\'search-results\\').hidden=true">إغلاق</button>';
+    html+='<button class="ghost" data-close-search="1">إغلاق</button>';
     box.innerHTML=html;
   }catch(e){box.textContent='تعذّر البحث: '+e;}
   return false;
@@ -286,4 +303,32 @@ function escapeText(v){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
 }
+/*
+ * ربطُ الأحداث هنا لا في سمات onsubmit/onclick/onchange. وسياسة أمن المحتوى
+ * (المرحلة ١٠) لا تُجيز سماتَ الأحداث أصلاً — والـnonce يُجيز الوسومَ وحدها — فلو
+ * بقيت تلك السمات لتوقّف البحثُ وزرُّ الإغلاق ومُنتقي المدينة بلا رسالةِ خطأ في
+ * الصفحة، وهو عطلٌ صامت. والتنويب على المستند يعمل كذلك على عناصر لم تكن موجودة
+ * وقت التحميل، وهذا لازمٌ لزرّ الإغلاق فهو يُبنى بعد وصول النتائج.
+ */
+document.addEventListener('submit',function(ev){
+  var form=ev.target;
+  if(!form||form.id!=='search-form')return;
+  ev.preventDefault();
+  waslahSearch(ev);
+});
+document.addEventListener('click',function(ev){
+  var el=ev.target;
+  if(!el||!el.closest)return;
+  if(!el.closest('[data-close-search]'))return;
+  ev.preventDefault();
+  var box=document.getElementById('search-results');
+  if(box){box.hidden=true;box.innerHTML='';}
+});
+document.addEventListener('change',function(ev){
+  var el=ev.target;
+  if(!el||!el.getAttribute)return;
+  var param=el.getAttribute('data-nav-param');
+  if(!param)return;
+  window.location.href='?'+encodeURIComponent(param)+'='+encodeURIComponent(el.value);
+});
 `;
