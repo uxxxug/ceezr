@@ -9,6 +9,11 @@
  *   بلا تغيير في توقيع الدالّة.
  */
 
+import {
+  type OperationsFacts,
+  type OperationsStatus,
+  operationsStatusOf,
+} from "../../../../packages/domain/tracking/operations-status.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type {
   AttendanceEvent,
@@ -1513,12 +1518,46 @@ export interface LiveDriverPositionRow {
   readonly accuracyMeters: number | null;
   /** زمن جهاز السائق للإصلاحة (المرحلة ٥) — قد يغيب لموقعٍ كُتب قبلها. */
   readonly recordedAt: string | null;
-  readonly sessionStartedAt: string;
+  /**
+   * `null` = لا جلسةَ تتبّعٍ مفتوحة. صار الحقل يقبل الفراغ في المرحلة ١٣ لأن
+   * الصفَّ لم يبقَ مشروطاً بجلسةٍ مفتوحة: سائقٌ على رحلةٍ حيّةٍ يُعرَض ولو أُغلقت
+   * جلستُه — يُنظر تعليقُ الدالّة.
+   */
+  readonly sessionStartedAt: string | null;
   readonly lastFixAt: string | null;
+  /** `driver_availability.is_available` — الإتاحةُ المُعلنة، حكمُ الحالة عند غياب رحلة. */
+  readonly isAvailable: boolean;
   readonly tripId: string | null;
   readonly tripStatus: string | null;
+  /** نقطتا الرحلة — تُشتَقّ منهما حالاتُ الوصول (AT_PICKUP/ARRIVED) في المجال. */
+  readonly pickupLat: number | null;
+  readonly pickupLng: number | null;
+  readonly dropoffLat: number | null;
+  readonly dropoffLng: number | null;
 }
 
+/**
+ * ## تغييرُ المرحلة ١٣: موضوعُ الاستعلام صار السائق لا الجلسة
+ *
+ * كان الاستعلام يبدأ من `tracking_sessions` بشرط `ended_at is null`، فكان معناه
+ * الفعلي «السائقون الذين لهم جلسةُ تتبّعٍ مفتوحة». وقِيس أثرُ ذلك في المرحلة ١٣
+ * على قاعدةٍ حقيقية: سائقٌ حالةُ رحلته `in_progress` وجلستُه أُغلقت (سقفُ الاثنتي
+ * عشرة ساعة، أو `EXPIRED` من المهمّة المجدولة) كان **يغيب عن الخريطة كليّاً** —
+ * راكبٌ في سيّارةٍ ولا يستطيع المشغّل رؤية سائقها ألبتّة، فلا يستطيع تدخّلاً ولا
+ * إجابةَ سؤالٍ ولا فتحَ نزاع. وهذا أخطرُ من عرضِ موقعٍ قديم: العرضُ القديم يُوسَم
+ * `STALE` فيُحكَم عليه، والغيابُ لا يُوسَم بشيء لأن لا شيءَ هناك.
+ *
+ * فصار الموضوعُ السائق، والشرطُ **جلسةٌ مفتوحة أو رحلةٌ حيّة**. والرحلةُ الحيّة
+ * أقوى سببٍ للرؤية من الجلسة، لأنها التزامٌ قائمٌ تجاه راكبٍ لا مجرّد دوام.
+ *
+ * وما **لم** يتغيّر: من ليس في الخدمة وليس على رحلةٍ حيّة **لا يُعرض موقعُه**. هذا
+ * قرارُ الخصوصية المتّخذ في المرحلة ١٢ (P12-3) ويبقى قائماً — و`OFFLINE` حالةٌ
+ * يعرفها المجال ولا تُرسَم على الخريطة، ولا تُعدُّ ثقباً في التغطية.
+ *
+ * وحالةُ الجلسة (نشط/متأخّر) **لا تُحسب هنا**: تُعاد الوقائع الزمنية كما هي ويحكم
+ * عليها المجال (`operationsStatusOf` ⇐ `sessionStateAt`). فالسقفُ الزمني سياسةٌ
+ * واحدة في موضعٍ واحد، لا `interval` في SQL يخالف ثابتاً في TypeScript.
+ */
 export async function listLiveDriverPositions(
   sql: Sql,
   cityId: string | null,
@@ -1534,15 +1573,20 @@ export async function listLiveDriverPositions(
       quality: string | null;
       accuracy_m: number | null;
       recorded_at: string | null;
-      session_started_at: string;
+      session_started_at: string | null;
       last_fix_at: string | null;
+      is_available: boolean | null;
       trip_id: string | null;
       trip_status: string | null;
+      pickup_lat: number | null;
+      pickup_lng: number | null;
+      dropoff_lat: number | null;
+      dropoff_lng: number | null;
     }[]
   >`
-    select s.driver_id,
+    select d.id as driver_id,
            u.full_name as driver_name,
-           s.city_id, c.code as city_code,
+           d.city_id, c.code as city_code,
            st_y(d.last_location::geometry) as lat,
            st_x(d.last_location::geometry) as lng,
            d.last_location_quality as quality,
@@ -1550,16 +1594,35 @@ export async function listLiveDriverPositions(
            d.last_location_recorded_at as recorded_at,
            s.started_at as session_started_at,
            s.last_fix_at,
-           s.trip_id,
-           o.status::text as trip_status
-      from tracking_sessions s
-      join drivers d on d.id = s.driver_id
+           coalesce(a.is_available, false) as is_available,
+           coalesce(s.trip_id, o.id) as trip_id,
+           o.status::text as trip_status,
+           st_y(o.pickup::geometry) as pickup_lat,
+           st_x(o.pickup::geometry) as pickup_lng,
+           st_y(o.dropoff::geometry) as dropoff_lat,
+           st_x(o.dropoff::geometry) as dropoff_lng
+      from drivers d
       join users u on u.id = d.user_id
-      join cities c on c.id = s.city_id
-      left join orders o on o.id = s.trip_id
-     where s.ended_at is null
-       and d.last_location is not null
-       ${cityId === null ? sql`` : sql`and s.city_id = ${cityId}::uuid`}
+      join cities c on c.id = d.city_id
+      left join tracking_sessions s
+             on s.driver_id = d.id and s.ended_at is null
+      left join driver_availability a on a.driver_id = d.id
+      -- الرحلةُ الحيّة تُقرأ من جدول orders مباشرةً لا من s.trip_id: جلسةٌ مُغلقة
+      -- لا تحمل رحلتَها إلى هذا الصفّ، وهي بعينِها الحالةُ التي كان السائق يغيب
+      -- فيها عن الخريطة. و limit 1 تحسم تعدّدَ الرحلات النظري بأحدثِ إسناد —
+      -- وقيدُ القاعدة يمنع تعدّدَها فعلاً، لكن استعلاماً يُضاعف الصفوف عند خللٍ
+      -- في البيانات يُنتج سائقاً مرسوماً مرّتين على الخريطة.
+      left join lateral (
+        select o2.id, o2.status, o2.pickup, o2.dropoff
+          from orders o2
+         where o2.assigned_driver_id = d.id
+           and o2.status in ('matched', 'in_progress')
+         order by o2.matched_at desc nulls last
+         limit 1
+      ) o on true
+     where d.last_location is not null
+       and (s.id is not null or o.id is not null)
+       ${cityId === null ? sql`` : sql`and d.city_id = ${cityId}::uuid`}
      order by s.last_fix_at desc nulls last
   `;
 
@@ -1575,9 +1638,71 @@ export async function listLiveDriverPositions(
       quality: row.quality,
       accuracyMeters: row.accuracy_m === null ? null : Number(row.accuracy_m),
       recordedAt: row.recorded_at === null ? null : String(row.recorded_at),
-      sessionStartedAt: String(row.session_started_at),
+      sessionStartedAt: row.session_started_at === null ? null : String(row.session_started_at),
       lastFixAt: row.last_fix_at === null ? null : String(row.last_fix_at),
+      isAvailable: row.is_available === true,
       tripId: row.trip_id,
       tripStatus: row.trip_status,
+      pickupLat: row.pickup_lat === null ? null : Number(row.pickup_lat),
+      pickupLng: row.pickup_lng === null ? null : Number(row.pickup_lng),
+      dropoffLat: row.dropoff_lat === null ? null : Number(row.dropoff_lat),
+      dropoffLng: row.dropoff_lng === null ? null : Number(row.dropoff_lng),
     }));
+}
+
+/** صفُّ موقعٍ حيٍّ وقد اقترنت به حالتُه التشغيلية المُشتقّة. */
+export interface LiveDriverStatusRow extends LiveDriverPositionRow {
+  readonly status: OperationsStatus;
+}
+
+/**
+ * موضعُ الاشتقاق **الواحد** لحالة السائق التشغيلية.
+ *
+ * صفحةُ الخريطة ولقطةُ SSE تقرآن الحالةَ من هنا كلتاهما. ولو حسبت كلٌّ منهما
+ * حالتَها لأمكن أن تُظهر الصفحةُ `AT_PICKUP` ويُظهر المجرى الحيّ `TO_PICKUP`
+ * للسائق نفسه في اللحظة نفسها — وهو أسوأُ من غياب الميزة، لأن المشغّل لا يعرف
+ * أيَّ الشاشتين يُصدّق. والدالّةُ نفسها في المجال خالصةٌ: هذه محضُ ترجمةِ صفِّ
+ * قاعدةٍ إلى وقائع.
+ */
+export function operationsStatusOfRow(row: LiveDriverPositionRow, nowMs: number): OperationsStatus {
+  const facts: OperationsFacts = {
+    session:
+      row.sessionStartedAt === null
+        ? null
+        : {
+            driverId: row.driverId,
+            tripId: row.tripId,
+            startedAtMs: Date.parse(row.sessionStartedAt),
+            lastFixAtMs: row.lastFixAt === null ? null : Date.parse(row.lastFixAt),
+            endedAtMs: null,
+            endReason: null,
+          },
+    isAvailable: row.isAvailable,
+    driverLocation: { latitude: row.lat, longitude: row.lng },
+    trip:
+      row.tripStatus === null
+        ? null
+        : {
+            status: row.tripStatus,
+            pickup:
+              row.pickupLat === null || row.pickupLng === null
+                ? null
+                : { latitude: row.pickupLat, longitude: row.pickupLng },
+            destination:
+              row.dropoffLat === null || row.dropoffLng === null
+                ? null
+                : { latitude: row.dropoffLat, longitude: row.dropoffLng },
+          },
+  };
+  return operationsStatusOf(facts, nowMs);
+}
+
+/** يقرأ المواقعَ الحيّة ويُلحق بكلٍّ منها حالتَه — المدخلُ الوحيد للعرض. */
+export async function listLiveDriverStatuses(
+  sql: Sql,
+  cityId: string | null,
+  nowMs: number = Date.now(),
+): Promise<readonly LiveDriverStatusRow[]> {
+  const rows = await listLiveDriverPositions(sql, cityId);
+  return rows.map((row) => ({ ...row, status: operationsStatusOfRow(row, nowMs) }));
 }

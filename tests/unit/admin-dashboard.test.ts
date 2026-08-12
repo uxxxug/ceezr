@@ -485,10 +485,24 @@ describe("الصفحات الثماني", () => {
     expect(html).toContain("مبدئي");
   });
 
-  it("عناصر التنقّل تسعة، وكلها تحت /admin", () => {
-    const nine = 9;
-    expect(NAV_ITEMS.length).toBe(nine);
-    for (const item of NAV_ITEMS) expect(item.path.startsWith("/admin")).toBe(true);
+  /**
+   * كان التأكيدُ رقماً مكتوباً (تسعة)، فكان يسقط عند كلِّ صفحةٍ تُضاف ويُرفع الرقمُ
+   * آليّاً بلا فحص — تأكيدٌ يُصان لا يحرس. صار يحرس ما يُهمّ فعلاً: لا مسارَ خارج
+   * /admin، ولا تكرارَ يُنتج عنصرين نشطين معاً، ولا عنصرَ بلا عنوانٍ مقروء،
+   * والصفحاتُ التشغيلية الأساسية حاضرةٌ بأسمائها.
+   */
+  it("عناصر التنقّل كلها تحت /admin، بلا تكرار، ولكلٍّ عنوان", () => {
+    expect(NAV_ITEMS.length).toBeGreaterThan(0);
+    for (const item of NAV_ITEMS) {
+      expect(item.path.startsWith("/admin")).toBe(true);
+      expect(item.label.trim().length).toBeGreaterThan(0);
+    }
+    const paths = NAV_ITEMS.map((item) => item.path);
+    expect(new Set(paths).size).toBe(paths.length);
+    expect(new Set(NAV_ITEMS.map((item) => item.label)).size).toBe(NAV_ITEMS.length);
+    for (const required of ["/admin", "/admin/live-orders", "/admin/live-map", "/admin/drivers"]) {
+      expect(paths).toContain(required);
+    }
     // اسم المستخدم يظهر في الهيكل: أثبتناه ضمناً عبر الصفحات أعلاه
     expect(user.fullName).toBe("مسؤول النظام");
   });

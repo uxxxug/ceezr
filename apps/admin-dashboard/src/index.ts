@@ -77,6 +77,12 @@ export {
 } from "./pages/drivers.ts";
 export { type HeatCell, type HeatmapPageData, renderHeatmapPage } from "./pages/heatmap.ts";
 export {
+  type LiveMapData,
+  type LiveMapDriverRow,
+  type LiveMapStatus,
+  renderLiveMapPage,
+} from "./pages/live-map.ts";
+export {
   type LiveOrderRow,
   type LiveOrdersData,
   renderLiveOrdersPage,

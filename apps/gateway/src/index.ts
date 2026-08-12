@@ -218,6 +218,8 @@ app.route(
     sql: container.sql,
     auth: adminAuth,
     mapOrigins,
+    ...(mapStyle.ok ? { mapStyle: mapStyle.value } : {}),
+    maplibreSri: config.maplibreSri,
     codeSender: {
       send: async (telegramId, text) => {
         try {

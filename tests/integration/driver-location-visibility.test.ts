@@ -64,6 +64,7 @@ const config: AppConfig = {
   mapProvider: "none",
   mapStyleUrl: null,
   mapTilesPublicKey: null,
+  maplibreSri: null,
 };
 
 let sql: Sql;

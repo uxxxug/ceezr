@@ -29,7 +29,7 @@ import type { TrackingEventBus } from "../../../../packages/infrastructure/track
 import type { TrackingEvent } from "../../../../packages/tracking/index.ts";
 import type { AdminAuthPort } from "../admin/auth.ts";
 import { type AdminEnv, createAdminGuard } from "../admin/guard.ts";
-import { listLiveDriverPositions } from "../admin/queries.ts";
+import { listLiveDriverStatuses } from "../admin/queries.ts";
 
 export interface AdminLiveDependencies {
   readonly sql: Sql;
@@ -108,8 +108,13 @@ export function createAdminLiveRoutes(deps: AdminLiveDependencies): Hono<AdminEn
         unsubscribe();
       });
 
+      /**
+       * اللقطةُ تحمل الحالةَ التشغيلية مُشتقّةً من موضعِ الاشتقاق نفسِه الذي تقرأ
+       * منه صفحةُ `/admin/live-map` (المرحلة ١٣). ولو اشتقّ كلُّ سطحٍ حالتَه لأمكن
+       * أن يقول المجرى غيرَ ما تقول الصفحةُ للسائق نفسِه في اللحظة نفسها.
+       */
       const sendSnapshot = async (): Promise<void> => {
-        const rows = await listLiveDriverPositions(deps.sql, cityId);
+        const rows = await listLiveDriverStatuses(deps.sql, cityId);
         await stream.writeSSE({
           event: "snapshot",
           data: JSON.stringify({ at: new Date().toISOString(), rows }),

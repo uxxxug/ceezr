@@ -73,6 +73,16 @@ export interface AppConfig {
    * نطاقٍ ولا سقفِ استخدام. يُنظر `MapStyleInput.publicApiKey`.
    */
   readonly mapTilesPublicKey: string | null;
+  /**
+   * بصمةُ سلامة (Subresource Integrity) لملفّ MapLibre بالإصدار المثبَّت.
+   * `null` يعني **غيرَ محسوبة**، وحينها لا يُصيَّر وسمُ النصّ ألبتّة (ADR 0019).
+   *
+   * أُضيف في المرحلة ١٣: كان ADR 0019 يُعلن أن الخريطة لا تعمل حتى يحسب المشغّل
+   * البصمة، لكن لم يكن في الضبط موضعٌ **يُدخِلها فيه** — فكان الإعلانُ صحيحاً
+   * والنتيجةُ أن الخريطة لا تعمل أبداً بأي ضبط. هذا المفتاح هو الوصلةُ الناقصة،
+   * لا سياسةٌ جديدة: القاعدة (بصمةٌ أو لا نصّ) كما هي.
+   */
+  readonly maplibreSri: string | null;
 }
 
 /** مخازن الجلسات المدعومة. */
@@ -311,6 +321,7 @@ export function tryLoadConfig(
     mapTilesPublicKey: isBlank(source.MAP_TILES_PUBLIC_KEY)
       ? null
       : (source.MAP_TILES_PUBLIC_KEY as string).trim(),
+    maplibreSri: isBlank(source.MAPLIBRE_SRI) ? null : (source.MAPLIBRE_SRI as string).trim(),
   });
 }
 

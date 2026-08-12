@@ -9,7 +9,16 @@
  */
 
 import { type Context, Hono } from "hono";
+import { DEFAULT_SESSION_POLICY } from "../../../../packages/domain/tracking/session.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
+import {
+  MAPLIBRE_SRI_UNSET,
+  type MapPoint,
+  type MapViewModel,
+  maplibreScriptUrl,
+  maplibreStylesheetUrl,
+  type ResolvedMapStyle,
+} from "../../../../packages/maps/index.ts";
 import {
   type AdminUser,
   type CityGroupStatus,
@@ -19,6 +28,7 @@ import {
   renderDriverDetailPage,
   renderDriversPage,
   renderHeatmapPage,
+  renderLiveMapPage,
   renderLiveOrdersPage,
   renderLoginPage,
   renderOverviewPage,
@@ -27,6 +37,7 @@ import {
   renderSettingsPage,
   renderShell,
 } from "../../../admin-dashboard/src/index.ts";
+import { renderMapPanel } from "../../../admin-dashboard/src/map.ts";
 import {
   type AdminAuthPort,
   type AdminCodeSender,
@@ -61,11 +72,13 @@ import {
   healthIndicators,
   healthSignals,
   heatmap,
+  type LiveDriverStatusRow,
   LOW_RATING_FALLBACK,
   listAttendanceEvents,
   listCities,
   listDisputes,
   listDrivers,
+  listLiveDriverStatuses,
   listLiveOrders,
   listRatings,
   listSettings,
@@ -95,6 +108,42 @@ export interface AdminUiDependencies {
    * الافتراض عند الغياب: لا أصلَ خارجيّاً — أضيقُ سياسةٍ ممكنة.
    */
   readonly mapOrigins?: readonly string[];
+  /**
+   * نمطُ الخريطة مُحلَّلاً (`resolveMapStyle`). يُمرَّر ولا يُحسب — نفسُ حجّة
+   * `mapOrigins`: هذا الموجّه لا يقرأ الضبط. الافتراضُ عند الغياب: غيرُ مُهيَّأ،
+   * فيُعرض سببٌ مقروءٌ وتعمل الصفحةُ بجدولها كاملاً.
+   */
+  readonly mapStyle?: ResolvedMapStyle;
+  /** بصمةُ سلامة نصّ MapLibre. الغيابُ يعني «لا تُصيَّر الخريطة» (ADR 0019). */
+  readonly maplibreSri?: string | null;
+}
+
+/** الافتراضُ حين لا سائقَ مرئيّاً: مركزُ الجزيرة تقريباً بتكبيرٍ واسع. */
+const FALLBACK_CENTER = { lat: 24.7136, lng: 46.6753 } as const;
+const FLEET_ZOOM = 11;
+
+/**
+ * نموذجُ عرضِ الأسطول. الدبابيسُ سائقون فقط: إضافةُ نقاطِ الانطلاق والمقاصد كانت
+ * ستُثلّث عددَ الدبابيس على شاشةٍ غرضُها «أين سائقي»، وتخفي بينها من يحتاج نظراً.
+ *
+ * و`fitToPoints` مُفعَّلة والمركزُ احتياطيٌّ فقط: مركزٌ ثابتٌ في مدينةٍ واحدة كان
+ * سيُظهر خريطةً فارغةً لمشغّلٍ يُرشّح مدينةً أخرى.
+ */
+function fleetViewModel(rows: readonly LiveDriverStatusRow[]): MapViewModel {
+  const points: MapPoint[] = rows.map((row) => ({
+    id: row.driverId,
+    position: { lat: row.lat, lng: row.lng },
+    label: row.driverName ?? row.driverId,
+    type: "driver",
+  }));
+  const first = points[0];
+  return {
+    center: first === undefined ? FALLBACK_CENTER : first.position,
+    zoom: FLEET_ZOOM,
+    points,
+    polylines: [],
+    fitToPoints: true,
+  };
 }
 
 const AUDIT_PREVIEW_LIMIT = 12;
@@ -440,6 +489,50 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         cities: toCityOptions(cities),
         cityId,
         stallSeconds: stall,
+      }),
+      LIVE_REFRESH_SECONDS,
+    );
+  });
+
+  /**
+   * خريطةُ العمليات. تُقرأ الحالاتُ من `listLiveDriverStatuses` وهو موضعُ الاشتقاق
+   * الواحد الذي تقرأ منه لقطةُ SSE أيضاً — فلا تختلف الصفحةُ عن المجرى الحيّ.
+   *
+   * ولوحُ الخريطة يُصيَّر هنا لا في الصفحة: الـ`nonce` ورابطُ النصّ والبصمةُ كلُّها
+   * من شأن البوابة، وقراءةُ الضبط من داخل صفحةِ عرضٍ كانت ستكسر حدَّ الطبقات
+   * وتصنع مصدرَ حقيقةٍ ثانياً لنمط الخريطة.
+   */
+  app.get("/live-map", async (c) => {
+    const cityId = cityParam(c.req.query("city"));
+    const now = new Date();
+    const [cities, rows] = await Promise.all([
+      listCities(deps.sql),
+      listLiveDriverStatuses(deps.sql, cityId, now.getTime()),
+    ]);
+    const style: ResolvedMapStyle = deps.mapStyle ?? {
+      configured: false,
+      reason: "لم يُضبَط مزوّدُ خريطة (MAP_PROVIDER)؛ الجدولُ أعلاه يعرض نفسَ البيانات.",
+    };
+    const mapPanel = renderMapPanel({
+      title: "مواقع الأسطول",
+      style,
+      model: fleetViewModel(rows),
+      nonce: c.get("cspNonce"),
+      scriptUrl: maplibreScriptUrl(),
+      stylesheetUrl: maplibreStylesheetUrl(),
+      integrity: deps.maplibreSri ?? MAPLIBRE_SRI_UNSET,
+    });
+    return page(
+      c,
+      "خريطة العمليات",
+      "/admin/live-map",
+      renderLiveMapPage({
+        now,
+        rows,
+        cities: toCityOptions(cities),
+        cityId,
+        mapPanel,
+        staleAfterSeconds: DEFAULT_SESSION_POLICY.staleAfterSeconds,
       }),
       LIVE_REFRESH_SECONDS,
     );

@@ -42,6 +42,9 @@ export interface NavItem {
 export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/admin", label: "نظرة عامة" },
   { path: "/admin/live-orders", label: "الطلبات الحية" },
+  // بعد الطلبات الحيّة مباشرةً وقبل السائقين: هما شاشتا «ما يجري الآن»، والمشغّل
+  // ينتقل بينهما في الحادثة الواحدة (طلبٌ متعثّر ⇐ أين سائقوه).
+  { path: "/admin/live-map", label: "خريطة العمليات" },
   { path: "/admin/drivers", label: "السائقون" },
   { path: "/admin/heatmap", label: "خريطة الطلب والعرض" },
   { path: "/admin/disputes", label: "النزاعات" },

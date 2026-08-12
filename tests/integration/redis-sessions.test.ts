@@ -45,6 +45,7 @@ const config: AppConfig = {
   mapProvider: "none",
   mapStyleUrl: null,
   mapTilesPublicKey: null,
+  maplibreSri: null,
 };
 
 /** Redis مزدوج يحترم EX بمنطق مهلة حقيقي، لأن انتهاء المهلة جزء من السلوك المختبَر. */
