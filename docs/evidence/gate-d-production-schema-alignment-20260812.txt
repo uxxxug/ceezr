@@ -1,0 +1,165 @@
+=============================================================================
+البوابة D — سلامة قاعدة البيانات ومواءمة مخطط الإنتاج
+التاريخ: 2026-08-12
+الفرع: feat/commercial-launch-closure
+المشروع: Supabase / agent-control-center — ref: jtxpnsrzmlqeqfbvtnxu
+البيئة: PostgreSQL 17.6 (إنتاج) — PostgreSQL 18.4 + PostGIS 3.6 (بيئة اختبار محلية)
+=============================================================================
+
+## 1) المكتشَف الحرج: انحراف مخطط الإنتاج (Schema Drift)
+
+الأمر: supabase list_migrations (project_id=jtxpnsrzmlqeqfbvtnxu)
+النتيجة قبل الإصلاح — 3 هجرات فقط من أصل 34:
+  20260806125131  phase_2_1_core_schema
+  20260806125253  phase_2_1_atomic_rpcs
+  20260806125344  phase_2_1_seed_cities_and_settings
+
+الأمر: select count(*) from pg_tables where schemaname='public'
+النتيجة قبل الإصلاح: 13 جدولاً   |   المتوقّع من المستودع: 26 جدولاً
+
+الجداول الغائبة كلياً عن الإنتاج (13):
+  admin_login_codes, admin_sessions, agent_decisions, agent_outcomes,
+  db_backups, ledger_entries, payment_transactions, ratings,
+  support_tickets, tracking_sessions, unsubscribed_claims,
+  unsubscribed_negotiations, webhook_events
+
+الأثر: كل ما بُني بعد المرحلة 2.1 لم يكن موجوداً في القاعدة الحقيقية —
+تذاكر الدعم، التقييم المتبادل، اختيار اللغة، المهام المجدولة، لوحة الإدارة
+ومصادقتها، قياس الوكيل، إغلاق سطح PostgREST، جلسات التتبّع، جودة الموقع،
+النواة المالية وسياساتها، النسخ الاحتياطية، إلغاء/ترقية الاشتراك، ربط
+القدرات بالخطة. أي إطلاق تجاري على هذه الحالة كان سيفشل فور أول عملية.
+
+## 2) الإصلاح المنفَّذ
+
+طُبِّقت الهجرات الـ31 الناقصة بالترتيب الزمني الصارم عبر apply_migration.
+كل هجرة طُبِّقت على انفراد مع توقّف فوري عند أول خطأ (exit 1).
+النتيجة: 31/31 نجحت — exit_code = 0.
+
+التسلسل المطبَّق:
+  20260807100000_phase_2_3_unsubscribed_negotiation
+  20260807130000_phase_2_4_support_tickets
+  20260807170000_phase_2_5_mutual_ratings
+  20260807190000_phase_2_6_language_selection
+  20260808040000_phase_2_6_scheduled_jobs
+  20260808120000_phase_2_7_start_ride_parties
+  20260808140000_phase_2_7_admin_dashboard
+  20260808180000_phase_3_agent_measurement
+  20260809000000_phase_3_close_postgrest_surface
+  20260809001000_phase_3_close_postgrest_surface_fix
+  20260810100000_phase_5_city_group_ids_admin
+  20260810160000_phase_6_fix_login_code_race
+  20260810170000_phase_6_fix_support_ticket_cooldown_race
+  20260811060000_seed_madinah_city
+  20260811070000_unmatched_escalation_setting
+  20260811080000_driver_kyc_profile
+  20260811090000_cancel_order_fanout
+  20260811120000_driver_preferred_area
+  20260811130000_seed_remaining_cities
+  20260811140000_db_backups_table
+  20260811150000_payment_core
+  20260811160000_payment_rls_policies
+  20260811170000_city_change_rpc
+  20260812000000_phase_1_seal_definer_surface
+  20260812010000_phase_4_location_quality
+  20260812020000_phase_5_fix_recorded_at
+  20260812030000_phase_6_tracking_sessions
+  20260812040000_phase_8_driver_location_max_age
+  20260812120000_city_id_for_global_tables
+  20260812130000_subscription_cancel_and_upgrade
+  20260812150000_capabilities_follow_plan
+
+## 3) انحراف ثانٍ مكتشَف بعد التطبيق: دالة claim_ride
+
+بمقارنة بصمة المخطط الكاملة (schema-fingerprint) بين الإنتاج وبيئة الاختبار
+المبنيّة من المستودع، ظهر اختلاف md5 في claim_ride(uuid, uuid):
+  محلي:  19dcf4377c29efec795fc83fe1c4039c
+  إنتاج: ccdc62818e7d405896f0dd6b1892fcc9
+الفرق الفعلي (diff pg_get_functiondef): سطر تعليق عربي واحد ناقص في الإنتاج
+— أي أن نسخة الإنتاج أُنشئت من مصدر لا يطابق المستودع حرفياً.
+
+العلاج: إعادة تطبيق 20260806120100_phase_2_1_atomic_rpcs من المستودع
+(كل دواله create or replace) باسم realign_atomic_rpcs_with_repo_source.
+
+## 4) تراجُع فوري كشفته إعادة البصمة — وأُصلح
+
+إعادة تطبيق هجرة 2.1 أعادت النسخ القديمة من start_trial و activate_subscription
+فوق النسخ التي عرّفتها هجرة 20260812150000_capabilities_follow_plan لاحقاً:
+  start_trial          محلي 86a0e5e0… ≠ إنتاج ff07d632…
+  activate_subscription محلي 2f340074… ≠ إنتاج ab9469f4…
+العلاج: إعادة تطبيق 20260812150000_capabilities_follow_plan
+(باسم reapply_capabilities_follow_plan_after_realign) لاستعادة أحدث تعريف.
+
+## 5) إثبات التطابق النهائي
+
+طريقة الإثبات: بصمة مخطط شاملة تُوَلَّد بنفس استعلام SQL على القاعدتين
+وتغطّي — لكل كائن في مخطط public عدا spatial_ref_sys:
+  الأعمدة وأنواعها وقابلية NULL والقيم الافتراضية،
+  كل القيود (PK/FK/UNIQUE/CHECK) بنصّها الكامل،
+  كل الفهارس بنصّها الكامل،
+  حالة RLS لكل جدول،
+  كل سياسة RLS: الأمر، الأدوار، using، with check،
+  كل دالة: التوقيع، definer/invoker، proconfig (search_path)، md5 لجسمها.
+
+المرجع المحلي: 842 سطر بصمة (قاعدة مبنيّة من الـ34 هجرة بالترتيب)
+الأمر:  diff local-fp.clean prod-fp.clean
+النتيجة النهائية بعد استثناء دوال الامتدادات (pgcrypto / uuid-ossp / postgis
+الموجودة في مخطط extensions على Supabase وفي public محلياً، واختلاف إصدار
+PostGIS 3.3.7 مقابل 3.6):
+  صفر فروق على مستوى التطبيق — لا جدول، لا عمود، لا قيد، لا فهرس،
+  لا سياسة RLS، لا دالة تطبيقية.
+
+## 6) التحقّقات المستقلة على الإنتاج بعد الإصلاح
+
+select count(*) from pg_tables where schemaname='public'
+  → 26  (مطابق للمستودع)
+
+select count(*) from platform_settings
+  → 145  (كان 52)
+
+select code, name_ar, is_active from cities order by code
+  → JED جدة false | MED المدينة المنورة false | MKK مكة false
+    RUH الرياض false | TIF الطائف false
+  التفسير: is_active = false مقصود بنصّ الهجرات — قيد
+  cities_active_requires_groups يمنع تفعيل أي مدينة قبل ربط قروباتها
+  الثلاثة في تيليجرام. التفعيل يحدث فقط عبر
+  scripts/activate-pilot-city.ts بمعرّفات قروبات حقيقية.
+  ⚠ متطلَّب إطلاق معلّق على المالك: معرّفات قروبات جدة الثلاثة
+    (دعم / تصعيد / غير مشتركين).
+
+الجداول بلا RLS في public:
+  → spatial_ref_sys فقط.
+
+## 7) حالة spatial_ref_sys — مُخفَّفة ومقصودة لا ثغرة مفتوحة
+
+تنبيه Supabase الأمني يشير إلى rls_disabled_in_public على
+public.spatial_ref_sys. الجدول مملوك لامتداد postgis ولا يمكن تفعيل RLS
+عليه من دور غير خارق. البند ٣ من هجرة 20260809000000 يعالج ذلك بقفل جامع
+أقوى: سحب usage على مخطط public من anon و authenticated.
+
+الإثبات على الإنتاج:
+  has_schema_privilege('anon','public','usage')          → false
+  has_schema_privilege('authenticated','public','usage') → false
+  has_schema_privilege('service_role','public','usage')  → true
+  has_schema_privilege('postgres','public','usage')      → true
+
+الصلاحيات المتبقّية لـ anon/authenticated في public:
+  الجداول: geography_columns, geometry_columns, spatial_ref_sys — ثلاثة
+    كائنات مملوكة لامتداد postgis وحدها، وصفر جدول تطبيقي.
+  الدوال: كلها دوال postgis (‎_st_*, st_*, box*, addgeometrycolumn …)‎،
+    وصفر دالة تطبيقية.
+  وكلها غير قابلة للوصول أصلاً لانعدام usage على المخطط.
+
+طريقة العرض agent_effectiveness:
+  reloptions → {security_invoker=true}  (لم تعد security definer ضمناً)
+
+## 8) خلاصة البوابة
+
+قبل: الإنتاج عند الهجرة الثالثة — 13 جدولاً — 13 جدولاً غائباً — انحراف
+      في claim_ride — الإطلاق مستحيل.
+بعد: 34 هجرة مطبَّقة + إعادتان تصحيحيتان — 26 جدولاً — بصمة مخطط مطابقة
+      حرفياً لبيئة مبنيّة من المستودع — سطح PostgREST مغلق بالإثبات.
+
+الحالة: ✅ مجتازة على مستوى بنية المخطط ومطابقته.
+معلّق (لا يمنع البوابة، يمنع تفعيل المدينة):
+  معرّفات قروبات تيليجرام لمدينة جدة.
+=============================================================================
