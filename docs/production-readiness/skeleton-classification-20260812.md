@@ -268,13 +268,13 @@ grep -RInE --include='*.ts' --include='*.sql' '<الفعلCamel>|<الفعل_sna
 
 | المسار | الفئة | الدليل |
 |---|---:|---|
-| `packages/application/subscription/cancel-subscription.ts` | ٣ | F3 `cancelSubscription\|cancel_subscription` — لا ناتج |
+| `packages/application/subscription/cancel-subscription.ts` | ٤ — منفَّذ فعلياً (تصحيح 2026-08-13) | نُفِّذ فعلاً قبل صدور هذا التصنيف: `cancel-subscription.ts:58 export async function cancelSubscription` + دالّة `cancel_subscription` موجودة في القاعدة (هجرة `20260812130000_subscription_cancel_and_upgrade.sql`) + موصولة في `apps/gateway/src/container.ts:601` + اختبار `tests/unit/subscription-changes.test.ts`. الدليل الحرفي: [`docs/evidence/coordinator-doc-corrections-20260813.txt`](../evidence/coordinator-doc-corrections-20260813.txt). سبب إدراجها خطأً في الفئة ٣: عبارة «هيكل فقط» ما زالت مقتبسة تاريخياً داخل ترويسة الملف، فأحصاها جرد grep. |
 | `packages/application/subscription/check-subscription-status.ts` | ٢ | E-SUB → قارئ الاشتراك في `subscription-adapters.ts` |
 | `packages/application/subscription/index.ts` | ٢ | E-SUB → `subscription-adapters.ts:58` |
 | `packages/application/subscription/renew-subscription.ts` | ٢ | E-FIN/E-SUB → `confirm_payment` واشتراك مدفوع بديل |
 | `packages/application/subscription/start-trial.ts` | ٢ | E-SUB → `subscription-adapters.ts:58` |
 | `packages/application/subscription/subscribe-plan.ts` | ٢ | E-SUB → `packages/application/financial/subscribe-plan.ts:54` |
-| `packages/application/subscription/upgrade-plan.ts` | ٣ | F3 `upgradePlan\|upgrade_plan` — لا ناتج |
+| `packages/application/subscription/upgrade-plan.ts` | ٤ — منفَّذ فعلياً (تصحيح 2026-08-13) | نُفِّذ فعلاً قبل صدور هذا التصنيف: `upgrade-plan.ts:93 export async function upgradePlan` + دالّتا `plan_upgrade_quote` و`upgrade_plan` في القاعدة (نفس الهجرة) + موصولة في `apps/gateway/src/container.ts:601` + اختبار `tests/unit/subscription-changes.test.ts`. الدليل الحرفي: [`docs/evidence/coordinator-doc-corrections-20260813.txt`](../evidence/coordinator-doc-corrections-20260813.txt). سبب الإدراج الخطأ: الاقتباس التاريخي لعبارة «هيكل فقط» في الترويسة. |
 
 ## application/tenancy (خارج النطاق)
 
@@ -532,10 +532,17 @@ grep -RInE --include='*.ts' --include='*.sql' '<الفعلCamel>|<الفعل_sna
 |---|---:|
 | ١ — هيكل مشروع خارج النطاق | 101 |
 | ٢ — استُبدل بتنفيذ فعلي باسم آخر | 122 |
-| ٣ — فجوة صامتة | 23 |
+| ٣ — فجوة صامتة | 21 |
+| ٤ — أُدرج خطأً ثم ثبت أنه منفَّذ فعلياً (تصحيح 2026-08-13) | 2 |
 | **المجموع** | **246** |
 
-التحقق الحسابي: `101 + 122 + 23 = 246`، وهو يطابق خرج جرد grep.
+التحقق الحسابي: `101 + 122 + 21 + 2 = 246`، وهو يطابق خرج جرد grep.
+
+**تصحيح مؤرَّخ 2026-08-13 (الوكيل المنسِّق):** البندان ١٤ و١٥ في قائمة الفئة ٣ أدناه
+(`cancel-subscription.ts` و`upgrade-plan.ts`) لم يكونا فجوتين وقت كتابة هذا المستند؛ كانا
+منفَّذين وموصولين ومختبَرين، وإنما أحصاهما جرد `grep 'هيكل فقط'` لأن العبارة باقية
+مقتبسةً تاريخياً في ترويستيهما. فالفجوات الحقيقية المفتوحة عند بدء أمر الإغلاق الشامل
+**21 لا 23**. لم يُحذف أي سطر من هذا المستند؛ البندان أُبقيا في القائمة مع وسم إغلاق.
 
 ## ملفات الفئة ٣ فقط — مرتبة حسب الأثر التجاري
 
@@ -557,8 +564,8 @@ grep -RInE --include='*.ts' --include='*.sql' '<الفعلCamel>|<الفعل_sna
 11. `packages/application/transport/estimate-ride-fare.ts` — لا تقدير أجرة مشوار.
 12. `packages/application/delivery/estimate-delivery-fare.ts` — لا تقدير أجرة توصيل.
 13. `packages/application/policy/evaluate-cancellation-policy.ts` — لا سياسة قرار الإلغاء.
-14. `packages/application/subscription/cancel-subscription.ts` — لا إلغاء اشتراك.
-15. `packages/application/subscription/upgrade-plan.ts` — لا ترقية خطة.
+14. ~~`packages/application/subscription/cancel-subscription.ts` — لا إلغاء اشتراك.~~ **مُغلَق — بل لم يكن مفتوحاً**: منفَّذ وموصول ومختبَر منذ 2026-08-12؛ تصحيح 2026-08-13، الدليل في `docs/evidence/coordinator-doc-corrections-20260813.txt`.
+15. ~~`packages/application/subscription/upgrade-plan.ts` — لا ترقية خطة.~~ **مُغلَق — بل لم يكن مفتوحاً**: منفَّذ وموصول ومختبَر منذ 2026-08-12؛ تصحيح 2026-08-13، نفس ملف الدليل.
 16. `packages/application/geo/resolve-location.ts` — لا تحويل موقع/عنوان.
 17. `packages/application/geo/validate-city-boundary.ts` — لا منع موقع خارج نطاق المدينة.
 

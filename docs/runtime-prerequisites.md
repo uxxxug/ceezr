@@ -54,7 +54,17 @@ done
 
 `ON_ERROR_STOP=1` إلزامي، وإلا مضى `psql` بعد فشل هجرة وترك القاعدة نصف مبنيّة.
 
-**البناء النظيف = 16 هجرة ⇒ 21 جدولاً أساسياً + 3 مناظر.**
+**البناء النظيف (مُحدَّث ومتحقَّق منه 2026-08-13) = 34 هجرة ⇒ 25 جدولاً أساسياً للمشروع + 2 مناظر (`agent_effectiveness`، `v_latest_backup`).**
+
+تنبيه عند العدّ: PostGIS يُضيف إلى مخطط `public` جدولاً واحداً من عنده (`spatial_ref_sys`)
+ومنظرَين (`geometry_columns`، `geography_columns`)، فإن عددت بلا استبعاد رأيت 26 جدولاً و٤ مناظر.
+و`spatial_ref_sys` جدول نظام لا يحمل `city_id` ولا يجوز أن يحمله، ولذلك تقول بوابة
+`bun scripts/check-migrations.ts` بحق «25 جدولاً كلها تحمل city_id وRLS». أمر التحقّق المستعمل:
+
+```bash
+psql "$DATABASE_URL" -tAc "select count(*) from information_schema.tables
+  where table_schema='public' and table_type='BASE TABLE' and table_name<>'spatial_ref_sys'"
+```
 رسائل `NOTICE` عن مُشغِّلات غير موجودة متوقَّعة وغير ضارّة.
 للتحقّق: `bun scripts/check-migrations.ts`.
 
@@ -88,7 +98,7 @@ export TEST_DATABASE_URL="postgres://postgres@127.0.0.1:5432/waslah_test"
 export DATABASE_URL="$TEST_DATABASE_URL"
 
 bun run typecheck && bun run lint
-bun test                    # 756 اختبار وحدة وتكامل
+bun test                    # 1498 اختباراً في 104 ملفات (متحقَّق منه 2026-08-13)
 bun run test:integration
 bun run test:e2e            # 30 رحلة متتابعة — يتطلّب TEST_DATABASE_URL
 ```

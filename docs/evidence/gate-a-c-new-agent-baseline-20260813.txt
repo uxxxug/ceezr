@@ -50,3 +50,13 @@ subscriptions_expiring_soon                قراءة فقط
   - open_admin_session
   - record_subscription_warning
   - submit_rating
+
+===============================================================
+تصحيح ملحق بتاريخ 2026-08-13 (لا يُحذف شيء من أعلاه؛ يُصحَّح بالإضافة)
+===============================================================
+العبارة أعلاه «34 هجرة ⇒ 26 جدولاً» غير دقيقة في التوصيف: العدد 26 يضمّ جدول
+PostGIS النظاميّ `spatial_ref_sys`. جداول المشروع 25 فقط، وكلها تحمل city_id
+و RLS، ولذلك خرج بوابة check-migrations («25 جدولاً») صحيح ولا يوجد تباين.
+كذلك «4 مناظر» تضمّ منظرَي PostGIS (geometry_columns، geography_columns)؛
+مناظر المشروع اثنان: agent_effectiveness و v_latest_backup.
+الدليل الحرفي للتصحيح: docs/evidence/coordinator-doc-corrections-20260813.txt

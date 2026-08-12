@@ -1,0 +1,74 @@
+===============================================================
+تصحيحات توثيقية بأدلة حرفية — الوكيل المنسِّق — 2026-08-13
+الفرع: feat/full-audit-and-closure
+كل ما يلي أوامر نُفِّذت فعلاً ومخرجاتها منسوخة حرفياً، لا وصفاً إنشائياً.
+===============================================================
+
+### العيب ١: تصنيف الهياكل يعدّ cancel-subscription و upgrade-plan فجوتين مفتوحتين وهما منفَّذتان.
+
+$ grep -n "export async function" packages/application/subscription/cancel-subscription.ts packages/application/subscription/upgrade-plan.ts
+packages/application/subscription/cancel-subscription.ts:58:export async function cancelSubscription(
+packages/application/subscription/cancel-subscription.ts:94:export async function resumeSubscription(
+packages/application/subscription/upgrade-plan.ts:93:export async function upgradePlan(
+
+$ psql "$DATABASE_URL" -tAc "select p.proname, pg_get_function_identity_arguments(p.oid) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('cancel_subscription','upgrade_plan','plan_upgrade_quote') order by 1"
+cancel_subscription|p_driver_id uuid, p_reason text
+plan_upgrade_quote|p_driver_id uuid, p_new_plan subscription_plan
+upgrade_plan|p_driver_id uuid, p_new_plan subscription_plan, p_transaction_id uuid
+
+$ grep -rn "cancel_subscription\|upgrade_plan" supabase/migrations/*.sql | grep -c "create or replace function"
+3
+
+$ grep -n "createSubscriptionChangeRpc\|subscriptionChanges" apps/gateway/src/container.ts
+96:import { createSubscriptionChangeRpc } from "../../../packages/infrastructure/subscription/subscription-change-adapters.ts";
+601:    subscriptionChanges: createSubscriptionChangeRpc(sql),
+
+$ bun test tests/unit/subscription-changes.test.ts 2>&1 | tail -5
+
+ 11 pass
+ 0 fail
+ 35 expect() calls
+Ran 11 tests across 1 file. [237.00ms]
+
+الاستنتاج: كلتاهما منفَّذة + دالّة قاعدة موجودة + موصولة في الحاوية + مغطّاة باختبار.
+سبب الإدراج الخطأ: جرد grep 'هيكل فقط' التقط الاقتباس التاريخي في الترويسة:
+$ grep -n "هيكل فقط" packages/application/subscription/cancel-subscription.ts packages/application/subscription/upgrade-plan.ts
+packages/application/subscription/cancel-subscription.ts:4: *   (كان هذا الملف «هيكل فقط»؛ نصّه القديم كان `export {}` وترويسةً تقول
+packages/application/subscription/upgrade-plan.ts:4: *   (كان هذا الملف «هيكل فقط»؛ نصّه القديم `export {}` وترويسته تقول
+⇒ الفجوات الحقيقية المفتوحة = 21 لا 23. صُحِّح المستند بلا حذف أي سطر (وسم إغلاق + فئة ٤).
+
+===============================================================
+### العيب ٢: docs/runtime-prerequisites.md كان يذكر أرقام بناء قديمة.
+
+$ ls supabase/migrations/*.sql | wc -l
+34
+
+$ psql -tAc "... BASE TABLE and table_name<>'spatial_ref_sys'"
+25
+
+$ psql -tAc "select table_name from information_schema.views where table_schema='public' order by 1"
+agent_effectiveness
+geography_columns
+geometry_columns
+v_latest_backup
+
+⇒ المُوثَّق سابقاً: 16 هجرة / 21 جدولاً / 3 مناظر. الواقع: 34 هجرة / 25 جدولاً للمشروع
+  (+ spatial_ref_sys من PostGIS) / 2 مناظر للمشروع (+ geometry_columns و geography_columns من PostGIS).
+
+### العيب ٣: عدد الاختبارات المُوثَّق (756) قديم.
+$ bun test 2>&1 | tail -4
+ 1498 pass
+ 0 fail
+ 5457 expect() calls
+Ran 1498 tests across 104 files. [95.93s]
+
+===============================================================
+### العيب ٤ (كان يُشتبه أنه عيب فثبت أنه ليس عيباً): تباين 25 مقابل 26 جدولاً
+بين خرج بوابة check-migrations وخرج جرد الأساس السابق. السبب المُثبَت أعلاه:
+الجرد السابق عدّ جدول PostGIS النظاميّ spatial_ref_sys ضمن جداول المشروع.
+أي أن البوابة صحيحة، والخطأ كان في ملاحظة ملف الأساس. لا تغيير في الكود.
+$ psql -tAc "select table_name from information_schema.tables where table_schema='public' and table_type='BASE TABLE' and table_name not in (select table_name from information_schema.columns where table_schema='public' and column_name='city_id')"
+spatial_ref_sys
+
+$ bun scripts/check-migrations.ts
+✅ 25 جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (25 اسماً في قائمة التفعيل).
