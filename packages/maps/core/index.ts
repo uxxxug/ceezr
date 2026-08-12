@@ -11,9 +11,10 @@ export type {
   DistanceMatrixRow,
   NearestOptions,
   RouteOptions,
+  RoutingErrorKind,
   RoutingProvider,
 } from "./routing-provider.ts";
-export { RoutingError } from "./routing-provider.ts";
+export { deservesRoutingRetry, RoutingError } from "./routing-provider.ts";
 export type {
   LatLng,
   MapPoint,

@@ -61,10 +61,69 @@ export interface DistanceMatrixRow {
   readonly elements: readonly DistanceMatrixElement[];
 }
 
-export interface DistanceMatrixElement {
-  readonly distanceMeters: number;
-  readonly durationSeconds: number;
-  readonly status: "ok" | "no_route";
+/**
+ * عنصر المصفوفة — اتحادٌ مُميَّز لا سجلٌّ بحقولٍ اختيارية، والفرق ليس تجميلاً.
+ *
+ * كان النوع `{ distanceMeters: number; durationSeconds: number; status }`،
+ * و`status: "no_route"` مُعلنٌ فيه ولا يُنتَج قطّ: المزوّد كان يضع `"ok"` دائماً.
+ * وOSRM يعيد `null` للأزواج غير الموصولة، فكان `distanceMeters` يحمل `null` في
+ * حقلٍ نوعُه `number` (كذبةٌ في النوع نفسه)، و`durationSeconds` يصير صفراً بـ
+ * `?? 0` — أي «الوصول فوري» بدل «لا طريق». وهي نفس علّة المرحلة ٨.
+ *
+ * وبالاتحاد لا يستطيع مستهلكٌ قراءة رقمٍ قبل فحص `status`: المُصرِّف يمنعه. أما
+ * الحقول الاختيارية فتدعو إلى `?? 0` — وهو ما نُصلحه أصلاً.
+ */
+export type DistanceMatrixElement =
+  | {
+      readonly status: "ok";
+      readonly distanceMeters: number;
+      readonly durationSeconds: number;
+    }
+  | {
+      readonly status: "no_route";
+    };
+
+/**
+ * صنفُ عطل التوجيه — يُميّز «المزوّد لا يعمل» من «المزوّد أجاب: لا طريق».
+ *
+ * الفرق قرارٌ لا وصف: الأول يستحقّ سقوطاً آمناً إلى تقديرٍ تقريبي (هافرساين)،
+ * والثاني **جوابٌ صحيح** لا يجوز تجميلُه بتقديرٍ تقريبي — لأن الطريق غير موجود.
+ * وبلا هذا التمييز كان على المستهلك أن يقرأ نصّ `detail` بتعبيرٍ نمطي ليقرّر،
+ * وهو ما يجعل تغييرَ رسالةٍ يكسر منطقَ سقوطٍ في موضعٍ آخر بلا أن يُلاحظ.
+ */
+export type RoutingErrorKind =
+  /** انتهت الميزانية الزمنية قبل أن يردّ المزوّد. */
+  | "timeout"
+  /** لا اتصال بالمزوّد أصلاً (رفض اتصال، DNS، قطع شبكة). */
+  | "unreachable"
+  /** المزوّد قال صراحةً «أكثرتَ» (429). */
+  | "rate_limited"
+  /** عطلٌ في المزوّد (5xx). */
+  | "server_error"
+  /** نداءٌ مرفوض بحكمٍ نهائي (4xx غير 429). */
+  | "client_error"
+  /** ردٌّ لا يطابق ما تعِد به الوثائق: حقلٌ ناقص أو مقاسٌ مخالف. */
+  | "protocol"
+  /** المزوّد أجاب: لا طريق بين هذين الموضعين. جوابٌ لا عطل. */
+  | "no_route"
+  /** مدخلاتُ النداء نفسها غير صالحة — يُكتشف قبل أي شبكة. */
+  | "invalid_request";
+
+/**
+ * ما يستحقّ محاولةً ثانية، في **جدولٍ واحد** لكل المزوّدين.
+ *
+ * موضعُه هنا لا في ملفّ المزوّد قرارٌ مقصود: من أضاف Valhalla أو Google (المرحلة
+ * ٢٩) سيحتاج نفس التمييز، ونسخُه في كل مزوّد يعني جداول قرارٍ تتباعد صامتةً.
+ *
+ *   * `timeout` و`unreachable` و`server_error`: أعطالٌ عابرة بطبيعتها، والإعادة
+ *     هي بالضبط ما يُصلحها.
+ *   * `rate_limited`: نداءٌ ثانٍ فوري يُطيل الحظر لا يرفعه.
+ *   * `client_error` و`invalid_request` و`protocol`: نتيجةٌ محسومة لن تتغيّر،
+ *     وإعادتُها تُضاعف الكلفة وتُؤخّر ردّاً معروفاً.
+ *   * `no_route`: ليس عطلاً أصلاً. إعادتُه سؤالٌ عن جوابٍ وصل.
+ */
+export function deservesRoutingRetry(kind: RoutingErrorKind): boolean {
+  return kind === "timeout" || kind === "unreachable" || kind === "server_error";
 }
 
 /** خطأ من مزوّد التوجيه. */
@@ -73,6 +132,11 @@ export class RoutingError {
   constructor(
     readonly provider: ProviderName,
     readonly detail: string,
+    /**
+     * الصنف. اختياريٌّ للتوافق مع مواضع نداءٍ سابقة، ويُقرأ `"unreachable"` عند
+     * غيابه — أي الافتراض المتحفّظ: «عطلٌ عابر» لا «جوابٌ نهائي».
+     */
+    readonly kind: RoutingErrorKind = "unreachable",
   ) {}
 }
 
