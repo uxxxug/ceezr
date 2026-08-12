@@ -148,9 +148,9 @@ describe("العامل المدمج داخل عملية البوابة", () => {
     try {
       // المهامّ المدنية الستّ + العامّتان. الرقم مثبَّت عن قصد: نقصانه يعني مهمّة
       // اختفت من الإنتاج بلا أن يلاحظها أحد، وهو بالضبط العطب الذي جاء البند ليُصلحه.
-      // صار ستّاً في المرحلة ١٤ بإضافة `redispatch-searching` — والحارس هو من كشف
-      // الإضافة، فبقاؤه رقماً مثبَّتاً مقصود لا سهو.
-      expect(handle.jobCount).toBe(8);
+      // صار تسعاً بإضافة outbox SOS العامّة: غيابها لا يخفي فشلاً في تيليجرام،
+      // والحارس المثبّت يكشف حذف المهمة من إنتاج العامل.
+      expect(handle.jobCount).toBe(9);
 
       const started = lines.find((line) => line.startsWith("embedded_worker.started"));
       expect(started).toBeDefined();
@@ -161,6 +161,7 @@ describe("العامل المدمج داخل عملية البوابة", () => {
         `rotate-negotiations:${CITY_ID}`,
         `cleanup-stale:${CITY_ID}`,
         `warn-expiring:${CITY_ID}`,
+        "deliver-safety-incidents",
         "expire-subscriptions",
         "recompute-ratings",
       ]) {

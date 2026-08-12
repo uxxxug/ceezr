@@ -1,13 +1,15 @@
 /**
  * الغرض: نشر حالات الإسناد والطوارئ في قروب الإسناد لكل مدينة
- * الحالة: مُتجاوَز جزئياً — مسار «فشل المطابقة» نُفِّذ في المرحلة 2.3 خارج هذا الملف:
+ * الحالة: منفّذ فعلياً:
  *   النشر: packages/infrastructure/notification/telegram-negotiation-notifier.ts
  *           (createEscalationGroupPublisher)
  *   حالة الاستخدام: packages/application/dispatch/escalate-unmatched-order.ts
  *   المشغّل: apps/workers/src/jobs/rotate-unsubscribed-negotiation.ts
- *   ما زال ناقصاً: زرّ SOS من العميل/السائق (بند مستقل، ليس ضمن 2.3).
+ *   SOS: packages/application/safety/trigger-sos.ts ثم outbox العامل
+ *        apps/workers/src/jobs/deliver-safety-incidents.ts؛ أزرار الاستلام/الإغلاق
+ *        يعالجها حوار بوت السائق لأن القروب موصول به.
  * ينتمي إلى: apps/gateway/groups
- * يُتوقع أن يستخدمه لاحقاً: مسار SOS عند تنفيذه
- * ملاحظات مستقبلية: عند تنفيذ SOS استخدم النَّاشر القائم بدل كتابة ناشر ثانٍ.
+ * ملاحظات مستقبلية: بطاقات SOS تعود إلى نفس بوت السائق الذي نشرها، لذلك لا تمر
+ * عبر معالج بوت العميل.
  */
 export {};

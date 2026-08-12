@@ -9,6 +9,7 @@
 
 import { Api } from "grammy";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
+import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
 import type { ExpiryWarningSender } from "../../../packages/application/subscription/expire-subscriptions.ts";
 import { createGoogleDriveStorage } from "../../../packages/infrastructure/backup/index.ts";
@@ -35,8 +36,10 @@ import {
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
+import { createSafetyCardPublisher } from "../../../packages/infrastructure/notification/telegram-safety-notifier.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { createRatingRecomputePort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
+import { createSafetyDeliveryPort } from "../../../packages/infrastructure/safety/safety-adapters.ts";
 import { createAdvisoryLock } from "../../../packages/infrastructure/scheduling/advisory-lock.ts";
 import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/scheduling/availability-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
@@ -47,6 +50,7 @@ import { type CityId, systemClock } from "../../../packages/shared/kernel/index.
 import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
 import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
+import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
@@ -71,6 +75,7 @@ export const JOB_INTERVALS = {
   redispatchSearching: 20,
   recomputeRatings: 3600,
   backupDatabase: 86400, // يوميّ لا أقلّ — البند 7.2
+  deliverSafetyIncidents: 30,
 } as const;
 
 /** المهلة الافتراضية للتوفّر البائت حين يغيب الإعداد — ثلاث ساعات. */
@@ -125,6 +130,8 @@ export interface WorkerContainerOverrides {
   readonly driverOut?: OutboundSender;
   readonly riderOut?: OutboundSender;
   readonly identifyingDriver?: IdentifyingSender;
+  /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
+  readonly safetyPublisher?: SafetyCardPublisher;
 }
 
 /** مرسِل التحذيرات عبر واجهة تيليجرام الحقيقية، ملفوفاً في Result بلا استثناءات. */
@@ -214,6 +221,8 @@ export function buildWorkerContainer(
    */
   const riderTelegram = grammyTelegramSender(config.riderBotToken);
   const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
+  const safetyPublisher = overrides.safetyPublisher ?? createSafetyCardPublisher(telegram);
+  const safetyDeliveries = createSafetyDeliveryPort(sql);
 
   const searchingFinder = createSearchingOrderFinder(sql);
 
@@ -419,6 +428,25 @@ export function buildWorkerContainer(
           : null;
 
       const global: JobDefinition[] = [
+        ...(cityIds.length === 0
+          ? []
+          : [
+              {
+                // القفل باسم ثابت يجعل نسختين من العامل تتسابقان على outbox واحداً من
+                // دون إرسال بطاقتين؛ وSKIP LOCKED داخل RPC يحمي كذلك تعدد العناصر.
+                name: "deliver-safety-incidents",
+                everySeconds: JOB_INTERVALS.deliverSafetyIncidents,
+                runOnStart: true,
+                run: async () => {
+                  const report = await deliverSafetyIncidents({
+                    deliveries: safetyDeliveries,
+                    publisher: safetyPublisher,
+                  });
+                  if (!report.ok) throw new Error(report.error.detail);
+                  return `claimed=${report.value.claimed} delivered=${report.value.delivered}`;
+                },
+              },
+            ]),
         {
           name: "expire-subscriptions",
           everySeconds: JOB_INTERVALS.expireSubscriptions,
