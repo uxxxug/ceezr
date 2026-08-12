@@ -1,0 +1,170 @@
+/**
+ * الغرض: الحلقة المفقودة الثانية في التوزيع. `broadcastOffers` كانت تُنادى مرّةً
+ *   واحدةً في عمر الطلب — عند إنشائه — ولا شيء في النظام كلّه يسأل بعدها: «هذا
+ *   الطلب ما زال يبحث، أفلا نعرضه ثانيةً؟». وهذه الدالّة هي من يسأل.
+ *
+ *   القياسُ على قاعدةٍ حقيقية قبل كتابة هذا الملف أثبت إخفاقين، كلٌّ منهما يُسقط
+ *   الطلب نهائياً:
+ *
+ *   (١) سائقٌ موثَّقٌ متاحٌ بلا موقع، وراكبٌ يطلب فلا يجد أحداً. ثم يُرسل السائق
+ *       موقعَه فيصير مؤهّلاً تماماً — والطلب الذي ينتظره يبقى `searching` بصفر
+ *       عروضٍ إلى الأبد. وأُثبت أن السائق مؤهّلٌ فعلاً بأن طلباً جديداً من راكبٍ
+ *       آخرَ في اللحظة التالية وصله عرضٌ فوراً. فالفرق بين طلبٍ يُخدَم وطلبٍ يموت
+ *       ليس أهليّةَ سائقٍ ولا قُرباً ولا مدينةً — بل توقيتَ الطلب وحده.
+ *
+ *   (٢) سائقٌ يتجاهل العرض فتنتهي مهلته: يصير الطلب `searching` بـ`broadcast_round`
+ *       = 1 و`max_broadcast_rounds` = 3 وصفرَ عروضٍ قائمة — ولا دورةَ ثانية أبداً.
+ *       وأسوأُ من ذلك أنّه لا يُصعَّد كذلك: `findStaleSearching` تشترط «بلا أيّ
+ *       عرض»، وهذا الطلب له عرضٌ منتهٍ. فلا يُبَثّ ولا يُصعَّد ولا يُلغى — يتيمٌ
+ *       تماماً، والراكب قيل له «تم إشعار سائقٍ بطلبك، سيصلك ردٌّ قريباً» ثم لا شيء.
+ *
+ * الحالة: منفّذ ومُختبَر على قاعدةٍ حقيقية — المرحلة ١٤.
+ * ينتمي إلى: packages/application/dispatch
+ * يستخدمه: apps/workers/src/jobs/redispatch-searching.ts (الأرضيّة الدوريّة)،
+ *   و`packages/application/bots/driver-dialog.ts` (المحاولة الفوريّة عند صيرورة
+ *   السائق قابلاً للإسناد).
+ * ملاحظات مستقبلية: لو صار للطلب مُصدرُ أحداثٍ (المرحلة ٢٤) أمكن استبدال المسح
+ *   الدوريّ بمُشتَرِكٍ على حدث «تغيّرت مجموعة المؤهّلين» — والدالّة نفسها تبقى.
+ */
+
+import type { CityId, OrderId } from "../../shared/kernel/index.ts";
+import { ok, type Result } from "../../shared/result/index.ts";
+import type { PortFailureError } from "../ports/index.ts";
+import { type BroadcastDependencies, broadcastOffers } from "./broadcast-offers.ts";
+
+/**
+ * طلبٌ مُرشَّحٌ لإعادة العرض. معرّفٌ ومدينةٌ فحسب — ولا حقلَ قرارٍ واحد.
+ *
+ * وهذا مقصود: القارئُ يقترح والمجالُ يحكم. فلو حمل هذا النوع «أهو مؤهّلٌ لدورةٍ
+ * أخرى» لصار في النظام موضعان يُجيبان عن السؤال نفسِه — واحدٌ في SQL وآخرُ في
+ * `matchOrder` — ويوم يتغيّر أحدهما يبقى الثاني، فيُبَثّ ما لا يجوز بثّه أو يُحجَب
+ * ما يجب عرضه، بلا إنذار.
+ */
+export interface SearchingOrderRef {
+  readonly orderId: OrderId;
+  readonly cityId: CityId;
+  /** لأجل السجلّ لا لأجل القرار: يُقرأ في التقرير ولا يُبنى عليه حكم. */
+  readonly waitingSeconds: number;
+}
+
+export interface SearchingOrderFinder {
+  /**
+   * الطلبات التي حالتُها `searching` ولا سائقَ مُسنَداً لها، الأقدمُ أوّلاً.
+   *
+   * ولا تُرشَّح هنا بعددِ الدورات ولا بوجود عرضٍ قائم — وذلك عن قصد. حدُّ الدورات
+   * في `hasExhaustedBroadcastRounds` واستبعادُ من له عرضٌ حيّ في `driversToExclude`،
+   * وكلاهما في المجال. فالاستعلام يقرأ حالةً ولا يُفتي.
+   */
+  findSearching(
+    cityId: CityId,
+    limit: number,
+  ): Promise<Result<readonly SearchingOrderRef[], PortFailureError>>;
+}
+
+export interface RedispatchDependencies {
+  readonly finder: SearchingOrderFinder;
+  /** نفسُ تبعيّات البثّ المستخدمة عند إنشاء الطلب — لا نسخةَ منطقٍ ثانية. */
+  readonly broadcast: BroadcastDependencies;
+  /**
+   * أقصى ما يُفحَص في الشوط. حدٌّ لازمٌ لا تجميل: شوطٌ بلا حدٍّ في مدينةٍ فيها مئةُ
+   * طلبٍ عالقٍ يفتح مئةَ دورةِ مطابقةٍ في نَفَسٍ واحد، فيستنزف تجمّعَ الاتصالات
+   * ويُسقط بقيّة مهامّ العامل — فيصير إصلاحُ التوزيع سببَ تعطيله.
+   */
+  readonly limit: number;
+  readonly log?: (message: string, meta: Record<string, unknown>) => void;
+}
+
+export interface RedispatchReport {
+  readonly cityId: CityId;
+  readonly examined: number;
+  /** طلباتٌ فُتحت لها دورةُ بثٍّ جديدةٌ فعلاً وكُتبت عروضُها. */
+  readonly rebroadcast: readonly OrderId[];
+  /** لا مؤهّلَ بعد — الحالةُ الطبيعيّةُ الغالبة، لا إخفاق. */
+  readonly stillNoDriver: readonly OrderId[];
+  /** استنفدت دوراتَها: لا تُعاد أبداً، ومسارُها التصعيدُ لا البثّ. */
+  readonly exhausted: readonly OrderId[];
+  /** تغيّرت حالتُه بين القراءة والبثّ — سائقٌ قَبِل في تلك اللحظة. سباقٌ صحّي. */
+  readonly raced: readonly OrderId[];
+  readonly failed: number;
+}
+
+/**
+ * لماذا لا يُعدّ انعدامُ المؤهّلين إخفاقاً؟ لأنّه الحالةُ الغالبةُ في كلّ شوط:
+ * مدينةٌ فيها طلبٌ عالقٌ واحدٌ ولا سائقَ قريب تُنتج `NO_ELIGIBLE_DRIVER` كلّ عشرين
+ * ثانية. وعدُّها إخفاقاً يُغرق السجلّ بإنذارٍ لا فعلَ له، فيتعلّم المشغّل تجاهلَ
+ * إنذارات التوزيع كلّها — ومنها الحقيقيّة. فالتصنيفُ هنا لأجل من يقرأ لا لأجل
+ * العدّ: `failed` تعني «شيءٌ معطوب» حصراً.
+ */
+export async function redispatchSearchingOrders(
+  cityId: CityId,
+  deps: RedispatchDependencies,
+): Promise<Result<RedispatchReport, PortFailureError>> {
+  const found = await deps.finder.findSearching(cityId, deps.limit);
+  if (!found.ok) return found;
+
+  const rebroadcast: OrderId[] = [];
+  const stillNoDriver: OrderId[] = [];
+  const exhausted: OrderId[] = [];
+  const raced: OrderId[] = [];
+  let failed = 0;
+
+  for (const order of found.value) {
+    /**
+     * `broadcastOffers` هي نفسُها المستخدمةُ عند إنشاء الطلب، ولا تُمرَّر لها
+     * معاملاتٌ إضافيّة. فكلُّ ما يحكم دورةَ إعادةٍ يحكم الدورةَ الأولى: نصفُ
+     * القطر، والوزنان، وحجمُ الدفعة، وحدُّ الدورات، واستبعادُ من له عرضٌ حيّ.
+     */
+    const result = await broadcastOffers({ orderId: order.orderId }, deps.broadcast);
+
+    if (result.ok) {
+      rebroadcast.push(order.orderId);
+      deps.log?.("redispatch.rebroadcast", {
+        orderId: order.orderId,
+        cityId,
+        round: result.value.round,
+        offered: result.value.offered.length,
+        notified: result.value.notified.length,
+        unreachable: result.value.unreachable.length,
+        waitingSeconds: order.waitingSeconds,
+      });
+      continue;
+    }
+
+    switch (result.error.code) {
+      case "NO_ELIGIBLE_DRIVER":
+        stillNoDriver.push(order.orderId);
+        break;
+      case "BROADCAST_ROUNDS_EXHAUSTED":
+        exhausted.push(order.orderId);
+        break;
+      /**
+       * الطلبُ لم يُوجَد أو لم يبقَ باحثاً: قُرئ باحثاً ثم قَبِل سائقٌ أو أُلغي قبل
+       * أن نبثّ. وهذا ليس عطلاً بل هو **الغرضُ** من ألّا نقفل الصفّ: نقرأ بلا قفل
+       * ونبثّ بلا قفل، ومن يفوز بالطلب تحكمه `claim_ride` في القاعدة لا نحن.
+       */
+      case "ORDER_NOT_SEARCHING":
+      case "ORDER_NOT_FOUND":
+        raced.push(order.orderId);
+        break;
+      default:
+        // طلبٌ واحدٌ معطوبٌ لا يُسقط بقيّةَ طلبات المدينة: يُسجَّل ويُمضى.
+        failed += 1;
+        deps.log?.("redispatch.failed", {
+          orderId: order.orderId,
+          cityId,
+          code: result.error.code,
+        });
+        break;
+    }
+  }
+
+  return ok({
+    cityId,
+    examined: found.value.length,
+    rebroadcast,
+    stillNoDriver,
+    exhausted,
+    raced,
+    failed,
+  });
+}

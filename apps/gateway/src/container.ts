@@ -14,6 +14,7 @@ import type { SupportDialogDependencies } from "../../../packages/application/bo
 import type { SessionStore } from "../../../packages/application/bots/types.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
+import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
@@ -36,6 +37,7 @@ import {
   createOfferDecisionPort,
   createOfferRepository,
   createOfferWriter,
+  createSearchingOrderFinder,
 } from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import {
   createActiveNegotiationLookup,
@@ -110,7 +112,7 @@ import {
   createPastOrdersLookup,
 } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
-import { systemClock } from "../../../packages/shared/kernel/index.ts";
+import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import type { TrackingSessionStore } from "../../../packages/tracking/session-store.ts";
 import {
   createAgentCore,
@@ -258,6 +260,14 @@ export interface ContainerOverrides {
  * التركيب الحقيقي من الإعدادات: اتصال قاعدة واحد، ومحوّلات حقيقية لكل منفذ.
  * المُرسِلان قابلان للاستبدال ليُختبر المسار كاملاً بلا شبكة تلغرام.
  */
+/**
+ * حدُّ المحاولةِ الفوريّة أضيقُ من حدِّ العامل (٥٠) عن قصد: هذه تجري داخل معالجةِ
+ * تحديثٍ من تلغرام، ولتلغرام مهلةٌ على الـwebhook. فحصُ خمسين طلباً — كلٌّ منها دورةُ
+ * مطابقةٍ كاملةٍ باستعلاماتها — يُخاطر بتجاوز المهلة فيُعيد تلغرام التحديثَ نفسَه،
+ * فيُعالَج موقعُ السائق مرّتين. والأقدمُ أوّلاً، والباقي تتولّاه الأرضيّةُ الدوريّة.
+ */
+const IMMEDIATE_REDISPATCH_LIMIT = 10;
+
 export function buildContainer(config: AppConfig, overrides: ContainerOverrides = {}): Container {
   const sql = createSql({ connectionString: config.databaseUrl });
   const log = overrides.log ?? (() => {});
@@ -536,6 +546,27 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     log,
   });
 
+  /**
+   * المرحلة ١٤ — المحاولةُ الفوريّة لإعادة عرض الطلبات الباحثة عند صيرورة السائق
+   * قابلاً للإسناد. تُبنى على **نفس** `matching` التي يستخدمها بوت الراكب عند إنشاء
+   * الطلب، فلا يوجد في النظام مسارُ بثٍّ ثانٍ بسلوكٍ ثانٍ.
+   *
+   * والإخفاقُ يُبتلَع عن قصدٍ ويُسجَّل: السائقُ أرسل موقعَه ونجحت كتابتُه، فإخفاقُ
+   * محاولةِ إعادةِ العرض لا يجوز أن يُظهر له «عطلٌ تقنيّ» عن عملٍ نجح — والأرضيّةُ
+   * الدوريّة في العامل تُدرك ما فات بعد ثوانٍ.
+   */
+  const redispatchDeps = {
+    onDriverBecameDispatchable: async (cityId: CityId): Promise<void> => {
+      const report = await redispatchSearchingOrders(cityId, {
+        finder: createSearchingOrderFinder(sql),
+        broadcast: matching,
+        limit: IMMEDIATE_REDISPATCH_LIMIT,
+        log,
+      });
+      if (!report.ok) log("redispatch.immediate_failed", { cityId, detail: report.error.detail });
+    },
+  };
+
   const driverDeps: DriverBotDependencies = {
     sessions: driverSessions,
     drivers,
@@ -550,6 +581,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     support: driverSupport,
     tracking: liveTracking,
     tripCards: driverTripCards,
+    redispatch: redispatchDeps,
     rating: {
       sessions: driverSessions,
       lifecycle: lifecyclePort,

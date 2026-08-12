@@ -14,8 +14,12 @@ import type { ExpiryWarningSender } from "../../../packages/application/subscrip
 import { createGoogleDriveStorage } from "../../../packages/infrastructure/backup/index.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
+  createDriverCandidateRepository,
   createExpireOffersRpc,
+  createOfferRepository,
+  createOfferWriter,
   createPendingOfferRepository,
+  createSearchingOrderFinder,
 } from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createNegotiationWiring } from "../../../packages/infrastructure/dispatch/negotiation-wiring.ts";
 import {
@@ -29,12 +33,14 @@ import {
   grammyTelegramSender,
 } from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { createRatingRecomputePort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
 import { createAdvisoryLock } from "../../../packages/infrastructure/scheduling/advisory-lock.ts";
 import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/scheduling/availability-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
+import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { DEFAULT_LANGUAGE, t } from "../../../packages/shared/i18n/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
@@ -44,6 +50,7 @@ import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
+import { runRedispatchSearching } from "./jobs/redispatch-searching.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
 import type { JobDefinition, JobLogger } from "./runner.ts";
@@ -56,6 +63,12 @@ export const JOB_INTERVALS = {
   expireSubscriptions: 900,
   warnExpiring: 21_600,
   sweepUnmatched: 60,
+  /**
+   * أقصر من مهلة العرض (45 ثانية افتراضاً) عن قصد: راكبٌ ينتظر، وعرضٌ انتهت مهلته
+   * يجب أن تُفتح بعده دورةٌ في جزءٍ من مهلةٍ أخرى لا في مهلةٍ كاملة. والشوطُ الذي
+   * يجد كلَّ المؤهّلين مستبعَدين بعرضٍ حيّ لا يكتب شيئاً ولا يستهلك دورةَ بثّ.
+   */
+  redispatchSearching: 20,
   recomputeRatings: 3600,
   backupDatabase: 86400, // يوميّ لا أقلّ — البند 7.2
 } as const;
@@ -91,6 +104,14 @@ const UNMATCHED_FALLBACK_SECONDS = 180;
  * يتّسع للتوازي كلّه وإلّا انتظرت مهمّة اتصالاً لن يتحرّر إلّا بانتهاء مهمّة أخرى.
  */
 export const MAX_JOB_CONCURRENCY = 4;
+
+/**
+ * أقصى ما يُفحَص من طلبٍ عالقٍ في شوطٍ واحد لمدينة. خمسون لا «كلّها»: شوطٌ يفتح
+ * دورةَ مطابقةٍ لكل طلبٍ عالقٍ في مدينةٍ تعطّل توزيعُها ساعةً كاملة يفتح مئاتها في
+ * نَفَسٍ واحد، فيستنزف تجمّعَ الاتصالات ويُسقط بقيّةَ المهامّ — فيصير إصلاحُ التوزيع
+ * سببَ تعطيله. والأقدمُ أوّلاً، فالمتخلّف لا يُتخطّى بل يُؤجَّل شوطاً.
+ */
+export const REDISPATCH_LIMIT = 50;
 
 export interface WorkerContainerOverrides {
   readonly sql?: Sql;
@@ -194,6 +215,24 @@ export function buildWorkerContainer(
   const riderTelegram = grammyTelegramSender(config.riderBotToken);
   const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
 
+  const searchingFinder = createSearchingOrderFinder(sql);
+
+  /**
+   * **نفسُ** تبعيّات البثّ التي تبنيها البوابة عند إنشاء الطلب، لا نسخةٌ مبسّطة:
+   * أيّ فرقٍ بين ما يُبَثّ عند الإنشاء وما يُبَثّ عند الإعادة هو تفرّعُ سلوكٍ لا
+   * يظهر إلّا كشكوى «العرض الثاني يذهب لسائقٍ أبعد» ولا يفسّره أحد.
+   */
+  const redispatchBroadcast = {
+    orders: createOrderRepository(sql),
+    offers: createOfferRepository(sql),
+    candidates: createDriverCandidateRepository(sql),
+    settings,
+    offerWriter: createOfferWriter(sql),
+    notifier: createTelegramDriverNotifier(sql, driverOut),
+    clock: systemClock,
+    log: (message: string, meta: Record<string, unknown>) => log.info(message, meta),
+  };
+
   const unmatchedFinder = createUnmatchedOrderFinder(sql);
   const unmatchedNotifier = createUnmatchedRiderNotifier(riderOut, (order) => {
     const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
@@ -269,6 +308,26 @@ export function buildWorkerContainer(
             });
             if (!report.ok) throw new Error(JSON.stringify(report.error));
             return `examined=${report.value.examined} expired=${report.value.appliedCount}`;
+          },
+        },
+        {
+          /**
+           * قبل التصعيد لا بعده: الطلبُ الذي يمكن بثُّه ثانيةً يجب أن يُبَثّ قبل أن
+           * يُقال للراكب «لا سائق»، لا أن يُبَشَّر بالفشل ثم يُخدَم.
+           */
+          name: `redispatch-searching:${cityId}`,
+          everySeconds: JOB_INTERVALS.redispatchSearching,
+          runOnStart: true,
+          run: async () => {
+            const report = await runRedispatchSearching(cityId, {
+              finder: searchingFinder,
+              broadcast: redispatchBroadcast,
+              limit: REDISPATCH_LIMIT,
+              log: (message, meta) => log.info(message, meta),
+            });
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            const value = report.value;
+            return `examined=${value.examined} rebroadcast=${value.rebroadcast.length} noDriver=${value.stillNoDriver.length} exhausted=${value.exhausted.length} raced=${value.raced.length} failed=${value.failed}`;
           },
         },
         {

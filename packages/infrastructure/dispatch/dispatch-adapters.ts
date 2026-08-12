@@ -14,6 +14,10 @@ import type {
   PendingOfferRepository,
 } from "../../application/dispatch/expire-offers-ports.ts";
 import type {
+  SearchingOrderFinder,
+  SearchingOrderRef,
+} from "../../application/dispatch/redispatch-searching-orders.ts";
+import type {
   DispatchRpcPort,
   DriverCandidateRepository,
   OfferRepository,
@@ -293,6 +297,44 @@ export function createExpireOffersRpc(sql: Sql): ExpireOffersRpcPort {
           returning id
         `;
         return rows.length;
+      }),
+  };
+}
+
+/**
+ * قارئُ الطلبات الباحثة — المرحلة ١٤.
+ *
+ * ولماذا لا يُرشَّح هنا بعددِ الدورات ولا بوجود عرضٍ قائم، والاستعلامُ يستطيع ذلك
+ * في سطرين؟ لأنّ حدَّ الدورات مقروءٌ من إعدادات المدينة (`max_broadcast_rounds`)
+ * ومُطبَّقٌ في `hasExhaustedBroadcastRounds`، واستبعادَ من له عرضٌ حيّ مُطبَّقٌ في
+ * `driversToExclude` بمهلةٍ مقروءةٍ من الإعدادات كذلك. فكتابةُ أيٍّ منهما هنا تنسخ
+ * سياسةً إلى SQL: يوم يتغيّر الحدُّ في القاعدة يبقى الشرطُ المكتوبُ كما هو، فتُحجَب
+ * طلباتٌ يجوز بثُّها أو تُبَثّ طلباتٌ استنفدت دوراتها — والفرقُ لا يظهر في أيّ
+ * اختبارٍ لأنّ كلا الموضعين «صحيحٌ» على انفراد.
+ *
+ * والثمنُ مقبولٌ ومحسوب: طلبٌ له عرضٌ حيٌّ يُقرأ ثم يُردّ عنه `matchOrder` بلا كتابة
+ * — دورةُ مطابقةٍ ضائعةٌ لا كتابةٌ خاطئة، وحدُّ `limit` يحصر عددَها.
+ */
+export function createSearchingOrderFinder(sql: Sql): SearchingOrderFinder {
+  return {
+    findSearching: (cityId: CityId, limit: number) =>
+      guard("orders.findSearching", async (): Promise<readonly SearchingOrderRef[]> => {
+        const rows = await sql<{ id: string; city_id: string; waiting_seconds: string | number }[]>`
+          select o.id      as id,
+                 o.city_id as city_id,
+                 extract(epoch from (now() - o.created_at))::bigint as waiting_seconds
+            from orders o
+           where o.city_id = ${cityId}::uuid
+             and o.status = 'searching'
+             and o.assigned_driver_id is null
+           order by o.created_at asc
+           limit ${limit}
+        `;
+        return rows.map((row) => ({
+          orderId: row.id as OrderId,
+          cityId: row.city_id as CityId,
+          waitingSeconds: Number(row.waiting_seconds),
+        }));
       }),
   };
 }

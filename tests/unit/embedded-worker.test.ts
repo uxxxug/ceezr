@@ -143,14 +143,17 @@ describe("العامل المدمج داخل عملية البوابة", () => {
     );
 
     try {
-      // المهامّ المدنية الخمس + العامّتان. الرقم مثبَّت عن قصد: نقصانه يعني مهمّة
+      // المهامّ المدنية الستّ + العامّتان. الرقم مثبَّت عن قصد: نقصانه يعني مهمّة
       // اختفت من الإنتاج بلا أن يلاحظها أحد، وهو بالضبط العطب الذي جاء البند ليُصلحه.
-      expect(handle.jobCount).toBe(7);
+      // صار ستّاً في المرحلة ١٤ بإضافة `redispatch-searching` — والحارس هو من كشف
+      // الإضافة، فبقاؤه رقماً مثبَّتاً مقصود لا سهو.
+      expect(handle.jobCount).toBe(8);
 
       const started = lines.find((line) => line.startsWith("embedded_worker.started"));
       expect(started).toBeDefined();
       for (const name of [
         `expire-offers:${CITY_ID}`,
+        `redispatch-searching:${CITY_ID}`,
         `sweep-unmatched:${CITY_ID}`,
         `rotate-negotiations:${CITY_ID}`,
         `cleanup-stale:${CITY_ID}`,
