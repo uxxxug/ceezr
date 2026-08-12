@@ -37,6 +37,16 @@ export interface MatchingParameters {
    * فالمعادلة بلا تفعيلٍ صريح هي معادلة ما قبل هذا البند بحرفها.
    */
   readonly weightPreferredArea: number;
+  /**
+   * platform_settings.driver_location_max_age_seconds — المرحلة ٨.
+   *
+   * صفرٌ يعني تعطيل الفحص، وهو المبذور في كل مدينة قصداً. واختيارية الحقل
+   * (`?`) ليست تراخياً بل منعٌ لكسرٍ استدعائي: المعاملات تُبنى في مواضعٍ
+   * عدة (منها اختبارات قائمة)، وجعلُه إلزامياً كان سيُجبِر كل موضعٍ على كتابة
+   * قيمة — والغالب أن تُكتب رقماً عشوائياً ليمرّ المُترجِم، فيصير الحَرَس
+   * مُفعّلاً بقيمةٍ لم يقررها أحد. والغياب يُقرأ تعطيلاً — وهو السلوك القائم.
+   */
+  readonly driverLocationMaxAgeSeconds?: number;
   /** platform_settings.broadcast_batch_size */
   readonly broadcastBatchSize: number;
   /** platform_settings.default_rating_for_new_driver */
@@ -62,6 +72,16 @@ export interface DriverCandidate {
    * الغياب يُمثّل غياباً لا صفراً.
    */
   readonly location: Coordinates | null;
+  /**
+   * متى **وصلنا** هذا الموقع (`drivers.last_location_at`، زمن الخادم)، أو `null`
+   * لمن لا موقع له أو لصفٍّ قديم كُتِب قبل أن يوجد العمود — المرحلة ٨.
+   *
+   * وليس `last_location_recorded_at` (طابع الجهاز) قصداً: السؤال هنا «متى عرفنا؟»
+   * لا «متى يقول إنه كان؟». وطابع الجهاز مُدخَلٌ من الخارج: سائقٌ ساعتُه متقدمة
+   * ساعةً يبدو موقعُه أحدثَ من كل من حوله إلى الأبد، فيصير الحَرَس ميزةً لمن
+   * ساعتُه خاطئة لا حمايةً للعميل.
+   */
+  readonly locationAtMs?: number | null;
   /**
    * مركز المنطقة التي يفضّل السائق العمل فيها، أو `null` لمن لا منطقة له —
    * وهي حال كل سائق قائم اليوم (البند 2.4).
@@ -104,6 +124,15 @@ export type RejectionReason =
   | "NOT_AVAILABLE"
   /** متاح وموثّق لكنّه لم يرسل موقعاً قطّ — لا يمكن حساب مسافته، والسبب يُسمّى لا يُخفى. */
   | "NO_LOCATION"
+  /**
+   * المرحلة ٨ — له موقع، ولكنّ عمره تجاوز المقبول في إعدادات المدينة.
+   *
+   * سببٌ منفصل عن `NO_LOCATION` لا تفريعاً تجميلياً: الأول يقول للمشغّل «لم يرسل
+   * موقعاً قطّ» والعلاج تعليمٌ أو دعم، والثاني يقول «أرسل ثم انقطع» والعلاج
+   * تنبيهٌ أو مراجعةُ توفّرِه. ودمجُهما في سببٍ واحد يُضيع هذا الفرق في أول موضع
+   * يُقرأ فيه السبب: لوحة العمليات وسجلّ `NoEligibleDriverError`.
+   */
+  | "STALE_LOCATION"
   | "SERVICE_NOT_ENABLED"
   | "NO_LIVE_SUBSCRIPTION"
   | "OUT_OF_RADIUS"
@@ -151,6 +180,7 @@ export function rejectionReasonFor(
    * وهو أحقّ بأن يُطالَب بموقعه من أن يُقال له إن خدمته غير مُفعّلة.
    */
   if (candidate.location === null) return "NO_LOCATION";
+  if (isLocationStale(candidate, params, now)) return "STALE_LOCATION";
   if (!canServe(candidate.capabilities, order.service)) return "SERVICE_NOT_ENABLED";
   if (candidate.subscription === null) return "NO_LIVE_SUBSCRIPTION";
   if (!coversService(candidate.subscription, order.service, now)) return "NO_LIVE_SUBSCRIPTION";
@@ -159,6 +189,46 @@ export function rejectionReasonFor(
     return "OUT_OF_RADIUS";
   }
   return null;
+}
+
+/**
+ * هل موقعُ المرشّح أقدمُ من المقبول؟ — المرحلة ٨.
+ *
+ * دالةٌ مفصولة ومُصدَّرة لأن السؤال يُطرح في أكثر من موضع (الإسناد اليوم، وقراءات
+ * العمليات لاحقاً)، وتكرارُ الشرط في موضعين يعني مصدرًي حقيقة لمفهومٍ واحد.
+ *
+ * ## ثلاث قرارات في ثلاثة أسطر
+ *
+ * ١. **التعطيل بالصفر أو بالغياب**: وهو المبذور، فالسلوك بلا تفعيلٍ صريح
+ *    هو سلوك ما قبل المرحلة ٨ بحرفه.
+ * ٢. **طابعٌ مفقود مع وجود موقع = قديم** حين يكون الفحص مُفعّلاً. والبديل
+ *    (افتراضُ أنه حديث) كان سيجعل أي صفٍّ فقد طابعَه يتجاوز الحَرَس إلى الأبد
+ *    وهو أخطر ما يمرّ: ثغرةٌ لا تُرى لأن نتيجتها «كل شيءٍ على ما يرام».
+ *    و«لا نعلم متى» ليس «نعلم أنه الآن».
+ * ٣. **طابعٌ في المستقبل ليس قديماً**: الفرق موقَّع لا مطلق، فالسالب يمرّ — والطابع
+ *    المستقبلي ممكنٌ بفروق ساعات الخوادم، ولا يجوز أن يُسقِط سائقاً موقعُه وصل الآن.
+ */
+export function isLocationStale(
+  candidate: Pick<DriverCandidate, "location" | "locationAtMs">,
+  params: Pick<MatchingParameters, "driverLocationMaxAgeSeconds">,
+  now: Date,
+): boolean {
+  const maxAgeSeconds = params.driverLocationMaxAgeSeconds ?? 0;
+  if (maxAgeSeconds <= 0) return false;
+  if (candidate.location === null) return false;
+  const atMs = candidate.locationAtMs;
+  if (atMs === null || atMs === undefined || !Number.isFinite(atMs)) return true;
+  /**
+   * فرقٌ **موقَّع** بلا `Math.abs` ولا حصرٍ في الصفر: الطابع المستقبلي يعطي فرقاً
+   * سالباً، والسالب أصغر من أي حدٍّ موجب فيمرّ من تلقاء نفسه. و`Math.abs` كانت
+   * ستقلب المستقبل قِدَماً فتُسقِط سائقاً موقعُه وصل الآن لأن ساعة خادمٍ متأخّرة
+   * ثانيتين — ولذلك يُقاس هذا في اختبار، لا يُترك للحظّ.
+   *
+   * وحصرُ الفرق في الصفر (`Math.max(0, …)`) كان موجوداً ثم حُذف: فحصُ تحويرٍ أثبت
+   * أن حذفه لا يُسقِط اختباراً واحداً، أي أنه سطرٌ لا يفعل شيئاً — والحرَس الذي
+   * لا يُقاس أثرُه ليس حرَساً بل زينة.
+   */
+  return (now.getTime() - atMs) / 1000 > maxAgeSeconds;
 }
 
 /**

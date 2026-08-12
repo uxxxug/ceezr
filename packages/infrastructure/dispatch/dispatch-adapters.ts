@@ -34,6 +34,8 @@ interface CandidateRow {
   readonly city_id: string;
   readonly lat: number | null;
   readonly lng: number | null;
+  /** المرحلة ٨ — بالنصّ لا بالرقم: `bigint` من القاعدة يفقد دقّته في `number` عند التحويل الضمني. */
+  readonly location_at_ms: string | null;
   readonly is_available: boolean | null;
   readonly verification_status: string;
   readonly is_blocked: boolean;
@@ -81,6 +83,13 @@ function toCandidate(row: CandidateRow): DriverCandidate {
         ? null
         : { latitude: Number(row.lat), longitude: Number(row.lng) },
     /**
+     * المرحلة ٨ — زمنُ **وصول** الموقع إلى الخادم. `null` يُمرَّر `null` ولا
+     * يُستبدل بـ`Date.now()`: الاستبدال كان سيجعل كل صفٍّ بلا طابع يبدو وصل
+     * هذه اللحظة، أي يتجاوز حَرَس القِدَم دائماً — وهو نفس عطب `Number(lat ?? 0)`
+     * بصورةٍ زمنية: قيمةٌ مختلقة تمرّ من كل فحصٍ لأنها تبدو معقولة.
+     */
+    locationAtMs: row.location_at_ms === null ? null : Number(row.location_at_ms),
+    /**
      * المنطقة المفضّلة — البند 2.4. `null` هنا يعني «لا منطقة» لا «منطقة عند
      * الصفر»: نفس السبب الذي مُنع من أجله `Number(lat ?? 0)` في `location`.
      * وقيد `drivers_preferred_area_pair` يضمن أن العمودين يحضران أو يغيبان معاً،
@@ -118,6 +127,8 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  d.city_id,
                  st_y(d.last_location::geometry) as lat,
                  st_x(d.last_location::geometry) as lng,
+                 -- زمن الخادم لا طابع الجهاز: السؤال «متى عرفنا؟» لا «متى يقول إنه كان؟»
+                 (extract(epoch from d.last_location_at) * 1000)::bigint::text as location_at_ms,
                  st_y(d.preferred_area_location::geometry) as preferred_lat,
                  st_x(d.preferred_area_location::geometry) as preferred_lng,
                  a.is_available,

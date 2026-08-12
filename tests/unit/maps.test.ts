@@ -56,3 +56,70 @@ describe("maps: distance calculation", () => {
     expect(dist).toBeLessThan(380000);
   });
 });
+
+/**
+ * المرحلة ٨ — البند P1-9 من خط الأساس: `nearest` كان يُصنّع `driverId: nearest-i`.
+ *
+ * الاختبار يشغّل خادماً حقيقياً يردّ باستجابة OSRM كما هي في وثائقها، لأن العطب
+ * كان في **التحويل** لا في الشبكة: أي اختبارٍ يفشل عند تعذّر الاتصال (كالحالتين
+ * أعلاه) لا يمرّ على سطر التحويل أصلاً، ولذلك عاش الاختلاق فيه بلا أن يُرى.
+ */
+describe("maps: nearest لا يختلق سائقين", () => {
+  async function withServer<T>(body: unknown, fn: (baseUrl: string) => Promise<T>): Promise<T> {
+    const server = Bun.serve({
+      port: 0,
+      fetch: () =>
+        new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } }),
+    });
+    try {
+      return await fn(`http://localhost:${server.port}`);
+    } finally {
+      server.stop(true);
+    }
+  }
+
+  const OSRM_NEAREST = {
+    code: "Ok",
+    waypoints: [
+      { location: [39.1931, 21.4861], distance: 12.5, name: "طريق الملك عبد الله" },
+      { location: [39.1944, 21.4872], distance: 40.25, name: "" },
+    ],
+  };
+
+  it("يُعيد نقاطاً مُلتصقة بالطريق بلا أيّ معرّف سائق", async () => {
+    await withServer(OSRM_NEAREST, async (baseUrl) => {
+      const provider = createOsrmProvider({ baseUrl });
+      const result = await provider.nearest({ point: { lat: 21.4858, lng: 39.1925 }, count: 2 });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+
+      expect(result.value.points).toHaveLength(2);
+      const first = result.value.points[0];
+      expect(first?.position).toEqual({ lat: 21.4861, lng: 39.1931 });
+      // المسافة هي بُعد النقطة عن الطريق، لا مسافة قيادةٍ إلى أحد
+      expect(first?.offsetMeters).toBe(12.5);
+      expect(first?.roadName).toBe("طريق الملك عبد الله");
+
+      // الحرَس الفعلي: لا حقل باسم driverId في أي نقطة، بأي قيمة
+      const serialized = JSON.stringify(result.value);
+      expect(serialized).not.toContain("driverId");
+      expect(serialized).not.toContain("nearest-");
+      expect(serialized).not.toContain("durationSeconds");
+      for (const point of result.value.points) {
+        expect(Object.keys(point)).not.toContain("driverId");
+      }
+    });
+  });
+
+  it("طريقٌ بلا اسم يُترك غائباً لا يُملأ بنصٍّ فارغ", async () => {
+    await withServer(OSRM_NEAREST, async (baseUrl) => {
+      const provider = createOsrmProvider({ baseUrl });
+      const result = await provider.nearest({ point: { lat: 21.4858, lng: 39.1925 }, count: 2 });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      // "" من OSRM تعني «لا اسم»، وتمريرُها كاسمٍ يجعل الواجهة تعرض سطراً فارغاً
+      expect(result.value.points[1]?.roadName).toBeUndefined();
+      expect(Object.keys(result.value.points[1] ?? {})).not.toContain("roadName");
+    });
+  });
+});

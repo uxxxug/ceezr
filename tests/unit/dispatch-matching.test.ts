@@ -10,6 +10,7 @@ import { describe, expect, it } from "bun:test";
 import {
   type DriverCandidate,
   evaluateCandidates,
+  isLocationStale,
   type MatchingParameters,
   type OrderContext,
   preferredAreaFactor,
@@ -412,5 +413,90 @@ describe("preferredAreaFactor والمنطقة المفضّلة في الترت�
     if (scored === undefined) throw new Error("مرشّح متوقّع");
     expect(scored.preferredAreaFactor).toBe(0);
     expect(scored.score).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * المرحلة ٨ — حَرَس عمر الموقع. حدودُ الدالة تُقاس هنا، وأثرُها على الإسناد
+ * الحقيقي يُقاس في tests/integration/driver-location-freshness.test.ts: هذا
+ * الملف لا يعرف إن كان الاستعلام يُسلّم الطابع أصلاً.
+ */
+describe("dispatch: عمر موقع السائق", () => {
+  const AT = (ms: number) => NOW.getTime() - ms;
+  const stale = (over: Partial<MatchingParameters> & { driverLocationMaxAgeSeconds?: number }) => ({
+    ...PARAMS,
+    ...over,
+  });
+
+  it("العطب قبل الإصلاح: موقعٌ عمره ست ساعات كان يُقبل — والقبول اليوم مشروطٌ بالتعطيل", () => {
+    const old = candidate({ driverId: D("d1"), locationAtMs: AT(6 * 3_600_000) });
+    // صفرٌ = معطّل، وهو المبذور: السلوك القائم محفوظ بحرفه
+    expect(
+      rejectionReasonFor(old, ORDER, stale({ driverLocationMaxAgeSeconds: 0 }), NOW),
+    ).toBeNull();
+    // وبالتفعيل يُسمّى السبب
+    expect(rejectionReasonFor(old, ORDER, stale({ driverLocationMaxAgeSeconds: 900 }), NOW)).toBe(
+      "STALE_LOCATION",
+    );
+  });
+
+  it("غياب الحقل يُقرأ تعطيلاً: لا يُفعَّل حَرَسٌ بقيمةٍ لم يقررها أحد", () => {
+    const old = candidate({ driverId: D("d1"), locationAtMs: AT(86_400_000) });
+    expect(rejectionReasonFor(old, ORDER, PARAMS, NOW)).toBeNull();
+  });
+
+  it("الحدّ تجاوزٌ صريح لا مساواة: عمرٌ يساوي الحدّ بالضبط يمرّ", () => {
+    const params = stale({ driverLocationMaxAgeSeconds: 300 });
+    expect(isLocationStale({ location: PICKUP, locationAtMs: AT(300_000) }, params, NOW)).toBe(
+      false,
+    );
+    expect(isLocationStale({ location: PICKUP, locationAtMs: AT(300_001) }, params, NOW)).toBe(
+      true,
+    );
+  });
+
+  it("طابعٌ مفقود مع وجود موقع = قديم: «لا نعلم متى» ليست «نعلم أنه الآن»", () => {
+    const params = stale({ driverLocationMaxAgeSeconds: 300 });
+    expect(isLocationStale({ location: PICKUP, locationAtMs: null }, params, NOW)).toBe(true);
+    expect(isLocationStale({ location: PICKUP }, params, NOW)).toBe(true);
+    expect(isLocationStale({ location: PICKUP, locationAtMs: Number.NaN }, params, NOW)).toBe(true);
+  });
+
+  it("طابعٌ في المستقبل ليس قديماً: فروق ساعات الخوادم لا تُسقِط سائقاً", () => {
+    const params = stale({ driverLocationMaxAgeSeconds: 60 });
+    expect(isLocationStale({ location: PICKUP, locationAtMs: AT(-3_600_000) }, params, NOW)).toBe(
+      false,
+    );
+  });
+
+  it("من لا موقع له يبقى NO_LOCATION لا STALE_LOCATION: السببان يقودان إلى علاجين", () => {
+    const none = candidate({ driverId: D("d1"), location: null, locationAtMs: null });
+    const params = stale({ driverLocationMaxAgeSeconds: 60 });
+    expect(rejectionReasonFor(none, ORDER, params, NOW)).toBe("NO_LOCATION");
+    expect(isLocationStale({ location: null, locationAtMs: null }, params, NOW)).toBe(false);
+  });
+
+  it("القِدَم يُفحص قبل الاشتراك ونصف القطر: أقربُ سببٍ للعلاج أولى بالإبلاغ", () => {
+    const params = stale({ driverLocationMaxAgeSeconds: 60 });
+    const farAndOld = candidate({
+      driverId: D("d1"),
+      location: { latitude: 30, longitude: 45 },
+      locationAtMs: AT(3_600_000),
+      subscription: null,
+    });
+    expect(rejectionReasonFor(farAndOld, ORDER, params, NOW)).toBe("STALE_LOCATION");
+  });
+
+  it("الاستبعاد يظهر في evaluateCandidates لا يختفي: المشغّل يقرأ السبب", () => {
+    const old = candidate({ driverId: D("d1"), locationAtMs: AT(3_600_000) });
+    const evaluation = evaluateCandidates(
+      [old],
+      ORDER,
+      stale({ driverLocationMaxAgeSeconds: 60 }),
+      NOW,
+    );
+    expect(evaluation.eligible).toHaveLength(0);
+    expect(evaluation.rejected[0]?.reason).toBe("STALE_LOCATION");
+    expect(String(evaluation.rejected[0]?.driverId)).toBe("d1");
   });
 });

@@ -18,10 +18,10 @@ import {
 } from "../../core/routing-provider.ts";
 import type {
   LatLng,
-  NearbyDriver,
   NearestResult,
   ProviderName,
   RouteResult,
+  SnappedPoint,
 } from "../../core/types.ts";
 
 export interface OsrmConfig {
@@ -48,6 +48,8 @@ interface OsrmNearestResponse {
     location: readonly [number, number];
     distance: number;
     hint?: string;
+    /** اسم الطريق — يعيده OSRM خاوياً للطرق غير المسمّاة، فلا يُفترض حضوره. */
+    name?: string;
   }[];
 }
 
@@ -117,14 +119,22 @@ export function createOsrmProvider(config: OsrmConfig): RoutingProvider {
       );
       if (!result.ok) return err(result.error);
 
-      const drivers: NearbyDriver[] = result.value.waypoints.map((wp, i) => ({
-        driverId: `nearest-${i}`,
+      /**
+       * المرحلة ٨ — كان هذا الموضع يُصنّع `driverId: `nearest-${i}`` ويعيده في
+       * نوعٍ اسمه `NearbyDriver`. وOSRM `/nearest` يعيد **نقاطاً على الطريق**
+       * لا سائقين: لا يعرف أن السائقين موجودون. فالمُعرَّف كان اختلاقاً كاملاً،
+       * و`durationSeconds: 0` كذبةً ثانية (صفرٌ يعني «وصولٌ فوري» لا «لا أعلم»).
+       *
+       * ومن أراد السائقين القريبين يقرأ `drivers.last_location` عبر مسار
+       * المرشّحين — وهو المصدر القانوني الوحيد لموقع السائق (ADR-0015).
+       */
+      const points: SnappedPoint[] = result.value.waypoints.map((wp) => ({
         position: { lat: wp.location[1], lng: wp.location[0] },
-        distanceMeters: wp.distance,
-        durationSeconds: 0,
+        offsetMeters: wp.distance,
+        ...(wp.name === undefined || wp.name === "" ? {} : { roadName: wp.name }),
       }));
 
-      return ok({ drivers });
+      return ok({ points });
     },
 
     table: async (

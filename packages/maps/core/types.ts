@@ -50,19 +50,36 @@ export interface RouteStep {
   readonly maneuver?: "left" | "right" | "straight" | "uturn" | "arrive" | "depart";
 }
 
-/** سائق قريب — نتيجة بحث عن الأقرب. */
-export interface NearbyDriver {
-  readonly driverId: string;
+/**
+ * نقطةٌ مُلتصقة بشبكة الطرق — المرحلة ٨.
+ *
+ * ## لماذا حُذف `NearbyDriver` من هنا
+ *
+ * كان هذا النوع `NearbyDriver` بحقلٍ اسمه `driverId`، ومزوّد OSRM يملؤه
+ * بـ`` `nearest-${i}` `` — أي **مُعرِّفات سائقين مختلقة**. و`/nearest` في OSRM
+ * لا يعرف السائقين ولا يستطيع: هو يُلصق إحداثيةً بأقرب حرفِ طريق ويعيد النقطة
+ * الملتصقة. فالنوع كان يَعِد بشيءٍ لا يملكه المزوّد، والتسمية وحدها كانت تكفي
+ * لأن يبني عليها مستهلكٌ مستقبلي بثّاً إلى «سائقٍ» اسمه `nearest-0`.
+ *
+ * ومصدر الحقيقة لسؤال «من السائقون القريبون؟» هو `drivers.last_location`
+ * (ADR-0015) عبر مسار المرشّحين في الإسناد — لا خدمةُ توجيهٍ خارجية. وترك
+ * النوع باسمه القديم كان يعني مصدراً ثانياً لنفس السؤال، أحدُهما كاذب.
+ *
+ * ولم يُحذف `nearest` نفسه: إلصاقُ نقطةٍ بالطريق وظيفةٌ حقيقية ونافعة (تصحيح
+ * نقطة التقاطٍ سقطت داخل مبنى). الذي حُذف هو ادّعاء أنها تعرف سائقاً.
+ */
+export interface SnappedPoint {
+  /** الإحداثية بعد الإلصاق بأقرب حرف طريق. */
   readonly position: LatLng;
-  readonly distanceMeters: number;
-  readonly durationSeconds: number;
-  readonly heading?: number;
-  readonly ratingAverage?: number;
+  /** بُعد النقطة الأصلية عن الطريق بالمتر — لا مسافةَ قيادةٍ إلى أحد. */
+  readonly offsetMeters: number;
+  /** اسم الطريق إن أعاده المزوّد. */
+  readonly roadName?: string;
 }
 
-/** نتيجة بحث عن الأقرب. */
+/** نتيجة الإلصاق: النقاط مرتَّبة كما أعادها المزوّد، الأقرب أولاً. */
 export interface NearestResult {
-  readonly drivers: readonly NearbyDriver[];
+  readonly points: readonly SnappedPoint[];
 }
 
 /** معرّف المزوّد لمعرفة المصدر. */

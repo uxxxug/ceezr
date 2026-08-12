@@ -61,6 +61,18 @@ export const SETTING_SPECS = {
    * لا تتغيّر بمجرّد الهجرة؛ وتفعيله خصمٌ صريح من أحد الوزنين لا زيادةٌ عليهما.
    */
   match_weight_preferred_area: { kind: "number", min: 0, max: 1, integer: false },
+  /**
+   * المرحلة ٨ — أقصى عمرٍ مقبول لموقع السائق ليدخل الإسناد، بالثواني.
+   *
+   * صفرٌ يعني تعطيل الفحص، وهو المبذور في كل مدينة: الحَرَس يُسلَّم مُختبَراً
+   * ومُعطَّلاً لأن حدّاً يُفعَّل بلا قياسِ نمط السائقين قد يُفرِّغ دفعة البثّ
+   * في مدينةٍ كاملة — وانقطاعُ الإسناد أسوأ من إسنادٍ بموقعٍ قديم.
+   *
+   * والحدّ الأعلى (٢٤ ساعة) حدُّ سلامةٍ لا رأيٌ تجاري: قيمةٌ أكبر منه لا تعني
+   * شيئاً عملياً — سائقٌ لم يُرسل موقعاً منذ يومٍ كامل لا يُحلّ إشكالُه بتوسيع
+   * النافذة بل بمطالبته بموقعه.
+   */
+  driver_location_max_age_seconds: { kind: "number", min: 0, max: 86_400, integer: true },
   default_rating_for_new_driver: { kind: "number", min: 0, max: 5, integer: false },
   rating_min_count_for_trust: { kind: "number", min: 1, max: 100, integer: true },
   rating_prompt_window_hours: { kind: "number", min: 1, max: 720, integer: true },
@@ -114,6 +126,8 @@ export interface CitySettings {
   readonly matchWeightProximity: number;
   readonly matchWeightRating: number;
   readonly matchWeightPreferredArea: number;
+  /** المرحلة ٨ — صفرٌ يعني تعطيل فحص عمر الموقع. */
+  readonly driverLocationMaxAgeSeconds: number;
   readonly defaultRatingForNewDriver: number;
   readonly ratingMinCountForTrust: number;
   readonly ratingPromptWindowHours: number;
@@ -218,6 +232,7 @@ export function parseCitySettings(
     matchWeightProximity: proximity,
     matchWeightRating: rating,
     matchWeightPreferredArea: preferredArea,
+    driverLocationMaxAgeSeconds: num("driver_location_max_age_seconds"),
     defaultRatingForNewDriver: num("default_rating_for_new_driver"),
     ratingMinCountForTrust: num("rating_min_count_for_trust"),
     ratingPromptWindowHours: num("rating_prompt_window_hours"),
@@ -232,6 +247,7 @@ export function toMatchingParameters(settings: CitySettings): MatchingParameters
     weightProximity: settings.matchWeightProximity,
     weightRating: settings.matchWeightRating,
     weightPreferredArea: settings.matchWeightPreferredArea,
+    driverLocationMaxAgeSeconds: settings.driverLocationMaxAgeSeconds,
     broadcastBatchSize: settings.broadcastBatchSize,
     defaultRating: settings.defaultRatingForNewDriver,
     ratingMinCountForTrust: settings.ratingMinCountForTrust,
