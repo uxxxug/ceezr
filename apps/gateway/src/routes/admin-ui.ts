@@ -443,18 +443,20 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     return c.redirect("/admin", SEE_OTHER);
   });
 
-  app.post("/logout", async (c) => {
-    const token = readSessionToken(c);
-    if (token !== null) await deps.auth.closeSession(sha256Hex(token));
-    clearSessionCookie(c);
-    return c.redirect("/admin/login", SEE_OTHER);
-  });
-
   // -------------------------------------------------------------------------
   // كل ما بعد هذا السطر يمرّ بالحارس
   // -------------------------------------------------------------------------
 
   app.use("*", createAdminGuard(deps.auth, "page", log));
+
+  app.post("/logout", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+    const token = readSessionToken(c);
+    if (token !== null) await deps.auth.closeSession(sha256Hex(token));
+    clearSessionCookie(c);
+    return c.redirect("/admin/login", SEE_OTHER);
+  });
 
   app.get("/", async (c) => {
     const stall = await stallSeconds(deps.sql, null);

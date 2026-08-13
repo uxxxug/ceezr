@@ -112,7 +112,13 @@ export function createAdminGuard(
 export async function requireCsrf(
   c: Context<AdminEnv>,
 ): Promise<{ ok: true; form: FormData } | { ok: false; response: Response }> {
-  const form = await c.req.formData();
+  let form: FormData;
+  try {
+    form = await c.req.formData();
+  } catch {
+    // جسم خبيث أو Content-Type غير صالح لا ينبغي أن يتحول إلى 500 أو يتجاوز الحارس.
+    return { ok: false, response: c.text("CSRF_MISMATCH", FORBIDDEN) };
+  }
   const submitted = form.get("csrf");
   const expected = c.get("csrfToken");
   if (typeof submitted !== "string" || !safeEqual(submitted, expected)) {

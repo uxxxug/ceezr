@@ -280,7 +280,8 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
   it("الخروج يُبطل الجلسة فوراً", async () => {
     const cookie = await login(ADMIN_TELEGRAM);
     const SEE_OTHER = 303;
-    const out = await request("/admin/logout", { method: "POST", cookie });
+    const csrf = await csrfFrom(cookie, "/admin");
+    const out = await request("/admin/logout", { method: "POST", cookie, body: form({ csrf }) });
     expect(out.status).toBe(SEE_OTHER);
 
     const after = await request("/admin", { cookie });
