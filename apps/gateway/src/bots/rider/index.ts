@@ -4,7 +4,10 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.1.
  * ينتمي إلى: apps/gateway/src/bots/rider
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/container.ts
- * ملاحظات مستقبلية: طلب التوصيل (request-delivery) يبقى هيكلاً حتى المرحلة 2.2.
+ * ملاحظات مستقبلية: كانت هنا ملفات مجاورة (request-ride, request-delivery, order-tracking,
+ *   rating) بترويسة «هيكل فقط». حُذفت في 2026-08-13: طلب التوصيل منفَّذ في
+ *   `packages/application/delivery/request-delivery.ts`، والتتبّع والتقييم في `rider-dialog.ts`
+ *   و`rating-dialog.ts`، ولم يستورد أيًا منها شيء. ملفٌّ يكذب على قارئه أسوأ من ملفٍ لا وجود له.
  */
 
 import {
