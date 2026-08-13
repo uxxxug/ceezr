@@ -1169,6 +1169,170 @@ describe("تغييرات الاشتراك من بطاقة /subscription", () => 
     );
   });
 
+  /**
+   * الترقية المدفوعة بعد وصول مزوّد الدفع. قبلها كان النصّ يُحوّل السائق إلى
+   * الدعم لتحصيلٍ يدويّ — وكان `upgradePlan` مبنيّاً ومختبَراً ولا يستدعيه أحد.
+   * وهذه الاختبارات تحرس ما يُخشى في هذا المسار تحديداً: أن تُنشأ فاتورتان
+   * لترقيةٍ واحدة، أو أن تُفعَّل الخطّة من ضغطة زرٍّ قبل أن يُدفع الفرق.
+   */
+  function upgradePurchaseDouble(checkoutUrl: string | null = "https://pay.test/chg_up_1") {
+    const state = {
+      charges: 0,
+      confirms: 0,
+      creates: [] as { key: string; amount: number; metadata: Record<string, unknown> }[],
+      chargeKeys: [] as string[],
+    };
+    const tx = {
+      id: "tx-upgrade" as PaymentTransactionId,
+      payerId: "driver-1" as DriverId,
+      payeeId: "platform" as const,
+      purpose: "driver_subscription" as const,
+      amount: { amount: 15_000, currency: "SAR" },
+      provider: "test-provider",
+      providerTransactionId: null,
+      status: "pending" as const,
+      metadata: {} as Record<string, unknown>,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const payments = {
+      create: async (input: {
+        amount: { amount: number };
+        idempotencyKey: string;
+        metadata: Record<string, unknown>;
+      }) => {
+        const already = state.creates.some((c) => c.key === input.idempotencyKey);
+        state.creates.push({
+          key: input.idempotencyKey,
+          amount: input.amount.amount,
+          metadata: input.metadata,
+        });
+        return ok({ transaction: tx, alreadyExists: already });
+      },
+      findById: async () => ok(null),
+      findByIdempotencyKey: async (key: string) =>
+        ok(state.creates.some((c) => c.key === key) ? tx : null),
+      recordCheckoutUrl: async () => ok({ checkoutUrl }),
+      confirmPayment: async () => {
+        state.confirms += 1;
+        return err(new PortFailureError("payments", "UNUSED"));
+      },
+    };
+    const provider = {
+      name: "test-provider",
+      chargeSubscription: async (input: { idempotencyKey: string }) => {
+        state.charges += 1;
+        state.chargeKeys.push(input.idempotencyKey);
+        return ok({ providerTransactionId: null, checkoutUrl, status: "pending" as const });
+      },
+      verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+      fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
+    };
+    return {
+      purchase: { payments, provider } as unknown as NonNullable<
+        DriverBotDependencies["subscriptionPurchase"]
+      >,
+      state,
+    };
+  }
+
+  function withPaidUpgrade(
+    subscription: Subscription,
+    changes: ReturnType<typeof subscriptionChangePort>,
+    purchase: NonNullable<DriverBotDependencies["subscriptionPurchase"]>,
+  ): DriverBotDependencies {
+    return build({
+      drivers: driverDirectory(verifiedDriver()),
+      subscriptions: subscriptionReader(subscription),
+      subscriptionChanges: changes,
+      subscriptionPurchase: purchase,
+    });
+  }
+
+  it("مع مزوّد دفع: العرض أولاً بزرّ تأكيد، ولا معاملة ولا استدعاء مزوّد قبله", async () => {
+    const changes = subscriptionChangePort();
+    const { purchase, state } = upgradePurchaseDouble();
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:both"),
+      withPaidUpgrade(liveSub(), changes, purchase),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_upgrade_quote_paid", {
+        plan: "both",
+        amount: 150,
+        currency: "SAR",
+        until: "2026-09-01",
+      }),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [
+          {
+            label: ar("driver.subscription_upgrade_confirm_button"),
+            data: "sub:upgrade:confirm:both",
+          },
+        ],
+      ],
+    });
+    expect(state.creates).toEqual([]);
+    expect(state.charges).toBe(0);
+    expect(changes.calls.upgrades).toEqual([]);
+  });
+
+  it("التأكيد يُنشئ طلب دفعٍ واحداً بالوحدة الصغرى ويعيد رابطاً، ولا يُفعّل الخطّة", async () => {
+    const changes = subscriptionChangePort();
+    const { purchase, state } = upgradePurchaseDouble();
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:confirm:both"),
+      withPaidUpgrade(liveSub(), changes, purchase),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_upgrade_checkout", {
+        plan: "both",
+        amount: 150,
+        currency: "SAR",
+        url: "https://pay.test/chg_up_1",
+      }),
+    );
+    // ١٥٠ ريالاً = ١٥٠٠٠ هلّة؛ تمريرُ ١٥٠ كان سيبيع ترقيةً بريالٍ ونصف.
+    expect(state.creates).toHaveLength(1);
+    expect(state.creates[0]?.amount).toBe(15_000);
+    // `upgrade: true` هو ما يجعل `confirm_payment` يُغيّر الخطّة في مكانها بدل
+    // أن يُمدّد الدورة كاشتراكٍ جديد.
+    expect(state.creates[0]?.metadata.upgrade).toBe(true);
+    expect(state.charges).toBe(1);
+    // الترقية لا تُطبَّق من البوت: لا `applyUpgrade` ولا تأكيد دفعةٍ لم تُدفع.
+    expect(changes.calls.upgrades).toEqual([]);
+    expect(state.confirms).toBe(0);
+  });
+
+  it("ضغطتا تأكيدٍ في اليوم نفسه: مفتاحٌ واحد، ولا استدعاء ثانٍ للمزوّد", async () => {
+    const { purchase, state } = upgradePurchaseDouble();
+    const target = withPaidUpgrade(liveSub(), subscriptionChangePort(), purchase);
+    const first = await handleDriverUpdate(callback("sub:upgrade:confirm:both"), target);
+    const second = await handleDriverUpdate(callback("sub:upgrade:confirm:both"), target);
+    expect(first[0]?.text).toContain("https://pay.test/chg_up_1");
+    // الثانية وجدت المعاملة سلفاً فلم تُنشئ فاتورةً ثانية ولم تستدعِ المزوّد.
+    expect(state.creates).toHaveLength(1);
+    expect(state.charges).toBe(1);
+    expect(new Set(state.chargeKeys).size).toBe(1);
+    expect(state.chargeKeys[0]).toBe(
+      `driver_subscription_upgrade:driver-1:both:${NOW.toISOString().slice(0, 10)}`,
+    );
+    // ولا يُترك السائق بلا ردّ: المعاملة القائمة لا رابط لها فيُقال «قيد الانتظار».
+    expect(second[0]?.text).toBe(ar("driver.subscription_checkout_pending"));
+  });
+
+  it("مزوّدٌ لم يُعِد رابطاً: يُقال «قيد الانتظار» ولا يُدَّعى نجاح الترقية", async () => {
+    const { purchase } = upgradePurchaseDouble(null);
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:confirm:both"),
+      withPaidUpgrade(liveSub(), subscriptionChangePort(), purchase),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_checkout_pending"));
+  });
+
   it("داخل التجربة المجانية: عرضٌ بلا مقابل ثمّ تأكيدٌ يُطبّق الترقية ذرّياً", async () => {
     const trialQuote = {
       quote: {

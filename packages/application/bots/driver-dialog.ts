@@ -57,6 +57,7 @@ import {
 import { type TriggerSosDeps, triggerSos } from "../safety/trigger-sos.ts";
 import { cancelSubscription, resumeSubscription } from "../subscription/cancel-subscription.ts";
 import type { SubscriptionChangeRpcPort } from "../subscription/ports.ts";
+import { upgradePlan } from "../subscription/upgrade-plan.ts";
 import type { DriverTripCardReader, DriverTripKey } from "../tracking/driver-trip-card.ts";
 import { driverTripCard } from "../tracking/driver-trip-card.ts";
 import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
@@ -890,7 +891,7 @@ async function handleSubscriptionChange(
     case "resume":
       return applyResume(sender, state, driver, changes);
     case "upgrade":
-      return handleUpgradeButton(tail, sender, state, driver, changes);
+      return handleUpgradeButton(tail, sender, state, driver, changes, deps);
     default:
       return [reply(sender, tr("common.unknown_command"))];
   }
@@ -988,6 +989,7 @@ async function handleUpgradeButton(
   state: DialogState,
   driver: DriverProfile,
   changes: SubscriptionChangeRpcPort,
+  deps: DriverBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
   const confirmed = tail[0] === "confirm";
@@ -1018,17 +1020,92 @@ async function handleUpgradeButton(
 
   const until = quote.periodEnd === null ? UNKNOWN_DATE : dayOf(quote.periodEnd);
 
-  // المسار المدفوع: يُعرض الفرق ويُدَلّ على قناة التحصيل القائمة فعلاً (الدعم).
-  // ولا يُنشأ طلب دفعٍ من هنا: لا مزوّد دفع مُعتمَد بعد (§1.3 من التوجيه)،
-  // وإنشاء معاملةٍ معلّقة لا سبيل لدفعها يترك في القاعدة سجلّاً لا يُغلق.
+  // المسار المدفوع. مزوّد الدفع مُركَّبٌ أو لا، وهذا هو الفرق:
+  //
+  //   • مُركَّب: يُنشأ طلب دفعٍ حقيقيّ عبر حالة الاستخدام `upgradePlan`، فيصل
+  //     السائق إلى رابط دفعٍ ويُطبَّق فرقُ الخطّة داخل `confirm_payment` نفسها.
+  //     وحالةُ الاستخدام هي المكان الوحيد الذي يُنشئ معاملةً ويستدعي المزوّد:
+  //     تكرارُ ذلك هنا كان سيصير مسارَ ترقيةٍ ثانياً بمفتاح إيدمبوتنسي مختلف،
+  //     وهو تحديداً ما يُنتج فاتورتين للترقية الواحدة.
+  //   • غير مُركَّب: يبقى النصّ صادقاً — تحصيلٌ يدويّ عبر الدعم. ولا تُنشأ
+  //     معاملةٌ معلّقة لا سبيل إلى دفعها فتبقى في القاعدة سجلّاً لا يُغلق.
   if (quote.paymentRequired) {
     const money = { amount: quote.amountDue, currency: quote.currency ?? "" };
+    const purchase = deps.subscriptionPurchase;
+    if (purchase === undefined) {
+      return [
+        reply(
+          sender,
+          tr("driver.subscription_upgrade_quote_paid", { plan: newPlan, ...money, until }),
+        ),
+        reply(sender, tr("driver.subscription_upgrade_manual_payment", money), menu(state)),
+      ];
+    }
+    // لا يُنشأ طلب دفعٍ بضغطةٍ واحدة: الفرق يُعرض أولاً ثم يُؤكَّد، كما في الإلغاء.
+    if (!confirmed) {
+      return [
+        reply(
+          sender,
+          tr("driver.subscription_upgrade_quote_paid", { plan: newPlan, ...money, until }),
+          {
+            kind: "inline",
+            rows: [
+              [
+                {
+                  label: tr("driver.subscription_upgrade_confirm_button"),
+                  data: `sub:upgrade:confirm:${newPlan}`,
+                },
+              ],
+            ],
+          },
+        ),
+      ];
+    }
+    const day = deps.clock.now().toISOString().slice(0, 10);
+    const outcome = await upgradePlan(
+      {
+        driverId: driver.id,
+        cityId: driver.cityId,
+        newPlan,
+        // مفتاحٌ على (السائق + الخطّة + اليوم) لا على وقتٍ لحظيّ: تلغرام يعيد
+        // إرسال التحديث نفسه عند تعثّر الشبكة، وضغطتان تُنتجان فرقين مستحقّين
+        // لترقيةٍ واحدة لو تغيّر المفتاح بينهما.
+        idempotencyKey: `driver_subscription_upgrade:${driver.id}:${newPlan}:${day}`,
+      },
+      { changes, payments: purchase.payments, provider: purchase.provider },
+    );
+    if (!outcome.ok) {
+      return outcome.error.detail === "ALREADY_ON_PLAN"
+        ? [reply(sender, tr("driver.subscription_upgrade_already", { plan: newPlan }), menu(state))]
+        : technicalFailure(sender, state);
+    }
+    // التجربة المجّانية قد تُطبَّق مباشرةً حتى في هذا الفرع لو تغيّرت الدورة بين
+    // العرض والتأكيد: تُقرأ النتيجة الفعليّة ولا يُفترض أنّها ما عُرض.
+    if (outcome.value.kind === "applied") {
+      const appliedUntil =
+        outcome.value.periodEnd === null ? until : dayOf(outcome.value.periodEnd);
+      return [
+        reply(
+          sender,
+          tr("driver.subscription_upgraded", { plan: outcome.value.plan, until: appliedUntil }),
+          menu(state),
+        ),
+      ];
+    }
+    if (outcome.value.checkoutUrl === null) {
+      return [reply(sender, tr("driver.subscription_checkout_pending"), menu(state))];
+    }
     return [
       reply(
         sender,
-        tr("driver.subscription_upgrade_quote_paid", { plan: newPlan, ...money, until }),
+        tr("driver.subscription_upgrade_checkout", {
+          plan: newPlan,
+          amount: outcome.value.amountDue,
+          currency: outcome.value.currency,
+          url: outcome.value.checkoutUrl,
+        }),
+        menu(state),
       ),
-      reply(sender, tr("driver.subscription_upgrade_manual_payment", money), menu(state)),
     ];
   }
 

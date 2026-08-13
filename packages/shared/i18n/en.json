@@ -74,6 +74,7 @@
   "driver.subscription_resumed": "Cancellation undone. Your subscription continues and renews as usual.",
   "driver.subscription_upgrade_already": "You are already on the {plan} plan.",
   "driver.subscription_upgrade_button": "⬆️ Upgrade to the full plan",
+  "driver.subscription_upgrade_checkout": "To complete your upgrade to {plan} for a difference of {amount} {currency}, open the payment link:\n{url}\n\nThe upgrade applies automatically once payment succeeds — no receipt needed, and your cycle end date does not change.",
   "driver.subscription_upgrade_confirm_button": "✅ Confirm upgrade",
   "driver.subscription_upgrade_manual_payment": "To complete the upgrade, transfer {amount} {currency} and send the receipt photo through “Subscription issue” in /support so support applies it to your account. Nothing is charged before that.",
   "driver.subscription_upgrade_not_available": "No upgrade is available on your current plan.",

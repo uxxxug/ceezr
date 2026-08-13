@@ -74,6 +74,7 @@
   "driver.subscription_resumed": "منسوخی واپس لے لی گئی۔ آپ کی سبسکرپشن جاری رہے گی اور معمول کے مطابق تجدید ہوگی۔",
   "driver.subscription_upgrade_already": "آپ پہلے ہی {plan} پلان پر ہیں۔",
   "driver.subscription_upgrade_button": "⬆️ مکمل پلان میں اپ گریڈ کریں",
+  "driver.subscription_upgrade_checkout": "‏{plan} میں اپ گریڈ {amount} {currency} فرق کے ساتھ مکمل کرنے کے لیے ادائیگی کا لنک کھولیں:\n{url}\n\nادائیگی کامیاب ہوتے ہی اپ گریڈ خود بخود لاگو ہو جائے گا — رسید کی ضرورت نہیں، اور آپ کے سائیکل کی اختتامی تاریخ تبدیل نہیں ہوگی۔",
   "driver.subscription_upgrade_confirm_button": "✅ اپ گریڈ کی تصدیق",
   "driver.subscription_upgrade_manual_payment": "اپ گریڈ مکمل کرنے کے لیے {amount} {currency} منتقل کریں اور رسید کی تصویر /support میں «سبسکرپشن مسئلہ» کے ذریعے بھیجیں تاکہ سپورٹ آپ کے اکاؤنٹ پر لاگو کرے۔ اس سے پہلے کوئی رقم نہیں لی جائے گی۔",
   "driver.subscription_upgrade_not_available": "آپ کے موجودہ پلان پر کوئی اپ گریڈ دستیاب نہیں۔",

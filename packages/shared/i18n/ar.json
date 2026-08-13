@@ -74,6 +74,7 @@
   "driver.subscription_resumed": "أُلغي طلب الإلغاء. اشتراكك مستمرّ ويُجدَّد كالمعتاد.",
   "driver.subscription_upgrade_already": "خطّتك {plan} أصلاً.",
   "driver.subscription_upgrade_button": "⬆️ ترقية إلى الخطة الشاملة",
+  "driver.subscription_upgrade_checkout": "لإتمام ترقية خطّتك إلى {plan} بفرق {amount} {currency}، افتح رابط الدفع:\n{url}\n\nتُطبَّق الترقية تلقائياً بعد نجاح الدفع — لا حاجة لإرسال إيصال، ولا يتغيّر تاريخ انتهاء دورتك.",
   "driver.subscription_upgrade_confirm_button": "✅ أؤكّد الترقية",
   "driver.subscription_upgrade_manual_payment": "لإتمام الترقية حوِّل {amount} {currency} ثم أرسل صورة الإيصال عبر «مشكلة اشتراك» في /support ليُطبّقها الدعم على حسابك. ولا يُطالبك النظام بشيء قبل ذلك.",
   "driver.subscription_upgrade_not_available": "لا ترقية متاحة على خطّتك الحالية.",
