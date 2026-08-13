@@ -24,6 +24,7 @@ export function instrumentTelegramHandler(
 ): UpdateHandler {
   const nowMs = options.nowMs ?? Date.now;
   return {
+    ...handler,
     handle: async (bot, update) => {
       const startedAt = nowMs();
       try {
@@ -50,6 +51,7 @@ export function instrumentUpdateDeduplicator(
   metrics: OperationalMetrics,
 ): UpdateDeduplicator {
   return {
+    ...dedup,
     admit: (bot, updateId) => {
       const admitted = dedup.admit(bot, updateId);
       if (!admitted && (bot === "driver" || bot === "rider")) metrics.recordTelegramDuplicate(bot);

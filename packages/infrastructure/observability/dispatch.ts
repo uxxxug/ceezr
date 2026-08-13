@@ -19,6 +19,7 @@ export function instrumentOfferWriter(
   metrics: OperationalMetrics,
 ): OfferWriter {
   return {
+    ...writer,
     openRound: async (input) => {
       metrics.recordDispatchRequest();
       const result = await writer.openRound(input);
@@ -33,6 +34,7 @@ export function instrumentDispatchRpc(
   metrics: OperationalMetrics,
 ): DispatchRpcPort {
   return {
+    ...dispatch,
     claimRide: async (orderId, driverId) => {
       const result = await dispatch.claimRide(orderId, driverId);
       if (result.ok && result.value.claimed) metrics.recordDispatchOfferAccepted();
@@ -46,6 +48,7 @@ export function instrumentExpireOffersRpc(
   metrics: OperationalMetrics,
 ): ExpireOffersRpcPort {
   return {
+    ...rpc,
     expireStaleOffers: async (cityId, offerIds) => {
       const result = await rpc.expireStaleOffers(cityId, offerIds);
       if (result.ok) metrics.recordDispatchOfferTimedOut(result.value);

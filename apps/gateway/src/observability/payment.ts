@@ -69,6 +69,7 @@ export function instrumentWebhookEventStore(
   metrics: OperationalMetrics,
 ): WebhookEventStore {
   return {
+    ...events,
     record: async (eventId, provider, payload, transactionId) => {
       const result = await events.record(eventId, provider, payload, transactionId);
       if (!result.ok) metrics.recordPaymentFailure();
@@ -83,6 +84,7 @@ export function instrumentPaymentConfirmationDeps(
   metrics: OperationalMetrics,
 ): ConfirmPaymentDeps {
   return {
+    ...deps,
     payments: instrumentPaymentRepository(deps.payments, metrics),
     events: instrumentWebhookEventStore(deps.events, metrics),
   };
