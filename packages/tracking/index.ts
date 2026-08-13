@@ -18,6 +18,7 @@ export {
   type ValidatedGpsFix,
 } from "../domain/geo/gps-fix.ts";
 export { haversineKm } from "../domain/geo/index.ts";
+export { resolveGpsPolicy, resolveTrackingConfig } from "./config.ts";
 export {
   extractBearerToken,
   type TrackingAuthError,

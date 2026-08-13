@@ -7,7 +7,12 @@
  * ملاحظات مستقبلية: كل قيمة تجارية (السعر، مدة التجربة) تُقرأ من platform_settings عبر منفذ الإعدادات.
  */
 
-import { assessGpsFix, DEFAULT_GPS_POLICY, type PreviousFix } from "../../domain/geo/gps-fix.ts";
+import {
+  assessGpsFix,
+  DEFAULT_GPS_POLICY,
+  type GpsPolicy,
+  type PreviousFix,
+} from "../../domain/geo/gps-fix.ts";
 import {
   type Coordinates,
   makeCoordinates,
@@ -112,6 +117,16 @@ export interface DriverBotDependencies {
   readonly dispatch: DispatchRpcPort;
   readonly offers: OfferDecisionPort;
   readonly clock: Clock;
+  /**
+   * حدود تقييم إصلاحة GPS النافذة. اختياريّ لا لأنّ غيابه مقبولٌ في الإنتاج —
+   * الحاوية تُمرّره دائماً واختبارُ ربطٍ يُثبت ذلك — بل لأنّ اختبارات الحوار
+   * القائمة لا شأن لها بحدود الأجهزة، وغيابه يعني افتراض المجال لا سلوكاً ثانياً.
+   *
+   * وكان الموضع هنا يستدعي `DEFAULT_GPS_POLICY` مرمَّزاً، فمتغيّرات
+   * `TRACKING_*` المُعلَنة في `render.yaml` لم يكن لها أثرٌ على المسار الحيّ
+   * الوحيد للمواقع. هذا الحقل هو الطريق الذي تسلكه فعلاً.
+   */
+  readonly gpsPolicy?: GpsPolicy;
   /**
    * مسار قروب غير المشتركين (المرحلة 2.3). اختياري لأن الاختبارات القائمة
    * تختبر التسجيل والعروض وحدها؛ غيابه يعني أن أزرار القروب لا تُعالَج، لا أن تُعالَج خطأ.
@@ -1781,7 +1796,7 @@ async function handleLocation(
     },
     previousFixOf(driver),
     deps.clock.now().getTime(),
-    DEFAULT_GPS_POLICY,
+    deps.gpsPolicy ?? DEFAULT_GPS_POLICY,
   );
   if (assessment.fix === null) return [reply(sender, tr("driver.location_invalid"))];
   const coordinates = { ok: true as const, value: assessment.fix.coordinates };

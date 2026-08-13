@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "test": "bun test",
-    "ci": "bun run lint && bun run typecheck && bun run test",
+    "ci": "bun run lint && bun run typecheck && bun run scripts/check-business-constants.ts && bun run scripts/check-migrations.ts && bun run scripts/check-env-drift.ts && bash scripts/verify-container-build.sh && bun run test",
     "dev": "bun run --watch apps/gateway/src/index.ts",
     "start": "bun run apps/gateway/src/index.ts",
     "lint:fix": "biome check --write .",

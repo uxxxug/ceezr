@@ -13,10 +13,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Install
-        run: bun install --frozen-lockfile || bun install
+        run: bun install --frozen-lockfile
 
       - name: Lint
         run: bun run lint
@@ -74,6 +74,12 @@ jobs:
       - name: حدّ النطاق — مطابقة المسار خارج الإصدار (ADR 0025)
         run: bun run scripts/check-map-matching-scope.ts
 
+      - name: بناء الصورتين قابل لإعادة الإنتاج (قفل مجمَّد + استيرادات محلولة)
+        run: bash scripts/verify-container-build.sh
+
+      - name: كلّ متغيّر بيئة موثَّق مقروءٌ فعلاً في الكود
+        run: bun run scripts/check-env-drift.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
@@ -99,10 +105,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Install
-        run: bun install --frozen-lockfile || bun install
+        run: bun install --frozen-lockfile
 
       - name: أدوار Supabase التي تفترضها الهجرات
         env:

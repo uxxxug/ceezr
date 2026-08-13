@@ -124,15 +124,20 @@ services:
       - key: MAP_TILES_PUBLIC_KEY
         sync: false
       # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
+      # كلّها اختياريّة: الغياب يعني افتراض المجال في packages/domain/geo/gps-fix.ts.
+      # وكانت هذه الكتلة تحمل أسماءً لا وجود لها في .env.example ولا في الكود
+      # (IDLE_INTERVAL بلا GPS_، MAX_SPEED بلا REASONABLE_) فمن ضبطها هنا ضبط
+      # أسماءً لا يقرؤها أحد. الأسماء الآن موحَّدةٌ ومقروءةٌ، و scripts/check-env-drift.ts
+      # يُسقط البناء إن عاد الانحراف.
       - key: TRACKING_GPS_INTERVAL_SECONDS
         sync: false
-      - key: TRACKING_IDLE_INTERVAL_SECONDS
+      - key: TRACKING_GPS_IDLE_INTERVAL_SECONDS
         sync: false
       - key: TRACKING_MIN_DISTANCE_METERS
         sync: false
       - key: TRACKING_TELEPORT_THRESHOLD_METERS
         sync: false
-      - key: TRACKING_MAX_SPEED_KMH
+      - key: TRACKING_MAX_REASONABLE_SPEED_KMH
         sync: false
       - key: TRACKING_MAX_ACCURACY_METERS
         sync: false
@@ -213,15 +218,20 @@ services:
       - key: MAP_TILES_PUBLIC_KEY
         sync: false
       # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
+      # كلّها اختياريّة: الغياب يعني افتراض المجال في packages/domain/geo/gps-fix.ts.
+      # وكانت هذه الكتلة تحمل أسماءً لا وجود لها في .env.example ولا في الكود
+      # (IDLE_INTERVAL بلا GPS_، MAX_SPEED بلا REASONABLE_) فمن ضبطها هنا ضبط
+      # أسماءً لا يقرؤها أحد. الأسماء الآن موحَّدةٌ ومقروءةٌ، و scripts/check-env-drift.ts
+      # يُسقط البناء إن عاد الانحراف.
       - key: TRACKING_GPS_INTERVAL_SECONDS
         sync: false
-      - key: TRACKING_IDLE_INTERVAL_SECONDS
+      - key: TRACKING_GPS_IDLE_INTERVAL_SECONDS
         sync: false
       - key: TRACKING_MIN_DISTANCE_METERS
         sync: false
       - key: TRACKING_TELEPORT_THRESHOLD_METERS
         sync: false
-      - key: TRACKING_MAX_SPEED_KMH
+      - key: TRACKING_MAX_REASONABLE_SPEED_KMH
         sync: false
       - key: TRACKING_MAX_ACCURACY_METERS
         sync: false

@@ -131,6 +131,7 @@ import type { RoutingProvider } from "../../../packages/maps/index.ts";
 import { createOsrmProvider } from "../../../packages/maps/index.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
+import { resolveGpsPolicy } from "../../../packages/tracking/config.ts";
 import type { TrackingSessionStore } from "../../../packages/tracking/session-store.ts";
 import {
   createAgentCore,
@@ -633,7 +634,16 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     },
   };
 
+  /**
+   * §4.3 — حدود التتبّع تُحسَب مرّةً واحدة من الضبط وتُمرَّر إلى المسار الحيّ.
+   * قبل هذا كان `driver-dialog` يستدعي `DEFAULT_GPS_POLICY` مرمَّزاً، فكلّ
+   * `TRACKING_*` في `render.yaml` حبرٌ على ورق. واختبارُ الربط في
+   * `tests/unit/tracking-config-wiring.test.ts` يمنع رجوع هذا صامتاً.
+   */
+  const gpsPolicy = resolveGpsPolicy(config.tracking);
+
   const driverDeps: DriverBotDependencies = {
+    gpsPolicy,
     sessions: driverSessions,
     drivers,
     cities,

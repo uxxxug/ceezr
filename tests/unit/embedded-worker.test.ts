@@ -16,7 +16,11 @@ import { startEmbeddedWorker } from "../../apps/gateway/src/embedded-worker.ts";
 import { createNoopLock } from "../../packages/application/scheduling/distributed-lock.ts";
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
 import type { OutboundSender } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
-import { type AppConfig, tryLoadConfig } from "../../packages/shared/config/index.ts";
+import {
+  type AppConfig,
+  NO_TRACKING_OVERRIDES,
+  tryLoadConfig,
+} from "../../packages/shared/config/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 
 const CITY_ID = "11111111-2222-3333-4444-555555555555";
@@ -59,6 +63,7 @@ const config: AppConfig = {
   // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
   routingProvider: "none",
   osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
 };
 
 interface FakeSqlLog {
