@@ -4,10 +4,11 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.1.
  * ينتمي إلى: apps/gateway/src/bots/rider
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/container.ts
- * ملاحظات مستقبلية: كانت هنا ملفات مجاورة (request-ride, request-delivery, order-tracking,
- *   rating) بترويسة «هيكل فقط». حُذفت في 2026-08-13: طلب التوصيل منفَّذ في
+ * ملاحظات مستقبلية: الملفّات المجاورة (request-ride, request-delivery, order-tracking,
+ *   rating) معزولةٌ ومُستبدَلة لا محذوفة: طلب التوصيل منفَّذ في
  *   `packages/application/delivery/request-delivery.ts`، والتتبّع والتقييم في `rider-dialog.ts`
- *   و`rating-dialog.ts`، ولم يستورد أيًا منها شيء. ملفٌّ يكذب على قارئه أسوأ من ملفٍ لا وجود له.
+ *   و`rating-dialog.ts`، ولا يستورد أيًّا منها شيء. وترويسة كلٍّ منها تُحيل إلى موضع تنفيذها
+ *   بالضبط، فلا يقرأ قارئٌ «غير منفَّذ» عن قدرةٍ منفَّذة.
  */
 
 import {
