@@ -37,12 +37,24 @@ jobs:
           # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
           # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
           # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
-          if [ -f /tmp/ci-output.log ]; then
-            body=$(tail -n 60 /tmp/ci-output.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
-            echo "::error title=ذيل المخرجات::${body}"
-          else
+          if [ ! -f /tmp/ci-output.log ]; then
             echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+            exit 0
           fi
+          # أسماءُ المخفقة أوّلاً مجموعةً في ملحوظةٍ واحدة: هي الفهرس. ثم تفصيلُ
+          # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
+          # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
+          # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
+          if [ -s /tmp/ci-fails.txt ]; then
+            idx=$(sed 's/%/%25/g' /tmp/ci-fails.txt | awk '{printf "%s%%0A", $0}')
+            echo "::error title=فهرس الاختبارات المخفقة::${idx}"
+          fi
+          split -l 250 -d -a 2 <(sed 's/%/%25/g' /tmp/ci-output.log) /tmp/ci-chunk-
+          for chunk in /tmp/ci-chunk-*; do
+            body=$(awk '{printf "%s%%0A", $0}' "$chunk")
+            echo "::error title=مخرجات ${chunk##*-}::${body}"
+          done
 
       - name: منع الكود الوهمي في الملفات المنفّذة
         run: |
@@ -165,12 +177,24 @@ jobs:
           # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
           # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
           # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
-          if [ -f /tmp/ci-output.log ]; then
-            body=$(tail -n 60 /tmp/ci-output.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
-            echo "::error title=ذيل المخرجات::${body}"
-          else
+          if [ ! -f /tmp/ci-output.log ]; then
             echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+            exit 0
           fi
+          # أسماءُ المخفقة أوّلاً مجموعةً في ملحوظةٍ واحدة: هي الفهرس. ثم تفصيلُ
+          # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
+          # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
+          # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
+          if [ -s /tmp/ci-fails.txt ]; then
+            idx=$(sed 's/%/%25/g' /tmp/ci-fails.txt | awk '{printf "%s%%0A", $0}')
+            echo "::error title=فهرس الاختبارات المخفقة::${idx}"
+          fi
+          split -l 250 -d -a 2 <(sed 's/%/%25/g' /tmp/ci-output.log) /tmp/ci-chunk-
+          for chunk in /tmp/ci-chunk-*; do
+            body=$(awk '{printf "%s%%0A", $0}' "$chunk")
+            echo "::error title=مخرجات ${chunk##*-}::${body}"
+          done
 
       - name: منع تخطّي اختبارات التكامل صامتاً
         env:
@@ -194,12 +218,24 @@ jobs:
           # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
           # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
           # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
-          if [ -f /tmp/ci-output.log ]; then
-            body=$(tail -n 60 /tmp/ci-output.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
-            echo "::error title=ذيل المخرجات::${body}"
-          else
+          if [ ! -f /tmp/ci-output.log ]; then
             echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+            exit 0
           fi
+          # أسماءُ المخفقة أوّلاً مجموعةً في ملحوظةٍ واحدة: هي الفهرس. ثم تفصيلُ
+          # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
+          # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
+          # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
+          if [ -s /tmp/ci-fails.txt ]; then
+            idx=$(sed 's/%/%25/g' /tmp/ci-fails.txt | awk '{printf "%s%%0A", $0}')
+            echo "::error title=فهرس الاختبارات المخفقة::${idx}"
+          fi
+          split -l 250 -d -a 2 <(sed 's/%/%25/g' /tmp/ci-output.log) /tmp/ci-chunk-
+          for chunk in /tmp/ci-chunk-*; do
+            body=$(awk '{printf "%s%%0A", $0}' "$chunk")
+            echo "::error title=مخرجات ${chunk##*-}::${body}"
+          done
 
       - name: منع تخطّي اختبارات e2e صامتاً
         env:
