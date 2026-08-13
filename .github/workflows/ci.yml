@@ -109,6 +109,9 @@ jobs:
       - name: كلّ متغيّر بيئة موثَّق مقروءٌ فعلاً في الكود
         run: bun run scripts/check-env-drift.ts
 
+      - name: لا اختبارَ ينجح بترتيبِ الملفّات — تفعيلُ المدينة مكتملٌ في عبارته
+        run: bun run scripts/check-test-city-activation.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

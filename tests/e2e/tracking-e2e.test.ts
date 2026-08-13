@@ -244,7 +244,23 @@ describeIf("التتبّع من الطرف إلى الطرف — المرحلة 
                              subscriptions, driver_capabilities, driver_availability,
                              admin_sessions, admin_login_codes,
                              drivers, riders, users restart identity cascade`;
-    await sql`update cities set is_active = true where id = ${cityId}`;
+    /**
+     * القروباتُ الثلاثة تُضبَط هنا مع التفعيل لا قبله: قيدُ
+     * `cities_active_requires_groups` يمنع تفعيلَ مدينةٍ بلا قروباتها، ولا تبذُرها
+     * أيّةُ هجرة. فكان هذا السطرُ ينجح فقط إذا سبقه ملفُّ اختبارٍ آخرُ ضبطها —
+     * أي أنّ نجاحَه كان معلَّقاً على ترتيبِ اكتشافِ الملفّات، وهو يختلف بين
+     * الجهازِ المحلّيّ وآلةِ التكامل. فمرّ محلّياً وسقط بعيداً، ثمّ سرَّب فشلُه
+     * حاوياتٍ لم تُغلَق فأنفدَ اتّصالاتَ القاعدة وأسقط ملفّاتٍ لا علاقة لها به.
+     */
+    await sql`
+      update cities
+         set is_active = true,
+             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
+             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
+             telegram_unsubscribed_drivers_group_id =
+               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
+       where id = ${cityId}
+    `;
 
     liveCalls = [];
     adminCodes = [];
