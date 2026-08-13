@@ -53,6 +53,19 @@ describe("حرس القيم التجارية: تعليق أم كود", () => {
     expect(findHardcodedValues("return c.json({ ok: false }, 400);\n")).toEqual([]);
   });
 
+  /**
+   * الانحدار: مسار ويبهوك الدفع يردّ عبر مساعدٍ محلّي لا عبر `c.json`، فكان ٤٠٠
+   * الحالة يُقرأ سعرَ اشتراك ويُسقط الفحص كلَّه على كودٍ لا يمسّ التسعير.
+   */
+  it("رمز حالة HTTP في مساعد استجابة محلّي مقبول", () => {
+    expect(findHardcodedValues('return rejected(c, "PAYLOAD_TOO_LARGE", 400);\n')).toEqual([]);
+  });
+
+  it("سعرٌ آخرَ استدعاءٍ لا يتنكّر في هيئة رمز حالة", () => {
+    expect(findHardcodedValues("charge(driverId, 250);\n")).toEqual([{ line: 1, value: 250 }]);
+    expect(findHardcodedValues('charge("plan", 250);\n')).toEqual([{ line: 1, value: 250 }]);
+  });
+
   it("عدد الأسطر المُخرَجة يساوي عدد أسطر المصدر فتبقى أرقام الأسطر صحيحة", () => {
     const source = "a\n/* x\ny */\nb\n";
     expect(executableLines(source).length).toBe(source.split("\n").length);

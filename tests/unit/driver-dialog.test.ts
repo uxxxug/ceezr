@@ -20,6 +20,7 @@ import {
 import type { SupportDialogDependencies } from "../../packages/application/bots/support-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
+import type { PaymentTransactionId } from "../../packages/domain/financial/index.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
@@ -396,6 +397,174 @@ describe("الاشتراك", () => {
       }),
     );
     expect(replies[0]?.text).toContain("199");
+  });
+
+  /**
+   * البيع الذاتي — منصّةٌ كلّ دخلها اشتراكُ سائق كانت بطاقتُها تعرض السعر بلا زرٍّ
+   * واحدٍ للدفع، فكان الدخل معلّقاً على تدخّلٍ يدويّ لكل سائق.
+   */
+  describe("زرّ الشراء", () => {
+    function purchaseDouble(checkoutUrl: string | null = "https://pay.test/inv_1") {
+      const state = { charges: 0, confirms: 0, keys: [] as string[], amounts: [] as number[] };
+      const tx = {
+        id: "tx-buy" as PaymentTransactionId,
+        payerId: "driver-1" as DriverId,
+        payeeId: "platform" as const,
+        purpose: "driver_subscription" as const,
+        amount: { amount: 25_000, currency: "SAR" },
+        provider: "test-provider",
+        providerTransactionId: null,
+        status: "pending" as const,
+        metadata: {} as Record<string, unknown>,
+        createdAt: NOW,
+        updatedAt: NOW,
+      };
+      const stored: { url: string | null } = { url: null };
+      const payments = {
+        create: async (input: { amount: { amount: number }; idempotencyKey: string }) => {
+          state.keys.push(input.idempotencyKey);
+          state.amounts.push(input.amount.amount);
+          // المعاملة الثانية بنفس المفتاح موجودة سلفاً — كما تفعل create_payment.
+          const already = state.keys.filter((k) => k === input.idempotencyKey).length > 1;
+          return ok({
+            transaction: { ...tx, metadata: already ? { checkout_url: stored.url } : {} },
+            alreadyExists: already,
+          });
+        },
+        findById: async () => ok(null),
+        findByIdempotencyKey: async (key: string) =>
+          ok(state.keys.includes(key) ? { ...tx, metadata: { checkout_url: stored.url } } : null),
+        recordCheckoutUrl: async (input: { checkoutUrl: string }) => {
+          stored.url ??= input.checkoutUrl;
+          return ok({ checkoutUrl: stored.url });
+        },
+        confirmPayment: async () => {
+          state.confirms += 1;
+          return err(new PortFailureError("payments", "UNUSED"));
+        },
+      };
+      const provider = {
+        name: "test-provider",
+        chargeSubscription: async () => {
+          state.charges += 1;
+          return ok({ providerTransactionId: null, checkoutUrl, status: "pending" as const });
+        },
+        verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+        fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
+      };
+      return {
+        purchase: { payments, provider } as unknown as NonNullable<
+          DriverBotDependencies["subscriptionPurchase"]
+        >,
+        state,
+      };
+    }
+
+    it("لا يظهر زرّ الشراء بلا مزوّد دفع مركّب", async () => {
+      const replies = await handleDriverUpdate(
+        text("/subscription"),
+        build({ drivers: driverDirectory(verifiedDriver()) }),
+      );
+      expect(replies[0]?.keyboard ?? null).toBeNull();
+    });
+
+    it("يظهر زرّ الشراء عند تركيب المزوّد", async () => {
+      const { purchase } = purchaseDouble();
+      const replies = await handleDriverUpdate(
+        text("/subscription"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      expect(JSON.stringify(replies[0]?.keyboard)).toContain("sub:buy:transport");
+    });
+
+    it("يعيد رابط الدفع بالسعر المقروء من المدينة بالوحدة الصغرى", async () => {
+      const { purchase, state } = purchaseDouble();
+      const replies = await handleDriverUpdate(
+        callback("sub:buy:transport"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      expect(replies[0]?.text).toContain("https://pay.test/inv_1");
+      // ٢٥٠ ريالاً = ٢٥٠٠٠ هلّة؛ تمريرُ ٢٥٠ كان سيبيع اشتراكاً بريالين ونصف.
+      expect(state.amounts[0]).toBe(25_000);
+    });
+
+    it("لا يُفعِّل الاشتراك من البوت: لا تأكيد دفعٍ ولا اشتراكٌ سارٍ في الردّ", async () => {
+      const { purchase, state } = purchaseDouble();
+      const replies = await handleDriverUpdate(
+        callback("sub:buy:transport"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      // زرٌّ في تلغرام لا يجوز أن يكون كافياً لتأكيد دفعةٍ لم تُدفع: التأكيد حقُّ
+      // الويبهوك وحده بعد إعادة قراءة الدفعة من خادم المزوّد.
+      expect(state.confirms).toBe(0);
+      expect(replies[0]?.text).toBe(
+        ar("driver.subscription_checkout", {
+          plan: "transport",
+          price: 250,
+          currency: "SAR",
+          url: "https://pay.test/inv_1",
+        }),
+      );
+    });
+
+    /**
+     * الانحدار: ضغطتان — أو تحديثٌ يعيده تلغرام — كانتا ستُنشئان فاتورتين، ومن
+     * دفعهما يخسر شهراً لأنّ `activate_subscription` يستبدل المدّة ولا يجمعها.
+     */
+    it("ضغطتان لا تُنشئان إلا فاتورةً واحدة، والثانية تستعيد الرابط نفسه", async () => {
+      const { purchase, state } = purchaseDouble();
+      const deps2 = build({
+        drivers: driverDirectory(verifiedDriver()),
+        subscriptionPurchase: purchase,
+      });
+      const first = await handleDriverUpdate(callback("sub:buy:transport"), deps2);
+      const second = await handleDriverUpdate(callback("sub:buy:transport"), deps2);
+      expect(state.charges).toBe(1);
+      expect(new Set(state.keys).size).toBe(1);
+      expect(second[0]?.text).toContain("https://pay.test/inv_1");
+      expect(second[0]?.text).toBe(first[0]?.text);
+    });
+
+    it("لا يُبَع اشتراكٌ ثانٍ لمن اشتراكه سارٍ", async () => {
+      const { purchase, state } = purchaseDouble();
+      const live = {
+        driverId: "driver-1" as DriverId,
+        cityId: JEDDAH.id,
+        plan: "transport",
+        status: "active",
+        currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z"),
+      } as Subscription;
+      const replies = await handleDriverUpdate(
+        callback("sub:buy:transport"),
+        build({
+          drivers: driverDirectory(verifiedDriver()),
+          subscriptions: subscriptionReader(live),
+          subscriptionPurchase: purchase,
+        }),
+      );
+      expect(state.charges).toBe(0);
+      expect(replies[0]?.text).toBe(
+        ar("driver.subscription_live", { plan: "transport", until: "2026-09-01" }),
+      );
+    });
+
+    it("خطّة غير معروفة في الزرّ لا تُقرأ كما هي", async () => {
+      const { purchase, state } = purchaseDouble();
+      await handleDriverUpdate(
+        callback("sub:buy:__evil__"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      expect(state.keys[0]).toContain(":transport:");
+    });
+
+    it("غياب رابط الدفع يقول ذلك ولا يزعم نجاحاً", async () => {
+      const { purchase } = purchaseDouble(null);
+      const replies = await handleDriverUpdate(
+        callback("sub:buy:transport"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      expect(replies[0]?.text).toBe(ar("driver.subscription_checkout_pending"));
+    });
   });
 
   it("يعرض تاريخ نهاية الاشتراك السارِي", async () => {

@@ -7,7 +7,6 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { paymentSecretsMatch } from "../../apps/gateway/src/routes/payment-webhook.ts";
 import {
   type ConfirmPaymentDeps,
   type ConfirmPaymentInput,
@@ -63,6 +62,7 @@ function fakePaymentRepo(initial?: PaymentTransaction): {
   confirmCalls: number;
 } {
   const state: { tx: PaymentTransaction | null } = { tx: initial ?? null };
+  const webhookEvents = new Set<string>();
   return {
     repo: {
       create: async (input: CreatePaymentInput) => {
@@ -80,6 +80,7 @@ function fakePaymentRepo(initial?: PaymentTransaction): {
       },
       findById: async () => ok(state.tx),
       findByIdempotencyKey: async () => ok(state.tx),
+      recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
       confirmPayment: async (input) => {
         const current = state.tx;
         if (current === null) return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
@@ -89,6 +90,20 @@ function fakePaymentRepo(initial?: PaymentTransaction): {
           providerTransactionId: input.providerTransactionId,
         };
         return ok(state.tx);
+      },
+      confirmWebhookPayment: async (input) => {
+        const current = state.tx;
+        if (current === null) return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
+        if (webhookEvents.has(input.webhookEventId)) {
+          return ok({ transaction: current, duplicate: true });
+        }
+        webhookEvents.add(input.webhookEventId);
+        state.tx = {
+          ...current,
+          status: input.newStatus,
+          providerTransactionId: input.providerTransactionId,
+        };
+        return ok({ transaction: state.tx, duplicate: false });
       },
     },
     get stored() {
@@ -108,6 +123,17 @@ function fakeProvider(overrides: Partial<ChargeInitiation> = {}): PaymentProvide
         checkoutUrl: null,
         status: "active",
         ...overrides,
+      }),
+    verifyWebhook: async () =>
+      ok({ id: "event", type: "payment_paid", providerTransactionId: "prov-tx-1" }),
+    fetchTransaction: async () =>
+      ok({
+        id: "prov-tx-1",
+        status: "active",
+        amount: 25000,
+        currency: "SAR",
+        metadata: {},
+        invoiceId: null,
       }),
   };
 }
@@ -194,6 +220,8 @@ describe("payment: subscribe-plan", () => {
           status: "pending" as const,
         });
       },
+      verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+      fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
     };
     // معاملة موجودة سلفاً pending بلا providerTransactionId
     const existing = makeTx({
@@ -222,6 +250,8 @@ describe("payment: subscribe-plan", () => {
           status: "pending" as const,
         });
       },
+      verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+      fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
     };
     // معاملة موجودة pending لكن المزوّد دُعي بالفعل (providerTransactionId !== null)
     const existing = makeTx({
@@ -250,6 +280,8 @@ describe("payment: subscribe-plan", () => {
           status: "pending" as const,
         });
       },
+      verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+      fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
     };
     // محاكاة السباق: findByIdempotencyKey يُرجع null (لا توجد بعد)،
     // لكن create يُرجع alreadyExists=true (طرفٌ آخر أنشأها بين الفحص والإنشاء).
@@ -258,7 +290,9 @@ describe("payment: subscribe-plan", () => {
       create: async () => ok({ transaction: raceTx, alreadyExists: true }),
       findById: async () => ok(raceTx),
       findByIdempotencyKey: async () => ok(null), // لا توجد (فحص سابق)
+      recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
       confirmPayment: async () => ok(raceTx),
+      confirmWebhookPayment: async () => ok({ transaction: raceTx, duplicate: false }),
     };
     const result = await subscribePlan(
       { driverId, cityId, plan: "transport" as SubscriptionPlan, idempotencyKey: "race-tx" },
@@ -297,6 +331,8 @@ describe("payment: subscribe-plan", () => {
           port: "provider",
           detail: "charge failed",
         } as unknown as PortFailureError),
+      verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+      fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
     };
     const result = await subscribePlan(
       { driverId, cityId, plan: "transport" as SubscriptionPlan, idempotencyKey: "k2" },
@@ -315,6 +351,8 @@ describe("payment: confirm-payment (webhook)", () => {
       transactionId: txId,
       providerTransactionId: "prov-tx-1",
       newStatus: status,
+      providerAmount: 25000,
+      providerCurrency: "SAR",
       webhookEventId: eventId,
       provider: "test-provider",
       rawPayload: "{}",
@@ -346,8 +384,8 @@ describe("payment: confirm-payment (webhook)", () => {
     if (!first.ok || !second.ok) return;
     expect(first.value.duplicate).toBe(false);
     expect(second.value.duplicate).toBe(true);
-    // الحدث سُجِّل مرّة واحدة فعلياً
-    expect(seen.length).toBe(2); // كلاهما فحص، لكن الثاني أعاد is_new=false
+    // الإيدمبوتنسي انتقل إلى RPC واحد؛ متجر الأحداث القديم لا يُستدعى خارجها.
+    expect(seen.length).toBe(0);
   });
 
   it("الويبهوك الفاشل (معاملة غير موجودة) يُعاد خطأ", async () => {
@@ -368,24 +406,6 @@ describe("payment: confirm-payment (webhook)", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.status).toBe("failed");
-  });
-});
-
-describe("payment: webhook signature", () => {
-  it("التوقيع الصحيح يُقبل", () => {
-    expect(paymentSecretsMatch("my-secret", "my-secret")).toBe(true);
-  });
-
-  it("التوقيع الخاطئ يُرفض", () => {
-    expect(paymentSecretsMatch("wrong", "my-secret")).toBe(false);
-  });
-
-  it("التوقيع الفارغ يُرفض", () => {
-    expect(paymentSecretsMatch("", "my-secret")).toBe(false);
-  });
-
-  it("أطوال مختلفة تُرفض بزمن ثابت", () => {
-    expect(paymentSecretsMatch("short", "much-longer-secret")).toBe(false);
   });
 });
 

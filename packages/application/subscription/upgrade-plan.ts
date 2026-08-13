@@ -186,6 +186,7 @@ export async function upgradePlan(
   }
 
   const charge = await deps.provider.chargeSubscription({
+    transactionId: created.value.transaction.id,
     driverId: input.driverId,
     amount: money,
     purpose: "driver_subscription",

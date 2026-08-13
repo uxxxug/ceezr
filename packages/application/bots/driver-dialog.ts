@@ -33,6 +33,7 @@ import {
 import type { RoutingProvider } from "../../maps/core/index.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { CityId, Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
+import { ok } from "../../shared/result/index.ts";
 import {
   type RegisterUnsubscribedClaimDependencies,
   registerUnsubscribedClaim,
@@ -41,6 +42,8 @@ import {
   type RelayDependencies,
   relayNegotiationMessage,
 } from "../dispatch/relay-negotiation-message.ts";
+import type { PaymentProvider, PaymentRepository } from "../financial/ports.ts";
+import { subscribePlan } from "../financial/subscribe-plan.ts";
 import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
   type ResolveSafetyIncidentDeps,
@@ -195,6 +198,24 @@ export interface DriverBotDependencies {
    * فوراً لأنّها بلا مقابل فعلاً.
    */
   readonly subscriptionChanges?: SubscriptionChangeRpcPort;
+  /**
+   * شراء الاشتراك المدفوع من داخل البوت — مسار البيع الذاتي.
+   *
+   * قبل هذا كانت بطاقة `/subscription` تعرض السعر ولا تعرض زرّاً واحداً للدفع:
+   * منصّةٌ كلّ دخلها اشتراكُ سائقٍ لم يكن فيها طريقٌ يسلكه السائق ليشترك، فكان
+   * الدخل كلّه معلّقاً على تدخّلٍ يدويّ من الدعم لكل سائقٍ على حدة.
+   *
+   * اختياريٌّ بنفس منطق `subscriptionChanges`: غيابه (لغياب أسرار المزوّد) يعني
+   * أنّ الزرّ لا يظهر أصلاً، لا أنّه يظهر ثمّ يفشل بعد أن يرفع توقّع السائق.
+   *
+   * ولا يُفعِّل البوت اشتراكاً أبداً: هو ينشئ المعاملة ويعطي رابط الدفع فقط.
+   * التفعيل حقُّ الويبهوك وحده بعد إعادة قراءة الدفعة من خادم المزوّد — وإلاّ
+   * كان زرٌّ في تلغرام كافياً لتفعيل اشتراكٍ لم يُدفع.
+   */
+  readonly subscriptionPurchase?: {
+    readonly payments: PaymentRepository;
+    readonly provider: PaymentProvider;
+  };
   /** SOS: فتح من السائق وقرارات قروب الإسناد من بوت السائق الذي نشر البطاقة. */
   readonly safety?: {
     readonly trigger: TriggerSosDeps;
@@ -829,14 +850,23 @@ async function handleSubscriptionChange(
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
   const changes = deps.subscriptionChanges;
-  if (changes === undefined) return [reply(sender, tr("common.unknown_command"))];
+  const [action, ...tail] = rest;
+  // الشراء مستقلٌّ عن `subscriptionChanges`: منصّةٌ مركّبٌ فيها الدفع دون منفذ
+  // تغييرات الاشتراك كانت ستفقد البيع كلَّه لأجل تبعيّةٍ لا يحتاجها الشراء.
+  if (action !== "buy" && changes === undefined) {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
 
   const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
   if (!found.ok) return technicalFailure(sender, state);
   const driver = found.value;
   if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
 
-  const [action, ...tail] = rest;
+  if (action === "buy") {
+    return handleSubscriptionPurchase(tail[0], sender, state, driver, deps);
+  }
+  if (changes === undefined) return [reply(sender, tr("common.unknown_command"))];
+
   switch (action) {
     case "cancel":
       return tail[0] === "yes"
@@ -1064,6 +1094,92 @@ async function describeSubscription(
         price: subscriptionPriceFor(settings, plan),
         currency: settings.currency,
       }),
+      // الزرّ يظهر فقط عند تركيب مزوّد دفع: عرضُ «اشترك الآن» بلا مزوّد يحوّل
+      // بطاقةً صادقة إلى وعدٍ يفشل عند الضغط.
+      deps.subscriptionPurchase === undefined
+        ? null
+        : {
+            kind: "inline",
+            rows: [[{ label: tr("driver.subscription_buy_button"), data: `sub:buy:${plan}` }]],
+          },
+    ),
+  ];
+}
+
+/**
+ * شراء الاشتراك: ينشئ معاملة دفعٍ ويعيد رابط الدفع المستضاف. لا يُفعِّل شيئاً.
+ *
+ * ومفتاح الإيدمبوتنسي مبنيّ على (السائق + الخطّة + اليوم) لا على وقتٍ لحظيّ:
+ * ضغطتان متتاليتان — وتلغرام يعيد إرسال التحديث نفسه عند تعثّر الشبكة — كانتا
+ * ستُنشئان فاتورتين، ومن دفعهما يخسر شهراً كاملاً لأنّ `activate_subscription`
+ * يستبدل المدّة ولا يجمعها. ورابط الفاتورة الأولى محفوظٌ في المعاملة، فالضغطة
+ * الثانية تستعيده بدل أن تُصطدم بمعاملةٍ معلّقة لا سبيل إلى دفعها.
+ */
+async function handleSubscriptionPurchase(
+  requestedPlan: string | undefined,
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const purchase = deps.subscriptionPurchase;
+  if (purchase === undefined) return [reply(sender, tr("common.unknown_command"))];
+
+  // الخطّة لا تُقرأ من الزرّ إلا بعد التحقق منها: نصُّ الزرّ مُدخَلٌ من المستخدم.
+  const plan: SubscriptionPlan =
+    requestedPlan === "transport" || requestedPlan === "delivery" || requestedPlan === "both"
+      ? requestedPlan
+      : "transport";
+
+  // من له اشتراكٌ سارٍ لا يُبَع له اشتراكٌ ثانٍ: التفعيل يستبدل المدّة، فبيعُه
+  // اشتراكاً وهو مشترك يمحو ما بقي له من شهرٍ دفع ثمنه.
+  const live = await deps.subscriptions.findLive(driver.id);
+  if (!live.ok) return technicalFailure(sender, state);
+  if (live.value !== null && isSubscriptionLive(live.value, deps.clock.now())) {
+    return describeSubscription(sender, state, driver, deps);
+  }
+
+  const settings = await citySettingsOf(deps, driver);
+  if (settings === null) return technicalFailure(sender, state);
+
+  const day = deps.clock.now().toISOString().slice(0, 10);
+  const outcome = await subscribePlan(
+    {
+      driverId: driver.id,
+      cityId: driver.cityId,
+      plan,
+      idempotencyKey: `driver_subscription:${driver.id}:${plan}:${day}`,
+    },
+    {
+      payments: purchase.payments,
+      provider: purchase.provider,
+      // السعر من `platform_settings` عبر المدينة لا من الكود، ويُحوَّل إلى الوحدة
+      // الصغرى: `Money.amount` بالهلّات، وتمرير 400 مباشرةً كان سيبيع اشتراكاً
+      // بأربعة ريالات.
+      priceReader: async () =>
+        ok({
+          amount: Math.round(subscriptionPriceFor(settings, plan) * 100),
+          currency: settings.currency,
+        }),
+    },
+  );
+
+  if (!outcome.ok) return technicalFailure(sender, state);
+  if (outcome.value.checkoutUrl === null) {
+    return [reply(sender, tr("driver.subscription_checkout_pending"), menu(state))];
+  }
+
+  return [
+    reply(
+      sender,
+      tr("driver.subscription_checkout", {
+        plan,
+        price: subscriptionPriceFor(settings, plan),
+        currency: settings.currency,
+        url: outcome.value.checkoutUrl,
+      }),
+      menu(state),
     ),
   ];
 }

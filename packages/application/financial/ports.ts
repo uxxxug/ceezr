@@ -4,8 +4,8 @@
  *   والمزدوجات في tests/support.
  * الحالة: منفّذ فعلياً — البند 8.2 (Provider Abstraction) و8.3 (Subscription Flow).
  * ينتمي إلى: application/financial
- * ملاحظات مستقبلية: لا مزوّد فعلي مدمج الآن — الاختيار معلَّق في تعليق الكود حتى
- *   يحدده المالك. البنية وحدها قائمة، واشتراك السائق حالة الاستخدام الوحيدة المفعّلة.
+ * ملاحظات مستقبلية: Moyasar ومنفذ الدعم اليدوي مدمجان؛ لا تُضاف بوابة أخرى إلا
+ *   بعد توثيق آلية تحققها وإعادة القراءة من خادمها.
  */
 
 import type {
@@ -32,10 +32,31 @@ export interface ChargeInitiation {
   readonly status: PaymentTransactionStatus;
 }
 
+/** حدث موثّق أصله من مزوّد الدفع، بلا مبلغ أو حالة موثوقين من الحمولة. */
+export interface ProviderEvent {
+  readonly id: string;
+  readonly type: string;
+  /** معرّف الدفعة عند المزوّد؛ يُعاد جلبها من خادمه قبل أي أثر مالي. */
+  readonly providerTransactionId: string;
+}
+
+/**
+ * اللقطة الوحيدة التي يحق لمسار الويبهوك أن يعتمد منها الحالة والمبلغ والعملة.
+ * metadata نصية لأن Moyasar يقبل النصوص فقط، ومنها يثبت ربط الدفعة بمعاملتنا.
+ */
+export interface ProviderTransactionSnapshot {
+  readonly id: string;
+  readonly status: PaymentTransactionStatus;
+  readonly amount: number;
+  readonly currency: string;
+  readonly metadata: Readonly<Record<string, string>>;
+  readonly invoiceId: string | null;
+}
+
 /**
  * منفذ مزوّد الدفع — تجريد صرف بلا أي منطق خاص بمزوّد بعينه.
- * **لا تُدمج Adyen أو Tap أو أي مزوّد فعلي الآن** — الاختيار معلَّق حتى يحدده المالك.
- * المنفذ وحده يُحقن، فإضافة مزوّد لاحقاً لا تُغيّر أي حالة استخدام.
+ * لا تُعتمد حمولة الويبهوك كمصدر مالي؛ verifyWebhook يثبت المصدر فقط و
+ * fetchTransaction يقرأ الحقيقة من API المزوّد.
  */
 export interface PaymentProvider {
   /** اسم المزوّد للسجلّ والمعرفة. */
@@ -46,11 +67,36 @@ export interface PaymentProvider {
    * يعيد حالة المعاملة ورابط الدفع إن كان المزوّد يتطلّبه.
    */
   chargeSubscription(input: {
+    /** معرّف معاملتنا الذي يُرسل في metadata ليثبت ملكية الدفعة لاحقاً. */
+    readonly transactionId: PaymentTransactionId;
     readonly driverId: DriverId;
     readonly amount: Money;
     readonly purpose: PaymentPurpose;
     readonly idempotencyKey: string;
   }): Promise<Result<ChargeInitiation, PortFailureError>>;
+
+  /** يثبت أصالة الجسم الخام ويستخرج معرف الحدث والدفعة فقط. */
+  verifyWebhook(
+    rawBody: string,
+    headers: Headers,
+  ): Promise<Result<ProviderEvent, PortFailureError>>;
+
+  /** إعادة القراءة الإلزامية من خادم المزوّد قبل تغيير أي حالة محلية. */
+  fetchTransaction(
+    providerTransactionId: string,
+  ): Promise<Result<ProviderTransactionSnapshot, PortFailureError>>;
+}
+
+/**
+ * قدرة مستقلة لا يعلنها PaymentProvider الأساسي عمداً: Moyasar في نطاق هذه
+ * المواصفة لا يوفّر endpoint استرداد موثقاً نبني عليه. لا تُضف refund شكلية.
+ */
+export interface RefundCapablePaymentProvider extends PaymentProvider {
+  refund(input: {
+    readonly providerTransactionId: string;
+    readonly amount: Money;
+    readonly idempotencyKey: string;
+  }): Promise<Result<ProviderTransactionSnapshot, PortFailureError>>;
 }
 
 /** مدخل لإنشاء معاملة دفع في القاعدة. */
@@ -91,6 +137,19 @@ export interface PaymentRepository {
   findByIdempotencyKey(key: string): Promise<Result<PaymentTransaction | null, PortFailureError>>;
 
   /**
+   * يحفظ رابط الدفع المستضاف داخل المعاملة مرّةً واحدة، ويعيد الرابط النافذ.
+   *
+   * بلا هذا كان الرابط يعيش في ردّ المزوّد لحظةً ثمّ يُفقد، فالضغطة الثانية على
+   * زرّ الاشتراك تعيد معاملةً معلّقة بلا سبيلٍ إلى دفعها. وإنشاءُ فاتورةٍ ثانية
+   * بدلاً من ذلك خطرٌ ماليّ: `activate_subscription` يستبدل المدّة ولا يجمعها،
+   * فمن دفع فاتورتين خسر شهراً من قيمة ما دفع.
+   */
+  recordCheckoutUrl(input: {
+    readonly transactionId: PaymentTransactionId;
+    readonly checkoutUrl: string;
+  }): Promise<Result<{ readonly checkoutUrl: string }, PortFailureError>>;
+
+  /**
    * يؤكّد معاملة ذرّياً: يحدّث الحالة ومعرّف المزوّد، ويُفعّل الاشتراك، ويكتب
    * دفتر الأستاذ — كلّها في معاملة واحدة لا تُكسر. يعيد المعاملة المحدّثة.
    */
@@ -98,7 +157,33 @@ export interface PaymentRepository {
     readonly transactionId: PaymentTransactionId;
     readonly providerTransactionId: string;
     readonly newStatus: PaymentTransactionStatus;
+    /**
+     * يمرّره الويبهوك فقط: يربط تأكيد المزوّد بالمعاملة التي أُنشئت له في
+     * القاعدة، فلا يستطيع مزوّد/مرسل آخر تأكيد معاملة ليست له.
+     */
+    readonly provider?: string;
   }): Promise<Result<PaymentTransaction, PortFailureError>>;
+
+  /**
+   * حسم ويبهوك في RPC واحد: يمنع الانتقالات غير الصالحة، ويسجل eventId، ويكتب
+   * دفتر الأستاذ ويُفعّل الاشتراك في المعاملة نفسها.
+   */
+  confirmWebhookPayment?(input: {
+    readonly transactionId: PaymentTransactionId;
+    readonly providerTransactionId: string;
+    readonly newStatus: PaymentTransactionStatus;
+    /** مبلغ وعملة لقطة خادم المزوّد، يعيد الـRPC مطابقتهما مع الصف المقفل. */
+    readonly providerAmount: number;
+    readonly providerCurrency: string;
+    readonly provider: string;
+    readonly webhookEventId: string;
+    readonly rawPayload: string;
+  }): Promise<
+    Result<
+      { readonly transaction: PaymentTransaction; readonly duplicate: boolean },
+      PortFailureError
+    >
+  >;
 }
 
 /** منفذ تخزين أحداث الويبهوك — لمنع معالجة الحدث مرّتين (Idempotency). */

@@ -184,6 +184,7 @@ function fakePayments(existing: PaymentTransaction | null = null): {
       },
       findById: async () => ok(existing),
       findByIdempotencyKey: async () => ok(existing),
+      recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
       confirmPayment: async () => err(new PortFailureError("payments", "NOT_USED_HERE")),
     },
     createInputs,
@@ -203,6 +204,8 @@ function fakeProvider(): { provider: PaymentProvider; calls: number } {
           status: "pending" as const,
         });
       },
+      verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+      fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
     },
     get calls() {
       return state.calls;
