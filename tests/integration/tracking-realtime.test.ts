@@ -233,7 +233,8 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
   });
 
   afterEach(async () => {
-    await container.close();
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
   });
 
   afterAll(async () => {

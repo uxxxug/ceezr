@@ -130,6 +130,9 @@ jobs:
       - name: لا اختبارَ ينجح بترتيبِ الملفّات — تفعيلُ المدينة مكتملٌ في عبارته
         run: bun run scripts/check-test-city-activation.ts
 
+      - name: لا حاويةَ اختبارٍ تُبنى لكلِّ اختبارٍ وتُغلق مرّةً واحدة
+        run: bun run scripts/check-test-container-lifecycle.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
@@ -187,17 +190,39 @@ jobs:
             psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
           done
 
-      # `pg_dump` يرفض خادماً أحدثَ منه، واختبارُ تحقّقِ الاستعادة يستدعيه فعلاً.
-      # فطبعُ النسختين مع النتيجة يجعل هذا السببَ مقروءاً بلا تخمين، لأنّه لا
-      # يظهر محلّياً حيث النسختان متوافقتان.
-      - name: نسخةُ أدواتِ النسخ الاحتياطي مقابل نسخةِ الخادم
+      # `pg_dump` يرفض خادماً أحدثَ منه إصداراً رئيسياً، واختبارُ تحقّقِ الاستعادة
+      # يستدعيه فعلاً على خدمةِ PostgreSQL 17 — أمّا صورةُ العامل فتحمل أدواتَ
+      # إصدارٍ أقدم. النتيجةُ إخفاقٌ لا يظهر محلّياً حيث النسختان متوافقتان، فيبدو
+      # كعيبٍ في منطقِ النسخ الاحتياطيّ وهو عيبُ بيئةٍ صِرْف. فتُثبَّت أدواتُ العميل
+      # من مستودعِ PostgreSQL الرسميّ، ثم يُقارَن الإصدارانِ ويسقط البناءُ بالسببِ
+      # مكتوباً إن اختلفا — لا سقوطاً صامتاً ولا تخطّياً للاختبار.
+      - name: أدواتُ عميلِ PostgreSQL مطابقةٌ لإصدارِ الخادم
         env:
           PGPASSWORD: postgres
         run: |
-          echo "pg_dump: $(pg_dump --version 2>&1 || echo غائب)"
-          echo "pg_dumpall: $(pg_dumpall --version 2>&1 || echo غائب)"
-          echo "pg_restore: $(pg_restore --version 2>&1 || echo غائب)"
-          echo "server: $(psql -h localhost -U postgres -d waslah -tAc 'show server_version')"
+          set -euo pipefail
+          server_major="$(psql -h localhost -U postgres -d waslah -tAc 'show server_version' | cut -d. -f1 | tr -d '[:space:]')"
+          echo "الخادم: إصدار رئيسيّ $server_major"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          codename="$(lsb_release -cs)"
+          repo="https://apt.postgresql.org/pub/repos/apt ${codename}-pgdg main"
+          signed="signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc"
+          printf 'deb [%s] %s\n' "$signed" "$repo" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-client-${server_major}"
+          echo "/usr/lib/postgresql/${server_major}/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/${server_major}/bin:$PATH"
+          for tool in pg_dump pg_dumpall pg_restore psql; do
+            version="$("$tool" --version)"
+            echo "$tool: $version"
+            tool_major="$(echo "$version" | grep -oE '[0-9]+' | head -1)"
+            if [ "$tool_major" != "$server_major" ]; then
+              echo "::error::$tool إصداره $tool_major والخادم $server_major — pg_dump يرفض خادماً أحدثَ منه، فتحقّقُ الاستعادة يُخفق لسببِ بيئةٍ لا لسببِ منطق."
+              exit 1
+            fi
+          done
 
       - name: اختبارات التكامل على قاعدة حقيقية
         env:

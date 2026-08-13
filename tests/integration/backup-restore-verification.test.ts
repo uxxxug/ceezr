@@ -55,7 +55,20 @@ async function prepareBackup(corrupt: boolean): Promise<{
     dumper.dumpGlobals?.(DATABASE_URL),
   ]);
   if (!archive.ok || roles === undefined || !roles.ok) {
-    throw new Error("تعذر إنشاء أثر النسخة لاختبار التكامل");
+    /**
+     * تفصيلُ الخطأ يُرفَع في الرسالة لا يُطرَح: الرسالةُ المجرّدة أخفت على آلةِ
+     * التكامل سببَ إخفاقٍ لم يظهر محلّياً قطّ — و`BackupJobError.detail` يحمل
+     * `stderr` الحقيقيّ من `pg_dump`/`pg_dumpall` ورمزَ خروجهما. وطمسُه يُحوّل
+     * عيباً واحداً معروفَ السببِ إلى تخمينٍ يتكرّر كلَّ دفعة.
+     */
+    const why = [
+      archive.ok ? null : `الأرشيف: ${archive.error.detail}`,
+      roles === undefined ? "الأدوار: المنفذ لا يوفّر dumpGlobals" : null,
+      roles !== undefined && !roles.ok ? `الأدوار: ${roles.error.detail}` : null,
+    ]
+      .filter((line): line is string => line !== null)
+      .join(" | ");
+    throw new Error(`تعذر إنشاء أثر النسخة لاختبار التكامل — ${why}`);
   }
   const storage = createLocalBackupStorage({ directory });
   const runId = crypto.randomUUID();

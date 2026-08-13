@@ -140,7 +140,8 @@ describeIf("الموقع القانوني — ADR-0015", () => {
    * وهو تسريب لا يظهر في ملفٍّ يُشغَّل وحده، ويظهر حين تجتمع ملفات التكامل كلّها.
    */
   afterEach(async () => {
-    await container.close();
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
   });
 
   afterAll(async () => {
