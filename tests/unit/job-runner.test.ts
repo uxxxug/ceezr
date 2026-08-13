@@ -305,6 +305,107 @@ describe("createJobRunner", () => {
     expect(outcomes.filter((outcome) => outcome.status === "ran").length).toBe(9);
   });
 
+  test("السقف سقفُ المشغّل لا سقفُ النبضة: نبضتان متراكبتان لا تُضاعفانه", async () => {
+    const clock = fakeClock(0);
+    let active = 0;
+    let peak = 0;
+
+    const jobs: JobDefinition[] = Array.from({ length: 9 }, (_, index) => ({
+      name: `job-${index}`,
+      everySeconds: 60,
+      runOnStart: true,
+      run: async () => {
+        active += 1;
+        peak = Math.max(peak, active);
+        await new Promise((resolve) => setTimeout(resolve, 60));
+        active -= 1;
+        return "تمّ";
+      },
+    }));
+
+    const runner = createJobRunner({
+      lock: createNoopLock(),
+      jobs,
+      clock,
+      log: silentLog(),
+      maxConcurrency: 3,
+    });
+
+    // هذا ما يفعله `start` فعلاً: `setInterval` يستدعي `runDue` ولا ينتظر انتهاء
+    // سابقته، فشوطٌ يتجاوز النبضة (والنسخ الاحتياطي يتجاوزها يومياً) يجعل نبضتين
+    // متراكبتين. وتجمّع القفل مقاسٌ على السقف بالضبط، فتجاوزه استنزافُ تجمّع
+    // يُسقط المهامّ جميعاً بمهلة انتظار — وهو عطلٌ وقع مرّةً فعلاً في أوّل تشغيل.
+    const first = runner.runDue();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const second = runner.runDue();
+    await Promise.all([first, second]);
+
+    expect(peak).toBe(3);
+  });
+
+  test("التصريف ينتظر الشوط الجاري قبل أن يُعلِن الفراغ", async () => {
+    let finished = false;
+
+    const runner = createJobRunner({
+      lock: createNoopLock(),
+      clock: { now: () => new Date() },
+      log: silentLog(),
+      jobs: [
+        {
+          name: "slow",
+          everySeconds: 60,
+          runOnStart: true,
+          run: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 80));
+            finished = true;
+            return "تمّ";
+          },
+        },
+      ],
+    });
+
+    const pending = runner.runDue();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    runner.stop();
+
+    // إغلاق القاعدة يلي هذا الموضع في `index.ts`، فلو عاد التصريف قبل انتهاء
+    // الشوط لسُحِب الاتصال من مهمّة جارية مع كل نشر، ومنها مهمّة تسوية الدفعات.
+    const drained = await runner.drain(1_000);
+    expect(drained).toBe(true);
+    expect(finished).toBe(true);
+
+    await pending;
+  });
+
+  test("التصريف يعود بـfalse عند انتهاء المهلة ولا ينتظر أبداً", async () => {
+    const log = silentLog();
+    const runner = createJobRunner({
+      lock: createNoopLock(),
+      clock: { now: () => new Date() },
+      log,
+      jobs: [
+        {
+          name: "endless",
+          everySeconds: 60,
+          runOnStart: true,
+          run: async () => {
+            await new Promise((resolve) => setTimeout(resolve, 400));
+            return "تمّ";
+          },
+        },
+      ],
+    });
+
+    const pending = runner.runDue();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    // انتطارٌ بلا حدٍّ يضيع مهلة المنصّة فيأتي القتل القسري قبل الإغلاق النطيف.
+    expect(await runner.drain(60)).toBe(false);
+    expect(log.errors).toContain("runner.drain_timeout");
+
+    await pending;
+  });
+
   test("سقف توازٍ صفر أو سالب يُصحَّح إلى واحد لا يُعطّل المشغّل", async () => {
     const clock = fakeClock(0);
     const outcomes = await createJobRunner({

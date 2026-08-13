@@ -46,6 +46,10 @@ export interface JobRunnerOptions {
    * جارية تستهلك اتصال قفل محجوزاً واتصالاً أو أكثر لاستعلاماتها، فتوازٍ غير محدود
    * مع أربع مدن مفعَّلة يعني 24 مهمّة تتزاحم على تجمّع اتصالات محدود — وهذا استنزاف
    * تجمّع يُسقط المهامّ جميعاً بمهلة انتظار لا بخطأ مفهوم.
+   *
+   * والحدّ **على المشغّل كلّه لا على النبضة الواحدة**: `start` يستدعي `runDue` بلا
+   * انتظار انتهاء سابقته، فشوطٌ يتجاوز النبضة (النسخ الاحتياطي يومياً) يجعل نبضتين
+   * متراكبتين. وحدٌّ محسوبٌ داخل كل استدعاء يصير حدَّين، فيتضاعف التوازي الفعلي.
    */
   readonly maxConcurrency?: number;
 }
@@ -70,11 +74,25 @@ export interface JobRunner {
   runDue(): Promise<readonly JobOutcome[]>;
   start(): void;
   stop(): void;
+  /**
+   * ينتظر انتهاء الأشواط الجارية. لازمٌ للإطفاء: `stop` يمسح المؤقّت ولا ينتظر
+   * شيئاً، فإغلاق القاعدة بعده مباشرةً يسحب الاتصال من شوطٍ جارٍ فيُفشله بلا داعٍ.
+   * ومحدودٌ بمهلة: منصّة النشر تقتل العملية قسراً بعد مدّة، فانتظارٌ بلا حدٍّ
+   * يضيع فرصة الإغلاق النطيف بدل أن يحفزها — والنسخ الاحتياطي قد يطول دقائق.
+   *
+   * يعود `true` إن فرغت الأشواط، و`false` إن انتهت المهلة وبعضها جارٍ — فالمُطفِئ
+   * يسجّل ذلك بدل أن يظنّ أنّه أغلق نطيفاً.
+   */
+  drain(timeoutMs?: number): Promise<boolean>;
   readonly running: boolean;
 }
 
 const DEFAULT_TICK_MS = 10_000;
 const DEFAULT_MAX_CONCURRENCY = 4;
+
+/** مهلة التصريف الافتراضية: أقلّ من مهلة القتل القسري لدى منصّة النشر، ليبقى متّسعٌ للإغلاق. */
+const DEFAULT_DRAIN_MS = 20_000;
+const DRAIN_POLL_MS = 50;
 
 export function createJobRunner(options: JobRunnerOptions): JobRunner {
   const tickMs = options.tickMs ?? DEFAULT_TICK_MS;
@@ -82,6 +100,37 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
   const lastRunMs = new Map<string, number>();
   const inFlight = new Set<string>();
   let timer: ReturnType<typeof setInterval> | null = null;
+
+  /**
+   * خانات التوازي على مستوى المشغّل، لا على مستوى الاستدعاء. الحالة هنا — في
+   * الإغلاق لا داخل `runDue` — هي جوهر الأمر: نبضتان متراكبتان لكلٍّ منهما عدّادها
+   * تُشغّلان ضِعف السقف، وتجمّع القفل مقاسٌ على السقف بالضبط (`MAX_JOB_CONCURRENCY + 1`)
+   * فالتجاوز استنزافُ تجمّع لا بطءٌ مقبول.
+   *
+   * والخانة تُسلَّم للمنتظر تسليماً ولا تُحرَّر ثم تُطلب، فلا تنفلت خانة لطالبٍ جديد
+   * بين التحرير والاستلام.
+   */
+  let activeSlots = 0;
+  const slotWaiters: (() => void)[] = [];
+
+  async function acquireSlot(): Promise<void> {
+    if (activeSlots < maxConcurrency) {
+      activeSlots += 1;
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      slotWaiters.push(resolve);
+    });
+  }
+
+  function releaseSlot(): void {
+    const next = slotWaiters.shift();
+    if (next !== undefined) {
+      next();
+      return;
+    }
+    activeSlots -= 1;
+  }
 
   function isDue(job: JobDefinition, nowMs: number): boolean {
     const last = lastRunMs.get(job.name);
@@ -145,16 +194,18 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
 
     // توازٍ محدود بنافذة منزلقة: تبدأ مهمّة كلّما تحرّرت خانة، فلا ننتظر انتهاء
     // دفعة كاملة قبل بدء التالية (وهو ما يجعل مهمّة واحدة بطيئة تُعطّل ثلاثاً معها).
-    const queue = [...due];
+    // والخانات مشتركة بين النبضات المتراكبة، فالسقف سقفُ المشغّل لا سقفُ النبضة.
     const results: JobOutcome[] = [];
-    const workers = Array.from({ length: Math.min(maxConcurrency, queue.length) }, async () => {
-      for (;;) {
-        const job = queue.shift();
-        if (job === undefined) return;
-        results.push(await runOne(job, nowMs));
-      }
-    });
-    await Promise.all(workers);
+    await Promise.all(
+      due.map(async (job) => {
+        await acquireSlot();
+        try {
+          results.push(await runOne(job, nowMs));
+        } finally {
+          releaseSlot();
+        }
+      }),
+    );
 
     outcomes.push(...results);
     return outcomes;
@@ -178,6 +229,21 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       }, tickMs);
       // نبضة فورية حتى تعمل مهامّ runOnStart بلا انتظار أول فاصل.
       void runDue();
+    },
+
+    drain: async (timeoutMs = DEFAULT_DRAIN_MS) => {
+      // استقصاءٌ لا تجميعُ وعود: الأشواط تُنشأ في نبضاتٍ لا نملك وعودها هنا،
+      // والمرجع الواحد للجاري هو `inFlight` نفسه — وهو مرجعٌ صادق لأنّ `finally`
+      // يحذف منه حتّى عند الرمي، فلا يبقى اسمٌ عالقاً فيه فيستنفد المهلة أبداً.
+      const deadline = options.clock.now().getTime() + timeoutMs;
+      while (inFlight.size > 0) {
+        if (options.clock.now().getTime() >= deadline) {
+          options.log.error("runner.drain_timeout", { pending: [...inFlight] });
+          return false;
+        }
+        await new Promise((resolve) => setTimeout(resolve, DRAIN_POLL_MS));
+      }
+      return true;
     },
 
     stop: () => {

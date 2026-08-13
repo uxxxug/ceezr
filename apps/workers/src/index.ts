@@ -49,6 +49,10 @@ async function main(): Promise<void> {
     log.info("worker.shutdown", { signal });
     runner.stop();
     // إغلاق القاعدة بعد إيقاف المشغّل لا قبله: شوطٌ جاري بلا اتصال يفشل بلا داعٍ.
+    // و`stop` وحده لا يكفي: يمسح المؤقّت ولا ينتظر الجاري، فالتصريف هو ما يجعل
+    // الترتيب أعلاه وعداً محقّقاً لا تعليقاً. والمهلة محدودة لأنّ المنصّة تقتل قسراً.
+    const drained = await runner.drain();
+    if (!drained) log.error("worker.shutdown_not_drained", { signal });
     await container.close();
     process.exit(0);
   };
