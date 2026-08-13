@@ -97,6 +97,18 @@ export interface GpsPolicy {
   readonly staleAfterSeconds: number;
   /** بعده تُرفض الإصلاحة لقِدَمها، بالثواني. */
   readonly rejectOlderThanSeconds: number;
+  /**
+   * أقصى إزاحةٍ مقبولة عن الموضع السابق حين **يتعذّر قياس السرعة**، بالمتر.
+   *
+   * ليست حدّاً ثانياً للسرعة ولا تكراراً لها: حكمُ الإزاحة كلُّه معلَّقٌ على
+   * `elapsedSeconds > 0`، فإصلاحتان بنفس الطابع الزمني — أو بطابعٍ متقهقر —
+   * تمرّان بلا حكمِ إزاحةٍ إطلاقاً لأنّ القسمة على صفرٍ تُتخطّى. وهذا مسلكُ
+   * تهرّبٍ كامل: من يريد أن يظهر في مكانٍ لا يبلغه يُرسل موضعاً على بعد خمسة
+   * كيلومترات بنفس الطابع الزمني للإصلاحة السابقة، فلا سرعةَ تُحسَب ولا ملحوظةَ
+   * تُرفَع. والحدُّ المسافيّ هنا يُقفل هذا الباب وحده — ولا يُطبَّق عند وجود
+   * زمنٍ منقضٍ حقيقيّ كي لا يُنبَّه على سائقٍ صادقٍ على طريقٍ سريع.
+   */
+  readonly maxJumpMeters: number;
 }
 
 /**
@@ -115,6 +127,7 @@ export const DEFAULT_GPS_POLICY: GpsPolicy = {
   maxFutureSkewSeconds: 5,
   staleAfterSeconds: 30,
   rejectOlderThanSeconds: 300,
+  maxJumpMeters: 5000,
 };
 
 export interface GpsAssessment {
@@ -128,6 +141,7 @@ export interface GpsAssessment {
 const SEVERITY_RANK: Record<GpsSeverity, number> = { WARNING: 1, ALERT: 2, REJECT: 3 };
 const HEADING_MAX_EXCLUSIVE = 360;
 const MS_PER_SECOND = 1000;
+const METERS_PER_KM = 1000;
 const SECONDS_PER_HOUR = 3600;
 
 /**
@@ -233,9 +247,16 @@ export function assessGpsFix(
   let effectiveSpeedKmh: number | null = null;
   if (previous !== null && coordinates.ok && Number.isFinite(raw.recordedAtMs)) {
     const elapsedSeconds = (raw.recordedAtMs - previous.recordedAtMs) / MS_PER_SECOND;
+    const distanceMeters = haversineKm(previous.coordinates, coordinates.value) * METERS_PER_KM;
     if (elapsedSeconds > 0) {
-      const distanceKm = haversineKm(previous.coordinates, coordinates.value);
-      effectiveSpeedKmh = (distanceKm / elapsedSeconds) * SECONDS_PER_HOUR;
+      effectiveSpeedKmh = (distanceMeters / METERS_PER_KM / elapsedSeconds) * SECONDS_PER_HOUR;
+    } else if (distanceMeters > policy.maxJumpMeters) {
+      //    الزمن لا يتقدّم فلا سرعةَ تُقاس — وهنا كان الباب مفتوحاً على مصراعيه:
+      //    كلّ حكم الإزاحة أدناه معلَّقٌ على سرعةٍ محسوبة، فإصلاحةٌ على بعد خمسة
+      //    كيلومترات بنفس الطابع الزمني كانت تمرّ بحكم `ACCEPT` نظيف. والملحوظة
+      //    تنبيهٌ لا رفض، على نفس منهاج ما دونها: الموضع الأحدث يُعتمد كي لا
+      //    يتجمّد التتبّع، والبشر هم من يحكم على المنتحل.
+      add("DISPLACEMENT_IMPLAUSIBLE", "ALERT", distanceMeters, policy.maxJumpMeters);
     }
   }
 

@@ -10,6 +10,64 @@ import { err, ok, type Result } from "../result/index.ts";
 
 export type EnvName = "development" | "test" | "production";
 
+/**
+ * تجاوزات طبقة التتبّع من البيئة. كلّها `null` تعني «لم يضبط المشغّل شيئاً،
+ * فاستُعمل افتراض المجال».
+ *
+ * ولماذا تجاوزاتٌ لا قيمٌ كاملة؟ لأنّ الأرقام الافتراضية لها مصدرُ حقيقةٍ واحد
+ * هو `DEFAULT_GPS_POLICY` في `packages/domain/geo/gps-fix.ts` مع
+ * `DEFAULT_TRACKING_CONFIG`. ولو كُتبت هنا مرّةً ثانيةً لصار في النظام رقمان
+ * لنفس الحدّ، ويوماً ما يُعدَّل أحدهما وحده — وهذا بالضبط الانحراف الذي يُعالجه
+ * هذا الحقل لا الذي يُنشئه. والدمج يحدث في `packages/tracking/config.ts`.
+ *
+ * وهذه القيم **تقنيّةٌ لا تجاريّة**: حدُّ سرعةٍ فيزيائيّ ودقّةُ جهازٍ وانحرافُ
+ * ساعة — لا سعرٌ ولا عمولةٌ ولا مهلةُ عرض. القيم التجارية مكانها
+ * `platform_settings` كما تقول ترويسة هذا الملفّ، ولا واحدةَ منها هنا.
+ */
+export interface TrackingEnvOverrides {
+  /** TRACKING_GPS_INTERVAL_SECONDS */
+  readonly gpsIntervalSeconds: number | null;
+  /** TRACKING_GPS_IDLE_INTERVAL_SECONDS */
+  readonly gpsIdleIntervalSeconds: number | null;
+  /** TRACKING_MIN_DISTANCE_METERS */
+  readonly minDistanceMeters: number | null;
+  /** TRACKING_TELEPORT_THRESHOLD_METERS */
+  readonly teleportThresholdMeters: number | null;
+  /** TRACKING_MAX_REASONABLE_SPEED_KMH */
+  readonly maxReasonableSpeedKmh: number | null;
+  /** TRACKING_MAX_ACCURACY_METERS */
+  readonly maxAccuracyMeters: number | null;
+  /** TRACKING_MAX_TIME_DRIFT_SECONDS */
+  readonly maxTimeDriftSeconds: number | null;
+}
+
+/**
+ * «لم يضبط المشغّل شيئاً» — كلّ الحدود على افتراض المجال.
+ *
+ * مُصدَّرٌ لا مكرَّر في كلّ اختبار: كائنٌ منسوخٌ في ستّةٍ وعشرين ملفّاً يعني أنّ
+ * إضافةَ حدٍّ جديدٍ يوماً تكسر ستّةً وعشرين ملفّاً وتُغري بإصلاحها بالنسخ.
+ */
+export const NO_TRACKING_OVERRIDES: TrackingEnvOverrides = {
+  gpsIntervalSeconds: null,
+  gpsIdleIntervalSeconds: null,
+  minDistanceMeters: null,
+  teleportThresholdMeters: null,
+  maxReasonableSpeedKmh: null,
+  maxAccuracyMeters: null,
+  maxTimeDriftSeconds: null,
+};
+
+/** أسماء متغيّرات التتبّع كما تُكتب في البيئة — مصدر الحقيقة للتوثيق والحرّاس. */
+export const TRACKING_ENV_KEYS = [
+  "TRACKING_GPS_INTERVAL_SECONDS",
+  "TRACKING_GPS_IDLE_INTERVAL_SECONDS",
+  "TRACKING_MIN_DISTANCE_METERS",
+  "TRACKING_TELEPORT_THRESHOLD_METERS",
+  "TRACKING_MAX_REASONABLE_SPEED_KMH",
+  "TRACKING_MAX_ACCURACY_METERS",
+  "TRACKING_MAX_TIME_DRIFT_SECONDS",
+] as const;
+
 export interface AppConfig {
   readonly env: EnvName;
   readonly port: number;
@@ -98,6 +156,17 @@ export interface AppConfig {
    * ويُقال ذلك صراحةً، لا يُقدَّر تقديراً تقريبياً (ADR 0024).
    */
   readonly osrmBaseUrl: string | null;
+  /**
+   * حدود طبقة التتبّع من البيئة — تجاوزاتٌ فوق افتراضات المجال.
+   *
+   * أُضيف لأنّ هذه المتغيّرات كانت مُعلَنةً في `render.yaml` و`.env.example`
+   * ولا تُقرَأ في سطرٍ واحد من الكود: المشغّل يضبط `TRACKING_MAX_REASONABLE_SPEED_KMH`
+   * فلا يتغيّر شيء، ولا رسالةَ خطأٍ تُخبره — وهمُ تحكّمٍ كامل، وهو نفس الخطر
+   * (R-28) الذي أُصلح لـ`OSRM_BASE_URL` وحده وبقي هنا. وكانت الأسماء نفسها
+   * مختلفةً بين الملفّين، فمن ضبط الاسم الوارد في `render.yaml` ضبط اسماً
+   * لا وجود له في أيّ مكان آخر.
+   */
+  readonly tracking: TrackingEnvOverrides;
 }
 
 /** مخازن الجلسات المدعومة. */
@@ -203,6 +272,24 @@ function parseBooleanEnv(value: string | undefined, fallback = false): boolean {
     return false;
   }
   return fallback;
+}
+
+/**
+ * يقرأ عدداً موجباً من البيئة، أو `null` إن لم يُضبَط.
+ *
+ * والقيمةُ المكتوبةُ خطأً تُرفض عند الإقلاع ولا تُهمَل إلى الافتراض: إهمالُها
+ * يعني مشغّلاً ضبط حدّاً وظنّ أنّه سرى، وهو نفس وهم التحكّم الذي نُصلحه هنا.
+ */
+function readPositiveNumber(
+  raw: string | undefined,
+  key: string,
+): Result<number | null, ConfigError> {
+  if (isBlank(raw)) return ok(null);
+  const value = Number((raw as string).trim());
+  if (!Number.isFinite(value) || value <= 0) {
+    return err(new InvalidEnvVarError(key, `يجب أن يكون عدداً موجباً — وردت: ${raw as string}`));
+  }
+  return ok(value);
 }
 
 /** كل المتغيرات الناقصة، لا أولها فقط — ليعرف المشغّل ما ينقصه في نظرة واحدة. */
@@ -365,6 +452,67 @@ export function tryLoadConfig(
     );
   }
 
+  /**
+   * حدود التتبّع. تُقرأ كلّها ويُجمَع أوّل خطأٍ فيها — والقراءة هنا لا في طبقة
+   * التتبّع كي يفشل الإقلاع في وجه المشغّل لا أوّلُ إصلاحةِ GPS في وجه سائق.
+   */
+  const trackingReads = {
+    gpsIntervalSeconds: readPositiveNumber(
+      source.TRACKING_GPS_INTERVAL_SECONDS,
+      "TRACKING_GPS_INTERVAL_SECONDS",
+    ),
+    gpsIdleIntervalSeconds: readPositiveNumber(
+      source.TRACKING_GPS_IDLE_INTERVAL_SECONDS,
+      "TRACKING_GPS_IDLE_INTERVAL_SECONDS",
+    ),
+    minDistanceMeters: readPositiveNumber(
+      source.TRACKING_MIN_DISTANCE_METERS,
+      "TRACKING_MIN_DISTANCE_METERS",
+    ),
+    teleportThresholdMeters: readPositiveNumber(
+      source.TRACKING_TELEPORT_THRESHOLD_METERS,
+      "TRACKING_TELEPORT_THRESHOLD_METERS",
+    ),
+    maxReasonableSpeedKmh: readPositiveNumber(
+      source.TRACKING_MAX_REASONABLE_SPEED_KMH,
+      "TRACKING_MAX_REASONABLE_SPEED_KMH",
+    ),
+    maxAccuracyMeters: readPositiveNumber(
+      source.TRACKING_MAX_ACCURACY_METERS,
+      "TRACKING_MAX_ACCURACY_METERS",
+    ),
+    maxTimeDriftSeconds: readPositiveNumber(
+      source.TRACKING_MAX_TIME_DRIFT_SECONDS,
+      "TRACKING_MAX_TIME_DRIFT_SECONDS",
+    ),
+  } as const;
+  for (const read of Object.values(trackingReads)) {
+    if (!read.ok) return err(read.error);
+  }
+  const tracking: TrackingEnvOverrides = {
+    gpsIntervalSeconds: trackingReads.gpsIntervalSeconds.ok
+      ? trackingReads.gpsIntervalSeconds.value
+      : null,
+    gpsIdleIntervalSeconds: trackingReads.gpsIdleIntervalSeconds.ok
+      ? trackingReads.gpsIdleIntervalSeconds.value
+      : null,
+    minDistanceMeters: trackingReads.minDistanceMeters.ok
+      ? trackingReads.minDistanceMeters.value
+      : null,
+    teleportThresholdMeters: trackingReads.teleportThresholdMeters.ok
+      ? trackingReads.teleportThresholdMeters.value
+      : null,
+    maxReasonableSpeedKmh: trackingReads.maxReasonableSpeedKmh.ok
+      ? trackingReads.maxReasonableSpeedKmh.value
+      : null,
+    maxAccuracyMeters: trackingReads.maxAccuracyMeters.ok
+      ? trackingReads.maxAccuracyMeters.value
+      : null,
+    maxTimeDriftSeconds: trackingReads.maxTimeDriftSeconds.ok
+      ? trackingReads.maxTimeDriftSeconds.value
+      : null,
+  };
+
   return ok({
     env,
     port,
@@ -400,6 +548,7 @@ export function tryLoadConfig(
     maplibreSri: isBlank(source.MAPLIBRE_SRI) ? null : (source.MAPLIBRE_SRI as string).trim(),
     routingProvider: rawRoutingProvider as RoutingProviderName,
     osrmBaseUrl,
+    tracking,
   });
 }
 

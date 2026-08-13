@@ -29,6 +29,7 @@ import { createNoopLock } from "../../packages/application/scheduling/distribute
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
 import type { OutboundSender } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 
 const CITY_ID = "11111111-2222-3333-4444-555555555555";
@@ -60,6 +61,7 @@ const config: AppConfig = {
   // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
   routingProvider: "none",
   osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
 };
 
 /** قاعدة مزيَّفة تُعيد مدينةً واحدةً مفعَّلة — الغرض قراءة القائمة لا تنفيذُ المهامّ. */

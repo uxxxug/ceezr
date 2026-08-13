@@ -36,6 +36,7 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import { createDriverCandidateRepository } from "../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createSettingsRepository } from "../../packages/infrastructure/policy/settings-repository.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import type { CityId } from "../../packages/shared/kernel/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -75,6 +76,7 @@ const config: AppConfig = {
   // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
   routingProvider: "none",
   osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
 };
 
 let sql: Sql;
@@ -153,7 +155,8 @@ describeIf("المرحلة ٨ — عمر موقع السائق في الإسنا
    * عن سببه. وهذا ما يجعل تسريب البِرَك أخطر من بطئه.
    */
   afterEach(async () => {
-    await container.close();
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
   });
 
   afterAll(async () => {

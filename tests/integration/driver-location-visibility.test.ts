@@ -21,7 +21,7 @@
  * ملاحظات مستقبلية: عند إضافة تذكير آليّ للسائق المتاح بلا موقع، يُؤكَّد هنا وصوله.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { evaluateCandidates } from "../../packages/domain/dispatch/entity.ts";
@@ -30,6 +30,7 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import { createDriverCandidateRepository } from "../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createSettingsRepository } from "../../packages/infrastructure/policy/settings-repository.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -68,6 +69,7 @@ const config: AppConfig = {
   // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
   routingProvider: "none",
   osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
 };
 
 let sql: Sql;
@@ -118,8 +120,20 @@ describeIf("ظهور السائق بلا موقع، ووحدة مصدر التو
     cityId = id;
   });
 
+  /**
+   * إغلاقُ حاويةِ السيناريو عقب كلِّ اختبار لا مرّةً واحدةً في النهاية: الحاويةُ
+   * تُنشئ حوضَ اتّصالاتٍ خاصّاً بها، وبناؤها في `beforeEach` مع إغلاقٍ وحيدٍ في
+   * `afterAll` يُراكم أحواضاً بعددِ اختباراتِ الملفّ. القاعدةُ المحلّية كانت تحتمل
+   * التراكمَ بسعتها الأوسع، أمّا خدمةُ PostgreSQL في آلةِ التكامل فتقف عند حدّها
+   * الافتراضيّ فتردّ «sorry, too many clients already» — فيُخفق سربٌ من اختباراتٍ
+   * سليمةٍ لا علاقةَ لها بالعيب، ويُحوّل الحمرةَ إلى ضجيجٍ يُخفي الأعطالَ الحقيقية.
+   */
+  afterEach(async () => {
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
+  });
+
   afterAll(async () => {
-    await container.close();
     await sql.end({ timeout: 5 });
   });
 

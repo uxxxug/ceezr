@@ -8,7 +8,7 @@
  * ملاحظات مستقبلية: يُوسَّع حين تُضاف إعادة البثّ قبل التصعيد.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { runSweepUnmatchedOrders } from "../../apps/workers/src/jobs/sweep-unmatched-orders.ts";
@@ -20,6 +20,7 @@ import {
 } from "../../packages/infrastructure/dispatch/unmatched-adapters.ts";
 import { asOutboundSender } from "../../packages/infrastructure/notification/telegram-api-sender.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { DEFAULT_LANGUAGE, t, translate } from "../../packages/shared/i18n/index.ts";
 import type { CityId } from "../../packages/shared/kernel/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
@@ -56,6 +57,7 @@ const config: AppConfig = {
   // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
   routingProvider: "none",
   osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
 };
 
 let sql: Sql;
@@ -141,8 +143,20 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     cityId = id;
   });
 
+  /**
+   * إغلاقُ حاويةِ السيناريو عقب كلِّ اختبار لا مرّةً واحدةً في النهاية: الحاويةُ
+   * تُنشئ حوضَ اتّصالاتٍ خاصّاً بها، وبناؤها في `beforeEach` مع إغلاقٍ وحيدٍ في
+   * `afterAll` يُراكم أحواضاً بعددِ اختباراتِ الملفّ. القاعدةُ المحلّية كانت تحتمل
+   * التراكمَ بسعتها الأوسع، أمّا خدمةُ PostgreSQL في آلةِ التكامل فتقف عند حدّها
+   * الافتراضيّ فتردّ «sorry, too many clients already» — فيُخفق سربٌ من اختباراتٍ
+   * سليمةٍ لا علاقةَ لها بالعيب، ويُحوّل الحمرةَ إلى ضجيجٍ يُخفي الأعطالَ الحقيقية.
+   */
+  afterEach(async () => {
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
+  });
+
   afterAll(async () => {
-    await container.close();
     await sql.end({ timeout: 5 });
   });
 

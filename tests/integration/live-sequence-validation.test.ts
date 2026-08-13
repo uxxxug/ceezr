@@ -20,6 +20,7 @@ import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -58,6 +59,7 @@ const config: AppConfig = {
   // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
   routingProvider: "none",
   osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
 };
 
 let sql: Sql;
@@ -132,7 +134,8 @@ describeIf("تحقّق التتابع في المسار الحيّ — المر�
   });
 
   afterEach(async () => {
-    await container.close();
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
   });
 
   afterAll(async () => {
@@ -143,7 +146,23 @@ describeIf("تحقّق التتابع في المسار الحيّ — المر�
     await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
-    await sql`update cities set is_active = true where id = ${cityId}`;
+    /**
+     * القروباتُ الثلاثة تُضبَط هنا مع التفعيل لا قبله: قيدُ
+     * `cities_active_requires_groups` يمنع تفعيلَ مدينةٍ بلا قروباتها، ولا تبذُرها
+     * أيّةُ هجرة. فكان هذا السطرُ ينجح فقط إذا سبقه ملفُّ اختبارٍ آخرُ ضبطها —
+     * أي أنّ نجاحَه كان معلَّقاً على ترتيبِ اكتشافِ الملفّات، وهو يختلف بين
+     * الجهازِ المحلّيّ وآلةِ التكامل. فمرّ محلّياً وسقط بعيداً، ثمّ سرَّب فشلُه
+     * حاوياتٍ لم تُغلَق فأنفدَ اتّصالاتَ القاعدة وأسقط ملفّاتٍ لا علاقة لها به.
+     */
+    await sql`
+      update cities
+         set is_active = true,
+             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
+             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
+             telegram_unsubscribed_drivers_group_id =
+               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
+       where id = ${cityId}
+    `;
     const driverSent: SentMessage[] = [];
     const riderSent: SentMessage[] = [];
     container = buildContainer(config, {

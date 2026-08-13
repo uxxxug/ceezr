@@ -25,12 +25,27 @@ interface ExpectedGaugesRow {
 
 let sql: Sql;
 
-describe("gauges المراقبة على قاعدة PostgreSQL حقيقية", () => {
+/**
+ * التخطّي عند غياب القاعدة — لا الإسقاط.
+ *
+ * كان هذا الملفّ وحده يرمي في `beforeAll` عند غياب `TEST_DATABASE_URL`، وسائرُ
+ * اختبارات التكامل تتخطّى بتحذير. ووظيفةُ `verify` في CI تُشغّل `bun test` كاملةً
+ * **بلا** قاعدة عن قصد، فكان هذا الملفّ يُسقط CI في كلّ دفعةٍ على كلّ فرع — أي
+ * أنّ CI كان أحمرَ دائماً لسببٍ لا علاقة له بأيّ تغيير. وحمرةٌ دائمةٌ أسوأ من
+ * لا CI: تُدرَّب العينُ على تجاهل العلامة، فيمرّ الإخفاق الحقيقيّ بينها.
+ *
+ * والتخطّي هنا ليس تهويناً: وظيفةُ `integration` تُشغّل نفس الملفّ **بقاعدةٍ
+ * حقيقيّة**، وفيها خطوةٌ تُسقط البناء إن ظهرت كلمة «مُتخطّاة» في مخرجاتها. فلا
+ * سبيلَ إلى أن يمرّ هذا الاختبار متخطّى في الموضع الذي يجب أن يجري فيه.
+ */
+const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
+if (DATABASE_URL === undefined) {
+  console.warn("⚠️  اختبارات التكامل مُتخطّاة: عيّن TEST_DATABASE_URL لقاعدة gauges.");
+}
+
+describeIf("gauges المراقبة على قاعدة PostgreSQL حقيقية", () => {
   beforeAll(() => {
-    if (DATABASE_URL === undefined) {
-      throw new Error("يتطلب اختبار gauges تعيين TEST_DATABASE_URL");
-    }
-    sql = createSql({ connectionString: DATABASE_URL });
+    sql = createSql({ connectionString: DATABASE_URL ?? "" });
   });
 
   afterAll(async () => {
