@@ -1,8 +1,12 @@
 name: CI
 
+# `feat/**` مُضافة عن قصد: سياسةُ العمل تُلزم بالتحقّق من نجاح CI **بعد كل دفعة**
+# لا آخرَ العمل، وكان الزنادُ على `main` وحدها فكانت الدفعاتُ على فرع العمل تمرّ
+# بلا فحصٍ بعيدٍ إطلاقاً — فيتراكم عملٌ يُظنّ محقَّقاً ثم يُكتشف إخفاقه كلّه دفعةً
+# واحدة عند فتح طلب الدمج.
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**"]
   pull_request:
 
 jobs:
@@ -25,7 +29,20 @@ jobs:
         run: bun run typecheck
 
       - name: Test
-        run: bun run test
+        run: set -o pipefail; bun run test 2>&1 | tee /tmp/ci-output.log
+
+      - name: تفاصيل الإخفاق في تعليقٍ مقروء بلا سجلّات
+        if: failure()
+        run: |
+          # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
+          # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
+          # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
+          if [ -f /tmp/ci-output.log ]; then
+            body=$(tail -n 60 /tmp/ci-output.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=ذيل المخرجات::${body}"
+          else
+            echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+          fi
 
       - name: منع الكود الوهمي في الملفات المنفّذة
         run: |
@@ -140,7 +157,20 @@ jobs:
       - name: اختبارات التكامل على قاعدة حقيقية
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-        run: bun run test:integration
+        run: set -o pipefail; bun run test:integration 2>&1 | tee /tmp/ci-output.log
+
+      - name: تفاصيل الإخفاق في تعليقٍ مقروء بلا سجلّات
+        if: failure()
+        run: |
+          # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
+          # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
+          # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
+          if [ -f /tmp/ci-output.log ]; then
+            body=$(tail -n 60 /tmp/ci-output.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=ذيل المخرجات::${body}"
+          else
+            echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+          fi
 
       - name: منع تخطّي اختبارات التكامل صامتاً
         env:
@@ -156,7 +186,20 @@ jobs:
       - name: اختبارات e2e — رحلات متتابعة بلا تدخّل
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-        run: bun run test:e2e
+        run: set -o pipefail; bun run test:e2e 2>&1 | tee /tmp/ci-output.log
+
+      - name: تفاصيل الإخفاق في تعليقٍ مقروء بلا سجلّات
+        if: failure()
+        run: |
+          # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
+          # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
+          # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
+          if [ -f /tmp/ci-output.log ]; then
+            body=$(tail -n 60 /tmp/ci-output.log | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=ذيل المخرجات::${body}"
+          else
+            echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+          fi
 
       - name: منع تخطّي اختبارات e2e صامتاً
         env:
