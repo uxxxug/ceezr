@@ -8,6 +8,10 @@
 
 import { describe, expect, it } from "bun:test";
 import {
+  instrumentPaymentConfirmationDeps,
+  instrumentPaymentRepository,
+} from "../../apps/gateway/src/observability/payment.ts";
+import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
 } from "../../apps/gateway/src/routes/payment-webhook.ts";
@@ -22,6 +26,7 @@ import type {
   PaymentTransaction,
   PaymentTransactionId,
 } from "../../packages/domain/financial/entity.ts";
+import { createOperationalMetrics } from "../../packages/infrastructure/observability/index.ts";
 import type { DriverId } from "../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
 
@@ -53,6 +58,9 @@ function repo(): PaymentRepository & { readonly activations: () => number } {
     findById: async (id) => ok(id === txId ? current : null),
     findByIdempotencyKey: async () => ok(null),
     recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
+    recordProviderReference: async (input) =>
+      ok({ providerTransactionId: input.providerTransactionId, stored: true }),
+    findStalePending: async () => ok([]),
     confirmPayment: async () => ok(current),
     confirmWebhookPayment: async (input) => {
       if (seen.has(input.webhookEventId)) return ok({ transaction: current, duplicate: true });
@@ -194,5 +202,48 @@ describe("payment webhook verified flow", () => {
     expect(local.activations()).toBe(1);
     const results = [await first.json(), await second.json()] as { duplicate: boolean }[];
     expect(results.some((value) => value.duplicate)).toBe(true);
+  });
+});
+
+/**
+ * غلاف الرصد هو ما يراه الإنتاج فعلاً — لا المستودع العاري. وقد كان الغلاف
+ * يُعدّد دوالّ المنفذ فيُسقط `confirmWebhookPayment`، فيمرّ كلّ اختبارٍ أعلاه
+ * ويفشل كلّ ويبهوكٍ حقيقي. فهذه الاختبارات تمرّ عبر الغلاف قصداً.
+ */
+describe("ويبهوك الدفع عبر غلاف الرصد", () => {
+  function instrumentedApp(local: PaymentRepository, remote = snapshot()) {
+    const metrics = createOperationalMetrics();
+    const deps: PaymentWebhookDependencies = {
+      provider: provider(remote),
+      confirmDeps: instrumentPaymentConfirmationDeps(
+        { payments: local, events: events() },
+        metrics,
+      ),
+      log: () => {},
+    };
+    return { route: createPaymentWebhookRoutes(deps), metrics };
+  }
+
+  it("لا يُسقط القدرة الذرّية للويبهوك عند التغليف", () => {
+    const local = repo();
+    const wrapped = instrumentPaymentRepository(local, createOperationalMetrics());
+    expect(typeof wrapped.confirmWebhookPayment).toBe("function");
+    expect(typeof wrapped.recordProviderReference).toBe("function");
+    expect(typeof wrapped.findByIdempotencyKey).toBe("function");
+  });
+
+  it("يفعّل الاشتراك فعلاً عبر المنفذ المُغلَّف ويقيس التأكيد", async () => {
+    const local = repo();
+    const { route, metrics } = instrumentedApp(local);
+    const response = await route.fetch(request(body("event-instrumented")));
+    expect(response.status).toBe(200);
+    expect(local.activations()).toBe(1);
+    expect(metrics.registry.render()).toContain("waslah_payment_transactions_confirmed_total 1");
+  });
+
+  it("لا يزعم قدرةً ذرّية لمستودعٍ لا يملكها", () => {
+    const { confirmWebhookPayment: _omitted, ...withoutAtomic } = repo();
+    const wrapped = instrumentPaymentRepository(withoutAtomic, createOperationalMetrics());
+    expect(wrapped.confirmWebhookPayment).toBeUndefined();
   });
 });

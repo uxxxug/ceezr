@@ -54,6 +54,22 @@ export interface ProviderTransactionSnapshot {
 }
 
 /**
+ * صفٌّ معلّق مرشّح للمراجعة من خادم المزوّد. يحمل ما تحتاجه المراجعة للمقارنة
+ * قبل التأكيد — فالمراجعة تقارن لقطة المزوّد بالصفّ ولا تكتفي بما يرويه المزوّد.
+ */
+export interface StalePendingPayment {
+  readonly id: PaymentTransactionId;
+  readonly cityId: string;
+  readonly payerDriverId: string;
+  readonly provider: string;
+  readonly providerTransactionId: string;
+  readonly amountMinor: number;
+  readonly currency: string;
+  readonly status: PaymentTransactionStatus;
+  readonly updatedAt: Date;
+}
+
+/**
  * منفذ مزوّد الدفع — تجريد صرف بلا أي منطق خاص بمزوّد بعينه.
  * لا تُعتمد حمولة الويبهوك كمصدر مالي؛ verifyWebhook يثبت المصدر فقط و
  * fetchTransaction يقرأ الحقيقة من API المزوّد.
@@ -148,6 +164,34 @@ export interface PaymentRepository {
     readonly transactionId: PaymentTransactionId;
     readonly checkoutUrl: string;
   }): Promise<Result<{ readonly checkoutUrl: string }, PortFailureError>>;
+
+  /**
+   * يحفظ معرّف عملية المزوّد لحظةَ بدئها لا لحظةَ تأكيدها — مرّةً واحدة، بلا
+   * تغيير حالةٍ ولا تفعيل اشتراك.
+   *
+   * ولماذا لا يُترك للويبهوك؟ لأنّ المعرفة كانت في اتجاهٍ واحد: المزوّد يعرف
+   * معاملتنا من `metadata`، ونحن لا نعرف عمليته. فإن ضاع الويبهوك بقي الصفّ
+   * معلّقاً إلى الأبد ولا سبيل إلى سؤال المزوّد «ما مصير هذه الدفعة؟» — فيدفع
+   * السائق ولا يُفعَّل اشتراكه بلا أن يظهر ذلك في أيّ مقياس.
+   */
+  recordProviderReference(input: {
+    readonly transactionId: PaymentTransactionId;
+    readonly provider: string;
+    readonly providerTransactionId: string;
+  }): Promise<
+    Result<{ readonly providerTransactionId: string; readonly stored: boolean }, PortFailureError>
+  >;
+
+  /**
+   * يسرد المعاملات المعلّقة القابلة للمراجعة من خادم المزوّد: مرّ عليها ما يكفي
+   * ولم تتجاوز سقف العمر، ولها مرجعٌ عند المزوّد يُسأل به.
+   */
+  findStalePending(input: {
+    readonly cityId: string;
+    readonly olderThanSeconds: number;
+    readonly maxAgeSeconds: number;
+    readonly limit: number;
+  }): Promise<Result<readonly StalePendingPayment[], PortFailureError>>;
 
   /**
    * يؤكّد معاملة ذرّياً: يحدّث الحالة ومعرّف المزوّد، ويُفعّل الاشتراك، ويكتب

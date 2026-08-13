@@ -71,6 +71,9 @@ function e2ePaymentRepo(): PaymentRepository & { txns: PaymentTransaction[] } {
     findById: async (id) => ok(txns.find((t) => t.id === id) ?? null),
     findByIdempotencyKey: async (key) => ok(txns.find((t) => t.id === key) ?? null),
     recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
+    recordProviderReference: async (input) =>
+      ok({ providerTransactionId: input.providerTransactionId, stored: true }),
+    findStalePending: async () => ok([]),
     confirmPayment: async (input) => {
       const idx = txns.findIndex((t) => t.id === input.transactionId);
       const current = txns[idx];

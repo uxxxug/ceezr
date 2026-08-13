@@ -196,6 +196,17 @@ export async function upgradePlan(
     return err(new UpgradePlanError(charge.error.detail));
   }
 
+  // مرجع المزوّد قبل إعادة الرابط: بلاه ترقيةٌ دُفِع فرقها وضاع ويبهوكُها
+  // تبقى معلّقةً إلى الأبد بلا أن نعرف رقم عمليتها عند المزوّد فنسأله عنها.
+  // وفشل الحفظ لا يُسقط المحاولة: العملية بدأت عند المزوّد فعلاً.
+  if (charge.value.providerTransactionId !== null) {
+    await deps.payments.recordProviderReference({
+      transactionId: created.value.transaction.id,
+      provider: deps.provider.name,
+      providerTransactionId: charge.value.providerTransactionId,
+    });
+  }
+
   return ok({
     kind: "payment_required",
     transactionId: created.value.transaction.id,

@@ -114,6 +114,17 @@ export async function subscribePlan(
     return err(new SubscriptionPaymentError(charge.error.detail));
   }
 
+  // مرجع المزوّد يُحفظ قبل أيّ شيء آخر بعد الشحنة: من هنا وحده تصير الدفعة
+  // قابلةً للمراجعة لو ضاع الويبهوك. وفشل الحفظ لا يُسقط المحاولة — العملية
+  // بدأت عند المزوّد فعلاً، وحجب رابطها عن السائق بعدها يزيد الضرر ولا يدفعه.
+  if (charge.value.providerTransactionId !== null) {
+    await deps.payments.recordProviderReference({
+      transactionId: created.value.transaction.id,
+      provider: deps.provider.name,
+      providerTransactionId: charge.value.providerTransactionId,
+    });
+  }
+
   // لا تُؤكّد فاتورة الدفع المستضافة: معرّفها ليس معرّف الدفعة النهائي. المزوّد
   // يعيد معرّف الدفعة وحالتها من خادمه عند الويبهوك فقط.
   if (charge.value.providerTransactionId !== null && charge.value.status !== "pending") {

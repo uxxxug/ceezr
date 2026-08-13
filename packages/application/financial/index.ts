@@ -45,6 +45,7 @@ export type {
   ProviderEvent,
   ProviderTransactionSnapshot,
   RefundCapablePaymentProvider,
+  StalePendingPayment,
   SubscriptionInvoiceOutcome,
   SubscriptionRefundOutcome,
   SubscriptionRefundRequest,
@@ -56,6 +57,14 @@ export type {
   WalletTopUpRequest,
   WebhookEventStore,
 } from "./ports.ts";
+export {
+  type ReconcilePendingPaymentsDeps,
+  ReconcilePendingPaymentsError,
+  type ReconcilePendingPaymentsInput,
+  type ReconcilePendingPaymentsOutcome,
+  reconcilePendingPayments,
+  reconciliationEventId,
+} from "./reconcile-pending-payments.ts";
 export {
   type RefundPaymentDeps,
   RefundPaymentError,

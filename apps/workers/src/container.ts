@@ -30,6 +30,8 @@ import {
   createUnmatchedOrderFinder,
   createUnmatchedRiderNotifier,
 } from "../../../packages/infrastructure/dispatch/unmatched-adapters.ts";
+import { createPaymentRepository } from "../../../packages/infrastructure/financial/payment-adapters.ts";
+import { createPaymentProvider } from "../../../packages/infrastructure/financial/payment-provider-factory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import {
   asIdentifyingSender,
@@ -62,6 +64,7 @@ import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
+import { runReconcilePendingPayments } from "./jobs/reconcile-pending-payments.ts";
 import { runRedispatchSearching } from "./jobs/redispatch-searching.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
@@ -90,12 +93,31 @@ export const JOB_INTERVALS = {
    */
   verifyBackupRestore: 86400,
   deliverSafetyIncidents: 30,
+  /**
+   * كل خمس دقائق: المراجعة ليست مسار الحسم الأساسي بل شبكة الأمان تحته. تشغيلها
+   * أسرع يضاعف استدعاءات المزوّد بلا فائدة — الويبهوك أسرع منها دائماً — وتشغيلها
+   * أبطأ يطيل المدّة التي يكون فيها السائق قد دفع ولا يعمل.
+   */
+  reconcilePendingPayments: 300,
 } as const;
 
 /** المهلة الافتراضية للتوفّر البائت حين يغيب الإعداد — ثلاث ساعات. */
 const AVAILABILITY_FALLBACK_MINUTES = 180;
 /** أيام التحذير الافتراضية حين يغيب الإعداد. */
 const WARNING_FALLBACK_DAYS = 2;
+
+/**
+ * حدود المراجعة الافتراضية حين تغيب من `platform_settings`.
+ *
+ * • عشر دقائق قبل السؤال: أقصر من ذلك يسأل عن دفعةٍ السائقُ في صفحتها الآن،
+ *   فيقرأ `pending` ويعدّها معلّقة — استدعاءٌ بلا معلومة.
+ * • يومان سقفاً للعمر: بعدهما تكون فاتورة المزوّد انتهت ولن تتغيّر حالتها أبداً،
+ *   فالسؤال عنها استدعاءٌ متكرّرٌ إلى الأبد لصفٍّ ميّت.
+ * • خمسون سقفاً للدفعة: يحمي حدّ استدعاءات المزوّد، والأقدمُ أوّلاً فلا يُهمَل صفّ.
+ */
+const RECONCILE_FALLBACK_OLDER_THAN_SECONDS = 600;
+const RECONCILE_FALLBACK_MAX_AGE_SECONDS = 172_800;
+const RECONCILE_FALLBACK_LIMIT = 50;
 
 /**
  * يقرأ إعداد النسخ الاحتياطي من متغيّرات البيئة. يعيد `null` إذا غاب كلّ مخزنٍ
@@ -230,6 +252,45 @@ export function buildWorkerContainer(
   const lifecycleRpc = createSubscriptionLifecycleRpc(sql);
   const availabilityRpc = createStaleAvailabilityRpc(sql);
   const recomputePort = createRatingRecomputePort(sql);
+
+  /**
+   * مزوّد الدفع في العامل يُبنى من نفس متغيّرات البيئة التي تبنيه في البوابة، لا
+   * من إعدادٍ ثانٍ: مزوّدان مختلفان في عمليّتين على قاعدةٍ واحدة يعني أن يُراجَع
+   * صفٌّ أنشأه مزوّدٌ بسؤال مزوّدٍ آخر.
+   *
+   * وغيابه ليس خطأً يُسقِط العامل: بقيّة المهامّ (العروض، التوزيع، الاشتراكات،
+   * النسخ) لا تتوقّف على الدفع. وكذلك `manual`: مزوّدٌ لا خادم له لا يُسأل، فلا
+   * تُسجَّل المهمّة أصلاً بدل أن تفشل كل خمس دقائق إلى الأبد.
+   */
+  const paymentProviderName = process.env.PAYMENT_PROVIDER;
+  const reconcileProvider = (() => {
+    if (paymentProviderName === undefined || paymentProviderName === "manual") return null;
+    const built = createPaymentProvider(paymentProviderName, {
+      moyasar: {
+        secretKey: process.env.MOYASAR_SECRET_KEY ?? "",
+        webhookSecret: process.env.MOYASAR_WEBHOOK_SECRET ?? "",
+        callbackUrl: process.env.MOYASAR_CALLBACK_URL ?? "",
+      },
+      tap: {
+        secretKey: process.env.TAP_SECRET_KEY ?? "",
+        redirectUrl: process.env.TAP_REDIRECT_URL ?? "",
+      },
+    });
+    if (!built.ok) {
+      log.error("worker.payment_provider_invalid", {
+        provider: paymentProviderName,
+        detail: built.error.detail,
+      });
+      return null;
+    }
+    return built.value;
+  })();
+  const payments = createPaymentRepository(sql, async (driverId) => {
+    const rows = await sql<{ city_id: string }[]>`
+      select city_id from drivers where id = ${driverId}::uuid
+    `;
+    return rows[0]?.city_id ?? null;
+  });
   const warningSender = overrides.warningSender ?? grammyWarningSender(config.driverBotToken);
 
   /**
@@ -312,6 +373,20 @@ export function buildWorkerContainer(
     const row = raw.value.find((entry) => entry.key === "subscription_expiry_warning_days");
     const parsed = row === undefined ? Number.NaN : Number(row.value);
     return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : WARNING_FALLBACK_DAYS;
+  }
+
+  /**
+   * يقرأ حدّاً رقمياً من إعدادات المدينة، ويعود للاحتياطي عند غيابه أو تلفه.
+   *
+   * الاحتياطي ليس ترفاً: إعدادٌ ناقص لمدينةٍ لا يجوز أن يعني «لا تُراجَع دفعاتها
+   * أبداً» — فذلك يُعيد الثقب الذي جاءت المراجعة لإغلاقه، وبصمتٍ تام.
+   */
+  async function numericSetting(cityId: CityId, key: string, fallback: number): Promise<number> {
+    const raw = await settings.findByCity(cityId);
+    if (!raw.ok) return fallback;
+    const row = raw.value.find((entry) => entry.key === key);
+    const parsed = row === undefined ? Number.NaN : Number(row.value);
+    return Number.isFinite(parsed) && parsed > 0 ? Math.trunc(parsed) : fallback;
   }
 
   async function unmatchedThreshold(cityId: CityId): Promise<number> {
@@ -421,6 +496,49 @@ export function buildWorkerContainer(
             return `deactivated=${report.value.availability.deactivated} staleMinutes=${report.value.availability.staleMinutes}`;
           },
         },
+        ...(reconcileProvider === null
+          ? []
+          : [
+              {
+                /**
+                 * شبكة الأمان تحت الويبهوك: تسأل خادم المزوّد عن كل دفعةٍ بقيت
+                 * معلّقة، فتحسم ما دُفِع ولم يُفعَّل. بلاها كان الويبهوك الضائع
+                 * خسارةً نهائية لا يعرف بها أحد.
+                 */
+                name: `reconcile-pending-payments:${cityId}`,
+                everySeconds: JOB_INTERVALS.reconcilePendingPayments,
+                run: async () => {
+                  const report = await runReconcilePendingPayments(
+                    {
+                      cityId,
+                      olderThanSeconds: await numericSetting(
+                        cityId,
+                        "payment_reconcile_after_seconds",
+                        RECONCILE_FALLBACK_OLDER_THAN_SECONDS,
+                      ),
+                      maxAgeSeconds: await numericSetting(
+                        cityId,
+                        "payment_reconcile_max_age_seconds",
+                        RECONCILE_FALLBACK_MAX_AGE_SECONDS,
+                      ),
+                      limit: await numericSetting(
+                        cityId,
+                        "payment_reconcile_batch_limit",
+                        RECONCILE_FALLBACK_LIMIT,
+                      ),
+                    },
+                    {
+                      payments,
+                      provider: reconcileProvider,
+                      log: (message, meta) => log.info(message, meta),
+                    },
+                  );
+                  if (!report.ok) throw new Error(report.error.detail);
+                  const value = report.value;
+                  return `examined=${value.examined} settled=${value.settled} pending=${value.stillPending} already=${value.alreadySettled} failed=${value.failed}`;
+                },
+              },
+            ]),
         {
           name: `warn-expiring:${cityId}`,
           everySeconds: JOB_INTERVALS.warnExpiring,

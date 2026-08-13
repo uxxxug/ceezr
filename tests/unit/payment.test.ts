@@ -81,6 +81,18 @@ function fakePaymentRepo(initial?: PaymentTransaction): {
       findById: async () => ok(state.tx),
       findByIdempotencyKey: async () => ok(state.tx),
       recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
+      // يخزّن فعلاً كما يفعل RPC: مزدوجٌ يقول «خُزِن» بلا أن يخزن يخفي أنّ
+      // المرجع لم يُكتب — وهو بعينه الخلل الذي تحرسه هذه الاختبارات.
+      recordProviderReference: async (input) => {
+        const current = state.tx;
+        if (current === null) return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
+        if (current.providerTransactionId === null) {
+          state.tx = { ...current, providerTransactionId: input.providerTransactionId };
+          return ok({ providerTransactionId: input.providerTransactionId, stored: true });
+        }
+        return ok({ providerTransactionId: current.providerTransactionId, stored: false });
+      },
+      findStalePending: async () => ok([]),
       confirmPayment: async (input) => {
         const current = state.tx;
         if (current === null) return err(new PortFailureError("payments", "TRANSACTION_NOT_FOUND"));
@@ -291,6 +303,9 @@ describe("payment: subscribe-plan", () => {
       findById: async () => ok(raceTx),
       findByIdempotencyKey: async () => ok(null), // لا توجد (فحص سابق)
       recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
+      recordProviderReference: async (input) =>
+        ok({ providerTransactionId: input.providerTransactionId, stored: true }),
+      findStalePending: async () => ok([]),
       confirmPayment: async () => ok(raceTx),
       confirmWebhookPayment: async () => ok({ transaction: raceTx, duplicate: false }),
     };

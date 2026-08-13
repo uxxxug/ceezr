@@ -131,6 +131,55 @@ export function createPaymentRepository(
         return { checkoutUrl: String(envelope.checkout_url) };
       }),
 
+    recordProviderReference: (input) =>
+      guard("rpc.record_payment_provider_reference", async () => {
+        const rows = await sql`select record_payment_provider_reference(
+            ${input.transactionId}::uuid,
+            ${input.provider},
+            ${input.providerTransactionId}
+          ) as result`;
+        const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
+        if (envelope === null) {
+          throw new Error("ردّ record_payment_provider_reference غير مفهوم");
+        }
+        if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");
+        return {
+          providerTransactionId: String(envelope.provider_transaction_id),
+          stored: envelope.stored === true,
+        };
+      }),
+
+    findStalePending: (input) =>
+      guard("rpc.list_stale_pending_payments", async () => {
+        const rows = await sql`select list_stale_pending_payments(
+            ${input.cityId}::uuid,
+            ${input.olderThanSeconds}::integer,
+            ${input.maxAgeSeconds}::integer,
+            ${input.limit}::integer
+          ) as result`;
+        const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
+        if (envelope === null) {
+          throw new Error("ردّ list_stale_pending_payments غير مفهوم");
+        }
+        if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");
+        const raw = envelope.transactions;
+        if (!Array.isArray(raw)) throw new Error("قائمة المراجعة ليست مصفوفة");
+        return raw.map((entry) => {
+          const row = entry as Record<string, unknown>;
+          return {
+            id: String(row.id) as PaymentTransactionId,
+            cityId: String(row.city_id),
+            payerDriverId: String(row.payer_driver_id),
+            provider: String(row.provider),
+            providerTransactionId: String(row.provider_transaction_id),
+            amountMinor: Number(row.amount_minor),
+            currency: String(row.currency),
+            status: String(row.status) as PaymentTransactionStatus,
+            updatedAt: new Date(String(row.updated_at)),
+          };
+        });
+      }),
+
     confirmPayment: (input) =>
       guard("rpc.confirm_payment", async () => {
         const rows =

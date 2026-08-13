@@ -185,6 +185,9 @@ function fakePayments(existing: PaymentTransaction | null = null): {
       findById: async () => ok(existing),
       findByIdempotencyKey: async () => ok(existing),
       recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
+      recordProviderReference: async (input) =>
+        ok({ providerTransactionId: input.providerTransactionId, stored: true }),
+      findStalePending: async () => ok([]),
       confirmPayment: async () => err(new PortFailureError("payments", "NOT_USED_HERE")),
     },
     createInputs,
