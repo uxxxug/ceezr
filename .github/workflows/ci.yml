@@ -13,30 +13,6 @@ jobs:
   verify:
     runs-on: ubuntu-latest
 
-    # قاعدةٌ حقيقيةٌ في CI لا اختيارٌ تجميلي: ٤٣ من ٤٤ ملفَّ اختبارِ تكاملٍ
-    # مشروطةٌ بـ`TEST_DATABASE_URL`، وبدونها تُتخطّى كلُّها بصمتٍ ويُعلَن الفحصُ
-    # أخضرَ وقد جُرِّبَت الوحداتُ وحدَها. كلُّ ما يمسّ SQL — الدوالُّ، وRLS،
-    # والقيودُ، والهجراتُ نفسُها — كان بلا تحقّقٍ بعيدٍ إطلاقاً. صورةُ postgis
-    # لأنّ المخطّط الأساسيَّ يُنشئ الامتداد ويستعمل geography.
-    services:
-      postgres:
-        image: postgis/postgis:16-3.4
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: waslah
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-
-    env:
-      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-      # يُلزم الاختبارَ الرقيبَ بالإخفاق لو غاب الرابط: التخطّي الصامت هو
-      # العطلُ الذي نُصلحه هنا، فلا يجوز أن يعود بلا صوت.
-      CI_REQUIRE_DB: "1"
-
     steps:
       - uses: actions/checkout@v4
 
@@ -52,17 +28,6 @@ jobs:
 
       - name: Typecheck
         run: bun run typecheck
-
-      - name: تطبيق الهجرات بترتيب أسمائها
-        run: |
-          # بترتيب الأسماء حرفاً: هو الترتيب الذي تُكتب به الهجرات وتُطبَّق
-          # محلّياً، و`ON_ERROR_STOP` ليقف الفحصُ عند أوّل هجرةٍ معطوبة لا أن
-          # يمضي فتظهر الأعراضُ في اختبارٍ بعيدٍ عن سببها.
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "→ $file"
-            PGPASSWORD=postgres psql -v ON_ERROR_STOP=1 -q \
-              -h localhost -U postgres -d waslah -f "$file"
-          done
 
       - name: Test
         run: set -o pipefail; bun run test 2>&1 | tee /tmp/ci-output.log
@@ -179,6 +144,10 @@ jobs:
   integration:
     name: تكامل على PostgreSQL حقيقي
     runs-on: ubuntu-latest
+    # يُلزم الرقيبَ بالإخفاق لو ضاع رابطُ القاعدة من هذه الوظيفة: اختباراتُ
+    # التكامل تُتخطّى بصمتٍ حين يغيب، فيُعلَن الفحصُ أخضرَ بلا تجريبِ SQL أصلاً.
+    env:
+      CI_REQUIRE_DB: "1"
     services:
       postgres:
         image: postgis/postgis:17-3.5
