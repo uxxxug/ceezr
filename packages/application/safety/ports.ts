@@ -42,8 +42,21 @@ export interface SafetyDelivery {
   readonly locationWkt: string | null;
   readonly maxAttempts: number;
 }
+/**
+ * صفٌّ تُخطّي لأنّ إعداد مدينته ناقص. يُعاد صريحاً لا يُهمَل: تخطٍّ صامتٌ لنداء
+ * استغاثة أسوأ من العطل الذي حلّ محلّه.
+ */
+export interface SafetyDeferral {
+  readonly deliveryId: string;
+  readonly cityId: string;
+  readonly reason: string;
+}
+export interface SafetyClaim {
+  readonly delivery: SafetyDelivery | null;
+  readonly deferred: readonly SafetyDeferral[];
+}
 export interface SafetyDeliveryPort {
-  claim(): Promise<Result<SafetyDelivery | null, PortFailureError>>;
+  claim(): Promise<Result<SafetyClaim, PortFailureError>>;
   finish(input: {
     deliveryId: string;
     claimToken: string;

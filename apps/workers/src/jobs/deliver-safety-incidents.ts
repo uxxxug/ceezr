@@ -4,11 +4,12 @@ import type { PortFailureError } from "../../../../packages/application/ports/in
 import {
   type DeliverSafetyIncidentDeps,
   deliverSafetyIncidentBatch,
+  type SafetyBatchOutcome,
 } from "../../../../packages/application/safety/deliver-safety-incident.ts";
 import type { Result } from "../../../../packages/shared/result/index.ts";
 
 export function deliverSafetyIncidents(
   deps: DeliverSafetyIncidentDeps,
-): Promise<Result<{ claimed: number; delivered: number }, PortFailureError>> {
+): Promise<Result<SafetyBatchOutcome, PortFailureError>> {
   return deliverSafetyIncidentBatch(deps);
 }

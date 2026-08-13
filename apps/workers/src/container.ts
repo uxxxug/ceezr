@@ -595,7 +595,19 @@ export function buildWorkerContainer(
                     publisher: safetyPublisher,
                   });
                   if (!report.ok) throw new Error(report.error.detail);
-                  return `claimed=${report.value.claimed} delivered=${report.value.delivered}`;
+                  // المؤجَّل يُذكر باسمه في سطر السجلّ: نداءُ استغاثةٍ لا يُسلَّم
+                  // لنقص إعدادٍ يجب أن يظهر في كل دورة حتى يُضبط الإعداد.
+                  const deferred = report.value.deferred
+                    .map((entry) => `${entry.cityId}:${entry.reason}`)
+                    .join(",");
+                  return [
+                    `claimed=${report.value.claimed}`,
+                    `delivered=${report.value.delivered}`,
+                    `failed=${report.value.failed}`,
+                    deferred === ""
+                      ? "deferred=0"
+                      : `deferred=${report.value.deferred.length} (${deferred})`,
+                  ].join(" ");
                 },
               },
             ]),

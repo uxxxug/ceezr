@@ -83,6 +83,95 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
     resolution = createSafetyResolutionPort(sql);
   });
 
+  /**
+   * الانحصار الذي كان: المطالبة تمسح المدن كلّها بترتيب `created_at`، فصفٌّ في
+   * مدينةٍ بلا مجموعة تصعيد كان يُختار أوّلاً، ويُرجع `ESCALATION_GROUP_MISSING`،
+   * فيسقط الشوط كلّه — واستغاثةُ جدّة المهيّأة تماماً لا تُسلَّم أبداً. حقلٌ فارغ
+   * في مدينةٍ غير مفعّلة كان يكفي لتعطيل مسار الاستغاثة في المنصّة كلّها.
+   */
+  it("صفٌّ أقدم في مدينةٍ بلا مجموعة تصعيد لا يمنع تسليم استغاثة جدّة", async () => {
+    const poisonCity = await sql<{ id: string }[]>`
+      select id from cities where code = 'MKK' and telegram_escalation_group_id is null
+    `;
+    const poisonCityId = poisonCity[0]?.id;
+    if (poisonCityId === undefined) throw new Error("مدينة الاختبار غير مبذورة");
+
+    // صفٌّ سامّ أقدم من صفّ جدّة، في مدينةٍ ناقصة الإعداد.
+    const newId = async (rows: { id: string }[], what: string): Promise<string> => {
+      const id = rows[0]?.id;
+      if (id === undefined) throw new Error(`تعذر تجهيز ${what}`);
+      return id;
+    };
+    const poisonUserId = await newId(
+      await sql<{ id: string }[]>`
+        insert into users (city_id, telegram_id, full_name, phone, role)
+        values (${poisonCityId}, 880777::bigint, 'راكب مدينة غير مهيأة', '+966500880777', 'rider')
+        returning id`,
+      "الراكب",
+    );
+    const poisonRiderId = await newId(
+      await sql<{ id: string }[]>`
+        insert into riders (city_id, user_id) values (${poisonCityId}, ${poisonUserId}::uuid)
+        returning id`,
+      "ملف الراكب",
+    );
+    const poisonOrderId = await newId(
+      await sql<{ id: string }[]>`
+        insert into orders (city_id, rider_id, service, status, pickup)
+        values (${poisonCityId}, ${poisonRiderId}::uuid, 'transport', 'searching',
+          ST_SetSRID(ST_MakePoint(39.826, 21.389), 4326)::geography)
+        returning id`,
+      "الطلب",
+    );
+    const poisonIncidentId = await newId(
+      await sql<{ id: string }[]>`
+        insert into safety_incidents (city_id, order_id, reporter_role, reporter_user_id, status)
+        values (${poisonCityId}, ${poisonOrderId}::uuid, 'rider', ${poisonUserId}::uuid, 'open')
+        returning id`,
+      "الحادث",
+    );
+    const poisonDelivery = await sql<{ id: string }[]>`
+      insert into safety_incident_deliveries (city_id, incident_id, created_at, next_attempt_at)
+      values (${poisonCityId}, ${poisonIncidentId}::uuid, now() - interval '1 hour',
+        now() - interval '1 hour')
+      returning id`;
+    const poisonDeliveryId = poisonDelivery[0]?.id;
+    if (poisonDeliveryId === undefined) throw new Error("تعذر تجهيز الصفّ السامّ");
+
+    const triggered = await trigger.trigger({
+      orderId,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(triggered.ok).toBe(true);
+
+    const published: string[] = [];
+    const report = await deliverSafetyIncidents({
+      deliveries: createSafetyDeliveryPort(sql),
+      publisher: {
+        publish: async (card) => {
+          published.push(card.orderId);
+          return ok("991");
+        },
+      } satisfies SafetyCardPublisher,
+    });
+
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+    // استغاثة جدّة سُلّمت رغم أنّ الصفّ السامّ أقدم منها.
+    expect(report.value.delivered).toBe(1);
+    expect(published).toEqual([orderId]);
+    // والصفّ السامّ لم يُكتم: يُبلَّغ بسببه في كل دورة حتى يُضبط إعداد مدينته.
+    expect(report.value.deferred).toEqual([
+      { deliveryId: poisonDeliveryId, cityId: poisonCityId, reason: "ESCALATION_GROUP_MISSING" },
+    ]);
+    // ولم يُستهلك: لا محاولة محسوبة عليه ولا حالةٌ تغيّرت، فيُسلَّم فور ضبط الإعداد.
+    const poisonRow = await sql<{ status: string; attempts: number }[]>`
+      select status, attempts from safety_incident_deliveries where id = ${poisonDeliveryId}::uuid`;
+    expect(poisonRow[0]?.status).toBe("pending");
+    expect(poisonRow[0]?.attempts).toBe(0);
+  });
+
   it("ضغطتا SOS متزامنتان تنشئان حادثاً واحداً وoutbox واحداً", async () => {
     const results = await Promise.all([
       trigger.trigger({ orderId, actorTelegramId: RIDER_TELEGRAM_ID, reporterRole: "rider" }),
@@ -126,7 +215,12 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
       deliveries: createSafetyDeliveryPort(sql),
       publisher: failing,
     });
-    expect(first.ok).toBe(false);
+    // فشل النشر لم يعد يُسقط الشوط: يُعدّ فشلاً معلوماً ويستمرّ الشوط لغيره.
+    expect(first.ok).toBe(true);
+    if (first.ok) {
+      expect(first.value.delivered).toBe(0);
+      expect(first.value.failed).toBe(1);
+    }
     expect(failedCalls).toBe(1);
 
     const pending = await sql<{ status: string; attempts: number }[]>`

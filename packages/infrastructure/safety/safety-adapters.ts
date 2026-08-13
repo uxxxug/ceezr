@@ -61,19 +61,31 @@ export function createSafetyDeliveryPort(sql: Sql): SafetyDeliveryPort {
         >`select claim_safety_incident_delivery() result`;
         const row = envelope(rows[0]?.result, "claim_safety_incident_delivery");
         if (row.ok !== true) throw new Error(String(row.error ?? "UNKNOWN"));
+        const rawDeferred = Array.isArray(row.deferred) ? row.deferred : [];
+        const deferred = rawDeferred.map((entry) => {
+          const item = entry as Record<string, unknown>;
+          return {
+            deliveryId: String(item.delivery_id),
+            cityId: String(item.city_id),
+            reason: String(item.reason),
+          };
+        });
         const delivery = row.delivery as Record<string, unknown> | null;
-        if (delivery === null) return null;
+        if (delivery == null) return { delivery: null, deferred };
         return {
-          deliveryId: String(delivery.delivery_id),
-          incidentId: String(delivery.incident_id),
-          claimToken: String(delivery.claim_token),
-          groupId: String(delivery.group_id),
-          orderId: String(delivery.order_id),
-          service: String(delivery.service),
-          reporterRole: String(delivery.reporter_role) as "rider" | "driver",
-          status: String(delivery.status),
-          locationWkt: delivery.location_wkt == null ? null : String(delivery.location_wkt),
-          maxAttempts: Number(delivery.max_attempts),
+          deferred,
+          delivery: {
+            deliveryId: String(delivery.delivery_id),
+            incidentId: String(delivery.incident_id),
+            claimToken: String(delivery.claim_token),
+            groupId: String(delivery.group_id),
+            orderId: String(delivery.order_id),
+            service: String(delivery.service),
+            reporterRole: String(delivery.reporter_role) as "rider" | "driver",
+            status: String(delivery.status),
+            locationWkt: delivery.location_wkt == null ? null : String(delivery.location_wkt),
+            maxAttempts: Number(delivery.max_attempts),
+          },
         };
       }),
     finish: (input) =>
