@@ -45,15 +45,33 @@ jobs:
           # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
           # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
           # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          # الملحوظةُ الواحدة تُقتطع عند نحوِ ثلاثةِ آلافِ حرف، فرفعُ المخرجاتِ
+          # كاملةً يضيع أكثرَه. ولذلك يُرفَع المفيدُ وحده: أسماءُ المخفقة فهرساً،
+          # ثمّ ثلاثون سطراً قبل كلِّ إخفاقٍ — وفيها يطبع bun نصَّ الخطأ والمقارنةَ
+          # والأثرَ — في ملحوظاتٍ صغيرةٍ لا تُقتطع.
           grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
           if [ -s /tmp/ci-fails.txt ]; then
-            idx=$(sed 's/%/%25/g' /tmp/ci-fails.txt | awk '{printf "%s%%0A", $0}')
+            idx=$(cut -c1-160 /tmp/ci-fails.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=فهرس الاختبارات المخفقة::${idx}"
           fi
-          split -l 250 -d -a 2 <(sed 's/%/%25/g' /tmp/ci-output.log) /tmp/ci-chunk-
-          for chunk in /tmp/ci-chunk-*; do
-            body=$(awk '{printf "%s%%0A", $0}' "$chunk")
-            echo "::error title=مخرجات ${chunk##*-}::${body}"
+          : > /tmp/ci-context.txt
+          for lineno in $(cut -d: -f1 /tmp/ci-fails.txt | head -40); do
+            start=$((lineno > 30 ? lineno - 30 : 1))
+            sed -n "${start},${lineno}p" /tmp/ci-output.log >> /tmp/ci-context.txt
+            echo "──────── نهاية سياق إخفاق ────────" >> /tmp/ci-context.txt
+          done
+          if [ ! -s /tmp/ci-context.txt ]; then cp /tmp/ci-output.log /tmp/ci-context.txt; fi
+          rm -f /tmp/ci-part-*
+          split -l 22 -d -a 2 <(cut -c1-300 /tmp/ci-context.txt | sed 's/%/%25/g') /tmp/ci-part-
+          count=0
+          for part in /tmp/ci-part-*; do
+            count=$((count + 1))
+            if [ "$count" -gt 24 ]; then
+              echo "::error::سياقُ الإخفاق أطولُ من أربعٍ وعشرين ملحوظة — الباقي محجوب"
+              break
+            fi
+            body=$(awk '{printf "%s%%0A", $0}' "$part")
+            echo "::error title=سياق ${part##*-}::${body}"
           done
 
       - name: منع الكود الوهمي في الملفات المنفّذة
@@ -169,6 +187,18 @@ jobs:
             psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
           done
 
+      # `pg_dump` يرفض خادماً أحدثَ منه، واختبارُ تحقّقِ الاستعادة يستدعيه فعلاً.
+      # فطبعُ النسختين مع النتيجة يجعل هذا السببَ مقروءاً بلا تخمين، لأنّه لا
+      # يظهر محلّياً حيث النسختان متوافقتان.
+      - name: نسخةُ أدواتِ النسخ الاحتياطي مقابل نسخةِ الخادم
+        env:
+          PGPASSWORD: postgres
+        run: |
+          echo "pg_dump: $(pg_dump --version 2>&1 || echo غائب)"
+          echo "pg_dumpall: $(pg_dumpall --version 2>&1 || echo غائب)"
+          echo "pg_restore: $(pg_restore --version 2>&1 || echo غائب)"
+          echo "server: $(psql -h localhost -U postgres -d waslah -tAc 'show server_version')"
+
       - name: اختبارات التكامل على قاعدة حقيقية
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
@@ -188,15 +218,33 @@ jobs:
           # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
           # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
           # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          # الملحوظةُ الواحدة تُقتطع عند نحوِ ثلاثةِ آلافِ حرف، فرفعُ المخرجاتِ
+          # كاملةً يضيع أكثرَه. ولذلك يُرفَع المفيدُ وحده: أسماءُ المخفقة فهرساً،
+          # ثمّ ثلاثون سطراً قبل كلِّ إخفاقٍ — وفيها يطبع bun نصَّ الخطأ والمقارنةَ
+          # والأثرَ — في ملحوظاتٍ صغيرةٍ لا تُقتطع.
           grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
           if [ -s /tmp/ci-fails.txt ]; then
-            idx=$(sed 's/%/%25/g' /tmp/ci-fails.txt | awk '{printf "%s%%0A", $0}')
+            idx=$(cut -c1-160 /tmp/ci-fails.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=فهرس الاختبارات المخفقة::${idx}"
           fi
-          split -l 250 -d -a 2 <(sed 's/%/%25/g' /tmp/ci-output.log) /tmp/ci-chunk-
-          for chunk in /tmp/ci-chunk-*; do
-            body=$(awk '{printf "%s%%0A", $0}' "$chunk")
-            echo "::error title=مخرجات ${chunk##*-}::${body}"
+          : > /tmp/ci-context.txt
+          for lineno in $(cut -d: -f1 /tmp/ci-fails.txt | head -40); do
+            start=$((lineno > 30 ? lineno - 30 : 1))
+            sed -n "${start},${lineno}p" /tmp/ci-output.log >> /tmp/ci-context.txt
+            echo "──────── نهاية سياق إخفاق ────────" >> /tmp/ci-context.txt
+          done
+          if [ ! -s /tmp/ci-context.txt ]; then cp /tmp/ci-output.log /tmp/ci-context.txt; fi
+          rm -f /tmp/ci-part-*
+          split -l 22 -d -a 2 <(cut -c1-300 /tmp/ci-context.txt | sed 's/%/%25/g') /tmp/ci-part-
+          count=0
+          for part in /tmp/ci-part-*; do
+            count=$((count + 1))
+            if [ "$count" -gt 24 ]; then
+              echo "::error::سياقُ الإخفاق أطولُ من أربعٍ وعشرين ملحوظة — الباقي محجوب"
+              break
+            fi
+            body=$(awk '{printf "%s%%0A", $0}' "$part")
+            echo "::error title=سياق ${part##*-}::${body}"
           done
 
       - name: منع تخطّي اختبارات التكامل صامتاً
@@ -229,15 +277,33 @@ jobs:
           # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
           # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
           # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          # الملحوظةُ الواحدة تُقتطع عند نحوِ ثلاثةِ آلافِ حرف، فرفعُ المخرجاتِ
+          # كاملةً يضيع أكثرَه. ولذلك يُرفَع المفيدُ وحده: أسماءُ المخفقة فهرساً،
+          # ثمّ ثلاثون سطراً قبل كلِّ إخفاقٍ — وفيها يطبع bun نصَّ الخطأ والمقارنةَ
+          # والأثرَ — في ملحوظاتٍ صغيرةٍ لا تُقتطع.
           grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
           if [ -s /tmp/ci-fails.txt ]; then
-            idx=$(sed 's/%/%25/g' /tmp/ci-fails.txt | awk '{printf "%s%%0A", $0}')
+            idx=$(cut -c1-160 /tmp/ci-fails.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
             echo "::error title=فهرس الاختبارات المخفقة::${idx}"
           fi
-          split -l 250 -d -a 2 <(sed 's/%/%25/g' /tmp/ci-output.log) /tmp/ci-chunk-
-          for chunk in /tmp/ci-chunk-*; do
-            body=$(awk '{printf "%s%%0A", $0}' "$chunk")
-            echo "::error title=مخرجات ${chunk##*-}::${body}"
+          : > /tmp/ci-context.txt
+          for lineno in $(cut -d: -f1 /tmp/ci-fails.txt | head -40); do
+            start=$((lineno > 30 ? lineno - 30 : 1))
+            sed -n "${start},${lineno}p" /tmp/ci-output.log >> /tmp/ci-context.txt
+            echo "──────── نهاية سياق إخفاق ────────" >> /tmp/ci-context.txt
+          done
+          if [ ! -s /tmp/ci-context.txt ]; then cp /tmp/ci-output.log /tmp/ci-context.txt; fi
+          rm -f /tmp/ci-part-*
+          split -l 22 -d -a 2 <(cut -c1-300 /tmp/ci-context.txt | sed 's/%/%25/g') /tmp/ci-part-
+          count=0
+          for part in /tmp/ci-part-*; do
+            count=$((count + 1))
+            if [ "$count" -gt 24 ]; then
+              echo "::error::سياقُ الإخفاق أطولُ من أربعٍ وعشرين ملحوظة — الباقي محجوب"
+              break
+            fi
+            body=$(awk '{printf "%s%%0A", $0}' "$part")
+            echo "::error title=سياق ${part##*-}::${body}"
           done
 
       - name: منع تخطّي اختبارات e2e صامتاً
