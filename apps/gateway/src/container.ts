@@ -17,7 +17,10 @@ import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/a
 import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
-import type { SubscriptionWalletRpcPort } from "../../../packages/application/financial/ports.ts";
+import type {
+  PaymentProvider,
+  SubscriptionWalletRpcPort,
+} from "../../../packages/application/financial/ports.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
 import {
   type CustomerLiveRelay,
@@ -59,6 +62,7 @@ import {
   createSupportTicketContextReader,
   createSupportTicketPort,
 } from "../../../packages/infrastructure/dispute/support-adapters.ts";
+import { createPaymentRepository } from "../../../packages/infrastructure/financial/payment-adapters.ts";
 import { createSubscriptionWalletRpc } from "../../../packages/infrastructure/financial/subscription-wallet-adapters.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import {
@@ -269,6 +273,14 @@ export interface ContainerOverrides {
    * فيُثبَت مسار الدفع إلى العميل كاملاً على قاعدة حقيقية بلا شبكة تلغرام.
    */
   readonly liveLocationChannel?: LiveLocationChannel;
+  /**
+   * مزوّد الدفع المُركَّب في نقطة الدخول — البيع الذاتي للاشتراك من بوت السائق.
+   *
+   * يُمرَّر جاهزاً ولا يُبنى هنا عن قصد: بناؤه هنا يوجب قراءة مفاتيح المزوّد
+   * داخل الحاوية، فتصير أسرارُ الدفع في مسارٍ تستورده اختبارات البوت كلّها.
+   * وغيابه يعني أنّ زرّ «اشترك الآن» لا يظهر، لا أنّه يظهر ثمّ يفشل.
+   */
+  readonly paymentProvider?: PaymentProvider | null;
 }
 
 /**
@@ -618,6 +630,20 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     // عنه، وترقية الخطّة. المنفذ نفسه الذي تختبره اختبارات التكامل على قاعدة
     // حقيقية — لا نسخةٌ ثانية بسلوكٍ ثانٍ.
     subscriptionChanges: createSubscriptionChangeRpc(sql),
+    // البيع الذاتي: يظهر زرّ الشراء فقط عند تركيب مزوّد دفعٍ فعليّ.
+    ...(overrides.paymentProvider === undefined || overrides.paymentProvider === null
+      ? {}
+      : {
+          subscriptionPurchase: {
+            payments: createPaymentRepository(sql, async (driverId) => {
+              const rows = await sql<{ city_id: string }[]>`
+                select city_id from drivers where id = ${driverId}::uuid
+              `;
+              return rows[0]?.city_id ?? null;
+            }),
+            provider: overrides.paymentProvider,
+          },
+        }),
     dispatch: createDispatchRpc(sql),
     offers: createOfferDecisionPort(sql),
     clock: systemClock,

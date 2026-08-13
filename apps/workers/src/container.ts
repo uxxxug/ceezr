@@ -12,7 +12,10 @@ import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
 import type { ExpiryWarningSender } from "../../../packages/application/subscription/expire-subscriptions.ts";
-import { createGoogleDriveStorage } from "../../../packages/infrastructure/backup/index.ts";
+import {
+  createGoogleDriveStorage,
+  createLocalBackupStorage,
+} from "../../../packages/infrastructure/backup/index.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
   createDriverCandidateRepository,
@@ -57,6 +60,7 @@ import { recomputeRatings } from "./jobs/recompute-ratings.ts";
 import { runRedispatchSearching } from "./jobs/redispatch-searching.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
+import { runBackupRestoreVerification } from "./jobs/verify-backup-restore.ts";
 import type { JobDefinition, JobLogger } from "./runner.ts";
 
 /** تواتر كل مهمّة بالثواني. تقنيّة لا تجارية: لا تُقرأ من platform_settings. */
@@ -75,6 +79,11 @@ export const JOB_INTERVALS = {
   redispatchSearching: 20,
   recomputeRatings: 3600,
   backupDatabase: 86400, // يوميّ لا أقلّ — البند 7.2
+  /**
+   * التحقّق يوميّ مثل النسخ نفسه: نسخةٌ لم تُستعاد قطّ ليست نسخةً احتياطية بل
+   * ملفٌ مجهول المحتوى، ومن اكتشف فسادها يوم الكارثة لم يكن يملك نسخاً.
+   */
+  verifyBackupRestore: 86400,
   deliverSafetyIncidents: 30,
 } as const;
 
@@ -84,14 +93,19 @@ const AVAILABILITY_FALLBACK_MINUTES = 180;
 const WARNING_FALLBACK_DAYS = 2;
 
 /**
- * يقرأ إعداد النسخ الاحتياطي من متغيّرات البيئة. يعيد `null` إذا غاب اعتماد
- * Google Drive — فالنسخ الاحتياطي ميزة اختيارية لا توقف الإقلاع بغيابها.
+ * يقرأ إعداد النسخ الاحتياطي من متغيّرات البيئة. يعيد `null` إذا غاب كلّ مخزنٍ
+ * متاح — فالنسخ الاحتياطي ميزة اختيارية لا توقف الإقلاع بغيابها.
  * لا قيمة تجارية في الكود: عدد النسخ المحفوظة من متغيّر بيئة، والافتراضي 14.
+ *
+ * ويقوم الإعداد بوجود Google Drive **أو** مجلّد محليّ. لماذا المحليّ خيار؟ لأنّ ربط
+ * النسخ بمزوّد سحابيّ واحد يجعل تعطّل اعتماداته تعطّلاً تامّاً للنسخ، ومجلّدٌ محليّ
+ * على قرصٍ دائم أقلّ حمايةً لكنّه ليس عدماً.
  */
 function readBackupConfig(databaseUrl: string): BackupConfig | null {
   const serviceAccountJson = process.env.GOOGLE_SERVICE_ACCOUNT_JSON;
   const folderId = process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID;
-  if (!serviceAccountJson || !folderId) return null;
+  const localDir = process.env.BACKUP_LOCAL_DIR;
+  if ((!serviceAccountJson || !folderId) && !localDir) return null;
   const rawRetention = Number(process.env.BACKUP_RETENTION_COUNT ?? "14");
   const retentionCount =
     Number.isFinite(rawRetention) && rawRetention > 0 ? Math.trunc(rawRetention) : 14;
@@ -419,13 +433,16 @@ export function buildWorkerContainer(
       // المهامّ العامة تشمل النسخ الاحتياطي اليوميّ إلى Google Drive (البند 7).
       // لا يُفعَّل إلا عند توفر اعتمادات Google Drive، فغيابها تخطّي صامت لا خطأ.
       const backupConfig = readBackupConfig(config.databaseUrl);
+      const backupLocalDir = process.env.BACKUP_LOCAL_DIR;
       const backupStorage =
-        backupConfig !== null
-          ? createGoogleDriveStorage({
-              serviceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON ?? "",
-              folderId: process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID ?? "",
-            })
-          : null;
+        backupConfig === null
+          ? null
+          : backupLocalDir
+            ? createLocalBackupStorage({ directory: backupLocalDir })
+            : createGoogleDriveStorage({
+                serviceAccountJson: process.env.GOOGLE_SERVICE_ACCOUNT_JSON ?? "",
+                folderId: process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID ?? "",
+              });
 
       const global: JobDefinition[] = [
         ...(cityIds.length === 0
@@ -489,6 +506,25 @@ export function buildWorkerContainer(
             return v.status === "uploaded"
               ? `uploaded bytes=${v.bytes ?? 0} pruned=${v.pruned ?? 0}`
               : `skipped (${v.status})`;
+          },
+        });
+
+        /**
+         * تحقّق الاستعادة: يُنزِل أحدث أرشيف ويستعيده فعلاً في قاعدةٍ معزولة، ويعدّ
+         * الجداول والدوال وسياسات RLS والقُيود. يُسجّل مع مهمة النسخ نفسها وبنفس
+         * شرطها: تحقّقٌ بلا نسخٍ لا معنى له، ونسخٌ بلا تحقّق وعدٌ لم يُختبر قطّ.
+         * القفل الموزّع في runner يمنع تمرينين متزامنين يتسابقان على قاعدة التمرين.
+         */
+        global.push({
+          name: "verify-backup-restore",
+          everySeconds: JOB_INTERVALS.verifyBackupRestore,
+          run: async () => {
+            const report = await runBackupRestoreVerification(
+              { databaseUrl: config.databaseUrl },
+              { storage: backupStorage, sql, log: (message, meta) => log.info(message, meta) },
+            );
+            if (!report.ok) throw new Error(report.error.detail);
+            return `${report.value.status} run=${report.value.backupRunId ?? "none"}`;
           },
         });
       }

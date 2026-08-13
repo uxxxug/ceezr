@@ -340,13 +340,21 @@ Google Drive عبر `pg_dump` مضغوط، مع سياسة احتفاظ تلقا
 
 | المتغيّر | الوصف | مثال |
 | --- | --- | --- |
-| `PAYMENT_PROVIDER` | اسم مزوّد الدفع (لا مزوّد فعلي مدمج بعد) | `tap` |
-| `PAYMENT_API_KEY` | مفتاح API للمزوّد | `sk_live_...` |
-| `PAYMENT_SECRET` | سرّ التوقيع | `whsec_...` |
-| `PAYMENT_WEBHOOK_SECRET` | سرّ ويبهوك الدفع (مُقارن بزمن ثابت) | `openssl rand -hex 32` |
+| `PAYMENT_PROVIDER` | `moyasar` (مدمج فعلاً) أو `manual` | `moyasar` |
+| `MOYASAR_SECRET_KEY` | مفتاح Moyasar السرّي — اسم المستخدم في Basic auth | `sk_live_...` |
+| `MOYASAR_WEBHOOK_SECRET` | السرّ الذي يُثبِته Moyasar في جسم الويبهوك | `openssl rand -hex 32` |
+| `MOYASAR_CALLBACK_URL` | صفحة النتيجة بعد الدفع | `https://waslah-gateway.onrender.com/payment/done` |
+| `MOYASAR_SUCCESS_URL` | اختياري — صفحة النجاح | — |
+| `MOYASAR_BACK_URL` | اختياري — صفحة الرجوع | — |
 | `PAYMENT_ENVIRONMENT` | `sandbox` أو `production` | `sandbox` |
 | `ENABLE_DRIVER_SUBSCRIPTION` | تفعيل تدفّق اشتراك السائق | `true` |
 
-لا مزوّد دفع فعلي مدمج الآن — البنية وحدها قائمة (واجهة/تجريد).
+مزوّد Moyasar مدمج فعلاً: الفاتورة تُنشأ عبر `POST /v1/invoices`، والويبهوك لا
+يُصدّق حمولته إطلاقاً — يُثبَت أصله بـ`secret_token` ثمّ **تُعاد قراءة الدفعة من
+خادم المزوّد** (`GET /v1/payments/:id`)، ويُرفض أي اختلافٍ في المبلغ أو العملة.
 اشتراك السائق الشهري هو التدفّق الوحيد المفعّل؛ باقي الأغراض هياكل فقط.
-غياب هذه المتغيّرات يُعطّل الويبهوك بصمت لا يوقف الإقلاع.
+غياب هذه المتغيّرات يُعطّل مسار الدفع بصمت لا يوقف الإقلاع.
+
+المتغيّرات `PAYMENT_API_KEY` و`PAYMENT_SECRET` و`PAYMENT_WEBHOOK_SECRET` **مهجورة**
+ولم تبقَ مقروءة: سرٌّ مشتركٌ في ترويسةٍ مخترعة كان يجعل معرفتَه وحدها كافيةً
+لتفعيل أي اشتراك بأي مبلغ. احذفها من Render.

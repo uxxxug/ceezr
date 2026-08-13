@@ -87,19 +87,22 @@ update cities set is_active = true where slug in ('mkk', 'ruh', 'tif');
 
 ### الحالة الحالية
 
-- لا مزوّد دفع فعلي مدمج. البنية وحدها قائمة (واجهة/تجريد).
+- مزوّد Moyasar مدمج فعلاً: فاتورةٌ حقيقية ورابط دفعٍ مُستضاف.
 - اشتراك السائق الشهري هو التدفّق الوحيد المفعّل.
 - باقي الأغراض (دفع العملاء/التجار) هياكل فقط.
 
-### الإعداد (عند اختيار مزوّد فعلي لاحقاً)
+### الإعداد
 
 1. في Render → Environment Variables، أضف:
-   - `PAYMENT_PROVIDER` = اسم المزوّد (مثل `tap` أو `adyen`)
-   - `PAYMENT_API_KEY` = مفتاح API
-   - `PAYMENT_SECRET` = سرّ التوقيع
-   - `PAYMENT_WEBHOOK_SECRET` = سرّ ويبهوك الدفع
+   - `PAYMENT_PROVIDER` = `moyasar`
+   - `MOYASAR_SECRET_KEY` = مفتاح Moyasar السرّي (`sk_…`)
+   - `MOYASAR_WEBHOOK_SECRET` = السرّ الذي تضبطه في لوحة Moyasar للويبهوك
+   - `MOYASAR_CALLBACK_URL` = صفحة النتيجة بعد الدفع
    - `PAYMENT_ENVIRONMENT` = `sandbox` أو `production`
    - `ENABLE_DRIVER_SUBSCRIPTION` = `true`
+
+   واحذف `PAYMENT_API_KEY` و`PAYMENT_SECRET` و`PAYMENT_WEBHOOK_SECRET` — مهجورة
+   ولم تبقَ مقروءة.
 
 2. اضبط رابط الويبهوك عند المزوّد:
    ```

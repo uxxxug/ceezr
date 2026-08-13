@@ -7,15 +7,26 @@
  */
 
 import {
+  createPaymentProvider,
   createPaymentRepository,
   createWebhookEventStore,
-} from "../../../packages/infrastructure/financial/payment-adapters.ts";
+} from "../../../packages/infrastructure/financial/index.ts";
+import {
+  createDatabaseGaugeCollector,
+  createOperationalMetrics,
+} from "../../../packages/infrastructure/observability/index.ts";
 import { resolveMapStyle } from "../../../packages/maps/index.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { grammyCommandRegistrar, registerBotCommands } from "./bots/shared/register-commands.ts";
 import { buildContainer } from "./container.ts";
 import { type EmbeddedWorkerHandle, startEmbeddedWorker } from "./embedded-worker.ts";
+import { instrumentPaymentConfirmationDeps } from "./observability/payment.ts";
+import {
+  instrumentTelegramHandler,
+  instrumentUpdateDeduplicator,
+} from "./observability/telegram.ts";
+import { createObservabilityJobLogger } from "./observability/worker.ts";
 import {
   createMemoryRateLimiter,
   createRedisRateLimiter,
@@ -25,6 +36,8 @@ import { createUpstashRedis } from "./redis/upstash.ts";
 import { createAdminApiRoutes } from "./routes/admin-api.ts";
 import { createAdminLiveRoutes } from "./routes/admin-live.ts";
 import { createAdminUiRoutes } from "./routes/admin-ui.ts";
+import { createMetricsRoutes } from "./routes/metrics.ts";
+import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
 import { createServer } from "./server.ts";
 
 function log(message: string, meta: Record<string, unknown> = {}): void {
@@ -48,8 +61,67 @@ if (!configResult.ok) {
 const config = configResult.value;
 const startedAt = new Date();
 
+/**
+ * سجل المقاييس يُنشأ قبل الحاوية لأن `observabilityLog` يُمرَّر إليها. قبل اليوم كانت
+ * البوابة عمياء تماماً: لا `/metrics` ولا عدّاد واحد في المستودع كلّه، ومنصّةُ نقلٍ
+ * لا تعرف كم طلباً لم يجد سائقاً تُدار بالشكوى لا بالقياس.
+ */
+const operationalMetrics = createOperationalMetrics();
+
+function observabilityLog(message: string, meta: Record<string, unknown> = {}): void {
+  if (message === "dispatch.no_eligible_driver") operationalMetrics.recordDispatchNoDriver();
+  log(message, meta);
+}
+
+/**
+ * مزوّد الدفع الحقيقي — اختياري: يُفعَّل عند توفّر أسراره (البند 8)، وغيابها يُعطّل
+ * المسار لا يوقف الإقلاع. لكنّ إعداداً **خاطئاً** لا يُمرّ صامتاً: من كتب
+ * `PAYMENT_PROVIDER` وأخطأ في مفاتيحه يظنّ أن الدفع يعمل، فيُعلَن السبب في السجلّ.
+ *
+ * ولا يُقرأ `PAYMENT_WEBHOOK_SECRET` بعد اليوم: التحقّق صار من اختصاص المحوّل
+ * (Moyasar يُثبِت `secret_token` داخل الجسم)، ومقارنةُ سرٍّ مشترك في ترويسة مخترعة
+ * كانت تجعل معرفةَ السرّ وحدها كافيةً لتفعيل أي اشتراك بأي مبلغ.
+ */
+const paymentProviderName = process.env.PAYMENT_PROVIDER ?? "";
+const paymentProviderResult =
+  paymentProviderName === ""
+    ? null
+    : createPaymentProvider(paymentProviderName, {
+        moyasar: {
+          secretKey: process.env.MOYASAR_SECRET_KEY ?? "",
+          webhookSecret: process.env.MOYASAR_WEBHOOK_SECRET ?? "",
+          callbackUrl: process.env.MOYASAR_CALLBACK_URL ?? "",
+          ...(process.env.MOYASAR_SUCCESS_URL === undefined
+            ? {}
+            : { successUrl: process.env.MOYASAR_SUCCESS_URL }),
+          ...(process.env.MOYASAR_BACK_URL === undefined
+            ? {}
+            : { backUrl: process.env.MOYASAR_BACK_URL }),
+        },
+      });
+
+if (paymentProviderResult === null) {
+  log("مزوّد الدفع غير مُعدّ", {
+    hint: "اضبط PAYMENT_PROVIDER=moyasar مع مفاتيحه، أو manual للتفعيل اليدوي عبر الدعم",
+  });
+} else if (!paymentProviderResult.ok) {
+  // لا يُسقِط البوابة: إسقاطها يُفقد البوتَين والرحلات كلّها لأجل الاشتراك وحده،
+  // والرحلات لا تتوقّف على مزوّد دفع. ولكنّ الفشل مُعلَن لا مكتوم.
+  console.error(
+    JSON.stringify({
+      at: new Date().toISOString(),
+      message: "payment_provider.config_invalid",
+      provider: paymentProviderName,
+      detail: paymentProviderResult.error.detail,
+    }),
+  );
+}
+
+const paymentProvider = paymentProviderResult?.ok === true ? paymentProviderResult.value : null;
+
 // التركيب الحقيقي: اتصال قاعدة واحد ومحوّلات فعلية لكل منفذ.
-const container = buildContainer(config, { log });
+const container = buildContainer(config, { log: observabilityLog, paymentProvider });
+const databaseGauges = createDatabaseGaugeCollector(container.sql, operationalMetrics);
 
 /**
  * مقبض العامل المدمج إن كان مُفعَّلاً. يُملأ بعد إعلان جاهزية المنفذ لا قبله.
@@ -99,29 +171,25 @@ function limiter(options: { readonly limit: number; readonly windowSeconds: numb
       });
 }
 
-/**
- * ويبهوك الدفع — اختياري: يُفعَّل فقط عند توفّر أسرار الدفع (البند 8).
- * غيابها يُعطّل المسار بصمت لا يوقف الإقلاع.
- */
-const paymentWebhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-const paymentProviderName = process.env.PAYMENT_PROVIDER ?? null;
 const paymentWebhook =
-  paymentWebhookSecret !== undefined && paymentWebhookSecret !== "" && paymentProviderName !== null
-    ? {
-        webhookSecret: paymentWebhookSecret,
-        providerName: paymentProviderName,
-        confirmDeps: {
-          payments: createPaymentRepository(container.sql, async (driverId) => {
-            const rows = await container.sql<{ city_id: string }[]>`
-              select city_id from drivers where id = ${driverId}::uuid
-            `;
-            return rows[0]?.city_id ?? null;
-          }),
-          events: createWebhookEventStore(container.sql),
-        },
+  paymentProvider === null
+    ? undefined
+    : {
+        provider: paymentProvider,
+        confirmDeps: instrumentPaymentConfirmationDeps(
+          {
+            payments: createPaymentRepository(container.sql, async (driverId) => {
+              const rows = await container.sql<{ city_id: string }[]>`
+                select city_id from drivers where id = ${driverId}::uuid
+              `;
+              return rows[0]?.city_id ?? null;
+            }),
+            events: createWebhookEventStore(container.sql),
+          },
+          operationalMetrics,
+        ),
         log,
-      }
-    : undefined;
+      };
 
 const app = createServer({
   health: {
@@ -163,11 +231,28 @@ const app = createServer({
   webhook: {
     webhookSecret: config.telegramWebhookSecret,
     log,
-    handler: container.handler,
+    handler: instrumentTelegramHandler(container.handler, operationalMetrics, { log }),
+    dedup: instrumentUpdateDeduplicator(createUpdateDeduplicator(), operationalMetrics),
     rateLimits: { probes: limiter(PROBE_LIMIT), users: limiter(USER_LIMIT) },
   },
   ...(paymentWebhook === undefined ? {} : { paymentWebhook }),
 });
+
+/**
+ * مسار المقاييس — يُركَّب هنا وليس في `server.ts` لنفس سبب موجّهي الإدارة
+ * (ADR 0007): قراءة مقاييس القاعدة تستعلم فعلاً، و`server.ts` يُستورد في اختبارات
+ * المسارات بلا قاعدة. والمسار يفشل مغلقاً عند غياب `METRICS_TOKEN`: مقاييسُ
+ * منصّةٍ مفتوحةٌ للعالم تكشف أحجام الأعمال وأوقات الذروة لمن طلب الرابط.
+ */
+app.route(
+  "/",
+  createMetricsRoutes({
+    metrics: operationalMetrics,
+    metricsToken: process.env.METRICS_TOKEN,
+    databaseGauges,
+    log,
+  }),
+);
 
 // لوحة الإدارة: موجّهان منفصلان يُركَّبان هنا لا في server.ts (ADR 0007).
 const adminAuth = createAdminAuthPort(container.sql);
@@ -274,11 +359,14 @@ void verifySchemaApplied();
  * استجابة المنفذ فيقرأها Render فشلاً في فحص الجاهزية.
  */
 if (config.runWorkerInGateway) {
-  void startEmbeddedWorker(config, {
-    info: (message, fields) => log(message, fields ?? {}),
-    error: (message, fields) =>
-      console.error(JSON.stringify({ at: new Date().toISOString(), message, ...fields })),
-  })
+  void startEmbeddedWorker(
+    config,
+    createObservabilityJobLogger(operationalMetrics, {
+      info: (message, fields) => log(message, fields ?? {}),
+      error: (message, fields) =>
+        console.error(JSON.stringify({ at: new Date().toISOString(), message, ...fields })),
+    }),
+  )
     .then((handle) => {
       embeddedWorker = handle;
     })
