@@ -90,6 +90,11 @@ import {
   createSupportCardPublisher,
   createTicketOwnerNotifier,
 } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
+import {
+  instrumentDispatchRpc,
+  instrumentOfferWriter,
+} from "../../../packages/infrastructure/observability/dispatch.ts";
+import type { OperationalMetrics } from "../../../packages/infrastructure/observability/index.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import {
   createRatingPort,
@@ -281,6 +286,12 @@ export interface ContainerOverrides {
    * وغيابه يعني أنّ زرّ «اشترك الآن» لا يظهر، لا أنّه يظهر ثمّ يفشل.
    */
   readonly paymentProvider?: PaymentProvider | null;
+  /**
+   * سجلّ المقاييس. يُمرَّر من نقطة الدخول فتُلَفّ به منافذُ التوزيع الحقيقية:
+   * فتح جولة العروض وقبولها. والقياس بلفّ المنفذ لا بحقنٍ في المنطق — الدومين
+   * لا يعرف أنّه مقيس، ومصدرُ العدّ نتيجةُ RPC لا رسالةُ تلغرام التي قد تفشل بعدها.
+   */
+  readonly metrics?: OperationalMetrics;
 }
 
 /**
@@ -343,7 +354,10 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     offers,
     candidates,
     settings,
-    offerWriter: createOfferWriter(sql),
+    offerWriter:
+      overrides.metrics === undefined
+        ? createOfferWriter(sql)
+        : instrumentOfferWriter(createOfferWriter(sql), overrides.metrics),
     notifier: createTelegramDriverNotifier(sql, asOutboundSender(driverSender)),
     clock: systemClock,
     // يوصل `dispatch.no_eligible_driver` وتعداد أسباب الرفض إلى سجلّ الإنتاج.
@@ -644,7 +658,10 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
             provider: overrides.paymentProvider,
           },
         }),
-    dispatch: createDispatchRpc(sql),
+    dispatch:
+      overrides.metrics === undefined
+        ? createDispatchRpc(sql)
+        : instrumentDispatchRpc(createDispatchRpc(sql), overrides.metrics),
     offers: createOfferDecisionPort(sql),
     clock: systemClock,
     negotiation: { claims: claimDeps, relay: relayDeps },

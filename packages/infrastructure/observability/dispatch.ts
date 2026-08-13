@@ -1,16 +1,18 @@
 /**
  * الغرض: محوّلات مقاييس لمنافذ التوزيع الفعلية: فتح العروض وقبولها وانتهاؤها وغياب
  *   سائق؛ تُحقن عند تركيب الحاوية ولا تنقل أي سياسة توزيع إلى طبقة المراقبة.
- * الحالة: منفّذ فعلياً — يحتاج تركيبه في container.ts من الوكيل الرئيسي.
- * ينتمي إلى: apps/gateway/src/observability
+ * الحالة: منفّذ فعلياً ومركَّب في حاويتي البوابة والعامل.
+ * ينتمي إلى: packages/infrastructure/observability
+ *   (نُقل من apps/gateway: العامل يحتاج لفَّ منفذ إسقاط العروض أيضاً، واستيراد
+ *   حاويةِ العامل من داخل تطبيق البوابة يعقد اتّجاه الاعتماد بلا سبب.)
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/container.ts وapps/workers/src/container.ts.
  * ملاحظات مستقبلية: نتيجة RPC هي مصدر العدّ، لا رسالة Telegram التي قد تفشل بعد الكتابة.
  */
 
-import type { OfferWriter } from "../../../../packages/application/dispatch/broadcast-offers.ts";
-import type { ExpireOffersRpcPort } from "../../../../packages/application/dispatch/expire-offers-ports.ts";
-import type { DispatchRpcPort } from "../../../../packages/application/ports/index.ts";
-import type { OperationalMetrics } from "../../../../packages/infrastructure/observability/index.ts";
+import type { OfferWriter } from "../../application/dispatch/broadcast-offers.ts";
+import type { ExpireOffersRpcPort } from "../../application/dispatch/expire-offers-ports.ts";
+import type { DispatchRpcPort } from "../../application/ports/index.ts";
+import type { OperationalMetrics } from "./index.ts";
 
 export function instrumentOfferWriter(
   writer: OfferWriter,

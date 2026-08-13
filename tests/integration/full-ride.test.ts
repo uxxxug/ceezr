@@ -12,6 +12,10 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import {
+  createOperationalMetrics,
+  type OperationalMetrics,
+} from "../../packages/infrastructure/observability/index.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
@@ -55,6 +59,7 @@ const config: AppConfig = {
 let sql: Sql;
 let app: ReturnType<typeof createServer>;
 let container: ReturnType<typeof buildContainer>;
+let metrics: OperationalMetrics;
 let driverSent: SentMessage[];
 let riderSent: SentMessage[];
 let cityId: string;
@@ -126,9 +131,11 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     `;
     driverSent = [];
     riderSent = [];
+    metrics = createOperationalMetrics();
     container = buildContainer(config, {
       driverSender: capturing(driverSent),
       riderSender: capturing(riderSent),
+      metrics,
     });
     app = createServer({
       health: { now: () => new Date(), startedAt: new Date(), env: process.env },
@@ -341,6 +348,22 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
       select action from audit_log where entity_id = ${order?.id ?? ""}
     `;
     expect(audit.map((row) => row.action)).toContain("order.claimed");
+
+    /**
+     * 6) العدّادات تحرّكت على هذا المسار نفسه — لا على مسارٍ اختباريّ موازٍ.
+     *
+     * محوّلات القياس كانت مكتوبةً وغير مركّبة في الحاويتين، ووحدةٌ غير مركّبة لا
+     * تعمل ولو كانت اختباراتها خضراء. فيُثبَت التركيب هنا حيث يمرّ الطلب الحقيقي:
+     * لو حُذف لفُّ المنفذ من `container.ts` سقط هذا التوكيد، وهو الغرض منه.
+     */
+    const rendered = metrics.registry.render();
+    const counter = (name: string): number => {
+      const match = new RegExp(`^${name}(?:\\{[^}]*\\})? ([0-9.]+)$`, "m").exec(rendered);
+      return match === null ? Number.NaN : Number(match[1]);
+    };
+    expect(counter("waslah_dispatch_requests_total")).toBe(1);
+    expect(counter("waslah_dispatch_offers_sent_total")).toBe(1);
+    expect(counter("waslah_dispatch_offers_accepted_total")).toBe(1);
   });
 
   it("لا يبثّ على سائق غير متاح، ويبقى الطلب في البحث بلا عرض", async () => {

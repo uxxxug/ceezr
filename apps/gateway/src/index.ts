@@ -120,7 +120,11 @@ if (paymentProviderResult === null) {
 const paymentProvider = paymentProviderResult?.ok === true ? paymentProviderResult.value : null;
 
 // التركيب الحقيقي: اتصال قاعدة واحد ومحوّلات فعلية لكل منفذ.
-const container = buildContainer(config, { log: observabilityLog, paymentProvider });
+const container = buildContainer(config, {
+  log: observabilityLog,
+  paymentProvider,
+  metrics: operationalMetrics,
+});
 const databaseGauges = createDatabaseGaugeCollector(container.sql, operationalMetrics);
 
 /**
@@ -366,6 +370,9 @@ if (config.runWorkerInGateway) {
       error: (message, fields) =>
         console.error(JSON.stringify({ at: new Date().toISOString(), message, ...fields })),
     }),
+    // نفسُ سجلّ المقاييس الذي يخدمه `/metrics`: العامل المدمج يعيش في هذه العملية،
+    // فعدّاداتُه — وأهمُّها عرضٌ سقط بمهلته — تُقرأ من المنفذ نفسه بلا خدمةٍ ثانية.
+    { metrics: operationalMetrics },
   )
     .then((handle) => {
       embeddedWorker = handle;

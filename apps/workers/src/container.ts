@@ -40,6 +40,11 @@ import type { OutboundSender } from "../../../packages/infrastructure/notificati
 import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import { createSafetyCardPublisher } from "../../../packages/infrastructure/notification/telegram-safety-notifier.ts";
+import {
+  instrumentExpireOffersRpc,
+  instrumentOfferWriter,
+} from "../../../packages/infrastructure/observability/dispatch.ts";
+import type { OperationalMetrics } from "../../../packages/infrastructure/observability/index.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { createRatingRecomputePort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
 import { createSafetyDeliveryPort } from "../../../packages/infrastructure/safety/safety-adapters.ts";
@@ -146,6 +151,12 @@ export interface WorkerContainerOverrides {
   readonly identifyingDriver?: IdentifyingSender;
   /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
   readonly safetyPublisher?: SafetyCardPublisher;
+  /**
+   * سجلّ المقاييس. يُلَفّ به منفذُ إسقاط العروض بمهلتها، فيُعَدّ ما لا يظهر في أيّ
+   * سجلٍّ آخر: عرضٌ عُرِض ولم يُقبل. ومصدرُ العدّ نتيجةُ RPC — أي عددُ الصفوف التي
+   * انتقلت فعلاً — لا نيّةُ المهمّة، فلا يُعَدّ إسقاطٌ لم يحدث.
+   */
+  readonly metrics?: OperationalMetrics;
 }
 
 /** مرسِل التحذيرات عبر واجهة تيليجرام الحقيقية، ملفوفاً في Result بلا استثناءات. */
@@ -212,7 +223,10 @@ export function buildWorkerContainer(
   const cities = createCityDirectory(sql);
   const settings = createSettingsRepository(sql);
   const offers = createPendingOfferRepository(sql);
-  const expireRpc = createExpireOffersRpc(sql);
+  const expireRpc =
+    overrides.metrics === undefined
+      ? createExpireOffersRpc(sql)
+      : instrumentExpireOffersRpc(createExpireOffersRpc(sql), overrides.metrics);
   const lifecycleRpc = createSubscriptionLifecycleRpc(sql);
   const availabilityRpc = createStaleAvailabilityRpc(sql);
   const recomputePort = createRatingRecomputePort(sql);
@@ -250,7 +264,10 @@ export function buildWorkerContainer(
     offers: createOfferRepository(sql),
     candidates: createDriverCandidateRepository(sql),
     settings,
-    offerWriter: createOfferWriter(sql),
+    offerWriter:
+      overrides.metrics === undefined
+        ? createOfferWriter(sql)
+        : instrumentOfferWriter(createOfferWriter(sql), overrides.metrics),
     notifier: createTelegramDriverNotifier(sql, driverOut),
     clock: systemClock,
     log: (message: string, meta: Record<string, unknown>) => log.info(message, meta),
