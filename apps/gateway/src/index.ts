@@ -98,11 +98,16 @@ const paymentProviderResult =
             ? {}
             : { backUrl: process.env.MOYASAR_BACK_URL }),
         },
+        tap: {
+          secretKey: process.env.TAP_SECRET_KEY ?? "",
+          redirectUrl: process.env.TAP_REDIRECT_URL ?? "",
+          ...(process.env.TAP_POST_URL === undefined ? {} : { postUrl: process.env.TAP_POST_URL }),
+        },
       });
 
 if (paymentProviderResult === null) {
   log("مزوّد الدفع غير مُعدّ", {
-    hint: "اضبط PAYMENT_PROVIDER=moyasar مع مفاتيحه، أو manual للتفعيل اليدوي عبر الدعم",
+    hint: "اضبط PAYMENT_PROVIDER=tap أو moyasar مع مفاتيحه، أو manual للتفعيل اليدوي عبر الدعم",
   });
 } else if (!paymentProviderResult.ok) {
   // لا يُسقِط البوابة: إسقاطها يُفقد البوتَين والرحلات كلّها لأجل الاشتراك وحده،

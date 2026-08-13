@@ -85,11 +85,20 @@ services:
       - key: METRICS_TOKEN
         sync: false
       # ── طبقة الدفع: اشتراك السائق الشهري فقط (البند 8) ──────────────────
-      # مزوّد Moyasar مدمج فعلاً. كلها sync: false — أسرار لا تُكتب هنا،
+      # مزوّدا Tap وMoyasar مدمجان فعلاً. كلها sync: false — أسرار لا تُكتب هنا،
       # وغيابها يُعطّل مسار الدفع وحده بصمت لا يوقف الإقلاع.
       #
-      # ‏PAYMENT_PROVIDER: moyasar للدفع الحقيقي، أو manual للتفعيل اليدوي عبر الدعم.
+      # ‏PAYMENT_PROVIDER: tap أو moyasar للدفع الحقيقي، أو manual للتفعيل اليدوي عبر الدعم.
       - key: PAYMENT_PROVIDER
+        sync: false
+      # مفتاح Tap السرّي (sk_…): Bearer للـAPI ومفتاح HMAC للويبهوك معاً.
+      - key: TAP_SECRET_KEY
+        sync: false
+      # صفحة العودة بعد الدفع — لازمة لمدى و3DS وليست سرّاً.
+      - key: TAP_REDIRECT_URL
+        sync: false
+      # عنوان ويبهوك Tap لهذه الخدمة.
+      - key: TAP_POST_URL
         sync: false
       # مفتاح Moyasar السرّي (sk_…) يُستخدم كاسم مستخدم في Basic auth.
       - key: MOYASAR_SECRET_KEY

@@ -1,6 +1,6 @@
 /**
  * الغرض: اختيار مزوّد الدفع من تركيب التطبيق لا من متغيرات البيئة داخل المحوّل.
- * الحالة: منفّذ فعلياً؛ Moyasar حقيقي وmanual مسار دعم بلا ويبهوك مزيّف.
+ * الحالة: منفّذ فعلياً؛ Tap وMoyasar حقيقيان وmanual مسار دعم بلا ويبهوك مزيّف.
  * ينتمي إلى: infrastructure/financial
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/index.ts عند تركيب التبعيات.
  * ملاحظات مستقبلية: التفعيل اليدوي يتم بقرار دعم/إدارة عبر RPC مع سجل تدقيق؛ لا
@@ -16,10 +16,12 @@ import type {
 import { PortFailureError } from "../../application/ports/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { createMoyasarProvider, type MoyasarProviderOptions } from "./moyasar-provider.ts";
+import { createTapProvider, type TapProviderOptions } from "./tap-provider.ts";
 
-export type PaymentProviderName = "moyasar" | "manual";
+export type PaymentProviderName = "tap" | "moyasar" | "manual";
 export interface PaymentProviderSecrets {
   readonly moyasar?: MoyasarProviderOptions;
+  readonly tap?: TapProviderOptions;
 }
 export class PaymentProviderFactoryError {
   readonly code = "PAYMENT_PROVIDER_FACTORY_FAILURE" as const;
@@ -57,6 +59,17 @@ export function createPaymentProvider(
       return err(new PaymentProviderFactoryError("MOYASAR_CONFIGURATION_INCOMPLETE"));
     }
     return ok(createMoyasarProvider(secrets.moyasar));
+  }
+  if (name === "tap") {
+    if (secrets.tap === undefined) {
+      return err(new PaymentProviderFactoryError("TAP_SECRETS_REQUIRED"));
+    }
+    // لا سرّ ويبهوك منفصل عند Tap: التوقيع بالمفتاح السرّي نفسه. فالنقص المحتمل
+    // اثنان فقط، وكلاهما يُسقِط التركيب بدل أن يُنتج مزوّداً يفشل عند أول دفعة.
+    if (secrets.tap.secretKey.trim() === "" || secrets.tap.redirectUrl.trim() === "") {
+      return err(new PaymentProviderFactoryError("TAP_CONFIGURATION_INCOMPLETE"));
+    }
+    return ok(createTapProvider(secrets.tap));
   }
   if (name === "manual") return ok(manualProvider());
   return err(new PaymentProviderFactoryError("UNKNOWN_PAYMENT_PROVIDER"));

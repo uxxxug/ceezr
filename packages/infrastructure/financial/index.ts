@@ -17,3 +17,10 @@ export {
   type PaymentProviderSecrets,
 } from "./payment-provider-factory.ts";
 export { createSubscriptionWalletRpc } from "./subscription-wallet-adapters.ts";
+export {
+  chargeHashString,
+  createTapProvider,
+  decimalToMinorUnits,
+  minorUnitsToDecimalString,
+  type TapProviderOptions,
+} from "./tap-provider.ts";
