@@ -188,6 +188,16 @@ export function createEscalationPort(sql: Sql): EscalationPort {
           service: String(envelope.service) as ServiceType,
         };
       }),
+
+    markDelivered: (orderId: OrderId, messageId: string | null) =>
+      guard("rpc.mark_escalation_delivered", async () => {
+        const rows = await sql<{ result: unknown }[]>`
+          select mark_escalation_delivered(${orderId}::uuid, ${messageId}) as result
+        `;
+        const envelope = readEnvelope(rows[0]?.result);
+        if (envelope === null) unreadable("mark_escalation_delivered");
+        return { firstDelivery: envelope.first_delivery === true };
+      }),
   };
 }
 

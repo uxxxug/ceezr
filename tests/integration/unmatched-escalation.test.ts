@@ -101,6 +101,12 @@ const callback = (chatId: number, data: string) => ({
 
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
+/**
+ * من يردّ بإخفاق عند إرسال بطاقة الإسناد. يُنقص في كل نداءٍ حتّى يبلغ الصفر،
+ * فيُحاكي إخفاقاً عابراً لا دائماً — والعابر هو محلّ العطب المقيس.
+ */
+let sendFailuresLeft = 0;
+
 /** كنسٌ بعتبة صفرية: الطلب المُنشأ للتوّ يُعدّ عالقاً بلا انتظار حقيقي في الاختبار. */
 async function sweep(staleAfterSeconds = 0, maxBroadcastRounds = MAX_ROUNDS) {
   const negotiation = createNegotiationWiring(sql, {
@@ -110,6 +116,10 @@ async function sweep(staleAfterSeconds = 0, maxBroadcastRounds = MAX_ROUNDS) {
     // ويجب أن يعود معرّف الرسالة ليُربط بالطلب.
     identifyingDriver: {
       sendReturningId: async (chatId: string, body: string) => {
+        if (sendFailuresLeft > 0) {
+          sendFailuresLeft -= 1;
+          throw new Error("انقطاعٌ عابرٌ في الشبكة");
+        }
         groupSent.push({ chatId, text: body, markup: null });
         return "1";
       },
@@ -210,6 +220,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
   });
 
   beforeEach(async () => {
+    sendFailuresLeft = 0;
     await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, ratings,
                              order_offers, orders, subscriptions, driver_capabilities,
                              driver_availability, drivers, riders, users restart identity cascade`;
@@ -375,6 +386,78 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
 
     expect(report.value.escalated).toHaveLength(1);
     expect(report.value.stillBroadcasting).toBe(0);
+  });
+
+  /**
+   * العطب المقيس: كان الأثر يُكتب قبل إرسال البطاقة، فإن أخفق الإرسال مرّةً
+   * واحدةً — انقطاعٌ أو 429 من تلغرام — قرأ الحارس ذلك الأثرَ فمنع كلّ إعادة
+   * إلى الأبد: بطاقةٌ لم تصل قروبَ الإسناد، وراكبٌ لم يُخبَر، وأثرٌ يقول «صُعِّد»
+   * فيطمأنُّ من يراجعه. اليتم بعينه الذي جاء التصعيد ليمنعه.
+   */
+  it("إخفاق إرسال البطاقة لا يُخرس الطلب: الشوط التالي يُصعّده فعلاً", async () => {
+    await riderOrdersRide();
+    riderSent.length = 0;
+    groupSent.length = 0;
+
+    sendFailuresLeft = 1;
+    const first = await sweep();
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    // الشوط الأول: لا بطاقة، ولا رسالةً للراكب، ويُعدّ مُخفقاً لا مُصعّداً.
+    expect(first.value.escalated).toHaveLength(0);
+    expect(first.value.failed).toBe(1);
+    expect(groupSent).toHaveLength(0);
+    expect(riderSent).toHaveLength(0);
+
+    // والأثر لا يكذب: موجودٌ ولكنّه موسومٌ بأنّ البطاقة لم تُسلَّم.
+    const pending = await sql<{ delivered: boolean | null }[]>`
+      select (payload->>'delivered')::boolean as delivered
+        from audit_log where action = 'order.escalated'`;
+    expect(pending).toHaveLength(1);
+    expect(pending[0]?.delivered).toBe(false);
+
+    // الشوط التالي ينجح: البطاقة تصل، والراكب يُخبَر أخيراً.
+    const second = await sweep();
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+
+    expect(second.value.escalated).toHaveLength(1);
+    expect(second.value.notified).toHaveLength(1);
+    expect(groupSent.filter((m) => m.chatId === "-1002")).toHaveLength(1);
+    expect(riderSent).toHaveLength(1);
+
+    // ولا يتراكم في السجلّ أثرٌ لكلّ محاولة: أثرٌ واحدٌ صار مُسلَّماً.
+    const settled = await sql<{ delivered: boolean | null; message_id: string | null }[]>`
+      select (payload->>'delivered')::boolean as delivered,
+             payload->>'message_id' as message_id
+        from audit_log where action = 'order.escalated'`;
+    expect(settled).toHaveLength(1);
+    expect(settled[0]?.delivered).toBe(true);
+    expect(settled[0]?.message_id).toBe("1");
+  });
+
+  /**
+   * والإصلاح لا يفتح باب التكرار: تسليمٌ ناجحٌ يُغلق الباب كما كان يُغلقه
+   * من قبل — ولا يُغرَق قروبُ الإسناد بنفس الحالة كلّ دقيقة.
+   */
+  it("التسليم الناجح لا يُكرّر: شوطٌ ثانٍ لا يبعث بطاقةً ولا رسالةً", async () => {
+    await riderOrdersRide();
+    riderSent.length = 0;
+    groupSent.length = 0;
+
+    await sweep();
+    expect(groupSent.filter((m) => m.chatId === "-1002")).toHaveLength(1);
+    expect(riderSent).toHaveLength(1);
+
+    const again = await sweep();
+    expect(again.ok).toBe(true);
+    if (!again.ok) return;
+
+    expect(again.value.escalated).toHaveLength(0);
+    expect(again.value.alreadyEscalated).toBe(1);
+    expect(groupSent.filter((m) => m.chatId === "-1002")).toHaveLength(1);
+    expect(riderSent).toHaveLength(1);
   });
 
   it("الطلب الذي لم يبلغ العتبة بعد لا يُصعَّد", async () => {
