@@ -13,7 +13,17 @@ import type { CityId, OrderId, ServiceType } from "../../shared/kernel/index.ts"
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { OrderRepository, PortFailureError } from "../ports/index.ts";
 
-export type EscalationReason = "unsubscribed_cycles_exhausted" | "no_driver_at_all";
+/**
+ * أنواع التصعيد ثلاثة لأنّ تصرّف موظّف الإسناد يختلف باختلافها:
+ * - `no_driver_at_all`: لم يُعرض الطلب على أحد قطّ — العلّة في العرض لا في السائقين.
+ * - `broadcast_rounds_exhausted`: عُرِض وتجاهلوه حتّى نفدت الدورات — السائقون موجودون
+ *   ولكنّهم أعرضوا، وخلطُه بالأول يقول للموظّف خبراً غير صحيح.
+ * - `unsubscribed_cycles_exhausted`: مسار قروب غير المشتركين انتهى بلا اتفاق.
+ */
+export type EscalationReason =
+  | "unsubscribed_cycles_exhausted"
+  | "no_driver_at_all"
+  | "broadcast_rounds_exhausted";
 
 export type EscalationOutcome =
   | {

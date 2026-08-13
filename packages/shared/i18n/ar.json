@@ -91,6 +91,7 @@
   "driver.welcome": "مرحباً بك في وَصْلة للسائقين. لنكمل تسجيلك.",
   "group.escalation_card": "⚠️ طلب يحتاج إسناداً يدوياً\n\n🔧 الخدمة: {service}\n📍 المنطقة التقريبية: {area}\n🔁 دورات جُرِّبت: {cycles}\n📄 السبب: {reason}\n🆔 الطلب: {order}",
   "group.escalation_reason_no_driver_at_all": "لا يوجد أي سائق متاح في المدينة",
+  "group.escalation_reason_broadcast_rounds_exhausted": "عُرِض على السائقين ونفدت دورات البثّ بلا قبول",
   "group.escalation_reason_unsubscribed_cycles_exhausted": "نفدت دورات قروب غير المشتركين بلا اتفاق",
   "group.unsub_accept_button": "✅ قبول",
   "group.unsub_card": "🚕 طلب متاح — الدورة {cycle}\n\n🔧 الخدمة: {service}\n📍 المنطقة التقريبية: {area}\n📝 ملاحظات: {notes}\n\nأول ثلاثة يضغطون «قبول» يدخلون الدور بالترتيب.",

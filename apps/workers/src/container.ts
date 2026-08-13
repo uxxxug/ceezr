@@ -145,6 +145,14 @@ function readBackupConfig(databaseUrl: string): BackupConfig | null {
 const UNMATCHED_FALLBACK_SECONDS = 180;
 
 /**
+ * حدّ الدورات الاحتياطي حين يغيب `max_broadcast_rounds`: واحدة، وميلانُه مقصود.
+ * الخطأ هنا له اتجاهان غير متكافئين: حدٌّ أقلّ ممّا ينبغي يُصعَّد طلباً كان له دورةٌ
+ * أخرى، فيراه موظّفٌ ويتصرّف — وحدٌّ أعلى ممّا ينبغي يُعيد اليتم الذي جاء هذا المسح
+ * ليغلقه، وبلا أثر. وإعدادات المدن المفعّلة تحمل المفتاح فعلاً، فهذا مسار الخراب لا المعتاد.
+ */
+const BROADCAST_ROUNDS_FALLBACK = 1;
+
+/**
  * أقصى تواز للمهامّ، ومعه حجم تجمّع اتصالات القفل. الرقمان مرتبطان بالضرورة لا
  * بالاختيار: كل مهمّة جارية تحتجز اتصال قفل واحداً طول عملها، فتجمّع القفل يجب أن
  * يتّسع للتوازي كلّه وإلّا انتظرت مهمّة اتصالاً لن يتحرّر إلّا بانتهاء مهمّة أخرى.
@@ -455,11 +463,16 @@ export function buildWorkerContainer(
               escalate: negotiation.escalate,
               notifier: unmatchedNotifier,
               staleAfterSeconds: await unmatchedThreshold(cityId),
+              maxBroadcastRounds: await numericSetting(
+                cityId,
+                "max_broadcast_rounds",
+                BROADCAST_ROUNDS_FALLBACK,
+              ),
               log: (message, meta) => log.info(message, meta),
             });
             if (!report.ok) throw new Error(JSON.stringify(report.error));
             const value = report.value;
-            return `examined=${value.examined} escalated=${value.escalated.length} notified=${value.notified.length} already=${value.alreadyEscalated} failed=${value.failed}`;
+            return `examined=${value.examined} escalated=${value.escalated.length} notified=${value.notified.length} already=${value.alreadyEscalated} broadcasting=${value.stillBroadcasting} failed=${value.failed}`;
           },
         },
         {

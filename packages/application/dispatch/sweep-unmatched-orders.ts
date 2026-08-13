@@ -1,9 +1,16 @@
 /**
- * الغرض: التقاط الطلبات التي بقيت في حالة البحث بلا أي عرض، فتُصعَّد إلى قروب
+ * الغرض: التقاط الطلبات التي بقيت في حالة البحث بلا عرضٍ حيّ، فتُصعَّد إلى قروب
  *   الإسناد ويُخبَر صاحبها بالحقيقة. قبل هذه الحالة كان الطلب الذي لا يجد
  *   مرشَّحاً يسقط في فراغ: لا عرض يُكتب فلا شيء تُنهي مهلته expire-offers،
  *   ولا دورة تفاوض تُنشأ فلا شيء تُدوّره rotate-negotiations. فيبقى الطلب
  *   'searching' إلى الأبد، والراكب ينتظر بلا كلمة حتى يلغي بنفسه.
+ *
+ *   وطبقةٌ ثانيةٌ من اليتم كُشفت لاحقاً وأُغلقت: الاستعلام كان يشترط «بلا أي عرض»،
+ *   فطلبٌ عُرِض فتجاهله السائق حتّى استنفدت دوراتُه يخرج من المسارين معاً: redispatch
+ *   تردّه بـBROADCAST_ROUNDS_EXHAUSTED وتقول «مسارُه التصعيد لا البثّ»، والتصعيد
+ *   لا يراه لأنّ له عرضاً. فيبقى 'searching' إلى الأبد وقد قيل للراكب «سيصلك ردٌّ
+ *   قريباً». وقُيس ذلك على قاعدةٍ حقيقية: طلبٌ بدورة ٣ من ٣ وعرضٍ منتهٍ وانتظارِ
+ *   عشرِ دقائق رآه الاستعلام صفراً، ولولا ذاك الشرط رآه واحداً.
  * الحالة: منفّذ ومُختبَر على قاعدة حقيقية.
  * ينتمي إلى: packages/application/dispatch
  * يستخدمه: apps/workers/src/jobs/sweep-unmatched-orders.ts
@@ -11,6 +18,7 @@
  *   عبر escalate_order (فحص audit_log داخل صفّ مقفول)، لا في ذاكرة العملية.
  */
 
+import { roundsExhausted } from "../../domain/transport/entity.ts";
 import type { CityId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { ok, type Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
@@ -19,7 +27,7 @@ import {
   escalateUnmatchedOrder,
 } from "./escalate-unmatched-order.ts";
 
-/** طلب عالق: يبحث منذ مدة، وليس له أي عرض قائم ولا سائق مُسنَد. */
+/** طلب عالق: يبحث منذ مدة، وليس له عرضٌ حيّ ولا سائق مُسنَد. */
 export interface UnmatchedOrder {
   readonly orderId: OrderId;
   readonly cityId: CityId;
@@ -27,14 +35,23 @@ export interface UnmatchedOrder {
   /** معرّف محادثة الراكب في تيليجرام — يُراسَل ببوت الراكب لا ببوت السائق. */
   readonly riderChatId: string;
   readonly riderLanguage: string | null;
+  /** رقم دورة البثّ كما هو في القاعدة — مادةٌ للحكم لا زينةً للسجلّ. */
+  readonly broadcastRound: number;
+  /**
+   * أله عرضٌ واحدٌ قطّ؟ حالةٌ تُقرأ لا حكمٌ يُفتى: من لم يُعرض له قطّ يُصعَّد ولو
+   * بقيت دوراتُه، لأنّ علّته انعدام المرشّحين لا تجاهلُ سائق. ومنها يُبنى السبب
+   * المعروض على الموظّف: «لا سائق أبداً» غير «تجاهلوا حتّى نفدت الدورات».
+   */
+  readonly hasAnyOffer: boolean;
   readonly waitingSeconds: number;
 }
 
 export interface UnmatchedOrderFinder {
   /**
-   * الطلبات الباحثة منذ أكثر من العتبة بلا أي عرض. الاستبعاد بـ"بلا أي عرض"
-   * لا بـ"بلا عرض قائم": الطلب الذي عُرض ورُفض له مسار آخر هو دورات البثّ،
-   * وتصعيده هنا يُغرق قروب الإسناد بحالات لم تستنفد طريقها الطبيعي بعد.
+   * الطلبات الباحثة منذ أكثر من العتبة بلا عرضٍ حيّ (pending ولمّا تنتهِ مهلتُه).
+   * ومن لمّا يزل في مسار دورات البثّ يُستبعد في `sweepUnmatchedOrders` بحكم المجال
+   * لا بشرط SQL: حدّ الدورات من إعدادات المدينة، واستعلامٌ يفتي يصير موضعاً
+   * ثانياً للقاعدة ينزلق وحده يوم تتغير القاعدة.
    */
   findStaleSearching(
     cityId: CityId,
@@ -53,6 +70,11 @@ export interface SweepUnmatchedDependencies {
   readonly notifier: UnmatchedRiderNotifier;
   /** عتبة الانتظار قبل التصعيد — تأتي من إعدادات المدينة لا من ثابت في الكود. */
   readonly staleAfterSeconds: number;
+  /**
+   * حدّ دورات البثّ — platform_settings.max_broadcast_rounds للمدينة نفسها التي يقرأها
+   * البثّ. لو قرأ المسح حدّاً أعلى من حدّ البثّ لما صَعَّد أحداً وعاد اليتم بصمت.
+   */
+  readonly maxBroadcastRounds: number;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -63,6 +85,11 @@ export interface SweepUnmatchedReport {
   readonly notified: readonly OrderId[];
   /** طلبات كانت مُصعَّدة من قبل — تُعدّ ولا تُصعَّد ثانية ولا يُزعَج صاحبها. */
   readonly alreadyEscalated: number;
+  /**
+   * طلباتٌ عُرِضت ولمّا تستنفد دوراتها: تُترك للبثّ ولا تُصعَّد بعد. تُعدّ صراحةً
+   * لأنّ «فحصتُ 5 وصعّدتُ 0» بلا بيان سببٍ من أخطر أنواع السجلّ: يبدو طمأنينةً.
+   */
+  readonly stillBroadcasting: number;
   readonly failed: number;
 }
 
@@ -76,11 +103,32 @@ export async function sweepUnmatchedOrders(
   const escalated: OrderId[] = [];
   const notified: OrderId[] = [];
   let alreadyEscalated = 0;
+  let stillBroadcasting = 0;
   let failed = 0;
 
   for (const order of stale.value) {
+    /**
+     * الحكم هنا لا في SQL. من عُرِض له ولمّا تنفد دوراتُه يُترك للبثّ: تصعيدُه
+     * يسبق أوانه ويُغرق قروب الإسناد بحالات لم تستنفد طريقها الطبيعي. ومن لم يُعرض
+     * له قطّ يُصعَّد فوراً ولو كانت دورتُه صفراً: لا مرشّح له في المدينة أصلاً،
+     * وإمهالُه دوراتٍ لن تجد أحداً إطالةُ صمتٍ لا إنصاف.
+     */
+    const exhausted = roundsExhausted(order.broadcastRound, deps.maxBroadcastRounds);
+    if (order.hasAnyOffer && !exhausted) {
+      stillBroadcasting += 1;
+      continue;
+    }
+
+    /**
+     * السبب يقول الحقيقة لموظّف الإسناد: إنّ من عُرِض له فتجاهلوه حتّى نفدت
+     * الدورات ليس «لا يوجد أي سائق متاح في المدينة» — والتصرّف يختلف باختلافهما.
+     */
     const result = await escalateUnmatchedOrder(
-      { orderId: order.orderId, reason: "no_driver_at_all", cyclesTried: 0 },
+      {
+        orderId: order.orderId,
+        reason: order.hasAnyOffer ? "broadcast_rounds_exhausted" : "no_driver_at_all",
+        cyclesTried: order.broadcastRound,
+      },
       deps.escalate,
     );
 
@@ -121,6 +169,7 @@ export async function sweepUnmatchedOrders(
     escalated,
     notified,
     alreadyEscalated,
+    stillBroadcasting,
     failed,
   });
 }

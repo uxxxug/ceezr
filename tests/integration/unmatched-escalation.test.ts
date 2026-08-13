@@ -5,6 +5,10 @@
  *   صاحبه مرّة واحدة لا في كل شوط.
  * الحالة: اختبار تكامل فعلي — يتطلب TEST_DATABASE_URL.
  * ينتمي إلى: tests/integration
+ *
+ *   وأُضيفت طبقةٌ ثانية: الطلب اليتيم المستنفد دوراته — عُرِض فتجاهلوه حتّى
+ *   نفدت الدورات، فلا يُبَّث (redispatch تردّه بـBROADCAST_ROUNDS_EXHAUSTED) ولا كان
+ *   يُصعَّد (الاستعلام كان يشترط «بلا أي عرض») — يتيمٌ دائمٌ والراكب ينتظر.
  * ملاحظات مستقبلية: يُوسَّع حين تُضاف إعادة البثّ قبل التصعيد.
  */
 
@@ -28,6 +32,9 @@ import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const WEBHOOK_SECRET = "unmatched-secret";
 const RIDER_CHAT = 250_001;
+const OFFERED_DRIVER_CHAT = 250_002;
+/** حدّ دورات البثّ في الاختبار — يُمرّر صراحةً كما يقرأه العامل من إعدادات المدينة. */
+const MAX_ROUNDS = 3;
 const PICKUP = { latitude: 21.5433, longitude: 39.1728 };
 const DROPOFF = { latitude: 21.5601, longitude: 39.1902 };
 
@@ -95,7 +102,7 @@ const callback = (chatId: number, data: string) => ({
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
 /** كنسٌ بعتبة صفرية: الطلب المُنشأ للتوّ يُعدّ عالقاً بلا انتظار حقيقي في الاختبار. */
-async function sweep(staleAfterSeconds = 0) {
+async function sweep(staleAfterSeconds = 0, maxBroadcastRounds = MAX_ROUNDS) {
   const negotiation = createNegotiationWiring(sql, {
     driverOut: asOutboundSender(capturing(groupSent)),
     riderOut: asOutboundSender(capturing(riderSent)),
@@ -119,7 +126,49 @@ async function sweep(staleAfterSeconds = 0) {
         : say("rider.no_driver_found");
     }),
     staleAfterSeconds,
+    maxBroadcastRounds,
   });
+}
+
+/**
+ * سائقٌ مُتحقّق يُكتب مباشرةً لا عبر البوت: المقصود إنشاء عرضٍ منتهٍ لا
+ * اختبار تسجيل السائقين، والمرور بالبوت هنا يخلط ما يُقاس بما لا يُقاس.
+ */
+async function insertVerifiedDriver(): Promise<string> {
+  const rows = await sql<{ id: string }[]>`
+    with u as (
+      insert into users (city_id, telegram_id, full_name, phone, role, language_code)
+      values (${cityId}::uuid, ${OFFERED_DRIVER_CHAT}, 'سائق العرض المنتهي', '+966500000251',
+              'driver', 'ar')
+      returning id
+    )
+    insert into drivers (city_id, user_id, verification_status)
+    select ${cityId}::uuid, u.id, 'verified' from u
+    returning id
+  `;
+  const id = rows[0]?.id;
+  if (id === undefined) throw new Error("لم يُكتب السائق");
+  return id;
+}
+
+/**
+ * يبلغ بالطلب القائم حالةَ اليتيم الموصوفة: دورةٌ معلومة وعرضٌ منتهٍ لا حيّ.
+ * الانتهاء بـexpired لا بـrejected عمداً: الصمتُ ليس رفضاً، وهو الحال الأكثر
+ * وقوعاً في الواقع: سائقٌ يقود وهاتفه في جيبه.
+ */
+async function makeOrphanWithDeadOffer(round: number): Promise<string> {
+  const driverId = await insertVerifiedDriver();
+  const orders = await sql<{ id: string }[]>`select id from orders`;
+  const orderId = orders[0]?.id;
+  if (orderId === undefined) throw new Error("لا طلب قائم");
+
+  await sql`update orders set broadcast_round = ${round} where id = ${orderId}::uuid`;
+  await sql`
+    insert into order_offers (city_id, order_id, driver_id, round, status, expires_at)
+    values (${cityId}::uuid, ${orderId}::uuid, ${driverId}::uuid, ${round}, 'expired',
+            now() - interval '1 minute')
+  `;
+  return orderId;
 }
 
 /** راكب يصل إلى طلب رحلة قائم بلا أي سائق في المدينة. */
@@ -250,6 +299,82 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     const audit = await sql<{ count: string }[]>`
       select count(*) from audit_log where action = 'order.escalated'`;
     expect(Number(audit[0]?.count)).toBe(1);
+  });
+
+  /**
+   * الانحدار المقصود: قبل الإصلاح كان `examined` صفراً لأنّ الاستعلام
+   * يشترط «بلا أي عرض»، فيخرج الطلب من مساري البثّ والتصعيد معاً ويبقى
+   * `searching` إلى الأبد. وإن أُعيد الشرط يوماً يرجع هذا الاختبار أحمر.
+   */
+  it("الطلب المستنفد دوراته وله عرضٌ منتهٍ يُصعَّد بسببٍ يقول الحقيقة", async () => {
+    await riderOrdersRide();
+    await makeOrphanWithDeadOffer(MAX_ROUNDS);
+    riderSent.length = 0;
+    groupSent.length = 0;
+
+    const report = await sweep();
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+
+    expect(report.value.examined).toBe(1);
+    expect(report.value.escalated).toHaveLength(1);
+    expect(report.value.stillBroadcasting).toBe(0);
+    expect(report.value.notified).toHaveLength(1);
+
+    // السبب يفرّق ما لا يجوز خلطُه: تجاهلُ سائقٍ ليس انعدامَ السائقين.
+    const audit = await sql<{ reason: string }[]>`
+      select payload->>'reason' as reason
+        from audit_log where action = 'order.escalated'`;
+    expect(audit).toHaveLength(1);
+    expect(audit[0]?.reason).toBe("broadcast_rounds_exhausted");
+
+    // وبطاقةٌ وصلت قروب الإسناد بنصّ السبب المترجم لا بمفتاحٍ خام.
+    const toGroup = groupSent.filter((m) => String(m.chatId) === "-1002");
+    expect(toGroup.length).toBeGreaterThan(0);
+    const reasonText = translate("ar", "group.escalation_reason_broadcast_rounds_exhausted");
+    expect(toGroup.some((m) => m.text.includes(reasonText))).toBe(true);
+  });
+
+  /**
+   * وجهُ الإصلاح الآخر: توسيعُ الاستعلام إلى «بلا عرضٍ حيّ» لا يجوز أن يُغرق
+   * قروب الإسناد بمن لمّا يزل في مسار البثّ.
+   */
+  it("الطلب في وسط دوراته لا يُصعَّد ويُعدّ باقياً في البثّ", async () => {
+    await riderOrdersRide();
+    await makeOrphanWithDeadOffer(1);
+    riderSent.length = 0;
+    groupSent.length = 0;
+
+    const report = await sweep();
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+
+    // يُقرأ لأنّ لا عرض حيّ له، ويُترك لأنّ دوراته باقية — ويُعدّ لا يُطمر.
+    expect(report.value.examined).toBe(1);
+    expect(report.value.escalated).toHaveLength(0);
+    expect(report.value.stillBroadcasting).toBe(1);
+    expect(report.value.notified).toHaveLength(0);
+    expect(riderSent).toHaveLength(0);
+
+    const audit = await sql<{ count: string }[]>`
+      select count(*) from audit_log where action = 'order.escalated'`;
+    expect(Number(audit[0]?.count)).toBe(0);
+  });
+
+  /**
+   * وحدّ المدينة هو الحاكم لا رقمٌ مكتوب في الكود: نفس الطلب بدورة واحدة
+   * يُترك حين الحدّ ٣ ويُصعَّد حين الحدّ ١ — ولا شيء تغير إلّا الإعداد.
+   */
+  it("الحدّ المقروء من الإعدادات هو من يحكم لا رقمٌ في الكود", async () => {
+    await riderOrdersRide();
+    await makeOrphanWithDeadOffer(1);
+
+    const report = await sweep(0, 1);
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+
+    expect(report.value.escalated).toHaveLength(1);
+    expect(report.value.stillBroadcasting).toBe(0);
   });
 
   it("الطلب الذي لم يبلغ العتبة بعد لا يُصعَّد", async () => {

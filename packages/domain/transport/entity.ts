@@ -92,5 +92,14 @@ export function returnToSearching(order: Order): Result<Order, OrderError> {
 
 /** هل استُنفدت دورات البثّ؟ الحد من platform_settings.max_broadcast_rounds. */
 export function hasExhaustedBroadcastRounds(order: Order, maxRounds: number): boolean {
-  return order.broadcastRound >= maxRounds;
+  return roundsExhausted(order.broadcastRound, maxRounds);
+}
+
+/**
+ * نفس الحكم عند رقم دورةٍ مجرّد. مفصولة لأنّ من يسأل ليس دائماً بيده `Order`
+ * كامل: مسحُ الطلبات العالقة يقرأ رقم الدورة وحده من القاعدة. والبديل أن يُكتب
+ * `>=` هناك أو في SQL، فيصير للسؤال موضعان ويوم يتغيّر أحدهما يبقى الثاني.
+ */
+export function roundsExhausted(broadcastRound: number, maxRounds: number): boolean {
+  return broadcastRound >= maxRounds;
 }
