@@ -101,23 +101,30 @@ function capturingSender(sent: string[]): OutboundSender {
 }
 
 describe("قراءة RUN_WORKER_IN_GATEWAY", () => {
-  it("الغياب يعني عدم التفعيل — لا يُشغَّل عاملٌ لمن لم يطلبه", () => {
+  it("الغياب يعني التفعيل — بوابةٌ بلا مهامّ دورية أسوأ من مهمّةٍ تتكرر تحت قفل", () => {
     const result = tryLoadConfig({ ...BASE_ENV });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.runWorkerInGateway).toBe(false);
+    expect(result.value.runWorkerInGateway).toBe(true);
   });
 
-  it("القيم المقبولة تُفعِّل، والقيمة غير المفهومة تعني عدم التفعيل", () => {
+  it("الإطفاء يُعلَن صراحةً، والقيمة غير المفهومة ترجع للافتراض لا للإطفاء", () => {
     for (const raw of ["true", "TRUE", " 1 ", "yes", "on"]) {
       const result = tryLoadConfig({ ...BASE_ENV, RUN_WORKER_IN_GATEWAY: raw });
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.value.runWorkerInGateway).toBe(true);
     }
-    for (const raw of ["false", "0", "maybe", ""]) {
+    for (const raw of ["false", "FALSE", " 0 ", "no", "off"]) {
       const result = tryLoadConfig({ ...BASE_ENV, RUN_WORKER_IN_GATEWAY: raw });
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.value.runWorkerInGateway).toBe(false);
+    }
+    // إملاءةٌ مثل `maybe` لا تُطفئ المهامّ الدورية كلّها: من كتب قيمةً فقد أراد
+    // إعداداً لا صمتاً، وأقربُ ما يقارب مرادَه هو الحال الأسلم لا التعطيل الأقسى.
+    for (const raw of ["maybe", ""]) {
+      const result = tryLoadConfig({ ...BASE_ENV, RUN_WORKER_IN_GATEWAY: raw });
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.runWorkerInGateway).toBe(true);
     }
   });
 });

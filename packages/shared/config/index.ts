@@ -185,17 +185,24 @@ function isBlank(value: string | undefined): boolean {
 }
 
 /**
- * قراءة متغيّر بيئة منطقي. الغياب يعني `false`، و`true`/`1`/`yes`/`on` تعني `true`،
- * وأي شيء آخر يعني `false`.
+ * قراءة متغيّر بيئة منطقي بحالة افتراضية مُعلنة. المفهوم من التفعيل:
+ * `true`/`1`/`yes`/`on`، ومن التعطيل: `false`/`0`/`no`/`off`، وما سواهما
+ * والغياب يعنيان `fallback`.
  *
  * لماذا لا يُرفض المجهول بخطأ إقلاع؟ لأن هذا المتغيّر مُفعِّل ميزة لا مفتاح اتصال:
  * قيمةٌ مكتوبة خطأً تعني «لم يُفعَّل» وهو الحال الافتراضي أصلاً، لا انحرافاً صامتاً.
  * أما أسماء المزوّدات فتُرفض صريحاً لأن الخطأ فيها يعني خدمةً تعمل بنصف إعداد.
  */
-function parseBooleanEnv(value: string | undefined): boolean {
-  if (isBlank(value)) return false;
+function parseBooleanEnv(value: string | undefined, fallback = false): boolean {
+  if (isBlank(value)) return fallback;
   const normalized = (value as string).trim().toLowerCase();
-  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+  if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") {
+    return true;
+  }
+  if (normalized === "false" || normalized === "0" || normalized === "no" || normalized === "off") {
+    return false;
+  }
+  return fallback;
 }
 
 /** كل المتغيرات الناقصة، لا أولها فقط — ليعرف المشغّل ما ينقصه في نظرة واحدة. */
@@ -376,7 +383,15 @@ export function tryLoadConfig(
       ? null
       : (source.TRANSLATION_CONTACT_EMAIL as string).trim(),
     sessionStore: rawSessionStore as SessionStoreName,
-    runWorkerInGateway: parseBooleanEnv(source.RUN_WORKER_IN_GATEWAY),
+    // الافتراض `true` لا `false`، وهذا قلبٌ متعمّد للافتراض القديم. وجها الخطأ ليسا
+    // متكافئين: خطأ `true` مع وجود خدمة `waslah-worker` يعني أن القفل الموزّع يجعل
+    // إحداهما تتخطّى بحالة `skipped_locked_elsewhere` — أي لا أذى؛ وخطأ `false` بلا تلك
+    // الخدمة — وهو واقع الإنتاج المُثبَت في `docs/directive-item-0-live-diagnosis.md` §0.2
+    // — يعني أن ولا مهمّة دورية تُنفَّذ أبداً: لا اشتراك ينتهي، ولا عرض يُسقَط بمهلته
+    // فيبقى الطلب باحثاً للأبد، ولا توفّر بائت يُطفَأ، ولا نسخة احتياطية تُؤخَذ.
+    // الأول تكرارٌ محميّ بقفل، والثاني توقّفٌ تامّ صامت. فمن أراد إطفاءه فليُعلنه
+    // بـ`false` صريحة.
+    runWorkerInGateway: parseBooleanEnv(source.RUN_WORKER_IN_GATEWAY, true),
     mapProvider: rawMapProvider as MapProviderName,
     mapStyleUrl: isBlank(source.MAP_STYLE_URL) ? null : (source.MAP_STYLE_URL as string).trim(),
     mapTilesPublicKey: isBlank(source.MAP_TILES_PUBLIC_KEY)
