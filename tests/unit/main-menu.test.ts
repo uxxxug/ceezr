@@ -206,11 +206,19 @@ describe("لا زرّ بلا أمر قائم في الحوار", () => {
 
   it("كل أمر في قائمة السائق موجود في driver-dialog", async () => {
     const declared = await commandsIn("packages/application/bots/driver-dialog.ts");
-    for (const item of DRIVER_MENU_ITEMS) expect(declared.has(item.command)).toBe(true);
+    for (const item of allItemsFor("driver")) expect(declared.has(item.command)).toBe(true);
   });
 
-  it("كل أمر في قائمة العميل موجود في rider-dialog", async () => {
+  /**
+   * `allItemsFor` لا `RIDER_MENU_ITEMS`: زرّ التتبّع مشروطٌ بوجود طلبٍ نشط، فهو
+   * أقلّ ما يُنظر إليه عند تعديل الحوار وأحقّ ما يُحرس. وقصرُ الفحص على القائمة
+   * غير المشروطة كان يترك `/status` وحده بلا حارس — وهو الزرّ الذي يضغطه العميل
+   * في أشدّ لحظاته قلقاً: بعد أن طلب وقبل أن يصل.
+   */
+  it("كل أمر في قائمة العميل — والمشروط منها — موجود في rider-dialog", async () => {
     const declared = await commandsIn("packages/application/bots/rider-dialog.ts");
-    for (const item of RIDER_MENU_ITEMS) expect(declared.has(item.command)).toBe(true);
+    for (const item of allItemsFor("rider")) expect(declared.has(item.command)).toBe(true);
+    // الحارس يجب أن يشمل المشروط فعلاً لا أن يمرّ لأنه فحص القائمة القصيرة
+    expect(allItemsFor("rider").length).toBeGreaterThan(RIDER_MENU_ITEMS.length);
   });
 });
