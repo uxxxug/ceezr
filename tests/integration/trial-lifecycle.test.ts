@@ -384,4 +384,22 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
     expect(markup).not.toContain("sub:cancel");
     void driverId;
   });
+  /**
+   * بعد انتهاء الشهر المجاني كانت البطاقة تقول «لا يوجد اشتراك سارٍ» والسعر، ثمّ
+   * تسكت — فالسائق يقرأ أنّه خرج من المنصّة، ولا يعرف أنّ له طريقاً ثانياً ولا
+   * أين بابه. والرابطُ يُلحَق من إعدادات المدينة متى كان مضبوطاً.
+   */
+  it("بطاقةُ ما بعد الانتهاء تشرح الطريقين وتُرفق رابطَ قروب غير المشتركين", async () => {
+    const driverId = await registerDriver();
+    await endTrialNow(driverId);
+    await sql`select expire_due_subscriptions()`;
+    driverSent.length = 0;
+
+    await post("driver", text(DRIVER_CHAT, "/subscription"));
+
+    const card = driverSent.map((message) => message.text).join("\n");
+    expect(card).toContain("لا يوجد اشتراك سارٍ");
+    expect(card).toContain("بالتنافس");
+    expect(card).toContain(GROUP_LINK);
+  });
 });

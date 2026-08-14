@@ -327,6 +327,26 @@ function technicalFailure(sender: Sender, state: DialogState): readonly BotReply
   return [reply(sender, t(languageOf(state))("common.error_try_again"))];
 }
 
+/**
+ * رابطُ قروب غير المشتركين من إعدادات المدينة، أو `null` إن لم يُضبط بعد.
+ *
+ * لا يمرّ بـ`parseCitySettings` لأنّه ليس من سياسة التوزيع: إعدادٌ مبدئيٌّ
+ * (`is_provisional`) يملأه فريقُ المدينة، فلو دخل في السياسة المتحقّقة لأوقف حوارَ
+ * السائق كلّه في مدينةٍ لم تملأ رابطاً بعد.
+ */
+async function unsubscribedGroupLinkOf(
+  deps: DriverBotDependencies,
+  driver: DriverProfile,
+): Promise<string | null> {
+  const rows = await deps.settings.findByCity(driver.cityId);
+  if (!rows.ok) return null;
+  const row = rows.value.find((entry) => entry.key === "unsubscribed_drivers_group_link");
+  if (row === undefined) return null;
+  const raw = typeof row.value === "string" ? row.value : String(row.value ?? "");
+  const link = raw.trim();
+  return link === "" ? null : link;
+}
+
 async function citySettingsOf(
   deps: DriverBotDependencies,
   driver: DriverProfile,
@@ -1249,14 +1269,23 @@ async function describeSubscription(
   if (settings === null) return technicalFailure(sender, state);
 
   const plan: SubscriptionPlan = subscription?.plan ?? "transport";
+  /**
+   * رابطُ قروب غير المشتركين يُلحَق متى كان مضبوطاً: إخبارُ السائق أنّ له
+   * طريقاً ثانياً ثمّ تركُه يبحث عن بابه إحالةٌ إلى لا شيء. ومتى لم يُضبط بعد
+   * فلا يُذكر سطرٌ فارغ: وعدٌ برابطٍ لا يوجد أسوأ من السكوت عنه.
+   */
+  const groupLink = await unsubscribedGroupLinkOf(deps, driver);
+  const body = tr("driver.subscription_none", {
+    plan,
+    price: subscriptionPriceFor(settings, plan),
+    currency: settings.currency,
+  });
   return [
     reply(
       sender,
-      tr("driver.subscription_none", {
-        plan,
-        price: subscriptionPriceFor(settings, plan),
-        currency: settings.currency,
-      }),
+      groupLink === null
+        ? body
+        : `${body}\n\n${tr("driver.subscription_group_link", { link: groupLink })}`,
       // الزرّ يظهر فقط عند تركيب مزوّد دفع: عرضُ «اشترك الآن» بلا مزوّد يحوّل
       // بطاقةً صادقة إلى وعدٍ يفشل عند الضغط.
       deps.subscriptionPurchase === undefined
