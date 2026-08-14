@@ -13,6 +13,7 @@ import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
 import type { ExpiryWarningSender } from "../../../packages/application/subscription/expire-subscriptions.ts";
+import type { SubscriptionNoticePublisher } from "../../../packages/application/subscription/notice-ports.ts";
 import {
   createGoogleDriveStorage,
   createLocalBackupStorage,
@@ -47,6 +48,10 @@ import {
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
+import {
+  createSubscriptionNoticePublisher,
+  grammyNoticeApi,
+} from "../../../packages/infrastructure/notification/telegram-notice-sender.ts";
 import { createSafetyCardPublisher } from "../../../packages/infrastructure/notification/telegram-safety-notifier.ts";
 import {
   instrumentExpireOffersRpc,
@@ -59,6 +64,7 @@ import { createSafetyDeliveryPort } from "../../../packages/infrastructure/safet
 import { createAdvisoryLock } from "../../../packages/infrastructure/scheduling/advisory-lock.ts";
 import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/scheduling/availability-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
+import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastructure/subscription/notice-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { DEFAULT_LANGUAGE, t } from "../../../packages/shared/i18n/index.ts";
@@ -68,6 +74,7 @@ import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/bac
 import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
 import { deliverBroadcasts } from "./jobs/deliver-broadcasts.ts";
 import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
+import { deliverSubscriptionNotices } from "./jobs/deliver-subscription-notices.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
@@ -112,6 +119,12 @@ export const JOB_INTERVALS = {
    * أبطأ يطيل المدّة التي يكون فيها السائق قد دفع ولا يعمل.
    */
   reconcilePendingPayments: 300,
+  /**
+   * كل خمس عشرة ثانية: صندوقُ إشعارات الاشتراك صغيرٌ بطبعه (تفعيلٌ أو انتهاءٌ
+   * لسائقٍ واحد)، لكنّ تأخيرَه مكلف: سائقٌ دفع ولا يعرف أنّ اشتراكه سرى يعيد
+   * الدفع أو يفتح تذكرةَ دعم.
+   */
+  deliverSubscriptionNotices: 15,
 } as const;
 
 /** المهلة الافتراضية للتوفّر البائت حين يغيب الإعداد — ثلاث ساعات. */
@@ -196,6 +209,8 @@ export interface WorkerContainerOverrides {
   readonly safetyPublisher?: SafetyCardPublisher;
   /** ناشر البثّ الجماعي — يُستبدل في الاختبار بناشرٍ يجمع ويُخفق عند الطلب. */
   readonly broadcastPublisher?: BroadcastPublisher;
+  /** ناشر إشعارات الاشتراك — يُستبدل في الاختبار بناشرٍ يجمع ويُخفق عند الطلب. */
+  readonly subscriptionNoticePublisher?: SubscriptionNoticePublisher;
   /**
    * سجلّ المقاييس. يُلَفّ به منفذُ إسقاط العروض بمهلتها، فيُعَدّ ما لا يظهر في أيّ
    * سجلٍّ آخر: عرضٌ عُرِض ولم يُقبل. ومصدرُ العدّ نتيجةُ RPC — أي عددُ الصفوف التي
@@ -348,6 +363,11 @@ export function buildWorkerContainer(
     overrides.broadcastPublisher ??
     createBroadcastPublisher(grammyBroadcastApi(config.riderBotToken));
   const broadcastDeliveries = createBroadcastDeliveryPort(sql);
+  // بوت السائق لا بوت الراكب: كلُّ إشعارات دورة حياة الاشتراك تخصّ سائقاً.
+  const subscriptionNoticePublisher =
+    overrides.subscriptionNoticePublisher ??
+    createSubscriptionNoticePublisher(grammyNoticeApi(config.driverBotToken));
+  const subscriptionNotices = createSubscriptionNoticeDeliveryPort(sql);
 
   const searchingFinder = createSearchingOrderFinder(sql);
 
@@ -618,6 +638,24 @@ export function buildWorkerContainer(
                 drivers: driverBroadcastPublisher,
                 riders: riderBroadcastPublisher,
               },
+            });
+            if (!report.ok) throw new Error(report.error.detail);
+            const value = report.value;
+            return `claimed=${value.claimed} sent=${value.sent} failed=${value.failed} retried=${value.retried}`;
+          },
+        },
+        {
+          /**
+           * إشعاراتُ الاشتراك تُكتب في القاعدة داخل معاملة تغيُّر الحالة، فلا يُفقد
+           * إشعارٌ لأنّ تلغرام كان محجوباً لحظةَ التفعيل. وهذه المهمّة تسلّمها فقط.
+           */
+          name: `deliver-subscription-notices:${cityId}`,
+          everySeconds: JOB_INTERVALS.deliverSubscriptionNotices,
+          runOnStart: true,
+          run: async () => {
+            const report = await deliverSubscriptionNotices(cityId, {
+              notices: subscriptionNotices,
+              publisher: subscriptionNoticePublisher,
             });
             if (!report.ok) throw new Error(report.error.detail);
             const value = report.value;

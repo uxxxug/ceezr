@@ -63,6 +63,7 @@ import {
   type Sender,
   type SessionStore,
 } from "./types.ts";
+import { waitBucket, waitingLine } from "./waiting-lines.ts";
 
 export interface RiderBotDependencies {
   readonly sessions: SessionStore;
@@ -451,7 +452,14 @@ function describeOrderStatus(
 
   if (order.status === "matched") lines.push(tr("rider.status_matched"));
   else if (order.status === "in_progress") lines.push(tr("rider.status_in_progress"));
-  else if (order.status === "searching") lines.push(tr("rider.status_searching"));
+  else if (order.status === "searching") {
+    // السطرُ يتغيّر مع دِلاء الانتظار: من يفتح «طلبي» ثلاث مرّات في دقيقةٍ يجب أن يرى
+    // ثباتاً، ومن ينتظر عشرَ دقائق يجب أن يرى أنّ البحث ما زال يتحرّك لا أنّه معلّق.
+    const minutes = Math.floor((now.getTime() - order.createdAt.getTime()) / 60000);
+    lines.push(
+      waitingLine("riderStillSearching", `${order.orderId}:${waitBucket(minutes)}`, language),
+    );
+  }
 
   const driver = order.assignedDriver ?? null;
   if (driver !== null) {
@@ -870,6 +878,9 @@ async function handleCommand(
       // البند 6.3: الأوامر أزراراً لا نصّاً. لوحة inline على الرسالة لا تمسح الدائمة
       // أسفل الشاشة، والردّ الثاني يُعيد تأكيدها بحال العميل الحقيقية.
       return [
+        // الشرحُ قبل قائمةِ الأوامر: الراكبُ الجديد يحتاج أن يعرف أنّ الطلب يبدأ بموقعٍ
+        // يُرسله وأنّ الدفع نقديٌّ مع السائق — وهذان أكثرُ سؤالين يُفتحان على الدعم.
+        reply(sender, tr("rider.guide")),
         reply(sender, tr("rider.help"), helpKeyboard("rider", state.language, context)),
         reply(sender, tr("menu.hint"), menu(state, context)),
       ];
@@ -1178,7 +1189,13 @@ async function handleParcel(
 
   // البند 2.2: الطلب صار في searching قبل هذا السطر، فزرّ التتبّع يظهر مع أوّل ردّ
   // يراه العميل بعد الطلب لا بعد رسالة تالية — ولحظة الطلب هي لحظة القلق.
-  const replies: BotReply[] = [reply(sender, tr("rider.delivery_searching"), trackingMenu(state))];
+  const replies: BotReply[] = [
+    reply(
+      sender,
+      waitingLine("riderSearchingDelivery", requested.value.orderId, state.language),
+      trackingMenu(state),
+    ),
+  ];
   if (requested.value.notified.length === 0) return replies;
   return [
     ...replies,
@@ -1209,7 +1226,15 @@ async function createOrderAndMatch(
   await deps.sessions.clear(sender.telegramUserId);
 
   // البند 2.2: كما في التوصيل — الزرّ يرافق إعلان بدء البحث نفسه
-  const replies: BotReply[] = [reply(sender, tr("rider.searching"), trackingMenu(state))];
+  // سطرُ الانتظار يختلف بين طلبٍ وطلب: العميلُ الذي يطلب كلّ يوم يقرأ الجملةَ
+  // نفسَها فيراها آلةً، لا فريقاً يبحث له. والبذرةُ معرّفُ الطلب فيثبت السطرُ لطلبه.
+  const replies: BotReply[] = [
+    reply(
+      sender,
+      waitingLine("riderSearching", created.value, state.language),
+      trackingMenu(state),
+    ),
+  ];
 
   // البثّ الحقيقي يبدأ فوراً: تُكتب العروض في order_offers ويُخطَر السائقون.
   // لا سائق الآن؟ الطلب يبقى في حالة البحث وتتولّاه دورات البثّ التالية — والعميل يُخبَر بصدق.

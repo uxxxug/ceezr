@@ -24,6 +24,7 @@ import type {
   PastOrderSummary,
   Sender,
 } from "../../packages/application/bots/types.ts";
+import { waitingVariants } from "../../packages/application/bots/waiting-lines.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/index.ts";
@@ -178,7 +179,7 @@ describe("تسجيل العميل وطلب رحلة", () => {
     expect(pickup[0]?.text).toBe(ar("rider.ask_dropoff"));
 
     const dropoff = await handleRiderUpdate(location(DROPOFF), withRiders);
-    expect(dropoff[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(dropoff[0]?.text ?? "");
 
     expect(orders.created).toEqual([
       {
@@ -201,7 +202,7 @@ describe("تسجيل العميل وطلب رحلة", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     const created = await handleRiderUpdate(text("/skip"), d);
-    expect(created[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(created[0]?.text ?? "");
     expect(orders.created[0]?.dropoff).toBeNull();
   });
 
@@ -413,7 +414,7 @@ describe("المطابقة بعد الإنشاء", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     const replies = await handleRiderUpdate(text("/skip"), d);
-    expect(replies[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(replies[0]?.text ?? "");
     expect(orders.created).toHaveLength(1);
   });
 
@@ -462,7 +463,7 @@ describe("المطابقة بعد الإنشاء", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     const replies = await handleRiderUpdate(text("/skip"), d);
-    expect(replies[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(replies[0]?.text ?? "");
   });
 });
 
@@ -519,7 +520,7 @@ describe("مسار التوصيل في حوار العميل", () => {
     expect(dropoff[0]?.text).toBe(ar("rider.ask_parcel"));
 
     const done = await handleRiderUpdate(text("صندوق كتب متوسط"), d);
-    expect(done[0]?.text).toBe(ar("rider.delivery_searching"));
+    expect(waitingVariants("riderSearchingDelivery", "ar")).toContain(done[0]?.text ?? "");
 
     expect(orders.createdFull).toEqual([
       {
@@ -560,7 +561,7 @@ describe("مسار التوصيل في حوار العميل", () => {
     expect(orders.createdFull).toHaveLength(0);
 
     const accepted = await handleRiderUpdate(text("كيس ملابس"), d);
-    expect(accepted[0]?.text).toBe(ar("rider.delivery_searching"));
+    expect(waitingVariants("riderSearchingDelivery", "ar")).toContain(accepted[0]?.text ?? "");
     expect(orders.createdFull).toHaveLength(1);
   });
 
@@ -655,7 +656,10 @@ describe("تتبّع الطلب: /status", () => {
     const replies = await handleRiderUpdate(text("/status"), statusDeps([active()]));
     expect(replies).toHaveLength(1);
     const body = replies[0]?.text ?? "";
-    expect(body).toContain(ar("rider.status_searching"));
+    // سطرُ «ما زلنا نبحث» يتغيّر مع دِلاء الانتظار، فالمُثبَت أنّه من عائلته
+    expect(waitingVariants("riderStillSearching", "ar").some((line) => body.includes(line))).toBe(
+      true,
+    );
     expect(body).toContain(ar("rider.status_waiting", { minutes: 4 }));
     // لا سطر سائق ولا لوحة مركبة حين لا سائق
     expect(body).not.toContain(ar("rider.status_driver", { name: "" }).trim());
@@ -875,7 +879,7 @@ describe("تتبّع الطلب: /status", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     const created = await handleRiderUpdate(text("/skip"), d);
-    expect(created[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(created[0]?.text ?? "");
     expect(created[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }));
   });
 });
@@ -975,15 +979,17 @@ describe("لوحة /help — البند 6.3", () => {
 
   it("يعرض أوامر العميل أزراراً inline لا نصّاً", async () => {
     const replies = await handleRiderUpdate(text("/help"), helpDeps());
-    expect(replies).toHaveLength(2);
-    expect(replies[0]?.keyboard).toEqual(helpKeyboard("rider", "ar"));
+    expect(replies).toHaveLength(3);
+    // الردّ الأول شرحُ عمل البوت للراكب: خطوات الطلب وما يُنتظر منه
+    expect(replies[0]?.text).toBe(ar("rider.guide"));
+    expect(replies[1]?.keyboard).toEqual(helpKeyboard("rider", "ar"));
 
-    const keyboard = replies[0]?.keyboard;
+    const keyboard = replies[1]?.keyboard;
     if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
     const labels = keyboard.rows.flat().map((button) => button.label);
     expect(labels).toContain(ar("menu.support"));
     expect(labels).toContain(ar("menu.rider.ride"));
-    expect(replies[0]?.text).not.toContain("/ride");
+    expect(replies[1]?.text).not.toContain("/ride");
   });
 
   it("زرّ التتبّع يظهر في /help متى كان للعميل طلب نشط وحده", async () => {
@@ -994,16 +1000,16 @@ describe("لوحة /help — البند 6.3", () => {
       const board = keyboard as { kind: string; rows: { label: string }[][] };
       return board.rows.flat().map((button) => button.label);
     };
-    expect(labelsOf(without[0]?.keyboard)).not.toContain(ar("menu.rider.status"));
-    expect(labelsOf(withOrder[0]?.keyboard)).toContain(ar("menu.rider.status"));
-    expect(withOrder[1]?.keyboard).toEqual(
+    expect(labelsOf(without[1]?.keyboard)).not.toContain(ar("menu.rider.status"));
+    expect(labelsOf(withOrder[1]?.keyboard)).toContain(ar("menu.rider.status"));
+    expect(withOrder[2]?.keyboard).toEqual(
       mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }),
     );
   });
 
   it("كل بند قائمة له زرّ ببياناته الصحيحة — فلا يتباعد المصدران", async () => {
     const replies = await handleRiderUpdate(text("/help"), helpDeps([active()]));
-    const keyboard = replies[0]?.keyboard;
+    const keyboard = replies[1]?.keyboard;
     if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
     const data = keyboard.rows.flat().map((button) => button.data);
     for (const item of allItemsFor("rider")) expect(data).toContain(`cmd:${item.command}`);

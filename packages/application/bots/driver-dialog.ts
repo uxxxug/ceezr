@@ -107,6 +107,7 @@ import {
   type SubscriptionReader,
   type TrialRpcPort,
 } from "./types.ts";
+import { waitingLine } from "./waiting-lines.ts";
 
 export interface DriverBotDependencies {
   readonly sessions: SessionStore;
@@ -625,6 +626,10 @@ async function handleCommand(
      */
     case "/help":
       return [
+        // الشرحُ قبل قائمةِ الأوامر: من يطلب المساعدة لا يعرف ماذا يفعل أصلاً، وقائمةُ
+        // أزرارٍ بلا شرحٍ تُخبره بما يستطيع الضغطَ عليه لا بما هو مطلوبٌ منه — وأكثرُ
+        // ما يُسقط سائقاً جديداً أنّه لا يعلم أنّ «متاح» شرطٌ لوصول الطلبات إليه.
+        reply(sender, tr("driver.guide")),
         reply(sender, tr("driver.help"), helpKeyboard("driver", languageOf(state))),
         reply(sender, tr("menu.hint"), menu(state)),
       ];
@@ -680,7 +685,15 @@ async function handleCommand(
         replies.push(
           reply(
             sender,
-            tr(goingAvailable ? "driver.now_available" : "driver.now_unavailable"),
+            // الدخولُ إلى الخدمة لحظةُ انتظارٍ أيضاً: السائقُ ينتظر أوّل طلب. والبذرةُ
+            // معرّفُه مع الدقيقة فيختلف السطرُ بين نوبةٍ وأخرى ولا يثبت على جملةٍ واحدة.
+            goingAvailable
+              ? waitingLine(
+                  "driverAvailable",
+                  `${driver.id}:${Math.floor(Date.now() / 60000)}`,
+                  languageOf(state),
+                )
+              : tr("driver.now_unavailable"),
             menu(state),
           ),
         );

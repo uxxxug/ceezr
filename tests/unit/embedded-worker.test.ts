@@ -164,7 +164,9 @@ describe("العامل المدمج داخل عملية البوابة", () => {
       // والحارس المثبّت يكشف حذف المهمة من إنتاج العامل.
       // ثم عشراً بإضافة تسليم البثّ الجماعي لكلّ مدينة: حملةٌ تُكتب في القاعدة ولا
       // مهمّةَ تسليمٍ مسجّلة تعني صفوفاً `pending` إلى الأبد ولوحةً تقول «جارٍ الإرسال».
-      expect(handle.jobCount).toBe(10);
+      // ثم إحدى عشرة بإضافة تسليم إشعارات الاشتراك: صندوقٌ يُكتب فيه عند التفعيل
+      // والانتهاء، وبلا مهمّةٍ تسلّمه يُقطع السائق عن الطلبات بصمتٍ تامّ.
+      expect(handle.jobCount).toBe(11);
 
       const started = lines.find((line) => line.startsWith("embedded_worker.started"));
       expect(started).toBeDefined();
@@ -176,6 +178,7 @@ describe("العامل المدمج داخل عملية البوابة", () => {
         `cleanup-stale:${CITY_ID}`,
         `warn-expiring:${CITY_ID}`,
         `deliver-broadcasts:${CITY_ID}`,
+        `deliver-subscription-notices:${CITY_ID}`,
         "deliver-safety-incidents",
         "expire-subscriptions",
         "recompute-ratings",

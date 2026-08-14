@@ -13,6 +13,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
+import { waitingVariants } from "../../packages/application/bots/waiting-lines.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
@@ -243,7 +244,10 @@ describeIf("مسار التوصيل الكامل على قاعدة حقيقية"
     await requestDelivery();
     // رسالتان: إعلان البحث ثم عدد من أُخطِر فعلاً — لا وعد مجرّد
     const riderTexts = riderSent.map((m) => m.text);
-    expect(riderTexts).toContain(ar("rider.delivery_searching"));
+    // إعلانُ البحث سطرٌ من عائلة انتظارٍ متغيّرة، فالمُثبَت أنّه منها لا نصُّه الحرفي
+    expect(
+      riderTexts.some((line) => waitingVariants("riderSearchingDelivery", "ar").includes(line)),
+    ).toBe(true);
     expect(riderTexts.at(-1)).toBe(ar("rider.drivers_notified", { count: 1 }));
 
     // 2) الطلب مكتوب بخدمة delivery وبوجهة حقيقية ووصف الطرد في notes

@@ -19,6 +19,7 @@ import {
 } from "../../packages/application/bots/main-menu.ts";
 import type { SupportDialogDependencies } from "../../packages/application/bots/support-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
+import { waitingVariants } from "../../packages/application/bots/waiting-lines.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type { PaymentTransactionId } from "../../packages/domain/financial/index.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
@@ -261,8 +262,9 @@ describe("التوافر", () => {
   it("يفعّل التوافر وينبّه إلى غياب الاشتراك", async () => {
     const verified = driverDirectory(verifiedDriver());
     const replies = await handleDriverUpdate(text("/available"), build({ drivers: verified }));
-    expect(replies.map((r) => r.text)).toEqual([
-      ar("driver.now_available"),
+    // سطرُ الدخول إلى الخدمة يتغيّر بين نوبةٍ وأخرى، فالمُثبَت أنّه من عائلته لا نصُّه
+    expect(waitingVariants("driverAvailable", "ar")).toContain(replies[0]?.text ?? "");
+    expect(replies.map((r) => r.text).slice(1)).toEqual([
       // البند 6.3: النصّ يسمّي الزرّ بنصّه الحقيقي لا بأمرٍ مكتوب على السائق أن يتعلّمه
       ar("driver.no_live_subscription", { subscription_button: ar("menu.driver.subscription") }),
     ]);
@@ -288,7 +290,8 @@ describe("التوافر", () => {
         subscriptions: subscriptionReader(live),
       }),
     );
-    expect(replies.map((r) => r.text)).toEqual([ar("driver.now_available")]);
+    expect(replies).toHaveLength(1);
+    expect(waitingVariants("driverAvailable", "ar")).toContain(replies[0]?.text ?? "");
   });
 
   /**
@@ -302,8 +305,10 @@ describe("التوافر", () => {
     const replies = await handleDriverUpdate(text("/available"), build({ drivers: noLocation }));
 
     const texts = replies.map((r) => r.text);
-    // الادّعاء الكاذب غائب
-    expect(texts).not.toContain(ar("driver.now_available"));
+    // الادّعاء الكاذب غائب — بأيّ صيغةٍ من صيغ «أنت متاح»
+    for (const line of waitingVariants("driverAvailable", "ar")) {
+      expect(texts).not.toContain(line);
+    }
     // والحقيقة حاضرة أوّلاً
     expect(texts[0]).toBe(ar("driver.available_needs_location"));
     expect(texts).toContain(ar("driver.ask_location"));
@@ -701,7 +706,9 @@ describe("متانة الحوار", () => {
       text: "/help",
     };
     const replies = await handleDriverUpdate(english, deps);
-    expect(replies[0]?.text).toBe(translate("en", "driver.help"));
+    // الشرحُ أوّلاً ثم قائمةُ الأوامر — وكلاهما بلغة عميل تلغرام لا بالعربية
+    expect(replies[0]?.text).toBe(translate("en", "driver.guide"));
+    expect(replies[1]?.text).toBe(translate("en", "driver.help"));
   });
 
   it("يحفظ موقع السائق المسجَّل فعلاً", async () => {
@@ -834,10 +841,12 @@ describe("زرّ الدعم لا يغيب في أي حالة — بوت السا
 describe("لوحة /help — البند 6.3", () => {
   it("يعرض كل أوامر السائق أزراراً inline لا نصّاً", async () => {
     const replies = await handleDriverUpdate(text("/help"), build());
-    expect(replies).toHaveLength(2);
-    expect(replies[0]?.keyboard).toEqual(helpKeyboard("driver", "ar"));
+    expect(replies).toHaveLength(3);
+    // الردّ الأول شرحُ عمل البوت: من يطلب المساعدة يحتاج أن يعرف ما هو مطلوبٌ منه
+    expect(replies[0]?.text).toBe(ar("driver.guide"));
+    expect(replies[1]?.keyboard).toEqual(helpKeyboard("driver", "ar"));
 
-    const keyboard = replies[0]?.keyboard;
+    const keyboard = replies[1]?.keyboard;
     if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
     const labels = keyboard.rows.flat().map((button) => button.label);
     const data = keyboard.rows.flat().map((button) => button.data);
@@ -848,13 +857,13 @@ describe("لوحة /help — البند 6.3", () => {
     }
     expect(labels).toContain(ar("menu.support"));
     // ولا يعود النصّ قائمة أوامر مكتوبة
-    expect(replies[0]?.text).not.toContain("/available");
+    expect(replies[1]?.text).not.toContain("/available");
   });
 
   it("الردّ الثاني يُعيد تأكيد القائمة الدائمة لا يتركها للحظّ", async () => {
     const replies = await handleDriverUpdate(text("/help"), build());
-    expect(replies[1]?.text).toBe(ar("menu.hint"));
-    expect(replies[1]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+    expect(replies[2]?.text).toBe(ar("menu.hint"));
+    expect(replies[2]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
   });
 
   it("ضغط زرّ أمرٍ يمرّ بنفس موجّه الأوامر — /support يفتح الدعم", async () => {
