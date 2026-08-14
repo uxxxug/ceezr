@@ -6,6 +6,7 @@
  * ملاحظات مستقبلية: مخزن الجلسات يصير Redis بتبديل سطر واحد في container.ts.
  */
 
+import { verifySchemaContract } from "../../../packages/infrastructure/db/schema-guard.ts";
 import {
   createPaymentProvider,
   createPaymentRepository,
@@ -212,6 +213,31 @@ const app = createServer({
         check: async () => {
           const rows = await container.sql<{ ok: number }[]>`select 1 as ok`;
           return rows[0]?.ok === 1;
+        },
+      },
+      /**
+       * الاتّصالُ الناجح لا يعني قاعدةً صالحة. قاعدةُ الإنتاج بقيت متأخّرةً سبعَ
+       * عشرةَ ترحيلةً عن المستودع بينما `/ready` يقول «جاهز»: الجداولُ والدوالُّ
+       * التي يناديها الكودُ غائبة، والإخفاقُ يظهر أوّلَ ما يضغط سائقٌ زرّاً — أي
+       * على المستخدم لا على المراقبة. فهذا الفحصُ يُقدّم الإخفاقَ إلى النشر.
+       *
+       * وهو `critical`: خدمةٌ تعمل على مخطّطٍ ناقصٍ تكتب بياناتٍ نصفَ متّسقة،
+       * وذلك أسوأُ من رفضِ الحركة حتى تُطبَّق الترحيلات.
+       */
+      {
+        name: "database_schema",
+        check: async () => {
+          const report = await verifySchemaContract(container.sql);
+          if (report.complete) return { ok: true };
+          const missing = [
+            report.missingFunctions.length > 0
+              ? `دوالّ: ${report.missingFunctions.join(", ")}`
+              : null,
+            report.missingTables.length > 0 ? `جداول: ${report.missingTables.join(", ")}` : null,
+          ]
+            .filter((line): line is string => line !== null)
+            .join(" | ");
+          return { ok: false, detail: `ترحيلات غير مطبّقة — ${missing}` };
         },
       },
       // Redis يُفحَص فقط حين يكون في المسار الحرج فعلاً. فحصه دائماً كان سيُسقط

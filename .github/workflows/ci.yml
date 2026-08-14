@@ -134,6 +134,9 @@ jobs:
       - name: لا حاويةَ اختبارٍ تُبنى لكلِّ اختبارٍ وتُغلق مرّةً واحدة
         run: bun run scripts/check-test-container-lifecycle.ts
 
+      - name: عقدُ المخطّط يطابق ما يناديه الكود (فحصُ الجهوزية يقرؤه)
+        run: bun run scripts/check-schema-contract.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

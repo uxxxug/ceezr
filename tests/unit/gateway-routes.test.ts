@@ -36,7 +36,7 @@ function buildApp(opts: {
   handled?: boolean;
   readinessChecks?: readonly {
     name: string;
-    check: () => Promise<boolean>;
+    check: () => Promise<boolean | { ok: boolean; detail?: string }>;
     critical?: boolean;
   }[];
   received?: { bot: BotKind; update: unknown }[];
@@ -108,7 +108,60 @@ describe("GET /ready", () => {
       missingEnv: [],
       failedChecks: [],
       degradedChecks: [],
+      checkDetails: {},
     });
+  });
+
+  /**
+   * الاسمُ وحده لا يُصلَح عطلاً: «database_schema» يقول أنّ المخطّط ناقصٌ ولا يقول
+   * ما الناقص، ومن يقرأ الردّ في حادثة يحتاج الاسمَ الناقص ليعرف الترحيلة.
+   */
+  it("يُذيع تفصيل الفحص الفاشل لا اسمه وحده", async () => {
+    const res = await buildApp({
+      readinessChecks: [
+        {
+          name: "database_schema",
+          check: async () => ({ ok: false, detail: "ترحيلات غير مطبّقة — دوالّ: create_broadcast" }),
+        },
+      ],
+    }).request("http://localhost/ready");
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as {
+      failedChecks: string[];
+      checkDetails: Record<string, string>;
+    };
+    expect(body.failedChecks).toEqual(["database_schema"]);
+    expect(body.checkDetails.database_schema).toContain("create_broadcast");
+  });
+
+  it("الفحص الناجح بنتيجة مفصّلة لا يُسقط الجهوزية ولا يُذيع تفصيلاً", async () => {
+    const res = await buildApp({
+      readinessChecks: [{ name: "database_schema", check: async () => ({ ok: true }) }],
+    }).request("http://localhost/ready");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({
+      status: "ready",
+      missingEnv: [],
+      failedChecks: [],
+      degradedChecks: [],
+      checkDetails: {},
+    });
+  });
+
+  it("الفحص الذي يرمي استثناءً يحمل رسالته إلى التفصيل", async () => {
+    const res = await buildApp({
+      readinessChecks: [
+        {
+          name: "database",
+          check: async () => {
+            throw new Error("password authentication failed");
+          },
+        },
+      ],
+    }).request("http://localhost/ready");
+    expect(res.status).toBe(503);
+    const body = (await res.json()) as { checkDetails: Record<string, string> };
+    expect(body.checkDetails.database).toContain("password authentication failed");
   });
 
   it("غير جاهز 503 ويسمّي المتغيرات الناقصة", async () => {
@@ -169,6 +222,7 @@ describe("GET /ready", () => {
         missingEnv: [],
         failedChecks: [],
         degradedChecks: ["redis"],
+        checkDetails: {},
       });
     });
 
@@ -206,6 +260,7 @@ describe("GET /ready", () => {
         missingEnv: [],
         failedChecks: ["database"],
         degradedChecks: [],
+        checkDetails: {},
       });
     });
 
@@ -223,6 +278,7 @@ describe("GET /ready", () => {
         missingEnv: [],
         failedChecks: ["database"],
         degradedChecks: ["redis"],
+        checkDetails: {},
       });
     });
 
