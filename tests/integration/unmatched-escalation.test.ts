@@ -9,6 +9,13 @@
  *   وأُضيفت طبقةٌ ثانية: الطلب اليتيم المستنفد دوراته — عُرِض فتجاهلوه حتّى
  *   نفدت الدورات، فلا يُبَّث (redispatch تردّه بـBROADCAST_ROUNDS_EXHAUSTED) ولا كان
  *   يُصعَّد (الاستعلام كان يشترط «بلا أي عرض») — يتيمٌ دائمٌ والراكب ينتظر.
+ *
+ *   وطبقةٌ ثالثة هي أخطرها: الكنس كان يتخطّى القسم ٣.٤ بأكمله. قروب السائقين غير
+ *   المشتركين مبنيٌّ بدوراته ومطالباته وتدويره، ولم يكن في كلّ المنتج موضعٌ واحدٌ
+ *   يفتح دورته الأولى: `republishOrderCard` يُنادى من مهمّة التدوير وحدها، وهي
+ *   تدوّر ما هو مفتوحٌ أصلاً. فكانت كلّ طلبات الإنتاج تمرّ من المشتركين إلى قروب
+ *   الإسناد مباشرةً — بشرٌ يعالجون بأيديهم ما بُني ليُعالج تلقائيّاً، وقروبٌ فارغٌ
+ *   أُرسلت روابطُه للسائقين المنتهية تجاربُهم.
  * ملاحظات مستقبلية: يُوسَّع حين تُضاف إعادة البثّ قبل التصعيد.
  */
 
@@ -129,15 +136,60 @@ async function sweep(staleAfterSeconds = 0, maxBroadcastRounds = MAX_ROUNDS) {
   return runSweepUnmatchedOrders(cityId as CityId, {
     finder: createUnmatchedOrderFinder(sql),
     escalate: negotiation.escalate,
-    notifier: createUnmatchedRiderNotifier(asOutboundSender(capturing(riderSent)), (order) => {
-      const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
-      return order.service === "delivery"
-        ? say("rider.no_driver_found_delivery")
-        : say("rider.no_driver_found");
+    unsubscribed: negotiation.republish,
+    notifier: createUnmatchedRiderNotifier(asOutboundSender(capturing(riderSent)), {
+      noDriverFound: (order) => {
+        const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
+        return order.service === "delivery"
+          ? say("rider.no_driver_found_delivery")
+          : say("rider.no_driver_found");
+      },
+      widerCircleOpened: (order) => {
+        const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
+        return order.service === "delivery"
+          ? say("rider.searching_wider_circle_delivery")
+          : say("rider.searching_wider_circle");
+      },
     }),
     staleAfterSeconds,
     maxBroadcastRounds,
   });
+}
+
+/**
+ * يُنهي مسار قروب غير المشتركين للطلب بدوراتٍ مُستنفدةٍ مكتوبةٍ في القاعدة لا
+ * بتعطيل إعدادٍ ولا بحذف معرّف القروب: هذه هي الحال التي تقع في الإنتاج فعلاً
+ * بعد دوراتٍ لم يتفق فيها أحد، وعندها وحدها يفتح باب الإسناد.
+ */
+async function exhaustUnsubscribedCycles(orderId: string): Promise<void> {
+  const rows = await sql<{ value: string }[]>`
+    select value from platform_settings
+     where city_id = ${cityId}::uuid and key = 'unsubscribed_max_cycles'`;
+  const max = Number(rows[0]?.value);
+  if (!Number.isFinite(max) || max < 1) throw new Error("لم يُقرأ حدّ الدورات من الإعدادات");
+
+  for (let cycle = 1; cycle <= max; cycle += 1) {
+    await sql`
+      insert into unsubscribed_negotiations (city_id, order_id, cycle, status, collect_deadline)
+      values (${cityId}::uuid, ${orderId}::uuid, ${cycle}, 'exhausted', now() - interval '1 minute')
+    `;
+  }
+}
+
+/** معرّف الطلب الوحيد القائم — كلّ اختبار هنا ينشئ طلباً واحداً. */
+async function currentOrderId(): Promise<string> {
+  const rows = await sql<{ id: string }[]>`select id from orders`;
+  const id = rows[0]?.id;
+  if (id === undefined) throw new Error("لا طلب قائم");
+  return id;
+}
+
+/**
+ * مختصرٌ لما تشترك فيه كلّ اختبارات التصعيد بعد وصل الباب الثاني: الإسناد
+ * البشريّ لم يعد أوّل من يُنادى، بل آخره — ومن أراد اختباره فعليه أن يستنفد ما قبله.
+ */
+async function exhaustWiderCircleForCurrentOrder(): Promise<void> {
+  await exhaustUnsubscribedCycles(await currentOrderId());
 }
 
 /**
@@ -258,8 +310,79 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     expect(Number(offers[0]?.count)).toBe(0);
   });
 
+  /**
+   * الانحدار المقصود من وصل الباب الثاني: قبله كان أوّل كنسٍ يرمي الطلب للبشر،
+   * وقروب غير المشتركين — وهو موضع تحويل السائق إلى مشتركٍ — لا يرى طلباً أبداً.
+   */
+  it("الكنس يفتح الدائرة الأوسع قبل البشر: بطاقةٌ في قروب غير المشتركين ودورةٌ أولى", async () => {
+    await riderOrdersRide();
+    riderSent.length = 0;
+    groupSent.length = 0;
+
+    const report = await sweep();
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+
+    expect(report.value.examined).toBe(1);
+    expect(report.value.offeredToUnsubscribed).toHaveLength(1);
+    expect(report.value.toldWiderCircle).toHaveLength(1);
+    // ولا تصعيد: البشر لا يُنادون والأوتوماتيكيّ لمّا يُجرّب.
+    expect(report.value.escalated).toHaveLength(0);
+    expect(report.value.failed).toBe(0);
+
+    // دورةٌ أولى مفتوحةٌ في القاعدة لا في الذاكرة.
+    const cycles = await sql<{ cycle: number; status: string; group_message_id: string | null }[]>`
+      select cycle, status, group_message_id from unsubscribed_negotiations`;
+    expect(cycles).toHaveLength(1);
+    expect(cycles[0]?.cycle).toBe(1);
+    expect(cycles[0]?.status).toBe("collecting");
+    expect(cycles[0]?.group_message_id).not.toBeNull();
+
+    // البطاقة إلى قروب غير المشتركين لا إلى قروب الإسناد.
+    expect(groupSent.filter((m) => String(m.chatId) === "-1003").length).toBeGreaterThan(0);
+    expect(groupSent.filter((m) => String(m.chatId) === "-1002")).toHaveLength(0);
+
+    // والراكب يُخبَر بما يجري فعلاً لا بـ«أُحيل طلبُك يدويّاً».
+    const told = riderSent.filter(
+      (m) => m.text === translate("ar", "rider.searching_wider_circle"),
+    );
+    expect(told).toHaveLength(1);
+    expect(String(told[0]?.chatId)).toBe(String(RIDER_CHAT));
+    expect(
+      riderSent.filter((m) => m.text === translate("ar", "rider.no_driver_found")),
+    ).toHaveLength(0);
+
+    const audit = await sql<{ count: string }[]>`
+      select count(*) from audit_log where action = 'order.escalated'`;
+    expect(Number(audit[0]?.count)).toBe(0);
+  });
+
+  /** ولا بطاقتان لنفس الطلب: الدورة الحيّة تملكها مهمّة التدوير لا الكنس. */
+  it("الشوط التالي لا ينشر بطاقةً ثانية ولا يُزعج الراكب ولا يُصعّد", async () => {
+    await riderOrdersRide();
+    await sweep();
+    riderSent.length = 0;
+    groupSent.length = 0;
+
+    const second = await sweep();
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+
+    expect(second.value.awaitingUnsubscribed).toBe(1);
+    expect(second.value.offeredToUnsubscribed).toHaveLength(0);
+    expect(second.value.toldWiderCircle).toHaveLength(0);
+    expect(second.value.escalated).toHaveLength(0);
+    expect(groupSent).toHaveLength(0);
+    expect(riderSent).toHaveLength(0);
+
+    const cycles = await sql<{ count: string }[]>`
+      select count(*) from unsubscribed_negotiations`;
+    expect(Number(cycles[0]?.count)).toBe(1);
+  });
+
   it("الكنس يُصعّد الطلب إلى قروب الإسناد ويُخبر الراكب بالحقيقة", async () => {
     await riderOrdersRide();
+    await exhaustWiderCircleForCurrentOrder();
     riderSent.length = 0;
     groupSent.length = 0;
 
@@ -288,6 +411,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
 
   it("الطلب لا يُصعَّد مرّتين ولا يُزعَج صاحبه في كل شوط", async () => {
     await riderOrdersRide();
+    await exhaustWiderCircleForCurrentOrder();
     await sweep();
     riderSent.length = 0;
     groupSent.length = 0;
@@ -320,6 +444,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
   it("الطلب المستنفد دوراته وله عرضٌ منتهٍ يُصعَّد بسببٍ يقول الحقيقة", async () => {
     await riderOrdersRide();
     await makeOrphanWithDeadOffer(MAX_ROUNDS);
+    await exhaustWiderCircleForCurrentOrder();
     riderSent.length = 0;
     groupSent.length = 0;
 
@@ -337,12 +462,17 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
       select payload->>'reason' as reason
         from audit_log where action = 'order.escalated'`;
     expect(audit).toHaveLength(1);
-    expect(audit[0]?.reason).toBe("broadcast_rounds_exhausted");
+    /**
+     * والسبب تغيّر حين وُصل الباب الثاني، وهو أصدق ممّا كان: من يقرأ البطاقة
+     * في قروب الإسناد يحتاج أن يعرف أنّ الدائرتين معاً أُجرِّبتا ولم تنجحا، لا أن يقرأ
+     * عن دورات بثٍّ انتهت قبل محاولةٍ أخرى برمتها.
+     */
+    expect(audit[0]?.reason).toBe("unsubscribed_cycles_exhausted");
 
     // وبطاقةٌ وصلت قروب الإسناد بنصّ السبب المترجم لا بمفتاحٍ خام.
     const toGroup = groupSent.filter((m) => String(m.chatId) === "-1002");
     expect(toGroup.length).toBeGreaterThan(0);
-    const reasonText = translate("ar", "group.escalation_reason_broadcast_rounds_exhausted");
+    const reasonText = translate("ar", "group.escalation_reason_unsubscribed_cycles_exhausted");
     expect(toGroup.some((m) => m.text.includes(reasonText))).toBe(true);
   });
 
@@ -379,6 +509,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
   it("الحدّ المقروء من الإعدادات هو من يحكم لا رقمٌ في الكود", async () => {
     await riderOrdersRide();
     await makeOrphanWithDeadOffer(1);
+    await exhaustWiderCircleForCurrentOrder();
 
     const report = await sweep(0, 1);
     expect(report.ok).toBe(true);
@@ -396,6 +527,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
    */
   it("إخفاق إرسال البطاقة لا يُخرس الطلب: الشوط التالي يُصعّده فعلاً", async () => {
     await riderOrdersRide();
+    await exhaustWiderCircleForCurrentOrder();
     riderSent.length = 0;
     groupSent.length = 0;
 
@@ -443,6 +575,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
    */
   it("التسليم الناجح لا يُكرّر: شوطٌ ثانٍ لا يبعث بطاقةً ولا رسالةً", async () => {
     await riderOrdersRide();
+    await exhaustWiderCircleForCurrentOrder();
     riderSent.length = 0;
     groupSent.length = 0;
 

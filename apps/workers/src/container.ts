@@ -391,17 +391,26 @@ export function buildWorkerContainer(
   };
 
   const unmatchedFinder = createUnmatchedOrderFinder(sql);
-  const unmatchedNotifier = createUnmatchedRiderNotifier(riderOut, (order) => {
-    const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
-    /**
-     * البند 6.3: النصّ كان يقول «أرسل /cancel» وللإلغاء زرّ في القائمة منذ البند 2.1.
-     * ومن لا يجد سائقاً هو أسوأ من يُطلب منه أن يتعلّم أمراً مكتوباً. واسم الزرّ
-     * يُقرأ من مفتاحه لا يُكتب في القاموس، فلا يكذب النصّ إن تغيّر الزرّ.
-     */
-    const params = { cancel_button: say("menu.rider.cancel") };
-    return order.service === "delivery"
-      ? say("rider.no_driver_found_delivery", params)
-      : say("rider.no_driver_found", params);
+  const unmatchedNotifier = createUnmatchedRiderNotifier(riderOut, {
+    noDriverFound: (order) => {
+      const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
+      /**
+       * البند 6.3: النصّ كان يقول «أرسل /cancel» وللإلغاء زرّ في القائمة منذ البند 2.1.
+       * ومن لا يجد سائقاً هو أسوأ من يُطلب منه أن يتعلّم أمراً مكتوباً. واسم الزرّ
+       * يُقرأ من مفتاحه لا يُكتب في القاموس، فلا يكذب النصّ إن تغيّر الزرّ.
+       */
+      const params = { cancel_button: say("menu.rider.cancel") };
+      return order.service === "delivery"
+        ? say("rider.no_driver_found_delivery", params)
+        : say("rider.no_driver_found", params);
+    },
+    widerCircleOpened: (order) => {
+      const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
+      const params = { cancel_button: say("menu.rider.cancel") };
+      return order.service === "delivery"
+        ? say("rider.searching_wider_circle_delivery", params)
+        : say("rider.searching_wider_circle", params);
+    },
   });
 
   const negotiation = createNegotiationWiring(sql, {
@@ -509,6 +518,11 @@ export function buildWorkerContainer(
             const report = await runSweepUnmatchedOrders(cityId, {
               finder: unmatchedFinder,
               escalate: negotiation.escalate,
+              /**
+               * الباب الثاني يُوصَل هنا: بدونه تذهب كلّ طلبات الإنتاج إلى قروب الإسناد
+               * ويبقى قروب غير المشتركين فارغاً — آلةٌ كاملةٌ مبنيّةٌ لا أحد يفتح دورتها.
+               */
+              unsubscribed: negotiation.republish,
               notifier: unmatchedNotifier,
               staleAfterSeconds: await unmatchedThreshold(cityId),
               maxBroadcastRounds: await numericSetting(
@@ -520,7 +534,7 @@ export function buildWorkerContainer(
             });
             if (!report.ok) throw new Error(JSON.stringify(report.error));
             const value = report.value;
-            return `examined=${value.examined} escalated=${value.escalated.length} notified=${value.notified.length} already=${value.alreadyEscalated} broadcasting=${value.stillBroadcasting} failed=${value.failed}`;
+            return `examined=${value.examined} unsubOffered=${value.offeredToUnsubscribed.length} unsubWaiting=${value.awaitingUnsubscribed} escalated=${value.escalated.length} notified=${value.notified.length} widerCircle=${value.toldWiderCircle.length} already=${value.alreadyEscalated} broadcasting=${value.stillBroadcasting} failed=${value.failed}`;
           },
         },
         {

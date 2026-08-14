@@ -24,8 +24,20 @@ import { ok, type Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
 import {
   type EscalateUnmatchedOrderDependencies,
+  type EscalationReason,
   escalateUnmatchedOrder,
 } from "./escalate-unmatched-order.ts";
+import {
+  type PublishToUnsubscribedGroupDependencies,
+  publishToUnsubscribedGroup,
+} from "./publish-to-unsubscribed-group.ts";
+
+/**
+ * رقمُ الدورة الأولى كما تكتبه `open_unsubscribed_cycle` في القاعدة. ليس إعداداً
+ * تجارياً يُضبط من `platform_settings`، بل بداية عدٍّ تصاعديّ — وحدُّ الدورات نفسه
+ * إعدادٌ تقرؤه القاعدة لا هذا الملفّ.
+ */
+const FIRST_CYCLE = 1;
 
 /** طلب عالق: يبحث منذ مدة، وليس له عرضٌ حيّ ولا سائق مُسنَد. */
 export interface UnmatchedOrder {
@@ -62,11 +74,26 @@ export interface UnmatchedOrderFinder {
 export interface UnmatchedRiderNotifier {
   /** يُستدعى مرّة واحدة لكل طلب: عند أوّل تصعيد فعلي لا في كل شوط. */
   noDriverFound(order: UnmatchedOrder): Promise<Result<void, PortFailureError>>;
+  /**
+   * يُستدعى مرّة واحدة عند فتح الدورة الأولى في قروب غير المشتركين: الانتقال إلى
+   * دائرة أوسع خبرٌ للراكب لا شأنٌ داخليّ — إخفاؤه يعني انتظاراً أطول بلا كلمة،
+   * وهو نفس الصمت الذي جاءت هذه المهمّة لإنهائه. والدورة الأولى وحدها لأنّ ما
+   * بعدها إعادةُ محاولةٍ لا خبرٌ جديد.
+   */
+  widerCircleOpened(order: UnmatchedOrder): Promise<Result<void, PortFailureError>>;
 }
 
 export interface SweepUnmatchedDependencies {
   readonly finder: UnmatchedOrderFinder;
   readonly escalate: EscalateUnmatchedOrderDependencies;
+  /**
+   * الباب الثاني (القسم ٣.٤): قروب السائقين غير المشتركين. تبعيّةٌ لازمةٌ لا
+   * اختياريّة عن قصد — لأنّ إغفال توصيلها هو بعينه العطب الذي كان قائماً: كامل
+   * آلة القروب مبنيّةٌ ومُختبَرة، ولا أحد يفتح دورتها الأولى، فتذهب كلّ طلبات
+   * الإنتاج إلى قروب الإسناد بشراً يعالجونها بأيديهم، ويبقى قروب غير المشتركين
+   * فارغاً — وهو نفسه قناةُ تحويل السائق المنتهي تجربتُه إلى مشترك.
+   */
+  readonly unsubscribed: PublishToUnsubscribedGroupDependencies;
   readonly notifier: UnmatchedRiderNotifier;
   /** عتبة الانتظار قبل التصعيد — تأتي من إعدادات المدينة لا من ثابت في الكود. */
   readonly staleAfterSeconds: number;
@@ -85,6 +112,15 @@ export interface SweepUnmatchedReport {
   readonly notified: readonly OrderId[];
   /** طلبات كانت مُصعَّدة من قبل — تُعدّ ولا تُصعَّد ثانية ولا يُزعَج صاحبها. */
   readonly alreadyEscalated: number;
+  /** طلباتٌ نُشرت بطاقتُها الآن في قروب غير المشتركين: الباب الثاني فُتح فعلاً. */
+  readonly offeredToUnsubscribed: readonly OrderId[];
+  /** أصحابُ الطلبات الذين أُخبروا بالانتقال إلى الدائرة الأوسع — لا يُخلط بإشعار التصعيد. */
+  readonly toldWiderCircle: readonly OrderId[];
+  /**
+   * طلباتٌ لها دورةٌ حيّةٌ في القروب: تُترك لمهمّة التدوير ولا تُصعَّد. تُعدّ صراحةً
+   * لأنّ «فحصتُ ولم أصعّد» بلا بيانٍ يبدو طمأنينةً وهو قد يكون عطلاً.
+   */
+  readonly awaitingUnsubscribed: number;
   /**
    * طلباتٌ عُرِضت ولمّا تستنفد دوراتها: تُترك للبثّ ولا تُصعَّد بعد. تُعدّ صراحةً
    * لأنّ «فحصتُ 5 وصعّدتُ 0» بلا بيان سببٍ من أخطر أنواع السجلّ: يبدو طمأنينةً.
@@ -102,8 +138,11 @@ export async function sweepUnmatchedOrders(
 
   const escalated: OrderId[] = [];
   const notified: OrderId[] = [];
+  const offeredToUnsubscribed: OrderId[] = [];
+  const toldWiderCircle: OrderId[] = [];
   let alreadyEscalated = 0;
   let stillBroadcasting = 0;
+  let awaitingUnsubscribed = 0;
   let failed = 0;
 
   for (const order of stale.value) {
@@ -120,13 +159,62 @@ export async function sweepUnmatchedOrders(
     }
 
     /**
-     * السبب يقول الحقيقة لموظّف الإسناد: إنّ من عُرِض له فتجاهلوه حتّى نفدت
-     * الدورات ليس «لا يوجد أي سائق متاح في المدينة» — والتصرّف يختلف باختلافهما.
+     * الباب الثاني قبل البشر: مسار المشتركين انتهى، فتُنشر البطاقة في قروب غير
+     * المشتركين وتُفتح دورةُ الثلاثة (٣.٤). التصعيد إلى الإسناد لا يقع إلّا بعد
+     * أن يُغلق هذا الباب — نصّاً في التوجيه: «لا سائق مشترك ولا استجابة من القروب
+     * غير المشترك بعد عدة دورات».
+     *
+     * والسبق مع مهمّة التدوير محسوم في القاعدة لا هنا: الفهرس
+     * unsubscribed_negotiations_single_open يمنع دورتين مفتوحتين، فأيّهما سبق ربح
+     * والآخر يقرأ CYCLE_ALREADY_OPEN ويمضي — لا قفلَ تطبيقٍ يحرس ما تحرسه القاعدة.
      */
+    const published = await publishToUnsubscribedGroup(
+      { orderId: order.orderId },
+      deps.unsubscribed,
+    );
+    if (!published.ok) {
+      // إخفاق النشر لا يُصعَّد فوراً: الدورة قد تكون فُتحت فعلاً، ومهمّة التدوير
+      // تلتقطها عند انتهاء مهلة الجمع. تصعيدٌ هنا يقول للموظّف «لا استجابة» قبل أن
+      // يرى القروبُ البطاقةَ أصلاً.
+      failed += 1;
+      deps.log?.("sweep.unsubscribed_publish_failed", { orderId: order.orderId, cityId });
+      continue;
+    }
+
+    if (published.value.published) {
+      offeredToUnsubscribed.push(order.orderId);
+      // الدورة الأولى وحدها خبرٌ للراكب: ما بعدها إعادةُ محاولةٍ تملكها مهمّة التدوير.
+      if (published.value.cycle === FIRST_CYCLE) {
+        const told = await deps.notifier.widerCircleOpened(order);
+        if (told.ok) toldWiderCircle.push(order.orderId);
+        else deps.log?.("sweep.wider_circle_notify_failed", { orderId: order.orderId, cityId });
+      }
+      continue;
+    }
+
+    const refusal = published.value.reason;
+    if (refusal === "CYCLE_ALREADY_OPEN" || refusal === "ORDER_NOT_SEARCHING") {
+      // دورةٌ حيّةٌ تملكها مهمّة التدوير، أو طلبٌ تغيّرت حالُه بين القراءة والكتابة.
+      awaitingUnsubscribed += 1;
+      continue;
+    }
+
+    /**
+     * السبب يقول الحقيقة لموظّف الإسناد: من نفدت دوراتُ قروبه غير المشتركين حالُه
+     * غير من لا قروبَ في مدينته أصلاً، ومن عُرِض له فتجاهلوه ليس «لا سائق في
+     * المدينة» — والتصرّف يختلف باختلافها الثلاثة.
+     */
+    const reason: EscalationReason =
+      refusal === "CYCLES_EXHAUSTED"
+        ? "unsubscribed_cycles_exhausted"
+        : order.hasAnyOffer
+          ? "broadcast_rounds_exhausted"
+          : "no_driver_at_all";
+
     const result = await escalateUnmatchedOrder(
       {
         orderId: order.orderId,
-        reason: order.hasAnyOffer ? "broadcast_rounds_exhausted" : "no_driver_at_all",
+        reason,
         cyclesTried: order.broadcastRound,
       },
       deps.escalate,
@@ -172,6 +260,9 @@ export async function sweepUnmatchedOrders(
     notified,
     alreadyEscalated,
     stillBroadcasting,
+    offeredToUnsubscribed,
+    toldWiderCircle,
+    awaitingUnsubscribed,
     failed,
   });
 }

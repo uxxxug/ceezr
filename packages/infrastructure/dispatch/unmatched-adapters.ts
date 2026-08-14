@@ -79,14 +79,29 @@ export function createUnmatchedOrderFinder(sql: Sql): UnmatchedOrderFinder {
  * الإشعار يُرسَل ببوت الراكب حصراً. إرساله ببوت السائق يفشل بـ403 لأن الراكب
  * لم يفتح محادثةً معه قط — وهو فشلٌ صامت لا يظهر في أي سجل مُراقَب.
  */
+export interface UnmatchedRiderTexts {
+  readonly noDriverFound: (order: UnmatchedOrder) => string;
+  readonly widerCircleOpened: (order: UnmatchedOrder) => string;
+}
+
+/**
+ * مُرسِما النصّين يُمرّران معاً في تركيبة واحدة لا واحدٌ موقعيّ: «لا سائق» و«دائرة
+ * أوسع» خبران مختلفان تماماً، وتمريرُ أحدهما مكان الآخر يقول للراكب «أُحيل طلبُك
+ * للإسناد يدويّاً» وبطاقتُه في الحقيقة معروضةٌ في القروب لمّا يُحل إلى أحد.
+ */
 export function createUnmatchedRiderNotifier(
   riderOut: OutboundSender,
-  render: (order: UnmatchedOrder) => string,
+  render: UnmatchedRiderTexts,
 ): UnmatchedRiderNotifier {
   return {
     noDriverFound: (order: UnmatchedOrder) =>
       guard("unmatched.noDriverFound", async (): Promise<void> => {
-        await riderOut.send(order.riderChatId, render(order), null);
+        await riderOut.send(order.riderChatId, render.noDriverFound(order), null);
+      }),
+
+    widerCircleOpened: (order: UnmatchedOrder) =>
+      guard("unmatched.widerCircleOpened", async (): Promise<void> => {
+        await riderOut.send(order.riderChatId, render.widerCircleOpened(order), null);
       }),
   };
 }
