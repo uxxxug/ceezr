@@ -200,7 +200,9 @@ describeIf("مشغّل الجوبات المركزي على قاعدة حقيق�
   });
 
   it("لا يبني مهامّ مدينة لمدينة غير مفعَّلة، ويبقي المهامّ العامّة", async () => {
-    await sql`update cities set is_active = false where id = ${cityId}`;
+    // «لا مدينةَ مفعَّلة» شرطٌ على الجدولِ كلِّه: إطفاءُ مدينةِ السيناريو وحدَها
+    // كان يكفي حين كانت مدينةٌ واحدةٌ نشطةً، ولا يكفي في إطلاقِ خمسِ مدن.
+    await sql`update cities set is_active = false`;
     const jobs = await container.jobs();
     const names = jobs.map((job) => job.name);
 

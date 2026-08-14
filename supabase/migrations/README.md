@@ -15,7 +15,7 @@
 | - | ----- | -------- |
 | 1 | `20260806120000_phase_2_1_core_schema` | الجداول الأساسية: `cities`, `users`, `drivers`, `orders`, `offers`, `platform_settings`, `audit_log` |
 | 2 | `20260806120100_phase_2_1_atomic_rpcs` | دوال RPC الذرّية للمطابقة والاشتراك |
-| 3 | `20260806120200_phase_2_1_seed_cities_and_settings` | بذر المدن الأربع والإعدادات |
+| 3 | `20260806120200_phase_2_1_seed_cities_and_settings` | بذر مدن الإطلاق الخمس (`JED` جدة، `MKK` مكة، `RUH` الرياض، `TIF` الطائف، `MED` المدينة المنورة) وإعداداتها |
 | 4 | `20260807100000_phase_2_3_unsubscribed_negotiation` | مساومة غير المشتركين |
 | 5 | `20260807130000_phase_2_4_support_tickets` | تذاكر الدعم ودخول اللوحة |
 | 6 | `20260807170000_phase_2_5_mutual_ratings` | التقييم المتبادل |

@@ -16,8 +16,10 @@
  *   اتّصالاتَ القاعدة وأسقطَ ملفّاتٍ لا علاقة لها بالعيب أصلاً. والعيبُ من هذا
  *   النوع لا يُكتشف بمراجعةِ الشيفرة لأنّه لا يظهر إلّا بترتيبٍ معيَّن.
  */
+import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { toPosixPath } from "./lib/repo-path.ts";
 
 const TEST_ROOTS = ["tests/integration", "tests/e2e", "tests/unit"] as const;
 
@@ -44,14 +46,16 @@ interface Violation {
 
 async function listTestFiles(root: string): Promise<readonly string[]> {
   const found: string[] = [];
-  let entries: Awaited<ReturnType<typeof readdir>>;
+  // النوعُ مكتوبٌ صراحةً: `Awaited<ReturnType<typeof readdir>>` يحلُّ إلى أوّلِ تحميلةٍ
+  // لا إلى ما يردُّ مع `withFileTypes`، فينفجر الفحصُ لحظةَ يصير الملفُّ مستورداً.
+  let entries: readonly Dirent[];
   try {
     entries = await readdir(root, { withFileTypes: true });
   } catch {
     return found;
   }
   for (const entry of entries) {
-    const path = join(root, entry.name);
+    const path = toPosixPath(join(root, entry.name));
     if (entry.isDirectory()) found.push(...(await listTestFiles(path)));
     else if (entry.name.endsWith(".test.ts")) found.push(path);
   }
@@ -72,7 +76,9 @@ export function statementAround(source: string, activationIndex: number): string
 }
 
 export function analyseSource(file: string, source: string): readonly Violation[] {
-  if (INTENTIONAL_BARE_ACTIVATION.has(file)) return [];
+  // التوحيدُ هنا أيضاً لا في الجمعِ وحدَه: الدالّةُ مُصَدَّرةٌ ويستدعيها اختبارُ
+  // وحدةٍ بمسارٍ من عندِه، فاستثناءٌ يعتمد على مَن جمعَ المسارَ استثناءٌ هشّ.
+  if (INTENTIONAL_BARE_ACTIVATION.has(toPosixPath(file))) return [];
   const violations: Violation[] = [];
   const pattern = /is_active\s*=\s*true/g;
   let match = pattern.exec(source);
