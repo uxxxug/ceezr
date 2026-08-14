@@ -529,7 +529,9 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
   });
 
   it("لا يعرض مدينة غير مفعَّلة على أي مستخدم", async () => {
-    await sql`update cities set is_active = false where id = ${cityId}`;
+    // نُطفئ المدنَ جميعاً لا مدينةَ السيناريو وحدَها: المقصودُ «لا مدينةَ مفعَّلة»،
+    // وإطفاءُ واحدةٍ يجعل النتيجةَ رهنَ بقيّةِ صفوفِ الجدول لا رهنَ سلوكِ المنتَج.
+    await sql`update cities set is_active = false`;
     driverSent.length = 0;
     await post("driver", text(DRIVER_CHAT, "/start"));
     await post("driver", text(DRIVER_CHAT, "أحمد العمري"));

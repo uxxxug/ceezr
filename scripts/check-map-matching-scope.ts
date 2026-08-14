@@ -18,6 +18,7 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
+import { toPosixPath } from "./lib/repo-path.ts";
 
 /**
  * جذورُ كودِ الإنتاج، والثلاثةُ لازمةٌ لا تجميلٌ:
@@ -83,7 +84,7 @@ function walk(dir: string, out: string[]): void {
     if (entry === "node_modules" || entry.startsWith(".")) continue;
     const full = join(dir, entry);
     if (statSync(full).isDirectory()) walk(full, out);
-    else if (extname(full) === ".ts" && !full.includes(".test.")) out.push(full);
+    else if (extname(full) === ".ts" && !full.includes(".test.")) out.push(toPosixPath(full));
   }
 }
 

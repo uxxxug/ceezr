@@ -29,7 +29,7 @@ const PAST = new Date("2026-07-06T12:00:00Z");
 
 const PICKUP = { latitude: 21.4858, longitude: 39.1925 };
 
-/** نفس القيم المبذورة في platform_settings للمدن الأربع. */
+/** نفس القيم المبذورة في platform_settings لمدن الإطلاق الخمس. */
 const PARAMS: MatchingParameters = {
   searchRadiusKm: 10,
   weightProximity: 0.7,
