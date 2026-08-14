@@ -89,6 +89,7 @@
   "driver.vehicle_suv": "🚙 دفع رباعي",
   "driver.vehicle_van": "🚐 فان / نقل",
   "driver.welcome": "مرحباً بك في وَصْلة للسائقين. لنكمل تسجيلك.",
+  "broadcast.header": "📣 رسالة من فريق واصلة",
   "group.escalation_card": "⚠️ طلب يحتاج إسناداً يدوياً\n\n🔧 الخدمة: {service}\n📍 المنطقة التقريبية: {area}\n🔁 دورات جُرِّبت: {cycles}\n📄 السبب: {reason}\n🆔 الطلب: {order}",
   "group.escalation_reason_no_driver_at_all": "لا يوجد أي سائق متاح في المدينة",
   "group.escalation_reason_broadcast_rounds_exhausted": "عُرِض على السائقين ونفدت دورات البثّ بلا قبول",

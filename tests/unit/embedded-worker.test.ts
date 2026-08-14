@@ -162,7 +162,9 @@ describe("العامل المدمج داخل عملية البوابة", () => {
       // اختفت من الإنتاج بلا أن يلاحظها أحد، وهو بالضبط العطب الذي جاء البند ليُصلحه.
       // صار تسعاً بإضافة outbox SOS العامّة: غيابها لا يخفي فشلاً في تيليجرام،
       // والحارس المثبّت يكشف حذف المهمة من إنتاج العامل.
-      expect(handle.jobCount).toBe(9);
+      // ثم عشراً بإضافة تسليم البثّ الجماعي لكلّ مدينة: حملةٌ تُكتب في القاعدة ولا
+      // مهمّةَ تسليمٍ مسجّلة تعني صفوفاً `pending` إلى الأبد ولوحةً تقول «جارٍ الإرسال».
+      expect(handle.jobCount).toBe(10);
 
       const started = lines.find((line) => line.startsWith("embedded_worker.started"));
       expect(started).toBeDefined();
@@ -173,6 +175,7 @@ describe("العامل المدمج داخل عملية البوابة", () => {
         `rotate-negotiations:${CITY_ID}`,
         `cleanup-stale:${CITY_ID}`,
         `warn-expiring:${CITY_ID}`,
+        `deliver-broadcasts:${CITY_ID}`,
         "deliver-safety-incidents",
         "expire-subscriptions",
         "recompute-ratings",

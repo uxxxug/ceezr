@@ -1706,3 +1706,126 @@ export async function listLiveDriverStatuses(
   const rows = await listLiveDriverPositions(sql, cityId);
   return rows.map((row) => ({ ...row, status: operationsStatusOfRow(row, nowMs) }));
 }
+
+// ---------------------------------------------------------------------------
+// البثّ الجماعي — سجلّ الحملات وتقدّمها
+// ---------------------------------------------------------------------------
+
+/** حدُّ سجلّ الحملات المعروضة. تقنيةُ عرضٍ لا سياسةُ أعمال. */
+export const BROADCAST_HISTORY_LIMIT = 20;
+
+/**
+ * صفُّ حملةٍ واحدة كما يُقرأ في اللوحة. الدفعةُ هي الوحدة لا الحملة: بثٌّ إلى
+ * «كلّ المدن» صفٌّ لكلّ مدينة في القاعدة، لكنّ المسؤول أرسل رسالةً واحدة ويجب أن
+ * يرى تقدّمَها واحداً ويُلغيها بإلغاءٍ واحد.
+ */
+export interface BroadcastCampaignRow {
+  readonly batchId: string;
+  readonly audience: "drivers" | "riders";
+  readonly cities: string;
+  readonly cityCount: number;
+  readonly body: string;
+  readonly filters: string;
+  readonly silent: boolean;
+  readonly linkLabel: string | null;
+  readonly linkUrl: string | null;
+  readonly status: "sending" | "completed" | "canceled";
+  readonly total: number;
+  readonly sent: number;
+  readonly failed: number;
+  readonly pending: number;
+  readonly canceled: number;
+  readonly createdBy: string | null;
+  readonly createdAt: string;
+}
+
+export async function listBroadcastCampaigns(
+  sql: Sql,
+  limit: number = BROADCAST_HISTORY_LIMIT,
+): Promise<readonly BroadcastCampaignRow[]> {
+  const rows = await sql<
+    {
+      batch_id: string;
+      audience: string;
+      cities: string | null;
+      city_count: number;
+      body: string;
+      filters: string;
+      silent: boolean;
+      link_label: string | null;
+      link_url: string | null;
+      status: string;
+      total: number;
+      sent: number;
+      failed: number;
+      pending: number;
+      canceled: number;
+      created_by: string | null;
+      created_at: string;
+    }[]
+  >`
+    with batches as (
+      select cam.batch_id,
+             min(cam.created_at) as created_at,
+             min(cam.audience) as audience,
+             count(*) as city_count,
+             string_agg(distinct c.name_ar, '، ') as cities,
+             min(cam.body) as body,
+             min(cam.filters::text) as filters,
+             bool_or(cam.silent) as silent,
+             min(cam.link_label) as link_label,
+             min(cam.link_url) as link_url,
+             bool_or(cam.status = 'sending') as any_sending,
+             bool_and(cam.status = 'canceled') as all_canceled,
+             sum(cam.recipients_total)::int as total,
+             min(u.full_name) as created_by
+        from broadcast_campaigns cam
+        join cities c on c.id = cam.city_id
+        join users u on u.id = cam.created_by_user_id
+       group by cam.batch_id
+       order by min(cam.created_at) desc
+       limit ${limit}
+    )
+    select b.batch_id, b.audience, b.cities, b.city_count::int as city_count,
+           b.body, b.filters, b.silent, b.link_label, b.link_url,
+           case when b.any_sending then 'sending'
+                when b.all_canceled then 'canceled'
+                else 'completed' end as status,
+           b.total, b.created_by, b.created_at,
+           coalesce(r.sent, 0)::int as sent,
+           coalesce(r.failed, 0)::int as failed,
+           coalesce(r.pending, 0)::int as pending,
+           coalesce(r.canceled, 0)::int as canceled
+      from batches b
+      left join lateral (
+        select count(*) filter (where rec.status = 'sent') as sent,
+               count(*) filter (where rec.status = 'failed') as failed,
+               count(*) filter (where rec.status in ('pending', 'sending')) as pending,
+               count(*) filter (where rec.status = 'canceled') as canceled
+          from broadcast_recipients rec
+          join broadcast_campaigns cc on cc.id = rec.campaign_id
+         where cc.batch_id = b.batch_id
+      ) r on true
+     order by b.created_at desc
+  `;
+  return rows.map((row) => ({
+    batchId: row.batch_id,
+    audience: row.audience === "riders" ? "riders" : "drivers",
+    cities: row.cities ?? "—",
+    cityCount: Number(row.city_count),
+    body: row.body,
+    filters: row.filters,
+    silent: row.silent,
+    linkLabel: row.link_label,
+    linkUrl: row.link_url,
+    status:
+      row.status === "sending" ? "sending" : row.status === "canceled" ? "canceled" : "completed",
+    total: Number(row.total),
+    sent: Number(row.sent),
+    failed: Number(row.failed),
+    pending: Number(row.pending),
+    canceled: Number(row.canceled),
+    createdBy: row.created_by,
+    createdAt: String(row.created_at),
+  }));
+}

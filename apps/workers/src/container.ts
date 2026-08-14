@@ -8,6 +8,7 @@
  */
 
 import { Api } from "grammy";
+import type { BroadcastPublisher } from "../../../packages/application/broadcast/ports.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
@@ -16,6 +17,7 @@ import {
   createGoogleDriveStorage,
   createLocalBackupStorage,
 } from "../../../packages/infrastructure/backup/index.ts";
+import { createBroadcastDeliveryPort } from "../../../packages/infrastructure/broadcast/broadcast-adapters.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import {
   createDriverCandidateRepository,
@@ -38,6 +40,10 @@ import {
   asOutboundSender,
   grammyTelegramSender,
 } from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
+import {
+  createBroadcastPublisher,
+  grammyBroadcastApi,
+} from "../../../packages/infrastructure/notification/telegram-broadcast-sender.ts";
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
@@ -60,6 +66,7 @@ import { type CityId, systemClock } from "../../../packages/shared/kernel/index.
 import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
 import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
+import { deliverBroadcasts } from "./jobs/deliver-broadcasts.ts";
 import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
@@ -93,6 +100,12 @@ export const JOB_INTERVALS = {
    */
   verifyBackupRestore: 86400,
   deliverSafetyIncidents: 30,
+  /**
+   * كلّ عشر ثوانٍ: البثُّ محدودٌ بحجم دفعةٍ من إعداد المدينة (٢٥ افتراضاً)، فهذا
+   * سقفٌ نظريّ حوالي ١٥٠ رسالة في الدقيقة للمدينة — تحت حدّ تلغرام بفارقٍ مريح،
+   * وسريعٌ بما يكفي لئلّا يستغرق إعلانٌ لألف سائق ساعةً كاملة.
+   */
+  deliverBroadcasts: 10,
   /**
    * كل خمس دقائق: المراجعة ليست مسار الحسم الأساسي بل شبكة الأمان تحته. تشغيلها
    * أسرع يضاعف استدعاءات المزوّد بلا فائدة — الويبهوك أسرع منها دائماً — وتشغيلها
@@ -181,6 +194,8 @@ export interface WorkerContainerOverrides {
   readonly identifyingDriver?: IdentifyingSender;
   /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
   readonly safetyPublisher?: SafetyCardPublisher;
+  /** ناشر البثّ الجماعي — يُستبدل في الاختبار بناشرٍ يجمع ويُخفق عند الطلب. */
+  readonly broadcastPublisher?: BroadcastPublisher;
   /**
    * سجلّ المقاييس. يُلَفّ به منفذُ إسقاط العروض بمهلتها، فيُعَدّ ما لا يظهر في أيّ
    * سجلٍّ آخر: عرضٌ عُرِض ولم يُقبل. ومصدرُ العدّ نتيجةُ RPC — أي عددُ الصفوف التي
@@ -320,6 +335,19 @@ export function buildWorkerContainer(
   const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
   const safetyPublisher = overrides.safetyPublisher ?? createSafetyCardPublisher(telegram);
   const safetyDeliveries = createSafetyDeliveryPort(sql);
+
+  /**
+   * البثُّ يُرسَل ببوت الجمهور المقصود، ولذلك ناشران لا واحد: رسالةُ الركّاب من
+   * بوت الراكب ورسالةُ السائقين من بوت السائق. بوتٌ واحد للاثنين كان سيُردّ
+   * بـ403 على كل مستقبِلٍ لم يفتح محادثةً معه — أي على الجمهور كلّه.
+   */
+  const driverBroadcastPublisher =
+    overrides.broadcastPublisher ??
+    createBroadcastPublisher(grammyBroadcastApi(config.driverBotToken));
+  const riderBroadcastPublisher =
+    overrides.broadcastPublisher ??
+    createBroadcastPublisher(grammyBroadcastApi(config.riderBotToken));
+  const broadcastDeliveries = createBroadcastDeliveryPort(sql);
 
   const searchingFinder = createSearchingOrderFinder(sql);
 
@@ -572,6 +600,28 @@ export function buildWorkerContainer(
             );
             if (!report.ok) throw new Error(JSON.stringify(report.error));
             return `days=${days} examined=${report.value.examined} warned=${report.value.warned} failed=${report.value.failed.length}`;
+          },
+        },
+        {
+          /**
+           * مهمّةٌ لكلّ مدينة لا مهمّةٌ عامّة، لأنّ حدّ الدفعة وموعدَ إعادةِ المحاولة
+           * يُقرأان من `platform_settings` المُفتاحة بالمدينة. ومهمّةٌ واحدة عابرةٌ
+           * للمدن كانت ستجعل مدينةً مزدحمة تستنزف دفعةَ غيرها في كلّ شوط.
+           */
+          name: `deliver-broadcasts:${cityId}`,
+          everySeconds: JOB_INTERVALS.deliverBroadcasts,
+          runOnStart: true,
+          run: async () => {
+            const report = await deliverBroadcasts(cityId, {
+              deliveries: broadcastDeliveries,
+              publishers: {
+                drivers: driverBroadcastPublisher,
+                riders: riderBroadcastPublisher,
+              },
+            });
+            if (!report.ok) throw new Error(report.error.detail);
+            const value = report.value;
+            return `claimed=${value.claimed} sent=${value.sent} failed=${value.failed} retried=${value.retried}`;
           },
         },
       ]);

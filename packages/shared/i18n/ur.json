@@ -89,6 +89,7 @@
   "driver.vehicle_suv": "🚙 ایس یو وی",
   "driver.vehicle_van": "🚐 وین",
   "driver.welcome": "Welcome to Waslah for drivers. Let's finish your registration.",
+  "broadcast.header": "📣 واصلہ ٹیم کی جانب سے پیغام",
   "group.escalation_card": "⚠️ درخواست کو دستی تفویض درکار ہے\n\n🔧 سروس: {service}\n📍 تخمینی علاقہ: {area}\n🔁 آزمائے گئے راؤنڈ: {cycles}\n📄 وجہ: {reason}\n🆔 درخواست: {order}",
   "group.escalation_reason_no_driver_at_all": "شہر میں کوئی بھی ڈرائیور دستیاب نہیں",
   "group.escalation_reason_broadcast_rounds_exhausted": "ڈرائیوروں کو پیش کیا گیا؛ براڈکاسٹ راؤنڈ قبولیت کے بغیر ختم ہو گئے",

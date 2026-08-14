@@ -38,7 +38,7 @@ export interface NavItem {
   readonly label: string;
 }
 
-/** الصفحات التسع بترتيب استخدامها التشغيلي لا بترتيب بنائها. */
+/** الصفحات بترتيب استخدامها التشغيلي لا بترتيب بنائها. */
 export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/admin", label: "نظرة عامة" },
   { path: "/admin/live-orders", label: "الطلبات الحية" },
@@ -51,6 +51,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/admin/ratings", label: "التقييمات" },
   { path: "/admin/attendance", label: "الحضور" },
   { path: "/admin/payments", label: "المدفوعات" },
+  // البثّ قبل الإعدادات وبعد المدفوعات: فعلٌ تشغيليٌّ يوميٌّ لا ضبطٌ يُمسّ مرّةً.
+  { path: "/admin/broadcast", label: "البثّ الجماعي" },
   { path: "/admin/settings", label: "الإعدادات" },
 ];
 
@@ -269,6 +271,23 @@ border-radius:12px;padding:22px}
 border:1px solid var(--line);background:#0d0f14;color:var(--text);font-family:inherit}
 .login button{width:100%}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+/* مُركِّبُ البثّ الجماعي: حقلُ نصٍّ طويل، ورقائقُ رموز، وشريطُ تقدّم. تُضاف هنا
+   لا في ورقةٍ ثانية — ورقتان تتنافسان على نفس الأصناف وتنجرفان (نفسُ حجّة الخريطة). */
+textarea{width:100%;min-height:150px;padding:10px;border-radius:8px;border:1px solid var(--line);
+background:#0d0f14;color:var(--text);font-family:inherit;font-size:15px;line-height:1.7;resize:vertical}
+.stack{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;color:var(--muted);font-size:13px}
+.stack>span{color:var(--text)}
+.optionset{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:4px 0 12px}
+.optionset label{display:inline-flex;gap:6px;align-items:center;color:var(--text);font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chip{padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:#12141a;
+color:var(--text);font-size:16px;cursor:pointer;line-height:1}
+.chip:hover{border-color:var(--accent)}
+.bar{height:8px;border-radius:999px;background:#12141a;border:1px solid var(--line);overflow:hidden;
+min-width:120px}
+.bar>i{display:block;height:100%;background:var(--ok)}
+.preview{white-space:pre-wrap;background:#12141a;border:1px solid var(--line);border-radius:8px;
+padding:12px;margin:0}
 `;
 
 /**
