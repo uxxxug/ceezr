@@ -19,6 +19,8 @@ export interface CityGroupStatus extends CityOption {
   readonly supportGroupId?: string | null;
   readonly escalationGroupId?: string | null;
   readonly unsubscribedDriversGroupId?: string | null;
+  /** رابطُ الدعوة إلى قروب غير المشتركين — إعدادٌ لا عمودٌ في `cities`. */
+  readonly unsubscribedGroupLink?: string | null;
 }
 
 export interface SettingRow {
@@ -54,14 +56,30 @@ const TYPE_HINT: Readonly<Record<string, string>> = {
   array: 'قائمة JSON مثل ["ar", "en"]',
 };
 
+/**
+ * الجاهزيةُ تشمل الرابطَ لا المعرّفاتِ وحدها: مدينةٌ مفعّلةٌ بمعرّفاتٍ كاملةٍ ورابطٍ
+ * فارغ تعمل في كلّ شيءٍ إلّا الشيءَ الوحيدَ الذي يراه السائقُ عند انتهاء تجربته —
+ * بطاقةُ الاشتراك تعرض عليه القروبَ ولا تُعطيه مدخلاً إليه. وشارةٌ خضراء على هذه
+ * الحالة تُخفي الفجوةَ عن المسؤول تماماً، فهي هنا صفراء باسم ما ينقص.
+ */
 function cityReadiness(city: CityGroupStatus): { label: string; tone: "ok" | "warn" | "bad" } {
-  const complete =
+  const groupsComplete =
     typeof city.supportGroupId === "string" &&
     typeof city.escalationGroupId === "string" &&
     typeof city.unsubscribedDriversGroupId === "string";
-  if (city.isActive && complete) return { label: "مفعّلة وجاهزة", tone: "ok" };
-  if (complete) return { label: "القروبات مكتملة؛ المدينة غير مفعّلة", tone: "warn" };
-  return { label: "غير جاهزة: حقول قروبات ناقصة", tone: "bad" };
+  const hasLink =
+    typeof city.unsubscribedGroupLink === "string" && city.unsubscribedGroupLink !== "";
+  if (!groupsComplete) return { label: "غير جاهزة: حقول قروبات ناقصة", tone: "bad" };
+  if (!hasLink) {
+    return {
+      label: city.isActive
+        ? "مفعّلة؛ رابط قروب غير المشتركين ناقص"
+        : "القروبات مكتملة؛ الرابط والتفعيل ناقصان",
+      tone: "warn",
+    };
+  }
+  if (city.isActive) return { label: "مفعّلة وجاهزة", tone: "ok" };
+  return { label: "القروبات والرابط مكتملة؛ المدينة غير مفعّلة", tone: "warn" };
 }
 
 function groupValue(value: string | null | undefined): string {
@@ -137,7 +155,7 @@ ${section(
 ${section(
   "حالة المدن",
   table({
-    headers: ["المدينة", "الدعم", "التصعيد", "غير المشتركين", "حالة التفعيل"],
+    headers: ["المدينة", "الدعم", "التصعيد", "غير المشتركين", "رابط القروب", "حالة التفعيل"],
     rows: data.cities.map((city) => {
       const readiness = cityReadiness(city);
       return [
@@ -145,6 +163,10 @@ ${section(
         `<span class="mono">${escapeHtml(groupValue(city.supportGroupId) || "—")}</span>`,
         `<span class="mono">${escapeHtml(groupValue(city.escalationGroupId) || "—")}</span>`,
         `<span class="mono">${escapeHtml(groupValue(city.unsubscribedDriversGroupId) || "—")}</span>`,
+        // الرابطُ نفسه لا يُعرض كاملاً — طولُه يكسر الجدول، والمقصودُ أَموجودٌ أم لا.
+        typeof city.unsubscribedGroupLink === "string" && city.unsubscribedGroupLink !== ""
+          ? badge("مضبوط", "ok")
+          : badge("ناقص", "warn"),
         badge(readiness.label, readiness.tone),
       ];
     }),
@@ -168,7 +190,8 @@ ${section(
     rows,
     emptyText: "لا إعدادات لهذه المدينة.",
   }),
-  'القيمة تُكتب بصيغة JSON: الرقم 5، والنصّ "SAR" بعلامتي اقتباس، والقائمة ["ar","en"]. ' +
+  "القيمة تُكتب كما هي: الرقم رقماً، والنصّ نصّاً بلا علامات تنصيص، والصواب/الخطأ " +
+    'نعم أو لا، والقائمة بصيغة JSON مثل ["ar","en"]. ' +
     "النوع مفروض في القاعدة: قيمة بنوع مخالف تُرفض قبل الحفظ لا بعده.",
 )}
 ${section(

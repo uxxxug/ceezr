@@ -48,6 +48,12 @@ export interface CityRecord extends CityOption {
   readonly supportGroupId: string | null;
   readonly escalationGroupId: string | null;
   readonly unsubscribedDriversGroupId: string | null;
+  /**
+   * رابطُ قروب السائقين غير المشتركين من `platform_settings` لا من `cities`: هو
+   * إعدادٌ لكلّ مدينة، ومعرّفُ القروب لا يكفي — البوت يُرسل المعرّفَ ولا يستطيع
+   * السائقُ الضغطَ عليه. مدينةٌ بمعرّفٍ بلا رابطٍ تُريه بطاقةَ انتهاءٍ بلا مدخل.
+   */
+  readonly unsubscribedGroupLink: string | null;
 }
 
 export async function listCities(sql: Sql): Promise<readonly CityRecord[]> {
@@ -60,14 +66,19 @@ export async function listCities(sql: Sql): Promise<readonly CityRecord[]> {
       telegram_support_group_id: string | null;
       telegram_escalation_group_id: string | null;
       telegram_unsubscribed_drivers_group_id: string | null;
+      unsubscribed_group_link: string | null;
     }[]
   >`
-    select id, code, name_ar, is_active,
-           telegram_support_group_id::text,
-           telegram_escalation_group_id::text,
-           telegram_unsubscribed_drivers_group_id::text
-      from cities
-     order by code
+    select c.id, c.code, c.name_ar, c.is_active,
+           c.telegram_support_group_id::text,
+           c.telegram_escalation_group_id::text,
+           c.telegram_unsubscribed_drivers_group_id::text,
+           nullif(btrim(coalesce(link.value #>> '{}', '')), '') as unsubscribed_group_link
+      from cities c
+      left join platform_settings link
+        on link.city_id = c.id
+       and link.key = 'unsubscribed_drivers_group_link'
+     order by c.code
   `;
   return rows.map((row) => ({
     id: row.id,
@@ -77,6 +88,7 @@ export async function listCities(sql: Sql): Promise<readonly CityRecord[]> {
     supportGroupId: row.telegram_support_group_id,
     escalationGroupId: row.telegram_escalation_group_id,
     unsubscribedDriversGroupId: row.telegram_unsubscribed_drivers_group_id,
+    unsubscribedGroupLink: row.unsubscribed_group_link,
   }));
 }
 

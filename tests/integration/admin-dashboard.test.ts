@@ -727,6 +727,12 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     `;
     expect(audits.map((audit) => audit.action)).toContain("admin.city_group_ids_updated");
 
+    // الرابطُ يُضبط صريحاً: `platform_settings` لا تُقتطع بين الاختبارات، فترك
+    // قيمته لما سبق يجعل الشارةَ تابعةً لترتيب التشغيل لا للحالة المقصودة.
+    await sql`
+      select admin_update_setting(${adminUserId}::uuid, ${cityGroupsId}::uuid,
+        'unsubscribed_drivers_group_link', ${"https://t.me/+readyCityGroup"}::text)
+    `;
     const page = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
     const html = await page.text();
     expect(html).toContain("-1009000000001");
@@ -756,6 +762,59 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
 
     const page = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
     expect(await page.text()).toContain("غير جاهزة: حقول قروبات ناقصة");
+  });
+
+  /**
+   * معرّفاتُ القروبات الثلاثة كانت وحدَها ما تقيسه الشارة، فمدينةٌ مفعّلةٌ برابطِ
+   * قروبٍ فارغٍ تظهر «مفعّلة وجاهزة» — وهي الحالةُ التي يرى فيها السائقُ عند انتهاء
+   * تجربته بطاقةً تُحيله إلى قروبٍ بلا مدخل. الشارةُ تُسمّي الناقصَ لا تُخفيه.
+   */
+  it("رابط قروب غير المشتركين الناقص يظهر في جاهزية المدينة ثم يختفي بحفظه", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    let csrf = await csrfFrom(cookie, `/admin/settings?city=${cityGroupsId}`);
+
+    const groups = await request(`/admin/settings/${cityGroupsId}/group-ids`, {
+      method: "POST",
+      cookie,
+      body: form({
+        csrf,
+        support_group_id: "-1009000000201",
+        escalation_group_id: "-1009000000202",
+        unsubscribed_drivers_group_id: "-1009000000203",
+      }),
+    });
+    expect(groups.status).toBe(303);
+
+    // الرابطُ مبذورٌ فارغاً بالتصميم: قيمةٌ حقيقيةٌ يملكها فريقُ المدينة لا نحن.
+    await sql`
+      update platform_settings set value = '""'::jsonb
+       where city_id = ${cityGroupsId} and key = 'unsubscribed_drivers_group_link'
+    `;
+
+    const before = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
+    const beforeHtml = await before.text();
+    expect(beforeHtml).toContain("مفعّلة؛ رابط قروب غير المشتركين ناقص");
+    // الجدولُ يُسمّي الناقصَ في عمودِه أيضاً، لا في شارةِ الحالة وحدها.
+    expect(beforeHtml).toContain("رابط القروب");
+
+    csrf = await csrfFrom(cookie, `/admin/settings?city=${cityGroupsId}`);
+    const saved = await request(`/admin/settings/${cityGroupsId}/unsubscribed_drivers_group_link`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, value: "https://t.me/+testUnsubscribedGroup" }),
+    });
+    expect(saved.status).toBe(303);
+
+    const after = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
+    const afterHtml = await after.text();
+    expect(afterHtml).toContain("مفعّلة وجاهزة");
+    expect(afterHtml).not.toContain("مفعّلة؛ رابط قروب غير المشتركين ناقص");
+    // الرابطُ يُحفظ نصّاً خالصاً لا JSON مُقتبَساً: علامتا التنصيص كانتا ستصلان تلغرام.
+    const stored = await sql<{ value: string }[]>`
+      select value #>> '{}' as value from platform_settings
+       where city_id = ${cityGroupsId} and key = 'unsubscribed_drivers_group_link'
+    `;
+    expect(stored[0]?.value).toBe("https://t.me/+testUnsubscribedGroup");
   });
 
   it("يرفض القيم غير الصالحة والمكررة ويحمي حفظ القروبات بـ CSRF والجلسة", async () => {

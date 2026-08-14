@@ -234,6 +234,7 @@ function toCityGroupStatuses(
     supportGroupId: string | null;
     escalationGroupId: string | null;
     unsubscribedDriversGroupId: string | null;
+    unsubscribedGroupLink: string | null;
   }[],
 ): readonly CityGroupStatus[] {
   return cities.map((city) => ({
@@ -244,6 +245,7 @@ function toCityGroupStatuses(
     supportGroupId: city.supportGroupId,
     escalationGroupId: city.escalationGroupId,
     unsubscribedDriversGroupId: city.unsubscribedDriversGroupId,
+    unsubscribedGroupLink: city.unsubscribedGroupLink,
   }));
 }
 
@@ -311,6 +313,21 @@ const DIRECTION_VALUES = new Set(["rider_to_driver", "driver_to_rider"]);
 
 function oneOf(value: string | undefined, allowed: ReadonlySet<string>): string | null {
   return value !== undefined && allowed.has(value) ? value : null;
+}
+
+/**
+ * حقلُ اختيارٍ غائبٌ يعني «الافتراضيّ» لا «قيمةٌ فاسدة»: الصفحةُ المعروضة تُرسل كلَّ
+ * قوائمها دائماً، لكنّ ردَّ نموذجٍ كاملٍ بـ`INVALID_BROADCAST_FORM` لمجرّد أنّ
+ * حقلاً اختيارياً لم يُرسَل يُحوّل غيابَ تضييقٍ إلى فشلٍ صامتٍ بلا سبب مقروء. أمّا
+ * القيمةُ المكتوبةُ غيرُ المعروفة فتُردّ كما كانت — تلك محاولةُ تمريرِ ما لا يُعرَف.
+ */
+function oneOfOrDefault(
+  value: string | null,
+  allowed: ReadonlySet<string>,
+  fallback: string,
+): string | null {
+  if (value === null || value.trim() === "") return fallback;
+  return allowed.has(value) ? value : null;
 }
 
 const BROADCAST_AUDIENCES = new Set(["drivers", "riders"]);
@@ -931,8 +948,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   const readBroadcastForm = (form: FormData): BroadcastFormState | null => {
     const audience = oneOf(formText(form, "audience") ?? undefined, BROADCAST_AUDIENCES);
     if (audience === null) return null;
-    const availability = oneOf(formText(form, "availability") ?? undefined, BROADCAST_AVAILABILITY);
-    const activity = oneOf(formText(form, "activity") ?? undefined, BROADCAST_ACTIVITY);
+    const availability = oneOfOrDefault(
+      formText(form, "availability"),
+      BROADCAST_AVAILABILITY,
+      "any",
+    );
+    const activity = oneOfOrDefault(formText(form, "activity"), BROADCAST_ACTIVITY, "any");
     if (availability === null || activity === null) return null;
     const rawCity = formText(form, "city");
     if (rawCity !== null && rawCity !== "all" && !UUID_PATTERN.test(rawCity)) return null;
