@@ -40,6 +40,11 @@ bun run test
 التفصيل في [`docs/runtime-prerequisites.md`](docs/runtime-prerequisites.md).
 واجهات النظام في [`docs/api.md`](docs/api.md).
 
+و`TRACKING_TOKEN_BASE_URL` **اختياريٌّ وغيابه موقفٌ لا عطل**: بدونه يعمل كلُّ شيء إلّا
+روابطَ التتبّع المؤقّتة (§4.2) — فلا يُعرَض زرٌّ يُنتج رابطاً لا يُفتح، ويُخطَر الراكب
+بقبول السائق بلا رابط. التفصيل في
+[`docs/section-4-2-tracking-links-report.md`](docs/section-4-2-tracking-links-report.md).
+
 ## القروبات: أي بوت يُضاف إلى أيّها
 **بوت السائق هو من ينشر في قروبات السائقين (التفاوض، الإسناد)، وبوت الراكب لا
 يحتاج عضوية في أي قروب.**

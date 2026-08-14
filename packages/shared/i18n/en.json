@@ -363,5 +363,16 @@
   "safety.not_authorized": "❌ This action is restricted to authorized escalation staff.",
   "safety.already_handled": "⚠️ This incident was already claimed or closed.",
   "rider.searching_wider_circle": "🔎 No subscribed driver is available right now, so we have offered your request to a wider circle of drivers in your city.\n\nWe will tell you as soon as one accepts, then you agree on the fare together through the bot.\n\nIf you no longer need it, tap “{cancel_button}” in the menu at the bottom of your screen.",
-  "rider.searching_wider_circle_delivery": "🔎 No subscribed courier is available right now, so we have offered your request to a wider circle of couriers in your city.\n\nWe will tell you as soon as one accepts, then you agree on the fee together through the bot.\n\nIf you no longer need it, tap “{cancel_button}” in the menu at the bottom of your screen."
+  "rider.searching_wider_circle_delivery": "🔎 No subscribed courier is available right now, so we have offered your request to a wider circle of couriers in your city.\n\nWe will tell you as soon as one accepts, then you agree on the fee together through the bot.\n\nIf you no longer need it, tap “{cancel_button}” in the menu at the bottom of your screen.",
+  "tracking.unknown_value": "Not specified",
+  "tracking.rider_matched": "✅ Your order {order} was accepted\n🚗 Driver: {driver}\n🔢 Plate: {plate}\n🚙 Vehicle: {vehicle}\nThe driver is on the way to you now.",
+  "tracking.rider_link": "📍 Follow your driver on this link (temporary, ends with the trip):\n{url}",
+  "tracking.share_button": "📍 Share my live location",
+  "tracking.revoke_button": "🚫 Cancel tracking link",
+  "tracking.share_ready": "📍 Tracking link for order {order} — valid for {minutes} minutes. Anyone who opens it sees the trip location only, not your name or number:\n{url}",
+  "tracking.share_failed": "⚠️ We could not issue a tracking link right now. Please try again shortly.",
+  "tracking.share_not_active": "⚠️ No live trip for this order — links are issued for active trips only.",
+  "tracking.revoked": "🚫 Tracking links for order {order} were cancelled. Anyone holding the link no longer sees the location.",
+  "tracking.revoke_none": "ℹ️ There are no active tracking links for this order.",
+  "tracking.share_prompt": "📍 Tracking links for your active orders — the link is temporary and shows the trip location only:"
 }

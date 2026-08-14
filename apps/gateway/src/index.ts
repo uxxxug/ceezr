@@ -17,7 +17,13 @@ import {
   createOperationalMetrics,
 } from "../../../packages/infrastructure/observability/index.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
-import { resolveMapStyle } from "../../../packages/maps/index.ts";
+import {
+  MAPLIBRE_CDN_ORIGIN,
+  MAPLIBRE_SRI_UNSET,
+  maplibreScriptUrl,
+  maplibreStylesheetUrl,
+  resolveMapStyle,
+} from "../../../packages/maps/index.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import type { CityId } from "../../../packages/shared/kernel/index.ts";
 import { jobHealthExpectations } from "../../workers/src/container.ts";
@@ -32,6 +38,7 @@ import {
   instrumentUpdateDeduplicator,
 } from "./observability/telegram.ts";
 import { createObservabilityJobLogger } from "./observability/worker.ts";
+import { createPublicSecurityHeaders } from "./public/security-headers.ts";
 import {
   createMemoryRateLimiter,
   createRedisRateLimiter,
@@ -42,6 +49,7 @@ import { createAdminApiRoutes } from "./routes/admin-api.ts";
 import { createAdminLiveRoutes } from "./routes/admin-live.ts";
 import { createAdminUiRoutes } from "./routes/admin-ui.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
+import { createPublicTrackingRoutes } from "./routes/public-tracking.ts";
 import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
 import { createServer } from "./server.ts";
 
@@ -355,6 +363,34 @@ app.route(
   }),
 );
 app.route("/admin/api", createAdminApiRoutes({ sql: container.sql, auth: adminAuth }));
+
+/**
+ * صفحةُ التتبّع العامّة (§4.2). تُركَّب هنا لا في `server.ts` لنفس سبب موجّهي
+ * الإدارة (ADR 0007): تقرأ من القاعدة، و`server.ts` يُستورد في اختبارات المسارات
+ * بلا قاعدة.
+ *
+ * والوسيطُ الأمنيّ يُركَّب على الموجّه نفسه لا على التطبيق كلّه: سياسةُ
+ * `default-src 'none'` كانت ستكسر لوحةَ الإدارة، ومسارُ الويبهوك لا يحتاج ترويسةَ
+ * صفحةٍ أصلاً. فيُحصر الوسيطُ في صاحبه.
+ *
+ * وترتيبُ التركيب: بعد `/admin/*` وقبل الجذر — و`/track` و`/api/track` لا
+ * يتشابهان مع أيّ بادئةٍ قائمة، فلا التقاطَ خاطئاً في أيّ اتجاه. (ولا تعارضَ مع
+ * `routes/tracking.ts` لأنّه غيرُ مركَّب أصلاً — الفرقُ موثَّقٌ في رأس
+ * `routes/public-tracking.ts`.)
+ */
+const publicTracking = createPublicTrackingRoutes({
+  tokens: container.tracking.tokens,
+  mapStyle: mapStyle.ok ? mapStyle.value : { configured: false, reason: "ضبطُ الخريطة غير صالح" },
+  scriptUrl: maplibreScriptUrl(),
+  stylesheetUrl: maplibreStylesheetUrl(),
+  integrity: config.maplibreSri ?? MAPLIBRE_SRI_UNSET,
+  securityHeaders: createPublicSecurityHeaders({
+    mapOrigins,
+    scriptOrigin: MAPLIBRE_CDN_ORIGIN,
+  }),
+  log,
+});
+app.route("/", publicTracking);
 
 app.route(
   "/admin",

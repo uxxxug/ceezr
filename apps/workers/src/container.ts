@@ -70,6 +70,7 @@ import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/sch
 import { createJobHeartbeatRecorder } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
 import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastructure/subscription/notice-adapters.ts";
+import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { DEFAULT_LANGUAGE, t } from "../../../packages/shared/i18n/index.ts";
@@ -82,6 +83,7 @@ import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { deliverSubscriptionNotices } from "./jobs/deliver-subscription-notices.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
+import { expireTrackingTokens } from "./jobs/expire-tracking-tokens.ts";
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
 import { runReconcilePendingPayments } from "./jobs/reconcile-pending-payments.ts";
 import { runRedispatchSearching } from "./jobs/redispatch-searching.ts";
@@ -130,6 +132,13 @@ export const JOB_INTERVALS = {
    * الدفع أو يفتح تذكرةَ دعم.
    */
   deliverSubscriptionNotices: 15,
+  /**
+   * كلّ دقيقة: تضييقُ نافذةِ رابط التتبّع بعد انتهاء الرحلة (§4.2). لا يُسرَّع أكثر
+   * لأنّ مهلةَ السماح نفسها بالدقائق (ربعُ ساعةٍ افتراضاً) فدقّةُ الثانية بلا
+   * معنى، ولا يُبطَّأ لأنّ نبضةً كلَّ خمس دقائق تُطيل عمرَ الرابط خمسَ دقائق بلا
+   * سبب. وليس هو حدَّ الأمن — التفصيل في رأس ملفّ المهمّة.
+   */
+  expireTrackingTokens: 60,
 } as const;
 
 /** المهلة الافتراضية للتوفّر البائت حين يغيب الإعداد — ثلاث ساعات. */
@@ -353,6 +362,7 @@ export function buildWorkerContainer(
   const lifecycleRpc = createSubscriptionLifecycleRpc(sql);
   const availabilityRpc = createStaleAvailabilityRpc(sql);
   const recomputePort = createRatingRecomputePort(sql);
+  const trackingTokens = createTrackingTokenRpc(sql);
 
   /**
    * مزوّد الدفع في العامل يُبنى من نفس متغيّرات البيئة التي تبنيه في البوابة، لا
@@ -547,6 +557,21 @@ export function buildWorkerContainer(
       const perCity: JobDefinition[] = cityIds.flatMap((cityId): JobDefinition[] =>
         (
           [
+            {
+              /**
+               * انقضاءُ روابط التتبّع (§4.2). ليست في `CRITICAL_CITY_JOBS`: تعطُّلها
+               * لا يفتح رابطاً ولا يُبقي موقعاً حيّاً (السقفُ المطلق وحالةُ الطلب
+               * يحرسان ذلك)، فهي مهمّةٌ نافعةٌ لا حرجَ في تأخّرها — وإدراجُها
+               * حرجةً كان سيُرجِع 503 من `/ready` على تأخّرٍ لا أثرَ له على أحد.
+               */
+              name: `expire-tracking-tokens:${cityId}`,
+              everySeconds: JOB_INTERVALS.expireTrackingTokens,
+              run: async () => {
+                const report = await expireTrackingTokens(cityId, { tokens: trackingTokens });
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                return `pulled=${report.value.pulled}`;
+              },
+            },
             {
               name: `expire-offers:${cityId}`,
               everySeconds: JOB_INTERVALS.expireOffers,

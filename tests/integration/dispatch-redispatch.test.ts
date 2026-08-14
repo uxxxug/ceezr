@@ -87,6 +87,7 @@ const config: AppConfig = {
   routingProvider: "none",
   osrmBaseUrl: null,
   tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 let sql: Sql;

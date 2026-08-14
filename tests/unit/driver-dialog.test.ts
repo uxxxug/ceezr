@@ -91,7 +91,15 @@ beforeEach(() => {
     dispatch: {
       claimRide: async (orderId, driverId) => {
         claims.push({ orderId, driverId });
-        return ok({ claimed: true, reason: null });
+        return ok({
+          claimed: true,
+          reason: null,
+          cityId: null,
+          rider: null,
+          driverName: null,
+          driverPlate: null,
+          driverVehicle: null,
+        });
       },
     },
     offers: offerDecisionPort(),
@@ -608,7 +616,18 @@ describe("قبول ورفض العرض", () => {
       callback("offer:accept:order-77"),
       build({
         drivers: driverDirectory(verifiedDriver()),
-        dispatch: { claimRide: async () => ok({ claimed: false, reason: "already_claimed" }) },
+        dispatch: {
+          claimRide: async () =>
+            ok({
+              claimed: false,
+              reason: "already_claimed",
+              cityId: null,
+              rider: null,
+              driverName: null,
+              driverPlate: null,
+              driverVehicle: null,
+            }),
+        },
       }),
     );
     expect(replies[0]?.text).toBe(ar("driver.offer_taken"));
@@ -619,7 +638,18 @@ describe("قبول ورفض العرض", () => {
       callback("offer:accept:order-77"),
       build({
         drivers: driverDirectory(verifiedDriver()),
-        dispatch: { claimRide: async () => ok({ claimed: false, reason: "offer_expired" }) },
+        dispatch: {
+          claimRide: async () =>
+            ok({
+              claimed: false,
+              reason: "offer_expired",
+              cityId: null,
+              rider: null,
+              driverName: null,
+              driverPlate: null,
+              driverVehicle: null,
+            }),
+        },
       }),
     );
     expect(replies[0]?.text).toBe(ar("driver.offer_expired"));

@@ -62,6 +62,7 @@ const config: AppConfig = {
   routingProvider: "none",
   osrmBaseUrl: null,
   tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 /** قاعدة مزيَّفة تُعيد مدينةً واحدةً مفعَّلة — الغرض قراءة القائمة لا تنفيذُ المهامّ. */

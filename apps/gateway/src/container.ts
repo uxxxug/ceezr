@@ -32,6 +32,10 @@ import {
   createLiveTracking,
   type LiveTrackingPort,
 } from "../../../packages/application/tracking/live-tracking.ts";
+import type {
+  TrackingTokenMintPort,
+  TrackingTokenRpcPort,
+} from "../../../packages/application/tracking/tracking-token-ports.ts";
 import type { TranslationFailure } from "../../../packages/domain/i18n-translation/index.ts";
 import { DEFAULT_SESSION_POLICY } from "../../../packages/domain/tracking/session.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
@@ -121,6 +125,10 @@ import {
   createTrackingProofReader,
   type TrackingProofReader,
 } from "../../../packages/infrastructure/tracking/tracking-queries.ts";
+import {
+  createTrackingTokenMint,
+  createTrackingTokenRpc,
+} from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import {
   createActiveOrdersLookup,
   createOrderRepository,
@@ -249,6 +257,14 @@ export interface TrackingWiring {
    * والاستدلالُ من النصّ يُخفي فرقاً في الاستعلام نفسه.
    */
   readonly tripCards: DriverTripCardReader;
+  /**
+   * رموزُ التتبّع المُشارَك (§4.2). تُعرَض لأنّ المسارَ العامّ `/track/:token` في
+   * `index.ts` يقرأ بها، وحوارُ الراكب يُصدر بها — ومنفذٌ ثانٍ يُبنى في `index.ts`
+   * كان سيصير اتصالَ قاعدةٍ ثانياً بمُجمَّعٍ ثانٍ لنفس العمل.
+   */
+  readonly tokens: TrackingTokenRpcPort;
+  /** مُولّدُ الرمز — يُعرَض ليُبدَّل بمُولّدٍ حتميّ في الاختبار. */
+  readonly tokenMint: TrackingTokenMintPort;
 }
 
 export interface NegotiationWiring {
@@ -531,6 +547,8 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const trackingBus = createTrackingEventBus(log);
   const trackingSessions = createTrackingSessionRepository(sql);
   const trackingProofs = createTrackingProofReader(sql);
+  const trackingTokens = createTrackingTokenRpc(sql);
+  const trackingTokenMint = createTrackingTokenMint();
 
   /**
    * قناة الموقع الحيّ على **بوت العميل**: الخريطة تظهر في محادثة العميل،
@@ -695,6 +713,23 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       tracking: liveTracking,
     },
     language: languageDeps(driverSessions),
+    /**
+     * §4.2 — إخطارُ الراكب لحظة القبول عبر بوته هو — نفس جسر التقييم، فلا
+     * مسارٌ موازٍ ثان. و`links` يُسقَط حين يغيب `TRACKING_TOKEN_BASE_URL`: الإخطار
+     * يُرسل بلا رابط ولا يُوعَد بما لا يُمكن.
+     */
+    acceptNotice: {
+      counterpart: counterpartNotifier(riderSender),
+      ...(config.trackingTokenBaseUrl === null
+        ? {}
+        : {
+            links: {
+              tokens: trackingTokens,
+              mint: trackingTokenMint,
+              baseUrl: config.trackingTokenBaseUrl,
+            },
+          }),
+    },
     bootstrapAdmin: {
       telegramId: config.bootstrapAdminTelegramId,
       grant: (telegramId) => createBootstrapAdminPort(sql).grant(telegramId),
@@ -720,6 +755,19 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       counterpart: counterpartNotifier(driverSender),
     },
     language: languageDeps(riderSessions),
+    /**
+     * §4.2 — زرّا «شارك موقعي الحي» و«إلغاء الرابط». الحقلُ يُسقَط بلا أساسٍ عامٍّ
+     * فلا يُعرَض زرٌّ يُنتج رابطاً لا يُفتح.
+     */
+    ...(config.trackingTokenBaseUrl === null
+      ? {}
+      : {
+          trackingLinks: {
+            tokens: trackingTokens,
+            mint: trackingTokenMint,
+            baseUrl: config.trackingTokenBaseUrl,
+          },
+        }),
     // المرحلة ١١: **نفس** المنفذ المُمرّر لبوت السائق لا نسخةٌ ثانية: جلسات التتبّع
     // والبثّات المفتوحة حالةٌ في الذاكرة، ومنفذٌ ثانٍ فوقها يعني مُغلقاً يقرأ خريطة غير
     // التي كتبتها إصلاحات السائق — فلا يُغلق شيئاً.
@@ -761,6 +809,8 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       live: liveTracking,
       relay: customerRelay,
       tripCards: driverTripCards,
+      tokens: trackingTokens,
+      tokenMint: trackingTokenMint,
     },
     negotiation: {
       snapshots: createNegotiationSnapshotReader(sql),

@@ -167,6 +167,18 @@ export interface AppConfig {
    * لا وجود له في أيّ مكان آخر.
    */
   readonly tracking: TrackingEnvOverrides;
+  /**
+   * أساسُ روابط التتبّع العامّة (`TRACKING_TOKEN_BASE_URL`) — منه يُبنى
+   * `<الأساس>/track/<الرمز>`. `null` يعني أنّ ميزةَ الرابط المُشارَك **مُطفأة**
+   * صريحاً: لا يُصدَر رمزٌ ولا يُعرض زرٌّ، بدلاً من إرسال رابطٍ بأساسٍ مُخمَّن.
+   *
+   * منفصلٌ عن `PORT` وعن أيّ اشتقاقٍ من طلبٍ وارد عن قصد: البوابةُ خلف وسيطٍ في
+   * Render، والرابطُ يُرسَل في رسالة تلغرام تُفتَح بعد ساعةٍ من جهازٍ آخر — فلو
+   * اشتُقّ من `Host` أو `X-Forwarded-Host` صار عنوانُ الرابط رهنَ ترويسةٍ
+   * يتحكّم بها الطالب، وهذا مدخلُ تصييدٍ صريح (رابطٌ يُرسله بوتُنا إلى نطاقٍ
+   * يملكه المهاجم). فيُعلَن مرّةً في البيئة ولا يُشتقّ أبداً.
+   */
+  readonly trackingTokenBaseUrl: string | null;
 }
 
 /** مخازن الجلسات المدعومة. */
@@ -434,6 +446,31 @@ export function tryLoadConfig(
     );
   }
 
+  const trackingTokenBaseUrl = isBlank(source.TRACKING_TOKEN_BASE_URL)
+    ? null
+    : (source.TRACKING_TOKEN_BASE_URL as string).trim();
+
+  // أساسٌ غيرُ صالح يُرفض عند الإقلاع لا عند أوّل إصدارٍ: الرابطُ يُرسَل مرّةً إلى
+  // عميلٍ فلا يُصلَح بعدها، فخطأُ الشكل يجب أن يُوقف الإقلاع.
+  if (trackingTokenBaseUrl !== null && !/^https?:\/\/.+/i.test(trackingTokenBaseUrl)) {
+    return err(
+      new InvalidEnvVarError(
+        "TRACKING_TOKEN_BASE_URL",
+        `يجب أن يبدأ بـhttp(s):// — وردت: ${trackingTokenBaseUrl}`,
+      ),
+    );
+  }
+
+  // في الإنتاج `http://` غيرُ مقبول: الرمزُ نفسُه هو كلمةُ السرّ، وإرسالُه في
+  // مسارٍ غير مُشفَّر يُسلّمه لكلّ وسيطٍ على الطريق.
+  if (env === "production" && trackingTokenBaseUrl !== null) {
+    if (!trackingTokenBaseUrl.toLowerCase().startsWith("https://")) {
+      return err(
+        new InvalidEnvVarError("TRACKING_TOKEN_BASE_URL", "يجب أن يبدأ بـhttps:// في الإنتاج"),
+      );
+    }
+  }
+
   const translationApiKey = isBlank(source.TRANSLATION_API_KEY)
     ? null
     : (source.TRANSLATION_API_KEY as string).trim();
@@ -549,6 +586,7 @@ export function tryLoadConfig(
     routingProvider: rawRoutingProvider as RoutingProviderName,
     osrmBaseUrl,
     tracking,
+    trackingTokenBaseUrl,
   });
 }
 

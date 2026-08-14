@@ -374,7 +374,9 @@ Google Drive عبر `pg_dump` مضغوط، مع سياسة احتفاظ تلقا
 
 | المتغيّر | الوصف | مثال |
 | --- | --- | --- |
-| `PAYMENT_PROVIDER` | `moyasar` (مدمج فعلاً) أو `manual` | `moyasar` |
+| `PAYMENT_PROVIDER` | `tap` (مزوّد الإنتاج) أو `manual` (تفعيل يدوي عبر الدعم) أو `moyasar` (مدمج لكنه خارج نطاق الإطلاق) | `tap` |
+| `TAP_SECRET_KEY` | مفتاح Tap السرّي — Bearer للـAPI ومفتاح HMAC للويبهوك معاً | `sk_live_...` |
+| `TAP_REDIRECT_URL` | صفحة العودة بعد الدفع (لازمة لمدى و3DS، وليست سرّاً) | `https://waslah-gateway.onrender.com/payment/done` |
 | `MOYASAR_SECRET_KEY` | مفتاح Moyasar السرّي — اسم المستخدم في Basic auth | `sk_live_...` |
 | `MOYASAR_WEBHOOK_SECRET` | السرّ الذي يُثبِته Moyasar في جسم الويبهوك | `openssl rand -hex 32` |
 | `MOYASAR_CALLBACK_URL` | صفحة النتيجة بعد الدفع | `https://waslah-gateway.onrender.com/payment/done` |
@@ -383,7 +385,15 @@ Google Drive عبر `pg_dump` مضغوط، مع سياسة احتفاظ تلقا
 | `PAYMENT_ENVIRONMENT` | `sandbox` أو `production` | `sandbox` |
 | `ENABLE_DRIVER_SUBSCRIPTION` | تفعيل تدفّق اشتراك السائق | `true` |
 
-مزوّد Moyasar مدمج فعلاً: الفاتورة تُنشأ عبر `POST /v1/invoices`، والويبهوك لا
+**مزوّد الإنتاج هو `tap`.** أُطلقت الخدمة بـ`PAYMENT_PROVIDER=manual` (تفعيلٌ يدويٌّ
+عبر الدعم) ثمّ يُحوَّل إلى `tap` بضبط المتغيّر وحده بلا أيّ تغييرٍ في الكود — هذا شرطٌ
+صريحٌ في أمر الإطلاق، ومصنعُ المزوّد (`payment-provider-factory.ts`) يُسقِط التركيب
+إن ضُبط `tap` بلا `TAP_SECRET_KEY` أو `TAP_REDIRECT_URL` بدل أن يُنتج مزوّداً يفشل عند
+أوّل دفعة.
+
+وأمّا `moyasar` فهو **مدمجٌ في الكود لكنّه خارج نطاق هذا الإطلاق**: يبقى المسار قائماً
+ولا يُحذف، ولا يُوصى به قيمةً للإنتاج ولا يُختبر عليه. وما يلي وصفُه للأمانة لا ترشيحٌ
+له: الفاتورة تُنشأ عبر `POST /v1/invoices`، والويبهوك لا
 يُصدّق حمولته إطلاقاً — يُثبَت أصله بـ`secret_token` ثمّ **تُعاد قراءة الدفعة من
 خادم المزوّد** (`GET /v1/payments/:id`)، ويُرفض أي اختلافٍ في المبلغ أو العملة.
 اشتراك السائق الشهري هو التدفّق الوحيد المفعّل؛ باقي الأغراض هياكل فقط.

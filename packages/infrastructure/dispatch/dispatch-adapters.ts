@@ -18,6 +18,7 @@ import type {
   SearchingOrderRef,
 } from "../../application/dispatch/redispatch-searching-orders.ts";
 import type {
+  ClaimedRider,
   DispatchRpcPort,
   DriverCandidateRepository,
   OfferRepository,
@@ -217,6 +218,31 @@ export function createOfferWriter(sql: Sql): OfferWriter {
   };
 }
 
+/**
+ * قراءةُ نصٍّ إخباريٍّ من مغلَّف jsonb: ما ليس نصّاً ولا رقماً يُعامَل كالغائب.
+ * والرقم يُحوّل لأنّ `telegram_id` يصل رقماً من jsonb ومنافذُ الإرسال تأخذ نصّاً.
+ */
+function readText(value: unknown): string | null {
+  if (typeof value === "string" && value !== "") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "bigint") return String(value);
+  return null;
+}
+
+/** راكبٌ يُقرأ أو لا يُقرأ: معرّفُ تلغرام وحده شرطٌ — بلاه لا إخطار أصلاً. */
+function readRider(value: unknown): ClaimedRider | null {
+  if (typeof value !== "object" || value === null) return null;
+  const row = value as Record<string, unknown>;
+  const telegramId = readText(row.telegram_id);
+  if (telegramId === null) return null;
+  return {
+    riderId: readText(row.rider_id) ?? "",
+    telegramId,
+    languageCode: readText(row.language_code) ?? "ar",
+    fullName: readText(row.full_name) ?? "",
+  };
+}
+
 export function createDispatchRpc(sql: Sql): DispatchRpcPort {
   return {
     claimRide: (orderId: OrderId, driverId: DriverId) =>
@@ -226,9 +252,31 @@ export function createDispatchRpc(sql: Sql): DispatchRpcPort {
         `;
         const envelope = readEnvelope(rows[0]?.result);
         if (envelope === null) throw new Error("ردّ claim_ride غير مفهوم");
+        if (!envelope.ok) {
+          return {
+            claimed: false,
+            reason: envelope.error ?? "UNKNOWN",
+            cityId: null,
+            rider: null,
+            driverName: null,
+            driverPlate: null,
+            driverVehicle: null,
+          };
+        }
+        /**
+         * القراءةُ متساهلة عن قصد: مغلَّفٌ ناقصُ حقلٍ إخباريّ لا يجوز أن يُحوّل
+         * إسناداً وقع في القاعدة إلى عطلٍ يراه السائق. الحقلُ الناقص يخرج `null`
+         * فيمتنع الإخطار وحده، والإسنادُ باقٍ.
+         */
+        const raw = envelope as unknown as Record<string, unknown>;
         return {
-          claimed: envelope.ok,
-          reason: envelope.ok ? null : (envelope.error ?? "UNKNOWN"),
+          claimed: true,
+          reason: null,
+          cityId: readText(raw.city_id) as CityId | null,
+          rider: readRider(raw.rider),
+          driverName: readText(raw.driver_name),
+          driverPlate: readText(raw.driver_plate),
+          driverVehicle: readText(raw.driver_vehicle),
         };
       }),
   };
