@@ -4,5 +4,8 @@
  * ينتمي إلى: application/identity
  * يُتوقع أن يستخدمه لاحقاً: apps/*
  * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني.
+ * التنفيذ الفعلي: packages/application/bots/driver-dialog.ts ودوال SQL في
+ *   supabase/migrations — انظر admin_set_user_blocked وadmin_set_driver_verification.
+ *   هذا الملف بنية مستقبلية لطبقة application/identity عند فصل الهوية عن حوار البوت.
  */
 export {};

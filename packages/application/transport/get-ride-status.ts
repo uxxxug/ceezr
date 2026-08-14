@@ -4,5 +4,8 @@
  * ينتمي إلى: application/transport
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الـ Webhooks)، apps/workers، apps/admin-dashboard
  * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function getRideStatus(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: get_ride_status. يُفعَّل جزئياً في الأمر الثاني (المرحلة 2.1).
+ * التنفيذ الفعلي: packages/application/bots/driver-dialog.ts و
+ *   packages/application/bots/rider-dialog.ts (حوارات الرحلة: الطلب، البدء، الإكمال،
+ *   الإلغاء) مع دوال SQL المرتبطة. هذا الملف بنية مستقبلية لطبقة application/transport.
  */
 export {};

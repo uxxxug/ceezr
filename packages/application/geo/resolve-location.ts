@@ -4,5 +4,8 @@
  * ينتمي إلى: application/geo
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الـ Webhooks)، apps/workers، apps/admin-dashboard
  * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function resolveLocation(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: resolve_location. يُفعَّل جزئياً في الأمر الثاني (مسافة + نصف قطر بحث من platform_settings).
+ * التنفيذ الفعلي: دوال PostGIS مباشرة في supabase/migrations — انظر match_order
+ *   وclaim_ride (ST_DWithin على canonical driver location). هذا الملف بنية مستقبلية
+ *   لطبقة application/geo عند تعميم المزوّدين.
  */
 export {};

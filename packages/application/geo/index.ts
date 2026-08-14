@@ -4,5 +4,8 @@
  * ينتمي إلى: application/geo
  * يُتوقع أن يستخدمه لاحقاً: apps/*
  * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني (مسافة + نصف قطر بحث من platform_settings).
+ * التنفيذ الفعلي: دوال PostGIS مباشرة في supabase/migrations — انظر match_order
+ *   وclaim_ride (ST_DWithin على canonical driver location). هذا الملف بنية مستقبلية
+ *   لطبقة application/geo عند تعميم المزوّدين.
  */
 export {};

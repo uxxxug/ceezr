@@ -30,7 +30,7 @@
 **التحقّق:**
 ```sql
 -- المدن المتبقية مُ Severity =
-select slug, name_ar, is_active from cities order by slug;
+select code, name_ar, is_active from cities order by code;
 -- يجب أن يظهر: jed (active), med (active), mkk (inactive), ruh (inactive), tif (inactive)
 
 -- جدول النسخ الاحتياطي
@@ -55,7 +55,7 @@ select count(*) from webhook_events;
 
 ```sql
 -- بعد إدخال Group IDs:
-update cities set is_active = true where slug in ('mkk', 'ruh', 'tif');
+update cities set is_active = true where code in ('mkk', 'ruh', 'tif');
 -- ثم أدخل Group IDs عبر لوحة الإدارة لا هنا
 ```
 
@@ -154,7 +154,7 @@ bun run typecheck
 ## 6. قائمة فحص الإنتاج
 
 - [ ] التهجرات الأربعة تشغّلت بنجاح على Supabase
-- [ ] المدن الخمس تظهر في `select slug, name_ar, is_active from cities`
+- [ ] المدن الخمس تظهر في `select code, name_ar, is_active from cities`
 - [ ] متغيّرات Google Drive مُعدّة على Render
 - [ ] نسخة احتياطية واحدة على الأقل ظهرت في Google Drive
 - [ ] جدول `db_backups` يسجّل النسخ
@@ -166,3 +166,13 @@ bun run typecheck
 - [ ] الطلبات تصل السائقين في المجموعة
 - [ ] الاختبارات: `bun test` → 0 fail
 - [ ] الأنواع: `bun run typecheck` → 0 errors
+
+---
+
+## تصحيح توثيقي (2026-08-14) — اسم عمود المدينة
+
+كانت ثلاثة استعلامات في هذه الوثيقة تستخدم `cities.slug`، **وهذا عمود لا وجود له**.
+الجدول مُعرَّف في `supabase/migrations/20260806120000_phase_2_1_core_schema.sql` بعمود
+`code text not null unique`، والكود يستخدم `code` حصراً بلا استثناء. أي تشغيل حرفي
+للاستعلامات القديمة كان سيفشل بخطأ `column "slug" does not exist` — أي أن هذه الوثيقة
+لم تُشغَّل حرفياً قبل هذا التاريخ. صُحِّحت الاستعلامات الثلاثة إلى `code`.
