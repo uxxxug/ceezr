@@ -233,6 +233,8 @@
   "waiting.driver_ready_4": "🟢 Available and visible to dispatch — good luck today.",
   "rider.welcome": "Welcome to Waslah. Request a ride in two steps.",
   "subscription.expiring_soon": "⏳ Heads up: your subscription ends in {days} day(s) — on {date}.\nRenew before then so orders keep reaching you. Send /subscription for details.",
+  "subscription.trial_ending_soon": "⏳ {days} day(s) left of your free month — it ends on {date}.\n\nBefore it does, pick one of two paths:\n1️⃣ Activate your subscription with /subscription and orders keep reaching you as they do now.\n2️⃣ Or move to the unsubscribed drivers group, where orders arrive by competition instead of direct dispatch.\n\nNothing is charged automatically — the choice is yours.",
+  "subscription.trial_ending_tomorrow": "⚠️ Your free month ends tomorrow, {date}.\n\nActivate today with /subscription and you won't feel any break in orders.\nIf you don't, you'll move to the unsubscribed drivers group and we'll send you its link.",
   "subscription.expiring_tomorrow": "⚠️ Your subscription ends tomorrow, {date}. Renew today so orders keep reaching you.",
   "support.action_done_activate": "✅ Subscription activated and the owner was notified — ticket {ticket_short} closed.",
   "support.action_done_reject": "❌ Request rejected and the owner was notified — ticket {ticket_short} closed.",

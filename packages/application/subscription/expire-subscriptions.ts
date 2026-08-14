@@ -104,10 +104,20 @@ export async function warnExpiringSubscriptions(
     const date = subscription.endsAt.toISOString().slice(0, 10);
     // «ينتهي بعد يوم واحد» صياغة باردة أمام «ينتهي غداً». الفرق ليس تجميلاً:
     // الرسالة التي يفهمها السائق فوراً هي التي يتحرّك بها قبل أن ينقطع دخله.
+    //
+    // والفرقُ الثاني أهمّ: من هو في شهره المجاني لم «يشترك» بعد، فمخاطبته بـ
+    // «جدّد اشتراكك» تُخبره بشيءٍ لم يفعله، وتُخفي عنه أنّ أمامه طريقين لا طريقاً
+    // واحداً: يفعّل، أو ينتقل إلى قروب غير المشتركين. الرسالةُ التي لا تذكر
+    // الطريقَ الثاني تجعل انتهاءَ الشهر يبدو طرداً من المنصّة، وهو ليس كذلك.
+    const isTrial = subscription.status === "trialing";
+    const soonKey = isTrial ? "subscription.trial_ending_soon" : "subscription.expiring_soon";
+    const tomorrowKey = isTrial
+      ? "subscription.trial_ending_tomorrow"
+      : "subscription.expiring_tomorrow";
     const text =
       subscription.daysLeft <= 1
-        ? tr("subscription.expiring_tomorrow", { date })
-        : tr("subscription.expiring_soon", { days: subscription.daysLeft, date });
+        ? tr(tomorrowKey, { date })
+        : tr(soonKey, { days: subscription.daysLeft, date });
 
     const sent = await deps.sender.send({ chatId: subscription.telegramId, text });
     if (!sent.ok) {

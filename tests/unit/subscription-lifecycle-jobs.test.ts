@@ -106,6 +106,54 @@ describe("expireDueSubscriptions", () => {
 });
 
 describe("warnExpiringSubscriptions", () => {
+  /**
+   * السائقُ في شهره المجاني لم يشترك بعد، فرسالةُ «جدّد اشتراكك» تُخبره بشيءٍ لم
+   * يفعله وتُخفي عنه أنّ أمامه طريقين: التفعيل، أو الانتقال إلى قروب غير
+   * المشتركين. هذا الاختبار يحرس أنّ نصَّ التجربة يذكر الطريقين.
+   */
+  test("رسالةُ التجربة تخاطبُ الشهرَ المجانيَّ وتذكر الطريقين، لا «جدّد اشتراكك»", async () => {
+    const recorded = empty();
+    const result = await warnExpiringSubscriptions(
+      { cityId: CITY, days: 3 },
+      {
+        rpc: stubRpc([expiring({ status: "trialing", daysLeft: 3 })], recorded),
+        sender: stubSender(recorded, []),
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    const text = recorded.sent[0]?.text ?? "";
+    expect(text).toContain("فترتك المجانية");
+    expect(text).toContain("/subscription");
+    expect(text).toContain("غير المشتركين");
+    expect(text).not.toContain("جدّده");
+  });
+
+  test("رسالةُ آخر يومٍ من التجربة تختلف عن رسالة آخر يومٍ من الاشتراك المدفوع", async () => {
+    const trial = empty();
+    await warnExpiringSubscriptions(
+      { cityId: CITY, days: 2 },
+      {
+        rpc: stubRpc([expiring({ status: "trialing", daysLeft: 1 })], trial),
+        sender: stubSender(trial, []),
+      },
+    );
+    const paid = empty();
+    await warnExpiringSubscriptions(
+      { cityId: CITY, days: 2 },
+      {
+        rpc: stubRpc([expiring({ status: "active", daysLeft: 1 })], paid),
+        sender: stubSender(paid, []),
+      },
+    );
+
+    const trialText = trial.sent[0]?.text ?? "";
+    const paidText = paid.sent[0]?.text ?? "";
+    expect(trialText).not.toBe(paidText);
+    expect(trialText).toContain("فترتك المجانية");
+    expect(paidText).toContain("اشتراكك ينتهي غداً");
+  });
+
   test("يُرسل ثم يُثبِّت — بهذا الترتيب لا عكسه", async () => {
     const recorded = empty();
     const order: string[] = [];
