@@ -360,6 +360,55 @@ describeIf("إشعارات دورة حياة الاشتراك على PostgreSQL 
     expect(sent[0]).not.toContain("https://");
   });
 
+  /**
+   * أخطرُ من البثّ: إشعارُ «فُعّل اشتراكك» عالقٌ في `sending` يعني سائقاً دفع
+   * ولا يعلم أنّ دفعَه وصل. الحجزُ المتروك — عاملٌ حجز ثمّ مات — كان يبقى كذلك
+   * إلى الأبد لأنّ الحجزَ لا يلتقط إلّا `pending`.
+   */
+  it("الحجزُ المتروك بعد موتِ العامل يُسترجَع فيصل الإشعار", async () => {
+    await seedSubscription({ status: "active" });
+    await sql`
+      update subscriptions set current_period_end = now() - interval '1 minute'
+      where driver_id = ${driverId}::uuid
+    `;
+    await expireDue();
+
+    const abandoned = await notices.claim(cityId);
+    if (!abandoned.ok) throw new Error("تعذّر الحجز");
+    expect(abandoned.value.length).toBe(1);
+    expect((await noticeRows())[0]?.status).toBe("sending");
+
+    // قبل انقضاء المهلة لا يُسحب الصفُّ من عاملٍ قد يكون حيّاً.
+    const tooEarly = await deliverSubscriptionNotices(cityId, {
+      notices,
+      publisher: fakePublisher({ sent: [] }),
+    });
+    if (!tooEarly.ok) throw new Error("تعذّر الشوط");
+    expect(tooEarly.value.claimed).toBe(0);
+
+    await sql`
+      update subscription_notices
+         set claimed_at = now() - make_interval(secs => 1200)
+       where status = 'sending'
+    `;
+
+    const sent: string[] = [];
+    const recovered = await deliverSubscriptionNotices(cityId, {
+      notices,
+      publisher: fakePublisher({ sent }),
+    });
+    if (!recovered.ok) throw new Error("تعذّر الشوط");
+    expect(recovered.value).toMatchObject({ claimed: 1, sent: 1 });
+    expect(sent.length).toBe(1);
+
+    const rows = await sql<{ status: string; attempts: number; claimed_at: Date | null }[]>`
+      select status, attempts, claimed_at from subscription_notices
+    `;
+    expect(rows[0]?.status).toBe("sent");
+    expect(rows[0]?.attempts).toBe(2);
+    expect(rows[0]?.claimed_at).toBeNull();
+  });
+
   it("دالّات الإشعارات ممنوعةٌ عن anon وauthenticated", async () => {
     const rows = await sql<{ name: string; role: string }[]>`
       select p.proname name, r.rolname role

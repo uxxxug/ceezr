@@ -528,4 +528,125 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     expect(early.value.claimed).toBe(0);
     expect(sent.length).toBe(0);
   });
+  /**
+   * عاملٌ حجز رسالةً ثمّ مات قبل أن يُعلن نتيجتها — نشرٌ، أو إعادةُ تشغيل، أو
+   * نفادُ ذاكرة. الصفُّ كان يبقى في `sending` إلى الأبد: الحجزُ لا يلتقط إلّا
+   * `pending`، والإلغاءُ لا يمسّ `sending`، والحملةُ لا تُختم لأنّ ختمَها محسوبٌ
+   * على «لا معلَّقٌ ولا جارٍ». فرسالةٌ لا تصل وحملةٌ معلَّقةٌ في اللوحة أبداً.
+   */
+  it("الحجزُ المتروك بعد موتِ العامل يُسترجَع فتصل الرسالة وتُختم الحملة", async () => {
+    const created = await admin.create({
+      actorUserId: adminUserId,
+      cityId,
+      audience: "drivers",
+      filters: {},
+      body: "رسالة يُهجَر حجزُها",
+      linkLabel: null,
+      linkUrl: null,
+      silent: false,
+      sendAfter: null,
+    });
+    if (!created.ok || "error" in created.value) throw new Error("تعذّر إنشاء البثّ");
+
+    // شوطٌ يحجز ثمّ يموت: نحجز عبر الميناء نفسه ولا نُعلن شيئاً.
+    const abandoned = await deliveries.claim(cityId);
+    if (!abandoned.ok) throw new Error("تعذّر الحجز");
+    expect(abandoned.value.length).toBe(2);
+
+    const stuck = await sql<{ count: string }[]>`
+      select count(*) from broadcast_recipients where status = 'sending'
+    `;
+    expect(Number(stuck[0]?.count)).toBe(2);
+
+    // شوطٌ تالٍ قبل انقضاء المهلة لا يسحب الصفَّ من عاملٍ قد يكون حيّاً.
+    const tooEarly = await deliverBroadcastBatch(cityId, {
+      deliveries,
+      publishers: publishers(fakePublisher({ sent: [] })),
+    });
+    if (!tooEarly.ok) throw new Error("تعذّر التسليم");
+    expect(tooEarly.value.claimed).toBe(0);
+
+    // نُقدّم لحظةَ الحجز إلى ما قبل المهلة: هذا هو مرورُ الوقت في الاختبار.
+    await sql`
+      update broadcast_recipients
+         set claimed_at = now() - make_interval(secs => 1200)
+       where status = 'sending'
+    `;
+
+    const sent: string[] = [];
+    const recovered = await deliverBroadcastBatch(cityId, {
+      deliveries,
+      publishers: publishers(fakePublisher({ sent })),
+    });
+    if (!recovered.ok) throw new Error("تعذّر التسليم");
+    expect(recovered.value).toEqual({ claimed: 2, sent: 2, failed: 0, retried: 0 });
+    expect(sent.length).toBe(2);
+
+    const rows = await sql<{ status: string; attempts: number; claimed_at: Date | null }[]>`
+      select status, attempts, claimed_at from broadcast_recipients
+    `;
+    for (const row of rows) {
+      expect(row.status).toBe("sent");
+      // المحاولةُ تُعدّ عند الاسترجاع كذلك: سقفُ المحاولات يحدّ الاسترجاعَ
+      // فلا يدور صفٌّ معطوبٌ بلا نهاية.
+      expect(row.attempts).toBe(2);
+      // لحظةُ الحجز تُخلى بعد الإعلان، فلا تُحسب مهلةٌ من حجزٍ قديم.
+      expect(row.claimed_at).toBeNull();
+    }
+
+    const campaign = await sql<{ status: string }[]>`
+      select status from broadcast_campaigns where batch_id = ${created.value.batchId}::uuid
+    `;
+    expect(campaign[0]?.status).toBe("completed");
+  });
+
+  /**
+   * العاملُ الميّت لو عاد إلى الحياة بعد الاسترجاع وأعلن نتيجته، لأعلن فوق حجزٍ
+   * لم يبقَ له — فيُسلّم صفّاً يُسلّمه غيرُه الآن. الرمزُ الجديد يمنعه.
+   */
+  it("العاملُ العائد بعد الاسترجاع لا يُعلن فوق حجزٍ لم يبقَ له", async () => {
+    const created = await admin.create({
+      actorUserId: adminUserId,
+      cityId,
+      audience: "riders",
+      filters: {},
+      body: "رسالة يعود عاملُها متأخّراً",
+      linkLabel: null,
+      linkUrl: null,
+      silent: false,
+      sendAfter: null,
+    });
+    if (!created.ok || "error" in created.value) throw new Error("تعذّر إنشاء البثّ");
+
+    const stale = await deliveries.claim(cityId);
+    if (!stale.ok) throw new Error("تعذّر الحجز");
+    const first = stale.value[0];
+    if (first === undefined) throw new Error("لا مستقبِل");
+
+    await sql`
+      update broadcast_recipients
+         set claimed_at = now() - make_interval(secs => 1200)
+       where status = 'sending'
+    `;
+    const fresh = await deliveries.claim(cityId);
+    if (!fresh.ok) throw new Error("تعذّر الحجز الثاني");
+    expect(fresh.value.length).toBeGreaterThan(0);
+
+    const late = await deliveries.finish({
+      recipientId: first.recipientId,
+      claimToken: first.claimToken,
+      messageId: "999",
+      delivered: true,
+      permanent: false,
+      errorCode: null,
+    });
+    expect(late.ok).toBe(false);
+
+    const row = await sql<{ status: string; message_id: string | null }[]>`
+      select status, message_id from broadcast_recipients where id = ${first.recipientId}
+    `;
+    // ما زال محجوزاً للشوط الجديد: إعلانُ العامل المتأخّر لم يمرّ.
+    expect(row[0]?.status).toBe("sending");
+    expect(row[0]?.message_id).toBeNull();
+  });
 });
