@@ -363,4 +363,25 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
     expect(offers).toHaveLength(1);
     expect(offers[0]?.driver_id).toBe(driverId);
   });
+  /**
+   * البطاقةُ كانت تقول لصاحب التجربة «اشتراكك سارٍ»، فيقرأ أنّه دافعٌ مشترك ثمّ
+   * يُفاجأ بانقطاع الطلبات. وهذا يحرس أنّ النصَّ يُسمّي الشهرَ المجانيَّ باسمه
+   * ويعدُّ أيّامَه ويشرح الطريقين.
+   */
+  it("بطاقةُ /subscription في التجربة تُسمّي الشهرَ المجانيَّ وتعدُّ أيّامَه", async () => {
+    const driverId = await registerDriver();
+    driverSent.length = 0;
+
+    await post("driver", text(DRIVER_CHAT, "/subscription"));
+
+    const card = driverSent.map((message) => message.text).join("\n");
+    expect(card).toContain("شهرك المجاني");
+    expect(card).toContain("30 يوماً");
+    expect(card).toContain("غير المشتركين");
+    // ولا يُقال له إنّه مشترك، ولا يُعرض عليه إلغاءُ ما لم يشترِ
+    expect(card).not.toContain("اشتراكك (transport) سارٍ");
+    const markup = JSON.stringify(driverSent.map((message) => message.markup ?? {}));
+    expect(markup).not.toContain("sub:cancel");
+    void driverId;
+  });
 });

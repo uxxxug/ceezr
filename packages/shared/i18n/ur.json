@@ -60,6 +60,8 @@
   "driver.share_location_button": "Send my location",
   "driver.share_phone_button": "Share my number",
   "driver.subscription_live": "Your {plan} subscription is live until {until}.",
+  "driver.subscription_trial": "🎁 آپ اپنے مفت مہینے میں ہیں۔\n\n⏳ {days} دن باقی — {until} کو ختم ہوگا۔\n🚗 آرڈرز اب بھی کسی سبسکرائبڈ ڈرائیور کی طرح آ رہے ہیں، بغیر کسی کٹوتی کے۔\n\n💳 {plan} کی ماہانہ قیمت: {price} {currency}۔\n\nمفت مہینہ ختم ہونے پر: یا سبسکرپشن فعال کریں تو آرڈرز آتے رہیں گے، یا غیر سبسکرائبڈ ڈرائیورز گروپ میں منتقل ہوں جہاں آرڈرز مقابلے سے ملتے ہیں۔\n\nℹ️ اگر آپ ابھی فعال کریں تو ادا شدہ مہینہ اسی لمحے سے شروع ہوگا، اور باقی مفت دن ختم ہو جائیں گے۔",
+  "driver.subscription_trial_activate_button": "💳 ابھی فعال کریں",
   "driver.notice_activated": "🎉 آپ کی سبسکرپشن فعال ہو گئی!\n\n📦 پلان: {plan}\n💳 رقم: {price} {currency}\n📅 اس تاریخ تک: {until}\n\n🚗 اب آرڈر آپ کو سب سے پہلے براہِ راست ملیں گے۔",
   "driver.notice_trial_expired": "⏳ آپ کی مفت آزمائشی مدت {date} کو ختم ہو گئی۔\n\nاکاؤنٹ موجود ہے، لیکن آرڈر اب براہِ راست نہیں پہنچیں گے۔\n\n💳 پہلے آرڈر پانے کے لیے «میری سبسکرپشن» دبائیں اور ادائیگی مکمل کریں۔",
   "driver.notice_expired": "📅 آپ کی {plan} سبسکرپشن {date} کو ختم ہو گئی۔\n\nکوئی رقم نہیں کاٹی گئی، تجدید آپ کی مرضی سے کبھی بھی۔\n\n💳 تجدید کے لیے «میری سبسکرپشن» دبائیں۔",

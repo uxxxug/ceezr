@@ -60,6 +60,8 @@
   "driver.share_location_button": "Send my location",
   "driver.share_phone_button": "Share my number",
   "driver.subscription_live": "Your {plan} subscription is live until {until}.",
+  "driver.subscription_trial": "🎁 You're in your free month.\n\n⏳ {days} day(s) left — it ends on {until}.\n🚗 Orders reach you now like any subscribed driver, with nothing charged.\n\n💳 Monthly price for {plan}: {price} {currency}.\n\nWhen the free month ends: either activate your subscription and orders keep coming, or move to the unsubscribed drivers group where orders arrive by competition.\n\nℹ️ If you activate now, the paid month starts from the moment of activation, so your remaining free days end.",
+  "driver.subscription_trial_activate_button": "💳 Activate now",
   "driver.notice_activated": "🎉 Your subscription is now active!\n\n📦 Plan: {plan}\n💳 Amount: {price} {currency}\n📅 Valid until: {until}\n\n🚗 Orders now reach you directly, ahead of others. Good luck out there.",
   "driver.notice_trial_expired": "⏳ Your free trial ended on {date}.\n\nYour account is still here, but orders no longer reach you directly.\n\n💳 To keep getting orders first: tap “My subscription” and complete the payment.",
   "driver.notice_expired": "📅 Your {plan} subscription ended on {date}.\n\nNothing was charged, and renewing is up to you whenever you like.\n\n💳 To renew: tap “My subscription”.",

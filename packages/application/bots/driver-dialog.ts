@@ -840,6 +840,15 @@ function dayOf(at: Date): string {
 }
 
 /**
+ * أيّامٌ كاملةٌ باقية، بالتقريب لأعلى ولا تنزل تحت الصفر: «يتبقّى 0 أيام» أهدأُ من
+ * «يتبقّى -1»، والسائقُ الذي بقيت له ساعةٌ يقرأ «يوماً» لا «صفراً».
+ */
+function daysUntil(endsAt: Date, now: Date): number {
+  const remaining = endsAt.getTime() - now.getTime();
+  return remaining <= 0 ? 0 : Math.ceil(remaining / 86_400_000);
+}
+
+/**
  * أزرار بطاقة الاشتراك. تُبنى من حالة الصفّ لا من ذاكرة الحوار: ما يُعرض على
  * السائق هو ما في القاعدة لحظةَ العرض، فلا يظهر «إلغاء» لمن ألغى، ولا
  * «ترقية» لمن هو على الخطّة الشاملة أصلاً.
@@ -1170,6 +1179,55 @@ async function describeSubscription(
   if (!found.ok) return technicalFailure(sender, state);
 
   const subscription = found.value;
+
+  /**
+   * الشهرُ المجانيُّ ليس اشتراكاً، فلا يُعرَض بنصّه.
+   *
+   * البطاقةُ كانت تقول لصاحب التجربة «اشتراكك (transport) سارٍ حتى …» مع زرَّي
+   * إلغاءٍ وترقية، فيقرأ السائق أنّه دافعٌ مشترك، ثمّ يُفاجأ بعد شهرٍ بانقطاع
+   * الطلبات. ولا سبيلَ له إلى الدفع مبكّراً: زرُّ الشراء كان مشروطاً بغياب
+   * اشتراكٍ سارٍ، والتجربةُ سارية. فمن أراد أن يُطمئن نفسه قبل انتهاء شهره لم
+   * يجد زرّاً واحداً يفعل ذلك.
+   *
+   * والنصُّ يقول له صراحةً أنّ التفعيلَ المبكّر يُنهي ما بقي من أيّامه المجانية،
+   * لأنّ `activate_subscription` يبدأ مدّةً جديدة ولا يُضيفها إلى التجربة.
+   */
+  if (
+    subscription !== null &&
+    subscription.status === "trialing" &&
+    isSubscriptionLive(subscription, deps.clock.now())
+  ) {
+    const settings = await citySettingsOf(deps, driver);
+    if (settings === null) return technicalFailure(sender, state);
+    const endsAt = subscription.trialEndsAt ?? subscription.currentPeriodEnd;
+    const plan: SubscriptionPlan = subscription.plan;
+    return [
+      reply(
+        sender,
+        tr("driver.subscription_trial", {
+          days: endsAt === null ? 0 : daysUntil(endsAt, deps.clock.now()),
+          until: endsAt === null ? "" : dayOf(endsAt),
+          plan,
+          price: subscriptionPriceFor(settings, plan),
+          currency: settings.currency,
+        }),
+        deps.subscriptionPurchase === undefined
+          ? menu(state)
+          : {
+              kind: "inline",
+              rows: [
+                [
+                  {
+                    label: tr("driver.subscription_trial_activate_button"),
+                    data: `sub:buy:${plan}`,
+                  },
+                ],
+              ],
+            },
+      ),
+    ];
+  }
+
   if (
     subscription !== null &&
     subscription.currentPeriodEnd !== null &&
@@ -1237,11 +1295,19 @@ async function handleSubscriptionPurchase(
       ? requestedPlan
       : "transport";
 
-  // من له اشتراكٌ سارٍ لا يُبَع له اشتراكٌ ثانٍ: التفعيل يستبدل المدّة، فبيعُه
-  // اشتراكاً وهو مشترك يمحو ما بقي له من شهرٍ دفع ثمنه.
+  // من له اشتراكٌ **مدفوعٌ** سارٍ لا يُبَع له اشتراكٌ ثانٍ: التفعيل يستبدل المدّة،
+  // فبيعُه اشتراكاً وهو مشترك يمحو ما بقي له من شهرٍ دفع ثمنه.
+  //
+  // أمّا صاحبُ الشهر المجاني فيُباع له: لا مالَ يُمحى، وحجبُ الشراء عنه كان يعني
+  // أنّ من أراد تأمين استمراره قبل انتهاء تجربته لا يجد إليه سبيلاً. والبطاقةُ
+  // تُخبره قبل الضغط أنّ التفعيل يُنهي أيّامَه المجانية الباقية.
   const live = await deps.subscriptions.findLive(driver.id);
   if (!live.ok) return technicalFailure(sender, state);
-  if (live.value !== null && isSubscriptionLive(live.value, deps.clock.now())) {
+  if (
+    live.value !== null &&
+    live.value.status !== "trialing" &&
+    isSubscriptionLive(live.value, deps.clock.now())
+  ) {
     return describeSubscription(sender, state, driver, deps);
   }
 
