@@ -1271,7 +1271,8 @@ export async function listSettings(sql: Sql, cityId: string): Promise<readonly S
   `;
   return rows.map((row) => ({
     key: row.key,
-    value: JSON.stringify(row.value),
+    // الإعدادُ النصيّ يُعرض بلا تنصيص: ما يقرأه المسؤول في الخانة هو ما يكتبه فيها.
+    value: row.value_type === "string" ? String(row.value) : JSON.stringify(row.value),
     valueType: row.value_type,
     descriptionAr: row.description_ar,
     isProvisional: row.is_provisional,
@@ -1433,7 +1434,7 @@ export async function updateSetting(
 ): Promise<WriteOutcome> {
   const rows = await sql<{ result: unknown }[]>`
     select admin_update_setting(
-      ${actorUserId}::uuid, ${cityId}::uuid, ${key}::text, ${value}::text::jsonb
+      ${actorUserId}::uuid, ${cityId}::uuid, ${key}::text, ${value}::text
     ) as result
   `;
   return readWrite(rows[0]?.result);

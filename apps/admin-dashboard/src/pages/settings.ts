@@ -46,6 +46,14 @@ const TYPE_LABEL: Readonly<Record<string, string>> = {
   array: "قائمة",
 };
 
+/** ما يُنتظر من المسؤول في الخانة، فلا يكتب JSON حيث لا يلزم ولا يخمّن الصيغة. */
+const TYPE_HINT: Readonly<Record<string, string>> = {
+  number: "رقم صحيح أو عشريّ",
+  string: "نصّ كما هو، بلا علامات تنصيص",
+  boolean: "نعم أو لا",
+  array: 'قائمة JSON مثل ["ar", "en"]',
+};
+
 function cityReadiness(city: CityGroupStatus): { label: string; tone: "ok" | "warn" | "bad" } {
   const complete =
     typeof city.supportGroupId === "string" &&
@@ -84,6 +92,8 @@ export function renderSettingsPage(data: SettingsPageData): string {
     )}/${escapeHtml(row.key)}">
       <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
       <input type="text" name="value" value="${escapeHtml(row.value)}" class="mono"
+             placeholder="${escapeHtml(TYPE_HINT[row.valueType] ?? "")}"
+             title="${escapeHtml(TYPE_HINT[row.valueType] ?? "")}"
              aria-label="قيمة ${escapeHtml(row.key)}">
       <button type="submit">حفظ</button>
     </form>`,

@@ -1179,6 +1179,8 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       value,
     );
     log("تعديل إعداد من اللوحة", { ok: outcome.ok, error: outcome.error });
+    // القيمةُ المرفوضة تُبيَّن للمسؤول: إعادةُ توجيهٍ صامتة تعني أنّه يحسب أنّه حفظ.
+    if (!outcome.ok) return c.text(outcome.error ?? "SETTING_REJECTED", HTML_UNPROCESSABLE);
     return c.redirect(`/admin/settings?city=${encodeURIComponent(cityId)}`, SEE_OTHER);
   });
 

@@ -624,6 +624,51 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     expect(unchanged[0]?.value).toBeCloseTo(0.02);
   });
 
+  /**
+   * الإعدادُ النصيّ كان يُرسَل إلى PostgreSQL بـ`::jsonb`، فمن كتب رابطَ القروب
+   * كما هو ارتفع استثناءٌ وعادت 500 بلا بيان — وهو أوّلُ ما يُملأ في مدينةٍ
+   * جديدة. الآن يُقبل النصُّ بلغته، ويُعرض في الخانة بلا تنصيصٍ يُربك قارئه.
+   */
+  it("الإعدادُ النصيّ يُحفَظ رابطاً عادياً ويُعرض بلا تنصيص", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, `/admin/settings?city=${cityId}`);
+    const link = "https://t.me/+waslah_admin_check";
+
+    const saved = await request(`/admin/settings/${cityId}/unsubscribed_drivers_group_link`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, value: link }),
+    });
+    expect(saved.status).toBe(303);
+
+    const stored = await sql<{ value: string; is_provisional: boolean }[]>`
+      select value #>> '{}' as value, is_provisional from platform_settings
+       where city_id = ${cityId} and key = 'unsubscribed_drivers_group_link'
+    `;
+    expect(stored[0]?.value).toBe(link);
+    expect(stored[0]?.is_provisional).toBe(false);
+
+    const page = await (await request(`/admin/settings?city=${cityId}`, { cookie })).text();
+    expect(page).toContain(`value="${link}"`);
+  });
+
+  /**
+   * الرقمُ الفاسد كان يُوجّه المسؤولَ إلى الصفحة كأنّ الحفظَ تمّ. الآن يُبيَّن
+   * الرفضُ برمزٍ مفهوم، والقيمةُ القديمة لا تُمَسّ.
+   */
+  it("القيمةُ المرفوضة تُبيَّن للمسؤول ولا تُغيّر المحفوظ", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, `/admin/settings?city=${cityId}`);
+
+    const rejected = await request(`/admin/settings/${cityId}/admin_heatmap_cell_degrees`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, value: "ليس رقماً" }),
+    });
+    expect(rejected.status).toBe(422);
+    expect(await rejected.text()).toBe("INVALID_NUMBER");
+  });
+
   it("فعل كتابي بلا رمز CSRF مرفوض ولو كانت الجلسة صالحة", async () => {
     const cookie = await login(ADMIN_TELEGRAM);
     const { driverId } = await createDriver();
