@@ -4,5 +4,8 @@
  * ينتمي إلى: application/identity
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway (البوتات/الـ Webhooks)، apps/workers، apps/admin-dashboard
  * ملاحظات مستقبلية: التوقيع المستهدف عند التفعيل: export async function verifyPhone(input, deps): Promise<Result<T, E>>. RPC المرتبط المحتمل: verify_phone. يُفعَّل جزئياً في الأمر الثاني.
+ * التنفيذ الفعلي: packages/application/bots/driver-dialog.ts ودوال SQL في
+ *   supabase/migrations — انظر admin_set_user_blocked وadmin_set_driver_verification.
+ *   هذا الملف بنية مستقبلية لطبقة application/identity عند فصل الهوية عن حوار البوت.
  */
 export {};
