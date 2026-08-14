@@ -49,7 +49,7 @@ import {
 } from "../dispatch/relay-negotiation-message.ts";
 import type { PaymentProvider, PaymentRepository } from "../financial/ports.ts";
 import { subscribePlan } from "../financial/subscribe-plan.ts";
-import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import type { ClaimRideResult, DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
   type ResolveSafetyIncidentDeps,
   resolveSafetyIncident,
@@ -60,6 +60,10 @@ import type { SubscriptionChangeRpcPort } from "../subscription/ports.ts";
 import { upgradePlan } from "../subscription/upgrade-plan.ts";
 import type { DriverTripCardReader, DriverTripKey } from "../tracking/driver-trip-card.ts";
 import { driverTripCard } from "../tracking/driver-trip-card.ts";
+import {
+  type IssueTrackingTokenDeps,
+  issueTrackingToken,
+} from "../tracking/issue-tracking-token.ts";
 import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
 import { driverTripPin, driverTripText } from "./driver-trip-reply.ts";
 import {
@@ -76,10 +80,12 @@ import {
 } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
 import {
+  type CounterpartNotifier,
   handleCompleteRide,
   handleRatingCallback,
   handleStartRide,
   type RatingDialogDependencies,
+  shortOrderId,
   startRideKeyboard,
 } from "./rating-dialog.ts";
 import {
@@ -232,6 +238,23 @@ export interface DriverBotDependencies {
   readonly subscriptionPurchase?: {
     readonly payments: PaymentRepository;
     readonly provider: PaymentProvider;
+  };
+  /**
+   * §4.2 — إخطار الراكب لحظة القبول، ومعه رابطُ التتبّع المؤقّت إن أُمكن.
+   *
+   * قبل هذا كان المسار المباشر (قبولٌ من زرّ العرض) يُخطِر السائق وحده: الراكب
+   * يبقى يرى «نبحث عن سائق» حتّى يضغط `/status` بنفسه — وسائقٌ واقفٌ عنده ولا
+   * يعلم. ومسارُ القروبات كان يُخطِر (`negotiation.agreed_rider`)، فالتفاوتُ بين
+   * المسارين كان عيباً لا اختلاف تصميم.
+   *
+   * اختياريٌّ بنفس منطق `rating` و`tracking`: غيابه يعني أنّ القبول يجري كما كان
+   * بلا إخطار، لا أنّه يفشل. و`links` اختياريٌّ داخله لأنّ الرابط يحتاج
+   * `TRACKING_TOKEN_BASE_URL`؛ فإن غاب وُصِل الإخطار بلا رابط — ولا يُوعَد بما لا
+   * يُمكن إنجازه.
+   */
+  readonly acceptNotice?: {
+    readonly counterpart: CounterpartNotifier;
+    readonly links?: IssueTrackingTokenDeps;
   };
   /** SOS: فتح من السائق وقرارات قروب الإسناد من بوت السائق الذي نشر البطاقة. */
   readonly safety?: {
@@ -1873,6 +1896,8 @@ async function handleOfferDecision(
   if (!claim.ok) return technicalFailure(sender, state);
 
   if (claim.value.claimed) {
+    // الراكب يُخطَر قبل بناء ردّ السائق، والفشل مبتلَعٌ داخل الدالّة فلا يمسّ إسناداً وقع.
+    await notifyRiderOfAcceptance(orderId, claim.value, deps);
     // زرّ البدء يخرج مع تأكيد القبول: السائق لا يحفظ معرّف الطلب ولا يُطلب منه كتابته
     const keyboard =
       deps.rating === undefined ? null : startRideKeyboard(String(orderId), languageOf(state));
@@ -1899,6 +1924,57 @@ async function handleOfferDecision(
   const key =
     claim.value.reason === "offer_expired" ? "driver.offer_expired" : "driver.offer_taken";
   return [reply(sender, tr(key))];
+}
+
+/**
+ * §4.2 — إخطارُ الراكب بقبول سائق، بلغته هو، ومعه رابطُ تتبّعٍ مؤقّت إن أُمكن.
+ *
+ * لا تُلقي ولا تُعيد شيئاً: الإسناد وقع في القاعدة قبل هذه المكالمة، فإرجاعُ خطأٍ
+ * منها كان سيُري السائق «فشل القبول» وهو قد نجح — فيضغط ثانيةً فيُقال له «سبقك
+ * أحدهم» والرحلةُ رحلته. وفشلُ إصدار الرابط لا يمنع الإخطار نفسه: معرفةُ الراكب
+ * أنّ سائقاً قبِل أولى من خريطةٍ تتحرّك.
+ */
+async function notifyRiderOfAcceptance(
+  orderId: OrderId,
+  claim: ClaimRideResult,
+  deps: DriverBotDependencies,
+): Promise<void> {
+  const notice = deps.acceptNotice;
+  const rider = claim.rider;
+  if (notice === undefined || rider === null) return;
+  const tr = t(rider.languageCode);
+  const unknown = tr("tracking.unknown_value");
+  const text = tr("tracking.rider_matched", {
+    order: shortOrderId(String(orderId)),
+    driver: claim.driverName ?? unknown,
+    plate: claim.driverPlate ?? unknown,
+    vehicle: claim.driverVehicle ?? unknown,
+  });
+
+  const link = notice.links === undefined ? null : await issueLink(orderId, rider, notice.links);
+  const full = link === null ? text : `${text}\n\n${tr("tracking.rider_link", { url: link })}`;
+  /**
+   * الحاجزُ هنا لا في المحوّل وحده: `counterpartNotifier` الحيّ يبلع أعطالَه فعلاً،
+   * لكن الحوارَ لا يجوز أن يتّكل على أدبِ تركيبٍ بعينه — ومُخطِرٌ يُلقي في تركيبٍ
+   * آخر كان سيُري السائق «سبقك أحدهم» عن رحلةٍ صارت رحلته. اختبارٌ فعليّ أوقع هذا.
+   */
+  try {
+    await notice.counterpart.notify(rider.telegramId, full, null);
+  } catch {
+    // لا سبيلَ للتراجع ولا داعي: الإسنادُ نهائيّ، والراكب سيرى الحالة بـ`/status`.
+  }
+}
+
+/** إصدارٌ لا يُسقِط الإخطار: ما فشل يخرج `null` فيُرسل النصّ وحده. */
+async function issueLink(
+  orderId: OrderId,
+  rider: { readonly telegramId: string },
+  links: IssueTrackingTokenDeps,
+): Promise<string | null> {
+  const telegramId = Number(rider.telegramId);
+  if (!Number.isSafeInteger(telegramId)) return null;
+  const issued = await issueTrackingToken({ orderId, telegramId }, links);
+  return issued.ok ? issued.value.url : null;
 }
 
 /**

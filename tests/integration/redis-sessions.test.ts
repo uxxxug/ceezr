@@ -51,6 +51,7 @@ const config: AppConfig = {
   routingProvider: "none",
   osrmBaseUrl: null,
   tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 /** Redis مزدوج يحترم EX بمنطق مهلة حقيقي، لأن انتهاء المهلة جزء من السلوك المختبَر. */

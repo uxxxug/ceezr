@@ -12,7 +12,7 @@ import { makeCoordinates } from "../../domain/geo/value-objects.ts";
 import { parseFullName } from "../../domain/identity/value-objects.ts";
 import { DEFAULT_SESSION_POLICY } from "../../domain/tracking/session.ts";
 import { t } from "../../shared/i18n/index.ts";
-import type { Clock, ServiceType } from "../../shared/kernel/index.ts";
+import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
 import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
@@ -25,7 +25,12 @@ import {
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
 import { type TriggerSosDeps, triggerSos } from "../safety/trigger-sos.ts";
+import {
+  type IssueTrackingTokenDeps,
+  issueTrackingToken,
+} from "../tracking/issue-tracking-token.ts";
 import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
+import { revokeOrderTrackingTokens } from "../tracking/revoke-tracking-token.ts";
 import {
   handleLanguageCallback,
   handleLanguageCommand,
@@ -40,7 +45,11 @@ import {
   requestWithMenuKeyboard,
 } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
-import { handleRatingCallback, type RatingDialogDependencies } from "./rating-dialog.ts";
+import {
+  handleRatingCallback,
+  type RatingDialogDependencies,
+  shortOrderId,
+} from "./rating-dialog.ts";
 import {
   handleSupportGroupAction,
   type SupportDialogDependencies,
@@ -106,6 +115,13 @@ export interface RiderBotDependencies {
    * لا أن يفشل.
    */
   readonly tracking?: LiveTrackingPort;
+  /**
+   * §4.2 — روابطُ التتبّع المؤقّتة: زرّ «شارك موقعي الحي» وزرّ «إلغاء الرابط».
+   *
+   * اختياريٌّ لأنّ الرابط يحتاج `TRACKING_TOKEN_BASE_URL`، والتركيبُ بلا أساسٍ عامٍّ
+   * لا يجوز أن يعرض زرّاً يُنتج رابطاً لا يُفتح. غيابه = لا زرّين، لا زرّان يفشلان.
+   */
+  readonly trackingLinks?: IssueTrackingTokenDeps;
   /** SOS اختياري في الاختبارات القديمة، ومربوط دائماً في الحاوية الحية. */
   readonly safety?: { readonly trigger: TriggerSosDeps };
 }
@@ -171,6 +187,7 @@ export async function handleRiderUpdate(
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
     if (prefix === "cancel") return handleCancelChoice(rest.join(":"), sender, state, deps);
     if (prefix === "sos") return handleSosCallback(rest, sender, state, deps);
+    if (prefix === "trk") return handleTrackingLinkCallback(rest, sender, state, deps);
     // البند 6.3: زرّ أمرٍ من لوحة `/help` — يمرّ بنفس موجّه الأوامر لا بمسار ثانٍ
     if (prefix === "cmd") {
       const command = rest.join(":");
@@ -551,7 +568,7 @@ async function handleStatus(
   }
 
   const now = deps.clock.now();
-  return active.map((order, index) => {
+  const cards = active.map((order, index) => {
     const described = describeOrderStatus(order, state.language, now);
     // اللوحة مع الردّ الأخير وحده: تلغرام يُبقي المعروضة أخيراً، وإرسالها مع كل ردّ تكرار بلا أثر
     const keyboard = index === active.length - 1 ? trackingMenu(state) : null;
@@ -564,6 +581,101 @@ async function handleStatus(
           photoFileId: described.photoFileId,
         };
   });
+
+  /**
+   * §4.2 — رسالةُ الروابط تُلحَق بعد البطاقات ولا تحلّ محلّها. وتُقصَر على الطلبات
+   * التي أُسندت فعلاً: طلبٌ مازال `searching` لا موقعَ سائقٍ فيه يُتابع، وعرضُ الزرّ
+   * عليه كان وعداً بخريطةٍ فارغة — والقاعدةُ ترفضه أصلاً بلا موقع.
+   */
+  if (deps.trackingLinks === undefined) return cards;
+  const linkable = active.filter(
+    (order) => order.status === "matched" || order.status === "in_progress",
+  );
+  if (linkable.length === 0) return cards;
+  return [
+    ...cards,
+    reply(sender, tr("tracking.share_prompt"), trackingLinksKeyboard(linkable, state.language)),
+  ];
+}
+
+/**
+ * §4.2 — زرّا الراكب: إصدارُ رابطٍ مؤقّت، وإلغاءُ ما أُصدِر.
+ *
+ * البيان معرّفُ الطلب لا الرمز: الرمزُ مفتاحٌ لمن يحمله، وكتابته في بيانٍ
+ * يبقى في تاريخ المحادثة تجعل لقطةَ شاشةٍ للأزرار كافيةً لفتح الصفحة.
+ */
+async function handleTrackingLinkCallback(
+  parts: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const links = deps.trackingLinks;
+  const [action, orderIdRaw] = parts;
+  if (links === undefined || orderIdRaw === undefined || orderIdRaw === "") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const orderId = orderIdRaw as OrderId;
+  const telegramId = Number(sender.telegramUserId);
+  if (!Number.isSafeInteger(telegramId)) return [reply(sender, tr("common.error_try_again"))];
+
+  if (action === "off") {
+    const revoked = await revokeOrderTrackingTokens({ orderId, telegramId }, links);
+    if (!revoked.ok) return [reply(sender, tr("common.error_try_again"))];
+    // الفرقُ يُقال للمستخدم: من لا رابطَ له يرى «لا روابط سارية» لا تأكيداً
+    // كاذباً بإلغاءٍ لم يقع.
+    const key = revoked.value > 0 ? "tracking.revoked" : "tracking.revoke_none";
+    return [reply(sender, tr(key, { order: shortOrderId(String(orderId)) }), trackingMenu(state))];
+  }
+
+  if (action !== "new") return [reply(sender, tr("common.unknown_command"))];
+
+  const issued = await issueTrackingToken({ orderId, telegramId }, links);
+  if (!issued.ok) {
+    /**
+     * «لا تملك هذا الطلب» و«الطلب ليس جارياً» يُردّان برسالةٍ واحدة: التمييز
+     * مِسبرٌ يُخبر من يجرّب معرّفاتٍ أيُّها طلبٌ قائمٌ لغيره.
+     */
+    const reason = issued.error.reason;
+    const key =
+      reason === "UNAUTHORIZED" || reason === "ORDER_NOT_ACTIVE" || reason === "ORDER_NOT_FOUND"
+        ? "tracking.share_not_active"
+        : "tracking.share_failed";
+    return [reply(sender, tr(key), trackingMenu(state))];
+  }
+
+  const minutes = Math.max(
+    1,
+    Math.round((issued.value.expiresAt.getTime() - deps.clock.now().getTime()) / 60_000),
+  );
+  return [
+    reply(
+      sender,
+      tr("tracking.share_ready", {
+        order: shortOrderId(String(orderId)),
+        minutes: String(minutes),
+        url: issued.value.url,
+      }),
+      trackingMenu(state),
+    ),
+  ];
+}
+
+/**
+ * لوحةُ الروابط: سطرٌ لكلّ طلبٍ جارٍ فيه زرّا المشاركة والإلغاء. ولماذا
+ * لوحةٌ داخليّةٌ في رسالةٍ منفصلة لا مع بطاقة الحالة؟ لأنّ تلغرام لا يحمل لوحةً
+ * داخليّةً وقائمةً دائمةً في رسالةٍ واحدة — فإلحاقها ببطاقة الحالة كان سيمحو القائمة.
+ */
+function trackingLinksKeyboard(orders: readonly ActiveOrderSummary[], language: string): Keyboard {
+  const tr = t(language);
+  return {
+    kind: "inline",
+    rows: orders.map((order) => [
+      { label: tr("tracking.share_button"), data: `trk:new:${order.orderId}` },
+      { label: tr("tracking.revoke_button"), data: `trk:off:${order.orderId}` },
+    ]),
+  };
 }
 
 function cancelChoiceKeyboard(orders: readonly ActiveOrderSummary[], language: string): Keyboard {

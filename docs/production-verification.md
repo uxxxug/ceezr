@@ -87,17 +87,21 @@ update cities set is_active = true where code in ('mkk', 'ruh', 'tif');
 
 ### الحالة الحالية
 
-- مزوّد Moyasar مدمج فعلاً: فاتورةٌ حقيقية ورابط دفعٍ مُستضاف.
+- مزوّد الإنتاج هو **Tap**: فاتورةٌ حقيقية ورابط دفعٍ مُستضاف، وتوقيعُ الويبهوك
+  بالمفتاح السرّي نفسه. ومزوّد Moyasar مدمجٌ في الكود أيضاً لكنّه **خارج نطاق هذا
+  الإطلاق** فلا يُتحقّق منه هنا.
+- الإطلاق يبدأ بـ`manual` (تفعيلٌ يدويٌّ عبر الدعم) ويُحوَّل إلى `tap` بضبط
+  المتغيّر وحده — لا نشرَ كودٍ ولا ترحيلَ قاعدةٍ للتحويل.
 - اشتراك السائق الشهري هو التدفّق الوحيد المفعّل.
 - باقي الأغراض (دفع العملاء/التجار) هياكل فقط.
 
 ### الإعداد
 
 1. في Render → Environment Variables، أضف:
-   - `PAYMENT_PROVIDER` = `moyasar`
-   - `MOYASAR_SECRET_KEY` = مفتاح Moyasar السرّي (`sk_…`)
-   - `MOYASAR_WEBHOOK_SECRET` = السرّ الذي تضبطه في لوحة Moyasar للويبهوك
-   - `MOYASAR_CALLBACK_URL` = صفحة النتيجة بعد الدفع
+   - `PAYMENT_PROVIDER` = `tap` (أو `manual` في أوّل أيّام الإطلاق)
+   - `TAP_SECRET_KEY` = مفتاح Tap السرّي (`sk_…`) — وهو نفسه مفتاح توقيع الويبهوك،
+     فلا متغيّر سرّ منفصل للويبهوك
+   - `TAP_REDIRECT_URL` = صفحة العودة بعد الدفع (لازمة لمدى و3DS)
    - `PAYMENT_ENVIRONMENT` = `sandbox` أو `production`
    - `ENABLE_DRIVER_SUBSCRIPTION` = `true`
 

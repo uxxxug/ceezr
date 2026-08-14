@@ -55,6 +55,10 @@ export async function startEmbeddedWorker(
     maxConcurrency: MAX_JOB_CONCURRENCY,
     clock: { now: () => new Date() },
     log,
+    // النبضة (§4.3): ولو كان العاملُ في العمليّة نفسها، فالمرجعُ القاعدة لا الذاكرة:
+    // موضعٌ واحد لحقيقة واحدة يعمل في الحالتين بلا فرعٍ في الفحص، ومقبضٌ في الذاكرة
+    // كان سيقول «المشغّل مقلع» لا «المهامّ تعمل» — وهما ليسا شيئاً واحداً.
+    heartbeat: container.heartbeat,
   });
   runner.start();
   log.info("embedded_worker.started", {

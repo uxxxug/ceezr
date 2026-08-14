@@ -60,6 +60,7 @@ function configWith(tracking: TrackingEnvOverrides): AppConfig {
     routingProvider: "none",
     osrmBaseUrl: null,
     tracking,
+    trackingTokenBaseUrl: null,
   };
 }
 

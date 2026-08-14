@@ -9,7 +9,11 @@
  */
 
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
-import type { Clock } from "../../../packages/shared/kernel/index.ts";
+import type {
+  JobHeartbeatRecorderPort,
+  JobHeartbeatStatus,
+} from "../../../packages/application/scheduling/job-heartbeat.ts";
+import type { CityId, Clock } from "../../../packages/shared/kernel/index.ts";
 
 export interface JobDefinition {
   readonly name: string;
@@ -22,6 +26,11 @@ export interface JobDefinition {
   run(): Promise<string>;
   /** هل يُشغَّل مرّة عند الإقلاع قبل انتظار أول دورة. */
   readonly runOnStart?: boolean;
+  /**
+   * مدينةُ المهمّة إن كانت مهمّةَ مدينة. تُمرَّر للنبضة وحدها (§4.3): اسمُ المهمّة
+   * يحمل المعرّف نصّاً، وتفكيكُ نصٍّ لاستخراج مفتاحٍ أجنبي هشٌّ بلا داعٍ.
+   */
+  readonly cityId?: CityId;
 }
 
 export interface JobLogger {
@@ -52,6 +61,11 @@ export interface JobRunnerOptions {
    * متراكبتين. وحدٌّ محسوبٌ داخل كل استدعاء يصير حدَّين، فيتضاعف التوازي الفعلي.
    */
   readonly maxConcurrency?: number;
+  /**
+   * كاتبُ النبضة (§4.3). اختياريّ عن قصد: اختباراتُ المشغّل لا تحتاج قاعدةً،
+   * والعاملُ في الإنتاج يمرّره دائماً. غيابُه يعني «لا رصد» لا «رصدٌ فاشل».
+   */
+  readonly heartbeat?: JobHeartbeatRecorderPort;
 }
 
 export interface JobOutcome {
@@ -138,6 +152,24 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
     return nowMs - last >= job.everySeconds * 1000;
   }
 
+  /**
+   * النبضةُ تُكتب بعد انتهاء الشوط لا قبله، وخارجَ القفل: الكتابةُ ذاتُ حراسةٍ في
+   * منفذها فلا ترمي، وإدخالُها في القفل يُطيل حَملَه بكتابةٍ لا علاقةَ لها بذرّية المهمّة.
+   */
+  async function beat(
+    job: JobDefinition,
+    status: JobHeartbeatStatus,
+    detail: string | null,
+  ): Promise<void> {
+    if (options.heartbeat === undefined) return;
+    await options.heartbeat.record({
+      jobName: job.name,
+      cityId: job.cityId ?? null,
+      status,
+      detail,
+    });
+  }
+
   async function runOne(job: JobDefinition, nowMs: number): Promise<JobOutcome> {
     // الحماية من التراكب أهمّ ممّا تبدو: مهمّة تأخذ دقيقتين وتواترها دقيقة تُنتج
     // نسختين متزامنتين تتنافسان على نفس الصفوف — وهذا مصدر أقفال متبادلة حقيقي.
@@ -158,6 +190,9 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
         // الوقت كان سيعني أنها ستنتظر فاصلاً كاملاً بعد شوطٍ لم يحدث عندها.
         const durationMs = options.clock.now().getTime() - startedAt;
         options.log.info("job.skipped_locked_elsewhere", { job: job.name, durationMs });
+        // تُسجَّل `skipped` ولا تُترك صامتةً: صاحبُ القفل هو من ينبض `ok`، لكنّ
+        // صمتَ هذه النسخة كان سيُظهر المهمّة بلا نبضةٍ لو مات صاحبُ القفل بينهما.
+        await beat(job, "skipped", "نسخة أخرى تحمل القفل");
         return { name: job.name, status: "skipped_locked_elsewhere", durationMs, detail: null };
       }
 
@@ -165,6 +200,7 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       lastRunMs.set(job.name, nowMs);
       const durationMs = options.clock.now().getTime() - startedAt;
       options.log.info("job.ran", { job: job.name, durationMs, detail });
+      await beat(job, "ok", detail);
       return { name: job.name, status: "ran", durationMs, detail };
     } catch (error) {
       // التوقيت يُسجَّل حتى عند الفشل: مهمّة تفشل كل مرّة لا يجوز أن تُشغَّل في
@@ -173,6 +209,9 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       const durationMs = options.clock.now().getTime() - startedAt;
       const detail = error instanceof Error ? error.message : String(error);
       options.log.error("job.failed", { job: job.name, durationMs, detail });
+      // الفشلُ يُنبض أيضاً: مهمّةٌ تفشل كلّ شوط تُرى في `/ready` بحالتها لا بغيابها،
+      // والفرقُ عمليّ: الغيابُ عاملٌ ميّت، والفشلُ عاملٌ حيّ فيه عطل — والعلاج مختلف.
+      await beat(job, "failed", detail);
       return { name: job.name, status: "failed", durationMs, detail };
     } finally {
       inFlight.delete(job.name);

@@ -152,6 +152,11 @@ services:
         sync: false
       - key: TRACKING_MAX_TIME_DRIFT_SECONDS
         sync: false
+      # ‏TRACKING_TOKEN_BASE_URL: أساسُ روابط التتبّع المُشارَكة (§4.2). غيابُه
+      # يُطفئ ميزةَ الرابط صريحاً بلا كسر أيّ شيء آخر، ووجودُه يُلزم https في
+      # الإنتاج. لا يُشتقّ من ترويسة الطلب أبداً — التفصيل في packages/shared/config.
+      - key: TRACKING_TOKEN_BASE_URL
+        sync: false
 
   # ── العامل الخلفي: المهامّ الدورية بقفل موزَّع ────────────────────────────────
   - type: worker
@@ -245,4 +250,9 @@ services:
       - key: TRACKING_MAX_ACCURACY_METERS
         sync: false
       - key: TRACKING_MAX_TIME_DRIFT_SECONDS
+        sync: false
+      # ‏TRACKING_TOKEN_BASE_URL: أساسُ روابط التتبّع المُشارَكة (§4.2). غيابُه
+      # يُطفئ ميزةَ الرابط صريحاً بلا كسر أيّ شيء آخر، ووجودُه يُلزم https في
+      # الإنتاج. لا يُشتقّ من ترويسة الطلب أبداً — التفصيل في packages/shared/config.
+      - key: TRACKING_TOKEN_BASE_URL
         sync: false

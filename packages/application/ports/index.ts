@@ -47,12 +47,40 @@ export interface DriverCandidateRepository {
   ): Promise<Result<readonly DriverCandidate[], PortFailureError>>;
 }
 
+/**
+ * هويّةُ الراكب كما تقرؤها `claim_ride` داخل معاملة الإسناد نفسها (§4.2).
+ *
+ * ولماذا تُحمَل في ردّ الإسناد لا تُقرأ باستعلامٍ ثانٍ بعده؟ لأنّ بين الإسناد
+ * والاستعلام الثاني نافذةً يتغيّر فيها الحال — يُلغى الطلب أو تُغيَّر اللغة —
+ * فيُخطَر الراكبُ بلغةٍ ليست لغته أو عن طلبٍ لم يبقَ. والقراءةُ في المعاملة
+ * تُغلق النافذة بلا قفلٍ إضافي.
+ */
+export interface ClaimedRider {
+  readonly riderId: string;
+  /** معرّفُ تلغرام نصّاً: منافذُ الإرسال كلّها تأخذ نصّاً، والتحويل هنا مرّةً واحدة. */
+  readonly telegramId: string;
+  readonly languageCode: string;
+  readonly fullName: string;
+}
+
+/**
+ * ردُّ الإسناد. الحقول المضافة كلُّها قابلةٌ للغياب (`null`) لأنّ الإخطار تحسينٌ
+ * لا شرطٌ: راكبٌ بصفٍّ ناقص لا يُبطِل إسناداً وقع فعلاً في القاعدة.
+ */
+export interface ClaimRideResult {
+  readonly claimed: boolean;
+  readonly reason: string | null;
+  readonly cityId: CityId | null;
+  readonly rider: ClaimedRider | null;
+  readonly driverName: string | null;
+  readonly driverPlate: string | null;
+  readonly driverVehicle: string | null;
+}
+
 /** إسناد العرض ذرّياً — يقابل الدالة claim_ride في القاعدة. */
 export interface DispatchRpcPort {
   claimRide(
     orderId: OrderId,
     driverId: DriverId,
-  ): Promise<
-    Result<{ readonly claimed: boolean; readonly reason: string | null }, PortFailureError>
-  >;
+  ): Promise<Result<ClaimRideResult, PortFailureError>>;
 }

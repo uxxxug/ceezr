@@ -51,7 +51,18 @@ function deps(): DriverBotDependencies {
     settings: settingsRepo(seededRows(JEDDAH.id)),
     subscriptions: subscriptionReader(null),
     trial: trialPort(true),
-    dispatch: { claimRide: async () => ok({ claimed: true, reason: null }) },
+    dispatch: {
+      claimRide: async () =>
+        ok({
+          claimed: true,
+          reason: null,
+          cityId: null,
+          rider: null,
+          driverName: null,
+          driverPlate: null,
+          driverVehicle: null,
+        }),
+    },
     offers: offerDecisionPort(),
     clock: fixedClock(NOW),
   };

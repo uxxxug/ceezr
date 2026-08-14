@@ -232,4 +232,37 @@ describeIf("نقلُ مدينةِ السائق والراكب على PostgreSQL 
     `;
     expect(Number(audit[0]?.count)).toBe(0);
   });
+
+  /**
+   * إصلاحٌ وقائيّ (الادعاء 2.2): معنى «الطلبُ قائم» صار في دالّتَين لا مكتوباً
+   * نصّاً في كلّ موضع. والاختبار يمرّ على **كلّ تسميةٍ في النوع كما تقرأها
+   * القاعدة** لا على قائمةٍ مكتوبة هنا: حالةٌ جديدة تُضاف إلى `order_status`
+   * تسقط هذا الاختبار حتّى يُقرّر من أضافها أقائمةٌ هي أم منتهية — وهو عينُ ما
+   * لم يحدث أوّل مرّة فتعطّل نقلُ المدينة بالكامل.
+   */
+  it("دالّتا معنى «القائم» تفرزان كلّ تسميةٍ في order_status كما يفرز التوقّع", async () => {
+    const expectedActive = new Set(["searching", "matched", "in_progress"]);
+    const expectedEngaged = new Set(["matched", "in_progress"]);
+
+    const rows = await sql<{ label: string; is_active: boolean; is_engaged: boolean }[]>`
+      select e.enumlabel::text as label,
+             is_active_order_status(e.enumlabel::text::order_status) as is_active,
+             is_driver_engaged_order_status(e.enumlabel::text::order_status) as is_engaged
+        from pg_enum e
+        join pg_type t on t.oid = e.enumtypid
+       where t.typname = 'order_status'
+       order by e.enumsortorder
+    `;
+
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.is_active).toBe(expectedActive.has(row.label));
+      expect(row.is_engaged).toBe(expectedEngaged.has(row.label));
+    }
+    // ولا تسميةَ متوقّعة غائبة من النوع: حذفُ حالةٍ يكسر المعنى أيضاً.
+    const labels = new Set(rows.map((row) => row.label));
+    for (const label of [...expectedActive, ...expectedEngaged]) {
+      expect(labels.has(label)).toBe(true);
+    }
+  });
 });

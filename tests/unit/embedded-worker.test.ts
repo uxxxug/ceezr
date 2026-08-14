@@ -64,6 +64,7 @@ const config: AppConfig = {
   routingProvider: "none",
   osrmBaseUrl: null,
   tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 interface FakeSqlLog {
@@ -166,7 +167,9 @@ describe("العامل المدمج داخل عملية البوابة", () => {
       // مهمّةَ تسليمٍ مسجّلة تعني صفوفاً `pending` إلى الأبد ولوحةً تقول «جارٍ الإرسال».
       // ثم إحدى عشرة بإضافة تسليم إشعارات الاشتراك: صندوقٌ يُكتب فيه عند التفعيل
       // والانتهاء، وبلا مهمّةٍ تسلّمه يُقطع السائق عن الطلبات بصمتٍ تامّ.
-      expect(handle.jobCount).toBe(11);
+      // ثم اثنتي عشرة بإضافة انقضاء روابط التتبّع (§4.2): رابطٌ يُصدَر ولا مهمّةَ
+      // تسحب انقضاءه يبقى حيّاً إلى سقف عمره المطلق بعد أن انتهت الرحلة بساعات.
+      expect(handle.jobCount).toBe(12);
 
       const started = lines.find((line) => line.startsWith("embedded_worker.started"));
       expect(started).toBeDefined();
