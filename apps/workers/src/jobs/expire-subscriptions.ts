@@ -18,6 +18,7 @@ import {
   expireDueSubscriptions,
   warnExpiringSubscriptions,
 } from "../../../../packages/application/subscription/expire-subscriptions.ts";
+import type { CityId } from "../../../../packages/shared/kernel/index.ts";
 import type { Result } from "../../../../packages/shared/result/index.ts";
 
 export interface ExpireSubscriptionsDependencies {
@@ -36,6 +37,8 @@ export async function expireSubscriptions(
 }
 
 export interface WarnExpiringSubscriptionsInput {
+  /** المدينةُ التي تخصّها هذه المهمّة: القائمةُ تُرشَّح بها في القاعدة. */
+  readonly cityId: CityId;
   /** عدد الأيام قبل الانتهاء — يُقرأ من إعدادات المدينة في المشغّل لا هنا. */
   readonly days: number;
 }
@@ -44,5 +47,5 @@ export async function warnExpiringSoon(
   input: WarnExpiringSubscriptionsInput,
   deps: WarnExpiringDependencies,
 ): Promise<Result<WarnExpiringReport, PortFailureError>> {
-  return warnExpiringSubscriptions({ days: input.days }, deps);
+  return warnExpiringSubscriptions({ cityId: input.cityId, days: input.days }, deps);
 }

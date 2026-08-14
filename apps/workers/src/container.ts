@@ -607,7 +607,7 @@ export function buildWorkerContainer(
           run: async () => {
             const days = await warningDays(cityId);
             const report = await warnExpiringSoon(
-              { days },
+              { cityId, days },
               {
                 rpc: lifecycleRpc,
                 sender: warningSender,

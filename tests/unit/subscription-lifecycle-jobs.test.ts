@@ -124,7 +124,7 @@ describe("warnExpiringSubscriptions", () => {
       },
     };
 
-    const result = await warnExpiringSubscriptions({ days: 2 }, { rpc, sender });
+    const result = await warnExpiringSubscriptions({ cityId: CITY, days: 2 }, { rpc, sender });
 
     expect(result.ok).toBe(true);
     expect(order).toEqual(["send", "record"]);
@@ -134,7 +134,7 @@ describe("warnExpiringSubscriptions", () => {
   test("لا يُثبِّت تحذيراً لم يخرج: فشل الإرسال يمنع التثبيت", async () => {
     const recorded = empty();
     const result = await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc([expiring()], recorded), sender: stubSender(recorded, ["500001"]) },
     );
 
@@ -154,7 +154,7 @@ describe("warnExpiringSubscriptions", () => {
     ];
 
     const result = await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc(batch, recorded), sender: stubSender(recorded, ["500001"]) },
     );
 
@@ -173,7 +173,7 @@ describe("warnExpiringSubscriptions", () => {
     const failures: string[] = [];
 
     const result = await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       {
         rpc: stubRpc([expiring()], recorded, { recordFails: true }),
         sender: stubSender(recorded),
@@ -197,7 +197,7 @@ describe("warnExpiringSubscriptions", () => {
     ];
 
     await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc(batch, recorded), sender: stubSender(recorded) },
     );
 
@@ -214,7 +214,7 @@ describe("warnExpiringSubscriptions", () => {
     ];
 
     await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc(batch, recorded), sender: stubSender(recorded) },
     );
 
@@ -225,7 +225,7 @@ describe("warnExpiringSubscriptions", () => {
   test("لا مشترك يقترب انتهاؤه: تقرير صفري وليس فشلاً", async () => {
     const recorded = empty();
     const result = await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc([], recorded), sender: stubSender(recorded) },
     );
 

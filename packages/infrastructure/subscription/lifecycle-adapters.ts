@@ -55,12 +55,12 @@ export function createSubscriptionLifecycleRpc(sql: Sql): SubscriptionLifecycleR
         return { expiredCount: Number(payload.expired_subscriptions ?? 0) };
       }),
 
-    expiringSoon: (days: number) =>
+    expiringSoon: (input: { readonly cityId: CityId; readonly days: number }) =>
       guard(
         "rpc.subscriptions_expiring_soon",
         async (): Promise<readonly ExpiringSubscription[]> => {
           const rows = await sql<{ result: unknown }[]>`
-          select subscriptions_expiring_soon(${days}::integer) as result
+          select subscriptions_expiring_soon(${input.cityId}::uuid, ${input.days}::integer) as result
         `;
           const envelope = readEnvelope(rows[0]?.result);
           if (envelope === null) throw new Error("ردّ subscriptions_expiring_soon غير مفهوم");

@@ -33,7 +33,15 @@ export interface ExpiringSubscription {
 /** يقابل الدالّات expire_due_subscriptions و subscriptions_expiring_soon و record_subscription_warning. */
 export interface SubscriptionLifecycleRpcPort {
   expireDue(): Promise<Result<ExpireSubscriptionsOutcome, PortFailureError>>;
-  expiringSoon(days: number): Promise<Result<readonly ExpiringSubscription[], PortFailureError>>;
+  /**
+   * مُفتاحٌ بالمدينة لا عابرٌ للمدن: المهمّةُ التي تُناديه مسجَّلةٌ لكلّ مدينة،
+   * ومهامُّ المدن تُطلق في نفس النبضة بأقفالٍ مختلفة. فقائمةٌ عابرةٌ تعني أنّ
+   * السائقَ الواحد يستقبل تحذيراً بعددِ المدن النشطة.
+   */
+  expiringSoon(input: {
+    readonly cityId: CityId;
+    readonly days: number;
+  }): Promise<Result<readonly ExpiringSubscription[], PortFailureError>>;
   /**
    * لا يستقبل تاريخ الانتهاء: القاعدة تقرأه من الصفّ نفسه. تمريره من هنا كان يعني
    * إعادة قيمة اقتطعتها JavaScript إلى المللي ثانية، فلا تُطابق الأصل ويتكرّر التحذير.
@@ -82,10 +90,10 @@ export interface WarnExpiringDependencies {
  * سائقاً قبله في القائمة حجب البوت.
  */
 export async function warnExpiringSubscriptions(
-  input: { readonly days: number },
+  input: { readonly cityId: CityId; readonly days: number },
   deps: WarnExpiringDependencies,
 ): Promise<Result<WarnExpiringReport, PortFailureError>> {
-  const due = await deps.rpc.expiringSoon(input.days);
+  const due = await deps.rpc.expiringSoon({ cityId: input.cityId, days: input.days });
   if (!due.ok) return due;
 
   const failed: string[] = [];
