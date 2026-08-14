@@ -16,12 +16,16 @@ import {
   createDatabaseGaugeCollector,
   createOperationalMetrics,
 } from "../../../packages/infrastructure/observability/index.ts";
+import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { resolveMapStyle } from "../../../packages/maps/index.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
+import type { CityId } from "../../../packages/shared/kernel/index.ts";
+import { jobHealthExpectations } from "../../workers/src/container.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { grammyCommandRegistrar, registerBotCommands } from "./bots/shared/register-commands.ts";
 import { buildContainer } from "./container.ts";
 import { type EmbeddedWorkerHandle, startEmbeddedWorker } from "./embedded-worker.ts";
+import { createJobHealthProbes } from "./job-health.ts";
 import { instrumentPaymentConfirmationDeps } from "./observability/payment.ts";
 import {
   instrumentTelegramHandler,
@@ -261,6 +265,26 @@ const app = createServer({
               },
             },
           ]),
+      /**
+       * نبضةُ المهامّ (§4.3). الفجوةُ التي تُغلَق هنا: إقلاعُ العامل المضمَّن لا
+       * يُسقط البوابة عند فشله — وهو قرارٌ صحيح — لكنّ ثمنَه أنّ `/ready` كان يقول
+       * `ready` والمهامّ ميّتة: العروضُ لا تنتهي، والطلبُ لا يُعاد توزيعُه، والسائقُ
+       * يدفع ولا يُشعَر — ولا مؤشّر واحد يُرى من خارج السجلّ.
+       *
+       * والتوقّعاتُ تُقرأ من حاوية العامل (`jobHealthExpectations`) لا تُكتب هنا:
+       * تواترٌ يُعدّل في `JOB_INTERVALS` وعتبةُ بياتٍ منسوخة في البوابة ينزلقان حتماً.
+       */
+      ...createJobHealthProbes({
+        heartbeats: createJobHeartbeatReader(container.sql),
+        expectations: async () => {
+          const rows = await container.sql<{ id: string }[]>`
+            select id from cities where is_active = true
+          `;
+          return jobHealthExpectations(rows.map((row) => row.id as CityId));
+        },
+        now: () => new Date(),
+        startedAt,
+      }),
     ],
   },
   webhook: {

@@ -12,6 +12,10 @@ import type { BroadcastPublisher } from "../../../packages/application/broadcast
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
+import type {
+  CriticalJobExpectation,
+  JobHeartbeatRecorderPort,
+} from "../../../packages/application/scheduling/job-heartbeat.ts";
 import type { ExpiryWarningSender } from "../../../packages/application/subscription/expire-subscriptions.ts";
 import type { SubscriptionNoticePublisher } from "../../../packages/application/subscription/notice-ports.ts";
 import {
@@ -63,6 +67,7 @@ import { createRatingRecomputePort } from "../../../packages/infrastructure/repu
 import { createSafetyDeliveryPort } from "../../../packages/infrastructure/safety/safety-adapters.ts";
 import { createAdvisoryLock } from "../../../packages/infrastructure/scheduling/advisory-lock.ts";
 import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/scheduling/availability-adapters.ts";
+import { createJobHeartbeatRecorder } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
 import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastructure/subscription/notice-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
@@ -201,6 +206,8 @@ export interface WorkerContainerOverrides {
   readonly lock?: DistributedLock;
   /** تجمّع اتصالات القفل وحده — يُمرَّر في الاختبار لتقاسم قاعدة الاختبار نفسها. */
   readonly lockSql?: Sql;
+  /** كاتبُ النبضة — يُحقَن في الاختبار ليُراقب ما يُكتب بلا قاعدة. */
+  readonly heartbeat?: JobHeartbeatRecorderPort;
   /** مُرسِلا تيليجرام الحقيقيان — يُستبدلان في الاختبار بمُرسِل يجمع بلا شبكة. */
   readonly driverOut?: OutboundSender;
   readonly riderOut?: OutboundSender;
@@ -237,8 +244,64 @@ export function grammyWarningSender(token: string): ExpiryWarningSender {
   };
 }
 
+/**
+ * المهامّ التي غيابُ نبضتها عطلٌ لا ملاحظة (§4.3) — مدنيّة، تُسجّل بلا شرط لكلّ مدينة مفعّلة.
+ *
+ * لماذا هذه الأربع تحديداً: توقّفُ أيّها يُوقف دورةَ الرزق أو دورةَ الطلب ولا يظهر في
+ * أيّ مكانٍ آخر: العروضُ تبقى معلّقةً على السائق، والطلبُ لا يُعاد توزيعُه فينتظر
+ * الراكب إلى ما لا نهاية، والسائقُ يدفع ولا يعرف أنّ اشتراكه سرى، والاشتراكاتُ المنتهية
+ * تبقى سارية فيُعمل مجّاناً. وبقيّةُ المهامّ تأخيرُها مُزعج لا قاتل، وحشرُها هنا كان سيجعل
+ * `/ready` يسقط لأسبابٍ لا تستحقّ إيقافَ توجيه الحركة — فيُهمَل الفحصُ كلّه.
+ */
+const CRITICAL_CITY_JOBS: readonly { readonly prefix: string; readonly everySeconds: number }[] = [
+  { prefix: "expire-offers", everySeconds: JOB_INTERVALS.expireOffers },
+  { prefix: "redispatch-searching", everySeconds: JOB_INTERVALS.redispatchSearching },
+  {
+    prefix: "deliver-subscription-notices",
+    everySeconds: JOB_INTERVALS.deliverSubscriptionNotices,
+  },
+];
+
+/** مهامّ عامّة تُسجّل بلا شرط — غيابُها يعني عاملاً لم يعمل أصلاً. */
+const CRITICAL_GLOBAL_JOBS: readonly CriticalJobExpectation[] = [
+  { jobName: "expire-subscriptions", everySeconds: JOB_INTERVALS.expireSubscriptions },
+];
+
+/**
+ * مهامّ مشروطة باعتمادٍ خارجي: يُراقَب بياتُها ولا يُحاسَب غيابُها.
+ *
+ * النسخُ الاحتياطي حرجٌ للعمل (البند 7.2) لكنّه لا يُسجّل أصلاً بلا اعتمادات التخزين،
+ * وإدراجُه في الواجب كان سيجعل `/ready` يردّ `not_ready` في أيّ بيئةٍ بلا Google Drive.
+ * فإن وُجدت الاعتمادات ونبض مرّة، صار انقطاعُه بعدها تدهوّراً مرئيّاً — وهذا هو المطلوب
+ * فعلاً: «كان يعمل وتوقّف» لا «لم يُفعّل قطّ».
+ */
+const OPTIONAL_GLOBAL_JOBS: readonly CriticalJobExpectation[] = [
+  { jobName: "backup-database", everySeconds: JOB_INTERVALS.backupDatabase },
+  { jobName: "verify-backup-restore", everySeconds: JOB_INTERVALS.verifyBackupRestore },
+];
+
+/**
+ * توقّعاتُ النبض لمدنٍ مفعّلة معلومة — موضعها هنا لا في البوابة لأنّ `JOB_INTERVALS`
+ * هنا: تواترٌ يُعدّل في ملفٍّ وعتبةُ بياتٍ تُقرأ في ملفٍ آخر ينزلقان عن بعضهما حتماً.
+ */
+export function jobHealthExpectations(cityIds: readonly CityId[]): {
+  readonly required: readonly CriticalJobExpectation[];
+  readonly optional: readonly CriticalJobExpectation[];
+} {
+  const perCity = cityIds.flatMap((cityId) =>
+    CRITICAL_CITY_JOBS.map((entry) => ({
+      jobName: `${entry.prefix}:${cityId}`,
+      everySeconds: entry.everySeconds,
+    })),
+  );
+  // بلا مدينةٍ مفعّلة لا مهمّةً مدنيّة تُسجّل، والمهامّ العامّة وحدها تُنتظر.
+  return { required: [...perCity, ...CRITICAL_GLOBAL_JOBS], optional: OPTIONAL_GLOBAL_JOBS };
+}
+
 export interface WorkerContainer {
   readonly sql: Sql;
+  /** كاتبُ نبضة المهامّ (§4.3) — مكشوفٌ ليمرّره من يبني المشغّل. */
+  readonly heartbeat: JobHeartbeatRecorderPort;
   /** القفل الموزَّع الذي يُسلَّم للمشغّل — مكشوف حتى يُثبته الاختبار لا يفترضه. */
   readonly lock: DistributedLock;
   /** قائمة الجوبات كما ستُسلَّم للمشغّل — تُبنى مرّة عند الإقلاع. */
@@ -465,6 +528,7 @@ export function buildWorkerContainer(
   return {
     sql,
     lock,
+    heartbeat: overrides.heartbeat ?? createJobHeartbeatRecorder(sql, log),
 
     jobs: async (): Promise<readonly JobDefinition[]> => {
       const cityIds = await activeCityIds();
@@ -474,209 +538,219 @@ export function buildWorkerContainer(
         log.info("worker.no_active_cities", {});
       }
 
-      const perCity: JobDefinition[] = cityIds.flatMap((cityId): JobDefinition[] => [
-        {
-          name: `expire-offers:${cityId}`,
-          everySeconds: JOB_INTERVALS.expireOffers,
-          runOnStart: true,
-          run: async () => {
-            const report = await expireOffers(cityId, {
-              offers,
-              settings,
-              rpc: expireRpc,
-              clock: systemClock,
-            });
-            if (!report.ok) throw new Error(JSON.stringify(report.error));
-            return `examined=${report.value.examined} expired=${report.value.appliedCount}`;
-          },
-        },
-        {
-          /**
-           * قبل التصعيد لا بعده: الطلبُ الذي يمكن بثُّه ثانيةً يجب أن يُبَثّ قبل أن
-           * يُقال للراكب «لا سائق»، لا أن يُبَشَّر بالفشل ثم يُخدَم.
-           */
-          name: `redispatch-searching:${cityId}`,
-          everySeconds: JOB_INTERVALS.redispatchSearching,
-          runOnStart: true,
-          run: async () => {
-            const report = await runRedispatchSearching(cityId, {
-              finder: searchingFinder,
-              broadcast: redispatchBroadcast,
-              limit: REDISPATCH_LIMIT,
-              log: (message, meta) => log.info(message, meta),
-            });
-            if (!report.ok) throw new Error(JSON.stringify(report.error));
-            const value = report.value;
-            return `examined=${value.examined} rebroadcast=${value.rebroadcast.length} noDriver=${value.stillNoDriver.length} exhausted=${value.exhausted.length} raced=${value.raced.length} failed=${value.failed}`;
-          },
-        },
-        {
-          name: `sweep-unmatched:${cityId}`,
-          everySeconds: JOB_INTERVALS.sweepUnmatched,
-          runOnStart: true,
-          run: async () => {
-            const report = await runSweepUnmatchedOrders(cityId, {
-              finder: unmatchedFinder,
-              escalate: negotiation.escalate,
+      /**
+       * `cityId` يُلحَق بكلّ مهمّةٍ مدنيّة من داخل الحلقة التي تعرفه (§4.3)، لا بتفكيك
+       * اسمِ المهمّة لاحقاً: الاسمُ نصٌّ للقراءة، واستخراجُ مفتاحٍ أجنبي من نصٍّ ينكسر يوم
+       * يدخل النقطتين في اسمٍ لسببٍ آخر. والإلحاقُ مرّةً واحدة يجعل أيّ مهمّةٍ تُضاف
+       * لاحقاً ترث النسبة بلا أن يتذكّرها كاتبُها.
+       */
+      const perCity: JobDefinition[] = cityIds.flatMap((cityId): JobDefinition[] =>
+        (
+          [
+            {
+              name: `expire-offers:${cityId}`,
+              everySeconds: JOB_INTERVALS.expireOffers,
+              runOnStart: true,
+              run: async () => {
+                const report = await expireOffers(cityId, {
+                  offers,
+                  settings,
+                  rpc: expireRpc,
+                  clock: systemClock,
+                });
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                return `examined=${report.value.examined} expired=${report.value.appliedCount}`;
+              },
+            },
+            {
               /**
-               * الباب الثاني يُوصَل هنا: بدونه تذهب كلّ طلبات الإنتاج إلى قروب الإسناد
-               * ويبقى قروب غير المشتركين فارغاً — آلةٌ كاملةٌ مبنيّةٌ لا أحد يفتح دورتها.
+               * قبل التصعيد لا بعده: الطلبُ الذي يمكن بثُّه ثانيةً يجب أن يُبَثّ قبل أن
+               * يُقال للراكب «لا سائق»، لا أن يُبَشَّر بالفشل ثم يُخدَم.
                */
-              unsubscribed: negotiation.republish,
-              notifier: unmatchedNotifier,
-              staleAfterSeconds: await unmatchedThreshold(cityId),
-              maxBroadcastRounds: await numericSetting(
-                cityId,
-                "max_broadcast_rounds",
-                BROADCAST_ROUNDS_FALLBACK,
-              ),
-              log: (message, meta) => log.info(message, meta),
-            });
-            if (!report.ok) throw new Error(JSON.stringify(report.error));
-            const value = report.value;
-            return `examined=${value.examined} unsubOffered=${value.offeredToUnsubscribed.length} unsubWaiting=${value.awaitingUnsubscribed} escalated=${value.escalated.length} notified=${value.notified.length} widerCircle=${value.toldWiderCircle.length} already=${value.alreadyEscalated} broadcasting=${value.stillBroadcasting} failed=${value.failed}`;
-          },
-        },
-        {
-          name: `rotate-negotiations:${cityId}`,
-          everySeconds: JOB_INTERVALS.rotateNegotiations,
-          runOnStart: true,
-          run: async () => {
-            const report = await rotateUnsubscribedNegotiations(cityId, {
-              snapshots: negotiation.snapshots,
-              rotate: negotiation.rotate,
-              republish: negotiation.republish,
-              escalate: negotiation.escalate,
-              clock: systemClock,
-              log: (message, meta) => log.info(message, meta),
-            });
-            if (!report.ok) throw new Error(JSON.stringify(report.error));
-            const value = report.value;
-            return `advanced=${value.advanced.length} republished=${value.republished.length} escalated=${value.escalated.length} failures=${value.failures.length}`;
-          },
-        },
-        {
-          name: `cleanup-stale:${cityId}`,
-          everySeconds: JOB_INTERVALS.cleanupStale,
-          run: async () => {
-            const report = await cleanupStaleSessions(
-              { cityId },
-              {
-                settings,
-                rpc: availabilityRpc,
-                fallbackMinutes: AVAILABILITY_FALLBACK_MINUTES,
+              name: `redispatch-searching:${cityId}`,
+              everySeconds: JOB_INTERVALS.redispatchSearching,
+              runOnStart: true,
+              run: async () => {
+                const report = await runRedispatchSearching(cityId, {
+                  finder: searchingFinder,
+                  broadcast: redispatchBroadcast,
+                  limit: REDISPATCH_LIMIT,
+                  log: (message, meta) => log.info(message, meta),
+                });
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                const value = report.value;
+                return `examined=${value.examined} rebroadcast=${value.rebroadcast.length} noDriver=${value.stillNoDriver.length} exhausted=${value.exhausted.length} raced=${value.raced.length} failed=${value.failed}`;
               },
-            );
-            if (!report.ok) throw new Error(JSON.stringify(report.error));
-            return `deactivated=${report.value.availability.deactivated} staleMinutes=${report.value.availability.staleMinutes}`;
-          },
-        },
-        ...(reconcileProvider === null
-          ? []
-          : [
-              {
-                /**
-                 * شبكة الأمان تحت الويبهوك: تسأل خادم المزوّد عن كل دفعةٍ بقيت
-                 * معلّقة، فتحسم ما دُفِع ولم يُفعَّل. بلاها كان الويبهوك الضائع
-                 * خسارةً نهائية لا يعرف بها أحد.
-                 */
-                name: `reconcile-pending-payments:${cityId}`,
-                everySeconds: JOB_INTERVALS.reconcilePendingPayments,
-                run: async () => {
-                  const report = await runReconcilePendingPayments(
-                    {
-                      cityId,
-                      olderThanSeconds: await numericSetting(
-                        cityId,
-                        "payment_reconcile_after_seconds",
-                        RECONCILE_FALLBACK_OLDER_THAN_SECONDS,
-                      ),
-                      maxAgeSeconds: await numericSetting(
-                        cityId,
-                        "payment_reconcile_max_age_seconds",
-                        RECONCILE_FALLBACK_MAX_AGE_SECONDS,
-                      ),
-                      limit: await numericSetting(
-                        cityId,
-                        "payment_reconcile_batch_limit",
-                        RECONCILE_FALLBACK_LIMIT,
-                      ),
+            },
+            {
+              name: `sweep-unmatched:${cityId}`,
+              everySeconds: JOB_INTERVALS.sweepUnmatched,
+              runOnStart: true,
+              run: async () => {
+                const report = await runSweepUnmatchedOrders(cityId, {
+                  finder: unmatchedFinder,
+                  escalate: negotiation.escalate,
+                  /**
+                   * الباب الثاني يُوصَل هنا: بدونه تذهب كلّ طلبات الإنتاج إلى قروب الإسناد
+                   * ويبقى قروب غير المشتركين فارغاً — آلةٌ كاملةٌ مبنيّةٌ لا أحد يفتح دورتها.
+                   */
+                  unsubscribed: negotiation.republish,
+                  notifier: unmatchedNotifier,
+                  staleAfterSeconds: await unmatchedThreshold(cityId),
+                  maxBroadcastRounds: await numericSetting(
+                    cityId,
+                    "max_broadcast_rounds",
+                    BROADCAST_ROUNDS_FALLBACK,
+                  ),
+                  log: (message, meta) => log.info(message, meta),
+                });
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                const value = report.value;
+                return `examined=${value.examined} unsubOffered=${value.offeredToUnsubscribed.length} unsubWaiting=${value.awaitingUnsubscribed} escalated=${value.escalated.length} notified=${value.notified.length} widerCircle=${value.toldWiderCircle.length} already=${value.alreadyEscalated} broadcasting=${value.stillBroadcasting} failed=${value.failed}`;
+              },
+            },
+            {
+              name: `rotate-negotiations:${cityId}`,
+              everySeconds: JOB_INTERVALS.rotateNegotiations,
+              runOnStart: true,
+              run: async () => {
+                const report = await rotateUnsubscribedNegotiations(cityId, {
+                  snapshots: negotiation.snapshots,
+                  rotate: negotiation.rotate,
+                  republish: negotiation.republish,
+                  escalate: negotiation.escalate,
+                  clock: systemClock,
+                  log: (message, meta) => log.info(message, meta),
+                });
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                const value = report.value;
+                return `advanced=${value.advanced.length} republished=${value.republished.length} escalated=${value.escalated.length} failures=${value.failures.length}`;
+              },
+            },
+            {
+              name: `cleanup-stale:${cityId}`,
+              everySeconds: JOB_INTERVALS.cleanupStale,
+              run: async () => {
+                const report = await cleanupStaleSessions(
+                  { cityId },
+                  {
+                    settings,
+                    rpc: availabilityRpc,
+                    fallbackMinutes: AVAILABILITY_FALLBACK_MINUTES,
+                  },
+                );
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                return `deactivated=${report.value.availability.deactivated} staleMinutes=${report.value.availability.staleMinutes}`;
+              },
+            },
+            ...(reconcileProvider === null
+              ? []
+              : [
+                  {
+                    /**
+                     * شبكة الأمان تحت الويبهوك: تسأل خادم المزوّد عن كل دفعةٍ بقيت
+                     * معلّقة، فتحسم ما دُفِع ولم يُفعَّل. بلاها كان الويبهوك الضائع
+                     * خسارةً نهائية لا يعرف بها أحد.
+                     */
+                    name: `reconcile-pending-payments:${cityId}`,
+                    everySeconds: JOB_INTERVALS.reconcilePendingPayments,
+                    run: async () => {
+                      const report = await runReconcilePendingPayments(
+                        {
+                          cityId,
+                          olderThanSeconds: await numericSetting(
+                            cityId,
+                            "payment_reconcile_after_seconds",
+                            RECONCILE_FALLBACK_OLDER_THAN_SECONDS,
+                          ),
+                          maxAgeSeconds: await numericSetting(
+                            cityId,
+                            "payment_reconcile_max_age_seconds",
+                            RECONCILE_FALLBACK_MAX_AGE_SECONDS,
+                          ),
+                          limit: await numericSetting(
+                            cityId,
+                            "payment_reconcile_batch_limit",
+                            RECONCILE_FALLBACK_LIMIT,
+                          ),
+                        },
+                        {
+                          payments,
+                          provider: reconcileProvider,
+                          log: (message, meta) => log.info(message, meta),
+                        },
+                      );
+                      if (!report.ok) throw new Error(report.error.detail);
+                      const value = report.value;
+                      return `examined=${value.examined} settled=${value.settled} pending=${value.stillPending} already=${value.alreadySettled} failed=${value.failed}`;
                     },
-                    {
-                      payments,
-                      provider: reconcileProvider,
-                      log: (message, meta) => log.info(message, meta),
-                    },
-                  );
-                  if (!report.ok) throw new Error(report.error.detail);
-                  const value = report.value;
-                  return `examined=${value.examined} settled=${value.settled} pending=${value.stillPending} already=${value.alreadySettled} failed=${value.failed}`;
-                },
+                  },
+                ]),
+            {
+              name: `warn-expiring:${cityId}`,
+              everySeconds: JOB_INTERVALS.warnExpiring,
+              runOnStart: true,
+              run: async () => {
+                const days = await warningDays(cityId);
+                const report = await warnExpiringSoon(
+                  { cityId, days },
+                  {
+                    rpc: lifecycleRpc,
+                    sender: warningSender,
+                    onSendFailure: (subscriptionId, failure) =>
+                      log.error("warn_expiring.send_failed", {
+                        subscriptionId,
+                        detail: failure.detail,
+                      }),
+                  },
+                );
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                return `days=${days} examined=${report.value.examined} warned=${report.value.warned} failed=${report.value.failed.length}`;
               },
-            ]),
-        {
-          name: `warn-expiring:${cityId}`,
-          everySeconds: JOB_INTERVALS.warnExpiring,
-          runOnStart: true,
-          run: async () => {
-            const days = await warningDays(cityId);
-            const report = await warnExpiringSoon(
-              { cityId, days },
-              {
-                rpc: lifecycleRpc,
-                sender: warningSender,
-                onSendFailure: (subscriptionId, failure) =>
-                  log.error("warn_expiring.send_failed", {
-                    subscriptionId,
-                    detail: failure.detail,
-                  }),
+            },
+            {
+              /**
+               * مهمّةٌ لكلّ مدينة لا مهمّةٌ عامّة، لأنّ حدّ الدفعة وموعدَ إعادةِ المحاولة
+               * يُقرأان من `platform_settings` المُفتاحة بالمدينة. ومهمّةٌ واحدة عابرةٌ
+               * للمدن كانت ستجعل مدينةً مزدحمة تستنزف دفعةَ غيرها في كلّ شوط.
+               */
+              name: `deliver-broadcasts:${cityId}`,
+              everySeconds: JOB_INTERVALS.deliverBroadcasts,
+              runOnStart: true,
+              run: async () => {
+                const report = await deliverBroadcasts(cityId, {
+                  deliveries: broadcastDeliveries,
+                  publishers: {
+                    drivers: driverBroadcastPublisher,
+                    riders: riderBroadcastPublisher,
+                  },
+                });
+                if (!report.ok) throw new Error(report.error.detail);
+                const value = report.value;
+                return `claimed=${value.claimed} sent=${value.sent} failed=${value.failed} retried=${value.retried}`;
               },
-            );
-            if (!report.ok) throw new Error(JSON.stringify(report.error));
-            return `days=${days} examined=${report.value.examined} warned=${report.value.warned} failed=${report.value.failed.length}`;
-          },
-        },
-        {
-          /**
-           * مهمّةٌ لكلّ مدينة لا مهمّةٌ عامّة، لأنّ حدّ الدفعة وموعدَ إعادةِ المحاولة
-           * يُقرأان من `platform_settings` المُفتاحة بالمدينة. ومهمّةٌ واحدة عابرةٌ
-           * للمدن كانت ستجعل مدينةً مزدحمة تستنزف دفعةَ غيرها في كلّ شوط.
-           */
-          name: `deliver-broadcasts:${cityId}`,
-          everySeconds: JOB_INTERVALS.deliverBroadcasts,
-          runOnStart: true,
-          run: async () => {
-            const report = await deliverBroadcasts(cityId, {
-              deliveries: broadcastDeliveries,
-              publishers: {
-                drivers: driverBroadcastPublisher,
-                riders: riderBroadcastPublisher,
+            },
+            {
+              /**
+               * إشعاراتُ الاشتراك تُكتب في القاعدة داخل معاملة تغيُّر الحالة، فلا يُفقد
+               * إشعارٌ لأنّ تلغرام كان محجوباً لحظةَ التفعيل. وهذه المهمّة تسلّمها فقط.
+               */
+              name: `deliver-subscription-notices:${cityId}`,
+              everySeconds: JOB_INTERVALS.deliverSubscriptionNotices,
+              runOnStart: true,
+              run: async () => {
+                const report = await deliverSubscriptionNotices(cityId, {
+                  notices: subscriptionNotices,
+                  publisher: subscriptionNoticePublisher,
+                });
+                if (!report.ok) throw new Error(report.error.detail);
+                const value = report.value;
+                return `claimed=${value.claimed} sent=${value.sent} failed=${value.failed} retried=${value.retried}`;
               },
-            });
-            if (!report.ok) throw new Error(report.error.detail);
-            const value = report.value;
-            return `claimed=${value.claimed} sent=${value.sent} failed=${value.failed} retried=${value.retried}`;
-          },
-        },
-        {
-          /**
-           * إشعاراتُ الاشتراك تُكتب في القاعدة داخل معاملة تغيُّر الحالة، فلا يُفقد
-           * إشعارٌ لأنّ تلغرام كان محجوباً لحظةَ التفعيل. وهذه المهمّة تسلّمها فقط.
-           */
-          name: `deliver-subscription-notices:${cityId}`,
-          everySeconds: JOB_INTERVALS.deliverSubscriptionNotices,
-          runOnStart: true,
-          run: async () => {
-            const report = await deliverSubscriptionNotices(cityId, {
-              notices: subscriptionNotices,
-              publisher: subscriptionNoticePublisher,
-            });
-            if (!report.ok) throw new Error(report.error.detail);
-            const value = report.value;
-            return `claimed=${value.claimed} sent=${value.sent} failed=${value.failed} retried=${value.retried}`;
-          },
-        },
-      ]);
+            },
+          ] as JobDefinition[]
+        ).map((job) => ({ ...job, cityId })),
+      );
 
       // مهامّ لا تخصّ مدينة بعينها: الدالّتان تعملان على القاعدة كلّها في نداء واحد،
       // فتشغيلهما لكل مدينة كان سيكرّر نفس العمل بعدد المدن.
@@ -791,6 +865,8 @@ export function buildWorkerContainer(
         });
       }
 
+      // المهامّ العامّة تبقى بلا `cityId` عن قصد: لا مدينةَ لها أصلاً، وإسنادُها إلى
+      // مدينةٍ اعتباطية كان سيجعل نبضةً عامّة تبدو مدنيّة في `job_heartbeats`.
       return [...perCity, ...global];
     },
 

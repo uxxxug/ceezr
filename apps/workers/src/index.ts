@@ -38,6 +38,9 @@ async function main(): Promise<void> {
     maxConcurrency: MAX_JOB_CONCURRENCY,
     clock: { now: () => new Date() },
     log,
+    // النبضة (§4.3): هذه الخدمة منفصلة عن البوابة، ولا طريقةَ للبوابة لتعلم أنّ
+    // مهامّها تعمل إلاّ من القاعدة. بلا هذا السطر يقول `/ready` إنّ المهامّ غائبة.
+    heartbeat: container.heartbeat,
   });
   runner.start();
   log.info("worker.started", { jobCount: jobs.length });
