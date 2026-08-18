@@ -1,0 +1,52 @@
+=== وحدة 2-4: دليل أساس منصّة القياس — 2026-08-19 ===
+
+الالتزام: a2d34876e537b699505ed128a7ce7576aea03607
+قاعدة القياس: waslah_bench على PostgreSQL 18 محليّ
+
+--- الحرّاس ---
+check-business-constants           OK
+check-env-drift                    OK
+check-agent-core-isolation         OK
+check-i18n                         OK
+check-migrations                   OK
+check-map-matching-scope           OK
+check-test-city-activation         OK
+check-test-container-lifecycle     OK
+check-schema-contract              OK
+
+--- lint / typecheck ---
+Checked 754 files in 1181ms. No fixes applied.
+Found 41 infos.
+typecheck: 0 errors
+
+--- اختبارات الوحدة (بلا قاعدة، تجري في CI) ---
+ 23 pass
+ 0 fail
+ 46 expect() calls
+Ran 23 tests across 1 file. [52.00ms]
+
+--- اختبارات مرتبطة بقاعدة ---
+ 9 pass
+ 0 fail
+ 19 expect() calls
+Ran 9 tests across 1 file. [1478.00ms]
+
+--- الحزمة الكاملة ---
+ 1815 pass
+ 0 fail
+ 7032 expect() calls
+Ran 1815 tests across 147 files. [189.78s]
+
+--- تطابق البصمات بين تشغيلين منفصلين (عمليّتان مستقلّتان) ---
+متطابق
+=== بصمةُ الحالة المرجعيّة ===
+driver_capabilities       40  38e7b34488e957d79ce5298db78597a5
+drivers                   20  a81aed4aec13acb53fe31abc2f99b7a2
+riders                    10  15a4b0a9767e273983244719fbe5a6bb
+subscriptions             20  b83ee86d6e58b397fa5c933d9de745f7
+users                     30  56a04f3a8b83ce08b8926d9c067c0c9f
+cities                     5  432e17ec60c5969b4eeea79d3bc17ef6
+platform_settings        240  37ad7026b1d94e44d353cbd98c96d9cd
+spatial_ref_sys         8500  8acd0d654027504f3b341221caaa3b88
+
+✅ نجح: 15/15 فحصاً
