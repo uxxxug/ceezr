@@ -208,6 +208,10 @@ import {
   asOutboundSender,
   asSupportSender,
 } from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
+import {
+  measuredTelegramSender,
+  silentTelegramSender,
+} from "../../../packages/infrastructure/notification/telegram-transport.ts";
 
 export { asIdentifyingSender, asOutboundSender, asSupportSender };
 
@@ -327,8 +331,20 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const sql = createSql({ connectionString: config.databaseUrl });
   const log = overrides.log ?? (() => {});
 
-  const driverSender = overrides.driverSender ?? grammyTelegramSender(config.driverBotToken);
-  const riderSender = overrides.riderSender ?? grammyTelegramSender(config.riderBotToken);
+  // ناقلُ الصادر يُختار من الضبط، والقياس يلفّه بعد الاختيار لا قبله. والترتيب
+  // مقصود: العدّاد يسري على الناقل الحقيقي في الإنتاج أيضاً، فليس أداةَ قياسٍ
+  // مُلحقةً بل رؤيةٌ كانت غائبةً عن النظام — لم يكن يرى ما يخرج منه من رسائل.
+  // و`overrides` يتقدّم على الاثنين: الاختباراتُ تمرّر مُرسِلاً ملتقطاً وتتحقّق
+  // منه هي، فلفّه بعدّادٍ كان سيزيد وسيطاً لا يقرأه أحد.
+  const buildSender = (bot: "driver" | "rider", token: string): TelegramSender => {
+    const base =
+      config.telegramTransport === "silent" ? silentTelegramSender() : grammyTelegramSender(token);
+    return overrides.metrics === undefined
+      ? base
+      : measuredTelegramSender(base, bot, overrides.metrics);
+  };
+  const driverSender = overrides.driverSender ?? buildSender("driver", config.driverBotToken);
+  const riderSender = overrides.riderSender ?? buildSender("rider", config.riderBotToken);
 
   // مخزنان منفصلان: حالة حوار السائق لا تخصّ العميل، ودمجهما كان سيخلط خطوتين
   // لشخص واحد يستخدم البوتين بمعرّف تلغرام واحد. الفصل في الذاكرة بخريطتين،

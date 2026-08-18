@@ -101,6 +101,11 @@ export interface AppConfig {
    */
   readonly sessionStore: SessionStoreName;
   /**
+   * ناقلُ الرسائل الصادرة. `real` في كلّ تشغيلٍ حقيقي، و`silent` للقياس فقط
+   * ومرفوضٌ في الإنتاج. راجع `TELEGRAM_TRANSPORT_NAMES` لسبب سكناه في الضبط.
+   */
+  readonly telegramTransport: TelegramTransportName;
+  /**
    * هل تُشغَّل المهامّ الدورية داخل عملية البوابة نفسها.
    *
    * الأصل أن العامل خدمةٌ مستقلّة (`render.yaml` قسم `waslah-worker`)، وهو الأنظف:
@@ -185,6 +190,24 @@ export interface AppConfig {
 export const SESSION_STORE_NAMES = ["memory", "redis"] as const;
 
 export type SessionStoreName = (typeof SESSION_STORE_NAMES)[number];
+
+/**
+ * ناقلُ الرسائل الصادرة إلى تلغرام.
+ *
+ * `real` هو الناقل الوحيد الذي يُرسل فعلاً، وهو الافتراض. و`silent` ينفّذ نفس
+ * المنفذ بلا نداءٍ شبكيّ ويحصي ما كان سيُرسَل.
+ *
+ * ولماذا يسكن هذا في الضبط لا في مِلفِّ قياسٍ منفصل؟ لأن البديل كان نسخةً ثانيةً
+ * من نقطة الدخول (٥١٥ سطراً) تُستنسخ لتُبدِّل المُرسِل، وهي بالضبط صنفُ العطب
+ * الذي أفسد `scripts/load-test.ts`: نسخةٌ تتعفّن بصمتٍ خلف الأصل. فالقياس يجب أن
+ * يشغّل الخادم الحقيقي نفسه، ولا يختلف عنه إلا في بديلٍ واحدٍ مُعلَن.
+ *
+ * وهو **مرفوضٌ في الإنتاج** رفضاً قاطعاً في `loadConfig`: نظامٌ يقبل إسكات
+ * إشعاراته بمتغيّر بيئةٍ واحد هو نظامٌ يستطيع أن يخدع مستخدميه بخطأ ضبط.
+ */
+export const TELEGRAM_TRANSPORT_NAMES = ["real", "silent"] as const;
+
+export type TelegramTransportName = (typeof TELEGRAM_TRANSPORT_NAMES)[number];
 
 /**
  * مزوّدات عرض الخريطة المدعومة. `none` اختيارٌ صريح: «اعمل بلا خريطة».
@@ -397,6 +420,24 @@ export function tryLoadConfig(
     );
   }
 
+  const rawTelegramTransport = (source.TELEGRAM_TRANSPORT ?? "real").trim().toLowerCase();
+  if (!(TELEGRAM_TRANSPORT_NAMES as readonly string[]).includes(rawTelegramTransport)) {
+    return err(
+      new InvalidEnvVarError(
+        "TELEGRAM_TRANSPORT",
+        `المتاح: ${TELEGRAM_TRANSPORT_NAMES.join(", ")} — وردت: ${rawTelegramTransport}`,
+      ),
+    );
+  }
+  if (env === "production" && rawTelegramTransport !== "real") {
+    return err(
+      new InvalidEnvVarError(
+        "TELEGRAM_TRANSPORT",
+        "لا يُقبل في الإنتاج إلا `real`؛ وأيّ ناقلٍ آخر يعني نظاماً يبتلع إشعارات مستخدميه بصمت",
+      ),
+    );
+  }
+
   // مزوّد الخريطة يُرفض إن كان مجهولاً، بخلاف `RUN_WORKER_IN_GATEWAY` المنطقي:
   // قيمةٌ مكتوبةٌ خطأً هنا تعني مشغّلاً يظنّ أنه فعّل خريطةً لم تُفعَّل، وهو
   // انحرافٌ صامت بين ما ضُبِط وما يعمل — لا حالاً افتراضياً مقبولاً.
@@ -568,6 +609,7 @@ export function tryLoadConfig(
       ? null
       : (source.TRANSLATION_CONTACT_EMAIL as string).trim(),
     sessionStore: rawSessionStore as SessionStoreName,
+    telegramTransport: rawTelegramTransport as TelegramTransportName,
     // الافتراض `true` لا `false`، وهذا قلبٌ متعمّد للافتراض القديم. وجها الخطأ ليسا
     // متكافئين: خطأ `true` مع وجود خدمة `waslah-worker` يعني أن القفل الموزّع يجعل
     // إحداهما تتخطّى بحالة `skipped_locked_elsewhere` — أي لا أذى؛ وخطأ `false` بلا تلك

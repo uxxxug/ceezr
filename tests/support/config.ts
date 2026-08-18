@@ -40,6 +40,10 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     redisUrl: "http://localhost",
     redisToken: "local-test",
     sessionStore: "memory",
+    // `real` وليس `silent`: الاختبارات تمرّر مُرسِلاً ملتقطاً عبر `overrides` في
+    // الحاوية، فلا نداء شبكيّ أصلاً. وإعلانه `silent` كان سيكذب على القارئ:
+    // الناقل الصامت مسارٌ أخر للقياس، لا وصفاً لما تفعله الاختبارات.
+    telegramTransport: "real",
     driverBotToken: "driver-token",
     riderBotToken: "rider-token",
     telegramWebhookSecret: "integration-secret",
