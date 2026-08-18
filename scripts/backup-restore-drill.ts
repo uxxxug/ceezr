@@ -41,16 +41,16 @@ async function main(): Promise<void> {
       dumper.dumpGlobals?.(databaseUrl),
     ]);
     if (!archive.ok || roles === undefined || !roles.ok) {
-      console.error(
-        JSON.stringify({
-          status: "failed",
-          detail: !archive.ok
-            ? archive.error.detail
-            : roles === undefined
-              ? "pg_dumpall غير متاح"
-              : roles.error.detail,
-        }),
-      );
+      // السببُ يُحسَب في تعبيرٍ مُصرَّحٍ لا داخل ثلاثيّاتٍ مُتداخلة: التضييق داخلها
+      // لا يَبلُغ `roles.ok`، فكان `roles.error` يُقرأ على نوعٍ قد يكون `Ok`.
+      const detail = !archive.ok
+        ? archive.error.detail
+        : roles === undefined
+          ? "pg_dumpall غير متاح"
+          : !roles.ok
+            ? roles.error.detail
+            : "سببٌ غير متوقَّع";
+      console.error(JSON.stringify({ status: "failed", detail }));
       process.exitCode = 1;
       return;
     }
