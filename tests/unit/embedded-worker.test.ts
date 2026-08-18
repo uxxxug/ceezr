@@ -16,12 +16,9 @@ import { startEmbeddedWorker } from "../../apps/gateway/src/embedded-worker.ts";
 import { createNoopLock } from "../../packages/application/scheduling/distributed-lock.ts";
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
 import type { OutboundSender } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
-import {
-  type AppConfig,
-  NO_TRACKING_OVERRIDES,
-  tryLoadConfig,
-} from "../../packages/shared/config/index.ts";
+import { type AppConfig, tryLoadConfig } from "../../packages/shared/config/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
+import { testConfig } from "../support/config.ts";
 
 const CITY_ID = "11111111-2222-3333-4444-555555555555";
 
@@ -37,35 +34,15 @@ const BASE_ENV: Record<string, string> = {
   BOOTSTRAP_ADMIN_TELEGRAM_ID: "990001",
 };
 
-const config: AppConfig = {
-  env: "test",
+const config: AppConfig = testConfig({
   port: 3994,
   supabaseUrl: BASE_ENV.SUPABASE_URL as string,
   databaseUrl: BASE_ENV.DATABASE_URL as string,
   supabaseServiceKey: "unit-test",
-  redisUrl: "http://localhost",
   redisToken: "unit-test",
-  sessionStore: "memory",
-  driverBotToken: "driver-token",
-  riderBotToken: "rider-token",
   telegramWebhookSecret: "unit-secret",
-  bootstrapAdminTelegramId: "990001",
-  translationProvider: "none",
-  translationApiKey: null,
-  translationContactEmail: null,
   runWorkerInGateway: true,
-  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
-  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
-  mapProvider: "none",
-  mapStyleUrl: null,
-  mapTilesPublicKey: null,
-  maplibreSri: null,
-  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
-  routingProvider: "none",
-  osrmBaseUrl: null,
-  tracking: NO_TRACKING_OVERRIDES,
-  trackingTokenBaseUrl: null,
-};
+});
 
 interface FakeSqlLog {
   readonly queries: string[];

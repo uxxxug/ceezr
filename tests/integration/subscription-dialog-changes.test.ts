@@ -19,40 +19,19 @@ import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
-import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
+import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const WEBHOOK_SECRET = "sub-dialog-secret";
 const DRIVER_CHAT = 264_001;
 
-const config: AppConfig = {
-  env: "test",
+const config: AppConfig = testConfig({
   port: 3987,
-  supabaseUrl: "https://local.test.supabase.co",
-  databaseUrl: DATABASE_URL ?? "postgres://invalid",
-  supabaseServiceKey: "local-test",
-  redisUrl: "http://localhost",
-  redisToken: "local-test",
-  sessionStore: "memory",
-  driverBotToken: "driver-token",
-  riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,
   bootstrapAdminTelegramId: "990002",
-  translationProvider: "none" as const,
-  translationApiKey: null,
-  translationContactEmail: null,
-  runWorkerInGateway: false,
-  mapProvider: "none",
-  mapStyleUrl: null,
-  mapTilesPublicKey: null,
-  maplibreSri: null,
-  routingProvider: "none",
-  osrmBaseUrl: null,
-  tracking: NO_TRACKING_OVERRIDES,
-  trackingTokenBaseUrl: null,
-};
+});
 
 let sql: Sql;
 let app: ReturnType<typeof createServer>;
