@@ -29,41 +29,22 @@ import { createNoopLock } from "../../packages/application/scheduling/distribute
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
 import type { OutboundSender } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
-import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
+import { testConfig } from "../support/config.ts";
 
 const CITY_ID = "11111111-2222-3333-4444-555555555555";
 
 /** مهلةُ العرض الافتراضيّة في `platform_settings` — المرجعُ الذي يُقاس عليه التواتر. */
 const DEFAULT_OFFER_TIMEOUT_SECONDS = 45;
 
-const config: AppConfig = {
-  env: "test",
+const config: AppConfig = testConfig({
   port: 3993,
   supabaseUrl: "https://unit.test.supabase.co",
   databaseUrl: "postgres://unit:test@localhost:5432/unit",
   supabaseServiceKey: "unit-test",
-  redisUrl: "http://localhost",
   redisToken: "unit-test",
-  sessionStore: "memory",
-  driverBotToken: "driver-token",
-  riderBotToken: "rider-token",
   telegramWebhookSecret: "unit-secret",
-  bootstrapAdminTelegramId: "990001",
-  translationProvider: "none",
-  translationApiKey: null,
-  translationContactEmail: null,
-  runWorkerInGateway: false,
-  mapProvider: "none",
-  mapStyleUrl: null,
-  mapTilesPublicKey: null,
-  maplibreSri: null,
-  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
-  routingProvider: "none",
-  osrmBaseUrl: null,
-  tracking: NO_TRACKING_OVERRIDES,
-  trackingTokenBaseUrl: null,
-};
+});
 
 /** قاعدة مزيَّفة تُعيد مدينةً واحدةً مفعَّلة — الغرض قراءة القائمة لا تنفيذُ المهامّ. */
 function fakeSql(): Sql {

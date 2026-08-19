@@ -106,14 +106,15 @@ async function raceCancel(): Promise<void> {
   const results = await Promise.allSettled(
     Array.from(
       { length: CONCURRENCY },
-      (_unused, i) => sql`select cancel_subscription(${f.driverId}::uuid, ${`سبب-${i}`}) as r`,
+      (_unused, i) =>
+        sql<{ r: Record<string, unknown> }[]>`
+          select cancel_subscription(${f.driverId}::uuid, ${`سبب-${i}`}) as r
+        `,
     ),
   );
   summarise("الاستدعاءات", results);
 
-  const rows = results.flatMap((r) =>
-    r.status === "fulfilled" ? [(r.value as { r: Record<string, unknown> }[])[0]?.r] : [],
-  );
+  const rows = results.flatMap((r) => (r.status === "fulfilled" ? [r.value[0]?.r] : []));
   const firstTime = rows.filter((r) => r?.["already_cancelled"] === false).length;
   const repeats = rows.filter((r) => r?.["already_cancelled"] === true).length;
   console.log(`   طلب أوّل: ${firstTime} | مكرّر: ${repeats}`);
@@ -145,14 +146,15 @@ async function raceUpgrade(): Promise<void> {
   const results = await Promise.allSettled(
     Array.from(
       { length: CONCURRENCY },
-      () => sql`select upgrade_plan(${f.driverId}::uuid, 'both', null) as r`,
+      () =>
+        sql<{ r: Record<string, unknown> }[]>`
+          select upgrade_plan(${f.driverId}::uuid, 'both', null) as r
+        `,
     ),
   );
   summarise("الاستدعاءات", results);
 
-  const rows = results.flatMap((r) =>
-    r.status === "fulfilled" ? [(r.value as { r: Record<string, unknown> }[])[0]?.r] : [],
-  );
+  const rows = results.flatMap((r) => (r.status === "fulfilled" ? [r.value[0]?.r] : []));
   const applied = rows.filter((r) => r?.["already_on_plan"] === false).length;
   console.log(`   طبّقت الترقية: ${applied} | وجدتها مطبّقة: ${rows.length - applied}`);
   assert(applied === 1, "ترقية واحدة فعلية فقط");

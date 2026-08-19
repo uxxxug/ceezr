@@ -24,6 +24,7 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig, TrackingEnvOverrides } from "../../packages/shared/config/index.ts";
 import { NO_TRACKING_OVERRIDES, tryLoadConfig } from "../../packages/shared/config/index.ts";
+import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -36,32 +37,12 @@ const JEDDAH = { latitude: 21.5471, longitude: 39.1751 };
 const JEDDAH_NEARBY = { latitude: 21.5493, longitude: 39.1751 };
 
 function configWith(tracking: TrackingEnvOverrides): AppConfig {
-  return {
-    env: "test",
+  return testConfig({
     port: 3991,
-    supabaseUrl: "https://local.test.supabase.co",
-    databaseUrl: DATABASE_URL ?? "postgres://invalid",
-    supabaseServiceKey: "local-test",
-    redisUrl: "http://localhost",
-    redisToken: "local-test",
-    sessionStore: "memory",
-    driverBotToken: "driver-token",
-    riderBotToken: "rider-token",
     telegramWebhookSecret: WEBHOOK_SECRET,
     bootstrapAdminTelegramId: String(ADMIN_TELEGRAM),
-    translationProvider: "none" as const,
-    translationApiKey: null,
-    translationContactEmail: null,
-    runWorkerInGateway: false,
-    mapProvider: "none",
-    mapStyleUrl: null,
-    mapTilesPublicKey: null,
-    maplibreSri: null,
-    routingProvider: "none",
-    osrmBaseUrl: null,
     tracking,
-    trackingTokenBaseUrl: null,
-  };
+  });
 }
 
 let sql: Sql;

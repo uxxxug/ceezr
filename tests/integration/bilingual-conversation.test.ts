@@ -21,10 +21,10 @@ import type {
 import { TranslationFailure } from "../../packages/domain/i18n-translation/index.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
-import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -43,36 +43,10 @@ const RIDER_ENGLISH = "I am at the pharmacy entrance";
 const URDU_TO_ENGLISH = "I am arriving in five minutes";
 const ENGLISH_TO_URDU = "میں فارمیسی کے دروازے پر ہوں";
 
-const config: AppConfig = {
-  env: "test",
+const config: AppConfig = testConfig({
   port: 3994,
-  supabaseUrl: "https://local.test.supabase.co",
-  databaseUrl: DATABASE_URL ?? "postgres://invalid",
-  supabaseServiceKey: "local-test",
-  redisUrl: "http://localhost",
-  redisToken: "local-test",
-  sessionStore: "memory",
-  driverBotToken: "driver-token",
-  riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,
-  bootstrapAdminTelegramId: "990001",
-  // الحاوية تتلقّى المزوّد تجاوزاً، فقيمة الإعداد هنا لا تُستعمل.
-  translationProvider: "none" as const,
-  translationApiKey: null,
-  translationContactEmail: null,
-  runWorkerInGateway: false,
-  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
-  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
-  mapProvider: "none",
-  mapStyleUrl: null,
-  mapTilesPublicKey: null,
-  maplibreSri: null,
-  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
-  routingProvider: "none",
-  osrmBaseUrl: null,
-  tracking: NO_TRACKING_OVERRIDES,
-  trackingTokenBaseUrl: null,
-};
+});
 
 /**
  * مزوّد حتمي بلا شبكة: يترجم جملتَي الاختبار وحدهما ويعدّ نداءاته.

@@ -327,3 +327,55 @@ describe("الضبط: مزوّد التوجيه (المرحلة ١٥)", () => {
     expect(result.value.routingProvider).toBe("osrm");
   });
 });
+
+describe("TELEGRAM_TRANSPORT", () => {
+  it("افتراضه `real` حين لا يُضبط — فلا يصمت نظامٌ بالسكوت عن الضبط", () => {
+    const result = tryLoadConfig(FULL);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.telegramTransport).toBe("real");
+  });
+
+  it("يقبل `silent` خارج الإنتاج ويقبل اختلاف حالة الأحرف والفراغ", () => {
+    const result = tryLoadConfig({ ...FULL, TELEGRAM_TRANSPORT: "  SILENT " });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.telegramTransport).toBe("silent");
+  });
+
+  it("يرفض قيمةً مجهولة ولا يسقط إلى افتراضٍ صامت", () => {
+    const result = tryLoadConfig({ ...FULL, TELEGRAM_TRANSPORT: "quiet" });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("INVALID_ENV_VAR");
+  });
+
+  /**
+   * هذا هو الاختبار الحاكم في هذه المجموعة: الناقل الصامت أداةُ قياس، ووصولُه
+   * إلى الإنتاج يعني نظاماً يبتلع إشعارات مستخدميه بلا أن يُخطئ ولا أن يُسجّل.
+   * فالرفض يجب أن يكون في محمّل الضبط — أي عند الإقلاع — لا في مراجعةٍ بشرية.
+   */
+  it("يرفض `silent` في الإنتاج رفضاً قاطعاً عند الإقلاع", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      NODE_ENV: "production",
+      TELEGRAM_WEBHOOK_SECRET: "a".repeat(MIN_WEBHOOK_SECRET_LENGTH),
+      TELEGRAM_TRANSPORT: "silent",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("INVALID_ENV_VAR");
+  });
+
+  it("يقبل `real` في الإنتاج", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      NODE_ENV: "production",
+      TELEGRAM_WEBHOOK_SECRET: "a".repeat(MIN_WEBHOOK_SECRET_LENGTH),
+      TELEGRAM_TRANSPORT: "real",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.telegramTransport).toBe("real");
+  });
+});

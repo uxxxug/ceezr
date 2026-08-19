@@ -17,42 +17,18 @@ import type { RedisClient } from "../../apps/gateway/src/redis/upstash.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
-import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
+import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const WEBHOOK_SECRET = "integration-secret";
 const DRIVER_CHAT = 310_001;
 
-const config: AppConfig = {
-  env: "test",
-  port: 3999,
-  supabaseUrl: "https://local.test.supabase.co",
-  databaseUrl: DATABASE_URL ?? "postgres://invalid",
-  supabaseServiceKey: "local-test",
-  redisUrl: "http://localhost",
-  redisToken: "local-test",
+const config: AppConfig = testConfig({
   sessionStore: "redis",
-  driverBotToken: "driver-token",
-  riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,
-  bootstrapAdminTelegramId: "990001",
-  translationProvider: "none" as const,
-  translationApiKey: null,
-  translationContactEmail: null,
-  runWorkerInGateway: false,
-  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
-  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
-  mapProvider: "none",
-  mapStyleUrl: null,
-  mapTilesPublicKey: null,
-  maplibreSri: null,
-  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
-  routingProvider: "none",
-  osrmBaseUrl: null,
-  tracking: NO_TRACKING_OVERRIDES,
-  trackingTokenBaseUrl: null,
-};
+  port: 3999,
+});
 
 /** Redis مزدوج يحترم EX بمنطق مهلة حقيقي، لأن انتهاء المهلة جزء من السلوك المختبَر. */
 function fakeRedis(nowMs: () => number): RedisClient & {

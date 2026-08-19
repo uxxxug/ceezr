@@ -1,0 +1,847 @@
+$ biome check . "--max-diagnostics=500"
+packages/agent-core/config.ts:95:25 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    93 │   return {
+    94 │     enabled: readFlag(source, "AGENT_CORE_ENABLED"),
+  > 95 │     runtimeRoot: source["AGENT_CORE_RUNTIME_ROOT"] ?? DEFAULT_CONFIG.runtimeRoot,
+       │                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+    96 │     knowledgeRoot: source["AGENT_CORE_KNOWLEDGE_ROOT"] ?? DEFAULT_CONFIG.knowledgeRoot,
+    97 │     mediumTermMaxLines: readInt(
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     93  93 │     return {
+     94  94 │       enabled: readFlag(source, "AGENT_CORE_ENABLED"),
+     95     │ - ····runtimeRoot:·source["AGENT_CORE_RUNTIME_ROOT"]·??·DEFAULT_CONFIG.runtimeRoot,
+         95 │ + ····runtimeRoot:·source.AGENT_CORE_RUNTIME_ROOT·??·DEFAULT_CONFIG.runtimeRoot,
+     96  96 │       knowledgeRoot: source["AGENT_CORE_KNOWLEDGE_ROOT"] ?? DEFAULT_CONFIG.knowledgeRoot,
+     97  97 │       mediumTermMaxLines: readInt(
+  
+
+packages/agent-core/config.ts:96:27 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    94 │     enabled: readFlag(source, "AGENT_CORE_ENABLED"),
+    95 │     runtimeRoot: source["AGENT_CORE_RUNTIME_ROOT"] ?? DEFAULT_CONFIG.runtimeRoot,
+  > 96 │     knowledgeRoot: source["AGENT_CORE_KNOWLEDGE_ROOT"] ?? DEFAULT_CONFIG.knowledgeRoot,
+       │                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    97 │     mediumTermMaxLines: readInt(
+    98 │       source,
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     94  94 │       enabled: readFlag(source, "AGENT_CORE_ENABLED"),
+     95  95 │       runtimeRoot: source["AGENT_CORE_RUNTIME_ROOT"] ?? DEFAULT_CONFIG.runtimeRoot,
+     96     │ - ····knowledgeRoot:·source["AGENT_CORE_KNOWLEDGE_ROOT"]·??·DEFAULT_CONFIG.knowledgeRoot,
+         96 │ + ····knowledgeRoot:·source.AGENT_CORE_KNOWLEDGE_ROOT·??·DEFAULT_CONFIG.knowledgeRoot,
+     97  97 │       mediumTermMaxLines: readInt(
+     98  98 │         source,
+  
+
+packages/agent-core/config.ts:118:32 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    116 │       DEFAULT_CONFIG.minSupportForCandidate,
+    117 │     ),
+  > 118 │     persistenceEnabled: source["AGENT_CORE_PERSISTENCE"] !== "false",
+        │                                ^^^^^^^^^^^^^^^^^^^^^^^^
+    119 │   };
+    120 │ }
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    116 116 │         DEFAULT_CONFIG.minSupportForCandidate,
+    117 117 │       ),
+    118     │ - ····persistenceEnabled:·source["AGENT_CORE_PERSISTENCE"]·!==·"false",
+        118 │ + ····persistenceEnabled:·source.AGENT_CORE_PERSISTENCE·!==·"false",
+    119 119 │     };
+    120 120 │   }
+  
+
+packages/agent-core/knowledge/knowledgeLoader.ts:91:20 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    89 │         const { meta, body } = parseFrontMatter(raw);
+    90 │         documents.push({
+  > 91 │           id: meta["id"] ?? name.replace(/\.md$/, ""),
+       │                    ^^^^
+    92 │           title: meta["title"] ?? name.replace(/\.md$/, ""),
+    93 │           label: meta["label"] ?? "general_inquiry",
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     89  89 │           const { meta, body } = parseFrontMatter(raw);
+     90  90 │           documents.push({
+     91     │ - ··········id:·meta["id"]·??·name.replace(/\.md$/,·""),
+         91 │ + ··········id:·meta.id·??·name.replace(/\.md$/,·""),
+     92  92 │             title: meta["title"] ?? name.replace(/\.md$/, ""),
+     93  93 │             label: meta["label"] ?? "general_inquiry",
+  
+
+packages/agent-core/knowledge/knowledgeLoader.ts:92:23 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    90 │         documents.push({
+    91 │           id: meta["id"] ?? name.replace(/\.md$/, ""),
+  > 92 │           title: meta["title"] ?? name.replace(/\.md$/, ""),
+       │                       ^^^^^^^
+    93 │           label: meta["label"] ?? "general_inquiry",
+    94 │           keywords: splitList(meta["keywords"]),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     90  90 │           documents.push({
+     91  91 │             id: meta["id"] ?? name.replace(/\.md$/, ""),
+     92     │ - ··········title:·meta["title"]·??·name.replace(/\.md$/,·""),
+         92 │ + ··········title:·meta.title·??·name.replace(/\.md$/,·""),
+     93  93 │             label: meta["label"] ?? "general_inquiry",
+     94  94 │             keywords: splitList(meta["keywords"]),
+  
+
+packages/agent-core/knowledge/knowledgeLoader.ts:93:23 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    91 │           id: meta["id"] ?? name.replace(/\.md$/, ""),
+    92 │           title: meta["title"] ?? name.replace(/\.md$/, ""),
+  > 93 │           label: meta["label"] ?? "general_inquiry",
+       │                       ^^^^^^^
+    94 │           keywords: splitList(meta["keywords"]),
+    95 │           body: body.trim(),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     91  91 │             id: meta["id"] ?? name.replace(/\.md$/, ""),
+     92  92 │             title: meta["title"] ?? name.replace(/\.md$/, ""),
+     93     │ - ··········label:·meta["label"]·??·"general_inquiry",
+         93 │ + ··········label:·meta.label·??·"general_inquiry",
+     94  94 │             keywords: splitList(meta["keywords"]),
+     95  95 │             body: body.trim(),
+  
+
+packages/agent-core/knowledge/knowledgeLoader.ts:94:36 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    92 │           title: meta["title"] ?? name.replace(/\.md$/, ""),
+    93 │           label: meta["label"] ?? "general_inquiry",
+  > 94 │           keywords: splitList(meta["keywords"]),
+       │                                    ^^^^^^^^^^
+    95 │           body: body.trim(),
+    96 │           suggestion: extractSuggestion(body),
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     92  92 │             title: meta["title"] ?? name.replace(/\.md$/, ""),
+     93  93 │             label: meta["label"] ?? "general_inquiry",
+     94     │ - ··········keywords:·splitList(meta["keywords"]),
+         94 │ + ··········keywords:·splitList(meta.keywords),
+     95  95 │             body: body.trim(),
+     96  96 │             suggestion: extractSuggestion(body),
+  
+
+packages/agent-core/planning/missingDataDetector.ts:68:46 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    66 │   if (input.classification === "ride_dispute") {
+    67 │     // `attributes` قيمها بدائية لا نص�ية حتما� — ت�طب��ع قبل الفحص بدل أن ي�فترض شكلها.
+  > 68 │     const reference = input.event.attributes["order_id"];
+       │                                              ^^^^^^^^^^
+    69 │     const hasReference =
+    70 │       (reference !== undefined && reference !== null && String(reference).trim() !== "") ||
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    66 66 │     if (input.classification === "ride_dispute") {
+    67 67 │       // `attributes` قيمها بدائية لا نص�ية حتما� — ت�طب��ع قبل الفحص بدل أن ي�فترض شكلها.
+    68    │ - ····const·reference·=·input.event.attributes["order_id"];
+       68 │ + ····const·reference·=·input.event.attributes.order_id;
+    69 69 │       const hasReference =
+    70 70 │         (reference !== undefined && reference !== null && String(reference).trim() !== "") ||
+  
+
+scripts/activate-launch-cities.ts:95:39 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    93 │     const support = parseGroupId(city["supportGroupId"], `${code}/دعم`);
+    94 │     const escalation = parseGroupId(city["escalationGroupId"], `${code}/تصعيد`);
+  > 95 │     const drivers = parseGroupId(city["driversGroupId"], `${code}/سائقين`);
+       │                                       ^^^^^^^^^^^^^^^^
+    96 │     if (new Set([support, escalation, drivers]).size !== 3) {
+    97 │       throw new Error(`${code}: القروبات� الثلاثة� يجب أن تحمل معر�فات� مختلفة.`);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     93  93 │       const support = parseGroupId(city["supportGroupId"], `${code}/دعم`);
+     94  94 │       const escalation = parseGroupId(city["escalationGroupId"], `${code}/تصعيد`);
+     95     │ - ····const·drivers·=·parseGroupId(city["driversGroupId"],·`${code}/سائقين`);
+         95 │ + ····const·drivers·=·parseGroupId(city.driversGroupId,·`${code}/سائقين`);
+     96  96 │       if (new Set([support, escalation, drivers]).size !== 3) {
+     97  97 │         throw new Error(`${code}: القروبات� الثلاثة� يجب أن تحمل معر�فات� مختلفة.`);
+  
+
+scripts/activate-launch-cities.ts:74:41 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    72 │   if (typeof raw !== "object" || raw === null) throw new Error("البيان ليس كائن JSON.");
+    73 │   const source = raw as Record<string, unknown>;
+  > 74 │   const adminTelegramId = String(source["adminTelegramId"] ?? "").trim();
+       │                                         ^^^^^^^^^^^^^^^^^
+    75 │   if (!/^\d+$/.test(adminTelegramId)) {
+    76 │     throw new Error("adminTelegramId مفقود� أو ليس معر�ف� تلغرام صحيحا�.");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     72  72 │     if (typeof raw !== "object" || raw === null) throw new Error("البيان ليس كائن JSON.");
+     73  73 │     const source = raw as Record<string, unknown>;
+     74     │ - ··const·adminTelegramId·=·String(source["adminTelegramId"]·??·"").trim();
+         74 │ + ··const·adminTelegramId·=·String(source.adminTelegramId·??·"").trim();
+     75  75 │     if (!/^\d+$/.test(adminTelegramId)) {
+     76  76 │       throw new Error("adminTelegramId مفقود� أو ليس معر�ف� تلغرام صحيحا�.");
+  
+
+scripts/activate-launch-cities.ts:78:29 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    76 │     throw new Error("adminTelegramId مفقود� أو ليس معر�ف� تلغرام صحيحا�.");
+    77 │   }
+  > 78 │   if (!Array.isArray(source["cities"])) throw new Error("cities يجب أن تكون قائمة.");
+       │                             ^^^^^^^^
+    79 │ 
+    80 │   const cities: CityGroupIds[] = [];
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     76  76 │       throw new Error("adminTelegramId مفقود� أو ليس معر�ف� تلغرام صحيحا�.");
+     77  77 │     }
+     78     │ - ··if·(!Array.isArray(source["cities"]))·throw·new·Error("cities·يجب·أن·تكون·قائمة.");
+         78 │ + ··if·(!Array.isArray(source.cities))·throw·new·Error("cities·يجب·أن·تكون·قائمة.");
+     79  79 │   
+     80  80 │     const cities: CityGroupIds[] = [];
+  
+
+scripts/activate-launch-cities.ts:83:30 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    81 │   const seenCodes = new Set<string>();
+    82 │   const seenGroups = new Map<string, string>();
+  > 83 │   for (const entry of source["cities"] as readonly unknown[]) {
+       │                              ^^^^^^^^
+    84 │     if (typeof entry !== "object" || entry === null) throw new Error("مدخل� مدينة� ليس كائنا�.");
+    85 │     const city = entry as Record<string, unknown>;
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     81  81 │     const seenCodes = new Set<string>();
+     82  82 │     const seenGroups = new Map<string, string>();
+     83     │ - ··for·(const·entry·of·source["cities"]·as·readonly·unknown[])·{
+         83 │ + ··for·(const·entry·of·source.cities·as·readonly·unknown[])·{
+     84  84 │       if (typeof entry !== "object" || entry === null) throw new Error("مدخل� مدينة� ليس كائنا�.");
+     85  85 │       const city = entry as Record<string, unknown>;
+  
+
+scripts/activate-launch-cities.ts:86:30 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    84 │     if (typeof entry !== "object" || entry === null) throw new Error("مدخل� مدينة� ليس كائنا�.");
+    85 │     const city = entry as Record<string, unknown>;
+  > 86 │     const code = String(city["code"] ?? "").trim();
+       │                              ^^^^^^
+    87 │     if (!/^[A-Z][A-Z0-9_]{1,15}$/.test(code)) {
+    88 │       throw new Error(`رمز� المدينة «${code}» يجب أن يكون أحرفا� وأرقاما� إنجليزي�ة� كبيرة.`);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     84  84 │       if (typeof entry !== "object" || entry === null) throw new Error("مدخل� مدينة� ليس كائنا�.");
+     85  85 │       const city = entry as Record<string, unknown>;
+     86     │ - ····const·code·=·String(city["code"]·??·"").trim();
+         86 │ + ····const·code·=·String(city.code·??·"").trim();
+     87  87 │       if (!/^[A-Z][A-Z0-9_]{1,15}$/.test(code)) {
+     88  88 │         throw new Error(`رمز� المدينة «${code}» يجب أن يكون أحرفا� وأرقاما� إنجليزي�ة� كبيرة.`);
+  
+
+scripts/activate-launch-cities.ts:93:39 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    91 │     seenCodes.add(code);
+    92 │ 
+  > 93 │     const support = parseGroupId(city["supportGroupId"], `${code}/دعم`);
+       │                                       ^^^^^^^^^^^^^^^^
+    94 │     const escalation = parseGroupId(city["escalationGroupId"], `${code}/تصعيد`);
+    95 │     const drivers = parseGroupId(city["driversGroupId"], `${code}/سائقين`);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     91  91 │       seenCodes.add(code);
+     92  92 │   
+     93     │ - ····const·support·=·parseGroupId(city["supportGroupId"],·`${code}/دعم`);
+         93 │ + ····const·support·=·parseGroupId(city.supportGroupId,·`${code}/دعم`);
+     94  94 │       const escalation = parseGroupId(city["escalationGroupId"], `${code}/تصعيد`);
+     95  95 │       const drivers = parseGroupId(city["driversGroupId"], `${code}/سائقين`);
+  
+
+scripts/activate-launch-cities.ts:94:42 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    93 │     const support = parseGroupId(city["supportGroupId"], `${code}/دعم`);
+  > 94 │     const escalation = parseGroupId(city["escalationGroupId"], `${code}/تصعيد`);
+       │                                          ^^^^^^^^^^^^^^^^^^^
+    95 │     const drivers = parseGroupId(city["driversGroupId"], `${code}/سائقين`);
+    96 │     if (new Set([support, escalation, drivers]).size !== 3) {
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     92  92 │   
+     93  93 │       const support = parseGroupId(city["supportGroupId"], `${code}/دعم`);
+     94     │ - ····const·escalation·=·parseGroupId(city["escalationGroupId"],·`${code}/تصعيد`);
+         94 │ + ····const·escalation·=·parseGroupId(city.escalationGroupId,·`${code}/تصعيد`);
+     95  95 │       const drivers = parseGroupId(city["driversGroupId"], `${code}/سائقين`);
+     96  96 │       if (new Set([support, escalation, drivers]).size !== 3) {
+  
+
+scripts/activate-launch-cities.ts:134:5 lint/style/useTemplate  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i Template literals are preferred over string concatenation.
+  
+    132 │ function usage(message: string): never {
+    133 │   throw new Error(
+  > 134 │     `${message}\n` + "الاستخدام: bun scripts/activate-launch-cities.ts --manifest <مسار ملف JSON>",
+        │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    135 │   );
+    136 │ }
+  
+  i Unsafe fix: Use a template literal.
+  
+    132 132 │   function usage(message: string): never {
+    133 133 │     throw new Error(
+    134     │ - ····`${message}\n`·+·"الاستخدام:·bun·scripts/activate-launch-cities.ts·--manifest·<مسار·ملف·JSON>",
+        134 │ + ····`${message}\nالاستخدام:·bun·scripts/activate-launch-cities.ts·--manifest·<مسار·ملف·JSON>`,
+    135 135 │     );
+    136 136 │   }
+  
+
+scripts/activate-launch-cities.ts:195:20 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    193 │         `;
+    194 │         const result = applied[0]?.result ?? {};
+  > 195 │         if (result["ok"] !== true) {
+        │                    ^^^^
+    196 │           throw new Error(`${city.code}: رفضت الدال�ة� التفعيل (${String(result["error"])}).`);
+    197 │         }
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    193 193 │           `;
+    194 194 │           const result = applied[0]?.result ?? {};
+    195     │ - ········if·(result["ok"]·!==·true)·{
+        195 │ + ········if·(result.ok·!==·true)·{
+    196 196 │             throw new Error(`${city.code}: رفضت الدال�ة� التفعيل (${String(result["error"])}).`);
+    197 197 │           }
+  
+
+scripts/activate-launch-cities.ts:196:81 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    194 │         const result = applied[0]?.result ?? {};
+    195 │         if (result["ok"] !== true) {
+  > 196 │           throw new Error(`${city.code}: رفضت الدال�ة� التفعيل (${String(result["error"])}).`);
+        │                                                                               ^^^^^^^
+    197 │         }
+    198 │         if (result["is_active"] !== true) {
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    194 194 │           const result = applied[0]?.result ?? {};
+    195 195 │           if (result["ok"] !== true) {
+    196     │ - ··········throw·new·Error(`${city.code}:·رفضت·الدال�ة�·التفعيل·(${String(result["error"])}).`);
+        196 │ + ··········throw·new·Error(`${city.code}:·رفضت·الدال�ة�·التفعيل·(${String(result.error)}).`);
+    197 197 │           }
+    198 198 │           if (result["is_active"] !== true) {
+  
+
+scripts/activate-launch-cities.ts:198:20 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    196 │           throw new Error(`${city.code}: رفضت الدال�ة� التفعيل (${String(result["error"])}).`);
+    197 │         }
+  > 198 │         if (result["is_active"] !== true) {
+        │                    ^^^^^^^^^^^
+    199 │           throw new Error(`${city.code}: ن�ف�ذ التحديث� ولم تصر المدينة� مفع�لة.`);
+    200 │         }
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    196 196 │             throw new Error(`${city.code}: رفضت الدال�ة� التفعيل (${String(result["error"])}).`);
+    197 197 │           }
+    198     │ - ········if·(result["is_active"]·!==·true)·{
+        198 │ + ········if·(result.is_active·!==·true)·{
+    199 199 │             throw new Error(`${city.code}: ن�ف�ذ التحديث� ولم تصر المدينة� مفع�لة.`);
+    200 200 │           }
+  
+
+scripts/activate-launch-cities.ts:203:27 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    201 │         results.push({
+    202 │           code: city.code,
+  > 203 │           changed: result["changed"] === true,
+        │                           ^^^^^^^^^
+    204 │           isActive: true,
+    205 │         });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    201 201 │           results.push({
+    202 202 │             code: city.code,
+    203     │ - ··········changed:·result["changed"]·===·true,
+        203 │ + ··········changed:·result.changed·===·true,
+    204 204 │             isActive: true,
+    205 205 │           });
+  
+
+scripts/load-test.ts:198:14 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    196 │   if (typeof parsed !== "object" || parsed === null) return "UNPARSEABLE_BODY";
+    197 │   const record = parsed as Record<string, unknown>;
+  > 198 │   if (record["ok"] === true) return null;
+        │              ^^^^
+    199 │   const code = record["error"];
+    200 │   return typeof code === "string" ? code : "UNKNOWN_ERROR";
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    196 196 │     if (typeof parsed !== "object" || parsed === null) return "UNPARSEABLE_BODY";
+    197 197 │     const record = parsed as Record<string, unknown>;
+    198     │ - ··if·(record["ok"]·===·true)·return·null;
+        198 │ + ··if·(record.ok·===·true)·return·null;
+    199 199 │     const code = record["error"];
+    200 200 │     return typeof code === "string" ? code : "UNKNOWN_ERROR";
+  
+
+scripts/load-test.ts:199:23 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    197 │   const record = parsed as Record<string, unknown>;
+    198 │   if (record["ok"] === true) return null;
+  > 199 │   const code = record["error"];
+        │                       ^^^^^^^
+    200 │   return typeof code === "string" ? code : "UNKNOWN_ERROR";
+    201 │ }
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    197 197 │     const record = parsed as Record<string, unknown>;
+    198 198 │     if (record["ok"] === true) return null;
+    199     │ - ··const·code·=·record["error"];
+        199 │ + ··const·code·=·record.error;
+    200 200 │     return typeof code === "string" ? code : "UNKNOWN_ERROR";
+    201 201 │   }
+  
+
+scripts/race-subscription-changes.ts:118:44 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    117 │   const rows = results.flatMap((r) => (r.status === "fulfilled" ? [r.value[0]?.r] : []));
+  > 118 │   const firstTime = rows.filter((r) => r?.["already_cancelled"] === false).length;
+        │                                            ^^^^^^^^^^^^^^^^^^^
+    119 │   const repeats = rows.filter((r) => r?.["already_cancelled"] === true).length;
+    120 │   console.log(`   طلب أو�ل: ${firstTime} | مكر�ر: ${repeats}`);
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    118 │ ··const·firstTime·=·rows.filter((r)·=>·r?.["already_cancelled"]·===·false).length;
+        │                                           --                 --                   
+
+scripts/race-subscription-changes.ts:119:42 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    117 │   const rows = results.flatMap((r) => (r.status === "fulfilled" ? [r.value[0]?.r] : []));
+    118 │   const firstTime = rows.filter((r) => r?.["already_cancelled"] === false).length;
+  > 119 │   const repeats = rows.filter((r) => r?.["already_cancelled"] === true).length;
+        │                                          ^^^^^^^^^^^^^^^^^^^
+    120 │   console.log(`   طلب أو�ل: ${firstTime} | مكر�ر: ${repeats}`);
+    121 │   assert(firstTime === 1, "طلب إلغاء أو�ل واحد فقط رغم التزامن");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    119 │ ··const·repeats·=·rows.filter((r)·=>·r?.["already_cancelled"]·===·true).length;
+        │                                         --                 --                  
+
+scripts/race-subscription-changes.ts:158:42 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    157 │   const rows = results.flatMap((r) => (r.status === "fulfilled" ? [r.value[0]?.r] : []));
+  > 158 │   const applied = rows.filter((r) => r?.["already_on_plan"] === false).length;
+        │                                          ^^^^^^^^^^^^^^^^^
+    159 │   console.log(`   طب�قت الترقية: ${applied} | وجدتها مطب�قة: ${rows.length - applied}`);
+    160 │   assert(applied === 1, "ترقية واحدة فعلية فقط");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    158 │ ··const·applied·=·rows.filter((r)·=>·r?.["already_on_plan"]·===·false).length;
+        │                                         --               --                   
+
+tests/unit/launch-cities-manifest.test.ts:45:26 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    43 │   it("يرفض بيانا� ناقصة� منه مدينة� ويسم�يها", () => {
+    44 │     const raw = بيان�_كامل();
+  > 45 │     raw["cities"] = (raw["cities"] as unknown[]).slice(0, 4);
+       │                          ^^^^^^^^
+    46 │     expect(() => validateManifest(raw)).toThrow(/MED/);
+    47 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     43  43 │     it("يرفض بيانا� ناقصة� منه مدينة� ويسم�يها", () => {
+     44  44 │       const raw = بيان�_كامل();
+     45     │ - ····raw["cities"]·=·(raw["cities"]·as·unknown[]).slice(0,·4);
+         45 │ + ····raw["cities"]·=·(raw.cities·as·unknown[]).slice(0,·4);
+     46  46 │       expect(() => validateManifest(raw)).toThrow(/MED/);
+     47  47 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:86:9 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    84 │     const jed = cities[0];
+    85 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  > 86 │     jed["supportGroupId"] = "0";
+       │         ^^^^^^^^^^^^^^^^
+    87 │     expect(() => validateManifest(raw)).toThrow(/صفر/);
+    88 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     84  84 │       const jed = cities[0];
+     85  85 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+     86     │ - ····jed["supportGroupId"]·=·"0";
+         86 │ + ····jed.supportGroupId·=·"0";
+     87  87 │       expect(() => validateManifest(raw)).toThrow(/صفر/);
+     88  88 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:92:24 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    90 │   it("يرفض معر�فا� ليس عددا�", () => {
+    91 │     const raw = بيان�_كامل();
+  > 92 │     const cities = raw["cities"] as Record<string, unknown>[];
+       │                        ^^^^^^^^
+    93 │     const jed = cities[0];
+    94 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     90  90 │     it("يرفض معر�فا� ليس عددا�", () => {
+     91  91 │       const raw = بيان�_كامل();
+     92     │ - ····const·cities·=·raw["cities"]·as·Record<string,·unknown>[];
+         92 │ + ····const·cities·=·raw.cities·as·Record<string,·unknown>[];
+     93  93 │       const jed = cities[0];
+     94  94 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  
+
+tests/unit/launch-cities-manifest.test.ts:95:9 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    93 │     const jed = cities[0];
+    94 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  > 95 │     jed["escalationGroupId"] = "-55x9";
+       │         ^^^^^^^^^^^^^^^^^^^
+    96 │     expect(() => validateManifest(raw)).toThrow(/عددا� صحيحا�/);
+    97 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     93  93 │       const jed = cities[0];
+     94  94 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+     95     │ - ····jed["escalationGroupId"]·=·"-55x9";
+         95 │ + ····jed.escalationGroupId·=·"-55x9";
+     96  96 │       expect(() => validateManifest(raw)).toThrow(/عددا� صحيحا�/);
+     97  97 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:108:16 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    106 │   it("يرفض غياب� معر�ف� المسؤول", () => {
+    107 │     const raw = بيان�_كامل();
+  > 108 │     delete raw["adminTelegramId"];
+        │                ^^^^^^^^^^^^^^^^^
+    109 │     expect(() => validateManifest(raw)).toThrow(/adminTelegramId/);
+    110 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    106 106 │     it("يرفض غياب� معر�ف� المسؤول", () => {
+    107 107 │       const raw = بيان�_كامل();
+    108     │ - ····delete·raw["adminTelegramId"];
+        108 │ + ····delete·raw.adminTelegramId;
+    109 109 │       expect(() => validateManifest(raw)).toThrow(/adminTelegramId/);
+    110 110 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:114:24 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    112 │   it("يرفض رمز� مدينة� بحروف� صغيرة", () => {
+    113 │     const raw = بيان�_كامل();
+  > 114 │     const cities = raw["cities"] as Record<string, unknown>[];
+        │                        ^^^^^^^^
+    115 │     const jed = cities[0];
+    116 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    112 112 │     it("يرفض رمز� مدينة� بحروف� صغيرة", () => {
+    113 113 │       const raw = بيان�_كامل();
+    114     │ - ····const·cities·=·raw["cities"]·as·Record<string,·unknown>[];
+        114 │ + ····const·cities·=·raw.cities·as·Record<string,·unknown>[];
+    115 115 │       const jed = cities[0];
+    116 116 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  
+
+tests/unit/launch-cities-manifest.test.ts:117:9 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    115 │     const jed = cities[0];
+    116 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  > 117 │     jed["code"] = "jed";
+        │         ^^^^^^
+    118 │     expect(() => validateManifest(raw)).toThrow(/رمز/);
+    119 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+    115 115 │       const jed = cities[0];
+    116 116 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+    117     │ - ····jed["code"]·=·"jed";
+        117 │ + ····jed.code·=·"jed";
+    118 118 │       expect(() => validateManifest(raw)).toThrow(/رمز/);
+    119 119 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:51:24 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    49 │   it("يرفض تكرار� مدينة� في البيان", () => {
+    50 │     const raw = بيان�_كامل();
+  > 51 │     const cities = raw["cities"] as Record<string, unknown>[];
+       │                        ^^^^^^^^
+    52 │     const first = cities[0];
+    53 │     if (first === undefined) throw new Error("بيان� الاختبار فارغ");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     49  49 │     it("يرفض تكرار� مدينة� في البيان", () => {
+     50  50 │       const raw = بيان�_كامل();
+     51     │ - ····const·cities·=·raw["cities"]·as·Record<string,·unknown>[];
+         51 │ + ····const·cities·=·raw.cities·as·Record<string,·unknown>[];
+     52  52 │       const first = cities[0];
+     53  53 │       if (first === undefined) throw new Error("بيان� الاختبار فارغ");
+  
+
+tests/unit/launch-cities-manifest.test.ts:62:24 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    60 │   it("يرفض قروبا� واحدا� لمدينتين ويسم�ي الطرفين", () => {
+    61 │     const raw = بيان�_كامل();
+  > 62 │     const cities = raw["cities"] as Record<string, unknown>[];
+       │                        ^^^^^^^^
+    63 │     const jed = cities[0];
+    64 │     const mkk = cities[1];
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     60  60 │     it("يرفض قروبا� واحدا� لمدينتين ويسم�ي الطرفين", () => {
+     61  61 │       const raw = بيان�_كامل();
+     62     │ - ····const·cities·=·raw["cities"]·as·Record<string,·unknown>[];
+         62 │ + ····const·cities·=·raw.cities·as·Record<string,·unknown>[];
+     63  63 │       const jed = cities[0];
+     64  64 │       const mkk = cities[1];
+  
+
+tests/unit/launch-cities-manifest.test.ts:66:9 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    64 │     const mkk = cities[1];
+    65 │     if (jed === undefined || mkk === undefined) throw new Error("بيان� الاختبار ناقص");
+  > 66 │     mkk["driversGroupId"] = jed["driversGroupId"];
+       │         ^^^^^^^^^^^^^^^^
+    67 │     expect(() => validateManifest(raw)).toThrow(/قروب� واحد� لمدينتين/);
+    68 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     64  64 │       const mkk = cities[1];
+     65  65 │       if (jed === undefined || mkk === undefined) throw new Error("بيان� الاختبار ناقص");
+     66     │ - ····mkk["driversGroupId"]·=·jed["driversGroupId"];
+         66 │ + ····mkk.driversGroupId·=·jed["driversGroupId"];
+     67  67 │       expect(() => validateManifest(raw)).toThrow(/قروب� واحد� لمدينتين/);
+     68  68 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:66:33 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    64 │     const mkk = cities[1];
+    65 │     if (jed === undefined || mkk === undefined) throw new Error("بيان� الاختبار ناقص");
+  > 66 │     mkk["driversGroupId"] = jed["driversGroupId"];
+       │                                 ^^^^^^^^^^^^^^^^
+    67 │     expect(() => validateManifest(raw)).toThrow(/قروب� واحد� لمدينتين/);
+    68 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     64  64 │       const mkk = cities[1];
+     65  65 │       if (jed === undefined || mkk === undefined) throw new Error("بيان� الاختبار ناقص");
+     66     │ - ····mkk["driversGroupId"]·=·jed["driversGroupId"];
+         66 │ + ····mkk["driversGroupId"]·=·jed.driversGroupId;
+     67  67 │       expect(() => validateManifest(raw)).toThrow(/قروب� واحد� لمدينتين/);
+     68  68 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:72:24 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    70 │   it("يرفض تساوي� قروبين داخل� المدينة نفس�ها", () => {
+    71 │     const raw = بيان�_كامل();
+  > 72 │     const cities = raw["cities"] as Record<string, unknown>[];
+       │                        ^^^^^^^^
+    73 │     const jed = cities[0];
+    74 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     70  70 │     it("يرفض تساوي� قروبين داخل� المدينة نفس�ها", () => {
+     71  71 │       const raw = بيان�_كامل();
+     72     │ - ····const·cities·=·raw["cities"]·as·Record<string,·unknown>[];
+         72 │ + ····const·cities·=·raw.cities·as·Record<string,·unknown>[];
+     73  73 │       const jed = cities[0];
+     74  74 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  
+
+tests/unit/launch-cities-manifest.test.ts:75:9 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    73 │     const jed = cities[0];
+    74 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  > 75 │     jed["escalationGroupId"] = jed["supportGroupId"];
+       │         ^^^^^^^^^^^^^^^^^^^
+    76 │     expect(() => validateManifest(raw)).toThrow(/مختلفة/);
+    77 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     73  73 │       const jed = cities[0];
+     74  74 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+     75     │ - ····jed["escalationGroupId"]·=·jed["supportGroupId"];
+         75 │ + ····jed.escalationGroupId·=·jed["supportGroupId"];
+     76  76 │       expect(() => validateManifest(raw)).toThrow(/مختلفة/);
+     77  77 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:75:36 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    73 │     const jed = cities[0];
+    74 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  > 75 │     jed["escalationGroupId"] = jed["supportGroupId"];
+       │                                    ^^^^^^^^^^^^^^^^
+    76 │     expect(() => validateManifest(raw)).toThrow(/مختلفة/);
+    77 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     73  73 │       const jed = cities[0];
+     74  74 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+     75     │ - ····jed["escalationGroupId"]·=·jed["supportGroupId"];
+         75 │ + ····jed["escalationGroupId"]·=·jed.supportGroupId;
+     76  76 │       expect(() => validateManifest(raw)).toThrow(/مختلفة/);
+     77  77 │     });
+  
+
+tests/unit/launch-cities-manifest.test.ts:83:24 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    81 │   it("يرفض معر�ف� قروب� صفرا�", () => {
+    82 │     const raw = بيان�_كامل();
+  > 83 │     const cities = raw["cities"] as Record<string, unknown>[];
+       │                        ^^^^^^^^
+    84 │     const jed = cities[0];
+    85 │     if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     81  81 │     it("يرفض معر�ف� قروب� صفرا�", () => {
+     82  82 │       const raw = بيان�_كامل();
+     83     │ - ····const·cities·=·raw["cities"]·as·Record<string,·unknown>[];
+         83 │ + ····const·cities·=·raw.cities·as·Record<string,·unknown>[];
+     84  84 │       const jed = cities[0];
+     85  85 │       if (jed === undefined) throw new Error("بيان� الاختبار ناقص");
+  
+
+tests/unit/launch-cities-manifest.test.ts:45:9 lint/complexity/useLiteralKeys  FIXABLE  ━━━━━━━━━━━━
+
+  i The computed expression can be simplified without the use of a string literal.
+  
+    43 │   it("يرفض بيانا� ناقصة� منه مدينة� ويسم�يها", () => {
+    44 │     const raw = بيان�_كامل();
+  > 45 │     raw["cities"] = (raw["cities"] as unknown[]).slice(0, 4);
+       │         ^^^^^^^^
+    46 │     expect(() => validateManifest(raw)).toThrow(/MED/);
+    47 │   });
+  
+  i Unsafe fix: Use a literal key instead.
+  
+     43  43 │     it("يرفض بيانا� ناقصة� منه مدينة� ويسم�يها", () => {
+     44  44 │       const raw = بيان�_كامل();
+     45     │ - ····raw["cities"]·=·(raw["cities"]·as·unknown[]).slice(0,·4);
+         45 │ + ····raw.cities·=·(raw["cities"]·as·unknown[]).slice(0,·4);
+     46  46 │       expect(() => validateManifest(raw)).toThrow(/MED/);
+     47  47 │     });
+  
+
+Checked 743 files in 1163ms. No fixes applied.
+Found 41 infos.
+lint exit=0

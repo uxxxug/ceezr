@@ -37,8 +37,8 @@ import { createTelegramDriverNotifier } from "../../packages/infrastructure/noti
 import { createSettingsRepository } from "../../packages/infrastructure/policy/settings-repository.ts";
 import { createOrderRepository } from "../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
-import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../packages/shared/kernel/index.ts";
+import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL ?? "";
@@ -62,33 +62,12 @@ const PICKUP = { latitude: 21.5433, longitude: 39.1728 };
 const DROPOFF = { latitude: 21.5551, longitude: 39.1902 };
 const DRIVER_AT = { latitude: 21.5471, longitude: 39.1751 };
 
-const config: AppConfig = {
-  env: "test",
+const config: AppConfig = testConfig({
   port: 3996,
-  supabaseUrl: "https://local.test.supabase.co",
   databaseUrl: DATABASE_URL,
-  supabaseServiceKey: "local-test",
-  redisUrl: "http://localhost",
-  redisToken: "local-test",
-  sessionStore: "memory",
-  driverBotToken: "driver-token",
-  riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,
   bootstrapAdminTelegramId: String(ADMIN),
-  translationProvider: "none",
-  translationApiKey: null,
-  translationContactEmail: null,
-  runWorkerInGateway: false,
-  mapProvider: "none",
-  mapStyleUrl: null,
-  mapTilesPublicKey: null,
-  maplibreSri: null,
-  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
-  routingProvider: "none",
-  osrmBaseUrl: null,
-  tracking: NO_TRACKING_OVERRIDES,
-  trackingTokenBaseUrl: null,
-};
+});
 
 let sql: Sql;
 let cityId: CityId;

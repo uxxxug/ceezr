@@ -9,6 +9,19 @@
  *
  * التشغيل:
  *   TEST_DATABASE_URL=postgres://... bun run scripts/load-test.ts [--users 50] [--rounds 4]
+ *
+ * حدود هذه الأداة معروفة وموثقة (المرحلة 2 في `docs/SYSTEM_STATE.md`):
+ * مولّد الحمل يسكن نفس العملية التي تشغّل الخادم، والحمل دفعٌة مغلقة
+ * الحلقة بلا معدّل ورود، والنتائج لا تُحفَظ بصيغة تُقارَن. فهي **أداة إعادة
+ * إنتاج الأرقام التاريخية في `docs/load-test-report.md` لا أداة القياس المعتمدة**.
+ * القياس المعتمد يسكن `bench/`.
+ *
+ * لماذا `loadConfig` لا كائن `AppConfig` مكتوب باليد: كان هنا كائنٌ حرفيّ،
+ * فحين أُضيف حقل `tracking` إلى `AppConfig` بقي هذا الكائن ناقصاً تسعة حقول،
+ * ولأن `scripts/**` كان خارج `tsconfig.json` مرّ الأمر بلا خطأ حتّى انكسرت الأداة
+ * في وقت التشغيل. القرار: لا تُكتب `AppConfig` باليد في أداة قياس أبداً — تُبنى
+ * من محمّل الضبط الحقيقي نفسه، فأي حقل جديد يأتي بقيمته الافتراضية أو يفشل فشلاً
+ * موصوفاً في الضبط لا بـ`TypeError` غامض.
  */
 
 import type { TelegramSender } from "../apps/gateway/src/bots/driver/index.ts";
@@ -18,7 +31,7 @@ import {
   type RateLimiter,
 } from "../apps/gateway/src/rate-limit/fixed-window.ts";
 import { createServer } from "../apps/gateway/src/server.ts";
-import type { AppConfig } from "../packages/shared/config/index.ts";
+import { loadConfig } from "../packages/shared/config/index.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 if (DATABASE_URL === undefined || DATABASE_URL === "") {
@@ -33,10 +46,14 @@ function intArg(name: string, fallback: number): number {
   return Number.isInteger(value) && value > 0 ? value : fallback;
 }
 
+/** عدد تحديثات الويبهوك في تسجيل واحد كامل — يُشتق منه معدّل الطلبات. */
+const REGISTRATION_STEPS = 9;
+
 const USERS = intArg("users", 50);
 const ROUNDS = intArg("rounds", 4);
 const PORT = intArg("port", 4123);
-const SECRET = "load-test-secret";
+/** طوله فوق الحدّ الإنتاجي (32) ومن مجموعة محارف تلغرام، لأن الضبط يفحصهما. */
+const SECRET = "load-test-secret-load-test-secret-0001";
 
 /** مُرسِل صامت: لا شبكة، ولا تأخير مُصطنع — الزمن المقيس زمننا لا زمن تلغرام. */
 const silentSender: TelegramSender = {
@@ -45,23 +62,32 @@ const silentSender: TelegramSender = {
   sendLocation: async () => "1",
 };
 
-const config: AppConfig = {
-  env: "test",
-  port: PORT,
-  supabaseUrl: "https://local.test.supabase.co",
-  databaseUrl: DATABASE_URL,
-  supabaseServiceKey: "load-test",
-  redisUrl: "http://localhost",
-  redisToken: "load-test",
-  sessionStore: "memory",
-  driverBotToken: "load-test-driver",
-  riderBotToken: "load-test-rider",
-  telegramWebhookSecret: SECRET,
-  bootstrapAdminTelegramId: "990001",
-  translationProvider: "none",
-  translationApiKey: null,
-  translationContactEmail: null,
+/**
+ * مصدر البيئة مُعلَن بالكامل ولا يُقرأ من `process.env`: متغيّر متروك في صدفة
+ * المشغّل لا يجوز أن يغيّر ما يقيسه القياس من حيث لا يدري — وإلا تغيّرت الأرقام
+ * بتغيّر الصدفة لا بتغيّر الكود.
+ */
+const benchEnv: Record<string, string> = {
+  NODE_ENV: "test",
+  PORT: String(PORT),
+  SUPABASE_URL: "https://local.test.supabase.co",
+  SUPABASE_SERVICE_ROLE_KEY: "load-test",
+  DATABASE_URL,
+  UPSTASH_REDIS_REST_URL: "http://localhost",
+  UPSTASH_REDIS_REST_TOKEN: "load-test",
+  DRIVER_BOT_TOKEN: "load-test-driver",
+  RIDER_BOT_TOKEN: "load-test-rider",
+  TELEGRAM_WEBHOOK_SECRET: SECRET,
+  BOOTSTRAP_ADMIN_TELEGRAM_ID: "990001",
+  SESSION_STORE: "memory",
+  TRANSLATION_PROVIDER: "none",
+  // مُعلَن صراحةً: افتراض الضبط `true`، والإنتاج اليوم `true`. هذا القياس
+  // يعزل مسار الطلب عن المهام الدورية، فأرقامه **متفائلة مقابل الإنتاج**
+  // وليست مماثلةً له. قياس التزاحم مع العامل المضمَّن قياسٌ منفصل واجب.
+  RUN_WORKER_IN_GATEWAY: "false",
 };
+
+const config = loadConfig(benchEnv);
 
 const container = buildContainer(config, {
   driverSender: silentSender,
@@ -134,10 +160,17 @@ interface Sample {
   readonly label: string;
   readonly ms: number;
   readonly status: number;
+  /** مسار الويبهوك يُجيب 200 على الفشل الداخلي، فالحكم من الجسم لا من الحالة. */
+  readonly bodyError: string | null;
 }
 
 const samples: Sample[] = [];
 
+/**
+ * لماذا يُقرأ الجسم: مسار الويبهوك يُجيب `200 {ok:false,error:"NOT_HANDLED"}`
+ * حين تفشل المعالجة، لأن تلغرام يُعيد الإرسال على غير 200. فقياسٌ يحكم من
+ * الحالة وحدها يعدّ الفشل الكامل نجاحاً كاملاً — وهو ما حدث فعلاً قبل هذا الإصلاح.
+ */
 async function send(label: string, body: unknown): Promise<void> {
   const startedAt = performance.now();
   const response = await fetch(`${base}/webhook/telegram/driver`, {
@@ -148,18 +181,45 @@ async function send(label: string, body: unknown): Promise<void> {
     },
     body: JSON.stringify(body),
   });
-  await response.text();
-  samples.push({ label, ms: performance.now() - startedAt, status: response.status });
+  const raw = await response.text();
+  const ms = performance.now() - startedAt;
+  samples.push({ label, ms, status: response.status, bodyError: bodyErrorOf(raw) });
+}
+
+function bodyErrorOf(raw: string): string | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return "UNPARSEABLE_BODY";
+  }
+  if (typeof parsed !== "object" || parsed === null) return "UNPARSEABLE_BODY";
+  const record = parsed as Record<string, unknown>;
+  if (record["ok"] === true) return null;
+  const code = record["error"];
+  return typeof code === "string" ? code : "UNKNOWN_ERROR";
 }
 
 const text = (id: number, value: string) => ({
   message: { chat: { id }, from: { id, language_code: "ar" }, text: value },
 });
+/**
+ * `user_id` واجب لا زائد: الحوار يرفض بطاقةً لا تملكها ("هذه بطاقة شخص آخر")،
+ * وهو قيدٌ أُضيف بعد كتابة هذا القياس. بغيابه يتوقّف الحوار عند الجوال أبداً،
+ * وزرّ مشاركة الرقم في تلغرام يرسل `user_id` فعلاً — فهذه محاكاةٌ للواقع لا تحايل.
+ */
 const contact = (id: number, phone: string) => ({
-  message: { chat: { id }, from: { id, language_code: "ar" }, contact: { phone_number: phone } },
+  message: {
+    chat: { id },
+    from: { id, language_code: "ar" },
+    contact: { phone_number: phone, user_id: id },
+  },
 });
 const callback = (id: number, data: string) => ({
   callback_query: { data, from: { id }, message: { chat: { id } } },
+});
+const photo = (id: number, fileId: string) => ({
+  message: { chat: { id }, from: { id, language_code: "ar" }, photo: [{ file_id: fileId }] },
 });
 
 function percentile(values: number[], fraction: number): number {
@@ -194,11 +254,20 @@ async function main(): Promise<void> {
   await Promise.all(
     Array.from({ length: USERS }, async (_unused, index) => {
       const id = firstId + index;
+      // الخطوات التسع هي الحوار الحقيقي كما في packages/application/bots/driver-dialog.ts:
+      // awaiting_name ← phone ← city ← service ← vehicle_type ← plate ← national_id ← photo.
+      // كان هذا القياس يتوقّف عند الخدمة، فلا يُكتب صفّ سائقٍ واحد، ومع ذلك يطبع
+      // «تسجيل كامل: … طلب/ثانية». الصفوف تُكتب في الخطوة الأخيرة دفعةً واحدة.
       await send("تسجيل: /start", text(id, "/start"));
       await send("تسجيل: الاسم", text(id, `سائق رقم ${index}`));
       await send("تسجيل: الجوال", contact(id, `+96650000${String(index).padStart(4, "0")}`));
       await send("تسجيل: المدينة", callback(id, `city:${cityId}`));
       await send("تسجيل: الخدمة", callback(id, "service:transport"));
+      await send("تسجيل: نوع المركبة", callback(id, "vehicle:sedan"));
+      await send("تسجيل: اللوحة", text(id, `ABC${String(1000 + index).slice(-4)}`));
+      // عشرة أرقام تبدأ بـ1 أو 2، وفريدة لكل سائق لأن الهوية مقيَّدة بالتفرّد.
+      await send("تسجيل: الهوية", text(id, `1${String(100000000 + index).slice(-9)}`));
+      await send("تسجيل: صورة المركبة", photo(id, `load-test-photo-${id}`));
     }),
   );
   const registerMs = performance.now() - registerStartedAt;
@@ -236,6 +305,8 @@ async function main(): Promise<void> {
         label: "رفض سرّ خاطئ",
         ms: performance.now() - startedAt,
         status: response.status,
+        // الرفض هو المطلوب هنا، فلا يُحتسب خطأ جسمٍ غير متوقَّع.
+        bodyError: null,
       });
     }),
   );
@@ -248,7 +319,12 @@ async function main(): Promise<void> {
       const startedAt = performance.now();
       const response = await fetch(`${base}/ready`);
       await response.text();
-      samples.push({ label: "/ready", ms: performance.now() - startedAt, status: response.status });
+      samples.push({
+        label: "/ready",
+        ms: performance.now() - startedAt,
+        status: response.status,
+        bodyError: null,
+      });
     }),
   );
   const readyMs = performance.now() - readyStartedAt;
@@ -268,14 +344,40 @@ async function main(): Promise<void> {
 
   console.log("\n=== السعة ===");
   const throughput = (count: number, ms: number) => (count / (ms / 1000)).toFixed(1);
-  console.log(`تسجيل كامل     : ${throughput(USERS * 5, registerMs)} طلب/ثانية`);
+  console.log(`تسجيل كامل     : ${throughput(USERS * REGISTRATION_STEPS, registerMs)} طلب/ثانية`);
   console.log(`أمر متكرّر      : ${throughput(commandCount, commandMs)} طلب/ثانية`);
   console.log(`رفض سرّ خاطئ    : ${throughput(commandCount, rejectMs)} طلب/ثانية`);
   console.log(`/ready         : ${throughput(100, readyMs)} طلب/ثانية`);
 
-  const failures = samples.filter((sample) => sample.status >= 500);
-  console.log(`\nأخطاء 5xx: ${failures.length}`);
-  if (failures.length > 0) process.exitCode = 1;
+  const serverErrors = samples.filter((sample) => sample.status >= 500);
+  console.log(`\nأخطاء 5xx: ${serverErrors.length}`);
+
+  // الحكم على الصحة قبل الحكم على السرعة: أرقامُ سعةٍ على مسارٍ لم يعمل بلا معنى.
+  const bodyErrors = new Map<string, number>();
+  for (const sample of samples) {
+    if (sample.bodyError === null) continue;
+    bodyErrors.set(sample.bodyError, (bodyErrors.get(sample.bodyError) ?? 0) + 1);
+  }
+  const bodyErrorCount = [...bodyErrors.values()].reduce((sum, count) => sum + count, 0);
+  console.log(
+    `أخطاء جسمٍ داخل 200: ${bodyErrorCount}` +
+      (bodyErrorCount === 0
+        ? ""
+        : ` — ${[...bodyErrors].map(([code, count]) => `${code}×${count}`).join(" ")}`),
+  );
+
+  const [driverRow] = await sql<{ count: string }[]>`select count(*)::text as count from drivers`;
+  const driversAtEnd = Number(driverRow?.count ?? "0");
+  const registrationHeld = driversAtEnd === USERS;
+  console.log(
+    `صفوف drivers في النهاية: ${driversAtEnd} من ${USERS} متوقَّعاً — ` +
+      (registrationHeld ? "مطابق" : "غير مطابق"),
+  );
+
+  if (serverErrors.length > 0 || bodyErrorCount > 0 || !registrationHeld) {
+    console.error("\n❌ الجريان غير صالح: أرقام السعة أعلاه لا تُعتمد لأن المسار لم يُنجز عمله.");
+    process.exitCode = 1;
+  }
 }
 
 try {

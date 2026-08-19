@@ -25,6 +25,12 @@
       "@waslah/infrastructure/*": ["packages/infrastructure/*"]
     }
   },
-  "include": ["apps/**/*.ts", "packages/**/*.ts", "tests/**/*.ts"],
+  "include": [
+    "apps/**/*.ts",
+    "packages/**/*.ts",
+    "tests/**/*.ts",
+    "scripts/**/*.ts",
+    "bench/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

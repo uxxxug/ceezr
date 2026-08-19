@@ -21,8 +21,8 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createCityDirectory } from "../../packages/infrastructure/geo/city-directory.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
-import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { LAUNCH_CITY_CODES } from "../../scripts/activate-launch-cities.ts";
+import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -59,33 +59,12 @@ interface CityFixture {
   readonly driverAt: { readonly latitude: number; readonly longitude: number };
 }
 
-const config: AppConfig = {
-  env: "test",
+const config: AppConfig = testConfig({
   port: 3988,
-  supabaseUrl: "https://local.test.supabase.co",
-  databaseUrl: DATABASE_URL ?? "postgres://invalid",
-  supabaseServiceKey: "local-test",
-  redisUrl: "http://localhost",
-  redisToken: "local-test",
-  sessionStore: "memory",
-  driverBotToken: "driver-token",
-  riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,
   bootstrapAdminTelegramId: String(ADMIN_TELEGRAM_ID),
-  translationProvider: "none",
-  translationApiKey: null,
-  translationContactEmail: null,
-  runWorkerInGateway: false,
-  mapProvider: "none",
-  mapStyleUrl: null,
-  mapTilesPublicKey: null,
-  maplibreSri: null,
-  routingProvider: "none",
-  osrmBaseUrl: null,
-  tracking: NO_TRACKING_OVERRIDES,
-  // §4.2: بلا قاعدةِ رابطٍ لا يُصدَر رمزُ تتبّعٍ أصلاً، فالمسارُ المُختبَر يحتاجها.
   trackingTokenBaseUrl: TRACKING_BASE,
-};
+});
 
 let sql: Sql;
 let cities: CityFixture[];

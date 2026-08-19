@@ -14,12 +14,31 @@ const DEFAULT_HISTOGRAM_BUCKETS = [
 ] as const;
 
 export type TelegramOutcome = "handled" | "failed";
+
+/**
+ * أنواع الرسائل الصادرة إلى تيليجرام — تطابق منفذ `TelegramSender` حرفاً.
+ *
+ * ولماذا تُوسَم بالنوع لا تُجمع في عدّادٍ واحد؟ لأن حدّ تيليجرام ليس واحداً لكلّ
+ * الأنواع، وإرسال الصور أثقل من النصّ في الزمن والحمل، فجمعهما يطمر فرقاً
+ * يهمّ من يقيس السقف الخارجي.
+ */
+export type TelegramSendKind = "message" | "photo" | "location";
+
 export type WorkerOutcome = "success" | "failure" | "skipped_locked_elsewhere";
 
 export interface OperationalMetrics {
   readonly registry: PrometheusRegistry;
   recordTelegramUpdate(bot: "driver" | "rider", outcome: TelegramOutcome, durationMs: number): void;
   recordTelegramDuplicate(bot: "driver" | "rider"): void;
+  /**
+   * يُسجّل رسالةً واحدةً **خرجت إلى تيليجرام**، لا رسالةً قُرّرَ إرسالها.
+   *
+   * ولم يوجد هذا المقياس قبل المرحلة 2: النظام كان يقيس ما **يدخل** عليه من
+   * تحديثات، ولا يرى ما **يخرج** منه من رسائل. وهذا عمىٌ في أخطر موضع: الحدّ
+   * الخارجي الحاكم للمنصّة هو معدّل الإرسال لا معدّل الورود (حدّ بوت واحد من
+   * مرتبة عشرات الرسائل في الثانية)، فتخطيطُ السعة كان يجري على رقمٍ لا يُقاس.
+   */
+  recordTelegramMessageSent(bot: "driver" | "rider", kind: TelegramSendKind): void;
   recordDispatchRequest(): void;
   recordDispatchOffersSent(count: number): void;
   recordDispatchOfferAccepted(): void;
@@ -73,6 +92,12 @@ export function createOperationalMetrics(): OperationalMetrics {
     help: "زمن معالجة تحديث Telegram بعد قبوله.",
     labelNames: ["bot", "outcome"],
     buckets: DEFAULT_HISTOGRAM_BUCKETS,
+  });
+
+  registry.defineCounter({
+    name: "waslah_telegram_messages_sent_total",
+    help: "عدد الرسائل التي خرجت فعلاً إلى تيليجرام بحسب البوت ونوع الإرسال.",
+    labelNames: ["bot", "kind"],
   });
 
   registry.defineCounter({ name: "waslah_dispatch_requests_total", help: "عدد طلبات التوزيع." });
@@ -162,6 +187,8 @@ export function createOperationalMetrics(): OperationalMetrics {
     },
     recordTelegramDuplicate: (bot) =>
       registry.increment("waslah_telegram_webhook_duplicates_total", { bot }),
+    recordTelegramMessageSent: (bot, kind) =>
+      registry.increment("waslah_telegram_messages_sent_total", { bot, kind }),
     recordDispatchRequest: () => registry.increment("waslah_dispatch_requests_total"),
     recordDispatchOffersSent: (count) =>
       registry.increment("waslah_dispatch_offers_sent_total", {}, integralCount(count)),

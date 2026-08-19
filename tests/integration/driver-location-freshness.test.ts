@@ -36,8 +36,8 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import { createDriverCandidateRepository } from "../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createSettingsRepository } from "../../packages/infrastructure/policy/settings-repository.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
-import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import type { CityId } from "../../packages/shared/kernel/index.ts";
+import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -50,35 +50,11 @@ const DROPOFF = { latitude: 21.5551, longitude: 39.1902 };
 /** على بُعد نحو ٤٥٠ متراً من نقطة الالتقاط: داخل نصف القطر بلا لبس. */
 const DRIVER_AT = { latitude: 21.5471, longitude: 39.1751 };
 
-const config: AppConfig = {
-  env: "test",
+const config: AppConfig = testConfig({
   port: 3998,
-  supabaseUrl: "https://local.test.supabase.co",
-  databaseUrl: DATABASE_URL ?? "postgres://invalid",
-  supabaseServiceKey: "local-test",
-  redisUrl: "http://localhost",
-  redisToken: "local-test",
-  sessionStore: "memory",
-  driverBotToken: "driver-token",
-  riderBotToken: "rider-token",
   telegramWebhookSecret: WEBHOOK_SECRET,
   bootstrapAdminTelegramId: String(ADMIN_TELEGRAM),
-  translationProvider: "none" as const,
-  translationApiKey: null,
-  translationContactEmail: null,
-  runWorkerInGateway: false,
-  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
-  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
-  mapProvider: "none",
-  mapStyleUrl: null,
-  mapTilesPublicKey: null,
-  maplibreSri: null,
-  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
-  routingProvider: "none",
-  osrmBaseUrl: null,
-  tracking: NO_TRACKING_OVERRIDES,
-  trackingTokenBaseUrl: null,
-};
+});
 
 let sql: Sql;
 let app: ReturnType<typeof createServer>;
