@@ -1,0 +1,58 @@
+# مصالحةُ تاريخٍ ثانية — دمج main في feat/system-state-baseline بعد دمج #1 و#12 بـsquash (2026-08-19)
+
+## التشخيص (أوامرٌ ونتائجُها)
+$ git log --oneline 562b129..origin/main
+e5ac705 Feat/system state baseline (#12)
+6b0ab7b docs(phase-0): baseline audit — evidence-based capability inventory (#1)
+
+$ git diff --name-only 45818e1 origin/main   # شجرةُ main تساوي 45818e1 إلا ملفَّ PR #1
+docs/production-readiness/PHASE-0-BASELINE.md
+
+$ git diff --name-status e64b37b origin/main  # ما ينقص main: كلُّ وحدة 2-5
+M	bench/README.md
+D	bench/negative-control.ts
+D	bench/run-scenarios.ts
+D	bench/scenarios/catalog/contended-accept.ts
+D	bench/scenarios/catalog/driver-onboarding.ts
+D	bench/scenarios/catalog/ride-dispatch.ts
+D	bench/scenarios/catalog/support.ts
+D	bench/scenarios/contract.ts
+D	bench/scenarios/harness.ts
+D	bench/scenarios/metrics-text.ts
+D	bench/scenarios/runner.ts
+D	bench/scenarios/updates.ts
+M	biome.json
+M	docs/SYSTEM_STATE.md
+D	docs/evidence/phase2-unit5-20260819-checks.txt
+D	docs/evidence/phase2-unit5-20260819-negative-control.txt
+D	docs/evidence/phase2-unit5-20260819-scenarios.json
+D	docs/evidence/phase2-unit5-20260819-scenarios.txt
+M	docs/production-readiness/PHASE-0-BASELINE.md
+D	tests/unit/bench-scenario-contract.test.ts
+
+$ git diff origin/main -- docs/production-readiness/PHASE-0-BASELINE.md | wc -l   # صفر ⇒ إضافاتُ PR #1 محفوظةٌ كاملة
+0
+
+## البوّابات بعد الحلّ
+$ bun run typecheck
+$ tsc --noEmit
+$ bun run lint
+Checked 780 files in 1181ms. No fixes applied.
+Found 41 infos.
+$ for f in scripts/check-*.ts
+check-agent-core-isolation.ts: OK
+check-business-constants.ts: OK
+check-env-drift.ts: OK
+check-i18n.ts: OK
+check-map-matching-scope.ts: OK
+check-migrations.ts: OK
+check-schema-contract.ts: OK
+check-test-city-activation.ts: OK
+check-test-container-lifecycle.ts: OK
+
+$ TEST_DATABASE_URL=… CI_REQUIRE_DB=1 BENCH_DATABASE_URL=… bun test
+
+ 1862 pass
+ 0 fail
+ 7117 expect() calls
+Ran 1862 tests across 149 files. [196.13s]
