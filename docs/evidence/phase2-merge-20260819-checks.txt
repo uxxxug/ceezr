@@ -1,0 +1,28 @@
+# فحوصُ فرع feat/system-state-baseline بعد دمج main فيه (حلُّ تعارض PR #12)
+# التاريخ: 2026-08-19T01:29:22Z
+# شجرةُ الدمج مطابقةٌ لشجرة 2ea7a0b: git diff --stat 2ea7a0b فارغ (لا فقدانَ محتوى)
+# البيئة: TEST_DATABASE_URL + CI_REQUIRE_DB=1 + BENCH_DATABASE_URL ⇒ بلا تخطٍّ
+## typecheck
+$ tsc --noEmit
+exit=0
+## lint
+Diagnostics not shown: 21.
+Checked 755 files in 1106ms. No fixes applied.
+Found 41 infos.
+## الحرّاس
+PASS check-business-constants
+PASS check-migrations
+PASS check-env-drift
+PASS check-agent-core-isolation
+PASS check-i18n
+PASS check-map-matching-scope
+PASS check-test-city-activation
+PASS check-test-container-lifecycle
+PASS check-schema-contract
+## bun test
+(pass) الفحص الهجومي الفعلي: ويبهوك ودخول وقاعدة > دور anon لا يقرأ أي جدول من جداول التطبيق ولا ينفذ أية دالة مملوكة [6.21ms]
+
+ 1821 pass
+ 0 fail
+ 7046 expect() calls
+Ran 1821 tests across 147 files. [193.60s]

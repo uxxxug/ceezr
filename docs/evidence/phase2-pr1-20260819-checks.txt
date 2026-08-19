@@ -1,0 +1,18 @@
+# فحوصُ فرع production-hardening بعد حلّ تعارض PR #1 — commit 73fdfec
+# التاريخ: 2026-08-19T01:23:55Z — TEST_DATABASE_URL مُعيَّن، CI_REQUIRE_DB=1
+## typecheck
+$ tsc --noEmit
+exit=0
+## lint
+Diagnostics not shown: 19.
+Checked 742 files in 1093ms. No fixes applied.
+Found 39 infos.
+## bun test
+(pass) الفحص الهجومي الفعلي: ويبهوك ودخول وقاعدة > حدث مزوّر بلا إثبات ربط بمعاملة محلية لا يُسجّل ولا يغيّر أي صف [0.96ms]
+(pass) الفحص الهجومي الفعلي: ويبهوك ودخول وقاعدة > POST خروج بلا CSRF لا يبطل جلسة مسؤول حقيقية [4.20ms]
+(pass) الفحص الهجومي الفعلي: ويبهوك ودخول وقاعدة > دور anon لا يقرأ أي جدول من جداول التطبيق ولا ينفذ أية دالة مملوكة [5.73ms]
+
+ 1772 pass
+ 0 fail
+ 6940 expect() calls
+Ran 1772 tests across 144 files. [193.67s]
