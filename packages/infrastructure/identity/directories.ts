@@ -15,6 +15,7 @@ import type {
   RegisterRiderInput,
   RiderDirectory,
   RiderProfile,
+  StoredLocationQuality,
 } from "../../application/bots/types.ts";
 import type { PortFailureError } from "../../application/ports/index.ts";
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
@@ -31,6 +32,27 @@ interface DriverRow {
   readonly verification_status: string;
   readonly is_available: boolean | null;
   readonly has_location: boolean;
+  readonly last_lat: number | null;
+  readonly last_lng: number | null;
+  readonly last_location_at_ms: string | null;
+}
+
+/**
+ * المرحلة ٥ — الإصلاحة السابقة تُقرأ من المصدر القانوني نفسه (ADR-0015) لا من
+ * ذاكرة داخل العملية. وهذا شرط أن يعمل تحقّق التتابع في المسار الحيّ: ذاكرةٌ
+ * محلّية تضيع بإعادة التشغيل ولا تُشارَك بين نسخ، فيصير كل انتقالٍ لحظيّ بعد
+ * إعادة نشرٍ غيرَ مكشوف. والقراءة هنا بلا كلفة: الصفّ مجلوب أصلاً.
+ *
+ * الثلاثة تُقرأ معاً أو لا تُقرأ: نقطةٌ بلا طابعٍ زمني لا تصلح أساساً لقياس
+ * إزاحة، وحسابُ السرعة على طابعٍ مفقود يُنتج قسمةً على صفر أو `NaN` صامتاً.
+ */
+function toLastFix(row: DriverRow): DriverProfile["lastFix"] {
+  if (row.last_lat === null || row.last_lng === null || row.last_location_at_ms === null) {
+    return null;
+  }
+  const recordedAtMs = Number(row.last_location_at_ms);
+  if (!Number.isFinite(recordedAtMs)) return null;
+  return { latitude: row.last_lat, longitude: row.last_lng, recordedAtMs };
 }
 
 function toDriverProfile(row: DriverRow): DriverProfile {
@@ -43,13 +65,17 @@ function toDriverProfile(row: DriverRow): DriverProfile {
     isVerified: row.verification_status === "verified",
     isAvailable: row.is_available === true,
     hasLocation: row.has_location,
+    lastFix: toLastFix(row),
   };
 }
 
 const DRIVER_SELECT = `
   select d.id as driver_id, d.city_id, u.telegram_id, u.full_name, u.phone,
          d.verification_status, a.is_available,
-         (d.last_location is not null) as has_location
+         (d.last_location is not null) as has_location,
+         st_y(d.last_location::geometry) as last_lat,
+         st_x(d.last_location::geometry) as last_lng,
+         (extract(epoch from d.last_location_recorded_at) * 1000)::bigint::text as last_location_at_ms
     from drivers d
     join users u on u.id = d.user_id
     left join driver_availability a on a.driver_id = d.id
@@ -126,13 +152,23 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
         }),
       ) as Promise<Result<DriverProfile, PortFailureError>>,
 
-    updateLocation: (driverId: DriverId, location: Coordinates) =>
+    /**
+     * الكاتب الوحيد لـ`drivers.last_location` — ADR-0015.
+     *
+     * الموضع وجودته يُكتبان في جملة واحدة: جملتان متتاليتان تتركان نافذةً تُقرأ
+     * فيها إحداثيةٌ جديدة مع حكمِ إحداثيةٍ قديمة — وهي أسوأ من غياب الحكم أصلاً،
+     * لأنّها تُلبِس إصلاحةً خشنةً شهادةَ دقّةٍ لإصلاحةٍ أخرى.
+     */
+    updateLocation: (driverId: DriverId, location: Coordinates, quality?: StoredLocationQuality) =>
       guard("drivers.updateLocation", async () => {
         await sql`
           update drivers
              set last_location = st_setsrid(
                    st_makepoint(${location.longitude}, ${location.latitude}), 4326)::geography,
                  last_location_at = now(),
+             last_location_recorded_at = ${quality?.recordedAtMs === undefined ? null : new Date(quality.recordedAtMs)},
+                 last_location_accuracy_m = ${quality?.accuracyMeters ?? null},
+                 last_location_quality = ${quality?.verdict ?? null},
                  updated_at = now()
            where id = ${driverId}
         `;

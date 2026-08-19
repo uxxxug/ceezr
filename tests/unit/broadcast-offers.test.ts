@@ -55,6 +55,7 @@ function driver(id: string, location: { latitude: number; longitude: number }): 
     status: "active",
     trialEndsAt: null,
     currentPeriodEnd: FUTURE,
+    cancelAtPeriodEnd: false,
   };
   return {
     driverId,

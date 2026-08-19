@@ -66,9 +66,12 @@ export async function subscribePlan(
     return err(new SubscriptionPaymentError(existing.error.detail));
   }
   if (existing.value !== null) {
+    // الرابط المحفوظ لا `null`: الضغطة الثانية على زرّ الاشتراك مسارٌ طبيعيّ لا
+    // خطأ، وإعادةُ معاملةٍ معلّقة بلا رابط كانت تسجن السائق بين معاملةٍ لا
+    // يستطيع دفعها ومفتاحٍ يمنع إنشاء غيرها.
     return ok({
       transactionId: existing.value.id,
-      checkoutUrl: null,
+      checkoutUrl: readCheckoutUrl(existing.value.metadata),
       status: existing.value.status,
     });
   }
@@ -94,13 +97,14 @@ export async function subscribePlan(
   if (created.value.alreadyExists) {
     return ok({
       transactionId: created.value.transaction.id,
-      checkoutUrl: null,
+      checkoutUrl: readCheckoutUrl(created.value.transaction.metadata),
       status: created.value.transaction.status,
     });
   }
 
   // بدء الدفع عند المزوّد — لا يُخزّن أي بيانات حسّاسة (البند 8.9).
   const charge = await deps.provider.chargeSubscription({
+    transactionId: created.value.transaction.id,
     driverId: input.driverId,
     amount: { amount: price.value.amount, currency: price.value.currency },
     purpose: "driver_subscription",
@@ -110,8 +114,20 @@ export async function subscribePlan(
     return err(new SubscriptionPaymentError(charge.error.detail));
   }
 
-  // تحديث معرّف المزوّد إن بدأ العملية فوراً.
+  // مرجع المزوّد يُحفظ قبل أيّ شيء آخر بعد الشحنة: من هنا وحده تصير الدفعة
+  // قابلةً للمراجعة لو ضاع الويبهوك. وفشل الحفظ لا يُسقط المحاولة — العملية
+  // بدأت عند المزوّد فعلاً، وحجب رابطها عن السائق بعدها يزيد الضرر ولا يدفعه.
   if (charge.value.providerTransactionId !== null) {
+    await deps.payments.recordProviderReference({
+      transactionId: created.value.transaction.id,
+      provider: deps.provider.name,
+      providerTransactionId: charge.value.providerTransactionId,
+    });
+  }
+
+  // لا تُؤكّد فاتورة الدفع المستضافة: معرّفها ليس معرّف الدفعة النهائي. المزوّد
+  // يعيد معرّف الدفعة وحالتها من خادمه عند الويبهوك فقط.
+  if (charge.value.providerTransactionId !== null && charge.value.status !== "pending") {
     const confirmed = await deps.payments.confirmPayment({
       transactionId: created.value.transaction.id,
       providerTransactionId: charge.value.providerTransactionId,
@@ -127,11 +143,29 @@ export async function subscribePlan(
     });
   }
 
+  // حفظ الرابط قبل إعادته: من هنا فقط تصير الضغطة الثانية قادرةً على استعادته.
+  // وفشلُ الحفظ لا يُسقط المحاولة — الفاتورة أُنشئت فعلاً وحجبُ رابطها عن السائق
+  // بعد إنشائها يجمع الضررين: لا دفع، ومفتاحٌ يمنع محاولةً أخرى.
+  let checkoutUrl = charge.value.checkoutUrl;
+  if (checkoutUrl !== null) {
+    const stored = await deps.payments.recordCheckoutUrl({
+      transactionId: created.value.transaction.id,
+      checkoutUrl,
+    });
+    if (stored.ok) checkoutUrl = stored.value.checkoutUrl;
+  }
+
   return ok({
     transactionId: created.value.transaction.id,
-    checkoutUrl: charge.value.checkoutUrl,
+    checkoutUrl,
     status: charge.value.status,
   });
+}
+
+/** يقرأ رابط الدفع المحفوظ من metadata، ولا يثق بنوعٍ غير نصّ. */
+function readCheckoutUrl(metadata: Readonly<Record<string, unknown>>): string | null {
+  const value = metadata.checkout_url;
+  return typeof value === "string" && value.length > 0 ? value : null;
 }
 
 export type { ChargeInitiation };

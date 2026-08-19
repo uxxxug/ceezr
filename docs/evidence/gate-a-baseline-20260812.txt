@@ -1,0 +1,23 @@
+=== دليل البوابة A: المستودع الفعلي والفرع ===
+$ git rev-parse HEAD
+5ac34459ccb0239240d2f0bf45826e450030aae0
+$ git rev-parse --abbrev-ref HEAD
+feat/final-launch-hardening
+$ git ls-files | wc -l
+779
+$ ls supabase/migrations/*.sql | wc -l
+31
+$ find tests -name '*.test.ts' | wc -l
+99
+$ grep -rl "هيكل فقط" --include="*.ts" . | wc -l
+246
+$ ls docs/adr/*.md | wc -l
+25
+
+=== بيئة التنفيذ ===
+$ bun --version
+1.3.14
+$ psql --version
+psql (PostgreSQL) 18.4
+$ psql -d waslah -tAc "select postgis_version()"
+3.6 USE_GEOS=1 USE_PROJ=1 USE_STATS=1

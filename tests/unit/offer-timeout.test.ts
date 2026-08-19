@@ -69,17 +69,28 @@ describe("secondsRemaining", () => {
 describe("driversToExclude", () => {
   const now = new Date("2026-08-06T12:00:30.000Z");
 
-  it("يستبعد الرافض والمنتهي والملغى", () => {
-    const offers = [
-      offer("rejecter", "rejected"),
-      offer("cancelled-one", "cancelled"),
-      offer("expired-one", "expired"),
-    ];
+  it("يستبعد الرافض والملغى استبعاداً دائماً", () => {
+    const offers = [offer("rejecter", "rejected"), offer("cancelled-one", "cancelled")];
     expect(driversToExclude(offers, TIMEOUT, now).map(String).sort()).toEqual([
       "cancelled-one",
-      "expired-one",
       "rejecter",
     ]);
+  });
+
+  /**
+   * المرحلة ١٤ — الصمتُ ليس رفضاً. كان `expired` يُستبعَد استبعاداً دائماً، فكانت
+   * هذه القاعدةُ تُناقض القاعدةَ التي تحتها («لا يستبعد من انتهت مهلته المعلَّقة»):
+   * السائقُ نفسه بالسلوك نفسه يُستبعَد أو لا يُستبعَد بحسب أَجَرَت مهمّةُ
+   * `expire-offers` شوطَها أم لا. وقيسَ الأثر: سائقٌ واحدٌ في المدينة تجاهل عرضاً
+   * فصار الطلبُ لا يُبَثّ إليه أبداً و`max_broadcast_rounds = 3` بلا معنى.
+   */
+  it("لا يستبعد من انتهت مهلته دائماً — الصمت ليس رفضاً فيعود مؤهّلاً لدورة جديدة", () => {
+    expect(driversToExclude([offer("silent", "expired")], TIMEOUT, now)).toEqual([]);
+  });
+
+  it("انتهاءُ المهلة لا يُنجّي من رفضٍ صريحٍ في دورةٍ أخرى", () => {
+    const offers = [offer("d1", "expired"), { ...offer("d1", "rejected"), round: 2 }];
+    expect(driversToExclude(offers, TIMEOUT, now)).toEqual(["d1" as DriverId]);
   });
 
   it("يستبعد من لديه عرض معلَّق ما زال سارياً — منعاً لعرضين على سائق واحد", () => {

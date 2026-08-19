@@ -29,6 +29,12 @@ export interface MenuItem {
  * يُدرج مع تنفيذه لا قبله.
  */
 export const DRIVER_MENU_ITEMS: readonly MenuItem[] = [
+  /**
+   * المرحلة ١٢ — «رحلتي» أوّلاً: السائق الذي في رحلةٍ هو أكثر من يفتح القائمة،
+   * وسؤاله الوحيد حينها «إلى أين؟». والزرّ يُدرَج الآن لا قبل الآن لأن `/trip`
+   * صار له مُعالِجٌ في الحوار — وهي قاعدة هذا الملفّ نفسها.
+   */
+  { key: "menu.driver.trip", command: "/trip" },
   { key: "menu.driver.available", command: "/available" },
   { key: "menu.driver.unavailable", command: "/unavailable" },
   { key: "menu.driver.subscription", command: "/subscription" },
@@ -37,6 +43,7 @@ export const DRIVER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.driver.area", command: "/area" },
   { key: "menu.driver.city", command: "/city" },
   { key: "menu.language", command: "/language" },
+  { key: "safety.menu_sos", command: "/sos" },
   { key: "menu.support", command: "/support" },
 ];
 
@@ -48,6 +55,7 @@ export const RIDER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.rider.city", command: "/city" },
   { key: "menu.rider.history", command: "/history" },
   { key: "menu.language", command: "/language" },
+  { key: "safety.menu_sos", command: "/sos" },
   { key: "menu.support", command: "/support" },
 ];
 

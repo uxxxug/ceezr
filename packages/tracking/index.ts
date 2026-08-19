@@ -1,10 +1,32 @@
+/**
+ * التحقّق من صحة GPS يُعاد تصديره من المجال ولا يُنفَّذ هنا.
+ * كان في هذه الطبقة `location-validator.ts` نسخة ثانية أضعف من التحقّق القائم
+ * في `domain/geo` — بلا فحص انتهاء ولا حدود — فحُذفت في المرحلة ٣ لصالح المصدر الواحد.
+ */
 export {
-  DEFAULT_VALIDATOR_CONFIG,
-  haversineMeters,
-  isSpeeding,
-  type ValidatorConfig,
-  validateGpsUpdate,
-} from "./location-validator.ts";
+  assessGpsFix,
+  DEFAULT_GPS_POLICY,
+  type GpsAssessment,
+  type GpsFinding,
+  type GpsFindingCode,
+  type GpsPolicy,
+  type GpsSeverity,
+  hasFinding,
+  type PreviousFix,
+  type RawGpsFix,
+  requireValidGpsFix,
+  type ValidatedGpsFix,
+} from "../domain/geo/gps-fix.ts";
+export { haversineKm } from "../domain/geo/index.ts";
+export { resolveGpsPolicy, resolveTrackingConfig } from "./config.ts";
+export {
+  extractBearerToken,
+  type TrackingAuthError,
+  type TrackingAuthResult,
+  type TrackingTokenPayload,
+  type TrackingTokenStore,
+  toAuthResult,
+} from "./tracking-auth.ts";
 export {
   type Clock,
   DEFAULT_TRACKING_CONFIG,
@@ -16,17 +38,10 @@ export {
 } from "./tracking-service.ts";
 export type {
   GpsUpdate,
+  SessionEndReason,
   TrackingEvent,
   TrackingEventType,
-  TrackingSession,
-  TrackingStatus,
+  TrackingSessionFacts,
+  TrackingSessionState,
   ValidationResult,
 } from "./types.ts";
-export {
-  extractBearerToken,
-  toAuthResult,
-  type TrackingAuthError,
-  type TrackingAuthResult,
-  type TrackingTokenPayload,
-  type TrackingTokenStore,
-} from "./tracking-auth.ts";

@@ -8,11 +8,16 @@
  * ملاحظات مستقبلية: عند وصول رموز البوتين يُستبدل المُرسِل الملتقِط بمُرسِل حقيقي في اختبار دخان واحد.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import {
+  createOperationalMetrics,
+  type OperationalMetrics,
+} from "../../packages/infrastructure/observability/index.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -41,11 +46,23 @@ const config: AppConfig = {
   translationApiKey: null,
   translationContactEmail: null,
   runWorkerInGateway: false,
+  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
+  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
+  mapProvider: "none",
+  mapStyleUrl: null,
+  mapTilesPublicKey: null,
+  maplibreSri: null,
+  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
+  routingProvider: "none",
+  osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 let sql: Sql;
 let app: ReturnType<typeof createServer>;
 let container: ReturnType<typeof buildContainer>;
+let metrics: OperationalMetrics;
 let driverSent: SentMessage[];
 let riderSent: SentMessage[];
 let cityId: string;
@@ -96,8 +113,20 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     cityId = id;
   });
 
+  /**
+   * إغلاقُ حاويةِ السيناريو عقب كلِّ اختبار لا مرّةً واحدةً في النهاية: الحاويةُ
+   * تُنشئ حوضَ اتّصالاتٍ خاصّاً بها، وبناؤها في `beforeEach` مع إغلاقٍ وحيدٍ في
+   * `afterAll` يُراكم أحواضاً بعددِ اختباراتِ الملفّ. القاعدةُ المحلّية كانت تحتمل
+   * التراكمَ بسعتها الأوسع، أمّا خدمةُ PostgreSQL في آلةِ التكامل فتقف عند حدّها
+   * الافتراضيّ فتردّ «sorry, too many clients already» — فيُخفق سربٌ من اختباراتٍ
+   * سليمةٍ لا علاقةَ لها بالعيب، ويُحوّل الحمرةَ إلى ضجيجٍ يُخفي الأعطالَ الحقيقية.
+   */
+  afterEach(async () => {
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
+  });
+
   afterAll(async () => {
-    await container.close();
     await sql.end({ timeout: 5 });
   });
 
@@ -117,9 +146,11 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     `;
     driverSent = [];
     riderSent = [];
+    metrics = createOperationalMetrics();
     container = buildContainer(config, {
       driverSender: capturing(driverSent),
       riderSender: capturing(riderSent),
+      metrics,
     });
     app = createServer({
       health: { now: () => new Date(), startedAt: new Date(), env: process.env },
@@ -295,7 +326,26 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     // 4) القبول يمرّ عبر claim_ride فيصير الطلب matched والعرض accepted
     driverSent.length = 0;
     await post("driver", callback(DRIVER_CHAT, `offer:accept:${order?.id}`));
-    expect(driverSent.map((m) => m.text)).toEqual([ar("driver.offer_accepted")]);
+    /**
+     * القبول صار يُنتج ثلاث رسائل لا واحدة: نصّ القبول، ثمّ بطاقة الرحلة، ثمّ
+     * دبّوس الموقع. وهذا هو مقصد المرحلة ١٢: السائق كان يُؤمَر بالتوجّه «إلى نقطة
+     * الانطلاق» بلا إحداثية ولا اسم. فتُثبَت البطاقة والدبّوس هنا صراحةً — لا
+     * يُتساهَل في وجودهما — كي لا يعود الصمت خِلسةً.
+     */
+    const acceptTexts = driverSent.filter((m) => m.location === undefined).map((m) => m.text);
+    expect(acceptTexts).toHaveLength(2);
+    expect(acceptTexts[0]).toBe(ar("driver.offer_accepted"));
+    const tripCard = acceptTexts[1] ?? "";
+    expect(tripCard).toContain(ar("driver.trip_header"));
+    expect(tripCard).toContain(ar("driver.trip_leg_to_pickup"));
+    // لا اسم لنقطة الانطلاق في هذا الطلب، فتُذكَر إحداثيتها لا نصٌّ مبهم
+    expect(tripCard).toContain(PICKUP.latitude.toFixed(4));
+    // ولا مقصد محدَّد في هذا المسار، فيُقال ذلك صراحةً بدل ادّعاء وجهة
+    expect(tripCard).toContain(ar("driver.trip_destination_unset"));
+
+    const pins = driverSent.filter((m) => m.location !== undefined);
+    expect(pins).toHaveLength(1);
+    expect(pins[0]?.location).toEqual(PICKUP);
 
     const afterClaim = await sql<{ status: string; assigned_driver_id: string | null }[]>`
       select status, assigned_driver_id from orders where id = ${order?.id ?? ""}
@@ -313,6 +363,22 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
       select action from audit_log where entity_id = ${order?.id ?? ""}
     `;
     expect(audit.map((row) => row.action)).toContain("order.claimed");
+
+    /**
+     * 6) العدّادات تحرّكت على هذا المسار نفسه — لا على مسارٍ اختباريّ موازٍ.
+     *
+     * محوّلات القياس كانت مكتوبةً وغير مركّبة في الحاويتين، ووحدةٌ غير مركّبة لا
+     * تعمل ولو كانت اختباراتها خضراء. فيُثبَت التركيب هنا حيث يمرّ الطلب الحقيقي:
+     * لو حُذف لفُّ المنفذ من `container.ts` سقط هذا التوكيد، وهو الغرض منه.
+     */
+    const rendered = metrics.registry.render();
+    const counter = (name: string): number => {
+      const match = new RegExp(`^${name}(?:\\{[^}]*\\})? ([0-9.]+)$`, "m").exec(rendered);
+      return match === null ? Number.NaN : Number(match[1]);
+    };
+    expect(counter("waslah_dispatch_requests_total")).toBe(1);
+    expect(counter("waslah_dispatch_offers_sent_total")).toBe(1);
+    expect(counter("waslah_dispatch_offers_accepted_total")).toBe(1);
   });
 
   it("لا يبثّ على سائق غير متاح، ويبقى الطلب في البحث بلا عرض", async () => {
@@ -379,10 +445,14 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     expect(secondResponse.status).toBe(200);
 
     // بصرف النظر عن ترتيب الوصول: ظافرٌ واحد ومحرومٌ واحد، لا أكثر ولا أقل.
-    const texts = driverSent.map((m) => m.text);
-    expect(texts).toHaveLength(2);
+    const texts = driverSent.filter((m) => m.location === undefined).map((m) => m.text);
+    // ظافرٌ واحد (قبول + بطاقة) ومحرومٌ واحد (الطلب أُخِذ)
+    expect(texts).toHaveLength(3);
     expect(texts.filter((t) => t === ar("driver.offer_accepted"))).toHaveLength(1);
     expect(texts.filter((t) => t === ar("driver.offer_taken"))).toHaveLength(1);
+    // البطاقة تُرسَل للظافر وحده: لا رؤية عبر الرحلات (المرحلة ١)
+    expect(texts.filter((t) => t.includes(ar("driver.trip_header")))).toHaveLength(1);
+    expect(driverSent.filter((m) => m.location !== undefined)).toHaveLength(1);
 
     const finalOffers = await sql<{ driver_id: string; status: string }[]>`
       select driver_id, status from order_offers
@@ -459,7 +529,9 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
   });
 
   it("لا يعرض مدينة غير مفعَّلة على أي مستخدم", async () => {
-    await sql`update cities set is_active = false where id = ${cityId}`;
+    // نُطفئ المدنَ جميعاً لا مدينةَ السيناريو وحدَها: المقصودُ «لا مدينةَ مفعَّلة»،
+    // وإطفاءُ واحدةٍ يجعل النتيجةَ رهنَ بقيّةِ صفوفِ الجدول لا رهنَ سلوكِ المنتَج.
+    await sql`update cities set is_active = false`;
     driverSent.length = 0;
     await post("driver", text(DRIVER_CHAT, "/start"));
     await post("driver", text(DRIVER_CHAT, "أحمد العمري"));

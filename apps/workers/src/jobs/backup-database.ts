@@ -1,10 +1,12 @@
 /**
- * الغرض: مهمّة النسخ الاحتياطي اليومي — تصدير القاعدة بـ pg_dump، ضغطه، رفعه إلى
- *   Google Drive، وتطبيق سياسة الاحتفاظ (حذف الأقدم بعد العدد المحدّد). ثم تسجيل
- *   النتيجة في جدول `db_backups` لتراها لوحة الإدارة بلا فحص يدويّ.
- * الحالة: منفّذ فعلياً — البند 7.
+ * الغرض: مهمّة النسخ الاحتياطي اليومي — تصدير القاعدة بأرشيف pg_dump قابل
+ *   للاستعادة، مع مرافق الأدوار، ورفعهما إلى التخزين ثم تسجيلهما كـ«غير متحقق».
+ * الحالة: منفّذ فعلياً — التحقق الدوري المنفصل يثبت الاستعادة قبل وصفها بالصالحة.
  * ينتمي إلى: apps/workers/src/jobs
- * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/container.ts (مهمّة عامّة لا لكل مدينة)
+ * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/container.ts (تُشغَّل مرّة واحدة لا لكل مدينة)
+ *   التشغيل واحد لأنّ pg_dump يفرّغ العنقود كلّه، لكنّ التسجيل صفٌّ لكل مدينة: الملف
+ *   الواحد يضمّ بيانات كل مدينة موجودة وقت أخذه، وهذه شهادةٌ صادقة لكل مدينة على حِدة
+ *   لا تكرارٌ زائد — وبها يحمل db_backups مدينةً حقيقية بلا استثناء من القاعدة 0.4.
  * ملاحظات مستقبلية: التردد يوميّ لا أقلّ (البند 7.2). الاحتفاظ بعدد محدود (افتراضيّ 14)
  *   لا زمن — لأن الامتلاء دالّةٌ في عدد الملفات لا في عمرها.
  */
@@ -36,6 +38,7 @@ export interface BackupOutcome {
   readonly remoteFileId?: string;
   readonly bytes?: number;
   readonly pruned?: number;
+  readonly backupRunId?: string;
 }
 
 export class BackupJobError {
@@ -49,30 +52,48 @@ export class BackupJobError {
  */
 export interface Dumper {
   dump(databaseUrl: string): Promise<Result<Uint8Array, BackupJobError>>;
+  /**
+   * مرفق الأدوار العام. اختياري لتبقى مزدوجات الاختبار القديمة صالحة؛ المنفذ
+   * الحقيقي يوفره دائماً، ومهمة التحقق ترفض النسخة التي لا يحمل سجلها المرافق.
+   */
+  dumpGlobals?(databaseUrl: string): Promise<Result<Uint8Array, BackupJobError>>;
 }
 
 /** منفذ pg_dump الحقيقيّ عبر Bun.spawn. */
 export function createPgDumper(): Dumper {
-  return {
-    dump: async (databaseUrl) => {
-      try {
-        const proc = Bun.spawn({
-          cmd: ["pg_dump", databaseUrl, "--no-owner", "--no-privileges", "--format=plain"],
-          stdout: "pipe",
-          stderr: "pipe",
-        });
-        const output = await new Response(proc.stdout).arrayBuffer();
-        const exitCode = await proc.exited;
-        if (exitCode !== 0) {
-          const stderr = await new Response(proc.stderr).text();
-          return err(new BackupJobError(`pg_dump فشل (خروج ${exitCode}): ${stderr}`));
-        }
-        return ok(new Uint8Array(output));
-      } catch (cause) {
-        const detail = cause instanceof Error ? cause.message : String(cause);
-        return err(new BackupJobError(`pg_dump غير متاح: ${detail}`));
+  const run = async (
+    command: readonly string[],
+    label: string,
+  ): Promise<Result<Uint8Array, BackupJobError>> => {
+    try {
+      const proc = Bun.spawn({ cmd: [...command], stdout: "pipe", stderr: "pipe" });
+      const [output, stderr, exitCode] = await Promise.all([
+        new Response(proc.stdout).arrayBuffer(),
+        new Response(proc.stderr).text(),
+        proc.exited,
+      ]);
+      if (exitCode !== 0) {
+        return err(new BackupJobError(`${label} فشل (خروج ${exitCode}): ${stderr}`));
       }
-    },
+      return ok(new Uint8Array(output));
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message : String(cause);
+      return err(new BackupJobError(`${label} غير متاح: ${detail}`));
+    }
+  };
+
+  return {
+    // الصيغة المخصصة تضغط داخلياً وتحفظ ترتيب الاستعادة؛ pg_restore يقرأها
+    // مباشرة بخلاف SQL+gzip الذي لا يثبت التنفيذ ولا يسمح بالتحقق البرمجي.
+    dump: (databaseUrl) =>
+      run(["pg_dump", databaseUrl, "--no-owner", "--format=custom"], "pg_dump"),
+    // لا كلمات مرور في مرافق الأدوار. الاستعادة التشغيلية للأدوار خطوة واعية
+    // منفصلة في runbook؛ التمرين يتحقق من وجود تعريفاتها فقط.
+    dumpGlobals: (databaseUrl) =>
+      run(
+        ["pg_dumpall", "--database", databaseUrl, "--globals-only", "--no-role-passwords"],
+        "pg_dumpall",
+      ),
   };
 }
 
@@ -97,7 +118,7 @@ export function selectForPruning(
 }
 
 /**
- * ينفّذ نسخة احتياطية كاملة: تصدير ← ضغط ← رفع ← احتفاظ ← تسجيل.
+ * ينفّذ نسخة احتياطية قابلة للاستعادة: أرشيف قاعدة ← مرافق أدوار ← رفع ← احتفاظ ← تسجيل.
  * أيّ فشل في الر steps السابقة للرفع لا يُسجَّل كنسخة فاشلة في القاعدة — فقط الرفع
  * والاحتفاظ يُسجّلان، لأنّ فشل التصدير عطلٌ تقنيّ يُظهره السجلّ لا عجز سياسة.
  */
@@ -116,7 +137,8 @@ export async function runDatabaseBackup(
 
   const now = deps.clock.now();
   const stamp = now.toISOString().replace(/[:.]/g, "-");
-  const name = `wasalah-backup-${stamp}.sql.gz`;
+  const name = `wasalah-backup-${stamp}.dump`;
+  const rolesName = `wasalah-backup-${stamp}.roles.sql`;
 
   const dumped = await dumper.dump(config.databaseUrl);
   if (!dumped.ok) {
@@ -124,13 +146,29 @@ export async function runDatabaseBackup(
     return err(dumped.error);
   }
 
-  const compressed = await gzip(dumped.value);
-  log("backup.dumped", { rawBytes: dumped.value.byteLength, gzippedBytes: compressed.byteLength });
+  log("backup.dumped", { archiveBytes: dumped.value.byteLength, format: "pg_dump_custom" });
 
-  const uploaded = await deps.storage.upload(name, compressed);
+  const uploaded = await deps.storage.upload(name, dumped.value);
   if (!uploaded.ok) {
     log("backup.upload_failed", { detail: uploaded.error.detail });
     return err(new BackupJobError(uploaded.error.detail));
+  }
+
+  let uploadedRoles: { remoteFileId: string; bytes: number } | null = null;
+  if (dumper.dumpGlobals !== undefined) {
+    const globals = await dumper.dumpGlobals(config.databaseUrl);
+    if (!globals.ok) {
+      log("backup.globals_failed", { detail: globals.error.detail });
+      return err(globals.error);
+    }
+    const roleUpload = await deps.storage.upload(rolesName, globals.value);
+    if (!roleUpload.ok) {
+      log("backup.globals_upload_failed", { detail: roleUpload.error.detail });
+      return err(new BackupJobError(roleUpload.error.detail));
+    }
+    uploadedRoles = { remoteFileId: roleUpload.value.remoteFileId, bytes: roleUpload.value.bytes };
+  } else {
+    log("backup.globals_missing", { detail: "المصدّر لا يوفر pg_dumpall؛ ستفشل مهمة التحقق" });
   }
 
   // الاحتفاظ: احذف الأقدم بعد العدد المحدّد.
@@ -147,23 +185,46 @@ export async function runDatabaseBackup(
     log("backup.list_failed", { detail: listed.error.detail });
   }
 
-  // تسجيل النسخة الناجحة في القاعدة لتراها لوحة الإدارة.
+  // تسجيل النسخة الناجحة في القاعدة لتراها لوحة الإدارة: صفٌّ لكل مدينة، بمعرّف
+  // تفريغٍ واحد يجمعها. عبارة insert…select واحدة، فالصفوف كلها تظهر معاً أو لا تظهر —
+  // لا حاجة إلى منطق تزامن في التطبيق، ولا إلى قائمة مدن مكتوبة في الكود.
+  //
+  // معرّف التفريغ يُولَّد هنا مرّة واحدة لا بـgen_random_uuid() داخل الـselect:
+  // تلك دالة متقلّبة (volatile) تُقََيّم لكل صفٍّ فتُعطي كل مدينة معرّفاً مختلفاً
+  // وتُبطِل الجمع الذي وُضِع لأجله — معرّف هويّة لا قيمة تجاريّة، فتوليده في التطبيق مقبول.
+  const backupRunId = crypto.randomUUID();
   try {
-    await deps.sql`
-      insert into db_backups (remote_file_id, file_name, bytes, status)
-      values (${uploaded.value.remoteFileId}, ${name}, ${uploaded.value.bytes}, 'success')
+    const inserted = await deps.sql`
+      insert into db_backups
+        (city_id, backup_run_id, remote_file_id, file_name, bytes, status,
+         role_remote_file_id, role_file_name, role_bytes, restore_verification_status)
+      select c.id, ${backupRunId}, ${uploaded.value.remoteFileId}, ${name}, ${uploaded.value.bytes}, 'success',
+             ${uploadedRoles?.remoteFileId ?? null}, ${uploadedRoles === null ? null : rolesName},
+             ${uploadedRoles?.bytes ?? null}, 'unverified'
+        from cities c
     `;
+    // قاعدة بلا مدن تعني ملفاً مرفوعاً لا تراه لوحة الإدارة. لا تُختلق له مدينة،
+    // ولا يُمرّ الصمت: يُسجّل صراحةً لأنّه خلل تهيئة لا حالة طبيعيّة.
+    if (inserted.count === 0) {
+      log("backup.record_no_cities", { fileName: name, backupRunId });
+    }
   } catch (cause) {
     // فشل التسجيل لا يُبطل النسخة: الملف مرفوع فعلاً. السجلّ يكشف الفقدان.
     log("backup.record_failed", { detail: cause instanceof Error ? cause.message : String(cause) });
   }
 
-  log("backup.uploaded", { remoteFileId: uploaded.value.remoteFileId, pruned });
+  log("backup.uploaded_unverified", {
+    remoteFileId: uploaded.value.remoteFileId,
+    backupRunId,
+    rolesAttached: uploadedRoles !== null,
+    pruned,
+  });
 
   return ok({
     status: "uploaded",
     remoteFileId: uploaded.value.remoteFileId,
     bytes: uploaded.value.bytes,
     pruned,
+    backupRunId,
   });
 }

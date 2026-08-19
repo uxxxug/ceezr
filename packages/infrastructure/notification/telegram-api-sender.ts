@@ -32,6 +32,16 @@ export interface TelegramSender {
     caption: string,
     markup: unknown,
   ): Promise<string | null>;
+  /**
+   * المرحلة ١٢ — دبّوس موقعٍ ثابت: نقطة انطلاقٍ أو مقصدٍ يفتحها السائق في
+   * تطبيق ملاحته بضغطة. ليست `live_period`: تلك للموقع المتحرّك ولها منفذها
+   * (`LiveLocationChannel`) وهي تخصّ خريطة العميل. ونقطةُ الرحلة لا تتحرّك،
+   * وبثّها حيّاً كان سيشغل رسالةً قابلةً للتعديل بلا شيء يُعدَّل فيها.
+   *
+   * ولماذا رسالةٌ منفصلة لا نصّ فيه إحداثيتان؟ لأن نصّ «21.5471, 39.1751» لا
+   * يفتح خريطةً ولا يُوجِّه سيّارة — يُنسَخ باليد إلى تطبيق آخر، وأثناء القيادة.
+   */
+  sendLocation(chatId: string, latitude: number, longitude: number): Promise<string | null>;
 }
 
 export function grammyTelegramSender(token: string): TelegramSender {
@@ -50,6 +60,10 @@ export function grammyTelegramSender(token: string): TelegramSender {
         caption,
         ...(markup === undefined ? {} : { reply_markup: markup as never }),
       });
+      return String(sent.message_id);
+    },
+    sendLocation: async (chatId, latitude, longitude) => {
+      const sent = await api.sendLocation(chatId, latitude, longitude);
       return String(sent.message_id);
     },
   };

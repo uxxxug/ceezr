@@ -43,7 +43,7 @@ await sql`
   insert into platform_settings (city_id, key, value, value_type, description_ar)
   values (
     ${cityId}, 'support_ticket_cooldown_seconds',
-    ${String(COOLDOWN_SECONDS)}::jsonb, 'number', 'مهلة تهدئة التذاكر — أداة سباق'
+    to_jsonb(${COOLDOWN_SECONDS}::int), 'number', 'مهلة تهدئة التذاكر — أداة سباق'
   )
   on conflict (city_id, key) do update set value = excluded.value
 `;

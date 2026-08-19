@@ -8,6 +8,12 @@
  */
 
 import {
+  assessGpsFix,
+  DEFAULT_GPS_POLICY,
+  type GpsPolicy,
+  type PreviousFix,
+} from "../../domain/geo/gps-fix.ts";
+import {
   type Coordinates,
   makeCoordinates,
   parseAreaLabel,
@@ -24,9 +30,15 @@ import {
   parseCitySettings,
   subscriptionPriceFor,
 } from "../../domain/policy/entity.ts";
-import { isSubscriptionLive, type SubscriptionPlan } from "../../domain/subscription/entity.ts";
+import {
+  isSubscriptionLive,
+  type Subscription,
+  type SubscriptionPlan,
+} from "../../domain/subscription/entity.ts";
+import type { RoutingProvider } from "../../maps/core/index.ts";
 import { t } from "../../shared/i18n/index.ts";
-import type { Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
+import type { CityId, Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
+import { ok } from "../../shared/result/index.ts";
 import {
   type RegisterUnsubscribedClaimDependencies,
   registerUnsubscribedClaim,
@@ -35,7 +47,25 @@ import {
   type RelayDependencies,
   relayNegotiationMessage,
 } from "../dispatch/relay-negotiation-message.ts";
-import type { DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import type { PaymentProvider, PaymentRepository } from "../financial/ports.ts";
+import { subscribePlan } from "../financial/subscribe-plan.ts";
+import type { ClaimRideResult, DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import {
+  type ResolveSafetyIncidentDeps,
+  resolveSafetyIncident,
+} from "../safety/resolve-safety-incident.ts";
+import { type TriggerSosDeps, triggerSos } from "../safety/trigger-sos.ts";
+import { cancelSubscription, resumeSubscription } from "../subscription/cancel-subscription.ts";
+import type { SubscriptionChangeRpcPort } from "../subscription/ports.ts";
+import { upgradePlan } from "../subscription/upgrade-plan.ts";
+import type { DriverTripCardReader, DriverTripKey } from "../tracking/driver-trip-card.ts";
+import { driverTripCard } from "../tracking/driver-trip-card.ts";
+import {
+  type IssueTrackingTokenDeps,
+  issueTrackingToken,
+} from "../tracking/issue-tracking-token.ts";
+import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
+import { driverTripPin, driverTripText } from "./driver-trip-reply.ts";
 import {
   handleLanguageCallback,
   handleLanguageCommand,
@@ -50,10 +80,12 @@ import {
 } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
 import {
+  type CounterpartNotifier,
   handleCompleteRide,
   handleRatingCallback,
   handleStartRide,
   type RatingDialogDependencies,
+  shortOrderId,
   startRideKeyboard,
 } from "./rating-dialog.ts";
 import {
@@ -64,6 +96,7 @@ import {
   startSupportDialog,
   submitSupportMessage,
 } from "./support-dialog.ts";
+import type { LocationQualityHints } from "./types.ts";
 import {
   type BotReply,
   type CityDirectory,
@@ -80,6 +113,7 @@ import {
   type SubscriptionReader,
   type TrialRpcPort,
 } from "./types.ts";
+import { waitingLine } from "./waiting-lines.ts";
 
 export interface DriverBotDependencies {
   readonly sessions: SessionStore;
@@ -91,6 +125,16 @@ export interface DriverBotDependencies {
   readonly dispatch: DispatchRpcPort;
   readonly offers: OfferDecisionPort;
   readonly clock: Clock;
+  /**
+   * حدود تقييم إصلاحة GPS النافذة. اختياريّ لا لأنّ غيابه مقبولٌ في الإنتاج —
+   * الحاوية تُمرّره دائماً واختبارُ ربطٍ يُثبت ذلك — بل لأنّ اختبارات الحوار
+   * القائمة لا شأن لها بحدود الأجهزة، وغيابه يعني افتراض المجال لا سلوكاً ثانياً.
+   *
+   * وكان الموضع هنا يستدعي `DEFAULT_GPS_POLICY` مرمَّزاً، فمتغيّرات
+   * `TRACKING_*` المُعلَنة في `render.yaml` لم يكن لها أثرٌ على المسار الحيّ
+   * الوحيد للمواقع. هذا الحقل هو الطريق الذي تسلكه فعلاً.
+   */
+  readonly gpsPolicy?: GpsPolicy;
   /**
    * مسار قروب غير المشتركين (المرحلة 2.3). اختياري لأن الاختبارات القائمة
    * تختبر التسجيل والعروض وحدها؛ غيابه يعني أن أزرار القروب لا تُعالَج، لا أن تُعالَج خطأ.
@@ -104,6 +148,26 @@ export interface DriverBotDependencies {
    * يردّ «أمر غير معروف» بدل أن يفتح حواراً لا نهاية له.
    */
   readonly support?: SupportDialogDependencies;
+  /**
+   * المحاولةُ الفوريّة لإعادة عرض الطلبات الباحثة — المرحلة ١٤.
+   *
+   * القياسُ على قاعدةٍ حقيقية: سائقٌ موثَّقٌ متاحٌ بلا موقع، وراكبٌ يطلب فلا يجد
+   * أحداً. ثم يُرسل السائق موقعَه فيصير مؤهّلاً تماماً — ويُقال له «أنت الآن ظاهر
+   * للطلبات فعلاً» — والطلبُ الذي ينتظره يبقى بصفر عروضٍ إلى الأبد، لأنّ
+   * `broadcastOffers` لم تُنادَ إلّا عند إنشاء الطلب. فالرسالةُ كانت كذباً في حقّ
+   * راكبٍ ينتظر بالفعل، والسائقُ يظنّ نفسه عاملاً.
+   *
+   * ولماذا اختياريّ؟ بنفس منطق `negotiation` و`support`: غيابُه يعني أنّ الأرضيّة
+   * الدوريّة في العامل تتولّى الأمر بعد ثوانٍ، لا أنّ شيئاً يُعالَج خطأً. وهو
+   * اختياريٌّ كذلك حتى لا تُعاد بناءُ عشرات الاختبارات القائمة لتبعيّةٍ لا تمسّها.
+   *
+   * ولا يُعاد الوعدُ صادقاً بمجرّد وجود هذا المنفذ: البثُّ الفوريّ يجري **بعد**
+   * كتابة الموقع لا قبلها، فإن سقط لا يُفقَد شيءٌ — الأرضيّةُ الدوريّة شبكةُ أمانه.
+   */
+  readonly redispatch?: {
+    /** لا يرمي ولا يُعيد خطأً: إعادةُ العرض تحسينٌ لا شرطٌ لحفظ الموقع. */
+    onDriverBecameDispatchable(cityId: CityId): Promise<void>;
+  };
   /**
    * منح المسؤول الأول (§6.2ب من التوجيه). بلا هذا المسار لا توجد طريقة لتعيين
    * أول مسؤول في نظام كل صلاحياته في القاعدة، إلا تعديل صفّ يدوياً في الإنتاج.
@@ -121,6 +185,81 @@ export interface DriverBotDependencies {
   readonly bootstrapAdmin?: {
     readonly telegramId: string;
     grant(telegramId: string): Promise<unknown>;
+  };
+  /**
+   * المرحلة ٦ — النقل اللحظي. اختياري بنفس منطق ما قبله: غيابه يعني أن
+   * الموقع يُحفظ ولا يُبَثّ — لا أن حفظه يفشل.
+   *
+   * ولماذا اختياري والنقل اللحظي مطلوب في الإنتاج؟ لأنّ فرضه يوجب على كل
+   * اختبار حوار قائم أن يبني ناقلاً وجلساتٍ ليختبر زرّ تسجيل — فيصير تغيير مسار
+   * التتبّع موجباً لتعديل عشرات الاختبارات التي لا تمسّه. ووصله في الحاوية
+   * ثابتٌ ويحميه اختبار تكامل صريح على قاعدة حقيقية.
+   */
+  readonly tracking?: LiveTrackingPort;
+  /**
+   * المرحلة ١٢ — قارئ بطاقة الرحلة. اختياريٌّ بنفس منطق `rating` و`tracking`:
+   * غيابه يجعل `/trip` يردّ «أمر غير معروف» بدل أن يعرض بطاقةً فارغة، ويُبقي
+   * الاختبارات التي لا تقيس الرحلة على تهيئةٍ أصغر.
+   */
+  readonly tripCards?: DriverTripCardReader;
+  /**
+   * المرحلة ١٥ — مزوّد التوجيه لزمن الوصول. غيابه = لا سطرَ زمنٍ، ولا سطرَ
+   * فشلٍ أيضاً (`NOT_CONFIGURED` يُسكت عنه) — فالبطاقة تبقى كما كانت قبل المرحلة.
+   */
+  readonly routing?: RoutingProvider;
+  /**
+   * تغييرات الاشتراك — الإلغاء والتراجع عنه وترقية الخطّة (أمر المالك 2026-08-12).
+   *
+   * اختياريٌّ بنفس منطق `rating` و`tracking`: غيابه يعني أنّ أزرار التغيير لا
+   * تظهر في بطاقة `/subscription` أصلاً، لا أنّها تظهر ثمّ تفشل. ووصله في
+   * الحاوية ثابتٌ ويحميه اختبار تكامل على قاعدة حقيقية.
+   *
+   * ولماذا المنفذ الذرّي مباشرةً لا مستودعُ دفعٍ معه؟ لأنّ مسار الترقية
+   * المدفوعة في هذه المرحلة تحصيلٌ يدويّ عبر الدعم — لا مزوّد دفع مُعتمَد بعد
+   * (§1.3 من التوجيه) — فبطاقةُ الحوار تعرض الفرق المستحقّ من القاعدة نفسها
+   * ولا تُنشئ معاملةً لا سبيل لدفعها. والترقية داخل التجربة المجّانية تُطبَّق
+   * فوراً لأنّها بلا مقابل فعلاً.
+   */
+  readonly subscriptionChanges?: SubscriptionChangeRpcPort;
+  /**
+   * شراء الاشتراك المدفوع من داخل البوت — مسار البيع الذاتي.
+   *
+   * قبل هذا كانت بطاقة `/subscription` تعرض السعر ولا تعرض زرّاً واحداً للدفع:
+   * منصّةٌ كلّ دخلها اشتراكُ سائقٍ لم يكن فيها طريقٌ يسلكه السائق ليشترك، فكان
+   * الدخل كلّه معلّقاً على تدخّلٍ يدويّ من الدعم لكل سائقٍ على حدة.
+   *
+   * اختياريٌّ بنفس منطق `subscriptionChanges`: غيابه (لغياب أسرار المزوّد) يعني
+   * أنّ الزرّ لا يظهر أصلاً، لا أنّه يظهر ثمّ يفشل بعد أن يرفع توقّع السائق.
+   *
+   * ولا يُفعِّل البوت اشتراكاً أبداً: هو ينشئ المعاملة ويعطي رابط الدفع فقط.
+   * التفعيل حقُّ الويبهوك وحده بعد إعادة قراءة الدفعة من خادم المزوّد — وإلاّ
+   * كان زرٌّ في تلغرام كافياً لتفعيل اشتراكٍ لم يُدفع.
+   */
+  readonly subscriptionPurchase?: {
+    readonly payments: PaymentRepository;
+    readonly provider: PaymentProvider;
+  };
+  /**
+   * §4.2 — إخطار الراكب لحظة القبول، ومعه رابطُ التتبّع المؤقّت إن أُمكن.
+   *
+   * قبل هذا كان المسار المباشر (قبولٌ من زرّ العرض) يُخطِر السائق وحده: الراكب
+   * يبقى يرى «نبحث عن سائق» حتّى يضغط `/status` بنفسه — وسائقٌ واقفٌ عنده ولا
+   * يعلم. ومسارُ القروبات كان يُخطِر (`negotiation.agreed_rider`)، فالتفاوتُ بين
+   * المسارين كان عيباً لا اختلاف تصميم.
+   *
+   * اختياريٌّ بنفس منطق `rating` و`tracking`: غيابه يعني أنّ القبول يجري كما كان
+   * بلا إخطار، لا أنّه يفشل. و`links` اختياريٌّ داخله لأنّ الرابط يحتاج
+   * `TRACKING_TOKEN_BASE_URL`؛ فإن غاب وُصِل الإخطار بلا رابط — ولا يُوعَد بما لا
+   * يُمكن إنجازه.
+   */
+  readonly acceptNotice?: {
+    readonly counterpart: CounterpartNotifier;
+    readonly links?: IssueTrackingTokenDeps;
+  };
+  /** SOS: فتح من السائق وقرارات قروب الإسناد من بوت السائق الذي نشر البطاقة. */
+  readonly safety?: {
+    readonly trigger: TriggerSosDeps;
+    readonly resolutions: ResolveSafetyIncidentDeps;
   };
 }
 
@@ -211,6 +350,26 @@ function technicalFailure(sender: Sender, state: DialogState): readonly BotReply
   return [reply(sender, t(languageOf(state))("common.error_try_again"))];
 }
 
+/**
+ * رابطُ قروب غير المشتركين من إعدادات المدينة، أو `null` إن لم يُضبط بعد.
+ *
+ * لا يمرّ بـ`parseCitySettings` لأنّه ليس من سياسة التوزيع: إعدادٌ مبدئيٌّ
+ * (`is_provisional`) يملأه فريقُ المدينة، فلو دخل في السياسة المتحقّقة لأوقف حوارَ
+ * السائق كلّه في مدينةٍ لم تملأ رابطاً بعد.
+ */
+async function unsubscribedGroupLinkOf(
+  deps: DriverBotDependencies,
+  driver: DriverProfile,
+): Promise<string | null> {
+  const rows = await deps.settings.findByCity(driver.cityId);
+  if (!rows.ok) return null;
+  const row = rows.value.find((entry) => entry.key === "unsubscribed_drivers_group_link");
+  if (row === undefined) return null;
+  const raw = typeof row.value === "string" ? row.value : String(row.value ?? "");
+  const link = raw.trim();
+  return link === "" ? null : link;
+}
+
 async function citySettingsOf(
   deps: DriverBotDependencies,
   driver: DriverProfile,
@@ -240,7 +399,8 @@ export async function handleDriverUpdate(
     }
     return handlePhone(update.phone, sender, state, deps);
   }
-  if (update.kind === "location") return handleLocation(update.location, sender, state, deps);
+  if (update.kind === "location")
+    return handleLocation(update.location, sender, state, deps, update.quality);
   if (update.kind === "photo") {
     if (state.step === "awaiting_vehicle_photo") {
       return completeRegistration(update.fileId, sender, state, deps);
@@ -291,8 +451,18 @@ export async function handleDriverUpdate(
     case "awaiting_vehicle_photo":
       // نصٌّ حيث تُنتظر صورة: يُقال له إنه يحتاج صورة فعلية، لا "أمر غير معروف".
       return [reply(sender, t(languageOf(state))("driver.vehicle_photo_required"))];
-    case "awaiting_preferred_area_label":
+    case "awaiting_preferred_area_label": {
+      /**
+       * خطوة المنطقة المفضّلة **اختيارية ومفتوحة زمنياً**: التسجيل يتركه فيها
+       * ولا شيء يُخرجه منها إلّا تخطٍّ صريح. والتفاوض **إلزامي ومحدود بمهلة**.
+       * لو بقيت الأولوية للخطوة الاختيارية لابتلعت كل نصّ حرّ من سائق حديث
+       * التسجيل، فلا تصل رسالة تفاوض واحدة إلى العميل حتى تنتهي المهلة.
+       * لذلك: إن كان له دور تفاوض مفتوح فالنصّ له، وإلّا فهو اسم الحيّ كما كان.
+       */
+      const relayed = await relayIfNegotiating(text, sender, state, deps);
+      if (relayed !== null) return relayed;
       return handlePreferredAreaLabel(text, sender, state, deps);
+    }
     case "awaiting_preferred_area_location":
       // إحداثية مكتوبة يدوياً لا تُقبل: نقطة تلغرام مضمونة الشكل، والنصّ ليس كذلك
       return [
@@ -311,30 +481,37 @@ export async function handleDriverUpdate(
             state,
             deps.support,
           );
-    default:
+    default: {
       // قبل ردّ "أمر غير معروف": إن كان السائق طرفاً في تفاوض نشط، فهذا نصّ موجّه للعميل
-      return handleFreeText(text, sender, state, deps);
+      const relayed = await relayIfNegotiating(text, sender, state, deps);
+      return relayed ?? [reply(sender, t(languageOf(state))("common.unknown_command"))];
+    }
   }
 }
 
 /**
- * نصّ حرّ من سائق مسجّل وليس في خطوة حوار: يُمرّر للعميل إن كان دوره مفتوحاً.
+ * نصّ حرّ من سائق: يُمرّر للعميل إن كان دوره في التفاوض مفتوحاً.
+ *
+ * القيمة `null` تعني "لا تفاوض نشط لهذا السائق" — وهي إشارة للمنادي بأن يتصرّف
+ * في النصّ بمنطقه هو (اسم حيّ، أو ردّ "أمر غير معروف"). التمييز مقصود: الدالة
+ * لم تعد تفترض أن غياب التفاوض يساوي أمراً مجهولاً، لأنها صارت تُنادى من خطوة
+ * حوار قائمة أيضاً لا من الحالة الافتراضية وحدها.
  * من ليس طرفاً في تفاوض نشط لا تُمرّر رسالته — وهذا ما يمنع مخاطبة العميل خارج الدور.
  */
-async function handleFreeText(
+async function relayIfNegotiating(
   text: string,
   sender: Sender,
   state: DialogState,
   deps: DriverBotDependencies,
-): Promise<readonly BotReply[]> {
+): Promise<readonly BotReply[] | null> {
   const tr = t(languageOf(state));
   const negotiation = deps.negotiation;
-  if (negotiation === undefined) return [reply(sender, tr("common.unknown_command"))];
+  if (negotiation === undefined) return null;
 
   const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
   if (!found.ok) return technicalFailure(sender, state);
   const driver = found.value;
-  if (driver === null) return [reply(sender, tr("common.unknown_command"))];
+  if (driver === null) return null;
 
   const relayed = await relayNegotiationMessage(
     { from: "driver", driverId: driver.id, riderId: null, text },
@@ -344,7 +521,7 @@ async function handleFreeText(
 
   const report = relayed.value;
   if (report.reason === "NO_ACTIVE_NEGOTIATION" || report.reason === "EMPTY_MESSAGE") {
-    return [reply(sender, tr("common.unknown_command"))];
+    return null;
   }
   if (report.reason === "UNREACHABLE") {
     return [reply(sender, tr("negotiation.relay_unreachable"))];
@@ -492,6 +669,10 @@ async function handleCommand(
      */
     case "/help":
       return [
+        // الشرحُ قبل قائمةِ الأوامر: من يطلب المساعدة لا يعرف ماذا يفعل أصلاً، وقائمةُ
+        // أزرارٍ بلا شرحٍ تُخبره بما يستطيع الضغطَ عليه لا بما هو مطلوبٌ منه — وأكثرُ
+        // ما يُسقط سائقاً جديداً أنّه لا يعلم أنّ «متاح» شرطٌ لوصول الطلبات إليه.
+        reply(sender, tr("driver.guide")),
         reply(sender, tr("driver.help"), helpKeyboard("driver", languageOf(state))),
         reply(sender, tr("menu.hint"), menu(state)),
       ];
@@ -521,6 +702,16 @@ async function handleCommand(
       const applied = await deps.drivers.setAvailability(driver.id, goingAvailable);
       if (!applied.ok) return technicalFailure(sender, state);
 
+      /**
+       * المرحلة ١٢ — الخروج من الخدمة يُغلق جلسة التتبّع.
+       *
+       * وقبله كان السائق يضغط «أوقف استقبال الطلبات» فيُجاب «أوقفت»، وتبقى
+       * جلسته مفتوحةً في `tracking_sessions` فيُرى على خريطة العمليات حيّاً — والاستعلام
+       * يقرأ `ended_at is null` لا الإتاحة. والنداء **بعد** نجاح الكتابة لا قبلها:
+       * إغلاق جلسةٍ لخروجٍ لم يُكتب يُنزل السائق من الخريطة وهو في الخدمة فعلاً.
+       */
+      if (!goingAvailable) await deps.tracking?.onDutyEnded(driver.id);
+
       // لا نقول «أنت الآن متاح» لمن لا موقع له. استعلام المرشّحين يشترط
       // سبب رفض `NO_LOCATION` في الدومين، فسائقٌ متاحٌ بلا موقع لا تُحسَب له مسافة
       // فلا يُسنَد إليه شيء. وقد وقع هذا فعلاً في الإنتاج: سائق موثَّق ومتاح ومشترك،
@@ -537,7 +728,15 @@ async function handleCommand(
         replies.push(
           reply(
             sender,
-            tr(goingAvailable ? "driver.now_available" : "driver.now_unavailable"),
+            // الدخولُ إلى الخدمة لحظةُ انتظارٍ أيضاً: السائقُ ينتظر أوّل طلب. والبذرةُ
+            // معرّفُه مع الدقيقة فيختلف السطرُ بين نوبةٍ وأخرى ولا يثبت على جملةٍ واحدة.
+            goingAvailable
+              ? waitingLine(
+                  "driverAvailable",
+                  `${driver.id}:${Math.floor(Date.now() / 60000)}`,
+                  languageOf(state),
+                )
+              : tr("driver.now_unavailable"),
             menu(state),
           ),
         );
@@ -565,6 +764,30 @@ async function handleCommand(
       if (driver === null) return [reply(sender, tr("support.not_registered"), menu(state))];
       return startSupportDialog(sender, state, deps.support, { allowSubscriptionType: true });
     }
+    case "/sos": {
+      if (deps.safety === undefined || deps.tripCards === undefined) {
+        return [reply(sender, tr("common.unknown_command"))];
+      }
+      if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+      const trip = await deps.tripCards.cardOf({ driverId: driver.id });
+      if (trip === null) return [reply(sender, tr("safety.no_active_order"), menu(state))];
+      const raised = await triggerSos(
+        {
+          orderId: trip.trip.tripId,
+          actorTelegramId: sender.telegramUserId,
+          reporterRole: "driver",
+        },
+        deps.safety.trigger,
+      );
+      if (!raised.ok) return [reply(sender, tr("common.error_try_again"))];
+      return [
+        reply(
+          sender,
+          tr(raised.value.created ? "safety.sent" : "safety.already_sent"),
+          menu(state),
+        ),
+      ];
+    }
 
     case "/activate": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
@@ -576,15 +799,416 @@ async function handleCommand(
       return describeSubscription(sender, state, driver, deps);
     }
 
+    /**
+     * المرحلة ١٢ — `/trip`: أين أنا، وإلى أين، وكم بقي.
+     *
+     * قبله كان `/trip` و`/mytrip` و`/route` و`/map` كلّها تردّ «لم أفهم هذه
+     * الرسالة» — قياساً بمسبار تنفيذٍ لا استنتاجاً. فالسائق الذي نسي وسم
+     * الانطلاق لم يكن له سبيلٌ إلى استرجاعه إلا بالعودة إلى رسالةٍ قديمة في
+     * محادثةٍ تتحرّك، أو بمكالمة الراكب.
+     *
+     * ولا يُقرأ `driver.id` من رسالةٍ ولا من زرّ: القارئ يسأل «ما رحلة هذا
+     * السائق؟» فالعلاقة تُثبَت في الخادم (المرحلة ١).
+     */
+    case "/trip": {
+      if (deps.tripCards === undefined) return [reply(sender, tr("common.unknown_command"))];
+      if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+      return tripCardReplies(
+        sender,
+        state,
+        { driverId: driver.id },
+        deps.tripCards,
+        deps.routing ?? null,
+        menu(state),
+      );
+    }
+
     default:
       return [reply(sender, tr("common.unknown_command"))];
   }
+}
+
+/** أزرار قروب الإسناد: تسجل قرار إنسان فقط، ولا تتخذ أي قرار من محتوى الحادث. */
+async function handleSafetyGroupAction(
+  parts: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const [action, incidentId] = parts;
+  if (deps.safety === undefined || incidentId === undefined || incidentId === "") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const mapped =
+    action === "claim"
+      ? "claim"
+      : action === "close"
+        ? "close"
+        : action === "block"
+          ? "block_reporter"
+          : null;
+  if (mapped === null) return [reply(sender, tr("common.unknown_command"))];
+  const resolved = await resolveSafetyIncident(
+    { incidentId, actorTelegramId: sender.telegramUserId, action: mapped },
+    deps.safety.resolutions,
+  );
+  if (!resolved.ok) {
+    const key =
+      resolved.error.detail === "ACTOR_NOT_AUTHORIZED"
+        ? "safety.not_authorized"
+        : "safety.already_handled";
+    return [{ chatId: sender.telegramUserId, text: tr(key), keyboard: null }];
+  }
+  if (mapped === "claim")
+    return [reply(sender, tr("safety.claimed", { actor: sender.telegramUserId }))];
+  return [reply(sender, tr(mapped === "block_reporter" ? "safety.blocked" : "safety.closed"))];
 }
 
 async function liveSubscription(deps: DriverBotDependencies, driverId: DriverId) {
   const found = await deps.subscriptions.findLive(driverId);
   if (!found.ok || found.value === null) return null;
   return isSubscriptionLive(found.value, deps.clock.now()) ? found.value : null;
+}
+
+/**
+ * تاريخٌ لم تُعِده القاعدة لا يُخترع ولا يُترك فارغاً في نصٍّ يقرأه السائق:
+ * الشرطة تقول «غير معروف» بلا إيهامٍ بيومٍ بعينه.
+ */
+const UNKNOWN_DATE = "—";
+
+/** التاريخ يوماً واحداً بلا ساعة — الساعة تُوهم السائق بدقّةٍ لا تخدمه في قرارٍ يوميّ. */
+function dayOf(at: Date): string {
+  return at.toISOString().slice(0, 10);
+}
+
+/**
+ * أيّامٌ كاملةٌ باقية، بالتقريب لأعلى ولا تنزل تحت الصفر: «يتبقّى 0 أيام» أهدأُ من
+ * «يتبقّى -1»، والسائقُ الذي بقيت له ساعةٌ يقرأ «يوماً» لا «صفراً».
+ */
+function daysUntil(endsAt: Date, now: Date): number {
+  const remaining = endsAt.getTime() - now.getTime();
+  return remaining <= 0 ? 0 : Math.ceil(remaining / 86_400_000);
+}
+
+/**
+ * أزرار بطاقة الاشتراك. تُبنى من حالة الصفّ لا من ذاكرة الحوار: ما يُعرض على
+ * السائق هو ما في القاعدة لحظةَ العرض، فلا يظهر «إلغاء» لمن ألغى، ولا
+ * «ترقية» لمن هو على الخطّة الشاملة أصلاً.
+ */
+function subscriptionActionsKeyboard(
+  subscription: Subscription,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Keyboard | null {
+  if (deps.subscriptionChanges === undefined) return null;
+  const tr = t(languageOf(state));
+  const rows: { readonly label: string; readonly data: string }[][] = [];
+  // من طلب الإلغاء لا يُعرض عليه أن يزيد ما يدفع: يُقدَّم له التراجع أولاً،
+  // ثم تظهر الترقية في بطاقةٍ تالية. وعرضُ الاثنين معاً يبيع لمن يودّع.
+  if (subscription.plan !== "both" && !subscription.cancelAtPeriodEnd) {
+    rows.push([{ label: tr("driver.subscription_upgrade_button"), data: "sub:upgrade:both" }]);
+  }
+  rows.push(
+    subscription.cancelAtPeriodEnd
+      ? [{ label: tr("driver.subscription_resume_button"), data: "sub:resume" }]
+      : [{ label: tr("driver.subscription_cancel_button"), data: "sub:cancel" }],
+  );
+  return { kind: "inline", rows };
+}
+
+/**
+ * أزرار تغييرات الاشتراك — البادئة `sub`.
+ *
+ * ولا يُقرأ معرّف السائق من الزرّ ولا من نصّ الرسالة: العلاقة تُثبَت في الخادم
+ * من معرّف تلغرام، وإلا كان زرّاً منسوخاً كافياً لإلغاء اشتراك غيره.
+ */
+async function handleSubscriptionChange(
+  rest: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const changes = deps.subscriptionChanges;
+  const [action, ...tail] = rest;
+  // الشراء مستقلٌّ عن `subscriptionChanges`: منصّةٌ مركّبٌ فيها الدفع دون منفذ
+  // تغييرات الاشتراك كانت ستفقد البيع كلَّه لأجل تبعيّةٍ لا يحتاجها الشراء.
+  if (action !== "buy" && changes === undefined) {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+
+  const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
+  if (!found.ok) return technicalFailure(sender, state);
+  const driver = found.value;
+  if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+
+  if (action === "buy") {
+    return handleSubscriptionPurchase(tail[0], sender, state, driver, deps);
+  }
+  if (changes === undefined) return [reply(sender, tr("common.unknown_command"))];
+
+  switch (action) {
+    case "cancel":
+      return tail[0] === "yes"
+        ? confirmCancellation(sender, state, driver, changes, deps)
+        : askCancellationConfirmation(sender, state, driver, deps);
+    case "resume":
+      return applyResume(sender, state, driver, changes);
+    case "upgrade":
+      return handleUpgradeButton(tail, sender, state, driver, changes, deps);
+    default:
+      return [reply(sender, tr("common.unknown_command"))];
+  }
+}
+
+/**
+ * الإلغاء لا يقع بضغطةٍ واحدة: زرٌّ واحد بين السائق وبين توقّف رزقه خطرٌ لا
+ * يُبرّره اختصارُ خطوة، والخطوة الثانية تقول له بالنصّ ما يخسره ومتى.
+ */
+async function askCancellationConfirmation(
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const live = await liveSubscription(deps, driver.id);
+  const until = live === null ? null : (live.currentPeriodEnd ?? live.trialEndsAt);
+  if (until === null) {
+    return [reply(sender, tr("driver.subscription_change_no_live"), menu(state))];
+  }
+  return [
+    reply(sender, tr("driver.subscription_cancel_confirm", { until: dayOf(until) }), {
+      kind: "inline",
+      rows: [[{ label: tr("driver.subscription_cancel_confirm_button"), data: "sub:cancel:yes" }]],
+    }),
+  ];
+}
+
+async function confirmCancellation(
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  changes: SubscriptionChangeRpcPort,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const outcome = await cancelSubscription({ driverId: driver.id }, { changes });
+  if (!outcome.ok) {
+    return outcome.error.detail === "NO_LIVE_SUBSCRIPTION"
+      ? [reply(sender, tr("driver.subscription_change_no_live"), menu(state))]
+      : technicalFailure(sender, state);
+  }
+  const value = outcome.value;
+  // `serviceUntil` يكون فارغاً داخل التجربة المجّانية بلا دورة مدفوعة: يُقرأ
+  // حينها من نهاية التجربة، ولا يُخترع تاريخٌ لم تُعِده القاعدة.
+  const live = value.serviceUntil === null ? await liveSubscription(deps, driver.id) : null;
+  const until = value.serviceUntil ?? live?.trialEndsAt ?? null;
+  const params = { until: until === null ? UNKNOWN_DATE : dayOf(until) };
+  return [
+    reply(
+      sender,
+      value.alreadyCancelled
+        ? tr("driver.subscription_cancel_already", params)
+        : tr("driver.subscription_cancelled", params),
+      menu(state),
+    ),
+  ];
+}
+
+async function applyResume(
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  changes: SubscriptionChangeRpcPort,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const outcome = await resumeSubscription({ driverId: driver.id }, { changes });
+  if (!outcome.ok) {
+    return outcome.error.detail === "NO_LIVE_SUBSCRIPTION"
+      ? [reply(sender, tr("driver.subscription_change_no_live"), menu(state))]
+      : technicalFailure(sender, state);
+  }
+  return [
+    reply(
+      sender,
+      outcome.value.alreadyActive
+        ? tr("driver.subscription_resume_already")
+        : tr("driver.subscription_resumed"),
+      menu(state),
+    ),
+  ];
+}
+
+/**
+ * الترقية خطوتان: عرضُ سعرٍ يُقرأ من القاعدة، ثمّ تأكيد.
+ *
+ * والفرقُ المعروض لا يُحسب في هذه الطبقة أبداً: `plan_upgrade_quote` تقرأ
+ * `platform_settings`، فلا يختلف الرقمُ الذي يراه السائق عن الرقم الذي
+ * تتحقّق منه الترقية في القاعدة.
+ */
+async function handleUpgradeButton(
+  tail: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  changes: SubscriptionChangeRpcPort,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const confirmed = tail[0] === "confirm";
+  const planRaw = confirmed ? tail[1] : tail[0];
+  if (planRaw !== "both" && planRaw !== "transport" && planRaw !== "delivery") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const newPlan: SubscriptionPlan = planRaw;
+
+  const quoted = await changes.quoteUpgrade(driver.id, newPlan);
+  if (!quoted.ok) return technicalFailure(sender, state);
+  const quote = quoted.value;
+  if (!quote.ok) {
+    switch (quote.error) {
+      case "NO_LIVE_SUBSCRIPTION":
+        return [reply(sender, tr("driver.subscription_change_no_live"), menu(state))];
+      case "ALREADY_ON_PLAN":
+        return [
+          reply(sender, tr("driver.subscription_upgrade_already", { plan: newPlan }), menu(state)),
+        ];
+      case "PLAN_NOT_AN_UPGRADE":
+      case "UPGRADE_PRICE_NOT_HIGHER":
+        return [reply(sender, tr("driver.subscription_upgrade_not_available"), menu(state))];
+      default:
+        return technicalFailure(sender, state);
+    }
+  }
+
+  const until = quote.periodEnd === null ? UNKNOWN_DATE : dayOf(quote.periodEnd);
+
+  // المسار المدفوع. مزوّد الدفع مُركَّبٌ أو لا، وهذا هو الفرق:
+  //
+  //   • مُركَّب: يُنشأ طلب دفعٍ حقيقيّ عبر حالة الاستخدام `upgradePlan`، فيصل
+  //     السائق إلى رابط دفعٍ ويُطبَّق فرقُ الخطّة داخل `confirm_payment` نفسها.
+  //     وحالةُ الاستخدام هي المكان الوحيد الذي يُنشئ معاملةً ويستدعي المزوّد:
+  //     تكرارُ ذلك هنا كان سيصير مسارَ ترقيةٍ ثانياً بمفتاح إيدمبوتنسي مختلف،
+  //     وهو تحديداً ما يُنتج فاتورتين للترقية الواحدة.
+  //   • غير مُركَّب: يبقى النصّ صادقاً — تحصيلٌ يدويّ عبر الدعم. ولا تُنشأ
+  //     معاملةٌ معلّقة لا سبيل إلى دفعها فتبقى في القاعدة سجلّاً لا يُغلق.
+  if (quote.paymentRequired) {
+    const money = { amount: quote.amountDue, currency: quote.currency ?? "" };
+    const purchase = deps.subscriptionPurchase;
+    if (purchase === undefined) {
+      return [
+        reply(
+          sender,
+          tr("driver.subscription_upgrade_quote_paid", { plan: newPlan, ...money, until }),
+        ),
+        reply(sender, tr("driver.subscription_upgrade_manual_payment", money), menu(state)),
+      ];
+    }
+    // لا يُنشأ طلب دفعٍ بضغطةٍ واحدة: الفرق يُعرض أولاً ثم يُؤكَّد، كما في الإلغاء.
+    if (!confirmed) {
+      return [
+        reply(
+          sender,
+          tr("driver.subscription_upgrade_quote_paid", { plan: newPlan, ...money, until }),
+          {
+            kind: "inline",
+            rows: [
+              [
+                {
+                  label: tr("driver.subscription_upgrade_confirm_button"),
+                  data: `sub:upgrade:confirm:${newPlan}`,
+                },
+              ],
+            ],
+          },
+        ),
+      ];
+    }
+    const day = deps.clock.now().toISOString().slice(0, 10);
+    const outcome = await upgradePlan(
+      {
+        driverId: driver.id,
+        cityId: driver.cityId,
+        newPlan,
+        // مفتاحٌ على (السائق + الخطّة + اليوم) لا على وقتٍ لحظيّ: تلغرام يعيد
+        // إرسال التحديث نفسه عند تعثّر الشبكة، وضغطتان تُنتجان فرقين مستحقّين
+        // لترقيةٍ واحدة لو تغيّر المفتاح بينهما.
+        idempotencyKey: `driver_subscription_upgrade:${driver.id}:${newPlan}:${day}`,
+      },
+      { changes, payments: purchase.payments, provider: purchase.provider },
+    );
+    if (!outcome.ok) {
+      return outcome.error.detail === "ALREADY_ON_PLAN"
+        ? [reply(sender, tr("driver.subscription_upgrade_already", { plan: newPlan }), menu(state))]
+        : technicalFailure(sender, state);
+    }
+    // التجربة المجّانية قد تُطبَّق مباشرةً حتى في هذا الفرع لو تغيّرت الدورة بين
+    // العرض والتأكيد: تُقرأ النتيجة الفعليّة ولا يُفترض أنّها ما عُرض.
+    if (outcome.value.kind === "applied") {
+      const appliedUntil =
+        outcome.value.periodEnd === null ? until : dayOf(outcome.value.periodEnd);
+      return [
+        reply(
+          sender,
+          tr("driver.subscription_upgraded", { plan: outcome.value.plan, until: appliedUntil }),
+          menu(state),
+        ),
+      ];
+    }
+    if (outcome.value.checkoutUrl === null) {
+      return [reply(sender, tr("driver.subscription_checkout_pending"), menu(state))];
+    }
+    return [
+      reply(
+        sender,
+        tr("driver.subscription_upgrade_checkout", {
+          plan: newPlan,
+          amount: outcome.value.amountDue,
+          currency: outcome.value.currency,
+          url: outcome.value.checkoutUrl,
+        }),
+        menu(state),
+      ),
+    ];
+  }
+
+  // المسار المجّاني (التجربة): بلا مقابل فعلاً، فيُطبَّق ذرّياً بعد تأكيدٍ صريح.
+  if (!confirmed) {
+    return [
+      reply(sender, tr("driver.subscription_upgrade_quote_free", { plan: newPlan }), {
+        kind: "inline",
+        rows: [
+          [
+            {
+              label: tr("driver.subscription_upgrade_confirm_button"),
+              data: `sub:upgrade:confirm:${newPlan}`,
+            },
+          ],
+        ],
+      }),
+    ];
+  }
+
+  const applied = await changes.applyUpgrade(driver.id, newPlan, null);
+  if (!applied.ok) return technicalFailure(sender, state);
+  const value = applied.value;
+  if (!value.ok) {
+    return value.error === "ALREADY_ON_PLAN"
+      ? [reply(sender, tr("driver.subscription_upgrade_already", { plan: newPlan }), menu(state))]
+      : technicalFailure(sender, state);
+  }
+  // داخل التجربة لا `current_period_end`، فتاريخ الانتهاء المعروض هو نهاية
+  // التجربة كما أعادها عرض السعر — لا تاريخٌ يُخترع هنا.
+  const appliedUntil = value.periodEnd === null ? until : dayOf(value.periodEnd);
+  return [
+    reply(
+      sender,
+      tr("driver.subscription_upgraded", { plan: value.plan ?? newPlan, until: appliedUntil }),
+      menu(state),
+    ),
+  ];
 }
 
 async function describeSubscription(
@@ -598,18 +1222,68 @@ async function describeSubscription(
   if (!found.ok) return technicalFailure(sender, state);
 
   const subscription = found.value;
+
+  /**
+   * الشهرُ المجانيُّ ليس اشتراكاً، فلا يُعرَض بنصّه.
+   *
+   * البطاقةُ كانت تقول لصاحب التجربة «اشتراكك (transport) سارٍ حتى …» مع زرَّي
+   * إلغاءٍ وترقية، فيقرأ السائق أنّه دافعٌ مشترك، ثمّ يُفاجأ بعد شهرٍ بانقطاع
+   * الطلبات. ولا سبيلَ له إلى الدفع مبكّراً: زرُّ الشراء كان مشروطاً بغياب
+   * اشتراكٍ سارٍ، والتجربةُ سارية. فمن أراد أن يُطمئن نفسه قبل انتهاء شهره لم
+   * يجد زرّاً واحداً يفعل ذلك.
+   *
+   * والنصُّ يقول له صراحةً أنّ التفعيلَ المبكّر يُنهي ما بقي من أيّامه المجانية،
+   * لأنّ `activate_subscription` يبدأ مدّةً جديدة ولا يُضيفها إلى التجربة.
+   */
+  if (
+    subscription !== null &&
+    subscription.status === "trialing" &&
+    isSubscriptionLive(subscription, deps.clock.now())
+  ) {
+    const settings = await citySettingsOf(deps, driver);
+    if (settings === null) return technicalFailure(sender, state);
+    const endsAt = subscription.trialEndsAt ?? subscription.currentPeriodEnd;
+    const plan: SubscriptionPlan = subscription.plan;
+    return [
+      reply(
+        sender,
+        tr("driver.subscription_trial", {
+          days: endsAt === null ? 0 : daysUntil(endsAt, deps.clock.now()),
+          until: endsAt === null ? "" : dayOf(endsAt),
+          plan,
+          price: subscriptionPriceFor(settings, plan),
+          currency: settings.currency,
+        }),
+        deps.subscriptionPurchase === undefined
+          ? menu(state)
+          : {
+              kind: "inline",
+              rows: [
+                [
+                  {
+                    label: tr("driver.subscription_trial_activate_button"),
+                    data: `sub:buy:${plan}`,
+                  },
+                ],
+              ],
+            },
+      ),
+    ];
+  }
+
   if (
     subscription !== null &&
     subscription.currentPeriodEnd !== null &&
     isSubscriptionLive(subscription, deps.clock.now())
   ) {
+    const until = dayOf(subscription.currentPeriodEnd);
     return [
       reply(
         sender,
-        tr("driver.subscription_live", {
-          plan: subscription.plan,
-          until: subscription.currentPeriodEnd.toISOString().slice(0, 10),
-        }),
+        subscription.cancelAtPeriodEnd
+          ? tr("driver.subscription_cancel_pending", { plan: subscription.plan, until })
+          : tr("driver.subscription_live", { plan: subscription.plan, until }),
+        subscriptionActionsKeyboard(subscription, state, deps),
       ),
     ];
   }
@@ -618,14 +1292,117 @@ async function describeSubscription(
   if (settings === null) return technicalFailure(sender, state);
 
   const plan: SubscriptionPlan = subscription?.plan ?? "transport";
+  /**
+   * رابطُ قروب غير المشتركين يُلحَق متى كان مضبوطاً: إخبارُ السائق أنّ له
+   * طريقاً ثانياً ثمّ تركُه يبحث عن بابه إحالةٌ إلى لا شيء. ومتى لم يُضبط بعد
+   * فلا يُذكر سطرٌ فارغ: وعدٌ برابطٍ لا يوجد أسوأ من السكوت عنه.
+   */
+  const groupLink = await unsubscribedGroupLinkOf(deps, driver);
+  const body = tr("driver.subscription_none", {
+    plan,
+    price: subscriptionPriceFor(settings, plan),
+    currency: settings.currency,
+  });
   return [
     reply(
       sender,
-      tr("driver.subscription_none", {
+      groupLink === null
+        ? body
+        : `${body}\n\n${tr("driver.subscription_group_link", { link: groupLink })}`,
+      // الزرّ يظهر فقط عند تركيب مزوّد دفع: عرضُ «اشترك الآن» بلا مزوّد يحوّل
+      // بطاقةً صادقة إلى وعدٍ يفشل عند الضغط.
+      deps.subscriptionPurchase === undefined
+        ? null
+        : {
+            kind: "inline",
+            rows: [[{ label: tr("driver.subscription_buy_button"), data: `sub:buy:${plan}` }]],
+          },
+    ),
+  ];
+}
+
+/**
+ * شراء الاشتراك: ينشئ معاملة دفعٍ ويعيد رابط الدفع المستضاف. لا يُفعِّل شيئاً.
+ *
+ * ومفتاح الإيدمبوتنسي مبنيّ على (السائق + الخطّة + اليوم) لا على وقتٍ لحظيّ:
+ * ضغطتان متتاليتان — وتلغرام يعيد إرسال التحديث نفسه عند تعثّر الشبكة — كانتا
+ * ستُنشئان فاتورتين، ومن دفعهما يخسر شهراً كاملاً لأنّ `activate_subscription`
+ * يستبدل المدّة ولا يجمعها. ورابط الفاتورة الأولى محفوظٌ في المعاملة، فالضغطة
+ * الثانية تستعيده بدل أن تُصطدم بمعاملةٍ معلّقة لا سبيل إلى دفعها.
+ */
+async function handleSubscriptionPurchase(
+  requestedPlan: string | undefined,
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const purchase = deps.subscriptionPurchase;
+  if (purchase === undefined) return [reply(sender, tr("common.unknown_command"))];
+
+  // الخطّة لا تُقرأ من الزرّ إلا بعد التحقق منها: نصُّ الزرّ مُدخَلٌ من المستخدم.
+  const plan: SubscriptionPlan =
+    requestedPlan === "transport" || requestedPlan === "delivery" || requestedPlan === "both"
+      ? requestedPlan
+      : "transport";
+
+  // من له اشتراكٌ **مدفوعٌ** سارٍ لا يُبَع له اشتراكٌ ثانٍ: التفعيل يستبدل المدّة،
+  // فبيعُه اشتراكاً وهو مشترك يمحو ما بقي له من شهرٍ دفع ثمنه.
+  //
+  // أمّا صاحبُ الشهر المجاني فيُباع له: لا مالَ يُمحى، وحجبُ الشراء عنه كان يعني
+  // أنّ من أراد تأمين استمراره قبل انتهاء تجربته لا يجد إليه سبيلاً. والبطاقةُ
+  // تُخبره قبل الضغط أنّ التفعيل يُنهي أيّامَه المجانية الباقية.
+  const live = await deps.subscriptions.findLive(driver.id);
+  if (!live.ok) return technicalFailure(sender, state);
+  if (
+    live.value !== null &&
+    live.value.status !== "trialing" &&
+    isSubscriptionLive(live.value, deps.clock.now())
+  ) {
+    return describeSubscription(sender, state, driver, deps);
+  }
+
+  const settings = await citySettingsOf(deps, driver);
+  if (settings === null) return technicalFailure(sender, state);
+
+  const day = deps.clock.now().toISOString().slice(0, 10);
+  const outcome = await subscribePlan(
+    {
+      driverId: driver.id,
+      cityId: driver.cityId,
+      plan,
+      idempotencyKey: `driver_subscription:${driver.id}:${plan}:${day}`,
+    },
+    {
+      payments: purchase.payments,
+      provider: purchase.provider,
+      // السعر من `platform_settings` عبر المدينة لا من الكود، ويُحوَّل إلى الوحدة
+      // الصغرى: `Money.amount` بالهلّات، وتمرير 400 مباشرةً كان سيبيع اشتراكاً
+      // بأربعة ريالات.
+      priceReader: async () =>
+        ok({
+          amount: Math.round(subscriptionPriceFor(settings, plan) * 100),
+          currency: settings.currency,
+        }),
+    },
+  );
+
+  if (!outcome.ok) return technicalFailure(sender, state);
+  if (outcome.value.checkoutUrl === null) {
+    return [reply(sender, tr("driver.subscription_checkout_pending"), menu(state))];
+  }
+
+  return [
+    reply(
+      sender,
+      tr("driver.subscription_checkout", {
         plan,
         price: subscriptionPriceFor(settings, plan),
         currency: settings.currency,
+        url: outcome.value.checkoutUrl,
       }),
+      menu(state),
     ),
   ];
 }
@@ -742,6 +1519,9 @@ async function handleCallback(
       if (deps.rating === undefined) return [reply(sender, tr("common.unknown_command"))];
       return handleRatingCallback(data, sender, languageOf(state), deps.rating);
     }
+    // تغييرات الاشتراك: الإلغاء والتراجع عنه والترقية — أمر المالك 2026-08-12.
+    case "sub":
+      return handleSubscriptionChange(rest, sender, state, deps);
     case "sup": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
       const [action, ...tail] = rest;
@@ -750,6 +1530,8 @@ async function handleCallback(
       }
       return handleSupportGroupAction(rest, sender, state, deps.support);
     }
+    case "sos":
+      return handleSafetyGroupAction(rest, sender, state, deps);
     default:
       return [reply(sender, tr("common.unknown_command"))];
   }
@@ -1114,10 +1896,29 @@ async function handleOfferDecision(
   if (!claim.ok) return technicalFailure(sender, state);
 
   if (claim.value.claimed) {
+    // الراكب يُخطَر قبل بناء ردّ السائق، والفشل مبتلَعٌ داخل الدالّة فلا يمسّ إسناداً وقع.
+    await notifyRiderOfAcceptance(orderId, claim.value, deps);
     // زرّ البدء يخرج مع تأكيد القبول: السائق لا يحفظ معرّف الطلب ولا يُطلب منه كتابته
     const keyboard =
       deps.rating === undefined ? null : startRideKeyboard(String(orderId), languageOf(state));
-    return [reply(sender, tr("driver.offer_accepted"), keyboard)];
+    const confirmation = reply(sender, tr("driver.offer_accepted"), keyboard);
+    /**
+     * المرحلة ١٢ — التأكيد يبقى، وتُلحق به البطاقة. ولماذا لا يُدمجان في رسالة؟
+     * لأن زرّ «بدء الرحلة» مُعلَّقٌ على التأكيد، والدبّوس رسالةٌ منفصلة في تلغرام
+     * أصلاً — فدمجُهما كان سيُنتج رسالةً واحدة طويلة يختفي زرّها تحت الدبّوس.
+     *
+     * وإن غاب القارئ (تهيئةٌ لا تعرض الرحلات) بقي السلوك كما كان بحرفه: تأكيدٌ
+     * وزرّ. لا مسار جديد يُفرض على تركيبٍ لم يطلبه.
+     */
+    if (deps.tripCards === undefined) return [confirmation];
+    const card = await tripCardReplies(
+      sender,
+      state,
+      { driverId: driver.id },
+      deps.tripCards,
+      deps.routing ?? null,
+    );
+    return [confirmation, ...card];
   }
 
   const key =
@@ -1126,14 +1927,111 @@ async function handleOfferDecision(
 }
 
 /**
+ * §4.2 — إخطارُ الراكب بقبول سائق، بلغته هو، ومعه رابطُ تتبّعٍ مؤقّت إن أُمكن.
+ *
+ * لا تُلقي ولا تُعيد شيئاً: الإسناد وقع في القاعدة قبل هذه المكالمة، فإرجاعُ خطأٍ
+ * منها كان سيُري السائق «فشل القبول» وهو قد نجح — فيضغط ثانيةً فيُقال له «سبقك
+ * أحدهم» والرحلةُ رحلته. وفشلُ إصدار الرابط لا يمنع الإخطار نفسه: معرفةُ الراكب
+ * أنّ سائقاً قبِل أولى من خريطةٍ تتحرّك.
+ */
+async function notifyRiderOfAcceptance(
+  orderId: OrderId,
+  claim: ClaimRideResult,
+  deps: DriverBotDependencies,
+): Promise<void> {
+  const notice = deps.acceptNotice;
+  const rider = claim.rider;
+  if (notice === undefined || rider === null) return;
+  const tr = t(rider.languageCode);
+  const unknown = tr("tracking.unknown_value");
+  const text = tr("tracking.rider_matched", {
+    order: shortOrderId(String(orderId)),
+    driver: claim.driverName ?? unknown,
+    plate: claim.driverPlate ?? unknown,
+    vehicle: claim.driverVehicle ?? unknown,
+  });
+
+  const link = notice.links === undefined ? null : await issueLink(orderId, rider, notice.links);
+  const full = link === null ? text : `${text}\n\n${tr("tracking.rider_link", { url: link })}`;
+  /**
+   * الحاجزُ هنا لا في المحوّل وحده: `counterpartNotifier` الحيّ يبلع أعطالَه فعلاً،
+   * لكن الحوارَ لا يجوز أن يتّكل على أدبِ تركيبٍ بعينه — ومُخطِرٌ يُلقي في تركيبٍ
+   * آخر كان سيُري السائق «سبقك أحدهم» عن رحلةٍ صارت رحلته. اختبارٌ فعليّ أوقع هذا.
+   */
+  try {
+    await notice.counterpart.notify(rider.telegramId, full, null);
+  } catch {
+    // لا سبيلَ للتراجع ولا داعي: الإسنادُ نهائيّ، والراكب سيرى الحالة بـ`/status`.
+  }
+}
+
+/** إصدارٌ لا يُسقِط الإخطار: ما فشل يخرج `null` فيُرسل النصّ وحده. */
+async function issueLink(
+  orderId: OrderId,
+  rider: { readonly telegramId: string },
+  links: IssueTrackingTokenDeps,
+): Promise<string | null> {
+  const telegramId = Number(rider.telegramId);
+  if (!Number.isSafeInteger(telegramId)) return null;
+  const issued = await issueTrackingToken({ orderId, telegramId }, links);
+  return issued.ok ? issued.value.url : null;
+}
+
+/**
+ * المرحلة ١٢ — بطاقة الرحلة كردودٍ جاهزة للإرسال. تُستخدم في ثلاثة مواضع:
+ * `/trip`، وردّ قبول العرض، وردّ بدء الرحلة — بصيغةٍ واحدة لا ثلاث.
+ *
+ * وتُعيد مصفوفةً لأن «لا رحلة لك» ردٌّ واحد، والبطاقة ردٌّ واحد بدبّوس. ولا
+ * تُلقي عند غياب الرحلة: السائق الذي أنهى رحلته وضغط `/trip` ليس في حالة عطل.
+ */
+export async function tripCardReplies(
+  sender: Sender,
+  state: DialogState,
+  key: DriverTripKey,
+  cards: DriverTripCardReader,
+  routing: RoutingProvider | null,
+  keyboard: Keyboard | null = null,
+): Promise<BotReply[]> {
+  const tr = t(languageOf(state));
+  const card = await driverTripCard(key, { cards, routing });
+  if (card === null) return [reply(sender, tr("driver.trip_none"), keyboard)];
+  const { view, eta } = card;
+  const base = reply(sender, driverTripText(view, eta, tr), keyboard);
+  /**
+   * الحقل يُسقَط ولا يُمرَّر `undefined`: التركيب يعمل بـ`exactOptionalPropertyTypes`،
+   * فـ`mapPin: undefined` ليس كغياب `mapPin` — والمترجم أوقف هذا فعلاً.
+   */
+  const pin = driverTripPin(view, tr);
+  return [pin === undefined ? base : { ...base, mapPin: pin }];
+}
+
+/**
  * موقع السائق يُحفظ فوراً: بلا موقع لا مطابقة، ومع موقع قديم تكون المطابقة كاذبة.
  * السائق غير المسجَّل لا يُحفظ له موقع إطلاقاً.
  */
+/**
+ * المرحلة ٥ — الإصلاحة السابقة للمُقيِّم. كانت `null` ثابتةً في المرحلة ٤، وهو
+ * ما كان يُعطّل نصف المُقيِّم في المسار الحيّ: الإحداثيات والدقّة والزمن كانت
+ * تُفحص، أمّا الإزاحة والانتقال اللحظي والسرعة المحسوبة فلا — لأنّها كلّها
+ * تُقاس بين نقطتين، والثانية لم تكن تصل.
+ *
+ * وأثرُه العملي أن جهازاً مُزوَّراً يقفز مئتي كيلومتر بين رسالتين كان يمرّ
+ * بلا أثر، فتراه المطابقة سائقاً قريباً من الراكب وهو في مدينة أخرى.
+ */
+function previousFixOf(driver: DriverProfile): PreviousFix | null {
+  if (driver.lastFix === null) return null;
+  const coordinates = makeCoordinates(driver.lastFix.latitude, driver.lastFix.longitude);
+  // إحداثيةٌ محفوظةٌ فاسدة لا تُوقف الحاضر: تُهمَل كسابقةٍ فيُفحص الجديد وحده.
+  if (!coordinates.ok) return null;
+  return { coordinates: coordinates.value, recordedAtMs: driver.lastFix.recordedAtMs };
+}
+
 async function handleLocation(
   location: Coordinates,
   sender: Sender,
   state: DialogState,
   deps: DriverBotDependencies,
+  hints?: LocationQualityHints,
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
   const existing = await deps.drivers.findByTelegramId(sender.telegramUserId);
@@ -1141,8 +2039,28 @@ async function handleLocation(
   const driver = existing.value;
   if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
 
-  const coordinates = makeCoordinates(location.latitude, location.longitude);
-  if (!coordinates.ok) return [reply(sender, tr("driver.location_invalid"))];
+  /**
+   * المرحلة ٤ — المسار الحيّ صار يمرّ بمُقيِّم المجال لا بفحص الإحداثيات وحده.
+   *
+   * `makeCoordinates` تفحص الموضع ولا تفحص شيئاً سواه، فكانت إصلاحة بدقّة ثلاثة
+   * كيلومترات وأخرى بدقّة خمسة أمتار تُكتبان في القاعدة سواءً بسواء، ثم تقرؤهما
+   * المطابقة على أنهما نقطتان متساويتان في اليقين. والفصل هنا لا في المُقيِّم:
+   * المُقيِّم يحكم، وهذه الطبقة تُقرّر ماذا يُفعل بالحكم.
+   */
+  const assessment = assessGpsFix(
+    {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracyMeters: hints?.accuracyMeters,
+      headingDegrees: hints?.headingDegrees,
+      recordedAtMs: hints?.recordedAtMs ?? deps.clock.now().getTime(),
+    },
+    previousFixOf(driver),
+    deps.clock.now().getTime(),
+    deps.gpsPolicy ?? DEFAULT_GPS_POLICY,
+  );
+  if (assessment.fix === null) return [reply(sender, tr("driver.location_invalid"))];
+  const coordinates = { ok: true as const, value: assessment.fix.coordinates };
 
   /**
    * البند 2.4: موقعٌ يصل في خطوة المنطقة المفضّلة هو مركز المنطقة لا موقع العمل
@@ -1153,12 +2071,54 @@ async function handleLocation(
     return savePreferredArea(driver, coordinates.value, sender, state, deps);
   }
 
-  const saved = await deps.drivers.updateLocation(driver.id, coordinates.value);
+  /**
+   * الحكم يُخزَّن مع الموضع لا يُطرح: WARNING تعني موقعاً صحيحاً متدهوّراً، ورفضُه
+   * كان سيترك العمليات بلا شيء بدل أن يتركها بشيءٍ موسوم — وهو الاختيار الأسوأ
+   * حين يكون البديل أن يختفي السائق من الخريطة.
+   */
+  const saved = await deps.drivers.updateLocation(driver.id, coordinates.value, {
+    recordedAtMs: assessment.fix.recordedAtMs,
+    accuracyMeters: assessment.fix.accuracyMeters,
+    verdict: assessment.verdict === "REJECT" ? "ALERT" : assessment.verdict,
+  });
   if (!saved.ok) return technicalFailure(sender, state);
+
+  /**
+   * المرحلة ٦ — الجلسة والبثّ **بعد** استقرار الكتابة القانونية.
+   *
+   * وهذا هو ما كان ناقصاً فعلاً في المرحلة ٥ (الخطر R-15): الموقع كان يُكتب ولا
+   * جلسة تُفتح، فلا شيء يفصل سائقاً يبثّ الآن عن سائقٍ آخر موقعٍ له قبل يومين —
+   * وكلاهما صفٌّ في `drivers` له `last_location`.
+   *
+   * ولا `await` بلا حاجة؟ بل `await`: البثّ لا يرمي أصلاً (حاجزه داخله)، وتركُه
+   * بلا انتظار كان يعني وعداً معلّقاً بعد انتهاء الطلب — وفي بيئات الحوسبة
+   * الطرفية يُقتل ما لم يُنتظر، فيصير البثّ يعمل محلياً ويسقط في الإنتاج بلا أثر.
+   */
+  await deps.tracking?.onFix({
+    driverId: driver.id,
+    cityId: driver.cityId,
+    latitude: assessment.fix.coordinates.latitude,
+    longitude: assessment.fix.coordinates.longitude,
+    recordedAtMs: assessment.fix.recordedAtMs,
+    accuracyMeters: assessment.fix.accuracyMeters ?? null,
+    verdict: assessment.verdict === "REJECT" ? "ALERT" : assessment.verdict,
+    findings: assessment.findings.map((finding) => finding.code),
+  });
 
   // من كان متاحاً وينقصه الموقع فقد اكتملت شروطه الآن، فيُخبَر أنه صار ظاهراً
   // فعلاً — لا «حُفظ موقعك» وحدها، فهي لا تُعلمه أن الحجب عنه ارتفع.
   const becameLive = !driver.hasLocation && driver.isAvailable;
+
+  /**
+   * البثُّ الفوريّ هنا لا في العامل وحده، لأنّ الراكب ينتظر الآن: أرضيّةٌ دوريّةٌ كلّ
+   * عشرين ثانية تُصلح الإخفاق ولا تُصلح التجربة. والنداءُ **بعد** نجاح كتابة الموقع
+   * لا قبلها: بثٌّ لموقعٍ لم يُكتب يعرض الطلبَ على سائقٍ لا تُحسَب له مسافة.
+   *
+   * وهو معلّقٌ على الانتقال `becameLive` لا على كلّ تحديثِ موقع: السائقُ الحيُّ يُرسل
+   * موقعَه كلّ ثوانٍ، ومسحُ طلبات المدينة كلَّها عند كلّ نبضةٍ من كلّ سائقٍ حملٌ
+   * لا مقابلَ له — أمّا الانتقالُ فيقع مرّةً في الوردية.
+   */
+  if (becameLive) await deps.redispatch?.onDriverBecameDispatchable(driver.cityId);
   // كان `remove` هنا. ولوحة طلب الموقع تحلّ محلّ القائمة الدائمة مأموراً — تلغرام
   // لا يعرف لوحتي ردّ في وقت واحد. فحذفها بعدها يترك السائق بلا قائمة إلى أن يكتب
   // أمراً يدوياً — وهذا هو موضع الاسترداد الوحيد: أول رسالة بعد انتهاء الحاجة.

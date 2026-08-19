@@ -14,13 +14,16 @@
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "test": "bun test",
-    "ci": "bun run typecheck && bun run test",
+    "ci": "bun run lint && bun run typecheck && bun run scripts/check-business-constants.ts && bun run scripts/check-migrations.ts && bun run scripts/check-env-drift.ts && bun run scripts/check-agent-core-isolation.ts && bun run scripts/check-i18n.ts && bun run scripts/check-map-matching-scope.ts && bun run scripts/check-test-city-activation.ts && bun run scripts/check-test-container-lifecycle.ts && bun run scripts/check-schema-contract.ts && bash scripts/verify-container-build.sh && bun run test",
     "dev": "bun run --watch apps/gateway/src/index.ts",
     "start": "bun run apps/gateway/src/index.ts",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "test:integration": "bun test tests/integration",
-    "test:e2e": "bun test tests/e2e"
+    "test:e2e": "bun test tests/e2e",
+    "check:test-city-activation": "bun run scripts/check-test-city-activation.ts",
+    "check:test-container-lifecycle": "bun run scripts/check-test-container-lifecycle.ts",
+    "check:schema-contract": "bun run scripts/check-schema-contract.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",

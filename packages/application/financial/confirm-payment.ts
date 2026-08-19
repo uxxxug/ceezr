@@ -17,6 +17,9 @@ export interface ConfirmPaymentInput {
   readonly transactionId: PaymentTransactionId;
   readonly providerTransactionId: string;
   readonly newStatus: PaymentTransactionStatus;
+  /** مبلغ وعملة الدفعة من إعادة القراءة لدى مزوّد الدفع. */
+  readonly providerAmount: number;
+  readonly providerCurrency: string;
   /** معرّف حدث الويبهوك لمنع المعالجة المكررة. */
   readonly webhookEventId: string;
   readonly provider: string;
@@ -47,37 +50,30 @@ export async function confirmSubscriptionPayment(
   input: ConfirmPaymentInput,
   deps: ConfirmPaymentDeps,
 ): Promise<Result<ConfirmPaymentOutcome, WebhookConfirmationError>> {
-  // Idempotency: سجّل الحدث أولاً. إن كان مكرَّراً أوقف بلا معالجة.
-  const recorded = await deps.events.record(input.webhookEventId, input.provider, input.rawPayload);
-  if (!recorded.ok) {
-    return err(new WebhookConfirmationError(recorded.error.detail));
+  // RPC واحد يربط ادعاء الحدث بالتأكيد: لا سباق بين تسجيل حدثين وتفعيلين.
+  // لا يُسجل حدث مرفوض؛ فيبقى للمزوّد أن يعيد إرساله بعد إصلاح العطل المؤقت.
+  if (deps.payments.confirmWebhookPayment === undefined) {
+    return err(
+      new WebhookConfirmationError("PAYMENT_REPOSITORY_DOES_NOT_SUPPORT_VERIFIED_WEBHOOKS"),
+    );
   }
-  if (!recorded.value) {
-    // حدث مكرَّر — أعد حالة المعاملة الحالية بلا إعادة التأكيد.
-    const existing = await deps.payments.findById(input.transactionId);
-    if (!existing.ok) {
-      return err(new WebhookConfirmationError(existing.error.detail));
-    }
-    return ok({
-      transactionId: input.transactionId,
-      status: existing.value?.status ?? input.newStatus,
-      duplicate: true,
-    });
-  }
-
-  // تأكيد ذرّي: يحدّث الحالة + معرّف المزوّد + يُفعّل الاشتراك + دفتر الأستاذ.
-  const confirmed = await deps.payments.confirmPayment({
+  const confirmed = await deps.payments.confirmWebhookPayment({
     transactionId: input.transactionId,
     providerTransactionId: input.providerTransactionId,
     newStatus: input.newStatus,
+    providerAmount: input.providerAmount,
+    providerCurrency: input.providerCurrency,
+    provider: input.provider,
+    webhookEventId: input.webhookEventId,
+    rawPayload: input.rawPayload,
   });
   if (!confirmed.ok) {
     return err(new WebhookConfirmationError(confirmed.error.detail));
   }
 
   return ok({
-    transactionId: confirmed.value.id,
-    status: confirmed.value.status,
-    duplicate: false,
+    transactionId: confirmed.value.transaction.id,
+    status: confirmed.value.transaction.status,
+    duplicate: confirmed.value.duplicate,
   });
 }

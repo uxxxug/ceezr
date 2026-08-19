@@ -19,7 +19,9 @@ import {
 } from "../../packages/application/bots/main-menu.ts";
 import type { SupportDialogDependencies } from "../../packages/application/bots/support-dialog.ts";
 import type { IncomingUpdate, Sender } from "../../packages/application/bots/types.ts";
+import { waitingVariants } from "../../packages/application/bots/waiting-lines.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
+import type { PaymentTransactionId } from "../../packages/domain/financial/index.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
@@ -31,6 +33,7 @@ import {
   JEDDAH,
   MAKKAH,
   offerDecisionPort,
+  subscriptionChangePort,
   subscriptionReader,
   trialPort,
   verifiedDriver,
@@ -88,7 +91,15 @@ beforeEach(() => {
     dispatch: {
       claimRide: async (orderId, driverId) => {
         claims.push({ orderId, driverId });
-        return ok({ claimed: true, reason: null });
+        return ok({
+          claimed: true,
+          reason: null,
+          cityId: null,
+          rider: null,
+          driverName: null,
+          driverPlate: null,
+          driverVehicle: null,
+        });
       },
     },
     offers: offerDecisionPort(),
@@ -259,8 +270,9 @@ describe("التوافر", () => {
   it("يفعّل التوافر وينبّه إلى غياب الاشتراك", async () => {
     const verified = driverDirectory(verifiedDriver());
     const replies = await handleDriverUpdate(text("/available"), build({ drivers: verified }));
-    expect(replies.map((r) => r.text)).toEqual([
-      ar("driver.now_available"),
+    // سطرُ الدخول إلى الخدمة يتغيّر بين نوبةٍ وأخرى، فالمُثبَت أنّه من عائلته لا نصُّه
+    expect(waitingVariants("driverAvailable", "ar")).toContain(replies[0]?.text ?? "");
+    expect(replies.map((r) => r.text).slice(1)).toEqual([
       // البند 6.3: النصّ يسمّي الزرّ بنصّه الحقيقي لا بأمرٍ مكتوب على السائق أن يتعلّمه
       ar("driver.no_live_subscription", { subscription_button: ar("menu.driver.subscription") }),
     ]);
@@ -286,7 +298,8 @@ describe("التوافر", () => {
         subscriptions: subscriptionReader(live),
       }),
     );
-    expect(replies.map((r) => r.text)).toEqual([ar("driver.now_available")]);
+    expect(replies).toHaveLength(1);
+    expect(waitingVariants("driverAvailable", "ar")).toContain(replies[0]?.text ?? "");
   });
 
   /**
@@ -300,8 +313,10 @@ describe("التوافر", () => {
     const replies = await handleDriverUpdate(text("/available"), build({ drivers: noLocation }));
 
     const texts = replies.map((r) => r.text);
-    // الادّعاء الكاذب غائب
-    expect(texts).not.toContain(ar("driver.now_available"));
+    // الادّعاء الكاذب غائب — بأيّ صيغةٍ من صيغ «أنت متاح»
+    for (const line of waitingVariants("driverAvailable", "ar")) {
+      expect(texts).not.toContain(line);
+    }
     // والحقيقة حاضرة أوّلاً
     expect(texts[0]).toBe(ar("driver.available_needs_location"));
     expect(texts).toContain(ar("driver.ask_location"));
@@ -397,6 +412,174 @@ describe("الاشتراك", () => {
     expect(replies[0]?.text).toContain("199");
   });
 
+  /**
+   * البيع الذاتي — منصّةٌ كلّ دخلها اشتراكُ سائق كانت بطاقتُها تعرض السعر بلا زرٍّ
+   * واحدٍ للدفع، فكان الدخل معلّقاً على تدخّلٍ يدويّ لكل سائق.
+   */
+  describe("زرّ الشراء", () => {
+    function purchaseDouble(checkoutUrl: string | null = "https://pay.test/inv_1") {
+      const state = { charges: 0, confirms: 0, keys: [] as string[], amounts: [] as number[] };
+      const tx = {
+        id: "tx-buy" as PaymentTransactionId,
+        payerId: "driver-1" as DriverId,
+        payeeId: "platform" as const,
+        purpose: "driver_subscription" as const,
+        amount: { amount: 25_000, currency: "SAR" },
+        provider: "test-provider",
+        providerTransactionId: null,
+        status: "pending" as const,
+        metadata: {} as Record<string, unknown>,
+        createdAt: NOW,
+        updatedAt: NOW,
+      };
+      const stored: { url: string | null } = { url: null };
+      const payments = {
+        create: async (input: { amount: { amount: number }; idempotencyKey: string }) => {
+          state.keys.push(input.idempotencyKey);
+          state.amounts.push(input.amount.amount);
+          // المعاملة الثانية بنفس المفتاح موجودة سلفاً — كما تفعل create_payment.
+          const already = state.keys.filter((k) => k === input.idempotencyKey).length > 1;
+          return ok({
+            transaction: { ...tx, metadata: already ? { checkout_url: stored.url } : {} },
+            alreadyExists: already,
+          });
+        },
+        findById: async () => ok(null),
+        findByIdempotencyKey: async (key: string) =>
+          ok(state.keys.includes(key) ? { ...tx, metadata: { checkout_url: stored.url } } : null),
+        recordCheckoutUrl: async (input: { checkoutUrl: string }) => {
+          stored.url ??= input.checkoutUrl;
+          return ok({ checkoutUrl: stored.url });
+        },
+        confirmPayment: async () => {
+          state.confirms += 1;
+          return err(new PortFailureError("payments", "UNUSED"));
+        },
+      };
+      const provider = {
+        name: "test-provider",
+        chargeSubscription: async () => {
+          state.charges += 1;
+          return ok({ providerTransactionId: null, checkoutUrl, status: "pending" as const });
+        },
+        verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+        fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
+      };
+      return {
+        purchase: { payments, provider } as unknown as NonNullable<
+          DriverBotDependencies["subscriptionPurchase"]
+        >,
+        state,
+      };
+    }
+
+    it("لا يظهر زرّ الشراء بلا مزوّد دفع مركّب", async () => {
+      const replies = await handleDriverUpdate(
+        text("/subscription"),
+        build({ drivers: driverDirectory(verifiedDriver()) }),
+      );
+      expect(replies[0]?.keyboard ?? null).toBeNull();
+    });
+
+    it("يظهر زرّ الشراء عند تركيب المزوّد", async () => {
+      const { purchase } = purchaseDouble();
+      const replies = await handleDriverUpdate(
+        text("/subscription"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      expect(JSON.stringify(replies[0]?.keyboard)).toContain("sub:buy:transport");
+    });
+
+    it("يعيد رابط الدفع بالسعر المقروء من المدينة بالوحدة الصغرى", async () => {
+      const { purchase, state } = purchaseDouble();
+      const replies = await handleDriverUpdate(
+        callback("sub:buy:transport"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      expect(replies[0]?.text).toContain("https://pay.test/inv_1");
+      // ٢٥٠ ريالاً = ٢٥٠٠٠ هلّة؛ تمريرُ ٢٥٠ كان سيبيع اشتراكاً بريالين ونصف.
+      expect(state.amounts[0]).toBe(25_000);
+    });
+
+    it("لا يُفعِّل الاشتراك من البوت: لا تأكيد دفعٍ ولا اشتراكٌ سارٍ في الردّ", async () => {
+      const { purchase, state } = purchaseDouble();
+      const replies = await handleDriverUpdate(
+        callback("sub:buy:transport"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      // زرٌّ في تلغرام لا يجوز أن يكون كافياً لتأكيد دفعةٍ لم تُدفع: التأكيد حقُّ
+      // الويبهوك وحده بعد إعادة قراءة الدفعة من خادم المزوّد.
+      expect(state.confirms).toBe(0);
+      expect(replies[0]?.text).toBe(
+        ar("driver.subscription_checkout", {
+          plan: "transport",
+          price: 250,
+          currency: "SAR",
+          url: "https://pay.test/inv_1",
+        }),
+      );
+    });
+
+    /**
+     * الانحدار: ضغطتان — أو تحديثٌ يعيده تلغرام — كانتا ستُنشئان فاتورتين، ومن
+     * دفعهما يخسر شهراً لأنّ `activate_subscription` يستبدل المدّة ولا يجمعها.
+     */
+    it("ضغطتان لا تُنشئان إلا فاتورةً واحدة، والثانية تستعيد الرابط نفسه", async () => {
+      const { purchase, state } = purchaseDouble();
+      const deps2 = build({
+        drivers: driverDirectory(verifiedDriver()),
+        subscriptionPurchase: purchase,
+      });
+      const first = await handleDriverUpdate(callback("sub:buy:transport"), deps2);
+      const second = await handleDriverUpdate(callback("sub:buy:transport"), deps2);
+      expect(state.charges).toBe(1);
+      expect(new Set(state.keys).size).toBe(1);
+      expect(second[0]?.text).toContain("https://pay.test/inv_1");
+      expect(second[0]?.text).toBe(first[0]?.text);
+    });
+
+    it("لا يُبَع اشتراكٌ ثانٍ لمن اشتراكه سارٍ", async () => {
+      const { purchase, state } = purchaseDouble();
+      const live = {
+        driverId: "driver-1" as DriverId,
+        cityId: JEDDAH.id,
+        plan: "transport",
+        status: "active",
+        currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z"),
+      } as Subscription;
+      const replies = await handleDriverUpdate(
+        callback("sub:buy:transport"),
+        build({
+          drivers: driverDirectory(verifiedDriver()),
+          subscriptions: subscriptionReader(live),
+          subscriptionPurchase: purchase,
+        }),
+      );
+      expect(state.charges).toBe(0);
+      expect(replies[0]?.text).toBe(
+        ar("driver.subscription_live", { plan: "transport", until: "2026-09-01" }),
+      );
+    });
+
+    it("خطّة غير معروفة في الزرّ لا تُقرأ كما هي", async () => {
+      const { purchase, state } = purchaseDouble();
+      await handleDriverUpdate(
+        callback("sub:buy:__evil__"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      expect(state.keys[0]).toContain(":transport:");
+    });
+
+    it("غياب رابط الدفع يقول ذلك ولا يزعم نجاحاً", async () => {
+      const { purchase } = purchaseDouble(null);
+      const replies = await handleDriverUpdate(
+        callback("sub:buy:transport"),
+        build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
+      );
+      expect(replies[0]?.text).toBe(ar("driver.subscription_checkout_pending"));
+    });
+  });
+
   it("يعرض تاريخ نهاية الاشتراك السارِي", async () => {
     const live = {
       driverId: "driver-1" as DriverId,
@@ -433,7 +616,18 @@ describe("قبول ورفض العرض", () => {
       callback("offer:accept:order-77"),
       build({
         drivers: driverDirectory(verifiedDriver()),
-        dispatch: { claimRide: async () => ok({ claimed: false, reason: "already_claimed" }) },
+        dispatch: {
+          claimRide: async () =>
+            ok({
+              claimed: false,
+              reason: "already_claimed",
+              cityId: null,
+              rider: null,
+              driverName: null,
+              driverPlate: null,
+              driverVehicle: null,
+            }),
+        },
       }),
     );
     expect(replies[0]?.text).toBe(ar("driver.offer_taken"));
@@ -444,7 +638,18 @@ describe("قبول ورفض العرض", () => {
       callback("offer:accept:order-77"),
       build({
         drivers: driverDirectory(verifiedDriver()),
-        dispatch: { claimRide: async () => ok({ claimed: false, reason: "offer_expired" }) },
+        dispatch: {
+          claimRide: async () =>
+            ok({
+              claimed: false,
+              reason: "offer_expired",
+              cityId: null,
+              rider: null,
+              driverName: null,
+              driverPlate: null,
+              driverVehicle: null,
+            }),
+        },
       }),
     );
     expect(replies[0]?.text).toBe(ar("driver.offer_expired"));
@@ -531,7 +736,9 @@ describe("متانة الحوار", () => {
       text: "/help",
     };
     const replies = await handleDriverUpdate(english, deps);
-    expect(replies[0]?.text).toBe(translate("en", "driver.help"));
+    // الشرحُ أوّلاً ثم قائمةُ الأوامر — وكلاهما بلغة عميل تلغرام لا بالعربية
+    expect(replies[0]?.text).toBe(translate("en", "driver.guide"));
+    expect(replies[1]?.text).toBe(translate("en", "driver.help"));
   });
 
   it("يحفظ موقع السائق المسجَّل فعلاً", async () => {
@@ -664,10 +871,12 @@ describe("زرّ الدعم لا يغيب في أي حالة — بوت السا
 describe("لوحة /help — البند 6.3", () => {
   it("يعرض كل أوامر السائق أزراراً inline لا نصّاً", async () => {
     const replies = await handleDriverUpdate(text("/help"), build());
-    expect(replies).toHaveLength(2);
-    expect(replies[0]?.keyboard).toEqual(helpKeyboard("driver", "ar"));
+    expect(replies).toHaveLength(3);
+    // الردّ الأول شرحُ عمل البوت: من يطلب المساعدة يحتاج أن يعرف ما هو مطلوبٌ منه
+    expect(replies[0]?.text).toBe(ar("driver.guide"));
+    expect(replies[1]?.keyboard).toEqual(helpKeyboard("driver", "ar"));
 
-    const keyboard = replies[0]?.keyboard;
+    const keyboard = replies[1]?.keyboard;
     if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
     const labels = keyboard.rows.flat().map((button) => button.label);
     const data = keyboard.rows.flat().map((button) => button.data);
@@ -678,13 +887,13 @@ describe("لوحة /help — البند 6.3", () => {
     }
     expect(labels).toContain(ar("menu.support"));
     // ولا يعود النصّ قائمة أوامر مكتوبة
-    expect(replies[0]?.text).not.toContain("/available");
+    expect(replies[1]?.text).not.toContain("/available");
   });
 
   it("الردّ الثاني يُعيد تأكيد القائمة الدائمة لا يتركها للحظّ", async () => {
     const replies = await handleDriverUpdate(text("/help"), build());
-    expect(replies[1]?.text).toBe(ar("menu.hint"));
-    expect(replies[1]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+    expect(replies[2]?.text).toBe(ar("menu.hint"));
+    expect(replies[2]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
   });
 
   it("ضغط زرّ أمرٍ يمرّ بنفس موجّه الأوامر — /support يفتح الدعم", async () => {
@@ -812,5 +1021,442 @@ describe("المنطقة المفضّلة للسائق", () => {
   it("‏/area لغير المسجَّل يردّ بطلب التسجيل لا بفتح خطوة بلا صاحب", async () => {
     const opened = await handleDriverUpdate(text("/area"), deps);
     expect(opened[0]?.text).toBe(ar("driver.must_register_first"));
+  });
+});
+
+/**
+ * تغييرات الاشتراك من بطاقة `/subscription` — أمر المالك 2026-08-12.
+ *
+ * ولماذا اختبار الحوار وقد اختُبرت الدوالّ الذرّية على قاعدة حقيقية؟ لأنّ
+ * السائق لا يُنادي دالّةً: يضغط زرّاً. وبين الزرّ والدالّة أسئلةٌ لا تجيب عنها
+ * اختبارات القاعدة: أيظهر «إلغاء» لمن ألغى؟ أيقع الإلغاء بضغطةٍ واحدة؟
+ * أيُنشئ المسار المدفوع معاملةً لا سبيل لدفعها؟
+ */
+describe("تغييرات الاشتراك من بطاقة /subscription", () => {
+  const liveSub = (overrides: Partial<Subscription> = {}): Subscription => ({
+    driverId: "driver-1" as DriverId,
+    cityId: JEDDAH.id,
+    plan: "transport",
+    status: "active",
+    trialEndsAt: null,
+    currentPeriodEnd: new Date("2026-09-01T00:00:00.000Z"),
+    cancelAtPeriodEnd: false,
+    ...overrides,
+  });
+
+  function withChanges(
+    subscription: Subscription,
+    changes: ReturnType<typeof subscriptionChangePort>,
+  ): DriverBotDependencies {
+    return build({
+      drivers: driverDirectory(verifiedDriver()),
+      subscriptions: subscriptionReader(subscription),
+      subscriptionChanges: changes,
+    });
+  }
+
+  it("يعرض زرّي الترقية والإلغاء على اشتراك سارٍ غير مُلغى", async () => {
+    const replies = await handleDriverUpdate(
+      text("/subscription"),
+      withChanges(liveSub(), subscriptionChangePort()),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [{ label: ar("driver.subscription_upgrade_button"), data: "sub:upgrade:both" }],
+        [{ label: ar("driver.subscription_cancel_button"), data: "sub:cancel" }],
+      ],
+    });
+  });
+
+  it("لا يعرض زرّ ترقية لمن هو على الخطّة الشاملة", async () => {
+    const replies = await handleDriverUpdate(
+      text("/subscription"),
+      withChanges(liveSub({ plan: "both" }), subscriptionChangePort()),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [[{ label: ar("driver.subscription_cancel_button"), data: "sub:cancel" }]],
+    });
+  });
+
+  it("يعرض للمُلغي أنّ خدمته مستمرّة، وزرّ تراجعٍ لا زرّ إلغاءٍ ثانٍ", async () => {
+    const replies = await handleDriverUpdate(
+      text("/subscription"),
+      withChanges(liveSub({ cancelAtPeriodEnd: true }), subscriptionChangePort()),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_cancel_pending", { plan: "transport", until: "2026-09-01" }),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [[{ label: ar("driver.subscription_resume_button"), data: "sub:resume" }]],
+    });
+  });
+
+  it("بلا منفذ تغييرات: بطاقة بلا أزرار — لا زرٌّ يظهر ثمّ يفشل", async () => {
+    const replies = await handleDriverUpdate(
+      text("/subscription"),
+      build({
+        drivers: driverDirectory(verifiedDriver()),
+        subscriptions: subscriptionReader(liveSub()),
+      }),
+    );
+    expect(replies[0]?.keyboard).toBeNull();
+    const pressed = await handleDriverUpdate(
+      callback("sub:cancel"),
+      build({ drivers: driverDirectory(verifiedDriver()) }),
+    );
+    expect(pressed[0]?.text).toBe(ar("common.unknown_command"));
+  });
+
+  it("الضغطة الأولى تسأل التأكيد ولا تُلغي شيئاً", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_cancel_confirm", { until: "2026-09-01" }),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [[{ label: ar("driver.subscription_cancel_confirm_button"), data: "sub:cancel:yes" }]],
+    });
+    expect(changes.calls.cancels).toEqual([]);
+  });
+
+  it("التأكيد يُنادي المنفذ مرّةً ويُبلّغ بتاريخ آخر خدمة", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      withChanges(liveSub(), changes),
+    );
+    expect(changes.calls.cancels.length).toBe(1);
+    expect(replies[0]?.text).toBe(ar("driver.subscription_cancelled", { until: "2026-09-01" }));
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("driver", "ar"));
+  });
+
+  it("طلب إلغاءٍ مكرَّر ليس خطأً: يُقال إنّه مسجَّل سابقاً", async () => {
+    const changes = subscriptionChangePort({ cancel: { alreadyCancelled: true } });
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      withChanges(liveSub({ cancelAtPeriodEnd: true }), changes),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_cancel_already", { until: "2026-09-01" }),
+    );
+  });
+
+  it("رفض القاعدة «لا اشتراك سارٍ» يُترجَم نصّاً مفهوماً لا عطلاً تقنياً", async () => {
+    const changes = subscriptionChangePort({
+      cancel: { ok: false, error: "NO_LIVE_SUBSCRIPTION", subscriptionId: null },
+    });
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_change_no_live"));
+  });
+
+  it("عطل المنفذ لا يُبتلع: يُقال عطلٌ تقنيّ ولا يُدّعى نجاح", async () => {
+    const changes = subscriptionChangePort({ failOn: "cancel" });
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("common.error_try_again"));
+  });
+
+  it("التراجع عن الإلغاء يُنادي resume ويُبلّغ باستمرار الاشتراك", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:resume"),
+      withChanges(liveSub({ cancelAtPeriodEnd: true }), changes),
+    );
+    expect(changes.calls.resumes.length).toBe(1);
+    expect(replies[0]?.text).toBe(ar("driver.subscription_resumed"));
+  });
+
+  it("تراجعٌ عن اشتراكٍ غير مُلغى: يُقال لا طلب إلغاء", async () => {
+    const changes = subscriptionChangePort({ resume: { alreadyActive: true } });
+    const replies = await handleDriverUpdate(
+      callback("sub:resume"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_resume_already"));
+  });
+
+  it("الترقية المدفوعة تعرض الفرق من القاعدة ولا تُطبّق شيئاً ولا تُنشئ معاملة", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:both"),
+      withChanges(liveSub(), changes),
+    );
+    expect(changes.calls.quotes).toEqual([{ driverId: "driver-1" as DriverId, plan: "both" }]);
+    expect(changes.calls.upgrades).toEqual([]);
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_upgrade_quote_paid", {
+        plan: "both",
+        amount: 150,
+        currency: "SAR",
+        until: "2026-09-01",
+      }),
+    );
+    expect(replies[1]?.text).toBe(
+      ar("driver.subscription_upgrade_manual_payment", { amount: 150, currency: "SAR" }),
+    );
+  });
+
+  /**
+   * الترقية المدفوعة بعد وصول مزوّد الدفع. قبلها كان النصّ يُحوّل السائق إلى
+   * الدعم لتحصيلٍ يدويّ — وكان `upgradePlan` مبنيّاً ومختبَراً ولا يستدعيه أحد.
+   * وهذه الاختبارات تحرس ما يُخشى في هذا المسار تحديداً: أن تُنشأ فاتورتان
+   * لترقيةٍ واحدة، أو أن تُفعَّل الخطّة من ضغطة زرٍّ قبل أن يُدفع الفرق.
+   */
+  function upgradePurchaseDouble(checkoutUrl: string | null = "https://pay.test/chg_up_1") {
+    const state = {
+      charges: 0,
+      confirms: 0,
+      creates: [] as { key: string; amount: number; metadata: Record<string, unknown> }[],
+      chargeKeys: [] as string[],
+    };
+    const tx = {
+      id: "tx-upgrade" as PaymentTransactionId,
+      payerId: "driver-1" as DriverId,
+      payeeId: "platform" as const,
+      purpose: "driver_subscription" as const,
+      amount: { amount: 15_000, currency: "SAR" },
+      provider: "test-provider",
+      providerTransactionId: null,
+      status: "pending" as const,
+      metadata: {} as Record<string, unknown>,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const payments = {
+      create: async (input: {
+        amount: { amount: number };
+        idempotencyKey: string;
+        metadata: Record<string, unknown>;
+      }) => {
+        const already = state.creates.some((c) => c.key === input.idempotencyKey);
+        state.creates.push({
+          key: input.idempotencyKey,
+          amount: input.amount.amount,
+          metadata: input.metadata,
+        });
+        return ok({ transaction: tx, alreadyExists: already });
+      },
+      findById: async () => ok(null),
+      findByIdempotencyKey: async (key: string) =>
+        ok(state.creates.some((c) => c.key === key) ? tx : null),
+      recordCheckoutUrl: async () => ok({ checkoutUrl }),
+      confirmPayment: async () => {
+        state.confirms += 1;
+        return err(new PortFailureError("payments", "UNUSED"));
+      },
+    };
+    const provider = {
+      name: "test-provider",
+      chargeSubscription: async (input: { idempotencyKey: string }) => {
+        state.charges += 1;
+        state.chargeKeys.push(input.idempotencyKey);
+        return ok({ providerTransactionId: null, checkoutUrl, status: "pending" as const });
+      },
+      verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+      fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
+    };
+    return {
+      purchase: { payments, provider } as unknown as NonNullable<
+        DriverBotDependencies["subscriptionPurchase"]
+      >,
+      state,
+    };
+  }
+
+  function withPaidUpgrade(
+    subscription: Subscription,
+    changes: ReturnType<typeof subscriptionChangePort>,
+    purchase: NonNullable<DriverBotDependencies["subscriptionPurchase"]>,
+  ): DriverBotDependencies {
+    return build({
+      drivers: driverDirectory(verifiedDriver()),
+      subscriptions: subscriptionReader(subscription),
+      subscriptionChanges: changes,
+      subscriptionPurchase: purchase,
+    });
+  }
+
+  it("مع مزوّد دفع: العرض أولاً بزرّ تأكيد، ولا معاملة ولا استدعاء مزوّد قبله", async () => {
+    const changes = subscriptionChangePort();
+    const { purchase, state } = upgradePurchaseDouble();
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:both"),
+      withPaidUpgrade(liveSub(), changes, purchase),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_upgrade_quote_paid", {
+        plan: "both",
+        amount: 150,
+        currency: "SAR",
+        until: "2026-09-01",
+      }),
+    );
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [
+          {
+            label: ar("driver.subscription_upgrade_confirm_button"),
+            data: "sub:upgrade:confirm:both",
+          },
+        ],
+      ],
+    });
+    expect(state.creates).toEqual([]);
+    expect(state.charges).toBe(0);
+    expect(changes.calls.upgrades).toEqual([]);
+  });
+
+  it("التأكيد يُنشئ طلب دفعٍ واحداً بالوحدة الصغرى ويعيد رابطاً، ولا يُفعّل الخطّة", async () => {
+    const changes = subscriptionChangePort();
+    const { purchase, state } = upgradePurchaseDouble();
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:confirm:both"),
+      withPaidUpgrade(liveSub(), changes, purchase),
+    );
+    expect(replies[0]?.text).toBe(
+      ar("driver.subscription_upgrade_checkout", {
+        plan: "both",
+        amount: 150,
+        currency: "SAR",
+        url: "https://pay.test/chg_up_1",
+      }),
+    );
+    // ١٥٠ ريالاً = ١٥٠٠٠ هلّة؛ تمريرُ ١٥٠ كان سيبيع ترقيةً بريالٍ ونصف.
+    expect(state.creates).toHaveLength(1);
+    expect(state.creates[0]?.amount).toBe(15_000);
+    // `upgrade: true` هو ما يجعل `confirm_payment` يُغيّر الخطّة في مكانها بدل
+    // أن يُمدّد الدورة كاشتراكٍ جديد.
+    expect(state.creates[0]?.metadata.upgrade).toBe(true);
+    expect(state.charges).toBe(1);
+    // الترقية لا تُطبَّق من البوت: لا `applyUpgrade` ولا تأكيد دفعةٍ لم تُدفع.
+    expect(changes.calls.upgrades).toEqual([]);
+    expect(state.confirms).toBe(0);
+  });
+
+  it("ضغطتا تأكيدٍ في اليوم نفسه: مفتاحٌ واحد، ولا استدعاء ثانٍ للمزوّد", async () => {
+    const { purchase, state } = upgradePurchaseDouble();
+    const target = withPaidUpgrade(liveSub(), subscriptionChangePort(), purchase);
+    const first = await handleDriverUpdate(callback("sub:upgrade:confirm:both"), target);
+    const second = await handleDriverUpdate(callback("sub:upgrade:confirm:both"), target);
+    expect(first[0]?.text).toContain("https://pay.test/chg_up_1");
+    // الثانية وجدت المعاملة سلفاً فلم تُنشئ فاتورةً ثانية ولم تستدعِ المزوّد.
+    expect(state.creates).toHaveLength(1);
+    expect(state.charges).toBe(1);
+    expect(new Set(state.chargeKeys).size).toBe(1);
+    expect(state.chargeKeys[0]).toBe(
+      `driver_subscription_upgrade:driver-1:both:${NOW.toISOString().slice(0, 10)}`,
+    );
+    // ولا يُترك السائق بلا ردّ: المعاملة القائمة لا رابط لها فيُقال «قيد الانتظار».
+    expect(second[0]?.text).toBe(ar("driver.subscription_checkout_pending"));
+  });
+
+  it("مزوّدٌ لم يُعِد رابطاً: يُقال «قيد الانتظار» ولا يُدَّعى نجاح الترقية", async () => {
+    const { purchase } = upgradePurchaseDouble(null);
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:confirm:both"),
+      withPaidUpgrade(liveSub(), subscriptionChangePort(), purchase),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_checkout_pending"));
+  });
+
+  it("داخل التجربة المجانية: عرضٌ بلا مقابل ثمّ تأكيدٌ يُطبّق الترقية ذرّياً", async () => {
+    const trialQuote = {
+      quote: {
+        amountDue: 0,
+        paymentRequired: false,
+        status: "trialing" as const,
+        periodEnd: new Date("2026-08-20T00:00:00.000Z"),
+      },
+    };
+    const changes = subscriptionChangePort(trialQuote);
+    const trialing = liveSub({
+      status: "trialing",
+      trialEndsAt: new Date("2026-08-20T00:00:00.000Z"),
+    });
+
+    const shown = await handleDriverUpdate(
+      callback("sub:upgrade:both"),
+      withChanges(trialing, changes),
+    );
+    expect(shown[0]?.text).toBe(ar("driver.subscription_upgrade_quote_free", { plan: "both" }));
+    expect(shown[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [
+          {
+            label: ar("driver.subscription_upgrade_confirm_button"),
+            data: "sub:upgrade:confirm:both",
+          },
+        ],
+      ],
+    });
+    expect(changes.calls.upgrades).toEqual([]);
+
+    const applied = await handleDriverUpdate(
+      callback("sub:upgrade:confirm:both"),
+      withChanges(trialing, changes),
+    );
+    expect(changes.calls.upgrades).toEqual([
+      { driverId: "driver-1" as DriverId, plan: "both", transactionId: null },
+    ]);
+    expect(applied[0]?.text).toBe(
+      ar("driver.subscription_upgraded", { plan: "both", until: "2026-08-20" }),
+    );
+  });
+
+  it("خطّةٌ ليست ترقية: يُقال لا ترقية متاحة ولا تُنادى upgrade_plan", async () => {
+    const changes = subscriptionChangePort({
+      quote: { ok: false, error: "PLAN_NOT_AN_UPGRADE", subscriptionId: null },
+    });
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:delivery"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_upgrade_not_available"));
+    expect(changes.calls.upgrades).toEqual([]);
+  });
+
+  it("من هو على الخطّة أصلاً: يُقال ذلك بلا ترقيةٍ ثانية", async () => {
+    const changes = subscriptionChangePort({
+      quote: { ok: false, error: "ALREADY_ON_PLAN", subscriptionId: null },
+    });
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:both"),
+      withChanges(liveSub({ plan: "both" }), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.subscription_upgrade_already", { plan: "both" }));
+  });
+
+  it("زرّ خطّةٍ مجهولة يُرفض ولا يمسّ القاعدة", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:upgrade:premium"),
+      withChanges(liveSub(), changes),
+    );
+    expect(replies[0]?.text).toBe(ar("common.unknown_command"));
+    expect(changes.calls.quotes).toEqual([]);
+  });
+
+  it("غير المسجَّل لا يُلغي اشتراكاً: يُطلب منه التسجيل أولاً", async () => {
+    const changes = subscriptionChangePort();
+    const replies = await handleDriverUpdate(
+      callback("sub:cancel:yes"),
+      build({ drivers: driverDirectory(null), subscriptionChanges: changes }),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.must_register_first"));
+    expect(changes.calls.cancels).toEqual([]);
   });
 });

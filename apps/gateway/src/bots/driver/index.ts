@@ -4,8 +4,11 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.1.
  * ينتمي إلى: apps/gateway/src/bots/driver
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/container.ts
- * ملاحظات مستقبلية: الملفات المجاورة (offers, subscription, availability) صارت أقساماً داخل
- *   driver-dialog لأن تفريقها بملفات محوّل يكرّر المنطق؛ تبقى هيكلاً حتى تُحتاج فعلاً.
+ * ملاحظات مستقبلية: الملفّات المجاورة (offers, subscription, availability, registration,
+ *   rating, trip-lifecycle) معزولةٌ ومُستبدَلة لا محذوفة: أقسامها منفَّذة فعلاً داخل
+ *   `packages/application/bots/driver-dialog.ts`، ولا يستوردها شيء. وترويسة كلٍّ منها
+ *   تُحيل إلى موضع تنفيذها بالضبط، لأنّ ملفّاً يعلن أنّ القدرة غير منفَّذة وهي منفَّذة
+ *   يقرأه المراجع فيستنتج فجوةً لا وجود لها، ويقرأه الوكيل فيبني نسخةً ثانية من المنطق.
  */
 
 import {
@@ -71,6 +74,25 @@ export function createDriverBot(
             await sender.sendMessage(reply.chatId, reply.text, markup);
           } else {
             await sender.sendPhoto(reply.chatId, reply.photoFileId, reply.text, markup);
+          }
+          /**
+           * الدبّوس بعد النصّ لا قبله: النصّ يشرح ما هذه النقطة، فوصوله ثانياً
+           * يجعل السائق يرى دبّوساً لا يعرف ما هو ثم يُشرَح له.
+           *
+           * ولماذا `try` هنا وليس في نفس المحاولة؟ لأن فشل الدبّوس لا يُبطل
+           * الرسالة التي وصلت: السائق قرأ انطلاقه ووسمه، وإرجاع false كان
+           * سيجعل الويبهوك يُعيد المحاولة فيصله النصّ مرّتين.
+           */
+          if (reply.mapPin !== undefined) {
+            try {
+              await sender.sendLocation(
+                reply.chatId,
+                reply.mapPin.latitude,
+                reply.mapPin.longitude,
+              );
+            } catch (error) {
+              log("تعذّر إرسال دبّوس الموقع — النصّ وصل", { detail: String(error) });
+            }
           }
         } catch (error) {
           log("تعذّر إرسال رسالة إلى تلغرام", { detail: String(error) });

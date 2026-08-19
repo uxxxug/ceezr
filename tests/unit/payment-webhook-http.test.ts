@@ -1,178 +1,249 @@
 /**
- * الغرض: اختبارات مسار ويبهوك الدفع HTTP — البند 8.
- *   تثبت: التوقيع الصحيح يُقبل، الخاطئ يُرفض، الحدث المكرر يُهمل بأمان.
+ * الغرض: اختبارات ويبهوك الدفع العدائية: لا تثق بالحمولة بل بلقطة خادم المزوّد.
  * الحالة: منفّذ فعلياً.
  * ينتمي إلى: tests/unit
+ * يُتوقع أن يستخدمه لاحقاً: حماية أي تعديل في payment-webhook.ts.
+ * ملاحظات مستقبلية: اختبار HTTP الحقيقي لمحوّل Moyasar موجود منفصلاً في integration.
  */
 
 import { describe, expect, it } from "bun:test";
+import {
+  instrumentPaymentConfirmationDeps,
+  instrumentPaymentRepository,
+} from "../../apps/gateway/src/observability/payment.ts";
 import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
 } from "../../apps/gateway/src/routes/payment-webhook.ts";
 import type {
+  PaymentProvider,
   PaymentRepository,
+  ProviderTransactionSnapshot,
   WebhookEventStore,
 } from "../../packages/application/financial/ports.ts";
+import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type {
   PaymentTransaction,
   PaymentTransactionId,
 } from "../../packages/domain/financial/entity.ts";
+import { createOperationalMetrics } from "../../packages/infrastructure/observability/index.ts";
 import type { DriverId } from "../../packages/shared/kernel/index.ts";
-import { ok } from "../../packages/shared/result/index.ts";
+import { err, ok } from "../../packages/shared/result/index.ts";
 
-const SECRET = "test-webhook-secret";
-const PROVIDER = "test-provider";
-const txId = "tx-wh-1" as PaymentTransactionId;
+const txId = "11111111-1111-4111-8111-111111111111" as PaymentTransactionId;
+const amount = 25000;
 
-function fakeRepo(
-  initial?: PaymentTransaction,
-): PaymentRepository & { txns: PaymentTransaction[] } {
-  const txns: PaymentTransaction[] = initial ? [initial] : [];
+function transaction(status: PaymentTransaction["status"] = "pending"): PaymentTransaction {
   return {
-    txns,
-    create: async (input) => {
-      const tx: PaymentTransaction = {
-        id: input.idempotencyKey as PaymentTransactionId,
-        payerId: input.driverId as DriverId,
-        payeeId: "platform",
-        purpose: input.purpose,
-        amount: input.amount,
-        provider: input.provider,
-        providerTransactionId: input.providerTransactionId,
-        status: input.status,
-        metadata: input.metadata ?? {},
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-      txns.push(tx);
-      return ok({ transaction: tx, alreadyExists: false });
-    },
-    findById: async () => ok(txns[0] ?? null),
-    findByIdempotencyKey: async () => ok(txns[0] ?? null),
-    confirmPayment: async (input) => {
-      if (txns.length === 0) return ok({} as PaymentTransaction);
-      const updated: PaymentTransaction = {
-        ...txns[0]!,
+    id: txId,
+    payerId: "driver" as DriverId,
+    payeeId: "platform",
+    purpose: "driver_subscription",
+    amount: { amount, currency: "SAR" },
+    provider: "moyasar",
+    providerTransactionId: null,
+    status,
+    metadata: { plan: "transport" },
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  };
+}
+
+function repo(): PaymentRepository & { readonly activations: () => number } {
+  let current = transaction();
+  const seen = new Set<string>();
+  let activations = 0;
+  return {
+    create: async () => ok({ transaction: current, alreadyExists: false }),
+    findById: async (id) => ok(id === txId ? current : null),
+    findByIdempotencyKey: async () => ok(null),
+    recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
+    recordProviderReference: async (input) =>
+      ok({ providerTransactionId: input.providerTransactionId, stored: true }),
+    findStalePending: async () => ok([]),
+    confirmPayment: async () => ok(current),
+    confirmWebhookPayment: async (input) => {
+      if (seen.has(input.webhookEventId)) return ok({ transaction: current, duplicate: true });
+      if (current.status !== "pending" && current.status !== "past_due") {
+        return err(new PortFailureError("payments", "INVALID_STATUS_TRANSITION"));
+      }
+      seen.add(input.webhookEventId);
+      current = {
+        ...current,
         status: input.newStatus,
         providerTransactionId: input.providerTransactionId,
       };
-      txns[0] = updated;
-      return ok(updated);
+      if (input.newStatus === "active") activations += 1;
+      return ok({ transaction: current, duplicate: false });
     },
+    activations: () => activations,
   };
 }
 
-function fakeEventStore(): WebhookEventStore & { seen: Set<string> } {
-  const seen = new Set<string>();
+function events(): WebhookEventStore {
+  return { record: async () => ok(true) };
+}
+
+function snapshot(
+  overrides: Partial<ProviderTransactionSnapshot> = {},
+): ProviderTransactionSnapshot {
   return {
-    seen,
-    record: async (eventId) => {
-      if (seen.has(eventId)) return ok(false);
-      seen.add(eventId);
-      return ok(true);
-    },
+    id: "payment-1",
+    status: "active",
+    amount,
+    currency: "SAR",
+    metadata: { waslah_transaction_id: txId },
+    invoiceId: "invoice-1",
+    ...overrides,
   };
 }
 
-function makeDeps(repo: PaymentRepository, events: WebhookEventStore): PaymentWebhookDependencies {
+function provider(server: ProviderTransactionSnapshot): PaymentProvider {
   return {
-    webhookSecret: SECRET,
-    providerName: PROVIDER,
-    confirmDeps: { payments: repo, events },
+    name: "moyasar",
+    chargeSubscription: async () =>
+      ok({ providerTransactionId: null, checkoutUrl: "https://checkout", status: "pending" }),
+    verifyWebhook: async (raw) => {
+      const body = JSON.parse(raw) as {
+        secret_token?: string;
+        id?: string;
+        data?: { id?: string };
+      };
+      if (body.secret_token !== "unit-secret")
+        return err(new PortFailureError("moyasar", "SECRET_MISMATCH"));
+      if (typeof body.id !== "string" || typeof body.data?.id !== "string")
+        return err(new PortFailureError("moyasar", "MALFORMED"));
+      return ok({ id: body.id, type: "payment_paid", providerTransactionId: body.data.id });
+    },
+    fetchTransaction: async (id) =>
+      id === server.id ? ok(server) : err(new PortFailureError("moyasar", "NOT_FOUND")),
+  };
+}
+
+function body(eventId: string, changes: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    id: eventId,
+    secret_token: "unit-secret",
+    data: { id: "payment-1", amount: 1, ...changes },
+  });
+}
+
+function app(local: PaymentRepository, remote = snapshot()) {
+  const deps: PaymentWebhookDependencies = {
+    provider: provider(remote),
+    confirmDeps: { payments: local, events: events() },
     log: () => {},
   };
+  return createPaymentWebhookRoutes(deps);
 }
 
-function webhookBody(eventId: string, status = "active", providerTxId = "prov-1"): string {
-  return JSON.stringify({
-    eventId,
-    transactionId: txId,
-    providerTransactionId: providerTxId,
-    status,
+function request(raw: string): Request {
+  return new Request("http://localhost/webhook/payment", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: raw,
   });
 }
 
-describe("payment-webhook: HTTP route", () => {
-  it("التوقيع الصحيح يقبل الحدث ويؤكّد الدفع", async () => {
-    const repo = fakeRepo();
-    const events = fakeEventStore();
-    const app = createPaymentWebhookRoutes(makeDeps(repo, events));
-
-    const res = await app.fetch(
-      new Request("http://localhost/webhook/payment", {
-        method: "POST",
-        headers: { "x-payment-signature": SECRET, "content-type": "application/json" },
-        body: webhookBody("wh-http-1"),
-      }),
+describe("payment webhook verified flow", () => {
+  it("يرفض السر الخاطئ قبل أي قراءة أو تفعيل", async () => {
+    const local = repo();
+    const response = await app(local).fetch(
+      request(
+        JSON.stringify({
+          id: "event-secret",
+          secret_token: "bad",
+          data: { id: "payment-1" },
+        }),
+      ),
     );
-
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { ok: boolean; duplicate?: boolean };
-    expect(body.ok).toBe(true);
-    expect(body.duplicate).toBe(false);
+    expect(response.status).toBe(401);
+    expect(local.activations()).toBe(0);
   });
 
-  it("التوقيع الخاطئ يُرفض بـ 401", async () => {
-    const repo = fakeRepo();
-    const events = fakeEventStore();
-    const app = createPaymentWebhookRoutes(makeDeps(repo, events));
-
-    const res = await app.fetch(
-      new Request("http://localhost/webhook/payment", {
-        method: "POST",
-        headers: { "x-payment-signature": "wrong-secret", "content-type": "application/json" },
-        body: webhookBody("wh-http-2"),
-      }),
+  it("يعتمد مبلغ الخادم ويرفض عدم تطابقه مع المعاملة المحلية", async () => {
+    const local = repo();
+    const response = await app(local, snapshot({ amount: amount + 1 })).fetch(
+      request(body("event-amount", { amount: amount })),
     );
-
-    expect(res.status).toBe(401);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toBe("INVALID_SIGNATURE");
+    expect(response.status).toBe(422);
+    expect(local.activations()).toBe(0);
   });
 
-  it("الحدث المكرر يُهمل بأمان (200 + duplicate=true)", async () => {
-    const repo = fakeRepo();
-    const events = fakeEventStore();
-    const app = createPaymentWebhookRoutes(makeDeps(repo, events));
-
-    // أول إرسال
-    const res1 = await app.fetch(
-      new Request("http://localhost/webhook/payment", {
-        method: "POST",
-        headers: { "x-payment-signature": SECRET, "content-type": "application/json" },
-        body: webhookBody("wh-dup"),
-      }),
-    );
-    expect(res1.status).toBe(200);
-
-    // إعادة إرسال نفس الحدث
-    const res2 = await app.fetch(
-      new Request("http://localhost/webhook/payment", {
-        method: "POST",
-        headers: { "x-payment-signature": SECRET, "content-type": "application/json" },
-        body: webhookBody("wh-dup"),
-      }),
-    );
-    expect(res2.status).toBe(200);
-    const body2 = (await res2.json()) as { ok: boolean; duplicate: boolean };
-    expect(body2.ok).toBe(true);
-    expect(body2.duplicate).toBe(true);
+  it("يرفض الحدث الذي لا يثبت ملكية معاملة محلية", async () => {
+    const local = repo();
+    const response = await app(
+      local,
+      snapshot({ metadata: { waslah_transaction_id: "22222222-2222-4222-8222-222222222222" } }),
+    ).fetch(request(body("event-unknown")));
+    expect(response.status).toBe(422);
+    expect(local.activations()).toBe(0);
   });
 
-  it("JSON غير صالح يُرفض بـ 400", async () => {
-    const repo = fakeRepo();
-    const events = fakeEventStore();
-    const app = createPaymentWebhookRoutes(makeDeps(repo, events));
-
-    const res = await app.fetch(
-      new Request("http://localhost/webhook/payment", {
-        method: "POST",
-        headers: { "x-payment-signature": SECRET, "content-type": "application/json" },
-        body: "not-json",
-      }),
+  it("يسجل فشل الدفعة ولا يفعّل اشتراكاً", async () => {
+    const local = repo();
+    const response = await app(local, snapshot({ status: "failed" })).fetch(
+      request(body("event-failed")),
     );
+    expect(response.status).toBe(200);
+    expect(local.activations()).toBe(0);
+  });
 
-    expect(res.status).toBe(400);
+  it("يعيد 2xx للحدث المكرر ولا يفعّل مرتين", async () => {
+    const local = repo();
+    const route = app(local);
+    const raw = body("event-repeat");
+    const [first, second] = await Promise.all([
+      route.fetch(request(raw)),
+      route.fetch(request(raw)),
+    ]);
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(local.activations()).toBe(1);
+    const results = [await first.json(), await second.json()] as { duplicate: boolean }[];
+    expect(results.some((value) => value.duplicate)).toBe(true);
+  });
+});
+
+/**
+ * غلاف الرصد هو ما يراه الإنتاج فعلاً — لا المستودع العاري. وقد كان الغلاف
+ * يُعدّد دوالّ المنفذ فيُسقط `confirmWebhookPayment`، فيمرّ كلّ اختبارٍ أعلاه
+ * ويفشل كلّ ويبهوكٍ حقيقي. فهذه الاختبارات تمرّ عبر الغلاف قصداً.
+ */
+describe("ويبهوك الدفع عبر غلاف الرصد", () => {
+  function instrumentedApp(local: PaymentRepository, remote = snapshot()) {
+    const metrics = createOperationalMetrics();
+    const deps: PaymentWebhookDependencies = {
+      provider: provider(remote),
+      confirmDeps: instrumentPaymentConfirmationDeps(
+        { payments: local, events: events() },
+        metrics,
+      ),
+      log: () => {},
+    };
+    return { route: createPaymentWebhookRoutes(deps), metrics };
+  }
+
+  it("لا يُسقط القدرة الذرّية للويبهوك عند التغليف", () => {
+    const local = repo();
+    const wrapped = instrumentPaymentRepository(local, createOperationalMetrics());
+    expect(typeof wrapped.confirmWebhookPayment).toBe("function");
+    expect(typeof wrapped.recordProviderReference).toBe("function");
+    expect(typeof wrapped.findByIdempotencyKey).toBe("function");
+  });
+
+  it("يفعّل الاشتراك فعلاً عبر المنفذ المُغلَّف ويقيس التأكيد", async () => {
+    const local = repo();
+    const { route, metrics } = instrumentedApp(local);
+    const response = await route.fetch(request(body("event-instrumented")));
+    expect(response.status).toBe(200);
+    expect(local.activations()).toBe(1);
+    expect(metrics.registry.render()).toContain("waslah_payment_transactions_confirmed_total 1");
+  });
+
+  it("لا يزعم قدرةً ذرّية لمستودعٍ لا يملكها", () => {
+    const { confirmWebhookPayment: _omitted, ...withoutAtomic } = repo();
+    const wrapped = instrumentPaymentRepository(withoutAtomic, createOperationalMetrics());
+    expect(wrapped.confirmWebhookPayment).toBeUndefined();
   });
 });

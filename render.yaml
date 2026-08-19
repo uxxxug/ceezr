@@ -22,7 +22,7 @@ services:
     # /ready لا /health: الأول يسأل القاعدة فعلاً، والثاني يجيب بمجرّد أن العملية
     # حيّة — ونسخة حيّة بلا قاعدة تستقبل تحديثات لتفقدها.
     healthCheckPath: /ready
-    # Pilot مغلق: مدينة واحدة ونسخة بوابة واحدة حتى تثبت مراقبة التشغيل الحاجة للتوسّع.
+    # سياسة الإطلاق: المدن الخمس تُفعَّل معاً؛ وعدد نسخ البوابة قرار سعة مستقل عن عدد المدن.
     numInstances: 1
     autoDeploy: false # النشر بأمر لا بكل دفعة إلى main
     envVars:
@@ -57,13 +57,16 @@ services:
         sync: false
       - key: TRANSLATION_CONTACT_EMAIL
         sync: false
-      # المهامّ الدورية داخل عملية البوابة. `false` ما دامت خدمة `waslah-worker`
-      # أدناه موجودة فعلاً وتعمل. ومتى لم تُنشأ تلك الخدمة — وهو واقع الإنتاج
-      # الحالي حسب `docs/directive-item-0-live-diagnosis.md` §0.2 — فيُضبط `true` في
-      # لوحة Render وإلّا لم تُنفَّذ مهمّة دورية واحدة أبداً. تشغيلهما معاً ليس
-      # خطراً: القفل الموزَّع يجعل إحداهما تتخطّى بحالة skipped_locked_elsewhere.
+      # المهامّ الدورية داخل عملية البوابة — مُفعَّلة صراحةً هنا، والافتراض في الكود
+      # صار `true` أيضاً (packages/shared/config). السبب: خدمة `waslah-worker` أدناه
+      # معرَّفة في هذا الملف ولكنّها غير مُنشأة فعلاً في Render حسب
+      # `docs/directive-item-0-live-diagnosis.md` §0.2، ومع `false` لم تُنفَّذ مهمّة دورية
+      # واحدة أبداً: لا اشتراك ينتهي، ولا عرض يُسقَط بمهلته، ولا نسخة احتياطية تُؤخَذ.
+      # تشغيلهما معاً ليس خطراً: القفل الموزّع يجعل إحداهما تتخطّى بحالة
+      # skipped_locked_elsewhere. فمتى أُنشئت خدمة العامل وأُريد تفريدها بالمهامّ
+      # فليُبدَل هذا السطر إلى "false" صريحة.
       - key: RUN_WORKER_IN_GATEWAY
-        sync: false
+        value: "true"
       # ── النسخ الاحتياطي اليومي إلى Google Drive (البند 7) ──────────────
       # كلها sync: false: أسرار لا تُكتب هنا. غيابها يُعطّل المهمّة بصمت لا يوقف الإقلاع.
       - key: GOOGLE_SERVICE_ACCOUNT_JSON
@@ -72,42 +75,87 @@ services:
         sync: false
       - key: BACKUP_RETENTION_COUNT
         sync: false
+      # مجلّد نسخٍ محليّ بديل عن Google Drive حين تتعطّل اعتماداته. أقلّ حمايةً
+      # من مخزنٍ خارجيّ لكنّه ليس عدماً، وغيابه يعيد السلوك إلى Drive وحده.
+      - key: BACKUP_LOCAL_DIR
+        sync: false
+      # ── الرصد: سجلّ مقاييس Prometheus على /metrics ──────────────────────
+      # يفشل مغلقاً بغياب السرّ (401): مقاييسُ منصّةٍ مفتوحةٌ للعالم تكشف أحجام
+      # الأعمال وأوقات الذروة وعدد السائقين لمن طلب الرابط.
+      - key: METRICS_TOKEN
+        sync: false
       # ── طبقة الدفع: اشتراك السائق الشهري فقط (البند 8) ──────────────────
-      # لا مزوّد فعلي مدمج — البنية وحدها قائمة. كلها sync: false.
-      # غيابها يُعطّل الويبهوك بصمت لا يوقف الإقلاع.
+      # مزوّدا Tap وMoyasar مدمجان فعلاً. كلها sync: false — أسرار لا تُكتب هنا،
+      # وغيابها يُعطّل مسار الدفع وحده بصمت لا يوقف الإقلاع.
+      #
+      # ‏PAYMENT_PROVIDER: tap أو moyasar للدفع الحقيقي، أو manual للتفعيل اليدوي عبر الدعم.
       - key: PAYMENT_PROVIDER
         sync: false
-      - key: PAYMENT_API_KEY
+      # مفتاح Tap السرّي (sk_…): Bearer للـAPI ومفتاح HMAC للويبهوك معاً.
+      - key: TAP_SECRET_KEY
         sync: false
-      - key: PAYMENT_SECRET
+      # صفحة العودة بعد الدفع — لازمة لمدى و3DS وليست سرّاً.
+      - key: TAP_REDIRECT_URL
         sync: false
-      - key: PAYMENT_WEBHOOK_SECRET
+      # عنوان ويبهوك Tap لهذه الخدمة.
+      - key: TAP_POST_URL
+        sync: false
+      # مفتاح Moyasar السرّي (sk_…) يُستخدم كاسم مستخدم في Basic auth.
+      - key: MOYASAR_SECRET_KEY
+        sync: false
+      # السرّ الذي يُثبِته Moyasar داخل جسم الويبهوك (secret_token). لم يعد
+      # ‏PAYMENT_WEBHOOK_SECRET مقروءاً: مقارنةُ سرٍّ في ترويسةٍ مخترعة كانت تجعل
+      # معرفةَ السرّ وحدها كافيةً لتفعيل أي اشتراك بأي مبلغ.
+      - key: MOYASAR_WEBHOOK_SECRET
+        sync: false
+      # صفحة النتيجة التي يُعاد إليها الدافع بعد الدفع (عامّة لا سرّ فيها).
+      - key: MOYASAR_CALLBACK_URL
+        sync: false
+      - key: MOYASAR_SUCCESS_URL
+        sync: false
+      - key: MOYASAR_BACK_URL
         sync: false
       - key: PAYMENT_ENVIRONMENT
         sync: false
       - key: ENABLE_DRIVER_SUBSCRIPTION
         sync: false
-      # ── طبقة الخرائط والتوجيه (البند 9) ──────────────────────────────────
+      # ── طبقة الخرائط والتوجيه (البند 9 والمرحلة 15) ──────────────────────
+      # ‏ROUTING_PROVIDER: none افتراضاً. ضبطه على osrm يُلزم OSRM_BASE_URL،
+      # وإلاّ مُنع الإقلاع — وهو أسلمُ من خدمةٍ موعودٍ بها وصامتة.
+      - key: ROUTING_PROVIDER
+        sync: false
       - key: OSRM_BASE_URL
         sync: false
       - key: MAP_STYLE_URL
         sync: false
-      - key: MAP_TILE_PROVIDER
+      - key: MAP_PROVIDER
+        sync: false
+      - key: MAP_TILES_PUBLIC_KEY
         sync: false
       # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
+      # كلّها اختياريّة: الغياب يعني افتراض المجال في packages/domain/geo/gps-fix.ts.
+      # وكانت هذه الكتلة تحمل أسماءً لا وجود لها في .env.example ولا في الكود
+      # (IDLE_INTERVAL بلا GPS_، MAX_SPEED بلا REASONABLE_) فمن ضبطها هنا ضبط
+      # أسماءً لا يقرؤها أحد. الأسماء الآن موحَّدةٌ ومقروءةٌ، و scripts/check-env-drift.ts
+      # يُسقط البناء إن عاد الانحراف.
       - key: TRACKING_GPS_INTERVAL_SECONDS
         sync: false
-      - key: TRACKING_IDLE_INTERVAL_SECONDS
+      - key: TRACKING_GPS_IDLE_INTERVAL_SECONDS
         sync: false
       - key: TRACKING_MIN_DISTANCE_METERS
         sync: false
       - key: TRACKING_TELEPORT_THRESHOLD_METERS
         sync: false
-      - key: TRACKING_MAX_SPEED_KMH
+      - key: TRACKING_MAX_REASONABLE_SPEED_KMH
         sync: false
       - key: TRACKING_MAX_ACCURACY_METERS
         sync: false
       - key: TRACKING_MAX_TIME_DRIFT_SECONDS
+        sync: false
+      # ‏TRACKING_TOKEN_BASE_URL: أساسُ روابط التتبّع المُشارَكة (§4.2). غيابُه
+      # يُطفئ ميزةَ الرابط صريحاً بلا كسر أيّ شيء آخر، ووجودُه يُلزم https في
+      # الإنتاج. لا يُشتقّ من ترويسة الطلب أبداً — التفصيل في packages/shared/config.
+      - key: TRACKING_TOKEN_BASE_URL
         sync: false
 
   # ── العامل الخلفي: المهامّ الدورية بقفل موزَّع ────────────────────────────────
@@ -159,38 +207,52 @@ services:
         sync: false
       - key: BACKUP_RETENTION_COUNT
         sync: false
+      - key: BACKUP_LOCAL_DIR
+        sync: false
       # ── طبقة الدفع: اشتراك السائق الشهري فقط (البند 8) ──────────────────
+      # العامل لا يستقبل ويبهوكاً ولا ينشئ فاتورة؛ يحتاج اسم المزوّد وحده لتسجيل
+      # مصدر الدفعات في مهامّ الاشتراك، فلا تُمرَّر إليه مفاتيح Moyasar.
       - key: PAYMENT_PROVIDER
-        sync: false
-      - key: PAYMENT_API_KEY
-        sync: false
-      - key: PAYMENT_SECRET
-        sync: false
-      - key: PAYMENT_WEBHOOK_SECRET
         sync: false
       - key: PAYMENT_ENVIRONMENT
         sync: false
       - key: ENABLE_DRIVER_SUBSCRIPTION
         sync: false
-      # ── طبقة الخرائط والتوجيه (البند 9) ──────────────────────────────────
+      # ── طبقة الخرائط والتوجيه (البند 9 والمرحلة 15) ──────────────────────
+      # ‏ROUTING_PROVIDER: none افتراضاً. ضبطه على osrm يُلزم OSRM_BASE_URL،
+      # وإلاّ مُنع الإقلاع — وهو أسلمُ من خدمةٍ موعودٍ بها وصامتة.
+      - key: ROUTING_PROVIDER
+        sync: false
       - key: OSRM_BASE_URL
         sync: false
       - key: MAP_STYLE_URL
         sync: false
-      - key: MAP_TILE_PROVIDER
+      - key: MAP_PROVIDER
+        sync: false
+      - key: MAP_TILES_PUBLIC_KEY
         sync: false
       # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
+      # كلّها اختياريّة: الغياب يعني افتراض المجال في packages/domain/geo/gps-fix.ts.
+      # وكانت هذه الكتلة تحمل أسماءً لا وجود لها في .env.example ولا في الكود
+      # (IDLE_INTERVAL بلا GPS_، MAX_SPEED بلا REASONABLE_) فمن ضبطها هنا ضبط
+      # أسماءً لا يقرؤها أحد. الأسماء الآن موحَّدةٌ ومقروءةٌ، و scripts/check-env-drift.ts
+      # يُسقط البناء إن عاد الانحراف.
       - key: TRACKING_GPS_INTERVAL_SECONDS
         sync: false
-      - key: TRACKING_IDLE_INTERVAL_SECONDS
+      - key: TRACKING_GPS_IDLE_INTERVAL_SECONDS
         sync: false
       - key: TRACKING_MIN_DISTANCE_METERS
         sync: false
       - key: TRACKING_TELEPORT_THRESHOLD_METERS
         sync: false
-      - key: TRACKING_MAX_SPEED_KMH
+      - key: TRACKING_MAX_REASONABLE_SPEED_KMH
         sync: false
       - key: TRACKING_MAX_ACCURACY_METERS
         sync: false
       - key: TRACKING_MAX_TIME_DRIFT_SECONDS
+        sync: false
+      # ‏TRACKING_TOKEN_BASE_URL: أساسُ روابط التتبّع المُشارَكة (§4.2). غيابُه
+      # يُطفئ ميزةَ الرابط صريحاً بلا كسر أيّ شيء آخر، ووجودُه يُلزم https في
+      # الإنتاج. لا يُشتقّ من ترويسة الطلب أبداً — التفصيل في packages/shared/config.
+      - key: TRACKING_TOKEN_BASE_URL
         sync: false

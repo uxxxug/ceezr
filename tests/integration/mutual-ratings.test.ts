@@ -10,11 +10,12 @@
  * ملاحظات مستقبلية: عند إضافة أبعاد للتقييم يُضاف تأكيد على كل بُعد لا اختبار موازٍ.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -50,6 +51,17 @@ const config: AppConfig = {
   translationApiKey: null,
   translationContactEmail: null,
   runWorkerInGateway: false,
+  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
+  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
+  mapProvider: "none",
+  mapStyleUrl: null,
+  mapTilesPublicKey: null,
+  maplibreSri: null,
+  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
+  routingProvider: "none",
+  osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 let sql: Sql;
@@ -105,8 +117,20 @@ describeIf("التقييم المتبادل وأثره في المطابقة ع�
     cityId = id;
   });
 
+  /**
+   * إغلاقُ حاويةِ السيناريو عقب كلِّ اختبار لا مرّةً واحدةً في النهاية: الحاويةُ
+   * تُنشئ حوضَ اتّصالاتٍ خاصّاً بها، وبناؤها في `beforeEach` مع إغلاقٍ وحيدٍ في
+   * `afterAll` يُراكم أحواضاً بعددِ اختباراتِ الملفّ. القاعدةُ المحلّية كانت تحتمل
+   * التراكمَ بسعتها الأوسع، أمّا خدمةُ PostgreSQL في آلةِ التكامل فتقف عند حدّها
+   * الافتراضيّ فتردّ «sorry, too many clients already» — فيُخفق سربٌ من اختباراتٍ
+   * سليمةٍ لا علاقةَ لها بالعيب، ويُحوّل الحمرةَ إلى ضجيجٍ يُخفي الأعطالَ الحقيقية.
+   */
+  afterEach(async () => {
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
+  });
+
   afterAll(async () => {
-    await container.close();
     await sql.end({ timeout: 5 });
   });
 
@@ -215,8 +239,16 @@ describeIf("التقييم المتبادل وأثره في المطابقة ع�
     const orderId = await placeOrder(RIDER);
 
     await post("driver", privateCallback(DRIVER_A, `offer:accept:${orderId}`));
-    const accepted = driverMessages(DRIVER_A).at(-1);
-    expect(accepted?.text).toBe(ar("driver.offer_accepted"));
+    /**
+     * لم يعد نصّ القبول آخر رسالة: بطاقة الرحلة ودبّوسها يليانه (المرحلة ١٢).
+     * فيُنتقى بنصّه لا بموضعه، لأنّ التثبيت على الموضع يكسر عند كل إضافة صحيحة.
+     */
+    const accepted = driverMessages(DRIVER_A).find((m) => m.text === ar("driver.offer_accepted"));
+    expect(accepted).toBeDefined();
+    const cardAfterAccept = driverMessages(DRIVER_A).find((m) =>
+      m.text.includes(ar("driver.trip_header")),
+    );
+    expect(cardAfterAccept?.text).toContain(ar("driver.trip_leg_to_pickup"));
     // زرّ البدء يخرج مع القبول: السائق لا يُطالَب بحفظ معرّف الطلب
     const acceptMarkup = accepted?.markup as {
       inline_keyboard: { text: string; callback_data: string }[][];
@@ -439,13 +471,24 @@ describeIf("التقييم المتبادل وأثره في المطابقة ع�
     // المُسيء يُعلَّم ولا يُمحى: السجلّ يبقى للمراجعة، والمتوسط وحده يُصحَّح
     expect(stillThere?.is_flagged).toBe(true);
 
-    // التعليم وحده لا يمسّ المتوسط، فهنا يظهر الانحراف الذي وُجدت المهمة لأجله
-    const [drifted] = await sql<{ rating_average: string | null }[]>`
-      select rating_average from drivers where id = ${driverId}
+    // تحديث مقصود لهذا التأكيد بتاريخ 2026-08-13 (بوابة D): كان هنا تأكيدٌ على أن
+    // «التعليم وحده لا يمسّ المتوسط» فيبقى 1.00 حتى تمرّ المهمة الدورية. وذلك
+    // وصفٌ لعيب لا عقد: قرار الشطب غرضه كلّه رفع أثر تقييم عابث، فبقاؤه بلا أثر
+    // إلى حين المهمة الدورية يعني أن المتضرِّر يحمل وزر التقييم المشطوب مدّةً
+    // كاملة. أُصلح ذلك في هجرة 20260813000000 بجعل flag_rating تُعيد الحساب فوراً،
+    // فصار التأكيد هنا على العقد الصحيح: الأثر فوريّ.
+    const [immediate] = await sql<{ rating_average: string | null; rating_count: number }[]>`
+      select rating_average, rating_count from drivers where id = ${driverId}
     `;
-    expect(Number(drifted?.rating_average)).toBeCloseTo(1, 2);
+    expect(immediate?.rating_average).toBeNull();
+    expect(immediate?.rating_count).toBe(0);
 
-    // ثم المهمة الدورية تصحّحه فعلاً: غياب تقييم ليس تقييماً بصفر، بل غياب
+    // ويبقى غرض المهمة الدورية قائماً ومُختبَراً: الانحراف لا يأتي من الشطب وحده،
+    // بل من أي كتابة تتجاوز الدالّات — ترحيل بيانات، أو إصلاح يدويّ، أو هجرة
+    // تاريخية. فنصنع انحرافاً بكتابة مباشرة، ثم نُثبت أن المهمة تُرجعه إلى الحقيقة.
+    await sql`
+      update drivers set rating_average = 4.75, rating_count = 9 where id = ${driverId}
+    `;
     const [fixed] = await sql<{ result: { drivers_updated: number } }[]>`
       select recompute_rating_averages() as result
     `;

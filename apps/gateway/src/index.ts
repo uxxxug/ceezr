@@ -6,15 +6,39 @@
  * ملاحظات مستقبلية: مخزن الجلسات يصير Redis بتبديل سطر واحد في container.ts.
  */
 
+import { verifySchemaContract } from "../../../packages/infrastructure/db/schema-guard.ts";
 import {
+  createPaymentProvider,
   createPaymentRepository,
   createWebhookEventStore,
-} from "../../../packages/infrastructure/financial/payment-adapters.ts";
+} from "../../../packages/infrastructure/financial/index.ts";
+import {
+  createDatabaseGaugeCollector,
+  createOperationalMetrics,
+} from "../../../packages/infrastructure/observability/index.ts";
+import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import {
+  MAPLIBRE_CDN_ORIGIN,
+  MAPLIBRE_SRI_UNSET,
+  maplibreScriptUrl,
+  maplibreStylesheetUrl,
+  resolveMapStyle,
+} from "../../../packages/maps/index.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
+import type { CityId } from "../../../packages/shared/kernel/index.ts";
+import { jobHealthExpectations } from "../../workers/src/container.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { grammyCommandRegistrar, registerBotCommands } from "./bots/shared/register-commands.ts";
 import { buildContainer } from "./container.ts";
 import { type EmbeddedWorkerHandle, startEmbeddedWorker } from "./embedded-worker.ts";
+import { createJobHealthProbes } from "./job-health.ts";
+import { instrumentPaymentConfirmationDeps } from "./observability/payment.ts";
+import {
+  instrumentTelegramHandler,
+  instrumentUpdateDeduplicator,
+} from "./observability/telegram.ts";
+import { createObservabilityJobLogger } from "./observability/worker.ts";
+import { createPublicSecurityHeaders } from "./public/security-headers.ts";
 import {
   createMemoryRateLimiter,
   createRedisRateLimiter,
@@ -22,7 +46,11 @@ import {
 } from "./rate-limit/fixed-window.ts";
 import { createUpstashRedis } from "./redis/upstash.ts";
 import { createAdminApiRoutes } from "./routes/admin-api.ts";
+import { createAdminLiveRoutes } from "./routes/admin-live.ts";
 import { createAdminUiRoutes } from "./routes/admin-ui.ts";
+import { createMetricsRoutes } from "./routes/metrics.ts";
+import { createPublicTrackingRoutes } from "./routes/public-tracking.ts";
+import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
 import { createServer } from "./server.ts";
 
 function log(message: string, meta: Record<string, unknown> = {}): void {
@@ -46,8 +74,76 @@ if (!configResult.ok) {
 const config = configResult.value;
 const startedAt = new Date();
 
+/**
+ * سجل المقاييس يُنشأ قبل الحاوية لأن `observabilityLog` يُمرَّر إليها. قبل اليوم كانت
+ * البوابة عمياء تماماً: لا `/metrics` ولا عدّاد واحد في المستودع كلّه، ومنصّةُ نقلٍ
+ * لا تعرف كم طلباً لم يجد سائقاً تُدار بالشكوى لا بالقياس.
+ */
+const operationalMetrics = createOperationalMetrics();
+
+function observabilityLog(message: string, meta: Record<string, unknown> = {}): void {
+  if (message === "dispatch.no_eligible_driver") operationalMetrics.recordDispatchNoDriver();
+  log(message, meta);
+}
+
+/**
+ * مزوّد الدفع الحقيقي — اختياري: يُفعَّل عند توفّر أسراره (البند 8)، وغيابها يُعطّل
+ * المسار لا يوقف الإقلاع. لكنّ إعداداً **خاطئاً** لا يُمرّ صامتاً: من كتب
+ * `PAYMENT_PROVIDER` وأخطأ في مفاتيحه يظنّ أن الدفع يعمل، فيُعلَن السبب في السجلّ.
+ *
+ * ولا يُقرأ `PAYMENT_WEBHOOK_SECRET` بعد اليوم: التحقّق صار من اختصاص المحوّل
+ * (Moyasar يُثبِت `secret_token` داخل الجسم)، ومقارنةُ سرٍّ مشترك في ترويسة مخترعة
+ * كانت تجعل معرفةَ السرّ وحدها كافيةً لتفعيل أي اشتراك بأي مبلغ.
+ */
+const paymentProviderName = process.env.PAYMENT_PROVIDER ?? "";
+const paymentProviderResult =
+  paymentProviderName === ""
+    ? null
+    : createPaymentProvider(paymentProviderName, {
+        moyasar: {
+          secretKey: process.env.MOYASAR_SECRET_KEY ?? "",
+          webhookSecret: process.env.MOYASAR_WEBHOOK_SECRET ?? "",
+          callbackUrl: process.env.MOYASAR_CALLBACK_URL ?? "",
+          ...(process.env.MOYASAR_SUCCESS_URL === undefined
+            ? {}
+            : { successUrl: process.env.MOYASAR_SUCCESS_URL }),
+          ...(process.env.MOYASAR_BACK_URL === undefined
+            ? {}
+            : { backUrl: process.env.MOYASAR_BACK_URL }),
+        },
+        tap: {
+          secretKey: process.env.TAP_SECRET_KEY ?? "",
+          redirectUrl: process.env.TAP_REDIRECT_URL ?? "",
+          ...(process.env.TAP_POST_URL === undefined ? {} : { postUrl: process.env.TAP_POST_URL }),
+        },
+      });
+
+if (paymentProviderResult === null) {
+  log("مزوّد الدفع غير مُعدّ", {
+    hint: "اضبط PAYMENT_PROVIDER=tap أو moyasar مع مفاتيحه، أو manual للتفعيل اليدوي عبر الدعم",
+  });
+} else if (!paymentProviderResult.ok) {
+  // لا يُسقِط البوابة: إسقاطها يُفقد البوتَين والرحلات كلّها لأجل الاشتراك وحده،
+  // والرحلات لا تتوقّف على مزوّد دفع. ولكنّ الفشل مُعلَن لا مكتوم.
+  console.error(
+    JSON.stringify({
+      at: new Date().toISOString(),
+      message: "payment_provider.config_invalid",
+      provider: paymentProviderName,
+      detail: paymentProviderResult.error.detail,
+    }),
+  );
+}
+
+const paymentProvider = paymentProviderResult?.ok === true ? paymentProviderResult.value : null;
+
 // التركيب الحقيقي: اتصال قاعدة واحد ومحوّلات فعلية لكل منفذ.
-const container = buildContainer(config, { log });
+const container = buildContainer(config, {
+  log: observabilityLog,
+  paymentProvider,
+  metrics: operationalMetrics,
+});
+const databaseGauges = createDatabaseGaugeCollector(container.sql, operationalMetrics);
 
 /**
  * مقبض العامل المدمج إن كان مُفعَّلاً. يُملأ بعد إعلان جاهزية المنفذ لا قبله.
@@ -97,29 +193,25 @@ function limiter(options: { readonly limit: number; readonly windowSeconds: numb
       });
 }
 
-/**
- * ويبهوك الدفع — اختياري: يُفعَّل فقط عند توفّر أسرار الدفع (البند 8).
- * غيابها يُعطّل المسار بصمت لا يوقف الإقلاع.
- */
-const paymentWebhookSecret = process.env.PAYMENT_WEBHOOK_SECRET;
-const paymentProviderName = process.env.PAYMENT_PROVIDER ?? null;
 const paymentWebhook =
-  paymentWebhookSecret !== undefined && paymentWebhookSecret !== "" && paymentProviderName !== null
-    ? {
-        webhookSecret: paymentWebhookSecret,
-        providerName: paymentProviderName,
-        confirmDeps: {
-          payments: createPaymentRepository(container.sql, async (driverId) => {
-            const rows = await container.sql<{ city_id: string }[]>`
-              select city_id from drivers where id = ${driverId}::uuid
-            `;
-            return rows[0]?.city_id ?? null;
-          }),
-          events: createWebhookEventStore(container.sql),
-        },
+  paymentProvider === null
+    ? undefined
+    : {
+        provider: paymentProvider,
+        confirmDeps: instrumentPaymentConfirmationDeps(
+          {
+            payments: createPaymentRepository(container.sql, async (driverId) => {
+              const rows = await container.sql<{ city_id: string }[]>`
+                select city_id from drivers where id = ${driverId}::uuid
+              `;
+              return rows[0]?.city_id ?? null;
+            }),
+            events: createWebhookEventStore(container.sql),
+          },
+          operationalMetrics,
+        ),
         log,
-      }
-    : undefined;
+      };
 
 const app = createServer({
   health: {
@@ -133,6 +225,31 @@ const app = createServer({
         check: async () => {
           const rows = await container.sql<{ ok: number }[]>`select 1 as ok`;
           return rows[0]?.ok === 1;
+        },
+      },
+      /**
+       * الاتّصالُ الناجح لا يعني قاعدةً صالحة. قاعدةُ الإنتاج بقيت متأخّرةً سبعَ
+       * عشرةَ ترحيلةً عن المستودع بينما `/ready` يقول «جاهز»: الجداولُ والدوالُّ
+       * التي يناديها الكودُ غائبة، والإخفاقُ يظهر أوّلَ ما يضغط سائقٌ زرّاً — أي
+       * على المستخدم لا على المراقبة. فهذا الفحصُ يُقدّم الإخفاقَ إلى النشر.
+       *
+       * وهو `critical`: خدمةٌ تعمل على مخطّطٍ ناقصٍ تكتب بياناتٍ نصفَ متّسقة،
+       * وذلك أسوأُ من رفضِ الحركة حتى تُطبَّق الترحيلات.
+       */
+      {
+        name: "database_schema",
+        check: async () => {
+          const report = await verifySchemaContract(container.sql);
+          if (report.complete) return { ok: true };
+          const missing = [
+            report.missingFunctions.length > 0
+              ? `دوالّ: ${report.missingFunctions.join(", ")}`
+              : null,
+            report.missingTables.length > 0 ? `جداول: ${report.missingTables.join(", ")}` : null,
+          ]
+            .filter((line): line is string => line !== null)
+            .join(" | ");
+          return { ok: false, detail: `ترحيلات غير مطبّقة — ${missing}` };
         },
       },
       // Redis يُفحَص فقط حين يكون في المسار الحرج فعلاً. فحصه دائماً كان سيُسقط
@@ -156,27 +273,133 @@ const app = createServer({
               },
             },
           ]),
+      /**
+       * نبضةُ المهامّ (§4.3). الفجوةُ التي تُغلَق هنا: إقلاعُ العامل المضمَّن لا
+       * يُسقط البوابة عند فشله — وهو قرارٌ صحيح — لكنّ ثمنَه أنّ `/ready` كان يقول
+       * `ready` والمهامّ ميّتة: العروضُ لا تنتهي، والطلبُ لا يُعاد توزيعُه، والسائقُ
+       * يدفع ولا يُشعَر — ولا مؤشّر واحد يُرى من خارج السجلّ.
+       *
+       * والتوقّعاتُ تُقرأ من حاوية العامل (`jobHealthExpectations`) لا تُكتب هنا:
+       * تواترٌ يُعدّل في `JOB_INTERVALS` وعتبةُ بياتٍ منسوخة في البوابة ينزلقان حتماً.
+       */
+      ...createJobHealthProbes({
+        heartbeats: createJobHeartbeatReader(container.sql),
+        expectations: async () => {
+          const rows = await container.sql<{ id: string }[]>`
+            select id from cities where is_active = true
+          `;
+          return jobHealthExpectations(rows.map((row) => row.id as CityId));
+        },
+        now: () => new Date(),
+        startedAt,
+      }),
     ],
   },
   webhook: {
     webhookSecret: config.telegramWebhookSecret,
     log,
-    handler: container.handler,
+    handler: instrumentTelegramHandler(container.handler, operationalMetrics, { log }),
+    dedup: instrumentUpdateDeduplicator(createUpdateDeduplicator(), operationalMetrics),
     rateLimits: { probes: limiter(PROBE_LIMIT), users: limiter(USER_LIMIT) },
   },
   ...(paymentWebhook === undefined ? {} : { paymentWebhook }),
 });
 
+/**
+ * مسار المقاييس — يُركَّب هنا وليس في `server.ts` لنفس سبب موجّهي الإدارة
+ * (ADR 0007): قراءة مقاييس القاعدة تستعلم فعلاً، و`server.ts` يُستورد في اختبارات
+ * المسارات بلا قاعدة. والمسار يفشل مغلقاً عند غياب `METRICS_TOKEN`: مقاييسُ
+ * منصّةٍ مفتوحةٌ للعالم تكشف أحجام الأعمال وأوقات الذروة لمن طلب الرابط.
+ */
+app.route(
+  "/",
+  createMetricsRoutes({
+    metrics: operationalMetrics,
+    metricsToken: process.env.METRICS_TOKEN,
+    databaseGauges,
+    log,
+  }),
+);
+
 // لوحة الإدارة: موجّهان منفصلان يُركَّبان هنا لا في server.ts (ADR 0007).
 const adminAuth = createAdminAuthPort(container.sql);
+
+/**
+ * نمطُ الخريطة يُحلَّل مرّةً عند الإقلاع لا في كل طلب: الضبط ثابتٌ في عمر العملية،
+ * وتحليلُه في كل طلب كان سيدفع ثمنَ تفكيك روابطٍ بلا فائدةٍ ويُخفي خطأَ ضبطٍ إلى
+ * أول زيارةٍ للصفحة بدل أن يظهر في السجل عند الإقلاع.
+ *
+ * وضبطٌ خاطئ (نمطٌ على http، أو مفتاحٌ في موضعين) **لا يُسقط البوابة**: الخريطة
+ * زينةُ لوحةٍ إدارية، وإسقاطُ استقبال طلبات تلغرام لأجلها كان سيُوقف الخدمةَ كلَّها
+ * بسبب ميزةٍ ثانوية. يُسجَّل بوضوح، وتبقى السياسة أضيقَ ما يمكن (لا أصلَ خارجي).
+ */
+const mapStyle = resolveMapStyle({
+  provider: config.mapProvider,
+  styleUrl: config.mapStyleUrl,
+  publicApiKey: config.mapTilesPublicKey,
+});
+if (!mapStyle.ok) {
+  log("map.config.invalid", { key: mapStyle.error.key, detail: mapStyle.error.detail });
+} else if (!mapStyle.value.configured) {
+  log("map.disabled", { reason: mapStyle.value.reason });
+} else {
+  log("map.enabled", { origins: mapStyle.value.origins });
+}
+const mapOrigins: readonly string[] =
+  mapStyle.ok && mapStyle.value.configured ? mapStyle.value.origins : [];
 // الأخصّ أولاً: /admin/api قبل /admin، وإلا التقط حارس الصفحات نداءات JSON
+/**
+ * الأخصّ أولاً هنا أيضاً: /admin/api/live قبل /admin/api. ولو عُكس الترتيب لالتقط
+ * موجّه الـJSON المسار ثم أجاب 404 على مجرى SSE — لأن Hono يطابق أوّل موجّه يُطابق
+ * البادئة ولا يعود إلى ما بعده.
+ */
+app.route(
+  "/admin/api/live",
+  createAdminLiveRoutes({
+    sql: container.sql,
+    auth: adminAuth,
+    bus: container.tracking.bus,
+    log,
+  }),
+);
 app.route("/admin/api", createAdminApiRoutes({ sql: container.sql, auth: adminAuth }));
+
+/**
+ * صفحةُ التتبّع العامّة (§4.2). تُركَّب هنا لا في `server.ts` لنفس سبب موجّهي
+ * الإدارة (ADR 0007): تقرأ من القاعدة، و`server.ts` يُستورد في اختبارات المسارات
+ * بلا قاعدة.
+ *
+ * والوسيطُ الأمنيّ يُركَّب على الموجّه نفسه لا على التطبيق كلّه: سياسةُ
+ * `default-src 'none'` كانت ستكسر لوحةَ الإدارة، ومسارُ الويبهوك لا يحتاج ترويسةَ
+ * صفحةٍ أصلاً. فيُحصر الوسيطُ في صاحبه.
+ *
+ * وترتيبُ التركيب: بعد `/admin/*` وقبل الجذر — و`/track` و`/api/track` لا
+ * يتشابهان مع أيّ بادئةٍ قائمة، فلا التقاطَ خاطئاً في أيّ اتجاه. (ولا تعارضَ مع
+ * `routes/tracking.ts` لأنّه غيرُ مركَّب أصلاً — الفرقُ موثَّقٌ في رأس
+ * `routes/public-tracking.ts`.)
+ */
+const publicTracking = createPublicTrackingRoutes({
+  tokens: container.tracking.tokens,
+  mapStyle: mapStyle.ok ? mapStyle.value : { configured: false, reason: "ضبطُ الخريطة غير صالح" },
+  scriptUrl: maplibreScriptUrl(),
+  stylesheetUrl: maplibreStylesheetUrl(),
+  integrity: config.maplibreSri ?? MAPLIBRE_SRI_UNSET,
+  securityHeaders: createPublicSecurityHeaders({
+    mapOrigins,
+    scriptOrigin: MAPLIBRE_CDN_ORIGIN,
+  }),
+  log,
+});
+app.route("/", publicTracking);
 
 app.route(
   "/admin",
   createAdminUiRoutes({
     sql: container.sql,
     auth: adminAuth,
+    mapOrigins,
+    ...(mapStyle.ok ? { mapStyle: mapStyle.value } : {}),
+    maplibreSri: config.maplibreSri,
     codeSender: {
       send: async (telegramId, text) => {
         try {
@@ -231,11 +454,17 @@ void verifySchemaApplied();
  * استجابة المنفذ فيقرأها Render فشلاً في فحص الجاهزية.
  */
 if (config.runWorkerInGateway) {
-  void startEmbeddedWorker(config, {
-    info: (message, fields) => log(message, fields ?? {}),
-    error: (message, fields) =>
-      console.error(JSON.stringify({ at: new Date().toISOString(), message, ...fields })),
-  })
+  void startEmbeddedWorker(
+    config,
+    createObservabilityJobLogger(operationalMetrics, {
+      info: (message, fields) => log(message, fields ?? {}),
+      error: (message, fields) =>
+        console.error(JSON.stringify({ at: new Date().toISOString(), message, ...fields })),
+    }),
+    // نفسُ سجلّ المقاييس الذي يخدمه `/metrics`: العامل المدمج يعيش في هذه العملية،
+    // فعدّاداتُه — وأهمُّها عرضٌ سقط بمهلته — تُقرأ من المنفذ نفسه بلا خدمةٍ ثانية.
+    { metrics: operationalMetrics },
+  )
     .then((handle) => {
       embeddedWorker = handle;
     })

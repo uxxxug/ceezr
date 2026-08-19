@@ -106,6 +106,54 @@ describe("expireDueSubscriptions", () => {
 });
 
 describe("warnExpiringSubscriptions", () => {
+  /**
+   * السائقُ في شهره المجاني لم يشترك بعد، فرسالةُ «جدّد اشتراكك» تُخبره بشيءٍ لم
+   * يفعله وتُخفي عنه أنّ أمامه طريقين: التفعيل، أو الانتقال إلى قروب غير
+   * المشتركين. هذا الاختبار يحرس أنّ نصَّ التجربة يذكر الطريقين.
+   */
+  test("رسالةُ التجربة تخاطبُ الشهرَ المجانيَّ وتذكر الطريقين، لا «جدّد اشتراكك»", async () => {
+    const recorded = empty();
+    const result = await warnExpiringSubscriptions(
+      { cityId: CITY, days: 3 },
+      {
+        rpc: stubRpc([expiring({ status: "trialing", daysLeft: 3 })], recorded),
+        sender: stubSender(recorded, []),
+      },
+    );
+
+    expect(result.ok).toBe(true);
+    const text = recorded.sent[0]?.text ?? "";
+    expect(text).toContain("فترتك المجانية");
+    expect(text).toContain("/subscription");
+    expect(text).toContain("غير المشتركين");
+    expect(text).not.toContain("جدّده");
+  });
+
+  test("رسالةُ آخر يومٍ من التجربة تختلف عن رسالة آخر يومٍ من الاشتراك المدفوع", async () => {
+    const trial = empty();
+    await warnExpiringSubscriptions(
+      { cityId: CITY, days: 2 },
+      {
+        rpc: stubRpc([expiring({ status: "trialing", daysLeft: 1 })], trial),
+        sender: stubSender(trial, []),
+      },
+    );
+    const paid = empty();
+    await warnExpiringSubscriptions(
+      { cityId: CITY, days: 2 },
+      {
+        rpc: stubRpc([expiring({ status: "active", daysLeft: 1 })], paid),
+        sender: stubSender(paid, []),
+      },
+    );
+
+    const trialText = trial.sent[0]?.text ?? "";
+    const paidText = paid.sent[0]?.text ?? "";
+    expect(trialText).not.toBe(paidText);
+    expect(trialText).toContain("فترتك المجانية");
+    expect(paidText).toContain("اشتراكك ينتهي غداً");
+  });
+
   test("يُرسل ثم يُثبِّت — بهذا الترتيب لا عكسه", async () => {
     const recorded = empty();
     const order: string[] = [];
@@ -124,7 +172,7 @@ describe("warnExpiringSubscriptions", () => {
       },
     };
 
-    const result = await warnExpiringSubscriptions({ days: 2 }, { rpc, sender });
+    const result = await warnExpiringSubscriptions({ cityId: CITY, days: 2 }, { rpc, sender });
 
     expect(result.ok).toBe(true);
     expect(order).toEqual(["send", "record"]);
@@ -134,7 +182,7 @@ describe("warnExpiringSubscriptions", () => {
   test("لا يُثبِّت تحذيراً لم يخرج: فشل الإرسال يمنع التثبيت", async () => {
     const recorded = empty();
     const result = await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc([expiring()], recorded), sender: stubSender(recorded, ["500001"]) },
     );
 
@@ -154,7 +202,7 @@ describe("warnExpiringSubscriptions", () => {
     ];
 
     const result = await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc(batch, recorded), sender: stubSender(recorded, ["500001"]) },
     );
 
@@ -173,7 +221,7 @@ describe("warnExpiringSubscriptions", () => {
     const failures: string[] = [];
 
     const result = await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       {
         rpc: stubRpc([expiring()], recorded, { recordFails: true }),
         sender: stubSender(recorded),
@@ -197,7 +245,7 @@ describe("warnExpiringSubscriptions", () => {
     ];
 
     await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc(batch, recorded), sender: stubSender(recorded) },
     );
 
@@ -214,7 +262,7 @@ describe("warnExpiringSubscriptions", () => {
     ];
 
     await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc(batch, recorded), sender: stubSender(recorded) },
     );
 
@@ -225,7 +273,7 @@ describe("warnExpiringSubscriptions", () => {
   test("لا مشترك يقترب انتهاؤه: تقرير صفري وليس فشلاً", async () => {
     const recorded = empty();
     const result = await warnExpiringSubscriptions(
-      { days: 2 },
+      { cityId: CITY, days: 2 },
       { rpc: stubRpc([], recorded), sender: stubSender(recorded) },
     );
 

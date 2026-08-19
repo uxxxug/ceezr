@@ -38,16 +38,21 @@ export interface NavItem {
   readonly label: string;
 }
 
-/** الصفحات التسع بترتيب استخدامها التشغيلي لا بترتيب بنائها. */
+/** الصفحات بترتيب استخدامها التشغيلي لا بترتيب بنائها. */
 export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/admin", label: "نظرة عامة" },
   { path: "/admin/live-orders", label: "الطلبات الحية" },
+  // بعد الطلبات الحيّة مباشرةً وقبل السائقين: هما شاشتا «ما يجري الآن»، والمشغّل
+  // ينتقل بينهما في الحادثة الواحدة (طلبٌ متعثّر ⇐ أين سائقوه).
+  { path: "/admin/live-map", label: "خريطة العمليات" },
   { path: "/admin/drivers", label: "السائقون" },
   { path: "/admin/heatmap", label: "خريطة الطلب والعرض" },
   { path: "/admin/disputes", label: "النزاعات" },
   { path: "/admin/ratings", label: "التقييمات" },
   { path: "/admin/attendance", label: "الحضور" },
   { path: "/admin/payments", label: "المدفوعات" },
+  // البثّ قبل الإعدادات وبعد المدفوعات: فعلٌ تشغيليٌّ يوميٌّ لا ضبطٌ يُمسّ مرّةً.
+  { path: "/admin/broadcast", label: "البثّ الجماعي" },
   { path: "/admin/settings", label: "الإعدادات" },
 ];
 
@@ -66,6 +71,15 @@ export interface ShellOptions {
    * يُترك undefined في الصفحات التي تحمل نماذج، فتحديثها يمحو ما كُتب فيها.
    */
   readonly refreshSeconds?: number;
+  /**
+   * قيمة `nonce` الموافقة لسياسة أمن المحتوى في ترويسة الردّ (المرحلة ١٠).
+   *
+   * إلزامية لا اختيارية: مع `script-src 'nonce-…'` يرفض المتصفّح كلّ وسم نصّ لا
+   * يحمل القيمة نفسها — فقيمةٌ خاطئة أو غائبة تُعطّل البحث والتحديث الدوري بلا
+   * أي رسالة خطأ في الصفحة. وجعلُها اختيارية كان سيسمح بنسيانها في مُتصِلٍ واحد
+   * فتُشلّ صفحةٌ واحدة دون غيرها، وهو أسوأ أنواع العطل: متقطّع وصامت.
+   */
+  readonly cspNonce: string;
 }
 
 export function renderShell(options: ShellOptions): string {
@@ -90,12 +104,12 @@ export function renderShell(options: ShellOptions): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>${escapeHtml(options.title)} — لوحة وَصْلة</title>
-<style>${STYLE}</style>
+<style nonce="${escapeHtml(options.cspNonce)}">${STYLE}</style>
 </head>
 <body>
 <header class="top">
   <div class="brand">وَصْلة · لوحة الإدارة</div>
-  <form class="search" role="search" onsubmit="return waslahSearch(event)">
+  <form id="search-form" class="search" role="search">
     <input id="q" name="q" type="search" placeholder="ابحث: اسم، جوال، معرّف تلغرام، رقم طلب…"
            autocomplete="off" aria-label="بحث موحَّد">
     <button type="submit">بحث</button>
@@ -114,8 +128,12 @@ export function renderShell(options: ShellOptions): string {
 ${notice}
 ${options.body}
 </main>
-<script>${SEARCH_SCRIPT}</script>
-${options.refreshSeconds === undefined ? "" : `<script>${refreshScript(options.refreshSeconds)}</script>`}
+<script nonce="${escapeHtml(options.cspNonce)}">${SEARCH_SCRIPT}</script>
+${
+  options.refreshSeconds === undefined
+    ? ""
+    : `<script nonce="${escapeHtml(options.cspNonce)}">${refreshScript(options.refreshSeconds)}</script>`
+}
 </body>
 </html>`;
 }
@@ -224,6 +242,10 @@ border:1px solid transparent}
 .badge--warn{background:rgba(200,144,31,.15);color:#e0b45c;border-color:rgba(200,144,31,.4)}
 .badge--bad{background:rgba(192,74,74,.15);color:#e08a8a;border-color:rgba(192,74,74,.4)}
 .badge--muted{background:#1c202a;color:var(--muted);border-color:var(--line)}
+/* لوحُ الخريطة (المرحلة ١٠): يبقى في الورقة الوحيدة لا في وسمٍ ثانٍ، فورقتان
+   تتنافسان على نفس الأصناف وتنجرفان. */
+.map-canvas{width:100%;border-radius:8px;border:1px solid #262b36;background:#0d0f14}
+.maplibregl-popup-content{background:#171a21;color:#e7e9ee;font-family:inherit}
 .empty{color:var(--muted);margin:0;padding:12px 0}
 .notice{padding:10px 14px;border-radius:8px;margin-bottom:14px}
 .notice--ok{background:rgba(47,158,99,.15);border:1px solid rgba(47,158,99,.4)}
@@ -249,6 +271,23 @@ border-radius:12px;padding:22px}
 border:1px solid var(--line);background:#0d0f14;color:var(--text);font-family:inherit}
 .login button{width:100%}
 .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+/* مُركِّبُ البثّ الجماعي: حقلُ نصٍّ طويل، ورقائقُ رموز، وشريطُ تقدّم. تُضاف هنا
+   لا في ورقةٍ ثانية — ورقتان تتنافسان على نفس الأصناف وتنجرفان (نفسُ حجّة الخريطة). */
+textarea{width:100%;min-height:150px;padding:10px;border-radius:8px;border:1px solid var(--line);
+background:#0d0f14;color:var(--text);font-family:inherit;font-size:15px;line-height:1.7;resize:vertical}
+.stack{display:flex;flex-direction:column;gap:4px;margin-bottom:12px;color:var(--muted);font-size:13px}
+.stack>span{color:var(--text)}
+.optionset{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:4px 0 12px}
+.optionset label{display:inline-flex;gap:6px;align-items:center;color:var(--text);font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chip{padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:#12141a;
+color:var(--text);font-size:16px;cursor:pointer;line-height:1}
+.chip:hover{border-color:var(--accent)}
+.bar{height:8px;border-radius:999px;background:#12141a;border:1px solid var(--line);overflow:hidden;
+min-width:120px}
+.bar>i{display:block;height:100%;background:var(--ok)}
+.preview{white-space:pre-wrap;background:#12141a;border:1px solid var(--line);border-radius:8px;
+padding:12px;margin:0}
 `;
 
 /**
@@ -276,7 +315,7 @@ async function waslahSearch(event){
       }
       html+='</ul>';
     }
-    html+='<button class="ghost" onclick="document.getElementById(\\'search-results\\').hidden=true">إغلاق</button>';
+    html+='<button class="ghost" data-close-search="1">إغلاق</button>';
     box.innerHTML=html;
   }catch(e){box.textContent='تعذّر البحث: '+e;}
   return false;
@@ -286,4 +325,32 @@ function escapeText(v){
     return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
   });
 }
+/*
+ * ربطُ الأحداث هنا لا في سمات onsubmit/onclick/onchange. وسياسة أمن المحتوى
+ * (المرحلة ١٠) لا تُجيز سماتَ الأحداث أصلاً — والـnonce يُجيز الوسومَ وحدها — فلو
+ * بقيت تلك السمات لتوقّف البحثُ وزرُّ الإغلاق ومُنتقي المدينة بلا رسالةِ خطأ في
+ * الصفحة، وهو عطلٌ صامت. والتنويب على المستند يعمل كذلك على عناصر لم تكن موجودة
+ * وقت التحميل، وهذا لازمٌ لزرّ الإغلاق فهو يُبنى بعد وصول النتائج.
+ */
+document.addEventListener('submit',function(ev){
+  var form=ev.target;
+  if(!form||form.id!=='search-form')return;
+  ev.preventDefault();
+  waslahSearch(ev);
+});
+document.addEventListener('click',function(ev){
+  var el=ev.target;
+  if(!el||!el.closest)return;
+  if(!el.closest('[data-close-search]'))return;
+  ev.preventDefault();
+  var box=document.getElementById('search-results');
+  if(box){box.hidden=true;box.innerHTML='';}
+});
+document.addEventListener('change',function(ev){
+  var el=ev.target;
+  if(!el||!el.getAttribute)return;
+  var param=el.getAttribute('data-nav-param');
+  if(!param)return;
+  window.location.href='?'+encodeURIComponent(param)+'='+encodeURIComponent(el.value);
+});
 `;

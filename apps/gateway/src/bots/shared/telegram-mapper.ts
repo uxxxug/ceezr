@@ -14,7 +14,19 @@ export interface RawTelegramUpdate {
     readonly chat?: { readonly id?: number | string };
     readonly from?: { readonly id?: number | string; readonly language_code?: string };
     readonly text?: string;
-    readonly location?: { readonly latitude?: number; readonly longitude?: number };
+    /** ثانية Unix. تلغرام يُرسله في كل رسالة، وهو زمن الإصلاحة لا زمن وصولها إلينا. */
+    readonly date?: number;
+    /**
+     * `horizontal_accuracy` و`heading` يرسلهما تلغرام مع الموقع ولم نكن نقرأهما،
+     * فكانت كل إصلاحة تصل إلى المجال بلا ما يُقيَّم به — وكان مُقيِّم المرحلة ٣
+     * مضطرّاً أن يفترض الأفضل في كل مرة. قراءتهما هنا شرط أن يكون التقييم حقيقياً.
+     */
+    readonly location?: {
+      readonly latitude?: number;
+      readonly longitude?: number;
+      readonly horizontal_accuracy?: number;
+      readonly heading?: number;
+    };
     /**
      * `user_id` حاسم لا تكميلي: بطاقة جهة اتصال *شخص آخر* تصل بنفس شكل
      * زرّ "مشاركة رقمي" تماماً. بلا هذا الحقل لا سبيل للتفريق بينهما.
@@ -68,6 +80,15 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
       kind: "location",
       from: sender,
       location: { latitude: location.latitude, longitude: location.longitude },
+      /**
+       * تُمرَّر كما وصلت بلا تنقية: التحقّق قرار مجال، ووظيفة هذه الطبقة النقل لا
+       * الحكم. وتصفيتها هنا كانت ستُنشئ حاجزاً ثانياً يتفرّع عن الأول بمرور الوقت.
+       */
+      quality: {
+        accuracyMeters: location.horizontal_accuracy,
+        headingDegrees: location.heading,
+        recordedAtMs: message.date === undefined ? undefined : message.date * 1000,
+      },
     };
   }
 

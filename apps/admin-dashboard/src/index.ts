@@ -37,12 +37,33 @@ export {
 
 export { type LoginPageData, renderLoginPage } from "./login.ts";
 
+/**
+ * لوحُ الخريطة (المرحلة ١٠) — مكوّنٌ بلا مسارٍ ولا عنصرِ تنقّل بعد. تركيبُه في
+ * صفحةٍ من نطاق المرحلة ١٣، وعرضُه للراكب من ١١ وللسائق من ١٢. ويُصدَّر الآن لأن
+ * تعريفَه واختبارَه أُنجزا فعلاً، لا لأن أحداً يستهلكه — وهذا مُعلَنٌ في التقرير.
+ */
+export {
+  centerOf,
+  isUsableIntegrity,
+  jsonForScript,
+  type MapPanelOptions,
+  renderMapPanel,
+} from "./map.ts";
 export {
   type AttendanceEvent,
   type AttendancePageData,
   type AttendanceSummaryRow,
   renderAttendancePage,
 } from "./pages/attendance.ts";
+export {
+  BROADCAST_BODY_LIMIT,
+  type BroadcastAudienceChoice,
+  type BroadcastFormState,
+  type BroadcastHistoryRow,
+  type BroadcastPageData,
+  type BroadcastPreview,
+  renderBroadcastPage,
+} from "./pages/broadcast.ts";
 export { type DisputeRow, type DisputesPageData, renderDisputesPage } from "./pages/disputes.ts";
 export {
   type DriverDetail,
@@ -63,6 +84,12 @@ export {
   renderDriversPage,
 } from "./pages/drivers.ts";
 export { type HeatCell, type HeatmapPageData, renderHeatmapPage } from "./pages/heatmap.ts";
+export {
+  type LiveMapData,
+  type LiveMapDriverRow,
+  type LiveMapStatus,
+  renderLiveMapPage,
+} from "./pages/live-map.ts";
 export {
   type LiveOrderRow,
   type LiveOrdersData,

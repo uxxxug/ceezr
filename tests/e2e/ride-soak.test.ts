@@ -18,6 +18,7 @@ import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -52,6 +53,17 @@ const config: AppConfig = {
   translationApiKey: null,
   translationContactEmail: null,
   runWorkerInGateway: false,
+  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
+  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
+  mapProvider: "none",
+  mapStyleUrl: null,
+  mapTilesPublicKey: null,
+  maplibreSri: null,
+  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
+  routingProvider: "none",
+  osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 let sql: Sql;

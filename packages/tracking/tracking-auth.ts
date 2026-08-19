@@ -2,7 +2,12 @@
  * الغرض: مصادقة التتبّع — تمنع العميل من انتحال هوية سائق آخر.
  *   الرمز يصدره الخادم ويخزّنه (Redis عادةً)، ويربطه بـ driverId + tripId + انتهاء.
  *   المسار يشتقّ الهوية من الرمز لا من body.
- * الحالة: منفّذ فعلياً — المرحلة P0 (أمن التتبّع).
+ * الحالة: **منطق الترويسة منفّذ — المخزن واجهةٌ بلا تنفيذ** — المرحلة P0.
+ *   `extractBearerToken` و `toAuthResult` دوالٌ خالصة مختبرة. أمّا
+ *   `TrackingTokenStore` فلا يُنفّذه أيّ محوّل في `packages/infrastructure`، ولا يوجد
+ *   في المستودع من يستدعي `issue` ليمنح سائقاً رمزاً. فمن يوصِل
+ *   `routes/tracking.ts` عليه أن يبني المخزن والمُصدِر أولاً — وإلا فكلّ طلبٍ
+ *   يُردّ 401 وحسب.
  * ينتمي إلى: packages/tracking
  */
 
@@ -51,9 +56,7 @@ export function extractBearerToken(authHeader: string | undefined): string | nul
 /**
  * يحوّل نتيجة التحقق من المخزن إلى نتيجة مصادقة موحّدة.
  */
-export function toAuthResult(
-  payload: TrackingTokenPayload | null,
-): TrackingAuthResult {
+export function toAuthResult(payload: TrackingTokenPayload | null): TrackingAuthResult {
   if (payload === null) {
     return { ok: false, error: "INVALID_TOKEN" };
   }

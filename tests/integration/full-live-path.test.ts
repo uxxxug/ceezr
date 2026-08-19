@@ -46,6 +46,7 @@ const cityId = "city-e2e-jed" as CityId;
 
 function e2ePaymentRepo(): PaymentRepository & { txns: PaymentTransaction[] } {
   const txns: PaymentTransaction[] = [];
+  const webhookEvents = new Set<string>();
   return {
     txns,
     create: async (input) => {
@@ -69,17 +70,40 @@ function e2ePaymentRepo(): PaymentRepository & { txns: PaymentTransaction[] } {
     },
     findById: async (id) => ok(txns.find((t) => t.id === id) ?? null),
     findByIdempotencyKey: async (key) => ok(txns.find((t) => t.id === key) ?? null),
+    recordCheckoutUrl: async (input) => ok({ checkoutUrl: input.checkoutUrl }),
+    recordProviderReference: async (input) =>
+      ok({ providerTransactionId: input.providerTransactionId, stored: true }),
+    findStalePending: async () => ok([]),
     confirmPayment: async (input) => {
       const idx = txns.findIndex((t) => t.id === input.transactionId);
-      if (idx === -1) return err(new PortFailureError("payments", "NOT_FOUND"));
+      const current = txns[idx];
+      if (idx === -1 || current === undefined)
+        return err(new PortFailureError("payments", "NOT_FOUND"));
       const updated: PaymentTransaction = {
-        ...txns[idx]!,
+        ...current,
         status: input.newStatus,
         providerTransactionId: input.providerTransactionId,
         updatedAt: new Date(),
       };
       txns[idx] = updated;
       return ok(updated);
+    },
+    confirmWebhookPayment: async (input) => {
+      const current = txns.find((item) => item.id === input.transactionId);
+      if (current === undefined) return err(new PortFailureError("payments", "NOT_FOUND"));
+      if (webhookEvents.has(input.webhookEventId)) {
+        return ok({ transaction: current, duplicate: true });
+      }
+      webhookEvents.add(input.webhookEventId);
+      const updated: PaymentTransaction = {
+        ...current,
+        status: input.newStatus,
+        providerTransactionId: input.providerTransactionId,
+        updatedAt: new Date(),
+      };
+      const index = txns.findIndex((item) => item.id === input.transactionId);
+      txns[index] = updated;
+      return ok({ transaction: updated, duplicate: false });
     },
   };
 }
@@ -93,14 +117,23 @@ function e2eProvider(): PaymentProvider {
         checkoutUrl: null,
         status: "active" as const,
       }),
+    verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+    fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
   };
 }
 
-function e2eEventStore(): WebhookEventStore & { seen: Set<string> } {
+function e2eEventStore(): WebhookEventStore & {
+  seen: Set<string>;
+  recordedTransactionIds: string[];
+} {
   const seen = new Set<string>();
+  const recordedTransactionIds: string[] = [];
   return {
     seen,
-    record: async (eventId) => {
+    recordedTransactionIds,
+    // معرّف المعاملة محفوظ لا مُهمَل: منه تُقرأ مدينة الحدث في القاعدة.
+    record: async (eventId, _provider, _payload, transactionId) => {
+      recordedTransactionIds.push(transactionId);
       if (seen.has(eventId)) return ok(false);
       seen.add(eventId);
       return ok(true);
@@ -123,7 +156,7 @@ function e2eBackupStorage(): BackupStoragePort & { uploads: { name: string; byte
     },
     list: async () =>
       ok(uploads.map((u) => ({ remoteFileId: u.name, name: u.name, uploadedAt: new Date() }))),
-    delete: async () => ok(undefined as void),
+    delete: async () => ok(undefined),
   };
 }
 
@@ -165,6 +198,8 @@ describe("e2e: المسار الحيّ الكامل", () => {
         transactionId: idempotencyKey as PaymentTransactionId,
         providerTransactionId: "prov-e2e-1",
         newStatus: "active",
+        providerAmount: 25000,
+        providerCurrency: "SAR",
         webhookEventId: "wh-e2e-1",
         provider: "e2e-mock-provider",
         rawPayload: '{"eventId":"wh-e2e-1"}',
@@ -187,6 +222,7 @@ describe("e2e: المسار الحيّ الكامل", () => {
           status: "active",
           trialEndsAt: null,
           currentPeriodEnd: new Date("2026-09-10T15:00:00Z"),
+          cancelAtPeriodEnd: false,
         },
         new Date("2026-08-11T15:00:00Z"),
       ),
@@ -198,6 +234,8 @@ describe("e2e: المسار الحيّ الكامل", () => {
         transactionId: idempotencyKey as PaymentTransactionId,
         providerTransactionId: "prov-e2e-1",
         newStatus: "active",
+        providerAmount: 25000,
+        providerCurrency: "SAR",
         webhookEventId: "wh-e2e-1",
         provider: "e2e-mock-provider",
         rawPayload: '{"eventId":"wh-e2e-1"}',
@@ -233,6 +271,8 @@ describe("e2e: المسار الحيّ الكامل", () => {
     const failingProvider: PaymentProvider = {
       name: "e2e-fail-provider",
       chargeSubscription: async () => err(new PortFailureError("provider", "charge declined")),
+      verifyWebhook: async () => err(new PortFailureError("provider", "UNUSED")),
+      fetchTransaction: async () => err(new PortFailureError("provider", "UNUSED")),
     };
     const deps: SubscribePlanDeps = {
       payments: repo,

@@ -1,109 +1,125 @@
 /**
- * الغرض: استقبال ويبهوك تأكيد الدفع من مزوّد الدفع — البند 8.3 و8.5.
- *   يتحقّق من التوقيع بزمن ثابت (بنفس صرامة ويبهوك تلغرام)، ثم يطبّق Idempotency،
- *   ثم يؤكّد المعاملة ذرّياً (تفعيل الاشتراك + دفتر الأستاذ).
- * الحالة: منفّذ فعلياً — البند 8.
+ * الغرض: استقبال ويبهوك الدفع بعد إثبات أصله وإعادة قراءة الدفعة من خادم المزوّد.
+ * الحالة: منفّذ فعلياً؛ لا تؤخذ حالة أو مبلغ أو معرّف معاملتنا من حمولة خارجية.
  * ينتمي إلى: apps/gateway/src/routes
- * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/server.ts
- * ملاحظات مستقبلية: لا تُخزَّن بيانات بطاقة ولا CVV نهائياً (البند 8.9). لا سرّ في
- *   السجلّات. كل الأسرار في متغيّرات بيئة Render فقط.
+ * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/server.ts بعد تركيب PaymentProvider.
+ * ملاحظات مستقبلية: التسجيل لا يتضمن السر ولا الجسم الخام؛ الجسم يحفظ في القاعدة
+ * فقط ضمن RPC التدقيقي بعد قبول الحدث.
  */
 
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import {
   type ConfirmPaymentDeps,
   confirmSubscriptionPayment,
 } from "../../../../packages/application/financial/index.ts";
-import type {
-  PaymentTransactionId,
-  PaymentTransactionStatus,
-} from "../../../../packages/domain/financial/index.ts";
-
-/**
- * مقارنة زمن ثابت للسرّ — مُعاد استخدامها من نمط ويبهوك تلغرام لا اختراع جديد.
- * لا تكشف طول المحتوى ولا موضع الاختلاف من زمن الاستجابة.
- */
-export function paymentSecretsMatch(provided: string, expected: string): boolean {
-  const providedBytes = new TextEncoder().encode(provided);
-  const expectedBytes = new TextEncoder().encode(expected);
-  let diff = providedBytes.length ^ expectedBytes.length;
-  const length = Math.max(providedBytes.length, expectedBytes.length);
-  for (let i = 0; i < length; i += 1) {
-    diff |= (providedBytes[i] ?? 0) ^ (expectedBytes[i] ?? 0);
-  }
-  return diff === 0;
-}
+import type { PaymentProvider } from "../../../../packages/application/financial/ports.ts";
+import type { PaymentTransactionId } from "../../../../packages/domain/financial/index.ts";
+import { readBounded } from "./telegram-webhook.ts";
 
 export const PAYMENT_WEBHOOK_MAX_BYTES = 256 * 1024;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const TRANSACTION_METADATA_KEY = "waslah_transaction_id";
 
 export interface PaymentWebhookDependencies {
-  /** السرّ المشترك مع مزوّد الدفع — يُقارن بزمن ثابت. */
-  readonly webhookSecret: string;
-  /** اسم المزوّد للسجلّ. */
-  readonly providerName: string;
+  /** المزوّد المركّب؛ غيابه يعطّل المسار بدلاً من قبول ويبهوك قديم غير موثّق. */
+  readonly provider?: PaymentProvider;
   readonly confirmDeps: ConfirmPaymentDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /** توافق تركيبي مؤقت فقط؛ لا يُقرأ ولا يُستخدم للتحقق. */
+  readonly webhookSecret?: string;
+  /** توافق تركيبي مؤقت فقط؛ الاسم الفعلي provider.name. */
+  readonly providerName?: string;
 }
 
-/**
- * شكل حدث الويبهوك المتوقَّع. المزوّد الفعلي يحدد التفاصيل، لكن العقد ثابت:
- * معرّف الحدث (للإيدمبوتنسي)، معرّف المعاملة عندنا، معرّف العملية عند المزوّد، الحالة.
- */
-interface PaymentWebhookEvent {
-  readonly eventId: string;
-  readonly transactionId: string;
-  readonly providerTransactionId: string;
-  readonly status: PaymentTransactionStatus;
+function rejected(c: Context, error: string, status: 400 | 401 | 409 | 422 | 503) {
+  return c.json({ ok: false, error }, status);
 }
 
 export function createPaymentWebhookRoutes(deps: PaymentWebhookDependencies): Hono {
   const app = new Hono();
 
   app.post("/webhook/payment", async (c) => {
-    const signature = c.req.header("x-payment-signature") ?? "";
+    if (deps.provider === undefined) {
+      deps.log?.("ويبهوك الدفع معطّل لغياب مزوّد موثّق", {});
+      return rejected(c, "PAYMENT_PROVIDER_NOT_CONFIGURED", 503);
+    }
+    const declaredLength = Number(c.req.header("content-length") ?? Number.NaN);
+    if (Number.isFinite(declaredLength) && declaredLength > PAYMENT_WEBHOOK_MAX_BYTES) {
+      return rejected(c, "PAYLOAD_TOO_LARGE", 400);
+    }
+    const raw = await readBounded(c.req.raw.body, PAYMENT_WEBHOOK_MAX_BYTES);
+    if (raw === null) return rejected(c, "PAYLOAD_TOO_LARGE", 400);
 
-    // التحقّق من التوقيع أولاً — بزمن ثابت، قبل أيّ معالجة.
-    if (!paymentSecretsMatch(signature, deps.webhookSecret)) {
-      deps.log?.("رفض ويبهوك دفع بتوقيع غير مطابق", {});
-      return c.json({ ok: false, error: "INVALID_SIGNATURE" }, 401);
+    // Moyasar يثبت السر داخل الجسم؛ لا HMAC أو ترويسة مخترعة هنا.
+    const verified = await deps.provider.verifyWebhook(raw, c.req.raw.headers);
+    if (!verified.ok) {
+      deps.log?.("رفض ويبهوك دفع غير موثّق", { detail: verified.error.detail });
+      return rejected(c, "INVALID_WEBHOOK", 401);
     }
 
-    const raw = await c.req.text();
-    if (raw.length > PAYMENT_WEBHOOK_MAX_BYTES) {
-      return c.json({ ok: false, error: "PAYLOAD_TOO_LARGE" }, 413);
+    // لا نقرأ status أو amount أو metadata من الحدث. هذه اللقطة من API المزوّد.
+    const snapshot = await deps.provider.fetchTransaction(verified.value.providerTransactionId);
+    if (!snapshot.ok) {
+      deps.log?.("تعذر إعادة قراءة دفعة مزوّد", { detail: snapshot.error.detail });
+      return rejected(c, "PROVIDER_LOOKUP_FAILED", 503);
+    }
+    if (snapshot.value.id !== verified.value.providerTransactionId) {
+      deps.log?.("معرّف الدفعة المعاد لا يطابق الحدث", {});
+      return rejected(c, "PROVIDER_TRANSACTION_MISMATCH", 400);
     }
 
-    let event: PaymentWebhookEvent;
-    try {
-      event = JSON.parse(raw) as PaymentWebhookEvent;
-    } catch {
-      return c.json({ ok: false, error: "INVALID_JSON" }, 400);
+    const localId = snapshot.value.metadata[TRANSACTION_METADATA_KEY];
+    if (localId === undefined || !UUID_PATTERN.test(localId)) {
+      deps.log?.("دفعة مزوّد بلا إثبات ربط بمعاملة محلية", {});
+      return rejected(c, "UNOWNED_PROVIDER_TRANSACTION", 422);
+    }
+    const local = await deps.confirmDeps.payments.findById(localId as PaymentTransactionId);
+    if (!local.ok) {
+      deps.log?.("تعذر قراءة المعاملة المحلية", { detail: local.error.detail });
+      return rejected(c, "LOCAL_TRANSACTION_LOOKUP_FAILED", 503);
+    }
+    if (local.value === null) {
+      deps.log?.("حدث دفع لمعاملة غير معروفة", {});
+      return rejected(c, "UNKNOWN_TRANSACTION", 422);
+    }
+    if (local.value.provider !== deps.provider.name) {
+      deps.log?.("مزوّد الحدث لا يملك المعاملة المحلية", {});
+      return rejected(c, "PROVIDER_MISMATCH", 422);
+    }
+    if (
+      local.value.amount.amount !== snapshot.value.amount ||
+      local.value.amount.currency.toUpperCase() !== snapshot.value.currency.toUpperCase()
+    ) {
+      deps.log?.("مبلغ أو عملة دفعة المزوّد لا يطابقان المعاملة", {
+        transactionId: local.value.id,
+      });
+      return rejected(c, "AMOUNT_OR_CURRENCY_MISMATCH", 422);
     }
 
-    if (!event.eventId || !event.transactionId || !event.providerTransactionId || !event.status) {
-      return c.json({ ok: false, error: "INVALID_EVENT" }, 400);
-    }
-
-    const result = await confirmSubscriptionPayment(
+    const confirmed = await confirmSubscriptionPayment(
       {
-        transactionId: event.transactionId as PaymentTransactionId,
-        providerTransactionId: event.providerTransactionId,
-        newStatus: event.status,
-        webhookEventId: event.eventId,
-        provider: deps.providerName,
+        transactionId: local.value.id,
+        providerTransactionId: snapshot.value.id,
+        newStatus: snapshot.value.status,
+        providerAmount: snapshot.value.amount,
+        providerCurrency: snapshot.value.currency,
+        webhookEventId: verified.value.id,
+        provider: deps.provider.name,
         rawPayload: raw,
       },
       deps.confirmDeps,
     );
-
-    if (!result.ok) {
-      deps.log?.("فشل تأكيد دفع", { detail: result.error.detail });
-      return c.json({ ok: false, error: "CONFIRMATION_FAILED" }, 200);
+    if (!confirmed.ok) {
+      deps.log?.("رفض تأكيد دفع من RPC", { detail: confirmed.error.detail });
+      return rejected(c, "CONFIRMATION_REJECTED", 409);
     }
 
-    // 200 حتى للحدث المكرَّر: المزوّد لا يُعاد إرساله بلا داعٍ.
     return c.json(
-      { ok: true, transactionId: result.value.transactionId, duplicate: result.value.duplicate },
+      {
+        ok: true,
+        transactionId: confirmed.value.transactionId,
+        duplicate: confirmed.value.duplicate,
+      },
       200,
     );
   });

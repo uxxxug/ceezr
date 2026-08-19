@@ -18,6 +18,15 @@ export interface Subscription {
   readonly status: SubscriptionStatus;
   readonly trialEndsAt: Date | null;
   readonly currentPeriodEnd: Date | null;
+  /**
+   * طُلب الإلغاء والخدمة مستمرّة إلى `currentPeriodEnd` ثمّ تُغلق.
+   *
+   * ليس حالةً ثالثة في `status`: الاشتراك في هذه المدّة **سارٍ فعلاً**
+   * وتصل صاحبه الطلبات، ومن جعله حالةً قطع خدمةً مدفوعة بلا ردّ.
+   * وجوده في الكيان لأنّ الواجهة تحتاج أن تعرف أتعرض «إلغاء» أم «استئناف»،
+   * ولو قرأته بنداءٍ منفصل لأمكن أن تختلف الأجوبة بين النداءين.
+   */
+  readonly cancelAtPeriodEnd: boolean;
 }
 
 /** الخدمات التي تغطيها الخطة. */

@@ -1,0 +1,13 @@
+21 | 
+22 | /** حدود تقييم إصلاحة GPS النافذة فعلياً — افتراض المجال ما لم يتجاوزه المشغّل. */
+23 | export function resolveGpsPolicy(overrides: TrackingEnvOverrides): GpsPolicy {
+24 |   return {
+25 |     ...DEFAULT_GPS_POLICY,
+26 |     ...(overrides.maxAccuracyMeters === null
+             ^
+TypeError: undefined is not an object (evaluating 'overrides.maxAccuracyMeters')
+      at resolveGpsPolicy (/home/user/workspace/ceezr/packages/tracking/config.ts:26:9)
+      at buildContainer (/home/user/workspace/ceezr/apps/gateway/src/container.ts:661:21)
+      at /home/user/workspace/ceezr/scripts/load-test.ts:66:19
+
+Bun v1.3.14 (Linux x64)

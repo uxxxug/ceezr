@@ -1,8 +1,8 @@
 /**
  * الغرض: عقد رفع نسخة احتياطية إلى تخزين خارجي (Google Drive) — المنفذ الذي
- *   يُخاطب به العاملُ التخزينَ السحابيّ. لا تنفيذ هنا: التنفيذ في
- *   `google-drive-adapter.ts`، والمزدوجات في tests/support.
- * الحالة: منفّذ فعلياً — البند 7 (النسخ الاحتياطي على Google Drive).
+ *   يُخاطب به العاملُ التخزينَ السحابيّ أو المحليّ. لا تنفيذ هنا: التنفيذ في
+ *   المحوّلات، والمزدوجات في الاختبارات.
+ * الحالة: منفّذ فعلياً — نسخ واسترجاع للتحقّق الدوري.
  * ينتمي إلى: application/ports (موضوعة هنا بجوار المحوّل لأنها خاصّة به وحده)
  * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/jobs/backup-database.ts
  * ملاحظات مستقبلية: لو أُضيف مزوّد تخزين ثانٍ (S3، Backblaze) يُحقن من هنا
@@ -34,11 +34,18 @@ export interface RemoteBackupFile {
  * عن سياسة الاحتفاظ — كلّها مسؤولية المهمّة.
  */
 export interface BackupStoragePort {
-  /** يرفع ملفاً مضغوطاً إلى المجلد المضبوط. */
+  /** يرفع ملف نسخة إلى الموضع المضبوط. */
   upload(
     name: string,
     content: Uint8Array,
   ): Promise<Result<BackupUploadResult, BackupStorageError>>;
+
+  /**
+   * يقرأ نسخةً كاملةً بالمعرّف الذي أعاده الرفع، للتحقق أو الاستعادة.
+   * اختياري مرحلياً حتى لا تعطل المحولات القديمة النسخ؛ مهمة التحقق ترفض صراحة
+   * أي مخزن لا يقدمه، فلا يمكن أن تتحول إلى نجاح زائف.
+   */
+  download?(remoteFileId: string): Promise<Result<Uint8Array, BackupStorageError>>;
 
   /** يعدّد النسخ الموجودة في المجلد مرتّبة من الأقدم للأحدث. */
   list(): Promise<Result<readonly RemoteBackupFile[], BackupStorageError>>;

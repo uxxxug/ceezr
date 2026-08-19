@@ -31,4 +31,20 @@ export class InvalidAreaLabelError {
   constructor(readonly reason: "empty" | "too_short" | "too_long") {}
 }
 
-export type GeoError = InvalidCoordinatesError | InvalidDistanceError | InvalidAreaLabelError;
+/**
+ * إصلاحة GPS مرفوضة — المرحلة ٣.
+ *
+ * تحمل رموز الملحوظات لا نصّاً حرّاً: الطبقة القديمة كانت تردّ `reason` نصّاً
+ * ثمّ تستنتج نوع الحدث بـ`reason.includes("Teleport")` — قرار تشغيلي معلّق على
+ * تهجئة رسالة إنجليزية يكسره أوّل تعديل لغوي، ولا يكشف كسرَه مترجِمٌ ولا مدقّق أنواع.
+ */
+export class RejectedGpsFixError {
+  readonly code = "REJECTED_GPS_FIX" as const;
+  constructor(readonly reasons: readonly string[]) {}
+}
+
+export type GeoError =
+  | InvalidCoordinatesError
+  | InvalidDistanceError
+  | InvalidAreaLabelError
+  | RejectedGpsFixError;

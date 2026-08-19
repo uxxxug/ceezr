@@ -21,10 +21,12 @@ const JED = "city-jed" as CityId;
 const MKK = "city-mkk" as CityId;
 
 describe("سجل المفاتيح", () => {
-  it("ستّة عشر مفتاحاً كما في مخطط البذر", () => {
-    // البند 2.4 أضاف match_weight_preferred_area، مبذوراً في هجرة المنطقة المفضّلة
-    expect(SETTING_KEYS).toHaveLength(16);
+  it("سبعة عشر مفتاحاً كما في مخطط البذر", () => {
+    // البند 2.4 أضاف match_weight_preferred_area، والمرحلة ٨ أضافت
+    // driver_location_max_age_seconds — كلاهما مبذور بصفر في هجرته
+    expect(SETTING_KEYS).toHaveLength(17);
     expect(isSettingKey("match_weight_preferred_area")).toBe(true);
+    expect(isSettingKey("driver_location_max_age_seconds")).toBe(true);
   });
   it("يتعرّف على مفتاح معروف ويرفض المجهول", () => {
     expect(isSettingKey("search_radius_km")).toBe(true);
@@ -146,6 +148,8 @@ describe("toMatchingParameters", () => {
       weightProximity: 0.7,
       weightRating: 0.3,
       weightPreferredArea: 0,
+      // المرحلة ٨: صفرٌ هو المبذور — الحَرَس يُسلَّم معطّلاً
+      driverLocationMaxAgeSeconds: 0,
       broadcastBatchSize: 5,
       defaultRating: 4.5,
       ratingMinCountForTrust: 3,

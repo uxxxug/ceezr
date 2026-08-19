@@ -7,10 +7,12 @@
  * ملاحظات مستقبلية: التسعير المسبق يُضاف بقراءة تعرفة المدينة من platform_settings.
  */
 
+import { haversineKm } from "../../domain/geo/index.ts";
 import { makeCoordinates } from "../../domain/geo/value-objects.ts";
 import { parseFullName } from "../../domain/identity/value-objects.ts";
+import { DEFAULT_SESSION_POLICY } from "../../domain/tracking/session.ts";
 import { t } from "../../shared/i18n/index.ts";
-import type { Clock, ServiceType } from "../../shared/kernel/index.ts";
+import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
 import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
@@ -22,6 +24,13 @@ import {
   type RotateNegotiationDependencies,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
+import { type TriggerSosDeps, triggerSos } from "../safety/trigger-sos.ts";
+import {
+  type IssueTrackingTokenDeps,
+  issueTrackingToken,
+} from "../tracking/issue-tracking-token.ts";
+import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
+import { revokeOrderTrackingTokens } from "../tracking/revoke-tracking-token.ts";
 import {
   handleLanguageCallback,
   handleLanguageCommand,
@@ -36,7 +45,11 @@ import {
   requestWithMenuKeyboard,
 } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
-import { handleRatingCallback, type RatingDialogDependencies } from "./rating-dialog.ts";
+import {
+  handleRatingCallback,
+  type RatingDialogDependencies,
+  shortOrderId,
+} from "./rating-dialog.ts";
 import {
   handleSupportGroupAction,
   type SupportDialogDependencies,
@@ -59,6 +72,7 @@ import {
   type Sender,
   type SessionStore,
 } from "./types.ts";
+import { waitBucket, waitingLine } from "./waiting-lines.ts";
 
 export interface RiderBotDependencies {
   readonly sessions: SessionStore;
@@ -88,6 +102,28 @@ export interface RiderBotDependencies {
   readonly rating?: RatingDialogDependencies;
   /** اختيار اللغة (المرحلة 2.6) — نفس الحوار المستخدَم في بوت السائق حرفياً. */
   readonly language?: LanguageDialogDependencies;
+  /**
+   * منفذ التتبّع اللحظي — المرحلة ١١، للإلغاء وحده.
+   *
+   * ولماذا يدخل حوارَ العميل وقد كان في حوار التقييم فقط؟ لأن للرحلة نهايتين لا
+   * نهايةً واحدة: تكتمل فتُغلقها `rating-dialog` بـ`TRIP_COMPLETED`، أو تُلغى —
+   * ولم يكن للإلغاء مسارٌ إلى التتبّع إطلاقاً. فكان العميل يُلغي طلبه وتبقى في
+   * محادثته خريطةٌ تُعلنها تلغرام «حيّة» على آخر موضعٍ لسائقٍ لم تعد له به صلة.
+   *
+   * اختياريٌّ كـ`rating`: التتبّع **عونٌ لا شرط** (نفس مبدأ الحاجز في
+   * `live-tracking.ts`)، فحوارٌ يُركَّب بلا تتبّع في اختبارٍ يجب أن يُلغي الطلب
+   * لا أن يفشل.
+   */
+  readonly tracking?: LiveTrackingPort;
+  /**
+   * §4.2 — روابطُ التتبّع المؤقّتة: زرّ «شارك موقعي الحي» وزرّ «إلغاء الرابط».
+   *
+   * اختياريٌّ لأنّ الرابط يحتاج `TRACKING_TOKEN_BASE_URL`، والتركيبُ بلا أساسٍ عامٍّ
+   * لا يجوز أن يعرض زرّاً يُنتج رابطاً لا يُفتح. غيابه = لا زرّين، لا زرّان يفشلان.
+   */
+  readonly trackingLinks?: IssueTrackingTokenDeps;
+  /** SOS اختياري في الاختبارات القديمة، ومربوط دائماً في الحاوية الحية. */
+  readonly safety?: { readonly trigger: TriggerSosDeps };
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -150,6 +186,8 @@ export async function handleRiderUpdate(
     if (prefix === "back") return handleBack(rest.join(":"), sender, state, deps);
     if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
     if (prefix === "cancel") return handleCancelChoice(rest.join(":"), sender, state, deps);
+    if (prefix === "sos") return handleSosCallback(rest, sender, state, deps);
+    if (prefix === "trk") return handleTrackingLinkCallback(rest, sender, state, deps);
     // البند 6.3: زرّ أمرٍ من لوحة `/help` — يمرّ بنفس موجّه الأوامر لا بمسار ثانٍ
     if (prefix === "cmd") {
       const command = rest.join(":");
@@ -327,6 +365,95 @@ function waitedMinutes(order: ActiveOrderSummary, now: Date): number {
 }
 
 /**
+ * حدّ قدم الموقع المعروض للعميل — المرحلة ١١.
+ *
+ * ولا يُكتب رقمٌ جديد هنا: هو **نفس** الحدّ الذي يحكم به المجال على جلسة
+ * التتبّع أنّها `STALE`. وحدٌّ ثانٍ أطول «لأن العميل لا يحتمل الإزعاج» يُنتج
+ * حالاً يرى فيها المشغّل سائقاً منقطعاً ويرى العميل موقعاً يُعرَض بلا تحفّظ —
+ * واختلافُ الحكمين على الواقعة نفسها هو ما يُمنع.
+ */
+export const DRIVER_LOCATION_STALE_SECONDS = DEFAULT_SESSION_POLICY.staleAfterSeconds;
+
+/**
+ * قرب السائق من المرجع الذي يعني العميل في هذه اللحظة — دالةٌ نقيّة لتُختبر
+ * مباشرةً بلا بوتٍ ولا قاعدة.
+ *
+ * `null` لا «صفر متر» عند الجهل: مسافةٌ مخترعةٌ تقود عميلاً إلى الرصيف لسائقٍ
+ * لم يُرسل موقعاً قطّ، وسطرٌ غائبٌ أصدق من رقمٍ كاذب.
+ */
+export function driverProximity(
+  order: ActiveOrderSummary,
+  now: Date,
+): {
+  readonly meters: number;
+  readonly towards: "PICKUP" | "DROPOFF";
+  readonly ageSeconds: number;
+  readonly stale: boolean;
+} | null {
+  const at = order.assignedDriver?.lastLocation ?? null;
+  if (at === null) return null;
+
+  /**
+   * المرجع يتبع الحالة لا ثابتاً واحداً، لأن السّؤال نفسه يتغيّر:
+   *  - `matched`: العميل واقفٌ عند موضع الانطلاق يسأل «كم بقي ليصلَني؟»
+   *  - `in_progress`: العميل داخل المركبة يسأل «كم بقي لأصلَ؟»
+   * وقياسٌ واحد للحالتين يُعطي «يبعد عنك ٥٠ متراً» لمن هو جالسٌ في السيّارة.
+   *
+   * وما سوى الحالتين لا مرجع له: `searching` لا سائق له أصلاً.
+   */
+  const reference =
+    order.status === "in_progress"
+      ? (order.dropoff ?? null)
+      : order.status === "matched"
+        ? (order.pickup ?? null)
+        : null;
+  if (reference === null) return null;
+
+  const meters =
+    haversineKm(
+      { latitude: at.lat, longitude: at.lng },
+      { latitude: reference.lat, longitude: reference.lng },
+    ) * 1000;
+
+  // غير سالبٍ أبداً — نفس علّة `waitedMinutes`: ساعةُ جهاز السائق قد تسبق ساعتنا
+  // ثوانٍ، و«قبل ٣- ثانية» تقرأ عطلاً لا حداثةً.
+  const elapsed = now.getTime() - at.recordedAt.getTime();
+  const ageSeconds = elapsed <= 0 ? 0 : Math.floor(elapsed / 1000);
+
+  return {
+    meters,
+    towards: order.status === "in_progress" ? "DROPOFF" : "PICKUP",
+    ageSeconds,
+    stale: ageSeconds > DRIVER_LOCATION_STALE_SECONDS,
+  };
+}
+
+/**
+ * سطر المسافة — والتقريب فيه أمانةٌ لا تراخٍ.
+ *
+ * فـ`haversineKm` تقيس خطّاً مستقيماً لا مسار طريق، ودقةُ GPS نفسها بعشرات
+ * الأمتار. فـ«١٤٧٣ متراً» تدّعي دقّةً لا نملكها مرتين: في الموضع وفي الطريق.
+ * ولذلك لا يُذكر وقتٌ متوقّع (ETA) ألبتّة: الوقت يحتاج مساراً حقيقيّاً من OSRM
+ * وهو غير موصول (خطر R-28)، وETA مشتقٌّ من خطٍّ مستقيم وعدٌ للعميل بما لا نعرفه.
+ */
+function distanceLine(
+  tr: (key: string, vars?: Record<string, string | number>) => string,
+  meters: number,
+  towards: "PICKUP" | "DROPOFF",
+): string {
+  const suffix = towards === "DROPOFF" ? "dropoff" : "pickup";
+  if (meters < 1000) {
+    // لأقرب مئة متر، وبحدّ أدنى مئة: «صفر متر» تُقرأ «وصل» ولمّا يصل.
+    return tr(`rider.status_distance_${suffix}_m`, {
+      meters: Math.max(100, Math.round(meters / 100) * 100),
+    });
+  }
+  return tr(`rider.status_distance_${suffix}_km`, {
+    km: (Math.round(meters / 100) / 10).toFixed(1),
+  });
+}
+
+/**
  * تقرير حالة طلب واحد: الحالة، والسائق ولوحته إن أُسنِد، ومدّة الانتظار.
  *
  * حالة غير معروفة لا تُسكِت الردّ: استعلام الطلبات النشطة قد يوسّع يوماً، فمن يسأل
@@ -342,7 +469,14 @@ function describeOrderStatus(
 
   if (order.status === "matched") lines.push(tr("rider.status_matched"));
   else if (order.status === "in_progress") lines.push(tr("rider.status_in_progress"));
-  else if (order.status === "searching") lines.push(tr("rider.status_searching"));
+  else if (order.status === "searching") {
+    // السطرُ يتغيّر مع دِلاء الانتظار: من يفتح «طلبي» ثلاث مرّات في دقيقةٍ يجب أن يرى
+    // ثباتاً، ومن ينتظر عشرَ دقائق يجب أن يرى أنّ البحث ما زال يتحرّك لا أنّه معلّق.
+    const minutes = Math.floor((now.getTime() - order.createdAt.getTime()) / 60000);
+    lines.push(
+      waitingLine("riderStillSearching", `${order.orderId}:${waitBucket(minutes)}`, language),
+    );
+  }
 
   const driver = order.assignedDriver ?? null;
   if (driver !== null) {
@@ -356,6 +490,34 @@ function describeOrderStatus(
         ? tr("rider.status_plate_missing")
         : tr("rider.status_plate", { plate: driver.plateNumber }),
     );
+
+    /**
+     * المرحلة ١١ — وأخيراً يجيب `/status` عن السّؤال الذي بُني له.
+     *
+     * وكان يقول اسم السائق ولوحته ولا يقول أين هو — والموقع مخزّنٌ في
+     * `drivers.last_location` والمسافة تُحسب بـ`haversineKm` الموجودة والمستعملة
+     * في الإسناد. فالنقص لم يكن في البيانات ولا في الحساب، بل في أن أحداً
+     * لم يوصل الأوّل بالثاني عند العميل.
+     *
+     * والسطر يُحذف كلّه عند الجهل لا يُكتب «غير معروف»: اللوحة الناقصة تُقال
+     * صراحةً لأنّها **عيب تسجيل** يُطلب من الدعم إصلاحه، وموقعٌ لم يُرسل
+     * بعد حالٌ طبيعيّة في أوّل لحظات الإسناد لا يفعل العميل لها شيئاً.
+     */
+    const near = driverProximity(order, now);
+    if (near !== null) {
+      lines.push(distanceLine(tr, near.meters, near.towards));
+      // والتحفّز لا يُكتب إلا حين يلزم: سطرٌ يُلازم كلّ تحديثٍ يُقرأ زخرفاً فيُتجاهل
+      // حين يصدق فعلاً — وهو أسوأ من غيابه.
+      if (near.stale) {
+        lines.push(
+          near.ageSeconds < 60
+            ? tr("rider.status_location_stale_seconds", { seconds: near.ageSeconds })
+            : tr("rider.status_location_stale_minutes", {
+                minutes: Math.floor(near.ageSeconds / 60),
+              }),
+        );
+      }
+    }
   }
 
   const minutes = waitedMinutes(order, now);
@@ -406,7 +568,7 @@ async function handleStatus(
   }
 
   const now = deps.clock.now();
-  return active.map((order, index) => {
+  const cards = active.map((order, index) => {
     const described = describeOrderStatus(order, state.language, now);
     // اللوحة مع الردّ الأخير وحده: تلغرام يُبقي المعروضة أخيراً، وإرسالها مع كل ردّ تكرار بلا أثر
     const keyboard = index === active.length - 1 ? trackingMenu(state) : null;
@@ -419,6 +581,101 @@ async function handleStatus(
           photoFileId: described.photoFileId,
         };
   });
+
+  /**
+   * §4.2 — رسالةُ الروابط تُلحَق بعد البطاقات ولا تحلّ محلّها. وتُقصَر على الطلبات
+   * التي أُسندت فعلاً: طلبٌ مازال `searching` لا موقعَ سائقٍ فيه يُتابع، وعرضُ الزرّ
+   * عليه كان وعداً بخريطةٍ فارغة — والقاعدةُ ترفضه أصلاً بلا موقع.
+   */
+  if (deps.trackingLinks === undefined) return cards;
+  const linkable = active.filter(
+    (order) => order.status === "matched" || order.status === "in_progress",
+  );
+  if (linkable.length === 0) return cards;
+  return [
+    ...cards,
+    reply(sender, tr("tracking.share_prompt"), trackingLinksKeyboard(linkable, state.language)),
+  ];
+}
+
+/**
+ * §4.2 — زرّا الراكب: إصدارُ رابطٍ مؤقّت، وإلغاءُ ما أُصدِر.
+ *
+ * البيان معرّفُ الطلب لا الرمز: الرمزُ مفتاحٌ لمن يحمله، وكتابته في بيانٍ
+ * يبقى في تاريخ المحادثة تجعل لقطةَ شاشةٍ للأزرار كافيةً لفتح الصفحة.
+ */
+async function handleTrackingLinkCallback(
+  parts: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const links = deps.trackingLinks;
+  const [action, orderIdRaw] = parts;
+  if (links === undefined || orderIdRaw === undefined || orderIdRaw === "") {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const orderId = orderIdRaw as OrderId;
+  const telegramId = Number(sender.telegramUserId);
+  if (!Number.isSafeInteger(telegramId)) return [reply(sender, tr("common.error_try_again"))];
+
+  if (action === "off") {
+    const revoked = await revokeOrderTrackingTokens({ orderId, telegramId }, links);
+    if (!revoked.ok) return [reply(sender, tr("common.error_try_again"))];
+    // الفرقُ يُقال للمستخدم: من لا رابطَ له يرى «لا روابط سارية» لا تأكيداً
+    // كاذباً بإلغاءٍ لم يقع.
+    const key = revoked.value > 0 ? "tracking.revoked" : "tracking.revoke_none";
+    return [reply(sender, tr(key, { order: shortOrderId(String(orderId)) }), trackingMenu(state))];
+  }
+
+  if (action !== "new") return [reply(sender, tr("common.unknown_command"))];
+
+  const issued = await issueTrackingToken({ orderId, telegramId }, links);
+  if (!issued.ok) {
+    /**
+     * «لا تملك هذا الطلب» و«الطلب ليس جارياً» يُردّان برسالةٍ واحدة: التمييز
+     * مِسبرٌ يُخبر من يجرّب معرّفاتٍ أيُّها طلبٌ قائمٌ لغيره.
+     */
+    const reason = issued.error.reason;
+    const key =
+      reason === "UNAUTHORIZED" || reason === "ORDER_NOT_ACTIVE" || reason === "ORDER_NOT_FOUND"
+        ? "tracking.share_not_active"
+        : "tracking.share_failed";
+    return [reply(sender, tr(key), trackingMenu(state))];
+  }
+
+  const minutes = Math.max(
+    1,
+    Math.round((issued.value.expiresAt.getTime() - deps.clock.now().getTime()) / 60_000),
+  );
+  return [
+    reply(
+      sender,
+      tr("tracking.share_ready", {
+        order: shortOrderId(String(orderId)),
+        minutes: String(minutes),
+        url: issued.value.url,
+      }),
+      trackingMenu(state),
+    ),
+  ];
+}
+
+/**
+ * لوحةُ الروابط: سطرٌ لكلّ طلبٍ جارٍ فيه زرّا المشاركة والإلغاء. ولماذا
+ * لوحةٌ داخليّةٌ في رسالةٍ منفصلة لا مع بطاقة الحالة؟ لأنّ تلغرام لا يحمل لوحةً
+ * داخليّةً وقائمةً دائمةً في رسالةٍ واحدة — فإلحاقها ببطاقة الحالة كان سيمحو القائمة.
+ */
+function trackingLinksKeyboard(orders: readonly ActiveOrderSummary[], language: string): Keyboard {
+  const tr = t(language);
+  return {
+    kind: "inline",
+    rows: orders.map((order) => [
+      { label: tr("tracking.share_button"), data: `trk:new:${order.orderId}` },
+      { label: tr("tracking.revoke_button"), data: `trk:off:${order.orderId}` },
+    ]),
+  };
 }
 
 function cancelChoiceKeyboard(orders: readonly ActiveOrderSummary[], language: string): Keyboard {
@@ -459,6 +716,22 @@ async function cancelOne(
     return [reply(sender, tr("rider.no_active_order"))];
   }
 
+  /**
+   * المرحلة ١١ — إغلاق التتبّع قبل الإخطارات، وبنفس ترتيب `rating-dialog` وبنفس
+   * علّته: لو أُخطر السائق والعميل أوّلاً لقرأ العميل «أُلغي طلبك» وفوقها خريطةٌ
+   * مازال سائقه يتحرّك عليها.
+   *
+   * ولماذا هنا لا في `cancel_order_by_rider` في القاعدة؟ لأن إغلاق الجلسة ينشر
+   * حدثاً على ناقلٍ **في العملية** يُوقف رسالةَ تلغرام، والقاعدةُ لا تعرف الناقل
+   * ولا تُرسل رسائل. وهو نفس السبب الذي جعل `onTripEnded` في التطبيق أصلاً.
+   *
+   * ويُستدعى بلا شرطٍ على الحالة السابقة: `closeByTrip` لا يُغلق إلا جلسةً قائمة،
+   * ولا يُنشر الحدث إلا لجلسةٍ أُغلقت فعلاً (`for (const session of closed)`).
+   * فطلبٌ أُلغي في `searching` لا سائق له لا جلسة له، والنداء عليه بلا أثر — وشرطٌ
+   * نكتبه هنا يكون مصدراً ثانياً لقاعدة «متى توجد جلسة» ينحرف عن الأوّل.
+   */
+  await deps.tracking?.onTripEnded(String(cancelled.value.orderId), "TRIP_CANCELLED");
+
   for (const target of cancelled.value.notify) {
     await deps.matching.notifier.notifyCancelled({
       orderId: cancelled.value.orderId,
@@ -498,6 +771,39 @@ async function handleCancelChoice(
   const chosen = active.find((order) => String(order.orderId) === orderIdRaw);
   if (chosen === undefined) return [reply(sender, tr("rider.no_active_order"))];
   return cancelOne(chosen, sender, state, deps);
+}
+
+async function handleSosCallback(
+  parts: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const [action, orderId] = parts;
+  if (action !== "trigger" || orderId === undefined || deps.safety === undefined) {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
+  if (!rider.ok) return technicalFailure(sender, state);
+  if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
+  // يعاد فحص الطلب النشط قبل RPC؛ والـRPC نفسه يثبت الملكية في حال سباق.
+  const active = await deps.activeOrdersOf(rider.value.id);
+  if (!active.some((order) => String(order.orderId) === orderId)) {
+    return [reply(sender, tr("safety.no_active_order"))];
+  }
+  const result = await triggerSos(
+    { orderId, actorTelegramId: sender.telegramUserId, reporterRole: "rider" },
+    deps.safety.trigger,
+  );
+  if (!result.ok) return [reply(sender, tr("common.error_try_again"))];
+  return [
+    reply(
+      sender,
+      tr(result.value.created ? "safety.sent" : "safety.already_sent"),
+      trackingMenu(state),
+    ),
+  ];
 }
 
 async function handleNegotiationDecision(
@@ -586,6 +892,25 @@ async function handleCommand(
     // البند 2.2: لا يُشترط له منفذ اختياري، فمنفذ الطلبات النشطة أساسي في الحوار أصلاً
     case "/status":
       return handleStatus(sender, state, deps);
+    case "/sos": {
+      if (deps.safety === undefined) return [reply(sender, tr("common.unknown_command"))];
+      const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
+      if (!rider.ok) return technicalFailure(sender, state);
+      if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
+      const active = await deps.activeOrdersOf(rider.value.id);
+      if (active.length === 0) return [reply(sender, tr("safety.no_active_order"), menu(state))];
+      return [
+        reply(sender, tr("safety.choose_order"), {
+          kind: "inline",
+          rows: active.map((order) => [
+            {
+              label: describeActiveOrder(order, state.language),
+              data: `sos:trigger:${order.orderId}`,
+            },
+          ]),
+        }),
+      ];
+    }
 
     case "/support": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
@@ -665,6 +990,9 @@ async function handleCommand(
       // البند 6.3: الأوامر أزراراً لا نصّاً. لوحة inline على الرسالة لا تمسح الدائمة
       // أسفل الشاشة، والردّ الثاني يُعيد تأكيدها بحال العميل الحقيقية.
       return [
+        // الشرحُ قبل قائمةِ الأوامر: الراكبُ الجديد يحتاج أن يعرف أنّ الطلب يبدأ بموقعٍ
+        // يُرسله وأنّ الدفع نقديٌّ مع السائق — وهذان أكثرُ سؤالين يُفتحان على الدعم.
+        reply(sender, tr("rider.guide")),
         reply(sender, tr("rider.help"), helpKeyboard("rider", state.language, context)),
         reply(sender, tr("menu.hint"), menu(state, context)),
       ];
@@ -973,7 +1301,13 @@ async function handleParcel(
 
   // البند 2.2: الطلب صار في searching قبل هذا السطر، فزرّ التتبّع يظهر مع أوّل ردّ
   // يراه العميل بعد الطلب لا بعد رسالة تالية — ولحظة الطلب هي لحظة القلق.
-  const replies: BotReply[] = [reply(sender, tr("rider.delivery_searching"), trackingMenu(state))];
+  const replies: BotReply[] = [
+    reply(
+      sender,
+      waitingLine("riderSearchingDelivery", requested.value.orderId, state.language),
+      trackingMenu(state),
+    ),
+  ];
   if (requested.value.notified.length === 0) return replies;
   return [
     ...replies,
@@ -1004,7 +1338,15 @@ async function createOrderAndMatch(
   await deps.sessions.clear(sender.telegramUserId);
 
   // البند 2.2: كما في التوصيل — الزرّ يرافق إعلان بدء البحث نفسه
-  const replies: BotReply[] = [reply(sender, tr("rider.searching"), trackingMenu(state))];
+  // سطرُ الانتظار يختلف بين طلبٍ وطلب: العميلُ الذي يطلب كلّ يوم يقرأ الجملةَ
+  // نفسَها فيراها آلةً، لا فريقاً يبحث له. والبذرةُ معرّفُ الطلب فيثبت السطرُ لطلبه.
+  const replies: BotReply[] = [
+    reply(
+      sender,
+      waitingLine("riderSearching", created.value, state.language),
+      trackingMenu(state),
+    ),
+  ];
 
   // البثّ الحقيقي يبدأ فوراً: تُكتب العروض في order_offers ويُخطَر السائقون.
   // لا سائق الآن؟ الطلب يبقى في حالة البحث وتتولّاه دورات البثّ التالية — والعميل يُخبَر بصدق.

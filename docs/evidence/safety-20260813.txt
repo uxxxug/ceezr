@@ -1,0 +1,71 @@
+WP-safety evidence — 2026-08-13
+Database: postgres://postgres@127.0.0.1:5432/waslah_safety
+
+1) Fresh database and migration replay
+$ psql "postgres://postgres@127.0.0.1:5432/postgres" -v ON_ERROR_STOP=1 -c "drop database if exists waslah_safety with (force)"
+DROP DATABASE
+$ psql "postgres://postgres@127.0.0.1:5432/postgres" -v ON_ERROR_STOP=1 -c "create database waslah_safety"
+CREATE DATABASE
+$ for f in $(ls supabase/migrations/*.sql | sort); do psql "postgres://postgres@127.0.0.1:5432/waslah_safety" -v ON_ERROR_STOP=1 -f "$f"; done
+fresh migration run passed: 35 files
+
+2) Focused unit and real-PostgreSQL integration tests
+$ TEST_DATABASE_URL="postgres://postgres@127.0.0.1:5432/waslah_safety" DATABASE_URL="$TEST_DATABASE_URL" bun test tests/unit/safety.test.ts tests/integration/safety-sos.test.ts
+(pass) SOS safety outbox على PostgreSQL فعلية > ضغطتا SOS متزامنتان تنشئان حادثاً واحداً وoutbox واحداً
+(pass) SOS safety outbox على PostgreSQL فعلية > فشل تيليجرام مرة لا يفقد الحادث ثم تسلمه المحاولة التالية مرة واحدة
+(pass) SOS safety outbox على PostgreSQL فعلية > إغلاقان متزامنان بعد الاستلام يسجلان قراراً واحداً فقط
+(pass) SOS safety outbox على PostgreSQL فعلية > قرار إنسان بالحجب يستدعي مسار الإدارة القائم ويحفظ من اتخذه
+(pass) حالات استخدام SOS > لا يرسل بطاقته قبل قبول كتابة الحادث الذرية
+(pass) حالات استخدام SOS > يعيد فشل تيليجرام إلى outbox ولا يعامله كتسليم
+(pass) حالات استخدام SOS > لا يقفل الحادث إلا بعد استلامه من الموظف نفسه
+
+ 7 pass
+ 0 fail
+ 32 expect() calls
+Ran 7 tests across 2 files. [500.00ms]
+
+3) Mutation test: lie that a failed Telegram publish was delivered
+$ perl -0pi -e 's/if \(!sent\.ok\) return err\(sent\.error\);/if (!sent.ok) return ok({ found: true, delivered: true, maxAttempts: claimed.value.maxAttempts });/' packages/application/safety/deliver-safety-incident.ts
+$ bun test tests/unit/safety.test.ts
+Expected: false
+Received: true
+(fail) حالات استخدام SOS > يعيد فشل تيليجرام إلى outbox ولا يعامله كتسليم
+
+ 2 pass
+ 1 fail
+ 5 expect() calls
+Ran 3 tests across 1 file. [69.00ms]
+mutation killed (test exit=1)
+The original source was restored immediately after this intentional failing run.
+
+4) Final repository gates
+$ bun run typecheck
+$ tsc --noEmit
+
+$ bun run lint
+$ biome check .
+Checked 650 files in 1475ms. No fixes applied.
+Found 11 infos.
+
+$ bun scripts/check-agent-core-isolation.ts
+✓ عزل agent-core سليم: لا استيراد داخل، ولا دخول إلا من البوّابة
+$ bun scripts/check-business-constants.ts
+✅ لا قيمة تجارية مرمَّزة في apps، packages/domain، packages/application.
+$ bun scripts/check-i18n.ts
+✅ 3 قواميس متطابقة، 327 مفتاحاً في كل منها
+$ bun scripts/check-migrations.ts
+✅ 27 جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (27 اسماً في قائمة التفعيل).
+
+$ TEST_DATABASE_URL="postgres://postgres@127.0.0.1:5432/waslah_safety" DATABASE_URL="$TEST_DATABASE_URL" bun test --max-concurrency=1 --parallel=1
+ 1505 pass
+ 0 fail
+ 5556 expect() calls
+Ran 1505 tests across 106 files. [51.88s]
+
+5) RPC execute permissions after migration
+$ psql "postgres://postgres@127.0.0.1:5432/waslah_safety" -Atc "select proname || ':' || has_function_privilege('anon', oid, 'execute') || ':' || has_function_privilege('authenticated', oid, 'execute') || ':' || has_function_privilege('service_role', oid, 'execute') from pg_proc where proname in ('trigger_sos','claim_safety_incident_delivery','finish_safety_incident_delivery','claim_safety_incident','resolve_safety_incident') order by proname"
+claim_safety_incident:false:false:true
+claim_safety_incident_delivery:false:false:true
+finish_safety_incident_delivery:false:false:true
+resolve_safety_incident:false:false:true
+trigger_sos:false:false:true

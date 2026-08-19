@@ -1,9 +1,18 @@
 /**
- * الغرض: تفعيل مدينة Pilot واحدة فقط بعد التحقق من معرّفات قروبات تيليجرام الثلاثة.
- * الحالة: منفّذ فعلياً — المرحلة 01.
+ * الغرض: ضبطُ قروبات **مدينةٍ واحدةٍ بعينها** وتفعيلُها، بعد التحقّق من معرّفات
+ *   قروبات تيليجرام الثلاثة. أداةُ علاجٍ لمدينةٍ واحدة: قروبٌ تغيّر، أو مدينةٌ
+ *   لحقت بعد الإطلاق.
+ * الحالة: منفّذ فعلياً — المرحلة 01، وعُدّل في 2026-08-14.
  * ينتمي إلى: scripts
- * يُتوقع أن يستخدمه لاحقاً: مشغّل الإطلاق المغلق على قاعدة الإنتاج.
+ * يُتوقع أن يستخدمه لاحقاً: مشغّلُ التشغيل على قاعدة الإنتاج.
  * ملاحظات مستقبلية: المعرّفات ليست أسراراً، لكنها قيم تشغيلية تبقى في cities ولا تُنسخ إلى البيئة.
+ *
+ * **إطلاقُ المدنِ الخمسِ معاً ليس عملَ هذا السكربت**: القسمُ ٣ من أمر الإطلاق
+ * يفتحها في وقتٍ واحد، وذلك في `scripts/activate-launch-cities.ts` الذي يرفض
+ * التفعيلَ الجزئيّ. وهذا الملفّ كان — إلى 2026-08-14 — **يُعطّل كلَّ مدينةٍ أخرى
+ * مفعّلة** عند تفعيلِ مدينته، لأنّه كُتب لمرحلةٍ كانت المدينةُ الواحدةُ فيها هي
+ * المنتَج. فذاك السطرُ حُذف: تشغيلُه اليومَ على مدينةٍ واحدةٍ كان سيُطفئ الأربعَ
+ * الأخرياتِ صامتاً، وهو أسوأُ من خطأٍ يظهر لأنّه يُقرأ نجاحاً.
  */
 
 import { createSql } from "../packages/infrastructure/db/client.ts";
@@ -113,12 +122,6 @@ async function activate(): Promise<void> {
       const city = cities[0];
       if (city === undefined) throw new Error(`لا توجد مدينة مزروعة بالرمز ${args.cityCode}.`);
 
-      const deactivated = await tx<{ code: string }[]>`
-        update cities
-           set is_active = false
-         where id <> ${city.id}::uuid and is_active = true
-        returning code
-      `;
       const activated = await tx<
         {
           code: string;
@@ -144,19 +147,24 @@ async function activate(): Promise<void> {
       if (record === undefined || !record.is_active) {
         throw new Error("فشل التفعيل الذرّي للمدينة المختارة.");
       }
-      return { record, deactivated: deactivated.map((row) => row.code) };
+      const others = await tx<{ code: string }[]>`
+        select code from cities where id <> ${city.id}::uuid and is_active = true order by code
+      `;
+      return { record, others: others.map((row) => row.code) };
     });
 
-    console.log(`تم تفعيل ${result.record.name_ar} (${result.record.code}) كمدينة Pilot الوحيدة.`);
+    console.log(`تم تفعيل ${result.record.name_ar} (${result.record.code}).`);
     console.log(
       `القروبات: دعم=${result.record.telegram_support_group_id}، ` +
         `تصعيد=${result.record.telegram_escalation_group_id}، ` +
         `غير مشتركين=${result.record.telegram_unsubscribed_drivers_group_id}.`,
     );
+    // المدنُ الأخرى تُذكَر ولا تُمَسّ: الإطلاقُ خمسُ مدنٍ معاً، وإطفاءُ إحداها
+    // أثراً جانبياً لتفعيلِ أخرى هو ما كان يفعله هذا السكربت قبل التعديل.
     console.log(
-      result.deactivated.length === 0
-        ? "لم تكن هناك مدينة مفعّلة أخرى."
-        : `عُطّلت المدن الأخرى: ${result.deactivated.join(", ")}.`,
+      result.others.length === 0
+        ? "لا مدينةَ مفعّلةً أخرى — إن كان هذا إطلاقاً فاستعمل scripts/activate-launch-cities.ts."
+        : `مدنٌ مفعّلةٌ أخرى بقيت كما هي: ${result.others.join(", ")}.`,
     );
   } finally {
     await sql.end({ timeout: 5 });

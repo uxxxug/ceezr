@@ -25,17 +25,21 @@ export interface GpsUpdate {
   readonly timestamp: number;
 }
 
-/** جلسة تتبّع نشطة. */
-export interface TrackingSession {
-  readonly driverId: string;
-  readonly tripId: string | null;
-  readonly startedAt: Date;
-  readonly lastPosition: LatLng | null;
-  readonly lastUpdatedAt: Date | null;
-  readonly status: TrackingStatus;
-}
-
-export type TrackingStatus = "active" | "idle" | "ended";
+/**
+ * المرحلة ٥ — حالة الجلسة تُعرَّف في المجال لا هنا.
+ *
+ * كان هنا `TrackingStatus = "active" | "idle" | "ended"`: تعريف ثانٍ لحالة
+ * الجلسة، بمفرداتٍ مختلفة عن مفردات المجال (`idle` مقابل `STALE`) وبلا آلة
+ * انتقالات ولا شرطٍ لأيٍّ منها. ولم يكن يُحسَب في موضع واحد من المستودع.
+ *
+ * ونوعان للحالة نفسها مخالفةٌ للقاعدة ٥ حتى لو كان أحدهما ميتاً: أوّل من
+ * يُنفّذ الجلسة يختار أقربهما إلى يده، فتنقسم المفردات بين طبقتين.
+ */
+export type {
+  SessionEndReason,
+  TrackingSessionFacts,
+  TrackingSessionState,
+} from "../domain/tracking/session.ts";
 
 /** نتيجة التحقّق من صحة موقع GPS. */
 export interface ValidationResult {
@@ -49,7 +53,27 @@ export interface TrackingEvent {
   readonly type: TrackingEventType;
   readonly driverId: string;
   readonly tripId: string | null;
-  readonly position: LatLng;
+  /**
+   * المرحلة ٥ — `null` لحدثٍ لا موضع له.
+   *
+   * كانت الحقول إلزامية، فكان بدء الجلسة وإنهاؤها يُنشران `{lat: 0, lng: 0}`
+   * حشواً. وهي ليست قيمةً فارغة بل نقطةٌ حقيقية في خليج غينيا: أي مستهلكٍ
+   * يرسم الأحداث على خريطة كان يضع السائق قبالة سواحل أفريقيا عند كل بدء
+   * جلسة، وأي حسابِ مسافةٍ على تلك النقطة يُنتج آلاف الكيلومترات.
+   *
+   * والصفر أخطر من الغياب لأنه يمرّ من كل تحقّق: الإحداثية ضمن المدى، والنوع
+   * صحيح، ولا شيء يُميّزها عن موقعٍ حقيقي إلا معرفة أنها لم تكن موجودة أصلاً.
+   */
+  readonly position: LatLng | null;
+  /**
+   * المرحلة ٦ — مدينة السائق. اختياري لأن حدثاً عن رحلةٍ انتهت قد يُنشر ولا
+   * تُقرأ فيه المدينة (مفتاحه الرحلة لا السائق).
+   *
+   * ولماذا في الحدث لا يُستعلم عند الاستهلاك؟ لأن مُرشِّح العمليات على المدينة
+   * يُطبَّق على **كل** حدث لكل مشترك: استعلامُ مدينةِ السائق هناك يعني استعلاماً
+   * لكل حدثٍ مضروباً بعدد المشتركين. والمدينة معلومة عند النشر بلا كلفة.
+   */
+  readonly cityId?: string;
   readonly timestamp: Date;
   readonly metadata?: Readonly<Record<string, unknown>>;
 }

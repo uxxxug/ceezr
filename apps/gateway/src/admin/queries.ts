@@ -9,6 +9,11 @@
  *   بلا تغيير في توقيع الدالّة.
  */
 
+import {
+  type OperationsFacts,
+  type OperationsStatus,
+  operationsStatusOf,
+} from "../../../../packages/domain/tracking/operations-status.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type {
   AttendanceEvent,
@@ -43,6 +48,12 @@ export interface CityRecord extends CityOption {
   readonly supportGroupId: string | null;
   readonly escalationGroupId: string | null;
   readonly unsubscribedDriversGroupId: string | null;
+  /**
+   * رابطُ قروب السائقين غير المشتركين من `platform_settings` لا من `cities`: هو
+   * إعدادٌ لكلّ مدينة، ومعرّفُ القروب لا يكفي — البوت يُرسل المعرّفَ ولا يستطيع
+   * السائقُ الضغطَ عليه. مدينةٌ بمعرّفٍ بلا رابطٍ تُريه بطاقةَ انتهاءٍ بلا مدخل.
+   */
+  readonly unsubscribedGroupLink: string | null;
 }
 
 export async function listCities(sql: Sql): Promise<readonly CityRecord[]> {
@@ -55,14 +66,19 @@ export async function listCities(sql: Sql): Promise<readonly CityRecord[]> {
       telegram_support_group_id: string | null;
       telegram_escalation_group_id: string | null;
       telegram_unsubscribed_drivers_group_id: string | null;
+      unsubscribed_group_link: string | null;
     }[]
   >`
-    select id, code, name_ar, is_active,
-           telegram_support_group_id::text,
-           telegram_escalation_group_id::text,
-           telegram_unsubscribed_drivers_group_id::text
-      from cities
-     order by code
+    select c.id, c.code, c.name_ar, c.is_active,
+           c.telegram_support_group_id::text,
+           c.telegram_escalation_group_id::text,
+           c.telegram_unsubscribed_drivers_group_id::text,
+           nullif(btrim(coalesce(link.value #>> '{}', '')), '') as unsubscribed_group_link
+      from cities c
+      left join platform_settings link
+        on link.city_id = c.id
+       and link.key = 'unsubscribed_drivers_group_link'
+     order by c.code
   `;
   return rows.map((row) => ({
     id: row.id,
@@ -72,6 +88,7 @@ export async function listCities(sql: Sql): Promise<readonly CityRecord[]> {
     supportGroupId: row.telegram_support_group_id,
     escalationGroupId: row.telegram_escalation_group_id,
     unsubscribedDriversGroupId: row.telegram_unsubscribed_drivers_group_id,
+    unsubscribedGroupLink: row.unsubscribed_group_link,
   }));
 }
 
@@ -1266,7 +1283,8 @@ export async function listSettings(sql: Sql, cityId: string): Promise<readonly S
   `;
   return rows.map((row) => ({
     key: row.key,
-    value: JSON.stringify(row.value),
+    // الإعدادُ النصيّ يُعرض بلا تنصيص: ما يقرأه المسؤول في الخانة هو ما يكتبه فيها.
+    value: row.value_type === "string" ? String(row.value) : JSON.stringify(row.value),
     valueType: row.value_type,
     descriptionAr: row.description_ar,
     isProvisional: row.is_provisional,
@@ -1428,7 +1446,7 @@ export async function updateSetting(
 ): Promise<WriteOutcome> {
   const rows = await sql<{ result: unknown }[]>`
     select admin_update_setting(
-      ${actorUserId}::uuid, ${cityId}::uuid, ${key}::text, ${value}::text::jsonb
+      ${actorUserId}::uuid, ${cityId}::uuid, ${key}::text, ${value}::text
     ) as result
   `;
   return readWrite(rows[0]?.result);
@@ -1484,4 +1502,343 @@ export async function setUserBlocked(
     ) as result
   `;
   return readWrite(rows[0]?.result);
+}
+
+// ---------------------------------------------------------------------------
+// مواضع السائقين الحيّة — المرحلة ٦
+//
+// اللقطة التي يبدأ بها مجرى SSE، وتُعاد قراءتها دورياً بعده. ولماذا لقطةٌ ثم
+// دلتا، لا دلتا وحدها؟ لأن المشغّل يفتح اللوحة في منتصف اليوم: لو بُنيت خريطته
+// من الأحداث وحدها لبقيت فارغةً حتى يتحرّك كل سائق مرّةً — ودقائقُ من فراغٍ في
+// شاشة إرسالٍ أسوأ من غيابها، لأنها تُقرأ «لا سائق متاح».
+//
+// وإعادة القراءة الدورية هي مِرساة الصحّة: هذه الدالّة تقرأ من القاعدة، فما
+// تعرضه اللوحة يعود دائماً إلى المصدر القانوني وإن سقط حدثٌ في الطريق.
+//
+// وحالة الجلسة (نشط/متأخّر) **لا تُحسب هنا**: تُعاد الوقائع الزمنية كما هي
+// ويحكم عليها المجال (`sessionStateAt`). فالسقف الزمني للتأخّر سياسةٌ واحدة في
+// موضع واحد، لا `interval` في SQL يخالف يوماً ثابتاً في TypeScript.
+// ---------------------------------------------------------------------------
+
+export interface LiveDriverPositionRow {
+  readonly driverId: string;
+  readonly driverName: string | null;
+  readonly cityId: string;
+  readonly cityCode: string;
+  readonly lat: number;
+  readonly lng: number;
+  readonly quality: string | null;
+  readonly accuracyMeters: number | null;
+  /** زمن جهاز السائق للإصلاحة (المرحلة ٥) — قد يغيب لموقعٍ كُتب قبلها. */
+  readonly recordedAt: string | null;
+  /**
+   * `null` = لا جلسةَ تتبّعٍ مفتوحة. صار الحقل يقبل الفراغ في المرحلة ١٣ لأن
+   * الصفَّ لم يبقَ مشروطاً بجلسةٍ مفتوحة: سائقٌ على رحلةٍ حيّةٍ يُعرَض ولو أُغلقت
+   * جلستُه — يُنظر تعليقُ الدالّة.
+   */
+  readonly sessionStartedAt: string | null;
+  readonly lastFixAt: string | null;
+  /** `driver_availability.is_available` — الإتاحةُ المُعلنة، حكمُ الحالة عند غياب رحلة. */
+  readonly isAvailable: boolean;
+  readonly tripId: string | null;
+  readonly tripStatus: string | null;
+  /** نقطتا الرحلة — تُشتَقّ منهما حالاتُ الوصول (AT_PICKUP/ARRIVED) في المجال. */
+  readonly pickupLat: number | null;
+  readonly pickupLng: number | null;
+  readonly dropoffLat: number | null;
+  readonly dropoffLng: number | null;
+}
+
+/**
+ * ## تغييرُ المرحلة ١٣: موضوعُ الاستعلام صار السائق لا الجلسة
+ *
+ * كان الاستعلام يبدأ من `tracking_sessions` بشرط `ended_at is null`، فكان معناه
+ * الفعلي «السائقون الذين لهم جلسةُ تتبّعٍ مفتوحة». وقِيس أثرُ ذلك في المرحلة ١٣
+ * على قاعدةٍ حقيقية: سائقٌ حالةُ رحلته `in_progress` وجلستُه أُغلقت (سقفُ الاثنتي
+ * عشرة ساعة، أو `EXPIRED` من المهمّة المجدولة) كان **يغيب عن الخريطة كليّاً** —
+ * راكبٌ في سيّارةٍ ولا يستطيع المشغّل رؤية سائقها ألبتّة، فلا يستطيع تدخّلاً ولا
+ * إجابةَ سؤالٍ ولا فتحَ نزاع. وهذا أخطرُ من عرضِ موقعٍ قديم: العرضُ القديم يُوسَم
+ * `STALE` فيُحكَم عليه، والغيابُ لا يُوسَم بشيء لأن لا شيءَ هناك.
+ *
+ * فصار الموضوعُ السائق، والشرطُ **جلسةٌ مفتوحة أو رحلةٌ حيّة**. والرحلةُ الحيّة
+ * أقوى سببٍ للرؤية من الجلسة، لأنها التزامٌ قائمٌ تجاه راكبٍ لا مجرّد دوام.
+ *
+ * وما **لم** يتغيّر: من ليس في الخدمة وليس على رحلةٍ حيّة **لا يُعرض موقعُه**. هذا
+ * قرارُ الخصوصية المتّخذ في المرحلة ١٢ (P12-3) ويبقى قائماً — و`OFFLINE` حالةٌ
+ * يعرفها المجال ولا تُرسَم على الخريطة، ولا تُعدُّ ثقباً في التغطية.
+ *
+ * وحالةُ الجلسة (نشط/متأخّر) **لا تُحسب هنا**: تُعاد الوقائع الزمنية كما هي ويحكم
+ * عليها المجال (`operationsStatusOf` ⇐ `sessionStateAt`). فالسقفُ الزمني سياسةٌ
+ * واحدة في موضعٍ واحد، لا `interval` في SQL يخالف ثابتاً في TypeScript.
+ */
+export async function listLiveDriverPositions(
+  sql: Sql,
+  cityId: string | null,
+): Promise<readonly LiveDriverPositionRow[]> {
+  const rows = await sql<
+    {
+      driver_id: string;
+      driver_name: string | null;
+      city_id: string;
+      city_code: string;
+      lat: number | null;
+      lng: number | null;
+      quality: string | null;
+      accuracy_m: number | null;
+      recorded_at: string | null;
+      session_started_at: string | null;
+      last_fix_at: string | null;
+      is_available: boolean | null;
+      trip_id: string | null;
+      trip_status: string | null;
+      pickup_lat: number | null;
+      pickup_lng: number | null;
+      dropoff_lat: number | null;
+      dropoff_lng: number | null;
+    }[]
+  >`
+    select d.id as driver_id,
+           u.full_name as driver_name,
+           d.city_id, c.code as city_code,
+           st_y(d.last_location::geometry) as lat,
+           st_x(d.last_location::geometry) as lng,
+           d.last_location_quality as quality,
+           d.last_location_accuracy_m as accuracy_m,
+           d.last_location_recorded_at as recorded_at,
+           s.started_at as session_started_at,
+           s.last_fix_at,
+           coalesce(a.is_available, false) as is_available,
+           coalesce(s.trip_id, o.id) as trip_id,
+           o.status::text as trip_status,
+           st_y(o.pickup::geometry) as pickup_lat,
+           st_x(o.pickup::geometry) as pickup_lng,
+           st_y(o.dropoff::geometry) as dropoff_lat,
+           st_x(o.dropoff::geometry) as dropoff_lng
+      from drivers d
+      join users u on u.id = d.user_id
+      join cities c on c.id = d.city_id
+      left join tracking_sessions s
+             on s.driver_id = d.id and s.ended_at is null
+      left join driver_availability a on a.driver_id = d.id
+      -- الرحلةُ الحيّة تُقرأ من جدول orders مباشرةً لا من s.trip_id: جلسةٌ مُغلقة
+      -- لا تحمل رحلتَها إلى هذا الصفّ، وهي بعينِها الحالةُ التي كان السائق يغيب
+      -- فيها عن الخريطة. و limit 1 تحسم تعدّدَ الرحلات النظري بأحدثِ إسناد —
+      -- وقيدُ القاعدة يمنع تعدّدَها فعلاً، لكن استعلاماً يُضاعف الصفوف عند خللٍ
+      -- في البيانات يُنتج سائقاً مرسوماً مرّتين على الخريطة.
+      left join lateral (
+        select o2.id, o2.status, o2.pickup, o2.dropoff
+          from orders o2
+         where o2.assigned_driver_id = d.id
+           and o2.status in ('matched', 'in_progress')
+         order by o2.matched_at desc nulls last
+         limit 1
+      ) o on true
+     where d.last_location is not null
+       and (s.id is not null or o.id is not null)
+       ${cityId === null ? sql`` : sql`and d.city_id = ${cityId}::uuid`}
+     order by s.last_fix_at desc nulls last
+  `;
+
+  return rows
+    .filter((row) => row.lat !== null && row.lng !== null)
+    .map((row) => ({
+      driverId: row.driver_id,
+      driverName: row.driver_name,
+      cityId: row.city_id,
+      cityCode: row.city_code,
+      lat: Number(row.lat),
+      lng: Number(row.lng),
+      quality: row.quality,
+      accuracyMeters: row.accuracy_m === null ? null : Number(row.accuracy_m),
+      recordedAt: row.recorded_at === null ? null : String(row.recorded_at),
+      sessionStartedAt: row.session_started_at === null ? null : String(row.session_started_at),
+      lastFixAt: row.last_fix_at === null ? null : String(row.last_fix_at),
+      isAvailable: row.is_available === true,
+      tripId: row.trip_id,
+      tripStatus: row.trip_status,
+      pickupLat: row.pickup_lat === null ? null : Number(row.pickup_lat),
+      pickupLng: row.pickup_lng === null ? null : Number(row.pickup_lng),
+      dropoffLat: row.dropoff_lat === null ? null : Number(row.dropoff_lat),
+      dropoffLng: row.dropoff_lng === null ? null : Number(row.dropoff_lng),
+    }));
+}
+
+/** صفُّ موقعٍ حيٍّ وقد اقترنت به حالتُه التشغيلية المُشتقّة. */
+export interface LiveDriverStatusRow extends LiveDriverPositionRow {
+  readonly status: OperationsStatus;
+}
+
+/**
+ * موضعُ الاشتقاق **الواحد** لحالة السائق التشغيلية.
+ *
+ * صفحةُ الخريطة ولقطةُ SSE تقرآن الحالةَ من هنا كلتاهما. ولو حسبت كلٌّ منهما
+ * حالتَها لأمكن أن تُظهر الصفحةُ `AT_PICKUP` ويُظهر المجرى الحيّ `TO_PICKUP`
+ * للسائق نفسه في اللحظة نفسها — وهو أسوأُ من غياب الميزة، لأن المشغّل لا يعرف
+ * أيَّ الشاشتين يُصدّق. والدالّةُ نفسها في المجال خالصةٌ: هذه محضُ ترجمةِ صفِّ
+ * قاعدةٍ إلى وقائع.
+ */
+export function operationsStatusOfRow(row: LiveDriverPositionRow, nowMs: number): OperationsStatus {
+  const facts: OperationsFacts = {
+    session:
+      row.sessionStartedAt === null
+        ? null
+        : {
+            driverId: row.driverId,
+            tripId: row.tripId,
+            startedAtMs: Date.parse(row.sessionStartedAt),
+            lastFixAtMs: row.lastFixAt === null ? null : Date.parse(row.lastFixAt),
+            endedAtMs: null,
+            endReason: null,
+          },
+    isAvailable: row.isAvailable,
+    driverLocation: { latitude: row.lat, longitude: row.lng },
+    trip:
+      row.tripStatus === null
+        ? null
+        : {
+            status: row.tripStatus,
+            pickup:
+              row.pickupLat === null || row.pickupLng === null
+                ? null
+                : { latitude: row.pickupLat, longitude: row.pickupLng },
+            destination:
+              row.dropoffLat === null || row.dropoffLng === null
+                ? null
+                : { latitude: row.dropoffLat, longitude: row.dropoffLng },
+          },
+  };
+  return operationsStatusOf(facts, nowMs);
+}
+
+/** يقرأ المواقعَ الحيّة ويُلحق بكلٍّ منها حالتَه — المدخلُ الوحيد للعرض. */
+export async function listLiveDriverStatuses(
+  sql: Sql,
+  cityId: string | null,
+  nowMs: number = Date.now(),
+): Promise<readonly LiveDriverStatusRow[]> {
+  const rows = await listLiveDriverPositions(sql, cityId);
+  return rows.map((row) => ({ ...row, status: operationsStatusOfRow(row, nowMs) }));
+}
+
+// ---------------------------------------------------------------------------
+// البثّ الجماعي — سجلّ الحملات وتقدّمها
+// ---------------------------------------------------------------------------
+
+/** حدُّ سجلّ الحملات المعروضة. تقنيةُ عرضٍ لا سياسةُ أعمال. */
+export const BROADCAST_HISTORY_LIMIT = 20;
+
+/**
+ * صفُّ حملةٍ واحدة كما يُقرأ في اللوحة. الدفعةُ هي الوحدة لا الحملة: بثٌّ إلى
+ * «كلّ المدن» صفٌّ لكلّ مدينة في القاعدة، لكنّ المسؤول أرسل رسالةً واحدة ويجب أن
+ * يرى تقدّمَها واحداً ويُلغيها بإلغاءٍ واحد.
+ */
+export interface BroadcastCampaignRow {
+  readonly batchId: string;
+  readonly audience: "drivers" | "riders";
+  readonly cities: string;
+  readonly cityCount: number;
+  readonly body: string;
+  readonly filters: string;
+  readonly silent: boolean;
+  readonly linkLabel: string | null;
+  readonly linkUrl: string | null;
+  readonly status: "sending" | "completed" | "canceled";
+  readonly total: number;
+  readonly sent: number;
+  readonly failed: number;
+  readonly pending: number;
+  readonly canceled: number;
+  readonly createdBy: string | null;
+  readonly createdAt: string;
+}
+
+export async function listBroadcastCampaigns(
+  sql: Sql,
+  limit: number = BROADCAST_HISTORY_LIMIT,
+): Promise<readonly BroadcastCampaignRow[]> {
+  const rows = await sql<
+    {
+      batch_id: string;
+      audience: string;
+      cities: string | null;
+      city_count: number;
+      body: string;
+      filters: string;
+      silent: boolean;
+      link_label: string | null;
+      link_url: string | null;
+      status: string;
+      total: number;
+      sent: number;
+      failed: number;
+      pending: number;
+      canceled: number;
+      created_by: string | null;
+      created_at: string;
+    }[]
+  >`
+    with batches as (
+      select cam.batch_id,
+             min(cam.created_at) as created_at,
+             min(cam.audience) as audience,
+             count(*) as city_count,
+             string_agg(distinct c.name_ar, '، ') as cities,
+             min(cam.body) as body,
+             min(cam.filters::text) as filters,
+             bool_or(cam.silent) as silent,
+             min(cam.link_label) as link_label,
+             min(cam.link_url) as link_url,
+             bool_or(cam.status = 'sending') as any_sending,
+             bool_and(cam.status = 'canceled') as all_canceled,
+             sum(cam.recipients_total)::int as total,
+             min(u.full_name) as created_by
+        from broadcast_campaigns cam
+        join cities c on c.id = cam.city_id
+        join users u on u.id = cam.created_by_user_id
+       group by cam.batch_id
+       order by min(cam.created_at) desc
+       limit ${limit}
+    )
+    select b.batch_id, b.audience, b.cities, b.city_count::int as city_count,
+           b.body, b.filters, b.silent, b.link_label, b.link_url,
+           case when b.any_sending then 'sending'
+                when b.all_canceled then 'canceled'
+                else 'completed' end as status,
+           b.total, b.created_by, b.created_at,
+           coalesce(r.sent, 0)::int as sent,
+           coalesce(r.failed, 0)::int as failed,
+           coalesce(r.pending, 0)::int as pending,
+           coalesce(r.canceled, 0)::int as canceled
+      from batches b
+      left join lateral (
+        select count(*) filter (where rec.status = 'sent') as sent,
+               count(*) filter (where rec.status = 'failed') as failed,
+               count(*) filter (where rec.status in ('pending', 'sending')) as pending,
+               count(*) filter (where rec.status = 'canceled') as canceled
+          from broadcast_recipients rec
+          join broadcast_campaigns cc on cc.id = rec.campaign_id
+         where cc.batch_id = b.batch_id
+      ) r on true
+     order by b.created_at desc
+  `;
+  return rows.map((row) => ({
+    batchId: row.batch_id,
+    audience: row.audience === "riders" ? "riders" : "drivers",
+    cities: row.cities ?? "—",
+    cityCount: Number(row.city_count),
+    body: row.body,
+    filters: row.filters,
+    silent: row.silent,
+    linkLabel: row.link_label,
+    linkUrl: row.link_url,
+    status:
+      row.status === "sending" ? "sending" : row.status === "canceled" ? "canceled" : "completed",
+    total: Number(row.total),
+    sent: Number(row.sent),
+    failed: Number(row.failed),
+    pending: Number(row.pending),
+    canceled: Number(row.canceled),
+    createdBy: row.created_by,
+    createdAt: String(row.created_at),
+  }));
 }

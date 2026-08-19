@@ -14,6 +14,11 @@ import type {
   PendingOfferRepository,
 } from "../../application/dispatch/expire-offers-ports.ts";
 import type {
+  SearchingOrderFinder,
+  SearchingOrderRef,
+} from "../../application/dispatch/redispatch-searching-orders.ts";
+import type {
+  ClaimedRider,
   DispatchRpcPort,
   DriverCandidateRepository,
   OfferRepository,
@@ -34,6 +39,8 @@ interface CandidateRow {
   readonly city_id: string;
   readonly lat: number | null;
   readonly lng: number | null;
+  /** المرحلة ٨ — بالنصّ لا بالرقم: `bigint` من القاعدة يفقد دقّته في `number` عند التحويل الضمني. */
+  readonly location_at_ms: string | null;
   readonly is_available: boolean | null;
   readonly verification_status: string;
   readonly is_blocked: boolean;
@@ -46,6 +53,7 @@ interface CandidateRow {
   readonly sub_status: string | null;
   readonly sub_trial_ends_at: Date | null;
   readonly sub_current_period_end: Date | null;
+  readonly sub_cancel_at_period_end: boolean | null;
 }
 
 function toCandidate(row: CandidateRow): DriverCandidate {
@@ -67,6 +75,7 @@ function toCandidate(row: CandidateRow): DriverCandidate {
           status: row.sub_status as SubscriptionStatus,
           trialEndsAt: row.sub_trial_ends_at,
           currentPeriodEnd: row.sub_current_period_end,
+          cancelAtPeriodEnd: row.sub_cancel_at_period_end === true,
         };
   return {
     driverId,
@@ -80,6 +89,13 @@ function toCandidate(row: CandidateRow): DriverCandidate {
       row.lat === null || row.lng === null
         ? null
         : { latitude: Number(row.lat), longitude: Number(row.lng) },
+    /**
+     * المرحلة ٨ — زمنُ **وصول** الموقع إلى الخادم. `null` يُمرَّر `null` ولا
+     * يُستبدل بـ`Date.now()`: الاستبدال كان سيجعل كل صفٍّ بلا طابع يبدو وصل
+     * هذه اللحظة، أي يتجاوز حَرَس القِدَم دائماً — وهو نفس عطب `Number(lat ?? 0)`
+     * بصورةٍ زمنية: قيمةٌ مختلقة تمرّ من كل فحصٍ لأنها تبدو معقولة.
+     */
+    locationAtMs: row.location_at_ms === null ? null : Number(row.location_at_ms),
     /**
      * المنطقة المفضّلة — البند 2.4. `null` هنا يعني «لا منطقة» لا «منطقة عند
      * الصفر»: نفس السبب الذي مُنع من أجله `Number(lat ?? 0)` في `location`.
@@ -118,6 +134,8 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  d.city_id,
                  st_y(d.last_location::geometry) as lat,
                  st_x(d.last_location::geometry) as lng,
+                 -- زمن الخادم لا طابع الجهاز: السؤال «متى عرفنا؟» لا «متى يقول إنه كان؟»
+                 (extract(epoch from d.last_location_at) * 1000)::bigint::text as location_at_ms,
                  st_y(d.preferred_area_location::geometry) as preferred_lat,
                  st_x(d.preferred_area_location::geometry) as preferred_lng,
                  a.is_available,
@@ -131,7 +149,8 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  s.plan as sub_plan,
                  s.status as sub_status,
                  s.trial_ends_at as sub_trial_ends_at,
-                 s.current_period_end as sub_current_period_end
+                 s.current_period_end as sub_current_period_end,
+                 s.cancel_at_period_end as sub_cancel_at_period_end
             from drivers d
             join users u on u.id = d.user_id
             left join driver_availability a on a.driver_id = d.id
@@ -199,6 +218,31 @@ export function createOfferWriter(sql: Sql): OfferWriter {
   };
 }
 
+/**
+ * قراءةُ نصٍّ إخباريٍّ من مغلَّف jsonb: ما ليس نصّاً ولا رقماً يُعامَل كالغائب.
+ * والرقم يُحوّل لأنّ `telegram_id` يصل رقماً من jsonb ومنافذُ الإرسال تأخذ نصّاً.
+ */
+function readText(value: unknown): string | null {
+  if (typeof value === "string" && value !== "") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "bigint") return String(value);
+  return null;
+}
+
+/** راكبٌ يُقرأ أو لا يُقرأ: معرّفُ تلغرام وحده شرطٌ — بلاه لا إخطار أصلاً. */
+function readRider(value: unknown): ClaimedRider | null {
+  if (typeof value !== "object" || value === null) return null;
+  const row = value as Record<string, unknown>;
+  const telegramId = readText(row.telegram_id);
+  if (telegramId === null) return null;
+  return {
+    riderId: readText(row.rider_id) ?? "",
+    telegramId,
+    languageCode: readText(row.language_code) ?? "ar",
+    fullName: readText(row.full_name) ?? "",
+  };
+}
+
 export function createDispatchRpc(sql: Sql): DispatchRpcPort {
   return {
     claimRide: (orderId: OrderId, driverId: DriverId) =>
@@ -208,9 +252,31 @@ export function createDispatchRpc(sql: Sql): DispatchRpcPort {
         `;
         const envelope = readEnvelope(rows[0]?.result);
         if (envelope === null) throw new Error("ردّ claim_ride غير مفهوم");
+        if (!envelope.ok) {
+          return {
+            claimed: false,
+            reason: envelope.error ?? "UNKNOWN",
+            cityId: null,
+            rider: null,
+            driverName: null,
+            driverPlate: null,
+            driverVehicle: null,
+          };
+        }
+        /**
+         * القراءةُ متساهلة عن قصد: مغلَّفٌ ناقصُ حقلٍ إخباريّ لا يجوز أن يُحوّل
+         * إسناداً وقع في القاعدة إلى عطلٍ يراه السائق. الحقلُ الناقص يخرج `null`
+         * فيمتنع الإخطار وحده، والإسنادُ باقٍ.
+         */
+        const raw = envelope as unknown as Record<string, unknown>;
         return {
-          claimed: envelope.ok,
-          reason: envelope.ok ? null : (envelope.error ?? "UNKNOWN"),
+          claimed: true,
+          reason: null,
+          cityId: readText(raw.city_id) as CityId | null,
+          rider: readRider(raw.rider),
+          driverName: readText(raw.driver_name),
+          driverPlate: readText(raw.driver_plate),
+          driverVehicle: readText(raw.driver_vehicle),
         };
       }),
   };
@@ -231,19 +297,6 @@ export function createOfferDecisionPort(sql: Sql): OfferDecisionPort {
         `;
         return rows.length > 0;
       }),
-  };
-}
-
-/** تحديث موقع السائق — يغذّي المطابقة، فبلا موقع حديث لا يكون السائق مرشَّحاً. */
-export function createDriverLocationWriter(sql: Sql) {
-  return async (driverId: DriverId, latitude: number, longitude: number): Promise<void> => {
-    await sql`
-      update drivers
-         set last_location = st_setsrid(st_makepoint(${longitude}, ${latitude}), 4326)::geography,
-             last_location_at = now(),
-             updated_at = now()
-       where id = ${driverId}
-    `;
   };
 }
 
@@ -295,6 +348,44 @@ export function createExpireOffersRpc(sql: Sql): ExpireOffersRpcPort {
           returning id
         `;
         return rows.length;
+      }),
+  };
+}
+
+/**
+ * قارئُ الطلبات الباحثة — المرحلة ١٤.
+ *
+ * ولماذا لا يُرشَّح هنا بعددِ الدورات ولا بوجود عرضٍ قائم، والاستعلامُ يستطيع ذلك
+ * في سطرين؟ لأنّ حدَّ الدورات مقروءٌ من إعدادات المدينة (`max_broadcast_rounds`)
+ * ومُطبَّقٌ في `hasExhaustedBroadcastRounds`، واستبعادَ من له عرضٌ حيّ مُطبَّقٌ في
+ * `driversToExclude` بمهلةٍ مقروءةٍ من الإعدادات كذلك. فكتابةُ أيٍّ منهما هنا تنسخ
+ * سياسةً إلى SQL: يوم يتغيّر الحدُّ في القاعدة يبقى الشرطُ المكتوبُ كما هو، فتُحجَب
+ * طلباتٌ يجوز بثُّها أو تُبَثّ طلباتٌ استنفدت دوراتها — والفرقُ لا يظهر في أيّ
+ * اختبارٍ لأنّ كلا الموضعين «صحيحٌ» على انفراد.
+ *
+ * والثمنُ مقبولٌ ومحسوب: طلبٌ له عرضٌ حيٌّ يُقرأ ثم يُردّ عنه `matchOrder` بلا كتابة
+ * — دورةُ مطابقةٍ ضائعةٌ لا كتابةٌ خاطئة، وحدُّ `limit` يحصر عددَها.
+ */
+export function createSearchingOrderFinder(sql: Sql): SearchingOrderFinder {
+  return {
+    findSearching: (cityId: CityId, limit: number) =>
+      guard("orders.findSearching", async (): Promise<readonly SearchingOrderRef[]> => {
+        const rows = await sql<{ id: string; city_id: string; waiting_seconds: string | number }[]>`
+          select o.id      as id,
+                 o.city_id as city_id,
+                 extract(epoch from (now() - o.created_at))::bigint as waiting_seconds
+            from orders o
+           where o.city_id = ${cityId}::uuid
+             and o.status = 'searching'
+             and o.assigned_driver_id is null
+           order by o.created_at asc
+           limit ${limit}
+        `;
+        return rows.map((row) => ({
+          orderId: row.id as OrderId,
+          cityId: row.city_id as CityId,
+          waitingSeconds: Number(row.waiting_seconds),
+        }));
       }),
   };
 }

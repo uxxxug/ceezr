@@ -164,6 +164,8 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
       createAdminUiRoutes({
         sql,
         auth,
+        // أصلٌ واحد يُمرَّر لإثبات أن السياسة تتبع الضبط لا قائمةً مكتوبةً في الموجّه.
+        mapOrigins: ["https://tiles.example.org", "https://unpkg.com"],
         codeSender: {
           send: async (chatId, text) => {
             sentCodes.push({ chatId, text });
@@ -278,7 +280,8 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
   it("الخروج يُبطل الجلسة فوراً", async () => {
     const cookie = await login(ADMIN_TELEGRAM);
     const SEE_OTHER = 303;
-    const out = await request("/admin/logout", { method: "POST", cookie });
+    const csrf = await csrfFrom(cookie, "/admin");
+    const out = await request("/admin/logout", { method: "POST", cookie, body: form({ csrf }) });
     expect(out.status).toBe(SEE_OTHER);
 
     const after = await request("/admin", { cookie });
@@ -334,6 +337,70 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     // الإعدادات تحمل نماذج: تحديثها تحت يد من يكتب فيها يمحو ما كتب
     const settings = await (await request("/admin/settings", { cookie })).text();
     expect(settings).not.toContain("location.reload()");
+  });
+
+  // -------------------------------------------------------------------------
+  // ترويسات الأمن (المرحلة ١٠)
+  // -------------------------------------------------------------------------
+
+  it("كل صفحةٍ تحمل سياسةَ أمن محتوىً بـnonce يطابق وسومَها فعلاً", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    for (const path of ["/admin", "/admin/live-orders", "/admin/settings", "/admin/payments"]) {
+      const res = await request(path, { cookie });
+      expect(res.status).toBe(200);
+      const csp = res.headers.get("content-security-policy");
+      expect(csp).not.toBeNull();
+      if (csp === null) continue;
+
+      // المطابقة هي المقصود: nonce في الترويسة لا يوافق ما في الصفحة يعني
+      // لوحةً تُرفض وسومُها فيتوقّف البحثُ والتحديث بلا رسالة خطأ ظاهرة.
+      const nonce = /'nonce-([^']+)'/.exec(csp)?.[1];
+      expect(nonce).toBeDefined();
+      const html = await res.text();
+      expect(html).toContain(`<style nonce="${nonce}">`);
+      expect(html).toContain(`<script nonce="${nonce}">`);
+      // ولا يبقى وسمٌ بلا nonce: واحدٌ منسيّ = وظيفةٌ معطّلةٌ في صفحةٍ واحدة.
+      expect(html.split("<script").length - 1).toBe(html.split('<script nonce="').length - 1);
+      expect(csp).toContain("default-src 'none'");
+      expect(csp).not.toContain("'unsafe-inline'; script-src");
+    }
+  });
+
+  it("الـnonce يتغيّر في كل طلب: قيمةٌ ثابتة تُخمَّن فتُبطل السياسة", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const first = (await request("/admin", { cookie })).headers.get("content-security-policy");
+    const second = (await request("/admin", { cookie })).headers.get("content-security-policy");
+    expect(first).not.toBe(second);
+  });
+
+  it("صفحةُ الدخول محميّةٌ كذلك — وهي أضعفُ صفحةٍ إذ تُرسَل فيها كلمةُ المرور الوقتية", async () => {
+    const res = await request("/admin/login");
+    expect(res.status).toBe(200);
+    const csp = res.headers.get("content-security-policy");
+    expect(csp).toContain("script-src 'nonce-");
+    const nonce = /'nonce-([^']+)'/.exec(csp ?? "")?.[1];
+    expect(await res.text()).toContain(`<style nonce="${nonce}">`);
+  });
+
+  it("بقيّةُ الترويسات: تأطيرٌ ممنوع، ولا تخمينَ نوع، ولا مُحيلٌ يُسرِّب المعرّفات", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const res = await request("/admin/drivers", { cookie });
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    // مسارات اللوحة تحمل معرّفات سائقين في الرابط؛ إرسالُها في `Referer` إلى
+    // مضيف بلاطاتٍ خارجي تسريبُ بيانات لا مجرّد ضعفٍ نظري.
+    expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(res.headers.get("permissions-policy")).toContain("geolocation=()");
+  });
+
+  it("لا سمةَ حدثٍ داخلية في أي صفحة: السياسة لا تُجيزها فتتوقّف الوظيفة صامتةً", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    for (const path of ["/admin", "/admin/payments", "/admin/heatmap", "/admin/drivers"]) {
+      const html = await (await request(path, { cookie })).text();
+      for (const attribute of ["onsubmit=", "onclick=", "onchange=", "onload=", "onerror="]) {
+        expect(html).not.toContain(attribute);
+      }
+    }
   });
 
   it("واجهة JSON تعيد نماذج القراءة نفسها", async () => {
@@ -557,6 +624,51 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     expect(unchanged[0]?.value).toBeCloseTo(0.02);
   });
 
+  /**
+   * الإعدادُ النصيّ كان يُرسَل إلى PostgreSQL بـ`::jsonb`، فمن كتب رابطَ القروب
+   * كما هو ارتفع استثناءٌ وعادت 500 بلا بيان — وهو أوّلُ ما يُملأ في مدينةٍ
+   * جديدة. الآن يُقبل النصُّ بلغته، ويُعرض في الخانة بلا تنصيصٍ يُربك قارئه.
+   */
+  it("الإعدادُ النصيّ يُحفَظ رابطاً عادياً ويُعرض بلا تنصيص", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, `/admin/settings?city=${cityId}`);
+    const link = "https://t.me/+waslah_admin_check";
+
+    const saved = await request(`/admin/settings/${cityId}/unsubscribed_drivers_group_link`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, value: link }),
+    });
+    expect(saved.status).toBe(303);
+
+    const stored = await sql<{ value: string; is_provisional: boolean }[]>`
+      select value #>> '{}' as value, is_provisional from platform_settings
+       where city_id = ${cityId} and key = 'unsubscribed_drivers_group_link'
+    `;
+    expect(stored[0]?.value).toBe(link);
+    expect(stored[0]?.is_provisional).toBe(false);
+
+    const page = await (await request(`/admin/settings?city=${cityId}`, { cookie })).text();
+    expect(page).toContain(`value="${link}"`);
+  });
+
+  /**
+   * الرقمُ الفاسد كان يُوجّه المسؤولَ إلى الصفحة كأنّ الحفظَ تمّ. الآن يُبيَّن
+   * الرفضُ برمزٍ مفهوم، والقيمةُ القديمة لا تُمَسّ.
+   */
+  it("القيمةُ المرفوضة تُبيَّن للمسؤول ولا تُغيّر المحفوظ", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, `/admin/settings?city=${cityId}`);
+
+    const rejected = await request(`/admin/settings/${cityId}/admin_heatmap_cell_degrees`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, value: "ليس رقماً" }),
+    });
+    expect(rejected.status).toBe(422);
+    expect(await rejected.text()).toBe("INVALID_NUMBER");
+  });
+
   it("فعل كتابي بلا رمز CSRF مرفوض ولو كانت الجلسة صالحة", async () => {
     const cookie = await login(ADMIN_TELEGRAM);
     const { driverId } = await createDriver();
@@ -615,6 +727,12 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     `;
     expect(audits.map((audit) => audit.action)).toContain("admin.city_group_ids_updated");
 
+    // الرابطُ يُضبط صريحاً: `platform_settings` لا تُقتطع بين الاختبارات، فترك
+    // قيمته لما سبق يجعل الشارةَ تابعةً لترتيب التشغيل لا للحالة المقصودة.
+    await sql`
+      select admin_update_setting(${adminUserId}::uuid, ${cityGroupsId}::uuid,
+        'unsubscribed_drivers_group_link', ${"https://t.me/+readyCityGroup"}::text)
+    `;
     const page = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
     const html = await page.text();
     expect(html).toContain("-1009000000001");
@@ -644,6 +762,59 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
 
     const page = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
     expect(await page.text()).toContain("غير جاهزة: حقول قروبات ناقصة");
+  });
+
+  /**
+   * معرّفاتُ القروبات الثلاثة كانت وحدَها ما تقيسه الشارة، فمدينةٌ مفعّلةٌ برابطِ
+   * قروبٍ فارغٍ تظهر «مفعّلة وجاهزة» — وهي الحالةُ التي يرى فيها السائقُ عند انتهاء
+   * تجربته بطاقةً تُحيله إلى قروبٍ بلا مدخل. الشارةُ تُسمّي الناقصَ لا تُخفيه.
+   */
+  it("رابط قروب غير المشتركين الناقص يظهر في جاهزية المدينة ثم يختفي بحفظه", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    let csrf = await csrfFrom(cookie, `/admin/settings?city=${cityGroupsId}`);
+
+    const groups = await request(`/admin/settings/${cityGroupsId}/group-ids`, {
+      method: "POST",
+      cookie,
+      body: form({
+        csrf,
+        support_group_id: "-1009000000201",
+        escalation_group_id: "-1009000000202",
+        unsubscribed_drivers_group_id: "-1009000000203",
+      }),
+    });
+    expect(groups.status).toBe(303);
+
+    // الرابطُ مبذورٌ فارغاً بالتصميم: قيمةٌ حقيقيةٌ يملكها فريقُ المدينة لا نحن.
+    await sql`
+      update platform_settings set value = '""'::jsonb
+       where city_id = ${cityGroupsId} and key = 'unsubscribed_drivers_group_link'
+    `;
+
+    const before = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
+    const beforeHtml = await before.text();
+    expect(beforeHtml).toContain("مفعّلة؛ رابط قروب غير المشتركين ناقص");
+    // الجدولُ يُسمّي الناقصَ في عمودِه أيضاً، لا في شارةِ الحالة وحدها.
+    expect(beforeHtml).toContain("رابط القروب");
+
+    csrf = await csrfFrom(cookie, `/admin/settings?city=${cityGroupsId}`);
+    const saved = await request(`/admin/settings/${cityGroupsId}/unsubscribed_drivers_group_link`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, value: "https://t.me/+testUnsubscribedGroup" }),
+    });
+    expect(saved.status).toBe(303);
+
+    const after = await request(`/admin/settings?city=${cityGroupsId}`, { cookie });
+    const afterHtml = await after.text();
+    expect(afterHtml).toContain("مفعّلة وجاهزة");
+    expect(afterHtml).not.toContain("مفعّلة؛ رابط قروب غير المشتركين ناقص");
+    // الرابطُ يُحفظ نصّاً خالصاً لا JSON مُقتبَساً: علامتا التنصيص كانتا ستصلان تلغرام.
+    const stored = await sql<{ value: string }[]>`
+      select value #>> '{}' as value from platform_settings
+       where city_id = ${cityGroupsId} and key = 'unsubscribed_drivers_group_link'
+    `;
+    expect(stored[0]?.value).toBe("https://t.me/+testUnsubscribedGroup");
   });
 
   it("يرفض القيم غير الصالحة والمكررة ويحمي حفظ القروبات بـ CSRF والجلسة", async () => {

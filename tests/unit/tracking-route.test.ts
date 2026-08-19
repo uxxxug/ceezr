@@ -14,12 +14,22 @@ import {
   type LocationStore,
   type TrackingEvent,
   type TrackingEventPublisher,
+  TrackingService,
   type TrackingTokenPayload,
   type TrackingTokenStore,
-  TrackingService,
 } from "../../packages/tracking/index.ts";
 
 const fixedClock = { now: () => new Date("2026-08-11T12:00:00Z") };
+
+/**
+ * الطوابع الزمنية تُشتقّ من الساعة المحقونة لا من الساعة العامّة.
+ * المُتحقِّق المحذوف كان يقرأ الساعة العامّة داخله متجاهلاً `Clock` المحقونة،
+ * فكان هذا الملف يختبر ضدّ وقت الجدار وهو يظنّ أنه يختبر ضدّ ساعة ثابتة.
+ * تنقية المُقيِّم من الساعة كشفت ذلك فوراً.
+ */
+const NOW_MS = fixedClock.now().getTime();
+
+type StoredLocation = Awaited<ReturnType<LocationStore["getCurrent"]>>;
 
 function fakeStore(): LocationStore & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>();
@@ -28,7 +38,7 @@ function fakeStore(): LocationStore & { data: Map<string, unknown> } {
     setCurrent: async (id, pos, meta) => {
       data.set(id, { position: pos, ...meta });
     },
-    getCurrent: async (id) => (data.get(id) as any) ?? null,
+    getCurrent: async (id) => (data.get(id) as StoredLocation) ?? null,
     clear: async (id) => {
       data.delete(id);
     },
@@ -90,11 +100,21 @@ function setupTestServer() {
   return { app, store, pub, tracking, tokenStore };
 }
 
+/**
+ * المرحلة ٥ — إصدار الرمز يفتح الجلسة معه.
+ *
+ * كان المزدوج يُصدر رمزاً بلا جلسة، وهي حالة **لا يمكن أن تقع في المسار
+ * الحقيقي**: `/track/session/start` هو الطريق الوحيد لإصدار رمز، وهو يفتح
+ * الجلسة في النداء نفسه. فكانت الاختبارات تُثبت سلوكاً على حالةٍ لا وجود لها،
+ * وتُخفي في الوقت ذاته أن الإصلاحات كانت تُقبل بلا جلسة أصلاً.
+ */
 async function issueToken(
   tokenStore: ReturnType<typeof fakeTokenStore>,
   driverId: string,
   tripId: string | null = null,
+  tracking?: TrackingService,
 ): Promise<string> {
+  await tracking?.startSession(driverId, tripId);
   return tokenStore.issue(driverId, tripId, 28800);
 }
 
@@ -104,7 +124,7 @@ describe("tracking route: authentication", () => {
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ lat: 21.5, lng: 39.2, timestamp: Date.now() }),
+      body: JSON.stringify({ lat: 21.5, lng: 39.2, timestamp: NOW_MS }),
     });
     expect(res.status).toBe(401);
     const body = (await res.json()) as { ok: boolean; error: string };
@@ -119,7 +139,7 @@ describe("tracking route: authentication", () => {
         "content-type": "application/json",
         authorization: "Bearer invalid-token",
       },
-      body: JSON.stringify({ lat: 21.5, lng: 39.2, timestamp: Date.now() }),
+      body: JSON.stringify({ lat: 21.5, lng: 39.2, timestamp: NOW_MS }),
     });
     expect(res.status).toBe(401);
     const body = (await res.json()) as { ok: boolean; error: string };
@@ -139,7 +159,7 @@ describe("tracking route: authentication", () => {
         driverId: "driver-B",
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
     expect(res.status).toBe(403);
@@ -167,8 +187,8 @@ describe("tracking route: authentication", () => {
 
 describe("tracking route: POST /track/gps (authenticated)", () => {
   it("يقبل تحديث GPS صحيح برمز صالح", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: {
@@ -178,7 +198,7 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
       body: JSON.stringify({
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
     expect(res.status).toBe(200);
@@ -187,8 +207,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
   });
 
   it("يرفض JSON غير صالح", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: {
@@ -201,8 +221,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
   });
 
   it("يرفض الحقول الناقصة (lat/lng)", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/gps", {
       method: "POST",
       headers: {
@@ -215,8 +235,8 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
   });
 
   it("يرفض الانتقال اللحظي (teleport)", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
 
     // موقع صحيح أولاً
     await app.request("/track/gps", {
@@ -228,7 +248,7 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
       body: JSON.stringify({
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
 
@@ -242,19 +262,49 @@ describe("tracking route: POST /track/gps (authenticated)", () => {
       body: JSON.stringify({
         lat: 30.0,
         lng: 50.0,
-        timestamp: Date.now() + 1000,
+        timestamp: NOW_MS + 1000,
       }),
     });
+    /**
+     * تغيّر مقصود في المرحلة ٣: القفزة تنبيه لا رفض. الرفض كان يُجمّد المؤشّر
+     * السابق فيقتل التتبّع إلى آخر الجلسة (يُثبَت في tests/unit/tracking.test.ts).
+     */
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { ok: boolean; quality: string; findings: string[] };
+    expect(body.ok).toBe(true);
+    expect(body.quality).toBe("ALERT");
+    expect(body.findings).toContain("DISPLACEMENT_IMPLAUSIBLE");
+  });
+
+  it("يرفض إحداثية غير منتهية بـ400 قبل بلوغ الخدمة", async () => {
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
+    const res = await app.request("/track/gps", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ lat: "Infinity", lng: 39.2, timestamp: NOW_MS }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("يرفض دقّة سالبة برموز مُعرَّفة", async () => {
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
+    const res = await app.request("/track/gps", {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+      body: JSON.stringify({ lat: 21.5, lng: 39.2, accuracy: -5, timestamp: NOW_MS }),
+    });
     expect(res.status).toBe(422);
-    const body = (await res.json()) as { ok: boolean };
-    expect(body.ok).toBe(false);
+    const body = (await res.json()) as { reasons: string[] };
+    expect(body.reasons).toContain("ACCURACY_INVALID");
   });
 });
 
 describe("tracking route: GET /track/:driverId (authenticated)", () => {
   it("يرجع 404 لسائق بلا موقع", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     const res = await app.request("/track/d1", {
       headers: { authorization: `Bearer ${token}` },
     });
@@ -262,8 +312,8 @@ describe("tracking route: GET /track/:driverId (authenticated)", () => {
   });
 
   it("يرجع الموقع بعد تحديث GPS", async () => {
-    const { app, tokenStore } = setupTestServer();
-    const token = await issueToken(tokenStore, "d1");
+    const { app, tokenStore, tracking } = setupTestServer();
+    const token = await issueToken(tokenStore, "d1", null, tracking);
     await app.request("/track/gps", {
       method: "POST",
       headers: {
@@ -273,7 +323,7 @@ describe("tracking route: GET /track/:driverId (authenticated)", () => {
       body: JSON.stringify({
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
     const res = await app.request("/track/d1", {
@@ -319,7 +369,7 @@ describe("tracking route: session start/end (authenticated)", () => {
       body: JSON.stringify({
         lat: 21.5,
         lng: 39.2,
-        timestamp: Date.now(),
+        timestamp: NOW_MS,
       }),
     });
     expect(store.data.has("d1")).toBe(true);

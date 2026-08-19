@@ -24,6 +24,7 @@ import type {
   PastOrderSummary,
   Sender,
 } from "../../packages/application/bots/types.ts";
+import { waitingVariants } from "../../packages/application/bots/waiting-lines.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/index.ts";
@@ -178,7 +179,7 @@ describe("تسجيل العميل وطلب رحلة", () => {
     expect(pickup[0]?.text).toBe(ar("rider.ask_dropoff"));
 
     const dropoff = await handleRiderUpdate(location(DROPOFF), withRiders);
-    expect(dropoff[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(dropoff[0]?.text ?? "");
 
     expect(orders.created).toEqual([
       {
@@ -201,7 +202,7 @@ describe("تسجيل العميل وطلب رحلة", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     const created = await handleRiderUpdate(text("/skip"), d);
-    expect(created[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(created[0]?.text ?? "");
     expect(orders.created[0]?.dropoff).toBeNull();
   });
 
@@ -318,6 +319,76 @@ describe("الإلغاء", () => {
     expect(orders.cancellations).toEqual([ORDER_ID]);
   });
 
+  /**
+   * المرحلة ١١ — العيب P11-1: للرحلة نهايتان، إتمامٌ وإلغاء. وكان `onTripEnded`
+   * له موضع نداءٍ واحد (حوار التقييم بـ`TRIP_COMPLETED`)، فالإلغاء كان يترك خريطة
+   * العميل تتحرّك ورحلته ملغاة — و`TRIP_CANCELLED` كان سبباً مُعرّفاً ولا منتج له.
+   */
+  it("الإلغاء يُنهي تتبّع الرحلة بسببها الصحيح وقبل إبلاغ أحد", async () => {
+    const riders = riderDirectory({
+      id: "rider-9" as RiderId,
+      cityId: JEDDAH.id,
+      telegramUserId: "500",
+      fullName: "سالم",
+    });
+    const active = {
+      orderId: ORDER_ID,
+      service: "transport" as const,
+      status: "matched",
+      pickupLabel: null,
+      dropoffLabel: "النسيم",
+      createdAt: new Date("2026-08-11T05:29:00Z"),
+    };
+    const ended: { tripId: string; reason: string }[] = [];
+    const d = build({
+      riders,
+      activeOrdersOf: async () => [active],
+      tracking: {
+        // `onFix` مسار السائق ولا شأن للإلغاء به — ووجوده هنا لأن المنفذ واحد.
+        onFix: async () => {
+          throw new Error("لا يُنادى في مسار الإلغاء");
+        },
+        onDutyEnded: async () => {
+          throw new Error("لا يُنادى في مسار الإلغاء");
+        },
+        onTripEnded: async (tripId: string, reason: string) => {
+          ended.push({ tripId, reason });
+        },
+      },
+    });
+
+    await handleRiderUpdate(text("/cancel"), d);
+
+    expect(ended).toEqual([{ tripId: String(ORDER_ID), reason: "TRIP_CANCELLED" }]);
+  });
+
+  /**
+   * والمنفذ اختياريٌّ قصداً: التتبّع عونٌ لا شرط، وإلغاءٌ يفشل لأن التتبّع غير
+   * مركّب يحبس العميل في رحلةٍ لا يريدها — وهو أسوأ من خريطةٍ تبقى دقيقةً زائدة.
+   */
+  it("الإلغاء ينجح ولو لم يُركّب التتبّع أصلاً", async () => {
+    const riders = riderDirectory({
+      id: "rider-9" as RiderId,
+      cityId: JEDDAH.id,
+      telegramUserId: "500",
+      fullName: "سالم",
+    });
+    const active = {
+      orderId: ORDER_ID,
+      service: "transport" as const,
+      status: "matched",
+      pickupLabel: null,
+      dropoffLabel: "النسيم",
+      createdAt: new Date("2026-08-11T05:29:00Z"),
+    };
+    const replies = await handleRiderUpdate(
+      text("/cancel"),
+      build({ riders, activeOrdersOf: async () => [active] }),
+    );
+    expect(replies[0]?.text).toContain("النسيم");
+    expect(orders.cancellations).toEqual([ORDER_ID]);
+  });
+
   it("يخبر بعدم وجود طلب نشط ولا يستدعي الإلغاء", async () => {
     const riders = riderDirectory({
       id: "rider-9" as RiderId,
@@ -343,7 +414,7 @@ describe("المطابقة بعد الإنشاء", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     const replies = await handleRiderUpdate(text("/skip"), d);
-    expect(replies[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(replies[0]?.text ?? "");
     expect(orders.created).toHaveLength(1);
   });
 
@@ -383,6 +454,7 @@ describe("المطابقة بعد الإنشاء", () => {
               status: "active",
               trialEndsAt: null,
               currentPeriodEnd: new Date(NOW.getTime() + 86_400_000),
+              cancelAtPeriodEnd: false,
             },
           },
         ]),
@@ -391,7 +463,7 @@ describe("المطابقة بعد الإنشاء", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     const replies = await handleRiderUpdate(text("/skip"), d);
-    expect(replies[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(replies[0]?.text ?? "");
   });
 });
 
@@ -448,7 +520,7 @@ describe("مسار التوصيل في حوار العميل", () => {
     expect(dropoff[0]?.text).toBe(ar("rider.ask_parcel"));
 
     const done = await handleRiderUpdate(text("صندوق كتب متوسط"), d);
-    expect(done[0]?.text).toBe(ar("rider.delivery_searching"));
+    expect(waitingVariants("riderSearchingDelivery", "ar")).toContain(done[0]?.text ?? "");
 
     expect(orders.createdFull).toEqual([
       {
@@ -489,7 +561,7 @@ describe("مسار التوصيل في حوار العميل", () => {
     expect(orders.createdFull).toHaveLength(0);
 
     const accepted = await handleRiderUpdate(text("كيس ملابس"), d);
-    expect(accepted[0]?.text).toBe(ar("rider.delivery_searching"));
+    expect(waitingVariants("riderSearchingDelivery", "ar")).toContain(accepted[0]?.text ?? "");
     expect(orders.createdFull).toHaveLength(1);
   });
 
@@ -584,7 +656,10 @@ describe("تتبّع الطلب: /status", () => {
     const replies = await handleRiderUpdate(text("/status"), statusDeps([active()]));
     expect(replies).toHaveLength(1);
     const body = replies[0]?.text ?? "";
-    expect(body).toContain(ar("rider.status_searching"));
+    // سطرُ «ما زلنا نبحث» يتغيّر مع دِلاء الانتظار، فالمُثبَت أنّه من عائلته
+    expect(waitingVariants("riderStillSearching", "ar").some((line) => body.includes(line))).toBe(
+      true,
+    );
     expect(body).toContain(ar("rider.status_waiting", { minutes: 4 }));
     // لا سطر سائق ولا لوحة مركبة حين لا سائق
     expect(body).not.toContain(ar("rider.status_driver", { name: "" }).trim());
@@ -686,6 +761,107 @@ describe("تتبّع الطلب: /status", () => {
     expect(replies[1]?.text).toContain(ar("rider.service_delivery"));
   });
 
+  /**
+   * المرحلة ١١ — العيب P11-5: كان التقرير يقول من السائق وماذا يركب، ولا
+   * يقول أين هو — والموقع مخزّنٌ في القاعدة والمسافة تُحسب في الإسناد.
+   */
+  it("عند الإسناد مع موقع طازج: يُعرض بعد السائق بلا تحفّز وبلا وقتٍ متوقّع", async () => {
+    const replies = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([
+        active({
+          status: "matched",
+          pickup: { lat: 21.5433, lng: 39.1728 },
+          dropoff: { lat: 21.6003, lng: 39.1502 },
+          assignedDriver: {
+            fullName: "أحمد",
+            vehicleType: null,
+            plateNumber: "ح ط ب 1234",
+            vehiclePhotoFileId: null,
+            // نحو ١.٦ كم شمال موضع الانطلاق، مسجّلٌ قبل عشر ثوانٍ.
+            lastLocation: {
+              lat: 21.5578,
+              lng: 39.1728,
+              recordedAt: new Date(NOW.getTime() - 10_000),
+            },
+          },
+        }),
+      ]),
+    );
+    const body = replies[0]?.text ?? "";
+    expect(body).toContain(ar("rider.status_distance_pickup_km", { km: "1.6" }));
+    // ولا تحفّز لموقعٍ عمره عشر ثوانٍ: سطرٌ يُلازم كلّ تحديثٍ يُقرأ زخرفاً.
+    expect(body).not.toContain("⚠️");
+    /**
+     * والنصّ يقول صراحةً إنّه خطٌّ مستقيم لا مسار طريق — والفحص مقصودٌ لا زائد:
+     * الخطوة الطبيعيّة لمن يرى مسافةً أن يقسمها على سرعةٍ مفترضة ويقرأها وعداً
+     * بالوصول. والوعد يحتاج مساراً من OSRM وهو غير موصول (خطر R-28)، ومرحلته ١٥.
+     * فحذف التحفّز من النصّ ليس تجميلاً لغويّاً بل يُنشئ وعداً لم نلتزمه.
+     */
+    expect(body).toContain("خطّ مستقيم");
+  });
+
+  it("موقعٌ قديمٌ يُعرض ومعه تحفّزٌ صريح لا يُكتم ولا يُحجب الرقم", async () => {
+    const withAge = async (secondsAgo: number) => {
+      const replies = await handleRiderUpdate(
+        text("/status"),
+        statusDeps([
+          active({
+            status: "matched",
+            pickup: { lat: 21.5433, lng: 39.1728 },
+            assignedDriver: {
+              fullName: "أحمد",
+              vehicleType: null,
+              plateNumber: null,
+              vehiclePhotoFileId: null,
+              lastLocation: {
+                lat: 21.5578,
+                lng: 39.1728,
+                recordedAt: new Date(NOW.getTime() - secondsAgo * 1000),
+              },
+            },
+          }),
+        ]),
+      );
+      return replies[0]?.text ?? "";
+    };
+
+    // دون الدقيقة: بالثواني لا بـ«قبل دقيقة» — تقريبٌ لأعلى يُقلق بلا موجب.
+    const short = await withAge(45);
+    expect(short).toContain(ar("rider.status_location_stale_seconds", { seconds: 45 }));
+    // والرقم يُعرض مع التحفّز لا بدلاً منه: حجبه يترك العميل بلا شيء.
+    expect(short).toContain(ar("rider.status_distance_pickup_km", { km: "1.6" }));
+
+    const long = await withAge(5 * 60 + 20);
+    expect(long).toContain(ar("rider.status_location_stale_minutes", { minutes: 5 }));
+    expect(long).not.toContain(ar("rider.status_location_stale_seconds", { seconds: 320 }));
+  });
+
+  it("سائقٌ مُسنَد بلا موقعٍ بعد: لا سطر مسافة ولا «غير معروف»", async () => {
+    const replies = await handleRiderUpdate(
+      text("/status"),
+      statusDeps([
+        active({
+          status: "matched",
+          pickup: { lat: 21.5433, lng: 39.1728 },
+          assignedDriver: {
+            fullName: "أحمد",
+            vehicleType: null,
+            plateNumber: "ح ط ب 1234",
+            vehiclePhotoFileId: null,
+            lastLocation: null,
+          },
+        }),
+      ]),
+    );
+    const body = replies[0]?.text ?? "";
+    // لا يُكتب سطرٌ ألبتّة — ومع ذلك يبقى التقرير كاملاً لا مقتوعاً.
+    expect(body).not.toContain("📍");
+    expect(body).toContain(ar("rider.status_driver", { name: "أحمد" }));
+    expect(body).toContain(ar("rider.status_plate", { plate: "ح ط ب 1234" }));
+    expect(body).toContain(ar("rider.status_waiting", { minutes: 4 }));
+  });
+
   it("زرّ «أين طلبي؟» يصل إلى /status نصّاً بأي لغة مدعومة", async () => {
     const d = statusDeps([active()]);
     for (const label of [
@@ -703,7 +879,7 @@ describe("تتبّع الطلب: /status", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     const created = await handleRiderUpdate(text("/skip"), d);
-    expect(created[0]?.text).toBe(ar("rider.searching"));
+    expect(waitingVariants("riderSearching", "ar")).toContain(created[0]?.text ?? "");
     expect(created[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }));
   });
 });
@@ -803,15 +979,17 @@ describe("لوحة /help — البند 6.3", () => {
 
   it("يعرض أوامر العميل أزراراً inline لا نصّاً", async () => {
     const replies = await handleRiderUpdate(text("/help"), helpDeps());
-    expect(replies).toHaveLength(2);
-    expect(replies[0]?.keyboard).toEqual(helpKeyboard("rider", "ar"));
+    expect(replies).toHaveLength(3);
+    // الردّ الأول شرحُ عمل البوت للراكب: خطوات الطلب وما يُنتظر منه
+    expect(replies[0]?.text).toBe(ar("rider.guide"));
+    expect(replies[1]?.keyboard).toEqual(helpKeyboard("rider", "ar"));
 
-    const keyboard = replies[0]?.keyboard;
+    const keyboard = replies[1]?.keyboard;
     if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
     const labels = keyboard.rows.flat().map((button) => button.label);
     expect(labels).toContain(ar("menu.support"));
     expect(labels).toContain(ar("menu.rider.ride"));
-    expect(replies[0]?.text).not.toContain("/ride");
+    expect(replies[1]?.text).not.toContain("/ride");
   });
 
   it("زرّ التتبّع يظهر في /help متى كان للعميل طلب نشط وحده", async () => {
@@ -822,16 +1000,16 @@ describe("لوحة /help — البند 6.3", () => {
       const board = keyboard as { kind: string; rows: { label: string }[][] };
       return board.rows.flat().map((button) => button.label);
     };
-    expect(labelsOf(without[0]?.keyboard)).not.toContain(ar("menu.rider.status"));
-    expect(labelsOf(withOrder[0]?.keyboard)).toContain(ar("menu.rider.status"));
-    expect(withOrder[1]?.keyboard).toEqual(
+    expect(labelsOf(without[1]?.keyboard)).not.toContain(ar("menu.rider.status"));
+    expect(labelsOf(withOrder[1]?.keyboard)).toContain(ar("menu.rider.status"));
+    expect(withOrder[2]?.keyboard).toEqual(
       mainMenuKeyboard("rider", "ar", { hasActiveOrder: true }),
     );
   });
 
   it("كل بند قائمة له زرّ ببياناته الصحيحة — فلا يتباعد المصدران", async () => {
     const replies = await handleRiderUpdate(text("/help"), helpDeps([active()]));
-    const keyboard = replies[0]?.keyboard;
+    const keyboard = replies[1]?.keyboard;
     if (keyboard?.kind !== "inline") throw new Error("لوحة /help يجب أن تكون inline");
     const data = keyboard.rows.flat().map((button) => button.data);
     for (const item of allItemsFor("rider")) expect(data).toContain(`cmd:${item.command}`);

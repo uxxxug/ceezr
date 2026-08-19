@@ -38,6 +38,9 @@ async function main(): Promise<void> {
     maxConcurrency: MAX_JOB_CONCURRENCY,
     clock: { now: () => new Date() },
     log,
+    // النبضة (§4.3): هذه الخدمة منفصلة عن البوابة، ولا طريقةَ للبوابة لتعلم أنّ
+    // مهامّها تعمل إلاّ من القاعدة. بلا هذا السطر يقول `/ready` إنّ المهامّ غائبة.
+    heartbeat: container.heartbeat,
   });
   runner.start();
   log.info("worker.started", { jobCount: jobs.length });
@@ -49,6 +52,10 @@ async function main(): Promise<void> {
     log.info("worker.shutdown", { signal });
     runner.stop();
     // إغلاق القاعدة بعد إيقاف المشغّل لا قبله: شوطٌ جاري بلا اتصال يفشل بلا داعٍ.
+    // و`stop` وحده لا يكفي: يمسح المؤقّت ولا ينتظر الجاري، فالتصريف هو ما يجعل
+    // الترتيب أعلاه وعداً محقّقاً لا تعليقاً. والمهلة محدودة لأنّ المنصّة تقتل قسراً.
+    const drained = await runner.drain();
+    if (!drained) log.error("worker.shutdown_not_drained", { signal });
     await container.close();
     process.exit(0);
   };

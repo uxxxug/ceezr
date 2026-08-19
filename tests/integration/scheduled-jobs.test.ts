@@ -15,6 +15,7 @@ import { createJobRunner, type JobLogger } from "../../apps/workers/src/runner.t
 import type { ExpiryWarningSender } from "../../packages/application/subscription/expire-subscriptions.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -38,6 +39,17 @@ const config: AppConfig = {
   translationApiKey: null,
   translationContactEmail: null,
   runWorkerInGateway: false,
+  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
+  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
+  mapProvider: "none",
+  mapStyleUrl: null,
+  mapTilesPublicKey: null,
+  maplibreSri: null,
+  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
+  routingProvider: "none",
+  osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 interface WarningOut {
@@ -188,7 +200,9 @@ describeIf("مشغّل الجوبات المركزي على قاعدة حقيق�
   });
 
   it("لا يبني مهامّ مدينة لمدينة غير مفعَّلة، ويبقي المهامّ العامّة", async () => {
-    await sql`update cities set is_active = false where id = ${cityId}`;
+    // «لا مدينةَ مفعَّلة» شرطٌ على الجدولِ كلِّه: إطفاءُ مدينةِ السيناريو وحدَها
+    // كان يكفي حين كانت مدينةٌ واحدةٌ نشطةً، ولا يكفي في إطلاقِ خمسِ مدن.
+    await sql`update cities set is_active = false`;
     const jobs = await container.jobs();
     const names = jobs.map((job) => job.name);
 

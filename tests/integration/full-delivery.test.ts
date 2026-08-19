@@ -10,11 +10,13 @@
  * ملاحظات مستقبلية: عند إضافة بيانات المستلِم تُضاف تأكيدات على أعمدتها هنا.
  */
 
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
+import { waitingVariants } from "../../packages/application/bots/waiting-lines.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -46,6 +48,17 @@ const config: AppConfig = {
   translationApiKey: null,
   translationContactEmail: null,
   runWorkerInGateway: false,
+  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
+  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
+  mapProvider: "none",
+  mapStyleUrl: null,
+  mapTilesPublicKey: null,
+  maplibreSri: null,
+  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
+  routingProvider: "none",
+  osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 let sql: Sql;
@@ -101,8 +114,20 @@ describeIf("مسار التوصيل الكامل على قاعدة حقيقية"
     cityId = id;
   });
 
+  /**
+   * إغلاقُ حاويةِ السيناريو عقب كلِّ اختبار لا مرّةً واحدةً في النهاية: الحاويةُ
+   * تُنشئ حوضَ اتّصالاتٍ خاصّاً بها، وبناؤها في `beforeEach` مع إغلاقٍ وحيدٍ في
+   * `afterAll` يُراكم أحواضاً بعددِ اختباراتِ الملفّ. القاعدةُ المحلّية كانت تحتمل
+   * التراكمَ بسعتها الأوسع، أمّا خدمةُ PostgreSQL في آلةِ التكامل فتقف عند حدّها
+   * الافتراضيّ فتردّ «sorry, too many clients already» — فيُخفق سربٌ من اختباراتٍ
+   * سليمةٍ لا علاقةَ لها بالعيب، ويُحوّل الحمرةَ إلى ضجيجٍ يُخفي الأعطالَ الحقيقية.
+   */
+  afterEach(async () => {
+    // إن أخفقَ التهيئةُ لم تُبنَ الحاويةُ أصلاً، وطرحُ خطأٍ ثانٍ في التفكيك يطمس الأوّل.
+    await (container as ReturnType<typeof buildContainer> | undefined)?.close();
+  });
+
   afterAll(async () => {
-    await container.close();
     await sql.end({ timeout: 5 });
   });
 
@@ -220,7 +245,10 @@ describeIf("مسار التوصيل الكامل على قاعدة حقيقية"
     await requestDelivery();
     // رسالتان: إعلان البحث ثم عدد من أُخطِر فعلاً — لا وعد مجرّد
     const riderTexts = riderSent.map((m) => m.text);
-    expect(riderTexts).toContain(ar("rider.delivery_searching"));
+    // إعلانُ البحث سطرٌ من عائلة انتظارٍ متغيّرة، فالمُثبَت أنّه منها لا نصُّه الحرفي
+    expect(
+      riderTexts.some((line) => waitingVariants("riderSearchingDelivery", "ar").includes(line)),
+    ).toBe(true);
     expect(riderTexts.at(-1)).toBe(ar("rider.drivers_notified", { count: 1 }));
 
     // 2) الطلب مكتوب بخدمة delivery وبوجهة حقيقية ووصف الطرد في notes
@@ -272,7 +300,25 @@ describeIf("مسار التوصيل الكامل على قاعدة حقيقية"
     // 5) القبول ذرّي عبر claim_ride: الطلب matched والعرض accepted
     driverSent.length = 0;
     await post("driver", callback(COURIER_CHAT, `offer:accept:${order?.id}`));
-    expect(driverSent.map((m) => m.text)).toEqual([ar("driver.offer_accepted")]);
+    /**
+     * وهذا المسار — بخلاف النقل — له مقصدٌ بإحداثية، فتُثبَت النقطتان معاً
+     * ويُثبَت تمايزهما: قبل المرحلة ١٢ كانت الاحتياطية نصّاً واحداً لكلتيهما،
+     * فيقرأ المندوب سطرين متطابقين. الآن لكلٍّ إحداثيته.
+     */
+    const acceptTexts = driverSent.filter((m) => m.location === undefined).map((m) => m.text);
+    expect(acceptTexts).toHaveLength(2);
+    expect(acceptTexts[0]).toBe(ar("driver.offer_accepted"));
+    const tripCard = acceptTexts[1] ?? "";
+    expect(tripCard).toContain(ar("driver.trip_header"));
+    expect(tripCard).toContain(ar("driver.trip_leg_to_pickup"));
+    expect(tripCard).toContain(PICKUP.latitude.toFixed(4));
+    expect(tripCard).toContain(DROPOFF.latitude.toFixed(4));
+    expect(tripCard).not.toContain(ar("driver.trip_destination_unset"));
+
+    // الدبّوس على الانطلاق لا على المقصد: مرحلته الآن إلى نقطة الاستلام
+    const pins = driverSent.filter((m) => m.location !== undefined);
+    expect(pins).toHaveLength(1);
+    expect(pins[0]?.location).toEqual(PICKUP);
 
     const afterClaim = await sql<{ status: string; assigned_driver_id: string | null }[]>`
       select status, assigned_driver_id from orders where id = ${order?.id ?? ""}

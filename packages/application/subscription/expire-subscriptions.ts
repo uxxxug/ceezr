@@ -33,7 +33,15 @@ export interface ExpiringSubscription {
 /** يقابل الدالّات expire_due_subscriptions و subscriptions_expiring_soon و record_subscription_warning. */
 export interface SubscriptionLifecycleRpcPort {
   expireDue(): Promise<Result<ExpireSubscriptionsOutcome, PortFailureError>>;
-  expiringSoon(days: number): Promise<Result<readonly ExpiringSubscription[], PortFailureError>>;
+  /**
+   * مُفتاحٌ بالمدينة لا عابرٌ للمدن: المهمّةُ التي تُناديه مسجَّلةٌ لكلّ مدينة،
+   * ومهامُّ المدن تُطلق في نفس النبضة بأقفالٍ مختلفة. فقائمةٌ عابرةٌ تعني أنّ
+   * السائقَ الواحد يستقبل تحذيراً بعددِ المدن النشطة.
+   */
+  expiringSoon(input: {
+    readonly cityId: CityId;
+    readonly days: number;
+  }): Promise<Result<readonly ExpiringSubscription[], PortFailureError>>;
   /**
    * لا يستقبل تاريخ الانتهاء: القاعدة تقرأه من الصفّ نفسه. تمريره من هنا كان يعني
    * إعادة قيمة اقتطعتها JavaScript إلى المللي ثانية، فلا تُطابق الأصل ويتكرّر التحذير.
@@ -82,10 +90,10 @@ export interface WarnExpiringDependencies {
  * سائقاً قبله في القائمة حجب البوت.
  */
 export async function warnExpiringSubscriptions(
-  input: { readonly days: number },
+  input: { readonly cityId: CityId; readonly days: number },
   deps: WarnExpiringDependencies,
 ): Promise<Result<WarnExpiringReport, PortFailureError>> {
-  const due = await deps.rpc.expiringSoon(input.days);
+  const due = await deps.rpc.expiringSoon({ cityId: input.cityId, days: input.days });
   if (!due.ok) return due;
 
   const failed: string[] = [];
@@ -96,10 +104,20 @@ export async function warnExpiringSubscriptions(
     const date = subscription.endsAt.toISOString().slice(0, 10);
     // «ينتهي بعد يوم واحد» صياغة باردة أمام «ينتهي غداً». الفرق ليس تجميلاً:
     // الرسالة التي يفهمها السائق فوراً هي التي يتحرّك بها قبل أن ينقطع دخله.
+    //
+    // والفرقُ الثاني أهمّ: من هو في شهره المجاني لم «يشترك» بعد، فمخاطبته بـ
+    // «جدّد اشتراكك» تُخبره بشيءٍ لم يفعله، وتُخفي عنه أنّ أمامه طريقين لا طريقاً
+    // واحداً: يفعّل، أو ينتقل إلى قروب غير المشتركين. الرسالةُ التي لا تذكر
+    // الطريقَ الثاني تجعل انتهاءَ الشهر يبدو طرداً من المنصّة، وهو ليس كذلك.
+    const isTrial = subscription.status === "trialing";
+    const soonKey = isTrial ? "subscription.trial_ending_soon" : "subscription.expiring_soon";
+    const tomorrowKey = isTrial
+      ? "subscription.trial_ending_tomorrow"
+      : "subscription.expiring_tomorrow";
     const text =
       subscription.daysLeft <= 1
-        ? tr("subscription.expiring_tomorrow", { date })
-        : tr("subscription.expiring_soon", { days: subscription.daysLeft, date });
+        ? tr(tomorrowKey, { date })
+        : tr(soonKey, { days: subscription.daysLeft, date });
 
     const sent = await deps.sender.send({ chatId: subscription.telegramId, text });
     if (!sent.ok) {

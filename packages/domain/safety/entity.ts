@@ -1,8 +1,15 @@
 /**
  * الغرض: الكيانات الجذرية (Aggregates/Entities) لوحدة safety — زر الطوارئ والسلامة
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الحالة: منفّذ فعلياً في 2026-08-13؛ كان هيكلاً.
  * ينتمي إلى: domain/safety
  * يُتوقع أن يستخدمه لاحقاً: packages/application/safety/*, packages/infrastructure/safety/*
- * ملاحظات مستقبلية: يُفعَّل جزئياً عبر قروب الإسناد في الأمر الثاني.
+ * ملاحظات مستقبلية: التحولات المسموحة تعكسها قيود/RPC قاعدة البيانات.
  */
-export {};
+import type { SafetyIncidentStatus, SafetyReporterRole } from "./value-objects.ts";
+export interface SafetyIncident {
+  readonly id: string;
+  readonly orderId: string;
+  readonly cityId: string;
+  readonly reporterRole: SafetyReporterRole;
+  readonly status: SafetyIncidentStatus;
+}

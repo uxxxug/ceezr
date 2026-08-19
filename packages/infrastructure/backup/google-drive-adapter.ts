@@ -4,7 +4,7 @@
  *   والرفع بـ fetch قياسيّ — اتّساقاً مع مبدأ المشروع في أقلّ تبعيّات ممكنة.
  * الحالة: منفّذ فعلياً — البند 7.
  * ينتمي إلى: infrastructure/backup
- * يُتExpected أن يستخدمه لاحقاً: apps/workers/src/jobs/backup-database.ts
+ * يُتوقع أن يستخدمه لاحقاً: apps/workers/src/jobs/backup-database.ts
  * ملاحظات مستقبلية: صلاحية الوصول محدودة بمجلد واحد فقط (folder ID)، لا المجلد
  *   الجذريّ للخدمة — اتّباعاً لمبدأ أقلّ صلاحية. ولا يُخزَّن ملف الاعتماد في
  *   المستودع أبداً: فقط في متغيّر بيئة `GOOGLE_SERVICE_ACCOUNT_JSON`.
@@ -170,6 +170,20 @@ export function createGoogleDriveStorage(config: GoogleDriveConfig): BackupStora
         bytes: Number(result.size ?? content.byteLength),
         uploadedAt: new Date(),
       } satisfies BackupUploadResult);
+    },
+
+    download: async (remoteFileId) => {
+      const token = await getAccessToken(config);
+      if (!token.ok) return token;
+
+      const response = await fetch(`${DRIVE_FILES_URL}/${remoteFileId}?alt=media`, {
+        headers: { authorization: `Bearer ${token.value}` },
+      });
+      if (!response.ok) {
+        const text = await response.text().catch(() => "");
+        return err(failure("drive.download", `${response.status} ${text}`));
+      }
+      return ok(new Uint8Array(await response.arrayBuffer()));
     },
 
     list: async () => {

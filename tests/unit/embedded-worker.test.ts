@@ -16,7 +16,11 @@ import { startEmbeddedWorker } from "../../apps/gateway/src/embedded-worker.ts";
 import { createNoopLock } from "../../packages/application/scheduling/distributed-lock.ts";
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
 import type { OutboundSender } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
-import { type AppConfig, tryLoadConfig } from "../../packages/shared/config/index.ts";
+import {
+  type AppConfig,
+  NO_TRACKING_OVERRIDES,
+  tryLoadConfig,
+} from "../../packages/shared/config/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 
 const CITY_ID = "11111111-2222-3333-4444-555555555555";
@@ -50,6 +54,17 @@ const config: AppConfig = {
   translationApiKey: null,
   translationContactEmail: null,
   runWorkerInGateway: true,
+  // المرحلة ١٠: حقول الخريطة. `none` هو الافتراضي في الضبط الحقيقي، فالاختبارات
+  // تعبّر عن نفس الحال: لا خريطة، ولا مفتاح، ولا نمط.
+  mapProvider: "none",
+  mapStyleUrl: null,
+  mapTilesPublicKey: null,
+  maplibreSri: null,
+  // المرحلة ١٥ — لا مزوّد توجيه في الاختبارات الافتراضية: زمن الوصول يُمتنع صريحاً.
+  routingProvider: "none",
+  osrmBaseUrl: null,
+  tracking: NO_TRACKING_OVERRIDES,
+  trackingTokenBaseUrl: null,
 };
 
 interface FakeSqlLog {
@@ -92,23 +107,30 @@ function capturingSender(sent: string[]): OutboundSender {
 }
 
 describe("قراءة RUN_WORKER_IN_GATEWAY", () => {
-  it("الغياب يعني عدم التفعيل — لا يُشغَّل عاملٌ لمن لم يطلبه", () => {
+  it("الغياب يعني التفعيل — بوابةٌ بلا مهامّ دورية أسوأ من مهمّةٍ تتكرر تحت قفل", () => {
     const result = tryLoadConfig({ ...BASE_ENV });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value.runWorkerInGateway).toBe(false);
+    expect(result.value.runWorkerInGateway).toBe(true);
   });
 
-  it("القيم المقبولة تُفعِّل، والقيمة غير المفهومة تعني عدم التفعيل", () => {
+  it("الإطفاء يُعلَن صراحةً، والقيمة غير المفهومة ترجع للافتراض لا للإطفاء", () => {
     for (const raw of ["true", "TRUE", " 1 ", "yes", "on"]) {
       const result = tryLoadConfig({ ...BASE_ENV, RUN_WORKER_IN_GATEWAY: raw });
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.value.runWorkerInGateway).toBe(true);
     }
-    for (const raw of ["false", "0", "maybe", ""]) {
+    for (const raw of ["false", "FALSE", " 0 ", "no", "off"]) {
       const result = tryLoadConfig({ ...BASE_ENV, RUN_WORKER_IN_GATEWAY: raw });
       expect(result.ok).toBe(true);
       if (result.ok) expect(result.value.runWorkerInGateway).toBe(false);
+    }
+    // إملاءةٌ مثل `maybe` لا تُطفئ المهامّ الدورية كلّها: من كتب قيمةً فقد أراد
+    // إعداداً لا صمتاً، وأقربُ ما يقارب مرادَه هو الحال الأسلم لا التعطيل الأقسى.
+    for (const raw of ["maybe", ""]) {
+      const result = tryLoadConfig({ ...BASE_ENV, RUN_WORKER_IN_GATEWAY: raw });
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.runWorkerInGateway).toBe(true);
     }
   });
 });
@@ -137,18 +159,30 @@ describe("العامل المدمج داخل عملية البوابة", () => {
     );
 
     try {
-      // المهامّ المدنية الخمس + العامّتان. الرقم مثبَّت عن قصد: نقصانه يعني مهمّة
+      // المهامّ المدنية الستّ + العامّتان. الرقم مثبَّت عن قصد: نقصانه يعني مهمّة
       // اختفت من الإنتاج بلا أن يلاحظها أحد، وهو بالضبط العطب الذي جاء البند ليُصلحه.
-      expect(handle.jobCount).toBe(7);
+      // صار تسعاً بإضافة outbox SOS العامّة: غيابها لا يخفي فشلاً في تيليجرام،
+      // والحارس المثبّت يكشف حذف المهمة من إنتاج العامل.
+      // ثم عشراً بإضافة تسليم البثّ الجماعي لكلّ مدينة: حملةٌ تُكتب في القاعدة ولا
+      // مهمّةَ تسليمٍ مسجّلة تعني صفوفاً `pending` إلى الأبد ولوحةً تقول «جارٍ الإرسال».
+      // ثم إحدى عشرة بإضافة تسليم إشعارات الاشتراك: صندوقٌ يُكتب فيه عند التفعيل
+      // والانتهاء، وبلا مهمّةٍ تسلّمه يُقطع السائق عن الطلبات بصمتٍ تامّ.
+      // ثم اثنتي عشرة بإضافة انقضاء روابط التتبّع (§4.2): رابطٌ يُصدَر ولا مهمّةَ
+      // تسحب انقضاءه يبقى حيّاً إلى سقف عمره المطلق بعد أن انتهت الرحلة بساعات.
+      expect(handle.jobCount).toBe(12);
 
       const started = lines.find((line) => line.startsWith("embedded_worker.started"));
       expect(started).toBeDefined();
       for (const name of [
         `expire-offers:${CITY_ID}`,
+        `redispatch-searching:${CITY_ID}`,
         `sweep-unmatched:${CITY_ID}`,
         `rotate-negotiations:${CITY_ID}`,
         `cleanup-stale:${CITY_ID}`,
         `warn-expiring:${CITY_ID}`,
+        `deliver-broadcasts:${CITY_ID}`,
+        `deliver-subscription-notices:${CITY_ID}`,
+        "deliver-safety-incidents",
         "expire-subscriptions",
         "recompute-ratings",
       ]) {

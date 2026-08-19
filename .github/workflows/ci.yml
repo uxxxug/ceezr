@@ -1,22 +1,27 @@
 name: CI
 
+# `feat/**` مُضافة عن قصد: سياسةُ العمل تُلزم بالتحقّق من نجاح CI **بعد كل دفعة**
+# لا آخرَ العمل، وكان الزنادُ على `main` وحدها فكانت الدفعاتُ على فرع العمل تمرّ
+# بلا فحصٍ بعيدٍ إطلاقاً — فيتراكم عملٌ يُظنّ محقَّقاً ثم يُكتشف إخفاقه كلّه دفعةً
+# واحدة عند فتح طلب الدمج.
 on:
   push:
-    branches: [main]
+    branches: [main, "feat/**"]
   pull_request:
 
 jobs:
   verify:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Install
-        run: bun install --frozen-lockfile || bun install
+        run: bun install --frozen-lockfile
 
       - name: Lint
         run: bun run lint
@@ -25,7 +30,50 @@ jobs:
         run: bun run typecheck
 
       - name: Test
-        run: bun run test
+        run: set -o pipefail; bun run test 2>&1 | tee /tmp/ci-output.log
+
+      - name: تفاصيل الإخفاق في تعليقٍ مقروء بلا سجلّات
+        if: failure()
+        run: |
+          # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
+          # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
+          # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
+          if [ ! -f /tmp/ci-output.log ]; then
+            echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+            exit 0
+          fi
+          # أسماءُ المخفقة أوّلاً مجموعةً في ملحوظةٍ واحدة: هي الفهرس. ثم تفصيلُ
+          # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
+          # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
+          # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          # الملحوظةُ الواحدة تُقتطع عند نحوِ ثلاثةِ آلافِ حرف، فرفعُ المخرجاتِ
+          # كاملةً يضيع أكثرَه. ولذلك يُرفَع المفيدُ وحده: أسماءُ المخفقة فهرساً،
+          # ثمّ ثلاثون سطراً قبل كلِّ إخفاقٍ — وفيها يطبع bun نصَّ الخطأ والمقارنةَ
+          # والأثرَ — في ملحوظاتٍ صغيرةٍ لا تُقتطع.
+          grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
+          if [ -s /tmp/ci-fails.txt ]; then
+            idx=$(cut -c1-160 /tmp/ci-fails.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=فهرس الاختبارات المخفقة::${idx}"
+          fi
+          : > /tmp/ci-context.txt
+          for lineno in $(cut -d: -f1 /tmp/ci-fails.txt | head -40); do
+            start=$((lineno > 30 ? lineno - 30 : 1))
+            sed -n "${start},${lineno}p" /tmp/ci-output.log >> /tmp/ci-context.txt
+            echo "──────── نهاية سياق إخفاق ────────" >> /tmp/ci-context.txt
+          done
+          if [ ! -s /tmp/ci-context.txt ]; then cp /tmp/ci-output.log /tmp/ci-context.txt; fi
+          rm -f /tmp/ci-part-*
+          split -l 22 -d -a 2 <(cut -c1-300 /tmp/ci-context.txt | sed 's/%/%25/g') /tmp/ci-part-
+          count=0
+          for part in /tmp/ci-part-*; do
+            count=$((count + 1))
+            if [ "$count" -gt 24 ]; then
+              echo "::error::سياقُ الإخفاق أطولُ من أربعٍ وعشرين ملحوظة — الباقي محجوب"
+              break
+            fi
+            body=$(awk '{printf "%s%%0A", $0}' "$part")
+            echo "::error title=سياق ${part##*-}::${body}"
+          done
 
       - name: منع الكود الوهمي في الملفات المنفّذة
         run: |
@@ -71,6 +119,24 @@ jobs:
       - name: عزل طبقة الذكاء الاصطناعي — اتجاه اعتماد واحد
         run: bun run scripts/check-agent-core-isolation.ts
 
+      - name: حدّ النطاق — مطابقة المسار خارج الإصدار (ADR 0025)
+        run: bun run scripts/check-map-matching-scope.ts
+
+      - name: بناء الصورتين قابل لإعادة الإنتاج (قفل مجمَّد + استيرادات محلولة)
+        run: bash scripts/verify-container-build.sh
+
+      - name: كلّ متغيّر بيئة موثَّق مقروءٌ فعلاً في الكود
+        run: bun run scripts/check-env-drift.ts
+
+      - name: لا اختبارَ ينجح بترتيبِ الملفّات — تفعيلُ المدينة مكتملٌ في عبارته
+        run: bun run scripts/check-test-city-activation.ts
+
+      - name: لا حاويةَ اختبارٍ تُبنى لكلِّ اختبارٍ وتُغلق مرّةً واحدة
+        run: bun run scripts/check-test-container-lifecycle.ts
+
+      - name: عقدُ المخطّط يطابق ما يناديه الكود (فحصُ الجهوزية يقرؤه)
+        run: bun run scripts/check-schema-contract.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
@@ -81,6 +147,10 @@ jobs:
   integration:
     name: تكامل على PostgreSQL حقيقي
     runs-on: ubuntu-latest
+    # يُلزم الرقيبَ بالإخفاق لو ضاع رابطُ القاعدة من هذه الوظيفة: اختباراتُ
+    # التكامل تُتخطّى بصمتٍ حين يغيب، فيُعلَن الفحصُ أخضرَ بلا تجريبِ SQL أصلاً.
+    env:
+      CI_REQUIRE_DB: "1"
     services:
       postgres:
         image: postgis/postgis:17-3.5
@@ -96,10 +166,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.3.14
 
       - name: Install
-        run: bun install --frozen-lockfile || bun install
+        run: bun install --frozen-lockfile
 
       - name: أدوار Supabase التي تفترضها الهجرات
         env:
@@ -128,10 +198,87 @@ jobs:
             psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
           done
 
+      # `pg_dump` يرفض خادماً أحدثَ منه إصداراً رئيسياً، واختبارُ تحقّقِ الاستعادة
+      # يستدعيه فعلاً على خدمةِ PostgreSQL 17 — أمّا صورةُ العامل فتحمل أدواتَ
+      # إصدارٍ أقدم. النتيجةُ إخفاقٌ لا يظهر محلّياً حيث النسختان متوافقتان، فيبدو
+      # كعيبٍ في منطقِ النسخ الاحتياطيّ وهو عيبُ بيئةٍ صِرْف. فتُثبَّت أدواتُ العميل
+      # من مستودعِ PostgreSQL الرسميّ، ثم يُقارَن الإصدارانِ ويسقط البناءُ بالسببِ
+      # مكتوباً إن اختلفا — لا سقوطاً صامتاً ولا تخطّياً للاختبار.
+      - name: أدواتُ عميلِ PostgreSQL مطابقةٌ لإصدارِ الخادم
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          server_major="$(psql -h localhost -U postgres -d waslah -tAc 'show server_version' | cut -d. -f1 | tr -d '[:space:]')"
+          echo "الخادم: إصدار رئيسيّ $server_major"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          codename="$(lsb_release -cs)"
+          repo="https://apt.postgresql.org/pub/repos/apt ${codename}-pgdg main"
+          signed="signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc"
+          printf 'deb [%s] %s\n' "$signed" "$repo" | sudo tee /etc/apt/sources.list.d/pgdg.list > /dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq "postgresql-client-${server_major}"
+          echo "/usr/lib/postgresql/${server_major}/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/${server_major}/bin:$PATH"
+          for tool in pg_dump pg_dumpall pg_restore psql; do
+            version="$("$tool" --version)"
+            echo "$tool: $version"
+            tool_major="$(echo "$version" | grep -oE '[0-9]+' | head -1)"
+            if [ "$tool_major" != "$server_major" ]; then
+              echo "::error::$tool إصداره $tool_major والخادم $server_major — pg_dump يرفض خادماً أحدثَ منه، فتحقّقُ الاستعادة يُخفق لسببِ بيئةٍ لا لسببِ منطق."
+              exit 1
+            fi
+          done
+
       - name: اختبارات التكامل على قاعدة حقيقية
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-        run: bun run test:integration
+        run: set -o pipefail; bun run test:integration 2>&1 | tee /tmp/ci-output.log
+
+      - name: تفاصيل الإخفاق في تعليقٍ مقروء بلا سجلّات
+        if: failure()
+        run: |
+          # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
+          # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
+          # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
+          if [ ! -f /tmp/ci-output.log ]; then
+            echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+            exit 0
+          fi
+          # أسماءُ المخفقة أوّلاً مجموعةً في ملحوظةٍ واحدة: هي الفهرس. ثم تفصيلُ
+          # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
+          # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
+          # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          # الملحوظةُ الواحدة تُقتطع عند نحوِ ثلاثةِ آلافِ حرف، فرفعُ المخرجاتِ
+          # كاملةً يضيع أكثرَه. ولذلك يُرفَع المفيدُ وحده: أسماءُ المخفقة فهرساً،
+          # ثمّ ثلاثون سطراً قبل كلِّ إخفاقٍ — وفيها يطبع bun نصَّ الخطأ والمقارنةَ
+          # والأثرَ — في ملحوظاتٍ صغيرةٍ لا تُقتطع.
+          grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
+          if [ -s /tmp/ci-fails.txt ]; then
+            idx=$(cut -c1-160 /tmp/ci-fails.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=فهرس الاختبارات المخفقة::${idx}"
+          fi
+          : > /tmp/ci-context.txt
+          for lineno in $(cut -d: -f1 /tmp/ci-fails.txt | head -40); do
+            start=$((lineno > 30 ? lineno - 30 : 1))
+            sed -n "${start},${lineno}p" /tmp/ci-output.log >> /tmp/ci-context.txt
+            echo "──────── نهاية سياق إخفاق ────────" >> /tmp/ci-context.txt
+          done
+          if [ ! -s /tmp/ci-context.txt ]; then cp /tmp/ci-output.log /tmp/ci-context.txt; fi
+          rm -f /tmp/ci-part-*
+          split -l 22 -d -a 2 <(cut -c1-300 /tmp/ci-context.txt | sed 's/%/%25/g') /tmp/ci-part-
+          count=0
+          for part in /tmp/ci-part-*; do
+            count=$((count + 1))
+            if [ "$count" -gt 24 ]; then
+              echo "::error::سياقُ الإخفاق أطولُ من أربعٍ وعشرين ملحوظة — الباقي محجوب"
+              break
+            fi
+            body=$(awk '{printf "%s%%0A", $0}' "$part")
+            echo "::error title=سياق ${part##*-}::${body}"
+          done
 
       - name: منع تخطّي اختبارات التكامل صامتاً
         env:
@@ -147,7 +294,50 @@ jobs:
       - name: اختبارات e2e — رحلات متتابعة بلا تدخّل
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-        run: bun run test:e2e
+        run: set -o pipefail; bun run test:e2e 2>&1 | tee /tmp/ci-output.log
+
+      - name: تفاصيل الإخفاق في تعليقٍ مقروء بلا سجلّات
+        if: failure()
+        run: |
+          # الإخفاقُ الذي لا يُقرأ سببُه يُعالَج بالتخمين. وسجلّاتُ الوظيفة تُحمَّل
+          # من تخزينٍ خارجيٍّ موقَّعٍ لا يبلغه كلُّ مراجع، فذيلُ المخرجات يُرفَع هنا
+          # كملحوظةِ فحصٍ تظهر مع النتيجة نفسها.
+          if [ ! -f /tmp/ci-output.log ]; then
+            echo "::error::أخفقت الخطوة قبل أن تُنتج مخرجات — راجع الخطوة السابقة"
+            exit 0
+          fi
+          # أسماءُ المخفقة أوّلاً مجموعةً في ملحوظةٍ واحدة: هي الفهرس. ثم تفصيلُ
+          # الإخفاق في ملحوظاتٍ متتابعةٍ من ٢٥٠ سطراً، لأنّ الملحوظةَ الواحدة
+          # محدودةُ الطول، وقطعُ التفصيل عند ستّين سطراً كان يُخفي أوّلَ الأسباب
+          # ويُبقي آخِرَها — وأوّلُ الإخفاق هو ما يُشخَّص، وما بعده تَبَعٌ له.
+          # الملحوظةُ الواحدة تُقتطع عند نحوِ ثلاثةِ آلافِ حرف، فرفعُ المخرجاتِ
+          # كاملةً يضيع أكثرَه. ولذلك يُرفَع المفيدُ وحده: أسماءُ المخفقة فهرساً،
+          # ثمّ ثلاثون سطراً قبل كلِّ إخفاقٍ — وفيها يطبع bun نصَّ الخطأ والمقارنةَ
+          # والأثرَ — في ملحوظاتٍ صغيرةٍ لا تُقتطع.
+          grep -n '^(fail)' /tmp/ci-output.log > /tmp/ci-fails.txt || true
+          if [ -s /tmp/ci-fails.txt ]; then
+            idx=$(cut -c1-160 /tmp/ci-fails.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=فهرس الاختبارات المخفقة::${idx}"
+          fi
+          : > /tmp/ci-context.txt
+          for lineno in $(cut -d: -f1 /tmp/ci-fails.txt | head -40); do
+            start=$((lineno > 30 ? lineno - 30 : 1))
+            sed -n "${start},${lineno}p" /tmp/ci-output.log >> /tmp/ci-context.txt
+            echo "──────── نهاية سياق إخفاق ────────" >> /tmp/ci-context.txt
+          done
+          if [ ! -s /tmp/ci-context.txt ]; then cp /tmp/ci-output.log /tmp/ci-context.txt; fi
+          rm -f /tmp/ci-part-*
+          split -l 22 -d -a 2 <(cut -c1-300 /tmp/ci-context.txt | sed 's/%/%25/g') /tmp/ci-part-
+          count=0
+          for part in /tmp/ci-part-*; do
+            count=$((count + 1))
+            if [ "$count" -gt 24 ]; then
+              echo "::error::سياقُ الإخفاق أطولُ من أربعٍ وعشرين ملحوظة — الباقي محجوب"
+              break
+            fi
+            body=$(awk '{printf "%s%%0A", $0}' "$part")
+            echo "::error title=سياق ${part##*-}::${body}"
+          done
 
       - name: منع تخطّي اختبارات e2e صامتاً
         env:

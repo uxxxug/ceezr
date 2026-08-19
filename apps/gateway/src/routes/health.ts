@@ -36,8 +36,18 @@ export interface HealthDependencies {
  */
 export interface ReadinessProbe {
   readonly name: string;
-  readonly check: () => Promise<boolean>;
+  readonly check: () => Promise<boolean | ProbeOutcome>;
   readonly critical?: boolean;
+}
+
+/**
+ * نتيجةٌ مفصّلة. اسمُ الفحصِ وحده يقول «المخطّط ناقص» ولا يقول ما الناقص، ومن
+ * يقرأ `/ready` في حادثةٍ ليلاً يحتاج الاسمَ الناقصَ لا التصنيف. فالتفصيلُ اختياريٌّ
+ * ولا يُذاع إلّا عند الإخفاق: لا قيمةَ في إغراقِ الردِّ الناجح.
+ */
+export interface ProbeOutcome {
+  readonly ok: boolean;
+  readonly detail?: string;
 }
 
 const MS_PER_SECOND = 1000;
@@ -65,9 +75,19 @@ export function createHealthRoutes(deps: HealthDependencies): Hono {
     const failed: string[] = [];
     const degraded: string[] = [];
 
+    const details: Record<string, string> = {};
+
     for (const probe of deps.readinessChecks ?? []) {
-      const passed = await probe.check().catch(() => false);
+      const outcome = await probe.check().catch(
+        (error: unknown): ProbeOutcome => ({
+          ok: false,
+          detail: error instanceof Error ? error.message : "فحص أخفق بلا رسالة",
+        }),
+      );
+      const passed = typeof outcome === "boolean" ? outcome : outcome.ok;
       if (passed) continue;
+      const detail = typeof outcome === "boolean" ? undefined : outcome.detail;
+      if (detail !== undefined && detail !== "") details[probe.name] = detail;
       if (probe.critical ?? true) failed.push(probe.name);
       else degraded.push(probe.name);
     }
@@ -75,7 +95,13 @@ export function createHealthRoutes(deps: HealthDependencies): Hono {
     const ready = missing.length === 0 && failed.length === 0;
     const status = !ready ? "not_ready" : degraded.length > 0 ? "degraded" : "ready";
     return c.json(
-      { status, missingEnv: missing, failedChecks: failed, degradedChecks: degraded },
+      {
+        status,
+        missingEnv: missing,
+        failedChecks: failed,
+        degradedChecks: degraded,
+        checkDetails: details,
+      },
       ready ? 200 : 503,
     );
   });

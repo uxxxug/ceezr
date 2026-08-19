@@ -1,0 +1,79 @@
+2026-08-13 financial verification evidence
+
+$ bun run typecheck
+
+$ bun test tests/unit/financial-wallet.test.ts tests/integration/financial-wallet.test.ts
+bun test v1.3.14 (0d9b296a)
+
+$ bun test tests/integration/database-privilege-surface.test.ts
+bun test v1.3.14 (0d9b296a)
+
+$ bun scripts/check-agent-core-isolation.ts && bun scripts/check-business-constants.ts && bun scripts/check-i18n.ts && bun scripts/check-migrations.ts
+✓ عزل agent-core سليم: لا استيراد داخل، ولا دخول إلا من البوّابة
+✅ لا قيمة تجارية مرمَّزة في apps، packages/domain، packages/application.
+✅ 3 قواميس متطابقة، 307 مفتاحاً في كل منها
+✅ 29 جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (29 اسماً في قائمة التفعيل).
+
+$ bun test  # final complete-suite summary (full literal log: docs/evidence/financial-full-test-final.tmp)
+(pass) التتبّع من الطرف إلى الطرف — المرحلة ٧ > إصلاحات متلاحقة لا تُغرِق تلغرام: تعديلٌ واحد بعد الفاصل لا تعديلٌ لكل رسالة [5564.83ms]
+
+tests/e2e/ride-soak.test.ts:
+(pass) صمود: ثلاثون رحلة متتابعة بلا تدخّل > ثلاثون رحلة كاملة تتوالى على سائق واحد بلا حالة عالقة ولا انحراف عدّاد [542.54ms]
+
+ 1506 pass
+ 0 fail
+ 5485 expect() calls
+Ran 1506 tests across 106 files. [54.65s]
+
+$ mutation: replace subscription_wallet_balance aggregate with constant zero, rebuild DB, run financial integration
+82 |     const [a, b] = await Promise.all([rpc.topUp(input), rpc.topUp(input)]);
+83 |     expect(a.ok && a.value.ok).toBe(true);
+84 |     expect(b.ok && b.value.ok).toBe(true);
+85 |     const balance = await rpc.getBalance(f.driverId as never);
+86 |     expect(balance.ok && balance.value.balanceMinor).toBe(1200);
+                                                          ^
+error: expect(received).toBe(expected)
+
+Expected: 1200
+Received: 0
+
+      at <anonymous> (/home/user/workspace/wt/financial/tests/integration/financial-wallet.test.ts:86:54)
+(fail) financial subscription wallet on real database > يضيف دفعة مؤكدة مرة واحدة تحت إعادة إرسال متزامنة [22.80ms]
+(pass) financial subscription wallet on real database > يسجل قرار ائتمان إداري موثق ولا يكرر المفتاح [23.06ms]
+(pass) financial subscription wallet on real database > يرفض الزائد ويسترد الدفعة مرة واحدة إلى المحفظة تحت السباق [12.68ms]
+(pass) financial subscription wallet on real database > يصدر فاتورة فريدة للدفعة نفسها تحت السباق [6.53ms]
+(pass) financial subscription wallet on real database > يصصح خطأ نظام موثق مرة واحدة ويكتب audit_log [3.86ms]
+
+ 4 pass
+ 2 fail
+ 20 expect() calls
+Ran 6 tests across 1 file. [185.00ms]
+
+Mutation restored, database rebuilt from the original migration, then focused tests passed.
+
+$ bun test tests/unit/financial-wallet.test.ts tests/integration/financial-wallet.test.ts (complete literal output)
+bun test v1.3.14 (0d9b296a)
+
+tests/integration/financial-wallet.test.ts:
+(pass) financial subscription wallet on real database > ينشئ محفظة واحدة تحت السباق ويقرأ مجموع دفترها [36.83ms]
+(pass) financial subscription wallet on real database > يضيف دفعة مؤكدة مرة واحدة تحت إعادة إرسال متزامنة [16.12ms]
+(pass) financial subscription wallet on real database > يسجل قرار ائتمان إداري موثق ولا يكرر المفتاح [11.55ms]
+(pass) financial subscription wallet on real database > يرفض الزائد ويسترد الدفعة مرة واحدة إلى المحفظة تحت السباق [13.70ms]
+(pass) financial subscription wallet on real database > يصدر فاتورة فريدة للدفعة نفسها تحت السباق [7.67ms]
+(pass) financial subscription wallet on real database > يصصح خطأ نظام موثق مرة واحدة ويكتب audit_log [4.98ms]
+
+tests/unit/financial-wallet.test.ts:
+(pass) financial wallet use-cases > يعيد نتائج العمليات الست من منفذها الذري [0.73ms]
+(pass) financial wallet use-cases > لا يحول رفض RPC إلى نجاح كاذب [0.14ms]
+
+ 8 pass
+ 0 fail
+ 28 expect() calls
+Ran 8 tests across 2 files. [165.00ms]
+
+$ bun run lint (repository-wide; existing unrelated diagnostics remain)
+        │                                         --               --
+
+Checked 646 files in 879ms. No fixes applied.
+Found 11 infos.
+exit=0

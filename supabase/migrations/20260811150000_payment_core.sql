@@ -3,15 +3,16 @@
 --   payment_transactions: معاملة دفع مستقلّة (لا ترتبط بطلب ولا رحلة — البند 8.5).
 --   ledger_entries: دفتر الأستاذ، السطر الوحيد المكتوب فيه الآن هو دفعة اشتراك السائق.
 --   webhook_events: تخزين أحداث الويبهوك لمنع المعالجة المكررة (Idempotency).
---     جدول عام (global) — لا city_id: الحدث لا ينتمي لمدينة بل لمزوّد دفع.
---     هذا استثناء موثَّق من قاعدة city_id في كل جدول.
+--     city_id (القاعدة 0.4): لا استثناء. كلّ حدث ويبهوك نقبله يخصّ معاملة دفعٍ
+--     عندنا (المسار يرفض الحدث بلا transactionId أصلاً)، والمعاملة تحمل مدينتها.
+--     فالمدينة قيمة مقروءة من payment_transactions لا مُخترعة، وحدثٌ لمعاملةٍ لا
+--     نعرفها يُرفض صراحةً بـTRANSACTION_NOT_FOUND لا يُسجَّل بمدينةٍ مُلفّقة.
 -- الحالة: منفّذ فعلياً.
 -- ينتمي إلى: supabase/migrations
 --
 -- ## القواعد المحرِّمة المطبَّقة هنا:
 --   - لا float: المبلغ بوحدات صغرى (integer) لا numeric عشريّ.
---   - city_id في كل جدول (القاعدة 0.4) — عبر driver_id الذي يحمل مدينته.
---     الاستثناء الوحيد: webhook_events (جدول عام لا ينتمي لمدينة).
+--   - city_id في كل جدول (القاعدة 0.4) — بلا استثناء واحد، وwebhook_events داخلة فيه.
 --   - كل عملية حرجة عبر RPC ذرّي (القاعدة 0.4) — لا UPDATE خام.
 --   - لا قيمة تجارية في الكود (القاعدة 0.2) — المدة تُقرأ من platform_settings.
 -- =============================================================================
@@ -66,11 +67,14 @@ create index if not exists ledger_entries_transaction_idx on ledger_entries (tra
 
 -- ----------------------------------------------------------------------------
 -- 3) webhook_events — منع معالجة الحدث مرّتين (Idempotency)
---    جدول عام (global) — لا city_id: الحدث ينتمي لمزوّد دفع لا لمدينة.
---    استثناء موثَّق من قاعدة city_id في كل جدول.
+--    city_id مقروء من معاملة الدفع التي يخصّها الحدث — لا استثناء ولا قيمة مخترعة.
+--    transaction_id محفوظ أيضاً لأنّ «من أين جاءت المدينة» سؤالٌ تدقيقيٌّ مشروع،
+--    وإجابته لا تُستنبط من نصّ حمولة خارجيّة.
 -- ----------------------------------------------------------------------------
 create table if not exists webhook_events (
   id              uuid primary key default gen_random_uuid(),
+  city_id         uuid not null references cities(id),
+  transaction_id  uuid not null references payment_transactions(id),
   event_id        text not null,
   provider        text not null,
   payload         text not null,
@@ -79,6 +83,8 @@ create table if not exists webhook_events (
 
 create unique index if not exists webhook_events_event_provider_uniq
   on webhook_events (provider, event_id);
+create index if not exists webhook_events_city_idx on webhook_events (city_id);
+create index if not exists webhook_events_transaction_idx on webhook_events (transaction_id);
 
 -- ----------------------------------------------------------------------------
 -- RPC: create_payment — إنشاء معاملة ذرّياً مع حماية الإيدمبوتنسي
@@ -209,20 +215,34 @@ $$;
 -- ----------------------------------------------------------------------------
 -- RPC: record_webhook_event — Idempotency للويبهوك
 -- يعيد true إن كان جديداً، false إن كان مكرَّراً.
+-- المدينة تُقرأ من المعاملة داخل نفس العبارة الذرّية — لا يمرّرها المتصل فيُخطئ.
 -- ----------------------------------------------------------------------------
 create or replace function record_webhook_event(
   p_event_id text,
   p_provider text,
-  p_payload text
+  p_payload text,
+  p_transaction_id uuid
 )
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_city_id uuid;
 begin
-  insert into webhook_events (event_id, provider, payload)
-  values (p_event_id, p_provider, p_payload)
+  -- مصدر المدينة واحد ومقروء: معاملة الدفع نفسها.
+  select city_id into v_city_id
+    from payment_transactions
+   where id = p_transaction_id;
+
+  -- حدثٌ لمعاملة لا نعرفها لا يُسجَّل بمدينةٍ مفترضة، ولا يُدّعى نجاحه.
+  if v_city_id is null then
+    return jsonb_build_object('ok', false, 'error', 'TRANSACTION_NOT_FOUND');
+  end if;
+
+  insert into webhook_events (city_id, transaction_id, event_id, provider, payload)
+  values (v_city_id, p_transaction_id, p_event_id, p_provider, p_payload)
   on conflict (provider, event_id) do nothing;
   return jsonb_build_object('ok', true, 'is_new', found);
 end;

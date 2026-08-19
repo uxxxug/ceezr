@@ -4,7 +4,16 @@
  * الحالة: منفّذ فعلياً — البند 8.
  * ينتمي إلى: infrastructure/financial
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway (ويبهوك الدفع)، apps/workers
- * ملاحظات مستقبلية: لا مزوّد دفع فعلي مدمج — المنفذ (PaymentProvider) وحده معلَّق.
+ * ملاحظات مستقبلية: لا يستعمل الويبهوك confirm_payment مباشرةً؛ يستعمل
+ *   confirm_webhook_payment الذي يربط event_id والمبلغ والعملة في RPC واحد.
+ *
+ * تصحيح خلل مُثبَت بالتشغيل (2026-08-12): كان `metadata` يُمرَّر
+ *   `${JSON.stringify(input.metadata ?? {})}::jsonb`، فيُلفّف السائق النصّ ثانيةً
+ *   ويُخزَّن في القاعدة jsonb من نوع `string` لا `object`. النتيجة أنّ
+ *   `confirm_payment` كانت تقرأ `metadata->>'plan'` فتجده `null` وتقع على
+ *   `coalesce(..., 'both')` — فكل سائق يدفع ٢٥٠ ريالاً لخطّة «نقل» تُفعَّل له
+ *   خطّة «الاثنين» التي ثمنها ٤٠٠. قياسٌ على القاعدة: ٤ من ٤ معاملات مخزّنة
+ *   بالنوع `string`. الصواب `sql.json(...)` الذي يُمرّر jsonb كما هو.
  */
 
 import type {
@@ -74,7 +83,7 @@ export function createPaymentRepository(
             ${input.providerTransactionId},
             ${input.status},
             ${input.idempotencyKey},
-            ${JSON.stringify(input.metadata ?? {})}::jsonb
+            ${sql.json((input.metadata ?? {}) as never)}
           ) as result`;
         const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
         if (envelope === null) throw new Error("ردّ create_payment غير مفهوم");
@@ -110,13 +119,82 @@ export function createPaymentRepository(
         return row === undefined ? null : toTransaction(row);
       }),
 
+    recordCheckoutUrl: (input) =>
+      guard("rpc.record_payment_checkout", async () => {
+        const rows = await sql`select record_payment_checkout(
+            ${input.transactionId}::uuid,
+            ${input.checkoutUrl}
+          ) as result`;
+        const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
+        if (envelope === null) throw new Error("ردّ record_payment_checkout غير مفهوم");
+        if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");
+        return { checkoutUrl: String(envelope.checkout_url) };
+      }),
+
+    recordProviderReference: (input) =>
+      guard("rpc.record_payment_provider_reference", async () => {
+        const rows = await sql`select record_payment_provider_reference(
+            ${input.transactionId}::uuid,
+            ${input.provider},
+            ${input.providerTransactionId}
+          ) as result`;
+        const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
+        if (envelope === null) {
+          throw new Error("ردّ record_payment_provider_reference غير مفهوم");
+        }
+        if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");
+        return {
+          providerTransactionId: String(envelope.provider_transaction_id),
+          stored: envelope.stored === true,
+        };
+      }),
+
+    findStalePending: (input) =>
+      guard("rpc.list_stale_pending_payments", async () => {
+        const rows = await sql`select list_stale_pending_payments(
+            ${input.cityId}::uuid,
+            ${input.olderThanSeconds}::integer,
+            ${input.maxAgeSeconds}::integer,
+            ${input.limit}::integer
+          ) as result`;
+        const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
+        if (envelope === null) {
+          throw new Error("ردّ list_stale_pending_payments غير مفهوم");
+        }
+        if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");
+        const raw = envelope.transactions;
+        if (!Array.isArray(raw)) throw new Error("قائمة المراجعة ليست مصفوفة");
+        return raw.map((entry) => {
+          const row = entry as Record<string, unknown>;
+          return {
+            id: String(row.id) as PaymentTransactionId,
+            cityId: String(row.city_id),
+            payerDriverId: String(row.payer_driver_id),
+            provider: String(row.provider),
+            providerTransactionId: String(row.provider_transaction_id),
+            amountMinor: Number(row.amount_minor),
+            currency: String(row.currency),
+            status: String(row.status) as PaymentTransactionStatus,
+            updatedAt: new Date(String(row.updated_at)),
+          };
+        });
+      }),
+
     confirmPayment: (input) =>
       guard("rpc.confirm_payment", async () => {
-        const rows = await sql`select confirm_payment(
-            ${input.transactionId}::uuid,
-            ${input.providerTransactionId},
-            ${input.newStatus}
-          ) as result`;
+        const rows =
+          input.provider === undefined
+            ? await sql`select confirm_payment(
+                ${input.transactionId}::uuid,
+                ${input.providerTransactionId},
+                ${input.newStatus}
+              ) as result`
+            : await sql`select confirm_payment(
+                ${input.transactionId}::uuid,
+                ${input.providerTransactionId},
+                ${input.newStatus},
+                ${input.provider}
+              ) as result`;
         const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
         if (envelope === null) throw new Error("ردّ confirm_payment غير مفهوم");
         if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");
@@ -129,15 +207,41 @@ export function createPaymentRepository(
         if (row === undefined) throw new Error("TRANSACTION_NOT_FOUND");
         return toTransaction(row);
       }),
+
+    confirmWebhookPayment: (input) =>
+      guard("rpc.confirm_webhook_payment", async () => {
+        const rows = await sql`select confirm_webhook_payment(
+            ${input.transactionId}::uuid,
+            ${input.providerTransactionId},
+            ${input.newStatus},
+            ${input.providerAmount},
+            ${input.providerCurrency},
+            ${input.provider},
+            ${input.webhookEventId},
+            ${input.rawPayload}
+          ) as result`;
+        const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
+        if (envelope === null) throw new Error("ردّ confirm_webhook_payment غير مفهوم");
+        if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");
+
+        const id = String(envelope.transaction_id);
+        const txRows = await sql`select
+            id, city_id, payer_driver_id, payee_id, purpose, amount_minor, currency,
+            provider, provider_transaction_id, status, metadata, created_at, updated_at
+          from payment_transactions where id = ${id}::uuid`;
+        const row = txRows[0] as unknown as PaymentRow | undefined;
+        if (row === undefined) throw new Error("TRANSACTION_NOT_FOUND");
+        return { transaction: toTransaction(row), duplicate: Boolean(envelope.duplicate) };
+      }),
   };
 }
 
 export function createWebhookEventStore(sql: Sql): WebhookEventStore {
   return {
-    record: (eventId, provider, payload) =>
+    record: (eventId, provider, payload, transactionId) =>
       guard("rpc.record_webhook_event", async () => {
         const rows =
-          await sql`select record_webhook_event(${eventId}, ${provider}, ${payload}) as result`;
+          await sql`select record_webhook_event(${eventId}, ${provider}, ${payload}, ${transactionId}) as result`;
         const envelope = readEnvelope((rows[0] as { result?: unknown } | undefined)?.result);
         if (envelope === null) throw new Error("ردّ record_webhook_event غير مفهوم");
         if (!envelope.ok) throw new Error(envelope.error ?? "UNKNOWN");

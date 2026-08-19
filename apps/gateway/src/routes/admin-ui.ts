@@ -9,16 +9,36 @@
  */
 
 import { type Context, Hono } from "hono";
+import type {
+  BroadcastAdminPort,
+  BroadcastFilters,
+} from "../../../../packages/application/broadcast/ports.ts";
+import { DEFAULT_SESSION_POLICY } from "../../../../packages/domain/tracking/session.ts";
+import { createBroadcastAdminPort } from "../../../../packages/infrastructure/broadcast/broadcast-adapters.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import {
+  MAPLIBRE_SRI_UNSET,
+  type MapPoint,
+  type MapViewModel,
+  maplibreScriptUrl,
+  maplibreStylesheetUrl,
+  type ResolvedMapStyle,
+} from "../../../../packages/maps/index.ts";
+import {
   type AdminUser,
+  BROADCAST_BODY_LIMIT,
+  type BroadcastAudienceChoice,
+  type BroadcastFormState,
+  type BroadcastPreview,
   type CityGroupStatus,
   type CityOption,
   renderAttendancePage,
+  renderBroadcastPage,
   renderDisputesPage,
   renderDriverDetailPage,
   renderDriversPage,
   renderHeatmapPage,
+  renderLiveMapPage,
   renderLiveOrdersPage,
   renderLoginPage,
   renderOverviewPage,
@@ -27,6 +47,7 @@ import {
   renderSettingsPage,
   renderShell,
 } from "../../../admin-dashboard/src/index.ts";
+import { renderMapPanel } from "../../../admin-dashboard/src/map.ts";
 import {
   type AdminAuthPort,
   type AdminCodeSender,
@@ -61,11 +82,14 @@ import {
   healthIndicators,
   healthSignals,
   heatmap,
+  type LiveDriverStatusRow,
   LOW_RATING_FALLBACK,
   listAttendanceEvents,
+  listBroadcastCampaigns,
   listCities,
   listDisputes,
   listDrivers,
+  listLiveDriverStatuses,
   listLiveOrders,
   listRatings,
   listSettings,
@@ -80,6 +104,7 @@ import {
   updateCityGroupIds,
   updateSetting,
 } from "../admin/queries.ts";
+import { createAdminSecurityHeaders } from "../admin/security-headers.ts";
 
 export interface AdminUiDependencies {
   readonly sql: Sql;
@@ -87,6 +112,64 @@ export interface AdminUiDependencies {
   /** قناة تسليم رمز الدخول: بوت السائق يراسل المسؤول في محادثته الخاصة. */
   readonly codeSender: AdminCodeSender;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * أصولُ الخريطة المسموحة في سياسة أمن المحتوى، مُشتقّةً من `resolveMapStyle`
+   * (المرحلة ١٠). تُمرَّر ولا تُحسب هنا: هذا الموجّه لا يقرأ الضبط، وحسابُها هنا
+   * كان سيصنع مصدرَ حقيقةٍ ثانياً لنمط الخريطة إلى جانب `packages/maps`.
+   * الافتراض عند الغياب: لا أصلَ خارجيّاً — أضيقُ سياسةٍ ممكنة.
+   */
+  readonly mapOrigins?: readonly string[];
+  /**
+   * نمطُ الخريطة مُحلَّلاً (`resolveMapStyle`). يُمرَّر ولا يُحسب — نفسُ حجّة
+   * `mapOrigins`: هذا الموجّه لا يقرأ الضبط. الافتراضُ عند الغياب: غيرُ مُهيَّأ،
+   * فيُعرض سببٌ مقروءٌ وتعمل الصفحةُ بجدولها كاملاً.
+   */
+  readonly mapStyle?: ResolvedMapStyle;
+  /** بصمةُ سلامة نصّ MapLibre. الغيابُ يعني «لا تُصيَّر الخريطة» (ADR 0019). */
+  readonly maplibreSri?: string | null;
+  /**
+   * منفذ البثّ الجماعي. الافتراضُ عند الغياب هو المنفذ الحقيقيّ على `sql` لا
+   * تعطيلُ الصفحة: منفذٌ اختياريٌّ يُنسى في مُتصِلٍ واحد يعني صفحةَ بثٍّ تُعرض
+   * ثم تسقط عند أوّل إرسال. الحقلُ للاستبدال في الاختبار لا للتشغيل بدونه.
+   */
+  readonly broadcast?: BroadcastAdminPort;
+}
+
+/** الافتراضُ حين لا سائقَ مرئيّاً: مركزُ الجزيرة تقريباً بتكبيرٍ واسع. */
+const FALLBACK_CENTER = { lat: 24.7136, lng: 46.6753 } as const;
+const FLEET_ZOOM = 11;
+
+/**
+ * نموذجُ عرضِ الأسطول. الدبابيسُ سائقون فقط: إضافةُ نقاطِ الانطلاق والمقاصد كانت
+ * ستُثلّث عددَ الدبابيس على شاشةٍ غرضُها «أين سائقي»، وتخفي بينها من يحتاج نظراً.
+ *
+ * و`fitToPoints` مُفعَّلة والمركزُ احتياطيٌّ فقط: مركزٌ ثابتٌ في مدينةٍ واحدة كان
+ * سيُظهر خريطةً فارغةً لمشغّلٍ يُرشّح مدينةً أخرى.
+ */
+function fleetViewModel(rows: readonly LiveDriverStatusRow[]): MapViewModel {
+  const points: MapPoint[] = rows.map((row) => ({
+    id: row.driverId,
+    position: { lat: row.lat, lng: row.lng },
+    label: row.driverName ?? row.driverId,
+    type: "driver",
+  }));
+  const first = points[0];
+  return {
+    center: first === undefined ? FALLBACK_CENTER : first.position,
+    zoom: FLEET_ZOOM,
+    points,
+    /**
+     * فارغةٌ بقرارٍ لا بنقصٍ — ADR 0025. المُصيِّرُ يرسم الخطوطَ فعلاً، فالإغراءُ
+     * أن تُملأ بأثرِ إصلاحاتِ السائق. لكنّ المرحلة ١٦ قاست ذلك: طولُ الأثرِ
+     * الخام يخطئ −٨.٧٪ إلى −٩.٥٪ لأن الإصلاحاتَ المتباعدةَ تقطع المنحنيات،
+     * ومطابقتُه بـ`/match` تخطئ +١٣.٦٪ عند تشويشِ ٢٠م وحدَه. وخطٌّ يُرسَم فوق
+     * خريطةِ طرقٍ يُقرأ كدعوى «هذا ما سلكه السائق» — وهي دعوى لا تحملها البيانات.
+     * ولا يوجد في هذا الإصدار مخزنُ أثرٍ أصلاً: `drivers.last_location` نقطةٌ
+     * واحدةٌ تُحدَّث في موضعها. فالخريطةُ تعرض أين هو، لا أين كان.
+     */
+    polylines: [],
+    fitToPoints: true,
+  };
 }
 
 const AUDIT_PREVIEW_LIMIT = 12;
@@ -151,6 +234,7 @@ function toCityGroupStatuses(
     supportGroupId: string | null;
     escalationGroupId: string | null;
     unsubscribedDriversGroupId: string | null;
+    unsubscribedGroupLink: string | null;
   }[],
 ): readonly CityGroupStatus[] {
   return cities.map((city) => ({
@@ -161,6 +245,7 @@ function toCityGroupStatuses(
     supportGroupId: city.supportGroupId,
     escalationGroupId: city.escalationGroupId,
     unsubscribedDriversGroupId: city.unsubscribedDriversGroupId,
+    unsubscribedGroupLink: city.unsubscribedGroupLink,
   }));
 }
 
@@ -192,6 +277,7 @@ function page(
   activePath: string,
   body: string,
   refreshSeconds?: number,
+  notice?: { readonly kind: "ok" | "error"; readonly text: string },
 ): Response {
   const admin = c.get("admin");
   const user: AdminUser = {
@@ -206,8 +292,10 @@ function page(
       activePath,
       user,
       csrfToken: c.get("csrfToken"),
+      cspNonce: c.get("cspNonce"),
       body,
       ...(refreshSeconds === undefined ? {} : { refreshSeconds }),
+      ...(notice === undefined ? {} : { notice }),
     }),
   );
 }
@@ -227,9 +315,120 @@ function oneOf(value: string | undefined, allowed: ReadonlySet<string>): string 
   return value !== undefined && allowed.has(value) ? value : null;
 }
 
+/**
+ * حقلُ اختيارٍ غائبٌ يعني «الافتراضيّ» لا «قيمةٌ فاسدة»: الصفحةُ المعروضة تُرسل كلَّ
+ * قوائمها دائماً، لكنّ ردَّ نموذجٍ كاملٍ بـ`INVALID_BROADCAST_FORM` لمجرّد أنّ
+ * حقلاً اختيارياً لم يُرسَل يُحوّل غيابَ تضييقٍ إلى فشلٍ صامتٍ بلا سبب مقروء. أمّا
+ * القيمةُ المكتوبةُ غيرُ المعروفة فتُردّ كما كانت — تلك محاولةُ تمريرِ ما لا يُعرَف.
+ */
+function oneOfOrDefault(
+  value: string | null,
+  allowed: ReadonlySet<string>,
+  fallback: string,
+): string | null {
+  if (value === null || value.trim() === "") return fallback;
+  return allowed.has(value) ? value : null;
+}
+
+const BROADCAST_AUDIENCES = new Set(["drivers", "riders"]);
+const BROADCAST_AVAILABILITY = new Set(["any", "available", "unavailable"]);
+const BROADCAST_ACTIVITY = new Set(["any", "ordered_recently", "never_ordered"]);
+const BROADCAST_LANGUAGES = new Set(["ar", "en", "ur"]);
+const BROADCAST_VERIFICATION = VERIFICATION_VALUES;
+const BROADCAST_SUBSCRIPTION = new Set(["none", "trialing", "active"]);
+
+/**
+ * إزاحةُ وقتِ العرض ثابتةٌ: المملكة بلا توقيتٍ صيفيّ، فـ`+03:00` صحيحةٌ طولَ السنة.
+ * وقراءةُ `datetime-local` بـ`new Date()` وحدَها كانت ستُفسَّر بتوقيتِ الخادم — أي
+ * UTC في الإنتاج — فيتأخّر بثٌّ جُدوِل للعاشرة صباحاً ثلاثَ ساعات بلا أن يشتكي أحد.
+ */
+function broadcastSendAfter(raw: string | null): { ok: true; value: Date | null } | { ok: false } {
+  if (raw === null || raw.trim() === "") return { ok: true, value: null };
+  const trimmed = raw.trim();
+  // متصفّحاتٌ تُرسل دقائقَ فقط وأخرى تلحق الثواني: تُقبَل الصيغتان وما سواهما يُردّ.
+  const normalized = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(trimmed) ? `${trimmed}:00` : trimmed;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(normalized)) return { ok: false };
+  const parsed = new Date(`${normalized}+03:00`);
+  if (Number.isNaN(parsed.getTime())) return { ok: false };
+  return { ok: true, value: parsed };
+}
+
+/** قيمُ صناديق الاختيار المسموحة فقط: ما لا يُعرَف يُطرح لا يُمرَّر إلى القاعدة. */
+function broadcastChoices(form: FormData, key: string, allowed: ReadonlySet<string>): string[] {
+  return form
+    .getAll(key)
+    .filter((value): value is string => typeof value === "string" && allowed.has(value));
+}
+
+/**
+ * المرشّحات تُبنى بحسب الجمهور: مرشّحُ توثيقٍ في بثٍّ للركّاب ليس تضييقاً بل تشويشٌ
+ * في سجلّ التدقيق، ومن يراجع بعد شهر يقرأ شرطاً لم يُطبَّق قطّ.
+ */
+function broadcastFiltersOf(state: BroadcastFormState): BroadcastFilters {
+  const filters: {
+    languages?: readonly string[];
+    verification?: readonly string[];
+    subscription?: readonly string[];
+    availability?: "any" | "available" | "unavailable";
+    activity?: "any" | "ordered_recently" | "never_ordered";
+  } = {};
+  if (state.languages.length > 0) filters.languages = state.languages;
+  if (state.audience === "drivers") {
+    if (state.verification.length > 0) filters.verification = state.verification;
+    if (state.subscription.length > 0) filters.subscription = state.subscription;
+    if (state.availability === "available" || state.availability === "unavailable") {
+      filters.availability = state.availability;
+    }
+  } else if (state.activity === "ordered_recently" || state.activity === "never_ordered") {
+    filters.activity = state.activity;
+  }
+  return filters;
+}
+
+const EMPTY_BROADCAST_FORM: BroadcastFormState = {
+  audience: "drivers",
+  cityId: null,
+  languages: [],
+  verification: [],
+  subscription: [],
+  availability: "any",
+  activity: "any",
+  body: "",
+  linkLabel: "",
+  linkUrl: "",
+  silent: false,
+  sendAfter: "",
+};
+
+/** رسائلُ رفضِ القاعدة بالعربية: رمزٌ لاتينيٌّ في شاشةِ مشغّلٍ لا يُقرأ فعلاً. */
+const BROADCAST_ERRORS: Readonly<Record<string, string>> = {
+  NOT_ADMIN: "هذا الحساب ليس مسؤولاً، أو محظور.",
+  EMPTY_AUDIENCE: "لا مستقبِل واحد يطابق هذه المرشّحات — لم تُنشأ حملة.",
+  EMPTY_BODY: "نصّ الرسالة مطلوب.",
+  BODY_TOO_LONG: "نصّ الرسالة أطول من الحدّ المسموح.",
+  // الأسماء هنا هي حرفياً ما تُرجعه دوالّ القاعدة. اختلافُ حرفٍ يُنتج رسالةً
+  // عامّةً بشفرةٍ إنجليزية في وجه المسؤول بدل سببٍ يفهمه ويُصلحه.
+  INCOMPLETE_LINK: "الزرّ يحتاج نصّاً ورابطاً معاً، أو لا شيء منهما.",
+  INVALID_LINK_URL: "رابط الزرّ يجب أن يبدأ بـ https.",
+  INVALID_AUDIENCE: "الجمهور غير معروف.",
+  CITY_NOT_FOUND: "المدينة غير موجودة.",
+  BATCH_NOT_FOUND: "لا حملة بهذا المعرّف.",
+  BROADCAST_BATCH_SETTING_MISSING: "إعداد حجم دفعة البثّ غير مضبوط لهذه المدينة.",
+  BROADCAST_ATTEMPTS_SETTING_MISSING: "إعداد حدّ محاولات البثّ غير مضبوط لهذه المدينة.",
+};
+
+function broadcastError(code: string): string {
+  return BROADCAST_ERRORS[code] ?? `تعذّر إتمام الطلب (${code}).`;
+}
+
 export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   const app = new Hono<AdminEnv>();
   const log = deps.log ?? ((): void => undefined);
+  const broadcast = deps.broadcast ?? createBroadcastAdminPort(deps.sql);
+
+  // قبل كل مسار، ومنها /login: الدخول هو الصفحة التي تُرسَل فيها كلمةُ المرور
+  // الوقتية، فإخراجُها من السياسة كان سيترك أضعفَ صفحةٍ بلا حماية.
+  app.use("*", createAdminSecurityHeaders({ mapOrigins: deps.mapOrigins ?? [] }));
 
   // -------------------------------------------------------------------------
   // الدخول — خارج الحارس، وإلا استحال الدخول أصلاً
@@ -239,6 +438,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const notice = c.req.query("sent") === "1" ? "أُرسِل الرمز إلى محادثتك مع بوت السائق." : null;
     return c.html(
       renderLoginPage({
+        cspNonce: c.get("cspNonce"),
         step: notice === null ? "identify" : "verify",
         ...(notice === null ? {} : { notice }),
         ...(c.req.query("tg") === undefined ? {} : { telegramId: String(c.req.query("tg")) }),
@@ -252,7 +452,11 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
 
     if (telegramId === null || !TELEGRAM_ID_PATTERN.test(telegramId)) {
       return c.html(
-        renderLoginPage({ step: "identify", error: "معرّف تلغرام يُكتب أرقاماً فقط." }),
+        renderLoginPage({
+          cspNonce: c.get("cspNonce"),
+          step: "identify",
+          error: "معرّف تلغرام يُكتب أرقاماً فقط.",
+        }),
         HTML_UNPROCESSABLE,
       );
     }
@@ -269,7 +473,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         log("رُفض طلب رمز دخول للوحة لسبب أعمال", { reason: issueOutcome.reason });
       }
       return c.html(
-        renderLoginPage({ step: "identify", telegramId, error: GENERIC_LOGIN_ERROR }),
+        renderLoginPage({
+          cspNonce: c.get("cspNonce"),
+          step: "identify",
+          telegramId,
+          error: GENERIC_LOGIN_ERROR,
+        }),
         HTML_UNPROCESSABLE,
       );
     }
@@ -284,6 +493,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       log("تعذّر تسليم رمز دخول اللوحة على تلغرام", { stage: "telegram_delivery" });
       return c.html(
         renderLoginPage({
+          cspNonce: c.get("cspNonce"),
           step: "identify",
           telegramId,
           error: "تعذّر تسليم الرمز على تلغرام. ابدأ محادثة مع بوت السائق ثم أعِد المحاولة.",
@@ -303,6 +513,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     if (telegramId === null || code === null || !CODE_PATTERN.test(code)) {
       return c.html(
         renderLoginPage({
+          cspNonce: c.get("cspNonce"),
           step: "verify",
           ...(telegramId === null ? {} : { telegramId }),
           error: "الرمز ستّ خانات رقمية.",
@@ -323,6 +534,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       }
       return c.html(
         renderLoginPage({
+          cspNonce: c.get("cspNonce"),
           step: "verify",
           telegramId,
           error: "رمز غير صحيح أو منتهٍ. اطلب رمزاً جديداً.",
@@ -345,7 +557,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         log("رُفض فتح جلسة اللوحة لسبب أعمال", { reason: openOutcome.reason });
       }
       return c.html(
-        renderLoginPage({ step: "verify", telegramId, error: GENERIC_LOGIN_ERROR }),
+        renderLoginPage({
+          cspNonce: c.get("cspNonce"),
+          step: "verify",
+          telegramId,
+          error: GENERIC_LOGIN_ERROR,
+        }),
         HTML_UNPROCESSABLE,
       );
     }
@@ -354,18 +571,20 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     return c.redirect("/admin", SEE_OTHER);
   });
 
-  app.post("/logout", async (c) => {
-    const token = readSessionToken(c);
-    if (token !== null) await deps.auth.closeSession(sha256Hex(token));
-    clearSessionCookie(c);
-    return c.redirect("/admin/login", SEE_OTHER);
-  });
-
   // -------------------------------------------------------------------------
   // كل ما بعد هذا السطر يمرّ بالحارس
   // -------------------------------------------------------------------------
 
   app.use("*", createAdminGuard(deps.auth, "page", log));
+
+  app.post("/logout", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+    const token = readSessionToken(c);
+    if (token !== null) await deps.auth.closeSession(sha256Hex(token));
+    clearSessionCookie(c);
+    return c.redirect("/admin/login", SEE_OTHER);
+  });
 
   app.get("/", async (c) => {
     const stall = await stallSeconds(deps.sql, null);
@@ -409,6 +628,50 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         cities: toCityOptions(cities),
         cityId,
         stallSeconds: stall,
+      }),
+      LIVE_REFRESH_SECONDS,
+    );
+  });
+
+  /**
+   * خريطةُ العمليات. تُقرأ الحالاتُ من `listLiveDriverStatuses` وهو موضعُ الاشتقاق
+   * الواحد الذي تقرأ منه لقطةُ SSE أيضاً — فلا تختلف الصفحةُ عن المجرى الحيّ.
+   *
+   * ولوحُ الخريطة يُصيَّر هنا لا في الصفحة: الـ`nonce` ورابطُ النصّ والبصمةُ كلُّها
+   * من شأن البوابة، وقراءةُ الضبط من داخل صفحةِ عرضٍ كانت ستكسر حدَّ الطبقات
+   * وتصنع مصدرَ حقيقةٍ ثانياً لنمط الخريطة.
+   */
+  app.get("/live-map", async (c) => {
+    const cityId = cityParam(c.req.query("city"));
+    const now = new Date();
+    const [cities, rows] = await Promise.all([
+      listCities(deps.sql),
+      listLiveDriverStatuses(deps.sql, cityId, now.getTime()),
+    ]);
+    const style: ResolvedMapStyle = deps.mapStyle ?? {
+      configured: false,
+      reason: "لم يُضبَط مزوّدُ خريطة (MAP_PROVIDER)؛ الجدولُ أعلاه يعرض نفسَ البيانات.",
+    };
+    const mapPanel = renderMapPanel({
+      title: "مواقع الأسطول",
+      style,
+      model: fleetViewModel(rows),
+      nonce: c.get("cspNonce"),
+      scriptUrl: maplibreScriptUrl(),
+      stylesheetUrl: maplibreStylesheetUrl(),
+      integrity: deps.maplibreSri ?? MAPLIBRE_SRI_UNSET,
+    });
+    return page(
+      c,
+      "خريطة العمليات",
+      "/admin/live-map",
+      renderLiveMapPage({
+        now,
+        rows,
+        cities: toCityOptions(cities),
+        cityId,
+        mapPanel,
+        staleAfterSeconds: DEFAULT_SESSION_POLICY.staleAfterSeconds,
       }),
       LIVE_REFRESH_SECONDS,
     );
@@ -678,6 +941,180 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   });
 
   // -------------------------------------------------------------------------
+  // البثّ الجماعي — رسالةٌ واحدة إلى جمهورٍ مُرشّح، بمعاينةٍ قبل الإرسال
+  // -------------------------------------------------------------------------
+
+  /** تقرأ النموذج وتُعيد حالتَه مُدقّقةً، أو `null` إن حمل قيمةً لا تُعرَف. */
+  const readBroadcastForm = (form: FormData): BroadcastFormState | null => {
+    const audience = oneOf(formText(form, "audience") ?? undefined, BROADCAST_AUDIENCES);
+    if (audience === null) return null;
+    const availability = oneOfOrDefault(
+      formText(form, "availability"),
+      BROADCAST_AVAILABILITY,
+      "any",
+    );
+    const activity = oneOfOrDefault(formText(form, "activity"), BROADCAST_ACTIVITY, "any");
+    if (availability === null || activity === null) return null;
+    const rawCity = formText(form, "city");
+    if (rawCity !== null && rawCity !== "all" && !UUID_PATTERN.test(rawCity)) return null;
+    return {
+      audience: audience as BroadcastAudienceChoice,
+      cityId: rawCity === null || rawCity === "all" ? null : rawCity,
+      languages: broadcastChoices(form, "languages", BROADCAST_LANGUAGES),
+      verification: broadcastChoices(form, "verification", BROADCAST_VERIFICATION),
+      subscription: broadcastChoices(form, "subscription", BROADCAST_SUBSCRIPTION),
+      availability,
+      activity,
+      body: formText(form, "body") ?? "",
+      linkLabel: formText(form, "link_label") ?? "",
+      linkUrl: formText(form, "link_url") ?? "",
+      silent: formText(form, "silent") !== null,
+      sendAfter: formText(form, "send_after") ?? "",
+    };
+  };
+
+  const broadcastPage = async (
+    c: Context<AdminEnv>,
+    form: BroadcastFormState,
+    preview: BroadcastPreview | null,
+    notice?: { readonly kind: "ok" | "error"; readonly text: string },
+    status?: 422,
+  ): Promise<Response> => {
+    const cities = await listCities(deps.sql);
+    const campaigns = await listBroadcastCampaigns(deps.sql);
+    const body = renderBroadcastPage({
+      cities: toCityOptions(cities),
+      form,
+      preview,
+      campaigns,
+      bodyLimit: BROADCAST_BODY_LIMIT,
+      csrfToken: c.get("csrfToken"),
+      cspNonce: c.get("cspNonce"),
+    });
+    const response = page(c, "البثّ الجماعي", "/admin/broadcast", body, undefined, notice);
+    // الرفضُ يُعاد بالصفحة نفسها ورمزِ 422 معاً: المسؤول يرى سببَ الرفض وما
+    // كتبه لم يضع، والمُختبِر يرى أنّ الطلب رُفِض فعلاً لا أنّه مرّ بصمت.
+    return status === undefined
+      ? response
+      : new Response(response.body, { status, headers: response.headers });
+  };
+
+  app.get("/broadcast", async (c) => {
+    // حصيلةُ الفعل الأخير تعود في الرابط لا في الجلسة: إعادةُ التوجيه تمنع البثّ
+    // المكرّر، لكنّها كانت ستترك المسؤول بلا دليلٍ على أنّ شيئاً حدث أصلاً.
+    const sent = positiveInt(c.req.query("sent"), 0);
+    const canceled = positiveInt(c.req.query("canceled"), 0);
+    const notice =
+      c.req.query("sent") !== undefined
+        ? { kind: "ok" as const, text: `بدأ البثّ إلى ${sent} مستقبِلاً.` }
+        : c.req.query("canceled") !== undefined
+          ? { kind: "ok" as const, text: `أُلغي ${canceled} مستقبِلاً لم تُرسل لهم الرسالة بعد.` }
+          : undefined;
+    return await broadcastPage(c, EMPTY_BROADCAST_FORM, null, notice);
+  });
+
+  app.post("/broadcast", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const state = readBroadcastForm(checked.form);
+    if (state === null) return c.text("INVALID_BROADCAST_FORM", HTML_UNPROCESSABLE);
+    const action = formText(checked.form, "action");
+    if (action !== "preview" && action !== "send") {
+      return c.text("INVALID_ACTION", HTML_UNPROCESSABLE);
+    }
+    const schedule = broadcastSendAfter(state.sendAfter === "" ? null : state.sendAfter);
+    if (!schedule.ok) {
+      return await broadcastPage(
+        c,
+        state,
+        null,
+        { kind: "error", text: "وقت الإرسال غير مفهوم." },
+        HTML_UNPROCESSABLE,
+      );
+    }
+
+    const filters = broadcastFiltersOf(state);
+    const actorUserId = c.get("admin").userId;
+
+    if (action === "preview") {
+      const counted = await broadcast.count({
+        actorUserId,
+        cityId: state.cityId,
+        audience: state.audience,
+        filters,
+      });
+      if (!counted.ok) return c.text("BROADCAST_COUNT_FAILED", HTML_UNPROCESSABLE);
+      if ("error" in counted.value) {
+        return await broadcastPage(
+          c,
+          state,
+          null,
+          { kind: "error", text: broadcastError(counted.value.error) },
+          HTML_UNPROCESSABLE,
+        );
+      }
+      const plan = counted.value;
+      return await broadcastPage(c, state, {
+        total: plan.total,
+        cities: plan.cities.map((city) => ({ nameAr: city.nameAr, recipients: city.recipients })),
+      });
+    }
+
+    const created = await broadcast.create({
+      actorUserId,
+      cityId: state.cityId,
+      audience: state.audience,
+      filters,
+      body: state.body,
+      linkLabel: state.linkLabel.trim() === "" ? null : state.linkLabel.trim(),
+      linkUrl: state.linkUrl.trim() === "" ? null : state.linkUrl.trim(),
+      silent: state.silent,
+      sendAfter: schedule.value,
+    });
+    if (!created.ok) return c.text("BROADCAST_CREATE_FAILED", HTML_UNPROCESSABLE);
+    if ("error" in created.value) {
+      log("رُفِض إنشاء بثٍّ جماعي", { error: created.value.error });
+      return await broadcastPage(
+        c,
+        state,
+        null,
+        { kind: "error", text: broadcastError(created.value.error) },
+        HTML_UNPROCESSABLE,
+      );
+    }
+    log("أُنشئ بثٌّ جماعي", {
+      batchId: created.value.batchId,
+      total: created.value.total,
+      audience: state.audience,
+    });
+    // إعادةُ توجيهٍ بعد الإنشاء: تحديثُ المتصفّح لصفحةٍ ناتجةٍ عن POST كان سيبثّ
+    // الرسالة مرّتين، ولا شيء أسوأ من رسالةٍ جماعية مكرّرة.
+    return c.redirect(`/admin/broadcast?sent=${created.value.total}`, SEE_OTHER);
+  });
+
+  app.post("/broadcast/:batchId/cancel", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const batchId = c.req.param("batchId");
+    if (!UUID_PATTERN.test(batchId)) return c.text("INVALID_BATCH_ID", HTML_UNPROCESSABLE);
+    const canceled = await broadcast.cancel({ actorUserId: c.get("admin").userId, batchId });
+    if (!canceled.ok) return c.text("BROADCAST_CANCEL_FAILED", HTML_UNPROCESSABLE);
+    if ("error" in canceled.value) {
+      return await broadcastPage(
+        c,
+        EMPTY_BROADCAST_FORM,
+        null,
+        { kind: "error", text: broadcastError(canceled.value.error) },
+        HTML_UNPROCESSABLE,
+      );
+    }
+    log("أُلغي بثٌّ جماعي", { batchId, canceled: canceled.value.canceled });
+    return c.redirect(`/admin/broadcast?canceled=${canceled.value.canceled}`, SEE_OTHER);
+  });
+
+  // -------------------------------------------------------------------------
   // الأفعال الكتابية الأربعة — كلها تمرّ بدوالّ ذرّية تتحقّق من الصفة في القاعدة
   // -------------------------------------------------------------------------
 
@@ -763,6 +1200,8 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       value,
     );
     log("تعديل إعداد من اللوحة", { ok: outcome.ok, error: outcome.error });
+    // القيمةُ المرفوضة تُبيَّن للمسؤول: إعادةُ توجيهٍ صامتة تعني أنّه يحسب أنّه حفظ.
+    if (!outcome.ok) return c.text(outcome.error ?? "SETTING_REJECTED", HTML_UNPROCESSABLE);
     return c.redirect(`/admin/settings?city=${encodeURIComponent(cityId)}`, SEE_OTHER);
   });
 

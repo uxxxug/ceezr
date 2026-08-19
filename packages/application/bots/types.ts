@@ -14,10 +14,44 @@ import type { Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
 
 /** ما يصل من المنصّة، مُجرَّداً من شكل تلغرام. */
+/** ما يُبلّغه المصدر عن إصلاحته. كلّه اختياري: بلاغٌ ناقص أصدق من بلاغٍ مُلفَّق. */
+export interface LocationQualityHints {
+  readonly accuracyMeters?: number | undefined;
+  readonly headingDegrees?: number | undefined;
+  /** ميلي‌ثانية Unix لزمن التقاط الإصلاحة — لا زمن وصولها إلى الخادم. */
+  readonly recordedAtMs?: number | undefined;
+}
+
+/** جودة الإصلاحة كما حكم عليها المجال، لا كما ادّعاها المصدر. */
+export interface StoredLocationQuality {
+  /**
+   * المرحلة ٥ — زمن **الجهاز** للإصلاحة، لا زمن الخادم.
+   *
+   * `last_location_at` تُكتب بـ`now()` وهي الصواب لسؤال «هل معرفتنا حديثة؟»
+   * والخطأ لقياس التتابع: مقارنة طابعِ جهازٍ جديد بطابعِ خادمٍ سابق تجعل المدة
+   * المقيسة زمنَ الشبكة لا زمن الرحلة، فتُقرأ ٢٥٠ متراً في ستين ثانية سرعةً
+   * لا نهائية. والفارق بين الساعتين متغيّر بطبيعته فلا يُصلَح بمعامل.
+   */
+  readonly recordedAtMs?: number | undefined;
+  readonly accuracyMeters: number | null;
+  readonly verdict: "ACCEPT" | "WARNING" | "ALERT";
+}
+
 export type IncomingUpdate =
   | { readonly kind: "text"; readonly from: Sender; readonly text: string }
   | { readonly kind: "callback"; readonly from: Sender; readonly data: string }
-  | { readonly kind: "location"; readonly from: Sender; readonly location: Coordinates }
+  /**
+   * `quality` اختياري لأن المصادر تختلف فيما تُبلّغ عنه: زرّ الموقع في تلغرام
+   * يرسل الدقّة والاتجاه، والبطاقة اليدوية لا ترسل شيئاً. وغيابه ليس معناه
+   * إصلاحةً مثاليةً بل إصلاحةً بلا شهادة على نفسها، ومُقيِّم المجال يتعامل مع
+   * الحالتين على حِدَة.
+   */
+  | {
+      readonly kind: "location";
+      readonly from: Sender;
+      readonly location: Coordinates;
+      readonly quality?: LocationQualityHints;
+    }
   /**
    * `ownerTelegramId`: صاحب البطاقة كما يُقرّه تلغرام، لا كما يدّعي المرسِل.
    * يساوي `from.telegramUserId` حين يضغط المستخدم زرّ مشاركة رقمه،
@@ -95,6 +129,21 @@ export interface BotReply {
    * يحتاجه الدعم: إيصال التحويل يجب أن يظهر صورةً في القروب لا رابطاً لا يفتحه أحد.
    */
   readonly photoFileId?: string;
+  /**
+   * المرحلة ١٢ — إن وُجد، يُرسَل دبّوس موقعٍ **إضافةً** إلى النصّ لا بدلاً منه.
+   *
+   * ولماذا إضافةً؟ لأن الدبّوس وحده خريطةٌ بلا معنى: السائق يرى نقطةً ولا يعرف
+   * أهي الانطلاق أم المقصد ولا في أيّ مرحلةٍ هو. والنصّ وحده معنىً بلا خريطة.
+   * فالنصّ يقول «ما هذا»، والدبّوس يقول «أين» ويُشغّل الملاحة.
+   *
+   * والوسم مُرفَق ليكون في النصّ المصاحب: دبّوسٌ بلا وسمٍ في محادثةٍ فيها دبابيس
+   * كثيرة لا يُميَّز بعد دقيقة.
+   */
+  readonly mapPin?: {
+    readonly latitude: number;
+    readonly longitude: number;
+    readonly label: string;
+  };
 }
 
 /** حالة الحوار المحفوظة بين رسالتين. لا تحمل قيمة تجارية، فقط تقدّم المستخدم. */
@@ -223,6 +272,17 @@ export interface DriverProfile {
   readonly isAvailable: boolean;
   /** بلا موقع محفوظ لا يدخل السائق المطابقة إطلاقاً — المسافة ركن في المعادلة. */
   readonly hasLocation: boolean;
+  /**
+   * المرحلة ٥ — آخر إصلاحة مقبولة كما هي في المصدر القانوني، أو `null` إن لم
+   * يُرسل السائق موقعاً قط. وجودها في الملفّ الشخصي مقصود: تحقّق التتابع يحتاج
+   * سابقةً، وجلبُها باستعلام ثانٍ كان سيفتح نافذةً تتغيّر فيها القيمة بين
+   * القراءتين — والأسوأ أنه يجعل السابقة تُقرأ من لحظةٍ غير لحظة الكتابة.
+   */
+  readonly lastFix: {
+    readonly latitude: number;
+    readonly longitude: number;
+    readonly recordedAtMs: number;
+  } | null;
 }
 
 export interface RegisterDriverInput {
@@ -246,10 +306,17 @@ export interface DriverDirectory {
     driverId: DriverId,
     isAvailable: boolean,
   ): Promise<Result<void, PortFailureError>>;
-  /** يحفظ آخر موقع للسائق — يغذّي المطابقة مباشرة. */
+  /**
+   * يحفظ آخر موقع للسائق — يغذّي المطابقة مباشرة.
+   *
+   * `quality` ليس زينةً في السجل: مُقيِّم المرحلة ٣ يُنتج ثلاثة أحكام، فإن خُزّن
+   * الموضع وحده ضاع الحكم وعادت المطابقة تُسوّي بين إصلاحة بدقّة ٥ أمتار وأخرى
+   * بدقّة ٣ كيلومترات. تمريره هنا يجعل الجودة جزءاً من المصدر القانوني (ADR-0015).
+   */
   updateLocation(
     driverId: DriverId,
     location: Coordinates,
+    quality?: StoredLocationQuality,
   ): Promise<Result<void, PortFailureError>>;
   /**
    * يحفظ المنطقة المفضّلة أو يمسحها بتمرير `null` — البند 2.4.
@@ -369,11 +436,32 @@ export interface OrderWriter {
  * ولا يُدرج هنا هاتف السائق ولا هويّته: الأول قناة تواصل تُدار من المنصّة لا
  * تُسلَّم نصّاً، والثانية لا تخرج من القاعدة إلى أي رسالة أبداً.
  */
+/** موضعٌ مقروء مع وقته — الوقت جزءٌ منه لا ملحقٌ به: موضعٌ بلا زمنٍ لا يُعرف أصادقٌ هو. */
+export interface TimestampedPoint {
+  readonly lat: number;
+  readonly lng: number;
+  /** وقت تسجيل الإصلاحة على جهاز السائق (`drivers.last_location_recorded_at`). */
+  readonly recordedAt: Date;
+}
+
 export interface AssignedDriverRef {
   readonly fullName: string;
   readonly vehicleType: string | null;
   readonly plateNumber: string | null;
   readonly vehiclePhotoFileId: string | null;
+  /**
+   * المرحلة ١١: موقع السائق القانوني كما كتبته `directories.updateLocation`
+   * (ADR-0015) — لا مصدرٌ ثانٍ ولا نسخةٌ في الذاكرة.
+   *
+   * ولماذا داخل `AssignedDriverRef` لا في `ActiveOrderSummary`؟ لأن الموقع وصفٌ
+   * للسائق لا للطلب، ووضعُه على الطلب يجعل حقلاً يُقرأ ولا سائق له في
+   * `searching` — فيُكتب له فحصٌ منفصلٌ قد يُنسى.
+   *
+   * `undefined` لا `null` في التوقيع: مساراتٌ قائمةٌ تبني هذا النوع بيدها
+   * (واختباراتٌ كثيرة) لا يصحّ أن تُكسَر لإضافة سطرٍ إلى `/status`؛
+   * و`null` تعني «لم يُرسل موقعاً قطّ» وهي حالةٌ حقيقيّة تُميَّز عن «لم يُقرأ».
+   */
+  readonly lastLocation?: TimestampedPoint | null;
 }
 
 export interface ActiveOrderSummary {
@@ -389,6 +477,16 @@ export interface ActiveOrderSummary {
    * `null` تعني «لا سائق بعد» وهي الحال الطبيعية في `searching`.
    */
   readonly assignedDriver?: AssignedDriverRef | null;
+  /**
+   * المرحلة ١١: نقطتا الطلب بإحداثيّاتهما لا بوسميهما وحدهما — لأن
+   * «كم يبعد سائقي؟» يحتاج مرجعاً يُقاس إليه، والوسم نصٌّ لا يُقاس.
+   *
+   * `pickup` غير قابلة للإعدام في القاعدة، ومع ذلك تُكتب اختياريّةً هنا: من يبني
+   * `ActiveOrderSummary` بيده في اختبارٍ لا يعنيه الموقع، وحقلٌ إلزاميٌّ يُوجِب
+   * تعديل عشرات المواضع لأجل سطرٍ واحد.
+   */
+  readonly pickup?: { readonly lat: number; readonly lng: number } | null;
+  readonly dropoff?: { readonly lat: number; readonly lng: number } | null;
 }
 
 /**

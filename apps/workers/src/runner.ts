@@ -9,7 +9,11 @@
  */
 
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
-import type { Clock } from "../../../packages/shared/kernel/index.ts";
+import type {
+  JobHeartbeatRecorderPort,
+  JobHeartbeatStatus,
+} from "../../../packages/application/scheduling/job-heartbeat.ts";
+import type { CityId, Clock } from "../../../packages/shared/kernel/index.ts";
 
 export interface JobDefinition {
   readonly name: string;
@@ -22,6 +26,11 @@ export interface JobDefinition {
   run(): Promise<string>;
   /** هل يُشغَّل مرّة عند الإقلاع قبل انتظار أول دورة. */
   readonly runOnStart?: boolean;
+  /**
+   * مدينةُ المهمّة إن كانت مهمّةَ مدينة. تُمرَّر للنبضة وحدها (§4.3): اسمُ المهمّة
+   * يحمل المعرّف نصّاً، وتفكيكُ نصٍّ لاستخراج مفتاحٍ أجنبي هشٌّ بلا داعٍ.
+   */
+  readonly cityId?: CityId;
 }
 
 export interface JobLogger {
@@ -46,8 +55,17 @@ export interface JobRunnerOptions {
    * جارية تستهلك اتصال قفل محجوزاً واتصالاً أو أكثر لاستعلاماتها، فتوازٍ غير محدود
    * مع أربع مدن مفعَّلة يعني 24 مهمّة تتزاحم على تجمّع اتصالات محدود — وهذا استنزاف
    * تجمّع يُسقط المهامّ جميعاً بمهلة انتظار لا بخطأ مفهوم.
+   *
+   * والحدّ **على المشغّل كلّه لا على النبضة الواحدة**: `start` يستدعي `runDue` بلا
+   * انتظار انتهاء سابقته، فشوطٌ يتجاوز النبضة (النسخ الاحتياطي يومياً) يجعل نبضتين
+   * متراكبتين. وحدٌّ محسوبٌ داخل كل استدعاء يصير حدَّين، فيتضاعف التوازي الفعلي.
    */
   readonly maxConcurrency?: number;
+  /**
+   * كاتبُ النبضة (§4.3). اختياريّ عن قصد: اختباراتُ المشغّل لا تحتاج قاعدةً،
+   * والعاملُ في الإنتاج يمرّره دائماً. غيابُه يعني «لا رصد» لا «رصدٌ فاشل».
+   */
+  readonly heartbeat?: JobHeartbeatRecorderPort;
 }
 
 export interface JobOutcome {
@@ -70,11 +88,25 @@ export interface JobRunner {
   runDue(): Promise<readonly JobOutcome[]>;
   start(): void;
   stop(): void;
+  /**
+   * ينتظر انتهاء الأشواط الجارية. لازمٌ للإطفاء: `stop` يمسح المؤقّت ولا ينتظر
+   * شيئاً، فإغلاق القاعدة بعده مباشرةً يسحب الاتصال من شوطٍ جارٍ فيُفشله بلا داعٍ.
+   * ومحدودٌ بمهلة: منصّة النشر تقتل العملية قسراً بعد مدّة، فانتظارٌ بلا حدٍّ
+   * يضيع فرصة الإغلاق النطيف بدل أن يحفزها — والنسخ الاحتياطي قد يطول دقائق.
+   *
+   * يعود `true` إن فرغت الأشواط، و`false` إن انتهت المهلة وبعضها جارٍ — فالمُطفِئ
+   * يسجّل ذلك بدل أن يظنّ أنّه أغلق نطيفاً.
+   */
+  drain(timeoutMs?: number): Promise<boolean>;
   readonly running: boolean;
 }
 
 const DEFAULT_TICK_MS = 10_000;
 const DEFAULT_MAX_CONCURRENCY = 4;
+
+/** مهلة التصريف الافتراضية: أقلّ من مهلة القتل القسري لدى منصّة النشر، ليبقى متّسعٌ للإغلاق. */
+const DEFAULT_DRAIN_MS = 20_000;
+const DRAIN_POLL_MS = 50;
 
 export function createJobRunner(options: JobRunnerOptions): JobRunner {
   const tickMs = options.tickMs ?? DEFAULT_TICK_MS;
@@ -83,10 +115,59 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
   const inFlight = new Set<string>();
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  /**
+   * خانات التوازي على مستوى المشغّل، لا على مستوى الاستدعاء. الحالة هنا — في
+   * الإغلاق لا داخل `runDue` — هي جوهر الأمر: نبضتان متراكبتان لكلٍّ منهما عدّادها
+   * تُشغّلان ضِعف السقف، وتجمّع القفل مقاسٌ على السقف بالضبط (`MAX_JOB_CONCURRENCY + 1`)
+   * فالتجاوز استنزافُ تجمّع لا بطءٌ مقبول.
+   *
+   * والخانة تُسلَّم للمنتظر تسليماً ولا تُحرَّر ثم تُطلب، فلا تنفلت خانة لطالبٍ جديد
+   * بين التحرير والاستلام.
+   */
+  let activeSlots = 0;
+  const slotWaiters: (() => void)[] = [];
+
+  async function acquireSlot(): Promise<void> {
+    if (activeSlots < maxConcurrency) {
+      activeSlots += 1;
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      slotWaiters.push(resolve);
+    });
+  }
+
+  function releaseSlot(): void {
+    const next = slotWaiters.shift();
+    if (next !== undefined) {
+      next();
+      return;
+    }
+    activeSlots -= 1;
+  }
+
   function isDue(job: JobDefinition, nowMs: number): boolean {
     const last = lastRunMs.get(job.name);
     if (last === undefined) return job.runOnStart === true;
     return nowMs - last >= job.everySeconds * 1000;
+  }
+
+  /**
+   * النبضةُ تُكتب بعد انتهاء الشوط لا قبله، وخارجَ القفل: الكتابةُ ذاتُ حراسةٍ في
+   * منفذها فلا ترمي، وإدخالُها في القفل يُطيل حَملَه بكتابةٍ لا علاقةَ لها بذرّية المهمّة.
+   */
+  async function beat(
+    job: JobDefinition,
+    status: JobHeartbeatStatus,
+    detail: string | null,
+  ): Promise<void> {
+    if (options.heartbeat === undefined) return;
+    await options.heartbeat.record({
+      jobName: job.name,
+      cityId: job.cityId ?? null,
+      status,
+      detail,
+    });
   }
 
   async function runOne(job: JobDefinition, nowMs: number): Promise<JobOutcome> {
@@ -109,6 +190,9 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
         // الوقت كان سيعني أنها ستنتظر فاصلاً كاملاً بعد شوطٍ لم يحدث عندها.
         const durationMs = options.clock.now().getTime() - startedAt;
         options.log.info("job.skipped_locked_elsewhere", { job: job.name, durationMs });
+        // تُسجَّل `skipped` ولا تُترك صامتةً: صاحبُ القفل هو من ينبض `ok`، لكنّ
+        // صمتَ هذه النسخة كان سيُظهر المهمّة بلا نبضةٍ لو مات صاحبُ القفل بينهما.
+        await beat(job, "skipped", "نسخة أخرى تحمل القفل");
         return { name: job.name, status: "skipped_locked_elsewhere", durationMs, detail: null };
       }
 
@@ -116,6 +200,7 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       lastRunMs.set(job.name, nowMs);
       const durationMs = options.clock.now().getTime() - startedAt;
       options.log.info("job.ran", { job: job.name, durationMs, detail });
+      await beat(job, "ok", detail);
       return { name: job.name, status: "ran", durationMs, detail };
     } catch (error) {
       // التوقيت يُسجَّل حتى عند الفشل: مهمّة تفشل كل مرّة لا يجوز أن تُشغَّل في
@@ -124,6 +209,9 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       const durationMs = options.clock.now().getTime() - startedAt;
       const detail = error instanceof Error ? error.message : String(error);
       options.log.error("job.failed", { job: job.name, durationMs, detail });
+      // الفشلُ يُنبض أيضاً: مهمّةٌ تفشل كلّ شوط تُرى في `/ready` بحالتها لا بغيابها،
+      // والفرقُ عمليّ: الغيابُ عاملٌ ميّت، والفشلُ عاملٌ حيّ فيه عطل — والعلاج مختلف.
+      await beat(job, "failed", detail);
       return { name: job.name, status: "failed", durationMs, detail };
     } finally {
       inFlight.delete(job.name);
@@ -145,16 +233,18 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
 
     // توازٍ محدود بنافذة منزلقة: تبدأ مهمّة كلّما تحرّرت خانة، فلا ننتظر انتهاء
     // دفعة كاملة قبل بدء التالية (وهو ما يجعل مهمّة واحدة بطيئة تُعطّل ثلاثاً معها).
-    const queue = [...due];
+    // والخانات مشتركة بين النبضات المتراكبة، فالسقف سقفُ المشغّل لا سقفُ النبضة.
     const results: JobOutcome[] = [];
-    const workers = Array.from({ length: Math.min(maxConcurrency, queue.length) }, async () => {
-      for (;;) {
-        const job = queue.shift();
-        if (job === undefined) return;
-        results.push(await runOne(job, nowMs));
-      }
-    });
-    await Promise.all(workers);
+    await Promise.all(
+      due.map(async (job) => {
+        await acquireSlot();
+        try {
+          results.push(await runOne(job, nowMs));
+        } finally {
+          releaseSlot();
+        }
+      }),
+    );
 
     outcomes.push(...results);
     return outcomes;
@@ -178,6 +268,21 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       }, tickMs);
       // نبضة فورية حتى تعمل مهامّ runOnStart بلا انتظار أول فاصل.
       void runDue();
+    },
+
+    drain: async (timeoutMs = DEFAULT_DRAIN_MS) => {
+      // استقصاءٌ لا تجميعُ وعود: الأشواط تُنشأ في نبضاتٍ لا نملك وعودها هنا،
+      // والمرجع الواحد للجاري هو `inFlight` نفسه — وهو مرجعٌ صادق لأنّ `finally`
+      // يحذف منه حتّى عند الرمي، فلا يبقى اسمٌ عالقاً فيه فيستنفد المهلة أبداً.
+      const deadline = options.clock.now().getTime() + timeoutMs;
+      while (inFlight.size > 0) {
+        if (options.clock.now().getTime() >= deadline) {
+          options.log.error("runner.drain_timeout", { pending: [...inFlight] });
+          return false;
+        }
+        await new Promise((resolve) => setTimeout(resolve, DRAIN_POLL_MS));
+      }
+      return true;
     },
 
     stop: () => {

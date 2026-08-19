@@ -62,7 +62,7 @@ export function renderPaymentsPage(data: PaymentPageData): string {
     data.cityOptions.length > 0
       ? `<div class="city-picker">
         <label>المدينة:</label>
-        <select onchange="window.location.href='?city='+encodeURIComponent(this.value)">
+        <select data-nav-param="city" aria-label="اختر المدينة">
           ${data.cityOptions
             .map(
               (city) =>
