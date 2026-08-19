@@ -18,7 +18,12 @@ import {
   checkIsolation,
   type IsolationFailureCode,
 } from "../../bench/isolation.ts";
-import { compareStates, type StateSnapshot } from "../../bench/state.ts";
+import {
+  canonicalizeRowJson,
+  compareStates,
+  formatComparison,
+  type StateSnapshot,
+} from "../../bench/state.ts";
 
 const BENCH_URL = "postgres://postgres:postgres@localhost:5432/waslah_bench";
 
@@ -142,15 +147,21 @@ describe("ثوابت العزل", () => {
   });
 });
 
+/**
+ * البصمةُ المنقولة تتبع الخامَ افتراضاً، لأنّ الحالةَ الغالبة هي قاعدةٌ واحدةٌ
+ * لا تتغيّر فيها المعرّفاتُ المُسنَدة: فكلُّ فرقٍ خامٍ فيها فرقٌ منقول. وتُمرَّر
+ * صراحةً في الاختبارات التي تقصد التفريق بين الاثنين.
+ */
 function snapshot(
-  tables: readonly { table: string; rows: number; digest: string }[],
+  tables: readonly { table: string; rows: number; digest: string; portableDigest?: string }[],
 ): StateSnapshot {
+  const full = tables.map((t) => ({ ...t, portableDigest: t.portableDigest ?? t.digest }));
   return {
     database: "waslah_bench",
     capturedAt: "2026-01-01T00:00:00.000Z",
-    tables: tables.filter((t) => t.table !== "cities"),
-    preserved: tables.filter((t) => t.table === "cities"),
-    totalRows: tables.reduce((sum, t) => sum + t.rows, 0),
+    tables: full.filter((t) => t.table !== "cities"),
+    preserved: full.filter((t) => t.table === "cities"),
+    totalRows: full.reduce((sum, t) => sum + t.rows, 0),
   };
 }
 
@@ -198,5 +209,69 @@ describe("مقارنة الحالة", () => {
     );
     expect(result.identical).toBe(false);
     expect(result.differences[0]?.table).toBe("cities");
+  });
+
+  /**
+   * هذا هو العطبُ الذي كُشف في مراجعة الوحدة 2-4: قاعدتان مُهيّأتان من
+   * الترحيلات نفسِها تُسنِد كلٌّ منهما معرّفاتٍ عشوائيّةً مختلفة، فتختلف
+   * البصمةُ الخامُ بينما الحالةُ المنطقيّةُ واحدة. والمقارنةُ يجب أن تقول
+   * «متطابقتان» وتذكر الاختلافَ في بابه، لا أن تُعلن فرقاً لا معنى له.
+   */
+  it("اختلافُ المعرّفات المُسنَدة وحدَه لا يُعدّ فرقاً، ويُذكَر في بابه", () => {
+    const result = compareStates(
+      snapshot([{ table: "drivers", rows: 20, digest: "aaa", portableDigest: "same" }]),
+      snapshot([{ table: "drivers", rows: 20, digest: "bbb", portableDigest: "same" }]),
+    );
+    expect(result.identical).toBe(true);
+    expect(result.differences).toHaveLength(0);
+    expect(result.identityOnly[0]?.kind).toBe("identity_only");
+    expect(result.identityOnly[0]?.table).toBe("drivers");
+    expect(formatComparison(result)).toContain("identity_only");
+  });
+
+  /** والعكسُ لا يُغتفَر: بصمةٌ خامٌ واحدةٌ لا تُخفي اختلافَ الحالة المنطقيّة. */
+  it("اختلافُ الحالة المنطقيّة يُعدّ فرقاً حتى لو تشابهت البصمةُ الخام", () => {
+    const result = compareStates(
+      snapshot([{ table: "drivers", rows: 20, digest: "same", portableDigest: "aaa" }]),
+      snapshot([{ table: "drivers", rows: 20, digest: "same", portableDigest: "bbb" }]),
+    );
+    expect(result.identical).toBe(false);
+    expect(result.differences[0]?.kind).toBe("content");
+  });
+});
+
+describe("تقييسُ الهويّات المُسنَدة", () => {
+  const aliases = new Map([
+    ["2cd0e3b9-b862-4583-a29a-47d5f1edea46", "«city:JED»"],
+    ["98431dd3-37a4-4dd3-9da8-6c81d85ea60c", "«setting:JED:x»"],
+  ]);
+
+  it("يستبدل المعرّفَ المُسنَد أينما ورد في الصفّ", () => {
+    const row = JSON.stringify({
+      id: "2cd0e3b9-b862-4583-a29a-47d5f1edea46",
+      city_id: "2cd0e3b9-b862-4583-a29a-47d5f1edea46",
+    });
+    const canonical = canonicalizeRowJson(row, aliases);
+    expect(canonical).not.toContain("2cd0e3b9");
+    expect(canonical.match(/«city:JED»/g)).toHaveLength(2);
+  });
+
+  /**
+   * معرّفاتُ البذر مُشتقّةٌ اشتقاقاً (UUIDv5) فهي محمولةٌ أصلاً، واستبدالُها
+   * كان سيطمر فروقاً حقيقيّة: سائقان مختلفان يصيران صفّاً واحداً في البصمة.
+   */
+  it("لا يمسّ معرّفاً ليس في الخريطة", () => {
+    const row = JSON.stringify({ id: "11111111-2222-3333-4444-555555555555" });
+    expect(canonicalizeRowJson(row, aliases)).toBe(row);
+  });
+
+  it("خريطةٌ فارغة ⇒ الصفُّ كما هو حرفاً بحرف", () => {
+    const row = JSON.stringify({ id: "2cd0e3b9-b862-4583-a29a-47d5f1edea46" });
+    expect(canonicalizeRowJson(row, new Map())).toBe(row);
+  });
+
+  it("يُقيّس المعرّفَ بصيغته الكبيرة كما بصيغته الصغيرة", () => {
+    const row = JSON.stringify({ id: "2CD0E3B9-B862-4583-A29A-47D5F1EDEA46" });
+    expect(canonicalizeRowJson(row, aliases)).toContain("«city:JED»");
   });
 });

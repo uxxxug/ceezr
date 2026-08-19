@@ -227,9 +227,27 @@ try {
     formatComparison(thirdComparison),
   );
 
-  console.log("\n=== بصمةُ الحالة المرجعيّة ===");
+  /**
+   * تُطبع البصمتان معاً ولا تُختصر إلى واحدة: الخامُ (`local`) تقارن داخل
+   * القاعدة نفسِها وتكشف أيّة إعادةِ بذرٍ للجداول المملوكة للترحيلات،
+   * والمنقولةُ (`portable`) وحدها هي التي تصلح للمقارنة مع بيئةٍ أخرى. وخلطُ
+   * الاثنتين هو ما أوقع في الوهم أوّلَ مرّة.
+   */
+  console.log("\n=== بصمةُ الحالة المرجعيّة (local داخل القاعدة | portable بين القواعد) ===");
   for (const table of [...firstState.tables, ...firstState.preserved]) {
-    console.log(`${table.table.padEnd(22)} ${String(table.rows).padStart(5)}  ${table.digest}`);
+    console.log(
+      `${table.table.padEnd(22)} ${String(table.rows).padStart(5)}  ${table.digest}  ${table.portableDigest}`,
+    );
+  }
+
+  /**
+   * حفظُ اللقطة اختياريٌّ لأنّ السلسلة تُثبِت نفسَها بلا ملف؛ وإنما يُلزم الملفُ
+   * للمقارنة بين قاعدتين أو بين مضيفين، وهي مقارنةٌ لا تجري في عمليةٍ واحدة.
+   */
+  const snapshotPath = process.env.BENCH_STATE_JSON;
+  if (snapshotPath !== undefined && snapshotPath !== "") {
+    await Bun.write(snapshotPath, `${JSON.stringify(firstState, null, 2)}\n`);
+    console.log(`\nلقطةُ الحالة محفوظةٌ في: ${snapshotPath}`);
   }
 } finally {
   await sql.end({ timeout: 5 });
