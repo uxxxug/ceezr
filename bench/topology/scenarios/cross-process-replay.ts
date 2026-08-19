@@ -1,0 +1,446 @@
+/**
+ * الغرض: سيناريو موزَّع — **نفسُ الحدثِ بنفسِ `update_id`** يُعاد إلى عمليةٍ أخرى:
+ *        هل تتكرّر الحالةُ التجارية؟ (§5 من أمرِ وحدة 2-6)
+ * الحالة: منفّذ فعلياً — وحدة 2-6.
+ * ينتمي إلى: bench/topology/scenarios
+ * يُتوقع أن يستخدمه لاحقاً: `bench/run-distributed.ts`، وأيُّ مراجعةٍ لمانعِ التكرار
+ *                   عند رفعِ `numInstances` فوق واحد.
+ *
+ * ## السؤالُ المقيس
+ *
+ * مانعُ التكرار (`apps/gateway/src/routes/update-dedup.ts`) خريطةٌ **في ذاكرةِ
+ * العملية**، ورأسُ الملفِّ يقول صريحاً إنّه غيرُ مشتركٍ بين النسخ وإنّ رفعَ عددِ
+ * النسخ يوجب مراجعتَه. فهذا السيناريو يقيس ما يترتّب على ذلك عمليّاً بثلاث ضغطات
+ * لنفسِ الحدث:
+ *
+ * 1. الأصل إلى `gw1` → يُعالَج ويظفر.
+ * 2. نفسُه بنفسِ `update_id` إلى `gw1` → **يُحجَب** (المانعُ يعمل داخلَ عمليتِه).
+ * 3. نفسُه بنفسِ `update_id` إلى `gw2` → **لا يُحجَب** (عمليةٌ أخرى، خريطةٌ أخرى)،
+ *    فيصل إلى منطقِ العمل. والسؤالُ الحقيقيّ: هل تفسدُ الحالةُ التجارية؟
+ *
+ * والجوابُ المطلوبُ إثباتُه: لا. الحمايةُ ليست في المانع بل في القاعدة — `claim_ride`
+ * ذرّيّةٌ، وقيدُ `order_offers_single_accepted` فريد. فالمانعُ تحسينٌ يمنع رسالةً
+ * مكرَّرةً، لا حاجزٌ تقوم عليه سلامةُ البيانات. وهذا فرقٌ يجب أن يُقاس لا أن يُفترَض.
+ *
+ * ## ما لا يُدّعى هنا
+ *
+ * لا يُدّعى أنّ التكرارَ عبرَ العمليات بلا أثرٍ أصلاً: الأثرُ الباقي رسالةٌ صادرةٌ
+ * مكرَّرة، وهي تُقاس وتُسجَّل في الدليل بنصِّها لا تُبتلَع. والحكمُ هنا على الحالةِ
+ * التجارية وحدَها لأنها وحدَها ما يُدّعى أنه محميّ.
+ */
+
+import { translate } from "../../../packages/shared/i18n/index.ts";
+import {
+  ADMIN_VERIFY_MOCK,
+  ARRANGED_DRIVER_BASE,
+  arrangeAvailableDriver,
+  JED_PICKUP,
+  nudge,
+  registerRider,
+  SCENARIO_RIDER_BASE,
+} from "../../scenarios/catalog/support.ts";
+import {
+  type CheckResult,
+  check,
+  expectEqual,
+  type ScenarioContext,
+  type ScenarioDefinition,
+} from "../../scenarios/contract.ts";
+import {
+  callbackUpdate,
+  locationUpdate,
+  textUpdate,
+  withUpdateId,
+} from "../../scenarios/updates.ts";
+import type { Cluster } from "../cluster.ts";
+
+/** سائقان يكفيان: المقيسُ التكرارُ لا التزاحم، وثانٍ يجعل «الظافر» ذا معنى. */
+const DRIVERS = 2;
+
+/** رقمُ تحديثٍ ثابتٌ ومميَّز: هو محورُ القياس، فلا يُترك لمولّد. */
+const REPLAYED_UPDATE_ID = 88_001;
+
+const singleOrderId = async (context: ScenarioContext): Promise<string> => {
+  const [row] = await context.sql<{ id: string }[]>`select id from public.orders`;
+  return row?.id ?? "";
+};
+
+export function createCrossProcessReplayScenario(cluster: Cluster): ScenarioDefinition {
+  return {
+    id: "cross-process-replay",
+    title: "إعادةُ نفسِ التحديثِ إلى عمليةٍ أخرى: الحالةُ التجارية لا تتكرّر",
+    service: "transport",
+
+    initialState: [
+      `${DRIVERS} سائقان موثَّقان متاحان، وعميلٌ طلب رحلةً فبُثَّ الطلبُ عليهما.`,
+      "عرضان منتظِران، ولا إسنادَ بعد.",
+      "بوّابتان في عمليتين منفصلتين، لكلٍّ منهما مانعُ تكرارٍ في ذاكرتِها وحدها.",
+    ],
+    userInputs: [
+      `ضغطةُ «قبول» واحدةٌ برقمِ تحديثٍ ثابت (update_id=${REPLAYED_UPDATE_ID}) تُسلَّم ثلاثَ مرّات: gw1، ثم gw1، ثم gw2.`,
+    ],
+    steps: [
+      "يُرسَل الأصلُ إلى gw1 فيظفر السائقُ الأوّل.",
+      "يُعاد **نفسُ** التحديثِ إلى gw1: يجب أن يُحجَب في المانع بلا وصولٍ إلى منطقِ العمل.",
+      "يُعاد **نفسُ** التحديثِ إلى gw2: لن يُحجَب — عمليةٌ أخرى — فيصل إلى منطقِ العمل.",
+      "تُقرأ الحالةُ التجاريةُ بعد الثلاث، وتُقرأ أحجامُ مانعَي التكرار في النسختين.",
+    ],
+    expectedSystemResponse: [
+      "الأصلُ يُنتج رسالةَ `driver.offer_accepted` وبطاقةَ الرحلةِ ودبّوسَ الموقع.",
+      "الإعادةُ على نفسِ العملية لا تُنتج رسالةً أصلاً (حُجِبت قبل منطقِ العمل).",
+      "الإعادةُ على العمليةِ الأخرى تُنتج رسالةً — وهذا هو الأثرُ الباقي المُعلَن، لا خطأٌ مكتوم.",
+    ],
+    expectedBusinessOutcome: [
+      "عرضٌ مقبولٌ واحدٌ بالضبط بعد الثلاث.",
+      "الطلبُ `matched` ومُسنَدٌ لنفسِ السائقِ الذي ظفر أوّلاً — لا تحوّلَ إسنادٍ ولا إسنادٌ ثانٍ.",
+      "أثرُ تدقيقٍ واحدٌ في `audit_log`.",
+      "عدّادُ العروضِ المقبولةِ تحرّك واحداً مجموعاً على النسختين.",
+    ],
+
+    concurrency: {
+      count: 1,
+      mode: "independent",
+      rationale:
+        "فاعلٌ واحدٌ عن قصد: المقيسُ هو تكرارُ حدثٍ واحدٍ عبر عمليتين، لا تزاحمُ فاعلين. " +
+        "وإدخالُ تزاحمٍ هنا كان سيخلط سببين لنتيجةٍ واحدةٍ فيضيع أيُّهما أنتجها.",
+    },
+    mocks: [
+      ADMIN_VERIFY_MOCK,
+      {
+        what: "الإعادةُ تُوجَّه إلى نسخةٍ بعينها بقرارِ الاختبار (`postTo`)، لا بموازِنِ حملٍ حقيقيّ.",
+        why: "إثباتُ الفرقِ بين إعادةٍ إلى نفسِ العمليةِ وإعادةٍ إلى عمليةٍ أخرى يحتاج تحكّماً في الوجهة.",
+        proves: "سلوكَ النظامِ في الحالتين معزولتين ومُسمَّيتين.",
+        doesNotProve:
+          "أنّ موازِنَ الحملِ في الإنتاج يوزّع إعادةَ تلغرام على نسخةٍ أخرى بأيِّ احتمالٍ معيّن — ذاك سؤالُ نشرٍ لا سؤالُ كود.",
+      },
+    ],
+    proves: [
+      "أنّ سلامةَ الحالةِ التجارية لا تتوقّف على مانعِ التكرارِ في الذاكرة: إعادةٌ اجتازته لم تُنتج إسناداً ثانياً ولا قبولاً ثانياً ولا أثراً ثانياً.",
+      "أنّ مانعَ التكرار يعمل فعلاً داخلَ عمليتِه (الإعادةُ الثانيةُ حُجِبت).",
+      "أنّ العدّادَ المجموعَ عبر النسخِ يعكس الواقعةَ مرّةً واحدة.",
+    ],
+    doesNotProve: [
+      "أنّ التكرارَ عبرَ العملياتِ بلا أثرٍ: أثرُه رسالةٌ صادرةٌ مكرَّرةٌ تُقاس هنا وتُسجَّل.",
+      "سلوكَ تلغرام في إعادةِ الإرسال ولا تواترَها.",
+      "أنّ مانعَ تكرارٍ مشتركاً غيرُ مطلوب: هذا قرارٌ يُتخذ بحسبِ كلفةِ الرسالةِ المكرَّرة، وهذه الوحدةُ تقيسها لا تقرّرها.",
+    ],
+    metrics: ["waslah_dispatch_offers_accepted_total", "waslah_telegram_webhook_duplicates_total"],
+
+    failureConditions: [
+      {
+        code: "DUPLICATED_BUSINESS_STATE",
+        description: "الإعادةُ عبرَ العمليةِ الأخرى أنتجت قبولاً ثانياً أو إسناداً ثانياً.",
+        detect: async (context) => {
+          const [row] = await context.sql<{ accepted: string; audit: string }[]>`
+            select (select count(*) from public.order_offers where status = 'accepted')::text as accepted,
+                   (select count(*) from public.audit_log where action = 'order.claimed')::text as audit
+          `;
+          const accepted = Number(row?.accepted ?? "0");
+          const audit = Number(row?.audit ?? "0");
+          return accepted === 1 && audit === 1
+            ? null
+            : `عروضٌ مقبولة=${accepted} · آثارُ إسناد=${audit} بعد إعادةِ نفسِ التحديثِ عبر عمليتين.`;
+        },
+      },
+      {
+        code: "ASSIGNMENT_STOLEN_BY_REPLAY",
+        description: "الإعادةُ نقلت الإسنادَ إلى سائقٍ آخَر أو أعادت الطلبَ إلى البحث.",
+        detect: async (context, actors) => {
+          const expected = actors[0]?.produced.winnerDriverId;
+          const [row] = await context.sql<{ status: string; assigned: string | null }[]>`
+            select status, assigned_driver_id::text as assigned from public.orders
+          `;
+          if (row === undefined) return "لا طلبَ في القاعدة.";
+          if (row.status !== "matched") return `الطلبُ صار status=${row.status} بعد الإعادة.`;
+          return row.assigned === expected
+            ? null
+            : `الإسنادُ صار ${String(row.assigned)} بعد أن كان ${String(expected)}.`;
+        },
+      },
+    ],
+
+    arrange: async (context) => {
+      const notes: string[] = [];
+      for (let index = 0; index < DRIVERS; index += 1) {
+        const driver = await arrangeAvailableDriver(context, index, nudge(JED_PICKUP, index));
+        notes.push(`سائقٌ متاحٌ ${driver.chatId} (سائق=${driver.driverId.slice(0, 8)}…)`);
+      }
+      const riderChat = SCENARIO_RIDER_BASE;
+      await registerRider(context, riderChat, "عميل الإعادة");
+      await context.post("rider", textUpdate(riderChat, "/ride"));
+      await context.post("rider", locationUpdate(riderChat, JED_PICKUP));
+      await context.post("rider", textUpdate(riderChat, "/skip"));
+
+      const [offers] = await context.sql<{ n: string }[]>`
+        select count(*)::text as n from public.order_offers where status = 'pending'
+      `;
+      notes.push(`طلبٌ واحدٌ بُثَّ على ${offers?.n ?? "0"} عرضاً منتظِراً`);
+      notes.push(`نسخُ العنقود: ${cluster.instances.map((instance) => instance.id).join("، ")}`);
+      return notes;
+    },
+
+    preconditions: async (context) => {
+      const results: CheckResult[] = [];
+      results.push(
+        check(
+          "precondition",
+          "بوّابتان على الأقلِّ في العنقود — وإلّا فلا معنى لـ«عمليةٍ أخرى»",
+          cluster.instances.length >= 2,
+          `النسخ=${cluster.instances.length}`,
+        ),
+      );
+      const [offers] = await context.sql<{ pending: string }[]>`
+        select count(*) filter (where status = 'pending')::text as pending from public.order_offers
+      `;
+      results.push(
+        expectEqual("precondition", "عرضان منتظِران", Number(offers?.pending ?? "0"), DRIVERS),
+      );
+      const [assigned] = await context.sql<{ n: string }[]>`
+        select count(*)::text as n from public.orders where assigned_driver_id is not null
+      `;
+      results.push(
+        expectEqual("precondition", "لا إسنادَ قبل البداية", Number(assigned?.n ?? "0"), 0),
+      );
+      return results;
+    },
+
+    runActor: async (context, actor) => {
+      const orderId = await singleOrderId(context);
+      // يضغط من له عرضٌ منتظِر: أوّلُ سائقٍ في التهيئة.
+      const chatId = ARRANGED_DRIVER_BASE;
+      const [own] = await context.sql<{ driver_id: string }[]>`
+        select f.driver_id::text as driver_id from public.order_offers f
+          join public.drivers d on d.id = f.driver_id
+          join public.users u on u.id = d.user_id
+         where u.telegram_id = ${chatId} and f.order_id = ${orderId}
+      `;
+      if (own === undefined || orderId === "") {
+        throw new Error("[cross-process-replay] لا عرضَ منتظِرٌ للسائقِ الأوّل — التهيئةُ لم تصلح.");
+      }
+
+      const update = withUpdateId(
+        callbackUpdate(chatId, `offer:accept:${orderId}`),
+        REPLAYED_UPDATE_ID,
+      );
+
+      const before = context.messagesTo(chatId).length;
+      const original = await cluster.postTo(0, "driver", update);
+      const afterOriginal = context.messagesTo(chatId).length;
+
+      const sameProcess = await cluster.postTo(0, "driver", update);
+      const afterSameProcess = context.messagesTo(chatId).length;
+
+      const crossProcess = await cluster.postTo(1, "driver", update);
+      const afterCrossProcess = context.messagesTo(chatId).length;
+
+      return {
+        index: actor.index,
+        telegramIds: [chatId],
+        produced: {
+          telegramId: chatId,
+          orderId,
+          winnerDriverId: own.driver_id,
+          messagesFromOriginal: afterOriginal - before,
+          messagesFromSameProcessReplay: afterSameProcess - afterOriginal,
+          messagesFromCrossProcessReplay: afterCrossProcess - afterSameProcess,
+          // نصُّ ما وصل السائقَ من الإعادةِ العابرةِ للعمليات — يُسجَّل بحرفه في الدليل.
+          crossProcessReplyText:
+            context.messagesTo(chatId).at(afterSameProcess)?.text ?? "(لا رسالة)",
+        },
+        httpStatuses: [original.status, sameProcess.status, crossProcess.status],
+      };
+    },
+
+    systemResponse: async (context, actors) => {
+      const results: CheckResult[] = [];
+      const actorRun = actors[0];
+      const accepted = translate("ar", "driver.offer_accepted");
+
+      results.push(
+        expectEqual(
+          "system_response",
+          "الأصلُ أنتج رسالةَ قبولٍ واحدةً للظافر",
+          context
+            .messagesTo(Number(actorRun?.produced.telegramId ?? 0))
+            .filter((message) => message.text === accepted).length,
+          1,
+        ),
+      );
+
+      results.push(
+        expectEqual(
+          "system_response",
+          "الإعادةُ على نفسِ العملية لم تُنتج رسالةً — حُجِبت في المانع",
+          Number(actorRun?.produced.messagesFromSameProcessReplay ?? -1),
+          0,
+        ),
+      );
+
+      /**
+       * الإعادةُ العابرةُ للعمليات: يُوكَّد أنّها **وصلت** منطقَ العمل فعلاً — أي أنّ
+       * القياسَ قاس ما يدّعي قياسَه. تشغيلٌ لم تصل فيه الإعادةُ لم يُثبِت حمايةَ
+       * القاعدة، بل أثبت مانعَ تكرارٍ أصابَ من حيث لم نطلب.
+       */
+      results.push(
+        check(
+          "system_response",
+          "الإعادةُ عبرَ العمليةِ الأخرى وصلت منطقَ العمل (لم تُحجَب) — وإلّا فلا شيءَ قيس",
+          Number(actorRun?.produced.messagesFromCrossProcessReplay ?? 0) >= 1,
+          `رسائلُ الإعادةِ العابرة=${String(actorRun?.produced.messagesFromCrossProcessReplay)} · نصُّها=«${String(actorRun?.produced.crossProcessReplyText)}»`,
+        ),
+      );
+      return results;
+    },
+
+    businessOutcome: async (context, actors) => {
+      const results: CheckResult[] = [];
+      const [offers] = await context.sql<{ accepted: string; pending: string }[]>`
+        select count(*) filter (where status = 'accepted')::text as accepted,
+               count(*) filter (where status = 'pending')::text as pending
+          from public.order_offers
+      `;
+      results.push(
+        expectEqual(
+          "business_outcome",
+          "عرضٌ مقبولٌ واحدٌ بعد ثلاثِ تسليمات",
+          Number(offers?.accepted ?? "0"),
+          1,
+        ),
+      );
+      results.push(
+        expectEqual("business_outcome", "ولا عرضَ بقي منتظِراً", Number(offers?.pending ?? "0"), 0),
+      );
+
+      const [order] = await context.sql<{ status: string; assigned: string | null }[]>`
+        select status, assigned_driver_id::text as assigned from public.orders
+      `;
+      results.push(expectEqual("business_outcome", "الطلبُ مُسنَد", order?.status, "matched"));
+      results.push(
+        expectEqual(
+          "business_outcome",
+          "والإسنادُ لصاحبِ الضغطةِ الأصلية لا لغيره",
+          order?.assigned,
+          String(actors[0]?.produced.winnerDriverId),
+        ),
+      );
+
+      const delta = context.metricDelta("waslah_dispatch_offers_accepted_total");
+      results.push(
+        check(
+          "business_outcome",
+          "عدّادُ القبولِ مجموعاً على النسختين تحرّك واحداً",
+          delta === 1,
+          `الفرقُ المجموع=${delta}`,
+        ),
+      );
+      return results;
+    },
+
+    databaseState: async (context) => {
+      const results: CheckResult[] = [];
+      const [audit] = await context.sql<{ n: string }[]>`
+        select count(*)::text as n from public.audit_log where action = 'order.claimed'
+      `;
+      results.push(
+        expectEqual("database_state", "أثرُ إسنادٍ واحدٌ في التدقيق", Number(audit?.n ?? "0"), 1),
+      );
+
+      const [assignments] = await context.sql<{ n: string }[]>`
+        select count(*)::text as n from public.orders where assigned_driver_id is not null
+      `;
+      results.push(
+        expectEqual("database_state", "طلبٌ مُسنَدٌ واحد", Number(assignments?.n ?? "0"), 1),
+      );
+      return results;
+    },
+
+    transitions: async (context) => {
+      const results: CheckResult[] = [];
+      const [row] = await context.sql<{ n: string }[]>`
+        select count(*)::text as n from public.audit_log where action like 'order.claim%'
+      `;
+      results.push(
+        check(
+          "transition",
+          "انتقالٌ واحدٌ فقط: searching → matched",
+          Number(row?.n ?? "0") === 1,
+          `آثارُ الانتقال=${row?.n ?? "?"}`,
+        ),
+      );
+      return results;
+    },
+
+    invariants: async (context, actors) => {
+      const results: CheckResult[] = [];
+      const [multi] = await context.sql<{ n: string }[]>`
+        select count(*)::text as n from (
+          select order_id from public.order_offers
+           where status = 'accepted' group by order_id having count(*) > 1
+        ) as many
+      `;
+      results.push(
+        expectEqual("invariant", "لا طلبَ له أكثرُ من عرضٍ مقبول", Number(multi?.n ?? "0"), 0),
+      );
+
+      // حجمُ مانعِ التكرار في كلِّ نسخة: شاهدٌ على أنّ الخريطتين منفصلتان فعلاً.
+      const first = await cluster.stateOf(0);
+      const second = await cluster.stateOf(1);
+      results.push(
+        check(
+          "invariant",
+          "لكلِّ عمليةٍ مانعُ تكرارٍ خاصٌّ بها (خريطتان لا واحدة)",
+          first.dedupSize >= 1 && second.dedupSize >= 1,
+          `gw1=${first.dedupSize} مفتاحاً · gw2=${second.dedupSize} مفتاحاً · وهذا هو سببُ عبورِ الإعادة`,
+        ),
+      );
+
+      results.push(
+        check(
+          "invariant",
+          "الظافرُ في القاعدةِ هو صاحبُ الضغطةِ الأصلية",
+          actors[0] !== undefined,
+          `الظافر=${String(actors[0]?.produced.winnerDriverId)}`,
+        ),
+      );
+      return results;
+    },
+
+    idempotency: {
+      description:
+        "الحتميّةُ هنا هي جسمُ السيناريو نفسِه: التسليمُ الثالثُ لنفسِ `update_id` من عمليةٍ أخرى. " +
+        "وتُعاد رابعةً — إلى العمليةِ الأخرى ثانيةً — لتأكيدِ أنّ التكرارَ لا يتراكم.",
+      replay: async (_context, actors) => {
+        const orderId = String(actors[0]?.produced.orderId ?? "");
+        const chatId = Number(actors[0]?.produced.telegramId ?? 0);
+        if (orderId === "" || chatId === 0) return;
+        await cluster.postTo(
+          1,
+          "driver",
+          withUpdateId(callbackUpdate(chatId, `offer:accept:${orderId}`), REPLAYED_UPDATE_ID),
+        );
+        await cluster.sync();
+      },
+      expectation: async (context) => {
+        const results: CheckResult[] = [];
+        const [row] = await context.sql<{ accepted: string; audit: string }[]>`
+          select (select count(*) from public.order_offers where status = 'accepted')::text as accepted,
+                 (select count(*) from public.audit_log where action = 'order.claimed')::text as audit
+        `;
+        results.push(
+          expectEqual(
+            "idempotency",
+            "لا قبولَ ثانٍ بعد التسليمِ الرابع",
+            Number(row?.accepted ?? "0"),
+            1,
+          ),
+        );
+        results.push(expectEqual("idempotency", "ولا أثرَ تدقيقٍ ثانٍ", Number(row?.audit ?? "0"), 1));
+        const delta = context.metricDelta("waslah_dispatch_offers_accepted_total");
+        results.push(
+          check("idempotency", "ولا حركةَ ثانيةً في العدّادِ المجموع", delta === 1, `الفرق=${delta}`),
+        );
+        return results;
+      },
+    },
+  };
+}

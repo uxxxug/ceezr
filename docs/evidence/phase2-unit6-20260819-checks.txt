@@ -1,0 +1,27 @@
+# بوّاباتُ الجودة — وحدة 2-6 (2026-08-19) — مخرجاتٌ حرفيّة
+
+$ bun run typecheck
+$ tsc --noEmit
+
+$ bun run lint | tail
+Checked 780 files in 1158ms. No fixes applied.
+Found 41 infos.
+
+$ for f in scripts/check-*.ts; do bun $f; done
+scripts/check-agent-core-isolation.ts: OK
+scripts/check-business-constants.ts: OK
+scripts/check-env-drift.ts: OK
+scripts/check-i18n.ts: OK
+scripts/check-map-matching-scope.ts: OK
+scripts/check-migrations.ts: OK
+scripts/check-schema-contract.ts: OK
+scripts/check-test-city-activation.ts: OK
+scripts/check-test-container-lifecycle.ts: OK
+
+$ TEST_DATABASE_URL=… CI_REQUIRE_DB=1 BENCH_DATABASE_URL=… bun test
+(pass) الفحص الهجومي الفعلي: ويبهوك ودخول وقاعدة > دور anon لا يقرأ أي جدول من جداول التطبيق ولا ينفذ أية دالة مملوكة [5.59ms]
+
+ 1862 pass
+ 0 fail
+ 7116 expect() calls
+Ran 1862 tests across 149 files. [196.21s]
