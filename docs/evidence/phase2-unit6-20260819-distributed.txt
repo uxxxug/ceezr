@@ -1,0 +1,231 @@
+── driver-onboarding · تسجيلُ سائقٍ جديد حتى بدءِ التجربة المجانية
+   الخدمة: subscription · المدّة: 292ms
+   طبولوجيا: 2 عملياتُ بوّابةٍ مستقلّةٌ (gw1:4501، gw2:4502) — كلٌّ بكومتِها وبِركةِ اتصالاتِها ومانعِ تكرارِها.
+   طبولوجيا: مخزنُ الجلسات وحدُّ المعدّل: مشتركٌ عبر HTTP على مزدوجِ Upstash REST.
+   طبولوجيا: قاعدةٌ واحدةٌ مشتركة: `waslah_bench` على نفس المُضيف — وهي المنسِّقُ الحقيقيُّ للثوابت.
+   طبولوجيا: الطلبُ يمرّ على مقبسِ TCP حقيقيٍّ إلى عمليةٍ أخرى، لا على `app.fetch` في نفس العملية.
+   طبولوجيا: العاملُ الدوريُّ داخلَ البوّاباتِ مُطفأ؛ عملياتُ العاملِ تُقلَع منفصلةً في اختبارِ ازدواجِ العاملين.
+   الفاعلون: 10/10 أتمّوا · p50=231.9ms p95=247.3ms max=247.3ms
+   التوكيدات:
+     ✅ [precondition] لا مستخدِمين قبل التشغيل — المتوقّع=0 · الملاحَظ=0
+     ✅ [precondition] لا سائقين قبل التشغيل — المتوقّع=0 · الملاحَظ=0
+     ✅ [precondition] المدينةُ مُفعَّلة — المدينة=JED · is_active=true
+     ✅ [precondition] الإعدادُ trial_days موجودٌ وموجَب — trial_days=30
+     ✅ [system_response] كلُّ سائقٍ استلم رسالةَ التسجيل باسمِه ومدينتِه — المتوقّع=10 · الملاحَظ=10
+     ✅ [system_response] كلُّ سائقٍ أُبلِغ بمدّةِ التجربة (30 يوماً) من الإعدادات — المتوقّع=10 · الملاحَظ=10
+     ✅ [business_outcome] لكلِّ سائقٍ مشتركٌ واحدٌ في التجربة — المتوقّع=10 · الملاحَظ=10
+     ✅ [business_outcome] نهايةُ التجربةِ مشتقّةٌ من الإعداد لا من ثابت — trial_days=30 · المُلاحَظ=[29, 29] يوماً
+     ✅ [business_outcome] لكلِّ سائقٍ قدرةُ نقلٍ مفعَّلةٌ واحدة — المتوقّع=10 · الملاحَظ=10
+     ✅ [database_state] صفُّ هويّةٍ لكلِّ سائقٍ في المدينةِ الصحيحةِ بدورِ سائق — المتوقّع=10 · الملاحَظ=10
+     ✅ [database_state] الجوالُ مُوحَّدٌ في الدومين إلى الصيغةِ الدولية — المتوقّع=10 · الملاحَظ=10
+     ✅ [database_state] صفُّ سائقٍ واحدٌ لكلِّ فاعل — المتوقّع=10 · الملاحَظ=10
+     ✅ [transition] الانتقالُ الأوّل: (لا حساب) → سائقٌ بانتظارِ التحقّق — المتوقّع=10 · الملاحَظ=10
+     ✅ [transition] لا انتقالَ إلى «متاح» قبل تحقّقِ الإدارة — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا هويّةَ وطنيةً مكرّرةً بين السائقين — سائقون=10 · هويّاتٌ مميّزة=10
+     ✅ [invariant] لا سائقَ له أكثرُ من مشترك — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا قدرةَ بلا سائقٍ يملكها — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] النظامُ صاغ رسائلَ فعلاً (رغم أنّ عدّادَ تلغرام صفرٌ بحكمِ المزدوج) — رسائلٌ مُلتقطة=120 · الحدُّ الأدنى المتوقّع=20
+     ✅ [idempotency] الإعادةُ لم تُنشئ سائقاً ثانياً — المتوقّع=10 · الملاحَظ=10
+     ✅ [idempotency] الإعادةُ لم تُنشئ مشتركاً ثانياً — المتوقّع=10 · الملاحَظ=10
+   فرقُ العدّادات:
+     waslah_telegram_messages_sent_total +0
+   HTTP (معلوماتيّ): 90 طلباً · 200×90
+   الحكم: ✅ نجاحُ عمل
+   توزيعُ الطلباتِ على النسخ: {"gw1":{"message":31,"callback:service:transport":6,"callback:vehicle:sedan":9,"callback:city:…":4},"gw2":{"message":39,"callback:city:…":6,"callback:service:transport":4,"callback:vehicle:sedan":1}}
+
+── ride-dispatch · طلبُ رحلةٍ حقيقيٍّ وبثُّه على السائقين المؤهّلين
+   الخدمة: transport · المدّة: 457ms
+   طبولوجيا: 2 عملياتُ بوّابةٍ مستقلّةٌ (gw1:4511، gw2:4512) — كلٌّ بكومتِها وبِركةِ اتصالاتِها ومانعِ تكرارِها.
+   طبولوجيا: مخزنُ الجلسات وحدُّ المعدّل: مشتركٌ عبر HTTP على مزدوجِ Upstash REST.
+   طبولوجيا: قاعدةٌ واحدةٌ مشتركة: `waslah_bench` على نفس المُضيف — وهي المنسِّقُ الحقيقيُّ للثوابت.
+   طبولوجيا: الطلبُ يمرّ على مقبسِ TCP حقيقيٍّ إلى عمليةٍ أخرى، لا على `app.fetch` في نفس العملية.
+   طبولوجيا: العاملُ الدوريُّ داخلَ البوّاباتِ مُطفأ؛ عملياتُ العاملِ تُقلَع منفصلةً في اختبارِ ازدواجِ العاملين.
+   تهيئة: سائقٌ متاحٌ 910000 عند (21.5458, 39.1753)
+   تهيئة: سائقٌ متاحٌ 910001 عند (21.5483, 39.1778)
+   تهيئة: سائقٌ متاحٌ 910002 عند (21.5508, 39.1803)
+   تهيئة: سائقٌ متاحٌ 910003 عند (21.5533, 39.1828)
+   تهيئة: سائقٌ متاحٌ 910004 عند (21.5558, 39.1853)
+   الفاعلون: 5/5 أتمّوا · p50=146.7ms p95=153.0ms max=153.0ms
+   التوكيدات:
+     ✅ [precondition] سائقون موثَّقون متاحون بمواقعَ مسجَّلة — المتوقّع=5 · الملاحَظ=5
+     ✅ [precondition] لا طلبات قبل التشغيل — المتوقّع=0 · الملاحَظ=0
+     ✅ [precondition] لا عروض قبل التشغيل — المتوقّع=0 · الملاحَظ=0
+     ✅ [system_response] كلُّ عميلٍ أُبلِغ ببدءِ البحث — المتوقّع=5 · الملاحَظ=5
+     ✅ [system_response] العددُ المُبلَّغُ للعميلِ يطابق عددَ العروضِ في القاعدة — المتوقّع=5 · الملاحَظ=5
+     ✅ [system_response] عدّادُ طلباتِ الإسناد تحرّك بعددِ الطلبات — الفرق=5 · المتوقّع=5
+     ✅ [system_response] لكلِّ عرضٍ في القاعدة رسالةٌ للسائقِ فيها زرُّ قبولٍ للطلبِ نفسِه — المتوقّع=25 · الملاحَظ=25
+     ✅ [business_outcome] لكلِّ عميلٍ طلبٌ واحدٌ في حالةِ البحث — المتوقّع=5 · الملاحَظ=5
+     ✅ [business_outcome] بُثَّ على الأقلِّ طلبٌ واحد — وإلّا لم يُختبَر الإسنادُ أصلاً — طلباتٌ بُثَّت=5 من 5
+     ✅ [business_outcome] المسافةُ في كلِّ عرضٍ محسوبةٌ فعلاً (> 0) — أصغرُ مسافة=0.380km · أكبرُها=3.417km
+     ✅ [database_state] إحداثيةُ كلِّ طلبٍ مطابقةٌ لما أرسله صاحبُه، ومدينتُه صحيحة — المتوقّع=5 · الملاحَظ=5
+     ✅ [database_state] كلُّ طلبٍ في دورةِ البثِّ الأولى — المتوقّع=5 · الملاحَظ=5
+     ✅ [database_state] كلُّ العروضِ المكتوبةِ في حالةِ الانتظار — منتظِرة=25 من 25
+     ✅ [transition] الانتقالُ: (لا طلب) → searching، ولا انتقالَ إلى matched قبل القبول — طلباتٌ خارجَ searching=0 · الفاعلون=5
+     ✅ [transition] لا أثرَ إسنادٍ في سجلِّ التدقيق — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا عرضَ مكرّرٌ لنفسِ السائقِ على نفسِ الطلب — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا عرضَ مقبولٌ قبل أن يقبل أحد — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا عرضَ بلا طلبٍ يملكه — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا عرضَ عبرَ المدن — سائقُ كلِّ عرضٍ في مدينةِ الطلب — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] كلُّ فاعلٍ أنتج طلباً (لا فاعلَ بلا نتيجة) — فاعلون بلا طلب=0
+     ✅ [idempotency] الإعادةُ لم تُنشئ طلباً ثانياً — المتوقّع=5 · الملاحَظ=5
+   فرقُ العدّادات:
+     waslah_dispatch_requests_total +5
+     waslah_dispatch_offers_sent_total +25
+     waslah_dispatch_no_driver_total +0
+     waslah_dispatch_offers_accepted_total +0
+   HTTP (معلوماتيّ): 15 طلباً · 200×15
+   الحكم: ✅ نجاحُ عمل
+   توزيعُ الطلباتِ على النسخ: {"gw1":{"message":36,"callback:service:transport":3,"callback:city:…":4,"callback:vehicle:sedan":2},"gw2":{"message":34,"callback:city:…":6,"callback:vehicle:sedan":3,"callback:service:transport":2}}
+
+── contended-accept · تسابقُ سائقين على طلبٍ واحد: ظافرٌ واحدٌ بالضبط
+   الخدمة: transport · المدّة: 342ms
+   طبولوجيا: 2 عملياتُ بوّابةٍ مستقلّةٌ (gw1:4521، gw2:4522) — كلٌّ بكومتِها وبِركةِ اتصالاتِها ومانعِ تكرارِها.
+   طبولوجيا: مخزنُ الجلسات وحدُّ المعدّل: مشتركٌ عبر HTTP على مزدوجِ Upstash REST.
+   طبولوجيا: قاعدةٌ واحدةٌ مشتركة: `waslah_bench` على نفس المُضيف — وهي المنسِّقُ الحقيقيُّ للثوابت.
+   طبولوجيا: الطلبُ يمرّ على مقبسِ TCP حقيقيٍّ إلى عمليةٍ أخرى، لا على `app.fetch` في نفس العملية.
+   طبولوجيا: العاملُ الدوريُّ داخلَ البوّاباتِ مُطفأ؛ عملياتُ العاملِ تُقلَع منفصلةً في اختبارِ ازدواجِ العاملين.
+   تهيئة: سائقٌ متسابقٌ 910000 (سائق=33b790ec…)
+   تهيئة: سائقٌ متسابقٌ 910001 (سائق=f030439d…)
+   تهيئة: سائقٌ متسابقٌ 910002 (سائق=0615281c…)
+   تهيئة: سائقٌ متسابقٌ 910003 (سائق=62085b3f…)
+   تهيئة: عميلٌ 960000 طلب رحلةً فبُثَّت على 4 سائقاً
+   الفاعلون: 4/4 أتمّوا · p50=42.6ms p95=47.0ms max=47.0ms
+   التوكيدات:
+     ✅ [precondition] طلبٌ واحدٌ في القاعدة — المتوقّع=1 · الملاحَظ=1
+     ✅ [precondition] والطلبُ في حالةِ البحث — المتوقّع=1 · الملاحَظ=1
+     ✅ [precondition] عرضان على الأقلِّ منتظِران — وإلّا فلا تسابقَ يُقاس — عروض=4 · منتظِرة=4 · متسابقون=4
+     ✅ [precondition] لا إسنادَ قبل التسابق — المتوقّع=0 · الملاحَظ=0
+     ✅ [system_response] رسالةُ قبولٍ واحدةٌ فقط بين كلِّ المتسابقين — المتوقّع=1 · الملاحَظ=1
+     ✅ [system_response] كلُّ خاسرٍ أُبلِغ بأنّ الطلبَ أُخِذ — المتوقّع=3 · الملاحَظ=3
+     ✅ [system_response] بطاقةُ الرحلةِ للظافرِ وحده — المتوقّع=1 · الملاحَظ=1
+     ✅ [system_response] دبّوسُ موقعٍ واحدٌ — لا رؤيةَ عبرَ الرحلات — المتوقّع=1 · الملاحَظ=1
+     ✅ [business_outcome] الطلبُ صار مُسنَداً (matched) — المتوقّع="matched" · الملاحَظ="matched"
+     ✅ [business_outcome] وله سائقٌ مُسنَدٌ صريح — assigned_driver_id=33b790ec-9d3c-4bf7-ba0d-040c04ec051b
+     ✅ [business_outcome] عرضٌ مقبولٌ واحدٌ بالضبط رغم تسابقِ الجميع — المتوقّع=1 · الملاحَظ=1
+     ✅ [business_outcome] الطلبُ مُسنَدٌ لصاحبِ العرضِ المقبولِ نفسِه — المُسنَد=33b790ec-9d3c-4bf7-ba0d-040c04ec051b · صاحبُ العرضِ المقبول=33b790ec-9d3c-4bf7-ba0d-040c04ec051b
+     ✅ [business_outcome] عدّادُ القبولِ تحرّك واحداً لا بعددِ المتسابقين — الفرق=1 · المتسابقون الذين ضغطوا=4
+     ✅ [database_state] لا عرضَ بقي منتظِراً — المتوقّع=0 · الملاحَظ=0
+     ✅ [database_state] عرضٌ مقبولٌ واحد — المتوقّع=1 · الملاحَظ=1
+     ✅ [database_state] أثرٌ مدقَّقٌ واحدٌ للإسناد — المتوقّع=1 · الملاحَظ=1
+     ✅ [transition] الانتقالُ: searching → matched مرّةً واحدة — الحالةُ النهائية=matched
+     ✅ [transition] لا انتقالَ ثانٍ: أثرُ إسنادٍ واحدٌ لا أكثر — آثارُ إسناد=1
+     ✅ [invariant] لا طلبَ مُسنَدٌ بلا سائق — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا طلبَ له أكثرُ من عرضٍ مقبول — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا سائقَ أُسنِد إليه أكثرُ من طلبٍ في هذا التشغيل — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] كلُّ المتسابقين ضغطوا فعلاً (وإلّا فالتسابقُ أصغرُ مما يُظنّ) — ضغطوا=4 من 4
+     ✅ [idempotency] الإعادةُ لم تُنشئ قبولاً ثانياً — المتوقّع=1 · الملاحَظ=1
+     ✅ [idempotency] ولا أثرَ تدقيقٍ ثانياً — المتوقّع=1 · الملاحَظ=1
+     ✅ [idempotency] ولا حركةَ ثانيةً في عدّادِ القبول — الفرقُ بعد الإعادة=1
+   فرقُ العدّادات:
+     waslah_dispatch_offers_accepted_total +1
+     waslah_dispatch_offers_sent_total +0
+   HTTP (معلوماتيّ): 4 طلباً · 200×4
+   الحكم: ✅ نجاحُ عمل
+   توزيعُ الطلباتِ على النسخ: {"gw1":{"message":18,"callback:service:transport":2,"callback:city:…":3,"callback:vehicle:sedan":2,"callback:offer:accept":3},"gw2":{"message":19,"callback:city:…":2,"callback:vehicle:sedan":2,"callback:service:transport":2,"callback:offer:accept":2}}
+
+── cross-process-replay · إعادةُ نفسِ التحديثِ إلى عمليةٍ أخرى: الحالةُ التجارية لا تتكرّر
+   الخدمة: transport · المدّة: 232ms
+   طبولوجيا: 2 عملياتُ بوّابةٍ مستقلّةٌ (gw1:4531، gw2:4532) — كلٌّ بكومتِها وبِركةِ اتصالاتِها ومانعِ تكرارِها.
+   طبولوجيا: مخزنُ الجلسات وحدُّ المعدّل: مشتركٌ عبر HTTP على مزدوجِ Upstash REST.
+   طبولوجيا: قاعدةٌ واحدةٌ مشتركة: `waslah_bench` على نفس المُضيف — وهي المنسِّقُ الحقيقيُّ للثوابت.
+   طبولوجيا: الطلبُ يمرّ على مقبسِ TCP حقيقيٍّ إلى عمليةٍ أخرى، لا على `app.fetch` في نفس العملية.
+   طبولوجيا: العاملُ الدوريُّ داخلَ البوّاباتِ مُطفأ؛ عملياتُ العاملِ تُقلَع منفصلةً في اختبارِ ازدواجِ العاملين.
+   تهيئة: سائقٌ متاحٌ 910000 (سائق=11d84d7d…)
+   تهيئة: سائقٌ متاحٌ 910001 (سائق=91798030…)
+   تهيئة: طلبٌ واحدٌ بُثَّ على 2 عرضاً منتظِراً
+   تهيئة: نسخُ العنقود: gw1، gw2
+   الفاعلون: 1/1 أتمّوا · p50=15.3ms p95=15.3ms max=15.3ms
+   التوكيدات:
+     ✅ [precondition] بوّابتان على الأقلِّ في العنقود — وإلّا فلا معنى لـ«عمليةٍ أخرى» — النسخ=2
+     ✅ [precondition] عرضان منتظِران — المتوقّع=2 · الملاحَظ=2
+     ✅ [precondition] لا إسنادَ قبل البداية — المتوقّع=0 · الملاحَظ=0
+     ✅ [system_response] الأصلُ أنتج رسالةَ قبولٍ واحدةً للظافر — المتوقّع=1 · الملاحَظ=1
+     ✅ [system_response] الإعادةُ على نفسِ العملية لم تُنتج رسالةً — حُجِبت في المانع — المتوقّع=0 · الملاحَظ=0
+     ✅ [system_response] الإعادةُ عبرَ العمليةِ الأخرى وصلت منطقَ العمل (لم تُحجَب) — وإلّا فلا شيءَ قيس — رسائلُ الإعادةِ العابرة=1 · نصُّها=«سبقك سائق آخر إلى هذا الطلب.»
+     ✅ [business_outcome] عرضٌ مقبولٌ واحدٌ بعد ثلاثِ تسليمات — المتوقّع=1 · الملاحَظ=1
+     ✅ [business_outcome] ولا عرضَ بقي منتظِراً — المتوقّع=0 · الملاحَظ=0
+     ✅ [business_outcome] الطلبُ مُسنَد — المتوقّع="matched" · الملاحَظ="matched"
+     ✅ [business_outcome] والإسنادُ لصاحبِ الضغطةِ الأصلية لا لغيره — المتوقّع="11d84d7d-30d5-4155-a48b-f09f81ac54ba" · الملاحَظ="11d84d7d-30d5-4155-a48b-f09f81ac54ba"
+     ✅ [business_outcome] عدّادُ القبولِ مجموعاً على النسختين تحرّك واحداً — الفرقُ المجموع=1
+     ✅ [database_state] أثرُ إسنادٍ واحدٌ في التدقيق — المتوقّع=1 · الملاحَظ=1
+     ✅ [database_state] طلبٌ مُسنَدٌ واحد — المتوقّع=1 · الملاحَظ=1
+     ✅ [transition] انتقالٌ واحدٌ فقط: searching → matched — آثارُ الانتقال=1
+     ✅ [invariant] لا طلبَ له أكثرُ من عرضٍ مقبول — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لكلِّ عمليةٍ مانعُ تكرارٍ خاصٌّ بها (خريطتان لا واحدة) — gw1=1 مفتاحاً · gw2=1 مفتاحاً · وهذا هو سببُ عبورِ الإعادة
+     ✅ [invariant] الظافرُ في القاعدةِ هو صاحبُ الضغطةِ الأصلية — الظافر=11d84d7d-30d5-4155-a48b-f09f81ac54ba
+     ✅ [idempotency] لا قبولَ ثانٍ بعد التسليمِ الرابع — المتوقّع=1 · الملاحَظ=1
+     ✅ [idempotency] ولا أثرَ تدقيقٍ ثانٍ — المتوقّع=1 · الملاحَظ=1
+     ✅ [idempotency] ولا حركةَ ثانيةً في العدّادِ المجموع — الفرق=1
+   فرقُ العدّادات:
+     waslah_dispatch_offers_accepted_total +1
+     waslah_telegram_webhook_duplicates_total +2
+   HTTP (معلوماتيّ): 3 طلباً · 200×3
+   الحكم: ✅ نجاحُ عمل
+   توزيعُ الطلباتِ على النسخ: {"gw1":{"message":10,"callback:service:transport":1,"callback:city:…":2,"callback:vehicle:sedan":1,"callback:offer:accept":2},"gw2":{"message":11,"callback:city:…":1,"callback:vehicle:sedan":1,"callback:service:transport":1,"callback:offer:accept":2}}
+
+── gateway-death-midflight · موتُ بوّابةٍ قسراً وسطَ المسار: النتيجةُ التجاريةُ تصل على الباقية
+   الخدمة: transport · المدّة: 230ms
+   طبولوجيا: 2 عملياتُ بوّابةٍ مستقلّةٌ (gw1:4541، gw2:4542) — كلٌّ بكومتِها وبِركةِ اتصالاتِها ومانعِ تكرارِها.
+   طبولوجيا: مخزنُ الجلسات وحدُّ المعدّل: مشتركٌ عبر HTTP على مزدوجِ Upstash REST.
+   طبولوجيا: قاعدةٌ واحدةٌ مشتركة: `waslah_bench` على نفس المُضيف — وهي المنسِّقُ الحقيقيُّ للثوابت.
+   طبولوجيا: الطلبُ يمرّ على مقبسِ TCP حقيقيٍّ إلى عمليةٍ أخرى، لا على `app.fetch` في نفس العملية.
+   طبولوجيا: العاملُ الدوريُّ داخلَ البوّاباتِ مُطفأ؛ عملياتُ العاملِ تُقلَع منفصلةً في اختبارِ ازدواجِ العاملين.
+   تهيئة: سائقٌ متاحٌ 910000
+   تهيئة: سائقٌ متاحٌ 910001
+   تهيئة: توزيعُ التهيئةِ على النسخ: {"gw1":{"message":10,"callback:service:transport":1,"callback:city:…":2,"callback:vehicle:sedan":1},"gw2":{"message":11,"callback:city:…":1,"callback:vehicle:sedan":1,"callback:service:transport":1}}
+   الفاعلون: 1/1 أتمّوا · p50=13.5ms p95=13.5ms max=13.5ms
+   التوكيدات:
+     ✅ [precondition] البوّابتان حيّتان قبل القتل — gw1=حيّة · gw2=حيّة
+     ✅ [precondition] عرضان منتظِران — المتوقّع=2 · الملاحَظ=2
+     ✅ [system_response] البوّابةُ المقتولةُ ماتت فعلاً — لا تستجيب لطلبِ حالة — حالةُ gw1=لا تستجيب · alive=false
+     ✅ [system_response] الباقيةُ ردّت 200 على القبول — المتوقّع=200 · الملاحَظ=200
+     ✅ [system_response] وأرسلت تأكيدَ القبولِ للسائق — المتوقّع=1 · الملاحَظ=1
+     ✅ [business_outcome] عرضٌ مقبولٌ واحد — المتوقّع=1 · الملاحَظ=1
+     ✅ [business_outcome] ولا عرضَ منتظِرٌ يتيم — المتوقّع=0 · الملاحَظ=0
+     ✅ [business_outcome] الطلبُ مُسنَد — المتوقّع="matched" · الملاحَظ="matched"
+     ✅ [business_outcome] لصاحبِ الضغطةِ لا لغيره — المتوقّع="bd2f6e80-469b-45e0-9edf-d108d6a0e740" · الملاحَظ="bd2f6e80-469b-45e0-9edf-d108d6a0e740"
+     ✅ [database_state] أثرُ إسنادٍ واحد — المتوقّع=1 · الملاحَظ=1
+     ✅ [transition] لا طلبَ عالقٌ في البحث بعد الموت — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] لا طلبَ له أكثرُ من عرضٍ مقبول — المتوقّع=0 · الملاحَظ=0
+     ✅ [invariant] النتيجةُ تحقّقت وفي العنقودِ عمليةٌ واحدةٌ حيّةٌ فقط — حيّة=gw2
+     ✅ [invariant] مقيسٌ ومُعلَن: عدّاداتُ العمليةِ الميتةِ تُفقَد بموتِها (القياسُ لكلِّ عملية) — المقروءُ الآن مجموعُ الحيّةِ وحدَها؛ فرقُ عدّادِ القبول=1
+     ✅ [idempotency] لا قبولَ ثانٍ — المتوقّع=1 · الملاحَظ=1
+     ✅ [idempotency] ولا أثرَ ثانٍ — المتوقّع=1 · الملاحَظ=1
+   فرقُ العدّادات:
+     waslah_dispatch_offers_accepted_total +1
+   HTTP (معلوماتيّ): 1 طلباً · 200×1
+   الحكم: ✅ نجاحُ عمل
+   توزيعُ الطلباتِ على النسخ: {"gw1":{"message":10,"callback:service:transport":1,"callback:city:…":2,"callback:vehicle:sedan":1},"gw2":{"message":11,"callback:city:…":1,"callback:vehicle:sedan":1,"callback:service:transport":1,"callback:offer:accept":2}}
+
+── shared-session-negative-control · ضبطٌ سالب: مخزنُ الجلساتِ المشتركُ شرطٌ لعملِ أكثرَ من نسخة
+   طبولوجيا: عنقودان يُقلَعان بالتتابع، كلٌّ ببوّابتين في عمليتين: الأوّلُ `SESSION_STORE=redis` والثاني `memory`.
+   طبولوجيا: نفسُ الحوارِ ونفسُ التقسيمِ في الحالتين: `/start` إلى gw1 ثم الاسمُ إلى gw2.
+   ملاحظة: مخزنٌ مشترك · ردُّ العمليةِ الثانية: «📱 اضغط زرّ مشاركة الرقم أدناه — ضغطة واحدة تكفي.»
+   ملاحظة: أوامرُ المزدوجِ المشترك: {"INCR":2,"EXPIRE":1,"GET":2,"SET":2}
+   ملاحظة: مخزنُ ذاكرةٍ لكلِّ عملية · ردُّ العمليةِ الثانية: «🤔 لم أفهم هذه الرسالة. أرسل /help لعرض ما أستطيع فعله.»
+   التوكيدات:
+     ✅ [system_response] بمخزنٍ مشترك: الحوارُ يتقدّم في العمليةِ الثانية إلى خطوةِ الجوّال — المتوقّع=«📱 اضغط زرّ مشاركة الرقم أدناه — ضغطة واحدة تكفي.» · الملاحَظ=«📱 اضغط زرّ مشاركة الرقم أدناه — ضغطة واحدة تكفي.»
+     ✅ [invariant] بمخزنِ ذاكرةٍ لكلِّ عملية: الحوارُ لا يتقدّم — العمليةُ الثانيةُ لا ترى الجلسة — الملاحَظ=«🤔 لم أفهم هذه الرسالة. أرسل /help لعرض ما أستطيع فعله.» · وهو ليس «📱 اضغط زرّ مشاركة الرقم أدناه — ضغطة واحدة تكفي.»
+     ✅ [business_outcome] والنتيجتان مختلفتان فعلاً — فالمخزنُ المشترك سببٌ لا مصادفة — مشترك=«📱 اضغط زرّ مشاركة الرقم أدناه — ضغطة واحدة تكفي.» · معزول=«🤔 لم أفهم هذه الرسالة. أرسل /help لعرض ما أستطيع فعله.» · (خطوةُ الاسم=«أرسل اسمك الكامل كما في الهوية:»)
+   الحكم: ✅ نجاحُ عمل
+
+── worker-duel · عاملان في عمليتين على نفسِ المهامّ: القفلُ الاستشاريُّ في القاعدة
+   طبولوجيا: عمليتا عاملٍ مستقلّتان (w1، w2) على نفسِ قاعدةِ `waslah_bench`، كلٌّ بجلستِها وبِركةِ أقفالِها.
+   طبولوجيا: المهامُّ هي مهامُّ الإنتاج من `buildWorkerContainer`؛ المُرسِلاتُ الخارجةُ مزدوجاتٌ صامتة.
+   طبولوجيا: القفل: `pg_try_advisory_lock` على اتصالٍ محجوزٍ — نفسُ ما يعمل في الإنتاج.
+   طبولوجيا: حاجزٌ زمنيٌّ مشتركٌ يجعل الشوطين متزامنين؛ ومهمّةُ الفحصِ الحتميِّ: redispatch-searching.
+   ملاحظة: # duel · barrier=2026-08-19T03:27:24.293Z
+   ملاحظة: {"workerId":"w1","pid":18399,"outcomes":[{"name":"redispatch-searching:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":35,"detail":null},{"name":"sweep-unmatched:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":36,"detail":null},{"name":"expire-offers:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":36,"detail":null},{"name":"rotate-negotiations:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"expire-tracking-tokens:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":44,"detail":"pulled=0"},{"name":"cleanup-stale:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":29,"detail":"deactivated=0 staleMinutes=180"},{"name":"warn-expiring:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":32,"detail":"days=2 examined=0 warned=0 failed=0"},{"name":"expire-tracking-tokens:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"skipped_locked_elsewhere","durationMs":5,"detail":null},{"name":"expire-offers:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"skipped_locked_elsewhere","durationMs":3,"detail":null},{"name":"deliver-subscription-notices:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":30,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"deliver-broadcasts:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":49,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"rotate-negotiations:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":16,"detail":"advanced=0 republished=0 escalated=0 failures=0"},{"name":"redispatch-searching:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":19,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"warn-expiring:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"deliver-broadcasts:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"sweep-unmatched:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":21,"detail":"examined=0 unsubOffered=0 unsubWaiting=0 escalated=0 notified=0 widerCircle=0 already=0 broadcasting=0 failed=0"},{"name":"cleanup-stale:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"skipped_locked_elsewhere","durationMs":5,"detail":null},{"name":"deliver-subscription-notices:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":7,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"expire-tracking-tokens:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":10,"detail":"pulled=0"},{"name":"redispatch-searching:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":11,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"expire-offers:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":14,"detail":"examined=0 expired=0"},{"name":"sweep-unmatched:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":12,"detail":"examined=0 unsubOffered=0 unsubWaiting=0 escalated=0 notified=0 widerCircle=0 already=0 broadcasting=0 failed=0"},{"name":"deliver-broadcasts:65348686-c2ca-4399-b09e-1d689f508c5e","status":"skipped_locked_elsewhere","durationMs":1,"detail":null},{"name":"rotate-negotiations:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":10,"detail":"advanced=0 republished=0 escalated=0 failures=0"},{"name":"cleanup-stale:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":8,"detail":"deactivated=0 staleMinutes=180"},{"name":"deliver-subscription-notices:65348686-c2ca-4399-b09e-1d689f508c5e","status":"skipped_locked_elsewhere","durationMs":0,"detail":null},{"name":"expire-tracking-tokens:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"skipped_locked_elsewhere","durationMs":1,"detail":null},{"name":"redispatch-searching:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":4,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"expire-offers:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"skipped_locked_elsewhere","durationMs":4,"detail":null},{"name":"rotate-negotiations:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":2,"detail":"advanced=0 republished=0 escalated=0 failures=0"},{"name":"warn-expiring:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":14,"detail":"days=2 examined=0 warned=0 failed=0"},{"name":"cleanup-stale:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":8,"detail":"deactivated=0 staleMinutes=180"},{"name":"warn-expiring:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":9,"detail":"days=2 examined=0 warned=0 failed=0"},{"name":"sweep-unmatched:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":16,"detail":"examined=0 unsubOffered=0 unsubWaiting=0 escalated=0 notified=0 widerCircle=0 already=0 broadcasting=0 failed=0"},{"name":"expire-tracking-tokens:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"expire-offers:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"skipped_locked_elsewhere","durationMs":1,"detail":null},{"name":"redispatch-searching:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"skipped_locked_elsewhere","durationMs":1,"detail":null},{"name":"sweep-unmatched:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"skipped_locked_elsewhere","durationMs":0,"detail":null},{"name":"deliver-broadcasts:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":11,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"deliver-subscription-notices:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":8,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"rotate-negotiations:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":8,"detail":"advanced=0 republished=0 escalated=0 failures=0"},{"name":"cleanup-stale:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":13,"detail":"deactivated=0 staleMinutes=180"},{"name":"deliver-broadcasts:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":11,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"deliver-safety-incidents","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"expire-subscriptions","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"deliver-subscription-notices:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":9,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"warn-expiring:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":15,"detail":"days=2 examined=0 warned=0 failed=0"},{"name":"recompute-ratings","status":"skipped_locked_elsewhere","durationMs":2,"detail":null}]}
+   ملاحظة: {"workerId":"w2","pid":18400,"outcomes":[{"name":"expire-tracking-tokens:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":29,"detail":"pulled=0"},{"name":"redispatch-searching:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":42,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"cleanup-stale:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":9,"detail":null},{"name":"rotate-negotiations:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":24,"detail":"advanced=0 republished=0 escalated=0 failures=0"},{"name":"deliver-broadcasts:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":4,"detail":null},{"name":"warn-expiring:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":7,"detail":null},{"name":"deliver-subscription-notices:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":3,"detail":null},{"name":"expire-offers:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":77,"detail":"examined=0 expired=0"},{"name":"sweep-unmatched:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":78,"detail":"examined=0 unsubOffered=0 unsubWaiting=0 escalated=0 notified=0 widerCircle=0 already=0 broadcasting=0 failed=0"},{"name":"redispatch-searching:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"expire-tracking-tokens:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":23,"detail":"pulled=0"},{"name":"sweep-unmatched:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"skipped_locked_elsewhere","durationMs":3,"detail":null},{"name":"rotate-negotiations:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"skipped_locked_elsewhere","durationMs":3,"detail":null},{"name":"deliver-broadcasts:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":13,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"cleanup-stale:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":15,"detail":"deactivated=0 staleMinutes=180"},{"name":"warn-expiring:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":22,"detail":"days=2 examined=0 warned=0 failed=0"},{"name":"expire-offers:65348686-c2ca-4399-b09e-1d689f508c5e","status":"skipped_locked_elsewhere","durationMs":0,"detail":null},{"name":"deliver-subscription-notices:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":9,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"expire-offers:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":46,"detail":"examined=0 expired=0"},{"name":"sweep-unmatched:65348686-c2ca-4399-b09e-1d689f508c5e","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"expire-tracking-tokens:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":11,"detail":"pulled=0"},{"name":"rotate-negotiations:65348686-c2ca-4399-b09e-1d689f508c5e","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"warn-expiring:65348686-c2ca-4399-b09e-1d689f508c5e","status":"skipped_locked_elsewhere","durationMs":1,"detail":null},{"name":"cleanup-stale:65348686-c2ca-4399-b09e-1d689f508c5e","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"redispatch-searching:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":9,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"deliver-broadcasts:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":5,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"deliver-subscription-notices:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":8,"detail":"claimed=0 sent=0 failed=0 retried=0"},{"name":"sweep-unmatched:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"skipped_locked_elsewhere","durationMs":0,"detail":null},{"name":"expire-tracking-tokens:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":9,"detail":"pulled=0"},{"name":"cleanup-stale:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"warn-expiring:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"redispatch-searching:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":8,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"expire-offers:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":9,"detail":"examined=0 expired=0"},{"name":"deliver-broadcasts:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"skipped_locked_elsewhere","durationMs":3,"detail":null},{"name":"rotate-negotiations:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":8,"detail":"advanced=0 republished=0 escalated=0 failures=0"},{"name":"deliver-subscription-notices:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"skipped_locked_elsewhere","durationMs":3,"detail":null},{"name":"redispatch-searching:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":7,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"expire-tracking-tokens:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":12,"detail":"pulled=0"},{"name":"expire-offers:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":12,"detail":"examined=0 expired=0"},{"name":"cleanup-stale:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"skipped_locked_elsewhere","durationMs":3,"detail":null},{"name":"warn-expiring:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"skipped_locked_elsewhere","durationMs":0,"detail":null},{"name":"deliver-broadcasts:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"sweep-unmatched:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":14,"detail":"examined=0 unsubOffered=0 unsubWaiting=0 escalated=0 notified=0 widerCircle=0 already=0 broadcasting=0 failed=0"},{"name":"deliver-subscription-notices:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"skipped_locked_elsewhere","durationMs":2,"detail":null},{"name":"rotate-negotiations:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":12,"detail":"advanced=0 republished=0 escalated=0 failures=0"},{"name":"expire-subscriptions","status":"ran","durationMs":6,"detail":"expired=0"},{"name":"deliver-safety-incidents","status":"ran","durationMs":6,"detail":"claimed=0 delivered=0 failed=0 deferred=0"},{"name":"recompute-ratings","status":"ran","durationMs":8,"detail":"drivers=0 riders=0"}]}
+   ملاحظة: # probe-names ["redispatch-searching:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","redispatch-searching:65348686-c2ca-4399-b09e-1d689f508c5e","redispatch-searching:8e48d7a6-9790-4905-86d2-22e0eddf0082","redispatch-searching:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","redispatch-searching:4a3a162b-d244-4b89-8dce-8e17fc756572"]
+   ملاحظة: # blocked-by-external-lock {"workerId":"blocked","pid":18447,"outcomes":[{"name":"redispatch-searching:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"skipped_locked_elsewhere","durationMs":19,"detail":null},{"name":"redispatch-searching:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":28,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"redispatch-searching:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":19,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"redispatch-searching:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":38,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"redispatch-searching:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":40,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"}]}
+   ملاحظة: # after-connection-drop {"workerId":"after-drop","pid":18463,"outcomes":[{"name":"redispatch-searching:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c","status":"ran","durationMs":23,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"redispatch-searching:65348686-c2ca-4399-b09e-1d689f508c5e","status":"ran","durationMs":29,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"redispatch-searching:d1b1993a-157c-42a9-90e6-6d63bfcd51d7","status":"ran","durationMs":32,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"redispatch-searching:4a3a162b-d244-4b89-8dce-8e17fc756572","status":"ran","durationMs":37,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"},{"name":"redispatch-searching:8e48d7a6-9790-4905-86d2-22e0eddf0082","status":"ran","durationMs":14,"detail":"examined=0 rebroadcast=0 noDriver=0 exhausted=0 raced=0 failed=0"}]}
+   التوكيدات:
+     ✅ [invariant] لا تنفيذَين متقاطعَين زمنياً لنفسِ المهمّةِ في العمليتين — وهذا ما يضمنه القفل — 48 مهمّةً و7 زوجَ تنفيذٍ فُحِصت، ولا تقاطعَ واحد
+     ✅ [system_response] مقيسٌ ومُعلَن: القفلُ يمنع التقاطعَ لا التكرارَ في نفسِ النافذة — مهامٌّ نفّذها العاملان كلاهما في هذا الشوط=7 — لا خللٌ بل نتيجةُ جدولةٍ محليّةٍ لكلِّ عملية، وأمانُها من ذرّيّةِ مطالبةِ الصفوفِ في المهامِّ نفسِها
+     ✅ [system_response] التزاحمُ وقعَ فعلاً (رُصِد `skipped_locked_elsewhere`) — وإلّا لكانت النتيجةُ توقيتاً لا قفلاً — مهامٌّ امتنعت لقفلٍ في مكانٍ آخر=41
+     ✅ [system_response] ولا مهمّةَ فشلت في أيٍّ من العمليتين — لا فشل
+     ✅ [system_response] العمليتان خرجتا بشفرةِ نجاح — w1=0 · w2=0
+     ✅ [invariant] قفلٌ محتجَزٌ من جلسةٍ أخرى يمنعُ العاملَ فعلاً (الحاجزُ في القاعدةِ لا في التطبيق) — حالةُ redispatch-searching:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c = skipped_locked_elsewhere
+     ✅ [transition] بعد سقوطِ اتّصالِ حاملِ القفل، القفلُ حُرِّر والعاملُ التاليُ اشتغل — لا قفلٌ يتيمٌ يُجمِّد المهامّ — حالةُ redispatch-searching:1b70c3e6-b65a-4d03-9a0a-5874e2defe4c بعد سقوطِ الاتصال = ran
+   الحكم: ✅ نجاحُ عمل

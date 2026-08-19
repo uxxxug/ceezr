@@ -22,7 +22,7 @@ import type {
   ScenarioDefinition,
 } from "./contract.ts";
 import { validateScenario } from "./contract.ts";
-import { HARNESS_MOCKS, type ScenarioEnv } from "./harness.ts";
+import type { MeasurementScope, ScenarioEnvironment } from "./env.ts";
 import { sumMetric } from "./metrics-text.ts";
 
 export interface LatencySummary {
@@ -135,6 +135,8 @@ export interface ScenarioReport {
   readonly title: string;
   readonly service: string;
   readonly startedAt: string;
+  /** الطبولوجيا التي جرى عليها هذا السيناريو — تأتي من البيئة لا من السيناريو. */
+  readonly topology: readonly string[];
   readonly durationMs: number;
   /** ما هُيّئ فعلاً قبل التنفيذ — لا يُقرأ رقمٌ من التقرير بلا معرفتِه. */
   readonly arranged: readonly string[];
@@ -168,10 +170,7 @@ export interface ScenarioReport {
   readonly verdict: Verdict;
   readonly reasons: readonly string[];
   /** ما يقيسه هذا التشغيل فعلاً، وما لا يقيسه — §8 من الأمر الحاكم. */
-  readonly measurementScope: {
-    readonly measures: readonly string[];
-    readonly doesNotMeasure: readonly string[];
-  };
+  readonly measurementScope: MeasurementScope;
 }
 
 export interface RunOptions {
@@ -196,7 +195,7 @@ const gather = async (
  * كلِّ الفاعلين — لأن توكيداً وسط التزاحم يقيس لحظةً عابرةً لا نتيجة.
  */
 export async function runScenario(
-  env: ScenarioEnv,
+  env: ScenarioEnvironment,
   definition: ScenarioDefinition,
   options: RunOptions = {},
 ): Promise<ScenarioReport> {
@@ -221,6 +220,14 @@ export async function runScenario(
    */
   const baseline = new Map<string, number>();
 
+  /**
+   * آخِرُ نصِّ مقاييسٍ قُرئ. `metricDelta` متزامنٌ في العقد (تستدعيه التوكيداتُ
+   * كدالّةٍ نقيّة)، فالقراءةُ عبر الشبكة تُجرى في نقاطٍ صريحةٍ من المشغّل ويُقرأ
+   * الفرقُ من آخِرِ ما وصل. ولو جُعِلت القراءةُ داخلَ `metricDelta` لصار كلُّ
+   * توكيدٍ طلبَ HTTP إلى كلِّ نسخة، فيقيس التوكيدُ نفسَه أكثرَ مما يقيس النظام.
+   */
+  let lastMetricsText = "";
+
   const context: ScenarioContext = {
     sql: env.sql,
     post: env.post,
@@ -229,8 +236,7 @@ export async function runScenario(
     messagesTo: env.messagesTo,
     allMessages: env.allMessages,
     settingNumber: env.settingNumber,
-    metricDelta: (name) =>
-      sumMetric(env.metrics.registry.render(), name) - (baseline.get(name) ?? 0),
+    metricDelta: (name) => sumMetric(lastMetricsText, name) - (baseline.get(name) ?? 0),
   };
 
   let arranged: readonly string[] = [];
@@ -247,7 +253,8 @@ export async function runScenario(
   emit(`[${definition.id}] الشروطُ الابتدائية…`);
   const preconditionChecks = await definition.preconditions(context);
   const brokenPreconditions = preconditionChecks.filter((entry) => !entry.passed);
-  const metricsBefore = env.metrics.registry.render();
+  const metricsBefore = await env.renderMetrics();
+  lastMetricsText = metricsBefore;
   for (const name of definition.metrics) baseline.set(name, sumMetric(metricsBefore, name));
 
   const actors: ActorRun[] = [];
@@ -290,6 +297,12 @@ export async function runScenario(
 
   const unowned = findUnownedTelegramIds(actors);
 
+  /**
+   * تُقرأ المقاييسُ مرّةً بعد اكتمالِ كلِّ الفاعلين وقبل أوّلِ توكيد: التوكيدُ الذي
+   * يقرأ عدّاداً وسط التزاحمِ يقرأ لحظةً عابرةً لا نتيجة.
+   */
+  if (brokenPreconditions.length === 0) lastMetricsText = await env.renderMetrics();
+
   const businessChecks =
     brokenPreconditions.length > 0
       ? []
@@ -302,6 +315,9 @@ export async function runScenario(
           async () => {
             emit(`[${definition.id}] فحصُ الحتميّة عند التكرار…`);
             await definition.idempotency.replay(context, actors);
+            // بعد الإعادة تُقرأ المقاييسُ ثانية: توكيدُ الحتميّة يسأل «هل تحرّك
+            // العدّادُ مرّةً ثانية؟» فقراءتُه من نصٍّ سابقٍ للإعادة تُجيب دائماً «لا».
+            lastMetricsText = await env.renderMetrics();
             return definition.idempotency.expectation(context, actors);
           },
         ]);
@@ -319,7 +335,7 @@ export async function runScenario(
     );
   }
 
-  const metricsAfter = env.metrics.registry.render();
+  const metricsAfter = await env.renderMetrics();
   const metricsDelta: Record<string, number> = {};
   for (const name of definition.metrics) {
     metricsDelta[name] = sumMetric(metricsAfter, name) - sumMetric(metricsBefore, name);
@@ -336,6 +352,7 @@ export async function runScenario(
     title: definition.title,
     service: definition.service,
     startedAt: startedAt.toISOString(),
+    topology: env.topology,
     durationMs: (Bun.nanoseconds() - runStart) / 1e6,
     arranged,
     declaration: {
@@ -346,7 +363,7 @@ export async function runScenario(
       expectedBusinessOutcome: definition.expectedBusinessOutcome,
       proves: definition.proves,
       doesNotProve: definition.doesNotProve,
-      mocks: [...HARNESS_MOCKS, ...definition.mocks],
+      mocks: [...env.mocks, ...definition.mocks],
       concurrency: {
         count: actorCount,
         mode: definition.concurrency.mode,
@@ -372,18 +389,7 @@ export async function runScenario(
     http: summarizeHttp(actors),
     verdict: decision.verdict,
     reasons: decision.reasons,
-    measurementScope: {
-      measures: [
-        "سلوكَ العمل على المسار الحقيقي: HTTP → سرُّ الويبهوك → المُوجِّه → الحوار → الحالة → RPC → PostgreSQL.",
-        "زمنَ رحلةِ الفاعل الكاملة داخل هذه العملية (لا زمنَ الشبكة ولا زمنَ تلغرام).",
-        "فرقَ العدّادات المُعلَنة قبل التشغيل وبعده.",
-      ],
-      doesNotMeasure: [
-        "التسليمَ الحقيقيَّ عبر تلغرام ولا حدودَه (الناقلُ مزدوج).",
-        "سعةَ الإنتاج: قاعدةٌ محلّيةٌ على نفس المُضيف، وعاملٌ دوريٌّ مُطفأ، وحدُّ معدّلٍ مرفوع.",
-        "زمنَ الشبكة بين العميل والخادم: الطلبُ يُمرَّر إلى `app.fetch` في العملية نفسها.",
-      ],
-    },
+    measurementScope: env.measurementScope,
   };
 }
 
@@ -394,6 +400,7 @@ export function formatReport(report: ScenarioReport): string {
 
   lines.push(`── ${report.scenarioId} · ${report.title}`);
   lines.push(`   الخدمة: ${report.service} · المدّة: ${report.durationMs.toFixed(0)}ms`);
+  for (const line of report.topology) lines.push(`   طبولوجيا: ${line}`);
   for (const entry of report.arranged) lines.push(`   تهيئة: ${entry}`);
   lines.push(
     `   الفاعلون: ${report.actors.completed}/${report.actors.planned} أتمّوا` +

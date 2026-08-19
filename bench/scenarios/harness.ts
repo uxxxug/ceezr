@@ -12,7 +12,6 @@
  * سرِّ الويبهوك → حدُّ المعدّل → مُوجِّهُ التحديث → الحوار → الحالة → RPC → القاعدة.
  */
 
-import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
 import { buildContainer, type Container } from "../../apps/gateway/src/container.ts";
 import {
   createMemoryRateLimiter,
@@ -30,6 +29,8 @@ import { provision } from "../provision.ts";
 import { resetToMigratedState } from "../reset.ts";
 import { type SeedPlan, type SeedResult, seed } from "../seed.ts";
 import type { MockDeclaration, RecordedMessage } from "./contract.ts";
+import type { MeasurementScope, ScenarioEnvironment } from "./env.ts";
+import { createRecorder } from "./recorder.ts";
 
 /** طولُه فوق الحدّ الإنتاجي ومن محارف تلغرام، لأن مُحمّلَ الضبط يفحص الاثنين. */
 const WEBHOOK_SECRET = "bench-scenarios-secret-bench-scenarios-01";
@@ -70,7 +71,33 @@ export interface ScenarioEnvOptions {
   readonly port?: number;
 }
 
-export interface ScenarioEnv {
+/**
+ * طبولوجيا هذه البيئة: عمليةٌ واحدةٌ لكلِّ شيء. تُعلَن صريحةً لأنّ وحدة 2-6 أضافت
+ * بيئةً ثانيةً موزَّعة، فصار «في أيّ طبولوجيا جرى هذا الرقم؟» سؤالاً مشروعاً في
+ * كلِّ تقرير.
+ */
+export const SINGLE_PROCESS_TOPOLOGY: readonly string[] = [
+  "بوّابةٌ واحدةٌ داخل عمليةِ الاختبار نفسِها (`app.fetch`، بلا مقبسِ شبكة).",
+  "عاملٌ دوريّ: مُطفأ.",
+  "قاعدةٌ واحدة: `waslah_bench` على نفس المُضيف.",
+  "مخزنُ الجلسات: ذاكرةُ العملية. حدُّ المعدّل: ذاكرةُ العملية. مانعُ التكرار: ذاكرةُ العملية.",
+] as const;
+
+export const SINGLE_PROCESS_SCOPE: MeasurementScope = {
+  measures: [
+    "سلوكَ العمل على المسار الحقيقي: HTTP → سرُّ الويبهوك → المُوجِّه → الحوار → الحالة → RPC → PostgreSQL.",
+    "زمنَ رحلةِ الفاعل الكاملة داخل هذه العملية (لا زمنَ الشبكة ولا زمنَ تلغرام).",
+    "فرقَ العدّادات المُعلَنة قبل التشغيل وبعده.",
+  ],
+  doesNotMeasure: [
+    "التسليمَ الحقيقيَّ عبر تلغرام ولا حدودَه (الناقلُ مزدوج).",
+    "سعةَ الإنتاج: قاعدةٌ محلّيةٌ على نفس المُضيف، وعاملٌ دوريٌّ مُطفأ، وحدُّ معدّلٍ مرفوع.",
+    "زمنَ الشبكة بين العميل والخادم: الطلبُ يُمرَّر إلى `app.fetch` في العملية نفسها.",
+    "أيَّ سلوكٍ يظهر عند تعدّدِ العمليات: الحالةُ المشتركةُ كلُّها في ذاكرةِ عمليةٍ واحدة (وحدة 2-6).",
+  ],
+};
+
+export interface ScenarioEnv extends ScenarioEnvironment {
   readonly sql: Sql;
   readonly metrics: OperationalMetrics;
   readonly post: (bot: "driver" | "rider", update: unknown) => Promise<Response>;
@@ -90,49 +117,6 @@ export interface ScenarioEnv {
   /** يبذر أساسَ وحدة 2-4 (سائقون موثَّقون بمشتركاتٍ نشطة) على قاعدةٍ نظيفة. */
   readonly seedFoundation: (plan: SeedPlan) => Promise<SeedResult>;
   readonly close: () => Promise<void>;
-}
-
-/**
- * ملتقطٌ يُفهرِس بالمحادثة إضافةً إلى الترتيب.
- *
- * ولماذا لا يُستورَد ملتقطُ `tests/support`: اتجاهُ الاعتماد. `tests/**` يستورد من
- * `bench/**` اليوم (اختبارُ `bench-reset-seed`)، فاستيرادُ العكس يُنشئ حلقةً بين
- * حِزمتين يجب أن تبقى إحداهما تحت الأخرى. والفهرسةُ بالمحادثة حاجةٌ خاصةٌ بالقياس:
- * مئاتُ الفاعلين معاً، والبحثُ الخطّيُّ في مصفوفةٍ واحدةٍ لكلِّ توكيدٍ يصير هو نفسه
- * كلفةً تُشوّه ما يُقاس.
- */
-function createRecorder(): {
-  readonly sender: TelegramSender;
-  readonly to: (chatId: number) => readonly RecordedMessage[];
-  readonly all: () => readonly RecordedMessage[];
-  readonly clear: () => void;
-} {
-  const ordered: RecordedMessage[] = [];
-  const byChat = new Map<string, RecordedMessage[]>();
-
-  const record = (message: RecordedMessage): string => {
-    ordered.push(message);
-    const bucket = byChat.get(message.chatId);
-    if (bucket === undefined) byChat.set(message.chatId, [message]);
-    else bucket.push(message);
-    return String(ordered.length);
-  };
-
-  return {
-    sender: {
-      sendMessage: async (chatId, text, markup) => record({ chatId, text, markup }),
-      sendPhoto: async (chatId, _fileId, caption, markup) =>
-        record({ chatId, text: caption, markup }),
-      sendLocation: async (chatId, latitude, longitude) =>
-        record({ chatId, text: "", markup: undefined, location: { latitude, longitude } }),
-    },
-    to: (chatId) => byChat.get(String(chatId)) ?? [],
-    all: () => ordered,
-    clear: () => {
-      ordered.length = 0;
-      byChat.clear();
-    },
-  };
 }
 
 /**
@@ -270,6 +254,10 @@ export async function createScenarioEnv(options: ScenarioEnvOptions = {}): Promi
     clearMessages: recorder.clear,
     settingNumber,
     resetOperational,
+    renderMetrics: async () => metrics.registry.render(),
+    mocks: HARNESS_MOCKS,
+    topology: SINGLE_PROCESS_TOPOLOGY,
+    measurementScope: SINGLE_PROCESS_SCOPE,
     seedFoundation: async (plan: SeedPlan) => seed(sql, plan),
     close: async () => {
       if (container !== null) {

@@ -30,6 +30,18 @@ export const locationUpdate = (chatId: number, at: Coordinates): unknown =>
 export const contactUpdate = (chatId: number, phone: string): unknown =>
   message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 
+/**
+ * يُلحِق `update_id` بتحديثٍ مبنيّ.
+ *
+ * وباقي البُناةِ لا تُصدره عن قصد: سيناريوهاتُ وحدة 2-5 لا تختبر منعَ التكرار، وتحديثٌ
+ * بلا رقمٍ يمرّ بالمانعِ بلا حكم (`updateIdOf` تُعيد `null`) فيبقى المقيسُ هو منطقُ
+ * العملِ وحده. أمّا وحدة 2-6 فتختبر المانعَ صريحاً بين عمليتين، فتحتاج الرقمَ فعلاً.
+ */
+export const withUpdateId = (update: unknown, updateId: number): unknown => ({
+  ...(update as Record<string, unknown>),
+  update_id: updateId,
+});
+
 export const callbackUpdate = (chatId: number, data: string): unknown => ({
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
