@@ -122,6 +122,9 @@ jobs:
       - name: حدّ النطاق — مطابقة المسار خارج الإصدار (ADR 0025)
         run: bun run scripts/check-map-matching-scope.ts
 
+      - name: تفرّد أرقام القرارات المعمارية (ADR 0038)
+        run: bun run scripts/check-adr-numbering.ts
+
       - name: بناء الصورتين قابل لإعادة الإنتاج (قفل مجمَّد + استيرادات محلولة)
         run: bash scripts/verify-container-build.sh
 
