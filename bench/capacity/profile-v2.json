@@ -75,9 +75,7 @@
       "id": "payment",
       "name": "دفع أو اشتراك",
       "share": 0.02,
-      "requests": [
-        { "kind": "payment_flow", "class": "command_critical", "period_seconds": 30 }
-      ]
+      "requests": [{ "kind": "payment_flow", "class": "command_critical", "period_seconds": 30 }]
     },
     {
       "id": "support",
@@ -91,17 +89,13 @@
       "id": "public_track",
       "name": "تتبّع عام برابط مشاركة",
       "share": 0.04,
-      "requests": [
-        { "kind": "track_position", "class": "read_cacheable", "period_seconds": 5 }
-      ]
+      "requests": [{ "kind": "track_position", "class": "read_cacheable", "period_seconds": 5 }]
     },
     {
       "id": "admin",
       "name": "إدارة وتشغيل",
       "share": 0.01,
-      "requests": [
-        { "kind": "admin_read_model", "class": "read_cacheable", "period_seconds": 10 }
-      ]
+      "requests": [{ "kind": "admin_read_model", "class": "read_cacheable", "period_seconds": 10 }]
     }
   ]
 }
