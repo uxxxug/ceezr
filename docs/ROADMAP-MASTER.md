@@ -645,7 +645,7 @@ Bun 1.3.14 + TypeScript، Hono، grammY، PostgreSQL/Supabase + PostGIS عبر `
 | F0-03 | اعتماد SLOs القسم 7 رسمياً مع مالك لكل هدف | `[ ]` |
 | F0-04 | ADR: `ARCH-014` التشغيل من متصفح بمصادقة بديلة | `[ ]` |
 | F0-05 | تحديث `docs/SYSTEM_STATE.md` بإضافة هذه الوثيقة كمرجع حاكم للتنفيذ | `[ ]` |
-| F0-06 | إنشاء بنية `docs/evidence/{architecture,security,correctness,distributed,capacity,chaos,recovery,release,compliance}/` | `[ ]` |
+| F0-06 | إنشاء بنية `docs/evidence/{architecture,security,correctness,distributed,capacity,chaos,recovery,release,compliance}/` | `[x]` |
 
 **بوابة F0:** وثيقة حِمل رسمية + ADRs + معايير قبول مكتوبة. **يُمنع الانتقال** إذا بقي 2M رقماً تسويقياً بلا تعريف حِمل.
 
@@ -1147,7 +1147,9 @@ internal -> staging -> canary -> حمل منخفض -> حمل مُتحكَّم ->
 
 | التاريخ | معرّف البند | المنفّذ | ما تم فعلاً | ملف الدليل | الدرجة | الـcommit |
 |---|---|---|---|---|---|---|
-| 2026-08-26 | — | مدير المشروع + وكيل | إصدار هذه الخارطة الحاكمة v1.0 ودمج المسوّدتين وإضافة تصميم Mini App وجرد الأخطاء والامتثال السعودي | `docs/ROADMAP-MASTER.md` | مُنفَّذ | — |
+| 2026-08-26 | — | مدير المشروع + وكيل | إصدار هذه الخارطة الحاكمة v1.0 ودمج المسوّدتين وإضافة تصميم Mini App وجرد الأخطاء والامتثال السعودي | `docs/ROADMAP-MASTER.md` | مُنفَّذ | `c49aa4c` |
+| 2026-08-26 | `F0-06` | وكيل Perplexity Computer | إنشاء تسعة مجلدات تصنيف تحت `docs/evidence/` مع `README.md` يحدّد التسمية والمحتوى الإلزامي لكل دليل | `docs/evidence/architecture/F0-06-20260826.md` | مُنفَّذ | يُملأ بعد الدفع |
+| 2026-08-26 | — | وكيل Perplexity Computer | إضافة ترويسة تحويل في أعلى `docs/roadmap.md` بلا حذف أو تعديل أي محتوى قديم | `docs/evidence/architecture/F0-06-20260826.md` §٥ | مُنفَّذ | يُملأ بعد الدفع |
 | | | | | | | |
 
 ---
