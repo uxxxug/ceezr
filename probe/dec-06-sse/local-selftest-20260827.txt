@@ -1,0 +1,104 @@
+# فحوص المسبار المحلية — 2026-08-27 (Asia/Riyadh)
+# البيئة: Node v20.20.1 في صندوق التطوير. **ليست دليلاً على iOS أو Android أو حاوية تلغرام.**
+
+## 1) selftest.mjs
+— فحص المسبار الذاتي —
+
+[0] العزل
+  ✅ لا استعمال لـpostgres في الشيفرة
+  ✅ لا استعمال لـpg_notify في الشيفرة
+  ✅ لا استعمال لـredis في الشيفرة
+  ✅ لا استعمال لـupstash في الشيفرة
+  ✅ لا استعمال لـsupabase في الشيفرة
+  ✅ لا استعمال لـgrammy في الشيفرة
+  ✅ لا استيراد من apps/ أو packages/
+  ✅ لا اعتمادية خارجية في الخادم
+  ✅ الصفحة تستخدم EventSource
+  ✅ الخادم يقرأ Last-Event-ID
+
+[1] الحياة والصفحة
+  ✅ healthz = 200
+  ✅ healthz يذكر bootId
+  ✅ الصفحة = 200
+  ✅ الصفحة HTML
+  ✅ الصفحة فيها زر التصدير
+  ✅ مسار مجهول = 404
+
+[2] ترويسات المجرى وإطاره الأول
+  ✅ المجرى = 200
+  ✅ content-type = text/event-stream
+  ✅ cache-control بلا تخزين ولا تحويل
+  ✅ X-Accel-Buffering: no
+  ✅ تعليق حاشٍ يكسر التخزين
+  ✅ retry معلَن
+  ✅ حدث connected موجود
+  ✅ connected بلا id
+  ✅ resumedFrom = 0 لاتصال جديد
+  ✅ heartbeatMs معلَن
+
+[3] التسلسل والتوقيت
+  ✅ التسلسل يبدأ من 1
+  ✅ التسلسل متصاعد بواحد
+  ✅ id: يطابق seq
+  ✅ التباعد قريب من 300ms
+
+[4] الاستئناف بـLast-Event-ID
+  ✅ resumedFrom = 9
+  ✅ الترويسة قُرِئت كما هي
+  ✅ أول نبضة بعد الاستئناف = 10
+  ✅ المعامَل اليدوي يستأنف من 43
+  ✅ قيمة فاسدة تعود إلى 1 لا NaN
+
+[5] الحالة الداخلية
+  ✅ الاتصالات المغلقة أُحصيت
+  ✅ إغلاق المجرى سُجِّل
+  ✅ كل المجاري بنفس bootId
+
+— الحصيلة: 38 ناجح، 0 فاشل —
+كل فحوص المسبار الذاتية نجحت على Node في بيئة التطوير.
+وهذا لا يقول شيئاً عن iOS أو Android أو حاوية تلغرام.
+
+## 2) مجرى حقيقي بنبضة 5000ms عبر curl (17 ثانية)
+### الترويسات
+HTTP/1.1 200 OK
+Content-Type: text/event-stream; charset=utf-8
+Cache-Control: no-cache, no-transform
+Connection: keep-alive
+X-Accel-Buffering: no
+Access-Control-Allow-Origin: *
+Date: Wed, 26 Aug 2026 23:03:25 GMT
+Transfer-Encoding: chunked
+
+### المجرى (الحاشية مختصرة)
+:PADDING(2048 spaces)
+retry: 3000
+event: connected
+data: {"serverBootId":"m9mh8nrn","streamNo":1,"resumedFrom":0,"lastEventIdHeaderSeen":null,"heartbeatMs":5000,"retryMs":3000,"serverIso":"2026-08-26T23:03:25.642Z"}
+id: 1
+event: heartbeat
+data: {"seq":1,"streamNo":1,"serverBootId":"m9mh8nrn","serverIso":"2026-08-26T23:03:30.646Z"}
+id: 2
+event: heartbeat
+data: {"seq":2,"streamNo":1,"serverBootId":"m9mh8nrn","serverIso":"2026-08-26T23:03:35.646Z"}
+id: 3
+event: heartbeat
+data: {"seq":3,"streamNo":1,"serverBootId":"m9mh8nrn","serverIso":"2026-08-26T23:03:40.651Z"}
+
+## 3) تمرير نقطة الاستئناف: Last-Event-ID: 9 (لا replay — لا مخزن أحداث)
+:PADDING(2048 spaces)
+retry: 3000
+event: connected
+data: {"serverBootId":"m9mh8nrn","streamNo":2,"resumedFrom":9,"lastEventIdHeaderSeen":"9","heartbeatMs":5000,"retryMs":3000,"serverIso":"2026-08-26T23:03:42.653Z"}
+id: 10
+event: heartbeat
+data: {"seq":10,"streamNo":2,"serverBootId":"m9mh8nrn","serverIso":"2026-08-26T23:03:47.655Z"}
+id: 11
+event: heartbeat
+data: {"seq":11,"streamNo":2,"serverBootId":"m9mh8nrn","serverIso":"2026-08-26T23:03:52.659Z"}
+
+### سجل الخادم
+[probe] DEC-06 SSE probe on http://0.0.0.0:8787 bootId=m9mh8nrn heartbeatMs=5000 retryMs=3000
+[sse] open stream=1 resumedFrom=0 open=1 at=2026-08-26T23:03:25.642Z
+[sse] closed stream=1 lastSeq=3 open=0
+[sse] open stream=2 resumedFrom=9 open=1 at=2026-08-26T23:03:42.653Z
+[sse] closed stream=2 lastSeq=11 open=0
