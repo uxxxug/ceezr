@@ -1,0 +1,107 @@
+{
+  "profile": "capacity-profile-v2",
+  "supersedes": "capacity-profile-v1",
+  "date": "2026-08-26",
+  "status": "declared-assumptions-not-measured",
+  "concurrent_users": 2000000,
+  "notes": [
+    "v1 كانت أرقامها المشتقّة غير متّسقة حسابياً مع تركيبتها المعلنة، وكانت تفترض راكبين في رحلة أكثر من السائقين في رحلة، وهو مستحيل بنيوياً.",
+    "v2 لا تحتوي أي رقم مشتقّ مكتوب بيد؛ كل رقم يُحسب من هذا الملف بواسطة bench/capacity/derive.py.",
+    "معدلات الموقع هنا هي المعدلات التكيّفية المعتمدة في القسم 9.10 من الخارطة، لا معدلات ثابتة."
+  ],
+  "trip": {
+    "avg_total_duration_seconds": 1080,
+    "comment_duration": "من قبول العرض إلى إنهاء الرحلة، يشمل الوصول لنقطة الالتقاط. 18 دقيقة فرضية معلنة.",
+    "rider_sessions_per_trip": 1.0,
+    "comment_rider_sessions": "رحلة الركاب لها جلسة راكب واحدة. التوصيل له جلسة مُرسِل واحدة. النسبة 1:1 مع السائق في كل الأحوال."
+  },
+  "cache_offload_ratio_on_cacheable_reads": 0.9,
+  "segments": [
+    {
+      "id": "idle",
+      "name": "خامد داخل التطبيق",
+      "share": 0.45,
+      "requests": [
+        { "kind": "presence_heartbeat", "class": "read_uncacheable", "period_seconds": 60 }
+      ]
+    },
+    {
+      "id": "browse",
+      "name": "يستعرض ويسعّر",
+      "share": 0.19,
+      "requests": [
+        { "kind": "catalog_read", "class": "read_cacheable", "period_seconds": 30 },
+        { "kind": "quote", "class": "command_light", "period_seconds": 45 }
+      ]
+    },
+    {
+      "id": "creating",
+      "name": "ينشئ طلباً وينتظر الإسناد",
+      "share": 0.03,
+      "requests": [
+        { "kind": "order_status_read", "class": "read_uncacheable", "period_seconds": 5 },
+        { "kind": "create_order", "class": "command_critical", "period_seconds": 180 }
+      ]
+    },
+    {
+      "id": "rider_in_trip",
+      "name": "راكب في رحلة نشطة",
+      "share": 0.06,
+      "requests": [
+        { "kind": "trip_state_read", "class": "read_uncacheable", "period_seconds": 5 },
+        { "kind": "realtime_channel", "class": "realtime_connection", "period_seconds": 0 }
+      ]
+    },
+    {
+      "id": "driver_available",
+      "name": "سائق متاح ينتظر عرضاً",
+      "share": 0.12,
+      "requests": [
+        { "kind": "location_ingest_idle", "class": "location_write", "period_seconds": 15 },
+        { "kind": "offers_poll", "class": "read_uncacheable", "period_seconds": 10 }
+      ]
+    },
+    {
+      "id": "driver_in_trip",
+      "name": "سائق في رحلة",
+      "share": 0.06,
+      "requests": [
+        { "kind": "location_ingest_moving", "class": "location_write", "period_seconds": 4 },
+        { "kind": "trip_stage_read", "class": "read_uncacheable", "period_seconds": 10 },
+        { "kind": "stage_transition", "class": "command_critical", "period_seconds": 270 }
+      ]
+    },
+    {
+      "id": "payment",
+      "name": "دفع أو اشتراك",
+      "share": 0.02,
+      "requests": [
+        { "kind": "payment_flow", "class": "command_critical", "period_seconds": 30 }
+      ]
+    },
+    {
+      "id": "support",
+      "name": "دعم أو شكوى",
+      "share": 0.02,
+      "requests": [
+        { "kind": "support_read_write", "class": "read_uncacheable", "period_seconds": 30 }
+      ]
+    },
+    {
+      "id": "public_track",
+      "name": "تتبّع عام برابط مشاركة",
+      "share": 0.04,
+      "requests": [
+        { "kind": "track_position", "class": "read_cacheable", "period_seconds": 5 }
+      ]
+    },
+    {
+      "id": "admin",
+      "name": "إدارة وتشغيل",
+      "share": 0.01,
+      "requests": [
+        { "kind": "admin_read_model", "class": "read_cacheable", "period_seconds": 10 }
+      ]
+    }
+  ]
+}
