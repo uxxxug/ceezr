@@ -23,7 +23,8 @@
     "test:e2e": "bun test tests/e2e",
     "check:test-city-activation": "bun run scripts/check-test-city-activation.ts",
     "check:test-container-lifecycle": "bun run scripts/check-test-container-lifecycle.ts",
-    "check:schema-contract": "bun run scripts/check-schema-contract.ts"
+    "check:schema-contract": "bun run scripts/check-schema-contract.ts",
+    "bench:open-loop": "bun run bench/run-open-loop.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
