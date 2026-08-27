@@ -1,0 +1,46 @@
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { resolve } from "node:path";
+
+/**
+ * F1-01 — static-asset build for Telegram Mini App (and browser fallback later).
+ * Served as immutable assets from CDN; no SSR (ROADMAP §9.2).
+ * Single origin only — no third-party executable origins (TG-005 / ADR 0028).
+ */
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: {
+      "@": resolve(__dirname, "src"),
+    },
+  },
+  build: {
+    outDir: "dist",
+    emptyOutDir: true,
+    sourcemap: true,
+    target: "es2022",
+    rollupOptions: {
+      output: {
+        /** Code-split by product packages (ROADMAP §9.4). */
+        manualChunks(id) {
+          if (id.includes("/src/shell/") || id.includes("/src/identity/")) {
+            return "shell";
+          }
+          if (id.includes("/src/tg/")) {
+            return "tg";
+          }
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
+            return "vendor-react";
+          }
+          return undefined;
+        },
+      },
+    },
+    /** Budget gate (ROADMAP §9.9) enforced later in F1-09; keep baseline tight. */
+    chunkSizeWarningLimit: 180,
+  },
+  server: {
+    port: 5173,
+    strictPort: true,
+  },
+});
