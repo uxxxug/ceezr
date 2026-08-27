@@ -1,0 +1,922 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>مسبار DEC-06 — Socket.IO</title>
+    <!--
+      مسبارُ DEC-06 — Socket.IO. صفحةٌ واحدةٌ مؤقَّتة، بلا بناءٍ ولا CDN: عميلُ
+      Socket.IO يُخدَم من `/socket.io/socket.io.js` أي من المكتبةِ نفسِها على خادمِ
+      المسبار. نظيرُ صفحتَي مسبارَي SSE وWebSocket في طريقةِ القياس: نفسُ العدّاداتِ،
+      ونفسُ أنواعِ السجل، ونفسُ أزرارِ الوسمِ السبعة. والمتغيّرُ المقصودُ هو الناقل.
+
+      لا حالةَ عملٍ ولا مصادقةَ ولا نداءَ لواجهةِ الإنتاج. تُحذَف بحذفِ `probe/`.
+
+      الخصوصية — قاعدةٌ صريحةٌ في هذا الملفّ: لا يُكتَب `location.href` ولا
+      `location.hash` ولا `location.search` ولا `initData` الخامُ في السجلِّ ولا في
+      المخرَج. لأنّ تلغرام يُلحِق `tgWebAppData` بالعنوانِ نفسِه، وفيه مُعرِّفُ
+      المستخدمِ واسمُه و`hash` و`signature`. فالمُسجَّلُ هو الأصلُ والمسارُ فقط،
+      ومن الحاويةِ: المنصّةُ والنسخةُ ونمطُ الألوانِ وحضورُ `initData` بنعم/لا.
+    -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ok: #1f9d55;
+        --bad: #d64545;
+        --warn: #c98a00;
+        --line: color-mix(in srgb, currentColor 18%, transparent);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 12px;
+        font: 14px/1.55 -apple-system, "SF Arabic", "Segoe UI", Roboto, system-ui, sans-serif;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 10px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+        text-align: center;
+      }
+      .card b {
+        display: block;
+        font-size: 20px;
+        font-variant-numeric: tabular-nums;
+      }
+      .card span {
+        font-size: 11px;
+        opacity: 0.7;
+      }
+      #state {
+        font-weight: 700;
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        margin-bottom: 10px;
+      }
+      #transport {
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        margin-bottom: 10px;
+        font-size: 12px;
+      }
+      .live {
+        color: var(--ok);
+      }
+      .down {
+        color: var(--bad);
+      }
+      .wait {
+        color: var(--warn);
+      }
+      button {
+        font: inherit;
+        padding: 9px 10px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      #marks button {
+        font-size: 12px;
+        padding: 7px 8px;
+      }
+      #log {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+        height: 44vh;
+        overflow: auto;
+        font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: pre-wrap;
+        direction: ltr;
+        text-align: left;
+      }
+      #log div {
+        border-bottom: 1px solid var(--line);
+        padding: 1px 0;
+      }
+      .t-gap,
+      .t-seq-reset,
+      .t-seq-missing,
+      .t-connect-error,
+      .t-disconnect,
+      .t-offline,
+      .t-stall,
+      .t-fallback,
+      .t-upgrade-error,
+      .t-reconnect-failed,
+      .t-ack-timeout {
+        color: var(--bad);
+      }
+      .t-connect,
+      .t-reconnect,
+      .t-online,
+      .t-upgrade {
+        color: var(--ok);
+      }
+      .t-marker {
+        color: var(--warn);
+        font-weight: 700;
+      }
+      small {
+        opacity: 0.7;
+      }
+      code {
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>مسبار DEC-06 — Socket.IO في حاوية تلغرام</h1>
+    <div id="state" class="wait">…</div>
+    <div id="transport">الناقل: —</div>
+
+    <div class="grid">
+      <div class="card"><b id="m-seq">—</b><span>آخر تسلسل</span></div>
+      <div class="card"><b id="m-recv">0</b><span>نبضات مستلَمة</span></div>
+      <div class="card"><b id="m-missed">0</b><span>مفقودة (تسلسل)</span></div>
+      <div class="card"><b id="m-gaps">0</b><span>فجوات &gt; 7ث</span></div>
+      <div class="card"><b id="m-open">0</b><span>مرات الاتصال</span></div>
+      <div class="card"><b id="m-closes">0</b><span>مرات الانفصال</span></div>
+      <div class="card"><b id="m-recon">0</b><span>محاولات إعادة</span></div>
+      <div class="card"><b id="m-err">0</b><span>أخطاء</span></div>
+      <div class="card"><b id="m-tr">—</b><span>الناقل الآن</span></div>
+      <div class="card"><b id="m-fb">0</b><span>سقوط إلى polling</span></div>
+      <div class="card"><b id="m-cms">—</b><span>زمن الاتصال (م.ث)</span></div>
+      <div class="card"><b id="m-eping">0</b><span>ping المكتبة</span></div>
+      <div class="card"><b id="m-since">—</b><span>منذ آخر نبضة</span></div>
+      <div class="card"><b id="m-sess">1</b><span>جلسات الصفحة</span></div>
+    </div>
+
+    <div class="row">
+      <button id="copy">نسخ السجل JSON</button>
+      <button id="download">تنزيل JSON</button>
+      <button id="clear">مسح السجل</button>
+    </div>
+
+    <div class="row" id="marks">
+      <button data-m="CASE-1 open+connect">١ فتح</button>
+      <button data-m="CASE-2 idle receive">٢ بقاء</button>
+      <button data-m="CASE-3 minimize">٣ تصغير</button>
+      <button data-m="CASE-4 reopen">٤ إعادة فتح</button>
+      <button data-m="CASE-5 network off">٥ قطع الشبكة</button>
+      <button data-m="CASE-5 network on">٥ عودة الشبكة</button>
+      <button data-m="CASE-6 wifi<->cellular">٦ تبديل الشبكة</button>
+      <button data-m="CASE-7 app kill+reopen">٧ إغلاق وفتح</button>
+    </div>
+
+    <div id="log"></div>
+    <p>
+      <small
+        >الوسمُ يُكتَب في السجلِّ قبلَ كلِّ حالةٍ وبعدَها. والسجلُّ محفوظٌ في
+        <code>localStorage</code> فيبقى بعد إغلاقِ التطبيق. وإعادةُ الاتصالِ هنا
+        <b>من المكتبةِ نفسِها</b> لا من شيفرتِنا ولا من المتصفّح — وكلُّ محاولةٍ مُسجَّلةٌ
+        بعددِها وسببِها. وأمّا <code>polling</code> فظهورُه في «الناقل الآن» يعني أنّ
+        الترقيةَ إلى WebSocket لم تحصل: هذا هو السقوط، ويُسجَّل صريحاً.</small
+      >
+    </p>
+
+    <script>
+      (() => {
+        "use strict";
+
+        var GAP_THRESHOLD_MS = 7000; // نبضةُ 5ث + هامش — نفسُ حدِّ المسبارَين السابقَين
+        var STALL_NOTICE_MS = 12000; // متى نُسجّل توقّفاً ملحوظاً
+        var MAX_RECORDS = 4000;
+        var LS_KEY = "dec06.socketio.probe.log.v1";
+        var LS_META = "dec06.socketio.probe.meta.v1";
+
+        // نفسُ أرقامِ مسبارِ WebSocket حرفياً، لتبقى المقارنةُ عادلة: أساسُ ٣ ثوانٍ
+        // وسقفُ ١٥. والفرقُ أنّ المكتبةَ هي التي تُطبّقها هنا لا شيفرتُنا — ولذلك
+        // يُلغى العشوائيُّ في التأخير (`randomizationFactor: 0`) حتى تُقارَن الأزمنة.
+        var RECONNECT_BASE_MS = 3000;
+        var RECONNECT_MAX_MS = 15000;
+        var CONNECT_TIMEOUT_MS = 20000;
+
+        // متى نحكم بأنّ الترقيةَ لم تحصل. Socket.IO يبدأ بـpolling ثمّ يُرقّي، فالحكمُ
+        // لا يصحّ إلّا بعد مهلةٍ من نجاحِ الاتصال.
+        var FALLBACK_CHECK_MS = 6000;
+        var ECHO_EVERY = 4; // رحلةُ ذهابٍ وعودةٍ بإقرارٍ كلَّ أربعِ نبضات
+
+        var log = [];
+        var dropped = 0;
+        var sessionNo = 1;
+        var t0 = Date.now();
+
+        var recv = 0;
+        var missed = 0;
+        var gaps = 0;
+        var opens = 0;
+        var closes = 0;
+        var reconnectAttempts = 0;
+        var errors = 0;
+        var fallbacks = 0;
+        var enginePings = 0;
+        var ackRequests = 0;
+        var ackTimeouts = 0;
+        var lastSeq = null;
+        var expectedNext = null;
+        var lastBeatAt = null;
+        var stallNoted = false;
+
+        var connectStartedAt = null;
+        var connectStartedIso = null;
+        var lastConnectMs = null;
+        var initialTransport = null;
+        var upgradeSeen = false;
+        var lastUpgradeError = null;
+        var fallbackNotedThisSession = false;
+        var boundEngine = null;
+        var fallbackTimer = null;
+
+        var socket = null;
+        // الحارسُ الذي يمنع تضاعُفَ العدّ. Socket.IO يُطلِق `disconnect` مرّةً للجلسةِ
+        // في العادة، لكن `connect_error` قد يقع قبلَه أو معه. فبلا هذا العلمِ يُحسَب
+        // انفصالان لانقطاعٍ واحدٍ ويكذب العدّاد.
+        var handledThisSocket = false;
+
+        var el = function (id) {
+          return document.getElementById(id);
+        };
+        var logEl = el("log");
+
+        function loadPersisted() {
+          try {
+            var raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+              var parsed = JSON.parse(raw);
+              if (parsed && Array.isArray(parsed.log)) {
+                log = parsed.log;
+                dropped = parsed.dropped || 0;
+              }
+            }
+            var meta = JSON.parse(localStorage.getItem(LS_META) || "{}");
+            sessionNo = (meta.sessionNo || 0) + 1;
+            localStorage.setItem(LS_META, JSON.stringify({ sessionNo: sessionNo }));
+          } catch (e) {
+            /* التخزينُ قد يكون ممنوعاً في الحاوية — السجلُّ يبقى في الذاكرة */
+          }
+        }
+
+        function persist() {
+          try {
+            localStorage.setItem(LS_KEY, JSON.stringify({ log: log, dropped: dropped }));
+          } catch (e) {
+            /* لا شيء: الفقدُ عند الإغلاق مقبولٌ ويُذكَر في التقرير */
+          }
+        }
+
+        function render(rec) {
+          var d = document.createElement("div");
+          d.className = "t-" + rec.type;
+          d.textContent =
+            rec.iso.slice(11, 23) +
+            "  +" +
+            String(rec.ms).padStart(7, " ") +
+            "  " +
+            rec.type +
+            (rec.detail === undefined ? "" : "  " + JSON.stringify(rec.detail));
+          logEl.appendChild(d);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function add(type, detail) {
+          var rec = {
+            iso: new Date().toISOString(),
+            epochMs: Date.now(),
+            ms: Date.now() - t0,
+            session: sessionNo,
+            type: type,
+          };
+          if (detail !== undefined) rec.detail = detail;
+          log.push(rec);
+          if (log.length > MAX_RECORDS) {
+            log.splice(0, log.length - MAX_RECORDS);
+            dropped += 1;
+          }
+          render(rec);
+          persist();
+        }
+
+        function setState(text, cls) {
+          var s = el("state");
+          s.textContent = text;
+          s.className = cls;
+        }
+
+        // ————— الناقل: هذا هو ما يُميِّز هذا المسبارَ عن المسبارَين السابقَين.
+        // في SSE الناقلُ HTTP دائماً، وفي WebSocket الخام هو WebSocket أو لا شيء.
+        // وفي Socket.IO **قد يكون أحدَهما**: يبدأ بـpolling ثمّ يُرقّي، وقد لا يُرقّي.
+        function currentTransport() {
+          try {
+            if (socket && socket.io && socket.io.engine && socket.io.engine.transport) {
+              return socket.io.engine.transport.name;
+            }
+          } catch (e) {
+            /* الناقلُ غيرُ متاحٍ قبل الاتصالِ وبعد الانفصال */
+          }
+          return null;
+        }
+
+        function transportLine() {
+          var now = currentTransport();
+          var parts = [];
+          parts.push("الناقل الآن: " + (now === null ? "—" : now));
+          parts.push("أوّل ناقل في الجلسة: " + (initialTransport === null ? "—" : initialTransport));
+          parts.push("ترقية إلى WebSocket: " + (upgradeSeen ? "حصلت" : "لم تحصل"));
+          parts.push("سقوط إلى polling: " + String(fallbacks));
+          el("transport").textContent = parts.join(" · ");
+        }
+
+        function refresh() {
+          el("m-seq").textContent = lastSeq === null ? "—" : String(lastSeq);
+          el("m-recv").textContent = String(recv);
+          el("m-missed").textContent = String(missed);
+          el("m-gaps").textContent = String(gaps);
+          el("m-open").textContent = String(opens);
+          el("m-closes").textContent = String(closes);
+          el("m-recon").textContent = String(reconnectAttempts);
+          el("m-err").textContent = String(errors);
+          el("m-fb").textContent = String(fallbacks);
+          el("m-eping").textContent = String(enginePings);
+          el("m-sess").textContent = String(sessionNo);
+          var tr = currentTransport();
+          el("m-tr").textContent = tr === null ? "—" : tr;
+          el("m-cms").textContent = lastConnectMs === null ? "—" : String(lastConnectMs);
+          el("m-since").textContent =
+            lastBeatAt === null ? "—" : Math.round((Date.now() - lastBeatAt) / 1000) + "ث";
+          transportLine();
+        }
+
+        loadPersisted();
+        for (var i = 0; i < log.length; i++) render(log[i]);
+
+        // الناقلُ المطلوبُ قابلٌ للتقييدِ يدوياً لتجربةِ الحالاتِ على الجهاز:
+        //   ?t=ws   → WebSocket فقط (بلا polling أصلاً)
+        //   ?t=poll → polling فقط (سقوطٌ مصنوعٌ عمداً)
+        // ولا تُقرأ من العنوانِ إلّا هذه القيمةُ المحصورةُ، ولا يُسجَّل العنوانُ نفسُه.
+        var wanted = "both";
+        try {
+          var q = new URLSearchParams(location.search).get("t");
+          if (q === "ws" || q === "poll") wanted = q;
+        } catch (e) {
+          /* بيئاتٌ قديمةٌ بلا URLSearchParams: يبقى الافتراض */
+        }
+        var TRANSPORTS =
+          wanted === "ws" ? ["websocket"] : wanted === "poll" ? ["polling"] : ["polling", "websocket"];
+
+        add("boot", {
+          session: sessionNo,
+          // لا `href` ولا `hash` ولا `search`: تلغرام يُلحِق `tgWebAppData` بالعنوان.
+          origin: location.origin,
+          path: location.pathname,
+          requestedTransports: TRANSPORTS,
+          ua: navigator.userAgent,
+          online: navigator.onLine,
+          visibility: document.visibilityState,
+          restoredRecords: log.length,
+          droppedBatches: dropped,
+          tz: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || null,
+          hasWebSocket: typeof WebSocket === "function",
+          hasSocketIoClient: typeof window.io === "function",
+          socketIoClientVersion:
+            window.io && window.io.protocol !== undefined ? String(window.io.protocol) : null,
+          hasLocalStorage: (function () {
+            try {
+              localStorage.setItem("dec06.socketio.t", "1");
+              localStorage.removeItem("dec06.socketio.t");
+              return true;
+            } catch (e) {
+              return false;
+            }
+          })(),
+        });
+
+        // وصفُ الحاوية — قراءةٌ فقط. لا تحقُّقَ من `initData` ولا إرسالَ له، ولا
+        // تُكتَب قيمتُه الخامُ هنا: حضورُه بنعم/لا فقط.
+        var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        if (tg) {
+          try {
+            tg.ready();
+            tg.expand();
+          } catch (e) {
+            /* نسخٌ قديمةٌ قد لا تدعم `expand` */
+          }
+          add("tg-meta", {
+            platform: tg.platform || null,
+            version: tg.version || null,
+            colorScheme: tg.colorScheme || null,
+            isExpanded: tg.isExpanded === undefined ? null : tg.isExpanded,
+            viewportHeight: tg.viewportHeight || null,
+            initDataPresent: Boolean(tg.initData),
+          });
+        } else {
+          add("tg-meta", { platform: null, note: "no-telegram-webapp-object" });
+        }
+
+        if (typeof window.io !== "function") {
+          setState("عميل Socket.IO لم يُحمَّل — راجع /socket.io/socket.io.js", "down");
+          add("socketio-client-missing", {});
+          refresh();
+          return;
+        }
+
+        // ————— الاتصال
+
+        socket = window.io({
+          auth: { lastSeq: 0 },
+          transports: TRANSPORTS,
+          reconnection: true,
+          reconnectionDelay: RECONNECT_BASE_MS,
+          reconnectionDelayMax: RECONNECT_MAX_MS,
+          randomizationFactor: 0,
+          timeout: CONNECT_TIMEOUT_MS,
+          autoConnect: false,
+        });
+
+        function markConnectStart(why) {
+          connectStartedAt = Date.now();
+          connectStartedIso = new Date().toISOString();
+          add("connect-start", {
+            why: why,
+            startedAtIso: connectStartedIso,
+            resumeFromSeq: lastSeq,
+            requestedTransports: TRANSPORTS,
+            online: navigator.onLine,
+            visibility: document.visibilityState,
+          });
+        }
+
+        // **توقيتُ الربطِ مهمٌّ ولا يجوز تأخيرُه**: الترقيةُ من polling إلى WebSocket قد
+        // تكتمل قبلَ حدثِ `connect` على وصلةٍ سريعة. فلو رُبِطَ المستمعُ عندئذٍ فُقِدَ
+        // حدثُ الترقيةِ وسُجِّل «لم تحصل» وهي حاصلة — أي كذبٌ في القياس. فالربطُ على
+        // حدثِ `open` من المُدير، وهو أوّلُ لحظةٍ يوجد فيها المحرّك.
+        function bindEngine() {
+          var engine = null;
+          try {
+            engine = socket.io.engine;
+          } catch (e) {
+            engine = null;
+          }
+          if (!engine || engine === boundEngine) return;
+          boundEngine = engine;
+          initialTransport = engine.transport ? engine.transport.name : null;
+          upgradeSeen = false;
+          lastUpgradeError = null;
+
+          add("transport", {
+            phase: "engine-open",
+            transport: initialTransport,
+            requested: TRANSPORTS,
+          });
+
+          engine.on("upgrade", function (transport) {
+            upgradeSeen = true;
+            add("upgrade", { from: initialTransport, to: transport ? transport.name : null });
+            refresh();
+          });
+          engine.on("upgradeError", function (err) {
+            lastUpgradeError = String(err && err.message ? err.message : err);
+            add("upgrade-error", { from: initialTransport, message: lastUpgradeError });
+            refresh();
+          });
+          engine.on("close", function (reason) {
+            // إغلاقُ الناقلِ تحتَ طبقةِ Socket.IO. وهو أقربُ ما يُقابل رمزَ إغلاقِ
+            // WebSocket في المسبارِ السابق، وقد يحمل سبباً لا يظهر في `disconnect`.
+            add("engine-close", { reason: String(reason || ""), transport: initialTransport });
+          });
+        }
+
+        function checkFallback() {
+          if (fallbackNotedThisSession) return;
+          var now = currentTransport();
+          if (now === "polling" && wanted !== "poll") {
+            fallbacks += 1;
+            fallbackNotedThisSession = true;
+            // «السقوط» هنا معناه الدقيق: الترقيةُ من polling إلى WebSocket لم تنجح
+            // خلال المهلة، فبقيت الجلسةُ على polling. وهو نجاحٌ للمكتبةِ في إبقاءِ
+            // الوصلةِ حيّة، وثمنُه طلباتٌ متكرّرةٌ لا وصلةٌ واحدة.
+            add("fallback", {
+              from: "websocket",
+              to: "polling",
+              afterMs: FALLBACK_CHECK_MS,
+              upgradeSeen: upgradeSeen,
+              upgradeError: lastUpgradeError,
+              online: navigator.onLine,
+              visibility: document.visibilityState,
+            });
+          } else if (now === "polling" && wanted === "poll") {
+            add("transport", { phase: "polling-forced-by-query", transport: now });
+            fallbackNotedThisSession = true;
+          }
+          refresh();
+        }
+
+        socket.io.on("open", function () {
+          bindEngine();
+        });
+
+        socket.on("connect", function () {
+          opens += 1;
+          handledThisSocket = false;
+          fallbackNotedThisSession = false;
+          stallNoted = false;
+          lastConnectMs = connectStartedAt === null ? null : Date.now() - connectStartedAt;
+          bindEngine();
+          // احتياطٌ لو سبقت الترقيةُ الربطَ رغم ذلك: يُستنتَج من الناقلِ نفسِه.
+          if (!upgradeSeen && initialTransport === "polling" && currentTransport() === "websocket") {
+            upgradeSeen = true;
+            add("upgrade", { from: "polling", to: "websocket", inferred: true });
+          }
+          add("connect", {
+            socketId: socket.id,
+            transport: currentTransport(),
+            startedAtIso: connectStartedIso,
+            connectedAtIso: new Date().toISOString(),
+            connectMs: lastConnectMs,
+            recovered: socket.recovered === true,
+            online: navigator.onLine,
+          });
+          setState("متصل — بانتظار النبضة", "wait");
+          if (fallbackTimer !== null) clearTimeout(fallbackTimer);
+          fallbackTimer = setTimeout(checkFallback, FALLBACK_CHECK_MS);
+          refresh();
+        });
+
+        socket.on("connected", function (d) {
+          add("connected", d);
+          if (d && d.resumedFrom) expectedNext = d.resumedFrom + 1;
+          refresh();
+        });
+
+        socket.on("transport", function (d) {
+          add("transport", { phase: "server-said", detail: d });
+        });
+
+        socket.on("hb", function (d) {
+          var now = Date.now();
+          var seq = d && d.seq;
+
+          if (lastBeatAt !== null) {
+            var gap = now - lastBeatAt;
+            if (gap > GAP_THRESHOLD_MS) {
+              gaps += 1;
+              add("gap", {
+                gapMs: gap,
+                approxBeatsMissedByTime: Math.max(0, Math.round(gap / 5000) - 1),
+                visibility: document.visibilityState,
+                transport: currentTransport(),
+              });
+            }
+          }
+
+          if (expectedNext !== null) {
+            if (seq > expectedNext) {
+              var lost = seq - expectedNext;
+              missed += lost;
+              add("seq-missing", { expected: expectedNext, got: seq, lost: lost });
+            } else if (seq < expectedNext) {
+              // التسلسلُ رجعَ إلى الوراء: جلسةٌ جديدةٌ بلا تمريرِ نقطةِ استئناف.
+              add("seq-reset", { expected: expectedNext, got: seq, socketNo: d.socketNo });
+            }
+          }
+
+          recv += 1;
+          lastSeq = seq;
+          expectedNext = seq + 1;
+          lastBeatAt = now;
+          stallNoted = false;
+          add("heartbeat", {
+            seq: seq,
+            socketNo: d.socketNo,
+            transport: d.transport === undefined ? null : d.transport,
+            clientTransport: currentTransport(),
+            lastAckSeq: d.lastAckSeq === undefined ? null : d.lastAckSeq,
+            serverAcksReceived: d.serverAcksReceived === undefined ? null : d.serverAcksReceived,
+            serverAckTimeouts: d.serverAckTimeouts === undefined ? null : d.serverAckTimeouts,
+          });
+
+          // الاتجاهُ المعاكس، أوّلاً بلا إقرار: نفسُ رسالةِ مسبارِ WebSocket حرفياً.
+          try {
+            socket.emit("ack", { seq: seq });
+          } catch (e) {
+            add("send-error", { message: String(e), connected: socket.connected });
+          }
+
+          // ثمّ رحلةٌ بإقرارٍ ومهلة: هذه ميزةُ Socket.IO التي لا نظيرَ لها في
+          // المسبارَين السابقَين إلّا ببناءٍ يدويّ. زمنُ الرحلةِ يُسجَّل.
+          if (ECHO_EVERY > 0 && seq % ECHO_EVERY === 0) {
+            var sentAt = Date.now();
+            ackRequests += 1;
+            try {
+              socket.timeout(4000).emit("echo", { nonce: "s" + String(seq) }, function (err, reply) {
+                if (err) {
+                  ackTimeouts += 1;
+                  add("ack-timeout", { seq: seq, waitedMs: Date.now() - sentAt });
+                  refresh();
+                  return;
+                }
+                add("echo-roundtrip", {
+                  seq: seq,
+                  nonce: reply && reply.nonce,
+                  rttMs: Date.now() - sentAt,
+                  serverTransport: reply && reply.transport,
+                });
+              });
+            } catch (e) {
+              add("send-error", { message: String(e), where: "echo" });
+            }
+          }
+
+          setState("حيّ — تسلسل " + seq, "live");
+          refresh();
+        });
+
+        // طلبُ إقرارٍ من الخادمِ إلينا: نردُّ بدالّةِ الإقرارِ فيُسجَّل الخادمُ نجاحَها.
+        socket.on("hb-ack-req", function (d, ack) {
+          add("ack-request", {
+            seq: d && d.seq,
+            transport: currentTransport(),
+            visibility: document.visibilityState,
+          });
+          if (typeof ack === "function") ack({ ok: true, clientIso: new Date().toISOString() });
+        });
+
+        socket.on("echo-reply", function (d) {
+          add("message", { type: "echo-reply-event", detail: d });
+        });
+
+        socket.on("disconnect", function (reason, description) {
+          closes += 1;
+          if (handledThisSocket) {
+            add("duplicate-disconnect-suppressed", { reason: String(reason) });
+            refresh();
+            return;
+          }
+          handledThisSocket = true;
+          // `reason` سببُ المكتبةِ المسمّى: `io server disconnect` أو `transport close`
+          // أو `ping timeout` أو `transport error`. و`description` تحمل تفصيلَ الناقلِ
+          // حين توفّرُه المكتبة — وهو ما يُقابل رمزَ الإغلاقِ في WebSocket الخام.
+          add("disconnect", {
+            reason: String(reason),
+            description: describeDisconnect(description),
+            transportAtDisconnect: currentTransport(),
+            lastTransport: initialTransport,
+            upgradeSeen: upgradeSeen,
+            online: navigator.onLine,
+            visibility: document.visibilityState,
+            msSinceLastBeat: lastBeatAt === null ? null : Date.now() - lastBeatAt,
+            willReconnectAutomatically: reason !== "io client disconnect",
+          });
+          setState("منقطع — إعادةُ الاتصالِ من المكتبة", "down");
+          refresh();
+        });
+
+        socket.on("connect_error", function (err) {
+          errors += 1;
+          add("connect-error", {
+            message: String(err && err.message ? err.message : err),
+            data: err && err.data ? err.data : null,
+            transport: currentTransport(),
+            requestedTransports: TRANSPORTS,
+            online: navigator.onLine,
+            visibility: document.visibilityState,
+            msSinceConnectStart: connectStartedAt === null ? null : Date.now() - connectStartedAt,
+          });
+          refresh();
+        });
+
+        // أحداثُ المُدير: إعادةُ الاتصالِ في Socket.IO سلوكُ المكتبةِ لا سلوكُنا،
+        // فالعدُّ يأتي منها مباشرةً — وهذا فرقٌ عن مسبارِ WebSocket حيث العدُّ عدُّنا.
+        socket.io.on("reconnect_attempt", function (n) {
+          reconnectAttempts = n;
+          // نقطةُ الاستئنافِ تُمرَّر يدوياً في كلِّ محاولة: لا نظيرَ لـ`Last-Event-ID`.
+          try {
+            socket.auth.lastSeq = lastSeq === null ? 0 : lastSeq;
+          } catch (e) {
+            /* لا شيء */
+          }
+          markConnectStart("reconnect-attempt-" + String(n));
+          add("reconnect-attempt", { attempt: n, resumeFromSeq: lastSeq, online: navigator.onLine });
+          refresh();
+        });
+
+        socket.io.on("reconnect", function (n) {
+          add("reconnect", { attempt: n, transport: currentTransport() });
+          refresh();
+        });
+
+        socket.io.on("reconnect_error", function (err) {
+          add("reconnect-error", { message: String(err && err.message ? err.message : err) });
+        });
+
+        socket.io.on("reconnect_failed", function () {
+          add("reconnect-failed", { attempts: reconnectAttempts });
+          setState("فشلت إعادةُ الاتصالِ نهائياً", "down");
+          refresh();
+        });
+
+        socket.io.on("error", function (err) {
+          errors += 1;
+          add("manager-error", { message: String(err && err.message ? err.message : err) });
+          refresh();
+        });
+
+        // نبضةُ المكتبةِ نفسِها. تُعَدُّ منفصلةً عن نبضةِ المسبارِ التطبيقية، لأنّ
+        // خلطَهما يجعل القياسَ بلا معنى: انتهاءُ مهلةِ ping هو ما يقطع الوصلةَ فعلاً.
+        socket.io.on("ping", function () {
+          enginePings += 1;
+          if (enginePings <= 3 || enginePings % 10 === 0) {
+            add("engine-ping", { count: enginePings, transport: currentTransport() });
+          }
+          refresh();
+        });
+
+        function describeDisconnect(description) {
+          if (description === undefined || description === null) return "";
+          if (typeof description === "string") return description.slice(0, 120);
+          var parts = [];
+          if (description.message) parts.push("message=" + String(description.message).slice(0, 80));
+          if (description.description) {
+            parts.push("code=" + String(description.description).slice(0, 40));
+          }
+          if (description.context && description.context.name) {
+            parts.push("transport=" + String(description.context.name).slice(0, 24));
+          }
+          return parts.join(" ");
+        }
+
+        // مؤقّتٌ محليٌّ يكشف التوقّف. وهو نفسُه دليل: خنقُ المؤقّتاتِ في الخلفية
+        // يظهرُ في تباعدِ طوابعِ هذه السجلّات.
+        setInterval(function () {
+          refresh();
+          if (lastBeatAt !== null && !stallNoted && Date.now() - lastBeatAt > STALL_NOTICE_MS) {
+            stallNoted = true;
+            add("stall", {
+              msSinceLastBeat: Date.now() - lastBeatAt,
+              connected: socket.connected,
+              transport: currentTransport(),
+              online: navigator.onLine,
+              visibility: document.visibilityState,
+            });
+          }
+        }, 1000);
+
+        document.addEventListener("visibilitychange", function () {
+          add("visibility", {
+            state: document.visibilityState,
+            connected: socket.connected,
+            transport: currentTransport(),
+            msSinceLastBeat: lastBeatAt === null ? null : Date.now() - lastBeatAt,
+          });
+        });
+        window.addEventListener("online", function () {
+          add("online", { connected: socket.connected, transport: currentTransport() });
+          // المكتبةُ تُعيد المحاولةَ وحدَها. ولو كانت قد استسلمت (أو كان الانفصالُ
+          // منّا) فلا عودةَ بلا طلبٍ صريح — ويُسجَّل أنّ الطلبَ من شيفرتِنا.
+          if (!socket.connected) {
+            add("manual-connect", { why: "online-event" });
+            markConnectStart("online-event");
+            try {
+              socket.connect();
+            } catch (e) {
+              add("send-error", { message: String(e), where: "connect" });
+            }
+          }
+        });
+        window.addEventListener("offline", function () {
+          add("offline", { connected: socket.connected, transport: currentTransport() });
+        });
+        window.addEventListener("pagehide", function (ev) {
+          add("pagehide", { persisted: ev.persisted, connected: socket.connected });
+        });
+        window.addEventListener("pageshow", function (ev) {
+          add("pageshow", { persisted: ev.persisted, connected: socket.connected });
+        });
+        // دورةُ حياةِ الصفحة — أدقُّ ما يكشف تجميدَ iOS للحاوية في الخلفية.
+        document.addEventListener("freeze", function () {
+          add("freeze", { connected: socket.connected, transport: currentTransport() });
+        });
+        document.addEventListener("resume", function () {
+          add("resume", { connected: socket.connected, transport: currentTransport() });
+        });
+
+        function exportPayload() {
+          return JSON.stringify(
+            {
+              probe: "DEC-06-SOCKETIO",
+              exportedAtIso: new Date().toISOString(),
+              session: sessionNo,
+              summary: {
+                received: recv,
+                missedBySeq: missed,
+                gapsOver7s: gaps,
+                connects: opens,
+                disconnects: closes,
+                reconnectAttempts: reconnectAttempts,
+                errors: errors,
+                fallbacksToPolling: fallbacks,
+                enginePings: enginePings,
+                ackRequestsSent: ackRequests,
+                ackTimeouts: ackTimeouts,
+                lastSeq: lastSeq,
+                lastConnectMs: lastConnectMs,
+                currentTransport: currentTransport(),
+                initialTransport: initialTransport,
+                upgradeSeen: upgradeSeen,
+                requestedTransports: TRANSPORTS,
+                droppedBatches: dropped,
+              },
+              // لا `href`: العنوانُ في تلغرام يحمل `tgWebAppData`.
+              env: { ua: navigator.userAgent, origin: location.origin, path: location.pathname },
+              log: log,
+            },
+            null,
+            1,
+          );
+        }
+
+        el("copy").addEventListener("click", function () {
+          add("marker", { note: "EXPORT copy" });
+          var payload = exportPayload();
+          var done = function (ok) {
+            el("copy").textContent = ok ? "نُسخ ✓" : "تعذّر النسخ — استخدم التنزيل";
+            setTimeout(function () {
+              el("copy").textContent = "نسخ السجل JSON";
+            }, 2500);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(payload).then(
+              function () {
+                done(true);
+              },
+              function () {
+                done(false);
+              },
+            );
+          } else {
+            done(false);
+          }
+        });
+
+        el("download").addEventListener("click", function () {
+          add("marker", { note: "EXPORT download" });
+          try {
+            var blob = new Blob([exportPayload()], { type: "application/json" });
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "dec06-socketio-probe-" + Date.now() + ".json";
+            a.click();
+            setTimeout(function () {
+              URL.revokeObjectURL(a.href);
+            }, 4000);
+          } catch (e) {
+            add("export-error", { message: String(e) });
+          }
+        });
+
+        el("clear").addEventListener("click", function () {
+          log = [];
+          dropped = 0;
+          logEl.textContent = "";
+          persist();
+          add("marker", { note: "LOG CLEARED" });
+        });
+
+        var buttons = document.querySelectorAll("#marks button");
+        for (var b = 0; b < buttons.length; b++) {
+          buttons[b].addEventListener("click", function (ev) {
+            add("marker", { note: ev.currentTarget.getAttribute("data-m") });
+          });
+        }
+
+        markConnectStart("initial");
+        socket.connect();
+        refresh();
+      })();
+    </script>
+  </body>
+</html>

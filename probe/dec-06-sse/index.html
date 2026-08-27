@@ -274,7 +274,9 @@
 
         add("boot", {
           session: sessionNo,
-          href: location.href,
+          // لا يُكتَب location.href: في تلغرام يحمل tgWebAppData الخامَ كاملاً.
+          origin: location.origin,
+          path: location.pathname,
           ua: navigator.userAgent,
           online: navigator.onLine,
           visibility: document.visibilityState,
@@ -488,7 +490,7 @@
                 lastSeq: lastSeq,
                 droppedBatches: dropped,
               },
-              env: { ua: navigator.userAgent, href: location.href },
+              env: { ua: navigator.userAgent, origin: location.origin, path: location.pathname },
               log: log,
             },
             null,
