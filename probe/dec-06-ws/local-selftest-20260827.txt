@@ -1,0 +1,133 @@
+# فحوص مسبار WebSocket المحلية — 2026-08-27 (Asia/Riyadh)
+# البيئة: Node v20.20.1 في صندوق التطوير. **ليست دليلاً على iOS أو Android أو حاوية تلغرام.**
+# عميل WebSocket في الفحص مكتوب بيدٍ فوق node:http وnode:crypto — لا اعتمادية، ويعمل على Node وBun.
+
+## 1) selftest.mjs
+— فحص مسبار WebSocket الذاتي —
+
+[0] العزل
+  ✅ لا استعمال لـpostgres في الشيفرة
+  ✅ لا استعمال لـpg_notify في الشيفرة
+  ✅ لا استعمال لـredis في الشيفرة
+  ✅ لا استعمال لـupstash في الشيفرة
+  ✅ لا استعمال لـsupabase في الشيفرة
+  ✅ لا استعمال لـgrammy في الشيفرة
+  ✅ لا استيراد من apps/ أو packages/
+  ✅ لا اعتمادية خارجية في الخادم
+  ✅ الصفحة تستخدم WebSocket
+  ✅ الخادم ينفّذ مصافحة RFC 6455
+  ✅ الخادم يقرأ sec-websocket-key
+  ✅ لا كتابة لقيمة initData الخام في الصفحة
+  ✅ الصفحة فيها زر التصدير
+  ✅ الصفحة تُجدوِل إعادة الاتصال بنفسها
+
+[1] الحياة والصفحة
+  ✅ healthz = 200
+  ✅ healthz يذكر bootId
+  ✅ healthz يذكر openSockets
+  ✅ الصفحة = 200
+  ✅ الصفحة HTML
+  ✅ مسار مجهول = 404
+
+[2] المصافحة
+  ✅ الترقية = 101
+  ✅ Sec-WebSocket-Accept محسوبٌ صحيحاً
+  ✅ ترويسة upgrade = websocket
+  ✅ ترقيةٌ بلا مفتاح = 400
+  ✅ إصدارٌ غيرُ 13 = 426
+  ✅ ترقيةٌ على مسارٍ آخر = 404
+
+[3] رسالة الوصل
+  ✅ رسالة connected موجودة
+  ✅ connected بلا seq
+  ✅ resumedFrom = 0 لاتصالٍ جديد
+  ✅ heartbeatMs معلَن
+  ✅ الاستئنافُ معلَنٌ أنّه بمبادرةِ العميل
+
+[4] التسلسل والتوقيت
+  ✅ التسلسل يبدأ من 1
+  ✅ التسلسل متصاعد بواحد
+  ✅ التباعد قريب من 300ms
+
+[5] الاتجاه المعاكس — إقرارٌ من العميل
+  ✅ الخادم أعلنَ lastAckSeq
+  ✅ acksReceived تزايد
+  ✅ echo-reply بنفس المُعرِّف
+
+[6] ping و pong في الاتجاهين
+  ✅ pong من الخادم بنفس الحمولة
+  ✅ الخادم بعثَ ping من تلقائه
+  ✅ الخادم أحصى pong العميل
+
+[7] الإغلاق برمزٍ وسببٍ من العميل
+  ✅ الخادم سجّل رمزَ إغلاقِ العميل
+  ✅ الخادم سجّل سببَ الإغلاق
+  ✅ openSockets عاد إلى 0
+
+[8] الاستئناف بتمريرِ نقطةٍ من العميل
+  ✅ resumedFrom = 9
+  ✅ أول نبضة بعد الاستئناف = 10
+  ✅ قيمة فاسدة تعود إلى 1 لا NaN
+
+[9] إغلاقٌ يبدؤه الخادم برمزٍ وسبب
+  ✅ وصل إطارُ إغلاقٍ من الخادم
+  ✅ رمزُ الإغلاق = 4001
+  ✅ سببُ الإغلاق كما طُلب
+
+[10] أخطاء البروتوكول تُغلَق برمزٍ صحيح
+  ✅ إطارٌ بلا قناع يُغلَق بـ1002
+  ✅ سببُ الإغلاق يشرح الخطأ
+  ✅ حمولةٌ فوق الحدّ تُغلَق بـ1009
+
+[11] رسالةٌ مجزّأةٌ على إطارَين
+  ✅ الرسالةُ المجزّأةُ جُمِعت وفُهِمت
+
+[12] العدّ لا يتضاعف عند اجتماعِ الخطأِ والإغلاق
+  ✅ openSockets = 0 لا سالباً
+  ✅ سطرُ إغلاقٍ واحدٌ لكلِّ مقبس
+  ✅ كل المقابس بنفس bootId
+
+— الحصيلة: 56 ناجح، 0 فاشل —
+كل فحوص المسبار الذاتية نجحت على Node في بيئة التطوير.
+وهذا لا يقول شيئاً عن iOS أو Android أو حاوية تلغرام.
+
+
+## 2) مجرى حقيقي بنبضة 5000ms وping كل 15000ms (16.5 ثانية)
+### الترويسات والمجرى (اتصال جديد)
+HTTP/1.1 101 Switching Protocols
+upgrade: websocket
+connection: Upgrade
+sec-websocket-accept: +TDESGFKWIk5qZLQLwhD+iSR8VA=
+(Sec-WebSocket-Accept مطابق للمحسوب محلياً: true)
+
+<- TEXT  {"type":"connected","serverBootId":"z9inx84f","socketNo":1,"resumedFrom":0,"resumeIsClientDriven":true,"heartbeatMs":5000,"pingMs":15000,"serverIso":"2026-08-27T09:50:23.483Z"}
+<- TEXT  {"type":"heartbeat","seq":1,"socketNo":1,"serverBootId":"z9inx84f","lastAckSeq":0,"acksReceived":0,"pongsReceived":0,"serverIso":"2026-08-27T09:50:28.487Z"}
+<- TEXT  {"type":"heartbeat","seq":2,"socketNo":1,"serverBootId":"z9inx84f","lastAckSeq":0,"acksReceived":0,"pongsReceived":0,"serverIso":"2026-08-27T09:50:33.490Z"}
+<- PING  "p1787824238489"  -> PONG
+<- TEXT  {"type":"heartbeat","seq":3,"socketNo":1,"serverBootId":"z9inx84f","lastAckSeq":0,"acksReceived":0,"pongsReceived":1,"serverIso":"2026-08-27T09:50:38.491Z"}
+-> ACK {"type":"ack","seq":3}
+-> CLOSE code=1000 reason="live-transcript-done"
+<- CLOSE code=1000 reason="ack"
+
+### تمرير نقطة الاستئناف: ?lastSeq=9 (لا replay — لا مخزن أحداث)
+HTTP/1.1 101 Switching Protocols
+upgrade: websocket
+connection: Upgrade
+sec-websocket-accept: 8tdsxysMOII4WCjchfp2WvaHZNk=
+(Sec-WebSocket-Accept مطابق للمحسوب محلياً: true)
+
+<- TEXT  {"type":"connected","serverBootId":"z9inx84f","socketNo":2,"resumedFrom":9,"resumeIsClientDriven":true,"heartbeatMs":5000,"pingMs":15000,"serverIso":"2026-08-27T09:50:41.592Z"}
+<- TEXT  {"type":"heartbeat","seq":10,"socketNo":2,"serverBootId":"z9inx84f","lastAckSeq":0,"acksReceived":0,"pongsReceived":0,"serverIso":"2026-08-27T09:50:46.596Z"}
+<- TEXT  {"type":"heartbeat","seq":11,"socketNo":2,"serverBootId":"z9inx84f","lastAckSeq":0,"acksReceived":0,"pongsReceived":0,"serverIso":"2026-08-27T09:50:51.602Z"}
+-> ACK {"type":"ack","seq":3}
+-> CLOSE code=1000 reason="live-transcript-done"
+<- CLOSE code=1000 reason="ack"
+
+### سجل الخادم
+[probe] DEC-06 WS probe on http://0.0.0.0:8788 bootId=z9inx84f heartbeatMs=5000 pingMs=15000
+[ws] open socket=1 resumedFrom=0 open=1 at=2026-08-27T09:50:23.484Z
+[ws] client-close socket=1 code=1000 reason="live-transcript-done"
+[ws] closed socket=1 why=client-close lastSeq=3 acks=1 pongs=1 open=0
+[ws] open socket=2 resumedFrom=9 open=1 at=2026-08-27T09:50:41.592Z
+[ws] client-close socket=2 code=1000 reason="live-transcript-done"
+[ws] closed socket=2 why=client-close lastSeq=11 acks=1 pongs=0 open=0

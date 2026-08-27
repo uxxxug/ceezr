@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>مسبار DEC-06 — WebSocket</title>
+    <!--
+      مسبارُ DEC-06 — WebSocket. صفحةٌ واحدةٌ مؤقَّتة، بلا اعتمادياتٍ وبلا بناء.
+      نظيرُ صفحةِ مسبارِ SSE حرفياً في طريقةِ القياس: نفسُ العدّاداتِ، ونفسُ أنواعِ
+      السجل، ونفسُ أزرارِ الوسمِ السبعة. والمتغيّرُ الوحيدُ هو الناقل.
+      لا حالةَ عملٍ ولا مصادقةَ ولا نداءَ لواجهةِ الإنتاج. تُحذَف بحذفِ `probe/`.
+      سكربتُ تلغرام يُحمَّل لقراءةِ الوصفِ وحدَه (المنصّة، النسخة) ولا يُتحقَّق من
+      `initData` ولا يُرسَل إلى أيِّ خادم، ولا تُكتَب قيمتُه الخامُ في السجلِّ ولا
+      في المخرَج — يُسجَّل حضورُه بنعم/لا فقط.
+    -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --ok: #1f9d55;
+        --bad: #d64545;
+        --warn: #c98a00;
+        --line: color-mix(in srgb, currentColor 18%, transparent);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 12px;
+        font: 14px/1.55 -apple-system, "SF Arabic", "Segoe UI", Roboto, system-ui, sans-serif;
+      }
+      h1 {
+        font-size: 16px;
+        margin: 0 0 10px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+        text-align: center;
+      }
+      .card b {
+        display: block;
+        font-size: 20px;
+        font-variant-numeric: tabular-nums;
+      }
+      .card span {
+        font-size: 11px;
+        opacity: 0.7;
+      }
+      #state {
+        font-weight: 700;
+        padding: 8px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        margin-bottom: 10px;
+      }
+      .live {
+        color: var(--ok);
+      }
+      .down {
+        color: var(--bad);
+      }
+      .wait {
+        color: var(--warn);
+      }
+      button {
+        font: inherit;
+        padding: 9px 10px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      #marks button {
+        font-size: 12px;
+        padding: 7px 8px;
+      }
+      #log {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 8px;
+        height: 46vh;
+        overflow: auto;
+        font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        white-space: pre-wrap;
+        direction: ltr;
+        text-align: left;
+      }
+      #log div {
+        border-bottom: 1px solid var(--line);
+        padding: 1px 0;
+      }
+      .t-gap,
+      .t-seq-reset,
+      .t-ws-error,
+      .t-ws-close,
+      .t-disconnect,
+      .t-offline,
+      .t-stall {
+        color: var(--bad);
+      }
+      .t-ws-open,
+      .t-reconnect,
+      .t-online {
+        color: var(--ok);
+      }
+      .t-marker {
+        color: var(--warn);
+        font-weight: 700;
+      }
+      small {
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>مسبار DEC-06 — WebSocket في حاوية تلغرام</h1>
+    <div id="state" class="wait">…</div>
+
+    <div class="grid">
+      <div class="card"><b id="m-seq">—</b><span>آخر تسلسل</span></div>
+      <div class="card"><b id="m-recv">0</b><span>نبضات مستلَمة</span></div>
+      <div class="card"><b id="m-missed">0</b><span>مفقودة (تسلسل)</span></div>
+      <div class="card"><b id="m-gaps">0</b><span>فجوات &gt; 7ث</span></div>
+      <div class="card"><b id="m-open">0</b><span>مرات الاتصال</span></div>
+      <div class="card"><b id="m-closes">0</b><span>مرات الإغلاق</span></div>
+      <div class="card"><b id="m-recon">0</b><span>محاولات إعادة</span></div>
+      <div class="card"><b id="m-err">0</b><span>أخطاء</span></div>
+      <div class="card"><b id="m-rs">—</b><span>readyState</span></div>
+      <div class="card"><b id="m-since">—</b><span>منذ آخر نبضة</span></div>
+      <div class="card"><b id="m-sess">1</b><span>جلسات الصفحة</span></div>
+    </div>
+
+    <div class="row">
+      <button id="copy">نسخ السجل JSON</button>
+      <button id="download">تنزيل JSON</button>
+      <button id="clear">مسح السجل</button>
+    </div>
+
+    <div class="row" id="marks">
+      <button data-m="CASE-1 open+connect">١ فتح</button>
+      <button data-m="CASE-2 idle receive">٢ بقاء</button>
+      <button data-m="CASE-3 minimize">٣ تصغير</button>
+      <button data-m="CASE-4 reopen">٤ إعادة فتح</button>
+      <button data-m="CASE-5 network off">٥ قطع الشبكة</button>
+      <button data-m="CASE-5 network on">٥ عودة الشبكة</button>
+      <button data-m="CASE-6 wifi<->cellular">٦ تبديل الشبكة</button>
+      <button data-m="CASE-7 app kill+reopen">٧ إغلاق وفتح</button>
+    </div>
+
+    <div id="log"></div>
+    <p>
+      <small
+        >الوسمُ يُكتَب في السجلِّ قبلَ كلِّ حالةٍ وبعدَها. والسجلُّ محفوظٌ في
+        <code>localStorage</code> فيبقى بعد إغلاقِ التطبيق. وإعادةُ الاتصالِ في WebSocket
+        <b>من شيفرةِ الصفحةِ لا من المتصفّح</b> — فكلُّ محاولةٍ مُسجَّلةٌ بعددِها.</small
+      >
+    </p>
+
+    <script>
+      (() => {
+        "use strict";
+
+        var GAP_THRESHOLD_MS = 7000; // نبضةُ 5ث + هامش — نفسُ حدِّ مسبارِ SSE
+        var STALL_NOTICE_MS = 12000; // متى نُسجّل توقّفاً ملحوظاً
+        var MAX_RECORDS = 4000;
+        var LS_KEY = "dec06.ws.probe.log.v1";
+        var LS_META = "dec06.ws.probe.meta.v1";
+
+        // في SSE يُعيد المتصفّحُ الاتصالَ وحدَه، وفي WebSocket **لا يفعل**: لا إعادةَ
+        // اتصالٍ في البروتوكول ولا في الواجهة. فهذه الأرقامُ سياستُنا نحن، ووجودُها
+        // بذاتُه فرقٌ يُقاس: كلُّ عودةٍ هنا سطرٌ من شيفرتِنا لا سلوكُ منصّة.
+        var RECONNECT_BASE_MS = 3000; // نفسُ `retry` المعلَن في مسبارِ SSE
+        var RECONNECT_MAX_MS = 15000;
+
+        var log = [];
+        var dropped = 0;
+        var sessionNo = 1;
+        var t0 = Date.now();
+
+        var recv = 0;
+        var missed = 0;
+        var gaps = 0;
+        var opens = 0;
+        var closes = 0;
+        var reconnects = 0;
+        var errors = 0;
+        var lastSeq = null;
+        var expectedNext = null;
+        var lastBeatAt = null;
+        var stallNoted = false;
+        var lastReadyState = null;
+
+        var ws = null;
+        var reconnectTimer = null;
+        var attempt = 0;
+        // الحارسُ الذي يمنع تضاعُفَ العدّ: `error` ثمّ `close` يقعان للاتصالِ الواحدِ
+        // في معظمِ الحاويات. فبلا هذا العلمِ تُحسَب إعادتان وتُجدوَل محاولتان
+        // لانقطاعٍ واحد. وهو نظيرُ العيبِ الذي كشفَه الفحصُ الذاتيُّ في خادمِ SSE.
+        var handledThisSocket = false;
+
+        var el = function (id) {
+          return document.getElementById(id);
+        };
+        var logEl = el("log");
+
+        function loadPersisted() {
+          try {
+            var raw = localStorage.getItem(LS_KEY);
+            if (raw) {
+              var parsed = JSON.parse(raw);
+              if (parsed && Array.isArray(parsed.log)) {
+                log = parsed.log;
+                dropped = parsed.dropped || 0;
+              }
+            }
+            var meta = JSON.parse(localStorage.getItem(LS_META) || "{}");
+            sessionNo = (meta.sessionNo || 0) + 1;
+            localStorage.setItem(LS_META, JSON.stringify({ sessionNo: sessionNo }));
+          } catch (e) {
+            /* التخزينُ قد يكون ممنوعاً في الحاوية — السجلُّ يبقى في الذاكرة */
+          }
+        }
+
+        function persist() {
+          try {
+            localStorage.setItem(LS_KEY, JSON.stringify({ log: log, dropped: dropped }));
+          } catch (e) {
+            /* لا شيء: الفقدُ عند الإغلاق مقبولٌ ويُذكَر في التقرير */
+          }
+        }
+
+        function render(rec) {
+          var d = document.createElement("div");
+          d.className = "t-" + rec.type;
+          d.textContent =
+            rec.iso.slice(11, 23) +
+            "  +" +
+            String(rec.ms).padStart(7, " ") +
+            "  " +
+            rec.type +
+            (rec.detail === undefined ? "" : "  " + JSON.stringify(rec.detail));
+          logEl.appendChild(d);
+          logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function add(type, detail) {
+          var rec = {
+            iso: new Date().toISOString(),
+            epochMs: Date.now(),
+            ms: Date.now() - t0,
+            session: sessionNo,
+            type: type,
+          };
+          if (detail !== undefined) rec.detail = detail;
+          log.push(rec);
+          if (log.length > MAX_RECORDS) {
+            log.splice(0, log.length - MAX_RECORDS);
+            dropped += 1;
+          }
+          render(rec);
+          persist();
+        }
+
+        function setState(text, cls) {
+          var s = el("state");
+          s.textContent = text;
+          s.className = cls;
+        }
+
+        // دلالةُ readyState في WebSocket تختلف عن EventSource، ولا يجوز خلطُهما:
+        // 0 = CONNECTING · 1 = OPEN · 2 = CLOSING · 3 = CLOSED. (وفي EventSource
+        // ثلاثُ حالاتٍ فقط و2 = CLOSED.) والمسبارُ يكتب الرقمَ واسمَه معاً.
+        function rsName(v) {
+          if (v === 0) return "CONNECTING";
+          if (v === 1) return "OPEN";
+          if (v === 2) return "CLOSING";
+          if (v === 3) return "CLOSED";
+          return "UNKNOWN(" + String(v) + ")";
+        }
+
+        function currentReadyState() {
+          return ws === null ? null : ws.readyState;
+        }
+
+        function noteReadyState(where) {
+          var v = currentReadyState();
+          if (v !== lastReadyState) {
+            lastReadyState = v;
+            add("readyState", { value: v, name: v === null ? "NO-SOCKET" : rsName(v), at: where });
+          }
+        }
+
+        function refresh() {
+          el("m-seq").textContent = lastSeq === null ? "—" : String(lastSeq);
+          el("m-recv").textContent = String(recv);
+          el("m-missed").textContent = String(missed);
+          el("m-gaps").textContent = String(gaps);
+          el("m-open").textContent = String(opens);
+          el("m-closes").textContent = String(closes);
+          el("m-recon").textContent = String(reconnects);
+          el("m-err").textContent = String(errors);
+          el("m-sess").textContent = String(sessionNo);
+          var v = currentReadyState();
+          el("m-rs").textContent = v === null ? "—" : String(v) + "·" + rsName(v);
+          el("m-since").textContent =
+            lastBeatAt === null ? "—" : Math.round((Date.now() - lastBeatAt) / 1000) + "ث";
+        }
+
+        loadPersisted();
+        for (var i = 0; i < log.length; i++) render(log[i]);
+
+        add("boot", {
+          session: sessionNo,
+          href: location.href,
+          ua: navigator.userAgent,
+          online: navigator.onLine,
+          visibility: document.visibilityState,
+          restoredRecords: log.length,
+          droppedBatches: dropped,
+          tz: (Intl.DateTimeFormat().resolvedOptions() || {}).timeZone || null,
+          hasWebSocket: typeof WebSocket === "function",
+          hasLocalStorage: (function () {
+            try {
+              localStorage.setItem("dec06.ws.t", "1");
+              localStorage.removeItem("dec06.ws.t");
+              return true;
+            } catch (e) {
+              return false;
+            }
+          })(),
+        });
+
+        // وصفُ الحاوية — قراءةٌ فقط. لا تحقُّقَ من `initData` ولا إرسالَ له، ولا
+        // تُكتَب قيمتُه الخامُ هنا: حضورُه بنعم/لا فقط، فلا يدخل المخرَجَ النهائيَّ شيءٌ منه.
+        var tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+        if (tg) {
+          try {
+            tg.ready();
+            tg.expand();
+          } catch (e) {
+            /* نسخٌ قديمةٌ قد لا تدعم `expand` */
+          }
+          add("tg-meta", {
+            platform: tg.platform || null,
+            version: tg.version || null,
+            colorScheme: tg.colorScheme || null,
+            isExpanded: tg.isExpanded === undefined ? null : tg.isExpanded,
+            viewportHeight: tg.viewportHeight || null,
+            initDataPresent: Boolean(tg.initData),
+          });
+        } else {
+          add("tg-meta", { platform: null, note: "no-telegram-webapp-object" });
+        }
+
+        if (typeof WebSocket !== "function") {
+          setState("لا WebSocket في هذه الحاوية", "down");
+          add("ws-unsupported", {});
+          refresh();
+          return;
+        }
+
+        function wsUrl() {
+          var scheme = location.protocol === "https:" ? "wss://" : "ws://";
+          // نقطةُ الاستئنافِ تُمرَّر يدوياً: لا نظيرَ لـ`Last-Event-ID` في WebSocket.
+          var q = lastSeq === null ? "" : "?lastSeq=" + String(lastSeq);
+          return scheme + location.host + "/ws" + q;
+        }
+
+        function scheduleReconnect(why) {
+          if (reconnectTimer !== null) return;
+          attempt += 1;
+          var delay = Math.min(RECONNECT_BASE_MS * attempt, RECONNECT_MAX_MS);
+          add("reconnect-scheduled", {
+            attempt: attempt,
+            inMs: delay,
+            why: why,
+            online: navigator.onLine,
+            visibility: document.visibilityState,
+          });
+          reconnectTimer = setTimeout(function () {
+            reconnectTimer = null;
+            reconnects += 1;
+            add("reconnect", { attempt: attempt, resumeFromSeq: lastSeq, online: navigator.onLine });
+            refresh();
+            connect();
+          }, delay);
+        }
+
+        // تُنادى من `error` ومن `close` معاً، وتعمل مرّةً واحدةً لكلِّ مقبس.
+        function onDisconnected(why, detail) {
+          if (handledThisSocket) {
+            add("duplicate-disconnect-suppressed", { why: why });
+            return;
+          }
+          handledThisSocket = true;
+          add("disconnect", detail);
+          setState("منقطع — إعادةُ الاتصالِ من شيفرةِ الصفحة", "down");
+          noteReadyState("disconnect");
+          refresh();
+          scheduleReconnect(why);
+        }
+
+        function connect() {
+          var url = wsUrl();
+          handledThisSocket = false;
+          add("ws-connecting", { url: url, attempt: attempt, resumeFromSeq: lastSeq });
+          try {
+            ws = new WebSocket(url);
+          } catch (e) {
+            errors += 1;
+            add("ws-construct-error", { message: String(e) });
+            onDisconnected("construct-error", { source: "construct", message: String(e) });
+            return;
+          }
+          noteReadyState("connecting");
+
+          ws.addEventListener("open", function () {
+            opens += 1;
+            attempt = 0;
+            stallNoted = false;
+            add("ws-open", {
+              readyState: ws.readyState,
+              readyStateName: rsName(ws.readyState),
+              online: navigator.onLine,
+              protocol: ws.protocol || null,
+              extensions: ws.extensions || null,
+            });
+            noteReadyState("open");
+            setState("متصل — بانتظار النبضة", "wait");
+            refresh();
+          });
+
+          ws.addEventListener("error", function () {
+            // حدثُ `error` في WebSocket لا يحمل تفصيلاً عن قصدٍ في المعيار (منعُ
+            // تسريبِ معلوماتٍ عبر الأصول)، فلا يُنتظَر منه سببٌ — والمعنى في
+            // رمزِ الإغلاقِ التالي.
+            errors += 1;
+            add("ws-error", {
+              readyState: ws.readyState,
+              readyStateName: rsName(ws.readyState),
+              online: navigator.onLine,
+              visibility: document.visibilityState,
+              msSinceLastBeat: lastBeatAt === null ? null : Date.now() - lastBeatAt,
+              note: "WebSocket error event carries no reason by specification",
+            });
+            noteReadyState("error");
+            refresh();
+          });
+
+          ws.addEventListener("close", function (ev) {
+            closes += 1;
+            add("ws-close", {
+              code: ev.code,
+              reason: String(ev.reason || ""),
+              wasClean: ev.wasClean,
+              readyState: ws.readyState,
+              readyStateName: rsName(ws.readyState),
+              online: navigator.onLine,
+              visibility: document.visibilityState,
+              msSinceLastBeat: lastBeatAt === null ? null : Date.now() - lastBeatAt,
+            });
+            refresh();
+            onDisconnected("close-" + String(ev.code), {
+              source: "close",
+              code: ev.code,
+              reason: String(ev.reason || ""),
+              wasClean: ev.wasClean,
+            });
+          });
+
+          ws.addEventListener("message", function (ev) {
+            var d = null;
+            try {
+              d = JSON.parse(ev.data);
+            } catch (e) {
+              add("parse-error", { raw: String(ev.data).slice(0, 200) });
+              return;
+            }
+
+            if (d.type === "connected") {
+              add("connected", d);
+              if (d.resumedFrom) expectedNext = d.resumedFrom + 1;
+              refresh();
+              return;
+            }
+
+            if (d.type !== "heartbeat") {
+              add("message", d);
+              return;
+            }
+
+            var now = Date.now();
+            var seq = d.seq;
+
+            if (lastBeatAt !== null) {
+              var gap = now - lastBeatAt;
+              if (gap > GAP_THRESHOLD_MS) {
+                gaps += 1;
+                add("gap", {
+                  gapMs: gap,
+                  approxBeatsMissedByTime: Math.max(0, Math.round(gap / 5000) - 1),
+                  visibility: document.visibilityState,
+                });
+              }
+            }
+
+            if (expectedNext !== null) {
+              if (seq > expectedNext) {
+                var lost = seq - expectedNext;
+                missed += lost;
+                add("seq-missing", { expected: expectedNext, got: seq, lost: lost });
+              } else if (seq < expectedNext) {
+                // التسلسلُ رجعَ إلى الوراء: مقبسٌ جديدٌ بلا تمريرِ نقطةِ استئناف.
+                add("seq-reset", { expected: expectedNext, got: seq, socketNo: d.socketNo });
+              }
+            }
+
+            recv += 1;
+            lastSeq = seq;
+            expectedNext = seq + 1;
+            lastBeatAt = now;
+            stallNoted = false;
+            add("heartbeat", {
+              seq: seq,
+              socketNo: d.socketNo,
+              lastAckSeq: d.lastAckSeq === undefined ? null : d.lastAckSeq,
+              pongsReceived: d.pongsReceived === undefined ? null : d.pongsReceived,
+            });
+
+            // الاتجاهُ المعاكس: إقرارٌ يُرسَل فورَ كلِّ نبضة. فإن ظهر `lastAckSeq`
+            // متأخّراً أو ثابتاً، فالقناةُ حيّةٌ في اتجاهٍ واحدٍ فقط — وهو قياسٌ
+            // لا وجودَ له في SSE أصلاً، لأنّ SSE لا يبعث من العميلِ شيئاً.
+            try {
+              if (ws.readyState === 1) ws.send(JSON.stringify({ type: "ack", seq: seq }));
+            } catch (e) {
+              add("send-error", { message: String(e), readyState: ws.readyState });
+            }
+
+            setState("حيّ — تسلسل " + seq, "live");
+            refresh();
+          });
+        }
+
+        // مؤقّتٌ محليٌّ يكشف التوقّف. وهو نفسُه دليل: خنقُ المؤقّتاتِ في الخلفية
+        // يظهرُ في تباعدِ طوابعِ هذه السجلّات.
+        setInterval(function () {
+          noteReadyState("tick");
+          refresh();
+          if (lastBeatAt !== null && !stallNoted && Date.now() - lastBeatAt > STALL_NOTICE_MS) {
+            stallNoted = true;
+            add("stall", {
+              msSinceLastBeat: Date.now() - lastBeatAt,
+              readyState: currentReadyState(),
+              online: navigator.onLine,
+              visibility: document.visibilityState,
+            });
+          }
+        }, 1000);
+
+        document.addEventListener("visibilitychange", function () {
+          add("visibility", {
+            state: document.visibilityState,
+            readyState: currentReadyState(),
+            msSinceLastBeat: lastBeatAt === null ? null : Date.now() - lastBeatAt,
+          });
+        });
+        window.addEventListener("online", function () {
+          add("online", { readyState: currentReadyState() });
+          // الشبكةُ عادت: إن كان المقبسُ ميّتاً فلن يعودَ وحدَه — لا إعادةَ اتصالٍ
+          // في WebSocket. فتُجدوَل محاولةٌ صريحةٌ ويُسجَّل أنّها من شيفرتِنا.
+          var v = currentReadyState();
+          if (v === null || v === 2 || v === 3) {
+            handledThisSocket = true;
+            scheduleReconnect("online-event");
+          }
+        });
+        window.addEventListener("offline", function () {
+          add("offline", { readyState: currentReadyState() });
+        });
+        window.addEventListener("pagehide", function (ev) {
+          add("pagehide", { persisted: ev.persisted, readyState: currentReadyState() });
+        });
+        window.addEventListener("pageshow", function (ev) {
+          add("pageshow", { persisted: ev.persisted, readyState: currentReadyState() });
+        });
+        // دورةُ حياةِ الصفحة — أدقُّ ما يكشف تجميدَ iOS للحاوية في الخلفية.
+        document.addEventListener("freeze", function () {
+          add("freeze", { readyState: currentReadyState() });
+        });
+        document.addEventListener("resume", function () {
+          add("resume", { readyState: currentReadyState() });
+        });
+
+        function exportPayload() {
+          return JSON.stringify(
+            {
+              probe: "DEC-06-WS",
+              exportedAtIso: new Date().toISOString(),
+              session: sessionNo,
+              summary: {
+                received: recv,
+                missedBySeq: missed,
+                gapsOver7s: gaps,
+                opens: opens,
+                closes: closes,
+                reconnectAttempts: reconnects,
+                errors: errors,
+                lastSeq: lastSeq,
+                droppedBatches: dropped,
+              },
+              env: { ua: navigator.userAgent, href: location.href },
+              log: log,
+            },
+            null,
+            1,
+          );
+        }
+
+        el("copy").addEventListener("click", function () {
+          add("marker", { note: "EXPORT copy" });
+          var payload = exportPayload();
+          var done = function (ok) {
+            el("copy").textContent = ok ? "نُسخ ✓" : "تعذّر النسخ — استخدم التنزيل";
+            setTimeout(function () {
+              el("copy").textContent = "نسخ السجل JSON";
+            }, 2500);
+          };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(payload).then(
+              function () {
+                done(true);
+              },
+              function () {
+                done(false);
+              },
+            );
+          } else {
+            done(false);
+          }
+        });
+
+        el("download").addEventListener("click", function () {
+          add("marker", { note: "EXPORT download" });
+          try {
+            var blob = new Blob([exportPayload()], { type: "application/json" });
+            var a = document.createElement("a");
+            a.href = URL.createObjectURL(blob);
+            a.download = "dec06-ws-probe-" + Date.now() + ".json";
+            a.click();
+            setTimeout(function () {
+              URL.revokeObjectURL(a.href);
+            }, 4000);
+          } catch (e) {
+            add("export-error", { message: String(e) });
+          }
+        });
+
+        el("clear").addEventListener("click", function () {
+          log = [];
+          dropped = 0;
+          logEl.textContent = "";
+          persist();
+          add("marker", { note: "LOG CLEARED" });
+        });
+
+        var buttons = document.querySelectorAll("#marks button");
+        for (var b = 0; b < buttons.length; b++) {
+          buttons[b].addEventListener("click", function (ev) {
+            add("marker", { note: ev.currentTarget.getAttribute("data-m") });
+          });
+        }
+
+        connect();
+        refresh();
+      })();
+    </script>
+  </body>
+</html>
