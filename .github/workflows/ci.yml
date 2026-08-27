@@ -143,6 +143,9 @@ jobs:
       - name: عقدُ المخطّط يطابق ما يناديه الكود (فحصُ الجهوزية يقرؤه)
         run: bun run scripts/check-schema-contract.ts
 
+      - name: كلُّ استدعاءِ تيليجرامٍ عبر طبقةِ التغليف وحدَها (F1-02 · ADR 0031)
+        run: bun run scripts/check-telegram-wrapper-isolation.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

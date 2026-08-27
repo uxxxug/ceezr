@@ -4,6 +4,8 @@
  * Outside Telegram the wrapper degrades: no crash, no invented identity.
  */
 
+import type { TelegramHostExtras } from "./host-types.ts";
+
 export type ThemeParams = {
   bg_color?: string;
   text_color?: string;
@@ -21,7 +23,13 @@ export type ThemeParams = {
   destructive_text_color?: string;
 };
 
-export type TelegramWebAppLike = {
+/**
+ * Host surface the wrapper touches. The mandatory part below is what every
+ * Telegram client has had since Mini Apps existed; everything added later is in
+ * `TelegramHostExtras` and is optional, because a member's presence differs by
+ * client version and platform (ROADMAP §4.4).
+ */
+export type TelegramWebAppLike = TelegramHostExtras & {
   initData: string;
   initDataUnsafe: Record<string, unknown>;
   version: string;
@@ -69,6 +77,43 @@ export function getRawInitData(): string | null {
     return null;
   }
   return wa.initData;
+}
+
+/**
+ * Safe description of `initData` for diagnostics.
+ *
+ * The raw string is a credential: it carries the user object and the `hash`
+ * that the server verifies (F1-03). It MUST NOT be logged, so this returns the
+ * KEY NAMES only — never a single value, never the hash, never the user object.
+ */
+export function describeInitData(): { present: boolean; length: number; keys: string[] } {
+  const raw = getRawInitData();
+  if (raw === null) return { present: false, length: 0, keys: [] };
+  let keys: string[] = [];
+  try {
+    keys = [...new URLSearchParams(raw).keys()].sort();
+  } catch {
+    keys = [];
+  }
+  return { present: true, length: raw.length, keys };
+}
+
+/**
+ * Host description with no user data in it: version, platform, color scheme.
+ * `null` outside Telegram.
+ */
+export function getHostInfo(): {
+  version: string;
+  platform: string;
+  colorScheme: "light" | "dark";
+} | null {
+  const wa = getWebApp();
+  if (!wa) return null;
+  return {
+    version: typeof wa.version === "string" ? wa.version : "",
+    platform: typeof wa.platform === "string" ? wa.platform : "unknown",
+    colorScheme: wa.colorScheme === "dark" ? "dark" : "light",
+  };
 }
 
 export function applyThemeFromTelegram(): void {
