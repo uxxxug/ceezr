@@ -60,6 +60,9 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     osrmBaseUrl: null,
     tracking: NO_TRACKING_OVERRIDES,
     trackingTokenBaseUrl: null,
+    // `null` يعني أنّ مسارَ جلسةِ التطبيقِ المصغَّر غيرُ مُركَّبٍ في الاختبارِ أصلاً
+    // (`F1-03`): من أراده يُعلن سرّاً في `overrides` فيظهر الفرقُ في موضعِ الاستدعاء.
+    miniappSessionSecret: null,
     ...overrides,
   };
 }

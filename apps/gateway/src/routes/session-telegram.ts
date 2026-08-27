@@ -1,0 +1,106 @@
+/**
+ * الغرض: مسارُ `POST /v1/session/telegram` — مبادلةُ `initData` الخامِ بجلسةٍ
+ *   داخلية بعدَ التحقّقِ التشفيريِّ على الخادم.
+ * الحالة: منفّذ فعلياً — البند `F1-03`.
+ * ينتمي إلى: apps/gateway/src/routes
+ * يُتوقع أن يستخدمه لاحقاً: `apps/gateway/src/server.ts` عبر تركيبٍ اختياري.
+ * ملاحظات مستقبلية: التجديدُ والإبطالُ والتخزينُ على الجهاز = `F1-04`؛ وحدُّ المعدّلِ
+ *   لكلِّ عنوانٍ ومستخدمٍ على هذا المسارِ يتبع سياسةَ القسم 10 عندَ بناءِ حدِّ API.
+ *
+ * ما لا يفعله هذا المسارُ عن قصد:
+ *   ــ لا يقرأ حقلَ هويةٍ من الجسمِ غيرَ `initData`: لا `user` ولا `telegram_id`
+ *      ولا `role`. وما أرسله العميلُ عنها يُهمَل إهمالاً تاماً.
+ *   ــ لا يُنشئ ولا يعدّل كياناً من كياناتِ العمل (مستخدماً أو رحلةً أو سائقاً) —
+ *      ADR 0035: التطبيقُ المصغَّرُ لا يخلق حالةَ عمل.
+ *   ــ لا يُسجِّل `initData` الخامَ ولا `hash` ولا الرمزَ المُصدَر، ولا يكشف سببَ
+ *      الرفضِ الدقيقَ في الردّ: السببُ المصنَّفُ للسجلِّ الداخليّ، والرمزُ العامُّ
+ *      للعميل — كي لا يصير الردُّ دليلاً يقود المهاجمَ إلى موضعِ الثُّلمة.
+ */
+
+import { type Context, Hono } from "hono";
+import {
+  type ExchangeTelegramSessionDeps,
+  exchangeTelegramSession,
+} from "../../../../packages/application/identity/exchange-telegram-session.ts";
+import { readBounded } from "./telegram-webhook.ts";
+
+/** حدُّ الجسم: `initData` نصٌّ صغير؛ وما تجاوز 16KB ليس `initData`. */
+export const SESSION_TELEGRAM_MAX_BYTES = 16 * 1024;
+
+export interface SessionTelegramDependencies {
+  /**
+   * تبعياتُ حالةِ الاستخدام — غيابُها **يعطّل المسارَ بـ503** ولا يجعله يقبل
+   * بلا تحقّق (سابقةُ ويبهوك الدفع: غيابُ الموثِّقِ يعني تعطيلاً لا تسامحاً).
+   */
+  readonly exchange?: ExchangeTelegramSessionDeps;
+  readonly log?: (message: string, meta: Record<string, unknown>) => void;
+}
+
+function rejected(c: Context, error: string, status: 400 | 401 | 413 | 503) {
+  return c.json({ ok: false, error }, status);
+}
+
+export function createSessionTelegramRoutes(deps: SessionTelegramDependencies): Hono {
+  const app = new Hono();
+
+  app.post("/v1/session/telegram", async (c) => {
+    if (deps.exchange === undefined) {
+      deps.log?.("مسار الجلسة معطّل لغياب سرّ التوقيع أو رمز بوت موقِّع", {});
+      return rejected(c, "SESSION_NOT_CONFIGURED", 503);
+    }
+
+    const declaredLength = Number(c.req.header("content-length") ?? Number.NaN);
+    if (Number.isFinite(declaredLength) && declaredLength > SESSION_TELEGRAM_MAX_BYTES) {
+      return rejected(c, "PAYLOAD_TOO_LARGE", 413);
+    }
+    const raw = await readBounded(c.req.raw.body, SESSION_TELEGRAM_MAX_BYTES);
+    if (raw === null) return rejected(c, "PAYLOAD_TOO_LARGE", 413);
+
+    let body: unknown;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return rejected(c, "INVALID_JSON", 400);
+    }
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return rejected(c, "INVALID_BODY", 400);
+    }
+
+    const initData = (body as Record<string, unknown>).initData;
+    if (typeof initData !== "string" || initData.length === 0) {
+      return rejected(c, "INIT_DATA_MISSING", 400);
+    }
+
+    const result = await exchangeTelegramSession({ initData }, deps.exchange);
+    if (!result.ok) {
+      if (result.error.code === "SESSION_ISSUE_FAILED") {
+        return rejected(c, result.error.publicCode, 503);
+      }
+      // 401 لا 400 في الأصل: المدخلُ سليمُ الشكلِ نحوياً لكنّ إثباتَ الهويةِ لم
+      // يُقبَل؛ أمّا التشويهُ وغيابُ الحقولِ الملزَمةِ فخطأُ طلبٍ صريح.
+      if (result.error.publicCode === "INIT_DATA_MALFORMED") {
+        return rejected(c, "INIT_DATA_MALFORMED", 400);
+      }
+      if (result.error.publicCode === "INIT_DATA_MISSING") {
+        return rejected(c, "INIT_DATA_MISSING", 400);
+      }
+      return rejected(c, result.error.publicCode, 401);
+    }
+
+    // الردُّ لا يعيد شيئاً من `initData`، ولا الاسمَ ولا اللغةَ: رمزٌ وانتهاءٌ فقط،
+    // ومعرّفُ مستخدمِ تيليجرامَ الذي يعرفه العميلُ عن نفسِه أصلاً.
+    return c.json(
+      {
+        ok: true,
+        accessToken: result.value.session.accessToken,
+        tokenType: result.value.session.tokenType,
+        expiresAtMs: result.value.session.expiresAtMs,
+        expiresInSeconds: result.value.session.expiresInSeconds,
+        telegramUserId: result.value.proof.telegramUserId,
+      },
+      201,
+    );
+  });
+
+  return app;
+}

@@ -7,6 +7,7 @@
  */
 import { describe, expect, it } from "bun:test";
 import {
+  MIN_SESSION_SECRET_LENGTH,
   MIN_WEBHOOK_SECRET_LENGTH,
   missingEnvKeys,
   REQUIRED_ENV_KEYS,
@@ -377,5 +378,40 @@ describe("TELEGRAM_TRANSPORT", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.value.telegramTransport).toBe("real");
+  });
+
+  /**
+   * سرُّ جلسةِ التطبيقِ المصغَّر (البند `F1-03`): اختياريٌّ لأنّ النظامَ
+   * يعمل بلا تطبيقٍ مصغَّر، لكنّ حضورَه قصيراً خطأٌ يوقِف الإقلاع لا تحذيرٌ يُتيح
+   * توقيعَ جلساتٍ بسرٍّ قابلٍ للتخمين.
+   */
+  it("يجعل سرَّ جلسةِ التطبيقِ المصغَّر `null` عند غيابِه ولا يمنع الإقلاع", () => {
+    const result = tryLoadConfig(FULL);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.miniappSessionSecret).toBeNull();
+
+    const blank = tryLoadConfig({ ...FULL, MINIAPP_SESSION_SECRET: "   " });
+    expect(blank.ok).toBe(true);
+    if (!blank.ok) return;
+    expect(blank.value.miniappSessionSecret).toBeNull();
+  });
+
+  it("يرفض سرَّ جلسةٍ أقصرَ من الحدّ في كلِّ بيئةٍ لا في الإنتاجِ وحده", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      MINIAPP_SESSION_SECRET: "b".repeat(MIN_SESSION_SECRET_LENGTH - 1),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("INVALID_ENV_VAR");
+  });
+
+  it("يقبل سراً بالطولِ المطلوبِ ويقلّم فراغاتِه", () => {
+    const secret = "c".repeat(MIN_SESSION_SECRET_LENGTH);
+    const result = tryLoadConfig({ ...FULL, MINIAPP_SESSION_SECRET: ` ${secret} ` });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.miniappSessionSecret).toBe(secret);
   });
 });

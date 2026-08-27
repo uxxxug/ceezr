@@ -12,6 +12,8 @@ import {
   createPaymentRepository,
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/index.ts";
+import { createMiniAppSessionIssuer } from "../../../packages/infrastructure/identity/miniapp-session.ts";
+import { createTelegramInitDataVerifier } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import {
   createDatabaseGaugeCollector,
   createOperationalMetrics,
@@ -213,6 +215,30 @@ const paymentWebhook =
         log,
       };
 
+/**
+ * تبعياتُ مسارِ الجلسة (`F1-03`). تُبنى فقط عند توفّرِ سرِّ التوقيع: بلا سرٍّ
+ * لا يُركَّب المسارُ أصلاً، فلا يوجد طريقٌ يُصدِر جلسةً بتوقيعٍ ضعيف. والبوتان
+ * كلاهما موقِّعٌ مقبول: التطبيقُ المصغَّر يُفتَح من بوتِ السائقِ وبوتِ الراكب،
+ * فردُّ إثباتٍ صحيحٍ لأنّه جاء من البوتِ الآخر خطأٌ لا صرامة.
+ */
+const sessionTelegram =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        exchange: {
+          verifier: createTelegramInitDataVerifier({
+            bots: [
+              { name: "driver", token: config.driverBotToken },
+              { name: "rider", token: config.riderBotToken },
+            ],
+          }),
+          issuer: createMiniAppSessionIssuer({ secret: config.miniappSessionSecret }),
+          now: () => new Date(),
+          log,
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -303,6 +329,7 @@ const app = createServer({
     rateLimits: { probes: limiter(PROBE_LIMIT), users: limiter(USER_LIMIT) },
   },
   ...(paymentWebhook === undefined ? {} : { paymentWebhook }),
+  ...(sessionTelegram === undefined ? {} : { sessionTelegram }),
 });
 
 /**

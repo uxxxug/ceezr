@@ -13,6 +13,10 @@ import {
   type PaymentWebhookDependencies,
 } from "./routes/payment-webhook.ts";
 import {
+  createSessionTelegramRoutes,
+  type SessionTelegramDependencies,
+} from "./routes/session-telegram.ts";
+import {
   createTelegramWebhookRoutes,
   type WebhookDependencies,
 } from "./routes/telegram-webhook.ts";
@@ -22,6 +26,12 @@ export interface ServerDependencies {
   readonly webhook: WebhookDependencies;
   /** منفذ ويبهوك الدفع — اختياري: يُفعَّل فقط عند توفّر أسرار الدفع (البند 8). */
   readonly paymentWebhook?: PaymentWebhookDependencies;
+  /**
+   * مسارُ جلسةِ التطبيقِ المصغَّر (`F1-03`) — اختياريٌّ: يُركَّب فقط عند توفّرِ سرِّ
+   * التوقيعِ ورمزِ بوتٍ موقِّع. وغيابُه هنا يعني أنّ المسارَ غيرُ موجودٍ أصلاً
+   * (`404`)، وحضورُه بلا تبعياتِ تحقّقٍ يعني تعطيلاً معلَناً (`503`).
+   */
+  readonly sessionTelegram?: SessionTelegramDependencies;
 }
 
 export function createServer(deps: ServerDependencies): Hono {
@@ -31,6 +41,9 @@ export function createServer(deps: ServerDependencies): Hono {
   app.route("/", createTelegramWebhookRoutes(deps.webhook));
   if (deps.paymentWebhook !== undefined) {
     app.route("/", createPaymentWebhookRoutes(deps.paymentWebhook));
+  }
+  if (deps.sessionTelegram !== undefined) {
+    app.route("/", createSessionTelegramRoutes(deps.sessionTelegram));
   }
 
   app.notFound((c) => c.json({ ok: false, error: "NOT_FOUND" }, 404));

@@ -184,6 +184,17 @@ export interface AppConfig {
    * يملكه المهاجم). فيُعلَن مرّةً في البيئة ولا يُشتقّ أبداً.
    */
   readonly trackingTokenBaseUrl: string | null;
+  /**
+   * سرُّ توقيعِ جلسةِ التطبيقِ المصغَّر (`F1-03`). `null` يعني أنّ مسارَ
+   * `POST /v1/session/telegram` **مُعطَّلٌ صريحاً** فيردّ `503`، لا أنّه يقبل
+   * بجلسةٍ بتوقيعٍ مُخمَّن: جلسةٌ بسرٍّ افتراضيٍّ أسوأُ من غيابِ الجلسة.
+   *
+   * وليس في `REQUIRED_ENV_KEYS` لأنّ النظامَ كلَّه — البوتان والويبهوك والعامل —
+   * يعمل كاملاً بلا تطبيقٍ مصغَّر، فلو أُلزم لمنعَ الإقلاعَ لأجلِ واجهةٍ لم تُنشَر.
+   * وهو **منفصلٌ عن رمزَي البوت** عن قصد: رمزُ البوت يُثبِت هويةَ تيليجرام،
+   * وهذا السرُّ يوقّع تفويضَ نظامِنا؛ فتسريبُ أحدهما لا يُسقِط الآخر.
+   */
+  readonly miniappSessionSecret: string | null;
 }
 
 /** مخازن الجلسات المدعومة. */
@@ -280,6 +291,9 @@ export type ConfigError = MissingEnvVarError | InvalidEnvVarError;
 
 /** الحدّ الأدنى لطول سرّ الويبهوك في الإنتاج — مطابق لما تشترطه وثيقة النشر. */
 export const MIN_WEBHOOK_SECRET_LENGTH = 32;
+
+/** الحدّ الأدنى لطول سرّ توقيع جلسة التطبيق المصغَّر — في كل بيئة لا الإنتاج وحده. */
+export const MIN_SESSION_SECRET_LENGTH = 32;
 
 /** مجموعة المحارف التي يقبلها تلغرام في ترويسة secret_token. */
 const TELEGRAM_SECRET_CHARSET = /^[A-Za-z0-9_-]+$/;
@@ -390,6 +404,21 @@ export function tryLoadConfig(
         ),
       );
     }
+  }
+
+  // سرُّ جلسةِ التطبيقِ المصغَّر: اختياريٌّ، لكنْ إن ورد فطولُه شرطٌ في كلِّ بيئة.
+  // سرٌّ قصيرٌ ليس «ضبطاً ناقصاً» بل توقيعٌ قابلٌ للتخمين، فيُرفض صريحاً بدلاً من
+  // أن يمضي النظامُ موقِّعاً جلساتٍ بسرٍّ لا يحمي.
+  const miniappSessionSecret = isBlank(source.MINIAPP_SESSION_SECRET)
+    ? null
+    : (source.MINIAPP_SESSION_SECRET as string).trim();
+  if (miniappSessionSecret !== null && miniappSessionSecret.length < MIN_SESSION_SECRET_LENGTH) {
+    return err(
+      new InvalidEnvVarError(
+        "MINIAPP_SESSION_SECRET",
+        `يجب ألا يقلّ عن ${MIN_SESSION_SECRET_LENGTH} محرفاً — وردت ${miniappSessionSecret.length}`,
+      ),
+    );
   }
 
   const bootstrapAdminTelegramId = (source.BOOTSTRAP_ADMIN_TELEGRAM_ID as string).trim();
@@ -629,6 +658,7 @@ export function tryLoadConfig(
     osrmBaseUrl,
     tracking,
     trackingTokenBaseUrl,
+    miniappSessionSecret,
   });
 }
 

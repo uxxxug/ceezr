@@ -1,11 +1,28 @@
 /**
- * الغرض: تجميع حالات استخدام وحدة identity
- * الحالة: هيكل فقط — لا تنفيذ. لا تُضِف منطقاً هنا قبل أمر تفعيل صريح.
+ * الغرض: تجميع منافذ وحالات استخدام وحدة identity
+ * الحالة: منفّذ جزئياً — البند `F1-03` أضاف منفذَي الهوية والجلسة وحالةَ المبادلة.
  * ينتمي إلى: application/identity
- * يُتوقع أن يستخدمه لاحقاً: apps/*
- * ملاحظات مستقبلية: يُفعَّل جزئياً في الأمر الثاني.
- * التنفيذ الفعلي: packages/application/bots/driver-dialog.ts ودوال SQL في
- *   supabase/migrations — انظر admin_set_user_blocked وadmin_set_driver_verification.
- *   هذا الملف بنية مستقبلية لطبقة application/identity عند فصل الهوية عن حوار البوت.
+ * يُتوقع أن يستخدمه لاحقاً: apps/gateway (مسار الجلسة)، وبندُ `F1-04` عند التجديد.
+ * ملاحظات مستقبلية: حوارُ البوتِ وربطُ المستخدمِ ما زالا في
+ *   packages/application/bots/driver-dialog.ts ودوالِّ SQL في supabase/migrations —
+ *   انظر admin_set_user_blocked وadmin_set_driver_verification. ولا يُنقلان إلى هنا
+ *   إلا بأمرِ تفعيلٍ صريح.
  */
-export {};
+export {
+  type ExchangeTelegramSessionDeps,
+  type ExchangeTelegramSessionError,
+  type ExchangeTelegramSessionInput,
+  type ExchangeTelegramSessionOutput,
+  exchangeTelegramSession,
+  type PublicRejectionCode,
+  publicCodeFor,
+} from "./exchange-telegram-session.ts";
+export type {
+  IssuedMiniAppSession,
+  MiniAppSessionIssuer,
+  SessionIssueFailure,
+  TelegramIdentityProof,
+  TelegramIdentityVerifier,
+  TelegramProofRejection,
+  TelegramProofRejectionReason,
+} from "./ports.ts";

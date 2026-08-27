@@ -146,6 +146,9 @@ jobs:
       - name: كلُّ استدعاءِ تيليجرامٍ عبر طبقةِ التغليف وحدَها (F1-02 · ADR 0031)
         run: bun run scripts/check-telegram-wrapper-isolation.ts
 
+      - name: لا سرَّ ولا بيانَ اعتمادٍ يُمرَّر إلى سجلٍّ (F1-03)
+        run: bun run scripts/check-secret-logging.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
