@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { applyThemeFromTelegram, getRawInitData, isInsideTelegram } from "../tg/index.ts";
 import { hasValidSession } from "../identity/session.ts";
+import { applyThemeFromTelegram, getRawInitData, isInsideTelegram } from "../tg/index.ts";
 
 type BootState =
   | { kind: "booting" }

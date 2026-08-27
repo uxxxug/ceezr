@@ -3,10 +3,15 @@
 #   من apps/gateway ولا من apps/admin-dashboard (مُتحقَّق منه بتتبّع الاستيرادات)،
 #   فيُنسَخ apps/workers وحده. وحارس `bun build` هو ما يجعل هذا الادّعاء
 #   قابلاً للفشل بصوتٍ عالٍ إن استورد العامل يوماً من خارج نطاقه.
+#   • بيانُ كلِّ مساحةِ عملٍ في الجذر (`apps/*/package.json`) منسوخٌ قبل التثبيت:
+#     القفلُ الواحد يشمل مساحاتِ العمل كلَّها منذ انضمام تطبيق تِلِغرام المصغَّر،
+#     و`--frozen-lockfile` يرفض التثبيتَ إذا غاب بيانُ إحداها — فلا يكفي نسخُ
+#     بيانِ الجذر وحده. والحارس في scripts/verify-container-build.sh يُلزم بهذا.
 FROM oven/bun:1.3.14 AS base
 WORKDIR /app
 
 COPY package.json bun.lock tsconfig.json ./
+COPY apps/miniapp/package.json ./apps/miniapp/package.json
 RUN bun install --frozen-lockfile
 
 COPY packages ./packages

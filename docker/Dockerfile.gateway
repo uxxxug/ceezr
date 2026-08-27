@@ -10,10 +10,15 @@
 #   • خطوة `bun build` أدناه ليست بناءً للنشر بل حارس: هي تحلّ كلّ استيراد
 #     ساكناً، فيفشل `docker build` صراحةً عند نقص وحدة بدل أن يفشل الإقلاع
 #     في الإنتاج. وهذه بالضبط الطريقة التي كان يُكتشَف بها نقص `apps/workers`.
+#   • بيانُ كلِّ مساحةِ عملٍ في الجذر (`apps/*/package.json`) منسوخٌ قبل التثبيت:
+#     القفلُ الواحد يشمل مساحاتِ العمل كلَّها منذ انضمام تطبيق تِلِغرام المصغَّر،
+#     و`--frozen-lockfile` يرفض التثبيتَ إذا غاب بيانُ إحداها — فلا يكفي نسخُ
+#     بيانِ الجذر وحده. والحارس في scripts/verify-container-build.sh يُلزم بهذا.
 FROM oven/bun:1.3.14 AS base
 WORKDIR /app
 
 COPY package.json bun.lock tsconfig.json ./
+COPY apps/miniapp/package.json ./apps/miniapp/package.json
 RUN bun install --frozen-lockfile
 
 COPY packages ./packages

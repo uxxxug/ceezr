@@ -29,6 +29,9 @@ jobs:
       - name: Typecheck
         run: bun run typecheck
 
+      - name: بناء تطبيق تِلِغرام المصغَّر
+        run: bun run build:miniapp
+
       - name: Test
         run: set -o pipefail; bun run test 2>&1 | tee /tmp/ci-output.log
 

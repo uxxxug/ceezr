@@ -36,10 +36,7 @@ function apiBase(): string {
  * Authenticated product API call.
  * Rejects before network if session is missing (ADR 0035 automated check #2).
  */
-export async function apiFetch<T>(
-  path: string,
-  init: ApiRequestInit = {},
-): Promise<T> {
+export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
   if (!init.public && !hasValidSession()) {
     throw new ApiError(401, "SESSION_REQUIRED", "Waslah session required");
   }
@@ -61,10 +58,13 @@ export async function apiFetch<T>(
     headers["Idempotency-Key"] = init.idempotencyKey;
   }
 
+  // `body` is spread in conditionally rather than passed as `undefined`:
+  // `exactOptionalPropertyTypes` is on, and `RequestInit.body` accepts
+  // `BodyInit | null` — never the literal `undefined`.
   const res = await fetch(`${apiBase()}${path}`, {
     method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
     headers,
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+    ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
   });
 
   if (!res.ok) {

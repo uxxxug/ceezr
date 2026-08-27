@@ -27,8 +27,17 @@ for tag in "$GW_TAG" "$WK_TAG"; do
   esac
 done
 
+# بياناتُ مساحاتِ العمل: القفلُ الواحد لا يُثبَّت مجمَّداً إن غاب بيانُ واحدةٍ
+# منها، فلا بدّ أن ينسخها كلُّ ملفِّ صورةٍ قبل سطر التثبيت. تُقرأ من القرص لا
+# تُسمَّى في الحارس: كلُّ مساحةِ عملٍ جديدةٍ تُلزم تحديثَ ملفَّي الصورة بنفسها.
+workspace_manifests() { ls apps/*/package.json 2>/dev/null || true; }
+
 for f in docker/Dockerfile.gateway docker/Dockerfile.worker; do
   grep -q 'COPY package.json bun.lock tsconfig.json' "$f" || { echo "❌ ${f} لا ينسخ bun.lock"; exit 1; }
+  for m in $(workspace_manifests); do
+    grep -q "COPY ${m}" "$f" \
+      || { echo "❌ ${f} لا ينسخ ${m} قبل التثبيت — التثبيت المجمَّد سيفشل"; exit 1; }
+  done
   grep -q 'bun install --frozen-lockfile' "$f" || { echo "❌ ${f} لا يفرض التثبيت المجمَّد"; exit 1; }
   grep -q 'bun install$' "$f" && { echo "❌ ${f} فيه تثبيت غير مجمَّد"; exit 1; }
 done
@@ -39,6 +48,7 @@ run_stage() {
   local dir; dir="$(mktemp -d)"
   trap 'rm -rf "$dir"' RETURN
   cp package.json bun.lock tsconfig.json "$dir/"
+  for m in $(workspace_manifests); do mkdir -p "$dir/$(dirname "$m")"; cp "$m" "$dir/$m"; done
   ( cd "$dir" && bun install --frozen-lockfile >/dev/null 2>&1 ) \
     || { echo "❌ ${name}: التثبيت المجمَّد فشل — القفل متعارض مع package.json"; exit 1; }
   cmp -s bun.lock "$dir/bun.lock" \

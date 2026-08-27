@@ -1,6 +1,6 @@
-import { describe, expect, test, beforeEach } from "bun:test";
-import { apiFetch, ApiError } from "./client.ts";
+import { beforeEach, describe, expect, test } from "bun:test";
 import { clearSession, setSession } from "../identity/session.ts";
+import { type ApiError, apiFetch } from "./client.ts";
 
 beforeEach(() => {
   clearSession();
@@ -23,7 +23,7 @@ describe("apiFetch session guard (ADR 0035 check #2)", () => {
       new Response(JSON.stringify({ ok: true }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })) as typeof fetch;
+      })) as unknown as typeof fetch;
 
     try {
       const result = await apiFetch<{ ok: boolean }>("/v1/session/telegram", {
@@ -45,20 +45,22 @@ describe("apiFetch session guard (ADR 0035 check #2)", () => {
       role: "rider",
     });
 
-    let seenAuth: string | null = null;
+    // Held in an object: a plain `let` assigned only inside the callback is
+    // narrowed to `null` by control-flow analysis at the assertion site.
+    const seen: { auth: string | null } = { auth: null };
     const original = globalThis.fetch;
-    globalThis.fetch = (async (_input, init) => {
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
       const headers = new Headers(init?.headers);
-      seenAuth = headers.get("Authorization");
+      seen.auth = headers.get("Authorization");
       return new Response(JSON.stringify({ id: "1" }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       });
-    }) as typeof fetch;
+    }) as unknown as typeof fetch;
 
     try {
       await apiFetch("/v1/me");
-      expect(seenAuth).toBe("Bearer tok");
+      expect(seen.auth).toBe("Bearer tok");
     } finally {
       globalThis.fetch = original;
     }

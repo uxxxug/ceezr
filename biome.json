@@ -1,7 +1,15 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.7/schema.json",
   "files": {
-    "includes": ["**/*.ts", "**/*.json", "!node_modules", "!coverage", "!docs/evidence"]
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.json",
+      "!node_modules",
+      "!coverage",
+      "!docs/evidence",
+      "!**/dist"
+    ]
   },
   "formatter": {
     "enabled": true,
