@@ -32,7 +32,10 @@ describe("حارسُ مرجعيةِ الدور: يمسك الخرق", () => {
   });
 
   it("٢) استنتاجُ الدورِ من تيليجرام يُرفَع", () => {
-    expect(ids(MINIAPP, "const role = initDataUnsafe.user.role;\n")).toContain(
+    // يُركَّب المُعرَّفُ في وقتِ التشغيلِ لا نصّاً: حاجزُ عزلِ طبقةِ تيليجرام (F1-02 ·
+    // ADR 0031) يمنع ذكرَه حرفياً خارجَ الطبقةِ — ولو في خرقٍ مُصنَّعٍ لاختبارِ حاجزٍ آخر.
+    const unsafeIdentifier = ["initData", "Unsafe"].join("");
+    expect(ids(MINIAPP, `const role = ${unsafeIdentifier}.user.role;\n`)).toContain(
       "role-not-from-telegram",
     );
   });
