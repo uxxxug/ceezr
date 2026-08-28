@@ -40,7 +40,6 @@ describe("apiFetch session guard (ADR 0035 check #2)", () => {
   test("attaches bearer when session is valid", async () => {
     setSession({
       accessToken: "tok",
-      refreshToken: "r",
       expiresAt: Date.now() + 60_000,
       role: "rider",
     });

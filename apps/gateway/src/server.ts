@@ -13,6 +13,10 @@ import {
   type PaymentWebhookDependencies,
 } from "./routes/payment-webhook.ts";
 import {
+  createSessionRefreshRoutes,
+  type SessionRefreshDependencies,
+} from "./routes/session-refresh.ts";
+import {
   createSessionTelegramRoutes,
   type SessionTelegramDependencies,
 } from "./routes/session-telegram.ts";
@@ -32,6 +36,11 @@ export interface ServerDependencies {
    * (`404`)، وحضورُه بلا تبعياتِ تحقّقٍ يعني تعطيلاً معلَناً (`503`).
    */
   readonly sessionTelegram?: SessionTelegramDependencies;
+  /**
+   * مسارُ تجديدِ الجلسة (`F1-04`) — اختياريٌ بنفسِ منطقِ مسارِ الإنشاء:
+   * غيابُه هنا = لا مسار (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَن (`503`).
+   */
+  readonly sessionRefresh?: SessionRefreshDependencies;
 }
 
 export function createServer(deps: ServerDependencies): Hono {
@@ -44,6 +53,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.sessionTelegram !== undefined) {
     app.route("/", createSessionTelegramRoutes(deps.sessionTelegram));
+  }
+  if (deps.sessionRefresh !== undefined) {
+    app.route("/", createSessionRefreshRoutes(deps.sessionRefresh));
   }
 
   app.notFound((c) => c.json({ ok: false, error: "NOT_FOUND" }, 404));

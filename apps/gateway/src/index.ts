@@ -12,6 +12,7 @@ import {
   createPaymentRepository,
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/index.ts";
+import { createMiniAppRefreshTokens } from "../../../packages/infrastructure/identity/miniapp-refresh.ts";
 import { createMiniAppSessionIssuer } from "../../../packages/infrastructure/identity/miniapp-session.ts";
 import { createTelegramInitDataVerifier } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import {
@@ -221,8 +222,27 @@ const paymentWebhook =
  * كلاهما موقِّعٌ مقبول: التطبيقُ المصغَّر يُفتَح من بوتِ السائقِ وبوتِ الراكب،
  * فردُّ إثباتٍ صحيحٍ لأنّه جاء من البوتِ الآخر خطأٌ لا صرامة.
  */
-const sessionTelegram =
+const miniappSessionIssuer =
   config.miniappSessionSecret === null
+    ? null
+    : createMiniAppSessionIssuer({ secret: config.miniappSessionSecret });
+
+/**
+ * سلسلةُ التجديد (`F1-04`): رموزُ التجديدِ بمفتاحٍ **مشتقٍّ** من سرِّ الجلسةِ بفصلِ
+ * نطاق، ومُصدِرُ رمزِ الوصولِ هو نفسُه المُصدِرُ من إذنِ التجديدِ — فمعرّفُ الجلسةِ
+ * واحدٌ في الرمزَين. ولا متغيّرَ بيئةٍ ثانياً: انظر تعليلَ الاشتقاقِ وحدودَه في
+ * `packages/infrastructure/identity/miniapp-refresh.ts`.
+ */
+const refreshChain =
+  config.miniappSessionSecret === null || miniappSessionIssuer === null
+    ? undefined
+    : {
+        refresh: createMiniAppRefreshTokens({ secret: config.miniappSessionSecret }),
+        grantIssuer: miniappSessionIssuer,
+      };
+
+const sessionTelegram =
+  miniappSessionIssuer === null
     ? undefined
     : {
         exchange: {
@@ -232,7 +252,25 @@ const sessionTelegram =
               { name: "rider", token: config.riderBotToken },
             ],
           }),
-          issuer: createMiniAppSessionIssuer({ secret: config.miniappSessionSecret }),
+          issuer: miniappSessionIssuer,
+          ...(refreshChain === undefined ? {} : { refreshChain }),
+          now: () => new Date(),
+          log,
+        },
+        log,
+      };
+
+/**
+ * مسارُ التجديد (`F1-04`) — يُركَّب مع سلسلةِ التجديدِ وحدَها. ولا يلمس تيليجرامَ:
+ * التحقّقُ من تيليجرامَ يقع عندَ إنشاءِ الجلسةِ وحدَه (`F1-03` · ADR 0035).
+ */
+const sessionRefresh =
+  refreshChain === undefined
+    ? undefined
+    : {
+        renew: {
+          refresh: refreshChain.refresh,
+          issuer: refreshChain.grantIssuer,
           now: () => new Date(),
           log,
         },
@@ -330,6 +368,7 @@ const app = createServer({
   },
   ...(paymentWebhook === undefined ? {} : { paymentWebhook }),
   ...(sessionTelegram === undefined ? {} : { sessionTelegram }),
+  ...(sessionRefresh === undefined ? {} : { sessionRefresh }),
 });
 
 /**

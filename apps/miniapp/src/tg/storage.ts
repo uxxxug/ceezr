@@ -6,8 +6,11 @@
  * policy: it does not choose keys, does not decide what may be stored, does not
  * fall back to `localStorage`, and does not touch the session. ADR 0031 §4 makes
  * local storage the fallback when `CloudStorage` is absent, and ROADMAP §4.4
- * limits `SecureStorage` to a device session token — deciding and wiring that is
- * `F1-04`, which will call these functions rather than Telegram directly.
+ * limits `SecureStorage` to a device session token. That policy now lives in
+ * `apps/miniapp/src/identity/session-storage.ts` (`F1-04`), which calls these
+ * functions rather than Telegram directly — and which forbids, for the session
+ * token, both the `localStorage` fallback and `CloudStorage`/`DeviceStorage`.
+ * A CI gate (`scripts/check-session-storage-policy.ts`) keeps that split real.
  */
 
 import { resolveCapability } from "./capabilities.ts";

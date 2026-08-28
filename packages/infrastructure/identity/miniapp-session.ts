@@ -4,8 +4,11 @@
  * الحالة: منفّذ فعلياً — البند `F1-03`.
  * ينتمي إلى: infrastructure/identity
  * يُتوقع أن يستخدمه لاحقاً: `apps/gateway/src/container.ts`، ثم بندُ `F1-04`.
- * ملاحظات مستقبلية: **الاستمرارُ والإبطالُ والتجديدُ ليست محسومةً ههنا**، وهي من
- *   نطاقِ `F1-04`. وهذا المحوّلُ بلا حالةٍ عن قصدٍ معلَنٍ لا عن غفلة: يُستبدَل
+ * ملاحظات مستقبلية: التجديدُ صار محسوماً في `F1-04` وموضعُه `miniapp-refresh.ts`
+ *   (رمزُ تجديدٍ منفصلٌ بمفتاحٍ مشتقٍّ، عمرُه ساعةٌ، وسقفُ الجلسةِ اثنتا عشرةَ ساعةً
+ *   لا يمتدُّ بالتجديد). أمّا **الإبطالُ الفوريُّ من الخادمِ فغيرُ منفَّذٍ ولا
+ *   مُدَّعى**: لا مخزنَ جلساتٍ ولا قائمةَ منعٍ — قرارٌ معلَنٌ في `F1-04` لا نقصٌ
+ *   مسكوتٌ عنه. وهذا المحوّلُ بلا حالةٍ عن قصدٍ معلَنٍ لا عن غفلة: يُستبدَل
  *   بمحوّلٍ مُستمِرٍّ خلفَ نفسِ المنفذِ (`MiniAppSessionIssuer`) بلا مساسٍ بالمسارِ
  *   ولا بحالةِ الاستخدام. وحتى ذلك الحين: **لا مسارَ منتَجٍ واحدٍ يستهلك هذه
  *   الجلسة** — لا `GET /v1/me` ولا غيره — فسطحُ ما يمنحه الرمزُ اليومَ = صفر.
@@ -17,7 +20,9 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import type {
   IssuedMiniAppSession,
+  MiniAppSessionGrantIssuer,
   MiniAppSessionIssuer,
+  MiniAppSessionRenewalGrant,
   SessionIssueFailure,
   TelegramIdentityProof,
 } from "../../application/identity/ports.ts";
@@ -45,7 +50,11 @@ interface SessionPayload {
   /** ثوانٍ. */
   readonly iat: number;
   readonly exp: number;
-  /** معرّفٌ عشوائيٌّ للجلسة — يُتيح الإبطالَ عندَ بناءِ مخزنِه في `F1-04`. */
+  /**
+   * معرّفُ الجلسة. عشوائيٌّ عندَ الإنشاء، ويُنقَل كما هو في كلِّ تجديد (`F1-04`)
+   * فيكون خيطَ الجلسةِ الواحدةِ في السجلّات. ولا يُتيح إبطالاً اليومَ: الإبطالُ
+   * يحتاج مخزناً على الخادمِ ولا مخزنَ.
+   */
   readonly jti: string;
 }
 
@@ -73,12 +82,22 @@ export interface MiniAppSessionIssuerOptions {
 
 export function createMiniAppSessionIssuer(
   options: MiniAppSessionIssuerOptions,
-): MiniAppSessionIssuer {
+): MiniAppSessionIssuer & MiniAppSessionGrantIssuer {
   const ttl = options.ttlSeconds ?? MINIAPP_SESSION_TTL_SECONDS;
   const newId = options.newSessionId ?? (() => randomBytes(JTI_BYTES).toString("hex"));
   const configured =
     typeof options.secret === "string" &&
     options.secret.length >= MINIAPP_SESSION_SECRET_MIN_LENGTH;
+
+  function mint(payload: SessionPayload): IssuedMiniAppSession {
+    const payloadPart = base64url(JSON.stringify(payload));
+    return {
+      accessToken: `${TOKEN_PREFIX}.${payloadPart}.${sign(payloadPart, options.secret)}`,
+      expiresAtMs: payload.exp * 1000,
+      expiresInSeconds: payload.exp - payload.iat,
+      tokenType: "Bearer",
+    };
+  }
 
   return {
     issue(
@@ -90,22 +109,47 @@ export function createMiniAppSessionIssuer(
         return err({ code: "SESSION_ISSUE_FAILED", reason: "NOT_CONFIGURED" });
       }
       const iat = Math.floor(nowMs / 1000);
-      const payload: SessionPayload = {
-        v: 1,
-        sub: proof.telegramUserId,
-        bot: proof.bot,
-        iat,
-        exp: iat + ttl,
-        jti: newId(),
-      };
-      const payloadPart = base64url(JSON.stringify(payload));
-      const token = `${TOKEN_PREFIX}.${payloadPart}.${sign(payloadPart, options.secret)}`;
-      return ok({
-        accessToken: token,
-        expiresAtMs: payload.exp * 1000,
-        expiresInSeconds: ttl,
-        tokenType: "Bearer",
-      });
+      return ok(
+        mint({
+          v: 1,
+          sub: proof.telegramUserId,
+          bot: proof.bot,
+          iat,
+          exp: iat + ttl,
+          jti: newId(),
+        }),
+      );
+    },
+
+    /**
+     * إصدارُ رمزِ وصولٍ من إذنِ تجديدٍ متحقَّقٍ منه (`F1-04`). فرقانِ عن `issue`:
+     *   ــ `jti` **هو معرّفُ الجلسةِ نفسُه** لا معرّفٌ جديد: التجديدُ يُطيل جلسةً
+     *      قائمةً ولا يُنشئ جلسةً ثانية، فلو تغيّر المعرّفُ لصار كلُّ تجديدٍ
+     *      جلسةً في السجلّات، ولانقطع الخيطُ الذي يُقرأ به تاريخُ الجلسةِ الواحدة.
+     *   ــ الانتهاءُ **مقصوصٌ عندَ السقفِ المطلق**: رمزٌ يعيش بعدَ السقفِ يُبطِل
+     *      معنى السقفِ عملياً وإن لم يُبطِله نصّاً.
+     */
+    issueForGrant(
+      grant: MiniAppSessionRenewalGrant,
+      nowMs: number,
+    ): Result<IssuedMiniAppSession, SessionIssueFailure> {
+      if (!configured) {
+        return err({ code: "SESSION_ISSUE_FAILED", reason: "NOT_CONFIGURED" });
+      }
+      const iat = Math.floor(nowMs / 1000);
+      if (iat >= grant.absoluteExpiresAtSeconds) {
+        return err({ code: "SESSION_ISSUE_FAILED", reason: "ISSUER_ERROR" });
+      }
+      return ok(
+        mint({
+          v: 1,
+          sub: grant.telegramUserId,
+          bot: grant.bot,
+          iat,
+          exp: Math.min(iat + ttl, grant.absoluteExpiresAtSeconds),
+          jti: grant.sessionId,
+        }),
+      );
     },
   };
 }

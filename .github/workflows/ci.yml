@@ -149,6 +149,9 @@ jobs:
       - name: لا سرَّ ولا بيانَ اعتمادٍ يُمرَّر إلى سجلٍّ (F1-03)
         run: bun run scripts/check-secret-logging.ts
 
+      - name: رمزُ التجديدِ في التخزينِ الآمنِ وحدَه ورمزُ الوصولِ في الذاكرة (F1-04 · القسم 4.4)
+        run: bun run scripts/check-session-storage-policy.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

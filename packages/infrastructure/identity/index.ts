@@ -4,9 +4,16 @@
  * ينتمي إلى: infrastructure/identity
  * يُتوقع أن يستخدمه لاحقاً: apps/* عبر حقن التبعيات فقط، ولا يستوردها
  *   packages/domain/identity إطلاقاً
- * ملاحظات مستقبلية: استمرارُ الجلسةِ وإبطالُها وتجديدُها = البند `F1-04`، ويُنفَّذ
- *   محوّلاً بديلاً خلف نفس المنفذ لا تعديلاً في العقد.
+ * ملاحظات مستقبلية: التجديدُ نُفِّذ في `F1-04` (`miniapp-refresh.ts`) محوّلاً بلا
+ *   حالةٍ خلفَ منفذٍ صريح. أمّا استمرارُ الجلسةِ على الخادمِ وإبطالُها الفوريُّ
+ *   فغيرُ منفَّذَين ولا مُدَّعيَين — قرارٌ معلَنٌ لا نقصٌ مسكوتٌ عنه.
  */
+export {
+  createMiniAppRefreshTokens,
+  MINIAPP_REFRESH_TTL_SECONDS,
+  MINIAPP_SESSION_ABSOLUTE_TTL_SECONDS,
+  type MiniAppRefreshIssuerOptions,
+} from "./miniapp-refresh.ts";
 export {
   createMiniAppSessionIssuer,
   MINIAPP_SESSION_SECRET_MIN_LENGTH,

@@ -13,16 +13,37 @@
 
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type {
+  IssuedMiniAppRefresh,
   IssuedMiniAppSession,
+  MiniAppRefreshTokenIssuer,
+  MiniAppSessionGrantIssuer,
   MiniAppSessionIssuer,
+  SessionIssueFailure,
   TelegramIdentityProof,
   TelegramIdentityVerifier,
   TelegramProofRejectionReason,
 } from "./ports.ts";
 
+/**
+ * سلسلةُ التجديد (`F1-04`) — اختياريةٌ في العقدِ لا في الإنتاج: حين تُوصَل
+ * يُصدَر مع رمزِ الوصولِ رمزُ تجديدٍ **بمعرّفِ الجلسةِ نفسِه**، وهو ما يجعل
+ * الرمزَين وجهَي جلسةٍ واحدةٍ لا رمزَين متجاورَين. وحين لا تُوصَل يبقى سلوكُ
+ * `F1-03` كما كان حرفياً: رمزُ وصولٍ وحدَه بلا تجديد.
+ *
+ * ولماذا يُصدَر التجديدُ أوّلاً ثمّ الوصول؟ لأنّ معرّفَ الجلسةِ يُولَد مرّةً
+ * واحدةً في موضعٍ واحد، والوصولُ يُصدَر لذلك المعرّفِ بعينِه. والعكسُ كان
+ * سيُلزِم `issue` بأن يُخرِج معرّفَه، وهو تغييرٌ في عقدِ `F1-03` بلا حاجة.
+ */
+export interface SessionRefreshChain {
+  readonly refresh: MiniAppRefreshTokenIssuer;
+  readonly grantIssuer: MiniAppSessionGrantIssuer;
+}
+
 export interface ExchangeTelegramSessionDeps {
   readonly verifier: TelegramIdentityVerifier;
   readonly issuer: MiniAppSessionIssuer;
+  /** سلسلةُ التجديد (`F1-04`). غيابُها = جلسةٌ بلا تجديدٍ لا جلسةٌ بلا توقيع. */
+  readonly refreshChain?: SessionRefreshChain;
   /** الساعةُ محقونةٌ لا مقروءةٌ من العالم: سياسةُ الصلاحيةِ تُختبَر حتمياً. */
   readonly now: () => Date;
   /**
@@ -41,6 +62,8 @@ export interface ExchangeTelegramSessionOutput {
   readonly session: IssuedMiniAppSession;
   /** الإثباتُ المتحقَّقُ منه — يُستهلَك في الطبقةِ الأعلى ولا يُخزَّن كيانَ عمل. */
   readonly proof: TelegramIdentityProof;
+  /** رمزُ التجديد (`F1-04`) — يظهر إن وُصِلت سلسلةُ التجديدِ وحدَها. */
+  readonly refresh?: IssuedMiniAppRefresh;
 }
 
 /**
@@ -109,8 +132,27 @@ export async function exchangeTelegramSession(
     });
   }
 
-  // لا يصل الإصدارُ إلا من هذا السطر: مسارٌ واحدٌ لا فرعَ له.
-  const issued = deps.issuer.issue(verified.value, nowMs);
+  // لا يصل الإصدارُ إلا من بعدِ هذا السطر: مسارٌ واحدٌ لا فرعَ له قبلَ التحقّق.
+  const chain = deps.refreshChain;
+  let refresh: IssuedMiniAppRefresh | undefined;
+  let issued: Result<IssuedMiniAppSession, SessionIssueFailure>;
+
+  if (chain === undefined) {
+    issued = deps.issuer.issue(verified.value, nowMs);
+  } else {
+    const issuedRefresh = chain.refresh.issueForNewSession(verified.value, nowMs);
+    if (!issuedRefresh.ok) {
+      deps.log?.("تعذر إصدار رمز تجديد بعد إثبات صحيح", { reason: issuedRefresh.error.reason });
+      return err({
+        code: "SESSION_ISSUE_FAILED",
+        reason: issuedRefresh.error.reason,
+        publicCode: "SESSION_NOT_AVAILABLE",
+      });
+    }
+    refresh = issuedRefresh.value.refresh;
+    issued = chain.grantIssuer.issueForGrant(issuedRefresh.value.grant, nowMs);
+  }
+
   if (!issued.ok) {
     deps.log?.("تعذر إصدار جلسة داخلية بعد إثبات صحيح", { reason: issued.error.reason });
     return err({
@@ -123,7 +165,12 @@ export async function exchangeTelegramSession(
   deps.log?.("أُصدرت جلسة داخلية بعد تحقق ناجح", {
     bot: verified.value.bot,
     expiresInSeconds: issued.value.expiresInSeconds,
+    ...(refresh === undefined ? {} : { refreshExpiresInSeconds: refresh.refreshExpiresInSeconds }),
   });
 
-  return ok({ session: issued.value, proof: verified.value });
+  return ok({
+    session: issued.value,
+    proof: verified.value,
+    ...(refresh === undefined ? {} : { refresh }),
+  });
 }

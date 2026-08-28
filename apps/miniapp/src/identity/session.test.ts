@@ -9,7 +9,6 @@ import {
 
 const sample: WaslahSession = {
   accessToken: "access",
-  refreshToken: "refresh",
   expiresAt: Date.now() + 60_000,
   role: "rider",
 };

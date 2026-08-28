@@ -4,7 +4,9 @@
  * الحالة: منفّذ فعلياً — البند `F1-03`.
  * ينتمي إلى: apps/gateway/src/routes
  * يُتوقع أن يستخدمه لاحقاً: `apps/gateway/src/server.ts` عبر تركيبٍ اختياري.
- * ملاحظات مستقبلية: التجديدُ والإبطالُ والتخزينُ على الجهاز = `F1-04`؛ وحدُّ المعدّلِ
+ * ملاحظات مستقبلية: التجديدُ والتخزينُ على الجهازِ نُفِّذا في `F1-04` (مسارُ
+ *   `POST /v1/session/refresh` وسياسةُ التخزينِ في `apps/miniapp/src/identity`)؛
+ *   والإبطالُ الفوريُّ من الخادمِ غيرُ منفَّذٍ ولا مُدَّعى. وحدُّ المعدّلِ
  *   لكلِّ عنوانٍ ومستخدمٍ على هذا المسارِ يتبع سياسةَ القسم 10 عندَ بناءِ حدِّ API.
  *
  * ما لا يفعله هذا المسارُ عن قصد:
@@ -97,6 +99,16 @@ export function createSessionTelegramRoutes(deps: SessionTelegramDependencies): 
         expiresAtMs: result.value.session.expiresAtMs,
         expiresInSeconds: result.value.session.expiresInSeconds,
         telegramUserId: result.value.proof.telegramUserId,
+        // رمزُ التجديدِ ومواعيدُه (`F1-04`) — يظهر إن وُصِلت سلسلةُ التجديد. ويبقى
+        // الردُّ بلا تجديدٍ ردّاً صحيحاً: جلسةٌ بلا تجديدٍ لا جلسةٌ بلا توقيع.
+        ...(result.value.refresh === undefined
+          ? {}
+          : {
+              refreshToken: result.value.refresh.refreshToken,
+              refreshExpiresAtMs: result.value.refresh.refreshExpiresAtMs,
+              refreshExpiresInSeconds: result.value.refresh.refreshExpiresInSeconds,
+              absoluteExpiresAtMs: result.value.refresh.absoluteExpiresAtMs,
+            }),
       },
       201,
     );

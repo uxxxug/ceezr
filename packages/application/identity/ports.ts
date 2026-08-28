@@ -102,3 +102,89 @@ export interface MiniAppSessionIssuer {
     nowMs: number,
   ): Result<IssuedMiniAppSession, SessionIssueFailure>;
 }
+
+/* ───────────────────────────── تجديدُ الجلسة (`F1-04`) ───────────────────────────── */
+
+/**
+ * رمزُ التجديدِ كما يُصدَر — ومواعيدُه ثلاثةٌ صريحةٌ لا يشتقُّها العميل:
+ * انتهاءُ رمزِ التجديدِ نفسِه، وسقفُ الجلسةِ المطلقُ الذي **لا يمتدُّ بالتجديد**.
+ *
+ * الحدُّ المعلَن: التصميمُ بلا حالةٍ على الخادمِ (لا مخزنَ جلساتٍ ولا Redis —
+ * قرارُ المالكِ في `F1-04`). ولذلك: **لا إبطالَ فوريًّا من الخادم**، ولا كشفَ
+ * لإعادةِ الاستخدام، ولا إحصاءَ جلساتٍ حقيقيًّا. وإصدارُ رمزِ تجديدٍ جديدٍ هو
+ * **إصدارٌ** لا إبطالٌ للقديم: القديمُ يبقى صالحاً حتى `exp` أو حتى السقفِ
+ * المطلق. وخروجُ المستخدمِ محليٌّ: يمسح ما على الجهازِ ولا يُبطِل رمزاً سُرِّب.
+ */
+export interface IssuedMiniAppRefresh {
+  readonly refreshToken: string;
+  readonly refreshExpiresAtMs: number;
+  readonly refreshExpiresInSeconds: number;
+  /** سقفُ عمرِ الجلسةِ المطلقُ بالملّي ثانية — ثابتٌ من لحظةِ إنشاءِ الجلسة. */
+  readonly absoluteExpiresAtMs: number;
+}
+
+/**
+ * ما يُقرأ من رمزِ تجديدٍ صحيح — **لا يُبنى إلا بعدَ نجاحِ التحقّقِ من التوقيع**،
+ * كما أنّ `TelegramIdentityProof` لا يُبنى إلا بعدَ تحقّقِ تيليجرام. وبه وحدَه
+ * يُصدَر رمزُ وصولٍ جديد: فيستحيل بنيوياً أن يُصدَر رمزٌ من نصٍّ لم يُتحقَّق منه.
+ */
+export interface MiniAppSessionRenewalGrant {
+  readonly telegramUserId: string;
+  readonly bot: string;
+  /** معرّفُ الجلسةِ — يبقى نفسَه عبرَ كلِّ تجديد: التجديدُ لا يُنشئ جلسةً جديدة. */
+  readonly sessionId: string;
+  readonly absoluteExpiresAtSeconds: number;
+  /** عدّادُ التجديد — للسجلِّ المصنَّفِ لا للإبطال (لا إبطالَ بلا حالةٍ على الخادم). */
+  readonly generation: number;
+}
+
+export interface IssuedMiniAppRefreshWithGrant {
+  readonly refresh: IssuedMiniAppRefresh;
+  readonly grant: MiniAppSessionRenewalGrant;
+}
+
+/** سببُ رفضٍ داخليٌّ مصنَّف — يُخشَّن قبلَ أن يُعاد إلى العميل. */
+export type RefreshTokenRejectionReason =
+  | "MALFORMED"
+  | "SIGNATURE_MISMATCH"
+  | "UNSUPPORTED_VERSION"
+  | "EXPIRED"
+  | "ABSOLUTE_EXPIRED"
+  | "NOT_CONFIGURED";
+
+export interface RefreshTokenRejection {
+  readonly code: "REFRESH_TOKEN_REJECTED";
+  readonly reason: RefreshTokenRejectionReason;
+}
+
+/**
+ * إصدارُ رموزِ التجديدِ وقراءتُها. مفصولٌ عن إصدارِ رمزِ الوصولِ لأنّ عمرَه
+ * وسرَّه ووجهةَ استعمالِه مختلفة: رمزُ الوصولِ يُرسَل مع كلِّ طلبٍ، ورمزُ التجديدِ
+ * لا يُرسَل إلا إلى مسارٍ واحد.
+ */
+export interface MiniAppRefreshTokenIssuer {
+  issueForNewSession(
+    proof: TelegramIdentityProof,
+    nowMs: number,
+  ): Result<IssuedMiniAppRefreshWithGrant, SessionIssueFailure>;
+  issueForRenewal(
+    grant: MiniAppSessionRenewalGrant,
+    nowMs: number,
+  ): Result<IssuedMiniAppRefreshWithGrant, SessionIssueFailure>;
+  read(token: string, nowMs: number): Result<MiniAppSessionRenewalGrant, RefreshTokenRejection>;
+}
+
+/**
+ * إصدارُ رمزِ وصولٍ من إذنِ تجديدٍ متحقَّقٍ منه — منفذٌ **منفصلٌ** عن
+ * `MiniAppSessionIssuer` لا توسيعٌ له: التوسيعُ كان سيُلزِم كلَّ مزدوجِ اختبارٍ
+ * قائمٍ في `F1-03` بتنفيذِ دالّةٍ لا يعنيه أمرُها.
+ *
+ * وانتهاءُ الرمزِ المُصدَرِ ههنا **مقصوصٌ عندَ السقفِ المطلق**: رمزُ وصولٍ يعيش
+ * بعدَ السقفِ يمدُّ الجلسةَ فعلاً وإن لم يمدَّها اسماً.
+ */
+export interface MiniAppSessionGrantIssuer {
+  issueForGrant(
+    grant: MiniAppSessionRenewalGrant,
+    nowMs: number,
+  ): Result<IssuedMiniAppSession, SessionIssueFailure>;
+}
