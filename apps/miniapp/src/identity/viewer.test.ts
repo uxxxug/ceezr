@@ -123,20 +123,49 @@ describe("قراءةُ الدورِ من الخادم: الرفضُ والترج
     expect(await fetchViewer()).toEqual({ kind: "session_invalid" });
   });
 
+  /**
+   * أُضيف في `F1-07`: `unavailable` تحمل الآن سببَ الفشلِ الخامَ (`failure`) كي
+   * تُصنَّف شاشةً — والحكمُ نفسُه لم يتغيّر: `unavailable` لا سطحٌ افتراضي.
+   * التأكيدُ صار أدقَّ لا أضعف: الحقلُ الجديدُ يُقرأ صريحاً.
+   */
   it("٩) تعطيلٌ معلَنٌ على الخادمِ = `unavailable` لا سطحٌ افتراضي", async () => {
     withSession();
     respond(503, { ok: false, error: "SESSION_NOT_AVAILABLE" });
-    expect(await fetchViewer()).toEqual({ kind: "unavailable" });
+    expect(await fetchViewer()).toEqual({
+      kind: "unavailable",
+      failure: {
+        transport: "responded",
+        status: 503,
+        code: "SESSION_NOT_AVAILABLE",
+        retryAfterSeconds: null,
+      },
+    });
 
     withSession();
     respond(503, { ok: false, error: "PROFILE_NOT_AVAILABLE" });
-    expect(await fetchViewer()).toEqual({ kind: "unavailable" });
+    expect(await fetchViewer()).toEqual({
+      kind: "unavailable",
+      failure: {
+        transport: "responded",
+        status: 503,
+        code: "PROFILE_NOT_AVAILABLE",
+        retryAfterSeconds: null,
+      },
+    });
   });
 
   it("١٠) رمزٌ لا يعرفه العميلُ = `unavailable` لا تخمينُ معنى", async () => {
     withSession();
     respond(500, { ok: false, error: "SOMETHING_ELSE" });
-    expect(await fetchViewer()).toEqual({ kind: "unavailable" });
+    expect(await fetchViewer()).toEqual({
+      kind: "unavailable",
+      failure: {
+        transport: "responded",
+        status: 500,
+        code: "SOMETHING_ELSE",
+        retryAfterSeconds: null,
+      },
+    });
   });
 
   it("١١) انقطاعُ الشبكةِ = `unavailable` لا دورٌ من الذاكرة", async () => {
@@ -144,7 +173,10 @@ describe("قراءةُ الدورِ من الخادم: الرفضُ والترج
     globalThis.fetch = (async () => {
       throw new Error("انقطاعٌ مُصنَّع");
     }) as unknown as typeof fetch;
-    expect(await fetchViewer()).toEqual({ kind: "unavailable" });
+    expect(await fetchViewer()).toEqual({
+      kind: "unavailable",
+      failure: { transport: "failed" },
+    });
   });
 });
 

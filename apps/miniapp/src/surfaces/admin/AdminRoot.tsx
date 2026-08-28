@@ -11,16 +11,19 @@
  *   ولذلك **لا أداةَ إشرافٍ ههنا**: لوحةُ الإدارةِ الفعليةُ تبقى على الخادم.
  */
 
+import { EmptyState } from "../../system/EmptyState.tsx";
+
 export default function AdminRoot() {
   return (
     <section aria-labelledby="admin-root-title">
       <h1 id="admin-root-title" style={{ margin: 0, fontSize: "1.5rem" }}>
         وَصْلة
       </h1>
-      <p style={{ color: "var(--tg-hint-color)" }}>سطح المشرف.</p>
-      <p style={{ color: "var(--tg-hint-color)", fontSize: "0.85rem" }}>
-        F1-05 · أدوات الإشراف تبقى في لوحة الإدارة على الخادم (ADR 0007)
-      </p>
+      {/* `F1-07` — `UX-5`: حالةُ الفراغِ تُقال صراحةً ولا تُترَك بياضاً يُقرأ عطلاً. */}
+      <EmptyState
+        title="لا أدوات إشراف هنا"
+        body="أدوات الإشراف تبقى في لوحة الإدارة على الخادم (ADR 0007). هذا السطح إثبات توجيه لا لوحة إدارة."
+      />
     </section>
   );
 }

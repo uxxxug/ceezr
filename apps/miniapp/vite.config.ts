@@ -28,7 +28,14 @@ export default defineConfig({
             id.includes("/src/identity/") ||
             id.includes("/src/routing/") ||
             /** `F1-06`: طبقةُ السمةِ والاتجاهِ من حزمةِ `shell` — «الإطار، السمة» (9.4). */
-            id.includes("/src/styles/")
+            id.includes("/src/styles/") ||
+            /**
+             * `F1-07`: شاشاتُ الحالاتِ وتصنيفُ الفشلِ — «حدودُ الخطأ» من حزمةِ
+             * `shell` (9.4). وموضعُها في `shell` لازمٌ لا تنظيميّ: شاشةُ «لا
+             * اتصال» يجب أن تكون محمَّلةً سلفاً — حزمةٌ تُجلَب عندَ الفشلِ لا
+             * تُجلَب عندَ الفشل.
+             */
+            id.includes("/src/system/")
           ) {
             return "shell";
           }

@@ -19,6 +19,7 @@
  */
 
 import { ApiError, apiFetch } from "../api/client.ts";
+import { failureFromThrown, type RequestFailure } from "../system/failure.ts";
 
 /** الأدوارُ كما يعيدها الخادمُ من `users.role` — لا قائمةٌ يخترعها العميل. */
 export const SERVER_ROLES = ["rider", "driver", "support", "admin"] as const;
@@ -38,8 +39,16 @@ export type ViewerView =
   | { readonly kind: "session_expired" }
   /** لا جلسةَ أو رُفضت: علاجُه تحقّقٌ جديدٌ من تيليجرام (`F1-03`). */
   | { readonly kind: "session_invalid" }
-  /** تعطيلٌ معلَنٌ أو ردٌّ لا يُفهَم — ولا سطحَ يُفتَح على شكٍّ. */
-  | { readonly kind: "unavailable" };
+  /**
+   * تعطيلٌ معلَنٌ أو ردٌّ لا يُفهَم — ولا سطحَ يُفتَح على شكٍّ.
+   *
+   * `F1-07`: `failure` **حقلٌ اختياريٌّ مضاف** يحمل صنفَ الفشلِ كما رآه حدُّ API
+   * (ردٌّ وصل بحالةٍ ما، أو لم يصل ردٌّ). ولولاه لصار على الشاشةِ أن تخمّن:
+   * «تعذّر تحديدُ دورِك» جملةٌ واحدةٌ لانقطاعِ شبكةٍ ولصيانةٍ معلَنةٍ ولردٍّ مشوَّه،
+   * والقسم 9.7 يوجب التمييزَ بينها. **ولا يُصنَّف ههنا**: يُمرَّر خاماً إلى
+   * `system/failure.ts` فيبقى للتصنيفِ موضعٌ واحد.
+   */
+  | { readonly kind: "unavailable"; readonly failure?: RequestFailure };
 
 interface MePayload {
   readonly role?: unknown;
@@ -60,13 +69,13 @@ function readStatus(value: unknown): ViewerStatus | null {
  * ترجمةُ رمزِ الخطأِ الظاهرِ إلى حالةٍ للموجّه. الرموزُ من عقدِ المسارِ نفسِه،
  * وما سواها `unavailable`: العميلُ لا يخمّن معنىً لرمزٍ لا يعرفه.
  */
-function viewFromErrorCode(code: string): ViewerView {
+function viewFromErrorCode(code: string, failure: RequestFailure | null): ViewerView {
   if (code === "ACCOUNT_BLOCKED") return { kind: "blocked" };
   if (code === "SESSION_EXPIRED") return { kind: "session_expired" };
   if (code === "SESSION_REQUIRED" || code === "SESSION_INVALID") {
     return { kind: "session_invalid" };
   }
-  return { kind: "unavailable" };
+  return failure === null ? { kind: "unavailable" } : { kind: "unavailable", failure };
 }
 
 export async function fetchViewer(): Promise<ViewerView> {
@@ -74,8 +83,9 @@ export async function fetchViewer(): Promise<ViewerView> {
   try {
     payload = await apiFetch<MePayload>("/v1/me");
   } catch (thrown) {
-    if (thrown instanceof ApiError) return viewFromErrorCode(thrown.code);
-    return { kind: "unavailable" };
+    const failure = failureFromThrown(thrown);
+    if (thrown instanceof ApiError) return viewFromErrorCode(thrown.code, failure);
+    return failure === null ? { kind: "unavailable" } : { kind: "unavailable", failure };
   }
 
   const role = readRole(payload.role);

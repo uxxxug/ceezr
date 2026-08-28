@@ -100,3 +100,137 @@ button {
 a {
   color: var(--tg-link-color);
 }
+
+/*
+ * `F1-07` — الهيكلُ المتجاوب. القسم 9.3: رأسٌ ثم محتوى ثم منطقةُ فعلٍ سفلية.
+ * وكلُّ المسافاتِ بخصائصَ **منطقيةٍ** (`inline`/`block`) لا يمينَ ولا يسارَ: هي
+ * التي تجعل الاتجاهَ ينقلب بلا نسخةٍ ثانيةٍ من التنسيق (القسم 9.11 · `UX-3`).
+ * والحواشي الأربعُ من `F1-06` تبقى المصدرَ، ولا تُعاد حسابُها ههنا.
+ */
+.app-frame {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+  min-block-size: 100%;
+  padding-block: calc(1.25rem + var(--safe-top)) calc(1.25rem + var(--safe-bottom));
+  padding-inline: calc(1.25rem + var(--safe-left)) calc(1.25rem + var(--safe-right));
+}
+
+/*
+ * عمودُ قراءةٍ محدودُ العرض: على عميلِ تيليجرامَ في سطحِ المكتبِ تبلغ النافذةُ
+ * ثمانَ مئةِ بكسلٍ وأكثر، وسطرٌ عربيٌّ بهذا العرضِ يُتعب القراءةَ. ويبقى العمودُ
+ * سائلاً تحتَ حدِّه فلا يُقتطَع شيءٌ على شاشةٍ صغيرة.
+ */
+.app-frame > * {
+  inline-size: 100%;
+  max-inline-size: 34rem;
+  margin-inline: auto;
+}
+
+.app-frame__content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+/* منطقةُ الفعلِ: تبقى في أسفلِ الإطارِ ولا تُلاصق حدَّ الجهازِ (`--safe-bottom`). */
+.app-frame__action:empty {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .app-frame {
+    padding-block: calc(2rem + var(--safe-top)) calc(2rem + var(--safe-bottom));
+    padding-inline: calc(2rem + var(--safe-left)) calc(2rem + var(--safe-right));
+  }
+}
+
+/*
+ * `F1-07` — هيكلُ التحميلِ (`UX-5`: «هيكل تحميل (skeleton)»). أسطرٌ بمقاسِ ما
+ * سيحلّ مكانَها لا دائرةٌ تدور: الدائرةُ لا تقول شيئاً عن الآتي، والهيكلُ يقوله.
+ * و`aria-hidden` عليه لأنّ الخبرَ للقارئِ الآليِّ في `aria-busy` على الحاوي.
+ */
+.sk {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.sk__line {
+  block-size: 0.9rem;
+  border-radius: 0.45rem;
+  background: var(--tg-secondary-bg-color);
+  animation: sk-pulse 1.4s ease-in-out infinite;
+}
+
+.sk__line--title {
+  block-size: 1.5rem;
+  max-inline-size: 60%;
+}
+
+.sk__line--short {
+  max-inline-size: 45%;
+}
+
+@keyframes sk-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+
+/* `UX-10`: احترامُ تقليلِ الحركةِ — الهيكلُ يبقى ولا ينبض. */
+@media (prefers-reduced-motion: reduce) {
+  .sk__line {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/*
+ * `F1-07` — شاشةُ الحالة. `UX-10`: مساحةُ اللمسِ لا تقلّ عن 44×44 بكسل، ولا
+ * معلومةَ باللونِ وحدَه — فكلُّ حالةٍ لها عنوانٌ ونصٌّ مكتوبان.
+ */
+.sys {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sys__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.sys__body {
+  margin: 0;
+  color: var(--tg-text-color);
+}
+
+.sys__hint {
+  margin: 0;
+  color: var(--tg-hint-color);
+  font-size: 0.85rem;
+}
+
+.sys__action {
+  align-self: start;
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  padding-block: 0.75rem;
+  padding-inline: 1.25rem;
+  border: none;
+  border-radius: 0.75rem;
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  font-weight: 600;
+}
+
+.sys__action[disabled] {
+  opacity: 0.6;
+  cursor: progress;
+}

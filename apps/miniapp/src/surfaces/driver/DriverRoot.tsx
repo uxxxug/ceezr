@@ -8,16 +8,19 @@
  *   تُكتَب على الخادمِ، وكتابتُها من التطبيقِ المصغَّرِ بندٌ لاحقٌ لا `F1-05`.
  */
 
+import { EmptyState } from "../../system/EmptyState.tsx";
+
 export default function DriverRoot() {
   return (
     <section aria-labelledby="driver-root-title">
       <h1 id="driver-root-title" style={{ margin: 0, fontSize: "1.5rem" }}>
         وَصْلة
       </h1>
-      <p style={{ color: "var(--tg-hint-color)" }}>سطح السائق.</p>
-      <p style={{ color: "var(--tg-hint-color)", fontSize: "0.85rem" }}>
-        F1-05 · حزمة السائق حُمِّلت لأن الخادم أعاد دور سائق · شاشات العمل في F3
-      </p>
+      {/* `F1-07` — `UX-5`: حالةُ الفراغِ تُقال صراحةً ولا تُترَك بياضاً يُقرأ عطلاً. */}
+      <EmptyState
+        title="لا شيء يُعرَض بعد"
+        body="حزمة السائق حُمِّلت لأن الخادم أعاد دور سائق. شاشات العمل بنود F3، وهذا السطح فارغ عن قصد."
+      />
     </section>
   );
 }

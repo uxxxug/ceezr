@@ -155,6 +155,9 @@ jobs:
       - name: الدورُ من الخادمِ وحدَه — لا تخزينَ ولا افتراضَ ولا دورَ من الطلب (F1-05)
         run: bun run scripts/check-viewer-role-authority.ts
 
+      - name: شاشاتُ الحالاتِ بلا استقصاءٍ دوريٍّ ومواضعُها مفردة (F1-07 · ADR 0035 §4)
+        run: bun run scripts/check-system-screens-policy.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

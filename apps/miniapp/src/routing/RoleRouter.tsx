@@ -1,19 +1,41 @@
 /**
  * الغرض: الطبقةُ الرقيقةُ التي تنفّذ قرارَ التوجيه (البند `F1-05`): تقرأ الدورَ
- *   من الخادمِ، تسأل `routeForViewer` عن السطح، تحمّل حزمتَه، ثم تعرضه.
- * الحالة: منفّذ فعلياً — البند `F1-05`.
+ *   من الخادمِ، تسأل `routeForViewer` عن السطح، تحمّل حزمتَه، ثم تعرضه. وفي
+ *   `F1-07`: تعرض هيكلَ التحميلِ وشاشاتِ الحالاتِ وتلفّ السطحَ بحدِّ خطأٍ خاصٍّ به.
+ * الحالة: منفّذ فعلياً — البند `F1-05`، ومُوسَّعٌ في `F1-07`.
  * ينتمي إلى: apps/miniapp/src/routing (حزمة `shell` — القسم 9.4)
  * يُتوقع أن يستخدمه لاحقاً: `shell/Shell.tsx` وحدَه اليوم.
- * ملاحظات مستقبلية: شاشاتُ الحالاتِ الخمسِ `SS-01..SS-05` وحدودُ الأخطاءِ لكلِّ
- *   سطحٍ بندُ `F1-07`؛ فما ههنا نصوصُ حالةٍ صريحةٌ لا شاشاتُ نظامٍ مكتملة.
+ * ملاحظات مستقبلية: الشريطُ السفليُّ بأربعِ علاماتٍ (القسم 9.3) بندُ `F2`/`F3`.
  *
  * **لا قرارَ صلاحيةٍ في هذا الملفِّ**: القرارُ في `routeForViewer` النقيّةِ فوقَ
  * ردِّ الخادمِ، وهذا الملفُّ أثرٌ جانبيٌّ (طلبُ شبكةٍ · تحميلُ حزمةٍ · عرض).
  * وعندَ أيِّ حالةٍ ليست سطحاً: **لا سطحَ يُعرَض** — لا سطحٌ افتراضيٌّ ولا أدنى.
+ *
+ * `F1-07` — ثلاثُ إضافاتٍ وحدودُها:
+ *   ــ **حدُّ خطأٍ لكلِّ سطح**: سقوطُ سطحِ السائقِ لا يُبيّض التطبيقَ كلَّه، ولا
+ *      يُسقِط الإطارَ. والحدُّ الجذريُّ في `App.tsx` يبقى للسقوطِ فوقَ ذلك.
+ *   ــ **إعادةُ المحاولةِ بيدِ المستخدمِ وحدَه**: عدّادُ `attempt` يعيد تشغيلَ
+ *      الأثرِ عندَ الضغط. ولا مؤقّتَ ولا استقصاءَ دوريّاً (ADR 0035 §4)، ويحرس
+ *      ذلك فحصٌ في CI لا اتفاقٌ يُنسى.
+ *   ــ **تشخيصُ التعطيلِ بفحصٍ واحدٍ**: عندَ فشلِ نقلٍ يُنادى `GET /health` مرّةً
+ *      لتمييزِ «شبكتُك» من «خدمتُنا» (9.7)، ولا يُنادى في غيرِ هذه الحال.
+ *
+ * وحدٌّ معلَنٌ: إعادةُ المصادقةِ في `SS-05` ليست ههنا — موضعُها الإقلاعُ في
+ * `Shell` لأنّ الجلسةَ فوقَ الموجّهِ لا داخلَه، ويُرفَع الطلبُ إليه بـ`onReauth`.
  */
 
-import { type ComponentType, useEffect, useState } from "react";
-import { fetchViewer } from "../identity/viewer.ts";
+import { type ComponentType, useCallback, useEffect, useRef, useState } from "react";
+import { fetchViewer, type ViewerView } from "../identity/viewer.ts";
+import { ErrorBoundary } from "../shell/ErrorBoundary.tsx";
+import {
+  classifyFailure,
+  type ReachabilityProbe,
+  shouldProbeReachability,
+} from "../system/failure.ts";
+import { deviceOnline, probeReachability } from "../system/health.ts";
+import { Skeleton } from "../system/Skeleton.tsx";
+import { SystemScreen } from "../system/SystemScreen.tsx";
+import type { ScreenState } from "../system/state-text.ts";
 import {
   loadSurface,
   type NoSurfaceReason,
@@ -36,62 +58,93 @@ const SURFACE_LOADERS: SurfaceLoaders<SurfaceModule> = {
   admin: () => import("../surfaces/admin/AdminRoot.tsx"),
 };
 
-const REASON_TEXT: Readonly<Record<NoSurfaceReason, string>> = {
-  unregistered: "لا حساب لك بعد. سجّل من بوت وَصْلة ثم أعد فتح التطبيق.",
-  blocked: "هذا الحساب محجوب. راجع الدعم.",
-  no_surface_yet: "لا توجد شاشة لدورك في التطبيق بعد.",
-  session_invalid: "الجلسة غير صالحة. أعد فتح التطبيق من البوت.",
-  session_expired: "انتهت الجلسة. أعد فتح التطبيق من البوت.",
-  unavailable: "تعذّر تحديد دورك الآن. حاول لاحقاً.",
-};
-
 type RouterState =
   | { readonly kind: "resolving" }
   | { readonly kind: "surface"; readonly Component: ComponentType }
-  | { readonly kind: "surface_failed" }
-  | { readonly kind: "no_surface"; readonly reason: NoSurfaceReason };
+  | { readonly kind: "screen"; readonly screen: ScreenState };
 
-export function RoleRouter() {
+export interface RoleRouterProps {
+  /**
+   * يُنادى حين تكون الجلسةُ هي العطلَ — فالموجّهُ لا يملك مصادقةً ولا يدّعيها.
+   * وغيابُه يعني عرضَ الشاشةِ بلا فعلٍ بدلَ زرٍّ لا يفعل شيئاً (`UX-8`).
+   */
+  readonly onReauth?: () => void;
+}
+
+/**
+ * تحويلُ سببِ «لا سطحَ» إلى شاشةٍ. وحالةُ `unavailable` وحدَها تحتاج تصنيفاً:
+ * سائرُ الأسبابِ قراراتُ تفويضٍ صريحةٌ من الخادمِ لها نصٌّ واحدٌ لا يحتمل تشخيصاً.
+ */
+async function screenForReason(reason: NoSurfaceReason, view: ViewerView): Promise<ScreenState> {
+  if (reason !== "unavailable") return { kind: reason };
+  const failure = view.kind === "unavailable" ? view.failure : undefined;
+  if (failure === undefined) return { kind: "unknown_error" };
+
+  const online = deviceOnline();
+  let probe: ReachabilityProbe = "not_probed";
+  if (shouldProbeReachability(failure, online)) probe = await probeReachability();
+  return classifyFailure(failure, probe, online) ?? { kind: "unknown_error" };
+}
+
+export function RoleRouter({ onReauth }: RoleRouterProps = {}) {
   const [state, setState] = useState<RouterState>({ kind: "resolving" });
-
+  const mounted = useRef(true);
   useEffect(() => {
-    let active = true;
-    void (async () => {
-      const view = await fetchViewer();
-      const route: RoleRoute = routeForViewer(view);
-      if (route.surface === "none") {
-        if (active) setState({ kind: "no_surface", reason: route.reason });
-        return;
-      }
-      const outcome = await loadSurface(route, SURFACE_LOADERS);
-      if (!active) return;
-      if (outcome.loaded === "none" || "failed" in outcome) {
-        setState({ kind: "surface_failed" });
-        return;
-      }
-      setState({ kind: "surface", Component: outcome.module.default });
-    })();
+    mounted.current = true;
     return () => {
-      active = false;
+      mounted.current = false;
     };
   }, []);
 
-  if (state.kind === "resolving") {
-    return (
-      <p style={hint} aria-busy="true">
-        جارٍ تحديد الدور…
-      </p>
+  /**
+   * محاولةٌ واحدةٌ كاملة. تُنادى مرّةً عندَ التركيبِ ومرّةً كلَّما ضغط المستخدمُ
+   * «إعادةَ المحاولة» — **ولا يناديها مؤقّتٌ ولا مستمعٌ دوريّ** (ADR 0035 §4).
+   */
+  const resolve = useCallback(async () => {
+    setState({ kind: "resolving" });
+    const view = await fetchViewer();
+    const route: RoleRoute = routeForViewer(view);
+    if (route.surface === "none") {
+      const screen = await screenForReason(route.reason, view);
+      if (mounted.current) setState({ kind: "screen", screen });
+      return;
+    }
+    const outcome = await loadSurface(route, SURFACE_LOADERS);
+    if (!mounted.current) return;
+    if (outcome.loaded === "none" || "failed" in outcome) {
+      setState({ kind: "screen", screen: { kind: "surface_failed" } });
+      return;
+    }
+    setState({ kind: "surface", Component: outcome.module.default });
+  }, []);
+
+  useEffect(() => {
+    void resolve();
+  }, [resolve]);
+
+  const retry = () => void resolve();
+
+  if (state.kind === "resolving") return <Skeleton />;
+
+  if (state.kind === "screen") {
+    const needsSession =
+      state.screen.kind === "session_expired" || state.screen.kind === "session_invalid";
+    // شاشةُ الجلسةِ بلا مُصادِقٍ فوقَها تُعرَض بلا زرّ: زرٌّ لا يؤدّي إلى مصادقةٍ
+    // أسوأُ من لا زرٍّ. وسائرُ الشاشاتِ فعلُها إعادةُ القراءة.
+    const action = needsSession ? onReauth : retry;
+    // الحذفُ لا التمريرُ بـ`undefined`: `exactOptionalPropertyTypes` مفعَّلٌ،
+    // وغيابُ الفعلِ هو ما يجعل الزرَّ لا يُرسَم أصلاً.
+    return action === undefined ? (
+      <SystemScreen state={state.screen} />
+    ) : (
+      <SystemScreen state={state.screen} onAction={action} />
     );
-  }
-  if (state.kind === "surface_failed") {
-    return <p style={hint}>تعذّر تحميل الشاشة. حاول لاحقاً.</p>;
-  }
-  if (state.kind === "no_surface") {
-    return <p style={hint}>{REASON_TEXT[state.reason]}</p>;
   }
 
   const { Component } = state;
-  return <Component />;
+  return (
+    <ErrorBoundary label="surface" onReset={retry}>
+      <Component />
+    </ErrorBoundary>
+  );
 }
-
-const hint: React.CSSProperties = { margin: 0, color: "var(--tg-hint-color)" };

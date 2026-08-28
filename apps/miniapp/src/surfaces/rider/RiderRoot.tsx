@@ -8,16 +8,19 @@
  * ملاحظات مستقبلية: الشريطُ السفليُّ بأربعِ علاماتٍ (القسم 9.3) بندُ `F1-07`.
  */
 
+import { EmptyState } from "../../system/EmptyState.tsx";
+
 export default function RiderRoot() {
   return (
     <section aria-labelledby="rider-root-title">
       <h1 id="rider-root-title" style={{ margin: 0, fontSize: "1.5rem" }}>
         وَصْلة
       </h1>
-      <p style={{ color: "var(--tg-hint-color)" }}>سطح الراكب.</p>
-      <p style={{ color: "var(--tg-hint-color)", fontSize: "0.85rem" }}>
-        F1-05 · الدور محدَّد على الخادم · شاشات الرحلة تأتي في F2
-      </p>
+      {/* `F1-07` — `UX-5`: حالةُ الفراغِ تُقال صراحةً ولا تُترَك بياضاً يُقرأ عطلاً. */}
+      <EmptyState
+        title="لا شيء يُعرَض بعد"
+        body="شاشات الراكب (طلب رحلة · العروض · التتبّع) بنود F2. حتى ذلك الحين هذا السطح فارغ عن قصد، لا معطَّل."
+      />
     </section>
   );
 }
