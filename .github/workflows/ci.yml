@@ -158,6 +158,9 @@ jobs:
       - name: شاشاتُ الحالاتِ بلا استقصاءٍ دوريٍّ ومواضعُها مفردة (F1-07 · ADR 0035 §4)
         run: bun run scripts/check-system-screens-policy.ts
 
+      - name: القياسُ لا يخرج من الجهازِ ومعرّفُ الطلبِ من الخادمِ وحدَه (F1-08 · ADR 0043)
+        run: bun run scripts/check-telemetry-policy.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

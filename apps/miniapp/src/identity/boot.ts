@@ -17,11 +17,14 @@
  *   ــ لا يقرأ دوراً ولا يكتبه: الدورُ من `GET /v1/me` وحدَه (`F1-05`).
  *   ــ لا يسجّل `initData` ولا رمزاً ولا جزءاً منهما، ولا في رسالةِ خطأ.
  *   ــ لا يمسّ `SecureStorage` مباشرةً: عبرَ `session-storage.ts` وحدَه (`F1-04`).
+ *   ــ `F1-08`: لا يُنشئ قياساً ولا يختار مَصرِفاً — يستقبل `telemetry` أو لا
+ *      يستقبلها، ويسجّل **حدثاً واحداً لكلِّ إقلاعٍ** لا حدثاً لكلِّ خطوة.
  *   ــ لا يعيد المحاولةَ تلقائياً ولا يستقصي دوريّاً (ADR 0035 §4): يُنادى مرّةً
  *      عندَ الإقلاعِ، ومرّةً حين يطلب المستخدمُ إعادةَ المصادقة.
  */
 
-import { ApiError, ApiNetworkError, apiFetch } from "../api/client.ts";
+import { ApiError, ApiNetworkError, type ApiObserver, apiFetch } from "../api/client.ts";
+import type { Telemetry } from "../telemetry/telemetry.ts";
 import { getRawInitData, isInsideTelegram } from "../tg/index.ts";
 import { renewSessionFromStorage } from "./renew.ts";
 import { hasValidSession, setSession } from "./session.ts";
@@ -61,18 +64,28 @@ export type BootResult =
 export interface BootDeps {
   readonly insideTelegram?: () => boolean;
   readonly rawInitData?: () => string | null;
-  readonly renew?: (store?: DeviceSecureStore) => ReturnType<typeof renewSessionFromStorage>;
-  readonly exchange?: (initData: string) => Promise<ExchangeResponse>;
+  readonly renew?: (
+    store?: DeviceSecureStore,
+    observe?: ApiObserver,
+  ) => ReturnType<typeof renewSessionFromStorage>;
+  readonly exchange?: (initData: string, observe?: ApiObserver) => Promise<ExchangeResponse>;
   readonly persist?: typeof persistRefreshToken;
   readonly sessionValid?: () => boolean;
+  /**
+   * `F1-08`: القياسُ اختياريٌّ — غيابُه يعني أنّ الإقلاعَ لا يسجّل حدثاً، وحضورُه
+   * يعني حدثاً واحداً لكلِّ إقلاعٍ مربوطاً بمعرّفِ الطلبِ حين يكون هناك طلبٌ.
+   * وهو **مُستقبَلٌ لا مُنشَأٌ ههنا**: مسارُ الإقلاعِ لا يملك قرارَ المَصرِف.
+   */
+  readonly telemetry?: Telemetry;
 }
 
-const defaultExchange = (initData: string): Promise<ExchangeResponse> =>
+const defaultExchange = (initData: string, observe?: ApiObserver): Promise<ExchangeResponse> =>
   apiFetch<ExchangeResponse>("/v1/session/telegram", {
     method: "POST",
     body: { initData },
     // مسارٌ عامٌّ: إثباتُ الهويةِ فيه `initData` الموقَّعُ لا رمزُ وصول.
     public: true,
+    ...(observe === undefined ? {} : { observe }),
   });
 
 /**
@@ -84,31 +97,65 @@ const defaultExchange = (initData: string): Promise<ExchangeResponse> =>
  * وهو أيضاً ترتيبُ الاحتمالِ: أكثرُ الإقلاعاتِ يجدها في الأولى أو الثانية.
  */
 export async function establishSession(deps: BootDeps = {}): Promise<BootResult> {
+  /**
+   * `F1-08`: آخِرُ معرّفِ طلبٍ رآه هذا الإقلاعُ. والمُراقِبُ يُمرَّر إلى حدِّ API
+   * فيأتي المعرّفُ **من رأسِ الردِّ نفسِه** لا من توليدٍ في العميلِ (ADR 0043).
+   */
+  let lastRequestId: string | null = null;
+  const observe: ApiObserver = (observation) => {
+    lastRequestId = observation.requestId;
+  };
+  const record = (
+    outcome: "existing" | "renewed" | "exchanged" | "failed",
+    reason: string | null,
+  ): void => {
+    deps.telemetry?.record({ kind: "boot", outcome, reason, requestId: lastRequestId });
+  };
+
   const sessionValid = deps.sessionValid ?? hasValidSession;
-  if (sessionValid()) return { established: true, via: "existing" };
+  if (sessionValid()) {
+    // جلسةٌ في الذاكرةِ: لا نداءَ إطلاقاً فلا معرّفَ طلبٍ — وهذا حدٌّ لا نقصٌ.
+    record("existing", null);
+    return { established: true, via: "existing" };
+  }
 
   const renew = deps.renew ?? renewSessionFromStorage;
-  const renewal = await renew();
-  if (renewal.renewed) return { established: true, via: "renewed" };
+  const renewal = await renew(undefined, observe);
+  if (renewal.renewed) {
+    record("renewed", null);
+    return { established: true, via: "renewed" };
+  }
   // تعطّلُ الشبكةِ في التجديدِ لا يُتبَع بمبادلةٍ: الرمزُ المحفوظُ قد يكون صالحاً،
   // ومبادلةٌ الآنَ تُصدِر جلسةً ثانيةً بلا حاجة. الشاشةُ تعرض تعطّلاً والفعلُ للمستخدم.
   if (renewal.reason === "UNAVAILABLE") {
+    record("failed", "UNAVAILABLE");
     return { established: false, reason: "UNAVAILABLE" };
   }
 
   const inside = (deps.insideTelegram ?? isInsideTelegram)();
-  if (!inside) return { established: false, reason: "OUTSIDE_TELEGRAM" };
+  if (!inside) {
+    record("failed", "OUTSIDE_TELEGRAM");
+    return { established: false, reason: "OUTSIDE_TELEGRAM" };
+  }
 
   const initData = (deps.rawInitData ?? getRawInitData)();
   if (initData === null || initData.length === 0) {
+    record("failed", "MISSING_INIT_DATA");
     return { established: false, reason: "MISSING_INIT_DATA" };
   }
 
   let response: ExchangeResponse;
   try {
-    response = await (deps.exchange ?? defaultExchange)(initData);
+    response = await (deps.exchange ?? defaultExchange)(initData, observe);
   } catch (thrown) {
-    return { established: false, reason: exchangeFailureReason(thrown), thrown };
+    const reason = exchangeFailureReason(thrown);
+    // معرّفُ الطلبِ من الخطأِ نفسِه إن حمله (ردٌّ وصل)، وإلّا فآخِرُ ما رآه
+    // المُراقِبُ — و«لم يصل ردٌّ» لا معرّفَ له فيبقى `null`.
+    if (thrown instanceof ApiError && thrown.requestId !== null) {
+      lastRequestId = thrown.requestId;
+    }
+    record("failed", reason);
+    return { established: false, reason, thrown };
   }
 
   setSession({ accessToken: response.accessToken, expiresAt: response.expiresAtMs });
@@ -117,6 +164,7 @@ export async function establishSession(deps: BootDeps = {}): Promise<BootResult>
   if (typeof response.refreshToken === "string" && response.refreshToken.length > 0) {
     await (deps.persist ?? persistRefreshToken)(response.refreshToken);
   }
+  record("exchanged", null);
   return { established: true, via: "exchanged" };
 }
 

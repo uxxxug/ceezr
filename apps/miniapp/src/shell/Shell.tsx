@@ -4,7 +4,8 @@
  * الحالة: منفّذ فعلياً — البنود `F1-01` · `F1-05` · `F1-06` · `F1-07`.
  * ينتمي إلى: apps/miniapp/src/shell
  * يُتوقع أن يستخدمه لاحقاً: `App.tsx` وحدَه.
- * ملاحظات مستقبلية: القياسُ (القسم 9.4) لا يُركَّب ههنا بعد.
+ * ملاحظات مستقبلية: `F1-08` جعل القياسَ **يُمرَّر** إلى الهيكلِ لا يُنشَأ فيه؛
+ *   ومَن يُنشئه هو `App.tsx`. ودفعُ الأحداثِ إلى منصةِ قياسٍ ما زال غيرَ مقرَّرٍ.
  *
  * `F1-05`: الدورُ يُقرأ من الخادمِ في الموجّهِ لا من حاملِ الجلسةِ ولا من تيليجرام.
  *
@@ -36,6 +37,7 @@ import { deviceOnline, probeReachability } from "../system/health.ts";
 import { Skeleton } from "../system/Skeleton.tsx";
 import { SystemScreen } from "../system/SystemScreen.tsx";
 import type { ScreenState } from "../system/state-text.ts";
+import type { Telemetry } from "../telemetry/telemetry.ts";
 import { bindTelegramTheme, expandApp, notifyReady } from "../tg/index.ts";
 import { Layout } from "./Layout.tsx";
 
@@ -61,7 +63,7 @@ async function screenForBootFailure(
   return classifyFailure(failure, probe, online) ?? { kind: "unknown_error" };
 }
 
-export function Shell() {
+export function Shell({ telemetry }: { readonly telemetry?: Telemetry } = {}) {
   const [boot, setBoot] = useState<BootState>({ kind: "booting" });
   /**
    * مفتاحُ الجلسة: يتغيّر عندَ كلِّ إعادةِ مصادقةٍ ناجحةٍ فيُعاد تركيبُ الموجّهِ
@@ -90,19 +92,23 @@ export function Shell() {
    * يرفض رمزاً لم تنتهِ مدّتُه بعدُ في ساعةِ الجهازِ، فلو لم يُطرَح لعادت
    * `establishSession` بـ«جلسةٌ قائمة» ولدارَ المستخدمُ على الشاشةِ نفسِها.
    */
-  const runBoot = useCallback(async (discard = false) => {
-    if (discard) clearSession();
-    setBoot({ kind: "booting" });
-    const result = await establishSession();
-    if (!mounted.current) return;
-    if (result.established) {
-      setBoot({ kind: "ready" });
-      setSessionEpoch((value) => value + 1);
-      return;
-    }
-    const screen = await screenForBootFailure(result.reason, result.thrown);
-    if (mounted.current) setBoot({ kind: "screen", screen });
-  }, []);
+  const runBoot = useCallback(
+    async (discard = false) => {
+      if (discard) clearSession();
+      setBoot({ kind: "booting" });
+      // `F1-08`: القياسُ يُمرَّر ولا يُنشَأ ههنا — والهيكلُ لا يعرف مَصرِفاً.
+      const result = await establishSession(telemetry === undefined ? {} : { telemetry });
+      if (!mounted.current) return;
+      if (result.established) {
+        setBoot({ kind: "ready" });
+        setSessionEpoch((value) => value + 1);
+        return;
+      }
+      const screen = await screenForBootFailure(result.reason, result.thrown);
+      if (mounted.current) setBoot({ kind: "screen", screen });
+    },
+    [telemetry],
+  );
 
   useEffect(() => {
     void runBoot();

@@ -4,9 +4,13 @@
  * ينتمي إلى: apps/gateway
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/index.ts، tests/unit/gateway-*.test.ts
  * ملاحظات مستقبلية: مسارات لوحة الإدارة تُضاف كموجّه منفصل بلا تعديل هذا الملف.
+ *
+ * `F1-08`: أُضيف وسيطُ معرّفِ الطلبِ **أوّلَ الوسائطِ** (`observability/request-id.ts`)
+ * فيلحق `X-Request-Id` كلَّ ردٍّ — ناجحاً كان أو `404` أو استثناءً غيرَ متوقَّعٍ.
  */
 
 import { Hono } from "hono";
+import { createRequestIdMiddleware } from "./observability/request-id.ts";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
 import {
@@ -47,10 +51,25 @@ export interface ServerDependencies {
    * غيابُه هنا = لا مسار (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَن (`503`).
    */
   readonly me?: MeDependencies;
+  /**
+   * `F1-08`: مولّدُ معرّفِ الطلب — يُحقَن للاختبارِ وحدَه، وغيابُه يعني
+   * `crypto.randomUUID`. ولا يُقرأ رأسُ `X-Request-Id` الوارِدُ من العميلِ في
+   * أيِّ حالٍ (ADR 0043).
+   */
+  readonly newRequestId?: () => string;
 }
 
 export function createServer(deps: ServerDependencies): Hono {
   const app = new Hono();
+
+  // `F1-08`: أوّلُ وسيطٍ قبلَ أيِّ مسارٍ — فمعرّفُ الطلبِ يلحق ردَّ المسارِ
+  // وردَّ `404` وردَّ الاستثناءِ سواءً، لا الردودَ الناجحةَ وحدَها.
+  app.use(
+    "*",
+    deps.newRequestId === undefined
+      ? createRequestIdMiddleware()
+      : createRequestIdMiddleware(deps.newRequestId),
+  );
 
   app.route("/", createHealthRoutes(deps.health));
   app.route("/", createTelegramWebhookRoutes(deps.webhook));

@@ -19,6 +19,11 @@ export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
   /**
+   * `F1-08`: معرّفُ الطلبِ من رأسِ الردِّ إن وُجد — و`null` إن لم يُصدِره الخادمُ
+   * (ردٌّ من وسيطٍ أمامَ التطبيقِ مثلاً). ولا يُخترَع، ولا يُولَّد في العميل.
+   */
+  readonly requestId: string | null;
+  /**
    * `F1-07`: ثوانٍ من ترويسةِ `Retry-After` إن أرسلها الخادمُ ــ و`null` إن لم
    * يُرسِلها. ولا يُخترَع تقديرٌ عندَ غيابِها: «تقديرٌ زمنيٌّ **إن وُجد**» (9.7).
    */
@@ -29,12 +34,14 @@ export class ApiError extends Error {
     code: string,
     message: string,
     retryAfterSeconds: number | null = null,
+    requestId: string | null = null,
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
     this.code = code;
     this.retryAfterSeconds = retryAfterSeconds;
+    this.requestId = requestId;
   }
 }
 
@@ -63,6 +70,40 @@ function readRetryAfterSeconds(header: string | null): number | null {
   return seconds;
 }
 
+/** صيغةُ معرّفِ الطلبِ كما يُصدِرها الخادمُ (ADR 0043) — وما خالفها يُهمَل. */
+const REQUEST_ID_SHAPE = /^[A-Za-z0-9-]{8,64}$/;
+
+/**
+ * `F1-08`: قراءةُ `X-Request-Id`. والشكلُ يُتحقَّق منه ههنا لا في الشاشة: رأسٌ
+ * قادمٌ من الشبكةِ مُدخَلٌ، وقيمةٌ فيها محرفُ سطرٍ تفسد كلَّ ما يُبنى عليها.
+ */
+function readRequestId(header: string | null): string | null {
+  if (header === null) return null;
+  const trimmed = header.trim();
+  return REQUEST_ID_SHAPE.test(trimmed) ? trimmed : null;
+}
+
+/**
+ * `F1-08`: ما يُبلَّغ عن كلِّ نداءٍ منتهٍ. **حقولٌ مسموحةٌ بالاسمِ لا كائنٌ حرٌّ**:
+ * لا جسمَ ردٍّ، ولا رسالةَ خطأٍ، ولا ترويسةَ تفويضٍ، ولا نصَّ استثناءٍ.
+ */
+export interface ApiObservation {
+  readonly path: string;
+  readonly method: string;
+  /** `null` حين لم يصل ردٌّ. */
+  readonly status: number | null;
+  readonly code: string | null;
+  readonly requestId: string | null;
+  /**
+   * `ok` وصل ردٌّ ناجحٌ · `rejected` وصل ردٌّ بحالةٍ غيرِ ناجحةٍ · `no_response`
+   * لم يصل ردٌّ · `not_attempted` لم يُرسَل الطلبُ أصلاً (رفضٌ محليٌّ لغيابِ
+   * جلسةٍ). والأربعةُ لا تُدمَج: كلُّ دمجٍ منها يجعل قراءةَ القياسِ كذباً.
+   */
+  readonly outcome: "ok" | "rejected" | "no_response" | "not_attempted";
+}
+
+export type ApiObserver = (observation: ApiObservation) => void;
+
 export type ApiRequestInit = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -76,6 +117,11 @@ export type ApiRequestInit = {
    * لواجهةِ المنتجِ بلا جلسةٍ صالحة.
    */
   public?: boolean;
+  /**
+   * `F1-08`: مُراقِبٌ يُنادى مرّةً واحدةً عندَ انتهاءِ النداء. وهو اختياريٌّ:
+   * المنادي الذي لا يمرّره لا يتغيّر سلوكُه شعرةً، ولا شيءَ يُقاس بلا طالبٍ.
+   */
+  observe?: ApiObserver;
 };
 
 function apiBase(): string {
@@ -88,8 +134,33 @@ function apiBase(): string {
  * Authenticated product API call.
  * Rejects before network if session is missing (ADR 0035 automated check #2).
  */
+/**
+ * `F1-08`: نداءُ المُراقِبِ **لا يُسقِط النداءَ أبداً**. مُراقِبٌ يرمي عيبُه لا
+ * عيبُ الطلبِ، والمستخدمُ لا يخسر ردّاً وصل لأنّ عدّاداً انكسر.
+ */
+function notify(observe: ApiObserver | undefined, observation: ApiObservation): void {
+  if (observe === undefined) return;
+  try {
+    observe(observation);
+  } catch {
+    /* القياسُ لا يُفشِل النقل */
+  }
+}
+
 export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Promise<T> {
+  const method = init.method ?? (init.body !== undefined ? "POST" : "GET");
+
   if (!init.public && !hasValidSession()) {
+    // `F1-08`: رفضٌ محليٌّ قبلَ الشبكةِ — يُسجَّل `not_attempted` لا `rejected`:
+    // الخادمُ لم يُنادَ، فنسبةُ الرفضِ إليه كذبٌ في القياس.
+    notify(init.observe, {
+      path,
+      method,
+      status: null,
+      code: "SESSION_REQUIRED",
+      requestId: null,
+      outcome: "not_attempted",
+    });
     throw new ApiError(401, "SESSION_REQUIRED", "Waslah session required");
   }
 
@@ -116,15 +187,25 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
   let res: Response;
   try {
     res = await fetch(`${apiBase()}${path}`, {
-      method: init.method ?? (init.body !== undefined ? "POST" : "GET"),
+      method,
       headers,
       ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
     });
   } catch {
     // `F1-07`: الرسالةُ الأصليةُ لا تُنقَل: نصُّ خطأِ المتصفّحِ يحمل أحياناً
     // العنوانَ كاملاً، والعنوانُ يحمل مسارَ الجلسة. ولا شيءَ يُسجَّل ههنا.
+    notify(init.observe, {
+      path,
+      method,
+      status: null,
+      code: null,
+      requestId: null,
+      outcome: "no_response",
+    });
     throw new ApiNetworkError();
   }
+
+  const requestId = readRequestId(res.headers.get("x-request-id"));
 
   if (!res.ok) {
     let code = "HTTP_ERROR";
@@ -142,13 +223,31 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
     } catch {
       /* keep defaults */
     }
+    notify(init.observe, {
+      path,
+      method,
+      status: res.status,
+      code,
+      requestId,
+      outcome: "rejected",
+    });
     throw new ApiError(
       res.status,
       code,
       message,
       readRetryAfterSeconds(res.headers.get("retry-after")),
+      requestId,
     );
   }
+
+  notify(init.observe, {
+    path,
+    method,
+    status: res.status,
+    code: null,
+    requestId,
+    outcome: "ok",
+  });
 
   if (res.status === 204) {
     return undefined as T;

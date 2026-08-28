@@ -12,7 +12,7 @@
  * ولا يُسجَّل رمزٌ ولا جزءٌ منه في هذا الملفِّ ولا في رسائلِ أخطائِه.
  */
 
-import { ApiError, apiFetch } from "../api/client.ts";
+import { ApiError, type ApiObserver, apiFetch } from "../api/client.ts";
 import { setSession } from "./session.ts";
 import {
   type DeviceSecureStore,
@@ -68,6 +68,11 @@ export type RenewSessionResult =
  */
 export async function renewSessionFromStorage(
   store: DeviceSecureStore = telegramSecureStore,
+  /**
+   * `F1-08`: مُراقِبٌ اختياريٌّ يُمرَّر إلى حدِّ API، فيصير لحدثِ التجديدِ معرّفُ
+   * الطلبِ نفسُه الذي يراه الخادمُ. وغيابُه لا يغيّر شيئاً من السلوك.
+   */
+  observe?: ApiObserver,
 ): Promise<RenewSessionResult> {
   const stored = await loadRefreshToken(store);
   if (stored === null) return { renewed: false, reason: "NO_STORED_TOKEN" };
@@ -79,6 +84,7 @@ export async function renewSessionFromStorage(
       body: { refreshToken: stored },
       // مسارٌ عامٌّ: التفويضُ فيه رمزُ التجديدِ نفسُه لا رمزُ وصولٍ صالح.
       public: true,
+      ...(observe === undefined ? {} : { observe }),
     });
   } catch (thrown) {
     // خطأُ طالبٍ (فئةُ ٤xx) = الخادمُ حكم على الرمزِ فلم يقبله، فيُمسَح كي
