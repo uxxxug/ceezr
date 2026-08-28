@@ -8,6 +8,7 @@
 
 import { Hono } from "hono";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
+import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
 import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
@@ -41,6 +42,11 @@ export interface ServerDependencies {
    * غيابُه هنا = لا مسار (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَن (`503`).
    */
   readonly sessionRefresh?: SessionRefreshDependencies;
+  /**
+   * مسارُ قراءةِ الدورِ والحالة (`F1-05`) — اختياريٌّ بنفسِ منطقِ مسارَي الجلسة:
+   * غيابُه هنا = لا مسار (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَن (`503`).
+   */
+  readonly me?: MeDependencies;
 }
 
 export function createServer(deps: ServerDependencies): Hono {
@@ -56,6 +62,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.sessionRefresh !== undefined) {
     app.route("/", createSessionRefreshRoutes(deps.sessionRefresh));
+  }
+  if (deps.me !== undefined) {
+    app.route("/", createMeRoutes(deps.me));
   }
 
   app.notFound((c) => c.json({ ok: false, error: "NOT_FOUND" }, 404));

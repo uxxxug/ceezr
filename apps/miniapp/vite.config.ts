@@ -23,8 +23,25 @@ export default defineConfig({
       output: {
         /** Code-split by product packages (ROADMAP §9.4). */
         manualChunks(id) {
-          if (id.includes("/src/shell/") || id.includes("/src/identity/")) {
+          if (
+            id.includes("/src/shell/") ||
+            id.includes("/src/identity/") ||
+            id.includes("/src/routing/")
+          ) {
             return "shell";
+          }
+          /**
+           * `F1-05` — أسطحُ الأدوارِ حزمٌ منفصلةٌ بأسماءِ القسم 9.4: حزمةُ السائقِ
+           * لا تُنزَّل لغيرِ السائقِ، وذاك نصُّ العقدِ لا تحسينٌ اختياري.
+           */
+          if (id.includes("/src/surfaces/rider/")) {
+            return "rider-home";
+          }
+          if (id.includes("/src/surfaces/driver/")) {
+            return "driver";
+          }
+          if (id.includes("/src/surfaces/admin/")) {
+            return "admin";
           }
           if (id.includes("/src/tg/")) {
             return "tg";

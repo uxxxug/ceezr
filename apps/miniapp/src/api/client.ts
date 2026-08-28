@@ -71,8 +71,14 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
     let code = "HTTP_ERROR";
     let message = res.statusText;
     try {
-      const payload = (await res.json()) as { code?: string; message?: string };
+      // ردودُ البوابةِ في `F1-03`..`F1-05` تحمل الرمزَ في `error`، وبعضُ الردودِ
+      // الأقدمِ في `code`. فيُقرأ الاثنان — والرمزُ وحدَه يُقرأ، لا نصُّ رسالةٍ
+      // يُبنى عليه قرار.
+      const payload = (await res.json()) as { code?: string; error?: string; message?: string };
       if (payload.code) code = payload.code;
+      if (!payload.code && typeof payload.error === "string" && payload.error.length > 0) {
+        code = payload.error;
+      }
       if (payload.message) message = payload.message;
     } catch {
       /* keep defaults */

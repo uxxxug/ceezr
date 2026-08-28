@@ -10,7 +10,6 @@ import {
 const sample: WaslahSession = {
   accessToken: "access",
   expiresAt: Date.now() + 60_000,
-  role: "rider",
 };
 
 beforeEach(() => {

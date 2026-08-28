@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { hasValidSession } from "../identity/session.ts";
+import { RoleRouter } from "../routing/RoleRouter.tsx";
 import { applyThemeFromTelegram, getRawInitData, isInsideTelegram } from "../tg/index.ts";
 
 type BootState =
@@ -10,6 +11,10 @@ type BootState =
 /**
  * App shell (ROADMAP §9.4 package `shell`).
  * Presentation only — no domain writes (ADR 0035).
+ *
+ * `F1-05`: عندَ وجودِ جلسةٍ صالحةٍ تُسلَّم الشاشةُ إلى الموجّهِ المبنيِّ على الدور،
+ * والدورُ يُقرأ من الخادمِ ههنا لا من حاملِ الجلسةِ ولا من تيليجرام. وبلا جلسةٍ
+ * **لا يُطلَب دورٌ إطلاقاً** (ADR 0035 §2: لا وصولَ إلى API قبلَ الجلسة).
  */
 export function Shell() {
   const [boot, setBoot] = useState<BootState>({ kind: "booting" });
@@ -57,8 +62,7 @@ export function Shell() {
 
   return (
     <main style={styles.main}>
-      <h1 style={styles.title}>وَصْلة</h1>
-      <p style={styles.muted}>الجلسة جاهزة.</p>
+      <RoleRouter />
     </main>
   );
 }

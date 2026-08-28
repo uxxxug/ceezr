@@ -41,7 +41,6 @@ describe("apiFetch session guard (ADR 0035 check #2)", () => {
     setSession({
       accessToken: "tok",
       expiresAt: Date.now() + 60_000,
-      role: "rider",
     });
 
     // Held in an object: a plain `let` assigned only inside the callback is
@@ -60,6 +59,59 @@ describe("apiFetch session guard (ADR 0035 check #2)", () => {
     try {
       await apiFetch("/v1/me");
       expect(seen.auth).toBe("Bearer tok");
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+});
+
+/**
+ * `F1-05`: ردودُ البوابةِ تحمل الرمزَ في `error` لا في `code`. وقبلَ هذا كان
+ * العميلُ يقرأ `HTTP_ERROR` لكلِّ رفضٍ، فلا يفرّق «جدِّد» من «أعِد التحقّق» —
+ * وهو فرقٌ يقرّر شاشةً للمستخدم.
+ */
+describe("رمزُ الخطأِ يُقرأ من شكلِ ردِّ البوابة (F1-05)", () => {
+  const respond = (status: number, body: unknown): typeof fetch =>
+    (async () =>
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "Content-Type": "application/json" },
+      })) as unknown as typeof fetch;
+
+  test("يقرأ الرمزَ من حقل `error`", async () => {
+    setSession({ accessToken: "tok", expiresAt: Date.now() + 60_000 });
+    const original = globalThis.fetch;
+    globalThis.fetch = respond(401, { ok: false, error: "SESSION_EXPIRED" });
+
+    try {
+      await expect(apiFetch("/v1/me")).rejects.toMatchObject({
+        status: 401,
+        code: "SESSION_EXPIRED",
+      });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  test("يبقى `code` مقروءاً للردودِ الأقدمِ التي تستعمله", async () => {
+    setSession({ accessToken: "tok", expiresAt: Date.now() + 60_000 });
+    const original = globalThis.fetch;
+    globalThis.fetch = respond(403, { code: "ACCOUNT_BLOCKED" });
+
+    try {
+      await expect(apiFetch("/v1/me")).rejects.toMatchObject({ code: "ACCOUNT_BLOCKED" });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
+  test("ردٌّ بلا رمزٍ يبقى `HTTP_ERROR` ولا يُخترَع له رمز", async () => {
+    setSession({ accessToken: "tok", expiresAt: Date.now() + 60_000 });
+    const original = globalThis.fetch;
+    globalThis.fetch = respond(500, { ok: false });
+
+    try {
+      await expect(apiFetch("/v1/me")).rejects.toMatchObject({ code: "HTTP_ERROR" });
     } finally {
       globalThis.fetch = original;
     }

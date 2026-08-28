@@ -13,8 +13,12 @@ import {
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/index.ts";
 import { createMiniAppRefreshTokens } from "../../../packages/infrastructure/identity/miniapp-refresh.ts";
-import { createMiniAppSessionIssuer } from "../../../packages/infrastructure/identity/miniapp-session.ts";
+import {
+  createMiniAppSessionIssuer,
+  createMiniAppSessionReader,
+} from "../../../packages/infrastructure/identity/miniapp-session.ts";
 import { createTelegramInitDataVerifier } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
+import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
 import {
   createDatabaseGaugeCollector,
   createOperationalMetrics,
@@ -277,6 +281,24 @@ const sessionRefresh =
         log,
       };
 
+/**
+ * مسارُ الدورِ والحالة (`F1-05`) — يُركَّب مع سرِّ الجلسةِ وحدَه، ويقرأ `users`
+ * قراءةً فقط. ولا يلمس تيليجرامَ ولا يُنشئ حساباً: غيابُ الصفِّ حالةٌ تُعاد
+ * («غير مسجَّل») لا صفٌّ يُكتَب — قرارُ مالكِ المنتجِ في `F1-05`.
+ */
+const me =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        viewer: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          accounts: createViewerAccountReader(container.sql),
+          now: () => new Date(),
+          log,
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -369,6 +391,7 @@ const app = createServer({
   ...(paymentWebhook === undefined ? {} : { paymentWebhook }),
   ...(sessionTelegram === undefined ? {} : { sessionTelegram }),
   ...(sessionRefresh === undefined ? {} : { sessionRefresh }),
+  ...(me === undefined ? {} : { me }),
 });
 
 /**

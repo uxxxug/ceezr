@@ -16,6 +16,7 @@ export {
 } from "./miniapp-refresh.ts";
 export {
   createMiniAppSessionIssuer,
+  createMiniAppSessionReader,
   MINIAPP_SESSION_SECRET_MIN_LENGTH,
   MINIAPP_SESSION_TTL_SECONDS,
   type MiniAppSessionIssuerOptions,
@@ -31,3 +32,4 @@ export {
   TELEGRAM_INIT_DATA_MAX_AGE_SECONDS,
   type TelegramInitDataVerifierOptions,
 } from "./telegram-init-data.ts";
+export { createViewerAccountReader } from "./viewer-account.ts";

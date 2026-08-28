@@ -152,6 +152,9 @@ jobs:
       - name: رمزُ التجديدِ في التخزينِ الآمنِ وحدَه ورمزُ الوصولِ في الذاكرة (F1-04 · القسم 4.4)
         run: bun run scripts/check-session-storage-policy.ts
 
+      - name: الدورُ من الخادمِ وحدَه — لا تخزينَ ولا افتراضَ ولا دورَ من الطلب (F1-05)
+        run: bun run scripts/check-viewer-role-authority.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

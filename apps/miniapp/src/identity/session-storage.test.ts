@@ -102,7 +102,7 @@ describe("سياسة تخزين الجلسة على الجهاز (F1-04)", () =>
   test("١٠ و١١) الخروجُ يمسح رمزَ التجديدِ من الجهازِ ورمزَ الوصولِ من الذاكرة", async () => {
     const secure = fakeSecureStore();
     await persistRefreshToken(TOKEN, secure.store);
-    setSession({ accessToken: "access-token", expiresAt: Date.now() + 600_000, role: "rider" });
+    setSession({ accessToken: "access-token", expiresAt: Date.now() + 600_000 });
     expect(getSession()).not.toBeNull();
 
     await logoutSession(secure.store);
@@ -115,7 +115,7 @@ describe("سياسة تخزين الجلسة على الجهاز (F1-04)", () =>
 
   test("الخروجُ بلا مخزنٍ آمنٍ لا يرفع خطأً ويمسح الذاكرةَ على أيّ حال", async () => {
     const secure = unavailableSecureStore("no-telegram");
-    setSession({ accessToken: "access-token", expiresAt: Date.now() + 600_000, role: "driver" });
+    setSession({ accessToken: "access-token", expiresAt: Date.now() + 600_000 });
     await logoutSession(secure.store);
     expect(getSession()).toBeNull();
   });

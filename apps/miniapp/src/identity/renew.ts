@@ -13,7 +13,7 @@
  */
 
 import { ApiError, apiFetch } from "../api/client.ts";
-import { getSession, setSession } from "./session.ts";
+import { setSession } from "./session.ts";
 import {
   type DeviceSecureStore,
   forgetRefreshToken,
@@ -97,13 +97,12 @@ export async function renewSessionFromStorage(
     return { renewed: false, reason: "UNAVAILABLE" };
   }
 
-  // الدورُ لا يأتي من هذا المسار: تحديدُه بندُ `F1-05`. فيُحفَظ ما كان أو «مجهول».
-  const role = getSession()?.role ?? "unknown";
-  // رمزُ التجديدِ لا يُوضَع في الحاملِ: موضعُه التخزينُ الآمنُ وحدَه (`F1-04`).
+  // الدورُ لا يأتي من هذا المسارِ ولا يُحمَل في الحاملِ إطلاقاً (`F1-05`):
+  // مصدرُه `GET /v1/me` عندَ الإقلاعِ وبعدَ كلِّ تجديد. ورمزُ التجديدِ لا يُوضَع
+  // في الحاملِ أيضاً: موضعُه التخزينُ الآمنُ وحدَه (`F1-04`).
   setSession({
     accessToken: response.accessToken,
     expiresAt: response.expiresAtMs,
-    role,
   });
 
   const persisted = await persistRefreshToken(response.refreshToken, store);

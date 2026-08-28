@@ -188,3 +188,77 @@ export interface MiniAppSessionGrantIssuer {
     nowMs: number,
   ): Result<IssuedMiniAppSession, SessionIssueFailure>;
 }
+
+/* ──────────────────── تحديدُ الدورِ والحالة (`F1-05`) ──────────────────── */
+
+/**
+ * الدورُ كما هو في القاعدةِ لا كما يظنُّه العميل: عمودُ `users.role` من نوعٍ
+ * محصورٍ (`user_role`) بأربعِ قيمٍ. ونصُّ بندِ `F1-05` يسمّي ثلاثاً (راكب/سائق/
+ * مشرف)، و`support` رابعٌ **قائمٌ في القاعدةِ فلا يُخفى ولا يُطوى إلى غيرِه**:
+ * يُعاد كما هو، وسطحُه في التطبيقِ المصغَّرِ مؤجَّلٌ لا مُنكَر.
+ *
+ * ولا يُقبَل دورٌ من العميلِ إطلاقاً: هذا النوعُ **لا يُبنى إلا من صفٍّ في
+ * القاعدة**. ورمزُ الجلسةِ (`F1-03`/`F1-04`) لا يحمل دوراً في حِمْلِه أصلاً، فلا
+ * يستطيع حاملُ رمزٍ أن يرفع دورَه بتعديلِ ما يرسله.
+ */
+export type ViewerRole = "rider" | "driver" | "support" | "admin";
+
+/** حالةُ الحسابِ كما تُقرأ — لا كما يقرّرها العميل. */
+export type ViewerStatus = "active" | "unregistered";
+
+/** صفُّ الحسابِ المقروءُ: الدورُ والحجبُ وحدَهما. لا اسمَ ولا هاتفَ ولا مدينة. */
+export interface ViewerAccount {
+  readonly role: ViewerRole;
+  readonly isBlocked: boolean;
+}
+
+export type ViewerLookupFailureReason = "READER_ERROR" | "UNSUPPORTED_ROLE";
+
+export interface ViewerLookupFailure {
+  readonly code: "VIEWER_LOOKUP_FAILED";
+  readonly reason: ViewerLookupFailureReason;
+}
+
+/**
+ * قراءةُ حسابِ المستخدمِ بمعرّفِ تيليجرام — **قراءةٌ فقط**. لا `insert` ولا
+ * `update` ولا `upsert`: قرارُ مالكِ المنتجِ في `F1-05` أنّ غيابَ الصفِّ حالةٌ
+ * تُعاد لا حالةُ أعمالٍ تُنشأ (ADR 0035 §2)، ولذلك هذا المنفذُ بدالّةٍ واحدةٍ
+ * لا تكتب. و`null` تعني «لا صفَّ» لا «خطأً».
+ */
+export interface ViewerAccountReader {
+  findByTelegramUserId(
+    telegramUserId: string,
+  ): Promise<Result<ViewerAccount | null, ViewerLookupFailure>>;
+}
+
+/** ما يُقرأ من رمزِ وصولٍ صحيح — لا يُبنى إلا بعدَ نجاحِ التحقّقِ من التوقيع. */
+export interface VerifiedViewerSession {
+  readonly telegramUserId: string;
+  readonly bot: string;
+  readonly sessionId: string;
+  readonly expiresAtSeconds: number;
+}
+
+/** سببُ رفضٍ داخليٌّ مصنَّف — يُخشَّن قبلَ أن يُعاد إلى العميل. */
+export type ViewerSessionRejectionReason =
+  | "MALFORMED"
+  | "SIGNATURE_MISMATCH"
+  | "UNSUPPORTED_VERSION"
+  | "EXPIRED"
+  | "NOT_CONFIGURED";
+
+export interface ViewerSessionRejection {
+  readonly code: "SESSION_REJECTED";
+  readonly reason: ViewerSessionRejectionReason;
+}
+
+/**
+ * قراءةُ رمزِ الوصولِ والتحقّقُ منه على الخادمِ — منفذٌ لأنّ التحقّقَ التشفيريَّ
+ * بنيةٌ تحتيةٌ لا حالةُ استخدام. ومحوّلُه في `F1-05` **يغلّف `readMiniAppSession`
+ * الموجودَ من `F1-03` ولا يعيد تنفيذَ تحقّقٍ**.
+ *
+ * وكلُّ انتهاءٍ يُقاس بالساعةِ المحقونةِ ههنا: لا يُقبَل انتهاءٌ يُرسِله العميل.
+ */
+export interface MiniAppSessionReader {
+  read(accessToken: string, nowMs: number): Result<VerifiedViewerSession, ViewerSessionRejection>;
+}

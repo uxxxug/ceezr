@@ -1,7 +1,7 @@
 /**
  * الغرض: تجميع منافذ وحالات استخدام وحدة identity
  * الحالة: منفّذ جزئياً — `F1-03` أضاف منفذَي الهوية والجلسة وحالةَ المبادلة، و`F1-04`
- *   أضاف منافذَ التجديدِ وحالةَ استخدامِه.
+ *   أضاف منافذَ التجديدِ وحالةَ استخدامِه، و`F1-05` أضاف قراءةَ الدورِ والحالة.
  * ينتمي إلى: application/identity
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway (مسارا الجلسةِ والتجديد).
  * ملاحظات مستقبلية: حوارُ البوتِ وربطُ المستخدمِ ما زالا في
@@ -26,6 +26,7 @@ export type {
   MiniAppRefreshTokenIssuer,
   MiniAppSessionGrantIssuer,
   MiniAppSessionIssuer,
+  MiniAppSessionReader,
   MiniAppSessionRenewalGrant,
   RefreshTokenRejection,
   RefreshTokenRejectionReason,
@@ -34,6 +35,15 @@ export type {
   TelegramIdentityVerifier,
   TelegramProofRejection,
   TelegramProofRejectionReason,
+  VerifiedViewerSession,
+  ViewerAccount,
+  ViewerAccountReader,
+  ViewerLookupFailure,
+  ViewerLookupFailureReason,
+  ViewerRole,
+  ViewerSessionRejection,
+  ViewerSessionRejectionReason,
+  ViewerStatus,
 } from "./ports.ts";
 export {
   type PublicRenewRejectionCode,
@@ -44,3 +54,13 @@ export {
   type RenewMiniAppSessionOutput,
   renewMiniAppSession,
 } from "./renew-miniapp-session.ts";
+export {
+  publicViewerCodeFor,
+  type ResolvedViewerRole,
+  type ResolveViewerDeps,
+  type ResolveViewerError,
+  type ResolveViewerInput,
+  type ResolveViewerOutput,
+  resolveViewer,
+  type ViewerPublicErrorCode,
+} from "./resolve-viewer.ts";

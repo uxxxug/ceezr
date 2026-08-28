@@ -105,7 +105,7 @@ describe("تجديد الجلسة من العميل (F1-04)", () => {
   test("١٢) رمزٌ مرفوضٌ = تُمسَح الجلسةُ من الجهازِ ومن الذاكرة", async () => {
     const secure = fakeSecureStore();
     await persistRefreshToken(OLD_TOKEN, secure.store);
-    setSession({ accessToken: "stale", expiresAt: Date.now() - 1, role: "rider" });
+    setSession({ accessToken: "stale", expiresAt: Date.now() - 1 });
     const http = stubFetch(401, { ok: false, error: "SESSION_EXPIRED" });
 
     try {

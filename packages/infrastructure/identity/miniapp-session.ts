@@ -22,9 +22,12 @@ import type {
   IssuedMiniAppSession,
   MiniAppSessionGrantIssuer,
   MiniAppSessionIssuer,
+  MiniAppSessionReader,
   MiniAppSessionRenewalGrant,
   SessionIssueFailure,
   TelegramIdentityProof,
+  VerifiedViewerSession,
+  ViewerSessionRejection,
 } from "../../application/identity/ports.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 
@@ -228,4 +231,31 @@ export function readMiniAppSession(
     issuedAtSeconds: iat,
     expiresAtSeconds: exp,
   });
+}
+
+/**
+ * محوّلُ منفذِ قراءةِ الجلسةِ للمسارات (`F1-05`) — **غلافٌ حولَ
+ * `readMiniAppSession` لا تحقّقٌ ثانٍ**: التحقّقُ التشفيريُّ مكتوبٌ مرّةً واحدةً
+ * في هذا الملفِّ من `F1-03`، وما يضيفه هذا المحوّلُ حقنُ السرِّ وتصنيفُ الرفضِ
+ * بالشكلِ الذي تفهمه طبقةُ التطبيق — بلا أن يعرف المسارُ سرّاً ولا خوارزمية.
+ *
+ * وأسماءُ أسبابِ الرفضِ متطابقةٌ عن قصدٍ بين الطبقتَين، فلا جدولَ ترجمةٍ يسهو
+ * أحدُهما عن حالةٍ فيه فتُقرأ حالةٌ مجهولةٌ «صالحة».
+ */
+export function createMiniAppSessionReader(secret: string): MiniAppSessionReader {
+  return {
+    read: (
+      accessToken: string,
+      nowMs: number,
+    ): Result<VerifiedViewerSession, ViewerSessionRejection> => {
+      const read = readMiniAppSession(accessToken, secret, nowMs);
+      if (!read.ok) return err({ code: "SESSION_REJECTED", reason: read.error });
+      return ok({
+        telegramUserId: read.value.telegramUserId,
+        bot: read.value.bot,
+        sessionId: read.value.sessionId,
+        expiresAtSeconds: read.value.expiresAtSeconds,
+      });
+    },
+  };
 }
