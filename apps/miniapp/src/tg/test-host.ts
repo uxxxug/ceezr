@@ -196,20 +196,34 @@ export function removeFakeHost(): void {
   delete (globalThis as unknown as { window?: unknown }).window;
 }
 
-/** Minimal `document.documentElement.style` so theme writes can be observed. */
-export function installFakeDocument(): Map<string, string> {
-  const written = new Map<string, string>();
-  const container = globalThis as unknown as { document?: unknown };
-  container.document = {
-    documentElement: {
-      style: {
-        setProperty: (name: string, value: string) => {
-          written.set(name, value);
-        },
+/**
+ * Minimal `document.documentElement` so theme writes can be observed: CSS custom
+ * properties, plus `lang`/`dir` for the direction layer (`F1-06`).
+ */
+export type FakeDocument = {
+  /** CSS custom properties written through `style.setProperty`. */
+  readonly variables: Map<string, string>;
+  /** Current `<html lang>` / `<html dir>`. */
+  root(): { lang: string; dir: string };
+};
+
+export function installFakeDocument(): FakeDocument {
+  const variables = new Map<string, string>();
+  const element = {
+    lang: "",
+    dir: "",
+    style: {
+      setProperty: (name: string, value: string) => {
+        variables.set(name, value);
       },
     },
   };
-  return written;
+  const container = globalThis as unknown as { document?: unknown };
+  container.document = { documentElement: element };
+  return {
+    variables,
+    root: () => ({ lang: element.lang, dir: element.dir }),
+  };
 }
 
 export function removeFakeDocument(): void {

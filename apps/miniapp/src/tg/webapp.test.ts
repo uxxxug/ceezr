@@ -1,17 +1,6 @@
 import { afterEach, describe, expect, test } from "bun:test";
-import {
-  installFakeDocument,
-  installFakeHost,
-  removeFakeDocument,
-  removeFakeHost,
-} from "./test-host.ts";
-import {
-  applyThemeFromTelegram,
-  describeInitData,
-  getHostInfo,
-  getRawInitData,
-  isInsideTelegram,
-} from "./webapp.ts";
+import { installFakeHost, removeFakeDocument, removeFakeHost } from "./test-host.ts";
+import { describeInitData, getHostInfo, getRawInitData, isInsideTelegram } from "./webapp.ts";
 
 afterEach(() => {
   removeFakeHost();
@@ -25,7 +14,6 @@ describe("host detection", () => {
     expect(getRawInitData()).toBeNull();
     expect(getHostInfo()).toBeNull();
     expect(describeInitData()).toEqual({ present: false, length: 0, keys: [] });
-    expect(() => applyThemeFromTelegram()).not.toThrow();
   });
 
   test("an empty initData is not treated as being inside Telegram", () => {
@@ -59,35 +47,4 @@ describe("initData is treated as a credential", () => {
   });
 });
 
-describe("theme application", () => {
-  test("writes CSS variables and version-gates the color setters", () => {
-    const written = installFakeDocument();
-    const host = installFakeHost(
-      { themeParams: { bg_color: "#101010", bottom_bar_bg_color: "#202020" } },
-      "7.10",
-    );
-
-    applyThemeFromTelegram();
-
-    expect(written.get("--tg-bg-color")).toBe("#101010");
-    expect(written.get("--tg-bottom-bar-bg-color")).toBe("#202020");
-    expect(host.names()).toContain("ready");
-    expect(host.names()).toContain("expand");
-    expect(host.names()).toContain("setBackgroundColor");
-    expect(host.names()).toContain("setBottomBarColor");
-  });
-
-  test("an old client gets no call it cannot answer", () => {
-    installFakeDocument();
-    const host = installFakeHost(
-      { themeParams: { bg_color: "#101010", bottom_bar_bg_color: "#202020" } },
-      "6.0",
-    );
-
-    applyThemeFromTelegram();
-
-    expect(host.names()).toContain("ready");
-    expect(host.names()).not.toContain("setBackgroundColor");
-    expect(host.names()).not.toContain("setBottomBarColor");
-  });
-});
+/** تطبيقُ السمةِ انتقل إلى `theme.ts` في `F1-06`، واختبارُه في `theme.test.ts`. */

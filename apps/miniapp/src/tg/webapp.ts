@@ -19,6 +19,8 @@ export type ThemeParams = {
   accent_text_color?: string;
   section_bg_color?: string;
   section_header_text_color?: string;
+  /** Bot API 7.6+ — was missing from the transcription until `F1-06`. */
+  section_separator_color?: string;
   subtitle_text_color?: string;
   destructive_text_color?: string;
 };
@@ -116,48 +118,9 @@ export function getHostInfo(): {
   };
 }
 
-export function applyThemeFromTelegram(): void {
-  const wa = getWebApp();
-  if (!wa) return;
-
-  const tp = wa.themeParams ?? {};
-  const root = document.documentElement;
-
-  const map: Array<[keyof ThemeParams, string]> = [
-    ["bg_color", "--tg-bg-color"],
-    ["text_color", "--tg-text-color"],
-    ["hint_color", "--tg-hint-color"],
-    ["link_color", "--tg-link-color"],
-    ["button_color", "--tg-button-color"],
-    ["button_text_color", "--tg-button-text-color"],
-    ["secondary_bg_color", "--tg-secondary-bg-color"],
-    ["header_bg_color", "--tg-header-bg-color"],
-    ["bottom_bar_bg_color", "--tg-bottom-bar-bg-color"],
-    ["accent_text_color", "--tg-accent-text-color"],
-    ["section_bg_color", "--tg-section-bg-color"],
-    ["section_header_text_color", "--tg-section-header-text-color"],
-    ["subtitle_text_color", "--tg-subtitle-text-color"],
-    ["destructive_text_color", "--tg-destructive-text-color"],
-  ];
-
-  for (const [key, cssVar] of map) {
-    const value = tp[key];
-    if (typeof value === "string" && value.length > 0) {
-      root.style.setProperty(cssVar, value);
-    }
-  }
-
-  try {
-    wa.ready();
-    wa.expand();
-    if (wa.isVersionAtLeast?.("6.1") && tp.bg_color) {
-      wa.setBackgroundColor?.(tp.bg_color);
-      wa.setHeaderColor?.(tp.header_bg_color ?? tp.bg_color);
-    }
-    if (wa.isVersionAtLeast?.("7.10") && tp.bottom_bar_bg_color) {
-      wa.setBottomBarColor?.(tp.bottom_bar_bg_color);
-    }
-  } catch {
-    /* non-Telegram hosts — ignore */
-  }
-}
+/**
+ * `F1-06`: تطبيقُ السمةِ كان ههنا مؤقتاً في `F1-01`، وانتقل إلى طبقةِ السمةِ
+ * `theme.ts` بحدودٍ أضيق: لا `ready()` ولا `expand()` مع اللون (دورةُ الحياةِ في
+ * `app.ts`)، وبوابةُ قدرةٍ لكلِّ استدعاء، وقيمٌ مُصفّاة، وإعادةُ تطبيقٍ عندَ
+ * `themeChanged`. وهذا الملفُّ يبقى للمضيفِ والهُويةِ وحدَهما.
+ */

@@ -1,7 +1,14 @@
 import { useEffect, useState } from "react";
 import { hasValidSession } from "../identity/session.ts";
 import { RoleRouter } from "../routing/RoleRouter.tsx";
-import { applyThemeFromTelegram, getRawInitData, isInsideTelegram } from "../tg/index.ts";
+import { applyDocumentDirection } from "../styles/direction.ts";
+import {
+  bindTelegramTheme,
+  expandApp,
+  getRawInitData,
+  isInsideTelegram,
+  notifyReady,
+} from "../tg/index.ts";
 
 type BootState =
   | { kind: "booting" }
@@ -15,23 +22,32 @@ type BootState =
  * `F1-05`: عندَ وجودِ جلسةٍ صالحةٍ تُسلَّم الشاشةُ إلى الموجّهِ المبنيِّ على الدور،
  * والدورُ يُقرأ من الخادمِ ههنا لا من حاملِ الجلسةِ ولا من تيليجرام. وبلا جلسةٍ
  * **لا يُطلَب دورٌ إطلاقاً** (ADR 0035 §2: لا وصولَ إلى API قبلَ الجلسة).
+ *
+ * `F1-06`: الإقلاعُ يضبط الاتجاهَ ثم يربط السمةَ **قبلَ** إعلامِ تيليجرامَ
+ * بالجهوزية، فلا تُعرَض الشاشةُ بلونٍ ثم تُصحَّح. والربطُ يُفَكُّ عندَ التفكيكِ
+ * فلا يبقى مستمعُ حدثٍ معلَّقاً. ودورةُ الحياةِ (`ready`/`expand`) استدعاءٌ صريحٌ
+ * ههنا لا أثرٌ جانبيٌّ لتطبيقِ السمة.
  */
 export function Shell() {
   const [boot, setBoot] = useState<BootState>({ kind: "booting" });
 
   useEffect(() => {
-    applyThemeFromTelegram();
+    applyDocumentDirection();
+    const detachTheme = bindTelegramTheme();
+    notifyReady();
+    expandApp();
     const inside = isInsideTelegram();
     const initData = getRawInitData();
     if (hasValidSession()) {
       setBoot({ kind: "ready" });
-      return;
+    } else {
+      setBoot({
+        kind: "awaiting_session",
+        hasInitData: initData !== null,
+        insideTelegram: inside,
+      });
     }
-    setBoot({
-      kind: "awaiting_session",
-      hasInitData: initData !== null,
-      insideTelegram: inside,
-    });
+    return detachTheme;
   }, []);
 
   if (boot.kind === "booting") {
@@ -70,7 +86,10 @@ export function Shell() {
 const styles: Record<string, React.CSSProperties> = {
   main: {
     minHeight: "100%",
-    padding: "calc(1.5rem + var(--safe-top)) 1.25rem calc(1.5rem + var(--safe-bottom))",
+    /** `F1-06`: الحواشي الأربعُ — الجانبيةُ تلزم في العرضيِّ وفي شاشةٍ ذاتِ نتوء. */
+    paddingBlock: "calc(1.5rem + var(--safe-top)) calc(1.5rem + var(--safe-bottom))",
+    paddingLeft: "calc(1.25rem + var(--safe-left))",
+    paddingRight: "calc(1.25rem + var(--safe-right))",
     display: "flex",
     flexDirection: "column",
     gap: "0.75rem",

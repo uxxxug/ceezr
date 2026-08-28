@@ -104,6 +104,17 @@ export {
   type TgSecureRead,
 } from "./storage.ts";
 export {
+  applyTelegramSafeArea,
+  applyTelegramTheme,
+  bindTelegramTheme,
+  TG_COLOR_SCHEME_VARIABLE,
+  TG_SAFE_AREA_CSS_VARIABLES,
+  TG_THEME_CSS_VARIABLES,
+  type TgColorScheme,
+  type TgSafeAreaReport,
+  type TgThemeReport,
+} from "./theme.ts";
+export {
   getContentSafeAreaInsets,
   getSafeAreaInsets,
   getViewport,
@@ -114,7 +125,6 @@ export {
 // re-exported: the raw host object and Telegram's own snake_case shapes stay
 // inside this directory, so «طبقة واحدة قابلة للاستبدال» stays true (ROADMAP §9.2).
 export {
-  applyThemeFromTelegram,
   describeInitData,
   getHostInfo,
   getRawInitData,

@@ -1,6 +1,7 @@
 /* ROADMAP §9.1 UX-3: Arabic first, RTL native. Numbers remain Western 0-9. */
 :root {
-  color-scheme: light dark;
+  /* `F1-06`: يقودها متغيّرُ السمةِ من tg/theme.ts، وافتراضُها المزدوجُ لخارج تيليجرام. */
+  color-scheme: var(--tg-color-scheme, light dark);
   font-family:
     "Segoe UI",
     "Tahoma",
@@ -15,7 +16,12 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* ThemeParams-linked CSS variables (ROADMAP §9.2). Filled by tg/ at boot. */
+  /*
+   * ThemeParams-linked CSS variables (ROADMAP §9.2). Filled by tg/ at boot.
+   * `F1-06`: هذه هي **القيمُ الافتراضيةُ المعلنةُ** — مفتاحٌ غائبٌ عن
+   * `ThemeParams` أو قيمةٌ غيرُ مقبولةٍ تبقى على قيمتِه ههنا، ولا يُخترَع لونٌ
+   * في الشيفرة. ومصدرٌ واحدٌ للافتراضِ = «لا سمة مزدوجة» (القسم 9.2).
+   */
   --tg-bg-color: #0f172a;
   --tg-text-color: #f8fafc;
   --tg-hint-color: #94a3b8;
@@ -28,13 +34,39 @@
   --tg-accent-text-color: #38bdf8;
   --tg-section-bg-color: #1e293b;
   --tg-section-header-text-color: #94a3b8;
+  --tg-section-separator-color: #334155;
   --tg-subtitle-text-color: #94a3b8;
   --tg-destructive-text-color: #f87171;
 
-  --safe-top: env(safe-area-inset-top, 0px);
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
-  --safe-left: env(safe-area-inset-left, 0px);
-  --safe-right: env(safe-area-inset-right, 0px);
+  /*
+   * `F1-06`: حواشي الجهاز. `safeAreaInset` و`contentSafeAreaInset` من تيليجرام
+   * (أدنى إصدار 8.0 — القسم 4.4) يكتبهما tg/theme.ts، وافتراضُهما صفرٌ فيبقى
+   * `env()` هو المصدرَ على عميلٍ أقدمَ وخارجَ تيليجرام. و`max()` لأن أيَّ
+   * المصدرين قد يكون الأصدقَ على منصةٍ ما، والأكبرُ هو الآمن.
+   */
+  --tg-safe-area-top: 0px;
+  --tg-safe-area-bottom: 0px;
+  --tg-safe-area-left: 0px;
+  --tg-safe-area-right: 0px;
+  --tg-content-safe-area-top: 0px;
+  --tg-content-safe-area-bottom: 0px;
+  --tg-content-safe-area-left: 0px;
+  --tg-content-safe-area-right: 0px;
+
+  --safe-top: calc(
+    max(env(safe-area-inset-top, 0px), var(--tg-safe-area-top)) + var(--tg-content-safe-area-top)
+  );
+  --safe-bottom: calc(
+    max(env(safe-area-inset-bottom, 0px), var(--tg-safe-area-bottom)) +
+      var(--tg-content-safe-area-bottom)
+  );
+  --safe-left: calc(
+    max(env(safe-area-inset-left, 0px), var(--tg-safe-area-left)) + var(--tg-content-safe-area-left)
+  );
+  --safe-right: calc(
+    max(env(safe-area-inset-right, 0px), var(--tg-safe-area-right)) +
+      var(--tg-content-safe-area-right)
+  );
 }
 
 *,
@@ -51,8 +83,11 @@ body,
   height: 100%;
 }
 
+/*
+ * `F1-06`: الاتجاهُ يُورَّث من `<html>` وحدَه — يضبطه `styles/direction.ts` من
+ * اللغة. ولا تُثبَّت `direction` ههنا، وإلا كسرت الإنجليزيةَ (LTR — القسم 9.11).
+ */
 body {
-  direction: rtl;
   background: var(--tg-bg-color);
   color: var(--tg-text-color);
 }

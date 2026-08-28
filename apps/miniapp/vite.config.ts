@@ -26,7 +26,9 @@ export default defineConfig({
           if (
             id.includes("/src/shell/") ||
             id.includes("/src/identity/") ||
-            id.includes("/src/routing/")
+            id.includes("/src/routing/") ||
+            /** `F1-06`: طبقةُ السمةِ والاتجاهِ من حزمةِ `shell` — «الإطار، السمة» (9.4). */
+            id.includes("/src/styles/")
           ) {
             return "shell";
           }
