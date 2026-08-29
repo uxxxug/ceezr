@@ -31,7 +31,7 @@
  */
 
 import { readFileSync } from "node:fs";
-import { auditRun, parseTestLog } from "./lib/skip-audit.ts";
+import { auditRun, buildSuiteIndex, parseTestLog } from "./lib/skip-audit.ts";
 import { SKIP_REGISTRY } from "./lib/skip-registry.ts";
 
 function main(): void {
@@ -56,7 +56,11 @@ function main(): void {
     process.exit(1);
   }
 
-  const reading = parseTestLog(log);
+  /**
+   * الإسنادُ بعنوانِ الحزمةِ لا بترتيبِ الأسطرِ: مُشغِّلُ الاختباراتِ في بيئةٍ مُدارةٍ
+   * يجمع الحالاتِ المتجاوَزةَ في كتلةٍ واحدةٍ في آخرِ التشغيلِ، فترتيبُ الأسطرِ لا يُسنِد.
+   */
+  const reading = parseTestLog(log, buildSuiteIndex(SKIP_REGISTRY).index);
   const violations = auditRun(reading, SKIP_REGISTRY);
 
   if (violations.length > 0) {

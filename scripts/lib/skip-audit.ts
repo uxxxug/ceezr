@@ -185,33 +185,75 @@ export interface TestLogReading {
 const FILE_HEADER_PATTERN = /^(\S+\.test\.tsx?):$/;
 const SKIP_LINE_PATTERN = /^\(skip\)\s+(.*)$/;
 const SUMMARY_PATTERN = /^\s*(\d+)\s+(pass|skip|fail)\s*$/;
+/**
+ * سطرُ الكتلةِ المجمَّعةِ التي يطبعها المُشغِّلُ **في آخرِ التشغيلِ كلِّه**، لا تحتَ ملفٍّ.
+ * وما بعدَه لا يُسنَد إلى عنوانِ الملفِّ الأخيرِ، لأنّه ليس تحتَه.
+ */
+const SKIP_BLOCK_PATTERN = /^\s*\d+\s+tests?\s+skipped:\s*$/;
+/** بادئاتُ تجميعِ سجلّاتِ GitHub Actions: يطبعها المُشغِّلُ عندَ اكتشافِ البيئةِ. */
+const GROUP_PREFIX_PATTERN = /^::(?:group|endgroup)::/;
+/** رموزُ ANSI للتلوينِ — تُزال قبلَ أيِّ مطابقةٍ، فالحكمُ على النصِّ لا على اللونِ. */
+/**
+ * ويُبنى نمطُ ANSI من رمزِ الحرفِ لا من حرفِ التحكُّمِ حرفيّاً في النصِّ المصدريِّ:
+ * حرفُ تحكُّمٍ مكتوبٌ في نمطٍ يُخفي نفسَه على القارئِ ويُنبِّه الفاحصَ بحقٍّ.
+ */
+const ESCAPE_CHARACTER = String.fromCharCode(27);
+const ANSI_PATTERN = new RegExp(`${ESCAPE_CHARACTER}\\[[0-9;]*m`, "g");
+
+/** يُجرِّد السطرَ من اللونِ ومن بادئةِ التجميعِ، فيُقرأ نصّاً واحداً في البيئتَين. */
+function normalizeLogLine(rawLine: string): string {
+  return rawLine.replace(/\r$/, "").replace(ANSI_PATTERN, "").replace(GROUP_PREFIX_PATTERN, "");
+}
 
 /**
  * يقرأ مخرجاتِ `bun test` قراءةً واحدةً: الملخَّصَ وإسنادَ كلِّ حالةٍ متجاوَزةٍ
  * إلى ملفِّها. والمُشغِّل قد يُكرِّر السطرَ نفسَه، فالإسنادُ **مجموعةٌ** لا عدّاد.
+ *
+ * والإسنادُ **بعنوانِ الحزمةِ أوّلاً** لا بعنوانِ الملفِّ الذي سبقَ السطرَ. والسببُ
+ * عيبٌ حقيقيٌّ سقط فيه هذا القارئُ في أوّلِ تشغيلٍ مُدارٍ: المُشغِّلُ في بيئةِ
+ * GitHub Actions يطبع `::group::<ملف>` بادئةً، **ويجمع كلَّ الحالاتِ المتجاوَزةِ
+ * في كتلةٍ واحدةٍ في آخرِ التشغيلِ** بعدَ آخرِ ملفٍّ — فالإسنادُ بالعنوانِ السابقِ
+ * ينسب تجاوزَ ملفٍّ إلى ملفٍّ آخرَ **ويُسقِط البناءَ بمخالفةٍ مُختلَقةٍ**. وعنوانُ
+ * الحزمةِ مطبوعٌ في السطرِ نفسِه في الصيغتَين، فهو الإسنادُ الذي لا يتعلَّق بالترتيب.
+ *
+ * @param suiteToFile خريطةُ عنوانِ حزمةٍ إلى ملفِّها، مبنيّةٌ من السجلِّ المغلقِ.
+ *   وغيابُها يُعيد القارئَ إلى الإسنادِ بالعنوانِ السابقِ وحدَه.
  */
-export function parseTestLog(log: string): TestLogReading {
+export function parseTestLog(
+  log: string,
+  suiteToFile?: ReadonlyMap<string, string>,
+): TestLogReading {
   const byFile = new Map<string, Set<string>>();
   const unattributed: string[] = [];
   let current: string | null = null;
+  let inSkipBlock = false;
   const totals = new Map<string, number>();
 
   for (const rawLine of log.split("\n")) {
-    const line = rawLine.replace(/\r$/, "");
+    const line = normalizeLogLine(rawLine);
+    if (SKIP_BLOCK_PATTERN.test(line)) {
+      inSkipBlock = true;
+      current = null;
+      continue;
+    }
     const header = FILE_HEADER_PATTERN.exec(line.trim());
     if (header !== null) {
       current = header[1] as string;
+      inSkipBlock = false;
       continue;
     }
     const skipMatch = SKIP_LINE_PATTERN.exec(line);
     if (skipMatch !== null) {
       const testName = (skipMatch[1] as string).trim();
-      if (current === null) {
+      const suite = (testName.split(" > ")[0] as string).trim();
+      const bySuite = suiteToFile?.get(suite);
+      const file = bySuite ?? (inSkipBlock ? null : current);
+      if (file === null || file === undefined) {
         unattributed.push(testName);
       } else {
-        const set = byFile.get(current) ?? new Set<string>();
+        const set = byFile.get(file) ?? new Set<string>();
         set.add(testName);
-        byFile.set(current, set);
+        byFile.set(file, set);
       }
       continue;
     }
@@ -234,6 +276,31 @@ export function parseTestLog(log: string): TestLogReading {
     skippedByFile,
     unattributed,
   };
+}
+
+/**
+ * يبني خريطةَ «عنوانُ حزمةٍ ← ملفُّها» من السجلِّ المغلقِ، وهي أساسُ إسنادِ كلِّ
+ * حالةٍ متجاوَزةٍ إلى ملفِّها في {@link parseTestLog}. وعنوانٌ مكرَّرٌ في ملفَّين
+ * يُعيد الخريطةَ **ناقصةً بلا إشعارٍ**، فيُعاد المكرَّرُ صريحاً ليصير مخالفةً في
+ * {@link auditRegistry} لا سلوكاً صامتاً.
+ */
+export function buildSuiteIndex(registry: readonly SkipEntry[]): {
+  readonly index: ReadonlyMap<string, string>;
+  readonly duplicates: readonly string[];
+} {
+  const seen = new Map<string, string>();
+  const duplicates: string[] = [];
+  for (const entry of registry) {
+    for (const suite of entry.suites) {
+      const previous = seen.get(suite);
+      if (previous !== undefined && previous !== entry.file) {
+        duplicates.push(`${suite} (${previous} · ${entry.file})`);
+        continue;
+      }
+      seen.set(suite, entry.file);
+    }
+  }
+  return { index: seen, duplicates };
 }
 
 /** ما يحتاجه الحكمُ على السجلّ — كلُّه مُمرَّرٌ، فالوحدةُ لا تقرأ شيئاً بنفسِها. */
@@ -272,6 +339,15 @@ function stepScopes(step: CiStep, scriptPaths: ReadonlyMap<string, string>): rea
 export function auditRegistry(input: RegistryAuditInput): readonly string[] {
   const violations: string[] = [];
   const { registry, sources, ciSteps, scriptPaths } = input;
+
+  /**
+   * تفرُّدُ عنوانِ الحزمةِ ليس ترتيباً: إسنادُ الحالاتِ المتجاوَزةِ في سجلِّ التشغيلِ
+   * يقوم عليه (انظر {@link parseTestLog})، فعنوانانِ متطابقانِ في ملفَّين يجعلان
+   * الإسنادَ خاطئاً بلا إشعارٍ.
+   */
+  for (const duplicate of buildSuiteIndex(registry).duplicates) {
+    violations.push(`عنوانُ حزمةٍ مكرَّرٌ بين ملفَّين — الإسنادُ في سجلِّ التشغيلِ يقوم عليه: ${duplicate}`);
+  }
 
   const discovered = new Map<string, readonly SkipSite[]>();
   for (const [file, source] of sources) {

@@ -19,6 +19,7 @@ import { readFileSync } from "node:fs";
 import {
   auditRegistry,
   auditRun,
+  buildSuiteIndex,
   findSkipSites,
   parseCiSteps,
   parseTestLog,
@@ -173,6 +174,77 @@ describe("parseTestLog — يقرأ ما طبعه المُشغِّلُ لا ما
 
   it("سجلٌّ بلا ملخَّصٍ إخفاقٌ — لا يُستنتَج نجاحٌ من غيابِ دليلٍ", () => {
     expect(auditRun(parseTestLog("لا شيءَ مفيدٌ ههنا"), []).length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * صيغةُ البيئةِ المُدارةِ عيبٌ حقيقيٌّ سقط فيه هذا القارئُ في التشغيلِ `33252715645`:
+ * المُشغِّلُ يطبع بادئةَ تجميعٍ لكلِّ ملفٍّ، **ويجمع كلَّ الحالاتِ المتجاوَزةِ في كتلةٍ
+ * واحدةٍ في آخرِ التشغيلِ** — فالإسنادُ بعنوانِ الملفِّ السابقِ نسب تجاوزَ ملفٍّ إلى
+ * ملفٍّ آخرَ وأسقط البناءَ بمخالفةٍ **مُختلَقةٍ**. وهذه المسابرُ تُثبِّت الصيغتَين معاً.
+ */
+describe("parseTestLog — صيغةُ البيئةِ المُدارةِ: بادئةُ تجميعٍ وكتلةٌ مجمَّعةٌ في الآخر", () => {
+  const suiteToFile = new Map([
+    ["حزمةُ منصّةِ القياس", "tests/integration/bench.test.ts"],
+    ["حزمةُ الأمنِ الهجوميّ", "tests/integration/security.test.ts"],
+  ]);
+  const escapeChar = String.fromCharCode(27);
+  const managedLog = [
+    "::group::tests/integration/security.test.ts",
+    `${escapeChar}[32m(pass) حزمةُ الأمنِ الهجوميّ > حالةٌ ناجحةٌ${escapeChar}[0m`,
+    "::endgroup::",
+    "::group::tests/integration/bench.test.ts",
+    "::endgroup::",
+    "2 tests skipped:",
+    "(skip) حزمةُ منصّةِ القياس > حالةٌ أولى",
+    "(skip) حزمةُ منصّةِ القياس > حالةٌ ثانية",
+    " 446 pass",
+    " 2 skip",
+    " 0 fail",
+  ].join("\n");
+
+  it("يُسنِد كتلةَ الآخرِ بعنوانِ الحزمةِ لا بآخرِ ملفٍّ طُبِع قبلَها", () => {
+    const reading = parseTestLog(managedLog, suiteToFile);
+    expect(reading.skip).toBe(2);
+    expect(reading.skippedByFile.get("tests/integration/bench.test.ts")).toHaveLength(2);
+    expect(reading.skippedByFile.has("tests/integration/security.test.ts")).toBe(false);
+    expect(reading.unattributed).toEqual([]);
+  });
+
+  it("العيبُ نفسُه بلا الخريطةِ: الكتلةُ المجمَّعةُ لا تُنسَب إلى آخرِ ملفٍّ", () => {
+    const reading = parseTestLog(managedLog);
+    expect(reading.skippedByFile.size).toBe(0);
+    expect(reading.unattributed).toHaveLength(2);
+  });
+
+  it("عنوانُ الحزمةِ يُسنِد أيضاً في الصيغةِ المتداخلةِ المحليّةِ", () => {
+    const local = [
+      "tests/integration/security.test.ts:",
+      "(skip) حزمةُ منصّةِ القياس > حالةٌ أولى",
+      " 5 pass",
+      " 1 skip",
+    ].join("\n");
+    const reading = parseTestLog(local, suiteToFile);
+    expect(reading.skippedByFile.get("tests/integration/bench.test.ts")).toHaveLength(1);
+    expect(reading.skippedByFile.has("tests/integration/security.test.ts")).toBe(false);
+  });
+});
+
+describe("buildSuiteIndex — تفرُّدُ العنوانِ شرطُ صحّةِ الإسنادِ لا ترتيبٌ", () => {
+  it("السجلُّ الحقيقيُّ لا عنوانَ حزمةٍ مكرَّراً فيه", () => {
+    expect(buildSuiteIndex(SKIP_REGISTRY).duplicates).toEqual([]);
+    expect(buildSuiteIndex(SKIP_REGISTRY).index.size).toBeGreaterThanOrEqual(SKIP_REGISTRY.length);
+  });
+
+  it("عنوانٌ مكرَّرٌ في ملفَّين يُعاد صريحاً ويصير مخالفةً في auditRegistry", () => {
+    const first: SkipEntry = { ...BASE_ENTRY, file: "tests/integration/one.test.ts" };
+    const second: SkipEntry = { ...BASE_ENTRY, file: "tests/integration/two.test.ts" };
+    expect(buildSuiteIndex([first, second]).duplicates).toHaveLength(BASE_ENTRY.suites.length);
+    expect(
+      auditRegistry(baseInput({ registry: [first, second] })).some((violation) =>
+        violation.includes("عنوانُ حزمةٍ مكرَّرٌ"),
+      ),
+    ).toBe(true);
   });
 });
 
