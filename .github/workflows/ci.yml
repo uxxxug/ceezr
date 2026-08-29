@@ -175,6 +175,13 @@ jobs:
       - name: النطاقُ واحدٌ ولا أصلَ تنفيذيّاً من نطاقٍ ثالثٍ (F1-10 · TG-005 · ADR 0045)
         run: bun run scripts/check-single-origin-assets.ts
 
+      # يقرأ مواضعَ التجاوزِ من الشيفرةِ ويطابقها بالسجلِّ، ثمّ يتحقّق من ملفِّ سيرِ
+      # العملِ أنّ كلَّ تجاوزٍ على مسارٍ حرجٍ له خطوةٌ **تضبط شرطَ تفعيلِه وتُشغِّل مسارَ
+      # ملفِّه**. والتجاوزُ غيرُ المشروطِ (`describe.skip(…)` نداءً · `only` · `todo`)
+      # ممنوعٌ منعاً مطلقاً ولا يُفتَح له بابُ تسجيلٍ.
+      - name: لا تجاوزَ اختبارٍ بلا تصنيفٍ ومالكٍ وشرطِ تفعيلٍ (OPS-009 · القسم 11-د · ADR 0046)
+        run: bun run scripts/check-skip-classification.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
@@ -318,14 +325,12 @@ jobs:
             echo "::error title=سياق ${part##*-}::${body}"
           done
 
+      # الخطوةُ السابقةُ كانت تُعيد تشغيلَ الحزمةِ كاملةً ثمّ تبحث بـ`grep` عن جملةِ
+      # تحذيرٍ يكتبها كلُّ ملفٍّ بيدِه — وأربعةٌ وعشرون ملفّاً من خمسةٍ وخمسين لا تطبعها،
+      # فكانت تلك الملفّاتُ تُتجاوَز صامتةً والحاجزُ أخضرُ (OPS-009). والآن يُقرَأ
+      # **ملخَّصُ المُشغِّلِ نفسِه** من سجلِّ الخطوةِ السابقةِ بلا إعادةِ تشغيلٍ.
       - name: منع تخطّي اختبارات التكامل صامتاً
-        env:
-          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-        run: |
-          if bun run test:integration 2>&1 | grep -q "مُتخطّاة"; then
-            echo "::error::اختبارات التكامل تُخطَّت — لا يمرّ CI بلا قاعدة حقيقية"
-            exit 1
-          fi
+        run: bun run scripts/check-no-skipped-tests.ts /tmp/ci-output.log
 
       # e2e منفصلة عن التكامل لأنها أطول وتراكمية: ثلاثون رحلة على حالة واحدة
       # لا تُنظَّف بينها. فصلها يجعل فشلها مقروءاً بذاته لا مبتلعاً في حزمة كبيرة.
@@ -377,11 +382,6 @@ jobs:
             echo "::error title=سياق ${part##*-}::${body}"
           done
 
+      # وكذلك e2e: يُقرَأ سجلُّ خطوتِها وحدَه (وقد أعاد `tee` كتابتَه بعد التكامل).
       - name: منع تخطّي اختبارات e2e صامتاً
-        env:
-          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-        run: |
-          if bun run test:e2e 2>&1 | grep -q "مُتخطّاة"; then
-            echo "::error::اختبارات e2e تُخطَّت — لا يمرّ CI بلا قاعدة حقيقية"
-            exit 1
-          fi
+        run: bun run scripts/check-no-skipped-tests.ts /tmp/ci-output.log
