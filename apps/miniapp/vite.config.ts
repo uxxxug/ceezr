@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { injectCsp } from "./vite/inject-csp.ts";
 import { inlineStylesheet } from "./vite/inline-stylesheet.ts";
 
 /**
@@ -9,7 +10,12 @@ import { inlineStylesheet } from "./vite/inline-stylesheet.ts";
  * Single origin only — no third-party executable origins (TG-005 / ADR 0028).
  */
 export default defineConfig({
-  plugins: [react(), inlineStylesheet()],
+  /**
+   * `F1-10`: `injectCsp` **بعدَ** `inlineStylesheet` في هذا المصفوفِ ولا يُقلَب:
+   * بصمةُ كتلةِ الأنماطِ تُقرأ من المستندِ بعدَ دمجِها فيه. ولو سبقها لبَصَّم لا
+   * شيءَ، ومرَّ البناءُ أخضرَ وظهر التطبيقُ بلا أنماطٍ على الجهازِ (ADR 0045).
+   */
+  plugins: [react(), inlineStylesheet(), injectCsp()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),

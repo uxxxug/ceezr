@@ -168,6 +168,13 @@ jobs:
       - name: ميزانيةُ الأداءِ من مُخرَجِ البناءِ لا من وعدٍ (F1-09 · القسم 9.9 · ADR 0044)
         run: bun run scripts/check-performance-budget.ts
 
+      # يقرأ `apps/miniapp/dist/index.html` أيضاً فلا يصلُح قبلَ البناءِ. ويقارن سياسةَ
+      # المُخرَجِ بما تبنيه وحدةُ السياسةِ حرفاً حرفاً، فبصمةُ أنماطٍ متقادمةٌ أو سياسةٌ
+      # مكتوبةٌ بيدٍ تُسقِط البناءَ. والوسمُ **أضعفُ من رأسِ الاستجابةِ** ولا يُدَّعى
+      # غيرُ ذلك: `frame-ancestors` مُهمَلةٌ فيه ولا مضيفَ للتطبيقِ بعدُ (ADR 0045 §٥).
+      - name: النطاقُ واحدٌ ولا أصلَ تنفيذيّاً من نطاقٍ ثالثٍ (F1-10 · TG-005 · ADR 0045)
+        run: bun run scripts/check-single-origin-assets.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

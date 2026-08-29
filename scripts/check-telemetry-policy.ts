@@ -28,6 +28,12 @@
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
+/**
+ * `F1-10`: النسخةُ المحليّةُ حُذِفت واستُعمِلت الوحدةُ المشتركةُ — وذاك **إصلاحُ عيبٍ**:
+ * النسخةُ القديمةُ كانت تفرّغ كلَّ عنوانٍ لأنّ `//` في `https://` تُقرأ بدايةَ تعليقٍ،
+ * فأيُّ قاعدةٍ تطابق على عنوانٍ كانت ميتةً وهي خضراء (ADR 0045 §٧).
+ */
+import { blankComments } from "./lib/blank-comments.ts";
 
 const SCANNED_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".html"]);
 
@@ -110,38 +116,6 @@ const RULES: readonly Rule[] = [
     applies: (file) => file.startsWith("apps/miniapp/src") && !isTest(file),
   },
 ];
-
-/**
- * يُفرِّغ التعليقاتَ قبلَ المطابقة: التعليقاتُ تشرح القاعدةَ فتذكر الأسماءَ
- * الممنوعةَ نصّاً، ولا تُنفِّذ شيئاً. والتفريغُ يُبقي أطوالَ الأسطرِ كما هي كي
- * تبقى أرقامُها صحيحةً في البلاغ.
- */
-function blankComments(source: string): string {
-  let out = "";
-  let index = 0;
-  while (index < source.length) {
-    const two = source.slice(index, index + 2);
-    if (two === "//") {
-      while (index < source.length && source[index] !== "\n") {
-        out += " ";
-        index += 1;
-      }
-      continue;
-    }
-    if (two === "/*") {
-      while (index < source.length && source.slice(index, index + 2) !== "*/") {
-        out += source[index] === "\n" ? "\n" : " ";
-        index += 1;
-      }
-      out += "  ";
-      index += 2;
-      continue;
-    }
-    out += source[index];
-    index += 1;
-  }
-  return out;
-}
 
 function walk(dir: string, out: string[] = []): string[] {
   let entries: string[];
