@@ -7,7 +7,7 @@
  * الذي يُعاد به النظامُ إن فشل النشرُ، و**مالكُه**. ثمّ **هل الشيفرةُ والمخطّطُ
  * ينشران معاً** (`coupledDeploy`)، وأينَ يُقرأ الإجراءُ في `docs/rollback.md`.
  *
- * **الحالة:** `OPS-010` — مُنفَّذ · مُختبَر (ADR 0047). والمداخلُ **أربعةَ عشرَ**،
+ * **الحالة:** `OPS-010` — مُنفَّذ · مُختبَر (ADR 0047). والمداخلُ **أربعةٌ وعشرون**،
  * وهي بعينِها مجموعةُ الخطرِ التي قرأتها `findRollbackRisks` من الهجراتِ السبعِ
  * والخمسينَ يومَ 2026-08-30 — لا واحدةٌ أقلَّ ولا واحدةٌ أكثرَ، والحاجزُ يفرض
  * الاتجاهَين.
@@ -89,6 +89,15 @@ const DEFINER_SEAL =
 const HEADING_CITY_NOT_NULL = "عودةُ نشرٍ بعدَ إلزامِ أعمدةِ المدينةِ (20260812120000)";
 /** إجراءُ العودةِ للهجرةِ التي حذفت التوقيعَ العابرَ للمدن. */
 const HEADING_EXPIRING_SOON = "عودةُ نشرٍ بعدَ حذفِ التوقيعِ العابرِ للمدن (20260814020000)";
+
+/** سببُ المحاولةِ الأولى — تُقرأ مع تصحيحِها. */
+const WHY_SURFACE_ATTEMPT =
+  "محاولةٌ أولى للسحبِ الجامعِ سحبت من `anon` و`authenticated` بأسمائهما، وهما لا يملكان المنحَ باسميهما بل يرثانه عن `PUBLIC` — فلم تُغلِق شيئاً فعلياً (وتمرينُ القاعدةِ الحقيقيةِ يقيس لها **صفرَ** فقدٍ). تُعلَن للقراءةِ لا لأنّها ضيّقت.";
+/** سببُ التصحيحِ الذي أغلق السطحَ فعلاً. */
+const WHY_SURFACE_FIX =
+  "السحبُ الجامعُ عن `PUBLIC` هو ما أغلق سطحَ PostgREST فعلاً، وهو أوسعُ تضييقٍ في المستودعِ: يقيس التمرينُ 1674 صلاحيةً غائبةً بعدَه. وإعادةُ منحِها عودةً تُعيد فتحَ ما أُغلِق لعيبٍ أمنيٍّ، فالمسارُ إلى الأمامِ وحدَه.";
+/** إجراءُ العودةِ لإغلاقِ سطحِ PostgREST — السحبُ الجامعُ عن `public`. */
+const HEADING_POSTGREST_SURFACE = "عودةُ نشرٍ بعدَ إغلاقِ سطحِ PostgREST (20260809001000)";
 
 export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
   {
@@ -244,6 +253,116 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     owner: "منفّذ المستودع",
     criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
     documentedIn: null,
+  },
+  {
+    migration: "20260809000000_phase_3_close_postgrest_surface.sql",
+    change: "revoke_all_in_schema:tables:public",
+    why: WHY_SURFACE_ATTEMPT,
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
+  {
+    migration: "20260809000000_phase_3_close_postgrest_surface.sql",
+    change: "revoke_all_in_schema:sequences:public",
+    why: WHY_SURFACE_ATTEMPT,
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
+  {
+    migration: "20260809000000_phase_3_close_postgrest_surface.sql",
+    change: "revoke_all_in_schema:functions:public",
+    why: WHY_SURFACE_ATTEMPT,
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
+  {
+    migration: "20260809000000_phase_3_close_postgrest_surface.sql",
+    change: "revoke_all_in_schema:routines:public",
+    why: WHY_SURFACE_ATTEMPT,
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
+  {
+    migration: "20260809000000_phase_3_close_postgrest_surface.sql",
+    change: "revoke_schema:public",
+    why: WHY_SURFACE_ATTEMPT,
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
+  {
+    migration: "20260809001000_phase_3_close_postgrest_surface_fix.sql",
+    change: "revoke_all_in_schema:functions:public",
+    why: WHY_SURFACE_FIX,
+    breaksPreviousRelease: true,
+    rollbackPath: "forward-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: HEADING_POSTGREST_SURFACE,
+  },
+  {
+    migration: "20260809001000_phase_3_close_postgrest_surface_fix.sql",
+    change: "revoke_all_in_schema:routines:public",
+    why: WHY_SURFACE_FIX,
+    breaksPreviousRelease: true,
+    rollbackPath: "forward-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: HEADING_POSTGREST_SURFACE,
+  },
+  {
+    migration: "20260809001000_phase_3_close_postgrest_surface_fix.sql",
+    change: "revoke_all_in_schema:tables:public",
+    why: WHY_SURFACE_FIX,
+    breaksPreviousRelease: true,
+    rollbackPath: "forward-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: HEADING_POSTGREST_SURFACE,
+  },
+  {
+    migration: "20260809001000_phase_3_close_postgrest_surface_fix.sql",
+    change: "revoke_all_in_schema:sequences:public",
+    why: WHY_SURFACE_FIX,
+    breaksPreviousRelease: true,
+    rollbackPath: "forward-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: HEADING_POSTGREST_SURFACE,
+  },
+  {
+    migration: "20260809001000_phase_3_close_postgrest_surface_fix.sql",
+    change: "revoke_schema:public",
+    why: WHY_SURFACE_FIX,
+    breaksPreviousRelease: true,
+    rollbackPath: "forward-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: HEADING_POSTGREST_SURFACE,
   },
 ];
 

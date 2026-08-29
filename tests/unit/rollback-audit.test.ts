@@ -433,6 +433,72 @@ describe("الحاجزُ يسقط حيثُ يجب", () => {
   });
 });
 
+describe("السحبُ الجامعُ — أوسعُ تضييقٍ وأقلُّه ظهوراً", () => {
+  it("`revoke … on all functions in schema public` خطرٌ وإن لم تُنشئْ هجرةٌ شيئاً قبلَه", () => {
+    const risks = findRollbackRisks([
+      { file: "0001_a.sql", sql: "revoke execute on all functions in schema public from public;" },
+    ]);
+    expect(risks.map((risk) => `${risk.kind}:${risk.target}`)).toEqual([
+      "revoke_all_in_schema:functions:public",
+    ]);
+  });
+
+  it("كلُّ صنفٍ من الكائناتِ خطرٌ مستقلٌّ لا خطرٌ واحدٌ", () => {
+    const risks = findRollbackRisks([
+      {
+        file: "0001_a.sql",
+        sql: `revoke all on all tables in schema public from public;
+              revoke all on all sequences in schema public from public;`,
+      },
+    ]);
+    expect(risks.map((risk) => risk.target).sort()).toEqual(["sequences:public", "tables:public"]);
+  });
+
+  it("`revoke usage on schema public` خطرٌ بلا منحٍ سابقٍ: المنحُ من PostgreSQL نفسِه", () => {
+    const risks = findRollbackRisks([
+      { file: "0001_a.sql", sql: "revoke usage on schema public from public;" },
+    ]);
+    expect(risks.map((risk) => `${risk.kind}:${risk.target}`)).toEqual(["revoke_schema:public"]);
+  });
+
+  it("`revoke usage on schema` لمخطّطٍ آخرَ لم يُمنَحْ ليس خطراً", () => {
+    const risks = findRollbackRisks([
+      { file: "0001_a.sql", sql: "revoke usage on schema analytics from anon;" },
+    ]);
+    expect(risks).toEqual([]);
+  });
+
+  it("السحبُ الجامعُ في المستودعِ الحقيقيِّ مُعلَنٌ للهجرتَين معاً", () => {
+    const declared = ROLLBACK_DECLARATIONS.filter((entry) =>
+      entry.change.startsWith("revoke_all_in_schema:"),
+    );
+    const migrations = new Set(declared.map((entry) => entry.migration));
+    expect(migrations).toEqual(
+      new Set([
+        "20260809000000_phase_3_close_postgrest_surface.sql",
+        "20260809001000_phase_3_close_postgrest_surface_fix.sql",
+      ]),
+    );
+  });
+
+  it("التصحيحُ وحدَه يُعلَن كاسراً، والمحاولةُ الأولى لا — والتمرينُ قاس لها صفراً", () => {
+    const byMigration = (file: string): readonly boolean[] =>
+      ROLLBACK_DECLARATIONS.filter(
+        (entry) => entry.migration === file && entry.change.includes("public"),
+      ).map((entry) => entry.breaksPreviousRelease);
+    expect(
+      byMigration("20260809000000_phase_3_close_postgrest_surface.sql").every(
+        (breaks) => breaks === false,
+      ),
+    ).toBe(true);
+    expect(
+      byMigration("20260809001000_phase_3_close_postgrest_surface_fix.sql").every(
+        (breaks) => breaks === true,
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("السجلُّ يقابل المستودعَ كما هو اليومَ", () => {
   it("مجموعةُ الخطرِ والسجلُّ متطابقان في الاتجاهَين", () => {
     const risks = findRollbackRisks(readMigrations(process.cwd()));
@@ -459,10 +525,33 @@ describe("قراءةُ الفقدِ بين صورتَي كاتالوج", () => {
     expect(lossesBetween(new Set(["table:orders"]), new Set())).toEqual(["غاب: table:orders"]);
   });
 
-  it("`notnull` معكوسٌ: ظهورُه تضييقٌ", () => {
-    expect(lossesBetween(new Set(), new Set(["notnull:orders.city_id"]))).toEqual([
-      "ضاق: notnull:orders.city_id",
+  it("`notnull` معكوسٌ: ظهورُه على عمودٍ قائمٍ تضييقٌ", () => {
+    const before = new Set(["table:orders", "column:orders.city_id"]);
+    const after = new Set([...before, "notnull:orders.city_id"]);
+    expect(lossesBetween(before, after)).toEqual(["ضاق: notnull:orders.city_id"]);
+  });
+
+  it("جدولٌ جديدٌ بأعمدةٍ مُلزَمةٍ ليس تضييقاً: لا نسخةَ سابقةً تعرفُه", () => {
+    const after = new Set([
+      "table:orders",
+      "column:orders.id",
+      "notnull:orders.id",
+      "column:orders.city_id",
+      "notnull:orders.city_id",
     ]);
+    expect(lossesBetween(new Set(), after)).toEqual([]);
+  });
+
+  /**
+   * حدٌّ مُعلَنٌ لا سهوٌ: عمودٌ مُلزَمٌ جديدٌ على جدولٍ قائمٍ **قد** يكسر إدراجاً
+   * من نسخةٍ سابقةٍ لا تعرفُه إن لم يكن له افتراضٌ. ولا يُعَدُّ فقداً ههنا إبقاءً
+   * على مطابقةِ التمرينِ للحاجزِ الساكنِ (وهو لا يرى `add column`)؛ والحدُّ مكتوبٌ
+   * في `docs/rollback.md` §«ما لا يُغطّيه هذا المسار».
+   */
+  it("عمودٌ مُلزَمٌ يُضاف إلى جدولٍ قائمٍ لا يُعَدُّ فقداً — حدٌّ مُعلَنٌ", () => {
+    const before = new Set(["table:orders", "column:orders.id"]);
+    const after = new Set([...before, "column:orders.city_id", "notnull:orders.city_id"]);
+    expect(lossesBetween(before, after)).toEqual([]);
   });
 
   it("`notnull` معكوسٌ: غيابُه توسيعٌ لا فقدٌ", () => {

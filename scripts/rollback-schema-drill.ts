@@ -141,6 +141,11 @@ async function snapshot(sql: postgres.Sql): Promise<Snapshot> {
 /**
  * الفقدُ بين صورتَين. و`notnull` **معكوسٌ**: ظهورُه تضييقٌ وغيابُه توسيعٌ — ولذلك
  * يُقرأ في الاتجاهِ الآخرِ، وهذا مكانٌ لو سُهي عنه لصار الحاجزُ أعمى في أخطرِ بابٍ.
+ *
+ * وشرطٌ ثانٍ لا يقلُّ عنه: عمودٌ **أُنشئ في هذه الهجرةِ نفسِها** ليس تضييقاً مهما
+ * كان مُلزَماً، لأنّه لم يكن قائماً قبلَها فلا نسخةَ سابقةً تعرفه. ولولا هذا الشرطُ
+ * لأبلغ التمرينُ عن كلِّ `id` في كلِّ جدولٍ جديدٍ — ضجيجٌ يُغرِق الإشارةَ ويُعطِّل
+ * الحاجزَ في أوّلِ أسبوع.
  */
 export function lossesBetween(before: Snapshot, after: Snapshot): readonly string[] {
   const losses: string[] = [];
@@ -150,7 +155,10 @@ export function lossesBetween(before: Snapshot, after: Snapshot): readonly strin
   }
   for (const tag of after) {
     if (!tag.startsWith("notnull:")) continue;
-    if (!before.has(tag)) losses.push(`ضاق: ${tag}`);
+    if (before.has(tag)) continue;
+    const column = `column:${tag.slice("notnull:".length)}`;
+    if (!before.has(column)) continue;
+    losses.push(`ضاق: ${tag}`);
   }
   return losses;
 }

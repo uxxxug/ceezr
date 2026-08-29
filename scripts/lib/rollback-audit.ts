@@ -52,6 +52,7 @@ export type ChangeKind =
   | "set_data_type"
   | "drop_default"
   | "revoke_schema"
+  | "revoke_all_in_schema"
   | "revoke_function"
   | "revoke_table"
   | "truncate"
@@ -251,6 +252,19 @@ export function narrowingChanges(migration: string, rawSql: string): SchemaChang
       push("drop_trigger", `${bareName(match[2])}.${bareName(match[1])}`, match.index);
   }
 
+  /**
+   * السحبُ **الجامعُ**: `revoke … on all functions in schema public from public`.
+   * لا اسمَ كائنٍ فيه يُطابَق بخطِّ الزمنِ، وأثرُه أوسعُ من كلِّ سحبٍ مسمّىً:
+   * يمسُّ كلَّ ما في المخطّطِ وقتَ تطبيقِه، بما فيه كائناتُ امتدادٍ لم تُنشِئْها هجرةٌ.
+   * فيُعَدُّ خطراً **دائماً** ولا يُسأل عنه خطُّ الزمنِ. ولولا هذه القاعدةُ لأفلت
+   * أكبرُ تضييقٍ في المستودعِ — وقد أفلت فعلاً حتّى أوقعه تمرينُ القاعدةِ الحقيقيةِ.
+   */
+  for (const match of sql.matchAll(
+    /revoke\s+[\s\S]{0,80}?on\s+all\s+([a-z]+)\s+in\s+schema\s+([a-z_][a-z0-9_]*)/gi,
+  )) {
+    if (match[1] !== undefined && match[2] !== undefined)
+      push("revoke_all_in_schema", `${match[1].toLowerCase()}:${bareName(match[2])}`, match.index);
+  }
   for (const match of sql.matchAll(/revoke\s+[\s\S]{0,80}?on\s+schema\s+([a-z_][a-z0-9_]*)/gi)) {
     if (match[1] !== undefined) push("revoke_schema", bareName(match[1]), match.index);
   }
@@ -347,8 +361,14 @@ function existedBefore(change: SchemaChange, before: CreatedObjects): boolean {
       return before.policies.has(change.target);
     case "drop_trigger":
       return before.triggers.has(change.target);
+    /**
+     * `public` يملك `usage` على المخطّطِ `public` بحكمِ PostgreSQL نفسِه لا بمنحٍ
+     * من هجرةٍ؛ فسحبُه تضييقٌ وإن لم يرَ خطُّ الزمنِ منحاً سابقاً.
+     */
     case "revoke_schema":
-      return before.schemaGrants.has(change.target);
+      return change.target === "public" || before.schemaGrants.has(change.target);
+    case "revoke_all_in_schema":
+      return true;
     default:
       return false;
   }
