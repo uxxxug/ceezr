@@ -14,7 +14,8 @@
  *
  * **ينتمي إلى:** `scripts/lib`
  *
- * **يُتوقع أن يستخدمه لاحقاً:** كلُّ حاجزٍ نصّيٍّ. وقد وُصِل به
+ * **يُتوقع أن يستخدمه لاحقاً:** كلُّ حاجزٍ نصّيٍّ — وللـSQL دالةٌ منفصلةٌ
+ * (`blankSqlComments`) لأنّ وسمَ التعليقِ فيه `--` لا `//`. وقد وُصِل به
  * `check-single-origin-assets.ts` و`check-telemetry-policy.ts`، **والباقي يُوصَل
  * عندَ أوّلِ مساسٍ به** ولا يُعاد كتابةُ حاجزٍ سليمٍ بلا سبب.
  *
@@ -77,6 +78,62 @@ export function blankComments(source: string): string {
         index += 1;
       }
       const remaining = Math.min(3, source.length - index);
+      out += " ".repeat(remaining);
+      index += remaining;
+      continue;
+    }
+    out += source[index];
+    index += 1;
+  }
+  return out;
+}
+
+/**
+ * مثلُ `blankComments` ولكنّ وسمَ تعليقِ السطرِ فيه `--` لا `//`، مع `/*…*\/`.
+ * **ولا تُفرَّغ التعليقاتُ داخلَ جسدٍ مُحدَّدٍ بعلامتي دولارٍ** (`$$ … $$` أو
+ * `$tag$ … $tag$`) لأنّ جسدَ الدالةِ نصٌّ حرفيٌّ في لغةِ SQL، وفيه DDL حقيقيٌّ
+ * يُنفَّذ (`execute format('revoke …')`) فلا يجوز إسقاطُه من المطابقة.
+ *
+ * **حدٌّ مُعلَنٌ:** النصوصُ المُقتبسةُ بعلامةٍ مفردةٍ غيرُ مقروءةٍ، فـ`--`
+ * داخلَ نصٍّ حرفيٍّ يُفرِّغ بقيّةَ السطرِ — وذلك **سلبٌّ كاذبٌ** (يُفلِت
+ * مخالفةً) لا موجبٌ كاذبٌ.
+ */
+export function blankSqlComments(source: string): string {
+  let out = "";
+  let index = 0;
+  let dollarTag: string | null = null;
+  while (index < source.length) {
+    if (dollarTag !== null) {
+      if (source.startsWith(dollarTag, index)) {
+        out += dollarTag;
+        index += dollarTag.length;
+        dollarTag = null;
+        continue;
+      }
+      out += source[index];
+      index += 1;
+      continue;
+    }
+    const opening = /^\$[a-z_]*\$/i.exec(source.slice(index, index + 40));
+    if (opening !== null) {
+      dollarTag = opening[0];
+      out += dollarTag;
+      index += dollarTag.length;
+      continue;
+    }
+    if (source.slice(index, index + 2) === "--") {
+      while (index < source.length && source[index] !== "\n") {
+        out += " ";
+        index += 1;
+      }
+      continue;
+    }
+    if (source.slice(index, index + 2) === "/*") {
+      while (index < source.length && source.slice(index, index + 2) !== "*/") {
+        out += source[index] === "\n" ? "\n" : " ";
+        index += 1;
+      }
+      const remaining = Math.min(2, source.length - index);
       out += " ".repeat(remaining);
       index += remaining;
       continue;
