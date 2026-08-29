@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { inlineStylesheet } from "./vite/inline-stylesheet.ts";
 
 /**
  * F1-01 — static-asset build for Telegram Mini App (and browser fallback later).
@@ -8,7 +9,7 @@ import { defineConfig } from "vite";
  * Single origin only — no third-party executable origins (TG-005 / ADR 0028).
  */
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), inlineStylesheet()],
   resolve: {
     alias: {
       "@": resolve(__dirname, "src"),
@@ -23,9 +24,35 @@ export default defineConfig({
       output: {
         /** Code-split by product packages (ROADMAP §9.4). */
         manualChunks(id) {
+          /**
+           * `F1-09`: حزمةُ `identity` **منفصلةٌ** كما ينصُّ القسم 9.4 — وكانت
+           * مُدمَجةً في `shell` منذ `F1-01` بلا سندٍ في الجدول. والجدولُ يجعلهما
+           * حزمتَين تُحمَّلان فوراً معاً، فالفصلُ لا يؤخّر شيئاً ويُبقي حدَّ
+           * المسؤوليةِ ظاهراً في المُخرَجِ كما هو في الشيفرة.
+           *
+           * و**حاملُ الجلسةِ ليس منها**: الجدولُ يذكر «الجلسة» في `shell`
+           * صريحاً، وحدُّ API يقرأ الرمزَ من ذلك الحاملِ في كلِّ طلبٍ. فلو وضعناه
+           * في `identity` لاستوردت `shell` حزمةَ `identity` واستوردت `identity`
+           * حزمةَ `shell`، فتقوم دائرةٌ بين الحزمتَين حذّر منها الجامعُ صراحةً.
+           * فالتقسيمُ: `identity` = الإقلاعُ والتجديدُ وقراءةُ الدورِ، و`shell` =
+           * الحاملُ وتخزينُه الآمنُ (ADR 0044).
+           */
           if (
+            id.includes("/src/identity/") &&
+            !id.includes("/src/identity/session.ts") &&
+            !id.includes("/src/identity/session-storage.ts")
+          ) {
+            return "identity";
+          }
+          if (
+            id.includes("/src/identity/session") ||
+            /**
+             * `F1-09`: حدُّ HTTP في `shell` صراحةً لا بالإسنادِ التلقائيّ: يستخدمه
+             * فحصُ الصحةِ وقراءةُ الدورِ والإقلاعُ معاً، وموضعٌ يختاره الجامعُ وحدَه
+             * يتغيرُّ مع أوّلِ مستوردٍ جديدٍ، فتنتقل بايتاتٌ بين الحزمِ بلا قرارٍ.
+             */
+            id.includes("/src/api/") ||
             id.includes("/src/shell/") ||
-            id.includes("/src/identity/") ||
             id.includes("/src/routing/") ||
             /** `F1-06`: طبقةُ السمةِ والاتجاهِ من حزمةِ `shell` — «الإطار، السمة» (9.4). */
             id.includes("/src/styles/") ||
@@ -42,7 +69,15 @@ export default defineConfig({
              * تفوتها اللحظةُ التي جاءت لأجلِها. وحجمُها ضئيلٌ: منطقٌ نقيٌّ بلا
              * تبعيّاتٍ ولا شبكةٍ (ADR 0043).
              */
-            id.includes("/src/telemetry/")
+            id.includes("/src/telemetry/") ||
+            /**
+             * `F1-09`: طبقةُ تيليجرامَ من حزمةِ `shell` **لا حزمةً باسمِها**:
+             * `tg` ليست في جدولِ القسم 9.4 إطلاقاً، وكانت حزمةً قائمةً في
+             * المُخرَجِ منذ `F1-02` — أي تقسيمٌ بلا إذنٍ من العقدِ، وطلبَ شبكةٍ
+             * زائداً في مسارِ أوّلِ رسمٍ. وموضعُها `shell` لأنّ الجدولَ يجعل
+             * «السمة» فيه، وطبقةُ المضيفِ هي ما تقوم عليه السمةُ والجلسةُ معاً.
+             */
+            id.includes("/src/tg/")
           ) {
             return "shell";
           }
@@ -59,9 +94,6 @@ export default defineConfig({
           if (id.includes("/src/surfaces/admin/")) {
             return "admin";
           }
-          if (id.includes("/src/tg/")) {
-            return "tg";
-          }
           if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) {
             return "vendor-react";
           }
@@ -69,7 +101,11 @@ export default defineConfig({
         },
       },
     },
-    /** Budget gate (ROADMAP §9.9) enforced later in F1-09; keep baseline tight. */
+    /**
+     * `F1-09`: الميزانيةُ صارت بوّابةً تُسقِط البناءَ في
+     * `scripts/check-performance-budget.ts` — وهذا التحذيرُ يبقى إشارةً مبكّرةً
+     * للمطوّرِ في طرفيّته، لا حاجزاً. والحاجزُ يقرأ البايتاتَ بعدَ الضغطِ لا قبلَه.
+     */
     chunkSizeWarningLimit: 180,
   },
   server: {

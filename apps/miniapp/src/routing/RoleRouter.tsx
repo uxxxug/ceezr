@@ -22,10 +22,13 @@
  *
  * وحدٌّ معلَنٌ: إعادةُ المصادقةِ في `SS-05` ليست ههنا — موضعُها الإقلاعُ في
  * `Shell` لأنّ الجلسةَ فوقَ الموجّهِ لا داخلَه، ويُرفَع الطلبُ إليه بـ`onReauth`.
+ *
+ * `F1-09`: `fetchViewer` صار خاصّيةً إلزاميّةً لا استيراداً — السببُ في
+ * `shell/identity-port.ts` وADR 0044.
  */
 
 import { type ComponentType, useCallback, useEffect, useRef, useState } from "react";
-import { fetchViewer, type ViewerView } from "../identity/viewer.ts";
+import type { ViewerView } from "../identity/viewer.ts";
 import { ErrorBoundary } from "../shell/ErrorBoundary.tsx";
 import {
   classifyFailure,
@@ -65,6 +68,12 @@ type RouterState =
 
 export interface RoleRouterProps {
   /**
+   * `F1-09`: قراءةُ الدورِ **تُحقَن**. والموجّهُ في حزمةِ `shell` و`fetchViewer` في
+   * حزمةِ `identity` (9.4)، فاستيرادُها ههنا كان يُنتِج دائرةً بين الحزمتَين في
+   * البناء. والحاقنُ اليومَ هو `Shell` عن بابِ الهويةِ الذي يستقبله.
+   */
+  readonly fetchViewer: () => Promise<ViewerView>;
+  /**
    * يُنادى حين تكون الجلسةُ هي العطلَ — فالموجّهُ لا يملك مصادقةً ولا يدّعيها.
    * وغيابُه يعني عرضَ الشاشةِ بلا فعلٍ بدلَ زرٍّ لا يفعل شيئاً (`UX-8`).
    */
@@ -86,7 +95,7 @@ async function screenForReason(reason: NoSurfaceReason, view: ViewerView): Promi
   return classifyFailure(failure, probe, online) ?? { kind: "unknown_error" };
 }
 
-export function RoleRouter({ onReauth }: RoleRouterProps = {}) {
+export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const [state, setState] = useState<RouterState>({ kind: "resolving" });
   const mounted = useRef(true);
   useEffect(() => {
@@ -116,7 +125,7 @@ export function RoleRouter({ onReauth }: RoleRouterProps = {}) {
       return;
     }
     setState({ kind: "surface", Component: outcome.module.default });
-  }, []);
+  }, [fetchViewer]);
 
   useEffect(() => {
     void resolve();

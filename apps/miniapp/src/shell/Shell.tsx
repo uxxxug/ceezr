@@ -7,6 +7,11 @@
  * ملاحظات مستقبلية: `F1-08` جعل القياسَ **يُمرَّر** إلى الهيكلِ لا يُنشَأ فيه؛
  *   ومَن يُنشئه هو `App.tsx`. ودفعُ الأحداثِ إلى منصةِ قياسٍ ما زال غيرَ مقرَّرٍ.
  *
+ * `F1-09` — **الهويةُ تُحقَن ولا تُستورَد**: القسم 9.4 يجعل `identity` حزمةً
+ * منفصلةً، وكان هذا الملفُّ يستوردها فتُنتِج دائرةً بين الحزمتَين في البناء.
+ * فصار يستقبل `IdentityPort` من `App.tsx` — وهي فوقَ الحزمتَين — ويمرّر منه
+ * `fetchViewer` إلى الموجّه. ولا تغييرَ في السلوك: الدوالُّ هي نفسُها.
+ *
  * `F1-05`: الدورُ يُقرأ من الخادمِ في الموجّهِ لا من حاملِ الجلسةِ ولا من تيليجرام.
  *
  * `F1-06`: الإقلاعُ يضبط الاتجاهَ ثم يربط السمةَ **قبلَ** إعلامِ تيليجرامَ
@@ -28,8 +33,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { type BootFailureReason, establishSession } from "../identity/boot.ts";
-import { clearSession } from "../identity/session.ts";
+import type { BootFailureReason } from "../identity/boot.ts";
 import { RoleRouter } from "../routing/RoleRouter.tsx";
 import { applyDocumentDirection } from "../styles/direction.ts";
 import { classifyFailure, failureFromThrown } from "../system/failure.ts";
@@ -39,6 +43,7 @@ import { SystemScreen } from "../system/SystemScreen.tsx";
 import type { ScreenState } from "../system/state-text.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
 import { bindTelegramTheme, expandApp, notifyReady } from "../tg/index.ts";
+import type { IdentityPort } from "./identity-port.ts";
 import { Layout } from "./Layout.tsx";
 
 type BootState =
@@ -63,7 +68,13 @@ async function screenForBootFailure(
   return classifyFailure(failure, probe, online) ?? { kind: "unknown_error" };
 }
 
-export function Shell({ telemetry }: { readonly telemetry?: Telemetry } = {}) {
+export interface ShellProps {
+  /** بابُ الهويةِ — **إلزاميٌّ**: إطارٌ بلا هويةٍ يعرض هيكلَ تحميلٍ إلى الأبد. */
+  readonly identity: IdentityPort;
+  readonly telemetry?: Telemetry;
+}
+
+export function Shell({ identity, telemetry }: ShellProps) {
   const [boot, setBoot] = useState<BootState>({ kind: "booting" });
   /**
    * مفتاحُ الجلسة: يتغيّر عندَ كلِّ إعادةِ مصادقةٍ ناجحةٍ فيُعاد تركيبُ الموجّهِ
@@ -94,10 +105,10 @@ export function Shell({ telemetry }: { readonly telemetry?: Telemetry } = {}) {
    */
   const runBoot = useCallback(
     async (discard = false) => {
-      if (discard) clearSession();
+      if (discard) identity.clearSession();
       setBoot({ kind: "booting" });
       // `F1-08`: القياسُ يُمرَّر ولا يُنشَأ ههنا — والهيكلُ لا يعرف مَصرِفاً.
-      const result = await establishSession(telemetry === undefined ? {} : { telemetry });
+      const result = await identity.establishSession(telemetry === undefined ? {} : { telemetry });
       if (!mounted.current) return;
       if (result.established) {
         setBoot({ kind: "ready" });
@@ -107,7 +118,7 @@ export function Shell({ telemetry }: { readonly telemetry?: Telemetry } = {}) {
       const screen = await screenForBootFailure(result.reason, result.thrown);
       if (mounted.current) setBoot({ kind: "screen", screen });
     },
-    [telemetry],
+    [identity, telemetry],
   );
 
   useEffect(() => {
@@ -132,7 +143,11 @@ export function Shell({ telemetry }: { readonly telemetry?: Telemetry } = {}) {
 
   return (
     <Layout>
-      <RoleRouter key={sessionEpoch} onReauth={() => void runBoot(true)} />
+      <RoleRouter
+        key={sessionEpoch}
+        fetchViewer={identity.fetchViewer}
+        onReauth={() => void runBoot(true)}
+      />
     </Layout>
   );
 }

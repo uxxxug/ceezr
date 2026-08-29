@@ -118,7 +118,9 @@ describe("SS-04: الشاشةُ مكتوبةٌ وغيرُ موصولة", () => {
 
 describe("الموجّه: لا سطحَ قبلَ أن يجيب الخادم", () => {
   it("الخَرْجُ الأوّلُ هيكلُ تحميلٍ — لا سطحَ راكبٍ ولا سائقٍ ولا مشرف", () => {
-    const html = renderToStaticMarkup(<RoleRouter />);
+    // `F1-09`: `fetchViewer` تُحقَن الآنَ. ووعدٌ لا يُحلُّ أبداً هو الحالُ المقصودُ
+    // ههنا بعينِه: «قبلَ أن يجيب الخادم».
+    const html = renderToStaticMarkup(<RoleRouter fetchViewer={() => new Promise(() => {})} />);
     expect(html).toContain("sk__line");
     expect(html).not.toContain("سطح الراكب");
     expect(html).not.toContain("سطح السائق");

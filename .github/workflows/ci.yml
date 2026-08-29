@@ -161,6 +161,13 @@ jobs:
       - name: القياسُ لا يخرج من الجهازِ ومعرّفُ الطلبِ من الخادمِ وحدَه (F1-08 · ADR 0043)
         run: bun run scripts/check-telemetry-policy.ts
 
+      # يقرأ `apps/miniapp/dist` فلا يصلُح قبلَ خطوةِ البناءِ أعلاه. ومفحوصُه ثلاثةُ
+      # صفوفٍ من ثمانيةٍ: الحملُ الأوّلُ · الحزمُ المؤجَّلةُ · طلباتُ أوّلِ رسمٍ. والأزمنةُ
+      # (FCP · LCP · زمنُ التفاعلِ) لا تُقاس ههنا ولا يُدَّعى قياسُها — ولذلك بندُ
+      # `F1-09` لم يُختَم `[x]`. التفصيلُ في docs/evidence/architecture/F1-09-20260829.md
+      - name: ميزانيةُ الأداءِ من مُخرَجِ البناءِ لا من وعدٍ (F1-09 · القسم 9.9 · ADR 0044)
+        run: bun run scripts/check-performance-budget.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
