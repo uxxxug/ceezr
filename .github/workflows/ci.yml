@@ -182,6 +182,13 @@ jobs:
       - name: لا تجاوزَ اختبارٍ بلا تصنيفٍ ومالكٍ وشرطِ تفعيلٍ (OPS-009 · القسم 11-د · ADR 0046)
         run: bun run scripts/check-skip-classification.ts
 
+      # يقيس التغطيةَ مرّةً أخرى بعدَ خطوةِ Test — عن قصدٍ لا سهواً: خطوةُ Test
+      # تُغذّي حاجزَ قراءةِ الإخفاقِ من `/tmp/ci-output.log`، فلا يُمَسُّ أمرُها.
+      # والقياسُ ههنا **لا يقيس اختباراتَ التكامل** لأنّها تتجاوز نفسَها بلا قاعدةٍ
+      # حقيقيّةٍ في هذه الوظيفة، والحدُّ مُعلَنٌ في `scripts/lib/coverage-registry.ts`.
+      - name: بوابةُ تغطيةٍ دنيا على المسارات الحرجة (OPS-005 · القسم 11-د · ADR 0048)
+        run: bun run check:coverage
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

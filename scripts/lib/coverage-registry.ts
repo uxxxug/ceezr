@@ -1,0 +1,174 @@
+/**
+ * # سجلُّ أرضيّاتِ التغطيةِ على المسارات الحرجة — قائمةٌ مغلقةٌ مقيسةٌ
+ *
+ * **الغرض:** أن تكون كلُّ أرضيّةٍ **رقماً مقيساً يومَ التصنيفِ** لا رقماً مستحسَناً،
+ * وأن يكون لكلِّ مسارٍ حرجٍ في القائمةِ المغلقةِ (`CRITICAL_PATHS` في
+ * `scripts/lib/skip-registry.ts`) مدخلٌ واحدٌ لا أكثرَ ولا أقلَّ.
+ *
+ * **الحالة:** `OPS-005` — مُنفَّذ · مُختبَر · مبرهَنُ السقوط (ADR 0048).
+ *
+ * **ينتمي إلى:** البند `OPS-005` · القسم 11-د.
+ *
+ * ## كيف قِيسَت هذه الأرقامُ — وكيف تُحدَّث
+ *
+ * ```
+ * bun test --coverage --coverage-reporter=lcov --coverage-dir=coverage
+ * bun run scripts/check-coverage-gate.ts
+ * ```
+ *
+ * تاريخُ القياسِ: **2026-08-30**. الإصدارانِ: `bun 1.3.14` (المُثبَّتُ في CI)
+ * و`bun 1.4.0` — وقد أُخرِج الملفّانِ وقُوبِلا سطراً بسطرٍ فكانا **متطابقَين تماماً**
+ * (381 ملفّاً · 18391/29584 سطراً · 62.165%)، فلا هامشَ إصدارٍ مضروبٌ ههنا.
+ *
+ * والمقيسُ في **وظيفةِ `verify`** حيثُ لا قاعدةَ بياناتٍ حقيقيّةً: اختباراتُ التكاملِ
+ * تتجاوز نفسَها هناك، فتغطيةُ محوِّلاتِ البنيةِ التحتيّةِ (`packages/infrastructure/*`)
+ * **أدنى من حقيقتِها** في هذا القياس. وذلك مُعلَنٌ لا مُصلَحٌ: قياسُ التغطيةِ في
+ * وظيفةِ التكاملِ بندٌ آخرُ لم يُفتَح.
+ *
+ * ## قاعدةُ التحديثِ (مِرقاةٌ لا سقفٌ متحرّكٌ)
+ *
+ * - **تُرفَع** الأرضيّةُ ويُخفَض السقفُ متى تحسَّن المقيسُ — بقصدٍ في commit مستقلٍّ.
+ * - **لا تُخفَّض** أرضيّةٌ ولا يُرفَع سقفٌ إلّا ببيانِ سببٍ في نصِّ الـcommit:
+ *   الحاجزُ لا يُضعَّف لينجحَ بناءٌ، بل يُصلَح السببُ.
+ * - انخفاضُ النسبةِ له سببانِ مشروعانِ: (١) نقصانُ تغطيةٍ حقيقيٌّ — يُصلَح، (٢) دخولُ
+ *   ملفٍّ كان غائباً عن القياسِ إلى القياسِ بتغطيةٍ دونَ المتوسّطِ — وهو **تحسُّنٌ**
+ *   يُقاس فيه المسارُ من جديدٍ ويُحدَّث المدخلانِ معاً (النسبةُ والسقفُ).
+ */
+
+import type { CriticalPathBar } from "./coverage-gate.ts";
+
+/**
+ * أدنى عددِ ملفّاتٍ في `lcov.info` يُقبَل قبلَ الحكم. المقيسُ يومَ التصنيفِ 381
+ * ملفّاً، والحدُّ 340 هامشاً لحذفِ ملفّاتٍ أو نقلِها — **وليس هدفَ تغطيةٍ**، بل حرزٌ
+ * من مخرجِ تغطيةٍ جزئيٍّ (`bun test <ملفٌّ واحدٌ> --coverage`) يُقرَأ نجاحاً.
+ */
+export const MIN_MEASURED_FILES = 340;
+
+/**
+ * مدخلٌ واحدٌ لكلِّ مسارٍ حرجٍ. `roots` **شريحةٌ رأسيّةٌ كاملةٌ** (نطاقٌ + تطبيقٌ +
+ * بنيةٌ تحتيّةٌ) لا طبقةٌ واحدةٌ، لأنّ المسارَ الحرجَ في الخارطةِ رأسيٌّ.
+ */
+export const COVERAGE_BARS: readonly CriticalPathBar[] = [
+  {
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    roots: [
+      "packages/domain/identity",
+      "packages/application/identity",
+      "packages/infrastructure/identity",
+    ],
+    minLineCoverage: 72,
+    maxUnmeasuredFiles: 13,
+    reason: null,
+    owner: "فريق المنصّة",
+  },
+  {
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    roots: [
+      "packages/domain/dispatch",
+      "packages/application/dispatch",
+      "packages/infrastructure/dispatch",
+    ],
+    minLineCoverage: 44,
+    maxUnmeasuredFiles: 10,
+    reason: null,
+    owner: "فريق المنصّة",
+  },
+  {
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    roots: [
+      "packages/domain/tracking",
+      "packages/application/tracking",
+      "packages/infrastructure/tracking",
+    ],
+    minLineCoverage: 47,
+    maxUnmeasuredFiles: 1,
+    reason: null,
+    owner: "فريق المنصّة",
+  },
+  {
+    criticalPath: "الدفعُ والاشتراك",
+    roots: [
+      "packages/domain/financial",
+      "packages/application/financial",
+      "packages/infrastructure/financial",
+      "packages/domain/subscription",
+      "packages/application/subscription",
+      "packages/infrastructure/subscription",
+    ],
+    minLineCoverage: 57,
+    maxUnmeasuredFiles: 19,
+    reason: null,
+    owner: "فريق المنصّة",
+  },
+  {
+    criticalPath: "السلامةُ والاستغاثة",
+    roots: [
+      "packages/domain/safety",
+      "packages/application/safety",
+      "packages/infrastructure/safety",
+    ],
+    minLineCoverage: 59,
+    maxUnmeasuredFiles: 10,
+    reason: null,
+    owner: "فريق المنصّة",
+  },
+  {
+    /**
+     * أرضيّةٌ 100% على **ملفَّين مقيسَين من 23**، فهي أرضيّةٌ هشّةٌ بالبناءِ: أوّلُ
+     * ملفٍّ يدخل القياسَ بتغطيةٍ دونَ التامِّ يُسقِط البناءَ. وذلك مقصودٌ ومُعلَنٌ:
+     * السقوطُ حينَها **إشعارُ تحسُّنٍ** يُعاد فيه القياسُ ويُحدَّث المدخلُ، لا خطأً
+     * يُداوى بتخفيضِ الأرضيّة.
+     */
+    criticalPath: "توثيقُ السائق",
+    roots: [
+      "packages/domain/kyc",
+      "packages/application/kyc",
+      "packages/infrastructure/kyc",
+      "packages/domain/documents",
+      "packages/application/documents",
+      "packages/infrastructure/documents",
+    ],
+    minLineCoverage: 100,
+    maxUnmeasuredFiles: 21,
+    reason: null,
+    owner: "فريق المنصّة",
+  },
+  {
+    criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
+    roots: [
+      "packages/domain/scheduling",
+      "packages/application/scheduling",
+      "packages/infrastructure/scheduling",
+    ],
+    minLineCoverage: 48,
+    maxUnmeasuredFiles: 11,
+    reason: null,
+    owner: "فريق المنصّة",
+  },
+  {
+    /**
+     * 7% ليست حكماً بالكفايةِ: كلُّ مسالكِ النسخِ تحتاج قاعدةً حقيقيّةً وأداةَ
+     * `pg_dump`، فما يُقاس في `verify` هو التحقّقُ من الإعدادِ والاختيارُ للتقليمِ
+     * لا النسخُ نفسُه. الأرضيّةُ ههنا **حرزٌ من انحدارٍ** لا شهادةُ تغطيةٍ.
+     */
+    criticalPath: "النسخُ والاستعادة",
+    roots: ["packages/infrastructure/backup"],
+    minLineCoverage: 7,
+    maxUnmeasuredFiles: 0,
+    reason: null,
+    owner: "فريق العمليّات",
+  },
+  {
+    /**
+     * المخطّطُ نفسُه SQL في `db/migrations` ولا تقيسه أداةُ تغطيةٍ لـTypeScript؛
+     * حراستُه في `check-migrations.ts` و`check-schema-contract.ts` و`check-rollback-safety.ts`.
+     * المقيسُ ههنا شيفرةُ الوصولِ وتفعيلُ المدنِ فقط.
+     */
+    criticalPath: "المخطّطُ وتفعيلُ المدن",
+    roots: ["packages/infrastructure/db", "scripts/activate-launch-cities.ts"],
+    minLineCoverage: 60,
+    maxUnmeasuredFiles: 0,
+    reason: null,
+    owner: "فريق العمليّات",
+  },
+];
