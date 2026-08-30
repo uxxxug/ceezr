@@ -24,6 +24,7 @@
     "check:coverage": "bun run test:coverage && bun run scripts/check-coverage-gate.ts coverage/lcov.info",
     "test:integration": "bun test tests/integration",
     "test:e2e": "bun test tests/e2e",
+    "test:real-redis": "bun test tests/real-redis",
     "check:test-city-activation": "bun run scripts/check-test-city-activation.ts",
     "check:test-container-lifecycle": "bun run scripts/check-test-container-lifecycle.ts",
     "check:schema-contract": "bun run scripts/check-schema-contract.ts",
