@@ -32,6 +32,10 @@ import {
   resolveMapStyle,
 } from "../../../packages/maps/index.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
+import {
+  DECIDED_EVENT_DISTRIBUTION,
+  singleInstanceInvariantViolation,
+} from "../../../packages/shared/config/single-instance.ts";
 import type { CityId } from "../../../packages/shared/kernel/index.ts";
 import { jobHealthExpectations } from "../../workers/src/container.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
@@ -79,6 +83,29 @@ if (!configResult.ok) {
 }
 
 const config = configResult.value;
+
+/**
+ * شرطُ صحّةِ النسخةِ الواحدةِ — يُفحَص قبلَ تركيبِ شيءٍ (`R-17` · ADR 0050).
+ *
+ * وموضعُه ههنا لا في آخرِ الإقلاعِ: خدمةٌ تُنشئ اتّصالاتِ قاعدةٍ وتُسجِّل مسالكَ ثمّ
+ * تسقط ليست «فشلاً سريعاً». والفحصُ **بعدَ** تحميلِ الضبطِ لأنّه يقرأ `sessionStore`
+ * منه، و**قبلَ** الحاوية لأنّ الناقلَ داخلَ العمليةِ يُركَّب فيها.
+ *
+ * وما يُرفَض ههنا ليس `redis` بذاتِها، بل **تنافرٌ مُعلَنٌ**: طوبولوجيا متعدّدةُ
+ * العملياتِ مع ناقلِ أحداثٍ لا يعبر العمليةَ. وذلك ما يصفه `R-17` بالكسرِ الصامتِ،
+ * فصار صاخباً. ولا تجاوزَ بمتغيّرِ بيئةٍ: راجع الترويسةَ في `single-instance.ts`.
+ */
+const topologyViolation = singleInstanceInvariantViolation({
+  sessionStore: config.sessionStore,
+  distribution: DECIDED_EVENT_DISTRIBUTION,
+});
+
+if (topologyViolation !== null) {
+  console.error("❌ تعذّر إقلاع البوابة:");
+  console.error(`   [${topologyViolation.code}] ${topologyViolation.message}`);
+  process.exit(1);
+}
+
 const startedAt = new Date();
 
 /**
