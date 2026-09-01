@@ -277,6 +277,9 @@ export function analyse(content: string): readonly Finding[] {
      */
     if (service.processTopology === null || service.processTopology.length === 0) {
       findings.push({
+        // طبقةُ ملفِّ النشرِ توجب إعلاناً صريحاً، وطبقةُ العمليةِ تفترض
+        // `single-process` عندَ الغيابِ (ADR 0051 §٢-ب). والفرقُ مقصودٌ: الملفُّ
+        // إعلانُ نيّةٍ يُقرأ بجانبِ `numInstances` فلا يُقبَل فيه سكوتٌ.
         code: "MISSING_PROCESS_TOPOLOGY",
         message:
           `الخدمةُ «${service.name}» (السطر ${service.startLine}) بلا متغيّرِ PROCESS_TOPOLOGY. ` +

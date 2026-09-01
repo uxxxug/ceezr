@@ -240,6 +240,15 @@ describe("نقطةُ إقلاعِ البوابةِ — سقوطٌ حقيقيٌّ
     expect(result.stderr).not.toContain("SINGLE_INSTANCE_INVARIANT");
   }, 60_000);
 
+  /**
+   * **الغيابُ ليس البطلانَ** (ADR 0051 §٢-ب): المفتاحُ الغائبُ من بيئةِ العمليةِ
+   * يُقرأ `single-process` — وهو حالُ الإنتاجِ القائمُ — بينما القيمةُ المكتوبةُ
+   * التي لا تُفهَم تمنع الإقلاعَ (الفحصُ أعلاه). والحالتان مفصولتانِ عن قصدٍ.
+   *
+   * **ولا يُقاس على هذا ملفُّ النشرِ:** غيابُ الإعلانِ من `render.yaml` **خرقٌ**
+   * (`MISSING_PROCESS_TOPOLOGY` في `check-instance-invariant.test.ts`) لأنّه
+   * إعلانُ نيّةٍ يُقرأ بجانبِ `numInstances` (§٢-هـ).
+   */
   it("غيابُ PROCESS_TOPOLOGY ⇒ الافتراضُ single-process ولا يمنع الإقلاعَ", async () => {
     const result = await bootGatewayUntilPastGuard({ SESSION_STORE: "redis" });
     expect(result.outcome).toBe("still-running");

@@ -147,8 +147,24 @@ describe("الحكمُ — قبولٌ ورفضٌ", () => {
   /**
    * ## الطوبولوجيا (ADR 0051) — التكافؤُ في الاتّجاهَين
    */
-  it("غيابُ PROCESS_TOPOLOGY ⇒ سقوطٌ — الغيابُ ليس «عمليةً واحدةً»", () => {
+  /**
+   * **طبقتانِ لهما قاعدتانِ عن قصدٍ** (ADR 0051 §٢-ب مقابلَ §٢-هـ):
+   * في **بيئةِ العمليةِ** غيابُ المفتاحِ يُقرأ `single-process` افتراضاً مُعلَناً
+   * (مُثبَّتٌ في `config-loading.test.ts` و`single-instance-invariant.test.ts`)،
+   * وفي **ملفِّ النشرِ** غيابُ الإعلانِ **خرقٌ** — لأنّ الملفَّ يُقرأ بجانبِ
+   * `numInstances`، وسكوتُه يُبطِل التكافؤَ الذي يفرضه هذا الحاجزُ.
+   */
+  it("غيابُ PROCESS_TOPOLOGY من ملفِّ النشرِ ⇒ سقوطٌ — لا افتراضَ ههنا", () => {
     expect(codes(withoutTopology(SOUND))).toContain("MISSING_PROCESS_TOPOLOGY");
+  });
+
+  it("والغيابُ يُميَّز عن البطلانِ برمزَين مختلفَين لا برمزٍ واحدٍ", () => {
+    const missing = codes(withoutTopology(SOUND));
+    const invalid = codes(withTopology(SOUND, "many"));
+    expect(missing).toContain("MISSING_PROCESS_TOPOLOGY");
+    expect(missing).not.toContain("INVALID_PROCESS_TOPOLOGY");
+    expect(invalid).toContain("INVALID_PROCESS_TOPOLOGY");
+    expect(invalid).not.toContain("MISSING_PROCESS_TOPOLOGY");
   });
 
   it("قيمةُ طوبولوجيا غيرُ صالحةٍ ⇒ سقوطٌ ولا تُردّ إلى الافتراضِ", () => {

@@ -216,6 +216,52 @@ describe("ضبط الخريطة (المرحلة ١٠)", () => {
     }
   });
 
+  /**
+   * ## `PROCESS_TOPOLOGY` — الغيابُ ليس البطلانَ (ADR 0051 §٢-ب)
+   *
+   * الفرقُ بين الحالتَين **عقدٌ لا تفصيلُ تنفيذٍ**، فيُثبَّت باختبارٍ يميّزهما
+   * صراحةً بدلَ أن يُقرأ ضمناً من نجاحِ حالةٍ واحدة.
+   */
+  it("غيابُ PROCESS_TOPOLOGY ⇒ single-process — افتراضٌ مُعلَنٌ لا سكوتٌ", () => {
+    expect(FULL.PROCESS_TOPOLOGY).toBeUndefined();
+    const result = tryLoadConfig(FULL);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.processTopology).toBe("single-process");
+  });
+
+  it("قيمةٌ فارغةٌ أو مسافاتٌ ⇒ خطأُ إعدادٍ — كُتِب شيءٌ لم يُفهَم", () => {
+    // مفتاحٌ مضبوطٌ بلا قيمةٍ ليس مفتاحاً غائباً: الأوّلُ فعلُ كاتبٍ، والثاني سكوتُه.
+    for (const PROCESS_TOPOLOGY of ["", " ", "\t"]) {
+      const result = tryLoadConfig({ ...FULL, PROCESS_TOPOLOGY });
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe("INVALID_ENV_VAR");
+    }
+  });
+
+  it("قيمةٌ مجهولةٌ ⇒ خطأُ إعدادٍ لا ردٌّ صامتٌ إلى الافتراضِ", () => {
+    for (const PROCESS_TOPOLOGY of ["many", "cluster", "single", "multi", "1"]) {
+      const result = tryLoadConfig({ ...FULL, PROCESS_TOPOLOGY });
+      expect(result.ok).toBe(false);
+      if (result.ok) continue;
+      expect(result.error.code).toBe("INVALID_ENV_VAR");
+    }
+  });
+
+  it("القيمتان الصالحتان تُقرآن، وتسويةُ الحالةِ والمسافاتِ على سابقةِ الملفِّ", () => {
+    for (const [PROCESS_TOPOLOGY, expected] of [
+      ["single-process", "single-process"],
+      ["multi-process", "multi-process"],
+      [" Multi-Process ", "multi-process"],
+    ] as const) {
+      const result = tryLoadConfig({ ...FULL, PROCESS_TOPOLOGY });
+      expect(result.ok).toBe(true);
+      if (!result.ok) continue;
+      expect(result.value.processTopology).toBe(expected);
+    }
+  });
+
   it("MAP_TILES_URL لم يُعد اسماً معروفاً: اسمٌ واحد لا اسمان", () => {
     // كان `.env.example` يُعلن MAP_TILES_URL و`render.yaml` يُعلن MAP_STYLE_URL،
     // وكلاهما لم يُقرأ. الاسم القانوني الآن MAP_STYLE_URL وحده، وهذا الاختبار
