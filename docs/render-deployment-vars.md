@@ -87,6 +87,29 @@ curl -X POST "https://api.telegram.org/bot<TOKEN>/setWebhook" \
 `session.store_selected` في السجلّ ومن `/ready` → **ثم** ارفع `numInstances`.
 العكس يُنتج حواراتٍ مكسورة بين النشرتين.
 
+وهذه الخطوة الأولى — `redis` بنسخةٍ واحدة — **مسموحة صراحةً** ولا يمنعها إقلاعُ
+النظام. وكانت ممنوعةً قبل [ADR 0051](adr/0051-process-topology-is-declared-not-inferred-from-session-store.md)
+لأنّ الإنفاذ كان يقرأ `redis` إعلانَ تعدّدِ عمليات، وهو استدلالٌ معكوس: اللزوم
+`multi-process ⇒ redis` ولا عكس له.
+
+### `PROCESS_TOPOLOGY` — `single-process` (افتراضي) أو `multi-process`
+
+> ⚠️ **`multi-process` مرفوض اليوم ويمنع الإقلاع**: آلية توزيع الأحداث `in-process`
+> ولا تعبر حدود العملية (ADR 0050 §٣-د).
+
+هذا هو المحور الذي يُعلن **«كم عمليةً نحن»**، وهو **مستقلٌّ تماماً** عن
+`SESSION_STORE` الذي يُعلن **«أين تُحفظ حالة الحوار»**. وخلطُ المحورَين هو العيب
+الذي صحّحه ADR 0051.
+
+- **قيمةٌ غير مفهومة تمنع الإقلاع ولا تُردّ إلى الافتراض** — بخلاف
+  `RUN_WORKER_IN_GATEWAY`: هذا شرطُ صحّةٍ لا مُفعِّل ميزة.
+- **يجب أن يكافئ `numInstances` في `render.yaml`:** `numInstances == 1 ⟺ single-process`.
+  والحاجز `scripts/check-instance-invariant.ts` في سلسلة `bun run ci` يُسقط البناء
+  برمز خروج غير صفري على: غياب المتغيّر، أو قيمةٍ غير صالحة، أو تنافرٍ بينه وبين
+  عدد النسخ، أو إعلانِ `multi-process` أصلاً، أو رفعِ النسخ مع `memory`.
+- **ولا `INSTANCE_COUNT`:** Render لا يُصدّر عدد النسخ إلى العملية، فقيمةٌ تُكتب
+  بيدٍ تُخالف ملفّ النشر بلا كاشف.
+
 ### `RUN_WORKER_IN_GATEWAY` — `false` (افتراضي) أو `true`
 
 > ⚠️ **إلزامي أن يكون `true` ما لم تكن خدمة `waslah-worker` موجودة فعلاً وتعمل.**

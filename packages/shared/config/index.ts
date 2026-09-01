@@ -101,6 +101,21 @@ export interface AppConfig {
    */
   readonly sessionStore: SessionStoreName;
   /**
+   * كم عمليةً يعمل النظامُ؟ محورٌ **مستقلٌّ** عن `sessionStore` (ADR 0051).
+   *
+   * ولماذا محورٌ ثانٍ لا استنتاجٌ من الأوّل: العلاقةُ التي يُثبِتها `ADR 0011` هي
+   * `multi-process ⇒ redis` — أي أنّ Redis **شرطٌ لازمٌ** لتعدُّدِ العملياتِ لا
+   * **دليلٌ** عليه. فنسخةٌ واحدةٌ بجلساتٍ في Redis حالةٌ مشروعةٌ، بل هي الخطوةُ
+   * الأولى في مسارِ الانتقالِ المكتوبِ في `docs/render-deployment-vars.md` §٣.
+   * وقراءةُ `SESSION_STORE` طوبولوجيا كانت تُحرِّم تلك الخطوةَ (ADR 0051 §١).
+   *
+   * ليست في `REQUIRED_ENV_KEYS`: الافتراضُ `single-process` هو حالُ الإنتاجِ اليومَ
+   * (`numInstances: 1`)، فالغيابُ لا يُغيِّر سلوكاً قائماً. **أمّا القيمةُ التي لا
+   * تُفهَم فخطأُ إعدادٍ حتميٌّ يمنع الإقلاعَ ولا تُردّ إلى الافتراضِ**: من كتب قيمةً
+   * قصدَ شيئاً، وردُّها صمتاً من جنسِ ما يشكو منه `R-17`.
+   */
+  readonly processTopology: ProcessTopologyName;
+  /**
    * ناقلُ الرسائل الصادرة. `real` في كلّ تشغيلٍ حقيقي، و`silent` للقياس فقط
    * ومرفوضٌ في الإنتاج. راجع `TELEGRAM_TRANSPORT_NAMES` لسبب سكناه في الضبط.
    */
@@ -201,6 +216,21 @@ export interface AppConfig {
 export const SESSION_STORE_NAMES = ["memory", "redis"] as const;
 
 export type SessionStoreName = (typeof SESSION_STORE_NAMES)[number];
+
+/**
+ * طوبولوجيا التشغيل — محورُ «كم عمليةً نحن» (ADR 0051 §٢-ب).
+ *
+ * وهو **غيرُ** محورِ `SESSION_STORE`: ذاك يجيب «أين تُخزَّن حالةُ الجلسةِ»، وهذا
+ * يجيب «هل نحن أكثرُ من عمليةٍ». وخلطُهما هو العيبُ الذي نسخَه `ADR 0051` من
+ * `ADR 0050` §٣-ب.
+ *
+ * ولا `INSTANCE_COUNT` ولا رقمَ نسخٍ في البيئةِ: Render لا يُصدِّر عددَ النسخِ إلى
+ * العمليةِ، فقيمةٌ تُكتَب بيدٍ تُخالِف `render.yaml` بلا كاشفٍ. والحرفُ يُحرَس حيثُ
+ * يوجد — `numInstances` في ملفِّ النشرِ بحاجزِ `scripts/check-instance-invariant.ts`.
+ */
+export const PROCESS_TOPOLOGY_NAMES = ["single-process", "multi-process"] as const;
+
+export type ProcessTopologyName = (typeof PROCESS_TOPOLOGY_NAMES)[number];
 
 /**
  * ناقلُ الرسائل الصادرة إلى تلغرام.
@@ -449,6 +479,21 @@ export function tryLoadConfig(
     );
   }
 
+  /**
+   * الطوبولوجيا تُعلَن ولا تُستنتَج (ADR 0051). والقيمةُ غيرُ الصالحةِ **سقوطٌ
+   * حتميٌّ** لا ردٌّ إلى الافتراضِ — على نمطِ `SESSION_STORE` لا نمطِ
+   * `RUN_WORKER_IN_GATEWAY`: هذا شرطُ صحّةٍ لا مُفعِّلُ ميزةٍ.
+   */
+  const rawProcessTopology = (source.PROCESS_TOPOLOGY ?? "single-process").trim().toLowerCase();
+  if (!(PROCESS_TOPOLOGY_NAMES as readonly string[]).includes(rawProcessTopology)) {
+    return err(
+      new InvalidEnvVarError(
+        "PROCESS_TOPOLOGY",
+        `المتاح: ${PROCESS_TOPOLOGY_NAMES.join(", ")} — وردت: ${rawProcessTopology}`,
+      ),
+    );
+  }
+
   const rawTelegramTransport = (source.TELEGRAM_TRANSPORT ?? "real").trim().toLowerCase();
   if (!(TELEGRAM_TRANSPORT_NAMES as readonly string[]).includes(rawTelegramTransport)) {
     return err(
@@ -638,6 +683,7 @@ export function tryLoadConfig(
       ? null
       : (source.TRANSLATION_CONTACT_EMAIL as string).trim(),
     sessionStore: rawSessionStore as SessionStoreName,
+    processTopology: rawProcessTopology as ProcessTopologyName,
     telegramTransport: rawTelegramTransport as TelegramTransportName,
     // الافتراض `true` لا `false`، وهذا قلبٌ متعمّد للافتراض القديم. وجها الخطأ ليسا
     // متكافئين: خطأ `true` مع وجود خدمة `waslah-worker` يعني أن القفل الموزّع يجعل

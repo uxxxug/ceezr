@@ -34,6 +34,24 @@
  *   آخرُ مفتوحٌ (`F5-03` · `SCL-002`)، وليس هذا موضعَه. وإنّما يُقرأ ههنا
  *   **اقتراناً**: عددُ نسخٍ فوقَ الواحدةِ مع `memory` خرقٌ مزدوجٌ (ADR 0011).
  * - **لا يمسّ عددَ النسخِ.** يقرأ ولا يكتب.
+ *
+ * ## التوسعةُ بـADR 0051 — الطوبولوجيا تُعلَن ولا تُستنتَج
+ *
+ * الحاجزُ **وُسِّع في موضعِه ولم يُستنسَخ**: حارسٌ ثانٍ يقرأ الملفَّ نفسَه يُنشئ
+ * موضعَي حقيقةٍ يتباعدان. والمُضافُ قراءةُ `PROCESS_TOPOLOGY` من متغيّراتِ الخدمةِ،
+ * وإنفاذُ **تكافؤٍ في الاتّجاهَين**:
+ *
+ * ```
+ * numInstances == 1   ⟺   PROCESS_TOPOLOGY == single-process
+ * ```
+ *
+ * ولمَ تكافؤٌ لا شرطٌ في اتّجاهٍ واحدٍ: الطرفانِ **إعلانانِ عن الشيءِ نفسِه** في
+ * موضعَين، وإعلانانِ متنافرانِ أسوأُ من إعلانٍ واحدٍ خاطئٍ — لأنّ كلَّ قارئٍ
+ * يُصدِّق أحدَهما. فمَن رفع النسخَ ونسي الطوبولوجيا يسقط، ومَن أعلن
+ * `multi-process` وأبقى النسخةَ واحدةً يسقط كذلك.
+ *
+ * وتُقرأ `PROCESS_TOPOLOGY` **دلالةً على الطوبولوجيا وحدَها**، و`SESSION_STORE`
+ * **دلالةً على مكانِ الجلساتِ وحدَه** — ولا يُستنتَج أحدُهما من الآخرِ (ADR 0051 §١).
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -59,10 +77,25 @@ export const CLASSIFIED_SERVICES: Readonly<Record<string, string>> = {
 /** خدمةٌ يجب حضورُها — كي لا ينجحَ الحاجزُ على ملفٍّ فُرِّغَ من الخدمةِ المعنيّةِ. */
 export const REQUIRED_SERVICES = ["waslah-gateway"] as const;
 
+/**
+ * القيمُ الصالحةُ لـ`PROCESS_TOPOLOGY`. تُكرَّر ههنا ولا تُستورَد من
+ * `packages/shared/config`: الحاجزُ أداةُ مستودعٍ تقرأ نصّاً، وربطُه بشيفرةِ
+ * الإنتاجِ يجعل خطأً في الأولى يُعمي الثانيةَ. والتكرارُ نفسُه محروسٌ بالاختبارِ
+ * الذي يُطابِق القائمتَين.
+ */
+export const VALID_PROCESS_TOPOLOGIES = ["single-process", "multi-process"] as const;
+
+/** متغيّراتُ البيئةِ التي يلتقطها الحاجزُ من كلِّ خدمةٍ. قائمةٌ مغلقةٌ. */
+const TRACKED_ENV_KEYS = ["SESSION_STORE", "PROCESS_TOPOLOGY"] as const;
+
+type TrackedEnvKey = (typeof TRACKED_ENV_KEYS)[number];
+
 export interface ServiceDeclaration {
   readonly name: string | null;
   readonly numInstances: string | null;
   readonly sessionStore: string | null;
+  /** قيمةُ `PROCESS_TOPOLOGY` المُعلَنةُ للخدمةِ، أو `null` إن لم تُعلَن (ADR 0051). */
+  readonly processTopology: string | null;
   /** رقمُ سطرِ `numInstances` — للإحالةِ في الرسالةِ، أو `null` إن غاب الحقلُ. */
   readonly instancesLine: number | null;
   readonly startLine: number;
@@ -71,6 +104,7 @@ export interface ServiceDeclaration {
 interface MutableService {
   name: string | null;
   numInstances: string | null;
+  processTopology: string | null;
   sessionStore: string | null;
   instancesLine: number | null;
   startLine: number;
@@ -89,7 +123,7 @@ function bareValue(raw: string): string {
 export function servicesFromManifest(content: string): readonly ServiceDeclaration[] {
   const services: MutableService[] = [];
   let current: MutableService | null = null;
-  let inSessionStoreEntry = false;
+  let pendingEnvKey: TrackedEnvKey | null = null;
 
   content.split("\n").forEach((raw, index) => {
     if (raw.trim().startsWith("#")) return;
@@ -99,12 +133,13 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
       current = {
         name: null,
         numInstances: null,
+        processTopology: null,
         sessionStore: null,
         instancesLine: null,
         startLine: index + 1,
       };
       services.push(current);
-      inSessionStoreEntry = false;
+      pendingEnvKey = null;
       if (serviceStart[1] === "name") current.name = bareValue(serviceStart[2] ?? "");
       return;
     }
@@ -113,7 +148,7 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
 
     const field = /^ {4}([A-Za-z][A-Za-z0-9_]*):\s*(.*)$/.exec(raw);
     if (field !== null) {
-      inSessionStoreEntry = false;
+      pendingEnvKey = null;
       if (field[1] === "name") current.name = bareValue(field[2] ?? "");
       if (field[1] === "numInstances") {
         current.numInstances = bareValue(field[2] ?? "");
@@ -124,13 +159,18 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
 
     const envKey = /^ {6}-\s+key:\s*(.*)$/.exec(raw);
     if (envKey !== null) {
-      inSessionStoreEntry = bareValue(envKey[1] ?? "") === "SESSION_STORE";
+      const key = bareValue(envKey[1] ?? "");
+      pendingEnvKey = (TRACKED_ENV_KEYS as readonly string[]).includes(key)
+        ? (key as TrackedEnvKey)
+        : null;
       return;
     }
 
     const envValue = /^ {8}value:\s*(.*)$/.exec(raw);
-    if (envValue !== null && inSessionStoreEntry) {
-      current.sessionStore = bareValue(envValue[1] ?? "");
+    if (envValue !== null && pendingEnvKey !== null) {
+      const value = bareValue(envValue[1] ?? "");
+      if (pendingEnvKey === "SESSION_STORE") current.sessionStore = value;
+      else current.processTopology = value;
     }
   });
 
@@ -147,7 +187,11 @@ export interface Finding {
     | "MISSING_NUM_INSTANCES"
     | "INVALID_NUM_INSTANCES"
     | "INSTANCES_ABOVE_ONE"
-    | "SESSION_STORE_INCOHERENT";
+    | "SESSION_STORE_INCOHERENT"
+    | "MISSING_PROCESS_TOPOLOGY"
+    | "INVALID_PROCESS_TOPOLOGY"
+    | "TOPOLOGY_INSTANCES_MISMATCH"
+    | "MULTI_PROCESS_WITHOUT_DISTRIBUTION";
   readonly message: string;
 }
 
@@ -224,6 +268,62 @@ export function analyse(content: string): readonly Finding[] {
     }
 
     const instances = Number.parseInt(service.numInstances, 10);
+
+    /*
+     * الطوبولوجيا (ADR 0051): تُفحَص **قبلَ** الحكمِ على العددِ، لأنّ إعلاناً
+     * مفقوداً أو غيرَ مفهومٍ يُبطِل الحكمَ على الاتّساقِ أصلاً. ولا `continue`
+     * بعدَها: عددُ النسخِ يُحكَم عليه في كلِّ حالٍ كي لا يُخفيَ خطأُ طوبولوجيا
+     * خرقاً في العددِ.
+     */
+    if (service.processTopology === null || service.processTopology.length === 0) {
+      findings.push({
+        code: "MISSING_PROCESS_TOPOLOGY",
+        message:
+          `الخدمةُ «${service.name}» (السطر ${service.startLine}) بلا متغيّرِ PROCESS_TOPOLOGY. ` +
+          "والغيابُ ليس «عمليةً واحدةً»: يصير أهمُّ محورٍ في شرطِ صحّةِ R-17 ضمنيّاً " +
+          `غيرَ مكتوبٍ في ملفِّ النشرِ. يُصرَّح بإحدى: ${VALID_PROCESS_TOPOLOGIES.join(" · ")} (ADR 0051 §٢-ب).`,
+      });
+    } else if (!(VALID_PROCESS_TOPOLOGIES as readonly string[]).includes(service.processTopology)) {
+      findings.push({
+        code: "INVALID_PROCESS_TOPOLOGY",
+        message:
+          `الخدمةُ «${service.name}» (السطر ${service.startLine}): قيمةُ PROCESS_TOPOLOGY ` +
+          `«${service.processTopology}» غيرُ معروفةٍ. المتاح: ${VALID_PROCESS_TOPOLOGIES.join(" · ")}. ` +
+          "ولا تُردُّ القيمةُ المجهولةُ إلى الافتراضِ: من كتبها قصدَ شيئاً، والصمتُ عنها " +
+          "عينُ ما يشكو منه R-17.",
+      });
+    } else {
+      const declaredSingle = service.processTopology === "single-process";
+      const declaredOneInstance = instances === 1;
+
+      if (declaredSingle !== declaredOneInstance) {
+        findings.push({
+          code: "TOPOLOGY_INSTANCES_MISMATCH",
+          message:
+            `الخدمةُ «${service.name}» (${at}): إعلانانِ متنافرانِ — numInstances = ${instances} ` +
+            `وPROCESS_TOPOLOGY = «${service.processTopology}». والمُلزَمُ تكافؤٌ: ` +
+            "numInstances == 1 ⟺ single-process (ADR 0051 §٢-هـ). " +
+            "وإعلانانِ متنافرانِ أسوأُ من واحدٍ خاطئٍ: كلُّ قارئٍ يُصدِّق أحدَهما.",
+        });
+      }
+
+      /*
+       * الرفضُ على **الطوبولوجيا والتوزيعِ** لا على مخزنِ الجلساتِ (ADR 0051 §٢-ج).
+       * وآليةُ التوزيعِ المُقرَّرةُ اليومَ `in-process` ثابتاً في الشيفرةِ، فأيُّ
+       * إعلانِ `multi-process` خرقٌ ما دامت كذلك.
+       */
+      if (!declaredSingle) {
+        findings.push({
+          code: "MULTI_PROCESS_WITHOUT_DISTRIBUTION",
+          message:
+            `الخدمةُ «${service.name}» (السطر ${service.startLine}) تُعلِن PROCESS_TOPOLOGY = ` +
+            "«multi-process»، وآليةُ توزيعِ الأحداثِ المُقرَّرةُ «in-process» لا تعبر حدودَ " +
+            "العمليةِ (ADR 0050 §٣-د). فمشتركٌ على نسخةٍ لا يرى حدثاً نُشِر في أخرى. " +
+            "ولا يُعلَن multi-process إلّا بعدَ ADR ناسخٍ يعتمد آليةَ توزيعٍ عابرةً.",
+        });
+      }
+    }
+
     if (instances !== 1) {
       findings.push({
         code: "INSTANCES_ABOVE_ONE",
@@ -233,6 +333,15 @@ export function analyse(content: string): readonly Finding[] {
           "وهذا شرطُ صحّةٍ لا تفضيلُ سعةٍ (R-17 · ADR 0050): رفعُه بلا آليةِ توزيعٍ " +
           "يكسر السلوكَ صامتاً. ولا يُرفَع إلّا بـADR ناسخٍ لـADR 0050 §٨.",
       });
+      if (instances > 1) {
+        findings.push({
+          code: "MULTI_PROCESS_WITHOUT_DISTRIBUTION",
+          message:
+            `وزيادةً على ذلك: «${service.name}» ترفع النسخَ فوقَ الواحدةِ وآليةُ التوزيعِ ` +
+            "المُقرَّرةُ «in-process» لا تعبر حدودَ العمليةِ (ADR 0050 §٣-د · ADR 0051 §٢-ج). " +
+            "فالرفضُ على الطوبولوجيا والتوزيعِ، لا على مخزنِ الجلساتِ.",
+        });
+      }
       if (instances > 1 && service.sessionStore !== null && service.sessionStore !== "redis") {
         findings.push({
           code: "SESSION_STORE_INCOHERENT",

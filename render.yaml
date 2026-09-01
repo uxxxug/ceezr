@@ -8,6 +8,11 @@
 #     أبداً. من كتب رمز بوت في ملف مدفوع فقد البوت لا الملف.
 #   - عند رفع numInstances فوق 1 يصير SESSION_STORE=redis إلزامياً لا اختيارياً
 #     (ADR 0011)، ويصير حدّ المعدّل موزّعاً تلقائياً على نفس المفتاح.
+#   - واللزوم في اتجاهٍ واحد: multi-process ⇒ redis، ولا عكس. فـSESSION_STORE=redis
+#     بنسخةٍ واحدة حالةٌ مشروعة ولا تدلّ على تعدّد عمليات (ADR 0051).
+#   - PROCESS_TOPOLOGY هو المحور الذي يُعلن «كم عمليةً نحن»، ويجب أن يكافئ العدد
+#     المُعلَن ههنا: numInstances == 1 ⟺ single-process. والحاجز
+#     scripts/check-instance-invariant.ts يُسقط البناء على أيّ تنافر بينهما.
 #   - الانتقال إلى Fly.io البحرين لاحقاً يُبدّل هذا الملف ولا يُبدّل شيئاً في الكود:
 #     كل ما هنا متغيّرات بيئة وأوامر، ولا شيء منه مستورَد في أي مصدر.
 
@@ -30,9 +35,13 @@ services:
         value: production
       - key: PORT
         value: "8080"
-      # مخزن الجلسات: memory صالح لنسخة واحدة فقط. راجع docs/render-deployment-vars.md
+      # مخزن الجلسات — أين تُحفظ حالة الحوار وحدها. لا يدلّ على عدد العمليات (ADR 0051).
       - key: SESSION_STORE
         value: memory
+      # طوبولوجيا التشغيل — «كم عمليةً نحن» (ADR 0051). يكافئ numInstances أعلاه،
+      # ورفعه إلى multi-process يُسقط الحاجز ما دامت آلية التوزيع in-process.
+      - key: PROCESS_TOPOLOGY
+        value: single-process
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
@@ -180,6 +189,9 @@ services:
       # العامل لا يخدّم حواراً فلا يقرأ جلسات؛ يُترك memory بلا أثر.
       - key: SESSION_STORE
         value: memory
+      # عمليةٌ واحدة كذلك — والقفل الموزّع يحمي المهامّ لا الطوبولوجيا (ADR 0051).
+      - key: PROCESS_TOPOLOGY
+        value: single-process
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL

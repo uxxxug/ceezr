@@ -40,6 +40,9 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     redisUrl: "http://localhost",
     redisToken: "local-test",
     sessionStore: "memory",
+    // عمليةٌ واحدةٌ — محورٌ مستقلٌّ عن `sessionStore` (ADR 0051). واختبارٌ يريد
+    // طوبولوجيا متعدّدةً يُعلنها في `overrides` فيظهر قصدُه في موضعِ الاستدعاء.
+    processTopology: "single-process",
     // `real` وليس `silent`: الاختبارات تمرّر مُرسِلاً ملتقطاً عبر `overrides` في
     // الحاوية، فلا نداء شبكيّ أصلاً. وإعلانه `silent` كان سيكذب على القارئ:
     // الناقل الصامت مسارٌ أخر للقياس، لا وصفاً لما تفعله الاختبارات.
