@@ -10,20 +10,13 @@ import type { LatLng } from "../maps/core/types.ts";
 /** معرّف سائق (إعادة تصدير للوضوح). */
 export type { LatLng } from "../maps/core/types.ts";
 
-/** تحديث موقع GPS من السائق. */
-export interface GpsUpdate {
-  readonly driverId: string;
-  readonly tripId: string | null;
-  readonly position: LatLng;
-  /** الاتجاه بالدرجات (0-359). */
-  readonly heading?: number;
-  /** السرعة كم/سا. */
-  readonly speed?: number;
-  /** دقة GPS بالمتر. */
-  readonly accuracy?: number;
-  /** الطابع الزمني من الجهاز (epoch ms). */
-  readonly timestamp: number;
-}
+/**
+ * المرحلة ١٢ — حُذف من هنا `GpsUpdate` و`ValidationResult` بـADR-0052 مع
+ * `TrackingService`: كانا مدخلَ ذلك المسارِ ومخرجَه، ولم يبقَ لهما مستدعٍ بعده.
+ * ومدخلُ المسار الحيّ ليس هذا: هو `StoredFix` في `packages/application/tracking`،
+ * محسوبٌ **بعد** الكتابة القانونية لا قبلها. ونوعُ مدخلٍ لمسارٍ محذوفٍ يبقى في
+ * الشجرة دعوةٌ لأن يُبنى عليه ثانيةً ما هُدم.
+ */
 
 /**
  * المرحلة ٥ — حالة الجلسة تُعرَّف في المجال لا هنا.
@@ -40,13 +33,6 @@ export type {
   TrackingSessionFacts,
   TrackingSessionState,
 } from "../domain/tracking/session.ts";
-
-/** نتيجة التحقّق من صحة موقع GPS. */
-export interface ValidationResult {
-  readonly valid: boolean;
-  readonly reason?: string;
-  readonly corrected?: LatLng;
-}
 
 /** حدث تتبّع — يُطلق عند تغيّر حالة الرحلة. */
 export interface TrackingEvent {
@@ -76,6 +62,19 @@ export interface TrackingEvent {
   readonly cityId?: string;
   readonly timestamp: Date;
   readonly metadata?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * منفذ نشر أحداث التتبّع.
+ *
+ * كان مُعرَّفاً في `tracking-service.ts` المحذوف، وليس منه في شيء: مستهلكاه
+ * الفعليّان `packages/application/tracking/live-tracking.ts` و
+ * `packages/infrastructure/tracking/event-bus.ts` — أي المسارُ الحيّ وناقلُه، وكلاهما
+ * موصولٌ في `container.ts`. فنُقِل إلى جانب `TrackingEvent` بـADR-0052 ولم يُحذف،
+ * لأنّ منفذَ النشر ينتمي إلى الحدث لا إلى مَن كان ينشرُه يوماً.
+ */
+export interface TrackingEventPublisher {
+  publish(event: TrackingEvent): Promise<void>;
 }
 
 export type TrackingEventType =

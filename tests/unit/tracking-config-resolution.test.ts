@@ -15,8 +15,7 @@
 import { describe, expect, it } from "bun:test";
 import { assessGpsFix, DEFAULT_GPS_POLICY, hasFinding } from "../../packages/domain/geo/gps-fix.ts";
 import { NO_TRACKING_OVERRIDES } from "../../packages/shared/config/index.ts";
-import { resolveGpsPolicy, resolveTrackingConfig } from "../../packages/tracking/config.ts";
-import { DEFAULT_TRACKING_CONFIG } from "../../packages/tracking/tracking-service.ts";
+import { resolveGpsPolicy } from "../../packages/tracking/config.ts";
 
 const JEDDAH = { latitude: 21.5471, longitude: 39.1751 };
 /** على بعد ≈٢٤ كم شمالاً — قفزةٌ لا تُبلَغ لحظيّاً بأي وسيلة. */
@@ -25,7 +24,6 @@ const FAR = { latitude: 21.7671, longitude: 39.1751 };
 describe("دمج تجاوزات البيئة مع افتراض المجال", () => {
   it("بلا تجاوزات يكون الناتج افتراضَ المجال حرفاً بحرف", () => {
     expect(resolveGpsPolicy(NO_TRACKING_OVERRIDES)).toEqual(DEFAULT_GPS_POLICY);
-    expect(resolveTrackingConfig(NO_TRACKING_OVERRIDES)).toEqual(DEFAULT_TRACKING_CONFIG);
   });
 
   it("كلّ متغيّر يصل إلى حدّه المقصود ولا يُزحزح غيره", () => {
@@ -45,21 +43,15 @@ describe("دمج تجاوزات البيئة مع افتراض المجال", ()
     expect(policy.rejectOlderThanSeconds).toBe(DEFAULT_GPS_POLICY.rejectOlderThanSeconds);
   });
 
-  it("فواصل التتبّع تُضبَط، والمُقيِّم داخلها يتبع نفس التجاوزات", () => {
-    const config = resolveTrackingConfig({
-      ...NO_TRACKING_OVERRIDES,
-      gpsIntervalSeconds: 7,
-      gpsIdleIntervalSeconds: 45,
-      minDistanceMeters: 30,
-      maxReasonableSpeedKmh: 90,
-    });
-    expect(config.gpsIntervalSeconds).toBe(7);
-    expect(config.idleIntervalSeconds).toBe(45);
-    expect(config.minDistanceMeters).toBe(30);
-    // لا يجوز أن يبقى المُقيِّم على الافتراض بينما البيئة ضبطت حدّ السرعة:
-    // ذاك يعني حدَّين مختلفَين للسرعة في نظامٍ واحد بحسب المسار المستخدَم.
-    expect(config.validator.maxPlausibleSpeedKmh).toBe(90);
-  });
+  /**
+   * وكان ههنا اختبارٌ ثالثٌ لـ`resolveTrackingConfig` — فواصلُ التتبّع والمُقيِّم
+   * داخلها — وسقط بـADR-0052 مع `TrackingService`: الدالةُ نفسُها حُذفت لأنّها لم تكن
+   * تدمج إلا حدوداً لا يقرؤها إلا مسارٌ غيرُ موصول.
+   *
+   * وما كان يحرسُه ذاك الاختبار فعلاً — ألّا يبقى المُقيِّم على الافتراض بينما
+   * البيئة ضبطت حدّ السرعة — محروسٌ في الاختبار الذي قبله على `resolveGpsPolicy`
+   * مباشرةً، وهو الدالة النافذة فعلاً في `container.ts`. فلم تُفقَد تغطيةٌ.
+   */
 });
 
 describe("القفزة حين يتعذّر قياس السرعة — ثغرة الطابع الزمني الثابت", () => {

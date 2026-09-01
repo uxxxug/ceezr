@@ -17,7 +17,6 @@
 
 import { DEFAULT_GPS_POLICY, type GpsPolicy } from "../domain/geo/gps-fix.ts";
 import type { TrackingEnvOverrides } from "../shared/config/index.ts";
-import { DEFAULT_TRACKING_CONFIG, type TrackingConfig } from "./tracking-service.ts";
 
 /** حدود تقييم إصلاحة GPS النافذة فعلياً — افتراض المجال ما لم يتجاوزه المشغّل. */
 export function resolveGpsPolicy(overrides: TrackingEnvOverrides): GpsPolicy {
@@ -38,19 +37,15 @@ export function resolveGpsPolicy(overrides: TrackingEnvOverrides): GpsPolicy {
   };
 }
 
-/** إعداد طبقة التتبّع كاملاً — نفس المنهاج، والمُقيِّم داخله من `resolveGpsPolicy`. */
-export function resolveTrackingConfig(overrides: TrackingEnvOverrides): TrackingConfig {
-  return {
-    ...DEFAULT_TRACKING_CONFIG,
-    ...(overrides.gpsIntervalSeconds === null
-      ? {}
-      : { gpsIntervalSeconds: overrides.gpsIntervalSeconds }),
-    ...(overrides.gpsIdleIntervalSeconds === null
-      ? {}
-      : { idleIntervalSeconds: overrides.gpsIdleIntervalSeconds }),
-    ...(overrides.minDistanceMeters === null
-      ? {}
-      : { minDistanceMeters: overrides.minDistanceMeters }),
-    validator: resolveGpsPolicy(overrides),
-  };
-}
+/**
+ * وأين ذهب `resolveTrackingConfig`؟ حُذف بـADR-0052 مع `TrackingService`: لم يكن
+ * يدمج إلا ثلاثة حدودٍ لا يقرؤها إلا تلك الخدمة المحذوفة، ويلفّ حولها
+ * `resolveGpsPolicy` لفّاً. وما يسري فعلاً في الإنتاج هو `resolveGpsPolicy` وحده،
+ * يستدعيه `apps/gateway/src/container.ts`.
+ *
+ * ويَلزم قولُ ما كُشِف لا طَيُّه: `TRACKING_GPS_INTERVAL_SECONDS` و
+ * `TRACKING_GPS_IDLE_INTERVAL_SECONDS` و`TRACKING_MIN_DISTANCE_METERS` تُقرأ وتُتحقّق
+ * عند الإقلاع ولا يستهلكها شيءٌ في الإنتاج منذ الآن — وهو عينُ ما يُدينه عنوانُ
+ * هذا الملف أعلاه. والحذف لم يُحدِث هذا العيب بل كشفه؛ فيُعالَج بنداً مستقلاً
+ * (إمّا بإسقاط المتغيّرات وإمّا بوصلها بمستهلك) لا يُبتَلع في وحدة إغلاق `R-16`.
+ */
