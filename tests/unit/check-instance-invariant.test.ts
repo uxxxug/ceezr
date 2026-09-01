@@ -13,11 +13,13 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { PROCESS_TOPOLOGY_NAMES } from "../../packages/shared/config/index.ts";
 import {
   analyse,
   CLASSIFIED_SERVICES,
   REQUIRED_SERVICES,
   servicesFromManifest,
+  VALID_PROCESS_TOPOLOGIES,
 } from "../../scripts/check-instance-invariant.ts";
 
 const REAL_MANIFEST = readFileSync("render.yaml", "utf8");
@@ -30,14 +32,26 @@ const SOUND = [
   "    envVars:",
   "      - key: SESSION_STORE",
   "        value: memory",
+  "      - key: PROCESS_TOPOLOGY",
+  "        value: single-process",
   "  - type: worker",
   "    name: waslah-worker",
   "    numInstances: 1",
   "    envVars:",
   "      - key: SESSION_STORE",
   "        value: memory",
+  "      - key: PROCESS_TOPOLOGY",
+  "        value: single-process",
   "",
 ].join("\n");
+
+/** يُبدِّل قيمةَ الطوبولوجيا في نصِّ المُدخَلِ كلِّه — زرعُ خرقٍ لا تحريرُ ملفٍّ. */
+const withTopology = (content: string, value: string): string =>
+  content.replaceAll("        value: single-process", `        value: ${value}`);
+
+/** يحذف إعلانَ الطوبولوجيا كلَّه — لإثباتِ أنّ الغيابَ سقوطٌ لا افتراضٌ صامتٌ. */
+const withoutTopology = (content: string): string =>
+  content.replaceAll("      - key: PROCESS_TOPOLOGY\n        value: single-process\n", "");
 
 const codes = (content: string): readonly string[] => analyse(content).map((f) => f.code);
 
@@ -48,7 +62,9 @@ describe("قراءةُ الخدماتِ من ملفِّ النشرِ", () => {
     expect(services[0]?.name).toBe("waslah-gateway");
     expect(services[0]?.numInstances).toBe("1");
     expect(services[0]?.sessionStore).toBe("memory");
+    expect(services[0]?.processTopology).toBe("single-process");
     expect(services[1]?.name).toBe("waslah-worker");
+    expect(services[1]?.processTopology).toBe("single-process");
   });
 
   it("تقرأ المستودعَ الحقيقيَّ فتجد الخدمتَين بعددٍ واحدٍ", () => {
@@ -56,7 +72,11 @@ describe("قراءةُ الخدماتِ من ملفِّ النشرِ", () => {
     const gateway = services.find((service) => service.name === "waslah-gateway");
     expect(gateway).toBeDefined();
     expect(gateway?.numInstances).toBe("1");
-    for (const service of services) expect(service.numInstances).toBe("1");
+    expect(gateway?.processTopology).toBe("single-process");
+    for (const service of services) {
+      expect(service.numInstances).toBe("1");
+      expect(service.processTopology).toBe("single-process");
+    }
   });
 
   /** التعليقُ اللاحقُ لا يُفسِد القيمةَ: `autoDeploy: false # …` سطرٌ قائمٌ فعلاً. */
@@ -111,6 +131,9 @@ describe("الحكمُ — قبولٌ ورفضٌ", () => {
       "  - type: worker",
       "    name: waslah-worker",
       "    numInstances: 1",
+      "    envVars:",
+      "      - key: PROCESS_TOPOLOGY",
+      "        value: single-process",
       "",
     ].join("\n");
     expect(codes(withoutGateway)).toEqual(["MISSING_REQUIRED_SERVICE"]);
@@ -119,6 +142,49 @@ describe("الحكمُ — قبولٌ ورفضٌ", () => {
   it("خدمةٌ جديدةٌ غيرُ مصنَّفةٍ ⇒ سقوطٌ حتّى تُصنَّف", () => {
     const withNew = `${SOUND}  - type: web\n    name: waslah-something-new\n    numInstances: 3\n`;
     expect(codes(withNew)).toContain("UNCLASSIFIED_SERVICE");
+  });
+
+  /**
+   * ## الطوبولوجيا (ADR 0051) — التكافؤُ في الاتّجاهَين
+   */
+  it("غيابُ PROCESS_TOPOLOGY ⇒ سقوطٌ — الغيابُ ليس «عمليةً واحدةً»", () => {
+    expect(codes(withoutTopology(SOUND))).toContain("MISSING_PROCESS_TOPOLOGY");
+  });
+
+  it("قيمةُ طوبولوجيا غيرُ صالحةٍ ⇒ سقوطٌ ولا تُردّ إلى الافتراضِ", () => {
+    expect(codes(withTopology(SOUND, "many"))).toContain("INVALID_PROCESS_TOPOLOGY");
+  });
+
+  it("multi-process مع numInstances = 1 ⇒ تنافرُ إعلانَين", () => {
+    const found = codes(withTopology(SOUND, "multi-process"));
+    expect(found).toContain("TOPOLOGY_INSTANCES_MISMATCH");
+    expect(found).toContain("MULTI_PROCESS_WITHOUT_DISTRIBUTION");
+  });
+
+  it("رفعُ النسخِ مع بقاءِ single-process ⇒ تنافرُ إعلانَين كذلك", () => {
+    const found = codes(SOUND.replace("    numInstances: 1", "    numInstances: 2"));
+    expect(found).toContain("TOPOLOGY_INSTANCES_MISMATCH");
+    expect(found).toContain("INSTANCES_ABOVE_ONE");
+  });
+
+  it("multi-process معلَنةٌ ⇒ سقوطٌ ما دام التوزيعُ داخلَ العمليةِ — أيّاً كان مخزنُ الجلساتِ", () => {
+    const raised = withTopology(SOUND, "multi-process").replaceAll(
+      "    numInstances: 1",
+      "    numInstances: 2",
+    );
+    const withRedis = raised.replaceAll("        value: memory", "        value: redis");
+    expect(codes(raised)).toContain("MULTI_PROCESS_WITHOUT_DISTRIBUTION");
+    expect(codes(withRedis)).toContain("MULTI_PROCESS_WITHOUT_DISTRIBUTION");
+    // وredis يرفع خرقَ ADR 0011 وحدَه، ولا يُسقِط خرقَ التوزيعِ.
+    expect(codes(withRedis)).not.toContain("SESSION_STORE_INCOHERENT");
+  });
+
+  /**
+   * قائمةُ الحاجزِ مكرَّرةٌ عن قصدٍ (أداةُ مستودعٍ لا تستورد شيفرةَ إنتاجٍ)،
+   * والتكرارُ نفسُه محروسٌ ههنا كي لا يتباعد الموضعانِ صامتَين.
+   */
+  it("قائمةُ الطوبولوجيا في الحاجزِ تُطابِق قائمةَ الضبطِ", () => {
+    expect([...VALID_PROCESS_TOPOLOGIES]).toEqual([...PROCESS_TOPOLOGY_NAMES]);
   });
 
   it("الحاجزُ يفحص الخدمةَ الصحيحةَ لا خدمةً غيرَ مرتبطةٍ", () => {
@@ -146,6 +212,20 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
     expect(await runBarrier(SOUND.replace("numInstances: 1", "numInstances: 2"))).toBe(1);
     expect(await runBarrier(SOUND)).toBe(0);
   }, 30_000);
+
+  it("خرقُ طوبولوجيا مزروعٌ ⇒ رمزٌ غيرُ صفريٍّ في كلِّ صورةٍ من صورِه", async () => {
+    expect(await runBarrier(withoutTopology(SOUND))).toBe(1);
+    expect(await runBarrier(withTopology(SOUND, "many"))).toBe(1);
+    expect(await runBarrier(withTopology(SOUND, "multi-process"))).toBe(1);
+    expect(await runBarrier(SOUND.replace("    numInstances: 1", "    numInstances: 2"))).toBe(1);
+    // وإزالةُ الخرقِ تُعيد الصفرَ — كي لا يكون السقوطُ دائماً.
+    expect(await runBarrier(SOUND)).toBe(0);
+  }, 60_000);
+
+  it("خرقُ طوبولوجيا مزروعٌ في نسخةٍ من الملفِّ الحقيقيِّ ⇒ سقوطٌ", async () => {
+    expect(await runBarrier(withoutTopology(REAL_MANIFEST))).toBe(1);
+    expect(await runBarrier(withTopology(REAL_MANIFEST, "multi-process"))).toBe(1);
+  }, 60_000);
 
   it("ملفٌّ غائبٌ أو فارغٌ ⇒ سقوطٌ لا تخطٍّ", async () => {
     expect(await runBarrier(null)).toBe(1);
