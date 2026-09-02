@@ -753,6 +753,47 @@ describe("متانة الحوار", () => {
     ]);
   });
 
+  /**
+   * `BUG-001` — الطبقةُ التطبيقيّةُ تُطيعُ حكمَ القاعدةِ ولا تُنشئُ حكماً ثانياً.
+   *
+   * المزدوجُ لا يقارنُ طوابعَ (وإلّا صار حَكَماً ثانياً في الاختبارِ نفسِه): هو
+   * يُعيدُ الحكمَ الذي تضبطُه الحالةُ. والمقيسُ أنّ إصلاحةً رفضَتها الكتابةُ
+   * الشرطيّةُ لا تُنشَر ولا تُحرِّك إسناداً — لأنّ نشرَها إخراجُ موضعٍ أقدمَ من
+   * المصدرِ القانونيِّ إلى الخريطةِ، أي التراجعُ الذي وُجِد الحارسُ ليمنعَه.
+   */
+  it("الإصلاحة التي رفضتها القاعدة لا تُبَثّ ولا تُعيد الإسناد", async () => {
+    const drivers = driverDirectory(verifiedDriver({ hasLocation: true, isAvailable: true }));
+    drivers.locationOutcome = { kind: "stale" };
+    const published: string[] = [];
+    const redispatched: string[] = [];
+    const replies = await handleDriverUpdate(
+      { kind: "location", from: SENDER, location: { latitude: 21.4, longitude: 39.2 } },
+      build({
+        drivers,
+        tracking: {
+          onFix: async (fix) => {
+            published.push(fix.driverId);
+          },
+          onTripEnded: async () => {},
+          onDutyEnded: async () => {},
+        },
+        redispatch: {
+          onDriverBecameDispatchable: async (cityId) => {
+            redispatched.push(cityId);
+          },
+        },
+      }),
+    );
+
+    // الكتابةُ جرت ومرّت على الحارسِ — والحارسُ ردَّها
+    expect(drivers.locationCalls).toHaveLength(1);
+    // ولم يُنشَر شيءٌ ولم يُعَد إسنادٌ
+    expect(published).toEqual([]);
+    expect(redispatched).toEqual([]);
+    // ولا رسالةَ عطلٍ: لم يقع عطلٌ، وموقعُه المعروفُ أحدثُ من نبضتِه هذه
+    expect(replies[0]?.text).toBe(ar("driver.location_saved"));
+  });
+
   it("لا يحفظ موقعاً لغير مسجَّل", async () => {
     const drivers = driverDirectory(null);
     const replies = await handleDriverUpdate(

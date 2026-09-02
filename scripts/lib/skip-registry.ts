@@ -411,6 +411,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/driver-location-cas.test.ts",
+    suites: ["الكتابة الشرطيّة على الموقع القانوني — BUG-001"],
+    skipped: 10,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت حارسَ `BUG-001` على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرة ألبتةً: المقيسُ أنّ الشرطَ يُعاد تقويمُه على الصفِّ المُحدَّثِ تحتَ تزاحمٍ حقيقيٍّ وقفلٍ حقيقيٍّ — ومحاكٍ نكتبُه نحن لا يشهد على المحرّكِ بشيءٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-location-freshness.test.ts",
     suites: ["المرحلة ٨ — عمر موقع السائق في الإسناد"],
     skipped: 9,
