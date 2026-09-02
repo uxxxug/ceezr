@@ -553,8 +553,25 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
     nowMsRef: { value: number },
     over: { readonly trip?: string | null; readonly onDuty?: boolean } = {},
   ) => {
-    const sessions = createMemoryTrackingSessionStore();
+    const store = createMemoryTrackingSessionStore();
     const events: TrackingEvent[] = [];
+    /**
+     * `BUG-010` — عائدُ `close` مُلتقَطٌ لأنَّ الدعوى المُقاسة «الرقمُ في الحدثِ هو
+     * الرقمُ الذي أعادَه الإغلاقُ». ورقمٌ يُكتَب في التوقُّعِ يدَاً يُخفي المُولِّدَ.
+     */
+    const closed: Awaited<ReturnType<typeof store.close>>[] = [];
+    const sessions = {
+      ...store,
+      close: async (
+        driverId: string,
+        reason: Parameters<typeof store.close>[1],
+        endedAtMs: number,
+      ) => {
+        const record = await store.close(driverId, reason, endedAtMs);
+        closed.push(record);
+        return record;
+      },
+    };
     const live = createLiveTracking({
       sessions,
       publisher: {
@@ -570,7 +587,7 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
       duty: { isOnDuty: async () => over.onDuty !== false },
       clock: { now: () => new Date(nowMsRef.value) },
     });
-    return { live, sessions, events };
+    return { live, sessions: store, events, closed };
   };
 
   it("أول إصلاحة تفتح جلسةً وتنشر البدء ثم الموقع", async () => {
@@ -671,5 +688,135 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
 
     await live.onFix(fixAt(10_000_000));
     expect(events.length).toBe(0);
+  });
+  it("جلسة تجاوزت سقفها تنشر `session_ended` برقمِ الإغلاقِ قبلَ بدءِ الخَلَف", async () => {
+    /**
+     * `BUG-010` — الإغلاقُ بالسقفِ كان يُنادي `sessions.close` مباشرةً ويُهمل
+     * عائدَها، فيُستهلك الرقمُ بلا حدثٍ يقابله (`ADR 0053` §٤-أ يوجب النشرَ لكلِّ
+     * إغلاقٍ). وأربعُ دعاوى تُقاس هنا لأنَّها التي يعتمد عليها المستهلك:
+     * الإغلاقُ نفسُه، والنشرُ، وأنَّ الرقمَ **هو عائدُ الإغلاقِ** لا رقمٌ مُصطنعٌ،
+     * وأنَّ النهايةَ تسبق بدايةَ الخَلَفِ فلا يُرى الترتيبُ مقلوباً.
+     */
+    const now = { value: 10_000_000 };
+    const { live, events, closed } = buildLive(now, { trip: TRIP });
+    await live.onFix(fixAt(now.value));
+    const first = events.find((e) => e.type === "session_started");
+
+    now.value += 13 * 60 * 60 * 1000; // أكثرُ من السقفِ (١٢ ساعةً)
+    await live.onFix(fixAt(now.value));
+
+    const ended = events.filter((e) => e.type === "session_ended");
+    expect(ended.length).toBe(1);
+    expect(ended[0]?.metadata?.reason).toBe("EXPIRED");
+    expect(ended[0]?.sessionId).toBe(first?.sessionId);
+    // الرقمُ من عائدِ الإغلاقِ نفسِه — لا رقمَ مكتوباً في التوقُّع
+    const closedRecord = closed.at(-1);
+    expect(closedRecord).not.toBeNull();
+    expect(ended[0]?.sequence).toBe(closedRecord?.sequence);
+    // النهايةُ قبلَ بدايةِ الخَلَفِ، وبدايةُ الخَلَفِ لجلسةٍ أخرى
+    const types = events.map((e) => e.type);
+    expect(types.indexOf("session_ended")).toBeLessThan(types.lastIndexOf("session_started"));
+    expect(events.at(-1)?.sessionId).not.toBe(first?.sessionId);
+  });
+
+  it("إغلاقٌ سبقَنا إليه غيرُنا لا يُنتج حدثَ نهايةٍ كاذباً", async () => {
+    /**
+     * `BUG-010` — النشرُ مشروطٌ بعائدِ الإغلاقِ لا بمحاولتِه: صفٌّ أُغلق بين
+     * القراءةِ والإغلاقِ يُعيد `null`، فحدثُ نهايةٍ حينَها يحمل معرّفَ جلسةٍ ورقماً
+     * لا يملكهما أحدٌ — ولأغلقَ عندَ المستهلكِ بثّاً مشروعاً.
+     */
+    const events: TrackingEvent[] = [];
+    const expired = {
+      sessionId: "session-expired",
+      sequence: 7,
+      facts: {
+        driverId: DRIVER,
+        tripId: TRIP,
+        startedAtMs: 10_000_000,
+        lastFixAtMs: 10_000_000,
+        endedAtMs: null,
+        endReason: null,
+      },
+    } as const;
+    const nowMs = 10_000_000 + 13 * 60 * 60 * 1000;
+    const live = createLiveTracking({
+      sessions: {
+        openSessionOf: async () => expired,
+        open: async (driverId, tripId, startedAtMs) => ({
+          sessionId: "session-next",
+          sequence: 1,
+          facts: {
+            driverId,
+            tripId,
+            startedAtMs,
+            lastFixAtMs: null,
+            endedAtMs: null,
+            endReason: null,
+          },
+        }),
+        attachTrip: async () => null,
+        advance: async () => ({ kind: "no_session" }) as const,
+        // الصفُّ مُغلقٌ سلفاً — وهذا هو المقصودُ بالقياس
+        close: async () => null,
+        closeByTrip: async () => [],
+      },
+      publisher: {
+        publish: async (event) => {
+          events.push(event);
+        },
+      },
+      trips: { activeTripOf: async () => TRIP },
+      duty: { isOnDuty: async () => true },
+      clock: { now: () => new Date(nowMs) },
+    });
+
+    await live.onFix(fixAt(nowMs));
+
+    expect(events.filter((e) => e.type === "session_ended").length).toBe(0);
+  });
+
+  it("نهايةُ الجلسةِ بالسقفِ تُغلق بثَّ العميلِ لأنَّها جلستُه نفسُها", async () => {
+    /**
+     * `BUG-010` — الأثرُ الظاهرُ الذي كان يتسرَّب: رسالةُ الموقعِ الحيِّ على جهازِ
+     * العميلِ تبقى تدور بعدَ إغلاقِ الجلسةِ في القاعدةِ. والقياسُ على القناةِ لا على
+     * الحالةِ الداخليّةِ. وبوّابةُ `BUG-009` في المُرحِّلِ لا تُغلق إلّا إن كان
+     * `sessionId` في الحدثِ **هو** معرّفُ الجلسةِ التي يملك بثَّها — فنجاحُ
+     * `stop` هو بعينِه إثباتُ أنَّ الجلسةَ المنتهيةَ هي جلسةُ البثِّ.
+     */
+    const now = { value: 10_000_000 };
+    const captured = captureChannel();
+    const store = createMemoryTrackingSessionStore();
+    const relay = createCustomerLiveRelay({
+      channel: captured.channel,
+      customers: {
+        resolve: async () => ({
+          tripId: TRIP,
+          riderId: RIDER,
+          riderTelegramId: "555",
+          driverId: DRIVER,
+          riderLanguage: "ar",
+          status: "in_progress" as WatchedTripStatus,
+        }),
+      },
+      clock: { now: () => new Date(now.value) },
+      livePeriodSeconds: 3600,
+    });
+    const live = createLiveTracking({
+      sessions: store,
+      publisher: { publish: async (event) => await relay.handle(event) },
+      trips: { activeTripOf: async () => TRIP },
+      duty: { isOnDuty: async () => true },
+      clock: { now: () => new Date(now.value) },
+    });
+
+    await live.onFix(fixAt(now.value));
+    expect(captured.calls.map((c) => c.op)).toEqual(["start"]);
+    expect(relay.openBroadcasts).toBe(1);
+
+    now.value += 13 * 60 * 60 * 1000;
+    await live.onFix(fixAt(now.value));
+
+    // `stop` للجلسةِ المنتهيةِ، ثم بثٌّ جديدٌ لجلسةِ الخَلَفِ — لا خريطةٌ تدور بلا جلسة
+    expect(captured.calls.map((c) => c.op)).toEqual(["start", "stop", "start"]);
   });
 });

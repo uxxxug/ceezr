@@ -140,8 +140,9 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
   };
 
   /**
-   * إغلاقٌ بمعرّف السائق مع إعلان الحدث. موحّدٌ لأن للإغلاق في المرحلة ١٢
-   * موضعان (خروجٌ صريح، وإصلاحةٌ من خارج الخدمة)، وإغلاقٌ بلا حدث يترك
+   * إغلاقٌ بمعرّف السائق مع إعلان الحدث. موحّدٌ لأن للإغلاق بمعرّف السائق ثلاثة
+   * مواضع (خروجٌ صريح، وإصلاحةٌ من خارج الخدمة، وتجاوزُ السقفِ الزمنيِّ بـ`EXPIRED`
+   * — `BUG-010`)؛ وإغلاقٌ بلا حدث يترك
    * رسالة الموقع الحيّ تدور على جهاز العميل والصفّ على خريطة العمليات —
    * أي إغلاقٌ في الجدول وحده، وهو أسوأ من لا إغلاق: عيبٌ يُرى مغلقاً في القاعدة.
    */
@@ -175,6 +176,15 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
    * القراءة، فلا تُقرأ نشطةً أبداً؛ وأوّل إصلاحة تالية تكتب هذا الحكم في القاعدة
    * صراحةً بسبب `EXPIRED`. فالتنظيف يقع في المسار الذي يهمّ، بلا مؤقّتٍ يُنسى.
    *
+   * **و`BUG-010`:** هذا الإغلاق يمرّ بـ`closeAndAnnounce` كسائر الإغلاقات، فلا
+   * يبقى إغلاقٌ في الجدول بلا حدثٍ يقابله. وكان يُنادي `sessions.close` مباشرةً
+   * ويُهمل عائدَها، فيُستهلك رقمُ التسلسل بلا `session_ended` — فتبقى رسالةُ
+   * الموقع الحيّ تدور على جهاز العميل، ويبقى الصفُّ على خريطة العمليات إلى أن
+   * تُصحّحهما لقطةٌ. ودلالةُ `ADR 0053` §٤-أ كانت تُلزم بالنشر أصلاً؛ فهذا
+   * **إنفاذُ عقدٍ قائم لا تغييرُ عقدٍ**، ولا رقمَ جديداً ولا حدثاً جديداً.
+   *
+   * والنشرُ يسبق فتحَ الخَلَف بقصد: يرى المستهلك نهايةً ثم بداية، لا العكس.
+   *
    * ويبقى صادقاً أنّ سائقاً لا يعود أبداً تبقى جلسته مفتوحةً في الجدول — وهي
    * صفٌّ لا يُقرأ نشطاً (السقف الزمني)، فلا يُضلّل العمليات ولا يُعطّل فهرس
    * الجلسة الواحدة، لأنّ الإصلاحة التالية من نفس السائق تُغلقه قبل أن تفتح.
@@ -186,7 +196,7 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
   ): Promise<{ readonly record: TrackingSessionRecord; readonly opened: boolean }> => {
     const existing = await deps.sessions.openSessionOf(driverId);
     if (existing !== null && !acceptsFixes(existing.facts, nowMs, policy)) {
-      await deps.sessions.close(driverId, "EXPIRED", nowMs);
+      await closeAndAnnounce(driverId, existing.facts.tripId, "EXPIRED", nowMs);
       log("tracking.session_expired", { driverId, startedAtMs: existing.facts.startedAtMs });
       const replacement = await deps.sessions.open(
         driverId,

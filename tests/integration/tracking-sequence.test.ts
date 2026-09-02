@@ -432,4 +432,54 @@ describeIf("ترتيبُ أحداثِ التتبُّعِ على PostgreSQL حق�
 
     expect("replay" in container.tracking.bus).toBe(false);
   });
+  it("جلسةٌ تجاوزت سقفَها تُغلق `EXPIRED` وتنشر `session_ended` برقمِ الصفِّ نفسِه", async () => {
+    /**
+     * `BUG-010` على قاعدةٍ حقيقيّةٍ لا على مزدوجٍ. وثلاثُ دعاوى لا يشهد لها
+     * مزدوجُ الذاكرةِ من حيثُ المبدأِ:
+     *
+     * (١) أنَّ الرقمَ المنشورَ **هو** `last_sequence` المستقرُّ في `tracking_sessions`
+     *     بعدَ `update ... returning` الذرّيّةِ — لا عدّادٌ في العمليةِ.
+     * (٢) أنَّ الصفَّ نفسَه صار `ended_at`/`end_reason = EXPIRED`، فالإغلاقُ والنشرُ
+     *     شيءٌ واحدٌ لا شيئان قد ينفصلان.
+     * (٣) أنَّ النهايةَ تسبق بدايةَ الخَلَفِ في ما يراه مستهلكٌ مشتركٌ فعلاً.
+     *
+     * والبدايةُ تُبعَد خلفَ السقفِ **في القاعدةِ نفسِها** لا بساعةٍ مزوّرةٍ في
+     * العمليةِ: الحكمُ يُقرأ من الصفِّ، فتزويرُ الساعةِ يختبر غيرَ ما يجري.
+     */
+    const driverId = await seedDriver(DRIVER_CHAT);
+    await postLocation(DRIVER_CHAT, 0);
+    const before = await sessionsOf(driverId);
+    expect(before).toHaveLength(1);
+    const firstId = before[0]?.id;
+    if (firstId === undefined) throw new Error("لم تُفتح جلسةٌ أولى");
+
+    await sql`
+      update tracking_sessions
+         set started_at = now() - interval '13 hours',
+             last_fix_at = now() - interval '13 hours'
+       where id = ${firstId}::uuid
+    `;
+    events = [];
+
+    await postLocation(DRIVER_CHAT, 0);
+
+    const closed = await sql<{ end_reason: string | null; last_sequence: number }[]>`
+      select end_reason, last_sequence from tracking_sessions where id = ${firstId}::uuid
+    `;
+    expect(closed[0]?.end_reason).toBe("EXPIRED");
+
+    const rows = await sessionsOf(driverId);
+    expect(rows).toHaveLength(2);
+    expect(rows.find((row) => row.id === firstId)?.ended_at).not.toBeNull();
+    expect(rows.find((row) => row.id !== firstId)?.ended_at).toBeNull();
+
+    const ended = events.filter((event) => event.type === "session_ended");
+    expect(ended).toHaveLength(1);
+    expect(ended[0]?.sessionId).toBe(firstId);
+    expect(ended[0]?.metadata?.reason).toBe("EXPIRED");
+    expect(ended[0]?.sequence).toBe(closed[0]?.last_sequence);
+
+    const types = events.map((event) => event.type);
+    expect(types.indexOf("session_ended")).toBeLessThan(types.indexOf("session_started"));
+  });
 });
