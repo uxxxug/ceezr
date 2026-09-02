@@ -69,12 +69,20 @@ const SESSION = "11111111-1111-4111-8111-111111111111";
  * الناقلَ والمُرحِّلَ لا مولِّدَ الرقمِ. ودليلُ المولِّدِ الحقيقيِّ في
  * `tests/integration/tracking-sequence.test.ts` على `PostgreSQL` حقيقيّ.
  */
+/**
+ * والرقمُ يتزايد تلقائيّاً في كلِّ نداءٍ: بوّابةُ الترتيبِ في المُرحِّلِ (`BUG-009`)
+ * تُسقِط ما لا يزيد على آخرِ مطبَّقٍ، فحدثانِ متعاقبانِ في اختبارٍ يقصد بهما
+ * «إصلاحةٌ ثمّ أحدثُ منها» يجب أن يختلفَ رقمُهما. ومن أراد رقماً بعينِه — دليلَ
+ * تكرارٍ أو تراجعٍ — يُمرّره صريحاً في `over`.
+ */
+let nextProbeSequence = 1;
+
 const positionEvent = (over: Partial<TrackingEvent> = {}): TrackingEvent => ({
   type: "location_updated",
   driverId: DRIVER,
   tripId: TRIP,
   sessionId: SESSION,
-  sequence: 2,
+  sequence: ++nextProbeSequence,
   cityId: CITY,
   position: { lat: 21.5471, lng: 39.1751 },
   timestamp: new Date(0),

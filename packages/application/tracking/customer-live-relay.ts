@@ -90,6 +90,16 @@ interface Broadcast {
   sentAtMs: number;
   lat: number;
   lng: number;
+  /**
+   * `BUG-009` — القناةُ التي تُقاس عليها أرقامُ الترتيبِ، وآخرُ رقمٍ طُبّق منها.
+   *
+   * في الذاكرةِ وحدها ولا شيءَ غيرَهما (`ADR 0053` §٣-أ/١٠ و١٢): لا خزنَ
+   * معرّفاتِ أحداثٍ ولا سجلَّ مطبّقٍ ولا ديمومةَ عندَ المستهلكِ. وفقدانُهما مع إعادةِ
+   * التشغيلِ لا يضُرُّ: `messageId` يُفقد معهما في نفسِ الخريطةِ أصلاً، فتُفتح رسالةُ
+   * بثٍّ جديدةٌ تبدأ حسابَها من أولِ حدثٍ يراه.
+   */
+  sessionId: string;
+  lastAppliedSeq: number;
 }
 
 export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLiveRelay {
@@ -127,6 +137,21 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
         if (tripId === null) return;
 
         if (event.type === "session_ended") {
+          /**
+           * `BUG-009` — نهايةُ جلسةٍ أخرى لا تُغلق بثَّ هذه.
+           *
+           * رحلةٌ طويلةٌ تعبُر جلستَينِ (سقفُ الاثنتَي عشرةَ ساعةً يُغلق الأولى
+           * ويفتح الثانيةَ): لو وصل `session_ended` للأولى بعدَ أن فتحَ حدثٌ من
+           * الثانيةِ بثَّه — والترتيبُ بين الجلستَينِ غيرُ مضمونٍ لأنَّ الرقمَ جلسيٌّ لا
+           * عالميٌّ (§٣-أ/٩) — لأطفأت خريطةً مشروعةً للعميلِ حتّى نهايةِ الرحلةِ.
+           *
+           * وإن لم يكن بثٌّ مفتوحٌ فلا شيءَ يُغلق — و`closeTrip` تتحمّل ذلك أصلاً.
+           */
+          const openTrip = broadcasts.get(tripId);
+          if (openTrip !== undefined && openTrip.sessionId !== event.sessionId) {
+            log("tracking.live_location_end_other_session", { tripId });
+            return;
+          }
           await closeTrip(tripId);
           return;
         }
@@ -135,6 +160,37 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
 
         const nowMs = deps.clock.now().getTime();
         const open = broadcasts.get(tripId);
+
+        /**
+         * ## `BUG-009` — بوّابةُ الترتيبِ عندَ المستهلكِ
+         *
+         * ولماذا تُلزَم وقد صار الناشرُ لا ينشر إلّا مقبولاً؟ لأنَّ القبولَ
+         * لا يضمن ترتيبَ الوصولِ: طلبا ويبهوكٍ متزامنانِ لنفسِ السائقِ يأخذانِ
+         * الرقمَينِ ٥ و٦ من القاعدةِ، ولا شيءَ يمنع أن يسبقَ نشرُ ٦ نشرَ ٥ — فيرتدُّ
+         * الدبّوسُ إلى موضعٍ أقدمَ وكلا الحدثَينِ مقبولٌ. فالقاعدةُ تُصدِر ترتيباً
+         * صحيحاً، والمستهلكُ وحدَه يملك أن يُلزِمَ عرضَه به.
+         *
+         * والحكمُ مقرونٌ بالجلسةِ دائماً: `sessionId` مختلفٌ ⇒ قناةٌ جديدةٌ، فلا
+         * يُقارن رقمٌ برقمٍ من غيرِ قناتِه (§٤-ب/٢).
+         *
+         * ### ولماذا لا «فجوةٌ ⇒ لقطةٌ» هنا
+         *
+         * `ADR 0053` §٣-ب يوجب عندَ الفجوةِ لقطةً موثوقةً — ومحلُّ ذلك مستهلكٌ
+         * يُراكم حالةً من الأحداثِ. وهذا المُرحِّلُ لا يُراكم شيئاً: عرضُه نقطةٌ واحدةٌ
+         * تُستبدَل بأحدثِ ما وصل، والحدثُ يحمل الحالةَ كاملةً (إحداثيّةً). ففجوةٌ تعني
+         * «فاتتني مواضعٌ وسطى» ولا أحدَ يرسم مساراً — والتصحيحُ الصحيحُ لعرضِ
+         * «أحدثِ قيمةٍ» أن يُطبّق أحدثُ قيمةٍ، لا أن يُستجلَب `HTTP` ما هو في اليدِ.
+         * و§٨ من أمرِ التنفيذِ يأمر بتوثيقِ مثلِ هذا لا بإضافةِ تعقيدٍ بلا حاجةٍ.
+         * ولا `replay` ولا `event store` ولا تخزينَ معرّفاتٍ في أيِّ حالٍ.
+         */
+        if (
+          open !== undefined &&
+          open.sessionId === event.sessionId &&
+          event.sequence <= open.lastAppliedSeq
+        ) {
+          log("tracking.live_location_stale_sequence", { tripId });
+          return;
+        }
 
         if (open === undefined) {
           const target = await deps.customers.resolve(tripId);
@@ -176,6 +232,8 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
             sentAtMs: nowMs,
             lat: event.position.lat,
             lng: event.position.lng,
+            sessionId: event.sessionId,
+            lastAppliedSeq: event.sequence,
           });
           return;
         }
@@ -247,6 +305,14 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
         open.sentAtMs = nowMs;
         open.lat = event.position.lat;
         open.lng = event.position.lng;
+        /**
+         * يُثبّت **بعدَ** نجاحِ التعديلِ لا قبلَه: رقمٌ يُرفَع لحدثٍ لم يصل
+         * العميلَ يحجب ما بعدَه عن خريطةٍ لم تتحرّك. والخنقُ أعلاه (زمنٌ ومسافةٌ)
+         * يخرج بـ`return` قبلَ هذا الموضعِ فلا يرفع الرقمَ أيضاً — وذلك مقصودٌ:
+         * الخنقُ تأخيرٌ لا رفضٌ، والإصلاحةُ التاليةُ أحدثُ منه بكلِّ حالٍ.
+         */
+        open.sessionId = event.sessionId;
+        open.lastAppliedSeq = event.sequence;
       } catch (error) {
         log("tracking.customer_relay_failed", { detail: String(error) });
       }

@@ -1538,6 +1538,21 @@ export interface LiveDriverPositionRow {
    */
   readonly sessionStartedAt: string | null;
   readonly lastFixAt: string | null;
+  /**
+   * `BUG-009` — معرّفُ الجلسةِ المفتوحةِ وآخرُ رقمٍ تُمِّله هذه اللقطةُ.
+   *
+   * ومعناهما في اللقطةِ دقيقٌ: هذا الصفُّ يمثّل حالةَ القناةِ `sessionId`
+   * عندَ الرقمِ `sequence`، فمن يأخذها يُحاذي `lastAppliedSeq` عنده بها ثمّ
+   * يُسقِط كلَّ حدثٍ لا يزيد عليه (`ADR 0053` §٣-أ/٨).
+   *
+   * `null` = لا جلسةَ مفتوحةَ — مع `sessionStartedAt` بعينِه.
+   *
+   * **ولا تُقرأ ضماناً لـ`lat`/`lng` في هذا الصفَّ**: الموقعُ من `drivers.last_location`
+   * وكتابتُه غيرُ محروسةٍ بترتيبٍ بعد (وهو `BUG-001`، لم يُنفَّذ بعد).
+   * فالرقمُ مرساةُ محاذاةٍ للأحداثِ، لا شاهدٌ على أنَّ الإحداثيّةَ أحدثُ ما ورد.
+   */
+  readonly sessionId: string | null;
+  readonly sessionSequence: number | null;
   /** `driver_availability.is_available` — الإتاحةُ المُعلنة، حكمُ الحالة عند غياب رحلة. */
   readonly isAvailable: boolean;
   readonly tripId: string | null;
@@ -1588,6 +1603,8 @@ export async function listLiveDriverPositions(
       recorded_at: string | null;
       session_started_at: string | null;
       last_fix_at: string | null;
+      session_id: string | null;
+      last_sequence: number | null;
       is_available: boolean | null;
       trip_id: string | null;
       trip_status: string | null;
@@ -1607,6 +1624,10 @@ export async function listLiveDriverPositions(
            d.last_location_recorded_at as recorded_at,
            s.started_at as session_started_at,
            s.last_fix_at,
+           -- BUG-009: الوصلةُ إلى tracking_sessions كانت قائمةً هنا أصلاً، فمرساةُ
+           -- المحاذاةِ عمودانِ لا استعلامٌ ثانٍ ولا سطحٌ جديد (ADR 0053 §٣-أ/٨).
+           s.id as session_id,
+           s.last_sequence,
            coalesce(a.is_available, false) as is_available,
            coalesce(s.trip_id, o.id) as trip_id,
            o.status::text as trip_status,
@@ -1653,6 +1674,8 @@ export async function listLiveDriverPositions(
       recordedAt: row.recorded_at === null ? null : String(row.recorded_at),
       sessionStartedAt: row.session_started_at === null ? null : String(row.session_started_at),
       lastFixAt: row.last_fix_at === null ? null : String(row.last_fix_at),
+      sessionId: row.session_id,
+      sessionSequence: row.last_sequence === null ? null : Number(row.last_sequence),
       isAvailable: row.is_available === true,
       tripId: row.trip_id,
       tripStatus: row.trip_status,

@@ -136,6 +136,19 @@ export function createAdminLiveRoutes(deps: AdminLiveDependencies): Hono<AdminEn
                 type: event.type,
                 driverId: event.driverId,
                 tripId: event.tripId,
+                /**
+                 * `BUG-009` — مرساةُ الترتيبِ تعبُر السلكَ ولا تبقى في العمليةِ.
+                 *
+                 * وهما نفسُ الحقلَينِ اللذَينِ تحملهما اللقطةُ (`sessionId`
+                 * و`sessionSequence` في صفوفِها)، فيملك العميلُ أن يُحاذي
+                 * `lastAppliedSeq` من اللقطةِ ثمّ يحكم على كلِّ فرقٍ بعدها بلا استفتاءٍ
+                 * ثانٍ (`ADR 0053` §٣-أ/٨). ولا مستهلكَ داخلَ المستودعِ لهذا
+                 * المجرى اليومَ (صفحةُ `/admin/live-map` تُصيَّر في الخادمِ وتُحدّث
+                 * بـ`meta refresh`)، لكنَّ مجرىً يُرسِل فروقاً بلا مرساةٍ يفرض على
+                 * أوّلِ عميلٍ يُكتب أن يخترع ترتيباً من `at` — وهو ساعةٌ لا رتبةٌ.
+                 */
+                sessionId: event.sessionId,
+                sequence: event.sequence,
                 cityId: event.cityId ?? null,
                 position: event.position,
                 at: event.timestamp.toISOString(),
