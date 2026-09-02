@@ -793,6 +793,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/tracking-sequence.test.ts",
+    suites: ["ترتيبُ أحداثِ التتبُّعِ على PostgreSQL حقيقيٍّ — BUG-009 / ADR 0053"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت عقدَ ADR 0053 — الخمسَ نبضاتٍ مختلطةَ الترتيبِ، واستئنافَ رقمِ الترتيبِ بعدَ إعادةِ التشغيلِ — على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. وقد شرطَ القرارُ ذلكَ نصًّا (§٨ الحالتان ١ و٧): المقاسُ ذرّيّةُ توليدِ الرقمِ مع تثبيتِ الحالةِ، وديمومتُه بعدَ ذهابِ العمليةِ — ومزدوجُ الذاكرةِ لا يشهد على أيٍّ منهما، بل هو بعينِه ما منعَه القرارُ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/tracking-realtime.test.ts",
     suites: ["النقل اللحظي على قاعدة حقيقية — المرحلة ٦"],
     skipped: 25,
