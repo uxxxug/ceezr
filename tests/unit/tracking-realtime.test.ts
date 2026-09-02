@@ -61,10 +61,20 @@ const fixAt = (recordedAtMs: number, over: Partial<StoredFix> = {}): StoredFix =
   ...over,
 });
 
+const SESSION = "11111111-1111-4111-8111-111111111111";
+
+/**
+ * `BUG-009` — `sessionId` و`sequence` إلزاميّان في العقدِ، فلكلِّ حدثٍ في هذه
+ * الاختباراتِ قيمةٌ صريحةٌ. وهي أرقامٌ مصطنعةٌ **بقصدٍ** هنا: هذه المجموعةُ تختبر
+ * الناقلَ والمُرحِّلَ لا مولِّدَ الرقمِ. ودليلُ المولِّدِ الحقيقيِّ في
+ * `tests/integration/tracking-sequence.test.ts` على `PostgreSQL` حقيقيّ.
+ */
 const positionEvent = (over: Partial<TrackingEvent> = {}): TrackingEvent => ({
   type: "location_updated",
   driverId: DRIVER,
   tripId: TRIP,
+  sessionId: SESSION,
+  sequence: 2,
   cityId: CITY,
   position: { lat: 21.5471, lng: 39.1751 },
   timestamp: new Date(0),
@@ -183,6 +193,8 @@ describe("ناقل أحداث التتبّع — التصريح داخل الا�
       type: "session_ended",
       driverId: DRIVER,
       tripId: TRIP,
+      sessionId: SESSION,
+      sequence: 3,
       position: null,
       timestamp: new Date(0),
     });
@@ -206,6 +218,8 @@ describe("ناقل أحداث التتبّع — التصريح داخل الا�
       type: "session_ended",
       driverId: DRIVER,
       tripId: TRIP,
+      sessionId: SESSION,
+      sequence: 3,
       position: null,
       timestamp: new Date(0),
     });
@@ -376,6 +390,8 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
       type: "session_ended",
       driverId: DRIVER,
       tripId: TRIP,
+      sessionId: SESSION,
+      sequence: 3,
       position: null,
       timestamp: new Date(0),
     };

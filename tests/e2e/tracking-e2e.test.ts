@@ -637,6 +637,12 @@ describeIf("التتبّع من الطرف إلى الطرف — المرحلة 
     await container.tracking.bus.publish({
       type: "location_updated",
       driverId: driverB,
+      /**
+       * `BUG-009` — حدثٌ يدويٌّ يختبر حَرَسَ المُرحِّلِ، فرقمُ الجلسةِ والتسلسلُ
+       * اصطناعيّان صريحان. ولا يمرّ هذا الحدثُ من مولِّدِ الأرقامِ أصلاً.
+       */
+      sessionId: "33333333-3333-4333-8333-333333333333",
+      sequence: 2,
       tripId: orderId,
       position: { lat: DRIVER2_AT.latitude, lng: DRIVER2_AT.longitude },
       cityId,

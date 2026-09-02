@@ -158,6 +158,8 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
       type: "session_ended",
       driverId,
       tripId,
+      sessionId: closed.sessionId,
+      sequence: closed.sequence,
       position: null,
       timestamp: new Date(nowMs),
       metadata: { reason },
@@ -259,6 +261,13 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
             type: "session_started",
             driverId: fix.driverId,
             tripId: facts.tripId,
+            sessionId: record.sessionId,
+            /**
+             * `ADR 0053` §٤-أ: «رقمُ الفتحِ هو أوّلُ أرقامِ القناةِ» — ومصدرُه الصفُّ
+             * الذي أُدرِج للتوّ لا عدّادٌ ثانٍ. فالفتحُ والتقدُّمُ والإغلاقُ على عدّادٍ
+             * واحدٍ، ولا يستطيع مستهلكٌ أن يرى حدثَ فتحٍ يسبقه حدثُ موقعٍ برقمٍ أدنى.
+             */
+            sequence: record.sequence,
             cityId: fix.cityId,
             position: null,
             timestamp: new Date(nowMs),
@@ -266,31 +275,57 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
         }
 
         /**
-         * التقدّم يمرّ بآلة المجال ثم بالقاعدة. وفشل الحكم (إصلاحة أقدم من بداية
-         * الجلسة — ساعة جهازٍ منحرفة) لا يُلغي النشر: الموقع خُزِّن فعلاً وهو
-         * أفضل ما نعرف، والذي يسقط هو تقدّم مؤشّر الحداثة لا الموقع نفسه.
+         * ## `BUG-009` — النشرُ صار تابعاً لقرارِ الكتابةِ، لا مستقلّاً عنه
+         *
+         * كان هذا الموضعُ ينشر `location_updated` **بلا شرطٍ**، ويُعلِّل ذلك بأنّ
+         * «الموقع خُزِّن فعلاً وهو أفضل ما نعرف». والتعليلُ صحيحٌ في نصفِه وخاطئٌ في
+         * نتيجتِه: الموقعُ خُزِّن نعم، لكنَّ الحدثَ ليس إخباراً بأنَّ شيئاً كُتِب — هو
+         * أمرٌ للمستهلكِ أن **يُحرِّك الدبّوسَ**. فإصلاحةٌ وصلَت خارجَ ترتيبِها كانت
+         * تُحرِّك خريطةَ العميلِ إلى الوراء وقد رفضَتها القاعدةُ في نفسِ اللحظةِ.
+         *
+         * فصار الحاكمُ واحداً: **إن لم تقبل الكتابةُ فلا نشرَ** (`ADR 0053` §٣-أ/٧).
+         *
+         * وحكمانِ متعاقبانِ لا حَكَمانِ متنافسان: آلةُ المجالِ تحكم على موضعِ
+         * الإصلاحةِ من الجلسةِ (منتهيةٌ؟ أقدمُ من بدايتِها؟)، والقاعدةُ تحكم على
+         * ترتيبِها بين أخواتِها وتُصدِر الرقمَ. والأولى شرطٌ للثانيةِ، والثانيةُ وحدَها
+         * تُصدِر ما يُنشَر.
+         *
+         * ولا قاعدةَ أعمالٍ جديدةٌ هنا: `<` يرفض و`=` يُقبَل، وكلاهما في `SQL` في
+         * `session-repository.ts` لا في هذا الملفِّ.
          */
         const advanced = recordFix(facts, fix.recordedAtMs, nowMs, policy);
-        if (advanced.ok) {
-          const outcome = await deps.sessions.advance(fix.driverId, fix.recordedAtMs);
-          if (outcome.kind !== "accepted") {
-            log("tracking.fix_not_advanced", { driverId: fix.driverId, reason: outcome.kind });
-          }
-        } else {
+        if (!advanced.ok) {
           log("tracking.fix_not_advanced", {
             driverId: fix.driverId,
             reason: advanced.error.reason,
           });
+          return;
+        }
+
+        const outcome = await deps.sessions.advance(fix.driverId, fix.recordedAtMs);
+        if (outcome.kind !== "accepted") {
+          /**
+           * `stale` = رفضٌ صريحٌ من القاعدةِ. و`no_session` = اختفت الجلسةُ بين
+           * قراءتِها وتقديمِها (إغلاقٌ متزامنٌ). وكلتاهما: لا رقمَ فلا حدثَ.
+           */
+          log("tracking.fix_rejected", { driverId: fix.driverId, reason: outcome.kind });
+          return;
         }
 
         await publish({
           type: "location_updated",
           driverId: fix.driverId,
           tripId: facts.tripId,
+          sessionId: outcome.record.sessionId,
+          sequence: outcome.record.sequence,
           cityId: fix.cityId,
           position: { lat: fix.latitude, lng: fix.longitude },
           timestamp: new Date(nowMs),
           metadata: {
+            /**
+             * `recordedAtMs` يبقى واقعةً زمنيّةً وصفيّةً — ساعةُ جهازِ السائقِ — ولا
+             * يُقرأ ترتيباً. والترتيبُ في `sequence` أعلاه وحدَه.
+             */
             recordedAtMs: fix.recordedAtMs,
             accuracy: fix.accuracyMeters,
             quality: fix.verdict,
@@ -337,6 +372,8 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
             type: "session_ended",
             driverId: session.facts.driverId,
             tripId,
+            sessionId: session.sessionId,
+            sequence: session.sequence,
             position: null,
             timestamp: new Date(nowMs),
             metadata: { reason },

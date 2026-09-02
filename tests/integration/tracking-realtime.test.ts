@@ -564,6 +564,8 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
       type: "location_updated",
       driverId,
       tripId: mine.tripId,
+      sessionId: RELAY_PROBE_SESSION,
+      sequence: 2,
       cityId,
       position: { lat: JEDDAH.latitude, lng: JEDDAH.longitude },
       timestamp: new Date(),
@@ -594,6 +596,8 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
       type: "location_updated",
       driverId,
       tripId: mine.tripId,
+      sessionId: RELAY_PROBE_SESSION,
+      sequence: 3,
       cityId,
       position: { lat: JEDDAH.latitude, lng: JEDDAH.longitude },
       timestamp: new Date(),
@@ -608,6 +612,8 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
       type: "location_updated",
       driverId,
       tripId: mine.tripId,
+      sessionId: RELAY_PROBE_SESSION,
+      sequence: 4,
       cityId,
       position: { lat: JEDDAH_MOVED.latitude, lng: JEDDAH_MOVED.longitude },
       timestamp: new Date(),
@@ -941,3 +947,10 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
     });
   });
 });
+/**
+ * `BUG-009` — أحداثُ هذا الملفِّ التي تُنشَر يدويّاً على الناقلِ تختبر حَرَسَ
+ * المُرحِّلِ لا مولِّدَ الترتيبِ، فرقمُ الجلسةِ والتسلسلُ فيها قيمٌ اصطناعيّةٌ
+ * صريحةٌ. ودليلُ المولِّدِ الحقيقيِّ — الأرقامُ تصدر من `PostgreSQL` — في
+ * `tests/integration/tracking-sequence.test.ts`.
+ */
+const RELAY_PROBE_SESSION = "22222222-2222-4222-8222-222222222222";
