@@ -253,6 +253,45 @@ describeIf("ترتيبُ أحداثِ التتبُّعِ على PostgreSQL حق�
     expect(row.last_sequence).toBeLessThan(arrivals.length + 2);
   });
 
+  it("ساعةُ جهازٍ منحرفةٌ إلى الأمامِ لا تُفسِد ترتيبَ القناةِ", async () => {
+    /**
+     * §٨/٩ من `ADR 0053`. والمقصودُ بالفسادِ ههنا **ترتيبُ القناةِ** لا قبولُ
+     * الإصلاحةِ: الرقمُ من الخادمِ فلا تملك ساعةُ الجهازِ سبيلاً إلى إنقاصِه، وأيُّ
+     * انحرافٍ لا يُنتِج إلَّا حكماً بالقبولِ أو الردِّ في طبقةِ الدومينِ.
+     *
+     * والانحرافُ ثلاثُ ثوانٍ إلى الأمامِ لأنَّ `DEFAULT_GPS_POLICY.maxFutureSkewSeconds`
+     * خمسٌ، فما فوقَها يُرَدُّ قبلَ أن يبلغَ الكاتبَ أصلاً — وهذه الحالةُ تقصد ما
+     * **يُقبَل** رغمَ انحرافِه.
+     *
+     * **والأثرُ المُعلَنُ لا المُخفى:** الإصلاحةُ المنحرفةُ تُقدِّم `last_fix_at` إلى
+     * المستقبلِ، فنبضةٌ صادقةٌ بعدَها تصير أقدمَ منها فتُرَدُّ `stale`. وهذا **عينُ ما
+     * ينصُّه `BUG-009`** («رفض الأقدم صراحةً») بحسبِ الطابعِ المتاحِ، لا عيبٌ جديدٌ:
+     * الخادمُ لا يملك ساعةً أصدقَ من ساعةِ الجهازِ لهذه النبضةِ. والمحروسُ ههنا أنَّ
+     * القناةَ **لا تتراجع** وأنَّ الأرقامَ تبقى متزايدةً صارماً مهما انحرفَت الساعةُ.
+     */
+    const driverId = await seedDriver(DRIVER_CHAT);
+
+    await postLocation(DRIVER_CHAT, 10);
+    await postLocation(DRIVER_CHAT, -3); // ساعةٌ منحرفةٌ ثلاثَ ثوانٍ إلى الأمامِ
+    await postLocation(DRIVER_CHAT, 1); // نبضةٌ صادقةٌ صارت أقدمَ من المنحرفةِ
+
+    const row = (await sessionsOf(driverId))[0];
+    if (row === undefined) throw new Error("لم تُفتح جلسة");
+
+    const positions = positionsOf(events);
+    const sequences = positions.map((event) => event.sequence);
+
+    // الأرقامُ متزايدةٌ صارماً — والمنحرفةُ لم تُنقِص رقماً ولا أعادَته.
+    for (let index = 1; index < sequences.length; index += 1) {
+      expect(sequences[index] ?? 0).toBeGreaterThan(sequences[index - 1] ?? 0);
+    }
+    // وكلُّها من الجلسةِ نفسِها، وآخرُها ما في الصفِّ — فالمرساةُ سليمةٌ.
+    expect(new Set(positions.map((event) => event.sessionId)).size).toBe(1);
+    expect(sequences.at(-1)).toBe(row.last_sequence);
+    // والنبضةُ التي صارت أقدمَ لم تُنشَر: المنشورُ اثنانِ لا ثلاثةٌ.
+    expect(positions.length).toBe(2);
+  });
+
   it("الرقمُ يستأنف من القاعدةِ بعدَ ذهابِ العمليةِ — لا من الصفرِ", async () => {
     /**
      * §٨/٧ من `ADR 0053`. وإعادةُ التشغيلِ تُحاكى بأقصى ما تُحاكى به داخلَ عمليةٍ
