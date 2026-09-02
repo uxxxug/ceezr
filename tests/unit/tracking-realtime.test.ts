@@ -559,7 +559,7 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
     // حدث البدء بلا موضع بقصد (المرحلة ٥): الصفر نقطةٌ حقيقية في خليج غينيا.
     expect(events[0]?.position).toBeNull();
     const open = await sessions.openSessionOf(DRIVER);
-    expect(open?.lastFixAtMs).toBe(now.value);
+    expect(open?.facts.lastFixAtMs).toBe(now.value);
   });
 
   it("إصلاحة ثانية تُقدّم الجلسة نفسها ولا تفتح ثانية", async () => {
@@ -571,7 +571,7 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
     await live.onFix(fixAt(now.value));
 
     expect(events.filter((e) => e.type === "session_started").length).toBe(1);
-    expect((await sessions.openSessionOf(DRIVER))?.lastFixAtMs).toBe(now.value);
+    expect((await sessions.openSessionOf(DRIVER))?.facts.lastFixAtMs).toBe(now.value);
   });
 
   it("جلسة تجاوزت سقفها تُغلق EXPIRED وتُستبدل بلا ماسحٍ دوري", async () => {
@@ -590,8 +590,8 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
 
     const second = await sessions.openSessionOf(DRIVER);
     expect(second).not.toBeNull();
-    expect(second?.startedAtMs).toBe(now.value);
-    expect(second?.startedAtMs).not.toBe(first?.startedAtMs);
+    expect(second?.facts.startedAtMs).toBe(now.value);
+    expect(second?.facts.startedAtMs).not.toBe(first?.facts.startedAtMs);
     expect(events.filter((e) => e.type === "session_started").length).toBe(2);
   });
 
@@ -631,7 +631,7 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
           throw new Error("انقطاع القاعدة");
         },
         attachTrip: async () => null,
-        advance: async () => null,
+        advance: async () => ({ kind: "no_session" }) as const,
         close: async () => null,
         closeByTrip: async () => [],
       },

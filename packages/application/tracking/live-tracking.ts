@@ -37,10 +37,9 @@ import {
   type SessionEndReason,
   type SessionPolicy,
   sessionShouldRun,
-  type TrackingSessionFacts,
 } from "../../domain/tracking/session.ts";
 import type { TrackingEvent, TrackingEventPublisher } from "../../tracking/index.ts";
-import type { TrackingSessionStore } from "../../tracking/session-store.ts";
+import type { TrackingSessionRecord, TrackingSessionStore } from "../../tracking/session-store.ts";
 
 /** حكم جودة الإصلاحة كما خُزِّن مع الموقع (نفس مفردات `StoredLocationQuality`). */
 export type FixVerdict = "ACCEPT" | "WARNING" | "ALERT";
@@ -154,6 +153,7 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
   ): Promise<void> => {
     const closed = await deps.sessions.close(driverId, reason, nowMs);
     if (closed === null) return;
+
     await publish({
       type: "session_ended",
       driverId,
@@ -181,22 +181,22 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
     driverId: string,
     nowMs: number,
     startAtMs: number,
-  ): Promise<{ readonly facts: TrackingSessionFacts; readonly opened: boolean }> => {
+  ): Promise<{ readonly record: TrackingSessionRecord; readonly opened: boolean }> => {
     const existing = await deps.sessions.openSessionOf(driverId);
-    if (existing !== null && !acceptsFixes(existing, nowMs, policy)) {
+    if (existing !== null && !acceptsFixes(existing.facts, nowMs, policy)) {
       await deps.sessions.close(driverId, "EXPIRED", nowMs);
-      log("tracking.session_expired", { driverId, startedAtMs: existing.startedAtMs });
+      log("tracking.session_expired", { driverId, startedAtMs: existing.facts.startedAtMs });
       const replacement = await deps.sessions.open(
         driverId,
         await deps.trips.activeTripOf(driverId),
         startAtMs,
       );
-      return { facts: replacement, opened: true };
+      return { record: replacement, opened: true };
     }
 
     if (existing === null) {
       const trip = await deps.trips.activeTripOf(driverId);
-      return { facts: await deps.sessions.open(driverId, trip, startAtMs), opened: true };
+      return { record: await deps.sessions.open(driverId, trip, startAtMs), opened: true };
     }
 
     /**
@@ -206,11 +206,11 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
      * في رؤية السائق وهو في رحلة غيره. وهذا تسريبٌ لا تفصيل.
      */
     const trip = await deps.trips.activeTripOf(driverId);
-    if (trip !== existing.tripId) {
+    if (trip !== existing.facts.tripId) {
       const attached = await deps.sessions.attachTrip(driverId, trip);
-      if (attached !== null) return { facts: attached, opened: false };
+      if (attached !== null) return { record: attached, opened: false };
     }
-    return { facts: existing, opened: false };
+    return { record: existing, opened: false };
   };
 
   return {
@@ -235,7 +235,7 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
         if (!sessionShouldRun(duty)) {
           const open = await deps.sessions.openSessionOf(fix.driverId);
           if (open !== null) {
-            await closeAndAnnounce(fix.driverId, open.tripId, "DRIVER_STOPPED", nowMs);
+            await closeAndAnnounce(fix.driverId, open.facts.tripId, "DRIVER_STOPPED", nowMs);
           }
           log("tracking.fix_off_duty", { driverId: fix.driverId });
           return;
@@ -251,7 +251,8 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
          * سيمرّ من كل اختبارٍ بساعةٍ واحدة، ولا يظهر إلا بساعتين مختلفتين.
          */
         const startAtMs = Math.min(nowMs, fix.recordedAtMs);
-        const { facts, opened } = await currentSession(fix.driverId, nowMs, startAtMs);
+        const { record, opened } = await currentSession(fix.driverId, nowMs, startAtMs);
+        const facts = record.facts;
 
         if (opened) {
           await publish({
@@ -271,7 +272,10 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
          */
         const advanced = recordFix(facts, fix.recordedAtMs, nowMs, policy);
         if (advanced.ok) {
-          await deps.sessions.advance(fix.driverId, fix.recordedAtMs);
+          const outcome = await deps.sessions.advance(fix.driverId, fix.recordedAtMs);
+          if (outcome.kind !== "accepted") {
+            log("tracking.fix_not_advanced", { driverId: fix.driverId, reason: outcome.kind });
+          }
         } else {
           log("tracking.fix_not_advanced", {
             driverId: fix.driverId,
@@ -312,7 +316,7 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
         }
         const open = await deps.sessions.openSessionOf(driverId);
         if (open === null) return;
-        await closeAndAnnounce(driverId, open.tripId, "DRIVER_STOPPED", nowMs);
+        await closeAndAnnounce(driverId, open.facts.tripId, "DRIVER_STOPPED", nowMs);
       }),
 
     onTripEnded: (tripId, reason) =>
@@ -331,7 +335,7 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
         for (const session of closed) {
           await publish({
             type: "session_ended",
-            driverId: session.driverId,
+            driverId: session.facts.driverId,
             tripId,
             position: null,
             timestamp: new Date(nowMs),

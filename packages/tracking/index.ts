@@ -22,6 +22,8 @@
 export { resolveGpsPolicy } from "./config.ts";
 export {
   createMemoryTrackingSessionStore,
+  type SessionAdvanceOutcome,
+  type TrackingSessionRecord,
   type TrackingSessionStore,
 } from "./session-store.ts";
 export type {
