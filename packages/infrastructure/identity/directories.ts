@@ -11,6 +11,7 @@
 import type {
   DriverDirectory,
   DriverProfile,
+  LocationWriteOutcome,
   RegisterDriverInput,
   RegisterRiderInput,
   RiderDirectory,
@@ -153,25 +154,76 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
       ) as Promise<Result<DriverProfile, PortFailureError>>,
 
     /**
-     * الكاتب الوحيد لـ`drivers.last_location` — ADR-0015.
+     * ## `BUG-001` — ولماذا الشرطُ في `where` لا في `JS`
      *
-     * الموضع وجودته يُكتبان في جملة واحدة: جملتان متتاليتان تتركان نافذةً تُقرأ
-     * فيها إحداثيةٌ جديدة مع حكمِ إحداثيةٍ قديمة — وهي أسوأ من غياب الحكم أصلاً،
-     * لأنّها تُلبِس إصلاحةً خشنةً شهادةَ دقّةٍ لإصلاحةٍ أخرى.
+     * كانت هذه الجملةُ **غيرَ مشروطةٍ**: من وصلَ أخيراً كتبَ، وإن كانت إصلاحتُه
+     * أقدمَ. ورسائلُ الموقعِ الحيِّ تأتي تباعاً ولا شيءَ يضمنُ ترتيبَ وصولِها ولا
+     * ترتيبَ معالجتِها، فنبضتانِ متزاحمتانِ تجعلانِ الموضعَ القانونيَّ يتراجعُ إلى
+     * الوراءِ — فتقيس المطابقةُ مسافةً من نقطةٍ غادرَها السائقُ، ويرى الراكبُ
+     * السيارةَ ترتدُّ على الخريطةِ.
+     *
+     * والقراءةُ ثمّ المقارنةُ في `JS` ثمّ الكتابةُ لا تُصلِح شيئاً: بينَ القراءةِ
+     * والكتابةِ نافذةٌ تكفي لأن تقرأَ النبضتانِ نفسَ الطابعِ القديمِ فتكتبَا معاً.
+     * فالشرطُ في `where` داخلَ جملةِ الكتابةِ نفسِها (`BUG-001` بحرفِه: «الرقابةُ
+     * في القاعدةِ لا في `JS`») — و`PostgreSQL` في `READ COMMITTED` يُعيد تقويمَ
+     * الشرطِ على **النسخةِ المُحدَّثةِ** من الصفِّ إذا انتظرت الجملةُ معاملةً
+     * متزامنةً، فالخاسرُ يرى ما كتبَه الفائزُ ويُحكَم عليهِ به.
+     *
+     * ## ولماذا `<=` لا `<`، ولماذا `last_location_recorded_at`
+     *
+     * `ADR 0053` §٦ يُلزِم أن يكونَ مُسنَدُ هذا الحارسِ **مُسنَدَ حارسِ
+     * `tracking_sessions` حرفاً**: قِدَمٌ صارمٌ على طابعِ الإصلاحةِ والتساوي
+     * مقبولٌ (§٤-ج) — وإلّا صار للنظامِ حَكَمانِ على «الأحدثِ»، فيُعرَض موضعٌ لا
+     * يطابقُ المصدرَ القانونيَّ. وطابعُ تلغرام بدقّةِ الثانيةِ، فإصلاحتانِ في
+     * ثانيةٍ واحدةٍ حالةٌ عاديّةٌ، ورفضُ المتساوي كان سيُجمّد الخريطةَ عندَ أوّلِ
+     * حركةٍ سريعةٍ.
+     *
+     * والمقارنةُ على `last_location_recorded_at` (طابعُ الجهازِ) لا
+     * `last_location_at` (`now()` لحظةَ الكتابةِ): الأوّلُ هو ما يقرأُه المجالُ
+     * إصلاحةً سابقةً (`toLastFix` أعلاه) وهو ما تحكمُ به الجلسةُ؛ والثاني يتقدّمُ
+     * مع كلِّ كتابةٍ فلا يرفضُ شيئاً أبداً، والحكمُ به حكمٌ بساعةِ الخادمِ لا
+     * بترتيبِ الإصلاحاتِ.
+     *
+     * ## ولماذا `current` مع `written`
+     *
+     * لأنّ «لا صفَّ مُحدَّثاً» جوابٌ ملتبسٌ: أقدَمٌ مرفوضٌ أم سائقٌ لا صفَّ له؟
+     * وخلطُهما يجعلُ عطلاً حقيقيّاً (معرّفٌ لا وجودَ له) يُقرأُ «إصلاحةٌ أقدمُ»
+     * فيمرُّ صامتاً. و`current` تُقرأُ من لقطةِ الجملةِ وليست مصدرَ الحكمِ:
+     * الحكمُ وجودُ صفٍّ في `written` لا مقارنةٌ في التطبيقِ — وهي نفسُ صياغةِ
+     * `session-repository.advance` عن قصدٍ لا توارُدٍ.
+     *
+     * والموضعُ وجودتُه وطابعُه يُكتبان في جملةٍ واحدةٍ كما كانا (ADR-0015):
+     * جملتان متتاليتان تتركان نافذةً تُقرأ فيها إحداثيةٌ جديدة مع حكمِ إحداثيةٍ
+     * قديمة — وهي أسوأ من غياب الحكم أصلاً، لأنّها تُلبِس إصلاحةً خشنةً شهادةَ
+     * دقّةٍ لإصلاحةٍ أخرى. والكاتبُ واحدٌ لا غير — وهذا هو.
      */
-    updateLocation: (driverId: DriverId, location: Coordinates, quality?: StoredLocationQuality) =>
-      guard("drivers.updateLocation", async () => {
-        await sql`
-          update drivers
-             set last_location = st_setsrid(
-                   st_makepoint(${location.longitude}, ${location.latitude}), 4326)::geography,
-                 last_location_at = now(),
-             last_location_recorded_at = ${quality?.recordedAtMs === undefined ? null : new Date(quality.recordedAtMs)},
-                 last_location_accuracy_m = ${quality?.accuracyMeters ?? null},
-                 last_location_quality = ${quality?.verdict ?? null},
-                 updated_at = now()
-           where id = ${driverId}
+    updateLocation: (driverId: DriverId, location: Coordinates, quality: StoredLocationQuality) =>
+      guard("drivers.updateLocation", async (): Promise<LocationWriteOutcome> => {
+        const at = new Date(quality.recordedAtMs);
+        const rows = await sql<{ readonly accepted: boolean }[]>`
+          with current as (
+            select id from drivers where id = ${driverId}
+          ),
+          written as (
+            update drivers as d
+               set last_location = st_setsrid(
+                     st_makepoint(${location.longitude}, ${location.latitude}), 4326)::geography,
+                   last_location_at = now(),
+                   last_location_recorded_at = ${at},
+                   last_location_accuracy_m = ${quality.accuracyMeters},
+                   last_location_quality = ${quality.verdict},
+                   updated_at = now()
+             where d.id = ${driverId}
+               and (d.last_location_recorded_at is null or d.last_location_recorded_at <= ${at})
+            returning d.id
+          )
+          select true as accepted from written
+          union all
+          select false as accepted from current where not exists (select 1 from written)
         `;
+        const row = rows[0];
+        if (row === undefined) return { kind: "no_driver" };
+        return row.accepted ? { kind: "accepted" } : { kind: "stale" };
       }),
 
     /**

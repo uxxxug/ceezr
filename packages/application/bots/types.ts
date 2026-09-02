@@ -31,11 +31,33 @@ export interface StoredLocationQuality {
    * والخطأ لقياس التتابع: مقارنة طابعِ جهازٍ جديد بطابعِ خادمٍ سابق تجعل المدة
    * المقيسة زمنَ الشبكة لا زمن الرحلة، فتُقرأ ٢٥٠ متراً في ستين ثانية سرعةً
    * لا نهائية. والفارق بين الساعتين متغيّر بطبيعته فلا يُصلَح بمعامل.
+   *
+   * **و`BUG-001` جعلَه لازماً لا اختياريّاً**: هو مُسنَدُ الحارسِ الشرطيِّ في
+   * القاعدةِ، وكتابةٌ بلا طابعٍ كانت ستمرَّ بلا حكمٍ **وتمحو** الطابعَ المخزَّنَ،
+   * فتُسقِط أساسَ الحكمِ على ما يليها — أي بابٌ خلفيٌّ للتراجعِ الذي وُجِد الحارسُ
+   * ليمنعَه. واللزومُ في النوعِ يمنعُه عند الترجمةِ لا عند التشغيلِ.
    */
-  readonly recordedAtMs?: number | undefined;
+  readonly recordedAtMs: number;
   readonly accuracyMeters: number | null;
   readonly verdict: "ACCEPT" | "WARNING" | "ALERT";
 }
+
+/**
+ * حكمُ الكتابةِ الشرطيّةِ على `drivers.last_location` — `BUG-001`.
+ *
+ * الكتابةُ صارت مشروطةً في القاعدةِ، فصار لها جوابٌ لا صمتٌ: مَن كتبَ لا يعرف
+ * أقُبِلت إصلاحتُه أم رُفِضت إلَّا إذا قالت له القاعدةُ. و`stale` ليست خطأً
+ * تقنيّاً: الحالةُ سليمةٌ ولم تتراجع، وإنّما الإصلاحةُ الواصلةُ أقدمُ من
+ * المخزَّنةِ فلم تُقدِّم شيئاً.
+ *
+ * والمفرداتُ هي مفرداتُ حارسِ `tracking_sessions` نفسُها (`accepted` · `stale`)
+ * عن قصدٍ: `ADR 0053` §٦ يُلزِم بأن يكونَ للنظامِ حَكَمٌ واحدٌ على «الأحدثِ»،
+ * فاختلافُ الأسماءِ على المعنى الواحدِ أوّلُ خطوةٍ إلى حَكَمَين.
+ */
+export type LocationWriteOutcome =
+  | { readonly kind: "accepted" }
+  | { readonly kind: "stale" }
+  | { readonly kind: "no_driver" };
 
 export type IncomingUpdate =
   | { readonly kind: "text"; readonly from: Sender; readonly text: string }
@@ -312,12 +334,16 @@ export interface DriverDirectory {
    * `quality` ليس زينةً في السجل: مُقيِّم المرحلة ٣ يُنتج ثلاثة أحكام، فإن خُزّن
    * الموضع وحده ضاع الحكم وعادت المطابقة تُسوّي بين إصلاحة بدقّة ٥ أمتار وأخرى
    * بدقّة ٣ كيلومترات. تمريره هنا يجعل الجودة جزءاً من المصدر القانوني (ADR-0015).
+   *
+   * **و`BUG-001`**: الكتابةُ مشروطةٌ في القاعدةِ — تُرفَض الإصلاحةُ الأقدمُ قِدَماً
+   * صارماً فلا تُرجِع الحالةَ إلى الوراءِ — والحكمُ يُعاد إلى النادي صريحاً. ولذلك
+   * صارت `quality` لازمةً: فيها طابعُ الإصلاحةِ الذي يحكمُ به الحارسُ.
    */
   updateLocation(
     driverId: DriverId,
     location: Coordinates,
-    quality?: StoredLocationQuality,
-  ): Promise<Result<void, PortFailureError>>;
+    quality: StoredLocationQuality,
+  ): Promise<Result<LocationWriteOutcome, PortFailureError>>;
   /**
    * يحفظ المنطقة المفضّلة أو يمسحها بتمرير `null` — البند 2.4.
    *

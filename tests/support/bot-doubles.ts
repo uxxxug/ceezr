@@ -12,6 +12,7 @@ import type {
   CityRef,
   DriverDirectory,
   DriverProfile,
+  LocationWriteOutcome,
   OfferDecisionPort,
   OrderWriter,
   RiderDirectory,
@@ -75,6 +76,8 @@ export interface DriverDirectoryDouble extends DriverDirectory {
   }[];
   readonly availabilityCalls: { driverId: DriverId; isAvailable: boolean }[];
   readonly locationCalls: { driverId: DriverId; location: Coordinates }[];
+  /** حكمُ الكتابةِ الذي يُعيدُه المزدوجُ — يُضبَط في النداءِ لاختبارِ مسارِ `stale`. */
+  locationOutcome: LocationWriteOutcome;
   readonly preferredAreaCalls: ({ label: string; location: Coordinates } | null)[];
 }
 
@@ -85,11 +88,12 @@ export function driverDirectory(existing: DriverProfile | null = null): DriverDi
   const preferredAreaCalls: DriverDirectoryDouble["preferredAreaCalls"] = [];
   let current = existing;
 
-  return {
+  const double: DriverDirectoryDouble = {
     registrations,
     availabilityCalls,
     locationCalls,
     preferredAreaCalls,
+    locationOutcome: { kind: "accepted" },
     setPreferredArea: async (_driverId, area) => {
       preferredAreaCalls.push(area === null ? null : { ...area });
       return ok(undefined);
@@ -116,9 +120,14 @@ export function driverDirectory(existing: DriverProfile | null = null): DriverDi
       };
       return ok(current);
     },
+    /**
+     * المزدوجُ **لا يُحاكي** حارسَ `BUG-001`: مقارنةُ الطوابعِ في الذاكرةِ كانت
+     * ستُنشئ حَكَماً ثانياً على «الأحدثِ» في الاختباراتِ نفسِها. فالحكمُ ههنا قيمةٌ
+     * تُضبَط من الاختبارِ، والحارسُ الحقيقيُّ يُختبَر على قاعدةٍ حقيقيّةٍ وحدَها.
+     */
     updateLocation: async (driverId, location) => {
       locationCalls.push({ driverId, location });
-      return ok(undefined);
+      return ok(double.locationOutcome);
     },
     setAvailability: async (driverId, isAvailable) => {
       availabilityCalls.push({ driverId, isAvailable });
@@ -126,6 +135,7 @@ export function driverDirectory(existing: DriverProfile | null = null): DriverDi
     },
     changeCity: async (_driverId, _newCityId) => ok({ ok: true, error: null }),
   };
+  return double;
 }
 
 export function verifiedDriver(overrides: Partial<DriverProfile> = {}): DriverProfile {
