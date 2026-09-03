@@ -65,6 +65,7 @@ interface Sent {
 function riderClaim(overrides: Record<string, unknown> = {}) {
   return {
     claimed: true,
+    duplicate: false,
     reason: null,
     cityId: JEDDAH.id as CityId,
     rider: {
@@ -174,6 +175,36 @@ describe("§4.2 — إخطارُ الراكب لحظة قبول السائق", (
 
   it("رسالةٌ واحدة لا اثنتان: القبولُ لا يُخطِر مرّتين", async () => {
     await handleDriverUpdate(callback(`offer:accept:${ORDER}`), deps);
+    expect(sent).toHaveLength(1);
+    expect(issuedFor).toHaveLength(1);
+  });
+
+  /**
+   * `BUG-008` — التسليمُ المكرَّرُ لنقرةِ الفائزِ نفسِه: رسالةُ نجاحٍ واحدةٌ
+   * لا «سبقك سائق آخر»، ولا أثرٌ جانبيٌّ للمرّةِ الثانية: الراكبُ لا يُخطَر
+   * مرتَين ولا يُصدَر له رابطٌ ثانٍ.
+   */
+  it("تسليمٌ مكرَّرٌ لنقرةِ الفائز: نجاحٌ واحدٌ بلا إخطارٍ ثانٍ", async () => {
+    let call = 0;
+    const twice = build({
+      dispatch: {
+        claimRide: async (orderId, driverId) => {
+          claims.push({ orderId, driverId });
+          call += 1;
+          // النداءُ الأوّلُ إسنادٌ واقعٌ، والثاني ما تُردُّه القاعدةُ للفائزِ نفسِه.
+          return ok(call === 1 ? riderClaim() : riderClaim({ duplicate: true, rider: null }));
+        },
+      },
+    });
+
+    const first = await handleDriverUpdate(callback(`offer:accept:${ORDER}`), twice);
+    const second = await handleDriverUpdate(callback(`offer:accept:${ORDER}`), twice);
+
+    expect(first[0]?.text).toBe(tr("ar", "driver.offer_accepted"));
+    expect(second[0]?.text).toBe(tr("ar", "driver.offer_accepted"));
+    expect(second[0]?.text).not.toBe(tr("ar", "driver.offer_taken"));
+    expect(claims).toHaveLength(2);
+    // الأثرُ مرّةٌ واحدةً لا مرّتَين.
     expect(sent).toHaveLength(1);
     expect(issuedFor).toHaveLength(1);
   });

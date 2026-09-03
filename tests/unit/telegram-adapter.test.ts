@@ -55,6 +55,7 @@ function deps(): DriverBotDependencies {
       claimRide: async () =>
         ok({
           claimed: true,
+          duplicate: false,
           reason: null,
           cityId: null,
           rider: null,

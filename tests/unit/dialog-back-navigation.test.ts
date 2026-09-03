@@ -55,6 +55,7 @@ describe("الرجوع من اختيار الخدمة إلى اختيار الم
         claimRide: async () =>
           ok({
             claimed: true,
+            duplicate: false,
             reason: null,
             cityId: null,
             rider: null,

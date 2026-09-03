@@ -93,6 +93,7 @@ beforeEach(() => {
         claims.push({ orderId, driverId });
         return ok({
           claimed: true,
+          duplicate: false,
           reason: null,
           cityId: null,
           rider: null,
@@ -620,6 +621,7 @@ describe("قبول ورفض العرض", () => {
           claimRide: async () =>
             ok({
               claimed: false,
+              duplicate: false,
               reason: "already_claimed",
               cityId: null,
               rider: null,
@@ -633,6 +635,34 @@ describe("قبول ورفض العرض", () => {
     expect(replies[0]?.text).toBe(ar("driver.offer_taken"));
   });
 
+  /**
+   * `BUG-008` — الفائزُ لا يُقالُ له «سبقك سائق آخر» عن إسنادٍ هو صاحبُه:
+   * التسليمُ المكرَّرُ يُردُّ بنفسِ رسالةِ النجاحِ لا برسالةِ خسارةٍ كاذبة.
+   */
+  it("تسليمٌ مكرَّرٌ لنقرةِ الفائزِ يُردُّ نجاحاً لا «سبقك سائق آخر»", async () => {
+    const replies = await handleDriverUpdate(
+      callback("offer:accept:order-77"),
+      build({
+        drivers: driverDirectory(verifiedDriver()),
+        dispatch: {
+          claimRide: async () =>
+            ok({
+              claimed: true,
+              duplicate: true,
+              reason: null,
+              cityId: null,
+              rider: null,
+              driverName: null,
+              driverPlate: null,
+              driverVehicle: null,
+            }),
+        },
+      }),
+    );
+    expect(replies[0]?.text).toBe(ar("driver.offer_accepted"));
+    expect(replies[0]?.text).not.toBe(ar("driver.offer_taken"));
+  });
+
   it("يميّز انتهاء المهلة عن سبق سائق آخر", async () => {
     const replies = await handleDriverUpdate(
       callback("offer:accept:order-77"),
@@ -642,6 +672,7 @@ describe("قبول ورفض العرض", () => {
           claimRide: async () =>
             ok({
               claimed: false,
+              duplicate: false,
               reason: "offer_expired",
               cityId: null,
               rider: null,

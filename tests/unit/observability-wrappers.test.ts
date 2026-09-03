@@ -104,6 +104,43 @@ describe("أغلفة الرصد لا تُسقط شيئاً من المنفذ ا�
     expectPreserved(port, instrumentDispatchRpc(port as never, metrics()));
   });
 
+  /**
+   * `BUG-008` — التسليمُ المكرَّرُ نجاحٌ لا قبولٌ ثانٍ: عدُّه مرّتَين يُخرِج
+   * مقياساً أكبرَ من الإسناداتِ الواقعةِ فعلاً — وهو أثرٌ جانبيٌّ مكرَّرٌ بعينِه.
+   */
+  it("instrumentDispatchRpc لا يعدُّ التسليمَ المكرَّرَ قبولاً ثانياً", async () => {
+    const claim = (duplicate: boolean) => ({
+      claimed: true,
+      duplicate,
+      reason: null,
+      cityId: null,
+      rider: null,
+      driverName: null,
+      driverPlate: null,
+      driverVehicle: null,
+    });
+
+    const counted = createOperationalMetrics();
+    const first = instrumentDispatchRpc(
+      { claimRide: async () => ok(claim(false)) } as never,
+      counted,
+    );
+    const repeated = instrumentDispatchRpc(
+      { claimRide: async () => ok(claim(true)) } as never,
+      counted,
+    );
+
+    await first.claimRide("order-1" as never, "driver-1" as never);
+    await repeated.claimRide("order-1" as never, "driver-1" as never);
+    await repeated.claimRide("order-1" as never, "driver-1" as never);
+
+    const line = counted.registry
+      .render()
+      .split("\n")
+      .find((entry) => entry.startsWith("waslah_dispatch_offers_accepted_total "));
+    expect(line).toBe("waslah_dispatch_offers_accepted_total 1");
+  });
+
   it("instrumentExpireOffersRpc يحفظ ما يلفّه", () => {
     const port = withSentinel({ expireStaleOffers: async () => ok(0) });
     expectPreserved(port, instrumentExpireOffersRpc(port as never, metrics()));

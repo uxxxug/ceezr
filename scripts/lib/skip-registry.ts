@@ -411,6 +411,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/claim-ride-duplicate-delivery.test.ts",
+    suites: ["تمييزُ التسليمِ المكرَّرِ من فقدانِ السباق — BUG-008"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت أنّ `claim_ride` تُميّز إعادةَ تسليمِ نقرةِ الفائزِ من فقدانِ السباقِ على PostgreSQL حقيقيّةٍ بالهجرات مطبّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرة: المقيسُ أنّ سائقَينِ متزاحمَينِ على اتّصالَينِ منفصلَينِ لهما فائزٌ واحدٌ وخاسرٌ صريحٌ، وأنّ إعادةَ مطالبةِ الفائزِ تخرجُ نجاحاً بلا كتابةٍ ثانيةٍ ولا أثرٍ ثانٍ — ومحاكٍ نكتبُه نحن لا يشهدُ على المحرّكِ بشيء.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/dispatch-open-round-atomicity.test.ts",
     suites: ["ذرّيّةُ فتحِ دورةِ البثّ — BUG-005"],
     skipped: 7,
