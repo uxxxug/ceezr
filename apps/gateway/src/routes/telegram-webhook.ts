@@ -5,11 +5,28 @@
  * ينتمي إلى: apps/gateway/src/routes
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/server.ts
  * ملاحظات مستقبلية: تلغرام يعيد إرسال التحديث إن لم نُجب 200 سريعاً، فالمعالجة الثقيلة تُؤجَّل لـ workers.
+ *
+ * ## ترتيبُ المسارِ حاكمٌ لا اختيارٌ — ولماذا تغيّر
+ *
+ * [ADR 0054](../../../../docs/adr/0054-telegram-webhook-durable-ingest-and-dedup.md) §٦ يُثبِّت
+ * خمسَ خطواتٍ بهذا الترتيبِ: **السرُّ ← حدُّ المعدَّلِ ← الإيصالُ الصامدُ ومنعُ التكرارِ
+ * (فعلٌ واحدٌ) ← إتاحةُ العملِ للحجزِ ← الإقرارُ السريعُ**.
+ *
+ * والمقلوبُ قبلَ ذلك كان **فقداً دائماً لا تكرارَ معالجةٍ**: `dedup.admit()` يفحص
+ * **ويَسِم** في نداءٍ واحدٍ لا رجعةَ فيه، وكان يُنادى **قبلَ** حدِّ المعدَّل. فمنِ
+ * ارتدَّ بـ`429` كان رقمُ تحديثِه **قد وُسِم مستهلَكاً**، فإعادةُ إرسالِ تيليجرام
+ * تُبتلَع بوصفِها «مكرَّراً» — والتحديثُ لم يُعالَج قطُّ ولن يُعاد. والتعليقُ القديمُ
+ * كان يقول «الرسالة لا تُفقد بل تُؤجَّل» — **وكان غيرَ صحيحٍ بسببِ الوسمِ السابقِ**.
+ *
+ * وموضعُ قرارِ منعِ التكرارِ صار **القاعدةَ** (`update-intake.ts`): إيصالُ استلامٍ
+ * صامدٌ بقيدِ تفرُّدٍ على `(bot, update_id)`. و`update-dedup.ts` **لم يعد مصدرَ القرارِ**:
+ * لا يُنادى إلّا في تركيبٍ بلا منفَذٍ صامدٍ — وذاك **تدهورٌ مُعلَنٌ للاختبارِ وحدَه**.
  */
 
 import { Hono } from "hono";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { createUpdateDeduplicator, type UpdateDeduplicator, updateIdOf } from "./update-dedup.ts";
+import type { DurableUpdateIntake } from "./update-intake.ts";
 
 /** ترويسة تلغرام القياسية للسرّ المشترك. */
 export const TELEGRAM_SECRET_HEADER = "x-telegram-bot-api-secret-token";
@@ -45,8 +62,17 @@ export interface WebhookDependencies {
   /** تسجيل الأحداث — يُمرَّر ليكون صامتاً في الاختبار. */
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
   /**
-   * مانع تكرار `update_id`. اختياري فلا يتغيّر أي اختبار قائم، ويُمرَّر في
-   * الاختبار للتحكّم بالزمن. عند الإغفال يُنشأ واحد لعمر الخادم.
+   * **موضعُ قرارِ منعِ التكرارِ والاستلامِ الصامدِ** (ADR 0054 §٣-أ).
+   *
+   * اختياريٌّ في النوعِ لا في الإنتاج: `apps/gateway/src/index.ts` يوصِلُه دائماً،
+   * وإغفالُه **تدهورٌ مُعلَنٌ للاختبارِ وحدَه** يرتدُّ فيه القرارُ إلى `dedup` في
+   * الذاكرةِ. ولماذا لا يُجعل إلزاميّاً: نحو خمسٍ وثلاثينَ ملفَّ اختبارٍ تُركّب هذا
+   * المسارَ بلا قاعدةٍ، وإلزامُه كان سيُوجِب قاعدةً لفحصِ مقارنةِ سرٍّ.
+   */
+  readonly intake?: DurableUpdateIntake;
+  /**
+   * مانع تكرار `update_id` **في الذاكرة** — **لم يعد مصدرَ القرارِ** متى وُصِل
+   * `intake`. يُمرَّر في الاختبار للتحكّم بالزمن. عند الإغفال يُنشأ واحد لعمر الخادم.
    */
   readonly dedup?: UpdateDeduplicator;
   /**
@@ -216,34 +242,83 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
       return c.json({ ok: false, error: "INVALID_UPDATE" }, 400);
     }
 
-    // إزالة التكرار بعد التحقّق من الشكل وقبل حدّ المعدّل: التحديث المكرَّر
-    // لا يُحتسب على حدّ المستخدم، فإعادةُ إرسالٍ من تلغرام ليست إساءةً منه.
-    const updateId = updateIdOf(update);
-    if (updateId !== null && !dedup.admit(bot, updateId)) {
-      deps.log?.("تحديث مكرَّر أُهمل", { bot, updateId });
-      // 200 لا 4xx: التحديث مقبول ومعالَج سابقاً، فلا سبب لإعادة الإرسال
-      return c.json({ ok: true, duplicate: true }, 200);
-    }
-
+    // ٢) حدُّ المعدَّلِ **قبلَ أيِّ استهلاكٍ لـ`update_id`** (ADR 0054 §٦).
+    // وأثرُ الترتيبِ واحدٌ لا أكثر: أن يقعَ الرفضُ قبلَ أن يُوسَم الرقمُ، فتكونَ
+    // إعادةُ إرسالِ تيليجرام **مقبولةً لا مُبتلَعةً**. وأمّا إعفاءُ الإعاداتِ من
+    // حصّةِ المستخدمِ فسؤالٌ **لا يحسمُه ADR 0054** (§١٠/٥) ولا يُجتهَد فيه ههنا.
     const actorId = updateActorId(update);
     if (actorId !== null && deps.rateLimits?.users !== undefined) {
       const decision = await deps.rateLimits.users.hit(`user:${bot}:${actorId}`);
       if (!decision.allowed) {
         deps.log?.("تجاوز مستخدم حدّ المعدّل", { bot, actorId });
-        // 429 لتلغرام يعني إعادة إرسال لاحقاً، وهو المطلوب: الرسالة لا تُفقد
-        // بل تُؤجَّل، والمستخدم الشرعي لا يبلغ الحدّ أصلاً.
+        // 429 لتلغرام يعني إعادة إرسال لاحقاً — والإعادةُ الآن تُقبَل فعلاً لأنّ
+        // الرقمَ لم يُودَع بعدُ. فالتعليقُ «لا تُفقد بل تُؤجَّل» صار صحيحاً.
         return tooManyRequests(c, decision.resetSeconds);
       }
     }
 
-    const handled = await deps.handler.handle(bot, update);
-    if (!handled) {
-      deps.log?.("تعذّرت معالجة التحديث", { bot });
-      // نُجيب 200 حتى لا يُعيد تلغرام الإرسال بلا نهاية؛ الفشل مسجَّل للمراجعة.
-      return c.json({ ok: false, error: "NOT_HANDLED" }, 200);
+    /** المعالجةُ وجوابُها — موضعٌ واحدٌ كي لا يختلفَ الجوابُ بينَ فرعٍ وفرعٍ. */
+    const answer = (handled: boolean): Response => {
+      if (!handled) {
+        deps.log?.("تعذّرت معالجة التحديث", { bot });
+        // نُجيب 200 حتى لا يُعيد تلغرام الإرسال بلا نهاية؛ الفشل مسجَّل للمراجعة.
+        return c.json({ ok: false, error: "NOT_HANDLED" }, 200);
+      }
+      return c.json({ ok: true }, 200);
+    };
+
+    const updateId = updateIdOf(update);
+
+    // ٣) الإيصالُ الصامدُ ومنعُ التكرارِ — **فعلٌ واحدٌ ذرّيٌّ في القاعدةِ**، لا فحصٌ
+    //    ثمَّ كتابةٌ منفصلةٌ تُقتنَص النافذةُ بينهما.
+    if (deps.intake !== undefined && updateId !== null) {
+      const intake = deps.intake;
+      let claim: Awaited<ReturnType<DurableUpdateIntake["claim"]>>;
+      try {
+        claim = await intake.claim(bot, updateId);
+      } catch {
+        // عجزُ الإيداعِ **ليس إذناً بالمعالجةِ ولا بالإقرارِ**: `503` يجعل تيليجرام
+        // يُعيد الإرسالَ فلا يُفقد التحديثُ. ولا يُسجَّل `updateId` حفاظاً على §٧/٥.
+        deps.log?.("تعذّر الإيداعُ الصامدُ للتحديث", { bot });
+        return c.json({ ok: false, error: "INTAKE_UNAVAILABLE" }, 503);
+      }
+
+      if (claim.outcome === "duplicate" || claim.outcome === "in_progress") {
+        deps.log?.("تحديث مكرَّر أُهمل", { bot, outcome: claim.outcome });
+        // 200 لا 4xx: التحديث مقبولٌ ومعالَجٌ (أو قيدَ المعالجةِ)، فلا عملَ ثانٍ.
+        return c.json({ ok: true, duplicate: true }, 200);
+      }
+
+      // ٤) العملُ محجوزٌ برمزٍ. وإن ماتت العمليةُ ههنا بقيَ الإيصالُ غيرَ مختومٍ،
+      //    فيُسترجَع حجزُه عندَ إعادةِ تيليجرام — وإعادتُها هي ناقلُ الحمولةِ، فلا
+      //    تُخزَّن حمولةٌ (§٧/١) وتبقى «مرّةً على الأقلّ» قائمةً (§٥/٣).
+      const token = claim.claimToken;
+      let handled = false;
+      try {
+        handled = await deps.handler.handle(bot, update);
+      } finally {
+        if (token !== null) {
+          await intake.finish(
+            bot,
+            updateId,
+            token,
+            handled ? "done" : "failed",
+            handled ? undefined : "NOT_HANDLED",
+          );
+        }
+      }
+      return answer(handled);
     }
 
-    return c.json({ ok: true }, 200);
+    // تركيبٌ بلا منفَذٍ صامدٍ: **تدهورٌ مُعلَنٌ للاختبارِ والقياسِ وحدَهما**، يرتدُّ
+    // فيه القرارُ إلى خريطةِ الذاكرةِ. **والترتيبُ يبقى مصحَّحاً حتّى ههنا**: الوسمُ
+    // بعدَ حدِّ المعدَّلِ لا قبلَه، فنافذةُ الفقدِ الأولى مغلقةٌ في الفرعَينِ كليهما.
+    if (updateId !== null && !dedup.admit(bot, updateId)) {
+      deps.log?.("تحديث مكرَّر أُهمل", { bot, updateId });
+      return c.json({ ok: true, duplicate: true }, 200);
+    }
+
+    return answer(await deps.handler.handle(bot, update));
   });
 
   return app;

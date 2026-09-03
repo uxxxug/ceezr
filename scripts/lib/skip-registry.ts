@@ -355,6 +355,22 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/telegram-durable-intake.test.ts",
+    suites: ["الاستلامُ الصامدُ لتحديثاتِ تيليجرام (BUG-002)"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت «الاستلامَ الصامدَ ومنعَ التكرارِ الذرّيَّ لتحديثاتِ تيليجرام» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرة: المقصودُ سلوكُ المحرّكِ نفسِه — قيدُ التفرُّدِ و`on conflict` و`for update skip locked` وقرارٌ يبقى بعدَ موتِ العمليةِ — لا سلوكُ محاكٍ نكتبه نحن. وأحدُ اختباراته يُشغّل عمليتَينِ منفصلتَينِ فعلاً، فلا معنى له بلا قاعدةٍ مشتركةٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    // القائمةُ مغلقةٌ فلا يُضاف إليها بندٌ لأجلِ ملفٍّ. وأثرُ `BUG-002` في خارطةِ
+    // الطريقِ منصوصٌ: «ضياع أحداث حقيقية = رحلات معلّقة» — فهو هذا المسارُ بعينِه.
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/database-privilege-surface.test.ts",
     suites: ["سطح صلاحيات قاعدة البيانات"],
     skipped: 6,

@@ -7,10 +7,32 @@
  *   فحص RLS يجمع الأسماء من مصدرين (أمر مباشر، وحلقة foreach على مصفوفة أسماء) ثم
  *   يتحقق من العضوية اسماً باسم؛ الصيغة القديمة كانت تقبل وجود أيّ حلقة في أيّ ملف
  *   كدليل على تفعيل RLS لكل الجداول، وهي ثغرة نجاح كاذب لأي جدول مستقبلي.
+ *
+ * ## الاستثناءُ الوحيدُ من القاعدة 0.4 — مغلقٌ ومزدوجُ الشرطِ
+ *
+ * الملحقُ الحاكمُ 2026-09-04 في [`docs/MASTER_DIRECTIVE.md`](../docs/MASTER_DIRECTIVE.md)
+ * أقرّ صنفاً واحداً مغلقاً اسمُه `domain-ingress receipt` يجوز له وحدَه ألّا يحمل
+ * `city_id` لحظةَ الإنشاء. وهذا الحارسُ **لا يُضعَّف عموماً ولا يُفتَح فيه تجاوزٌ**:
+ * الإعفاءُ يقتضي **شرطين معاً**، وسقوطُ أحدِهما مخالفةٌ:
+ *
+ *   ١) الاسمُ مُعلَنٌ في القائمةِ المغلقةِ `DOMAIN_INGRESS_RECEIPT_TABLES` في
+ *      `packages/shared/config/domain-ingress.ts` — على نمطِ `EVENT_DISTRIBUTION_MECHANISMS`.
+ *   ٢) الهجرةُ التي تُنشئ الجدولَ تُصرِّح انتماءَه بالصيغةِ الحرفيّةِ
+ *      `-- domain-ingress-receipt: <table>` في نفسِ الملفّ.
+ *
+ * ويُرفَض كذلك: تصريحٌ لاسمٍ خارجَ القائمةِ (توسيعُ الصنفِ بتعليقٍ في هجرةٍ — وهو
+ * ما نصَّ الملحقُ على منعِه صريحاً)، وتصريحٌ بلا `create table` يقابله، واسمٌ في
+ * القائمةِ بلا جدولٍ ولا تصريح (مُدخلٌ ميّتٌ يوسّع الاستثناءَ بلا مقابلٍ يُقرأ).
+ * و`RLS` تبقى مفروضةً على هذا الصنفِ كغيرِه: الإقرارُ يخصّ `city_id` وحدَه.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import {
+  DOMAIN_INGRESS_RECEIPT_DECLARATION_PREFIX,
+  DOMAIN_INGRESS_RECEIPT_TABLES,
+  isDomainIngressReceiptTable,
+} from "../packages/shared/config/domain-ingress.ts";
 
 const MIGRATIONS_DIR = "supabase/migrations";
 
@@ -93,6 +115,27 @@ export function tablesWithRlsEnabled(sql: string): Set<string> {
   return enabled;
 }
 
+/**
+ * أسماءُ الجداولِ المُصرَّحِ بانتمائها إلى صنفِ `domain-ingress receipt` في نصِّ هجرةٍ.
+ *
+ * تُقرأ من سطرِ تعليقٍ بالصيغةِ الحرفيّةِ وحدَها، فلا تُقبَل الصيغةُ مبنيّةً بجمعِ
+ * نصوصٍ ولا مُستنتَجةً من شكلِ الجدول — والقصدُ أن يكون التصريحُ مقروءاً بالعينِ
+ * كما يُقرأ بالفاحص، فمن أعفى جدولاً أعلن ذلك في الملفِّ نفسِه بسطرٍ لا يُخطئه أحد.
+ */
+export function declaredDomainIngressReceipts(sql: string): Set<string> {
+  const declared = new Set<string>();
+  const escapedPrefix = DOMAIN_INGRESS_RECEIPT_DECLARATION_PREFIX.replace(
+    /[.*+?^${}()|[\]\\]/g,
+    "\\$&",
+  );
+  const pattern = new RegExp(`^\\s*${escapedPrefix}\\s+([a-z_][a-z0-9_]*)\\s*$`, "gim");
+  for (const match of sql.matchAll(pattern)) {
+    const name = match[1];
+    if (name !== undefined) declared.add(name);
+  }
+  return declared;
+}
+
 function main(): void {
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
@@ -100,15 +143,38 @@ function main(): void {
   const violations: Violation[] = [];
   const allTables: string[] = [];
   const rlsEnabled = new Set<string>();
+  /** ما صُرِّح به فعلاً، وفي أيِّ ملفٍّ — كي يُرى المُدخلُ الميّتُ والتصريحُ اليتيم. */
+  const declaredReceipts = new Map<string, string>();
+  const exemptedTables: string[] = [];
 
   for (const file of files) {
     const sql = readFileSync(join(MIGRATIONS_DIR, file), "utf8");
     for (const name of tablesWithRlsEnabled(sql)) rlsEnabled.add(name);
 
+    const declaredHere = declaredDomainIngressReceipts(sql);
+    for (const name of declaredHere) {
+      declaredReceipts.set(name, file);
+      if (!isDomainIngressReceiptTable(name)) {
+        violations.push({
+          file,
+          table: name,
+          problem:
+            "صُرِّح كـdomain-ingress receipt وليس في القائمة المغلقة " +
+            "DOMAIN_INGRESS_RECEIPT_TABLES — والصنفُ لا يُوسَّع بتعليقٍ في هجرة " +
+            "(الملحق الحاكم 2026-09-04)",
+        });
+      }
+    }
+
     for (const { name, body } of findTableBlocks(sql)) {
       allTables.push(name);
 
       if (!/\bcity_id\b/.test(body)) {
+        // الإعفاءُ مزدوجُ الشرطِ: إعلانٌ في القائمةِ المغلقةِ، وتصريحٌ في هذا الملفِّ.
+        if (isDomainIngressReceiptTable(name) && declaredHere.has(name)) {
+          exemptedTables.push(name);
+          continue;
+        }
         violations.push({ file, table: name, problem: "لا يحمل عمود city_id (القاعدة 0.4)" });
         continue;
       }
@@ -143,6 +209,30 @@ function main(): void {
     }
   }
 
+  // تصريحٌ بلا جدولٍ يقابله: إعفاءٌ معلَّقٌ في الهواء يبقى مقروءاً كرخصةٍ سارية.
+  for (const [table, file] of declaredReceipts) {
+    if (!allTables.includes(table)) {
+      violations.push({
+        file,
+        table,
+        problem: "صُرِّح كـdomain-ingress receipt بلا create table يقابله",
+      });
+    }
+  }
+
+  // مُدخلٌ في القائمةِ المغلقةِ بلا تصريحٍ في أيِّ هجرة: توسيعٌ للاستثناءِ بلا مقابلٍ
+  // يُقرأ. والقائمةُ تُقرأ رخصةً، فرخصةٌ بلا مرخَّصٍ له تبقى بابَ نجاحٍ كاذبٍ لجدولٍ
+  // مستقبليٍّ يحمل الاسمَ نفسَه.
+  for (const table of DOMAIN_INGRESS_RECEIPT_TABLES) {
+    if (!declaredReceipts.has(table)) {
+      violations.push({
+        file: "packages/shared/config/domain-ingress.ts",
+        table,
+        problem: "مُعلَن في القائمة المغلقة بلا تصريحٍ في أيّ هجرة (مُدخلٌ ميّت)",
+      });
+    }
+  }
+
   if (violations.length > 0) {
     console.error("❌ مخالفات في المخططات:");
     for (const v of violations) {
@@ -151,8 +241,13 @@ function main(): void {
     process.exit(1);
   }
 
+  const exemptNote =
+    exemptedTables.length === 0
+      ? ""
+      : ` · وإعفاءُ city_id مقصورٌ على ${exemptedTables.length} جدولٍ من صنفِ domain-ingress receipt` +
+        ` بشرطَيه (${exemptedTables.join(", ")})`;
   console.log(
-    `✅ ${allTables.length} جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (${rlsEnabled.size} اسماً في قائمة التفعيل).`,
+    `✅ ${allTables.length} جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (${rlsEnabled.size} اسماً في قائمة التفعيل)${exemptNote}.`,
   );
 }
 

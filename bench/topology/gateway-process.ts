@@ -32,6 +32,7 @@ import { buildContainer, type Container } from "../../apps/gateway/src/container
 import {
   instrumentTelegramHandler,
   instrumentUpdateDeduplicator,
+  instrumentUpdateIntake,
 } from "../../apps/gateway/src/observability/telegram.ts";
 import {
   createMemoryRateLimiter,
@@ -40,6 +41,7 @@ import {
 } from "../../apps/gateway/src/rate-limit/fixed-window.ts";
 import { createUpstashRedis } from "../../apps/gateway/src/redis/upstash.ts";
 import { createUpdateDeduplicator } from "../../apps/gateway/src/routes/update-dedup.ts";
+import { createPostgresUpdateIntake } from "../../apps/gateway/src/routes/update-intake.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createOperationalMetrics } from "../../packages/infrastructure/observability/index.ts";
 import { loadConfig } from "../../packages/shared/config/index.ts";
@@ -171,6 +173,9 @@ async function main(): Promise<void> {
       webhookSecret: TOPOLOGY_WEBHOOK_SECRET,
       // نفسُ لافِّ الإنتاج: بلا هذا لا يتحرّك `waslah_telegram_webhook_*` فيُقرأ صفرٌ على أنّه حقيقة.
       handler: instrumentTelegramHandler(container.handler, metrics),
+      // بلا هذا يكونُ لكلِّ عمليةٍ قرارُ تكرارٍ خاصٌّ بها، وهو عينُ ما يقيسُه
+      // `cross-process-replay`. فوصلُه ههنا شرطُ أن يقيسَ السيناريو الإصلاحَ.
+      intake: instrumentUpdateIntake(createPostgresUpdateIntake(sql), metrics),
       dedup,
       rateLimits: { probes: limiter(), users: limiter() },
     },

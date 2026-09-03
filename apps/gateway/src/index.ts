@@ -47,6 +47,7 @@ import { instrumentPaymentConfirmationDeps } from "./observability/payment.ts";
 import {
   instrumentTelegramHandler,
   instrumentUpdateDeduplicator,
+  instrumentUpdateIntake,
 } from "./observability/telegram.ts";
 import { createObservabilityJobLogger } from "./observability/worker.ts";
 import { createPublicSecurityHeaders } from "./public/security-headers.ts";
@@ -62,6 +63,7 @@ import { createAdminUiRoutes } from "./routes/admin-ui.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
 import { createPublicTrackingRoutes } from "./routes/public-tracking.ts";
 import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
+import { createPostgresUpdateIntake } from "./routes/update-intake.ts";
 import { createServer } from "./server.ts";
 
 function log(message: string, meta: Record<string, unknown> = {}): void {
@@ -416,6 +418,9 @@ const app = createServer({
     webhookSecret: config.telegramWebhookSecret,
     log,
     handler: instrumentTelegramHandler(container.handler, operationalMetrics, { log }),
+    // مصدرُ قرارِ منعِ التكرارِ في الإنتاج: القاعدةُ لا الذاكرةُ (ADR 0054 §٣-أ).
+    // ويبقى `dedup` موصولاً للمقاييسِ وللتدهورِ المُعلَنِ حينَ يغيبُ `intake`.
+    intake: instrumentUpdateIntake(createPostgresUpdateIntake(container.sql), operationalMetrics),
     dedup: instrumentUpdateDeduplicator(createUpdateDeduplicator(), operationalMetrics),
     rateLimits: { probes: limiter(PROBE_LIMIT), users: limiter(USER_LIMIT) },
   },
