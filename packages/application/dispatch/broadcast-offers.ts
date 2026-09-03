@@ -8,11 +8,19 @@
  */
 
 import type { DistanceKm } from "../../domain/geo/value-objects.ts";
+import type { Order } from "../../domain/transport/entity.ts";
 import type { CityId, DriverId, OrderId } from "../../shared/kernel/index.ts";
 import type { Result } from "../../shared/result/index.ts";
-import { ok } from "../../shared/result/index.ts";
+import { err, ok } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
-import { type MatchOrderDependencies, type MatchOrderError, matchOrder } from "./match-order.ts";
+import {
+  type MatchOrderDependencies,
+  type MatchOrderError,
+  matchOrder,
+  OrderNotFoundError,
+  OrderNotSearchingError,
+  RoundAlreadyOpenedError,
+} from "./match-order.ts";
 
 export interface OfferEntry {
   readonly driverId: DriverId;
@@ -28,8 +36,29 @@ export interface OpenRoundInput {
   readonly expiresAt: Date;
 }
 
+/**
+ * سببُ رفضِ القاعدةِ فتحَ الدورةِ. ثلاثةٌ لا يُجزئُ أحدُها عن الآخرِ:
+ * طلبٌ ذهبَ، وطلبٌ لم يعُد يبحثُ، ودورةٌ سبقَ إليها غيرُنا.
+ */
+export type OpenRoundRefusal = "ORDER_NOT_FOUND" | "ORDER_NOT_SEARCHING" | "ROUND_ALREADY_OPENED";
+
+/**
+ * نتيجةُ فتحِ الدورةِ كما حسمَتْها القاعدةُ. وإنّما صارتْ قيمةً بعدَ أن كانتْ
+ * `void` لأنَّ المنفذَ صارَ يُقرّرُ لا يُنفّذُ: من لا يَروي قرارَه لا يملكُ المتّصلُ
+ * به إلّا أن يفترضَ النجاحَ.
+ */
+export type OpenRoundOutcome =
+  | { readonly opened: true; readonly offersInserted: number }
+  | { readonly opened: false; readonly refusal: "ORDER_NOT_FOUND" | "ROUND_ALREADY_OPENED" }
+  /** الحالُ يُرافقُ هذا الرفضَ وحدَه، لأنَّه وحدَه الذي له حالٌ يُخبِرُ عن شيءٍ. */
+  | {
+      readonly opened: false;
+      readonly refusal: "ORDER_NOT_SEARCHING";
+      readonly status: Order["status"];
+    };
+
 export interface OfferWriter {
-  openRound(input: OpenRoundInput): Promise<Result<void, PortFailureError>>;
+  openRound(input: OpenRoundInput): Promise<Result<OpenRoundOutcome, PortFailureError>>;
 }
 
 export interface OfferNotification {
@@ -132,6 +161,20 @@ export async function broadcastOffers(
     expiresAt,
   });
   if (!written.ok) return written;
+
+  /**
+   * القاعدةُ هي التي حسمَت، لا نحن. وثلاثةُ الرفضِ تُترجَم إلى ثلاثةِ أخطاءٍ لا
+   * إلى واحدٍ: من قرأ الطلبَ باحثاً ثمَّ وجدَه مُسنَداً حالُه غيرُ حالِ من وجدَ
+   * دورتَه قد فُتحَت قبلَه بلحظةٍ — والمتّصلُ يتصرَّفُ باختلافِهما.
+   */
+  if (!written.value.opened) {
+    const outcome = written.value;
+    if (outcome.refusal === "ORDER_NOT_FOUND") return err(new OrderNotFoundError(decision.orderId));
+    if (outcome.refusal === "ORDER_NOT_SEARCHING") {
+      return err(new OrderNotSearchingError(decision.orderId, outcome.status));
+    }
+    return err(new RoundAlreadyOpenedError(decision.orderId, decision.round));
+  }
 
   const notified: DriverId[] = [];
   const unreachable: DriverId[] = [];

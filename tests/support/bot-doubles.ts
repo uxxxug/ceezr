@@ -411,7 +411,7 @@ export function offerWriterDouble(): OfferWriterDouble {
     rounds,
     openRound: async (input) => {
       rounds.push(input);
-      return ok(undefined);
+      return ok({ opened: true as const, offersInserted: input.entries.length });
     },
   };
 }

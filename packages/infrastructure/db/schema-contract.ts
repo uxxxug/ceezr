@@ -55,6 +55,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "list_stale_pending_payments",
   "mark_escalation_delivered",
   "open_admin_session",
+  "open_offer_round",
   "open_support_ticket",
   "open_unsubscribed_cycle",
   "plan_upgrade_quote",

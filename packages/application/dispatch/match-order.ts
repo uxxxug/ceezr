@@ -61,9 +61,24 @@ export class NoEligibleDriverError {
   ) {}
 }
 
+/**
+ * سبقَ إلى الدورةِ غيرُنا. لا يُشتقُّ من «لم يعُد يبحثُ» لأنَّ الطلبَ ما يزالُ
+ * باحثاً فعلاً: فتحُ الدورةِ لا يُغيّرُ حالَ الطلبِ، فالحالةُ وحدَها لا تُميّزُ
+ * السابقَ من المسبوقِ — رقمُ الدورةِ هو الذي يُميّزُ. وخلطُ الاثنَينِ في رمزٍ
+ * واحدٍ كان سيَجعلُ سجلَّ التشغيلِ يكذبُ على من يقرؤه.
+ */
+export class RoundAlreadyOpenedError {
+  readonly code = "ROUND_ALREADY_OPENED" as const;
+  constructor(
+    readonly orderId: OrderId,
+    readonly round: number,
+  ) {}
+}
+
 export type MatchOrderError =
   | OrderNotFoundError
   | OrderNotSearchingError
+  | RoundAlreadyOpenedError
   | BroadcastRoundsExhaustedError
   | NoEligibleDriverError
   | SettingsError

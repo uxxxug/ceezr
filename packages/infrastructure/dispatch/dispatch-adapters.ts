@@ -31,6 +31,7 @@ import type {
   SubscriptionPlan,
   SubscriptionStatus,
 } from "../../domain/subscription/entity.ts";
+import type { Order } from "../../domain/transport/entity.ts";
 import type { CityId, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { guard, readEnvelope, type Sql } from "../db/client.ts";
 
@@ -194,26 +195,70 @@ export function createOfferRepository(sql: Sql): OfferRepository {
   };
 }
 
+/** حالاتُ الطلبِ كما يعرفُها المجالُ — لتُقرأ من نصِّ المغلَّفِ بلا ثقةٍ عمياء. */
+const ORDER_STATUSES: readonly Order["status"][] = [
+  "searching",
+  "matched",
+  "in_progress",
+  "completed",
+  "cancelled",
+  "failed",
+];
+
+function readOrderStatus(value: unknown): Order["status"] | null {
+  const text = readText(value);
+  return ORDER_STATUSES.find((status) => status === text) ?? null;
+}
+
 export function createOfferWriter(sql: Sql): OfferWriter {
   return {
-    /** فتح دورة بثّ: تُكتب العروض ويُرفع رقم دورة الطلب في معاملة واحدة. */
+    /**
+     * فتحُ دورةِ بثٍّ. لا منطقَ هنا إطلاقاً: القرارُ كلُّه في `open_offer_round`
+     * داخلَ القاعدةِ — حراسةُ الحالِ وحجزُ رقمِ الدورةِ وإنشاءُ العروضِ في معاملةٍ
+     * واحدةٍ. وما كان هنا قبلَه — حلقةُ إدخالٍ ثمَّ تحديثٌ بلا حارسٍ — كان يفتحُ
+     * دورتَينِ لطلبٍ واحدٍ متى تزامنَ استدعاءانِ (`BUG-005`).
+     */
     openRound: (input: OpenRoundInput) =>
       guard("offers.openRound", async () => {
-        await sql.begin(async (tx) => {
-          for (const entry of input.entries) {
-            await tx`
-              insert into order_offers
-                (city_id, order_id, driver_id, round, score, distance_km, status, expires_at)
-              values (${input.cityId}, ${input.orderId}, ${entry.driverId}, ${input.round},
-                      ${entry.score}, ${entry.distanceKm}, 'pending', ${input.expiresAt})
-              on conflict (order_id, driver_id, round) do nothing
-            `;
-          }
-          await tx`
-            update orders set broadcast_round = ${input.round}, updated_at = now()
-             where id = ${input.orderId}
-          `;
-        });
+        const entries = input.entries.map((entry) => ({
+          driver_id: entry.driverId,
+          score: entry.score,
+          distance_km: entry.distanceKm,
+        }));
+        const rows = await sql<{ result: unknown }[]>`
+          select open_offer_round(
+                   ${input.orderId}::uuid,
+                   ${input.round}::integer,
+                   ${input.expiresAt}::timestamptz,
+                   ${sql.json(entries as never)}::jsonb
+                 ) as result
+        `;
+        const envelope = readEnvelope(rows[0]?.result);
+        if (envelope === null) throw new Error("ردّ open_offer_round غير مفهوم");
+
+        const raw = envelope as unknown as Record<string, unknown>;
+        if (envelope.ok) {
+          const inserted = raw.offers;
+          return {
+            opened: true as const,
+            offersInserted: typeof inserted === "number" ? inserted : 0,
+          };
+        }
+
+        const refusal = envelope.error ?? "UNKNOWN";
+        if (refusal === "ORDER_NOT_FOUND" || refusal === "ROUND_ALREADY_OPENED") {
+          return { opened: false as const, refusal };
+        }
+        if (refusal === "ORDER_NOT_SEARCHING") {
+          const status = readOrderStatus(raw.status);
+          /**
+           * رفضٌ بحالٍ لا نعرفُه ليس رفضاً مفهوماً: يُرفَع عطلاً بدل أن يُخمَّن
+           * حالٌ لم تقُله القاعدةُ ويُكتَب في سجلِّ التشغيلِ كأنّه مقروءٌ.
+           */
+          if (status === null) throw new Error("حالُ الطلبِ في ردِّ open_offer_round غير معروف");
+          return { opened: false as const, refusal, status };
+        }
+        throw new Error("سببُ رفضِ open_offer_round غير معروف");
       }),
   };
 }

@@ -23,7 +23,12 @@ export function instrumentOfferWriter(
     openRound: async (input) => {
       metrics.recordDispatchRequest();
       const result = await writer.openRound(input);
-      if (result.ok) metrics.recordDispatchOffersSent(input.entries.length);
+      /**
+       * العدُّ على ما فُتحَ فعلاً لا على ما طُلِبَ: منذُ `BUG-005` تردُّ القاعدةُ
+       * طلبَ فتحٍ سبقَ إليه غيرُه، وعدُّ المردودِ عروضاً مُرسَلةً يجعلُ المقياسَ يعُدُّ
+       * ما لم يقعْ — ومقياسٌ يعُدُّ العدمَ أسوأُ من لا مقياس.
+       */
+      if (result.ok && result.value.opened) metrics.recordDispatchOffersSent(input.entries.length);
       return result;
     },
   };

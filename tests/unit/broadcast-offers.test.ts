@@ -16,7 +16,7 @@ import type { DriverCandidate } from "../../packages/domain/dispatch/entity.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
-import { err, isErr, isOk } from "../../packages/shared/result/index.ts";
+import { err, isErr, isOk, ok } from "../../packages/shared/result/index.ts";
 import { notifierDouble, offerWriterDouble } from "../support/bot-doubles.ts";
 import {
   candidateRepo,
@@ -136,6 +136,66 @@ describe("broadcastOffers", () => {
     );
 
     expect(isErr(result)).toBe(true);
+    expect(notifier.sent).toHaveLength(0);
+  });
+
+  /**
+   * `BUG-005`: الحراسةُ صارتْ في القاعدةِ، فرفضُها ليسَ عطلاً يُبلَعُ بل خبرٌ
+   * يُتَرجَمُ. وهذه الثلاثةُ تُثبِتُ أنَّ كلَّ رفضٍ يَصلُ باسمِه وأنَّ أحداً لا
+   * يُخطَرُ بعرضٍ لم تُنشِئْه القاعدةُ.
+   */
+  it("رفضُ القاعدةِ ORDER_NOT_SEARCHING يُترجَم خطأً بالحالِ ولا يُخطَر أحد", async () => {
+    const notifier = notifierDouble();
+    const refusing = {
+      openRound: async () =>
+        ok({
+          opened: false as const,
+          refusal: "ORDER_NOT_SEARCHING" as const,
+          status: "matched" as const,
+        }),
+    };
+    const result = await broadcastOffers(
+      { orderId: ORDER_ID },
+      deps({ notifier, offerWriter: refusing }),
+    );
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.code).toBe("ORDER_NOT_SEARCHING");
+    expect(notifier.sent).toHaveLength(0);
+  });
+
+  it("رفضُ القاعدةِ ROUND_ALREADY_OPENED يُترجَم خطأً مستقلاً ولا يُخطَر أحد", async () => {
+    const notifier = notifierDouble();
+    const refusing = {
+      openRound: async () =>
+        ok({ opened: false as const, refusal: "ROUND_ALREADY_OPENED" as const }),
+    };
+    const result = await broadcastOffers(
+      { orderId: ORDER_ID },
+      deps({ notifier, offerWriter: refusing }),
+    );
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    // ليس `ORDER_NOT_SEARCHING`: الطلبُ ما يزالُ باحثاً، وإنّما سبقَ إلى دورتِه غيرُنا.
+    expect(result.error.code).toBe("ROUND_ALREADY_OPENED");
+    expect(notifier.sent).toHaveLength(0);
+  });
+
+  it("رفضُ القاعدةِ ORDER_NOT_FOUND يُترجَم خطأً ولا يُخطَر أحد", async () => {
+    const notifier = notifierDouble();
+    const refusing = {
+      openRound: async () => ok({ opened: false as const, refusal: "ORDER_NOT_FOUND" as const }),
+    };
+    const result = await broadcastOffers(
+      { orderId: ORDER_ID },
+      deps({ notifier, offerWriter: refusing }),
+    );
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.code).toBe("ORDER_NOT_FOUND");
     expect(notifier.sent).toHaveLength(0);
   });
 

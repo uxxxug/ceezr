@@ -144,6 +144,12 @@ export async function redispatchSearchingOrders(
        */
       case "ORDER_NOT_SEARCHING":
       case "ORDER_NOT_FOUND":
+      /**
+       * ومثلُهما: دورةٌ سبقَ إليها استدعاءٌ آخرُ للطلبِ نفسِه. القاعدةُ حسمَتْ
+       * فأبقَتْ دورةً واحدةً وردَّتِ الثانيةَ — وهذا هو **المطلوبُ** لا عطلٌ. ولولا
+       * ذكرُها هنا لسقطَتْ في `default` فعُدَّتْ فشلاً يُنذِرُ من نجاحِ الحراسة.
+       */
+      case "ROUND_ALREADY_OPENED":
         raced.push(order.orderId);
         break;
       default:
