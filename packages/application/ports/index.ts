@@ -69,6 +69,13 @@ export interface ClaimedRider {
  */
 export interface ClaimRideResult {
   readonly claimed: boolean;
+  /**
+   * `BUG-008` — هذا النداءُ إعادةُ تسليمٍ لنقرةِ الفائزِ نفسِه لا إسنادٌ جديد.
+   * الإسنادُ قائمٌ لهذا السائقِ من قبل، فالجوابُ نجاحٌ، والآثارُ الجانبيّةُ
+   * (إخطارُ الراكب، عدّادُ القبول) لا تُعاد. ويُقرَأُ من القاعدةِ لا من ذاكرةِ
+   * العمليّة: `orders.assigned_driver_id` هو الحَكَم.
+   */
+  readonly duplicate: boolean;
   readonly reason: string | null;
   readonly cityId: CityId | null;
   readonly rider: ClaimedRider | null;

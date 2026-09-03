@@ -1896,8 +1896,16 @@ async function handleOfferDecision(
   if (!claim.ok) return technicalFailure(sender, state);
 
   if (claim.value.claimed) {
-    // الراكب يُخطَر قبل بناء ردّ السائق، والفشل مبتلَعٌ داخل الدالّة فلا يمسّ إسناداً وقع.
-    await notifyRiderOfAcceptance(orderId, claim.value, deps);
+    /**
+     * `BUG-008` — إعادةُ تسليمٍ لنقرةِ الفائزِ نفسِه نجاحٌ **بلا أثرٍ ثانٍ**:
+     * الراكبُ أُخطِرَ مرّةً عند الإسنادِ الواقعِ، فإخطارُه ثانيةً «قَبِلَ سائقٌ
+     * طلبَك» كذبٌ ثانٍ في الاتّجاهِ المعاكس. والردُّ للسائقِ هو نفسُ ردِّ
+     * النجاحِ الأوّلِ — فالتسليمُ المكرَّرُ لا يُميَّزُ عن الأصلِ في ما يراه.
+     */
+    if (!claim.value.duplicate) {
+      // الراكب يُخطَر قبل بناء ردّ السائق، والفشل مبتلَعٌ داخل الدالّة فلا يمسّ إسناداً وقع.
+      await notifyRiderOfAcceptance(orderId, claim.value, deps);
+    }
     // زرّ البدء يخرج مع تأكيد القبول: السائق لا يحفظ معرّف الطلب ولا يُطلب منه كتابته
     const keyboard =
       deps.rating === undefined ? null : startRideKeyboard(String(orderId), languageOf(state));

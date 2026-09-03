@@ -300,6 +300,7 @@ export function createDispatchRpc(sql: Sql): DispatchRpcPort {
         if (!envelope.ok) {
           return {
             claimed: false,
+            duplicate: false,
             reason: envelope.error ?? "UNKNOWN",
             cityId: null,
             rider: null,
@@ -316,6 +317,12 @@ export function createDispatchRpc(sql: Sql): DispatchRpcPort {
         const raw = envelope as unknown as Record<string, unknown>;
         return {
           claimed: true,
+          /**
+           * `BUG-008` — الحكمُ من المغلَّفِ لا من غيابِ حقل: مغلَّفٌ قديمٌ بلا
+           * `duplicate` (نسخةُ قاعدةٍ لم تُهاجَر بعد) يُقرأ إسناداً أوّلَ كما
+           * كان، فلا يتغيّر سلوكٌ قائمٌ بلا سبب.
+           */
+          duplicate: raw.duplicate === true,
           reason: null,
           cityId: readText(raw.city_id) as CityId | null,
           rider: readRider(raw.rider),

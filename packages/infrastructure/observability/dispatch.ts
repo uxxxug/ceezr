@@ -42,7 +42,14 @@ export function instrumentDispatchRpc(
     ...dispatch,
     claimRide: async (orderId, driverId) => {
       const result = await dispatch.claimRide(orderId, driverId);
-      if (result.ok && result.value.claimed) metrics.recordDispatchOfferAccepted();
+      /**
+       * `BUG-008` — المكرّرُ لا يُعَدُّ: تسليمٌ ثانٍ للنقرةِ نفسِها يخرجُ
+       * `claimed=true` لأنّه نجاحٌ — وعدُّه قبولاً ثانياً يُفسِدُ مقياساً
+       * تجاريّاً: قبولاتٌ أكثرُ من الإسناداتِ الواقعةِ فعلاً.
+       */
+      if (result.ok && result.value.claimed && !result.value.duplicate) {
+        metrics.recordDispatchOfferAccepted();
+      }
       return result;
     },
   };
