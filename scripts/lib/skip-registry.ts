@@ -411,6 +411,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/dispatch-open-round-atomicity.test.ts",
+    suites: ["ذرّيّةُ فتحِ دورةِ البثّ — BUG-005"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت ذرّيّةَ `open_offer_round` على PostgreSQL حقيقيّةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرةِ ألبتّةً: المقيسُ أنّ استدعاءَينِ متزاحمَينِ على اتّصالَينِ منفصلَينِ لا يفتحانِ دورتَينِ، وأنّ فشلَ إدخالٍ واحدٍ يُرجِعُ رفعَ رقمِ الدورةِ معَه — ومحاكٍ نكتبُه نحن لا يشهد على المحرّكِ بشيءٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-location-cas.test.ts",
     suites: ["الكتابة الشرطيّة على الموقع القانوني — BUG-001"],
     skipped: 10,
