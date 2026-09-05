@@ -463,11 +463,19 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     const orderId = orders[0]?.id ?? "";
 
     driverSent.length = 0;
-    await post("driver", callback(DRIVER_CHAT, `offer:reject:${orderId}`));
+    // `BUG-003` — زرُّ الرفضِ يحملُ معرّفَ العرضِ لا معرّفَ الطلبِ: فنُحضِرُ المعرّفَ
+    // الفعليَّ للعرضِ المعلَّقِ لهذا السائقِ — كما يبنيه المغلَّفُ نفسُه في الإنتاجِ —
+    // لا نمرّرُ `orderId` موهوماً.
+    const pendingOffer = await sql<{ id: string }[]>`
+      select id from order_offers
+       where order_id = ${orderId} and driver_id = ${driverId} and status = 'pending'
+    `;
+    const offerId = pendingOffer[0]?.id ?? "";
+    await post("driver", callback(DRIVER_CHAT, `offer:reject:${offerId}`));
     expect(driverSent.map((m) => m.text)).toEqual([ar("driver.offer_rejected")]);
 
     const rejected = await sql<{ status: string; responded_at: Date | null }[]>`
-      select status, responded_at from order_offers where order_id = ${orderId}
+      select status, responded_at from order_offers where id = ${offerId}
     `;
     expect(rejected[0]?.status).toBe("rejected");
     expect(rejected[0]?.responded_at).not.toBeNull();
