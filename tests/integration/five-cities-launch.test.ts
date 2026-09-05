@@ -24,6 +24,7 @@ import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { LAUNCH_CITY_CODES } from "../../scripts/activate-launch-cities.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
+import { drainOfferOutbox } from "../support/drain-offer-outbox.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const WEBHOOK_SECRET = "five-cities-secret";
@@ -455,6 +456,11 @@ describeIf("إطلاقُ المدنِ الخمسِ معاً على قاعدةٍ 
        where u.city_id <> o.city_id
     `;
     expect(Number(crossing[0]?.n)).toBe(0);
+
+    // منذ BUG-004 يُكتَبُ صفُّ إشعارِ كلِّ عرضٍ في معاملةِ open_offer_round ويُسلَّمُ من
+    // عاملٍ، لا متزامنًا من broadcastOffers. نُفرّغُ كلَّ الصفوفِ كما يفعلُ العاملُ قبل
+    // التحقّقِ من أنّ كلَّ سائقٍ أُخطرَ بطلبِ مدينتِه وحدَه لا بطلبِ مدينةٍ أخرى.
+    await drainOfferOutbox(sql, capturing(driverSent));
 
     // وكلُّ سائقٍ أُخطر بطلبِ مدينتِه لا بطلبِ مدينةٍ أخرى.
     for (const city of cities) {

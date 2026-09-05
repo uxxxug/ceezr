@@ -19,7 +19,7 @@ import type { Subscription } from "../../packages/domain/subscription/entity.ts"
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, isErr, isOk, ok } from "../../packages/shared/result/index.ts";
-import { offerWriterDouble } from "../support/bot-doubles.ts";
+import { notifierDouble, offerWriterDouble } from "../support/bot-doubles.ts";
 import {
   candidateRepo,
   fixedClock,
@@ -81,6 +81,10 @@ function deps(over: Partial<BroadcastDependencies> = {}): BroadcastDependencies 
     settings: settingsRepo(seededRows(JED, {})),
     clock: fixedClock(NOW),
     offerWriter: offerWriterDouble(),
+    // broadcastOffers لا يستدعي notifyOffer بعد BUG-004 (يُكتَبُ صفُّ الإشعارِ في معاملةِ العروض)،
+    // لكنّ الحقلَ مطلوبٌ في BroadcastDependencies لأنّ كائن matching في البوابة يُستخدمُ أيضًا
+    // في إلغاء الطلب (notifyCancelled). نُزوّدُهُ ببديلٍ صامتٍ هنا إذ لا يُستدعى.
+    notifier: notifierDouble(),
     ...over,
   };
 }

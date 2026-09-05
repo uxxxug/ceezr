@@ -42,13 +42,13 @@ describe("بيانُ مدنِ الإطلاق: يُقبل الكاملُ وحدَ
 
   it("يرفض بياناً ناقصةً منه مدينةٌ ويسمّيها", () => {
     const raw = بيانٌ_كامل();
-    raw["cities"] = (raw["cities"] as unknown[]).slice(0, 4);
+    raw.cities = (raw.cities as unknown[]).slice(0, 4);
     expect(() => validateManifest(raw)).toThrow(/MED/);
   });
 
   it("يرفض تكرارَ مدينةٍ في البيان", () => {
     const raw = بيانٌ_كامل();
-    const cities = raw["cities"] as Record<string, unknown>[];
+    const cities = raw.cities as Record<string, unknown>[];
     const first = cities[0];
     if (first === undefined) throw new Error("بيانُ الاختبار فارغ");
     cities[1] = { ...first };
@@ -59,20 +59,20 @@ describe("بيانُ مدنِ الإطلاق: يُقبل الكاملُ وحدَ
 describe("بيانُ مدنِ الإطلاق: القروباتُ لا تُشترَك", () => {
   it("يرفض قروباً واحداً لمدينتين ويسمّي الطرفين", () => {
     const raw = بيانٌ_كامل();
-    const cities = raw["cities"] as Record<string, unknown>[];
+    const cities = raw.cities as Record<string, unknown>[];
     const jed = cities[0];
     const mkk = cities[1];
     if (jed === undefined || mkk === undefined) throw new Error("بيانُ الاختبار ناقص");
-    mkk["driversGroupId"] = jed["driversGroupId"];
+    mkk.driversGroupId = jed.driversGroupId;
     expect(() => validateManifest(raw)).toThrow(/قروبٌ واحدٌ لمدينتين/);
   });
 
   it("يرفض تساويَ قروبين داخلَ المدينة نفسِها", () => {
     const raw = بيانٌ_كامل();
-    const cities = raw["cities"] as Record<string, unknown>[];
+    const cities = raw.cities as Record<string, unknown>[];
     const jed = cities[0];
     if (jed === undefined) throw new Error("بيانُ الاختبار ناقص");
-    jed["escalationGroupId"] = jed["supportGroupId"];
+    jed.escalationGroupId = jed.supportGroupId;
     expect(() => validateManifest(raw)).toThrow(/مختلفة/);
   });
 });
@@ -80,19 +80,19 @@ describe("بيانُ مدنِ الإطلاق: القروباتُ لا تُشتر
 describe("بيانُ مدنِ الإطلاق: الأشكالُ الفاسدة", () => {
   it("يرفض معرّفَ قروبٍ صفراً", () => {
     const raw = بيانٌ_كامل();
-    const cities = raw["cities"] as Record<string, unknown>[];
+    const cities = raw.cities as Record<string, unknown>[];
     const jed = cities[0];
     if (jed === undefined) throw new Error("بيانُ الاختبار ناقص");
-    jed["supportGroupId"] = "0";
+    jed.supportGroupId = "0";
     expect(() => validateManifest(raw)).toThrow(/صفر/);
   });
 
   it("يرفض معرّفاً ليس عدداً", () => {
     const raw = بيانٌ_كامل();
-    const cities = raw["cities"] as Record<string, unknown>[];
+    const cities = raw.cities as Record<string, unknown>[];
     const jed = cities[0];
     if (jed === undefined) throw new Error("بيانُ الاختبار ناقص");
-    jed["escalationGroupId"] = "-55x9";
+    jed.escalationGroupId = "-55x9";
     expect(() => validateManifest(raw)).toThrow(/عدداً صحيحاً/);
   });
 
@@ -105,16 +105,16 @@ describe("بيانُ مدنِ الإطلاق: الأشكالُ الفاسدة", 
 
   it("يرفض غيابَ معرّفِ المسؤول", () => {
     const raw = بيانٌ_كامل();
-    delete raw["adminTelegramId"];
+    delete raw.adminTelegramId;
     expect(() => validateManifest(raw)).toThrow(/adminTelegramId/);
   });
 
   it("يرفض رمزَ مدينةٍ بحروفٍ صغيرة", () => {
     const raw = بيانٌ_كامل();
-    const cities = raw["cities"] as Record<string, unknown>[];
+    const cities = raw.cities as Record<string, unknown>[];
     const jed = cities[0];
     if (jed === undefined) throw new Error("بيانُ الاختبار ناقص");
-    jed["code"] = "jed";
+    jed.code = "jed";
     expect(() => validateManifest(raw)).toThrow(/رمز/);
   });
 });

@@ -139,7 +139,9 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
 
   it("رفضُ فتحِ الدورةِ لا يُتركُ أثرًا يتيمًا: لا عرضٌ بلا إشعار", async () => {
     // الطلبُ لم يَعُد يبحثُ، فلا تُفتحُ دورةٌ، ولا يُكتبُ عرضٌ ولا صفُّ إشعار.
-    await sql`update orders set status = 'matched' where id = ${orderId}::uuid`;
+    // 'cancelled' لا 'matched': الأخيرةُ تُلزِمُ بسائقٍ مُسنَدٍ (قيدُ التحقّقِ)،
+    // أمّا 'cancelled' فحالٌ غيرُ باحثةٍ ولا يُكلِّفُ سائقًا — فيُرفضُ الفتحُ نظيفًا.
+    await sql`update orders set status = 'cancelled' where id = ${orderId}::uuid`;
     const writer = createOfferWriter(sql);
     const written = await writer.openRound({
       orderId: orderId as OrderId,

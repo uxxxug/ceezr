@@ -30,6 +30,7 @@ import { translate } from "../../packages/shared/i18n/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
+import { drainOfferOutbox } from "../support/drain-offer-outbox.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const WEBHOOK_SECRET = "trial-secret";
@@ -223,6 +224,10 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
     driverSent.length = 0;
 
     await requestRide();
+
+    // منذ BUG-004 يُكتَبُ صفُّ إشعارِ العرضِ في معاملةِ open_offer_round ويُسلَّمُ من عاملٍ،
+    // فنُفرّغُهُ هنا كما يفعلُ العاملُ قبل التحقّقِ من وصولِهِ.
+    await drainOfferOutbox(sql, capturing(driverSent));
 
     const offers = await sql<{ driver_id: string; status: string }[]>`
       select driver_id, status from order_offers

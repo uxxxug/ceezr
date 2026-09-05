@@ -92,6 +92,32 @@ export interface OfferNotification {
 }
 
 /**
+ * إخطار السائق بأن الطلب أُلغي. كان الإلغاء قبل هذا صامتاً تماماً في جهة السائق:
+ * تبقى بطاقة العرض في محادثته تدعوه إلى قبول طلب لم يعد قائماً، ويبقى السائق
+ * المُسنَد سائراً إلى موعد أُلغي. الصمت هنا ليس نقص ميزة بل معلومة كاذبة.
+ */
+export interface CancellationNotice {
+  readonly orderId: OrderId;
+  readonly driverId: DriverId;
+  /** المُسنَد يُخاطَب بغير ما يُخاطَب به صاحب عرض معلّق: أحدهما كان في طريقه. */
+  readonly wasAssigned: boolean;
+}
+
+/**
+ * منفذُ الإشعار المتزامن القديم — يُتركُ لِإخطارِ الإلغاءِ (notifyCancelled) فقط،
+ * وللاختباراتِ التي تتوقّعُه. أمّا إشعارُ العرضِ (notifyOffer) فقد غادَرَ هذا المنفذَ:
+ * لم يَعُدْ يُرسَلُ متزامناً خارجَ المعاملة، بل يُكتَبُ صفُّهُ في open_offer_round
+ * ويُرسَلُ من عاملٍ لاحقاً (BUG-004). الواجهةُ تبقى حتى لا تنكسرَ الاستيراداتُ
+ * القائمةُ، لكنّ notifyOffer لم يَعُدْ يُستدعى من broadcastOffers.
+ */
+export interface DriverNotifier {
+  /** يعيد false إن تعذّر الوصول للسائق — ولا يرمي، فالبثّ يستمر لبقية الدفعة. */
+  notifyOffer(notification: OfferNotification): Promise<Result<boolean, PortFailureError>>;
+  /** يعيد false إن تعذّر الوصول — الإلغاء نفسه تمّ، والإخطار لا يُبطله. */
+  notifyCancelled(notice: CancellationNotice): Promise<Result<boolean, PortFailureError>>;
+}
+
+/**
  * الناشرُ الذي يُرسلُ إشعارَ العرضِ فعلاً ويُرجعُ معرّفَ الرسالة — دليلٌ قاطعٌ على
  * التسليمِ لا قيمةٌ منطقيةٌ «true». هذا هو ما يفصلُ «أُرسِلَ» عن «قُدِّرَ أنّه أُرسِلَ»:
  * المعرّفُ يُخزَّنُ في delivered_message_id فلا يُعادُ إرسالُه، ولا يُحتسبُ ناقصًا.
@@ -106,6 +132,14 @@ export interface OfferPublisher {
 
 export interface BroadcastDependencies extends MatchOrderDependencies {
   readonly offerWriter: OfferWriter;
+  /**
+   * منفذُ إخطارِ الإلغاءِ — يُستهلَكُ من مسارِ إلغاءِ الطلبِ لا من broadcastOffers.
+   * ظلَّ هنا لأنَّ كائنَ `matching` يُمرَّرُ إلى مسارَي البثِّ والإلغاءِ معًا، وهذا
+   * المنفذُ هو ما يُخطرُ السائقَ بأنَّ الطلبَ أُلغي. أمّا إشعارُ العرضِ نفسُه فقد
+   * غادَرَ broadcastOffers تمامًا: يُكتَبُ صفُّهُ في open_offer_round ويُرسَلُ من
+   * عاملٍ لاحقًا (`BUG-004`)، فلا يُستدعى `notifyOffer` بعد اليوم من هنا.
+   */
+  readonly notifier: DriverNotifier;
   /**
    * اختياري فلا يكسر منادياً، ولكنّ غيابه كان علّة حقيقية: عند انعدام المؤهلين
    * تُرجع `NoEligibleDriverError` ومعها أسباب الرفض كاملة، ومنادي بوت العميل

@@ -68,7 +68,7 @@ export function injectCsp(): Plugin {
        * **مرّةً في الضبطِ** لا في كلِّ تحويلٍ.
        */
       void env;
-      apiBase = process.env["VITE_WASLAH_API_BASE"];
+      apiBase = process.env.VITE_WASLAH_API_BASE;
     },
 
     transformIndexHtml: {

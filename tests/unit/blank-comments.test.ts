@@ -70,7 +70,7 @@ describe("blankComments — يُفرِّغ التعليقاتَ", () => {
   it("لا يرمي على تعليقٍ غيرِ مُغلَقٍ في آخرِ الملفِّ", () => {
     const unclosed = "const a = 1; /* ناقصٌ";
     /** الشيفرةُ قبلَ التعليقِ تبقى، والتعليقُ الناقصُ يُفرَّغ إلى آخرِ الملفِّ. */
-    expect(blankComments(unclosed)).toBe("const a = 1;" + " ".repeat(unclosed.length - 12));
+    expect(blankComments(unclosed)).toBe(`const a = 1;${" ".repeat(unclosed.length - 12)}`);
     expect(blankComments("<p>a</p><!-- ناقصٌ").trimEnd()).toBe("<p>a</p>");
   });
 });
