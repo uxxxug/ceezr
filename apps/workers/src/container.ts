@@ -9,6 +9,7 @@
 
 import { Api } from "grammy";
 import type { BroadcastPublisher } from "../../../packages/application/broadcast/ports.ts";
+import type { OfferPublisher } from "../../../packages/application/dispatch/broadcast-offers.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
@@ -33,6 +34,7 @@ import {
   createSearchingOrderFinder,
 } from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createNegotiationWiring } from "../../../packages/infrastructure/dispatch/negotiation-wiring.ts";
+import { createOfferDeliveryPort } from "../../../packages/infrastructure/dispatch/offer-notification-adapters.ts";
 import {
   createUnmatchedOrderFinder,
   createUnmatchedRiderNotifier,
@@ -50,7 +52,7 @@ import {
   grammyBroadcastApi,
 } from "../../../packages/infrastructure/notification/telegram-broadcast-sender.ts";
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
-import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import { createOfferPublisher } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import {
   createSubscriptionNoticePublisher,
@@ -79,6 +81,7 @@ import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
 import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
 import { deliverBroadcasts } from "./jobs/deliver-broadcasts.ts";
+import { deliverOfferNotifications } from "./jobs/deliver-offer-notifications.ts";
 import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { deliverSubscriptionNotices } from "./jobs/deliver-subscription-notices.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
@@ -114,6 +117,13 @@ export const JOB_INTERVALS = {
    */
   verifyBackupRestore: 86400,
   deliverSafetyIncidents: 30,
+  /**
+   * كلّ ثلاثين ثانية: إشعارُ العرضِ يُكتَبُ ذرّيًّا في معاملةِ open_offer_round نفسِها،
+   * ثمّ يُرسَلُ من هذا العامل. أسرعُ من مهلةِ العرضِ (45 ثانية افتراضاً) لئلّا يتأخّرَ
+   * وصولُ الإشعارِ حتى انتهاءِ مهلته؛ وأبطأُ من البثّ (10 ثوانٍ) لأنّ دفعتهُ فردٌ لا جمهورٌ.
+   * فشلُ تيليجرام يُعيدُ الصفَّ pending بموعدٍ جديد بلا تكرارِ أثرٍ (BUG-004).
+   */
+  deliverOfferNotifications: 30,
   /**
    * كلّ عشر ثوانٍ: البثُّ محدودٌ بحجم دفعةٍ من إعداد المدينة (٢٥ افتراضاً)، فهذا
    * سقفٌ نظريّ حوالي ١٥٠ رسالة في الدقيقة للمدينة — تحت حدّ تلغرام بفارقٍ مريح،
@@ -223,6 +233,8 @@ export interface WorkerContainerOverrides {
   readonly identifyingDriver?: IdentifyingSender;
   /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
   readonly safetyPublisher?: SafetyCardPublisher;
+  /** ناشرُ إشعارِ العرضِ — يُستبدَلُ في الاختبار بناشرٍ يجمع ويُرجعُ معرّفًا. (BUG-004) */
+  readonly offerPublisher?: OfferPublisher;
   /** ناشر البثّ الجماعي — يُستبدل في الاختبار بناشرٍ يجمع ويُخفق عند الطلب. */
   readonly broadcastPublisher?: BroadcastPublisher;
   /** ناشر إشعارات الاشتراك — يُستبدل في الاختبار بناشرٍ يجمع ويُخفق عند الطلب. */
@@ -423,6 +435,10 @@ export function buildWorkerContainer(
   const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
   const safetyPublisher = overrides.safetyPublisher ?? createSafetyCardPublisher(telegram);
   const safetyDeliveries = createSafetyDeliveryPort(sql);
+  const offerPublisher =
+    overrides.offerPublisher ??
+    createOfferPublisher(sql, overrides.identifyingDriver ?? asIdentifyingSender(telegram));
+  const offerDeliveries = createOfferDeliveryPort(sql);
 
   /**
    * البثُّ يُرسَل ببوت الجمهور المقصود، ولذلك ناشران لا واحد: رسالةُ الركّاب من
@@ -458,7 +474,6 @@ export function buildWorkerContainer(
       overrides.metrics === undefined
         ? createOfferWriter(sql)
         : instrumentOfferWriter(createOfferWriter(sql), overrides.metrics),
-    notifier: createTelegramDriverNotifier(sql, driverOut),
     clock: systemClock,
     log: (message: string, meta: Record<string, unknown>) => log.info(message, meta),
   };
@@ -821,6 +836,27 @@ export function buildWorkerContainer(
                     deferred === ""
                       ? "deferred=0"
                       : `deferred=${report.value.deferred.length} (${deferred})`,
+                  ].join(" ");
+                },
+              },
+              {
+                // إشعارُ العرضِ يُكتَبُ ذرّيًّا في معاملةِ open_offer_round، ثمّ يُرسَلُ من
+                // هذا العامل. القفلُ باسمٍ ثابتٍ + claim_token يمنعانِ تكرارَ الإرسالِ
+                // لو تسابقت نسختانِ من العاملِ على الصفّ؛ والصفُّ المُسلَّمُ لا يُلتقطُ ثانيةً (BUG-004).
+                name: "deliver-offer-notifications",
+                everySeconds: JOB_INTERVALS.deliverOfferNotifications,
+                runOnStart: true,
+                run: async () => {
+                  const report = await deliverOfferNotifications({
+                    deliveries: offerDeliveries,
+                    publisher: offerPublisher,
+                  });
+                  if (!report.ok) throw new Error(report.error.detail);
+                  return [
+                    `claimed=${report.value.claimed}`,
+                    `delivered=${report.value.delivered}`,
+                    `failed=${report.value.failed}`,
+                    `abandoned=${report.value.abandoned}`,
                   ].join(" ");
                 },
               },

@@ -21,9 +21,6 @@ import type {
   TrialRpcPort,
 } from "../../packages/application/bots/types.ts";
 import type {
-  CancellationNotice,
-  DriverNotifier,
-  OfferNotification,
   OfferWriter,
   OpenRoundInput,
 } from "../../packages/application/dispatch/broadcast-offers.ts";
@@ -427,26 +424,3 @@ export function offerWriterDouble(): OfferWriterDouble {
   };
 }
 
-/** مُخطِر سائقين في الذاكرة؛ unreachable تُحاكي سائقاً حجب البوت. */
-export interface NotifierDouble extends DriverNotifier {
-  readonly sent: OfferNotification[];
-  /** إخطارات الإلغاء — تُفحص للتأكد من أن السائق عَلِم فعلاً، لا من أن دالّة نُودِيت. */
-  readonly cancelled: CancellationNotice[];
-}
-
-export function notifierDouble(unreachable: readonly string[] = []): NotifierDouble {
-  const sent: OfferNotification[] = [];
-  const cancelled: CancellationNotice[] = [];
-  return {
-    sent,
-    cancelled,
-    notifyOffer: async (notification) => {
-      sent.push(notification);
-      return ok(!unreachable.includes(notification.driverId));
-    },
-    notifyCancelled: async (notice) => {
-      cancelled.push(notice);
-      return ok(!unreachable.includes(notice.driverId));
-    },
-  };
-}

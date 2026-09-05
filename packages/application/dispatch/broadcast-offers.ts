@@ -1,10 +1,13 @@
 /**
- * الغرض: الحلقة المفقودة بين "من يستحق الطلب" و"من عَلِم به": تأخذ قرار matchOrder،
- *   تكتب العروض فعلاً في order_offers بمهلة المدينة، ثم تُخطر كل سائق في الدفعة.
- * الحالة: منفّذ فعلياً — المرحلة 2.1، ومُختبَر على قاعدة حقيقية في tests/integration.
+ * الغرض: الحلقة المفقودة بين «من يستحق الطلب» و«من عَلِم به»: تأخذ قرار matchOrder،
+ *   وتكتب العروض في order_offers بمهلة المدينة — وصفوفَ إشعارِها في نفسِ المعاملةِ
+ *   لا بعدها. لم يَعُد الإشعارُ يُرسَلُ هنا؛ بل يُتركُ للعاملِ الذي يستولي على الصفّ.
+ * الحالة: منفّذ فعلياً — BUG-004 (إشعارٌ خارج المعاملة ← Outbox ذرّيٌّ + عاملٌ يُرسل).
  * ينتمي إلى: application/dispatch
- * يُتوقع أن يستخدمه لاحقاً: بوت العميل (عند إنشاء الطلب)، apps/workers (الدورات التالية)
- * ملاحظات مستقبلية: فشل إخطار سائق واحد لا يُلغي الدورة؛ يُسجَّل ويُستكمل الباقون.
+ * يُتوقّع أن يستخدمه لاحقاً: بوت العميل (عند إنشاء الطلب)، apps/workers (الدورات التالية)
+ * ملاحظات مستقبلية: الإرسالُ الفعليُّ لتيليجرام يجري في deliver-offer-notification عبر
+ *   OfferPublisher؛ فشلُه بعد نجاحِ المعاملة يُعيدُ الإرسالَ بلا تكرارِ أثرٍ، لأنَّ
+ *   الصفَّ المُسلَّم لا يُلتقطُ ثانيةً. ما لم يُلتقطْ — لم يُرسَل، لا يُزعَم.
  */
 
 import type { DistanceKm } from "../../domain/geo/value-objects.ts";
@@ -89,27 +92,20 @@ export interface OfferNotification {
 }
 
 /**
- * إخطار السائق بأن الطلب أُلغي. كان الإلغاء قبل هذا صامتاً تماماً في جهة السائق:
- * تبقى بطاقة العرض في محادثته تدعوه إلى قبول طلب لم يعد قائماً، ويبقى السائق
- * المُسنَد سائراً إلى موعد أُلغي. الصمت هنا ليس نقص ميزة بل معلومة كاذبة.
+ * الناشرُ الذي يُرسلُ إشعارَ العرضِ فعلاً ويُرجعُ معرّفَ الرسالة — دليلٌ قاطعٌ على
+ * التسليمِ لا قيمةٌ منطقيةٌ «true». هذا هو ما يفصلُ «أُرسِلَ» عن «قُدِّرَ أنّه أُرسِلَ»:
+ * المعرّفُ يُخزَّنُ في delivered_message_id فلا يُعادُ إرسالُه، ولا يُحتسبُ ناقصًا.
+ * يُستهلَكُ من عاملِ التسليم (deliver-offer-notification) لا من broadcastOffers: هنا
+ * يُكتبُ الصفّ فقط، وهناك يُرسَل ويُعلَن. (BUG-004.)
  */
-export interface CancellationNotice {
-  readonly orderId: OrderId;
-  readonly driverId: DriverId;
-  /** المُسنَد يُخاطَب بغير ما يُخاطَب به صاحب عرض معلّق: أحدهما كان في طريقه. */
-  readonly wasAssigned: boolean;
-}
-
-export interface DriverNotifier {
-  /** يعيد false إن تعذّر الوصول للسائق — ولا يرمي، فالبثّ يستمر لبقية الدفعة. */
-  notifyOffer(notification: OfferNotification): Promise<Result<boolean, PortFailureError>>;
-  /** يعيد false إن تعذّر الوصول — الإلغاء نفسه تمّ، والإخطار لا يُبطله. */
-  notifyCancelled(notice: CancellationNotice): Promise<Result<boolean, PortFailureError>>;
+export interface OfferPublisher {
+  readonly publishOffer: (
+    notification: OfferNotification,
+  ) => Promise<Result<string, PortFailureError>>;
 }
 
 export interface BroadcastDependencies extends MatchOrderDependencies {
   readonly offerWriter: OfferWriter;
-  readonly notifier: DriverNotifier;
   /**
    * اختياري فلا يكسر منادياً، ولكنّ غيابه كان علّة حقيقية: عند انعدام المؤهلين
    * تُرجع `NoEligibleDriverError` ومعها أسباب الرفض كاملة، ومنادي بوت العميل
@@ -119,12 +115,17 @@ export interface BroadcastDependencies extends MatchOrderDependencies {
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
+/**
+ * السائقون الذين فُتحَت لهم عروضٌ فعلًا — وكلُّ عرضٍ منهم صُحِبَ بصفِّ إشعارٍ
+ * ذرّيٍّ في معاملةِ open_offer_round نفسِها. «المعروضُ عليه» لا يعني «المُخبَر»:
+ * الإرسالُ غيرُ متزامنٍ الآن، يتولّاه العاملُ. لا «notified» بعد اليوم تُسجَّلُ
+ * كأنّها تسليمٌ قبل أن يتمَّ؛ ولا «unreachable» — فمن لم يُرسَل له بعدُ لم يُحكَم
+ * عليه بالعجز، بل ينتظرُ دورَه في الصفّ (`BUG-004`).
+ */
 export interface BroadcastResult {
   readonly orderId: OrderId;
   readonly round: number;
   readonly offered: readonly DriverId[];
-  readonly notified: readonly DriverId[];
-  readonly unreachable: readonly DriverId[];
   readonly expiresAt: Date;
 }
 
@@ -196,45 +197,18 @@ export async function broadcastOffers(
     return err(new RoundAlreadyOpenedError(decision.orderId, decision.round));
   }
 
-  const notified: DriverId[] = [];
-  const unreachable: DriverId[] = [];
   /**
-   * العرضُ الذي يُخطرُ به السائقَ هو الذي أُدرجَ فعلاً في القاعدةِ، لا الذي
-   * طُلبَ إدراجُه. و`offer_ids` يَصدُرُ من الإدراجِ نفسِه فيُحصرُ الإخطارُ بالعروضِ
-   * القائمةِ فقط — فلا يُقالُ لسائقٍ «عُرِضَ عليك» بلا عرضٍ في القاعدةِ، ولا
-   * يُبنى زرُّ رفضٍ لعرضٍ لم يُخلَق (`BUG-003`).
+   * العروضُ التي التزمَتْ بها القاعدةُ هي عينُها ما صُحِبَ بصفِّ إشعارٍ في معاملةِ
+   * open_offer_round نفسِها — فلا حاجةَ إلى إرسالٍ متزامنٍ هنا، ولا إلى عدّ «مَن
+   * أُخطر» قبل أن يصلَه الإشعارُ. الصفُّ المكتوبُ هو العقدُ بينَ العرضِ والتسليمِ:
+   * ما وُجِدَ من عرضٍ وُجِدَ له من ينتظرُ إرسالَه، وما لم يُدرَج لم يُترك له أثرٌ
+   * يتيمٌ (`BUG-004`). و`offer_ids` يصدرُ من الإدراجِ نفسِه فيُحصرُ الصفُّ بالعروضِ
+   * القائمةِ فقط (`BUG-003`).
    */
-  const insertedByDriver = new Map<DriverId, OfferId>();
-  for (const offer of written.value.offers) {
-    insertedByDriver.set(offer.driverId, offer.offerId);
-  }
-  for (const entry of entries) {
-    const offerId = insertedByDriver.get(entry.driverId);
-    if (offerId === undefined) {
-      /**
-       * لم يُدرَج عرضٌ لهذا السائقِ (تعارضٌ على القيدِ الفريدِّ مثلًا)، فلا إخطارَ
-       * ولا زرَّ رفضٍ بلا عرضٍ وراءَه. السائقُ لا يُعدُّ معروضاً عليه ولا غيرَ معلوم.
-       */
-      unreachable.push(entry.driverId);
-      continue;
-    }
-    const sent = await deps.notifier.notifyOffer({
-      orderId: decision.orderId,
-      offerId,
-      driverId: entry.driverId,
-      distanceKm: entry.distanceKm,
-      expiresInSeconds: decision.offerTimeoutSeconds,
-    });
-    if (sent.ok && sent.value) notified.push(entry.driverId);
-    else unreachable.push(entry.driverId);
-  }
-
   return ok({
     orderId: decision.orderId,
     round: decision.round,
     offered: written.value.offers.map((offer) => offer.driverId),
-    notified,
-    unreachable,
     expiresAt,
   });
 }

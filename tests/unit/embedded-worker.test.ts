@@ -146,7 +146,9 @@ describe("العامل المدمج داخل عملية البوابة", () => {
       // والانتهاء، وبلا مهمّةٍ تسلّمه يُقطع السائق عن الطلبات بصمتٍ تامّ.
       // ثم اثنتي عشرة بإضافة انقضاء روابط التتبّع (§4.2): رابطٌ يُصدَر ولا مهمّةَ
       // تسحب انقضاءه يبقى حيّاً إلى سقف عمره المطلق بعد أن انتهت الرحلة بساعات.
-      expect(handle.jobCount).toBe(12);
+      // ثم ثلاث عشرة بإضافة تسليم إشعارات العروض من outbox (BUG-004): عرضٌ يُكتَبُ
+      // ذرّيًّا في معاملته ولا مهمّةَ تسلّمه تعني سائقًا لا يعرف أنّه عُرِضَ عليه أبدًا.
+      expect(handle.jobCount).toBe(13);
 
       const started = lines.find((line) => line.startsWith("embedded_worker.started"));
       expect(started).toBeDefined();
@@ -160,6 +162,7 @@ describe("العامل المدمج داخل عملية البوابة", () => {
         `deliver-broadcasts:${CITY_ID}`,
         `deliver-subscription-notices:${CITY_ID}`,
         "deliver-safety-incidents",
+        "deliver-offer-notifications",
         "expire-subscriptions",
         "recompute-ratings",
       ]) {

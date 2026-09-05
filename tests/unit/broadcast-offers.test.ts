@@ -1,6 +1,8 @@
 /**
- * الغرض: اختبار حالة الاستخدام broadcastOffers وحدها: ماذا يُكتب في العروض، ومَن يُخطَر،
- *   وماذا يحدث حين يتعذّر الوصول إلى سائق أو تفشل كتابة الدورة.
+ * الغرض: اختبار حالة الاستخدام broadcastOffers وحدها: ماذا يُكتب في العروض، وأنّ
+ *   الإشعارَ لم يَعُد يُرسَلُ هنا — صار يُكتَبُ صفُّهُ ذرّيًّا في معاملةِ open_offer_round
+ *   ويُتركُ لعاملِ التسليم. لا ناشرَ في البثّ بعد اليوم، فلا «notified» تُدَّعى قبل
+ *   التسليم، ولا «unreachable» — من لم يُرسَل له بعدُ ينتظرُ دورَه في الصفّ (BUG-004).
  * الحالة: اختبار فعلي بمزدوجات في الذاكرة (النظير التكاملي على قاعدة حقيقية في tests/integration).
  * ينتمي إلى: tests/unit
  * يُتوقع أن يستخدمه لاحقاً: CI
@@ -17,7 +19,7 @@ import type { Subscription } from "../../packages/domain/subscription/entity.ts"
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, isErr, isOk, ok } from "../../packages/shared/result/index.ts";
-import { notifierDouble, offerWriterDouble } from "../support/bot-doubles.ts";
+import { offerWriterDouble } from "../support/bot-doubles.ts";
 import {
   candidateRepo,
   fixedClock,
@@ -79,23 +81,21 @@ function deps(over: Partial<BroadcastDependencies> = {}): BroadcastDependencies 
     settings: settingsRepo(seededRows(JED, {})),
     clock: fixedClock(NOW),
     offerWriter: offerWriterDouble(),
-    notifier: notifierDouble(),
     ...over,
   };
 }
 
 describe("broadcastOffers", () => {
-  it("يفتح دورة عروض بمهلة الإعدادات ويُخطر كل سائق في الدفعة", async () => {
+  it("يفتح دورة عروض بمهلة الإعدادات ويكتب صفوف الإشعار في معاملة العروض", async () => {
     const offerWriter = offerWriterDouble();
-    const notifier = notifierDouble();
-    const result = await broadcastOffers({ orderId: ORDER_ID }, deps({ offerWriter, notifier }));
+    const result = await broadcastOffers({ orderId: ORDER_ID }, deps({ offerWriter }));
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
 
+    // «المعروضُ عليه» = السائقون الذين التزمَتِ القاعدةُ بعروضٍ لهم. لا «notified»:
+    // الإرسالُ شأنُ العامل، ولا يُدَّعى تسليمٌ قبل أن يقع (BUG-004).
     expect(result.value.offered.map(String)).toEqual(["near", "far"]);
-    expect(result.value.notified.map(String)).toEqual(["near", "far"]);
-    expect(result.value.unreachable).toHaveLength(0);
     // 45 ثانية مصدرها offer_timeout_seconds لا ثابت في الكود
     expect(result.value.expiresAt.getTime() - NOW.getTime()).toBe(45_000);
 
@@ -107,51 +107,35 @@ describe("broadcastOffers", () => {
     // المسافة محسوبة فعلاً لا صفراً
     expect(round?.entries[0]?.distanceKm).toBeGreaterThan(0);
     expect(round?.entries[0]?.distanceKm).toBeLessThan(round?.entries[1]?.distanceKm ?? 0);
-
-    expect(notifier.sent.map((n) => String(n.driverId))).toEqual(["near", "far"]);
-    expect(notifier.sent[0]?.expiresInSeconds).toBe(45);
-    expect(notifier.sent[0]?.orderId).toBe(ORDER_ID);
-    /**
-     * `BUG-003` — كلُّ إشعارٍ يحملُ `offerId` عرضٍ بعينِه، فيُبنى منه زرُّ رفضٍ يصوبُ على
-     * عرضٍ واحدٍ لا على كلِّ عرضٍ معلَّقٍ للسائقِ.
-     */
-    expect(notifier.sent.every((n) => n.offerId.length > 0)).toBe(true);
-    expect(notifier.sent.map((n) => String(n.offerId))).not.toContain("near");
   });
 
-  it("سائق حجب البوت يُحسب unreachable ولا يُوقف بقية الدفعة", async () => {
-    const notifier = notifierDouble(["near"]);
-    const result = await broadcastOffers({ orderId: ORDER_ID }, deps({ notifier }));
+  it("لا يُرسِل الإشعارَ هنا: لا ناشرَ في البثّ، وما التزمَ به العرضُ ينتظرُ عاملَ التسليم (BUG-004)", async () => {
+    const result = await broadcastOffers({ orderId: ORDER_ID }, deps());
 
-    if (!isOk(result)) throw new Error("توقّعنا نجاح البثّ");
-    expect(result.value.unreachable.map(String)).toEqual(["near"]);
-    expect(result.value.notified.map(String)).toEqual(["far"]);
-    // العرض مكتوب للاثنين رغم تعذّر الإخطار: من حقّه أن يراه إن فتح البوت
-    expect(result.value.offered).toHaveLength(2);
-    expect(notifier.sent).toHaveLength(2);
+    expect(isOk(result)).toBe(true);
+    if (!isOk(result)) return;
+    // النتيجةُ لا تدّعي تسليمًا: لا «notified» ولا «unreachable». العرضُ مكتوبٌ +
+    // صفُّ إشعارِه مكتوبٌ معهُ في معاملةِ open_offer_round، والإرسالُ شأنُ العامل.
+    expect(Object.keys(result.value).sort()).toEqual(["expiresAt", "offered", "orderId", "round"]);
   });
 
-  it("فشل كتابة الدورة يُوقف البثّ فلا يُخطَر أحد بعرض غير موجود", async () => {
-    const notifier = notifierDouble();
+  it("فشل كتابة الدورة يُوقف البثّ فلا يُكتَب عرضٌ ولا إشعار", async () => {
     const failingWriter = {
       openRound: async () => err(new PortFailureError("offers.openRound", "قاعدة معطّلة")),
     };
     const result = await broadcastOffers(
       { orderId: ORDER_ID },
-      deps({ notifier, offerWriter: failingWriter }),
+      deps({ offerWriter: failingWriter }),
     );
 
     expect(isErr(result)).toBe(true);
-    expect(notifier.sent).toHaveLength(0);
   });
 
   /**
    * `BUG-005`: الحراسةُ صارتْ في القاعدةِ، فرفضُها ليسَ عطلاً يُبلَعُ بل خبرٌ
-   * يُتَرجَمُ. وهذه الثلاثةُ تُثبِتُ أنَّ كلَّ رفضٍ يَصلُ باسمِه وأنَّ أحداً لا
-   * يُخطَرُ بعرضٍ لم تُنشِئْه القاعدةُ.
+   * يُتَرجَم. وهذه الثلاثةُ تُثبِتُ أنَّ كلَّ رفضٍ يَصلُ باسمِه.
    */
-  it("رفضُ القاعدةِ ORDER_NOT_SEARCHING يُترجَم خطأً بالحالِ ولا يُخطَر أحد", async () => {
-    const notifier = notifierDouble();
+  it("رفضُ القاعدةِ ORDER_NOT_SEARCHING يُترجَم خطأً بالحالِ", async () => {
     const refusing = {
       openRound: async () =>
         ok({
@@ -162,63 +146,56 @@ describe("broadcastOffers", () => {
     };
     const result = await broadcastOffers(
       { orderId: ORDER_ID },
-      deps({ notifier, offerWriter: refusing }),
+      deps({ offerWriter: refusing }),
     );
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     expect(result.error.code).toBe("ORDER_NOT_SEARCHING");
-    expect(notifier.sent).toHaveLength(0);
   });
 
-  it("رفضُ القاعدةِ ROUND_ALREADY_OPENED يُترجَم خطأً مستقلاً ولا يُخطَر أحد", async () => {
-    const notifier = notifierDouble();
+  it("رفضُ القاعدةِ ROUND_ALREADY_OPENED يُترجَم خطأً مستقلاً", async () => {
     const refusing = {
       openRound: async () =>
         ok({ opened: false as const, refusal: "ROUND_ALREADY_OPENED" as const }),
     };
     const result = await broadcastOffers(
       { orderId: ORDER_ID },
-      deps({ notifier, offerWriter: refusing }),
+      deps({ offerWriter: refusing }),
     );
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     // ليس `ORDER_NOT_SEARCHING`: الطلبُ ما يزالُ باحثاً، وإنّما سبقَ إلى دورتِه غيرُنا.
     expect(result.error.code).toBe("ROUND_ALREADY_OPENED");
-    expect(notifier.sent).toHaveLength(0);
   });
 
-  it("رفضُ القاعدةِ ORDER_NOT_FOUND يُترجَم خطأً ولا يُخطَر أحد", async () => {
-    const notifier = notifierDouble();
+  it("رفضُ القاعدةِ ORDER_NOT_FOUND يُترجَم خطأً", async () => {
     const refusing = {
       openRound: async () => ok({ opened: false as const, refusal: "ORDER_NOT_FOUND" as const }),
     };
     const result = await broadcastOffers(
       { orderId: ORDER_ID },
-      deps({ notifier, offerWriter: refusing }),
+      deps({ offerWriter: refusing }),
     );
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     expect(result.error.code).toBe("ORDER_NOT_FOUND");
-    expect(notifier.sent).toHaveLength(0);
   });
 
-  it("لا مرشحين مؤهلين: خطأ صريح بلا دورة ولا إخطار", async () => {
+  it("لا مرشحين مؤهلين: خطأ صريح بلا دورة", async () => {
     const offerWriter = offerWriterDouble();
-    const notifier = notifierDouble();
     const result = await broadcastOffers(
       { orderId: ORDER_ID },
-      deps({ candidates: candidateRepo([]), offerWriter, notifier }),
+      deps({ candidates: candidateRepo([]), offerWriter }),
     );
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     expect(result.error.code).toBe("NO_ELIGIBLE_DRIVER");
-    // لا عرض يُكتب ولا سائق يُخطَر: الطلب يبقى في البحث للدورة التالية
+    // لا عرض يُكتب: الطلب يبقى في البحث للدورة التالية
     expect(offerWriter.rounds).toHaveLength(0);
-    expect(notifier.sent).toHaveLength(0);
   });
 
   /**

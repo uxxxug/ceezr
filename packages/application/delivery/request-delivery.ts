@@ -28,8 +28,12 @@ export interface RequestDeliveryDependencies {
 
 export interface RequestDeliveryResult {
   readonly orderId: OrderId;
-  /** السائقون الذين أُخطروا فعلاً. فارغة = الطلب قائم بلا سائق، ولا يُدَّعى غير ذلك. */
-  readonly notified: readonly DriverId[];
+  /**
+   * السائقون الذين فُتحَت لهم عروضٌ فعلاً — وكلُّ عرضٍ صُحِبَ بصفِّ إشعارٍ ذرّيٍّ في
+   * معاملةِ open_offer_round نفسِها. «المعروضُ عليه» لا يعني «المُخبَر» بعد: الإرسالُ
+   * غيرُ متزامنٍ يتولّاه عاملُ التسليم. فارغة = الطلب قائم بلا سائق، ولا يُدَّعى غير ذلك (BUG-004).
+   */
+  readonly offered: readonly DriverId[];
   /**
    * سبب عدم فتح دورة بثّ، إن لم تُفتح. ليس فشلاً للطلب:
    * الطلب مكتوب ويبقى في searching لتتولّاه دورات العامل التالية.
@@ -63,12 +67,12 @@ export async function requestDelivery(
 
   const broadcast = await broadcastOffers({ orderId: created.value }, deps.matching);
   if (!broadcast.ok) {
-    return ok({ orderId: created.value, notified: [], broadcastFailure: broadcast.error });
+    return ok({ orderId: created.value, offered: [], broadcastFailure: broadcast.error });
   }
 
   return ok({
     orderId: created.value,
-    notified: broadcast.value.notified,
+    offered: broadcast.value.offered,
     broadcastFailure: null,
   });
 }

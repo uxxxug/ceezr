@@ -1,9 +1,10 @@
 /**
- * الغرض: إثباتٌ أنَّ مُخطرَ السائقِ يبني زرَّ الرفضِ على `offerId` لا `orderId` —
- *   فيَنصبُّ الرفضُ على عرضٍ واحدٍ لا على كلِّ عرضٍ معلَّقٍ للسائقِ على الطلبِ (`BUG-003`).
- *   اختبارُ التنسيقِ `isCallbackDataValid` وحده لا يكفي: يمرُّ ولو ظلَّ المُخطرُ يرسلُ `orderId`.
+ * الغرض: إثباتٌ أنَّ ناشرَ إشعارِ العرضِ يبني زرَّ الرفضِ على `offerId` لا `orderId` —
+ *   فيَنصبُّ الرفضُ على عرضٍ واحدٍ لا على كلِّ عرضٍ معلَّقٍ للسائقِ على الطلبِ (`BUG-003`)،
+ *   وأنّه يُرجعُ معرّفَ الرسالةِ دليلًا قاطعًا على التسليمِ لا قيمةً منطقيةً «true» (`BUG-004`).
+ *   اختبارُ التنسيقِ `isCallbackDataValid` وحده لا يكفي: يمرُّ ولو ظلَّ الناشرُ يرسلُ `orderId`.
  * الحالة: اختبار وحدةٍ بمزدوجاتٍ في الذاكرة — يلتقطُ لوحةَ المفاتيحِ الفعليةَ التي يُمرّرُها
- *   المُخطرُ إلى المُرسِل، ويتحقَّقُ من حمولةِ زرِّ الرفضِ حرفاً.
+ *   الناشرُ إلى المُرسِل، ويتحقَّقُ من حمولةِ زرِّ الرفضِ حرفاً، ومن معرّفِ الرسالةِ رقمًا.
  * ينتمي إلى: tests/unit
  */
 import { describe, expect, it } from "bun:test";
@@ -11,14 +12,12 @@ import type { Keyboard } from "../../packages/application/bots/types.ts";
 import type { OfferNotification } from "../../packages/application/dispatch/broadcast-offers.ts";
 import type { DistanceKm } from "../../packages/domain/geo/value-objects.ts";
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
-import {
-  createTelegramDriverNotifier,
-  type OutboundSender,
-} from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import { createOfferPublisher } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import type { IdentifyingSender } from "../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import type { DriverId, OfferId, OrderId } from "../../packages/shared/kernel/index.ts";
-import { isOk } from "../../packages/shared/result/index.ts";
+import { isErr, isOk } from "../../packages/shared/result/index.ts";
 
-/** سائقٌ موجودٌ دائماً — المُخطرُ يقرأُ `telegram_id` و`language_code` فقط. */
+/** سائقٌ موجودٌ دائماً — الناشرُ يقرأُ `telegram_id` و`language_code` فقط. */
 function fakeSql(): Sql {
   const run = () => [{ telegram_id: "999", language_code: "ar" }];
   const sql = ((_strings: TemplateStringsArray, ..._values: unknown[]) =>
@@ -27,20 +26,26 @@ function fakeSql(): Sql {
   return sql;
 }
 
-/** مُرسِلٌ يلتقطُ اللوحةَ الفعليةَ — لا شبكةَ ولا اتصالَ بتيليجرام. */
-function capturingSender(captured: { keyboard: Keyboard | null }): OutboundSender {
+/** مُرسِلٌ يلتقطُ اللوحةَ الفعليةَ ويُرجعُ معرّفًا ثابتًا — لا شبكةَ ولا اتصالَ بتيليجرام. */
+function capturingSender(captured: {
+  keyboard: Keyboard | null;
+  messageId: string | null;
+}): IdentifyingSender {
   return {
-    send: async (_chatId: string, _text: string, keyboard: Keyboard | null) => {
+    sendReturningId: async (_chatId: string, _text: string, keyboard: Keyboard | null) => {
       captured.keyboard = keyboard;
-      return true;
+      return captured.messageId;
     },
-  } as unknown as OutboundSender;
+  };
 }
 
-describe("createTelegramDriverNotifier — زرُّ الرفضِ يحملُ offerId لا orderId (BUG-003)", () => {
-  it("زرُّ الرفضِ بياناتُه `offer:reject:<offerId>` لا `offer:reject:<orderId>`", async () => {
-    const captured: { keyboard: Keyboard | null } = { keyboard: null };
-    const notifier = createTelegramDriverNotifier(fakeSql(), capturingSender(captured));
+describe("createOfferPublisher — زرُّ الرفضِ يحملُ offerId، ويُرجعُ معرّفَ الرسالةِ (BUG-003 + BUG-004)", () => {
+  it("زرُّ الرفضِ بياناتُه `offer:reject:<offerId>` لا `offer:reject:<orderId>`، ويُرجعُ معرّفَ الرسالةِ", async () => {
+    const captured: { keyboard: Keyboard | null; messageId: string | null } = {
+      keyboard: null,
+      messageId: "msg-42",
+    };
+    const publisher = createOfferPublisher(fakeSql(), capturingSender(captured));
 
     // offerId ≠ orderId عمداً — ليثبتَ الاختبارُ أنَّ الزرَّ يأخذُ offerId لا orderId.
     const notification: OfferNotification = {
@@ -51,11 +56,13 @@ describe("createTelegramDriverNotifier — زرُّ الرفضِ يحملُ offe
       expiresInSeconds: 30,
     };
 
-    const result = await notifier.notifyOffer(notification);
+    const result = await publisher.publishOffer(notification);
 
     expect(isOk(result)).toBe(true);
     if (!isOk(result)) return;
-    expect(result.value).toBe(true);
+    // معرّفُ الرسالةِ دليلٌ قاطعٌ على التسليمِ — لا «true» كاذبة. هذا صميمُ BUG-004:
+    // ما لم يَعُدْ معرّفًا لم يُسلَّم، فيُعادُ إرسالُه من العاملِ بلا تكرارِ أثر.
+    expect(result.value).toBe("msg-42");
 
     const keyboard = captured.keyboard;
     expect(keyboard).not.toBeNull();
@@ -76,16 +83,19 @@ describe("createTelegramDriverNotifier — زرُّ الرفضِ يحملُ offe
     expect(acceptButton.data).toBe("offer:accept:order-1");
     // الرفضُ صارَ يحمِلُ offerId — لا orderId. هذا هو صميمُ BUG-003.
     expect(rejectButton.data).toBe("offer:reject:offer-xyz");
-    // والضمانُ الحاسمُ: لو ظلَّ المُخطرُ يرسلُ orderId لفشلَ هذا التوكيدُ.
+    // والضمانُ الحاسمُ: لو ظلَّ الناشرُ يرسلُ orderId لفشلَ هذا التوكيدُ.
     expect(rejectButton.data).not.toContain("order-1");
   });
 
-  it("سائقٌ غيرُ موجودٍ يُعادُ عنه false لا رميٌ — البثُّ يستمرُّ لبقيةِ الدفعةِ", async () => {
+  it("سائقٌ غيرُ موجودٍ يُرجَعُ خطأً دائمًا (DRIVER_CONTACT_NOT_FOUND) — لا يُعالَجُ بإعادةِ الإرسال", async () => {
     const missingSql = (() => Promise.resolve([])) as unknown as Sql;
-    const captured: { keyboard: Keyboard | null } = { keyboard: null };
-    const notifier = createTelegramDriverNotifier(missingSql, capturingSender(captured));
+    const captured: { keyboard: Keyboard | null; messageId: string | null } = {
+      keyboard: null,
+      messageId: "msg-42",
+    };
+    const publisher = createOfferPublisher(missingSql, capturingSender(captured));
 
-    const result = await notifier.notifyOffer({
+    const result = await publisher.publishOffer({
       orderId: "order-1" as OrderId,
       offerId: "offer-xyz" as OfferId,
       driverId: "drv-ghost" as DriverId,
@@ -93,9 +103,30 @@ describe("createTelegramDriverNotifier — زرُّ الرفضِ يحملُ offe
       expiresInSeconds: 30,
     });
 
-    expect(isOk(result)).toBe(true);
-    if (!isOk(result)) return;
-    expect(result.value).toBe(false);
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.detail).toBe("DRIVER_CONTACT_NOT_FOUND");
+    // لم تُرسَل لوحةٌ لسائقٍ لا وجودَ له — فلا معرّفٌ ولا نصٌّ.
     expect(captured.keyboard).toBeNull();
+  });
+
+  it("رفضُ تيليجرامَ للرسالةِ (null) يُرجَعُ خطأً مؤقّتًا (TELEGRAM_SEND_FAILED) — يُعادُ إرسالُه", async () => {
+    const captured: { keyboard: Keyboard | null; messageId: string | null } = {
+      keyboard: null,
+      messageId: null,
+    };
+    const publisher = createOfferPublisher(fakeSql(), capturingSender(captured));
+
+    const result = await publisher.publishOffer({
+      orderId: "order-1" as OrderId,
+      offerId: "offer-xyz" as OfferId,
+      driverId: "drv-1" as DriverId,
+      distanceKm: 2.3 as DistanceKm,
+      expiresInSeconds: 30,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) return;
+    expect(result.error.detail).toBe("TELEGRAM_SEND_FAILED");
   });
 });

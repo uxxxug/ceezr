@@ -79,7 +79,6 @@ import {
   createDriverDirectory,
   createRiderDirectory,
 } from "../../../packages/infrastructure/identity/directories.ts";
-import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import {
   grammyLiveLocationChannel,
   TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
@@ -391,7 +390,6 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       overrides.metrics === undefined
         ? createOfferWriter(sql)
         : instrumentOfferWriter(createOfferWriter(sql), overrides.metrics),
-    notifier: createTelegramDriverNotifier(sql, asOutboundSender(driverSender)),
     clock: systemClock,
     // يوصل `dispatch.no_eligible_driver` وتعداد أسباب الرفض إلى سجلّ الإنتاج.
     // دونه يبقى التشخيص حبيساً في قيمة راجعة يُسقطها منادي بوت العميل.
