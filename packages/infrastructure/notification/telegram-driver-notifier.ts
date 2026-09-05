@@ -56,7 +56,13 @@ export function createTelegramDriverNotifier(sql: Sql, sender: OutboundSender): 
               },
               {
                 label: tr("driver.offer_reject_button"),
-                data: `offer:reject:${notification.orderId}`,
+                /**
+                 * الرفضُ يحمِلُ `offerId` لا `orderId`: كلُّ زرٍّ مُعلَّقٌ على عرضٍ
+                 * بعينِه، فيُرفَضُ عرضٌ واحدٌ لا كلُّ عرضٍ معلَّقٍ للسائقِ على الطلبِ (`BUG-003`).
+                 * ومعرّفُ العرضِ uuid (٦٣ حرفاً)، فيَبلى `offer:reject:<uuid>` ٥٠ حرفاً —
+                 * تحتَ حدِّ تلغرامَ ٦٤ لـ`callback_data`.
+                 */
+                data: `offer:reject:${notification.offerId}`,
               },
             ],
           ],

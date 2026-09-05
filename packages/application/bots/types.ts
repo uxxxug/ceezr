@@ -9,7 +9,14 @@
 
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
 import type { Subscription } from "../../domain/subscription/entity.ts";
-import type { CityId, DriverId, OrderId, RiderId, ServiceType } from "../../shared/kernel/index.ts";
+import type {
+  CityId,
+  DriverId,
+  OfferId,
+  OrderId,
+  RiderId,
+  ServiceType,
+} from "../../shared/kernel/index.ts";
 import type { Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
 
@@ -542,7 +549,11 @@ export interface PastOrderSummary {
   readonly ratingStars: number | null;
 }
 
-/** رفض السائق للعرض — يُسجَّل فوراً ليخرج من دورة البثّ القادمة بلا انتظار المهلة. */
+/**
+ * رفض السائق للعرض — يُسجَّل فوراً ليخرج من دورة البثّ القادمة بلا انتظار المهلة.
+ * ويُحدَّدُ بمعرّفِ عرضٍ واحدٍ لا باسمِ `(order_id, driver_id)`، فلا يُلغي رفضٌ نقرتُه
+ * على عرضِ الجولةِ الثانيةِ عرضَ الجولةِ الأولى المعلَّقَ للسائقِ نفسِه (`BUG-003`).
+ */
 export interface OfferDecisionPort {
-  reject(orderId: OrderId, driverId: DriverId): Promise<Result<boolean, PortFailureError>>;
+  reject(offerId: OfferId, driverId: DriverId): Promise<Result<boolean, PortFailureError>>;
 }

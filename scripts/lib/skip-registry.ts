@@ -455,6 +455,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/dispatch-reject-offer-scoped.test.ts",
+    suites: ["تحديدُ نطاقِ الرفضِ بمعرّفِ عرضٍ واحدٍ — BUG-003"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت أنّ الرفضَ يَصوبُ على عرضٍ واحدٍ بمعرّفِه لا على كلِّ عرضٍ معلَّقٍ للسائقِ (`BUG-003`) على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرةِ: المقيسُ قرارُ القاعدةِ نفسِها — أنّ `update … where id = $offerId and driver_id and status = 'pending'` يُغيّرُ صفّاً واحداً ويتركُ عرضَ الجولةِ الأخرى معلَّقاً — ومحاكٍ نكتبُه نحن لا يشهد على المحرّكِ بشيءٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-location-cas.test.ts",
     suites: ["الكتابة الشرطيّة على الموقع القانوني — BUG-001"],
     skipped: 10,

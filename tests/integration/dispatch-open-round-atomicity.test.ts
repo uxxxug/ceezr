@@ -153,6 +153,15 @@ describeIf("ذرّيّةُ فتحِ دورةِ البثّ — BUG-005", () => {
     expect(opened.value.opened).toBe(true);
     if (!opened.value.opened) return;
     expect(opened.value.offersInserted).toBe(3);
+    /**
+     * `BUG-003` — تردُّ القاعدةُ معرّفَ كلِّ عرضٍ مُدرَجٍ، فيملكُ البثُّ ما يبني بهِ زرَّ
+     * رفضٍ لعرضٍ بعينِه. والمصفوفةُ بطولِ الدفعةِ ومطابقةٌ في `driverId`. والقيدُ
+     * الحاسمُ: عددُ العروضِ الذي تُخبرُ به الدالّةُ (`offersInserted`) يساوي طولَ
+     * مصفوفةِ المعرّفات (`offers`) — فلا تُفكِّر الدالّةُ عدداً لا تطابقُه المصفوفة.
+     */
+    expect(opened.value.offers).toHaveLength(3);
+    expect(opened.value.offersInserted).toBe(opened.value.offers.length);
+    expect(opened.value.offers.map((offer) => offer.driverId)).toEqual(driverIds);
 
     const state = await settled();
     expect(state.round).toBe(1);

@@ -8,7 +8,11 @@
  */
 
 import type { OfferDecisionPort } from "../../application/bots/types.ts";
-import type { OfferWriter, OpenRoundInput } from "../../application/dispatch/broadcast-offers.ts";
+import type {
+  InsertedOffer,
+  OfferWriter,
+  OpenRoundInput,
+} from "../../application/dispatch/broadcast-offers.ts";
 import type {
   ExpireOffersRpcPort,
   PendingOfferRepository,
@@ -32,7 +36,7 @@ import type {
   SubscriptionStatus,
 } from "../../domain/subscription/entity.ts";
 import type { Order } from "../../domain/transport/entity.ts";
-import type { CityId, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
+import type { CityId, DriverId, OfferId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { guard, readEnvelope, type Sql } from "../db/client.ts";
 
 interface CandidateRow {
@@ -239,9 +243,18 @@ export function createOfferWriter(sql: Sql): OfferWriter {
         const raw = envelope as unknown as Record<string, unknown>;
         if (envelope.ok) {
           const inserted = raw.offers;
+          /**
+           * `offer_ids` يصدرُ من الإدراجِ نفسِه في الدالةِ الذرّيةِ، فيملكُ كلَّ
+           * عرضٍ مُدرَجٍ معرّفَه. ولا يُبنى زرُّ رفضٍ إلّا لعرضٍ له صفٌّ في القاعدةِ —
+           * فلا يُرفضُ ما لم يُخلَق (`BUG-003`). والقراءةُ متساهلةٌ كالعقدِ كلهِ:
+           * مغلَّفٌ بلا `offer_ids` يُقرأ صفوفاً صفراً، فلا يَنكسِرُ منادٍ قديمٌ
+           * بلا أن يُحجزَ له صفٌّ.
+           */
+          const offers = readInsertedOffers(raw.offer_ids);
           return {
             opened: true as const,
-            offersInserted: typeof inserted === "number" ? inserted : 0,
+            offersInserted: typeof inserted === "number" ? inserted : offers.length,
+            offers,
           };
         }
 
@@ -272,6 +285,25 @@ function readText(value: unknown): string | null {
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
   if (typeof value === "bigint") return String(value);
   return null;
+}
+
+/**
+ * معرّفاتُ العروضِ المُدرَجةِ كما رجعَت من `open_offer_round`. تُقرأُ بتساهلٍ: صفٌّ
+ * ناقصُ `offer_id` أو `driver_id` يُترَكُ لا أن يُفسدَ البقيةَ، فلا يُخطرُ سائقٌ
+ * بلا معرّفِ عرضٍ يحصرُ رفضَه (`BUG-003`).
+ */
+function readInsertedOffers(value: unknown): readonly InsertedOffer[] {
+  if (!Array.isArray(value)) return [];
+  const offers: InsertedOffer[] = [];
+  for (const entry of value) {
+    if (typeof entry !== "object" || entry === null) continue;
+    const row = entry as Record<string, unknown>;
+    const offerId = readText(row.offer_id);
+    const driverId = readText(row.driver_id);
+    if (offerId === null || driverId === null) continue;
+    offers.push({ offerId: offerId as OfferId, driverId: driverId as DriverId });
+  }
+  return offers;
 }
 
 /** راكبٌ يُقرأ أو لا يُقرأ: معرّفُ تلغرام وحده شرطٌ — بلاه لا إخطار أصلاً. */
@@ -336,14 +368,22 @@ export function createDispatchRpc(sql: Sql): DispatchRpcPort {
 
 export function createOfferDecisionPort(sql: Sql): OfferDecisionPort {
   return {
-    /** الرفض يمسّ العرض المعلَّق فقط: عرضٌ مقبول أو منتهٍ لا يُرفض بأثر رجعي. */
-    reject: (orderId: OrderId, driverId: DriverId) =>
+    /**
+     * الرفضُ يَصوبُ على عرضٍ واحدٍ بمعرّفِه، لا على كلِّ عرضٍ معلَّقٍ للسائقِ على
+     * الطلبِ. فقبلَ `BUG-003` كان الرفضُ يُصيبُ بالاسمِ `(order_id, driver_id)` كلَّ
+     * عرضٍ معلَّقٍ مهما اختلفتْ جولتُه، فيُلغي بضغطةٍ واحدةٍ عروضاً ما زالتْ
+     * محتمِلةً لم تنتهِ مهلتُها. والآن يُحدِّدُ `id` العرضَ بعينِه — وهو المفتاحُ
+     * الذي يُثبِتُ `order_id` و`round` معاً (المفتاحُ الفريدُ يَعنِي الصفَّ كلَّه)،
+     * و`driver_id` يَحرُسُ أن لا يرفضَ سائقٌ عرضَ غيرِه، و`status = 'pending'` يَحرُسُ
+     * أن لا يُرفضَ عرضٌ قُبِل أو انتهى بأثرٍ رجعيّ.
+     */
+    reject: (offerId: OfferId, driverId: DriverId) =>
       guard("offers.reject", async () => {
         const rows = await sql<{ id: string }[]>`
           update order_offers
              set status = 'rejected', responded_at = now(), updated_at = now()
-           where order_id = ${orderId}
-             and driver_id = ${driverId}
+           where id = ${offerId}::uuid
+             and driver_id = ${driverId}::uuid
              and status = 'pending'
           returning id
         `;

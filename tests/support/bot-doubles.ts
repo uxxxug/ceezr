@@ -40,6 +40,7 @@ import type { Subscription, SubscriptionPlan } from "../../packages/domain/subsc
 import type {
   CityId,
   DriverId,
+  OfferId,
   OrderId,
   RiderId,
   ServiceType,
@@ -278,13 +279,13 @@ export function trialPort(
 }
 
 export function offerDecisionPort(): OfferDecisionPort & {
-  readonly rejections: { orderId: OrderId; driverId: DriverId }[];
+  readonly rejections: { offerId: OfferId; driverId: DriverId }[];
 } {
-  const rejections: { orderId: OrderId; driverId: DriverId }[] = [];
+  const rejections: { offerId: OfferId; driverId: DriverId }[] = [];
   return {
     rejections,
-    reject: async (orderId, driverId) => {
-      rejections.push({ orderId, driverId });
+    reject: async (offerId, driverId) => {
+      rejections.push({ offerId, driverId });
       return ok(true);
     },
   };
@@ -407,11 +408,21 @@ export interface OfferWriterDouble extends OfferWriter {
 
 export function offerWriterDouble(): OfferWriterDouble {
   const rounds: OpenRoundInput[] = [];
+  /**
+   * عدّادٌ يُولّدُ معرّفَ عرضٍ فريدًا لكلِّ إدخالٍ في الذاكرةِ — فالبثّ يربطُ كلَّ
+   * سائقٍ بمعرّفِ عرضٍ، والمنفذُ الحقيقيُّ يأخذُه من القاعدةِ. وهنا يُخترَعُ
+   * لتُجرّى الحلقةُ بلا قاعدة (`BUG-003`).
+   */
+  let sequence = 0;
   return {
     rounds,
     openRound: async (input) => {
       rounds.push(input);
-      return ok({ opened: true as const, offersInserted: input.entries.length });
+      const offers = input.entries.map((entry) => ({
+        offerId: `offer-${sequence++}` as OfferId,
+        driverId: entry.driverId,
+      }));
+      return ok({ opened: true as const, offersInserted: offers.length, offers });
     },
   };
 }

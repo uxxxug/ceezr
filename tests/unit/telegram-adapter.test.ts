@@ -185,6 +185,11 @@ describe("toTelegramMarkup", () => {
 
   it("يعرف حدّ تلغرام لبيانات الزرّ", () => {
     expect(isCallbackDataValid("offer:accept:0193f0aa-1f3c-7b2e-9a0d-2b6c8e4f1a55")).toBe(true);
+    /**
+     * `BUG-003` — زرُّ الرفضِ يحمِلُ `offerId` (uuid) لا `orderId`، ولا يزالُ تحتَ
+     * حدِّ تلغرامَ ٦٤ بايتاً لـ`callback_data`.
+     */
+    expect(isCallbackDataValid("offer:reject:0193f0aa-1f3c-7b2e-9a0d-2b6c8e4f1a55")).toBe(true);
     expect(isCallbackDataValid("x".repeat(65))).toBe(false);
   });
 });

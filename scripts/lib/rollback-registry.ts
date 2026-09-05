@@ -364,6 +364,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "الهويةُ والجلسةُ والصلاحيات",
     documentedIn: HEADING_POSTGREST_SURFACE,
   },
+  {
+    migration: "20260905020000_open_offer_round_returns_offer_ids.sql",
+    change: "revoke_function:open_offer_round(4)",
+    why: "إعادةُ تثبيتِ الصلاحياتِ كما كانت بعدَ `create or replace` للدالّةِ التي غُيّرَ مردُّها — وهي لا تُضيِّقُ منحةً جديدةً بل تُعيدُ قفلَ السطحِ الذي كان قائماً قبلها، فالتصريحُ للقراءةِ لا للتضييق. و`open_offer_round` كانت ممنوحةً لـ`service_role` وحدها قبلَ التغييرِ، وتبقى كذلك بعده.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /** وسمُ المدخلِ بالصورةِ التي تُطابِق `riskTag`. */

@@ -111,6 +111,12 @@ describe("broadcastOffers", () => {
     expect(notifier.sent.map((n) => String(n.driverId))).toEqual(["near", "far"]);
     expect(notifier.sent[0]?.expiresInSeconds).toBe(45);
     expect(notifier.sent[0]?.orderId).toBe(ORDER_ID);
+    /**
+     * `BUG-003` — كلُّ إشعارٍ يحملُ `offerId` عرضٍ بعينِه، فيُبنى منه زرُّ رفضٍ يصوبُ على
+     * عرضٍ واحدٍ لا على كلِّ عرضٍ معلَّقٍ للسائقِ.
+     */
+    expect(notifier.sent.every((n) => n.offerId.length > 0)).toBe(true);
+    expect(notifier.sent.map((n) => String(n.offerId))).not.toContain("near");
   });
 
   it("سائق حجب البوت يُحسب unreachable ولا يُوقف بقية الدفعة", async () => {

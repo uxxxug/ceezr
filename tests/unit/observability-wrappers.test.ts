@@ -92,7 +92,7 @@ describe("أغلفة الرصد لا تُسقط شيئاً من المنفذ ا�
 
   it("instrumentOfferWriter يحفظ ما يلفّه", () => {
     const port = withSentinel({
-      openRound: async () => ok({ opened: true as const, offersInserted: 0 }),
+      openRound: async () => ok({ opened: true as const, offersInserted: 0, offers: [] }),
     });
     expectPreserved(port, instrumentOfferWriter(port as never, metrics()));
   });

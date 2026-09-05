@@ -24,7 +24,7 @@ import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type { PaymentTransactionId } from "../../packages/domain/financial/index.ts";
 import type { Subscription } from "../../packages/domain/subscription/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
-import type { DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
+import type { DriverId, OfferId, OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
 import {
   cityDirectory,
@@ -689,11 +689,15 @@ describe("قبول ورفض العرض", () => {
   it("الرفض يُسجَّل فوراً ليخرج السائق من الدورة القادمة", async () => {
     const offers = offerDecisionPort();
     const replies = await handleDriverUpdate(
-      callback("offer:reject:order-77"),
+      callback("offer:reject:offer-77"),
       build({ drivers: driverDirectory(verifiedDriver()), offers }),
     );
+    /**
+     * `BUG-003` — الزرُّ يحمِلُ `offerId` لا `orderId`، فيُسجَّلُ الرفضُ على عرضٍ
+     * بعينِه لا على كلِّ عرضٍ معلَّقٍ للسائقِ على الطلبِ.
+     */
     expect(offers.rejections).toEqual([
-      { orderId: "order-77" as OrderId, driverId: "driver-1" as DriverId },
+      { offerId: "offer-77" as OfferId, driverId: "driver-1" as DriverId },
     ]);
     expect(replies[0]?.text).toBe(ar("driver.offer_rejected"));
   });

@@ -9,7 +9,7 @@
 
 import type { DistanceKm } from "../../domain/geo/value-objects.ts";
 import type { Order } from "../../domain/transport/entity.ts";
-import type { CityId, DriverId, OrderId } from "../../shared/kernel/index.ts";
+import type { CityId, DriverId, OfferId, OrderId } from "../../shared/kernel/index.ts";
 import type { Result } from "../../shared/result/index.ts";
 import { err, ok } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
@@ -47,8 +47,22 @@ export type OpenRoundRefusal = "ORDER_NOT_FOUND" | "ORDER_NOT_SEARCHING" | "ROUN
  * `void` لأنَّ المنفذَ صارَ يُقرّرُ لا يُنفّذُ: من لا يَروي قرارَه لا يملكُ المتّصلُ
  * به إلّا أن يفترضَ النجاحَ.
  */
+/**
+ * عرضٌ واحدٌ أُدرجَ في الدورةِ، يُميَّزُ بمعرّفِه لا بالاسمِ `(order_id, driver_id)`.
+ * الاسمُ لا يُفرّقُ بينَ جولتَينِ للسائقِ نفسِه على الطلبِ نفسِه، فكان الرفضُ يُصيبُ
+ * كليهما بضغطةٍ واحدةٍ (`BUG-003`). والمعرّفُ هو ما يحصرُ القرارَ بعرضٍ بعينِه.
+ */
+export interface InsertedOffer {
+  readonly offerId: OfferId;
+  readonly driverId: DriverId;
+}
+
 export type OpenRoundOutcome =
-  | { readonly opened: true; readonly offersInserted: number }
+  | {
+      readonly opened: true;
+      readonly offersInserted: number;
+      readonly offers: readonly InsertedOffer[];
+    }
   | { readonly opened: false; readonly refusal: "ORDER_NOT_FOUND" | "ROUND_ALREADY_OPENED" }
   /** الحالُ يُرافقُ هذا الرفضَ وحدَه، لأنَّه وحدَه الذي له حالٌ يُخبِرُ عن شيءٍ. */
   | {
@@ -63,6 +77,12 @@ export interface OfferWriter {
 
 export interface OfferNotification {
   readonly orderId: OrderId;
+  /**
+   * عرضٌ واحدٌ بعينِه: الزرُّ الذي يُبنى من هذا الإشعارِ يحمِلُ `offerId` لا
+   * `orderId`، فيَنصَبُّ الرفضُ على عرضٍ واحدٍ لا على كلِّ عرضٍ معلَّقٍ للسائقِ
+   * (`BUG-003`).
+   */
+  readonly offerId: OfferId;
   readonly driverId: DriverId;
   readonly distanceKm: DistanceKm;
   readonly expiresInSeconds: number;
@@ -178,9 +198,29 @@ export async function broadcastOffers(
 
   const notified: DriverId[] = [];
   const unreachable: DriverId[] = [];
+  /**
+   * العرضُ الذي يُخطرُ به السائقَ هو الذي أُدرجَ فعلاً في القاعدةِ، لا الذي
+   * طُلبَ إدراجُه. و`offer_ids` يَصدُرُ من الإدراجِ نفسِه فيُحصرُ الإخطارُ بالعروضِ
+   * القائمةِ فقط — فلا يُقالُ لسائقٍ «عُرِضَ عليك» بلا عرضٍ في القاعدةِ، ولا
+   * يُبنى زرُّ رفضٍ لعرضٍ لم يُخلَق (`BUG-003`).
+   */
+  const insertedByDriver = new Map<DriverId, OfferId>();
+  for (const offer of written.value.offers) {
+    insertedByDriver.set(offer.driverId, offer.offerId);
+  }
   for (const entry of entries) {
+    const offerId = insertedByDriver.get(entry.driverId);
+    if (offerId === undefined) {
+      /**
+       * لم يُدرَج عرضٌ لهذا السائقِ (تعارضٌ على القيدِ الفريدِّ مثلًا)، فلا إخطارَ
+       * ولا زرَّ رفضٍ بلا عرضٍ وراءَه. السائقُ لا يُعدُّ معروضاً عليه ولا غيرَ معلوم.
+       */
+      unreachable.push(entry.driverId);
+      continue;
+    }
     const sent = await deps.notifier.notifyOffer({
       orderId: decision.orderId,
+      offerId,
       driverId: entry.driverId,
       distanceKm: entry.distanceKm,
       expiresInSeconds: decision.offerTimeoutSeconds,
@@ -192,7 +232,7 @@ export async function broadcastOffers(
   return ok({
     orderId: decision.orderId,
     round: decision.round,
-    offered: entries.map((entry) => entry.driverId),
+    offered: written.value.offers.map((offer) => offer.driverId),
     notified,
     unreachable,
     expiresAt,

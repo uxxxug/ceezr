@@ -37,7 +37,14 @@ import {
 } from "../../domain/subscription/entity.ts";
 import type { RoutingProvider } from "../../maps/core/index.ts";
 import { t } from "../../shared/i18n/index.ts";
-import type { CityId, Clock, DriverId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
+import type {
+  CityId,
+  Clock,
+  DriverId,
+  OfferId,
+  OrderId,
+  ServiceType,
+} from "../../shared/kernel/index.ts";
 import { ok } from "../../shared/result/index.ts";
 import {
   type RegisterUnsubscribedClaimDependencies,
@@ -1872,11 +1879,10 @@ async function handleOfferDecision(
   deps: DriverBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
-  const [action, orderIdRaw] = parts;
-  if (orderIdRaw === undefined || orderIdRaw === "") {
+  const [action, idRaw] = parts;
+  if (idRaw === undefined || idRaw === "") {
     return [reply(sender, tr("common.unknown_command"))];
   }
-  const orderId = orderIdRaw as OrderId;
 
   const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
   if (!found.ok) return technicalFailure(sender, state);
@@ -1884,12 +1890,22 @@ async function handleOfferDecision(
   const driver = found.value;
 
   if (action === "reject") {
-    const rejected = await deps.offers.reject(orderId, driver.id);
+    /**
+     * `BUG-003` — الرفضُ يصوبُ على عرضٍ واحدٍ بمعرّفِه لا على كلِّ عرضٍ معلَّقٍ
+     * للسائقِ. فالزرُّ يحمِلُ `offerId`، فيُرفَضُ عرضُ الجولةِ الثانيةِ وحدهُ
+     * ويبقى عرضُ الجولةِ الأولى معلَّقاً لم تنتهِ مهلتُه. والمعرّفُ واحدٌ لا
+     * يتجزّأ، ولا يُخمَّنُ منه `orderId` ولا `round`.
+     */
+    const offerId = idRaw as OfferId;
+    const rejected = await deps.offers.reject(offerId, driver.id);
     if (!rejected.ok) return technicalFailure(sender, state);
     return [reply(sender, tr("driver.offer_rejected"))];
   }
 
   if (action !== "accept") return [reply(sender, tr("common.unknown_command"))];
+
+  /** القبولُ يبقى على `orderId` — `claim_ride` يختارُ أحدثَّ جولةٍ معلَّقةٍ ذرّياً. */
+  const orderId = idRaw as OrderId;
 
   // القبول يمرّ عبر الدالة الذرّية claim_ride: هي الحكم الوحيد في التنافس
   const claim = await deps.dispatch.claimRide(orderId, driver.id);

@@ -12,6 +12,8 @@ export type UserId = Brand<string, "UserId">;
 export type DriverId = Brand<string, "DriverId">;
 export type RiderId = Brand<string, "RiderId">;
 export type OrderId = Brand<string, "OrderId">;
+/** معرّف عرضٍ واحدٍ في `order_offers` — المفتاحُ الذي يحصرُ القرارَ بعرضٍ بعينِه (BUG-003). */
+export type OfferId = Brand<string, "OfferId">;
 export type CityId = Brand<string, "CityId">;
 export type TenantId = Brand<string, "TenantId">;
 
