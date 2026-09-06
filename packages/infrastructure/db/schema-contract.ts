@@ -10,6 +10,7 @@
 
 /** دوالُّ القاعدة التي يناديها كودُ التشغيل. */
 export const CONTRACT_FUNCTIONS: readonly string[] = [
+  "abandon_notification_delivery",
   "admin_set_driver_verification",
   "admin_set_user_blocked",
   "admin_update_city_group_ids",
@@ -20,6 +21,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "cancel_order_by_rider",
   "cancel_subscription",
   "claim_broadcast_recipients",
+  "claim_notification_delivery",
   "claim_ride",
   "claim_safety_incident",
   "claim_safety_incident_delivery",
@@ -41,6 +43,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "expire_due_subscriptions",
   "expire_tracking_tokens",
   "finish_broadcast_delivery",
+  "finish_notification_delivery",
   "finish_safety_incident_delivery",
   "finish_subscription_notice",
   "finish_telegram_update",
