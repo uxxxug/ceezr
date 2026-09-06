@@ -11,6 +11,11 @@
 
 import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
 import { deliverNotifications } from "../../apps/workers/src/jobs/deliver-notifications.ts";
+import {
+  createAgreedHandler,
+  createTurnClosedHandler,
+  createTurnOpenedHandler,
+} from "../../packages/application/dispatch/deliver-negotiation-notification.ts";
 import { createOfferNotificationHandler } from "../../packages/application/dispatch/deliver-offer-notification.ts";
 import { createDisputeResolutionHandler } from "../../packages/application/dispute/deliver-dispute-resolution.ts";
 import type { NotificationHandler } from "../../packages/application/notification/deliver-notification.ts";
@@ -21,6 +26,7 @@ import {
   asSupportSender,
 } from "../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { createOfferPublisher } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import { createTelegramNegotiationMessenger } from "../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import { createTicketOwnerNotifier } from "../../packages/infrastructure/notification/telegram-support-notifier.ts";
 
 /**
@@ -43,6 +49,26 @@ export async function drainNotificationOutbox(
     if (!report.ok) return;
     if (report.value.claimed === 0) return;
   }
+}
+
+/**
+ * معالجاتُ أنواعِ دورةِ غيرِ المشتركينِ كما يربطُها عاملُ التسليمِ في الإنتاج:
+ * مُرسِلانِ لا واحدٌ — رسالةُ السائقِ من بوتِه ورسالةُ الراكبِ من بوتِه، وإلّا
+ * لم تصلْ أصلًا. تُبنى هنا مرّةً ليتّبعَ الاختبارُ الربطَ الحقيقيَّ.
+ */
+export function negotiationHandlers(
+  driverSender: TelegramSender,
+  riderSender: TelegramSender,
+): Readonly<Record<string, NotificationHandler>> {
+  const messenger = createTelegramNegotiationMessenger(
+    asIdentifyingSender(driverSender),
+    asIdentifyingSender(riderSender),
+  );
+  return {
+    negotiation_turn_opened: createTurnOpenedHandler(messenger),
+    negotiation_turn_closed: createTurnClosedHandler(messenger),
+    negotiation_agreed: createAgreedHandler(messenger),
+  };
 }
 
 /**

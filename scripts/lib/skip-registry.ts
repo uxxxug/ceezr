@@ -595,6 +595,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/notification-outbox-negotiation.test.ts",
+    suites: ["إخطاراتُ دورةِ غيرِ المشتركينِ في صندوقِ الصادرِ على PostgreSQL فعلية (BUG-004)"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ أنَّ إخطاراتِ فتحِ الدورِ وإغلاقِه والاتفاقِ تُودَعُ في معاملاتِ `register_unsubscribed_claim` و`advance_unsubscribed_negotiation` و`settle_unsubscribed_negotiation` أنفسِها، وأنَّ رجوعَ المعاملةِ لا يُبقي صفًّا يتيمًا، وأنَّ فشلَ جانبٍ يُعادُ وحدَه فلا يصلُ الطرفَ الذي وصلَه أصلًا مرّتَينِ، وأنَّ المحادثةَ واللغةَ تُقرآنِ حيَّتَينِ لحظةَ الالتقاطِ، وأنَّ المفتاحَ يمنعُ صفَّينِ لطرفٍ واحدٍ (BUG-004). ولا يُثبَتُ ذلك ببديلٍ في الذاكرةِ: المقصودُ ذرّيةُ المعاملةِ والإغناءُ من القاعدةِ وقيدُ التفرُّدِ في المحرِّكِ نفسِه لا سلوكُ محاكٍ نكتبُه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/full-ride.test.ts",
     suites: ["المسار الكامل على قاعدة حقيقية"],
     skipped: 11,

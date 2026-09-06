@@ -20,6 +20,10 @@ import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { CityId, OrderId } from "../../packages/shared/kernel/index.ts";
 import { testConfig } from "../support/config.ts";
+import {
+  drainNotificationOutbox,
+  negotiationHandlers,
+} from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -202,6 +206,16 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
 
   const groupCards = () => driverSent.filter((m) => m.chatId === UNSUB_GROUP);
 
+  /**
+   * تشغيلُ عاملِ التسليمِ فعليًّا: منذُ BUG-004 لا تُرسَلُ إخطاراتُ الدورةِ من
+   * مسارِ الطلبِ بعدَ commit، بل تُودَعُ صفوفُها في المعاملةِ نفسِها ويُسلِّمُها
+   * العامل. فالتحقّقُ من وصولِها يستدعي تشغيلَه لا انتظارَ أثرٍ متزامنٍ لا يقع.
+   */
+  const deliverQueued = () =>
+    drainNotificationOutbox(sql, capturing(driverSent), {
+      ...negotiationHandlers(capturing(driverSent), capturing(riderSent)),
+    });
+
   it("ينشر بطاقة في قروب المدينة بلا رقم هاتف ولا موقع دقيق، ويحفظ معرّف الرسالة", async () => {
     await unsubscribedDriver(DRIVER_CHATS[0], "أحمد العمري", "0501234567");
     const orderId = await searchingOrder();
@@ -358,6 +372,9 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
     await post("driver", groupCallback(DRIVER_CHATS[0], `unsub:claim:${negotiationId}`));
     await post("driver", groupCallback(DRIVER_CHATS[1], `unsub:claim:${negotiationId}`));
     await post("rider", privateCallback(RIDER_CHAT, `unsub:agree:${negotiationId}`));
+    // إخطارُ الاتفاقِ يُودَعُ في صندوقِ الصادرِ داخلَ معاملةِ الإسنادِ (BUG-004)،
+    // فالتسليمُ صارَ للعامل. نُشغّلُه هنا فعليًّا ثمّ نتحقّقُ من نفسِ الرسائلِ.
+    await deliverQueued();
 
     const order = await sql<{ status: string; assigned_driver_id: string | null }[]>`
       select status, assigned_driver_id from orders where id = ${orderId}
@@ -541,6 +558,8 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
        where negotiation_id = ${negotiationId} and driver_id = ${ids[0] as string}
     `;
     expect(expiredClaim[0]?.outcome).toBe("expired");
+
+    await deliverQueued();
 
     const toFirst = driverSent.filter((m) => m.chatId === String(DRIVER_CHATS[0]));
     expect(toFirst.at(-1)?.text).toBe(ar("negotiation.driver_turn_closed_expired"));
