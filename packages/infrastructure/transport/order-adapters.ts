@@ -8,7 +8,6 @@
 
 import type {
   ActiveOrderSummary,
-  CancelNotifyTarget,
   CreateOrderInput,
   OrderWriter,
   PastOrderSummary,
@@ -92,8 +91,9 @@ export function createOrderWriter(sql: Sql): OrderWriter {
     /**
      * الإلغاء يمرّ عبر الدالّة الذرّية cancel_order_by_rider — لا تحديث مباشر هنا.
      * الدالّة تُلغي العروض المعلّقة وتُغلق التفاوض وتكتب في السجل تحت قفل واحد،
-     * ثم تُعيد من يجب إخطارهم. الإخطار يجري خارج المعاملة عمداً: فشل تيليجرام
-     * لا يصحّ أن يُرجِع إلغاءً وافق عليه العميل.
+     * وتُودِعُ إخطارَ كلِّ سائقٍ يعنيه الأمرُ في صندوقِ الصادرِ في المعاملةِ نفسِها
+     * (BUG-004) فيُسلِّمُه العاملُ بعدَ الـcommit بإعادةٍ محكومةٍ. ولذلك لا تُقرأُ هنا
+     * قائمةُ من يجبُ إخطارُهم: مَن يُخطَرُ صارَ صفوفًا في الجدولِ لا حلقةً في الطبقةِ.
      */
     cancelByRider: (orderId: OrderId, riderId: RiderId) =>
       guard("orders.cancelByRider", async () => {
@@ -106,26 +106,11 @@ export function createOrderWriter(sql: Sql): OrderWriter {
             ? ({ kind: "not_cancellable" } as const)
             : ({ kind: "not_found" } as const);
         }
-        const notify: CancelNotifyTarget[] = result.offer_drivers.map((row) => ({
-          driverId: row.driver_id as DriverId,
-          wasAssigned: false,
-        }));
-        // المُسنَد قد يكون أيضاً صاحب عرض مقبول؛ لا نُخطره مرّتين
-        const assigned = result.assigned_driver;
-        if (assigned !== null) {
-          const existing = notify.findIndex((row) => row.driverId === assigned.driver_id);
-          if (existing === -1) {
-            notify.push({ driverId: assigned.driver_id as DriverId, wasAssigned: true });
-          } else {
-            notify[existing] = { driverId: assigned.driver_id as DriverId, wasAssigned: true };
-          }
-        }
         return {
           kind: "cancelled",
           orderId: result.order_id as OrderId,
           service: result.service as ServiceType,
           previousStatus: result.previous_status,
-          notify,
           groupMessageIds: result.group_cards
             .filter((card) => card.group_message_id !== null)
             .map((card) => String(card.group_message_id)),
@@ -134,20 +119,12 @@ export function createOrderWriter(sql: Sql): OrderWriter {
   };
 }
 
-interface CancelRpcDriver {
-  readonly driver_id: string;
-  readonly telegram_id: string;
-  readonly language: string;
-}
-
 type CancelRpcResult =
   | {
       readonly ok: true;
       readonly order_id: string;
       readonly service: string;
       readonly previous_status: string;
-      readonly offer_drivers: readonly CancelRpcDriver[];
-      readonly assigned_driver: CancelRpcDriver | null;
       readonly group_cards: readonly { readonly group_message_id: string | null }[];
       readonly error?: undefined;
     }

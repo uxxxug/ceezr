@@ -32,13 +32,6 @@ import {
   publishToUnsubscribedGroup,
 } from "./publish-to-unsubscribed-group.ts";
 
-/**
- * رقمُ الدورة الأولى كما تكتبه `open_unsubscribed_cycle` في القاعدة. ليس إعداداً
- * تجارياً يُضبط من `platform_settings`، بل بداية عدٍّ تصاعديّ — وحدُّ الدورات نفسه
- * إعدادٌ تقرؤه القاعدة لا هذا الملفّ.
- */
-const FIRST_CYCLE = 1;
-
 /** طلب عالق: يبحث منذ مدة، وليس له عرضٌ حيّ ولا سائق مُسنَد. */
 export interface UnmatchedOrder {
   readonly orderId: OrderId;
@@ -71,18 +64,6 @@ export interface UnmatchedOrderFinder {
   ): Promise<Result<readonly UnmatchedOrder[], PortFailureError>>;
 }
 
-export interface UnmatchedRiderNotifier {
-  /** يُستدعى مرّة واحدة لكل طلب: عند أوّل تصعيد فعلي لا في كل شوط. */
-  noDriverFound(order: UnmatchedOrder): Promise<Result<void, PortFailureError>>;
-  /**
-   * يُستدعى مرّة واحدة عند فتح الدورة الأولى في قروب غير المشتركين: الانتقال إلى
-   * دائرة أوسع خبرٌ للراكب لا شأنٌ داخليّ — إخفاؤه يعني انتظاراً أطول بلا كلمة،
-   * وهو نفس الصمت الذي جاءت هذه المهمّة لإنهائه. والدورة الأولى وحدها لأنّ ما
-   * بعدها إعادةُ محاولةٍ لا خبرٌ جديد.
-   */
-  widerCircleOpened(order: UnmatchedOrder): Promise<Result<void, PortFailureError>>;
-}
-
 export interface SweepUnmatchedDependencies {
   readonly finder: UnmatchedOrderFinder;
   readonly escalate: EscalateUnmatchedOrderDependencies;
@@ -94,7 +75,6 @@ export interface SweepUnmatchedDependencies {
    * فارغاً — وهو نفسه قناةُ تحويل السائق المنتهي تجربتُه إلى مشترك.
    */
   readonly unsubscribed: PublishToUnsubscribedGroupDependencies;
-  readonly notifier: UnmatchedRiderNotifier;
   /** عتبة الانتظار قبل التصعيد — تأتي من إعدادات المدينة لا من ثابت في الكود. */
   readonly staleAfterSeconds: number;
   /**
@@ -109,13 +89,21 @@ export interface SweepUnmatchedReport {
   readonly cityId: CityId;
   readonly examined: number;
   readonly escalated: readonly OrderId[];
-  readonly notified: readonly OrderId[];
+  /**
+   * طلباتٌ أُودِعَ إخطارُ «لا سائقَ» لأصحابها في معاملةِ التسليمِ نفسِها (BUG-004).
+   * لا تعني «وصلت الرسالة»: الإرسالُ يقعُ بعدَ الالتزامِ ومن عاملِ الصادرِ، وهو
+   * وحدَه ما جعلَ الإخطارَ يُعادُ حتّى يصلَ بدلَ أن يذهبَ مع أوّلِ تعطّلٍ في تيليجرام.
+   */
+  readonly queuedNoDriver: readonly OrderId[];
   /** طلبات كانت مُصعَّدة من قبل — تُعدّ ولا تُصعَّد ثانية ولا يُزعَج صاحبها. */
   readonly alreadyEscalated: number;
   /** طلباتٌ نُشرت بطاقتُها الآن في قروب غير المشتركين: الباب الثاني فُتح فعلاً. */
   readonly offeredToUnsubscribed: readonly OrderId[];
-  /** أصحابُ الطلبات الذين أُخبروا بالانتقال إلى الدائرة الأوسع — لا يُخلط بإشعار التصعيد. */
-  readonly toldWiderCircle: readonly OrderId[];
+  /**
+   * طلباتٌ أُودِعَ لأصحابها إخطارُ الانتقالِ إلى الدائرةِ الأوسعِ في معاملةِ فتحِ
+   * الدورةِ نفسِها — لا يُخلط بإخطارِ التصعيد، ولا يعني أنَّ الرسالةَ وصلت.
+   */
+  readonly queuedWiderCircle: readonly OrderId[];
   /**
    * طلباتٌ لها دورةٌ حيّةٌ في القروب: تُترك لمهمّة التدوير ولا تُصعَّد. تُعدّ صراحةً
    * لأنّ «فحصتُ ولم أصعّد» بلا بيانٍ يبدو طمأنينةً وهو قد يكون عطلاً.
@@ -137,9 +125,9 @@ export async function sweepUnmatchedOrders(
   if (!stale.ok) return stale;
 
   const escalated: OrderId[] = [];
-  const notified: OrderId[] = [];
+  const queuedNoDriver: OrderId[] = [];
   const offeredToUnsubscribed: OrderId[] = [];
-  const toldWiderCircle: OrderId[] = [];
+  const queuedWiderCircle: OrderId[] = [];
   let alreadyEscalated = 0;
   let stillBroadcasting = 0;
   let awaitingUnsubscribed = 0;
@@ -183,12 +171,13 @@ export async function sweepUnmatchedOrders(
 
     if (published.value.published) {
       offeredToUnsubscribed.push(order.orderId);
-      // الدورة الأولى وحدها خبرٌ للراكب: ما بعدها إعادةُ محاولةٍ تملكها مهمّة التدوير.
-      if (published.value.cycle === FIRST_CYCLE) {
-        const told = await deps.notifier.widerCircleOpened(order);
-        if (told.ok) toldWiderCircle.push(order.orderId);
-        else deps.log?.("sweep.wider_circle_notify_failed", { orderId: order.orderId, cityId });
-      }
+      /**
+       * الخبرُ صارَ يُودَعُ في معاملةِ فتحِ الدورةِ نفسِها ويُرسِلُه عاملُ الصادرِ
+       * (BUG-004): كان يُرسَلُ من هنا بعدَ عودةِ الدالّةِ، فإن تعطّلَ تيليجرامُ لحظتَها
+       * فُتحت الدورةُ وبقيَ صاحبُ الطلبِ صامتاً بلا شيءٍ يُعيدُ المحاولةَ. والدورةُ
+       * الأولى وحدَها خبرٌ، وتقولُه القاعدةُ لا هذا الملفُّ.
+       */
+      if (published.value.notificationQueued) queuedWiderCircle.push(order.orderId);
       continue;
     }
 
@@ -235,33 +224,25 @@ export async function sweepUnmatchedOrders(
     escalated.push(order.orderId);
 
     /**
-     * الإشعار معلَّق على escalated === true عمداً، ولا يحتاج عموداً جديداً:
-     * تلك القيمة صارت تعني «وصلت بطاقة الإسناد الآن لأوّل مرّة»، وهي انتقالُ صفٍّ
-     * مقفولٍ من غير مسلَّمٍ إلى مسلَّم داخل mark_escalation_delivered — فالمرّة الوحيدة
-     * التي تصل هنا هي المرّة الأولى، و"رسالة واحدة للراكب" مضمونٌ في القاعدة لا
-     * رجاءً في الذاكرة.
-     *
-     * ولا يُخبَر الراكب قبل أن يعلم موظّف الإسناد: كان الأثر يُكتب قبل الإرسال، فكان
-     * إخفاقٌ عابرٌ يُنتج أثراً يقول «صُعِّد» وبطاقةً لم تصل وراكباً لم يُخبَر وحارساً
-     * يمنع كلّ إعادة — طلبٌ يتيمٌ صامتٌ إلى الأبد. الآن يُعاد في الشوط التالي.
+     * إخطارُ صاحبِ الطلبِ صارَ يُودَعُ داخلَ معاملةِ أوّلِ تسليمٍ في
+     * mark_escalation_delivered ويُرسِلُه عاملُ الصادرِ بعدَ الالتزامِ (BUG-004):
+     * كان يُرسَلُ من هنا بعدَ عودةِ الدالّةِ، فإخفاقٌ عابرٌ في تيليجرامَ يُخرِسُ الطلبَ
+     * إلى الأبدِ لأنَّ الحارسَ يمنعُ كلَّ إعادةٍ — الأثرُ يقولُ «سُلِّمت البطاقةُ»
+     * وصاحبُ الطلبِ لم يُخبَر. و«رسالةٌ واحدةٌ لا اثنتان» مضمونٌ في القاعدةِ مرّتَينِ:
+     * أوّلُ التسليمِ انتقالُ صفٍّ مقفولٍ، ومفتاحُ منعِ التكرارِ في صندوقِ الصادرِ.
      */
-    const told = await deps.notifier.noDriverFound(order);
-    if (told.ok) {
-      notified.push(order.orderId);
-    } else {
-      deps.log?.("sweep.rider_notify_failed", { orderId: order.orderId, cityId });
-    }
+    if (result.value.notificationQueued) queuedNoDriver.push(order.orderId);
   }
 
   return ok({
     cityId,
     examined: stale.value.length,
     escalated,
-    notified,
+    queuedNoDriver,
     alreadyEscalated,
     stillBroadcasting,
     offeredToUnsubscribed,
-    toldWiderCircle,
+    queuedWiderCircle,
     awaitingUnsubscribed,
     failed,
   });

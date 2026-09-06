@@ -24,6 +24,12 @@ export interface OpenedCycle {
   readonly collectDeadline: Date;
   /** سائقو الدورة السابقة: يُخفى عنهم الزرّ لأن تسجيلهم سيُرفض على أي حال. */
   readonly excludedDriverIds: readonly DriverId[];
+  /**
+   * أأُودِعَ إخطارُ «دائرةٌ أوسعُ» لصاحبِ الطلبِ في معاملةِ فتحِ الدورةِ نفسِها؟
+   * (BUG-004) يقعُ للدورةِ الأولى وحدَها، وتقولُه القاعدةُ لا هذه الطبقةُ: الإيداعُ
+   * والفتحُ معاملةٌ واحدةٌ، فما تراهُ هنا هو ما التزمَ فعلاً.
+   */
+  readonly notificationQueued: boolean;
 }
 
 export type OpenCycleOutcome =
@@ -98,6 +104,8 @@ export interface PublishReport {
   readonly messageId: string | null;
   /** سبب عدم النشر كما جاء من القاعدة، حرفياً بلا تفسير. */
   readonly reason: string | null;
+  /** أأُودِعَ إخطارُ الدائرةِ الأوسعِ لصاحبِ الطلبِ؟ يقعُ عندَ الدورةِ الأولى فقط. */
+  readonly notificationQueued: boolean;
 }
 
 /**
@@ -126,6 +134,7 @@ export async function publishToUnsubscribedGroup(
       cycle: null,
       messageId: null,
       reason: opened.value.reason,
+      notificationQueued: false,
     });
   }
 
@@ -160,5 +169,6 @@ export async function publishToUnsubscribedGroup(
     cycle: cycle.cycle,
     messageId: published.value,
     reason: null,
+    notificationQueued: cycle.notificationQueued,
   });
 }

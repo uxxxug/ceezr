@@ -62,6 +62,7 @@ export function createUnsubscribedCyclePort(sql: Sql): UnsubscribedCyclePort {
             excludedDriverIds: ((envelope.excluded_driver_ids ?? []) as string[]).map(
               (id) => id as DriverId,
             ),
+            notificationQueued: envelope.notification_queued === true,
           },
         };
       }),
@@ -198,7 +199,10 @@ export function createEscalationPort(sql: Sql): EscalationPort {
         `;
         const envelope = readEnvelope(rows[0]?.result);
         if (envelope === null) unreadable("mark_escalation_delivered");
-        return { firstDelivery: envelope.first_delivery === true };
+        return {
+          firstDelivery: envelope.first_delivery === true,
+          notificationQueued: envelope.notification_queued === true,
+        };
       }),
   };
 }

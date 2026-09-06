@@ -77,7 +77,6 @@ import {
   createDriverDirectory,
   createRiderDirectory,
 } from "../../../packages/infrastructure/identity/directories.ts";
-import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import {
   grammyLiveLocationChannel,
   TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
@@ -385,10 +384,6 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       overrides.metrics === undefined
         ? createOfferWriter(sql)
         : instrumentOfferWriter(createOfferWriter(sql), overrides.metrics),
-    // منفذُ إخطارِ الإلغاءِ — يُستهلَكُ من مسارِ `/cancel` لا من broadcastOffers.
-    // إشعارُ العرضِ يُسلَّمُ الآنَ من عاملِ outbox (`BUG-004`)، فلا يُستدعى `notifyOffer`
-    // من broadcastOffers؛ لكنّ الإلغاءَ يبقى متزامنًا عبر هذا المنفذ (خارجَ نطاقِ BUG-004).
-    notifier: createTelegramDriverNotifier(sql, asOutboundSender(driverSender)),
     clock: systemClock,
     // يوصل `dispatch.no_eligible_driver` وتعداد أسباب الرفض إلى سجلّ الإنتاج.
     // دونه يبقى التشخيص حبيساً في قيمة راجعة يُسقطها منادي بوت العميل.

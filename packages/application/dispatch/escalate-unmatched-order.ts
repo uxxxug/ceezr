@@ -52,7 +52,12 @@ export interface EscalationPort {
   markDelivered(
     orderId: OrderId,
     messageId: string | null,
-  ): Promise<Result<{ readonly firstDelivery: boolean }, PortFailureError>>;
+  ): Promise<
+    Result<
+      { readonly firstDelivery: boolean; readonly notificationQueued: boolean },
+      PortFailureError
+    >
+  >;
 }
 
 export interface EscalationCard {
@@ -88,6 +93,11 @@ export interface EscalationReport {
   readonly escalated: boolean;
   readonly messageId: string | null;
   readonly reason: string | null;
+  /**
+   * أأُودِعَ إخطارُ «لا سائقَ» لصاحبِ الطلبِ في معاملةِ أوّلِ تسليمٍ نفسِها؟
+   * (BUG-004) الإرسالُ بعدَ الالتزامِ ومن العاملِ، وهذا العلمُ يقولُ أأُودِعَ أم كانَ مودَعاً سلفاً.
+   */
+  readonly notificationQueued: boolean;
 }
 
 /**
@@ -119,6 +129,7 @@ export async function escalateUnmatchedOrder(
       escalated: false,
       messageId: null,
       reason: escalated.value.reason,
+      notificationQueued: false,
     });
   }
 
@@ -147,5 +158,6 @@ export async function escalateUnmatchedOrder(
     escalated: delivered.value.firstDelivery,
     messageId: published.value,
     reason: delivered.value.firstDelivery ? null : "ALREADY_DELIVERED",
+    notificationQueued: delivered.value.notificationQueued,
   });
 }

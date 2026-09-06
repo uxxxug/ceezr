@@ -1,5 +1,7 @@
 /**
- * الغرض: قراءة الطلبات العالقة في البحث بلا أي عرض، وإشعار صاحبها ببوت الراكب.
+ * الغرض: قراءة الطلبات العالقة في البحث بلا عرضٍ حيّ. والإشعارُ نفسُه لم يبقَ هنا:
+ *   صارَ صفّاً في صندوقِ الصادرِ الموحَّدِ يُودَعُ في معاملةِ القاعدةِ ويُرسِلُه عاملُ
+ *   الصادرِ (BUG-004) — انظر infrastructure/notification/telegram-unmatched-notifier.
  * الحالة: منفّذ ومُختبَر على قاعدة حقيقية.
  * ينتمي إلى: infrastructure/dispatch
  * يستخدمه: apps/workers/src/container.ts
@@ -10,11 +12,9 @@
 import type {
   UnmatchedOrder,
   UnmatchedOrderFinder,
-  UnmatchedRiderNotifier,
 } from "../../application/dispatch/sweep-unmatched-orders.ts";
 import type { CityId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { guard, type Sql } from "../db/client.ts";
-import type { OutboundSender } from "../notification/telegram-driver-notifier.ts";
 
 interface StaleRow {
   readonly order_id: string;
@@ -71,37 +71,6 @@ export function createUnmatchedOrderFinder(sql: Sql): UnmatchedOrderFinder {
           hasAnyOffer: row.has_any_offer,
           waitingSeconds: Number(row.waiting_seconds),
         }));
-      }),
-  };
-}
-
-/**
- * الإشعار يُرسَل ببوت الراكب حصراً. إرساله ببوت السائق يفشل بـ403 لأن الراكب
- * لم يفتح محادثةً معه قط — وهو فشلٌ صامت لا يظهر في أي سجل مُراقَب.
- */
-export interface UnmatchedRiderTexts {
-  readonly noDriverFound: (order: UnmatchedOrder) => string;
-  readonly widerCircleOpened: (order: UnmatchedOrder) => string;
-}
-
-/**
- * مُرسِما النصّين يُمرّران معاً في تركيبة واحدة لا واحدٌ موقعيّ: «لا سائق» و«دائرة
- * أوسع» خبران مختلفان تماماً، وتمريرُ أحدهما مكان الآخر يقول للراكب «أُحيل طلبُك
- * للإسناد يدويّاً» وبطاقتُه في الحقيقة معروضةٌ في القروب لمّا يُحل إلى أحد.
- */
-export function createUnmatchedRiderNotifier(
-  riderOut: OutboundSender,
-  render: UnmatchedRiderTexts,
-): UnmatchedRiderNotifier {
-  return {
-    noDriverFound: (order: UnmatchedOrder) =>
-      guard("unmatched.noDriverFound", async (): Promise<void> => {
-        await riderOut.send(order.riderChatId, render.noDriverFound(order), null);
-      }),
-
-    widerCircleOpened: (order: UnmatchedOrder) =>
-      guard("unmatched.widerCircleOpened", async (): Promise<void> => {
-        await riderOut.send(order.riderChatId, render.widerCircleOpened(order), null);
       }),
   };
 }

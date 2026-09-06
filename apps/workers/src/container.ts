@@ -11,12 +11,21 @@ import { Api } from "grammy";
 import type { BroadcastPublisher } from "../../../packages/application/broadcast/ports.ts";
 import type { OfferPublisher } from "../../../packages/application/dispatch/broadcast-offers.ts";
 import {
+  type CancellationMessenger,
+  createOrderCancelledHandler,
+} from "../../../packages/application/dispatch/deliver-cancellation-notification.ts";
+import {
   createAgreedHandler,
   createTurnClosedHandler,
   createTurnOpenedHandler,
   type NegotiationMessenger,
 } from "../../../packages/application/dispatch/deliver-negotiation-notification.ts";
 import { createOfferNotificationHandler } from "../../../packages/application/dispatch/deliver-offer-notification.ts";
+import {
+  createNoDriverFoundHandler,
+  createWiderCircleOpenedHandler,
+  type UnmatchedRiderMessenger,
+} from "../../../packages/application/dispatch/deliver-unmatched-notification.ts";
 import { createDisputeResolutionHandler } from "../../../packages/application/dispute/deliver-dispute-resolution.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
@@ -42,10 +51,7 @@ import {
   createSearchingOrderFinder,
 } from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createNegotiationWiring } from "../../../packages/infrastructure/dispatch/negotiation-wiring.ts";
-import {
-  createUnmatchedOrderFinder,
-  createUnmatchedRiderNotifier,
-} from "../../../packages/infrastructure/dispatch/unmatched-adapters.ts";
+import { createUnmatchedOrderFinder } from "../../../packages/infrastructure/dispatch/unmatched-adapters.ts";
 import { createPaymentRepository } from "../../../packages/infrastructure/financial/payment-adapters.ts";
 import { createPaymentProvider } from "../../../packages/infrastructure/financial/payment-provider-factory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
@@ -60,6 +66,7 @@ import {
   createBroadcastPublisher,
   grammyBroadcastApi,
 } from "../../../packages/infrastructure/notification/telegram-broadcast-sender.ts";
+import { createTelegramCancellationMessenger } from "../../../packages/infrastructure/notification/telegram-cancellation-notifier.ts";
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createOfferPublisher } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import {
@@ -72,6 +79,7 @@ import {
 } from "../../../packages/infrastructure/notification/telegram-notice-sender.ts";
 import { createSafetyCardPublisher } from "../../../packages/infrastructure/notification/telegram-safety-notifier.ts";
 import { createTicketOwnerNotifier } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
+import { createTelegramUnmatchedMessenger } from "../../../packages/infrastructure/notification/telegram-unmatched-notifier.ts";
 import {
   instrumentExpireOffersRpc,
   instrumentOfferWriter,
@@ -88,7 +96,6 @@ import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastr
 import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
-import { DEFAULT_LANGUAGE, t } from "../../../packages/shared/i18n/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
@@ -246,6 +253,10 @@ export interface WorkerContainerOverrides {
   readonly identifyingDriver?: IdentifyingSender;
   /** مُرسِلُ إخطاراتِ الدورةِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ ويُرجعُ معرّفًا. (BUG-004) */
   readonly negotiationMessenger?: NegotiationMessenger;
+  /** مُرسِلُ إخطارَي صاحبِ الطلبِ العالقِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ. (BUG-004) */
+  readonly unmatchedMessenger?: UnmatchedRiderMessenger;
+  /** مُرسِلُ إخطارِ الإلغاءِ للسائقينِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ. (BUG-004) */
+  readonly cancellationMessenger?: CancellationMessenger;
   /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
   readonly safetyPublisher?: SafetyCardPublisher;
   /** ناشرُ إشعارِ العرضِ — يُستبدَلُ في الاختبار بناشرٍ يجمع ويُرجعُ معرّفًا. (BUG-004) */
@@ -465,6 +476,20 @@ export function buildWorkerContainer(
       asIdentifyingSender(telegram),
       asIdentifyingSender(riderTelegram),
     );
+  /**
+   * إخطارا صاحبِ الطلبِ العالقِ ببوتِ الراكبِ حصرًا (BUG-004): كانا يُرسَلانِ من
+   * مسارِ المسحِ بعدَ عودةِ الدالّةِ الذرّيةِ، فصارا صفَّينِ يُودَعانِ في معاملتِها.
+   */
+  const unmatchedMessenger =
+    overrides.unmatchedMessenger ??
+    createTelegramUnmatchedMessenger(asIdentifyingSender(riderTelegram));
+  /**
+   * إخطارُ الإلغاءِ ببوتِ السائقِ حصرًا (BUG-004): كان يُرسَلُ من مسارِ ضغطةِ العميلِ
+   * بعدَ عودةِ الدالّةِ الذرّيةِ، فصارَ صفًّا لكلِّ سائقٍ يُودَعُ في معاملتِها.
+   */
+  const cancellationMessenger =
+    overrides.cancellationMessenger ??
+    createTelegramCancellationMessenger(asIdentifyingSender(telegram));
   const notificationHandlers = {
     offer: createOfferNotificationHandler(offerPublisher),
     dispute_resolution: createDisputeResolutionHandler({
@@ -474,6 +499,9 @@ export function buildWorkerContainer(
     negotiation_turn_opened: createTurnOpenedHandler(negotiationMessenger),
     negotiation_turn_closed: createTurnClosedHandler(negotiationMessenger),
     negotiation_agreed: createAgreedHandler(negotiationMessenger),
+    wider_circle_opened: createWiderCircleOpenedHandler(unmatchedMessenger),
+    no_driver_found: createNoDriverFoundHandler(unmatchedMessenger),
+    order_cancelled: createOrderCancelledHandler(cancellationMessenger),
   };
 
   /**
@@ -515,28 +543,6 @@ export function buildWorkerContainer(
   };
 
   const unmatchedFinder = createUnmatchedOrderFinder(sql);
-  const unmatchedNotifier = createUnmatchedRiderNotifier(riderOut, {
-    noDriverFound: (order) => {
-      const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
-      /**
-       * البند 6.3: النصّ كان يقول «أرسل /cancel» وللإلغاء زرّ في القائمة منذ البند 2.1.
-       * ومن لا يجد سائقاً هو أسوأ من يُطلب منه أن يتعلّم أمراً مكتوباً. واسم الزرّ
-       * يُقرأ من مفتاحه لا يُكتب في القاموس، فلا يكذب النصّ إن تغيّر الزرّ.
-       */
-      const params = { cancel_button: say("menu.rider.cancel") };
-      return order.service === "delivery"
-        ? say("rider.no_driver_found_delivery", params)
-        : say("rider.no_driver_found", params);
-    },
-    widerCircleOpened: (order) => {
-      const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
-      const params = { cancel_button: say("menu.rider.cancel") };
-      return order.service === "delivery"
-        ? say("rider.searching_wider_circle_delivery", params)
-        : say("rider.searching_wider_circle", params);
-    },
-  });
-
   const negotiation = createNegotiationWiring(sql, {
     driverOut,
     riderOut,
@@ -671,7 +677,6 @@ export function buildWorkerContainer(
                    * ويبقى قروب غير المشتركين فارغاً — آلةٌ كاملةٌ مبنيّةٌ لا أحد يفتح دورتها.
                    */
                   unsubscribed: negotiation.republish,
-                  notifier: unmatchedNotifier,
                   staleAfterSeconds: await unmatchedThreshold(cityId),
                   maxBroadcastRounds: await numericSetting(
                     cityId,
@@ -682,7 +687,7 @@ export function buildWorkerContainer(
                 });
                 if (!report.ok) throw new Error(JSON.stringify(report.error));
                 const value = report.value;
-                return `examined=${value.examined} unsubOffered=${value.offeredToUnsubscribed.length} unsubWaiting=${value.awaitingUnsubscribed} escalated=${value.escalated.length} notified=${value.notified.length} widerCircle=${value.toldWiderCircle.length} already=${value.alreadyEscalated} broadcasting=${value.stillBroadcasting} failed=${value.failed}`;
+                return `examined=${value.examined} unsubOffered=${value.offeredToUnsubscribed.length} unsubWaiting=${value.awaitingUnsubscribed} escalated=${value.escalated.length} queuedNoDriver=${value.queuedNoDriver.length} queuedWiderCircle=${value.queuedWiderCircle.length} already=${value.alreadyEscalated} broadcasting=${value.stillBroadcasting} failed=${value.failed}`;
               },
             },
             {

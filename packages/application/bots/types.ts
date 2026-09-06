@@ -424,12 +424,6 @@ export interface CreateOrderInput {
   readonly notes?: string | null;
 }
 
-/** سائق يجب إخطاره بالإلغاء — تُعيدهم دالّة cancel_order_by_rider الذرّية. */
-export interface CancelNotifyTarget {
-  readonly driverId: DriverId;
-  readonly wasAssigned: boolean;
-}
-
 /**
  * نتيجة الإلغاء مفصَّلة، لا مجرّد صواب أو خطأ. كان الإلغاء يعيد boolean، فكان
  * «لم يُلغَ» يعني في آن واحد: لا طلب لك، وطلبك بدأ فلا يُلغى. فيُقال للعميل
@@ -441,7 +435,6 @@ export type CancelOutcome =
       readonly orderId: OrderId;
       readonly service: ServiceType;
       readonly previousStatus: string;
-      readonly notify: readonly CancelNotifyTarget[];
       readonly groupMessageIds: readonly string[];
     }
   | { readonly kind: "not_cancellable" }

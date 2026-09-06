@@ -14,11 +14,7 @@ import { DEFAULT_SESSION_POLICY } from "../../domain/tracking/session.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
-import {
-  type BroadcastDependencies,
-  broadcastOffers,
-  type DriverNotifier,
-} from "../dispatch/broadcast-offers.ts";
+import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import {
   type RelayDependencies,
   relayNegotiationMessage,
@@ -97,7 +93,7 @@ export interface RiderBotDependencies {
    * ومعها منفذُ إخطارِ الإلغاء: هذا البوت وحدَه هو من يلغي الطلب، فالحقلُ مطلوبٌ
    * هنا لا في تبعيات البثّ التي لا تستدعيه (BUG-004).
    */
-  readonly matching: BroadcastDependencies & { readonly notifier: DriverNotifier };
+  readonly matching: BroadcastDependencies;
   readonly clock: Clock;
   /** مسار التفاوض مع غير المشتركين (المرحلة 2.3) — اختياري كما في بوت السائق. */
   readonly negotiation?: {
@@ -739,14 +735,6 @@ async function cancelOne(
    * نكتبه هنا يكون مصدراً ثانياً لقاعدة «متى توجد جلسة» ينحرف عن الأوّل.
    */
   await deps.tracking?.onTripEnded(String(cancelled.value.orderId), "TRIP_CANCELLED");
-
-  for (const target of cancelled.value.notify) {
-    await deps.matching.notifier.notifyCancelled({
-      orderId: cancelled.value.orderId,
-      driverId: target.driverId,
-      wasAssigned: target.wasAssigned,
-    });
-  }
 
   // البند 2.2: من ألغى أحد طلبيه لا يجوز أن يُسلَب زرّ متابعة الطلب الباقي.
   // قراءة بعد الإلغاء لا خصمٌ من القائمة القديمة: طلب قد يكتمل أو يُسنَد بينهما.
