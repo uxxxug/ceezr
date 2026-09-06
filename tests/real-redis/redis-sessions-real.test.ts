@@ -278,6 +278,39 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
     mark("rate-limit-window-expires");
   }, 15_000);
 
+  /**
+   * وقلبُ عيبِ BUG-006 ههنا: لا يكفي أن يعدَّ الخادمُ، بل أن يعدَّ **ذرّيًّا** — فلو
+   * كان `INCR` ثمَّ `EXPIRE` أمرَينِ منفصلَينِ لكانَ بينَهما نافذةٌ تُفقدُ فيها المهلةُ.
+   * والسكربتُ الواحدُ يجعلُ العدَّ وضبطَ المهلةِ خطوةً واحدةً: لا مفتاحَ بلا مهلةٍ، ولا
+   * تجاوزَ للحدِّ تحتَ التزامنِ، ولا يُضافُ عضوٌ مرفوضٌ.
+   */
+  it("حدٌّ ذرّيٌّ: تزامنٌ على نفسِ المفتاحِ يُتيحُ الحدَّ بالضبطِ ويُبقي للمفتاحِ مهلةً", async () => {
+    const options = { limit: 5, windowSeconds: 60, prefix: `${redis.prefix}:rate` };
+    const limiter = createRedisRateLimiter(redis.client, options);
+    const key = `conc:${DRIVER_CHAT}`;
+
+    // عشرون طلباً متزامناً على نفسِ المفتاحِ: الخادمُ يُسلسِلُ EVAL فيُتيحُ خمسةً بالضبطِ.
+    const decisions = await Promise.all(Array.from({ length: 20 }, () => limiter.hit(key)));
+    const allowed = decisions.filter((d) => d.allowed);
+    const denied = decisions.filter((d) => !d.allowed);
+    expect(allowed).toHaveLength(5);
+    expect(denied).toHaveLength(15);
+    expect(denied.every((d) => d.remaining === 0)).toBe(true);
+
+    // المهلةُ مضبوطةٌ في الخادمِ لا مفقودةٌ — وهذا ما كانَ يُفقدُ بينَ INCR وEXPIRE.
+    const ttl = await redis.client.command(["PTTL", `${redis.prefix}:rate:${key}`]);
+    expect(ttl.ok).toBe(true);
+    expect(Number(ttl.ok ? ttl.value : -1)).toBeGreaterThan(0);
+
+    // لا تُضافُ العناصرُ المرفوضةُ: العدُّ في الخادمِ لا يتجاوزُ الحدَّ.
+    const card = await redis.client.command(["ZCARD", `${redis.prefix}:rate:${key}`]);
+    expect(card.ok).toBe(true);
+    expect(Number(card.ok ? card.value : -1)).toBe(5);
+
+    await redis.client.command(["DEL", `${redis.prefix}:rate:${key}`]);
+    mark("rate-limit-atomic-under-concurrency");
+  }, 15_000);
+
   it("حوارُ تسجيلٍ كاملٌ يمضي عبرَ Redis الحقيقيِّ وينتهي بصفِّ سائقٍ في القاعدة", async () => {
     await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,

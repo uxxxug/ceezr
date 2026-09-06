@@ -1,17 +1,16 @@
 /**
  * الغرض: إثبات أن حدّ المعدّل يمنع من يجب منعه ولا يمنع تلغرام نفسها، وأن انقطاع
- *   Redis يُبقي الباب مفتوحاً لا مغلقاً.
+ *   Redis يُبقي الباب مفتوحاً لا مغلقاً، وأنّ كلَّ طلبٍ أمرُ Redis واحدٌ ذرّيٌّ.
  * الحالة: اختبار فعلي — العدّ حتمي بساعة مُمرَّرة، وRedis مزدوج بلا شبكة.
  * ينتمي إلى: tests/unit
- * يُتوقع أن يستخدمه لاحقاً: CI
- * ملاحظات مستقبلية: عند الانتقال إلى نافذة منزلقة تبقى هذه التوقّعات كما هي إلا
- *   توقّع «حدّ النافذتين المتجاورتين» أدناه، فهو خاصّ بالنافذة الثابتة.
+ * يُتوقَّع أن يستخدمه لاحقاً: CI
+ * ملاحظات مستقبلية: عند تغيير خوارزمية الحدِّ تبقى هذه التوقّعات كما هي إلا ما يتعلّقُ
+ *   بشكلِ الأمرِ نفسِه (EVAL واحد) فإنّه خاصٌّ بنافذةِ Redis المنزلقةِ الذرّيّةِ.
  */
 import { describe, expect, it } from "bun:test";
 import {
   createMemoryRateLimiter,
   createRedisRateLimiter,
-  RATE_LIMIT_PREFIX,
 } from "../../apps/gateway/src/rate-limit/fixed-window.ts";
 import type { RedisClient } from "../../apps/gateway/src/redis/upstash.ts";
 import {
@@ -85,49 +84,115 @@ describe("عدّاد النافذة الثابتة في الذاكرة", () => {
   });
 });
 
-describe("عدّاد النافذة الثابتة على Redis", () => {
-  function fakeRedis(): RedisClient & { readonly calls: string[][] } {
-    const counters = new Map<string, number>();
-    const calls: string[][] = [];
-    return {
-      calls,
-      command: async (args) => {
-        calls.push(args.map(String));
-        const name = String(args[0]).toUpperCase();
-        const key = String(args[1]);
-        if (name === "INCR") {
-          const next = (counters.get(key) ?? 0) + 1;
-          counters.set(key, next);
-          return { ok: true, value: next };
-        }
-        if (name === "EXPIRE") return { ok: true, value: 1 };
+/**
+ * مزدوجُ Redis يُنفّذُ نافذةَ Redis المنزلقةَ في الذاكرةِ كما يفعلُ الخادمُ بسكربتِ
+ * Lua: يبني العدَّ على ZSET، فيعزلُ الأعضاءَ بمعرّفٍ فريدٍ لكلِّ طلبٍ. والهدفُ ليس
+ * محاكاةَ Redis بل إثباتُ أنّ المُحدِّدَ يُرسلُ أمرَ EVAL واحداً ذرّيّاً ويُخفي
+ * النتيجةَ الثلاثيّةَ في قرارٍ صحيحٍ — فلا `INCR` ثمَّ `EXPIRE` منفصلانِ.
+ */
+function fakeRedis(): RedisClient & {
+  readonly calls: string[][];
+  readonly scripts: string[];
+} {
+  const zsets = new Map<string, Map<string, number>>();
+  const calls: string[][] = [];
+  const scripts: string[] = [];
+  return {
+    calls,
+    scripts,
+    command: async (args) => {
+      calls.push(args.map(String));
+      const name = String(args[0]).toUpperCase();
+      if (name !== "EVAL") {
         return { ok: false, error: { kind: "redis", detail: name } };
-      },
-    };
-  }
+      }
+      scripts.push(String(args[1]));
+      const key = String(args[3]);
+      const limit = Number(args[4]);
+      const windowMs = Number(args[5]);
+      const now = Number(args[6]);
+      const member = String(args[7]);
+      let bucket = zsets.get(key);
+      if (!bucket) {
+        bucket = new Map();
+        zsets.set(key, bucket);
+      }
+      const cutoff = now - windowMs;
+      for (const [m, score] of bucket) if (score < cutoff) bucket.delete(m);
+      const count = bucket.size;
+      if (count < limit) {
+        bucket.set(member, now);
+        return { ok: true, value: [1, limit - count - 1, windowMs] };
+      }
+      let oldest = Infinity;
+      for (const score of bucket.values()) if (score < oldest) oldest = score;
+      const resetMs = Math.max(1, Math.floor(oldest + windowMs - now));
+      return { ok: true, value: [0, 0, resetMs] };
+    },
+  };
+}
 
-  it("يعدّ عبر Redis ويمنع بعد الحدّ", async () => {
+describe("حدُّ المعدّل الموزَّع على Redis — نافذةٌ منزلقةٌ ذرّيّةٌ في Lua واحد", () => {
+  it("كلُّ طلبٍ يُرسلُ أمرَ EVAL واحدًا فقط — لا INCR ولا EXPIRE منفصلانِ", async () => {
+    const redis = fakeRedis();
+    const limiter = createRedisRateLimiter(redis, { limit: 3, windowSeconds: 30 });
+
+    await limiter.hit("ك");
+    await limiter.hit("ك");
+    await limiter.hit("ك");
+
+    expect(redis.calls.filter((c) => c[0] === "EVAL")).toHaveLength(3);
+    expect(redis.calls.some((c) => c[0] === "INCR")).toBe(false);
+    expect(redis.calls.some((c) => c[0] === "EXPIRE")).toBe(false);
+  });
+
+  it("يعدُّ عبرَ Redis ويمنعُ بعدَ الحدِّ، والمتبقّي يتدرّجُ نزولاً", async () => {
     const redis = fakeRedis();
     const limiter = createRedisRateLimiter(redis, { limit: 2, windowSeconds: 30 });
 
-    expect((await limiter.hit("ك")).allowed).toBe(true);
-    expect((await limiter.hit("ك")).allowed).toBe(true);
+    expect((await limiter.hit("ك")).remaining).toBe(1);
+    expect((await limiter.hit("ك")).remaining).toBe(0);
     expect((await limiter.hit("ك")).allowed).toBe(false);
   });
 
-  it("المهلة تُضبَط عند أول طلب وحده، وإلا لم تنتهِ النافذة أبداً", async () => {
+  it("المفاتيحُ المختلفةُ عدّاداتٌ مستقلّةٌ", async () => {
     const redis = fakeRedis();
-    const limiter = createRedisRateLimiter(redis, { limit: 5, windowSeconds: 30 });
-
-    await limiter.hit("ك");
-    await limiter.hit("ك");
-    await limiter.hit("ك");
-
-    const expires = redis.calls.filter((call) => call[0] === "EXPIRE");
-    expect(expires).toEqual([["EXPIRE", `${RATE_LIMIT_PREFIX}:ك`, "30"]]);
+    const limiter = createRedisRateLimiter(redis, { limit: 1, windowSeconds: 30 });
+    expect((await limiter.hit("أ")).allowed).toBe(true);
+    expect((await limiter.hit("ب")).allowed).toBe(true);
+    expect((await limiter.hit("أ")).allowed).toBe(false);
   });
 
-  it("عجز Redis يسمح ولا يمنع: الحدّ حماية لا مصادقة", async () => {
+  it("النافذةُ تنفتحُ من جديدٍ بعدَ انتهائها", async () => {
+    let now = 0;
+    const redis = fakeRedis();
+    const limiter = createRedisRateLimiter(redis, {
+      limit: 1,
+      windowSeconds: 10,
+      nowMs: () => now,
+    });
+
+    expect((await limiter.hit("ك")).allowed).toBe(true);
+    expect((await limiter.hit("ك")).allowed).toBe(false);
+    now += 10_001;
+    expect((await limiter.hit("ك")).allowed).toBe(true);
+  });
+
+  it("resetSeconds يتقلّصُ مع تقدّمِ النافذةِ فلا يُطلَبُ انتظارٌ أطولُ من الحقيقيِّ", async () => {
+    let now = 0;
+    const redis = fakeRedis();
+    const limiter = createRedisRateLimiter(redis, {
+      limit: 1,
+      windowSeconds: 60,
+      nowMs: () => now,
+    });
+    await limiter.hit("ك");
+    now += 40_000;
+    // أقدمُ عضوٍ عمرُه ٤٠ ثانية، فيتبقّى ٢٠ ثانيةٌ لا الستّون كاملةً.
+    expect((await limiter.hit("ك")).resetSeconds).toBe(20);
+  });
+
+  it("عجزُ Redis يُسمحُ ولا يُمنعُ: الحدُّ حمايةٌ لا مصادقةٌ", async () => {
     const failures: string[] = [];
     const broken: RedisClient = {
       command: async () => ({ ok: false, error: { kind: "timeout", detail: "مقطوع" } }),
@@ -144,8 +209,8 @@ describe("عدّاد النافذة الثابتة على Redis", () => {
     expect(failures).toHaveLength(5);
   });
 
-  it("جواب INCR غير رقمي يُعدّ عجزاً فيُسمح، لا يُقرأ NaN بوصفه عدداً", async () => {
-    const weird: RedisClient = { command: async () => ({ ok: true, value: "لا رقم" }) };
+  it("جوابُ EVAL المشوَّهُ (غيرُ ثلاثيٍّ) يُعدُّ عجزاً فيُسمحُ، لا يُقرأُ نصفَ قرارٍ", async () => {
+    const weird: RedisClient = { command: async () => ({ ok: true, value: "ليس ثلاثياً" }) };
     const failures: string[] = [];
     const limiter = createRedisRateLimiter(weird, {
       limit: 1,
@@ -154,7 +219,20 @@ describe("عدّاد النافذة الثابتة على Redis", () => {
     });
 
     expect((await limiter.hit("ك")).allowed).toBe(true);
-    expect(failures).toEqual(["جواب INCR ليس رقماً"]);
+    expect(failures).toEqual(["جوابُ EVAL ليس ثلاثيًّا"]);
+  });
+
+  it("السكربتُ يُرسَلُ حرفيًّا ويحوي ZADD وPEXPIRE لا EXPIRE منفصلٌ", async () => {
+    const redis = fakeRedis();
+    const limiter = createRedisRateLimiter(redis, { limit: 1, windowSeconds: 30 });
+    await limiter.hit("ك");
+
+    const script = redis.scripts[0] ?? "";
+    expect(script).toContain("ZADD");
+    expect(script).toContain("PEXPIRE");
+    expect(script).toContain("ZREMRANGEBYSCORE");
+    // لا يُرسَلُ EXPIRE الثوانيّة كأمرٍ مستقلٍّ — المهلةُ بالمللي ثانيةِ داخلَ السكربتِ.
+    expect(redis.calls.some((c) => c[0] === "EXPIRE")).toBe(false);
   });
 });
 

@@ -38,6 +38,7 @@ export const REQUIRED_CHECKS = [
   "keys-scoped-to-prefix",
   "rate-limit-counts-on-server",
   "rate-limit-window-expires",
+  "rate-limit-atomic-under-concurrency",
   "full-dialog-through-real-redis",
 ] as const;
 export type RequiredCheck = (typeof REQUIRED_CHECKS)[number];
