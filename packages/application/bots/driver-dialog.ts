@@ -581,7 +581,8 @@ async function handleUnsubscribedClaim(
     return [privateReply(sender, tr(key))];
   }
 
-  // صاحب الدور الأول أُخطِر أصلاً من حالة الاستخدام عبر المُخطِر؛ لا نكرّر عليه.
+  // صاحبُ الدورِ الأولِ أُودِعَ إخطارُه في معاملةِ التسجيلِ نفسِها (BUG-004)
+  // ويُسلِّمُه عاملُ الصادرِ؛ فلا نكرّرُ عليه رسالةً من هنا.
   if (report.isActive) return [];
   return [
     privateReply(

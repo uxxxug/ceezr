@@ -21,8 +21,6 @@ import type {
   ClaimRegistration,
   ClaimRegistrationPort,
   NegotiationParties,
-  NegotiationPartiesReader,
-  NegotiationTimeoutReader,
 } from "../../application/dispatch/register-unsubscribed-claim.ts";
 import type { ActiveNegotiationLookup } from "../../application/dispatch/relay-negotiation-message.ts";
 import type {
@@ -110,6 +108,7 @@ export function createClaimRegistrationPort(sql: Sql): ClaimRegistrationPort {
           position: Number(envelope.position),
           slots: Number(envelope.slots),
           isActive: envelope.is_active === true,
+          notificationsQueued: Number(envelope.notifications_queued ?? 0),
         };
       }),
   };
@@ -128,8 +127,9 @@ export function createNegotiationRotationPort(sql: Sql): NegotiationRotationPort
           return { advanced: false, reason: String(envelope.error ?? "UNKNOWN") };
         }
         const orderId = String(envelope.order_id) as OrderId;
+        const notificationsQueued = Number(envelope.notifications_queued ?? 0);
         if (envelope.exhausted === true) {
-          return { advanced: true, exhausted: true, orderId };
+          return { advanced: true, exhausted: true, orderId, notificationsQueued };
         }
         return {
           advanced: true,
@@ -137,6 +137,7 @@ export function createNegotiationRotationPort(sql: Sql): NegotiationRotationPort
           claimId: String(envelope.claim_id),
           position: Number(envelope.position),
           orderId,
+          notificationsQueued,
         };
       }),
 
@@ -154,6 +155,7 @@ export function createNegotiationRotationPort(sql: Sql): NegotiationRotationPort
           settled: true,
           orderId: String(envelope.order_id) as OrderId,
           driverId: String(envelope.driver_id),
+          notificationsQueued: Number(envelope.notifications_queued ?? 0),
         };
       }),
 
@@ -248,19 +250,6 @@ function toParties(row: PartiesRow): NegotiationParties {
   };
 }
 
-export function createNegotiationPartiesReader(sql: Sql): NegotiationPartiesReader {
-  return {
-    findParties: (negotiationId: string) =>
-      guard("negotiations.findParties", async () => {
-        const rows = await sql.unsafe<PartiesRow[]>(`${PARTIES_SELECT} and n.id = $1::uuid`, [
-          negotiationId,
-        ]);
-        const row = rows[0];
-        return row === undefined ? null : toParties(row);
-      }),
-  };
-}
-
 export function createActiveNegotiationLookup(sql: Sql): ActiveNegotiationLookup {
   return {
     forDriver: (driverId: DriverId) =>
@@ -281,22 +270,6 @@ export function createActiveNegotiationLookup(sql: Sql): ActiveNegotiationLookup
         );
         const row = rows[0];
         return row === undefined ? null : toParties(row);
-      }),
-  };
-}
-
-export function createNegotiationTimeoutReader(sql: Sql): NegotiationTimeoutReader {
-  return {
-    negotiateSecondsFor: (negotiationId: string) =>
-      guard("negotiations.negotiateSeconds", async () => {
-        const rows = await sql<{ seconds: string }[]>`
-          select get_setting_number(n.city_id, 'unsubscribed_negotiate_seconds') as seconds
-            from unsubscribed_negotiations n
-           where n.id = ${negotiationId}::uuid
-        `;
-        const raw = rows[0]?.seconds;
-        if (raw === undefined) throw new Error("دورة غير موجودة عند قراءة مهلة التفاوض");
-        return Number(raw);
       }),
   };
 }

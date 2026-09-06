@@ -10,6 +10,11 @@
 
 import type { Keyboard } from "../../application/bots/types.ts";
 import type {
+  NegotiationMessenger,
+  NegotiationSideNotice,
+  TurnClosedReason,
+} from "../../application/dispatch/deliver-negotiation-notification.ts";
+import type {
   EscalationCard,
   EscalationGroupPublisher,
 } from "../../application/dispatch/escalate-unmatched-order.ts";
@@ -17,10 +22,7 @@ import type {
   UnsubscribedCard,
   UnsubscribedGroupPublisher,
 } from "../../application/dispatch/publish-to-unsubscribed-group.ts";
-import type {
-  NegotiationNotifier,
-  NegotiationParties,
-} from "../../application/dispatch/register-unsubscribed-claim.ts";
+import type { NegotiationParties } from "../../application/dispatch/register-unsubscribed-claim.ts";
 import type {
   RelaySender,
   RelaySide,
@@ -102,77 +104,75 @@ export function createEscalationGroupPublisher(
   };
 }
 
-/** طرفا القناة: كل رسالة تذهب لصاحبها بلغته هو، لا بلغة الطرف الآخر. */
-export function createTelegramNegotiationNotifier(
-  driverSender: OutboundSender,
-  riderSender: OutboundSender,
-): NegotiationNotifier {
+/**
+ * مُرسِلُ إخطاراتِ الدورةِ لطرفٍ واحدٍ في المرّةِ (BUG-004): صفُّ الصادرِ لمُستلِمٍ
+ * لا لحادثةٍ، فيلزمُ أن يُعيدَ كلُّ إرسالٍ معرّفَ رسالتِه هو ليُعلَنَ التسليمُ به.
+ * وكلُّ رسالةٍ بلغةِ صاحبِها، وزرّا القرارِ للعميلِ وحدَه لأنّه صاحبُ القرارِ.
+ */
+export function createTelegramNegotiationMessenger(
+  driverSender: IdentifyingSender,
+  riderSender: IdentifyingSender,
+): NegotiationMessenger {
+  const senderFor = (side: "driver" | "rider"): IdentifyingSender =>
+    side === "driver" ? driverSender : riderSender;
+
   return {
-    notifyTurnOpened: (parties: NegotiationParties, deadlineSeconds: number) =>
+    sendTurnOpened: (notice: NegotiationSideNotice) =>
       guard("notifier.turnOpened", async () => {
-        const driverTr = t(parties.driverLanguage);
-        const riderTr = t(parties.riderLanguage);
-
-        await driverSender.send(
-          parties.driverChatId,
-          driverTr("negotiation.driver_turn_opened", {
-            seconds: deadlineSeconds,
-            position: parties.position,
-          }),
-          null,
-        );
-
-        const riderKeyboard: Keyboard = {
+        const tr = t(notice.language);
+        if (notice.side === "driver") {
+          return driverSender.sendReturningId(
+            notice.chatId,
+            tr("negotiation.driver_turn_opened", {
+              seconds: notice.deadlineSeconds,
+              position: notice.position,
+            }),
+            null,
+          );
+        }
+        const keyboard: Keyboard = {
           kind: "inline",
           rows: [
             [
               {
-                label: riderTr("negotiation.rider_agree_button"),
-                data: `unsub:agree:${parties.negotiationId}`,
+                label: tr("negotiation.rider_agree_button"),
+                data: `unsub:agree:${notice.negotiationId}`,
               },
               {
-                label: riderTr("negotiation.rider_decline_button"),
-                data: `unsub:decline:${parties.negotiationId}`,
+                label: tr("negotiation.rider_decline_button"),
+                data: `unsub:decline:${notice.negotiationId}`,
               },
             ],
           ],
         };
-        await riderSender.send(
-          parties.riderChatId,
-          riderTr("negotiation.rider_turn_opened", {
-            seconds: deadlineSeconds,
-            position: parties.position,
+        return riderSender.sendReturningId(
+          notice.chatId,
+          tr("negotiation.rider_turn_opened", {
+            seconds: notice.deadlineSeconds,
+            position: notice.position,
           }),
-          riderKeyboard,
+          keyboard,
         );
       }),
 
-    notifyTurnClosed: (parties: NegotiationParties, reason: "declined" | "expired") =>
+    sendTurnClosed: (notice: NegotiationSideNotice, reason: TurnClosedReason) =>
       guard("notifier.turnClosed", async () => {
+        const tr = t(notice.language);
         const key =
-          reason === "expired"
-            ? "negotiation.driver_turn_closed_expired"
-            : "negotiation.driver_turn_closed_declined";
-        await driverSender.send(parties.driverChatId, t(parties.driverLanguage)(key), null);
-        await riderSender.send(
-          parties.riderChatId,
-          t(parties.riderLanguage)("negotiation.rider_turn_closed"),
-          null,
-        );
+          notice.side === "rider"
+            ? "negotiation.rider_turn_closed"
+            : reason === "expired"
+              ? "negotiation.driver_turn_closed_expired"
+              : "negotiation.driver_turn_closed_declined";
+        return senderFor(notice.side).sendReturningId(notice.chatId, tr(key), null);
       }),
 
-    notifyAgreed: (parties: NegotiationParties) =>
+    sendAgreed: (notice: NegotiationSideNotice) =>
       guard("notifier.agreed", async () => {
-        await driverSender.send(
-          parties.driverChatId,
-          t(parties.driverLanguage)("negotiation.agreed_driver"),
-          null,
-        );
-        await riderSender.send(
-          parties.riderChatId,
-          t(parties.riderLanguage)("negotiation.agreed_rider"),
-          null,
-        );
+        const tr = t(notice.language);
+        const key =
+          notice.side === "driver" ? "negotiation.agreed_driver" : "negotiation.agreed_rider";
+        return senderFor(notice.side).sendReturningId(notice.chatId, tr(key), null);
       }),
   };
 }

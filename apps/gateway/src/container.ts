@@ -51,10 +51,8 @@ import {
   createActiveNegotiationLookup,
   createClaimRegistrationPort,
   createEscalationPort,
-  createNegotiationPartiesReader,
   createNegotiationRotationPort,
   createNegotiationSnapshotReader,
-  createNegotiationTimeoutReader,
   createOrderNotesReader,
   createUnsubscribedCyclePort,
 } from "../../../packages/infrastructure/dispatch/negotiation-adapters.ts";
@@ -86,7 +84,6 @@ import {
 } from "../../../packages/infrastructure/notification/telegram-live-location.ts";
 import {
   createEscalationGroupPublisher,
-  createTelegramNegotiationNotifier,
   createTelegramRelaySender,
   createUnsubscribedGroupPublisher,
 } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
@@ -402,9 +399,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   // يضغطها سائقون ويجب أن تصل ردودها لبوت السائق لا بوت العميل.
   const driverOut = asOutboundSender(driverSender);
   const riderOut = asOutboundSender(riderSender);
-  const negotiationNotifier = createTelegramNegotiationNotifier(driverOut, riderOut);
   const rotationPort = createNegotiationRotationPort(sql);
-  const partiesReader = createNegotiationPartiesReader(sql);
 
   // الترجمة المتبادلة (المرحلة 2.6). الذاكرة المؤقتة في العملية الآن، وتنتقل إلى
   // Redis في القسم 5 بتبديل سطر واحد: المنفذ نفسه بتنفيذ آخر.
@@ -454,18 +449,14 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     sender: createTelegramRelaySender(driverOut, riderOut, translation),
   };
 
+  // إخطاراتُ الدورةِ تُودَعُ في صندوقِ الصادرِ داخلَ معاملةِ الدالّةِ الذرّيةِ
+  // (BUG-004)، والعاملُ الخلفيُّ هو من يُسلِّمُها. فلا مُخطِرَ في تبعياتِ البوابةِ.
   const claimDeps = {
     claims: createClaimRegistrationPort(sql),
-    parties: partiesReader,
-    notifier: negotiationNotifier,
-    timeouts: createNegotiationTimeoutReader(sql),
   };
 
   const rotationDeps = {
     rotation: rotationPort,
-    parties: partiesReader,
-    notifier: negotiationNotifier,
-    timeouts: createNegotiationTimeoutReader(sql),
   };
 
   const publishDeps = {

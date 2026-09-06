@@ -2,6 +2,9 @@
  * الغرض: تسجيل ضغطة «قبول» من سائق غير مشترك، وفتح قناة التمرير مع صاحب الدور الأول.
  *   الحكم في التنافس كلّه للدالة الذرّية register_unsubscribed_claim (القاعدة 0.5):
  *   لا تُسجَّل ضغطة رابعة، ولا يُسجَّل السائق مرتين، ولا يُسجَّل من كان في الدورة السابقة.
+ *   وإخطارُ فتحِ الدورِ يُودَعُ في صندوقِ الصادرِ داخلَ معاملةِ الدالّةِ نفسِها
+ *   (BUG-004) لا يُرسَلُ من هنا بعدَها: دورٌ مفتوحٌ وسائقٌ لا يعلمُ به كان أثرَ
+ *   تعطّلِ تيليجرامَ لحظةَ الضغطةِ، ولا شيءَ يُعيدُ المحاولةَ.
  * الحالة: منفّذ فعلياً — المرحلة 2.3 (القسم 3.4، الخطوتان 2 و3).
  * ينتمي إلى: application/dispatch
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/groups/unsubscribed-drivers-group.ts
@@ -21,6 +24,8 @@ export type ClaimRegistration =
       readonly slots: number;
       /** true للأول فقط: هو من يُفتح معه التواصل فوراً بلا انتظار اكتمال الثلاثة. */
       readonly isActive: boolean;
+      /** عددُ صفوفِ الصادرِ التي أُودِعت في المعاملةِ نفسِها: صفٌّ لكلِّ مُستلِمٍ. */
+      readonly notificationsQueued: number;
     }
   | { readonly registered: false; readonly reason: string };
 
@@ -43,36 +48,8 @@ export interface NegotiationParties {
   readonly position: number;
 }
 
-export interface NegotiationPartiesReader {
-  /** طرفا الدورة عند مطالبتها النشطة الآن، أو null إن لم تكن في تفاوض. */
-  findParties(negotiationId: string): Promise<Result<NegotiationParties | null, PortFailureError>>;
-}
-
-export interface NegotiationNotifier {
-  /** يُخطر الطرفين بأن الدور فُتح، ويعطي العميل زرّي «تم الاتفاق» و«غير مناسب». */
-  notifyTurnOpened(
-    parties: NegotiationParties,
-    deadlineSeconds: number,
-  ): Promise<Result<void, PortFailureError>>;
-  /** يُخطر الطرفين بإغلاق الدور: رفضاً أو انتهاء مهلة. */
-  notifyTurnClosed(
-    parties: NegotiationParties,
-    reason: "declined" | "expired",
-  ): Promise<Result<void, PortFailureError>>;
-  /** يُخطر الطرفين بالاتفاق النهائي وإسناد الطلب. */
-  notifyAgreed(parties: NegotiationParties): Promise<Result<void, PortFailureError>>;
-}
-
-/** المهلة تأتي من platform_settings عبر هذا المنفذ، فلا رقم في الكود. */
-export interface NegotiationTimeoutReader {
-  negotiateSecondsFor(negotiationId: string): Promise<Result<number, PortFailureError>>;
-}
-
 export interface RegisterUnsubscribedClaimDependencies {
   readonly claims: ClaimRegistrationPort;
-  readonly parties: NegotiationPartiesReader;
-  readonly notifier: NegotiationNotifier;
-  readonly timeouts: NegotiationTimeoutReader;
 }
 
 export interface RegisterClaimReport {
@@ -83,14 +60,14 @@ export interface RegisterClaimReport {
   readonly orderId: OrderId | null;
   /** سبب الرفض حرفياً من القاعدة: ALREADY_CLAIMED، SLOTS_FULL، EXCLUDED_PREVIOUS_CYCLE… */
   readonly reason: string | null;
-  /** هل وصل إخطار فتح الدور فعلاً — يُفرَّق عن نجاح التسجيل نفسه. */
-  readonly turnNotified: boolean;
+  /** كم صفَّ صادرٍ أُودِعَ مع التسجيلِ — لا كم رسالةً وصلت: الوصولُ شأنُ العاملِ. */
+  readonly notificationsQueued: number;
 }
 
 /**
- * التسجيل ثم — للأول وحده — فتح القناة. فشل الإخطار لا يُبطل التسجيل: الصفّ مكتوب
- * في القاعدة والعامل سيلتقط الدورة عند انتهاء المهلة، والإبطال هنا كان سيضيّع الدور
- * على سائق سجّل بحقّ لمجرّد تعذّر رسالة.
+ * التسجيلُ وحدَه: الدالّةُ الذرّيةُ تفتحُ الدورَ للأولِ وتُودِعُ إخطارَ طرفَيه في
+ * صندوقِ الصادرِ في معاملتِها، فلا أثرَ خارجيًّا هنا بعدَ commit. ولا شيءَ يُبطِلُ
+ * التسجيلَ من أجلِ رسالةٍ: الرسالةُ صفٌّ باقٍ يُعادُ حتى يصل.
  */
 export async function registerUnsubscribedClaim(
   input: { readonly negotiationId: string; readonly driverId: DriverId },
@@ -108,28 +85,17 @@ export async function registerUnsubscribedClaim(
       isActive: false,
       orderId: null,
       reason: outcome.reason,
-      turnNotified: false,
+      notificationsQueued: 0,
     });
   }
 
-  const base = {
-    registered: true as const,
+  return ok({
+    registered: true,
     position: outcome.position,
     slots: outcome.slots,
     isActive: outcome.isActive,
     orderId: outcome.orderId,
     reason: null,
-  };
-
-  if (!outcome.isActive) return ok({ ...base, turnNotified: false });
-
-  const parties = await deps.parties.findParties(input.negotiationId);
-  if (!parties.ok) return parties;
-  if (parties.value === null) return ok({ ...base, turnNotified: false });
-
-  const seconds = await deps.timeouts.negotiateSecondsFor(input.negotiationId);
-  if (!seconds.ok) return seconds;
-
-  const notified = await deps.notifier.notifyTurnOpened(parties.value, seconds.value);
-  return ok({ ...base, turnNotified: notified.ok });
+    notificationsQueued: outcome.notificationsQueued,
+  });
 }

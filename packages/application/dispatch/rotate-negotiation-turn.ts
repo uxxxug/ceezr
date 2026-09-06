@@ -2,6 +2,9 @@
  * الغرض: تدوير الدور بين المسجَّلين، وإتمام الاتفاق. عمليتان لا ثالث لهما في القسم 3.4:
  *   إمّا يضغط العميل «تم الاتفاق» فيُسنَد الطلب ذرّياً، وإمّا يرفض أو تنتهي المهلة
  *   فيُغلق دور الأول ويُفتح الذي يليه بنفس المنطق حتى ينفد الثلاثة.
+ *   وإخطاراتُ الإغلاقِ والفتحِ والاتفاقِ تُودَعُ في صندوقِ الصادرِ داخلَ معاملةِ
+ *   الدالّةِ الذرّيةِ نفسِها (BUG-004): طلبٌ صارَ matched ورسالةُ اتفاقٍ ضاعت كانَ
+ *   يعني عميلاً له سائقٌ لا يعلمُ أنّه اتُّفِقَ عليه، ولا شيءَ يُعيدُ المحاولةَ.
  * الحالة: منفّذ فعلياً — المرحلة 2.3 (القسم 3.4، الخطوتان 4 و5).
  * ينتمي إلى: application/dispatch
  * يُتوقع أن يستخدمه لاحقاً: بوت العميل (زرّ الاتفاق/الرفض)، apps/workers (انتهاء المهلة)
@@ -12,11 +15,6 @@ import type { NegotiationSnapshot } from "../../domain/dispatch/negotiation.ts";
 import type { CityId, OrderId } from "../../shared/kernel/index.ts";
 import { ok, type Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
-import type {
-  NegotiationNotifier,
-  NegotiationPartiesReader,
-  NegotiationTimeoutReader,
-} from "./register-unsubscribed-claim.ts";
 
 export type AdvanceOutcome =
   | {
@@ -25,12 +23,24 @@ export type AdvanceOutcome =
       readonly claimId: string;
       readonly position: number;
       readonly orderId: OrderId;
+      /** صفوفُ الصادرِ المودَعةُ في المعاملةِ: إغلاقُ دورٍ وفتحُ آخرَ لطرفَيهما. */
+      readonly notificationsQueued: number;
     }
-  | { readonly advanced: true; readonly exhausted: true; readonly orderId: OrderId }
+  | {
+      readonly advanced: true;
+      readonly exhausted: true;
+      readonly orderId: OrderId;
+      readonly notificationsQueued: number;
+    }
   | { readonly advanced: false; readonly reason: string };
 
 export type SettleOutcome =
-  | { readonly settled: true; readonly orderId: OrderId; readonly driverId: string }
+  | {
+      readonly settled: true;
+      readonly orderId: OrderId;
+      readonly driverId: string;
+      readonly notificationsQueued: number;
+    }
   | { readonly settled: false; readonly reason: string };
 
 /** منفذا الكتابة الذرّية — advance_unsubscribed_negotiation و settle_unsubscribed_negotiation. */
@@ -57,9 +67,6 @@ export interface NegotiationSnapshotReader {
 
 export interface RotateNegotiationDependencies {
   readonly rotation: NegotiationRotationPort;
-  readonly parties: NegotiationPartiesReader;
-  readonly notifier: NegotiationNotifier;
-  readonly timeouts: NegotiationTimeoutReader;
 }
 
 export interface RotateReport {
@@ -69,20 +76,20 @@ export interface RotateReport {
   readonly nextPosition: number | null;
   readonly orderId: OrderId | null;
   readonly reason: string | null;
+  /** صفوفُ الصادرِ المودَعةُ مع التدويرِ — لا رسائلُ وصلت: الوصولُ شأنُ العاملِ. */
+  readonly notificationsQueued: number;
 }
 
 /**
  * يغلق دور المطالبة النشطة ويفتح التي تليها.
- * الطرفان يُقرآن قبل التدوير وبعده: الأول لإخطار من أُغلق دوره، والثاني لإخطار من فُتح له.
- * لولا القراءتين لأخطرنا الطرف الخطأ، لأن الدالة تُبدّل المطالبة النشطة بينهما.
+ * ولا قراءةَ لطرفَي القناةِ هنا: الدالّةُ الذرّيةُ نفسُها تعرفُ من أُغلِقَ دورُه ومن
+ * فُتِحَ له — هي التي بدّلتهما — فتُودِعُ إخطارَ كلٍّ منهما بمعرّفِ مطالبتِه في
+ * معاملتِها. القراءةُ من هنا كانت تُخطِرُ الطرفَ الخطأَ لو تغيّرَ بينهما شيءٌ.
  */
 export async function advanceNegotiationTurn(
   input: { readonly negotiationId: string; readonly reason: "declined" | "expired" },
   deps: RotateNegotiationDependencies,
 ): Promise<Result<RotateReport, PortFailureError>> {
-  const before = await deps.parties.findParties(input.negotiationId);
-  if (!before.ok) return before;
-
   const advanced = await deps.rotation.advance(input.negotiationId, input.reason);
   if (!advanced.ok) return advanced;
 
@@ -95,11 +102,8 @@ export async function advanceNegotiationTurn(
       nextPosition: null,
       orderId: null,
       reason: outcome.reason,
+      notificationsQueued: 0,
     });
-  }
-
-  if (before.value !== null) {
-    await deps.notifier.notifyTurnClosed(before.value, input.reason);
   }
 
   if (outcome.exhausted) {
@@ -110,17 +114,8 @@ export async function advanceNegotiationTurn(
       nextPosition: null,
       orderId: outcome.orderId,
       reason: null,
+      notificationsQueued: outcome.notificationsQueued,
     });
-  }
-
-  const after = await deps.parties.findParties(input.negotiationId);
-  if (!after.ok) return after;
-
-  if (after.value !== null) {
-    const seconds = await deps.timeouts.negotiateSecondsFor(input.negotiationId);
-    if (seconds.ok) {
-      await deps.notifier.notifyTurnOpened(after.value, seconds.value);
-    }
   }
 
   return ok({
@@ -130,6 +125,7 @@ export async function advanceNegotiationTurn(
     nextPosition: outcome.position,
     orderId: outcome.orderId,
     reason: null,
+    notificationsQueued: outcome.notificationsQueued,
   });
 }
 
@@ -139,19 +135,17 @@ export interface SettleReport {
   readonly orderId: OrderId | null;
   readonly driverId: string | null;
   readonly reason: string | null;
+  readonly notificationsQueued: number;
 }
 
 /**
  * «تم الاتفاق» من العميل: الطلب يصير matched بنفس ذرّية claim_ride في المسار المشترك.
- * الطرفان يُقرآن قبل الإتمام لأن الإتمام يُفرِّغ المطالبة النشطة من الدورة.
+ * وإخطارُ الطرفَينِ يُودَعُ في المعاملةِ نفسِها، فلا يقعُ إسنادٌ بلا تبليغٍ يُعادُ.
  */
 export async function settleNegotiation(
   input: { readonly negotiationId: string },
   deps: RotateNegotiationDependencies,
 ): Promise<Result<SettleReport, PortFailureError>> {
-  const before = await deps.parties.findParties(input.negotiationId);
-  if (!before.ok) return before;
-
   const settled = await deps.rotation.settle(input.negotiationId);
   if (!settled.ok) return settled;
 
@@ -162,11 +156,8 @@ export async function settleNegotiation(
       orderId: null,
       driverId: null,
       reason: settled.value.reason,
+      notificationsQueued: 0,
     });
-  }
-
-  if (before.value !== null) {
-    await deps.notifier.notifyAgreed(before.value);
   }
 
   return ok({
@@ -175,5 +166,6 @@ export async function settleNegotiation(
     orderId: settled.value.orderId,
     driverId: settled.value.driverId,
     reason: null,
+    notificationsQueued: settled.value.notificationsQueued,
   });
 }

@@ -17,7 +17,6 @@ import type { Sql } from "../db/client.ts";
 import type { OutboundSender } from "../notification/telegram-driver-notifier.ts";
 import {
   createEscalationGroupPublisher,
-  createTelegramNegotiationNotifier,
   createTelegramRelaySender,
   createUnsubscribedGroupPublisher,
   type IdentifyingSender,
@@ -27,10 +26,8 @@ import {
   createActiveNegotiationLookup,
   createClaimRegistrationPort,
   createEscalationPort,
-  createNegotiationPartiesReader,
   createNegotiationRotationPort,
   createNegotiationSnapshotReader,
-  createNegotiationTimeoutReader,
   createOrderNotesReader,
   createUnsubscribedCyclePort,
 } from "./negotiation-adapters.ts";
@@ -56,9 +53,6 @@ export interface NegotiationWiring {
   };
   readonly claims: {
     readonly claims: ReturnType<typeof createClaimRegistrationPort>;
-    readonly parties: ReturnType<typeof createNegotiationPartiesReader>;
-    readonly notifier: ReturnType<typeof createTelegramNegotiationNotifier>;
-    readonly timeouts: ReturnType<typeof createNegotiationTimeoutReader>;
   };
 }
 
@@ -68,9 +62,6 @@ export function createNegotiationWiring(
 ): NegotiationWiring {
   const orders = createOrderRepository(sql);
   const notes = createOrderNotesReader(sql);
-  const parties = createNegotiationPartiesReader(sql);
-  const timeouts = createNegotiationTimeoutReader(sql);
-  const notifier = createTelegramNegotiationNotifier(senders.driverOut, senders.riderOut);
 
   const publish: PublishToUnsubscribedGroupDependencies = {
     orders,
@@ -82,11 +73,10 @@ export function createNegotiationWiring(
   return {
     snapshots: createNegotiationSnapshotReader(sql),
 
+    // التدويرُ والاتفاقُ يُودِعانِ إخطاراتِهما في صندوقِ الصادرِ داخلَ معاملتِهما
+    // (BUG-004)، فلا مُخطِرَ في تبعياتِهما ولا قراءةَ لطرفَي القناةِ من هنا.
     rotate: {
       rotation: createNegotiationRotationPort(sql),
-      parties,
-      notifier,
-      timeouts,
     },
 
     // النشر وإعادة النشر يشتركان في نفس التبعيات فعلاً: إعادة النشر ليست عملية
@@ -107,9 +97,6 @@ export function createNegotiationWiring(
 
     claims: {
       claims: createClaimRegistrationPort(sql),
-      parties,
-      notifier,
-      timeouts,
     },
   };
 }

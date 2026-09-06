@@ -10,6 +10,12 @@
 import { Api } from "grammy";
 import type { BroadcastPublisher } from "../../../packages/application/broadcast/ports.ts";
 import type { OfferPublisher } from "../../../packages/application/dispatch/broadcast-offers.ts";
+import {
+  createAgreedHandler,
+  createTurnClosedHandler,
+  createTurnOpenedHandler,
+  type NegotiationMessenger,
+} from "../../../packages/application/dispatch/deliver-negotiation-notification.ts";
 import { createOfferNotificationHandler } from "../../../packages/application/dispatch/deliver-offer-notification.ts";
 import { createDisputeResolutionHandler } from "../../../packages/application/dispute/deliver-dispute-resolution.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
@@ -56,7 +62,10 @@ import {
 } from "../../../packages/infrastructure/notification/telegram-broadcast-sender.ts";
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createOfferPublisher } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
-import type { IdentifyingSender } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
+import {
+  createTelegramNegotiationMessenger,
+  type IdentifyingSender,
+} from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import {
   createSubscriptionNoticePublisher,
   grammyNoticeApi,
@@ -235,6 +244,8 @@ export interface WorkerContainerOverrides {
   readonly driverOut?: OutboundSender;
   readonly riderOut?: OutboundSender;
   readonly identifyingDriver?: IdentifyingSender;
+  /** مُرسِلُ إخطاراتِ الدورةِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ ويُرجعُ معرّفًا. (BUG-004) */
+  readonly negotiationMessenger?: NegotiationMessenger;
   /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
   readonly safetyPublisher?: SafetyCardPublisher;
   /** ناشرُ إشعارِ العرضِ — يُستبدَلُ في الاختبار بناشرٍ يجمع ويُرجعُ معرّفًا. (BUG-004) */
@@ -448,12 +459,21 @@ export function buildWorkerContainer(
    * لراكبٍ — لأنَّ رسالةً خاصّةً من بوتٍ لم يبدأ معه محادثةً لا تصلُ أصلاً.
    */
   const notificationOutbox = createNotificationOutboxPort(sql);
+  const negotiationMessenger =
+    overrides.negotiationMessenger ??
+    createTelegramNegotiationMessenger(
+      asIdentifyingSender(telegram),
+      asIdentifyingSender(riderTelegram),
+    );
   const notificationHandlers = {
     offer: createOfferNotificationHandler(offerPublisher),
     dispute_resolution: createDisputeResolutionHandler({
       driver: createTicketOwnerNotifier(asSupportSender(telegram)),
       rider: createTicketOwnerNotifier(asSupportSender(riderTelegram)),
     }),
+    negotiation_turn_opened: createTurnOpenedHandler(negotiationMessenger),
+    negotiation_turn_closed: createTurnClosedHandler(negotiationMessenger),
+    negotiation_agreed: createAgreedHandler(negotiationMessenger),
   };
 
   /**
