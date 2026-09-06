@@ -208,20 +208,23 @@ describe("نقطةُ إقلاعِ البوابةِ — سقوطٌ حقيقيٌّ
     expect(result.stderr).toContain("SINGLE_INSTANCE_INVARIANT");
   }, 60_000);
 
-  it("multi-process + memory ⇒ إقلاعٌ يفشل برمزٍ غيرِ صفريٍّ", async () => {
+  it("multi-process + memory ⇒ يُرفض memory في الإنتاج قبل فحص الطوبولوجيا", async () => {
+    // SCL-002: الإنتاجُ يرفضُ مخزنَّ الذاكرةِ قبلَ أيِّ فحصٍ للطوبولوجيا — فلا يصلُ
+    // النظامُ إلى حارسِ النسخةِ الواحدةِ أصلاً. وهذا عمدٌ: عطلُ الذاكرةِ أبسطُ
+    // وأقدمُ من عطلِ الطوبولوجيا، فيُرفَضُ أوّلاً.
     const result = await bootGateway({
       PROCESS_TOPOLOGY: "multi-process",
       SESSION_STORE: "memory",
     });
     expect(result.exitCode).not.toBe(0);
-    expect(result.stderr).toContain("SINGLE_INSTANCE_INVARIANT");
+    expect(result.stderr).toContain("SESSION_STORE");
   }, 60_000);
 
   /**
    * القيمةُ المجهولةُ **خطأُ إعدادٍ حتميٌّ** لا ردٌّ صامتٌ إلى الافتراضِ (ADR 0051 §٢-ب).
    */
   it("PROCESS_TOPOLOGY بقيمةٍ غيرِ صالحةٍ ⇒ خطأُ إعدادٍ يمنع الإقلاعَ", async () => {
-    const result = await bootGateway({ PROCESS_TOPOLOGY: "many", SESSION_STORE: "memory" });
+    const result = await bootGateway({ PROCESS_TOPOLOGY: "many", SESSION_STORE: "redis" });
     expect(result.exitCode).not.toBe(0);
     expect(result.stderr).toContain("PROCESS_TOPOLOGY");
     expect(result.stderr).toContain("single-process");

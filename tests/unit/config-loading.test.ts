@@ -22,6 +22,9 @@ const FULL: Record<string, string> = {
   UPSTASH_REDIS_REST_TOKEN: "redis-token",
   DRIVER_BOT_TOKEN: "driver-token",
   RIDER_BOT_TOKEN: "rider-token",
+  // SCL-002: الإنتاجُ يرفضُ memory، فالثابتُ الكاملُ يستعملُ redis ليكونَ صالحاً
+  // في كلِّ بيئةٍ (التطويرُ يسمحُ بالاثنين، والإنتاجُ يلزمُ redis).
+  SESSION_STORE: "redis",
   TELEGRAM_WEBHOOK_SECRET: "secret",
   BOOTSTRAP_ADMIN_TELEGRAM_ID: "900000",
 };
