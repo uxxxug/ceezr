@@ -29,7 +29,7 @@ import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 import { testConfig } from "../support/config.ts";
-import { drainOfferOutbox } from "../support/drain-notification-outbox.ts";
+import { drainNotificationOutbox } from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -227,7 +227,7 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
 
     // منذ BUG-004 يُكتَبُ صفُّ إشعارِ العرضِ في معاملةِ open_offer_round ويُسلَّمُ من عاملٍ،
     // فنُفرّغُهُ هنا كما يفعلُ العاملُ قبل التحقّقِ من وصولِهِ.
-    await drainOfferOutbox(sql, capturing(driverSent));
+    await drainNotificationOutbox(sql, capturing(driverSent));
 
     const offers = await sql<{ driver_id: string; status: string }[]>`
       select driver_id, status from order_offers

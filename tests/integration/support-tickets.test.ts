@@ -17,6 +17,10 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { testConfig } from "../support/config.ts";
+import {
+  disputeResolutionHandler,
+  drainNotificationOutbox,
+} from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -187,6 +191,19 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
   const groupMessages = () => driverSent.filter((m) => m.chatId === SUPPORT_GROUP);
   const privateMessages = (chatId: number) => driverSent.filter((m) => m.chatId === String(chatId));
 
+  /**
+   * تسليمُ ما أودعَه القرارُ في صندوقِ الصادرِ (BUG-004): تبليغُ صاحبِ التذكرةِ
+   * لم يَعُدْ أثرًا يقعُ في مسارِ الضغطةِ قبلَ الـcommit، بل صفًّا مودَعًا داخلَ
+   * معاملةِ القرارِ يُسلِّمُه العاملُ بعدَه. فالاختبارُ يُشغِّلُ العاملَ نفسَه
+   * ثمَّ يتحقّقُ من الرسالةِ نفسِها في المحادثةِ نفسِها — لا تخفيفَ للقاعدةِ،
+   * وإنّما اتّباعٌ لموضعِ الأثرِ حيث صارَ.
+   */
+  const deliverQueuedNotifications = async (): Promise<void> => {
+    await drainNotificationOutbox(sql, capturing(driverSent), {
+      dispute_resolution: disputeResolutionHandler(capturing(driverSent), capturing(riderSent)),
+    });
+  };
+
   async function openTicketWithPhoto(chatId: number, caption: string): Promise<string> {
     await post("driver", text(chatId, "/support"));
     await post("driver", privateCallback(chatId, "sup:type:subscription"));
@@ -270,6 +287,8 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
     const before = driverSent.length;
     await post("driver", groupCallback(SUPPORT_CHAT, `sup:claim:${ticketId}`));
     await post("driver", groupCallback(SUPPORT_CHAT, `sup:activate:${ticketId}`));
+
+    await deliverQueuedNotifications();
 
     const ticket = await sql<{ status: string; resolved_by_user_id: string | null }[]>`
       select status, resolved_by_user_id from support_tickets where id = ${ticketId}
@@ -464,6 +483,7 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
       select status from subscriptions where driver_id = ${driverId}
     `;
     await post("driver", groupCallback(SUPPORT_CHAT, `sup:reject:${ticketId}`));
+    await deliverQueuedNotifications();
     const after = await sql<{ status: string }[]>`
       select status from subscriptions where driver_id = ${driverId}
     `;
@@ -484,6 +504,7 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
     const ticketId = await openTicketWithPhoto(DRIVER_CHAT, "أرجو إيقاف اشتراكي نهائياً");
 
     await post("driver", groupCallback(SUPPORT_CHAT, `sup:terminate:${ticketId}`));
+    await deliverQueuedNotifications();
 
     const live = await sql<{ count: string }[]>`
       select count(*)::text from subscriptions

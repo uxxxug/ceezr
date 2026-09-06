@@ -12,11 +12,16 @@
 import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
 import { deliverNotifications } from "../../apps/workers/src/jobs/deliver-notifications.ts";
 import { createOfferNotificationHandler } from "../../packages/application/dispatch/deliver-offer-notification.ts";
+import { createDisputeResolutionHandler } from "../../packages/application/dispute/deliver-dispute-resolution.ts";
 import type { NotificationHandler } from "../../packages/application/notification/deliver-notification.ts";
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
 import { createNotificationOutboxPort } from "../../packages/infrastructure/notification/notification-outbox-adapters.ts";
-import { asIdentifyingSender } from "../../packages/infrastructure/notification/telegram-api-sender.ts";
+import {
+  asIdentifyingSender,
+  asSupportSender,
+} from "../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { createOfferPublisher } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import { createTicketOwnerNotifier } from "../../packages/infrastructure/notification/telegram-support-notifier.ts";
 
 /**
  * يستنزِفُ صفوفَ الإشعارِ المعلَّقةَ حتى لا يبقى إشعارٌ بلا تسليمٍ في الاختبارات.
@@ -25,7 +30,7 @@ import { createOfferPublisher } from "../../packages/infrastructure/notification
  * ومعالجُ نوعِ العرضِ مربوطٌ دائمًا، وما زادَ عليه يُمرَّرُ صريحًا: نوعٌ بلا معالجٍ
  * خطأٌ مُعلَنٌ لا صفٌّ يُهمَلُ بصمتٍ.
  */
-export async function drainOfferOutbox(
+export async function drainNotificationOutbox(
   sql: Sql,
   driverSender: TelegramSender,
   handlers: Readonly<Record<string, NotificationHandler>> = {},
@@ -38,4 +43,19 @@ export async function drainOfferOutbox(
     if (!report.ok) return;
     if (report.value.claimed === 0) return;
   }
+}
+
+/**
+ * معالجُ نوعِ قرارِ الدعمِ كما يربطُه عاملُ التسليمِ في الإنتاج: مُرسِلانِ لا
+ * واحدٌ — صاحبُ التذكرةِ يُبلَّغُ من البوتِ الذي يحاورُه هو. تُبنى هنا مرّةً
+ * ليتّبعَ الاختبارُ الربطَ الحقيقيَّ لا نسخةً منه تتقادمُ في كلِّ ملفٍّ.
+ */
+export function disputeResolutionHandler(
+  driverSender: TelegramSender,
+  riderSender: TelegramSender,
+): NotificationHandler {
+  return createDisputeResolutionHandler({
+    driver: createTicketOwnerNotifier(asSupportSender(driverSender)),
+    rider: createTicketOwnerNotifier(asSupportSender(riderSender)),
+  });
 }

@@ -18,7 +18,7 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { testConfig } from "../support/config.ts";
-import { drainOfferOutbox } from "../support/drain-notification-outbox.ts";
+import { drainNotificationOutbox } from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -273,7 +273,7 @@ describeIf("مسار التوصيل الكامل على قاعدة حقيقية"
     // 4) السائق أُخطر فعلاً بزرّ قبول يحمل معرّف الطلب
     // منذ BUG-004 يُكتَبُ صفُّ إشعارِ العرضِ في معاملةِ open_offer_round ويُسلَّمُ من عاملٍ،
     // فنُفرّغُهُ هنا كما يفعلُ العاملُ قبل التحقّق من وصولِهِ.
-    await drainOfferOutbox(sql, capturing(driverSent));
+    await drainNotificationOutbox(sql, capturing(driverSent));
     expect(JSON.stringify(driverSent.map((m) => m.markup))).toContain(`offer:accept:${order?.id}`);
 
     // 5) القبول ذرّي عبر claim_ride: الطلب matched والعرض accepted

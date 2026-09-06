@@ -19,7 +19,7 @@ import {
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { testConfig } from "../support/config.ts";
-import { drainOfferOutbox } from "../support/drain-notification-outbox.ts";
+import { drainNotificationOutbox } from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -257,7 +257,7 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     // منذ BUG-004 لم يُرسَل إشعارُ العرضِ متزامنًا من broadcastOffers — بل يُكتَبُ صفُّهُ
     // في معاملةِ open_offer_round ويُتركُ لعاملِ التسليم. هُنا نُفرّغُ الصفَّ يدويًا
     // كما يفعلُ العاملُ في الإنتاج، فيصلُ الإشعارُ إلى مُلتقِطِ الرسائل قبل التحقّق.
-    await drainOfferOutbox(sql, capturing(driverSent));
+    await drainNotificationOutbox(sql, capturing(driverSent));
     // 1) الطلب مكتوب فعلاً بإحداثيات حقيقية
     const orders = await sql<
       {
