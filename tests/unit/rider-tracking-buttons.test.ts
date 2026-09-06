@@ -28,7 +28,6 @@ import { err, ok } from "../../packages/shared/result/index.ts";
 import {
   cityDirectory,
   JEDDAH,
-  notifierDouble,
   offerWriterDouble,
   orderWriter,
   riderDirectory,
@@ -130,7 +129,6 @@ beforeEach(() => {
       candidates: candidateRepo([]),
       settings: settingsRepo(seededRows(JEDDAH.id)),
       offerWriter: offerWriterDouble(),
-      notifier: notifierDouble(),
       clock: fixedClock(NOW),
     },
     clock: fixedClock(NOW),

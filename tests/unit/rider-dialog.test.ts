@@ -31,7 +31,6 @@ import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/in
 import {
   cityDirectory,
   JEDDAH,
-  notifierDouble,
   type OrderWriterDouble,
   offerWriterDouble,
   orderWriter,
@@ -98,7 +97,6 @@ beforeEach(() => {
       candidates: candidateRepo([]),
       settings: settingsRepo(seededRows(JEDDAH.id)),
       offerWriter: offerWriterDouble(),
-      notifier: notifierDouble(),
       clock: fixedClock(NOW),
     },
     clock: fixedClock(NOW),

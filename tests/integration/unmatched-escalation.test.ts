@@ -25,15 +25,16 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { runSweepUnmatchedOrders } from "../../apps/workers/src/jobs/sweep-unmatched-orders.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createNegotiationWiring } from "../../packages/infrastructure/dispatch/negotiation-wiring.ts";
-import {
-  createUnmatchedOrderFinder,
-  createUnmatchedRiderNotifier,
-} from "../../packages/infrastructure/dispatch/unmatched-adapters.ts";
+import { createUnmatchedOrderFinder } from "../../packages/infrastructure/dispatch/unmatched-adapters.ts";
 import { asOutboundSender } from "../../packages/infrastructure/notification/telegram-api-sender.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
-import { DEFAULT_LANGUAGE, t, translate } from "../../packages/shared/i18n/index.ts";
+import { translate } from "../../packages/shared/i18n/index.ts";
 import type { CityId } from "../../packages/shared/kernel/index.ts";
 import { testConfig } from "../support/config.ts";
+import {
+  drainNotificationOutbox,
+  unmatchedHandlers,
+} from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -85,6 +86,14 @@ const callback = (chatId: number, data: string) => ({
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
 /**
+ * نصُّ الرسالةِ كما يبنيهِ الإنتاجُ: اسمُ زرِّ الإلغاءِ يُقرأُ من مفتاحِه ويُحلُّ في
+ * القالبِ. مقارنةُ القالبِ الخامِّ كانت ستقبلَ رسالةً تقولُ للراكبِ «{cancel_button}».
+ */
+function riderText(key: string): string {
+  return translate("ar", key, { cancel_button: translate("ar", "menu.rider.cancel") });
+}
+
+/**
  * من يردّ بإخفاق عند إرسال بطاقة الإسناد. يُنقص في كل نداءٍ حتّى يبلغ الصفر،
  * فيُحاكي إخفاقاً عابراً لا دائماً — والعابر هو محلّ العطب المقيس.
  */
@@ -109,27 +118,24 @@ async function sweep(staleAfterSeconds = 0, maxBroadcastRounds = MAX_ROUNDS) {
     },
   });
 
-  return runSweepUnmatchedOrders(cityId as CityId, {
+  const report = await runSweepUnmatchedOrders(cityId as CityId, {
     finder: createUnmatchedOrderFinder(sql),
     escalate: negotiation.escalate,
     unsubscribed: negotiation.republish,
-    notifier: createUnmatchedRiderNotifier(asOutboundSender(capturing(riderSent)), {
-      noDriverFound: (order) => {
-        const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
-        return order.service === "delivery"
-          ? say("rider.no_driver_found_delivery")
-          : say("rider.no_driver_found");
-      },
-      widerCircleOpened: (order) => {
-        const say = t(order.riderLanguage ?? DEFAULT_LANGUAGE);
-        return order.service === "delivery"
-          ? say("rider.searching_wider_circle_delivery")
-          : say("rider.searching_wider_circle");
-      },
-    }),
     staleAfterSeconds,
     maxBroadcastRounds,
   });
+
+  /**
+   * إخطارُ صاحبِ الطلبِ لم يبقَ أثراً متزامناً في المسحِ: صارَ صفّاً يُودَعُ في
+   * معاملةِ القاعدةِ ويُرسِلُه عاملُ الصادرِ بعدَ الالتزامِ (BUG-004). فيُشغَّلُ
+   * العاملُ الحقيقيُّ هنا بمُرسِلِ الراكبِ نفسِه، لا يُقلَّدُ الإرسالُ بيدٍ.
+   */
+  await drainNotificationOutbox(sql, capturing(groupSent), {
+    ...unmatchedHandlers(capturing(riderSent)),
+  });
+
+  return report;
 }
 
 /**
@@ -301,7 +307,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
 
     expect(report.value.examined).toBe(1);
     expect(report.value.offeredToUnsubscribed).toHaveLength(1);
-    expect(report.value.toldWiderCircle).toHaveLength(1);
+    expect(report.value.queuedWiderCircle).toHaveLength(1);
     // ولا تصعيد: البشر لا يُنادون والأوتوماتيكيّ لمّا يُجرّب.
     expect(report.value.escalated).toHaveLength(0);
     expect(report.value.failed).toBe(0);
@@ -319,14 +325,10 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     expect(groupSent.filter((m) => String(m.chatId) === "-1002")).toHaveLength(0);
 
     // والراكب يُخبَر بما يجري فعلاً لا بـ«أُحيل طلبُك يدويّاً».
-    const told = riderSent.filter(
-      (m) => m.text === translate("ar", "rider.searching_wider_circle"),
-    );
+    const told = riderSent.filter((m) => m.text === riderText("rider.searching_wider_circle"));
     expect(told).toHaveLength(1);
     expect(String(told[0]?.chatId)).toBe(String(RIDER_CHAT));
-    expect(
-      riderSent.filter((m) => m.text === translate("ar", "rider.no_driver_found")),
-    ).toHaveLength(0);
+    expect(riderSent.filter((m) => m.text === riderText("rider.no_driver_found"))).toHaveLength(0);
 
     const audit = await sql<{ count: string }[]>`
       select count(*) from audit_log where action = 'order.escalated'`;
@@ -346,7 +348,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
 
     expect(second.value.awaitingUnsubscribed).toBe(1);
     expect(second.value.offeredToUnsubscribed).toHaveLength(0);
-    expect(second.value.toldWiderCircle).toHaveLength(0);
+    expect(second.value.queuedWiderCircle).toHaveLength(0);
     expect(second.value.escalated).toHaveLength(0);
     expect(groupSent).toHaveLength(0);
     expect(riderSent).toHaveLength(0);
@@ -368,7 +370,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
 
     expect(report.value.examined).toBe(1);
     expect(report.value.escalated).toHaveLength(1);
-    expect(report.value.notified).toHaveLength(1);
+    expect(report.value.queuedNoDriver).toHaveLength(1);
 
     // الأثر مُثبَّت في القاعدة لا في الذاكرة فقط
     const audit = await sql<{ count: string }[]>`
@@ -376,7 +378,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     expect(Number(audit[0]?.count)).toBe(1);
 
     // الراكب أُخبِر فعلاً، وبنصٍّ يقول له إنه لا سائق — لا صمت
-    const told = riderSent.filter((m) => m.text === translate("ar", "rider.no_driver_found"));
+    const told = riderSent.filter((m) => m.text === riderText("rider.no_driver_found"));
     expect(told).toHaveLength(1);
     expect(String(told[0]?.chatId)).toBe(String(RIDER_CHAT));
 
@@ -400,12 +402,10 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     expect(second.value.examined).toBe(1);
     expect(second.value.escalated).toHaveLength(0);
     expect(second.value.alreadyEscalated).toBe(1);
-    expect(second.value.notified).toHaveLength(0);
+    expect(second.value.queuedNoDriver).toHaveLength(0);
 
     // لا رسالة ثانية للراكب: عدم التكرار مضمون في القاعدة لا في ذاكرة العملية
-    expect(
-      riderSent.filter((m) => m.text === translate("ar", "rider.no_driver_found")),
-    ).toHaveLength(0);
+    expect(riderSent.filter((m) => m.text === riderText("rider.no_driver_found"))).toHaveLength(0);
 
     const audit = await sql<{ count: string }[]>`
       select count(*) from audit_log where action = 'order.escalated'`;
@@ -431,7 +431,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     expect(report.value.examined).toBe(1);
     expect(report.value.escalated).toHaveLength(1);
     expect(report.value.stillBroadcasting).toBe(0);
-    expect(report.value.notified).toHaveLength(1);
+    expect(report.value.queuedNoDriver).toHaveLength(1);
 
     // السبب يفرّق ما لا يجوز خلطُه: تجاهلُ سائقٍ ليس انعدامَ السائقين.
     const audit = await sql<{ reason: string }[]>`
@@ -470,7 +470,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     expect(report.value.examined).toBe(1);
     expect(report.value.escalated).toHaveLength(0);
     expect(report.value.stillBroadcasting).toBe(1);
-    expect(report.value.notified).toHaveLength(0);
+    expect(report.value.queuedNoDriver).toHaveLength(0);
     expect(riderSent).toHaveLength(0);
 
     const audit = await sql<{ count: string }[]>`
@@ -531,7 +531,7 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     if (!second.ok) return;
 
     expect(second.value.escalated).toHaveLength(1);
-    expect(second.value.notified).toHaveLength(1);
+    expect(second.value.queuedNoDriver).toHaveLength(1);
     expect(groupSent.filter((m) => m.chatId === "-1002")).toHaveLength(1);
     expect(riderSent).toHaveLength(1);
 

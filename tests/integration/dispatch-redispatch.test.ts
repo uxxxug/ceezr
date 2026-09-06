@@ -32,8 +32,6 @@ import {
   createPendingOfferRepository,
   createSearchingOrderFinder,
 } from "../../packages/infrastructure/dispatch/dispatch-adapters.ts";
-import { asOutboundSender } from "../../packages/infrastructure/notification/telegram-api-sender.ts";
-import { createTelegramDriverNotifier } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createSettingsRepository } from "../../packages/infrastructure/policy/settings-repository.ts";
 import { createOrderRepository } from "../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
@@ -146,7 +144,6 @@ function redispatchDeps() {
       candidates: createDriverCandidateRepository(sql),
       settings: createSettingsRepository(sql),
       offerWriter: createOfferWriter(sql),
-      notifier: createTelegramDriverNotifier(sql, asOutboundSender(capturing(driverSent))),
       clock: systemClock,
     },
     limit: 50,

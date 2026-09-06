@@ -11,12 +11,17 @@
 
 import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
 import { deliverNotifications } from "../../apps/workers/src/jobs/deliver-notifications.ts";
+import { createOrderCancelledHandler } from "../../packages/application/dispatch/deliver-cancellation-notification.ts";
 import {
   createAgreedHandler,
   createTurnClosedHandler,
   createTurnOpenedHandler,
 } from "../../packages/application/dispatch/deliver-negotiation-notification.ts";
 import { createOfferNotificationHandler } from "../../packages/application/dispatch/deliver-offer-notification.ts";
+import {
+  createNoDriverFoundHandler,
+  createWiderCircleOpenedHandler,
+} from "../../packages/application/dispatch/deliver-unmatched-notification.ts";
 import { createDisputeResolutionHandler } from "../../packages/application/dispute/deliver-dispute-resolution.ts";
 import type { NotificationHandler } from "../../packages/application/notification/deliver-notification.ts";
 import type { Sql } from "../../packages/infrastructure/db/client.ts";
@@ -25,9 +30,11 @@ import {
   asIdentifyingSender,
   asSupportSender,
 } from "../../packages/infrastructure/notification/telegram-api-sender.ts";
+import { createTelegramCancellationMessenger } from "../../packages/infrastructure/notification/telegram-cancellation-notifier.ts";
 import { createOfferPublisher } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createTelegramNegotiationMessenger } from "../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
 import { createTicketOwnerNotifier } from "../../packages/infrastructure/notification/telegram-support-notifier.ts";
+import { createTelegramUnmatchedMessenger } from "../../packages/infrastructure/notification/telegram-unmatched-notifier.ts";
 
 /**
  * يستنزِفُ صفوفَ الإشعارِ المعلَّقةَ حتى لا يبقى إشعارٌ بلا تسليمٍ في الاختبارات.
@@ -84,4 +91,31 @@ export function disputeResolutionHandler(
     driver: createTicketOwnerNotifier(asSupportSender(driverSender)),
     rider: createTicketOwnerNotifier(asSupportSender(riderSender)),
   });
+}
+
+/**
+ * معالجا إخطارَي صاحبِ الطلبِ العالقِ كما يربطُهما عاملُ التسليمِ في الإنتاج:
+ * ببوتِ الراكبِ حصرًا — إرسالُهما ببوتِ السائقِ يفشلُ بـ403 لأنَّه لم يُحاوِرْه قطّ.
+ */
+export function unmatchedHandlers(
+  riderSender: TelegramSender,
+): Readonly<Record<string, NotificationHandler>> {
+  const messenger = createTelegramUnmatchedMessenger(asIdentifyingSender(riderSender));
+  return {
+    wider_circle_opened: createWiderCircleOpenedHandler(messenger),
+    no_driver_found: createNoDriverFoundHandler(messenger),
+  };
+}
+
+/**
+ * معالجُ إخطارِ الإلغاءِ كما يربطُه عاملُ التسليمِ في الإنتاج: ببوتِ السائقِ حصرًا،
+ * فالمُخاطَبُ سائقٌ لا راكبٌ، ورسالةُ بوتِ الراكبِ إليه لا تصلُ.
+ */
+export function cancellationHandlers(
+  driverSender: TelegramSender,
+): Readonly<Record<string, NotificationHandler>> {
+  const messenger = createTelegramCancellationMessenger(asIdentifyingSender(driverSender));
+  return {
+    order_cancelled: createOrderCancelledHandler(messenger),
+  };
 }
