@@ -27,7 +27,17 @@ async function createFixture(): Promise<void> {
   const city = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
   cityId = city[0]?.id ?? "";
   if (cityId === "") throw new Error("مدينة جدة غير مبذورة");
-  await sql`update cities set is_active = true where id = ${cityId}`;
+  // تفعيلٌ وقروباتُه في عبارةٍ واحدةٍ: مدينةٌ تُفعّل بلا قروباتِها تجعلُ نجاحَ
+  // الاختبارِ معلّقاً على ملفٍ أسبقَ ضبطَها — والحاجزُ `check-test-city-activation` يمنعُه.
+  await sql`
+    update cities
+       set is_active = true,
+           telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
+           telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
+           telegram_unsubscribed_drivers_group_id =
+             coalesce(telegram_unsubscribed_drivers_group_id, -1003)
+     where id = ${cityId}
+  `;
 
   const riderUser = await sql<{ id: string }[]>`
     insert into users (city_id, telegram_id, full_name, phone, role)
