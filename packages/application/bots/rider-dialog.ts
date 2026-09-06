@@ -16,8 +16,8 @@ import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
 import {
   type BroadcastDependencies,
-  type DriverNotifier,
   broadcastOffers,
+  type DriverNotifier,
 } from "../dispatch/broadcast-offers.ts";
 import {
   type RelayDependencies,
