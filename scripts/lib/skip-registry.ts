@@ -567,6 +567,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/notification-outbox.test.ts",
+    suites: ["notification_outbox على PostgreSQL فعلية (BUG-004)"],
+    skipped: 8,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ أنَّ صفَّ الإشعارِ يُكتَبُ في معاملةِ تغييرِ الحالةِ نفسِها وأنَّ المطالبةَ والإتمامَ والتركَ ذرّيةٌ (BUG-004). ولا يُثبَتُ ذلك ببديلٍ في الذاكرةِ: المقصودُ ذرّيةُ المعاملةِ والقَفلُ تحتَ التزاحمِ في المحرِّكِ نفسِه لا سلوكُ محاكٍ نكتبُه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/full-ride.test.ts",
     suites: ["المسار الكامل على قاعدة حقيقية"],
     skipped: 11,
