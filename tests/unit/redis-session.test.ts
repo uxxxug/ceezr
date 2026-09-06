@@ -78,9 +78,13 @@ function fakeRedis(): RedisClient & {
             currentRevision = 0;
           }
         }
-        if (currentRevision !== expected) return { ok: true, value: 0 };
-        const newRevision = expected + 1;
-        const envelope = JSON.stringify({ revision: newRevision, state: JSON.parse(stateJson) });
+        // الحارسُ -1 يعني «حالةٌ طازجةٌ لم تُحمَّل» فالكتابةُ غيرُ مشروطةٍ.
+        const base = expected === -1 ? currentRevision : expected;
+        if (base !== currentRevision) return { ok: true, value: 0 };
+        const newRevision = base + 1;
+        // نفسُ ما يفعله السكربتُ الحقيقيُّ على Upstash: دمجُ stateJson نصًّا في المغلف،
+        // لا دورة cjson التي تُسقط حقول null في جداول Lua.
+        const envelope = `{"revision":${newRevision},"state":${stateJson}}`;
         store.set(evalKey, envelope);
         // المهلةُ لا تُحاكى هنا — يُختبر EX في الاختبار المخصّص.
         void ttl;
@@ -150,7 +154,8 @@ describe("مخزن الجلسات على Redis", () => {
     const evalCall = redis.calls.find((call) => call[0] === "EVAL");
     expect(evalCall?.[0]).toBe("EVAL");
     // وسائطُ EVAL: ["EVAL", script, numkeys, key, stateJson, expected, ttl]
-    expect(evalCall?.slice(5)).toEqual([String(0), String(SESSION_TTL_SECONDS)]);
+    // INITIAL_STATE طازجةٌ بلا مراجعةٍ فيُمرَّر الحارسُ -1 (كتابةٌ غيرُ مشروطةٍ).
+    expect(evalCall?.slice(5)).toEqual(["-1", String(SESSION_TTL_SECONDS)]);
   });
 
   it("مهلة مخصّصة تُحترم كما مُرّرت", async () => {
@@ -158,7 +163,7 @@ describe("مخزن الجلسات على Redis", () => {
     await createRedisSessionStore(redis, "rider", { ttlSeconds: 60 }).save("1", INITIAL_STATE);
     const evalCall = redis.calls[0];
     expect(evalCall?.[0]).toBe("EVAL");
-    expect(evalCall?.slice(5)).toEqual([String(0), String(60)]);
+    expect(evalCall?.slice(5)).toEqual(["-1", String(60)]);
   });
 
   it("انقطاع Redis يُعيد عطل منفذ لا جلسة فارغة صامتة", async () => {
@@ -236,16 +241,19 @@ describe("CAS على جلسات Redis — BUG-007", () => {
     const redis = fakeRedis();
     const store = createRedisSessionStore(redis, "driver");
 
-    // كلتا القراءتين تريان المراجعةَ 0 (لا جلسة بعد).
+    // جلسةٌ موجودةٌ بالمراجعةِ 1.
+    await store.save("770", FULL_STATE);
+
+    // كلتا القراءتين تريان المراجعةَ 1 (لقطةٌ قبلَ أيِّ كتابةٍ لاحقةٍ).
     const a = await store.load("770");
     const b = await store.load("770");
     const stateA = a.ok && a.value ? a.value : FULL_STATE;
     const stateB = b.ok && b.value ? b.value : FULL_STATE;
 
-    // الأولى تكتبُ أولاً فتنجحُ وترفعُ المراجعةَ إلى 1.
+    // الأولى تكتبُ أولاً فتنجحُ وترفعُ المراجعةَ إلى 2.
     await store.save("770", { ...stateA, step: "awaiting_name" } as DialogState);
 
-    // الثانية تحملُ المراجعةَ 0 القديمة، بينما الخادمُ صار 1 — تعارضٌ لا كتابةٌ صامتة.
+    // الثانية تحملُ المراجعةَ 1 القديمة، بينما الخادمُ صار 2 — تعارضٌ لا كتابةٌ صامتة.
     await expect(
       store.save("770", { ...stateB, step: "awaiting_phone" } as DialogState),
     ).rejects.toBeInstanceOf(SessionCasConflictError);

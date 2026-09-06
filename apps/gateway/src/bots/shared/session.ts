@@ -64,20 +64,21 @@ export function createMemorySessionStore(
       // CAS: لا تكتب إلا إن كانت مراجعةُ الحالةُ المُمرَّرة تطابقُ مراجعةَ آخرِ تحميل.
       // تحديثان متزامنان لِنفس المستخدم: الأول ينجح ويرفع المراجعة، والثاني يرى
       // المراجعةَ تغيّرت فيرمي الإشارةَ فيعيدُ المحوّلُ المحاولةَ بعد إعادة التحميل.
+      // أمّا إن لم تحمل الحالةُ مراجعةً (حالةٌ طازجةٌ كإعادةِ التعيين إلى INITIAL_STATE)
+      // فالكتابةُ غيرُ مشروطةٍ: لا تعارضَ مع مراجعةٍ حمَّلها الحوارُ ولم يقرأها.
       const expected = readRevision(state);
       const existing = entries.get(telegramUserId);
       const currentRevision = existing?.revision ?? 0;
-      if (currentRevision !== expected) {
-        throw new SessionCasConflictError(telegramUserId, expected);
+      const baseRevision = expected === undefined ? currentRevision : expected;
+      if (baseRevision !== currentRevision) {
+        throw new SessionCasConflictError(telegramUserId, baseRevision);
       }
-      const newRevision = expected + 1;
+      const newRevision = currentRevision + 1;
       entries.set(telegramUserId, {
         state,
         revision: newRevision,
         expiresAtMs: nowMs + ttlSeconds * 1000,
       });
-      // حدِّث المراجعةَ على كائن الحالة لحفظٍ لاحقٍ محتملٍ في نفس المعالجة.
-      attachRevision(state, newRevision);
       return ok(undefined);
     },
 

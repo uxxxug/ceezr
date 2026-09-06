@@ -189,15 +189,20 @@ local current = redis.call('GET', key)
 local currentRevision = 0
 if current then
   local ok, parsed = pcall(cjson.decode, current)
-  if ok and type(parsed) == 'table' and type(parsed.revision) == 'number' and type(parsed.state) == 'table' then
+  if ok and type(parsed) == 'table' and type(parsed.revision) == 'number' then
     currentRevision = parsed.revision
   end
 end
-if currentRevision ~= expected then
+if currentRevision ~= expected and expected ~= -1 then
   return 0
 end
+if expected == -1 then
+  expected = currentRevision
+end
 local newRevision = expected + 1
-local envelope = cjson.encode({ revision = newRevision, state = cjson.decode(newState) })
+-- نوذج الحالة خامٌّ كـJSON صالحٌ، فنُدمجه نصًّا في المغلف لا نُمرّره عبر
+-- cjson.decode/encode: تلك الدورة تُسقط حقول null لأنّ جداول Lua لا تحتفظُ بـnil.
+local envelope = '{"revision":' .. newRevision .. ',"state":' .. newState .. '}'
 redis.call('SET', key, envelope, 'EX', ttl)
 return newRevision
 `;
@@ -263,6 +268,7 @@ export function createRedisSessionStore(
       // CAS الذرّيُّ عبر Lua: لا يكتب إلا إن طابقت مراجعةُ الحالة المُمرَّرة مراجعةَ
       // آخرِ تحميل. JSON.stringify يُسقط الرمزَ فلا تُخزَّن المراجعةُ في الحالة.
       const expected = readRevision(state);
+      const expectedArg = expected === undefined ? "-1" : String(expected);
       const stateJson = JSON.stringify(state);
       const result = await redis.command([
         "EVAL",
@@ -270,7 +276,7 @@ export function createRedisSessionStore(
         1,
         keyOf(telegramUserId),
         stateJson,
-        String(expected),
+        expectedArg,
         String(ttlSeconds),
       ]);
       if (!result.ok) return err(report("save", result.error));
@@ -278,11 +284,10 @@ export function createRedisSessionStore(
       const newRevision = typeof returned === "number" ? returned : Number(returned);
       // ردُّ السكربتِ 0 يعني تعارضاً: كتبَ متزامنٌ آخرُ بعدَ تحميلِ هذه الحالة.
       // ارمِ الإشارةَ لا تُعيدُ خطأً صامتاً، فيُعيدُ المحوّلُ تحميلَ الحالة وإعادةَ
-      // حسابِ الردود قبلَ إرسالِ أيِّ رسالة.
+      // حسابِ الردود قبلَ إرسالِ أيِّ رسالة. لا يحدث هذا للحالات الطازجة (expected=-1).
       if (!Number.isFinite(newRevision) || newRevision === 0) {
-        throw new SessionCasConflictError(telegramUserId, expected);
+        throw new SessionCasConflictError(telegramUserId, expected ?? 0);
       }
-      attachRevision(state, newRevision);
       return ok(undefined);
     },
 

@@ -27,10 +27,12 @@ export function attachRevision(state: DialogState, revision: number): DialogStat
   return { ...(state as object), [SESSION_REVISION]: revision } as unknown as DialogState;
 }
 
-/** اقرأ المراجعةَ من كائن. الغيابُ يعني «لم تُحمَّل مراجعتُها» = 0. */
-export function readRevision(state: object): number {
+/** اقرأ المراجعةَ من كائن. غيابُ الرمز يعني «حالةٌ طازجةٌ لم تُحمَّل» فيُكتبُ
+ *  غيرَ مشروطٍ (إعادةُ تعيينٍ)، أمّا وجودُ الرمز ولو 0 فيعني «حالةٌ حمَّلها
+ *  الحوارُ» فيُطبَّقُ عليها CAS فلا تكتبُ فوقَ مراجعةٍ أحدث. */
+export function readRevision(state: object): number | undefined {
   const value = (state as unknown as Record<symbol, unknown>)[SESSION_REVISION];
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
 /** انسخ الحالةَ بلا مراجعة، للمقارنة الدقيقة في الاختبارات. يقبل null فيُعيد null. */
