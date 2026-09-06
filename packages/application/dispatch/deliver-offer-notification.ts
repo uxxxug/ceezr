@@ -32,7 +32,10 @@ export interface OfferDeliveryPort {
     claimToken: string;
     messageId: string | null;
   }): Promise<Result<boolean, PortFailureError>>;
-  abandon(input: { deliveryId: string; claimToken: string }): Promise<Result<boolean, PortFailureError>>;
+  abandon(input: {
+    deliveryId: string;
+    claimToken: string;
+  }): Promise<Result<boolean, PortFailureError>>;
 }
 
 export interface OfferDeliveryDeps {
@@ -63,7 +66,13 @@ export async function deliverOfferNotification(
   if (!claimed.ok) return claimed;
   const delivery = claimed.value.delivery;
   if (delivery === null) {
-    return ok({ found: false, delivered: false, abandoned: false, maxAttempts: null, failure: null });
+    return ok({
+      found: false,
+      delivered: false,
+      abandoned: false,
+      maxAttempts: null,
+      failure: null,
+    });
   }
   /**
    * العرضُ الميّتُ لا يُبعَثُ: انتهت مهلته أو لم يَعُد pending قبل أن يصلَه الإشعارُ.

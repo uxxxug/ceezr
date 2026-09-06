@@ -4,7 +4,10 @@
  * بالرمزِ كذلك. مرآةٌ لـcreateSafetyDeliveryPort في البنية، تزيدُ عليها abandon.
  * (BUG-004.)
  */
-import type { OfferDelivery, OfferDeliveryPort } from "../../application/dispatch/deliver-offer-notification.ts";
+import type {
+  OfferDelivery,
+  OfferDeliveryPort,
+} from "../../application/dispatch/deliver-offer-notification.ts";
 import type { CityId, DriverId, OfferId, OrderId } from "../../shared/kernel/index.ts";
 import { guard, readEnvelope, type Sql } from "../db/client.ts";
 
@@ -41,13 +44,17 @@ export function createOfferDeliveryPort(sql: Sql): OfferDeliveryPort {
       }),
     finish: (input) =>
       guard("rpc.finish_notification_delivery", async () => {
-        const rows = await sql<{ result: unknown }[]>`select finish_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid, ${input.messageId}::text, ${input.messageId !== null}) result`;
+        const rows = await sql<
+          { result: unknown }[]
+        >`select finish_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid, ${input.messageId}::text, ${input.messageId !== null}) result`;
         const row = envelope(rows[0]?.result, "finish_notification_delivery");
         return row.ok === true;
       }),
     abandon: (input) =>
       guard("rpc.abandon_notification_delivery", async () => {
-        const rows = await sql<{ result: unknown }[]>`select abandon_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid) result`;
+        const rows = await sql<
+          { result: unknown }[]
+        >`select abandon_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid) result`;
         const row = envelope(rows[0]?.result, "abandon_notification_delivery");
         return row.ok === true;
       }),

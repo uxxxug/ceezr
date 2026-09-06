@@ -169,7 +169,10 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
     const published: string[] = [];
     const publisher = recordingPublisher(published, "msg-7", 0);
 
-    const report = await deliverOfferNotifications({ deliveries: createOfferDeliveryPort(sql), publisher });
+    const report = await deliverOfferNotifications({
+      deliveries: createOfferDeliveryPort(sql),
+      publisher,
+    });
 
     expect(report.ok).toBe(true);
     if (!report.ok) return;

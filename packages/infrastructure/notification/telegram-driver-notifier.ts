@@ -153,11 +153,7 @@ export function createOfferPublisher(sql: Sql, sender: IdentifyingSender): Offer
             ],
           ],
         };
-        const messageId = await sender.sendReturningId(
-          String(contact.telegram_id),
-          text,
-          keyboard,
-        );
+        const messageId = await sender.sendReturningId(String(contact.telegram_id), text, keyboard);
         if (messageId === null) {
           throw new Error("TELEGRAM_SEND_FAILED");
         }

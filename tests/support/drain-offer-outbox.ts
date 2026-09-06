@@ -9,22 +9,19 @@
  * ينتمي إلى: tests/support
  */
 
-import type { Sql } from "../../packages/infrastructure/db/client.ts";
 import type { TelegramSender } from "../../apps/gateway/src/bots/driver/index.ts";
+import { deliverOfferNotifications } from "../../apps/workers/src/jobs/deliver-offer-notifications.ts";
+import type { Sql } from "../../packages/infrastructure/db/client.ts";
+import { createOfferDeliveryPort } from "../../packages/infrastructure/dispatch/offer-notification-adapters.ts";
 import { asIdentifyingSender } from "../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { createOfferPublisher } from "../../packages/infrastructure/notification/telegram-driver-notifier.ts";
-import { createOfferDeliveryPort } from "../../packages/infrastructure/dispatch/offer-notification-adapters.ts";
-import { deliverOfferNotifications } from "../../apps/workers/src/jobs/deliver-offer-notifications.ts";
 
 /**
  * يستنزِفُ صفوفَ الإشعارِ المعلَّقةَ حتى لا يبقى عرضٌ بلا إشعار في الاختبارات.
  * يُكرِّرُ الدفعةَ لأنَّ عاملًا واحدًا قد يلتقطُ جزءًا فقط (حدُّ المحاولاتِ الأقصى
  * لكلِّ دفعة). يعودُ متى ما لم يُلتقطْ صفٌّ جديد — أي حين يصيرُ الصفُّ فارغًا.
  */
-export async function drainOfferOutbox(
-  sql: Sql,
-  driverSender: TelegramSender,
-): Promise<void> {
+export async function drainOfferOutbox(sql: Sql, driverSender: TelegramSender): Promise<void> {
   const publisher = createOfferPublisher(sql, asIdentifyingSender(driverSender));
   const deliveries = createOfferDeliveryPort(sql);
   for (let i = 0; i < 20; i++) {

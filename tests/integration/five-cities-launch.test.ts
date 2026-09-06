@@ -23,8 +23,8 @@ import { createCityDirectory } from "../../packages/infrastructure/geo/city-dire
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { LAUNCH_CITY_CODES } from "../../scripts/activate-launch-cities.ts";
 import { testConfig } from "../support/config.ts";
-import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 import { drainOfferOutbox } from "../support/drain-offer-outbox.ts";
+import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const WEBHOOK_SECRET = "five-cities-secret";

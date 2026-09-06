@@ -79,6 +79,7 @@ import {
   createDriverDirectory,
   createRiderDirectory,
 } from "../../../packages/infrastructure/identity/directories.ts";
+import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import {
   grammyLiveLocationChannel,
   TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
@@ -89,7 +90,6 @@ import {
   createTelegramRelaySender,
   createUnsubscribedGroupPublisher,
 } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
-import { createTelegramDriverNotifier } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import {
   createSupportCardPublisher,
   createTicketOwnerNotifier,
