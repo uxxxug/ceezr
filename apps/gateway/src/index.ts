@@ -43,6 +43,7 @@ import { grammyCommandRegistrar, registerBotCommands } from "./bots/shared/regis
 import { buildContainer } from "./container.ts";
 import { type EmbeddedWorkerHandle, startEmbeddedWorker } from "./embedded-worker.ts";
 import { createJobHealthProbes } from "./job-health.ts";
+import { createLifecycle } from "./lifecycle.ts";
 import { instrumentPaymentConfirmationDeps } from "./observability/payment.ts";
 import {
   instrumentTelegramHandler,
@@ -190,16 +191,49 @@ const databaseGauges = createDatabaseGaugeCollector(container.sql, operationalMe
  */
 let embeddedWorker: EmbeddedWorkerHandle | null = null;
 
-async function shutdown(signal: string): Promise<void> {
-  log("إيقاف البوابة", { signal });
-  // العامل أولاً: مهمّة جارية تستعلم القاعدة، وإغلاق التجمّع تحتها يجعلها تفشل
-  // بخطأ اتصال لا معنى له بدل أن تنتهي أو تُوقَف نظيفة.
-  if (embeddedWorker !== null) await embeddedWorker.stop();
-  await container.close();
-  process.exit(0);
-}
-process.on("SIGTERM", () => void shutdown("SIGTERM"));
-process.on("SIGINT", () => void shutdown("SIGINT"));
+/**
+ * مقبضُ خادمِ `Bun.serve` — يُملأ آخرَ الإقلاع. التصريفُ الرشيقُ يقرؤه عبر الإغلاقِ
+ * لا مباشرةً، لأنّ الإشارةَ قد تصل قبلَ اكتمالِ التركيبِ (F5-05).
+ */
+type GatewayServer = ReturnType<typeof Bun.serve>;
+let serverHandle: GatewayServer | null = null;
+
+/**
+ * عددُ الطلباتِ الجاريةِ لحظةً بلحظة. يُزادُ عند الاستلامِ ويُنقصُ عند الفراغِ،
+ * فيعرفُ التصريفُ متى يفرغُ الجاري بلا انتظارٍ أعمى (F5-05 / CAP-008).
+ */
+let inFlightRequests = 0;
+
+/**
+ * دورةُ حياةِ التصريفِ الرشيقِ. تُنشأ قبلَ تركيبِ المساراتِ لأنّ `/ready`
+ * يقرأُ `isDraining()`، والمواردُ تُملأُ عبر إغلاقٍ يُقرأُ عند الإشارةِ لا عند الإنشاء.
+ */
+const lifecycle = createLifecycle({
+  resources: {
+    inFlight: () => inFlightRequests,
+    forceClose: () => {
+      // بعدَ انقضاءِ المهلةِ: إغلاقٌ قسريٌّ لما تبقّى من جارٍ.
+      serverHandle?.stop(true);
+    },
+    close: async () => {
+      // العاملُ أولاً: مهمّةٌ جاريةٌ تستعلمُ القاعدةَ، وإغلاقُ التجمّعِ تحتها يجعلها
+      // تفشلُ بخطأِ اتصالٍ لا معنىً له بدلَ أن تنتهي أو تُوقَفَ نظيفة.
+      if (embeddedWorker !== null) await embeddedWorker.stop();
+      await container.close();
+      // الخادمُ أخيراً — بقيَ يستقبلُ طوالَ التصريفِ حتى يُجيبَ `/ready` بـ«مُصرِّف».
+      serverHandle?.stop(true);
+    },
+  },
+  graceMs: 10_000,
+  log,
+});
+
+process.on("SIGTERM", () => {
+  void lifecycle.requestShutdown("SIGTERM").then(() => process.exit(0));
+});
+process.on("SIGINT", () => {
+  void lifecycle.requestShutdown("SIGINT").then(() => process.exit(0));
+});
 
 /**
  * حدود تقنية لا تجارية: لا مكان لها في platform_settings.
@@ -337,6 +371,8 @@ const app = createServer({
     now: () => new Date(),
     startedAt,
     env: process.env,
+    isDraining: lifecycle.isDraining,
+    probeTimeoutMs: 2_000,
     // فحص جاهزية حقيقي: استعلام فعلي على القاعدة، لا افتراض أن الرابط صحيح
     readinessChecks: [
       {
@@ -634,7 +670,35 @@ for (const [audience, token] of [
     });
 }
 
-export default {
+/**
+ * خادمُ `Bun.serve` الفعليُّ — يُنشأ بعدَ اكتمالِ تركيبِ المسارات. الـ`fetch`
+ * يُغلِّفُ `app.fetch` بثلاثةِ أمورٍ: (١) عدَّادُ الطلباتِ التجاريّةِ الجاريةِ لا فحوصِ
+ * الصحةِ؛ (٢) بوّابةُ التصريفِ: عندَ `isDraining` يُسمَحُ لـ`/health` و`/ready`
+ * فقط (حتى يرى المُوجِّهُ حالةَ «مُصرِّف») ويُرفَضُ ما عداهما بـ`503 draining`؛
+ * (٣) و`serverHandle` يُملأ هنا فيقرؤهُ `lifecycle` عند الإشارةِ عبر الإغلاقِ.
+ */
+serverHandle = Bun.serve({
   port: config.port,
-  fetch: app.fetch,
-};
+  fetch: async (request, server) => {
+    const { pathname } = new URL(request.url);
+    const isProbe = pathname === "/health" || pathname === "/ready";
+
+    // أثناءَ التصريفِ: نرفضُ الجديدَ من الطلباتِ التجاريّةِ، لكنّنا نبقى نُجيبُ
+    // فحوصَ الصحةِ حتى يرى المُوجِّهُ «مُصرِّف» لا «مرفوضُ اتصال».
+    if (lifecycle.isDraining() && !isProbe) {
+      return Response.json({ status: "draining" }, { status: 503 });
+    }
+
+    // فحوصُ الصحةِ لا تُعدُّ جاريةً — لا تُؤخِّرُ التصريفَ.
+    if (isProbe) {
+      return app.fetch(request, server);
+    }
+
+    inFlightRequests += 1;
+    try {
+      return await app.fetch(request, server);
+    } finally {
+      inFlightRequests -= 1;
+    }
+  },
+});
