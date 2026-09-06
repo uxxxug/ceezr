@@ -7,10 +7,10 @@
  * الذي يُعاد به النظامُ إن فشل النشرُ، و**مالكُه**. ثمّ **هل الشيفرةُ والمخطّطُ
  * ينشران معاً** (`coupledDeploy`)، وأينَ يُقرأ الإجراءُ في `docs/rollback.md`.
  *
- * **الحالة:** `OPS-010` — مُنفَّذ · مُختبَر (ADR 0047). والمداخلُ **أربعةٌ وعشرون**،
- * وهي بعينِها مجموعةُ الخطرِ التي قرأتها `findRollbackRisks` من الهجراتِ السبعِ
- * والخمسينَ يومَ 2026-08-30 — لا واحدةٌ أقلَّ ولا واحدةٌ أكثرَ، والحاجزُ يفرض
- * الاتجاهَين.
+ * **الحالة:** `OPS-010` — مُنفَّذ · مُختبَر (ADR 0047). والمداخلُ هي **بعينِها**
+ * مجموعةُ الخطرِ التي تقرأها `findRollbackRisks` من هجراتِ المستودعِ — لا واحدةٌ
+ * أقلَّ ولا واحدةٌ أكثرَ، والحاجزُ يفرضُ الاتجاهَين. ولا يُثبَتُ عددٌ هنا: رقمٌ
+ * يُكتبُ في تعليقٍ يكذبُ عندَ أولِ هجرةٍ لاحقةٍ، والحاجزُ أصدقُ منه دائماً.
  *
  * **ينتمي إلى:** البند `OPS-010` · القسم 11-د · `F11-09` · البوابةَ H.
  *
@@ -368,6 +368,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     migration: "20260905020000_open_offer_round_returns_offer_ids.sql",
     change: "revoke_function:open_offer_round(4)",
     why: "إعادةُ تثبيتِ الصلاحياتِ كما كانت بعدَ `create or replace` للدالّةِ التي غُيّرَ مردُّها — وهي لا تُضيِّقُ منحةً جديدةً بل تُعيدُ قفلَ السطحِ الذي كان قائماً قبلها، فالتصريحُ للقراءةِ لا للتضييق. و`open_offer_round` كانت ممنوحةً لـ`service_role` وحدها قبلَ التغييرِ، وتبقى كذلك بعده.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
+  {
+    migration: "20260905030001_open_offer_round_writes_outbox.sql",
+    change: "revoke_function:open_offer_round(4)",
+    why: "الهجرةُ تُعيدُ تعريفَ `open_offer_round` بـ`create or replace` لتُدرجَ صفوفَ notification_outbox في معاملةِ العروضِ نفسِها (BUG-004)، والسحبُ بعده ليس تضييقاً بل إعادةُ قفلِ السطحِ كما كان: `open_offer_round` كانت ممنوحةً لـ`service_role` وحدها قبلَ التغييرِ وتبقى كذلك بعده. والتوقيعُ ومفتاحُ العودةِ (`offer_ids`) لم يتغيرا، فالصورةُ السابقةُ تناديها كما كانت تفعل.",
     breaksPreviousRelease: false,
     rollbackPath: "code-only",
     coupledDeploy: false,
