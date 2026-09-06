@@ -581,6 +581,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/notification-outbox-dispute.test.ts",
+    suites: ["قرارُ الدعمِ في صندوقِ الصادرِ الموحَّدِ على PostgreSQL فعلية (BUG-004)"],
+    skipped: 6,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ أنَّ تبليغَ قرارِ الدعمِ يُودَعُ في معاملةِ `resolve_support_ticket` نفسِها، وأنَّ رجوعَ المعاملةِ لا يُبقي صفًّا يتيمًا، وأنَّ فشلَ الإرسالِ بعدَ الـcommit يُعادُ بلا تكرارِ أثرٍ، وأنَّ مفتاحَ المنعِ يمنعُ صفَّينِ لقرارٍ واحدٍ، وأنَّ الصفَّ الواحدَ لا يُلتقطُ مرّتينِ عند التزاحمِ (BUG-004). ولا يُثبَتُ ذلك ببديلٍ في الذاكرةِ: المقصودُ ذرّيةُ المعاملةِ و`FOR UPDATE SKIP LOCKED` وقيدُ التفرُّدِ في المحرِّكِ نفسِه لا سلوكُ محاكٍ نكتبُه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/full-ride.test.ts",
     suites: ["المسار الكامل على قاعدة حقيقية"],
     skipped: 11,

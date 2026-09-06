@@ -386,6 +386,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "دورةُ الرحلةِ والإسناد",
     documentedIn: null,
   },
+  {
+    migration: "20260906010000_notification_outbox_unified.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "الهجرةُ تُعيدُ تعريفَ `claim_notification_delivery` بـ`create or replace` ليصيرَ مردُّها عامًّا (`kind` و`payload`) لا حقولَ العرضِ وحدَها (BUG-004)، والسحبُ بعدَه ليس تضييقًا بل إعادةُ قفلِ السطحِ كما كان: الدالّةُ كانت ممنوحةً لـ`service_role` وحدها قبلَ التغييرِ وتبقى كذلك بعده، و`create or replace` لا تُسقِطُ منحًا قائمًا أصلًا. والعودةُ بالكودِ وحده: الصورةُ السابقةُ تقرأُ حقولَ العرضِ من مردِّ الدالّةِ فلا تُنشَرُ الهجرةُ دونَ كودِها ولا يُرجَعُ الكودُ دونَ إرجاعِ الدالّةِ معه.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /** وسمُ المدخلِ بالصورةِ التي تُطابِق `riskTag`. */

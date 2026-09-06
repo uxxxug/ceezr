@@ -5,13 +5,14 @@
  *   لا تيليجرامَ فعليٌّ هنا؛ الناشرُ المزدوجُ يُثبتُ أثرَ الإرسالِ ومعرّفَ الرسالةِ.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { deliverOfferNotifications } from "../../apps/workers/src/jobs/deliver-offer-notifications.ts";
+import { deliverNotifications } from "../../apps/workers/src/jobs/deliver-notifications.ts";
 import type { OfferPublisher } from "../../packages/application/dispatch/broadcast-offers.ts";
+import { createOfferNotificationHandler } from "../../packages/application/dispatch/deliver-offer-notification.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type { DistanceKm } from "../../packages/domain/geo/value-objects.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createOfferWriter } from "../../packages/infrastructure/dispatch/dispatch-adapters.ts";
-import { createOfferDeliveryPort } from "../../packages/infrastructure/dispatch/offer-notification-adapters.ts";
+import { createNotificationOutboxPort } from "../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
 
@@ -179,9 +180,9 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
     const published: string[] = [];
     const publisher = recordingPublisher(published, "msg-7", 0);
 
-    const report = await deliverOfferNotifications({
-      deliveries: createOfferDeliveryPort(sql),
-      publisher,
+    const report = await deliverNotifications({
+      outbox: createNotificationOutboxPort(sql),
+      handlers: { offer: createOfferNotificationHandler(publisher) },
     });
 
     expect(report.ok).toBe(true);
@@ -200,9 +201,9 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
     const offerId = await openRound();
 
     // المحاولةُ الأولى تفشلُ: الصفُّ يعودُ pending بموعدٍ جديد، ولا يُفقدُ العرضُ.
-    const first = await deliverOfferNotifications({
-      deliveries: createOfferDeliveryPort(sql),
-      publisher: recordingPublisher([], "msg-8", 1),
+    const first = await deliverNotifications({
+      outbox: createNotificationOutboxPort(sql),
+      handlers: { offer: createOfferNotificationHandler(recordingPublisher([], "msg-8", 1)) },
     });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
@@ -219,9 +220,11 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
     await sql`update notification_outbox set next_attempt_at = now() where offer_id = ${offerId}::uuid`;
 
     const published: string[] = [];
-    const second = await deliverOfferNotifications({
-      deliveries: createOfferDeliveryPort(sql),
-      publisher: recordingPublisher(published, "msg-8", 0),
+    const second = await deliverNotifications({
+      outbox: createNotificationOutboxPort(sql),
+      handlers: {
+        offer: createOfferNotificationHandler(recordingPublisher(published, "msg-8", 0)),
+      },
     });
     expect(second.ok).toBe(true);
     if (!second.ok) return;
@@ -247,9 +250,11 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
     `;
 
     const published: string[] = [];
-    const report = await deliverOfferNotifications({
-      deliveries: createOfferDeliveryPort(sql),
-      publisher: recordingPublisher(published, "msg-9", 0),
+    const report = await deliverNotifications({
+      outbox: createNotificationOutboxPort(sql),
+      handlers: {
+        offer: createOfferNotificationHandler(recordingPublisher(published, "msg-9", 0)),
+      },
     });
 
     expect(report.ok).toBe(true);
@@ -271,9 +276,11 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
     await sql`update order_offers set expires_at = now() - interval '1 minute' where id = ${offerId}::uuid`;
 
     const published: string[] = [];
-    const report = await deliverOfferNotifications({
-      deliveries: createOfferDeliveryPort(sql),
-      publisher: recordingPublisher(published, "msg-10", 0),
+    const report = await deliverNotifications({
+      outbox: createNotificationOutboxPort(sql),
+      handlers: {
+        offer: createOfferNotificationHandler(recordingPublisher(published, "msg-10", 0)),
+      },
     });
 
     expect(report.ok).toBe(true);
@@ -322,9 +329,11 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
 
     // تسليمٌ ناجحٌ أوّلًا.
     const firstPublished: string[] = [];
-    const first = await deliverOfferNotifications({
-      deliveries: createOfferDeliveryPort(sql),
-      publisher: recordingPublisher(firstPublished, "msg-11", 0),
+    const first = await deliverNotifications({
+      outbox: createNotificationOutboxPort(sql),
+      handlers: {
+        offer: createOfferNotificationHandler(recordingPublisher(firstPublished, "msg-11", 0)),
+      },
     });
     expect(first.ok).toBe(true);
     if (!first.ok) return;
@@ -334,9 +343,11 @@ describeIf("notification_outbox على PostgreSQL فعلية (BUG-004)", () => {
     // دورةٌ ثانيةٌ بناشرٍ يسجّلُ كلَّ نداءٍ: الصفُّ المُسلَّمُ لم يَعُد pending، فلا
     // يُلتقطُ أصلًا، ولا يُنشرُ له مرّةً ثانية.
     const secondPublished: string[] = [];
-    const second = await deliverOfferNotifications({
-      deliveries: createOfferDeliveryPort(sql),
-      publisher: recordingPublisher(secondPublished, "msg-11", 0),
+    const second = await deliverNotifications({
+      outbox: createNotificationOutboxPort(sql),
+      handlers: {
+        offer: createOfferNotificationHandler(recordingPublisher(secondPublished, "msg-11", 0)),
+      },
     });
     expect(second.ok).toBe(true);
     if (!second.ok) return;

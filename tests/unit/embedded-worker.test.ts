@@ -162,7 +162,7 @@ describe("العامل المدمج داخل عملية البوابة", () => {
         `deliver-broadcasts:${CITY_ID}`,
         `deliver-subscription-notices:${CITY_ID}`,
         "deliver-safety-incidents",
-        "deliver-offer-notifications",
+        "deliver-notifications",
         "expire-subscriptions",
         "recompute-ratings",
       ]) {

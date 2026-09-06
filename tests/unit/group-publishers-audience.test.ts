@@ -27,6 +27,7 @@ import { describe, expect, test } from "bun:test";
 /** ملفّات الربط الوحيدة التي تُنشئ ناشري القروبات. */
 const WIRING_FILES = [
   "apps/gateway/src/container.ts",
+  "apps/workers/src/container.ts",
   "packages/infrastructure/dispatch/negotiation-wiring.ts",
 ] as const;
 
@@ -112,11 +113,18 @@ describe("البند 6.2 — بوت السائق وحده ينشر في القر
 
   test("تبليغ صاحب التذكرة يبقى بمُرسِل بوته هو — لا يُجرّ إلى قاعدة القروبات", () => {
     // القاعدة «بوت السائق ينشر» تخصّ القروب وحده؛ رسالةٌ خاصّة إلى راكبٍ يجب أن
-    // تصله من البوت الذي يحاوره، وإلّا وصلته من بوتٍ لم يبدأ معه محادثة أصلاً
-    const container = sources.get("apps/gateway/src/container.ts") ?? "";
-    const notifiers = callArguments(container, "createTicketOwnerNotifier");
+    // تصله من البوت الذي يحاوره، وإلّا وصلته من بوتٍ لم يبدأ معه محادثة أصلاً.
+    // ومنذ توحيدِ صندوقِ الصادرِ (BUG-004) صار موضعُ الربطِ عاملَ التسليمِ لا
+    // البوابةَ — والقاعدةُ نفسُها تبقى: مُرسِلانِ لا واحد، واحدٌ لكلّ بوت.
+    const notifiers = [...sources.values()].flatMap((source) =>
+      callArguments(source, "createTicketOwnerNotifier"),
+    );
     expect(notifiers).toHaveLength(2);
-    expect(notifiers.some((argument) => argument.includes("riderSender"))).toBe(true);
-    expect(notifiers.some((argument) => argument.includes("supportSender"))).toBe(true);
+    expect(notifiers.some((argument) => argument.includes("riderTelegram"))).toBe(true);
+    expect(
+      notifiers.some(
+        (argument) => argument.includes("(telegram)") || argument.includes("supportSender"),
+      ),
+    ).toBe(true);
   });
 });

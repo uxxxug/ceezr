@@ -19,7 +19,7 @@ import {
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { testConfig } from "../support/config.ts";
-import { drainOfferOutbox } from "../support/drain-offer-outbox.ts";
+import { drainOfferOutbox } from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
