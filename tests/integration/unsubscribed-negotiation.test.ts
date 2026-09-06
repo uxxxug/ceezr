@@ -23,6 +23,7 @@ import { testConfig } from "../support/config.ts";
 import {
   drainNotificationOutbox,
   negotiationHandlers,
+  unmatchedHandlers,
 } from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -214,6 +215,9 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
   const deliverQueued = () =>
     drainNotificationOutbox(sql, capturing(driverSent), {
       ...negotiationHandlers(capturing(driverSent), capturing(riderSent)),
+      // فتحُ الدورةِ يُودِعُ إخطارَ صاحبِ الطلبِ في الصفِّ نفسِه: مَن يُفرِّغُ الصفَّ
+      // يُفرِّغُه كما يفعلُ العاملُ — بمعالجاتِ كلِّ نوعٍ فيه لا بنوعٍ واحدٍ منه.
+      ...unmatchedHandlers(capturing(riderSent)),
     });
 
   it("ينشر بطاقة في قروب المدينة بلا رقم هاتف ولا موقع دقيق، ويحفظ معرّف الرسالة", async () => {

@@ -185,6 +185,11 @@ async function createFixture(): Promise<void> {
   if (cycle[0]?.result.ok !== true) throw new Error("تعذّر فتحُ دورةِ غيرِ المشتركين");
   negotiationId = cycle[0]?.result.negotiation_id ?? "";
   if (negotiationId === "") throw new Error("دورةٌ بلا معرّف");
+
+  // فتحُ الدورةِ إعدادٌ هنا لا موضوعُ قياسٍ، وهو يُودِعُ إخطارَ صاحبِ الطلبِ أيضًا.
+  // ذاك النوعُ مقيسٌ في ملفِّه (`notification-outbox-unmatched`)، وبقاؤه في الصفِّ
+  // يُدخِلُ صفًّا أجنبيًّا في كلِّ عدٍّ هنا. فيُنقّى الصفُّ لأنواعِ التفاوضِ وحدَها.
+  await sql`delete from notification_outbox where kind = 'wider_circle_opened'`;
 }
 
 async function claim(index: number): Promise<{ ok: boolean; notifications_queued?: number }> {

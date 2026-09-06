@@ -53,7 +53,9 @@ export async function drainNotificationOutbox(
   const all = { offer: createOfferNotificationHandler(publisher), ...handlers };
   for (let i = 0; i < 20; i++) {
     const report = await deliverNotifications({ outbox, handlers: all });
-    if (!report.ok) return;
+    // إخفاقُ الدفعةِ لا يُبتلَعُ: نوعٌ بلا معالجٍ أو منفذٌ ساقطٌ يُسقِطُ الاختبارَ
+    // بسببِه مكتوباً، لا يتركُ رسالةً غائبةً يُفسِّرُها المرءُ خطأً بعطبٍ في المنطق.
+    if (!report.ok) throw new Error(`تعذّرَ تفريغُ صندوقِ الصادرِ: ${report.error.detail}`);
     if (report.value.claimed === 0) return;
   }
 }

@@ -23,6 +23,10 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { testConfig } from "../support/config.ts";
+import {
+  cancellationHandlers,
+  drainNotificationOutbox,
+} from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -260,6 +264,14 @@ describeIf("إلغاء الطلب: أي طلب أُلغي، ومن عَلِم ب
     const stillPending = await sql<{ count: string }[]>`
       select count(*) from order_offers where status = 'pending'`;
     expect(Number(stillPending[0]?.count)).toBe(0);
+
+    // منذُ BUG-004 يُودَعُ إخطارُ السائقِ في معاملةِ الإلغاءِ ويُسلَّمُ بعدَها من
+    // العامل: فيُفرَّغُ الصفُّ هنا كما يُفرِّغُه هو، وإلّا قِيسَ ما لم يُنفَّذْ بعدُ.
+    await drainNotificationOutbox(
+      sql,
+      capturing(driverSent),
+      cancellationHandlers(capturing(driverSent)),
+    );
 
     // السائق عَلِم فعلاً — لا مجرّد صفّ تغيّر في القاعدة
     const told = driverSent.some((sent) => sent.text.includes("أُلغي"));
