@@ -20,7 +20,7 @@ import {
 import type { DistanceKm } from "../../packages/domain/geo/value-objects.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/index.ts";
-import { JEDDAH, notifierDouble, offerWriterDouble, orderWriter } from "../support/bot-doubles.ts";
+import { JEDDAH, offerWriterDouble, orderWriter } from "../support/bot-doubles.ts";
 import {
   candidateRepo,
   fixedClock,
@@ -134,7 +134,6 @@ describe("application/delivery — requestDelivery", () => {
   it("يكتب طلباً بخدمة delivery ووصف الطرد في notes ثم يبثّه على سائق التوصيل", async () => {
     const orders = orderWriter(ORDER_ID);
     const offers = offerWriterDouble();
-    const notifier = notifierDouble();
     const courier = candidate("courier-1", "delivery", "delivery");
 
     const result = await requestDelivery(
@@ -153,7 +152,6 @@ describe("application/delivery — requestDelivery", () => {
           candidates: candidateRepo([courier]),
           settings: settingsRepo(seededRows(JEDDAH.id)),
           offerWriter: offers,
-          notifier,
           clock: fixedClock(NOW),
         },
       },
@@ -165,7 +163,7 @@ describe("application/delivery — requestDelivery", () => {
     expect(orders.createdFull[0]?.service).toBe("delivery");
     expect(orders.createdFull[0]?.notes).toBe(PARCEL);
     expect(orders.createdFull[0]?.dropoff).toEqual(DROPOFF);
-    expect(result.value.notified).toEqual([courier.driverId]);
+    expect(result.value.offered).toEqual([courier.driverId]);
     expect(result.value.broadcastFailure).toBeNull();
     expect(offers.rounds[0]?.entries.map((e) => e.driverId)).toEqual([courier.driverId]);
   });
@@ -188,7 +186,6 @@ describe("application/delivery — requestDelivery", () => {
           candidates: candidateRepo([]),
           settings: settingsRepo(seededRows(JEDDAH.id)),
           offerWriter: offerWriterDouble(),
-          notifier: notifierDouble(),
           clock: fixedClock(NOW),
         },
       },
@@ -216,7 +213,6 @@ describe("application/delivery — requestDelivery", () => {
           candidates: candidateRepo([]),
           settings: settingsRepo(seededRows(JEDDAH.id)),
           offerWriter: offerWriterDouble(),
-          notifier: notifierDouble(),
           clock: fixedClock(NOW),
         },
       },
@@ -224,7 +220,7 @@ describe("application/delivery — requestDelivery", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(orders.createdFull).toHaveLength(1);
-    expect(result.value.notified).toEqual([]);
+    expect(result.value.offered).toEqual([]);
     expect(result.value.broadcastFailure).not.toBeNull();
   });
 });

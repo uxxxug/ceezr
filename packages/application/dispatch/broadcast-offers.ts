@@ -109,6 +109,11 @@ export interface CancellationNotice {
  * لم يَعُدْ يُرسَلُ متزامناً خارجَ المعاملة، بل يُكتَبُ صفُّهُ في open_offer_round
  * ويُرسَلُ من عاملٍ لاحقاً (BUG-004). الواجهةُ تبقى حتى لا تنكسرَ الاستيراداتُ
  * القائمةُ، لكنّ notifyOffer لم يَعُدْ يُستدعى من broadcastOffers.
+ *
+ * وموضعُه ليس `BroadcastDependencies`: من يُلغي طلباً هو من يحتاجُه، فيُعلَنُ في
+ * تبعيات بوت العميل (`RiderBotDependencies.matching`) لا في تبعيات البثّ. فرضُه على
+ * كلّ منادٍ للبثّ كان يُلزمُ عاملَ إعادةِ البثّ — ولا مسارَ إلغاءٍ فيه أصلاً — بتوصيل
+ * منفذٍ لا يُستدعى أبداً: توصيلٌ ميتٌ يُوهِمُ قارئَه بأنّ البثّ يُرسل.
  */
 export interface DriverNotifier {
   /** يعيد false إن تعذّر الوصول للسائق — ولا يرمي، فالبثّ يستمر لبقية الدفعة. */
@@ -132,14 +137,6 @@ export interface OfferPublisher {
 
 export interface BroadcastDependencies extends MatchOrderDependencies {
   readonly offerWriter: OfferWriter;
-  /**
-   * منفذُ إخطارِ الإلغاءِ — يُستهلَكُ من مسارِ إلغاءِ الطلبِ لا من broadcastOffers.
-   * ظلَّ هنا لأنَّ كائنَ `matching` يُمرَّرُ إلى مسارَي البثِّ والإلغاءِ معًا، وهذا
-   * المنفذُ هو ما يُخطرُ السائقَ بأنَّ الطلبَ أُلغي. أمّا إشعارُ العرضِ نفسُه فقد
-   * غادَرَ broadcastOffers تمامًا: يُكتَبُ صفُّهُ في open_offer_round ويُرسَلُ من
-   * عاملٍ لاحقًا (`BUG-004`)، فلا يُستدعى `notifyOffer` بعد اليوم من هنا.
-   */
-  readonly notifier: DriverNotifier;
   /**
    * اختياري فلا يكسر منادياً، ولكنّ غيابه كان علّة حقيقية: عند انعدام المؤهلين
    * تُرجع `NoEligibleDriverError` ومعها أسباب الرفض كاملة، ومنادي بوت العميل

@@ -14,7 +14,11 @@ import { DEFAULT_SESSION_POLICY } from "../../domain/tracking/session.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { requestDelivery } from "../delivery/request-delivery.ts";
-import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
+import {
+  type BroadcastDependencies,
+  type DriverNotifier,
+  broadcastOffers,
+} from "../dispatch/broadcast-offers.ts";
 import {
   type RelayDependencies,
   relayNegotiationMessage,
@@ -88,8 +92,12 @@ export interface RiderBotDependencies {
    * و`/status`، فتحميله بصفوفٍ منتهية يُثقل أكثر المسارات طَرْقاً لأجل أندرها.
    */
   readonly pastOrdersOf: (riderId: RiderProfile["id"]) => Promise<readonly PastOrderSummary[]>;
-  /** تبعيات المطابقة والبثّ نفسها المستخدمة في broadcastOffers — لا تكرار للمنطق. */
-  readonly matching: BroadcastDependencies;
+  /**
+   * تبعيات المطابقة والبثّ نفسها المستخدمة في broadcastOffers — لا تكرار للمنطق،
+   * ومعها منفذُ إخطارِ الإلغاء: هذا البوت وحدَه هو من يلغي الطلب، فالحقلُ مطلوبٌ
+   * هنا لا في تبعيات البثّ التي لا تستدعيه (BUG-004).
+   */
+  readonly matching: BroadcastDependencies & { readonly notifier: DriverNotifier };
   readonly clock: Clock;
   /** مسار التفاوض مع غير المشتركين (المرحلة 2.3) — اختياري كما في بوت السائق. */
   readonly negotiation?: {
@@ -1308,10 +1316,10 @@ async function handleParcel(
       trackingMenu(state),
     ),
   ];
-  if (requested.value.notified.length === 0) return replies;
+  if (requested.value.offered.length === 0) return replies;
   return [
     ...replies,
-    reply(sender, tr("rider.drivers_notified", { count: requested.value.notified.length })),
+    reply(sender, tr("rider.drivers_notified", { count: requested.value.offered.length })),
   ];
 }
 
@@ -1348,14 +1356,15 @@ async function createOrderAndMatch(
     ),
   ];
 
-  // البثّ الحقيقي يبدأ فوراً: تُكتب العروض في order_offers ويُخطَر السائقون.
+  // البثّ الحقيقي يبدأ فوراً: تُكتب العروض في order_offers ويُكتب لكلِّ عرضٍ صفُّ
+  // إشعارٍ في معاملةِ الدورةِ نفسِها، والإرسالُ إلى السائقِ يتولّاه عاملُ التسليم (BUG-004).
   // لا سائق الآن؟ الطلب يبقى في حالة البحث وتتولّاه دورات البثّ التالية — والعميل يُخبَر بصدق.
   const broadcast = await broadcastOffers({ orderId: created.value }, deps.matching);
   if (!broadcast.ok) return replies;
-  if (broadcast.value.notified.length === 0) return replies;
+  if (broadcast.value.offered.length === 0) return replies;
 
   return [
     ...replies,
-    reply(sender, tr("rider.drivers_notified", { count: broadcast.value.notified.length })),
+    reply(sender, tr("rider.drivers_notified", { count: broadcast.value.offered.length })),
   ];
 }

@@ -19,7 +19,7 @@ import type { Subscription } from "../../packages/domain/subscription/entity.ts"
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, isErr, isOk, ok } from "../../packages/shared/result/index.ts";
-import { notifierDouble, offerWriterDouble } from "../support/bot-doubles.ts";
+import { offerWriterDouble } from "../support/bot-doubles.ts";
 import {
   candidateRepo,
   fixedClock,
@@ -81,10 +81,9 @@ function deps(over: Partial<BroadcastDependencies> = {}): BroadcastDependencies 
     settings: settingsRepo(seededRows(JED, {})),
     clock: fixedClock(NOW),
     offerWriter: offerWriterDouble(),
-    // broadcastOffers لا يستدعي notifyOffer بعد BUG-004 (يُكتَبُ صفُّ الإشعارِ في معاملةِ العروض)،
-    // لكنّ الحقلَ مطلوبٌ في BroadcastDependencies لأنّ كائن matching في البوابة يُستخدمُ أيضًا
-    // في إلغاء الطلب (notifyCancelled). نُزوّدُهُ ببديلٍ صامتٍ هنا إذ لا يُستدعى.
-    notifier: notifierDouble(),
+    // ولا notifier هنا: broadcastOffers لا يستدعي notifyOffer بعد BUG-004 — يُكتَبُ صفُّ
+    // الإشعارِ في معاملةِ العروض ويُرسلُ من العامل، والمنفذُ غادَرَ تبعياتِ البثّ إلى تبعياتِ
+    // بوتِ العميلِ حيثُ يُستدعى فعلاً (notifyCancelled).
     ...over,
   };
 }
@@ -148,10 +147,7 @@ describe("broadcastOffers", () => {
           status: "matched" as const,
         }),
     };
-    const result = await broadcastOffers(
-      { orderId: ORDER_ID },
-      deps({ offerWriter: refusing }),
-    );
+    const result = await broadcastOffers({ orderId: ORDER_ID }, deps({ offerWriter: refusing }));
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
@@ -163,10 +159,7 @@ describe("broadcastOffers", () => {
       openRound: async () =>
         ok({ opened: false as const, refusal: "ROUND_ALREADY_OPENED" as const }),
     };
-    const result = await broadcastOffers(
-      { orderId: ORDER_ID },
-      deps({ offerWriter: refusing }),
-    );
+    const result = await broadcastOffers({ orderId: ORDER_ID }, deps({ offerWriter: refusing }));
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
@@ -178,10 +171,7 @@ describe("broadcastOffers", () => {
     const refusing = {
       openRound: async () => ok({ opened: false as const, refusal: "ORDER_NOT_FOUND" as const }),
     };
-    const result = await broadcastOffers(
-      { orderId: ORDER_ID },
-      deps({ offerWriter: refusing }),
-    );
+    const result = await broadcastOffers({ orderId: ORDER_ID }, deps({ offerWriter: refusing }));
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;

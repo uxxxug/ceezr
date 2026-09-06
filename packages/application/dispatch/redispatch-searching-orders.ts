@@ -123,8 +123,6 @@ export async function redispatchSearchingOrders(
         cityId,
         round: result.value.round,
         offered: result.value.offered.length,
-        notified: result.value.notified.length,
-        unreachable: result.value.unreachable.length,
         waitingSeconds: order.waitingSeconds,
       });
       continue;
