@@ -11,12 +11,15 @@ import type { DialogState, SessionStore } from "../../../../../packages/applicat
 import type { PortFailureError } from "../../../../../packages/application/ports/index.ts";
 import type { Clock } from "../../../../../packages/shared/kernel/index.ts";
 import { ok, type Result } from "../../../../../packages/shared/result/index.ts";
+import { attachRevision, readRevision, SessionCasConflictError } from "./session-revision.ts";
 
 /** مهلة الجلسة التقنية (ليست قيمة تجارية): حوار متروك نصف ساعة يُنسى. */
 export const SESSION_TTL_SECONDS = 1800;
 
 interface StoredEntry {
   readonly state: DialogState;
+  /** مراجعة الجلسة لمقارنة CAS — تمنع الكتابة المتزامنة فوق حالة أحدث (BUG-007). */
+  readonly revision: number;
   readonly expiresAtMs: number;
 }
 
@@ -50,13 +53,31 @@ export function createMemorySessionStore(
       const nowMs = clock.now().getTime();
       purgeExpired(nowMs);
       const entry = entries.get(telegramUserId);
-      return ok(entry === undefined ? null : entry.state);
+      // المراجعةُ تُرفق بالحالة كرمزٍ فيُحملها الحوار عبر الانتشار إلى `save`،
+      // فلا يحتاج توقيعُ المنفذ إلى تغيير، ولا يعلم الحوارُ بوجودها.
+      return ok(entry === undefined ? null : attachRevision(entry.state, entry.revision));
     },
 
     save: async (telegramUserId, state): Promise<Result<void, PortFailureError>> => {
       const nowMs = clock.now().getTime();
       purgeExpired(nowMs);
-      entries.set(telegramUserId, { state, expiresAtMs: nowMs + ttlSeconds * 1000 });
+      // CAS: لا تكتب إلا إن كانت مراجعةُ الحالةُ المُمرَّرة تطابقُ مراجعةَ آخرِ تحميل.
+      // تحديثان متزامنان لِنفس المستخدم: الأول ينجح ويرفع المراجعة، والثاني يرى
+      // المراجعةَ تغيّرت فيرمي الإشارةَ فيعيدُ المحوّلُ المحاولةَ بعد إعادة التحميل.
+      const expected = readRevision(state);
+      const existing = entries.get(telegramUserId);
+      const currentRevision = existing?.revision ?? 0;
+      if (currentRevision !== expected) {
+        throw new SessionCasConflictError(telegramUserId, expected);
+      }
+      const newRevision = expected + 1;
+      entries.set(telegramUserId, {
+        state,
+        revision: newRevision,
+        expiresAtMs: nowMs + ttlSeconds * 1000,
+      });
+      // حدِّث المراجعةَ على كائن الحالة لحفظٍ لاحقٍ محتملٍ في نفس المعالجة.
+      attachRevision(state, newRevision);
       return ok(undefined);
     },
 

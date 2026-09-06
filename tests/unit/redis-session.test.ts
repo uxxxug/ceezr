@@ -11,9 +11,16 @@ import { describe, expect, it } from "bun:test";
 import {
   createRedisSessionStore,
   parseDialogState,
+  parseSessionEnvelope,
   REDIS_SESSION_PREFIX,
 } from "../../apps/gateway/src/bots/shared/redis-session.ts";
 import { SESSION_TTL_SECONDS } from "../../apps/gateway/src/bots/shared/session.ts";
+import {
+  attachRevision,
+  readRevision,
+  SessionCasConflictError,
+  stripRevision,
+} from "../../apps/gateway/src/bots/shared/session-revision.ts";
 import { createUpstashRedis, type RedisClient } from "../../apps/gateway/src/redis/upstash.ts";
 import { type DialogState, INITIAL_STATE } from "../../packages/application/bots/types.ts";
 import type { CityId } from "../../packages/shared/kernel/index.ts";
@@ -53,6 +60,32 @@ function fakeRedis(): RedisClient & {
         const existed = store.delete(key);
         return { ok: true, value: existed ? 1 : 0 };
       }
+      if (name === "EVAL") {
+        // محاكاةُ سكربتِ CAS: ["EVAL", script, numkeys, key, stateJson, expected, ttl]
+        const evalKey = String(args[3] ?? "");
+        const stateJson = String(args[4] ?? "{}");
+        const expected = Number(args[5] ?? 0);
+        const ttl = Number(args[6] ?? 0);
+        const current = store.get(evalKey);
+        let currentRevision = 0;
+        if (current !== undefined) {
+          try {
+            const parsed = JSON.parse(current) as Record<string, unknown>;
+            if (typeof parsed.revision === "number" && typeof parsed.state === "object") {
+              currentRevision = parsed.revision;
+            }
+          } catch {
+            currentRevision = 0;
+          }
+        }
+        if (currentRevision !== expected) return { ok: true, value: 0 };
+        const newRevision = expected + 1;
+        const envelope = JSON.stringify({ revision: newRevision, state: JSON.parse(stateJson) });
+        store.set(evalKey, envelope);
+        // المهلةُ لا تُحاكى هنا — يُختبر EX في الاختبار المخصّص.
+        void ttl;
+        return { ok: true, value: newRevision };
+      }
       return { ok: false, error: { kind: "redis", detail: `أمر غير مدعوم: ${name}` } };
     },
   };
@@ -71,7 +104,8 @@ describe("مخزن الجلسات على Redis", () => {
     const loaded = await store.load("770");
 
     expect(loaded.ok).toBe(true);
-    expect(loaded.ok && loaded.value).toEqual(FULL_STATE);
+    // المراجعةُ رمزٌ عابرٌ لا جزءٌ من الحالة، فتُنزَع قبل المقارنة.
+    expect(loaded.ok && stripRevision(loaded.value)).toEqual(FULL_STATE);
   });
 
   it("جلسة غير موجودة تعني null لا خطأ", async () => {
@@ -113,14 +147,18 @@ describe("مخزن الجلسات على Redis", () => {
     const redis = fakeRedis();
     await createRedisSessionStore(redis, "driver").save("770", INITIAL_STATE);
 
-    const setCall = redis.calls.find((call) => call[0] === "SET");
-    expect(setCall?.slice(3)).toEqual(["EX", SESSION_TTL_SECONDS]);
+    const evalCall = redis.calls.find((call) => call[0] === "EVAL");
+    expect(evalCall?.[0]).toBe("EVAL");
+    // وسائطُ EVAL: ["EVAL", script, numkeys, key, stateJson, expected, ttl]
+    expect(evalCall?.slice(5)).toEqual([String(0), String(SESSION_TTL_SECONDS)]);
   });
 
   it("مهلة مخصّصة تُحترم كما مُرّرت", async () => {
     const redis = fakeRedis();
     await createRedisSessionStore(redis, "rider", { ttlSeconds: 60 }).save("1", INITIAL_STATE);
-    expect(redis.calls[0]?.slice(3)).toEqual(["EX", 60]);
+    const evalCall = redis.calls[0];
+    expect(evalCall?.[0]).toBe("EVAL");
+    expect(evalCall?.slice(5)).toEqual([String(0), String(60)]);
   });
 
   it("انقطاع Redis يُعيد عطل منفذ لا جلسة فارغة صامتة", async () => {
@@ -160,6 +198,139 @@ describe("مخزن الجلسات على Redis", () => {
     redis.store.set(`${REDIS_SESSION_PREFIX}:rider:9`, "ليس JSON إطلاقاً");
     const loaded = await createRedisSessionStore(redis, "rider").load("9");
     expect(loaded).toEqual({ ok: true, value: null });
+  });
+});
+
+describe("CAS على جلسات Redis — BUG-007", () => {
+  it("الكتابةُ الأولى تنجحُ وتُغلِّفُ الحالةَ بمراجعةٍ 1", async () => {
+    const redis = fakeRedis();
+    const store = createRedisSessionStore(redis, "driver");
+    const saved = await store.save("770", FULL_STATE);
+    expect(saved.ok).toBe(true);
+
+    // المخزونُ في Redis مغلفٌ لا خام: { revision, state }.
+    const raw = redis.store.get(`${REDIS_SESSION_PREFIX}:driver:770`);
+    expect(raw).toBeDefined();
+    const envelope = JSON.parse(raw ?? "{}") as { revision: number; state: unknown };
+    expect(envelope.revision).toBe(1);
+    expect(stripRevision(envelope.state as DialogState)).toEqual(FULL_STATE);
+  });
+
+  it("المراجعةُ تُحمَل مع الحالة فالكتابةُ الثانية المتسلسلة تنجح", async () => {
+    const redis = fakeRedis();
+    const store = createRedisSessionStore(redis, "driver");
+
+    await store.save("770", FULL_STATE);
+    const loaded = await store.load("770");
+    expect(loaded.ok && loaded.value).not.toBeNull();
+    // المراجعةُ المُرفقةُ = 1 (آخرُ كتابة)، فالكتابةُ بهذه الحالة تنجح.
+    const state = loaded.ok && loaded.value ? loaded.value : FULL_STATE;
+    const second = await store.save("770", { ...state, step: "awaiting_phone" } as DialogState);
+    expect(second.ok).toBe(true);
+
+    const envelope = JSON.parse(redis.store.get(`${REDIS_SESSION_PREFIX}:driver:770`) ?? "{}");
+    expect(envelope.revision).toBe(2);
+  });
+
+  it("كتابتانِ متزامنتانِ بمراجعةٍ قديمة: الأولى تنجحُ والثانية تتعارضُ بلا فقدان", async () => {
+    const redis = fakeRedis();
+    const store = createRedisSessionStore(redis, "driver");
+
+    // كلتا القراءتين تريان المراجعةَ 0 (لا جلسة بعد).
+    const a = await store.load("770");
+    const b = await store.load("770");
+    const stateA = a.ok && a.value ? a.value : FULL_STATE;
+    const stateB = b.ok && b.value ? b.value : FULL_STATE;
+
+    // الأولى تكتبُ أولاً فتنجحُ وترفعُ المراجعةَ إلى 1.
+    await store.save("770", { ...stateA, step: "awaiting_name" } as DialogState);
+
+    // الثانية تحملُ المراجعةَ 0 القديمة، بينما الخادمُ صار 1 — تعارضٌ لا كتابةٌ صامتة.
+    await expect(
+      store.save("770", { ...stateB, step: "awaiting_phone" } as DialogState),
+    ).rejects.toBeInstanceOf(SessionCasConflictError);
+
+    // الحالةُ في الخادمِ هي ما كتبه الفائزُ، لا ما حاولَ الخاسرُ.
+    const finalLoad = await store.load("770");
+    expect(finalLoad.ok && finalLoad.value?.step).toBe("awaiting_name");
+  });
+
+  it("جلسةٌ إرثٌ خامٌ (كُتبت قبلَ المغلف) تُقرأ مراجعتُها 0 فأولُ كتابةٍ تُغلِّفُها", async () => {
+    const redis = fakeRedis();
+    // إرثٌ: نصٌّ خامٌّ لحالةِ حوارٍ بلا revision.
+    redis.store.set(
+      `${REDIS_SESSION_PREFIX}:driver:770`,
+      JSON.stringify({ ...INITIAL_STATE, step: "awaiting_name" }),
+    );
+
+    const store = createRedisSessionStore(redis, "driver");
+    const loaded = await store.load("770");
+    expect(loaded.ok && loaded.value?.step).toBe("awaiting_name");
+    // المراجعةُ الإرثُ = 0.
+    expect(loaded.ok && readRevision(loaded.value ?? FULL_STATE)).toBe(0);
+
+    // الكتابةُ بهذه الحالة تنجحُ وترفعُ المراجعةَ إلى 1 — هجرةٌ صامتةٌ.
+    const loadedState = loaded.ok && loaded.value ? loaded.value : INITIAL_STATE;
+    const saved = await store.save("770", {
+      ...loadedState,
+      step: "awaiting_phone",
+    } as DialogState);
+    expect(saved.ok).toBe(true);
+    const envelope = JSON.parse(redis.store.get(`${REDIS_SESSION_PREFIX}:driver:770`) ?? "{}");
+    expect(envelope.revision).toBe(1);
+  });
+
+  it("حالةٌ فاسدةٌ في الخادم تُمحى فلا تُعطَّل الكتابةُ اللاحقة", async () => {
+    const redis = fakeRedis();
+    redis.store.set(`${REDIS_SESSION_PREFIX}:driver:770`, '{"step":"خطوة-لا-وجود"}');
+    const store = createRedisSessionStore(redis, "driver");
+
+    const loaded = await store.load("770");
+    expect(loaded).toEqual({ ok: true, value: null });
+
+    // بعد المحو، الكتابةُ بمثابةِ جلسةٍ جديدة تنجح.
+    const saved = await store.save("770", INITIAL_STATE);
+    expect(saved.ok).toBe(true);
+  });
+});
+
+describe("فكُّ مغلفِ الجلسة ورمزُ المراجعة", () => {
+  it("يُرجعُ الحالةَ والمراجعةَ من مغلفٍ جديد", () => {
+    const envelope = parseSessionEnvelope(
+      JSON.stringify({ revision: 7, state: { ...INITIAL_STATE, step: "awaiting_phone" } }),
+    );
+    expect(envelope?.revision).toBe(7);
+    expect(envelope?.state.step).toBe("awaiting_phone");
+  });
+
+  it("يُرجعُ مراجعةً 0 لحالةِ إرثٍ خامّة", () => {
+    const envelope = parseSessionEnvelope(
+      JSON.stringify({ ...INITIAL_STATE, step: "awaiting_name" }),
+    );
+    expect(envelope?.revision).toBe(0);
+    expect(envelope?.state.step).toBe("awaiting_name");
+  });
+
+  it("يرفضُ مغلفاً بحالةٍ فاسدة", () => {
+    expect(
+      parseSessionEnvelope(JSON.stringify({ revision: 1, state: { step: "خطوة-لا-وجود" } })),
+    ).toBeNull();
+  });
+
+  it("يرفضُ نصاً ليس JSON", () => {
+    expect(parseSessionEnvelope("ليس JSON")).toBeNull();
+  });
+
+  it("الرمزُ يُحفَظُ عبر الانتشارِ ويُسقطُه JSON", () => {
+    const revised = attachRevision({ ...INITIAL_STATE, step: "awaiting_name" }, 5);
+    expect(readRevision(revised)).toBe(5);
+    const spread = { ...revised, step: "awaiting_phone" };
+    expect(readRevision(spread)).toBe(5);
+    // JSON يُسقطُ الرمزَ فلا تُخزَّن المراجعةُ في الحالة.
+    expect(JSON.parse(JSON.stringify(revised))).toEqual({
+      ...INITIAL_STATE,
+      step: "awaiting_name",
+    });
   });
 });
 

@@ -19,6 +19,7 @@ import type { BotReply } from "../../../../../packages/application/bots/types.ts
 import type { TelegramSender } from "../driver/index.ts";
 import { toTelegramMarkup } from "../shared/keyboards.ts";
 import type { LanguageHydration } from "../shared/language-middleware.ts";
+import { SessionCasConflictError } from "../shared/session-revision.ts";
 import { type RawTelegramUpdate, toIncomingUpdate } from "../shared/telegram-mapper.ts";
 
 export interface RiderBotAdapter {
@@ -37,15 +38,27 @@ export function createRiderBot(
       const incoming = toIncomingUpdate(raw);
       if (incoming === null) return true;
 
-      // قبل الحوار لا بعده: الحوار يقرأ الجلسة في أوّل سطر.
-      if (language !== undefined) await language.hydrate(incoming.from);
-
-      let replies: readonly BotReply[];
-      try {
-        replies = await handleRiderUpdate(incoming, deps);
-      } catch (error) {
-        log("عطل غير متوقَّع في حوار العميل", { detail: String(error) });
-        return false;
+      // قبل الحوار لا بعده: الحوار يقرأ الجلسة في أوّل سطر. ويُعادُ كلُّه — ترطيبُ اللغة
+      // ثم حسابُ الردود — عند تعارضِ مراجعةِ الجلسة (BUG-007): لا تُرسَلُ رسالةٌ قبلَ
+      // أن تنجحَ الكتابةُ الشرطية. والحدُّ ثلاثٌ: من يفشلُ بعدَها عطلٌ لا تزامن.
+      const MAX_CAS_RETRIES = 3;
+      let replies: readonly BotReply[] = [];
+      for (let attempt = 0; ; attempt++) {
+        try {
+          if (language !== undefined) await language.hydrate(incoming.from);
+          replies = await handleRiderUpdate(incoming, deps);
+          break;
+        } catch (error) {
+          if (error instanceof SessionCasConflictError && attempt < MAX_CAS_RETRIES) {
+            log("تعارض مراجعة جلسة — إعادة المحاولة بعد إعادة التحميل", {
+              attempt: attempt + 1,
+              userId: error.telegramUserId,
+            });
+            continue;
+          }
+          log("عطل غير متوقَّع في حوار العميل", { detail: String(error) });
+          return false;
+        }
       }
 
       for (const reply of replies) {

@@ -22,6 +22,7 @@ import {
   createRedisSessionStore,
   REDIS_SESSION_PREFIX,
 } from "../../apps/gateway/src/bots/shared/redis-session.ts";
+import { stripRevision } from "../../apps/gateway/src/bots/shared/session-revision.ts";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createRedisRateLimiter } from "../../apps/gateway/src/rate-limit/fixed-window.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
@@ -145,7 +146,8 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
     expect(saved.ok).toBe(true);
 
     const loaded = await store.load("11");
-    expect(loaded.ok && loaded.value).toEqual(state("awaiting_name"));
+    // المراجعةُ رمزٌ عابرٌ لا جزءٌ من الحالة، فتُنزَع قبل المقارنة.
+    expect(loaded.ok && stripRevision(loaded.value)).toEqual(state("awaiting_name"));
 
     const cleared = await store.clear("11");
     expect(cleared.ok).toBe(true);
@@ -194,7 +196,7 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
 
     await rider.save("14", state("awaiting_pickup"));
     const driverView = await driver.load("14");
-    expect(driverView.ok && driverView.value).toEqual(state("awaiting_name"));
+    expect(driverView.ok && stripRevision(driverView.value)).toEqual(state("awaiting_name"));
 
     await driver.clear("14");
     await rider.clear("14");
@@ -369,7 +371,12 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       // الحالةُ في الخادمِ الحقيقيِّ لا في ذاكرةِ العمليةِ — يُقرأ المفتاحُ بأمرٍ مستقلٍّ.
       const raw = await redis.client.command(["GET", productionKey]);
       expect(raw.ok).toBe(true);
-      expect(JSON.parse(String(raw.ok ? raw.value : "{}")).step).toBe("awaiting_name");
+      // الحالةُ مغلفةٌ: { revision, state } — الخطوةُ داخلَ state.
+      const envelope = JSON.parse(String(raw.ok ? raw.value : "{}")) as {
+        revision?: number;
+        state?: { step?: string };
+      };
+      expect(envelope.state?.step).toBe("awaiting_name");
 
       await post(text("عبدالله الحربي"));
       await post({

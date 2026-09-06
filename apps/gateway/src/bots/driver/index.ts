@@ -19,6 +19,7 @@ import type { BotReply } from "../../../../../packages/application/bots/types.ts
 import type { TelegramSender as TelegramSenderType } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { isCallbackDataValid, toTelegramMarkup } from "../shared/keyboards.ts";
 import type { LanguageHydration } from "../shared/language-middleware.ts";
+import { SessionCasConflictError } from "../shared/session-revision.ts";
 import { type RawTelegramUpdate, toIncomingUpdate } from "../shared/telegram-mapper.ts";
 
 export type { TelegramSender } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
@@ -48,14 +49,28 @@ export function createDriverBot(
       if (incoming === null) return true; // تحديث لا يخصّنا: نعترف بالاستلام ولا نردّ
 
       // قبل الحوار لا بعده: الحوار يقرأ الجلسة في أوّل سطر، فلا ينفع ترطيبٌ بعده.
-      if (language !== undefined) await language.hydrate(incoming.from);
-
-      let replies: readonly BotReply[];
-      try {
-        replies = await handleDriverUpdate(incoming, deps);
-      } catch (error) {
-        log("عطل غير متوقَّع في حوار السائق", { detail: String(error) });
-        return false;
+      // والحوارُ كلُّه — ترطيبُ اللغة ثم حسابُ الردود — يُعادُ بأكمله عند تعارضِ
+      // مراجعةِ الجلسة (BUG-007): لا تُرسَلُ رسالةٌ قبلَ أن تنجحَ الكتابةُ الشرطية،
+      // فلا يرى السائقُ ردًّا لحالةٍ كُتبَ فوقَها متزامنٌ آخرُ. والحدُّ ثلاثٌ: من
+      // يفشلُ بعدَها عطلٌ لا تزامن.
+      const MAX_CAS_RETRIES = 3;
+      let replies: readonly BotReply[] = [];
+      for (let attempt = 0; ; attempt++) {
+        try {
+          if (language !== undefined) await language.hydrate(incoming.from);
+          replies = await handleDriverUpdate(incoming, deps);
+          break;
+        } catch (error) {
+          if (error instanceof SessionCasConflictError && attempt < MAX_CAS_RETRIES) {
+            log("تعارض مراجعة جلسة — إعادة المحاولة بعد إعادة التحميل", {
+              attempt: attempt + 1,
+              userId: error.telegramUserId,
+            });
+            continue;
+          }
+          log("عطل غير متوقَّع في حوار السائق", { detail: String(error) });
+          return false;
+        }
       }
 
       for (const reply of replies) {

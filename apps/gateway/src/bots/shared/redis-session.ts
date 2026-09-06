@@ -19,6 +19,7 @@ import type { CityId, ServiceType } from "../../../../../packages/shared/kernel/
 import { err, ok, type Result } from "../../../../../packages/shared/result/index.ts";
 import type { RedisClient, RedisFailure } from "../../redis/upstash.ts";
 import { SESSION_TTL_SECONDS } from "./session.ts";
+import { attachRevision, readRevision, SessionCasConflictError } from "./session-revision.ts";
 
 /** بادئة مفاتيح المنصّة في Redis، حتى تتعايش مع أي استعمال آخر لنفس القاعدة. */
 export const REDIS_SESSION_PREFIX = "waslah:session";
@@ -70,6 +71,13 @@ export function parseDialogState(raw: string): DialogState | null {
   } catch {
     return null;
   }
+  return coerceDialogState(parsed);
+}
+
+/**
+ * التحقّقُ نفسه لكن على كائنٍ محلَّل لا على نصّ — ليُعيد استخدامُه عند فكّ المغلف.
+ */
+export function coerceDialogState(parsed: unknown): DialogState | null {
   if (typeof parsed !== "object" || parsed === null) return null;
   const candidate = parsed as Record<string, unknown>;
 
@@ -128,6 +136,72 @@ export function parseDialogState(raw: string): DialogState | null {
   };
 }
 
+/**
+ * مغلفُ الجلسةِ على Redis: `{ revision, state }`. المراجعةُ تُمكِّن CAS فلا
+ * يكتبُ تحديثٌ فوقَ حالةٍ أحدث (BUG-007). والجلساتُ القديمةُ التي كُتبت قبلَ
+ * المغلفِ نصٌّ خامٌ لحالةِ حوارٍ بلا `revision`، فتُقرأ مراجعتُها 0 — هجرةٌ
+ * صامتةٌ لا إلغاءُ جلسةٍ جارية.
+ */
+interface SessionEnvelope {
+  readonly state: DialogState;
+  readonly revision: number;
+}
+
+export function parseSessionEnvelope(raw: string): SessionEnvelope | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null) return null;
+  const candidate = parsed as Record<string, unknown>;
+  // مغلفٌ جديد: { revision: رقم, state: كائن }
+  if (
+    typeof candidate.revision === "number" &&
+    Number.isFinite(candidate.revision) &&
+    typeof candidate.state === "object" &&
+    candidate.state !== null
+  ) {
+    const state = coerceDialogState(candidate.state);
+    if (state === null) return null;
+    return { state, revision: candidate.revision };
+  }
+  // إرثٌ: نصٌّ خامٌّ لحالةِ حوارٍ كُتب قبلَ المغلف — مراجعتُها 0.
+  const legacy = coerceDialogState(parsed);
+  if (legacy === null) return null;
+  return { state: legacy, revision: 0 };
+}
+
+/**
+ * سكربتُ CAS الذرّيُّ على Redis: يقرأُ المغلفَ الحاليَّ ويُقارنُ مراجعتَه بالمراجعةِ
+ * المتوقَّعة، فإن طابقت كتبَ المغلفَ بمراجعةٍ أعلى، وإن لم تطابق ردَّ 0 (تعارض).
+ * ذرّيٌّ لأنّه أمرٌ واحدٌ (EVAL): لا نافذةُ زمنٍ بين القراءةِ والكتابة يكتبُ فيها
+ * متزامنٌ آخرُ فوقَ حالتنا. الجلساتُ الإرثُ تُعامَل مراجعتَها 0 فأوّلُ كتابةٍ بعدَ
+ * الترقية تنجحُ وتُغلِّفُها.
+ */
+const LUA_SESSION_CAS = `
+local key = KEYS[1]
+local newState = ARGV[1]
+local expected = tonumber(ARGV[2])
+local ttl = tonumber(ARGV[3])
+local current = redis.call('GET', key)
+local currentRevision = 0
+if current then
+  local ok, parsed = pcall(cjson.decode, current)
+  if ok and type(parsed) == 'table' and type(parsed.revision) == 'number' and type(parsed.state) == 'table' then
+    currentRevision = parsed.revision
+  end
+end
+if currentRevision ~= expected then
+  return 0
+end
+local newRevision = expected + 1
+local envelope = cjson.encode({ revision = newRevision, state = cjson.decode(newState) })
+redis.call('SET', key, envelope, 'EX', ttl)
+return newRevision
+`;
+
 function portFailure(namespace: SessionNamespace, failure: RedisFailure): PortFailureError {
   return new PortFailureError(`redis-session:${namespace}`, `${failure.kind}: ${failure.detail}`);
 }
@@ -168,10 +242,10 @@ export function createRedisSessionStore(
       if (typeof result.value !== "string") {
         return err(report("load", { kind: "malformed", detail: "القيمة ليست نصّاً" }));
       }
-      // حالة لا تُفهم تُمحى لا تُترك: تركها يعني تكرار نفس الفشل كل رسالة إلى أن
+      // حالةٌ لا تُفهم تُمحى لا تُترك: تركها يعني تكرار نفس الفشل كل رسالة إلى أن
       // تنتهي مهلتها، ومحوها يُعيد المستخدم إلى بداية نظيفة من الرسالة التالية.
-      const state = parseDialogState(result.value);
-      if (state === null) {
+      const envelope = parseSessionEnvelope(result.value);
+      if (envelope === null) {
         options.onFailure?.({
           kind: "malformed",
           detail: "حالة حوار غير صالحة، مُحيت",
@@ -180,18 +254,35 @@ export function createRedisSessionStore(
         await redis.command(["DEL", keyOf(telegramUserId)]);
         return ok(null);
       }
-      return ok(state);
+      // المراجعةُ تُرفق كرمزٍ على الحالة فيحملها الحوار إلى `save` عبر الانتشار،
+      // فيُقارنها CAS دون أن يعلم الحوارُ بوجودها.
+      return ok(attachRevision(envelope.state, envelope.revision));
     },
 
     save: async (telegramUserId, state): Promise<Result<void, PortFailureError>> => {
+      // CAS الذرّيُّ عبر Lua: لا يكتب إلا إن طابقت مراجعةُ الحالة المُمرَّرة مراجعةَ
+      // آخرِ تحميل. JSON.stringify يُسقط الرمزَ فلا تُخزَّن المراجعةُ في الحالة.
+      const expected = readRevision(state);
+      const stateJson = JSON.stringify(state);
       const result = await redis.command([
-        "SET",
+        "EVAL",
+        LUA_SESSION_CAS,
+        1,
         keyOf(telegramUserId),
-        JSON.stringify(state),
-        "EX",
-        ttlSeconds,
+        stateJson,
+        String(expected),
+        String(ttlSeconds),
       ]);
       if (!result.ok) return err(report("save", result.error));
+      const returned = result.value;
+      const newRevision = typeof returned === "number" ? returned : Number(returned);
+      // ردُّ السكربتِ 0 يعني تعارضاً: كتبَ متزامنٌ آخرُ بعدَ تحميلِ هذه الحالة.
+      // ارمِ الإشارةَ لا تُعيدُ خطأً صامتاً، فيُعيدُ المحوّلُ تحميلَ الحالة وإعادةَ
+      // حسابِ الردود قبلَ إرسالِ أيِّ رسالة.
+      if (!Number.isFinite(newRevision) || newRevision === 0) {
+        throw new SessionCasConflictError(telegramUserId, expected);
+      }
+      attachRevision(state, newRevision);
       return ok(undefined);
     },
 
