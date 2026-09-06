@@ -126,11 +126,16 @@ function resolutionKey(action: SupportResolution): string {
 export function createTicketOwnerNotifier(sender: SupportSender): TicketOwnerNotifier {
   return {
     notifyResolution: (input) =>
-      guard("notifier.ticketOwner", async (): Promise<void> => {
+      guard("notifier.ticketOwner", async (): Promise<string | null> => {
         // لغة صاحب التذكرة تأتي من القاعدة مع القرار: قرار مصيري كإنهاء اشتراك
         // يجب أن يصل بلغة يقرؤها صاحبه لا بلغة النظام.
         const tr = t(input.language);
-        await sender.sendReturningId(input.telegramId, tr(resolutionKey(input.action)), undefined);
+        // معرّفُ الرسالةِ يُرجَعُ لا يُهمَلُ: صندوقُ الصادرِ لا يُعلنُ «سُلّمت» إلّا به.
+        return await sender.sendReturningId(
+          input.telegramId,
+          tr(resolutionKey(input.action)),
+          undefined,
+        );
       }),
   };
 }

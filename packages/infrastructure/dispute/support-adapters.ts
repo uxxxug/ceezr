@@ -191,6 +191,7 @@ export function createSupportResolutionPort(sql: Sql): SupportResolutionPort {
             ownerTelegramId: null,
             ownerLanguage: null,
             status: null,
+            notificationQueued: false,
           };
         }
         return {
@@ -200,6 +201,8 @@ export function createSupportResolutionPort(sql: Sql): SupportResolutionPort {
           ownerTelegramId: toText(envelope.owner_telegram_id),
           ownerLanguage: toText(envelope.owner_language),
           status: toText(envelope.status),
+          // إيداعُ صفِّ التبليغِ وقعَ في معاملةِ القرارِ نفسِها لا هنا (BUG-004).
+          notificationQueued: envelope.notification_enqueued === true,
         };
       }),
   };

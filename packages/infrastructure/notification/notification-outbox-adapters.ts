@@ -1,14 +1,15 @@
 /**
- * محوّلاتُ تسليمِ إشعارِ العرضِ إلى RPCs الذرّيّة. كلُّ تغيّرِ حالةٍ يبقى في PostgreSQL:
- * claim بـFOR UPDATE SKIP LOCKED + claim_token، وfinish بالرمزِ لا بالصفّ، وabandon
- * بالرمزِ كذلك. مرآةٌ لـcreateSafetyDeliveryPort في البنية، تزيدُ عليها abandon.
- * (BUG-004.)
+ * محوّلُ صندوقِ الصادرِ الموحَّدِ إلى RPCs الذرّيّة (BUG-004). كلُّ تغيّرِ حالةٍ يبقى
+ * في PostgreSQL: claim بـFOR UPDATE SKIP LOCKED + claim_token، وfinish بالرمزِ لا
+ * بالصفّ، وabandon بالرمزِ كذلك. المحوّلُ لا يعرفُ نوعًا بعينِه: يمرّرُ kind والحمولةَ
+ * كما بنتهما القاعدةُ إلى معالجِ النوعِ. مرآةٌ لـcreateSafetyDeliveryPort في البنية،
+ * تزيدُ عليها abandon.
  */
 import type {
-  OfferDelivery,
-  OfferDeliveryPort,
-} from "../../application/dispatch/deliver-offer-notification.ts";
-import type { CityId, DriverId, OfferId, OrderId } from "../../shared/kernel/index.ts";
+  NotificationOutboxPort,
+  OutboxDelivery,
+} from "../../application/notification/deliver-notification.ts";
+import type { CityId } from "../../shared/kernel/index.ts";
 import { guard, readEnvelope, type Sql } from "../db/client.ts";
 
 function envelope(value: unknown, name: string): Record<string, unknown> {
@@ -17,7 +18,7 @@ function envelope(value: unknown, name: string): Record<string, unknown> {
   return result;
 }
 
-export function createOfferDeliveryPort(sql: Sql): OfferDeliveryPort {
+export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
   return {
     claim: () =>
       guard("rpc.claim_notification_delivery", async () => {
@@ -26,20 +27,20 @@ export function createOfferDeliveryPort(sql: Sql): OfferDeliveryPort {
         if (row.ok !== true) throw new Error(String(row.error ?? "UNKNOWN"));
         const delivery = row.delivery as Record<string, unknown> | null;
         if (delivery == null) return { delivery: null };
+        const payload = delivery.payload;
         return {
           delivery: {
             deliveryId: String(delivery.delivery_id),
-            offerId: String(delivery.offer_id) as OfferId,
-            orderId: String(delivery.order_id) as OrderId,
-            driverId: String(delivery.driver_id) as DriverId,
+            kind: String(delivery.kind),
             cityId: String(delivery.city_id) as CityId,
             claimToken: String(delivery.claim_token),
             attempts: Number(delivery.attempts),
             maxAttempts: Number(delivery.max_attempts),
-            distanceKm: String(delivery.distance_km),
-            expiresAt: String(delivery.expires_at),
-            offerStatus: String(delivery.offer_status),
-          } satisfies OfferDelivery,
+            payload:
+              typeof payload === "object" && payload !== null
+                ? (payload as Record<string, unknown>)
+                : {},
+          } satisfies OutboxDelivery,
         };
       }),
     finish: (input) =>

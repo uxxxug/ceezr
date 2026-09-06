@@ -1,7 +1,10 @@
 /**
  * الغرض: قرار الدعم على التذكرة: تفعيل الاشتراك، أو إنهاؤه يدوياً، أو رفض الطلب —
- *   مع تبليغ صاحب التذكرة بالنتيجة في المسار نفسه.
- * الحالة: منفّذ فعلياً — المرحلة 2.4.
+ *   وتبليغُ صاحبِ التذكرةِ يُودَعُ في صندوقِ الصادرِ **داخلَ معاملةِ القرارِ نفسِها**
+ *   (BUG-004) ويُرسَلُ من عاملِ التسليمِ بعدَ الـcommit. لا أثرَ صادرٌ في هذا المسارِ:
+ *   قرارٌ رجعت معاملتُه لا يُتركُ معه تبليغٌ قد وصلَ صاحبَه، وقرارٌ نجحَ لا يضيعُ
+ *   تبليغُه لو تعطّلَ تلغرامُ لحظتَها — الصفُّ باقٍ يُعادُ حتى يصلَ.
+ * الحالة: منفّذ فعلياً — المرحلة 2.4، ومُوحَّدُ الصادرِ 2026-09-06.
  * ينتمي إلى: application/dispute
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway (أزرار القروب و/activate)، apps/admin-dashboard
  * ملاحظات مستقبلية: مدّة التفعيل تُقرأ من platform_settings داخل الدالة الذرّية، لا هنا.
@@ -21,6 +24,11 @@ export interface ResolveOutcome {
   /** لغة صاحب التذكرة كما سجّلها — نبلّغه بها لا بلغة النظام. */
   readonly ownerLanguage: string | null;
   readonly status: string | null;
+  /**
+   * هل أُودِعَ صفُّ التبليغِ في معاملةِ القرارِ؟ الإيداعُ حتميٌّ مع القرارِ الناجحِ،
+   * وnull يعني أنَّ القاعدةَ لم تُعلنْه (قرارٌ لم يقع). ليس معناه أنَّ الرسالةَ وصلت.
+   */
+  readonly notificationQueued: boolean;
 }
 
 /** يقابل resolve_support_ticket: القرار وأثره على الاشتراك في معاملة واحدة. */
@@ -33,28 +41,29 @@ export interface SupportResolutionPort {
   }): Promise<Result<ResolveOutcome, PortFailureError>>;
 }
 
-/** تبليغ صاحب التذكرة بالقرار في محادثته الخاصة. */
+/**
+ * تبليغ صاحب التذكرة بالقرار في محادثته الخاصة. يُنادى من عاملِ التسليمِ بعدَ
+ * الـcommit لا من مسارِ القرارِ، ويُرجعُ معرّفَ الرسالةِ: «سُلّمت» لا تُعلَنُ بغيرِه.
+ */
 export interface TicketOwnerNotifier {
   notifyResolution(input: {
     readonly telegramId: string;
     readonly action: SupportResolution;
     readonly language: string;
-  }): Promise<Result<void, PortFailureError>>;
+  }): Promise<Result<string | null, PortFailureError>>;
 }
 
 export interface ResolveDisputeDependencies {
   readonly resolutions: SupportResolutionPort;
-  readonly notifier: TicketOwnerNotifier;
 }
 
-export interface ResolveReport extends ResolveOutcome {
-  /** هل وصل التبليغ فعلاً؟ فشله لا يُبطل القرار لكنه يجب أن يظهر لا أن يُخفى. */
-  readonly ownerNotified: boolean;
-}
+export type ResolveReport = ResolveOutcome;
 
 /**
- * التبليغ بعد القرار لا قبله: لو بلّغنا أولاً ثم فشل التفعيل لكان السائق قد قرأ
- * «تم تفعيل اشتراكك» واشتراكه منتهٍ — وهذا أسوأ من عدم التبليغ.
+ * التبليغُ أثرٌ خارجيٌّ فلا يقعُ ههنا: لو بلّغنا أولاً ثم فشلَ التفعيلُ لكان السائقُ
+ * قد قرأ «تم تفعيل اشتراكك» واشتراكه منتهٍ؛ ولو بلّغنا بعدَ الـcommit من هذا المسارِ
+ * لضاعَ التبليغُ متى تعطّلَ تلغرامُ أو مات المسارُ بينهما. فالإيداعُ داخلَ المعاملةِ
+ * والإرسالُ من العاملِ (BUG-004).
  */
 export async function resolveDispute(
   input: {
@@ -72,16 +81,5 @@ export async function resolveDispute(
     note: input.note ?? null,
   });
   if (!resolved.ok) return resolved;
-
-  const outcome = resolved.value;
-  if (!outcome.resolved || outcome.ownerTelegramId === null) {
-    return ok({ ...outcome, ownerNotified: false });
-  }
-
-  const notified = await deps.notifier.notifyResolution({
-    telegramId: outcome.ownerTelegramId,
-    action: input.action,
-    language: outcome.ownerLanguage ?? "ar",
-  });
-  return ok({ ...outcome, ownerNotified: notified.ok });
+  return ok(resolved.value);
 }

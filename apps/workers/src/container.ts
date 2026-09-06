@@ -10,6 +10,8 @@
 import { Api } from "grammy";
 import type { BroadcastPublisher } from "../../../packages/application/broadcast/ports.ts";
 import type { OfferPublisher } from "../../../packages/application/dispatch/broadcast-offers.ts";
+import { createOfferNotificationHandler } from "../../../packages/application/dispatch/deliver-offer-notification.ts";
+import { createDisputeResolutionHandler } from "../../../packages/application/dispute/deliver-dispute-resolution.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
@@ -34,7 +36,6 @@ import {
   createSearchingOrderFinder,
 } from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createNegotiationWiring } from "../../../packages/infrastructure/dispatch/negotiation-wiring.ts";
-import { createOfferDeliveryPort } from "../../../packages/infrastructure/dispatch/offer-notification-adapters.ts";
 import {
   createUnmatchedOrderFinder,
   createUnmatchedRiderNotifier,
@@ -42,9 +43,11 @@ import {
 import { createPaymentRepository } from "../../../packages/infrastructure/financial/payment-adapters.ts";
 import { createPaymentProvider } from "../../../packages/infrastructure/financial/payment-provider-factory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
+import { createNotificationOutboxPort } from "../../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import {
   asIdentifyingSender,
   asOutboundSender,
+  asSupportSender,
   grammyTelegramSender,
 } from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import {
@@ -59,6 +62,7 @@ import {
   grammyNoticeApi,
 } from "../../../packages/infrastructure/notification/telegram-notice-sender.ts";
 import { createSafetyCardPublisher } from "../../../packages/infrastructure/notification/telegram-safety-notifier.ts";
+import { createTicketOwnerNotifier } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import {
   instrumentExpireOffersRpc,
   instrumentOfferWriter,
@@ -81,7 +85,7 @@ import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
 import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
 import { deliverBroadcasts } from "./jobs/deliver-broadcasts.ts";
-import { deliverOfferNotifications } from "./jobs/deliver-offer-notifications.ts";
+import { deliverNotifications } from "./jobs/deliver-notifications.ts";
 import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { deliverSubscriptionNotices } from "./jobs/deliver-subscription-notices.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
@@ -123,7 +127,7 @@ export const JOB_INTERVALS = {
    * وصولُ الإشعارِ حتى انتهاءِ مهلته؛ وأبطأُ من البثّ (10 ثوانٍ) لأنّ دفعتهُ فردٌ لا جمهورٌ.
    * فشلُ تيليجرام يُعيدُ الصفَّ pending بموعدٍ جديد بلا تكرارِ أثرٍ (BUG-004).
    */
-  deliverOfferNotifications: 30,
+  deliverNotifications: 30,
   /**
    * كلّ عشر ثوانٍ: البثُّ محدودٌ بحجم دفعةٍ من إعداد المدينة (٢٥ افتراضاً)، فهذا
    * سقفٌ نظريّ حوالي ١٥٠ رسالة في الدقيقة للمدينة — تحت حدّ تلغرام بفارقٍ مريح،
@@ -438,7 +442,19 @@ export function buildWorkerContainer(
   const offerPublisher =
     overrides.offerPublisher ??
     createOfferPublisher(sql, overrides.identifyingDriver ?? asIdentifyingSender(telegram));
-  const offerDeliveries = createOfferDeliveryPort(sql);
+  /**
+   * صندوقُ الصادرِ الموحَّدُ (BUG-004): منفذٌ واحدٌ للجدولِ، ومعالجٌ لكلِّ نوعٍ.
+   * وتبليغُ صاحبِ التذكرةِ بمُرسِلِ بوتِه هو — بوتُ السائقِ لسائقٍ وبوتُ الراكبِ
+   * لراكبٍ — لأنَّ رسالةً خاصّةً من بوتٍ لم يبدأ معه محادثةً لا تصلُ أصلاً.
+   */
+  const notificationOutbox = createNotificationOutboxPort(sql);
+  const notificationHandlers = {
+    offer: createOfferNotificationHandler(offerPublisher),
+    dispute_resolution: createDisputeResolutionHandler({
+      driver: createTicketOwnerNotifier(asSupportSender(telegram)),
+      rider: createTicketOwnerNotifier(asSupportSender(riderTelegram)),
+    }),
+  };
 
   /**
    * البثُّ يُرسَل ببوت الجمهور المقصود، ولذلك ناشران لا واحد: رسالةُ الركّاب من
@@ -840,16 +856,18 @@ export function buildWorkerContainer(
                 },
               },
               {
-                // إشعارُ العرضِ يُكتَبُ ذرّيًّا في معاملةِ open_offer_round، ثمّ يُرسَلُ من
-                // هذا العامل. القفلُ باسمٍ ثابتٍ + claim_token يمنعانِ تكرارَ الإرسالِ
-                // لو تسابقت نسختانِ من العاملِ على الصفّ؛ والصفُّ المُسلَّمُ لا يُلتقطُ ثانيةً (BUG-004).
-                name: "deliver-offer-notifications",
-                everySeconds: JOB_INTERVALS.deliverOfferNotifications,
+                // كلُّ إشعارٍ يقعُ أثرُه بعدَ تغيّرِ حالةٍ يُكتَبُ ذرّيًّا في معاملةِ ذاك
+                // التغييرِ (open_offer_round، resolve_support_ticket، …) ثمّ يُرسَلُ من
+                // هذا العاملِ وحدَه. القفلُ باسمٍ ثابتٍ + claim_token يمنعانِ تكرارَ
+                // الإرسالِ لو تسابقت نسختانِ من العاملِ على الصفّ؛ والصفُّ المُسلَّمُ لا
+                // يُلتقطُ ثانيةً (BUG-004).
+                name: "deliver-notifications",
+                everySeconds: JOB_INTERVALS.deliverNotifications,
                 runOnStart: true,
                 run: async () => {
-                  const report = await deliverOfferNotifications({
-                    deliveries: offerDeliveries,
-                    publisher: offerPublisher,
+                  const report = await deliverNotifications({
+                    outbox: notificationOutbox,
+                    handlers: notificationHandlers,
                   });
                   if (!report.ok) throw new Error(report.error.detail);
                   return [

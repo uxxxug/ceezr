@@ -108,7 +108,7 @@ export function createTelegramDriverNotifier(sql: Sql, sender: OutboundSender): 
 
 /**
  * ناشرُ الإشعار لِعاملِ تسليم عروض التوصيل (BUG-004 — نمط Outbox). يُبنى في
- * `apps/workers/src/container.ts` ويُمرَّر إلى عامل `deliver-offer-notifications`.
+ * `apps/workers/src/container.ts` ويُمرَّر إلى عامل `deliver-notifications`.
  *
  * على خلاف `createTelegramDriverNotifier` (المتزامن، خارج المعاملة، يُعيد boolean)،
  * هذا الناشرُ يُعيد مُعرِّفَ الرسالة الفعليَّ (message_id) — فهو الدليلُ الذي

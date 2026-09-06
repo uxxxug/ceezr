@@ -90,10 +90,7 @@ import {
   createTelegramRelaySender,
   createUnsubscribedGroupPublisher,
 } from "../../../packages/infrastructure/notification/telegram-negotiation-notifier.ts";
-import {
-  createSupportCardPublisher,
-  createTicketOwnerNotifier,
-} from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
+import { createSupportCardPublisher } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import {
   instrumentDispatchRpc,
   instrumentOfferWriter,
@@ -537,19 +534,15 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const driverSupport: SupportDialogDependencies = {
     ...supportCore,
     sessions: driverSessions,
-    resolutions: {
-      resolutions: resolutionPort,
-      notifier: createTicketOwnerNotifier(supportSender),
-    },
+    // تبليغُ صاحبِ التذكرةِ لا يقعُ في هذا المسارِ: يُودَعُ في صندوقِ الصادرِ داخلَ
+    // معاملةِ resolve_support_ticket ويُرسَلُ من عاملِ التسليمِ (BUG-004).
+    resolutions: { resolutions: resolutionPort },
   };
 
   const riderSupport: SupportDialogDependencies = {
     ...supportCore,
     sessions: riderSessions,
-    resolutions: {
-      resolutions: resolutionPort,
-      notifier: createTicketOwnerNotifier(asSupportSender(riderSender)),
-    },
+    resolutions: { resolutions: resolutionPort },
   };
 
   /**
