@@ -64,6 +64,29 @@ function fakeRedis(nowMs: () => number): RedisClient & {
         entries.set(key, { value: String(args[2]), expiresAtMs: nowMs() + seconds * 1000 });
         return { ok: true, value: "OK" };
       }
+      if (name === "EVAL") {
+        // محاكاةُ سكربتِ CAS الذرّيِّ: ["EVAL", script, numkeys, key, stateJson, expected, ttl]
+        const evalKey = String(args[3] ?? "");
+        const stateJson = String(args[4] ?? "{}");
+        const expected = Number(args[5] ?? 0);
+        const ttl = Number(args[6] ?? 0);
+        const current = live(evalKey);
+        let currentRevision = 0;
+        if (current !== undefined) {
+          try {
+            const parsed = JSON.parse(current) as Record<string, unknown>;
+            if (typeof parsed.revision === "number") currentRevision = parsed.revision;
+          } catch {
+            currentRevision = 0;
+          }
+        }
+        const base = expected === -1 ? currentRevision : expected;
+        if (base !== currentRevision) return { ok: true, value: 0 };
+        const newRevision = base + 1;
+        const envelope = `{"revision":${newRevision},"state":${stateJson}}`;
+        entries.set(evalKey, { value: envelope, expiresAtMs: nowMs() + ttl * 1000 });
+        return { ok: true, value: newRevision };
+      }
       if (name === "DEL") return { ok: true, value: entries.delete(key) ? 1 : 0 };
       return { ok: false, error: { kind: "redis", detail: name } };
     },
@@ -180,7 +203,7 @@ describeIf("جلسات الحوار على Redis بحاوية حقيقية", () 
     const keys = redis.keys();
     expect(keys).toEqual([`${REDIS_SESSION_PREFIX}:driver:${DRIVER_CHAT}`]);
     const raw = redis.rawOf(keys[0] ?? "");
-    expect(JSON.parse(raw ?? "{}").step).toBe("awaiting_name");
+    expect(JSON.parse(raw ?? "{}").state?.step).toBe("awaiting_name");
   });
 
   it("حوار تسجيل كامل يمضي عبر Redis وينتهي بصفّ سائق حقيقي في القاعدة", async () => {
@@ -327,7 +350,7 @@ describeIf("جلسات الحوار على Redis بحاوية حقيقية", () 
 
       // الحالة المحفوظة سليمة كما تُركت — الانقطاع منع التقدّم ولم يُتلف شيئاً
       expect(redis.rawOf(keyBefore[0] ?? "")).toBe(rawBefore);
-      expect(JSON.parse(rawBefore ?? "{}").step).toBe("awaiting_phone");
+      expect(JSON.parse(rawBefore ?? "{}").state?.step).toBe("awaiting_phone");
     });
   });
 });
