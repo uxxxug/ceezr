@@ -25,13 +25,22 @@
  */
 
 /**
- * جداولُ صنفِ `domain-ingress receipt`. **قائمةٌ مغلقةٌ** بمُدخلٍ واحدٍ اليوم.
+ * جداولُ صنفِ `domain-ingress receipt`. **قائمةٌ مغلقةٌ** بمُدخلَينِ اليوم.
  *
  * `telegram_update_receipts`: سجلُّ استلامِ تحديثاتِ تيليجرام. لا مدينةَ له لحظةَ
  * الاستلام لأنّ القرارَ يسبق أيَّ تفسيرٍ للحمولةِ — فما ليس مقروءاً بعدُ لا يُنسَب
  * إلى مدينةٍ إلّا باشتقاقٍ اصطناعيٍّ، وهو المنهيُّ عنه في الملحقِ نفسِه.
+ *
+ * `telegram_update_jobs`: حاملُ حمولةِ التحديثِ الخامِّ المربوطُ بالإيصالِ 1:1 عبرَ
+ * (bot, update_id). النصفُ الثانيُ في الصنفِ وفقَ الملحقِ الحاكمِ 2026-09-07
+ * و[ADR 0057](../../../docs/adr/0057-telegram-ingress-bound-payload-carrier-and-worker.md):
+ * لا مدينةَ له كالإيصالِ، لكنّه يخزّنُ الحمولةَ الخامَّ (JSONB) التي تُمكِّنُ الدرينرَ
+ * الخلفيَّ من المعالجةِ بعدَ ACK دونَ إعادةِ استلامٍ. الحذفُ تقنيٌّ يتبعُ الإيصالَ.
  */
-export const DOMAIN_INGRESS_RECEIPT_TABLES = ["telegram_update_receipts"] as const;
+export const DOMAIN_INGRESS_RECEIPT_TABLES = [
+  "telegram_update_receipts",
+  "telegram_update_jobs",
+] as const;
 
 export type DomainIngressReceiptTable = (typeof DOMAIN_INGRESS_RECEIPT_TABLES)[number];
 
@@ -65,3 +74,23 @@ export function isDomainIngressReceiptTable(name: string): name is DomainIngress
  * سليمةٍ بأضعافٍ، وأضيقُ من أن يبقى تحديثٌ محجوزاً بعمليةٍ ماتت دقائقَ بلا استرجاع.
  */
 export const TELEGRAM_INTAKE_CLAIM_TIMEOUT_SECONDS = 30;
+
+/**
+ * مهلةُ اعتبارِ إيجارِ الوظيفةِ مهجوراً (للدرينرِ الخلفيِّ)، ثوانيَ. حدٌّ تقنيٌّ
+ * كالسابقِ، يُمرَّر وسيطاً إلى `claim_telegram_update_job` لا رقمٌ محفورٌ فيها.
+ * أوسعُ من أيِّ معالجةٍ سليمةٍ، وأضيقُ من أن يبقى محجوزاً بدريَنرٍ مات دقائقَ.
+ */
+export const TELEGRAM_JOB_LEASE_TIMEOUT_SECONDS = 30;
+
+/**
+ * أقصى محاولاتٍ لمعالجةِ الوظيفةِ قبلَ الموتِ النهائيِّ (`dead`). حدٌّ تقنيٌّ
+ * لمنعِ إعادةِ المعالجةِ الأبديةِ لصفٍّ لن يُقبلَ (سمٌّ هادئٌ). يُمرَّر وسيطاً.
+ */
+export const TELEGRAM_JOB_MAX_ATTEMPTS = 5;
+
+/**
+ * فترةُ الاحتياطِ بينَ المحاولتَين (ثوانٍ). تُؤجِّلُ إعادةَ الالتقاطِ بعدَ الفشلِ كي
+ * لا يلتقطَها الدرينرُ في الشوطِ نفسه فيستنفدَ المحاولاتِ كلَّها دفعةً واحدة بلا
+ * احتياطٍ. حدٌّ تقنيٌّ بحتٌ يُمرَّر وسيطاً إلى `finish_telegram_update_job`.
+ */
+export const TELEGRAM_JOB_RETRY_DELAY_SECONDS = 5;

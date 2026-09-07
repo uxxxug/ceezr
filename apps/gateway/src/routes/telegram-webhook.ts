@@ -26,7 +26,11 @@
 import { Hono } from "hono";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { createUpdateDeduplicator, type UpdateDeduplicator, updateIdOf } from "./update-dedup.ts";
-import type { DurableUpdateIntake } from "./update-intake.ts";
+import type {
+  DurableUpdateIntake,
+  EnqueueOutcome,
+  TelegramUpdateEnqueuer,
+} from "./update-intake.ts";
 
 /** ترويسة تلغرام القياسية للسرّ المشترك. */
 export const TELEGRAM_SECRET_HEADER = "x-telegram-bot-api-secret-token";
@@ -69,7 +73,7 @@ export interface WebhookDependencies {
    * الذاكرةِ. ولماذا لا يُجعل إلزاميّاً: نحو خمسٍ وثلاثينَ ملفَّ اختبارٍ تُركّب هذا
    * المسارَ بلا قاعدةٍ، وإلزامُه كان سيُوجِب قاعدةً لفحصِ مقارنةِ سرٍّ.
    */
-  readonly intake?: DurableUpdateIntake;
+  readonly intake?: DurableUpdateIntake & TelegramUpdateEnqueuer;
   /**
    * مانع تكرار `update_id` **في الذاكرة** — **لم يعد مصدرَ القرارِ** متى وُصِل
    * `intake`. يُمرَّر في الاختبار للتحكّم بالزمن. عند الإغفال يُنشأ واحد لعمر الخادم.
@@ -269,13 +273,15 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
 
     const updateId = updateIdOf(update);
 
-    // ٣) الإيصالُ الصامدُ ومنعُ التكرارِ — **فعلٌ واحدٌ ذرّيٌّ في القاعدةِ**، لا فحصٌ
-    //    ثمَّ كتابةٌ منفصلةٌ تُقتنَص النافذةُ بينهما.
+    // ٣) الإيصالُ الصامدُ وإيداعُ الحمولةِ — **فعلٌ واحدٌ ذرّيٌّ في القاعدةِ**،
+    //    لا فحصٌ ثمَّ كتابةٌ منفصلةٌ تُقتنَص النافذةُ بينهما. الإيداعُ هنا enqueue
+    //    لا معالجةً: ACK 200 فور إيداعِ الحمولةِ، والدرينرُ الخلفيُّ يلتقطُها
+    //    ويُعالجُها لاحقاً خارجَ مسارِ HTTP (ADR 0057).
     if (deps.intake !== undefined && updateId !== null) {
-      const intake = deps.intake;
-      let claim: Awaited<ReturnType<DurableUpdateIntake["claim"]>>;
+      const enqueuer: TelegramUpdateEnqueuer = { claimAndEnqueue: deps.intake.claimAndEnqueue };
+      let outcome: EnqueueOutcome;
       try {
-        claim = await intake.claim(bot, updateId);
+        outcome = await enqueuer.claimAndEnqueue(bot, updateId, update);
       } catch {
         // عجزُ الإيداعِ **ليس إذناً بالمعالجةِ ولا بالإقرارِ**: `503` يجعل تيليجرام
         // يُعيد الإرسالَ فلا يُفقد التحديثُ. ولا يُسجَّل `updateId` حفاظاً على §٧/٥.
@@ -283,31 +289,13 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
         return c.json({ ok: false, error: "INTAKE_UNAVAILABLE" }, 503);
       }
 
-      if (claim.outcome === "duplicate" || claim.outcome === "in_progress") {
-        deps.log?.("تحديث مكرَّر أُهمل", { bot, outcome: claim.outcome });
-        // 200 لا 4xx: التحديث مقبولٌ ومعالَجٌ (أو قيدَ المعالجةِ)، فلا عملَ ثانٍ.
-        return c.json({ ok: true, duplicate: true }, 200);
+      if (outcome === "enqueued") {
+        // الحمولةُ في الطابورِ، فACK سريعٌ — المعالجةُ شأنُ الدرينرِ لا الطلبِ.
+        return c.json({ ok: true }, 200);
       }
-
-      // ٤) العملُ محجوزٌ برمزٍ. وإن ماتت العمليةُ ههنا بقيَ الإيصالُ غيرَ مختومٍ،
-      //    فيُسترجَع حجزُه عندَ إعادةِ تيليجرام — وإعادتُها هي ناقلُ الحمولةِ، فلا
-      //    تُخزَّن حمولةٌ (§٧/١) وتبقى «مرّةً على الأقلّ» قائمةً (§٥/٣).
-      const token = claim.claimToken;
-      let handled = false;
-      try {
-        handled = await deps.handler.handle(bot, update);
-      } finally {
-        if (token !== null) {
-          await intake.finish(
-            bot,
-            updateId,
-            token,
-            handled ? "done" : "failed",
-            handled ? undefined : "NOT_HANDLED",
-          );
-        }
-      }
-      return answer(handled);
+      // duplicate أو in_progress: لا عملٌ ثانٍ ولا إعادةُ ضبطٍ (ADR 0057).
+      deps.log?.("تحديث مكرَّر أُهمل", { bot, outcome });
+      return c.json({ ok: true, duplicate: true }, 200);
     }
 
     // تركيبٌ بلا منفَذٍ صامدٍ: **تدهورٌ مُعلَنٌ للاختبارِ والقياسِ وحدَهما**، يرتدُّ

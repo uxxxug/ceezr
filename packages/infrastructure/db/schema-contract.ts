@@ -11,6 +11,7 @@
 /** دوالُّ القاعدة التي يناديها كودُ التشغيل. */
 export const CONTRACT_FUNCTIONS: readonly string[] = [
   "abandon_notification_delivery",
+  "abandon_telegram_update_job",
   "admin_set_driver_verification",
   "admin_set_user_blocked",
   "admin_update_city_group_ids",
@@ -20,6 +21,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "cancel_broadcast",
   "cancel_order_by_rider",
   "cancel_subscription",
+  "claim_and_enqueue_telegram_update",
   "claim_broadcast_recipients",
   "claim_notification_delivery",
   "claim_ride",
@@ -28,6 +30,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "claim_subscription_notices",
   "claim_support_ticket",
   "claim_telegram_update",
+  "claim_telegram_update_job",
   "close_admin_session",
   "close_unsubscribed_negotiation",
   "complete_ride",
@@ -47,6 +50,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "finish_safety_incident_delivery",
   "finish_subscription_notice",
   "finish_telegram_update",
+  "finish_telegram_update_job",
   "flag_rating",
   "get_reputation_summary",
   "get_setting_number",

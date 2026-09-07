@@ -10,7 +10,7 @@
 import type { OperationalMetrics } from "../../../../packages/infrastructure/observability/index.ts";
 import type { BotKind, UpdateHandler } from "../routes/telegram-webhook.ts";
 import type { UpdateDeduplicator } from "../routes/update-dedup.ts";
-import type { DurableUpdateIntake } from "../routes/update-intake.ts";
+import type { DurableUpdateIntake, TelegramUpdateEnqueuer } from "../routes/update-intake.ts";
 
 export interface TelegramInstrumentationOptions {
   readonly nowMs?: () => number;
@@ -56,11 +56,17 @@ export function instrumentTelegramHandler(
  * حفاظاً على `cardinality` وعلى ما تعنيه السلسلةُ الزمنيةُ قبلَ الإصلاحِ وبعدَه.
  */
 export function instrumentUpdateIntake(
-  intake: DurableUpdateIntake,
+  intake: DurableUpdateIntake & TelegramUpdateEnqueuer,
   metrics: OperationalMetrics,
-): DurableUpdateIntake {
+): DurableUpdateIntake & TelegramUpdateEnqueuer {
   return {
     ...intake,
+    claimAndEnqueue: async (bot, updateId, payload) => {
+      const outcome = await intake.claimAndEnqueue(bot, updateId, payload);
+      const isRepeat = outcome === "duplicate" || outcome === "in_progress";
+      if (isRepeat && (bot === "driver" || bot === "rider")) metrics.recordTelegramDuplicate(bot);
+      return outcome;
+    },
     claim: async (bot, updateId) => {
       const claim = await intake.claim(bot, updateId);
       const isRepeat = claim.outcome === "duplicate" || claim.outcome === "in_progress";
