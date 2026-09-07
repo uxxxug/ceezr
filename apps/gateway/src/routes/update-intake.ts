@@ -35,10 +35,36 @@ import { TELEGRAM_INTAKE_CLAIM_TIMEOUT_SECONDS } from "../../../../packages/shar
 
 export type IntakeOutcome = "claimed" | "reclaimed" | "duplicate" | "in_progress";
 
+/**
+ * نتيجةُ الإيداعِ غيرِ المتزامنِ للوظيفةِ (ACK سريع). لا حجزَ فيها للمسارِ —
+ * المعالجةُ تتمُّ لاحقاً في الدرينرِ الخلفيِّ لا في طلبِ HTTP.
+ *
+ * - `enqueued`: أوّلُ استلامٍ — أُودِع الإيصالُ والوظيفةُ بالحمولةِ، فدخلَ الطابور.
+ * - `duplicate`: مكرَّرٌ مختومٌ سلفاً — **لا عملٌ ثانٍ ولا إعادةُ ضبطٍ** (§٥/٦ وADR 0057).
+ * - `in_progress`: إيصالٌ قائمٌ غيرُ مختومٍ — الوظيفةُ موجودةٌ (معلَّقةٌ أو محجوزةٌ أو ميّتةٌ)،
+ *   فلا يُنشأُ لها عملٌ ثانٍ، ولا يُصفَّرُ الموجودُ عند إعادةِ تسليمٍ مكرَّرةٍ.
+ */
+export type EnqueueOutcome = "enqueued" | "duplicate" | "in_progress";
+
 export interface IntakeClaim {
   readonly outcome: IntakeOutcome;
   /** رمزُ الحجزِ — يوجد مع `claimed`/`reclaimed` وحدَهما، وبه وحدَه يُختَم. */
   readonly claimToken: string | null;
+}
+
+/**
+ * منفذُ الإيداعِ غيرِ المتزامنِ — ما يحتاجُه مسارُ الويبهوكِ وحدَه. لا يُختمُ ههنا:
+ * الختمُ شأنُ الدرينرِ الذي يملكُ إيجارَ الوظيفةِ. وجودُ هذا المنفذِ الضيّقِ منفصلاً
+ * عن `DurableUpdateIntake` يمنعُ عودةَ أحدٍ إلى مسارِ «claim + handler + finish» داخلَ
+ * طلبِ HTTP — فنوعُ اعتمادِ الويبهوكِ enqueue-only.
+ */
+export interface TelegramUpdateEnqueuer {
+  /**
+   * يُودعُ الإيصالَ والوظيفةَ بالحمولةِ ذرّيًّا في نداءٍ واحدٍ، ويعيدُ القرارَ.
+   * يرمي عندَ عجزِ القاعدةِ — والمسارُ يُترجمه إلى `503` فيُعيدُ تيليجرام الإرسالَ.
+   * إعادةُ تسليمٍ مكرَّرةٌ لا تُعيدُ ضبطَ وظيفةٍ موجودةٍ.
+   */
+  claimAndEnqueue(bot: string, updateId: number, payload: unknown): Promise<EnqueueOutcome>;
 }
 
 export interface DurableUpdateIntake {
@@ -64,6 +90,10 @@ function isOutcome(value: unknown): value is IntakeOutcome {
   );
 }
 
+function isEnqueueOutcome(value: unknown): value is EnqueueOutcome {
+  return value === "enqueued" || value === "duplicate" || value === "in_progress";
+}
+
 /**
  * التنفيذُ فوقَ PostgreSQL. لا منطقَ قرارٍ ههنا بحالٍ: النداءُ واحدٌ، والقرارُ في
  * الدالّةِ — فلا يُقرَأ ثمّ يُكتَب من طبقتين مختلفتين، ولا نافذةَ بينهما تُقتنص.
@@ -71,10 +101,27 @@ function isOutcome(value: unknown): value is IntakeOutcome {
 export function createPostgresUpdateIntake(
   sql: Sql,
   options?: { readonly claimTimeoutSeconds?: number },
-): DurableUpdateIntake {
+): DurableUpdateIntake & TelegramUpdateEnqueuer {
   const timeoutSeconds = options?.claimTimeoutSeconds ?? TELEGRAM_INTAKE_CLAIM_TIMEOUT_SECONDS;
 
   return {
+    claimAndEnqueue: async (bot, updateId, payload) => {
+      const rows = await sql<{ result: unknown }[]>`
+        select claim_and_enqueue_telegram_update(
+          ${bot}, ${updateId}, ${sql.json(payload as never)}, ${timeoutSeconds}
+        ) as result
+      `;
+      const envelope = readEnvelope(rows[0]?.result);
+      if (envelope === null || !envelope.ok) {
+        throw new Error(`TELEGRAM_INTAKE_ENQUEUE_FAILED:${String(envelope?.error ?? "UNKNOWN")}`);
+      }
+      const outcome = envelope.outcome;
+      if (!isEnqueueOutcome(outcome)) {
+        throw new Error("TELEGRAM_INTAKE_ENQUEUE_FAILED:UNKNOWN_OUTCOME");
+      }
+      return outcome;
+    },
+
     claim: async (bot, updateId) => {
       const rows = await sql<{ result: unknown }[]>`
         select claim_telegram_update(${bot}, ${updateId}, ${timeoutSeconds}) as result

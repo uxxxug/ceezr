@@ -7,6 +7,7 @@
  */
 
 import { verifySchemaContract } from "../../../packages/infrastructure/db/schema-guard.ts";
+import { createPostgresTelegramUpdateQueue } from "../../../packages/infrastructure/db/telegram-update-queue.ts";
 import {
   createPaymentProvider,
   createPaymentRepository,
@@ -39,6 +40,10 @@ import {
 import type { CityId } from "../../../packages/shared/kernel/index.ts";
 import { jobHealthExpectations } from "../../workers/src/container.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
+import {
+  startTelegramUpdateDrainer,
+  type TelegramUpdateDrainer,
+} from "./background/telegram-update-drainer.ts";
 import { grammyCommandRegistrar, registerBotCommands } from "./bots/shared/register-commands.ts";
 import { buildContainer } from "./container.ts";
 import { type EmbeddedWorkerHandle, startEmbeddedWorker } from "./embedded-worker.ts";
@@ -192,6 +197,14 @@ const databaseGauges = createDatabaseGaugeCollector(container.sql, operationalMe
 let embeddedWorker: EmbeddedWorkerHandle | null = null;
 
 /**
+ * الدرينرُ الخلفيُّ لوظائفِ تحديثِ تيليجرام — يلتقطُ ما أودعَه الويبهوكُ ويُعالجُه
+ * خارجَ مسارِ HTTP (ADR 0057). يعملُ في عمليةِ البوابةِ لا في `apps/workers`؛
+ * نقلُهُ إلى خدمةٍ منفصلةٍ (`SCL-007` / `F5-04`) لم يُغلَقْ بعد. يُوقفُ نظيفاً عند
+ * التصريفِ بعدَ انتظارِ الشوطِ الجاري.
+ */
+let updateDrainer: TelegramUpdateDrainer | null = null;
+
+/**
  * مقبضُ خادمِ `Bun.serve` — يُملأ آخرَ الإقلاع. التصريفُ الرشيقُ يقرؤه عبر الإغلاقِ
  * لا مباشرةً، لأنّ الإشارةَ قد تصل قبلَ اكتمالِ التركيبِ (F5-05).
  */
@@ -216,6 +229,12 @@ const lifecycle = createLifecycle({
       serverHandle?.stop(true);
     },
     close: async () => {
+      // الدرينرُ قبلَ القاعدةِ: شوطٌ جارٍ يحجزُ وظيفةً بإيجارٍ، وإغلاقُ القاعدةِ
+      // تحته يُتركُها محجوزةً حتى ينتهي الإيجارُ. فنتوقفُه أوّلاً وينتظرُ الجاري.
+      if (updateDrainer !== null) {
+        await updateDrainer.stop();
+        updateDrainer = null;
+      }
       // العاملُ أولاً: مهمّةٌ جاريةٌ تستعلمُ القاعدةَ، وإغلاقُ التجمّعِ تحتها يجعلها
       // تفشلُ بخطأِ اتصالٍ لا معنىً له بدلَ أن تنتهي أو تُوقَفَ نظيفة.
       if (embeddedWorker !== null) await embeddedWorker.stop();
@@ -669,6 +688,26 @@ for (const [audience, token] of [
       log("bot_commands.register_failed", { audience, detail });
     });
 }
+
+/**
+ * الدرينرُ الخلفيُّ لوظائفِ تحديثِ تيليجرام — يُقلعُ بعدَ اكتمالِ تركيبِ الويبهوكِ
+ * والحاويةِ، فإيصالُه إلى `handler` ممكنٌ هنا وحدَه. فشلُ إقلاعِه لا يُسقطُ البوابةَ:
+ * وظائفُ تتراكمُ في الطابورِ (دائمةٌ في القاعدةِ) حتى يُقلعَ درينرٌ تالٍ، فلا يُفقَدُ
+ * تحديثٌ. والسببُ يظهرُ في السجلّ.
+ *
+ * لماذا فترةُ نصفِ ثانيةٍ: تيليجرام لا يُرسلُ دفعةً واحدةً ضخمةً، بل وصولٌ متفرّقٌ.
+ * فالمؤقّتُ القصيرُ يلتقطُ الوصولَ الحديثَ قبلَ أن يتراكمَ، ومانعُ التداخلِ يمنعُ
+ * تراكُمَ الأشواطِ إن طالت معالجةٌ واحدةٌ. والدرينرُ نفسُه يفرغُ الطابورَ كاملاً في
+ * كلِّ شوطٍ (claim حتى null)، فلا حاجةَ لفترةٍ أقصرَ.
+ */
+updateDrainer = startTelegramUpdateDrainer(
+  {
+    queue: createPostgresTelegramUpdateQueue(container.sql),
+    handler: container.handler,
+    log: (message, meta) => log(message, meta ?? {}),
+  },
+  { intervalMs: 500 },
+);
 
 /**
  * خادمُ `Bun.serve` الفعليُّ — يُنشأ بعدَ اكتمالِ تركيبِ المسارات. الـ`fetch`
