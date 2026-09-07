@@ -7,7 +7,7 @@
 - **لا ينسخُ ولا يُعدِّلُ:** [ADR 0006 — RLS لا تُتجاوزُ بالاتصالِ المباشر](0006-rls-bypassed-by-direct-connection.md) · [ADR 0011 — الجلساتُ إلى Redis بالإعدادِ](0011-sessions-move-to-redis-by-configuration.md) · [ADR 0050 — النسخةُ الواحدةُ شرطُ صحّةٍ](0050-single-instance-is-a-correctness-invariant-not-a-comment.md) · [ADR 0051 — الطوبولوجيا تُعلَنُ لا تُستنتَجُ](0051-process-topology-is-declared-not-inferred-from-session-store.md) — **لم يُمَسَّ منها حرفٌ**
 - **لا يفتحُ ولا يبدأُ:** لا `F5` ولا `F6` ولا `DEC-11` · لا هجرةَ قاعدةٍ · لا `numInstances` يُرفَعُ · لا عاملٌ منفصلٌ
 - **لا يقلبُ بنداً:** `CAP-004` يُقلَبُ `[x]` بتنفيذِه ودليلِه بعدَ خضرةِ CI لا بهذا القرارِ وحدَه. وبوابةُ `F5` تبقى مغلقةً
-- **المقروءُ منه هذا القرارُ:** `main` عندَ `8880333` (سيُحدَّدُ عندَ الدفع)
+- **المقروءُ منه هذا القرارُ:** `main` عندَ `a1b2e3d`
 
 ---
 
