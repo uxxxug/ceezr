@@ -25,6 +25,7 @@ import type {
   ClaimedRider,
   DispatchRpcPort,
   DriverCandidateRepository,
+  NearbyCandidateQuery,
   OfferRepository,
 } from "../../application/ports/index.ts";
 import type { DriverCapability } from "../../domain/capability/entity.ts";
@@ -162,6 +163,73 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
             left join subscriptions s
                    on s.driver_id = d.id and s.status in ('trialing', 'active')
            where d.city_id = ${cityId}
+        `;
+        return rows.map(toCandidate);
+      }),
+
+    /**
+     * CAP-003 — المسار السريع. استعلام PostGIS واحد على فهرس GiST:
+     *   - البوابات الصلبة: المدينة، غير محجوب، موثَّق، متاح، داخل نصف القطر.
+     *   - عمرُ الموقع إن فُعّل (صفرٌ = تعطيل، كما وثّقت المرحلة ٨).
+     *   - الترتيبُ بالمسافة (`<->` KNN يستخدم فهرس GiST) ثم `LIMIT`.
+     *
+     * الخدمةُ والاشتراكُ والاستبعادُ هذه الدورة **لا** يُفلترانِ هنا: منطقُهما
+     * معتمدٌ على `now` وعلى خريطة plan→service معقّدة، والاستبعادُ قرارٌ تشغيليٌّ
+     * يُرى في `rejected` بسببه المُسمّى `EXCLUDED_THIS_ROUND`. يُتركانِ للدومين فوقَ
+     * نتيجةٍ محدودة النافذة — وحدُّ النافذة أوسعُ من دفعة البثّ عمداً.
+     *
+     * ترتيبُ المعاملات في `ST_MakePoint` هو (lng, lat) — x ثم y — لا العكس.
+     */
+    findNearbyAvailableForDispatch: (args: NearbyCandidateQuery) =>
+      guard("candidates.findNearbyAvailableForDispatch", async () => {
+        const { cityId, pickup, searchRadiusKm, driverLocationMaxAgeSeconds, limit, now } = args;
+        const radiusMeters = Math.max(0, searchRadiusKm * 1000);
+        const maxAge = driverLocationMaxAgeSeconds ?? 0;
+        const rows = await sql<CandidateRow[]>`
+          select d.id as driver_id,
+                 d.city_id,
+                 st_y(d.last_location::geometry) as lat,
+                 st_x(d.last_location::geometry) as lng,
+                 (extract(epoch from d.last_location_at) * 1000)::bigint::text as location_at_ms,
+                 st_y(d.preferred_area_location::geometry) as preferred_lat,
+                 st_x(d.preferred_area_location::geometry) as preferred_lng,
+                 a.is_available,
+                 d.verification_status,
+                 u.is_blocked,
+                 d.rating_average,
+                 d.rating_count,
+                 (select array_agg(c.service::text)
+                    from driver_capabilities c
+                   where c.driver_id = d.id and c.is_enabled) as services,
+                 s.plan as sub_plan,
+                 s.status as sub_status,
+                 s.trial_ends_at as sub_trial_ends_at,
+                 s.current_period_end as sub_current_period_end,
+                 s.cancel_at_period_end as sub_cancel_at_period_end
+            from drivers d
+            join users u on u.id = d.user_id
+            left join driver_availability a on a.driver_id = d.id
+            left join subscriptions s
+                   on s.driver_id = d.id and s.status in ('trialing', 'active')
+           where d.city_id = ${cityId}
+             and u.is_blocked = false
+             and d.verification_status = 'verified'
+             and a.is_available = true
+             and d.last_location is not null
+             and st_dwithin(
+                   d.last_location,
+                   st_setsrid(st_makepoint(${pickup.longitude}, ${pickup.latitude}), 4326)::geography,
+                   ${radiusMeters}
+                 )
+             ${
+               maxAge > 0
+                 ? sql`and d.last_location_at is not null
+                        and (extract(epoch from (${now}::timestamptz - d.last_location_at))) <= ${maxAge}`
+                 : sql``
+}
+           order by d.last_location <->
+                    st_setsrid(st_makepoint(${pickup.longitude}, ${pickup.latitude}), 4326)::geography
+           limit ${limit}
         `;
         return rows.map(toCandidate);
       }),
