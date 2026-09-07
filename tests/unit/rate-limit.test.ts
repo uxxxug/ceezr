@@ -278,8 +278,10 @@ describe("حدّ المعدّل على مسار الويبهوك", () => {
     // كلُّ تحديثِ تيليجرام يحمل `update_id` صحيحاً موجباً (Bot API). يُولَّد رقمٌ فريدٌ
     // لكلِّ نداءٍ حين لا يُمرِّرَ المُختبِرُ جسماً به رقمٌ، حتى لا يقعَ ما ليس رغبةً في
     // منعِ التكرارِ ويتغيّرَ ما يُختبَرُ به (حدُّ المعدّلِ لا التكرارُ).
-    const body =
-      options.body ?? { update_id: nextUpdateId++, message: { from: { id: 770 }, text: "/start" } };
+    const body = options.body ?? {
+      update_id: nextUpdateId++,
+      message: { from: { id: 770 }, text: "/start" },
+    };
     return Promise.resolve(
       app.fetch(
         new Request("http://localhost/webhook/telegram/driver", {
@@ -370,7 +372,10 @@ describe("حدّ المعدّل على مسار الويبهوك", () => {
     });
 
     for (let i = 0; i < 3; i += 1) {
-      const response = await post(app, { secret: SECRET, body: { update_id: nextUpdateId++, channel_post: { text: "x" } } });
+      const response = await post(app, {
+        secret: SECRET,
+        body: { update_id: nextUpdateId++, channel_post: { text: "x" } },
+      });
       expect(response.status).toBe(200);
     }
     expect(handler.seen).toHaveLength(3);
