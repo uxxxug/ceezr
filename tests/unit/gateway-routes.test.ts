@@ -8,6 +8,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   type BotKind,
+  createTelegramWebhookRoutes,
   MAX_WEBHOOK_BODY_BYTES,
   secretsMatch,
   TELEGRAM_SECRET_HEADER,
@@ -425,14 +426,15 @@ describe("POST /webhook/telegram/:bot", () => {
       expect(received).toHaveLength(1);
     });
 
-    it("تحديث بلا update_id يُعالَج دائماً: لا يُرفض شرعي بحجّة التكرار", async () => {
+    it("تحديث بلا update_id صالح يُرفض بـ400 قبل أي معالجة (Bot API: update_id إلزامي)", async () => {
       const received: { bot: BotKind; update: unknown }[] = [];
       const app = buildApp({ received });
       const update = { message: { text: "/start" } };
 
-      await app.request(webhookRequest(update, { secret: SECRET }));
-      await app.request(webhookRequest(update, { secret: SECRET }));
-      expect(received).toHaveLength(2);
+      const res = await app.request(webhookRequest(update, { secret: SECRET }));
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ ok: false, error: "INVALID_UPDATE" });
+      expect(received).toHaveLength(0);
     });
 
     it("لا يُلغي تحديثُ بوتٍ تحديثَ الآخر بالرقم نفسه", async () => {
@@ -463,6 +465,86 @@ describe("POST /webhook/telegram/:bot", () => {
   it("لا يقبل GET على مسار الـ webhook", async () => {
     const res = await buildApp({}).request("http://localhost/webhook/telegram/driver");
     expect(res.status).toBe(404);
+  });
+
+  describe("رفضُ الحمولةِ بلا update_id قبلَ الإيداعِ (CAP-001 / F6-01)", () => {
+    /**
+     * [Telegram Bot API](https://core.telegram.org/bots/api): `update_id` هو الحقلُ
+     * الإلزاميُّ الوحيدُ في كائنِ `Update` — كلُّ ما عداه اختياريٌّ. فحمولةٌ بلا
+     * `update_id` صالحٍ ليست تحديثَ تيليجرام، ولا مفتاحَ لها يُمنَعُ به التكرارُ،
+     * فلا تُدرَجُ في الطابورِ. ومعالجتُها داخلَ طلبِ `HTTP` تنقضُ ADR 0054 §٦
+     * («العملُ الذي يلي الإيصالَ... لا يُنفَّذ داخلَ طلبِ HTTP»). فيُرفضُ هذا
+     * الصنفُ بـ400 قبلَ أيِّ إيداعٍ أو معالجةٍ، في مسارَي الإنتاجِ والتدهورِ معاً.
+     */
+    it("مع intake موصول: بلا update_id ⇒ 400 ولا يُستدعى claimAndEnqueue ولا handler", async () => {
+      const calls = { enqueued: 0, handled: 0 };
+      const routes = createTelegramWebhookRoutes({
+        webhookSecret: SECRET,
+        intake: {
+          claim: async () => {
+            calls.enqueued += 1;
+            return { outcome: "claimed", claimToken: "t" };
+          },
+          claimAndEnqueue: async () => {
+            calls.enqueued += 1;
+            return "enqueued";
+          },
+          finish: async () => {
+            calls.enqueued += 1;
+            return true;
+          },
+        },
+        handler: {
+          handle: async () => {
+            calls.handled += 1;
+            return true;
+          },
+        },
+      });
+
+      const res = await routes.request(
+        webhookRequest({ message: { text: "/start" } }, { secret: SECRET }),
+      );
+      expect(res.status).toBe(400);
+      expect(await res.json()).toEqual({ ok: false, error: "INVALID_UPDATE" });
+      expect(calls.enqueued).toBe(0);
+      expect(calls.handled).toBe(0);
+    });
+
+    it("update_id غيرُ عددٍ صحيحٍ موجبٍ ⇒ 400 أيضاً", async () => {
+      const calls = { enqueued: 0, handled: 0 };
+      const routes = createTelegramWebhookRoutes({
+        webhookSecret: SECRET,
+        intake: {
+          claim: async () => {
+            calls.enqueued += 1;
+            return { outcome: "claimed", claimToken: "t" };
+          },
+          claimAndEnqueue: async () => {
+            calls.enqueued += 1;
+            return "enqueued";
+          },
+          finish: async () => {
+            calls.enqueued += 1;
+            return true;
+          },
+        },
+        handler: {
+          handle: async () => {
+            calls.handled += 1;
+            return true;
+          },
+        },
+      });
+
+      for (const bad of [{ update_id: "1" }, { update_id: 1.5 }, { update_id: -1 }]) {
+        const res = await routes.request(webhookRequest(bad, { secret: SECRET }));
+        expect(res.status).toBe(400);
+        expect(await res.json()).toEqual({ ok: false, error: "INVALID_UPDATE" });
+      }
+      expect(calls.enqueued).toBe(0);
+      expect(calls.handled).toBe(0);
+    });
   });
 });
 

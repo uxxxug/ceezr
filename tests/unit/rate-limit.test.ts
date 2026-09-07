@@ -260,6 +260,8 @@ describe("قراءة عنوان المُرسِل ومعرّف صاحب التح�
 });
 
 describe("حدّ المعدّل على مسار الويبهوك", () => {
+  let nextUpdateId = 50_000;
+
   function post(
     app: ReturnType<typeof createTelegramWebhookRoutes>,
     options: {
@@ -273,12 +275,17 @@ describe("حدّ المعدّل على مسار الويبهوك", () => {
       headers["x-telegram-bot-api-secret-token"] = options.secret;
     }
     if (options.address !== undefined) headers["x-forwarded-for"] = options.address;
+    // كلُّ تحديثِ تيليجرام يحمل `update_id` صحيحاً موجباً (Bot API). يُولَّد رقمٌ فريدٌ
+    // لكلِّ نداءٍ حين لا يُمرِّرَ المُختبِرُ جسماً به رقمٌ، حتى لا يقعَ ما ليس رغبةً في
+    // منعِ التكرارِ ويتغيّرَ ما يُختبَرُ به (حدُّ المعدّلِ لا التكرارُ).
+    const body =
+      options.body ?? { update_id: nextUpdateId++, message: { from: { id: 770 }, text: "/start" } };
     return Promise.resolve(
       app.fetch(
         new Request("http://localhost/webhook/telegram/driver", {
           method: "POST",
           headers,
-          body: JSON.stringify(options.body ?? { message: { from: { id: 770 }, text: "/start" } }),
+          body: JSON.stringify(body),
         }),
       ),
     );
@@ -344,7 +351,7 @@ describe("حدّ المعدّل على مسار الويبهوك", () => {
     });
 
     const asUser = (id: number) =>
-      post(app, { secret: SECRET, body: { message: { from: { id } } } });
+      post(app, { secret: SECRET, body: { update_id: nextUpdateId++, message: { from: { id } } } });
     expect((await asUser(770)).status).toBe(200);
     expect((await asUser(770)).status).toBe(200);
     expect((await asUser(770)).status).toBe(TOO_MANY);
@@ -363,7 +370,7 @@ describe("حدّ المعدّل على مسار الويبهوك", () => {
     });
 
     for (let i = 0; i < 3; i += 1) {
-      const response = await post(app, { secret: SECRET, body: { channel_post: { text: "x" } } });
+      const response = await post(app, { secret: SECRET, body: { update_id: nextUpdateId++, channel_post: { text: "x" } } });
       expect(response.status).toBe(200);
     }
     expect(handler.seen).toHaveLength(3);
