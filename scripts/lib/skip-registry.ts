@@ -385,6 +385,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/dispatch-nearby-candidates-postgis.test.ts",
+    suites: ["CAP-003 — findNearbyAvailableForDispatch على PostGIS"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت «CAP-003 — findNearbyAvailableForDispatch على PostGIS» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرة: المقصودُ سلوكُ المحرّكِ نفسِه — أنّ استعلامَ PostGIS يُفلترُ بالبواباتِ الصلبةِ (المدينةُ والتوفّرُ والتوثيقُ والقربُ وعمرُ الموقعِ) ويرتّبُ بالمسافةِ عبرَ فهرسِ GiST ويحدُّ بـLIMIT — فلا يشهدُ على ذلك مزدوجٌ نكتبُه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/dispatch-redispatch.test.ts",
     suites: ["إعادة عرض الطلبات الباحثة — المرحلة ١٤"],
     skipped: 6,
