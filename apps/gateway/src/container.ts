@@ -110,7 +110,7 @@ import {
   createTrackingEventBus,
   type TrackingEventBus,
 } from "../../../packages/infrastructure/tracking/event-bus.ts";
-import { createRedisStreamTrackingEventBus } from "../../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
+import { createRedisStreamTrackingEventBus, DEFAULT_POLL_MS } from "../../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
 import { createTrackingSessionRepository } from "../../../packages/infrastructure/tracking/session-repository.ts";
 import {
   createActiveTripReader,
@@ -555,7 +555,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
           redis,
           streamKey: "waslah:tracking:events",
           instanceId: crypto.randomUUID(),
-          pollMs: 250,
+          pollMs: DEFAULT_POLL_MS,
         })
       : null;
   if (distributedTrackingBus !== null) {
