@@ -262,9 +262,10 @@ describeIf("CAP-003 — findNearbyAvailableForDispatch على PostGIS", () => {
         location: { latitude: PICKUP.latitude + jitter, longitude: PICKUP.longitude + jitter },
       });
     }
-    await sql`set enable_seqscan = off`;
-    const plan = await sql<{ query_plan: string }[]>`
-      explain (format text)
+    // ضمنَ معاملةٍ واحدةٍ كي يلزمَ `enable_seqscan = off` الاتصالَ نفسَه لاستعلامِ EXPLAIN.
+    const planText = await sql.begin(async (tx) => {
+      await tx`set enable_seqscan = off`;
+      const rows = await tx`explain (format json)
         select d.id from drivers d
          where d.city_id = ${cityId}
            and st_dwithin(
@@ -274,9 +275,10 @@ describeIf("CAP-003 — findNearbyAvailableForDispatch على PostGIS", () => {
                )
          order by d.last_location <->
                   st_setsrid(st_makepoint(${PICKUP_GEO.lng}, ${PICKUP_GEO.lat}), 4326)::geography
-         limit 50
-    `;
-    const planText = plan.map((r) => r.query_plan).join("\n");
+         limit 50`;
+      const value = Object.values(rows[0] ?? {})[0];
+      return typeof value === "string" ? value : JSON.stringify(value ?? "");
+    });
     // نُطابقُ اسمَ فهرسِ GiST نفسه لا أيَّ فهرسٍ — فهذا هو الإثباتُ المقصود.
     expect(planText).toMatch(/drivers_location_gix/);
   });
