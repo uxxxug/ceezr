@@ -101,6 +101,19 @@ let redis: ReturnType<typeof fakeRedis>;
 let driverSent: SentMessage[];
 let clockMs: number;
 
+let nextUpdateId = 100_000;
+function withUpdateId(update: unknown): unknown {
+  if (
+    update !== null &&
+    typeof update === "object" &&
+    !Array.isArray(update) &&
+    !Object.hasOwn(update, "update_id")
+  ) {
+    return { update_id: nextUpdateId++, ...(update as Record<string, unknown>) };
+  }
+  return update;
+}
+
 async function post(update: unknown): Promise<Response> {
   return app.fetch(
     new Request("http://localhost/webhook/telegram/driver", {
@@ -109,7 +122,7 @@ async function post(update: unknown): Promise<Response> {
         "content-type": "application/json",
         "x-telegram-bot-api-secret-token": WEBHOOK_SECRET,
       },
-      body: JSON.stringify(update),
+      body: JSON.stringify(withUpdateId(update)),
     }),
   );
 }

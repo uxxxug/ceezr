@@ -74,6 +74,19 @@ let app: ReturnType<typeof createServer>;
 const driverSent: SentMessage[] = [];
 const riderSent: SentMessage[] = [];
 
+let nextUpdateId = 100_000;
+function withUpdateId(update: unknown): unknown {
+  if (
+    update !== null &&
+    typeof update === "object" &&
+    !Array.isArray(update) &&
+    !Object.hasOwn(update, "update_id")
+  ) {
+    return { update_id: nextUpdateId++, ...(update as Record<string, unknown>) };
+  }
+  return update;
+}
+
 const post = (bot: string, update: unknown) =>
   app.fetch(
     new Request(`http://localhost/webhook/telegram/${bot}`, {
@@ -82,7 +95,7 @@ const post = (bot: string, update: unknown) =>
         "content-type": "application/json",
         "x-telegram-bot-api-secret-token": WEBHOOK_SECRET,
       },
-      body: JSON.stringify(update),
+      body: JSON.stringify(withUpdateId(update)),
     }),
   );
 const msg = (chat: number, body: Record<string, unknown>) => ({

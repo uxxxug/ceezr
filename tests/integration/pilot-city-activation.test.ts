@@ -40,6 +40,19 @@ function update(chatId: number, body: Record<string, unknown>): unknown {
   return { message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body } };
 }
 
+let nextUpdateId = 100_000;
+function withUpdateId(update: unknown): unknown {
+  if (
+    update !== null &&
+    typeof update === "object" &&
+    !Array.isArray(update) &&
+    !Object.hasOwn(update, "update_id")
+  ) {
+    return { update_id: nextUpdateId++, ...(update as Record<string, unknown>) };
+  }
+  return update;
+}
+
 async function post(bot: "driver" | "rider", body: unknown): Promise<Response> {
   return app.fetch(
     new Request(`http://localhost/webhook/telegram/${bot}`, {
@@ -48,7 +61,7 @@ async function post(bot: "driver" | "rider", body: unknown): Promise<Response> {
         "content-type": "application/json",
         "x-telegram-bot-api-secret-token": WEBHOOK_SECRET,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(withUpdateId(body)),
     }),
   );
 }
