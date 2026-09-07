@@ -69,7 +69,7 @@ async function makeDriver(
   `;
   const userId = users[0]?.id;
   if (userId === undefined) throw new Error(`تعذّر إنشاء مستخدم ${label}`);
-  const verification = opts.verified === false ? "unverified" : "verified";
+  const verification = opts.verified === false ? "pending" : "verified";
   const drivers = await sql<{ id: string }[]>`
     insert into drivers (city_id, user_id, verification_status)
     values (${cityId}, ${userId}, ${verification}::verification_status)
@@ -254,8 +254,14 @@ describeIf("CAP-003 — findNearbyAvailableForDispatch على PostGIS", () => {
   });
 
   it("٧ — خطةُ EXPLAIN تكشفُ استخدامَ فهرسِ drivers_location_gix", async () => {
-    await makeDriver("مؤهل", 41, { location: NEAR });
-    // نُعطّلُ Seq Scan لإجبارِ المخطّطِ على الفهرسِ — وإلّا اختارَه على جدولٍ صغير.
+    // نُدخِلُ عددًا كافيًا من السائقين حول نقطةِ الاستلام كي يرى المخطّطُ الفهرسَ جدوىً —
+    // فمع صفٍّ واحدٍ يظلّ Seq Scan أرخصَ وإن عُطّل. ثمّ نُعطّلُ Seq Scan لإجبارِه عليه.
+    for (let i = 0; i < 12; i++) {
+      const jitter = (i - 6) * 0.001; // ~100 م بين كلٍّ وآخر حول نقطة الاستلام
+      await makeDriver(`سائق-${i}`, 100 + i, {
+        location: { latitude: PICKUP.latitude + jitter, longitude: PICKUP.longitude + jitter },
+      });
+    }
     await sql`set enable_seqscan = off`;
     const plan = await sql<{ query_plan: string }[]>`
       explain (format text)
