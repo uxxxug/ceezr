@@ -93,8 +93,8 @@ async function makeDriver(
   }
 
   const isAvailable = opts.available !== false;
-  await sql`insert into driver_availability (driver_id, is_available)
-            values (${driverId}, ${isAvailable})`;
+  await sql`insert into driver_availability (driver_id, city_id, is_available)
+            values (${driverId}, ${cityId}, ${isAvailable})`;
   return driverId as DriverId;
 }
 
