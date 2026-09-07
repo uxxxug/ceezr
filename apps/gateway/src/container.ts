@@ -110,6 +110,7 @@ import {
   createTrackingEventBus,
   type TrackingEventBus,
 } from "../../../packages/infrastructure/tracking/event-bus.ts";
+import { createRedisTrackingEventStream } from "../../../packages/infrastructure/tracking/redis-event-stream.ts";
 import { createTrackingSessionRepository } from "../../../packages/infrastructure/tracking/session-repository.ts";
 import {
   createActiveTripReader,
@@ -543,6 +544,42 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    * للعملية كلّها، ومن بناه في موضعين صار له مشتركون لا يرون أحداث بعضهم.
    */
   const trackingBus = createTrackingEventBus(log);
+
+  /**
+   * SCL-004 — مجرى أحداث مشترك عبر Redis Streams. يُضيف التسليم عبر النسخ
+   * بجانب الناقل المحليّ. الناقل المحليّ يُسلّم فوراً داخل النسخة، والـStream
+   * يُسلّم للنسخ الأخرى. والنسخة التي تنشر محليّاً تُخطّي ما تقرأه من الـStream
+   * (سُلِّم محليّاً بالفعل).
+   */
+  const redisTrackingStream =
+    redis !== null ? createRedisTrackingEventStream({ redis, pollIntervalMs: 500, log }) : null;
+
+  /** SCL-004 — مؤقّت استهلاك الـStream، يُحفظ لإيقافه عند الإغلاق الرشيق. */
+  let redisStreamStop: (() => void) | null = null;
+
+  if (redisTrackingStream !== null) {
+    const instanceId = crypto.randomUUID();
+    const consumerGroup = `gateway-${instanceId}`;
+    const consumerName = `consumer-${instanceId}`;
+    /**
+     * الناشر المحليّ يُغلّف ليُضيف إلى Redis بعد التسليم المحليّ. والمستهلك
+     * يُسلّم أحداث النسخ الأخرى للناقل المحليّ مباشرةً (لا يُضيفها إلى Redis
+     * ثانيةً — فلا حلقة).
+     */
+    const originalPublish = trackingBus.publish.bind(trackingBus);
+    trackingBus.publish = async (event) => {
+      await originalPublish(event);
+      await redisTrackingStream.publish(event);
+    };
+    redisStreamStop = redisTrackingStream.startConsumer(
+      consumerGroup,
+      consumerName,
+      async (event) => {
+        await originalPublish(event);
+      },
+    );
+  }
+
   const trackingSessions = createTrackingSessionRepository(sql);
   const trackingProofs = createTrackingProofReader(sql);
   const trackingTokens = createTrackingTokenRpc(sql);
@@ -558,7 +595,12 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
 
   const customerRelay = createCustomerLiveRelay({
     channel: liveLocationChannel,
-    customers: { resolve: (tripId) => trackingProofs.customerOf(tripId) },
+    customers: {
+      resolve: (tripId) => trackingProofs.customerOf(tripId),
+      claimLiveMessageId: (tripId, messageId) =>
+        trackingProofs.claimLiveMessageId(tripId, messageId),
+      clearLiveMessageId: (tripId) => trackingProofs.clearLiveMessageId(tripId),
+    },
     clock: systemClock,
     /**
      * المرحلة ١١ — مدّةُ البثّ سقفُ الجلسة في المجال لا سقفُ تلغرام.
@@ -819,6 +861,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       clock: systemClock,
     },
     close: async () => {
+      if (redisStreamStop !== null) redisStreamStop();
       await sql.end({ timeout: 5 });
     },
   };

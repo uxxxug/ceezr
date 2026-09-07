@@ -311,6 +311,8 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
     riderLanguage: "ar",
     // المرحلة ١١: الحالة صارت جزءاً من الوجهة، و`matched` هي حال التتبّع الطبيعية.
     status: "matched" as WatchedTripStatus,
+    // SCL-005: لا بثّ مفتوح في القاعدة افتراضياً في اختبارات الوحدة.
+    liveMessageId: null as string | null,
   };
 
   const buildRelay = (
@@ -334,6 +336,8 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
             ? target
             : { ...target, status: over.statusRef.value };
         },
+        claimLiveMessageId: async () => true,
+        clearLiveMessageId: async () => undefined,
       },
       clock: { now: () => new Date(nowMsRef.value) },
       livePeriodSeconds: 3600,
@@ -491,7 +495,11 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
     const captured = captureChannel({});
     const relay = createCustomerLiveRelay({
       channel: captured.channel,
-      customers: { resolve: async () => resolvedRef.value },
+      customers: {
+        resolve: async () => resolvedRef.value,
+        claimLiveMessageId: async () => true,
+        clearLiveMessageId: async () => undefined,
+      },
       clock: { now: () => new Date(now.value) },
       livePeriodSeconds: 3600,
     });
@@ -517,7 +525,11 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
     const captured = captureChannel({});
     const relay = createCustomerLiveRelay({
       channel: captured.channel,
-      customers: { resolve: async () => ({ ...target, driverId: driverRef.value }) },
+      customers: {
+        resolve: async () => ({ ...target, driverId: driverRef.value }),
+        claimLiveMessageId: async () => true,
+        clearLiveMessageId: async () => undefined,
+      },
       clock: { now: () => new Date(now.value) },
       livePeriodSeconds: 3600,
     });
@@ -545,6 +557,112 @@ describe("مُرحِّل الموقع الحيّ إلى العميل", () => {
     now.value += 10_000;
     await relay.handle(positionEvent({ position: { lat: 21.57, lng: 39.1751 } }));
     expect(calls.map((c) => c.op)).toEqual(["start", "update", "start"]);
+  });
+
+  /**
+   * SCL-005 — المعرّف مشترك عبر النسخ: نسخةٌ تبدأ بثّاً، وأخرى تَرِثه من القاعدة
+   * فتُحدِّث به بدلاً من أن تفتح رسالةً ثانية.
+   */
+  it("SCL-005: نسخةٌ ثانية تَرِث معرّف البثّ من القاعدة فلا تفتح رسالةً ثانية", async () => {
+    const now = { value: 1_000_000 };
+    const captured = captureChannel();
+    const claimLog: { tripId: string; messageId: string }[] = [];
+    const clearLog: { tripId: string }[] = [];
+    /** محاكاة قاعدةٍ فيها بثٌّ مفتوح بدأته نسخةٌ أخرى. */
+    const dbMessageId = { value: "msg-from-instance-a" as string | null };
+    const relay = createCustomerLiveRelay({
+      channel: captured.channel,
+      customers: {
+        resolve: async () => ({ ...target, liveMessageId: dbMessageId.value }),
+        claimLiveMessageId: async (tripId, messageId) => {
+          claimLog.push({ tripId, messageId });
+          return true;
+        },
+        clearLiveMessageId: async (tripId) => {
+          clearLog.push({ tripId });
+          dbMessageId.value = null;
+        },
+      },
+      clock: { now: () => new Date(now.value) },
+      livePeriodSeconds: 3600,
+    });
+
+    await relay.handle(positionEvent());
+    /**
+     * SCL-005 — لم يُستدعَ `start` (المعرّف وُجد في القاعدة)، لكنّ `update` استُدعي
+     * لتحديث الرسالة بالموقع الأحدث. فالنسخة الوارثة لا تكتفي بالتخزين بل تُحدّث.
+     */
+    expect(captured.calls.map((c) => c.op)).toEqual(["update"]);
+    /** لم تُطالب بالملكيّة — المعرّف موجود. */
+    expect(claimLog).toEqual([]);
+    expect(relay.openBroadcasts).toBe(1);
+  });
+
+  /**
+   * SCL-005 — المطالبة الذرّيّة: نسختان تحاولان فتح بثّ في وقتٍ واحد، فائزةٌ واحدة.
+   */
+  it("SCL-005: مطالبة ذرّيّة تمنع فتح رسالتين لرحلةٍ واحدة", async () => {
+    const now = { value: 1_000_000 };
+    const captured = captureChannel();
+    const claimAttempts: { tripId: string; messageId: string }[] = [];
+    const clearLog: { tripId: string }[] = [];
+    const relay = createCustomerLiveRelay({
+      channel: captured.channel,
+      customers: {
+        resolve: async () => ({ ...target, liveMessageId: null }),
+        /** المطالبة الأولى تنجح، الثانية تفشل. */
+        claimLiveMessageId: async (tripId, messageId) => {
+          claimAttempts.push({ tripId, messageId });
+          return claimAttempts.length === 1;
+        },
+        clearLiveMessageId: async (tripId) => {
+          clearLog.push({ tripId });
+        },
+      },
+      clock: { now: () => new Date(now.value) },
+      livePeriodSeconds: 3600,
+    });
+
+    await relay.handle(positionEvent());
+    /** النسخة الأولى بدأت بثّاً ونجحت في المطالبة. */
+    expect(captured.calls.map((c) => c.op)).toEqual(["start"]);
+    expect(claimAttempts).toHaveLength(1);
+    expect(relay.openBroadcasts).toBe(1);
+  });
+
+  /**
+   * SCL-005 — الإيقاف يُلغي المعرّف في القاعدة، فلا تَرِثه نسخةٌ أخرى على رسالةٍ ماتت.
+   */
+  it("SCL-005: الإيقاف يُلغي المعرّف في القاعدة", async () => {
+    const now = { value: 1_000_000 };
+    const captured = captureChannel();
+    const clearLog: { tripId: string }[] = [];
+    const relay = createCustomerLiveRelay({
+      channel: captured.channel,
+      customers: {
+        resolve: async () => ({ ...target, liveMessageId: null }),
+        claimLiveMessageId: async () => true,
+        clearLiveMessageId: async (tripId) => {
+          clearLog.push({ tripId });
+        },
+      },
+      clock: { now: () => new Date(now.value) },
+      livePeriodSeconds: 3600,
+    });
+
+    await relay.handle(positionEvent());
+    expect(captured.calls.map((c) => c.op)).toEqual(["start"]);
+
+    now.value += 10_000;
+    await relay.handle(
+      positionEvent({
+        position: { lat: 21.56, lng: 39.1751 },
+        type: "session_ended",
+      }),
+    );
+
+    expect(clearLog).toEqual([{ tripId: TRIP }]);
+    expect(relay.openBroadcasts).toBe(0);
   });
 });
 
@@ -796,7 +914,10 @@ describe("تركيب الجلسة على المسار الحيّ", () => {
           driverId: DRIVER,
           riderLanguage: "ar",
           status: "in_progress" as WatchedTripStatus,
+          liveMessageId: null,
         }),
+        claimLiveMessageId: async () => true,
+        clearLiveMessageId: async () => undefined,
       },
       clock: { now: () => new Date(now.value) },
       livePeriodSeconds: 3600,

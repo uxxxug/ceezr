@@ -45,6 +45,13 @@ export interface CustomerChannelTarget {
    * ولماذا `WatchedTripStatus` لا `string`؟ لأن المُستهلِك يمرّرها إلى `isTripLive`؛
    * و`string` تجعل خطأً مطبعيّاً في حالةٍ يمرّ بلا صراخ، فيُقرأ «غير حيّ».
    */
+  /**
+   * SCL-005 — معرّف رسالة البثّ الحيّ من القاعدة لا من خريطة العملية.
+   *
+   * `null` يعني لا بثّ مفتوح. ووجوده يعني أن نسخةً ما بدأت بثّاً وأودعت المعرّف
+   * هنا، فأيُّ نسخةٍ تَرِثه وتُحدِّث به لا تفتح رسالةً ثانية.
+   */
+  readonly liveMessageId: string | null;
   readonly status: WatchedTripStatus;
 }
 
@@ -57,6 +64,17 @@ export interface TrackingProofReader {
    * يبدو «رحلة غير موجودة»، وتشخيصُ ذلك في الإنتاج مستحيل.
    */
   customerOf(tripId: string): Promise<CustomerChannelTarget | null>;
+  /**
+   * SCL-005 — مُطالبة ذرّيّة بملكيّة بثّ الموقع الحيّ.
+   *
+   * تُحدِّث `live_message_id` فقط إن كان `NULL`، فترجع `true` إن نجحت و`false` إن
+   * سبقها إليها نسخةٌ أخرى. وهذا يمنع أن تفتح نسختان رسالتَي بثّ لرحلةٍ واحدة.
+   */
+  claimLiveMessageId(tripId: string, messageId: string): Promise<boolean>;
+  /**
+   * SCL-005 — يُلغي ملكيّة البثّ عند الإيقاف أو الفشل.
+   */
+  clearLiveMessageId(tripId: string): Promise<void>;
 }
 
 /**
@@ -255,10 +273,12 @@ export function createTrackingProofReader(sql: Sql): TrackingProofReader {
           language_code: string | null;
           assigned_driver_id: string | null;
           status: string;
+          live_message_id: string | null;
         }[]
       >`
         select o.id, o.rider_id, u.telegram_id::text as telegram_id,
-               u.language_code, o.assigned_driver_id, o.status::text as status
+               u.language_code, o.assigned_driver_id, o.status::text as status,
+               o.live_message_id
           from orders o
           join riders r on r.id = o.rider_id
           join users u on u.id = r.user_id
@@ -277,7 +297,25 @@ export function createTrackingProofReader(sql: Sql): TrackingProofReader {
         // القاعدة و`WatchedTripStatus` في المجال يسردان نفس القيم، فالإسقاط يقرّر
         // ما تضمنه القاعدة؛ وفحصٌ يدويٌّ هنا يكون سرداً ثالثاً ينحرف عنهما.
         status: row.status as WatchedTripStatus,
+        liveMessageId: row.live_message_id,
       };
+    },
+
+    claimLiveMessageId: async (tripId, messageId) => {
+      const rows = await sql<{ id: string }[]>`
+        update orders set live_message_id = ${messageId}
+         where id = ${tripId}::uuid
+           and live_message_id is null
+         returning id
+      `;
+      return rows.length > 0;
+    },
+
+    clearLiveMessageId: async (tripId) => {
+      await sql`
+        update orders set live_message_id = null
+         where id = ${tripId}::uuid
+      `;
     },
   };
 }

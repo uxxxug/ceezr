@@ -229,13 +229,18 @@ describe("المستهلكُ يكتفي بـlastAppliedSeq — BUG-009 / ADR 005
     driverId: DRIVER,
     riderLanguage: "ar",
     status: "matched" as WatchedTripStatus,
+    liveMessageId: null as string | null,
   };
 
   const buildRelay = (nowMsRef: { value: number }) => {
     const captured = captureChannel();
     const relay = createCustomerLiveRelay({
       channel: captured.channel,
-      customers: { resolve: async () => target },
+      customers: {
+        resolve: async () => target,
+        claimLiveMessageId: async () => true,
+        clearLiveMessageId: async () => undefined,
+      },
       clock: { now: () => new Date(nowMsRef.value) },
       livePeriodSeconds: 3600,
     });

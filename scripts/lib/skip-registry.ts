@@ -1035,4 +1035,32 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات الجلسات على Redis حقيقي",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/scl-001-dedup-retention.test.ts",
+    suites: ["SCL-001 — dedup موزَّع في PostgreSQL مع عمرٍ محدود"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت منعَ التكرارِ الموزَّعَ في PostgreSQL لا Redis، والتنظيفَ الدوريَّ بحذفِ المختومِ القديمِ والمهجورِ القديم — وهما سلوكُ المحرّكِ لا سلوكُ مزدوجٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/integration/scl-005-live-message-id.test.ts",
+    suites: ["SCL-005 — بثّ الموقع الحيّ مشترك عبر القاعدة"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت أنّ معرّفَ بثّ الموقع الحيّ مشتركٌ عبر النسخ في القاعدة لا في خريطة عملية — مطالبةٌ ذرّيّةٌ، ووراثةٌ، وإغلاقٌ يقرأ من القاعدة. ولا يُثبَت ذلك بمزدوجٍ نكتبه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;

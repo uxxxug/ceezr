@@ -64,7 +64,20 @@ export interface CustomerChannelResolver {
      * لا وجود لها»، والأوّل يوجب إيقافاً.
      */
     readonly status: WatchedTripStatus;
+    /**
+     * SCL-005 — معرّف رسالة البثّ الحيّ من القاعدة لا من خريطة العملية.
+     * `null` يعني لا بثّ مفتوح. وجوده يعني أن نسخةً أخرى بدأت بثّاً وأودعت
+     * المعرّف، فنُحدِّث به ولا نفتح رسالةً ثانية.
+     */
+    readonly liveMessageId: string | null;
   } | null>;
+  /**
+   * SCL-005 — مُطالبة ذرّيّة بملكيّة بثّ الموقع الحيّ.
+   * ترجع `true` إن نجحت (كان `live_message_id` فارغاً) و`false` إن سبقتها نسخةٌ أخرى.
+   */
+  claimLiveMessageId(tripId: string, messageId: string): Promise<boolean>;
+  /** SCL-005 — يُلغي ملكيّة البثّ عند الإيقاف أو الفشل. */
+  clearLiveMessageId(tripId: string): Promise<void>;
 }
 
 export interface CustomerLiveRelayDeps {
@@ -117,13 +130,34 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
    * (والنشر يوقف الجلسات أصلاً). البديل الصحيح — إن أزعج فعلاً — أن يُقرأ معرّف
    * الرسالة من `orders` لا من جدولٍ جديد. وهو قرار المرحلة ١١ لا هذه.
    */
+  /**
+   * خريطة البثّ في الذاكرة — ذاكرةٌ مؤقّتة للقاعدة فقط.
+   *
+   * SCL-005: المعرّف الأصليّ في `orders.live_message_id` لا هنا. هذه الخريطة
+   * اختصارٌ لتجنّب قراءة القاعدة في كل إسلامةٍ (الخنق بالزمن والمسافة يحميها)،
+   * لكنها تُبنى من القاعدة عند بداية كل بثّ، فإذا ماتت النسخة وبعثت أخرى،
+   * تَرِث المعرّف من القاعدة لا تفتح رسالةً ثانية.
+   */
   const broadcasts = new Map<string, Broadcast>();
 
   const closeTrip = async (tripId: string): Promise<void> => {
     const open = broadcasts.get(tripId);
-    if (open === undefined) return;
-    broadcasts.delete(tripId);
-    await deps.channel.stop(open.chatId, open.messageId);
+    if (open !== undefined) {
+      broadcasts.delete(tripId);
+      await deps.channel.stop(open.chatId, open.messageId);
+    } else {
+      /**
+       * SCL-005 — لا بثَّ في الذاكرة، لكن قد يكون هناك معرّف في القاعدة بدأته
+       * نسخةٌ أخرى ثم ماتت. اقرأه وأوقف الرسالة، وإلا بقيت خريطة العميل حيّةً
+       * بعد انتهاء الرحلة.
+       */
+      const target = await deps.customers.resolve(tripId);
+      if (target !== null && target.liveMessageId !== null) {
+        await deps.channel.stop(target.riderTelegramId, target.liveMessageId);
+      }
+    }
+    /** SCL-005 — يُلغي المعرّف في القاعدة دائماً، حتى لو لم يكن في الذاكرة. */
+    await deps.customers.clearLiveMessageId(tripId);
   };
 
   return {
@@ -220,12 +254,88 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
             return;
           }
 
+          /**
+           * SCL-005 — المعرّف من القاعدة لا من خريطة العملية.
+           *
+           * إن وُجد `liveMessageId` في القاعدة، فنسخةٌ أخرى بدأت بثّاً وأودعت
+           * المعرّف. فنحن نَرِثه: نُبنِي الذاكرة المؤقّتة منه ونُحدِّث به، لا
+           * نفتح رسالةً ثانية. وهذا هو الإغلاق الموزّع: النسخة التي بدأت قد تكون
+           * ماتت، والمعرّف يبقى في القاعدة حتى يُلغي من يَرِثه.
+           *
+           * وإن لم يُوجَد، نبدأ بثّاً جديداً ثم نُطالب ذرّيّاً بملكيّته في القاعدة:
+           * `claimLiveMessageId` تُحدِّث `live_message_id` فقط إن كان `NULL`،
+           * فترجع `true` إن نجحنا و`false` إن سبقتنا نسخةٌ أخرى — حينها نوقِف
+           * بثّنا ونترك المعرّف الفائز.
+           */
+          if (target.liveMessageId !== null) {
+            /**
+             * SCL-005 — وَرِثنا المعرّف من القاعدة: حدِّث الرسالة فوراً بالموقع
+             * الحاليّ، لا تكتفي بتخزينه. فالنسخة التي بدأت البثّ قد تكون ماتت
+             * بعد آخر تحديثٍ، والموقع الذي نراه أحدثُ من ما على خريطة العميل.
+             */
+            const updated = await deps.channel.update(
+              target.riderTelegramId,
+              target.liveMessageId,
+              { lat: event.position.lat, lng: event.position.lng },
+            );
+            if (!updated) {
+              /**
+               * فشل التحديث ⇒ الرسالة ماتت أو انتهت مدّتها. ألغِ المعرّف في
+               * القاعدة وابدأ بثّاً جديداً.
+               */
+              await deps.customers.clearLiveMessageId(tripId);
+              const freshMessageId = await deps.channel.start(
+                target.riderTelegramId,
+                { lat: event.position.lat, lng: event.position.lng },
+                deps.livePeriodSeconds,
+              );
+              if (freshMessageId === null) return;
+              const reclaimed = await deps.customers.claimLiveMessageId(tripId, freshMessageId);
+              if (!reclaimed) {
+                await deps.channel.stop(target.riderTelegramId, freshMessageId);
+                log("tracking.live_location_claim_lost", { tripId });
+                return;
+              }
+              broadcasts.set(tripId, {
+                chatId: target.riderTelegramId,
+                messageId: freshMessageId,
+                sentAtMs: nowMs,
+                lat: event.position.lat,
+                lng: event.position.lng,
+                sessionId: event.sessionId,
+                lastAppliedSeq: event.sequence,
+              });
+              return;
+            }
+            broadcasts.set(tripId, {
+              chatId: target.riderTelegramId,
+              messageId: target.liveMessageId,
+              sentAtMs: nowMs,
+              lat: event.position.lat,
+              lng: event.position.lng,
+              sessionId: event.sessionId,
+              lastAppliedSeq: event.sequence,
+            });
+            log("tracking.live_location_inherited_from_db", { tripId });
+            return;
+          }
+
           const messageId = await deps.channel.start(
             target.riderTelegramId,
             { lat: event.position.lat, lng: event.position.lng },
             deps.livePeriodSeconds,
           );
           if (messageId === null) return;
+          const claimed = await deps.customers.claimLiveMessageId(tripId, messageId);
+          if (!claimed) {
+            /**
+             * سبقتنا نسخةٌ أخرى — أوقِف بثّنا واترك المعرّف الفائز في القاعدة.
+             * والإسلامة التالية ستَرِثه من القاعدة.
+             */
+            await deps.channel.stop(target.riderTelegramId, messageId);
+            log("tracking.live_location_claim_lost", { tripId });
+            return;
+          }
           broadcasts.set(tripId, {
             chatId: target.riderTelegramId,
             messageId,
@@ -299,6 +409,8 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
            * من عميلٍ تتوقّف خريطته صامتةً إلى نهاية الرحلة.
            */
           broadcasts.delete(tripId);
+          /** SCL-005 — يُلغي المعرّف في القاعدة أيضاً، فلا تَرِثه نسخةٌ أخرى على رسالةٍ ماتت. */
+          await deps.customers.clearLiveMessageId(tripId);
           log("tracking.live_location_edit_failed", { tripId });
           return;
         }
