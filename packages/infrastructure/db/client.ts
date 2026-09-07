@@ -5,7 +5,9 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.1، ومُختبَر في tests/integration.
  * ينتمي إلى: infrastructure/db
  * يُتوقع أن يستخدمه لاحقاً: كل محوّل في packages/infrastructure، apps/gateway، apps/workers
- * ملاحظات مستقبلية: في الإنتاج يُستخدم رابط pooler الخاص بـ Supabase بـ prepare:false.
+ * ملاحظات مستقبلية: في الإنتاج يُستخدم رابط pooler الخاص بـ Supabase. يُشتقّ وضعُ pooler
+ *   من الرابط عبر detectDbPoolerMode، فإذا كان transaction pooler يُعطَّل `prepare` تلقائيّاً
+ *   لأنّ transaction pooling لا يدعم الجُملَ المُحضَّرة (CAP-004 / ADR 0056).
  */
 
 import postgres from "postgres";
@@ -17,14 +19,54 @@ export type Sql = postgres.Sql<Record<string, never>>;
 export interface DbOptions {
   readonly connectionString: string;
   readonly max?: number;
-  /** مطلوب مع pooler الخاص بـ Supabase (transaction mode لا يدعم الجُمل المُحضَّرة). */
+  /** إن لم يُمرَّر يُشتقّ من رابط الاتصال عبر resolvePrepare. */
   readonly prepare?: boolean;
+}
+
+/** وضعُ pooler المُكتشَف من رابط الاتصال. */
+export type DbPoolerMode = "transaction" | "session" | "direct" | "unknown";
+
+/**
+ * يكشفُ وضعَ pooler من رابط الاتصال:
+ * - `transaction`: Supabase transaction pooler (pooler.supabase…:6543) أو `?pgbouncer=true` —
+ *   لا يدعم الجُملَ المُحضَّرة، فيُعطَّل `prepare` آمناً قبلَ أن يفشلَ في وقتِ التشغيلِ.
+ * - `session`: Supabase session pooler (pooler.supabase…:5432) — يدعمها فتبقى مُفعَّلة.
+ * - `direct`: اتصالٌ مباشرٌ (db.…supabase.co أو مضيفٌ محليٌّ) — يدعمها فتبقى مُفعَّلة.
+ * - `unknown`: رابطٌ غيرُ قابلٍ للتحليلِ بصيغةِ URL (مثلَ صيغةِ key=value) — يُحافَظُ على السلوكِ السابقِ.
+ */
+export function detectDbPoolerMode(connectionString: string): DbPoolerMode {
+  if (!connectionString) return "unknown";
+  let url: URL;
+  try {
+    url = new URL(connectionString);
+  } catch {
+    return "unknown";
+  }
+  const host = url.hostname.toLowerCase();
+  const port = url.port;
+  const isSupabasePooler = host.includes("pooler.supabase");
+  const pgbouncer = url.searchParams.get("pgbouncer") === "true";
+  if (pgbouncer || (isSupabasePooler && port === "6543")) return "transaction";
+  if (isSupabasePooler) return "session";
+  return "direct";
+}
+
+/**
+ * يقررُ هل تُفعَّلُ الجُملُ المُحضَّرةُ (prepared statements).
+ * قاعدةُ السلامةِ: pooler المعاملاتِ (transaction) **يمنعُها تماماً** — حتى لو طُلِبَ `prepare:true`
+ * صراحةً، لأنّ pooler المعاملاتِ لا يدعمُها فيعطّلُ الإعدادَ آمناً قبلَ أن يفشلَ في وقتِ التشغيلِ.
+ * لغيرِ ذلك يُحترَمُ التمريرُ الصريحُ أو يُرجَعُ الافتراضيُّ `true`.
+ */
+export function resolvePrepare(options: DbOptions): boolean {
+  const mode = detectDbPoolerMode(options.connectionString);
+  if (mode === "transaction") return false;
+  return options.prepare ?? true;
 }
 
 export function createSql(options: DbOptions): Sql {
   return postgres(options.connectionString, {
     max: options.max ?? 5,
-    prepare: options.prepare ?? true,
+    prepare: resolvePrepare(options),
     onnotice: () => {},
     transform: { undefined: null },
   });
