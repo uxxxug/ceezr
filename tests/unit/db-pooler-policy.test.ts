@@ -96,11 +96,11 @@ describe("resolvePrepare — قررُ تفعيلَ الجُملِ المُحضَ
   });
 });
 
-describe("createSql — السياسةُ مركزيّةٌ في المصنع", () => {
-  it("لا يُمرِّر prepare للبوابة فيُشتقّ من الرابط: transaction ⇒ false", () => {
+describe("resolvePrepare — نمطُ البوابةِ (لا تُمرِّر prepare)", () => {
+  it("البوابةُ بلا prepare تُشتقُّ من الرابط: transaction ⇒ false", () => {
     // محاكاةُ استدعاءِ البوابة: createSql({ connectionString }) بلا prepare.
-    // لا نفتحُ اتصالاً حقيقيّاً — نتأكّدُ فقط أنّ createSql يُمرّرُ resolvePrepare.
-    // نتحقّقُ عبرَ الاعتمادِ على resolvePrepare نفسِها (مُختبَرةٌ أعلاه).
+    // لا نفتحُ اتصالاً حقيقيّاً — نتحقّقُ من سياسةِ resolvePrepare
+    // التي يستخدمُها createSql مركزيّاً (مُختبَرةٌ هنا، ومُتحقَّقٌ من ربطِها في typecheck/CI).
     const opts = { connectionString: TX };
     expect(resolvePrepare(opts)).toBe(false);
   });
