@@ -195,8 +195,8 @@ function bodyErrorOf(raw: string): string | null {
   }
   if (typeof parsed !== "object" || parsed === null) return "UNPARSEABLE_BODY";
   const record = parsed as Record<string, unknown>;
-  if (record["ok"] === true) return null;
-  const code = record["error"];
+  if (record.ok === true) return null;
+  const code = record.error;
   return typeof code === "string" ? code : "UNKNOWN_ERROR";
 }
 
