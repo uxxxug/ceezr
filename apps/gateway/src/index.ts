@@ -476,6 +476,9 @@ const app = createServer({
     // مصدرُ قرارِ منعِ التكرارِ في الإنتاج: القاعدةُ لا الذاكرةُ (ADR 0054 §٣-أ).
     // ويبقى `dedup` موصولاً للمقاييسِ وللتدهورِ المُعلَنِ حينَ يغيبُ `intake`.
     intake: instrumentUpdateIntake(createPostgresUpdateIntake(container.sql), operationalMetrics),
+    // **SCL-001**: في الإنتاجِ يُحظَرُ العملُ بلا إيداعٍ صامدٍ فيُرمي المصنعُ عند الإقلاع،
+    // فلا يصيرَ dedup الذاكرةُ مساراً صامتاً (ADR 0059).
+    requireDurableIntake: config.env === "production",
     dedup: instrumentUpdateDeduplicator(createUpdateDeduplicator(), operationalMetrics),
     rateLimits: { probes: limiter(PROBE_LIMIT), users: limiter(USER_LIMIT) },
   },
