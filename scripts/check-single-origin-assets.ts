@@ -232,7 +232,7 @@ function main(): void {
 
   const expected = cspMetaTag(
     buildCsp({
-      apiBase: process.env["VITE_WASLAH_API_BASE"],
+      apiBase: process.env.VITE_WASLAH_API_BASE,
       inlineStyleHashes: styleHashes,
     }),
   );

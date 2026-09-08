@@ -535,7 +535,7 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       raceStoreA.claimStart(raceTrip, "race-a", 10_000),
       raceStoreB.claimStart(raceTrip, "race-b", 10_000),
     ]);
-    expect(a && !b ? true : !a && b ? true : false).toBe(true); // واحدٌ فقط
+    expect((a && !b) || (!a && b)).toBe(true); // واحدٌ فقط
     await raceStoreA.releaseClaim(raceTrip, "race-a");
     await raceStoreB.releaseClaim(raceTrip, "race-b");
 

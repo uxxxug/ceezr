@@ -84,7 +84,7 @@ describe("blankComments — الحدُّ المُعلَنُ", () => {
    */
   it("يُفرِّغ خطأً نصّاً حرفيّاً يبدأ بـ`//` بعدَ مسافةٍ", () => {
     const literal = 'const s = "x // y";';
-    expect(blankComments(literal)).toBe('const s = "x' + " ".repeat(literal.length - 12));
+    expect(blankComments(literal)).toBe(`const s = "x${" ".repeat(literal.length - 12)}`);
   });
 
   it("لا يُفرِّغ قسمةً: `a / b` ليست تعليقاً", () => {
