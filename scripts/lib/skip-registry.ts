@@ -595,6 +595,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/notification-outbox-dead-letter.test.ts",
+    suites: ["طابورُ الموتى في صندوقِ الصادرِ على PostgreSQL فعلية (CAP-002)"],
+    skipped: 6,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ أنَّ سقفَ المحاولاتِ يُنفَّذُ في المحرِّكِ نفسِه لا في الشيفرةِ: إخفاقٌ دونَ السقفِ يُعيدُ الصفَّ `pending` بموعدٍ مُؤجَّلٍ أُسّياً، واستنفادُه يُميتُه بـ`MAX_ATTEMPTS` و`died_at` فلا يُلتقَطُ ثانيةً أبداً، والتخلّي يُسجِّلُ سببَه، ورمزٌ لا يملكُ الصفَّ يُرفَضُ بلا أثرٍ (CAP-002/F6-04). ولا يُثبَتُ ذلك ببديلٍ في الذاكرةِ: المقصودُ قرارُ الدالّةِ تحتَ `for update` وقيدُ التلازمِ بينَ `status='dead'` و`died_at` وقراءةُ السقفِ من `platform_settings` — كلُّها في المحرِّكِ لا في محاكٍ نكتبُه نحن، ومحاكٍ يُعيدُ ما كتبناه يشهدُ لنا بما قلناه لا بما يفعلُه PostgreSQL.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/notification-outbox-dispute.test.ts",
     suites: ["قرارُ الدعمِ في صندوقِ الصادرِ الموحَّدِ على PostgreSQL فعلية (BUG-004)"],
     skipped: 6,

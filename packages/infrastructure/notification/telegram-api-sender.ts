@@ -15,13 +15,35 @@ import { toTelegramMarkup } from "./telegram-markup.ts";
 import type { IdentifyingSender } from "./telegram-negotiation-notifier.ts";
 import type { SupportSender } from "./telegram-support-notifier.ts";
 
+/**
+ * تصنيفُ الرسالةِ (`CAP-002`). **ليسَ وصفاً بل قرارًا عندَ الضيقِ**: حصّةُ البوتِ
+ * محدودةٌ، وإذا ازدحمَ الصادرُ وجبَ أن يُعرَفَ ما يُنتَظَرُ له ويُعادُ مرارًا
+ * ممّا يُسقَطُ بعدَ محاولتَينِ. **والافتراضُ `informational`** — فمن جعلَ الأصلَ
+ * حرجاً صارَ كلُّ شيءٍ حرجاً، ولم يبقَ للتصنيفِ معنًى.
+ */
+export type SendPriority = "critical" | "informational";
+
+/**
+ * خياراتُ نداءٍ واحدٍ. **اختياريٌّ قصداً**: المنفذُ يُنفَّذُ في اختباراتٍ
+ * كثيرةٍ بمزدوجاتٍ لا تأخذُ إلاّ ما تحتاجُ، ودالّةٌ بوسائطَ أقلَّ تبقى مُنَفَّذةً
+ * للمنفذِ في TypeScript — فلا يُكسَرُ موضعٌ واحدٌ بإضافةِ هذا الحقلِ.
+ */
+export interface SendOptions {
+  readonly priority?: SendPriority;
+}
+
 /** منفذ الإرسال — grammY ينفّذه في الإنتاج، ومزدوج يلتقط الرسائل في الاختبار. */
 export interface TelegramSender {
   /**
    * يعيد معرّف الرسالة المُرسَلة. بطاقة قروب غير المشتركين تُحفَظ بمعرّفها لتُعدَّل
    * أو يُشار إليها لاحقاً، ولا يجوز اختلاق معرّف؛ فمن لا يعرف المعرّف يعيد null.
    */
-  sendMessage(chatId: string, text: string, markup: unknown): Promise<string | null>;
+  sendMessage(
+    chatId: string,
+    text: string,
+    markup: unknown,
+    options?: SendOptions,
+  ): Promise<string | null>;
   /**
    * إرسال صورة بمعرّف ملف تلغرام والنصّ تعليقاً عليها. نمرّر المعرّف كما وصل
    * ولا نُنزّل الصورة: التنزيل يعني تخزين ملفات مستخدمين بلا حاجة ولا سياسة حذف.
@@ -31,6 +53,7 @@ export interface TelegramSender {
     fileId: string,
     caption: string,
     markup: unknown,
+    options?: SendOptions,
   ): Promise<string | null>;
   /**
    * المرحلة ١٢ — دبّوس موقعٍ ثابت: نقطة انطلاقٍ أو مقصدٍ يفتحها السائق في
@@ -41,7 +64,12 @@ export interface TelegramSender {
    * ولماذا رسالةٌ منفصلة لا نصّ فيه إحداثيتان؟ لأن نصّ «21.5471, 39.1751» لا
    * يفتح خريطةً ولا يُوجِّه سيّارة — يُنسَخ باليد إلى تطبيق آخر، وأثناء القيادة.
    */
-  sendLocation(chatId: string, latitude: number, longitude: number): Promise<string | null>;
+  sendLocation(
+    chatId: string,
+    latitude: number,
+    longitude: number,
+    options?: SendOptions,
+  ): Promise<string | null>;
 }
 
 export function grammyTelegramSender(token: string): TelegramSender {

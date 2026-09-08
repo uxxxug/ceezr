@@ -24,16 +24,32 @@ export interface OutboxDelivery {
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * مآلُ إعلانِ النتيجةِ كما تحكمُ به القاعدةُ لا كما يظنُّه المُستدعي: `delivered`
+ * برسالةٍ لها معرّفٌ، أو `dead` لأنَّ المحاولاتِ استُنفدَت (CAP-002)، أو `retried`
+ * بموعدٍ جديدٍ. و`null` حينَ رُفِضَ الإعلانُ أصلاً (رمزٌ لا يملكُ الصفَّ).
+ */
+export type FinishOutcome = "delivered" | "dead" | "retried";
+
+export interface FinishResult {
+  readonly ok: boolean;
+  readonly outcome: FinishOutcome | null;
+}
+
 export interface NotificationOutboxPort {
   claim(): Promise<Result<{ delivery: OutboxDelivery | null }, PortFailureError>>;
   finish(input: {
     deliveryId: string;
     claimToken: string;
     messageId: string | null;
-  }): Promise<Result<boolean, PortFailureError>>;
+    /** آخرُ خطأٍ من المُرسِلِ — يُحفظُ في الصفِّ ليُعرفَ سببُ موتِه لا أن يُخمَّنَ. */
+    error: string | null;
+  }): Promise<Result<FinishResult, PortFailureError>>;
   abandon(input: {
     deliveryId: string;
     claimToken: string;
+    /** سببُ التخلّي الصريحُ — يُحفظُ في `dead_reason`. */
+    reason: string | null;
   }): Promise<Result<boolean, PortFailureError>>;
 }
 
@@ -61,8 +77,13 @@ export interface DeliveryAttemptOutcome {
   readonly kind: string | null;
   readonly delivered: boolean;
   readonly abandoned: boolean;
+  /** ماتَ الصفُّ باستنفادِ المحاولاتِ في `finish` — لا بتخلٍّ صريحٍ (CAP-002). */
+  readonly died: boolean;
   readonly maxAttempts: number | null;
-  /** سبب فشل النشر إن فشل. الصفّ يعود `pending` بموعدٍ جديد في كل الأحوال. */
+  /**
+   * سببُ فشلِ النشرِ إن فشلَ. والصفُّ يعودُ `pending` بموعدٍ جديدٍ **ما لم تُستنفدِ
+   * المحاولاتُ** — فحينَها يموتُ بـ`MAX_ATTEMPTS` ولا يُعادُ أبداً (CAP-002).
+   */
   readonly failure: string | null;
 }
 
@@ -78,6 +99,7 @@ export async function deliverNotification(
       kind: null,
       delivered: false,
       abandoned: false,
+      died: false,
       maxAttempts: null,
       failure: null,
     });
@@ -94,6 +116,7 @@ export async function deliverNotification(
     const abandoned = await deps.outbox.abandon({
       deliveryId: delivery.deliveryId,
       claimToken: delivery.claimToken,
+      reason: handled.value.failure,
     });
     if (!abandoned.ok) return abandoned;
     return ok({
@@ -101,6 +124,7 @@ export async function deliverNotification(
       kind: delivery.kind,
       delivered: false,
       abandoned: true,
+      died: false,
       maxAttempts: delivery.maxAttempts,
       failure: null,
     });
@@ -109,6 +133,7 @@ export async function deliverNotification(
     deliveryId: delivery.deliveryId,
     claimToken: delivery.claimToken,
     messageId: handled.value.messageId,
+    error: handled.value.failure,
   });
   // فشل `finish` وحده يُرجَع خطأً: الصفّ عالقٌ في `sending` بلا موعد. أمّا فشلُ
   // النشرِ فقد أُعيد الصفّ به إلى `pending` سليمًا بموعدٍ جديد.
@@ -118,8 +143,9 @@ export async function deliverNotification(
   return ok({
     found: true,
     kind: delivery.kind,
-    delivered: handled.value.messageId !== null && finished.value,
+    delivered: handled.value.messageId !== null && finished.value.ok,
     abandoned: false,
+    died: finished.value.outcome === "dead",
     maxAttempts: delivery.maxAttempts,
     failure: handled.value.failure,
   });
@@ -130,12 +156,15 @@ export interface DeliveryBatchOutcome {
   readonly delivered: number;
   readonly failed: number;
   readonly abandoned: number;
+  /** ماتت باستنفادِ المحاولاتِ — تُعدُّ منفصلةً عن التخلّي الصريحِ (CAP-002). */
+  readonly died: number;
 }
 
 /**
- * شوطٌ محدودٌ بإعدادِ المدينةِ الذي أرجعه claim الذرّي. لا يضع حدًّا لعمرِ الصفِّ —
- * فشلُ النشرِ يُعيدُه pending بموعدٍ جديد، والصفوفُ التي لن تُقبلَ أبدًا يُتخلّى
- * عنها (dead) فلا تُستهلِكُ الشوطَ ولا تُعادُ أبدًا (BUG-004).
+ * شوطٌ محدودٌ بإعدادِ المدينةِ الذي أرجعه claim الذرّي. ولعمرِ الصفِّ حدٌّ منذُ
+ * CAP-002: فشلُ النشرِ يُعيدُه pending بتراجعٍ أُسّيٍّ **حتى `max_attempts`**، ثمّ
+ * يموتُ بـ`MAX_ATTEMPTS`. والصفوفُ التي لن تُقبلَ أبدًا يُتخلّى عنها فوراً (dead)
+ * فلا تُستهلِكُ الشوطَ ولا تُعادُ أبدًا (BUG-004).
  */
 export async function deliverNotificationBatch(
   deps: NotificationDeliveryDeps,
@@ -144,6 +173,7 @@ export async function deliverNotificationBatch(
   let delivered = 0;
   let failed = 0;
   let abandoned = 0;
+  let died = 0;
   let limit = 1;
   while (claimed < limit) {
     const attempt = await deliverNotification(deps);
@@ -153,9 +183,10 @@ export async function deliverNotificationBatch(
     if (attempt.value.maxAttempts !== null) limit = attempt.value.maxAttempts;
     if (attempt.value.delivered) delivered += 1;
     if (attempt.value.abandoned) abandoned += 1;
+    if (attempt.value.died) died += 1;
     // فشلُ نشرٍ واحد لا يُسقطُ الشوط: مجموعةُ مدينةٍ معطوبة كانت تمنعُ تسليمَ
     // إشعاراتِ المدنِ الأخرى في نفسِ الدورة. يُعدّ ويُبلَّغ، ويستمرّ الشوط.
     if (attempt.value.failure !== null) failed += 1;
   }
-  return ok({ claimed, delivered, failed, abandoned });
+  return ok({ claimed, delivered, failed, abandoned, died });
 }
