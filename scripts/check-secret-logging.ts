@@ -54,6 +54,10 @@ const SECRET_NAMES = [
   "secretKey",
   "serviceRoleKey",
   "SUPABASE_SERVICE_ROLE_KEY",
+  // ترويساتُ اعتمادِ المُجمِّع المركزيّ (F5-07 · ADR 0062): قيمتُها رمزُ اعتمادٍ
+  // يُكتَب في `Authorization`، ومن ملكَه كتب في لوحةِ مراقبتِنا ما شاء.
+  "METRICS_EXPORT_HEADERS",
+  "metricsExportHeaders",
 ] as const;
 
 /**

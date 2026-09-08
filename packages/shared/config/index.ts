@@ -116,6 +116,11 @@ export interface AppConfig {
    */
   readonly processTopology: ProcessTopologyName;
   /**
+   * دفعُ المقاييس إلى مُجمِّعٍ مركزيّ (`F5-07` / `SCL-006`). `endpoint: null` تعني
+   * إطفاءً مُعلَناً — لا عطلاً ولا نقصاً في الضبط.
+   */
+  readonly metricsExport: MetricsExportConfig;
+  /**
    * ناقلُ الرسائل الصادرة. `real` في كلّ تشغيلٍ حقيقي، و`silent` للقياس فقط
    * ومرفوضٌ في الإنتاج. راجع `TELEGRAM_TRANSPORT_NAMES` لسبب سكناه في الضبط.
    */
@@ -282,6 +287,66 @@ export const TRANSLATION_PROVIDER_NAMES = [
 ] as const;
 
 export type TranslationProviderName = (typeof TRANSLATION_PROVIDER_NAMES)[number];
+
+/**
+ * ضبطُ دفعِ المقاييس إلى مُجمِّعٍ مركزيّ — `F5-07` / `SCL-006` (ADR 0062).
+ *
+ * **الغيابُ إطفاءٌ مُعلَنٌ لا عطلٌ صامت**: `endpoint === null` تعني «لا مُجمِّعَ
+ * مضبوطاً»، والنظامُ يعمل كاملاً بلا واحد — `GET /metrics` يبقى كما هو. ولهذا لا
+ * مكانَ لهذه المتغيّرات في `REQUIRED_ENV_KEYS`.
+ */
+export interface MetricsExportConfig {
+  /** نقطةُ استقبالِ OTLP/HTTP الكاملة، أو `null` أي «لا دفعَ مركزيّاً». */
+  readonly endpoint: string | null;
+  /**
+   * ترويساتُ الاعتمادِ نحوَ المُجمِّع. **سرٌّ**: لا تُسجَّل ولا تظهر في رسالةِ خطأ.
+   * فارغةٌ إن لم تُضبَط — بعضُ المُجمِّعاتِ داخلَ الشبكةِ لا يطلب اعتماداً.
+   */
+  readonly headers: Readonly<Record<string, string>>;
+  /** الفاصلُ بين دورَي دفع (ثانية). */
+  readonly intervalSeconds: number;
+  /**
+   * معرّفُ النسخةِ في سماتِ المورد. `null` يعني «وَلِّدْه عند الإقلاع»، وهو الحالُ
+   * الغالبُ: المنصّةُ لا تُعطي معرّفاً ثابتاً لكلِّ نسخةٍ، والمُولَّدُ يكفي لتمييزِ
+   * عمليّتَين تعملان معاً — وهو كلُّ ما يلزم كي لا يدهسَ أحدُهما سلاسلَ الآخر.
+   */
+  readonly serviceInstanceId: string | null;
+}
+
+/** الحدُّ الأدنى والأعلى لفاصلِ الدفع — حدودٌ تقنيّةٌ لا تجاريّة. */
+const MIN_METRICS_EXPORT_INTERVAL_SECONDS = 1;
+const MAX_METRICS_EXPORT_INTERVAL_SECONDS = 3600;
+/** الافتراضُ: خمسَ عشرةَ ثانيةً — فاصلُ الكشطِ الشائعُ في Prometheus. */
+const DEFAULT_METRICS_EXPORT_INTERVAL_SECONDS = 15;
+
+/**
+ * يُحلِّل `METRICS_EXPORT_HEADERS` بصيغةِ `k=v,k=v`.
+ *
+ * **ولا تدخل القيمةُ رسالةَ الخطأ أبداً** — لا كاملةً ولا مقتطعةً. هذا حقلُ سرٍّ،
+ * ورسالةُ الإقلاعِ تُطبَع في سجلِّ المنصّةِ الذي يقرؤه من لا يملك السرّ. فيُقال
+ * «الصيغةُ خاطئةٌ في المُدخَل رقم كذا» ولا يُقال ماذا كان فيه.
+ */
+export function parseMetricsExportHeaders(
+  raw: string,
+): Result<Readonly<Record<string, string>>, string> {
+  const headers: Record<string, string> = {};
+  const entries = raw.split(",");
+  for (const [index, entry] of entries.entries()) {
+    const trimmed = entry.trim();
+    if (trimmed.length === 0) continue;
+    const separator = trimmed.indexOf("=");
+    if (separator <= 0 || separator === trimmed.length - 1) {
+      return err(`الصيغةُ المتوقَّعة name=value مفصولةً بفواصل — المُدخَل رقم ${index + 1} لا يطابقها`);
+    }
+    const name = trimmed.slice(0, separator).trim();
+    const value = trimmed.slice(separator + 1).trim();
+    if (!/^[A-Za-z0-9!#$%&'*+.^_`|~-]+$/.test(name) || value.length === 0) {
+      return err(`اسمُ ترويسةٍ غيرُ صالحٍ أو قيمةٌ فارغةٌ في المُدخَل رقم ${index + 1}`);
+    }
+    headers[name.toLowerCase()] = value;
+  }
+  return ok(headers);
+}
 
 /** المتغيرات التي بلا قيمة صالحة لها لا يمكن للنظام أن يعمل إطلاقاً. */
 export const REQUIRED_ENV_KEYS = [
@@ -623,6 +688,67 @@ export function tryLoadConfig(
     }
   }
 
+  /**
+   * دفعُ المقاييس إلى مُجمِّعٍ مركزيّ (`F5-07` / `SCL-006` · ADR 0062).
+   *
+   * الغيابُ إطفاءٌ صريحٌ لا خطأ. أمّا القيمةُ المكتوبةُ التي لا تصلح فسقوطٌ عند
+   * الإقلاع: من ضبط نقطةَ مُجمِّعٍ يظنّ أنّ مقاييسَه تصل، ونظامٌ يبتلع خطأَ ضبطِه
+   * صامتاً يترك المشغّلَ يقرأ لوحةً فارغةً ويظنّ أنّ النظامَ هادئ.
+   */
+  const metricsExportEndpoint = isBlank(source.METRICS_EXPORT_ENDPOINT)
+    ? null
+    : (source.METRICS_EXPORT_ENDPOINT as string).trim();
+  if (metricsExportEndpoint !== null) {
+    if (!/^https?:\/\/.+/i.test(metricsExportEndpoint)) {
+      return err(new InvalidEnvVarError("METRICS_EXPORT_ENDPOINT", "يجب أن يبدأ بـhttp(s)://"));
+    }
+    // في الإنتاج `http://` مرفوض: الجسمُ يحمل أحجامَ الأعمالِ وأوقاتَ الذروة،
+    // والترويسةُ تحمل رمزَ اعتمادِ المُجمِّع — كلاهما مكشوفٌ لكلّ وسيطٍ على الطريق.
+    if (env === "production" && !metricsExportEndpoint.toLowerCase().startsWith("https://")) {
+      return err(
+        new InvalidEnvVarError("METRICS_EXPORT_ENDPOINT", "يجب أن يبدأ بـhttps:// في الإنتاج"),
+      );
+    }
+  }
+
+  const rawMetricsExportHeaders = isBlank(source.METRICS_EXPORT_HEADERS)
+    ? ""
+    : (source.METRICS_EXPORT_HEADERS as string);
+  const parsedMetricsHeaders = parseMetricsExportHeaders(rawMetricsExportHeaders);
+  if (!parsedMetricsHeaders.ok) {
+    return err(new InvalidEnvVarError("METRICS_EXPORT_HEADERS", parsedMetricsHeaders.error));
+  }
+
+  const rawMetricsInterval = isBlank(source.METRICS_EXPORT_INTERVAL_SECONDS)
+    ? `${DEFAULT_METRICS_EXPORT_INTERVAL_SECONDS}`
+    : (source.METRICS_EXPORT_INTERVAL_SECONDS as string).trim();
+  // ولماذا تُفحَص الصيغةُ قبلَ التحويل؟ لأنّ `parseInt("1.5")` يردُّ `1` و`parseInt("30s")`
+  // يردُّ `30`، فيُقبَل مُدخَلٌ خاطئٌ بمعنىً غيرِ ما قصدَه المشغّل ولا حرفَ يشكو.
+  const metricsIntervalSeconds = /^\d+$/.test(rawMetricsInterval)
+    ? Number.parseInt(rawMetricsInterval, 10)
+    : Number.NaN;
+  if (
+    !Number.isInteger(metricsIntervalSeconds) ||
+    metricsIntervalSeconds < MIN_METRICS_EXPORT_INTERVAL_SECONDS ||
+    metricsIntervalSeconds > MAX_METRICS_EXPORT_INTERVAL_SECONDS
+  ) {
+    return err(
+      new InvalidEnvVarError(
+        "METRICS_EXPORT_INTERVAL_SECONDS",
+        `عددٌ صحيحٌ بين ${MIN_METRICS_EXPORT_INTERVAL_SECONDS} و${MAX_METRICS_EXPORT_INTERVAL_SECONDS} — وردت: ${rawMetricsInterval}`,
+      ),
+    );
+  }
+
+  const metricsExport: MetricsExportConfig = {
+    endpoint: metricsExportEndpoint,
+    headers: parsedMetricsHeaders.value,
+    intervalSeconds: metricsIntervalSeconds,
+    serviceInstanceId: isBlank(source.SERVICE_INSTANCE_ID)
+      ? null
+      : (source.SERVICE_INSTANCE_ID as string).trim(),
+  };
+
   const translationApiKey = isBlank(source.TRANSLATION_API_KEY)
     ? null
     : (source.TRANSLATION_API_KEY as string).trim();
@@ -742,6 +868,7 @@ export function tryLoadConfig(
     tracking,
     trackingTokenBaseUrl,
     miniappSessionSecret,
+    metricsExport,
   });
 }
 

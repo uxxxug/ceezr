@@ -9,6 +9,67 @@
 
 export type MetricLabels = Readonly<Record<string, string>>;
 
+/**
+ * ## لقطةُ المسجِّل — لماذا بنيةٌ لا نصّ (F5-07 · SCL-006)
+ *
+ * `render()` يُنتج نصَّ Prometheus، وهو **صيغةُ عرضٍ لا صيغةُ نقل**: من أراد أن
+ * يدفع المقاييسَ إلى مُجمِّعٍ مركزيٍّ بصيغةٍ أخرى (OTLP مثلاً) اضطُرَّ إلى تحليلِ
+ * النصِّ سطراً سطراً — وتحليلُ نصٍّ وَلَّدناهُ نحن عبثٌ يُدخِل طبقةَ خطأٍ لا سببَ
+ * لها. فاللقطةُ هي المصدرُ البنيويُّ الذي يُبنى عليه كلُّ مُصدِّرٍ، ويبقى
+ * `render()` أحدَ قُرّائه لا الطريقَ الوحيد.
+ *
+ * والعقدُ المُعلَنُ هنا: **العدُّ في السلالِ تراكميٌّ** كما يعرضه Prometheus
+ * (`le` تعني «أصغرَ من أو يساوي»)، لا عدَّ سلّةٍ منفردة. ومن أراد الفروقَ
+ * — وOTLP يريدها — فليحسبْها، ولا نُغيّرَ نحن دلالةَ الحقل.
+ */
+export interface CounterOrGaugeSeries {
+  readonly labels: MetricLabels;
+  readonly value: number;
+}
+
+export interface HistogramBucketSnapshot {
+  /** الحدُّ الأعلى للسلّة. */
+  readonly upperBound: number;
+  /** العدُّ **التراكميُّ** حتى هذا الحدِّ ضمناً — لا عدُّ السلّةِ وحدَها. */
+  readonly cumulativeCount: number;
+}
+
+export interface HistogramSeriesSnapshot {
+  readonly labels: MetricLabels;
+  readonly count: number;
+  readonly sum: number;
+  readonly buckets: readonly HistogramBucketSnapshot[];
+}
+
+export interface ValueFamilySnapshot {
+  readonly type: "counter" | "gauge";
+  readonly name: string;
+  readonly help: string;
+  readonly labelNames: readonly string[];
+  readonly series: readonly CounterOrGaugeSeries[];
+}
+
+export interface HistogramFamilySnapshot {
+  readonly type: "histogram";
+  readonly name: string;
+  readonly help: string;
+  readonly labelNames: readonly string[];
+  readonly buckets: readonly number[];
+  readonly series: readonly HistogramSeriesSnapshot[];
+}
+
+export type MetricFamilySnapshot = ValueFamilySnapshot | HistogramFamilySnapshot;
+
+export interface MetricsSnapshot {
+  /**
+   * كلُّ عائلةٍ مُعرَّفةٍ — **بما فيها الفارغةُ من القيم**. وهذا يفترق عن
+   * `render()` الذي يُسقِط العائلةَ الخاليةَ من سطورِ القيم. والسببُ أنّ اللقطةَ
+   * عقدٌ لقارئٍ برمجيٍّ: من أراد إسقاطَ الفارغِ أسقطَه بشرطٍ واحدٍ، ومن أراد أن
+   * يعرفَ أنّ العائلةَ مُعرَّفةٌ ولم تُسجَّل بعدُ لا يستطيع استرجاعَ ما حُذف.
+   */
+  readonly families: readonly MetricFamilySnapshot[];
+}
+
 export interface MetricDefinition {
   readonly name: string;
   readonly help: string;
@@ -149,6 +210,54 @@ export class PrometheusRegistry {
       if (seconds <= bucket) value.buckets.set(bucket, (value.buckets.get(bucket) ?? 0) + 1);
     }
     byLabels.set(key, value);
+  }
+
+  /**
+   * لقطةٌ بنيويّةٌ لكلِّ ما في المسجِّل الآن. نسخةٌ مستقلّةٌ: تعديلُ المسجِّل بعدَ
+   * أخذِها لا يُغيِّرها، فلا يقرأُ المُصدِّرُ بنيةً تتحرّك تحته أثناءَ التسلسل.
+   */
+  snapshot(): MetricsSnapshot {
+    const families: MetricFamilySnapshot[] = [];
+    for (const family of this.families.values()) {
+      const names = family.labelNames ?? [];
+      if (family.type === "histogram") {
+        const stored = this.histograms.get(family.name);
+        const series: HistogramSeriesSnapshot[] = [];
+        for (const [key, value] of stored ?? []) {
+          series.push({
+            labels: this.labelsFromKey(names, key),
+            count: value.count,
+            sum: value.sum,
+            buckets: family.buckets.map((upperBound) => ({
+              upperBound,
+              cumulativeCount: value.buckets.get(upperBound) ?? 0,
+            })),
+          });
+        }
+        families.push({
+          type: "histogram",
+          name: family.name,
+          help: family.help,
+          labelNames: [...names],
+          buckets: [...family.buckets],
+          series,
+        });
+        continue;
+      }
+      const stored = this.values.get(family.name);
+      const series: CounterOrGaugeSeries[] = [];
+      for (const [key, value] of stored ?? []) {
+        series.push({ labels: this.labelsFromKey(names, key), value });
+      }
+      families.push({
+        type: family.type,
+        name: family.name,
+        help: family.help,
+        labelNames: [...names],
+        series,
+      });
+    }
+    return { families };
   }
 
   render(): string {
