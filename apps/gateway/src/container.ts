@@ -110,6 +110,10 @@ import {
   createTrackingEventBus,
   type TrackingEventBus,
 } from "../../../packages/infrastructure/tracking/event-bus.ts";
+import {
+  createRedisStreamTrackingEventBus,
+  DEFAULT_POLL_MS,
+} from "../../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
 import { createTrackingSessionRepository } from "../../../packages/infrastructure/tracking/session-repository.ts";
 import {
   createActiveTripReader,
@@ -541,8 +545,26 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   /**
    * المرحلة ٦ — النقل اللحظي. التركيب هنا لا داخل الحوار: الناقل **واحد**
    * للعملية كلّها، ومن بناه في موضعين صار له مشتركون لا يرون أحداث بعضهم.
+   *
+   * `SCL-004` — حين يكونُ Redisُ حاضراً يُغلَّفُ الناقلُ المحليُّ بطبقةِ Streams
+   * فيصيرُ الحدثُ مرئيّاً عبرَ النسخِ (`XADD`/`XREAD` على عميلِ REST نفسِه، بلا
+   * مقبسٍ دائمٍ — ADR 0016/0058). والماسحُ يبدأُ هنا ويُوقَفُ عندَ الإغلاقِ.
    */
-  const trackingBus = createTrackingEventBus(log);
+  const localTrackingBus = createTrackingEventBus(log);
+  const distributedTrackingBus =
+    redis !== null
+      ? createRedisStreamTrackingEventBus({
+          local: localTrackingBus,
+          redis,
+          streamKey: "waslah:tracking:events",
+          instanceId: crypto.randomUUID(),
+          pollMs: DEFAULT_POLL_MS,
+        })
+      : null;
+  if (distributedTrackingBus !== null) {
+    distributedTrackingBus.start();
+  }
+  const trackingBus: TrackingEventBus = distributedTrackingBus ?? localTrackingBus;
   const trackingSessions = createTrackingSessionRepository(sql);
   const trackingProofs = createTrackingProofReader(sql);
   const trackingTokens = createTrackingTokenRpc(sql);
@@ -819,6 +841,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       clock: systemClock,
     },
     close: async () => {
+      distributedTrackingBus?.stop();
       await sql.end({ timeout: 5 });
     },
   };

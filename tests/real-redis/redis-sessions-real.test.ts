@@ -28,7 +28,10 @@ import { createRedisRateLimiter } from "../../apps/gateway/src/rate-limit/fixed-
 import { createServer } from "../../apps/gateway/src/server.ts";
 import type { DialogState } from "../../packages/application/bots/types.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import { createTrackingEventBus } from "../../packages/infrastructure/tracking/event-bus.ts";
+import { createRedisStreamTrackingEventBus } from "../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import type { TrackingEvent } from "../../packages/tracking/types.ts";
 import { testConfig } from "../support/config.ts";
 import {
   assertRealRedisWhenRequired,
@@ -417,4 +420,68 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       await container.close();
     }
   }, 30_000);
+
+  // `SCL-004` — مجرى أحداثٍ مشترك عبر Redis Streams: نشرٌ من نسخةٍ وتسليمٌ في
+  // أخرى عبرَ `XADD`/`XREAD` على عميلِ Upstash REST نفسِه (لا مقبسٌ دائم). يُثبتُ
+  // أنّ الناقلَ الموزَّعَ يعملُ على Redis حقيقيٍّ لا على المزدوجِ في الذاكرةِ.
+  it("SCL-004: حدثٌ نُشرَ في نسخةٍ يصلُ إلى مشتركٍ في نسخةٍ أخرى عبرَ Streams", async () => {
+    const streamKey = `${redis.prefix}:scl-004:stream`;
+    redis.trackForeignKey(streamKey);
+
+    const localA = createTrackingEventBus();
+    const localB = createTrackingEventBus();
+    const busA = createRedisStreamTrackingEventBus({
+      local: localA,
+      redis: redis.client,
+      streamKey,
+      instanceId: "ci-A",
+      pollMs: 50,
+      startCursor: "$",
+    });
+    const busB = createRedisStreamTrackingEventBus({
+      local: localB,
+      redis: redis.client,
+      streamKey,
+      instanceId: "ci-B",
+      pollMs: 50,
+      startCursor: "0-0",
+    });
+
+    const received: TrackingEvent[] = [];
+    localB.subscribe(
+      { kind: "operations", scope: { kind: "all_cities" } },
+      {
+        deliver: (event) => {
+          received.push(event);
+        },
+      },
+    );
+    busB.start();
+
+    try {
+      const event: TrackingEvent = {
+        type: "location_updated",
+        driverId: "driver-scl-004",
+        tripId: "trip-scl-004",
+        sessionId: "sess-scl-004",
+        sequence: 1,
+        position: { lat: 21.5471, lng: 39.1751 },
+        cityId: cityId,
+        timestamp: new Date(),
+      };
+      await busA.publish(event);
+
+      // أعطِ الماسحَ دوراتٍ كافيةً لالتقاطِ الحدثِ من المجرى.
+      for (let i = 0; i < 20 && received.length === 0; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      expect(received.length).toBeGreaterThanOrEqual(1);
+      expect(received[0]?.tripId).toBe("trip-scl-004");
+      expect(received[0]?.sequence).toBe(1);
+      mark("scl-004-stream-cross-instance-delivery");
+    } finally {
+      busB.stop();
+    }
+  }, 15_000);
 });

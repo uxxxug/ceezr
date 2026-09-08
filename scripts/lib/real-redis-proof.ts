@@ -40,6 +40,7 @@ export const REQUIRED_CHECKS = [
   "rate-limit-window-expires",
   "rate-limit-atomic-under-concurrency",
   "full-dialog-through-real-redis",
+  "scl-004-stream-cross-instance-delivery",
 ] as const;
 export type RequiredCheck = (typeof REQUIRED_CHECKS)[number];
 
