@@ -92,8 +92,8 @@ export function loadConfig(
 ): AgentCoreConfig {
   return {
     enabled: readFlag(source, "AGENT_CORE_ENABLED"),
-    runtimeRoot: source["AGENT_CORE_RUNTIME_ROOT"] ?? DEFAULT_CONFIG.runtimeRoot,
-    knowledgeRoot: source["AGENT_CORE_KNOWLEDGE_ROOT"] ?? DEFAULT_CONFIG.knowledgeRoot,
+    runtimeRoot: source.AGENT_CORE_RUNTIME_ROOT ?? DEFAULT_CONFIG.runtimeRoot,
+    knowledgeRoot: source.AGENT_CORE_KNOWLEDGE_ROOT ?? DEFAULT_CONFIG.knowledgeRoot,
     mediumTermMaxLines: readInt(
       source,
       "AGENT_CORE_MEDIUM_TERM_MAX_LINES",
@@ -115,6 +115,6 @@ export function loadConfig(
       "AGENT_CORE_MIN_SUPPORT",
       DEFAULT_CONFIG.minSupportForCandidate,
     ),
-    persistenceEnabled: source["AGENT_CORE_PERSISTENCE"] !== "false",
+    persistenceEnabled: source.AGENT_CORE_PERSISTENCE !== "false",
   };
 }
