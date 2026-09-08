@@ -157,13 +157,13 @@ describe("البوابةُ — الإغلاقُ الرشيقُ عند SIGTERM (F
       const before = await fetch(`http://127.0.0.1:${port}/ready`);
       expect([200, 503]).toContain(before.status);
 
-      // نُطلقُ عدّةَ طلباتٍ جاريةٍ (غيرَ منتظَرة) تُبقي الخادمَ مشغولاً لحظةَ
-      // الإشارةِ، فيبقى يستقبلُ حتى يردَّ `/ready` بـ«مُصرِّف» قبلَ الإغلاقِ.
-      const pending = Array.from({ length: 4 }, () =>
-        fetch(`http://127.0.0.1:${port}/ready`).catch(() => {}),
-      );
-
-      // نُرسلُ الإشارةَ مباشرةً بعد إطلاقِ الجاري — فلا يفرغُ بعد.
+      // **ولا نُطلقُ «طلباتٍ جاريةً» تُبقي الخادمَ مشغولاً.** كانت النسخةُ السابقةُ
+      // تُطلقُ أربعةَ `/ready` بهذه النيّةِ، **والنيّةُ باطلةٌ في الواقعِ**: غلافُ
+      // `Bun.serve` في `apps/gateway/src/index.ts` يستثني `/health` و`/ready` من
+      // عدّادِ الجاري صريحاً («فحوصُ الصحةِ لا تُعدُّ جاريةً — لا تُؤخِّرُ التصريفَ»)،
+      // فكانت الأربعةُ لا تُبطئُ التصريفَ لحظةً واحدةً، وما أنجحَ الاختبارَ حتى الآن
+      // سباقٌ محضٌ بينَ `close()` وأولِ استطلاعٍ. والنافذةُ الآنَ مضمونةٌ
+      // بـ`announceMs` في دورةِ الحياةِ نفسِها.
       process.kill(child.pid, "SIGTERM");
 
       let drainingSeen = false;
@@ -183,7 +183,6 @@ describe("البوابةُ — الإغلاقُ الرشيقُ عند SIGTERM (F
       }
 
       expect(drainingSeen).toBe(true);
-      await Promise.allSettled(pending);
       await child.exited;
     },
     CASE_TIMEOUT_MS,
@@ -198,12 +197,8 @@ describe("البوابةُ — الإغلاقُ الرشيقُ عند SIGTERM (F
       const before = await fetch(`http://127.0.0.1:${port}/__drain_probe__`);
       expect(before.status).toBe(404);
 
-      // نُطلقُ طلباتٍ جاريةً تُبقي الخادمَ مشغولاً أثناءَ نافذةِ الإغلاقِ، فيبقى يستقبلُ
-      // ويُطبِّقُ بوّابةَ التصريفِ على المسارِ غيرِ الصحيِّ.
-      const pending = Array.from({ length: 4 }, () =>
-        fetch(`http://127.0.0.1:${port}/ready`).catch(() => {}),
-      );
-
+      // النافذةُ مضمونةٌ بـ`announceMs` لا بطلباتٍ «جاريةٍ» لا تُعَدُّ جاريةً — انظرِ
+      // الحالةَ السابقةَ.
       process.kill(child.pid, "SIGTERM");
 
       let gateSeen = false;
@@ -224,7 +219,6 @@ describe("البوابةُ — الإغلاقُ الرشيقُ عند SIGTERM (F
       }
 
       expect(gateSeen).toBe(true);
-      await Promise.allSettled(pending);
       await child.exited;
     },
     CASE_TIMEOUT_MS,

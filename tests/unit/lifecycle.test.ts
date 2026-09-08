@@ -159,4 +159,78 @@ describe("createLifecycle — التصريفُ الرشيقُ (F5-05 / CAP-008)"
     expect(state.closed).toBe(true);
     expect(result.outcome).toBe("drained");
   });
+  it("نافذةُ الإعلانِ: `isDraining` يُرفَعُ ويُنتظَرُ قبلَ الإغلاقِ ولو لم يكن جارٍ", async () => {
+    const { resources, state } = fakeResources({ initialInFlight: 0 });
+    const sleeps: number[] = [];
+    const observed = { seen: false, draining: false, closed: true };
+
+    const lifecycle = createLifecycle({
+      resources,
+      graceMs: 10_000,
+      announceMs: 500,
+      now: () => 0,
+      sleep: async (ms: number) => {
+        sleeps.push(ms);
+        if (!observed.seen) {
+          // أوّلُ نومٍ هو نافذةُ الإعلانِ: الحالةُ مُعلَنةٌ والمواردُ لم تُغلَق بعدُ.
+          observed.seen = true;
+          observed.draining = lifecycle.isDraining();
+          observed.closed = state.closed;
+        }
+      },
+    });
+
+    const result = await lifecycle.requestShutdown("SIGTERM");
+
+    expect(sleeps[0]).toBe(500);
+    expect(observed.seen).toBe(true);
+    expect(observed.draining).toBe(true);
+    expect(observed.closed).toBe(false);
+    expect(state.closed).toBe(true);
+    expect(result.outcome).toBe("drained");
+  });
+
+  it("بلا `announceMs` لا يُنتظَرُ شيءٌ — السلوكُ السابقُ محفوظٌ حرفاً", async () => {
+    const { resources, state } = fakeResources({ initialInFlight: 0 });
+    const sleeps: number[] = [];
+    const lifecycle = createLifecycle({
+      resources,
+      graceMs: 10_000,
+      now: () => 0,
+      sleep: async (ms: number) => {
+        sleeps.push(ms);
+      },
+    });
+
+    const result = await lifecycle.requestShutdown("SIGTERM");
+
+    expect(sleeps).toEqual([]);
+    expect(state.closed).toBe(true);
+    expect(result.outcome).toBe("drained");
+  });
+
+  it("طلبٌ جارٍ ينتهي خلالَ نافذةِ الإعلانِ ⇒ `drained` لا `force_closed`", async () => {
+    const { resources, state, setInFlight } = fakeResources({ initialInFlight: 2 });
+    let first = true;
+    const lifecycle = createLifecycle({
+      resources,
+      graceMs: 10_000,
+      announceMs: 500,
+      now: () => 0,
+      sleep: async () => {
+        // خلالَ نافذةِ الإعلانِ فرغَ الجاريُ — فيُقرأُ العدّادُ بعدَها لا قبلَها.
+        if (first) {
+          first = false;
+          setInFlight(0);
+        }
+      },
+    });
+
+    const result = await lifecycle.requestShutdown("SIGTERM");
+
+    expect(result.outcome).toBe("drained");
+    expect(result.inFlightAtShutdown).toBe(2);
+    expect(state.forceClosed).toBe(false);
+    expect(state.closed).toBe(true);
+  });
 });
