@@ -44,6 +44,17 @@ export interface LifecycleOptions {
   readonly sleep?: (ms: number) => Promise<void>;
   /** فاصلُ الاستطلاعِ أثناءَ انتظارِ التصريف (بالملّي ثانية). الافتراضُ `25`. */
   readonly pollIntervalMs?: number;
+  /**
+   * **نافذةُ الإعلانِ** — ما يُنتظرُ بعدَ رفعِ `isDraining` وقبلَ انتظارِ فراغِ
+   * الجاري، ليرى المُوجّهُ حالةَ «مُصرّف» فيُوقِفَ إرسالَ الجديدِ **قبلَ أن يُغلَقَ
+   * المقبسُ**. الافتراضُ `0` حفاظاً على سلوكِ من لا يطلبُها.
+   *
+   * **ولمَ لا تكفي الطلباتُ الجاريةُ وحدَها**: حينَ تأتي الإشارةُ ولا طلبَ جارٍ
+   * — وهو الغالبُ في إعادةِ النشرِ — يصيرُ `drained` صحيحاً في الحالِ فيُغلَقُ الخادمُ
+   * في دورةِ حدثٍ واحدةٍ، **فلا يرى المُوجّهُ `503 draining` أبداً** بل يرى رفضَ
+   * اتصالٍ — وهو عينُ ما جاءَ `F5-05` يمنعُه. وإعلانٌ لا يراه أحدٌ ليسَ إعلاناً.
+   */
+  readonly announceMs?: number;
 }
 
 export interface ShutdownResult {
@@ -69,6 +80,7 @@ export function createLifecycle(options: LifecycleOptions): Lifecycle {
   const now = options.now ?? (() => Date.now());
   const sleep = options.sleep ?? ((ms: number) => Bun.sleep(ms));
   const pollInterval = options.pollIntervalMs ?? 25;
+  const announceMs = options.announceMs ?? 0;
   const log = options.log ?? (() => {});
 
   let draining = false;
@@ -88,11 +100,18 @@ export function createLifecycle(options: LifecycleOptions): Lifecycle {
           signal,
           inFlight: inFlightAtShutdown,
           graceMs: options.graceMs,
+          announceMs,
         });
+
+        // ٠ — **نافذةُ الإعلانِ**: رُفِعَ `isDraining` فوقَ، وهاهُنا يُمهَلُ المُوجّهُ
+        // ليراه ويُوقِفَ إرسالَ الجديدِ قبلَ أن يُغلَقَ المقبسُ. وبدونِها، إن لم يكن جارٍ
+        // أصلاً، يُغلَقُ الخادمُ في دورةِ حدثٍ واحدةٍ فلا يرى المُوجّهُ الإعلانَ أبداً.
+        if (announceMs > 0) await sleep(announceMs);
 
         // ١ — انتظارُ فراغِ الجاري ضمنَ المهلة. الخادمُ ما زال يستقبلُ حتى يُجيبَ
         // `/ready` بـ«مُصرِّف»، فلا نُوقفُ الاستقبالَ هنا.
-        let drained = inFlightAtShutdown === 0;
+        // ويُقرأُ العدّادُ ثانيةً بعدَ نافذةِ الإعلانِ لأنَّ طلباً جارياً قد ينتهي خلالَها.
+        let drained = options.resources.inFlight() === 0;
         while (!drained && now() - started < options.graceMs) {
           await sleep(pollInterval);
           drained = options.resources.inFlight() === 0;

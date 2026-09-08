@@ -262,6 +262,14 @@ describeIf("CAP-003 — findNearbyAvailableForDispatch على PostGIS", () => {
         location: { latitude: PICKUP.latitude + jitter, longitude: PICKUP.longitude + jitter },
       });
     }
+    // إحصاءٌ إلزاميٌّ قبلَ EXPLAIN — وهو ما كانَ يجعلُ هذا الاختبارَ غيرَ حتميٍّ.
+    // الأسطرُ الاثنا عشرَ أعلاه تُدخَلُ في اللحظةِ نفسِها، و`autovacuum` لا يُحصي
+    // فورًا؛ فمخطِّطُ الاستعلامِ رأى في إحدى جولاتِ CI `Plan Rows: 1`
+    // فاختارَ `drivers_city_location_at_idx` (B-tree على `city_id`) مع `Filter`
+    // و`Sort` بدلَ KNN على GiST — فأخفقَ التوكيدُ لإحصاءٍ بائدٍ لا لانحدارٍ.
+    // و`analyze` لا يُرخي التوكيدَ ولا يُلزِمُ فهرسًا بعينِه: يُطلِعُ المخطِّطَ
+    // على الحجمِ الحقيقيِّ وحدَه، والحكمُ يبقى حكمَه هو.
+    await sql`analyze drivers`;
     // ضمنَ معاملةٍ واحدةٍ كي يلزمَ `enable_seqscan = off` الاتصالَ نفسَه لاستعلامِ EXPLAIN.
     const planText = await sql.begin(async (tx) => {
       await tx`set enable_seqscan = off`;

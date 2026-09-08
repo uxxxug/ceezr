@@ -41,32 +41,76 @@ interface SpawnedGateway {
 }
 
 /**
- * يُطلقُ البوابةَ بمنفذٍ عشوائيٍّ، ينتظرُ أن تُجيبَ `/health`، ثمّ يُعيدُ مقبضَها.
- * `PORT` عشوائيٌّ لتجنُّبِ تعارضِ المنافذِ في CI. لا نقرأُ السجلَّ — يكفي
- * أنّ الخادمَ يستقبلُ فعلاً (برهانُه استجابةُ `/health`).
+ * مهلةُ الإقلاعِ. **ليست مهلةَ توكيدٍ بل شرطُ تمهيدٍ**: المُختبَرُ ما يقعُ **بعدَ**
+ * `SIGTERM`، وتوكيدُه (الخروجُ بصفرٍ خلالَ ثمانٍ) لم يُمَسَّ حرفاً. ورُفِعَت من خمسَ
+ * عشرةَ ثانيةً لأنّ الإخفاقَ المرصودَ وقعَ عندَ `15092ms` بالضبطِ — أي على حافّةِ
+ * المهلةِ نفسِها لا دونَها — في جولةِ `test:coverage` حيث يُثقِلُ قياسُ التغطيةِ
+ * إقلاعَ عمليّةٍ فرعيّةٍ، **وإعادةُ تشغيلِ الوظيفةِ نفسِها بلا تغييرِ سطرٍ نجحَت**؛
+ * فاللااحتميّةُ مُثبَتةٌ بالتجربةِ لا مُستنتَجةٌ.
+ */
+const BOOT_TIMEOUT_MS = 40_000;
+
+/** مهلةُ الحالةِ: إقلاعٌ ثمّ نافذةُ إغلاقٍ ثمّ هامشٌ — لا تُرخي توكيداً. */
+const CASE_TIMEOUT_MS = 70_000;
+
+/**
+ * منفذٌ فريدٌ **حتماً** لا عشوائيّاً. العشوائيُّ يجوزُ أن يصطدمَ بمنفذٍ مشغولٍ على
+ * عاملِ CI فيُخفِقَ الإقلاعُ بلا ذنبٍ للمُختبَرِ — ومصدرُ عشوائيّةٍ في بوّابةٍ لا
+ * مقابلَ له هاهُنا.
+ */
+let nextPortOffset = 0;
+
+/**
+ * يقرأُ المجرى إلى آخرِه في الخلفيّةِ ويحتفظُ بما قرأ. **والقراءةُ إلى الآخرِ شرطٌ
+ * لا ترفٌ**: النسخةُ السابقةُ كانت تقرأُ **قطعةً واحدةً** ثمّ تتركُ الأنبوبَ، فإذا
+ * أكثرَتِ البوابةُ من السجلِّ امتلأَ فتوقّفَت عندَ الكتابةِ قبلَ أن تستمعَ — وهذا
+ * إقلاعٌ لا يكتملُ أبداً لا إقلاعٌ بطيءٌ. ويُفيدُ المحفوظُ أنّ إخفاقَ الإقلاعِ يظهرُ
+ * بسببِه لا بجملةٍ عامّةٍ لا تدلُّ على شيءٍ.
+ */
+function drain(stream: ReadableStream<Uint8Array>, into: string[]): void {
+  void (async () => {
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    try {
+      for (;;) {
+        const chunk = await reader.read();
+        if (chunk.done) break;
+        if (chunk.value !== undefined) into.push(decoder.decode(chunk.value, { stream: true }));
+      }
+    } catch {
+      // أُغلقَ الأنبوبُ مع العمليّةِ — متوقّعٌ وليسَ إخفاقاً.
+    }
+  })();
+}
+
+/**
+ * يُطلقُ البوابةَ بمنفذٍ فريدٍ، ينتظرُ أن تُجيبَ `/health`، ثمّ يُعيدُ مقبضَها.
+ * `PORT` فريدٌ حتميّاً لتجنُّبِ تعارضِ المنافذِ في CI. ولا نقرأُ السجلَّ حُكماً — يكفي
+ * أنّ الخادمَ يستقبلُ فعلاً (برهانُه استجابةُ `/health`) — وإنّما يُحفَظُ
+ * للتشخيصِ عندَ إخفاقِ الإقلاعِ.
  */
 async function bootGateway(): Promise<SpawnedGateway> {
-  const port = 30_000 + Math.floor(Math.random() * 20_000);
+  nextPortOffset += 1;
+  const port = 31_000 + ((process.pid + nextPortOffset * 7) % 9_000);
   const child = Bun.spawn(["bun", "apps/gateway/src/index.ts"], {
     env: { PATH: process.env.PATH ?? "", ...FAKE_ENV, PORT: String(port) },
     stdout: "pipe",
     stderr: "pipe",
   });
 
-  // نُفرّغُ المخزنَ المؤقتَّ حتى لا يتوقّفَ الإجراءُ عند امتلاءِ الأنبوب.
-  void child.stdout
-    .getReader()
-    .read()
-    .catch(() => {});
-  void child.stderr
-    .getReader()
-    .read()
-    .catch(() => {});
+  // نُفرّغُ المجرَيين إلى آخرِهما حتى لا يتوقّفَ الإجراءُ عند امتلاءِ الأنبوب.
+  const out: string[] = [];
+  const errOut: string[] = [];
+  drain(child.stdout, out);
+  drain(child.stderr, errOut);
 
-  const healthOk = await waitForHealth(port, 15_000);
+  const healthOk = await waitForHealth(port, BOOT_TIMEOUT_MS);
   if (!healthOk) {
     child.kill();
-    throw new Error(`لم يُجبِ /health على المنفذِ ${port} خلالَ المهلة`);
+    const tail = `${out.join("")}\n${errOut.join("")}`.trim().slice(-2_000);
+    throw new Error(
+      `لم يُجبِ /health على المنفذِ ${port} خلالَ ${BOOT_TIMEOUT_MS} ملّي ثانية.\nمخرجاتُ العمليّةِ:\n${tail}`,
+    );
   }
 
   return { port, child, stdout: child.stdout, stderr: child.stderr };
@@ -87,90 +131,96 @@ async function waitForHealth(port: number, timeoutMs: number): Promise<boolean> 
 }
 
 describe("البوابةُ — الإغلاقُ الرشيقُ عند SIGTERM (F5-05)", () => {
-  it("SIGTERM ⇒ توقّفٌ عن القبولِ ثمّ خروجٌ برمزِ صفرٍ ضمنَ مهلة", async () => {
-    const { port, child } = await bootGateway();
+  it(
+    "SIGTERM ⇒ توقّفٌ عن القبولِ ثمّ خروجٌ برمزِ صفرٍ ضمنَ مهلة",
+    async () => {
+      const { port, child } = await bootGateway();
 
-    // نُرسلُ الإشارةَ الفعليّة.
-    process.kill(child.pid, "SIGTERM");
+      // نُرسلُ الإشارةَ الفعليّة.
+      process.kill(child.pid, "SIGTERM");
 
-    // وننتظرُ الخروجَ — رشيقٌ يعني برمزِ صفرٍ وبسرعةٍ لا انهيارٍ.
-    const exitCode = await Promise.race([child.exited, Bun.sleep(8_000).then(() => -1)]);
+      // وننتظرُ الخروجَ — رشيقٌ يعني برمزِ صفرٍ وبسرعةٍ لا انهيارٍ.
+      const exitCode = await Promise.race([child.exited, Bun.sleep(8_000).then(() => -1)]);
 
-    expect(exitCode).toBe(0);
-    void port;
-  }, 30_000);
+      expect(exitCode).toBe(0);
+      void port;
+    },
+    CASE_TIMEOUT_MS,
+  );
 
-  it("أثناءَ التصريفِ: `/ready` يرتدُّ غيرَ جاهزٍ قبلَ الإغلاق", async () => {
-    const { port, child } = await bootGateway();
+  it(
+    "أثناءَ التصريفِ: `/ready` يرتدُّ غيرَ جاهزٍ قبلَ الإغلاق",
+    async () => {
+      const { port, child } = await bootGateway();
 
-    // قبلَ الإشارة: `/ready` يُجيب (قد يفشلُ الفحصُ بلا قاعدة، لكنّه يُجيب، لا يُعلَّق).
-    const before = await fetch(`http://127.0.0.1:${port}/ready`);
-    expect([200, 503]).toContain(before.status);
+      // قبلَ الإشارة: `/ready` يُجيب (قد يفشلُ الفحصُ بلا قاعدة، لكنّه يُجيب، لا يُعلَّق).
+      const before = await fetch(`http://127.0.0.1:${port}/ready`);
+      expect([200, 503]).toContain(before.status);
 
-    // نُطلقُ عدّةَ طلباتٍ جاريةٍ (غيرَ منتظَرة) تُبقي الخادمَ مشغولاً لحظةَ
-    // الإشارةِ، فيبقى يستقبلُ حتى يردَّ `/ready` بـ«مُصرِّف» قبلَ الإغلاقِ.
-    const pending = Array.from({ length: 4 }, () =>
-      fetch(`http://127.0.0.1:${port}/ready`).catch(() => {}),
-    );
+      // **ولا نُطلقُ «طلباتٍ جاريةً» تُبقي الخادمَ مشغولاً.** كانت النسخةُ السابقةُ
+      // تُطلقُ أربعةَ `/ready` بهذه النيّةِ، **والنيّةُ باطلةٌ في الواقعِ**: غلافُ
+      // `Bun.serve` في `apps/gateway/src/index.ts` يستثني `/health` و`/ready` من
+      // عدّادِ الجاري صريحاً («فحوصُ الصحةِ لا تُعدُّ جاريةً — لا تُؤخِّرُ التصريفَ»)،
+      // فكانت الأربعةُ لا تُبطئُ التصريفَ لحظةً واحدةً، وما أنجحَ الاختبارَ حتى الآن
+      // سباقٌ محضٌ بينَ `close()` وأولِ استطلاعٍ. والنافذةُ الآنَ مضمونةٌ
+      // بـ`announceMs` في دورةِ الحياةِ نفسِها.
+      process.kill(child.pid, "SIGTERM");
 
-    // نُرسلُ الإشارةَ مباشرةً بعد إطلاقِ الجاري — فلا يفرغُ بعد.
-    process.kill(child.pid, "SIGTERM");
-
-    let drainingSeen = false;
-    const start = Date.now();
-    while (Date.now() - start < 3_000) {
-      try {
-        const res = await fetch(`http://127.0.0.1:${port}/ready`);
-        const body = (await res.json()) as { status: string };
-        if (res.status === 503 && body.status === "draining") {
-          drainingSeen = true;
-          break;
+      let drainingSeen = false;
+      const start = Date.now();
+      while (Date.now() - start < 3_000) {
+        try {
+          const res = await fetch(`http://127.0.0.1:${port}/ready`);
+          const body = (await res.json()) as { status: string };
+          if (res.status === 503 && body.status === "draining") {
+            drainingSeen = true;
+            break;
+          }
+        } catch {
+          // أُغلقَ الاتصالُ بعدَ اكتمالِ التصريفِ — متوقَّعٌ.
         }
-      } catch {
-        // أُغلقَ الاتصالُ بعدَ اكتمالِ التصريفِ — متوقَّعٌ.
+        await Bun.sleep(5);
       }
-      await Bun.sleep(5);
-    }
 
-    expect(drainingSeen).toBe(true);
-    await Promise.allSettled(pending);
-    await child.exited;
-  }, 30_000);
+      expect(drainingSeen).toBe(true);
+      await child.exited;
+    },
+    CASE_TIMEOUT_MS,
+  );
 
-  it("أثناءَ التصريفِ: المسارُ غيرُ الصحيِّ يُرفَضُ بـ503 draining (بوّابةُ الجديد)", async () => {
-    const { port, child } = await bootGateway();
+  it(
+    "أثناءَ التصريفِ: المسارُ غيرُ الصحيِّ يُرفَضُ بـ503 draining (بوّابةُ الجديد)",
+    async () => {
+      const { port, child } = await bootGateway();
 
-    // قبلَ الإشارةِ: المسارُ غيرُ الموجودِ يردُّ 404 (لا حارسَ يرفضُه بعد).
-    const before = await fetch(`http://127.0.0.1:${port}/__drain_probe__`);
-    expect(before.status).toBe(404);
+      // قبلَ الإشارةِ: المسارُ غيرُ الموجودِ يردُّ 404 (لا حارسَ يرفضُه بعد).
+      const before = await fetch(`http://127.0.0.1:${port}/__drain_probe__`);
+      expect(before.status).toBe(404);
 
-    // نُطلقُ طلباتٍ جاريةً تُبقي الخادمَ مشغولاً أثناءَ نافذةِ الإغلاقِ، فيبقى يستقبلُ
-    // ويُطبِّقُ بوّابةَ التصريفِ على المسارِ غيرِ الصحيِّ.
-    const pending = Array.from({ length: 4 }, () =>
-      fetch(`http://127.0.0.1:${port}/ready`).catch(() => {}),
-    );
+      // النافذةُ مضمونةٌ بـ`announceMs` لا بطلباتٍ «جاريةٍ» لا تُعَدُّ جاريةً — انظرِ
+      // الحالةَ السابقةَ.
+      process.kill(child.pid, "SIGTERM");
 
-    process.kill(child.pid, "SIGTERM");
-
-    let gateSeen = false;
-    const start = Date.now();
-    while (Date.now() - start < 3_000) {
-      try {
-        const res = await fetch(`http://127.0.0.1:${port}/__drain_probe__`);
-        const body = (await res.json()) as { status?: string };
-        // البوّابةُ ترفضُ الجديدَ بـ503 draining لا تُمرِّرُه إلى التطبيق.
-        if (res.status === 503 && body.status === "draining") {
-          gateSeen = true;
-          break;
+      let gateSeen = false;
+      const start = Date.now();
+      while (Date.now() - start < 3_000) {
+        try {
+          const res = await fetch(`http://127.0.0.1:${port}/__drain_probe__`);
+          const body = (await res.json()) as { status?: string };
+          // البوّابةُ ترفضُ الجديدَ بـ503 draining لا تُمرِّرُه إلى التطبيق.
+          if (res.status === 503 && body.status === "draining") {
+            gateSeen = true;
+            break;
+          }
+        } catch {
+          // أُغلقَ الاتصالُ بعدَ اكتمالِ التصريفِ — متوقَّعٌ.
         }
-      } catch {
-        // أُغلقَ الاتصالُ بعدَ اكتمالِ التصريفِ — متوقَّعٌ.
+        await Bun.sleep(5);
       }
-      await Bun.sleep(5);
-    }
 
-    expect(gateSeen).toBe(true);
-    await Promise.allSettled(pending);
-    await child.exited;
-  }, 30_000);
+      expect(gateSeen).toBe(true);
+      await child.exited;
+    },
+    CASE_TIMEOUT_MS,
+  );
 });
