@@ -7,6 +7,10 @@
  * ملاحظات مستقبلية: القفل الموزَّع يأتي من الحاوية، فتشغيل عدّة نسخ آمن بلا تعديل هنا.
  */
 
+import {
+  createConfiguredMetricsExporter,
+  createOperationalMetrics,
+} from "../../../packages/infrastructure/observability/index.ts";
 import { tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { buildWorkerContainer, MAX_JOB_CONCURRENCY } from "./container.ts";
 import { createJobRunner, type JobLogger } from "./runner.ts";
@@ -25,7 +29,35 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const container = buildWorkerContainer(config.value);
+  /**
+   * مسجِّلُ مقاييسِ العامل — `F5-07` / `SCL-006`.
+   *
+   * ولماذا في العاملِ أصلاً: لأنّ `apps/workers` عمليّةٌ منفصلةٌ **بلا خادمِ HTTP**،
+   * فلا `GET /metrics` فيها أصلاً ولا موضعَ يُكشَط منه. وهذا بالضبط ما يجعل الدفعَ
+   * الطريقَ الوحيدَ لقياسِها، وهو شرطٌ سابقٌ لـ`F5-04` (فصلُ العاملِ عن البوابة): فصلٌ
+   * بلا تجميعٍ مركزيٍّ يعني عاملاً حيّاً لا يراه أحد.
+   *
+   * ويُمرَّر إلى `buildWorkerContainer` عبر `overrides.metrics` الذي تقبله الحاويةُ
+   * أصلاً منذ اليوم الأول، فتُقاس محوّلاتُ العروضِ في العاملِ كما تُقاس في البوابة.
+   * وقبلَ اليوم كان هذا الحقلُ يُترَك فارغاً في نقطةِ التشغيل، فتعمل الحاويةُ بمحوّلاتٍ
+   * غيرِ مُقاسة — أي عاملٌ يعمل ولا يُنتج رقماً واحداً.
+   */
+  const workerMetrics = createOperationalMetrics();
+  const metricsExporter = createConfiguredMetricsExporter({
+    registry: workerMetrics.registry,
+    serviceName: "waslah-worker",
+    deploymentEnvironment: config.value.env,
+    processTopology: config.value.processTopology,
+    metricsExport: config.value.metricsExport,
+    log: (message, fields) => log.info(message, fields),
+  });
+  if (metricsExporter === null) {
+    log.info("metrics_export.disabled", { reason: "METRICS_EXPORT_ENDPOINT غير مضبوط" });
+  } else {
+    metricsExporter.start();
+  }
+
+  const container = buildWorkerContainer(config.value, { metrics: workerMetrics });
   const jobs = await container.jobs();
 
   if (jobs.length === 0) {
@@ -56,6 +88,9 @@ async function main(): Promise<void> {
     // الترتيب أعلاه وعداً محقّقاً لا تعليقاً. والمهلة محدودة لأنّ المنصّة تقتل قسراً.
     const drained = await runner.drain();
     if (!drained) log.error("worker.shutdown_not_drained", { signal });
+    // دفعةٌ أخيرةٌ بعدَ التصريفِ وقبلَ إغلاقِ القاعدة: تحمل نتيجةَ آخرِ شوطٍ
+    // انتهى توّاً. وبدونها يموت العاملُ حاملاً عدّادَ مهمّاتِه إلى القبر.
+    if (metricsExporter !== null) await metricsExporter.stop();
     await container.close();
     process.exit(0);
   };

@@ -93,6 +93,23 @@ services:
       # الأعمال وأوقات الذروة وعدد السائقين لمن طلب الرابط.
       - key: METRICS_TOKEN
         sync: false
+      # ── التجميع المركزي للمقاييس (F5-07 / SCL-006 · ADR 0062) ──────────
+      # /metrics يعرض العمليةَ التي أجابت لا النظام. فتدفع كلُّ عمليةٍ مقاييسَها
+      # إلى مُجمِّعٍ واحدٍ يُقرأ منه المجموع — وهو شرطٌ سابقٌ لرفع numInstances
+      # فوق ١ (F5-06) ولفصل العامل عن البوابة (F5-04)، لا تحسينٌ بجانبهما.
+      # فارغاً: مُطفأٌ صراحةً والنظامُ يعمل كاملاً بدونه.
+      - key: METRICS_EXPORT_ENDPOINT
+        sync: false
+      # سرٌّ: ترويساتُ اعتمادِ المُجمِّع بصيغة name=value مفصولةً بفواصل.
+      # لا تُسجَّل ولا تظهر في رسالة خطأ.
+      - key: METRICS_EXPORT_HEADERS
+        sync: false
+      - key: METRICS_EXPORT_INTERVAL_SECONDS
+        value: "15"
+      # فارغاً: يُولَّد عند الإقلاع فيُميَّز عن أختِه في المُجمِّع. لا يُضبَط إلا
+      # إن أعطت المنصّةُ معرّفاً ثابتاً أفضل منه.
+      - key: SERVICE_INSTANCE_ID
+        sync: false
       # ── جلسة التطبيق المصغَّر (البند F1-03) ─────────────────────────────
       # سرُّ توقيعِ الجلسةِ الداخليةِ التي تُصدَر بعد التحقّق من initData. غيابُه
       # يُعطّل مسارَ POST /v1/session/telegram وحدَه (503) ولا يوقف الإقلاع، ولا
@@ -192,6 +209,18 @@ services:
       # عمليةٌ واحدة كذلك — والقفل الموزّع يحمي المهامّ لا الطوبولوجيا (ADR 0051).
       - key: PROCESS_TOPOLOGY
         value: single-process
+      # ── التجميع المركزي للمقاييس (F5-07 / SCL-006 · ADR 0062) ──────────
+      # هذه الخدمةُ بلا خادمِ HTTP، فلا /metrics فيها ولا موضعَ يُكشَط منه:
+      # الدفعُ هو طريقُها الوحيدُ إلى المراقبة. وبنفس أسماءِ البوابة كي يُقرأ
+      # مجموعُ النظام من مُجمِّعٍ واحدٍ يفصل بينهما بـservice.name.
+      - key: METRICS_EXPORT_ENDPOINT
+        sync: false
+      - key: METRICS_EXPORT_HEADERS
+        sync: false
+      - key: METRICS_EXPORT_INTERVAL_SECONDS
+        value: "15"
+      - key: SERVICE_INSTANCE_ID
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL

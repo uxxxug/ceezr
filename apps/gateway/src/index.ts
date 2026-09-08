@@ -21,6 +21,7 @@ import {
 import { createTelegramInitDataVerifier } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
 import {
+  createConfiguredMetricsExporter,
   createDatabaseGaugeCollector,
   createOperationalMetrics,
 } from "../../../packages/infrastructure/observability/index.ts";
@@ -192,6 +193,36 @@ const container = buildContainer(config, {
 const databaseGauges = createDatabaseGaugeCollector(container.sql, operationalMetrics);
 
 /**
+ * دفعُ المقاييس إلى مُجمِّعٍ مركزيّ — `F5-07` / `SCL-006` (ADR 0062).
+ *
+ * `GET /metrics` يعرض **العمليّةَ التي أجابت** لا النظام. فما دامت نسخةٌ واحدةٌ فلا
+ * فرق؛ فإذا صار خلفَ المُوجِّهِ ثلاثُ نسخٍ (`F5-06`) أو انفصل العاملُ (`F5-04`) صار
+ * كلُّ كشطٍ يقرأ عمليّةً عشوائيّةً ولا يُقرأ مجموعُ النظامِ من أيِّ موضع. فالدفعُ
+ * هنا هو ما يجعل تينك الخطوتَين ممكنتَين لا مُعمِيتَين.
+ *
+ * و`null` تعني «لا مُجمِّعَ مضبوطاً» — وهو حالُ الإنتاجِ اليومَ — فلا يعمل شيءٌ ولا
+ * يُسجَّل خطأ. و`GET /metrics` يبقى كما هو في الحالَين: هذا مسارُ قراءةٍ ثانٍ لا بديل.
+ */
+const metricsExporter = createConfiguredMetricsExporter({
+  registry: operationalMetrics.registry,
+  serviceName: "waslah-gateway",
+  deploymentEnvironment: config.env,
+  processTopology: config.processTopology,
+  metricsExport: config.metricsExport,
+  log,
+  // نفسُ ما يفعله `GET /metrics` قبل العرض: `collect` تكتب المقاييسَ اللحظيّةَ في
+  // المسجِّل بنفسها، وفشلُها مُحصىً في عدّادٍ داخلَها لا مبتلَعٌ هنا.
+  beforeSnapshot: async () => {
+    await databaseGauges.collect();
+  },
+});
+if (metricsExporter === null) {
+  log("metrics_export.disabled", { reason: "METRICS_EXPORT_ENDPOINT غير مضبوط" });
+} else {
+  metricsExporter.start();
+}
+
+/**
  * مقبض العامل المدمج إن كان مُفعَّلاً. يُملأ بعد إعلان جاهزية المنفذ لا قبله.
  */
 let embeddedWorker: EmbeddedWorkerHandle | null = null;
@@ -238,6 +269,11 @@ const lifecycle = createLifecycle({
       // العاملُ أولاً: مهمّةٌ جاريةٌ تستعلمُ القاعدةَ، وإغلاقُ التجمّعِ تحتها يجعلها
       // تفشلُ بخطأِ اتصالٍ لا معنىً له بدلَ أن تنتهي أو تُوقَفَ نظيفة.
       if (embeddedWorker !== null) await embeddedWorker.stop();
+      // **بعدَ** توقّفِ الدرينرِ والعاملِ وقبلَ إغلاقِ القاعدة: دفعةٌ أخيرةٌ تحمل ما
+      // تراكم منذ آخرِ دورٍ. بدونها تخسر كلُّ إعادةِ نشرٍ حتى `intervalSeconds` من
+      // العدِّ، فيصير مجموعُ النظامِ ناقصاً بمقدارِ عددِ إعاداتِ النشرِ في اليوم.
+      // وقبلَ القاعدةِ لأنّ `beforeSnapshot` يستعلمها.
+      if (metricsExporter !== null) await metricsExporter.stop();
       await container.close();
       // الخادمُ أخيراً — بقيَ يستقبلُ طوالَ التصريفِ حتى يُجيبَ `/ready` بـ«مُصرِّف».
       serverHandle?.stop(true);
