@@ -9,6 +9,7 @@
 
 import type { DriverCandidate } from "../../domain/dispatch/entity.ts";
 import type { Offer } from "../../domain/dispatch/value-objects.ts";
+import type { Coordinates } from "../../domain/geo/value-objects.ts";
 import type { RawSetting } from "../../domain/policy/entity.ts";
 import type { Order } from "../../domain/transport/entity.ts";
 import type { CityId, DriverId, OrderId } from "../../shared/kernel/index.ts";
@@ -41,10 +42,51 @@ export interface DriverCandidateRepository {
   /**
    * السائقون المرشَّحون مبدئياً في المدينة: متاحون وموثَّقون ومواقعهم حديثة.
    * الفلترة النهائية والترتيب مسؤولية الدومين لا المستودع.
+   *
+   * مسارٌ تشخيصيٌّ فقط بعد CAP-003: لا يُستدعى في التشغيل الطبيعي، بل حين تُفرغُ
+   * النافذةُ القريبة من المؤهَّلين فيُرجَع إليه لبناء قائمة الرفض المُسبَّبة كاملةً
+   * — لا ليعيد تحميلَ كلّ السائقين في المسار الساخن.
    */
   findAvailableInCity(
     cityId: CityId,
   ): Promise<Result<readonly DriverCandidate[], PortFailureError>>;
+
+  /**
+   * CAP-003 — المسار السريع: استعلام PostGIS واحد يُرجعُ المرشّحين القريبين
+   * المؤهَّلين بالبوابات الصلبة (المدينة، الحجب، التوثيق، التوفّر، القربُ بـ
+   * `ST_DWithin`، وعمرُ الموقع إن فُعّل) مرتّبين بالمسافة عبر فهرس GiST، ومحدودين
+   * بـ`limit`. والخدمةُ والاشتراكُ يُتركانِ للدومين بعدَ النافذة.
+   *
+   * سائقٌ `last_location = NULL` لا يدخلُ هذا المسار: `ST_DWithin` على NULL يُرجعُ
+   * NULL فيُستبعدُ صامتاً — وهذا مقصودٌ في المسار السريع، فمن بلا موقع لا معنىَ
+   * لقياسِ بُعدِه. وإن فرغتِ النافذةُ يُرجعُ `matchOrder` إلى `findAvailableInCity`
+   * كي يظهرَ السائقُ بلا موقع في `rejected` بسببه المُسمّى `NO_LOCATION` — الرؤيةُ
+   * التشغيليّةُ التي قصدها الفريق لا تُفقد، تُؤجَّلُ للمسار التشخيصي وحده.
+   */
+  findNearbyAvailableForDispatch(
+    args: NearbyCandidateQuery,
+  ): Promise<Result<readonly DriverCandidate[], PortFailureError>>;
+}
+
+/**
+ * معاملاتُ استعلام المرشّحين القريبين. كلُّ قيمةٍ تأتي من `matchOrder` بلا افتراضٍ
+ * هنا: نصفُ القطرِ وعمرُ الموقعِ وحدُّ النافذةِ كلُّها إعداداتٌ للمدينة لا ثوابت.
+ */
+export interface NearbyCandidateQuery {
+  readonly cityId: CityId;
+  /** نقطةُ الانطلاق للطلب. */
+  readonly pickup: Coordinates;
+  /** نصفُ القطرِ بالكيلومتر — يُحوَّل إلى متر في SQL. */
+  readonly searchRadiusKm: number;
+  /**
+   * أقصى عمرٍ مقبولٍ للموقع بالثواني. صفرٌ أو غيابٌ يُعطّلُ فحصَ القِدَم — وهو
+   * المبذور، فيطابقُ سلوكَ ما قبل CAP-003 بحرفه.
+   */
+  readonly driverLocationMaxAgeSeconds?: number;
+  /** حدُّ النافذة — إعدادُ `matching_candidate_limit` للمدينة. */
+  readonly limit: number;
+  /** زمنُ الخادم للفحص الزمني — يُمرَّر من `Clock` لا من `now()` في SQL. */
+  readonly now: Date;
 }
 
 /**

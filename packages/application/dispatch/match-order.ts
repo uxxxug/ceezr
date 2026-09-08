@@ -134,38 +134,80 @@ export async function matchOrder(
   const offersResult = await deps.offers.findByOrder(order.id);
   if (!offersResult.ok) return offersResult;
 
-  const candidatesResult = await deps.candidates.findAvailableInCity(order.cityId);
-  if (!candidatesResult.ok) return candidatesResult;
-
   const now = deps.clock.now();
   const excludedDriverIds = driversToExclude(offersResult.value, settings.offerTimeoutSeconds, now);
 
   const matchingParameters = toMatchingParameters(settings);
-  const evaluation = evaluateCandidates(
-    candidatesResult.value,
-    {
-      cityId: order.cityId,
-      service: order.service,
-      pickup: order.pickup,
-      excludedDriverIds,
-    },
+
+  /**
+   * CAP-003 — المسار السريع. استعلام PostGIS واحد يُرجعُ المرشّحين القريبين المؤهَّلين
+   * بالبوابات الصلبة، مرتّبين بالمسافة ومحدودين بـ`matchingCandidateLimit`. الخدمةُ
+   * والاشتراكُ والاستبعادُ هذه الدورة يُتركانِ للدومين فوق هذه النافذة — فالاستبعادُ
+   * قرارٌ تشغيليٌّ يُرى في `rejected` بسببه المُسمّى `EXCLUDED_THIS_ROUND`.
+   */
+  const nearbyResult = await deps.candidates.findNearbyAvailableForDispatch({
+    cityId: order.cityId,
+    pickup: order.pickup,
+    searchRadiusKm: settings.searchRadiusKm,
+    driverLocationMaxAgeSeconds: settings.driverLocationMaxAgeSeconds,
+    limit: settings.matchingCandidateLimit,
+    now,
+  });
+  if (!nearbyResult.ok) return nearbyResult;
+
+  const orderContext = {
+    cityId: order.cityId,
+    service: order.service,
+    pickup: order.pickup,
+    excludedDriverIds,
+  };
+
+  const nearbyEvaluation = evaluateCandidates(
+    nearbyResult.value,
+    orderContext,
     matchingParameters,
     now,
   );
 
-  if (evaluation.eligible.length === 0) {
-    return err(new NoEligibleDriverError(order.id, evaluation));
+  if (nearbyEvaluation.eligible.length > 0) {
+    const batch = selectBroadcastBatch(nearbyEvaluation, matchingParameters);
+    return ok({
+      orderId: order.id,
+      cityId: order.cityId,
+      round: order.broadcastRound + 1,
+      batch,
+      evaluation: nearbyEvaluation,
+      offerTimeoutSeconds: settings.offerTimeoutSeconds,
+      settings,
+    });
   }
 
-  const batch = selectBroadcastBatch(evaluation, matchingParameters);
+  /**
+   * لا مؤهَّلَ في النافذة القريبة. مسارٌ تشخيصيٌّ: نُحمّلُ كلَّ سائقي المدينة كي نبنيَ
+   * قائمةَ الرفضِ المُسبَّبة كاملةً — فالسائقُ بلا موقع لا يدخلُ المسار السريع
+   * (`ST_DWithin` على NULL يُستبعدُ)، وإنّما يظهرُ هنا بسببه `NO_LOCATION`.
+   * وهذا أيضًا حارسُ صحّةٍ: لو فاتَ المسارَ السريعَ مؤهَّلٌ أبعدُ (خارجَ حدِّ النافذة)
+   * يجده هذا الاستعلام فيظهرُ في `eligible` لا في `rejected`.
+   *
+   * لا يُستدعى هذا في التشغيل الطبيعي — فقط حين تُفرغُ النافذةُ القريبة.
+   */
+  const allResult = await deps.candidates.findAvailableInCity(order.cityId);
+  if (!allResult.ok) return allResult;
 
-  return ok({
-    orderId: order.id,
-    cityId: order.cityId,
-    round: order.broadcastRound + 1,
-    batch,
-    evaluation,
-    offerTimeoutSeconds: settings.offerTimeoutSeconds,
-    settings,
-  });
+  const fullEvaluation = evaluateCandidates(allResult.value, orderContext, matchingParameters, now);
+
+  if (fullEvaluation.eligible.length > 0) {
+    const batch = selectBroadcastBatch(fullEvaluation, matchingParameters);
+    return ok({
+      orderId: order.id,
+      cityId: order.cityId,
+      round: order.broadcastRound + 1,
+      batch,
+      evaluation: fullEvaluation,
+      offerTimeoutSeconds: settings.offerTimeoutSeconds,
+      settings,
+    });
+  }
+
+  return err(new NoEligibleDriverError(order.id, fullEvaluation));
 }

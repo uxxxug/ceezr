@@ -432,9 +432,9 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
    * ذلك إلّا على قاعدةٍ حقيقيّةٍ فيُتجاوَزُ حيث لا `TEST_DATABASE_URL`.
    * **والأعدادُ تُرفَع ولا تُخفَّض**: الاختبارُ حرزٌ على التصنيفِ لا سقفٌ على العملِ.
    */
-  it("سبعةٌ وستّونَ ملفّاً و600 حالةٍ — 514 قياسُ OPS-009 و12 لـOPS-006 و8 لـBUG-009 و10 لـBUG-001 و7 لـBUG-005 و7 لـBUG-008 و5 لـBUG-002 و3 لـBUG-003 و34 لـBUG-004", () => {
-    expect(SKIP_REGISTRY).toHaveLength(67);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(600);
+  it("ثمانيةٌ وستّونَ ملفّاً و607 حالاتٍ — 514 قياسُ OPS-009 و12 لـOPS-006 و8 لـBUG-009 و10 لـBUG-001 و7 لـBUG-005 و7 لـBUG-008 و5 لـBUG-002 و3 لـBUG-003 و34 لـBUG-004 و7 لـCAP-003", () => {
+    expect(SKIP_REGISTRY).toHaveLength(68);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(607);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

@@ -21,12 +21,14 @@ const JED = "city-jed" as CityId;
 const MKK = "city-mkk" as CityId;
 
 describe("سجل المفاتيح", () => {
-  it("سبعة عشر مفتاحاً كما في مخطط البذر", () => {
+  it("ثمانية عشر مفتاحاً كما في مخطط البذر", () => {
     // البند 2.4 أضاف match_weight_preferred_area، والمرحلة ٨ أضافت
-    // driver_location_max_age_seconds — كلاهما مبذور بصفر في هجرته
-    expect(SETTING_KEYS).toHaveLength(17);
+    // driver_location_max_age_seconds — كلاهما مبذور بصفر في هجرته. وCAP-003 أضاف
+    // matching_candidate_limit — مبذور خمسين في هجرته.
+    expect(SETTING_KEYS).toHaveLength(18);
     expect(isSettingKey("match_weight_preferred_area")).toBe(true);
     expect(isSettingKey("driver_location_max_age_seconds")).toBe(true);
+    expect(isSettingKey("matching_candidate_limit")).toBe(true);
   });
   it("يتعرّف على مفتاح معروف ويرفض المجهول", () => {
     expect(isSettingKey("search_radius_km")).toBe(true);

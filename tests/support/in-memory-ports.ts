@@ -16,6 +16,7 @@ import {
 } from "../../packages/application/ports/index.ts";
 import type { DriverCandidate } from "../../packages/domain/dispatch/entity.ts";
 import type { Offer } from "../../packages/domain/dispatch/value-objects.ts";
+import { haversineKm } from "../../packages/domain/geo/index.ts";
 import type { RawSetting, SettingKey } from "../../packages/domain/policy/entity.ts";
 import { SETTING_KEYS } from "../../packages/domain/policy/entity.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
@@ -42,6 +43,8 @@ export const SEEDED_SETTINGS: Readonly<Record<SettingKey, unknown>> = {
   // المرحلة ٨: صفرٌ هو المبذور فعلاً — الحَرَس يُسلَّم معطّلاً، فالخطّ الأساسي بلا فحص عمر
   driver_location_max_age_seconds: 0,
   default_rating_for_new_driver: 4.5,
+  // CAP-003: المبذور ٥٠ — أوسعُ من دفعة البثّ (٥) عمداً كي لا يفوتَ مؤهَّلٌ أبعد.
+  matching_candidate_limit: 50,
   supported_languages: ["ar"],
 };
 
@@ -83,6 +86,41 @@ export function offerRepo(offers: readonly Offer[]): OfferRepository {
 export function candidateRepo(candidates: readonly DriverCandidate[]): DriverCandidateRepository {
   return {
     findAvailableInCity: async (cityId) => ok(candidates.filter((c) => c.cityId === cityId)),
+    /**
+     * مزدوجٌ في الذاكرة للاختبار الوحدوي يطابقُ سلوكَ استعلام PostGIS: يُفلترُ
+     * بالبوابات الصلبة (المدينة، غيرُ محجوبٍ، موثَّقٌ، متاحٌ، داخلُ نصف القطر،
+     * موقعُه غيرُ قديمٍ إن فُعّل، ليسَ من المستبعدين)، مرتّباً بالمسافة، محدوداً بـ`limit`.
+     * سائقٌ بلا موقع لا يدخلُ (كما يُستبعدُه `ST_DWithin` على NULL في القاعدة).
+     */
+    findNearbyAvailableForDispatch: async (args) => {
+      const { cityId, pickup, searchRadiusKm, driverLocationMaxAgeSeconds, limit, now } = args;
+      const maxAge = driverLocationMaxAgeSeconds ?? 0;
+      const within = candidates
+        .filter((c) => c.cityId === cityId)
+        .filter((c) => !c.isBlocked)
+        .filter((c) => c.isVerified)
+        .filter((c) => c.isAvailable)
+        .map((c) => {
+          // null-location يُستبعدُ لاحقاً ببُعدٍ لا نهائي (كما يُستبعدُه ST_DWithin
+          // على NULL في القاعدة)، وعمرُ الموقع يُفحصُ بعدَ تأكّدِ وجودِه.
+          if (c.location === null) return { candidate: c, distance: Infinity };
+          if (maxAge > 0) {
+            const atMs = c.locationAtMs;
+            if (atMs === null || atMs === undefined || !Number.isFinite(atMs)) {
+              return { candidate: c, distance: Infinity };
+            }
+            if ((now.getTime() - atMs) / 1000 > maxAge) {
+              return { candidate: c, distance: Infinity };
+            }
+          }
+          return { candidate: c, distance: haversineKm(pickup, c.location) };
+        })
+        .filter((x) => x.distance <= searchRadiusKm)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, limit)
+        .map((x) => x.candidate);
+      return ok(within);
+    },
   };
 }
 

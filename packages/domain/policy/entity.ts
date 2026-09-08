@@ -76,6 +76,14 @@ export const SETTING_SPECS = {
   default_rating_for_new_driver: { kind: "number", min: 0, max: 5, integer: false },
   rating_min_count_for_trust: { kind: "number", min: 1, max: 100, integer: true },
   rating_prompt_window_hours: { kind: "number", min: 1, max: 720, integer: true },
+  /**
+   * CAP-003 — حدُّ نافذة المرشّحين القريبين التي يُرجعها استعلام PostGIS قبل ترتيب
+   * الدومين. أوسعُ من `broadcast_batch_size` عمداً: الخدمةُ والاشتراكُ يُتركانِ
+   * للدومين بعدَ النافذة، فلو ساوى الحدُّ حجمَ الدفعة لفقدنا مؤهَّلاً أبعدَ بسببَ
+   * امتلاء النافذة بغير المؤهَّلين قبلَه. والمبذورُ (٥٠) لا يُفرِّغُ مدينةً صغيرةً
+   * ولا يخنقُ كبيرةً — وهو `is_provisional` يُعدَّلُ بالقياس لا بالتخمين.
+   */
+  matching_candidate_limit: { kind: "number", min: 1, max: 1000, integer: true },
   supported_languages: { kind: "string[]", minLength: 1 },
 } as const satisfies Record<string, SettingSpec>;
 
@@ -131,6 +139,8 @@ export interface CitySettings {
   readonly defaultRatingForNewDriver: number;
   readonly ratingMinCountForTrust: number;
   readonly ratingPromptWindowHours: number;
+  /** CAP-003 — حدُّ نافذة المرشّحين القريبين من SQL؛ أوسعُ من دفعة البثّ عمداً. */
+  readonly matchingCandidateLimit: number;
   readonly supportedLanguages: readonly string[];
 }
 
@@ -236,6 +246,7 @@ export function parseCitySettings(
     defaultRatingForNewDriver: num("default_rating_for_new_driver"),
     ratingMinCountForTrust: num("rating_min_count_for_trust"),
     ratingPromptWindowHours: num("rating_prompt_window_hours"),
+    matchingCandidateLimit: num("matching_candidate_limit"),
     supportedLanguages: values.get("supported_languages") as readonly string[],
   });
 }
