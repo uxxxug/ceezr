@@ -77,6 +77,8 @@ import {
   createDriverDirectory,
   createRiderDirectory,
 } from "../../../packages/infrastructure/identity/directories.ts";
+import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
+import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
 import {
   grammyLiveLocationChannel,
   TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
@@ -155,6 +157,7 @@ import { createRedisSessionStore } from "./bots/shared/redis-session.ts";
 import { createMemorySessionStore } from "./bots/shared/session.ts";
 import type { RawTelegramUpdate } from "./bots/shared/telegram-mapper.ts";
 import { createUpstashRedis, type RedisClient } from "./redis/upstash.ts";
+
 import type { BotKind, UpdateHandler } from "./routes/telegram-webhook.ts";
 
 export interface BotWiring {
@@ -329,21 +332,6 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const sql = createSql({ connectionString: config.databaseUrl });
   const log = overrides.log ?? (() => {});
 
-  // ناقلُ الصادر يُختار من الضبط، والقياس يلفّه بعد الاختيار لا قبله. والترتيب
-  // مقصود: العدّاد يسري على الناقل الحقيقي في الإنتاج أيضاً، فليس أداةَ قياسٍ
-  // مُلحقةً بل رؤيةٌ كانت غائبةً عن النظام — لم يكن يرى ما يخرج منه من رسائل.
-  // و`overrides` يتقدّم على الاثنين: الاختباراتُ تمرّر مُرسِلاً ملتقطاً وتتحقّق
-  // منه هي، فلفّه بعدّادٍ كان سيزيد وسيطاً لا يقرأه أحد.
-  const buildSender = (bot: "driver" | "rider", token: string): TelegramSender => {
-    const base =
-      config.telegramTransport === "silent" ? silentTelegramSender() : grammyTelegramSender(token);
-    return overrides.metrics === undefined
-      ? base
-      : measuredTelegramSender(base, bot, overrides.metrics);
-  };
-  const driverSender = overrides.driverSender ?? buildSender("driver", config.driverBotToken);
-  const riderSender = overrides.riderSender ?? buildSender("rider", config.riderBotToken);
-
   // مخزنان منفصلان: حالة حوار السائق لا تخصّ العميل، ودمجهما كان سيخلط خطوتين
   // لشخص واحد يستخدم البوتين بمعرّف تلغرام واحد. الفصل في الذاكرة بخريطتين،
   // وفي Redis بفضاء مفتاح لكل بوت — نفس الضمان بآليتين (ADR 0011).
@@ -352,6 +340,33 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     (config.sessionStore === "redis"
       ? createUpstashRedis({ url: config.redisUrl, token: config.redisToken })
       : null);
+
+  /**
+   * صمودُ الصادرِ يُبنى **قبلَ** المُرسِلِ لأنَّه يلفُّه (`CAP-002`/`F6-04`). ودلوُ
+   * الحدِّ على Redis متى وُجِدَ: حدُّ Bot API حدٌّ على البوتِ لا على العمليةِ،
+   * فدلوٌ في ذاكرةِ كلِّ نسخةٍ يضربُ الحدَّ في عددِ النسخِ ويستدعي `429`.
+   */
+  const outboundResilience = createOutboundResilience({ redis, log });
+
+  // ناقلُ الصادر يُختار من الضبط، والقياس يلفّه بعد الاختيار لا قبله. والترتيب
+  // مقصود: العدّاد يسري على الناقل الحقيقي في الإنتاج أيضاً، فليس أداةَ قياسٍ
+  // مُلحقةً بل رؤيةٌ كانت غائبةً عن النظام — لم يكن يرى ما يخرج منه من رسائل.
+  // و`overrides` يتقدّم على الاثنين: الاختباراتُ تمرّر مُرسِلاً ملتقطاً وتتحقّق
+  // منه هي، فلفّه بعدّادٍ كان سيزيد وسيطاً لا يقرأه أحد.
+  const buildSender = (bot: "driver" | "rider", token: string): TelegramSender => {
+    const base =
+      config.telegramTransport === "silent" ? silentTelegramSender() : grammyTelegramSender(token);
+    const measured =
+      overrides.metrics === undefined ? base : measuredTelegramSender(base, bot, overrides.metrics);
+    // غلافُ الصمودِ **فوقَ** القياسِ لا تحتَه (`CAP-002`): العدّادُ يجبُ أن يرى
+    // النداءَ الفعليَّ الواصلَ إلى تيليجرام — كلَّ إعادةِ محاولةٍ على حِدَةٍ — لا
+    // نداءً منطقيّاً واحداً يُخفي خمسَ محاولاتٍ. ولو لُفَّ القياسُ فوقَ الصمودِ
+    // لأظهرَ الرسمُ البيانيُّ صادراً هادئاً بينما البوتُ يضربُ حدَّه فعلاً.
+    // و`silent` لا يُستثنى: الاختبارُ يجبُ أن يسلكَ المسارَ الذي يسلكُه الإنتاجُ.
+    return withOutboundResilience(measured, outboundResilience.options);
+  };
+  const driverSender = overrides.driverSender ?? buildSender("driver", config.driverBotToken);
+  const riderSender = overrides.riderSender ?? buildSender("rider", config.riderBotToken);
 
   const onSessionFailure = (failure: {
     readonly kind: string;

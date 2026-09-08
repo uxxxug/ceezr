@@ -6,11 +6,23 @@
  * تزيدُ عليها abandon.
  */
 import type {
+  FinishOutcome,
   NotificationOutboxPort,
   OutboxDelivery,
 } from "../../application/notification/deliver-notification.ts";
 import type { CityId } from "../../shared/kernel/index.ts";
 import { guard, readEnvelope, type Sql } from "../db/client.ts";
+
+const FINISH_OUTCOMES: readonly string[] = ["delivered", "dead", "retried"];
+
+/**
+ * مآلُ القاعدةِ يُقرأُ كما هو لا كما يُشتهى: نصٌّ غيرُ معروفٍ يعودُ `null` فلا
+ * يُحسبَ موتاً ولا تسليماً بالغلطِ. (CAP-002)
+ */
+function finishOutcome(value: unknown): FinishOutcome | null {
+  const text = typeof value === "string" ? value : null;
+  return text !== null && FINISH_OUTCOMES.includes(text) ? (text as FinishOutcome) : null;
+}
 
 function envelope(value: unknown, name: string): Record<string, unknown> {
   const result = readEnvelope(value);
@@ -47,15 +59,15 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
       guard("rpc.finish_notification_delivery", async () => {
         const rows = await sql<
           { result: unknown }[]
-        >`select finish_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid, ${input.messageId}::text, ${input.messageId !== null}) result`;
+        >`select finish_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid, ${input.messageId}::text, ${input.messageId !== null}, ${input.error}::text) result`;
         const row = envelope(rows[0]?.result, "finish_notification_delivery");
-        return row.ok === true;
+        return { ok: row.ok === true, outcome: finishOutcome(row.outcome) };
       }),
     abandon: (input) =>
       guard("rpc.abandon_notification_delivery", async () => {
         const rows = await sql<
           { result: unknown }[]
-        >`select abandon_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid) result`;
+        >`select abandon_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid, ${input.reason}::text) result`;
         const row = envelope(rows[0]?.result, "abandon_notification_delivery");
         return row.ok === true;
       }),

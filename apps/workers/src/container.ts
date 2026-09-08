@@ -56,6 +56,8 @@ import { createPaymentRepository } from "../../../packages/infrastructure/financ
 import { createPaymentProvider } from "../../../packages/infrastructure/financial/payment-provider-factory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import { createNotificationOutboxPort } from "../../../packages/infrastructure/notification/notification-outbox-adapters.ts";
+import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
+import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
 import {
   asIdentifyingSender,
   asOutboundSender,
@@ -86,6 +88,7 @@ import {
 } from "../../../packages/infrastructure/observability/dispatch.ts";
 import type { OperationalMetrics } from "../../../packages/infrastructure/observability/index.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
+import { createUpstashRedis } from "../../../packages/infrastructure/redis/upstash.ts";
 import { createRatingRecomputePort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
 import { createSafetyDeliveryPort } from "../../../packages/infrastructure/safety/safety-adapters.ts";
 import { createAdvisoryLock } from "../../../packages/infrastructure/scheduling/advisory-lock.ts";
@@ -239,6 +242,11 @@ export const REDISPATCH_LIMIT = 50;
 
 export interface WorkerContainerOverrides {
   readonly sql?: Sql;
+  /**
+   * عميلُ Redis لدلوِ الحدِّ الصادرِ المشتركِ (`CAP-002`). يُمرَّر `null` صريحاً في
+   * الاختبارِ ليُستعمَلَ دلوُ الذاكرةِ بلا شبكةٍ؛ و`undefined` يعني «ابنِه من الضبطِ».
+   */
+  readonly outboundRedis?: ReturnType<typeof createUpstashRedis> | null;
   readonly warningSender?: ExpiryWarningSender;
   readonly log?: JobLogger;
   /** يُستبدل في اختبار الوحدة بقفل لا يقفل؛ الافتراضي هو القفل الحقيقي على القاعدة. */
@@ -440,6 +448,29 @@ export function buildWorkerContainer(
     `;
     return rows[0]?.city_id ?? null;
   });
+  /**
+   * صمودُ الصادرِ (`CAP-002`/`F6-04`). ودلوُ الحدِّ **مشتركٌ مع البوّابةِ** عبرَ
+   * Redis: حدُّ Bot API حدٌّ على البوتِ لا على العمليةِ، والبوّابةُ والعاملُ
+   * يُرسِلانِ بالرمزِ نفسِه — فدلوانِ منفصلانِ في ذاكرتَيهما يعنيانِ ضِعفَ الحدِّ
+   * المُعلَنِ، وهو بعينِه ما يستدعي `429` ثمَّ خنقاً للبوتِ كلِّه. ولذلك نُقِلَ
+   * عميلُ Upstash إلى `packages/infrastructure/redis` في هذه المرحلةِ: استيرادُ
+   * `apps/workers` من `apps/gateway` خرقٌ لحدودِ التطبيقاتِ.
+   *
+   * ويُبنى العميلُ من الضبطِ متى كانت الجلساتُ على Redis — وهي العلامةُ نفسُها
+   * التي تعتمدُها البوّابةُ، فلا يفترقُ المسارانِ. وعندَ غيابِه دلوُ ذاكرةٍ:
+   * صحيحٌ للنسخةِ الواحدةِ، مُعلَنُ القصورِ لما فوقَها.
+   */
+  const outboundRedis =
+    overrides.outboundRedis !== undefined
+      ? overrides.outboundRedis
+      : config.sessionStore === "redis"
+        ? createUpstashRedis({ url: config.redisUrl, token: config.redisToken })
+        : null;
+  const outboundResilience = createOutboundResilience({
+    redis: outboundRedis,
+    log: (message, meta) => log.info(message, meta),
+  });
+
   const warningSender = overrides.warningSender ?? grammyWarningSender(config.driverBotToken);
 
   /**
@@ -447,7 +478,10 @@ export function buildWorkerContainer(
    * كالبوابة. المُرسِل المبني على رمز بوت السائق هو الصحيح: أزرار القروب يضغطها
    * سائقون، وردّ الضغطة يجب أن يعود إلى البوت الذي نشرها لا إلى بوت العميل.
    */
-  const telegram = grammyTelegramSender(config.driverBotToken);
+  const telegram = withOutboundResilience(
+    grammyTelegramSender(config.driverBotToken),
+    outboundResilience.options,
+  );
   const driverOut = overrides.driverOut ?? asOutboundSender(telegram);
 
   /**
@@ -457,7 +491,10 @@ export function buildWorkerContainer(
    * محادثةً مع مستخدم لم يفتحها. فكل رسالة تفاوض موجَّهة للراكب كانت تسقط
    * في الإنتاج بـ403 بلا أثر مرئي — لا خطأ يوقظ أحداً، ولا رسالة تصل.
    */
-  const riderTelegram = grammyTelegramSender(config.riderBotToken);
+  const riderTelegram = withOutboundResilience(
+    grammyTelegramSender(config.riderBotToken),
+    outboundResilience.options,
+  );
   const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
   const safetyPublisher = overrides.safetyPublisher ?? createSafetyCardPublisher(telegram);
   const safetyDeliveries = createSafetyDeliveryPort(sql);

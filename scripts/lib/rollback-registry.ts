@@ -98,6 +98,9 @@ const WHY_SURFACE_FIX =
   "السحبُ الجامعُ عن `PUBLIC` هو ما أغلق سطحَ PostgREST فعلاً، وهو أوسعُ تضييقٍ في المستودعِ: يقيس التمرينُ 1674 صلاحيةً غائبةً بعدَه. وإعادةُ منحِها عودةً تُعيد فتحَ ما أُغلِق لعيبٍ أمنيٍّ، فالمسارُ إلى الأمامِ وحدَه.";
 /** إجراءُ العودةِ لإغلاقِ سطحِ PostgREST — السحبُ الجامعُ عن `public`. */
 const HEADING_POSTGREST_SURFACE = "عودةُ نشرٍ بعدَ إغلاقِ سطحِ PostgREST (20260809001000)";
+/** إجراءُ العودةِ للهجرةِ التي وسَّعت توقيعَي إتمامِ التسليمِ والتخلّي (CAP-002). */
+const HEADING_OUTBOX_DEAD_LETTER =
+  "عودةُ نشرٍ بعدَ توسيعِ توقيعَي إتمامِ تسليمِ الإشعارِ والتخلّي عنه (20260908050000)";
 
 export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
   {
@@ -583,6 +586,28 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     owner: "منفّذ المستودع",
     criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
     documentedIn: null,
+  },
+  {
+    migration: "20260908050000_notification_outbox_dead_letter.sql",
+    change: "drop_function:finish_notification_delivery(4)",
+    why: "`create or replace function` لا تُغيِّرُ قائمةَ الوسائطِ في PostgreSQL، فإضافةُ وسيطٍ ولو بقيمةٍ افتراضيةٍ توقيعٌ جديدٌ؛ وترْكُ القديمِ يُوجِدُ توقيعَينِ متعايشَينِ يجعلانِ النداءَ مُبهَماً (`function is not unique`) فيفشلُ الاثنانِ معاً — فالحذفُ لازمٌ لا مُختارٌ. والتوقيعُ الجديدُ يُضيفُ `p_error text default null` كي يُحفَظَ سببُ الإخفاقِ في الصفِّ نفسِه، ويُنفِّذُ سقفَ `max_attempts` الذي كانت `claim` تحسبُه ولا يُنفِّذُه أحدٌ — فصفٌّ إلى محادثةٍ حظرَتِ البوتَ كان يُعادُ أبدَ الدهرِ (CAP-002 / F6-04). والنداءُ القديمُ بأربعةِ وسائطَ ما زالَ يُحَلُّ، لكنَّ شكلَ المُرجَعِ تغيَّرَ إلى `{ok, outcome, reason, attempts, max_attempts}` والنسخةُ السابقةُ لا تقرأُ `outcome` فلا تُميِّزُ `retried` من `dead` — فلا يُنشَرُ المخطّطُ دونَ الشيفرةِ.",
+    breaksPreviousRelease: true,
+    rollbackPath: "forward-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: HEADING_OUTBOX_DEAD_LETTER,
+  },
+  {
+    migration: "20260908050000_notification_outbox_dead_letter.sql",
+    change: "drop_function:abandon_notification_delivery(2)",
+    why: "`create or replace function` لا تُغيِّرُ قائمةَ الوسائطِ في PostgreSQL، فإضافةُ وسيطٍ ولو بقيمةٍ افتراضيةٍ توقيعٌ جديدٌ؛ وترْكُ القديمِ يُوجِدُ توقيعَينِ متعايشَينِ يجعلانِ النداءَ مُبهَماً (`function is not unique`) فيفشلُ الاثنانِ معاً — فالحذفُ لازمٌ لا مُختارٌ. والتوقيعُ الجديدُ يُضيفُ `p_reason text default null` كي يُسجَّلَ سببُ التخلّي في `dead_reason` ولحظتُه في `died_at`، فمن نظرَ في صفٍّ ميّتٍ عرفَ لِمَ ماتَ بلا رجوعٍ إلى سجلٍّ يُدوَّرُ (CAP-002 / F6-04). والنداءُ القديمُ بوسيطَينِ ما زالَ يُحَلُّ ويُسجِّلُ `null` سبباً، ولذلك يُنشَرُ مع شيفرتِه التي تُمرِّرُ السببَ.",
+    breaksPreviousRelease: true,
+    rollbackPath: "forward-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: HEADING_OUTBOX_DEAD_LETTER,
   },
 ];
 
