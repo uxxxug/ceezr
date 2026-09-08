@@ -71,28 +71,28 @@ function parseGroupId(value: unknown, label: string): bigint {
 export function validateManifest(raw: unknown): LaunchManifest {
   if (typeof raw !== "object" || raw === null) throw new Error("البيان ليس كائن JSON.");
   const source = raw as Record<string, unknown>;
-  const adminTelegramId = String(source["adminTelegramId"] ?? "").trim();
+  const adminTelegramId = String(source.adminTelegramId ?? "").trim();
   if (!/^\d+$/.test(adminTelegramId)) {
     throw new Error("adminTelegramId مفقودٌ أو ليس معرّفَ تلغرام صحيحاً.");
   }
-  if (!Array.isArray(source["cities"])) throw new Error("cities يجب أن تكون قائمة.");
+  if (!Array.isArray(source.cities)) throw new Error("cities يجب أن تكون قائمة.");
 
   const cities: CityGroupIds[] = [];
   const seenCodes = new Set<string>();
   const seenGroups = new Map<string, string>();
-  for (const entry of source["cities"] as readonly unknown[]) {
+  for (const entry of source.cities as readonly unknown[]) {
     if (typeof entry !== "object" || entry === null) throw new Error("مدخلُ مدينةٍ ليس كائناً.");
     const city = entry as Record<string, unknown>;
-    const code = String(city["code"] ?? "").trim();
+    const code = String(city.code ?? "").trim();
     if (!/^[A-Z][A-Z0-9_]{1,15}$/.test(code)) {
       throw new Error(`رمزُ المدينة «${code}» يجب أن يكون أحرفاً وأرقاماً إنجليزيّةً كبيرة.`);
     }
     if (seenCodes.has(code)) throw new Error(`المدينة ${code} مذكورةٌ مرّتين في البيان.`);
     seenCodes.add(code);
 
-    const support = parseGroupId(city["supportGroupId"], `${code}/دعم`);
-    const escalation = parseGroupId(city["escalationGroupId"], `${code}/تصعيد`);
-    const drivers = parseGroupId(city["driversGroupId"], `${code}/سائقين`);
+    const support = parseGroupId(city.supportGroupId, `${code}/دعم`);
+    const escalation = parseGroupId(city.escalationGroupId, `${code}/تصعيد`);
+    const drivers = parseGroupId(city.driversGroupId, `${code}/سائقين`);
     if (new Set([support, escalation, drivers]).size !== 3) {
       throw new Error(`${code}: القروباتُ الثلاثةُ يجب أن تحمل معرّفاتٍ مختلفة.`);
     }
@@ -192,15 +192,15 @@ async function activate(): Promise<void> {
           ) as result
         `;
         const result = applied[0]?.result ?? {};
-        if (result["ok"] !== true) {
-          throw new Error(`${city.code}: رفضت الدالّةُ التفعيل (${String(result["error"])}).`);
+        if (result.ok !== true) {
+          throw new Error(`${city.code}: رفضت الدالّةُ التفعيل (${String(result.error)}).`);
         }
-        if (result["is_active"] !== true) {
+        if (result.is_active !== true) {
           throw new Error(`${city.code}: نُفّذ التحديثُ ولم تصر المدينةُ مفعّلة.`);
         }
         results.push({
           code: city.code,
-          changed: result["changed"] === true,
+          changed: result.changed === true,
           isActive: true,
         });
       }

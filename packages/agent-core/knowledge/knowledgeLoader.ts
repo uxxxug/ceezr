@@ -88,10 +88,10 @@ export function loadKnowledge(
         if (raw === "") continue;
         const { meta, body } = parseFrontMatter(raw);
         documents.push({
-          id: meta["id"] ?? name.replace(/\.md$/, ""),
-          title: meta["title"] ?? name.replace(/\.md$/, ""),
-          label: meta["label"] ?? "general_inquiry",
-          keywords: splitList(meta["keywords"]),
+          id: meta.id ?? name.replace(/\.md$/, ""),
+          title: meta.title ?? name.replace(/\.md$/, ""),
+          label: meta.label ?? "general_inquiry",
+          keywords: splitList(meta.keywords),
           body: body.trim(),
           suggestion: extractSuggestion(body),
           sourceFile: name,

@@ -65,7 +65,7 @@ export function detectMissingData(input: MissingDataInput): readonly string[] {
   // الاقتراح صحيحاً في العموم وغير قابل للتطبيق على هذه الحالة.
   if (input.classification === "ride_dispute") {
     // `attributes` قيمها بدائية لا نصّية حتماً — تُطبَّع قبل الفحص بدل أن يُفترض شكلها.
-    const reference = input.event.attributes["order_id"];
+    const reference = input.event.attributes.order_id;
     const hasReference =
       (reference !== undefined && reference !== null && String(reference).trim() !== "") ||
       /\b\d{4,}\b/.test(input.event.text);
