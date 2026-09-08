@@ -75,7 +75,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
 
   beforeEach(async () => {
     await sql`
-      truncate table safety_incident_deliveries, safety_incidents, order_offers, orders,
+      truncate table notification_outbox, safety_incident_deliveries, safety_incidents, order_offers, orders,
         driver_availability, drivers, riders, users restart identity cascade
     `;
     await createFixture();
@@ -130,10 +130,14 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
         returning id`,
       "الحادث",
     );
+    // صفٌّ سامّ أقدم من صفّ جدّة، في مدينةٍ ناقصة الإعداد. يُودَعُ في الصندوقِ
+    // الموحَّدِ (kind='safety_incident') لا في safety_incident_deliveries بعدَ F6-03.
     const poisonDelivery = await sql<{ id: string }[]>`
-      insert into safety_incident_deliveries (city_id, incident_id, created_at, next_attempt_at)
-      values (${poisonCityId}, ${poisonIncidentId}::uuid, now() - interval '1 hour',
-        now() - interval '1 hour')
+      insert into notification_outbox (city_id, kind, dedup_key, payload, created_at, next_attempt_at)
+      values (${poisonCityId}, 'safety_incident',
+        'safety_incident:' || ${poisonIncidentId}::text,
+        jsonb_build_object('incident_id', ${poisonIncidentId}::uuid),
+        now() - interval '1 hour', now() - interval '1 hour')
       returning id`;
     const poisonDeliveryId = poisonDelivery[0]?.id;
     if (poisonDeliveryId === undefined) throw new Error("تعذر تجهيز الصفّ السامّ");
@@ -167,7 +171,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
     ]);
     // ولم يُستهلك: لا محاولة محسوبة عليه ولا حالةٌ تغيّرت، فيُسلَّم فور ضبط الإعداد.
     const poisonRow = await sql<{ status: string; attempts: number }[]>`
-      select status, attempts from safety_incident_deliveries where id = ${poisonDeliveryId}::uuid`;
+      select status, attempts from notification_outbox where id = ${poisonDeliveryId}::uuid`;
     expect(poisonRow[0]?.status).toBe("pending");
     expect(poisonRow[0]?.attempts).toBe(0);
   });
@@ -191,7 +195,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
     const persisted = await sql<{ incidents: string; deliveries: string }[]>`
       select
         (select count(*)::text from safety_incidents where order_id = ${orderId}::uuid) incidents,
-        (select count(*)::text from safety_incident_deliveries) deliveries
+        (select count(*)::text from notification_outbox where kind = 'safety_incident') deliveries
     `;
     expect(Number(persisted[0]?.incidents)).toBe(1);
     expect(Number(persisted[0]?.deliveries)).toBe(1);
@@ -224,13 +228,13 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
     expect(failedCalls).toBe(1);
 
     const pending = await sql<{ status: string; attempts: number }[]>`
-      select status, attempts from safety_incident_deliveries
+      select status, attempts from notification_outbox where kind = 'safety_incident'
     `;
     expect(pending[0]?.status).toBe("pending");
     expect(pending[0]?.attempts).toBe(1);
 
     // نتجاوز فاصل الإعادة المأخوذ من platform_settings؛ لا ننتظر 30 ثانية في اختبار.
-    await sql`update safety_incident_deliveries set next_attempt_at = now()`;
+    await sql`update notification_outbox set next_attempt_at = now() where kind = 'safety_incident'`;
     let deliveredCalls = 0;
     const succeeding: SafetyCardPublisher = {
       publish: async () => {
@@ -247,7 +251,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
     expect(deliveredCalls).toBe(1);
     const delivered = await sql<{ status: string; attempts: number; message_id: string }[]>`
       select status, attempts, delivered_message_id::text as message_id
-      from safety_incident_deliveries
+      from notification_outbox where kind = 'safety_incident'
     `;
     expect(delivered[0]).toEqual({ status: "delivered", attempts: 2, message_id: "7788" });
   });
