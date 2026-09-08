@@ -21,8 +21,12 @@ import {
 import { createTelegramInitDataVerifier } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
 import {
+  buildProcessIdentity,
+  createCentralMetricsExport,
   createDatabaseGaugeCollector,
   createOperationalMetrics,
+  parseExportHeaders,
+  registerCentralExportMetrics,
 } from "../../../packages/infrastructure/observability/index.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import {
@@ -127,6 +131,35 @@ const startedAt = new Date();
  */
 const operationalMetrics = createOperationalMetrics();
 
+/**
+ * التجميعُ المركزيُّ (`F5-07`/`SCL-006` — ADR 0062). العدُّ يبقى في الذاكرةِ، ويُدفَع
+ * دوريّاً إلى مُجمِّعٍ يحمل **هويّةَ العمليةِ مُعلَنةً**؛ فلا تُقرَأ كشطةُ عمليةٍ
+ * واحدةٍ أرقامَ منصّةٍ يومَ تُرفَع النسخُ. وهذا لا يرفع `R-17` ولا يأذن بنسخةٍ ثانيةٍ
+ * (ADR 0062 §٤) — بل يجعل القياسَ صادقاً حينَ تُرفَع.
+ *
+ * والتسجيلُ يقع **دائماً** ولو لم يُضبَط عنوانٌ: `waslah_target_info` يُصلِح غموضَ
+ * الكشطةِ وحدَه، و`waslah_metrics_central_export_enabled 0` إعلانُ إطفاءٍ لا صمتٌ.
+ */
+const processIdentity = buildProcessIdentity("gateway");
+const centralMetricsExport = createCentralMetricsExport({
+  registry: operationalMetrics.registry,
+  identity: processIdentity,
+  endpoint: process.env.OTLP_METRICS_ENDPOINT,
+  headers: parseExportHeaders(process.env.OTLP_METRICS_HEADERS),
+  ...(Number.isFinite(Number(process.env.OTLP_METRICS_INTERVAL_MS)) &&
+  Number(process.env.OTLP_METRICS_INTERVAL_MS) > 0
+    ? { intervalMs: Number(process.env.OTLP_METRICS_INTERVAL_MS) }
+    : {}),
+  startedAtMs: Date.now(),
+  log,
+});
+registerCentralExportMetrics(
+  operationalMetrics.registry,
+  processIdentity,
+  centralMetricsExport.enabled,
+);
+centralMetricsExport.start();
+
 function observabilityLog(message: string, meta: Record<string, unknown> = {}): void {
   if (message === "dispatch.no_eligible_driver") operationalMetrics.recordDispatchNoDriver();
   log(message, meta);
@@ -229,6 +262,14 @@ const lifecycle = createLifecycle({
       serverHandle?.stop(true);
     },
     close: async () => {
+      /**
+       * دفعةٌ أخيرةٌ قبلَ كلِّ شيءٍ (ADR 0062): العمليةُ الذاهبةُ تأخذ عدّاداتِ
+       * نافذتِها معها، وهو أحدُ العيوبِ الثلاثةِ التي يعدّدها `SCL-006`. والمؤقّتُ
+       * يُوقَف أوّلاً كي لا تتزاحمَ دفعتانِ، والفشلُ ههنا لا يؤخّر الإطفاءَ لأنّ
+       * للطلبِ مهلتَه.
+       */
+      centralMetricsExport.stop();
+      if (centralMetricsExport.enabled) await centralMetricsExport.exportOnce();
       // الدرينرُ قبلَ القاعدةِ: شوطٌ جارٍ يحجزُ وظيفةً بإيجارٍ، وإغلاقُ القاعدةِ
       // تحته يُتركُها محجوزةً حتى ينتهي الإيجارُ. فنتوقفُه أوّلاً وينتظرُ الجاري.
       if (updateDrainer !== null) {

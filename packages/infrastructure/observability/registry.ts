@@ -5,6 +5,11 @@
  * ينتمي إلى: packages/infrastructure/observability
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/routes/metrics.ts وعامل المهامّ.
  * ملاحظات مستقبلية: عند الحاجة إلى exemplars أو OpenMetrics تُضاف كواجهة تصدير ثانية.
+ *
+ * `F5-07`/`SCL-006` (ADR 0062): أُضيفت `snapshot()` — قراءةٌ مبنيّةٌ للحالةِ ذاتِها التي
+ * يرسمها `render()`. والسببُ أنّ التجميعَ المركزيَّ يحتاج **الأرقامَ لا النصَّ**: من
+ * حوّل بتحليلِ نصِّ العرضِ جعلَ صيغةَ عرضٍ عقدَ بياناتٍ، وأورثَ محلّلاً هشّاً ينكسر
+ * صامتاً عندَ أوّلِ وسمٍ فيه فاصلةٌ. فالمصدرُ واحدٌ، والمخرَجانِ منه.
  */
 
 export type MetricLabels = Readonly<Record<string, string>>;
@@ -79,6 +84,36 @@ function numberText(value: number): string {
   if (value === Number.NEGATIVE_INFINITY) return "-Inf";
   return String(value);
 }
+
+/** عيّنةُ عدّادٍ أو مقياسٍ لحظيٍّ: مجموعةُ وسومٍ كاملةٌ وقيمةٌ. */
+export interface ScalarSample {
+  readonly labels: MetricLabels;
+  readonly value: number;
+}
+
+/**
+ * عيّنةُ مدرَّجٍ. `buckets[i].count` **تراكميٌّ** (عددُ ما كان ≤ الحدِّ) كما يقتضي
+ * `_bucket` في Prometheus؛ ومَن أراد عدّاً لكلِّ صندوقٍ على حدةٍ فليطرح — والطرحُ
+ * في المُحوِّلِ لا ههنا كي يبقى هذا انعكاساً أميناً للحالةِ المحفوظةِ.
+ */
+export interface HistogramSample {
+  readonly labels: MetricLabels;
+  readonly count: number;
+  readonly sum: number;
+  readonly buckets: readonly { readonly le: number; readonly cumulativeCount: number }[];
+}
+
+export interface ScalarFamilySnapshot extends MetricDefinition {
+  readonly type: "counter" | "gauge";
+  readonly samples: readonly ScalarSample[];
+}
+
+export interface HistogramFamilySnapshot extends HistogramDefinition {
+  readonly type: "histogram";
+  readonly samples: readonly HistogramSample[];
+}
+
+export type MetricFamilySnapshot = ScalarFamilySnapshot | HistogramFamilySnapshot;
 
 /**
  * مسجّل متعمّد البساطة: كل عدّاد ومقياس لحظي محفوظان بحسب مجموعة الوسوم الكاملة؛ فلا
@@ -163,6 +198,55 @@ export class PrometheusRegistry {
       }
     }
     return `${lines.join("\n")}\n`;
+  }
+
+  /**
+   * قراءةٌ مبنيّةٌ لكلِّ العائلاتِ — نسخةٌ منفصلةٌ لا مراجعُ إلى الخرائطِ الداخليّةِ،
+   * فلا يستطيع مستهلكٌ أن يُعدِّل عدَّاداً وهو «يقرأ». والعائلاتُ تُذكَر ولو خلت من
+   * عيّنةٍ: عائلةٌ مُعرَّفةٌ بلا عيّنةٍ خبرٌ (لم يقع الحدثُ) لا فراغٌ يُحذَف.
+   */
+  snapshot(): readonly MetricFamilySnapshot[] {
+    const families: MetricFamilySnapshot[] = [];
+    for (const family of this.families.values()) {
+      const names = family.labelNames ?? [];
+      if (family.type === "histogram") {
+        const stored = this.histograms.get(family.name);
+        const samples: HistogramSample[] = [];
+        for (const [key, value] of stored ?? []) {
+          samples.push({
+            labels: this.labelsFromKey(names, key),
+            count: value.count,
+            sum: value.sum,
+            buckets: family.buckets.map((le) => ({
+              le,
+              cumulativeCount: value.buckets.get(le) ?? 0,
+            })),
+          });
+        }
+        families.push({
+          name: family.name,
+          help: family.help,
+          labelNames: names,
+          buckets: [...family.buckets],
+          type: "histogram",
+          samples,
+        });
+        continue;
+      }
+      const stored = this.values.get(family.name);
+      const samples: ScalarSample[] = [];
+      for (const [key, value] of stored ?? []) {
+        samples.push({ labels: this.labelsFromKey(names, key), value });
+      }
+      families.push({
+        name: family.name,
+        help: family.help,
+        labelNames: names,
+        type: family.type,
+        samples,
+      });
+    }
+    return families;
   }
 
   private define(family: MetricFamily): void {
