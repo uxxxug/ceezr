@@ -55,3 +55,17 @@ export interface LiveBroadcastStore {
   /** يحرّر الادّعاءَ إن كان الرمزُ صاحبَه (قفلٌ آمنٌ ضدَّ الإطلاقِ الخاطئ). */
   releaseClaim(tripId: string, token: string): Promise<void>;
 }
+
+/**
+ * حارسُ نوعٍ يُميِّزُ حالةَ البثِّ الصالحةَ من قيمةٍ مجهولةٍ. يُستعمَلُ في تنفيذِ Redis
+ * لرفضِ القيمِ المشوّهةِ دونَ رميٍ، ويُحمَّلُ وقتَ التشغيلِ لا وقتَ الترجمةِ وحدها.
+ */
+export function isBroadcastState(value: unknown): value is BroadcastState {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Partial<BroadcastState>;
+  return (
+    typeof v.chatId === "string" &&
+    typeof v.messageId === "string" &&
+    typeof v.sessionId === "string"
+  );
+}

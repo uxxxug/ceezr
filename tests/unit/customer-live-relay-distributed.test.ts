@@ -15,7 +15,10 @@ import { describe, expect, it } from "bun:test";
 import type { RedisClient, RedisFailure } from "../../apps/gateway/src/redis/upstash.ts";
 import { createCustomerLiveRelay } from "../../packages/application/tracking/customer-live-relay.ts";
 import { createInMemoryLiveBroadcastStore } from "../../packages/application/tracking/in-memory-live-broadcast-store.ts";
-import type { LiveBroadcastStore } from "../../packages/application/tracking/live-broadcast-store.ts";
+import {
+  isBroadcastState,
+  type LiveBroadcastStore,
+} from "../../packages/application/tracking/live-broadcast-store.ts";
 import { createRedisLiveBroadcastStore } from "../../packages/infrastructure/tracking/redis-live-broadcast-store.ts";
 import { err, ok, type Result } from "../../packages/shared/result/index.ts";
 import type { TrackingEvent } from "../../packages/tracking/types.ts";
@@ -99,6 +102,23 @@ function buildRelay(
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("مخزنُ البثّ الذاكريّ — `SCL-005`", () => {
+  it("isBroadcastState يُميِّزُ الحالةَ الصالحةَ من المشوّهة", () => {
+    expect(
+      isBroadcastState({
+        chatId: "555",
+        messageId: "msg-1",
+        sentAtMs: 1,
+        lat: 21,
+        lng: 39,
+        sessionId: "sess",
+        lastAppliedSeq: 5,
+      }),
+    ).toBe(true);
+    expect(isBroadcastState(null)).toBe(false);
+    expect(isBroadcastState({ chatId: 5, messageId: "m", sessionId: "s" })).toBe(false);
+    expect(isBroadcastState({ messageId: "m", sessionId: "s" })).toBe(false);
+  });
+
   it("يُعيد null لرحلةٍ بلا بثّ", async () => {
     const store = createInMemoryLiveBroadcastStore();
     expect(await store.get(TRIP)).toBeNull();

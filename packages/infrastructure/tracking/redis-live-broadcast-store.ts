@@ -19,9 +19,10 @@
  */
 
 import type { RedisClient } from "../../../apps/gateway/src/redis/upstash.ts";
-import type {
-  BroadcastState,
-  LiveBroadcastStore,
+import {
+  type BroadcastState,
+  isBroadcastState,
+  type LiveBroadcastStore,
 } from "../../../packages/application/tracking/live-broadcast-store.ts";
 
 const STATE_PREFIX = "live:broadcast:state:";
@@ -39,15 +40,8 @@ export function createRedisLiveBroadcastStore(redis: RedisClient): LiveBroadcast
       const raw = result.value;
       if (typeof raw !== "string" || raw.length === 0) return null;
       try {
-        const parsed = JSON.parse(raw) as BroadcastState;
-        if (
-          typeof parsed.chatId !== "string" ||
-          typeof parsed.messageId !== "string" ||
-          typeof parsed.sessionId !== "string"
-        ) {
-          return null;
-        }
-        return parsed;
+        const parsed = JSON.parse(raw) as unknown;
+        return isBroadcastState(parsed) ? parsed : null;
       } catch {
         return null;
       }
