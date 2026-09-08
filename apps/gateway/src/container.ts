@@ -110,6 +110,7 @@ import {
   createTrackingEventBus,
   type TrackingEventBus,
 } from "../../../packages/infrastructure/tracking/event-bus.ts";
+import { createRedisLiveBroadcastStore } from "../../../packages/infrastructure/tracking/redis-live-broadcast-store.ts";
 import {
   createRedisStreamTrackingEventBus,
   DEFAULT_POLL_MS,
@@ -604,6 +605,13 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
     ),
     log,
+    /**
+     * `SCL-005` — مخزنُ البثّ المشترك: Redis حين يكون متاحاً (حالةٌ تبقى بعدَ
+     * إعادةِ التشغيلِ ومشاركةٌ بينَ النسخِ + ادّعاءٌ ذرّيٌّ لبدءِ البثّ)، وإلّا
+     * الذاكرةُ (تنازلٌ موثَّقٌ كنشرِ نسخةٍ واحدةٍ، لا أكثر).
+     */
+    ...(redis ? { store: createRedisLiveBroadcastStore(redis) } : {}),
+    newClaimToken: () => crypto.randomUUID(),
   });
 
   /**

@@ -18,11 +18,22 @@
  * رؤية، بل جزءٌ من النقل نفسه. والحصر يجري بعد الاستقبال بالاشتقاق من القاعدة،
  * لا قبله بمُرشِّح نطاق. ولو حُصر بمدينة لكان الحدّ خطأً صريحاً: عميلٌ في مدينةٍ
  * لا يُشترك فيها المُرحِّل يفقد تتبّعه بلا سبب.
+ *
+ * ## `SCL-005` — مخزنُ البثّ المشترك
+ *
+ * كانَت خريطةُ `tripId → messageId` في الذاكرةِ وحدَها (`Map` داخلَ العملية).
+ * فأُستُبدِلَت بمخزنٍ مشتركٍ (`LiveBroadcastStore`) يُحقَنُ: تنفيذُ Redis في
+ * الإنتاجِ (حالةٌ تبقى بعدَ إعادةِ التشغيلِ ومشاركةٌ بينَ النسخ)، وتنفيذُ الذاكرة
+ * افتراضيّاً للاختبار. وبدءُ البثّ صار يُدّعى ذرّيّاً (`claimStart` بـ`SET NX`)
+ * حتى لا تفتحَ نسختانِ رسالتَي بثٍّ للرحلةِ الواحدة. والكتابةُ عندَ البدءِ
+ * والإغلاقِ لا عندَ كلِّ إصلاحةٍ، فيتفادّى ثمنَ الكتابةِ لكلِّ تحديث.
  */
 
 import { haversineKm } from "../../domain/geo/index.ts";
 import { isTripLive, type WatchedTripStatus } from "../../domain/tracking/visibility.ts";
 import type { TrackingEvent } from "../../tracking/index.ts";
+import { createInMemoryLiveBroadcastStore } from "./in-memory-live-broadcast-store.ts";
+import type { LiveBroadcastStore } from "./live-broadcast-store.ts";
 
 export interface LivePosition {
   readonly lat: number;
@@ -49,6 +60,10 @@ export interface LiveLocationChannel {
 export const DEFAULT_RELAY_MIN_INTERVAL_MS = 5_000;
 /** الحدّ الأدنى للحركة (متر) لتعديلٍ قبل انتهاء المدّة. */
 export const DEFAULT_RELAY_MIN_MOVE_METERS = 15;
+/** عمرُ ادّعاءِ بدءِ البثّ — يكفي لنداءِ `channel.start` (تلغرام ≤ ثانيتَين). */
+export const DEFAULT_CLAIM_TTL_MS = 10_000;
+/** هامشُ TTL فوقَ عمرِ البثّ حتى لا ينتهيَ قبلَ تعديلِه. */
+export const BROADCAST_TTL_MARGIN_MS = 60_000;
 
 export interface CustomerChannelResolver {
   resolve(tripId: string): Promise<{
@@ -72,6 +87,15 @@ export interface CustomerLiveRelayDeps {
   readonly customers: CustomerChannelResolver;
   readonly clock: { now(): Date };
   readonly livePeriodSeconds: number;
+  /** مخزنُ البثّ المشترك. افتراضيّاً الذاكرة — الإنتاجُ يوصِّلُ Redis (`SCL-005`). */
+  readonly store?: LiveBroadcastStore;
+  /** عمرُ ادّعاءِ بدءِ البثّ بالميلي ثانية. */
+  readonly claimTtlMs?: number;
+  /**
+   * مُولِّدُ رمزِ الادّعاء. يُحقَنُ حتى لا يستوردَ طبقةُ التطبيقِ `node:crypto`
+   * مباشرةً. الإنتاجُ يوصِّلُ `() => crypto.randomUUID()`.
+   */
+  readonly newClaimToken?: () => string;
   readonly minIntervalMs?: number;
   readonly minMoveMeters?: number;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
@@ -80,55 +104,40 @@ export interface CustomerLiveRelayDeps {
 export interface CustomerLiveRelay {
   /** يُستدعى من الناقل لكل حدثٍ مصرَّح به. لا يرمي. */
   handle(event: TrackingEvent): Promise<void>;
-  /** عدد الرحلات التي لها بثٌّ مفتوح — للاختبار والقياس. */
+  /** عددُ البثّاتِ المفتوحةِ التي تُديرُها هذه النسخة — للاختبار والقياس. */
   readonly openBroadcasts: number;
-}
-
-interface Broadcast {
-  readonly chatId: string;
-  readonly messageId: string;
-  sentAtMs: number;
-  lat: number;
-  lng: number;
-  /**
-   * `BUG-009` — القناةُ التي تُقاس عليها أرقامُ الترتيبِ، وآخرُ رقمٍ طُبّق منها.
-   *
-   * في الذاكرةِ وحدها ولا شيءَ غيرَهما (`ADR 0053` §٣-أ/١٠ و١٢): لا خزنَ
-   * معرّفاتِ أحداثٍ ولا سجلَّ مطبّقٍ ولا ديمومةَ عندَ المستهلكِ. وفقدانُهما مع إعادةِ
-   * التشغيلِ لا يضُرُّ: `messageId` يُفقد معهما في نفسِ الخريطةِ أصلاً، فتُفتح رسالةُ
-   * بثٍّ جديدةٌ تبدأ حسابَها من أولِ حدثٍ يراه.
-   */
-  sessionId: string;
-  lastAppliedSeq: number;
 }
 
 export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLiveRelay {
   const minIntervalMs = deps.minIntervalMs ?? DEFAULT_RELAY_MIN_INTERVAL_MS;
   const minMoveMeters = deps.minMoveMeters ?? DEFAULT_RELAY_MIN_MOVE_METERS;
+  const claimTtlMs = deps.claimTtlMs ?? DEFAULT_CLAIM_TTL_MS;
   const log = deps.log ?? ((): void => undefined);
+  const store = deps.store ?? createInMemoryLiveBroadcastStore();
+  const newClaimToken =
+    deps.newClaimToken ??
+    ((): string => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`);
+  const liveTtlMs = deps.livePeriodSeconds * 1000 + BROADCAST_TTL_MARGIN_MS;
 
   /**
-   * خريطة البثّ في الذاكرة ومعرّف الرسالة فيها. وحدّها معلن: إعادة تشغيل النسخة
-   * تُفقد المعرّفات، فأوّل إصلاحةٍ بعدها تُنشئ **رسالة بثٍّ جديدة** بدلاً من تعديل
-   * القديمة — فيرى العميل خريطةً ثانية في محادثته، والأولى تسكن حتى تنتهي مدّتها.
-   *
-   * وقُبِل هذا الحدّ بوعي: تخزين المعرّفات في القاعدة يعني جدولاً وكتابةً في مسارٍ
-   * تُرسَل فيه إصلاحةٌ كل ثوانٍ، مقابل عيبٍ تجميليّ يظهر عند نشرٍ جديد فقط
-   * (والنشر يوقف الجلسات أصلاً). البديل الصحيح — إن أزعج فعلاً — أن يُقرأ معرّف
-   * الرسالة من `orders` لا من جدولٍ جديد. وهو قرار المرحلة ١١ لا هذه.
+   * البثّاتُ التي تُديرُها هذه النسخةُ من بثٍّ مفتوحٍ بدأَته. هي عدّادُ قياسٍ
+   * محليٌّ، لا مصدرُ الحقيقةِ (ذاك المخزنُ المشترك): نسخةٌ تُغلقُ بثّاً بدأتْه
+   * نسخةٌ أخرى لا تُنقِصُ عدّادَها — وهذا مقصودٌ، فالعدّادُ يصفُ عملَ هذه النسخةِ
+   * وحدَها.
    */
-  const broadcasts = new Map<string, Broadcast>();
+  const localOpen = new Set<string>();
 
   const closeTrip = async (tripId: string): Promise<void> => {
-    const open = broadcasts.get(tripId);
-    if (open === undefined) return;
-    broadcasts.delete(tripId);
+    const open = await store.get(tripId);
+    if (open === null) return;
+    await store.delete(tripId);
+    localOpen.delete(tripId);
     await deps.channel.stop(open.chatId, open.messageId);
   };
 
   return {
     get openBroadcasts() {
-      return broadcasts.size;
+      return localOpen.size;
     },
 
     handle: async (event) => {
@@ -142,13 +151,14 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
            *
            * رحلةٌ طويلةٌ تعبُر جلستَينِ (سقفُ الاثنتَي عشرةَ ساعةً يُغلق الأولى
            * ويفتح الثانيةَ): لو وصل `session_ended` للأولى بعدَ أن فتحَ حدثٌ من
-           * الثانيةِ بثَّه — والترتيبُ بين الجلستَينِ غيرُ مضمونٍ لأنَّ الرقمَ جلسيٌّ لا
-           * عالميٌّ (§٣-أ/٩) — لأطفأت خريطةً مشروعةً للعميلِ حتّى نهايةِ الرحلةِ.
+           * الثانيةِ بثَّه — والترتيبُ بينَ الجلستَينِ غيرُ مضمونٍ لأنَّ الرقمَ
+           * جلسيٌّ لا عالميٌّ (§٣-أ/٩) — لأطفأت خريطةً مشروعةً للعميلِ حتّى نهايةِ
+           * الرحلةِ.
            *
            * وإن لم يكن بثٌّ مفتوحٌ فلا شيءَ يُغلق — و`closeTrip` تتحمّل ذلك أصلاً.
            */
-          const openTrip = broadcasts.get(tripId);
-          if (openTrip !== undefined && openTrip.sessionId !== event.sessionId) {
+          const open = await store.get(tripId);
+          if (open !== null && open.sessionId !== event.sessionId) {
             log("tracking.live_location_end_other_session", { tripId });
             return;
           }
@@ -159,7 +169,7 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
         if (event.type !== "location_updated" || event.position === null) return;
 
         const nowMs = deps.clock.now().getTime();
-        const open = broadcasts.get(tripId);
+        const open = await store.get(tripId);
 
         /**
          * ## `BUG-009` — بوّابةُ الترتيبِ عندَ المستهلكِ
@@ -184,7 +194,7 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
          * ولا `replay` ولا `event store` ولا تخزينَ معرّفاتٍ في أيِّ حالٍ.
          */
         if (
-          open !== undefined &&
+          open !== null &&
           open.sessionId === event.sessionId &&
           event.sequence <= open.lastAppliedSeq
         ) {
@@ -192,49 +202,76 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
           return;
         }
 
-        if (open === undefined) {
-          const target = await deps.customers.resolve(tripId);
-          if (target === null) return;
+        if (open === null) {
           /**
-           * التحقّق من أن سائق الحدث هو سائق الرحلة المُخزَّن — رغم أن الناقل
-           * فحص التصريح. طبقتان بقصد: الأولى تمنع الوصول غير المصرَّح به، وهذه
-           * تمنع **الخطأ في الوجهة** (حدثٌ لسائقٍ أُعيد إسناده بين لحظة النشر
-           * ولحظة الإرسال). والثانية ليست تكراراً للأولى بل تُغلق سباقاً.
-           */
-          if (target.driverId !== event.driverId) return;
-          /**
-           * المرحلة ١١ — أقوى قاعدةٍ في مجال التتبّع تُطبَّق أخيراً على مسار العميل
-           * الحقيقي: لا بثَّ لرحلةٍ غير حيّة.
+           * ## `SCL-005` — ادّعاءُ بدءِ البثّ ذرّيّاً
            *
-           * وكانت غائبةً لا لأنها غير مكتوبة، بل لأن مَن يكتبها (`canCustomerWatch`)
-           * لم يكن على هذا المسار: المُرحِّل يشترك بنطاق `operations/all_cities`،
-           * فيمرّ بـ`canOperationsWatch` الذي يسمح دائماً، ولا يلمس `isTripLive`
-           * إطلاقاً. فكان حدثُ موقعٍ لرحلةٍ مكتملةٍ أو مُلغاة **يفتح بثّاً**.
+           * نسختانِ تريانِ الحدثَ الأولَ لرحلةٍ معاً (عبرَ المجرى المشتركِ
+           * `SCL-004`) لو لم تُسلسَل لفتحتا رسالتَي بثٍّ في محادثةِ العميل.
+           * والادّعاءُ بـ`SET NX` يمنحُ نسخةً واحدةً حقَّ البدء؛ والأخرى تتخطّى،
+           * فيلتقطُ الحدثُ التالي الحالةَ من المخزنِ فيُعدِّلُها لا يفتحُها.
            *
-           * وهذا ليس تكراراً لإغلاق الإلغاء في `rider-dialog`: ذاك يُغلق بثّاً
-           * قائماً عند حدثٍ نعرف وقته، وهذا يمنع فتحَ بثٍّ لرحلةٍ ميتة أصلاً —
-           * فيصحّح كل نهايةٍ لا تمرّ بنا (إلغاءُ مشرف، فشلٌ، تعديلٌ في القاعدة).
+           * والادّعاءُ محدودُ العمرِ: إن ماتتِ النسخةُ بينَ الادّعاءِ و`channel.start`
+           * انتهى الادّعاءُ فتُعيدُ نسخةٌ أخرى المحاولةَ. والرمزُ (`token`) يُحرَّرُ
+           * بأمانٍ (قارنْ ثم احذفْ) حتى لا يُطلِقَ نسخةٌ ادّعاءَ أخرى.
            */
-          if (!isTripLive(target.status)) {
-            log("tracking.live_location_skipped_not_live", { tripId, status: target.status });
+          const token = newClaimToken();
+          const claimed = await store.claimStart(tripId, token, claimTtlMs);
+          if (!claimed) {
+            log("tracking.live_location_start_claimed_elsewhere", { tripId });
             return;
           }
+          try {
+            const target = await deps.customers.resolve(tripId);
+            if (target === null) return;
+            /**
+             * التحقّق من أن سائق الحدث هو سائق الرحلة المُخزَّن — رغم أن الناقل
+             * فحص التصريح. طبقتان بقصد: الأولى تمنع الوصول غير المصرَّح به، وهذه
+             * تمنع **الخطأ في الوجهة** (حدثٌ لسائقٍ أُعيد إسناده بين لحظة النشر
+             * ولحظة الإرسال). والثانية ليست تكراراً للأولى بل تُغلق سباقاً.
+             */
+            if (target.driverId !== event.driverId) return;
+            /**
+             * المرحلة ١١ — أقوى قاعدةٍ في مجال التتبّع تُطبَّق أخيراً على مسار العميل
+             * الحقيقي: لا بثَّ لرحلةٍ غير حيّة.
+             *
+             * وكانت غائبةً لا لأنها غير مكتوبة، بل لأن مَن يكتبها (`canCustomerWatch`)
+             * لم يكن على هذا المسار: المُرحِّل يشترك بنطاق `operations/all_cities`،
+             * فيمرّ بـ`canOperationsWatch` الذي يسمح دائماً، ولا يلمس `isTripLive`
+             * إطلاقاً. فكان حدثُ موقعٍ لرحلةٍ مكتملةٍ أو مُلغاة **يفتح بثّاً**.
+             *
+             * وهذا ليس تكراراً لإغلاق الإلغاء في `rider-dialog`: ذاك يُغلق بثّاً
+             * قائماً عند حدثٍ نعرف وقته، وهذا يمنع فتحَ بثٍّ لرحلةٍ ميتة أصلاً —
+             * فيصحّح كل نهايةٍ لا تمرّ بنا (إلغاءُ مشرف، فشلٌ، تعديلٌ في القاعدة).
+             */
+            if (!isTripLive(target.status)) {
+              log("tracking.live_location_skipped_not_live", { tripId, status: target.status });
+              return;
+            }
 
-          const messageId = await deps.channel.start(
-            target.riderTelegramId,
-            { lat: event.position.lat, lng: event.position.lng },
-            deps.livePeriodSeconds,
-          );
-          if (messageId === null) return;
-          broadcasts.set(tripId, {
-            chatId: target.riderTelegramId,
-            messageId,
-            sentAtMs: nowMs,
-            lat: event.position.lat,
-            lng: event.position.lng,
-            sessionId: event.sessionId,
-            lastAppliedSeq: event.sequence,
-          });
+            const messageId = await deps.channel.start(
+              target.riderTelegramId,
+              { lat: event.position.lat, lng: event.position.lng },
+              deps.livePeriodSeconds,
+            );
+            if (messageId === null) return;
+            localOpen.add(tripId);
+            await store.save(
+              tripId,
+              {
+                chatId: target.riderTelegramId,
+                messageId,
+                sentAtMs: nowMs,
+                lat: event.position.lat,
+                lng: event.position.lng,
+                sessionId: event.sessionId,
+                lastAppliedSeq: event.sequence,
+              },
+              liveTtlMs,
+            );
+          } finally {
+            await store.releaseClaim(tripId, token);
+          }
           return;
         }
 
@@ -298,21 +335,23 @@ export function createCustomerLiveRelay(deps: CustomerLiveRelayDeps): CustomerLi
            * مدّتها. والنسيان يجعل الإصلاحة التالية تفتح بثّاً جديداً — وهو أفضل
            * من عميلٍ تتوقّف خريطته صامتةً إلى نهاية الرحلة.
            */
-          broadcasts.delete(tripId);
+          await store.delete(tripId);
+          localOpen.delete(tripId);
           log("tracking.live_location_edit_failed", { tripId });
           return;
         }
-        open.sentAtMs = nowMs;
-        open.lat = event.position.lat;
-        open.lng = event.position.lng;
-        /**
-         * يُثبّت **بعدَ** نجاحِ التعديلِ لا قبلَه: رقمٌ يُرفَع لحدثٍ لم يصل
-         * العميلَ يحجب ما بعدَه عن خريطةٍ لم تتحرّك. والخنقُ أعلاه (زمنٌ ومسافةٌ)
-         * يخرج بـ`return` قبلَ هذا الموضعِ فلا يرفع الرقمَ أيضاً — وذلك مقصودٌ:
-         * الخنقُ تأخيرٌ لا رفضٌ، والإصلاحةُ التاليةُ أحدثُ منه بكلِّ حالٍ.
-         */
-        open.sessionId = event.sessionId;
-        open.lastAppliedSeq = event.sequence;
+        await store.save(
+          tripId,
+          {
+            ...open,
+            sentAtMs: nowMs,
+            lat: event.position.lat,
+            lng: event.position.lng,
+            sessionId: event.sessionId,
+            lastAppliedSeq: event.sequence,
+          },
+          liveTtlMs,
+        );
       } catch (error) {
         log("tracking.customer_relay_failed", { detail: String(error) });
       }

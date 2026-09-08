@@ -29,6 +29,7 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import type { DialogState } from "../../packages/application/bots/types.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createTrackingEventBus } from "../../packages/infrastructure/tracking/event-bus.ts";
+import { createRedisLiveBroadcastStore } from "../../packages/infrastructure/tracking/redis-live-broadcast-store.ts";
 import { createRedisStreamTrackingEventBus } from "../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import type { TrackingEvent } from "../../packages/tracking/types.ts";
@@ -483,5 +484,64 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
     } finally {
       busB.stop();
     }
+  }, 15_000);
+
+  // `SCL-005` — مخزنُ بثٍّ مشتركٌ عبرَ Redis: ادّعاءٌ ذرّيٌّ لبدءِ البثّ (`SET NX`)
+  // ينجحُ مرّةً واحدةً فقط، حتى لو تسابقَ عليهِ عميلانِ؛ وتحريرٌ آمنٌ بالرمز؛
+  // وذهابٌ وعودةٌ للحالة. يُثبِتُ أنّ المخزنَ يعملُ على Redis حقيقيٍّ لا على المزدوجِ.
+  it("SCL-005: ادّعاءُ بدءِ البثّ ذرّيٌّ عبرَ Redis — نجاحٌ مرّةً واحدةً ولو تسابقَ عميلان", async () => {
+    const store = createRedisLiveBroadcastStore(redis.client);
+    const trip = `trip-scl-005-${redis.runId}`;
+    const stateKey = `live:broadcast:state:${trip}`;
+    const claimKey = `live:broadcast:claim:${trip}`;
+    redis.trackForeignKey(stateKey);
+    redis.trackForeignKey(claimKey);
+
+    // ذهابٌ وعودةٌ: save ثم get.
+    await store.save(
+      trip,
+      {
+        chatId: "555",
+        messageId: "msg-real-1",
+        sentAtMs: 1_000,
+        lat: 21.5,
+        lng: 39.1,
+        sessionId: "sess-scl-005",
+        lastAppliedSeq: 1,
+      },
+      60_000,
+    );
+    const roundtrip = await store.get(trip);
+    expect(roundtrip?.messageId).toBe("msg-real-1");
+    expect(roundtrip?.lastAppliedSeq).toBe(1);
+
+    // التحريرُ الآمنُ: رمزٌ مغايرٌ لا يحرّر.
+    await store.claimStart(trip, "tok-real-a", 10_000);
+    await store.releaseClaim(trip, "tok-real-wrong");
+    const secondClaim = await store.claimStart(trip, "tok-real-b", 10_000);
+    expect(secondClaim).toBe(false); // لا يزال مشغولاً
+    await store.releaseClaim(trip, "tok-real-a"); // الرمزُ الصحيح
+    const thirdClaim = await store.claimStart(trip, "tok-real-c", 10_000);
+    expect(thirdClaim).toBe(true); // صار متاحاً
+    await store.releaseClaim(trip, "tok-real-c");
+
+    // الادّعاءُ الذرّيُّ تحتَ التسابقِ: عميلانِ يحاولانِ معاً — واحدٌ فقط يفوز.
+    const raceTrip = `trip-scl-005-race-${redis.runId}`;
+    const raceClaim = `live:broadcast:claim:${raceTrip}`;
+    redis.trackForeignKey(raceClaim);
+    const raceStoreA = createRedisLiveBroadcastStore(redis.client);
+    const raceStoreB = createRedisLiveBroadcastStore(redis.client);
+    const [a, b] = await Promise.all([
+      raceStoreA.claimStart(raceTrip, "race-a", 10_000),
+      raceStoreB.claimStart(raceTrip, "race-b", 10_000),
+    ]);
+    expect(a && !b ? true : !a && b ? true : false).toBe(true); // واحدٌ فقط
+    await raceStoreA.releaseClaim(raceTrip, "race-a");
+    await raceStoreB.releaseClaim(raceTrip, "race-b");
+
+    // الحذفُ يُزيل الحالة.
+    await store.delete(trip);
+    expect(await store.get(trip)).toBeNull();
+    mark("scl-005-broadcast-shared-store");
   }, 15_000);
 });
