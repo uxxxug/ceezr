@@ -1834,13 +1834,13 @@ export async function listBroadcastCampaigns(
            coalesce(r.canceled, 0)::int as canceled
       from batches b
       left join lateral (
-        select count(*) filter (where rec.status = 'sent') as sent,
+        select count(*) filter (where rec.status = 'delivered') as sent,
                count(*) filter (where rec.status = 'failed') as failed,
                count(*) filter (where rec.status in ('pending', 'sending')) as pending,
                count(*) filter (where rec.status = 'canceled') as canceled
-          from broadcast_recipients rec
-          join broadcast_campaigns cc on cc.id = rec.campaign_id
-         where cc.batch_id = b.batch_id
+          from notification_outbox rec
+          join broadcast_campaigns cc on cc.id = rec.broadcast_campaign_id
+         where cc.batch_id = b.batch_id and rec.kind = 'broadcast_recipient'
       ) r on true
      order by b.created_at desc
   `;

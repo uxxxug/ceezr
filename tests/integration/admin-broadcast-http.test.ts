@@ -187,7 +187,7 @@ describeIf("البثّ الجماعي من نموذج اللوحة عبر HTTP",
 
   beforeEach(async () => {
     await sql`
-      truncate table broadcast_recipients, broadcast_campaigns, audit_log, order_offers, orders,
+      truncate table notification_outbox, broadcast_campaigns, audit_log, order_offers, orders,
         subscriptions, driver_availability, drivers, riders,
         admin_sessions, admin_login_codes, users restart identity cascade
     `;
@@ -274,7 +274,9 @@ describeIf("البثّ الجماعي من نموذج اللوحة عبر HTTP",
     expect(sent.status).toBe(SEE_OTHER);
     expect(sent.headers.get("location")).toBe("/admin/broadcast?sent=2");
 
-    const recipients = await sql<{ count: string }[]>`select count(*) from broadcast_recipients`;
+    const recipients = await sql<
+      { count: string }[]
+    >`select count(*) from notification_outbox where kind = 'broadcast_recipient'`;
     expect(Number(recipients[0]?.count)).toBe(2);
 
     // النصُّ يُسلَّم فعلاً إلى الجمهور المقصود.
@@ -318,7 +320,7 @@ describeIf("البثّ الجماعي من نموذج اللوحة عبر HTTP",
     expect(scheduled.status).toBe(SEE_OTHER);
 
     const rows = await sql<{ next_attempt_at: Date }[]>`
-      select next_attempt_at from broadcast_recipients
+      select next_attempt_at from notification_outbox where kind = 'broadcast_recipient'
     `;
     const due = rows[0]?.next_attempt_at;
     if (due === undefined) throw new Error("لا مستقبِل");
@@ -403,10 +405,13 @@ describeIf("البثّ الجماعي من نموذج اللوحة عبر HTTP",
     expect(canceled.headers.get("location")).toBe("/admin/broadcast?canceled=1");
 
     const states = await sql<{ status: string; count: string }[]>`
-      select status, count(*) from broadcast_recipients group by status order by status
+      select status, count(*) from notification_outbox where kind = 'broadcast_recipient' group by status order by status
     `;
     // المُسلَّمُ لا يُلمَس، والمعلَّقُ يُبطل: إلغاءٌ يمسّ ما وصل كذبٌ على المسؤول.
-    expect(states.map((row) => `${row.status}:${row.count}`)).toEqual(["canceled:1", "sent:1"]);
+    expect(states.map((row) => `${row.status}:${row.count}`)).toEqual([
+      "canceled:1",
+      "delivered:1",
+    ]);
   });
 
   it("النموذجُ بقيمةٍ لا تُعرَف يُردّ، ولا يمرّ إلى القاعدة", async () => {

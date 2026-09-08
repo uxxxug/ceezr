@@ -155,7 +155,7 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
 
   beforeEach(async () => {
     await sql`
-      truncate table broadcast_recipients, broadcast_campaigns, subscriptions, order_offers,
+      truncate table notification_outbox, broadcast_campaigns, subscriptions, order_offers,
         orders, driver_availability, drivers, riders, users, audit_log
         restart identity cascade
     `;
@@ -192,9 +192,9 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     expect(created.value.total).toBe(counted.value.total);
 
     const rows = await sql<{ user_id: string }[]>`
-      select r.user_id from broadcast_recipients r
-      join broadcast_campaigns c on c.id = r.campaign_id
-      where c.batch_id = ${created.value.batchId}::uuid
+      select r.recipient_user_id as user_id from notification_outbox r
+      join broadcast_campaigns c on c.id = r.broadcast_campaign_id
+      where r.kind = 'broadcast_recipient' and c.batch_id = ${created.value.batchId}::uuid
     `;
     const ids = new Set(rows.map((row) => row.user_id));
     expect(ids.size).toBe(2);
@@ -393,7 +393,8 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     expect(first.value).toEqual({ claimed: 2, sent: 0, failed: 1, retried: 1 });
 
     const rows = await sql<{ chat_id: string; status: string; attempts: number }[]>`
-      select chat_id::text, status, attempts from broadcast_recipients
+      select chat_id::text, status, attempts from notification_outbox
+      where kind = 'broadcast_recipient'
       order by chat_id
     `;
     expect(rows.map((row) => `${row.chat_id}:${row.status}`)).toEqual([
@@ -409,7 +410,7 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     if (!tooEarly.ok) throw new Error("تعذّر التسليم");
     expect(tooEarly.value.claimed).toBe(0);
 
-    await sql`update broadcast_recipients set next_attempt_at = now() where status = 'pending'`;
+    await sql`update notification_outbox set next_attempt_at = now() where kind = 'broadcast_recipient' and status = 'pending'`;
     const retried = await deliverBroadcastBatch(cityId, {
       deliveries,
       publishers: publishers(fakePublisher({ sent })),
@@ -441,8 +442,8 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
 
     // مستقبِلٌ واحدٌ فقط يُسلَّم: نُبعِد موعدَ الآخر كي يبقى `pending`.
     await sql`
-      update broadcast_recipients set next_attempt_at = now() + interval '1 hour'
-      where chat_id = 9102
+      update notification_outbox set next_attempt_at = now() + interval '1 hour'
+      where kind = 'broadcast_recipient' and chat_id = 9102
     `;
     const sent: string[] = [];
     const run = await deliverBroadcastBatch(cityId, {
@@ -460,10 +461,11 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     expect(canceled.value.canceled).toBe(1);
 
     const rows = await sql<{ chat_id: string; status: string }[]>`
-      select chat_id::text, status from broadcast_recipients order by chat_id
+      select chat_id::text, status from notification_outbox
+      where kind = 'broadcast_recipient' order by chat_id
     `;
     expect(rows.map((row) => `${row.chat_id}:${row.status}`)).toEqual([
-      "9101:sent",
+      "9101:delivered",
       "9102:canceled",
     ]);
 
@@ -554,7 +556,7 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     expect(abandoned.value.length).toBe(2);
 
     const stuck = await sql<{ count: string }[]>`
-      select count(*) from broadcast_recipients where status = 'sending'
+      select count(*) from notification_outbox where kind = 'broadcast_recipient' and status = 'sending'
     `;
     expect(Number(stuck[0]?.count)).toBe(2);
 
@@ -568,9 +570,9 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
 
     // نُقدّم لحظةَ الحجز إلى ما قبل المهلة: هذا هو مرورُ الوقت في الاختبار.
     await sql`
-      update broadcast_recipients
+      update notification_outbox
          set claimed_at = now() - make_interval(secs => 1200)
-       where status = 'sending'
+       where kind = 'broadcast_recipient' and status = 'sending'
     `;
 
     const sent: string[] = [];
@@ -583,10 +585,11 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     expect(sent.length).toBe(2);
 
     const rows = await sql<{ status: string; attempts: number; claimed_at: Date | null }[]>`
-      select status, attempts, claimed_at from broadcast_recipients
+      select status, attempts, claimed_at from notification_outbox
+      where kind = 'broadcast_recipient'
     `;
     for (const row of rows) {
-      expect(row.status).toBe("sent");
+      expect(row.status).toBe("delivered");
       // المحاولةُ تُعدّ عند الاسترجاع كذلك: سقفُ المحاولات يحدّ الاسترجاعَ
       // فلا يدور صفٌّ معطوبٌ بلا نهاية.
       expect(row.attempts).toBe(2);
@@ -624,9 +627,9 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     if (first === undefined) throw new Error("لا مستقبِل");
 
     await sql`
-      update broadcast_recipients
+      update notification_outbox
          set claimed_at = now() - make_interval(secs => 1200)
-       where status = 'sending'
+       where kind = 'broadcast_recipient' and status = 'sending'
     `;
     const fresh = await deliveries.claim(cityId);
     if (!fresh.ok) throw new Error("تعذّر الحجز الثاني");
@@ -643,7 +646,8 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
     expect(late.ok).toBe(false);
 
     const row = await sql<{ status: string; message_id: string | null }[]>`
-      select status, message_id from broadcast_recipients where id = ${first.recipientId}
+      select status, delivered_message_id as message_id from notification_outbox
+      where kind = 'broadcast_recipient' and id = ${first.recipientId}
     `;
     // ما زال محجوزاً للشوط الجديد: إعلانُ العامل المتأخّر لم يمرّ.
     expect(row[0]?.status).toBe("sending");
