@@ -131,7 +131,7 @@ export function validateManifest(raw: unknown): LaunchManifest {
 
 function usage(message: string): never {
   throw new Error(
-    `${message}\n` + "الاستخدام: bun scripts/activate-launch-cities.ts --manifest <مسار ملف JSON>",
+    `${message}\nالاستخدام: bun scripts/activate-launch-cities.ts --manifest <مسار ملف JSON>`,
   );
 }
 

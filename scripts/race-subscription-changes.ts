@@ -115,8 +115,8 @@ async function raceCancel(): Promise<void> {
   summarise("الاستدعاءات", results);
 
   const rows = results.flatMap((r) => (r.status === "fulfilled" ? [r.value[0]?.r] : []));
-  const firstTime = rows.filter((r) => r?.["already_cancelled"] === false).length;
-  const repeats = rows.filter((r) => r?.["already_cancelled"] === true).length;
+  const firstTime = rows.filter((r) => r?.already_cancelled === false).length;
+  const repeats = rows.filter((r) => r?.already_cancelled === true).length;
   console.log(`   طلب أوّل: ${firstTime} | مكرّر: ${repeats}`);
   assert(firstTime === 1, "طلب إلغاء أوّل واحد فقط رغم التزامن");
 
@@ -155,7 +155,7 @@ async function raceUpgrade(): Promise<void> {
   summarise("الاستدعاءات", results);
 
   const rows = results.flatMap((r) => (r.status === "fulfilled" ? [r.value[0]?.r] : []));
-  const applied = rows.filter((r) => r?.["already_on_plan"] === false).length;
+  const applied = rows.filter((r) => r?.already_on_plan === false).length;
   console.log(`   طبّقت الترقية: ${applied} | وجدتها مطبّقة: ${rows.length - applied}`);
   assert(applied === 1, "ترقية واحدة فعلية فقط");
 
