@@ -75,6 +75,13 @@ export interface WebhookDependencies {
    */
   readonly intake?: DurableUpdateIntake & TelegramUpdateEnqueuer;
   /**
+   * **حاجزُ إقلاعٍ للإنتاجِ (SCL-001)** — متى كان `true` يرمي المصنعُ إن غابَ
+   * `intake`، فلا يُسمَحُ للإنتاجِ بالرجوعِ إلى `dedup` الذاكرةِ. يضبطُهُ
+   * `index.ts` بقيمةِ `config.env === "production"`؛ وبقاءُهُ اختياريّاً في النوعِ يُبقي
+   * نحوَ خمسٍ وثلاثينَ ملفَّ اختبارٍ تُركّبُ المسارَ بلا قاعدةٍ تعملَ بلا تعديل.
+   */
+  readonly requireDurableIntake?: boolean;
+  /**
    * مانع تكرار `update_id` **في الذاكرة** — **لم يعد مصدرَ القرارِ** متى وُصِل
    * `intake`. يُمرَّر في الاختبار للتحكّم بالزمن. عند الإغفال يُنشأ واحد لعمر الخادم.
    */
@@ -191,6 +198,15 @@ export async function readBounded(
 }
 
 export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
+  // **حاجزُ إقلاعٍ للإنتاجِ (SCL-001)**: لا يُسمَحُ للإنتاجِ بالعملِ بلا إيداعٍ صامدٍ،
+  // فلا يصيرَ `dedup` الذاكرةُ مساراً صامتاً. هذا يُحفظُ «اختياريّاً في النوعِ لا في الإنتاجِ»
+  // حكماً مُطبَّقاً لا تعليقاً يُنسى (ADR 0054 §٣-أ، ADR 0059).
+  if (deps.requireDurableIntake === true && deps.intake === undefined) {
+    throw new Error(
+      "الإيداعُ الصامدُ للتحديثاتِ (claim_telegram_update) واجبٌ في الإنتاجِ — " +
+        "لا يُسمَحُ بالرجوعِ إلى dedup الذاكرةِ (SCL-001/ADR 0054).",
+    );
+  }
   // مانع واحد لعمر الخادم. يُمرَّر عبر deps في الاختبار للتحكّم بالزمن.
   const dedup: UpdateDeduplicator = deps.dedup ?? createUpdateDeduplicator();
   const app = new Hono();
