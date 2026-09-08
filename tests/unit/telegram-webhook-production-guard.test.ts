@@ -26,7 +26,12 @@ function trackingHandler() {
   const calls: unknown[] = [];
   return {
     calls,
-    handler: { handle: async (_bot: unknown, update: unknown) => { calls.push(update); return true; } },
+    handler: {
+      handle: async (_bot: unknown, update: unknown) => {
+        calls.push(update);
+        return true;
+      },
+    },
   };
 }
 
