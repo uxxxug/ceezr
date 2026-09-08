@@ -103,7 +103,7 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
   });
 
   beforeEach(async () => {
-    await sql`truncate table subscription_notices, agent_outcomes, agent_decisions, audit_log,
+    await sql`truncate table subscription_notices, notification_outbox, agent_outcomes, agent_decisions, audit_log,
                              attendance_log, order_offers, orders, subscriptions,
                              driver_capabilities, driver_availability, drivers, riders, users
                        restart identity cascade`;
@@ -183,7 +183,10 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
 
   async function noticeRows(): Promise<{ kind: string; status: string; payload: unknown }[]> {
     return sql<{ kind: string; status: string; payload: unknown }[]>`
-      select kind, status, payload from subscription_notices order by created_at
+      select payload->>'notice_kind' as kind, status, payload
+      from notification_outbox
+      where kind = 'subscription_notice'
+      order by created_at
     `;
   }
 
@@ -318,7 +321,7 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
     expect(sent[0]?.text).not.toContain("-1003");
 
     const notices = await noticeRows();
-    expect(notices[0]?.status).toBe("sent");
+    expect(notices[0]?.status).toBe("delivered");
     void driverId;
   });
 

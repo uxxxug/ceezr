@@ -112,9 +112,11 @@ interface NoticeRow {
 
 async function noticeRows(): Promise<NoticeRow[]> {
   return await sql<NoticeRow[]>`
-    select kind::text kind, status::text status, attempts, message_id::text message_id,
+    select payload->>'notice_kind' kind, status, attempts, delivered_message_id::text message_id,
            error_code, payload
-    from subscription_notices order by created_at`;
+    from notification_outbox
+    where kind = 'subscription_notice'
+    order by created_at`;
 }
 
 /** ناشرٌ يسجّل ما أُرسل ويُخفق بحسب جدولٍ يُملى عليه — لا شبكةَ ولا تلغرام. */
@@ -145,8 +147,8 @@ describeIf("إشعارات دورة حياة الاشتراك على PostgreSQL 
 
   beforeEach(async () => {
     await sql`
-      truncate table subscription_notices, subscription_invoices, subscriptions,
-        drivers, riders, users, audit_log restart identity cascade
+      truncate table subscription_notices, notification_outbox, subscription_invoices,
+        subscriptions, drivers, riders, users, audit_log restart identity cascade
     `;
     await sql`
       update platform_settings set value = '""'::jsonb
@@ -244,7 +246,7 @@ describeIf("إشعارات دورة حياة الاشتراك على PostgreSQL 
     expect(sent[0]).toContain("نقل أشخاص");
 
     const rows = await noticeRows();
-    expect(rows[0]?.status).toBe("sent");
+    expect(rows[0]?.status).toBe("delivered");
     expect(rows[0]?.message_id).toBe("8001");
 
     // شوطٌ ثانٍ لا يجد ما يحجزه: الإشعارُ المُسلَّم لا يُسلَّم مرّتين.
@@ -284,7 +286,8 @@ describeIf("إشعارات دورة حياة الاشتراك على PostgreSQL 
     if (!immediate.ok) throw new Error("تعذّر الشوط الفوري");
     expect(immediate.value.claimed).toBe(0);
 
-    await sql`update subscription_notices set next_attempt_at = now() - interval '1 second'`;
+    await sql`update notification_outbox set next_attempt_at = now() - interval '1 second'
+              where kind = 'subscription_notice'`;
     const permanent = await deliverSubscriptionNotices(cityId, {
       notices,
       publisher: fakePublisher({ sent, failures: [{ code: "403:blocked", permanent: true }] }),
@@ -297,7 +300,8 @@ describeIf("إشعارات دورة حياة الاشتراك على PostgreSQL 
     expect(rows[0]?.error_code).toBe("403:blocked");
 
     // ولا شوطَ بعده يحجزه: الفاشلُ نهايةٌ لا انتظار.
-    await sql`update subscription_notices set next_attempt_at = now() - interval '1 second'`;
+    await sql`update notification_outbox set next_attempt_at = now() - interval '1 second'
+              where kind = 'subscription_notice'`;
     const after = await deliverSubscriptionNotices(cityId, {
       notices,
       publisher: fakePublisher({ sent }),
@@ -387,9 +391,9 @@ describeIf("إشعارات دورة حياة الاشتراك على PostgreSQL 
     expect(tooEarly.value.claimed).toBe(0);
 
     await sql`
-      update subscription_notices
+      update notification_outbox
          set claimed_at = now() - make_interval(secs => 1200)
-       where status = 'sending'
+       where kind = 'subscription_notice' and status = 'sending'
     `;
 
     const sent: string[] = [];
@@ -402,9 +406,10 @@ describeIf("إشعارات دورة حياة الاشتراك على PostgreSQL 
     expect(sent.length).toBe(1);
 
     const rows = await sql<{ status: string; attempts: number; claimed_at: Date | null }[]>`
-      select status, attempts, claimed_at from subscription_notices
+      select status, attempts, claimed_at from notification_outbox
+      where kind = 'subscription_notice'
     `;
-    expect(rows[0]?.status).toBe("sent");
+    expect(rows[0]?.status).toBe("delivered");
     expect(rows[0]?.attempts).toBe(2);
     expect(rows[0]?.claimed_at).toBeNull();
   });
