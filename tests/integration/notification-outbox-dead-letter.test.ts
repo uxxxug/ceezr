@@ -65,10 +65,10 @@ async function createFixture(): Promise<void> {
   await sql`
     insert into platform_settings (city_id, key, value, value_type, description_ar)
     values
-      (${cityId}, 'notification_delivery_max_attempts', ${String(MAX_ATTEMPTS)}::jsonb, 'number',
-       'سقفُ محاولاتِ تسليمِ الإشعارِ'),
-      (${cityId}, 'notification_delivery_retry_seconds', ${String(RETRY_SECONDS)}::jsonb, 'number',
-       'أساسُ التراجعِ بينَ محاولاتِ التسليمِ')
+      (${cityId}, 'notification_delivery_max_attempts',
+       to_jsonb(${MAX_ATTEMPTS}::int), 'number', 'سقفُ محاولاتِ تسليمِ الإشعارِ'),
+      (${cityId}, 'notification_delivery_retry_seconds',
+       to_jsonb(${RETRY_SECONDS}::int), 'number', 'أساسُ التراجعِ بينَ محاولاتِ التسليمِ')
     on conflict (city_id, key) do update set value = excluded.value
   `;
 
@@ -122,19 +122,23 @@ async function makeClaimable(): Promise<void> {
 describeIf("طابورُ الموتى في صندوقِ الصادرِ على PostgreSQL فعلية (CAP-002)", () => {
   beforeAll(async () => {
     sql = createSql({ connectionString: DATABASE_URL ?? "" });
-  });
+  }, 60_000);
 
   afterAll(async () => {
     await sql.end({ timeout: 5 });
   });
 
+  // مهلةُ الخُطّافِ صريحةٌ: `beforeEach` هنا يُفرِّغُ سبعةَ جداولٍ ويبذُرُ مدينةً
+  // وراكباً وسائقاً وطلباً ودورةَ عرضٍ، وذاكَ يتجاوزُ خمسَ ثوانٍ — مهلةَ الخُطّافِ
+  // الافتراضيّةَ — على وصلةٍ بعيدةٍ أو عاملٍ مزدحمٍ. ومهلةٌ ضيقةٌ تُخفِقُ لبطءِ
+  // بيئةٍ فتُقرأُ كعطبٍ في المنطقِ وهو سليمٌ.
   beforeEach(async () => {
     await sql`
       truncate table notification_outbox, order_offers, orders, driver_availability,
         drivers, riders, users restart identity cascade
     `;
     await createFixture();
-  });
+  }, 60_000);
 
   it("الإخفاقُ دونَ السقفِ يُعيدُ الصفَّ pending ويحفظُ آخرَ خطأٍ", async () => {
     const outbox = createNotificationOutboxPort(sql);
