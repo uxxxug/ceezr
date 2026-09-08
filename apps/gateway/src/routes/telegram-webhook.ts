@@ -289,6 +289,19 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
 
     const updateId = updateIdOf(update);
 
+    // ٢.ب) حارسُ الإنتاجِ — حمولةٌ بلا `update_id` صالحٍ لا مفتاحَ تكرارٍ لها،
+    //    فلا تُدرَجُ في الطابورِ الصامدِ. وحين يكونُ `deps.intake` موصولاً (الإنتاجُ)
+    //    فإنّها كانت تسقطُ عبرَ فحصِ التكرارِ (يتطلّبُ `updateId !== null`) إلى
+    //    `handler.handle` داخلَ طلبِ HTTP — وهذا ينقضُ [ADR 0054](../adr/0054-telegram-webhook-durable-ingest-and-dedup.md) §٦
+    //    («العملُ الذي يلي الإيصالَ... لا يُنفَّذ داخلَ طلبِ HTTP»). فالرفضُ 400 ههنا
+    //    حصرٌ لمسارِ الإنتاجِ وحدَه: أمّا مسارُ الاختبارِ/التشخيصِ (حيثُ `intake === undefined`)
+    //    فيبقى سلوكَهُ المُعلَنَ — السقوطُ إلى `handler.handle` — بلا تغيير.
+    //    [Telegram Bot API — Update](https://core.telegram.org/bots/api#update) يُعرّفُ
+    //    `update_id` (Integer) الحقلَ الإلزاميَّ الوحيدَ في كائنِ `Update`.
+    if (deps.intake !== undefined && updateId === null) {
+      return c.json({ ok: false, error: "INVALID_UPDATE" }, 400);
+    }
+
     // ٣) الإيصالُ الصامدُ وإيداعُ الحمولةِ — **فعلٌ واحدٌ ذرّيٌّ في القاعدةِ**،
     //    لا فحصٌ ثمَّ كتابةٌ منفصلةٌ تُقتنَص النافذةُ بينهما. الإيداعُ هنا enqueue
     //    لا معالجةً: ACK 200 فور إيداعِ الحمولةِ، والدرينرُ الخلفيُّ يلتقطُها
