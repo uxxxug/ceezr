@@ -21,6 +21,34 @@ import type {
 /** معالجٌ لا يفعلُ شيئاً — يكفي لتعديلِ الاعتماديات. */
 const noopHandler = { handle: async () => true };
 
+/** معالجٌ يتتبّعُ الاستدعاءاتِ — لإثباتِ أنّ الحارسَ يمنعُ الوصولَ إليه. */
+function trackingHandler() {
+  const calls: unknown[] = [];
+  return {
+    calls,
+    handler: {
+      handle: async (_bot: unknown, update: unknown) => {
+        calls.push(update);
+        return true;
+      },
+    },
+  };
+}
+
+/** إيداعٌ صامدٌ مزيفٌ يتتبّعُ الاستدعاءاتِ — لإثباتِ أنّ الحارسَ يمنعُ الإيداعَ. */
+function trackingIntake() {
+  const enqueueCalls: unknown[] = [];
+  const intake: DurableUpdateIntake & TelegramUpdateEnqueuer = {
+    claim: async () => ({ outcome: "claimed", claimToken: "tok" }),
+    finish: async () => true,
+    claimAndEnqueue: async (_bot: unknown, _id: number | bigint, _update: unknown) => {
+      enqueueCalls.push(_id);
+      return "enqueued";
+    },
+  };
+  return { enqueueCalls, intake };
+}
+
 function baseDeps(overrides: Partial<WebhookDependencies> = {}): WebhookDependencies {
   return {
     webhookSecret: "test-secret",
@@ -61,5 +89,59 @@ describe("createTelegramWebhookRoutes — حاجز الإقلاع للإنتاج
     expect(() =>
       createTelegramWebhookRoutes(baseDeps({ requireDurableIntake: false })),
     ).not.toThrow();
+  });
+});
+
+describe("حارسُ رفضِ الحمولةِ بلا update_id في الإنتاج (ADR 0054 §٦)", () => {
+  function post(app: ReturnType<typeof createTelegramWebhookRoutes>, body: unknown) {
+    return app.request(
+      new Request("http://localhost/webhook/telegram/driver", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-telegram-bot-api-secret-token": "test-secret",
+        },
+        body: JSON.stringify(body),
+      }),
+    );
+  }
+
+  it("الإنتاجُ (intake موصول) يرفضُ 400 حمولةً بلا update_id ولا يصلُ المعالجَ ولا الإيداعَ", async () => {
+    const { calls: handlerCalls, handler } = trackingHandler();
+    const { enqueueCalls, intake } = trackingIntake();
+    const app = createTelegramWebhookRoutes(
+      baseDeps({ requireDurableIntake: true, intake, handler }),
+    );
+
+    const res = await post(app, { message: { text: "/start" } });
+
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ ok: false, error: "INVALID_UPDATE" });
+    expect(handlerCalls).toHaveLength(0);
+    expect(enqueueCalls).toHaveLength(0);
+  });
+
+  it("الإنتاجُ يرفضُ 400 حمولةً بـ update_id غيرِ صحيحٍ (نصٌّ/سالبٌ) ولا يصلُ المعالجَ", async () => {
+    const { calls: handlerCalls, handler } = trackingHandler();
+    const { enqueueCalls, intake } = trackingIntake();
+    const app = createTelegramWebhookRoutes(
+      baseDeps({ requireDurableIntake: true, intake, handler }),
+    );
+
+    const res = await post(app, { update_id: "not-a-number", message: { text: "/start" } });
+
+    expect(res.status).toBe(400);
+    expect(handlerCalls).toHaveLength(0);
+    expect(enqueueCalls).toHaveLength(0);
+  });
+
+  it("مسارُ الاختبارِ (بلا intake) يُعالجُ الحمولةَ بلا update_id بلا رفضٍ — السلوكُ المُعلَنُ", async () => {
+    const { calls: handlerCalls, handler } = trackingHandler();
+    const app = createTelegramWebhookRoutes(baseDeps({ handler }));
+
+    const res = await post(app, { message: { text: "/start" } });
+
+    expect(res.status).toBe(200);
+    expect(handlerCalls).toHaveLength(1);
   });
 });
