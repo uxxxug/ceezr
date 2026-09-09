@@ -37,6 +37,10 @@ function productionSourceWithout(): Record<string, string | undefined> {
     BOOTSTRAP_ADMIN_TELEGRAM_ID: "123456789",
     // SCL-002: الإنتاجُ يرفض `memory` — يُعلَن كي يقع السقوطُ على المُختبَرِ لا على غيرِه.
     SESSION_STORE: "redis",
+    // `F5-08` / ADR 0064: إعلانٌ إلزاميٌّ آخرُ في الإنتاجِ، يُعلَن ههنا لنفسِ السببِ
+    // حرفاً — وإلّا وقعَ سقوطُ كلِّ حالةٍ عليهِ لا على موضعِ المهامِّ المُختبَرِ.
+    // (اسمُ الدالّةِ «بلا» يعني بلا `RUN_WORKER_IN_GATEWAY` وحدَه.)
+    RUN_ADMIN_IN_GATEWAY: "false",
   };
 }
 

@@ -18,6 +18,7 @@ import {
   PROCESS_TOPOLOGY_NAMES,
 } from "../../packages/shared/config/index.ts";
 import {
+  ADMIN_SERVICE_NAME,
   analyse,
   CLASSIFIED_SERVICES,
   REQUIRED_SERVICES,
@@ -40,6 +41,12 @@ const SOUND = [
   "        value: single-process",
   "      - key: RUN_WORKER_IN_GATEWAY",
   '        value: "false"',
+  // موضعُ اللوحةِ في هذه الثوابتِ: **في البوّابةِ** — أي حالُ ما قبلَ `F5-08`،
+  // وهي حالٌ مشروعةٌ لأنّ الثوابتَ بلا خدمةِ لوحةٍ (`true` بلا خدمةٍ = إدماجٌ
+  // صريحٌ لا خرقٌ). وبـ`"true"` لا `"false"` كي لا يمسَّها `withRunWorker` الذي
+  // يُبدِّل كلَّ `value: "false"` في النصِّ — فيبقى كلُّ مُبدِّلٍ على ما سُمِّي به.
+  "      - key: RUN_ADMIN_IN_GATEWAY",
+  '        value: "true"',
   "  - type: worker",
   "    name: waslah-worker",
   "    numInstances: 1",
@@ -50,6 +57,8 @@ const SOUND = [
   "        value: single-process",
   "      - key: RUN_WORKER_IN_GATEWAY",
   '        value: "false"',
+  "      - key: RUN_ADMIN_IN_GATEWAY",
+  '        value: "true"',
   "",
 ].join("\n");
 
@@ -160,6 +169,10 @@ describe("الحكمُ — قبولٌ ورفضٌ", () => {
       // موضعِ المهامِّ تُسقِط رمزاً ثانياً فتُخفي المقصودَ (ADR 0063).
       "      - key: RUN_WORKER_IN_GATEWAY",
       '        value: "false"',
+      // ولنفسِ السببِ حرفاً: إعلانُ موضعِ اللوحةِ يُضاف كي يبقى المُختبَرُ
+      // غيابَ البوّابةِ وحدَه (ADR 0064).
+      "      - key: RUN_ADMIN_IN_GATEWAY",
+      '        value: "true"',
       "",
     ].join("\n");
     expect(codes(withoutGateway)).toEqual(["MISSING_REQUIRED_SERVICE"]);
@@ -230,7 +243,11 @@ describe("الحكمُ — قبولٌ ورفضٌ", () => {
   });
 
   it("الحاجزُ يفحص الخدمةَ الصحيحةَ لا خدمةً غيرَ مرتبطةٍ", () => {
-    expect(Object.keys(CLASSIFIED_SERVICES).sort()).toEqual(["waslah-gateway", "waslah-worker"]);
+    expect(Object.keys(CLASSIFIED_SERVICES).sort()).toEqual([
+      ADMIN_SERVICE_NAME,
+      "waslah-gateway",
+      "waslah-worker",
+    ]);
     expect(REQUIRED_SERVICES).toContain("waslah-gateway");
   });
 });
@@ -315,6 +332,139 @@ describe("موضعُ المهامِّ الدوريّةِ — F5-04 / SCL-007 · 
   });
 });
 
+/**
+ * ## موضعُ سطحِ الإدارةِ — F5-08 / ARCH-011 · ADR 0064
+ *
+ * والمقصودُ إثباتُ **الطرفِ الصامتِ** قبلَ كلِّ شيءٍ: `ADMIN_DUPLICATED`. فهو الحالُ
+ * التي لا يُخفِق فيها طلبٌ ولا يشكو فيها سجلٌّ — الخدمتان تُقلعان واللوحةُ تعمل
+ * من العنوانَين — ولا يضيع إلّا الغرضُ الذي دُفعت خدمةٌ كاملةٌ ثمناً له. وما لا
+ * يُخفِق ظاهراً لا يُحرَسُ إلّا بحاجزٍ واختبارٍ يُثبِت أنّ الحاجزَ يراه.
+ */
+describe("موضعُ سطحِ الإدارةِ — F5-08 / ARCH-011 · ADR 0064", () => {
+  /** خدمةُ اللوحةِ كما في المخطوطةِ الحقيقيةِ: `web`، نسخةٌ واحدةٌ، الإعلاناتُ الأربعةُ. */
+  const ADMIN_SERVICE = [
+    "  - type: web",
+    `    name: ${ADMIN_SERVICE_NAME}`,
+    "    numInstances: 1",
+    "    envVars:",
+    "      - key: SESSION_STORE",
+    "        value: redis",
+    "      - key: PROCESS_TOPOLOGY",
+    "        value: single-process",
+    "      - key: RUN_WORKER_IN_GATEWAY",
+    '        value: "no"',
+    "      - key: RUN_ADMIN_IN_GATEWAY",
+    '        value: "no"',
+    "",
+  ].join("\n");
+
+  /** يُبدِّل قيمةَ موضعِ اللوحةِ وحدَها — الثوابتُ تُعلنها `"true"` فلا تلتبس بغيرِها. */
+  const withRunAdmin = (content: string, value: string): string =>
+    content.replaceAll('        value: "true"', `        value: ${value}`);
+
+  /** يحذف إعلانَ موضعِ اللوحةِ كلَّه — لإثباتِ أنّ الغيابَ سقوطٌ لا افتراضٌ. */
+  const withoutRunAdmin = (content: string): string =>
+    content.replaceAll('      - key: RUN_ADMIN_IN_GATEWAY\n        value: "true"\n', "");
+
+  it("تُقرأ قيمةُ RUN_ADMIN_IN_GATEWAY لكلِّ خدمةٍ", () => {
+    const services = servicesFromManifest(SOUND);
+    expect(services[0]?.runAdminInGateway).toBe("true");
+    expect(services[1]?.runAdminInGateway).toBe("true");
+  });
+
+  /**
+   * **الاختبارُ الذي يحرس الخطأَ الذي وقعَ مرّتَين**: القارئُ كان يُسنِد كلَّ ما
+   * ليس `SESSION_STORE` ولا `PROCESS_TOPOLOGY` إلى `runWorkerInGateway` بـ`else`
+   * جامعٍ. وذلك صحيحٌ بثلاثةِ مفاتيحَ وخطأٌ بأربعةٍ: قيمةُ موضعِ اللوحةِ تُقرأ
+   * موضعاً للمهامِّ فينجحُ الحاجزُ على ملفٍّ لم يفهمه. والقيمتانِ ههنا **مختلفتانِ
+   * عن قصدٍ** (`false` للمهامِّ و`true` للوحةِ) لأنّ تساويهما يُخفي الاختلاطَ.
+   */
+  it("مفتاحا الموضعَين لا يختلطان: كلُّ قيمةٍ في حقلِها", () => {
+    const services = servicesFromManifest(SOUND);
+    expect(services[0]?.runWorkerInGateway).toBe("false");
+    expect(services[0]?.runAdminInGateway).toBe("true");
+    expect(services[0]?.processTopology).toBe("single-process");
+    expect(services[0]?.sessionStore).toBe("memory");
+  });
+
+  it("الغيابُ والبطلانُ رمزانِ مختلفانِ لا رمزٌ واحدٌ", () => {
+    expect(codes(withoutRunAdmin(SOUND))).toContain("MISSING_RUN_ADMIN_DECLARATION");
+    expect(codes(withRunAdmin(SOUND, '"eventually"'))).toContain("INVALID_RUN_ADMIN_VALUE");
+  });
+
+  /** كلُّ حروفِ المنطقيِّ تُفهَم ههنا كما تُفهَم في موضعِ المهامِّ — لا قائمةَ ثانيةَ. */
+  it("كلُّ حرفٍ صالحٍ يُقبَل، والمجهولُ وحدَه يُرفَض", () => {
+    for (const literal of VALID_BOOLEAN_LITERALS) {
+      expect(codes(withRunAdmin(SOUND, `"${literal}"`))).not.toContain("INVALID_RUN_ADMIN_VALUE");
+    }
+  });
+
+  /**
+   * الحالُ الصامتةُ: لوحةٌ في موضعَين. لا شيءَ يُخفِق — ولذلك يُرفَض في المخطوطةِ.
+   */
+  it("بوّابةٌ بـtrue **مع** خدمةِ لوحةٍ ⇒ سقوطٌ — عزلٌ مدفوعٌ ثمنُه وغيرُ قائمٍ", () => {
+    expect(codes(SOUND + ADMIN_SERVICE)).toContain("ADMIN_DUPLICATED");
+  });
+
+  /** وكلُّ حرفٍ مُثبِتٍ يُقرأ إثباتاً: «yes» ليست حيلةً للإفلاتِ من الحكمِ. */
+  it("كلُّ حرفٍ مُثبِتٍ مع خدمةِ لوحةٍ ⇒ سقوطٌ، لا «true» وحدَها", () => {
+    for (const literal of ["true", "1", "yes", "on"]) {
+      expect(codes(withRunAdmin(SOUND, `"${literal}"`) + ADMIN_SERVICE)).toContain(
+        "ADMIN_DUPLICATED",
+      );
+    }
+  });
+
+  it("بوّابةٌ بـfalse بلا خدمةِ لوحةٍ ⇒ سقوطٌ — لا سطحَ إدارةٍ في أيِّ موضعٍ", () => {
+    expect(codes(withRunAdmin(SOUND, '"false"'))).toContain("ADMIN_ORPHANED");
+  });
+
+  it("بوّابةٌ بـfalse **مع** خدمةِ لوحةٍ ⇒ قبولٌ — هذا هو الفصلُ", () => {
+    expect(codes(withRunAdmin(SOUND, '"false"') + ADMIN_SERVICE)).toEqual([]);
+  });
+
+  /**
+   * الحالُ السابقةُ لا تُتَّهم: `true` بلا خدمةِ لوحةٍ إدماجٌ صريحٌ مكتوبٌ، وهو
+   * طريقُ التراجعِ الطارئِ. وحاجزٌ يرفضه كان سيمنع التراجعَ في وقتِ الحاجةِ إليه.
+   */
+  it("بوّابةٌ بـtrue بلا خدمةِ لوحةٍ ⇒ قبولٌ — التراجعُ الطارئُ يبقى مشروعاً", () => {
+    expect(codes(SOUND)).toEqual([]);
+  });
+
+  /**
+   * خدمةُ اللوحةِ تُميَّز **بالاسمِ** لا بالنوعِ: نوعُها `web` كالبوّابةِ. فخدمةٌ
+   * `web` أخرى ليست لوحةً — ولو أُخِذ النوعُ معياراً لصارت البوّابةُ نفسُها
+   * «خدمةَ لوحةٍ» فما وقعَ `ADMIN_ORPHANED` قطُّ ولا `ADMIN_DUPLICATED`.
+   */
+  it("خدمةُ web أخرى ليست خدمةَ لوحةٍ — التمييزُ بالاسمِ", () => {
+    const renamed = ADMIN_SERVICE.replace(
+      `name: ${ADMIN_SERVICE_NAME}`,
+      "name: waslah-gateway-canary",
+    );
+    const result = codes(withRunAdmin(SOUND, '"false"') + renamed);
+    expect(result).toContain("ADMIN_ORPHANED");
+    expect(result).toContain("UNCLASSIFIED_SERVICE");
+  });
+
+  it("المستودعُ الحقيقيُّ يُعلِن الفصلَ: البوّابةُ false وخدمةُ اللوحةِ قائمةٌ", () => {
+    const services = servicesFromManifest(REAL_MANIFEST);
+    const gateway = services.find((service) => service.name === "waslah-gateway");
+    expect(gateway?.runAdminInGateway).toBe("false");
+    expect(services.some((service) => service.name === ADMIN_SERVICE_NAME)).toBe(true);
+    // والإعلانُ في **كلِّ** خدمةٍ لا في المعنيّةِ وحدَها: الإلزامُ على كلِّ عمليّةٍ.
+    for (const service of services) expect(service.runAdminInGateway).not.toBeNull();
+  });
+
+  it("خدمةُ اللوحةِ الحقيقيّةُ نسخةٌ واحدةٌ وتُعلِن redis لمجرى الأحداثِ", () => {
+    const services = servicesFromManifest(REAL_MANIFEST);
+    const admin = services.find((service) => service.name === ADMIN_SERVICE_NAME);
+    expect(admin?.serviceType).toBe("web");
+    expect(admin?.numInstances).toBe("1");
+    // ‏`memory` ههنا تعني مجرىً يعمل بلا دلتا لحظيّةٍ واحدةٍ — عطلٌ لا يُخفِق فيه طلبٌ.
+    expect(admin?.sessionStore).toBe("redis");
+  });
+});
+
 describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
   const runBarrier = async (content: string | null): Promise<number> => {
     let path = "/tmp/لا-يوجد-ملفُّ-نشرٍ-قط.yaml";
@@ -347,6 +497,28 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
   it("خرقُ طوبولوجيا مزروعٌ في نسخةٍ من الملفِّ الحقيقيِّ ⇒ سقوطٌ", async () => {
     expect(await runBarrier(withoutTopology(REAL_MANIFEST))).toBe(1);
     expect(await runBarrier(withTopology(REAL_MANIFEST, "multi-process"))).toBe(1);
+  }, 60_000);
+
+  /**
+   * خرقُ موضعِ اللوحةِ يُقاس **برمزِ خروجٍ** لا برجوعِ دالّةٍ: الحاجزُ في CI أمرٌ
+   * يُشغَّل، وحكمٌ صحيحٌ لا يُترجَم إلى رمزٍ غيرِ صفريٍّ لا يمنع دفعةً واحدةً.
+   */
+  it("خرقُ موضعِ اللوحةِ مزروعٌ ⇒ رمزٌ غيرُ صفريٍّ في صورتَيه", async () => {
+    // يتيمٌ: البوّابةُ تنفي ولا خدمةَ لوحةٍ في الثوابتِ.
+    expect(
+      await runBarrier(SOUND.replaceAll('        value: "true"', '        value: "false"')),
+    ).toBe(1);
+    // مبطَلٌ: قيمةٌ لا تُفهَم.
+    expect(
+      await runBarrier(SOUND.replaceAll('        value: "true"', "        value: maybe")),
+    ).toBe(1);
+    // وغائبٌ.
+    expect(
+      await runBarrier(
+        SOUND.replaceAll('      - key: RUN_ADMIN_IN_GATEWAY\n        value: "true"\n', ""),
+      ),
+    ).toBe(1);
+    expect(await runBarrier(SOUND)).toBe(0);
   }, 60_000);
 
   it("ملفٌّ غائبٌ أو فارغٌ ⇒ سقوطٌ لا تخطٍّ", async () => {

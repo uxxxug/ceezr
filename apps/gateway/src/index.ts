@@ -41,6 +41,7 @@ import {
 import type { CityId } from "../../../packages/shared/kernel/index.ts";
 import { jobHealthExpectations } from "../../workers/src/container.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
+import { mountAdminSurface } from "./admin/mount.ts";
 import {
   startTelegramUpdateDrainer,
   type TelegramUpdateDrainer,
@@ -64,9 +65,6 @@ import {
   type RateLimiter,
 } from "./rate-limit/fixed-window.ts";
 import { createUpstashRedis } from "./redis/upstash.ts";
-import { createAdminApiRoutes } from "./routes/admin-api.ts";
-import { createAdminLiveRoutes } from "./routes/admin-live.ts";
-import { createAdminUiRoutes } from "./routes/admin-ui.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
 import { createPublicTrackingRoutes } from "./routes/public-tracking.ts";
 import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
@@ -573,22 +571,47 @@ if (!mapStyle.ok) {
 }
 const mapOrigins: readonly string[] =
   mapStyle.ok && mapStyle.value.configured ? mapStyle.value.origins : [];
-// الأخصّ أولاً: /admin/api قبل /admin، وإلا التقط حارس الصفحات نداءات JSON
 /**
- * الأخصّ أولاً هنا أيضاً: /admin/api/live قبل /admin/api. ولو عُكس الترتيب لالتقط
- * موجّه الـJSON المسار ثم أجاب 404 على مجرى SSE — لأن Hono يطابق أوّل موجّه يُطابق
- * البادئة ولا يعود إلى ما بعده.
+ * سطحُ اللوحةِ — `F5-08` / `ARCH-011` · ADR 0064.
+ *
+ * التركيبُ **مشروطٌ بإعلانٍ** لا دائمٌ: حين تُعلَنُ `RUN_ADMIN_IN_GATEWAY=false`
+ * تكونُ خدمةُ `waslah-admin` هي موضعَ اللوحةِ الوحيدَ، وتركيبُها ههنا كذلك يعني
+ * سطحاً إداريّاً مكشوفاً على الأصلِ الذي يستقبلُ ويبهوكَ تلغرام، وتقاريرَ ثقيلةً
+ * تسحبُ من بِركةِ الاتّصالاتِ التي يجبُ أن تُجيبَ الويبهوكَ في ثوانٍ — أي إبطالُ
+ * العزلِ الذي أُنشئت الخدمةُ لأجلِهِ، بلا طلبٍ يُخفِقُ ولا حرفٍ يشكو.
+ *
+ * والترتيبُ الحرجُ (الأخصُّ أوّلاً) انتقلَ إلى `admin/mount.ts`: هو الموضعُ الوحيدُ
+ * الذي يعرفُهُ، وتستدعيهِ عمليةُ `apps/admin` نفسُها — فلا ينحرفُ الترتيبُ بين
+ * موضعَي تشغيلٍ. والتعليلُ الكاملُ في رأسِ ذلك الملفِّ.
+ *
+ * ومُرسِلُ رمزِ الدخولِ يُغلَّفُ ههنا لا في `mount.ts`: البوّابةُ تملكُ مُرسِلَ بوتِ
+ * السائقِ أصلاً من حاويتِها، وعمليةُ اللوحةِ تبنيه بنفسِها من الرمزِ وحدَه.
  */
-app.route(
-  "/admin/api/live",
-  createAdminLiveRoutes({
+if (config.runAdminInGateway) {
+  mountAdminSurface(app, {
     sql: container.sql,
     auth: adminAuth,
     bus: container.tracking.bus,
+    mapOrigins,
+    ...(mapStyle.ok ? { mapStyle: mapStyle.value } : {}),
+    maplibreSri: config.maplibreSri,
+    codeSender: {
+      send: async (telegramId, text) => {
+        try {
+          await container.driverSender.sendMessage(telegramId, text, undefined);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    },
     log,
-  }),
-);
-app.route("/admin/api", createAdminApiRoutes({ sql: container.sql, auth: adminAuth }));
+  });
+} else {
+  log("admin_surface.not_mounted", {
+    hint: "RUN_ADMIN_IN_GATEWAY=false — اللوحةُ في خدمةِ waslah-admin وحدَها (ADR 0064)",
+  });
+}
 
 /**
  * صفحةُ التتبّع العامّة (§4.2). تُركَّب هنا لا في `server.ts` لنفس سبب موجّهي
@@ -599,10 +622,14 @@ app.route("/admin/api", createAdminApiRoutes({ sql: container.sql, auth: adminAu
  * `default-src 'none'` كانت ستكسر لوحةَ الإدارة، ومسارُ الويبهوك لا يحتاج ترويسةَ
  * صفحةٍ أصلاً. فيُحصر الوسيطُ في صاحبه.
  *
- * وترتيبُ التركيب: بعد `/admin/*` وقبل الجذر — و`/track` و`/api/track` لا
- * يتشابهان مع أيّ بادئةٍ قائمة، فلا التقاطَ خاطئاً في أيّ اتجاه. (ولا تعارضَ مع
- * `routes/tracking.ts` لأنّه غيرُ مركَّب أصلاً — الفرقُ موثَّقٌ في رأس
- * `routes/public-tracking.ts`.)
+ * وترتيبُ التركيب: بعد سطحِ الإدارةِ كلِّه. وكان قبلَ `F5-08` بينَ `/admin/api`
+ * و`/admin`؛ فلمّا صار السطحُ يُركَّب دفعةً واحدةً في `mountAdminSurface` انتقلَ
+ * هذا السطرُ إلى ما بعدَهم جميعاً. **والانتقالُ بلا أثرٍ** لا لأنّ الترتيبَ لا
+ * يُهمُّ بل لأنّ `/track` و`/api/track` لا يتشابهان مع أيِّ بادئةٍ إداريّةٍ في أيِّ
+ * اتجاهٍ — لا هما بادئةٌ لها ولا هي بادئةٌ لهما. ولو تشابهت لكان النقلُ عطلاً
+ * صامتاً، ولذلك تُقال عدمُ التشابهِ صريحاً ولا يُقال «الترتيبُ محفوظٌ».
+ * (ولا تعارضَ مع `routes/tracking.ts` لأنّه غيرُ مركَّب أصلاً — الفرقُ موثَّقٌ في
+ * رأس `routes/public-tracking.ts`.)
  */
 const publicTracking = createPublicTrackingRoutes({
   tokens: container.tracking.tokens,
@@ -618,27 +645,6 @@ const publicTracking = createPublicTrackingRoutes({
 });
 app.route("/", publicTracking);
 
-app.route(
-  "/admin",
-  createAdminUiRoutes({
-    sql: container.sql,
-    auth: adminAuth,
-    mapOrigins,
-    ...(mapStyle.ok ? { mapStyle: mapStyle.value } : {}),
-    maplibreSri: config.maplibreSri,
-    codeSender: {
-      send: async (telegramId, text) => {
-        try {
-          await container.driverSender.sendMessage(telegramId, text, undefined);
-          return true;
-        } catch {
-          return false;
-        }
-      },
-    },
-    log,
-  }),
-);
 /**
  * فحص مخطط استباقي: الاتصال بالقاعدة ينجح تماماً ولو كانت فارغة بلا هجرات،
  * فتقلع الخدمة سليمة ظاهراً ثم يكتشف العطلَ أولُ مستخدم حقيقي يضغط /start.

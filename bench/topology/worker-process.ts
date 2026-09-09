@@ -95,6 +95,11 @@ async function main(): Promise<void> {
     SESSION_STORE: "memory",
     TRANSLATION_PROVIDER: "none",
     RUN_WORKER_IN_GATEWAY: "false",
+    // ‏`RUN_ADMIN_IN_GATEWAY` مُعلَنٌ ههنا **توثيقاً لا أثراً**: هذا المِقياسُ يبني
+    // الحاويةَ ويُركّب `createServer` بيدِه ولا يمرُّ بـ`apps/gateway/src/index.ts`،
+    // فسطحُ الإدارةِ غيرُ مُركَّبٍ فيه أصلاً في الحالَين. والإعلانُ يمنع أن يُقرأ
+    // غيابُه يوماً على أنّه سهوٌ فيُقلَبَ إلى `true` فتُقاس لوحةٌ لا تُقاس (F5-08).
+    RUN_ADMIN_IN_GATEWAY: "false",
   });
 
   /**

@@ -29,6 +29,9 @@ const FULL: Record<string, string> = {
   // الكاملُ يُعلنه ليبقى صالحاً في كلِّ بيئةٍ. وحكمُ الغيابِ نفسُه مُختبَرٌ في
   // `tests/unit/config-worker-placement.test.ts` — لا يُقاس ههنا ضمناً.
   RUN_WORKER_IN_GATEWAY: "false",
+  // `F5-08` / ADR 0064: إعلانٌ إلزاميٌّ في الإنتاجِ كسابقِه. ويُعلَنُ في الأساسِ
+  // لا في كلِّ حالةٍ — وقياسُ الغيابِ موضعُهُ `config-admin-placement.test.ts` وحدَه.
+  RUN_ADMIN_IN_GATEWAY: "false",
   TELEGRAM_WEBHOOK_SECRET: "secret",
   BOOTSTRAP_ADMIN_TELEGRAM_ID: "900000",
 };

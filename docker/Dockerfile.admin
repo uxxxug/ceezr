@@ -1,0 +1,42 @@
+# الغرض: صورة خدمة لوحة الإدارة — تشغيل apps/admin/src/index.ts وحده
+#   (`F5-08` / `ARCH-011` · ADR 0064).
+#
+# ملاحظات: التعليل الكامل لبنية الطبقات في Dockerfile.gateway. والفرق ههنا في
+#   نطاق COPY وحده، وهو **أوسع من نطاق العامل وأضيق من نطاق البوابة**:
+#
+#   • تُنسخ apps/admin (نقطة التشغيل والحاوية الضيّقة).
+#   • وتُنسخ apps/gateway لأنّ موجّهات اللوحة الثلاثة وحارسها ومنفذ تصريحها تعيش
+#     في apps/gateway/src — ولم تُنقل عن قصد: النقل يُحرّك عشرات ملفّات اختبار
+#     بلا سطر سلوك يتغيّر، والمطلوب في ARCH-011 فصل **العمليّات** لا المجلّدات.
+#     والتعليل الكامل في رأس apps/gateway/src/admin/mount.ts.
+#   • وتُنسخ apps/admin-dashboard لأنّها صفحات اللوحة المُصيَّرة نفسها.
+#
+#   والمُعلَن صراحةً: هذه الصورة تحوي شيفرة بوّابةٍ **لا تُشغِّلها** — لا بوت
+#   يُقلع، ولا ويبهوك يُركَّب، ولا مؤقّت يدور، لأنّ CMD يُشغِّل نقطة دخولٍ واحدةً
+#   لا تستوردها. فالكلفة حجمُ صورةٍ لا سطحُ تشغيلٍ. وتصغيرها إلى ما تحتاجه حرفاً
+#   يوجب نقل الموجّهات، وهو قرارٌ مؤجَّلٌ بسببٍ مكتوبٍ لا سهواً.
+#
+#   • وحارس `bun build` أدناه هو ما يجعل هذا النطاق قابلاً للفشل بصوتٍ عالٍ: إن
+#     استوردت نقطةُ دخول اللوحة يوماً وحدةً خارج ما نُسخ فشل البناء ههنا لا
+#     الإقلاعُ في الإنتاج.
+#   • بيانُ كلِّ مساحةِ عملٍ في الجذر (`apps/*/package.json`) منسوخٌ قبل التثبيت
+#     لأنّ `--frozen-lockfile` يرفض التثبيتَ إذا غاب بيانُ إحداها. والحارس في
+#     scripts/verify-container-build.sh يُلزم بهذا ويفحص هذا الملفّ معهما.
+FROM oven/bun:1.3.14 AS base
+WORKDIR /app
+
+COPY package.json bun.lock tsconfig.json ./
+COPY apps/miniapp/package.json ./apps/miniapp/package.json
+RUN bun install --frozen-lockfile
+
+COPY packages ./packages
+COPY apps/admin ./apps/admin
+COPY apps/gateway ./apps/gateway
+COPY apps/admin-dashboard ./apps/admin-dashboard
+
+RUN bun build apps/admin/src/index.ts --target=bun --outfile=/tmp/admin-resolve-check.js \
+  && rm -f /tmp/admin-resolve-check.js
+
+ENV NODE_ENV=production
+EXPOSE 3000
+CMD ["bun", "run", "apps/admin/src/index.ts"]

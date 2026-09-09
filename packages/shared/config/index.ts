@@ -153,6 +153,29 @@ export interface AppConfig {
    */
   readonly runWorkerInGateway: boolean;
   /**
+   * أيعملُ سطحُ لوحةِ الإدارةِ (`/admin` · `/admin/api` · `/admin/api/live`) داخلَ
+   * عمليةِ البوّابةِ؟ — `F5-08` / `ARCH-011` · ADR 0064.
+   *
+   * ## ولمَ إعلانٌ لا افتراضٌ، وقد كان الافتراضُ مقبولاً في `PROCESS_TOPOLOGY`
+   *
+   * لأنّ الخطأَ ههنا **صامتٌ في الاتّجاهِ المعاكسِ** لخطأِ `RUN_WORKER_IN_GATEWAY`.
+   * فمَن أطفأ العاملَ بلا خدمةِ عاملٍ فقدَ المهامَّ الدوريّةَ كلَّها بلا حرفٍ يشكو،
+   * وأمّا مَن **أبقى اللوحةَ في البوّابةِ** بعدَ إنشاءِ خدمةِ `waslah-admin` فلا
+   * يفقدُ شيئاً ظاهراً: اللوحةُ تعملُ من الأصلَين، و`/health` أخضرُ، ولا طلبٌ
+   * يُخفِق — و**العزلُ الذي دُفِعَ ثمنُهُ غيرُ موجودٍ**: تقريرُ حرارةٍ ثقيلٌ يفتحه
+   * مشغّلٌ لا يزالُ يسحبُ من بِركةِ اتّصالاتِ البوّابةِ نفسِها التي يجبُ أن تُجيبَ
+   * ويبهوكَ تلغرام في ثوانٍ (ARCH-013: الأولويّاتُ جزءٌ من المعمارية).
+   *
+   * فالسكوتُ ههنا لا يُكتشَفُ بعطلٍ بل يُكتشَفُ بقياسٍ لا يُجريه أحدٌ. ولذلك صارَ
+   * الإعلانُ في الإنتاجِ إلزاميّاً، وصارَ في `scripts/check-instance-invariant.ts`
+   * حكمٌ يرفضُ **الحالَين معاً**: لوحةٌ في موضعَين، ولوحةٌ في لا موضع.
+   *
+   * والافتراضُ `true` يبقى في غيرِ الإنتاجِ: مَن يُشغِّلُ المستودعَ على حاسبِهِ
+   * يفتحُ `/admin` على المَنفذِ نفسِهِ، وإلزامُهُ بعمليّةٍ ثانيةٍ ليرى صفحةً عائقٌ
+   * بلا مقابل.
+   */
+  readonly runAdminInGateway: boolean;
+  /**
    * مزوّد عرض الخريطة. الافتراضي `none`: منصّةٌ بلا خريطة تعمل كاملةً، وهي حالُها
    * قبل هذه المرحلة. جعلُه إلزامياً كان سيمنع الإقلاع لأجل واجهةٍ عرض.
    */
@@ -426,6 +449,39 @@ export const BOOLEAN_ENV_LITERALS = ["true", "1", "yes", "on", "false", "0", "no
  * لم يبقَ مُفعِّلَ ميزةٍ بعدَ فصلِ العاملِ، بل صار إعلانَ موضعِ المهامِّ الدوريّةِ —
  * فيُفحَص قبلَ الوصولِ إلى هاهُنا، ولا يُدركه ردُّ المجهولِ إلى الافتراضِ.
  */
+/**
+ * إعلانٌ منطقيٌّ إلزاميٌّ في الإنتاجِ: يُعيدُ الخطأَ إن غابَ المتغيّرُ أو حملَ قيمةً
+ * خارجَ `BOOLEAN_ENV_LITERALS`، و`null` إن كانَ سليماً.
+ *
+ * ## ولمَ دالّةٌ واحدةٌ لا كتلتانِ متجاورتان
+ *
+ * لأنّ المفتاحَينِ (`RUN_WORKER_IN_GATEWAY` · `RUN_ADMIN_IN_GATEWAY`) يخضعانِ
+ * **لنفسِ العقدِ حرفاً**: غيابٌ ⇒ سقوطٌ، وقيمةٌ لا تُفهَم ⇒ سقوطٌ، ولا ردَّ إلى
+ * الافتراضِ في الإنتاج. وكتلتانِ منسوختانِ تعنيانِ أنّ تصحيحَ رسالةٍ أو توسيعَ
+ * القائمةِ في إحداهما يترك الأخرى — وهو بالضبطِ الانحرافُ الذي يشكو منه `R-17`
+ * في مستوى الشيفرةِ لا الضبط.
+ *
+ * وما **لا** يُوحَّدُ: السببُ المكتوبُ لكلِّ مفتاحٍ. فهو مُفصَّلٌ عندَ حقلِهِ في
+ * `AppConfig` لأنّ الخطأَ الذي يمنعُهُ كلٌّ منهما مختلفٌ اختلافاً تامّاً — توقّفٌ
+ * صامتٌ في الأوّلِ، وعزلٌ وهميٌّ في الثاني.
+ */
+function declaredBooleanError(
+  env: string,
+  raw: string,
+  key: string,
+  absenceHint: string,
+): InvalidEnvVarError | null {
+  if (env !== "production") return null;
+  if (isBlank(raw)) return new InvalidEnvVarError(key, absenceHint);
+  if (!(BOOLEAN_ENV_LITERALS as readonly string[]).includes(raw.trim().toLowerCase())) {
+    return new InvalidEnvVarError(
+      key,
+      `قيمةٌ لا تُفهَم — المتاح: ${BOOLEAN_ENV_LITERALS.join(" · ")}. ولا تُردُّ المجهولةُ إلى الافتراضِ: من كتبها قصدَ شيئاً، وردُّها صمتاً يجعلُ الموضعَ غيرَ الذي ضُبِط`,
+    );
+  }
+  return null;
+}
+
 function parseBooleanEnv(value: string | undefined, fallback = false): boolean {
   if (isBlank(value)) return fallback;
   const normalized = (value as string).trim().toLowerCase();
@@ -663,26 +719,30 @@ export function tryLoadConfig(
    * المهامُّ في موضعَين بينما كتبَ المشغّلُ ما يظنُّه إطفاءً — والانحرافُ بين ما
    * ضُبِط وما يعمل هو عينُ ما يشكو منه `R-17`. فالقائمةُ مغلقةٌ ومُعلَنةٌ.
    */
-  const rawRunWorker = source.RUN_WORKER_IN_GATEWAY ?? "";
-  if (env === "production") {
-    if (isBlank(rawRunWorker)) {
-      return err(
-        new InvalidEnvVarError(
-          "RUN_WORKER_IN_GATEWAY",
-          "إعلانٌ إلزاميٌّ في الإنتاج (F5-04 · ADR 0063): أين تعيش المهامُّ الدوريّةُ جملةٌ تُكتَب لا سكوتٌ يُفسَّر. " +
-            "اضبط false إن كانت خدمةُ waslah-worker قائمةً، أو true إن لم تكن — وغيابُ الاثنين معاً يعني ألّا مهمّةَ دوريّةً تُنفَّذ أبداً",
-        ),
-      );
-    }
-    if (!(BOOLEAN_ENV_LITERALS as readonly string[]).includes(rawRunWorker.trim().toLowerCase())) {
-      return err(
-        new InvalidEnvVarError(
-          "RUN_WORKER_IN_GATEWAY",
-          `قيمةٌ لا تُفهَم — المتاح: ${BOOLEAN_ENV_LITERALS.join(" · ")}. ولا تُردُّ المجهولةُ إلى الافتراضِ: من كتبها قصدَ شيئاً، وردُّها صمتاً يجعل المهامَّ في غيرِ الموضعِ الذي ضُبِط`,
-        ),
-      );
-    }
-  }
+  const runWorkerError = declaredBooleanError(
+    env,
+    source.RUN_WORKER_IN_GATEWAY ?? "",
+    "RUN_WORKER_IN_GATEWAY",
+    "إعلانٌ إلزاميٌّ في الإنتاج (F5-04 · ADR 0063): أين تعيش المهامُّ الدوريّةُ جملةٌ تُكتَب لا سكوتٌ يُفسَّر. " +
+      "اضبط false إن كانت خدمةُ waslah-worker قائمةً، أو true إن لم تكن — وغيابُ الاثنين معاً يعني ألّا مهمّةَ دوريّةً تُنفَّذ أبداً",
+  );
+  if (runWorkerError !== null) return err(runWorkerError);
+
+  /**
+   * `RUN_ADMIN_IN_GATEWAY` في الإنتاج — `F5-08` / `ARCH-011` · ADR 0064.
+   *
+   * التعليلُ الكاملُ عندَ حقلِ `runAdminInGateway` في `AppConfig`. وخلاصتُهُ أنّ
+   * الخطأَ ههنا لا يُعلِنُ عن نفسِهِ بعطلٍ: لوحةٌ تعملُ من أصلَينِ حالٌ صحيحةٌ
+   * ظاهراً وباطنُها أنّ العزلَ المدفوعَ ثمنُهُ غيرُ قائمٍ. فلا يُقبَلُ فيه سكوتٌ.
+   */
+  const runAdminError = declaredBooleanError(
+    env,
+    source.RUN_ADMIN_IN_GATEWAY ?? "",
+    "RUN_ADMIN_IN_GATEWAY",
+    "إعلانٌ إلزاميٌّ في الإنتاج (F5-08 · ADR 0064): أين يعيشُ سطحُ لوحةِ الإدارةِ جملةٌ تُكتَب لا سكوتٌ يُفسَّر. " +
+      "اضبط false إن كانت خدمةُ waslah-admin قائمةً، أو true إن لم تكن — وإبقاؤُها في البوّابةِ مع وجودِ الخدمةِ يعني لوحةً في موضعَينِ وعزلاً وهميّاً",
+  );
+  if (runAdminError !== null) return err(runAdminError);
 
   // مزوّد الخريطة يُرفض إن كان مجهولاً في كلّ البيئات، لا في الإنتاج وحده كما في
   // `RUN_WORKER_IN_GATEWAY` أعلاه: قيمةٌ مكتوبةٌ خطأً هنا تعني مشغّلاً يظنّ أنه فعّل
@@ -931,6 +991,7 @@ export function tryLoadConfig(
     // وبعدَ `F5-04` صار الإعلانُ إلزاميّاً في الإنتاجِ (يُفحَص أعلاه · ADR 0063)،
     // فالافتراضُ `true` ههنا لا يُبلَغ في الإنتاجِ أبداً: هو حالُ التطويرِ وحدَه.
     runWorkerInGateway: parseBooleanEnv(source.RUN_WORKER_IN_GATEWAY, true),
+    runAdminInGateway: parseBooleanEnv(source.RUN_ADMIN_IN_GATEWAY, true),
     mapProvider: rawMapProvider as MapProviderName,
     mapStyleUrl: isBlank(source.MAP_STYLE_URL) ? null : (source.MAP_STYLE_URL as string).trim(),
     mapTilesPublicKey: isBlank(source.MAP_TILES_PUBLIC_KEY)

@@ -67,6 +67,10 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     translationApiKey: null,
     translationContactEmail: null,
     runWorkerInGateway: false,
+    // اللوحةُ **مُركَّبةٌ** في تجهيزِ الاختباراتِ لا مُطفأةٌ (`F5-08`): مسارات
+    // `/admin` لها اختباراتُها تركبُ نفسَ التطبيقِ، وإطفاؤُها ههنا كان سيُسقطها
+    // جميعاً بـ404 وتُقرأُ كأنّها انحدارٌ في اللوحةِ لا تغييرٌ في التجهيز.
+    runAdminInGateway: true,
     mapProvider: "none",
     mapStyleUrl: null,
     mapTilesPublicKey: null,
