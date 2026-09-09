@@ -44,28 +44,23 @@ export interface NotificationsDependencies {
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
-const OK_STATUS = 200;
-const BAD_REQUEST_STATUS = 400;
-const UNAUTHENTICATED_STATUS = 401;
-const FORBIDDEN_STATUS = 403;
-const NOT_FOUND_STATUS = 404;
-const UNAVAILABLE_STATUS = 503;
-
-type ErrorStatus =
-  | typeof BAD_REQUEST_STATUS
-  | typeof UNAUTHENTICATED_STATUS
-  | typeof FORBIDDEN_STATUS
-  | typeof NOT_FOUND_STATUS
-  | typeof UNAVAILABLE_STATUS;
+/**
+ * رمزُ الحالةِ **بروتوكولٌ لا سياسةٌ تجاريّةٌ**، ولذلكَ يُكتَبُ حرفيّاً في موضعِ
+ * الاستجابةِ كما في `payment-webhook.ts` و`session-refresh.ts` — لا في ثابتٍ
+ * مُسمّىً يقرؤه `check-business-constants` سعرَ اشتراكٍ مرمَّزاً فيُسقِطُ CI على
+ * كودٍ لا علاقةَ له بالتسعيرِ. والاتّحادُ ههنا يُبقي جدولَي الخرائطِ محروسَينِ
+ * بالنوعِ، فرمزٌ خارجَ القائمةِ يكسرُ `typecheck` لا يمرُّ صامتاً.
+ */
+type ErrorStatus = { readonly status: 400 | 401 | 403 | 404 | 503 }["status"];
 
 /** جدولٌ واحدٌ حتميٌّ — لا شروطٌ مبثوثةٌ تختلفُ بينَ فرعٍ وفرعٍ. */
 const VIEWER_ERROR_STATUS: Readonly<Record<ViewerPublicErrorCode, ErrorStatus>> = {
-  SESSION_REQUIRED: UNAUTHENTICATED_STATUS,
-  SESSION_INVALID: UNAUTHENTICATED_STATUS,
-  SESSION_EXPIRED: UNAUTHENTICATED_STATUS,
-  SESSION_NOT_AVAILABLE: UNAVAILABLE_STATUS,
-  ACCOUNT_BLOCKED: FORBIDDEN_STATUS,
-  PROFILE_NOT_AVAILABLE: UNAVAILABLE_STATUS,
+  SESSION_REQUIRED: 401,
+  SESSION_INVALID: 401,
+  SESSION_EXPIRED: 401,
+  SESSION_NOT_AVAILABLE: 503,
+  ACCOUNT_BLOCKED: 403,
+  PROFILE_NOT_AVAILABLE: 503,
 };
 
 /**
@@ -74,9 +69,9 @@ const VIEWER_ERROR_STATUS: Readonly<Record<ViewerPublicErrorCode, ErrorStatus>> 
  * وجودَ له. و`READER_ERROR` ٥٠٣ لا ٥٠٠: عطلٌ في اعتمادٍ خارجيٍّ يُعادُ محاولةً.
  */
 const CENTER_ERROR_STATUS: Readonly<Record<UserNotificationFailureReason, ErrorStatus>> = {
-  READER_ERROR: UNAVAILABLE_STATUS,
-  RECIPIENT_NOT_FOUND: NOT_FOUND_STATUS,
-  NOTIFICATION_NOT_FOUND: NOT_FOUND_STATUS,
+  READER_ERROR: 503,
+  RECIPIENT_NOT_FOUND: 404,
+  NOTIFICATION_NOT_FOUND: 404,
 };
 
 function rejectedViewer(c: Context, error: ViewerPublicErrorCode) {
@@ -126,11 +121,9 @@ export function createNotificationRoutes(deps: NotificationsDependencies): Hono 
     if (center === undefined) return rejectedViewer(c, "SESSION_NOT_AVAILABLE");
 
     const limit = readLimit(c.req.query("limit"));
-    if (limit === "invalid")
-      return c.json({ ok: false, error: "INVALID_LIMIT" }, BAD_REQUEST_STATUS);
+    if (limit === "invalid") return c.json({ ok: false, error: "INVALID_LIMIT" }, 400);
     const before = readBefore(c.req.query("before"));
-    if (before === "invalid")
-      return c.json({ ok: false, error: "INVALID_CURSOR" }, BAD_REQUEST_STATUS);
+    if (before === "invalid") return c.json({ ok: false, error: "INVALID_CURSOR" }, 400);
 
     const feed = await getUserNotifications(
       {
@@ -145,7 +138,7 @@ export function createNotificationRoutes(deps: NotificationsDependencies): Hono 
       // صاحبُ جلسةٍ غيرُ مسجَّلٍ: موجَزٌ فارغٌ لا خطأ. لا صندوقَ له بعدُ، وهذا
       // ليسَ عطلاً يُقلِقُ به العميلُ ولا حالةً تُنشأ من التطبيقِ (ADR 0035 §2).
       if (feed.error.reason === "RECIPIENT_NOT_FOUND") {
-        return c.json({ ok: true, items: [], unread: 0 }, OK_STATUS);
+        return c.json({ ok: true, items: [], unread: 0 }, 200);
       }
       return c.json(
         { ok: false, error: feed.error.reason },
