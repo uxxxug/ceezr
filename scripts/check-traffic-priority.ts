@@ -2,7 +2,7 @@
 /**
  * # حاجزُ أولويّةِ المرورِ — لا نوعَ إشعارٍ بلا رتبةٍ، ولا رتبةَ تُقالُ في مكانَينِ
  *
- * **الغرض:** يفرضُ البندَ `F6-07` (القسمَ ١٥ من الخارطةِ) بخمسِ دعاوى تُقرأُ
+ * **الغرض:** يفرضُ البندَ `F6-07` (القسمَ ١٥ من الخارطةِ) بستِّ دعاوى تُقرأُ
  * آليّاً، طرفُها الأوّلُ ثابتُ الكودِ (`packages/shared/config/traffic-priority.ts`)
  * وطرفُها الثاني **نصُّ الهجراتِ** (`scripts/lib/traffic-priority-sql.ts`):
  *
@@ -95,6 +95,58 @@ export function claimOrderClause(migrations: readonly SqlMigration[]): string | 
   if (body === null) return null;
   const order = /order by ([^\n]+)/.exec(body.replace(/--[^\n]*/g, ""));
   return order?.[1]?.trim() ?? null;
+}
+
+/**
+ * جسمُ **آخِرِ** تعريفٍ لـ`claim_notification_delivery` بلا تعليقاتٍ، أو `null`.
+ * يُفصَلُ عن `claimOrderClause` كي يُقرأَ منه أكثرُ من دعوى واحدةٍ.
+ */
+export function claimBody(migrations: readonly SqlMigration[]): string | null {
+  const pattern =
+    /create or replace function\s+claim_notification_delivery\s*\([\s\S]*?as \$\$([\s\S]*?)\$\$;/g;
+  let body: string | null = null;
+  for (const { sql } of migrations) {
+    for (const match of sql.matchAll(pattern)) {
+      if (match[1] !== undefined) body = match[1];
+    }
+  }
+  return body === null ? null : body.replace(/--[^\n]*/g, "");
+}
+
+/**
+ * أَيحجُبُ المُطالِبُ ما سوى **رأسِ الطلبِ**؟
+ *
+ * تصحيحٌ مُضافٌ بعدَ حكمِ CI `34393076336`: الرتبةُ وحدَها قلبَت التتابعَ السببيَّ
+ * لرسائلِ الطلبِ الواحدِ («تمَّ الاتفاقُ» قبلَ «فُتِحَت دائرةٌ أوسعُ»)، فصارَ شرطُ
+ * الرأسِ جزءاً من البندِ لا زينةً — ولذلكَ يُقرأُ آليّاً كي لا يُحذَفَ في تعديلٍ
+ * قادمٍ يظنُّه سطراً زائداً.
+ */
+export function hasOrderCausalHead(migrations: readonly SqlMigration[]): boolean {
+  const body = claimBody(migrations);
+  if (body === null) return false;
+  // الإغلاقُ يُقرأُ سطراً مستقلّاً (`\n  )`) لا أوّلَ `)` يُصادَفُ: في الشرطِ
+  // `now()` وأقواسٌ أخرى، ولو أُخِذَ أوّلُ إغلاقٍ لَانقطعَ الشرطُ قبلَ تمامِه
+  // فقالَ الحاجزُ «مفقودٌ» عن شرطٍ قائمٍ.
+  const notExists = /not exists\s*\(([\s\S]*?)\n\s*\)/.exec(body);
+  const clause = notExists?.[1];
+  if (clause === undefined) return false;
+  return (
+    /o\.order_id\s*=\s*n\.order_id/.test(clause) &&
+    /o\.status\s*=\s*'pending'/.test(clause) &&
+    /o\.next_attempt_at\s*<=\s*now\(\)/.test(clause) &&
+    /\(\s*o\.created_at\s*,\s*o\.id\s*\)\s*<\s*\(\s*n\.created_at\s*,\s*n\.id\s*\)/.test(clause)
+  );
+}
+
+/** أَلَهُ فهرسٌ في طورِ `index` يُخدِمُ شرطَ رأسِ الطلبِ؟ */
+export function hasOrderPendingIndex(migrations: readonly SqlMigration[]): boolean {
+  return migrations.some(
+    ({ sql }) =>
+      /--\s*migration-phase:\s*index/.test(sql) &&
+      /create index concurrently if not exists[\s\S]*?notification_outbox\s*\(\s*order_id\s*,\s*created_at\s*,\s*id\s*\)/.test(
+        sql,
+      ),
+  );
 }
 
 /** أَلَهُ فهرسٌ في طورِ `index` يبدأُ بالرتبةِ؟ */
@@ -195,6 +247,19 @@ export function findViolations(
     );
   }
 
+  // ٧) الرتبةُ تُزاحِمُ بينَ الطلباتِ ولا تقلِبُ تتابعَ الطلبِ الواحدِ.
+  if (!hasOrderCausalHead(migrations)) {
+    violations.push(
+      "المُطالِبُ بلا شرطِ رأسِ الطلبِ (not exists على order_id بالتتابعِ الكُلّيِّ (created_at, id)) — " +
+        "فالرتبةُ تُعيدُ ترتيبَ رسائلِ الطلبِ الواحدِ فيَقرأُ المستخدِمُ خبراً متقادماً بعدَ نتيجتِه.",
+    );
+  }
+  if (!hasOrderPendingIndex(migrations)) {
+    violations.push(
+      "لا فهرسَ في طورِ `index` على (order_id, created_at, id) — شرطُ رأسِ الطلبِ يصيرُ مسحاً متتالياً في كلِّ شوطٍ.",
+    );
+  }
+
   return violations;
 }
 
@@ -212,7 +277,8 @@ function main(): void {
   console.log(
     `✅ أولويّةُ المرورِ مُتّسقةٌ — ${declared.kinds.length} نوعاً لكلٍّ رتبةٌ واحدةٌ متطابقةٌ في الكودِ والقاعدةِ، ` +
       `و${declared.deferrable.length} صنفاً قابلاً للتأجيلِ مُشتقّاً من الرتبةِ في الطرفَينِ، ` +
-      "والمُطالِبُ يُرتِّبُ بالرتبةِ ثمَّ بالأقدميّةِ على فهرسٍ مبنيٍّ لذلكَ.",
+      "والمُطالِبُ يُرتِّبُ بالرتبةِ ثمَّ بالأقدميّةِ على فهرسٍ مبنيٍّ لذلكَ، " +
+      "ولا يُزاحِمُ إلّا رؤوسَ الطلباتِ فلا يَنقلِبُ تتابعُ طلبٍ واحدٍ.",
   );
 }
 

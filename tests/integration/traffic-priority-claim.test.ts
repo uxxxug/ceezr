@@ -9,10 +9,13 @@
  * الحالة: منفّذ فعلياً — 2026-09-09.
  * ينتمي إلى: tests/integration
  * يُستخدم من: bun test (وظيفةُ تكاملِ PostgreSQL في CI)
+ *    وبعدَ حكمِ CI `34393076336` أُضيفَ ههنا ما هوَ أهمُّ من الرتبةِ: أنَّ
+ *    الرتبةَ **لا تقلِبُ** تتابعَ رسائلِ الطلبِ الواحدِ (شرطُ رأسِ الطلبِ)،
+ *    وأنّها تُزاحِمُ **بينَ** الطلباتِ كما وُعِدَ.
  * ما لا يفعله: لا يقيسُ خطّةَ الاستعلامِ (استعمالَ فهرسِ الرتبةِ) — ذلكَ دَينٌ
  *   مُعلَنٌ في `docs/adr/0071-traffic-priority-classes.md` §٧، ولا يُدَّعى ههنا.
  */
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { NOTIFICATION_KINDS } from "../../packages/shared/config/notification-kinds.ts";
 import { isDeferrableUnderBackpressure } from "../../packages/shared/config/queue-backpressure.ts";
@@ -23,6 +26,19 @@ const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
 let sql: Sql;
 let cityId: string;
+/** طلبانِ حقيقيّانِ: التتابعُ السببيُّ يُقاسُ على `order_id` فعليٍّ لا على فراغٍ. */
+let orderA: string;
+let orderB: string;
+let riderId: string;
+let riderUserId: string;
+/**
+ * صفوفُ غيرِنا المعلَّقةُ في القاعدةِ المشتركةِ. المُطالِبُ **عالميٌّ** (بلا وسائطَ)
+ * فيلتقطُ أيَّ معلَّقٍ مستحقٍّ لأيِّ مدينةٍ؛ ولو تُرِكَت بقايا ملفٍّ سابقٍ مستحقّةً
+ * لَقاسَ هذا الملفُّ ترتيبَ صفوفٍ لا يعرفُها ثمَّ نسبَ الفشلَ إلى الرتبةِ. فتُؤجَّلُ
+ * ههنا بقيمةٍ محفوظةٍ، وتُعادُ قيمُها **حرفاً** في `afterAll` — تأجيلٌ لا حَذفٌ،
+ * فلا يُمحى دليلُ اختبارٍ آخرَ.
+ */
+let parked: { id: string; next_attempt_at: string }[] = [];
 /** القيمُ المبذورةُ كما وُجِدت — تُستعادُ في النهايةِ فلا تُسمِّمُ ما بعدَها. */
 let seeded: Record<string, number> = {};
 
@@ -43,15 +59,33 @@ async function setLimit(key: string, value: number): Promise<void> {
   `;
 }
 
-/** يُدرِجُ صفّاً معلَّقاً بنوعٍ وعُمرٍ محدَّدَينِ ويُعيدُ معرّفَه. */
-async function seedRow(kind: string, ageSeconds: number): Promise<string> {
+/** يُنشِئُ طلباً حقيقيّاً للراكبِ المبذورِ ويُعيدُ معرّفَه. */
+async function seedOrder(): Promise<string> {
+  const rows = await sql<{ id: string }[]>`
+    insert into orders (city_id, rider_id, service, status, pickup)
+    values (${cityId}::uuid, ${riderId}::uuid, 'transport', 'searching',
+            ST_SetSRID(ST_MakePoint(39.1728, 21.5433), 4326)::geography)
+    returning id
+  `;
+  const id = rows[0]?.id;
+  if (id === undefined) throw new Error("تعذّرَ تجهيزُ الطلبِ");
+  return id;
+}
+
+/**
+ * يُدرِجُ صفّاً معلَّقاً بنوعٍ وعُمرٍ محدَّدَينِ ويُعيدُ معرّفَه.
+ * `orderId` اختياريٌّ: الفارغُ لا يُقارَنُ بفارغٍ فيبقى الصفُّ خارجَ الحجبِ
+ * السببيِّ، وبه تُقاسُ الرتبةُ وحدَها.
+ */
+async function seedRow(kind: string, ageSeconds: number, orderId?: string): Promise<string> {
   const rows = await sql<{ id: string }[]>`
     insert into notification_outbox
-      (city_id, kind, status, payload, created_at, next_attempt_at, dedup_key)
+      (city_id, kind, status, payload, created_at, next_attempt_at, dedup_key, order_id)
     values (${cityId}::uuid, ${kind}, 'pending', '{}'::jsonb,
             now() - make_interval(secs => ${ageSeconds}::numeric),
             now() - make_interval(secs => ${ageSeconds}::numeric),
-            ${`${TAG}:`} || gen_random_uuid()::text)
+            ${`${TAG}:`} || gen_random_uuid()::text,
+            ${orderId ?? null}::uuid)
     returning id
   `;
   const id = rows[0]?.id;
@@ -93,6 +127,44 @@ describeIf("أولويّاتُ المرورِ في المُطالِبِ على P
     await setLimit("outbox_queue_consumer_concurrency", 50);
     await setLimit("outbox_queue_depth_limit", 10_000);
     await setLimit("outbox_queue_oldest_age_limit_seconds", 86_400);
+
+    const riderUser = await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, full_name, phone, role)
+      values (${cityId}::uuid, 880607::bigint, 'راكبُ قياسِ الأولويّةِ', '+966500880607', 'rider')
+      returning id
+    `;
+    riderUserId = riderUser[0]?.id ?? "";
+    const rider = await sql<{ id: string }[]>`
+      insert into riders (city_id, user_id)
+      values (${cityId}::uuid, ${riderUserId}::uuid) returning id
+    `;
+    riderId = rider[0]?.id ?? "";
+    if (riderId === "") throw new Error("تعذّرَ تجهيزُ الراكبِ");
+    orderA = await seedOrder();
+    orderB = await seedOrder();
+  });
+
+  beforeEach(async () => {
+    // `returning` في `update` يُعيدُ **الجديدَ** لا القديمَ، فلو قُرِئَ منه
+    // لَحُفِظَ التأجيلُ نفسُه ثمَّ «أُعيدَ» فبقيَ الصفُّ مؤجَّلاً ساعتَينِ عندَ غيرِنا.
+    // فتُقرأُ القيمُ القديمةُ في `with` قبلَ التحديثِ، وبها تُستعادُ حرفاً.
+    const rows = await sql<{ id: string; next_attempt_at: string }[]>`
+      with target as (
+        select id, next_attempt_at from notification_outbox
+         where status = 'pending'
+           and next_attempt_at <= now() + interval '1 hour'
+           and (dedup_key is null or dedup_key not like ${`${TAG}:%`})
+         for update
+      ), moved as (
+        update notification_outbox n
+           set next_attempt_at = now() + interval '2 hours'
+          from target t where n.id = t.id
+        returning n.id
+      )
+      select t.id, t.next_attempt_at from target t
+       where t.id in (select id from moved)
+    `;
+    parked = rows.map((row) => ({ id: row.id, next_attempt_at: row.next_attempt_at }));
   });
 
   afterEach(async () => {
@@ -111,6 +183,20 @@ describeIf("أولويّاتُ المرورِ في المُطالِبِ على P
       delete from notification_outbox
        where city_id = ${cityId}::uuid and dedup_key like ${`${TAG}:%`}
     `;
+    for (const row of parked) {
+      await sql`
+        update notification_outbox set next_attempt_at = ${row.next_attempt_at}::timestamptz
+         where id = ${row.id}::uuid
+      `;
+    }
+    // الطلبانِ والراكبُ يُحذَفانِ **بعدَ** صفوفِ الصادرِ (`on delete restrict`).
+    for (const orderId of [orderA, orderB]) {
+      if (orderId !== undefined && orderId !== "") {
+        await sql`delete from orders where id = ${orderId}::uuid`;
+      }
+    }
+    if (riderId !== "") await sql`delete from riders where id = ${riderId}::uuid`;
+    if (riderUserId !== "") await sql`delete from users where id = ${riderUserId}::uuid`;
     await sql.end({ timeout: 5 });
   });
 
@@ -129,10 +215,17 @@ describeIf("أولويّاتُ المرورِ في المُطالِبِ على P
     expect(second.deliveryId).toBe(older);
   });
 
-  it("المرتفعُ قبلَ المتوسّطِ، والمتوسّطُ قبلَ المنخفضِ — الرتبُ الأربعُ مُرتَّبةٌ فعلاً", async () => {
+  it("الحرجُ ثمَّ المرتفعُ ثمَّ المتوسّطُ — رتبُ نطاقِ المُطالِبِ الثلاثُ مُرتَّبةٌ فعلاً", async () => {
     // الأعمارُ مقلوبةٌ على الرتبِ عمداً: الأدنى رتبةً هوَ الأقدمُ، فلو أُهمِلَت
     // الرتبةُ لَخرجَ الترتيبُ معكوساً تماماً.
-    await seedRow("broadcast_recipient", 400);
+    //
+    // تصحيحٌ مُضافٌ — F6-07 (بعدَ حكمِ CI `34393076336`): كانَ ههنا صفٌّ رابعٌ من
+    // `broadcast_recipient` (الرتبةُ ٤) ودعوى «الرتبُ الأربعُ». وهوَ خطأٌ مُركَّبٌ:
+    // (١) بذرُه يخرقُ `notification_broadcast_shape` فأخفقَ الاختبارُ إدراجاً لا
+    // قياساً، و(٢) النوعُ **ليسَ في نطاقِ هذا المُطالِبِ** (له مطالِبُه) فرتبتُه
+    // الرابعةُ لا تُقاسُ ههنا بحالٍ. فصارَت الدعوى ثلاثَ رتبٍ هيَ الموجودةُ في
+    // النطاقِ فعلاً، ورتبةُ `broadcast_recipient` تُقاسُ بالنداءِ في حالةِ
+    // التطابقِ أدناه لا بادّعاءِ التقاطٍ لا يقعُ.
     await seedRow("no_driver_found", 300);
     await seedRow("offer", 200);
     await seedRow("order_cancelled", 100);
@@ -141,8 +234,6 @@ describeIf("أولويّاتُ المرورِ في المُطالِبِ على P
     for (let index = 0; index < 3; index += 1) {
       order.push((await claimOne()).kind);
     }
-    // `broadcast_recipient` ليسَ من أنواعِ دورةِ الرحلةِ التي يُطالِبُ بها هذا
-    // المُطالِبُ (له مطالِبُه الخاصُّ)، فلا يظهرُ في الالتقاطِ — وهذا مقصودٌ.
     expect(order).toEqual(["order_cancelled", "offer", "no_driver_found"]);
     expect((await claimOne()).kind).toBeNull();
   });
@@ -151,6 +242,39 @@ describeIf("أولويّاتُ المرورِ في المُطالِبِ على P
     const older = await seedRow("no_driver_found", 120);
     await seedRow("no_driver_found", 5);
     expect((await claimOne()).deliveryId).toBe(older);
+  });
+
+  // ---------------------------------------------------------------------------
+  // تصحيحٌ مُضافٌ — F6-07 (بعدَ حكمِ CI `34393076336`)
+  //
+  // الرتبةُ وحدَها قلبَت تتابعَ رسائلِ الطلبِ الواحدِ فأسقطَت
+  // `unsubscribed-negotiation.test.ts`: بلغَ الراكبَ «تمَّ الاتفاقُ» (رتبةُ ١) ثمَّ
+  // بلغَه بعدَه «فُتِحَت دائرةٌ أوسعُ» (رتبةُ ٢) عن بحثٍ انتهى. والعلاجُ شرطُ رأسِ
+  // الطلبِ في المُطالِبِ، وههنا يُقاسُ الوجهانِ: أنَّ التتابعَ حُفِظَ داخلَ الطلبِ،
+  // وأنَّ الرتبةَ ما زالَت تُزاحِمُ بينَ الطلبَينِ.
+  // ---------------------------------------------------------------------------
+
+  it("داخلَ الطلبِ الواحدِ: الأقدمُ أوّلاً وإن كانَت رتبتُه أدنى — لا انقلابَ سببيّاً", async () => {
+    const olderHigh = await seedRow("wider_circle_opened", 60, orderA);
+    const newerCritical = await seedRow("negotiation_agreed", 1, orderA);
+
+    const first = await claimOne();
+    expect(first.deliveryId).toBe(olderHigh);
+    expect(first.kind).toBe("wider_circle_opened");
+
+    const second = await claimOne();
+    expect(second.deliveryId).toBe(newerCritical);
+  });
+
+  it("بينَ طلبَينِ: الحرجُ الأحدَثُ يسبقُ المرتفعَ الأقدمَ — الحجبُ سببيٌّ لا مُعطِّلٌ للرتبةِ", async () => {
+    const olderHighA = await seedRow("wider_circle_opened", 60, orderA);
+    const newerCriticalB = await seedRow("negotiation_agreed", 1, orderB);
+
+    const first = await claimOne();
+    expect(first.deliveryId).toBe(newerCriticalB);
+
+    const second = await claimOne();
+    expect(second.deliveryId).toBe(olderHighA);
   });
 
   it("رتبةُ كلِّ نوعٍ في القاعدةِ تُطابِقُ رتبتَه في الكودِ — بالنداءِ لا بقراءةِ النصِّ", async () => {

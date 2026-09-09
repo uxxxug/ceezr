@@ -1,6 +1,6 @@
 /**
  * الغرض: الحالاتُ **السالبةُ** لحاجزِ أولويّاتِ المرورِ (`F6-07` / ADR-0071).
- *    حاجزٌ يُختبَرُ خضرةً وحدَها حاجزٌ بالاسمِ: كلُّ قاعدةٍ من قواعدِه السّتِّ
+ *    حاجزٌ يُختبَرُ خضرةً وحدَها حاجزٌ بالاسمِ: كلُّ قاعدةٍ من قواعدِه السّبعِ
  *    تُخرَقُ ههنا عمداً ويُتحقَّقُ أنّها تُخفِقُ فعلاً، ثمَّ يُتحقَّقُ أنَّ
  *    المستودعَ الحقيقيَّ يمرُّ — فلا يبقى الحاجزُ صحيحاً على وقائعَ مُصطنَعةٍ وحدَها.
  * الحالة: مُختبَر.
@@ -13,6 +13,8 @@ import {
   claimOrderClause,
   codeDeclaration,
   findViolations,
+  hasOrderCausalHead,
+  hasOrderPendingIndex,
   hasPriorityIndex,
   readMigrations,
 } from "../../scripts/check-traffic-priority.ts";
@@ -58,6 +60,13 @@ function fixtureMigrations(): SqlMigration[] {
         "begin",
         "  return query select n.id from notification_outbox n",
         "    where n.status = 'pending'",
+        "    and not exists (",
+        "      select 1 from notification_outbox o",
+        "       where o.order_id = n.order_id",
+        "         and o.status = 'pending'",
+        "         and o.next_attempt_at <= now()",
+        "         and (o.created_at, o.id) < (n.created_at, n.id)",
+        "    )",
         "    order by notification_kind_priority(n.kind), n.created_at",
         "    limit p_limit;",
         "end;",
@@ -71,6 +80,15 @@ function fixtureMigrations(): SqlMigration[] {
         "create index concurrently if not exists notification_outbox_priority_due_idx",
         "  on notification_outbox (notification_kind_priority(kind), created_at)",
         "  where status = 'pending';",
+      ].join("\n"),
+    },
+    {
+      file: "20260101020000_order_pending_index.sql",
+      sql: [
+        "-- migration-phase: index",
+        "create index concurrently if not exists notification_outbox_order_pending_idx",
+        "  on notification_outbox (order_id, created_at, id)",
+        "  where status = 'pending' and order_id is not null;",
       ].join("\n"),
     },
   ];
@@ -165,6 +183,43 @@ describe("F6-07 — حاجزُ أولويّاتِ المرورِ يُخفِقُ 
     expect(hasPriorityIndex([first])).toBe(false);
     const violations = findViolations([first], codeDeclaration());
     expect(violations.some((entry) => entry.includes("لا فهرسَ"))).toBe(true);
+  });
+
+  // تصحيحٌ مُضافٌ — بعدَ حكمِ CI `34393076336`: انقلابُ التتابعِ السببيِّ عطبٌ
+  // قاسَه اختبارٌ قائمٌ، فحُجِبَ بشرطِ رأسِ الطلبِ، فوجبَ أن يُحرَسَ الشرطُ نفسُه.
+  test("٧) حَذفُ شرطِ رأسِ الطلبِ يُخفِقُ الحاجزَ", () => {
+    const migrations = withSql(fixtureMigrations(), (sql) =>
+      sql.replace(/ {4}and not exists \([\s\S]*?\n {4}\)\n/, ""),
+    );
+    expect(hasOrderCausalHead(migrations)).toBe(false);
+    const violations = findViolations(migrations, codeDeclaration());
+    expect(violations.some((entry) => entry.includes("رأسِ الطلبِ"))).toBe(true);
+  });
+
+  test("٧-ب) تتابعٌ جزئيٌّ (created_at وحدَه) لا يُقبَلُ — المتساويانِ يحجُبانِ بعضَهما", () => {
+    const migrations = withSql(fixtureMigrations(), (sql) =>
+      sql.replace(
+        "         and (o.created_at, o.id) < (n.created_at, n.id)",
+        "         and o.created_at < n.created_at",
+      ),
+    );
+    expect(hasOrderCausalHead(migrations)).toBe(false);
+    const violations = findViolations(migrations, codeDeclaration());
+    expect(violations.some((entry) => entry.includes("رأسِ الطلبِ"))).toBe(true);
+  });
+
+  test("٧-ج) شرطٌ يحجُبُ بالمُتراجِعِ أيضاً — بلا `next_attempt_at` يُجمَّدُ الطلبُ", () => {
+    const migrations = withSql(fixtureMigrations(), (sql) =>
+      sql.replace("         and o.next_attempt_at <= now()\n", ""),
+    );
+    expect(hasOrderCausalHead(migrations)).toBe(false);
+  });
+
+  test("٧-د) لا فهرسَ لشرطِ رأسِ الطلبِ", () => {
+    const withoutIndex = fixtureMigrations().slice(0, 2);
+    expect(hasOrderPendingIndex(withoutIndex)).toBe(false);
+    const violations = findViolations(withoutIndex, codeDeclaration());
+    expect(violations.some((entry) => entry.includes("order_id, created_at, id"))).toBe(true);
   });
 });
 

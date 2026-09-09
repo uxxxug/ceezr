@@ -99,9 +99,14 @@ grant execute on function notification_kind_is_deferrable(text) to service_role;
 -- ---------------------------------------------------------------------------
 -- المُطالِبُ بترتيبٍ رتبيٍّ — تغييرُ سطرٍ واحدٍ في دالّةٍ نُقِلَت حرفاً
 --
---    الفرقُ الوحيدُ عن نسخةِ `20260909120000` سطرُ الترتيبِ:
---      قبلَ:  order by n.created_at
---      بعدَ:  order by notification_kind_priority(n.kind), n.created_at
+--    الفرقُ عن نسخةِ `20260909120000` موضعانِ لا أكثرُ:
+--      (١) سطرُ الترتيبِ:
+--          قبلَ:  order by n.created_at
+--          بعدَ:  order by notification_kind_priority(n.kind), n.created_at
+--      (٢) شرطُ **رأسِ الطلبِ** (`not exists`) المُضافُ إلى `where` — تصحيحٌ
+--          مُضافٌ بعدَ حكمِ CI `34393076336`: الرتبةُ وحدَها قلبَت التتابعَ
+--          السببيَّ لرسائلِ الطلبِ الواحدِ فأسقطَت اختباراً قائماً، والشرحُ
+--          عندَ الشرطِ نفسِه أدناه وفي `docs/adr/0071-…` §٩.
 --
 --    وبقيَ ما بعدَه كما هوَ حرفاً — الاسترجاعُ قبلَ السقفِ، وسقفُ التزامنِ،
 --    و`batch_limit` من مفتاحِه، وبناءُ الحِمْلِ لكلِّ نوعٍ — لأنَّ `create or
@@ -155,9 +160,32 @@ begin
      and n.claimed_at is not null
      and n.claimed_at < now() - make_interval(secs => v_timeout);
 
+  -- **رأسُ الطلبِ وحدَه مؤهَّلٌ** (`not exists` أدناه): الرتبةُ تُزاحِمُ **بينَ**
+  -- الطلباتِ ولا تُعيدُ ترتيبَ رسائلِ الطلبِ الواحدِ. ولولا هذا القيدُ لَانقلبَ
+  -- التتابعُ السببيُّ في محادثةٍ واحدةٍ: «فُتِحَت دائرةٌ أوسعُ» (رتبةُ 2) مُودَعٌ
+  -- قبلَ «تمَّ الاتفاقُ» (رتبةُ 1) للطلبِ نفسِه، فيَصِلُ الراكبَ الاتفاقُ ثمَّ
+  -- يَصِلُه بعدَه خبرٌ متقادمٌ عن بحثٍ انتهى — وهوَ عطبٌ يراهُ المستخدِمُ لا
+  -- تحسينٌ. **وقيسَ لا استُنبِطَ**: التشغيلُ `34393076336` أسقطَ
+  -- `unsubscribed-negotiation.test.ts` بهذا الانقلابِ عينِه قبلَ إضافةِ القيدِ.
+  --
+  -- والصفُّ المؤجَّلُ بتراجعٍ (`next_attempt_at` في المستقبلِ) **لا يحجُبُ** ما
+  -- بعدَه: شرطُ الحجبِ يقرأُ المستحقَّ وحدَه، فصفٌّ يُعيدُ المحاولةَ بعدَ دقيقةٍ
+  -- لا يُجمِّدُ رسائلَ طلبِه دقيقةً. وهذا حدٌّ مُعلَنٌ: التتابعُ مضمونٌ للمستحقِّ
+  -- لا للمُتراجِعِ (ADR-0071 §٩).
+  --
+  -- و`order_id` الفارغُ لا يُقارَنُ بفارغٍ (`null = null` مجهولٌ) فالصفوفُ التي
+  -- لا طلبَ لها تبقى متزاحمةً بالرتبةِ وحدَها — وهيَ ليست في تتابعٍ سببيٍّ أصلاً.
   select n.* into v_delivery from notification_outbox n
    where n.status = 'pending' and n.next_attempt_at <= now()
      and n.kind = any(v_ride_kinds)
+     and not exists (
+       select 1 from notification_outbox o
+        where o.order_id = n.order_id
+          and o.status = 'pending'
+          and o.kind = any(v_ride_kinds)
+          and o.next_attempt_at <= now()
+          and (o.created_at, o.id) < (n.created_at, n.id)
+     )
    order by notification_kind_priority(n.kind), n.created_at
    for update skip locked limit 1;
   if not found then return jsonb_build_object('ok', true, 'delivery', null); end if;
