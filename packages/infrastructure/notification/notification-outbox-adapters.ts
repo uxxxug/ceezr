@@ -38,7 +38,16 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
         const row = envelope(rows[0]?.result, "claim_notification_delivery");
         if (row.ok !== true) throw new Error(String(row.error ?? "UNKNOWN"));
         const delivery = row.delivery as Record<string, unknown> | null;
-        if (delivery == null) return { delivery: null };
+        if (delivery == null) {
+          // لا صفَّ: إمّا الطابورُ فارغٌ، وإمّا سقفُ تزامنِ المستهلِكِ منعَ الالتقاطَ
+          // (`F6-06`). ويُقرأُ السببُ كما أعلنَته القاعدةُ لا كما يُشتهى: نصٌّ غيرُ
+          // معروفٍ يعودُ `null` فلا يُحسبَ تشبُّعاً بالغلطِ.
+          const reason = row.backpressure;
+          return {
+            delivery: null,
+            backpressure: reason === "CONSUMER_CONCURRENCY" ? "CONSUMER_CONCURRENCY" : null,
+          };
+        }
         const payload = delivery.payload;
         return {
           delivery: {
@@ -48,6 +57,7 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
             claimToken: String(delivery.claim_token),
             attempts: Number(delivery.attempts),
             maxAttempts: Number(delivery.max_attempts),
+            batchLimit: Number(delivery.batch_limit),
             payload:
               typeof payload === "object" && payload !== null
                 ? (payload as Record<string, unknown>)

@@ -116,6 +116,9 @@ jobs:
         run: |
           bun run scripts/check-migrations.ts
 
+      - name: سلامةُ الهجرات — الأطوارُ والفهارسُ والقيودُ والاسترجاعُ (F7-07)
+        run: bun run scripts/check-migration-safety.ts
+
       - name: تغطية فهارس الاستعلامات الساخنة (F7-02)
         run: bun run scripts/check-hot-query-index-coverage.ts
 

@@ -54,11 +54,28 @@ export interface OperationalMetrics {
   recordDatabaseGaugeCollectionFailure(): void;
 }
 
+/**
+ * حِمْلُ طابورٍ صامدٍ لحظةَ القياسِ (`F6-06`). والوسمُ **`queue` وحدَه**: وسمُ
+ * مدينةٍ أو مستخدمٍ أو طلبٍ يجعلُ عددَ السلاسلِ يكبُرُ بكِبَرِ البياناتِ (انفجارُ
+ * التعدُّدِ)، ويُخرِجُ معرِّفاتٍ إلى مُجمِّعٍ خارجيٍّ لا حاجةَ له بها. ومن أرادَ
+ * التفصيلَ بالمدينةِ وجدَه في `queue_backpressure_events` داخلَ القاعدةِ حيثُ
+ * تحكمُه RLS.
+ */
+export interface QueueGaugeValues {
+  readonly queue: string;
+  readonly depth: number;
+  readonly oldestDueAgeSeconds: number;
+  readonly deadInWindow: number;
+  readonly claimed: number;
+}
+
 export interface DatabaseGaugeValues {
   readonly searchingOrders: number;
   readonly availableDrivers: number;
   readonly expiredSubscriptionsToday: number;
   readonly lastSuccessfulBackupTimestampSeconds: number;
+  /** حِمْلُ الطوابيرِ الصامدةِ — سطرٌ لكلِّ طابورٍ، بلا وسمِ مدينةٍ. */
+  readonly queues: readonly QueueGaugeValues[];
 }
 
 function secondsFromMs(durationMs: number): number {
@@ -173,6 +190,27 @@ export function createOperationalMetrics(): OperationalMetrics {
     help: "Unix timestamp لآخر نسخة احتياطية ناجحة، أو صفر إن لم توجد بعد.",
   });
 
+  registry.defineGauge({
+    name: "waslah_queue_depth",
+    help: "عددُ الصفوفِ المعلَّقةِ المستحقَّةِ في كلِّ طابورٍ صامدٍ.",
+    labelNames: ["queue"],
+  });
+  registry.defineGauge({
+    name: "waslah_queue_oldest_due_age_seconds",
+    help: "عمرُ أقدمِ صفٍّ مستحقٍّ في الطابورِ بالثواني — صفرٌ إن لم يوجد مستحقٌّ.",
+    labelNames: ["queue"],
+  });
+  registry.defineGauge({
+    name: "waslah_queue_dead_letter_recent",
+    help: "عددُ الصفوفِ التي ماتت في نافذةِ القياسِ الأخيرةِ لكلِّ طابورٍ.",
+    labelNames: ["queue"],
+  });
+  registry.defineGauge({
+    name: "waslah_queue_claimed",
+    help: "عددُ الصفوفِ المحجوزةِ الآنَ لكلِّ طابورٍ — تزامنُ المستهلِكِ الفعليُّ.",
+    labelNames: ["queue"],
+  });
+
   return {
     registry,
     recordTelegramUpdate: (bot, outcome, durationMs) => {
@@ -235,6 +273,21 @@ export function createOperationalMetrics(): OperationalMetrics {
         {},
         Math.max(0, values.lastSuccessfulBackupTimestampSeconds),
       );
+      for (const value of values.queues) {
+        const labels = { queue: value.queue };
+        registry.setGauge("waslah_queue_depth", labels, integralCount(value.depth));
+        registry.setGauge(
+          "waslah_queue_oldest_due_age_seconds",
+          labels,
+          Math.max(0, value.oldestDueAgeSeconds),
+        );
+        registry.setGauge(
+          "waslah_queue_dead_letter_recent",
+          labels,
+          integralCount(value.deadInWindow),
+        );
+        registry.setGauge("waslah_queue_claimed", labels, integralCount(value.claimed));
+      }
     },
     recordDatabaseGaugeCollectionFailure: () =>
       registry.increment("waslah_database_gauge_collection_failures_total"),

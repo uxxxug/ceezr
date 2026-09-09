@@ -122,6 +122,7 @@ export const CONTRACT_TABLES: readonly string[] = [
   "riders",
   "subscriptions",
   "support_tickets",
+  "telegram_update_jobs",
   "tracking_sessions",
   "unsubscribed_claims",
   "unsubscribed_negotiations",
