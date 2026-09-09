@@ -3,7 +3,8 @@
  *   ذهاباً وعودةً، ومهلةً تنتهي بالزمنِ الفعليِّ لا بساعةٍ نكتبها، وفضاءَي بوتٍ
  *   لا يتصادمان على قاعدةٍ واحدةٍ، وحواراً كاملاً من الويبهوك إلى PostgreSQL
  *   وحالتُه في Redis الحقيقيِّ، وحدُّ المعدَّلِ الموزَّعُ يعدُّ في الخادمِ لا في العمليّةِ
- *   — وهما مستهلِكا Redis الوحيدانِ في المستودعِ.
+ *   — والحالةُ الساخنةُ المشتركةُ لموقعِ السائقِ وقائمةُ انتظارِ إفراغِها (`F4-02`)
+ *   على الخادمِ نفسِه: حارسُ التسلسلِ في مخزنٍ ثانٍ لا يُقاسُ بمزدوجٍ إطلاقاً.
  * الحالة: اختبارٌ حقيقيٌّ — `OPS-006` (ADR 0049). يتطلّب
  *   `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` و`TEST_DATABASE_URL`.
  * ينتمي إلى: tests/real-redis
@@ -27,11 +28,20 @@ import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createRedisRateLimiter } from "../../apps/gateway/src/rate-limit/fixed-window.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import type { DialogState } from "../../packages/application/bots/types.ts";
+import type { SettingsRepository } from "../../packages/application/ports/index.ts";
+
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import {
+  createRedisDriverLocationHotState,
+  type RedisDriverLocationHotState,
+} from "../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
+import { createSettingsRepository } from "../../packages/infrastructure/policy/settings-repository.ts";
 import { createTrackingEventBus } from "../../packages/infrastructure/tracking/event-bus.ts";
 import { createRedisLiveBroadcastStore } from "../../packages/infrastructure/tracking/redis-live-broadcast-store.ts";
 import { createRedisStreamTrackingEventBus } from "../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
+import { ok } from "../../packages/shared/result/index.ts";
 import type { TrackingEvent } from "../../packages/tracking/types.ts";
 import { testConfig } from "../support/config.ts";
 import {
@@ -544,4 +554,296 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
     expect(await store.get(trip)).toBeNull();
     mark("scl-005-broadcast-shared-store");
   }, 15_000);
+
+  /**
+   * `F4-02` — الحالةُ الساخنةُ المشتركةُ لموقعِ السائقِ وقائمةُ انتظارِ الإفراغِ.
+   * وهذا هوَ مستهلِكُ Redis الثالثُ، وأخطرُ ما فيه لا يُقاسُ بمزدوجٍ إطلاقاً:
+   * **حارسُ التسلسلِ صارَ في مخزنٍ ثانٍ**، فإن لم يُثبَتْ أنَّ الخادمَ نفسَه يرفضُ
+   * الأقدمَ فقد صُدِّقَت نيّةٌ لا سلوكٌ. والسكربتُ الواحدُ الذرّيُّ لا معنى له على
+   * مزدوجٍ يُنفِّذُ خطوتَيهِ في العمليّةِ نفسِها بلا تزاحمٍ ممكنٍ.
+   */
+  describe("الحالةُ الساخنةُ لموقعِ السائقِ على Redis حقيقيٍّ — F4-02", () => {
+    const AT = { latitude: 21.5471, longitude: 39.1751 } as const;
+
+    /** حدودٌ مُمرَّرةٌ صريحةً: القياسُ على سلوكِ الخادمِ لا على قراءةِ إعدادٍ. */
+    const stubSettings = (limits: {
+      hot: number;
+      interval: number;
+      batch: number;
+      backlog: number;
+    }): SettingsRepository => ({
+      findByCity: async (city) =>
+        ok([
+          {
+            cityId: city,
+            key: "driver_location_hot_ttl_seconds",
+            value: limits.hot,
+            valueType: "number",
+          },
+          {
+            cityId: city,
+            key: "driver_location_flush_interval_seconds",
+            value: limits.interval,
+            valueType: "number",
+          },
+          {
+            cityId: city,
+            key: "driver_location_flush_batch_size",
+            value: limits.batch,
+            valueType: "number",
+          },
+          {
+            cityId: city,
+            key: "driver_location_backlog_limit",
+            value: limits.backlog,
+            valueType: "number",
+          },
+        ]),
+    });
+
+    const hotStateWith = (limits: {
+      hot: number;
+      interval: number;
+      batch: number;
+      backlog: number;
+    }): RedisDriverLocationHotState =>
+      createRedisDriverLocationHotState({
+        redis: redis.client,
+        settings: stubSettings(limits),
+        clock: { now: () => new Date() },
+        prefix: redis.prefix,
+      });
+
+    const fix = (
+      city: CityId,
+      driver: DriverId,
+      recordedAtMs: number,
+      overrides: { latitude?: number; previousRecordedAtMs?: number | null } = {},
+    ) => ({
+      cityId: city,
+      driverId: driver,
+      latitude: overrides.latitude ?? AT.latitude,
+      longitude: AT.longitude,
+      recordedAtMs,
+      accuracyMeters: 12,
+      verdict: "ACCEPT" as const,
+      previousRecordedAtMs: overrides.previousRecordedAtMs ?? null,
+    });
+
+    /** مدينةٌ وسائقٌ جديدانِ لكلِّ حالةٍ: حالتانِ تتشاركانِ مفتاحاً تُخفِقُ إحداهما لسببِ بيئةٍ. */
+    const freshCity = (): CityId => crypto.randomUUID() as CityId;
+    const freshDriver = (): DriverId => crypto.randomUUID() as DriverId;
+
+    const zcard = async (city: CityId): Promise<number> => {
+      const result = await redis.client.command(["ZCARD", `${redis.prefix}:backlog:${city}`]);
+      return Number(result.ok ? result.value : -1);
+    };
+    const hlen = async (city: CityId): Promise<number> => {
+      const result = await redis.client.command(["HLEN", `${redis.prefix}:pending:${city}`]);
+      return Number(result.ok ? result.value : -1);
+    };
+
+    it("الأقدمُ يُرفَضُ في الخادمِ نفسِه، والأحدثُ يبقى محفوظاً فيه", async () => {
+      const hot = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 5_000 });
+      const city = freshCity();
+      const driver = freshDriver();
+      const newestMs = Date.now();
+
+      const first = await hot.record(fix(city, driver, newestMs));
+      expect(first.ok && first.value.kind).toBe("queued");
+
+      // إصلاحةٌ **أقدمُ** بعدَها: يرفضُها السكربتُ في الخادمِ لا في العمليّةِ.
+      const older = await hot.record(fix(city, driver, newestMs - 30_000, { latitude: 21.4 }));
+      expect(older.ok).toBe(true);
+      if (!older.ok) return;
+      expect(older.value.kind).toBe("stale");
+      expect(older.value.kind === "stale" && older.value.newestKnownMs).toBe(newestMs);
+
+      // والمخزَّنُ في الخادمِ لم يتراجعْ: هذا هوَ `BUG-001` مقيساً في مخزنٍ ثانٍ.
+      const stored = await redis.client.command([
+        "HMGET",
+        `${redis.prefix}:hot:${city}:${driver}`,
+        "at",
+        "lat",
+      ]);
+      expect(stored.ok).toBe(true);
+      const pair = stored.ok && Array.isArray(stored.value) ? stored.value.map(String) : [];
+      expect(pair[0]).toBe(String(newestMs));
+      expect(pair[1]).toBe(String(AT.latitude));
+
+      // والمتساويُ مقبولٌ: تضييقُ المُسنَدِ كانَ سيُجمِّدُ الخريطةَ عندَ نبضتَينِ في ملّيٍ واحدٍ.
+      const equal = await hot.record(fix(city, driver, newestMs, { latitude: 21.6 }));
+      expect(equal.ok && equal.value.kind).not.toBe("stale");
+      mark("f4-02-hot-guard-rejects-older");
+    });
+
+    it("عمرُ الحالةِ الساخنةِ مضبوطٌ في الخادمِ بقيمةِ الإعدادِ لا في ذاكرةِ العمليّةِ", async () => {
+      const hot = hotStateWith({ hot: 90, interval: 10, batch: 200, backlog: 5_000 });
+      const city = freshCity();
+      const driver = freshDriver();
+
+      await hot.record(fix(city, driver, Date.now()));
+
+      const ttl = await redis.client.command(["TTL", `${redis.prefix}:hot:${city}:${driver}`]);
+      expect(ttl.ok).toBe(true);
+      const seconds = Number(ttl.ok ? ttl.value : -1);
+      // مفتاحٌ بلا عمرٍ يبقى إلى الأبدِ فيحكمُ بموضعٍ مهجورٍ؛ والقيمةُ من الخادمِ.
+      expect(seconds).toBeGreaterThan(0);
+      expect(seconds).toBeLessThanOrEqual(90);
+      mark("f4-02-hot-ttl-from-settings");
+    });
+
+    it("خمسُ نبضاتٍ لسائقٍ تُبقي عضواً واحداً في قائمةِ الانتظارِ — وهذا هوَ التجميعُ", async () => {
+      const hot = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 5_000 });
+      const city = freshCity();
+      const driver = freshDriver();
+      const base = Date.now();
+
+      for (let index = 0; index < 5; index += 1) {
+        const outcome = await hot.record(fix(city, driver, base + index * 1_000));
+        expect(outcome.ok && outcome.value.kind).toBe("queued");
+      }
+
+      // عضوٌ واحدٌ لا خمسةٌ: صفٌّ لكلِّ نبضةٍ كانَ سيُبقي الحِمْلَ الذي وُجِدَ البندُ لرفعِه.
+      expect(await zcard(city)).toBe(1);
+      expect(await hlen(city)).toBe(1);
+
+      const score = await redis.client.command([
+        "ZSCORE",
+        `${redis.prefix}:backlog:${city}`,
+        driver,
+      ]);
+      expect(Number(score.ok ? score.value : -1)).toBe(base + 4_000);
+      mark("f4-02-backlog-one-member-per-driver");
+    });
+
+    it("السحبُ يُعيدُ أحدثَ إصلاحةٍ ويُفرِغُ المفتاحَينِ معاً، والسحبُ الثاني فارغٌ", async () => {
+      const hot = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 5_000 });
+      const city = freshCity();
+      const driver = freshDriver();
+      const base = Date.now();
+
+      await hot.record(fix(city, driver, base, { latitude: 21.1 }));
+      await hot.record(fix(city, driver, base + 2_000, { latitude: 21.9 }));
+
+      const drained = await hot.drain(city, 50);
+      expect(drained.ok).toBe(true);
+      if (!drained.ok) return;
+      expect(drained.value).toHaveLength(1);
+      expect(drained.value[0]?.recordedAtMs).toBe(base + 2_000);
+      expect(drained.value[0]?.latitude).toBe(21.9);
+      expect(drained.value[0]?.driverId).toBe(driver);
+
+      // السحبُ يُزيلُ العضوَ **وحِمْلَه**: بقاءُ الحِمْلِ كانَ سيُنمِّي مفتاحاً بلا سحبٍ.
+      expect(await zcard(city)).toBe(0);
+      expect(await hlen(city)).toBe(0);
+
+      const again = await hot.drain(city, 50);
+      expect(again.ok && again.value).toHaveLength(0);
+
+      // والحالةُ الساخنةُ تبقى بعدَ السحبِ: مرجعُ الحارسِ لا يُمحى بالإفراغِ.
+      const exists = await redis.client.command([
+        "EXISTS",
+        `${redis.prefix}:hot:${city}:${driver}`,
+      ]);
+      expect(Number(exists.ok ? exists.value : -1)).toBe(1);
+      mark("f4-02-drain-returns-newest-and-empties");
+    });
+
+    it("نسختانِ مستقلّتانِ ترَيانِ حالةً واحدةً — ومعنى «مشتركةٌ» هذا لا غيرُه", async () => {
+      const city = freshCity();
+      const driver = freshDriver();
+      const base = Date.now();
+      // محوّلانِ بلا حالةٍ مشتركةٍ في العمليّةِ: قائمانِ مقامَ نسختَي بوابةٍ.
+      const instanceA = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 5_000 });
+      const instanceB = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 5_000 });
+
+      const accepted = await instanceA.record(fix(city, driver, base + 10_000));
+      expect(accepted.ok && accepted.value.kind).toBe("queued");
+
+      const rejected = await instanceB.record(fix(city, driver, base));
+      expect(rejected.ok && rejected.value.kind).toBe("stale");
+
+      // وسحبُ النسخةِ الثانيةِ يرى ما كتبَته الأولى: قائمةُ انتظارٍ واحدةٌ للمدينةِ.
+      const drained = await instanceB.drain(city, 50);
+      expect(drained.ok && drained.value).toHaveLength(1);
+      expect(drained.ok && drained.value[0]?.recordedAtMs).toBe(base + 10_000);
+      mark("f4-02-two-clients-share-hot-state");
+    });
+
+    it("بلوغُ سقفِ التراكمِ يُرجِعُ «مباشرةً» ولا يُنمّي القائمةَ بلا حدٍّ", async () => {
+      // سقفٌ واحدٌ: سائقٌ ثانٍ جديدٌ لا يُضافُ، فيُكتَبُ موضعُه مباشرةً ولا يُفقَدُ.
+      const hot = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 1 });
+      const city = freshCity();
+      const first = freshDriver();
+      const second = freshDriver();
+      const base = Date.now();
+
+      expect((await hot.record(fix(city, first, base))).ok).toBe(true);
+      const overflow = await hot.record(fix(city, second, base));
+      expect(overflow.ok).toBe(true);
+      if (!overflow.ok) return;
+      expect(overflow.value.kind).toBe("direct");
+
+      expect(await zcard(city)).toBe(1);
+      expect(await hlen(city)).toBe(1);
+
+      // والسائقُ القائمُ في القائمةِ يبقى مُجمَّعاً: السقفُ على الأعضاءِ لا على النبضاتِ.
+      const heartbeat = await hot.record(fix(city, first, base + 1_000));
+      expect(heartbeat.ok && heartbeat.value.kind).toBe("queued");
+      expect(await zcard(city)).toBe(1);
+      mark("f4-02-backlog-ceiling-forces-direct");
+    });
+
+    it("إعادةُ إصلاحةٍ أقدمَ بعدَ فشلِ استمرارٍ لا تُرجِعُ العضوَ إلى الوراءِ", async () => {
+      const hot = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 5_000 });
+      const city = freshCity();
+      const driver = freshDriver();
+      const base = Date.now();
+
+      await hot.record(fix(city, driver, base));
+      const drained = await hot.drain(city, 50);
+      expect(drained.ok && drained.value).toHaveLength(1);
+
+      // في الأثناءِ وصلَت نبضةٌ أحدثُ، ثمَّ أُعيدَ ما سُحِبَ لأنَّ الاستمرارَ فشلَ.
+      await hot.record(fix(city, driver, base + 5_000, { latitude: 21.8 }));
+      const requeued = await hot.requeue(drained.ok ? drained.value : []);
+      expect(requeued.ok).toBe(true);
+
+      const score = await redis.client.command([
+        "ZSCORE",
+        `${redis.prefix}:backlog:${city}`,
+        driver,
+      ]);
+      // لو كتبَت الإعادةُ بلا شرطٍ لعادَ الموضعُ إلى الوراءِ في قائمةِ الانتظارِ نفسِها.
+      expect(Number(score.ok ? score.value : -1)).toBe(base + 5_000);
+
+      const after = await hot.drain(city, 50);
+      expect(after.ok && after.value[0]?.recordedAtMs).toBe(base + 5_000);
+      expect(after.ok && after.value[0]?.latitude).toBe(21.8);
+      mark("f4-02-requeue-never-moves-backwards");
+    });
+
+    it("الأرقامُ الأربعةُ تُقرَأُ من `platform_settings` في القاعدةِ الحقيقيّةِ", async () => {
+      /**
+       * وهذا يقيسُ الهجرةَ لا الشيفرةَ: مفتاحٌ لم يُبذَرْ يُقرأُ خرقاً فيُعطَّلُ المسارُ
+       * الساخنُ كلُّه بصمتٍ في كلِّ مدينةٍ — فالبذرُ نفسُه جزءٌ من البندِ لا تفصيلٌ.
+       */
+      const hot = createRedisDriverLocationHotState({
+        redis: redis.client,
+        settings: createSettingsRepository(sql),
+        clock: { now: () => new Date() },
+        prefix: redis.prefix,
+      });
+
+      const limits = await hot.limits(cityId as CityId);
+      expect(limits.ok).toBe(true);
+      if (!limits.ok) return;
+      expect(limits.value.hotTtlSeconds).toBeGreaterThan(0);
+      expect(limits.value.flushIntervalSeconds).toBeGreaterThan(0);
+      expect(limits.value.flushBatchSize).toBeGreaterThan(0);
+      expect(limits.value.backlogLimit).toBeGreaterThan(0);
+      mark("f4-02-limits-read-from-real-settings");
+    });
+  });
 });

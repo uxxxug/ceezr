@@ -27,6 +27,7 @@ import {
   type UnmatchedRiderMessenger,
 } from "../../../packages/application/dispatch/deliver-unmatched-notification.ts";
 import { createDisputeResolutionHandler } from "../../../packages/application/dispute/deliver-dispute-resolution.ts";
+import { flushDriverLocationBacklog } from "../../../packages/application/geo/flush-driver-location-backlog.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
@@ -55,6 +56,8 @@ import { createUnmatchedOrderFinder } from "../../../packages/infrastructure/dis
 import { createPaymentRepository } from "../../../packages/infrastructure/financial/payment-adapters.ts";
 import { createPaymentProvider } from "../../../packages/infrastructure/financial/payment-provider-factory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
+import { createDriverLocationBatchPersistence } from "../../../packages/infrastructure/geo/driver-location-batch-persistence.ts";
+import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 import { createNotificationOutboxPort } from "../../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
 import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
@@ -82,6 +85,7 @@ import {
 import { createSafetyCardPublisher } from "../../../packages/infrastructure/notification/telegram-safety-notifier.ts";
 import { createTicketOwnerNotifier } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import { createTelegramUnmatchedMessenger } from "../../../packages/infrastructure/notification/telegram-unmatched-notifier.ts";
+import { withTrafficPriority } from "../../../packages/infrastructure/notification/traffic-priority-sender.ts";
 import {
   instrumentExpireOffersRpc,
   instrumentOfferWriter,
@@ -99,6 +103,7 @@ import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastr
 import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
+import type { NotificationKind } from "../../../packages/shared/config/notification-kinds.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
@@ -471,6 +476,26 @@ export function buildWorkerContainer(
     log: (message, meta) => log.info(message, meta),
   });
 
+  /**
+   * `F4-02` — طرفا الإفراغِ المجمَّعِ: المخزنُ الساخنُ (يُسحَبُ منه) والدالّةُ
+   * الذرّيّةُ (يُكتَبُ بها). ويُشارِكانِ عميلَ Redis نفسَه الذي يشاركُه دلوُ الحدِّ:
+   * عميلٌ ثانٍ لا يزيدُ شيئاً — الحدُّ حدُّ الخدمةِ لا حدُّ الكائنِ.
+   *
+   * وبلا Redis لا مهمّةَ إفراغٍ أصلاً: البوّابةُ في هذه الحالِ تكتبُ كلَّ نبضةٍ
+   * مباشرةً (`F4-01`)، فقائمةُ الانتظارِ لا تُملأُ ومهمّةٌ تسحبُ من فراغٍ ضجيجُ
+   * سجلٍّ لا عملٌ.
+   */
+  const driverLocationHotState =
+    outboundRedis === null
+      ? null
+      : createRedisDriverLocationHotState({
+          redis: outboundRedis,
+          settings,
+          clock: systemClock,
+          onFailure: (detail) => log.error("driver_location.hot_state_failed", detail),
+        });
+  const driverLocationPersistence = createDriverLocationBatchPersistence(sql);
+
   const warningSender = overrides.warningSender ?? grammyWarningSender(config.driverBotToken);
 
   /**
@@ -500,44 +525,69 @@ export function buildWorkerContainer(
   const safetyDeliveries = createSafetyDeliveryPort(sql);
   const offerPublisher =
     overrides.offerPublisher ??
-    createOfferPublisher(sql, overrides.identifyingDriver ?? asIdentifyingSender(telegram));
+    createOfferPublisher(
+      sql,
+      overrides.identifyingDriver ?? asIdentifyingSender(withTrafficPriority(telegram, "offer")),
+    );
   /**
    * صندوقُ الصادرِ الموحَّدُ (BUG-004): منفذٌ واحدٌ للجدولِ، ومعالجٌ لكلِّ نوعٍ.
    * وتبليغُ صاحبِ التذكرةِ بمُرسِلِ بوتِه هو — بوتُ السائقِ لسائقٍ وبوتُ الراكبِ
    * لراكبٍ — لأنَّ رسالةً خاصّةً من بوتٍ لم يبدأ معه محادثةً لا تصلُ أصلاً.
    */
   const notificationOutbox = createNotificationOutboxPort(sql);
-  const negotiationMessenger =
+  /**
+   * مُراسِلٌ **لكلِّ نوعٍ** لا مُراسِلٌ واحدٌ لثلاثةِ أنواعٍ (`F6-07`): الوسمُ يجري
+   * عندَ بناءِ المُرسِلِ، فمُراسِلٌ واحدٌ مشتركٌ كانَ سيَسِمُ الأنواعَ الثلاثةَ بوسمِ
+   * أحدِها. وأنواعُ التفاوضِ الثلاثةُ حرجةٌ اليومَ فالنتيجةُ واحدةٌ، ولكنَّ اعتمادَ
+   * التساوي كانَ سيصيرُ خطأً صامتاً أوّلَ ما تُغيَّرُ رتبةُ أحدِها في السجلِّ.
+   */
+  const negotiationMessengerFor = (kind: NotificationKind) =>
     overrides.negotiationMessenger ??
     createTelegramNegotiationMessenger(
-      asIdentifyingSender(telegram),
-      asIdentifyingSender(riderTelegram),
+      asIdentifyingSender(withTrafficPriority(telegram, kind)),
+      asIdentifyingSender(withTrafficPriority(riderTelegram, kind)),
     );
   /**
    * إخطارا صاحبِ الطلبِ العالقِ ببوتِ الراكبِ حصرًا (BUG-004): كانا يُرسَلانِ من
    * مسارِ المسحِ بعدَ عودةِ الدالّةِ الذرّيةِ، فصارا صفَّينِ يُودَعانِ في معاملتِها.
    */
-  const unmatchedMessenger =
+  /**
+   * وههنا الفارقُ **ليسَ نظريّاً**: `wider_circle_opened` مرتفعٌ و`no_driver_found`
+   * متوسّطٌ قابلٌ للتأجيلِ، فمُراسِلٌ واحدٌ مشتركٌ كانَ سيُعطي أحدَهما رتبةَ الآخرِ.
+   */
+  const unmatchedMessengerFor = (kind: NotificationKind) =>
     overrides.unmatchedMessenger ??
-    createTelegramUnmatchedMessenger(asIdentifyingSender(riderTelegram));
+    createTelegramUnmatchedMessenger(asIdentifyingSender(withTrafficPriority(riderTelegram, kind)));
   /**
    * إخطارُ الإلغاءِ ببوتِ السائقِ حصرًا (BUG-004): كان يُرسَلُ من مسارِ ضغطةِ العميلِ
    * بعدَ عودةِ الدالّةِ الذرّيةِ، فصارَ صفًّا لكلِّ سائقٍ يُودَعُ في معاملتِها.
    */
   const cancellationMessenger =
     overrides.cancellationMessenger ??
-    createTelegramCancellationMessenger(asIdentifyingSender(telegram));
+    createTelegramCancellationMessenger(
+      asIdentifyingSender(withTrafficPriority(telegram, "order_cancelled")),
+    );
   const notificationHandlers = {
     offer: createOfferNotificationHandler(offerPublisher),
     dispute_resolution: createDisputeResolutionHandler({
-      driver: createTicketOwnerNotifier(asSupportSender(telegram)),
-      rider: createTicketOwnerNotifier(asSupportSender(riderTelegram)),
+      driver: createTicketOwnerNotifier(
+        asSupportSender(withTrafficPriority(telegram, "dispute_resolution")),
+      ),
+      rider: createTicketOwnerNotifier(
+        asSupportSender(withTrafficPriority(riderTelegram, "dispute_resolution")),
+      ),
     }),
-    negotiation_turn_opened: createTurnOpenedHandler(negotiationMessenger),
-    negotiation_turn_closed: createTurnClosedHandler(negotiationMessenger),
-    negotiation_agreed: createAgreedHandler(negotiationMessenger),
-    wider_circle_opened: createWiderCircleOpenedHandler(unmatchedMessenger),
-    no_driver_found: createNoDriverFoundHandler(unmatchedMessenger),
+    negotiation_turn_opened: createTurnOpenedHandler(
+      negotiationMessengerFor("negotiation_turn_opened"),
+    ),
+    negotiation_turn_closed: createTurnClosedHandler(
+      negotiationMessengerFor("negotiation_turn_closed"),
+    ),
+    negotiation_agreed: createAgreedHandler(negotiationMessengerFor("negotiation_agreed")),
+    wider_circle_opened: createWiderCircleOpenedHandler(
+      unmatchedMessengerFor("wider_circle_opened"),
+    ),
+    no_driver_found: createNoDriverFoundHandler(unmatchedMessengerFor("no_driver_found")),
     order_cancelled: createOrderCancelledHandler(cancellationMessenger),
   };
 
@@ -1006,9 +1056,59 @@ export function buildWorkerContainer(
         });
       }
 
+      /**
+       * `F4-02` — إفراغُ قائمةِ انتظارِ المواقعِ. تُبنى **بعدَ** قراءةِ الأرقامِ من
+       * `platform_settings` لأنَّ `everySeconds` تُثبَّتُ لحظةَ التسجيلِ لا لحظةَ
+       * الشوطِ: قراءةُ الدورةِ داخلَ `run` كانت ستُغيِّرُ ما يُقاسُ لا ما يُنفَّذُ.
+       *
+       * ومدينةٌ ناقصةُ الإعدادِ **لا تُسجَّلُ لها مهمّةٌ** ويُسجَّلُ الخرقُ: لا رقمَ
+       * احتياطيَّ في الشيفرةِ (القاعدةُ ٠.٤)، والنظامُ يتدهوّرُ إلى كتابةٍ مباشرةٍ
+       * لكلِّ نبضةٍ — أبطأُ ولا يفقدُ موضعاً. واختراعُ دورةٍ ههنا كانَ سيجعلَ رقماً
+       * في الشيفرةِ يحكمُ حِمْلَ القاعدةِ بلا أن يراهُ مالكٌ في لوحةٍ.
+       *
+       * وليست في `CRITICAL_CITY_JOBS`: تأخّرُها يُبقي صفَّ السائقِ متأخّراً ثوانيَ
+       * والخريطةُ الحيّةُ تقرأُ من البثِّ لا من الصفِّ، فلا تتوقّفُ دورةُ الرحلةِ
+       * ولا دورةُ الرزقِ. وإدراجُها حرجةً كانَ سيُرجِعُ `503` من `/ready` على تأخّرٍ
+       * أثرُه دقّةُ موضعٍ لا انقطاعُ خدمةٍ.
+       */
+      const hotState = driverLocationHotState;
+      const flushJobs: JobDefinition[] =
+        hotState === null
+          ? []
+          : (
+              await Promise.all(
+                cityIds.map(async (cityId): Promise<JobDefinition | null> => {
+                  const limits = await hotState.limits(cityId);
+                  if (!limits.ok) {
+                    log.error("driver_location.flush_not_registered", {
+                      cityId,
+                      detail: limits.error.detail,
+                    });
+                    return null;
+                  }
+                  const everySeconds = limits.value.flushIntervalSeconds;
+                  return {
+                    name: `flush-driver-locations:${cityId}`,
+                    everySeconds,
+                    cityId,
+                    run: async () => {
+                      const report = await flushDriverLocationBacklog(cityId, {
+                        backlog: hotState,
+                        persistence: driverLocationPersistence,
+                        limits: limits.value,
+                      });
+                      if (!report.ok) throw new Error(JSON.stringify(report.error));
+                      const value = report.value;
+                      return `drained=${value.drained} batched=${value.batched} applied=${value.applied} stale=${value.stale} missing=${value.missing}`;
+                    },
+                  };
+                }),
+              )
+            ).filter((job): job is JobDefinition => job !== null);
+
       // المهامّ العامّة تبقى بلا `cityId` عن قصد: لا مدينةَ لها أصلاً، وإسنادُها إلى
       // مدينةٍ اعتباطية كان سيجعل نبضةً عامّة تبدو مدنيّة في `job_heartbeats`.
-      return [...perCity, ...global];
+      return [...perCity, ...flushJobs, ...global];
     },
 
     close: async () => {
