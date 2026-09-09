@@ -1,4 +1,5 @@
 -- =============================================================================
+-- migration-phase: expand
 -- F6-06 / ADR-0066: ضغطٌ عكسيٌّ لكلِّ طابورٍ صامدٍ — سعةٌ، وعمرُ أقدمِ حدثٍ،
 --   وحدُّ إعادةِ محاولةٍ، وحدُّ طابورِ موتى، وحدُّ منتِجٍ، وتزامنُ مستهلكٍ.
 -- الحالة: منفّذ (توسيعٌ لا كسرٌ — `expand` بحتٌ).
@@ -144,9 +145,6 @@ create table if not exists queue_backpressure_events (
   last_seen_at timestamptz not null default now(),
   unique (city_id, queue, reason, minute_bucket)
 );
-
-create index if not exists queue_backpressure_events_recent_idx
-  on queue_backpressure_events (city_id, queue, minute_bucket desc);
 
 alter table queue_backpressure_events enable row level security;
 
