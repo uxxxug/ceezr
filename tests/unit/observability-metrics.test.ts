@@ -49,6 +49,22 @@ describe("مقاييس التشغيل بصيغة Prometheus", () => {
       availableDrivers: 7,
       expiredSubscriptionsToday: 2,
       lastSuccessfulBackupTimestampSeconds: 1234,
+      queues: [
+        {
+          queue: "notification_outbox",
+          depth: 12,
+          oldestDueAgeSeconds: 45,
+          deadInWindow: 3,
+          claimed: 2,
+        },
+        {
+          queue: "telegram_update_jobs",
+          depth: 0,
+          oldestDueAgeSeconds: 0,
+          deadInWindow: 0,
+          claimed: 0,
+        },
+      ],
     });
 
     const text = metrics.registry.render();
