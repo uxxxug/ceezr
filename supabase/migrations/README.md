@@ -9,6 +9,40 @@
 ولا تُطبَّق تلقائياً في البناء عن قصد: الهجرة قرارٌ لا أثرٌ جانبي للنشر. راجع
 `docs/render-deployment-vars.md` §4 لأمر التطبيق الجاهز.
 
+## طريق التطبيق الوحيد — `scripts/migrate.ts` (F7-07 · ADR-0068)
+
+```bash
+export DATABASE_URL='postgresql://…'   # اتصال مباشر لا pooler
+bun run scripts/migrate.ts             # ‏--dry-run لطباعة الخطة بلا اتصال
+```
+
+ولا يُطبَّق شيءٌ بحلقة `psql` عارية بعد اليوم: المُطبِّق يحكم على كل ملفٍّ بقواعد
+السلامة الست قبل أن يتصل، ويضبط `lock_timeout`، ويملك المعاملة (ملفٌّ يسقط لا
+يُخلِّف نصفَ مخطَّط)، وهو **نفسه** ما تُشغِّله CI في وظيفتي التكامل.
+
+### القواعد الست لكل هجرة تُكتَب بعد اليوم — يفرضها `scripts/check-migration-safety.ts`
+
+يبدأ كل ملفٍّ جديد بتصريح طوره:
+
+```sql
+-- migration-phase: expand
+```
+
+والأطوار المعروفة: `expand` · `backfill` · `validate` · `switch` · `contract` · `index`.
+
+| # | القاعدة | البديل المُعتمَد |
+| - | ------- | ---------------- |
+| ١ | `create index` تكون `concurrently`، ووحدها في ملفها، وفي طور `index` | ملفٌّ مستقلٌّ لكل فهرس |
+| ٢ | `add constraint … check\|foreign key` تكون `not valid` | `validate constraint` في هجرة طور `validate` |
+| ٣ | `alter column … set not null` ممنوعة منعاً مطلقاً | `check (v is not null) not valid` ثم تصديق |
+| ٤ | `drop`/`rename` في طور `contract` وحده | توسيعٌ ثم تحويلٌ ثم تقليصٌ في هجرات منفصلة |
+| ٥ | كل عبارة مُسترجَعة | `if not exists` · `if exists` · `on conflict` · `where not exists` |
+| ٦ | لا `begin`/`commit` في الملف | المعاملة يملكها المُطبِّق |
+
+**والهجرات الـ٧٨ السابقة دَينٌ مُعلَنٌ مُجمَّدٌ** في `scripts/lib/migration-baseline.ts`:
+لا يُعاد كتابة حرفٍ منها (ضررها وقع عند تطبيقها الأول ولا يتكرّر)، والعدد **مقفل
+عند ٧٨** فلا يُضاف إليه ملفٌّ جديد — والحاجز يرفض ذلك صراحة.
+
 ## الهجرات الحالية
 
 | # | الملف | ما تفعله |

@@ -116,6 +116,9 @@ jobs:
         run: |
           bun run scripts/check-migrations.ts
 
+      - name: سلامةُ الهجرات — الأطوارُ والفهارسُ والقيودُ والاسترجاعُ (F7-07)
+        run: bun run scripts/check-migration-safety.ts
+
       - name: تطابق قواميس اللغات
         run: bun run scripts/check-i18n.ts
 
@@ -248,14 +251,14 @@ jobs:
           end $$;
           SQL
 
-      - name: تطبيق الهجرات بالترتيب
+      # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
+      # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
+      # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
+      # ملفٍّ قبل الاتّصال، ويضبط `lock_timeout`، ويملك المعاملةَ.
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
         env:
-          PGPASSWORD: postgres
-        run: |
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "▶ $file"
-            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
-          done
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/migrate.ts
 
       # `pg_dump` يرفض خادماً أحدثَ منه إصداراً رئيسياً، واختبارُ تحقّقِ الاستعادة
       # يستدعيه فعلاً على خدمةِ PostgreSQL 17 — أمّا صورةُ العامل فتحمل أدواتَ
@@ -455,14 +458,14 @@ jobs:
           end $$;
           SQL
 
-      - name: تطبيق الهجرات بالترتيب
+      # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
+      # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
+      # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
+      # ملفٍّ قبل الاتّصال، ويضبط `lock_timeout`، ويملك المعاملةَ.
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
         env:
-          PGPASSWORD: postgres
-        run: |
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "▶ $file"
-            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
-          done
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/migrate.ts
 
       # `REQUIRE_REAL_REDIS=1` يجعل غيابَ السرِّ **إخفاقاً** لا تخطّياً: وظيفةٌ وُجدت
       # لتُشغِّل على Redis حقيقيٍّ لا تُقرَأ خضراءَ وهي لم تُخاطِبه. والقيمتانِ تُقرآن
