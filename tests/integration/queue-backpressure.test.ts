@@ -77,11 +77,15 @@ async function setLimit(key: string, value: number): Promise<void> {
 
 /** يُدرِجُ صفوفاً معلَّقةً في الصادرِ مباشرةً — الحِمْلُ هو موضوعُ القياسِ. */
 async function seedPending(count: number, dueSecondsAgo = 1): Promise<void> {
-  // `no_driver_found` صنفٌ حرجٌ غيرُ قابلٍ للتأجيلِ — فهو حِمْلٌ لا يُؤجِّلُه
-  // المطلِّبُ، وهذا ما نريدُ: حِمْلٌ خالصٌ يُقاسُ عليه الحكمُ.
+  // **تصحيحٌ مُضافٌ — `F6-07` (2026-09-09):** كانَ ههنا `no_driver_found` وكانَ
+  // مُوصَفاً «صنفاً حرجاً غيرَ قابلٍ للتأجيلِ»، وقد صارَ بسجلِّ الأولويّاتِ
+  // (القسمُ ١٥) **متوسّطاً قابلاً للتأجيلِ** — خبرُ نتيجةٍ لا فعلٌ يُنتظَرُ. فبُدِّلَ
+  // إلى `negotiation_turn_opened` (حرجٌ: دورُ مطالبةٍ له مؤقّتٌ يجري)، إذ المرادُ
+  // ههنا حِمْلٌ **لا يمسُّه** مطلِّبُ التأجيلِ كي يُقاسَ الحكمُ على حِمْلٍ خالصٍ.
+  // ولو بقيَ النوعُ الأوّلُ لأُجِّلَ الحِمْلُ نفسُه فقاسَ الاختبارُ غيرَ ما يدَّعي.
   await sql`
     insert into notification_outbox (city_id, kind, status, payload, next_attempt_at, dedup_key)
-    select ${cityId}::uuid, 'no_driver_found', 'pending', '{}'::jsonb,
+    select ${cityId}::uuid, 'negotiation_turn_opened', 'pending', '{}'::jsonb,
            now() - make_interval(secs => ${dueSecondsAgo}::numeric),
            'bp-load:' || gen_random_uuid()::text
       from generate_series(1, ${count}::int)
@@ -256,7 +260,7 @@ describeIf("الضغطُ العكسيُّ لكلِّ طابورٍ على Postgre
     await sql`
       insert into notification_outbox
         (city_id, kind, status, payload, dead_reason, died_at, dedup_key)
-      select ${cityId}::uuid, 'no_driver_found', 'dead', '{}'::jsonb,
+      select ${cityId}::uuid, 'negotiation_turn_opened', 'dead', '{}'::jsonb,
              'MAX_ATTEMPTS', now() - interval '1 minute',
              'bp-dead:' || gen_random_uuid()::text
         from generate_series(1, 3)
@@ -274,7 +278,7 @@ describeIf("الضغطُ العكسيُّ لكلِّ طابورٍ على Postgre
     await sql`
       insert into notification_outbox
         (city_id, kind, status, payload, dead_reason, died_at, dedup_key)
-      select ${cityId}::uuid, 'no_driver_found', 'dead', '{}'::jsonb,
+      select ${cityId}::uuid, 'negotiation_turn_opened', 'dead', '{}'::jsonb,
              'MAX_ATTEMPTS',
              now() - make_interval(secs => ${QUEUE_DEAD_WINDOW_SECONDS + 600}::numeric),
              'bp-old-dead:' || gen_random_uuid()::text
@@ -293,19 +297,19 @@ describeIf("الضغطُ العكسيُّ لكلِّ طابورٍ على Postgre
 
     const before = await sql<{ n: number }[]>`
       select count(*)::int as n from notification_outbox
-       where city_id = ${cityId}::uuid and kind = 'no_driver_found' and status = 'pending'
+       where city_id = ${cityId}::uuid and kind = 'negotiation_turn_opened' and status = 'pending'
     `;
     await sql`
       insert into notification_outbox
         (city_id, kind, status, payload, next_attempt_at, dedup_key)
-      values (${cityId}::uuid, 'no_driver_found', 'pending', '{}'::jsonb, now(),
+      values (${cityId}::uuid, 'negotiation_turn_opened', 'pending', '{}'::jsonb, now(),
               'bp-critical:' || gen_random_uuid()::text)
     `;
     const after = await sql<{ n: number; deferred: number }[]>`
       select count(*)::int as n,
              count(*) filter (where next_attempt_at > now() + interval '5 seconds')::int as deferred
         from notification_outbox
-       where city_id = ${cityId}::uuid and kind = 'no_driver_found' and status = 'pending'
+       where city_id = ${cityId}::uuid and kind = 'negotiation_turn_opened' and status = 'pending'
     `;
     expect(after[0]?.n).toBe((before[0]?.n ?? 0) + 1);
     // ولم يُؤجَّلْ صفٌّ حرجٌ واحدٌ: المطلِّبُ لا يمسُّ ما لا يقبلُ التأجيلَ.

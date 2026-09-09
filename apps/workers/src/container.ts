@@ -85,6 +85,7 @@ import {
 import { createSafetyCardPublisher } from "../../../packages/infrastructure/notification/telegram-safety-notifier.ts";
 import { createTicketOwnerNotifier } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import { createTelegramUnmatchedMessenger } from "../../../packages/infrastructure/notification/telegram-unmatched-notifier.ts";
+import { withTrafficPriority } from "../../../packages/infrastructure/notification/traffic-priority-sender.ts";
 import {
   instrumentExpireOffersRpc,
   instrumentOfferWriter,
@@ -102,6 +103,7 @@ import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastr
 import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
+import type { NotificationKind } from "../../../packages/shared/config/notification-kinds.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
@@ -523,44 +525,69 @@ export function buildWorkerContainer(
   const safetyDeliveries = createSafetyDeliveryPort(sql);
   const offerPublisher =
     overrides.offerPublisher ??
-    createOfferPublisher(sql, overrides.identifyingDriver ?? asIdentifyingSender(telegram));
+    createOfferPublisher(
+      sql,
+      overrides.identifyingDriver ?? asIdentifyingSender(withTrafficPriority(telegram, "offer")),
+    );
   /**
    * صندوقُ الصادرِ الموحَّدُ (BUG-004): منفذٌ واحدٌ للجدولِ، ومعالجٌ لكلِّ نوعٍ.
    * وتبليغُ صاحبِ التذكرةِ بمُرسِلِ بوتِه هو — بوتُ السائقِ لسائقٍ وبوتُ الراكبِ
    * لراكبٍ — لأنَّ رسالةً خاصّةً من بوتٍ لم يبدأ معه محادثةً لا تصلُ أصلاً.
    */
   const notificationOutbox = createNotificationOutboxPort(sql);
-  const negotiationMessenger =
+  /**
+   * مُراسِلٌ **لكلِّ نوعٍ** لا مُراسِلٌ واحدٌ لثلاثةِ أنواعٍ (`F6-07`): الوسمُ يجري
+   * عندَ بناءِ المُرسِلِ، فمُراسِلٌ واحدٌ مشتركٌ كانَ سيَسِمُ الأنواعَ الثلاثةَ بوسمِ
+   * أحدِها. وأنواعُ التفاوضِ الثلاثةُ حرجةٌ اليومَ فالنتيجةُ واحدةٌ، ولكنَّ اعتمادَ
+   * التساوي كانَ سيصيرُ خطأً صامتاً أوّلَ ما تُغيَّرُ رتبةُ أحدِها في السجلِّ.
+   */
+  const negotiationMessengerFor = (kind: NotificationKind) =>
     overrides.negotiationMessenger ??
     createTelegramNegotiationMessenger(
-      asIdentifyingSender(telegram),
-      asIdentifyingSender(riderTelegram),
+      asIdentifyingSender(withTrafficPriority(telegram, kind)),
+      asIdentifyingSender(withTrafficPriority(riderTelegram, kind)),
     );
   /**
    * إخطارا صاحبِ الطلبِ العالقِ ببوتِ الراكبِ حصرًا (BUG-004): كانا يُرسَلانِ من
    * مسارِ المسحِ بعدَ عودةِ الدالّةِ الذرّيةِ، فصارا صفَّينِ يُودَعانِ في معاملتِها.
    */
-  const unmatchedMessenger =
+  /**
+   * وههنا الفارقُ **ليسَ نظريّاً**: `wider_circle_opened` مرتفعٌ و`no_driver_found`
+   * متوسّطٌ قابلٌ للتأجيلِ، فمُراسِلٌ واحدٌ مشتركٌ كانَ سيُعطي أحدَهما رتبةَ الآخرِ.
+   */
+  const unmatchedMessengerFor = (kind: NotificationKind) =>
     overrides.unmatchedMessenger ??
-    createTelegramUnmatchedMessenger(asIdentifyingSender(riderTelegram));
+    createTelegramUnmatchedMessenger(asIdentifyingSender(withTrafficPriority(riderTelegram, kind)));
   /**
    * إخطارُ الإلغاءِ ببوتِ السائقِ حصرًا (BUG-004): كان يُرسَلُ من مسارِ ضغطةِ العميلِ
    * بعدَ عودةِ الدالّةِ الذرّيةِ، فصارَ صفًّا لكلِّ سائقٍ يُودَعُ في معاملتِها.
    */
   const cancellationMessenger =
     overrides.cancellationMessenger ??
-    createTelegramCancellationMessenger(asIdentifyingSender(telegram));
+    createTelegramCancellationMessenger(
+      asIdentifyingSender(withTrafficPriority(telegram, "order_cancelled")),
+    );
   const notificationHandlers = {
     offer: createOfferNotificationHandler(offerPublisher),
     dispute_resolution: createDisputeResolutionHandler({
-      driver: createTicketOwnerNotifier(asSupportSender(telegram)),
-      rider: createTicketOwnerNotifier(asSupportSender(riderTelegram)),
+      driver: createTicketOwnerNotifier(
+        asSupportSender(withTrafficPriority(telegram, "dispute_resolution")),
+      ),
+      rider: createTicketOwnerNotifier(
+        asSupportSender(withTrafficPriority(riderTelegram, "dispute_resolution")),
+      ),
     }),
-    negotiation_turn_opened: createTurnOpenedHandler(negotiationMessenger),
-    negotiation_turn_closed: createTurnClosedHandler(negotiationMessenger),
-    negotiation_agreed: createAgreedHandler(negotiationMessenger),
-    wider_circle_opened: createWiderCircleOpenedHandler(unmatchedMessenger),
-    no_driver_found: createNoDriverFoundHandler(unmatchedMessenger),
+    negotiation_turn_opened: createTurnOpenedHandler(
+      negotiationMessengerFor("negotiation_turn_opened"),
+    ),
+    negotiation_turn_closed: createTurnClosedHandler(
+      negotiationMessengerFor("negotiation_turn_closed"),
+    ),
+    negotiation_agreed: createAgreedHandler(negotiationMessengerFor("negotiation_agreed")),
+    wider_circle_opened: createWiderCircleOpenedHandler(
+      unmatchedMessengerFor("wider_circle_opened"),
+    ),
+    no_driver_found: createNoDriverFoundHandler(unmatchedMessengerFor("no_driver_found")),
     order_cancelled: createOrderCancelledHandler(cancellationMessenger),
   };
 

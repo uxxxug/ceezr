@@ -119,6 +119,11 @@ jobs:
       - name: سلامةُ الهجرات — الأطوارُ والفهارسُ والقيودُ والاسترجاعُ (F7-07)
         run: bun run scripts/check-migration-safety.ts
 
+      # المُطبِّقُ المُعتمَدُ طريقاً واحداً: حلقةُ `psql` العاريةُ رجعَت إلى main
+      # مرّةً بحلِّ تعارضٍ لا بكتابةِ كودٍ، فلذلكَ المنعُ آليٌّ لا وصيةٌ.
+      - name: منعُ تطبيقِ هجراتٍ خارجَ المُطبِّقِ الآمنِ (F7-07 · ADR 0068)
+        run: bun run scripts/check-migration-applier.ts
+
       - name: تغطية فهارس الاستعلامات الساخنة (F7-02)
         run: bun run scripts/check-hot-query-index-coverage.ts
 
@@ -195,6 +200,20 @@ jobs:
       - name: لا نوعَ إشعارٍ بلا قناةٍ مُعلَنةٍ، ولا بلاغَ مجموعةٍ يُكتَم (F6-05 · TG-002)
         run: bun run scripts/check-notification-classification.ts
 
+      # **تصحيحٌ مُضافٌ — `F6-07` (2026-09-09):** حاجزُ `F6-06` كانَ مكتوباً ولا
+      # يُشغَّلُ في أيّةِ وظيفةٍ — لا في `bun run ci` ولا ههنا — **فلم يكن حاجزاً**
+      # بل ملفًّ يُقرأُ. فُوصِلَ الاثنانِ: طوابيرُ الضغطِ العكسيِّ، ورتبُ
+      # المرورِ متطابقةً بينَ الكودِ والقاعدةِ ومقروءةً في المُطالِبِ وفهرسِه.
+      - name: حدودُ الطوابيرِ وأصنافُ التأجيلِ مُعلَنةٌ ومُنفَّذةٌ (F6-06 · ADR 0066)
+        run: bun run scripts/check-queue-backpressure.ts
+
+      # يطابقُ رتبةَ كلِّ نوعٍ في `packages/shared/config/traffic-priority.ts` بدالّةِ
+      # `notification_kind_priority` في الهجراتِ طرفاً لطرفٍ، ويفرضُ أنَّ المجهولَ
+      # حرجٌ لا منخفضٌ، وأنَّ `claim_notification_delivery` تقرأُ الرتبةَ قبلَ
+      # الأقدميّةِ، وأنَّ للترتيبِ فهرساً — فرتبةٌ في الكودِ لا يقرأُها المُطالِبُ حِبرٌ.
+      - name: رتبُ المرورِ متطابقةٌ ومقروءةٌ في المُطالِبِ (F6-07 · القسم 15 · ADR 0071)
+        run: bun run scripts/check-traffic-priority.ts
+
       # يقرأُ نصَّ سكربتِ Lua ونصَّ الدالّةِ الذرّيّةِ ونصَّ الكتابةِ المباشرةِ، فيُسقِطُ
       # البناءَ إن افترقَ مُسنَدُ حارسِ التسلسلِ بينَ المخزنَينِ أو انقلبَ اتّجاهُه، أو
       # ضاعَت التنقيةُ من الدفعةِ، أو بُذِرَ رقمٌ في الشيفرةِ بدلَ `platform_settings`.
@@ -261,14 +280,19 @@ jobs:
           end $$;
           SQL
 
-      - name: تطبيق الهجرات بالترتيب
+      # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
+      # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
+      # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
+      # ملفٍّ قبل الاتّصال، ويضبط `lock_timeout`، ويملك المعاملةَ.
+      #
+      # تصحيحٌ بالإضافةِ (F5-06 · 2026-09-09): هذه الخطوةُ عادت إلى حلقةِ `psql`
+      # في `a16bf97` — حلُّ تعارضٍ في دمجِ main إلى فرعِ F7-02 أخذَ نسخةَ الملفِّ
+      # السابقةَ لـF7-07 — فبقيَ ADR 0068 يقولُ ما لا يفعلُه CI. أُعيدَت هنا،
+      # وحاجزُ `scripts/check-migration-applier.ts` يمنعُ عودةَ العيبِ صامتاً.
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
         env:
-          PGPASSWORD: postgres
-        run: |
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "▶ $file"
-            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
-          done
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/migrate.ts
 
       # `pg_dump` يرفض خادماً أحدثَ منه إصداراً رئيسياً، واختبارُ تحقّقِ الاستعادة
       # يستدعيه فعلاً على خدمةِ PostgreSQL 17 — أمّا صورةُ العامل فتحمل أدواتَ
@@ -468,14 +492,19 @@ jobs:
           end $$;
           SQL
 
-      - name: تطبيق الهجرات بالترتيب
+      # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
+      # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
+      # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
+      # ملفٍّ قبل الاتّصال، ويضبط `lock_timeout`، ويملك المعاملةَ.
+      #
+      # تصحيحٌ بالإضافةِ (F5-06 · 2026-09-09): هذه الخطوةُ عادت إلى حلقةِ `psql`
+      # في `a16bf97` — حلُّ تعارضٍ في دمجِ main إلى فرعِ F7-02 أخذَ نسخةَ الملفِّ
+      # السابقةَ لـF7-07 — فبقيَ ADR 0068 يقولُ ما لا يفعلُه CI. أُعيدَت هنا،
+      # وحاجزُ `scripts/check-migration-applier.ts` يمنعُ عودةَ العيبِ صامتاً.
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
         env:
-          PGPASSWORD: postgres
-        run: |
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "▶ $file"
-            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
-          done
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/migrate.ts
 
       # `REQUIRE_REAL_REDIS=1` يجعل غيابَ السرِّ **إخفاقاً** لا تخطّياً: وظيفةٌ وُجدت
       # لتُشغِّل على Redis حقيقيٍّ لا تُقرَأ خضراءَ وهي لم تُخاطِبه. والقيمتانِ تُقرآن
@@ -503,3 +532,75 @@ jobs:
           name: real-redis-proof
           path: /tmp/real-redis-proof.json
           if-no-files-found: warn
+
+  # ── F5-06 / SCL-008: برهانُ البنيةِ متعدّدِ المثيلاتِ في CI ──────────────────
+  #
+  # لا بديلَ سحابيٌّ مدفوعٌ متاحٌ، فالثابتُ يُثبَتُ هنا: ٣ بوّاباتٍ خلفَ موزّعٍ يفحصُ
+  # `/ready`، والحالةُ في DB+Redis لا في ذاكرةِ البوّابة، وقتلُ نسخةٍ أثناءَ رحلةٍ
+  # جاريةٍ لا يُفقدُ الخطوة. والبوّابةُ تعملُ بـ`TELEGRAM_TRANSPORT=silent` (seamٌ
+  # مُعتمَدٌ) و`NODE_ENV=test` — الوضعُ غيرُ الإنتاجيِّ يرخي إجراءاتِ الإقلاعِ فقط،
+  # وintake موصولٌ دائمًا فسلوكُ التشغيلِ واحدٌ. لا يُقلبُ هذا البندُ إلى `[x]`:
+  # البرهانُ آليٌّ لا إنتاجيٌّ، و«مُثبَت» تتطلّبُ بيئةً شبيهةً بالإنتاج (`ح-5`).
+  chaos-multi-instance:
+    name: فوضى متعدد المثيلات (F5-06)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      # لا `--wait`: البوّاباتُ **يجبُ** أن ترفضَ الإقلاعَ اليومَ (ADR 0050 §٣-ب)،
+      # فانتظارُ صحّتِها انتظارُ ما لا يجوزُ حدوثُه. والحكمُ في الخطوةِ التاليةِ.
+      - name: رفعُ رصةِ Docker Compose
+        run: docker compose -f docker-compose.f5-06.yml up -d --build
+
+      # القياسُ المشروعُ اليومَ: أنَّ كسرَ شرطِ النسخةِ الواحدةِ صاخبٌ في رصةٍ
+      # حقيقيّةٍ من ثلاثِ حاوياتٍ — لا صامتٌ ولا مُتدهوِرٌ (R-17 · ADR 0050 §٣-ب).
+      - name: برهانُ رفضِ الإقلاعِ متعدّدِ المثيلاتِ (R-17 · ADR 0050 §٣-ب)
+        run: bun run scripts/f5-06-invariant-refusal.ts
+
+      - name: أدوار Supabase التي تفترضها الهجرات
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -p 5433 -U postgres -d waslah -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then
+              create role anon nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+              create role authenticated nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then
+              create role service_role nologin noinherit bypassrls;
+            end if;
+          end $$;
+          SQL
+
+      # المُطبِّقُ نفسُه على قاعدةِ compose — لا طريقَ ثانٍ للهجراتِ في هذا المستودعِ
+      # (F7-07 · ADR 0068). والمنفذُ 5433 هو ما تنشرُه رصةُ compose على العُدّاءِ.
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ على قاعدةِ compose
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5433/waslah
+        run: bun run scripts/migrate.ts
+
+      # المنسّقُ يقرأُ آليةَ التوزيعِ المُقرَّرةَ من الشيفرةِ: يقودُ الرحلةَ إن كانت
+      # تعبرُ حدودَ العمليةِ، ويُعلِنُ التعذُّرَ البنيويَّ صريحاً إن لم تكن — بلا
+      # تعطيلِ حاجزٍ وبلا إعلانِ نجاحٍ لم يقع (ADR 0050 §٣-د · §٨-أ · REQ-07).
+      - name: منسّقُ اختبارِ الفوضى — قيادةُ رحلةٍ عبرَ المثيلاتِ وقتلُ نسخةٍ أثناءَها
+        run: bun run scripts/f5-06-chaos.ts
+
+      - name: سجلاتُ البوّاباتِ عند الإخفاق
+        if: failure()
+        run: |
+          docker compose -f docker-compose.f5-06.yml logs --no-color gateway-1 gateway-2 gateway-3 worker-1 worker-2 upstash-shim haproxy 2>&1 | tail -200
+
+      - name: إزالةُ الرصة
+        if: always()
+        run: docker compose -f docker-compose.f5-06.yml down -v
