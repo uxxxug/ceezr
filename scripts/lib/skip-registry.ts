@@ -483,6 +483,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/driver-location-batch-persist.test.ts",
+    suites: ["الاستمرارُ المجمَّعُ لموقعِ السائقِ على قاعدةٍ حقيقيّةٍ — F4-02 · CAP-009"],
+    skipped: 9,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت أنَّ الدالّةَ الذرّيّةَ `persist_driver_location_batch` تُنقّي الدفعةَ إلى أحدثِ إصلاحةٍ لكلِّ سائقٍ **في القاعدةِ**، وأنَّ حارسَ التسلسلِ (`BUG-001`) لم يُثقَبْ بالطريقِ الجديدِ: دفعةٌ مقلوبةُ الترتيبِ تُطبِّقُ الأحدثَ وحدَه، والأقدمُ من الصفِّ المخزَّنِ يُرجَعُ `stale` جواباً مُصنَّفاً، والمتساويُ يمرُّ كما في `ADR 0053` §٦، وسائقُ مدينةٍ أخرى يُحسَبُ `missing` ولا يُكتَبُ. ولا يُقاسُ شيءٌ من ذلك بمزدوجٍ: المقيسُ نصُّ `plpgsql` و`distinct on` ومُسنَدُ التحديثِ وحصرُ المدينةِ — وهي في القاعدةِ لا في الشيفرةِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-location-cas.test.ts",
     suites: ["الكتابة الشرطيّة على الموقع القانوني — BUG-001"],
     skipped: 10,
@@ -1135,8 +1149,8 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
   {
     file: "tests/real-redis/redis-sessions-real.test.ts",
-    suites: ["مخزنُ الجلساتِ على Redis حقيقيٍّ"],
-    skipped: 12,
+    suites: ["مخزنُ الجلساتِ على Redis حقيقيٍّ", "الحالةُ الساخنةُ لموقعِ السائقِ على Redis حقيقيٍّ — F4-02"],
+    skipped: 23,
     gate: "UPSTASH_REDIS_REST_URL",
     reason:
       "يُثبِت مخزنَ الجلساتِ على Redis حقيقيٍّ لا على مزدوجٍ في الذاكرةِ: مهلةٌ تنتهي بالزمنِ الفعليِّ في الخادمِ، وقيمةٌ مشوَّهةٌ تُمحى فيه، وفضاءا البوتَين لا يتصادمان على قاعدةٍ واحدةٍ. ولا يُثبَت ذلك بمزدوجٍ نكتبه نحن: المزدوجُ يُصدِّق ما تصوَّرناه عن Redis لا ما يفعله Redis.",

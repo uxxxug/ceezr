@@ -1,0 +1,306 @@
+/**
+ * الغرض: `F4-02` و`CAP-009` — إثبات أنَّ **الاستمرارَ المجمَّعَ** لمواقعِ السائقينَ
+ *   يُطبَّقُ في دالّةٍ ذرّيّةٍ واحدةٍ على قاعدةِ PostgreSQL حقيقيّةٍ، وأنَّ حارسَ
+ *   التسلسلِ (`BUG-001`) لم يُثقَبْ بالطريقِ الجديدِ.
+ *
+ *   والادّعاءاتُ المُختبَرةُ أربعةٌ لا يُقاسُ واحدٌ منها بقراءةِ الشيفرةِ ولا بمزدوجٍ:
+ *   (١) أنَّ **ترتيبَ الدفعةِ لا يحكمُ**: دفعةٌ فيها الأقدمُ بعدَ الأحدثِ تُطبِّقُ
+ *       الأحدثَ وحدَه. ولو ضاعَت `distinct on … order by … desc` من الدالّةِ لكتبَ
+ *       الأقدمُ آخراً فتراجعَ الموضعُ — وهوَ `BUG-001` بعينِه في مسارٍ ثانٍ.
+ *   (٢) أنَّ الأقدمَ من الصفِّ المخزَّنِ يُرجَعُ `stale` **جواباً مُصنَّفاً** لا صمتاً،
+ *       وأنَّ الصفَّ لا يتراجعُ؛ وأنَّ المتساويَ يمرُّ كما في `ADR 0053` §٦.
+ *   (٣) أنَّ المدينةَ تُقيِّدُ: معرِّفٌ لا صفَّ له في المدينةِ المُمرَّرةِ يُحسَبُ
+ *       `missing` ولا يُكتَبُ — ولو سقطَ `d.city_id = p_city_id` لكتبَ عاملُ مدينةٍ
+ *       موقعَ سائقِ مدينةٍ أخرى.
+ *   (٤) أنَّ الأصنافَ الثلاثةَ (`applied` · `stale` · `missing`) تُحصى في دفعةٍ
+ *       مختلطةٍ واحدةٍ حصراً صحيحاً — فالمُشغِّلُ يقرأُ منها صحّةَ الإفراغِ.
+ *
+ * الحالة: اختبار تكامل فعلي — يتطلب TEST_DATABASE_URL.
+ * ينتمي إلى: tests/integration
+ * ملاحظات مستقبلية: لو صارَ الإفراغُ يكتبُ جدولَ أثرٍ (`driver_location_history`)
+ *   فيُضافُ ههنا حصرُ الصفوفِ المُدرَجةِ، لا في اختبارِ وحدةٍ.
+ */
+
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import type { HotLocationFix } from "../../packages/application/geo/driver-location-hot-state.ts";
+import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import { createDriverLocationBatchPersistence } from "../../packages/infrastructure/geo/driver-location-batch-persistence.ts";
+import { createDriverDirectory } from "../../packages/infrastructure/identity/directories.ts";
+import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
+
+const DATABASE_URL = process.env.TEST_DATABASE_URL;
+
+/**
+ * طوابعُ ثابتةٌ في ماضٍ بعيدٍ عن «الآنَ»: لو حكمَ الحارسُ بساعةِ الجهازِ لسقطَ
+ * الملفُّ كلُّه. وهيَ بعدَ ٢٠٢٠ لأنَّ قيدَ سلامةِ العمودِ يرفضُ الطوابعَ الفاسدةَ.
+ */
+const T1 = Date.UTC(2024, 0, 1, 0, 0, 10);
+const T2 = Date.UTC(2024, 0, 1, 0, 0, 20);
+const T3 = Date.UTC(2024, 0, 1, 0, 0, 30);
+
+const AT_A = { latitude: 21.5471, longitude: 39.1751 } as const;
+const AT_B = { latitude: 21.6, longitude: 39.2 } as const;
+
+let sql: Sql;
+let cityId: CityId;
+let otherCityId: CityId;
+let driverId: DriverId;
+
+const fixOf = (
+  driver: DriverId,
+  recordedAtMs: number,
+  at: { latitude: number; longitude: number },
+  city: CityId = cityId,
+): HotLocationFix => ({
+  cityId: city,
+  driverId: driver,
+  latitude: at.latitude,
+  longitude: at.longitude,
+  recordedAtMs,
+  accuracyMeters: 11,
+  verdict: "ACCEPT",
+});
+
+interface Stored {
+  readonly lat: number | null;
+  readonly lng: number | null;
+  readonly recordedAtMs: number | null;
+  readonly accuracy: number | null;
+  readonly quality: string | null;
+}
+
+async function stored(driver: DriverId = driverId): Promise<Stored> {
+  const rows = await sql<
+    {
+      lat: number | null;
+      lng: number | null;
+      recorded: Date | null;
+      accuracy: number | null;
+      quality: string | null;
+    }[]
+  >`
+    select st_y(last_location::geometry) as lat,
+           st_x(last_location::geometry) as lng,
+           last_location_recorded_at as recorded,
+           last_location_accuracy_m as accuracy,
+           last_location_quality as quality
+      from drivers where id = ${driver}
+  `;
+  const row = rows[0];
+  if (row === undefined) throw new Error("لم يُقرأ السائق");
+  return {
+    lat: row.lat,
+    lng: row.lng,
+    recordedAtMs: row.recorded === null ? null : row.recorded.getTime(),
+    accuracy: row.accuracy,
+    quality: row.quality,
+  };
+}
+
+/** سائقٌ إضافيٌّ في مدينةٍ مُعيَّنةٍ — للدفعاتِ المختلطةِ وحصرِ المدينةِ. */
+async function seedDriver(telegramId: number, city: CityId = cityId): Promise<DriverId> {
+  const users = await sql<{ id: string }[]>`
+    insert into users (city_id, telegram_id, full_name, phone, role, language_code)
+    values (${city}, ${telegramId}::bigint, 'سائق الدفعة',
+            ${`+96650${String(telegramId).slice(-7)}`}, 'driver'::user_role, 'ar')
+    returning id
+  `;
+  const userId = users[0]?.id;
+  if (userId === undefined) throw new Error("تعذّر إنشاء المستخدم");
+  const drivers = await sql<{ id: string }[]>`
+    insert into drivers (city_id, user_id, verification_status)
+    values (${city}, ${userId}, 'verified'::verification_status)
+    returning id
+  `;
+  const created = drivers[0]?.id;
+  if (created === undefined) throw new Error("تعذّر إنشاء السائق");
+  return created as DriverId;
+}
+
+const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
+if (DATABASE_URL === undefined) {
+  console.warn(
+    "⚠️  اختبارات التكامل مُتخطّاة: عيّن TEST_DATABASE_URL لقاعدة PostgreSQL بها الهجرات مطبَّقة.",
+  );
+}
+
+describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ على قاعدةٍ حقيقيّةٍ — F4-02 · CAP-009", () => {
+  beforeAll(async () => {
+    sql = createSql({ connectionString: DATABASE_URL ?? "" });
+    const cities = await sql<{ id: string; code: string }[]>`
+      select id, code from cities order by code
+    `;
+    const jed = cities.find((row) => row.code === "JED")?.id;
+    const other = cities.find((row) => row.code !== "JED")?.id;
+    if (jed === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
+    if (other === undefined) throw new Error("مدينةٌ ثانيةٌ مطلوبةٌ لإثباتِ حصرِ المدينةِ");
+    cityId = jed as CityId;
+    otherCityId = other as CityId;
+  });
+
+  afterAll(async () => {
+    await sql.end({ timeout: 5 });
+  });
+
+  beforeEach(async () => {
+    await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log,
+                             order_offers, orders, subscriptions, driver_capabilities,
+                             driver_availability, drivers, riders, users restart identity cascade`;
+    driverId = await seedDriver(811_201);
+  });
+
+  /**
+   * الحالةُ الأمُّ: الدفعةُ **مقلوبةُ الترتيبِ**. لو أُخِذَ آخرُ عنصرٍ — أو أُدرِجَ
+   * العنصرانِ صفّاً صفّاً بلا تنقيةٍ — لاستقرَّ الأقدمُ فتراجعَ الموضعُ.
+   */
+  it("١ — الأقدمُ بعدَ الأحدثِ في الدفعةِ نفسِها: يُطبَّقُ الأحدثُ وحدَه", async () => {
+    const persistence = createDriverLocationBatchPersistence(sql);
+
+    const report = await persistence.persistBatch(cityId, [
+      fixOf(driverId, T2, AT_B),
+      fixOf(driverId, T1, AT_A),
+    ]);
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+    // سائقٌ واحدٌ في الدفعةِ فصفٌّ واحدٌ مكتوبٌ لا صفّانِ: التنقيةُ قبلَ الكتابةِ.
+    expect(report.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+
+    const row = await stored();
+    expect(row.recordedAtMs).toBe(T2);
+    expect(row.lat).toBeCloseTo(AT_B.latitude, 5);
+    expect(row.lng).toBeCloseTo(AT_B.longitude, 5);
+    expect(row.accuracy).toBeCloseTo(11, 5);
+    expect(row.quality).toBe("ACCEPT");
+  });
+
+  /** والترتيبُ الطبيعيُّ يُعطي النتيجةَ نفسَها: الحكمُ للطابعِ لا للموضعِ في المصفوفةِ. */
+  it("٢ — الترتيبُ الطبيعيُّ يُعطي ما يُعطيه المقلوبُ حرفاً", async () => {
+    const persistence = createDriverLocationBatchPersistence(sql);
+
+    const report = await persistence.persistBatch(cityId, [
+      fixOf(driverId, T1, AT_A),
+      fixOf(driverId, T2, AT_B),
+    ]);
+    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+
+    const row = await stored();
+    expect(row.recordedAtMs).toBe(T2);
+    expect(row.lat).toBeCloseTo(AT_B.latitude, 5);
+  });
+
+  /**
+   * الحارسُ نفسُه في الطريقِ الجديدِ: صفٌّ مخزَّنٌ أحدثُ من الدفعةِ لا يتراجعُ،
+   * والرفضُ **جوابٌ مُصنَّفٌ** (`stale`) يقرؤه المُشغِّلُ لا صمتٌ يُقرأُ نجاحاً.
+   */
+  it("٣ — الأقدمُ من الصفِّ المخزَّنِ: `stale` والصفُّ لا يتراجعُ", async () => {
+    const directory = createDriverDirectory(sql);
+    const seeded = await directory.updateLocation(driverId, AT_B, {
+      recordedAtMs: T3,
+      accuracyMeters: 9,
+      verdict: "ACCEPT",
+    });
+    expect(seeded.ok && seeded.value.kind).toBe("accepted");
+
+    const persistence = createDriverLocationBatchPersistence(sql);
+    const report = await persistence.persistBatch(cityId, [fixOf(driverId, T1, AT_A)]);
+    expect(report.ok && report.value).toEqual({ applied: 0, stale: 1, missing: 0 });
+
+    const row = await stored();
+    expect(row.recordedAtMs).toBe(T3);
+    expect(row.lat).toBeCloseTo(AT_B.latitude, 5);
+    expect(row.accuracy).toBeCloseTo(9, 5);
+
+    // والمتساويُ يمرُّ: تضييقُ المُسنَدِ إلى `<` كانَ سيُخالِفُ حارسَ `F4-01` حرفاً.
+    const equal = await persistence.persistBatch(cityId, [fixOf(driverId, T3, AT_A)]);
+    expect(equal.ok && equal.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+    expect((await stored()).lat).toBeCloseTo(AT_A.latitude, 5);
+  });
+
+  /**
+   * حصرُ المدينةِ: الدالّةُ تأخذُ المدينةَ صريحةً ولا تستنبطُها من الصفِّ، فسائقُ
+   * مدينةٍ أخرى **لا يُكتَبُ** ويُحسَبُ `missing` — وذلك يمنعُ عاملَ مدينةٍ من
+   * الكتابةِ خارجَ نطاقِه لو وصلَته إصلاحةٌ في غيرِ مفتاحِها.
+   */
+  it("٤ — سائقٌ خارجَ المدينةِ المُمرَّرةِ: `missing` ولا يُكتَبُ صفُّه", async () => {
+    const stranger = await seedDriver(811_202, otherCityId);
+    const persistence = createDriverLocationBatchPersistence(sql);
+
+    const report = await persistence.persistBatch(cityId, [fixOf(stranger, T2, AT_B, otherCityId)]);
+    expect(report.ok && report.value).toEqual({ applied: 0, stale: 0, missing: 1 });
+
+    const row = await stored(stranger);
+    expect(row.recordedAtMs).toBeNull();
+    expect(row.lat).toBeNull();
+
+    // ونفسُ الإصلاحةِ بمدينتِها الصحيحةِ تُكتَبُ: الرفضُ من الحصرِ لا من عطلٍ.
+    const inCity = await persistence.persistBatch(otherCityId, [
+      fixOf(stranger, T2, AT_B, otherCityId),
+    ]);
+    expect(inCity.ok && inCity.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+    expect((await stored(stranger)).recordedAtMs).toBe(T2);
+  });
+
+  /**
+   * دفعةٌ مختلطةٌ في رحلةٍ واحدةٍ: هذا هوَ شكلُ الإفراغِ الحقيقيِّ. والحصرُ
+   * الثلاثيُّ يُقرأُ في السجلِّ فيُميَّزُ الإفراغُ السويُّ من المعطوبِ.
+   */
+  it("٥ — دفعةٌ مختلطةٌ: مُطبَّقٌ ومتأخِّرٌ ومفقودٌ يُحصَونَ في رحلةٍ واحدةٍ", async () => {
+    const fresh = await seedDriver(811_203);
+    const ghost = crypto.randomUUID() as DriverId;
+
+    const directory = createDriverDirectory(sql);
+    const seeded = await directory.updateLocation(driverId, AT_B, {
+      recordedAtMs: T3,
+      accuracyMeters: 9,
+      verdict: "ACCEPT",
+    });
+    expect(seeded.ok).toBe(true);
+
+    const persistence = createDriverLocationBatchPersistence(sql);
+    const report = await persistence.persistBatch(cityId, [
+      fixOf(fresh, T2, AT_A),
+      fixOf(driverId, T1, AT_A),
+      fixOf(ghost, T2, AT_B),
+    ]);
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+    expect(report.value).toEqual({ applied: 1, stale: 1, missing: 1 });
+
+    expect((await stored(fresh)).recordedAtMs).toBe(T2);
+    // والمتأخِّرُ لم يمسَّ صفَّه: صفٌّ واحدٌ معطوبٌ في دفعةٍ لا يُسقِطُ الدفعةَ ولا يُفسِدُ غيرَه.
+    expect((await stored()).recordedAtMs).toBe(T3);
+  });
+
+  /**
+   * دورةُ إفراغٍ لا موقعَ فيها ليست عطلاً ولا كتابةً. والحالةُ تُقاسُ من الوجهَينِ:
+   * المحوّلُ يُوجِزُ قبلَ الرحلةِ، والدالّةُ نفسُها تُجيبُ أصفاراً لو نُوديَت بمصفوفةٍ
+   * فارغةٍ من مُنادٍ آخرَ.
+   */
+  it("٦ — دفعةٌ فارغةٌ: أصفارٌ بلا عطلٍ من المحوّلِ ومن الدالّةِ نفسِها", async () => {
+    const persistence = createDriverLocationBatchPersistence(sql);
+    const report = await persistence.persistBatch(cityId, []);
+    expect(report.ok && report.value).toEqual({ applied: 0, stale: 0, missing: 0 });
+
+    const rows = await sql<{ result: Record<string, unknown> }[]>`
+      select persist_driver_location_batch(${cityId}::uuid, '[]'::jsonb) as result
+    `;
+    expect(rows[0]?.result).toEqual({ ok: true, applied: 0, stale: 0, missing: 0 });
+  });
+
+  /**
+   * وردُّ الدالّةِ على مُدخَلٍ غيرِ مصفوفةٍ عطلٌ **مُسمّىً** لا استثناءٌ غامضٌ:
+   * المُنادي يُعيدُ الدفعةَ إلى قائمةِ الانتظارِ على عطلٍ، فلا بدَّ أن يكونَ العطلُ
+   * مقروءاً. ولا تُختبَرُ هذه بمزدوجٍ: الصياغةُ من `plpgsql` نفسِها.
+   */
+  it("٧ — مُدخَلٌ ليسَ مصفوفةً: عطلٌ مُسمّىً يقرؤه المُنادي", async () => {
+    const rows = await sql<{ result: Record<string, unknown> }[]>`
+      select persist_driver_location_batch(${cityId}::uuid, '{"driver_id":"x"}'::jsonb) as result
+    `;
+    expect(rows[0]?.result).toEqual({ ok: false, error: "BATCH_MUST_BE_ARRAY" });
+
+    const persistence = createDriverLocationBatchPersistence(sql);
+    // ودفعةٌ سليمةٌ بعدَها تمرُّ: العطلُ لم يُفسِدْ حالةً في الدالّةِ.
+    const report = await persistence.persistBatch(cityId, [fixOf(driverId, T2, AT_A)]);
+    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+  });
+});

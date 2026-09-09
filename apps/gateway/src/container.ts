@@ -68,6 +68,7 @@ import {
 import { createPaymentRepository } from "../../../packages/infrastructure/financial/payment-adapters.ts";
 import { createSubscriptionWalletRpc } from "../../../packages/infrastructure/financial/subscription-wallet-adapters.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
+import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 import {
   createLanguagePreferencePort,
   createMemoryTranslationCache,
@@ -718,6 +719,38 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    */
   const gpsPolicy = resolveGpsPolicy(config.tracking);
 
+  /**
+   * `F4-02` — الحالةُ الساخنةُ المشتركةُ لموقعِ السائقِ. تُبنى **مرّةً واحدةً**
+   * للعمليّةِ كلّها لا في موضعَينِ: من بناها مرّتَينِ صارَ له ذاكرتانِ للأرقامِ
+   * الأربعةِ تنقضي إحداهما قبلَ الأخرى، فيقرأُ مسارُ HTTP سقفاً وحوارُ البوتِ
+   * سقفاً آخرَ للحدِّ نفسِه.
+   *
+   * وبلا `Redis` تكونُ `null` — وذلكَ يعني نسقَ `F4-01` بحرفِه: كتابةٌ مشروطةٌ
+   * لكلِّ نبضةٍ. ولا يسقطُ استقبالُ الموقعِ لغيابِ مخزنٍ ساخنٍ.
+   */
+  const driverLocationHotState =
+    redis !== null
+      ? createRedisDriverLocationHotState({
+          redis,
+          settings,
+          clock: systemClock,
+          onFailure: (detail) => log("driver_location.hot_state_failed", detail),
+        })
+      : null;
+
+  /**
+   * أثرُ التدهوّرِ: يُسجَّلُ ولا يُبتلَعُ. والسائقُ لا يُخبَرُ بشيءٍ — موقعُه كُتِبَ
+   * فعلاً في القاعدةِ، والذي سقطَ هوَ **التجميعُ** لا الحفظُ. ورسالةُ عطلٍ عن
+   * عملٍ نجحَ أسوأُ من صمتٍ عن تدهوّرٍ مُسجَّلٍ.
+   */
+  const onHotStateDegraded = (detail: {
+    readonly driverId: string;
+    readonly cityId: string;
+    readonly reason: string;
+  }): void => {
+    log("driver_location.hot_state_degraded", detail);
+  };
+
   const driverDeps: DriverBotDependencies = {
     gpsPolicy,
     sessions: driverSessions,
@@ -758,6 +791,9 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     // المرحلة ١٥ — الحقل يُسقَط عند `null` لا يُمرَّر: `exactOptionalPropertyTypes`.
     ...(routing === null ? {} : { routing }),
     redispatch: redispatchDeps,
+    // `F4-02` — الحقلُ يُسقَط عند `null` لا يُمرَّر: `exactOptionalPropertyTypes`.
+    ...(driverLocationHotState === null ? {} : { hotState: driverLocationHotState }),
+    onHotStateDegraded,
     rating: {
       sessions: driverSessions,
       lifecycle: lifecyclePort,
@@ -868,6 +904,10 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
         gpsPolicy,
         tracking: liveTracking,
         redispatch: redispatchDeps,
+        // `F4-02` — المخزنُ الساخنُ **هوَ هوَ** الذي يقرؤه حوارُ البوتِ أعلاه: نسخةٌ
+        // ثانيةٌ ههنا كانت ستجعلُ لنبضةِ HTTP حالةً ساخنةً لا يراها مسارُ البوتِ.
+        ...(driverLocationHotState === null ? {} : { hotState: driverLocationHotState }),
+        onHotStateDegraded,
       },
     },
     tracking: {
