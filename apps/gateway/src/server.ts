@@ -14,6 +14,10 @@ import { createRequestIdMiddleware } from "./observability/request-id.ts";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
 import {
+  createNotificationRoutes,
+  type NotificationsDependencies,
+} from "./routes/notifications.ts";
+import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
 } from "./routes/payment-webhook.ts";
@@ -52,6 +56,13 @@ export interface ServerDependencies {
    */
   readonly me?: MeDependencies;
   /**
+   * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
+   * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
+   * سواءٌ رُكِّبَ هذا السطحُ أم لا، لأنَّ القرارَ الحرجَ لا يُترَكُ لسطحِ قراءةٍ
+   * اختياريٍّ في خدمةٍ قد لا تُشغَّل.
+   */
+  readonly notifications?: NotificationsDependencies;
+  /**
    * `F1-08`: مولّدُ معرّفِ الطلب — يُحقَن للاختبارِ وحدَه، وغيابُه يعني
    * `crypto.randomUUID`. ولا يُقرأ رأسُ `X-Request-Id` الوارِدُ من العميلِ في
    * أيِّ حالٍ (ADR 0043).
@@ -84,6 +95,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.me !== undefined) {
     app.route("/", createMeRoutes(deps.me));
+  }
+  if (deps.notifications !== undefined) {
+    app.route("/", createNotificationRoutes(deps.notifications));
   }
 
   app.notFound((c) => c.json({ ok: false, error: "NOT_FOUND" }, 404));
