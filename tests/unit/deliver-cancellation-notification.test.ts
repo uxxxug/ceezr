@@ -45,6 +45,7 @@ function delivery(payload: Readonly<Record<string, unknown>>) {
     claimToken: "55555555-5555-4555-8555-555555555555",
     attempts: 1,
     maxAttempts: 3,
+    batchLimit: 8,
     payload,
   };
 }
