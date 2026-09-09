@@ -119,6 +119,11 @@ jobs:
       - name: سلامةُ الهجرات — الأطوارُ والفهارسُ والقيودُ والاسترجاعُ (F7-07)
         run: bun run scripts/check-migration-safety.ts
 
+      # المُطبِّقُ المُعتمَدُ طريقاً واحداً: حلقةُ `psql` العاريةُ رجعَت إلى main
+      # مرّةً بحلِّ تعارضٍ لا بكتابةِ كودٍ، فلذلكَ المنعُ آليٌّ لا وصيةٌ.
+      - name: منعُ تطبيقِ هجراتٍ خارجَ المُطبِّقِ الآمنِ (F7-07 · ADR 0068)
+        run: bun run scripts/check-migration-applier.ts
+
       - name: تغطية فهارس الاستعلامات الساخنة (F7-02)
         run: bun run scripts/check-hot-query-index-coverage.ts
 
@@ -254,14 +259,19 @@ jobs:
           end $$;
           SQL
 
-      - name: تطبيق الهجرات بالترتيب
+      # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
+      # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
+      # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
+      # ملفٍّ قبل الاتّصال، ويضبط `lock_timeout`، ويملك المعاملةَ.
+      #
+      # تصحيحٌ بالإضافةِ (F5-06 · 2026-09-09): هذه الخطوةُ عادت إلى حلقةِ `psql`
+      # في `a16bf97` — حلُّ تعارضٍ في دمجِ main إلى فرعِ F7-02 أخذَ نسخةَ الملفِّ
+      # السابقةَ لـF7-07 — فبقيَ ADR 0068 يقولُ ما لا يفعلُه CI. أُعيدَت هنا،
+      # وحاجزُ `scripts/check-migration-applier.ts` يمنعُ عودةَ العيبِ صامتاً.
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
         env:
-          PGPASSWORD: postgres
-        run: |
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "▶ $file"
-            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
-          done
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/migrate.ts
 
       # `pg_dump` يرفض خادماً أحدثَ منه إصداراً رئيسياً، واختبارُ تحقّقِ الاستعادة
       # يستدعيه فعلاً على خدمةِ PostgreSQL 17 — أمّا صورةُ العامل فتحمل أدواتَ
@@ -461,14 +471,19 @@ jobs:
           end $$;
           SQL
 
-      - name: تطبيق الهجرات بالترتيب
+      # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
+      # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
+      # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
+      # ملفٍّ قبل الاتّصال، ويضبط `lock_timeout`، ويملك المعاملةَ.
+      #
+      # تصحيحٌ بالإضافةِ (F5-06 · 2026-09-09): هذه الخطوةُ عادت إلى حلقةِ `psql`
+      # في `a16bf97` — حلُّ تعارضٍ في دمجِ main إلى فرعِ F7-02 أخذَ نسخةَ الملفِّ
+      # السابقةَ لـF7-07 — فبقيَ ADR 0068 يقولُ ما لا يفعلُه CI. أُعيدَت هنا،
+      # وحاجزُ `scripts/check-migration-applier.ts` يمنعُ عودةَ العيبِ صامتاً.
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
         env:
-          PGPASSWORD: postgres
-        run: |
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "▶ $file"
-            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
-          done
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/migrate.ts
 
       # `REQUIRE_REAL_REDIS=1` يجعل غيابَ السرِّ **إخفاقاً** لا تخطّياً: وظيفةٌ وُجدت
       # لتُشغِّل على Redis حقيقيٍّ لا تُقرَأ خضراءَ وهي لم تُخاطِبه. والقيمتانِ تُقرآن
@@ -540,14 +555,12 @@ jobs:
           end $$;
           SQL
 
-      - name: تطبيق الهجرات بالترتيب على قاعدةِ compose
+      # المُطبِّقُ نفسُه على قاعدةِ compose — لا طريقَ ثانٍ للهجراتِ في هذا المستودعِ
+      # (F7-07 · ADR 0068). والمنفذُ 5433 هو ما تنشرُه رصةُ compose على العُدّاءِ.
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ على قاعدةِ compose
         env:
-          PGPASSWORD: postgres
-        run: |
-          for file in $(ls supabase/migrations/*.sql | sort); do
-            echo "▶ $file"
-            psql -h localhost -p 5433 -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
-          done
+          DATABASE_URL: postgres://postgres:postgres@localhost:5433/waslah
+        run: bun run scripts/migrate.ts
 
       - name: منسّقُ اختبارِ الفوضى — قيادةُ رحلةٍ عبرَ المثيلاتِ وقتلُ نسخةٍ أثناءَها
         run: bun run scripts/f5-06-chaos.ts

@@ -62,7 +62,11 @@ services:
       NODE_ENV: test
       PORT: "3000"
       DATABASE_URL: postgres://postgres:postgres@postgres:5432/waslah
-      SUPABASE_URL: http://supabase-unused.local
+      # الضبطُ يرفضُ أيَّ `SUPABASE_URL` لا يبدأُ بـ`https://` (رفضاً مقصوداً: عميلُ
+      # Supabase لا يُخاطَبُ على نصٍّ صريحٍ). والقيمةُ الأولى كانت `http://…local`
+      # فسقطَ إقلاعُ البوّاباتِ الثلاثِ والعاملَين في CI (التشغيلُ 34365082495).
+      # و`.invalid` نطاقٌ محجوزٌ لا يُحَلُّ (RFC 2606) فلا مُخاطَبةَ شبكيّةً بالغلطِ.
+      SUPABASE_URL: https://supabase-unused.invalid
       SUPABASE_SERVICE_ROLE_KEY: fake-service-role-key
       UPSTASH_REDIS_REST_URL: http://upstash-shim:8081
       UPSTASH_REDIS_REST_TOKEN: shim-token
@@ -78,6 +82,20 @@ services:
       TRANSLATION_PROVIDER: none
       ROUTING_PROVIDER: none
       SERVICE_INSTANCE_ID: gateway-1
+    # فحصُ حياةٍ حقيقيٌّ: بلا `healthcheck` كان `up --wait` يُعلِنُ البوّابةَ «صحّيةً»
+    # لمجرّدِ أنّ الحاويةَ تعمل — وقد كانت تسقطُ عندَ الإقلاعِ لضبطٍ غيرِ صالحٍ.
+    # و`/health` لا `/ready` عن قصدٍ: الجهوزيةُ تشترطُ مخطَّطاً مُطبَّقاً، والهجراتُ
+    # تُطبَّقُ بعدَ رفعِ الرصةِ، فاشتراطُ `/ready` هنا حجزٌ دائريٌّ لا حاجزُ صدقٍ.
+    healthcheck: &gateway-healthcheck
+      test:
+        [
+          "CMD-SHELL",
+          "bun -e 'const r = await fetch(\"http://127.0.0.1:3000/health\"); process.exit(r.ok ? 0 : 1)'",
+        ]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
     ports:
       - "3001:3000"
     depends_on:
@@ -93,6 +111,7 @@ services:
     environment:
       <<: *gateway-env
       SERVICE_INSTANCE_ID: gateway-2
+    healthcheck: *gateway-healthcheck
     ports:
       - "3002:3000"
     depends_on:
@@ -108,6 +127,7 @@ services:
     environment:
       <<: *gateway-env
       SERVICE_INSTANCE_ID: gateway-3
+    healthcheck: *gateway-healthcheck
     ports:
       - "3003:3000"
     depends_on:
