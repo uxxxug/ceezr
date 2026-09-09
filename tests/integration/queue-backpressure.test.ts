@@ -255,9 +255,10 @@ describeIf("الضغطُ العكسيُّ لكلِّ طابورٍ على Postgre
     await setLimit("outbox_queue_dead_limit", 2);
     await sql`
       insert into notification_outbox
-        (city_id, kind, channel, status, payload, dead_reason, died_at)
+        (city_id, kind, status, payload, dead_reason, died_at, dedup_key)
       select ${cityId}::uuid, 'no_driver_found', 'dead', '{}'::jsonb,
-             'MAX_ATTEMPTS', now() - interval '1 minute'
+             'MAX_ATTEMPTS', now() - interval '1 minute',
+             'bp-dead:' || gen_random_uuid()::text
         from generate_series(1, 3)
     `;
 
@@ -272,10 +273,11 @@ describeIf("الضغطُ العكسيُّ لكلِّ طابورٍ على Postgre
     await setLimit("outbox_queue_dead_limit", 2);
     await sql`
       insert into notification_outbox
-        (city_id, kind, channel, status, payload, dead_reason, died_at)
+        (city_id, kind, status, payload, dead_reason, died_at, dedup_key)
       select ${cityId}::uuid, 'no_driver_found', 'dead', '{}'::jsonb,
              'MAX_ATTEMPTS',
-             now() - make_interval(secs => ${QUEUE_DEAD_WINDOW_SECONDS + 600}::numeric)
+             now() - make_interval(secs => ${QUEUE_DEAD_WINDOW_SECONDS + 600}::numeric),
+             'bp-old-dead:' || gen_random_uuid()::text
         from generate_series(1, 10)
     `;
 

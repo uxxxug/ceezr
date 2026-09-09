@@ -318,6 +318,9 @@ declare
   v_producer_limit integer;
   v_consumer_limit integer;
   v_retry_limit integer;
+  -- `array_append` لا `||`: مُعامِلُ `||` معَ حرفٍ بلا نوعٍ يُحسَمُ إلى
+  -- `anyarray || anyarray` فيُقحَمُ الحرفُ مصفوفةً فيُخفِقُ («malformed array
+  -- literal»). وهذا عطبٌ لا يكشفُه إلّا محرِّكٌ حقيقيٌّ.
   v_reasons text[] := array[]::text[];
 begin
   v_load := notification_outbox_load(p_city_id, p_dead_window_seconds);
@@ -332,15 +335,15 @@ begin
   -- حدٌّ غائبٌ أو غيرُ موجبٍ ⇒ خرقٌ. مرآةُ `breached` في الشيفرةِ حرفاً.
   if v_depth_limit is null or v_depth_limit <= 0
      or (v_load->>'depth')::bigint >= v_depth_limit then
-    v_reasons := v_reasons || 'DEPTH';
+    v_reasons := array_append(v_reasons, 'DEPTH');
   end if;
   if v_age_limit is null or v_age_limit <= 0
      or (v_load->>'oldest_due_age_seconds')::bigint >= v_age_limit then
-    v_reasons := v_reasons || 'OLDEST_AGE';
+    v_reasons := array_append(v_reasons, 'OLDEST_AGE');
   end if;
   if v_dead_limit is null or v_dead_limit <= 0
      or (v_load->>'dead_in_window')::bigint >= v_dead_limit then
-    v_reasons := v_reasons || 'DEAD_LETTER';
+    v_reasons := array_append(v_reasons, 'DEAD_LETTER');
   end if;
 
   return jsonb_build_object(
