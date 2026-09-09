@@ -119,6 +119,66 @@ grant execute on function notification_kind_is_deferrable(text) to service_role;
 --    في `docs/adr/0071-traffic-priority-classes.md` §٥ لا مسكوتٌ عنه.
 -- ---------------------------------------------------------------------------
 
+-- ---------------------------------------------------------------------------
+-- تصحيحٌ مُضافٌ ثانٍ (حكمُ CI 34395013243): `order_id` عمودٌ لا حمولةٌ
+--
+--    شرطُ رأسِ الطلبِ يقرأُ عمودَ `order_id`، وأنواعُ دورةِ الرحلةِ المُودَعةُ عبرَ
+--    `enqueue_notification` كانَت تتركُه فارغاً وتضعُ معرّفَ الطلبِ في الحمولةِ
+--    وحدَها (`order_id` نصّاً، أو `claim_id` يُحيلُ إليه). فبقيَ الشرطُ صحيحاً
+--    ولا يُطبَّقُ على شيءٍ، وبقيَ الانقلابُ السببيُّ واقعاً في CI بعدَ إضافتِه.
+--
+--    والعلاجُ **إكمالُ العمودِ عندَ الإيداعِ** لا قراءةُ الحمولةِ في المُطالِبِ:
+--    فيبقى للمُطالِبِ مصدرُ حقيقةٍ واحدٌ مفهرَسٌ، ولا يُقرأُ معرّفٌ من نصٍّ في
+--    كلِّ شوطٍ. والحمولةُ تبقى كما هيَ حرفاً — لا حقلَ حُذِفَ ولا اسمَ تغيَّرَ —
+--    فقارئوها في العامِلِ لا يُمَسّونَ.
+--
+--    وحدودُه مُعلَنةٌ: (١) أنواعُ دورةِ الرحلةِ وحدَها تُكمَلُ — وهيَ نطاقُ هذا
+--    المُطالِبِ — فلا يُكتَبُ عمودٌ لنوعٍ لا يقرؤُه أحدٌ. (٢) الصفوفُ القديمةُ
+--    المُودَعةُ قبلَ هذه الهجرةِ تبقى بعمودٍ فارغٍ فلا يحجُبُ بعضُها بعضاً — وهيَ
+--    صفوفُ دقائقَ لا تاريخٌ (الصادرُ يُفرَغُ في ثوانٍ)، فلا تُعادُ كتابةُ بيانةٍ
+--    قائمةٍ بظنٍّ. (٣) والطلبُ المعدومُ (مرجعٌ في حمولةٍ لا يقابلُه صفٌّ) يُترَكُ
+--    فارغاً لا يُسقِطُ الإيداعَ: مفتاحُ الغيرِ (`on delete restrict`) كانَ سيُحوِّلَ
+--    حمولةً مُعطَلةً إلى إشعارٍ لا يُودَعُ أصلاً — وذلكَ أضرُّ من إشعارٍ بلا تتابعٍ.
+-- ---------------------------------------------------------------------------
+
+create or replace function enqueue_notification(
+  p_city_id uuid, p_kind text, p_payload jsonb, p_dedup_key text
+) returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id uuid;
+  v_payload jsonb := coalesce(p_payload, '{}'::jsonb);
+  v_order uuid;
+  v_ride_kinds text[] := array[
+    'offer', 'dispute_resolution',
+    'negotiation_turn_opened', 'negotiation_turn_closed', 'negotiation_agreed',
+    'wider_circle_opened', 'no_driver_found', 'order_cancelled'
+  ];
+begin
+  if p_kind = any(v_ride_kinds) then
+    -- معرّفُ الطلبِ صريحاً في الحمولةِ (`enqueue_rider_order_notification` وما
+    -- يُشبِهُه)، وإلّا فبمعرّفِ المطالبةِ (`enqueue_negotiation_notification`).
+    v_order := nullif(v_payload->>'order_id', '')::uuid;
+    if v_order is null and nullif(v_payload->>'claim_id', '') is not null then
+      select c.order_id into v_order
+        from unsubscribed_claims c
+       where c.id = (v_payload->>'claim_id')::uuid;
+    end if;
+    if v_order is not null and not exists (select 1 from orders o where o.id = v_order) then
+      v_order := null;
+    end if;
+  end if;
+
+  insert into notification_outbox (city_id, kind, payload, dedup_key, order_id)
+  values (p_city_id, p_kind, v_payload, p_dedup_key, v_order)
+  on conflict (kind, dedup_key) do nothing
+  returning id into v_id;
+  return v_id;
+end $$;
+
 create or replace function claim_notification_delivery()
 returns jsonb
 language plpgsql

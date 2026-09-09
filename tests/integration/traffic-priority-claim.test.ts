@@ -226,15 +226,19 @@ describeIf("أولويّاتُ المرورِ في المُطالِبِ على P
     // الرابعةُ لا تُقاسُ ههنا بحالٍ. فصارَت الدعوى ثلاثَ رتبٍ هيَ الموجودةُ في
     // النطاقِ فعلاً، ورتبةُ `broadcast_recipient` تُقاسُ بالنداءِ في حالةِ
     // التطابقِ أدناه لا بادّعاءِ التقاطٍ لا يقعُ.
+    // تصحيحٌ مُضافٌ ثانٍ — (بعدَ حكمِ CI `34395013243`): كانَ صفُّ الرتبةِ الثانيةِ
+    // `offer`، وبذرُه بلا ثلاثيِّ العرضِ يخرقُ `notification_offer_shape` (كما
+    // خرقَ `broadcast_recipient` قيدَ شكلِه قبلَه). و`wider_circle_opened` رتبتُه
+    // الثانيةُ نفسُها ولا شكلَ خاصَّ له، فالدعوى محفوظةٌ والبذرُ صحيحٌ.
     await seedRow("no_driver_found", 300);
-    await seedRow("offer", 200);
+    await seedRow("wider_circle_opened", 200);
     await seedRow("order_cancelled", 100);
 
     const order: (string | null)[] = [];
     for (let index = 0; index < 3; index += 1) {
       order.push((await claimOne()).kind);
     }
-    expect(order).toEqual(["order_cancelled", "offer", "no_driver_found"]);
+    expect(order).toEqual(["order_cancelled", "wider_circle_opened", "no_driver_found"]);
     expect((await claimOne()).kind).toBeNull();
   });
 
@@ -275,6 +279,31 @@ describeIf("أولويّاتُ المرورِ في المُطالِبِ على P
 
     const second = await claimOne();
     expect(second.deliveryId).toBe(olderHighA);
+  });
+
+  it("الإيداعُ يُكمِلُ عمودَ `order_id` لا الحمولةَ وحدَها — وإلّا فشرطُ الرأسِ لا يُطبَّقُ على شيءٍ", async () => {
+    // تصحيحٌ مُضافٌ ثانٍ — (بعدَ حكمِ CI `34395013243`): شرطُ رأسِ الطلبِ كانَ
+    // صحيحاً ولا يعملُ، لأنَّ `enqueue_notification` تركَت العمودَ فارغاً ووضعَت
+    // معرّفَ الطلبِ في الحمولةِ وحدَها. فهذا قياسُ العلاجِ في موضعِه: بالإيداعِ
+    // الحقيقيِّ لا ببذرٍ يدويٍّ.
+    const enqueued = await sql<{ ok: boolean }[]>`
+      select enqueue_rider_order_notification(
+        ${cityId}::uuid, 'no_driver_found', ${orderA}::uuid
+      ) as ok
+    `;
+    expect(enqueued[0]?.ok).toBe(true);
+    const rows = await sql<{ order_id: string | null; payload_order: string | null }[]>`
+      select order_id, payload->>'order_id' as payload_order
+        from notification_outbox
+       where kind = 'no_driver_found' and dedup_key = ${`no_driver_found:${orderA}`}
+    `;
+    expect(rows[0]?.order_id).toBe(orderA);
+    // والحمولةُ كما كانَت حرفاً — لا حقلَ حُذِفَ فقارئوها في العامِلِ لا يُمَسّونَ.
+    expect(rows[0]?.payload_order).toBe(orderA);
+    await sql`
+      delete from notification_outbox
+       where kind = 'no_driver_found' and dedup_key = ${`no_driver_found:${orderA}`}
+    `;
   });
 
   it("رتبةُ كلِّ نوعٍ في القاعدةِ تُطابِقُ رتبتَه في الكودِ — بالنداءِ لا بقراءةِ النصِّ", async () => {
