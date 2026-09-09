@@ -22,15 +22,36 @@
  * إذا طال شوطُ المعالجةِ عن فترةِ التكرارِ، فلا يُجدولُ شوطٌ ثانٍ فوقَه: المؤقّتُ
  * يصيرُ «مُسكِتاً» لا «مُراكمَ». فلا تتنافسُ أشواطٌ على الإيجارِ، ولا تتضخّمُ
  * الذاكرةُ بدريَنرَ يقتلعُ بعضُه بعضاً.
+ *
+ * ## سقفُ الشوطِ (`F6-06`)
+ *
+ * مانعُ التداخلِ يمنعُ شوطاً فوقَ شوطٍ، ولا يمنعُ شوطاً **لا ينتهي**. وكانَ
+ * الشوطُ يمضي حتّى يفرُغَ الطابورُ: فمع دفقةِ مليونِ تحديثٍ يصيرُ الشوطُ
+ * الواحدُ مالِكَ العمليةِ دهراً، فيُجاعُ مسارُ HTTP في البوابةِ نفسِها (الدرينرُ
+ * داخلَ عمليةِ البوابةِ بنصِّ ADR-0057)، ويتعذّرُ الإيقافُ النزيهُ لأنَّ `stop`
+ * ينتظرُ الشوطَ الجاري. وهذا عينُ «الانهيارِ الشاملِ بسببِ خدمةٍ ثانويةٍ»
+ * الذي سمّاه القسمُ ١٥ من الخارطةِ **عيباً معماريّاً**.
+ *
+ * والسقفُ هو `TELEGRAM_JOB_CONSUMER_CONCURRENCY`: حدُّ تزامنِ المستهلِكِ لهذا
+ * الطابورِ، والمستهلِكُ ههنا متسلسلٌ، فمعنى الحدَّ في حقِّه **وظائفُ الشوطِ
+ * الواحدِ**: يفرُغُ ما يقدرُ عليه ثمّ يُسلِمُ المعالجَ ويعودُ في التَّكةِ التّاليةِ.
+ * وما بقيَ لا يُفقَدُ: الصفوفُ معلّقةٌ في القاعدةِ، و`truncated` يُعلِمُ أنَّ الطابورَ
+ * لم يفرُغ فيُرصَدُ طولُ الطابورِ لا يُكتَم.
  */
 
 import type { TelegramUpdateQueue } from "../../../../packages/infrastructure/db/telegram-update-queue.ts";
+import { TELEGRAM_JOB_CONSUMER_CONCURRENCY } from "../../../../packages/shared/config/domain-ingress.ts";
 import type { BotKind, UpdateHandler } from "../routes/telegram-webhook.ts";
 
 export interface TelegramUpdateDrainDeps {
   readonly queue: TelegramUpdateQueue;
   readonly handler: UpdateHandler;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * سقفُ وظائفِ الشوطِ الواحدِ. الافتراضيُّ `TELEGRAM_JOB_CONSUMER_CONCURRENCY`.
+   * ويُمرَّرُ في الاختبارِ ليُقاسَ السقفُ نفسُه بلا مائةِ وظيفةٍ وهميّةٍ.
+   */
+  readonly maxJobsPerRun?: number;
 }
 
 /** نتيجةُ شوطِ استنزافٍ واحد. */
@@ -41,11 +62,17 @@ export interface DrainReport {
   readonly done: number;
   /** وظائفُ فشلَت وعادت للطابورِ أو ماتت. */
   readonly failed: number;
+  /**
+   * بلَغَ الشوطُ سقفَه والطابورُ لم يفرُغ. ولمَ يُعلَنُ: شوطٌ مقطوعٌ
+   * يُقرأُ من خارجٍ شوطاً ناجحاً، فيُخفِي تراكُماً مستمرّاً.
+   */
+  readonly truncated: boolean;
 }
 
 /**
  * يلتقطُ وظيفةً واحدةً معلَّقةً ويُعالجُها ويُختمُها. يكرّرُ حتى يفرغَ الطابورُ
- * (claim يُعيدُ null). يُعيدُ تقريرَ الشوطِ. لا يُديرُ مؤقّتاً — للاختبارِ المباشرِ.
+ * (claim يُعيدُ null) **أو يبلُغَ سقفَ الشوطِ فيُعلِنَ `truncated`**. يُعيدُ
+ * تقريرَ الشوطِ. لا يُديرُ مؤقّتاً — للاختبارِ المباشرِ.
  */
 export async function drainTelegramUpdateJobsOnce(
   deps: TelegramUpdateDrainDeps,
@@ -53,8 +80,16 @@ export async function drainTelegramUpdateJobsOnce(
   let claimed = 0;
   let done = 0;
   let failed = 0;
+  let truncated = false;
+
+  const maxJobsPerRun = deps.maxJobsPerRun ?? TELEGRAM_JOB_CONSUMER_CONCURRENCY;
 
   for (;;) {
+    if (claimed >= maxJobsPerRun) {
+      // السقفُ يُقاسُ بالملتقَطِ لا بالمختومِ: الملتقَطُ هو ما شغَلَ المستهلِكَ.
+      truncated = true;
+      break;
+    }
     let job: Awaited<ReturnType<TelegramUpdateQueue["claim"]>>["job"];
     try {
       job = (await deps.queue.claim()).job;
@@ -95,7 +130,7 @@ export async function drainTelegramUpdateJobsOnce(
     }
   }
 
-  return { claimed, done, failed };
+  return { claimed, done, failed, truncated };
 }
 
 export interface TelegramUpdateDrainer {
@@ -131,6 +166,12 @@ export function startTelegramUpdateDrainer(
       const report = await drainTelegramUpdateJobsOnce(deps);
       if (report.claimed > 0) {
         deps.log?.("شوط استنزاف وظائف تيليجرام", { ...report });
+      }
+      if (report.truncated) {
+        // شوطٌ مقطوعٌ يُعلَنُ وحدَه: تكرّرُه معناه أنَّ الواردَ أسرعُ من المستهلِكِ.
+        deps.log?.("بلغ شوط استنزاف تيليجرام سقفه والطابور لم يفرغ", {
+          claimed: report.claimed,
+        });
       }
     } finally {
       running = false;

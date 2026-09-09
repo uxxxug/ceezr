@@ -24,6 +24,7 @@
  */
 
 import { Hono } from "hono";
+import { TELEGRAM_JOB_PRODUCER_RETRY_AFTER_SECONDS } from "../../../../packages/shared/config/domain-ingress.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { createUpdateDeduplicator, type UpdateDeduplicator, updateIdOf } from "./update-dedup.ts";
 import type {
@@ -321,6 +322,14 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
       if (outcome === "enqueued") {
         // الحمولةُ في الطابورِ، فACK سريعٌ — المعالجةُ شأنُ الدرينرِ لا الطلبِ.
         return c.json({ ok: true }, 200);
+      }
+
+      if (outcome === "shed") {
+        // بلغَ الطابورُ حدَّ المنتِجِ (F6-06). ورقمُ التحديثِ **لم يُستهلَكْ**،
+        // فالرفضُ 429 تأجيلٌ لا فقدٌ: تيليجرام يُعيدُ الإرسالَ، والإعادةُ
+        // تُقبَلُ فعلاً. وهوَ عينُ حُجّةِ ترتيبِ حدِّ المعدَّلِ (ADR 0054 §٦).
+        deps.log?.("طابورُ التحديثاتِ مكتظٌّ فأُجِّلَ الاستلامُ", { bot });
+        return tooManyRequests(c, TELEGRAM_JOB_PRODUCER_RETRY_AFTER_SECONDS);
       }
       // duplicate أو in_progress: لا عملٌ ثانٍ ولا إعادةُ ضبطٍ (ADR 0057).
       deps.log?.("تحديث مكرَّر أُهمل", { bot, outcome });

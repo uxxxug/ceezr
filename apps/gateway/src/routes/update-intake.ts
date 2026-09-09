@@ -31,7 +31,10 @@
 
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import { readEnvelope } from "../../../../packages/infrastructure/db/client.ts";
-import { TELEGRAM_INTAKE_CLAIM_TIMEOUT_SECONDS } from "../../../../packages/shared/config/domain-ingress.ts";
+import {
+  TELEGRAM_INTAKE_CLAIM_TIMEOUT_SECONDS,
+  TELEGRAM_JOB_PRODUCER_LIMIT,
+} from "../../../../packages/shared/config/domain-ingress.ts";
 
 export type IntakeOutcome = "claimed" | "reclaimed" | "duplicate" | "in_progress";
 
@@ -43,8 +46,10 @@ export type IntakeOutcome = "claimed" | "reclaimed" | "duplicate" | "in_progress
  * - `duplicate`: مكرَّرٌ مختومٌ سلفاً — **لا عملٌ ثانٍ ولا إعادةُ ضبطٍ** (§٥/٦ وADR 0057).
  * - `in_progress`: إيصالٌ قائمٌ غيرُ مختومٍ — الوظيفةُ موجودةٌ (معلَّقةٌ أو محجوزةٌ أو ميّتةٌ)،
  *   فلا يُنشأُ لها عملٌ ثانٍ، ولا يُصفَّرُ الموجودُ عند إعادةِ تسليمٍ مكرَّرةٍ.
+ * - `shed`: الطابورُ بلغَ حدَّ المنتِجِ (F6-06) — **لم يُستهلَكْ رقمُ التحديثِ**،
+ *   فالمسارُ يردُّ 429 وإعادةُ إرسالِ تيليجرام مقبولةٌ لاحقاً. تأجيلٌ لا فقدٌ.
  */
-export type EnqueueOutcome = "enqueued" | "duplicate" | "in_progress";
+export type EnqueueOutcome = "enqueued" | "duplicate" | "in_progress" | "shed";
 
 export interface IntakeClaim {
   readonly outcome: IntakeOutcome;
@@ -91,7 +96,9 @@ function isOutcome(value: unknown): value is IntakeOutcome {
 }
 
 function isEnqueueOutcome(value: unknown): value is EnqueueOutcome {
-  return value === "enqueued" || value === "duplicate" || value === "in_progress";
+  return (
+    value === "enqueued" || value === "duplicate" || value === "in_progress" || value === "shed"
+  );
 }
 
 /**
@@ -100,15 +107,19 @@ function isEnqueueOutcome(value: unknown): value is EnqueueOutcome {
  */
 export function createPostgresUpdateIntake(
   sql: Sql,
-  options?: { readonly claimTimeoutSeconds?: number },
+  options?: { readonly claimTimeoutSeconds?: number; readonly producerDepthLimit?: number },
 ): DurableUpdateIntake & TelegramUpdateEnqueuer {
   const timeoutSeconds = options?.claimTimeoutSeconds ?? TELEGRAM_INTAKE_CLAIM_TIMEOUT_SECONDS;
+  // حدُّ المنتِجِ يسكنُ حيثُ يسكنُ حدُّ إعادةِ المحاولةِ لهذا الطابورِ: ثابتٌ في
+  // `domain-ingress` لا مفتاحٌ لكلِّ مدينةٍ — فالطابورُ بلا مدينةٍ بإذنِ الملحقِ.
+  const producerDepthLimit = options?.producerDepthLimit ?? TELEGRAM_JOB_PRODUCER_LIMIT;
 
   return {
     claimAndEnqueue: async (bot, updateId, payload) => {
       const rows = await sql<{ result: unknown }[]>`
         select claim_and_enqueue_telegram_update(
-          ${bot}, ${updateId}, ${sql.json(payload as never)}, ${timeoutSeconds}
+          ${bot}, ${updateId}, ${sql.json(payload as never)}, ${timeoutSeconds},
+          ${producerDepthLimit}
         ) as result
       `;
       const envelope = readEnvelope(rows[0]?.result);

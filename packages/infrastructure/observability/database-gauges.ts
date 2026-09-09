@@ -7,6 +7,7 @@
  * ملاحظات مستقبلية: إذا كبرت الجداول تُراجع EXPLAIN لهذه الاستعلامات قبل تقصير cache.
  */
 
+import { QUEUE_DEAD_WINDOW_SECONDS } from "../../shared/config/queue-backpressure.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { Sql } from "../db/client.ts";
 import type { DatabaseGaugeValues, OperationalMetrics } from "./metrics.ts";
@@ -16,6 +17,14 @@ interface GaugeRow {
   readonly available_drivers: number;
   readonly expired_subscriptions_today: number;
   readonly last_successful_backup_timestamp_seconds: number | null;
+  readonly outbox_depth: number;
+  readonly outbox_oldest_due_age_seconds: number | null;
+  readonly outbox_dead_recent: number;
+  readonly outbox_claimed: number;
+  readonly telegram_jobs_depth: number;
+  readonly telegram_jobs_oldest_due_age_seconds: number | null;
+  readonly telegram_jobs_dead_recent: number;
+  readonly telegram_jobs_claimed: number;
 }
 
 export interface DatabaseGaugeCollectionError {
@@ -81,7 +90,37 @@ export function createDatabaseGaugeCollector(
               as expired_subscriptions_today,
             (select extract(epoch from max(created_at))::float8
                from db_backups
-              where status = 'success') as last_successful_backup_timestamp_seconds
+              where status = 'success') as last_successful_backup_timestamp_seconds,
+            -- حِمْلُ الطوابيرِ الصامدةِ (F6-06): مجموعٌ على المدنِ كلِّها، فلا وسمَ
+            -- مدينةٍ في المقياسِ. والتعريفاتُ حرفاً حرفاً كما في دالَّتَي الحِمْلِ
+            -- notification_outbox_load وtelegram_update_jobs_load: عمقٌ = عملٌ لم
+            -- يُنهَ (معلَّقٌ + محجوزٌ)، وعمرٌ = أقدمُ **مستحقٍّ** معلَّقٍ، وموتى في
+            -- نافذةٍ. واختلافُ التعريفِ بينَ اللوحةِ وحكمِ القاعدةِ هوَ عينُ العطبِ
+            -- الذي يُصلِحُه هذا البندُ: رقمانِ باسمٍ واحدٍ ومعنيَينِ.
+            (select count(*)::int from notification_outbox
+              where status in ('pending', 'sending')) as outbox_depth,
+            (select extract(epoch from now() - min(next_attempt_at))::float8
+               from notification_outbox
+              where status = 'pending' and next_attempt_at <= now())
+              as outbox_oldest_due_age_seconds,
+            (select count(*)::int from notification_outbox
+              where status = 'dead' and died_at is not null
+                and died_at > now() - make_interval(secs => ${QUEUE_DEAD_WINDOW_SECONDS}))
+              as outbox_dead_recent,
+            (select count(*)::int from notification_outbox
+              where status = 'sending') as outbox_claimed,
+            (select count(*)::int from telegram_update_jobs
+              where status in ('pending', 'claimed')) as telegram_jobs_depth,
+            (select extract(epoch from now() - min(coalesce(next_attempt_at, created_at)))::float8
+               from telegram_update_jobs
+              where status = 'pending' and coalesce(next_attempt_at, created_at) <= now())
+              as telegram_jobs_oldest_due_age_seconds,
+            (select count(*)::int from telegram_update_jobs
+              where status = 'dead' and completed_at is not null
+                and completed_at > now() - make_interval(secs => ${QUEUE_DEAD_WINDOW_SECONDS}))
+              as telegram_jobs_dead_recent,
+            (select count(*)::int from telegram_update_jobs
+              where status = 'claimed') as telegram_jobs_claimed
         `;
       });
       const row = rows[0];
@@ -90,6 +129,22 @@ export function createDatabaseGaugeCollector(
         availableDrivers: row?.available_drivers ?? 0,
         expiredSubscriptionsToday: row?.expired_subscriptions_today ?? 0,
         lastSuccessfulBackupTimestampSeconds: row?.last_successful_backup_timestamp_seconds ?? 0,
+        queues: [
+          {
+            queue: "notification_outbox",
+            depth: row?.outbox_depth ?? 0,
+            oldestDueAgeSeconds: row?.outbox_oldest_due_age_seconds ?? 0,
+            deadInWindow: row?.outbox_dead_recent ?? 0,
+            claimed: row?.outbox_claimed ?? 0,
+          },
+          {
+            queue: "telegram_update_jobs",
+            depth: row?.telegram_jobs_depth ?? 0,
+            oldestDueAgeSeconds: row?.telegram_jobs_oldest_due_age_seconds ?? 0,
+            deadInWindow: row?.telegram_jobs_dead_recent ?? 0,
+            claimed: row?.telegram_jobs_claimed ?? 0,
+          },
+        ],
       };
       metrics.observeCriticalDatabaseQuery("operational_gauges", now() - startedAt);
       metrics.setDatabaseGauges(value);

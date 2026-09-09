@@ -11,7 +11,7 @@
 import type { DriverBotDependencies } from "../../../packages/application/bots/driver-dialog.ts";
 import type { RiderBotDependencies } from "../../../packages/application/bots/rider-dialog.ts";
 import type { SupportDialogDependencies } from "../../../packages/application/bots/support-dialog.ts";
-import type { SessionStore } from "../../../packages/application/bots/types.ts";
+import type { DriverDirectory, SessionStore } from "../../../packages/application/bots/types.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
 import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
@@ -21,6 +21,7 @@ import type {
   PaymentProvider,
   SubscriptionWalletRpcPort,
 } from "../../../packages/application/financial/ports.ts";
+import type { UpdateDriverLocationDeps } from "../../../packages/application/geo/update-driver-location.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
 import {
   type CustomerLiveRelay,
@@ -241,6 +242,14 @@ export interface Container {
    * الجلسات والبراهين بنفس المحوّلات لا بنسخة موازية.
    */
   readonly tracking: TrackingWiring;
+  /**
+   * `F4-01` — تبعياتُ استقبالِ الموقعِ مكشوفةٌ لأنَّ مسارَ `POST /v1/driver/location`
+   * يجبُ أن يكتبَ بـ**نفسِ** المحوّلاتِ التي يكتبُ بها مسارُ البوتِ: نفسِ الدليلِ،
+   * ونفسِ سياسةِ المجالِ المقروءةِ من `TRACKING_*`، ونفسِ ناقلِ البثِّ، ونفسِ
+   * إعادةِ العرضِ. تركيبُ نسخةٍ ثانيةٍ في `index.ts` كانَ سيجعلُ للنظامِ سياستَي
+   * موقعٍ تنزلقُ إحداهما عن الأخرى بلا أن يُخفِقَ اختبارٌ.
+   */
+  readonly driverLocation: DriverLocationWiring;
   close(): Promise<void>;
 }
 
@@ -279,6 +288,12 @@ export interface NegotiationWiring {
   readonly escalate: EscalateUnmatchedOrderDependencies;
   readonly publish: PublishToUnsubscribedGroupDependencies;
   readonly clock: typeof systemClock;
+}
+
+export interface DriverLocationWiring {
+  /** قراءةُ صفِّ السائقِ بمعرّفِ تيليجرام — لا كتابةَ فيه من هذا الطريقِ. */
+  readonly drivers: DriverDirectory;
+  readonly ingest: UpdateDriverLocationDeps;
 }
 
 export interface ContainerOverrides {
@@ -845,6 +860,16 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     sql,
     driverSender,
     financial,
+    driverLocation: {
+      drivers,
+      ingest: {
+        drivers,
+        clock: systemClock,
+        gpsPolicy,
+        tracking: liveTracking,
+        redispatch: redispatchDeps,
+      },
+    },
     tracking: {
       bus: trackingBus,
       sessions: trackingSessions,
