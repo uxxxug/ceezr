@@ -33,17 +33,10 @@ import {
   DEFAULT_POLL_MS,
 } from "../../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
 import { type ResolvedMapStyle, resolveMapStyle } from "../../../packages/maps/index.ts";
+import { DB_POOL_MAX } from "../../../packages/shared/config/connection-budget.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import type { AdminAuthPort, AdminCodeSender } from "../../gateway/src/admin/auth.ts";
 import { createAdminAuthPort } from "../../gateway/src/admin/auth.ts";
-
-/**
- * سقفُ اتّصالاتِ القاعدةِ لعمليةِ اللوحةِ. أصغرُ من سقفِ البوّابةِ عن قصدٍ: هذه
- * العمليةُ يستخدمها **مشغّلونَ معدودون** لا آلافُ راكبين، وسقفٌ واسعٌ ههنا يعني
- * أنّ تقريراً ثقيلاً واحداً يقدرُ على استهلاكِ حصّةِ القاعدةِ التي تحتاجُها
- * البوّابةُ — أيْ إعادةُ العطلِ الذي فُصِلت اللوحةُ لأجلِ منعِهِ، من الطرفِ الآخر.
- */
-const ADMIN_DB_MAX_CONNECTIONS = 5;
 
 export interface AdminContainer {
   readonly sql: Sql;
@@ -68,11 +61,22 @@ export function buildAdminContainer(
   overrides: AdminContainerOverrides = {},
   log: (message: string, meta: Record<string, unknown>) => void = () => {},
 ): AdminContainer {
+  /**
+   * سقفُ اتّصالاتِ القاعدةِ لعمليةِ اللوحةِ — دورٌ مستقلٌّ في الميزانيّةِ لا حصّةٌ من
+   * سقفِ البوّابةِ. ومحدودٌ عن قصدٍ: هذه العمليةُ يستخدمها **مشغّلونَ
+   * معدودون** لا آلافُ راكبين، وسقفٌ واسعٌ ههنا يعني أنّ تقريراً ثقيلاً واحداً
+   * يقدرُ على استهلاكِ حصّةِ القاعدةِ التي تحتاجُها البوّابةُ — أيْ إعادةُ العطلِ الذي
+   * فُصِلت اللوحةُ لأجلِ منعِهِ، من الطرفِ الآخر.
+   *
+   * `F7-04` — **والرقمُ يُقرأُ من نموذجِ ميزانيّةِ الاتّصالاتِ لا من ثابتٍ ههنا**:
+   * تجمُّعٌ لا تعرفُه الميزانيّةُ هو حرفُ ما جرى — خدمةُ اللوحةِ فُصِلَت بتجمُّعِها
+   * وبقيَت صيغةُ `5N + 10M` لا تراه.
+   */
   const sql =
     overrides.sql ??
     createSql({
       connectionString: config.databaseUrl,
-      max: ADMIN_DB_MAX_CONNECTIONS,
+      max: DB_POOL_MAX.adminRequest,
       prepare: false,
     });
 

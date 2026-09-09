@@ -11,6 +11,7 @@
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DB_POOL_MAX } from "../../shared/config/connection-budget.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { createSql } from "../db/client.ts";
 
@@ -117,7 +118,7 @@ function rowCountTableName(schema: string, table: string): string {
 export async function captureDatabaseFingerprint(
   databaseUrl: string,
 ): Promise<Result<DatabaseFingerprint, BackupRestoreError>> {
-  const sql = createSql({ connectionString: databaseUrl, max: 1 });
+  const sql = createSql({ connectionString: databaseUrl, max: DB_POOL_MAX.restoreVerifier });
   try {
     const [tables, functions, policies, constraints, indexes, roles] = await Promise.all([
       sql<{ schema_name: string; table_name: string }[]>`

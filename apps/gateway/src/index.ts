@@ -34,6 +34,11 @@ import {
   maplibreStylesheetUrl,
   resolveMapStyle,
 } from "../../../packages/maps/index.ts";
+import {
+  computeConnectionBudget,
+  DECLARED_TOPOLOGY,
+  describeConnectionBudget,
+} from "../../../packages/shared/config/connection-budget.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import {
   DECIDED_EVENT_DISTRIBUTION,
@@ -723,6 +728,29 @@ log("البوابة تعمل", {
 
 // بعد سطر «البوابة تعمل» لا قبله، حتى لا يؤخّر استعلامٌ بطيء إعلانَ جاهزية المنفذ.
 void verifySchemaApplied();
+
+/**
+ * `F7-04` — سطرُ ميزانيّةِ الاتّصالاتِ عندَ الإقلاعِ.
+ *
+ * ولمَ يُسجَّلُ أصلاً: يومَ تضيقُ القاعدةُ باتّصالاتِها يكونُ أوّلَ سؤالٍ «كم
+ * اتّصالاً تفتحُ المنظومةُ عن نفسِها؟» — وأسوأُ جوابٍ عنه تخمينٌ يُجمَعُ بيدٍ من
+ * أربعةِ ملفّاتٍ تحتَ ضغطِ عطلٍ. والرقمُ ههنا **محسوبٌ من الثوابتِ التي أقلعَت
+ * عليها هذه العمليةُ نفسُها**، و`workerRunsInGateway` تُقرأُ من الإعدادِ الفعليِّ لا
+ * من المُعلَنِ: بوّابةٌ تحملُ المهامَّ تحملُ تجمُّعَيها معها، وهو الفرقُ الذي كانت
+ * صيغةُ `5N + 10M` تُسقِطُه.
+ *
+ * ولا يُقارَنُ بسقفِ المزوِّدِ ولا يُسقِطُ إقلاعاً: السقفُ مُدخَلٌ من خارجِ
+ * المستودعِ (خطّةُ الحسابِ · إعدادُ pooler)، وحاجزٌ يحكمُ على رقمٍ لا يعرفُه
+ * يُطمئنُ زوراً (`ح-5`).
+ */
+log("connection_budget.declared", {
+  summary: describeConnectionBudget(
+    computeConnectionBudget({
+      ...DECLARED_TOPOLOGY,
+      workerRunsInGateway: config.runWorkerInGateway,
+    }),
+  ),
+});
 
 /**
  * المهامّ الدورية داخل نفس العملية — خلف متغيّر بيئة صريح.
