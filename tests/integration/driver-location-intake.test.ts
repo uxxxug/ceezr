@@ -95,12 +95,18 @@ async function seedDriver(telegramId: string, name: string): Promise<DriverId> {
   const userId = users[0]?.id;
   if (userId === undefined) throw new Error("تعذّر إنشاء المستخدم");
   const drivers = await sql<{ id: string }[]>`
-    insert into drivers (city_id, user_id, verification_status, is_available)
-    values (${cityId}, ${userId}, 'verified'::verification_status, true)
+    insert into drivers (city_id, user_id, verification_status)
+    values (${cityId}, ${userId}, 'verified'::verification_status)
     returning id
   `;
   const created = drivers[0]?.id;
   if (created === undefined) throw new Error("تعذّر إنشاء السائق");
+  // التوفُّرُ صفٌّ مستقلٌّ في `driver_availability` لا عمودٌ في `drivers`،
+  // والسائقُ المُتاحُ هوَ حالُ الاستقبالِ الطبيعيَّةُ.
+  await sql`
+    insert into driver_availability (city_id, driver_id, is_available)
+    values (${cityId}, ${created}, true)
+  `;
   return created as DriverId;
 }
 
