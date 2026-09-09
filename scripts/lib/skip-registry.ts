@@ -1050,6 +1050,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/worker-service-separation.test.ts",
+    suites: ["فصلُ العامل عن البوابة على قاعدةٍ حقيقيّةٍ — F5-04 / SCL-007"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت أنّ `RUN_WORKER_IN_GATEWAY=false` يُطفئ المهامَّ الدوريّةَ فعلاً وأنّ عمليّةَ العاملِ المستقلّةَ تُشغِّلها — بعمليّاتٍ فرعيّةٍ حقيقيّةٍ. والشاهدُ صفوفُ `job_heartbeats` في القاعدةِ لا سطرُ سجلٍّ، وهي نفسُها التي يقرؤها `/ready`. ولا بديلَ في الذاكرة: المقيسُ عبورُ الحقيقةِ بين عمليّتَين منفصلتَين، وهو معنى الفصلِ نفسِه.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/real-redis/redis-sessions-real.test.ts",
     suites: ["مخزنُ الجلساتِ على Redis حقيقيٍّ"],
     skipped: 12,
