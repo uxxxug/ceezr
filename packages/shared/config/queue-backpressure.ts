@@ -45,6 +45,9 @@
  * القسمَ ١٤ («DLQ لكلِّ طابورٍ») قابلاً للتحقّقِ لا وصيّةً تُقرأُ.
  */
 
+import { NOTIFICATION_KINDS, type NotificationKind } from "./notification-kinds.ts";
+import { isDeferrableClass, NOTIFICATION_KIND_PRIORITY } from "./traffic-priority.ts";
+
 /**
  * الطوابيرُ الصامدةُ. **قائمةٌ مغلقةٌ** يُنفِذُها الحارسُ ضدَّ الترحيلاتِ: من زادَ
  * طابوراً زادَ سطرَه ههنا وحدودَه، أو سقطَ الحاجزُ في CI.
@@ -148,14 +151,25 @@ export const QUEUE_BACKPRESSURE_DECLARATIONS: readonly QueueBackpressureDeclarat
 /**
  * أصنافُ الإشعارِ التي **يجوزُ تأجيلُها** عندَ الإشباعِ. القسمُ ١٥ من الخارطةِ
  * يصنِّفُ «البثَّ الجماهيريَّ» منخفضاً وينصُّ: «يؤجَّلُ البثُّ غيرُ الضروريِّ»،
- * ويحمي الرحلاتَ النشطةَ والدفعَ والاستغاثةَ. فالقائمةُ **صريحةٌ بالأسماءِ** لا
- * مُشتقّةٌ من رتبةٍ: الرتبةُ الكاملةُ للأصنافِ الأحدَ عشرَ هيَ `F6-07`، وبناؤها
- * ههنا استباقٌ لبندٍ لم يُنفَّذ. وميلُ القائمةِ آمنٌ بالبناءِ: صنفٌ لا يُذكَرُ
- * فيها **لا يُؤجَّلُ** — فالسهوُ يُبقي الإشعارَ عاجلاً، لا يُسكِتُه.
+ * ويحمي الرحلاتَ النشطةَ والدفعَ والاستغاثةَ.
+ *
+ * **تصحيحٌ مُضافٌ — `F6-07` (2026-09-09):** كانَت هذه القائمةُ صريحةً بالأسماءِ
+ * (`broadcast_recipient` وحدَه) وكانَ سببُ صراحتِها مُعلَناً ههنا: «الرتبةُ
+ * الكاملةُ للأصنافِ الأحدَ عشرَ هيَ `F6-07`، وبناؤها ههنا استباقٌ لبندٍ لم
+ * يُنفَّذ». وقد نُفِّذَ البندُ، فصارَت القائمةُ **مُشتقّةً** من
+ * `packages/shared/config/traffic-priority.ts` — لا لِتُبنى مُبكِّرةً بل لِئلّا
+ * يبقى للتأجيلِ مصدرُ حقيقةٍ ثانٍ يُفارِقُ الرتبةَ بلا أن يُلاحَظَ. والاشتقاقُ
+ * يُوسِّعُ القائمةَ إلى المتوسّطِ والمنخفضِ، وهوَ عينُ نصِّ القسمِ ١٥: «تُقلَّص
+ * الوظائف الثانوية، ويؤجَّل البثّ غير الضروري».
+ *
+ * وميلُ القائمةِ يبقى آمناً بالبناءِ: نوعٌ لا يُصنَّفُ يُقرأُ `critical`
+ * فـ**لا يُؤجَّلُ** — فالسهوُ يُبقي الإشعارَ عاجلاً لا يُسكِتُه، ويسقطُ في CI
+ * بحاجزِ `scripts/check-traffic-priority.ts`.
  */
-export const DEFERRABLE_UNDER_BACKPRESSURE_KINDS = ["broadcast_recipient"] as const;
+export const DEFERRABLE_UNDER_BACKPRESSURE_KINDS: readonly NotificationKind[] =
+  NOTIFICATION_KINDS.filter((kind) => isDeferrableClass(NOTIFICATION_KIND_PRIORITY[kind]));
 
-export type DeferrableKind = (typeof DEFERRABLE_UNDER_BACKPRESSURE_KINDS)[number];
+export type DeferrableKind = NotificationKind;
 
 export function isDeferrableUnderBackpressure(kind: string): kind is DeferrableKind {
   return (DEFERRABLE_UNDER_BACKPRESSURE_KINDS as readonly string[]).includes(kind);

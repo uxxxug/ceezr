@@ -121,9 +121,13 @@ describe("البند 6.2 — بوت السائق وحده ينشر في القر
     );
     expect(notifiers).toHaveLength(2);
     expect(notifiers.some((argument) => argument.includes("riderTelegram"))).toBe(true);
+    // مُرسِلٌ واحدٌ على الأقلِّ مبنيٌّ على `telegram` (بوتِ السائقِ) **لا** على
+    // `riderTelegram`. وهذا أقوى من مطابقةِ النصِّ `(telegram)` حرفيّاً: الوسمُ
+    // بأولويّةِ المرورِ (`F6-07`) يُدخِلُ غلافاً بينَ الاثنَينِ، والقاعدةُ المحميّةُ
+    // ليست شكلَ النداءِ بل أن يكونَ لكلِّ جمهورٍ بوتُه.
     expect(
       notifiers.some(
-        (argument) => argument.includes("(telegram)") || argument.includes("supportSender"),
+        (argument) => /\btelegram\b/.test(argument) && !argument.includes("riderTelegram"),
       ),
     ).toBe(true);
   });

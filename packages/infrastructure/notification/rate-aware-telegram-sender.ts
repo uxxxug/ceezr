@@ -13,6 +13,7 @@
  *   كاملاً بمزدوجٍ في الاختبارِ، ويصمدُ لو بدَّلَ grammY أصنافَه.
  */
 
+import { bucketClassOfSendPriority } from "../../shared/config/traffic-priority.ts";
 import type { OutboundRateBucket } from "./outbound-rate-bucket.ts";
 import type { SendPriority, TelegramSender } from "./telegram-api-sender.ts";
 
@@ -219,10 +220,14 @@ export function withOutboundResilience(
     chatId: string,
     operation: OutboundOperation,
     attempt: number,
+    priority: SendPriority,
   ): Promise<string | null> => {
     let waited = 0;
+    // القسمُ ١٥ / `F6-07`: غيرُ الحرجِ يُمنَعُ قبلَ آخِرِ فتحاتِ الدلوِ العالميِّ
+    // فيبقى للحرجِ متنفَّسٌ. ودلوُ المحادثةِ لا حِصّةَ فيه (فتحةٌ واحدةٌ لا تُقسَمُ).
+    const bucketClass = bucketClassOfSendPriority(priority);
     for (;;) {
-      const globalSlot = await options.bucket.acquire("global", "bot");
+      const globalSlot = await options.bucket.acquire("global", "bot", bucketClass);
       if (!globalSlot.granted) {
         if (waited + globalSlot.waitMs > maxBucketWaitMs) return "ازدحامُ الدلوِ العالميِّ";
         options.onEvent?.({
@@ -237,7 +242,7 @@ export function withOutboundResilience(
         waited += globalSlot.waitMs;
         continue;
       }
-      const chatSlot = await options.bucket.acquire("chat", chatId);
+      const chatSlot = await options.bucket.acquire("chat", chatId, bucketClass);
       if (chatSlot.granted) return null;
       // الفتحةُ العالميّةُ استُهلِكَت ولم تُستعمَل. مقصودٌ ومُحتسَبٌ: الاحتياطُ
       // أن نُنفِقَ فتحةً من خمسٍ وعشرينَ لا أن نُرسِلَ إلى محادثةٍ تجاوزَت حدَّها
@@ -267,7 +272,7 @@ export function withOutboundResilience(
     let lastFailure: OutboundFailureClass = "transient";
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      const blocked = await awaitSlot(chatId, operation, attempt);
+      const blocked = await awaitSlot(chatId, operation, attempt, priority);
       if (blocked !== null) {
         lastReason = blocked;
         lastFailure = "transient";
