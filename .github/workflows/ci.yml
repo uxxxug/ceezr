@@ -534,8 +534,15 @@ jobs:
       - name: Install
         run: bun install --frozen-lockfile
 
+      # لا `--wait`: البوّاباتُ **يجبُ** أن ترفضَ الإقلاعَ اليومَ (ADR 0050 §٣-ب)،
+      # فانتظارُ صحّتِها انتظارُ ما لا يجوزُ حدوثُه. والحكمُ في الخطوةِ التاليةِ.
       - name: رفعُ رصةِ Docker Compose
-        run: docker compose -f docker-compose.f5-06.yml up -d --build --wait
+        run: docker compose -f docker-compose.f5-06.yml up -d --build
+
+      # القياسُ المشروعُ اليومَ: أنَّ كسرَ شرطِ النسخةِ الواحدةِ صاخبٌ في رصةٍ
+      # حقيقيّةٍ من ثلاثِ حاوياتٍ — لا صامتٌ ولا مُتدهوِرٌ (R-17 · ADR 0050 §٣-ب).
+      - name: برهانُ رفضِ الإقلاعِ متعدّدِ المثيلاتِ (R-17 · ADR 0050 §٣-ب)
+        run: bun run scripts/f5-06-invariant-refusal.ts
 
       - name: أدوار Supabase التي تفترضها الهجرات
         env:
@@ -562,6 +569,9 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5433/waslah
         run: bun run scripts/migrate.ts
 
+      # المنسّقُ يقرأُ آليةَ التوزيعِ المُقرَّرةَ من الشيفرةِ: يقودُ الرحلةَ إن كانت
+      # تعبرُ حدودَ العمليةِ، ويُعلِنُ التعذُّرَ البنيويَّ صريحاً إن لم تكن — بلا
+      # تعطيلِ حاجزٍ وبلا إعلانِ نجاحٍ لم يقع (ADR 0050 §٣-د · §٨-أ · REQ-07).
       - name: منسّقُ اختبارِ الفوضى — قيادةُ رحلةٍ عبرَ المثيلاتِ وقتلُ نسخةٍ أثناءَها
         run: bun run scripts/f5-06-chaos.ts
 

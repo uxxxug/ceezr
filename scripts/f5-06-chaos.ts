@@ -16,6 +16,24 @@
  */
 
 import { createSql } from "../packages/infrastructure/db/client.ts";
+import {
+  DECIDED_EVENT_DISTRIBUTION,
+  distributionCrossesProcessBoundary,
+  type EventDistributionMechanism,
+} from "../packages/shared/config/single-instance.ts";
+
+/**
+ * هل يُسمَحُ بتشغيلِ الرحلةِ أصلاً؟ **الجوابُ من الشيفرةِ لا من البيئةِ**: البوّابةُ
+ * ترفضُ الإقلاعَ عندَ `PROCESS_TOPOLOGY=multi-process` ما لم تعبرْ آليةُ التوزيعِ
+ * حدودَ العمليةِ (`ADR 0050` §٣-ب/§٣-د · `R-17`)، فرحلةُ الفوضى مُتعذِّرةٌ بنيويّاً
+ * لا مُخفِقةٌ. **وليسَ هذا تخطّياً بلا سببٍ**: السببُ حاجزٌ سياديٌّ مكتوبٌ، والبديلُ
+ * المقيسُ اليومَ `scripts/f5-06-invariant-refusal.ts` يُثبِتُ الرفضَ في رصةٍ حقيقيّةٍ.
+ * ويومَ تُقرَّرُ آليةٌ عابرةٌ بـADR ناسخٍ (`ADR 0050` §٨) **تُفتَحُ الرحلةُ تلقائيّاً**
+ * بلا لمسِ هذا الملفِّ — لأنَّ الشرطَ يُقرأُ من مصدرِ القرارِ نفسِه.
+ */
+export function rideIsUnlockable(distribution: EventDistributionMechanism): boolean {
+  return distributionCrossesProcessBoundary(distribution);
+}
 
 const HAPROXY = "http://localhost:8080";
 const GATEWAYS = [
@@ -344,6 +362,25 @@ async function main(): Promise<void> {
   console.log("╔══════════════════════════════════════════════════════════╗");
   console.log("║  F5-06 — اختبارُ الفوضى متعدّدُ المثيلات (Docker Compose)  ║");
   console.log("╚══════════════════════════════════════════════════════════╝");
+  if (!rideIsUnlockable(DECIDED_EVENT_DISTRIBUTION)) {
+    console.log(
+      [
+        "\n⛔ [F5-06] رحلةُ الفوضى لا تُشغَّلُ: آليةُ توزيعِ الأحداثِ المُقرَّرةُ",
+        `«${DECIDED_EVENT_DISTRIBUTION}» لا تعبرُ حدودَ العمليةِ، فالبوّاباتُ ترفضُ`,
+        "الإقلاعَ متعدّدَ المثيلاتِ (ADR 0050 §٣-ب · R-17) — رفضاً صحيحاً لا عطباً.",
+      ].join(" "),
+    );
+    console.log(
+      [
+        "   والمقيسُ في هذه الوظيفةِ هو الرفضُ نفسُه",
+        "(scripts/f5-06-invariant-refusal.ts) لا الرحلةُ.",
+        "وتُفتَحُ الرحلةُ تلقائيّاً يومَ تُقرَّرُ آليةٌ عابرةٌ للعمليةِ بـADR ناسخٍ",
+        "(ADR 0050 §٨-أ · REQ-07)، ولا يُغلَقُ F5-06 قبلَ ذلكَ.",
+      ].join(" "),
+    );
+    await sql.end({ timeout: 5 });
+    return;
+  }
   await waitForGateways();
   const cityId = await seedCity();
   const driverId = await registerDriver(cityId);
@@ -359,4 +396,5 @@ async function main(): Promise<void> {
   );
 }
 
-await main();
+// حُرِّسَ بـ`import.meta.main` كي يُختبَرَ حكمُ فتحِ الرحلةِ بلا رفعِ رصةٍ ولا اتّصالِ قاعدةٍ.
+if (import.meta.main) await main();
