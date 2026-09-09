@@ -19,6 +19,10 @@ import type {
   DriverProfile,
   StoredLocationQuality,
 } from "../../packages/application/bots/types.ts";
+import type {
+  HotLocationRecordInput,
+  HotLocationRecordOutcome,
+} from "../../packages/application/geo/driver-location-hot-state.ts";
 import {
   type DriverLocationWriter,
   type UpdateDriverLocationDeps,
@@ -106,6 +110,8 @@ describe("F4-01 — استقبالُ الموقعِ: القبولُ", () => {
       recordedAtMs: NOW_MS,
       verdict: "ACCEPT",
       becameLive: false,
+      // `F4-02`: بلا منفذِ حالةٍ ساخنةٍ يبقى الاستمرارُ مباشراً — نسقُ `F4-01` بحرفِه.
+      persistence: "direct",
     });
     expect(seen.writes[0]?.quality).toEqual({
       recordedAtMs: NOW_MS,
@@ -289,5 +295,183 @@ describe("F4-01 — استقبالُ الموقعِ: الانتقالُ وإعا
 
     expect(result.ok).toBe(true);
     expect(seen.writes).toBe(1);
+  });
+});
+
+/**
+ * `F4-02` — المسارُ الساخنُ داخلَ حالةِ الاستخدامِ نفسِها.
+ *
+ * **وحدُّ هذه المجموعةِ مُعلَنٌ:** المخزنُ الساخنُ ههنا **مُصطنَعٌ**، فما يُثبَتُ هوَ
+ * قرارُ الطبقةِ على حكمِه: متى تُكتَبُ القاعدةُ فوراً، ومتى يُجمَّعُ، ومتى يُبَثُّ.
+ * أنَّ Redis يرفضُ الأقدمَ فعلاً — على نسختَينِ متزاحمتَينِ — في
+ * `tests/real-redis/driver-location-hot-state-real.test.ts` على خدمةٍ حقيقيّةٍ، وأنَّ
+ * الدفعةَ تُطبِّقُ الأحدثَ في `tests/integration/driver-location-batch-persist.test.ts`
+ * على PostgreSQL حقيقيٍّ. ولا يُدَّعى ههنا غيرُ ما تُثبِتُه منافذُ مُصطنَعةٌ.
+ */
+describe("F4-02 — الحالةُ الساخنةُ: أينَ يستقرُّ الموضعُ", () => {
+  interface HotSeen {
+    readonly writes: number[];
+    readonly recorded: HotLocationRecordInput[];
+    readonly published: StoredFix[];
+    readonly degraded: string[];
+  }
+
+  function hotHarness(
+    hot:
+      | { readonly ok: true; readonly outcome: HotLocationRecordOutcome }
+      | { readonly ok: false; readonly detail: string },
+  ): { deps: UpdateDriverLocationDeps; seen: HotSeen } {
+    const seen: HotSeen = { writes: [], recorded: [], published: [], degraded: [] };
+    return {
+      seen,
+      deps: {
+        drivers: {
+          updateLocation: async (_driverId, _location, quality) => {
+            seen.writes.push(quality.recordedAtMs);
+            return ok({ kind: "accepted" });
+          },
+        },
+        clock: { now: () => new Date(NOW_MS) },
+        hotState: {
+          record: async (input) => {
+            seen.recorded.push(input);
+            return hot.ok
+              ? ok(hot.outcome)
+              : err(new PortFailureError("driver-location-hot-state", hot.detail));
+          },
+        },
+        onHotStateDegraded: (detail) => {
+          seen.degraded.push(detail.reason);
+        },
+        tracking: {
+          onFix: async (fix) => {
+            seen.published.push(fix);
+          },
+        },
+      },
+    };
+  }
+
+  it("١٣) النبضةُ المُجمَّعةُ لا تلمسُ القاعدةَ، وتُبَثُّ مع ذلك", async () => {
+    const { deps, seen } = hotHarness({ ok: true, outcome: { kind: "queued", backlog: 3 } });
+    const result = await updateDriverLocation(
+      { driver: driverProfile(), ...AT, quality: { recordedAtMs: NOW_MS } },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.kind === "accepted" && result.value.persistence).toBe("deferred");
+    // الاستمرارُ أُجِّلَ: لا كتابةَ في هذه النبضةِ.
+    expect(seen.writes).toHaveLength(0);
+    // والبثُّ لم يتأجَّلْ: الخريطةُ الحيّةُ تقرأُ من البثِّ لا من صفِّ السائقِ.
+    expect(seen.published).toHaveLength(1);
+  });
+
+  it("١٤) أوّلُ موقعٍ لسائقٍ بلا موقعٍ يُكتَبُ فوراً ولو قُبِلَ في القائمةِ", async () => {
+    const { deps, seen } = hotHarness({ ok: true, outcome: { kind: "queued", backlog: 1 } });
+    const result = await updateDriverLocation(
+      {
+        driver: driverProfile({ hasLocation: false, lastFix: null }),
+        ...AT,
+        quality: { recordedAtMs: NOW_MS },
+      },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    /**
+     * «الانتقالُ يُكتَبُ فوراً، والنبضةُ تُجمَّعُ»: المطابقةُ والإسنادُ يقرآنِ
+     * `drivers.last_location`، فتأجيلُ **الانتقالِ** يعني سائقاً متاحاً لا يراهُ
+     * الإسنادُ دورةَ إفراغٍ كاملةً — والقياسُ ههنا على الكتابةِ لا على العزمِ.
+     */
+    expect(result.value.kind === "accepted" && result.value.persistence).toBe("direct");
+    expect(seen.writes).toEqual([NOW_MS]);
+  });
+
+  it("١٥) الأقدمُ الذي رفضَه المخزنُ الساخنُ لا يُكتَبُ ولا يُبَثُّ", async () => {
+    const { deps, seen } = hotHarness({
+      ok: true,
+      outcome: { kind: "stale", newestKnownMs: NOW_MS },
+    });
+    const result = await updateDriverLocation(
+      { driver: driverProfile(), ...AT, quality: { recordedAtMs: NOW_MS - 5_000 } },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.kind).toBe("stale");
+    expect(seen.writes).toHaveLength(0);
+    expect(seen.published).toHaveLength(0);
+  });
+
+  it("١٦) عطلُ المخزنِ الساخنِ يتدهوّرُ إلى الكتابةِ المباشرةِ ويُسجَّلُ", async () => {
+    const { deps, seen } = hotHarness({ ok: false, detail: "عطلُ شبكةٍ مُصطنَعٌ" });
+    const result = await updateDriverLocation(
+      { driver: driverProfile(), ...AT, quality: { recordedAtMs: NOW_MS } },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // لا يسقطُ الاستقبالُ لعطلِ مخزنٍ ساخنٍ: يُفقَدُ التجميعُ وحدَه.
+    expect(result.value.kind === "accepted" && result.value.persistence).toBe("direct");
+    expect(seen.writes).toEqual([NOW_MS]);
+    expect(seen.degraded).toEqual(["عطلُ شبكةٍ مُصطنَعٌ"]);
+  });
+
+  it("١٧) بلوغُ سقفِ التراكمِ يُعيدُ الكتابةَ المباشرةَ لا يُسقِطُ الموضعَ", async () => {
+    const { deps, seen } = hotHarness({ ok: true, outcome: { kind: "direct", backlog: 5_000 } });
+    const result = await updateDriverLocation(
+      { driver: driverProfile(), ...AT, quality: { recordedAtMs: NOW_MS } },
+      deps,
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.kind === "accepted" && result.value.persistence).toBe("direct");
+    expect(seen.writes).toEqual([NOW_MS]);
+    expect(seen.degraded).toHaveLength(0);
+  });
+
+  it("١٨) أرضيّةُ الحكمِ المُمرَّرةُ هيَ طابعُ الصفِّ في القاعدةِ لا الآنَ", async () => {
+    const { deps, seen } = hotHarness({ ok: true, outcome: { kind: "queued", backlog: 1 } });
+    const previousMs = NOW_MS - 60_000;
+    await updateDriverLocation(
+      {
+        driver: driverProfile({
+          lastFix: { latitude: 21.547, longitude: 39.175, recordedAtMs: previousMs },
+        }),
+        ...AT,
+        quality: { recordedAtMs: NOW_MS },
+      },
+      deps,
+    );
+
+    /**
+     * بلا هذه الأرضيّةِ يقبلُ مفتاحٌ منتهيةٌ مدّتُه إصلاحةً **أقدمَ** من صفِّ
+     * القاعدةِ ثمَّ يبثُّها — تراجعُ الموضعِ الذي منعَه `BUG-001` عائداً من بابِ
+     * انتهاءِ العمرِ. والقياسُ على ما يُمرَّرُ لأنَّ المخزنَ مُصطنَعٌ ههنا.
+     */
+    expect(seen.recorded[0]?.previousRecordedAtMs).toBe(previousMs);
+    expect(seen.recorded[0]?.recordedAtMs).toBe(NOW_MS);
+    expect(seen.recorded[0]?.cityId).toBe(CITY);
+  });
+
+  it("١٩) سائقٌ بلا إصلاحةٍ سابقةٍ يُمرِّرُ أرضيّةً معدومةً لا صفراً", async () => {
+    const { deps, seen } = hotHarness({ ok: true, outcome: { kind: "queued", backlog: 1 } });
+    await updateDriverLocation(
+      {
+        driver: driverProfile({ hasLocation: false, lastFix: null }),
+        ...AT,
+        quality: { recordedAtMs: NOW_MS },
+      },
+      deps,
+    );
+
+    // صفرٌ كانَ سيُقرأُ «١٩٧٠» أرضيّةً صالحةً، و`null` تعني «لا أرضيّةَ» فيحكمُ المخزنُ وحدَه.
+    expect(seen.recorded[0]?.previousRecordedAtMs).toBeNull();
   });
 });

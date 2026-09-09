@@ -10,6 +10,11 @@
  *   (بريدٌ أو رسائلُ نصّيّةٌ) يستعملُ الدلوَ نفسَه بنطاقٍ آخرَ بلا تغييرِ سطرٍ ههنا.
  */
 
+import {
+  DEFAULT_LOW_PRIORITY_BUCKET_SHARE,
+  effectiveBucketLimit,
+  type TrafficPriorityClass,
+} from "../../shared/config/traffic-priority.ts";
 import type { RedisClient } from "../redis/upstash.ts";
 
 /**
@@ -32,8 +37,18 @@ export interface OutboundRateBucket {
    * يحاولُ حجزَ فتحةٍ واحدةٍ. **لا يرمي أبداً ولا ينامُ**: يُعيدُ الحكمَ، والانتظارُ
    * قرارُ المُرسِلِ لا قرارُ الدلوِ — فمن نامَ داخلَ الدلوِ حجبَ عن مُنادِيه القدرةَ
    * على تفضيلِ رسالةٍ حرجةٍ على أخرى أو التخلّي عن غيرِ الحرجةِ.
+   *
+   * و`priority` (`F6-07` / القسمُ ١٥) **حجزٌ لا ترتيبٌ**: المتوسّطُ والمنخفضُ
+   * يريانِ حِصّةً من الحدِّ العالميِّ فيُمنَعانِ قبلَ أن يستهلِكا آخِرَ فتحاتِه،
+   * فيبقى للحرجِ متنفَّسٌ **في لحظةِ الفيضِ نفسِها** لا بعدَها. وغيابُه يُقرأُ
+   * `critical` لا `low`: مُنادٍ لم يُصنَّف يُعطَى الحدَّ كلَّه فيتصرّفُ كما كانَ قبلَ
+   * البندِ، فلا يُخنَقُ مسارٌ بترقيةٍ صامتةٍ.
    */
-  acquire(scope: OutboundRateScope, key: string): Promise<OutboundRateSlot>;
+  acquire(
+    scope: OutboundRateScope,
+    key: string,
+    priority?: TrafficPriorityClass,
+  ): Promise<OutboundRateSlot>;
 }
 
 /** حدٌّ واحدٌ: كم فتحةً في كم مللي ثانيةٍ. */
@@ -68,6 +83,25 @@ function limitFor(limits: OutboundRateLimits, scope: OutboundRateScope): Outboun
 }
 
 /**
+ * الحدُّ بعدَ حجزِ نصيبِ الحرجِ — **في النطاقِ العالميِّ وحدَه**.
+ *
+ * وحدُّ المحادةةِ لا حِصّةَ فيه أصلاً: فتحةٌ واحدةٌ في الثانيةِ، وقسمُ الواحدِ
+ * يُعطي واحداً فيكونُ عملاً بلا أثرٍ، أو صفراً فيكونُ منعاً أبديّاً لغيرِ الحرجِ — وهوَ
+ * إعدامٌ لا تأجيلٌ. والمزاحمةُ التي يدفعُها البندُ مزاحمةُ مورِدٍ مُشترَكٍ،
+ * والمُشترَكُ هوَ دلوُ البوتِ.
+ */
+function limitWithReserve(
+  limits: OutboundRateLimits,
+  scope: OutboundRateScope,
+  priority: TrafficPriorityClass,
+  share: number,
+): OutboundRateLimit {
+  const base = limitFor(limits, scope);
+  if (scope !== "global") return base;
+  return { limit: effectiveBucketLimit(base.limit, priority, share), windowMs: base.windowMs };
+}
+
+/**
  * دلوٌ في ذاكرةِ العمليةِ. **صالحٌ لنسخةٍ واحدةٍ وللاختبارِ، وغيرُ صالحٍ لتعدّدِ
  * النسخِ** — وهذا مذكورٌ صريحاً لا مسكوتٌ عنه، ولذلك يوجدُ البديلُ المشتركُ أدناه.
  * نافذةٌ منزلقةٌ بطوابعَ زمنيّةٍ لا نافذةٌ ثابتةٌ: الثابتةُ تسمحُ بضِعفِ الحدِّ على
@@ -76,13 +110,14 @@ function limitFor(limits: OutboundRateLimits, scope: OutboundRateScope): Outboun
 export function createMemoryOutboundRateBucket(
   limits: OutboundRateLimits = DEFAULT_OUTBOUND_RATE_LIMITS,
   nowMs: () => number = Date.now,
+  lowPriorityShare: number = DEFAULT_LOW_PRIORITY_BUCKET_SHARE,
 ): OutboundRateBucket & { readonly size: () => number } {
   const hits = new Map<string, number[]>();
 
   return {
     size: () => hits.size,
-    acquire: async (scope, key) => {
-      const { limit, windowMs } = limitFor(limits, scope);
+    acquire: async (scope, key, priority = "critical") => {
+      const { limit, windowMs } = limitWithReserve(limits, scope, priority, lowPriorityShare);
       const now = nowMs();
       const cutoff = now - windowMs;
       const full = `${scope}:${key}`;
@@ -147,6 +182,11 @@ export const OUTBOUND_BUCKET_PREFIX = "waslah:outbound";
 
 export interface RedisOutboundRateBucketOptions {
   readonly limits?: OutboundRateLimits;
+  /**
+   * حِصّةُ غيرِ العاجِلِ من الدلوِ العالميِّ (`F6-07`). وسيطٌ لا محفورٌ كي يُقاسَ
+   * الحجزُ في اختبارٍ بأرقامٍ صغيرةٍ، والافتراضُ هوَ مصدرُ الحقيقةِ في الإنتاجِ.
+   */
+  readonly lowPriorityShare?: number;
   readonly prefix?: string;
   readonly nowMs?: () => number;
   readonly onFailure?: (detail: string) => void;
@@ -165,14 +205,15 @@ export function createRedisOutboundRateBucket(
   options: RedisOutboundRateBucketOptions = {},
 ): OutboundRateBucket {
   const limits = options.limits ?? DEFAULT_OUTBOUND_RATE_LIMITS;
+  const share = options.lowPriorityShare ?? DEFAULT_LOW_PRIORITY_BUCKET_SHARE;
   const prefix = options.prefix ?? OUTBOUND_BUCKET_PREFIX;
   const nowMs = options.nowMs ?? Date.now;
   const salt = Math.random().toString(36).slice(2, 8);
   let nonce = 0;
 
   return {
-    acquire: async (scope, key) => {
-      const { limit, windowMs } = limitFor(limits, scope);
+    acquire: async (scope, key, priority = "critical") => {
+      const { limit, windowMs } = limitWithReserve(limits, scope, priority, share);
       const now = nowMs();
       const member = `${now}:${salt}:${nonce}`;
       nonce += 1;

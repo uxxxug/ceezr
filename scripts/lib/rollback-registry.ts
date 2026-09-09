@@ -620,6 +620,28 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "دورةُ الرحلةِ والإسناد",
     documentedIn: null,
   },
+  {
+    migration: "20260909150000_f6_07_traffic_priority.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "الهجرةُ تُعيدُ تعريفَ `claim_notification_delivery` بـ`create or replace` **بالتوقيعِ نفسِه** (بلا وسائطَ) لتُغيّرَ سطرَ الترتيبِ وحدَه من `order by n.created_at` إلى `order by notification_kind_priority(n.kind), n.created_at` (F6-07 / القسمُ ١٥ / ADR-0071)، وما عداه منقولٌ حرفاً. والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كانَ — الدالّةُ كانَت ممنوحةً لـ`service_role` وحدَها قبلَ التغييرِ وتبقى كذلكَ بعدَه، فلا تضييقَ فعليَّ في الصلاحيّاتِ. والعودةُ بالقاعدةِ وحدَها تكفي ولا نشرَ مقرونٌ: مردُّ الدالّةِ لم يتغيّر بحرفٍ — لا حقلَ أُضيفَ ولا حقلَ رُفِعَ — فالنسختانِ من الشيفرةِ تقرأانِ المظروفَ نفسَه، والفرقُ وحدَه **أيُّ صفٍّ يُختارُ أوّلاً**، وكلا الترتيبَينِ مقبولٌ لأيّةِ نسخةٍ من العامِلِ. والعودةُ تُعيدُ الأقدميّةَ حاكماً وحيداً فتُعيدُ معَها العطبَ المُعالَجَ (دفعةُ بثٍّ تتقدّمُ على استغاثةٍ) لا عطباً جديداً، فهيَ مسارُ عودةٍ سليمٌ لا مخرجٌ من البندِ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
+  {
+    migration: "20260909150000_f6_07_traffic_priority.sql",
+    change: "revoke_function:notification_kind_is_deferrable(1)",
+    why: "الهجرةُ تُعيدُ تعريفَ `notification_kind_is_deferrable(text)` بـ`create or replace` **بالتوقيعِ والمردَّ نفسِهما** ليصيرَ جوابُها مُشتقّاً من الرتبةِ (`notification_kind_priority(p_kind) >= 3`) بدلاً من قائمةٍ مكتوبةٍ باليدِ (F6-07)، والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كانَ (ممنوحةٌ لـ`service_role` وحدَها قبلَ وبعدَ). وأثرُ التغييرِ توسيعُ قائمةِ التأجيلِ من `broadcast_recipient` وحدَه إلى المتوسّطِ والمنخفضِ، وهوَ تغييرُ **سلوكٍ تحتَ الإشباعِ وحدَه** (المُشغِّلُ يرى إشعاراً متوسّطاً يتأخّرُ دقائقَ في مدينةٍ مُشبَعةٍ بدلاً من أن يُزاحِمَ الحرجَ)، لا إسقاطَ رسالةٍ ولا تغييرَ مخطّطٍ. والعودةُ بإعادةِ تطبيقِ النسخةِ السابقةِ من `20260909120000` وحدَها، ولا تحتاجُ شيفرةً: المُنادي الوحيدُ للدالّةِ مُشغِّلُ الإيداعِ في القاعدةِ نفسِها، وقائمةُ الكودِ تُقابَلُ بحاجزٍ في CI لا تُقرأُ في زمنِ التشغيلِ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /** وسمُ المدخلِ بالصورةِ التي تُطابِق `riskTag`. */

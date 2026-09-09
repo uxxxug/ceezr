@@ -117,15 +117,32 @@ export function createRealRedis(): RealRedisHandle {
     trackForeignKey: (key) => {
       foreign.add(key);
     },
+    /**
+     * الحذفُ **بدفعاتٍ لا مفتاحاً مفتاحاً**، والدلالةُ لم تتغيّرْ: يُمسَحُ كلُّ ما
+     * كُتِبَ، ثمَّ يُعادُ المسحُ ويُعَدُّ الباقي دليلاً لا ملحوظةً.
+     *
+     * لماذا دفعاتٌ: الحذفُ كانَ نداءً شبكيّاً لكلِّ مفتاحٍ على نقطةِ REST بعيدةٍ،
+     * فزمنُ التفكيكِ ينمو خطّيّاً بعددِ المفاتيحِ التي يكتبُها الملفُّ. ولمّا ضُمَّ
+     * قياسُ `F4-02` إلى الملفِّ (حالةٌ ساخنةٌ وقوائمُ تراكمٍ لكلِّ سائقٍ) تجاوزَ
+     * `afterAll` **مهلةَ الخطّافِ الافتراضيّةَ (5000ms)** في CI فأخفقَ التشغيلُ
+     * `34413971862` — ولم يُكتَبْ ملفُّ الدليلِ أصلاً لأنَّ الخطّافَ ماتَ قبلَه.
+     * والعيبُ في **إنتاجيّةِ التفكيكِ** لا في توكيدٍ ولا في مهلةٍ: فرُفِعَت
+     * الإنتاجيّةُ ولم تُمَسَّ مهلةٌ ولم يُخفَّفْ توكيدٌ ولم يُصنَّفْ شيءٌ متجاوَزاً.
+     */
     cleanup: async () => {
-      for (const key of [...foreign, ...(await scanPrefix())]) {
-        await client.command(["DEL", key]);
+      const doomed = [...foreign, ...(await scanPrefix())];
+      // `DEL` تقبلُ مفاتيحَ كثيرةً في نداءٍ واحدٍ؛ والدفعةُ محدودةٌ كي لا يطولَ الأمرُ.
+      const BATCH = 128;
+      for (let index = 0; index < doomed.length; index += BATCH) {
+        const batch = doomed.slice(index, index + BATCH);
+        if (batch.length > 0) await client.command(["DEL", ...batch]);
       }
       const remaining = await scanPrefix();
       let leftover = remaining.length;
-      for (const key of foreign) {
-        const check = await client.command(["EXISTS", key]);
-        if (check.ok && Number(check.value) === 1) leftover += 1;
+      if (foreign.size > 0) {
+        // `EXISTS` تعُدُّ الموجودَ من مفاتيحَ كثيرةٍ في نداءٍ واحدٍ، والعددُ هوَ المطلوبُ.
+        const check = await client.command(["EXISTS", ...foreign]);
+        if (check.ok) leftover += Number(check.value);
       }
       return leftover;
     },

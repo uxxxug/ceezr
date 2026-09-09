@@ -69,6 +69,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "open_offer_round",
   "open_support_ticket",
   "open_unsubscribed_cycle",
+  "persist_driver_location_batch",
   "plan_upgrade_quote",
   "recompute_rating_averages",
   "record_agent_outcome",

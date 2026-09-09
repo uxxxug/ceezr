@@ -46,7 +46,11 @@
  * - **لا يحكمُ على صوابِ رقمٍ.** أنَّ السعةَ خمسةُ آلافٍ حكمُ تشغيلٍ يُعايَرُ
  *   بالقياسِ (`F10-05`)؛ المفروضُ ههنا أن يكونَ الرقمُ **مُعلَناً في موضعٍ واحدٍ**،
  *   لا أن يكونَ صواباً.
- * - **لا يفحصُ الأولويّةَ.** رتبةُ الأصنافِ الأحدَ عشرَ هيَ `F6-07`.
+ * - **لا يفحصُ الأولويّةَ.** رتبةُ الأصنافِ الأحدَ عشرَ حاجزُها
+ *   `scripts/check-traffic-priority.ts` (`F6-07`). وما يفحصُه ههنا أنَّ **قائمةَ
+ *   التأجيلِ** متطابقةٌ في الطرفَينِ — وقد صارَت (`F6-07`) تُشتَقُّ من الرتبةِ
+ *   في الطرفَينِ كليهما، فالمُقابلةُ باقيةٌ لأنَّ الاشتقاقَينِ من مصدرَينِ
+ *   مستقلَّينِ (ثابتُ كودٍ ، ونصُّ SQL) لا من مصدرٍ واحدٍ يُقارَنُ بنفسِه.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -59,6 +63,7 @@ import {
   QUEUE_BACKPRESSURE_DECLARATIONS,
   RETIRED_QUEUES,
 } from "../packages/shared/config/queue-backpressure.ts";
+import { deferrableKindsFromMigrations } from "./lib/traffic-priority-sql.ts";
 
 const MIGRATIONS_DIR = "supabase/migrations";
 
@@ -107,19 +112,16 @@ export function queueShapedTables(migrations: readonly MigrationFile[]): Map<str
   return found;
 }
 
-/** الأصنافُ القابلةُ للتأجيلِ كما تُعلِنُها القاعدةُ — آخِرُ تعريفٍ هوَ الحاكمُ. */
+/**
+ * الأصنافُ القابلةُ للتأجيلِ كما تُعلِنُها القاعدةُ — آخِرُ تعريفٍ هوَ الحاكمُ.
+ *
+ * والمنطقُ نُقِلَ (`F6-07`) إلى `scripts/lib/traffic-priority-sql.ts` لأنَّ الدالّةَ
+ * في القاعدةِ صارَت تُشتَقُّ من `notification_kind_priority` بدلاً من قائمةٍ
+ * صريحةٍ، فالقارئُ واحدٌ يفهمُ الصورتَينِ ويقرأُه حاجزانِ. وتبقى هذه الدالّةُ
+ * مُصدَّرةً باسمِها لأنَّ اختبارَ الحاجزِ يُناديها مباشرةً.
+ */
 export function deferrableKindsFromFunction(migrations: readonly MigrationFile[]): Set<string> {
-  const pattern =
-    /function\s+notification_kind_is_deferrable[\s\S]*?select\s+p_kind\s+in\s*\(([^)]*)\)/g;
-  let last: string | null = null;
-  for (const { sql } of migrations) {
-    for (const match of sql.matchAll(pattern)) {
-      const body = match[1];
-      if (body !== undefined) last = body;
-    }
-  }
-  if (last === null) return new Set();
-  return new Set([...last.matchAll(/'([a-z_]+)'/g)].map((m) => m[1] as string));
+  return deferrableKindsFromMigrations(migrations);
 }
 
 /** مفاتيحُ `platform_settings` المبذورةُ في الهجراتِ. */

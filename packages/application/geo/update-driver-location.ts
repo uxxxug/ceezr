@@ -9,8 +9,25 @@
  * يُتوقع أن يستخدمه لاحقاً: `apps/gateway/src/routes/driver-location.ts`
  *   و`packages/application/bots/driver-dialog.ts`، وكلُّ مصدرِ إصلاحاتٍ يُضافُ
  *   (بثُّ الواجهةِ التكيُّفيُّ `F3-04`) — بلا نسخةٍ ثانيةٍ من القرارِ.
- * ملاحظات مستقبلية: الحالةُ الساخنةُ المشتركةُ والاستمرارُ المجمَّعُ بندُ `F4-02`
- *   ولا يُبنى ههنا؛ وحدُّ المعدّلِ لكلِّ مستخدمٍ بلا أرقامٍ في العقدِ فلا يُخترَعُ.
+ * ملاحظات مستقبلية: حدُّ المعدّلِ لكلِّ مستخدمٍ بلا أرقامٍ في العقدِ فلا يُخترَعُ.
+ *
+ * ## البند `F4-02` — الحالةُ الساخنةُ والاستمرارُ المجمَّعُ (`CAP-009`)
+ *
+ * أُضيفَ منفذٌ **اختياريٌّ** واحدٌ (`hotState`) قبلَ الكتابةِ الشرطيّةِ، ولم يُمَسَّ
+ * ترتيبُ الخطواتِ الخمسِ ولا حكمُ خطوةٍ منها. وثلاثةُ مبادئَ تحكمُ الإضافةَ:
+ *
+ * ١) **الانتقالُ يُكتَبُ فوراً، والنبضةُ تُجمَّعُ.** أوّلُ موقعٍ لسائقٍ لا موقعَ له
+ *    يُكتَبُ في القاعدةِ في النداءِ نفسِه: المطابقةُ والإسنادُ يقرآنِ
+ *    `drivers.last_location`، وتأجيلُ **الانتقالِ** دورةَ إفراغٍ يعني سائقاً
+ *    متاحاً لا يراهُ الإسنادُ ثوانيَ. والنبضةُ التاليةُ تُجمَّعُ لأنَّ الموضعَ
+ *    موجودٌ سلفاً وتحديثُه بضعةَ أمتارٍ يحتملُ دورةً واحدةً.
+ * ٢) **غيابُ الحالةِ الساخنةِ أو عطلُها ⇒ الرجوعُ إلى `F4-01` حرفاً.** لا مسارَ
+ *    ثالثاً ولا شيفرةَ طارئٍ: عطلُ `Redis` يُسجَّلُ ويُكتَبُ الموضعُ مباشرةً كما
+ *    كانَ يُكتَبُ قبلَ هذا البندِ. وحارسُ التسلسلِ في القاعدةِ قائمٌ في المسارَينِ
+ *    فلا تُفقَدُ سلامةٌ بالتدهوّرِ — يُفقَدُ التجميعُ وحدَه.
+ * ٣) **البثُّ لا يتأجَّلُ.** الخطوةُ ٤ (جلسةُ التتبُّعِ) تعملُ في المسارَينِ:
+ *    الخريطةُ الحيّةُ تقرأُ من البثِّ لا من صفِّ السائقِ، فتأجيلُ الاستمرارِ لا
+ *    يُؤجِّلُ ما يراهُ الراكبُ.
  *
  * ## لماذا حالةُ استخدامٍ لا منطقٌ في المسارِ
  *
@@ -51,6 +68,7 @@ import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { DriverProfile, LocationQualityHints, StoredLocationQuality } from "../bots/types.ts";
 import type { PortFailureError } from "../ports/index.ts";
 import type { StoredFix } from "../tracking/live-tracking.ts";
+import type { DriverLocationHotStateWriter } from "./driver-location-hot-state.ts";
 
 /**
  * منفذُ الكتابةِ كما تحتاجُه هذه الحالةُ وحدَها: `Pick` لا الواجهةُ كاملةً، فلا
@@ -79,6 +97,22 @@ export interface UpdateDriverLocationDeps {
   readonly redispatch?: {
     onDriverBecameDispatchable(cityId: DriverProfile["cityId"]): Promise<void>;
   };
+  /**
+   * `F4-02`: غيابُها يعني نسقَ `F4-01` بحرفِه — كتابةٌ مشروطةٌ لكلِّ نبضةٍ. وهيَ
+   * اختياريّةٌ لا لأنَّ التجميعَ ترفٌ بل لأنَّ الحاويةَ قد تعملُ بلا `Redis`
+   * (اختبارٌ، أو نشرٌ ناقصُ الإعدادِ)، ولا يجوزُ أن يسقطَ استقبالُ الموقعِ لذلك.
+   */
+  readonly hotState?: DriverLocationHotStateWriter;
+  /**
+   * يُنادى مرّةً لكلِّ نبضةٍ تدهوّرَت: عطلُ `Redis` أو إعداداتٌ ناقصةٌ. ولا يُرمى
+   * العطلُ ولا يُبتلَعُ صامتاً — التدهوّرُ الصامتُ يُقرأُ في اللوحةِ نجاحاً تامّاً
+   * ثمَّ يُكتشَفُ من فاتورةِ القاعدةِ.
+   */
+  readonly onHotStateDegraded?: (detail: {
+    readonly driverId: DriverProfile["id"];
+    readonly cityId: DriverProfile["cityId"];
+    readonly reason: string;
+  }) => void;
 }
 
 export interface UpdateDriverLocationInput {
@@ -101,6 +135,13 @@ export type UpdateDriverLocationOutcome =
       readonly verdict: StoredLocationQuality["verdict"];
       /** انتقالُ «كانَ متاحاً ينقصُه موقعٌ ⇒ صارَ ظاهراً» — يقعُ مرّةً لا كلَّ نبضةٍ. */
       readonly becameLive: boolean;
+      /**
+       * `F4-02`: أينَ استقرَّ الموضعُ في هذا النداءِ. `direct` صفُّ القاعدةِ
+       * مُحدَّثٌ الآنَ · `deferred` الحالةُ الساخنةُ مُحدَّثةٌ والصفُّ يُحدَّثُ في
+       * دورةِ الإفراغِ. ويُخرَجُ صريحاً لا يُستنتَجُ: مُنادٍ يحتاجُ صفَّ القاعدةِ
+       * فوراً (تقريرٌ، تسويةٌ) يجبُ أن يقرأَ الفرقَ لا أن يظنَّه.
+       */
+      readonly persistence: "direct" | "deferred";
     }
   | { readonly kind: "stale" };
 
@@ -172,20 +213,62 @@ export async function updateDriverLocation(
 
   const verdict = storedVerdictOf(assessment.verdict);
 
-  // ٢) الكتابةُ الشرطيّةُ: الحارسُ في `where` داخلَ القاعدةِ — `BUG-001`.
-  const saved = await deps.drivers.updateLocation(driver.id, assessment.fix.coordinates, {
-    recordedAtMs: assessment.fix.recordedAtMs,
-    accuracyMeters: assessment.fix.accuracyMeters,
-    verdict,
-  });
-  if (!saved.ok) return err(fail("WRITE_FAILED", findings));
-  if (saved.value.kind === "no_driver") return err(fail("DRIVER_NOT_FOUND", findings));
-
   /**
-   * ٣) الإصلاحةُ التي رفضَتها الكتابةُ الشرطيّةُ لا تُنشَرُ ولا تُحرِّكُ شيئاً:
-   *    في القاعدةِ أحدثُ منها، فنشرُها إخراجُ موضعٍ **أقدمَ** إلى الخريطةِ.
+   * ١.٥) `F4-02`: الحالةُ الساخنةُ المشتركةُ أوّلاً، ومنها يُعرَفُ أيُجمَّعُ
+   *      الاستمرارُ أم يُكتَبُ الآنَ. وأرضيةُ الحكمِ تُمرَّرُ معَها: طابعُ
+   *      الإصلاحةِ المخزّنةِ في القاعدةِ. ولمَ لا يكفي ما في `Redis` وحدَه: مفتاحُ
+   *      الحالةِ الساخنةِ له عمرٌ ينتهي، فسائقٌ سكتَ دقائقَ ثمَّ وصلَت له نبضةٌ
+   *      **متأخّرةٌ** من شبكةٍ رديئةٍ يجدُ مفتاحَه فارغاً فتُقبَلُ إصلاحةٌ أقدمُ من
+   *      صفِّ القاعدةِ ثمَّ تُبَثُّ — وهوَ تراجعُ الموضعِ الذي منعَه `BUG-001`. وإنّما
+   *      يُمنَعُ بأن يحكمَ المخزنُ الساخنُ بـ**أحدثِ المعلومَينِ**.
    */
-  if (saved.value.kind === "stale") return ok({ kind: "stale" });
+  let persistence: "direct" | "deferred" = "direct";
+  if (deps.hotState !== undefined) {
+    const hot = await deps.hotState.record({
+      cityId: driver.cityId,
+      driverId: driver.id,
+      latitude: assessment.fix.coordinates.latitude,
+      longitude: assessment.fix.coordinates.longitude,
+      recordedAtMs: assessment.fix.recordedAtMs,
+      accuracyMeters: assessment.fix.accuracyMeters ?? null,
+      verdict,
+      previousRecordedAtMs: driver.lastFix?.recordedAtMs ?? null,
+    });
+    if (!hot.ok) {
+      deps.onHotStateDegraded?.({
+        driverId: driver.id,
+        cityId: driver.cityId,
+        reason: hot.error.detail,
+      });
+    } else if (hot.value.kind === "stale") {
+      /**
+       * المخزنُ الساخنُ يحملُ أحدثَ منها، وقاعدةُ حارسِه قاعدةُ حارسِ
+       * القاعدةِ حرفاً (`الأقدمُ لا يُزيحُ الأحدثَ`، والمتساويانِ يُقبَلانِ).
+       * فمتابعةُ الكتابةِ المشروطةِ رحلةٌ إلى القاعدةِ تعرفُ جوابَها سلفاً.
+       * وليسَ هذا حَكَماً ثانياً (`ADR 0053 §٦`): المُسنَدُ واحدٌ والمخزنانِ اثنانِ.
+       */
+      return ok({ kind: "stale" });
+    } else if (hot.value.kind === "queued" && driver.hasLocation) {
+      persistence = "deferred";
+    }
+  }
+
+  // ٢) الكتابةُ الشرطيّةُ: الحارسُ في `where` داخلَ القاعدةِ — `BUG-001`.
+  if (persistence === "direct") {
+    const saved = await deps.drivers.updateLocation(driver.id, assessment.fix.coordinates, {
+      recordedAtMs: assessment.fix.recordedAtMs,
+      accuracyMeters: assessment.fix.accuracyMeters,
+      verdict,
+    });
+    if (!saved.ok) return err(fail("WRITE_FAILED", findings));
+    if (saved.value.kind === "no_driver") return err(fail("DRIVER_NOT_FOUND", findings));
+
+    /**
+     * ٣) الإصلاحةُ التي رفضَتها الكتابةُ الشرطيّةُ لا تُنشَرُ ولا تُحرِّكُ شيئاً:
+     *    في القاعدةِ أحدثُ منها، فنشرُها إخراجُ موضعٍ **أقدمَ** إلى الخريطةِ.
+     */
+    if (saved.value.kind === "stale") return ok({ kind: "stale" });
+  }
 
   // ٤) الجلسةُ والبثُّ بعدَ استقرارِ الكتابةِ — لا قبلَها ولا بلا انتظارٍ.
   await deps.tracking?.onFix({
@@ -211,5 +294,6 @@ export async function updateDriverLocation(
     recordedAtMs: assessment.fix.recordedAtMs,
     verdict,
     becameLive,
+    persistence,
   });
 }
