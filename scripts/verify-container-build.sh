@@ -16,10 +16,11 @@ cd "$ROOT"
 pinned_tag() { grep -m1 '^FROM ' "$1" | awk '{print $2}'; }
 GW_TAG="$(pinned_tag docker/Dockerfile.gateway)"
 WK_TAG="$(pinned_tag docker/Dockerfile.worker)"
+AD_TAG="$(pinned_tag docker/Dockerfile.admin)"
 LOCAL_BUN="$(bun --version)"
 
 echo "▶ إصدار bun المحلّي: ${LOCAL_BUN}"
-for tag in "$GW_TAG" "$WK_TAG"; do
+for tag in "$GW_TAG" "$WK_TAG" "$AD_TAG"; do
   case "$tag" in
     "oven/bun:${LOCAL_BUN}") echo "✅ ${tag} مثبَّت على نفس الإصدار المفحوص" ;;
     oven/bun:*.*.*) echo "❌ ${tag} مثبَّت لكن لا يطابق ${LOCAL_BUN}"; exit 1 ;;
@@ -32,7 +33,7 @@ done
 # تُسمَّى في الحارس: كلُّ مساحةِ عملٍ جديدةٍ تُلزم تحديثَ ملفَّي الصورة بنفسها.
 workspace_manifests() { ls apps/*/package.json 2>/dev/null || true; }
 
-for f in docker/Dockerfile.gateway docker/Dockerfile.worker; do
+for f in docker/Dockerfile.gateway docker/Dockerfile.worker docker/Dockerfile.admin; do
   grep -q 'COPY package.json bun.lock tsconfig.json' "$f" || { echo "❌ ${f} لا ينسخ bun.lock"; exit 1; }
   for m in $(workspace_manifests); do
     grep -q "COPY ${m}" "$f" \
@@ -41,7 +42,7 @@ for f in docker/Dockerfile.gateway docker/Dockerfile.worker; do
   grep -q 'bun install --frozen-lockfile' "$f" || { echo "❌ ${f} لا يفرض التثبيت المجمَّد"; exit 1; }
   grep -q 'bun install$' "$f" && { echo "❌ ${f} فيه تثبيت غير مجمَّد"; exit 1; }
 done
-echo "✅ كلا الملفّين ينسخ القفل ويفرض التثبيت المجمَّد"
+echo "✅ كلّ ملفّات الصور تنسخ القفل وتفرض التثبيت المجمَّد"
 
 run_stage() {
   local name="$1" entry="$2"; shift 2
@@ -63,5 +64,9 @@ run_stage() {
 
 run_stage "gateway" "apps/gateway/src/index.ts" gateway workers admin-dashboard
 run_stage "worker"  "apps/workers/src/index.ts" workers
+# نطاقُ اللوحةِ يُمرَّرُ كما هو في COPY حرفاً (`F5-08`): admin + gateway +
+# admin-dashboard. ولو نُقص أحدُها ههنا وبقيَ في الصورةِ لصار الحارسُ يفحصُ
+# نطاقاً غيرَ الذي يُبنى — أي حارساً ينجحُ على غيرِ ما يحرسُه.
+run_stage "admin"   "apps/admin/src/index.ts" admin gateway admin-dashboard
 
-echo "✅ بناء الصورتين قابل لإعادة الإنتاج"
+echo "✅ بناء الصور الثلاث قابل لإعادة الإنتاج"

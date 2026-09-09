@@ -1050,6 +1050,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/admin-service-separation.test.ts",
+    suites: ["فصلُ لوحةِ الإدارةِ عن البوّابةِ على قاعدةٍ حقيقيّةٍ — F5-08 / ARCH-011"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت أنّ `RUN_ADMIN_IN_GATEWAY=false` يُسقِط سطحَ الإدارةِ من البوّابةِ فعلاً (404 على البادئاتِ الثلاثِ) وأنّ البوّابةَ تبقى حيّةً، وأنّ خدمةَ `waslah-admin` المستقلّةَ تُخدّمه من نفسِ القاعدةِ — بعمليّاتٍ فرعيّةٍ حقيقيّةٍ عبرَ `Bun.spawn`. والشاهدُ استجاباتُ HTTP من عمليّاتٍ مُقلَعةٍ لا وجودُ دالّةٍ: اختبارُ وحدةٍ يُثبِت أنّ `mountAdminSurface` تُركِّب، ولا يُثبِت أنّ نقطةَ الدخولِ تُناديها بالشرطِ الصحيحِ — وهو موضعُ العطلِ. ولا بديلَ في الذاكرة: القاعدةُ تُلمَس عندَ الإقلاعِ في العمليّتَين، وصفحةُ الدخولِ تقرأُ منها.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/worker-service-separation.test.ts",
     suites: ["فصلُ العامل عن البوابة على قاعدةٍ حقيقيّةٍ — F5-04 / SCL-007"],
     skipped: 5,
