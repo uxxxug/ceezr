@@ -11,6 +11,10 @@
 
 import { Hono } from "hono";
 import { createRequestIdMiddleware } from "./observability/request-id.ts";
+import {
+  createDriverLocationRoutes,
+  type DriverLocationDependencies,
+} from "./routes/driver-location.ts";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
 import {
@@ -63,6 +67,12 @@ export interface ServerDependencies {
    */
   readonly notifications?: NotificationsDependencies;
   /**
+   * استقبالُ موقعِ السائقِ (`F4-01`) — يُركَّبُ مع سرِّ الجلسةِ والقاعدةِ. وغيابُه
+   * **لا يُوقِفُ استقبالَ المواقعِ**: مسارُ البوتِ يكتبُ في المصدرِ القانونيِّ
+   * نفسِه عبرَ حالةِ الاستخدامِ عينِها، فهذا سطحٌ ثانٍ لا مصدرُ حقيقةٍ ثانٍ.
+   */
+  readonly driverLocation?: DriverLocationDependencies;
+  /**
    * `F1-08`: مولّدُ معرّفِ الطلب — يُحقَن للاختبارِ وحدَه، وغيابُه يعني
    * `crypto.randomUUID`. ولا يُقرأ رأسُ `X-Request-Id` الوارِدُ من العميلِ في
    * أيِّ حالٍ (ADR 0043).
@@ -98,6 +108,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.notifications !== undefined) {
     app.route("/", createNotificationRoutes(deps.notifications));
+  }
+  if (deps.driverLocation !== undefined) {
+    app.route("/", createDriverLocationRoutes(deps.driverLocation));
   }
 
   app.notFound((c) => c.json({ ok: false, error: "NOT_FOUND" }, 404));

@@ -497,6 +497,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/driver-location-intake.test.ts",
+    suites: ["F4-01 — استقبالُ الموقعِ من HTTP إلى الصفِّ القانونيِّ"],
+    skipped: 6,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ مسارَ `POST /v1/driver/location` كاملاً — من طلبٍ بجلسةٍ موقَّعةٍ إلى الصفِّ القانونيِّ — على PostgreSQL حقيقيّةٍ بالهجرات مطبَّقة. ولا يُثبَتُ ببديلٍ في الذاكرة: المقيسُ أنَّ نبضاتٍ مختلطةَ الترتيبِ لا تُرجِعُ الموضعَ إلى الوراءِ لأنَّ الحارسَ في `where` داخلَ المحرِّكِ، ومحاكٍ نكتبُه نحنُ لا يشهدُ على المحرِّكِ بشيءٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-location-freshness.test.ts",
     suites: ["المرحلة ٨ — عمر موقع السائق في الإسناد"],
     skipped: 9,

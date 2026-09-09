@@ -56,6 +56,7 @@ import {
 } from "../dispatch/relay-negotiation-message.ts";
 import type { PaymentProvider, PaymentRepository } from "../financial/ports.ts";
 import { subscribePlan } from "../financial/subscribe-plan.ts";
+import { updateDriverLocation } from "../geo/update-driver-location.ts";
 import type { ClaimRideResult, DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
   type ResolveSafetyIncidentDeps,
@@ -2065,104 +2066,71 @@ async function handleLocation(
   if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
 
   /**
-   * المرحلة ٤ — المسار الحيّ صار يمرّ بمُقيِّم المجال لا بفحص الإحداثيات وحده.
-   *
-   * `makeCoordinates` تفحص الموضع ولا تفحص شيئاً سواه، فكانت إصلاحة بدقّة ثلاثة
-   * كيلومترات وأخرى بدقّة خمسة أمتار تُكتبان في القاعدة سواءً بسواء، ثم تقرؤهما
-   * المطابقة على أنهما نقطتان متساويتان في اليقين. والفصل هنا لا في المُقيِّم:
-   * المُقيِّم يحكم، وهذه الطبقة تُقرّر ماذا يُفعل بالحكم.
-   */
-  const assessment = assessGpsFix(
-    {
-      latitude: location.latitude,
-      longitude: location.longitude,
-      accuracyMeters: hints?.accuracyMeters,
-      headingDegrees: hints?.headingDegrees,
-      recordedAtMs: hints?.recordedAtMs ?? deps.clock.now().getTime(),
-    },
-    previousFixOf(driver),
-    deps.clock.now().getTime(),
-    deps.gpsPolicy ?? DEFAULT_GPS_POLICY,
-  );
-  if (assessment.fix === null) return [reply(sender, tr("driver.location_invalid"))];
-  const coordinates = { ok: true as const, value: assessment.fix.coordinates };
-
-  /**
    * البند 2.4: موقعٌ يصل في خطوة المنطقة المفضّلة هو مركز المنطقة لا موقع العمل
-   * الحالي. الفصل هنا لا في `updateLocation`: خلطهما كان سيجعل كل تحديث موقع
+   * الحالي. الفصل هنا لا في حالة الاستخدام: خلطهما كان سيجعل كل تحديث موقع
    * يوميّ يُعيد رسم منطقة السائق المفضّلة، فتصير نيّتُه المعلنة ظلّاً لتحرّكه.
+   *
+   * والتقييمُ في هذا الفرعِ باقٍ كما كانَ حرفاً: نقطةٌ مرفوضةٌ لا تصيرُ مركزَ
+   * منطقةٍ، والفرعُ لا يمرُّ بمسارِ الاستقبالِ أصلاً فلا كتابةَ موقعٍ فيه.
    */
   if (state.step === "awaiting_preferred_area_location") {
-    return savePreferredArea(driver, coordinates.value, sender, state, deps);
+    const assessment = assessGpsFix(
+      {
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracyMeters: hints?.accuracyMeters,
+        headingDegrees: hints?.headingDegrees,
+        recordedAtMs: hints?.recordedAtMs ?? deps.clock.now().getTime(),
+      },
+      previousFixOf(driver),
+      deps.clock.now().getTime(),
+      deps.gpsPolicy ?? DEFAULT_GPS_POLICY,
+    );
+    if (assessment.fix === null) return [reply(sender, tr("driver.location_invalid"))];
+    return savePreferredArea(driver, assessment.fix.coordinates, sender, state, deps);
   }
 
   /**
-   * الحكم يُخزَّن مع الموضع لا يُطرح: WARNING تعني موقعاً صحيحاً متدهوّراً، ورفضُه
-   * كان سيترك العمليات بلا شيء بدل أن يتركها بشيءٍ موسوم — وهو الاختيار الأسوأ
-   * حين يكون البديل أن يختفي السائق من الخريطة.
-   */
-  const saved = await deps.drivers.updateLocation(driver.id, coordinates.value, {
-    recordedAtMs: assessment.fix.recordedAtMs,
-    accuracyMeters: assessment.fix.accuracyMeters,
-    verdict: assessment.verdict === "REJECT" ? "ALERT" : assessment.verdict,
-  });
-  if (!saved.ok) return technicalFailure(sender, state);
-
-  /**
-   * `BUG-001` — الإصلاحةُ التي رفضَتها الكتابةُ الشرطيّةُ لا تُنشَر ولا تُحرِّك شيئاً.
+   * `F4-01` — قرارُ الاستقبالِ صارَ في `updateDriverLocation` لا ههنا.
    *
-   * الرفضُ يعني أنّ في القاعدةِ إصلاحةً أحدثَ، فالحالةُ لم تتغيّر ولا موضعَ جديدَ
-   * يُعلَن. ونشرُها كان سيُخرِج إلى الخريطةِ موضعاً **أقدمَ** من المصدرِ القانونيِّ،
-   * أي تراجعاً في الموضعِ المعروضِ — وهو عينُ ما يمنعُه `ADR 0015` و`ADR 0053` §٦.
-   * وامتناعُ النشرِ عندَ امتناعِ الكتابةِ هو نفسُ قاعدةِ `ADR 0053` §٣-أ/٧ مطبَّقةً
-   * على الصفِّ القانونيِّ، لا حَكَمٌ ثانٍ: المُسنَدُ واحدٌ وموضعُه القاعدةُ.
+   * وهذا ليسَ تنظيماً: مسارُ `POST /v1/driver/location` يستقبلُ الإصلاحةَ نفسَها،
+   * ولو أعادَ بناءَ القرارِ لصارَ للنظامِ **حَكَمانِ على الأحدثِ** — وهوَ عينُ ما
+   * ينهى عنه `ADR 0053 §٦` وما كلَّفَ `BUG-001` و`BUG-009` ثمنَهما. والترتيبُ
+   * كلُّه (تقييمٌ ← كتابةٌ شرطيّةٌ ← امتناعُ نشرِ الأقدمِ ← جلسةٌ وبثٌّ ← إعادةُ
+   * عرضٍ على الانتقالِ) محفوظٌ في موضعٍ واحدٍ يقرؤه المُراجِعُ مرّةً.
    *
-   * ولا رسالةَ عطلٍ للسائقِ: لم يقع عطلٌ، وموقعُه المعروفُ عندَنا أحدثُ من نبضتِه
-   * هذه. فيُقال له ما يُقال عندَ الحفظِ — ولا يُبنى على هذا الرفضِ انتقالُ حالةٍ.
+   * وما بقيَ ههنا هوَ ما لا يعرفُه غيرُ الحوارِ: أيَّ رسالةٍ يُجيبُ، وأيَّ لوحةٍ
+   * يُظهِرُ. و`stale` يُجابُ عنها بما يُجابُ عندَ الحفظِ: لم يقعْ عطلٌ، وموقعُه
+   * المعروفُ عندَنا أحدثُ من نبضتِه هذه، ولا يُبنى على الرفضِ انتقالُ حالةٍ.
    */
-  if (saved.value.kind === "stale") {
+  const ingested = await updateDriverLocation(
+    {
+      driver,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      ...(hints === undefined ? {} : { quality: hints }),
+    },
+    {
+      drivers: deps.drivers,
+      clock: deps.clock,
+      ...(deps.gpsPolicy === undefined ? {} : { gpsPolicy: deps.gpsPolicy }),
+      ...(deps.tracking === undefined ? {} : { tracking: deps.tracking }),
+      ...(deps.redispatch === undefined ? {} : { redispatch: deps.redispatch }),
+    },
+  );
+  if (!ingested.ok) {
+    if (ingested.error.reason === "FIX_REJECTED") {
+      return [reply(sender, tr("driver.location_invalid"))];
+    }
+    return technicalFailure(sender, state);
+  }
+  if (ingested.value.kind === "stale") {
     return [reply(sender, tr("driver.location_saved"), menu(state))];
   }
 
-  /**
-   * المرحلة ٦ — الجلسة والبثّ **بعد** استقرار الكتابة القانونية.
-   *
-   * وهذا هو ما كان ناقصاً فعلاً في المرحلة ٥ (الخطر R-15): الموقع كان يُكتب ولا
-   * جلسة تُفتح، فلا شيء يفصل سائقاً يبثّ الآن عن سائقٍ آخر موقعٍ له قبل يومين —
-   * وكلاهما صفٌّ في `drivers` له `last_location`.
-   *
-   * ولا `await` بلا حاجة؟ بل `await`: البثّ لا يرمي أصلاً (حاجزه داخله)، وتركُه
-   * بلا انتظار كان يعني وعداً معلّقاً بعد انتهاء الطلب — وفي بيئات الحوسبة
-   * الطرفية يُقتل ما لم يُنتظر، فيصير البثّ يعمل محلياً ويسقط في الإنتاج بلا أثر.
-   */
-  await deps.tracking?.onFix({
-    driverId: driver.id,
-    cityId: driver.cityId,
-    latitude: assessment.fix.coordinates.latitude,
-    longitude: assessment.fix.coordinates.longitude,
-    recordedAtMs: assessment.fix.recordedAtMs,
-    accuracyMeters: assessment.fix.accuracyMeters ?? null,
-    verdict: assessment.verdict === "REJECT" ? "ALERT" : assessment.verdict,
-    findings: assessment.findings.map((finding) => finding.code),
-  });
-
   // من كان متاحاً وينقصه الموقع فقد اكتملت شروطه الآن، فيُخبَر أنه صار ظاهراً
   // فعلاً — لا «حُفظ موقعك» وحدها، فهي لا تُعلمه أن الحجب عنه ارتفع.
-  const becameLive = !driver.hasLocation && driver.isAvailable;
-
-  /**
-   * البثُّ الفوريّ هنا لا في العامل وحده، لأنّ الراكب ينتظر الآن: أرضيّةٌ دوريّةٌ كلّ
-   * عشرين ثانية تُصلح الإخفاق ولا تُصلح التجربة. والنداءُ **بعد** نجاح كتابة الموقع
-   * لا قبلها: بثٌّ لموقعٍ لم يُكتب يعرض الطلبَ على سائقٍ لا تُحسَب له مسافة.
-   *
-   * وهو معلّقٌ على الانتقال `becameLive` لا على كلّ تحديثِ موقع: السائقُ الحيُّ يُرسل
-   * موقعَه كلّ ثوانٍ، ومسحُ طلبات المدينة كلَّها عند كلّ نبضةٍ من كلّ سائقٍ حملٌ
-   * لا مقابلَ له — أمّا الانتقالُ فيقع مرّةً في الوردية.
-   */
-  if (becameLive) await deps.redispatch?.onDriverBecameDispatchable(driver.cityId);
-  // كان `remove` هنا. ولوحة طلب الموقع تحلّ محلّ القائمة الدائمة مأموراً — تلغرام
-  // لا يعرف لوحتي ردّ في وقت واحد. فحذفها بعدها يترك السائق بلا قائمة إلى أن يكتب
-  // أمراً يدوياً — وهذا هو موضع الاسترداد الوحيد: أول رسالة بعد انتهاء الحاجة.
+  const becameLive = ingested.value.becameLive;
   return [
     reply(
       sender,
