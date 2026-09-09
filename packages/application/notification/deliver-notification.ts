@@ -21,6 +21,14 @@ export interface OutboxDelivery {
   readonly claimToken: string;
   readonly attempts: number;
   readonly maxAttempts: number;
+  /**
+   * سقفُ صفوفِ الشوطِ الواحدِ لهذه المدينةِ (`F6-06`). كانَ الشوطُ يُقاسُ بـ
+   * `maxAttempts` — وهو **حدُّ إعادةِ محاولةِ الصفِّ الواحدِ** لا سعةُ الشوطِ —
+   * فكانَ المفتاحُ الواحدُ يحملُ معنيَينِ: من رفعَ سماحَ الإعادةِ إلى عشرٍ رفعَ
+   * حجمَ الشوطِ إلى عشرةٍ بلا أن يطلُبَ ذلك، ومن ضيّقَ الإعادةَ إلى واحدةٍ حبسَ
+   * كلَّ التسليمِ في صفٍّ واحدٍ لكلِّ دورةٍ. فصارَ للسعةِ مفتاحُها.
+   */
+  readonly batchLimit: number;
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
@@ -36,8 +44,24 @@ export interface FinishResult {
   readonly outcome: FinishOutcome | null;
 }
 
+/**
+ * سببُ منعِ الالتقاطِ حينَ لا صفَّ يعودُ: `CONSUMER_CONCURRENCY` تعني أنَّ سقفَ
+ * تزامنِ المستهلِكِ بلغَ حدَّه فالصفوفُ موجودةٌ ولا تُلتقَطُ. و`null` تعني أنَّ
+ * الطابورَ فارغٌ حقّاً. والتمييزُ لازمٌ: «لا عملَ» و«ممنوعٌ من العملِ» يُقرآنِ
+ * سواءً في العدَّادِ فيُخفِيانِ تشبُّعاً مستمرّاً وراءَ شوطٍ هادئٍ.
+ */
+export type ClaimBackpressure = "CONSUMER_CONCURRENCY";
+
 export interface NotificationOutboxPort {
-  claim(): Promise<Result<{ delivery: OutboxDelivery | null }, PortFailureError>>;
+  claim(): Promise<
+    Result<
+      {
+        delivery: OutboxDelivery | null;
+        backpressure?: ClaimBackpressure | null;
+      },
+      PortFailureError
+    >
+  >;
   finish(input: {
     deliveryId: string;
     claimToken: string;
@@ -80,6 +104,10 @@ export interface DeliveryAttemptOutcome {
   /** ماتَ الصفُّ باستنفادِ المحاولاتِ في `finish` — لا بتخلٍّ صريحٍ (CAP-002). */
   readonly died: boolean;
   readonly maxAttempts: number | null;
+  /** سقفُ صفوفِ الشوطِ كما أعلنَه الالتقاطُ الذرّيُّ — `null` إن لم يُلتقَط صفٌّ. */
+  readonly batchLimit: number | null;
+  /** بلغَ سقفُ تزامنِ المستهلِكِ حدَّه فمُنعَ الالتقاطُ — لا أنَّ الطابورَ فرغَ. */
+  readonly backpressure: ClaimBackpressure | null;
   /**
    * سببُ فشلِ النشرِ إن فشلَ. والصفُّ يعودُ `pending` بموعدٍ جديدٍ **ما لم تُستنفدِ
    * المحاولاتُ** — فحينَها يموتُ بـ`MAX_ATTEMPTS` ولا يُعادُ أبداً (CAP-002).
@@ -101,6 +129,8 @@ export async function deliverNotification(
       abandoned: false,
       died: false,
       maxAttempts: null,
+      batchLimit: null,
+      backpressure: claimed.value.backpressure ?? null,
       failure: null,
     });
   }
@@ -126,6 +156,8 @@ export async function deliverNotification(
       abandoned: true,
       died: false,
       maxAttempts: delivery.maxAttempts,
+      batchLimit: delivery.batchLimit,
+      backpressure: null,
       failure: null,
     });
   }
@@ -147,6 +179,8 @@ export async function deliverNotification(
     abandoned: false,
     died: finished.value.outcome === "dead",
     maxAttempts: delivery.maxAttempts,
+    batchLimit: delivery.batchLimit,
+    backpressure: null,
     failure: handled.value.failure,
   });
 }
@@ -158,13 +192,24 @@ export interface DeliveryBatchOutcome {
   readonly abandoned: number;
   /** ماتت باستنفادِ المحاولاتِ — تُعدُّ منفصلةً عن التخلّي الصريحِ (CAP-002). */
   readonly died: number;
+  /**
+   * انقطعَ الشوطُ بضغطٍ عكسيٍّ لا بفراغِ الطابورِ (`F6-06`): إمّا سقفُ تزامنِ
+   * المستهلِكِ منعَ الالتقاطَ، وإمّا بلغَ الشوطُ سقفَ صفوفِه والطابورُ لم يفرُغ.
+   */
+  readonly backpressure: ClaimBackpressure | "BATCH_LIMIT" | null;
 }
 
 /**
- * شوطٌ محدودٌ بإعدادِ المدينةِ الذي أرجعه claim الذرّي. ولعمرِ الصفِّ حدٌّ منذُ
- * CAP-002: فشلُ النشرِ يُعيدُه pending بتراجعٍ أُسّيٍّ **حتى `max_attempts`**، ثمّ
- * يموتُ بـ`MAX_ATTEMPTS`. والصفوفُ التي لن تُقبلَ أبدًا يُتخلّى عنها فوراً (dead)
- * فلا تُستهلِكُ الشوطَ ولا تُعادُ أبدًا (BUG-004).
+ * شوطٌ محدودٌ بسعةِ الشوطِ التي أرجعها claim الذرّي (`batch_limit`، إعدادُ مدينةٍ)
+ * لا بحدِّ إعادةِ محاولةِ الصفِّ (`max_attempts`) — والخلطُ بينَهما كانَ عيبَ
+ * `F6-06`. ولعمرِ الصفِّ حدٌّ منذُ CAP-002: فشلُ النشرِ يُعيدُه pending بتراجعٍ
+ * أُسّيٍّ **حتى `max_attempts`**، ثمّ يموتُ بـ`MAX_ATTEMPTS`. والصفوفُ التي لن
+ * تُقبلَ أبدًا يُتخلّى عنها فوراً (dead) فلا تُستهلِكُ الشوطَ ولا تُعادُ أبدًا
+ * (BUG-004).
+ *
+ * وأوّلُ التقاطٍ هوَ ما يُعلِنُ السعةَ، فالشوطُ يبدأُ بواحدٍ حتماً: قراءةُ السعةِ
+ * قبلَ الالتقاطِ كانت ستكونَ نداءً ثانياً على القاعدةِ في كلِّ دورةٍ، وسعةً
+ * تُقرأُ من مدينةٍ لا تُعرَفُ بعدُ — والالتقاطُ هوَ ما يُحدِّدُ المدينةَ.
  */
 export async function deliverNotificationBatch(
   deps: NotificationDeliveryDeps,
@@ -175,18 +220,25 @@ export async function deliverNotificationBatch(
   let abandoned = 0;
   let died = 0;
   let limit = 1;
+  let backpressure: ClaimBackpressure | "BATCH_LIMIT" | null = null;
   while (claimed < limit) {
     const attempt = await deliverNotification(deps);
     if (!attempt.ok) return attempt;
-    if (!attempt.value.found) break;
+    if (!attempt.value.found) {
+      backpressure = attempt.value.backpressure;
+      break;
+    }
     claimed += 1;
-    if (attempt.value.maxAttempts !== null) limit = attempt.value.maxAttempts;
+    if (attempt.value.batchLimit !== null) limit = attempt.value.batchLimit;
     if (attempt.value.delivered) delivered += 1;
     if (attempt.value.abandoned) abandoned += 1;
     if (attempt.value.died) died += 1;
     // فشلُ نشرٍ واحد لا يُسقطُ الشوط: مجموعةُ مدينةٍ معطوبة كانت تمنعُ تسليمَ
     // إشعاراتِ المدنِ الأخرى في نفسِ الدورة. يُعدّ ويُبلَّغ، ويستمرّ الشوط.
     if (attempt.value.failure !== null) failed += 1;
+    // بلوغُ السعةِ يُعلَنُ ضغطاً عكسيّاً لا شوطاً ناجحاً: الطابورُ لم يفرُغ،
+    // والدورةُ التاليةُ تُكمِلُ. وكتمُه كانَ سيُخفِي تراكُماً مستمرّاً.
+    if (claimed >= limit) backpressure = "BATCH_LIMIT";
   }
-  return ok({ claimed, delivered, failed, abandoned, died });
+  return ok({ claimed, delivered, failed, abandoned, died, backpressure });
 }

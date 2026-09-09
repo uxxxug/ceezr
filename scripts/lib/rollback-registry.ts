@@ -609,6 +609,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "دورةُ الرحلةِ والإسناد",
     documentedIn: HEADING_OUTBOX_DEAD_LETTER,
   },
+  {
+    migration: "20260909120000_f6_06_queue_backpressure.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "الهجرةُ تُعيدُ تعريفَ `claim_notification_delivery` بـ`create or replace` **بالتوقيعِ نفسِه** (بلا وسائطَ) لتُضيفَ بوّابةَ تزامنِ المستهلِكِ قبلَ الالتقاطِ وتُعيدَ `batch_limit` في مظروفِ التسليمِ (F6-06 / ADR-0066). والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كان — الدالّةُ كانت ممنوحةً لـ`service_role` وحدَها قبلَ التغييرِ وتبقى كذلك بعدَه، فلا تضييقَ فعليَّ في الصلاحيّاتِ. والعودةُ بالصورةِ السابقةِ وحدَها تكفي: النسخةُ القديمةُ تتجاهلُ `batch_limit` الزائدَ في المظروفِ، وتقرأُ `delivery: null` عندَ بلوغِ حدِّ التزامنِ كما تقرأُ «لا عملَ معلَّقٌ» — فتنتظرُ الدورةَ التاليةَ ولا تنكسرُ. فلا نشرَ مقرونٌ ولا كسرٌ لنسخةٍ سابقةٍ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /** وسمُ المدخلِ بالصورةِ التي تُطابِق `riskTag`. */
