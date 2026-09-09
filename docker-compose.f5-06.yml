@@ -1,0 +1,177 @@
+# الغرض: رصةُ اختبارِ فوضى متعدّدِ المثيلاتِ لـ F5-06 — ٣ بوّاباتٍ خلفَ موزّعِ
+#   حملٍ يفحصُ `/ready`، مع Postgres حقيقيٍّ وRedis حقيقيٍّ عبرَ محوّلِ Upstash REST.
+#   مستقلّةٌ عن أيِّ بيئةِ سحابةٍ مدفوعةٍ: تُشغَّلُ في CI على عُدّاءِ ubuntu.
+# الحالة: بنيةُ اختبارٍ لا بنيةُ إنتاج.
+# ينتمي إلى: جذرُ المستودع
+# يُتوقَّعُ أن يستخدمه: وظيفةُ CI `chaos-multi-instance` + scripts/f5-06-chaos.ts
+
+# ملاحظات:
+#   • البوّابةُ تعملُ بـNODE_ENV=test وTELEGRAM_TRANSPORT=silent — الناقلُ الصامتُ
+#     seamٌ مُعتمَدٌ في المستودع، والوضعُ غيرُ الإنتاجيِّ يرخي إجراءاتِ الإقلاعِ
+#     فقط (intake موصولٌ دائمًا ⇒ نفسُ سلوكِ التشغيل). الثابتُ المُثبَتُ هو صحّةُ
+#     الحالةِ الموزَّعةِ عبرَ المثيلاتِ، لا تسليمُ تلغرام.
+#   • SESSION_STORE=redis وPROCESS_TOPOLOGY=multi-process مُضبوطانِ صراحةً.
+
+name: waslah-f5-06-chaos
+
+services:
+  # ── قاعدة البيانات: PostGIS 17 كالإنتاج والـCI ──────────────────────────────
+  postgres:
+    image: postgis/postgis:17-3.5
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: waslah
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d waslah"]
+      interval: 2s
+      timeout: 5s
+      retries: 20
+
+  # ── Redis حقيقيٌّ ───────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  # ── محوّلُ Upstash REST → Redis (يُمكّنُ البوّابةَ من Redis بلا تغييرِ مسارها) ──
+  upstash-shim:
+    build:
+      context: ./docker/upstash-rest-shim
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379
+      SHIM_TOKEN: shim-token
+      PORT: "8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  # ── ٣ بوّاباتٍ خلفَ HAProxy ───────────────────────────────────────────────
+  gateway-1:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.gateway
+    environment: &gateway-env
+      NODE_ENV: test
+      PORT: "3000"
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/waslah
+      # الضبطُ يرفضُ أيَّ `SUPABASE_URL` لا يبدأُ بـ`https://` (رفضاً مقصوداً: عميلُ
+      # Supabase لا يُخاطَبُ على نصٍّ صريحٍ). والقيمةُ الأولى كانت `http://…local`
+      # فسقطَ إقلاعُ البوّاباتِ الثلاثِ والعاملَين في CI (التشغيلُ 34365082495).
+      # و`.invalid` نطاقٌ محجوزٌ لا يُحَلُّ (RFC 2606) فلا مُخاطَبةَ شبكيّةً بالغلطِ.
+      SUPABASE_URL: https://supabase-unused.invalid
+      SUPABASE_SERVICE_ROLE_KEY: fake-service-role-key
+      UPSTASH_REDIS_REST_URL: http://upstash-shim:8081
+      UPSTASH_REDIS_REST_TOKEN: shim-token
+      DRIVER_BOT_TOKEN: fake-driver-bot-token
+      RIDER_BOT_TOKEN: fake-rider-bot-token
+      TELEGRAM_WEBHOOK_SECRET: chaos-webhook-secret-32chars-min-padding
+      BOOTSTRAP_ADMIN_TELEGRAM_ID: "100000001"
+      TELEGRAM_TRANSPORT: silent
+      SESSION_STORE: redis
+      PROCESS_TOPOLOGY: multi-process
+      RUN_WORKER_IN_GATEWAY: "false"
+      RUN_ADMIN_IN_GATEWAY: "false"
+      TRANSLATION_PROVIDER: none
+      ROUTING_PROVIDER: none
+      SERVICE_INSTANCE_ID: gateway-1
+    # فحصُ حياةٍ حقيقيٌّ: بلا `healthcheck` كان `up --wait` يُعلِنُ البوّابةَ «صحّيةً»
+    # لمجرّدِ أنّ الحاويةَ تعمل — وقد كانت تسقطُ عندَ الإقلاعِ لضبطٍ غيرِ صالحٍ.
+    # و`/health` لا `/ready` عن قصدٍ: الجهوزيةُ تشترطُ مخطَّطاً مُطبَّقاً، والهجراتُ
+    # تُطبَّقُ بعدَ رفعِ الرصةِ، فاشتراطُ `/ready` هنا حجزٌ دائريٌّ لا حاجزُ صدقٍ.
+    healthcheck: &gateway-healthcheck
+      test:
+        [
+          "CMD-SHELL",
+          "bun -e 'const r = await fetch(\"http://127.0.0.1:3000/health\"); process.exit(r.ok ? 0 : 1)'",
+        ]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+    ports:
+      - "3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      upstash-shim:
+        condition: service_started
+
+  gateway-2:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.gateway
+    environment:
+      <<: *gateway-env
+      SERVICE_INSTANCE_ID: gateway-2
+    healthcheck: *gateway-healthcheck
+    ports:
+      - "3002:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      upstash-shim:
+        condition: service_started
+
+  gateway-3:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.gateway
+    environment:
+      <<: *gateway-env
+      SERVICE_INSTANCE_ID: gateway-3
+    healthcheck: *gateway-healthcheck
+    ports:
+      - "3003:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      upstash-shim:
+        condition: service_started
+
+  # ── عاملان خلفيّان: «عدّةُ gateways وعدّةُ workers» (بوّابةُ المرحلةِ F5) ───────
+  worker-1:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.worker
+    environment:
+      <<: *gateway-env
+      SERVICE_INSTANCE_ID: worker-1
+    depends_on:
+      postgres:
+        condition: service_healthy
+      upstash-shim:
+        condition: service_started
+
+  worker-2:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.worker
+    environment:
+      <<: *gateway-env
+      SERVICE_INSTANCE_ID: worker-2
+    depends_on:
+      postgres:
+        condition: service_healthy
+      upstash-shim:
+        condition: service_started
+
+  # ── الموزّع: فحصُ `/ready` النشطُ وإزالةُ المُصرِّفة ─────────────────────────
+  haproxy:
+    image: haproxy:2.8-alpine
+    volumes:
+      - ./docker/haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "8080:8080" # أماميٌّ — ويبهوكاتُ تلغرام
+      - "8404:8404" # لوحةُ تشخيصِ الحالة
+    depends_on:
+      - gateway-1
+      - gateway-2
+      - gateway-3
