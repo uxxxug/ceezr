@@ -7,9 +7,11 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   DECIDED_EVENT_DISTRIBUTION,
   distributionCrossesProcessBoundary,
+  EVENT_DISTRIBUTION_MECHANISMS,
 } from "../../packages/shared/config/single-instance.ts";
 import { rideIsUnlockable } from "../../scripts/f5-06-chaos.ts";
 import {
@@ -94,6 +96,27 @@ describe("بوّابةُ رحلةِ الفوضى تُقرأُ من قرارِ ا
       expect(rideIsUnlockable("in-process")).toBe(false);
     } finally {
       delete process.env.F5_06_FORCE_RIDE;
+    }
+  });
+});
+
+describe("قرارُ المالكِ `DEC-14` مُنفَّذٌ آليّاً لا موصوفاً", () => {
+  test("آلياتُ التوزيعِ المعروفةُ واحدةٌ داخلَ العمليةِ — وإضافةُ ثانيةٍ تُسقِطُ هذا الاختبارَ فتوجبُ ADR ناسخاً", () => {
+    expect(EVENT_DISTRIBUTION_MECHANISMS).toEqual(["in-process"]);
+    expect(DECIDED_EVENT_DISTRIBUTION).toBe("in-process");
+    expect(rideIsUnlockable(DECIDED_EVENT_DISTRIBUTION)).toBe(false);
+  });
+
+  test("`render.yaml` يُعلِنُ نسخةً واحدةً لكلِّ خدمةٍ تُعلِنُ `numInstances`", () => {
+    const parsed = Bun.YAML.parse(readFileSync("render.yaml", "utf8")) as {
+      services?: { name?: string; numInstances?: number }[];
+    };
+    const declared = (parsed.services ?? []).filter(
+      (service) => service.numInstances !== undefined,
+    );
+    expect(declared.length).toBeGreaterThan(0);
+    for (const service of declared) {
+      expect(service.numInstances).toBe(1);
     }
   });
 });
