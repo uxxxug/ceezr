@@ -448,6 +448,31 @@ const notifications =
         log,
       };
 
+/**
+ * `F4-01` — سطحُ استقبالِ الموقعِ للتطبيقِ المصغَّرِ. يُركَّبُ مع سرِّ الجلسةِ
+ * وحدَه كأخويهِ، **ويعيدُ استخدامَ تبعياتِ الحاويةِ نفسِها** التي يكتبُ بها مسارُ
+ * البوتِ — لا دليلَ سائقينَ ثانياً ولا سياسةَ مجالٍ ثانيةً.
+ *
+ * وحدُّ المعدّلِ رقمُه ههنا لا في المسارِ: نبضةُ موقعٍ كلَّ ثانيةٍ هيَ المعتادُ في
+ * تطبيقٍ حيٍّ، فحدُّ المستخدمِ العامُّ (`USER_LIMIT`) هوَ عينُ ما يَسَعُها ولا
+ * يُخترَعُ له رقمٌ ثالثٌ يُصانُ في موضعينِ.
+ */
+const driverLocation =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        viewer: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          accounts: createViewerAccountReader(container.sql),
+          now: () => new Date(),
+          log,
+        },
+        drivers: container.driverLocation.drivers,
+        ingest: container.driverLocation.ingest,
+        limits: { perDriver: limiter(USER_LIMIT) },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -550,6 +575,7 @@ const app = createServer({
   ...(sessionRefresh === undefined ? {} : { sessionRefresh }),
   ...(me === undefined ? {} : { me }),
   ...(notifications === undefined ? {} : { notifications }),
+  ...(driverLocation === undefined ? {} : { driverLocation }),
 });
 
 /**
