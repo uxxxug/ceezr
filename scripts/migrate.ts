@@ -19,7 +19,20 @@
  *    كلُّه. وطورُ `index` وحدَه يُطبَّقُ بلا معاملةٍ لأنَّ
  *    `create index concurrently` لا تُقبَلُ داخلَها.
  * ٤) **يُعيدُ الملفّاتِ كلَّها في كلِّ تشغيلٍ** ويعتمدُ على استرجاعِها
- *    (idempotence) المفروضِ نصّاً في الحاجزِ ومقيسٍ في CI بتطبيقٍ مرّتَينِ.
+ *    (idempotence) المفروضِ نصّاً في الحاجزِ ومقيسٍ في CI بتطبيقٍ مرّتَينِ —
+ *    **وهذا يصحُّ على ما بعدَ حدِّ التقادُمِ وحدَه**، فانظر الحدَّ المُعلَنَ أدناهُ.
+ *
+ * **الحدُّ المُقاسُ لا المُدَّعى — `--from` ولِمَ وُجِدَ:** الهجراتُ الثمانُ
+ * والسبعونَ الموروثةُ **ليست مُسترجَعةً**، وذلكَ **قِيسَ في CI لا استُنبِطَ**:
+ * إعادةُ تطبيقِ السلسلةِ كلِّها على قاعدةٍ فيها المخطَّطُ تسقطُ بـ
+ * `42710 trigger "cities_set_updated_at" for relation "cities" already exists`
+ * (التشغيلُ `34315907516`). وهوَ عينُ الدَّينِ المُعلَنِ في
+ * `scripts/lib/migration-baseline.ts`: القاعدةُ الخامسةُ لم تكنْ تُفرَضُ يومَ
+ * كُتِبَت تلكَ الملفّاتُ. فلذلكَ:
+ * - **قاعدةٌ فارغةٌ** (CI · بيئةٌ جديدةٌ): تُطبَّقُ السلسلةُ كلُّها — الافتراضُ.
+ * - **قاعدةٌ فيها المخطَّطُ** (الإنتاجُ): `--from <آخرُ طابعٍ مُطبَّقٍ>` فيُطبَّقُ
+ *   ما بعدَه وحدَه. والمُشغِّلُ يقولُ الطابعَ صراحةً لأنَّ القاعدةَ لا تحفظُه —
+ *   ولا سجلَّ هجراتٍ فيها، والسببُ أدناهُ.
  *
  * **ولا سجلَّ هجراتٍ مُطبَّقةٍ في القاعدةِ، والسببُ مُعلَنٌ لا مسكوتٌ عنه:**
  * القاعدةُ السياديّةُ 0.4 في `docs/MASTER_DIRECTIVE.md` تفرضُ `city_id` على كلِّ
@@ -37,7 +50,9 @@
  * **يُتوقع أن يستخدمه لاحقاً:** كلُّ نشرٍ، وكلُّ هجرةٍ جديدةٍ.
  *
  * **ملاحظات مستقبلية:** `--only <file>` لتطبيقِ ملفٍّ واحدٍ (يحتاجُه طورُ
- * `backfill` المُقطَّعُ في `F7-03`)؛ ولم يُكتَب قبلَ أن يُحتاجَ.
+ * `backfill` المُقطَّعُ في `F7-03`)؛ ولم يُكتَب قبلَ أن يُحتاجَ. ولو قرَّرَ المالكُ
+ * توسيعَ صنفِ الاستثناءِ للقاعدةِ 0.4 لَحلَّ سجلٌّ في القاعدةِ محلَّ `--from`
+ * إضافةً بلا نقضٍ — والمُطبِّقُ مبنيٌّ على أن يقبلَ ذلك.
  *
  * **ما لا يفعله هذا المُطبِّقُ عن قصدٍ — وحدودُه مُعلَنةٌ لا مضمرةٌ:**
  * - **لا يُعيدُ هجرةً إلى الوراءِ.** لا `down` في المستودعِ، ومسارُ العودةِ
@@ -51,6 +66,7 @@
  * bun run scripts/migrate.ts --dry-run                 # الخُطّةُ بلا اتّصالٍ
  * DATABASE_URL=… bun run scripts/migrate.ts            # التطبيقُ
  * bun run scripts/migrate.ts --url "postgres://…"      # رابطٌ صريحٌ
+ * bun run scripts/migrate.ts --from 20260909040000     # ما بعدَ طابعٍ مُطبَّقٍ
  * ```
  */
 
@@ -72,12 +88,14 @@ const DEFAULT_STATEMENT_TIMEOUT = "5min";
 interface Options {
   readonly dryRun: boolean;
   readonly url: string | null;
+  readonly from: string | null;
   readonly lockTimeout: string;
   readonly statementTimeout: string;
 }
 
 export function parseArgs(argv: readonly string[]): Options {
   let url: string | null = null;
+  let from: string | null = null;
   let dryRun = false;
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -85,10 +103,14 @@ export function parseArgs(argv: readonly string[]): Options {
     else if (arg === "--url") {
       url = argv[index + 1] ?? null;
       index += 1;
+    } else if (arg === "--from") {
+      from = argv[index + 1] ?? null;
+      index += 1;
     }
   }
   return {
     dryRun,
+    from,
     url: url ?? process.env.DATABASE_URL ?? process.env.MIGRATION_DATABASE_URL ?? null,
     lockTimeout: process.env.MIGRATION_LOCK_TIMEOUT ?? DEFAULT_LOCK_TIMEOUT,
     statementTimeout: process.env.MIGRATION_STATEMENT_TIMEOUT ?? DEFAULT_STATEMENT_TIMEOUT,
@@ -103,10 +125,19 @@ export interface MigrationFile {
   readonly statements: readonly string[];
 }
 
-/** الملفّاتُ بترتيبِ أسمائِها — الطابعُ الزمنيُّ يجعلُ الترتيبَ الأبجديَّ ترتيبَ زمنٍ. */
-export function readMigrations(dir: string = MIGRATIONS_DIR): MigrationFile[] {
+/**
+ * الملفّاتُ بترتيبِ أسمائِها — الطابعُ الزمنيُّ يجعلُ الترتيبَ الأبجديَّ ترتيبَ زمنٍ.
+ *
+ * و`from` طابعٌ **حصريٌّ**: يُطبَّقُ ما طابعُه أكبرُ منه. والمقارنةُ نصّيّةٌ لأنَّ
+ * الطابعَ `YYYYMMDDHHMMSS` ثابتُ الطولِ فترتيبُه المعجميُّ ترتيبُه الزمنيُّ.
+ */
+export function readMigrations(
+  dir: string = MIGRATIONS_DIR,
+  from: string | null = null,
+): MigrationFile[] {
   return readdirSync(dir)
     .filter((name) => name.endsWith(".sql"))
+    .filter((name) => from === null || name.slice(0, from.length) > from)
     .sort()
     .map((name) => {
       const sql = readFileSync(join(dir, name), "utf8");
@@ -150,7 +181,13 @@ export async function applyMigration(
 
 async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2));
-  const files = readMigrations();
+  const files = readMigrations(MIGRATIONS_DIR, options.from);
+  if (files.length === 0) {
+    console.log(
+      `لا هجرةَ بعدَ الطابعِ ${options.from ?? "(بلا حدٍّ)"} — ولا شيءَ يُطبَّقُ. وهذا نجاحٌ لا إخفاقٌ.`,
+    );
+    return;
+  }
 
   // الرفضُ قبلَ الاتّصالِ: الحاجزُ نفسُه لا نسخةٌ ثانيةٌ منه.
   const rejected = files
@@ -167,7 +204,9 @@ async function main(): Promise<void> {
   }
 
   if (options.dryRun) {
-    console.log(`خُطّةُ التطبيقِ — ${files.length} هجرةً:`);
+    console.log(
+      `خُطّةُ التطبيقِ — ${files.length} هجرةً${options.from === null ? " (السلسلةُ كلُّها — تصلحُ لقاعدةٍ فارغةٍ)" : ` بعدَ الطابعِ ${options.from}`}:`,
+    );
     for (const file of files) {
       const mode = file.transactional ? "معاملةٌ واحدةٌ" : "بلا معاملةٍ (فهرسٌ متزامنٌ)";
       console.log(
@@ -202,13 +241,26 @@ async function main(): Promise<void> {
         console.error(
           `تطبيقَ ${applied} هجرةً قبلَها، وهذه سقطَت ${file.transactional ? "كلُّها معاً فلا مخطَّطَ نصفَ مُطبَّقٍ" : "وقد تكونُ عباراتُها السابقةُ نفذَت (طورٌ بلا معاملةٍ)"}.`,
         );
+        /**
+         * `42710` (كائنٌ موجودٌ) و`42P07` (جدولٌ موجودٌ) على قاعدةٍ فيها المخطَّطُ
+         * أصلاً ليسا عطلاً في الهجرةِ بل تشغيلاً بلا `--from`: الهجراتُ الموروثةُ
+         * غيرُ مُسترجَعةٍ (دَينٌ مُعلَنٌ)، وقد قِيسَ ذلك لا استُنبِطَ.
+         */
+        const code = (error as { code?: string }).code;
+        if (options.from === null && (code === "42710" || code === "42P07")) {
+          console.error(
+            "↳ والقاعدةُ فيها هذا الكائنُ سابقاً: الهجراتُ الموروثةُ غيرُ مُسترجَعةٍ (دَينٌ مُعلَنٌ في `scripts/lib/migration-baseline.ts`). فإن كانت القاعدةُ مُهاجَرةً من قبلُ فمرِّرْ `--from <آخرُ طابعٍ مُطبَّقٍ>` ليُطبَّقَ ما بعدَه وحدَه. والسلسلةُ كلُّها لقاعدةٍ فارغةٍ.",
+          );
+        }
         process.exit(1);
       }
     }
   } finally {
     await sql.end({ timeout: 5 });
   }
-  console.log(`✅ طُبِّقَت ${applied} هجرةً بالترتيبِ · مهلةُ قفلٍ ${options.lockTimeout}.`);
+  console.log(
+    `✅ طُبِّقَت ${applied} هجرةً بالترتيبِ${options.from === null ? "" : ` بعدَ ${options.from}`} · مهلةُ قفلٍ ${options.lockTimeout}.`,
+  );
 }
 
 if (import.meta.main) await main();

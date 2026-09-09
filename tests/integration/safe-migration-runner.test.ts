@@ -4,10 +4,12 @@
  *
  *   (١) أنَّ سلسلةَ الهجراتِ كلَّها تُطبَّقُ بالمُطبِّقِ الجديدِ على قاعدةٍ
  *       خادشةٍ فارغةٍ بلا خطأٍ — فالبديلُ عن حلقةِ `psql` ليسَ وعداً.
- *   (٢) أنَّ **إعادةَ تطبيقِ السلسلةِ كلِّها مرّةً ثانيةً تنجحُ**، وأنَّ عددَ
- *       صفوفِ البذرِ لا يتضاعفُ. وهذا هوَ الشرطُ الذي اختِيرَ بدلَ سجلِّ هجراتٍ
- *       في القاعدةِ (القاعدةُ السياديّةُ 0.4 · ADR 0068) — فإن لم يُقَسْ فهوَ
- *       ادّعاءٌ لا ضابطٌ.
+ *   (٢) أنَّ **الاسترجاعَ يصحُّ حيثُ تُفرَضُ القاعدةُ الخامسةُ ولا يصحُّ حيثُ
+ *       لم تُفرَضْ**، وكلا الشقَّينِ مقيسٌ لا مُدَّعىً:
+ *       (٢-أ) هجراتٌ مستوفيةٌ للقاعدةِ تُطبَّقُ مرّتَينِ فلا يتضاعفُ صفٌّ.
+ *       (٢-ب) والسلسلةُ الموروثةُ **تسقطُ** في إعادةِ التطبيقِ — وهذا الحدُّ
+ *       مقيسٌ ههنا صراحةً بعدَ أن سقطَ في CI (`34315907516`)، ومنه وُجِدَ
+ *       `--from`. وسكوتٌ عنه كانَ سيصيرُ ادّعاءَ استرجاعٍ لا سندَ له.
  *   (٣) أنَّ المعاملةَ يملكُها المُطبِّقُ فعلاً: ملفٌّ عبارتُه الثانيةُ تسقطُ
  *       **لا يُخلِّفُ** أثرَ عبارتِه الأولى — لا مخطَّطَ نصفَ مُطبَّقٍ.
  *   (٤) أنَّ طورَ `index` يُطبَّقُ **بلا معاملةٍ** فعلاً: `create index
@@ -25,7 +27,12 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import postgres from "postgres";
 import { planFor } from "../../scripts/lib/migration-safety.ts";
-import { applyMigration, type MigrationFile, readMigrations } from "../../scripts/migrate.ts";
+import {
+  applyMigration,
+  type MigrationFile,
+  parseArgs,
+  readMigrations,
+} from "../../scripts/migrate.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -88,13 +95,56 @@ describeIf("F7-07 — المُطبِّقُ الآمنُ على قاعدةٍ حق
     expect(Number(tables[0]?.count ?? "0")).toBeGreaterThan(15);
   }, 300_000);
 
-  it("٢ — إعادةُ تطبيقِ السلسلةِ كلِّها تنجحُ ولا يتضاعفُ البذرُ", async () => {
-    const before = await target<{ count: string }[]>`select count(*)::text as count from cities`;
-    for (const file of readMigrations()) await applyMigration(target, file, TIMEOUTS);
-    const after = await target<{ count: string }[]>`select count(*)::text as count from cities`;
-    expect(after[0]?.count).toBe(before[0]?.count);
-    expect(Number(before[0]?.count ?? "0")).toBeGreaterThan(0);
+  it("٢-أ — هجرةٌ مستوفيةٌ للقاعدةِ الخامسةِ تُطبَّقُ مرّتَينِ فلا يتضاعفُ صفٌّ", async () => {
+    const file = synthetic(
+      "99999999999996_probe_idempotent.sql",
+      `-- migration-phase: expand
+create table if not exists probe_seed (code text primary key, city_id uuid);
+insert into probe_seed (code) values ('MED') on conflict do nothing;
+insert into probe_seed (code) select 'JED' where not exists (select 1 from probe_seed where code = 'JED');`,
+    );
+    await applyMigration(target, file, TIMEOUTS);
+    const first = await target<{ count: string }[]>`select count(*)::text as count from probe_seed`;
+    await applyMigration(target, file, TIMEOUTS);
+    const second = await target<
+      { count: string }[]
+    >`select count(*)::text as count from probe_seed`;
+    expect(first[0]?.count).toBe("2");
+    expect(second[0]?.count).toBe("2");
+  }, 60_000);
+
+  /**
+   * الحدُّ المُعلَنُ مقيساً: القاعدةُ الخامسةُ لم تكنْ تُفرَضُ يومَ كُتِبَت
+   * الهجراتُ الموروثةُ، فـ`create trigger` فيها بلا `drop … if exists`.
+   * وإعادةُ التطبيقِ إذاً تسقطُ — قِيسَ في CI (`34315907516`) لا استُنبِطَ.
+   * ولذلكَ وُجِدَ `--from`: قاعدةٌ مُهاجَرةٌ يُطبَّقُ عليها ما بعدَ طابعِها.
+   */
+  it("٢-ب — والسلسلةُ الموروثةُ تسقطُ في إعادةِ التطبيقِ: الدَّينُ مقيسٌ لا مسكوتٌ عنه", async () => {
+    const legacy = readMigrations();
+    let failedAt: string | null = null;
+    let code: string | null = null;
+    for (const file of legacy) {
+      try {
+        await applyMigration(target, file, TIMEOUTS);
+      } catch (error) {
+        failedAt = file.name;
+        code = (error as { code?: string }).code ?? null;
+        break;
+      }
+    }
+    expect(failedAt).not.toBeNull();
+    // `42710` كائنٌ موجودٌ · `42P07` جدولٌ موجودٌ — كلاهما «مُطبَّقٌ سابقاً» لا عطلٌ.
+    expect(["42710", "42P07"]).toContain(code ?? "");
   }, 300_000);
+
+  it("٢-ج — و`--from` يُقصِرُ التطبيقَ على ما بعدَ طابعٍ مُطبَّقٍ", () => {
+    const all = readMigrations();
+    const cutoff = all[all.length - 2]?.name.slice(0, 14) as string;
+    const after = readMigrations("supabase/migrations", cutoff);
+    expect(after.length).toBe(1);
+    expect(after[0]?.name).toBe(all[all.length - 1]?.name as string);
+    expect(parseArgs(["--from", cutoff]).from ?? "").toBe(cutoff);
+  });
 
   it("٣ — عبارةٌ ساقطةٌ في ملفٍّ معاملاتيٍّ لا تُخلِّفُ أثرَ ما قبلَها", async () => {
     const file = synthetic(
