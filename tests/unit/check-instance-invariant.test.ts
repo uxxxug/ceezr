@@ -13,12 +13,16 @@ import { describe, expect, it } from "bun:test";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { PROCESS_TOPOLOGY_NAMES } from "../../packages/shared/config/index.ts";
+import {
+  BOOLEAN_ENV_LITERALS,
+  PROCESS_TOPOLOGY_NAMES,
+} from "../../packages/shared/config/index.ts";
 import {
   analyse,
   CLASSIFIED_SERVICES,
   REQUIRED_SERVICES,
   servicesFromManifest,
+  VALID_BOOLEAN_LITERALS,
   VALID_PROCESS_TOPOLOGIES,
 } from "../../scripts/check-instance-invariant.ts";
 
@@ -34,6 +38,8 @@ const SOUND = [
   "        value: memory",
   "      - key: PROCESS_TOPOLOGY",
   "        value: single-process",
+  "      - key: RUN_WORKER_IN_GATEWAY",
+  '        value: "false"',
   "  - type: worker",
   "    name: waslah-worker",
   "    numInstances: 1",
@@ -42,8 +48,16 @@ const SOUND = [
   "        value: memory",
   "      - key: PROCESS_TOPOLOGY",
   "        value: single-process",
+  "      - key: RUN_WORKER_IN_GATEWAY",
+  '        value: "false"',
   "",
 ].join("\n");
+
+/**
+ * نفسُ المخطوطةِ السليمةِ بلا خدمةِ عاملٍ — البوّابةُ وحدَها. تُبنى بقطعِ النصِّ
+ * عندَ الخدمةِ الثانيةِ لا بكتابةِ نسخةٍ ثانيةٍ: نسختانِ تتباعدانِ بأوّلِ تعديلٍ.
+ */
+const GATEWAY_ONLY = `${SOUND.slice(0, SOUND.indexOf("  - type: worker"))}`;
 
 /** يُبدِّل قيمةَ الطوبولوجيا في نصِّ المُدخَلِ كلِّه — زرعُ خرقٍ لا تحريرُ ملفٍّ. */
 const withTopology = (content: string, value: string): string =>
@@ -52,6 +66,14 @@ const withTopology = (content: string, value: string): string =>
 /** يحذف إعلانَ الطوبولوجيا كلَّه — لإثباتِ أنّ الغيابَ سقوطٌ لا افتراضٌ صامتٌ. */
 const withoutTopology = (content: string): string =>
   content.replaceAll("      - key: PROCESS_TOPOLOGY\n        value: single-process\n", "");
+
+/** يُبدِّل قيمةَ `RUN_WORKER_IN_GATEWAY` في النصِّ كلِّه — زرعُ خرقٍ لا تحريرُ ملفٍّ. */
+const withRunWorker = (content: string, value: string): string =>
+  content.replaceAll('        value: "false"', `        value: ${value}`);
+
+/** يحذف إعلانَ موضعِ المهامِّ كلَّه — لإثباتِ أنّ الغيابَ سقوطٌ لا افتراضٌ. */
+const withoutRunWorker = (content: string): string =>
+  content.replaceAll('      - key: RUN_WORKER_IN_GATEWAY\n        value: "false"\n', "");
 
 const codes = (content: string): readonly string[] => analyse(content).map((f) => f.code);
 
@@ -134,6 +156,10 @@ describe("الحكمُ — قبولٌ ورفضٌ", () => {
       "    envVars:",
       "      - key: PROCESS_TOPOLOGY",
       "        value: single-process",
+      // يُعلَن كي يبقى المُختبَرُ **غيابَ البوّابةِ وحدَه**: مخطوطةٌ ناقصةُ إعلانِ
+      // موضعِ المهامِّ تُسقِط رمزاً ثانياً فتُخفي المقصودَ (ADR 0063).
+      "      - key: RUN_WORKER_IN_GATEWAY",
+      '        value: "false"',
       "",
     ].join("\n");
     expect(codes(withoutGateway)).toEqual(["MISSING_REQUIRED_SERVICE"]);
@@ -206,6 +232,86 @@ describe("الحكمُ — قبولٌ ورفضٌ", () => {
   it("الحاجزُ يفحص الخدمةَ الصحيحةَ لا خدمةً غيرَ مرتبطةٍ", () => {
     expect(Object.keys(CLASSIFIED_SERVICES).sort()).toEqual(["waslah-gateway", "waslah-worker"]);
     expect(REQUIRED_SERVICES).toContain("waslah-gateway");
+  });
+});
+
+describe("موضعُ المهامِّ الدوريّةِ — F5-04 / SCL-007 · ADR 0063", () => {
+  it("تُقرأ قيمةُ RUN_WORKER_IN_GATEWAY ونوعُ الخدمةِ لكلِّ خدمةٍ", () => {
+    const services = servicesFromManifest(SOUND);
+    expect(services[0]?.serviceType).toBe("web");
+    expect(services[0]?.runWorkerInGateway).toBe("false");
+    expect(services[1]?.serviceType).toBe("worker");
+  });
+
+  /**
+   * برهانُ أنّ الفرزَ الصريحَ في القارئِ يعمل: مفتاحٌ ثالثٌ لا يُلوِّث الطوبولوجيا.
+   * ولو أُسنِد بـ`else` جامعٍ لصارت الطوبولوجيا «false» ونجحَ الحاجزُ على ملفٍّ
+   * لم يفهمه.
+   */
+  it("مفتاحُ موضعِ المهامِّ لا يُلوِّث قيمةَ الطوبولوجيا", () => {
+    const services = servicesFromManifest(SOUND);
+    expect(services[0]?.processTopology).toBe("single-process");
+  });
+
+  it("المستودعُ الحقيقيُّ يُعلِن الفصلَ: البوّابةُ false وخدمةُ عاملٍ قائمةٌ", () => {
+    const services = servicesFromManifest(REAL_MANIFEST);
+    const gateway = services.find((service) => service.name === "waslah-gateway");
+    expect(gateway?.runWorkerInGateway).toBe("false");
+    expect(services.some((service) => service.serviceType === "worker")).toBe(true);
+    for (const service of services) expect(service.runWorkerInGateway).not.toBeNull();
+  });
+
+  it("غيابُ الإعلانِ ⇒ سقوطٌ — لأنّ الإنتاجَ لا يُقلع بلا سطرِه", () => {
+    expect(codes(withoutRunWorker(SOUND))).toContain("MISSING_RUN_WORKER_DECLARATION");
+  });
+
+  it("قيمةٌ لا تُفهَم ⇒ سقوطٌ ولا تُردُّ إلى الافتراضِ", () => {
+    expect(codes(withRunWorker(SOUND, '"fasle"'))).toContain("INVALID_RUN_WORKER_VALUE");
+  });
+
+  /** الغيابُ والبطلانُ يُميَّزانِ برمزَين: العلاجُ مختلفٌ فلا يُوحَّد الرمزُ. */
+  it("الغيابُ والبطلانُ رمزانِ مختلفانِ لا رمزٌ واحدٌ", () => {
+    expect(codes(withoutRunWorker(SOUND))).not.toContain("INVALID_RUN_WORKER_VALUE");
+    expect(codes(withRunWorker(SOUND, '"maybe"'))).not.toContain("MISSING_RUN_WORKER_DECLARATION");
+  });
+
+  /**
+   * الخرقُ الجوهريُّ للمرحلةِ: بوّابةٌ تتخلّى عن المهامِّ ولا حاملَ لها. وهذا هو
+   * الحالُ المُشخَّصُ في `docs/directive-item-0-live-diagnosis.md` §0.2 — لكنّه
+   * كان يقع في المنصّةِ لا في الملفِّ، والحاجزُ يمنع **تعبيرَ الملفِّ عنه**.
+   */
+  it("بوّابةٌ بـfalse بلا خدمةِ عاملٍ ⇒ نظامٌ بلا مهامَّ ⇒ سقوطٌ", () => {
+    expect(codes(GATEWAY_ONLY)).toContain("JOBS_ORPHANED");
+  });
+
+  it("بوّابةٌ بـfalse مع خدمةِ عاملٍ ⇒ قبولٌ — هذا هو الفصلُ", () => {
+    expect(analyse(SOUND)).toEqual([]);
+  });
+
+  /** الإدماجُ بلا خدمةِ عاملٍ حالٌ مقبولةٌ: المهامُّ تعمل في موضعٍ واحدٍ. */
+  it("بوّابةٌ بـtrue بلا خدمةِ عاملٍ ⇒ قبولٌ — لا تُتَّهم الحالُ السابقةُ", () => {
+    expect(analyse(withRunWorker(GATEWAY_ONLY, '"true"'))).toEqual([]);
+  });
+
+  /**
+   * القفلُ الموزَّعُ (ADR 0009) يجعل التكرارَ تخطّياً لا تنفيذاً مزدوجاً، فتشغيلُ
+   * الموضعَين معاً ليس خرقاً يُسقِط النشرَ. ولو أُسقِط لصار الرجوعُ عن الفصلِ في
+   * حادثةٍ مستعجلةٍ ممنوعاً بحاجزٍ — وهو منعُ علاجٍ لا منعُ عطلٍ.
+   */
+  it("بوّابةٌ بـtrue مع خدمةِ عاملٍ ⇒ قبولٌ — القفلُ يحمي من التكرارِ", () => {
+    expect(analyse(withRunWorker(SOUND, '"true"'))).toEqual([]);
+  });
+
+  /**
+   * الاسمُ لا يكفي: خدمةٌ تُسمّى `waslah-worker` وتُعلَن `type: web` ليست عاملاً،
+   * ولو قُبِلت لصار الحاجزُ يُصدِّق تسميةً لا إعلاناً.
+   */
+  it("خدمةٌ باسمِ عاملٍ ونوعِ web لا تُعَدُّ حاملاً للمهامِّ", () => {
+    expect(codes(SOUND.replace("  - type: worker", "  - type: web"))).toContain("JOBS_ORPHANED");
+  });
+
+  it("قائمةُ المنطقيِّ في الحاجزِ تُطابِق قائمةَ الضبطِ", () => {
+    expect([...VALID_BOOLEAN_LITERALS]).toEqual([...BOOLEAN_ENV_LITERALS]);
   });
 });
 

@@ -1,17 +1,27 @@
 #!/usr/bin/env bun
 /**
- * # الحاجزُ: `numInstances` شرطُ صحّةٍ لا تفضيلُ سعةٍ — `R-17` · ADR 0050
+ * # الحاجزُ: مانيفستُ النشرِ شرطُ صحّةٍ لا تفضيلُ سعةٍ — `R-17` · ADR 0050 ·
+ * `F5-04` / `SCL-007` · ADR 0063
  *
  * **الغرض:** أن يستحيل رفعُ عددِ نسخِ خدمةٍ في `render.yaml` فوقَ الواحدةِ بلا
  * سقوطِ بناءٍ، وأن يستحيل تمريرُ خدمةٍ جديدةٍ في الملفِّ بلا تصنيفٍ صريحٍ
  * لعلاقتِها بشرطِ الصحّةِ هذا. فالعيبُ المُشتكى منه في `R-17` أنّ الشرطَ كان
  * **تعليقاً في رأسِ الملفِّ** — والتعليقُ لا يمنع تعديلاً.
  *
+ * **وشرطٌ ثانٍ أُضيف بـ`F5-04`:** أن يستحيل أن يُعلِن المانيفستُ إطفاءَ المهامِّ
+ * الدوريّةِ في البوّابةِ (`RUN_WORKER_IN_GATEWAY` كاذبة) بلا خدمةٍ من نوعِ
+ * `worker` تحملها — وهو الحالُ المُشخَّصُ في
+ * `docs/directive-item-0-live-diagnosis.md` §0.2: لا مهمّةٌ دوريّةٌ واحدةٌ تعمل
+ * في المنظومةِ كلِّها، و`/health` يقول «سليم». ويُفحَص كذلك أنّ كلَّ خدمةٍ
+ * **تُعلن** المتغيّرَ بقيمةٍ من قائمةٍ مغلقةٍ، فـ`"fasle"` تُقرَأ اليومَ «كاذبة»
+ * بصمتٍ. والتفصيلُ في ADR 0063.
+ *
  * **الحالة:** الشطرُ التنفيذيُّ من `R-17` (الإنفاذُ) — منفَّذ · مُختبَر · مبرهَنُ
  * السقوطِ بخرقٍ مزروعٍ. وشطرُ **القدرةِ** (توزيعُ الأحداثِ بين النسخِ) مؤجَّلٌ
  * بـADR 0050 §٣-د، فالبندُ لا يُقلَب `[x]`.
  *
- * **ينتمي إلى:** البند `R-17` · [ADR 0050](../docs/adr/0050-single-instance-is-a-correctness-invariant-not-a-comment.md) · `ADR 0011`.
+ * **ينتمي إلى:** البند `R-17` · [ADR 0050](../docs/adr/0050-single-instance-is-a-correctness-invariant-not-a-comment.md) · `ADR 0011` ·
+ * البند `F5-04` / `SCL-007` · [ADR 0063](../docs/adr/0063-worker-service-separation.md).
  *
  * **يُتوقع أن يستخدمه لاحقاً:** سلسلةُ `bun run ci`، ويُشغَّل في CI العامِّ عبرَ
  * `tests/unit/check-instance-invariant.test.ts` على المستودعِ الحقيقيِّ.
@@ -85,8 +95,27 @@ export const REQUIRED_SERVICES = ["waslah-gateway"] as const;
  */
 export const VALID_PROCESS_TOPOLOGIES = ["single-process", "multi-process"] as const;
 
+/**
+ * حروفُ المنطقيِّ الصالحةُ لـ`RUN_WORKER_IN_GATEWAY`. تُكرَّر ههنا ولا تُستورَد من
+ * `packages/shared/config` لنفسِ سببِ `VALID_PROCESS_TOPOLOGIES` أعلاه، والتكرارُ
+ * محروسٌ باختبارٍ يُطابِق القائمتَين.
+ */
+export const VALID_BOOLEAN_LITERALS = [
+  "true",
+  "1",
+  "yes",
+  "on",
+  "false",
+  "0",
+  "no",
+  "off",
+] as const;
+
+/** الحروفُ التي تعني «المهامُّ في البوّابةِ **لا** تعمل». */
+const FALSY_BOOLEAN_LITERALS: readonly string[] = ["false", "0", "no", "off"];
+
 /** متغيّراتُ البيئةِ التي يلتقطها الحاجزُ من كلِّ خدمةٍ. قائمةٌ مغلقةٌ. */
-const TRACKED_ENV_KEYS = ["SESSION_STORE", "PROCESS_TOPOLOGY"] as const;
+const TRACKED_ENV_KEYS = ["SESSION_STORE", "PROCESS_TOPOLOGY", "RUN_WORKER_IN_GATEWAY"] as const;
 
 type TrackedEnvKey = (typeof TRACKED_ENV_KEYS)[number];
 
@@ -96,6 +125,18 @@ export interface ServiceDeclaration {
   readonly sessionStore: string | null;
   /** قيمةُ `PROCESS_TOPOLOGY` المُعلَنةُ للخدمةِ، أو `null` إن لم تُعلَن (ADR 0051). */
   readonly processTopology: string | null;
+  /**
+   * قيمةُ `RUN_WORKER_IN_GATEWAY` المُعلَنةُ للخدمةِ، أو `null` إن لم تُعلَن
+   * (F5-04 / SCL-007 · ADR 0063). وهي **إعلانُ موضعِ المهامِّ الدوريّةِ** لا مُفعِّلُ
+   * ميزةٍ، فغيابُها من ملفِّ النشرِ سكوتٌ عن أهمِّ سؤالٍ فيه.
+   */
+  readonly runWorkerInGateway: string | null;
+  /**
+   * نوعُ الخدمةِ كما في `type:` (`web` · `worker` · …)، أو `null` إن غاب. يُقرأ
+   * لأنّ حكمَ «المهامُّ بلا موضعٍ» يحتاج معرفةَ **هل في الملفِّ خدمةُ عاملٍ أصلاً**،
+   * والاسمُ وحدَه لا يكفي: خدمةٌ تُسمّى `waslah-worker` وتُعلَن `type: web` ليست عاملاً.
+   */
+  readonly serviceType: string | null;
   /** رقمُ سطرِ `numInstances` — للإحالةِ في الرسالةِ، أو `null` إن غاب الحقلُ. */
   readonly instancesLine: number | null;
   readonly startLine: number;
@@ -105,6 +146,8 @@ interface MutableService {
   name: string | null;
   numInstances: string | null;
   processTopology: string | null;
+  runWorkerInGateway: string | null;
+  serviceType: string | null;
   sessionStore: string | null;
   instancesLine: number | null;
   startLine: number;
@@ -134,6 +177,8 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
         name: null,
         numInstances: null,
         processTopology: null,
+        runWorkerInGateway: null,
+        serviceType: null,
         sessionStore: null,
         instancesLine: null,
         startLine: index + 1,
@@ -141,6 +186,7 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
       services.push(current);
       pendingEnvKey = null;
       if (serviceStart[1] === "name") current.name = bareValue(serviceStart[2] ?? "");
+      if (serviceStart[1] === "type") current.serviceType = bareValue(serviceStart[2] ?? "");
       return;
     }
 
@@ -150,6 +196,7 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
     if (field !== null) {
       pendingEnvKey = null;
       if (field[1] === "name") current.name = bareValue(field[2] ?? "");
+      if (field[1] === "type") current.serviceType = bareValue(field[2] ?? "");
       if (field[1] === "numInstances") {
         current.numInstances = bareValue(field[2] ?? "");
         current.instancesLine = index + 1;
@@ -169,8 +216,14 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
     const envValue = /^ {8}value:\s*(.*)$/.exec(raw);
     if (envValue !== null && pendingEnvKey !== null) {
       const value = bareValue(envValue[1] ?? "");
+      /*
+       * فرزٌ صريحٌ لا `else` جامعٌ: النسخةُ السابقةُ كانت تُسند كلَّ ما ليس
+       * `SESSION_STORE` إلى `processTopology`، فإضافةُ مفتاحٍ ثالثٍ كانت ستُلوِّث
+       * الطوبولوجيا بقيمةِ مفتاحٍ آخرَ **وينجحُ الحاجزُ على ملفٍّ لم يفهمه**.
+       */
       if (pendingEnvKey === "SESSION_STORE") current.sessionStore = value;
-      else current.processTopology = value;
+      else if (pendingEnvKey === "PROCESS_TOPOLOGY") current.processTopology = value;
+      else current.runWorkerInGateway = value;
     }
   });
 
@@ -191,7 +244,10 @@ export interface Finding {
     | "MISSING_PROCESS_TOPOLOGY"
     | "INVALID_PROCESS_TOPOLOGY"
     | "TOPOLOGY_INSTANCES_MISMATCH"
-    | "MULTI_PROCESS_WITHOUT_DISTRIBUTION";
+    | "MULTI_PROCESS_WITHOUT_DISTRIBUTION"
+    | "MISSING_RUN_WORKER_DECLARATION"
+    | "INVALID_RUN_WORKER_VALUE"
+    | "JOBS_ORPHANED";
   readonly message: string;
 }
 
@@ -355,6 +411,66 @@ export function analyse(content: string): readonly Finding[] {
         });
       }
     }
+
+    /*
+     * موضعُ المهامِّ الدوريّةِ (F5-04 / SCL-007 · ADR 0063). يُفحَص **لكلِّ خدمةٍ**
+     * لا للبوّابةِ وحدَها: `packages/shared/config` صار يُلزم الإعلانَ في الإنتاجِ،
+     * فخدمةٌ إنتاجيّةٌ بلا هذا السطرِ **لا تُقلع أصلاً** — وسقوطُ إقلاعِ العاملِ هو
+     * عينُ العطلِ الذي تمنعه هذه المرحلةُ، فلا يُترَك لِيُكتشَف في النشرِ.
+     */
+    if (service.runWorkerInGateway === null || service.runWorkerInGateway.length === 0) {
+      findings.push({
+        code: "MISSING_RUN_WORKER_DECLARATION",
+        message:
+          `الخدمةُ «${service.name}» (السطر ${service.startLine}) بلا متغيّرِ RUN_WORKER_IN_GATEWAY. ` +
+          "وهو في الإنتاجِ **إعلانٌ إلزاميٌّ** يمنع الإقلاعَ إن غاب (ADR 0063)، فغيابُه ههنا " +
+          "خدمةٌ لا تُقلع لا خدمةٌ بافتراضٍ. وأصلُ الإلزامِ أنّ السكوتَ عن موضعِ المهامِّ " +
+          `يُفسَّر لصالحِ أحدِ الطرفَين بلا قرارٍ مكتوبٍ. يُصرَّح بإحدى: ${VALID_BOOLEAN_LITERALS.join(" · ")}.`,
+      });
+    } else if (
+      !(VALID_BOOLEAN_LITERALS as readonly string[]).includes(
+        service.runWorkerInGateway.toLowerCase(),
+      )
+    ) {
+      findings.push({
+        code: "INVALID_RUN_WORKER_VALUE",
+        message:
+          `الخدمةُ «${service.name}» (السطر ${service.startLine}): قيمةُ RUN_WORKER_IN_GATEWAY ` +
+          `«${service.runWorkerInGateway}» لا تُفهَم. المتاح: ${VALID_BOOLEAN_LITERALS.join(" · ")}. ` +
+          "ولا تُردُّ المجهولةُ إلى الافتراضِ: «fasle» تُقرأ true فتعمل المهامُّ في موضعٍ " +
+          "غيرِ الذي قصدَه من كتبها — وهو انحرافٌ صامتٌ بين ما ضُبِط وما يعمل.",
+      });
+    }
+  }
+
+  /*
+   * ## حكمُ «المهامُّ بلا موضعٍ» — الخرقُ الذي وقعَ فعلاً في الإنتاجِ
+   *
+   * `docs/directive-item-0-live-diagnosis.md` §0.2 يُثبِت أنّ خدمةَ العاملِ كانت
+   * **مُعرَّفةً في هذا الملفِّ وغيرَ مُنشأةٍ في المنصّةِ**، فلمّا أُطفئ العاملُ
+   * المضمَّنُ لم تُنفَّذ مهمّةٌ دوريّةٌ واحدةٌ قطُّ. والحاجزُ لا يرى منصّةً، لكنّه
+   * يرى **المخطوطةَ** — فيمنع أن تُعبِّر أصلاً عن حالِ «لا مهامَّ في أيِّ موضعٍ».
+   *
+   * ويُفحَص عبرَ الخدماتِ لا داخلَ واحدةٍ، لأنّ الحكمَ **علاقةٌ بينها**: بوّابةٌ
+   * تتخلّى عن المهامِّ مقبولةٌ إن وُجِد مَن يحملها، ومرفوضةٌ إن لم يوجد. وهذا هو
+   * الفرقُ بين فصلِ العاملِ وإسقاطِه.
+   */
+  const gateway = services.find((service) => service.name === "waslah-gateway");
+  const gatewayDisownsJobs =
+    gateway !== undefined &&
+    gateway.runWorkerInGateway !== null &&
+    FALSY_BOOLEAN_LITERALS.includes(gateway.runWorkerInGateway.toLowerCase());
+  if (gatewayDisownsJobs && !services.some((service) => service.serviceType === "worker")) {
+    findings.push({
+      code: "JOBS_ORPHANED",
+      message:
+        "«waslah-gateway» تُعلِن RUN_WORKER_IN_GATEWAY = false ولا خدمةَ «type: worker» في الملفِّ. " +
+        "فليست هذه طوبولوجيا مفصولةً بل نظاماً بلا مهامَّ دوريّةٍ: لا اشتراكٌ ينتهي، ولا عرضٌ " +
+        "يُسقَط بمهلتِه فيبقى الطلبُ باحثاً للأبد، ولا نسخةٌ احتياطيّةٌ تُؤخَذ — وهو العطلُ " +
+        "المُشخَّصُ في docs/directive-item-0-live-diagnosis.md §0.2. " +
+        "وهو **توقّفٌ تامٌّ صامتٌ** لا عطلٌ جزئيٌّ: لا طلبٌ يُخفِق ولا سجلٌّ يشكو. " +
+        "فإمّا تُعلَن خدمةُ عاملٍ، وإمّا يُعاد الإدماجُ بـtrue صريحةٍ (ADR 0063).",
+    });
   }
 
   return findings;
@@ -385,7 +501,10 @@ function main(): void {
     process.exit(1);
   }
 
-  console.log(`✅ كلُّ خدمةٍ في ${manifest} مصنَّفةٌ وعددُ نسخِها 1 — شرطُ صحّةِ R-17 قائمٌ.`);
+  console.log(
+    `✅ كلُّ خدمةٍ في ${manifest} مصنَّفةٌ وعددُ نسخِها 1 — شرطُ صحّةِ R-17 قائمٌ؛ ` +
+      `وموضعُ المهامِّ الدوريّةِ مُعلَنٌ ولا مهامَّ يتيمةً — شرطُ F5-04 قائمٌ.`,
+  );
 }
 
 if (import.meta.main) {

@@ -25,6 +25,10 @@ const FULL: Record<string, string> = {
   // SCL-002: الإنتاجُ يرفضُ memory، فالثابتُ الكاملُ يستعملُ redis ليكونَ صالحاً
   // في كلِّ بيئةٍ (التطويرُ يسمحُ بالاثنين، والإنتاجُ يلزمُ redis).
   SESSION_STORE: "redis",
+  // F5-04 / ADR 0063: الإنتاجُ يُلزم إعلانَ موضعِ المهامِّ الدوريّةِ صريحاً، فالثابتُ
+  // الكاملُ يُعلنه ليبقى صالحاً في كلِّ بيئةٍ. وحكمُ الغيابِ نفسُه مُختبَرٌ في
+  // `tests/unit/config-worker-placement.test.ts` — لا يُقاس ههنا ضمناً.
+  RUN_WORKER_IN_GATEWAY: "false",
   TELEGRAM_WEBHOOK_SECRET: "secret",
   BOOTSTRAP_ADMIN_TELEGRAM_ID: "900000",
 };
