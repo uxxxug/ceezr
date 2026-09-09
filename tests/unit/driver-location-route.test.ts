@@ -121,7 +121,9 @@ function buildHarness(options: Options = {}) {
           ...(options.limited === true
             ? {
                 limits: {
-                  perDriver: { hit: async () => ({ allowed: false, remaining: 0, resetSeconds: 7 }) },
+                  perDriver: {
+                    hit: async () => ({ allowed: false, remaining: 0, resetSeconds: 7 }),
+                  },
                 },
               }
             : {}),
