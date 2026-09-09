@@ -20,6 +20,7 @@ import {
 } from "../../../packages/infrastructure/identity/miniapp-session.ts";
 import { createTelegramInitDataVerifier } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
+import { createUserNotificationCenter } from "../../../packages/infrastructure/notification/user-notification-center.ts";
 import {
   createConfiguredMetricsExporter,
   createDatabaseGaugeCollector,
@@ -426,6 +427,27 @@ const me =
         log,
       };
 
+/**
+ * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — سطحُ قراءةٍ ووسمٍ فقط،
+ * يعيدُ استخدامَ **نفسَ** مصادقةِ `F1-05` بلا مسارِ مصادقةٍ ثانٍ يتخلّفُ عن الأوّل.
+ * وتحويلُ معرّفِ تيليجرام إلى `users.id` يقعُ داخلَ دالّةِ القاعدةِ لا ههنا،
+ * فالتفويضُ على مستوى الكائنِ خاصّيّةُ مخطَّطٍ لا انتباهُ مُراجعٍ. وغيابُ سرِّ
+ * الجلسةِ يُسقِطُ السطحَ بلا أن يُعطِّلَ التصنيفَ: التصنيفُ في القاعدةِ لا ههنا.
+ */
+const notifications =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        viewer: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          accounts: createViewerAccountReader(container.sql),
+          now: () => new Date(),
+          log,
+        },
+        center: createUserNotificationCenter(container.sql),
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -527,6 +549,7 @@ const app = createServer({
   ...(sessionTelegram === undefined ? {} : { sessionTelegram }),
   ...(sessionRefresh === undefined ? {} : { sessionRefresh }),
   ...(me === undefined ? {} : { me }),
+  ...(notifications === undefined ? {} : { notifications }),
 });
 
 /**

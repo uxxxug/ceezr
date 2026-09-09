@@ -84,10 +84,32 @@ export function publicViewerCodeFor(reason: ViewerSessionRejectionReason): Viewe
   return "SESSION_INVALID";
 }
 
-export async function resolveViewer(
+/**
+ * ما تُخرِجُه المصادقةُ الكاملةُ: هويّةُ الجلسةِ **مع** الدورِ والحالةِ. وهيَ
+ * أوسعُ ممّا يُعيدُه `GET /v1/me` عمداً — المسارُ يُضيّقُ ما يُظهِرُه، والحالاتُ
+ * التي تقرأُ بيانات المستخدمِ (مركزُ الإشعاراتِ `SS-07` مثلاً) تحتاجُ **مَن هوَ**
+ * لا دورَه وحدَه.
+ *
+ * ولماذا موضعٌ واحدٌ؟ لأنَّ ثانيَ موضعٍ للمصادقةِ هوَ أوّلُ موضعٍ يتخلّفُ عن
+ * الأوّلِ: يُضافُ فحصُ حجبٍ ههنا ويُنسى هناك، فيصيرُ لمحجوبٍ سطحٌ مفتوحٌ في
+ * مسارٍ واحدٍ دونَ سائرِها — وهوَ عطلٌ لا يظهرُ إلّا بمن يبحثُ عنه.
+ */
+export interface AuthorizedViewer {
+  readonly telegramUserId: string;
+  readonly sessionId: string;
+  readonly role: ResolvedViewerRole;
+  readonly status: ViewerStatus;
+}
+
+/**
+ * المصادقةُ الواحدةُ: تحقّقُ التوقيعِ ثمّ قراءةُ الحسابِ ثمّ فحصُ الحجبِ — بهذا
+ * الترتيبِ بالذات. ولا تُقرأُ القاعدةُ لرمزٍ لم يُثبَت توقيعُه، وإلّا صارَ المسارُ
+ * مِرقاباً يُستنزَف بأيِّ نصٍّ عشوائي.
+ */
+export async function authorizeViewer(
   input: ResolveViewerInput,
   deps: ResolveViewerDeps,
-): Promise<Result<ResolveViewerOutput, ResolveViewerError>> {
+): Promise<Result<AuthorizedViewer, ResolveViewerError>> {
   const accessToken = input.accessToken;
   if (typeof accessToken !== "string" || accessToken.length === 0) {
     return err(fail("SESSION_REQUIRED"));
@@ -118,7 +140,12 @@ export async function resolveViewer(
   // لا صفَّ = «غير مسجَّل»، بلا كتابةٍ وبلا افتراضِ دور. والربطُ/الإنشاءُ
   // (القسم 9.8 خطوة 4) بندٌ لاحقٌ بقرارِ المالكِ لا صمتٌ عن نقص.
   if (account.value === null) {
-    return ok({ role: "unknown", status: "unregistered" });
+    return ok({
+      telegramUserId: session.value.telegramUserId,
+      sessionId: session.value.sessionId,
+      role: "unknown",
+      status: "unregistered",
+    });
   }
 
   // الحجبُ قرارُ تفويضٍ على الخادمِ: يُفحَص في **كلِّ** طلبٍ لا مرّةً عندَ
@@ -129,5 +156,25 @@ export async function resolveViewer(
     return err(fail("ACCOUNT_BLOCKED"));
   }
 
-  return ok({ role: account.value.role, status: "active" });
+  return ok({
+    telegramUserId: session.value.telegramUserId,
+    sessionId: session.value.sessionId,
+    role: account.value.role,
+    status: "active",
+  });
+}
+
+/**
+ * `GET /v1/me` — غلافٌ **ضيِّقٌ** على المصادقةِ الواحدةِ: يُسقِطُ معرّفَ تيليجرام
+ * ومعرّفَ الجلسةِ فلا يخرجانِ إلى العميلِ. والتضييقُ ههنا لا في المصادقةِ، لأنَّ
+ * إخفاءَ الحقلِ عن **كلِّ** المستهلكينَ كانَ سيدفعُ مَن يحتاجُه إلى مصادقةٍ ثانيةٍ
+ * يكتبُها بنفسِه — وذلكَ عينُ ما تمنعُه هذه البنية.
+ */
+export async function resolveViewer(
+  input: ResolveViewerInput,
+  deps: ResolveViewerDeps,
+): Promise<Result<ResolveViewerOutput, ResolveViewerError>> {
+  const authorized = await authorizeViewer(input, deps);
+  if (!authorized.ok) return err(authorized.error);
+  return ok({ role: authorized.value.role, status: authorized.value.status });
 }
