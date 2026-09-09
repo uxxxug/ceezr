@@ -116,6 +116,9 @@ jobs:
         run: |
           bun run scripts/check-migrations.ts
 
+      - name: تغطية فهارس الاستعلامات الساخنة (F7-02)
+        run: bun run scripts/check-hot-query-index-coverage.ts
+
       - name: تطابق قواميس اللغات
         run: bun run scripts/check-i18n.ts
 
