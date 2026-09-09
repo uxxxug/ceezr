@@ -97,7 +97,8 @@ export const HOT_QUERY_INDEXES: readonly HotQueryIndex[] = Object.freeze([
     ],
     probe:
       "select id from orders where rider_id = $1 " +
-      "and status in ('searching','matched','in_progress') limit 20",
+      "and status in ('searching','matched','in_progress') " +
+      "order by created_at asc limit 20",
   },
   {
     name: "orders_city_searching_created_idx",
@@ -177,7 +178,9 @@ export const HOT_QUERY_INDEXES: readonly HotQueryIndex[] = Object.freeze([
         what: "صفحةُ الحضورِ ورابطةُ الأحداثِ في تقريرِ ساعاتِ العملِ",
       },
     ],
-    probe: "select id from attendance_log where changed_at >= now() - interval '7 days' limit 100",
+    probe:
+      "select id from attendance_log where changed_at >= now() - interval '7 days' " +
+      "order by changed_at desc limit 100",
   },
 ]);
 
