@@ -98,6 +98,7 @@ import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure
 import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastructure/subscription/notice-adapters.ts";
 import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
+import { DB_POOL_MAX, JOB_CONCURRENCY } from "../../../packages/shared/config/connection-budget.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../../packages/shared/result/index.ts";
@@ -229,8 +230,14 @@ const BROADCAST_ROUNDS_FALLBACK = 1;
  * أقصى تواز للمهامّ، ومعه حجم تجمّع اتصالات القفل. الرقمان مرتبطان بالضرورة لا
  * بالاختيار: كل مهمّة جارية تحتجز اتصال قفل واحداً طول عملها، فتجمّع القفل يجب أن
  * يتّسع للتوازي كلّه وإلّا انتظرت مهمّة اتصالاً لن يتحرّر إلّا بانتهاء مهمّة أخرى.
+ *
+ * `F7-04` — **والقيمةُ نُقِلَت إلى نموذجِ ميزانيّةِ الاتّصالاتِ ولم تُبدَّل**:
+ * `JOB_CONCURRENCY` في `packages/shared/config/connection-budget.ts`. والسببُ أنّ
+ * هذا الرقمَ حدٌّ في الميزانيّةِ قبلَ أن يكونَ حدَّ تَوازٍ — تجمُّعُ القفلِ مشتقٌّ
+ * منه — فبقاؤه ههنا كان يجعلُ الميزانيّةَ تُحسَبُ من رقمٍ لا تملكُه. والاسمُ
+ * يبقى مُصدَّراً من موضعِه هذا فلا يتغيّرُ مُستدعٍ واحدٌ.
  */
-export const MAX_JOB_CONCURRENCY = 4;
+export const MAX_JOB_CONCURRENCY = JOB_CONCURRENCY;
 
 /**
  * أقصى ما يُفحَص من طلبٍ عالقٍ في شوطٍ واحد لمدينة. خمسون لا «كلّها»: شوطٌ يفتح
@@ -369,7 +376,12 @@ export function buildWorkerContainer(
   overrides: WorkerContainerOverrides = {},
 ): WorkerContainer {
   const sql =
-    overrides.sql ?? createSql({ connectionString: config.databaseUrl, max: 5, prepare: false });
+    overrides.sql ??
+    createSql({
+      connectionString: config.databaseUrl,
+      max: DB_POOL_MAX.workerJobs,
+      prepare: false,
+    });
   const log: JobLogger = overrides.log ?? {
     info: (message, fields) => console.log(JSON.stringify({ level: "info", message, ...fields })),
     error: (message, fields) =>
@@ -390,7 +402,7 @@ export function buildWorkerContainer(
     overrides.lockSql ??
     createSql({
       connectionString: config.databaseUrl,
-      max: MAX_JOB_CONCURRENCY + 1,
+      max: DB_POOL_MAX.workerLocks,
       prepare: false,
     });
 

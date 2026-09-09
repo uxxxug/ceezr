@@ -12,12 +12,18 @@
 
 import postgres from "postgres";
 import { PortFailureError } from "../../application/ports/index.ts";
+import { DEFAULT_DB_POOL_MAX } from "../../shared/config/connection-budget.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 
 export type Sql = postgres.Sql<Record<string, never>>;
 
 export interface DbOptions {
   readonly connectionString: string;
+  /**
+   * سقفُ التجمُّعِ. إن لم يُمرَّر يُؤخَذ `DEFAULT_DB_POOL_MAX` من نموذجِ ميزانيّةِ
+   * الاتّصالاتِ (`F7-04`) — لا رقمٌ مكتوبٌ ههنا: افتراضيٌّ مستقلٌّ عن الميزانيّةِ
+   * يعني سقفَ إنتاجٍ لا يُحاسَبُ في مجموعِها.
+   */
   readonly max?: number;
   /** إن لم يُمرَّر يُشتقّ من رابط الاتصال عبر resolvePrepare. */
   readonly prepare?: boolean;
@@ -65,7 +71,7 @@ export function resolvePrepare(options: DbOptions): boolean {
 
 export function createSql(options: DbOptions): Sql {
   return postgres(options.connectionString, {
-    max: options.max ?? 5,
+    max: options.max ?? DEFAULT_DB_POOL_MAX,
     prepare: resolvePrepare(options),
     onnotice: () => {},
     transform: { undefined: null },
