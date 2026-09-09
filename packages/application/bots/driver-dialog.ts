@@ -56,7 +56,10 @@ import {
 } from "../dispatch/relay-negotiation-message.ts";
 import type { PaymentProvider, PaymentRepository } from "../financial/ports.ts";
 import { subscribePlan } from "../financial/subscribe-plan.ts";
-import { updateDriverLocation } from "../geo/update-driver-location.ts";
+import {
+  type UpdateDriverLocationDeps,
+  updateDriverLocation,
+} from "../geo/update-driver-location.ts";
 import type { ClaimRideResult, DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
   type ResolveSafetyIncidentDeps,
@@ -176,6 +179,14 @@ export interface DriverBotDependencies {
     /** لا يرمي ولا يُعيد خطأً: إعادةُ العرض تحسينٌ لا شرطٌ لحفظ الموقع. */
     onDriverBecameDispatchable(cityId: CityId): Promise<void>;
   };
+  /**
+   * `F4-02` — الحالةُ الساخنةُ المشتركةُ. تُمرَّرُ كما هيَ إلى
+   * `updateDriverLocation` ولا يقرأُها الحوارُ: قرارُ التجميعِ ليسَ قرارَ رسالةٍ.
+   * وغيابُها يعني نسقَ `F4-01` حرفاً — كتابةٌ مشروطةٌ لكلِّ نبضةٍ.
+   */
+  readonly hotState?: UpdateDriverLocationDeps["hotState"];
+  /** `F4-02` — أثرُ التدهوّرِ عندَ عطلِ `Redis`؛ لا يُبتلَعُ صامتاً. */
+  readonly onHotStateDegraded?: UpdateDriverLocationDeps["onHotStateDegraded"];
   /**
    * منح المسؤول الأول (§6.2ب من التوجيه). بلا هذا المسار لا توجد طريقة لتعيين
    * أول مسؤول في نظام كل صلاحياته في القاعدة، إلا تعديل صفّ يدوياً في الإنتاج.
@@ -2116,6 +2127,12 @@ async function handleLocation(
       ...(deps.gpsPolicy === undefined ? {} : { gpsPolicy: deps.gpsPolicy }),
       ...(deps.tracking === undefined ? {} : { tracking: deps.tracking }),
       ...(deps.redispatch === undefined ? {} : { redispatch: deps.redispatch }),
+      // `F4-02`: المنفذُ يُمرَّرُ ولا يُقرأُ — والحقلُ يُسقَطُ عندَ الغيابِ
+      // لا يُمرَّرُ `undefined`: `exactOptionalPropertyTypes`.
+      ...(deps.hotState === undefined ? {} : { hotState: deps.hotState }),
+      ...(deps.onHotStateDegraded === undefined
+        ? {}
+        : { onHotStateDegraded: deps.onHotStateDegraded }),
     },
   );
   if (!ingested.ok) {

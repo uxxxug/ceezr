@@ -42,6 +42,14 @@ export const REQUIRED_CHECKS = [
   "full-dialog-through-real-redis",
   "scl-004-stream-cross-instance-delivery",
   "scl-005-broadcast-shared-store",
+  "f4-02-hot-guard-rejects-older",
+  "f4-02-hot-ttl-from-settings",
+  "f4-02-backlog-one-member-per-driver",
+  "f4-02-drain-returns-newest-and-empties",
+  "f4-02-two-clients-share-hot-state",
+  "f4-02-backlog-ceiling-forces-direct",
+  "f4-02-requeue-never-moves-backwards",
+  "f4-02-limits-read-from-real-settings",
 ] as const;
 export type RequiredCheck = (typeof REQUIRED_CHECKS)[number];
 
