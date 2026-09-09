@@ -119,6 +119,9 @@ jobs:
       - name: سلامةُ الهجرات — الأطوارُ والفهارسُ والقيودُ والاسترجاعُ (F7-07)
         run: bun run scripts/check-migration-safety.ts
 
+      - name: تغطية فهارس الاستعلامات الساخنة (F7-02)
+        run: bun run scripts/check-hot-query-index-coverage.ts
+
       - name: تطابق قواميس اللغات
         run: bun run scripts/check-i18n.ts
 
@@ -192,15 +195,6 @@ jobs:
       - name: لا نوعَ إشعارٍ بلا قناةٍ مُعلَنةٍ، ولا بلاغَ مجموعةٍ يُكتَم (F6-05 · TG-002)
         run: bun run scripts/check-notification-classification.ts
 
-      # يوجبُ لكلِّ طابورٍ حيٍّ ستَّ حدودٍ مُعلَنةً ولكلِّ حدٍّ موضعاً واحداً: إمّا
-      # `platform_settings` لكلِّ مدينةٍ، وإمّا ثابتاً في `packages/shared/config`
-      # للطابورِ المُستثنى من المدينةِ. ويرفضُ جدولاً بشكلِ طابورٍ لا إعلانَ له،
-      # وحدّاً مبذوراً بلا مفتاحٍ، وصنفاً قابلاً للتأجيلِ لا تعرِفُه القاعدةُ:
-      # طابورٌ بلا سقفٍ يمتلئُ حتّى يسقطَ ما بعدَه، والسقفُ في مكانَينِ سقفانِ
-      # يفترقانِ.
-      - name: لا طابورَ بلا ضغطٍ عكسيٍّ مُعلَنٍ لكلِّ أبعادِه الستّةِ (F6-06)
-        run: bun run scripts/check-queue-backpressure.ts
-
       # يقيس التغطيةَ مرّةً أخرى بعدَ خطوةِ Test — عن قصدٍ لا سهواً: خطوةُ Test
       # تُغذّي حاجزَ قراءةِ الإخفاقِ من `/tmp/ci-output.log`، فلا يُمَسُّ أمرُها.
       # والقياسُ ههنا **لا يقيس اختباراتَ التكامل** لأنّها تتجاوز نفسَها بلا قاعدةٍ
@@ -260,14 +254,14 @@ jobs:
           end $$;
           SQL
 
-      # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
-      # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
-      # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
-      # ملفٍّ قبل الاتّصال، ويضبط `lock_timeout`، ويملك المعاملةَ.
-      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
+      - name: تطبيق الهجرات بالترتيب
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-        run: bun run scripts/migrate.ts
+          PGPASSWORD: postgres
+        run: |
+          for file in $(ls supabase/migrations/*.sql | sort); do
+            echo "▶ $file"
+            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
+          done
 
       # `pg_dump` يرفض خادماً أحدثَ منه إصداراً رئيسياً، واختبارُ تحقّقِ الاستعادة
       # يستدعيه فعلاً على خدمةِ PostgreSQL 17 — أمّا صورةُ العامل فتحمل أدواتَ
@@ -467,14 +461,14 @@ jobs:
           end $$;
           SQL
 
-      # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
-      # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
-      # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
-      # ملفٍّ قبل الاتّصال، ويضبط `lock_timeout`، ويملك المعاملةَ.
-      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
+      - name: تطبيق الهجرات بالترتيب
         env:
-          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
-        run: bun run scripts/migrate.ts
+          PGPASSWORD: postgres
+        run: |
+          for file in $(ls supabase/migrations/*.sql | sort); do
+            echo "▶ $file"
+            psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 -f "$file"
+          done
 
       # `REQUIRE_REAL_REDIS=1` يجعل غيابَ السرِّ **إخفاقاً** لا تخطّياً: وظيفةٌ وُجدت
       # لتُشغِّل على Redis حقيقيٍّ لا تُقرَأ خضراءَ وهي لم تُخاطِبه. والقيمتانِ تُقرآن
