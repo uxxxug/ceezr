@@ -642,6 +642,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "دورةُ الرحلةِ والإسناد",
     documentedIn: null,
   },
+  {
+    migration: "20260910050100_f7_03_batch_persist_appends_history.sql",
+    change: "revoke_function:persist_driver_location_batch(2)",
+    why: "الهجرةُ تُعيدُ تعريفَ `persist_driver_location_batch(uuid, jsonb)` بـ`create or replace` **بالتوقيعِ نفسِه** لتُلحِقَ أثرَ الموقعِ في `driver_location_history` من فرعِ الكتابةِ نفسِه (F7-03 / ADR-0074)، وما عدا ذلكَ منقولٌ حرفاً: المُسنَدُ والتنقيةُ وحصرُ المدينةِ كما كانَت. والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كانَ — الدالّةُ كانَت ممنوحةً لـ`service_role` وحدَها قبلَ التغييرِ وتبقى كذلكَ بعدَه، فلا تضييقَ فعليَّ في الصلاحيّاتِ. والمردُّ **زادَ مفتاحاً** (`appended`) ولم يفقدْ مفتاحاً، والزيادةُ توسيعٌ تتجاهلُه النسخةُ القديمةُ من الشيفرةِ، فلا كسرَ ولا نشرَ مقروناً. والعودةُ إعادةُ تطبيقِ النسخةِ السابقةِ من `20260909140000` وحدَها: أثرٌ يتوقّفُ إلحاقُه من مسارِ الدفعةِ لا يُعطِلُ إسناداً ولا يُسقِطُ موقعاً ساخناً — يُفقَدُ التاريخُ وحدَه لمدّةِ التراجعِ، وهوَ فقدٌ مُعلَنٌ لا يُسترجَعُ بأثرٍ رجعيٍّ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    documentedIn: null,
+  },
 ];
 
 /** وسمُ المدخلِ بالصورةِ التي تُطابِق `riskTag`. */

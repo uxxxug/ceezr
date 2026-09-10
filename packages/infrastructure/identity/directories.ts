@@ -196,6 +196,21 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
      * جملتان متتاليتان تتركان نافذةً تُقرأ فيها إحداثيةٌ جديدة مع حكمِ إحداثيةٍ
      * قديمة — وهي أسوأ من غياب الحكم أصلاً، لأنّها تُلبِس إصلاحةً خشنةً شهادةَ
      * دقّةٍ لإصلاحةٍ أخرى. والكاتبُ واحدٌ لا غير — وهذا هو.
+     *
+     * ## `F7-03` — ولماذا الأثرُ فرعٌ في هذه الجملةِ لا جملةٌ بعدَها
+     *
+     * `ADR-0074` يجعلُ `driver_location_history` سجلّاً ملحَقاً مقسَّماً يوميّاً،
+     * ويشترطُ أن يكونَ مصدرُ الإلحاقِ **فرعَ `written` نفسَه**. فلا يُلحَقُ إلّا
+     * ما قُبِلَ، وبالمُسنَدِ نفسِه لا بمُسنَدٍ أخٍ له.
+     *
+     * ولو كانَ الإلحاقُ جملةً تالِيةً لفُتِحت نافذتانِ لا واحدةٌ: موضعٌ يُقبَلُ
+     * ولا يُلحَقُ أثرُه (سقطت الثانيةُ)، وأثرٌ يُلحَقُ لموضعٍ رُفِضَ (حُكِمَ في
+     * `JS` على مُخرَجِ الأولى ثمَّ أُخطئَ). وكلاهما يجعلُ التاريخَ يُخالِفُ
+     * المصدرَ القانونيَّ — وتاريخٌ يُخالِفُ مصدرَه أسوأُ من لا تاريخَ.
+     *
+     * و`written` تُرجِعُ `city_id` أيضاً لا `id` وحدَه: القاعدةُ ٠.٤ تُلزِمُ أن
+     * يحملَ كلُّ صفٍّ مدينتَه، ومدينةُ السائقِ تُقرأُ من الصفِّ المكتوبِ نفسِه لا
+     * من نيّةِ المُنادي ولا من قراءةٍ ثانيةٍ تسبقُه.
      */
     updateLocation: (driverId: DriverId, location: Coordinates, quality: StoredLocationQuality) =>
       guard("drivers.updateLocation", async (): Promise<LocationWriteOutcome> => {
@@ -215,7 +230,22 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
                    updated_at = now()
              where d.id = ${driverId}
                and (d.last_location_recorded_at is null or d.last_location_recorded_at <= ${at})
-            returning d.id
+            returning d.id, d.city_id
+          ),
+          appended as (
+            insert into driver_location_history (
+              city_id, driver_id, position, recorded_at, accuracy_m, quality, source
+            )
+            select w.city_id,
+                   w.id,
+                   st_setsrid(
+                     st_makepoint(${location.longitude}, ${location.latitude}), 4326)::geography,
+                   ${at},
+                   ${quality.accuracyMeters},
+                   ${quality.verdict},
+                   'direct'
+              from written w
+            returning 1
           )
           select true as accepted from written
           union all

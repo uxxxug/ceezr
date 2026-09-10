@@ -163,7 +163,7 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     expect(report.ok).toBe(true);
     if (!report.ok) return;
     // سائقٌ واحدٌ في الدفعةِ فصفٌّ واحدٌ مكتوبٌ لا صفّانِ: التنقيةُ قبلَ الكتابةِ.
-    expect(report.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+    expect(report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
 
     const row = await stored();
     expect(row.recordedAtMs).toBe(T2);
@@ -181,7 +181,7 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
       fixOf(driverId, T1, AT_A),
       fixOf(driverId, T2, AT_B),
     ]);
-    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
 
     const row = await stored();
     expect(row.recordedAtMs).toBe(T2);
@@ -203,7 +203,7 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
 
     const persistence = createDriverLocationBatchPersistence(sql);
     const report = await persistence.persistBatch(cityId, [fixOf(driverId, T1, AT_A)]);
-    expect(report.ok && report.value).toEqual({ applied: 0, stale: 1, missing: 0 });
+    expect(report.ok && report.value).toEqual({ applied: 0, stale: 1, missing: 0, appended: 0 });
 
     const row = await stored();
     expect(row.recordedAtMs).toBe(T3);
@@ -212,7 +212,7 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
 
     // والمتساويُ يمرُّ: تضييقُ المُسنَدِ إلى `<` كانَ سيُخالِفُ حارسَ `F4-01` حرفاً.
     const equal = await persistence.persistBatch(cityId, [fixOf(driverId, T3, AT_A)]);
-    expect(equal.ok && equal.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+    expect(equal.ok && equal.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
     expect((await stored()).lat).toBeCloseTo(AT_A.latitude, 5);
   });
 
@@ -226,7 +226,7 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     const persistence = createDriverLocationBatchPersistence(sql);
 
     const report = await persistence.persistBatch(cityId, [fixOf(stranger, T2, AT_B, otherCityId)]);
-    expect(report.ok && report.value).toEqual({ applied: 0, stale: 0, missing: 1 });
+    expect(report.ok && report.value).toEqual({ applied: 0, stale: 0, missing: 1, appended: 0 });
 
     const row = await stored(stranger);
     expect(row.recordedAtMs).toBeNull();
@@ -236,7 +236,7 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     const inCity = await persistence.persistBatch(otherCityId, [
       fixOf(stranger, T2, AT_B, otherCityId),
     ]);
-    expect(inCity.ok && inCity.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+    expect(inCity.ok && inCity.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
     expect((await stored(stranger)).recordedAtMs).toBe(T2);
   });
 
@@ -264,7 +264,7 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     ]);
     expect(report.ok).toBe(true);
     if (!report.ok) return;
-    expect(report.value).toEqual({ applied: 1, stale: 1, missing: 1 });
+    expect(report.value).toEqual({ applied: 1, stale: 1, missing: 1, appended: 1 });
 
     expect((await stored(fresh)).recordedAtMs).toBe(T2);
     // والمتأخِّرُ لم يمسَّ صفَّه: صفٌّ واحدٌ معطوبٌ في دفعةٍ لا يُسقِطُ الدفعةَ ولا يُفسِدُ غيرَه.
@@ -279,12 +279,12 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
   it("٦ — دفعةٌ فارغةٌ: أصفارٌ بلا عطلٍ من المحوّلِ ومن الدالّةِ نفسِها", async () => {
     const persistence = createDriverLocationBatchPersistence(sql);
     const report = await persistence.persistBatch(cityId, []);
-    expect(report.ok && report.value).toEqual({ applied: 0, stale: 0, missing: 0 });
+    expect(report.ok && report.value).toEqual({ applied: 0, stale: 0, missing: 0, appended: 0 });
 
     const rows = await sql<{ result: Record<string, unknown> }[]>`
       select persist_driver_location_batch(${cityId}::uuid, '[]'::jsonb) as result
     `;
-    expect(rows[0]?.result).toEqual({ ok: true, applied: 0, stale: 0, missing: 0 });
+    expect(rows[0]?.result).toEqual({ ok: true, applied: 0, stale: 0, missing: 0, appended: 0 });
   });
 
   /**
@@ -301,6 +301,6 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     const persistence = createDriverLocationBatchPersistence(sql);
     // ودفعةٌ سليمةٌ بعدَها تمرُّ: العطلُ لم يُفسِدْ حالةً في الدالّةِ.
     const report = await persistence.persistBatch(cityId, [fixOf(driverId, T2, AT_A)]);
-    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0 });
+    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
   });
 });

@@ -1064,6 +1064,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/location-history-partitions.test.ts",
+    suites: ["F7-03 — أثرُ الموقعِ المقسَّمُ على PostgreSQL حقيقيٍّ"],
+    skipped: 6,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ عقدَ ADR-0074: أنَّ مسارَي الكتابةِ (المباشرَ والدفعةَ) يُلحِقانِ أثراً، وأنَّ ما ردَّه الحارسُ لا يُلحَقُ، وأنَّ الصفَّ يهبطُ في قِسمِ يومِه لا في القِسمِ الافتراضيِّ. والمقيسُ الأوّلُ **توجيهُ المُقسِّمِ** مقروءاً من `tableoid::regclass` — وهوَ سلوكُ المحرّكِ نفسِه، لا شيءَ منه في شيفرتِنا كي يُحاكى، ومزدوجٌ في الذاكرةِ يمرُّ أخضرَ ولو كانَ الجدولُ غيرَ مقسَّمٍ أصلاً.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/tracking-realtime.test.ts",
     suites: ["النقل اللحظي على قاعدة حقيقية — المرحلة ٦"],
     skipped: 25,

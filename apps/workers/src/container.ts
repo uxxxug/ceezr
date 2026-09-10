@@ -27,6 +27,7 @@ import {
   type UnmatchedRiderMessenger,
 } from "../../../packages/application/dispatch/deliver-unmatched-notification.ts";
 import { createDisputeResolutionHandler } from "../../../packages/application/dispute/deliver-dispute-resolution.ts";
+import { ensureLocationPartitions } from "../../../packages/application/geo/ensure-location-partitions.ts";
 import { flushDriverLocationBacklog } from "../../../packages/application/geo/flush-driver-location-backlog.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
@@ -57,6 +58,7 @@ import { createPaymentRepository } from "../../../packages/infrastructure/financ
 import { createPaymentProvider } from "../../../packages/infrastructure/financial/payment-provider-factory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import { createDriverLocationBatchPersistence } from "../../../packages/infrastructure/geo/driver-location-batch-persistence.ts";
+import { createDriverLocationPartitionMaintenance } from "../../../packages/infrastructure/geo/driver-location-partition-maintenance.ts";
 import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 import { createNotificationOutboxPort } from "../../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
@@ -178,6 +180,13 @@ export const JOB_INTERVALS = {
    * سبب. وليس هو حدَّ الأمن — التفصيل في رأس ملفّ المهمّة.
    */
   expireTrackingTokens: 60,
+  /**
+   * كلَّ يومٍ: تقديمُ نافذةِ أقسامِ `driver_location_history` (`F7-03`). لا يُسرَّعُ
+   * لأنَّ القِسمَ يوميٌّ فنداءٌ ثانٍ في اليومِ نفسِه لا يُنشئُ شيئاً، ولا يُبطَّأُ
+   * لأنَّ نافذةَ الأربعةَ عشرَ يوماً تُستهلَكُ يوماً بيومٍ. و`runOnStart` يجعلُ
+   * أوّلَ إقلاعٍ بعدَ عطلٍ طويلٍ يُصلحُ النافذةَ فوراً لا بعدَ يومٍ.
+   */
+  ensureLocationPartitions: 86_400,
 } as const;
 
 /** المهلة الافتراضية للتوفّر البائت حين يغيب الإعداد — ثلاث ساعات. */
@@ -507,6 +516,7 @@ export function buildWorkerContainer(
           onFailure: (detail) => log.error("driver_location.hot_state_failed", detail),
         });
   const driverLocationPersistence = createDriverLocationBatchPersistence(sql);
+  const driverLocationPartitions = createDriverLocationPartitionMaintenance(sql);
 
   const warningSender = overrides.warningSender ?? grammyWarningSender(config.driverBotToken);
 
@@ -1069,6 +1079,42 @@ export function buildWorkerContainer(
       }
 
       /**
+       * `F7-03` — تقديمُ نافذةِ أقسامِ `driver_location_history` (`ADR-0074`).
+       *
+       * عامّةٌ لا مدنيّةٌ، ولا تُشرَطُ بمدينةٍ مفعّلةٍ: القِسمُ يقعُ على
+       * `recorded_at` وحدَه، ومدىً زمنيٌّ واحدٌ يخدمُ المدنَ كلَّها — فمهمّةٌ لكلِّ
+       * مدينةٍ تعني نداءاتٍ متسابقةً تُنشئُ الجدولَ نفسَه.
+       *
+       * ولا تُشرَطُ بـRedis ولا بمسارِ الدفعةِ: المسارُ المباشرُ (`F4-01`)
+       * يُلحِقُ أيضاً، فغيابُ القِسمِ يُسقِطُ كتابةَ الموقعِ أيًّا كانَ المسارُ.
+       *
+       * وليسَ في `CRITICAL_GLOBAL_JOBS`: نافذةُ أربعةَ عشرَ يوماً تعني أنَّ فوتَ
+       * نبضةٍ أو نبضتينِ لا أثرَ له، وإدراجُها حرجةً كانَ سيُرجِعُ `503` من
+       * `/ready` على مهمّةٍ مهلتُها أسبوعانِ.
+       */
+      global.push({
+        name: "ensure-location-partitions",
+        everySeconds: JOB_INTERVALS.ensureLocationPartitions,
+        runOnStart: true,
+        run: async () => {
+          const report = await ensureLocationPartitions({ partitions: driverLocationPartitions });
+          if (!report.ok) throw new Error(report.error.detail);
+          const value = report.value;
+          /**
+           * صفوفُ القِسمِ الافتراضيِّ تُرفَعُ إلى `error` لا `info`: وجودُها
+           * يعني أنَّ إصلاحةً هبطت في شبكةِ الأمانِ لغيابِ قِسمِ يومِها — وهوَ
+           * حالٌ شاذٌّ يُعالَجُ بيدٍ، ولا يُسقِطُ المهمّةَ إذ أقسامُ الغدِ تُنشَأُ.
+           */
+          if (value.defaultRows > 0) {
+            log.error("driver_location.default_partition_not_empty", {
+              rows: value.defaultRows,
+            });
+          }
+          return `created=${value.created.length} existing=${value.existing} default_rows=${value.defaultRows}`;
+        },
+      });
+
+      /**
        * `F4-02` — إفراغُ قائمةِ انتظارِ المواقعِ. تُبنى **بعدَ** قراءةِ الأرقامِ من
        * `platform_settings` لأنَّ `everySeconds` تُثبَّتُ لحظةَ التسجيلِ لا لحظةَ
        * الشوطِ: قراءةُ الدورةِ داخلَ `run` كانت ستُغيِّرُ ما يُقاسُ لا ما يُنفَّذُ.
@@ -1111,7 +1157,9 @@ export function buildWorkerContainer(
                       });
                       if (!report.ok) throw new Error(JSON.stringify(report.error));
                       const value = report.value;
-                      return `drained=${value.drained} batched=${value.batched} applied=${value.applied} stale=${value.stale} missing=${value.missing}`;
+                      // `appended` في السطرِ نفسِه بقصدٍ: مساواتُه لـ`applied` هي
+                      // العقدُ (ADR-0074)، وعينٌ تقرأُ السطرَ ترى خرقَه فوراً.
+                      return `drained=${value.drained} batched=${value.batched} applied=${value.applied} stale=${value.stale} missing=${value.missing} appended=${value.appended}`;
                     },
                   };
                 }),

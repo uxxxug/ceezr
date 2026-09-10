@@ -42,6 +42,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "create_payment",
   "create_subscription_wallet",
   "deactivate_stale_availability",
+  "ensure_driver_location_partitions",
   "escalate_order",
   "expire_due_subscriptions",
   "expire_tracking_tokens",
