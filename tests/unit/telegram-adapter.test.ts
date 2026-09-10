@@ -269,7 +269,7 @@ describe("محوّل بوت السائق", () => {
       },
     });
     expect(handled).toBe(false);
-    expect(logs).toContain("بيانات زرّ تتجاوز حدّ تلغرام");
+    expect(logs).toContain("bot.driver.callback_data_too_long");
   });
 });
 

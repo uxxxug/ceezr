@@ -121,7 +121,7 @@ export async function authorizeViewer(
   if (!session.ok) {
     const publicCode = publicViewerCodeFor(session.error.reason);
     // السجلُّ يحمل السببَ المصنَّفَ ولا يحمل رمزاً ولا جزءاً منه (`F1-03`).
-    deps.log?.("رُفض رمزُ الوصولِ في قراءةِ الدور", {
+    deps.log?.("viewer.access_token_rejected", {
       reason: session.error.reason,
       publicCode,
     });
@@ -130,7 +130,7 @@ export async function authorizeViewer(
 
   const account = await deps.accounts.findByTelegramUserId(session.value.telegramUserId);
   if (!account.ok) {
-    deps.log?.("تعذّرت قراءةُ حسابِ صاحبِ الجلسة", {
+    deps.log?.("viewer.account_read_failed", {
       reason: account.error.reason,
       sessionId: session.value.sessionId,
     });
@@ -152,7 +152,7 @@ export async function authorizeViewer(
   // إنشاءِ الجلسة — فرمزُ وصولٍ صالحٌ لمحجوبٍ لا يفتح سطحاً. وحدُّ التصميمِ
   // بلا حالةٍ باقٍ: الحجبُ يُنفَذ عندَ أوّلِ طلبٍ تالٍ لا لحظةَ الحجب.
   if (account.value.isBlocked) {
-    deps.log?.("حسابٌ محجوبٌ طلب دورَه", { sessionId: session.value.sessionId });
+    deps.log?.("viewer.blocked_account_request", { sessionId: session.value.sessionId });
     return err(fail("ACCOUNT_BLOCKED"));
   }
 

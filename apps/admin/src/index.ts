@@ -30,21 +30,22 @@
  */
 
 import { Hono } from "hono";
+import { createStructuredLogger } from "../../../packages/infrastructure/observability/index.ts";
 import { tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { mountAdminSurface } from "../../gateway/src/admin/mount.ts";
 import { buildAdminContainer } from "./container.ts";
 
-const log = (message: string, meta: Record<string, unknown> = {}): void => {
-  console.log(JSON.stringify({ at: new Date().toISOString(), message, ...meta }));
-};
+/**
+ * سجلُّ اللوحةِ — من المُصدِرِ الوحيدِ (`F8-03` · ADR 0078)، فلا شكلَ رابعاً
+ * لسطرِ سجلٍّ في المستودعِ.
+ */
+const log = createStructuredLogger({ service: "admin" });
 
 async function main(): Promise<void> {
   const config = tryLoadConfig(process.env);
   if (!config.ok) {
     // إقلاعٌ بإعدادٍ ناقصٍ أخطرُ من عدمِ الإقلاعِ — نفسُ حكمِ العاملِ حرفاً.
-    console.error(
-      JSON.stringify({ message: "admin.config_invalid", detail: String(config.error) }),
-    );
+    log.error("admin.config_invalid", { detail: String(config.error) });
     process.exit(1);
   }
 
@@ -65,7 +66,7 @@ async function main(): Promise<void> {
     });
   }
 
-  const container = buildAdminContainer(config.value, {}, (message, meta) => log(message, meta));
+  const container = buildAdminContainer(config.value, {}, log);
 
   const app = new Hono();
 
@@ -81,7 +82,7 @@ async function main(): Promise<void> {
     mapOrigins: container.mapOrigins,
     ...(container.mapStyle === null ? {} : { mapStyle: container.mapStyle }),
     maplibreSri: container.maplibreSri,
-    log: (message, meta) => log(message, meta),
+    log,
   });
 
   const server = Bun.serve({ port: config.value.port, fetch: app.fetch });

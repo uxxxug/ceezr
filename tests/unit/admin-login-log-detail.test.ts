@@ -95,7 +95,7 @@ describe("سجلّ فشل الدخول يفرّق بين الأسباب", () => 
 
     expect(logs).toHaveLength(1);
     const entry = logs[0];
-    expect(entry?.message).toContain("عطل قاعدة بيانات");
+    expect(entry?.message).toBe("admin.login_code_issue_db_error");
     expect(String(entry?.meta.detail)).toContain(SCHEMA_MISSING);
     // لا يكفي أن يُذكر PORT_FAILURE: المطلوب أن يُذكر معه سببه
     expect(JSON.stringify(entry)).not.toMatch(/"PORT_FAILURE"\s*[},]/);
@@ -109,8 +109,8 @@ describe("سجلّ فشل الدخول يفرّق بين الأسباب", () => 
     await postCode(app);
 
     expect(logs).toHaveLength(1);
-    expect(logs[0]?.message).toContain("سبب أعمال");
-    expect(logs[0]?.message).not.toContain("عطل قاعدة بيانات");
+    expect(logs[0]?.message).toBe("admin.login_code_issue_rejected");
+    expect(logs[0]?.message).not.toBe("admin.login_code_issue_db_error");
     expect(logs[0]?.meta.reason).toBe("NOT_ADMIN");
   });
 
@@ -138,9 +138,9 @@ describe("سجلّ فشل الدخول يفرّق بين الأسباب", () => 
     await app.request("/login/code", { method: "POST", body });
 
     expect(logs).toHaveLength(1);
-    expect(logs[0]?.message).toContain("تعذّر تسليم");
+    expect(logs[0]?.message).toBe("admin.login_code_delivery_failed");
     expect(logs[0]?.meta.stage).toBe("telegram_delivery");
-    expect(logs[0]?.message).not.toContain("عطل قاعدة بيانات");
+    expect(logs[0]?.message).not.toBe("admin.login_code_issue_db_error");
   });
 
   test("الرسائل الثلاث متمايزة نصّاً — لا رسالة عامة واحدة", async () => {

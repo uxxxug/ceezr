@@ -102,7 +102,7 @@ async function authenticate(
   deps: NotificationsDependencies,
 ): Promise<{ readonly viewer: AuthorizedViewer } | { readonly response: Response }> {
   if (deps.viewer === undefined || deps.center === undefined) {
-    deps.log?.("مسارُ مركزِ الإشعاراتِ معطّلٌ لغيابِ تبعياته", {});
+    deps.log?.("notifications.route_disabled", {});
     return { response: rejectedViewer(c, "SESSION_NOT_AVAILABLE") };
   }
   const accessToken = bearerTokenFrom(c.req.header("authorization"));

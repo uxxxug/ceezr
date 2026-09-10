@@ -82,7 +82,7 @@ export async function rotateUnsubscribedNegotiations(
       );
       if (!moved.ok) {
         failures.push(`advance:${decision.negotiationId}:${moved.error.code}`);
-        log("تعذّر تدوير دور التفاوض", { negotiationId: decision.negotiationId });
+        log("negotiation.rotate_failed", { negotiationId: decision.negotiationId });
         continue;
       }
       // النفاد بعد التدوير يُعالَج في المرور التالي: الحالة صارت 'exhausted' في القاعدة،
@@ -97,14 +97,14 @@ export async function rotateUnsubscribedNegotiations(
       const closed = await deps.rotate.rotation.close(decision.negotiationId, "republish");
       if (!closed.ok) {
         failures.push(`close:${decision.negotiationId}:${closed.error.code}`);
-        log("تعذّر إغلاق الدورة قبل إعادة النشر", { negotiationId: decision.negotiationId });
+        log("negotiation.round_close_failed", { negotiationId: decision.negotiationId });
         continue;
       }
 
       const again = await republishOrderCard({ orderId: decision.orderId }, deps.republish);
       if (!again.ok) {
         failures.push(`republish:${decision.orderId}:${again.error.code}`);
-        log("تعذّرت إعادة نشر البطاقة", { orderId: decision.orderId });
+        log("negotiation.card_repost_failed", { orderId: decision.orderId });
         continue;
       }
       if (again.value.published) republished.push(decision.orderId);
@@ -122,7 +122,7 @@ export async function rotateUnsubscribedNegotiations(
     );
     if (!raised.ok) {
       failures.push(`escalate:${decision.orderId}:${raised.error.code}`);
-      log("تعذّر التصعيد إلى قروب الإسناد", { orderId: decision.orderId });
+      log("negotiation.escalation_failed", { orderId: decision.orderId });
       continue;
     }
     // الإغلاق يجري في الحالتين: صُعّد الطلب الآن أم كان مُصعّداً من قبل،

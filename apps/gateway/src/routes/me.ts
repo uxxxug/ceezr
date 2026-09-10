@@ -79,7 +79,7 @@ export function createMeRoutes(deps: MeDependencies): Hono {
 
   app.get("/v1/me", async (c) => {
     if (deps.viewer === undefined) {
-      deps.log?.("مسار قراءة الدور معطّل لغياب تبعياته", {});
+      deps.log?.("viewer.route_disabled", {});
       return rejected(c, "SESSION_NOT_AVAILABLE");
     }
 

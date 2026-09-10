@@ -10,6 +10,7 @@
  *   خِيارةٌ أخرى ههنا بنطاقِ دلوٍ مختلفٍ، ولا يُنسَخُ التركيبُ إلى حاويةٍ.
  */
 
+import { pseudonymise } from "../observability/structured-log.ts";
 import type { RedisClient } from "../redis/upstash.ts";
 import {
   createMemoryOutboundRateBucket,
@@ -67,10 +68,15 @@ export function createOutboundResilience(deps: OutboundResilienceDeps): Outbound
       deadLetter,
       // الحدثُ يُسجَّلُ ولا يُبتلَعُ: خنقٌ متكرِّرٌ أو تخلٍّ عن رسالةٍ حرجةٍ خبرٌ
       // تشغيليٌّ يجبُ أن يُرى، وإلّا صمتَ النظامُ عن أنَّه يُسقِطُ رسائلَ.
+      // نوعُ الحدثِ **حقلٌ لا جزءٌ من الرمزِ**: رمزٌ مُركَّبٌ بقالبٍ لا يُفحَصُ
+      // ثابتاً ولا يُعَدُّ مسبقاً، فلا يُعلَمُ ما تكتبُه الخدمةُ إلّا بعدَ كتابتِه.
+      // ومُعرِّفُ المحادثةِ يُكنَّى: عدُّ محاولاتِ محادثةٍ واحدةٍ يبقى ممكناً، وردُّ
+      // الكنيةِ إلى شخصٍ لا يبقى ممكناً.
       onEvent: (event) =>
-        log(`outbound.${event.type}`, {
+        log("outbound.resilience_event", {
+          outbound_event: event.type,
           operation: event.operation,
-          chatId: event.chatId,
+          chat: pseudonymise(event.chatId),
           attempt: event.attempt,
           waitMs: event.waitMs,
           detail: event.detail,

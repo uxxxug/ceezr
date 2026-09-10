@@ -13,6 +13,7 @@ import {
   type SessionStore,
 } from "../../../../../packages/application/bots/types.ts";
 import type { LanguagePreferencePort } from "../../../../../packages/application/i18n-translation/select-language.ts";
+import { pseudonymise } from "../../../../../packages/infrastructure/observability/structured-log.ts";
 
 export interface LanguageHydrationDependencies {
   readonly preferences: LanguagePreferencePort;
@@ -45,7 +46,7 @@ export function createLanguageHydration(deps: LanguageHydrationDependencies): La
       if (!stored.ok) {
         // عطل القاعدة لا يُسكت البوت: لغة أقدم أهون من حوار لا يردّ إطلاقاً.
         log("language.hydrate_failed", {
-          telegramUserId: sender.telegramUserId,
+          actor: pseudonymise(sender.telegramUserId),
           detail: String(stored.error),
         });
         return;
@@ -59,7 +60,7 @@ export function createLanguageHydration(deps: LanguageHydrationDependencies): La
       const session = await deps.sessions.load(sender.telegramUserId);
       if (!session.ok) {
         log("language.hydrate_session_unreadable", {
-          telegramUserId: sender.telegramUserId,
+          actor: pseudonymise(sender.telegramUserId),
           detail: String(session.error),
         });
         return;
@@ -75,13 +76,13 @@ export function createLanguageHydration(deps: LanguageHydrationDependencies): La
         });
         if (!saved.ok) {
           log("language.hydrate_save_failed", {
-            telegramUserId: sender.telegramUserId,
+            actor: pseudonymise(sender.telegramUserId),
             detail: String(saved.error),
           });
           return;
         }
         log("language.hydrated", {
-          telegramUserId: sender.telegramUserId,
+          actor: pseudonymise(sender.telegramUserId),
           language: dbLanguage,
           from: "absent_session",
         });
@@ -96,13 +97,13 @@ export function createLanguageHydration(deps: LanguageHydrationDependencies): La
       });
       if (!saved.ok) {
         log("language.hydrate_save_failed", {
-          telegramUserId: sender.telegramUserId,
+          actor: pseudonymise(sender.telegramUserId),
           detail: String(saved.error),
         });
         return;
       }
       log("language.hydrated", {
-        telegramUserId: sender.telegramUserId,
+        actor: pseudonymise(sender.telegramUserId),
         language: dbLanguage,
         from: state.language,
       });

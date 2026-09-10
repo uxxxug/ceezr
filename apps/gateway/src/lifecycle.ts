@@ -96,7 +96,7 @@ export function createLifecycle(options: LifecycleOptions): Lifecycle {
         draining = true;
         const started = now();
         inFlightAtShutdown = options.resources.inFlight();
-        log("request_shutdown_starting", {
+        log("gateway.shutdown_starting", {
           signal,
           inFlight: inFlightAtShutdown,
           graceMs: options.graceMs,
@@ -126,7 +126,7 @@ export function createLifecycle(options: LifecycleOptions): Lifecycle {
         try {
           await options.resources.close();
         } catch (cause) {
-          log("shutdown_close_failed", {
+          log("gateway.shutdown_close_failed", {
             detail: cause instanceof Error ? cause.message : String(cause),
           });
         }

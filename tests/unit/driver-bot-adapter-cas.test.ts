@@ -109,7 +109,7 @@ describe("محوّل بوت السائق — إعادة محاولة CAS (BUG-00
     expect(sent[0]?.text).toBe(ar("driver.welcome"));
     expect(sent[1]?.text).toBe(ar("driver.ask_name"));
     // سُجِّلَ تعارضُ المراجعةِ مرّةً واحدةً.
-    expect(logs.some((m) => m.includes("تعارض مراجعة جلسة"))).toBe(true);
+    expect(logs.some((m) => m === "bot.session_revision_conflict")).toBe(true);
     // الحالةُ كُتبت فعلاً بعد إعادةِ المحاولة.
     const stored = await realSessions.load(CHAT);
     expect(stored.ok && stored.value?.step).toBe("awaiting_name");

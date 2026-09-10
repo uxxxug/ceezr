@@ -98,7 +98,10 @@ import {
   instrumentExpireOffersRpc,
   instrumentOfferWriter,
 } from "../../../packages/infrastructure/observability/dispatch.ts";
-import type { OperationalMetrics } from "../../../packages/infrastructure/observability/index.ts";
+import {
+  createStructuredLogger,
+  type OperationalMetrics,
+} from "../../../packages/infrastructure/observability/index.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { createUpstashRedis } from "../../../packages/infrastructure/redis/upstash.ts";
 import { createRatingRecomputePort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
@@ -412,11 +415,8 @@ export function buildWorkerContainer(
       max: DB_POOL_MAX.workerJobs,
       prepare: false,
     });
-  const log: JobLogger = overrides.log ?? {
-    info: (message, fields) => console.log(JSON.stringify({ level: "info", message, ...fields })),
-    error: (message, fields) =>
-      console.error(JSON.stringify({ level: "error", message, ...fields })),
-  };
+  // سجلٌّ من المُصدِرِ الوحيدِ لا دالّةٌ رابعةٌ بشكلٍ رابعٍ (`F8-03` · ADR 0078).
+  const log: JobLogger = overrides.log ?? createStructuredLogger({ service: "worker" });
 
   /**
    * تجمّع اتصالات مستقلّ للأقفال، وهذا ليس ترفاً.

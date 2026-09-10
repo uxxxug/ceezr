@@ -117,7 +117,7 @@ export function createServer(deps: ServerDependencies): Hono {
 
   // أي استثناء غير متوقَّع لا يكشف تفاصيل داخلية للمُرسِل
   app.onError((error, c) => {
-    deps.webhook.log?.("استثناء غير متوقَّع", { message: String(error) });
+    deps.webhook.log?.("gateway.webhook_unexpected_error", { message: String(error) });
     return c.json({ ok: false, error: "INTERNAL_ERROR" }, 500);
   });
 

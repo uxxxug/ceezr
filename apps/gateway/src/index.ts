@@ -25,6 +25,7 @@ import {
   createConfiguredMetricsExporter,
   createDatabaseGaugeCollector,
   createOperationalMetrics,
+  createStructuredLogger,
 } from "../../../packages/infrastructure/observability/index.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import {
@@ -77,19 +78,27 @@ import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
 import { createPostgresUpdateIntake } from "./routes/update-intake.ts";
 import { createServer } from "./server.ts";
 
-function log(message: string, meta: Record<string, unknown> = {}): void {
-  console.log(JSON.stringify({ at: new Date().toISOString(), message, ...meta }));
-}
+/**
+ * سجلُّ البوابةِ — من المُصدِرِ الوحيدِ لا من دالّةٍ محليّةٍ (`F8-03` · ADR 0078).
+ * وقبلَ اليومَ كان هذا الموضعُ يكتبُ `{at, message, ...meta}` **بلا شدّةٍ**، وكانَ
+ * العاملُ يكتبُ `{level, message}` **بلا زمنٍ**، فلم يكنْ ترتيبُ حدثٍ بينَ الخدمتَينِ
+ * ممكناً ولا تصفيةُ خطأٍ في البوابةِ ممكنةً.
+ */
+const log = createStructuredLogger({ service: "gateway" });
 
 const configResult = tryLoadConfig(process.env);
 
 if (!configResult.ok) {
   const error = configResult.error;
-  console.error("❌ تعذّر إقلاع البوابة:");
-  console.error(`   ${error.message}`);
+  // «تعذّر إقلاع البوابة» — نصّاً كانَ على `console.error` بلا بنيةٍ، فلا يُقرأُ آلياً.
   if (error.code === "MISSING_ENV_VARS") {
-    console.error("   أضِف هذه المتغيرات إلى بيئة التشغيل (انظر .env.example):");
-    for (const key of error.keys) console.error(`   - ${key}`);
+    log.error("gateway.boot_missing_env", {
+      detail: error.message,
+      missing_keys: error.keys,
+      hint: "أضِف هذه المتغيرات إلى بيئة التشغيل (انظر .env.example)",
+    });
+  } else {
+    log.error("gateway.boot_config_invalid", { reason: error.code, detail: error.message });
   }
   // فشل سريع ومعلَن: أفضل من خادم يعمل بنصف مفاتيح ويفشل عند أول مستخدم حقيقي.
   process.exit(1);
@@ -118,8 +127,11 @@ const topologyViolation = singleInstanceInvariantViolation({
 });
 
 if (topologyViolation !== null) {
-  console.error("❌ تعذّر إقلاع البوابة:");
-  console.error(`   [${topologyViolation.code}] ${topologyViolation.message}`);
+  // «تعذّر إقلاع البوابة» — خرقُ طوبولوجيا العملياتِ.
+  log.error("gateway.boot_topology_violation", {
+    reason: topologyViolation.code,
+    detail: topologyViolation.message,
+  });
   process.exit(1);
 }
 
@@ -132,9 +144,9 @@ const startedAt = new Date();
  */
 const operationalMetrics = createOperationalMetrics();
 
-function observabilityLog(message: string, meta: Record<string, unknown> = {}): void {
-  if (message === "dispatch.no_eligible_driver") operationalMetrics.recordDispatchNoDriver();
-  log(message, meta);
+function observabilityLog(event: string, meta: Record<string, unknown> = {}): void {
+  if (event === "dispatch.no_eligible_driver") operationalMetrics.recordDispatchNoDriver();
+  log(event, meta);
 }
 
 /**
@@ -170,20 +182,17 @@ const paymentProviderResult =
       });
 
 if (paymentProviderResult === null) {
-  log("مزوّد الدفع غير مُعدّ", {
+  // «مزوّد الدفع غير مُعدّ»
+  log("payment_provider.not_configured", {
     hint: "اضبط PAYMENT_PROVIDER=tap أو moyasar مع مفاتيحه، أو manual للتفعيل اليدوي عبر الدعم",
   });
 } else if (!paymentProviderResult.ok) {
   // لا يُسقِط البوابة: إسقاطها يُفقد البوتَين والرحلات كلّها لأجل الاشتراك وحده،
   // والرحلات لا تتوقّف على مزوّد دفع. ولكنّ الفشل مُعلَن لا مكتوم.
-  console.error(
-    JSON.stringify({
-      at: new Date().toISOString(),
-      message: "payment_provider.config_invalid",
-      provider: paymentProviderName,
-      detail: paymentProviderResult.error.detail,
-    }),
-  );
+  log.error("payment_provider.config_invalid", {
+    provider: paymentProviderName,
+    detail: paymentProviderResult.error.detail,
+  });
 }
 
 const paymentProvider = paymentProviderResult?.ok === true ? paymentProviderResult.value : null;
@@ -710,17 +719,17 @@ app.route("/", publicTracking);
 async function verifySchemaApplied(): Promise<void> {
   try {
     await container.sql`select 1 from cities limit 1`;
-    log("مخطط القاعدة مُطبَّق", {});
+    log("gateway.schema_applied", {});
   } catch (cause) {
     const detail = cause instanceof Error ? cause.message : String(cause);
-    log("⚠️ القاعدة متصلة لكن المخطط غير مُطبَّق — طبّق الهجرات قبل الاستخدام", {
+    log("gateway.schema_not_applied", {
       detail,
       remedy: "راجع docs/render-deployment-vars.md §4 — خطوة «القاعدة أولاً»",
     });
   }
 }
 
-log("البوابة تعمل", {
+log("gateway.started", {
   port: config.port,
   env: config.env,
   missingEnv: missingEnvKeys(process.env),
@@ -765,11 +774,7 @@ log("connection_budget.declared", {
 if (config.runWorkerInGateway) {
   void startEmbeddedWorker(
     config,
-    createObservabilityJobLogger(operationalMetrics, {
-      info: (message, fields) => log(message, fields ?? {}),
-      error: (message, fields) =>
-        console.error(JSON.stringify({ at: new Date().toISOString(), message, ...fields })),
-    }),
+    createObservabilityJobLogger(operationalMetrics, { info: log.info, error: log.error }),
     // نفسُ سجلّ المقاييس الذي يخدمه `/metrics`: العامل المدمج يعيش في هذه العملية،
     // فعدّاداتُه — وأهمُّها عرضٌ سقط بمهلته — تُقرأ من المنفذ نفسه بلا خدمةٍ ثانية.
     { metrics: operationalMetrics },
@@ -781,16 +786,11 @@ if (config.runWorkerInGateway) {
       // فشل إقلاع العامل لا يُسقط البوابة: بوابةٌ تعمل بلا مهامّ دورية أفضل من
       // انعدام البوتَين معاً، والسبب يظهر في السجلّ لحظته.
       const detail = cause instanceof Error ? cause.message : String(cause);
-      console.error(
-        JSON.stringify({
-          at: new Date().toISOString(),
-          message: "embedded_worker.boot_failed",
-          detail,
-        }),
-      );
+      log.error("embedded_worker.boot_failed", { detail });
     });
 } else {
-  log("العامل المدمج غير مُفعَّل", {
+  // «العامل المدمج غير مُفعَّل»
+  log("embedded_worker.disabled", {
     hint: "اضبط RUN_WORKER_IN_GATEWAY=true إن لم توجد خدمة waslah-worker مستقلّة",
   });
 }
@@ -833,7 +833,7 @@ updateDrainer = startTelegramUpdateDrainer(
   {
     queue: createPostgresTelegramUpdateQueue(container.sql),
     handler: container.handler,
-    log: (message, meta) => log(message, meta ?? {}),
+    log,
   },
   { intervalMs: 500 },
 );

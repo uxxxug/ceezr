@@ -54,7 +54,7 @@ export async function markNotificationRead(
 
   const outcome = await deps.center.markRead(input.telegramUserId, input.notificationId);
   if (!outcome.ok) {
-    deps.log?.("تعذّر وسمُ الإشعارِ مقروءاً", { reason: outcome.error.reason });
+    deps.log?.("notifications.mark_read_failed", { reason: outcome.error.reason });
     return err(outcome.error);
   }
 
