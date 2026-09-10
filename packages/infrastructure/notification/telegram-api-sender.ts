@@ -8,8 +8,8 @@
  * ملاحظات مستقبلية: عند إضافة منصّة غير تلغرام يُضاف مُرسِل مجاور ينفّذ نفس المنافذ.
  */
 
-import { Api } from "grammy";
 import type { Keyboard } from "../../application/bots/types.ts";
+import { createTelegramApi } from "./telegram-client.ts";
 import type { OutboundSender } from "./telegram-driver-notifier.ts";
 import { toTelegramMarkup } from "./telegram-markup.ts";
 import type { IdentifyingSender } from "./telegram-negotiation-notifier.ts";
@@ -73,7 +73,7 @@ export interface TelegramSender {
 }
 
 export function grammyTelegramSender(token: string): TelegramSender {
-  const api = new Api(token);
+  const api = createTelegramApi(token);
   return {
     sendMessage: async (chatId, text, markup) => {
       const sent = await api.sendMessage(

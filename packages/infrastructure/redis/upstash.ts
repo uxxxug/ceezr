@@ -11,16 +11,29 @@
  *   دالّة ثانية هنا لا عميل ثانٍ.
  */
 
+import {
+  createDependencyGuard,
+  DEPENDENCY_BUDGETS,
+  type DependencyGuard,
+} from "../../shared/resilience/dependency-guard.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 
 /**
  * مهلة تقنية لا تجارية. Redis الذي لا يجيب في ثانيتين معطّل عملياً، وانتظاره أطول
  * يعني حجز خيط الويبهوك بينما تلغرام ينتظر ردّاً — فالانتظار هنا يُنتج عطلاً ثانياً.
+ * **والرقمُ مقروءٌ من ميزانيّةِ الاعتماديّةِ لا مكتوبٌ هنا ثانيةً** (`F8-04`): رقمانِ
+ * لمعنىً واحدٍ يفترقانِ بأوّلِ تعديلٍ، فيصيرُ المُعلَنُ غيرَ المُطبَّقِ صامتاً.
  */
-export const REDIS_TIMEOUT_MS = 2000;
+export const REDIS_TIMEOUT_MS = DEPENDENCY_BUDGETS.redis.timeoutMs;
 
+/**
+ * **و`open` و`saturated` مُسمّيانِ لا مُدمَجانِ في `timeout`** (`F8-04`): الأوّلُ
+ * يعني أنَّ القاطعَ مفتوحٌ فالنداءُ لم يُرسَلْ أصلاً، والثاني ضيقاً عندَنا لا عندَ
+ * Redis. ومن سوّى بينَهما وبينَ تجاوزِ المهلةِ قرأَ في اللوحةِ «Redis بطيءٌ» وهوَ
+ * لم يُسأَلْ.
+ */
 export interface RedisFailure {
-  readonly kind: "timeout" | "network" | "http" | "redis" | "malformed";
+  readonly kind: "timeout" | "network" | "http" | "redis" | "malformed" | "open" | "saturated";
   readonly detail: string;
 }
 
@@ -35,6 +48,12 @@ export interface UpstashOptions {
   readonly timeoutMs?: number;
   /** يُحقن في الاختبار بدل الشبكة، فيُثبَت المحوّل كاملاً بلا Redis حقيقي. */
   readonly fetchImpl?: typeof fetch;
+  /**
+   * حاجزُ الاعتماديّةِ (`F8-04`). **يُحقَنُ في الاختبارِ لا يُلغى**: مَن مرَّرَ
+   * `null` هنا عطَّلَ القاطعَ والحدَّ، ولذلكَ لا يُقبَلُ `null` — والاختبارُ
+   * يُمرِّرُ حاجزاً بميزانيّةٍ مصغَّرةٍ وساعةٍ مُمرَّرةٍ.
+   */
+  readonly guard?: DependencyGuard;
 }
 
 function describe(error: unknown): string {
@@ -50,31 +69,58 @@ export function createUpstashRedis(options: UpstashOptions): RedisClient {
   const base = options.url.replace(/\/+$/, "");
   const timeoutMs = options.timeoutMs ?? REDIS_TIMEOUT_MS;
   const doFetch = options.fetchImpl ?? fetch;
+  const guard =
+    options.guard ??
+    createDependencyGuard({
+      dependency: "redis",
+      ...(options.timeoutMs === undefined
+        ? {}
+        : { budget: { ...DEPENDENCY_BUDGETS.redis, timeoutMs: options.timeoutMs } }),
+    });
 
   return {
     command: async (args): Promise<Result<unknown, RedisFailure>> => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      let response: Response;
-      try {
-        response = await doFetch(base, {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${options.token}`,
-            "content-type": "application/json",
+      // المهلةُ صارت **في الحاجزِ** لا هنا: مؤقّتانِ لميزانيّةٍ واحدةٍ يفترقانِ.
+      // والإشارةُ تُمرَّرُ إلى `fetch` لتُطاعَ فعلاً فيُلغى النداءُ لا يُهمَلَ.
+      const outcome = await guard
+        .run(
+          async (signal) => {
+            return await doFetch(base, {
+              method: "POST",
+              headers: {
+                authorization: `Bearer ${options.token}`,
+                "content-type": "application/json",
+              },
+              body: JSON.stringify(args.map(String)),
+              signal,
+            });
           },
-          body: JSON.stringify(args.map(String)),
-          signal: controller.signal,
-        });
-      } catch (error) {
-        const aborted = controller.signal.aborted;
-        return err({
-          kind: aborted ? "timeout" : "network",
-          detail: aborted ? `تجاوز ${timeoutMs} ملي ثانية` : describe(error),
-        });
-      } finally {
-        clearTimeout(timer);
+          {
+            // **`5xx` إخفاقٌ عندَ القاطعِ ولو وصلَ جواباً**: `fetch` لا يرمي على
+            // حالةٍ، فبلا هذا التصنيفِ كانَ Redis يردُّ `503` ألفَ مرّةٍ ولا يُفتَحُ
+            // القاطعُ أبداً. و`4xx` **لا يُعَدُّ**: رمزٌ باطلٌ أو أمرٌ مرفوضٌ عيبُنا
+            // نحنُ، وفتحُ القاطعِ عليه يحجُبُ Redis سليماً.
+            failed: (response: Response) => response.status >= 500,
+          },
+        )
+        .catch((error: unknown) => ({ thrown: error }) as const);
+
+      if ("thrown" in outcome) {
+        return err({ kind: "network", detail: describe(outcome.thrown) });
       }
+      if (!outcome.admitted) {
+        const reason = outcome.rejection.reason;
+        return err({
+          kind: reason,
+          detail:
+            reason === "timeout"
+              ? `تجاوز ${timeoutMs} ملي ثانية`
+              : reason === "open"
+                ? "قاطعُ دائرةِ Redis مفتوحٌ"
+                : "حاجزُ تزامنِ Redis ممتلئٌ",
+        });
+      }
+      const response = outcome.value;
 
       if (!response.ok) {
         return err({ kind: "http", detail: `HTTP ${response.status}` });

@@ -9,6 +9,11 @@
  *   (٥٠×٥٠) يضبط `timeoutMs` عند البناء لا يُعدّل الثابت.
  */
 
+import {
+  createDependencyGuard,
+  DEPENDENCY_BUDGETS,
+  type DependencyGuard,
+} from "../../../shared/resilience/dependency-guard.ts";
 import { err, ok, type Result } from "../../../shared/result/index.ts";
 import {
   type DistanceMatrix,
@@ -39,8 +44,11 @@ import type {
  * السقف ثلاث ثوانٍ: تكفي خادماً ذاتيَ الاستضافة بفارقٍ واسع، ولا تحتجز مستخدماً.
  *
  * وهو **غير مُعاير على خادم OSRM حقيقي تحت حمل** — خطرٌ مُسجَّل، لا حقيقةٌ مُثبتة.
+ *
+ * **والرقمُ مقروءٌ من `DEPENDENCY_BUDGETS.maps` لا مكتوبٌ ههنا ثانيةً** (`F8-04`):
+ * موضعٌ واحدٌ للميزانيةِ، وإلاّ افترقَ ما يقيسُه الحاجزُ عمّا يقيسُه المزوّدُ.
  */
-export const OSRM_TIMEOUT_MS = 3000;
+export const OSRM_TIMEOUT_MS = DEPENDENCY_BUDGETS.maps.timeoutMs;
 
 /**
  * تراجعٌ قصير قبل المحاولة الثانية والأخيرة. قصيرٌ عمداً: العطل العابر (اتصالٌ
@@ -66,6 +74,12 @@ export interface OsrmConfig {
   readonly fetchImpl?: typeof fetch;
   /** يُحقن في الاختبار ليُثبَّت التراجع بلا انتظارٍ حقيقي. */
   readonly sleepImpl?: (ms: number) => Promise<void>;
+  /**
+   * حاجزُ الاعتماديّةِ (`F8-04`). **يُحقَنُ في الاختبارِ لا يُلغى**: مَن مرَّرَ
+   * `undefined` نالَ حاجزاً بالميزانيّةِ المُعلَنةِ، ولا سبيلَ إلى مزوّدٍ بلا حاجزٍ.
+   * وحقنُه يُتيحُ كذلكَ اشتراكَ حاجزٍ واحدٍ بينَ مزوّدَينِ لخادمٍ واحدٍ.
+   */
+  readonly guard?: DependencyGuard;
 }
 
 export type OsrmProfile = "driving" | "walking" | "cycling";
@@ -150,6 +164,7 @@ export function createOsrmProvider(config: OsrmConfig): RoutingProvider {
   const doFetch = config.fetchImpl ?? fetch;
   const sleep = config.sleepImpl ?? defaultSleep;
   const totalBudget = config.timeoutMs ?? OSRM_TIMEOUT_MS;
+  const guard = config.guard ?? createDependencyGuard({ dependency: "maps" });
   const configuredProfile: OsrmProfile = config.defaultProfile ?? "driving";
 
   const fail = (detail: string, kind: RoutingErrorKind): RoutingError =>
@@ -213,6 +228,29 @@ export function createOsrmProvider(config: OsrmConfig): RoutingProvider {
    * مشتركٌ في `deservesRoutingRetry` فلا يتباعد مزوّدان.)
    */
   async function requestJson<T>(path: string): Promise<Result<T, RoutingError>> {
+    // **الحاجزُ يلفُّ العمليّةَ كاملةً بمحاولتَيها لا كلَّ محاولةٍ على حدَتِها**:
+    // لو لفَّ المحاولةَ لعُدَّ العطلُ العابرُ الواحدُ عطلَينِ عندَ القاطعِ، فانفتحَ
+    // على ضِعفِ ما أُعلِنَ. وحدُّ التزامنِ كذلكَ يقيسُ نداءَ توجيهٍ واحداً لا مقبساً.
+    const outcome = await guard.run(async () => requestJsonInner<T>(path), {
+      // **العطلُ العابرُ وحدَه يُفتحُ به القاطعُ**: المزوّدُ يُعيدُ إخفاقَه قيمةً
+      // (`Result`) لا رمياً، فبلا هذا التصنيفِ كانَ `503` المتكرِّرُ نجاحاً عندَ
+      // القاطعِ. و`no_route` و`client_error` **لا يُعَدّانِ**: الأوّلُ جوابٌ صحيحٌ
+      // والثاني عيبُ نداءٍ عندَنا، وفتحُ القاطعِ عليهما يحجُبُ مزوّداً سليماً.
+      failed: (result: Result<T, RoutingError>) =>
+        !result.ok && deservesRoutingRetry(result.error.kind),
+    });
+    if (outcome.admitted) return outcome.value;
+    const rejection = outcome.rejection;
+    if (rejection.reason === "open") {
+      return err(fail("قاطعُ دائرةِ التوجيهِ مفتوحٌ: لم يُرسَلِ النداءُ", "circuit_open"));
+    }
+    if (rejection.reason === "saturated") {
+      return err(fail("بلغَ التوجيهُ حدَّ التزامنِ عندَنا", "saturated"));
+    }
+    return err(fail(`timeout after ${totalBudget}ms (حاجزُ الاعتماديّةِ)`, "timeout"));
+  }
+
+  async function requestJsonInner<T>(path: string): Promise<Result<T, RoutingError>> {
     const startedAt = Date.now();
     // المحاولة الأولى تُنفَّذ دائماً ولو كانت الميزانية أقصر من الحدّ الأدنى: من
     // ضبط مهلةً قصيرة أراد نداءً قصيراً، لا إلغاءَ النداء. الشرط يحكم الإعادة وحدها.

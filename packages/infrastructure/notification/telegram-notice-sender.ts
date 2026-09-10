@@ -9,9 +9,9 @@
  *   أو نجمة، وتفسيرُ التنسيق كان سيُسقط الرسالة كلَّها.
  */
 
-import { Api } from "grammy";
 import type { SubscriptionNoticePublisher } from "../../application/subscription/notice-ports.ts";
 import { err, ok } from "../../shared/result/index.ts";
+import { createTelegramApi } from "./telegram-client.ts";
 import { classifyTelegramFailure } from "./telegram-failure.ts";
 
 /** واجهةُ الإرسال الدنيا — يُستبدل مزدوجاً في الاختبار. */
@@ -20,7 +20,7 @@ export interface NoticeApi {
 }
 
 export function grammyNoticeApi(token: string): NoticeApi {
-  const api = new Api(token);
+  const api = createTelegramApi(token);
   return {
     sendMessage: (chatId, text) => api.sendMessage(chatId, text) as Promise<{ message_id: number }>,
   };

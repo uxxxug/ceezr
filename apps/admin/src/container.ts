@@ -21,8 +21,8 @@
  * ممكناً أصلاً، وهو نتيجةُ `ARCH-005` مُحصَّلةً لا مصادفةً.
  */
 
-import { Api } from "grammy";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
+import { createTelegramApi } from "../../../packages/infrastructure/notification/telegram-client.ts";
 import { createUpstashRedis } from "../../../packages/infrastructure/redis/upstash.ts";
 import {
   createTrackingEventBus,
@@ -122,7 +122,7 @@ export function buildAdminContainer(
    * `false` لا يُرمى — لأنّ الصفحةَ تعرضُ للمشغّلِ سبباً مقروءاً، وانفجارُ العمليةِ
    * لأجلِ رسالةٍ لم تُسلَّم كان سيُسقطُ اللوحةَ لمن هو داخلُها أصلاً.
    */
-  const api = new Api(config.driverBotToken);
+  const api = createTelegramApi(config.driverBotToken);
   const codeSender: AdminCodeSender = overrides.codeSender ?? {
     send: async (telegramId, text) => {
       try {

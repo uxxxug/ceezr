@@ -8,10 +8,10 @@
  *   تفسيرٍ للتنسيق كان سيُسقط رسالةَ من كتب شارحةً أو نجمة.
  */
 
-import { Api } from "grammy";
 import type { BroadcastPublisher, BroadcastRecipient } from "../../application/broadcast/ports.ts";
 import { t } from "../../shared/i18n/index.ts";
 import { err, ok } from "../../shared/result/index.ts";
+import { createTelegramApi } from "./telegram-client.ts";
 import { classifyTelegramFailure } from "./telegram-failure.ts";
 
 /** واجهةُ الإرسال الدنيا التي يحتاجها البثّ — يُستبدل مزدوجاً في الاختبار. */
@@ -24,7 +24,7 @@ export interface BroadcastApi {
 }
 
 export function grammyBroadcastApi(token: string): BroadcastApi {
-  const api = new Api(token);
+  const api = createTelegramApi(token);
   return {
     sendMessage: (chatId, text, options) =>
       api.sendMessage(chatId, text, options as never) as Promise<{ message_id: number }>,
