@@ -75,8 +75,8 @@
 -- ---------------------------------------------------------------------------
 
 create table if not exists driver_location_history (
-  city_id uuid not null,
-  driver_id uuid not null,
+  city_id uuid not null references cities (id),
+  driver_id uuid not null references drivers (id),
   position geography(Point, 4326) not null,
   recorded_at timestamptz not null,
   written_at timestamptz not null default now(),
@@ -84,6 +84,11 @@ create table if not exists driver_location_history (
   quality text not null,
   source text not null
 ) partition by range (recorded_at);
+
+-- والقفلُ من الأوّلِ لا بعدَ حينٍ: سياسةَ RLS لا تُكتَبُ ههنا فالجدولُ مُغلَقٌ
+-- على كلِّ دورٍ لا يتجاوزُ RLS — والقارئُ الوحيدُ اليومَ هوَ `service_role` من خادمِنا.
+-- وتفعيلُها على الأصلِ المُقسَّمِ يسري على كلِّ قِسمٍ يُقرَأُ من خلالِه.
+alter table driver_location_history enable row level security;
 
 comment on table driver_location_history is
   'F7-03 / ADR-0074: أثرُ مواضعِ السائقينَ المقبولةِ — ملحَقٌ لا يُحدَّثُ، مقسَّمٌ يوميّاً على طابعِ الجهازِ. ليسَ مصدرَ الموضعِ الحاليِّ: ذاكَ `drivers.last_location` وحدَه.';
@@ -161,6 +166,11 @@ begin
   );
 end;
 $$;
+
+-- والسطحُ مُقفَلٌ من أوّلِ لحظةٍ: دالّةٌ بـ`security definer` تُنشئُ DDL لا تُتركُ
+-- ممنوحةً لـ`public` طرفةَ عينٍ — والمُنادي الوحيدُ مهمّةُ العامِلِ بدورِ الخادمِ.
+revoke all on function ensure_driver_location_partitions(integer) from public, anon, authenticated;
+grant execute on function ensure_driver_location_partitions(integer) to service_role;
 
 comment on function ensure_driver_location_partitions(integer) is
   'F7-03 / ADR-0074: تُنشئُ أقسامَ `driver_location_history` اليوميّةَ من أمسِ إلى `p_days_ahead` أماماً، وتُرجِعُ حصيلةً فيها عددُ صفوفِ القِسمِ الافتراضيِّ. مُتماثِلةٌ: نداءٌ ثانٍ لا يُنشئُ شيئاً ولا يسقطُ.';

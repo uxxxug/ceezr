@@ -181,7 +181,14 @@ describeIf("مشغّل الجوبات المركزي على قاعدة حقيق�
     const jobs = await container.jobs();
     const names = jobs.map((job) => job.name);
 
-    expect(names).toEqual(["expire-subscriptions", "recompute-ratings"]);
+    // وصيانةُ أقسامِ أثرِ الموقعِ (`F7-03`) عامّةٌ لا مدنيّةٌ عن قصدٍ: الجدولُ
+    // واحدٌ لكلِّ المدنِ، ونافذةُ أقسامِه تنفَدُ بمرورِ الزمنِ لا بتفعيلِ مدينةٍ،
+    // فإطفاءُ المدنِ كلِّها لا يجوزُ أن يوقِفَها وإلاّ سقطَتِ الكتابةُ عندَ العودةِ.
+    expect(names).toEqual([
+      "expire-subscriptions",
+      "recompute-ratings",
+      "ensure-location-partitions",
+    ]);
     expect(log.lines.some((line) => line.includes("worker.no_active_cities"))).toBe(true);
   });
 
