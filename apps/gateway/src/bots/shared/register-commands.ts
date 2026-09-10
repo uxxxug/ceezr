@@ -8,12 +8,12 @@
  *   SUPPORTED_LANGUAGES لا من ثوابت هنا.
  */
 
-import { Api } from "grammy";
 import {
   type BotAudience,
   botCommandsFor,
 } from "../../../../../packages/application/bots/main-menu.ts";
 import { SUPPORTED_LANGUAGES } from "../../../../../packages/domain/i18n-translation/index.ts";
+import { createTelegramApi } from "../../../../../packages/infrastructure/notification/telegram-client.ts";
 
 export interface BotCommand {
   readonly command: string;
@@ -26,7 +26,7 @@ export interface CommandRegistrar {
 }
 
 export function grammyCommandRegistrar(token: string): CommandRegistrar {
-  const api = new Api(token);
+  const api = createTelegramApi(token);
   return {
     setCommands: async (commands, languageCode) => {
       // نوع grammY يقيّد language_code بقائمة رموز ثابتة؛ ولغاتنا من SUPPORTED_LANGUAGES

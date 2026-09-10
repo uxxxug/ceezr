@@ -7,7 +7,6 @@
  * ملاحظات مستقبلية: القفل الموزَّع يُبنى هنا ويُسلَّم للمشغّل، فيحمي كل مهمّة مسجَّلة.
  */
 
-import { Api } from "grammy";
 import type { BroadcastPublisher } from "../../../packages/application/broadcast/ports.ts";
 import type { OfferPublisher } from "../../../packages/application/dispatch/broadcast-offers.ts";
 import {
@@ -80,6 +79,7 @@ import {
   grammyBroadcastApi,
 } from "../../../packages/infrastructure/notification/telegram-broadcast-sender.ts";
 import { createTelegramCancellationMessenger } from "../../../packages/infrastructure/notification/telegram-cancellation-notifier.ts";
+import { createTelegramApi } from "../../../packages/infrastructure/notification/telegram-client.ts";
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createOfferPublisher } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import {
@@ -323,7 +323,7 @@ export interface WorkerContainerOverrides {
 
 /** مرسِل التحذيرات عبر واجهة تيليجرام الحقيقية، ملفوفاً في Result بلا استثناءات. */
 export function grammyWarningSender(token: string): ExpiryWarningSender {
-  const api = new Api(token);
+  const api = createTelegramApi(token);
   return {
     send: async ({ chatId, text }) => {
       try {

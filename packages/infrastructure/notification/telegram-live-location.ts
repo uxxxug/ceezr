@@ -23,8 +23,8 @@
  * تُستخدم وميزةٍ يُكتَم البوت من أجلها.
  */
 
-import { Api } from "grammy";
 import type { LiveLocationChannel } from "../../application/tracking/customer-live-relay.ts";
+import { createTelegramApi } from "./telegram-client.ts";
 
 /**
  * أقصى مدّة بثّ يقبلها تلغرام: ٢٤ ساعة. تُستخدم كسقفٍ لا كتوقّع — الجلسة تُغلق
@@ -34,7 +34,7 @@ import type { LiveLocationChannel } from "../../application/tracking/customer-li
 export const TELEGRAM_MAX_LIVE_PERIOD_SECONDS = 86_400;
 
 export function grammyLiveLocationChannel(token: string): LiveLocationChannel {
-  const api = new Api(token);
+  const api = createTelegramApi(token);
   return {
     start: async (chatId, position, livePeriodSeconds) => {
       try {

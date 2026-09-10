@@ -16,6 +16,7 @@ import type {
 import { PortFailureError } from "../../application/ports/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { createMoyasarProvider, type MoyasarProviderOptions } from "./moyasar-provider.ts";
+import { withPaymentGuard } from "./payment-guard.ts";
 import { createTapProvider, type TapProviderOptions } from "./tap-provider.ts";
 
 export type PaymentProviderName = "tap" | "moyasar" | "manual";
@@ -58,7 +59,7 @@ export function createPaymentProvider(
     ) {
       return err(new PaymentProviderFactoryError("MOYASAR_CONFIGURATION_INCOMPLETE"));
     }
-    return ok(createMoyasarProvider(secrets.moyasar));
+    return ok(withPaymentGuard(createMoyasarProvider(secrets.moyasar)));
   }
   if (name === "tap") {
     if (secrets.tap === undefined) {
@@ -69,8 +70,10 @@ export function createPaymentProvider(
     if (secrets.tap.secretKey.trim() === "" || secrets.tap.redirectUrl.trim() === "") {
       return err(new PaymentProviderFactoryError("TAP_CONFIGURATION_INCOMPLETE"));
     }
-    return ok(createTapProvider(secrets.tap));
+    return ok(withPaymentGuard(createTapProvider(secrets.tap)));
   }
+  // **`manual` بلا حاجزٍ عن قصدٍ** (`F8-04`): لا خروجَ له إلى شبكةٍ أصلاً، وحاجزٌ
+  // حولَ دوالٍّ محلّيّةٍ يُنتِجُ رفضاً بلا اعتماديّةٍ تُحمى.
   if (name === "manual") return ok(manualProvider());
   return err(new PaymentProviderFactoryError("UNKNOWN_PAYMENT_PROVIDER"));
 }
