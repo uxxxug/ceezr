@@ -1050,6 +1050,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/location-race-conditions.test.ts",
+    suites: ["سباقاتُ مسارِ الموقعِ على PostgreSQL حقيقيٍّ — F4-08"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ سباقاتِ `F4-08` الأربعةَ — ترتيباً مقلوباً متزامناً، وتكراراً متزامناً، وساعتَينِ متباعدتَينِ، وحاويتَينِ بحوضَي اتّصالٍ مستقلَّينِ — وهذه كلُّها لا تُقاسُ إلّا على محرّكٍ حقيقيٍّ: المقيسُ ذرّيّةُ الكتابةِ التي تُولِّدُ الرقمَ تحتَ مزاحمةٍ فعليّةٍ، ومزدوجُ الذاكرةِ لا مزاحمةَ فيهِ أصلاً فيَمرُّ أخضرَ وإن كانَ العدّادُ في الذاكرةِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/tracking-realtime.test.ts",
     suites: ["النقل اللحظي على قاعدة حقيقية — المرحلة ٦"],
     skipped: 25,
@@ -1158,6 +1172,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
       "يُضبَط UPSTASH_REDIS_REST_URL وUPSTASH_REDIS_REST_TOKEN من مخزنِ أسرارِ المستودعِ مع TEST_DATABASE_URL. يفعله CI في الوظيفة «تكامل على Redis حقيقي»، ولا يُفعَل محلّياً بسرِّ الإنتاجِ: تُستعمَل نقطةٌ اختباريّةٌ خاصّةٌ بالمطوّرِ إن أرادها.",
     owner: "منفّذ المستودع",
     criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات الجلسات على Redis حقيقي",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/real-redis/location-hot-state-outage-real.test.ts",
+    suites: ["سباقُ انقطاعِ المخزنِ الساخنِ على Redis حقيقيٍّ — F4-08"],
+    skipped: 1,
+    gate: "UPSTASH_REDIS_REST_URL",
+    reason:
+      "السباقُ الخامسُ من `F4-08`: انقطاعُ المخزنِ الساخنِ وسطَ مسارِ الموقعِ. وما قبلَ الانقطاعِ وما بعدَهُ لا يُقاسانِ إلّا على Redis حقيقيٍّ بسكربتاتِ Lua الذرّيّةِ نفسِها معَ PostgreSQL حقيقيّةٍ: مزدوجٌ يُخفِقُ حينَ نأمُرُهُ وينجحُ حينَ نأمُرُهُ، فلا يشهدُ على عودةٍ ولا على ما يبقى في الخادمِ بعدَها.",
+    activation:
+      "يُضبَط UPSTASH_REDIS_REST_URL وUPSTASH_REDIS_REST_TOKEN من مخزنِ أسرارِ المستودعِ مع TEST_DATABASE_URL. يفعله CI في الوظيفة «تكامل على Redis حقيقي»، ولا يُفعَل محلّياً بسرِّ الإنتاجِ.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
     runsIn: "اختبارات الجلسات على Redis حقيقي",
     whyNotRun: null,
   },
