@@ -111,6 +111,9 @@ describeIf("F7-06 — أرشفةُ أثرِ الموقعِ وإسقاطُه عل
   beforeEach(async () => {
     await sql`delete from location_archive_manifest`;
     await sql`delete from driver_location_history`;
+    await sql`truncate table tracking_sessions, attendance_log, driver_availability,
+                             driver_capabilities, subscriptions, drivers, users
+                             restart identity cascade`;
     await sql`
       update cities
          set is_active = true,
@@ -126,10 +129,28 @@ describeIf("F7-06 — أرشفةُ أثرِ الموقعِ وإسقاطُه عل
    * قِسمٌ قديمٌ يُصنَعُ بيدٍ: مُنشئُ الأقسامِ لا يُنشئُ ماضياً — نافذتُه من أمسِ
    * إلى أمامَ. وصنعُه ههنا بشكلِ القِسمِ نفسِه الذي تصنعُه الدالّةُ.
    *
-   * والسائقُ **غيرُ مبذورٍ عن قصدٍ**: لا مفتاحَ أجنبيَّ على `drivers`
-   * (`ADR-0074`)، ومعرِّفٌ عشوائيٌّ يكفي — وبذرُ سائقٍ ههنا كانَ سيُوهِمَ أنَّ
-   * الأرشفةَ تمسُّ السائقينَ وهيَ لا تعرفُهم.
+   * **والسائقونَ يُبذَرونَ حقّاً**: على `driver_location_history.driver_id` مفتاحٌ
+   * أجنبيٌّ إلى `drivers`، فمعرِّفٌ مُختلَقٌ يُرفَضُ بـ`23503`. وهذا الرفضُ نفسُه
+   * فائدةٌ: القاعدةُ الحقيقيّةُ ردَّت ما كانَ مزدوجٌ في الذاكرةِ سيبتلعُه صامتاً.
    */
+  async function seedDriver(chat: number): Promise<string> {
+    const users = await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, full_name, phone, language_code, role)
+      values (${cityId}, ${chat}::bigint, ${`سائق ${chat}`}, ${`+9665${chat}`}, 'ar', 'driver')
+      returning id
+    `;
+    const userId = users[0]?.id;
+    if (userId === undefined) throw new Error("تعذّر إنشاء مستخدم السائق");
+    const drivers = await sql<{ id: string }[]>`
+      insert into drivers (city_id, user_id, verification_status, vehicle_type, plate_number)
+      values (${cityId}, ${userId}::uuid, 'verified', 'sedan', ${`س ${chat}`})
+      returning id
+    `;
+    const driverId = drivers[0]?.id;
+    if (driverId === undefined) throw new Error("تعذّر إنشاء السائق");
+    return driverId;
+  }
+
   async function seedOldPartition(rowsPerDriver: number, drivers: number): Promise<string> {
     const day = dayString(OLD_DAYS_AGO);
     const name = `driver_location_history_${day.replace(/-/g, "")}`;
@@ -139,13 +160,14 @@ describeIf("F7-06 — أرشفةُ أثرِ الموقعِ وإسقاطُه عل
     );
     await sql.unsafe(`alter table ${name} enable row level security`);
     for (let d = 0; d < drivers; d += 1) {
+      const driverId = await seedDriver(170_600 + d);
       for (let r = 0; r < rowsPerDriver; r += 1) {
         await sql`
           insert into driver_location_history
             (city_id, driver_id, position, recorded_at, accuracy_m, quality, source)
           values (
             ${cityId}::uuid,
-            ${`00000000-0000-4000-8000-00000000000${d}`}::uuid,
+            ${driverId}::uuid,
             st_setsrid(st_makepoint(${39.17 + r * 0.001}, ${21.54 + d * 0.001}), 4326)::geography,
             ${`${day}T0${r}:00:00Z`}::timestamptz,
             ${10 + r},
