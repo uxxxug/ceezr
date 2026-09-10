@@ -5,8 +5,9 @@
  * الحالة: منفّذ فعلياً — 2026-09-09 · البند `F4-02`.
  * ينتمي إلى: infrastructure/geo
  * يُستخدم من: `apps/workers/src/container.ts` (مهمّةُ الإفراغِ الدوريّةُ)
- * ملاحظات مستقبلية: جدولُ تاريخِ المواقعِ المقسَّمُ يُكتَبُ داخلَ الدالّةِ نفسِها
- *    عندَ بندِه، فلا يُضافُ ههنا نداءٌ ثانٍ يكسرُ ذرّيّةَ الشوطِ.
+ * ملاحظات مستقبلية: جدولُ تاريخِ المواقعِ المقسَّمُ **تَمَّ** في `F7-03` كما وُعِدَ
+ *    ههنا حرفاً: الإلحاقُ داخلَ الدالّةِ نفسِها (ADR-0074)، ولم يُضَفْ ههنا نداءٌ
+ *    ثانٍ. وما زِيدَ في هذا الملفِّ قراءةُ عددِ المُلحَقِ لا كتابتُه.
  *
  * ## لماذا لا حلقةَ ههنا
  *
@@ -44,7 +45,7 @@ export function createDriverLocationBatchPersistence(sql: Sql): DriverLocationBa
       fixes: readonly HotLocationFix[],
     ): Promise<Result<DriverLocationBatchReport, PortFailureError>> =>
       guard(PORT, async () => {
-        if (fixes.length === 0) return { applied: 0, stale: 0, missing: 0 };
+        if (fixes.length === 0) return { applied: 0, stale: 0, missing: 0, appended: 0 };
 
         /**
          * الأسماءُ بصيغةِ القاعدةِ (`driver_id`) لا بصيغةِ الشيفرةِ: الدالّةُ
@@ -76,6 +77,7 @@ export function createDriverLocationBatchPersistence(sql: Sql): DriverLocationBa
           applied: countOf(raw, "applied"),
           stale: countOf(raw, "stale"),
           missing: countOf(raw, "missing"),
+          appended: countOf(raw, "appended"),
         };
       }),
   };

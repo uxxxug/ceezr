@@ -59,7 +59,7 @@ function harness(options: {
   readonly drained: readonly HotLocationFix[] | "fail";
   readonly persist?: "fail";
   readonly requeue?: "fail";
-  readonly report?: { applied: number; stale: number; missing: number };
+  readonly report?: { applied: number; stale: number; missing: number; appended: number };
 }): {
   deps: {
     backlog: DriverLocationBacklogReader;
@@ -91,7 +91,11 @@ function harness(options: {
       if (options.persist === "fail") {
         return err(new PortFailureError("drivers", "عطلُ استمرارٍ مُصطنَعٌ"));
       }
-      return ok(options.report ?? { applied: fixes.length, stale: 0, missing: 0 });
+      // `appended` يساوي `applied` في الحالِ السويِّ (`F7-03` / ADR-0074): الأثرُ
+      // فرعٌ من فرعِ الكتابةِ نفسِه لا نداءٌ ثانٍ قد يتخلّفُ.
+      return ok(
+        options.report ?? { applied: fixes.length, stale: 0, missing: 0, appended: fixes.length },
+      );
     },
   };
   return { seen, deps: { backlog, persistence, limits: LIMITS } };
@@ -104,7 +108,14 @@ describe("F4-02 — الإفراغُ المجمَّعُ: النداءُ الوا
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.value).toEqual({ drained: 0, batched: 0, applied: 0, stale: 0, missing: 0 });
+    expect(result.value).toEqual({
+      drained: 0,
+      batched: 0,
+      applied: 0,
+      stale: 0,
+      missing: 0,
+      appended: 0,
+    });
     // نداءُ دالّةٍ بدفعةٍ فارغةٍ كلَّ دورةٍ في كلِّ مدينةٍ حِمْلٌ بلا أثرٍ.
     expect(seen.batches).toHaveLength(0);
   });
@@ -149,7 +160,7 @@ describe("F4-02 — الإفراغُ المجمَّعُ: النداءُ الوا
   it("٥) تقريرُ القاعدةِ يُنقَلُ كما هوَ: المُطبَّقُ والقديمُ والمفقودُ", async () => {
     const { deps } = harness({
       drained: [fix(DRIVER_A, NOW_MS), fix(DRIVER_B, NOW_MS)],
-      report: { applied: 1, stale: 1, missing: 0 },
+      report: { applied: 1, stale: 1, missing: 0, appended: 1 },
     });
     const result = await flushDriverLocationBacklog(CITY, deps);
 
@@ -159,7 +170,18 @@ describe("F4-02 — الإفراغُ المجمَّعُ: النداءُ الوا
      * `stale` ليسَ فشلاً: صفٌّ أحدثُ في القاعدةِ سبقَ الدفعةَ — وهوَ الحارسُ يعملُ.
      * وإخفاؤه كانَ سيجعلُ «مُطبَّقٌ أقلُّ من مُدفَعٍ» غموضاً في اللوحةِ.
      */
-    expect(result.value).toEqual({ drained: 2, batched: 2, applied: 1, stale: 1, missing: 0 });
+    /**
+     * `F7-03`: و`appended` يساوي `applied` لا `batched` — ما ردَّه الحارسُ لا
+     * يُلحَقُ أثرُه، وإلاّ لحملَ التاريخُ موضعاً لم يصرْ قطُّ موضعَ السائقِ.
+     */
+    expect(result.value).toEqual({
+      drained: 2,
+      batched: 2,
+      applied: 1,
+      stale: 1,
+      missing: 0,
+      appended: 1,
+    });
   });
 });
 

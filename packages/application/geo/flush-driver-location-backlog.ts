@@ -52,6 +52,8 @@ export interface FlushDriverLocationBacklogReport {
   readonly applied: number;
   readonly stale: number;
   readonly missing: number;
+  /** `F7-03`: صفوفُ الأثرِ المُلحَقةُ — ينبغي أن تساويَ `applied` دائماً. */
+  readonly appended: number;
 }
 
 export interface FlushDriverLocationBacklogError {
@@ -80,7 +82,7 @@ export async function flushDriverLocationBacklog(
   const fixes = drained.value;
   // قائمةٌ فارغةٌ حالةٌ سويّةٌ لا فشلٌ: لا سائقَ بثَّ في هذه الدورةِ.
   if (fixes.length === 0) {
-    return ok({ drained: 0, batched: 0, applied: 0, stale: 0, missing: 0 });
+    return ok({ drained: 0, batched: 0, applied: 0, stale: 0, missing: 0, appended: 0 });
   }
 
   const batch = newestPerDriver(fixes);
@@ -111,5 +113,6 @@ export async function flushDriverLocationBacklog(
     applied: persisted.value.applied,
     stale: persisted.value.stale,
     missing: persisted.value.missing,
+    appended: persisted.value.appended,
   });
 }
