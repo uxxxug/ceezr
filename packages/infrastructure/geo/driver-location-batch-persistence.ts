@@ -57,6 +57,13 @@ export function createDriverLocationBatchPersistence(sql: Sql): DriverLocationBa
           latitude: fix.latitude,
           longitude: fix.longitude,
           recorded_at_ms: fix.recordedAtMs,
+          /**
+           * `F4-05`: لحظةُ القبولِ تُمرَّرُ ولا تُختَرَعُ في الدالّةِ. و`null` يُمرَّرُ
+           * `null` صريحاً لا يُحذَفُ الحقلُ: الدالّةُ تُفكَّكُ بأسماءٍ حرفيّةٍ،
+           * وحقلٌ غائبٌ وحقلٌ `null` يُقرأانِ سواءً هناكَ — والتصريحُ أوضحُ
+           * لمن يقرأُ الدفعةَ في سجلٍّ.
+           */
+          observed_at_ms: fix.observedAtMs,
           accuracy_m: fix.accuracyMeters,
           verdict: fix.verdict,
         }));

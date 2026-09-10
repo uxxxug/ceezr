@@ -57,6 +57,9 @@ const fixOf = (
   latitude: at.latitude,
   longitude: at.longitude,
   recordedAtMs,
+  // لحظةُ قبولِ الخادمِ (F4-05) مُزاحةٌ عن طابعِ الجهازِ عمداً: مساواتُهما
+  // تُخفي خلطَ العمودَينِ في الدالّةِ الذرّيّةِ.
+  observedAtMs: recordedAtMs + 1_500,
   accuracyMeters: 11,
   verdict: "ACCEPT",
 });
@@ -65,6 +68,8 @@ interface Stored {
   readonly lat: number | null;
   readonly lng: number | null;
   readonly recordedAtMs: number | null;
+  /** `last_location_at` — زمنُ قبولِ الخادمِ «متى علِمنا» (F4-05). */
+  readonly acceptedAtMs: number | null;
   readonly accuracy: number | null;
   readonly quality: string | null;
 }
@@ -75,6 +80,7 @@ async function stored(driver: DriverId = driverId): Promise<Stored> {
       lat: number | null;
       lng: number | null;
       recorded: Date | null;
+      accepted: Date | null;
       accuracy: number | null;
       quality: string | null;
     }[]
@@ -82,6 +88,7 @@ async function stored(driver: DriverId = driverId): Promise<Stored> {
     select st_y(last_location::geometry) as lat,
            st_x(last_location::geometry) as lng,
            last_location_recorded_at as recorded,
+           last_location_at as accepted,
            last_location_accuracy_m as accuracy,
            last_location_quality as quality
       from drivers where id = ${driver}
@@ -92,6 +99,7 @@ async function stored(driver: DriverId = driverId): Promise<Stored> {
     lat: row.lat,
     lng: row.lng,
     recordedAtMs: row.recorded === null ? null : row.recorded.getTime(),
+    acceptedAtMs: row.accepted === null ? null : row.accepted.getTime(),
     accuracy: row.accuracy,
     quality: row.quality,
   };
@@ -302,5 +310,69 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     // ودفعةٌ سليمةٌ بعدَها تمرُّ: العطلُ لم يُفسِدْ حالةً في الدالّةِ.
     const report = await persistence.persistBatch(cityId, [fixOf(driverId, T2, AT_A)]);
     expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
+  });
+
+  /**
+   * ## F4-05 — `last_location_at` زمنُ **قبولٍ** محمولٌ لا `now()` لحظةَ الإفراغِ
+   *
+   * هذه الحالاتُ الثلاثُ هيَ الإثباتُ الوحيدُ الذي يمسُّ القاعدةَ فعلاً؛ وحاجزُ
+   * `check-location-acceptance-stamp` يقرأُ النصَّ لا الأثرَ، فلا يُغني عنها.
+   */
+  it("٨ — `last_location_at` = الطابعُ المحمولُ، لا لحظةَ الإفراغِ", async () => {
+    const persistence = createDriverLocationBatchPersistence(sql);
+
+    // لحظةُ قبولٍ في الماضي بعشرِ دقائقَ: لو كُتِبَت `now()` لَفاتَ الفرقُ ظاهراً.
+    const acceptedMs = Date.now() - 600_000;
+    const before = Date.now();
+    const report = await persistence.persistBatch(cityId, [
+      { ...fixOf(driverId, T2, AT_A), observedAtMs: acceptedMs },
+    ]);
+    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
+
+    const row = await stored();
+    // مساواةٌ بالمِلِّي (تُقرَّبُ إلى الميكرو في `timestamptz`، فلا كسرَ يضيعُ هنا).
+    expect(row.acceptedAtMs).toBe(acceptedMs);
+    // وهوَ **ليسَ** طابعَ الجهازِ، و**ليسَ** لحظةَ الإفراغِ.
+    expect(row.recordedAtMs).toBe(T2);
+    expect(row.acceptedAtMs).toBeLessThan(before);
+  });
+
+  it("٩ — دفعةٌ بلا الحقلِ (حِمْلٌ قديمٌ): تراجُعٌ إلى `now()` لا عطلٌ", async () => {
+    // الحالةُ الانتقاليّةُ الحقيقيّةُ: مدخلاتٌ ساخنةٌ كُتِبَت قبلَ هذا التغييرِ
+    // فلا `oat` فيها. القبولُ الأصدقُ المتاحُ حينَئذٍ هوَ لحظةُ الإفراغِ — ويُقبَلُ
+    // لأنَّ النافذةَ عمرُ TTL ساخنٍ واحدٍ لا أكثرَ، والبديلُ إسقاطُ الموقعِ كلِّه.
+    const before = Date.now() - 1_000;
+    const rows = await sql<{ result: Record<string, unknown> }[]>`
+      select persist_driver_location_batch(${cityId}::uuid, ${JSON.stringify([
+        {
+          driver_id: driverId,
+          latitude: AT_A.latitude,
+          longitude: AT_A.longitude,
+          recorded_at_ms: T2,
+          accuracy_m: 11,
+          quality: "ACCEPT",
+        },
+      ])}::jsonb) as result
+    `;
+    expect(rows[0]?.result).toMatchObject({ ok: true, applied: 1 });
+
+    const row = await stored();
+    expect(row.acceptedAtMs).not.toBeNull();
+    expect(row.acceptedAtMs ?? 0).toBeGreaterThanOrEqual(before);
+    expect(row.recordedAtMs).toBe(T2);
+  });
+
+  it("١٠ — لحظةُ قبولٍ في المستقبلِ تُقصَّرُ إلى `now()`", async () => {
+    // ساعةُ المثيلِ قد تسبقُ ساعةَ القاعدةِ بثوانٍ. والعمودُ يُقرأُ عمراً في حاجزِ
+    // `driver_location_max_age_seconds`، وعمرٌ سالبٌ يعني «أحدثُ من الآنَ» — وهوَ
+    // ادّعاءٌ لا يُسمَحُ به. فالحدُّ `least(المحمولُ, now())` مقصودٌ لا احتياطيٌّ.
+    const persistence = createDriverLocationBatchPersistence(sql);
+    const report = await persistence.persistBatch(cityId, [
+      { ...fixOf(driverId, T2, AT_A), observedAtMs: Date.now() + 3_600_000 },
+    ]);
+    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
+
+    const row = await stored();
+    expect(row.acceptedAtMs ?? 0).toBeLessThanOrEqual(Date.now() + 1_000);
   });
 });

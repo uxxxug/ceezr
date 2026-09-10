@@ -230,6 +230,14 @@ export async function updateDriverLocation(
       latitude: assessment.fix.coordinates.latitude,
       longitude: assessment.fix.coordinates.longitude,
       recordedAtMs: assessment.fix.recordedAtMs,
+      /**
+       * `F4-05`: **لحظةُ القبولِ تُلتَقَطُ ههنا وتُحمَلُ معَ الإصلاحةِ**، وهيَ
+       * `nowMs` عينُها التي قُوِّمَ بها الإصلاحةُ لا قراءةٌ ثانيةٌ للساعةِ: ساعةٌ
+       * تُقرأُ مرتَينِ تُعطي رقمَينِ، فمن قارنَ الحكمَ بالطابعِ وجدَ فرقاً لا
+       * معنى له. ولمَ ههنا لا في الدالّةِ: هذا **موضعُ القبولِ** — بعدَه لا
+       * يعرفُ أحدٌ متى قُبِلَت، فيُختَرَعُ `now()` ويُقالُ للمنتظِرِ ما لا يُعلَمُ.
+       */
+      observedAtMs: nowMs,
       accuracyMeters: assessment.fix.accuracyMeters ?? null,
       verdict,
       previousRecordedAtMs: driver.lastFix?.recordedAtMs ?? null,

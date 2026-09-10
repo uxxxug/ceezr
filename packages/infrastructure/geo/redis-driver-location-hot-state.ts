@@ -136,6 +136,13 @@ interface WireFix {
   readonly lat: number;
   readonly lng: number;
   readonly at: number;
+  /**
+   * `F4-05`: لحظةُ قبولِ الخادمِ. **حقلٌ اختياريٌّ في السلكِ عن قصدٍ** لا تسامحاً:
+   * حِملٌ كُتِبَ قبلَ هذا التغييرِ يُفكَّكُ فيُعطي `null` فيُقرأُ «مجهولاً» —
+   * ولو كانَ إلزاميّاً في `decodeFix` لأُهمِلَ الحِملُ القديمُ كلُّه فسقطَ موضعُ
+   * كلِّ سائقٍ في قائمةِ الانتظارِ لحظةَ النشرِ.
+   */
+  readonly oat?: number | null;
   readonly acc: number | null;
   readonly v: string;
 }
@@ -147,6 +154,7 @@ function encodeFix(fix: HotLocationFix): string {
     lat: fix.latitude,
     lng: fix.longitude,
     at: fix.recordedAtMs,
+    oat: fix.observedAtMs,
     acc: fix.accuracyMeters,
     v: fix.verdict,
   };
@@ -172,12 +180,16 @@ function decodeFix(raw: unknown): HotLocationFix | null {
   if (typeof wire.lat !== "number" || typeof wire.lng !== "number") return null;
   if (typeof wire.at !== "number" || typeof wire.v !== "string") return null;
   const accuracy = typeof wire.acc === "number" ? wire.acc : null;
+  // غيابُ `oat` أو فسادُه يُقرأُ «مجهولاً» لا صفراً: صفرٌ كانَ سيُقرأُ 1970 فيبدو
+  // الموضعُ أقدمَ من كلِّ شيءٍ، والمجهولُ يُعالَجُ في القاعدةِ بـ`now()` صريحاً.
+  const observed = typeof wire.oat === "number" && Number.isFinite(wire.oat) ? wire.oat : null;
   return {
     cityId: wire.c as CityId,
     driverId: wire.d as DriverId,
     latitude: wire.lat,
     longitude: wire.lng,
     recordedAtMs: wire.at,
+    observedAtMs: observed,
     accuracyMeters: accuracy,
     verdict: wire.v as HotLocationFix["verdict"],
   };

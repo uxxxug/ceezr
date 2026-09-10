@@ -625,6 +625,9 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       latitude: overrides.latitude ?? AT.latitude,
       longitude: AT.longitude,
       recordedAtMs,
+      // لحظةُ قبولِ الخادمِ (F4-05) مُزاحةٌ عن طابعِ الجهازِ عمداً: هذا ما يجعلُ
+      // اختبارَ العبورِ عبرَ Redis حقيقيّاً: لو ضاعَ الحقلُ في الترميزِ لَظهرَ.
+      observedAtMs: recordedAtMs + 1_500,
       accuracyMeters: 12,
       verdict: "ACCEPT" as const,
       previousRecordedAtMs: overrides.previousRecordedAtMs ?? null,
@@ -733,6 +736,10 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       expect(drained.value[0]?.recordedAtMs).toBe(base + 2_000);
       expect(drained.value[0]?.latitude).toBe(21.9);
       expect(drained.value[0]?.driverId).toBe(driver);
+      // F4-05: لحظةُ القبولِ تعبُرُ Redis حقيقيّاً وتعودُ **متميّزةً عن**
+      // طابعِ الجهازِ. لو سقطَ الحقلُ في الترميزِ لَعادَ `null` فتراجعَت
+      // الدالّةُ إلى `now()` لحظةَ الإفراغِ **صامتةً** — وذاكَ العطبُ عينُه.
+      expect(drained.value[0]?.observedAtMs).toBe(base + 2_000 + 1_500);
 
       // السحبُ يُزيلُ العضوَ **وحِمْلَه**: بقاءُ الحِمْلِ كانَ سيُنمِّي مفتاحاً بلا سحبٍ.
       expect(await zcard(city)).toBe(0);
