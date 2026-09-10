@@ -109,7 +109,17 @@ describeIf("F7-03 — أثرُ الموقعِ المقسَّمُ على PostgreS
     await sql`truncate table tracking_sessions, attendance_log, driver_availability,
                              driver_capabilities, subscriptions, drivers, users
                              restart identity cascade`;
-    await sql`update cities set is_active = true where id = ${cityId}`;
+    // والتفعيلُ معَ القروباتِ في العبارةِ نفسِها (حاجزُ `check-test-city-activation`):
+    // مدينةٌ تُفعَّلُ بلا قروباتِها تجعلُ النجاحَ معلّقاً على ترتيبِ التهيئةِ.
+    await sql`
+      update cities
+         set is_active = true,
+             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
+             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
+             telegram_unsubscribed_drivers_group_id =
+               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
+       where id = ${cityId}
+    `;
   });
 
   async function seedDriver(chat: number): Promise<string> {

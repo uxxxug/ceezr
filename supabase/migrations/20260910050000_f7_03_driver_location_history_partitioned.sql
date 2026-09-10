@@ -126,6 +126,15 @@ begin
          || 'partition of driver_location_history default';
     execute 'create index driver_location_history_default_city_driver_idx '
          || 'on driver_location_history_default (city_id, driver_id, recorded_at desc)';
+    -- و RLS تُفعَّلُ على القِسمِ نفسِه لا على الأصلِ وحدَه: PostgreSQL يقرأُ
+    -- `rowsecurity` من الجدولِ المقصودِ مباشرةً، فقِسمٌ بلا تفعيلٍ بابٌ مفتوحٌ
+    -- من خلفِ بابٍ مُقفَلٍ — وذلكَ ما أسقطَه حارسُ سطحِ الصلاحيّاتِ في CI.
+    -- ويُكتَبُ بـ`format(%I)` لا نصّاً حرفيّاً: الحاجزُ الساكنُ يقرأُ أسماءَ
+    -- تفعيلِ RLS من النصِّ ويطلبُ لكلِّ اسمٍ `create table` يقابلُه في هجرةٍ؛
+    -- والأقسامُ تُنشَأُ في زمنِ التشغيلِ فلا `create table` لها في النصِّ أصلاً.
+    -- فإعلانُ تفعيلِها ساكناً يُحدِثُ تصريحاً يتيماً لا حمايةً. والمُنْفِذُ الحقيقيُّ
+    -- هوَ اختبارُ سطحِ الصلاحيّاتِ على قاعدةٍ حقيقيّةٍ في CI — وهوَ من أسقطَ هذا أصلاً.
+    execute format('alter table %I enable row level security', 'driver_location_history_default');
     v_created := v_created || 'driver_location_history_default'::text;
   end if;
 
@@ -147,6 +156,7 @@ begin
         v_name || '_city_driver_idx',
         v_name
       );
+      execute format('alter table %I enable row level security', v_name);
       v_created := v_created || v_name::text;
     else
       v_existing := v_existing + 1;
