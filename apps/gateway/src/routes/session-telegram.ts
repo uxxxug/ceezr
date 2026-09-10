@@ -47,7 +47,7 @@ export function createSessionTelegramRoutes(deps: SessionTelegramDependencies): 
 
   app.post("/v1/session/telegram", async (c) => {
     if (deps.exchange === undefined) {
-      deps.log?.("مسار الجلسة معطّل لغياب سرّ التوقيع أو رمز بوت موقِّع", {});
+      deps.log?.("session.telegram_route_disabled", {});
       return rejected(c, "SESSION_NOT_CONFIGURED", 503);
     }
 

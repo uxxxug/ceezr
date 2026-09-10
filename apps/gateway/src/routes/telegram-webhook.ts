@@ -24,6 +24,7 @@
  */
 
 import { Hono } from "hono";
+import { pseudonymise } from "../../../../packages/infrastructure/observability/structured-log.ts";
 import { TELEGRAM_JOB_PRODUCER_RETRY_AFTER_SECONDS } from "../../../../packages/shared/config/domain-ingress.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { createUpdateDeduplicator, type UpdateDeduplicator, updateIdOf } from "./update-dedup.ts";
@@ -224,9 +225,12 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
     if (!secretsMatch(provided, deps.webhookSecret)) {
       // الحدّ يُحتسب هنا فقط: بعد ثبوت أن السرّ خاطئ، لا قبل التحقّق منه.
       const probe = await deps.rateLimits?.probes?.hit(`probe:${address}`);
-      deps.log?.("رفض تحديث بسرّ غير مطابق", {
+      // «رفض تحديث بسرّ غير مطابق»
+      // العنوانُ يُكنَّى لا يُكتَبُ: عدُّ محاولاتِ مصدرٍ واحدٍ يبقى ممكناً في السجلِّ،
+      // وردُّ الكنيةِ إلى عنوانٍ لا يبقى ممكناً منه (`F8-03` · ADR 0078).
+      deps.log?.("telegram.webhook.secret_mismatch", {
         bot,
-        address,
+        source: pseudonymise(address),
         ...(probe === undefined ? {} : { remaining: probe.remaining }),
       });
       if (probe !== undefined && !probe.allowed) {
@@ -239,7 +243,12 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
     // بأكثر من رفض». ولا يُضعِف ذلك الحماية: الجسم لم يُقرأ بعدُ إلى هنا.
     const declaredLength = Number(c.req.header("content-length") ?? Number.NaN);
     if (Number.isFinite(declaredLength) && declaredLength > MAX_WEBHOOK_BODY_BYTES) {
-      deps.log?.("رُفض تحديث لتجاوزه حدّ الحجم", { bot, address, bytes: declaredLength });
+      // «رُفض تحديث لتجاوزه حدّ الحجم» — بالترويسةِ المُعلَنةِ.
+      deps.log?.("telegram.webhook.body_too_large", {
+        bot,
+        source: pseudonymise(address),
+        bytes: declaredLength,
+      });
       return c.json({ ok: false, error: "PAYLOAD_TOO_LARGE" }, 413);
     }
 
@@ -248,7 +257,8 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
     // مقطعاً مقطعاً ويُقطع فور تجاوز الحدّ، فلا يُحجز أكثر منه أبداً.
     const raw = await readBounded(c.req.raw.body, MAX_WEBHOOK_BODY_BYTES);
     if (raw === null) {
-      deps.log?.("رُفض تحديث لتجاوزه حدّ الحجم", { bot, address });
+      // «رُفض تحديث لتجاوزه حدّ الحجم» — بالقياسِ الفعليِّ للتدفّقِ.
+      deps.log?.("telegram.webhook.body_too_large", { bot, source: pseudonymise(address) });
       return c.json({ ok: false, error: "PAYLOAD_TOO_LARGE" }, 413);
     }
 
@@ -271,7 +281,8 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
     if (actorId !== null && deps.rateLimits?.users !== undefined) {
       const decision = await deps.rateLimits.users.hit(`user:${bot}:${actorId}`);
       if (!decision.allowed) {
-        deps.log?.("تجاوز مستخدم حدّ المعدّل", { bot, actorId });
+        // «تجاوز مستخدم حدّ المعدّل» — والفاعلُ يُكنَّى لا يُكتَبُ.
+        deps.log?.("telegram.webhook.user_rate_limited", { bot, actor: pseudonymise(actorId) });
         // 429 لتلغرام يعني إعادة إرسال لاحقاً — والإعادةُ الآن تُقبَل فعلاً لأنّ
         // الرقمَ لم يُودَع بعدُ. فالتعليقُ «لا تُفقد بل تُؤجَّل» صار صحيحاً.
         return tooManyRequests(c, decision.resetSeconds);
@@ -281,7 +292,7 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
     /** المعالجةُ وجوابُها — موضعٌ واحدٌ كي لا يختلفَ الجوابُ بينَ فرعٍ وفرعٍ. */
     const answer = (handled: boolean): Response => {
       if (!handled) {
-        deps.log?.("تعذّرت معالجة التحديث", { bot });
+        deps.log?.("telegram.webhook.handling_failed", { bot });
         // نُجيب 200 حتى لا يُعيد تلغرام الإرسال بلا نهاية؛ الفشل مسجَّل للمراجعة.
         return c.json({ ok: false, error: "NOT_HANDLED" }, 200);
       }
@@ -315,7 +326,7 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
       } catch {
         // عجزُ الإيداعِ **ليس إذناً بالمعالجةِ ولا بالإقرارِ**: `503` يجعل تيليجرام
         // يُعيد الإرسالَ فلا يُفقد التحديثُ. ولا يُسجَّل `updateId` حفاظاً على §٧/٥.
-        deps.log?.("تعذّر الإيداعُ الصامدُ للتحديث", { bot });
+        deps.log?.("telegram.webhook.intake_unavailable", { bot });
         return c.json({ ok: false, error: "INTAKE_UNAVAILABLE" }, 503);
       }
 
@@ -328,11 +339,11 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
         // بلغَ الطابورُ حدَّ المنتِجِ (F6-06). ورقمُ التحديثِ **لم يُستهلَكْ**،
         // فالرفضُ 429 تأجيلٌ لا فقدٌ: تيليجرام يُعيدُ الإرسالَ، والإعادةُ
         // تُقبَلُ فعلاً. وهوَ عينُ حُجّةِ ترتيبِ حدِّ المعدَّلِ (ADR 0054 §٦).
-        deps.log?.("طابورُ التحديثاتِ مكتظٌّ فأُجِّلَ الاستلامُ", { bot });
+        deps.log?.("telegram.webhook.queue_saturated", { bot });
         return tooManyRequests(c, TELEGRAM_JOB_PRODUCER_RETRY_AFTER_SECONDS);
       }
       // duplicate أو in_progress: لا عملٌ ثانٍ ولا إعادةُ ضبطٍ (ADR 0057).
-      deps.log?.("تحديث مكرَّر أُهمل", { bot, outcome });
+      deps.log?.("telegram.webhook.duplicate_ignored", { bot, outcome });
       return c.json({ ok: true, duplicate: true }, 200);
     }
 
@@ -340,7 +351,7 @@ export function createTelegramWebhookRoutes(deps: WebhookDependencies): Hono {
     // فيه القرارُ إلى خريطةِ الذاكرةِ. **والترتيبُ يبقى مصحَّحاً حتّى ههنا**: الوسمُ
     // بعدَ حدِّ المعدَّلِ لا قبلَه، فنافذةُ الفقدِ الأولى مغلقةٌ في الفرعَينِ كليهما.
     if (updateId !== null && !dedup.admit(bot, updateId)) {
-      deps.log?.("تحديث مكرَّر أُهمل", { bot, updateId });
+      deps.log?.("telegram.webhook.duplicate_ignored", { bot, updateId });
       return c.json({ ok: true, duplicate: true }, 200);
     }
 

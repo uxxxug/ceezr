@@ -50,13 +50,13 @@ export function createRiderBot(
           break;
         } catch (error) {
           if (error instanceof SessionCasConflictError && attempt < MAX_CAS_RETRIES) {
-            log("تعارض مراجعة جلسة — إعادة المحاولة بعد إعادة التحميل", {
+            log("bot.session_revision_conflict", {
               attempt: attempt + 1,
               userId: error.telegramUserId,
             });
             continue;
           }
-          log("عطل غير متوقَّع في حوار العميل", { detail: String(error) });
+          log("bot.rider.dialog_unexpected_error", { detail: String(error) });
           return false;
         }
       }
@@ -70,7 +70,7 @@ export function createRiderBot(
             await sender.sendPhoto(reply.chatId, reply.photoFileId, reply.text, markup);
           }
         } catch (error) {
-          log("تعذّر إرسال رسالة إلى تلغرام", { detail: String(error) });
+          log("bot.telegram_send_failed", { detail: String(error) });
           return false;
         }
       }

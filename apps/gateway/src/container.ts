@@ -95,7 +95,10 @@ import {
   instrumentDispatchRpc,
   instrumentOfferWriter,
 } from "../../../packages/infrastructure/observability/dispatch.ts";
-import type { OperationalMetrics } from "../../../packages/infrastructure/observability/index.ts";
+import {
+  createStructuredLogger,
+  type OperationalMetrics,
+} from "../../../packages/infrastructure/observability/index.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import {
   createRatingPort,
@@ -518,8 +521,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    * عليه حرفاً بحرف قبل وجود هذه الطبقة — لا فرعٌ مُعطّل بل **غيابٌ تام**.
    */
   const agentCore = createAgentCore({
-    log: (message, meta) =>
-      console.log(JSON.stringify({ at: new Date().toISOString(), message, ...meta })),
+    log: createStructuredLogger({ service: "agent-core" }),
   });
   // مخزن القياس يُبنى مع الطبقة ويُطفأ معها: بلا طبقة لا قرارات تُقاس، وزرٌّ لا
   // يُنشَر أصلاً لا يحتاج مستقبِلاً. وربطهما بشرطٍ واحد يمنع نصفاً مفعَّلاً بلا نصفه.

@@ -11,3 +11,4 @@ export * from "./metrics.ts";
 export * from "./metrics-exporter.ts";
 export * from "./otlp.ts";
 export * from "./registry.ts";
+export * from "./structured-log.ts";

@@ -124,7 +124,7 @@ export async function exchangeTelegramSession(
   const verified = deps.verifier.verify(input.initData, nowSeconds);
   if (!verified.ok) {
     const reason = verified.error.reason;
-    deps.log?.("رفض إثبات هوية تيليجرام", { reason });
+    deps.log?.("session.telegram_proof_rejected", { reason });
     return err({
       code: "TELEGRAM_PROOF_REJECTED",
       reason,
@@ -142,7 +142,7 @@ export async function exchangeTelegramSession(
   } else {
     const issuedRefresh = chain.refresh.issueForNewSession(verified.value, nowMs);
     if (!issuedRefresh.ok) {
-      deps.log?.("تعذر إصدار رمز تجديد بعد إثبات صحيح", { reason: issuedRefresh.error.reason });
+      deps.log?.("session.refresh_token_issue_failed", { reason: issuedRefresh.error.reason });
       return err({
         code: "SESSION_ISSUE_FAILED",
         reason: issuedRefresh.error.reason,
@@ -154,7 +154,7 @@ export async function exchangeTelegramSession(
   }
 
   if (!issued.ok) {
-    deps.log?.("تعذر إصدار جلسة داخلية بعد إثبات صحيح", { reason: issued.error.reason });
+    deps.log?.("session.issue_failed", { reason: issued.error.reason });
     return err({
       code: "SESSION_ISSUE_FAILED",
       reason: issued.error.reason,
@@ -162,7 +162,7 @@ export async function exchangeTelegramSession(
     });
   }
 
-  deps.log?.("أُصدرت جلسة داخلية بعد تحقق ناجح", {
+  deps.log?.("session.issued", {
     bot: verified.value.bot,
     expiresInSeconds: issued.value.expiresInSeconds,
     ...(refresh === undefined ? {} : { refreshExpiresInSeconds: refresh.refreshExpiresInSeconds }),

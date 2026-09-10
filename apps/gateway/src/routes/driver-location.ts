@@ -161,7 +161,7 @@ async function authenticate(
   deps: DriverLocationDependencies,
 ): Promise<{ readonly viewer: AuthorizedViewer } | { readonly response: Response }> {
   if (deps.viewer === undefined || deps.drivers === undefined || deps.ingest === undefined) {
-    deps.log?.("مسارُ استقبالِ الموقعِ معطّلٌ لغيابِ تبعياته", {});
+    deps.log?.("driver_location.route_disabled", {});
     return { response: rejected(c, "SESSION_NOT_AVAILABLE", 503) };
   }
   const accessToken = bearerTokenFrom(c.req.header("authorization"));

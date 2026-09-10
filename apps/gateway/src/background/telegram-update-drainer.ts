@@ -97,7 +97,7 @@ export async function drainTelegramUpdateJobsOnce(
       // عجزُ القاعدةِ عندَ الالتقاطِ يكسرُ الشوطَ لا يقتله: السياقُ التاليُّ للدرينرِ
       // الخلفيِّ يُعيدُ المحاولةَ في المؤقّتِ. والوظيفةُ إن وُجدت تبقى معلَّقةً لا تُفقَد.
       const message = error instanceof Error ? error.message : String(error);
-      deps.log?.("تعذّر التقاط وظائف تيليجرام", { error: message });
+      deps.log?.("telegram.drainer.claim_failed", { error: message });
       break;
     }
     if (job === null) break;
@@ -111,7 +111,7 @@ export async function drainTelegramUpdateJobsOnce(
         done += 1;
       } else {
         failed += 1;
-        deps.log?.("فشل ختم وظيفة بعد المعالجة", {
+        deps.log?.("telegram.drainer.stamp_failed", {
           bot: job.bot,
           updateId: job.updateId,
           handled,
@@ -122,7 +122,7 @@ export async function drainTelegramUpdateJobsOnce(
       const message = error instanceof Error ? error.message : String(error);
       // الختمُ كفشلٍ: إن لم تُستنفدِ المحاولاتُ تعاد للطابورِ، وإلّا ماتت نهائيّاً.
       await deps.queue.finish(lease, false, message).catch(() => {});
-      deps.log?.("خطأ أثناء معالجة وظيفة", {
+      deps.log?.("telegram.drainer.job_error", {
         bot: job.bot,
         updateId: job.updateId,
         error: message,
@@ -165,11 +165,11 @@ export function startTelegramUpdateDrainer(
     try {
       const report = await drainTelegramUpdateJobsOnce(deps);
       if (report.claimed > 0) {
-        deps.log?.("شوط استنزاف وظائف تيليجرام", { ...report });
+        deps.log?.("telegram.drainer.sweep_completed", { ...report });
       }
       if (report.truncated) {
         // شوطٌ مقطوعٌ يُعلَنُ وحدَه: تكرّرُه معناه أنَّ الواردَ أسرعُ من المستهلِكِ.
-        deps.log?.("بلغ شوط استنزاف تيليجرام سقفه والطابور لم يفرغ", {
+        deps.log?.("telegram.drainer.sweep_cap_reached", {
           claimed: report.claimed,
         });
       }

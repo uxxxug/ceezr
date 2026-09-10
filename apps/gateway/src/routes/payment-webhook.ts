@@ -40,7 +40,7 @@ export function createPaymentWebhookRoutes(deps: PaymentWebhookDependencies): Ho
 
   app.post("/webhook/payment", async (c) => {
     if (deps.provider === undefined) {
-      deps.log?.("ويبهوك الدفع معطّل لغياب مزوّد موثّق", {});
+      deps.log?.("payment.webhook.route_disabled", {});
       return rejected(c, "PAYMENT_PROVIDER_NOT_CONFIGURED", 503);
     }
     const declaredLength = Number(c.req.header("content-length") ?? Number.NaN);
@@ -53,44 +53,44 @@ export function createPaymentWebhookRoutes(deps: PaymentWebhookDependencies): Ho
     // Moyasar يثبت السر داخل الجسم؛ لا HMAC أو ترويسة مخترعة هنا.
     const verified = await deps.provider.verifyWebhook(raw, c.req.raw.headers);
     if (!verified.ok) {
-      deps.log?.("رفض ويبهوك دفع غير موثّق", { detail: verified.error.detail });
+      deps.log?.("payment.webhook.untrusted", { detail: verified.error.detail });
       return rejected(c, "INVALID_WEBHOOK", 401);
     }
 
     // لا نقرأ status أو amount أو metadata من الحدث. هذه اللقطة من API المزوّد.
     const snapshot = await deps.provider.fetchTransaction(verified.value.providerTransactionId);
     if (!snapshot.ok) {
-      deps.log?.("تعذر إعادة قراءة دفعة مزوّد", { detail: snapshot.error.detail });
+      deps.log?.("payment.webhook.provider_lookup_failed", { detail: snapshot.error.detail });
       return rejected(c, "PROVIDER_LOOKUP_FAILED", 503);
     }
     if (snapshot.value.id !== verified.value.providerTransactionId) {
-      deps.log?.("معرّف الدفعة المعاد لا يطابق الحدث", {});
+      deps.log?.("payment.webhook.transaction_mismatch", {});
       return rejected(c, "PROVIDER_TRANSACTION_MISMATCH", 400);
     }
 
     const localId = snapshot.value.metadata[TRANSACTION_METADATA_KEY];
     if (localId === undefined || !UUID_PATTERN.test(localId)) {
-      deps.log?.("دفعة مزوّد بلا إثبات ربط بمعاملة محلية", {});
+      deps.log?.("payment.webhook.unowned_provider_transaction", {});
       return rejected(c, "UNOWNED_PROVIDER_TRANSACTION", 422);
     }
     const local = await deps.confirmDeps.payments.findById(localId as PaymentTransactionId);
     if (!local.ok) {
-      deps.log?.("تعذر قراءة المعاملة المحلية", { detail: local.error.detail });
+      deps.log?.("payment.webhook.local_lookup_failed", { detail: local.error.detail });
       return rejected(c, "LOCAL_TRANSACTION_LOOKUP_FAILED", 503);
     }
     if (local.value === null) {
-      deps.log?.("حدث دفع لمعاملة غير معروفة", {});
+      deps.log?.("payment.webhook.unknown_transaction", {});
       return rejected(c, "UNKNOWN_TRANSACTION", 422);
     }
     if (local.value.provider !== deps.provider.name) {
-      deps.log?.("مزوّد الحدث لا يملك المعاملة المحلية", {});
+      deps.log?.("payment.webhook.provider_ownership_mismatch", {});
       return rejected(c, "PROVIDER_MISMATCH", 422);
     }
     if (
       local.value.amount.amount !== snapshot.value.amount ||
       local.value.amount.currency.toUpperCase() !== snapshot.value.currency.toUpperCase()
     ) {
-      deps.log?.("مبلغ أو عملة دفعة المزوّد لا يطابقان المعاملة", {
+      deps.log?.("payment.webhook.amount_mismatch", {
         transactionId: local.value.id,
       });
       return rejected(c, "AMOUNT_OR_CURRENCY_MISMATCH", 422);
@@ -110,7 +110,7 @@ export function createPaymentWebhookRoutes(deps: PaymentWebhookDependencies): Ho
       deps.confirmDeps,
     );
     if (!confirmed.ok) {
-      deps.log?.("رفض تأكيد دفع من RPC", { detail: confirmed.error.detail });
+      deps.log?.("payment.webhook.confirmation_rejected", { detail: confirmed.error.detail });
       return rejected(c, "CONFIRMATION_REJECTED", 409);
     }
 

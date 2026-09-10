@@ -88,9 +88,9 @@ export function createAdminGuard(
       // بلا هذا التفريق يبدو انقطاع القاعدة مطابقاً تماماً لمن نُزعت عنه الصفة:
       // كلاهما تحويل صامت إلى صفحة الدخول.
       if (outcome.kind === "db") {
-        log("عطل قاعدة بيانات أثناء التحقّق من جلسة اللوحة", { detail: outcome.reason, mode });
+        log("admin.session_verify_db_error", { detail: outcome.reason, mode });
       } else {
-        log("سقطت جلسة اللوحة لسبب أعمال", { reason: outcome.reason, mode });
+        log("admin.session_rejected", { reason: outcome.reason, mode });
       }
       clearSessionCookie(c);
       return reject();

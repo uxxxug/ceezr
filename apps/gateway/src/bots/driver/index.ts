@@ -62,13 +62,13 @@ export function createDriverBot(
           break;
         } catch (error) {
           if (error instanceof SessionCasConflictError && attempt < MAX_CAS_RETRIES) {
-            log("تعارض مراجعة جلسة — إعادة المحاولة بعد إعادة التحميل", {
+            log("bot.session_revision_conflict", {
               attempt: attempt + 1,
               userId: error.telegramUserId,
             });
             continue;
           }
-          log("عطل غير متوقَّع في حوار السائق", { detail: String(error) });
+          log("bot.driver.dialog_unexpected_error", { detail: String(error) });
           return false;
         }
       }
@@ -80,7 +80,7 @@ export function createDriverBot(
             .flat()
             .filter((button) => !isCallbackDataValid(button.data));
           if (tooLong.length > 0) {
-            log("بيانات زرّ تتجاوز حدّ تلغرام", { count: tooLong.length });
+            log("bot.driver.callback_data_too_long", { count: tooLong.length });
             return false;
           }
         }
@@ -106,11 +106,11 @@ export function createDriverBot(
                 reply.mapPin.longitude,
               );
             } catch (error) {
-              log("تعذّر إرسال دبّوس الموقع — النصّ وصل", { detail: String(error) });
+              log("bot.driver.location_pin_send_failed", { detail: String(error) });
             }
           }
         } catch (error) {
-          log("تعذّر إرسال رسالة إلى تلغرام", { detail: String(error) });
+          log("bot.telegram_send_failed", { detail: String(error) });
           return false;
         }
       }

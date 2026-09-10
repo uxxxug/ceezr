@@ -96,7 +96,7 @@ export async function renewMiniAppSession(
   const nowMs = deps.now().getTime();
 
   if (typeof input.refreshToken !== "string" || input.refreshToken.length === 0) {
-    deps.log?.("رُفض تجديد جلسة: لا رمز تجديد في الطلب", { reason: "MISSING" });
+    deps.log?.("session.renew_missing_token", { reason: "MISSING" });
     return err({
       code: "REFRESH_TOKEN_REJECTED",
       reason: "MALFORMED",
@@ -109,14 +109,14 @@ export async function renewMiniAppSession(
     const reason = read.error.reason;
     // سرٌّ ناقصٌ على الخادمِ ليس رفضاً للعميل: هو ضبطٌ ناقصٌ يُعلَن ٥٠٣ لا ٤٠١.
     if (reason === "NOT_CONFIGURED") {
-      deps.log?.("تعذر تجديد الجلسة لغياب سرّ التوقيع", { reason });
+      deps.log?.("session.renew_not_configured", { reason });
       return err({
         code: "SESSION_ISSUE_FAILED",
         reason: "NOT_CONFIGURED",
         publicCode: "SESSION_NOT_AVAILABLE",
       });
     }
-    deps.log?.("رُفض رمز تجديد", { reason });
+    deps.log?.("session.refresh_token_rejected", { reason });
     return err({
       code: "REFRESH_TOKEN_REJECTED",
       reason,
@@ -127,7 +127,7 @@ export async function renewMiniAppSession(
   // لا يصل الإصدارُ إلا من هذا السطر: مسارٌ واحدٌ لا فرعَ له.
   const nextRefresh = deps.refresh.issueForRenewal(read.value, nowMs);
   if (!nextRefresh.ok) {
-    deps.log?.("تعذر إصدار رمز تجديد بعد قراءة صحيحة", { reason: nextRefresh.error.reason });
+    deps.log?.("session.renew_refresh_issue_failed", { reason: nextRefresh.error.reason });
     return err({
       code: "SESSION_ISSUE_FAILED",
       reason: nextRefresh.error.reason,
@@ -137,7 +137,7 @@ export async function renewMiniAppSession(
 
   const issued = deps.issuer.issueForGrant(nextRefresh.value.grant, nowMs);
   if (!issued.ok) {
-    deps.log?.("تعذر إصدار رمز وصول بعد قراءة صحيحة", { reason: issued.error.reason });
+    deps.log?.("session.renew_access_issue_failed", { reason: issued.error.reason });
     return err({
       code: "SESSION_ISSUE_FAILED",
       reason: issued.error.reason,
@@ -145,7 +145,7 @@ export async function renewMiniAppSession(
     });
   }
 
-  deps.log?.("جُدِّدت جلسة داخلية", {
+  deps.log?.("session.renewed", {
     bot: read.value.bot,
     generation: nextRefresh.value.grant.generation,
     expiresInSeconds: issued.value.expiresInSeconds,

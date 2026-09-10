@@ -51,7 +51,7 @@ export function createSessionRefreshRoutes(deps: SessionRefreshDependencies): Ho
 
   app.post("/v1/session/refresh", async (c) => {
     if (deps.renew === undefined) {
-      deps.log?.("مسار تجديد الجلسة معطّل لغياب سرّ التوقيع", {});
+      deps.log?.("session.refresh_route_disabled", {});
       return rejected(c, "SESSION_NOT_CONFIGURED", 503);
     }
 

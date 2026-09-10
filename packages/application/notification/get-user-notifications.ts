@@ -68,7 +68,7 @@ export async function getUserNotifications(
 
   if (!feed.ok) {
     // السجلُّ يحمل السببَ المصنَّفَ ولا يحمل معرّفَ تيليجرام ولا حِمْلَ إشعارٍ.
-    deps.log?.("تعذّرت قراءةُ موجَزِ الإشعارات", { reason: feed.error.reason });
+    deps.log?.("notifications.feed_read_failed", { reason: feed.error.reason });
     return err(feed.error);
   }
 

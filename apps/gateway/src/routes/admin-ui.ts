@@ -468,9 +468,9 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     if (issueOutcome.kind !== "ok") {
       // سطران مختلفان لا سطر واحد: عطل القاعدة يستدعي مشغّلاً، ورفض الأعمال لا.
       if (issueOutcome.kind === "db") {
-        log("عطل قاعدة بيانات أثناء إصدار رمز دخول اللوحة", { detail: issueOutcome.reason });
+        log("admin.login_code_issue_db_error", { detail: issueOutcome.reason });
       } else {
-        log("رُفض طلب رمز دخول للوحة لسبب أعمال", { reason: issueOutcome.reason });
+        log("admin.login_code_issue_rejected", { reason: issueOutcome.reason });
       }
       return c.html(
         renderLoginPage({
@@ -490,7 +490,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     );
     if (!delivered) {
       // مميَّز عمداً عن عطل القاعدة: الرمز صدر بنجاح، والعطل في التسليم وحده.
-      log("تعذّر تسليم رمز دخول اللوحة على تلغرام", { stage: "telegram_delivery" });
+      log("admin.login_code_delivery_failed", { stage: "telegram_delivery" });
       return c.html(
         renderLoginPage({
           cspNonce: c.get("cspNonce"),
@@ -526,11 +526,11 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const consumeOutcome = classifyAuth(consumed);
     if (consumeOutcome.kind !== "ok") {
       if (consumeOutcome.kind === "db") {
-        log("عطل قاعدة بيانات أثناء التحقّق من رمز دخول اللوحة", {
+        log("admin.login_code_consume_db_error", {
           detail: consumeOutcome.reason,
         });
       } else {
-        log("رُفض رمز دخول للوحة لسبب أعمال", { reason: consumeOutcome.reason });
+        log("admin.login_code_consume_rejected", { reason: consumeOutcome.reason });
       }
       return c.html(
         renderLoginPage({
@@ -552,9 +552,9 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const openOutcome = classifyAuth(opened);
     if (openOutcome.kind !== "ok") {
       if (openOutcome.kind === "db") {
-        log("عطل قاعدة بيانات أثناء فتح جلسة اللوحة", { detail: openOutcome.reason });
+        log("admin.session_open_db_error", { detail: openOutcome.reason });
       } else {
-        log("رُفض فتح جلسة اللوحة لسبب أعمال", { reason: openOutcome.reason });
+        log("admin.session_open_rejected", { reason: openOutcome.reason });
       }
       return c.html(
         renderLoginPage({
@@ -1074,7 +1074,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     });
     if (!created.ok) return c.text("BROADCAST_CREATE_FAILED", HTML_UNPROCESSABLE);
     if ("error" in created.value) {
-      log("رُفِض إنشاء بثٍّ جماعي", { error: created.value.error });
+      log("admin.broadcast_create_rejected", { error: created.value.error });
       return await broadcastPage(
         c,
         state,
@@ -1083,7 +1083,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         HTML_UNPROCESSABLE,
       );
     }
-    log("أُنشئ بثٌّ جماعي", {
+    log("admin.broadcast_created", {
       batchId: created.value.batchId,
       total: created.value.total,
       audience: state.audience,
@@ -1110,7 +1110,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         HTML_UNPROCESSABLE,
       );
     }
-    log("أُلغي بثٌّ جماعي", { batchId, canceled: canceled.value.canceled });
+    log("admin.broadcast_canceled", { batchId, canceled: canceled.value.canceled });
     return c.redirect(`/admin/broadcast?canceled=${canceled.value.canceled}`, SEE_OTHER);
   });
 
@@ -1133,7 +1133,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       c.req.param("id"),
       status,
     );
-    log("تغيير حالة توثيق سائق من اللوحة", { ok: outcome.ok, error: outcome.error });
+    log("admin.driver_verification_changed", { ok: outcome.ok, error: outcome.error });
     return c.redirect(formText(checked.form, "back") ?? "/admin/drivers", SEE_OTHER);
   });
 
@@ -1149,7 +1149,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       c.req.param("id"),
       blocked,
     );
-    log("تغيير حظر مستخدم من اللوحة", { ok: outcome.ok, error: outcome.error, blocked });
+    log("admin.user_block_changed", { ok: outcome.ok, error: outcome.error, blocked });
     return c.redirect(formText(checked.form, "back") ?? "/admin/drivers", SEE_OTHER);
   });
 
@@ -1179,7 +1179,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       parsed[1] ?? null,
       parsed[2] ?? null,
     );
-    log("تعديل معرّفات قروبات المدينة من اللوحة", { ok: outcome.ok, error: outcome.error });
+    log("admin.city_groups_updated", { ok: outcome.ok, error: outcome.error });
     if (!outcome.ok) return c.text(outcome.error ?? "CITY_GROUP_IDS_REJECTED", HTML_UNPROCESSABLE);
     return c.redirect(`/admin/settings?city=${encodeURIComponent(cityId)}`, SEE_OTHER);
   });
@@ -1199,7 +1199,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       c.req.param("key"),
       value,
     );
-    log("تعديل إعداد من اللوحة", { ok: outcome.ok, error: outcome.error });
+    log("admin.setting_updated", { ok: outcome.ok, error: outcome.error });
     // القيمةُ المرفوضة تُبيَّن للمسؤول: إعادةُ توجيهٍ صامتة تعني أنّه يحسب أنّه حفظ.
     if (!outcome.ok) return c.text(outcome.error ?? "SETTING_REJECTED", HTML_UNPROCESSABLE);
     return c.redirect(`/admin/settings?city=${encodeURIComponent(cityId)}`, SEE_OTHER);

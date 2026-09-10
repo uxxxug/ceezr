@@ -10,15 +10,19 @@
 import {
   createConfiguredMetricsExporter,
   createOperationalMetrics,
+  createStructuredLogger,
 } from "../../../packages/infrastructure/observability/index.ts";
 import { tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { buildWorkerContainer, MAX_JOB_CONCURRENCY } from "./container.ts";
 import { createJobRunner, type JobLogger } from "./runner.ts";
 
-const log: JobLogger = {
-  info: (message, fields) => console.log(JSON.stringify({ level: "info", message, ...fields })),
-  error: (message, fields) => console.error(JSON.stringify({ level: "error", message, ...fields })),
-};
+/**
+ * سجلُّ العاملِ — من المُصدِرِ الوحيدِ (`F8-03` · ADR 0078). وقبلَ اليومَ كانَ
+ * هذا الموضعُ يكتبُ `{level, message}` **بلا طابعِ زمنٍ ألبتَّةَ**، فلم يكنِ الترتيبُ
+ * الزمنيُّ لأسطرِ العاملِ ممكناً ولا مقارنتُها بأسطرِ البوابةِ.
+ */
+const structuredLog = createStructuredLogger({ service: "worker" });
+const log: JobLogger = { info: structuredLog.info, error: structuredLog.error };
 
 async function main(): Promise<void> {
   const config = tryLoadConfig(process.env);
@@ -49,7 +53,7 @@ async function main(): Promise<void> {
     deploymentEnvironment: config.value.env,
     processTopology: config.value.processTopology,
     metricsExport: config.value.metricsExport,
-    log: (message, fields) => log.info(message, fields),
+    log: log.info,
   });
   if (metricsExporter === null) {
     log.info("metrics_export.disabled", { reason: "METRICS_EXPORT_ENDPOINT غير مضبوط" });

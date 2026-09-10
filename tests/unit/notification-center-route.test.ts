@@ -303,7 +303,9 @@ describe("GET /v1/notifications — الرفضُ", () => {
     const { status, json } = await call(harness, "/v1/notifications", { headers: authed() });
     expect(status).toBe(503);
     expect(json.error).toBe("SESSION_NOT_AVAILABLE");
-    expect(harness.logs.some((entry) => entry.message.includes("معطّلٌ"))).toBe(true);
+    expect(harness.logs.some((entry) => entry.message === "notifications.route_disabled")).toBe(
+      true,
+    );
   });
 
   it("١٤) غيرُ مركَّبٍ إطلاقاً: 404 لا 401 — لا سطحَ يُستدَلُّ على وجودِه", async () => {
