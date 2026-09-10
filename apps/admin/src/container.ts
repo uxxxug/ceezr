@@ -31,6 +31,7 @@ import {
 import {
   createRedisStreamTrackingEventBus,
   DEFAULT_POLL_MS,
+  TRACKING_EVENT_STREAM_KEY,
 } from "../../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
 import { type ResolvedMapStyle, resolveMapStyle } from "../../../packages/maps/index.ts";
 import { DB_POOL_MAX } from "../../../packages/shared/config/connection-budget.ts";
@@ -105,7 +106,7 @@ export function buildAdminContainer(
       ? createRedisStreamTrackingEventBus({
           local: localBus,
           redis,
-          streamKey: "waslah:tracking:events",
+          streamKey: TRACKING_EVENT_STREAM_KEY,
           instanceId: crypto.randomUUID(),
           pollMs: DEFAULT_POLL_MS,
         })
