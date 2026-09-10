@@ -24,7 +24,7 @@ import {
   type RotateNegotiationDependencies,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
-import { type TriggerSosDeps, triggerSos } from "../safety/trigger-sos.ts";
+import { type TriggerSosDeps, TriggerSosError, triggerSos } from "../safety/trigger-sos.ts";
 import {
   type IssueTrackingTokenDeps,
   issueTrackingToken,
@@ -769,6 +769,30 @@ async function handleCancelChoice(
   return cancelOne(chosen, sender, state, deps);
 }
 
+/**
+ * `F8-05` — مسارُ استقبالِ الاستغاثةِ: نداءٌ واحدٌ على تبعيّةٍ واحدةٍ.
+ *
+ * ## ما كانَ ههنا ولمَ زالَ
+ *
+ * كانَ قبلَ النداءِ قراءتانِ: `riders.findByTelegramId` ثمَّ `activeOrdersOf`.
+ * وإخفاقُ الأولى يردُّ «حدثَ عطلٌ» **فتُسقَطُ الاستغاثةُ**، وإخفاقُ الثانيةِ
+ * يظهرُ قائمةً فارغةً فيردُّ «لا رحلةَ قائمةٌ» — **وهوَ أسوأُ من العطلِ**: يُخبِرُ
+ * المُستغيثَ بكذبٍ مطمئنٍ عن حالةِ رحلتِه.
+ *
+ * ولم تكونا تُضيفانِ ضماناً: `trigger_sos` يُثبِتُ الملكيّةَ بنفسِه تحتَ
+ * `for update`. فكانتا تكراراً لحكمٍ قائمٍ، بفارقٍ واحدٍ — أنَّهما تُسقِطانِ
+ * النداءَ إن أخفقَتا، والدالّةُ لا.
+ *
+ * ## ولمَ لا يُمرَّرُ `orderId` من بياناتِ الزرِّ
+ *
+ * وقد كانَ حاضراً فيها بلا قراءةٍ. لأنَّه **مُدخَلٌ خارجيٌّ**: بياناتُ الزرِّ
+ * تعودُ كما أُرسِلَت ولا تُوقَّعُ، **والأدهى** أنَّ زرّاً قديماً في محادثةٍ
+ * تتحرَّكُ يشيرُ إلى طلبٍ **انتهى** — فتُنسَبُ استغاثةُ اليومَ إلى رحلةِ الأمسِ
+ * ويُبلَّغُ قروبُ مدينةٍ قد لا يكونُ فيها. فالطلبُ يُحَلُّ في القاعدةِ حيثُ
+ * القفلُ والحكمُ (`ADR-0077`).
+ *
+ * ولا يُقرأُ من بياناتِ الزرِّ إلّا الفعلُ: زرٌّ لا يقولُ `trigger` ليسَ استغاثةً.
+ */
 async function handleSosCallback(
   parts: readonly string[],
   sender: Sender,
@@ -776,29 +800,76 @@ async function handleSosCallback(
   deps: RiderBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
-  const [action, orderId] = parts;
-  if (action !== "trigger" || orderId === undefined || deps.safety === undefined) {
+  const [action] = parts;
+  if (action !== "trigger" || deps.safety === undefined) {
     return [reply(sender, tr("common.unknown_command"))];
   }
-  const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
-  if (!rider.ok) return technicalFailure(sender, state);
-  if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
-  // يعاد فحص الطلب النشط قبل RPC؛ والـRPC نفسه يثبت الملكية في حال سباق.
-  const active = await deps.activeOrdersOf(rider.value.id);
-  if (!active.some((order) => String(order.orderId) === orderId)) {
-    return [reply(sender, tr("safety.no_active_order"))];
-  }
   const result = await triggerSos(
-    { orderId, actorTelegramId: sender.telegramUserId, reporterRole: "rider" },
+    { orderId: null, actorTelegramId: sender.telegramUserId, reporterRole: "rider" },
     deps.safety.trigger,
   );
-  if (!result.ok) return [reply(sender, tr("common.error_try_again"))];
+  if (!result.ok) {
+    return [
+      reply(
+        sender,
+        result.error instanceof TriggerSosError && result.error.isNoActiveOrder
+          ? tr("safety.no_active_order")
+          : tr("common.error_try_again"),
+      ),
+    ];
+  }
   return [
     reply(
       sender,
       tr(result.value.created ? "safety.sent" : "safety.already_sent"),
       trackingMenu(state),
     ),
+  ];
+}
+
+/**
+ * `F8-05` — مسارُ الأمرِ `/sos` للراكبِ: نداءٌ واحدٌ بلا قائمةِ اختيارٍ.
+ *
+ * ## ما زالَ ولمَ
+ *
+ * كانَ الأمرُ يقرأُ `riders.findByTelegramId` ثمَّ `activeOrdersOf` ليعرضَ **قائمةَ
+ * اختيارٍ** للطلبِ المعنيِّ، ثمَّ ينتظرَ ضغطةً ثانيةً. وفي هذا ثلاثُ عللٍ:
+ * أوّلاً إخفاقُ أيِّ القراءتَينِ يُسقِطُ النداءَ أو يكذِبُ بـ«لا رحلةَ قائمةَ».
+ * وثانياً ضغطتانِ في لحظةِ خطرٍ ثمَنٌ بلا مقابلٍ. وثالثاً أنَّ اختيارَ الراكبِ
+ * لم يكن يُحترمُ أصلاً دونَ إعادةِ التحقّقِ: المُعرِّفُ يعودُ من بياناتِ الزرِّ
+ * غيرَ مُوقَّعٍ، وقد أصابَته الفترةُ.
+ *
+ * والراكبُ لا يكونُ له أكثرُ من طلبٍ واحدٍ حيٍّ في الغالبِ، وإن كانَ فالدالّةُ
+ * تختارُ **أحدثَها** تحتَ القفلِ (`ADR-0077`) — وهوَ أقربُ ما يُرادُ بالاستغاثةِ
+ * من أمرٍ لا يحملُ وجهةً.
+ *
+ * ويبقى `handleSosCallback` لأزرارٍ مُرسَلةٍ فعلاً في محادثاتٍ قائمةٍ: لا يُكسَرُ
+ * زرٌّ في الميدانِ لأنَّ المسارَ تغيّرَ.
+ */
+async function handleRiderSos(
+  sender: Sender,
+  state: DialogState,
+  deps: RiderBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  if (deps.safety === undefined) return [reply(sender, tr("common.unknown_command"))];
+  const result = await triggerSos(
+    { orderId: null, actorTelegramId: sender.telegramUserId, reporterRole: "rider" },
+    deps.safety.trigger,
+  );
+  if (!result.ok) {
+    return [
+      reply(
+        sender,
+        result.error instanceof TriggerSosError && result.error.isNoActiveOrder
+          ? tr("safety.no_active_order")
+          : tr("common.error_try_again"),
+        menu(state),
+      ),
+    ];
+  }
+  return [
+    reply(sender, tr(result.value.created ? "safety.sent" : "safety.already_sent"), menu(state)),
   ];
 }
 
@@ -845,6 +916,13 @@ async function handleCommand(
   const tr = t(state.language);
   const name = command.split(/\s+/)[0] ?? command;
 
+  /**
+   * `F8-05` — وموضِعُ هذا السطرِ هوَ العملُ نفسُه: **قبلَ أوّلِ `await`**.
+   * فأيُّ قراءةٍ تُوضَعُ فوقَه تصيرُ بابَ إسقاطٍ للنداءِ، وحاجزُ
+   * `scripts/check-sos-intake-isolation.ts` يُسقِطُ البناءَ على ذلكَ.
+   */
+  if (name === "/sos") return handleRiderSos(sender, state, deps);
+
   const existing = await deps.riders.findByTelegramId(sender.telegramUserId);
   if (!existing.ok) return technicalFailure(sender, state);
   const rider = existing.value;
@@ -888,25 +966,11 @@ async function handleCommand(
     // البند 2.2: لا يُشترط له منفذ اختياري، فمنفذ الطلبات النشطة أساسي في الحوار أصلاً
     case "/status":
       return handleStatus(sender, state, deps);
-    case "/sos": {
-      if (deps.safety === undefined) return [reply(sender, tr("common.unknown_command"))];
-      const rider = await deps.riders.findByTelegramId(sender.telegramUserId);
-      if (!rider.ok) return technicalFailure(sender, state);
-      if (rider.value === null) return [reply(sender, tr("rider.must_register_first"))];
-      const active = await deps.activeOrdersOf(rider.value.id);
-      if (active.length === 0) return [reply(sender, tr("safety.no_active_order"), menu(state))];
-      return [
-        reply(sender, tr("safety.choose_order"), {
-          kind: "inline",
-          rows: active.map((order) => [
-            {
-              label: describeActiveOrder(order, state.language),
-              data: `sos:trigger:${order.orderId}`,
-            },
-          ]),
-        }),
-      ];
-    }
+    /**
+     * `F8-05` — ولا `case "/sos"` ههنا عن قصدٍ: فرعٌ في هذا المُوزِّعِ يعني
+     * أنَّ قراءةَ `riders.findByTelegramId` أعلاه قد مرَّت وأنَّ إخفاقَها
+     * يُسقِطُ النداءَ. فالأمرُ يُوزَّعُ قبلَ ذلكَ كلِّه إلى `handleRiderSos`.
+     */
 
     case "/support": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];

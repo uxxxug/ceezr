@@ -194,10 +194,24 @@ describe("زرّ تتبّع الطلب المشروط", () => {
  * الملفّ نصّاً لأن الأوامر ليست معلنة كثابت قابل للاستيراد.
  */
 describe("لا زرّ بلا أمر قائم في الحوار", () => {
+  /**
+   * الأمرُ يُعَدُّ قائماً بأحدِ شكلَي التوزيعِ: فرعاً في `switch`، **أو** توزيعاً
+   * مبكّراً `name === "/x"` قبلَ أوّلِ انتظارٍ.
+   *
+   * والشكلُ الثاني زِيدَ في `F8-05` لا تخفيفاً: `/sos` خرجَ من `switch` عن قصدٍ
+   * لأنَّ الفرعَ فيه لا يُبلَغُ إلّا بعدَ قراءةِ الدليلِ في أعلى المُوزِّعِ، وإخفاقُ
+   * تلكَ القراءةِ كانَ يُسقِطُ الاستغاثةَ (ADR-0077). والمُقاسُ ههنا **أنَّ الأمرَ
+   * مُعالَجٌ** لا أنَّه مُعالَجٌ في `switch`؛ وأمّا موضعُ التوزيعِ وعزلُه فيفرضُهما
+   * حاجزُ `scripts/check-sos-intake-isolation.ts`، فلا يُفلِتُ الأمرُ من حارسٍ.
+   */
   const commandsIn = async (path: string): Promise<Set<string>> => {
     const source = await Bun.file(path).text();
     const found = new Set<string>();
     for (const match of source.matchAll(/case "(\/[a-z]+)":/g)) {
+      const command = match[1];
+      if (command !== undefined) found.add(command);
+    }
+    for (const match of source.matchAll(/name === "(\/[a-z]+)"/g)) {
       const command = match[1];
       if (command !== undefined) found.add(command);
     }

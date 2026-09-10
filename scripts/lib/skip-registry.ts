@@ -903,6 +903,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/sos-order-resolution.test.ts",
+    suites: ["حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)"],
+    skipped: 10,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت أنّ trigger_sos تَحُلُّ طلبَ المُبلِّغِ بنفسِها حينَ يُنادى بـ p_order_id = null (F8-05 · ADR 0077). والحكمُ كلُّه حكمُ قاعدةٍ لا حكمُ شيفرةٍ: is_active_order_status و is_driver_engaged_order_status و order by created_at desc و for update of o — فلا يُثبِتُه بديلٌ في الذاكرة، لأنّ المقصودَ سلوكُ المحرّكِ نفسِه تحت التزامن لا سلوكُ محاكٍ نكتبه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "السلامةُ والاستغاثة",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/scheduled-jobs.test.ts",
     suites: ["مشغّل الجوبات المركزي على قاعدة حقيقية"],
     skipped: 10,
