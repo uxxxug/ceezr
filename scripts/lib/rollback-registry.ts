@@ -653,6 +653,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "التتبّعُ وموقعُ السائق",
     documentedIn: null,
   },
+  {
+    migration: "20260910200000_f4_05_last_location_at_is_acceptance_time.sql",
+    change: "revoke_function:persist_driver_location_batch(2)",
+    why: "الهجرةُ تُعيدُ تعريفَ `persist_driver_location_batch(uuid, jsonb)` بـ`create or replace` **بالتوقيعِ والمردِّ نفسِهما** لتكتبَ `last_location_at` من لحظةِ **قبولِ** الخادمِ المحمولةِ في الحِمْلِ (`observed_at_ms`) بدلاً من `now()` لحظةَ الإفراغِ المجمَّعِ (F4-05 · CAP-009 · ADR-0076)، وما عدا ذلكَ منقولٌ حرفاً: التنقيةُ وحارسُ التسلسلِ وحصرُ المدينةِ و`last_location_recorded_at` و`updated_at` وإلحاقُ التاريخِ (ADR-0074). والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كانَ — ممنوحةٌ لـ`service_role` وحدَها قبلُ وبعدُ، فلا تضييقَ فعليَّ. **ولا نشرَ مقروناً في أيِّ الاتجاهَينِ**: الحقلُ اختياريٌّ خارجَ مُرشِّحِ رفضِ الصفوفِ، فشيفرةٌ قديمةٌ لا تُرسِلُه تُقابَلُ بـ`coalesce(…, now())` وهوَ السلوكُ القديمُ عينُه، ودالّةٌ قديمةٌ تتلقّى الحقلَ تتجاهلُه. والعودةُ إعادةُ تطبيقِ النسخةِ السابقةِ من `20260910050100` وحدَها: يعودُ العمودُ إلى المبالغةِ في الحداثةِ بمقدارِ دورةِ إفراغٍ — وهوَ العطبُ المعروفُ الموصوفُ في ADR-0076 لا عطلٌ جديدٌ، ولا يُفقَدُ صفٌّ ولا يُعطَّلُ إسنادٌ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    documentedIn: null,
+  },
 ];
 
 /** وسمُ المدخلِ بالصورةِ التي تُطابِق `riskTag`. */

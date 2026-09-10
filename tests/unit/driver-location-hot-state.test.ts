@@ -36,6 +36,12 @@ function completeRows(): { key: string; value: unknown }[] {
   ];
 }
 
+/**
+ * فارقٌ مقصودٌ بينَ طابعِ الجهازِ ولحظةِ قبولِ الخادمِ (F4-05): لو ساوَينا
+ * بينَهما لَمَرَّ خلطُ العمودَينِ في الشيفرةِ دونَ أن يسقطَ اختبارٌ.
+ */
+const ACCEPTANCE_LAG_MS = 1_500;
+
 function fix(driverId: DriverId, recordedAtMs: number, latitude = 21.5): HotLocationFix {
   return {
     cityId: CITY,
@@ -43,6 +49,7 @@ function fix(driverId: DriverId, recordedAtMs: number, latitude = 21.5): HotLoca
     latitude,
     longitude: 39.17,
     recordedAtMs,
+    observedAtMs: recordedAtMs + ACCEPTANCE_LAG_MS,
     accuracyMeters: 12,
     verdict: "ACCEPT",
   };
