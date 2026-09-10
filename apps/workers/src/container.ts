@@ -27,6 +27,7 @@ import {
   type UnmatchedRiderMessenger,
 } from "../../../packages/application/dispatch/deliver-unmatched-notification.ts";
 import { createDisputeResolutionHandler } from "../../../packages/application/dispute/deliver-dispute-resolution.ts";
+import { archiveDueLocationPartitions } from "../../../packages/application/geo/archive-location-partitions.ts";
 import { ensureLocationPartitions } from "../../../packages/application/geo/ensure-location-partitions.ts";
 import { flushDriverLocationBacklog } from "../../../packages/application/geo/flush-driver-location-backlog.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
@@ -59,6 +60,11 @@ import { createPaymentProvider } from "../../../packages/infrastructure/financia
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import { createDriverLocationBatchPersistence } from "../../../packages/infrastructure/geo/driver-location-batch-persistence.ts";
 import { createDriverLocationPartitionMaintenance } from "../../../packages/infrastructure/geo/driver-location-partition-maintenance.ts";
+import {
+  createLocationArchiveCatalog,
+  createLocationArchiveCodec,
+  createLocationArchiveStore,
+} from "../../../packages/infrastructure/geo/location-archive-adapters.ts";
 import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 import { createNotificationOutboxPort } from "../../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
@@ -107,6 +113,11 @@ import { createOrderRepository } from "../../../packages/infrastructure/transpor
 import { DB_POOL_MAX, JOB_CONCURRENCY } from "../../../packages/shared/config/connection-budget.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import type { NotificationKind } from "../../../packages/shared/config/notification-kinds.ts";
+import {
+  ARCHIVE_MAX_DAYS_PER_RUN,
+  ARCHIVE_PART_ROWS,
+  LOCATION_HOT_DAYS,
+} from "../../../packages/shared/config/retention-policy.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
@@ -147,6 +158,11 @@ export const JOB_INTERVALS = {
    * ملفٌ مجهول المحتوى، ومن اكتشف فسادها يوم الكارثة لم يكن يملك نسخاً.
    */
   verifyBackupRestore: 86400,
+  /**
+   * `F7-06` — يوميٌّ: النافذةُ الساخنةُ أربعةَ عشرَ يوماً، فشوطٌ في اليومِ يكفي
+   * بفارقٍ واسعٍ، وأكثرُ من ذلكَ رفعٌ متكرّرٌ لا يُخرِجُ صفّاً زائداً.
+   */
+  archiveLocationPartitions: 86400,
   deliverSafetyIncidents: 30,
   /**
    * كلّ ثلاثين ثانية: إشعارُ العرضِ يُكتَبُ ذرّيًّا في معاملةِ open_offer_round نفسِها،
@@ -1113,6 +1129,60 @@ export function buildWorkerContainer(
           return `created=${value.created.length} existing=${value.existing} default_rows=${value.defaultRows}`;
         },
       });
+
+      /**
+       * `F7-06` / `DEC-15` — أرشفةُ الأقسامِ التي تجاوزَت النافذةَ الساخنةَ ثمَّ
+       * إسقاطُها. مهمّةٌ عامّةٌ يوميّةٌ، لا مدنيّةٌ: القِسمُ يقعُ على `recorded_at`
+       * وحدَه، والأرشفةُ داخلَه تُقسَّمُ بالمدينةِ في حالةِ الاستخدامِ نفسِها.
+       *
+       * **ولا تُسجَّلُ ألبتّةَ إن لم يكنْ مخزنٌ**: أرشفةٌ بلا مخزنٍ تعني إسقاطاً
+       * بلا نسخةٍ، وذاكَ إتلافٌ لا استبقاءٌ. وغيابُ المخزنِ تخطٍّ صامتٌ للمهمّةِ
+       * كما هوَ حالُ النسخِ الاحتياطيِّ نفسِه، والقاعدةُ تنمو — وهوَ الحالُ
+       * القائمُ اليومَ لا انحدارٌ أحدثَه هذا البندُ.
+       *
+       * وليست في `CRITICAL_GLOBAL_JOBS`: فوتُ نبضةٍ أو نبضتينِ على مهمّةٍ مهلتُها
+       * يومٌ ونافذتُها أربعةَ عشرَ يوماً لا أثرَ له، وإدراجُها حرجةً كانَ
+       * سيُرجِعُ `503` من `/ready` على تأخّرٍ لا يمسُّ راكباً ولا سائقاً.
+       */
+      if (backupStorage !== null) {
+        const locationArchiveCatalog = createLocationArchiveCatalog(sql);
+        const locationArchiveStore = createLocationArchiveStore(backupStorage);
+        const locationArchiveCodec = createLocationArchiveCodec();
+        global.push({
+          name: "archive-location-partitions",
+          everySeconds: JOB_INTERVALS.archiveLocationPartitions,
+          run: async () => {
+            const report = await archiveDueLocationPartitions(
+              {
+                catalog: locationArchiveCatalog,
+                store: locationArchiveStore,
+                codec: locationArchiveCodec,
+                log: (message, meta) => log.error(message, meta),
+              },
+              {
+                hotDays: LOCATION_HOT_DAYS,
+                maxDays: ARCHIVE_MAX_DAYS_PER_RUN,
+                partRows: ARCHIVE_PART_ROWS,
+              },
+            );
+            if (!report.ok) throw new Error(report.error.detail);
+            const value = report.value;
+            /**
+             * الرفضُ يُرفَعُ إلى `error` لا `info`: يومٌ يُرفَضُ إسقاطُه شوطاً
+             * بعدَ شوطٍ يعني أنَّ الأرشفةَ لا تكتملُ، والقرصُ يمتلئُ بينما
+             * المهمّةُ تُرجِعُ نجاحاً في كلِّ مرّةٍ.
+             */
+            if (value.refused.length > 0) {
+              log.error("location_archive.days_refused", { refused: value.refused });
+            }
+            return (
+              `days=${value.daysExamined} parts=${value.partsUploaded} ` +
+              `archived=${value.rowsArchived} dropped_partitions=${value.partitionsDropped} ` +
+              `dropped_rows=${value.rowsDropped} refused=${value.refused.length}`
+            );
+          },
+        });
+      }
 
       /**
        * `F4-02` — إفراغُ قائمةِ انتظارِ المواقعِ. تُبنى **بعدَ** قراءةِ الأرقامِ من
