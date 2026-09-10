@@ -65,7 +65,7 @@ import {
   type ResolveSafetyIncidentDeps,
   resolveSafetyIncident,
 } from "../safety/resolve-safety-incident.ts";
-import { type TriggerSosDeps, triggerSos } from "../safety/trigger-sos.ts";
+import { type TriggerSosDeps, TriggerSosError, triggerSos } from "../safety/trigger-sos.ts";
 import { cancelSubscription, resumeSubscription } from "../subscription/cancel-subscription.ts";
 import type { SubscriptionChangeRpcPort } from "../subscription/ports.ts";
 import { upgradePlan } from "../subscription/upgrade-plan.ts";
@@ -606,6 +606,53 @@ async function handleUnsubscribedClaim(
   ];
 }
 
+/**
+ * `F8-05` — مسارُ استقبالِ الاستغاثةِ للسائقِ: نداءٌ واحدٌ على تبعيّةٍ واحدةٍ.
+ *
+ * ## ما كانَ ولمَ زالَ
+ *
+ * كانَ `/sos` فرعاً في مُوزِّعِ الأوامرِ، والمُوزِّعُ يقرأُ
+ * `drivers.findByTelegramId` **قبلَ كلِّ أمرٍ** ويردُّ عندَ إخفاقِها «حدثَ عطلٌ»
+ * — **فتُسقَطُ الاستغاثةُ بعطبِ قراءةٍ لا تخصُّها**. وكانَ فوقَ ذلكَ
+ * مشروطاً بـ`deps.tripCards !== undefined` وبـ`cardOf` بعدَها: **فغيابُ بطاقةِ
+ * الرحلةِ كانَ يُحوّلُ الاستغاثةَ إلى «لم أفهم هذه الرسالةَ»** — تبعيّةٌ لا
+ * يقتضيها النداءُ تُسكِتُ أخطرَ زرٍّ في المنتَجِ.
+ *
+ * فصارَ يُوزَّعُ **قبلَ** أيِّ `await` في المُوزِّعِ، والطلبُ يُحَلُّ في القاعدةِ
+ * تحتَ القفلِ (`ADR-0077`). وما بقيَ شرطاً هوَ `deps.safety` وحدَه: تبعيّةُ
+ * الاستغاثةِ نفسُها لا غيرُها.
+ *
+ * ولا تُقرأُ ههنا حالُ الاشتراكِ ولا التوافرُ ولا التسجيلُ: سائقٌ انتهى
+ * اشتراكُه وهوَ في رحلةٍ قائمةٍ يبقى له الزرُّ، والدالّةُ تحكمُ بـ`ACTOR_NOT_FOUND`
+ * لمن لا حسابَ له أصلاً.
+ */
+async function handleDriverSos(
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  if (deps.safety === undefined) return [reply(sender, tr("common.unknown_command"))];
+  const raised = await triggerSos(
+    { orderId: null, actorTelegramId: sender.telegramUserId, reporterRole: "driver" },
+    deps.safety.trigger,
+  );
+  if (!raised.ok) {
+    return [
+      reply(
+        sender,
+        raised.error instanceof TriggerSosError && raised.error.isNoActiveOrder
+          ? tr("safety.no_active_order")
+          : tr("common.error_try_again"),
+        menu(state),
+      ),
+    ];
+  }
+  return [
+    reply(sender, tr(raised.value.created ? "safety.sent" : "safety.already_sent"), menu(state)),
+  ];
+}
+
 async function handleCommand(
   command: string,
   sender: Sender,
@@ -614,6 +661,13 @@ async function handleCommand(
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
   const name = command.split(/\s+/)[0] ?? command;
+
+  /**
+   * `F8-05` — وموضِعُ هذا السطرِ هوَ العملُ نفسُه: **قبلَ أوّلِ `await`**.
+   * فأيُّ قراءةٍ تُوضَعُ فوقَه تصيرُ بابَ إسقاطٍ للنداءِ، وحاجزُ
+   * `scripts/check-sos-intake-isolation.ts` يُسقِطُ البناءَ على ذلكَ.
+   */
+  if (name === "/sos") return handleDriverSos(sender, state, deps);
 
   const existing = await deps.drivers.findByTelegramId(sender.telegramUserId);
   if (!existing.ok) return technicalFailure(sender, state);
@@ -784,30 +838,11 @@ async function handleCommand(
       if (driver === null) return [reply(sender, tr("support.not_registered"), menu(state))];
       return startSupportDialog(sender, state, deps.support, { allowSubscriptionType: true });
     }
-    case "/sos": {
-      if (deps.safety === undefined || deps.tripCards === undefined) {
-        return [reply(sender, tr("common.unknown_command"))];
-      }
-      if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
-      const trip = await deps.tripCards.cardOf({ driverId: driver.id });
-      if (trip === null) return [reply(sender, tr("safety.no_active_order"), menu(state))];
-      const raised = await triggerSos(
-        {
-          orderId: trip.trip.tripId,
-          actorTelegramId: sender.telegramUserId,
-          reporterRole: "driver",
-        },
-        deps.safety.trigger,
-      );
-      if (!raised.ok) return [reply(sender, tr("common.error_try_again"))];
-      return [
-        reply(
-          sender,
-          tr(raised.value.created ? "safety.sent" : "safety.already_sent"),
-          menu(state),
-        ),
-      ];
-    }
+    /**
+     * `F8-05` — ولا `case "/sos"` ههنا عن قصدٍ: فرعٌ في هذا المُوزِّعِ يعني
+     * أنَّ قراءةَ `drivers.findByTelegramId` أعلاه قد مرَّت وأنَّ إخفاقَها
+     * يُسقِطُ النداءَ. فالأمرُ يُوزَّعُ قبلَ ذلكَ كلِّه إلى `handleDriverSos`.
+     */
 
     case "/activate": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];

@@ -1,0 +1,292 @@
+/**
+ * الغرض: إثباتُ حلِّ الطلبِ داخلَ `trigger_sos` على PostgreSQL حقيقيّةٍ حينَ
+ *   يُنادى بـ`p_order_id = null` — وهوَ ما صارَ مسارُ الاستقبالِ يُمرِّرُه دائماً
+ *   بعدَ `F8-05`. الحكمُ على الحالاتِ والتّرتيبِ والدّورِ حكمُ قاعدةٍ لا حكمُ
+ *   شيفرةٍ، فلا يُثبِتُه إلّا محرِّكٌ حقيقيٌّ: `is_active_order_status`،
+ *   `is_driver_engaged_order_status`، و`order by created_at desc` كلُّها في القاعدةِ.
+ * الحالة: مُختبَرٌ على PostgreSQL حقيقيّةٍ في شوطِ «تكامل على PostgreSQL حقيقي».
+ *   ولا يُدَّعى أنَّه مَقيسٌ ولا مُثبَتٌ عندَ حمولةٍ.
+ * ينتمي إلى: tests/integration
+ * الحاكم: docs/adr/0077-sos-intake-resolves-its-own-order.md
+ * ملاحظات مستقبلية: إن أُضيفَت حالةُ طلبٍ جديدةٌ فحرسُ `20260814140000` يُسقِطُ
+ *   الهجرةَ أوّلاً؛ وهذا الملفُّ يُثبِتُ الأثرَ لا التّسميةَ.
+ */
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import type { SafetyRole } from "../../packages/application/safety/ports.ts";
+import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import { createTriggerSosPort } from "../../packages/infrastructure/safety/safety-adapters.ts";
+
+const DATABASE_URL = process.env.TEST_DATABASE_URL;
+const RIDER_TELEGRAM_ID = "884001";
+const DRIVER_TELEGRAM_ID = "884002";
+const STRANGER_TELEGRAM_ID = "884003";
+const ESCALATION_GROUP = "-100884";
+const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
+
+let sql: Sql;
+let cityId: string;
+let riderId: string;
+let driverId: string;
+let trigger: ReturnType<typeof createTriggerSosPort>;
+
+async function firstId(rows: { id: string }[], what: string): Promise<string> {
+  const id = rows[0]?.id;
+  if (id === undefined) throw new Error(`تعذّرَ تجهيزُ ${what}`);
+  return id;
+}
+
+/** يُنشئُ طلباً للرّاكبِ بحالةٍ وعمرٍ محدَّدَين، ويُسنِدُه للسّائقِ إن طُلِبَ. */
+async function makeOrder(options: {
+  status: string;
+  minutesAgo: number;
+  assigned: boolean;
+}): Promise<string> {
+  const rows = await sql<{ id: string }[]>`
+    insert into orders (city_id, rider_id, assigned_driver_id, service, status, pickup, created_at)
+    values (
+      ${cityId}, ${riderId}::uuid,
+      ${options.assigned ? driverId : null}::uuid,
+      'transport', ${options.status}::order_status,
+      ST_SetSRID(ST_MakePoint(39.1728, 21.5433), 4326)::geography,
+      now() - make_interval(mins => ${options.minutesAgo})
+    )
+    returning id
+  `;
+  return firstId(rows, `الطلبِ (${options.status})`);
+}
+
+async function createFixture(): Promise<void> {
+  const city = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
+  cityId = await firstId(city, "مدينةِ جدّة");
+  // القروباتُ الثلاثةُ في عبارةِ التفعيلِ نفسِها: مدينةٌ مُفعَّلةٌ بلا قروباتِها
+  // تجعلُ نجاحَ الاختبارِ مُعلَّقاً على ترتيبِ عباراتٍ — وحاجزُ `check-test-city-activation` يمنعُه.
+  await sql`
+    update cities set is_active = true,
+      telegram_escalation_group_id = ${ESCALATION_GROUP}::bigint,
+      telegram_support_group_id = coalesce(telegram_support_group_id, -100885),
+      telegram_unsubscribed_drivers_group_id =
+        coalesce(telegram_unsubscribed_drivers_group_id, -100886)
+    where id = ${cityId}
+  `;
+  const riderUserId = await firstId(
+    await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, full_name, phone, role)
+      values (${cityId}, ${RIDER_TELEGRAM_ID}::bigint, 'راكبُ الحلِّ', '+966500884001', 'rider')
+      returning id`,
+    "مستخدمِ الرّاكبِ",
+  );
+  riderId = await firstId(
+    await sql<{ id: string }[]>`
+      insert into riders (city_id, user_id) values (${cityId}, ${riderUserId}::uuid) returning id`,
+    "ملفِّ الرّاكبِ",
+  );
+  const driverUserId = await firstId(
+    await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, full_name, phone, role)
+      values (${cityId}, ${DRIVER_TELEGRAM_ID}::bigint, 'سائقُ الحلِّ', '+966500884002', 'driver')
+      returning id`,
+    "مستخدمِ السّائقِ",
+  );
+  driverId = await firstId(
+    await sql<{ id: string }[]>`
+      insert into drivers (city_id, user_id, verification_status, plate_number, vehicle_type)
+      values (${cityId}, ${driverUserId}::uuid, 'verified'::verification_status, 'أ ب ج 8840', 'sedan')
+      returning id`,
+    "ملفِّ السّائقِ",
+  );
+  await sql`
+    insert into users (city_id, telegram_id, full_name, phone, role)
+    values (${cityId}, ${STRANGER_TELEGRAM_ID}::bigint, 'غريبٌ', '+966500884003', 'rider')
+  `;
+}
+
+/** يقرأُ الطلبَ الذي نُسِبَ إليه الحادثُ فعلاً — لا الذي ظننّاه. */
+async function incidentOrderId(incidentId: string): Promise<string> {
+  const rows = await sql<{ id: string }[]>`
+    select order_id::text as id from safety_incidents where id = ${incidentId}::uuid
+  `;
+  return firstId(rows, "قراءةِ الحادثِ");
+}
+
+describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", () => {
+  beforeAll(() => {
+    sql = createSql({ connectionString: DATABASE_URL ?? "" });
+  });
+
+  afterAll(async () => {
+    await sql.end({ timeout: 5 });
+  });
+
+  beforeEach(async () => {
+    await sql`
+      truncate table notification_outbox, safety_incident_deliveries, safety_incidents, order_offers,
+        orders, driver_availability, drivers, riders, users restart identity cascade
+    `;
+    await createFixture();
+    trigger = createTriggerSosPort(sql);
+  });
+
+  /**
+   * الانحصارُ الذي كانَ: الحوارُ يقرأُ الطلبَ قبلَ النّداءِ، فإخفاقُ القراءةِ
+   * يُسقِطُ الاستغاثةَ. وههنا يُثبَتُ البديلُ: بلا مُعرِّفٍ أصلاً، يُنسَبُ الحادثُ
+   * إلى طلبِ المُبلِّغِ القائمِ.
+   */
+  it("راكبٌ بلا مُعرِّفٍ: يُنسَبُ الحادثُ إلى طلبِه القائمِ", async () => {
+    const order = await makeOrder({ status: "matched", minutesAgo: 5, assigned: true });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderId(result.value.incidentId)).toBe(order);
+  });
+
+  /**
+   * `searching` طلبٌ قائمٌ للرّاكبِ: هوَ في انتظارِ سائقٍ ولمّا يُلغِ، وقد يكونُ
+   * في أخطرِ لحظةٍ. استثناؤه كانَ سيُصمِتُ استغاثةً كاملةً.
+   */
+  it("راكبٌ في `searching` وحدَه: الاستغاثةُ تُقبَلُ لا تُرفَضُ", async () => {
+    const order = await makeOrder({ status: "searching", minutesAgo: 3, assigned: false });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderId(result.value.incidentId)).toBe(order);
+  });
+
+  /**
+   * تعدُّدُ الطلباتِ القائمةِ حالٌ قائمةٌ لا نظريّةٌ. والأحدثُ هوَ الرحلةُ التي
+   * فيها الرّاكبُ الآنَ؛ والأقدمُ قد يكونُ طلباً منسيّاً في `searching`.
+   */
+  it("طلبانِ قائمانِ: يُختارُ الأحدثُ لا الأقدمُ", async () => {
+    const older = await makeOrder({ status: "searching", minutesAgo: 90, assigned: false });
+    const newer = await makeOrder({ status: "matched", minutesAgo: 2, assigned: true });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    const attributed = await incidentOrderId(result.value.incidentId);
+    expect(attributed).toBe(newer);
+    expect(attributed).not.toBe(older);
+  });
+
+  /** الطلبُ المنتهي ليسَ قائماً: لا تُنسَبُ إليه استغاثةُ اليومِ. */
+  it("لا طلبَ قائمَ للرّاكبِ: `NO_ACTIVE_ORDER` صريحاً لا عطلاً", async () => {
+    await makeOrder({ status: "completed", minutesAgo: 120, assigned: true });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ incidentId: null, error: "NO_ACTIVE_ORDER" });
+    const count = await sql<{ n: string }[]>`select count(*)::text n from safety_incidents`;
+    expect(count[0]?.n).toBe("0");
+  });
+
+  /** السّائقُ يُسأَلُ عن التزامٍ قائمٍ عليه: `matched`/`in_progress` لا `searching`. */
+  it("سائقٌ مُسنَدٌ إليه `in_progress`: يُنسَبُ الحادثُ إلى طلبِه", async () => {
+    const order = await makeOrder({ status: "in_progress", minutesAgo: 4, assigned: true });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: DRIVER_TELEGRAM_ID,
+      reporterRole: "driver",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderId(result.value.incidentId)).toBe(order);
+  });
+
+  /**
+   * الفرقُ بينَ الدّورَين حكمٌ لا تفصيلٌ: طلبٌ في `searching` لا سائقَ فيه بعدُ،
+   * فلا يجوزُ أن يُنسَبَ إلى سائقٍ استغاثةٌ في رحلةٍ لم يلتزمْ بها.
+   */
+  it("`searching` لا يُعَدُّ التزاماً على سائقٍ: `NO_ACTIVE_ORDER`", async () => {
+    await makeOrder({ status: "searching", minutesAgo: 6, assigned: false });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: DRIVER_TELEGRAM_ID,
+      reporterRole: "driver",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ incidentId: null, error: "NO_ACTIVE_ORDER" });
+  });
+
+  /** مسارُ المُعرِّفِ الصّريحِ باقٍ كما كانَ: العودةُ لا تكسرُ مُنادياً قديماً. */
+  it("مُعرِّفٌ صريحٌ يملكُه الرّاكبُ: يُقبَلُ كما كانَ قبلَ F8-05", async () => {
+    const order = await makeOrder({ status: "matched", minutesAgo: 5, assigned: true });
+    const result = await trigger.trigger({
+      orderId: order,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderId(result.value.incidentId)).toBe(order);
+  });
+
+  /** ومُعرِّفٌ صريحٌ لا يملكُه المُنادي يُرَدُّ: الملكيّةُ حكمٌ مكتوبٌ لا ضمنيٌّ. */
+  it("مُعرِّفٌ صريحٌ لطلبِ غيرِه: `ORDER_NOT_OWNED`", async () => {
+    const order = await makeOrder({ status: "matched", minutesAgo: 5, assigned: true });
+    const result = await trigger.trigger({
+      orderId: order,
+      actorTelegramId: STRANGER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ incidentId: null, error: "ORDER_NOT_OWNED" });
+  });
+
+  /**
+   * الدّورُ صارَ يختارُ فرعَ الحلِّ، فرُفِعَ حكمُه إلى أوّلِ الدالّةِ. وههنا
+   * يُثبَتُ التّرتيبُ: دورٌ باطلٌ يُرَدُّ قبلَ أن يُسأَلَ عن وجودِ المُبلِّغِ.
+   */
+  it("دورٌ باطلٌ يُرَدُّ قبلَ البحثِ عن المُبلِّغِ", async () => {
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: "999999999",
+      reporterRole: "admin" as unknown as SafetyRole,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ incidentId: null, error: "INVALID_REPORTER_ROLE" });
+  });
+
+  /** ونافذةُ المنعِ باقيةٌ في مسارِ الحلِّ: ضغطتانِ = حادثٌ واحدٌ وصفٌّ واحدٌ. */
+  it("ضغطتانِ بلا مُعرِّفٍ: حادثٌ واحدٌ وصفُّ تسليمٍ واحدٌ", async () => {
+    await makeOrder({ status: "matched", minutesAgo: 5, assigned: true });
+    const results = await Promise.all([
+      trigger.trigger({
+        orderId: null,
+        actorTelegramId: RIDER_TELEGRAM_ID,
+        reporterRole: "rider",
+      }),
+      trigger.trigger({
+        orderId: null,
+        actorTelegramId: RIDER_TELEGRAM_ID,
+        reporterRole: "rider",
+      }),
+    ]);
+    expect(results.every((result) => result.ok)).toBe(true);
+    expect(results.filter((result) => result.ok && result.value.incidentId !== null)).toHaveLength(
+      2,
+    );
+    const persisted = await sql<{ incidents: string; queued: string }[]>`
+      select
+        (select count(*)::text from safety_incidents) incidents,
+        (select count(*)::text from notification_outbox where kind = 'safety_incident') queued
+    `;
+    expect(persisted[0]).toEqual({ incidents: "1", queued: "1" });
+  });
+});

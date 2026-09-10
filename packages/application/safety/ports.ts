@@ -7,7 +7,8 @@ export type SafetyDecision = "close" | "block_reporter";
 
 export interface TriggerSosPort {
   trigger(input: {
-    orderId: string;
+    /** `null` = تَحُلُّ الدالّةُ الطلبَ القائمَ للمُبلِّغِ بنفسِها (`F8-05` · `ADR-0077`). */
+    orderId: string | null;
     actorTelegramId: string;
     reporterRole: SafetyRole;
   }): Promise<
