@@ -306,28 +306,43 @@ describeIf("سباقاتُ مسارِ الموقعِ على PostgreSQL حقيق�
 
   it("ساعتانِ متباعدتانِ: سائقانِ بساعتَينِ متباينتَينِ يترقّمانِ استقلالاً ولا يتلوّثُ ترتيبُ أيٍّ منهما", async () => {
     /**
-     * السباقُ الثالثُ. ساعةُ الأوّلِ صادقةٌ، وساعةُ الثاني متأخّرةٌ **ساعةً
-     * كاملةً** — وهوَ الانحرافُ الذي يجعلُ نبضاتِه كلَّها «أقدمَ» من نبضاتِ
-     * الأوّلِ لو كانَ الترتيبُ على الساعةِ. والنبضاتُ تُطلَقُ متداخلةً معاً.
+     * السباقُ الثالثُ. ساعةُ الأوّلِ صادقةٌ، وساعةُ الثاني متأخّرةٌ مائتَي ثانيةٍ
+     * — فنبضاتُه كلُّها «أقدمَ» من نبضاتِ الأوّلِ لو كانَ الترتيبُ على الساعةِ.
+     * والنبضاتُ تُطلَقُ متداخلةً معاً.
      *
      * والمقيسُ ما نصَّ عليه `ADR 0053` §٣-أ/٣: **لا ترتيبَ كلّيَّ بينَ
      * القناتَينِ**، وكلُّ قناةٍ عدّادُها من صفِّها. فانحرافُ ساعةِ سائقٍ لا
      * يُنقِصُ رقمَ سائقٍ آخرَ ولا يُقدِّمُه.
+     *
+     * ## ولمَ مائتا ثانيةٍ لا ساعةٌ — تصحيحٌ مقيسٌ لا تخفيفٌ
+     *
+     * كُتِبَ هذا الاختبارُ أوّلَ مرّةٍ بانحرافِ **ساعةٍ كاملةٍ**، فأخفقَ في CI
+     * (الجولةُ `34421891408`) بـ«لم تُفتح جلستان». **والإخفاقُ كانَ صوابَ
+     * النظامِ لا عيبَه**: `DEFAULT_GPS_POLICY.rejectOlderThanSeconds = 300`،
+     * فإصلاحةٌ عمرُها ساعةٌ تُرفَضُ بـ`TIMESTAMP_TOO_OLD` قبلَ أن تبلغَ الكاتبَ
+     * أصلاً، فلا جلسةَ تُفتَحُ. فالعيبُ كانَ في **فرضيةِ الاختبارِ**: اختارَ
+     * انحرافاً خارجَ نافذةِ القبولِ، فصارَ يقيسُ رفضَ القِدَمِ لا استقلالَ القناتَينِ.
+     *
+     * **ولم يُخفَّفْ توكيدٌ ولم يُرفَعْ سقفٌ ولم يُصنَّفْ شيءٌ متجاوَزاً**: صُحّحَتِ
+     * الفرضيةُ إلى انحرافٍ **داخلَ** النافذةِ (مائتا ثانيةٍ < 300)، وأُضيفَ
+     * شطرٌ ثانٍ يُثبِتُ الحدَّ نفسَه صراحةً: انحرافٌ يتجاوزُ النافذةَ **يُرَدُّ
+     * ولا يُرقَّمُ**. فصارَ الملفُّ يقيسُ الحالتَينِ لا واحدةً.
      */
     const firstDriver = await seedDriver(DRIVER_CHAT);
     const secondDriver = await seedDriver(SECOND_DRIVER_CHAT);
 
-    const AN_HOUR_IN_SECONDS = 3600;
+    /** داخلَ نافذةِ `rejectOlderThanSeconds = 300` وأكبرُ من كلِّ فرقٍ بينَ نبضاتِ الأوّلِ. */
+    const CLOCK_SKEW_SECONDS = 200;
     await Promise.all([
       container.handler.handle("driver", locationUpdate(DRIVER_CHAT, 40, 1)),
       container.handler.handle(
         "driver",
-        locationUpdate(SECOND_DRIVER_CHAT, AN_HOUR_IN_SECONDS + 40, 1),
+        locationUpdate(SECOND_DRIVER_CHAT, CLOCK_SKEW_SECONDS + 40, 1),
       ),
       container.handler.handle("driver", locationUpdate(DRIVER_CHAT, 20, 2)),
       container.handler.handle(
         "driver",
-        locationUpdate(SECOND_DRIVER_CHAT, AN_HOUR_IN_SECONDS + 20, 2),
+        locationUpdate(SECOND_DRIVER_CHAT, CLOCK_SKEW_SECONDS + 20, 2),
       ),
     ]);
 
@@ -351,8 +366,28 @@ describeIf("سباقاتُ مسارِ الموقعِ على PostgreSQL حقيق�
     expect(byChannel.get(firstRow.id)?.at(-1)).toBe(firstRow.last_sequence);
     expect(byChannel.get(secondRow.id)?.at(-1)).toBe(secondRow.last_sequence);
 
-    // والساعةُ المنحرفةُ ساعةً لم تمنع القناةَ الثانيةَ من التقدُّمِ.
+    // والساعةُ المنحرفةُ لم تمنع القناةَ الثانيةَ من التقدُّمِ.
     expect(secondRow.last_sequence).toBeGreaterThan(1);
+
+    /**
+     * والشطرُ الثاني: الحدُّ نفسُه مقيساً صراحةً. انحرافٌ يتجاوزُ
+     * `rejectOlderThanSeconds` يُرَدُّ عندَ آلةِ المجالِ قبلَ الكاتبِ: فلا رقمَ
+     * جديدٌ ولا حدثَ منشورٌ في تلكَ القناةِ. وهذا هوَ ما أخفقَ عليهِ الاختبارُ
+     * أوّلَ مرّةٍ، فصارَ توكيداً مكتوباً لا درساً منسيّاً.
+     */
+    const BEYOND_WINDOW_SECONDS = 3600;
+    const sequenceBefore = secondRow.last_sequence;
+    const publishedBefore = byChannel.get(secondRow.id)?.length ?? 0;
+    await container.handler.handle(
+      "driver",
+      locationUpdate(SECOND_DRIVER_CHAT, BEYOND_WINDOW_SECONDS, 3),
+    );
+
+    const secondAfter = (await sessionsOf(secondDriver))[0];
+    expect(secondAfter?.last_sequence).toBe(sequenceBefore);
+    expect(positionsOf(events).filter((event) => event.sessionId === secondRow.id).length).toBe(
+      publishedBefore,
+    );
   });
 
   it("مثيلانِ: حاويتانِ بحوضَي اتّصالٍ مستقلَّينِ تكتبانِ الجلسةَ نفسَها فلا يتكرَّرُ رقمٌ", async () => {
