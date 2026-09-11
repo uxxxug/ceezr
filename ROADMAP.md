@@ -2,7 +2,8 @@
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
 **Last updated:** 2026-09-11 (W-1 boundary audit)
-**Last milestone:** `W-1` boundary audit landed as a machine-checked registry
+**Last milestone:** `W-1` boundary audit landed as a machine-checked registry;
+first real CI verdict read and its two failures root-caused (`OPS-011`)
 (`scripts/lib/wasla-boundary-registry.ts` + `scripts/check-boundary-audit.ts`,
 ADR-0080). Still no application code, no migration and no CORE traffic.
 
@@ -79,6 +80,11 @@ of Operational Job. An Operational Job is never a Commercial Order.
       after the push is recorded in
       `docs/evidence/architecture/W-1-20260911.md` — not inferred from a local
       green run.
+- [x] **Roadmap-freshness gate proven on a real CI run** (added 2026-09-11,
+      additive — the unchecked line above is kept as the historical record and
+      is not deleted). Run `34617842960` on `66d733d` concluded `success`: the
+      `W-1` push touched `scripts/`, `docs/` and `package.json` and did update
+      this file, so the gate passed. Verdict read per job from the API.
 - [x] **`W-1` — Boundary audit.** Every table in `supabase/migrations`
       classified `KEEP` / `REFACTOR` / `MOVE_TO_CORE` / `RETIRE` with owner and
       rationale, plus a column-level layer for boundary breaches inside tables
@@ -92,6 +98,40 @@ of Operational Job. An Operational Job is never a Commercial Order.
       `docs/evidence/architecture/W-1-20260911.md`.
       **Classification is not permission to migrate:** zero rows moved, and
       "Migrated" below is still empty.
+
+- [x] **`OPS-011` — Two stale integration assertions repaired** (test-side
+      only; see `docs/ROADMAP-MASTER.md` §11-د). The first real CI run in this
+      repository (`34617842924`) failed the real-database job on two assertions
+      that predate the WASLA work and had never been executed here, because
+      this repository had never run Actions and the integration suite
+      self-skips without `TEST_DATABASE_URL`.
+      (a) `tests/integration/driver-location-batch-persist.test.ts` case 9 sent
+      `JSON.stringify(batch)` into a `::jsonb` slot; `postgres.js` serialises
+      the value itself for a `jsonb` cast, so the payload was encoded twice and
+      reached `persist_driver_location_batch` as a JSON *string* — the function
+      correctly answered `BATCH_MUST_BE_ARRAY`, and the ADR-0076 fallback the
+      case is named after was never exercised. A second, masked defect: the
+      verdict field was spelled `quality` while the SQL reads `verdict`. Fixed
+      with `sql.json(...)`, which is the same path the production adapter uses
+      (`packages/infrastructure/geo/driver-location-batch-persistence.ts:73`).
+      (b) `tests/integration/worker-service-separation.test.ts:238` asserted a
+      free-form Arabic sentence that `F8-03` / ADR-0078 replaced with the
+      structured log `{"event":"embedded_worker.disabled",...}`. The assertion
+      now matches the dotted latin event code enforced by
+      `scripts/check-structured-logging.ts` — stronger, not weaker; the
+      governing `expect(beat).toBe(false)` is untouched.
+      No function, migration, application file, gate, timeout or coverage floor
+      was changed, and no test was skipped. Evidence:
+      `docs/evidence/correctness/OPS-011-20260911.md`.
+- [ ] **`real-redis` CI job cannot pass in this repository — environment
+      blocker, not a code defect.** The job runs with `REQUIRE_REAL_REDIS=1`
+      and `tests/support/real-redis.ts:52` refuses to proceed without a real
+      Redis, which is exactly what `OPS-006` requires; the guard must not be
+      weakened, silenced or reclassified as a skip. `UPSTASH_REDIS_REST_URL`
+      and `UPSTASH_REDIS_REST_TOKEN` were configured on the old `noor-seez`
+      repository and are absent from `uxxxug/ceezr`. Provisioning an Upstash
+      account and setting repository secrets is outside the agent's authority.
+      Set both secrets, re-run, then record the verdict.
 
 Nothing else has been changed in this repository by the WASLA integration work.
 
