@@ -134,6 +134,42 @@ Not delivered, and why:
 
 Neither item 4 nor item 5 is claimed as complete.
 
+## CI verdicts on branch `feat/w4-w5-operational-job-and-core-lifecycle` (additive)
+
+Local green is not a verdict (governance `ح-8`). Each push below is followed by
+the per-job conclusion actually read from the GitHub Actions API.
+
+| Commit | `verify` | real PostgreSQL | real Redis | multi-instance chaos | Roadmap freshness |
+| --- | --- | --- | --- | --- | --- |
+| `b4a58f2` (run `34628804244`) | fail — `check-migrations` rule 0.4 (`DEP-CORE-006`) | fail — 4 cases | fail — `O-2` secrets absent | pass | pass |
+| `def9a20` (run `34629792395`) | fail — same sovereign blocker | fail — 2 cases | fail — `O-2` | pass | fail — commit touched `supabase/` without a roadmap change |
+
+Root causes found and fixed at their source, none by weakening a test:
+
+- **This branch's own defect.** `create function` grants `execute` to `public` by
+  default; the eleven new `security definer` functions were therefore executable
+  by `anon` and `authenticated`, which
+  `tests/integration/database-privilege-surface.test.ts` and `hostile-surface`
+  correctly rejected. Both W-4/W-5 migrations now `revoke execute … from public,
+  anon, authenticated` and `grant … to service_role`, as every earlier service
+  function in this repository does. Fixed in `def9a20`.
+- **`OPS-012` — an inverted witness in `worker-service-separation.test.ts`.** The
+  test asserted the free-text line `«العامل المدمج غير مُفعَّل»`, which `F8-03`
+  replaced with the event code `embedded_worker.disabled`; the phrase survives
+  only as a source comment, so the assertion passed when the gateway *crashed*
+  (Bun prints the source excerpt, comment included) and failed when the gateway
+  started cleanly. It now asserts the emitted event code.
+- **`OPS-013` — two real defects in `driver-location-batch-persist.test.ts`
+  case 9.** (a) The payload was bound as `${JSON.stringify(batch)}::jsonb`, so
+  postgres.js re-serialised the string once the parameter type was known and the
+  function received a JSON string, answering `BATCH_MUST_BE_ARRAY`; it now uses
+  `sql.json(...)` exactly as the production adapter does — a hazard already
+  documented in `broadcast-adapters.ts` and `payment-adapters.ts`. (b) The payload
+  named the field `quality`, while `jsonb_to_recordset` reads `verdict`, so the
+  row was silently rejected (`applied: 0`) and the intended case (a payload
+  missing only `observed_at_ms`) was never actually measured. Both fixed; the
+  case now passes on a real database for the first time.
+
 ## Cross-repository dependencies on CORE, recorded 2026-09-11
 
 Recorded here only. No change is made to CORE or MARKET from this repository.

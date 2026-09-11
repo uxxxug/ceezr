@@ -342,17 +342,28 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     // فلا `oat` فيها. القبولُ الأصدقُ المتاحُ حينَئذٍ هوَ لحظةُ الإفراغِ — ويُقبَلُ
     // لأنَّ النافذةَ عمرُ TTL ساخنٍ واحدٍ لا أكثرَ، والبديلُ إسقاطُ الموقعِ كلِّه.
     const before = Date.now() - 1_000;
+    // OPS-013: الحِمْلُ يُمرَّرُ بـ`sql.json` كما يُمرِّرُه المحوّلُ الإنتاجيُّ، لا
+    // بـ`JSON.stringify` نصّاً. فالسائقُ (postgres.js) يختارُ مُسلسِلَ الوسيطِ من
+    // نوعِه المُعلَنِ من الخادمِ؛ فإذا صارَ النوعُ `jsonb` معروفاً سلسلَ النصَّ مرّةً
+    // أخرى، فوصلَ إلى الدالّةِ `jsonb` من صنفِ `string` لا `array`، فأجابَت
+    // `BATCH_MUST_BE_ARRAY` — عطلٌ في استعمالِ السائقِ لا في الدالّةِ، وكانَ يظهرُ
+    // أو يختفي بحسبِ ما إذا كانَت الجملةُ مُحضَّرةً على الوصلةِ قبلَ ذلك.
     const rows = await sql<{ result: Record<string, unknown> }[]>`
-      select persist_driver_location_batch(${cityId}::uuid, ${JSON.stringify([
+      select persist_driver_location_batch(${cityId}::uuid, ${sql.json([
         {
           driver_id: driverId,
           latitude: AT_A.latitude,
           longitude: AT_A.longitude,
           recorded_at_ms: T2,
           accuracy_m: 11,
-          quality: "ACCEPT",
+          // OPS-013: الحقلُ الذي تقرؤه `jsonb_to_recordset` اسمُه `verdict` لا
+          // `quality` (و`quality` اسمُ العمودِ المخزَّنِ لا اسمُ حقلِ الحِمْلِ). وكانَ
+          // المكتوبُ `quality`، فيصلُ `verdict = null` فيُرفَضُ الصفُّ صامتاً
+          // (`applied = 0`) — فالحالةُ المقصودةُ (غيابُ `observed_at_ms` وحدَه) لم
+          // تكن مُقاسةً أصلاً. والغيابُ المقصودُ باقٍ: لا `observed_at_ms` هنا.
+          verdict: "ACCEPT",
         },
-      ])}::jsonb) as result
+      ] as never)}::jsonb) as result
     `;
     expect(rows[0]?.result).toMatchObject({ ok: true, applied: 1 });
 
