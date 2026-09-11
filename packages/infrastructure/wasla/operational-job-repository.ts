@@ -215,14 +215,15 @@ export function createOperationalJobRepository(sql: Sql): FulfillmentLifecycleSt
         return rows[0]?.finished === true;
       }),
 
-    abandonDelivery: (claimToken, error) =>
+    abandonDelivery: (claimToken, error, permanent = false) =>
       guard(`${PORT}.abandon_move_event_delivery`, async () => {
         const rows = await sql<{ result: unknown }[]>`
           select abandon_move_event_delivery(
             ${claimToken}::uuid,
             ${error}::text,
             ${MOVE_EVENT_OUTBOX_MAX_ATTEMPTS}::integer,
-            ${MOVE_EVENT_OUTBOX_BACKOFF_SECONDS}::integer
+            ${MOVE_EVENT_OUTBOX_BACKOFF_SECONDS}::integer,
+            ${permanent}::boolean
           ) as result`;
         const envelope = envelopeOrThrow("abandon_move_event_delivery", rows[0]?.result);
         const attempts = Number(envelope.attempts);

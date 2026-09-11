@@ -27,6 +27,10 @@
  * ٦) كلُّ `rpc` في جدولِ الانتقالاتِ موجودةٌ دالّةً في هجرةِ `W-5`.
  * ٧) قائمةُ الحالاتِ في الشيفرةِ = قيدُ `state` في هجرةِ `W-4`.
  * ٨) صيغةُ مفتاحِ منعِ التكرارِ في الشيفرةِ = الصيغةُ المبنيّةُ في الهجرةِ.
+ * ٩) ثوابتُ **الناقلِ** في `packages/shared/config/core-event-transport.ts` =
+ *    عقدُ النقلِ المنقولُ في `docs/contracts/core/transport/`: مسارُ الإيداعِ،
+ *    ورمزُ القبولِ، وحقولُ الإيصالِ الثلاثةُ، وترويستا الهويّةِ والتوقيعِ، وبادئةُ
+ *    التوقيعِ، وجدولُ تصنيفِ الردودِ صفّاً صفّاً، وأدنى طولِ سرٍّ.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -44,10 +48,22 @@ import {
   outboxDedupKey,
   TRANSITIONS,
 } from "../packages/domain/wasla/operational-job.ts";
+import {
+  CORE_EVENT_ID_HEADER,
+  CORE_EVENT_RETRYABLE_CLIENT_STATUSES,
+  CORE_EVENT_SIGNATURE_HEADER,
+  CORE_EVENT_SIGNATURE_PREFIX,
+  CORE_EVENT_SUBMIT_ACCEPTED_STATUS,
+  CORE_EVENT_SUBMIT_PATH,
+  CORE_INBOUND_MIN_SECRET_LENGTH,
+  classifyCoreSubmitStatus,
+} from "../packages/shared/config/core-event-transport.ts";
 
 const CONTRACTS_DIR = "docs/contracts/core";
 const W4_MIGRATION = "supabase/migrations/20260911100000_w4_operational_jobs.sql";
 const W5_MIGRATION = "supabase/migrations/20260911100100_w5_core_inbox_move_outbox.sql";
+const CORE_OPENAPI = join(CONTRACTS_DIR, "transport/core-v1.yaml");
+const CORE_OUTBOUND_DOC = join(CONTRACTS_DIR, "transport/outbound-delivery.md");
 
 interface Breach {
   readonly where: string;
@@ -215,10 +231,151 @@ export function compareStateMachine(w4: string, w5: string): readonly Breach[] {
   return breaches;
 }
 
+/**
+ * صفٌّ من جدولِ تصنيفِ الردودِ في `outbound-delivery.md`: نصُّ الردِّ، ثمَّ الحكمُ.
+ * والجدولُ يُقرأُ من الوثيقةِ لا يُكتَبُ ههنا: لو نُسِخَ لَصارَ للحكمِ مصدرانِ.
+ */
+interface VerdictRow {
+  readonly response: string;
+  readonly action: string;
+}
+
+function readVerdictTable(markdown: string): readonly VerdictRow[] {
+  const rows: VerdictRow[] = [];
+  for (const line of markdown.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("|") || !trimmed.endsWith("|")) continue;
+    const cells = trimmed
+      .slice(1, -1)
+      .split("|")
+      .map((cell) => cell.trim());
+    if (cells.length !== 3) continue;
+    const [response, , action] = cells;
+    if (response === undefined || action === undefined) continue;
+    if (response === "Response" || response.startsWith("---")) continue;
+    rows.push({ response, action });
+  }
+  return rows;
+}
+
+/** حكمُ صفٍّ كما تنطقُ به الوثيقةُ، مُترجَماً إلى مصطلحِ التصنيفِ عندَنا. */
+function documentedVerdict(action: string): "delivered" | "retry" | "dead" | null {
+  const lowered = action.toLowerCase();
+  if (lowered.includes("delivered")) return "delivered";
+  if (lowered.includes("dead")) return "dead";
+  if (lowered.includes("retry")) return "retry";
+  return null;
+}
+
+/**
+ * مقابلةُ ثوابتِ الناقلِ بعقدِ النقلِ المنقولِ. والمقابلةُ نصّيّةٌ على الوثيقةِ
+ * وعلى `core-v1.yaml` بلا مُحلِّلِ YAML: إضافةُ مُحلِّلٍ لأجلِ أربعِ قيمٍ تُقرأُ
+ * بالبحثِ عن نصٍّ حرفيٍّ تُدخِلُ تبعيّةً تُصانُ ولا تزيدُ صدقاً.
+ */
+function compareTransport(): Breach[] {
+  const breaches: Breach[] = [];
+  const openapi = readFileSync(CORE_OPENAPI, "utf8");
+  const doc = readFileSync(CORE_OUTBOUND_DOC, "utf8");
+
+  if (!openapi.includes(`  ${CORE_EVENT_SUBMIT_PATH}:`)) {
+    breaches.push({
+      where: CORE_OPENAPI,
+      why: `مسارُ الإيداعِ في الشيفرةِ \`${CORE_EVENT_SUBMIT_PATH}\` لا يُوجَدُ مساراً في العقدِ المنقولِ`,
+    });
+  }
+  if (!openapi.includes(`"${CORE_EVENT_SUBMIT_ACCEPTED_STATUS}":`)) {
+    breaches.push({
+      where: CORE_OPENAPI,
+      why: `رمزُ القبولِ \`${CORE_EVENT_SUBMIT_ACCEPTED_STATUS}\` في الشيفرةِ لا يُعلِنُه العقدُ رمزَ ردٍّ`,
+    });
+  }
+  for (const field of ["event_id", "accepted", "first_delivery"]) {
+    if (!openapi.includes(field)) {
+      breaches.push({
+        where: CORE_OPENAPI,
+        why: `حقلُ الإيصالِ \`${field}\` الذي يقرأُه الناقلُ لا يذكرُه العقدُ المنقولُ`,
+      });
+    }
+  }
+  for (const header of [CORE_EVENT_ID_HEADER, CORE_EVENT_SIGNATURE_HEADER]) {
+    if (!doc.includes(header)) {
+      breaches.push({
+        where: CORE_OUTBOUND_DOC,
+        why: `الترويسةُ \`${header}\` في الشيفرةِ لا تُذكَرُ في عقدِ التسليمِ الصادرِ`,
+      });
+    }
+  }
+  if (!doc.includes(`${CORE_EVENT_SIGNATURE_HEADER}: ${CORE_EVENT_SIGNATURE_PREFIX}`)) {
+    breaches.push({
+      where: CORE_OUTBOUND_DOC,
+      why: `صيغةُ التوقيعِ \`${CORE_EVENT_SIGNATURE_HEADER}: ${CORE_EVENT_SIGNATURE_PREFIX}<hex>\` لا تُطابِقُ ما تنصُّ عليه الوثيقةُ`,
+    });
+  }
+  /**
+   * أدنى طولِ سرٍّ منصوصٌ قيداً في `core-v1.yaml` (`minLength`) لا في الوثيقةِ
+   * السرديّةِ، فيُقرأُ من موضعِه لا من موضعٍ يُشبِهُه.
+   */
+  if (!openapi.includes(`minLength: ${CORE_INBOUND_MIN_SECRET_LENGTH}`)) {
+    breaches.push({
+      where: CORE_OPENAPI,
+      why: `أدنى طولِ سرِّ التوقيعِ ${CORE_INBOUND_MIN_SECRET_LENGTH} عندَنا لا يُوافِقُ قيدَ \`minLength\` في العقدِ المنقولِ`,
+    });
+  }
+
+  const table = readVerdictTable(doc);
+  if (table.length === 0) {
+    breaches.push({
+      where: CORE_OUTBOUND_DOC,
+      why: "لا جدولَ تصنيفِ ردودٍ يُقرأُ في العقدِ المنقولِ — فلا يُقابَلُ التصنيفُ بشيءٍ",
+    });
+  }
+  /** أسماءُ الردودِ التي لها رمزٌ يُصنَّفُ برنامجيّاً؛ وما لا رمزَ له (مهلةٌ، DNS) يُقاسُ في اختبارِ الناقلِ. */
+  const SAMPLES: Readonly<Record<string, readonly number[]>> = {
+    "2xx": [200, 202, 204],
+    "5xx": [500, 502, 503],
+    "408, 429": [408, 429],
+    "other 4xx": [400, 401, 403, 404, 409, 422],
+  };
+  for (const row of table) {
+    const samples = SAMPLES[row.response];
+    if (samples === undefined) continue;
+    const expected = documentedVerdict(row.action);
+    if (expected === null) {
+      breaches.push({
+        where: CORE_OUTBOUND_DOC,
+        why: `صفُّ الجدولِ \`${row.response}\` لا يُقرأُ منه حكمٌ (\`${row.action}\`) — فالجدولُ تغيَّرَ ولم يتغيَّرِ الحاجزُ`,
+      });
+      continue;
+    }
+    for (const status of samples) {
+      const actual = classifyCoreSubmitStatus(status);
+      if (actual !== expected) {
+        breaches.push({
+          where: "packages/shared/config/core-event-transport.ts",
+          why: `تصنيفُ ${status} عندَنا \`${actual}\` والعقدُ ينصُّ على \`${expected}\` لصفِّ \`${row.response}\``,
+        });
+      }
+    }
+  }
+  const documentedRetryable = table.find((row) => row.response === "408, 429");
+  if (documentedRetryable !== undefined) {
+    for (const status of [408, 429]) {
+      if (!CORE_EVENT_RETRYABLE_CLIENT_STATUSES.includes(status)) {
+        breaches.push({
+          where: "packages/shared/config/core-event-transport.ts",
+          why: `العقدُ يستثني ${status} من موتِ \`4xx\` ولا تذكرُه قائمةُ المُستثنَياتِ عندَنا`,
+        });
+      }
+    }
+  }
+  return breaches;
+}
+
 function main(): void {
   const breaches = [
     ...compareContracts(readSchemas()),
     ...compareStateMachine(readFileSync(W4_MIGRATION, "utf8"), readFileSync(W5_MIGRATION, "utf8")),
+    ...compareTransport(),
   ];
 
   if (breaches.length > 0) {
@@ -231,7 +388,7 @@ function main(): void {
   }
 
   console.log(
-    `✓ عقودُ CORE مُطابَقةٌ: مغلَّفٌ + ${Object.keys(PAYLOAD_SPECS).length} حمولةً · آلةُ الحالاتِ مُطابِقةٌ للهجرتَينِ (${OPERATIONAL_JOB_STATES.length} حالاتٍ · ${Object.keys(TRANSITIONS).length} انتقالاتٍ)`,
+    `✓ عقودُ CORE مُطابَقةٌ: مغلَّفٌ + ${Object.keys(PAYLOAD_SPECS).length} حمولةً · آلةُ الحالاتِ مُطابِقةٌ للهجرتَينِ (${OPERATIONAL_JOB_STATES.length} حالاتٍ · ${Object.keys(TRANSITIONS).length} انتقالاتٍ) · ثوابتُ الناقلِ مُطابِقةٌ لعقدِ النقلِ المنقولِ`,
   );
 }
 

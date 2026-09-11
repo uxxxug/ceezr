@@ -14,16 +14,16 @@
  *   (٤) أنَّ ما يُودَعُ للتسليمِ **مطابقٌ لمخطَّطاتِ CORE المنقولةِ**، فلا يُكتشَفُ
  *       خللُنا في مستودعِ غيرِنا.
  *
- *   ولا يُختبَرُ ههنا تسليمٌ إلى CORE فعليٌّ: لا بابَ شبكيّاً هناكَ لأحداثِ
- *   `move.job.*` (`DEP-CORE-001`)، فالناقلُ مزدوجٌ **مُعلَنٌ** وحدَّه أنَّ الصفَّ
- *   يُغلَقُ أو يُعادُ لا أنَّ CORE استلمَ.
+ *   والناقلُ ههنا **مزدوجٌ مُعلَنٌ** عن قصدٍ: المقيسُ في هذا الملفِّ آلةُ الحالاتِ
+ *   وأثرُها في الجدولِ، فحدُّه أنَّ الصفَّ يُغلَقُ أو يُعادُ أو يموتُ لا أنَّ CORE
+ *   استلمَ. أمّا الناقلُ الحقيقيُّ وبابُ الاستقبالِ الحقيقيُّ فمقيسانِ موصولَينِ
+ *   بالقاعدةِ في `tests/integration/wasla-core-transport.test.ts`.
  *
  * الحالة: اختبار تكامل فعلي — يتطلب TEST_DATABASE_URL.
  * ينتمي إلى: tests/integration
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
-import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type {
   EventEnvelope,
   MoveEventShipper,
@@ -181,14 +181,22 @@ function acceptingShipper(): MoveEventShipper & { readonly shipped: EventEnvelop
     shipped,
     ship: async (envelope) => {
       shipped.push(envelope);
-      return ok(undefined);
+      return ok({ firstDelivery: true });
     },
   };
 }
 
-/** ناقلٌ يعطلُ دائماً — يُقاسُ به التراجعُ والموتُ. */
+/**
+ * ناقلٌ يعطلُ دائماً بعطلٍ **عابرٍ** — يُقاسُ به التراجعُ ثمَّ الموتُ بنفادِ
+ * المحاولاتِ. والعبورُ صريحٌ لأنَّ الدوامَ صارَ حكماً آخرَ يُقاسُ بناقلٍ آخرَ.
+ */
 function failingShipper(detail = "لا بابَ في CORE"): MoveEventShipper {
-  return { ship: async () => err(new PortFailureError("core.ingress", detail)) };
+  return { ship: async () => err({ permanent: false, detail }) };
+}
+
+/** ناقلٌ يعطلُ عطلاً دائماً — يُقاسُ به الموتُ الفوريُّ بلا استهلاكِ محاولاتٍ. */
+function permanentlyFailingShipper(detail = "HTTP 403: بادئةٌ غيرُ مسموحةٍ"): MoveEventShipper {
+  return { ship: async () => err({ permanent: true, detail }) };
 }
 
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
@@ -717,6 +725,51 @@ describeIf("دورةُ حياةِ مهمّةِ التنفيذِ الواردةِ
       const row = (await outbox(fulfillmentId))[0] as OutboxRow;
       expect(row.delivered_at).toBeNull();
       expect(row.last_error).toContain("CONTRACT");
+      /**
+       * ومخالفةُ العقدِ **موتٌ فوريٌّ** لا إعادةٌ ثمانيةَ أضعافٍ: البايتاتُ التي
+       * رُفِضَت هيَ البايتاتُ التي ستُرسَلُ ثانيةً، فالانتظارُ لا يُغيِّرُ الحكمَ
+       * وإنّما يُؤخِّرُ ظهورَ الصفِّ الميّتِ لعينِ المُشغِّلِ.
+       */
+      expect(row.dead_at).not.toBeNull();
+      expect(row.attempts).toBe(1);
+    });
+
+    it("إخفاقُ إيداعٍ دائمٌ (رفضٌ عقديٌّ من CORE) يُميتُ الصفَّ من المحاولةِ الأولى", async () => {
+      const fulfillmentId = await intake();
+      await lifecycle.accept(fulfillmentId, "corr");
+
+      const report = await lifecycle.deliverOnce(permanentlyFailingShipper());
+
+      expect(isOk(report)).toBe(true);
+      if (isOk(report) && report.value !== null) {
+        expect(report.value.verdict).toBe("dead");
+        expect(report.value.attempts).toBe(1);
+      }
+      const row = (await outbox(fulfillmentId))[0] as OutboxRow;
+      expect(row.dead_at).not.toBeNull();
+      expect(row.delivered_at).toBeNull();
+      expect(row.attempts).toBe(1);
+      expect(row.last_error).toContain("403");
+
+      // والميّتُ لا يُحجَزُ ثانيةً ولو حانَ وقتُه.
+      await sql`update move_event_outbox set next_attempt_at = now() - interval '1 second'
+                  where entity_id = ${fulfillmentId}`;
+      const claimed = await store.claimNextEvent();
+      expect(isOk(claimed) && claimed.value === null).toBe(true);
+    });
+
+    it("إخفاقٌ عابرٌ لا يُميتُ الصفَّ: يُعادُ بتراجعٍ وتُحفَظُ محاولاتُه", async () => {
+      const fulfillmentId = await intake();
+      await lifecycle.accept(fulfillmentId, "corr");
+
+      const report = await lifecycle.deliverOnce(failingShipper("HTTP 503: CORE مُتعَبٌ"));
+
+      expect(isOk(report) && report.value?.verdict).toBe("retry");
+      const row = (await outbox(fulfillmentId))[0] as OutboxRow;
+      expect(row.dead_at).toBeNull();
+      expect(row.attempts).toBe(1);
+      expect(row.last_error).toContain("503");
+      expect(new Date(String(row.next_attempt_at)).getTime()).toBeGreaterThan(Date.now());
     });
 
     it("الحجزُ المتروكُ يُستَرجَعُ بعدَ مهلتِه فلا يُقفِلُ الصفَّ إلى الأبدِ", async () => {

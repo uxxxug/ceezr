@@ -2,13 +2,17 @@
  * الغرض: **دورةُ حياةِ مهمّةِ التنفيذِ** الواردةِ من CORE: بابُ الاستهلاكِ (صندوقُ
  *    الواردِ)، والانتقالاتُ الأربعةُ (قبولٌ، رفضٌ، إتمامٌ، فشلٌ) والإلغاءُ، ودورةُ
  *    تسليمِ صندوقِ الصادرِ. البند `W-5`.
- * الحالة: منفّذ فعلياً — 2026-09-11 · التسليمُ الشبكيُّ محجوزٌ بـ`DEP-CORE-001`.
+ * الحالة: منفّذ فعلياً — 2026-09-12 · التسليمُ الشبكيُّ **موصولٌ**: `DEP-CORE-001`
+ *    أُغلِقَ بعقدِ `POST /v1/events` عندَ CORE (`1231817`)، والمُنفِّذُ
+ *    `packages/infrastructure/wasla/core-event-shipper.ts` موصولٌ في
+ *    `apps/workers` مهمّةً دوريّةً. ولمّا يُقَسْ تسليمٌ إلى بيئةِ CORE حقيقيّةٍ
+ *    (`DEP-CORE-007`): المقيسُ مطابقتُنا للعقدِ المكتوبِ.
  * ينتمي إلى: application/wasla
  * يُستخدم من: `packages/infrastructure/wasla/operational-job-repository.ts`
  *    (تنفيذُ البابِ) والاختباراتُ التكامليّةُ.
- * ملاحظات مستقبلية: عندَ رفعِ `DEP-CORE-001` يُضافُ ناقلٌ يُنفِّذُ `MoveEventShipper`
- *    ويُوصَلُ في `apps/workers`؛ **ولا يُغيَّرُ شيءٌ ههنا**: البابُ مُعلَنٌ الآنَ
- *    وناقصُه المُنفِّذُ لا التصميمُ.
+ * ملاحظات مستقبلية: صحَّ ما قيلَ ههنا أوّلاً — أُضيفَ المُنفِّذُ ولم يُغيَّرِ
+ *    التصميمُ؛ وإنَّما زِيدَ في `ShipFailure` وسمُ `permanent` ليموتَ الرفضُ الدائمُ
+ *    من محاولتِه الأولى بدلاً من ثمانيةٍ لا تُغيِّرُ شيئاً.
  *
  * ## لماذا لا يُصدَّقُ حدثٌ صادرٌ بلا تدقيقٍ
  *
@@ -103,19 +107,42 @@ export interface FulfillmentLifecycleStore {
     staleAfterSeconds?: number,
   ): Promise<Result<ClaimedMoveEvent | null, PortFailureError>>;
   finishDelivery(claimToken: string): Promise<Result<boolean, PortFailureError>>;
+  /**
+   * `permanent` تعني «لا يُرجى من إعادةٍ نجاحٌ» فيموتُ الصفُّ فوراً بسببِه
+   * مكتوباً، ولا يُقاسُ الأملُ بعددِ المحاولاتِ الباقيةِ.
+   */
   abandonDelivery(
     claimToken: string,
     error: string,
+    permanent?: boolean,
   ): Promise<Result<{ readonly dead: boolean; readonly attempts: number }, PortFailureError>>;
 }
 
 /**
- * ناقلُ الأحداثِ إلى CORE — **لا مُنفِّذَ له اليومَ** (`DEP-CORE-001`: لا بابَ
- * شبكيّاً في CORE لأحداثِ `move.job.*`). والبابُ مُعلَنٌ ليُقرأَ النقصُ في
- * الشيفرةِ لا في التقاريرِ.
+ * إيصالُ إيداعٍ ناجحٍ. `firstDelivery=false` تعني أنَّ CORE قد رأى هذا الحدثَ
+ * قبلاً فأمسكَه بمعرّفِه — وذاكَ **نجاحٌ** لا تكرارٌ يُشتكى منه: عليه تقومُ
+ * إسلامُ الإعادةِ (idempotency).
+ */
+export interface ShipReceipt {
+  readonly firstDelivery: boolean;
+}
+
+/**
+ * إخفاقُ إيداعٍ، وحكمُه في `permanent`: عابرٌ يُعادُ، أو دائمٌ يُماتُ فوراً وفقَ
+ * جدولِ العقدِ المنقولِ في `docs/contracts/core/transport/outbound-delivery.md`.
+ * والتصنيفُ **من الناقلِ** لأنَّه وحدَه يرى رمزَ الردِّ وصنفَ عطلِ الشبكةِ.
+ */
+export interface ShipFailure {
+  readonly permanent: boolean;
+  readonly detail: string;
+}
+
+/**
+ * ناقلُ الأحداثِ إلى CORE. صارَ له مُنفِّذٌ حقيقيٌّ بعدَ إغلاقِ `DEP-CORE-001`
+ * (CORE `d2c38e3` ثمَّ `1231817`): `packages/infrastructure/wasla/core-event-shipper.ts`.
  */
 export interface MoveEventShipper {
-  ship(envelope: EventEnvelope): Promise<Result<void, PortFailureError>>;
+  ship(envelope: EventEnvelope): Promise<Result<ShipReceipt, ShipFailure>>;
 }
 
 const CONSUMED: readonly string[] = CONSUMED_CORE_EVENT_TYPES;
@@ -237,19 +264,24 @@ export function createFulfillmentLifecycle(store: FulfillmentLifecycleStore): Fu
       const issues = validateEnvelope(row.envelope);
       if (issues.length > 0) {
         /**
-         * مغلَّفٌ مخالفٌ **لا يُسلَّمُ ولا يُنسى**: يُتخلّى عنه بعطلٍ منصوصٍ،
-         * فيُعادُ بتراجعٍ حتّى ينفدَ العددُ فيموتَ صفّاً ميّتاً ظاهراً في
-         * الجدولِ. ولا يُحذَفُ ههنا: الحذفُ يمحو الدليلَ.
+         * مغلَّفٌ مخالفٌ **لا يُسلَّمُ ولا يُنسى**: يُتخلّى عنه بعطلٍ منصوصٍ
+         * **دائمٍ** فيموتُ صفّاً ميّتاً ظاهراً في الجدولِ بسببِه مكتوباً. وإنَّما
+         * دائمٌ لأنَّ مغلَّفاً يُخالِفُ العقدَ لن يصيرَ مُوافِقاً بإعادةِ إرسالِه
+         * ثمانياً: البايتاتُ هيَ هيَ. ولا يُحذَفُ ههنا: الحذفُ يمحو الدليلَ.
          */
         const detail = issues.map((issue) => `${issue.path}: ${issue.problem}`).join(" · ");
-        const abandoned = await store.abandonDelivery(row.claimToken, `CONTRACT: ${detail}`);
+        const abandoned = await store.abandonDelivery(row.claimToken, `CONTRACT: ${detail}`, true);
         if (isErr(abandoned)) return err(portFailure(abandoned.error));
         return ok({ eventId, eventType, attempts: row.attempts, verdict: "contract_rejected" });
       }
 
       const shipped = await shipper.ship(row.envelope);
       if (isErr(shipped)) {
-        const abandoned = await store.abandonDelivery(row.claimToken, shipped.error.detail);
+        const abandoned = await store.abandonDelivery(
+          row.claimToken,
+          shipped.error.detail,
+          shipped.error.permanent,
+        );
         if (isErr(abandoned)) return err(portFailure(abandoned.error));
         return ok({
           eventId,

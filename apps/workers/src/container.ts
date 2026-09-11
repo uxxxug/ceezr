@@ -38,6 +38,8 @@ import type {
 } from "../../../packages/application/scheduling/job-heartbeat.ts";
 import type { ExpiryWarningSender } from "../../../packages/application/subscription/expire-subscriptions.ts";
 import type { SubscriptionNoticePublisher } from "../../../packages/application/subscription/notice-ports.ts";
+import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
+import { shipDueMoveEvents } from "../../../packages/application/wasla/ship-due-move-events.ts";
 import {
   createGoogleDriveStorage,
   createLocalBackupStorage,
@@ -113,8 +115,12 @@ import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure
 import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastructure/subscription/notice-adapters.ts";
 import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
+import { createCoreEventShipper } from "../../../packages/infrastructure/wasla/core-event-shipper.ts";
+import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
 import { DB_POOL_MAX, JOB_CONCURRENCY } from "../../../packages/shared/config/connection-budget.ts";
+import { CORE_EVENT_TRANSPORT_ENV } from "../../../packages/shared/config/core-event-transport.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
+import { MOVE_EVENT_OUTBOX_CONSUMER_CONCURRENCY } from "../../../packages/shared/config/move-event-outbox.ts";
 import type { NotificationKind } from "../../../packages/shared/config/notification-kinds.ts";
 import {
   ARCHIVE_MAX_DAYS_PER_RUN,
@@ -167,6 +173,14 @@ export const JOB_INTERVALS = {
    */
   archiveLocationPartitions: 86400,
   deliverSafetyIncidents: 30,
+  /**
+   * `W-5` — كلّ خمسَ عشرةَ ثانيةً: حدثُ `move.job.*` خبرٌ يَنتظِرُه CORE ليُخبِرَ
+   * عميلَه، وعمرُ أقدمِ صفٍّ مرصودٌ بحدِّ ثلاثِ مئةِ ثانيةٍ
+   * (`MOVE_EVENT_OUTBOX_OLDEST_AGE_LIMIT_SECONDS`)، فدورةٌ في خمسَ عشرةَ تُبقي الحدَّ
+   * بعيداً بفارقٍ يَحتمِلُ شوطاً ساقطاً أو اثنَينِ. وأسرعُ من ذلكَ نداءاتُ حجزٍ
+   * فارغةٌ على قاعدةٍ في أكثرِ الدوراتِ: الصندوقُ فارغٌ في العادةِ.
+   */
+  shipMoveEvents: 15,
   /**
    * كلّ ثلاثين ثانية: إشعارُ العرضِ يُكتَبُ ذرّيًّا في معاملةِ open_offer_round نفسِها،
    * ثمّ يُرسَلُ من هذا العامل. أسرعُ من مهلةِ العرضِ (45 ثانية افتراضاً) لئلّا يتأخّرَ
@@ -974,6 +988,29 @@ export function buildWorkerContainer(
                 folderId: process.env.GOOGLE_DRIVE_BACKUP_FOLDER_ID ?? "",
               });
 
+      /**
+       * `W-5` — ناقلُ أحداثِ MOVE إلى CORE. لا يُسجَّلُ إلّا حينَ يزرعُ المُشغِّلُ
+       * عنوانَ CORE ورمزَ خدمةِ MOVE: مهمّةٌ تعملُ بلا عنوانٍ كانت ستُخفِقُ كلَّ
+       * خمسَ عشرةَ ثانيةً بضجيجٍ لا يُصلِحُه أحدٌ، وصفوفُ الصادرِ محفوظةٌ تُصرَّفُ
+       * حينَ يُضبَطُ الإعدادُ لا تُفقَدُ. والغيابُ يُسجَّلُ مرّةً عندَ البناءِ
+       * ليُقرأَ في السجلِّ لا يُخمَّنَ.
+       */
+      const coreEventsBaseUrl = process.env[CORE_EVENT_TRANSPORT_ENV.baseUrl];
+      const coreEventsBearerToken = process.env[CORE_EVENT_TRANSPORT_ENV.bearerToken];
+      const moveEventShipper =
+        coreEventsBaseUrl === undefined || coreEventsBearerToken === undefined
+          ? null
+          : createCoreEventShipper({
+              baseUrl: coreEventsBaseUrl,
+              bearerToken: coreEventsBearerToken,
+            });
+      if (moveEventShipper === null) {
+        log.error("move_event_outbox.shipper_not_configured", {
+          baseUrl: CORE_EVENT_TRANSPORT_ENV.baseUrl,
+          bearerToken: CORE_EVENT_TRANSPORT_ENV.bearerToken,
+        });
+      }
+
       const global: JobDefinition[] = [
         ...(cityIds.length === 0
           ? []
@@ -1049,6 +1086,40 @@ export function buildWorkerContainer(
           },
         },
       ];
+
+      if (moveEventShipper !== null) {
+        const fulfillmentLifecycle = createFulfillmentLifecycle(
+          createOperationalJobRepository(sql),
+        );
+        global.push({
+          name: "ship-move-events",
+          everySeconds: JOB_INTERVALS.shipMoveEvents,
+          runOnStart: true,
+          run: async () => {
+            const report = await shipDueMoveEvents({
+              lifecycle: fulfillmentLifecycle,
+              shipper: moveEventShipper,
+              maxEvents: MOVE_EVENT_OUTBOX_CONSUMER_CONCURRENCY,
+            });
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            const value = report.value;
+            /**
+             * الميّتُ يُرفَعُ إلى `error`: صفٌّ ماتَ يعني خبراً لن يصلَ CORE أبداً،
+             * وذاكَ عطلٌ يستوجبُ يداً لا سطراً في `info` يمرُّ.
+             */
+            if (value.dead + value.contractRejected > 0) {
+              log.error("move_event_outbox.events_dead", {
+                dead: value.dead,
+                contractRejected: value.contractRejected,
+              });
+            }
+            return (
+              `claimed=${value.claimed} delivered=${value.delivered} retried=${value.retried} ` +
+              `dead=${value.dead} contract_rejected=${value.contractRejected} truncated=${value.truncated}`
+            );
+          },
+        });
+      }
 
       // النسخ الاحتياطي مهمّة عامّة لا لكل مدينة: قاعدة واحدة نسخة واحدة.
       if (backupStorage !== null && backupConfig !== null) {

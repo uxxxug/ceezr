@@ -12,12 +12,5 @@
     "order_reference": { "type": "string", "minLength": 1 },
     "requested_service": { "type": "string", "minLength": 1 }
   },
-  "examples": [
-    {
-      "fulfillment_id": "e53bd31b-06e4-4609-a109-fcfe6848376d",
-      "organization_id": "e83f50cc-5808-4873-b58a-722cc3f58070",
-      "order_reference": "order-2",
-      "requested_service": "delivery"
-    }
-  ]
+  "examples": [{ "fulfillment_id": "e53bd31b-06e4-4609-a109-fcfe6848376d", "organization_id": "e83f50cc-5808-4873-b58a-722cc3f58070", "order_reference": "order-2", "requested_service": "delivery" }]
 }

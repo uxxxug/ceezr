@@ -134,6 +134,62 @@ Not delivered, and why:
 
 Neither item 4 nor item 5 is claimed as complete.
 
+## Status of item 5 transport, recorded 2026-09-12 (additive; item text unchanged)
+
+Governing decision: `docs/adr/0082-core-event-transport-both-directions.md`.
+Evidence: `docs/evidence/architecture/W-5-TRANSPORT-20260912.md`.
+
+`DEP-CORE-001` is **closed**: CORE now exposes a network ingress that accepts
+`move.job.*` (CORE `d2c38e3`, read at CORE@`1231817757446560a0ecd061bd9c4f3a2a1c9fe4`).
+The transport contract was vendored verbatim into `docs/contracts/core/transport/`
+with sha256 provenance, and both directions are now implemented and measured:
+
+- Outbound: `packages/infrastructure/wasla/core-event-shipper.ts` posts the
+  envelope to `POST {CORE_EVENTS_BASE_URL}/v1/events` with a bearer token and an
+  `AbortController` timeout. Status classification lives in one place
+  (`classifyCoreSubmitStatus`) and `check:core-contract-parity` now parses CORE's
+  own retry table out of the vendored document and compares every row against
+  that function, so a change on CORE's side breaks our gate instead of producing
+  retries that can never succeed.
+- Permanent failures die on attempt 1. New migration
+  `20260912000000_w5_permanent_delivery_failure.sql` replaces
+  `abandon_move_event_delivery` with a five-argument version taking
+  `p_permanent boolean default false`; the verdict is enforced in the database,
+  not in code that can crash between reading the response and writing the row.
+  Declared in `scripts/lib/rollback-registry.ts` (`code-only`, does not break the
+  previous release: a four-argument call resolves to the default `false`).
+- Inbound: `apps/gateway/src/routes/core-event-intake.ts` serves
+  `/webhook/core-events`. It bounds the body, computes HMAC-SHA256 over the exact
+  received bytes and compares with `timingSafeEqual` **before** parsing, and maps
+  every outcome onto the status class CORE reads as retry or as death. A missing
+  or too-short secret returns `503` and never weakens verification; in
+  `apps/gateway/src/index.ts` the route is not mounted at all without the secret,
+  so absence reads as `404` rather than as a false accept.
+- Idempotency stays in the database only (`core_event_inbox` keyed by `event_id`).
+  No in-process dedup cache, which would be a second source of truth that fails
+  on the first second instance or restart.
+- Draining is a bounded worker job: `shipDueMoveEvents` plus `ship-move-events`
+  every 15 s, registered only when `CORE_EVENTS_BASE_URL` and
+  `CORE_EVENTS_BEARER_TOKEN` are present, with the absence logged once.
+
+A false piece of evidence was found and fixed at its source: `biome` had
+reformatted two schemas that `PROVENANCE.md` claims are byte-for-byte copies, so
+two recorded sha256 fingerprints were wrong while the claim stayed in the file.
+The bytes were restored from CORE@`511624b`, `docs/contracts` is now excluded
+from the formatter, and a new gate `check:vendored-contract-integrity` recomputes
+every fingerprint on every run and fails on a changed byte, a vendored file with
+no fingerprint, or a fingerprint with no file. The gate itself is measured
+against planted breaches in `tests/unit/check-vendored-contract-integrity.test.ts`.
+
+Measured locally: 2614 unit cases (0 fail), 7 new integration cases wiring the
+real shipper and the real intake route to a real PostgreSQL 18.6 (0 fail), 35
+lifecycle integration cases (0 fail). Local green is not a verdict (`ح-8`); see
+the CI verdict table.
+
+Still not claimed as complete. `check-migrations.ts` still fails with the three
+sovereign-rule-0.4 violations (`DEP-CORE-006` / `O-1`), and no delivery to a real
+CORE environment has been measured (`DEP-CORE-007`).
+
 ## CI verdicts on branch `feat/w4-w5-operational-job-and-core-lifecycle` (additive)
 
 Local green is not a verdict (governance `ح-8`). Each push below is followed by
@@ -177,12 +233,13 @@ Recorded here only. No change is made to CORE or MARKET from this repository.
 
 | # | What is missing in CORE | What it blocks here |
 |---|---|---|
-| DEP-CORE-001 | No network ingress that accepts `move.job.*` events | Outbox delivery for item 5; shipper has no production adapter |
+| DEP-CORE-001 | ~~No network ingress that accepts `move.job.*` events~~ — **CLOSED** by CORE `d2c38e3`, read at CORE@`1231817` on 2026-09-12 | Was blocking outbox delivery for item 5; the production shipper now exists |
 | DEP-CORE-002 | No cheap entitlement read | Item 7 (payment/wallet/subscription handover) |
 | DEP-CORE-003 | No city/geography change event | Item 1 execution and item 2 |
 | DEP-CORE-004 | No Telegram channel adapter | Item 6 |
 | DEP-CORE-005 | No mutual repository access, so vendored contract freshness cannot be verified automatically | Contract parity stays a manually compared sha256 fingerprint |
 | DEP-CORE-006 | `core.fulfillment.created` carries no city or geography, and `organization_id` / `order_reference` are opaque here | Landing the item 4 and 5 schema under sovereign rule 0.4; also driver assignment later, since drivers are city-bound |
+| DEP-CORE-007 | No shared CORE environment and no service credential for MOVE, so no delivery to a real CORE can be measured | Item 5 can only be measured against CORE's written contract, never against CORE itself |
 
 ## Owner decisions required, recorded 2026-09-11
 
@@ -190,6 +247,8 @@ Recorded here only. No change is made to CORE or MARKET from this repository.
 |---|---|---|
 | O-1 | Either CORE adds city/geography to `core.fulfillment.created` (`DEP-CORE-006`), or a new governing appendix extends the closed `domain-ingress receipt` class to cover `core_event_inbox` and `move_event_outbox` and rules on `operational_jobs` | The 2026-09-04 governing appendix states the class is closed and can only be extended by a new governing appendix from the owner — not by an ADR, a comment in a migration, or an exception in a guard |
 | O-2 | Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` as repository secrets | The `real-redis` CI job asserts a real Redis (`OPS-006`) and must not be weakened, silenced or skip-classified; the previous secrets belonged to the former repository account |
+| O-3 | Issue a CORE bearer service credential for MOVE and set `CORE_EVENTS_BASE_URL` / `CORE_EVENTS_BEARER_TOKEN` on the worker | Credentials in CORE are owned by CORE; this repository must not mint or assume them, and the shipping job stays unregistered without them |
+| O-4 | Provision a CORE `event_subscription` for `core.*` pointing at `https://<gateway>/webhook/core-events` with a signing secret of at least 32 characters, and set `CORE_INBOUND_SIGNING_SECRET` on the gateway | CORE's outbound contract states subscriptions are operator-provisioned and the secret is never echoed back; this repository receives what was provisioned and does not provision it |
 
 ## Migrated
 
