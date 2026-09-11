@@ -1259,4 +1259,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/wasla-fulfillment-lifecycle.test.ts",
+    suites: ["دورةُ حياةِ مهمّةِ التنفيذِ الواردةِ من CORE — W-4/W-5"],
+    skipped: 33,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُقيسُ `W-4`/`W-5` على القاعدةِ نفسِها لأنَّ المُدَّعى ممّا تحرسُهُ القاعدةُ لا الطبقةُ: منعُ التكرارِ بقيدي تفرُّدِ `event_id` و`dedup_key`، وحصرُ الانتقالاتِ في `where state = ...` داخلَ دالّةٍ، وتزاحُمُ قبولَينِ على اتّصالَينِ بـ`for update`، ومنعُ الحالةِ المُلفَّقةِ بقيودِ `check`، وإيداعُ الحدِثِ في **معاملةِ** تغييرِ الحالةِ. ومزدوجٌ في الذاكرةِ يُصدِّقُ ما تصوّرناهُ عن المحرّكِ لا ما يفعلُهُ، وأخطرُ ما يفوتُهُ أثرٌ مزدوجٌ عندَ إعادةِ المحاولةِ. وأمّا مطابقةُ المُغلَّفِ لعقدِ CORE فتُقاسُ بلا قاعدةٍ في `tests/unit/core-contract-parity.test.ts` وحاجزِ `check:core-contract-parity`، فلا يُترَكُ شيءٌ منه لتوفّرِ قاعدةٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها هجرتا W-4 وW-5). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;

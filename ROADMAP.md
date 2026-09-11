@@ -86,6 +86,74 @@ Nothing at this commit.
 8. Reconciliation and dry-run tooling for the job and identity migrations.
 9. Cutover and rollback rehearsal.
 
+## Status of items 4 and 5, recorded 2026-09-11 (additive; item text unchanged)
+
+Branch `feat/w4-w5-operational-job-and-core-lifecycle`, from `main`@`30e024e`.
+Governing decision: `docs/adr/0081-operational-job-and-core-event-boundary.md`.
+Evidence: `docs/evidence/architecture/W-4-W-5-20260911.md`.
+
+Delivered and measured:
+
+- `operational_jobs`: canonical operational job, unique per `fulfillment_id`, with
+  opaque CORE/MARKET references (no foreign key to `orders` or to any legacy
+  table). Five states, five transitions, each transition a single database
+  function that asserts its source state in the same `where`; seven check
+  constraints that make a fabricated terminal state impossible.
+- `core_event_inbox` keyed by `event_id` (redelivery returns `applied: false`),
+  and `move_event_outbox` holding the ten envelope fields as columns with a
+  unique `dedup_key` of `move.job.<type>:<fulfillment_id>`. Events are enqueued
+  inside the state-change transaction, not after it.
+- CORE contracts vendored verbatim from CORE@`511624b` into
+  `docs/contracts/core/` with sha256 provenance, plus a new CI gate
+  `check:core-contract-parity` that diffs the vendored schema against the
+  emitted envelope, the state machine and both migrations.
+- `move_event_outbox` is declared as a durable queue in the `F6-06` backpressure
+  registry with all six limits homed in `packages/shared/config/move-event-outbox.ts`
+  as code constants (the queue has no `city_id`, so per-city settings rows would
+  mean reading a limit from an arbitrary city). The claim and abandon functions
+  carry no default values; the adapter passes the declared constants.
+- Each of the three partial indexes lives in its own `-- migration-phase: index`
+  migration using `create index concurrently`, as `CAP-007` forbids both a
+  blocking index and a concurrent index inside a transaction.
+- Measured: 37 unit cases (128 expectations) and 33 integration cases on a real
+  PostgreSQL 18.6, zero failures, covering all ten required behaviours
+  (intake, accept, reject, complete, fail, cancel, no success before its
+  precondition, no pending state after exit, idempotency on retry, envelope
+  parity with CORE).
+
+Not delivered, and why:
+
+- No network transport to CORE. `MoveEventShipper` is a port with no production
+  adapter, because `DEP-CORE-001` (no CORE ingress endpoint for `move.job.*`)
+  is still open.
+- The two migrations are **not** merge-ready: `scripts/check-migrations.ts`
+  fails with three sovereign-rule-0.4 violations (`city_id`) for
+  `operational_jobs`, `core_event_inbox` and `move_event_outbox`. The gate is
+  correct and was not weakened, exempted, frozen or bypassed. See `DEP-CORE-006`
+  below and ADR-0081 for the rejected alternatives.
+
+Neither item 4 nor item 5 is claimed as complete.
+
+## Cross-repository dependencies on CORE, recorded 2026-09-11
+
+Recorded here only. No change is made to CORE or MARKET from this repository.
+
+| # | What is missing in CORE | What it blocks here |
+|---|---|---|
+| DEP-CORE-001 | No network ingress that accepts `move.job.*` events | Outbox delivery for item 5; shipper has no production adapter |
+| DEP-CORE-002 | No cheap entitlement read | Item 7 (payment/wallet/subscription handover) |
+| DEP-CORE-003 | No city/geography change event | Item 1 execution and item 2 |
+| DEP-CORE-004 | No Telegram channel adapter | Item 6 |
+| DEP-CORE-005 | No mutual repository access, so vendored contract freshness cannot be verified automatically | Contract parity stays a manually compared sha256 fingerprint |
+| DEP-CORE-006 | `core.fulfillment.created` carries no city or geography, and `organization_id` / `order_reference` are opaque here | Landing the item 4 and 5 schema under sovereign rule 0.4; also driver assignment later, since drivers are city-bound |
+
+## Owner decisions required, recorded 2026-09-11
+
+| # | Decision | Why it cannot be taken by an executor here |
+|---|---|---|
+| O-1 | Either CORE adds city/geography to `core.fulfillment.created` (`DEP-CORE-006`), or a new governing appendix extends the closed `domain-ingress receipt` class to cover `core_event_inbox` and `move_event_outbox` and rules on `operational_jobs` | The 2026-09-04 governing appendix states the class is closed and can only be extended by a new governing appendix from the owner — not by an ADR, a comment in a migration, or an exception in a guard |
+| O-2 | Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` as repository secrets | The `real-redis` CI job asserts a real Redis (`OPS-006`) and must not be weakened, silenced or skip-classified; the previous secrets belonged to the former repository account |
+
 ## Migrated
 
 Nothing.
