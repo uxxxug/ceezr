@@ -146,6 +146,11 @@ services:
       # إن أعطت المنصّةُ معرّفاً ثابتاً أفضل منه.
       - key: SERVICE_INSTANCE_ID
         sync: false
+      # ── بابُ استقبالِ أحداثِ CORE (البند W-5) ────────────────────────────
+      # سرُّ اشتراكِ CORE الصادرِ المُوجَّهِ إلى `/webhook/core-events`. لا يقلّ عن
+      # 32 محرفاً، وغيابُه لا يفتح باباً بلا توقيعٍ بل لا يُركِّب المسارَ أصلاً.
+      - key: CORE_INBOUND_SIGNING_SECRET
+        sync: false
       # ── جلسة التطبيق المصغَّر (البند F1-03) ─────────────────────────────
       # سرُّ توقيعِ الجلسةِ الداخليةِ التي تُصدَر بعد التحقّق من initData. غيابُه
       # يُعطّل مسارَ POST /v1/session/telegram وحدَه (503) ولا يوقف الإقلاع، ولا
@@ -481,6 +486,13 @@ services:
       - key: PAYMENT_ENVIRONMENT
         sync: false
       - key: ENABLE_DRIVER_SUBSCRIPTION
+        sync: false
+      # ── ناقلُ أحداثِ MOVE إلى CORE (البند W-5) ───────────────────────────
+      # عنوانُ CORE ورمزُ خدمةِ MOVE. غيابُ أيِّهما لا يُسجِّلُ مهمّةَ الإرسالِ
+      # ويُكتَبُ في السجلِّ؛ والصفوفُ محفوظةٌ في صندوقِ الصادرِ لا تُفقَد.
+      - key: CORE_EVENTS_BASE_URL
+        sync: false
+      - key: CORE_EVENTS_BEARER_TOKEN
         sync: false
       # ── جلسة التطبيق المصغَّر: لا تُصدَر من ههنا، والإعدادُ واحد ──────────────
       - key: MINIAPP_SESSION_SECRET

@@ -117,6 +117,12 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   broadcast_campaigns: RETENTION_CLASSES.pendingDecision,
   broadcast_recipients: RETENTION_CLASSES.pendingDecision,
   cities: RETENTION_CLASSES.lifecycleBound,
+  /**
+   * `W-5`: صندوقُ واردِ أحداثِ CORE — سجلُّ ما استُهلِكَ، وهوَ **دليلُ منعِ
+   * التكرارِ نفسُه**: حذفُ صفٍّ منه يجعلُ إعادةَ تسليمٍ قديمةً تُطبَّقُ ثانيةً.
+   * فلا مدّةَ له قبلَ `F12-10`.
+   */
+  core_event_inbox: RETENTION_CLASSES.pendingDecision,
   db_backups: RETENTION_CLASSES.selfGoverned,
   driver_availability: RETENTION_CLASSES.lifecycleBound,
   driver_capabilities: RETENTION_CLASSES.lifecycleBound,
@@ -125,8 +131,15 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   job_heartbeats: RETENTION_CLASSES.pendingDecision,
   ledger_entries: RETENTION_CLASSES.financialSixYears,
   location_archive_manifest: RETENTION_CLASSES.lifecycleBound,
+  /** `W-5`: صندوقُ صادرِ أحداثِ MOVE — كصندوقِ الإشعاراتِ: ينمو ولا مدّةَ محسومةً. */
+  move_event_outbox: RETENTION_CLASSES.pendingDecision,
   notification_kind_policy: RETENTION_CLASSES.lifecycleBound,
   notification_outbox: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `W-4`: المهمّةُ التشغيليّةُ — عمرُها عمرُ التنفيذِ الذي تصفُه، وحذفُها حدَثٌ
+   * تجاريٌّ (أو أثرٌ لحذفِ التنفيذِ في CORE) لا وظيفةُ صيانةٍ ليليّةٍ.
+   */
+  operational_jobs: RETENTION_CLASSES.lifecycleBound,
   order_offers: RETENTION_CLASSES.pendingDecision,
   orders: RETENTION_CLASSES.lifecycleBound,
   payment_transactions: RETENTION_CLASSES.financialSixYears,

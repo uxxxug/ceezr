@@ -12,6 +12,10 @@
 import { Hono } from "hono";
 import { createRequestIdMiddleware } from "./observability/request-id.ts";
 import {
+  type CoreEventIntakeDependencies,
+  createCoreEventIntakeRoutes,
+} from "./routes/core-event-intake.ts";
+import {
   createDriverLocationRoutes,
   type DriverLocationDependencies,
 } from "./routes/driver-location.ts";
@@ -73,6 +77,12 @@ export interface ServerDependencies {
    */
   readonly driverLocation?: DriverLocationDependencies;
   /**
+   * `W-5`: بابُ أحداثِ CORE الواردةِ — اختياريٌّ: يُركَّبُ عندَ توفّرِ سرِّ توقيعِ
+   * الاشتراكِ والقاعدةِ. وغيابُه هنا يعني `404` لا قبولاً صامتاً؛ وحضورُه بلا
+   * سرٍّ سليمٍ يعني تعطيلاً معلَناً (`503`) لا تحقّقاً مُخفَّفاً.
+   */
+  readonly coreEventIntake?: CoreEventIntakeDependencies;
+  /**
    * `F1-08`: مولّدُ معرّفِ الطلب — يُحقَن للاختبارِ وحدَه، وغيابُه يعني
    * `crypto.randomUUID`. ولا يُقرأ رأسُ `X-Request-Id` الوارِدُ من العميلِ في
    * أيِّ حالٍ (ADR 0043).
@@ -111,6 +121,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.driverLocation !== undefined) {
     app.route("/", createDriverLocationRoutes(deps.driverLocation));
+  }
+  if (deps.coreEventIntake !== undefined) {
+    app.route("/", createCoreEventIntakeRoutes(deps.coreEventIntake));
   }
 
   app.notFound((c) => c.json({ ok: false, error: "NOT_FOUND" }, 404));

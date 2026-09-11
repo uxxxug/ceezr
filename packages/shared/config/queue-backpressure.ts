@@ -52,7 +52,11 @@ import { isDeferrableClass, NOTIFICATION_KIND_PRIORITY } from "./traffic-priorit
  * الطوابيرُ الصامدةُ. **قائمةٌ مغلقةٌ** يُنفِذُها الحارسُ ضدَّ الترحيلاتِ: من زادَ
  * طابوراً زادَ سطرَه ههنا وحدودَه، أو سقطَ الحاجزُ في CI.
  */
-export const DURABLE_QUEUES = ["notification_outbox", "telegram_update_jobs"] as const;
+export const DURABLE_QUEUES = [
+  "notification_outbox",
+  "telegram_update_jobs",
+  "move_event_outbox",
+] as const;
 
 export type DurableQueue = (typeof DURABLE_QUEUES)[number];
 
@@ -100,6 +104,14 @@ export interface QueueBackpressureDeclaration {
 const INGRESS_MODULE = "packages/shared/config/domain-ingress.ts";
 
 /**
+ * صادرُ أحداثِ MOVE إلى CORE (`W-5`). حدودُه ثوابتُ شيفرةٍ لا مفاتيحُ إعداداتٍ
+ * بالحُجّةِ المكتوبةِ في وحدتِها حرفاً: الطابورُ لا `city_id` له لأنَّ عقدَ
+ * `core.fulfillment.created` لا يحملُ مدينةً (`DEP-CORE-006`)، ومِلءُ مدينةٍ
+ * مصطنَعةٍ منهيٌّ عنه في القاعدةِ ٠.٤.
+ */
+const MOVE_OUTBOX_MODULE = "packages/shared/config/move-event-outbox.ts";
+
+/**
  * الإعلانُ. لا يُقرأُ منه رقمٌ — يُقرأُ منه **مكانُ** الرقمِ، ثمَّ يُقرأُ الرقمُ
  * من مكانِه. وهذا ما يجعلُ تغييرَ حدٍّ تغييراً في موضعٍ واحدٍ.
  */
@@ -144,6 +156,40 @@ export const QUEUE_BACKPRESSURE_DECLARATIONS: readonly QueueBackpressureDeclarat
       kind: "code_constant",
       module: INGRESS_MODULE,
       name: "TELEGRAM_JOB_CONSUMER_CONCURRENCY",
+    },
+  },
+  {
+    queue: "move_event_outbox",
+    cityScoped: false,
+    capacity: {
+      kind: "code_constant",
+      module: MOVE_OUTBOX_MODULE,
+      name: "MOVE_EVENT_OUTBOX_DEPTH_LIMIT",
+    },
+    oldest_age: {
+      kind: "code_constant",
+      module: MOVE_OUTBOX_MODULE,
+      name: "MOVE_EVENT_OUTBOX_OLDEST_AGE_LIMIT_SECONDS",
+    },
+    retry: {
+      kind: "code_constant",
+      module: MOVE_OUTBOX_MODULE,
+      name: "MOVE_EVENT_OUTBOX_MAX_ATTEMPTS",
+    },
+    dead_letter: {
+      kind: "code_constant",
+      module: MOVE_OUTBOX_MODULE,
+      name: "MOVE_EVENT_OUTBOX_DEAD_LIMIT",
+    },
+    producer: {
+      kind: "code_constant",
+      module: MOVE_OUTBOX_MODULE,
+      name: "MOVE_EVENT_OUTBOX_PRODUCER_LIMIT",
+    },
+    consumer_concurrency: {
+      kind: "code_constant",
+      module: MOVE_OUTBOX_MODULE,
+      name: "MOVE_EVENT_OUTBOX_CONSUMER_CONCURRENCY",
     },
   },
 ];

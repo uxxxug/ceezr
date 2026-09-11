@@ -132,6 +132,19 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale:
       "المرجعُ الجغرافيُّ مملوكٌ لـCORE (وحدةُ `geography` فيه)؛ ويبقى هنا **إسقاطٌ** للقراءةِ لأنَّ `city_id` قيدٌ حاكمٌ في كلِّ جدولٍ (القاعدة 0.4) ولا يُحتمَلُ نداءٌ شبكيٌّ في مسارِه.",
   },
+  /**
+   * أُنشِئَ في `W-5` **بعدَ** جردِ `W-1`، فيُصنَّفُ ههنا لأنَّ الحاجزَ يُسقِطُ أيَّ
+   * جدولٍ في المخطَّطِ بلا وجهةٍ — وهذا عينُ ما أُريدَ به. ووجهتُه `KEEP`: الإيصالُ
+   * مِلكُ المُستقبِلِ لا المُرسِلِ.
+   */
+  {
+    table: "core_event_inbox",
+    concern: "إيصالُ استلامِ حدثٍ من CORE (منعُ التكرارِ)",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale:
+      "مفتاحُه `event_id` هوَ حرزُ MOVE من الأثرِ المزدوجِ عندَ إعادةِ التسليمِ، ولا معنى لنقلِ إيصالِ استلامٍ إلى مُرسِلِه (ADR 0081 · 0082).",
+  },
   {
     table: "db_backups",
     concern: "سجلُّ نسخِ قاعدةِ MOVE واستعادتِها",
@@ -189,6 +202,18 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     disposition: "KEEP",
     rationale: "استبقاءُ بياناتِ تتبّعٍ يملكُها MOVE.",
   },
+  /**
+   * أُنشِئَ في `W-5` بعدَ جردِ `W-1`. ووجهتُه `KEEP`: الصادرُ مِلكُ المُنتِجِ،
+   * ويُودَعُ في معاملةِ تغييرِ الحالةِ نفسِها فلا يُفصَلُ عن جدولِ المهمّةِ.
+   */
+  {
+    table: "move_event_outbox",
+    concern: "صندوقُ صادرِ أحداثِ `move.job.*`",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale:
+      "يُصرَّفُ إلى بابِ CORE ولا يسكنُه؛ ومفتاحُ `dedup_key` يمنعُ حدثاً ثانياً لنفسِ الحادثِ (ADR 0081 · 0082).",
+  },
   {
     table: "notification_kind_policy",
     concern: "تصنيفُ أنواعِ الإشعارِ وقنواتُها",
@@ -203,6 +228,19 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     disposition: "REFACTOR",
     rationale:
       "توصيلُ الإشعارِ ينتقلُ إلى CORE، ويبقى لـMOVE صندوقُ صادرٍ **لأحداثِه هو** (`move.job.*`) — بنيةٌ واحدةٌ بمسؤوليّتينِ يجبُ فصلُهما لا إلغاءُ إحداهما.",
+  },
+  /**
+   * أُنشِئَ في `W-4` بعدَ جردِ `W-1`. ووجهتُه `KEEP`: التنفيذُ الميدانيُّ مِلكُ MOVE،
+   * وما فيه من CORE مراجعُ مُعتِمةٌ (`fulfillment_id` · `organization_id` ·
+   * `order_reference`) لا مفاهيمُ مخزَّنةٌ، فلا تُصرَّحُ اختراقاتِ عمودٍ.
+   */
+  {
+    table: "operational_jobs",
+    concern: "مهمّةُ التنفيذِ التشغيليّةُ (استلامٌ وإسنادٌ وخروجٌ)",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale:
+      "التنفيذُ الميدانيُّ مِلكُ MOVE بحرفِ حدودِ الملكيّةِ؛ والجدولُ لا يحملُ مفهوماً من مفاهيمِ CORE بل مراجعَه مُعتِمةً (ADR 0081).",
   },
   {
     table: "order_offers",

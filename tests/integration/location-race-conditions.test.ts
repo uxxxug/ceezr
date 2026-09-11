@@ -204,10 +204,27 @@ describeIf("سباقاتُ مسارِ الموقعِ على PostgreSQL حقيق�
    */
   const recordedMsOf = (event: TrackingEvent): number => Number(event.metadata?.recordedAtMs);
 
-  /** ث١ — متزايدةٌ صارماً بترتيبِ التسليمِ. */
+  /**
+   * ث١ — لا رقمَ يتكرَّرُ ولا يُمنَحُ مرّتَينِ.
+   *
+   * **تصحيحٌ (OPS-016 · 2026-09-12 · حكمُ CI):** كانَ المُوجَبُ ههنا «متزايدةٌ
+   * صارماً **بترتيبِ التسليمِ**»، وذاكَ شاهدٌ غيرُ سليمٍ في اختبارٍ متزامنٍ:
+   * الرقمُ يُمنَحُ داخلَ `update` واحدةٍ في القاعدةِ (`session-repository.ts`)،
+   * أمّا النشرُ فيقعُ **بعدَ** إغلاقِ المعاملةِ في `live-tracking.ts` وخارجَ أيِّ
+   * قفلٍ. فنداءانِ متزامنانِ قد يأخذُ أحدُهما ٤ والآخرُ ٥ ثمَّ ينشرُ صاحبُ ٥
+   * أوّلاً — فيسقطُ المُوجَبُ بلا خللٍ في السلوكِ. وهذا عينُ ما حذَّرَ منه
+   * تعليقُ الحالةِ نفسِها: «لا يُقاسُ جدولةُ التنفيذِ». ولا عقدَ يضمنُ ترتيبَ
+   * التسليمِ: `ADR 0053` يجعلُ **الرقمَ** هوَ الترتيبَ، والمستهلكُ يرتّبُ به.
+   *
+   * فالمُوجَبُ الصادقُ: الأرقامُ المنشورةُ لا يتكرَّرُ فيها رقمٌ ولا يُمنَحُ رقمٌ
+   * مرّتَينِ — يُقاسُ على المجموعةِ مرتَّبةً بالرقمِ لا بترتيبِ الوصولِ. وقد
+   * شُدَّ المُوجَبُ في المقابلِ: الطوابعُ تُقاسُ **بترتيبِ الرقمِ** (لا بترتيبِ
+   * التسليمِ) وأعلى رقمٍ منشورٍ يُطابِقُ `last_sequence` في الصفِّ.
+   */
   function expectStrictlyIncreasing(sequences: readonly number[]): void {
-    for (let index = 1; index < sequences.length; index += 1) {
-      expect(sequences[index] ?? 0).toBeGreaterThan(sequences[index - 1] ?? 0);
+    const ordered = [...sequences].sort((left, right) => left - right);
+    for (let index = 1; index < ordered.length; index += 1) {
+      expect(ordered[index] ?? 0).toBeGreaterThan(ordered[index - 1] ?? 0);
     }
   }
 
@@ -250,8 +267,11 @@ describeIf("سباقاتُ مسارِ الموقعِ على PostgreSQL حقيق�
     expectStrictlyIncreasing(sequences);
     expect(new Set(sequences).size).toBe(sequences.length);
 
-    // ث٢ — لا تراجعَ في الموضعِ المعروضِ: طوابعُ الجهازِ غيرُ متناقصةٍ.
-    const stamps = positions.map(recordedMsOf);
+    // ث٢ — لا تراجعَ في الموضعِ المعروضِ: طوابعُ الجهازِ غيرُ متناقصةٍ **بترتيبِ
+    // الرقمِ**، وهوَ الترتيبُ الذي يقرؤه المستهلكُ (`ADR 0053`) لا ترتيبُ الوصولِ.
+    const stamps = [...positions]
+      .sort((left, right) => left.sequence - right.sequence)
+      .map(recordedMsOf);
     for (let index = 1; index < stamps.length; index += 1) {
       expect(stamps[index] ?? 0).toBeGreaterThanOrEqual(stamps[index - 1] ?? 0);
     }
@@ -265,7 +285,7 @@ describeIf("سباقاتُ مسارِ الموقعِ على PostgreSQL حقيق�
     // ث٤ — آخرُ رقمٍ منشورٍ هوَ رقمُ الصفِّ، وكلُّها من قناةٍ واحدةٍ.
     expect(new Set(positions.map((event) => event.sessionId)).size).toBe(1);
     expect(positions[0]?.sessionId).toBe(row.id);
-    expect(sequences.at(-1)).toBe(row.last_sequence);
+    expect(Math.max(...sequences)).toBe(row.last_sequence);
   });
 
   it("تكرارٌ متزامنٌ: النبضةُ نفسُها مرّتَينِ معاً لا تُحرِّكُ الدبّوسَ ولا تُنتِجُ رقمَينِ لموضعَينِ", async () => {

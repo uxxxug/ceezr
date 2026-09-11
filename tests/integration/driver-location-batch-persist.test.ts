@@ -353,6 +353,12 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
      * والدالّةُ تُفكِّكُ `verdict` حرفيّاً — فلوِ اجتازَ الترميزُ لسقطَ الصفُّ
      * في التنقيةِ ولَكانَ `applied = 0`.
      */
+    // OPS-013: الحِمْلُ يُمرَّرُ بـ`sql.json` كما يُمرِّرُه المحوّلُ الإنتاجيُّ، لا
+    // بـ`JSON.stringify` نصّاً. فالسائقُ (postgres.js) يختارُ مُسلسِلَ الوسيطِ من
+    // نوعِه المُعلَنِ من الخادمِ؛ فإذا صارَ النوعُ `jsonb` معروفاً سلسلَ النصَّ مرّةً
+    // أخرى، فوصلَ إلى الدالّةِ `jsonb` من صنفِ `string` لا `array`، فأجابَت
+    // `BATCH_MUST_BE_ARRAY` — عطلٌ في استعمالِ السائقِ لا في الدالّةِ، وكانَ يظهرُ
+    // أو يختفي بحسبِ ما إذا كانَت الجملةُ مُحضَّرةً على الوصلةِ قبلَ ذلك.
     const rows = await sql<{ result: Record<string, unknown> }[]>`
       select persist_driver_location_batch(${cityId}::uuid, ${sql.json([
         {
@@ -361,6 +367,11 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
           longitude: AT_A.longitude,
           recorded_at_ms: T2,
           accuracy_m: 11,
+          // OPS-013: الحقلُ الذي تقرؤه `jsonb_to_recordset` اسمُه `verdict` لا
+          // `quality` (و`quality` اسمُ العمودِ المخزَّنِ لا اسمُ حقلِ الحِمْلِ). وكانَ
+          // المكتوبُ `quality`، فيصلُ `verdict = null` فيُرفَضُ الصفُّ صامتاً
+          // (`applied = 0`) — فالحالةُ المقصودةُ (غيابُ `observed_at_ms` وحدَه) لم
+          // تكن مُقاسةً أصلاً. والغيابُ المقصودُ باقٍ: لا `observed_at_ms` هنا.
           verdict: "ACCEPT",
         },
       ] as never)}::jsonb) as result

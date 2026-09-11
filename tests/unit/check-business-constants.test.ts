@@ -71,3 +71,22 @@ describe("حرس القيم التجارية: تعليق أم كود", () => {
     expect(executableLines(source).length).toBe(source.split("\n").length);
   });
 });
+
+describe("حرس القيم التجارية: اتّحادُ رموزِ حالةٍ في نوعٍ", () => {
+  it("تعريفُ نوعٍ باتّحادِ رموزِ حالةٍ مقبولٌ: بروتوكولٌ لا سياسةٌ", () => {
+    expect(findHardcodedValues("type RejectStatus = 400 | 401 | 415 | 422 | 503;\n")).toEqual([]);
+    expect(findHardcodedValues("export type IntakeStatus = 400 | 503;\n")).toEqual([]);
+  });
+
+  it("سعرٌ لا يتنكّرُ في هيئةِ نوعٍ: كلُّ صورةٍ أخرى تبقى مخالفةً", () => {
+    expect(findHardcodedValues("const subscriptionPrice = 400;\n")).toEqual([
+      { line: 1, value: 400 },
+    ]);
+    expect(findHardcodedValues("type Price = 400 | 250;\n")).toHaveLength(2);
+    // اتّحادٌ فيه حدٌّ ليسَ رمزَ حالةٍ (رقمانِ) لا يُستثنى ألبتّةَ: الحدّانِ كلاهما مخالفةٌ.
+    expect(findHardcodedValues("type WeirdStatus = 400 | 45;\n")).toHaveLength(2);
+    expect(findHardcodedValues("type RejectStatus = 400; const p = 400;\n")).toEqual([
+      { line: 1, value: 400 },
+    ]);
+  });
+});

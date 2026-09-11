@@ -35,6 +35,20 @@ const FORBIDDEN = [250, 400, 45];
  */
 const HTTP_STATUS_LINE =
   /(c\.json\(|new Response\(|status:\s*\d{3}|\}\s*,\s*\d{3}\s*\)|"[A-Z][A-Z0-9_]+"\s*,\s*\d{3}\s*\))/;
+/**
+ * الشكلُ الثاني الذي يظهرُ فيه رمزُ الحالةِ بروتوكولاً لا سياسةً: **نوعٌ** اسمُه
+ * ينتهي بـ`Status` قيمتُه اتّحادُ أرقامٍ ثلاثيّةٍ حصراً
+ * (`type RejectStatus = 400 | 401 | 503;`). أُضيفَ لأنَّ بابَ استقبالِ أحداثِ CORE
+ * يُقيِّدُ رموزَ ردِّه بنوعٍ بدلاً من `number` مفتوحٍ، فكانَ الفاحصُ يقرأُ ٤٠٠
+ * سعرَ اشتراكٍ ويُسقطُ CI على تعريفِ نوعٍ لا قيمةَ تجاريّةَ فيه.
+ *
+ * والشرطُ ضيّقٌ عن قصدٍ ولا يُرخِّصُ شيئاً: سطرٌ كاملٌ لا يحملُ غيرَ تعريفِ النوعِ،
+ * والاسمُ منتهٍ بـ`Status`، وكلُّ حدٍّ في الاتّحادِ رقمٌ من ثلاثِ خاناتٍ. فسعرٌ
+ * (`const price = 400;`) أو ثابتٌ (`const X = 400 | 0;`) لا يُطابِقُه، ويُثبِتُ ذلكَ
+ * `tests/unit/check-business-constants.test.ts`.
+ */
+const HTTP_STATUS_UNION_TYPE =
+  /^\s*(export\s+)?type\s+[A-Za-z0-9_]*Status\s*=\s*\d{3}(\s*\|\s*\d{3})*\s*;?\s*$/;
 
 interface Hit {
   readonly file: string;
@@ -95,7 +109,7 @@ export function findHardcodedValues(
   const found: { line: number; value: number }[] = [];
 
   executableLines(source).forEach((code, index) => {
-    if (HTTP_STATUS_LINE.test(code)) return;
+    if (HTTP_STATUS_LINE.test(code) || HTTP_STATUS_UNION_TYPE.test(code)) return;
     for (const value of FORBIDDEN) {
       const pattern = new RegExp(`(^|[^0-9a-zA-Z_.$])${value}(_|\\b)(?![0-9a-zA-Z_])`);
       if (pattern.test(code)) found.push({ line: index + 1, value });

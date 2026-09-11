@@ -675,6 +675,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "السلامةُ والاستغاثة",
     documentedIn: null,
   },
+  {
+    migration: "20260912000000_w5_permanent_delivery_failure.sql",
+    change: "drop_function:abandon_move_event_delivery(4)",
+    why: "`create or replace function` لا تُغيِّرُ قائمةَ الوسائطِ في PostgreSQL، فإضافةُ `p_permanent boolean default false` توقيعٌ خامسٌ جديدٌ؛ وترْكُ الرابعِ يُوجِدُ توقيعَينِ متعايشَينِ فيصيرُ النداءُ بأربعةِ وسائطَ مُبهَماً (`function is not unique`) ويفشلُ الاثنانِ معاً — فالحذفُ لازمٌ لا مُختارٌ. والوسمُ الجديدُ يُميتُ الصفَّ من محاولتِه الأولى عندَ رفضٍ **دائمٍ** من CORE (مغلَّفٌ مخالفٌ للعقدِ، أو `4xx` سوى `408`/`429` كما في جدولِ CORE المنقولِ)، إذ إعادةُ إرسالِ بايتاتٍ مرفوضةٍ ثمانيةَ أضعافٍ لا تُغيِّرُ حكماً وتُخفي العطلَ في صفٍّ «قيدَ الإعادةِ» بدلاً من صفٍّ ميّتٍ ظاهرٍ في مقياسِ الموتى. ولا كسرَ لنسخةٍ سابقةٍ: النداءُ بأربعةِ وسائطَ يُحَلُّ إلى التوقيعِ الجديدِ بقيمةٍ افتراضيةٍ `false` فيسلكُ سلوكَ الأمسِ حرفاً، والمردُّ زادَ حقلاً `permanent` وحدَه والشيفرةُ السابقةُ لا تقرؤه فلا تنكسرُ به.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /** وسمُ المدخلِ بالصورةِ التي تُطابِق `riskTag`. */

@@ -6,6 +6,7 @@
  * ملاحظات مستقبلية: مخزن الجلسات يصير Redis بتبديل سطر واحد في container.ts.
  */
 
+import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
 import { verifySchemaContract } from "../../../packages/infrastructure/db/schema-guard.ts";
 import { createPostgresTelegramUpdateQueue } from "../../../packages/infrastructure/db/telegram-update-queue.ts";
 import {
@@ -28,6 +29,7 @@ import {
   createStructuredLogger,
 } from "../../../packages/infrastructure/observability/index.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
 import {
   MAPLIBRE_CDN_ORIGIN,
   MAPLIBRE_SRI_UNSET,
@@ -40,6 +42,7 @@ import {
   DECLARED_TOPOLOGY,
   describeConnectionBudget,
 } from "../../../packages/shared/config/connection-budget.ts";
+import { CORE_EVENT_TRANSPORT_ENV } from "../../../packages/shared/config/core-event-transport.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import {
   DECIDED_EVENT_DISTRIBUTION,
@@ -487,6 +490,22 @@ const driverLocation =
         log,
       };
 
+/**
+ * `W-5` — بابُ استقبالِ أحداثِ CORE. يُركَّبُ حينَ يزرعُ المُشغِّلُ سرَّ الاشتراكِ
+ * الذي سجَّلَه في CORE؛ وغيابُه لا يُسقِطُ الخدمةَ ولا يفتحُ باباً بلا توقيعٍ: لا
+ * يُركَّبُ المسارُ أصلاً، فيَظهرُ الغيابُ `404` لا قَبولاً كاذباً. والسرُّ يُقرأُ
+ * من البيئةِ لا من `platform_settings`: سرٌّ في قاعدةٍ تقرؤها أدواتُ الإدارةِ
+ * أوسعُ انتشاراً من سرٍّ في بيئةِ عمليّةٍ واحدةٍ.
+ */
+const coreInboundSigningSecret = process.env[CORE_EVENT_TRANSPORT_ENV.inboundSigningSecret];
+const coreEventIntake =
+  coreInboundSigningSecret === undefined
+    ? undefined
+    : {
+        signingSecret: coreInboundSigningSecret,
+        lifecycle: createFulfillmentLifecycle(createOperationalJobRepository(container.sql)),
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -590,6 +609,7 @@ const app = createServer({
   ...(me === undefined ? {} : { me }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
+  ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
 });
 
 /**

@@ -1,0 +1,721 @@
+openapi: 3.1.0
+info:
+  title: WASLA CORE API
+  version: 1.0.0
+  description: >
+    Shared operating layer for WASLA. CORE owns identity, access, organizations,
+    money, subscriptions, reputation, channels, notifications and fulfillment
+    coordination.
+
+    CORE never returns MOVE- or MARKET-owned data. An endpoint here that
+    proxies a driver, a job's operational detail, a product or a store is an
+    architecture violation (ADR 0007 / ADR 0018).
+
+    Compatibility: additive changes only within v1. A breaking change ships as
+    /v2 and v1 stays served for the documented overlap window.
+servers:
+  - url: https://core.wasla.internal
+    description: Service-to-service base URL (environment supplied)
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: Liveness probe
+      security: []
+      responses:
+        "200":
+          description: Process is alive
+  /ready:
+    get:
+      summary: Readiness probe
+      security: []
+      responses:
+        "200":
+          description: Ready to serve, with pending outbox depth
+  /v1/identities:
+    post:
+      summary: Resolve or create an identity from a channel account
+      description: >
+        Idempotent by (channel_type, external_id). A repeated call returns the
+        same identity with 200 and emits no further event. This endpoint NEVER
+        merges two existing identities; merging is an explicit gated operation.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [channel_type, external_id]
+              properties:
+                channel_type:
+                  $ref: "#/components/schemas/ChannelType"
+                external_id: { type: string, minLength: 1 }
+                display_name: { type: string, nullable: true }
+                source_system: { type: string }
+                legacy_id: { type: string, nullable: true }
+      responses:
+        "200":
+          description: Existing identity resolved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdentityResolved" }
+        "201":
+          description: Identity created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdentityResolved" }
+        "400": { $ref: "#/components/responses/Error" }
+  /v1/sessions:
+    post:
+      summary: Issue a session for a principal
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [principal_id, channel_type]
+              properties:
+                principal_id: { type: string, format: uuid }
+                channel_type: { $ref: "#/components/schemas/ChannelType" }
+      responses:
+        "201":
+          description: Session issued. The token is returned once and stored only as a hash.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id: { type: string, format: uuid }
+                  access_token: { type: string }
+                  token_type: { type: string, enum: [Bearer] }
+                  expires_at: { type: string, format: date-time }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/sessions/current:
+    get:
+      summary: Verify the caller's session and resolve the acting principal
+      responses:
+        "200":
+          description: Authenticated principal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthenticatedPrincipal" }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/sessions/revoke:
+    post:
+      summary: Revoke a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [session_id]
+              properties:
+                session_id: { type: string, format: uuid }
+      responses:
+        "204": { description: Revoked (idempotent) }
+  /v1/access/check:
+    post:
+      summary: Authorization probe for MOVE and MARKET
+      description: >
+        Returns an allow/deny decision only. It never returns the data the
+        permission would guard.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permission]
+              properties:
+                permission: { $ref: "#/components/schemas/Permission" }
+                organization_id: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Decision
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  allowed: { type: boolean }
+                  principal_id: { type: string, format: uuid }
+        "401": { $ref: "#/components/responses/Error" }
+  /v1/memberships:
+    post:
+      summary: Grant a principal membership of an organization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [principal_id, organization_id, roles]
+              properties:
+                principal_id: { type: string, format: uuid }
+                organization_id: { type: string, format: uuid }
+                roles:
+                  type: array
+                  minItems: 1
+                  items: { $ref: "#/components/schemas/Role" }
+      responses:
+        "201": { description: Membership granted }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/organizations:
+    post:
+      summary: Create an organization (tenant)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, country_code]
+              properties:
+                name: { type: string, minLength: 1 }
+                country_code: { type: string, pattern: "^[A-Z]{2}$" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Organization" }
+        "403": { $ref: "#/components/responses/Error" }
+  /v1/organizations/{organization_id}:
+    get:
+      summary: Read an organization the caller belongs to
+      parameters:
+        - name: organization_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Organization
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Organization" }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/wallets:
+    post:
+      summary: Create or resolve a CORE-owned wallet
+      description: Idempotent by owner type, owner id and ISO 4217 currency.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [owner_type, owner_id, currency]
+              properties:
+                owner_type: { type: string, enum: [identity, organization] }
+                owner_id: { type: string, format: uuid }
+                currency: { type: string, pattern: "^[A-Z]{3}$" }
+      responses:
+        "201": { description: Wallet created }
+        "200": { description: Existing wallet resolved }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /v1/wallets/{wallet_id}/balance:
+    get:
+      summary: Read posted, held and available wallet amounts
+      description: >-
+        held_minor counts only holds that are still capturable. A hold past its
+        expiry can no longer be captured, so its amount is reported separately
+        in expired_hold_minor and is already spendable; the expiry sweep then
+        releases it formally.
+      parameters:
+        - name: wallet_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Balance in integer minor units
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [posted_minor, held_minor, available_minor, expired_hold_minor]
+                properties:
+                  posted_minor: { type: integer }
+                  held_minor: { type: integer, minimum: 0 }
+                  available_minor: { type: integer }
+                  expired_hold_minor:
+                    type: integer
+                    minimum: 0
+                    description: Amount still recorded as authorized but past expiry, awaiting the sweep.
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/payment-authorizations:
+    post:
+      summary: Place an idempotent hold on wallet funds
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wallet_id, amount_minor, business_reference]
+              properties:
+                wallet_id: { type: string, format: uuid }
+                amount_minor: { type: integer, minimum: 1 }
+                business_reference: { type: string, minLength: 1 }
+                expires_at: { type: string, format: date-time, nullable: true }
+      responses:
+        "201": { description: Payment authorized }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/payment-authorizations/{authorization_id}/capture:
+    post:
+      summary: Capture an authorized payment into the balanced ledger
+      parameters:
+        - name: authorization_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Capture transaction, idempotent on authorization id }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/payment-authorizations/{authorization_id}/void:
+    post:
+      summary: Release a hold without moving money
+      parameters:
+        - name: authorization_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string, minLength: 1 }
+      responses:
+        "200": { description: Authorization voided, idempotent }
+        "404": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/geography/countries:
+    get:
+      summary: List reference countries
+      responses:
+        "200": { description: Countries }
+    post:
+      summary: Register a reference country
+      responses:
+        "201": { description: Country registered }
+        "409": { $ref: "#/components/responses/Error" }
+  /v1/geography/countries/{country_code}/regions:
+    get:
+      summary: List regions of a country
+      parameters:
+        - name: country_code
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Regions }
+  /v1/geography/regions/{region_id}/cities:
+    get:
+      summary: List cities of a region
+      parameters:
+        - name: region_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Cities }
+  /v1/geography/regions:
+    post:
+      summary: Register a reference region
+      responses:
+        "201": { description: Region registered }
+  /v1/geography/cities:
+    post:
+      summary: Register a reference city
+      responses:
+        "201": { description: City registered }
+  /v1/geography/service-areas:
+    post:
+      summary: Register a service area with a coverage radius
+      responses:
+        "201": { description: Service area registered }
+  /v1/geography/service-areas/resolve:
+    get:
+      summary: Resolve a coordinate to covering service areas
+      description: Reference resolution only. CORE never stores tracking, routes or driver positions.
+      parameters:
+        - name: latitude
+          in: query
+          required: true
+          schema: { type: number }
+        - name: longitude
+          in: query
+          required: true
+          schema: { type: number }
+      responses:
+        "200": { description: Matching service areas ordered by distance }
+        "400": { $ref: "#/components/responses/Error" }
+  /v1/fulfillments/reconciliation/inconsistent:
+    get:
+      summary: List fulfillments whose execution state disagrees with their money state
+      description: >-
+        Reconciliation read. Returns fulfillments where execution state and
+        settlement_state do not agree — for example a closed fulfillment whose
+        hold could not be brought to a terminal state (settlement_state
+        `unsettled`). An empty list is the invariant CORE is expected to hold.
+      parameters:
+        - name: organization_id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Count and list of inconsistent fulfillments }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /v1/fulfillments/{fulfillment_id}:
+    get:
+      summary: Read CORE fulfillment coordination state
+      description: >-
+        Returns opaque cross-system references, never order or job details.
+        `status` is the execution state and `settlement_state` is its financial
+        counterpart (none, held, captured, released, unsettled).
+      parameters:
+        - name: fulfillment_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200": { description: Fulfillment coordination record }
+        "403": { $ref: "#/components/responses/Error" }
+        "404": { $ref: "#/components/responses/Error" }
+  /v1/fulfillments/{fulfillment_id}/cancel:
+    post:
+      summary: Cancel a fulfillment before execution closes (idempotent)
+      parameters:
+        - name: fulfillment_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: { type: string }
+      responses:
+        "200": { description: Cancelled fulfillment }
+        "409": { description: Fulfillment already closed }
+  /v1/events:
+    post:
+      summary: Submit an event from MARKET or MOVE for durable ingestion
+      description: >-
+        The edge external systems push into. CORE records the envelope durably
+        and returns 202 without processing it; an inbound dispatcher hands it to
+        the consumers afterwards, so a crash after the response loses nothing.
+        Redelivering the same event_id is safe and returns first_delivery=false.
+
+        Which event types a caller may submit is derived from the authenticated
+        credential, not from the request. A caller may only submit events whose
+        type carries its own prefix, and no external caller may submit core.*
+        events at all.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EventEnvelope" }
+      responses:
+        "202":
+          description: Event accepted and recorded durably
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [event_id, accepted, first_delivery]
+                properties:
+                  event_id: { type: string, format: uuid }
+                  accepted: { type: boolean }
+                  first_delivery:
+                    type: boolean
+                    description: False when CORE already held this event; no retry needed.
+        "400": { description: Invalid envelope, or no consumer for this event type }
+        "403": { description: This caller may not submit this event type }
+  /v1/event-subscriptions:
+    post:
+      summary: Register where CORE should deliver one of its own event types
+      description: >-
+        Operator-provisioned only; there is no self-registration. Only core.*
+        event types may be subscribed to, because a subscription to market.* or
+        move.* would hand one external system another's inbound traffic by
+        configuration alone. The endpoint must be https, and the signing secret
+        is never returned by any read path including this one.
+
+        Re-registering an existing (subscriber, event_type) returns the existing
+        subscription and does not rotate its secret: silently rotating would
+        break every in-flight delivery without anyone asking for it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subscriber, event_type, endpoint_url, signing_secret]
+              properties:
+                subscriber:
+                  type: string
+                  description: The external system, normally its service credential name.
+                event_type: { type: string, pattern: "^core\\." }
+                endpoint_url: { type: string, format: uri, pattern: "^https://" }
+                signing_secret:
+                  type: string
+                  minLength: 32
+                  description: >-
+                    Shared secret CORE signs each body with. Write-only; stored
+                    because HMAC needs the plaintext, never echoed, never logged.
+      responses:
+        "201":
+          description: Subscription registered
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EventSubscription" }
+        "400": { description: Not a core.* type, not https, or secret too short }
+        "403": { description: Caller is not an operator }
+    get:
+      summary: List the endpoints CORE delivers events to
+      responses:
+        "200":
+          description: Subscriptions, without their secrets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count, items]
+                properties:
+                  count: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EventSubscription" }
+        "403": { description: Caller is not an operator }
+  /v1/event-subscriptions/{subscription_id}/deactivate:
+    post:
+      summary: Stop queueing new deliveries for a subscriber
+      description: >-
+        Deliveries already queued stay queued. They were promised, and dropping
+        them silently is worse than delivering them late.
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Subscription deactivated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [subscription_id, active]
+                properties:
+                  subscription_id: { type: string, format: uuid }
+                  active: { type: boolean }
+        "403": { description: Caller is not an operator }
+        "404": { description: No such subscription }
+  /v1/event-subscriptions/{subscription_id}/activate:
+    post:
+      summary: Resume queueing deliveries for a subscriber
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Subscription activated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [subscription_id, active]
+                properties:
+                  subscription_id: { type: string, format: uuid }
+                  active: { type: boolean }
+        "403": { description: Caller is not an operator }
+        "404": { description: No such subscription }
+  /v1/event-deliveries/undelivered:
+    get:
+      summary: List what CORE has promised to deliver and has not
+      description: >-
+        Pending plus dead deliveries. An empty list is the invariant to expect;
+        a dead row is one an operator has to look at, since CORE stopped trying.
+      responses:
+        "200":
+          description: Outstanding deliveries
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count, items]
+                properties:
+                  count: { type: integer }
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/EventDelivery" }
+        "403": { description: Caller is not an operator }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  responses:
+    Error:
+      description: Canonical error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    EventSubscription:
+      type: object
+      description: >-
+        Where CORE delivers one event type. signing_secret is deliberately
+        absent: it is write-only and never leaves the database.
+      required: [subscription_id, subscriber, event_type, endpoint_url, active, created_at]
+      properties:
+        subscription_id: { type: string, format: uuid }
+        subscriber: { type: string }
+        event_type: { type: string }
+        endpoint_url: { type: string, format: uri }
+        active: { type: boolean }
+        created_at: { type: string, format: date-time }
+    EventDelivery:
+      type: object
+      description: One attempt record per (event, subscription). The unit of outbound work.
+      required:
+        [delivery_id, event_id, subscription_id, status, attempts, next_attempt_at, created_at]
+      properties:
+        delivery_id: { type: string, format: uuid }
+        event_id: { type: string, format: uuid }
+        subscription_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [pending, delivered, dead]
+          description: >-
+            dead means CORE stopped trying: either the receiver refused the
+            payload, or the attempt budget ran out.
+        attempts: { type: integer }
+        last_error: { type: string, nullable: true }
+        last_status:
+          type: integer
+          nullable: true
+          description: Null when the attempt never got a response at all.
+        next_attempt_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        delivered_at: { type: string, format: date-time, nullable: true }
+    EventEnvelope:
+      type: object
+      description: >-
+        The canonical envelope every event carries, inbound and outbound. The
+        payload shape per event_type is published under contracts/events.
+      required:
+        [event_id, event_type, version, producer, occurred_at, correlation_id,
+         entity_type, entity_id, payload]
+      properties:
+        event_id: { type: string, format: uuid }
+        event_type:
+          type: string
+          description: >-
+            Accepted from external callers: market.order.created,
+            move.job.accepted, move.job.rejected, move.job.completed.
+        version: { type: integer, minimum: 1 }
+        producer:
+          type: string
+          description: Must equal the authenticated caller's service name.
+        occurred_at: { type: string, format: date-time }
+        correlation_id: { type: string }
+        causation_id: { type: [string, "null"] }
+        entity_type: { type: string }
+        entity_id: { type: string }
+        payload: { type: object }
+    ChannelType:
+      type: string
+      enum: [telegram, phone, email, web, partner_api]
+    Role:
+      type: string
+      enum: [platform_admin, org_admin, org_member, support_agent, service]
+    Permission:
+      type: string
+      enum:
+        - identity.read
+        - identity.write
+        - organization.read
+        - organization.write
+        - fulfillment.request
+        - fulfillment.read
+        - money.authorize
+        - support.act
+    IdentityResolved:
+      type: object
+      required: [identity_id, principal_id, status, created]
+      properties:
+        identity_id: { type: string, format: uuid }
+        principal_id: { type: string, format: uuid }
+        status: { type: string, enum: [active, suspended, merged] }
+        created: { type: boolean }
+    AuthenticatedPrincipal:
+      type: object
+      required: [principal_id, identity_id, session_id, organization_ids, roles, permissions]
+      properties:
+        principal_id: { type: string, format: uuid }
+        identity_id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        organization_ids:
+          type: array
+          items: { type: string, format: uuid }
+        roles:
+          type: array
+          items: { $ref: "#/components/schemas/Role" }
+        permissions:
+          type: array
+          items: { $ref: "#/components/schemas/Permission" }
+    Organization:
+      type: object
+      required: [organization_id, name, status, country_code]
+      properties:
+        organization_id: { type: string, format: uuid }
+        name: { type: string }
+        status: { type: string, enum: [active, suspended] }
+        country_code: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        source_system: { type: string }
+        legacy_id: { type: string, nullable: true }
+    Error:
+      type: object
+      required: [code, message, retryable, correlation_id]
+      properties:
+        code:
+          type: string
+          enum:
+            [
+              invalid_request,
+              unauthenticated,
+              forbidden,
+              not_found,
+              conflict,
+              precondition_failed,
+              unavailable,
+              internal,
+            ]
+        message: { type: string }
+        details: { type: object }
+        retryable: { type: boolean }
+        correlation_id: { type: string }
