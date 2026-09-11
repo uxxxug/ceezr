@@ -303,6 +303,7 @@ the per-job conclusion actually read from the GitHub Actions API.
 | `54dcf29` (run `34656430731`) | fail — **only** `check-migrations` rule 0.4, three lines read from the job log (`operational_jobs`, `core_event_inbox`, `move_event_outbox`): the `DEP-CORE-006` / `O-1` blocker and nothing else | **pass** | fail — `O-2` | pass | pass |
 | `1fa9efa` (run `34657798076`, merge of `origin/main` after PR #1 landed) | fail — **only** `check-migrations` rule 0.4, same three lines (`DEP-CORE-006` / `O-1`) | **pass** | fail — `O-2` | pass | pass |
 | `1fa9efa` (run `34657801218`, same commit, second trigger) | fail — same sovereign blocker | fail — **1 case**: `location-race-conditions.test.ts:210` expected sequence `> 5`, received `4` — the same commit passed this job in run `34657798076`, so the job is order-dependent, not the code (`OPS-016`) | fail — `O-2` | pass | pass |
+| `e2b33a5` (runs `34658811488` and `34658815106`) | fail — **only** `check-migrations` rule 0.4, the same three lines (`DEP-CORE-006` / `O-1`), read from the job log | **pass in both runs** (`OPS-016` fixed; the flake is gone) | fail — `O-2` | pass | pass |
 
 Root causes found and fixed at their source, none by weakening a test:
 
@@ -382,6 +383,34 @@ Recorded here only. No change is made to CORE or MARKET from this repository.
 | DEP-CORE-005 | No mutual repository access, so vendored contract freshness cannot be verified automatically | Contract parity stays a manually compared sha256 fingerprint |
 | DEP-CORE-006 | `core.fulfillment.created` carries no city or geography, and `organization_id` / `order_reference` are opaque here | Landing the item 4 and 5 schema under sovereign rule 0.4; also driver assignment later, since drivers are city-bound |
 | DEP-CORE-007 | No shared CORE environment and no service credential for MOVE, so no delivery to a real CORE can be measured | Item 5 can only be measured against CORE's written contract, never against CORE itself |
+
+## Owner instruction O-5, recorded 2026-09-12 (merge ordered with a red sovereign gate)
+
+On 2026-09-12 the repository owner instructed, verbatim: «قم دمج كل شي إلى
+المستودع ، وقم بإصلاح الدمج السابق ، وقم بدمج طلب الدمج الموجود في المستودع».
+This entry is written **before** the merge is performed, so that the merge is
+never read as a green verdict once it lands. The state of the gates at the time
+of the instruction is recorded below verbatim.
+
+- **What is red at the time of this instruction, and why.** `verify` failed on exactly one gate:
+  `check-migrations`, sovereign rule 0.4, three lines — `operational_jobs`,
+  `core_event_inbox`, `move_event_outbox` carry no `city_id`. They cannot carry a
+  truthful one: `core.fulfillment.created` from CORE contains no city and no
+  geography (`DEP-CORE-006`), so a `city_id` here would be invented, not
+  received. The real-Redis job failed on `O-2` (Upstash secrets are not present
+  in this repository's Actions secrets). Both were declared blockers before this
+  instruction, not discovered by it.
+- **What is *not* done to make it green.** The gate is not disabled, not
+  weakened, not skipped, and no exemption is added to
+  `scripts/check-migrations.ts`. No test is relaxed. `check-migrations` will keep
+  failing for these three tables until `DEP-CORE-006` closes or the owner publishes a
+  governing appendix to rule 0.4. Nothing in this repository may be read as
+  «مَقيس» or «مُثبَت» on the strength of a merge (`ح-4` · `ح-5`).
+- **What closes it.** Either CORE adds city/geography to
+  `core.fulfillment.created` (then the three tables take a received `city_id`),
+  or the owner publishes a narrow, written appendix to rule 0.4 naming exactly
+  these three tables and the reason. Until one of the two happens, `O-1` stays
+  open.
 
 ## Owner decisions required, recorded 2026-09-11
 
