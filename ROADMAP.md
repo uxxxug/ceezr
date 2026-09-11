@@ -1,7 +1,7 @@
 # WASLA MOVE — Roadmap
 
 **Repository:** `noor-seez/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-09-11
+**Last updated:** 2026-09-11 (consolidation cycle)
 **Last milestone:** Roadmap and roadmap-freshness gate introduced and exercised. No application code has been changed yet by the WASLA integration work.
 
 ## What this project is
@@ -129,3 +129,19 @@ integration work has added no test here yet.
 - Integration with CORE (not attempted).
 - Any data migration.
 - Any cutover or rollback.
+
+## Cross-repository status (recorded 2026-09-11)
+
+- WASLA CORE canonical repository: `noor-seez/wasla-core` — permanently
+  independent. It is not merged here, not vendored here, and not a shared
+  package. CORE published its Money (double-entry ledger, wallets,
+  authorization/capture) and Fulfillment coordination cycle at commit
+  `f0eccc4bf2`, verified locally: typecheck clean, 37/37 tests, governance,
+  contract and migration gates passing.
+- No cross-repository integration has started. This repository still emits and
+  consumes nothing from CORE.
+- Nothing in this repository is left uncommitted by the WASLA work: every
+  change made here is published on `main`.
+- GitHub Actions on the `noor-seez` account is blocked at account level
+  (billing/spending limit): workflow jobs are created but start zero steps, so
+  CI results for this repository cannot be produced until billing is resolved.
