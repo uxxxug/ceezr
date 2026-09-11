@@ -200,6 +200,7 @@ the per-job conclusion actually read from the GitHub Actions API.
 | `b4a58f2` (run `34628804244`) | fail — `check-migrations` rule 0.4 (`DEP-CORE-006`) | fail — 4 cases | fail — `O-2` secrets absent | pass | pass |
 | `def9a20` (run `34629792395`) | fail — same sovereign blocker | fail — 2 cases | fail — `O-2` | pass | fail — commit touched `supabase/` without a roadmap change |
 | `4f93c24` (run `34632270113`) | fail — same sovereign blocker (`check-migrations`, three rule-0.4 lines, read from the job log) | **pass** | fail — `O-2` | pass | pass |
+| `7bf983b` (run `34655832337`) | fail — `check-business-constants` rejected `type RejectStatus = 400 \| 401 \| 415 \| 422 \| 503;` (HTTP status literals read as a subscription price), read from the job log; the sovereign rule-0.4 blocker was never reached in this run | **pass** | fail — `O-2` | pass | pass |
 
 Root causes found and fixed at their source, none by weakening a test:
 
@@ -216,6 +217,30 @@ Root causes found and fixed at their source, none by weakening a test:
   only as a source comment, so the assertion passed when the gateway *crashed*
   (Bun prints the source excerpt, comment included) and failed when the gateway
   started cleanly. It now asserts the emitted event code.
+- **`OPS-014` — the business-constant guard could not see a status-code union.**
+  `scripts/check-business-constants.ts` forbids the literals `250`, `400` and `45`
+  outside `platform_settings`, and exempts HTTP status codes — but its exemption
+  only recognised response-call shapes (`c.json(...)`, `new Response(...)`,
+  `status: <ddd>`, `rejected(c, "CODE", <ddd>)`). The new intake route constrains
+  its reject codes with a type (`type RejectStatus = 400 | 401 | 415 | 422 | 503`)
+  instead of an open `number`, so CI read `400` as a hardcoded subscription price
+  and failed `verify` before it ever reached the known sovereign blocker. Fixed by
+  making the guard **more precise, not more permissive**: a second narrow
+  exemption matches only a whole line that is a type alias whose name ends in
+  `Status` assigned a union of three-digit numbers. A price
+  (`const subscriptionPrice = 400`), a mixed union (`400 | 45`), a `type Price`
+  and a status alias followed by a price on the same line all still fail, and
+  each of those cases is asserted in `tests/unit/check-business-constants.test.ts`.
+  This defect is this branch's own, and it is recorded rather than hidden: the
+  route keeps its typed status codes, the guard keeps its teeth.
+- **`OPS-015` — the new integration file was an unclassified skip.**
+  `check-skip-classification` (`OPS-009`) failed because
+  `tests/integration/wasla-core-transport.test.ts` gates on `TEST_DATABASE_URL`
+  without a registry entry. Registered in `scripts/lib/skip-registry.ts` with
+  reason, activation, owner and critical path, and the lifecycle entry's measured
+  count was raised from 33 to 35. The pinned totals in
+  `tests/unit/skip-audit.test.ts` were raised to the numbers the gate itself
+  prints (85 files, 764 cases) with the previous note kept, not deleted.
 - **`OPS-013` — two real defects in `driver-location-batch-persist.test.ts`
   case 9.** (a) The payload was bound as `${JSON.stringify(batch)}::jsonb`, so
   postgres.js re-serialised the string once the parameter type was known and the
