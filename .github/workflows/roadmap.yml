@@ -1,0 +1,28 @@
+name: Roadmap freshness
+
+# WASLA governance rule: a push that changes implementation must update
+# ROADMAP.md in the same cycle. This workflow is standalone so it never
+# interferes with the existing CI pipeline.
+
+on:
+  push:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+jobs:
+  roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Check ROADMAP.md was updated with implementation changes
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node scripts/check-roadmap.mjs
