@@ -661,3 +661,43 @@ begin
     where id = v_row.id;
   return jsonb_build_object('ok', true, 'dead', false, 'attempts', v_row.attempts);
 end $$;
+
+-- =============================================================================
+-- سطحُ الصلاحياتِ: لا دالّةَ من دوالِّنا تُنفَّذُ من دورٍ عامٍّ
+--
+-- `create function` يمنحُ `execute` لـ`public` تلقائيّاً في PostgreSQL، ودوالُّنا
+-- `security definer` — فالمنحُ التلقائيُّ يعني بابَ تنفيذٍ بصلاحيةِ المالكِ لكلِّ
+-- دورٍ، وذلكَ نقضُ الطبقةِ الثانيةِ من سطحِ الصلاحياتِ الذي يقيسُه
+-- `tests/integration/database-privilege-surface.test.ts`. فيُسحَبُ المنحُ صريحاً
+-- ويُمنَحُ لدورِ الخدمةِ وحدَه، كما في كلِّ دالّةِ خدمةٍ سابقةٍ في هذا المستودعِ.
+-- =============================================================================
+
+revoke execute on function enqueue_move_event(text, text, jsonb, text, text, text) from public, anon, authenticated;
+grant execute on function enqueue_move_event(text, text, jsonb, text, text, text) to service_role;
+
+revoke execute on function ingest_core_event(jsonb) from public, anon, authenticated;
+grant execute on function ingest_core_event(jsonb) to service_role;
+
+revoke execute on function apply_core_fulfillment_created(uuid) from public, anon, authenticated;
+grant execute on function apply_core_fulfillment_created(uuid) to service_role;
+
+revoke execute on function accept_operational_job(uuid, text, text) from public, anon, authenticated;
+grant execute on function accept_operational_job(uuid, text, text) to service_role;
+
+revoke execute on function reject_operational_job(uuid, text, text, text) from public, anon, authenticated;
+grant execute on function reject_operational_job(uuid, text, text, text) to service_role;
+
+revoke execute on function close_operational_job(uuid, text, text, text, text) from public, anon, authenticated;
+grant execute on function close_operational_job(uuid, text, text, text, text) to service_role;
+
+revoke execute on function apply_core_fulfillment_cancelled(uuid) from public, anon, authenticated;
+grant execute on function apply_core_fulfillment_cancelled(uuid) to service_role;
+
+revoke execute on function claim_move_event_delivery(integer) from public, anon, authenticated;
+grant execute on function claim_move_event_delivery(integer) to service_role;
+
+revoke execute on function finish_move_event_delivery(uuid) from public, anon, authenticated;
+grant execute on function finish_move_event_delivery(uuid) to service_role;
+
+revoke execute on function abandon_move_event_delivery(uuid, text, integer, integer) from public, anon, authenticated;
+grant execute on function abandon_move_event_delivery(uuid, text, integer, integer) to service_role;

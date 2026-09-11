@@ -165,3 +165,16 @@ drop trigger if exists operational_jobs_touch_updated_at on operational_jobs;
 create trigger operational_jobs_touch_updated_at
   before update on operational_jobs
   for each row execute function touch_operational_job_updated_at();
+
+-- =============================================================================
+-- سطحُ الصلاحياتِ: لا دالّةَ من دوالِّنا تُنفَّذُ من دورٍ عامٍّ
+--
+-- `create function` يمنحُ `execute` لـ`public` تلقائيّاً في PostgreSQL، ودوالُّنا
+-- `security definer` — فالمنحُ التلقائيُّ يعني بابَ تنفيذٍ بصلاحيةِ المالكِ لكلِّ
+-- دورٍ، وذلكَ نقضُ الطبقةِ الثانيةِ من سطحِ الصلاحياتِ الذي يقيسُه
+-- `tests/integration/database-privilege-surface.test.ts`. فيُسحَبُ المنحُ صريحاً
+-- ويُمنَحُ لدورِ الخدمةِ وحدَه، كما في كلِّ دالّةِ خدمةٍ سابقةٍ في هذا المستودعِ.
+-- =============================================================================
+
+revoke execute on function touch_operational_job_updated_at() from public, anon, authenticated;
+grant execute on function touch_operational_job_updated_at() to service_role;
