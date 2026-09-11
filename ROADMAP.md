@@ -301,6 +301,8 @@ the per-job conclusion actually read from the GitHub Actions API.
 | `4f93c24` (run `34632270113`) | fail — same sovereign blocker (`check-migrations`, three rule-0.4 lines, read from the job log) | **pass** | fail — `O-2` | pass | pass |
 | `7bf983b` (run `34655832337`) | fail — `check-business-constants` rejected `type RejectStatus = 400 \| 401 \| 415 \| 422 \| 503;` (HTTP status literals read as a subscription price), read from the job log; the sovereign rule-0.4 blocker was never reached in this run | **pass** | fail — `O-2` | pass | pass |
 | `54dcf29` (run `34656430731`) | fail — **only** `check-migrations` rule 0.4, three lines read from the job log (`operational_jobs`, `core_event_inbox`, `move_event_outbox`): the `DEP-CORE-006` / `O-1` blocker and nothing else | **pass** | fail — `O-2` | pass | pass |
+| `1fa9efa` (run `34657798076`, merge of `origin/main` after PR #1 landed) | fail — **only** `check-migrations` rule 0.4, same three lines (`DEP-CORE-006` / `O-1`) | **pass** | fail — `O-2` | pass | pass |
+| `1fa9efa` (run `34657801218`, same commit, second trigger) | fail — same sovereign blocker | fail — **1 case**: `location-race-conditions.test.ts:210` expected sequence `> 5`, received `4` — the same commit passed this job in run `34657798076`, so the job is order-dependent, not the code (`OPS-016`) | fail — `O-2` | pass | pass |
 
 Root causes found and fixed at their source, none by weakening a test:
 
@@ -317,6 +319,21 @@ Root causes found and fixed at their source, none by weakening a test:
   only as a source comment, so the assertion passed when the gateway *crashed*
   (Bun prints the source excerpt, comment included) and failed when the gateway
   started cleanly. It now asserts the emitted event code.
+- **`OPS-016` — an order-dependent witness in `location-race-conditions.test.ts`.**
+  The same commit `1fa9efa` passed the real-PostgreSQL job in one run and failed
+  it in the other, on one assertion: published sequences had to be strictly
+  increasing **in delivery order**. The sequence is allocated inside a single
+  `update` in `session-repository.ts`, but the event is published *after* that
+  transaction commits, in `live-tracking.ts`, outside any lock — so of two
+  concurrent fixes the holder of sequence 5 may publish before the holder of 4.
+  Nothing in `ADR 0053` promises delivery order; the *number* is the order, and
+  the consumer sorts by it. The assertion therefore measured the scheduler, which
+  the test's own docblock forbids. The witness is now order-independent (no
+  sequence issued twice, measured on the set) and was **strengthened** in
+  exchange: device stamps are checked in *sequence* order, and the highest
+  published sequence must equal the row's `last_sequence`. The test was run ten
+  times in a row locally with zero failures. No production code changed, no
+  assertion was removed, and no skip was added.
 - **`OPS-014` — the business-constant guard could not see a status-code union.**
   `scripts/check-business-constants.ts` forbids the literals `250`, `400` and `45`
   outside `platform_settings`, and exempts HTTP status codes — but its exemption
