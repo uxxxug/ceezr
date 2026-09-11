@@ -342,17 +342,28 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     // فلا `oat` فيها. القبولُ الأصدقُ المتاحُ حينَئذٍ هوَ لحظةُ الإفراغِ — ويُقبَلُ
     // لأنَّ النافذةَ عمرُ TTL ساخنٍ واحدٍ لا أكثرَ، والبديلُ إسقاطُ الموقعِ كلِّه.
     const before = Date.now() - 1_000;
+    /**
+     * **تصحيحٌ (2026-09-11 · حكمُ CI الأوّلُ):** كانت الدفعةُ ههنا تُمرَّرُ
+     * `JSON.stringify(...)` ثمَّ يُلحَقُ بها `::jsonb`. و`postgres.js` يقرأُ
+     * القالبَ فيرى الحملَ jsonb فيُسلسِلُ القيمةَ بنفسِه — فالنصُّ المُسلسَلُ
+     * سلفاً يُسلسَلُ ثانيةً ويصلُ الدالّةَ **نصّاً** لا مصفوفةً، فترُدُّ
+     * `BATCH_MUST_BE_ARRAY`: فحالةُ «الحملِ القديمِ» لم تُختبَرْ قطُّ، وإنّما
+     * أُعيدَ اختبارُ الحالةِ ٧ بلا قصدٍ. والطريقُ المُعتمَدُ `sql.json` وهوَ
+     * نفسُه طريقُ المحوّلِ في الإنتاجِ. وكذلك كانَ اسمُ حقلِ الحكمِ `quality`
+     * والدالّةُ تُفكِّكُ `verdict` حرفيّاً — فلوِ اجتازَ الترميزُ لسقطَ الصفُّ
+     * في التنقيةِ ولَكانَ `applied = 0`.
+     */
     const rows = await sql<{ result: Record<string, unknown> }[]>`
-      select persist_driver_location_batch(${cityId}::uuid, ${JSON.stringify([
+      select persist_driver_location_batch(${cityId}::uuid, ${sql.json([
         {
           driver_id: driverId,
           latitude: AT_A.latitude,
           longitude: AT_A.longitude,
           recorded_at_ms: T2,
           accuracy_m: 11,
-          quality: "ACCEPT",
+          verdict: "ACCEPT",
         },
-      ])}::jsonb) as result
+      ] as never)}::jsonb) as result
     `;
     expect(rows[0]?.result).toMatchObject({ ok: true, applied: 1 });
 

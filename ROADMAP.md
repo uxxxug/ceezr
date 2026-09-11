@@ -1,8 +1,20 @@
 # WASLA MOVE — Roadmap
 
-**Repository:** `noor-seez/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-09-11 (consolidation cycle)
-**Last milestone:** Roadmap and roadmap-freshness gate introduced and exercised. No application code has been changed yet by the WASLA integration work.
+**Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
+**Last updated:** 2026-09-11 (W-1 boundary audit · OPS-011 CI repair)
+**Last milestone:** `W-1` boundary audit landed as a machine-checked registry;
+first real CI verdict read and its two failures root-caused (`OPS-011`)
+(`scripts/lib/wasla-boundary-registry.ts` + `scripts/check-boundary-audit.ts`,
+ADR-0080). Still no application code, no migration and no CORE traffic.
+
+> **Correction (2026-09-11, additive — nothing below is deleted).** Earlier
+> entries in this file record the canonical remotes under the `noor-seez`
+> account. The live remotes are `uxxxug/ceezr` (this repository) and
+> `uxxxug/wasla-core`; `noor-seez/ceezr` does not resolve. The consequence is
+> recorded in "Done" below: the account-level Actions block is a property of
+> the old account, so a real CI verdict is obtainable here. The original
+> statements are kept in place as the record of what was believed when they
+> were written.
 
 ## What this project is
 
@@ -15,8 +27,8 @@ MARKET creates the work.  MOVE executes the work.  CORE coordinates it.
 
 | System | Repository | Role |
 |---|---|---|
-| WASLA CORE | `noor-seez/wasla-core` | shared operating layer and coordinator |
-| WASLA MOVE | `noor-seez/ceezr` | this repository — field execution |
+| WASLA CORE | `uxxxug/wasla-core` | shared operating layer and coordinator |
+| WASLA MOVE | `uxxxug/ceezr` | this repository — field execution |
 | WASLA MARKET | `skyosv10-art/wasla` | commerce |
 
 No monorepo, no merged repositories, no shared runtime package, no
@@ -61,6 +73,73 @@ of Operational Job. An Operational Job is never a Commercial Order.
       increased." Every workflow run in this repository, including runs from
       before this change, fails at job start for that reason. The gate is
       proven on the MARKET repository, where Actions does run (see below).
+      **Superseded 2026-09-11 (see the correction at the top):** that block
+      belongs to the `noor-seez` account. On `uxxxug/ceezr` both workflows are
+      active and the repository had zero runs of any kind, so the `W-1` push is
+      the first push here that can produce a verdict. The verdict actually read
+      after the push is recorded in
+      `docs/evidence/architecture/W-1-20260911.md` — not inferred from a local
+      green run.
+- [x] **Roadmap-freshness gate proven on a real CI run** (added 2026-09-11,
+      additive — the unchecked line above is kept as the historical record and
+      is not deleted). Run `34617842960` on `66d733d` concluded `success`: the
+      `W-1` push touched `scripts/`, `docs/` and `package.json` and did update
+      this file, so the gate passed. Verdict read per job from the API.
+- [x] **`W-1` — Boundary audit.** Every table in `supabase/migrations`
+      classified `KEEP` / `REFACTOR` / `MOVE_TO_CORE` / `RETIRE` with owner and
+      rationale, plus a column-level layer for boundary breaches inside tables
+      that stay. Source of truth is
+      `scripts/lib/wasla-boundary-registry.ts`; `docs/wasla/boundary-audit.md`
+      is generated from it; `scripts/check-boundary-audit.ts` fails CI if a
+      table is unclassified, a registry entry is dead, a declared column does
+      not exist, or the document diverges from the registry.
+      Tally: `KEEP=14` · `REFACTOR=12` · `MOVE_TO_CORE=18` · `RETIRE=0` over 44
+      tables. Decision: ADR-0080. Evidence:
+      `docs/evidence/architecture/W-1-20260911.md`.
+      **Classification is not permission to migrate:** zero rows moved, and
+      "Migrated" below is still empty.
+
+- [x] **`OPS-011` — Two stale integration assertions repaired** (test-side
+      only; see `docs/ROADMAP-MASTER.md` §11-د). The first real CI run in this
+      repository (`34617842924`) failed the real-database job on two assertions
+      that predate the WASLA work and had never been executed here, because
+      this repository had never run Actions and the integration suite
+      self-skips without `TEST_DATABASE_URL`.
+      (a) `tests/integration/driver-location-batch-persist.test.ts` case 9 sent
+      `JSON.stringify(batch)` into a `::jsonb` slot; `postgres.js` serialises
+      the value itself for a `jsonb` cast, so the payload was encoded twice and
+      reached `persist_driver_location_batch` as a JSON *string* — the function
+      correctly answered `BATCH_MUST_BE_ARRAY`, and the ADR-0076 fallback the
+      case is named after was never exercised. A second, masked defect: the
+      verdict field was spelled `quality` while the SQL reads `verdict`. Fixed
+      with `sql.json(...)`, which is the same path the production adapter uses
+      (`packages/infrastructure/geo/driver-location-batch-persistence.ts:73`).
+      (b) `tests/integration/worker-service-separation.test.ts:238` asserted a
+      free-form Arabic sentence that `F8-03` / ADR-0078 replaced with the
+      structured log `{"event":"embedded_worker.disabled",...}`. The assertion
+      now matches the dotted latin event code enforced by
+      `scripts/check-structured-logging.ts` — stronger, not weaker; the
+      governing `expect(beat).toBe(false)` is untouched.
+      No function, migration, application file, gate, timeout or coverage floor
+      was changed, and no test was skipped. Evidence:
+      `docs/evidence/correctness/OPS-011-20260911.md`.
+      **CI verdict, read per job from the API after the push** (`d550b93`, runs
+      `34621144803` / `34621149899` / `34621144580`): the real-database job is
+      now `success` with **638 pass / 11 skip / 0 fail** across 84 files, up
+      from 636/11/2 — two more passes because the two failures became passes,
+      not because a test was added. The e2e step, which never ran in the
+      previous run because the job aborted before it, ran and passed (8 pass /
+      0 fail), and both no-silent-skip gates exited `0`. `verify`,
+      `chaos-multi-instance` and the roadmap-freshness workflow are `success`.
+- [ ] **`real-redis` CI job cannot pass in this repository — environment
+      blocker, not a code defect.** The job runs with `REQUIRE_REAL_REDIS=1`
+      and `tests/support/real-redis.ts:52` refuses to proceed without a real
+      Redis, which is exactly what `OPS-006` requires; the guard must not be
+      weakened, silenced or reclassified as a skip. `UPSTASH_REDIS_REST_URL`
+      and `UPSTASH_REDIS_REST_TOKEN` were configured on the old `noor-seez`
+      repository and are absent from `uxxxug/ceezr`. Provisioning an Upstash
+      account and setting repository secrets is outside the agent's authority.
+      Set both secrets, re-run, then record the verdict.
 
 Nothing else has been changed in this repository by the WASLA integration work.
 
@@ -70,21 +149,41 @@ Nothing at this commit.
 
 ## Remaining, in dependency order
 
-1. Boundary audit: inventory every identity, session, role, payment, wallet,
-   subscription, reputation and notification concern currently living in this
-   repository, and mark each `KEEP` / `REFACTOR` / `MOVE_TO_CORE` / `RETIRE`.
-2. Migration matrix per entity, published in `docs/migration/`.
-3. Adopt the CORE identity contract: authenticate against CORE, stop treating
-   a Telegram account as the user.
-4. Canonical Operational Job model, distinct from any legacy order table.
-5. Consume `core.fulfillment.created`; produce `move.job.completed` through a
-   transactional outbox with the canonical event envelope.
-6. Remove any direct commercial coupling with MARKET; all cross-system traffic
-   goes through CORE APIs or events.
-7. Hand payment, wallet, ledger and subscription concerns to CORE; keep only
-   operational references.
-8. Reconciliation and dry-run tooling for the job and identity migrations.
-9. Cutover and rollback rehearsal.
+Item ids `W-1` … `W-9` are stable and are the ids used in commits, ADRs,
+evidence files and the execution log in `docs/ROADMAP-MASTER.md` §25.
+
+1. `W-1` — **done, see "Done" above.** Boundary audit: inventory every
+   identity, session, role, payment, wallet, subscription, reputation and
+   notification concern currently living in this repository, and mark each
+   `KEEP` / `REFACTOR` / `MOVE_TO_CORE` / `RETIRE`.
+2. `W-2` — Migration matrix per entity, published in `docs/migration/`.
+3. `W-3` — Adopt the CORE identity contract: authenticate against CORE, stop
+   treating a Telegram account as the user. Blocked by `B-2` and `B-3`.
+4. `W-4` — Canonical Operational Job model, distinct from any legacy order
+   table.
+5. `W-5` — Consume `core.fulfillment.created`; produce `move.job.completed`
+   through a transactional outbox with the canonical event envelope. Blocked by
+   `DEP-CORE-001` (CORE exposes no network ingress for `move.job.*`).
+6. `W-6` — Remove any direct commercial coupling with MARKET; all cross-system
+   traffic goes through CORE APIs or events.
+7. `W-7` — Hand payment, wallet, ledger and subscription concerns to CORE;
+   keep only operational references. Blocked by `DEP-CORE-002` (dispatch reads
+   subscription entitlement on the hot path).
+8. `W-8` — Reconciliation and dry-run tooling for the job and identity
+   migrations.
+9. `W-9` — Cutover and rollback rehearsal. Blocked by `B-5`.
+
+## Dependencies on CORE (recorded here, fixed by the CORE agent)
+
+This repository never edits CORE or MARKET. Detail and rationale in
+`docs/wasla/boundary-audit.md` §6.
+
+| # | Dependency | Blocks |
+|---|---|---|
+| `DEP-CORE-001` | CORE has no network ingress for `move.job.accepted` / `move.job.rejected` / `move.job.completed`; they are consumed only on an in-process local bus | `W-5` |
+| `DEP-CORE-002` | No cheap entitlement read for a hot path — dispatch checks driver subscription on every broadcast round | `W-7` |
+| `DEP-CORE-003` | CORE geography reference emits no change event to refresh the `cities` projection in MOVE | `W-1` disposition execution, `W-2` |
+| `DEP-CORE-004` | No Telegram channel adapter in CORE, while every operational surface in MOVE is on Telegram | `W-6` |
 
 ## Migrated
 
@@ -107,7 +206,10 @@ Nothing. No legacy component is switched off before its replacement is proven.
 ## Open questions
 
 - Which existing tables here are the true source of truth for a job today, and
-  which are legacy duplicates?
+  which are legacy duplicates? **Partially answered by `W-1`:** `orders` is the
+  operational job table (a Ride or a Delivery), not a commercial order, and no
+  duplicate job table exists in the schema. Whether rows in it are live is
+  still unknown (`B-1`).
 - How much identity state in this repository is live versus residual?
 - Which operational surfaces are actually in production use?
 
@@ -121,8 +223,10 @@ Nothing. No legacy component is switched off before its replacement is proven.
 
 ## Tests that pass at this commit
 
-Unchanged from before this commit — the existing suite is untouched. The WASLA
-integration work has added no test here yet.
+The pre-existing suite is untouched. `W-1` added one unit test file,
+`tests/unit/check-boundary-audit.test.ts` (10 tests), most of them negative:
+they corrupt the input and require the gate to fail, because a gate whose red
+path is never exercised proves nothing when it is green.
 
 ## Not proven yet
 
