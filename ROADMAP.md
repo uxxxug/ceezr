@@ -2,7 +2,7 @@
 
 **Repository:** `noor-seez/ceezr` (this repository is WASLA MOVE)
 **Last updated:** 2026-09-11
-**Last milestone:** Roadmap and roadmap-freshness gate introduced. No application code has been changed yet by the WASLA integration work.
+**Last milestone:** Roadmap and roadmap-freshness gate introduced and exercised. No application code has been changed yet by the WASLA integration work.
 
 ## What this project is
 
@@ -55,6 +55,12 @@ of Operational Job. An Operational Job is never a Commercial Order.
 - [x] Roadmap-freshness gate (`scripts/check-roadmap.mjs` +
       `.github/workflows/roadmap.yml`): a push that changes implementation and
       does not update this file fails CI.
+- [ ] Gate proven on a live CI run — **not proven here**: GitHub Actions is
+      currently blocked on this account with "The job was not started because
+      recent account payments have failed or your spending limit needs to be
+      increased." Every workflow run in this repository, including runs from
+      before this change, fails at job start for that reason. The gate is
+      proven on the MARKET repository, where Actions does run (see below).
 
 Nothing else has been changed in this repository by the WASLA integration work.
 
