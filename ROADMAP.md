@@ -201,6 +201,7 @@ the per-job conclusion actually read from the GitHub Actions API.
 | `def9a20` (run `34629792395`) | fail — same sovereign blocker | fail — 2 cases | fail — `O-2` | pass | fail — commit touched `supabase/` without a roadmap change |
 | `4f93c24` (run `34632270113`) | fail — same sovereign blocker (`check-migrations`, three rule-0.4 lines, read from the job log) | **pass** | fail — `O-2` | pass | pass |
 | `7bf983b` (run `34655832337`) | fail — `check-business-constants` rejected `type RejectStatus = 400 \| 401 \| 415 \| 422 \| 503;` (HTTP status literals read as a subscription price), read from the job log; the sovereign rule-0.4 blocker was never reached in this run | **pass** | fail — `O-2` | pass | pass |
+| `54dcf29` (run `34656430731`) | fail — **only** `check-migrations` rule 0.4, three lines read from the job log (`operational_jobs`, `core_event_inbox`, `move_event_outbox`): the `DEP-CORE-006` / `O-1` blocker and nothing else | **pass** | fail — `O-2` | pass | pass |
 
 Root causes found and fixed at their source, none by weakening a test:
 
