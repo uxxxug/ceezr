@@ -1,7 +1,7 @@
 # WASLA MOVE — Roadmap
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-09-11 (W-1 boundary audit)
+**Last updated:** 2026-09-11 (W-1 boundary audit · OPS-011 CI repair)
 **Last milestone:** `W-1` boundary audit landed as a machine-checked registry;
 first real CI verdict read and its two failures root-caused (`OPS-011`)
 (`scripts/lib/wasla-boundary-registry.ts` + `scripts/check-boundary-audit.ts`,
@@ -123,6 +123,14 @@ of Operational Job. An Operational Job is never a Commercial Order.
       No function, migration, application file, gate, timeout or coverage floor
       was changed, and no test was skipped. Evidence:
       `docs/evidence/correctness/OPS-011-20260911.md`.
+      **CI verdict, read per job from the API after the push** (`d550b93`, runs
+      `34621144803` / `34621149899` / `34621144580`): the real-database job is
+      now `success` with **638 pass / 11 skip / 0 fail** across 84 files, up
+      from 636/11/2 — two more passes because the two failures became passes,
+      not because a test was added. The e2e step, which never ran in the
+      previous run because the job aborted before it, ran and passed (8 pass /
+      0 fail), and both no-silent-skip gates exited `0`. `verify`,
+      `chaos-multi-instance` and the roadmap-freshness workflow are `success`.
 - [ ] **`real-redis` CI job cannot pass in this repository — environment
       blocker, not a code defect.** The job runs with `REQUIRE_REAL_REDIS=1`
       and `tests/support/real-redis.ts:52` refuses to proceed without a real
