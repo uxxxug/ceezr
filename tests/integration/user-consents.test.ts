@@ -262,4 +262,30 @@ describeIf("سجلُّ الموافقاتِ على قاعدةٍ حقيقيّةٍ
     `;
     expect(absent.length).toBe(0);
   });
+
+  /**
+   * ٩) سطحُ الصلاحياتِ — وهذا الموجَبُ **أضافَه عطلٌ كشفَه CI لا القياسُ
+   * المحلّيُّ**: الدالّتانِ `security definer`، و`execute` مُمنوحٌ لـ`public`
+   * افتراضاً عندَ الإنشاءِ في PostgreSQL، فبقيَتا في الدورةِ الأولى قابلتَينِ
+   * للتنفيذِ من `anon` و`authenticated` — أي ثقبانِ يتجاوزانِ RLS ويكتبانِ
+   * موافقةً باسمِ أيِّ معرّفٍ. وأسقطَ ذلكَ اختبارَ سطحِ الصلاحياتِ العامَّ
+   * واختبارَ الفحصِ الهجوميِّ في CI. والسحبُ صريحٌ في الهجرةِ، ويُقاسُ ههنا
+   * **على الدالّتَينِ بالاسمِ** أيضاً كي يُقرأَ الموجَبُ في مكانِ البندِ لا في
+   * حارسٍ عامٍّ وحدَه.
+   */
+  it("٩) لا `anon` ولا `authenticated` ينفِّذُ دالّتَي الموافقةِ", async () => {
+    const rows = await sql<{ sig: string; anon_exec: boolean; auth_exec: boolean }[]>`
+      select p.oid::regprocedure::text as sig,
+             has_function_privilege('anon', p.oid, 'execute') as anon_exec,
+             has_function_privilege('authenticated', p.oid, 'execute') as auth_exec
+        from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'public'
+         and p.proname in ('record_user_consent', 'list_user_consents')
+       order by 1
+    `;
+    // وجودُهما شرطُ صحّةِ الاختبارِ: قائمةٌ فارغةٌ تجعلُه يمرُّ زوراً.
+    expect(rows.length).toBe(2);
+    expect(rows.filter((r) => r.anon_exec || r.auth_exec).map((r) => r.sig)).toEqual([]);
+  });
 });

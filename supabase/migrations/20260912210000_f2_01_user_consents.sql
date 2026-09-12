@@ -132,3 +132,21 @@ as $$
    where u.telegram_id = p_telegram_id
    order by c.accepted_at asc;
 $$;
+
+-- ----------------------------------------------------------------------------
+-- سطحُ الصلاحياتِ: الدالّتانِ `security definer`، فلو بقيَ حقُّ التنفيذِ لدورِ
+-- `anon` أو `authenticated` (وهوَ الافتراضُ في PostgreSQL: `execute` مُمنوحٌ
+-- لـ`public` عندَ الإنشاءِ) صارَت كلُّ واحدةٍ منهما ثقباً يتجاوزُ RLS ويكتبُ
+-- موافقةً باسمِ أيِّ معرّفٍ. فيُسحَبُ الحقُّ صريحاً كما في كلِّ دالّةٍ في هذا
+-- المستودَعِ، ولا يُمنَحُ لـ`service_role` بالإضافةِ لأنَّه مالكُ المخطَّطِ ويصلُ
+-- إليهما بملكيّتِه لا بمِنحةٍ.
+--
+-- **وهذا العطلُ كشفَه CI لا القياسُ المحلّيُّ**: اختبارا
+-- `tests/integration/database-privilege-surface.test.ts` و
+-- `tests/integration/security/adversarial-security.test.ts` يجرِيانِ على جملةِ
+-- الدوالِّ في المخطَّطِ، ولم يُشغَّلا محلّيّاً في دورةِ `F2-01` الأولى. وهوَ
+-- مسجَّلٌ في دليلِ البندِ بلا تلوينٍ: الأخضرُ المحلّيُّ لم يكنْ حكماً.
+-- ----------------------------------------------------------------------------
+revoke execute on function record_user_consent(bigint, text, text, timestamptz) from public, anon, authenticated;
+
+revoke execute on function list_user_consents(bigint) from public, anon, authenticated;
