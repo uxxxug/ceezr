@@ -145,7 +145,20 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
-Nothing at this commit.
+### Reservation `W-2` — migration matrix (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit so that no second executor opens the same
+scope, per the reservation rule in `docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-2` — migration matrix per entity, published in `docs/migration/` |
+| Branch | `feat/w2-migration-matrix`, cut from `main`@`8d031c2` |
+| Scope reserved | `scripts/lib/wasla-migration-matrix.ts` (new) · `scripts/check-migration-matrix.ts` (new) · `docs/migration/matrix.md` (new, generated) · `tests/unit/check-migration-matrix.test.ts` (new) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (`verify` job, one added step) · `docs/adr/0083-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-2-20260912.md` (new) |
+| Scope **not** reserved and not touched | every existing migration, every existing guard, `scripts/check-migrations.ts`, `scripts/lib/wasla-boundary-registry.ts`, the `real-redis` job, and any file in CORE or MARKET |
+| Dependencies checked before opening | `W-1` is done and its registry is the single source of truth this item reads. `B-1` (production inventory unknown) and `DEP-CORE-003` (no CORE geography change event) block **execution** of any wave in the matrix, not the authoring of the matrix itself — so the plan is deliverable and no wave may be marked executed. `O-1` and `O-2` are unrelated to this scope. |
+| Conflicting work checked | no open pull request, and no branch on `origin` carries a `docs/migration/` path or a `check-migration-matrix` guard (checked against every `origin/*` ref on 2026-09-12) |
+| Claim ceiling | this item may **not** be marked `[x]`: `ح-4` requires a read CI verdict, and rule 0.4 keeps `verify` red for `O-1`, so the matrix lands as a plan with its own gate and nothing is claimed executed. "Migrated" stays empty. |
 
 ## Remaining, in dependency order
 
