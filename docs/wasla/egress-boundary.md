@@ -1,0 +1,70 @@
+# حدُّ الصادرِ في MOVE — كلُّ مقصدٍ شبكيٍّ مُعلَنٌ ومحروسٌ
+
+الحاكمُ `ADR 0084` · البندُ `W-6` · الحاجزُ `scripts/check-egress-boundary.ts`.
+
+البندُ `W-6` يقولُ: لا اقترانَ تجاريَّ مباشرَ مع MARKET، وكلُّ مرورٍ بينَ الأنظمةِ
+عبرَ CORE. وذلكَ كانَ **صحيحاً بالمصادفةِ لا بالإنفاذِ**: لا سطرَ في المستودعِ
+يُخفِقُ لو أُضيفَ نداءٌ مباشرٌ إلى MARKET غداً. فصارَت القائمةُ **مغلقةً**:
+مقصدٌ غيرُ مُعلَنٍ يُسقِطُ البناءَ، وإعلانُه يقتضي نظاماً، و`MARKET` مرفوضٌ نصّاً.
+
+<!-- BEGIN GENERATED: egress-boundary -->
+> هذه الكتلةُ **مُولَّدةٌ** من `scripts/lib/wasla-egress-registry.ts`. لا تُحرَّرْ بيدٍ:
+> حاجزُ `check-egress-boundary` يُسقِطُ البناءَ إن فارقَت السجلَّ.
+
+### CORE — البابُ الوحيدُ بينَ الأنظمةِ
+
+| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | أُزيلَ؟ |
+|---|---|---|---|---|
+| `core-events-ingress` | إيداعُ أحداثِ `move.job.*` في بابِ CORE الشبكيِّ (`POST /v1/events`) | بيئةٌ: `CORE_EVENTS_BASE_URL` · `CORE_EVENTS_BEARER_TOKEN` | `packages/infrastructure/wasla/core-event-shipper.ts` | لا |
+
+### قناةُ المستخدمِ
+
+| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | أُزيلَ؟ |
+|---|---|---|---|---|
+| `telegram-bot-api` | سطحُ MOVE التشغيليُّ كلُّه على تلغرام — إرسالٌ وتسجيلُ أوامرَ وموقعٌ حيٌّ | افتراضُ حزمةِ `grammy`: `api.telegram.org` | `packages/infrastructure/notification/telegram-api-sender.ts` | لا |
+
+### تكاملٌ تجاريٌّ مباشرٌ — دَينٌ مُعلَنٌ
+
+| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | أُزيلَ؟ |
+|---|---|---|---|---|
+| `moyasar-payments` | بوّابةُ دفعٍ مباشرةٌ لاشتراكِ السائقِ — تكاملٌ تجاريٌّ لمّا يُسلَّم إلى CORE (يُزيلُه `W-7`، يحجبُه `DEP-CORE-002`) | حرفاً: `api.moyasar.com` | `packages/infrastructure/financial/moyasar-provider.ts` | لا |
+| `tap-payments` | بوّابةُ دفعٍ مباشرةٌ بديلةٌ — تكاملٌ تجاريٌّ لمّا يُسلَّم إلى CORE (يُزيلُه `W-7`، يحجبُه `DEP-CORE-002`) | حرفاً: `api.tap.company` | `packages/infrastructure/financial/tap-provider.ts` | لا |
+
+### بنيةٌ تحتيّةٌ
+
+| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | أُزيلَ؟ |
+|---|---|---|---|---|
+| `supabase-postgres` | قاعدةُ البياناتِ — مخزنُ الحقيقةِ الوحيدُ | بيئةٌ: `DATABASE_URL` · `SUPABASE_URL` · `SUPABASE_SERVICE_ROLE_KEY` | `packages/infrastructure/db/client.ts` | لا |
+| `upstash-redis-rest` | مخزنُ الجلساتِ ومنعُ التكرارِ عبرَ المثيلاتِ | بيئةٌ: `UPSTASH_REDIS_REST_URL` · `UPSTASH_REDIS_REST_TOKEN` | `apps/gateway/src/redis/upstash.ts` | لا |
+| `google-drive-backup` | رفعُ النسخِ الاحتياطيّةِ وسحبُها — تحقُّقُ الاستعادةِ | حرفاً: `www.googleapis.com` · `oauth2.googleapis.com` | `packages/infrastructure/backup/google-drive-adapter.ts` | لا |
+| `metrics-collector` | تصديرُ القياسِ إلى مُجمِّعٍ خارجيٍّ — مُعطَّلٌ بلا نهايةٍ مضبوطةٍ | بيئةٌ: `METRICS_EXPORT_ENDPOINT` | `packages/infrastructure/observability/metrics-exporter.ts` | لا |
+
+### خدمةٌ اختياريّةٌ مُعطَّلةٌ افتراضيّاً
+
+| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | أُزيلَ؟ |
+|---|---|---|---|---|
+| `deepl-translation` | ترجمةٌ آليّةٌ — `TRANSLATION_PROVIDER=deepl`، ومُعطَّلٌ بـ`none` افتراضيّاً | حرفاً: `api.deepl.com` · `api-free.deepl.com` | `packages/infrastructure/i18n-translation/translation-providers.ts` | لا |
+| `google-translation` | ترجمةٌ آليّةٌ عبرَ Google — نهايتُها الرسميّةُ ونهايةُ الويبِ المجّانيّةُ | حرفاً: `translation.googleapis.com` · `translate.googleapis.com` | `packages/infrastructure/i18n-translation/translation-providers.ts` | لا |
+| `mymemory-translation` | ترجمةٌ آليّةٌ مجّانيّةٌ بلا مفتاحٍ — مزوّدُ تجربةٍ لا إنتاجٍ | حرفاً: `api.mymemory.translated.net` | `packages/infrastructure/i18n-translation/translation-providers.ts` | لا |
+| `osrm-routing` | حسابُ المسارِ والمسافةِ — `ROUTING_PROVIDER=osrm`، ومُعطَّلٌ افتراضيّاً | بيئةٌ: `OSRM_BASE_URL` | `packages/maps/providers/osrm/osrm-provider.ts` | لا |
+| `map-tiles` | بلاطاتُ الخريطةِ ونمطُها للوحةِ الإدارةِ — مُعطَّلٌ بلا رابطٍ مضبوطٍ | بيئةٌ: `MAP_STYLE_URL` · `MAP_TILES_PUBLIC_KEY` | `packages/maps/providers/maplibre/maplibre-style.ts` | لا |
+
+### أصلُ متصفّحٍ
+
+| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | أُزيلَ؟ |
+|---|---|---|---|---|
+| `unpkg-maplibre` | مكتبةُ MapLibre تُحمَّلُ في متصفّحِ المُشرِفِ من شبكةِ توصيلٍ، ببصمةِ سلامةٍ | حرفاً: `unpkg.com` | `packages/maps/providers/maplibre/maplibre-style.ts` | لا |
+
+### رابطُ مستخدمٍ — لا نداءَ شبكةٍ
+
+| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | أُزيلَ؟ |
+|---|---|---|---|---|
+| `google-maps-link` | رابطٌ يُعرَضُ للمُشرِفِ لينقرَه فيرى موقعَ سائقٍ — لا نداءَ شبكةٍ من هنا | حرفاً: `maps.google.com` | `apps/admin-dashboard/src/pages/driver-detail.ts` | لا |
+
+### مضيفاتٌ معفاةٌ — نُوّابٌ لا مقاصدُ
+
+| المضيفُ | السببُ |
+|---|---|
+
+**العدُّ**: 15 مقصداً مُعلَناً · 2 تكاملاً تجاريّاً مباشراً ينتظرُ التسليمَ · 0 مضيفاً معفًى · **صفرَ مقصدٍ في MARKET**.
+<!-- END GENERATED: egress-boundary -->
