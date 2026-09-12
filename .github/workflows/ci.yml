@@ -150,6 +150,9 @@ jobs:
       - name: سقوطُ مُقابِلِ الطزاجةِ مقيسٌ بخرقٍ مزروعٍ لا بنسخةٍ من CORE (DEP-CORE-005)
         run: bun test tests/unit/vendored-contract-pins.test.ts tests/unit/core-contract-freshness.test.ts
 
+      - name: سقوطُ حاجزِ «السندُ يتبعُ البايتاتَ» مقيسٌ بمستودَعٍ مزروعٍ (DEP-CORE-005)
+        run: bun test tests/unit/vendored-pin-follows-bytes.test.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts

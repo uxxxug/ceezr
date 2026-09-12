@@ -26,3 +26,18 @@ jobs:
           BASE_SHA: ${{ github.event.before }}
           HEAD_SHA: ${{ github.sha }}
         run: node scripts/check-roadmap.mjs
+
+      # Range guard, and this is the only workflow that owns a range: it checks
+      # out the full history and the push event gives it a real base. It fails
+      # when a vendored CORE contract's bytes changed without its `pin` line
+      # changing in the same range — a re-vendoring that silently leaves the
+      # provenance pointing at a commit the copy did not come from. See
+      # `ADR 0090` and `scripts/check-vendored-pin-follows-bytes.ts`.
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: A re-vendored contract carries its pin (DEP-CORE-005)
+        env:
+          BASE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bun run scripts/check-vendored-pin-follows-bytes.ts

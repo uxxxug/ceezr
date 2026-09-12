@@ -911,6 +911,37 @@ being left implicit in prose.
 | Claim ceiling, restated | `DEP-CORE-005` **stays open**, no `W-` item gains `[x]`, and `ح-4` is not satisfied by anything here. `PROVENANCE.md`'s existing sentence «**ولا يُدَّعى أنَّ التقادمَ محروسٌ آليّاً في CI**» remains true word for word: the comparator exists, is parsed, is tested, and has been run against the real CORE — and CI still does not judge by it |
 | What closes it | `O-6` granted → a second `actions/checkout` for CORE → the comparator moved into `verify` as a named step before the red one. Only then |
 
+## Second increment on `DEP-CORE-005`, recorded 2026-09-12 (additive; the item stays open)
+
+`ADR 0091` · same branch and same reservation · `scripts/check-vendored-pin-follows-bytes.ts`.
+
+The first increment gave every vendored contract a machine-readable `pin`. Running
+the comparator then exposed a hole in the first increment itself, measured rather
+than imagined: **a re-vendoring that updates the bytes and the fingerprint and
+forgets the pin passes all three guards.** Parity cannot see CORE; integrity
+compares the fingerprint to the file and they agree; the pins guard compares the
+file to the pin by **existence, not by content**.
+
+This is not hypothetical. Pull request `#11` re-vendors three contracts
+(`core.fulfillment.cancelled.v1`, `transport/core-v1.yaml`,
+`transport/outbound-delivery.md`) and this branch's pins name the commits those
+files sit at on `main` — i.e. the pre-re-vendoring commits. Whichever merges
+second must update the pin, and until now nothing in the repository forced it:
+human memory, not a gate. A lying pin then corrupts the comparator's verdict in
+both directions — it can read a faithful copy as «edited by us», and it can read
+a stale contract as «current» when CORE happened not to touch that file between
+the two commits.
+
+| Question | Answer |
+|---|---|
+| Rule enforced | If a vendored file's bytes change in the pushed range, its `pin` line must change in the same range |
+| Where it is judged | `.github/workflows/roadmap.yml` — the only workflow that owns a range (`fetch-depth: 0`, and the push event supplies a base). Range resolution: push base first, then merge-base with `main`; if neither resolves it exits **3** and names why, so an unresolvable range is never read as a pass |
+| Where its own failure is measured | `verify`, named step, on a seeded two-commit git repository — no network, no history, no CORE. Placed **before** the red `city_id` step like the other two |
+| Why the source hash is still not written into the pin line | `ADR 0090` rejected duplicating the fingerprint there, and a published ADR is not reopened (`ح-6`). The judgement is on **simultaneity within a range**, not on a duplicated value |
+| Measured | `14 pass · 0 fail · 27 expect()`; run on this branch's own range it reports no vendored file changed, which is true — this branch only appends to `PROVENANCE.md` |
+| What it does not catch | A pin written falsely in the same commit as the bytes. That needs CORE's bytes, i.e. the comparator and `O-6`. This closes **forgetting**, which is the path actually taken; it does not claim to close deliberate misstatement |
+| Claim ceiling | `DEP-CORE-005` **stays open**. This guards the honesty of the provenance, not the freshness of the contract |
+
 ## CI verdicts on branch `feat/dep-core-005-contract-freshness` (additive)
 
 Read step by step from the run itself, not from a local run and not from a badge.

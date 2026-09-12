@@ -31,6 +31,7 @@
     "check:vendored-contract-integrity": "bun run scripts/check-vendored-contract-integrity.ts",
     "check:vendored-contract-pins": "bun run scripts/check-vendored-contract-pins.ts",
     "check:core-contract-freshness": "bun run scripts/check-core-contract-freshness.ts",
+    "check:vendored-pin-follows-bytes": "bun run scripts/check-vendored-pin-follows-bytes.ts",
     "check:boundary-audit": "bun run scripts/check-boundary-audit.ts",
     "check:migration-matrix": "bun run scripts/check-migration-matrix.ts",
     "check:egress-boundary": "bun run scripts/check-egress-boundary.ts",
