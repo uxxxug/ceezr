@@ -1200,6 +1200,38 @@ untouched. `DEP-CORE-005` stays **open** — the comparator still cannot run in
 CI without `O-6`. `W-5` and `W-9` stay unticked: `ح-4` wants three consecutive
 green rounds and that is unreachable while `O-1` stands.
 
+### CI verdict on `main` after the three merges — read 2026-09-12 at `dccbaa7`
+
+Read per job **and per step** from the API, not assumed (`ح-8`). Runs
+`34714088794` (`Roadmap freshness`) and `34714088803` (`CI`).
+
+| Job | Verdict |
+|---|---|
+| `Roadmap freshness` | **success** — step 6, the pin-follows-bytes guard, judged the real merge range `556bbb6..dccbaa7` |
+| `verify` | **failure** at step **23** `منع أي جدول بلا city_id في المخططات` (`O-1`). Steps 1–22 success, 24–58 skipped behind it |
+| `تكامل على PostgreSQL حقيقي` | **success** |
+| `فوضى متعدد المثيلات (F5-06)` | **success** |
+| `تكامل على Redis حقيقي` | **failure** at step **8** `اختبارات الجلسات على Redis حقيقي` (`O-2`) — steps 1–7 success, migrations applied by the safe applier |
+
+Every guard merged this round was judged and passed: `W-9`'s cutover ledger at
+step 19, and `DEP-CORE-005`'s three at steps 20, 21 and 22. The guard that
+caught the false pin printed, on `main`, with the real range:
+
+```
+env:
+  BASE_SHA: 556bbb6a5901628fa3604e14a8828153cd6adc8b
+  HEAD_SHA: dccbaa7a8ddf9cf60b0503c79e1429bb0a831c87
+سندُ العقودِ يتبعُ بايتاتِها: نجح — 3 ملفّاً منقولاً تغيَّرَ، ولكلٍّ سطرُ سندٍ تغيَّرَ معهُ في المدى نفسِه.
+```
+
+Local run on the same tree: `2885 pass · 0 fail · 10241 expect()` across 186
+files, `lint` and `typecheck` clean. Recorded as a local run, which is **not** a
+substitute for a CI verdict and is not offered as one.
+
+The two red jobs are the two reds this repository has carried all along, at the
+same steps, for the two owner decisions that were deliberately left untouched.
+Nothing was skip-classified, silenced, or moved.
+
 ## Owner decisions required, recorded 2026-09-11
 
 | # | Decision | Why it cannot be taken by an executor here |
