@@ -11,6 +11,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
 import {
   coreEnvironmentDependencyOpen,
   type DryRunInputs,
@@ -20,6 +21,7 @@ import {
   stripCommentsAndDocs,
   withGeneratedBlock,
 } from "../../scripts/check-migration-dry-run.ts";
+import { parseBlockers } from "../../scripts/lib/wasla-blockers.ts";
 import {
   buildProbeStatement,
   type CoreSide,
@@ -29,6 +31,8 @@ import {
   DRY_RUN_RESERVED_WAVES,
   deriveReconciliation,
   entryConditionOf,
+  isAttestationRefused,
+  issueCoreAttestation,
   probesForWave,
   READ_ONLY_SQLSTATE,
   wavesThatTouchRows,
@@ -331,11 +335,33 @@ describe("٧. الوثيقةُ المولَّدةُ تطابقُ السجلَّ"
 });
 
 describe("التسويةُ لا تستطيعُ أن تُخرِجَ أخضرَ زائفاً", () => {
-  const attestation = {
-    readVia: "قارئُ CORE عبرَ عقدِ الأحداثِ",
-    closedDependency: "`DEP-CORE-007`",
-    measuredAt: "abc1234",
-  };
+  /**
+   * إشهادٌ **مُصدَرٌ** من المُصدِرِ الوحيدِ على سجلٍّ اصطناعيٍّ تُعلَنُ فيه التبعيّةُ
+   * مُغلَقةً. **ولا يُكتَبُ الإشهادُ يداً بعدَ اليومَ**: كانَ يُكتَبُ ههنا ثلاثَ
+   * سلاسلَ فيُخرِجُ `RECONCILED` و`DEP-CORE-007` مفتوحٌ في الخارطةِ — وذاكَ عينُ
+   * الثقبِ الذي أغلقَته الزيادةُ الثانيةُ، ويُسجَّلُ ولا يُمحى.
+   */
+  const closedRegistry = parseBlockers(
+    [
+      "## Cross-repository dependencies on CORE, recorded 2026-09-11",
+      "",
+      "| # | What is missing in CORE | What it blocks here |",
+      "|---|---|---|",
+      "| DEP-CORE-007 | ~~No shared CORE environment~~ — **CLOSED** by CORE `abc1234` on 2026-09-12 | nothing now |",
+      "",
+      "## Next",
+    ].join("\n"),
+  );
+  const issued = issueCoreAttestation(
+    {
+      readVia: "قارئُ CORE عبرَ عقدِ الأحداثِ",
+      closedDependency: "DEP-CORE-007",
+      measuredAt: "abc1234 · 2026-09-12",
+    },
+    closedRegistry,
+  );
+  if (isAttestationRefused(issued)) throw new Error(`سجلٌّ اصطناعيٌّ مُغلَقٌ رُفِضَ: ${issued.reason}`);
+  const attestation = issued;
 
   it("لا قراءةَ ⇒ `UNVERIFIABLE`، ولا `coreRows` صفراً", () => {
     const record = deriveReconciliation({ table: "users", rows: 142 }, undefined);
@@ -371,6 +397,35 @@ describe("التسويةُ لا تستطيعُ أن تُخرِجَ أخضرَ ز
     );
     expect(differs.status).toBe("DIVERGED");
     expect(differs.reason).toContain("5");
+  });
+
+  it("وإشهادٌ مكتوبٌ يداً — ولو بحقولٍ صحيحةٍ — يُرَدُّ `UNVERIFIABLE` لا `RECONCILED`", () => {
+    const forged = {
+      readVia: "قارئُ CORE عبرَ عقدِ الأحداثِ",
+      closedDependency: "DEP-CORE-007",
+      measuredAt: "abc1234 · 2026-09-12",
+    } as unknown as typeof attestation;
+    const record = deriveReconciliation(
+      { table: "users", rows: 9 },
+      { table: "users", rows: 9, attestation: forged },
+    );
+    expect(record.status).toBe("UNVERIFIABLE");
+    expect(record.coreRows).toBeUndefined();
+    expect(record.reason).toContain("مُصدَراً");
+  });
+
+  it("والمُصدِرُ يرفضُ ما دامَتِ التبعيّةُ مُعلَنةً مفتوحةً في الخارطةِ الحقيقيّةِ", () => {
+    const realRoadmap = readFileSync("ROADMAP.md", "utf8");
+    const result = issueCoreAttestation(
+      {
+        readVia: "قارئُ CORE عبرَ عقدِ الأحداثِ",
+        closedDependency: "DEP-CORE-007",
+        measuredAt: "abc1234 · 2026-09-12",
+      },
+      parseBlockers(realRoadmap),
+    );
+    expect(isAttestationRefused(result)).toBe(true);
+    if (isAttestationRefused(result)) expect(result.reason).toContain("مفتوحةً");
   });
 });
 

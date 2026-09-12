@@ -136,6 +136,10 @@ jobs:
       - name: التشغيلُ الجافُّ لا يستطيعُ الكتابةَ ولا التسويةُ تدّعي أخضرَ (W-8 / ADR 0085)
         run: bun run scripts/check-migration-dry-run.ts
 
+      # وهذه أيضاً **قبلَ** الحمراءِ، للسببِ عينِه المقيسِ ثلاثَ مرّاتٍ.
+      - name: سجلُّ الحواجزِ مقروءٌ من مصدرٍ واحدٍ ولا إشهادَ يُلفَّقُ (W-8 · ADR 0087)
+        run: bun run scripts/check-blocker-registry.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts

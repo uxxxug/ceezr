@@ -161,6 +161,37 @@ Recorded **before** the first edit, per the reservation rule in
 | Conflicting work checked | no open pull request (checked 2026-09-12). No branch among the 38 `origin/*` refs carries `wasla-blockers`, `check-blocker-registry`, or `issueCoreAttestation`; the only files mentioning `CoreAttestation` are this item's own first-increment artifacts. |
 | Claim ceiling | this item may **not** be marked `[x]`, and this increment does not raise the ceiling: `DEP-CORE-007` still leaves MOVE with no CORE side to reconcile, so **no reconciliation is completed** — the improvement is that a false green stops being possible rather than merely unattempted. `ح-4` still requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`, and `ح-5` still bars any production-proof claim. |
 
+### Outcome `W-8` (second increment) — recorded 2026-09-12
+
+Evidence: `docs/evidence/architecture/W-8-attestation-20260912.md` · decision:
+`docs/adr/0087-blocker-registry-and-unforgeable-attestation.md`.
+
+- **What changed.** `CoreAttestation` now carries a module-private `unique
+  symbol` brand, so no file other than `scripts/lib/wasla-migration-dry-run.ts`
+  can name the field. `issueCoreAttestation` is the only producer and refuses an
+  **open** dependency, an **unknown** id, and a placeholder or blank
+  `readVia`/`measuredAt`. `deriveReconciliation` re-checks the brand at run time,
+  so a forged attestation yields `UNVERIFIABLE` — not `RECONCILED`, and not
+  `DIVERGED` either, because claiming divergence is also claiming knowledge.
+- **The hole was measured, not inferred.** This item's own test used to
+  hand-write an attestation naming `DEP-CORE-007` — which is **open** — and
+  obtained `RECONCILED`. `tsc` then failed on three existing lines the moment
+  the brand was added; that failure is the proof.
+- **One readable source.** `scripts/lib/wasla-blockers.ts` parses the three
+  tables in this file into 16 blockers (15 open). It stores no state, so there
+  is no second source of truth (rule 0.6), and `blockerStatus` **throws** on an
+  unknown id instead of answering "closed".
+- **New guard** `scripts/check-blocker-registry.ts`, 8 checks, wired into the
+  `ci` chain and into `verify` **before** the red `city_id` step.
+- **Deviation from the reservation, recorded.**
+  `scripts/check-migration-dry-run.ts` was reserved but **not modified**: all
+  new checks live in a separate guard so a CI read can tell which guard failed.
+  The touched scope is narrower than the reserved scope. No existing check was
+  weakened.
+- **Not claimed.** No reconciliation happened, no CORE read happened,
+  `DEP-CORE-007` stays open, `O-1` and `O-2` stay red and untouched, and `W-8`
+  is **not** marked `[x]` (`ح-1`, `ح-4`).
+
 ### Reservation `W-6` (second increment) — runtime egress gate (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in

@@ -31,6 +31,7 @@
  *   للبناءِ بلا تعديلِ حرفٍ في منطقِ الاشتقاقِ.
  */
 
+import { type Blocker, blockerStatus, UnknownBlockerError } from "./wasla-blockers.ts";
 import { WASLA_MIGRATION_MATRIX, WAVES } from "./wasla-migration-matrix.ts";
 
 /** رمزُ خطأِ PostgreSQL لمحاولةِ كتابةٍ داخلَ مُعاملةٍ للقراءةِ فقط. */
@@ -144,9 +145,21 @@ export const DRY_RUN_POST_MATRIX_TABLES = ["operational_jobs"] as const;
 export type ReconciliationStatus = "RECONCILED" | "DIVERGED" | "UNVERIFIABLE";
 
 /**
+ * وَسمُ الإشهادِ. **رمزٌ خاصٌّ بهذا الملفِّ لا يُصدَّرُ**، فلا ملفَّ آخرَ يستطيعُ
+ * تسميةَ الحقلِ ولا بناءَ الكائنِ — والاستحالةُ بِنيويّةٌ لا اتّفاقيّةٌ.
+ */
+const CORE_ATTESTATION_BRAND: unique symbol = Symbol("wasla.core-attestation");
+
+/**
  * إشهادُ مصدرِ CORE. **بناؤُه هوَ الشرطُ**: لا حقلٌ منطقيٌّ يُرفَعُ، بل مصدرٌ
  * يُسمّى ويُشهَدُ عليه. وما دامَ `DEP-CORE-007` مفتوحاً فلا أحدَ يستطيعُ بناءَه
  * صادقاً، فلا `RECONCILED`.
+ *
+ * **والزيادةُ الثانيةُ أغلقَت ثقباً مَقيساً في هذا النصِّ عينِه**: كانَ الإشهادُ
+ * واجهةَ ثلاثِ سلاسلَ، فأيُّ مُنادٍ — نصٌّ أو اختبارٌ أو مُهيِّئٌ لاحقٌ — يكتبُ
+ * ثلاثَ كلماتٍ فيحصلُ على `RECONCILED` و`DEP-CORE-007` مفتوحٌ. فصارَ **موسوماً
+ * برمزٍ لا يُصدَّرُ**، ومُصدِرُه الوحيدُ `issueCoreAttestation` يقرأُ حالةَ
+ * التبعيّةِ من `ROADMAP.md` ويرفضُ ما دامَت مفتوحةً. فالرفضُ آلةٌ لا انتباهٌ.
  */
 export interface CoreAttestation {
   /** كيفَ قُرِئَ طرفُ CORE فعلاً، بعبارةٍ تُراجَعُ. */
@@ -155,6 +168,102 @@ export interface CoreAttestation {
   readonly closedDependency: string;
   /** القِطعةُ أو الجولةُ التي قُرِئَ فيها الطرفانِ في اللحظةِ عينِها. */
   readonly measuredAt: string;
+  /** الوَسمُ. لا يُكتَبُ يداً: مِفتاحُه رمزٌ غيرُ مُصدَّرٍ. */
+  readonly [CORE_ATTESTATION_BRAND]: true;
+}
+
+/** ما يُطلَبُ به الإشهادُ. سلاسلُ فقط، ولا وَسمَ فيها. */
+export interface AttestationRequest {
+  readonly readVia: string;
+  readonly closedDependency: string;
+  readonly measuredAt: string;
+}
+
+/** رفضُ إصدارٍ، بسببٍ مقروءٍ. **ولا يُلَقَّبُ خطأً عابراً**: هوَ الحكمُ. */
+export interface AttestationRefused {
+  readonly refused: true;
+  readonly reason: string;
+}
+
+/** هل النتيجةُ رفضٌ؟ حارسُ نوعٍ كي لا يُقرأَ الرفضُ إشهاداً. */
+export function isAttestationRefused(
+  result: CoreAttestation | AttestationRefused,
+): result is AttestationRefused {
+  return (result as AttestationRefused).refused === true;
+}
+
+/**
+ * عباراتُ الحشوِ التي تُرفَضُ في وصفِ القراءةِ. **قائمةٌ مغلقةٌ صغيرةٌ**: الغرضُ
+ * منعُ إشهادٍ يقولُ «TODO» أو «مجهولٌ» لا تصفيةُ اللغةِ.
+ */
+const PLACEHOLDER_PATTERN = /\b(?:TODO|TBD|FIXME|N\/?A|unknown|placeholder)\b|مجهول|لاحقاً/i;
+
+/**
+ * **المُصدِرُ الوحيدُ للإشهادِ.** يقرأُ حالةَ التبعيّةِ المُعلَنةِ من سجلِّ الحواجزِ
+ * — وهوَ نفسُه مقروءٌ من `ROADMAP.md` لا مكتوبٌ ههنا — ويرفضُ:
+ *
+ *   ١. تبعيّةً **مفتوحةً**: هذا هوَ الحاجزُ. ما دامَ `DEP-CORE-007` مفتوحاً فلا
+ *      إشهادَ، فلا `RECONCILED` — **بالإنشاءِ لا بالمراجعةِ**.
+ *   ٢. معرّفاً **غيرَ مُعلَنٍ**: `blockerStatus` ترمي، ويُترجَمُ الرميُ إلى رفضٍ.
+ *      فمعرّفٌ مُختلَقٌ لا يُقرأُ إغلاقاً.
+ *   ٣. وصفَ قراءةٍ أو لحظةَ قياسٍ **فارغةً أو حشواً**: إشهادٌ يقولُ «TODO» ليسَ
+ *      إشهاداً، وإشهادٌ بلا لحظةٍ مُعيَّنةٍ لا يُراجَعُ.
+ *
+ * ولا يُصدَّرُ منهُ سبيلٌ ثانٍ: لا `unsafeAttestation` ولا مُعامِلُ تجاوزٍ. من
+ * أرادَ إشهاداً فليُغلِقِ التبعيّةَ في الخارطةِ.
+ */
+export function issueCoreAttestation(
+  request: AttestationRequest,
+  blockers: readonly Blocker[],
+): CoreAttestation | AttestationRefused {
+  let status: string;
+  try {
+    status = blockerStatus(request.closedDependency, blockers);
+  } catch (error) {
+    if (error instanceof UnknownBlockerError) {
+      return {
+        refused: true,
+        reason: `الإشهادُ يدّعي إغلاقَ \`${request.closedDependency}\` وهوَ معرّفٌ غيرُ مُعلَنٍ في ROADMAP.md، فلا إغلاقَ يُقرأُ منه.`,
+      };
+    }
+    throw error;
+  }
+  if (status === "OPEN") {
+    return {
+      refused: true,
+      reason: `التبعيّةُ \`${request.closedDependency}\` مُعلَنةٌ **مفتوحةً** في ROADMAP.md، فلا طرفَ CORE يُقرأُ ولا إشهادَ يُصدَرُ ولا تسويةَ تُقالُ.`,
+    };
+  }
+  for (const [field, value] of [
+    ["readVia", request.readVia],
+    ["measuredAt", request.measuredAt],
+  ] as const) {
+    if (value.trim().length < 3 || PLACEHOLDER_PATTERN.test(value)) {
+      return {
+        refused: true,
+        reason: `الحقلُ \`${field}\` فارغٌ أو حشوٌ (\`${value}\`)، وإشهادٌ لا يُراجَعُ ليسَ إشهاداً.`,
+      };
+    }
+  }
+  return {
+    readVia: request.readVia,
+    closedDependency: request.closedDependency,
+    measuredAt: request.measuredAt,
+    [CORE_ATTESTATION_BRAND]: true,
+  };
+}
+
+/**
+ * هل الإشهادُ مُصدَرٌ من المُصدِرِ الوحيدِ؟ **شبكةٌ ثانيةٌ وقتَ التشغيلِ**: النوعُ
+ * يمنعُ البناءَ في المراجعةِ، وهذا يمنعُ ما يُمرَّرُ بعدَ `as` أو من JavaScript
+ * بلا أنواعٍ. وذانِ سبيلانِ مستقلّانِ لا سبيلٌ واحدٌ.
+ */
+export function isIssuedAttestation(value: unknown): value is CoreAttestation {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as Record<symbol, unknown>)[CORE_ATTESTATION_BRAND] === true
+  );
 }
 
 /** طرفُ MOVE من التسويةِ: ما قاسَه التشغيلُ الجافُّ. */
@@ -196,6 +305,15 @@ export function deriveReconciliation(
       moveRows: move.rows,
       reason:
         "لا مصدرَ حقيقيٌّ في CORE يُقرأُ منه الطرفُ الآخرُ (`DEP-CORE-007` مفتوحٌ). ولا يُقالُ «مُسوّىً» ولا «مختلفٌ»: كلاهما ادّعاءُ معرفةٍ بما لم يُقرأْ.",
+    };
+  }
+  if (!isIssuedAttestation(core.attestation)) {
+    return {
+      table: move.table,
+      status: "UNVERIFIABLE",
+      moveRows: move.rows,
+      reason:
+        "الإشهادُ المُمرَّرُ ليسَ مُصدَراً من `issueCoreAttestation`، فهوَ كائنٌ كُتِبَ يداً لا قراءةٌ حدثَت. ولا يُقالُ «مُسوّىً» على إشهادٍ ملفَّقٍ.",
     };
   }
   if (core.table !== move.table) {
