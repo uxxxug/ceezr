@@ -145,7 +145,7 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
-### Reservation `W-2` — migration matrix (opened 2026-09-12, before any file was edited)
+### Reservation `W-2` — migration matrix (opened 2026-09-12, before any file was edited; artifacts landed, see the `W-2` status section below)
 
 Recorded **before** the first edit so that no second executor opens the same
 scope, per the reservation rule in `docs/ROADMAP-MASTER.md` §25.
@@ -301,6 +301,60 @@ the CI verdict table.
 Still not claimed as complete. `check-migrations.ts` still fails with the three
 sovereign-rule-0.4 violations (`DEP-CORE-006` / `O-1`), and no delivery to a real
 CORE environment has been measured (`DEP-CORE-007`).
+
+## Status of item `W-2`, recorded 2026-09-12 (additive; item text unchanged)
+
+The item text above is untouched (`ح-1`). This section records what exists at
+this commit and, just as importantly, what is **not** claimed.
+
+### What was built
+
+`W-2` asked for a migration matrix per entity, published in `docs/migration/`.
+It was built as a **checked registry**, not a hand-written document — the same
+shape as `W-1`, and for the same reason: a plan that lives only in a document
+goes stale **without a single wrong line**, and a plan believed to be current is
+more dangerous than a missing one.
+
+| Artifact | Path |
+|---|---|
+| Registry (single source of truth) | `scripts/lib/wasla-migration-matrix.ts` |
+| CI guard, 10 checks | `scripts/check-migration-matrix.ts` |
+| Generated document | `docs/migration/matrix.md` |
+| Negative unit tests, 27 cases | `tests/unit/check-migration-matrix.test.ts` |
+| Architecture decision | `docs/adr/0083-migration-matrix-registry.md` |
+| Evidence | `docs/evidence/architecture/W-2-20260912.md` |
+
+Coverage: 7 closed mechanisms · 7 waves · one entry for each of the 47 inventory
+tables · 7 column plans matching `WASLA_COLUMN_CONCERNS` one-for-one. Disposition
+and owner are **read from the `W-1` registry, never restated** — no second source
+of truth for a disposition that could drift silently.
+
+### What is explicitly NOT claimed
+
+- **No row was migrated.** "Migrated" and "Retired" below both still read
+  "Nothing." The guard's tenth check couples the two: any entry claiming
+  execution while "Migrated" is empty fails `verify`. Every entry carries
+  `executed: false` literally.
+- **No wave is executable today.** Row counts, duplicate identities and live job
+  counts are unknown (`B-1`); identity-merge policy is unresolved (`B-2`); no
+  CORE integration environment exists (`B-3`). Waves 2, 3 and 5 additionally
+  depend on `DEP-CORE-003`, `DEP-CORE-002` and `DEP-CORE-004` — all of which are
+  CORE-side and out of this repository's scope.
+- **The matrix does not authorise anything.** It is a plan with a gate, and the
+  gate measures completeness, consistency and truthfulness of the claim — not
+  the correctness of a chosen mechanism, which stays an architectural judgement
+  reviewed by reading (ADR-0083 §6).
+- **`W-2` is not marked `[x]`.** `ح-4` requires a read CI verdict, and `verify`
+  is red on main for sovereign rule 0.4 (`O-1`, an owner decision). Grading:
+  **مُختبَر** for the guard (27 negative cases pass locally), **مُنفَّذ** for the
+  matrix itself. Not مُتحقَّق منه and not مَقيس.
+
+## CI verdicts on branch `feat/w2-migration-matrix` (additive)
+
+Local green is not a verdict (`ح-8`). Filled in from the GitHub Actions API after
+the push, per job, not summarised.
+
+<!-- CI verdict for this branch is recorded here after the run is read. -->
 
 ## CI verdicts on branch `feat/w4-w5-operational-job-and-core-lifecycle` (additive)
 
