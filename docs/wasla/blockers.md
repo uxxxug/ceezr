@@ -4,7 +4,7 @@
 `bun run scripts/check-blocker-registry.ts --write`، ومصدرُها الوحيدُ جداولُ
 `ROADMAP.md`. فإن أردتَ تغييرَ حاجزٍ فغيِّرْ صفَّه هناكَ.
 
-المُفكَّكُ: **16** حاجزاً، منها **15** مفتوحةٌ.
+المُفكَّكُ: **17** حاجزاً، منها **16** مفتوحةٌ.
 
 | المعرّفُ | الصنفُ | الحالةُ | ما هوَ | ماذا يمنعُ |
 |---|---|---|---|---|
@@ -19,6 +19,7 @@
 | `O-2` | قرارُ مالكٍ | **مفتوحٌ** | Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` as repository secrets | The `real-redis` CI job asserts a real Redis (`OPS-006`) and must not be weakened, silenced or skip-classified; the previous secrets belonged to the former repository account |
 | `O-3` | قرارُ مالكٍ | **مفتوحٌ** | Issue a CORE bearer service credential for MOVE and set `CORE_EVENTS_BASE_URL` / `CORE_EVENTS_BEARER_TOKEN` on the worker | Credentials in CORE are owned by CORE; this repository must not mint or assume them, and the shipping job stays unregistered without them |
 | `O-4` | قرارُ مالكٍ | **مفتوحٌ** | Provision a CORE `event_subscription` for `core.*` pointing at `https://<gateway>/webhook/core-events` with a signing secret of at least 32 characters, and set `CORE_INBOUND_SIGNING_SECRET` on the gateway | CORE's outbound contract states subscriptions are operator-provisioned and the secret is never echoed back; this repository receives what was provisioned and does not provision it |
+| `O-6` | قرارُ مالكٍ | **مفتوحٌ** | Grant this repository's CI read access to CORE's contract directory — a read-only fine-grained token for `uxxxug/wasla-core` as a repository Actions secret, or a published copy of `contracts/` that a public job can read (a submodule, a release artifact, or a public mirror of that directory only) | `uxxxug/wasla-core` is **private** and the CI token of `uxxxug/ceezr` cannot read another private repository. Granting cross-repository read is an owner act: it is an access decision about CORE's repository, not a change in this one. Without it `scripts/check-core-contract-freshness.ts` can be run by hand wherever a CORE checkout exists, but `verify` cannot judge freshness, so `DEP-CORE-005` stays open. The comparator is deliberately built to **refuse to pass** when no CORE source is available rather than report a freshness it did not measure |
 | `B-1` | حاجزُ برنامجٍ | **مفتوحٌ** | Production data inventory unknown (row counts, duplicate identities, live jobs) | No migration can be planned against real volumes |
 | `B-2` | حاجزُ برنامجٍ | **مفتوحٌ** | Duplicate-identity merge policy undecided | Identity handover to CORE cannot complete |
 | `B-3` | حاجزُ برنامجٍ | **مفتوحٌ** | No CORE database or environment provisioned | Integration against CORE cannot be executed end-to-end yet |
