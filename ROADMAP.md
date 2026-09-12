@@ -192,6 +192,29 @@ Evidence: `docs/evidence/architecture/W-8-attestation-20260912.md` · decision:
   `DEP-CORE-007` stays open, `O-1` and `O-2` stay red and untouched, and `W-8`
   is **not** marked `[x]` (`ح-1`, `ح-4`).
 
+### CI verdict for `W-8` (second increment) — read 2026-09-12 at `acf3027`
+
+Read per job **and per step**, from the API, for three runs on the same sha —
+not assumed (`ح-8`). Full record:
+`docs/evidence/architecture/W-8-attestation-20260912.md` §حكمُ CI.
+
+- `Roadmap freshness` (`34674941364`) **success**. `CI` on `push`
+  (`34674941330`) and on `pull_request` #9 (`34674965765`) both **failure**,
+  with identical job results: `تكامل على PostgreSQL حقيقي` success ·
+  `فوضى متعدد المثيلات (F5-06)` success · `verify` failure ·
+  `تكامل على Redis حقيقي` failure.
+- In `verify`: Lint, Typecheck and Test all **success**; the three existing
+  guards (`W-2`, egress, dry-run) **success**; and step 18, the **new blocker
+  registry guard, `success`** — it actually ran and returned a verdict rather
+  than reading `skipped`. Step 19, the `city_id` gate, is **failure** (`O-1`,
+  rule 0.4, root cause in CORE) and steps 20–54 are `skipped` behind it, which
+  is exactly why step 18 was placed **before** it.
+- Redis job fails at step 8 (`O-2`, missing Upstash secrets). No test was
+  changed and no secret was added.
+- Therefore: `منفّذ · مختبَر · متحقَّق منه` for the guard and the issuer only.
+  **Not** `مُثبَت`, and `W-8` is still **not** `[x]` — `verify` stays red for
+  `O-1`, `DEP-CORE-007` stays open, and `ح-5` bars any production claim.
+
 ### Reservation `W-6` (second increment) — runtime egress gate (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
