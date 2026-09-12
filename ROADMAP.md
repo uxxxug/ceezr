@@ -283,6 +283,31 @@ and the rest is `O-1` and `O-2` — two declared sovereign blocks whose owner is
 not the repository executor. Still **no** `[x]` for `F2-01` and no `F2` gate
 claim.
 
+**Round 3 — `b42945e`.** `Roadmap freshness` ✅, `verify` ❌ at the inherited
+`city_id` step only, `فوضى متعدد المثيلات` ✅, Redis ❌ `O-2`. The real-PostgreSQL
+job was run **twice on this identical commit** (GitHub scheduled one run for the
+push and one for the pull request): run `34719289623` **passed**, run
+`34719287936` **failed**, both on byte-identical code.
+
+**Finding `OPS-017` — an intermittent failure that is not this branch's, recorded
+rather than absorbed.** The failing assertion is
+`tests/integration/location-race-conditions.test.ts:387`
+(«ساعتانِ متباعدتانِ…»), `Expected: 3, Received: 2` — the **last published**
+sequence on the second driver's channel versus that session row's
+`last_sequence`. This is the same shape of obligation that `OPS-016` already
+diagnosed and repaired at line 210 of this same file: the sequence is assigned
+inside one `update`, while publication happens after the transaction closes and
+outside any lock, so an assertion tying *what has been observed on the bus* to
+*what the row now holds* is sensitive to interleaving. **That is a hypothesis,
+not a proven diagnosis, and it is written here as a hypothesis.** What is
+measured: the file is untouched by this branch (`F2-01` touches no tracking,
+session or location code — `git diff` confirms it); the identical commit both
+passed and failed in CI; and six consecutive local runs against real PostgreSQL
+18.6 were green (`4 pass · 0 fail` each). No assertion was weakened, no test was
+skipped, no owner was invented, and `OPS-017` is **not** claimed fixed. Repairing
+it is a separate increment against this file, and doing it inside `F2-01` would
+be editing code outside the reserved scope.
+
 
 ### Reservation `DEP-CORE-005` — a mechanical freshness comparator for the vendored CORE contracts (opened 2026-09-12, before any file was edited)
 
