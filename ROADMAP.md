@@ -178,6 +178,28 @@ Additive record. It corrects the reservation above **by addition**, not by rewri
 | Still not claimable | `[x]` on `W-6` (channel half blocked by `DEP-CORE-004`; `ح-4` needs a CI verdict and rule 0.4 keeps `verify` red) · any network-layer enforcement (needs a proxy/firewall the repository does not own — `B-1`/`B-5`) · that a configured host really is CORE (`DEP-CORE-005`) |
 | Untouched, deliberately | `ADR 0084` · the `city_id` gate and rule 0.4 · the real-Redis job and its test · `MASTER_DIRECTIVE` · every payment business rule · `O-1` and `O-2`, which stay open and are not worked around; no secret was added to the repository |
 
+### `W-6` second increment — CI verdict, read per job and per step (recorded 2026-09-12)
+
+Branch `feat/w6-runtime-egress-gate`@`9669dbf`, PR [#8](https://github.com/uxxxug/ceezr/pull/8),
+runs `34673628192` (push) and `34673661270` (pull request), Roadmap freshness `34673628196` `success`.
+
+| Job | Conclusion (identical in both runs) |
+|---|---|
+| PostgreSQL integration | **success** |
+| multi-instance chaos (F5-06) | **success** |
+| `verify` | **failure** — at step 18 only |
+| real-Redis integration | **failure** — step 8 (`O-2`) |
+
+In `verify`: Lint, Typecheck and Test **success** (the 27 new cases run inside Test) ·
+step 15 (`W-2` guard) **success** · **step 16 — the egress boundary guard, which runs
+the new checks ١١/١٢/١٣ — success** · step 17 (`W-8` guard) **success** ·
+step 18 (`city_id`) **failure** · steps 19–54 **skipped**.
+
+The two reds are the same owner blockers already red on `main`@`227cb4d`, at the same job
+and the same step: `O-1` (`DEP-CORE-006`, rule 0.4, root cause in CORE) and `O-2` (Upstash
+secrets). **This increment added no red, weakened no gate, silenced no step and classified
+none as skipped.** The run is not claimed green, and no item is marked `[x]` (`ح-4`).
+
 ### Reservation `W-6` — egress boundary (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
