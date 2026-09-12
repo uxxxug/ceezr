@@ -157,6 +157,15 @@ jobs:
       - name: سقوطُ حاجزِ «السندُ يتبعُ البايتاتَ» مقيسٌ بمستودَعٍ مزروعٍ (DEP-CORE-005)
         run: bun test tests/unit/vendored-pin-follows-bytes.test.ts
 
+      # وهذه كذلكَ **قبلَ** الحمراءِ، وللسببِ المقيسِ عينِه. والمقيسُ ههنا سجلُّ
+      # وثائقِ الموافقةِ (`F2-01`): لا يقرأُ شبكةً ولا قاعدةً ولا سرّاً، بل نصَّ
+      # الهجرةِ وقواميسَ اللغاتِ الثلاثِ، فلا عذرَ لتأخيرِه خلفَ `O-1`.
+      - name: أصنافُ الموافقةِ مطابقةٌ لقيدِ الهجرةِ ولكلِّ مفتاحٍ ثلاثُ لغاتٍ (F2-01)
+        run: bun run scripts/check-consent-documents.ts
+
+      - name: سقوطُ حاجزِ وثائقِ الموافقةِ مقيسٌ بافتراقٍ مزروعٍ لا بالمستودَعِ كما هوَ (F2-01)
+        run: bun test tests/unit/check-consent-documents.test.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts

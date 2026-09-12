@@ -50,6 +50,39 @@ const HTTP_STATUS_LINE =
 const HTTP_STATUS_UNION_TYPE =
   /^\s*(export\s+)?type\s+[A-Za-z0-9_]*Status\s*=\s*\d{3}(\s*\|\s*\d{3})*\s*;?\s*$/;
 
+/**
+ * الشكلُ الثالثُ: **خريطةُ رمزِ خطأٍ إلى رمزِ حالةٍ**، أي
+ * `const STATUS_BY_ERROR: Readonly<Record<XErrorCode, 400 | 401 | 404 | 503>> = {`
+ * ثمَّ أسطرُ `UNKNOWN_DOCUMENT: 400,`. أُضيفَ لأنَّ بابَ الموافقاتِ (`F2-01`)
+ * يصرِّفُ تسعةَ رموزِ خطأٍ إلى أربعةِ رموزِ حالةٍ، فكانَ الفاحصُ يقرأُ كلَّ ٤٠٠
+ * سعرَ اشتراكٍ ويُسقِطُ CI على خريطةِ بروتوكولٍ لا قيمةَ تجاريّةَ فيها.
+ *
+ * **والاستثناءُ مُنطاقٌ بكتلةٍ لا مُطلَقٌ على سطرٍ**، وهذا جوهرُ ضِيقِه: لا
+ * يُقبَلُ السطرُ `X: 400,` إلّا داخلَ كتلةٍ فتحَها تصريحٌ **حاملٌ في نوعِه
+ * اتّحادَ رموزِ الحالةِ نفسِه**. فليسَ في المستودعِ سطرٌ حرٌّ يقولُ `KEY: 400`
+ * ويُقبَلُ.
+ *
+ * **والحدُّ مُعلَنٌ لا مُدَّعى**: من كتبَ `Record<Plan, 400 | 250>` ثمَّ
+ * `BASIC: 400,` **يمرُّ** من هذا الاستثناءِ، وذاكَ مقيسٌ ومسجَّلٌ في الاختبارِ
+ * لا مسكوتٌ عنه. والمانعُ لهُ ليسَ هذا الحاجزَ بل أنَّه يُثبِّتُ الأسعارَ
+ * المسموحةَ في **نوعٍ ظاهرٍ في سطرِ التصريحِ** يقرؤه المراجعُ بلا بحثٍ — وهوَ
+ * أظهرُ بكثيرٍ من قيمةٍ مدفونةٍ في جسمِ دالّةٍ، وهيَ الصورةُ التي وُضِعَ لها
+ * الحاجزُ أصلاً.
+ *
+ * **ولا يستطيعُ سعرٌ أن يلبسَ هذا الشكلَ عَرَضاً**: كانَ عليه أن يُعلِنَ نوعَ قيمتِه
+ * اتّحادَ حرفيّاتٍ ثلاثيّةٍ (`Record<Plan, 400 | 250>`) — أي أن يُثبِّتَ الأسعارَ
+ * المسموحةَ في النوعِ نفسِه، وذاكَ عينُ ما تمنعُه القاعدةُ 0.3 صراحةً في موضعٍ
+ * آخرَ. وخريطةُ أسعارٍ حقيقيّةٍ نوعُها `Record<string, number>` فلا تُفتَحُ لها
+ * الكتلةُ ألبتّةَ. ويُثبِتُ ذلكَ `tests/unit/check-business-constants.test.ts`
+ * بمحاولاتِ تنكُّرٍ مزروعةٍ.
+ */
+const STATUS_MAP_OPENS =
+  /^\s*(export\s+)?const\s+[A-Za-z0-9_]+\s*:\s*(Readonly<\s*)?Record<\s*[A-Za-z0-9_]+\s*,\s*\d{3}(\s*\|\s*\d{3})*\s*>\s*>?\s*=\s*\{\s*$/;
+/** يُغلِقُ الكتلةَ: سطرٌ لا يحملُ غيرَ `}` أو `};`. */
+const STATUS_MAP_CLOSES = /^\s*\}\s*;?\s*$/;
+/** ما يُقبَلُ **داخلَ** الكتلةِ وحدَه: مفتاحٌ بأحرفٍ كبيرةٍ إلى رقمٍ ثلاثيٍّ. */
+const STATUS_MAP_ENTRY = /^\s*[A-Z][A-Z0-9_]*\s*:\s*\d{3}\s*,?\s*$/;
+
 interface Hit {
   readonly file: string;
   readonly line: number;
@@ -108,7 +141,18 @@ export function findHardcodedValues(
 ): { readonly line: number; readonly value: number }[] {
   const found: { line: number; value: number }[] = [];
 
+  let inStatusMap = false;
+
   executableLines(source).forEach((code, index) => {
+    if (inStatusMap) {
+      if (STATUS_MAP_CLOSES.test(code)) inStatusMap = false;
+      // داخلَ الكتلةِ يُستثنى **المُدخلُ المطابقُ وحدَه**؛ وأيُّ سطرٍ آخرَ
+      // يُحاكَمُ كما لو كانَ خارجَها، فلا تصيرُ الكتلةُ ملجأً.
+      if (STATUS_MAP_ENTRY.test(code)) return;
+    } else if (STATUS_MAP_OPENS.test(code)) {
+      inStatusMap = true;
+      return;
+    }
     if (HTTP_STATUS_LINE.test(code) || HTTP_STATUS_UNION_TYPE.test(code)) return;
     for (const value of FORBIDDEN) {
       const pattern = new RegExp(`(^|[^0-9a-zA-Z_.$])${value}(_|\\b)(?![0-9a-zA-Z_])`);

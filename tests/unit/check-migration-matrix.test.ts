@@ -65,9 +65,12 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
     expect(matrixProblems(ROADMAP, DOC)).toEqual([]);
   });
 
+  // الرقمُ مُثبَّتٌ عن قصدٍ لا مُشتَقٌّ من الجردِ: لو قُرِئَ من الجردِ لصارَ
+  // الاختبارُ صحيحاً بالإنشاءِ فلا يُوقِعُ نمواً صامتاً. ويُرفَعُ يداً معَ كلِّ
+  // جدولٍ جديدٍ — ورُفِعَ من 47 إلى 48 بجدولِ `user_consents` (`F2-01`).
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(47);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(47);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(48);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(48);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {

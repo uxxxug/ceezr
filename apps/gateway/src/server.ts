@@ -11,6 +11,7 @@
 
 import { Hono } from "hono";
 import { createRequestIdMiddleware } from "./observability/request-id.ts";
+import { type ConsentRouteDependencies, createConsentRoutes } from "./routes/consents.ts";
 import {
   type CoreEventIntakeDependencies,
   createCoreEventIntakeRoutes,
@@ -64,6 +65,13 @@ export interface ServerDependencies {
    */
   readonly me?: MeDependencies;
   /**
+   * مسارا الموافقاتِ (`F2-01`) — اختياريّانِ بنفسِ المنطقِ: غيابُهما هنا = لا
+   * مسارَ (`404`)، وحضورُهما بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`). ولا يُركَّبانِ
+   * مع سرِّ الجلسةِ وحدَه: يحتاجانِ سجلَّ الموافقاتِ في القاعدةِ أيضاً، فلا
+   * يُعلَنُ مسارٌ يقبلُ إقراراً لا موضعَ لكتابتِه.
+   */
+  readonly consents?: ConsentRouteDependencies;
+  /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
    * سواءٌ رُكِّبَ هذا السطحُ أم لا، لأنَّ القرارَ الحرجَ لا يُترَكُ لسطحِ قراءةٍ
@@ -115,6 +123,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.me !== undefined) {
     app.route("/", createMeRoutes(deps.me));
+  }
+  if (deps.consents !== undefined) {
+    app.route("/", createConsentRoutes(deps.consents));
   }
   if (deps.notifications !== undefined) {
     app.route("/", createNotificationRoutes(deps.notifications));

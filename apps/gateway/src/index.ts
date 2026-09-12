@@ -7,6 +7,10 @@
  */
 
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
+import {
+  createConsentRecordReader,
+  createConsentRecordWriter,
+} from "../../../packages/infrastructure/consent/consent-store.ts";
 import { verifySchemaContract } from "../../../packages/infrastructure/db/schema-guard.ts";
 import { createPostgresTelegramUpdateQueue } from "../../../packages/infrastructure/db/telegram-update-queue.ts";
 import {
@@ -527,6 +531,29 @@ const coreEventIntake =
         lifecycle: createFulfillmentLifecycle(createOperationalJobRepository(container.sql)),
       };
 
+/**
+ * مسارا الموافقاتِ (`F2-01`) — يُركَّبانِ مع سرِّ الجلسةِ وحدَه كأخويهِما، ويكتبانِ
+ * عبرَ دالّةٍ ذرّيّةٍ واحدةٍ تستنبطُ المدينةَ من صفِّ المستخدمِ داخلَ القاعدةِ
+ * (القاعدتانِ 0.4 و0.5). ولا يُمرَّرُ `city_id` من هنا أصلاً: لا موضعَ في البابِ
+ * يستقبلُه، فلا يستطيعُ خطأُ تركيبٍ أن يكتبَ موافقةً في مدينةٍ ليست مدينةَ صاحبِها.
+ *
+ * وغيابُ السرِّ يُسقِطُ المسارَينِ (`404`) ولا يُعطِّلُهما (`503`): مسارٌ معلَنٌ بلا
+ * مصادقةٍ يدعو إلى إرسالِ إقرارٍ لا هويّةَ له.
+ */
+const consents =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        consent: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          reader: createConsentRecordReader(container.sql),
+          writer: createConsentRecordWriter(container.sql),
+          now: () => new Date(),
+          log,
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -628,6 +655,7 @@ const app = createServer({
   ...(sessionTelegram === undefined ? {} : { sessionTelegram }),
   ...(sessionRefresh === undefined ? {} : { sessionRefresh }),
   ...(me === undefined ? {} : { me }),
+  ...(consents === undefined ? {} : { consents }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
