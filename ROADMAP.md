@@ -439,6 +439,44 @@ Recorded because they are evidence the checks bind on their author:
   **مُنفَّذ** for the registry. Not مُتحقَّق منه and not مَقيس — `ح-4` needs a
   read CI verdict and `verify` stays red for `O-1`.
 
+## CI verdicts on branch `feat/w6-egress-boundary` (additive)
+
+Local green is not a verdict (`ح-8`). Read from the GitHub Actions API after the
+push, per job **and per step**, not summarised.
+
+| Commit | `verify` | real PostgreSQL | real Redis | multi-instance chaos | Roadmap freshness |
+|---|---|---|---|---|---|
+| `9f3b848` (push `34666026785`) | `failure` | `success` | `failure` | `success` | `success` (`34666026757`) |
+| `9f3b848` (PR [#4](https://github.com/uxxxug/ceezr/pull/4), run `34666029771`) | `failure` | `success` | `failure` | `success` | — |
+
+**The one thing this item measures.** The `verify` job log was read step by step:
+
+| Step | Verdict | Name |
+|---|---|---|
+| 15 | `success` | migration matrix guard (`W-2`) |
+| **16** | **`success`** | **egress boundary guard (`W-6`) — the step this item adds** |
+| 17 | `failure` | no table without `city_id` (sovereign rule 0.4) |
+| 18–30 | `skipped` | everything after the red step, **including step 25, the `W-1` guard** |
+
+So the new guard **ran and passed at CI**, not only locally. And step 25 being
+`skipped` is the read proof that placing the step before the red gate was not
+cosmetic ordering: had it gone after, this item's guard would be `skipped` too
+and would carry **no verdict at all**, while being reported as delivered.
+
+**Rule 0.4 was not weakened, silenced, reclassified as a skip, or deferred.** It
+is the very next step, it failed with the same message it fails with on `main`,
+and the job's `conclusion` stayed `failure`.
+
+**Both reds precede this item and do not come from it.** Both are red on `main`
+at `0c25ca0` with the same job and the same step: `O-1` (rule 0.4, root cause in
+CORE, `DEP-CORE-006`) and `O-2` (missing Upstash secrets — the real-Redis job
+fails at step 8, "session tests on real Redis"). Both are owner decisions.
+
+**The run is not claimed green, and `W-6` is not marked `[x]` (`ح-4`).** What is
+now proven beyond local measurement is narrower than the item and stated as such:
+the egress surface is declared and gated at CI. Grading:
+**مُنفَّذ · مُختبَر · مُتحقَّق منه (the guard alone)**.
+
 ## CI verdicts on branch `feat/w2-migration-matrix` (additive)
 
 Local green is not a verdict (`ح-8`). Filled in from the GitHub Actions API after
