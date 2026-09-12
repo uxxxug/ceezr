@@ -61,6 +61,22 @@ depends on which subscriber is attempted first is asserting something CORE does
 not guarantee — one such test was written during this milestone and it passed
 in memory and failed on Postgres, which is how the difference was found.
 
+**A claim is a lease, and a lease is not a backoff.** The worker claims a
+delivery by writing `claimed_at` and pushing `next_attempt_at` out by the lease,
+so a second worker polling at the same moment matches nothing (B-22). Because
+`next_attempt_at` carries both the lease and the retry schedule, `claimed_at` is
+what says which one it currently is (B-24): a delivery held by a worker that died
+is not silently re-served when the lease runs out — `reclaimExpired` frees it,
+counts it as `reclaimed`, and the next drain sends it. An abandoned claim does not
+spend an attempt, so a rolling restart cannot walk a healthy delivery to its
+attempt limit — it spends a `reclaims` instead, and after three abandonments the
+delivery is dead-lettered rather than recovered a fourth time (B-25), so a payload
+that kills the worker cannot occupy the queue for ever. A delivery that dies this
+way keeps `last_status` and `delivered_at` null: nothing was ever sent, and the
+record must not imply a subscriber answered. `counts()` reports `in_flight` and
+`abandoned` for the same reason:
+a partner outage and a crash-looping worker used to produce identical numbers.
+
 **A failed attempt is either worth repeating or it is not.** This distinction
 matters more than the backoff curve:
 

@@ -84,6 +84,12 @@ function cancelledEnvelope(fulfillmentId: string, overrides: Record<string, unkn
     entity_id: fulfillmentId,
     payload: {
       fulfillment_id: fulfillmentId,
+      /**
+       * `organization_id` **مطلوبٌ** في عقدِ الإلغاءِ منذُ دورةِ نطاقِ المستأجرِ
+       * عندَ CORE (`acd93c8`). وإضافتُه ههنا ليست تجميلاً: بدونِه يردُّ المُدقِّقُ
+       * المغلَّفَ قبلَ الإيداعِ فلا يُقاسُ إلغاءٌ ألبتّةَ.
+       */
+      organization_id: ORG,
       order_reference: `order-${fulfillmentId.slice(-4)}`,
       reason: "rider_cancelled",
       cancelled_at: "2026-09-11T11:00:00.000Z",
@@ -561,6 +567,96 @@ describeIf("دورةُ حياةِ مهمّةِ التنفيذِ الواردةِ
       expect(isOk(again)).toBe(true);
       if (isOk(again)) expect(again.value.changed).toBe(false);
       expect((await job(fulfillmentId)).closed_at).toEqual(closedAt);
+    });
+
+    /**
+     * ما يقيسُه الثلاثةُ التاليةُ: دورةَ نطاقِ المستأجرِ عندَ CORE
+     * (`acd93c8`) على حدثِ الإلغاءِ. وليسَ هذا تزَيُّداً في التغطيةِ: قبلَ هذه
+     * الزيادةِ كانَ أوّلُ هذه الحالاتِ يُخفِقُ، ومعناه أنَّ أيَّ إلغاءٍ حقيقيٍّ
+     * يُنشِرُه CORE اليومَ كانَ يُرَدُّ فتبقى المهمّةُ التشغيليّةُ جاريةً.
+     */
+    it("إلغاءٌ بمالٍ قُبِضَ جزءٌ منه وقرارٌ ماليٌّ معلَّقٌ: يُلغي المهمّةَ ولا يُدَّعي تسويةً", async () => {
+      const fulfillmentId = await intake();
+      await lifecycle.accept(fulfillmentId, "corr");
+      const envelope = cancelledEnvelope(fulfillmentId, {
+        payload: {
+          fulfillment_id: fulfillmentId,
+          organization_id: ORG,
+          order_reference: "order-part",
+          reason: "customer_cancelled",
+          cancelled_at: "2026-09-11T11:00:00.000Z",
+          settlement_state: "partially_captured",
+          captured_minor: 2500,
+          financial_decision_required: true,
+        },
+      });
+
+      const result = await lifecycle.consume(envelope);
+      expect(isOk(result)).toBe(true);
+      if (isOk(result)) expect(result.value.changed).toBe(true);
+
+      const row = await job(fulfillmentId);
+      expect(row.state).toBe("cancelled");
+      expect(row.cancel_reason).toBe("customer_cancelled");
+      expect(row.closed_at).not.toBeNull();
+      /**
+       * `outcome` يبقى `null`: مهمّةٌ أُلغيَ طلبُها لم تُتمْ ولم تفشلْ، وأن يُكتبَ
+       * لها مالٌ دعوى تسويةٍ وMOVE لا يملكُ أن يدّعيَها (حاجزُ CORE `CORE:B-20`).
+       */
+      expect(row.outcome).toBeNull();
+      /**
+       * ولا حدثَ صادرٌ جديدٌ: حدثُ القبولِ وحدَه يبقى، فلا يصدرُ عن MOVE
+       * شيءٌ يُقرأُ ردَّ مالٍ أو إيراداً مُكتسَباً.
+       */
+      const events = await outbox(fulfillmentId);
+      expect(events).toHaveLength(1);
+      expect(events[0]?.event_type).toBe("move.job.accepted");
+      expect(JSON.stringify(events[0]?.payload)).not.toContain("captured_minor");
+    });
+
+    it("`settlement_state` مجهولٌ يُرَدُّ عقديّاً ولا يُقرأُ «أُعيدَ الحجزُ»", async () => {
+      const fulfillmentId = await intake();
+      const envelope = cancelledEnvelope(fulfillmentId, {
+        payload: {
+          fulfillment_id: fulfillmentId,
+          organization_id: ORG,
+          order_reference: "order-x",
+          reason: "customer_cancelled",
+          cancelled_at: "2026-09-11T11:00:00.000Z",
+          settlement_state: "clawed_back",
+        },
+      });
+
+      const result = await lifecycle.consume(envelope);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result)) expect(result.error.kind).toBe("contract");
+      // ولا أثرَ: لا إيداعَ في الواردِ، والمهمّةُ على حالِها.
+      const inbox = await sql<{ count: string }[]>`
+        select count(*)::text as count from core_event_inbox
+         where event_id = ${String(envelope.event_id)}`;
+      expect(inbox[0]?.count).toBe("0");
+      expect((await job(fulfillmentId)).state).toBe("coordinating");
+    });
+
+    it("إلغاءٌ بلا `organization_id` — تاريخٌ قبلَ دورةِ المستأجرِ — يُرَدُّ ولا يُنسَبُ لمستأجرٍ", async () => {
+      const fulfillmentId = await intake();
+      const envelope = cancelledEnvelope(fulfillmentId, {
+        payload: {
+          fulfillment_id: fulfillmentId,
+          order_reference: "order-old",
+          reason: "customer_cancelled",
+          cancelled_at: "2026-09-11T11:00:00.000Z",
+        },
+      });
+
+      const result = await lifecycle.consume(envelope);
+      expect(isErr(result)).toBe(true);
+      if (isErr(result) && result.error.kind === "contract") {
+        expect(result.error.issues.some((issue) => issue.path === "payload.organization_id")).toBe(
+          true,
+        );
+      }
+      expect((await job(fulfillmentId)).state).toBe("coordinating");
     });
   });
 
