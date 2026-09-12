@@ -145,6 +145,23 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `W-6` (second increment) — runtime egress gate (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25. This is a **second increment on the same item**,
+not a new item, and it closes a limit the first increment declared about itself.
+
+| Field | Value |
+|---|---|
+| Item | `W-6` — remove any direct commercial coupling with MARKET; all cross-system traffic goes through CORE APIs or events |
+| Branch | `feat/w6-runtime-egress-gate`, cut from `main`@`227cb4d` |
+| What this increment closes | the first increment recorded, in its own "not claimed" section: **"No runtime egress blocking exists. The guard fails at build time."** A build-time guard reads the code; it does not stand between the process and the network. So a call built at runtime, or a client pointed at a host other than the one it declares, passes the build and still leaves the machine. |
+| Scope reserved | `packages/shared/wasla/egress-registry.ts` (**moved** from `scripts/lib/wasla-egress-registry.ts`, so build-time guard and runtime gate read **one** source) · `packages/infrastructure/egress/egress-gate.ts` (new, the runtime gate) · `scripts/check-egress-boundary.ts` (new checks; no existing check weakened) · the four server-side call sites that reach the network (`packages/infrastructure/wasla/core-event-shipper.ts` · `packages/infrastructure/backup/google-drive-adapter.ts` · `packages/infrastructure/financial/moyasar-provider.ts` · `packages/infrastructure/financial/tap-provider.ts`) · `tests/unit/egress-gate.test.ts` (new) · `tests/unit/check-egress-boundary.test.ts` · `docs/wasla/egress-boundary.md` (regenerated, never hand-edited) · `docs/adr/0086-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-6-runtime-20260912.md` (new) |
+| Scope **not** reserved and not touched | `docs/adr/0084-*` (published — `ح-6`) · the `city_id` gate and rule 0.4 · the real-Redis job and `tests/support/real-redis.ts` · `MASTER_DIRECTIVE` · every payment **business** rule (only the transport line changes) · the browser-side `fetch` in the miniapp, the tracking page and the admin layout (they run in the user's browser, not in this process) · any file in CORE or MARKET |
+| Dependencies checked before opening | `DEP-CORE-004` still blocks the **channel-handover** half and is untouched by this increment. `DEP-CORE-002` still owns the two payment providers (`W-7`); this increment does not remove them, it puts them behind the gate and leaves their declared debt exactly as it is. `O-1` and `O-2` are unrelated to this scope and are **not** worked around: `verify` stays red at the `city_id` step and the Redis job stays red for missing secrets. |
+| Conflicting work checked | zero open pull requests at `227cb4d`, and no local or remote ref carries an `infrastructure/egress` or `egress-gate` path (scanned every `refs/remotes/origin/*` ref on 2026-09-12) |
+| Claim ceiling | this item still may **not** be marked `[x]`. `DEP-CORE-004` leaves the channel half open, and `ح-4` needs a read CI verdict while rule 0.4 keeps `verify` red. What this increment may claim, and no more: **an outbound call from this process is denied at runtime unless it is declared, and it is bound to the destination that declares it.** The gate cannot know MARKET's domain (`DEP-CORE-005`) — it enforces declaration, not domain identity, exactly as `ADR 0084` does. |
+
 ### Reservation `W-6` — egress boundary (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
