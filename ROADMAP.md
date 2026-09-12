@@ -145,7 +145,20 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
-Nothing at this commit.
+### Reservation `W-2` — migration matrix (opened 2026-09-12, before any file was edited; artifacts landed, see the `W-2` status section below)
+
+Recorded **before** the first edit so that no second executor opens the same
+scope, per the reservation rule in `docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-2` — migration matrix per entity, published in `docs/migration/` |
+| Branch | `feat/w2-migration-matrix`, cut from `main`@`8d031c2` |
+| Scope reserved | `scripts/lib/wasla-migration-matrix.ts` (new) · `scripts/check-migration-matrix.ts` (new) · `docs/migration/matrix.md` (new, generated) · `tests/unit/check-migration-matrix.test.ts` (new) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (`verify` job, one added step) · `docs/adr/0083-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-2-20260912.md` (new) |
+| Scope **not** reserved and not touched | every existing migration, every existing guard, `scripts/check-migrations.ts`, `scripts/lib/wasla-boundary-registry.ts`, the `real-redis` job, and any file in CORE or MARKET |
+| Dependencies checked before opening | `W-1` is done and its registry is the single source of truth this item reads. `B-1` (production inventory unknown) and `DEP-CORE-003` (no CORE geography change event) block **execution** of any wave in the matrix, not the authoring of the matrix itself — so the plan is deliverable and no wave may be marked executed. `O-1` and `O-2` are unrelated to this scope. |
+| Conflicting work checked | no open pull request, and no branch on `origin` carries a `docs/migration/` path or a `check-migration-matrix` guard (checked against every `origin/*` ref on 2026-09-12) |
+| Claim ceiling | this item may **not** be marked `[x]`: `ح-4` requires a read CI verdict, and rule 0.4 keeps `verify` red for `O-1`, so the matrix lands as a plan with its own gate and nothing is claimed executed. "Migrated" stays empty. |
 
 ## Remaining, in dependency order
 
@@ -288,6 +301,85 @@ the CI verdict table.
 Still not claimed as complete. `check-migrations.ts` still fails with the three
 sovereign-rule-0.4 violations (`DEP-CORE-006` / `O-1`), and no delivery to a real
 CORE environment has been measured (`DEP-CORE-007`).
+
+## Status of item `W-2`, recorded 2026-09-12 (additive; item text unchanged)
+
+The item text above is untouched (`ح-1`). This section records what exists at
+this commit and, just as importantly, what is **not** claimed.
+
+### What was built
+
+`W-2` asked for a migration matrix per entity, published in `docs/migration/`.
+It was built as a **checked registry**, not a hand-written document — the same
+shape as `W-1`, and for the same reason: a plan that lives only in a document
+goes stale **without a single wrong line**, and a plan believed to be current is
+more dangerous than a missing one.
+
+| Artifact | Path |
+|---|---|
+| Registry (single source of truth) | `scripts/lib/wasla-migration-matrix.ts` |
+| CI guard, 10 checks | `scripts/check-migration-matrix.ts` |
+| Generated document | `docs/migration/matrix.md` |
+| Negative unit tests, 27 cases | `tests/unit/check-migration-matrix.test.ts` |
+| Architecture decision | `docs/adr/0083-migration-matrix-registry.md` |
+| Evidence | `docs/evidence/architecture/W-2-20260912.md` |
+
+Coverage: 7 closed mechanisms · 7 waves · one entry for each of the 47 inventory
+tables · 7 column plans matching `WASLA_COLUMN_CONCERNS` one-for-one. Disposition
+and owner are **read from the `W-1` registry, never restated** — no second source
+of truth for a disposition that could drift silently.
+
+### What is explicitly NOT claimed
+
+- **No row was migrated.** "Migrated" and "Retired" below both still read
+  "Nothing." The guard's tenth check couples the two: any entry claiming
+  execution while "Migrated" is empty fails `verify`. Every entry carries
+  `executed: false` literally.
+- **No wave is executable today.** Row counts, duplicate identities and live job
+  counts are unknown (`B-1`); identity-merge policy is unresolved (`B-2`); no
+  CORE integration environment exists (`B-3`). Waves 2, 3 and 5 additionally
+  depend on `DEP-CORE-003`, `DEP-CORE-002` and `DEP-CORE-004` — all of which are
+  CORE-side and out of this repository's scope.
+- **The matrix does not authorise anything.** It is a plan with a gate, and the
+  gate measures completeness, consistency and truthfulness of the claim — not
+  the correctness of a chosen mechanism, which stays an architectural judgement
+  reviewed by reading (ADR-0083 §6).
+- **`W-2` is not marked `[x]`.** `ح-4` requires a read CI verdict, and `verify`
+  is red on main for sovereign rule 0.4 (`O-1`, an owner decision). Grading:
+  **مُختبَر** for the guard (27 negative cases pass locally), **مُنفَّذ** for the
+  matrix itself. Not مُتحقَّق منه and not مَقيس.
+
+## CI verdicts on branch `feat/w2-migration-matrix` (additive)
+
+Local green is not a verdict (`ح-8`). Filled in from the GitHub Actions API after
+the push, per job, not summarised.
+
+| Commit | `verify` | real PostgreSQL | real Redis | multi-instance chaos | Roadmap freshness |
+|---|---|---|---|---|---|
+| `a587923` (push `34664552923`) | `failure` | `success` | `failure` | `success` | `success` |
+| `a587923` (PR [#3](https://github.com/uxxxug/ceezr/pull/3), run `34664586565`) | `failure` | `success` | `failure` | `success` | — |
+
+**What this item actually measures.** The job log was read step by step, not as a
+rolled-up conclusion. In both runs:
+
+| Step | Name | Conclusion |
+|---|---|---|
+| 15 | مصفوفةُ الهجرةِ شاملةٌ ومتماسكةٌ ولا تدّعي تنفيذاً (W-2 / ADR 0083) | **`success`** |
+| 16 | منع أي جدول بلا `city_id` في المخططات | **`failure`** |
+| 24 | جردُ حدودِ WASLA (W-1) | `skipped` |
+
+The `W-2` guard is therefore **proven at CI, not only locally**. Step 24 being
+`skipped` is the read evidence that moving the step ahead of the red one was not
+cosmetic: without the move this item's guard would have been `skipped` too — no
+verdict at all — and "implemented" would have been claimed for a gate that never
+ran.
+
+The rule-0.4 gate was **not weakened**: it fails at step 16 with the same message
+it fails with on `main`, and the job conclusion stays `failure`. Both reds are
+pre-existing on `main` (run `34661342014` at `8d031c2`) — same jobs, same failing
+steps, no regression introduced here. `O-1` and `O-2` are owner decisions.
+
+The run is **not** claimed to be green.
 
 ## CI verdicts on branch `feat/w4-w5-operational-job-and-core-lifecycle` (additive)
 
