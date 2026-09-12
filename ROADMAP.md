@@ -911,6 +911,88 @@ being left implicit in prose.
 | Claim ceiling, restated | `DEP-CORE-005` **stays open**, no `W-` item gains `[x]`, and `ح-4` is not satisfied by anything here. `PROVENANCE.md`'s existing sentence «**ولا يُدَّعى أنَّ التقادمَ محروسٌ آليّاً في CI**» remains true word for word: the comparator exists, is parsed, is tested, and has been run against the real CORE — and CI still does not judge by it |
 | What closes it | `O-6` granted → a second `actions/checkout` for CORE → the comparator moved into `verify` as a named step before the red one. Only then |
 
+## CI verdicts on branch `feat/dep-core-005-contract-freshness` (additive)
+
+Read step by step from the run itself, not from a local run and not from a badge.
+Commit `4497f75` · runs `34696954715` (push) and `34696957397` (pull request) ·
+pull request `#12`.
+
+| Job | Verdict |
+|---|---|
+| `Roadmap freshness` (run `34696954710`) | **success** |
+| `تكامل على PostgreSQL حقيقي` | **success** |
+| `فوضى متعدد المثيلات (F5-06)` | **success** |
+| `verify` | **failure** at step **21** `منع أي جدول بلا city_id في المخططات` |
+| `تكامل على Redis حقيقي` | **failure** at step **8** `اختبارات الجلسات على Redis حقيقي` |
+
+Both runs (push and pull request) give the identical four-job verdict.
+
+### The two new steps were judged, and they passed
+
+They were deliberately placed **before** the red step, because steps 22–57 are
+skipped in every run while `O-1` stands.
+
+| # | Step | Verdict |
+|---|---|---|
+| 19 | `سندُ العقودِ المنقولةِ مُفكَّكٌ — لا ملفَّ بلا مصدرٍ ولا سندَ لمعدومٍ (DEP-CORE-005)` | **success** |
+| 20 | `سقوطُ مُقابِلِ الطزاجةِ مقيسٌ بخرقٍ مزروعٍ لا بنسخةٍ من CORE (DEP-CORE-005)` | **success** — `25 pass · 0 fail · 55 expect()` |
+
+Step 19 printed, in CI, on a runner with no access to CORE:
+
+```
+تثبيتُ مصدرِ العقودِ المنقولةِ: 8 ملفّاً، كلٌّ مُثبَّتٌ إلى uxxxug/wasla-core عندَ 1231817 · 511624b.
+وهذا تثبيتٌ لا طزاجةٌ: قراءةُ CORE محجوبةٌ بـ`O-6`، والمُقابِلُ `scripts/check-core-contract-freshness.ts` يُشغَّلُ حيثُ يُقرأُ مستودَعُ CORE.
+```
+
+So CI itself now states the boundary: it can prove the provenance is complete and
+machine-readable, and it says in the same breath that this is a pin and not a
+freshness proof. That sentence is the guard's own output, not documentation about
+it.
+
+Steps 1–18 success · 19 and 20 success · 21 failure · 22–57 skipped · step 9
+(`تفاصيل الإخفاق في تعليقٍ مقروء`) skipped as it only runs on pull-request events
+in that position.
+
+### Neither red step was touched by this branch, and both are the same reds as before
+
+`verify` step 21, verbatim:
+
+```
+❌ مخالفات في المخططات:
+  - [20260911100000_w4_operational_jobs.sql] operational_jobs: لا يحمل عمود city_id (القاعدة 0.4)
+  - [20260911100100_w5_core_inbox_move_outbox.sql] core_event_inbox: لا يحمل عمود city_id (القاعدة 0.4)
+  - [20260911100100_w5_core_inbox_move_outbox.sql] move_event_outbox: لا يحمل عمود city_id (القاعدة 0.4)
+```
+
+That is `O-1` exactly as registered: three WASLA boundary tables have no city
+column, rule 0.4 forbids that, and neither answer available to this repository is
+an agent's to pick — CORE must expose city/geography (`DEP-CORE-006`) or the owner
+must name these three tables in a recorded appendix to rule 0.4. Weakening the
+guard to make the branch green is the one thing forbidden outright.
+
+`تكامل على Redis حقيقي` step 8, verbatim:
+
+```
+env:
+  UPSTASH_REDIS_REST_URL:
+  UPSTASH_REDIS_REST_TOKEN:
+  REQUIRE_REAL_REDIS: 1
+error: REQUIRE_REAL_REDIS=1 ولا UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN في البيئةِ — وظيفةٌ وُجدت لتُشغِّل على Redis حقيقيٍّ لا تُقرَأ خضراءَ وهي لم تُخاطِبه.
+```
+
+That is `O-2`: the two Actions secrets are absent, so the job refuses to report
+green for a run that never spoke to Redis. The failure is the guard working, and
+it is an absent owner-provided resource, not a defect in code on this branch.
+
+### What this verdict does and does not license
+
+It licenses exactly one claim: **the provenance of the vendored contracts is now
+machine-readable and CI enforces it, and the freshness comparator's own failure
+behaviour is measured by CI against a seeded breach.** It licenses nothing about
+freshness, which CI still cannot measure (`O-6`), and it licenses no `[x]` and no
+`VERIFIED` anywhere — `ح-4` asks for three consecutive green runs and `verify` is
+red at step 21 for a reason no agent may remove.
+
 ## Owner decisions required, recorded 2026-09-11
 
 | # | Decision | Why it cannot be taken by an executor here |
