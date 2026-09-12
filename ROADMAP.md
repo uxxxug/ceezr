@@ -160,6 +160,21 @@ Recorded **before** the first edit, per the reservation rule in
 | Conflicting work checked | no open pull request, and no branch on `origin` carries a `check-egress-boundary` guard or a `docs/wasla/egress-boundary.md` path (checked against every `origin/*` ref on 2026-09-12; the only match for the string was `packages/agent-core/evaluation/regressionChecks.ts`, an unrelated false positive) |
 | Claim ceiling | this item may **not** be marked `[x]`. Two reasons, both recorded before any code was written: `DEP-CORE-004` leaves the channel half open, and `ح-4` requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`. What this branch may claim is narrower than the item: the egress surface becomes **declared and gated**, so a direct MOVE↔MARKET destination fails the build instead of being merely absent today. |
 
+### Reservation `W-8` — dry-run and reconciliation tooling (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-8` — reconciliation and dry-run tooling for the job and identity migrations |
+| Branch | `feat/w8-migration-dry-run-and-reconcile`, cut from `main`@`0c25ca0` |
+| Scope reserved | `scripts/lib/wasla-migration-dry-run.ts` (new) · `scripts/check-migration-dry-run.ts` (new) · `scripts/wasla-migration-dry-run.ts` (new, the runnable tool) · `docs/migration/dry-run-and-reconciliation.md` (new, generated) · `tests/unit/check-migration-dry-run.test.ts` (new) · `tests/integration/migration-dry-run-read-only.test.ts` (new) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (`verify` job, one added step) · `docs/adr/0085-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-8-20260912.md` (new) |
+| Scope **not** reserved and not touched | `scripts/migrate.ts` (the single lawful applier, ADR-0068) · every migration file · `scripts/lib/wasla-migration-matrix.ts` and `scripts/lib/wasla-boundary-registry.ts` (read-only inputs, single sources of truth) · every existing guard · any file in CORE or MARKET |
+| Dependencies checked before opening | `B-1` (production inventory unknown), `B-2` (identity-merge policy), `B-3` (no CORE environment) and `DEP-CORE-007` (no shared CORE environment) all block **running** a wave against real systems. None of them blocks building the tooling and proving its safety invariant, which is what this branch does. What they do block is any claim of a completed reconciliation — and that is enforced, not merely noted. |
+| Conflicting work checked | no branch on `origin` (34 refs) carries a dry-run or reconciliation path, and the only pre-existing `reconcile*` files are unrelated domain use cases (`packages/application/financial/reconcile-pending-payments.ts`, `packages/application/subscription/*`, `packages/application/enterprise-integration/reconcile-integration-state.ts`). The one open pull request is [#4](https://github.com/uxxxug/ceezr/pull/4) (`W-6`), which touches no file in this scope. |
+| Claim ceiling | this item may **not** be marked `[x]`. The tooling can be built and its safety invariant measured on a real PostgreSQL, but **no reconciliation can be completed** while `DEP-CORE-007` leaves MOVE with no real CORE source to reconcile against, and `ح-4` requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`. What this branch may claim: a dry-run that **provably cannot write**, and a reconciler that **provably cannot report a false green**. |
+
 ### Reservation `W-2` — migration matrix (opened 2026-09-12, before any file was edited; artifacts landed, see the `W-2` status section below)
 
 Recorded **before** the first edit so that no second executor opens the same
@@ -476,6 +491,97 @@ fails at step 8, "session tests on real Redis"). Both are owner decisions.
 now proven beyond local measurement is narrower than the item and stated as such:
 the egress surface is declared and gated at CI. Grading:
 **مُنفَّذ · مُختبَر · مُتحقَّق منه (the guard alone)**.
+
+## CI verdicts on branch `feat/w8-migration-dry-run-and-reconcile` (additive)
+
+Read per job **and per step** from the API at `c80201c` (run `34668335278`;
+Roadmap-freshness run `34668335236` = `success`). `verify` **failure** ·
+`تكامل على PostgreSQL حقيقي` **success** · `فوضى متعدد المثيلات (F5-06)`
+**success** · `تكامل على Redis حقيقي` **failure** at step 8.
+
+In `verify`: Lint, Typecheck and Test all `success`; step 15 (`W-2` matrix guard)
+`success`; **step 16 — the `W-8` guard — `success`**; step 17 (`city_id`)
+**failure**; steps 18–30 all `skipped`. So the item's guard was measured and
+passed, and the only red after it is the rule-0.4 gate, i.e. `O-1`
+(`DEP-CORE-006`) — **prior to this item, not caused by it** — plus the Redis job
+red for `O-2`. Both are red on `main` at `0c25ca0` in the same job and the same
+step. Placing the step **before** `city_id` is what gave it a verdict at all;
+everything after read `skipped`.
+
+Every step of the PostgreSQL job is green, including step 10, which runs this
+item's integration test, and step 12, which fails if integration tests are
+skipped silently — so the test **ran** and was not silently skipped.
+
+**Two reds in the first push, each measured rather than assumed (additive).** At
+`fd35b34` (run `34667308032`), `verify` was red at step 8 Test and the PostgreSQL
+job was red. The first was **a real defect of mine**: the pinned skip-registry
+count test (85 files / 764 cases) failed because I added the 86th entry — which
+`check-skip-classification` requires for the new integration test — **after** my
+last full test run and pushed without re-measuring. The guard did exactly its
+job: it stopped the registry growing silently. Counts raised to 86 / 770, both
+**printed by that guard**, not invented; the earlier description kept. The
+second was **not from this item, and that was measured**:
+`tests/integration/admin-service-separation.test.ts` failed to boot a gateway on
+port `46432` — a file this item does not touch — and **re-running the same job on
+the same commit read `success`**, so the failure is not reproducible; that job is
+green on `main`. The fragility is recorded rather than buried: that test derives
+its port from `process.pid % 1000` inside a ten-port window, which reduces
+collisions without preventing them, and its teardown kills the process without
+waiting for the port to be released. **Declared debt outside this item's
+reservation**, to be fixed under its own item — nothing was weakened, nothing
+classified as a skip, and the re-run was to measure reproducibility, not to hide
+a red.
+
+## Status of item `W-8`, recorded 2026-09-12 (additive; item text unchanged)
+
+Item text is untouched (`ح-1`). This section records measured state only.
+
+**Built.** `scripts/lib/wasla-migration-dry-run.ts` (single source: 6 probes, the
+closed reconciliation vocabulary, `deriveReconciliation`, a schema reader) ·
+`scripts/wasla-migration-dry-run.ts` (the runnable tool) ·
+`scripts/check-migration-dry-run.ts` (7-check guard, `--write` generator) ·
+`docs/migration/dry-run-and-reconciliation.md` (generated between markers) ·
+`tests/unit/check-migration-dry-run.test.ts` (42 tests, mostly negative) ·
+`tests/integration/migration-dry-run-read-only.test.ts` (6 tests on a real
+PostgreSQL) · ADR 0085 · guard wired into `ci` and into `verify` **before** the
+red `city_id` step.
+
+**Two invariants, both enforced rather than promised.** The dry-run **cannot
+write**: every probe runs inside `BEGIN TRANSACTION READ ONLY ISOLATION LEVEL
+REPEATABLE READ` on a **reserved** connection, so the engine itself rejects any
+write with `25006`, and the transaction is rolled back regardless. The reconciler
+**cannot emit a false green**: `RECONCILED` is unconstructible without a
+`CoreAttestation`, `DIVERGED` likewise, and `coreRows` stays absent rather than
+becoming `0`. While `DEP-CORE-007` is recorded open in this file, writing
+`RECONCILED` in the tool's code **fails `verify`**; when it closes, that check
+lapses on its own with no edit.
+
+**A real measurement caught a real defect, recorded not erased.** The
+real-database test failed on its first run with `UNSAFE_TRANSACTION`. The root
+cause was not the library but the tool: on an unreserved pool, `READ ONLY` opens
+on one connection while the probe runs on another — the invariant was declared
+and the behaviour contradicted it. Neither review, types, unit tests nor `biome`
+caught it; only measurement on a real engine did. Fixed at the cause by
+reserving one connection, **without disabling the library's protection, without
+weakening the test, and without classifying anything as a skip** — plus a new
+guard check and a negative test so it cannot return silently. Third time a guard
+or measurement has failed on its own author here; the first two were in `W-6`.
+
+**Measured locally.** `bun test` → **2968 pass · 829 skip · 0 fail** · 10538
+`expect()` across 3797 tests in 286 files. `biome check .` → 1109 files, no
+fixes. `typecheck` passed. Real PostgreSQL → **6 pass · 0 fail** · 48 `expect()`,
+including the write attempt failing with `25006`. Ran end to end: wave 1 measured
+`users` = 2 rows, the rest 0; wave 6 measured `orders` = 0; wave 3 **refused with
+exit 2** as out of scope. Every reconciliation row `UNVERIFIABLE`.
+
+**Not claimed.** No `[x]`. No wave executed (`B-1`, `B-2`, `B-3` are owner
+decisions and the tool prints entry conditions without evaluating them). No
+reconciliation completed (`DEP-CORE-007`). The read-only invariant was measured
+on a **test** database, not a production-like one (`ح-5`) — the property belongs
+to the engine so it is expected to carry over, but expectation is not
+measurement. Numbers above are **not** production counts (`B-1` unread).
+Grading: **مُنفَّذ · مُختبَر · مَقيس** (the read-only invariant alone) — **not**
+`مُثبَت`.
 
 ## CI verdicts on branch `feat/w2-migration-matrix` (additive)
 

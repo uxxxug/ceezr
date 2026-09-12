@@ -131,6 +131,11 @@ jobs:
       - name: حدُّ الصادرِ مُعلَنٌ بالكاملِ ولا مقصدَ في MARKET (W-6 / ADR 0084)
         run: bun run scripts/check-egress-boundary.ts
 
+      # وموضعُ هذه الخطوةِ **قبلَ** حاجزِ `city_id` مقصودٌ للسببِ عينِه، وقد قِيسَ
+      # مرّتَينِ: خطوةٌ بعدَ الحمراءِ تُقرَأُ `skipped` فلا حكمَ لها ألبتّةَ.
+      - name: التشغيلُ الجافُّ لا يستطيعُ الكتابةَ ولا التسويةُ تدّعي أخضرَ (W-8 / ADR 0085)
+        run: bun run scripts/check-migration-dry-run.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
