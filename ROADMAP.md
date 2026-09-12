@@ -364,6 +364,46 @@ of truth for a disposition that could drift silently.
   **مُختبَر** for the guard (27 negative cases pass locally), **مُنفَّذ** for the
   matrix itself. Not مُتحقَّق منه and not مَقيس.
 
+## CI verdicts on branch `feat/w8-migration-dry-run-and-reconcile` (additive)
+
+Read per job **and per step** from the API at `c80201c` (run `34668335278`;
+Roadmap-freshness run `34668335236` = `success`). `verify` **failure** ·
+`تكامل على PostgreSQL حقيقي` **success** · `فوضى متعدد المثيلات (F5-06)`
+**success** · `تكامل على Redis حقيقي` **failure** at step 8.
+
+In `verify`: Lint, Typecheck and Test all `success`; step 15 (`W-2` matrix guard)
+`success`; **step 16 — the `W-8` guard — `success`**; step 17 (`city_id`)
+**failure**; steps 18–30 all `skipped`. So the item's guard was measured and
+passed, and the only red after it is the rule-0.4 gate, i.e. `O-1`
+(`DEP-CORE-006`) — **prior to this item, not caused by it** — plus the Redis job
+red for `O-2`. Both are red on `main` at `0c25ca0` in the same job and the same
+step. Placing the step **before** `city_id` is what gave it a verdict at all;
+everything after read `skipped`.
+
+Every step of the PostgreSQL job is green, including step 10, which runs this
+item's integration test, and step 12, which fails if integration tests are
+skipped silently — so the test **ran** and was not silently skipped.
+
+**Two reds in the first push, each measured rather than assumed (additive).** At
+`fd35b34` (run `34667308032`), `verify` was red at step 8 Test and the PostgreSQL
+job was red. The first was **a real defect of mine**: the pinned skip-registry
+count test (85 files / 764 cases) failed because I added the 86th entry — which
+`check-skip-classification` requires for the new integration test — **after** my
+last full test run and pushed without re-measuring. The guard did exactly its
+job: it stopped the registry growing silently. Counts raised to 86 / 770, both
+**printed by that guard**, not invented; the earlier description kept. The
+second was **not from this item, and that was measured**:
+`tests/integration/admin-service-separation.test.ts` failed to boot a gateway on
+port `46432` — a file this item does not touch — and **re-running the same job on
+the same commit read `success`**, so the failure is not reproducible; that job is
+green on `main`. The fragility is recorded rather than buried: that test derives
+its port from `process.pid % 1000` inside a ten-port window, which reduces
+collisions without preventing them, and its teardown kills the process without
+waiting for the port to be released. **Declared debt outside this item's
+reservation**, to be fixed under its own item — nothing was weakened, nothing
+classified as a skip, and the re-run was to measure reproducibility, not to hide
+a red.
+
 ## Status of item `W-8`, recorded 2026-09-12 (additive; item text unchanged)
 
 Item text is untouched (`ح-1`). This section records measured state only.
