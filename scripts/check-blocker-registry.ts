@@ -85,6 +85,12 @@ export const SYNTHETIC_ID_EXEMPTIONS: readonly {
     reason: "معرّفُ حاجزٍ غيرُ مُعلَنٍ يُزرَعُ ليقيسَ أنَّ حارسَ المصفوفةِ يُخفِقُ على معرّفٍ مُختلَقٍ لا يقبلُه.",
   },
   {
+    id: "B-97",
+    file: "tests/unit/check-cutover-plan.test.ts",
+    reason:
+      "معرّفٌ مُختلَقٌ يُزرَعُ في خطوةِ تحوُّلٍ اصطناعيّةٍ ليقيسَ أنَّ حارسَ سجلِّ التحوُّلِ يُخفِقُ على حَجبٍ بمعرّفٍ لا صفَّ له في الخارطةِ.",
+  },
+  {
     id: "DEP-CORE-998",
     file: "tests/unit/wasla-blockers.test.ts",
     reason:

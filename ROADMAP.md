@@ -145,6 +145,23 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `DEP-CORE-005` — a mechanical freshness comparator for the vendored CORE contracts (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `DEP-CORE-005` — «No mutual repository access, so vendored contract freshness cannot be verified automatically». The `W-5` third increment proved the cost of this gap: `core.fulfillment.cancelled.v1` had been stale since CORE's tenant-scope cycle and nothing in this repository could notice, so MOVE was rejecting every cancellation CORE published. |
+| Branch | `feat/dep-core-005-contract-freshness`, cut from `main`@`1d361ea` |
+| What is **already** enforced and is therefore **not** rebuilt here | `scripts/check-core-contract-parity.ts` already compares MOVE's runtime declaration against the vendored schemas **semantically**, not textually: equal `required` sets regardless of order, equal property name sets, every executed keyword (`type`, `format`, `enum`, `minLength`, `minimum`, `pattern`) equal per field, `additionalProperties: false` asserted on every schema, orphans rejected in both directions, and any schema keyword the validator does not execute is a failure rather than a silent pass. `scripts/check-vendored-contract-integrity.ts` already recomputes every `sha256` so a vendored file cannot be edited after copying. Neither is re-implemented, re-organised or weakened by this increment. |
+| What is therefore genuinely missing | Both existing guards are **internal**: they prove MOVE agrees with the copy it holds, and that the copy was not touched. Neither can see CORE. The missing third comparison is `vendored bytes` versus `CORE's current bytes`, and it is missing for two separate reasons, only one of which is an owner matter: (a) the provenance is **prose**, so no machine can tell which CORE path and commit each vendored file came from — that is fixable here and is fixed here; (b) `uxxxug/wasla-core` is a **private** repository and the CI token of `uxxxug/ceezr` cannot read it, so the comparison cannot run inside `verify` — that needs an owner grant and is registered as `O-6`. |
+| Scope reserved | `scripts/lib/vendored-contract-pins.ts` (new — one parser for the provenance record, imported by both the integrity guard and the new comparator, so the pin has **one** reader not two) · `scripts/check-vendored-contract-pins.ts` (new guard, offline, CI-enforceable) · `scripts/check-core-contract-freshness.ts` (new comparator, runs wherever a CORE checkout is readable, **never** in a mode that can pass without one) · `scripts/lib/schema-semantic-diff.ts` (new — semantic differ for JSON Schema and YAML, with breaking-versus-additive classification) · `scripts/check-vendored-contract-integrity.ts` (imports the shared parser; behaviour and exports unchanged) · `docs/contracts/core/PROVENANCE.md` (**additive**: a machine-readable pin block per vendored file; every existing line, fingerprint and section is kept) · `package.json` (two new scripts, added to the `ci` chain) · `.github/workflows/ci.yml` (the pin guard as a named step placed **before** the red `city_id` step, so it actually receives a CI verdict) · `.github/workflows/core-contract-freshness.yml` (new, `workflow_dispatch` only — no schedule, no secret, no automatic run) · new tests under `tests/unit/` · `docs/adr/0090-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/evidence/architecture/` |
+| Scope **not** reserved and not touched | `scripts/check-core-contract-parity.ts` (already does its job; touching it would be reorganisation) · the vendored contract **bytes** themselves — the three files re-vendored by open pull request #11 belong to that reservation and are not re-vendored here · `scripts/check-migrations.ts`, rule 0.4, `domain-ingress.ts`, `MASTER_DIRECTIVE.md` (`O-1`, owner) · the real-Redis test and its attestation guard (`O-2`, owner) · `packages/domain/wasla/event-envelope.ts` (reserved by #11) · every migration · `ADR 0084`…`0089` (`ح-6`) · the twelve stale branches and both open pull requests |
+| Dependencies checked before opening | `DEP-CORE-005` is the item itself and **stays open** after this increment: the comparator exists and is mechanical, but the comparison it performs cannot be executed by CI until `O-6` is granted, and a check that CI cannot run is not an enforced gate. `O-1`, `O-2`, `O-3`, `O-4`, `DEP-CORE-006`, `DEP-CORE-007` are untouched. A new owner decision `O-6` is registered for read access to CORE's contract directory from this repository's CI. |
+| Conflicting work checked | 2026-09-12: #1–#9 merged; **#10 open** (`feat/w9-cutover-plan-readonly-rehearsal`) touching `ci.yml`, `package.json`, `scripts/check-blocker-registry.ts` and cutover files; **#11 open** (`feat/w5-recontract-cancellation-tenant-scope`) touching the three vendored files, `PROVENANCE.md`, `event-envelope.ts`, `scripts/lib/wasla-blockers.ts`. Overlap with this increment is confined to append-only regions of `ROADMAP.md`, `docs/SYSTEM_STATE.md`, `PROVENANCE.md`, `package.json` and `ci.yml`; **no file is edited in the same region by two branches**, and no vendored byte is changed here. |
+| Claim ceiling | this increment may **not** mark `DEP-CORE-005` closed and may **not** mark any `W-` item `[x]`. What may be claimed once CI has judged it: the provenance is machine-readable and guarded, and a mechanical comparator exists whose verdict on the real CORE repository has been read and recorded. Freshness itself remains **unverified by CI** while `O-6` is open, and the comparator is required to say so rather than exit green. |
+
 ### Reservation `W-5` (third increment) — the cancellation contract drifted at CORE and MOVE would reject every cancellation (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
@@ -179,6 +196,69 @@ Recorded **before** the first edit, per the reservation rule in
 | Dependencies checked before opening | `DEP-CORE-007` (no shared CORE environment) is precisely what makes the hole reachable and stays **open**; this branch does not close it, it makes a green reconciliation **impossible to construct** while it is open. `B-1`/`B-2`/`B-3` block running any wave and are untouched. `O-1` and `O-2` are unrelated to this scope and are left red as recorded. |
 | Conflicting work checked | no open pull request (checked 2026-09-12). No branch among the 38 `origin/*` refs carries `wasla-blockers`, `check-blocker-registry`, or `issueCoreAttestation`; the only files mentioning `CoreAttestation` are this item's own first-increment artifacts. |
 | Claim ceiling | this item may **not** be marked `[x]`, and this increment does not raise the ceiling: `DEP-CORE-007` still leaves MOVE with no CORE side to reconcile, so **no reconciliation is completed** — the improvement is that a false green stops being possible rather than merely unattempted. `ح-4` still requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`, and `ح-5` still bars any production-proof claim. |
+
+### Reservation `W-9` (first increment, **inside** `B-5`) — cutover step ledger with declared inverses and a read-only rehearsal that refuses by construction (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-9` — cutover and rollback rehearsal. Blocked by `B-5`. |
+| Branch | `feat/w9-cutover-plan-readonly-rehearsal`, cut from `main`@`1d361ea` |
+| What is **not** attempted | no rehearsal is performed, no wave is executed, no row is written, and `B-5` is **not** worked around. The already-recorded status of this item (2026-09-12) stands: `B-5`, `B-3`, `DEP-CORE-007` and `B-1` are all open, and a rehearsal whose target does not exist would rehearse nothing. |
+| What **is** done inside those bounds | today the refusal to rehearse lives only in **prose** in this file. Prose is not a mechanism: nothing stops a later script, adapter or report from asserting "cutover rehearsed" while the four blockers are open, and nothing declares — machine-readably — what a step's **inverse** even is. So: derive a cutover step ledger from the existing migration matrix (no new source of truth), make every step declare its inverse rollback step and its read-only verification probe or fail the build, and make the rehearsal executor **refuse by construction** using the `W-8` blocker registry rather than by convention. |
+| Scope reserved | `scripts/lib/wasla-cutover-plan.ts` (new — derived, not authored) · `scripts/check-cutover-plan.ts` (new guard) · `scripts/rehearse-cutover.ts` (new — read-only executor) · `docs/wasla/cutover-plan.md` (new, generated) · `tests/unit/wasla-cutover-plan.test.ts` (new) · `tests/unit/check-cutover-plan.test.ts` (new) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (one `verify` step **before** the red `city_id` step, and one step in the real-PostgreSQL job **after** the safe applier) · `docs/adr/0088-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-9-cutover-plan-20260912.md` (new) |
+| Scope **not** reserved and not touched | `scripts/lib/wasla-migration-matrix.ts` (read-only single source) · `scripts/lib/rollback-registry.ts` and `scripts/lib/rollback-audit.ts` and `scripts/rollback-schema-drill.ts` (`OPS-010`, measured and merged — reused, never edited) · `scripts/migrate.ts` (ADR-0068) · every migration file · `ADR 0047`, `0085`, `0087` (`ح-6`) · the `city_id` guard and rule 0.4 · the real-Redis test and Upstash secrets · `MASTER_DIRECTIVE` · any file in CORE or MARKET |
+| Dependencies checked before opening | `B-5` (no production release approval) — **open**, and this increment neither closes it nor rehearses around it; it makes the refusal enforced instead of narrated. `B-3` (no CORE environment) · `DEP-CORE-007` (no shared CORE environment) · `B-1` (production inventory unknown) — all open and all read from the registry by the executor's refusal. `B-2`, `DEP-CORE-002`, `DEP-CORE-003`, `DEP-CORE-004` gate individual waves through the matrix's own `entryCondition` text. `O-1` and `O-2` are unrelated and left red. |
+| Conflicting work checked | zero open pull requests at `1d361ea`; no remote ref carries `cutover` (checked 2026-09-12). |
+| Claim ceiling | `W-9` may **not** be marked `[x]`, and its state stays **قيد التنسيق — blocked**. Nothing here is a rehearsal, and the executor is built so that it **cannot** report one while the four blockers are open. `ح-4` still requires a read CI verdict, and `ح-5` still bars any production-proof claim. |
+
+### Outcome `W-9` (first increment, inside `B-5`) — recorded 2026-09-12
+
+Evidence: `docs/evidence/architecture/W-9-cutover-plan-20260912.md` · decision:
+`docs/adr/0088-cutover-plan-derived-and-rehearsal-refused-by-construction.md`.
+
+- **What changed.** The cutover step ledger is now **derived** from
+  `WASLA_MIGRATION_MATRIX` (30 steps, waves 1–6; wave 0 touches no row), so there
+  is no second source of truth to drift. Every step declares its **inverse**, a
+  **read-only probe**, its phase, a total order, and the blocker ids that gate
+  it. Rollback order is the exact reverse of cutover order, and
+  `requiresDataRestore` is derived from the phase rather than written by hand.
+- **The refusal moved from prose into code.** `rehearseReadOnly` reads the four
+  rehearsal gates (`B-5`, `B-3`, `DEP-CORE-007`, `B-1`) from the `W-8` blocker
+  registry. While any is open, no value other than `REFUSED` can be constructed,
+  there is no override flag, and an **unknown** id reads as **open** — ignorance
+  is not permission. No state in the type represents a completed cutover: the
+  best case is `READ_ONLY_PROBED` with `rehearsalCompleted: false` declared in the
+  value itself.
+- **Inability is measured on a real database.** `scripts/rehearse-cutover.ts`
+  opens a `read only` transaction, runs probes, then runs a write that is
+  **expected to be rejected** and fails if it succeeds. It runs in the
+  real-PostgreSQL CI job after the safe applier, alongside the `OPS-010` drill —
+  whose files are **reused and never edited** (`ح-6`).
+- **Root cause fixed, not silenced.** The read-only validator rejected the
+  legitimate `telegram_update_jobs` probe because the table name contains
+  "update". The gate was **not** weakened and the tables were **not** exempted:
+  the matcher was corrected to whole-token matching, with the reason written in
+  the source, and both directions measured (3 accepted, 13 rejected).
+- **What is not claimed.** No rehearsal was performed, no wave executed, no row
+  written, no rollback exercised. Inverses are **declared**, not proven —
+  proving them needs `B-3`/`DEP-CORE-007` and a readable environment (`ح-5`). No
+  duration or freeze window is estimated, because `B-1` is open and volumes are
+  unknown. `B-5` stays open, `W-9` stays **قيد التنسيق — blocked**, and the item
+  is **not** marked `[x]` (`ح-1`, `ح-4`).
+- **Read CI verdict** (commit `6f34a99`, PR `#10`, runs 34676145855 `push` and
+  34676147401 `pull_request`, read per job **and per step**): the new `verify`
+  guard step 19 is **success** — placed **before** the red `city_id` step 20, so
+  it carries a verdict instead of reading `skipped` — and the new real-PostgreSQL
+  rehearsal step 8 is **success**, with CI itself printing the refusal and the
+  rejected write. `تكامل على PostgreSQL حقيقي` and `F5-06` are **success**, and
+  `Roadmap freshness` is **success**. The remaining red is exactly `O-1`
+  (`city_id`) and `O-2` (Redis secrets), unchanged and untouched, and the
+  `OPS-010` drill (step 10) stayed green without being edited. The ladder for
+  this increment reads **مُنفَّذ ← مُختبَر ← مُتحقَّق منه**; the item itself stays
+  blocked.
 
 ### Outcome `W-8` (second increment) — recorded 2026-09-12
 
@@ -889,6 +969,237 @@ of the instruction is recorded below verbatim.
   these three tables and the reason. Until one of the two happens, `O-1` stays
   open.
 
+## Status of `DEP-CORE-005`, recorded 2026-09-12 (additive; the dependency row text is unchanged and the item stays open)
+
+`ADR 0090` · evidence `docs/evidence/architecture/DEP-CORE-005-20260912.md` ·
+branch `feat/dep-core-005-contract-freshness` from `main`@`1d361ea`.
+
+**The dependency row above is left exactly as written and `DEP-CORE-005` remains
+open.** What changed is that half of it — the half this repository owns — is now
+mechanised, and the other half is now named as an owner decision instead of
+being left implicit in prose.
+
+| Question | Answer, measured |
+|---|---|
+| What was actually missing | Two existing guards already compared, and both are internal. `scripts/check-core-contract-parity.ts` compares MOVE's runtime declaration against the vendored copy **semantically** (required sets both ways, every executed keyword per field, `additionalProperties: false`, orphans both directions, unsupported keywords rejected). `scripts/check-vendored-contract-integrity.ts` recomputes every `sha256` so the copy cannot be edited after landing. Neither can see CORE. The missing comparison was `our bytes` versus `CORE's bytes today` |
+| Why no machine could do it before | The provenance was **prose**: a table saying «الالتزامُ `511624b`» and «مسارُ المصدرِ `contracts/events/`». That is enough for a human comparing by hand and useless to a program — nothing tied a specific vendored file to its path at the owner and the commit it was copied at. What cannot be parsed cannot be compared |
+| What was added | A machine-readable `pin` line per vendored file inside `PROVENANCE.md` itself (additive; every prior table, fingerprint and section kept, and the hash deliberately **not** duplicated into the pin line so no second source of truth is created) · one shared reader (`scripts/lib/vendored-contract-pins.ts`) which the existing integrity guard now imports instead of its own regex · an offline guard (`scripts/check-vendored-contract-pins.ts`) · a semantic differ (`scripts/lib/schema-semantic-diff.ts`) · the comparator (`scripts/check-core-contract-freshness.ts`) |
+| Where the comparator reads CORE from | A **local checkout** passed as `--from-dir=` / `CORE_CONTRACTS_REPO_DIR`, read with `git show`. No token, no HTTP call, no deployment environment, and no secret added to the repository |
+| What it refuses to do | Pass when it has no CORE source. Exit codes are `0` all-current, `1` measured drift, `3` **«غيرُ قابلٍ للتحقُّقِ»** — and in the `3` case it prints no freshness claim at all. A check that goes green when it cannot find its source teaches the reader that freshness is proven when it was never measured |
+| What CI now judges | The **pin** guard and the comparator's own seeded-breach tests, both inserted in `verify` **before** the red `منع أي جدول بلا city_id` step — everything after that step is skipped while `O-1` stands, so a guard placed after it would have the appearance of enforcement and none of the substance |
+| What CI still cannot judge | Freshness itself. `uxxxug/wasla-core` is private and this repository's Actions token cannot read it — registered as **`O-6`**. The comparator therefore lives in `.github/workflows/core-contract-freshness.yml`, `workflow_dispatch` only: no `schedule`, because a job that fails every day for lack of access is noise that teaches people to ignore it |
+| Measured verdict on the real CORE (head `9e6a636`, 2026-09-12T12:49:25Z) | exit `1`; **3 of 8** vendored contracts **stale**. `core.fulfillment.cancelled.v1`: `required.organization_id` now required (**breaks the consumer** — the `W-5` fault itself, this time found mechanically), three new properties under `additionalProperties: false`, and `partially_captured` added to a closed enum. `transport/core-v1.yaml`: 52 structural changes (429 `RateLimited`, `rate_limited` error code, `/metrics`, notification schemas). `transport/outbound-delivery.md`: 82 lines added, 3 removed — reported as **text, with the comparator stating it does not claim semantic equivalence**. The other 5 match CORE's head byte for byte |
+| What is deliberately **not** done here | The three stale files are **not** re-vendored on this branch: they belong to open pull request `#11`, and re-vendoring contract bytes on two branches creates a conflict in a contract, not in prose |
+| Claim ceiling, restated | `DEP-CORE-005` **stays open**, no `W-` item gains `[x]`, and `ح-4` is not satisfied by anything here. `PROVENANCE.md`'s existing sentence «**ولا يُدَّعى أنَّ التقادمَ محروسٌ آليّاً في CI**» remains true word for word: the comparator exists, is parsed, is tested, and has been run against the real CORE — and CI still does not judge by it |
+| What closes it | `O-6` granted → a second `actions/checkout` for CORE → the comparator moved into `verify` as a named step before the red one. Only then |
+
+## Second increment on `DEP-CORE-005`, recorded 2026-09-12 (additive; the item stays open)
+
+`ADR 0091` · same branch and same reservation · `scripts/check-vendored-pin-follows-bytes.ts`.
+
+The first increment gave every vendored contract a machine-readable `pin`. Running
+the comparator then exposed a hole in the first increment itself, measured rather
+than imagined: **a re-vendoring that updates the bytes and the fingerprint and
+forgets the pin passes all three guards.** Parity cannot see CORE; integrity
+compares the fingerprint to the file and they agree; the pins guard compares the
+file to the pin by **existence, not by content**.
+
+This is not hypothetical. Pull request `#11` re-vendors three contracts
+(`core.fulfillment.cancelled.v1`, `transport/core-v1.yaml`,
+`transport/outbound-delivery.md`) and this branch's pins name the commits those
+files sit at on `main` — i.e. the pre-re-vendoring commits. Whichever merges
+second must update the pin, and until now nothing in the repository forced it:
+human memory, not a gate. A lying pin then corrupts the comparator's verdict in
+both directions — it can read a faithful copy as «edited by us», and it can read
+a stale contract as «current» when CORE happened not to touch that file between
+the two commits.
+
+| Question | Answer |
+|---|---|
+| Rule enforced | If a vendored file's bytes change in the pushed range, its `pin` line must change in the same range |
+| Where it is judged | `.github/workflows/roadmap.yml` — the only workflow that owns a range (`fetch-depth: 0`, and the push event supplies a base). Range resolution: push base first, then merge-base with `main`; if neither resolves it exits **3** and names why, so an unresolvable range is never read as a pass |
+| Where its own failure is measured | `verify`, named step, on a seeded two-commit git repository — no network, no history, no CORE. Placed **before** the red `city_id` step like the other two |
+| Why the source hash is still not written into the pin line | `ADR 0090` rejected duplicating the fingerprint there, and a published ADR is not reopened (`ح-6`). The judgement is on **simultaneity within a range**, not on a duplicated value |
+| Measured | `14 pass · 0 fail · 27 expect()`; run on this branch's own range it reports no vendored file changed, which is true — this branch only appends to `PROVENANCE.md` |
+| What it does not catch | A pin written falsely in the same commit as the bytes. That needs CORE's bytes, i.e. the comparator and `O-6`. This closes **forgetting**, which is the path actually taken; it does not claim to close deliberate misstatement |
+| Claim ceiling | `DEP-CORE-005` **stays open**. This guards the honesty of the provenance, not the freshness of the contract |
+
+## CI verdicts on branch `feat/dep-core-005-contract-freshness` (additive)
+
+Read step by step from the run itself, not from a local run and not from a badge.
+Commit `4497f75` · runs `34696954715` (push) and `34696957397` (pull request) ·
+pull request `#12`.
+
+| Job | Verdict |
+|---|---|
+| `Roadmap freshness` (run `34696954710`) | **success** |
+| `تكامل على PostgreSQL حقيقي` | **success** |
+| `فوضى متعدد المثيلات (F5-06)` | **success** |
+| `verify` | **failure** at step **21** `منع أي جدول بلا city_id في المخططات` |
+| `تكامل على Redis حقيقي` | **failure** at step **8** `اختبارات الجلسات على Redis حقيقي` |
+
+Both runs (push and pull request) give the identical four-job verdict.
+
+### The two new steps were judged, and they passed
+
+They were deliberately placed **before** the red step, because steps 22–57 are
+skipped in every run while `O-1` stands.
+
+| # | Step | Verdict |
+|---|---|---|
+| 19 | `سندُ العقودِ المنقولةِ مُفكَّكٌ — لا ملفَّ بلا مصدرٍ ولا سندَ لمعدومٍ (DEP-CORE-005)` | **success** |
+| 20 | `سقوطُ مُقابِلِ الطزاجةِ مقيسٌ بخرقٍ مزروعٍ لا بنسخةٍ من CORE (DEP-CORE-005)` | **success** — `25 pass · 0 fail · 55 expect()` |
+
+Step 19 printed, in CI, on a runner with no access to CORE:
+
+```
+تثبيتُ مصدرِ العقودِ المنقولةِ: 8 ملفّاً، كلٌّ مُثبَّتٌ إلى uxxxug/wasla-core عندَ 1231817 · 511624b.
+وهذا تثبيتٌ لا طزاجةٌ: قراءةُ CORE محجوبةٌ بـ`O-6`، والمُقابِلُ `scripts/check-core-contract-freshness.ts` يُشغَّلُ حيثُ يُقرأُ مستودَعُ CORE.
+```
+
+So CI itself now states the boundary: it can prove the provenance is complete and
+machine-readable, and it says in the same breath that this is a pin and not a
+freshness proof. That sentence is the guard's own output, not documentation about
+it.
+
+Steps 1–18 success · 19 and 20 success · 21 failure · 22–57 skipped · step 9
+(`تفاصيل الإخفاق في تعليقٍ مقروء`) skipped as it only runs on pull-request events
+in that position.
+
+### Neither red step was touched by this branch, and both are the same reds as before
+
+`verify` step 21, verbatim:
+
+```
+❌ مخالفات في المخططات:
+  - [20260911100000_w4_operational_jobs.sql] operational_jobs: لا يحمل عمود city_id (القاعدة 0.4)
+  - [20260911100100_w5_core_inbox_move_outbox.sql] core_event_inbox: لا يحمل عمود city_id (القاعدة 0.4)
+  - [20260911100100_w5_core_inbox_move_outbox.sql] move_event_outbox: لا يحمل عمود city_id (القاعدة 0.4)
+```
+
+That is `O-1` exactly as registered: three WASLA boundary tables have no city
+column, rule 0.4 forbids that, and neither answer available to this repository is
+an agent's to pick — CORE must expose city/geography (`DEP-CORE-006`) or the owner
+must name these three tables in a recorded appendix to rule 0.4. Weakening the
+guard to make the branch green is the one thing forbidden outright.
+
+`تكامل على Redis حقيقي` step 8, verbatim:
+
+```
+env:
+  UPSTASH_REDIS_REST_URL:
+  UPSTASH_REDIS_REST_TOKEN:
+  REQUIRE_REAL_REDIS: 1
+error: REQUIRE_REAL_REDIS=1 ولا UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN في البيئةِ — وظيفةٌ وُجدت لتُشغِّل على Redis حقيقيٍّ لا تُقرَأ خضراءَ وهي لم تُخاطِبه.
+```
+
+That is `O-2`: the two Actions secrets are absent, so the job refuses to report
+green for a run that never spoke to Redis. The failure is the guard working, and
+it is an absent owner-provided resource, not a defect in code on this branch.
+
+### Verdicts at `65ca31c` (second increment), read the same way
+
+Runs `34697770745` (`Roadmap freshness`), `34697770772` (push CI),
+`34697772063` (pull-request CI).
+
+| Job | Verdict |
+|---|---|
+| `Roadmap freshness` | **success** — including the new step 6 `A re-vendored contract carries its pin (DEP-CORE-005)` |
+| `verify` | **failure**, unchanged, at step **22** `منع أي جدول بلا city_id` — the step number moved from 21 to 22 because the new guard step was inserted before it |
+| `تكامل على PostgreSQL حقيقي` · `فوضى متعدد المثيلات` | **success** |
+| `تكامل على Redis حقيقي` | **failure**, unchanged, at the secrets step (`O-2`) |
+
+All three `DEP-CORE-005` steps in `verify` were judged and passed: **19** pins,
+**20** freshness-comparator seeded breach, **21** pin-follows-bytes seeded breach.
+Steps 23–58 remain skipped behind the red one.
+
+The range guard printed, in CI, with a real push range:
+
+```
+env:
+  BASE_SHA: ea4c29b5cb4ef1c4731ac252b1872b08f5548d0a
+  HEAD_SHA: 65ca31c9330eeaa468802fb2e8c3627c469f7217
+سندُ العقودِ يتبعُ بايتاتِها: لا ملفَّ منقولاً تغيَّرَ في ea4c29b..65ca31c — فلا سندَ يلزمُ تحديثُه.
+```
+
+which is the true statement for this range: this branch appends to
+`PROVENANCE.md` and re-vendors no bytes. The guard will have something to judge
+the moment pull request `#11` or a future re-vendoring pushes changed contract
+bytes — which is exactly the event it exists for.
+
+### What this verdict does and does not license
+
+It licenses exactly one claim: **the provenance of the vendored contracts is now
+machine-readable and CI enforces it, and the freshness comparator's own failure
+behaviour is measured by CI against a seeded breach.** It licenses nothing about
+freshness, which CI still cannot measure (`O-6`), and it licenses no `[x]` and no
+`VERIFIED` anywhere — `ح-4` asks for three consecutive green runs and `verify` is
+red at step 21 for a reason no agent may remove.
+
+## Merging the three open pull requests, by owner instruction, 2026-09-12 (additive)
+
+`#10`, `#12`, `#11` merged in that order — **not** alphabetical and not by age:
+`#12` carries the pin machinery, so merging it before `#11` means `#11`'s
+re-vendoring is **judged** by the new guard instead of grandfathered past it.
+
+| Conflict | How it was resolved |
+|---|---|
+| `.github/workflows/ci.yml` | Both sides added a step in the same place. **Both kept**, `W-9`'s cutover step and the three `DEP-CORE-005` steps, all four still **before** the red `city_id` step — a step after it reads `skipped` and carries no verdict |
+| `package.json` (`ci` chain) | One chain carrying **both** additions (`check-cutover-plan.ts` and `check-vendored-contract-pins.ts`). Neither dropped |
+| `docs/SYSTEM_STATE.md` · `ROADMAP.md` | Two whole sections and two whole reservation blocks collided because each was appended at the same anchor. **Both kept in full**, nothing summarised away (`ح-8`) |
+| `docs/contracts/core/PROVENANCE.md` | Merged without conflict — and that silent success is exactly the hole `ADR 0091` was built for, see the row below |
+
+### The new guard judged the merge it was built for, and demanded a correction
+
+`#11` re-vendors three contracts; `#12` pinned those same three to the commits
+they sat at on `main` **before** the re-vendoring. Git merged both cleanly: the
+bytes came from one branch, the pin lines from the other, and no textual
+conflict exists between them. The result would have been three pins naming
+commits whose bytes are **not** the vendored bytes — a provenance record that
+reads authoritative and is false.
+
+`scripts/check-vendored-pin-follows-bytes.ts` refused the merge range. The
+correction was not invented: each vendored file was re-hashed against the real
+CORE repository commit by commit, and all three are byte-identical to
+`uxxxug/wasla-core`@`0edb7af1438dd12b7c7bf22fb58669ae0022f2cc`
+(2026-09-12 11:37:35Z) — the commit `#11` recorded reading. The three pins now
+name that commit, and the guard passes on the range with
+«3 ملفّاً منقولاً تغيَّرَ، ولكلٍّ سطرُ سندٍ تغيَّرَ معهُ في المدى نفسِه».
+
+So the hole `ADR 0091` described as «a re-vendor that forgets its pin» was not
+hypothetical and did not wait: it occurred on the **first** merge after the
+guard landed, in the precise shape predicted, and was caught mechanically
+rather than by anyone remembering.
+
+### Measured immediately after, and not dressed up
+
+Re-running the comparator against CORE at `bdf7239` (2026-09-12 13:26:22Z):
+`core.fulfillment.cancelled.v1.schema.json` and `transport/core-v1.yaml` are
+byte-identical to CORE **head**, so the `W-5` drift that started all of this is
+closed at the bytes. `transport/outbound-delivery.md` is **stale again** — CORE
+has amended that document five times since `0edb7af`. Its drift is prose, the
+comparator declares it textual rather than semantic, and re-vendoring it once
+per hour is a treadmill, not a guarantee. That is what `O-6` buys: a machine
+reading the verdict instead of an agent noticing.
+
+Also measured at the same head: CORE has published
+`core.fulfillment.executed_after_cancellation.v1`, naming **MOVE** a consumer,
+and MOVE answers an unknown type with `422` — which its own vendored transport
+contract reads as permanent death. Recorded here as a **finding only**. The
+reservation and the owner decision it needs — who pays for work delivered
+against a cancelled order, CORE's own open question beside `CORE:B-20` — are
+held unpushed by owner instruction, so that decision has deliberately **not**
+been given a row in the tables below yet: a row would be read as a registered
+owner decision, and it is not one until the owner says so.
+
+### What this merge does **not** license
+
+No `[x]`, no `VERIFIED`, no freshness claim. `verify` is still red at `city_id`
+(`O-1`) and the Redis job still red at its secret step (`O-2`); both were left
+untouched. `DEP-CORE-005` stays **open** — the comparator still cannot run in
+CI without `O-6`. `W-5` and `W-9` stay unticked: `ح-4` wants three consecutive
+green rounds and that is unreachable while `O-1` stands.
+
 ## Owner decisions required, recorded 2026-09-11
 
 | # | Decision | Why it cannot be taken by an executor here |
@@ -897,6 +1208,7 @@ of the instruction is recorded below verbatim.
 | O-2 | Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` as repository secrets | The `real-redis` CI job asserts a real Redis (`OPS-006`) and must not be weakened, silenced or skip-classified; the previous secrets belonged to the former repository account |
 | O-3 | Issue a CORE bearer service credential for MOVE and set `CORE_EVENTS_BASE_URL` / `CORE_EVENTS_BEARER_TOKEN` on the worker | Credentials in CORE are owned by CORE; this repository must not mint or assume them, and the shipping job stays unregistered without them |
 | O-4 | Provision a CORE `event_subscription` for `core.*` pointing at `https://<gateway>/webhook/core-events` with a signing secret of at least 32 characters, and set `CORE_INBOUND_SIGNING_SECRET` on the gateway | CORE's outbound contract states subscriptions are operator-provisioned and the secret is never echoed back; this repository receives what was provisioned and does not provision it |
+| O-6 | Grant this repository's CI read access to CORE's contract directory — a read-only fine-grained token for `uxxxug/wasla-core` as a repository Actions secret, or a published copy of `contracts/` that a public job can read (a submodule, a release artifact, or a public mirror of that directory only) | `uxxxug/wasla-core` is **private** and the CI token of `uxxxug/ceezr` cannot read another private repository. Granting cross-repository read is an owner act: it is an access decision about CORE's repository, not a change in this one. Without it `scripts/check-core-contract-freshness.ts` can be run by hand wherever a CORE checkout exists, but `verify` cannot judge freshness, so `DEP-CORE-005` stays open. The comparator is deliberately built to **refuse to pass** when no CORE source is available rather than report a freshness it did not measure |
 
 ## Migrated
 

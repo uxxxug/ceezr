@@ -151,3 +151,57 @@ sha256sum contracts/events/*.schema.json   # في مستودعِ CORE
 `scripts/check-core-contract-parity.ts` يحرسُ **مطابقةَ شيفرةِ MOVE لهذه النسخةِ**
 لا مطابقةَ هذه النسخةِ لـCORE. والثاني يلزمُه وصولٌ متبادلٌ بينَ المستودعَينِ،
 وهوَ **اعتماديّةٌ مسجَّلةٌ** (`DEP-CORE-005` في `ROADMAP.md`) لا مُنجَزٌ مُدَّعىً.
+
+## السندُ المُفكَّكُ آليّاً — `pin`، البند `DEP-CORE-005`
+
+كلُّ ما سبقَ **يبقى كما هوَ**؛ وهذا القسمُ إضافةٌ لا استبدالٌ. وسببُه أنَّ ما
+سبقَ يُخبِرُ الإنسانَ ولا يُخبِرُ الآلةَ: الجداولُ أعلاه تذكرُ التزاماً ومسارَ
+مجلَّدٍ نثراً، فلا يستطيعُ برنامجٌ أن يعرفَ أنَّ **هذا** الملفَّ بعينِه جاءَ من
+**ذاكَ** المسارِ عندَ **ذاكَ** الالتزامِ. وما لا يُفكَّكُ آليّاً لا يُقابَلُ
+بمصدرِه آليّاً، فبقيَت `DEP-CORE-005` مفتوحةً بسببَينِ: هذا، وحجبُ الوصولِ إلى
+مستودَعٍ خاصٍّ (`O-6`).
+
+والصيغةُ سطرٌ واحدٌ لكلِّ ملفٍّ منقولٍ:
+
+```
+pin <owner>/<repo> <التزامٌ بأربعينَ خانةً> <مسارُ المصدرِ> -> <المسارُ المنقولُ>
+```
+
+ولا تُكرَّرُ البصمةُ في سطرِ السندِ: البصماتُ أعلاه هيَ موضعُها الواحدُ، وتكرارُها
+ههنا يُنشِئُ مصدرَ حقيقةٍ ثانياً ينحرفُ عن الأوّلِ ولا يكشفُه أحدٌ. فالسندُ
+يُجيبُ «من أينَ؟» والبصمةُ تُجيبُ «هل تغيَّرَ؟»، ويقرؤُهما قارئٌ واحدٌ
+(`scripts/lib/vendored-contract-pins.ts`) لا قارئانِ.
+
+```
+pin uxxxug/wasla-core 0edb7af1438dd12b7c7bf22fb58669ae0022f2cc contracts/events/core.fulfillment.cancelled.v1.schema.json -> core.fulfillment.cancelled.v1.schema.json
+pin uxxxug/wasla-core 511624b3439c51558dcf9e126d27fc1d2377f280 contracts/events/core.fulfillment.created.v1.schema.json -> core.fulfillment.created.v1.schema.json
+pin uxxxug/wasla-core 511624b3439c51558dcf9e126d27fc1d2377f280 contracts/events/envelope.schema.json -> envelope.schema.json
+pin uxxxug/wasla-core 511624b3439c51558dcf9e126d27fc1d2377f280 contracts/events/move.job.accepted.v1.schema.json -> move.job.accepted.v1.schema.json
+pin uxxxug/wasla-core 511624b3439c51558dcf9e126d27fc1d2377f280 contracts/events/move.job.completed.v1.schema.json -> move.job.completed.v1.schema.json
+pin uxxxug/wasla-core 511624b3439c51558dcf9e126d27fc1d2377f280 contracts/events/move.job.rejected.v1.schema.json -> move.job.rejected.v1.schema.json
+pin uxxxug/wasla-core 0edb7af1438dd12b7c7bf22fb58669ae0022f2cc contracts/openapi/core-v1.yaml -> transport/core-v1.yaml
+pin uxxxug/wasla-core 0edb7af1438dd12b7c7bf22fb58669ae0022f2cc docs/outbound-delivery.md -> transport/outbound-delivery.md
+```
+
+وهذه الأسطرُ محروسةٌ بـ`scripts/check-vendored-contract-pins.ts`: ملفٌّ منقولٌ بلا
+سندٍ يُخفِقُ، وسندٌ لملفٍّ محذوفٍ يُخفِقُ، وسندانِ لملفٍّ واحدٍ يُخفِقانِ،
+والتزامٌ مختصرٌ يُرفَضُ لأنَّه يتصادمُ فلا يُثبِّتُ.
+
+## وبهذا صارَ للطزاجةِ مُقابِلٌ — وحدُّه مُعلَنٌ
+
+`scripts/check-core-contract-freshness.ts` يقرأُ هذه السنداتِ، ويقرأُ بايتاتِ
+المصدرِ من **نسخةٍ محلّيّةٍ** من CORE (`--from-dir=`)، فيحكمُ على كلِّ ملفٍّ:
+مطابقٌ، أم نسختُنا مُحرَّرةٌ، أم المصدرُ تقدَّمَ، أم المصدرُ أُزيلَ. والاختلافُ
+يُعرَضُ **دلاليّاً** لا نصّيّاً للمخطَّطاتِ (مجموعةُ المطلوبِ، ومجموعةُ الحقولِ،
+وكلماتُ كلِّ حقلٍ، وحكمُ الزائدِ) وبنيويّاً لعقدِ النقلِ (YAML مُفكَّكاً)، ونصّيّاً
+للنثرِ **مع التصريحِ بأنَّه نصٌّ لا دلالةٌ**.
+
+ولا سرَّ فيه ولا شبكةَ: لا رِمزَ، ولا نداءَ HTTP، ولا بيئةَ نشرٍ. ومن لا يُعطيه
+نسخةً من CORE لا يُعطى دعوى طزاجةٍ: يخرجُ بالمخرَجِ `3` ويقولُ صريحاً «غيرُ
+قابلٍ للتحقُّقِ». ولذلكَ **لا يُدرَجُ في `verify`**: حاجزٌ يَخضَرُّ حينَ لا يجدُ
+مصدرَه يُعلِّمُ القارئَ كذباً. فيبقى في جريَةٍ بالطلبِ اليدويِّ
+(`.github/workflows/core-contract-freshness.yml`) حتّى تُمنَحَ `O-6`، وعندَها
+يُنقَلُ خطوةً مُسمَّاةً في `verify` وتُقفَلُ `DEP-CORE-005`.
+
+فالقولُ أعلاه «**ولا يُدَّعى أنَّ التقادمَ محروسٌ آليّاً في CI**» يبقى **صادقاً
+بحرفِه**: المُقابِلُ موجودٌ ومُفكَّكٌ ومُختبَرٌ، وCI لا يزالُ لا يحكمُ به.
