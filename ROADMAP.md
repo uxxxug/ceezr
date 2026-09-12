@@ -212,6 +212,17 @@ Evidence: `docs/evidence/architecture/W-9-cutover-plan-20260912.md` · decision:
   duration or freeze window is estimated, because `B-1` is open and volumes are
   unknown. `B-5` stays open, `W-9` stays **قيد التنسيق — blocked**, and the item
   is **not** marked `[x]` (`ح-1`, `ح-4`).
+- **Read CI verdict** (commit `6f34a99`, PR `#10`, runs 34676145855 `push` and
+  34676147401 `pull_request`, read per job **and per step**): the new `verify`
+  guard step 19 is **success** — placed **before** the red `city_id` step 20, so
+  it carries a verdict instead of reading `skipped` — and the new real-PostgreSQL
+  rehearsal step 8 is **success**, with CI itself printing the refusal and the
+  rejected write. `تكامل على PostgreSQL حقيقي` and `F5-06` are **success**, and
+  `Roadmap freshness` is **success**. The remaining red is exactly `O-1`
+  (`city_id`) and `O-2` (Redis secrets), unchanged and untouched, and the
+  `OPS-010` drill (step 10) stayed green without being edited. The ladder for
+  this increment reads **مُنفَّذ ← مُختبَر ← مُتحقَّق منه**; the item itself stays
+  blocked.
 
 ### Outcome `W-8` (second increment) — recorded 2026-09-12
 
