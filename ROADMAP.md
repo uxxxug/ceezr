@@ -304,6 +304,7 @@ the per-job conclusion actually read from the GitHub Actions API.
 | `1fa9efa` (run `34657798076`, merge of `origin/main` after PR #1 landed) | fail — **only** `check-migrations` rule 0.4, same three lines (`DEP-CORE-006` / `O-1`) | **pass** | fail — `O-2` | pass | pass |
 | `1fa9efa` (run `34657801218`, same commit, second trigger) | fail — same sovereign blocker | fail — **1 case**: `location-race-conditions.test.ts:210` expected sequence `> 5`, received `4` — the same commit passed this job in run `34657798076`, so the job is order-dependent, not the code (`OPS-016`) | fail — `O-2` | pass | pass |
 | `e2b33a5` (runs `34658811488` and `34658815106`) | fail — **only** `check-migrations` rule 0.4, the same three lines (`DEP-CORE-006` / `O-1`), read from the job log | **pass in both runs** (`OPS-016` fixed; the flake is gone) | fail — `O-2` | pass | pass |
+| `7a03ed3` — **the merge commit on `main`** (run `34659597153`) | fail — **only** `check-migrations` rule 0.4, the same three lines, read from the job log | **pass** | fail — `O-2` | pass | pass |
 
 Root causes found and fixed at their source, none by weakening a test:
 
@@ -388,8 +389,14 @@ Recorded here only. No change is made to CORE or MARKET from this repository.
 
 On 2026-09-12 the repository owner instructed, verbatim: «قم دمج كل شي إلى
 المستودع ، وقم بإصلاح الدمج السابق ، وقم بدمج طلب الدمج الموجود في المستودع».
-This entry is written **before** the merge is performed, so that the merge is
-never read as a green verdict once it lands. The state of the gates at the time
+This entry was written **before** the merge was performed, so that the merge is
+never read as a green verdict. The merge landed on 2026-09-12 as merge commit
+`7a03ed3`, and the verdict actually read on `main` afterwards (run
+`34659597153`) is the last row of the table above: `verify` still fails on the
+same three rule-0.4 lines and nothing else, real PostgreSQL passes, real Redis
+still fails on `O-2`, chaos and roadmap-freshness pass. So the gate was neither
+satisfied nor silenced by merging — it fails on `main` exactly as it failed on
+the branch. The state of the gates at the time
 of the instruction is recorded below verbatim.
 
 - **What is red at the time of this instruction, and why.** `verify` failed on exactly one gate:
