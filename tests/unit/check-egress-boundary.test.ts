@@ -9,6 +9,15 @@
 import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import {
+  countByClass,
+  declaredLiteralHosts,
+  type EgressPeer,
+  HOST_EXEMPTIONS,
+  peerById,
+  peersByClass,
+  WASLA_EGRESS_REGISTRY,
+} from "../../packages/shared/wasla/egress-registry.ts";
+import {
   DEFAULT_INPUTS,
   type EgressInputs,
   egressProblems,
@@ -18,15 +27,6 @@ import {
   stripComments,
   withGeneratedBlock,
 } from "../../scripts/check-egress-boundary.ts";
-import {
-  countByClass,
-  declaredLiteralHosts,
-  type EgressPeer,
-  HOST_EXEMPTIONS,
-  peerById,
-  peersByClass,
-  WASLA_EGRESS_REGISTRY,
-} from "../../scripts/lib/wasla-egress-registry.ts";
 
 const ROADMAP = readFileSync("ROADMAP.md", "utf8");
 const DOC = readFileSync("docs/wasla/egress-boundary.md", "utf8");
@@ -44,6 +44,16 @@ function baseInputs(overrides: Partial<EgressInputs> = {}): EgressInputs {
     envExampleText: DEFAULT_INPUTS.envExampleText,
     packageJsonText: DEFAULT_INPUTS.packageJsonText,
     callSiteExists: () => true,
+    browserFetchSites: DEFAULT_INPUTS.browserFetchSites,
+    bareFetchFiles: DEFAULT_INPUTS.browserFetchSites.map((b) => b.path),
+    readSource: (path) => {
+      if (path === "packages/shared/wasla/egress-registry.ts") return "WASLA_EGRESS_REGISTRY";
+      if (path === "packages/shared/wasla/egress-gate.ts") return "createGuardedFetch";
+      const peer = WASLA_EGRESS_REGISTRY.find((x) => x.callSite === path);
+      if (peer !== undefined)
+        return `import "wasla/egress-gate.ts";\ncreateGuardedFetch("${peer.id}")`;
+      return "// ملفٌّ مُصطنعٌ في الاختبارِ";
+    },
     ...overrides,
   };
 }
@@ -139,6 +149,10 @@ describe("٢ — الحاكمُ: لا مقصدَ في MARKET", () => {
       system: "MARKET",
       source: { kind: "literal", hosts: ["market.invalid"] },
       callSite: "packages/x/y.ts",
+      runtimeGate: {
+        kind: "not-applicable",
+        reason: "مُدخلٌ مزروعٌ في الاختبارِ لقياسِ رفضِ MARKET — لا نداءَ له في الشيفرةِ",
+      },
       removed: false,
     };
     const problems = egressProblems(
@@ -415,5 +429,137 @@ describe("نزعُ التعليقاتِ — رابطٌ في تعليقٍ ليس�
 
   test("مِحرافُ الهروبِ داخلَ النصِّ لا يُخرِجُ من النصِّ", () => {
     expect(stripComments('const s = "a\\"b"; // تعليقٌ\nconst c = 3;')).not.toContain("تعليقٌ");
+  });
+});
+
+describe("بوّابةُ التشغيلِ — الفحوصُ ١١ و١٢ و١٣ تُخفِقُ عندَ الخرقِ", () => {
+  test("١١ — استثناءُ المسحِ متقادمٌ: ملفُّ السجلِّ غائبٌ", () => {
+    const problems = egressProblems(
+      ROADMAP,
+      DOC,
+      baseInputs({
+        readSource: (path) =>
+          path === "packages/shared/wasla/egress-registry.ts" ? undefined : "createGuardedFetch",
+      }),
+    );
+    expect(checks(problems).some((c) => c.startsWith("١١"))).toBe(true);
+  });
+
+  test("١١ — المُستثنى ليسَ ملفَّ السجلِّ: استثناءٌ مُوسَّعٌ إلى شيفرةٍ تُنادي", () => {
+    const problems = egressProblems(
+      ROADMAP,
+      DOC,
+      baseInputs({ readSource: () => "// شيفرةٌ ما بلا سجلٍّ" }),
+    );
+    expect(checks(problems).some((c) => c.startsWith("١١"))).toBe(true);
+  });
+
+  test("١١ — بوّابةُ التشغيلِ مفقودةٌ: إعفاءٌ بلا مُعفًى", () => {
+    const problems = egressProblems(
+      ROADMAP,
+      DOC,
+      baseInputs({
+        readSource: (path) => {
+          if (path === "packages/shared/wasla/egress-gate.ts") return undefined;
+          if (path === "packages/shared/wasla/egress-registry.ts") return "WASLA_EGRESS_REGISTRY";
+          const peer = WASLA_EGRESS_REGISTRY.find((x) => x.callSite === path);
+          return peer === undefined
+            ? "//"
+            : `import "wasla/egress-gate.ts";\ncreateGuardedFetch("${peer.id}")`;
+        },
+      }),
+    );
+    expect(checks(problems).some((c) => c.startsWith("١١"))).toBe(true);
+  });
+
+  test("١٢ — `fetch` عارياً في ملفِّ خادمٍ غيرِ مُعلَنٍ يُرفَضُ", () => {
+    const problems = egressProblems(
+      ROADMAP,
+      DOC,
+      baseInputs({
+        bareFetchFiles: [
+          ...DEFAULT_INPUTS.browserFetchSites.map((b) => b.path),
+          "packages/infrastructure/x/rogue-client.ts",
+        ],
+      }),
+    );
+    const twelve = problems.filter((p) => p.check.startsWith("١٢"));
+    expect(twelve.length).toBe(1);
+    expect(twelve[0]?.detail).toContain("rogue-client.ts");
+  });
+
+  test("١٢ — إعفاءُ متصفّحٍ ميّتٌ: مُعلَنٌ ولا `fetch` فيه", () => {
+    const problems = egressProblems(ROADMAP, DOC, baseInputs({ bareFetchFiles: [] }));
+    expect(problems.filter((p) => p.check.startsWith("١٢")).length).toBe(
+      DEFAULT_INPUTS.browserFetchSites.length,
+    );
+  });
+
+  test("١٢ — إعفاءُ متصفّحٍ بلا سببٍ مكتوبٍ يُرفَضُ", () => {
+    const problems = egressProblems(
+      ROADMAP,
+      DOC,
+      baseInputs({
+        browserFetchSites: [{ path: "apps/admin-dashboard/src/layout.ts", reason: "  " }],
+        bareFetchFiles: ["apps/admin-dashboard/src/layout.ts"],
+      }),
+    );
+    expect(checks(problems).some((c) => c.startsWith("١٢"))).toBe(true);
+  });
+
+  test("١٣ — مقصدٌ مُلزَمٌ بالبوّابةِ وملفُّه لا يستوردُها", () => {
+    const problems = egressProblems(
+      ROADMAP,
+      DOC,
+      baseInputs({
+        readSource: (path) => {
+          if (path === "packages/shared/wasla/egress-registry.ts") return "WASLA_EGRESS_REGISTRY";
+          if (path === "packages/shared/wasla/egress-gate.ts") return "createGuardedFetch";
+          return "// نداءٌ بلا بوّابةٍ";
+        },
+      }),
+    );
+    const thirteen = problems.filter((p) => p.check.startsWith("١٣"));
+    expect(thirteen.length).toBeGreaterThan(0);
+    expect(thirteen.some((p) => p.detail.includes("لا يستوردُ البوّابةَ"))).toBe(true);
+  });
+
+  test("١٣ — البوّابةُ في الملفِّ لكن لمقصدٍ آخرَ: خلطُ معرّفاتٍ", () => {
+    const problems = egressProblems(
+      ROADMAP,
+      DOC,
+      baseInputs({
+        readSource: (path) => {
+          if (path === "packages/shared/wasla/egress-registry.ts") return "WASLA_EGRESS_REGISTRY";
+          if (path === "packages/shared/wasla/egress-gate.ts") return "createGuardedFetch";
+          return 'import "wasla/egress-gate.ts";\ncreateGuardedFetch("some-other-peer")';
+        },
+      }),
+    );
+    expect(
+      problems.some((p) => p.check.startsWith("١٣") && p.detail.includes("لا يذكرُ معرّفَه حرفاً")),
+    ).toBe(true);
+  });
+
+  test("١٣ — «لا تنطبقُ» بلا سببٍ مكتوبٍ إعفاءٌ بلا مقابلٍ", () => {
+    const problems = egressProblems(
+      ROADMAP,
+      DOC,
+      baseInputs({
+        registry: replacePeer("supabase-postgres", {
+          runtimeGate: { kind: "not-applicable", reason: "" },
+        }),
+      }),
+    );
+    expect(checks(problems).some((c) => c.startsWith("١٣"))).toBe(true);
+  });
+
+  test("المُدخلاتُ الحقيقيّةُ نظيفةٌ في هذه الفحوصِ الثلاثةِ", () => {
+    const problems = egressProblems(ROADMAP, DOC, DEFAULT_INPUTS);
+    expect(
+      problems.filter(
+        (p) => p.check.startsWith("١١") || p.check.startsWith("١٢") || p.check.startsWith("١٣"),
+      ),
+    ).toEqual([]);
   });
 });

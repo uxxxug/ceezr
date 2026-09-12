@@ -65,10 +65,14 @@ function describe(error: unknown): string {
  * نفسه — و«فشل الأمر» غير «فشل الشبكة»: الأول خطأ منّا في صياغة الأمر، والثاني
  * انقطاع. فُصلا في `kind` لأن أحدهما يُصلَح بالكود والآخر بالانتظار.
  */
+import { createGuardedFetch } from "../../shared/wasla/egress-gate.ts";
 export function createUpstashRedis(options: UpstashOptions): RedisClient {
   const base = options.url.replace(/\/+$/, "");
   const timeoutMs = options.timeoutMs ?? REDIS_TIMEOUT_MS;
-  const doFetch = options.fetchImpl ?? fetch;
+  /** البوّابةُ: العميلُ لا يُنادي إلّا ما ضبطَه `UPSTASH_REDIS_REST_URL`. */
+  const doFetch = createGuardedFetch("upstash-redis-rest", options.fetchImpl, {
+    env: { UPSTASH_REDIS_REST_URL: options.url },
+  });
   const guard =
     options.guard ??
     createDependencyGuard({

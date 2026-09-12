@@ -196,10 +196,13 @@ export function chargeHashString(input: {
   return `x_id${input.id}x_amount${input.amount}x_currency${input.currency}x_gateway_reference${input.gatewayReference}x_payment_reference${input.paymentReference}x_status${input.status}x_created${input.created}`;
 }
 
+import { createGuardedFetch } from "../../shared/wasla/egress-gate.ts";
 export function createTapProvider(options: TapProviderOptions): PaymentProvider {
   const baseUrl = (options.baseUrl ?? TAP_API_URL).replace(/\/$/, "");
   const timeoutMs = options.timeoutMs ?? 10_000;
   const maxAttempts = options.maxAttempts ?? 3;
+  /** البوّابةُ: نداءٌ إلى غيرِ `api.tap.company` يُرفَضُ (`W-6` / `ADR 0086`). */
+  const doFetch = createGuardedFetch("tap-payments");
 
   async function request(
     path: string,
@@ -208,7 +211,7 @@ export function createTapProvider(options: TapProviderOptions): PaymentProvider 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       let response: Response;
       try {
-        response = await fetch(`${baseUrl}${path}`, {
+        response = await doFetch(`${baseUrl}${path}`, {
           ...init,
           headers: {
             Authorization: `Bearer ${options.secretKey}`,

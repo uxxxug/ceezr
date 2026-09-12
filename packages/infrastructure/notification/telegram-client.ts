@@ -67,6 +67,7 @@ export function resetTelegramGuardForTests(): void {
   sharedGuard = null;
 }
 
+import { createGuardedFetch } from "../../shared/wasla/egress-gate.ts";
 export interface TelegramApiOptions {
   /** يُحقَنُ في الاختبارِ بميزانيّةٍ مصغَّرةٍ وساعةٍ مُمرَّرةٍ. */
   readonly guard?: DependencyGuard;
@@ -84,7 +85,12 @@ export function createTelegramApi(token: string, options?: TelegramApiOptions): 
   const api = new Api(token, {
     // المهلةُ **مُصرَّحٌ بها** ولا تُترَكُ لافتراضِ المكتبةِ.
     timeoutSeconds: TELEGRAM_TIMEOUT_SECONDS,
-    ...(options?.fetchImpl === undefined ? {} : { fetch: options.fetchImpl }),
+    /**
+     * البوّابةُ داخلَ ناقلِ المكتبةِ نفسِه: grammY تقبلُ `fetch`، فيُمَرَّرُ إليها
+     * ناقلٌ مُحصَّنٌ دائماً لا عندَ الحقنِ وحدَه — ولو مُرِّرَ الناقلُ العامُّ عارياً
+     * لصارَ سطحُ القناةِ كلُّه خارجَ البوّابةِ (`W-6` / `ADR 0086`).
+     */
+    fetch: createGuardedFetch("telegram-bot-api", options?.fetchImpl),
   });
 
   const guard = options?.guard ?? telegramGuard();

@@ -49,6 +49,7 @@ import {
   singleInstanceInvariantViolation,
 } from "../../../packages/shared/config/single-instance.ts";
 import type { CityId } from "../../../packages/shared/kernel/index.ts";
+import { assertEgressEnvironment } from "../../../packages/shared/wasla/egress-gate.ts";
 import { jobHealthExpectations } from "../../workers/src/container.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { mountAdminSurface } from "./admin/mount.ts";
@@ -108,6 +109,26 @@ if (!configResult.ok) {
 }
 
 const config = configResult.value;
+
+/**
+ * حاجزُ تشابكِ الأبوابِ عندَ الإقلاعِ — البندُ `W-6` · `ADR 0086`.
+ *
+ * وموضعُه بعدَ تحميلِ الضبطِ وقبلَ تركيبِ الحاويةِ: يقرأُ مفاتيحَ البيئةِ التي
+ * تُعيِّنُ المقاصدَ، فيسقطُ الإقلاعُ إن كانَ مفتاحُ مقصدٍ مضبوطاً على **بابِ مقصدٍ
+ * آخرَ** — كأن يُوجَّهَ `CORE_EVENTS_BASE_URL` إلى بوّابةِ دفعٍ. والبوّابةُ وقتَ
+ * النداءِ ترفضُ ذلكَ أيضاً، لكن رفضاً عندَ أوّلِ حدثٍ حقيقيٍّ متأخّرٌ: خدمةٌ قامَت
+ * ثمَّ تُخفِقُ نداءً نداءً. وما **لا** يُقاسُ ههنا: أنَّ المضيفَ المضبوطَ هوَ CORE
+ * حقّاً — عنوانُه بيئيٌّ لا يعرفُه المستودعُ (`DEP-CORE-005`).
+ */
+try {
+  assertEgressEnvironment(process.env);
+} catch (error) {
+  log.error("gateway.boot_egress_env_invalid", {
+    detail: error instanceof Error ? error.message : String(error),
+    hint: "مفتاحُ مقصدٍ مضبوطٌ على بابِ مقصدٍ آخرَ — راجعْ docs/wasla/egress-boundary.md",
+  });
+  process.exit(1);
+}
 
 /**
  * شرطُ صحّةِ النسخةِ الواحدةِ — يُفحَص قبلَ تركيبِ شيءٍ (`R-17` · ADR 0050).

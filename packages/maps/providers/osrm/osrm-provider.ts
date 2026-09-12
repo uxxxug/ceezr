@@ -15,6 +15,7 @@ import {
   type DependencyGuard,
 } from "../../../shared/resilience/dependency-guard.ts";
 import { err, ok, type Result } from "../../../shared/result/index.ts";
+import { createGuardedFetch } from "../../../shared/wasla/egress-gate.ts";
 import {
   type DistanceMatrix,
   type DistanceMatrixElement,
@@ -161,7 +162,8 @@ function kindForOsrmCode(code: string): RoutingErrorKind {
 
 export function createOsrmProvider(config: OsrmConfig): RoutingProvider {
   const baseUrl = config.baseUrl.replace(/\/$/, "");
-  const doFetch = config.fetchImpl ?? fetch;
+  /** البوّابةُ: المُوجِّهُ لا يُنادي إلّا ما ضبطَه `OSRM_BASE_URL`. */
+  const doFetch = createGuardedFetch("osrm-routing", config.fetchImpl, { env: process.env });
   const sleep = config.sleepImpl ?? defaultSleep;
   const totalBudget = config.timeoutMs ?? OSRM_TIMEOUT_MS;
   const guard = config.guard ?? createDependencyGuard({ dependency: "maps" });

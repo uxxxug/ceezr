@@ -145,6 +145,61 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `W-6` (second increment) — runtime egress gate (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25. This is a **second increment on the same item**,
+not a new item, and it closes a limit the first increment declared about itself.
+
+| Field | Value |
+|---|---|
+| Item | `W-6` — remove any direct commercial coupling with MARKET; all cross-system traffic goes through CORE APIs or events |
+| Branch | `feat/w6-runtime-egress-gate`, cut from `main`@`227cb4d` |
+| What this increment closes | the first increment recorded, in its own "not claimed" section: **"No runtime egress blocking exists. The guard fails at build time."** A build-time guard reads the code; it does not stand between the process and the network. So a call built at runtime, or a client pointed at a host other than the one it declares, passes the build and still leaves the machine. |
+| Scope reserved | `packages/shared/wasla/egress-registry.ts` (**moved** from `scripts/lib/wasla-egress-registry.ts`, so build-time guard and runtime gate read **one** source) · `packages/infrastructure/egress/egress-gate.ts` (new, the runtime gate) · `scripts/check-egress-boundary.ts` (new checks; no existing check weakened) · the four server-side call sites that reach the network (`packages/infrastructure/wasla/core-event-shipper.ts` · `packages/infrastructure/backup/google-drive-adapter.ts` · `packages/infrastructure/financial/moyasar-provider.ts` · `packages/infrastructure/financial/tap-provider.ts`) · `tests/unit/egress-gate.test.ts` (new) · `tests/unit/check-egress-boundary.test.ts` · `docs/wasla/egress-boundary.md` (regenerated, never hand-edited) · `docs/adr/0086-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-6-runtime-20260912.md` (new) |
+| Scope **not** reserved and not touched | `docs/adr/0084-*` (published — `ح-6`) · the `city_id` gate and rule 0.4 · the real-Redis job and `tests/support/real-redis.ts` · `MASTER_DIRECTIVE` · every payment **business** rule (only the transport line changes) · the browser-side `fetch` in the miniapp, the tracking page and the admin layout (they run in the user's browser, not in this process) · any file in CORE or MARKET |
+| Dependencies checked before opening | `DEP-CORE-004` still blocks the **channel-handover** half and is untouched by this increment. `DEP-CORE-002` still owns the two payment providers (`W-7`); this increment does not remove them, it puts them behind the gate and leaves their declared debt exactly as it is. `O-1` and `O-2` are unrelated to this scope and are **not** worked around: `verify` stays red at the `city_id` step and the Redis job stays red for missing secrets. |
+| Conflicting work checked | zero open pull requests at `227cb4d`, and no local or remote ref carries an `infrastructure/egress` or `egress-gate` path (scanned every `refs/remotes/origin/*` ref on 2026-09-12) |
+| Claim ceiling | this item still may **not** be marked `[x]`. `DEP-CORE-004` leaves the channel half open, and `ح-4` needs a read CI verdict while rule 0.4 keeps `verify` red. What this increment may claim, and no more: **an outbound call from this process is denied at runtime unless it is declared, and it is bound to the destination that declares it.** The gate cannot know MARKET's domain (`DEP-CORE-005`) — it enforces declaration, not domain identity, exactly as `ADR 0084` does. |
+
+### `W-6` second increment — measured outcome (recorded 2026-09-12, local only until CI rules)
+
+Additive record. It corrects the reservation above **by addition**, not by rewriting it (`ح-8`).
+
+| Field | Value |
+|---|---|
+| Decision | `ADR 0086` — runtime egress gate; complements `ADR 0084`, revokes nothing |
+| Where the gate landed | `packages/shared/wasla/egress-gate.ts` — **not** `packages/infrastructure/egress/` as reserved. Measured reason: one caller is `packages/maps`, which may not import from `infrastructure` (guarded layer boundary), so the reserved location forced a choice between breaking a boundary and leaving a destination outside the gate. It moved to `shared` — the lowest layer everyone imports, and where the registry itself now lives. |
+| Call sites wired | **nine files** for **eleven** gated destinations, not the four named in the reservation. The reservation listed only the bare-`fetch` sites; measuring the whole registry showed six more destinations reaching the network through an injected or library transport (telegram, metrics, three translation providers, OSRM, Upstash). Leaving them out would have made the gate optional. |
+| Registry call sites corrected | `telegram-bot-api` → `telegram-client.ts` (where grammY's transport is built) and `upstash-redis-rest` → `packages/infrastructure/redis/upstash.ts` (the gateway file is a re-export). Recorded, not silently changed. |
+| Static guard | checks ١١ (stale scan exemption), ١٢ (no bare `fetch` in server code outside the gate; three browser sites declared with reasons, each required to exist **and** actually contain a `fetch`), ١٣ (every `gated` destination's call site must import the gate and name its own id). No check ١..١٠ was weakened, silenced or removed. |
+| Startup guard | `assertEgressEnvironment(process.env)` in `apps/gateway/src/index.ts`, after config load and **before** container build; the ordering is asserted by a test, not described in prose. |
+| Local measurement (not a verdict — `ح-8`) | `bun test` 3035 pass · 829 skip · 0 fail · 10666 `expect()` · 3864 tests · 288 files (`main` measured 3008 pass; **+27** new cases: 17 gate, 10 guard) · `biome check .` 1114 files, no fixes · typecheck clean · `check:egress-boundary`, `check:migration-matrix`, `check:migration-dry-run`, `check-skip-classification`, `check-adr-numbering` all pass |
+| Still not claimable | `[x]` on `W-6` (channel half blocked by `DEP-CORE-004`; `ح-4` needs a CI verdict and rule 0.4 keeps `verify` red) · any network-layer enforcement (needs a proxy/firewall the repository does not own — `B-1`/`B-5`) · that a configured host really is CORE (`DEP-CORE-005`) |
+| Untouched, deliberately | `ADR 0084` · the `city_id` gate and rule 0.4 · the real-Redis job and its test · `MASTER_DIRECTIVE` · every payment business rule · `O-1` and `O-2`, which stay open and are not worked around; no secret was added to the repository |
+
+### `W-6` second increment — CI verdict, read per job and per step (recorded 2026-09-12)
+
+Branch `feat/w6-runtime-egress-gate`@`9669dbf`, PR [#8](https://github.com/uxxxug/ceezr/pull/8),
+runs `34673628192` (push) and `34673661270` (pull request), Roadmap freshness `34673628196` `success`.
+
+| Job | Conclusion (identical in both runs) |
+|---|---|
+| PostgreSQL integration | **success** |
+| multi-instance chaos (F5-06) | **success** |
+| `verify` | **failure** — at step 18 only |
+| real-Redis integration | **failure** — step 8 (`O-2`) |
+
+In `verify`: Lint, Typecheck and Test **success** (the 27 new cases run inside Test) ·
+step 15 (`W-2` guard) **success** · **step 16 — the egress boundary guard, which runs
+the new checks ١١/١٢/١٣ — success** · step 17 (`W-8` guard) **success** ·
+step 18 (`city_id`) **failure** · steps 19–54 **skipped**.
+
+The two reds are the same owner blockers already red on `main`@`227cb4d`, at the same job
+and the same step: `O-1` (`DEP-CORE-006`, rule 0.4, root cause in CORE) and `O-2` (Upstash
+secrets). **This increment added no red, weakened no gate, silenced no step and classified
+none as skipped.** The run is not claimed green, and no item is marked `[x]` (`ح-4`).
+
 ### Reservation `W-6` — egress boundary (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in

@@ -43,6 +43,7 @@ import {
   classifyCoreSubmitStatus,
 } from "../../shared/config/core-event-transport.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
+import { createGuardedFetch } from "../../shared/wasla/egress-gate.ts";
 
 export interface CoreEventShipperConfig {
   /** أصلُ CORE بلا مسارٍ، مثل `https://core.example`. */
@@ -83,7 +84,13 @@ function describe(status: number, body: string): string {
 }
 
 export function createCoreEventShipper(config: CoreEventShipperConfig): MoveEventShipper {
-  const doFetch = config.fetchImpl ?? globalThis.fetch;
+  /**
+   * البوّابةُ قبلَ الناقلِ، ولو كانَ الناقلُ محقوناً: نداءُ بابِ CORE يُرفَضُ إن
+   * لم يكن مضيفُه هوَ المضبوطُ في `CORE_EVENTS_BASE_URL` (`W-6` / `ADR 0086`).
+   */
+  const doFetch = createGuardedFetch("core-events-ingress", config.fetchImpl, {
+    env: process.env,
+  });
   const timeoutMs = config.timeoutMs ?? CORE_EVENT_SUBMIT_TIMEOUT_MS;
   const url = submitUrl(config.baseUrl);
 
