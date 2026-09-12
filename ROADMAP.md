@@ -145,6 +145,21 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `W-6` — egress boundary (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-6` — remove any direct commercial coupling with MARKET; all cross-system traffic goes through CORE APIs or events |
+| Branch | `feat/w6-egress-boundary`, cut from `main`@`0c25ca0` |
+| Scope reserved | `scripts/lib/wasla-egress-registry.ts` (new) · `scripts/check-egress-boundary.ts` (new) · `docs/wasla/egress-boundary.md` (new, generated) · `tests/unit/check-egress-boundary.test.ts` (new) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (`verify` job, one added step) · `docs/adr/0084-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-6-20260912.md` (new) |
+| Scope **not** reserved and not touched | every payment provider adapter, the Telegram wrapper layer, the CORE shipper, every existing guard, every migration, and any file in CORE or MARKET |
+| Dependencies checked before opening | `DEP-CORE-004` (no Telegram channel adapter in CORE) blocks the **channel-handover** half of this item and cannot be closed from this repository. `DEP-CORE-002` blocks removing the two payment providers, which is item `W-7`'s scope, not this one. Neither blocks declaring the egress surface and gating it, which is what this branch does. `O-1` and `O-2` are unrelated to this scope. |
+| Conflicting work checked | no open pull request, and no branch on `origin` carries a `check-egress-boundary` guard or a `docs/wasla/egress-boundary.md` path (checked against every `origin/*` ref on 2026-09-12; the only match for the string was `packages/agent-core/evaluation/regressionChecks.ts`, an unrelated false positive) |
+| Claim ceiling | this item may **not** be marked `[x]`. Two reasons, both recorded before any code was written: `DEP-CORE-004` leaves the channel half open, and `ح-4` requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`. What this branch may claim is narrower than the item: the egress surface becomes **declared and gated**, so a direct MOVE↔MARKET destination fails the build instead of being merely absent today. |
+
 ### Reservation `W-8` — dry-run and reconciliation tooling (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
@@ -363,6 +378,119 @@ of truth for a disposition that could drift silently.
   is red on main for sovereign rule 0.4 (`O-1`, an owner decision). Grading:
   **مُختبَر** for the guard (27 negative cases pass locally), **مُنفَّذ** for the
   matrix itself. Not مُتحقَّق منه and not مَقيس.
+
+## Status of item `W-6`, recorded 2026-09-12 (additive; item text unchanged)
+
+The item text above is untouched (`ح-1`). This section records what exists at
+this commit and what is **not** claimed.
+
+### What was measured before anything was written
+
+`W-6` asks that no direct commercial coupling with MARKET exist and that all
+cross-system traffic go through CORE. The repository was measured first, and the
+finding was not what the item's wording implies:
+
+- **The condition already holds.** Not one host in production code resolves to
+  MARKET. The `packages/{domain,application,infrastructure}/marketplace/*` files
+  are **not** commercial coupling — each is an inert eight-line placeholder
+  (`export {}` plus a header comment).
+- **But it holds by accident, not by enforcement.** No line in the repository
+  fails if someone adds `fetch("https://<market>/v1/orders")` tomorrow. The
+  requirement was a rule in a document, and a document does not fail a build.
+- **MARKET's domain is unknown to this repository** (`DEP-CORE-005`: no mutual
+  access). So enforcement cannot rest on matching a domain name.
+
+### What was built
+
+A **closed registry** of egress destinations in
+`scripts/lib/wasla-egress-registry.ts` — a single source of truth with fifteen
+declared destinations — gated by `scripts/check-egress-boundary.ts` in `verify`.
+
+The logic is **inverted relative to a blocklist**: the question is not "is this
+host forbidden?" but "is this host **declared**?". An undeclared host fails the
+build whatever its name; declaring one requires a `system` field; and
+`system: "MARKET"` is rejected outright. A blocklist was rejected because a list
+of domains this repository does not know is a guard with nothing behind it.
+
+Three governing checks and seven consistency checks. Twenty-eight negative tests
+in `tests/unit/check-egress-boundary.test.ts` seed each breach and assert the
+guard fails. `docs/wasla/egress-boundary.md` is generated from the registry and
+fenced by generation markers; editing it by hand fails the build (rule 0.6).
+Decision: `docs/adr/0084-egress-boundary-registry.md`.
+
+### Two claims the guard itself corrected
+
+Recorded because they are evidence the checks bind on their author:
+
+- Four host exemptions (`example.com` and siblings) were written from inference.
+  The comment-stripped scan then measured that **none of them appears** in
+  production code — all four were in explanatory prose. All were deleted, and a
+  check now forbids a dead exemption, because an unused exemption is an open hole
+  with nothing on the other side of it.
+- Three declared call-site paths were written from inference. Check 8 rejected
+  them as non-existent files; they were corrected by measurement.
+
+### What is explicitly NOT claimed
+
+- **The item is not fulfilled and is not marked `[x]`.** `W-6` has two halves.
+  The *egress* half — the surface is declared, and a direct MOVE↔MARKET
+  destination now fails the build — is delivered. The *channel-handover* half
+  cannot be done from this repository: `DEP-CORE-004` records that CORE exposes
+  no Telegram channel adapter, so the channel cannot be moved behind CORE.
+- **No runtime egress blocking exists.** The guard fails at build time. An
+  operator who points `CORE_EVENTS_BASE_URL` at a different host is not caught
+  by it; only the documentation of the key is measured, never its value.
+- **The scan is lexical, not a dataflow analysis.** It runs two passes over
+  comment-stripped production code, which is what caught the dynamically built
+  `api.deepl.com`, but a host assembled from scattered fragments at runtime can
+  still escape it. All limits are declared in ADR 0084 §"الحدودُ المُعلَنةُ".
+- **The two direct commercial integrations remain.** `api.moyasar.com` and
+  `api.tap.company` are called directly from MOVE. They are not a `W-6` breach —
+  MARKET is not a party — but they are declared debt: the class
+  `COMMERCIAL_PENDING_HANDOVER` forces a `handover` field naming `W-7` as the
+  removing item and `DEP-CORE-002` as the blocker, and the guard verifies both
+  ids are actually declared in this file.
+- Grading: **مُختبَر** for the guard (28 negative cases pass locally),
+  **مُنفَّذ** for the registry. Not مُتحقَّق منه and not مَقيس — `ح-4` needs a
+  read CI verdict and `verify` stays red for `O-1`.
+
+## CI verdicts on branch `feat/w6-egress-boundary` (additive)
+
+Local green is not a verdict (`ح-8`). Read from the GitHub Actions API after the
+push, per job **and per step**, not summarised.
+
+| Commit | `verify` | real PostgreSQL | real Redis | multi-instance chaos | Roadmap freshness |
+|---|---|---|---|---|---|
+| `9f3b848` (push `34666026785`) | `failure` | `success` | `failure` | `success` | `success` (`34666026757`) |
+| `9f3b848` (PR [#4](https://github.com/uxxxug/ceezr/pull/4), run `34666029771`) | `failure` | `success` | `failure` | `success` | — |
+
+**The one thing this item measures.** The `verify` job log was read step by step:
+
+| Step | Verdict | Name |
+|---|---|---|
+| 15 | `success` | migration matrix guard (`W-2`) |
+| **16** | **`success`** | **egress boundary guard (`W-6`) — the step this item adds** |
+| 17 | `failure` | no table without `city_id` (sovereign rule 0.4) |
+| 18–30 | `skipped` | everything after the red step, **including step 25, the `W-1` guard** |
+
+So the new guard **ran and passed at CI**, not only locally. And step 25 being
+`skipped` is the read proof that placing the step before the red gate was not
+cosmetic ordering: had it gone after, this item's guard would be `skipped` too
+and would carry **no verdict at all**, while being reported as delivered.
+
+**Rule 0.4 was not weakened, silenced, reclassified as a skip, or deferred.** It
+is the very next step, it failed with the same message it fails with on `main`,
+and the job's `conclusion` stayed `failure`.
+
+**Both reds precede this item and do not come from it.** Both are red on `main`
+at `0c25ca0` with the same job and the same step: `O-1` (rule 0.4, root cause in
+CORE, `DEP-CORE-006`) and `O-2` (missing Upstash secrets — the real-Redis job
+fails at step 8, "session tests on real Redis"). Both are owner decisions.
+
+**The run is not claimed green, and `W-6` is not marked `[x]` (`ح-4`).** What is
+now proven beyond local measurement is narrower than the item and stated as such:
+the egress surface is declared and gated at CI. Grading:
+**مُنفَّذ · مُختبَر · مُتحقَّق منه (the guard alone)**.
 
 ## CI verdicts on branch `feat/w8-migration-dry-run-and-reconcile` (additive)
 
