@@ -364,6 +364,57 @@ of truth for a disposition that could drift silently.
   **مُختبَر** for the guard (27 negative cases pass locally), **مُنفَّذ** for the
   matrix itself. Not مُتحقَّق منه and not مَقيس.
 
+## Status of item `W-8`, recorded 2026-09-12 (additive; item text unchanged)
+
+Item text is untouched (`ح-1`). This section records measured state only.
+
+**Built.** `scripts/lib/wasla-migration-dry-run.ts` (single source: 6 probes, the
+closed reconciliation vocabulary, `deriveReconciliation`, a schema reader) ·
+`scripts/wasla-migration-dry-run.ts` (the runnable tool) ·
+`scripts/check-migration-dry-run.ts` (7-check guard, `--write` generator) ·
+`docs/migration/dry-run-and-reconciliation.md` (generated between markers) ·
+`tests/unit/check-migration-dry-run.test.ts` (42 tests, mostly negative) ·
+`tests/integration/migration-dry-run-read-only.test.ts` (6 tests on a real
+PostgreSQL) · ADR 0085 · guard wired into `ci` and into `verify` **before** the
+red `city_id` step.
+
+**Two invariants, both enforced rather than promised.** The dry-run **cannot
+write**: every probe runs inside `BEGIN TRANSACTION READ ONLY ISOLATION LEVEL
+REPEATABLE READ` on a **reserved** connection, so the engine itself rejects any
+write with `25006`, and the transaction is rolled back regardless. The reconciler
+**cannot emit a false green**: `RECONCILED` is unconstructible without a
+`CoreAttestation`, `DIVERGED` likewise, and `coreRows` stays absent rather than
+becoming `0`. While `DEP-CORE-007` is recorded open in this file, writing
+`RECONCILED` in the tool's code **fails `verify`**; when it closes, that check
+lapses on its own with no edit.
+
+**A real measurement caught a real defect, recorded not erased.** The
+real-database test failed on its first run with `UNSAFE_TRANSACTION`. The root
+cause was not the library but the tool: on an unreserved pool, `READ ONLY` opens
+on one connection while the probe runs on another — the invariant was declared
+and the behaviour contradicted it. Neither review, types, unit tests nor `biome`
+caught it; only measurement on a real engine did. Fixed at the cause by
+reserving one connection, **without disabling the library's protection, without
+weakening the test, and without classifying anything as a skip** — plus a new
+guard check and a negative test so it cannot return silently. Third time a guard
+or measurement has failed on its own author here; the first two were in `W-6`.
+
+**Measured locally.** `bun test` → **2968 pass · 829 skip · 0 fail** · 10538
+`expect()` across 3797 tests in 286 files. `biome check .` → 1109 files, no
+fixes. `typecheck` passed. Real PostgreSQL → **6 pass · 0 fail** · 48 `expect()`,
+including the write attempt failing with `25006`. Ran end to end: wave 1 measured
+`users` = 2 rows, the rest 0; wave 6 measured `orders` = 0; wave 3 **refused with
+exit 2** as out of scope. Every reconciliation row `UNVERIFIABLE`.
+
+**Not claimed.** No `[x]`. No wave executed (`B-1`, `B-2`, `B-3` are owner
+decisions and the tool prints entry conditions without evaluating them). No
+reconciliation completed (`DEP-CORE-007`). The read-only invariant was measured
+on a **test** database, not a production-like one (`ح-5`) — the property belongs
+to the engine so it is expected to carry over, but expectation is not
+measurement. Numbers above are **not** production counts (`B-1` unread).
+Grading: **مُنفَّذ · مُختبَر · مَقيس** (the read-only invariant alone) — **not**
+`مُثبَت`.
+
 ## CI verdicts on branch `feat/w2-migration-matrix` (additive)
 
 Local green is not a verdict (`ح-8`). Filled in from the GitHub Actions API after

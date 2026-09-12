@@ -124,6 +124,11 @@ jobs:
       - name: مصفوفةُ الهجرةِ شاملةٌ ومتماسكةٌ ولا تدّعي تنفيذاً (W-2 / ADR 0083)
         run: bun run scripts/check-migration-matrix.ts
 
+      # وموضعُ هذه الخطوةِ **قبلَ** حاجزِ `city_id` مقصودٌ للسببِ عينِه، وقد قِيسَ
+      # مرّتَينِ: خطوةٌ بعدَ الحمراءِ تُقرَأُ `skipped` فلا حكمَ لها ألبتّةَ.
+      - name: التشغيلُ الجافُّ لا يستطيعُ الكتابةَ ولا التسويةُ تدّعي أخضرَ (W-8 / ADR 0085)
+        run: bun run scripts/check-migration-dry-run.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
