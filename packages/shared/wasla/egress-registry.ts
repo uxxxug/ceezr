@@ -12,6 +12,16 @@
  * فمقصدٌ جديدٌ غيرُ مُعلَنٍ يُسقِطُ البناءَ، وإعلانُه يقتضي حقلَ `system`،
  * و`system: "MARKET"` مرفوضٌ نصّاً. فلا يُمَرُّ إلى MARKET لا بإعلانٍ ولا بغيرِه.
  *
+ * **الموضعُ (زيادةٌ ثانيةٌ، 2026-09-12):** كانَ هذا الملفُّ في
+ * `scripts/lib/wasla-egress-registry.ts` حينَ كانَ قارئُه الوحيدُ حاجزَ البناءِ.
+ * ثمَّ صارَت له بوّابةٌ **وقتَ التشغيلِ** في
+ * `packages/infrastructure/egress/egress-gate.ts`، وشيفرةُ الإنتاجِ لا تستوردُ من
+ * `scripts/`، فنُقِلَ إلى `packages/shared` **كي يبقى مصدرُ الحقيقةِ واحداً**: لو
+ * نُسِخَت القائمةُ للتشغيلِ لصارَ مصدرانِ يفترقانِ بصمتٍ، وذاكَ أسوأُ من غيابِ
+ * البوّابةِ لأنَّه يُقرأُ إنفاذاً وليسَ كذلكَ. والحاجزُ يستثني هذا الملفَّ من مسحِ
+ * المضيفاتِ (الفحصُ ١١) لأنَّه **إعلانٌ لا موضعُ نداءٍ**، ولولا الاستثناءُ لصارَ
+ * الفحصُ ٥ («لا مُدخلَ ميّتاً») يجدُ كلَّ مضيفٍ في السجلِّ نفسِه فيُفرَّغُ من معناه.
+ *
  * ولا يُكرَّرُ ههنا شيءٌ من `wasla-boundary-registry.ts`: ذاكَ سجلُّ **جداولَ**،
  * وهذا سجلُّ **مقاصدَ شبكيّةٍ**، ولا حقلَ مشتركاً بينَهما.
  */
@@ -64,6 +74,20 @@ export type PeerSystem =
   /** لا نظامَ شقيقاً — قناةٌ أو بنيةٌ تحتيّةٌ أو خدمةٌ عامّةٌ. */
   | "NONE";
 
+/**
+ * هل يمرُّ هذا المقصدُ من بوّابةِ الصادرِ وقتَ التشغيلِ؟
+ *
+ * والسؤالُ ليسَ زينةً: حاجزُ البناءِ يقرأُ الشيفرةَ ولا يقفُ بينَ العمليّةِ
+ * والشبكةِ، فنداءٌ يُركَّبُ وقتَ التشغيلِ أو عميلٌ يُوجَّهُ إلى مضيفٍ غيرِ الذي
+ * يُعلِنُه يمرُّ من البناءِ ويخرجُ من الجهازِ. فمن كانَ ناقلُه `fetch` **يُلزَمُ**
+ * بالبوّابةِ (الفحصُ ١٣)، ومن لم يكن فيُعلِنُ سببَه مكتوباً لا مسكوتاً عنه.
+ */
+export type RuntimeGate =
+  /** ناقلُه `fetch` فيمرُّ من `createGuardedFetch(id)` في موضعِ النداءِ. */
+  | { readonly kind: "gated" }
+  /** لا ناقلَ `fetch` له، والسببُ مكتوبٌ ويُراجَعُ بالقراءةِ. */
+  | { readonly kind: "not-applicable"; readonly reason: string };
+
 export interface EgressPeer {
   /** معرّفٌ ثابتٌ يُحالُ إليه في الوثائقِ والاختباراتِ. */
   readonly id: string;
@@ -79,6 +103,8 @@ export interface EgressPeer {
    * وكلاهما يجبُ أن يكونَ **مُعلَناً في `ROADMAP.md`** لا اسماً مُختلَقاً.
    */
   readonly handover?: { readonly removedByItem: string; readonly blockedBy: string };
+  /** مرورُه من بوّابةِ التشغيلِ أو سببُ عدمِه — الفحصُ ١٣ يقيسُه. */
+  readonly runtimeGate: RuntimeGate;
   /**
    * هل أُزيلَ المقصدُ فعلاً؟ **لا يُرفَعُ إلى `true` إلّا إذا غابَ المضيفُ عن
    * الشيفرةِ**، والحاجزُ يقيسُ ذلكَ. فلا يُقرأُ عزمٌ إنجازاً.
@@ -111,6 +137,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "CORE",
     source: { kind: "env", envKeys: ["CORE_EVENTS_BASE_URL", "CORE_EVENTS_BEARER_TOKEN"] },
     callSite: "packages/infrastructure/wasla/core-event-shipper.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
 
@@ -121,7 +148,8 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     peerClass: "CHANNEL",
     system: "NONE",
     source: { kind: "library-default", packageName: "grammy", host: "api.telegram.org" },
-    callSite: "packages/infrastructure/notification/telegram-api-sender.ts",
+    callSite: "packages/infrastructure/notification/telegram-client.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
 
@@ -134,6 +162,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     source: { kind: "literal", hosts: ["api.moyasar.com"] },
     callSite: "packages/infrastructure/financial/moyasar-provider.ts",
     handover: { removedByItem: "W-7", blockedBy: "DEP-CORE-002" },
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
   {
@@ -144,6 +173,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     source: { kind: "literal", hosts: ["api.tap.company"] },
     callSite: "packages/infrastructure/financial/tap-provider.ts",
     handover: { removedByItem: "W-7", blockedBy: "DEP-CORE-002" },
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
 
@@ -155,6 +185,11 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "env", envKeys: ["DATABASE_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] },
     callSite: "packages/infrastructure/db/client.ts",
+    runtimeGate: {
+      kind: "not-applicable",
+      reason:
+        "ناقلُه بروتوكولُ PostgreSQL على مقبسٍ لا `fetch`، فلا موضعَ للبوّابةِ فيه؛ ومضيفُه من البيئةِ يفحصُه `assertEgressEnvironment`.",
+    },
     removed: false,
   },
   {
@@ -163,7 +198,8 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     peerClass: "INFRASTRUCTURE",
     system: "NONE",
     source: { kind: "env", envKeys: ["UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_REST_TOKEN"] },
-    callSite: "apps/gateway/src/redis/upstash.ts",
+    callSite: "packages/infrastructure/redis/upstash.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
   {
@@ -173,6 +209,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "literal", hosts: ["www.googleapis.com", "oauth2.googleapis.com"] },
     callSite: "packages/infrastructure/backup/google-drive-adapter.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
   {
@@ -182,6 +219,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "env", envKeys: ["METRICS_EXPORT_ENDPOINT"] },
     callSite: "packages/infrastructure/observability/metrics-exporter.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
 
@@ -193,6 +231,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "literal", hosts: ["api.deepl.com", "api-free.deepl.com"] },
     callSite: "packages/infrastructure/i18n-translation/translation-providers.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
   {
@@ -205,6 +244,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
       hosts: ["translation.googleapis.com", "translate.googleapis.com"],
     },
     callSite: "packages/infrastructure/i18n-translation/translation-providers.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
   {
@@ -214,6 +254,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "literal", hosts: ["api.mymemory.translated.net"] },
     callSite: "packages/infrastructure/i18n-translation/translation-providers.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
   {
@@ -223,6 +264,7 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "env", envKeys: ["OSRM_BASE_URL"] },
     callSite: "packages/maps/providers/osrm/osrm-provider.ts",
+    runtimeGate: { kind: "gated" },
     removed: false,
   },
   {
@@ -232,6 +274,11 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "env", envKeys: ["MAP_STYLE_URL", "MAP_TILES_PUBLIC_KEY"] },
     callSite: "packages/maps/providers/maplibre/maplibre-style.ts",
+    runtimeGate: {
+      kind: "not-applicable",
+      reason:
+        "بلاطاتٌ ونمطٌ يُحمَّلانِ في متصفّحِ المُشرِفِ، فالنداءُ من جهازِه لا من هذه العمليّةِ؛ والبوّابةُ تحرسُ صادرَ العمليّةِ وحدَه.",
+    },
     removed: false,
   },
 
@@ -243,6 +290,10 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "literal", hosts: ["unpkg.com"] },
     callSite: "packages/maps/providers/maplibre/maplibre-style.ts",
+    runtimeGate: {
+      kind: "not-applicable",
+      reason: "أصلٌ يُحمِّلُه المتصفّحُ ببصمةِ سلامةٍ، ولا نداءَ من الخادمِ ألبتّةَ.",
+    },
     removed: false,
   },
   {
@@ -252,7 +303,46 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     system: "NONE",
     source: { kind: "literal", hosts: ["maps.google.com"] },
     callSite: "apps/admin-dashboard/src/pages/driver-detail.ts",
+    runtimeGate: {
+      kind: "not-applicable",
+      reason: "رابطٌ يُعرَضُ لينقرَه المُشرِفُ، ولا نداءَ شبكةٍ من هذه العمليّةِ.",
+    },
     removed: false,
+  },
+] as const;
+
+/** موضعُ `fetch` يعملُ في متصفّحِ المستخدمِ لا في هذه العمليّةِ. */
+export interface BrowserFetchSite {
+  readonly path: string;
+  readonly reason: string;
+}
+
+/**
+ * المواضعُ التي يجوزُ فيها `fetch` عارياً بلا بوّابةٍ، **وكلُّها في المتصفّحِ**.
+ *
+ * والبوّابةُ تحرسُ صادرَ **هذه العمليّةِ**؛ ونصٌّ يُرسَلُ ليُنفَّذَ في متصفّحِ
+ * المُشرِفِ أو في تطبيقِ تلغرام المصغَّرِ لا يمرُّ من ذاكرةِ الخادمِ أصلاً، فحراستُه
+ * ههنا وهمٌ يُقرأُ إنفاذاً. وكلُّ موضعٍ ههنا **يجبُ أن يوجدَ وأن يحملَ `fetch` فعلاً**
+ * (الفحصُ ١٢)، كي لا يبقى استثناءٌ ميّتٌ يمرُّ منه غداً نداءٌ من الخادمِ.
+ */
+export const BROWSER_FETCH_SITES: readonly BrowserFetchSite[] = [
+  {
+    path: "apps/admin-dashboard/src/layout.ts",
+    reason:
+      "نصٌّ مُضمَّنٌ في صفحةِ لوحةِ الإدارةِ يُنادي `/admin/api/search` من متصفّحِ " +
+      "المُشرِفِ بأصلٍ واحدٍ (`same-origin`) — لا صادرَ من الخادمِ ولا مضيفَ خارجيّاً",
+  },
+  {
+    path: "apps/miniapp/src/api/client.ts",
+    reason:
+      "عميلُ تطبيقِ تلغرام المصغَّرِ يعملُ في المتصفّحِ ويُنادي بوّابةَ MOVE نفسَها؛ " +
+      "والمجلَّدُ مُستثنًى من `tsconfig` لأنَّه يُبنى ببناءٍ مستقلٍّ",
+  },
+  {
+    path: "apps/gateway/src/public/tracking-page.ts",
+    reason:
+      "نصٌّ مُضمَّنٌ في صفحةِ التتبُّعِ العامّةِ يستفتي موضعَ الرحلةِ من المتصفّحِ " +
+      "بعنوانٍ نسبيٍّ يُركِّبُه الخادمُ — لا نداءَ شبكةٍ من هذه العمليّةِ",
   },
 ] as const;
 
@@ -318,4 +408,11 @@ export function countByClass(
   const out = new Map<PeerClass, number>();
   for (const p of registry) out.set(p.peerClass, (out.get(p.peerClass) ?? 0) + 1);
   return out;
+}
+
+/** المقاصدُ المُلزَمةُ بالبوّابةِ وقتَ التشغيلِ. */
+export function gatedPeers(
+  registry: readonly EgressPeer[] = WASLA_EGRESS_REGISTRY,
+): readonly EgressPeer[] {
+  return registry.filter((p) => p.runtimeGate.kind === "gated");
 }

@@ -30,9 +30,18 @@ interface ServiceAccountKey {
   readonly private_key: string;
 }
 
+import { createGuardedFetch, type FetchLike } from "../../shared/wasla/egress-gate.ts";
+
 const DRIVE_UPLOAD_URL = "https://www.googleapis.com/upload/drive/v3/files";
 const DRIVE_FILES_URL = "https://www.googleapis.com/drive/v3/files";
 const JWT_TOKEN_URL = "https://oauth2.googleapis.com/token";
+
+/**
+ * البوّابةُ تُحَلُّ عندَ كلِّ نداءٍ لا مرّةً عندَ الاستيرادِ: لو ثُبِّتَ الناقلُ وقتَ
+ * التحميلِ لفاتَ كلُّ ناقلٍ يُستبدَلُ بعدَه، ومنه نائبُ الاختبارِ.
+ */
+const driveFetch: FetchLike = (input, init) =>
+  createGuardedFetch("google-drive-backup")(input, init);
 const SCOPE = "https://www.googleapis.com/auth/drive.file";
 
 /**
@@ -102,7 +111,7 @@ async function getAccessToken(
     key.private_key,
   );
 
-  const response = await fetch(JWT_TOKEN_URL, {
+  const response = await driveFetch(JWT_TOKEN_URL, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: `grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=${assertion}`,
@@ -146,7 +155,7 @@ export function createGoogleDriveStorage(config: GoogleDriveConfig): BackupStora
         ...new TextEncoder().encode(suffix),
       ]);
 
-      const response = await fetch(
+      const response = await driveFetch(
         `${DRIVE_UPLOAD_URL}?uploadType=multipart&fields=id,size,modifiedTime`,
         {
           method: "POST",
@@ -176,7 +185,7 @@ export function createGoogleDriveStorage(config: GoogleDriveConfig): BackupStora
       const token = await getAccessToken(config);
       if (!token.ok) return token;
 
-      const response = await fetch(`${DRIVE_FILES_URL}/${remoteFileId}?alt=media`, {
+      const response = await driveFetch(`${DRIVE_FILES_URL}/${remoteFileId}?alt=media`, {
         headers: { authorization: `Bearer ${token.value}` },
       });
       if (!response.ok) {
@@ -190,7 +199,7 @@ export function createGoogleDriveStorage(config: GoogleDriveConfig): BackupStora
       const token = await getAccessToken(config);
       if (!token.ok) return token;
       const query = encodeURIComponent(`'${config.folderId}' in parents and trashed = false`);
-      const response = await fetch(
+      const response = await driveFetch(
         `${DRIVE_FILES_URL}?q=${query}&fields=files(id,name,modifiedTime)&orderBy=modifiedTime&pageSize=100`,
         { headers: { authorization: `Bearer ${token.value}` } },
       );
@@ -214,7 +223,7 @@ export function createGoogleDriveStorage(config: GoogleDriveConfig): BackupStora
     delete: async (remoteFileId) => {
       const token = await getAccessToken(config);
       if (!token.ok) return token;
-      const response = await fetch(`${DRIVE_FILES_URL}/${remoteFileId}`, {
+      const response = await driveFetch(`${DRIVE_FILES_URL}/${remoteFileId}`, {
         method: "DELETE",
         headers: { authorization: `Bearer ${token.value}` },
       });

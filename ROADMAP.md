@@ -162,6 +162,22 @@ not a new item, and it closes a limit the first increment declared about itself.
 | Conflicting work checked | zero open pull requests at `227cb4d`, and no local or remote ref carries an `infrastructure/egress` or `egress-gate` path (scanned every `refs/remotes/origin/*` ref on 2026-09-12) |
 | Claim ceiling | this item still may **not** be marked `[x]`. `DEP-CORE-004` leaves the channel half open, and `ح-4` needs a read CI verdict while rule 0.4 keeps `verify` red. What this increment may claim, and no more: **an outbound call from this process is denied at runtime unless it is declared, and it is bound to the destination that declares it.** The gate cannot know MARKET's domain (`DEP-CORE-005`) — it enforces declaration, not domain identity, exactly as `ADR 0084` does. |
 
+### `W-6` second increment — measured outcome (recorded 2026-09-12, local only until CI rules)
+
+Additive record. It corrects the reservation above **by addition**, not by rewriting it (`ح-8`).
+
+| Field | Value |
+|---|---|
+| Decision | `ADR 0086` — runtime egress gate; complements `ADR 0084`, revokes nothing |
+| Where the gate landed | `packages/shared/wasla/egress-gate.ts` — **not** `packages/infrastructure/egress/` as reserved. Measured reason: one caller is `packages/maps`, which may not import from `infrastructure` (guarded layer boundary), so the reserved location forced a choice between breaking a boundary and leaving a destination outside the gate. It moved to `shared` — the lowest layer everyone imports, and where the registry itself now lives. |
+| Call sites wired | **nine files** for **eleven** gated destinations, not the four named in the reservation. The reservation listed only the bare-`fetch` sites; measuring the whole registry showed six more destinations reaching the network through an injected or library transport (telegram, metrics, three translation providers, OSRM, Upstash). Leaving them out would have made the gate optional. |
+| Registry call sites corrected | `telegram-bot-api` → `telegram-client.ts` (where grammY's transport is built) and `upstash-redis-rest` → `packages/infrastructure/redis/upstash.ts` (the gateway file is a re-export). Recorded, not silently changed. |
+| Static guard | checks ١١ (stale scan exemption), ١٢ (no bare `fetch` in server code outside the gate; three browser sites declared with reasons, each required to exist **and** actually contain a `fetch`), ١٣ (every `gated` destination's call site must import the gate and name its own id). No check ١..١٠ was weakened, silenced or removed. |
+| Startup guard | `assertEgressEnvironment(process.env)` in `apps/gateway/src/index.ts`, after config load and **before** container build; the ordering is asserted by a test, not described in prose. |
+| Local measurement (not a verdict — `ح-8`) | `bun test` 3035 pass · 829 skip · 0 fail · 10666 `expect()` · 3864 tests · 288 files (`main` measured 3008 pass; **+27** new cases: 17 gate, 10 guard) · `biome check .` 1114 files, no fixes · typecheck clean · `check:egress-boundary`, `check:migration-matrix`, `check:migration-dry-run`, `check-skip-classification`, `check-adr-numbering` all pass |
+| Still not claimable | `[x]` on `W-6` (channel half blocked by `DEP-CORE-004`; `ح-4` needs a CI verdict and rule 0.4 keeps `verify` red) · any network-layer enforcement (needs a proxy/firewall the repository does not own — `B-1`/`B-5`) · that a configured host really is CORE (`DEP-CORE-005`) |
+| Untouched, deliberately | `ADR 0084` · the `city_id` gate and rule 0.4 · the real-Redis job and its test · `MASTER_DIRECTIVE` · every payment business rule · `O-1` and `O-2`, which stay open and are not worked around; no secret was added to the repository |
+
 ### Reservation `W-6` — egress boundary (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in

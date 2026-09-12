@@ -36,6 +36,7 @@
  * لأنّ بعضَ المُجمِّعات تضع الرمزَ في المسار.
  */
 
+import { createGuardedFetch } from "../../shared/wasla/egress-gate.ts";
 import { countSeries, type MetricsResource, toOtlpExportRequest } from "./otlp.ts";
 import type { PrometheusRegistry } from "./registry.ts";
 
@@ -137,7 +138,8 @@ function defineSelfMetrics(registry: PrometheusRegistry): void {
 export function createMetricsExporter(options: MetricsExporterOptions): MetricsExporter {
   const log = options.log ?? (() => {});
   const now = options.now ?? (() => Date.now());
-  const send = options.fetch ?? fetch;
+  /** البوّابةُ: المُصدِّرُ لا يُنادي إلّا ما ضبطَه `METRICS_EXPORT_ENDPOINT`. */
+  const send = createGuardedFetch("metrics-collector", options.fetch, { env: process.env });
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const startTimeMs = now();
   const endpointOrigin = safeEndpointOrigin(options.endpoint);

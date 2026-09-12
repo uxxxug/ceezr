@@ -14,6 +14,7 @@ import type {
 } from "../../application/i18n-translation/index.ts";
 import { TranslationFailure } from "../../domain/i18n-translation/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
+import { createGuardedFetch, type FetchLike } from "../../shared/wasla/egress-gate.ts";
 
 /** مهلة تقنية: محادثة بين سائق وعميل في الشارع لا تحتمل انتظار مزوّد بطيء. */
 export const TRANSLATION_TIMEOUT_MS = 4000;
@@ -51,7 +52,7 @@ async function attemptJson(
   url: string,
   init: RequestInit,
   budgetMs: number,
-  doFetch: typeof fetch,
+  doFetch: FetchLike,
 ): Promise<Result<unknown, TranslationFailure>> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), budgetMs);
@@ -109,13 +110,37 @@ function deservesRetry(failure: TranslationFailure): boolean {
  * لأن الميزانية نفدت. والمكسب الحقيقي يقع حيث يقع العطل العابر فعلاً: ردّ 503 فوري،
  * أو اتصال مرفوض، أو قطع اتصال — وكلّها تفشل في أجزاء الثانية وتترك ميزانية وافرة.
  */
+/**
+ * اسمُ المزوّدِ إلى معرّفِ المقصدِ في السجلِّ. و`google-web` هوَ المقصدُ نفسُه
+ * (`google-translation`) لأنَّ مُدخلَه يُعلِنُ مضيفَي النهايتَينِ كلتَيهما.
+ */
+function translationPeerId(name: string): string {
+  switch (name) {
+    case "deepl":
+      return "deepl-translation";
+    case "google":
+    case "google-web":
+      return "google-translation";
+    case "mymemory":
+      return "mymemory-translation";
+    default:
+      return `unknown-translation-provider:${name}`;
+  }
+}
+
 async function requestJson(
   name: string,
   url: string,
   init: RequestInit,
   options: HttpTranslationOptions,
 ): Promise<Result<unknown, TranslationFailure>> {
-  const doFetch = options.fetchImpl ?? fetch;
+  /**
+   * البوّابةُ لكلِّ مزوّدٍ بمعرّفِه لا لملفٍّ: ثلاثةُ مقاصدَ في هذا الملفِّ، ومزوّدٌ
+   * لا يُعرَفُ اسمُه يُرفَضُ بـ`UNKNOWN_PEER` — فالمجهولُ لا يمرُّ (`ADR 0086`).
+   */
+  const doFetch = createGuardedFetch(translationPeerId(name), options.fetchImpl, {
+    env: process.env,
+  });
   const sleep = options.sleepImpl ?? defaultSleep;
   const totalBudget = options.timeoutMs ?? TRANSLATION_TIMEOUT_MS;
   const startedAt = Date.now();

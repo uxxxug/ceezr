@@ -97,6 +97,8 @@ function mapStatus(status: unknown): PaymentTransactionStatus | null {
   }
 }
 
+import { createGuardedFetch } from "../../shared/wasla/egress-gate.ts";
+
 function error(detail: string): Result<never, PortFailureError> {
   return err(new PortFailureError("moyasar", detail));
 }
@@ -109,6 +111,8 @@ export function createMoyasarProvider(options: MoyasarProviderOptions): PaymentP
   const baseUrl = (options.baseUrl ?? MOYASAR_API_URL).replace(/\/$/, "");
   const timeoutMs = options.timeoutMs ?? 10_000;
   const maxAttempts = options.maxAttempts ?? 3;
+  /** البوّابةُ: نداءٌ إلى غيرِ `api.moyasar.com` يُرفَضُ (`W-6` / `ADR 0086`). */
+  const doFetch = createGuardedFetch("moyasar-payments");
 
   async function request(
     path: string,
@@ -117,7 +121,7 @@ export function createMoyasarProvider(options: MoyasarProviderOptions): PaymentP
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       let response: Response;
       try {
-        response = await fetch(`${baseUrl}${path}`, {
+        response = await doFetch(`${baseUrl}${path}`, {
           ...init,
           headers: {
             Authorization: basicAuthorization(options.secretKey),

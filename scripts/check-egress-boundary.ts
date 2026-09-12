@@ -3,7 +3,7 @@
  * الغرض: حاجزُ حدِّ الصادرِ — البندُ `W-6` · القرارُ `ADR 0084`.
  *
  * ما يقيسُه: أنَّ كلَّ مقصدٍ شبكيٍّ في شيفرةِ الإنتاجِ **مُعلَنٌ** في
- * `scripts/lib/wasla-egress-registry.ts`، وأنَّ لا مرورَ بينَ الأنظمةِ إلّا عبرَ
+ * `packages/shared/wasla/egress-registry.ts`، وأنَّ لا مرورَ بينَ الأنظمةِ إلّا عبرَ
  * CORE، وأنَّ التكاملَ التجاريَّ المباشرَ **دَينٌ مُعلَنٌ** لا مسكوتٌ عنه، وأنَّ
  * السجلَّ **لا يدّعي إزالةً** لمقصدٍ ما زالَ في الشيفرةِ.
  *
@@ -14,6 +14,8 @@
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
+  BROWSER_FETCH_SITES,
+  type BrowserFetchSite,
   CLASSES_WITHOUT_SIBLING_SYSTEM,
   declaredLiteralHosts,
   type EgressPeer,
@@ -21,8 +23,9 @@ import {
   HOST_EXEMPTIONS,
   type HostExemption,
   type PeerClass,
+  type RuntimeGate,
   WASLA_EGRESS_REGISTRY,
-} from "./lib/wasla-egress-registry.ts";
+} from "../packages/shared/wasla/egress-registry.ts";
 
 export interface Problem {
   readonly check: string;
@@ -33,6 +36,24 @@ const DOC_PATH = "docs/wasla/egress-boundary.md";
 const BEGIN = "<!-- BEGIN GENERATED: egress-boundary -->";
 const END = "<!-- END GENERATED: egress-boundary -->";
 const SCAN_ROOTS = ["packages", "apps", "supabase"] as const;
+
+/**
+ * ملفُّ السجلِّ نفسُه. ويُستثنى من مسحِ المضيفاتِ لأنَّه **إعلانٌ لا موضعُ نداءٍ**:
+ * كانَ في `scripts/` فبقيَ خارجَ المسحِ بحكمِ موضعِه، ثمَّ نزلَ إلى `packages/shared`
+ * كي تقرأَه بوّابةُ التشغيلِ من مصدرٍ واحدٍ (`ADR 0086`). ولولا الاستثناءُ لوجدَ
+ * الفحصُ ٥ («لا مُدخلَ ميّتاً») كلَّ مضيفٍ مُعلَنٍ في السجلِّ نفسِه فيُفرَّغُ من
+ * معناه — وذاكَ إضعافُ حاجزٍ قائمٍ، لا إضافةُ حاجزٍ.
+ */
+const REGISTRY_FILE = "packages/shared/wasla/egress-registry.ts";
+
+/** بوّابةُ التشغيلِ — الموضعُ الوحيدُ الذي يجوزُ أن يلمسَ الناقلَ العامَّ. */
+const GATE_FILE = "packages/shared/wasla/egress-gate.ts";
+
+/** ملفّاتٌ لا تُمسَحُ مضيفاتُها: إعلانٌ لا نداءٌ. */
+const SCAN_EXCLUDED_FILES: readonly string[] = [REGISTRY_FILE] as const;
+
+/** `fetch` عارياً: لا مسبوقاً بنقطةٍ ولا جزءاً من معرّفٍ آخرَ. */
+const BARE_FETCH = /(?<![.\w$])fetch\s*\(/g;
 
 /**
  * الأصنافُ التي تُقاسُ حرفاً في الشيفرةِ. النطاقاتُ المستوى الأعلى مغلقةٌ عن قصدٍ:
@@ -138,6 +159,7 @@ export function scanLiteralHosts(roots: readonly string[] = SCAN_ROOTS): readonl
   for (const root of roots) {
     for (const file of walk(root)) {
       if (file.includes("/tests/") || file.endsWith(".test.ts")) continue;
+      if (SCAN_EXCLUDED_FILES.includes(file)) continue;
       const code = stripComments(readFileSync(file, "utf8"));
       for (const m of code.matchAll(/https:\/\/([a-zA-Z0-9._-]+)/g)) add(m[1] as string, file);
       for (const m of code.matchAll(/["'`]([a-z0-9][a-z0-9.-]*\.[a-z]{2,})["'`]/g)) {
@@ -163,6 +185,26 @@ export interface EgressInputs {
   readonly envExampleText: string;
   readonly packageJsonText: string;
   readonly callSiteExists: (path: string) => boolean;
+  /** المواضعُ المُعلَنةُ للمتصفّحِ — الفحصُ ١٢. */
+  readonly browserFetchSites: readonly BrowserFetchSite[];
+  /** كلُّ ملفِّ إنتاجٍ فيه `fetch` عارياً، مقيساً لا مُعلَناً — الفحصُ ١٢. */
+  readonly bareFetchFiles: readonly string[];
+  /** نصُّ ملفٍّ للقراءةِ، أو `undefined` إن غابَ — الفحصانِ ١١ و١٣. */
+  readonly readSource: (path: string) => string | undefined;
+}
+
+/** يمسحُ شيفرةَ الإنتاجِ فيُعيدُ كلَّ ملفٍّ يُنادي `fetch` عارياً بلا بوّابةٍ. */
+export function scanBareFetchFiles(roots: readonly string[] = SCAN_ROOTS): readonly string[] {
+  const out: string[] = [];
+  for (const root of roots) {
+    for (const file of walk(root)) {
+      if (file.includes("/tests/") || file.endsWith(".test.ts")) continue;
+      if (file === GATE_FILE) continue;
+      const code = stripComments(readFileSync(file, "utf8"));
+      if ([...code.matchAll(BARE_FETCH)].length > 0) out.push(file);
+    }
+  }
+  return out.sort();
 }
 
 export const DEFAULT_INPUTS: EgressInputs = {
@@ -172,6 +214,9 @@ export const DEFAULT_INPUTS: EgressInputs = {
   envExampleText: existsSync(".env.example") ? readFileSync(".env.example", "utf8") : "",
   packageJsonText: existsSync("package.json") ? readFileSync("package.json", "utf8") : "",
   callSiteExists: (p) => existsSync(p),
+  browserFetchSites: BROWSER_FETCH_SITES,
+  bareFetchFiles: scanBareFetchFiles(),
+  readSource: (p) => (existsSync(p) ? readFileSync(p, "utf8") : undefined),
 };
 
 /** المعرّفاتُ المُعلَنةُ في `ROADMAP.md` — تُستعملُ للتحقُّقِ من الإحالاتِ. */
@@ -368,6 +413,103 @@ export function egressProblems(
       );
   }
 
+  // ١١ — استثناءُ المسحِ ليسَ متقادماً: كلُّ ملفٍّ مُستثنًى موجودٌ وهوَ ما يُقالُ إنَّه.
+  for (const excluded of SCAN_EXCLUDED_FILES) {
+    const text = inputs.readSource(excluded);
+    if (text === undefined) {
+      push(
+        "١١ استثناءُ مسحٍ",
+        `الملفُّ المُستثنى من المسحِ لا وجودَ له: ${excluded} — استثناءٌ متقادمٌ ` +
+          "يُخرِجُ من المسحِ مساراً لا أحدَ يقرؤُه، فيبقى ثقباً باسمِ ملفٍّ ميّتٍ",
+      );
+      continue;
+    }
+    if (!text.includes("WASLA_EGRESS_REGISTRY"))
+      push(
+        "١١ استثناءُ مسحٍ",
+        `الملفُّ ${excluded} مُستثنًى من المسحِ وليسَ ملفَّ السجلِّ — الاستثناءُ ` +
+          "للإعلانِ وحدَه، ولا يُوسَّعُ إلى شيفرةٍ تُنادي",
+      );
+  }
+  const gateText = inputs.readSource(GATE_FILE);
+  if (gateText === undefined)
+    push(
+      "١١ استثناءُ مسحٍ",
+      `بوّابةُ التشغيلِ مفقودةٌ: ${GATE_FILE} — الفحصُ ١٢ يُعفي هذا المسارَ وحدَه ` +
+        "من `fetch` العاريِ، فغيابُه يعني إعفاءً بلا مُعفًى",
+    );
+
+  // ١٢ — لا نداءَ خارجَ البوّابةِ: `fetch` عارياً في الخادمِ مرفوضٌ.
+  const browserPaths = new Set(inputs.browserFetchSites.map((b) => b.path));
+  for (const file of inputs.bareFetchFiles) {
+    if (browserPaths.has(file)) continue;
+    push(
+      "١٢ بابٌ واحدٌ للتشغيلِ",
+      `الملفُّ ${file} يُنادي \`fetch\` عارياً بلا بوّابةٍ — كلُّ صادرٍ من هذه ` +
+        `العمليّةِ يمرُّ من \`createGuardedFetch("<معرّفُ المقصدِ>")\`، وإن كانَ ` +
+        "النداءُ يعملُ في متصفّحِ المستخدمِ فيُعلَنُ في `BROWSER_FETCH_SITES` بسببِه",
+    );
+  }
+  const bareSet = new Set(inputs.bareFetchFiles);
+  for (const site of inputs.browserFetchSites) {
+    if (site.reason.trim() === "")
+      push("١٢ بابٌ واحدٌ للتشغيلِ", `الموضعُ ${site.path} مُعلَنٌ للمتصفّحِ بلا سببٍ مكتوبٍ`);
+    if (inputs.readSource(site.path) === undefined) {
+      push("١٢ بابٌ واحدٌ للتشغيلِ", `الموضعُ المُعلَنُ للمتصفّحِ لا وجودَ له: ${site.path} — إعلانٌ ميّتٌ`);
+      continue;
+    }
+    if (!bareSet.has(site.path))
+      push(
+        "١٢ بابٌ واحدٌ للتشغيلِ",
+        `الموضعُ ${site.path} مُعلَنٌ للمتصفّحِ ولا \`fetch\` فيه — إعلانٌ ميّتٌ: ` +
+          "يبقى مكتوباً حتّى يُضافَ فيه غداً نداءٌ من الخادمِ فيمرَّ بلا حاجزٍ",
+      );
+  }
+
+  // ١٣ — البوّابةُ موصولةٌ فعلاً: كلُّ مقصدٍ مُلزَمٍ يُنادي بوّابتَه بمعرّفِه.
+  for (const peer of registry) {
+    /**
+     * مُدخلٌ بلا حقلِ بوّابةٍ ألبتّةَ يُرفَضُ لا يُتجاوَزُ: النوعُ يُلزِمُ الحقلَ في
+     * TypeScript، والحاجزُ يُنادى أيضاً من JavaScript ومن اختبارٍ يزرعُ مُدخلاً
+     * ناقصاً؛ والسكوتُ عنه يعني أنَّ حذفَ سطرٍ واحدٍ يُخرِجُ مقصداً من الإنفاذِ صامتاً.
+     */
+    const gate = peer.runtimeGate as RuntimeGate | undefined;
+    if (gate === undefined) {
+      push(
+        "١٣ بوّابةٌ موصولةٌ",
+        `المُدخلُ ${peer.id} بلا حقلِ \`runtimeGate\` — لا إلزامَ ولا إعفاءَ مكتوبٌ`,
+      );
+      continue;
+    }
+    if (gate.kind === "not-applicable") {
+      if (gate.reason.trim() === "")
+        push(
+          "١٣ بوّابةٌ موصولةٌ",
+          `المُدخلُ ${peer.id} يُعلِنُ أنَّ البوّابةَ لا تنطبقُ عليه بلا سببٍ مكتوبٍ — إعفاءٌ بلا مقابلٍ`,
+        );
+      continue;
+    }
+    const source = inputs.readSource(peer.callSite);
+    if (source === undefined) continue; // الفحصُ ٨ يُبلِّغُ عن الملفِّ الغائبِ
+    /**
+     * شرطانِ يُقاسانِ معاً: أنَّ الملفَّ يستوردُ البوّابةَ، وأنَّ معرّفَ المقصدِ
+     * مكتوبٌ فيه حرفاً. ولِمَ لا يُطلَبُ نصُّ النداءِ كاملاً: ملفٌّ واحدٌ فيه ثلاثةُ
+     * مقاصدَ (مزوّدو الترجمةِ) يُمرِّرُ المعرّفَ من جدولٍ لا يكتبُه في موضعِ النداءِ،
+     * فطلبُ النصِّ الكاملِ كانَ سيدفعُ إلى تكرارِ ثلاثةِ نداءاتٍ لأجلِ الحاجزِ لا
+     * لأجلِ الصوابِ. والشرطانِ معاً يمنعانِ الحالتَينِ اللتَينِ تُهِمَّانِ:
+     * مقصدٌ مُلزَمٌ في ملفٍّ لا بوّابةَ فيه، وبوّابةٌ في ملفٍّ لمقصدٍ غيرِ هذا.
+     */
+    const importsGate = source.includes("wasla/egress-gate.ts");
+    const namesPeer = source.includes(`"${peer.id}"`);
+    if (!importsGate || !namesPeer)
+      push(
+        "١٣ بوّابةٌ موصولةٌ",
+        `المُدخلُ ${peer.id} مُلزَمٌ بالبوّابةِ و${peer.callSite} ` +
+          `${importsGate ? "لا يذكرُ معرّفَه حرفاً" : "لا يستوردُ البوّابةَ"} — ` +
+          "فالإلزامُ مكتوبٌ في السجلِّ وغيرُ موصولٍ في الشيفرةِ",
+      );
+  }
+
   // ١٠ — الوثيقةُ مُولَّدةٌ من السجلِّ لا مكتوبةٌ بيدٍ.
   const expected = renderDoc(registry, exemptions);
   const actual = generatedSlice(docText);
@@ -425,7 +567,7 @@ export function renderDoc(
   const lines: string[] = [];
   lines.push("");
   lines.push(
-    "> هذه الكتلةُ **مُولَّدةٌ** من `scripts/lib/wasla-egress-registry.ts`. لا تُحرَّرْ بيدٍ:",
+    "> هذه الكتلةُ **مُولَّدةٌ** من `packages/shared/wasla/egress-registry.ts`. لا تُحرَّرْ بيدٍ:",
     "> حاجزُ `check-egress-boundary` يُسقِطُ البناءَ إن فارقَت السجلَّ.",
     "",
   );
@@ -433,17 +575,20 @@ export function renderDoc(
     const rows = registry.filter((p) => p.peerClass === peerClass);
     if (rows.length === 0) continue;
     lines.push(`### ${CLASS_LABEL[peerClass]}`, "");
-    lines.push("| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | أُزيلَ؟ |");
-    lines.push("|---|---|---|---|---|");
+    lines.push("| المقصدُ | الغرضُ | المصدرُ | موضعُ النداءِ | بوّابةُ التشغيلِ | أُزيلَ؟ |");
+    lines.push("|---|---|---|---|---|---|");
     for (const p of rows) {
       const handover =
         p.handover === undefined
           ? ""
           : ` (يُزيلُه \`${p.handover.removedByItem}\`، يحجبُه \`${p.handover.blockedBy}\`)`;
+      const gate =
+        p.runtimeGate.kind === "gated"
+          ? "نعم — `createGuardedFetch`"
+          : `لا تنطبقُ: ${p.runtimeGate.reason}`;
       lines.push(
-        `| \`${p.id}\` | ${p.purpose}${handover} | ${sourceCell(p)} | \`${p.callSite}\` | ${
-          p.removed ? "نعم" : "لا"
-        } |`,
+        `| \`${p.id}\` | ${p.purpose}${handover} | ${sourceCell(p)} | \`${p.callSite}\` | ` +
+          `${gate} | ${p.removed ? "نعم" : "لا"} |`,
       );
     }
     lines.push("");
