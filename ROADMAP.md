@@ -145,6 +145,22 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `W-8` (second increment) — unforgeable CORE attestation and one readable blocker registry (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-8` — reconciliation and dry-run tooling for the job and identity migrations (second increment: close a hole the first increment left in its own refusal mechanism) |
+| Branch | `feat/w8-attestation-and-blocker-registry`, cut from `main`@`bf4687e` |
+| Measured hole | `deriveReconciliation` returns `RECONCILED` whenever a caller hands it a `CoreSide`. `CoreAttestation` is a **plain interface of three strings**, so any caller — a script, a test, a future adapter — can hand-write `{ readVia, closedDependency, measuredAt }` and obtain a green reconciliation while `DEP-CORE-007` is still open. Guard check ٦ only forbids the `RECONCILED` **literal** in production code; it cannot see a value derived at run time. So today the refusal rests on nobody trying, which is not a mechanism. Second measured hole: blocker identifiers (`DEP-CORE-001`…`007`, `O-1`, `O-2`, `B-1`…`B-5`) appear as bare string literals across at least 11 TypeScript files with no single readable source, so a typo, a silently renamed blocker, or a locally invented id reads as governance. |
+| Scope reserved | `scripts/lib/wasla-blockers.ts` (new — the single machine-readable blocker registry) · `scripts/lib/wasla-migration-dry-run.ts` (attestation becomes issuable only through one factory that reads the registry) · `scripts/check-blocker-registry.ts` (new guard) · `scripts/check-migration-dry-run.ts` (added checks only; **no existing check weakened**) · `docs/wasla/blockers.md` (new, generated) · `tests/unit/wasla-blockers.test.ts` (new) · `tests/unit/check-blocker-registry.test.ts` (new) · `tests/unit/check-migration-dry-run.test.ts` (added cases only) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (`verify`, one step **before** the red `city_id` step) · `docs/adr/0087-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-8-attestation-20260912.md` (new) |
+| Scope **not** reserved and not touched | `scripts/migrate.ts` (ADR-0068) · every migration file · `scripts/lib/wasla-migration-matrix.ts` (read-only single source) · `ADR 0085` and `ADR 0084` (`ح-6`: published, never edited) · the `city_id` guard and rule 0.4 · the real-Redis test and Upstash secrets · `MASTER_DIRECTIVE` · every payment rule · any file in CORE or MARKET |
+| Dependencies checked before opening | `DEP-CORE-007` (no shared CORE environment) is precisely what makes the hole reachable and stays **open**; this branch does not close it, it makes a green reconciliation **impossible to construct** while it is open. `B-1`/`B-2`/`B-3` block running any wave and are untouched. `O-1` and `O-2` are unrelated to this scope and are left red as recorded. |
+| Conflicting work checked | no open pull request (checked 2026-09-12). No branch among the 38 `origin/*` refs carries `wasla-blockers`, `check-blocker-registry`, or `issueCoreAttestation`; the only files mentioning `CoreAttestation` are this item's own first-increment artifacts. |
+| Claim ceiling | this item may **not** be marked `[x]`, and this increment does not raise the ceiling: `DEP-CORE-007` still leaves MOVE with no CORE side to reconcile, so **no reconciliation is completed** — the improvement is that a false green stops being possible rather than merely unattempted. `ح-4` still requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`, and `ح-5` still bars any production-proof claim. |
+
 ### Reservation `W-6` (second increment) — runtime egress gate (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
