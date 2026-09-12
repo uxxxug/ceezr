@@ -161,6 +161,23 @@ Recorded **before** the first edit, per the reservation rule in
 | Conflicting work checked | no open pull request (checked 2026-09-12). No branch among the 38 `origin/*` refs carries `wasla-blockers`, `check-blocker-registry`, or `issueCoreAttestation`; the only files mentioning `CoreAttestation` are this item's own first-increment artifacts. |
 | Claim ceiling | this item may **not** be marked `[x]`, and this increment does not raise the ceiling: `DEP-CORE-007` still leaves MOVE with no CORE side to reconcile, so **no reconciliation is completed** — the improvement is that a false green stops being possible rather than merely unattempted. `ح-4` still requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`, and `ح-5` still bars any production-proof claim. |
 
+### Reservation `W-9` (first increment, **inside** `B-5`) — cutover step ledger with declared inverses and a read-only rehearsal that refuses by construction (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-9` — cutover and rollback rehearsal. Blocked by `B-5`. |
+| Branch | `feat/w9-cutover-plan-readonly-rehearsal`, cut from `main`@`1d361ea` |
+| What is **not** attempted | no rehearsal is performed, no wave is executed, no row is written, and `B-5` is **not** worked around. The already-recorded status of this item (2026-09-12) stands: `B-5`, `B-3`, `DEP-CORE-007` and `B-1` are all open, and a rehearsal whose target does not exist would rehearse nothing. |
+| What **is** done inside those bounds | today the refusal to rehearse lives only in **prose** in this file. Prose is not a mechanism: nothing stops a later script, adapter or report from asserting "cutover rehearsed" while the four blockers are open, and nothing declares — machine-readably — what a step's **inverse** even is. So: derive a cutover step ledger from the existing migration matrix (no new source of truth), make every step declare its inverse rollback step and its read-only verification probe or fail the build, and make the rehearsal executor **refuse by construction** using the `W-8` blocker registry rather than by convention. |
+| Scope reserved | `scripts/lib/wasla-cutover-plan.ts` (new — derived, not authored) · `scripts/check-cutover-plan.ts` (new guard) · `scripts/rehearse-cutover.ts` (new — read-only executor) · `docs/wasla/cutover-plan.md` (new, generated) · `tests/unit/wasla-cutover-plan.test.ts` (new) · `tests/unit/check-cutover-plan.test.ts` (new) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (one `verify` step **before** the red `city_id` step, and one step in the real-PostgreSQL job **after** the safe applier) · `docs/adr/0088-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-9-cutover-plan-20260912.md` (new) |
+| Scope **not** reserved and not touched | `scripts/lib/wasla-migration-matrix.ts` (read-only single source) · `scripts/lib/rollback-registry.ts` and `scripts/lib/rollback-audit.ts` and `scripts/rollback-schema-drill.ts` (`OPS-010`, measured and merged — reused, never edited) · `scripts/migrate.ts` (ADR-0068) · every migration file · `ADR 0047`, `0085`, `0087` (`ح-6`) · the `city_id` guard and rule 0.4 · the real-Redis test and Upstash secrets · `MASTER_DIRECTIVE` · any file in CORE or MARKET |
+| Dependencies checked before opening | `B-5` (no production release approval) — **open**, and this increment neither closes it nor rehearses around it; it makes the refusal enforced instead of narrated. `B-3` (no CORE environment) · `DEP-CORE-007` (no shared CORE environment) · `B-1` (production inventory unknown) — all open and all read from the registry by the executor's refusal. `B-2`, `DEP-CORE-002`, `DEP-CORE-003`, `DEP-CORE-004` gate individual waves through the matrix's own `entryCondition` text. `O-1` and `O-2` are unrelated and left red. |
+| Conflicting work checked | zero open pull requests at `1d361ea`; no remote ref carries `cutover` (checked 2026-09-12). |
+| Claim ceiling | `W-9` may **not** be marked `[x]`, and its state stays **قيد التنسيق — blocked**. Nothing here is a rehearsal, and the executor is built so that it **cannot** report one while the four blockers are open. `ح-4` still requires a read CI verdict, and `ح-5` still bars any production-proof claim. |
+
 ### Outcome `W-8` (second increment) — recorded 2026-09-12
 
 Evidence: `docs/evidence/architecture/W-8-attestation-20260912.md` · decision:
