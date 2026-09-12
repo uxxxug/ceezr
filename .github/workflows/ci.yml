@@ -124,6 +124,13 @@ jobs:
       - name: مصفوفةُ الهجرةِ شاملةٌ ومتماسكةٌ ولا تدّعي تنفيذاً (W-2 / ADR 0083)
         run: bun run scripts/check-migration-matrix.ts
 
+      # حدُّ الصادرِ: كلُّ مقصدٍ شبكيٍّ مُعلَنٌ، ولا مقصدَ في MARKET، ولا مرورَ
+      # بينَ الأنظمةِ إلّا عبرَ بابِ CORE، ولا ادّعاءَ إزالةٍ بلا إزالةٍ. (ADR 0084)
+      #
+      # وموضعُه **قبلَ** حاجزِ القاعدةِ 0.4 لعينِ السببِ المذكورِ أعلاه.
+      - name: حدُّ الصادرِ مُعلَنٌ بالكاملِ ولا مقصدَ في MARKET (W-6 / ADR 0084)
+        run: bun run scripts/check-egress-boundary.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
