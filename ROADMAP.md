@@ -238,6 +238,51 @@ permission contradiction resolved in ADR-0093 (the welcome screen states that
 location will be asked for later and never calls `navigator.geolocation`; the
 §9.5 text is unchanged per `ح-1`).
 
+#### CI verdict ledger — branch `feat/f2-01-welcome-and-consents` (additive, newest last · `ح-8`)
+
+**Round 1 — `56de922`, run `34718507883`.**
+
+| Job | Verdict |
+|---|---|
+| `verify` | ❌ at step **25** `منع أي جدول بلا city_id` — the inherited sovereign block (`O-1`). Steps 1–24 all passed, **including the two new `F2-01` guard steps 23 and 24**, and including `منع الأرقام التجارية المرمَّزة` so the new block-scoped exception was judged by CI and not only locally. |
+| `تكامل على PostgreSQL حقيقي` | ❌ at step **11** — **a real defect from this branch**, root-caused below. |
+| `تكامل على Redis حقيقي` | ❌ `O-2`, inherited from `main`. |
+| `فوضى متعدد المثيلات (F5-06)` | ✅ |
+| `Roadmap freshness` | ✅ |
+
+**The defect, and why local green was not a verdict.** In PostgreSQL `execute` is
+granted to `public` the moment a function is created, and both new RPCs are
+`security definer`. So any `anon` key holder could write a consent in any
+`telegram_id`'s name and read anyone's consents, bypassing RLS entirely — a
+security defect, not a test defect. It was caught by
+`tests/integration/database-privilege-surface.test.ts:91` and
+`tests/integration/security/adversarial-security.test.ts:352`, two **repository-wide**
+integration files that enumerate every function in the schema. Locally only the
+new consent file had been run, so nothing looked at the privilege surface. Fixed
+at the source by adding `revoke execute … from public, anon, authenticated` to
+the migration itself — the pattern every other function here already follows, so
+the defect was an omission against an existing pattern, not a new judgement call.
+No test was edited, no file exempted, nothing moved up a layer. The obligation
+was then **tightened**: a ninth assertion in `tests/integration/user-consents.test.ts`
+reads `has_function_privilege` for both functions by name and requires they exist
+first so it cannot pass on an empty list (skip registry 8 → 9, pinned audit
+778 → 779, both additive).
+
+**Round 2 — `f89fc24`, run `34719006943`.**
+
+| Job | Verdict |
+|---|---|
+| `verify` | ❌ at the inherited `city_id` step only (`O-1`) |
+| `تكامل على PostgreSQL حقيقي` | ✅ — **the branch defect is gone from CI's own verdict** |
+| `تكامل على Redis حقيقي` | ❌ `O-2`, inherited |
+| `فوضى متعدد المثيلات (F5-06)` | ✅ |
+| `Roadmap freshness` | ❌ — **a second real defect from this branch**: the fix commit changed `scripts/lib/skip-registry.ts` and the migration without touching `ROADMAP.md` in the same cycle, which `scripts/check-roadmap.mjs` forbids as a hard rule. The guard was right; this ledger section is the fix, and it is also what the standing instruction to keep a per-branch CI ledger here asks for. |
+
+So after round 2 the only red owned by this branch was the missing ledger entry,
+and the rest is `O-1` and `O-2` — two declared sovereign blocks whose owner is
+not the repository executor. Still **no** `[x]` for `F2-01` and no `F2` gate
+claim.
+
 
 ### Reservation `DEP-CORE-005` — a mechanical freshness comparator for the vendored CORE contracts (opened 2026-09-12, before any file was edited)
 
