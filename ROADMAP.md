@@ -354,7 +354,32 @@ of truth for a disposition that could drift silently.
 Local green is not a verdict (`ح-8`). Filled in from the GitHub Actions API after
 the push, per job, not summarised.
 
-<!-- CI verdict for this branch is recorded here after the run is read. -->
+| Commit | `verify` | real PostgreSQL | real Redis | multi-instance chaos | Roadmap freshness |
+|---|---|---|---|---|---|
+| `a587923` (push `34664552923`) | `failure` | `success` | `failure` | `success` | `success` |
+| `a587923` (PR [#3](https://github.com/uxxxug/ceezr/pull/3), run `34664586565`) | `failure` | `success` | `failure` | `success` | — |
+
+**What this item actually measures.** The job log was read step by step, not as a
+rolled-up conclusion. In both runs:
+
+| Step | Name | Conclusion |
+|---|---|---|
+| 15 | مصفوفةُ الهجرةِ شاملةٌ ومتماسكةٌ ولا تدّعي تنفيذاً (W-2 / ADR 0083) | **`success`** |
+| 16 | منع أي جدول بلا `city_id` في المخططات | **`failure`** |
+| 24 | جردُ حدودِ WASLA (W-1) | `skipped` |
+
+The `W-2` guard is therefore **proven at CI, not only locally**. Step 24 being
+`skipped` is the read evidence that moving the step ahead of the red one was not
+cosmetic: without the move this item's guard would have been `skipped` too — no
+verdict at all — and "implemented" would have been claimed for a gate that never
+ran.
+
+The rule-0.4 gate was **not weakened**: it fails at step 16 with the same message
+it fails with on `main`, and the job conclusion stays `failure`. Both reds are
+pre-existing on `main` (run `34661342014` at `8d031c2`) — same jobs, same failing
+steps, no regression introduced here. `O-1` and `O-2` are owner decisions.
+
+The run is **not** claimed to be green.
 
 ## CI verdicts on branch `feat/w4-w5-operational-job-and-core-lifecycle` (additive)
 
