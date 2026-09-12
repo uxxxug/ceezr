@@ -145,6 +145,21 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `W-8` — dry-run and reconciliation tooling (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-8` — reconciliation and dry-run tooling for the job and identity migrations |
+| Branch | `feat/w8-migration-dry-run-and-reconcile`, cut from `main`@`0c25ca0` |
+| Scope reserved | `scripts/lib/wasla-migration-dry-run.ts` (new) · `scripts/check-migration-dry-run.ts` (new) · `scripts/wasla-migration-dry-run.ts` (new, the runnable tool) · `docs/migration/dry-run-and-reconciliation.md` (new, generated) · `tests/unit/check-migration-dry-run.test.ts` (new) · `tests/integration/migration-dry-run-read-only.test.ts` (new) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (`verify` job, one added step) · `docs/adr/0085-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-8-20260912.md` (new) |
+| Scope **not** reserved and not touched | `scripts/migrate.ts` (the single lawful applier, ADR-0068) · every migration file · `scripts/lib/wasla-migration-matrix.ts` and `scripts/lib/wasla-boundary-registry.ts` (read-only inputs, single sources of truth) · every existing guard · any file in CORE or MARKET |
+| Dependencies checked before opening | `B-1` (production inventory unknown), `B-2` (identity-merge policy), `B-3` (no CORE environment) and `DEP-CORE-007` (no shared CORE environment) all block **running** a wave against real systems. None of them blocks building the tooling and proving its safety invariant, which is what this branch does. What they do block is any claim of a completed reconciliation — and that is enforced, not merely noted. |
+| Conflicting work checked | no branch on `origin` (34 refs) carries a dry-run or reconciliation path, and the only pre-existing `reconcile*` files are unrelated domain use cases (`packages/application/financial/reconcile-pending-payments.ts`, `packages/application/subscription/*`, `packages/application/enterprise-integration/reconcile-integration-state.ts`). The one open pull request is [#4](https://github.com/uxxxug/ceezr/pull/4) (`W-6`), which touches no file in this scope. |
+| Claim ceiling | this item may **not** be marked `[x]`. The tooling can be built and its safety invariant measured on a real PostgreSQL, but **no reconciliation can be completed** while `DEP-CORE-007` leaves MOVE with no real CORE source to reconcile against, and `ح-4` requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`. What this branch may claim: a dry-run that **provably cannot write**, and a reconciler that **provably cannot report a false green**. |
+
 ### Reservation `W-2` — migration matrix (opened 2026-09-12, before any file was edited; artifacts landed, see the `W-2` status section below)
 
 Recorded **before** the first edit so that no second executor opens the same
