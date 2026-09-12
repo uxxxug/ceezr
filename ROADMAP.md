@@ -1015,6 +1015,36 @@ That is `O-2`: the two Actions secrets are absent, so the job refuses to report
 green for a run that never spoke to Redis. The failure is the guard working, and
 it is an absent owner-provided resource, not a defect in code on this branch.
 
+### Verdicts at `65ca31c` (second increment), read the same way
+
+Runs `34697770745` (`Roadmap freshness`), `34697770772` (push CI),
+`34697772063` (pull-request CI).
+
+| Job | Verdict |
+|---|---|
+| `Roadmap freshness` | **success** — including the new step 6 `A re-vendored contract carries its pin (DEP-CORE-005)` |
+| `verify` | **failure**, unchanged, at step **22** `منع أي جدول بلا city_id` — the step number moved from 21 to 22 because the new guard step was inserted before it |
+| `تكامل على PostgreSQL حقيقي` · `فوضى متعدد المثيلات` | **success** |
+| `تكامل على Redis حقيقي` | **failure**, unchanged, at the secrets step (`O-2`) |
+
+All three `DEP-CORE-005` steps in `verify` were judged and passed: **19** pins,
+**20** freshness-comparator seeded breach, **21** pin-follows-bytes seeded breach.
+Steps 23–58 remain skipped behind the red one.
+
+The range guard printed, in CI, with a real push range:
+
+```
+env:
+  BASE_SHA: ea4c29b5cb4ef1c4731ac252b1872b08f5548d0a
+  HEAD_SHA: 65ca31c9330eeaa468802fb2e8c3627c469f7217
+سندُ العقودِ يتبعُ بايتاتِها: لا ملفَّ منقولاً تغيَّرَ في ea4c29b..65ca31c — فلا سندَ يلزمُ تحديثُه.
+```
+
+which is the true statement for this range: this branch appends to
+`PROVENANCE.md` and re-vendors no bytes. The guard will have something to judge
+the moment pull request `#11` or a future re-vendoring pushes changed contract
+bytes — which is exactly the event it exists for.
+
 ### What this verdict does and does not license
 
 It licenses exactly one claim: **the provenance of the vendored contracts is now
