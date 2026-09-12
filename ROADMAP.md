@@ -1050,6 +1050,56 @@ branch or pull request was merged or deleted; no secret was added.
   merged, none deleted.
 
 
+## CI verdicts on branch `feat/w5-recontract-cancellation-tenant-scope` (additive)
+
+Read from GitHub after pushing `cc0e11d`, job by job and step by step. Recorded
+as read; nothing here is a state flip (`ح-4`).
+
+| Run | Event | Job | Verdict | Where |
+|---|---|---|---|---|
+| `34694520036` | push | `Roadmap freshness` | **success** | — |
+| `34694520058` | push | `تكامل على PostgreSQL حقيقي` | **success** | 17 steps succeeded, 1 skipped (the failure-comment step, `if: failure()`) |
+| `34694520058` | push | `فوضى متعدد المثيلات (F5-06)` | **success** | 13 steps succeeded, 1 skipped (same) |
+| `34694520058` | push | `verify` | **failure** | steps 1–18 succeeded; **step 19** `منع أي جدول بلا city_id في المخططات` failed; steps 20–55 skipped |
+| `34694520058` | push | `تكامل على Redis حقيقي` | **failure** | **step 8** `اختبارات الجلسات على Redis حقيقي` failed; step 9 (the attestation guard) skipped |
+| `34694563529` | pull_request (#11) | CI | **failure** | same two jobs, same two steps |
+
+**Both failures are the two owner blockers already recorded, unchanged by this
+increment and identical to the verdict on `main`@`1d361ea`:** step 19 is `O-1`
+(rule 0.4 — `operational_jobs`, `core_event_inbox`, `move_event_outbox` carry no
+`city_id`, which needs either CORE geography per `DEP-CORE-006` or an owner
+appendix), and Redis step 8 is `O-2` (the Upstash URL and token are not set as
+repository Actions secrets, and `REQUIRE_REAL_REDIS=1` makes the code throw
+correctly rather than pass silently). No step that this increment could affect
+failed.
+
+### A claim written earlier in this same increment, corrected by addition
+
+Two paragraphs written before this verdict was read — one in the `W-5` third-increment
+status section above, one in `docs/SYSTEM_STATE.md`, one in
+`docs/evidence/architecture/W-5-CANCELLATION-20260912.md` — state that «`bun test`
+has **never** been judged inside `verify`». **That is wrong, and it is corrected
+here rather than deleted there.** Step 8 of `verify` is named `Test` and runs
+`set -o pipefail; bun run test 2>&1 | tee /tmp/ci-output.log`, and `test` is
+`bun test`. It **succeeded** on this branch and on `main`. What step 19 actually
+prevents from ever being judged is the **guard chain from step 20 to step 55** —
+migration safety, hot-query index coverage, the WASLA boundary inventory, the
+CORE contract parity guard (step 52), the vendored-contract integrity guard
+(step 53) and the coverage gate (step 54). Those are the checks whose CI verdict
+is unread, including the two guards this increment relies on most. The practical
+consequence stands and is now stated precisely: **the contract guards added in
+`W-5` have green local runs and no CI verdict of their own, so `ح-4` cannot be
+satisfied for them while `O-1` is open.**
+
+Second correction of the same kind: `verify` step 8 running the full `bun test`
+with no `TEST_DATABASE_URL` means the integration suites self-skip there, which
+is where the large skip count in this job comes from. The PostgreSQL integration
+job is the one that judges them, and it **succeeded** — which also settles the
+four local failures classified in the `docs(W-5)` commit as environment
+artifacts: CI, on `postgis/postgis:17-3.5` with one database per job, is green
+on the same code.
+
+
 ## Blockers
 
 | # | Blocker | Impact | What unblocks it |
