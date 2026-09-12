@@ -17,6 +17,20 @@
  * العقودُ فعلاً — `type`، `enum`، `format: uuid|date-time`، `minLength`،
  * `minimum`، ومنعُ الحقلِ الزائدِ — **والحاجزُ يُخفِقُ إن استعملَ عقدٌ جديدٌ
  * كلمةً لا يعرفُها المُدقِّقُ**، فلا يُقبَلُ عقدٌ يُدَّعى إنفاذُه وهوَ مُهمَلٌ.
+ *
+ * ## زيادةُ 2026-09-12: الإلغاءُ صارَ مُسمّىَ المستأجرِ، ومالياً غيرَ محسومٍ
+ *
+ * أعادَ CORE نشرَ `core.fulfillment.cancelled.v1` في دورةِ نطاقِ المستأجرِ
+ * (`acd93c8`، إغلاقُ حاجزِه `CORE:B-23`): `organization_id` **مطلوبٌ**، و`captured_minor`
+ * و`financial_decision_required` مُضافانِ، و`partially_captured` دخلَ
+ * `settlement_state`. وكانَ إعلانُنا قبلَ هذه الزيادةِ يجهلُها كلَّها، والمُدقِّقُ
+ * يمنعُ الحقلَ الزائدَ، و`consume` يُدقِّقُ قبلَ الإيداعِ — فكانَ MOVE **يردُّ كلَّ
+ * إلغاءٍ يُنشِرُه CORE** فتبقى المهمّةُ جاريةً وقد أُلغيَ طلبُها. وأُضيفَ لأجلِ
+ * `financial_decision_required` نوعٌ سادسٌ إلى `FieldSpec.type` هوَ `boolean`:
+ * الكلماتُ المفهومةُ لم تزدْ، وإنَّما اتّسعَت قيمةُ `type` لِما ينصُّه العقدُ.
+ * وما لا يُنفِّذُه هذا الملفُّ من دلالةِ العقدِ — «الغائبُ ليسَ صفراً»، و«القيمةُ
+ * المجهولةُ لا تُقرأُ إباحةً» — مُنفَذٌ ضمناً: الأوّلُ لأنَّ الحقلَ اختياريٌّ فلا
+ * تُختلَقُ له قيمةٌ، والثاني لأنَّ `enum` يردُّ ما ليسَ فيه.
  */
 
 /** الكلماتُ التي يفهمُها المُدقِّقُ — وما زادَ عليها يُخفِقُ الحاجزَ لا يُتجاهَلُ. */
@@ -30,7 +44,7 @@ export const SUPPORTED_SCHEMA_KEYWORDS = [
 ] as const;
 
 export interface FieldSpec {
-  readonly type: "string" | "integer" | "object" | readonly ["string", "null"];
+  readonly type: "string" | "integer" | "boolean" | "object" | readonly ["string", "null"];
   readonly format?: "uuid" | "date-time";
   readonly enum?: readonly string[];
   readonly minLength?: number;
@@ -86,16 +100,19 @@ export const PAYLOAD_SPECS: Readonly<Record<string, ObjectSpec>> = {
     },
   },
   "core.fulfillment.cancelled.v1": {
-    required: ["fulfillment_id", "order_reference", "reason", "cancelled_at"],
+    required: ["fulfillment_id", "organization_id", "order_reference", "reason", "cancelled_at"],
     properties: {
       fulfillment_id: { type: "string", format: "uuid" },
+      organization_id: { type: "string", format: "uuid" },
       order_reference: { type: "string", minLength: 1 },
       reason: { type: "string", minLength: 1 },
       cancelled_at: { type: "string", format: "date-time" },
       settlement_state: {
         type: "string",
-        enum: ["none", "held", "captured", "released", "unsettled"],
+        enum: ["none", "held", "captured", "partially_captured", "released", "unsettled"],
       },
+      captured_minor: { type: "integer", minimum: 0 },
+      financial_decision_required: { type: "boolean" },
     },
   },
   "move.job.accepted.v1": {

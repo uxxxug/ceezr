@@ -172,6 +172,8 @@ describe("مُدقِّقُ المغلَّفِ — تنفيذُ عقدِ CORE ل�
     if (spec === undefined) throw new Error("إعلانٌ مفقودٌ");
     const base = {
       fulfillment_id: VALID_CREATED.event_id,
+      // مطلوبٌ منذُ دورةِ نطاقِ المستأجرِ عندَ CORE (`acd93c8`).
+      organization_id: VALID_CREATED.entity_id,
       order_reference: "order-1",
       reason: "rider_cancelled",
       cancelled_at: "2026-09-11T10:00:00Z",
@@ -181,6 +183,69 @@ describe("مُدقِّقُ المغلَّفِ — تنفيذُ عقدِ CORE ل�
     expect(
       validateObject(spec, { ...base, settlement_state: "frozen" }, "").length,
     ).toBeGreaterThan(0);
+  });
+
+  /**
+   * دورةُ نطاقِ المستأجرِ والقرارِ الماليِّ على حدثِ الإلغاءِ — حالاتٌ لم تكنِ
+   * مقاسةً ألبتّةَ قبلَ إعادةِ النقلِ من CORE.
+   */
+  describe("إلغاءُ CORE بعدَ دورةِ نطاقِ المستأجرِ", () => {
+    const spec = () => {
+      const found = PAYLOAD_SPECS["core.fulfillment.cancelled.v1"];
+      if (found === undefined) throw new Error("إعلانٌ مفقودٌ");
+      return found;
+    };
+    const base = {
+      fulfillment_id: VALID_CREATED.event_id,
+      organization_id: VALID_CREATED.entity_id,
+      order_reference: "order-1",
+      reason: "rider_cancelled",
+      cancelled_at: "2026-09-11T10:00:00Z",
+    };
+
+    it("`organization_id` مطلوبٌ: غيابُه نقصٌ مُسمَّىً لا تسامُحٌ", () => {
+      const { organization_id: _omitted, ...withoutOrg } = base;
+      const issues = validateObject(spec(), withoutOrg, "payload.");
+      expect(issues.some((issue) => issue.path === "payload.organization_id")).toBe(true);
+    });
+
+    it("الشكلُ الماليُّ الكاملُ مقبولٌ: قبضٌ جزئيٌّ وقرارٌ معلَّقٌ", () => {
+      expect(
+        validateObject(
+          spec(),
+          {
+            ...base,
+            settlement_state: "partially_captured",
+            captured_minor: 2500,
+            financial_decision_required: true,
+          },
+          "",
+        ),
+      ).toEqual([]);
+    });
+
+    it("`captured_minor` عددٌ صحيحٌ غيرُ سالبٍ — والكسرُ والسالبُ مردودان", () => {
+      expect(validateObject(spec(), { ...base, captured_minor: -1 }, "").length).toBeGreaterThan(0);
+      expect(validateObject(spec(), { ...base, captured_minor: 12.5 }, "").length).toBeGreaterThan(
+        0,
+      );
+      expect(validateObject(spec(), { ...base, captured_minor: 0 }, "")).toEqual([]);
+    });
+
+    it("`financial_decision_required` منطقيٌّ لا نصٌّ: «true» سلسلةً مردودةٌ", () => {
+      expect(validateObject(spec(), { ...base, financial_decision_required: true }, "")).toEqual(
+        [],
+      );
+      expect(
+        validateObject(spec(), { ...base, financial_decision_required: "true" }, "").length,
+      ).toBeGreaterThan(0);
+    });
+
+    it("حقلٌ زائدٌ لا يُعلِنُه العقدُ يُرَدُّ — فلا تُقرأُ دعوى ماليّةٌ من حيثُ لا عقدَ", () => {
+      expect(validateObject(spec(), { ...base, refunded_minor: 2500 }, "").length).toBeGreaterThan(
+        0,
+      );
+    });
   });
 });
 
