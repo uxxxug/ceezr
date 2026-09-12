@@ -8,7 +8,10 @@
  * ينتمي إلى: scripts (حاجزٌ في سلسلةِ `ci`)
  * يُستخدم من: `package.json` → `check:vendored-contract-integrity`، و
  *    `.github/workflows/ci.yml` خطوةً مُسمَّاةً.
- * ملاحظات مستقبلية: هذا الحاجزُ يحرسُ أنَّ النسخةَ **لم تُمَسَّ بعدَ نقلِها**. ولا
+ * ملاحظات مستقبلية: يقرأُ السجلَّ منذُ 2026-09-12 عبرَ القارئِ المشترَكِ
+ *    `scripts/lib/vendored-contract-pins.ts` (البند `DEP-CORE-005`) لا بتعبيرٍ
+ *    خاصٍّ به، فلا ينحرفُ تفكيكانِ لسجلٍّ واحدٍ. وسلوكُه ومُخرَجاتُه كما كانت.
+ *    وهذا الحاجزُ يحرسُ أنَّ النسخةَ **لم تُمَسَّ بعدَ نقلِها**. ولا
  *    يحرسُ أنَّها **ما زالت مُطابِقةً لـCORE** — ذاكَ يلزمُه وصولٌ متبادلٌ، وهوَ
  *    `DEP-CORE-005` المسجَّلُ. فإذا انفتحَ الوصولُ، تُضافُ خطوةٌ تقرأُ بصمةَ رأسِ
  *    CORE وتُقابِلُها بهذه البصماتِ نفسِها، فيصيرُ الحاجزانِ سلسلةً واحدةً.
@@ -30,59 +33,22 @@
  *    المنقولُ.
  */
 
-import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
+import {
+  CONTRACTS_DIR,
+  listVendored,
+  PROVENANCE_NAME,
+  readProvenance,
+  sha256OfFile,
+} from "./lib/vendored-contract-pins.ts";
 
-export const CONTRACTS_DIR = "docs/contracts/core";
-const PROVENANCE_NAME = "PROVENANCE.md";
-/** السجلُّ نفسُه لا يُبصَمُ: بصمتُه فيه فتتغيَّرُ بتغيُّرِها، وذاكَ دورٌ لا يُقفَلُ. */
-const NOT_VENDORED = new Set(["PROVENANCE.md"]);
+export { CONTRACTS_DIR };
 
-/** سطرُ بصمةٍ: أربعٌ وستّونَ خانةً ستّعشريّةً، ثمَّ فراغٌ، ثمَّ مسارٌ نسبيٌّ. */
-const FINGERPRINT_LINE = /^([0-9a-f]{64})\s{1,2}(\S+)$/;
-
-function readFingerprints(provenance: string): Map<string, string> {
-  const out = new Map<string, string>();
-  for (const line of readFileSync(provenance, "utf8").split("\n")) {
-    const match = FINGERPRINT_LINE.exec(line.trim());
-    if (match === null) continue;
-    const [, digest, path] = match;
-    if (digest === undefined || path === undefined) continue;
-    out.set(path, digest);
-  }
-  return out;
-}
-
-function listVendored(dir: string, root: string): string[] {
-  const out: string[] = [];
-  for (const entry of readdirSync(dir).sort()) {
-    const full = join(dir, entry);
-    if (statSync(full).isDirectory()) {
-      out.push(...listVendored(full, root));
-      continue;
-    }
-    const rel = relative(root, full);
-    if (NOT_VENDORED.has(rel)) continue;
-    out.push(rel);
-  }
-  return out;
-}
-
-function sha256(path: string): string {
-  return createHash("sha256").update(readFileSync(path)).digest("hex");
-}
-
-/**
- * تدقيقٌ خالصٌ يُرجِعُ الخروقَ ولا يطبعُ ولا يُخرِجُ العمليّةَ — ليُقاسَ بخرقٍ
- * مزروعٍ في مجلَّدٍ مؤقّتٍ، فلا يبقى الحاجزُ نفسُه هوَ الشيءُ الوحيدُ غيرَ
- * المُختبَرِ في السلسلةِ.
- */
 export function auditVendoredContracts(root: string = CONTRACTS_DIR): readonly string[] {
   const breaches: string[] = [];
   const provenance = join(root, PROVENANCE_NAME);
-  const recorded = readFingerprints(provenance);
-  const vendored = listVendored(root, root);
+  const recorded = readProvenance(root).fingerprints;
+  const vendored = listVendored(root);
 
   if (recorded.size === 0) {
     breaches.push(`${provenance}: لا بصمةَ واحدةً مكتوبةً — سجلٌّ فارغٌ يُجيزُ كلَّ شيءٍ`);
@@ -94,7 +60,7 @@ export function auditVendoredContracts(root: string = CONTRACTS_DIR): readonly s
       breaches.push(`${rel}: ملفٌّ منقولٌ بلا بصمةٍ في PROVENANCE.md — نقلٌ بلا إثباتٍ`);
       continue;
     }
-    const actual = sha256(join(root, rel));
+    const actual = sha256OfFile(join(root, rel));
     if (actual !== expected) {
       breaches.push(
         `${rel}: البصمةُ لا تُطابِقُ. المكتوبةُ ${expected.slice(0, 12)}… والمحسوبةُ ${actual.slice(0, 12)}… — ` +
@@ -119,7 +85,7 @@ function main(): void {
     for (const breach of breaches) console.error(`  - ${breach}`);
     process.exit(1);
   }
-  const vendored = listVendored(CONTRACTS_DIR, CONTRACTS_DIR);
+  const vendored = listVendored(CONTRACTS_DIR);
   console.log(`سلامةُ العقودِ المنقولةِ: ${vendored.length} ملفّاً، كلُّ بصمةٍ مُطابِقةٌ.`);
 }
 
