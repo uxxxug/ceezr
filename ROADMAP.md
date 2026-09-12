@@ -154,12 +154,13 @@ Recorded **before** the first edit, per the reservation rule in
 |---|---|
 | Item | `W-5` — the CORE↔MOVE event boundary (third increment: the vendored cancellation contract is stale and the drift is **breaking**, not cosmetic) |
 | Branch | `feat/w5-recontract-cancellation-tenant-scope`, cut from `main`@`1d361ea` |
-| Measured defect | Byte-compared all six vendored schemas in `docs/contracts/core/` against `uxxxug/wasla-core`@`0edb7af` (2026-09-12). Five match exactly. `core.fulfillment.cancelled.v1.schema.json` does **not**: ours is `sha256 ed540b6b…`, CORE's is `sha256 cd9d8369…`. CORE's 2026-09-12 tenant-scope cycle (`acd93c8`, closing CORE blocker `B-23`, on top of `7cadc54` and `be9b89d`) added a **required** `organization_id`, added `captured_minor` and `financial_decision_required`, and added `partially_captured` to the `settlement_state` enum. MOVE's `PAYLOAD_SPECS["core.fulfillment.cancelled.v1"]` has none of them. `validateObject` records «حقلٌ زائدٌ لا في العقدِ» for any property outside the declaration, and `consume` validates **before** inbox ingestion and returns `{kind:"contract"}`, so **MOVE would reject every cancellation CORE now publishes** and leave the fulfillment un-cancelled with no operational job stopped. This is the user-visible failure mode of item 6 of the integration review (cancellation and the new cancellation event) and it is entirely MOVE-owned: it needs re-vendoring and a declaration update, not a CORE change. |
-| Second measured drift (same scope) | `docs/contracts/core/transport/core-v1.yaml` (`4c6cfc16…` vs CORE `5401ab4c…`) and `docs/contracts/core/transport/outbound-delivery.md` (`eec712a9…` vs CORE `21e55afc…`) are also stale. Their drift is **not** breaking: CORE added explicit `429`+`retry-after` rate limiting to every route, a capture/refund/void redesign, plans and subscriptions, and the lease-versus-backoff paragraph (`B-22`, `B-24`, `B-25`). `classifyCoreSubmitStatus` already reads `429` as `retry` (`CORE_EVENT_RETRYABLE_CLIENT_STATUSES`), so no MOVE behaviour is wrong today — but a vendored copy that is silently behind its source is a false evidence source, so it is re-vendored in the same increment. |
+| Measured defect | Byte-compared all six vendored schemas in `docs/contracts/core/` against `uxxxug/wasla-core`@`0edb7af` (2026-09-12). Five match exactly. `core.fulfillment.cancelled.v1.schema.json` does **not**: ours is `sha256 ed540b6b…`, CORE's is `sha256 cd9d8369…`. CORE's 2026-09-12 tenant-scope cycle (`acd93c8`, closing CORE blocker `CORE:B-23`, on top of `7cadc54` and `be9b89d`) added a **required** `organization_id`, added `captured_minor` and `financial_decision_required`, and added `partially_captured` to the `settlement_state` enum. MOVE's `PAYLOAD_SPECS["core.fulfillment.cancelled.v1"]` has none of them. `validateObject` records «حقلٌ زائدٌ لا في العقدِ» for any property outside the declaration, and `consume` validates **before** inbox ingestion and returns `{kind:"contract"}`, so **MOVE would reject every cancellation CORE now publishes** and leave the fulfillment un-cancelled with no operational job stopped. This is the user-visible failure mode of item 6 of the integration review (cancellation and the new cancellation event) and it is entirely MOVE-owned: it needs re-vendoring and a declaration update, not a CORE change. |
+| Second measured drift (same scope) | `docs/contracts/core/transport/core-v1.yaml` (`4c6cfc16…` vs CORE `5401ab4c…`) and `docs/contracts/core/transport/outbound-delivery.md` (`eec712a9…` vs CORE `21e55afc…`) are also stale. Their drift is **not** breaking: CORE added explicit `429`+`retry-after` rate limiting to every route, a capture/refund/void redesign, plans and subscriptions, and the lease-versus-backoff paragraph (`CORE:B-22`, `CORE:B-24`, `CORE:B-25`). `classifyCoreSubmitStatus` already reads `429` as `retry` (`CORE_EVENT_RETRYABLE_CLIENT_STATUSES`), so no MOVE behaviour is wrong today — but a vendored copy that is silently behind its source is a false evidence source, so it is re-vendored in the same increment. |
 | Third measured defect (same scope) | `node_modules` is **tracked in `main`** as a symlink blob (`120000 bc2686f3`) pointing at the absolute path `/home/user/workspace/move/node_modules`. Verified in the `origin/main` tree and via the GitHub contents API. `.gitignore` lists `node_modules/`, so this was committed against the repository's own rule; it leaks one machine's layout into the tree and makes a fresh clone carry a dangling link. Removed from tracking here; no file content is deleted. |
-| Scope reserved | `docs/contracts/core/core.fulfillment.cancelled.v1.schema.json` (re-vendored **byte-for-byte**, never authored here) · `docs/contracts/core/transport/core-v1.yaml` and `transport/outbound-delivery.md` (same) · `docs/contracts/core/PROVENANCE.md` (new provenance rows and new fingerprints, **additively**; the superseded rows stay readable) · `packages/domain/wasla/event-envelope.ts` (`FieldSpec` gains the `boolean` type the new contract uses; the cancellation declaration is brought to the contract) · `tests/unit/core-contract-parity.test.ts` and `tests/integration/wasla-fulfillment-lifecycle.test.ts` (**added** cases; no existing case weakened) · `docs/adr/0089-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `.gitignore`/index entry for `node_modules` |
+| Fourth measured defect (found **while** executing this increment — recorded additively, not back-dated) | Writing CORE's own blocker identifiers into `ROADMAP.md` as provenance for the re-vendoring (`CORE:B-23` for the tenant-scope cycle, `CORE:B-22`/`CORE:B-24`/`CORE:B-25` for the transport cycle, `CORE:B-20` for the pending money decision) turned `scripts/check-blocker-registry.ts` red with «`ROADMAP.md` يذكرُ `CORE:B-23` ولا صفَّ له». Measured, not reasoned: `bun test tests/unit/check-blocker-registry.test.ts` failed three cases. The cause is in the guard, not in the citation: `mentionedBlockerIds` matched `B-\d+` with no notion of **who owns** the identifier, so every honest quotation of CORE's own work read as a MOVE blocker missing a row. Both escapes available before the fix are defects — writing a row for a CORE blocker in MOVE's table is a false ownership claim whose status would then be hand-driven and drift from its owner, and adding a per-identifier exemption makes the exemption list a manual routine that grows with every quotation until the guard means nothing. Fixed at the root in `scripts/lib/wasla-blockers.ts`: a namespaced mention (`CORE:`/`MARKET:` — **two named repositories only**, not an open prefix) is dropped from the scan before it runs, because a blocker we do not own has no state here to read. The guard's own rule is unchanged and **not** relaxed: every identifier that is ours still needs a row, and the two new cases in `tests/unit/wasla-blockers.test.ts` measure exactly that — `CORE:B-23` without a row passes, bare `CORE:B-23` without a row still fails. |
+| Scope reserved | `docs/contracts/core/core.fulfillment.cancelled.v1.schema.json` (re-vendored **byte-for-byte**, never authored here) · `docs/contracts/core/transport/core-v1.yaml` and `transport/outbound-delivery.md` (same) · `docs/contracts/core/PROVENANCE.md` (new provenance rows and new fingerprints, **additively**; the superseded rows stay readable) · `packages/domain/wasla/event-envelope.ts` (`FieldSpec` gains the `boolean` type the new contract uses; the cancellation declaration is brought to the contract) · `tests/unit/core-contract-parity.test.ts` and `tests/integration/wasla-fulfillment-lifecycle.test.ts` (**added** cases; no existing case weakened) · `docs/adr/0089-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `.gitignore`/index entry for `node_modules` · `scripts/lib/wasla-blockers.ts` and `tests/unit/wasla-blockers.test.ts` (**added** to this reservation on 2026-09-12 when the fourth defect above was measured; the guard script `scripts/check-blocker-registry.ts` itself is **not** edited, so the overlap with open pull request #10 stays nil) |
 | Scope **not** reserved and not touched | anything in `uxxxug/wasla-core` or MARKET — a drift found at CORE is recorded as a dependency, never edited · `scripts/check-migrations.ts` and rule 0.4 and the `city_id` guard (`O-1`, owner) · the real-Redis test and the Upstash secrets (`O-2`, owner) · `MASTER_DIRECTIVE` · `ADR 0084`/`0085`/`0086`/`0087`/`0088` (`ح-6`: published, never edited) · every migration file · the twelve stale branches and every open pull request |
-| Dependencies checked before opening | `DEP-CORE-005` (no automated proof that a vendored copy is still current) is exactly what let this drift sit unseen, and it stays **open**: this increment re-vendors by hand from a read of CORE at a named commit, it does not build the mutual-access freshness check. `DEP-CORE-006` (`O-1`) and `O-2`, `O-3`, `O-4` are untouched and stay red as recorded. A new dependency is registered for CORE blocker `B-20`: while `financial_decision_required` is true nobody outside CORE has decided what happens to money already moved, so MOVE must make **no** financial claim — which it does not, having no financial surface at all. |
+| Dependencies checked before opening | `DEP-CORE-005` (no automated proof that a vendored copy is still current) is exactly what let this drift sit unseen, and it stays **open**: this increment re-vendors by hand from a read of CORE at a named commit, it does not build the mutual-access freshness check. `DEP-CORE-006` (`O-1`) and `O-2`, `O-3`, `O-4` are untouched and stay red as recorded. A new dependency is registered for CORE blocker `CORE:B-20`: while `financial_decision_required` is true nobody outside CORE has decided what happens to money already moved, so MOVE must make **no** financial claim — which it does not, having no financial surface at all. |
 | Conflicting work checked | 2026-09-12: pull requests #1–#9 are merged; **#10 is open** (`feat/w9-cutover-plan-readonly-rehearsal`) and touches `ROADMAP.md`, `docs/SYSTEM_STATE.md`, `docs/ROADMAP-MASTER.md`, `package.json`, `.github/workflows/ci.yml`, `scripts/check-blocker-registry.ts` — it touches **no** contract, no schema, and not `event-envelope.ts`, so the only overlap is additive text in two documents. No `origin/*` ref contains `financial_decision_required`, `captured_minor`, or `partially_captured`. |
 | Claim ceiling | this item may **not** be marked `[x]` and this increment does not raise the ceiling. `ح-4` needs a read CI verdict and rule 0.4 keeps `verify` red for `O-1`; `ح-5` still bars a production-proof claim, and `DEP-CORE-007` still leaves MOVE with no real CORE environment to exchange a cancellation with. What **is** claimed here is narrow and measurable: MOVE's declaration equals CORE's published cancellation contract byte-for-byte at a named commit, and a cancellation carrying the new fields is accepted instead of rejected. |
 
@@ -981,6 +982,73 @@ unique numbers · skip classification 86 files / 770 cases.
 **Nothing is marked `[x]`.** Merging is not a state flip: `ح-4` needs a read CI
 verdict for the item's own claim, and `ح-5` needs a production-like environment.
 `W-3`, `W-7` and `W-9` remain blocked on owner decisions and resources.
+
+## Status of item `W-5` (third increment), recorded 2026-09-12 (additive; item text unchanged)
+
+Governing decision: [ADR-0089](docs/adr/0089-cancellation-contract-re-vendored-and-foreign-blocker-namespace.md).
+Evidence: `docs/evidence/architecture/W-5-CANCELLATION-20260912.md`.
+Branch `feat/w5-recontract-cancellation-tenant-scope`, cut from `main`@`1d361ea`.
+
+### What was measured before anything was written
+
+Byte-comparison of all six vendored CORE schemas plus the two vendored transport
+files against `uxxxug/wasla-core`@`0edb7af`. Five schemas matched exactly; the
+cancellation schema and both transport files did not. The drift in the
+cancellation schema is **breaking**, not cosmetic: CORE's tenant-scope cycle
+added a **required** `organization_id` (plus `captured_minor`,
+`financial_decision_required` and the `partially_captured` settlement state),
+`validateObject` rejects any property outside the declaration, and `consume`
+validates **before** inbox ingestion — so MOVE was rejecting **every**
+cancellation CORE now publishes, leaving the fulfillment un-cancelled and the
+operational job running. The first test added in this increment reproduced that
+rejection before the fix and passes after it.
+
+### What was built
+
+| Layer | File | What it contains |
+|---|---|---|
+| Vendored contract | `docs/contracts/core/core.fulfillment.cancelled.v1.schema.json` | CORE's bytes at `0edb7af`, copied, never authored (`sha256 cd9d8369…`) |
+| Vendored transport | `transport/core-v1.yaml` (`5401ab4c…`) · `transport/outbound-delivery.md` (`21e55afc…`) | Re-vendored in the same increment; drift was non-breaking but a stale copy is a false evidence source |
+| Provenance | `docs/contracts/core/PROVENANCE.md` | A new section naming the cycle and its commit; superseded fingerprints are **kept readable** in a table the integrity guard does not parse, so each file keeps exactly one live fingerprint line |
+| Domain | `packages/domain/wasla/event-envelope.ts` | `FieldSpec.type` gains `"boolean"`; the cancellation declaration is brought to the contract (five required fields; `captured_minor` integer ≥ 0 where absence is **not** zero; `financial_decision_required` boolean; six-value `settlement_state`) |
+| Guard library | `scripts/lib/wasla-blockers.ts` | Mentions namespaced to a **named** owning repository (`CORE:`, `MARKET:`) are dropped before the blocker scan; a blocker we do not own has no status here to read |
+| Tests | `tests/unit/core-contract-parity.test.ts` · `tests/integration/wasla-fulfillment-lifecycle.test.ts` · `tests/unit/wasla-blockers.test.ts` | Nine added cases; no existing case weakened, skipped or retimed |
+| Index | — | `node_modules`, tracked in `main` as a symlink to one machine's absolute path against the repository's own `.gitignore`, removed from tracking; no content deleted |
+
+### The money rule is satisfied structurally, not by convention
+
+CORE blocker `CORE:B-20` leaves the fate of already-moved money undecided, and
+while `financial_decision_required` is true the contract forbids telling a payer
+they were refunded, invoicing the work as earned, or treating the fulfillment as
+settled. MOVE has **no financial surface at all** — no table, no column, no
+outbound event that can carry any of those claims — so the prohibitions hold by
+construction. This is now measured: a cancellation carrying
+`settlement_state: "partially_captured"`, `captured_minor: 2500` and
+`financial_decision_required: true` closes the operational job, leaves `outcome`
+`null`, and enqueues no new event.
+
+### What is explicitly NOT claimed
+
+`DEP-CORE-005` stays **open**: this increment re-vendored by hand from a read of
+CORE at a named commit; it did not build the automated freshness check, so the
+next drift will be just as silent. `O-1`, `O-2`, `O-3`, `O-4`, `DEP-CORE-006`
+and `DEP-CORE-007` are untouched and stay red as recorded, and rule 0.4 keeps
+`verify` red regardless of this work. The item is **not** marked `[x]` and no
+`VERIFIED` is claimed (`ح-4`, `ح-5`). Nothing in CORE or MARKET was edited; no
+branch or pull request was merged or deleted; no secret was added.
+
+### Surrounding state measured, and deliberately not acted upon
+
+- CI on `main`@`1d361ea` (run `34675470089`): `تكامل على PostgreSQL حقيقي`,
+  `فوضى متعدد المثيلات (F5-06)` and `Roadmap freshness` succeeded; `verify`
+  failed at step 19 (`city_id`, `O-1`) with steps 20–55 skipped, which means
+  `bun test` has **never** been judged inside `verify`; `تكامل على Redis حقيقي`
+  failed at step 8 (`O-2`, missing secrets).
+- Pull requests #1–#9 merged; **#10 open**, failing only on `O-1` and `O-2`, with
+  no file overlap against this increment.
+- Twelve non-`main` branches are pre-migration snapshots. Recorded only; none
+  merged, none deleted.
+
 
 ## Blockers
 
