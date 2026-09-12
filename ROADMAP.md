@@ -1,11 +1,21 @@
 # WASLA MOVE — Roadmap
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-09-11 (W-1 boundary audit · OPS-011 CI repair)
-**Last milestone:** `W-1` boundary audit landed as a machine-checked registry;
-first real CI verdict read and its two failures root-caused (`OPS-011`)
-(`scripts/lib/wasla-boundary-registry.ts` + `scripts/check-boundary-audit.ts`,
-ADR-0080). Still no application code, no migration and no CORE traffic.
+**Last updated:** 2026-09-12 (F2-01 welcome and consent record)
+**Last milestone:** `F2-01` — the first product screen in this repository, with
+consent stored as an append-only versioned row (`user_consents`, `city_id` not
+null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
+three languages, and a new `check-consent-documents` guard in CI. Measured, not
+verified: `F2-01` is **not** `[x]` and the `F2` gate (a real-device ride on video)
+is untouched. Evidence: `docs/evidence/architecture/F2-01-CONSENT-20260912.md`.
+
+> **Superseded status line (kept, additive — `ح-8`).** Until 2026-09-12 this
+> header read: «Last updated: 2026-09-11 (W-1 boundary audit · OPS-011 CI
+> repair) · Last milestone: `W-1` boundary audit landed as a machine-checked
+> registry; first real CI verdict read and its two failures root-caused
+> (`OPS-011`) (`scripts/lib/wasla-boundary-registry.ts` +
+> `scripts/check-boundary-audit.ts`, ADR-0080). Still no application code, no
+> migration and no CORE traffic.» The last sentence is what `F2-01` changed.
 
 > **Correction (2026-09-11, additive — nothing below is deleted).** Earlier
 > entries in this file record the canonical remotes under the `noor-seez`
@@ -160,6 +170,73 @@ Recorded **before** the first edit, per the reservation rule in
 | Scope reserved | `packages/domain/consent/` (new — declared consent documents and the pure decision: is onboarding satisfied, and is a submitted consent admissible) · `packages/application/consent/` (new — the record-consent use case with a persistence port, idempotent per user and document version) · `apps/gateway/src/routes/consents.ts` (new — `GET /v1/consents`, `POST /v1/consents`) · `apps/gateway/src/server.ts` (**additive** composition only) · one new migration under `supabase/migrations/` (a `user_consents` table carrying `city_id`, RLS enabled at creation, and an atomic RPC per rule 0.5) · `apps/miniapp/src/surfaces/rider/` (new welcome screen, composed **into** `RiderRoot` without removing its empty state for the not-yet-built `F2-02`…) · `packages/shared/i18n/{ar,en,ur}.json` (**additive** keys only) · `scripts/check-consent-documents.ts` (new guard) · `package.json`, `.github/workflows/ci.yml` (**additive**, the new guard placed **before** the red `city_id` step so it receives a verdict) · new tests under `tests/unit/`, `tests/integration/` and `apps/miniapp/src/**` · `docs/adr/0092-*`, `docs/adr/0093-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/evidence/` |
 | Scope **not** reserved and not touched | The 46 hardcoded literals and the §9.11 gate (finding below, separate increment) · `scripts/check-migrations.ts` and rule 0.4 (`O-1`, owner) · the real-Redis test (`O-2`) · every vendored contract byte and `PROVENANCE.md` (`DEP-CORE-005`) · `scripts/check-core-contract-parity.ts` · the existing `F1` screens' text · `docs/adr/0001`…`0091` (`ح-6`) · the twelve stale branches · `F2-02`…`F2-12`, which are **not** started here and whose absence the welcome screen must state honestly rather than imply |
 | Claim ceiling | This increment may **not** mark `F2-01` `[x]`, and may **not** claim the `F2` gate. The `F2` gate requires «رحلة كاملة من البداية إلى النهاية بلا لمس محادثة البوت، على جهاز حقيقي، مسجَّلة بالفيديو» — one screen out of twelve cannot approach that, and no real device is reachable from here. `ح-4` additionally wants three consecutive green CI rounds, which is unreachable while `O-1` keeps `verify` red at `city_id`. What may be claimed once CI has judged it: a consent cannot be recorded without naming a declared document version, the record is idempotent and carries `city_id`, the screen states what does not exist yet, and its text lives in the dictionaries in all three languages. |
+
+#### Outcome of reservation `F2-01`, and two corrections to the reservation text above (2026-09-12, additive — nothing above is deleted)
+
+**Correction 1 — the literal count.** The reservation above says `apps/miniapp`
+carries **46** user-facing Arabic literals outside any dictionary. Re-measured at
+the end of the increment with comments stripped and only quoted literals
+containing an Arabic character counted, across `apps/miniapp/src/**/*.{ts,tsx}`
+excluding tests and excluding the new `welcome/` files, the number is **48 in 7
+files**. The earlier figure is left in place as the record of what was measured
+when the scope was reserved; the difference is a measurement difference, not a
+regression introduced here — the new `F2-01` files contain **zero** such
+literals. The §9.11 CI gate still does **not** exist and is still a separate
+increment.
+
+**Correction 2 — one registry cascade was not foreseen.** The reserved scope
+lists the new guard, the migration and the surfaces, but not the six repository
+registries that a new table and a new skipped test file invalidate. All six were
+failing guards, each was a real failure rather than noise, and each was closed by
+**classifying** rather than exempting: `scripts/lib/skip-registry.ts` (+1 entry,
+`TEST_DATABASE_URL`-gated, critical path chosen from the existing closed list
+without widening it), `tests/unit/skip-audit.test.ts` (pinned 86/770 → 87/778),
+`packages/shared/config/retention-policy.ts` (`auditUnboundedUntilCompliance`),
+`scripts/lib/wasla-boundary-registry.ts` (`CORE` / `MOVE_TO_CORE`),
+`scripts/lib/wasla-migration-matrix.ts` (`READ_THROUGH_CORE`, wave 5) plus the
+regenerated `docs/migration/matrix.md`, `docs/wasla/boundary-audit.md`,
+`docs/wasla/blockers.md` and `docs/wasla/cutover-plan.md`, and
+`tests/unit/check-migration-matrix.test.ts` (pinned 47 → 48, raised by hand on
+purpose: reading the count from the inventory would make the assertion true by
+construction). `packages/infrastructure/db/schema-contract.ts` was regenerated
+for the two new functions. **No CORE file was touched**; the cross-repository
+consequence is registered as `DEP-CORE-008` below.
+
+**What was built.** Four layers plus a guard: a declared consent-document
+registry and a pure admissibility/onboarding decision in `packages/domain/consent/`;
+a `record-consent` use case stamping the server clock and re-reading the store
+after the write in `packages/application/consent/`; migration
+`20260912210000_f2_01_user_consents.sql` creating `user_consents` with
+`city_id not null references cities(id)`, a unique `(user_id, kind, version)`,
+RLS enabled with a `service_role`-only policy and two atomic RPCs;
+`GET`/`POST /v1/consents` in `apps/gateway/src/routes/consents.ts` with a 1024-byte
+body limit; 31 dictionary keys in `ar`/`en`/`ur`; the rider welcome screen; and
+`scripts/check-consent-documents.ts` wired into both `bun run ci` and CI **before**
+the known-red `city_id` step so it actually receives a verdict.
+
+**Measured, locally, not a CI verdict.** `bun test tests/unit apps` → 3166 pass ·
+0 fail · 11239 expects · 209 files. `tests/integration/user-consents.test.ts`
+against real PostgreSQL 18.6 → 8 pass · 0 fail · 26 expects. `lint`, `typecheck`
+clean. Mini-app first load 71.1 KB gzip of a 180.0 KB budget, 6 first-paint
+requests of 6 (§9.9). Every `scripts/check-*` in the `ci` chain green **except**
+`check-migrations`, which stays red on the inherited rule-0.4 violations owned by
+`O-1` and was neither weakened nor exempted. Full record:
+`docs/evidence/architecture/F2-01-CONSENT-20260912.md`.
+
+**Not claimed.** `F2-01` is **not** `[x]` and the `F2` gate is **not** approached:
+that gate is a complete ride on a real device recorded on video. RLS is measured
+as *enabled*, not as *enforced* — the test connection is the database owner, and
+the test says so in its own text. The legal wording of the two documents is not
+owner-approved; what exists is the versioning-and-timestamp mechanism. `ح-4`'s
+three consecutive green CI rounds are unreachable while `O-1` keeps `verify` red.
+
+**A deliberate, declared deviation.** §10 asks every command to carry an
+`Idempotency-Key`. This route does not require one: idempotency is structural via
+the unique `(user_id, kind, version)` key, so a repeat returns `already_recorded`
+with the **original** timestamp. Recorded in ADR-0092, with the §9.5-versus-§9.12
+permission contradiction resolved in ADR-0093 (the welcome screen states that
+location will be asked for later and never calls `navigator.geolocation`; the
+§9.5 text is unchanged per `ح-1`).
 
 
 ### Reservation `DEP-CORE-005` — a mechanical freshness comparator for the vendored CORE contracts (opened 2026-09-12, before any file was edited)
@@ -951,6 +1028,7 @@ Recorded here only. No change is made to CORE or MARKET from this repository.
 | DEP-CORE-005 | No mutual repository access, so vendored contract freshness cannot be verified automatically | Contract parity stays a manually compared sha256 fingerprint |
 | DEP-CORE-006 | `core.fulfillment.created` carries no city or geography, and `organization_id` / `order_reference` are opaque here | Landing the item 4 and 5 schema under sovereign rule 0.4; also driver assignment later, since drivers are city-bound |
 | DEP-CORE-007 | No shared CORE environment and no service credential for MOVE, so no delivery to a real CORE can be measured | Item 5 can only be measured against CORE's written contract, never against CORE itself |
+| DEP-CORE-008 | No consent surface: CORE owns identity (`users` is `MOVE_TO_CORE`, wave 5) but publishes no way to record or read a user's acceptance of the platform's terms and privacy policy with a versioned, timestamped record | `F2-01`'s `user_consents` has to live in MOVE today, which means the same person would consent twice if MARKET ever asks. The boundary registry records it `MOVE_TO_CORE` and the migration matrix gives it a plan; both are blocked on this |
 
 ## Owner instruction O-5, recorded 2026-09-12 (merge ordered with a red sovereign gate)
 

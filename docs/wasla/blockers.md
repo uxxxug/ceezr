@@ -4,7 +4,7 @@
 `bun run scripts/check-blocker-registry.ts --write`، ومصدرُها الوحيدُ جداولُ
 `ROADMAP.md`. فإن أردتَ تغييرَ حاجزٍ فغيِّرْ صفَّه هناكَ.
 
-المُفكَّكُ: **17** حاجزاً، منها **16** مفتوحةٌ.
+المُفكَّكُ: **18** حاجزاً، منها **17** مفتوحةٌ.
 
 | المعرّفُ | الصنفُ | الحالةُ | ما هوَ | ماذا يمنعُ |
 |---|---|---|---|---|
@@ -15,6 +15,7 @@
 | `DEP-CORE-005` | تبعيّةٌ على CORE | **مفتوحٌ** | No mutual repository access, so vendored contract freshness cannot be verified automatically | Contract parity stays a manually compared sha256 fingerprint |
 | `DEP-CORE-006` | تبعيّةٌ على CORE | **مفتوحٌ** | `core.fulfillment.created` carries no city or geography, and `organization_id` / `order_reference` are opaque here | Landing the item 4 and 5 schema under sovereign rule 0.4; also driver assignment later, since drivers are city-bound |
 | `DEP-CORE-007` | تبعيّةٌ على CORE | **مفتوحٌ** | No shared CORE environment and no service credential for MOVE, so no delivery to a real CORE can be measured | Item 5 can only be measured against CORE's written contract, never against CORE itself |
+| `DEP-CORE-008` | تبعيّةٌ على CORE | **مفتوحٌ** | No consent surface: CORE owns identity (`users` is `MOVE_TO_CORE`, wave 5) but publishes no way to record or read a user's acceptance of the platform's terms and privacy policy with a versioned, timestamped record | `F2-01`'s `user_consents` has to live in MOVE today, which means the same person would consent twice if MARKET ever asks. The boundary registry records it `MOVE_TO_CORE` and the migration matrix gives it a plan; both are blocked on this |
 | `O-1` | قرارُ مالكٍ | **مفتوحٌ** | Either CORE adds city/geography to `core.fulfillment.created` (`DEP-CORE-006`), or a new governing appendix extends the closed `domain-ingress receipt` class to cover `core_event_inbox` and `move_event_outbox` and rules on `operational_jobs` | The 2026-09-04 governing appendix states the class is closed and can only be extended by a new governing appendix from the owner — not by an ADR, a comment in a migration, or an exception in a guard |
 | `O-2` | قرارُ مالكٍ | **مفتوحٌ** | Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` as repository secrets | The `real-redis` CI job asserts a real Redis (`OPS-006`) and must not be weakened, silenced or skip-classified; the previous secrets belonged to the former repository account |
 | `O-3` | قرارُ مالكٍ | **مفتوحٌ** | Issue a CORE bearer service credential for MOVE and set `CORE_EVENTS_BASE_URL` / `CORE_EVENTS_BEARER_TOKEN` on the worker | Credentials in CORE are owned by CORE; this repository must not mint or assume them, and the shipping job stays unregistered without them |

@@ -162,6 +162,18 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   trip_tracking_tokens: RETENTION_CLASSES.pendingDecision,
   unsubscribed_claims: RETENTION_CLASSES.pendingDecision,
   unsubscribed_negotiations: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `F2-01`: سجلُّ الموافقاتِ. **سجلُّ تدقيقٍ بالمعنى الحرفيِّ لا جدولُ حالةٍ**،
+   * ولذا لم يُصنَّفْ `lifecycleBound` معَ أنَّه يشيرُ إلى `users`: قيمتُه أنَّه
+   * يُثبِتُ **ما كانَ** — أنَّ هذا المستخدمَ وافقَ على هذا الإصدارِ في هذه
+   * اللحظةِ — وحذفُه بانتهاءِ دورةِ حياةِ شيءٍ يُتلِفُ عينَ الدليلِ الذي
+   * يُطلَبُ في النزاعِ. ولا `pendingDecision` أيضاً: تلكَ تقولُ «ينمو ولا مدّةَ
+   * معتمدةً»، وههنا **المدّةُ محسومةٌ مبدئيّاً بأنَّها لا تُحَدُّ**، والباقي
+   * للبندِ `F12-10` أن يقولَ هل يُؤرشَفُ وكيفَ. وحذفُ الحسابِ (القسم 9.12) حينَ
+   * يُنفَّذُ يُحسَمُ فيه هناكَ: أنَّ المستخدمَ يُحذَفُ لا يعني أنَّ إثباتَ موافقتِه
+   * يُمحى، وذاكَ تعارضٌ حقيقيٌّ لا يُفصَلُ فيه من ملفِّ استبقاءٍ.
+   */
+  user_consents: RETENTION_CLASSES.auditUnboundedUntilCompliance,
   user_notifications: RETENTION_CLASSES.pendingDecision,
   users: RETENTION_CLASSES.lifecycleBound,
   webhook_events: RETENTION_CLASSES.pendingDecision,

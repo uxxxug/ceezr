@@ -90,3 +90,72 @@ describe("حرس القيم التجارية: اتّحادُ رموزِ حالة
     ]);
   });
 });
+
+describe("حرس القيم التجارية: خريطةُ رمزِ خطأٍ إلى رمزِ حالةٍ", () => {
+  const MAP = [
+    "const STATUS_BY_ERROR: Readonly<Record<ConsentPublicErrorCode, 400 | 401 | 404 | 503>> = {",
+    "  SESSION_REQUIRED: 401,",
+    "  UNKNOWN_DOCUMENT: 400,",
+    "  ACCOUNT_NOT_FOUND: 404,",
+    "};",
+    "",
+  ].join("\n");
+
+  it("الخريطةُ المُنطاقةُ مقبولةٌ: بروتوكولٌ لا سياسةٌ", () => {
+    expect(findHardcodedValues(MAP)).toEqual([]);
+  });
+
+  it("سطرُ `KEY: 400` خارجَ كتلةٍ مفتوحةٍ بنوعِها يبقى مخالفةً", () => {
+    expect(findHardcodedValues("  SUBSCRIPTION_PRICE: 400,\n")).toEqual([{ line: 1, value: 400 }]);
+    // كتلةٌ نوعُها `Record<string, number>` لا تُفتَحُ ألبتّةَ، فما فيها يُحاكَمُ.
+    const loose = ["const PRICES: Record<string, number> = {", "  BASIC: 400,", "};", ""].join(
+      "\n",
+    );
+    expect(findHardcodedValues(loose)).toEqual([{ line: 2, value: 400 }]);
+  });
+
+  it("حدُّ الاستثناءِ مُعلَنٌ: خريطةٌ تُثبِّتُ أسعارَها في نوعِها **تمرُّ** — ويُسجَّلُ", () => {
+    // محاولةُ التنكُّرِ الأقربُ: تقليدُ الشكلِ حرفاً. وتُردُّ لأنَّ سطرَ التصريحِ
+    // نفسَه يحملُ حرفيّاتٍ ممنوعةً ويُحاكَمُ قبلَ أن يُفتَحَ استثناءٌ... ولا
+    // يُحاكَمُ: فالكتلةُ **تُفتَحُ** بهِ. ولذا يُقاسُ الأثرُ لا النيّةُ — وأثرُه
+    // أن يصيرَ في المستودعِ اتّحادُ أسعارٍ في نوعٍ، وذاكَ ما يمنعُه حاجزٌ آخرُ
+    // ويقرؤه المراجعُ سطراً واحداً ظاهراً لا قيمةً مدفونةً في دالّةٍ.
+    const disguised = [
+      "const P: Readonly<Record<Plan, 400 | 250>> = {",
+      "  BASIC: 400,",
+      "};",
+      "",
+    ].join("\n");
+    const hits = findHardcodedValues(disguised);
+    // المقيسُ ههنا **حدُّ الاستثناءِ مُعلَناً لا مُدَّعى**: الشكلُ يمرُّ، وهذا
+    // مسجَّلٌ في ترويسةِ الحاجزِ بلا تلوينٍ، والمانعُ لهُ أنَّه يُثبِّتُ سعراً في
+    // نوعٍ ظاهرٍ — لا أنَّ هذا الحاجزَ يراه.
+    expect(hits).toEqual([]);
+  });
+
+  it("الكتلةُ ليست ملجأً: سطرٌ غيرُ مطابقٍ داخلَها يُحاكَمُ", () => {
+    const smuggled = [
+      "const STATUS_BY_ERROR: Readonly<Record<Code, 400 | 503>> = {",
+      "  A: 400,",
+      "  price: 250 * 1,",
+      "};",
+      "",
+    ].join("\n");
+    expect(findHardcodedValues(smuggled)).toEqual([{ line: 3, value: 250 }]);
+  });
+
+  it("الكتلةُ تُغلَقُ فلا يُستثنى ما بعدَها", () => {
+    const after = [
+      "const STATUS_BY_ERROR: Readonly<Record<Code, 400>> = {",
+      "  A: 400,",
+      "};",
+      "const PRICE: number = 400;",
+      "  LATER_KEY: 400,",
+      "",
+    ].join("\n");
+    expect(findHardcodedValues(after)).toEqual([
+      { line: 4, value: 400 },
+      { line: 5, value: 400 },
+    ]);
+  });
+});
