@@ -528,6 +528,37 @@ Nothing.
 
 Nothing. No legacy component is switched off before its replacement is proven.
 
+## Status of item `W-9`, measured 2026-09-12 (additive; item text unchanged)
+
+Item text is untouched (`ح-1`). This records **why the item cannot be executed**,
+measured against the repository rather than inferred from the one-line note.
+
+**`B-5` is real, and it is not the only thing blocking this item.** A cutover
+and rollback rehearsal has to rehearse cutting over **to CORE**, and the
+following are all recorded open in this same file: `B-5` (no production release
+approval), `B-3` (no CORE database or environment provisioned), `DEP-CORE-007`
+(no shared CORE environment, which is what forces every reconciliation row in
+`W-8` to be `UNVERIFIABLE`), and `B-1` (production inventory unknown — row
+counts, duplicate identities, live jobs). A rehearsal whose target does not
+exist and whose volumes are unknown would rehearse **nothing**, and calling it
+green would be exactly the false green that `W-8` was built to make
+unconstructible.
+
+**What already exists, and what it does not cover.** `OPS-010` provides a
+schema-rollback path that is genuinely measured: `scripts/lib/rollback-audit.ts`
+(static reading of migrations for anything a previous image depended on),
+`scripts/check-rollback-safety.ts` (the static gate), and
+`scripts/rollback-schema-drill.ts`, which CI runs on a real PostgreSQL as step 9
+of the `تكامل على PostgreSQL حقيقي` job — read `success` at `c80201c`. That
+covers **rolling a schema forward safely so a previous code image still runs**.
+It does **not** cover this item: a WASLA cutover rehearsal is about moving
+identity, payment and job ownership between two systems and back, which needs
+the second system.
+
+**No `[x]`, no reinterpretation.** The item is not silently rescoped into
+documentation, and no rehearsal is claimed. The state is
+**قيد التنسيق — blocked**, waiting on the owner.
+
 ## Blockers
 
 | # | Blocker | Impact | What unblocks it |
