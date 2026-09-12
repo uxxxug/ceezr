@@ -364,6 +364,81 @@ of truth for a disposition that could drift silently.
   **مُختبَر** for the guard (27 negative cases pass locally), **مُنفَّذ** for the
   matrix itself. Not مُتحقَّق منه and not مَقيس.
 
+## Status of item `W-6`, recorded 2026-09-12 (additive; item text unchanged)
+
+The item text above is untouched (`ح-1`). This section records what exists at
+this commit and what is **not** claimed.
+
+### What was measured before anything was written
+
+`W-6` asks that no direct commercial coupling with MARKET exist and that all
+cross-system traffic go through CORE. The repository was measured first, and the
+finding was not what the item's wording implies:
+
+- **The condition already holds.** Not one host in production code resolves to
+  MARKET. The `packages/{domain,application,infrastructure}/marketplace/*` files
+  are **not** commercial coupling — each is an inert eight-line placeholder
+  (`export {}` plus a header comment).
+- **But it holds by accident, not by enforcement.** No line in the repository
+  fails if someone adds `fetch("https://<market>/v1/orders")` tomorrow. The
+  requirement was a rule in a document, and a document does not fail a build.
+- **MARKET's domain is unknown to this repository** (`DEP-CORE-005`: no mutual
+  access). So enforcement cannot rest on matching a domain name.
+
+### What was built
+
+A **closed registry** of egress destinations in
+`scripts/lib/wasla-egress-registry.ts` — a single source of truth with fifteen
+declared destinations — gated by `scripts/check-egress-boundary.ts` in `verify`.
+
+The logic is **inverted relative to a blocklist**: the question is not "is this
+host forbidden?" but "is this host **declared**?". An undeclared host fails the
+build whatever its name; declaring one requires a `system` field; and
+`system: "MARKET"` is rejected outright. A blocklist was rejected because a list
+of domains this repository does not know is a guard with nothing behind it.
+
+Three governing checks and seven consistency checks. Twenty-eight negative tests
+in `tests/unit/check-egress-boundary.test.ts` seed each breach and assert the
+guard fails. `docs/wasla/egress-boundary.md` is generated from the registry and
+fenced by generation markers; editing it by hand fails the build (rule 0.6).
+Decision: `docs/adr/0084-egress-boundary-registry.md`.
+
+### Two claims the guard itself corrected
+
+Recorded because they are evidence the checks bind on their author:
+
+- Four host exemptions (`example.com` and siblings) were written from inference.
+  The comment-stripped scan then measured that **none of them appears** in
+  production code — all four were in explanatory prose. All were deleted, and a
+  check now forbids a dead exemption, because an unused exemption is an open hole
+  with nothing on the other side of it.
+- Three declared call-site paths were written from inference. Check 8 rejected
+  them as non-existent files; they were corrected by measurement.
+
+### What is explicitly NOT claimed
+
+- **The item is not fulfilled and is not marked `[x]`.** `W-6` has two halves.
+  The *egress* half — the surface is declared, and a direct MOVE↔MARKET
+  destination now fails the build — is delivered. The *channel-handover* half
+  cannot be done from this repository: `DEP-CORE-004` records that CORE exposes
+  no Telegram channel adapter, so the channel cannot be moved behind CORE.
+- **No runtime egress blocking exists.** The guard fails at build time. An
+  operator who points `CORE_EVENTS_BASE_URL` at a different host is not caught
+  by it; only the documentation of the key is measured, never its value.
+- **The scan is lexical, not a dataflow analysis.** It runs two passes over
+  comment-stripped production code, which is what caught the dynamically built
+  `api.deepl.com`, but a host assembled from scattered fragments at runtime can
+  still escape it. All limits are declared in ADR 0084 §"الحدودُ المُعلَنةُ".
+- **The two direct commercial integrations remain.** `api.moyasar.com` and
+  `api.tap.company` are called directly from MOVE. They are not a `W-6` breach —
+  MARKET is not a party — but they are declared debt: the class
+  `COMMERCIAL_PENDING_HANDOVER` forces a `handover` field naming `W-7` as the
+  removing item and `DEP-CORE-002` as the blocker, and the guard verifies both
+  ids are actually declared in this file.
+- Grading: **مُختبَر** for the guard (28 negative cases pass locally),
+  **مُنفَّذ** for the registry. Not مُتحقَّق منه and not مَقيس — `ح-4` needs a
+  read CI verdict and `verify` stays red for `O-1`.
+
 ## CI verdicts on branch `feat/w2-migration-matrix` (additive)
 
 Local green is not a verdict (`ح-8`). Filled in from the GitHub Actions API after
