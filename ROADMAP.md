@@ -887,6 +887,30 @@ of the instruction is recorded below verbatim.
   these three tables and the reason. Until one of the two happens, `O-1` stays
   open.
 
+## Status of `DEP-CORE-005`, recorded 2026-09-12 (additive; the dependency row text is unchanged and the item stays open)
+
+`ADR 0090` · evidence `docs/evidence/architecture/DEP-CORE-005-20260912.md` ·
+branch `feat/dep-core-005-contract-freshness` from `main`@`1d361ea`.
+
+**The dependency row above is left exactly as written and `DEP-CORE-005` remains
+open.** What changed is that half of it — the half this repository owns — is now
+mechanised, and the other half is now named as an owner decision instead of
+being left implicit in prose.
+
+| Question | Answer, measured |
+|---|---|
+| What was actually missing | Two existing guards already compared, and both are internal. `scripts/check-core-contract-parity.ts` compares MOVE's runtime declaration against the vendored copy **semantically** (required sets both ways, every executed keyword per field, `additionalProperties: false`, orphans both directions, unsupported keywords rejected). `scripts/check-vendored-contract-integrity.ts` recomputes every `sha256` so the copy cannot be edited after landing. Neither can see CORE. The missing comparison was `our bytes` versus `CORE's bytes today` |
+| Why no machine could do it before | The provenance was **prose**: a table saying «الالتزامُ `511624b`» and «مسارُ المصدرِ `contracts/events/`». That is enough for a human comparing by hand and useless to a program — nothing tied a specific vendored file to its path at the owner and the commit it was copied at. What cannot be parsed cannot be compared |
+| What was added | A machine-readable `pin` line per vendored file inside `PROVENANCE.md` itself (additive; every prior table, fingerprint and section kept, and the hash deliberately **not** duplicated into the pin line so no second source of truth is created) · one shared reader (`scripts/lib/vendored-contract-pins.ts`) which the existing integrity guard now imports instead of its own regex · an offline guard (`scripts/check-vendored-contract-pins.ts`) · a semantic differ (`scripts/lib/schema-semantic-diff.ts`) · the comparator (`scripts/check-core-contract-freshness.ts`) |
+| Where the comparator reads CORE from | A **local checkout** passed as `--from-dir=` / `CORE_CONTRACTS_REPO_DIR`, read with `git show`. No token, no HTTP call, no deployment environment, and no secret added to the repository |
+| What it refuses to do | Pass when it has no CORE source. Exit codes are `0` all-current, `1` measured drift, `3` **«غيرُ قابلٍ للتحقُّقِ»** — and in the `3` case it prints no freshness claim at all. A check that goes green when it cannot find its source teaches the reader that freshness is proven when it was never measured |
+| What CI now judges | The **pin** guard and the comparator's own seeded-breach tests, both inserted in `verify` **before** the red `منع أي جدول بلا city_id` step — everything after that step is skipped while `O-1` stands, so a guard placed after it would have the appearance of enforcement and none of the substance |
+| What CI still cannot judge | Freshness itself. `uxxxug/wasla-core` is private and this repository's Actions token cannot read it — registered as **`O-6`**. The comparator therefore lives in `.github/workflows/core-contract-freshness.yml`, `workflow_dispatch` only: no `schedule`, because a job that fails every day for lack of access is noise that teaches people to ignore it |
+| Measured verdict on the real CORE (head `9e6a636`, 2026-09-12T12:49:25Z) | exit `1`; **3 of 8** vendored contracts **stale**. `core.fulfillment.cancelled.v1`: `required.organization_id` now required (**breaks the consumer** — the `W-5` fault itself, this time found mechanically), three new properties under `additionalProperties: false`, and `partially_captured` added to a closed enum. `transport/core-v1.yaml`: 52 structural changes (429 `RateLimited`, `rate_limited` error code, `/metrics`, notification schemas). `transport/outbound-delivery.md`: 82 lines added, 3 removed — reported as **text, with the comparator stating it does not claim semantic equivalence**. The other 5 match CORE's head byte for byte |
+| What is deliberately **not** done here | The three stale files are **not** re-vendored on this branch: they belong to open pull request `#11`, and re-vendoring contract bytes on two branches creates a conflict in a contract, not in prose |
+| Claim ceiling, restated | `DEP-CORE-005` **stays open**, no `W-` item gains `[x]`, and `ح-4` is not satisfied by anything here. `PROVENANCE.md`'s existing sentence «**ولا يُدَّعى أنَّ التقادمَ محروسٌ آليّاً في CI**» remains true word for word: the comparator exists, is parsed, is tested, and has been run against the real CORE — and CI still does not judge by it |
+| What closes it | `O-6` granted → a second `actions/checkout` for CORE → the comparator moved into `verify` as a named step before the red one. Only then |
+
 ## Owner decisions required, recorded 2026-09-11
 
 | # | Decision | Why it cannot be taken by an executor here |
