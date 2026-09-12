@@ -793,6 +793,52 @@ the second system.
 documentation, and no rehearsal is claimed. The state is
 **قيد التنسيق — blocked**, waiting on the owner.
 
+## Merge state on `main`, measured 2026-09-12 (additive)
+
+**Every open pull request is merged; none remains open.** `#1` `W-1` · `#2`
+`W-4`/`W-5` · `#3` `W-2` · `#4` `W-6` · `#5` `W-8` · `#6` the `W-9` blocker
+record. `main` = `0d1a29e`.
+
+**`#5` and `#6` were merged by explicit owner instruction, and that is recorded
+rather than implied.** Rule 0.7 asks for an independent reviewer; no independent
+reviewer exists on this repository today, and the owner directed the merge in
+writing. The rule is **not** amended by this: the ledger says the merge authority
+was the owner, not an independent review, so a later reader can tell the
+difference.
+
+**Both conflicts caused by the earlier `#4` merge were resolved by union, never
+by deletion.** In `.github/workflows/ci.yml` the `W-6` egress step and the `W-8`
+dry-run step both survive, and both sit **before** the red `city_id` gate —
+measured three times now, a guard step placed after it reads `skipped` and
+therefore carries no verdict at all. In `package.json` the `ci` chain runs both
+guards and both `check:*` keys are kept. In `ROADMAP.md`, `docs/SYSTEM_STATE.md`
+and `docs/ROADMAP-MASTER.md` every section of `W-6`, `W-8` and `W-9` is preserved
+in recording order with no character erased (`ح-8`).
+
+**CI verdict on `main` at `0d1a29e`, read per job and per step** (run
+`34670417918`; Roadmap-freshness `34670417911` = `success`):
+`تكامل على PostgreSQL حقيقي` **success** · `فوضى متعدد المثيلات (F5-06)`
+**success** · `verify` **failure** · `تكامل على Redis حقيقي` **failure** at step
+8. In `verify`: Lint, Typecheck, Test `success`; **step 15 (`W-2`) `success` ·
+step 16 (`W-6`) `success` · step 17 (`W-8`) `success`**; step 18 (`city_id`)
+**failure**; everything after `skipped`.
+
+**So all three WASLA guards are green on `main`, and the two reds are the two
+owner blockers, unchanged.** `O-1` (`DEP-CORE-006`) — rule 0.4, tables from
+`W-4`/`W-5` carry no `city_id`, root cause in CORE — and `O-2` — the real-Redis
+job needs `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`. Both were
+already red at `0c25ca0` and at `ef1f9ca` in the same job and the same step, so
+merging changed neither.
+
+**Measured locally on `main` after all merges:** `bun test` → **3008 pass · 829
+skip · 0 fail** · 10598 `expect()` across 3837 tests in 287 files · `biome check .`
+1112 files, no fixes · `typecheck` passed · all three guards pass · 85 ADRs with
+unique numbers · skip classification 86 files / 770 cases.
+
+**Nothing is marked `[x]`.** Merging is not a state flip: `ح-4` needs a read CI
+verdict for the item's own claim, and `ح-5` needs a production-like environment.
+`W-3`, `W-7` and `W-9` remain blocked on owner decisions and resources.
+
 ## Blockers
 
 | # | Blocker | Impact | What unblocks it |
