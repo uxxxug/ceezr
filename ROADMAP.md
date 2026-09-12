@@ -145,6 +145,21 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `W-6` — egress boundary (opened 2026-09-12, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25.
+
+| Field | Value |
+|---|---|
+| Item | `W-6` — remove any direct commercial coupling with MARKET; all cross-system traffic goes through CORE APIs or events |
+| Branch | `feat/w6-egress-boundary`, cut from `main`@`0c25ca0` |
+| Scope reserved | `scripts/lib/wasla-egress-registry.ts` (new) · `scripts/check-egress-boundary.ts` (new) · `docs/wasla/egress-boundary.md` (new, generated) · `tests/unit/check-egress-boundary.test.ts` (new) · `package.json` (`ci` chain) · `.github/workflows/ci.yml` (`verify` job, one added step) · `docs/adr/0084-*` (new) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §25 · `docs/evidence/architecture/W-6-20260912.md` (new) |
+| Scope **not** reserved and not touched | every payment provider adapter, the Telegram wrapper layer, the CORE shipper, every existing guard, every migration, and any file in CORE or MARKET |
+| Dependencies checked before opening | `DEP-CORE-004` (no Telegram channel adapter in CORE) blocks the **channel-handover** half of this item and cannot be closed from this repository. `DEP-CORE-002` blocks removing the two payment providers, which is item `W-7`'s scope, not this one. Neither blocks declaring the egress surface and gating it, which is what this branch does. `O-1` and `O-2` are unrelated to this scope. |
+| Conflicting work checked | no open pull request, and no branch on `origin` carries a `check-egress-boundary` guard or a `docs/wasla/egress-boundary.md` path (checked against every `origin/*` ref on 2026-09-12; the only match for the string was `packages/agent-core/evaluation/regressionChecks.ts`, an unrelated false positive) |
+| Claim ceiling | this item may **not** be marked `[x]`. Two reasons, both recorded before any code was written: `DEP-CORE-004` leaves the channel half open, and `ح-4` requires a read CI verdict while rule 0.4 keeps `verify` red for `O-1`. What this branch may claim is narrower than the item: the egress surface becomes **declared and gated**, so a direct MOVE↔MARKET destination fails the build instead of being merely absent today. |
+
 ### Reservation `W-2` — migration matrix (opened 2026-09-12, before any file was edited; artifacts landed, see the `W-2` status section below)
 
 Recorded **before** the first edit so that no second executor opens the same
