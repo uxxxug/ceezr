@@ -140,6 +140,16 @@ jobs:
       - name: سجلُّ الحواجزِ مقروءٌ من مصدرٍ واحدٍ ولا إشهادَ يُلفَّقُ (W-8 · ADR 0087)
         run: bun run scripts/check-blocker-registry.ts
 
+      # وهذه كذلكَ **قبلَ** الحمراءِ، وللسببِ عينِه: كلُّ ما بعدَ خطوةِ `city_id`
+      # لا يُنفَّذُ ألبتّةَ ما بقيَت `O-1` مفتوحةً، فحاجزٌ يُوضَعُ بعدَها حاجزٌ
+      # لا حكمَ له. والمقيسُ ههنا سندُ العقودِ المنقولةِ (`DEP-CORE-005`): لا
+      # يقرأُ شبكةً ولا سرّاً، فلا عذرَ لتأخيرِه.
+      - name: سندُ العقودِ المنقولةِ مُفكَّكٌ — لا ملفَّ بلا مصدرٍ ولا سندَ لمعدومٍ (DEP-CORE-005)
+        run: bun run scripts/check-vendored-contract-pins.ts
+
+      - name: سقوطُ مُقابِلِ الطزاجةِ مقيسٌ بخرقٍ مزروعٍ لا بنسخةٍ من CORE (DEP-CORE-005)
+        run: bun test tests/unit/vendored-contract-pins.test.ts tests/unit/core-contract-freshness.test.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
