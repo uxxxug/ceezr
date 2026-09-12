@@ -140,6 +140,10 @@ jobs:
       - name: سجلُّ الحواجزِ مقروءٌ من مصدرٍ واحدٍ ولا إشهادَ يُلفَّقُ (W-8 · ADR 0087)
         run: bun run scripts/check-blocker-registry.ts
 
+      # وهذه أيضاً **قبلَ** الحمراءِ، للسببِ المقيسِ عينِه.
+      - name: سجلُّ التحوُّلِ لكلِّ خطوةٍ عكسٌ ومِسبارُ قراءةٍ، والتمرينُ مرفوضٌ بالإنشاءِ (W-9 · ADR 0088)
+        run: bun run scripts/check-cutover-plan.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
@@ -407,6 +411,14 @@ jobs:
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun run scripts/migrate.ts
+
+      # `W-9` · ADR 0088: يُقاسُ **عجزُ** تمرينِ التحوُّلِ عن الكتابةِ على قاعدةٍ
+      # حقيقيّةٍ — لا يُفترَضُ. والمُنفِّذُ يُخفِقُ لو نجحَت كتابةٌ داخلَ معاملتِه،
+      # ولو زعمَ تمريناً تامّاً. ولا تحوُّلَ يجري: `B-5` مفتوحٌ والرفضُ بالإنشاءِ.
+      - name: تمرينُ التحوُّلِ يرفضُ بالإنشاءِ ولا يكتبُ حرفاً (W-9 · ADR 0088)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/rehearse-cutover.ts
 
       # `pg_dump` يرفض خادماً أحدثَ منه إصداراً رئيسياً، واختبارُ تحقّقِ الاستعادة
       # يستدعيه فعلاً على خدمةِ PostgreSQL 17 — أمّا صورةُ العامل فتحمل أدواتَ

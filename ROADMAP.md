@@ -178,6 +178,41 @@ Recorded **before** the first edit, per the reservation rule in
 | Conflicting work checked | zero open pull requests at `1d361ea`; no remote ref carries `cutover` (checked 2026-09-12). |
 | Claim ceiling | `W-9` may **not** be marked `[x]`, and its state stays **قيد التنسيق — blocked**. Nothing here is a rehearsal, and the executor is built so that it **cannot** report one while the four blockers are open. `ح-4` still requires a read CI verdict, and `ح-5` still bars any production-proof claim. |
 
+### Outcome `W-9` (first increment, inside `B-5`) — recorded 2026-09-12
+
+Evidence: `docs/evidence/architecture/W-9-cutover-plan-20260912.md` · decision:
+`docs/adr/0088-cutover-plan-derived-and-rehearsal-refused-by-construction.md`.
+
+- **What changed.** The cutover step ledger is now **derived** from
+  `WASLA_MIGRATION_MATRIX` (30 steps, waves 1–6; wave 0 touches no row), so there
+  is no second source of truth to drift. Every step declares its **inverse**, a
+  **read-only probe**, its phase, a total order, and the blocker ids that gate
+  it. Rollback order is the exact reverse of cutover order, and
+  `requiresDataRestore` is derived from the phase rather than written by hand.
+- **The refusal moved from prose into code.** `rehearseReadOnly` reads the four
+  rehearsal gates (`B-5`, `B-3`, `DEP-CORE-007`, `B-1`) from the `W-8` blocker
+  registry. While any is open, no value other than `REFUSED` can be constructed,
+  there is no override flag, and an **unknown** id reads as **open** — ignorance
+  is not permission. No state in the type represents a completed cutover: the
+  best case is `READ_ONLY_PROBED` with `rehearsalCompleted: false` declared in the
+  value itself.
+- **Inability is measured on a real database.** `scripts/rehearse-cutover.ts`
+  opens a `read only` transaction, runs probes, then runs a write that is
+  **expected to be rejected** and fails if it succeeds. It runs in the
+  real-PostgreSQL CI job after the safe applier, alongside the `OPS-010` drill —
+  whose files are **reused and never edited** (`ح-6`).
+- **Root cause fixed, not silenced.** The read-only validator rejected the
+  legitimate `telegram_update_jobs` probe because the table name contains
+  "update". The gate was **not** weakened and the tables were **not** exempted:
+  the matcher was corrected to whole-token matching, with the reason written in
+  the source, and both directions measured (3 accepted, 13 rejected).
+- **What is not claimed.** No rehearsal was performed, no wave executed, no row
+  written, no rollback exercised. Inverses are **declared**, not proven —
+  proving them needs `B-3`/`DEP-CORE-007` and a readable environment (`ح-5`). No
+  duration or freeze window is estimated, because `B-1` is open and volumes are
+  unknown. `B-5` stays open, `W-9` stays **قيد التنسيق — blocked**, and the item
+  is **not** marked `[x]` (`ح-1`, `ح-4`).
+
 ### Outcome `W-8` (second increment) — recorded 2026-09-12
 
 Evidence: `docs/evidence/architecture/W-8-attestation-20260912.md` · decision:

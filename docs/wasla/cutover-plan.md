@@ -1,0 +1,323 @@
+# سجلُّ خطواتِ التحوُّلِ والاسترجاعِ — مُولَّدٌ
+
+> **لا تُحرَّرْ يداً.** هذه الوثيقةُ تُولَّدُ بـ
+> `bun run scripts/check-cutover-plan.ts --write` من `scripts/lib/wasla-cutover-plan.ts`،
+> وهوَ يشتقُّها من `scripts/lib/wasla-migration-matrix.ts` ومن حالةِ الحواجزِ في
+> `ROADMAP.md`. والحاجزُ يُخفِقُ إن اختلفَت.
+
+**ولا تمرينَ جرى، ولا موجةَ نُفِّذَت، ولا صفَّ كُتِبَ.** التمرينُ مرفوضٌ
+بالإنشاءِ ما دامَ حاجزٌ من `B-5` · `B-3` · `DEP-CORE-007` · `B-1`
+مفتوحاً، وأقصى ما يُنتِجُه المُنفِّذُ حينَ تُغلَقُ كلُّها هوَ مِسبارُ قراءةٍ —
+لا شهادةٌ على تحوُّلٍ.
+
+عددُ الخطواتِ: **30**. وترتيبُ الاسترجاعِ **عكسُ** ترتيبِ التحوُّلِ حرفاً بحرفٍ.
+
+## الخطواتُ بترتيبِ التنفيذِ
+
+| # | الخطوةُ | الموجةُ | الطورُ | الآليّةُ | يستعيدُ بياناتٍ؟ | محجوبةٌ بـ |
+|---|---|---|---|---|---|---|
+| 1 | `1.001-admin_login_codes` | 1 | dual-read | READ_THROUGH_CORE | لا | `B-1` · `B-2` · `B-3` |
+| 2 | `1.002-admin_sessions` | 1 | dual-read | READ_THROUGH_CORE | لا | `B-1` · `B-2` · `B-3` |
+| 3 | `1.003-riders` | 1 | expand | SPLIT_TABLE | لا | `B-1` · `B-2` · `B-3` |
+| 4 | `1.004-users` | 1 | dual-read | READ_THROUGH_CORE | لا | `B-1` · `B-2` · `B-3` |
+| 5 | `2.005-cities` | 2 | dual-read | EVENT_PROJECTION | لا | `DEP-CORE-003` |
+| 6 | `3.006-ledger_entries` | 3 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-2` · `B-3` · `DEP-CORE-002` |
+| 7 | `3.007-payment_transactions` | 3 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-2` · `B-3` · `DEP-CORE-002` |
+| 8 | `3.008-platform_settings` | 3 | contract | COLUMN_SPLIT | نعم | `B-4` · `DEP-CORE-002` |
+| 9 | `3.009-subscription_invoices` | 3 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-4` · `DEP-CORE-002` |
+| 10 | `3.010-subscription_refunds` | 3 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-4` · `DEP-CORE-002` |
+| 11 | `3.011-subscription_wallet_entries` | 3 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `DEP-CORE-002` |
+| 12 | `3.012-subscription_wallets` | 3 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `DEP-CORE-002` |
+| 13 | `3.013-subscriptions` | 3 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-4` · `DEP-CORE-002` |
+| 14 | `3.014-unsubscribed_claims` | 3 | contract | COLUMN_SPLIT | نعم | `DEP-CORE-002` |
+| 15 | `3.015-unsubscribed_negotiations` | 3 | contract | COLUMN_SPLIT | نعم | `B-4` · `DEP-CORE-002` |
+| 16 | `3.016-webhook_events` | 3 | dual-read | READ_THROUGH_CORE | لا | `DEP-CORE-002` |
+| 17 | `4.017-drivers` | 4 | contract | COLUMN_SPLIT | نعم | `B-1` · `B-2` · `B-3` |
+| 18 | `4.018-ratings` | 4 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-2` · `B-3` |
+| 19 | `5.019-audit_log` | 5 | expand | SPLIT_TABLE | لا | `B-1` · `DEP-CORE-004` |
+| 20 | `5.020-broadcast_campaigns` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `B-1` · `DEP-CORE-004` |
+| 21 | `5.021-broadcast_recipients` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `B-1` · `DEP-CORE-004` |
+| 22 | `5.022-notification_kind_policy` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
+| 23 | `5.023-notification_outbox` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
+| 24 | `5.024-safety_incident_deliveries` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
+| 25 | `5.025-subscription_notices` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-002` · `DEP-CORE-004` |
+| 26 | `5.026-support_tickets` | 5 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-2` · `B-3` · `DEP-CORE-004` |
+| 27 | `5.027-telegram_update_jobs` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
+| 28 | `5.028-telegram_update_receipts` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
+| 29 | `5.029-user_notifications` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
+| 30 | `6.030-orders` | 6 | expand | SPLIT_TABLE | لا | `B-1` · `O-1` |
+
+## العكسُ والمِسبارُ لكلِّ خطوةٍ
+
+### `1.001-admin_login_codes`
+
+- **الجدولُ**: `admin_login_codes` · **الطورُ**: dual-read · **الرتبةُ**: 1
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `1.001-admin_login_codes`): لا صفَّ يُنقَلُ ألبتّةَ: الرمزُ عمرُه دقائقُ، فالهجرةُ إطفاءُ إصدارٍ لا نقلُ بياناتٍ. والعودةُ إعادةُ تفعيلِ مسارِ الإصدارِ المحليِّ بضبطٍ، وصفوفُ الرموزِ السابقةِ تُترَكُ لتنتهيَ بمهلتِها.
+- **شكلُ العودةِ للآليّةِ**: الجدولُ المحليُّ يبقى قائماً ومكتوباً فيه حتّى تُقرأَ الواجهةُ صادقةً في الإنتاجِ؛ فالعودةُ إرجاعُ القارئِ إلى المحليِّ بلا استرجاعِ بياناتٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'admin_login_codes') as declared, (select count(*) from public.admin_login_codes) as rows`
+- **يُقرأُ «تمَّت» بـ**: لا استدعاءَ لدالّةِ إصدارِ الرمزِ المحليّةِ في أيِّ مسارٍ (يُقاسُ بحاجزٍ ساكنٍ)، ودخولُ لوحةِ إدارةٍ حقيقيٌّ يتمُّ برمزٍ أصدرَه CORE في اختبارِ تكاملٍ.
+
+### `1.002-admin_sessions`
+
+- **الجدولُ**: `admin_sessions` · **الطورُ**: dual-read · **الرتبةُ**: 2
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `1.002-admin_sessions`): الجلساتُ لا تُنقَلُ: تُترَكُ لتنتهيَ بمهلتِها ويُطلَبُ دخولٌ جديدٌ. فالعودةُ إرجاعُ التحقُّقِ إلى الجدولِ المحليِّ الذي لم يُحذَف، بلا استرجاعِ صفٍّ.
+- **شكلُ العودةِ للآليّةِ**: الجدولُ المحليُّ يبقى قائماً ومكتوباً فيه حتّى تُقرأَ الواجهةُ صادقةً في الإنتاجِ؛ فالعودةُ إرجاعُ القارئِ إلى المحليِّ بلا استرجاعِ بياناتٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'admin_sessions') as declared, (select count(*) from public.admin_sessions) as rows`
+- **يُقرأُ «تمَّت» بـ**: `GET /v1/sessions/current` هوَ الطريقُ الوحيدُ للتحقُّقِ في اختبارِ تكاملٍ، ولا قراءةَ من `admin_sessions` في أيِّ مسارٍ — يُقاسُ بحاجزٍ ساكنٍ لا بمراجعةٍ.
+
+### `1.003-riders`
+
+- **الجدولُ**: `riders` · **الطورُ**: expand · **الرتبةُ**: 3
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `1.003-riders`): الشطرُ يبدأُ بمرجعٍ مُعتِمٍ إلى مبدأِ CORE مضافاً (توسيعٌ)، والصفُّ المحليُّ يبقى. فالعودةُ إرجاعُ القراءةِ إلى المحليِّ. **ولا دمجَ هويّاتٍ آليٌّ ألبتّةَ** قبلَ حسمِ `B-2`.
+- **شكلُ العودةِ للآليّةِ**: الشطرُ يبدأُ نسخاً مزدوجَ الكتابةِ (المحليُّ مصدرُ الحقيقةِ) فالعودةُ إسقاطُ الكتابةِ الثانيةِ؛ ولا يُقلَبُ مصدرُ الحقيقةِ إلّا بمطابقةٍ مقيسةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'riders') as declared, (select count(*) from public.riders) as rows`
+- **يُقرأُ «تمَّت» بـ**: كلُّ راكبٍ حيٍّ له مبدأٌ واحدٌ في CORE، **والمكرَّراتُ مُعدَّدةٌ ومحسومةٌ سطراً سطراً** لا مُدمَجةٌ آليّاً؛ ولا يُقرأُ الشطرُ تامّاً ما دامَ `orders.rider_id` مُعلَناً في سجلِّ اختراقاتِ الحدِّ.
+
+### `1.004-users`
+
+- **الجدولُ**: `users` · **الطورُ**: dual-read · **الرتبةُ**: 4
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `1.004-users`): **أخطرُ سطرٍ في المصفوفةِ**: كلُّ جدولٍ تنفيذيٍّ يرجعُ إلى هويّةٍ. فالطورُ الأوّلُ إضافةُ مرجعِ مبدأِ CORE (توسيعٌ محضٌ) والصفُّ المحليُّ مصدرُ الحقيقةِ؛ ولا يُقلَبُ المصدرُ إلّا بعدَ مطابقةٍ مقيسةٍ، **ولا يُنزَعُ عمودٌ في هذه الموجةِ ألبتّةَ**. فالعودةُ إرجاعُ القارئِ.
+- **شكلُ العودةِ للآليّةِ**: الجدولُ المحليُّ يبقى قائماً ومكتوباً فيه حتّى تُقرأَ الواجهةُ صادقةً في الإنتاجِ؛ فالعودةُ إرجاعُ القارئِ إلى المحليِّ بلا استرجاعِ بياناتٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'users') as declared, (select count(*) from public.users) as rows`
+- **يُقرأُ «تمَّت» بـ**: لكلِّ مستخدمٍ حيٍّ مبدأٌ واحدٌ في CORE، **والمكرَّراتُ مُعدَّدةٌ ومحسومةٌ بسياسةِ `B-2` سطراً سطراً لا آليّاً**، ورحلةٌ كاملةٌ تجري على هويّةِ CORE في اختبارِ e2e.
+
+### `2.005-cities`
+
+- **الجدولُ**: `cities` · **الطورُ**: dual-read · **الرتبةُ**: 5
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `2.005-cities`): الإسقاطُ يُجمَّدُ على آخرِ لقطةٍ ويُستأنَفُ التحريرُ المحليُّ. **ولا يُحذَفُ الجدولُ في أيِّ حالٍ**: القاعدةُ 0.4 تجعلُ `city_id` في كلِّ جدولٍ مفتاحاً أجنبيّاً إليه، فحذفُه إسقاطٌ للمخطَّطِ كلِّه لا تراجعٌ عن موجةٍ.
+- **شكلُ العودةِ للآليّةِ**: الإسقاطُ يُجمَّدُ على آخرِ لقطةٍ صحيحةٍ وتُستأنَفُ الكتابةُ المحليّةُ — ولا يُحذَفُ الإسقاطُ لأنَّ حذفَه يُوقِفُ التنفيذَ الميدانيَّ كلَّه.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'cities') as declared, (select count(*) from public.cities) as rows`
+- **يُقرأُ «تمَّت» بـ**: تعطيلُ مدينةٍ في CORE يُرى في `cities` عندَ MOVE في نافذةٍ مقيسةٍ، **وكتابةٌ محليّةٌ على الجدولِ تُرفَضُ** — يُقاسُ بمحاولةِ كتابةٍ مزروعةٍ في اختبارِ تكاملٍ لا بمراجعةِ شيفرةٍ.
+
+### `3.006-ledger_entries`
+
+- **الجدولُ**: `ledger_entries` · **الطورُ**: cutover · **الرتبةُ**: 6
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.006-ledger_entries`): **قيدُ الدفترِ لا يُحذَفُ ولا يُعدَّلُ أبداً** — مزدوجُ القيدِ يُصحَّحُ بقيدٍ مضادٍّ لا بمحوٍ. فالعودةُ إيقافُ الكتابةِ في CORE وإرجاعُ القراءةِ إلى المحليِّ، والصفوفُ في الطرفَينِ تبقى ويُوثَّقُ الفرقُ.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'ledger_entries') as declared, (select count(*) from public.ledger_entries) as rows`
+- **يُقرأُ «تمَّت» بـ**: مجموعُ المدينِ يساوي مجموعَ الدائنِ في الطرفَينِ، وكلُّ قيدٍ محليٍّ له نظيرٌ في CORE بمرجعٍ مُعتِمٍ — مطابقةٌ صفّاً بصفٍّ على أرقامِ الإنتاجِ (`B-1`)، لا عيّنةٌ.
+
+### `3.007-payment_transactions`
+
+- **الجدولُ**: `payment_transactions` · **الطورُ**: cutover · **الرتبةُ**: 7
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.007-payment_transactions`): **لا صفَّ معاملةٍ يُحذَفُ**: المرجعُ المُعتِمُ يُكتَبُ في طورِ توسيعٍ، والقراءةُ تُحوَّلُ، والجدولُ يبقى للقراءةِ التاريخيّةِ. فالعودةُ إرجاعُ القراءةِ، وهي بلا فقدٍ.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'payment_transactions') as declared, (select count(*) from public.payment_transactions) as rows`
+- **يُقرأُ «تمَّت» بـ**: لكلِّ معاملةٍ محليّةٍ تصريحُ دفعٍ في CORE بالحالةِ نفسِها والمبلغِ نفسِه، ومطابقةٌ مقيسةٌ تُخفِقُ على فرقٍ واحدٍ — والمالُ لا يُطابَقُ بعيّنةٍ.
+
+### `3.008-platform_settings`
+
+- **الجدولُ**: `platform_settings` · **الطورُ**: contract · **الرتبةُ**: 8
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.008-platform_settings`): الجدولُ يبقى في MOVE، والمُهاجَرُ **مفاتيحُ** السياسةِ التجاريّةِ (سعرٌ واشتراكٌ) لا الجدولُ. فالعودةُ إرجاعُ قراءةِ المفتاحِ إلى الصفِّ المحليِّ الذي لم يُحذَف.
+- **شكلُ العودةِ للآليّةِ**: النزعُ طورٌ متأخِّرٌ (`contract`) بعدَ طورِ توسيعٍ يُضيفُ المرجعَ؛ فالعودةُ قبلَ النزعِ إرجاعُ القارئِ، وبعدَه استرجاعُ العمودِ من نسخةِ CORE لا من نسخةٍ محليّةٍ محذوفةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'platform_settings') as declared, (select count(*) from public.platform_settings) as rows`
+- **يُقرأُ «تمَّت» بـ**: لا مفتاحَ سياسةٍ تجاريّةٍ يُقرأُ من هذا الجدولِ في أيِّ مسارٍ (حاجزٌ ساكنٌ)، والحدودُ التقنيّةُ تبقى ههنا صراحةً — والفرقُ بينَ الصنفَينِ مُعلَنٌ في سجلٍّ يقرؤه الحاجزُ لا في مراجعةٍ.
+
+### `3.009-subscription_invoices`
+
+- **الجدولُ**: `subscription_invoices` · **الطورُ**: cutover · **الرتبةُ**: 9
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.009-subscription_invoices`): كـ`payment_transactions`: توسيعٌ ثمَّ تحويلُ قراءةٍ، ولا حذفَ — فالعودةُ بلا فقدٍ.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'subscription_invoices') as declared, (select count(*) from public.subscription_invoices) as rows`
+- **يُقرأُ «تمَّت» بـ**: لكلِّ فاتورةٍ محليّةٍ نظيرٌ في CORE بالمبلغِ والحالةِ والدورةِ نفسِها، ومطابقةٌ مقيسةٌ تُخفِقُ على فرقٍ واحدٍ.
+
+### `3.010-subscription_refunds`
+
+- **الجدولُ**: `subscription_refunds` · **الطورُ**: cutover · **الرتبةُ**: 10
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.010-subscription_refunds`): كـ`subscription_invoices`، ولا حذفَ لصفِّ ردٍّ ألبتّةَ.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'subscription_refunds') as declared, (select count(*) from public.subscription_refunds) as rows`
+- **يُقرأُ «تمَّت» بـ**: لكلِّ ردٍّ محليٍّ قيدٌ مضادٌّ في دفترِ CORE، ومجموعُ الردودِ متساوٍ في الطرفَينِ.
+
+### `3.011-subscription_wallet_entries`
+
+- **الجدولُ**: `subscription_wallet_entries` · **الطورُ**: cutover · **الرتبةُ**: 11
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.011-subscription_wallet_entries`): كقيدِ الدفترِ: لا محوَ ولا تعديلَ، والتصحيحُ بقيدٍ مضادٍّ.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'subscription_wallet_entries') as declared, (select count(*) from public.subscription_wallet_entries) as rows`
+- **يُقرأُ «تمَّت» بـ**: رصيدُ كلِّ محفظةٍ محسوباً من القيودِ متساوٍ في الطرفَينِ، صفّاً بصفٍّ.
+
+### `3.012-subscription_wallets`
+
+- **الجدولُ**: `subscription_wallets` · **الطورُ**: cutover · **الرتبةُ**: 12
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.012-subscription_wallets`): المحفظةُ تُنشَأُ في CORE ويُكتَبُ مرجعُها المُعتِمُ محليّاً (توسيعٌ)، والرصيدُ المحليُّ يبقى مقروءاً. فالعودةُ إرجاعُ القراءةِ.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'subscription_wallets') as declared, (select count(*) from public.subscription_wallets) as rows`
+- **يُقرأُ «تمَّت» بـ**: رصيدٌ واحدٌ لكلِّ محفظةٍ يُقرأُ من CORE، **ولا حسابَ رصيدٍ محليٌّ ثانٍ** — يُقاسُ بحاجزٍ ساكنٍ يمنعُ الجمعَ المحليَّ، لا بمراجعةٍ.
+
+### `3.013-subscriptions`
+
+- **الجدولُ**: `subscriptions` · **الطورُ**: cutover · **الرتبةُ**: 13
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.013-subscriptions`): الاشتراكُ الجاريُ لا يُقطَعُ: يُنشَأُ نظيرُه في CORE ويُكتَبُ المرجعُ، والقراءةُ تُحوَّلُ بعدَ مطابقةٍ. فالعودةُ إرجاعُ قراءةِ الاستحقاقِ إلى الصفِّ المحليِّ.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'subscriptions') as declared, (select count(*) from public.subscriptions) as rows`
+- **يُقرأُ «تمَّت» بـ**: قراءةُ الاستحقاقِ في المسارِ الساخنِ تأتي من CORE في زمنٍ **مقيسٍ** لا يُبطِّئُ التوزيعَ، ولكلِّ اشتراكٍ حيٍّ نظيرٌ بالحالةِ والدورةِ نفسِها.
+
+### `3.014-unsubscribed_claims`
+
+- **الجدولُ**: `unsubscribed_claims` · **الطورُ**: contract · **الرتبةُ**: 14
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.014-unsubscribed_claims`): الجدولُ تنفيذيٌّ ويبقى؛ والمُهاجَرُ قراءةُ الاستحقاقِ التي تحكمُ فتحَ المطالبةِ. فالعودةُ إرجاعُ القراءةِ إلى الاشتراكِ المحليِّ.
+- **شكلُ العودةِ للآليّةِ**: النزعُ طورٌ متأخِّرٌ (`contract`) بعدَ طورِ توسيعٍ يُضيفُ المرجعَ؛ فالعودةُ قبلَ النزعِ إرجاعُ القارئِ، وبعدَه استرجاعُ العمودِ من نسخةِ CORE لا من نسخةٍ محليّةٍ محذوفةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'unsubscribed_claims') as declared, (select count(*) from public.unsubscribed_claims) as rows`
+- **يُقرأُ «تمَّت» بـ**: قرارُ فتحِ مطالبةٍ يُتَّخَذُ على استحقاقٍ مقروءٍ من CORE في اختبارِ تكاملٍ، ولا قراءةَ محليّةً للاشتراكِ في هذا المسارِ (حاجزٌ ساكنٌ).
+
+### `3.015-unsubscribed_negotiations`
+
+- **الجدولُ**: `unsubscribed_negotiations` · **الطورُ**: contract · **الرتبةُ**: 15
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.015-unsubscribed_negotiations`): كسابقِه: العودةُ إرجاعُ قراءةٍ لا استرجاعُ صفوفٍ.
+- **شكلُ العودةِ للآليّةِ**: النزعُ طورٌ متأخِّرٌ (`contract`) بعدَ طورِ توسيعٍ يُضيفُ المرجعَ؛ فالعودةُ قبلَ النزعِ إرجاعُ القارئِ، وبعدَه استرجاعُ العمودِ من نسخةِ CORE لا من نسخةٍ محليّةٍ محذوفةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'unsubscribed_negotiations') as declared, (select count(*) from public.unsubscribed_negotiations) as rows`
+- **يُقرأُ «تمَّت» بـ**: حدُّ المفاوضةِ وسعرُها يُقرآنِ من مصدرٍ واحدٍ، **ولا رقمَ تجاريَّ في الشيفرةِ** — وحاجزُ القيمِ التجاريّةِ القائمُ هوَ القياسُ.
+
+### `3.016-webhook_events`
+
+- **الجدولُ**: `webhook_events` · **الطورُ**: dual-read · **الرتبةُ**: 16
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `3.016-webhook_events`): أحداثُ المزوّدِ لا تُنقَلُ: الجدولُ يبقى سجلَّ منعِ تكرارٍ تاريخيّاً، والجديدُ يُستقبَلُ في CORE. فالعودةُ إعادةُ توجيهِ نقطةِ المزوّدِ — ضبطٌ لا هجرةٌ.
+- **شكلُ العودةِ للآليّةِ**: الجدولُ المحليُّ يبقى قائماً ومكتوباً فيه حتّى تُقرأَ الواجهةُ صادقةً في الإنتاجِ؛ فالعودةُ إرجاعُ القارئِ إلى المحليِّ بلا استرجاعِ بياناتٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'webhook_events') as declared, (select count(*) from public.webhook_events) as rows`
+- **يُقرأُ «تمَّت» بـ**: حدثُ دفعٍ يُستقبَلُ في CORE ولا يُنشئُ أثراً ثانياً عندَ إعادتِه، ولا كتابةَ جديدةَ محليّاً — والصفرُ مقيسٌ في نافذةٍ.
+
+### `4.017-drivers`
+
+- **الجدولُ**: `drivers` · **الطورُ**: contract · **الرتبةُ**: 17
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `4.017-drivers`): الجدولُ يبقى في MOVE بحكمِ الجردِ، والمُهاجَرُ ثلاثةُ أعمدةٍ (`user_id` · `rating_average` · `rating_count`) لكلٍّ سطرُه في خطّةِ الأعمدةِ. فالعودةُ على مستوى العمودِ لا الجدولِ، ولا طورَ نزعٍ قبلَ أن يُقاسَ القارئُ.
+- **شكلُ العودةِ للآليّةِ**: النزعُ طورٌ متأخِّرٌ (`contract`) بعدَ طورِ توسيعٍ يُضيفُ المرجعَ؛ فالعودةُ قبلَ النزعِ إرجاعُ القارئِ، وبعدَه استرجاعُ العمودِ من نسخةِ CORE لا من نسخةٍ محليّةٍ محذوفةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'drivers') as declared, (select count(*) from public.drivers) as rows`
+- **يُقرأُ «تمَّت» بـ**: لا مخالفةَ باقيةٌ لهذا الجدولِ في `WASLA_COLUMN_CONCERNS` بعدَ نزعِ الأعمدةِ الثلاثةِ — أي أنَّ حاجزَ `check-boundary-audit` هوَ القياسُ، فلا يُقرأُ الجدولُ تامّاً وفيه عمودٌ مُعلَنٌ.
+
+### `4.018-ratings`
+
+- **الجدولُ**: `ratings` · **الطورُ**: cutover · **الرتبةُ**: 18
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `4.018-ratings`): التقييماتُ تُنسَخُ إلى CORE ولا تُحذَفُ محليّاً حتّى تُقاسَ المطابقةُ؛ فالعودةُ إرجاعُ الحسابِ إلى المحليِّ. **ولا يُعادُ حسابُ متوسّطٍ من نسخةٍ ناقصةٍ** — متوسّطٌ من عيّنةٍ رقمٌ صحيحُ الشكلِ كاذبُ المعنى.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'ratings') as declared, (select count(*) from public.ratings) as rows`
+- **يُقرأُ «تمَّت» بـ**: عددُ التقييماتِ ومتوسّطُها لكلِّ سائقٍ متساويانِ في الطرفَينِ، وسباقُ تقييمَينِ متزامنَينِ لا يُنتِجُ متوسّطاً مكرَّراً — يُقاسُ على قاعدةٍ حقيقيّةٍ كما يُقاسُ اليومَ في `race-rating-average`.
+
+### `5.019-audit_log`
+
+- **الجدولُ**: `audit_log` · **الطورُ**: expand · **الرتبةُ**: 19
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.019-audit_log`): الشطرُ يبدأُ بكتابةٍ مزدوجةٍ والمحليُّ مصدرُ الحقيقةِ، فالعودةُ إسقاطُ الإرسالِ إلى CORE وحدَه. ولا صفٌّ يُحذَفُ محليّاً في هذه الموجةِ ألبتّةَ — سجلُّ التدقيقِ أوّلُ ما يُطلَبُ عندَ حادثةٍ.
+- **شكلُ العودةِ للآليّةِ**: الشطرُ يبدأُ نسخاً مزدوجَ الكتابةِ (المحليُّ مصدرُ الحقيقةِ) فالعودةُ إسقاطُ الكتابةِ الثانيةِ؛ ولا يُقلَبُ مصدرُ الحقيقةِ إلّا بمطابقةٍ مقيسةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'audit_log') as declared, (select count(*) from public.audit_log) as rows`
+- **يُقرأُ «تمَّت» بـ**: تصنيفُ كلِّ نوعِ حدثٍ في السجلِّ إلى «تنفيذيٍّ» أو «مشتركٍ» بسجلٍّ مغلقٍ يقرؤه حاجزٌ، ثمَّ مطابقةٌ مقيسةٌ: عددُ الأحداثِ المشتركةِ في CORE يساوي عددَها محليّاً في نافذةٍ واحدةٍ.
+
+### `5.020-broadcast_campaigns`
+
+- **الجدولُ**: `broadcast_campaigns` · **الطورُ**: cutover · **الرتبةُ**: 20
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.020-broadcast_campaigns`): الحملةُ الجاريةُ لا تُهاجَرُ وسطَها: الإطفاءُ يقعُ على الحملاتِ الجديدةِ وحدَها والقديمةُ تُكمِلُ محليّاً. فالعودةُ إعادةُ توجيهِ الحملةِ الجديدةِ إلى المسارِ المحليِّ.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'broadcast_campaigns') as declared, (select count(*) from public.broadcast_campaigns) as rows`
+- **يُقرأُ «تمَّت» بـ**: حملةٌ تُنشَأُ في CORE وتُسلَّمُ إلى مستقبِلٍ حقيقيٍّ في اختبارِ تكاملٍ، ولا كتابةَ في `broadcast_campaigns` بعدَها — والصفرُ يُقاسُ لا يُفترَضُ.
+
+### `5.021-broadcast_recipients`
+
+- **الجدولُ**: `broadcast_recipients` · **الطورُ**: cutover · **الرتبةُ**: 21
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.021-broadcast_recipients`): كسابقِه: الصفوفُ القائمةُ تُترَكُ لتُستنزَفَ، والعودةُ ضبطٌ لا هجرةٌ.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'broadcast_recipients') as declared, (select count(*) from public.broadcast_recipients) as rows`
+- **يُقرأُ «تمَّت» بـ**: حالةُ التسليمِ لكلِّ مستقبِلٍ تُقرأُ من CORE في اختبارِ تكاملٍ، وحاجزٌ ساكنٌ يمنعُ أيَّ كتابةٍ جديدةٍ في الجدولِ.
+
+### `5.022-notification_kind_policy`
+
+- **الجدولُ**: `notification_kind_policy` · **الطورُ**: cutover · **الرتبةُ**: 22
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.022-notification_kind_policy`): السياسةُ إعلانٌ لا بياناتٌ متراكمةٌ، فالعودةُ إرجاعُ القراءةِ إلى الجدولِ المحليِّ. **ولا يُنزَعُ قبلَ أن يقبلَ CORE كلَّ نوعٍ فيه**: نوعٌ بلا سياسةٍ في CORE يعني إشعاراً بلا قناةٍ مُعلَنةٍ، وهو ما يمنعُه حاجزُ `F6-05` اليومَ.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'notification_kind_policy') as declared, (select count(*) from public.notification_kind_policy) as rows`
+- **يُقرأُ «تمَّت» بـ**: كلُّ نوعٍ في السجلِّ المحليِّ له سياسةٌ مقروءةٌ في CORE، ويُقاسُ بمطابقةٍ آليّةٍ بينَ السجلَّينِ لا بمراجعةٍ — والفرقُ واحدٌ يُسقِطُ البناءَ.
+
+### `5.023-notification_outbox`
+
+- **الجدولُ**: `notification_outbox` · **الطورُ**: cutover · **الرتبةُ**: 23
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.023-notification_outbox`): الصندوقُ طابورٌ صامدٌ: يُستنزَفُ ولا يُحذَفُ، والعاملُ المحليُّ يُعطَّلُ بضبطٍ لا بهجرةٍ. فالعودةُ إعادةُ تفعيلِه، والصفوفُ غيرُ المنتهيةِ تُلتقَطُ في الشوطِ التالي بلا فقدٍ.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'notification_outbox') as declared, (select count(*) from public.notification_outbox) as rows`
+- **يُقرأُ «تمَّت» بـ**: عمقُ الطابورِ المحليِّ يبلغُ صفراً ويبقى صفراً في نافذةٍ مقيسةٍ بعدَ تحويلِ المُنتِجِ، وإشعارٌ حقيقيٌّ يُسلَّمُ عبرَ CORE في اختبارِ تكاملٍ — الصفرُ **مقيسٌ** لا مفترَضٌ.
+
+### `5.024-safety_incident_deliveries`
+
+- **الجدولُ**: `safety_incident_deliveries` · **الطورُ**: cutover · **الرتبةُ**: 24
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.024-safety_incident_deliveries`): **مسارُ الاستغاثةِ آخرُ ما يُحوَّلُ وأوّلُ ما يُرَدُّ**: العودةُ إعادةُ تفعيلِ التسليمِ المحليِّ بضبطٍ يُقرأُ في ثانيةٍ، ولا تُحوَّلُ حتّى يُقاسَ تسليمُ CORE في زمنٍ مقبولٍ لحادثةٍ.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'safety_incident_deliveries') as declared, (select count(*) from public.safety_incident_deliveries) as rows`
+- **يُقرأُ «تمَّت» بـ**: بلاغُ استغاثةٍ يُسلَّمُ عبرَ CORE في زمنٍ مقيسٍ لا يزيدُ على الزمنِ المحليِّ المقيسِ اليومَ، **وعزلُ مسارِ الاستقبالِ (`F8-05`) لا يُنقَضُ** — وهو حاجزٌ قائمٌ يُقاسُ لا وعدٌ.
+
+### `5.025-subscription_notices`
+
+- **الجدولُ**: `subscription_notices` · **الطورُ**: cutover · **الرتبةُ**: 25
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.025-subscription_notices`): إشعارٌ لا بياناتٌ محفوظةٌ: العودةُ ضبطٌ يُعيدُ الإرسالَ المحليَّ.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'subscription_notices') as declared, (select count(*) from public.subscription_notices) as rows`
+- **يُقرأُ «تمَّت» بـ**: إشعارُ اشتراكٍ حقيقيٌّ يُسلَّمُ عبرَ CORE، ولا كتابةَ جديدةَ في الجدولِ — الصفرُ مقيسٌ.
+
+### `5.026-support_tickets`
+
+- **الجدولُ**: `support_tickets` · **الطورُ**: cutover · **الرتبةُ**: 26
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.026-support_tickets`): التذاكرُ المفتوحةُ لا تُنقَلُ وسطَها: الجديدُ يُفتَحُ في CORE والقديمُ يُغلَقُ محليّاً. فالعودةُ إعادةُ فتحِ الجديدِ محليّاً، بلا فقدٍ.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'support_tickets') as declared, (select count(*) from public.support_tickets) as rows`
+- **يُقرأُ «تمَّت» بـ**: لا تذكرةَ جديدةٌ تُكتَبُ محليّاً (يُقاسُ صفراً في نافذةٍ)، وتذكرةٌ تُفتَحُ وتُغلَقُ عبرَ CORE في اختبارِ تكاملٍ.
+
+### `5.027-telegram_update_jobs`
+
+- **الجدولُ**: `telegram_update_jobs` · **الطورُ**: cutover · **الرتبةُ**: 27
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.027-telegram_update_jobs`): **لا يُلمَسُ مسارُ الاستلامِ إلّا بعدَ أن يُقاسَ محوّلُ CORE صامداً**: الحاملُ والإيصالُ مقيدانِ ١:١ ومسارُ الوفاءِ «مرّةً على الأقلّ» قائمٌ عليهما. فالعودةُ إعادةُ توجيهِ الويبهوكِ إلى البوّابةِ المحليّةِ — تغييرُ نقطةٍ عندَ تلغرام لا هجرةٌ.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'telegram_update_jobs') as declared, (select count(*) from public.telegram_update_jobs) as rows`
+- **يُقرأُ «تمَّت» بـ**: تحديثٌ حقيقيٌّ يصلُ عبرَ محوّلِ CORE ويُعالَجُ مرّةً واحدةً، **وإعادةُ إرسالٍ من تلغرام لا تُنتِجُ أثراً ثانياً** — يُقاسُ بعمليّتَينِ منفصلتَينِ كما يُقاسُ اليومَ في `BUG-002`، لا في عمليّةٍ واحدةٍ.
+
+### `5.028-telegram_update_receipts`
+
+- **الجدولُ**: `telegram_update_receipts` · **الطورُ**: cutover · **الرتبةُ**: 28
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.028-telegram_update_receipts`): كحاملِ الحمولةِ، والاثنانِ يُرَدّانِ معاً أو لا يُرَدُّ أحدُهما: القيدُ بينَهما ١:١.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'telegram_update_receipts') as declared, (select count(*) from public.telegram_update_receipts) as rows`
+- **يُقرأُ «تمَّت» بـ**: منعُ التكرارِ يبقى **في قاعدةٍ** لا في ذاكرةِ عمليّةٍ بعدَ التحويلِ — يُقاسُ بعمليّتَينِ منفصلتَينِ، وسقوطُه على نسخةٍ ثانيةٍ عطبٌ لا تفصيلٌ.
+
+### `5.029-user_notifications`
+
+- **الجدولُ**: `user_notifications` · **الطورُ**: cutover · **الرتبةُ**: 29
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.029-user_notifications`): سجلُّ إشعارٍ يُقرأُ ولا يُكتَبُ بعدَ التحويلِ؛ فالعودةُ إعادةُ الكتابةِ المحليّةِ.
+- **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'user_notifications') as declared, (select count(*) from public.user_notifications) as rows`
+- **يُقرأُ «تمَّت» بـ**: إشعارُ مستخدمٍ يُقرأُ من CORE في اختبارِ تكاملٍ، ولا نوعَ إشعارٍ بلا قناةٍ مُعلَنةٍ — حاجزُ `F6-05` يبقى نافذاً على السجلِّ الجديدِ لا يُلغى معَ الجدولِ.
+
+### `6.030-orders`
+
+- **الجدولُ**: `orders` · **الطورُ**: expand · **الرتبةُ**: 30
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `6.030-orders`): الشطرُ توسيعٌ محضٌ أوّلاً: `operational_jobs` يُكتَبُ فيه بالتزامنِ مع `orders` و`orders` مصدرُ الحقيقةِ، فالعودةُ إسقاطُ الكتابةِ الثانيةِ. **ولا يُقلَبُ مصدرُ الحقيقةِ ولا يُحذَفُ عمودٌ من `orders` في هذه الموجةِ**.
+- **شكلُ العودةِ للآليّةِ**: الشطرُ يبدأُ نسخاً مزدوجَ الكتابةِ (المحليُّ مصدرُ الحقيقةِ) فالعودةُ إسقاطُ الكتابةِ الثانيةِ؛ ولا يُقلَبُ مصدرُ الحقيقةِ إلّا بمطابقةٍ مقيسةٍ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'orders') as declared, (select count(*) from public.orders) as rows`
+- **يُقرأُ «تمَّت» بـ**: كلُّ صفٍّ تنفيذيٍّ حيٍّ في `orders` له نظيرٌ في `operational_jobs` بحالةٍ مكافئةٍ، ورحلةٌ كاملةٌ تجري على النموذجِ الجديدِ في اختبارِ e2e — ولا يُقرأُ الشطرُ تامّاً ما دامَ `orders.rider_id` مُعلَناً في سجلِّ اختراقاتِ الحدِّ.
+
+## ترتيبُ الاسترجاعِ (معكوسٌ)
+
+1. عكسُ `6.030-orders`
+2. عكسُ `5.029-user_notifications`
+3. عكسُ `5.028-telegram_update_receipts`
+4. عكسُ `5.027-telegram_update_jobs`
+5. عكسُ `5.026-support_tickets`
+6. عكسُ `5.025-subscription_notices`
+7. عكسُ `5.024-safety_incident_deliveries`
+8. عكسُ `5.023-notification_outbox`
+9. عكسُ `5.022-notification_kind_policy`
+10. عكسُ `5.021-broadcast_recipients`
+11. عكسُ `5.020-broadcast_campaigns`
+12. عكسُ `5.019-audit_log`
+13. عكسُ `4.018-ratings`
+14. عكسُ `4.017-drivers`
+15. عكسُ `3.016-webhook_events`
+16. عكسُ `3.015-unsubscribed_negotiations`
+17. عكسُ `3.014-unsubscribed_claims`
+18. عكسُ `3.013-subscriptions`
+19. عكسُ `3.012-subscription_wallets`
+20. عكسُ `3.011-subscription_wallet_entries`
+21. عكسُ `3.010-subscription_refunds`
+22. عكسُ `3.009-subscription_invoices`
+23. عكسُ `3.008-platform_settings`
+24. عكسُ `3.007-payment_transactions`
+25. عكسُ `3.006-ledger_entries`
+26. عكسُ `2.005-cities`
+27. عكسُ `1.004-users`
+28. عكسُ `1.003-riders`
+29. عكسُ `1.002-admin_sessions`
+30. عكسُ `1.001-admin_login_codes`
