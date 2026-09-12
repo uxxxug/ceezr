@@ -308,6 +308,17 @@ skipped, no owner was invented, and `OPS-017` is **not** claimed fixed. Repairin
 it is a separate increment against this file, and doing it inside `F2-01` would
 be editing code outside the reserved scope.
 
+**Round 4 — `4c2ce36`, runs `34719612525` and `34719610983` (both on the same
+commit).** `Roadmap freshness` ✅ · `تكامل على PostgreSQL حقيقي` ✅ **in both
+runs** · `فوضى متعدد المثيلات (F5-06)` ✅ · `verify` ❌ at step **25**
+`منع أي جدول بلا city_id` and nothing else · Redis ❌ at step **8**
+`اختبارات الجلسات على Redis حقيقي`. Both remaining failures are the two declared
+sovereign blocks inherited from `main` (`O-1`, `O-2`), read step-by-step from
+CI's own job API rather than inferred. **No red on this branch is owned by this
+branch.** Merged on that verdict under the owner's standing merge instruction.
+`ح-4` is still not satisfied — three consecutive fully green rounds are
+unreachable while `O-1` and `O-2` are open — so `F2-01` stays unmarked.
+
 
 ### Reservation `DEP-CORE-005` — a mechanical freshness comparator for the vendored CORE contracts (opened 2026-09-12, before any file was edited)
 
