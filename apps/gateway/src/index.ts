@@ -43,6 +43,11 @@ import {
 } from "../../../packages/infrastructure/places/places-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import {
+  createRideCancelCommand,
+  createRideRequestCommand,
+  createRideSearchReader,
+} from "../../../packages/infrastructure/transport/ride-request-store.ts";
 import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
 import {
   MAPLIBRE_CDN_ORIGIN,
@@ -625,6 +630,34 @@ const quote =
         log,
       };
 
+/**
+ * مساراتُ الرحلةِ (`F2-05`) — سرُّ الجلسةِ وحدَه شرطُ تركيبِها، كالاقتباسِ. ولا
+ * مفتاحَ خرائطَ ههنا ولا مزوِّدَ توجيهٍ: الإنشاءُ حكمٌ في القاعدةِ، وحالةُ البحثِ
+ * قراءةٌ منها. والقارئُ والآمرُ والمُلغي **ثلاثةُ كائناتٍ** لا واحدٌ: مسارُ
+ * القراءةِ لا يجبُ أن يملكَ حقَّ الكتابةِ ولا حقَّ الإلغاءِ.
+ */
+const rides =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        request: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          rides: createRideRequestCommand(container.sql),
+          now: () => new Date(),
+        },
+        search: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          search: createRideSearchReader(container.sql),
+          now: () => new Date(),
+        },
+        cancel: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          canceller: createRideCancelCommand(container.sql),
+          now: () => new Date(),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -730,6 +763,7 @@ const app = createServer({
   ...(places === undefined ? {} : { places }),
   ...(destinations === undefined ? {} : { destinations }),
   ...(quote === undefined ? {} : { quote }),
+  ...(rides === undefined ? {} : { rides }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),

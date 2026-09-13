@@ -36,6 +36,7 @@ import {
   type PaymentWebhookDependencies,
 } from "./routes/payment-webhook.ts";
 import { createQuoteRoutes, type QuoteRouteDependencies } from "./routes/quote.ts";
+import { createRidesRoutes, type RidesRouteDependencies } from "./routes/rides.ts";
 import {
   createSessionRefreshRoutes,
   type SessionRefreshDependencies,
@@ -91,6 +92,13 @@ export interface ServerDependencies {
   readonly destinations?: DestinationsRouteDependencies;
   /** غيابُها يُسقِطُ مسارَ الاقتباسِ من التركيبِ أصلاً (`F2-04`). */
   readonly quote?: QuoteRouteDependencies;
+  /**
+   * مساراتُ الرحلةِ (`F2-05` / `SR-05`): الإنشاءُ بمفتاحِ تكرارٍ إلزاميٍّ،
+   * وقراءةُ حالةِ البحثِ، والإلغاءُ قبلَ الإسنادِ. وغيابُها يُسقِطُها من التركيبِ
+   * أصلاً — **ولا يُنشَأُ مسارٌ يُجيبُ بلا كتابةٍ**: إنشاءٌ يعودُ `200` بلا صفٍّ
+   * أسوأُ من مسارٍ غائبٍ، لأنَّ الشاشةَ تنتقلُ إلى بحثٍ عن رحلةٍ لا وجودَ لها.
+   */
+  readonly rides?: RidesRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
@@ -152,6 +160,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.quote !== undefined) {
     app.route("/", createQuoteRoutes(deps.quote));
+  }
+  if (deps.rides !== undefined) {
+    app.route("/", createRidesRoutes(deps.rides));
   }
 
   if (deps.destinations !== undefined) {
