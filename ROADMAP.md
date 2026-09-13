@@ -482,6 +482,20 @@ repaired shutdown file **3 pass · 0 fail · 15.11s**. Evidence:
 2026-09-12 evidence file intact beside it (`ح-8`: corrections are additive).
 
 
+**Follow-up on the same root cause (recorded, not hidden).** One of the two CI
+runs on `be67f25` went red in `تكامل على PostgreSQL حقيقي` step 11 while the
+other run on the **same tree** was green — a race, not a logic fault. The log
+names it: `Failed to start server. Is port 46602 in use?` in
+`tests/integration/admin-service-separation.test.ts`, whose port was computed
+`39_000 + (pid % 1_000) * 10 + 1` — the identical falsified argument in a second
+place. `reserveFreePort` therefore moved to `tests/support/free-port.ts`, both
+files import it, and `spawnService` retries four times **on port conflict only**
+while reading the child's `exitCode` each poll. Measured after the repair
+against the real managed database: **3 pass · 0 fail · 6.85s** (the failing case
+alone used to burn 30086.45ms of timeout). No timeout raised, no assertion
+weakened, no case skipped, no production code touched. `ADR 0100` addendum.
+
+
 ### Reservation `DEP-CORE-005` — a mechanical freshness comparator for the vendored CORE contracts (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in

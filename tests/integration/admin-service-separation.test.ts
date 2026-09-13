@@ -35,6 +35,7 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import { reserveFreePort } from "../support/free-port.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -48,10 +49,18 @@ const POLL_MS = 250;
 const CASE_TIMEOUT_MS = 90_000;
 
 /**
- * منفذٌ فريدٌ حتماً لا عشوائيّاً — نطاقٌ مشتقٌ من PID كي لا تصطدمَ عمليّاتُ Bun
- * المتوازيةُ في CI، ومن مدىً غيرِ مدى برهانِ العاملِ.
+ * **تصحيحٌ مقيسٌ لا تجميليٌّ (`ح-8`).** كانَ المنفذُ يُحسَبُ `39_000 + (pid % 1_000)
+ * * 10 + 1` بحجّةِ أنَّ المشتقَّ من PID فريدٌ حتماً. والحُجّةُ باطلةٌ: هوَ فريدٌ
+ * **بين حالاتِ هذا الملفِّ** ولا يمنعُ شاغلاً آخرَ على عاملِ CI — وهوَ ما وقعَ
+ * بحرفِه في الشغلةِ `34736418060` (الوظيفةُ `تكامل على PostgreSQL حقيقي` ·
+ * الخطوةُ 11): ماتَتِ البوّابةُ على المنفذِ 46602 بـ`Failed to start server. Is
+ * port 46602 in use?` فبقيَ المُختبَرُ يستقصي `/health` ثلاثينَ ثانيةً ثمَّ سقطَ
+ * بمهلةٍ — **والمهلةُ عَرَضٌ والسببُ منفذٌ مشغولٌ**، وشِفرةُ الإنتاجِ سليمةٌ.
+ * فصارَ المنفذُ يُسألُ منَ النظامِ لكلِّ إقلاعٍ، وتُعادُ المحاولةُ عندَ
+ * `EADDRINUSE` وحدَه. ولا مهلةَ رُفِعَت ولا توكيدَ خُفِّف ولا حالةَ صُنِّفَت
+ * تخطّياً (`ADR 0100`).
  */
-let nextPort = 39_000 + (process.pid % 1_000) * 10 + 1;
+const BOOT_ATTEMPTS = 4;
 
 /** قيمٌ صناعيّةٌ شكلاً لا تُصيب خدمةً حقيقيّةً — تُجيز العبورَ فوقَ حارسِ الإقلاعِ. */
 const CHILD_ENV: Record<string, string> = {
@@ -103,7 +112,24 @@ function drain(stream: ReadableStream<Uint8Array>, into: string[]): void {
 }
 
 async function spawnService(entry: string, extraEnv: Record<string, string>): Promise<Child> {
-  const port = nextPort++;
+  let lastError = "";
+  for (let attempt = 1; attempt <= BOOT_ATTEMPTS; attempt += 1) {
+    const outcome = await spawnOnce(entry, extraEnv);
+    if (outcome.child !== undefined) return outcome.child;
+    lastError = outcome.detail;
+    // تعارضُ منفذٍ وحدَه يُعادُ. وأيُّ إخفاقِ إقلاعٍ آخرَ عطلٌ حقيقيٌّ يُرفَعُ فوراً.
+    if (!/EADDRINUSE|port \d+ in use/i.test(lastError)) break;
+  }
+  throw new Error(`لم تُقلع «${entry}» في ${BOOT_ATTEMPTS} محاولاتٍ:\n${lastError}`);
+}
+
+interface SpawnOutcome {
+  readonly child?: Child;
+  readonly detail: string;
+}
+
+async function spawnOnce(entry: string, extraEnv: Record<string, string>): Promise<SpawnOutcome> {
+  const port = reserveFreePort();
   const lines: string[] = [];
   const child = Bun.spawn(["bun", entry], {
     env: {
@@ -143,14 +169,25 @@ async function spawnService(entry: string, extraEnv: Record<string, string>): Pr
     } catch {
       // لم يُقبَل الاتّصالُ بعدُ.
     }
+    /*
+     * موتُ الوليدِ يُقرأُ **قبلَ** انقضاءِ المهلةِ: لو ماتَ لسببٍ مهما كانَ فلا
+     * معنىً لاستقصاءِ منفذٍ لا أحدَ عليه ثلاثينَ ثانيةً، ولا لأن يُقرأَ السببُ
+     * «مهلةً». وبهذا يظهرُ `EADDRINUSE` في أقلَّ من ثانيةٍ فتُعادُ المحاولةُ.
+     */
+    if (child.exitCode !== null) {
+      const detail = `مات الوليدُ «${entry}» بالرمزِ ${child.exitCode} على المنفذِ ${port}:\n${lines.join("")}`;
+      return { detail };
+    }
     if (Date.now() >= deadline) {
       await stop();
-      throw new Error(`لم تُقلع «${entry}» على المنفذِ ${port} في المهلةِ:\n${lines.join("")}`);
+      return {
+        detail: `لم تُقلع «${entry}» على المنفذِ ${port} في المهلةِ:\n${lines.join("")}`,
+      };
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_MS));
   }
 
-  return { port, output: () => lines.join(""), stop };
+  return { child: { port, output: () => lines.join(""), stop }, detail: "" };
 }
 
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;

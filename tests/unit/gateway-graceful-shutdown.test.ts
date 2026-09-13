@@ -13,6 +13,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { reserveFreePort } from "../support/free-port.ts";
 
 /** قيمٌ صناعيّةٌ شكلاً لا تُصيبُ خدمةً حقيقيّةً — تُمكِّنُ العبورَ فوقَ حارسِ الإقلاعِ. */
 const FAKE_ENV: Record<string, string> = {
@@ -81,12 +82,9 @@ const BOOT_ATTEMPTS = 4;
  * إلى العمليّةِ الوليدةِ. ويبقى بينَ الإغلاقِ والإقلاعِ فُرجةٌ نظريّةٌ
  * (`TOCTOU`) — فتُغلَقُ بإعادةِ المحاولةِ عندَ `EADDRINUSE` وحدَه.
  */
-function reserveFreePort(): number {
-  const probe = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
-  const port = probe.port;
-  probe.stop(true);
-  return port;
-}
+// والدالّةُ نفسُها في `tests/support/free-port.ts` لأنّ الملفَّ ليسَ وحدَه في
+// حاجتِها: `tests/integration/admin-service-separation.test.ts` أخفقَ بعينِ السببِ
+// في الشغلةِ `34736418060`، فالموضعُ الواحدُ يُصلَحُ مرّةً واحدةً.
 
 /**
  * يقرأُ المجرى إلى آخرِه في الخلفيّةِ ويحتفظُ بما قرأ. **والقراءةُ إلى الآخرِ شرطٌ
