@@ -27,6 +27,19 @@
  *   ــ **لا ترسمُ خريطةً**: الخريطةُ في `SR-02`، وههنا إحداثيّةٌ معلَنةٌ وعُمرٌ.
  *   ــ **لا تُنشِئُ رحلةً ولا تُسنِدُ سائقاً**: الإنشاءُ `SR-04` والإسنادُ `F3`.
  *   ــ **لا تُخزِّنُ معرّفَ الرحلةِ محلّيّاً**: المعرّفُ يأتي من مُركِّبِها.
+ *
+ * ## إضافةُ البند `F2-07` (2026-09-13)
+ *
+ * صارَ لها **مخرجٌ واحدٌ اختياريٌّ**: `onFinished`. ويُرسَمُ زرُّه **متى قالَت
+ * القاعدةُ `completed` وحدَها** — لا متى ظنَّت الشاشةُ. وما فوقَ **باقٍ كما هوَ**
+ * (القاعدة ح-1) ولا سطرَ حُذِفَ؛ والسطرُ أعلاه القائلُ إنَّ `F2-07` «يُلحِقُ بها
+ * شاشةَ الإنهاءِ» كانَ توقُّعَ البندِ السابقِ، وهذا إنفاذُه حرفاً.
+ *
+ * ولماذا مخرجٌ لا تركيبٌ للملخَّصِ ههنا: الملخَّصُ يُقرأُ بنداءٍ آخرَ وله حالتُه
+ * ونموذجُ تقييمِه، وشاشةٌ واحدةٌ تحملُ حكمَينِ تُخفي أيَّهما رُفِضَ ولماذا.
+ *
+ * وبلا `onFinished` **لا زرَّ**: مُركِّبٌ لا يعرفُ إلى أينَ يُفضي الزرُّ لا
+ * يُرسَمُ له زرٌّ — وزرٌّ بلا مسارٍ وعدٌ لا عقدٌ.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -73,6 +86,11 @@ export interface ActiveRideScreenProps {
     readonly idempotencyKey: string;
   }) => Promise<CancelRideResponse>;
   readonly onBack?: () => void;
+  /**
+   * مخرجُ الإنهاءِ (`F2-07`) — يُنادى بمعرّفِ الرحلةِ متى طلبَ الراكبُ الملخَّصَ.
+   * **اختياريٌّ**: بغيابِه لا يُرسَمُ زرٌّ، ولا يُخترعُ مسارٌ لا يعرفُه المُركِّبُ.
+   */
+  readonly onFinished?: (orderId: string) => void;
   readonly initialLanguage?: MiniAppLanguage;
   /** تُحقَنُ في الاختبارِ كي تُقاسَ المدّةُ بلا انتظارٍ حقيقيٍّ. */
   readonly now?: () => number;
@@ -111,6 +129,7 @@ export function ActiveRideScreen({
   read = readViaApi,
   cancel = cancelViaApi,
   onBack,
+  onFinished,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   now = () => Date.now(),
 }: ActiveRideScreenProps) {
@@ -354,6 +373,14 @@ export function ActiveRideScreen({
             {t(reading ? "rider.active.refreshing" : "rider.active.refresh")}
           </button>
         </div>
+
+        {/* بابُ الملخَّصِ (`F2-07`) — **بحكمِ القاعدةِ `completed` وحدَه**، وبمُركِّبٍ
+            أعطى مساراً. ولا زرَّ قبلَ الانتهاءِ: ملخَّصُ رحلةٍ جاريةٍ ليسَ ملخَّصاً. */}
+        {view.status === "completed" && onFinished !== undefined && (
+          <button type="button" className="ar__summary" onClick={() => onFinished(orderId)}>
+            {t("rider.active.summary")}
+          </button>
+        )}
 
         {/* سياسةُ الإلغاءِ نصٌّ إجرائيٌّ، والزرُّ للحرِّ وحدَه. */}
         <p className="ar__cancel-policy">{t(cancelPolicyKey(view.cancelPolicy))}</p>

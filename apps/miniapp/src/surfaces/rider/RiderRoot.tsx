@@ -70,6 +70,23 @@
  *
  * وما لا يفعلُه بعدَ `F2-05`: لا يُتابِعُ رحلةً بعدَ الإسنادِ — شاشةُ الرحلةِ
  * النشطةِ بندُ `F2-06`، و`SR-05` تعرضُ الحالةَ كما هيَ ولا تزعمُ تتبّعاً.
+ *
+ * ## إضافةُ البند `F2-07` (2026-09-13)
+ *
+ * صارَ للسطحِ **مرحلةٌ سادسةٌ هيَ أعلى الترتيبِ**: `summarized`. متى انتهت
+ * الرحلةُ وطلبَ الراكبُ ملخَّصَها تُركَّبُ `SR-07`/`SR-08`: مدّةٌ ووترُ خطٍّ
+ * مستقيمٍ وبطاقةُ سائقٍ ونموذجُ تقييمٍ. وما قبلَها **باقٍ كما هوَ** (القاعدة ح-1)
+ * ولا سطرَ حُذِفَ؛ والسطرُ أعلاه القائلُ إنَّ متابعةَ الرحلةِ **أعلى الترتيبِ**
+ * باقٍ وصفاً لِما كانَ، وقد صارَ فوقَه الملخَّصُ.
+ *
+ * ولماذا **فوقَ** المتابعةِ: رحلةٌ انتهت لا تُتابَعُ، ومتى فُتِحَ ملخَّصٌ فإعادةُ
+ * رسمِ شاشةِ التتبُّعِ تحتَه تُوهِمُ بحركةٍ لا تحدثُ. والمعرّفَانِ **لا يُدمجانِ**:
+ * `followed` رحلةٌ تجري تُسألُ حالتُها دوريّاً، و`summarized` رحلةٌ مضَت تُقرأُ مرّةً
+ * واحدةً وتُقَيَّمُ — وخلطُهما يُمكِّنُ من نموذجِ تقييمٍ فوقَ رحلةٍ لم تنتهِ.
+ *
+ * وما لا يفعلُه بعدَ `F2-07`: لا يعرضُ إيصالاً ولا أجرةً (`ADR 0039` §٤ · `م13-7`)،
+ * ولا يُشارِكُ رحلةً (`F2-09`)، ولا يفتحُ تذكرةَ دعمٍ: **غيابٌ مُصرَّحٌ** في دليلِ
+ * الإغلاقِ لا زرٌّ مُعطَّلٌ.
  */
 
 import { useState } from "react";
@@ -81,6 +98,7 @@ import { HomeScreen } from "./home/HomeScreen.tsx";
 import { QuoteScreen } from "./quote/QuoteScreen.tsx";
 import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
 import { SearchScreen } from "./search/SearchScreen.tsx";
+import { RideSummaryScreen } from "./summary/RideSummaryScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
 
 export default function RiderRoot() {
@@ -104,11 +122,34 @@ export default function RiderRoot() {
    * وهيَ **أعلى** الترتيبِ: ما دامَت رحلةٌ تُتابَعُ فلا تُرسَمُ شاشةُ إنشاءٍ فوقَها.
    */
   const [followed, setFollowed] = useState<string | null>(null);
+  /**
+   * الرحلةُ **المنتهيةُ** التي يُقرأُ ملخَّصُها (`F2-07`) — معرّفٌ لا حالةٌ. ولا
+   * يُدمَجُ معَ `followed`: تلكَ تجري وتُسألُ، وهذه مضَت وتُقرأُ مرّةً وتُقيَّمُ.
+   * وهيَ **أعلى** الترتيبِ كلِّه: ما دامَ ملخَّصٌ مفتوحاً فلا شاشةَ تتبُّعٍ تحتَه.
+   */
+  const [summarized, setSummarized] = useState<string | null>(null);
 
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
+
+  // رحلةٌ انتهت يُقرأُ ملخَّصُها ويُقيَّمُ سائقُها (`SR-07` · `SR-08`). والرجوعُ
+  // منها إلى الرئيسةِ: الرحلةُ مضَت فلا حالةَ يُعادُ إليها.
+  if (summarized !== null) {
+    return (
+      <RideSummaryScreen
+        orderId={summarized}
+        onBack={() => {
+          setSummarized(null);
+          setFollowed(null);
+          setIntent(null);
+          setConfirmed(null);
+          setChosen(null);
+        }}
+      />
+    );
+  }
 
   // رحلةٌ قائمةٌ تُتابَعُ: لقطتُها وسائقُها وموقعُه بعُمرِه (`SR-06`). والرجوعُ
   // منها إلى الرئيسةِ لا إلى بحثٍ مضى: البحثُ انتهى بإسنادٍ.
@@ -116,6 +157,7 @@ export default function RiderRoot() {
     return (
       <ActiveRideScreen
         orderId={followed}
+        onFinished={(orderId) => setSummarized(orderId)}
         onBack={() => {
           setFollowed(null);
           setIntent(null);

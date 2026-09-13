@@ -41,6 +41,26 @@
  *   ــ **لا تُعيدُ نصّاً معروضاً**: مفاتيحُ ورموزٌ وأعدادٌ وأختامٌ (القسم 9.11).
  *   ــ **لا تُفرِّقُ «ليسَ لك» من «غيرُ موجودٍ»**: `ORDER_NOT_FOUND` للأمرَينِ، كي
  *      لا يصيرَ المسارُ عدَّادَ معرّفاتٍ صحيحةً لمن يجرِّبُها.
+ *
+ * ## إضافةُ البند `F2-07` (2026-09-13) — الإنهاءُ والتقييمُ
+ *
+ * زِيدَ مسارانِ: `GET /v1/rides/:id/summary` (ملخَّصُ الرحلةِ المنتهيةِ) و
+ * `POST /v1/rides/:id/rating` (تقييمٌ بوسومٍ). وما سبقَ من هذا الرأسِ يبقى
+ * مكتوباً كما كُتِبَ (`ح-1` · `ح-8`)، وهذه زيادتُه:
+ *
+ *   ــ **ولماذا مسارُ ملخَّصٍ منفصلٌ عن `GET /v1/rides/:id`**: الأوّلُ يُسألُ
+ *      كلَّ دقيقةٍ ويحملُ موقعاً بعُمرِه ومدّةَ وصولٍ من محرِّكِ توجيهٍ، وهذا
+ *      يُسألُ مرّةً ويحملُ مدّةً ووتراً وحالةَ تقييمٍ **ولا موقعَ**. وجمعُهما
+ *      يعني نداءَ محرِّكٍ لرحلةٍ انتهت، **وحقلَ موقعٍ في ردٍّ لرحلةٍ منتهيةٍ**.
+ *   ــ **وللتقييمِ خريطةُ حالاتٍ خاصّةٌ به** (`STATUS_BY_RATING_ERROR`): توسيعُ
+ *      `RequestRidePublicErrorCode` يُلزِمُ كلَّ مسارٍ يقرؤُه بحالاتٍ لرموزٍ لا
+ *      تخصُّه، ورمزٌ بلا حالةٍ في خريطةٍ شاملةٍ `undefined` يُنشَرُ `200`.
+ *   ــ **ولا حقلَ مبلغٍ ولا أجرةٍ ولا إكراميّةٍ في حمولةِ الملخَّصِ ولا خانةً
+ *      لها** (`ADR 0039` §٤ · `م13-7` · `DEC-11`) — والملخَّصُ **ملخَّصُ رحلةٍ
+ *      لا إيصالٌ**، وخانةٌ فارغةٌ لمالٍ تُقرأُ التزاماً.
+ *   ــ **ولا زرَّ تذكرةِ دعمٍ ولا مسارَ لها ههنا**: `open_support_ticket`
+ *      قائمةٌ في القاعدةِ ولها مُنادونَ، ووصلُها بهذا السطحِ خارجَ النطاقِ
+ *      المحجوزِ — غيابٌ مُصرَّحٌ لا حقلٌ منسيٌّ.
  */
 
 import { type Context, Hono } from "hono";
@@ -57,10 +77,23 @@ import {
   readRideSearch,
 } from "../../../../packages/application/transport/read-ride-search.ts";
 import {
+  type ReadRideSummaryDeps,
+  readRideSummary,
+} from "../../../../packages/application/transport/read-ride-summary.ts";
+import {
   type RequestRideDeps,
   type RequestRidePublicErrorCode,
   requestRide,
 } from "../../../../packages/application/transport/request-ride.ts";
+import {
+  // الاسمُ يُقصَّرُ عندَ الاستيرادِ **لا يُغيَّرُ في مصدرِه**: خريطةُ الحالاتِ
+  // أدناهُ يجبُ أن يبقى تصريحُها **سطراً واحداً** يُرى فيه اتّحادُ الحالاتِ
+  // المسموحةِ كما هوَ، وبالاسمِ الطويلِ يتجاوزُ السطرُ عرضَ المُنسِّقِ فيُكسَرُ
+  // ثلاثةَ أسطرٍ ويختفي الاتّحادُ عن سطرِ التصريحِ.
+  type SubmitRideRatingPublicErrorCode as RatingErrorCode,
+  type SubmitRideRatingDeps,
+  submitRideRating,
+} from "../../../../packages/application/transport/submit-ride-rating.ts";
 import { bearerTokenFrom } from "./me.ts";
 import { readBounded } from "./telegram-webhook.ts";
 
@@ -71,6 +104,10 @@ export interface RidesRouteDependencies {
   /** قارئُ الرحلةِ النشطةِ (`F2-06`) — غيابُه يُعطِّلُ المسارَ بـ503 صادقاً. */
   readonly active?: ReadActiveRideDeps;
   readonly cancel?: CancelRideRequestDeps;
+  /** قارئُ ملخَّصِ المنتهيةِ (`F2-07`) — غيابُه يُعطِّلُ المسارَ بـ503 صادقاً. */
+  readonly summary?: ReadRideSummaryDeps;
+  /** أمرُ التقييمِ (`F2-07`) — غيابُه يُعطِّلُ المسارَ بـ503 لا بـ500 صامتٍ. */
+  readonly rating?: SubmitRideRatingDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -101,6 +138,35 @@ const STATUS_BY_ERROR: Readonly<Record<RequestRidePublicErrorCode, 400 | 401 | 4
 
 function rejected(c: Context, error: RequestRidePublicErrorCode) {
   return c.json({ ok: false, error }, STATUS_BY_ERROR[error]);
+}
+
+/**
+ * حدُّ جسمِ التقييمِ. ملاحظةٌ حدُّها ألفُ محرفٍ في UTF-8 تبلغُ ثلاثةَ آلافِ
+ * بايتٍ بالعربيّةِ في أسوأِ حالٍ شائعٍ، وزيادةُ النجومِ وثلاثةِ وسومٍ وأقواسِ
+ * JSON دونَ الكيلوبايتِ. **حدُّ نقلٍ لا قيمةُ منتَجٍ** (القاعدة 0.3): حدُّ
+ * الملاحظةِ نفسُه مكتوبٌ في النطاقِ وفي القاعدةِ.
+ */
+export const RIDE_RATING_MAX_BYTES = 4096;
+
+/**
+ * خريطةُ حالاتِ التقييمِ — **شاملةٌ حرفاً** لاتّحادِ رموزِه.
+ *
+ * ورموزُ الحدِّ الجديدةُ كلُّها `400`: نجومٌ خارجَ المدى أو ملاحظةٌ فوقَ الحدِّ
+ * أو وسمٌ مجهولٌ **عطبُ طلبٍ** يُصلِحُه المُنادي، لا حكمٌ مقيسٌ يُنشَرُ `200`.
+ * وأمّا رفضُ القاعدةِ (`ALREADY_RATED` · `RATING_WINDOW_CLOSED` · …) فيُنشَرُ
+ * `200` بـ`accepted:false` كما في بقيّةِ مساراتِ الرحلةِ.
+ */
+const STATUS_BY_RATING_ERROR: Readonly<Record<RatingErrorCode, 400 | 401 | 404 | 503>> = {
+  ...STATUS_BY_ERROR,
+  STARS_OUT_OF_RANGE: 400,
+  COMMENT_TOO_LONG: 400,
+  UNKNOWN_RATING_TAG: 400,
+  TOO_MANY_RATING_TAGS: 400,
+  DUPLICATE_RATING_TAG: 400,
+};
+
+function ratingRejected(c: Context, error: RatingErrorCode) {
+  return c.json({ ok: false, error }, STATUS_BY_RATING_ERROR[error]);
 }
 
 /** ترويسةُ المفتاحِ — تُقرأُ بالاسمِ المُعرَّفِ لا بأيِّ مرادفٍ. */
@@ -265,6 +331,136 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
           : eta.kind === "ROUTED"
             ? { kind: "ROUTED" as const, minutes: eta.minutes, source: eta.source }
             : { kind: "UNAVAILABLE" as const, reason: eta.reason },
+    });
+  });
+
+  /**
+   * ملخَّصُ الرحلةِ المنتهيةِ (`F2-07` · `SR-07`).
+   *
+   * **والمدّةُ والوترُ يُنشرانِ حكمَينِ مُصنَّفَينِ لا رقمَينِ عاريَينِ**: غيابُ
+   * ختمٍ يُنشَرُ `known:false` بسببِه، وغيابُ وجهةٍ يُنشَرُ `NO_DROPOFF` —
+   * **ولا صفرَ**: «٠ ثانيةً» تُقرأُ رحلةً لحظيّةً و«٠ متراً» تُقرأُ «لم تتحرَّكْ».
+   *
+   * **واسمُ الحقلِ `straightLineMeters` في السلكِ نفسِه**: لا أثرَ مسارٍ في
+   * المخطَّطِ، فتسميتُه «المسافةَ» شاهدٌ كاذبٌ يُقرأُ في نزاعٍ.
+   */
+  app.get("/v1/rides/:id/summary", async (c) => {
+    if (deps.summary === undefined) {
+      deps.log?.("rides.summary_disabled", {});
+      return rejected(c, "RIDE_STORE_NOT_AVAILABLE");
+    }
+
+    const result = await readRideSummary(deps.summary, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("id"),
+    });
+    if (!result.ok) return rejected(c, result.error);
+
+    const read = result.value;
+    if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
+
+    const { state, duration, straightLine, eligibility } = read.view;
+    const driver = state.driver;
+    return c.json({
+      ok: true,
+      found: true as const,
+      orderId: state.orderId,
+      status: state.status,
+      service: state.service,
+      pickupLabel: state.pickupLabel,
+      dropoffLabel: state.dropoffLabel,
+      createdAt: new Date(state.createdAtMs).toISOString(),
+      matchedAt: state.matchedAtMs === null ? null : new Date(state.matchedAtMs).toISOString(),
+      startedAt: state.startedAtMs === null ? null : new Date(state.startedAtMs).toISOString(),
+      completedAt:
+        state.completedAtMs === null ? null : new Date(state.completedAtMs).toISOString(),
+      duration: duration.known
+        ? {
+            known: true as const,
+            totalSeconds: duration.totalSeconds,
+            minutes: duration.minutes,
+            seconds: duration.seconds,
+          }
+        : { known: false as const, reason: duration.reason },
+      straightLine: straightLine.known
+        ? { known: true as const, meters: straightLine.meters }
+        : { known: false as const, reason: straightLine.reason },
+      driver:
+        driver === null
+          ? null
+          : {
+              firstName: driver.firstName,
+              vehicleType: driver.vehicleType,
+              plateNumber: driver.plateNumber,
+              // `null` = لا تقييمَ بعدُ، ولا يُستبدَلُ برقمٍ افتراضيٍّ.
+              ratingAverage: driver.ratingAverage,
+              ratingCount: driver.ratingCount,
+            },
+      rating: {
+        // حكمُ النطاقِ **وحكمُ القاعدةِ** معاً: الأوّلُ يُترجَمُ نصّاً والثاني
+        // هوَ المُلزِمُ، وتنافرُهما عطبٌ يُرى في الردِّ لا يُطوى فيه.
+        eligibility,
+        canRate: state.rating.canRate,
+        alreadyRated: state.rating.alreadyRated,
+        windowHours: state.rating.windowHours,
+        windowClosed: state.rating.windowClosed,
+      },
+    });
+  });
+
+  /**
+   * إرسالُ تقييمِ الراكبِ للسائقِ بوسومٍ (`F2-07` · `SR-08`).
+   *
+   * **ولا ترويسةَ `Idempotency-Key` ههنا**: القيدُ الفريدُ
+   * `ratings_one_per_order_direction` يجعلُ النداءَ الثاني `ALREADY_RATED`
+   * حكماً من القاعدةِ — ومفتاحٌ إضافيٌّ يُنشئُ حاجزاً ثانياً يخالفُ الأوّلَ.
+   *
+   * **ولا يُقرأُ الملخَّصُ قبلَ الكتابةِ** للتحقُّقِ من الأهليّةِ: فحصٌ ثمَّ
+   * كتابةٌ **سباقٌ**، والنافذةُ والتكرارُ يُحكَمانِ في العبارةِ نفسِها.
+   */
+  app.post("/v1/rides/:id/rating", async (c) => {
+    if (deps.rating === undefined) {
+      deps.log?.("rides.rating_disabled", {});
+      return rejected(c, "RIDE_STORE_NOT_AVAILABLE");
+    }
+
+    const declaredLength = Number(c.req.header("content-length") ?? Number.NaN);
+    if (Number.isFinite(declaredLength) && declaredLength > RIDE_RATING_MAX_BYTES) {
+      return c.json({ ok: false, error: "PAYLOAD_TOO_LARGE" }, 413);
+    }
+    const raw = await readBounded(c.req.raw.body, RIDE_RATING_MAX_BYTES);
+    if (raw === null) return c.json({ ok: false, error: "PAYLOAD_TOO_LARGE" }, 413);
+
+    let body: unknown;
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      return c.json({ ok: false, error: "INVALID_JSON" }, 400);
+    }
+    if (typeof body !== "object" || body === null || Array.isArray(body)) {
+      return ratingRejected(c, "MALFORMED");
+    }
+    const fields = body as Record<string, unknown>;
+
+    const result = await submitRideRating(deps.rating, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("id"),
+      stars: fields.stars,
+      comment: fields.comment,
+      tags: fields.tags,
+    });
+    if (!result.ok) return ratingRejected(c, result.error);
+
+    const verdict = result.value;
+    if (!verdict.accepted) {
+      return c.json({ ok: true, accepted: false as const, refusal: verdict.refusal });
+    }
+    return c.json({
+      ok: true,
+      accepted: true as const,
+      ratingId: verdict.rating.ratingId,
+      stars: verdict.rating.stars,
+      tags: verdict.rating.tags,
     });
   });
 

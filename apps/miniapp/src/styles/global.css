@@ -1221,3 +1221,213 @@ a {
   opacity: 0.6;
   cursor: progress;
 }
+
+/* ملخَّصُ الرحلةِ المنتهيةِ وتقييمُها (`F2-07` · `SR-07` · `SR-08`).
+   وبابُ الملخَّصِ `.ar__summary` مكتوبٌ ههنا لا في كتلةِ `ar` أعلاه: الإضافةُ
+   بالذيلِ، ولا سطرَ سابقٌ يُنقَلُ ولا يُمحى (`ح-1`). */
+
+.ar__summary {
+  align-self: flex-start;
+  margin-block-start: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-button-color, #2ea6ff);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-button-color, #2ea6ff);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.sm__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.sm__pending {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sm__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sm__route {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.sm__duration {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+/* سطرُ الوترِ **أصغرُ خطّاً وأخفتُ لوناً** من المدّةِ عن قصدٍ: رقمٌ لا يقولُ
+   مسافةً مقطوعةً لا يُعطى ثقلَ العنوانِ. */
+.sm__straight-line {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sm__no-driver {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sm__driver {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+}
+
+.sm__driver-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.sm__driver-vehicle {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.sm__driver-rating {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sm__rating {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-block-start: 0.5rem;
+  border-block-start: 1px solid var(--tg-hint-color, #ccc);
+}
+
+.sm__rating-state {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+/* `fieldset` عنصرٌ دلاليٌّ لا شكليٌّ: حدُّه وحشوُه المبدئيّانِ يُنزَعانِ ههنا
+   كي يبقى المعنى للقارئِ والشكلُ لنا. */
+.sm__stars {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sm__star {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* المختارُ يُعلَنُ **بحدٍّ ولونٍ** لا باللونِ وحدَه: من لا يُميِّزُ اللونَ يرى
+   الحدَّ، و`aria-pressed` يُقرأُ لمن لا يرى. */
+.sm__star--chosen {
+  border-color: var(--tg-button-color, #2ea6ff);
+  border-width: 2px;
+  color: var(--tg-button-color, #2ea6ff);
+  font-weight: 700;
+}
+
+.sm__tags-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sm__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sm__tag {
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.sm__tag--chosen {
+  border-color: var(--tg-button-color, #2ea6ff);
+  border-width: 2px;
+  color: var(--tg-button-color, #2ea6ff);
+  font-weight: 600;
+}
+
+.sm__comment-label {
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sm__comment {
+  min-height: 4.5rem;
+  padding: 0.5rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+
+.sm__submit {
+  align-self: flex-start;
+  padding: 0.55rem 1rem;
+  border: 1px solid var(--tg-button-color, #2ea6ff);
+  border-radius: 0.7rem;
+  background: var(--tg-button-color, #2ea6ff);
+  color: var(--tg-button-text-color, #fff);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sm__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.sm__back {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}

@@ -49,6 +49,10 @@ import {
   createRideRequestCommand,
   createRideSearchReader,
 } from "../../../packages/infrastructure/transport/ride-request-store.ts";
+import {
+  createRideRatingCommand,
+  createRideSummaryReader,
+} from "../../../packages/infrastructure/transport/ride-summary-store.ts";
 import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
 import {
   MAPLIBRE_CDN_ORIGIN,
@@ -664,6 +668,19 @@ const rides =
         cancel: {
           sessions: createMiniAppSessionReader(config.miniappSessionSecret),
           canceller: createRideCancelCommand(container.sql),
+          now: () => new Date(),
+        },
+        // الملخَّصُ والتقييمُ (`F2-07`) **كائنانِ منفصلانِ** كسابقَيهما: قارئُ
+        // الملخَّصِ لا يملكُ حقَّ كتابةِ تقييمٍ، وآمرُ التقييمِ لا يملكُ قراءةَ
+        // ملخَّصٍ. **ولا مزوِّدَ توجيهٍ ههنا**: لا مدّةَ وصولٍ لرحلةٍ انتهت.
+        summary: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          rides: createRideSummaryReader(container.sql),
+          now: () => new Date(),
+        },
+        rating: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          ratings: createRideRatingCommand(container.sql),
           now: () => new Date(),
         },
         log,
