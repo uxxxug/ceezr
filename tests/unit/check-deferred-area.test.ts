@@ -43,7 +43,8 @@ describe("منطقةُ التأجيلِ — الحاجزُ أخضرُ على ا�
     const inputs = defaultInputs();
     expect(inputs.sources.length).toBeGreaterThan(500);
     expect(inputs.deferredMigrations.length).toBe(6);
-    expect(inputs.readmes.length).toBe(1);
+    // مجلّدانِ مؤجَّلانِ منذُ `S-4`: `core-integration` و`field-experiments`.
+    expect(inputs.readmes.length).toBe(2);
   });
 
   test("مُدخلٌ سليمٌ مُختلَقٌ يمرُّ — كي يُعرَفَ أنَّ السقوطَ لاحقاً سببُه الخللُ لا الحاجزُ", () => {

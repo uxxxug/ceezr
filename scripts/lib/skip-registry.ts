@@ -256,14 +256,14 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
-    file: "tests/integration/bench-reset-seed.test.ts",
+    file: "deferred/field-experiments/tests/bench-reset-seed.test.ts",
     suites: ["منصّة القياس: العزل والحتميّة مقابل قاعدةٍ حقيقيّة"],
     skipped: 11,
     gate: "BENCH_DATABASE_URL",
     reason:
       "منصّةُ القياسِ تحذف وتُعيد البذرَ، فحرسُ العزل يرفض أيَّ قاعدةٍ غيرِ waslah_bench على مضيفٍ محليٍّ. والاختبارُ يُثبِت «منصّة القياس: العزل والحتميّة مقابل قاعدةٍ حقيقيّة» أي حتميّةَ الحالةِ بعد إعادةِ الضبطِ — ولا يُثبَت ذلك بقاعدةٍ وهميّةٍ لأنّ المقصودَ سلوكُ المحرّكِ نفسِه.",
     activation:
-      "تُضبَط BENCH_DATABASE_URL على postgres محليّةٍ اسمُ قاعدتِها waslah_bench بالهجرات مطبَّقة (bench/isolation.ts: BENCH_DATABASE_NAMES و LOCAL_HOSTS). ولا تُنشئها أيُّ وظيفةِ CI اليوم، فيلزم إنشاءُ القاعدةِ وتطبيقُ الهجراتِ فيها في خطوةٍ مستقلّةٍ تعمل بعد التكاملِ وe2e كي لا يُفسِد المحوُ حالتَهما.",
+      "تُضبَط BENCH_DATABASE_URL على postgres محليّةٍ اسمُ قاعدتِها waslah_bench بالهجرات مطبَّقة (deferred/field-experiments/bench/isolation.ts: BENCH_DATABASE_NAMES و LOCAL_HOSTS). ولا تُنشئها أيُّ وظيفةِ CI اليوم، فيلزم إنشاءُ القاعدةِ وتطبيقُ الهجراتِ فيها في خطوةٍ مستقلّةٍ تعمل بعد التكاملِ وe2e كي لا يُفسِد المحوُ حالتَهما.",
     owner: "منفّذ المستودع",
     criticalPath: null,
     runsIn: null,

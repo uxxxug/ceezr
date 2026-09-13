@@ -556,7 +556,10 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     expect(unrun.map((entry) => entry.file).sort()).toEqual([
       "deferred/core-integration/tests/wasla-core-transport.test.ts",
       "deferred/core-integration/tests/wasla-fulfillment-lifecycle.test.ts",
-      "tests/integration/bench-reset-seed.test.ts",
+      // نُقِلَ يومَ 2026-09-13 إلى منطقةِ التأجيلِ (`S-4` · ADR 0097): تجربةٌ
+      // ميدانيّةٌ خارجَ مسارِ البناءِ، وما زالَ تخطّيهِ مُعلَناً ببيانٍ لا مزعوماً
+      // له مُشغِّلٌ. والمسارُ السابقُ يبقى مذكوراً ههنا لا ممحوّاً (`ح-8`).
+      "deferred/field-experiments/tests/bench-reset-seed.test.ts",
     ]);
     for (const entry of unrun) {
       expect(entry.criticalPath).toBeNull();
