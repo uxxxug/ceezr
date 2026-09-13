@@ -67,10 +67,12 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
 
   // الرقمُ مُثبَّتٌ عن قصدٍ لا مُشتَقٌّ من الجردِ: لو قُرِئَ من الجردِ لصارَ
   // الاختبارُ صحيحاً بالإنشاءِ فلا يُوقِعُ نمواً صامتاً. ويُرفَعُ يداً معَ كلِّ
-  // جدولٍ جديدٍ — ورُفِعَ من 47 إلى 48 بجدولِ `user_consents` (`F2-01`).
+  // جدولٍ جديدٍ — ورُفِعَ من 47 إلى 48 بجدولِ `user_consents` (`F2-01`)، ثمَّ من 48
+  // إلى 49 بجدولِ `saved_places` (`F2-02`) — ولا جدولَ ثانياً لأخرِ الوجهاتِ
+  // فهيَ قراءةٌ من `orders`.
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(48);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(48);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(49);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(49);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {

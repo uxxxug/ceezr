@@ -173,6 +173,13 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
    * يُنفَّذُ يُحسَمُ فيه هناكَ: أنَّ المستخدمَ يُحذَفُ لا يعني أنَّ إثباتَ موافقتِه
    * يُمحى، وذاكَ تعارضٌ حقيقيٌّ لا يُفصَلُ فيه من ملفِّ استبقاءٍ.
    */
+  /**
+   * `F2-02`: مكانٌ حفظَه المستخدمُ بنفسِه — عمرُه عمرُ حسابِه لا مدّةٌ زمنيّةٌ.
+   * ولا مهمّةَ تحذفُ منه صفّاً: من حفظَ منزلَه لا يتوقّعُ أن يذوبَ بعدَ شهورٍ،
+   * وحذفُه يُعيدُ عليه كتابةَ ما كتبَ. وأمّا حذفُ الحسابِ (القسم 9.12) فيأخذُه
+   * معَه بـ`on delete cascade` المُعلَنِ في الهجرةِ نفسِها.
+   */
+  saved_places: RETENTION_CLASSES.lifecycleBound,
   user_consents: RETENTION_CLASSES.auditUnboundedUntilCompliance,
   user_notifications: RETENTION_CLASSES.pendingDecision,
   users: RETENTION_CLASSES.lifecycleBound,
