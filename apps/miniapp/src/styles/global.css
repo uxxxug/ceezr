@@ -1053,3 +1053,171 @@ a {
   opacity: 0.6;
   cursor: progress;
 }
+
+/*
+ * ═══ الرحلةُ النشطةُ (`F2-06` · `SR-06`) — البادئة `ar` ═══
+ *
+ * كتلةٌ مسطَّحةٌ بلا بطاقاتٍ متداخلةٍ: الراكبُ ههنا يقرأُ **حالةً** لا يتنقّلُ
+ * في لوحةٍ. والفارقُ البصريُّ بينَ ما هو حاضرٌ (موقعٌ طازجٌ) وما هو خبرٌ عن
+ * غيابٍ (موقعٌ محجوبٌ) يُرسَمُ بالإطارِ والخفوتِ لا باللونِ وحدَه — فاللونُ
+ * وحدَه لا يُقرأُ عندَ عمى الألوانِ.
+ */
+
+.ar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.ar__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.ar__pending {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.ar__live {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ar__status {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.ar__phase {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* أرقامٌ جدوليّةٌ: مدّةٌ لا يرقصُ عرضُها بينَ رسمتَينِ. */
+.ar__elapsed {
+  margin: 0;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar__route {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* «لا سائقَ بعدُ» خبرٌ لا عطبٌ: خافتٌ بلا إطارِ إنذارٍ. */
+.ar__no-driver {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.ar__driver {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+}
+
+.ar__driver-name {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.ar__driver-vehicle {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.ar__driver-plate {
+  margin: 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar__driver-rating {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* الموقعُ وعُمرُه **صندوقٌ واحدٌ**: لا يُنقَلُ أحدُهما بلا الآخرِ (`BUG-001`). */
+.ar__position {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+}
+
+.ar__position-point {
+  margin: 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar__position-age {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* الحجبُ يُرسَمُ إطاراً منقَّطاً: غيابٌ مُعلَنٌ لا فراغٌ مسكوتٌ عنه. */
+.ar__position-hidden {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.ar__eta {
+  margin: 0;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar__snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+}
+
+.ar__cancel-policy {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.ar__cancel {
+  align-self: flex-start;
+  margin-block-start: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-destructive-text-color, #d33);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-destructive-text-color, #d33);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ar__cancel:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

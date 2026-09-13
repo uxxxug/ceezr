@@ -43,6 +43,7 @@ import {
 } from "../../../packages/infrastructure/places/places-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import { createActiveRideReader } from "../../../packages/infrastructure/transport/active-ride-store.ts";
 import {
   createRideCancelCommand,
   createRideRequestCommand,
@@ -649,6 +650,16 @@ const rides =
           sessions: createMiniAppSessionReader(config.miniappSessionSecret),
           search: createRideSearchReader(container.sql),
           now: () => new Date(),
+        },
+        // الرحلةُ النشطةُ (`F2-06`) **تملكُ مزوِّدَ التوجيهِ** خلافاً لأخواتِها:
+        // مدّةُ وصولِ السائقِ سؤالُها. و`container.routing` قد يكونُ `null` بقرارِ
+        // مشغِّلٍ مُعلَنٍ، فتعودُ المدّةُ `NOT_CONFIGURED` امتناعاً مُصنَّفاً — ولا
+        // يُعطَّلُ المسارُ كلُّه لأجلِ حقلٍ تكميليٍّ.
+        active: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          rides: createActiveRideReader(container.sql),
+          now: () => new Date(),
+          routing: { routing: container.routing },
         },
         cancel: {
           sessions: createMiniAppSessionReader(config.miniappSessionSecret),
