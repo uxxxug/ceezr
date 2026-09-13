@@ -57,6 +57,7 @@ let otherRiderId = "";
 let driverUserId = "";
 let driverId = "";
 let strangerUserId = "";
+let strangerRiderId = "";
 
 const PICKUP = { lat: 21.4858, lng: 39.1925 } as const;
 const DROPOFF = { lat: 21.5591, lng: 39.1553 } as const;
@@ -254,6 +255,15 @@ beforeAll(async () => {
   `;
   if (stranger === undefined) throw new Error("تعذّر زرعُ الغريبِ");
   strangerUserId = stranger.id;
+  // **وللغريبِ صفُّ راكبٍ بلا رحلةٍ واحدةٍ**: المقيسُ في الحالةِ ٢ سجلٌّ فارغٌ
+  // لراكبٍ **مُسجَّلٍ**، لا رفضُ `RIDER_NOT_REGISTERED` — وذاكَ مَقيسٌ وحدَه
+  // في الحالةِ ٤ بمستخدمِ السائقِ. فبلا صفِّ راكبٍ ههنا كانَ الاختبارانِ
+  // يقيسانِ الشيءَ نفسَه ويبقى الفراغُ بلا قياسٍ.
+  const [strangerRider] = await sql<{ id: string }[]>`
+    insert into riders (city_id, user_id) values (${cityId}, ${strangerUserId}) returning id
+  `;
+  if (strangerRider === undefined) throw new Error("تعذّر زرعُ راكبِ الغريبِ");
+  strangerRiderId = strangerRider.id;
 
   const [driverUser] = await sql<{ id: string }[]>`
     insert into users (city_id, telegram_id, role, full_name, phone)
@@ -289,7 +299,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (DATABASE_URL === undefined) return;
-  const riderIds = [riderId, otherRiderId].filter((id) => id !== "");
+  const riderIds = [riderId, otherRiderId, strangerRiderId].filter((id) => id !== "");
   const userIds = [riderUserId, otherUserId, strangerUserId, driverUserId].filter(
     (id) => id !== "",
   );
@@ -458,8 +468,12 @@ describeIf("السجلُّ — منطقةُ الشهرِ من الإعدادِ �
   });
 
   it("١٥) والإعدادُ المجهولُ يُعلَنُ سقوطاً بمصدرٍ مُسمًّى ولا يُسكَتُ عنه", async () => {
+    // القيمةُ تُلتَقَطُ **نصّاً داخليّاً** (`#>> '{}'`) وتُعادُ بـ`to_jsonb`:
+    // فتمريرُ نصِّ `value::text` كمُعامِلٍ إلى `::jsonb` يُرمِّزُه المُشغِّلُ
+    // ترميزاً ثانياً فيصيرُ `"\"Asia/Riyadh\""` — قيمةٌ صحيحةُ النوعِ
+    // فاسدةُ المعنى، تُفسِدُ ما بعدَها من قياساتٍ. وهوَ عطبُ مقياسٍ لا مَقيسٍ.
     const [before] = await sql<{ value: string }[]>`
-      select value::text as value from platform_settings
+      select value #>> '{}' as value from platform_settings
        where city_id = ${cityId} and key = 'ride_history_month_timezone'
     `;
     await sql`
@@ -472,7 +486,7 @@ describeIf("السجلُّ — منطقةُ الشهرِ من الإعدادِ �
       expect(payload.month_timezone_source).toBe("FALLBACK_UTC_SETTING_UNKNOWN");
     } finally {
       await sql`
-        update platform_settings set value = ${before?.value ?? '"Asia/Riyadh"'}::jsonb
+        update platform_settings set value = to_jsonb(${before?.value ?? "Asia/Riyadh"}::text)
          where city_id = ${cityId} and key = 'ride_history_month_timezone'
       `;
     }
@@ -483,7 +497,7 @@ describeIf("السجلُّ — منطقةُ الشهرِ من الإعدادِ �
     // `description_ar` في `platform_settings` `not null`، فإعادةُ الزرعِ بلا
     // وصفٍ تُخفِقُ بـ`23502` — وهوَ عطبُ مقياسٍ لا عطبُ مَقيسٍ.
     const [before] = await sql<{ value: string; description_ar: string }[]>`
-      select value::text as value, description_ar from platform_settings
+      select value #>> '{}' as value, description_ar from platform_settings
        where city_id = ${cityId} and key = 'ride_history_month_timezone'
     `;
     await sql`
@@ -499,7 +513,7 @@ describeIf("السجلُّ — منطقةُ الشهرِ من الإعدادِ �
         insert into platform_settings
           (city_id, key, value, value_type, description_ar, is_provisional)
         values (${cityId}, 'ride_history_month_timezone',
-                ${before?.value ?? '"Asia/Riyadh"'}::jsonb, 'string',
+                to_jsonb(${before?.value ?? "Asia/Riyadh"}::text), 'string',
                 ${before?.description_ar ?? "المنطقةُ الزمنيّةُ التي يُحسَبُ بها عنوانُ الشهرِ في سجلِّ رحلاتِ الراكبِ (SR-09). تُنشَرُ في الردِّ نفسِه."},
                 false)
         on conflict (city_id, key) do update
