@@ -496,6 +496,23 @@ alone used to burn 30086.45ms of timeout). No timeout raised, no assertion
 weakened, no case skipped, no production code touched. `ADR 0100` addendum.
 
 
+### Reservation `F2-02` — the rider home surface, its two saved-place endpoints and its recent destinations (opened 2026-09-13, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25. Cut from `main`@`82a493d` as `feat/f2-02-home`.
+
+| Field | Value |
+|---|---|
+| Item | `F2-02` — `SR-02`: mini map with my location, an «إلى أين؟» field, saved places (home/work), the last 3 destinations, service chips, and the city status strip. Nothing of it exists on `main` today, so this is a build, not a reading. |
+| Contracts it must serve | `GET /v1/me/places` · `POST /v1/me/places` · `GET /v1/me/recent-destinations` (§9.8 lists all three against `SR-02`). |
+| Increment 1 (this push) | Schema only: `saved_places` + three functions + privilege revocation, and the four indexes each in its own `index`-phase file because `create index concurrently` cannot run inside the applier's transaction. |
+| Why no table for recent destinations | «Last 3 destinations» is not new data — it is a **read** of `orders.dropoff`/`dropoff_label`, which exist since the base schema. A second table would become a second source of truth that drifts silently on every cancellation or correction and needs a synchroniser nobody owns. Saved places get a table because they are a **user's decision**, not a transaction's trace. |
+| Measured on the real managed database | Migrations applied in order (`5930ms` + four concurrent indexes), then the three functions exercised: `home` twice ⇒ `created` then `updated` with the label and point replaced and **no second row**; `other` ⇒ `created` (open list by design, `SR-12` owns its management); `list_saved_places` returns home first then the rest; two orders whose labels differ only by surrounding whitespace fold into **one** recent destination; an unknown telegram id ⇒ `USER_NOT_FOUND` with no row created (`ADR 0035`). |
+| Scope reserved | `supabase/migrations/20260913050000..050400` · `packages/domain/places/*` · `packages/application/places/*` · `packages/infrastructure/places/*` · `apps/gateway/src/routes/me-places.ts` and its mounting · `apps/miniapp/src/surfaces/rider/home/*` · `packages/shared/i18n/miniapp/{ar,en,ur}.json` (new keys only) · `scripts/check-place-kinds.ts` · tests for the above · `docs/adr/0101-*` · `docs/evidence/architecture/F2-02-*` · `ROADMAP.md` · `docs/ROADMAP-MASTER.md` · `docs/SYSTEM_STATE.md` |
+| Scope **not** reserved | `F2-01`'s files · the pricing, quote and ride-creation contracts (`F2-04`, `F2-05`) · map provider selection (`MAP_PROVIDER` stays as configured; the mini map must degrade honestly when it is `none`) · the 48 hardcoded literals and the missing §9.11 gate · any change to `orders` |
+| Claim ceiling, declared up front | **No live deployment exists** (the Render account holds no service, measured in `ADR 0099`), so whatever closes here **has not been opened by a real user** — this sentence belongs in the closure report too, per the owner's standing instruction. The `F2` gate is not claimed. `مَقيس` and `مُثبَت` are not claimed. |
+
+
 ### Reservation `DEP-CORE-005` — a mechanical freshness comparator for the vendored CORE contracts (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
