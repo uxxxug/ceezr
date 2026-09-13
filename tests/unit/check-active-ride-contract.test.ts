@@ -20,6 +20,7 @@ import {
   keyParityProblems,
   moneyProblems,
   positionAgeProblems,
+  sharePathProblems,
   unbuiltPathProblems,
   usedKeys,
 } from "../../scripts/lib/active-ride-contract.ts";
@@ -56,6 +57,7 @@ const drawn = view.driver === null ? null : view.driver;
 const a = <p className="ar__position-point" />;
 const b = <p className="ar__position-age" />;
 const c = t("rider.active.title");
+const share = <RideShareCard orderId={orderId} />;
 `;
 
 function dictionary(): Record<string, string> {
@@ -198,12 +200,19 @@ describe("القاعدة ٥ — لا زرَّ لمسارٍ لم يُبنَ", () 
     expect(problems.some((text) => text.includes("لم يُبنَ"))).toBe(true);
   });
 
-  it("مفتاحُ مشاركةٍ في قاموسٍ يُسقِطُ الحاجزَ", () => {
+  /**
+   * `F2-09` (2026-09-14): هذه الحالةُ **ما زالت تُسقِطُ الحاجزَ**، وتغيَّرَ حكمُها
+   * لا نتيجتُها: مسارُ المشاركةِ بُنِيَ، فلم يعدْ مفتاحُه «مساراً لم يُبنَ» بل
+   * **مفتاحاً في غيرِ نطاقِه** (موضعُه `rider.share.`). والتأكيدُ صارَ على
+   * السقوطِ نفسِه ثمَّ على الحكمِ الجديدِ — ولم تُحذَفْ حالةٌ ولم يُخفَّفْ فحصٌ.
+   */
+  it("مفتاحُ مشاركةٍ في نطاقِ اللقطةِ يُسقِطُ الحاجزَ", () => {
     const dirty = { ...dictionary(), "rider.active.share": "شارِك" };
     const problems = unbuiltPathProblems(
       input({ translations: { ar: dirty, en: dirty, ur: dirty } }),
     );
-    expect(problems.some((text) => text.includes("مفتاحٌ لمسارٍ لم يُبنَ"))).toBe(true);
+    expect(problems.length).toBeGreaterThan(0);
+    expect(problems.some((text) => text.includes("موضعُه «rider.share.»"))).toBe(true);
   });
 
   it("رابطُ هاتفٍ في السطحِ يُسقِطُ الحاجزَ", () => {
@@ -268,5 +277,37 @@ describe("القاعدة ٦ — لا دالّةَ بلا نزعِ تنفيذٍ",
     );
     expect(problems).toHaveLength(1);
     expect(problems[0]).toContain("b_fn");
+  });
+});
+
+/**
+ * ## إضافةُ البند `F2-09` (2026-09-14)
+ *
+ * القاعدةُ ٧ **عكسُ** الخامسةِ: تلكَ تمنعُ باباً لمسارٍ لا يعملُ، وهذه تمنعُ
+ * مساراً يعملُ بلا بابٍ. وزُرِعَت لها حالاتُها السلبيّةُ ههنا (`ح-7`)، ولم
+ * يُمَسَّ سطرٌ ممّا فوقَ (`ح-1` و`ح-2`) سوى **زيادةِ** تركيبِ البطاقةِ إلى
+ * مُدخَلِ الشاشةِ المصنوعِ — فالمُدخَلُ السليمُ يجبُ أن يبقى سليماً بعدَ زيادةِ
+ * قاعدةٍ، وإلّا كانَت الحالةُ الموجبةُ كاذبةً.
+ */
+describe("القاعدة ٧ — المسارُ المبنيُّ يُركَّبُ فعلاً (`F2-09`)", () => {
+  it("شاشةٌ بلا بطاقةِ مشاركةٍ تُسقِطُ الحاجزَ", () => {
+    const problems = sharePathProblems(input({ screen: "const a = 1;" }));
+    expect(problems.some((text) => text.includes("RideShareCard"))).toBe(true);
+  });
+
+  it("بطاقةٌ مُركَّبةٌ بلا «orderId» تُسقِطُ الحاجزَ — بطاقةٌ بلا رحلةٍ", () => {
+    const problems = sharePathProblems(input({ screen: "const a = <RideShareCard />;" }));
+    expect(problems.some((text) => text.includes("orderId"))).toBe(true);
+  });
+
+  it("ذكرُ الاسمِ في تعليقٍ لا يكفي — التركيبُ وسمٌ لا كلمةٌ", () => {
+    const problems = sharePathProblems(
+      input({ screen: "const note = 'RideShareCard سيُركَّبُ لاحقاً';" }),
+    );
+    expect(problems.some((text) => text.includes("غيرُ مُركَّبةٍ"))).toBe(true);
+  });
+
+  it("الشاشةُ المصنوعةُ السليمةُ تمرُّ", () => {
+    expect(sharePathProblems(input())).toEqual([]);
   });
 });

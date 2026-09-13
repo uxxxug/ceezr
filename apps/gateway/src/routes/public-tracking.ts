@@ -101,22 +101,45 @@ const MAX_TOKEN_LENGTH = 128;
 /** الرمزُ hex محضٌ — وأيُّ محرفٍ سواه لا يمكن أن يكون رمزاً أصدرناه. */
 const TOKEN_PATTERN = /^[0-9a-f]{32,128}$/;
 
+/**
+ * حمولةُ الاستفتاءِ.
+ *
+ * ## إضافةُ البند F2-09 (2026-09-14): عُمرٌ وسببٌ بدلَ ختمٍ مطلقٍ
+ *
+ * كانَ الحقلُ `updated_at` ختماً مطلقاً تطرحُه الصفحةُ من ساعةِ الجهازِ — وجهازٌ
+ * مضبوطٌ خطأً كانَ يُري حاملَ الرابطِ نقطةً «طازجةً» وهيَ متقادمةٌ. فصارَ
+ * `age_seconds` **مقيساً في القاعدةِ**، وصارَ معَه `stale_reason` كي تُقالَ
+ * الحقيقةُ صريحةً: «انقطعَت إشارتُه» لا «جارٍ التحديثُ» إلى الأبدِ.
+ *
+ * **ولا حقلَ هويّةٍ زيدَ**: لا اسمَ ولا لوحةَ ولا معرّفَ طلبٍ — وهذا الغيابُ
+ * محروسٌ ساكناً في `scripts/check-ride-share-contract.ts`.
+ */
 interface PositionPayload {
   readonly lat: number | null;
   readonly lng: number | null;
-  readonly updated_at: string | null;
+  /** عُمرُ النقطةِ بالثواني كما قاسَته القاعدةُ — و`null` متى لا ختمَ أصلاً. */
+  readonly age_seconds: number | null;
+  /** `null` متى كانَ الموقعُ معروضاً؛ وإلّا سببُ الحجبِ مُصنَّفاً. */
+  readonly stale_reason: "NEVER_REPORTED" | "NO_TIMESTAMP" | "TOO_OLD" | null;
   readonly active: boolean;
 }
 
 function toPayload(state: TrackingReadState): PositionPayload | null {
   if (state.kind === "invalid") return null;
   if (state.kind === "awaiting") {
-    return { lat: null, lng: null, updated_at: null, active: state.active };
+    return {
+      lat: null,
+      lng: null,
+      age_seconds: state.ageSeconds,
+      stale_reason: state.reason,
+      active: state.active,
+    };
   }
   return {
     lat: state.position.lat,
     lng: state.position.lng,
-    updated_at: state.position.updatedAt.toISOString(),
+    age_seconds: state.position.ageSeconds,
+    stale_reason: null,
     active: state.active,
   };
 }

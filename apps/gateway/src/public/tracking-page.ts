@@ -58,10 +58,18 @@ function jsonForScript(value: unknown): string {
     .replace(/\u2029/g, "\\u2029");
 }
 
+/**
+ * ## إضافةُ البند F2-09 (2026-09-14): عُمرٌ مقيسٌ وسببٌ مُصنَّفٌ
+ *
+ * كانَ `updated_at` يُقرأُ بـ`new Date` في **المتصفّحِ**، وساعةُ المتصفّحِ
+ * ليست شاهداً: جهازٌ متقدّمٌ أو متأخّرٌ كانَ يكذبُ على صاحبِه في الاتّجاهَينِ.
+ * فالعُمرُ الآنَ يُقاسُ في القاعدةِ ويُعرَضُ كما وصلَ.
+ */
 export interface TrackingPagePosition {
   readonly lat: number | null;
   readonly lng: number | null;
-  readonly updated_at: string | null;
+  readonly age_seconds: number | null;
+  readonly stale_reason: "NEVER_REPORTED" | "NO_TIMESTAMP" | "TOO_OLD" | null;
   readonly active: boolean;
 }
 
@@ -134,11 +142,13 @@ var coordsEl=document.getElementById("coords");
 var updatedEl=document.getElementById("updated");
 var dotEl=document.getElementById("dot");
 var map=null,marker=null;
-function fmt(iso){
-  if(!iso)return "—";
-  var d=new Date(iso);
-  if(isNaN(d.getTime()))return "—";
-  return d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+// العُمرُ رقمٌ جاءَ من القاعدةِ — **ولا تُستعمَلُ ساعةُ الجهازِ ههنا قطُّ**.
+function age(sec){
+  if(sec===null||sec===undefined||isNaN(sec))return "—";
+  if(sec<60)return "منذ "+Math.round(sec)+" ثانية";
+  var m=Math.round(sec/60);
+  if(m<60)return "منذ "+m+" دقيقة";
+  return "منذ "+Math.round(m/60)+" ساعة";
 }
 function paint(p){
   if(!p){
@@ -151,14 +161,22 @@ function paint(p){
   }
   dotEl.className="dot "+(p.active?"on":"off");
   if(p.lat===null||p.lng===null){
-    stateEl.textContent=p.active?"في الطريق — لم يصل موقعٌ بعد":"انتهت الرحلة";
+    // **السببُ يُقالُ صريحاً**: «جارٍ التحديثُ» إلى الأبدِ كانَ يُخفي
+    // انقطاعاً يستحقُّ أن يُتصَّلَ لأجلِه.
+    if(!p.active){
+      stateEl.textContent="انتهت الرحلة";
+    }else if(p.stale_reason==="TOO_OLD"){
+      stateEl.textContent="في الطريق — انقطعت إشارة السائق";
+    }else{
+      stateEl.textContent="في الطريق — لم يصل موقعٌ بعد";
+    }
     coordsEl.textContent="";
   }else{
     stateEl.textContent=p.active?"في الطريق":"انتهت الرحلة — آخر موقع معروف";
     coordsEl.textContent=p.lat.toFixed(5)+" , "+p.lng.toFixed(5);
     ${hasMap ? "place(p.lat,p.lng);" : ""}
   }
-  updatedEl.textContent="آخر تحديث: "+fmt(p.updated_at);
+  updatedEl.textContent=p.age_seconds===null?"":"آخر موقع: "+age(p.age_seconds);
   return true;
 }
 ${
