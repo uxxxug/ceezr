@@ -166,6 +166,15 @@ jobs:
       - name: سقوطُ حاجزِ وثائقِ الموافقةِ مقيسٌ بافتراقٍ مزروعٍ لا بالمستودَعِ كما هوَ (F2-01)
         run: bun test tests/unit/check-consent-documents.test.ts
 
+      # `S-3` · `O-2`: يُقاسُ ههنا — في `verify` — أنَّ وظيفةَ Redis تملكُ خادمَها،
+      # لأنَّ الوظيفةَ نفسَها لا تقيسُ تهيئتَها: لو انحرفَ منفذُها أو رمزُها لسقطَت
+      # على رفضِ اتّصالٍ يُقرَأُ عيباً في كودِ الجلساتِ. وهذا نصٌّ لا شبكةٌ ولا سرٌّ.
+      - name: وظيفةُ Redis الحقيقيِّ تملكُ خادمَها ولا تعودُ إلى نقطةٍ بلا خادمٍ (S-3 · O-2)
+        run: bun run scripts/check-real-redis-runner.ts
+
+      - name: سقوطُ حاجزِ خادمِ Redis مقيسٌ بانحرافٍ مزروعٍ لا بالمستودَعِ كما هوَ (S-3)
+        run: bun test tests/unit/check-real-redis-runner.test.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
@@ -612,6 +621,26 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 20
+      # `S-3` · `O-2`: خادمُ Redis **حقيقيٌّ** مُستضافٌ في الشغلةِ نفسِها بدلَ سِرٍّ
+      # خارجيٍّ لم يُضبَطْ قطُّ — وغيابُه كانَ يُسقِط هذه الوظيفةَ في كلِّ جريةٍ.
+      # والاستقلالُ التجاريُّ (ADR 0094) يقتضي ألّا يتوقّفَ حكمُ CI على حسابٍ عندَ
+      # مُزوِّدٍ لا يملكُه المشروعُ.
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      # قشرةُ REST تُنطِق Redis بروتوكولَ Upstash الذي يتكلّمُه كودُ الإنتاجِ
+      # (`packages/infrastructure/redis/upstash.ts`) حرفاً بحرفٍ: `POST` لمصفوفةِ
+      # أمرٍ و`Bearer` للرمزِ. فالمُخاطَبُ خادمٌ حقيقيٌّ والبروتوكولُ بروتوكولُ
+      # الإنتاجِ — لا عميلٌ مزدوجٌ ولا محاكاةٌ في الذاكرةِ.
+      srh:
+        image: hiett/serverless-redis-http:latest
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: waslah-ci-real-redis
+          SRH_CONNECTION_STRING: redis://redis:6379
+        ports: ["8079:80"]
     steps:
       - uses: actions/checkout@v4
 
@@ -621,6 +650,22 @@ jobs:
 
       - name: Install
         run: bun install --frozen-lockfile
+
+      # الجهوزيّةُ تُقاسُ بأمرٍ يمرُّ بالقشرةِ إلى الخادمِ لا بفحصِ منفذٍ مفتوحٍ:
+      # المنفذُ يُفتَح قبلَ أن تُتِمَّ القشرةُ اتّصالَها بـRedis، فيسقطُ أوّلُ اختبارٍ
+      # على سببٍ لا علاقةَ له بالمقيسِ، فيُقرَأ الأحمرُ الزمنيُّ عيباً في الكودِ.
+      - name: جهوزية قشرة REST على Redis حقيقي
+        run: |
+          for i in $(seq 1 40); do
+            body=$(curl -fsS -X POST http://localhost:8079 \
+              -H 'authorization: Bearer waslah-ci-real-redis' \
+              -H 'content-type: application/json' \
+              -d '["PING"]' 2>/dev/null || true)
+            case "$body" in *PONG*) echo "✅ Redis حقيقيٌّ مُجيبٌ عبرَ REST بعدَ ${i} محاولةً"; exit 0;; esac
+            sleep 2
+          done
+          echo "✗ قشرةُ REST لم تُجِبْ PING من خادمِ Redis في ثمانينَ ثانيةً — ولا تُقرَأ الوظيفةُ خضراءَ بلا خادمٍ." >&2
+          exit 1
 
       - name: أدوار Supabase التي تفترضها الهجرات
         env:
@@ -654,15 +699,19 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun run scripts/migrate.ts
 
-      # `REQUIRE_REAL_REDIS=1` يجعل غيابَ السرِّ **إخفاقاً** لا تخطّياً: وظيفةٌ وُجدت
-      # لتُشغِّل على Redis حقيقيٍّ لا تُقرَأ خضراءَ وهي لم تُخاطِبه. والقيمتانِ تُقرآن
-      # من مخزنِ الأسرارِ ولا تُطبَعان: مُشغِّلُ الاختبارِ يكتم النقطةَ والرمزَ في كلِّ
-      # تفصيلِ فشلٍ (tests/support/real-redis.ts)، والحاجزُ التالي يرفض دليلاً فيه أثرٌ
-      # لأحدِهما.
+      # `REQUIRE_REAL_REDIS=1` يجعل غيابَ النقطةِ **إخفاقاً** لا تخطّياً: وظيفةٌ وُجدت
+      # لتُشغِّل على Redis حقيقيٍّ لا تُقرَأ خضراءَ وهي لم تُخاطِبه. والحاجزُ لم يُخفَّفْ
+      # في `S-3` بحرفٍ؛ إنّما صارَ **شرطُه مُستوفى**: النقطةُ خادمٌ في الشغلةِ.
+      #
+      # والرمزُ ههنا ظاهرٌ عن قصدٍ لا سهواً: خادمٌ يُنشَأُ ويُهدَمُ مع الوظيفةِ، لا
+      # يُخاطَبُ من خارجِ شبكتِها، ولا يحملُ بياناً. ودليلُ التشغيلِ ما زالَ يُكتَم
+      # ويُراجَع بحاجزِه (`scripts/check-real-redis-proof.ts`) — والكتمُ حكمُ الحاجزِ
+      # لا حُسنُ الظنِّ. وسرٌّ حقيقيٌّ لو دخلَ يوماً فموضعُ قراءتِه واحدٌ كما كانَ
+      # (`tests/support/real-redis.ts`).
       - name: اختبارات الجلسات على Redis حقيقي
         env:
-          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
-          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          UPSTASH_REDIS_REST_URL: http://localhost:8079
+          UPSTASH_REDIS_REST_TOKEN: waslah-ci-real-redis
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
           REQUIRE_REAL_REDIS: "1"
           REAL_REDIS_PROOF_PATH: /tmp/real-redis-proof.json

@@ -193,6 +193,21 @@ Nothing else has been changed in this repository by the WASLA integration work.
 `docs/adr/0095-deferred-area-for-core-integration.md`. ولا حاجزَ ضُعِّفَ، ولا
 استثناءَ `city_id` وُسِّعَ، ولا صفَّ تصنيفٍ حُذِفَ.
 
+#### تنفيذُ `S-3` — سُجِّلَ 2026-09-13
+
+جدولُ الحجزِ أعلاه يقولُ عن `S-3`: «Redis حقيقيٌّ مُستضافٌ في الشغلةِ بلا سِرِّ
+مالكٍ»، وهذا **ما نُفِّذَ بعينِه** — لا تصحيحَ ههنا. سببُ الأحمرِ الدائمِ في
+وظيفةِ Redis أنَّ نقطتَها قُرِئَت من سِرَّينِ غيرِ مضبوطَينِ في المستودعِ، فسقطَت
+في كلِّ جريةٍ عندَ `assertRealRedisWhenRequired` ولم تُقَسْ أربعٌ وعشرونَ حالةً
+حقيقيّةً قطُّ.
+
+فصارَت الوظيفةُ تملكُ خادمَها: `redis:7-alpine` + قشرةُ REST تُنطِقُه بروتوكولَ
+Upstash الذي يتكلّمُه كودُ الإنتاجِ. والحاجزُ `tests/support/real-redis.ts` **لم
+يُمَسَّ بحرفٍ**؛ إنّما استُوفيَ شرطُه. وزِيدَ حاجزٌ
+`scripts/check-real-redis-runner.ts` يقيسُ اتّفاقَ المنفذِ والرمزِ ووصلَ القشرةِ
+بالخادمِ، فلا تعودُ الوظيفةُ صامتاً إلى نقطةٍ بلا خادمٍ. الحاكمُ:
+`docs/adr/0096-self-hosted-real-redis-in-ci.md`.
+
 ### Reservation `F2-01` — the welcome and consent record, the first product screen in the repository (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
