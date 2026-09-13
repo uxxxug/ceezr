@@ -41,6 +41,7 @@ import {
   createSavedPlaceReader,
   createSavedPlaceWriter,
 } from "../../../packages/infrastructure/places/places-store.ts";
+import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
 import {
@@ -604,6 +605,26 @@ const destinations =
         log,
       };
 
+/**
+ * مسارُ الاقتباسِ (`F2-04`) — يُركَّبُ مع سرِّ الجلسةِ وحدَه. ولا مفتاحَ خرائطَ
+ * ههنا: المسافةُ من PostGIS والمدّةُ من مزوِّدِ التوجيهِ المُهيَّأِ إن وُجِدَ،
+ * و`null` منه امتناعٌ مُعلَنٌ لا رقمٌ مخترَعٌ (`ADR 0024` · استقلالُ المشروعِ
+ * `O-7`). و`container.routing` هوَ **نفسُه** الذي تستعملُه بطاقةُ السائقِ، فلا
+ * قرارُ تهيئةٍ ثانٍ.
+ */
+const quote =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        quote: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          judge: createQuoteJudge(container.sql),
+          routing: container.routing,
+          now: () => new Date(),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -708,6 +729,7 @@ const app = createServer({
   ...(consents === undefined ? {} : { consents }),
   ...(places === undefined ? {} : { places }),
   ...(destinations === undefined ? {} : { destinations }),
+  ...(quote === undefined ? {} : { quote }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
