@@ -40,7 +40,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
-import { initLocation, openLocationSettings, requestLocation } from "../../../tg/location.ts";
+import { initLocation, openLocationSettings, requestLocation } from "../../../tg/index.ts";
 import {
   type AcceptedSummary,
   acceptedSummary,
