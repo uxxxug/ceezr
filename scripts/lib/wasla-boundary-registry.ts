@@ -310,6 +310,14 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale: "السلامةُ والاستغاثةُ مملوكتانِ لـMOVE صريحاً.",
   },
   {
+    table: "saved_places",
+    concern: "أماكنُ الراكبِ المحفوظةُ — المنزلُ والعملُ وغيرُهما",
+    owner: "CORE",
+    disposition: "MOVE_TO_CORE",
+    rationale:
+      "عنوانُ منزلِ المستخدمِ وعملِه داتٌ لا أثرُ مهمّةٍ: الواحدُ لا يُعيدُ حفظَ بيتِه في كلِّ تطبيقٍ، ومن أعادَ فالثاني نسخةٌ تنحرفُ. فمصيرُها مصيرُ `users` (`W-3`)، وتُنفَّذُ اليومَ في MOVE لأنَّ شاشةَ `SR-02` ههنا ولا بابَ أماكنَ في CORE — واقعٌ مُعلَنٌ لا وجهةٌ نهائيّةٌ. وأمّا **آخرُ الوجهاتِ** فلا صفَّ لها ألبتّةَ: قراءةٌ من `orders` وهيَ أثرُ مهمّةٍ يملكُه MOVE.",
+  },
+  {
     table: "subscription_invoices",
     concern: "فاتورةُ اشتراكٍ",
     owner: "CORE",

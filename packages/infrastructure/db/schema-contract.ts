@@ -63,6 +63,8 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "issue_admin_login_code",
   "issue_subscription_invoice",
   "issue_tracking_token",
+  "list_recent_destinations",
+  "list_saved_places",
   "list_stale_pending_payments",
   "list_user_consents",
   "location_archive_drop_day",
@@ -105,6 +107,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "update_driver_city",
   "update_rider_city",
   "upgrade_plan",
+  "upsert_saved_place",
 ];
 
 /** جداولُ القاعدة التي يقرؤها كودُ التشغيل أو يكتب فيها مباشرةً. */

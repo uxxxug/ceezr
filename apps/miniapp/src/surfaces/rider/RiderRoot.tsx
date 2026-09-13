@@ -17,10 +17,17 @@
  * وما لا يفعلُه هذا السطحُ: لا يقرّرُ اكتمالَ الموافقاتِ بنفسِه ولا يحفظُ ذاكَ
  * محلّيّاً — الشاشةُ تسألُ الخادمَ في كلِّ تركيبٍ، فلا يتخطّى العميلُ إقراراً
  * بسببِ رايةٍ في `localStorage`.
+ *
+ * ## إضافةُ البند `F2-02` (2026-09-13)
+ *
+ * صارَ ما بعدَ الترحيبِ شاشةَ الراكبِ الرئيسةَ `SR-02` لا حالةَ فراغٍ. وحالةُ
+ * الفراغِ الأصليّةُ **باقيةٌ في الملفِّ** (القاعدة ح-1) موصوفةً أدناه: هيَ ما كانَ
+ * يُعرَضُ قبلَ `F2-02`، وقد صارَ لها بديلٌ مبنيٌّ، فلا تُرسَمُ. ولا يُدَّعى بذاكَ
+ * أنَّ سلسلةَ `F2` تمَّت: الطلبُ والعروضُ والتتبّعُ بنودٌ تالية.
  */
 
 import { useState } from "react";
-import { EmptyState } from "../../system/EmptyState.tsx";
+import { HomeScreen } from "./home/HomeScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
 
 export default function RiderRoot() {
@@ -31,16 +38,8 @@ export default function RiderRoot() {
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
 
-  return (
-    <section aria-labelledby="rider-root-title">
-      <h1 id="rider-root-title" style={{ margin: 0, fontSize: "1.5rem" }}>
-        وَصْلة
-      </h1>
-      {/* `F1-07` — `UX-5`: حالةُ الفراغِ تُقال صراحةً ولا تُترَك بياضاً يُقرأ عطلاً. */}
-      <EmptyState
-        title="لا شيء يُعرَض بعد"
-        body="شاشات الراكب (طلب رحلة · العروض · التتبّع) بنود F2. حتى ذلك الحين هذا السطح فارغ عن قصد، لا معطَّل."
-      />
-    </section>
-  );
+  // ما كانَ ههنا قبلَ `F2-02`: حالةُ فراغٍ من `EmptyState` تقولُ «لا شيءَ يُعرَضُ
+  // بعد» — وهيَ صدقُ تلكَ اللحظةِ، وقد نُسِخَ حكمُها إلى شاشةِ `SR-02` نفسِها:
+  // «الأماكنُ فارغةٌ» و«لا وجهاتَ» و«لا خريطةَ» تُقالُ مفاتيحَ لا بياضاً.
+  return <HomeScreen />;
 }
