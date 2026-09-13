@@ -359,6 +359,181 @@ a {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+ * رئيسةُ الراكبِ `SR-02` (البند `F2-02` · الإغلاقُ `UX-021` · `ADR 0105`)
+ *
+ * تُكتَبُ هذه الأنماطُ **بعدَ** إغلاقِ `F2-02`، ولذلكَ سببٌ مُعلَنٌ: البنيةُ في
+ * `HomeScreen.tsx` كانت تُصدِرُ ثمانيةَ عشرَ صنفاً لا قاعدةَ لأيٍّ منها، فكانت
+ * الشاشةُ تُرسَمُ بأنماطِ المتصفِّحِ الافتراضيّةِ — لا بناءٌ يُخفِقُ ولا اختبارٌ،
+ * والمستخدمُ وحدَه يرى قائمةً عاريةً. فالنقصُ سُجِّلَ `UX-021` ويُغلَقُ ههنا
+ * بنطاقٍ محجوزٍ، **ولا تُمَسُّ بنيةُ الشاشةِ ولا منطقُها**: أنماطٌ تُضافُ فقط.
+ *
+ * وكلُّ لونٍ من متغيّراتِ سِمةِ تيليجرام لا من لوحةٍ خاصّةٍ (السببُ مكتوبٌ في
+ * رأسِ قسمِ `SR-03` أدناه)، وكلُّ ملموسٍ ≥44×44 بكسل (`UX-10`)، والاتجاهُ
+ * منطقيٌّ (`inline-start`) لا يمينَ/يسارَ كي تُقرأَ الشاشةُ في RTL وLTR بنسخةٍ
+ * واحدةٍ (§9.11).
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.rh {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.rh__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+/*
+ * المدينةُ الفاعلةُ سطرُ حالةٍ لا عنوانٌ: الراكبُ يحتاجُ أن يعرفَ **أنَّ** المدينةَ
+ * مُثبَّتةٌ (وأنَّ ما سيَراهُ محكومٌ بها — `O-1`) لا أن تُزاحِمَ العنوانَ.
+ */
+.rh__city {
+  margin: 0;
+  color: var(--tg-subtitle-text-color);
+  font-size: 0.9rem;
+}
+
+/* صفُّ اختيارِ الخدمةِ: أقراصٌ في سطرٍ يلتفُّ، لا قائمةٌ منسدلةٌ — الخياراتُ
+ * قليلةٌ معلومةٌ، وإظهارُها كلِّها يوفّرُ لمسةً ويُظهِرُ المختارَ بلا فتحٍ. */
+.rh__services {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rh__services > legend {
+  padding: 0;
+  margin-block-end: 0.35rem;
+}
+
+.rh__service {
+  min-block-size: 44px;
+  min-inline-size: 44px;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 999px;
+  background: var(--tg-section-bg-color);
+  color: var(--tg-text-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+/*
+ * المختارُ يُعرَفُ **بالتعبئةِ وحدَّها معاً** لا باللونِ وحدَه: اللونُ ينهارُ في
+ * تدرّجِ الرَّمادِ وفي عمى الألوانِ، والتعبئةُ تبقى مقروءةً (`UX-10`).
+ */
+.rh__service--on {
+  border-color: var(--tg-button-color);
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  font-weight: 600;
+}
+
+.rh__map {
+  min-block-size: 8rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.9rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+/*
+ * تعذُّرُ الخريطةِ: إطارٌ متقطِّعٌ **لا مستطيلٌ مصمَتٌ** — المصمَتُ يُقرأُ خريطةً لم
+ * تُحمَّلْ بعدُ فيُنتَظَرُ، والمتقطِّعُ يُقرأُ موضعاً معلَناً أنَّه فارغٌ. وهوَ شكلُ
+ * `.rd__map--off` نفسُه كي لا يتعلَّمَ المستخدمُ إطارَينِ لمعنًى واحدٍ.
+ */
+.rh__map--off {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 6rem;
+  padding: 1rem;
+  border: 1px dashed var(--tg-section-separator-color);
+  border-radius: 0.9rem;
+  background: transparent;
+  color: var(--tg-subtitle-text-color);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.rh__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.rh__input {
+  min-block-size: 44px;
+  padding: 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.75rem;
+  background: var(--tg-section-bg-color);
+  color: var(--tg-text-color);
+  font: inherit;
+}
+
+.rh__heading {
+  margin: 0;
+  color: var(--tg-section-header-text-color);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.rh__places,
+.rh__recent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rh__place,
+.rh__recent-row {
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.9rem;
+  background: var(--tg-section-bg-color);
+}
+
+/*
+ * الصفُّ كلُّه ملموسٌ واحدٌ يمتدُّ على العرضِ: هدفٌ واسعٌ يُضغَطُ بإبهامٍ في
+ * سيّارةٍ متحرِّكةٍ، لا زرٌّ صغيرٌ في طرفِ سطرٍ.
+ */
+.rh__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 0.75rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+/* نوعُ المكانِ سابقةٌ خافتةٌ، والاسمُ هوَ الذي يُقرأُ أوّلاً. */
+.rh__place-kind {
+  color: var(--tg-subtitle-text-color);
+  font-size: 0.8rem;
+}
+
+.rh__place-label {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
  * شاشةُ اختيارِ الوجهةِ `SR-03` (البند `F2-03`)
  *
  * كلُّ لونٍ ههنا من متغيّراتِ سِمةِ تيليجرام لا من لوحةٍ خاصّةٍ: التطبيقُ
@@ -368,6 +543,11 @@ a {
  * ولماذا ثُمَّ أنماطٌ لهذه الشاشةِ وليسَ لشاشةِ `SR-02`: الأنماطُ الغائبةُ في
  * `.rh__*` نقصٌ **مُسجَّلٌ** لا مُصحَّحٌ ههنا (`UX-021` في `ROADMAP.md`) —
  * تصحيحُه تعديلٌ في بندٍ مُغلَقٍ بلا حجزِ نطاقٍ، وذاكَ ما تمنعُه الخارطةُ.
+ *
+ * **تصحيحٌ إضافيٌّ (`ح-8`) — 2026-09-13:** النصُّ أعلاهُ صحيحٌ لوقتِه ويبقى
+ * مكتوباً. وقد أُغلِقَ `UX-021` بنطاقٍ محجوزٍ، فكُتِبَت أنماطُ `.rh__*` في
+ * القسمِ الذي يسبقُ هذا مباشرةً، وصارَ الغيابُ محروساً في CI بحاجزِ
+ * `scripts/check-css-class-coverage.ts` (`ADR 0105`) لا مُسجَّلاً في نصٍّ.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 .rd {
@@ -381,6 +561,18 @@ a {
   margin: 0;
   font-size: 1.35rem;
   font-weight: 700;
+}
+
+/*
+ * حاوي الخريطةِ حينَ يُعلَنُ مُزوّدٌ: صندوقٌ **مصمَتٌ محدَّدُ الارتفاعِ** كي لا
+ * تَقفِزَ الشاشةُ عندَ حلولِ الخريطةِ محلَّه (`UX-021` أضافَ القاعدةَ الغائبةَ؛
+ * وكانَ العنصرُ قبلَها بارتفاعٍ صفرٍ فلا يُرى أصلاً).
+ */
+.rd__map {
+  min-block-size: 8rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.9rem;
+  background: var(--tg-secondary-bg-color);
 }
 
 /*
