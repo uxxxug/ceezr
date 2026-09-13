@@ -11,6 +11,24 @@
  * ملاحظات مستقبلية: لا حقلَ سعرٍ ولا وسيلةَ دفعٍ في هذه الشاشةِ قبلَ إغلاقِ
  *   `DEC-11` بسندٍ نظاميٍّ مكتوبٍ (`ADR 0039` §٦ · `م13-7`).
  *
+ * ## إضافةُ البند `F2-05` (2026-09-13)
+ *
+ * صارَ للبطاقةِ المتاحةِ **فعلُ طلبٍ**، ومعَه حقلُ ملاحظةٍ للسائقِ (`SR-04` في
+ * الخارطةِ). والسطرُ الذي كانَ يقولُ «طلبُ الرحلةِ لم يُبنَ بعدُ» **باقٍ مفتاحاً
+ * ونصّاً في القواميسِ** (القاعدة ح-1) ولم يُحذَف من أحدِها؛ وإنّما لم يُعَد
+ * يُرسَمُ، لأنَّه صارَ **خبراً كاذباً** بعدَ أن بُني الطلبُ — وحفظُ النصِّ في
+ * القاموسِ أمانةٌ، وعرضُه بعدَ نقضِه كذبٌ.
+ *
+ * ولماذا لا يُنشئُ الطلبَ ههنا: الإنشاءُ له عمرٌ يعيشُ دقائقَ وحالةٌ قد تُلغى،
+ * وهذه الشاشةُ تجمعُ النيّةَ (خدمةٌ وملاحظةٌ ومفتاحُ تكرارٍ) وتُسلِّمُها إلى
+ * `SR-05`. ولو أُنشئَ ههنا لَوجبَ نقلُ الحالةِ بينَ شاشتَينِ، ونقلُ الحالةِ بابُ
+ * رحلةٍ تُنشَأُ مرّتَينِ.
+ *
+ * ومفتاحُ التكرارِ يُولَّدُ **عندَ الضغطِ** لا عندَ التركيبِ: مفتاحٌ يُولَّدُ مع
+ * الشاشةِ يُعيدُ رحلةً قديمةً لو ضغطَ الراكبُ بعدَ إلغاءٍ، ومفتاحٌ لكلِّ ضغطةٍ
+ * يُبطِلُ `ARCH-006`. فواحدٌ لكلِّ **نيّةٍ**: يُولَّدُ عندَ الضغطةِ ويُعادُ في كلِّ
+ * محاولةٍ لتلكَ النيّةِ داخلَ `SR-05`.
+ *
  * ## لماذا يُقرأُ موقعُ الراكبِ ههنا ولا يُورَّثُ من الشاشةِ السابقةِ
  *
  * `SR-03` تقرأُ الموقعَ **اختياراً** («موقعي» بدلاً من البحثِ)، فقد يُصادِقُ راكبٌ
@@ -29,13 +47,18 @@
  *   ــ **لا تعرضُ سعراً ولا وسيلةَ دفعٍ ولا موضعاً محفوظاً لهما**: آليّةُ الأجرةِ
  *      محجوبةٌ على قرارٍ نظاميٍّ خارجِ المشروعِ (`ADR 0039` §٤)، والإيرادُ اليومَ
  *      اشتراكُ السائقِ وحدَه (`ADR 0027`) — فالراكبُ لا يدفعُ للمنصّةِ شيئاً.
- *   ــ **لا تُظهِرُ زرَّ طلبٍ لا يفعلُ شيئاً**: زرٌّ صامتٌ يُقرأُ عطباً.
+ *   ــ **لا تُظهِرُ زرَّ طلبٍ لا يفعلُ شيئاً**: زرٌّ صامتٌ يُقرأُ عطباً. (وبعدَ
+ *      `F2-05` صارَ الزرُّ يفعلُ، ولا يُعرَضُ إلّا على بطاقةٍ **متاحةٍ**.)
  *   ــ **لا تخترعُ مدّةً**: تعرضُ امتناعَ `packages/domain/eta` بسببِه.
  *   ــ **لا تُخفي خدمةً غيرَ متاحةٍ**: تعرضُها معطَّلةً بسببِها.
  *   ــ **لا تحفظُ الاقتباسَ محلّيّاً**: يُعادُ سؤالُه في كلِّ تركيبٍ.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  RIDE_NOTES_MAX_LENGTH,
+  readRideNotes,
+} from "../../../../../../packages/domain/transport/ride-request.ts";
 import {
   directionFor,
   MINIAPP_DEFAULT_LANGUAGE,
@@ -53,6 +76,7 @@ import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { initLocation, openLocationSettings, requestLocation } from "../../../tg/index.ts";
 import { locationRefusalKey, offersLocationSettings } from "../destination/destination-view.ts";
+import { newIdempotencyKey } from "../search/search-view.ts";
 import { type QuoteRideResponse, quoteRide as quoteViaApi } from "./quote-api.ts";
 import {
   distanceLine,
@@ -85,6 +109,20 @@ export interface QuoteScreenProps {
   >;
   readonly openSettings?: () => void;
   readonly onBack?: () => void;
+  /**
+   * `F2-05`: تُسلَّمُ النيّةُ ولا تُنشَأُ الرحلةُ ههنا. و`null` في الملاحظةِ يعني
+   * «لا ملاحظةَ» لا «ملاحظةٌ فارغةٌ»، والمفتاحُ مُولَّدٌ لتلكَ النيّةِ وحدَها.
+   */
+  readonly onRequest?: (intent: {
+    readonly service: string;
+    readonly originLat: number;
+    readonly originLng: number;
+    readonly destinationLat: number;
+    readonly destinationLng: number;
+    readonly destinationLabel: string;
+    readonly notes: string | null;
+    readonly idempotencyKey: string;
+  }) => void;
   readonly initialLanguage?: MiniAppLanguage;
 }
 
@@ -109,7 +147,15 @@ type QuoteState =
   | { readonly kind: "locating" }
   | { readonly kind: "asking" }
   | { readonly kind: "location_refused"; readonly reason: string }
-  | { readonly kind: "accepted"; readonly response: Extract<QuoteRideResponse, { accepted: true }> }
+  | {
+      readonly kind: "accepted";
+      readonly response: Extract<QuoteRideResponse, { accepted: true }>;
+      /**
+       * الانطلاقُ **كما قِيسَ عليه هذا الاقتباسُ** — يُحفَظُ كي يُطلَبَ عن الموضعِ
+       * الذي قِيسَت عنه المسافةُ، لا عن قراءةٍ ثانيةٍ قد تختلفُ بمئاتِ الأمتارِ.
+       */
+      readonly origin: { readonly lat: number; readonly lng: number };
+    }
   | {
       readonly kind: "refused";
       readonly refusal: string;
@@ -141,11 +187,14 @@ export function QuoteScreen({
   readDeviceLocation = defaultDeviceLocation,
   openSettings = () => void openLocationSettings(),
   onBack,
+  onRequest,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
 }: QuoteScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<QuoteState>({ kind: "locating" });
   const [system, setSystem] = useState<SystemState>(null);
+  /** ملاحظةُ السائقِ — نصٌّ خامٌّ يُشذَّبُ عندَ التسليمِ لا عندَ كلِّ محرفٍ. */
+  const [notes, setNotes] = useState("");
   const mounted = useRef(true);
   /** ردٌّ متأخِّرٌ لسؤالٍ قديمٍ **يُطرَحُ** ولا يُعرَضُ (عينُ حكمِ `SR-03`). */
   const issued = useRef(0);
@@ -179,7 +228,7 @@ export function QuoteScreen({
       });
       if (!mounted.current || ticket !== issued.current) return;
       if (response.accepted) {
-        setState({ kind: "accepted", response });
+        setState({ kind: "accepted", response, origin: { lat: here.lat, lng: here.lng } });
         return;
       }
       setState({
@@ -276,7 +325,9 @@ export function QuoteScreen({
       );
     }
 
-    const { response } = state;
+    const { response, origin } = state;
+    const readNotes = readRideNotes(notes);
+    const noteValue = "notes" in readNotes ? readNotes.notes : null;
     const distance = distanceLine(response.distance);
     const duration = durationLine(response.eta);
     const cards = serviceCards(response.services);
@@ -321,16 +372,62 @@ export function QuoteScreen({
                 {card.reasonKey !== null && (
                   <span className="qt__card-reason">{t(card.reasonKey)}</span>
                 )}
+                {/*
+                 * الفعلُ على البطاقةِ **المتاحةِ** وحدَها: خدمةٌ غيرُ مخدومةٍ في
+                 * المدينةِ تُعرَضُ بسببِها ولا يُعرَضُ لها زرٌّ يُرفَضُ حتماً.
+                 */}
+                {card.available && onRequest !== undefined && (
+                  <button
+                    type="button"
+                    className="qt__card-request"
+                    onClick={() =>
+                      onRequest({
+                        service: card.service,
+                        originLat: origin.lat,
+                        originLng: origin.lng,
+                        destinationLat: destination.lat,
+                        destinationLng: destination.lng,
+                        destinationLabel: destination.label,
+                        notes: noteValue,
+                        // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
+                        idempotencyKey: newIdempotencyKey(),
+                      })
+                    }
+                  >
+                    {t("rider.quote.request")}
+                  </button>
+                )}
               </li>
             ))}
           </ul>
         </section>
 
         {/*
-         * ما لم يُبنَ يُقالُ صريحاً: `F2-05` هوَ إنشاءُ الطلبِ، ولا زرَّ ههنا
-         * يُوهِمُ الراكبَ أنَّ الطلبَ ممكنٌ الآنَ.
+         * ما كانَ ههنا قبلَ `F2-05`: سطرٌ يقولُ «طلبُ الرحلةِ لم يُبنَ بعدُ»
+         * (`rider.quote.next.notBuilt`) — وهوَ صدقُ تلكَ اللحظةِ، ومفتاحُه ونصُّه
+         * **باقيانِ في القواميسِ الثلاثةِ** (القاعدة ح-1) ولم يُحذَفا. وقد بُني
+         * الطلبُ، فلم يَعُدْ يُرسَمُ: عرضُ نصٍّ نُقِضَ كذبٌ، وحذفُه من القاموسِ
+         * محوُ أثرٍ.
          */}
-        <p className="qt__pending-item">{t("rider.quote.next.notBuilt")}</p>
+        <section className="qt__request" aria-label={t("rider.quote.request.section")}>
+          <label className="qt__notes-label" htmlFor="qt-notes">
+            {t("rider.quote.notes.label")}
+          </label>
+          <textarea
+            id="qt-notes"
+            className="qt__notes"
+            value={notes}
+            maxLength={RIDE_NOTES_MAX_LENGTH}
+            placeholder={t("rider.quote.notes.placeholder")}
+            onChange={(event) => setNotes(event.target.value)}
+          />
+          {/* الحدُّ يُعرَضُ عدداً لا يُخفى: حقلٌ يقطعُ الكتابةَ صامتاً يُقرأُ عطباً. */}
+          <p className="qt__notes-hint">
+            {t("rider.quote.notes.limit")
+              .replace("{used}", String(notes.trim().length))
+              .replace("{max}", String(RIDE_NOTES_MAX_LENGTH))}
+          </p>
+        </section>
       </div>
     );
   };

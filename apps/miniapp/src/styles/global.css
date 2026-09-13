@@ -687,3 +687,177 @@ a {
   font: inherit;
   cursor: pointer;
 }
+
+/* ==========================================================================
+ * `F2-05` · `SR-05` — طلبُ الرحلةِ وشاشةُ البحثِ
+ *
+ * صنفٌ لكلِّ ما يُرسَمُ في الشاشتَينِ، ولا صنفَ بلا مُحدِّدٍ ههنا: `UX-021` فُتِحَ
+ * لأنَّ صنفاً في JSX بلا مُحدِّدٍ في CSS يُنتِجُ عنصراً بلا شكلٍ فيبدو عطباً،
+ * وحاجزُه الآليُّ بندٌ محجوزٌ لنفسِه. فهذا القسمُ يُكتَبُ مُطابِقاً حرفاً بحرفٍ.
+ * ==========================================================================
+ */
+
+/* زرُّ الطلبِ على البطاقةِ المتاحةِ وحدَها — بارزٌ لأنَّه الفعلُ الرئيسُ. */
+.qt__card-request {
+  align-self: flex-start;
+  margin-block-start: 0.4rem;
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.qt__request {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--tg-section-separator-color);
+}
+
+.qt__notes-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.qt__notes {
+  min-height: 4.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font: inherit;
+  resize: vertical;
+}
+
+/* الحدُّ يُعرَضُ عدداً: حقلٌ يقطعُ الكتابةَ صامتاً يُقرأُ عطباً. */
+.qt__notes-hint {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.rs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.rs__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.rs__destination {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.rs__pending {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rs__live {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* «لم تُنشَأْ رحلةٌ ثانيةٌ» خبرٌ مُطمئِنٌ لا إنذارٌ: يُعرَضُ خافتاً مؤطَّراً. */
+.rs__reused {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.rs__status {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.rs__phase {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/*
+ * المؤقّتُ **رقمٌ معلَنٌ** لا دوّارةٌ تدورُ أبداً: الدوّارةُ تقولُ «يعملُ شيءٌ»
+ * والمدّةُ تقولُ «مضى كذا»، والثانيةُ هيَ ما يُبنى عليه قرارُ الانتظارِ.
+ */
+.rs__elapsed {
+  margin: 0;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* الصفرُ يُقرأُ نصّاً: «لم يُبلَّغْ سائقٌ بعدُ» لا «0 سائقينَ». */
+.rs__notified {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-text-color);
+}
+
+.rs__active {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.rs__stopped {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+}
+
+/*
+  صندوقُ اللقطةِ — يحلُّ محلَّ `.rs__stopped` بعدَ نزعِ الاستقصاءِ (ADR 0035 §4).
+  والمُحدِّدُ الأوّلُ يبقى مكتوباً ولا يُمحى (ح-1)، ويُعادُ استعمالُ شكلِه نفسِه
+  كي لا يتعلَّمَ المستخدمُ إطاراً ثانياً لمعنًى واحدٍ.
+*/
+.rs__snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+}
+
+/*
+ * الإلغاءُ فعلٌ مُدمِّرٌ: يُعرَضُ **خافتاً مؤطَّراً** لا بارزاً ملوَّناً، كي لا
+ * يُضغَطَ سهواً في شاشةِ انتظارٍ يُنظَرُ إليها كثيراً.
+ */
+.rs__cancel {
+  align-self: flex-start;
+  margin-block-start: 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-destructive-text-color, #d33);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-destructive-text-color, #d33);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rs__cancel:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

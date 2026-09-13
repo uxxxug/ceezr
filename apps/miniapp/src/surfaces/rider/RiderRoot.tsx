@@ -54,6 +54,22 @@
  * وما لا يفعلُه بعدَ `F2-04`: لا يُنشئُ طلباً — إنشاءُ الطلبِ بندُ `F2-05`،
  * و`SR-04` تقولُ ذاكَ صريحاً ولا تعرضُ زرّاً صامتاً. ولا يعرضُ سعراً: آليّةُ
  * الأجرةِ محجوبةٌ على قرارٍ نظاميٍّ (`ADR 0039` §٤ · `م13-7`).
+ *
+ * ## إضافةُ البند `F2-05` (2026-09-13)
+ *
+ * صارَ للسطحِ **مرحلةٌ خامسةٌ**: بعدَ أن يُطلَبَ في `SR-04` تُركَّبُ شاشةُ البحثِ
+ * `SR-05` فتُنشئُ الرحلةَ بمفتاحِ تكرارٍ واحدٍ وتعرضُ حالتَها الصادقةَ. وما قبلَها
+ * **باقٍ كما هوَ** (القاعدة ح-1) ولا سطرَ حُذِفَ؛ والسطرُ أعلاه الذي يقولُ إنَّ
+ * `F2-04` لا يُنشئُ طلباً **باقٍ** وصفاً لِما كانَ، وقد صارَ الطلبُ يُسلَّمُ من
+ * `SR-04` إلى هذه المرحلةِ.
+ *
+ * ولماذا **النيّةُ** تُرفَعُ ههنا ولا تُنشأُ الرحلةُ في شاشةِ الاقتباسِ: لِأنَّ
+ * الرحلةَ تعيشُ دقائقَ وتُلغى وتُعادُ قراءتُها، فحالتُها في شاشةٍ لها عمرٌ. ولأنَّ
+ * الرجوعَ من البحثِ يجبُ أن يعودَ إلى **الشاشةِ الرئيسةِ** لا إلى اقتباسٍ صارَ
+ * قديماً: الوجهةُ نفسُها قد تُقتبَسُ ثانيةً بحكمٍ جديدٍ.
+ *
+ * وما لا يفعلُه بعدَ `F2-05`: لا يُتابِعُ رحلةً بعدَ الإسنادِ — شاشةُ الرحلةِ
+ * النشطةِ بندُ `F2-06`، و`SR-05` تعرضُ الحالةَ كما هيَ ولا تزعمُ تتبّعاً.
  */
 
 import { useState } from "react";
@@ -62,6 +78,8 @@ import { DestinationScreen } from "./destination/DestinationScreen.tsx";
 import type { ChosenDestination } from "./home/HomeScreen.tsx";
 import { HomeScreen } from "./home/HomeScreen.tsx";
 import { QuoteScreen } from "./quote/QuoteScreen.tsx";
+import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
+import { SearchScreen } from "./search/SearchScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
 
 export default function RiderRoot() {
@@ -73,11 +91,32 @@ export default function RiderRoot() {
    * نقطةٍ لم يحكمْ عليها أحدٌ (القاعدة 0.5).
    */
   const [confirmed, setConfirmed] = useState<ConfirmedDestination | null>(null);
+  /**
+   * نيّةُ الطلبِ — خدمةٌ وانطلاقٌ ووجهةٌ وملاحظةٌ **ومفتاحُ تكرارٍ**. ولا تُدمَجُ
+   * معَ `confirmed`: الوجهةُ حكمٌ مضى، والنيّةُ أمرٌ لم يُنفَّذْ بعدُ. وبقاءُ
+   * المفتاحِ في هذه الحالةِ هوَ ما يجعلُ إعادةَ المحاولةِ **المحاولةَ نفسَها**.
+   */
+  const [intent, setIntent] = useState<SearchScreenIntent | null>(null);
 
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
+
+  // النيّةُ تُنفَّذُ: شاشةُ البحثِ تُنشئُ الرحلةَ وتعرضُ حالتَها. وهيَ **فوقَ**
+  // الاقتباسِ في الترتيبِ: ما دامَت رحلةٌ تُطلَبُ فلا يُعادُ رسمُ اقتباسٍ مضى.
+  if (intent !== null) {
+    return (
+      <SearchScreen
+        intent={intent}
+        onBack={() => {
+          setIntent(null);
+          setConfirmed(null);
+          setChosen(null);
+        }}
+      />
+    );
+  }
 
   // الوجهةُ المُصادَقةُ تُقتبَسُ: أوّلُ شاشةٍ بعدَ الحكمِ، ولا تُركَّبُ إلّا بعدَه.
   if (confirmed !== null) {
@@ -92,6 +131,7 @@ export default function RiderRoot() {
           setConfirmed(null);
           setChosen(null);
         }}
+        onRequest={(picked) => setIntent(picked)}
       />
     );
   }
