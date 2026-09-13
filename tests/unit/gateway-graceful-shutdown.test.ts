@@ -61,11 +61,32 @@ const BOOT_TIMEOUT_MS = 40_000;
 const CASE_TIMEOUT_MS = 70_000;
 
 /**
- * منفذٌ فريدٌ **حتماً** لا عشوائيّاً. العشوائيُّ يجوزُ أن يصطدمَ بمنفذٍ مشغولٍ على
- * عاملِ CI فيُخفِقَ الإقلاعُ بلا ذنبٍ للمُختبَرِ — ومصدرُ عشوائيّةٍ في بوّابةٍ لا
- * مقابلَ له هاهُنا.
+ * عددُ محاولاتِ الإقلاعِ حينَ — وحينَ فقط — يكونُ سببُ الإخفاقِ `EADDRINUSE`.
+ * وما عداهُ لا يُعادُ ولا يُخفى: يُرفَعُ بمخرجاتِ العمليّةِ كما هيَ.
  */
-let nextPortOffset = 0;
+const BOOT_ATTEMPTS = 4;
+
+/**
+ * **تصحيحٌ مقيسٌ لا تجميليٌّ (`ح-8`).** كانَ المنفذُ يُحسَبُ حتميّاً
+ * `31_000 + ((process.pid + offset * 7) % 9_000)` بحجّةِ أنَّ الحتميَّ لا يصطدمُ.
+ * والحُجّةُ باطلةٌ: الحتميّةُ تمنعُ الاصطدامَ **بين حالاتِ هذا الملفِّ** ولا تمنعُ
+ * الاصطدامَ **بشاغلٍ آخرَ على عاملِ CI** — وهوَ ما وقعَ بحرفِه في الشغلةِ
+ * `34734754215` (الوظيفةُ `verify` · الخطوةُ 8): أقلعَتِ الحالةُ الأولى، ثمَّ
+ * أخفقَتِ الثانيةُ على المنفذِ 33096 بـ`EADDRINUSE` فانتظرَ المُختبَرُ صحّةً لا
+ * تأتي أربعينَ ثانيةً ثمَّ سقطَ — وشِفرةُ الإنتاجِ سليمةٌ لم تُمَسّ.
+ *
+ * والجوابُ **تقويةُ** الاختبارِ لا إرخاؤه: لا مهلةَ رُفِعَت ولا توكيدَ خُفِّف ولا
+ * حالةَ صُنِّفَت تخطّياً. بل يُسألُ النظامُ نفسُه عن منفذٍ حُرٍّ (`port: 0`)
+ * فيُسنِدُه من مجالِ المنافذِ العابرةِ، ثمَّ يُغلَقُ المِقبضُ فوراً ويُمرَّرُ الرقمُ
+ * إلى العمليّةِ الوليدةِ. ويبقى بينَ الإغلاقِ والإقلاعِ فُرجةٌ نظريّةٌ
+ * (`TOCTOU`) — فتُغلَقُ بإعادةِ المحاولةِ عندَ `EADDRINUSE` وحدَه.
+ */
+function reserveFreePort(): number {
+  const probe = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
+  const port = probe.port;
+  probe.stop(true);
+  return port;
+}
 
 /**
  * يقرأُ المجرى إلى آخرِه في الخلفيّةِ ويحتفظُ بما قرأ. **والقراءةُ إلى الآخرِ شرطٌ
@@ -97,33 +118,48 @@ function drain(stream: ReadableStream<Uint8Array>, into: string[]): void {
  * للتشخيصِ عندَ إخفاقِ الإقلاعِ.
  */
 async function bootGateway(): Promise<SpawnedGateway> {
-  nextPortOffset += 1;
-  const port = 31_000 + ((process.pid + nextPortOffset * 7) % 9_000);
-  const child = Bun.spawn(["bun", "apps/gateway/src/index.ts"], {
-    env: { PATH: process.env.PATH ?? "", ...FAKE_ENV, PORT: String(port) },
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  let lastPort = 0;
+  let lastTail = "";
+  for (let attempt = 1; attempt <= BOOT_ATTEMPTS; attempt += 1) {
+    const port = reserveFreePort();
+    lastPort = port;
+    const child = Bun.spawn(["bun", "apps/gateway/src/index.ts"], {
+      env: { PATH: process.env.PATH ?? "", ...FAKE_ENV, PORT: String(port) },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
 
-  // نُفرّغُ المجرَيين إلى آخرِهما حتى لا يتوقّفَ الإجراءُ عند امتلاءِ الأنبوب.
-  const out: string[] = [];
-  const errOut: string[] = [];
-  drain(child.stdout, out);
-  drain(child.stderr, errOut);
+    // نُفرّغُ المجرَيين إلى آخرِهما حتى لا يتوقّفَ الإجراءُ عند امتلاءِ الأنبوب.
+    const out: string[] = [];
+    const errOut: string[] = [];
+    drain(child.stdout, out);
+    drain(child.stderr, errOut);
 
-  const healthOk = await waitForHealth(port, BOOT_TIMEOUT_MS);
-  if (!healthOk) {
+    const healthOk = await waitForHealth(port, BOOT_TIMEOUT_MS, child);
+    if (healthOk) return { port, child, stdout: child.stdout, stderr: child.stderr };
+
     child.kill();
-    const tail = `${out.join("")}\n${errOut.join("")}`.trim().slice(-2_000);
-    throw new Error(
-      `لم يُجبِ /health على المنفذِ ${port} خلالَ ${BOOT_TIMEOUT_MS} ملّي ثانية.\nمخرجاتُ العمليّةِ:\n${tail}`,
-    );
+    lastTail = `${out.join("")}\n${errOut.join("")}`.trim().slice(-2_000);
+    // تعارضُ منفذٍ وحدَه يُعادُ. وأيُّ إخفاقِ إقلاعٍ آخرَ عطلٌ حقيقيٌّ يُرفَعُ فوراً.
+    if (!lastTail.includes("EADDRINUSE")) break;
   }
 
-  return { port, child, stdout: child.stdout, stderr: child.stderr };
+  throw new Error(
+    `لم يُجبِ /health على المنفذِ ${lastPort} خلالَ ${BOOT_TIMEOUT_MS} ملّي ثانية ` +
+      `(وعندَ تعارضِ منفذٍ: ${BOOT_ATTEMPTS} محاولاتٍ بمنافذَ يُسندُها النظامُ).\n` +
+      `مخرجاتُ العمليّةِ:\n${lastTail}`,
+  );
 }
 
-async function waitForHealth(port: number, timeoutMs: number): Promise<boolean> {
+/**
+ * ينتظرُ صحّةً حقيقيّةً، **ويكُفُّ حالَ موتِ العمليّةِ**: خادمٌ ماتَ لن يُجيبَ بعدَ
+ * حين، فانتظارُ المهلةِ كاملةً بعدَ موتِه إهدارٌ يُخفي السببَ لا يُظهِرُه.
+ */
+async function waitForHealth(
+  port: number,
+  timeoutMs: number,
+  child: { readonly exitCode: number | null },
+): Promise<boolean> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
@@ -132,6 +168,7 @@ async function waitForHealth(port: number, timeoutMs: number): Promise<boolean> 
     } catch {
       // ما زالت لم تُقلع — نُعيدُ المحاولة.
     }
+    if (child.exitCode !== null) return false;
     await Bun.sleep(100);
   }
   return false;
