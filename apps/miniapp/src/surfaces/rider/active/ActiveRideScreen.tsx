@@ -1,0 +1,382 @@
+/**
+ * الغرض: شاشةُ الرحلةِ النشطةِ — تعرضُ لقطةَ الرحلةِ وسائقَها وموقعَه **بعُمرِه**
+ *   ومدّةَ الوصولِ وسياسةَ الإلغاءِ (البند `F2-06` · `SR-06`).
+ * الحالة: منفَّذٌ فعليّاً — البند `F2-06`، وبغياباتٍ مُسمَّاةٍ أدناه.
+ * ينتمي إلى: apps/miniapp/src/surfaces/rider/active
+ * يُستخدم من: `RiderRoot.tsx` بعدَ الإسنادِ أو لمتابعةِ رحلةٍ قائمةٍ.
+ * يُتوقع أن يستخدمه لاحقاً: `F2-07` يُلحِقُ بها شاشةَ الإنهاءِ والتقييمِ،
+ *   و`F2-09` يُضيفُ زرَّ المشاركةِ، و`F2-10` يُضيفُ زرَّ الطوارئِ.
+ *
+ * ## لماذا لقطةٌ بزرِّ تحديثٍ لا بثٌّ مستمرٌّ
+ *
+ * عينُ حكمِ `SR-05`: لا شيءَ يعملُ في الخلفيّةِ، فلا يُوهَمُ الراكبُ بمتابعةٍ
+ * حيّةٍ لا تحدثُ. والرقمُ الساكنُ الصادقُ أفضلُ من عقربٍ يدقُّ فوقَ قراءةٍ
+ * جامدةٍ. ومتى سألَ الراكبُ عرفَ **أنَّه سألَ**.
+ *
+ * ## ولماذا لا يُرسَمُ زرٌّ لمسارٍ لم يُبنَ
+ *
+ * `SR-06` يطلبُ طوارئَ ومشاركةً واتّصالاً. ومساراتُها `F2-10` و`F2-09` ولم
+ * تُبنَ، فلا يُرسَمُ زرٌّ مُعطَّلٌ ولا زرٌّ يقولُ «قريباً»: زرٌّ لا يفعلُ شيئاً
+ * **كذبٌ في اللحظةِ التي يُحتاجُ فيها الصدقُ أكثرَ** (حالةُ طوارئٍ). والغيابُ
+ * مُسمَّى في دليلِ الإغلاقِ لا مطويٌّ.
+ *
+ * ## وما لا تفعلُه هذه الشاشةُ عن قصدٍ
+ *
+ *   ــ **لا تعرضُ سعراً ولا عقوبةَ إلغاءٍ**: `ADR 0039` §٤ (`DEC-11` · `م13-7`).
+ *   ــ **لا ترسمُ نقطةً بلا عُمرِها**: `BUG-001` — والحجبُ يُقالُ بسببِه.
+ *   ــ **لا ترسمُ خريطةً**: الخريطةُ في `SR-02`، وههنا إحداثيّةٌ معلَنةٌ وعُمرٌ.
+ *   ــ **لا تُنشِئُ رحلةً ولا تُسنِدُ سائقاً**: الإنشاءُ `SR-04` والإسنادُ `F3`.
+ *   ــ **لا تُخزِّنُ معرّفَ الرحلةِ محلّيّاً**: المعرّفُ يأتي من مُركِّبِها.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  directionFor,
+  MINIAPP_DEFAULT_LANGUAGE,
+  type MiniAppLanguage,
+  miniAppTranslator,
+} from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+import {
+  classifyFailure,
+  failureFromThrown,
+  shouldProbeReachability,
+} from "../../../system/failure.ts";
+import { deviceOnline, probeReachability } from "../../../system/health.ts";
+import { Skeleton } from "../../../system/Skeleton.tsx";
+import { SystemScreen } from "../../../system/SystemScreen.tsx";
+import type { ScreenState } from "../../../system/state-text.ts";
+import { cancelRide as cancelViaApi } from "../search/ride-api.ts";
+import type { CancelRideResponse } from "../search/ride-contract.ts";
+import { cancelRefusalKey, newIdempotencyKey } from "../search/search-view.ts";
+import { readRide as readViaApi } from "./active-ride-api.ts";
+import type { ActiveRideResponse } from "./active-ride-contract.ts";
+import {
+  activeErrorKey,
+  activePhaseKey,
+  activeRefusalKey,
+  cancelPolicyKey,
+  driverIdentityLine,
+  elapsedSecondsFor,
+  elapsedText,
+  etaLine,
+  isRetryableRideError,
+  positionLine,
+  rideStatusKey,
+  showsCancelButton,
+} from "./active-ride-view.ts";
+
+export interface ActiveRideScreenProps {
+  readonly orderId: string;
+  readonly read?: (orderId: string) => Promise<ActiveRideResponse>;
+  readonly cancel?: (input: {
+    readonly orderId: string;
+    readonly idempotencyKey: string;
+  }) => Promise<CancelRideResponse>;
+  readonly onBack?: () => void;
+  readonly initialLanguage?: MiniAppLanguage;
+  /** تُحقَنُ في الاختبارِ كي تُقاسَ المدّةُ بلا انتظارٍ حقيقيٍّ. */
+  readonly now?: () => number;
+}
+
+type Found = Extract<ActiveRideResponse, { found: true }>;
+
+type ActiveState =
+  | { readonly kind: "reading" }
+  | { readonly kind: "refused"; readonly refusal: string }
+  | { readonly kind: "rejected"; readonly code: string }
+  | { readonly kind: "ready"; readonly view: Found; readonly measuredAtMs: number }
+  | { readonly kind: "cancel_refused"; readonly refusal: string }
+  | { readonly kind: "cancelled" };
+
+type SystemState = { readonly screen: ScreenState } | null;
+
+function codeOf(thrown: unknown): string | null {
+  if (thrown !== null && typeof thrown === "object" && "code" in thrown) {
+    const code = (thrown as { code?: unknown }).code;
+    return typeof code === "string" ? code : null;
+  }
+  return null;
+}
+
+async function screenFor(thrown: unknown): Promise<ScreenState | null> {
+  const failure = failureFromThrown(thrown);
+  if (failure === null) return null;
+  const online = deviceOnline();
+  const probe = shouldProbeReachability(failure, online) ? await probeReachability() : "not_probed";
+  return classifyFailure(failure, probe, online);
+}
+
+export function ActiveRideScreen({
+  orderId,
+  read = readViaApi,
+  cancel = cancelViaApi,
+  onBack,
+  initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
+  now = () => Date.now(),
+}: ActiveRideScreenProps) {
+  const [language] = useState<MiniAppLanguage>(initialLanguage);
+  const [state, setState] = useState<ActiveState>({ kind: "reading" });
+  const [system, setSystem] = useState<SystemState>(null);
+  const [busy, setBusy] = useState(false);
+  const [reading, setReading] = useState(false);
+  const mounted = useRef(true);
+  /** حاجزا تزامنٍ **مرجعانِ**: قراءةٌ واحدةٌ وإلغاءٌ واحدٌ، بلا تغييرِ هويّةِ دالّةٍ. */
+  const readingRef = useRef(false);
+  const busyRef = useRef(false);
+  /** ردٌّ متأخِّرٌ لسؤالٍ قديمٍ **يُطرَحُ** ولا يُعرَضُ (عينُ حكمِ `SR-05`). */
+  const issued = useRef(0);
+  /** مفتاحُ الإلغاءِ — يُولَّدُ مرّةً، فإعادةُ الإلغاءِ ليسَت إلغاءً ثانياً. */
+  const cancelKey = useRef(newIdempotencyKey());
+  const t = miniAppTranslator(language);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+
+  /**
+   * القراءةُ — **بطلبٍ وحدَه**: نداءٌ عندَ الدخولِ ثمَّ ضغطةُ «تحديثٍ»، ولا
+   * مؤقّتَ (`ADR 0035` §٤). والمعرّفُ **مُعامَلٌ** لا مأخوذٌ من الإغلاقِ، وحاجزُ
+   * التزامنِ **مرجعٌ** لا حالةٌ: لو كانَ حالةً لَتغيَّرَت هويّةُ الدالّةِ عندَ كلِّ
+   * قراءةٍ فأعادَ الأثرُ النداءَ — نداءٌ لم يطلبْه أحدٌ.
+   */
+  const refresh = useCallback(
+    async (id: string) => {
+      if (readingRef.current) return;
+      readingRef.current = true;
+      setReading(true);
+      const ticket = ++issued.current;
+      try {
+        const response = await read(id);
+        if (!mounted.current || ticket !== issued.current) return;
+        if (!response.found) {
+          setState({ kind: "refused", refusal: response.refusal });
+          return;
+        }
+        setState({ kind: "ready", view: response, measuredAtMs: now() });
+      } catch (thrown) {
+        if (!mounted.current || ticket !== issued.current) return;
+        const screen = await screenFor(thrown);
+        if (!mounted.current) return;
+        if (screen !== null) setSystem({ screen });
+        else setState({ kind: "rejected", code: codeOf(thrown) ?? "HTTP_ERROR" });
+      } finally {
+        readingRef.current = false;
+        if (mounted.current) setReading(false);
+      }
+    },
+    [now, read],
+  );
+
+  /** نداءٌ واحدٌ عندَ الدخولِ — ثمَّ لا شيءَ إلّا بطلبِ الراكبِ. */
+  useEffect(() => {
+    void refresh(orderId);
+  }, [orderId, refresh]);
+
+  const askCancel = useCallback(async () => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(true);
+    try {
+      const response = await cancel({ orderId, idempotencyKey: cancelKey.current });
+      if (!mounted.current) return;
+      setState(
+        response.cancelled
+          ? { kind: "cancelled" }
+          : { kind: "cancel_refused", refusal: response.refusal },
+      );
+    } catch (thrown) {
+      if (!mounted.current) return;
+      const screen = await screenFor(thrown);
+      if (!mounted.current) return;
+      if (screen !== null) setSystem({ screen });
+      else setState({ kind: "rejected", code: codeOf(thrown) ?? "HTTP_ERROR" });
+    } finally {
+      busyRef.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }, [cancel, orderId]);
+
+  if (system !== null) {
+    return (
+      <SystemScreen state={system.screen} onAction={() => void refresh(orderId)} busy={reading} />
+    );
+  }
+
+  const body = () => {
+    if (state.kind === "reading") {
+      return (
+        <div className="ar__pending" aria-busy="true">
+          <p className="sys__hint">{t("rider.active.reading")}</p>
+          <Skeleton />
+        </div>
+      );
+    }
+
+    if (state.kind === "refused") {
+      return (
+        <div className="sys" role="alert">
+          <p className="sys__body">{t(activeRefusalKey(state.refusal))}</p>
+          <button type="button" className="sys__action" onClick={() => onBack?.()}>
+            {t("rider.active.back")}
+          </button>
+        </div>
+      );
+    }
+
+    if (state.kind === "rejected") {
+      return (
+        <div className="sys" role="alert">
+          <p className="sys__body">{t(activeErrorKey(state.code))}</p>
+          {isRetryableRideError(state.code) && (
+            <button type="button" className="sys__action" onClick={() => void refresh(orderId)}>
+              {t("rider.active.retry")}
+            </button>
+          )}
+          <button type="button" className="sys__action" onClick={() => onBack?.()}>
+            {t("rider.active.back")}
+          </button>
+        </div>
+      );
+    }
+
+    if (state.kind === "cancel_refused") {
+      return (
+        <div className="sys" role="alert">
+          <p className="sys__body">{t(cancelRefusalKey(state.refusal))}</p>
+          <button type="button" className="sys__action" onClick={() => void refresh(orderId)}>
+            {t("rider.active.refresh")}
+          </button>
+        </div>
+      );
+    }
+
+    if (state.kind === "cancelled") {
+      return (
+        <div className="sys" role="status">
+          <p className="sys__body">{t("rider.active.cancelled")}</p>
+          <button type="button" className="sys__action" onClick={() => onBack?.()}>
+            {t("rider.active.back")}
+          </button>
+        </div>
+      );
+    }
+
+    const { view } = state;
+    /** الساعةُ تُقرأُ **لحظةَ الرسمِ**: لا حالةَ تدقُّ، ولا رقمَ يتحرّكُ وحدَه. */
+    const drawnAtMs = now();
+    const elapsed = elapsedText(
+      elapsedSecondsFor({
+        serverElapsedSeconds: view.elapsedSeconds,
+        measuredAtMs: state.measuredAtMs,
+        nowMs: drawnAtMs,
+      }),
+    );
+    const position = positionLine(view.position);
+    const eta = etaLine(view.eta);
+    const driver = view.driver === null ? null : driverIdentityLine(view.driver);
+
+    return (
+      <div className="ar__live">
+        <p className="ar__status">{t(rideStatusKey(view.status))}</p>
+        <p className="ar__phase">{t(activePhaseKey(view.phase))}</p>
+
+        <p className="ar__elapsed" aria-live="polite">
+          {t(elapsed.key)
+            .replace("{minutes}", String(elapsed.minutes))
+            .replace("{seconds}", String(elapsed.seconds))}
+        </p>
+
+        <p className="ar__route">
+          {t("rider.active.route")
+            .replace("{pickup}", view.pickup.label ?? t("rider.active.point.unlabeled"))
+            .replace("{dropoff}", view.dropoff?.label ?? t("rider.active.point.unlabeled"))}
+        </p>
+
+        {/* كتلةُ السائقِ تُرسَمُ إن أسندَته القاعدةُ — ولا صفَّ فارغٍ ينتظرُه. */}
+        {driver === null ? (
+          <p className="ar__no-driver">{t("rider.active.driver.none")}</p>
+        ) : (
+          <div className="ar__driver">
+            <p className="ar__driver-name">{t(driver.nameKey).replace("{name}", driver.name)}</p>
+            <p className="ar__driver-vehicle">
+              {t(driver.vehicleKey).replace("{vehicle}", driver.vehicle)}
+            </p>
+            <p className="ar__driver-plate">
+              {t(driver.plateKey).replace("{plate}", driver.plate)}
+            </p>
+            <p className="ar__driver-rating">
+              {t(driver.ratingKey)
+                .replace("{average}", driver.ratingAverage.toFixed(1))
+                .replace("{count}", String(driver.ratingCount))}
+            </p>
+          </div>
+        )}
+
+        {/* الموقعُ **معَ عُمرِه** أو سببُ حجبِه — ولا ثالثَ (`BUG-001`). */}
+        {position !== null &&
+          (position.show ? (
+            <div className="ar__position" role="status">
+              <p className="ar__position-point">
+                {t("rider.active.position.point")
+                  .replace("{lat}", position.lat.toFixed(5))
+                  .replace("{lng}", position.lng.toFixed(5))}
+              </p>
+              <p className="ar__position-age">
+                {t(position.ageKey)
+                  .replace("{minutes}", String(position.ageMinutes))
+                  .replace("{seconds}", String(position.ageSeconds))}
+              </p>
+            </div>
+          ) : (
+            <p className="ar__position-hidden">{t(position.key)}</p>
+          ))}
+
+        {eta !== null && (
+          <p className="ar__eta" aria-live="polite">
+            {eta.kind === "ROUTED"
+              ? t(eta.key).replace("{minutes}", String(eta.minutes))
+              : t(eta.key)}
+          </p>
+        )}
+
+        {/* لقطةٌ لا بثٌّ: يُقالُ ذلكَ نصّاً ويُعطى بابُ سؤالٍ. */}
+        <div className="ar__snapshot" role="status">
+          <p className="sys__hint">{t("rider.active.snapshot")}</p>
+          <button
+            type="button"
+            className="sys__action"
+            disabled={reading}
+            onClick={() => void refresh(orderId)}
+          >
+            {t(reading ? "rider.active.refreshing" : "rider.active.refresh")}
+          </button>
+        </div>
+
+        {/* سياسةُ الإلغاءِ نصٌّ إجرائيٌّ، والزرُّ للحرِّ وحدَه. */}
+        <p className="ar__cancel-policy">{t(cancelPolicyKey(view.cancelPolicy))}</p>
+        {showsCancelButton(view.cancelPolicy) && (
+          <button
+            type="button"
+            className="ar__cancel"
+            disabled={busy}
+            onClick={() => void askCancel()}
+          >
+            {t(busy ? "rider.active.cancelling" : "rider.active.cancel")}
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <section className="ar" dir={directionFor(language)} aria-labelledby="ar-title">
+      <h1 className="ar__title" id="ar-title">
+        {t("rider.active.title")}
+      </h1>
+      {body()}
+    </section>
+  );
+}

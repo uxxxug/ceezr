@@ -49,6 +49,10 @@ import {
   cancelRideRequest,
 } from "../../../../packages/application/transport/cancel-ride-request.ts";
 import {
+  type ReadActiveRideDeps,
+  readActiveRide,
+} from "../../../../packages/application/transport/read-active-ride.ts";
+import {
   type ReadRideSearchDeps,
   readRideSearch,
 } from "../../../../packages/application/transport/read-ride-search.ts";
@@ -64,6 +68,8 @@ export interface RidesRouteDependencies {
   /** غيابُها يُعطِّلُ الإنشاءَ بـ503 ولا يجعلُه يُجيبُ بلا كتابةٍ. */
   readonly request?: RequestRideDeps;
   readonly search?: ReadRideSearchDeps;
+  /** قارئُ الرحلةِ النشطةِ (`F2-06`) — غيابُه يُعطِّلُ المسارَ بـ503 صادقاً. */
+  readonly active?: ReadActiveRideDeps;
   readonly cancel?: CancelRideRequestDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
@@ -178,6 +184,87 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       notifiedDriverCount: state.notifiedDriverCount,
       elapsedSeconds,
       cancellableWithoutPenalty: state.cancellableWithoutPenalty,
+    });
+  });
+
+  /**
+   * لقطةُ الرحلةِ النشطةِ (`F2-06` · `SR-06`).
+   *
+   * **ولماذا لا يُنشَرُ موقعُ السائقِ إلّا معَ حكمِه**: الحكمُ (`show`) وسببُ
+   * الحجبِ يُنشرانِ، ولا تُنشَرُ إحداثيّةٌ حُجِبَت. ولو نُشِرَت «للاحتياطِ» لَرسمَها
+   * عميلٌ مستقبليٌّ يقرأُ الحقلَ ولا يقرأُ الحكمَ — فالحجبُ **في السلكِ** لا في
+   * نيّةِ العميلِ.
+   *
+   * **ولا رقمَ هاتفٍ ولا رمزَ مشاركةٍ ولا زرَّ طوارئَ في هذا الردِّ**: `SR-06`
+   * يطلبُها، ومساراتُها `F2-09` و`F2-10`، وحقلٌ فارغٌ لها اليومَ وعدٌ لا عقدٌ.
+   */
+  app.get("/v1/rides/:id", async (c) => {
+    if (deps.active === undefined) {
+      deps.log?.("rides.active_disabled", {});
+      return rejected(c, "RIDE_STORE_NOT_AVAILABLE");
+    }
+
+    const result = await readActiveRide(deps.active, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("id"),
+    });
+    if (!result.ok) return rejected(c, result.error);
+
+    const read = result.value;
+    if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
+
+    const { state, phase, position, eta, cancelPolicy, elapsedSeconds } = read.view;
+    const driver = state.driver;
+    return c.json({
+      ok: true,
+      found: true as const,
+      orderId: state.orderId,
+      status: state.status,
+      service: state.service,
+      phase,
+      pickup: state.pickup,
+      dropoff: state.dropoff,
+      createdAt: new Date(state.createdAtMs).toISOString(),
+      matchedAt: state.matchedAtMs === null ? null : new Date(state.matchedAtMs).toISOString(),
+      startedAt: state.startedAtMs === null ? null : new Date(state.startedAtMs).toISOString(),
+      completedAt:
+        state.completedAtMs === null ? null : new Date(state.completedAtMs).toISOString(),
+      elapsedSeconds,
+      cancelPolicy,
+      driver:
+        driver === null
+          ? null
+          : {
+              firstName: driver.firstName,
+              vehicleType: driver.vehicleType,
+              plateNumber: driver.plateNumber,
+              // `null` = لا تقييمَ بعدُ، ولا يُستبدَلُ برقمٍ افتراضيٍّ.
+              ratingAverage: driver.ratingAverage,
+              ratingCount: driver.ratingCount,
+            },
+      position:
+        position === null
+          ? null
+          : position.show
+            ? {
+                show: true as const,
+                lat: position.position.lat,
+                lng: position.position.lng,
+                ageSeconds: position.ageSeconds,
+              }
+            : {
+                show: false as const,
+                reason: position.reason,
+                ageSeconds: position.reason === "TOO_OLD" ? position.ageSeconds : null,
+              },
+      // المدّةُ حكمٌ مُصنَّفٌ لا رقمٌ عارٍ: `ROUTED` بدقائقِها، أو `UNAVAILABLE`
+      // بسببِها — ولا صفرَ ولا شَرطةَ (`ADR 0024`).
+      eta:
+        eta === null
+          ? null
+          : eta.kind === "ROUTED"
+            ? { kind: "ROUTED" as const, minutes: eta.minutes, source: eta.source }
+            : { kind: "UNAVAILABLE" as const, reason: eta.reason },
     });
   });
 

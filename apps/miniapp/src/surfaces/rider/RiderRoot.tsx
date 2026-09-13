@@ -73,6 +73,7 @@
  */
 
 import { useState } from "react";
+import { ActiveRideScreen } from "./active/ActiveRideScreen.tsx";
 import type { ConfirmedDestination } from "./destination/DestinationScreen.tsx";
 import { DestinationScreen } from "./destination/DestinationScreen.tsx";
 import type { ChosenDestination } from "./home/HomeScreen.tsx";
@@ -97,11 +98,33 @@ export default function RiderRoot() {
    * المفتاحِ في هذه الحالةِ هوَ ما يجعلُ إعادةَ المحاولةِ **المحاولةَ نفسَها**.
    */
   const [intent, setIntent] = useState<SearchScreenIntent | null>(null);
+  /**
+   * الرحلةُ المُتابَعةُ (`F2-06`) — معرّفٌ لا نيّةٌ ولا حالةٌ. ولا يُدمَجُ معَ
+   * `intent`: النيّةُ أمرٌ قد يُرفَضُ، والمعرّفُ رحلةٌ **قائمةٌ في القاعدةِ**.
+   * وهيَ **أعلى** الترتيبِ: ما دامَت رحلةٌ تُتابَعُ فلا تُرسَمُ شاشةُ إنشاءٍ فوقَها.
+   */
+  const [followed, setFollowed] = useState<string | null>(null);
 
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
+
+  // رحلةٌ قائمةٌ تُتابَعُ: لقطتُها وسائقُها وموقعُه بعُمرِه (`SR-06`). والرجوعُ
+  // منها إلى الرئيسةِ لا إلى بحثٍ مضى: البحثُ انتهى بإسنادٍ.
+  if (followed !== null) {
+    return (
+      <ActiveRideScreen
+        orderId={followed}
+        onBack={() => {
+          setFollowed(null);
+          setIntent(null);
+          setConfirmed(null);
+          setChosen(null);
+        }}
+      />
+    );
+  }
 
   // النيّةُ تُنفَّذُ: شاشةُ البحثِ تُنشئُ الرحلةَ وتعرضُ حالتَها. وهيَ **فوقَ**
   // الاقتباسِ في الترتيبِ: ما دامَت رحلةٌ تُطلَبُ فلا يُعادُ رسمُ اقتباسٍ مضى.
@@ -109,6 +132,7 @@ export default function RiderRoot() {
     return (
       <SearchScreen
         intent={intent}
+        onActiveRide={(orderId) => setFollowed(orderId)}
         onBack={() => {
           setIntent(null);
           setConfirmed(null);

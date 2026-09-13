@@ -127,6 +127,12 @@ export interface SearchScreenProps {
     readonly idempotencyKey: string;
   }) => Promise<CancelRideResponse>;
   readonly onBack?: () => void;
+  /**
+   * بابُ `F2-06`: إن مُرِّرَ، انتقلَت المتابعةُ إلى شاشةِ الرحلةِ النشطةِ. وإن
+   * غابَ، **بقيَ سلوكُ `F2-05` كما كانَ حرفاً** (القاعدة `ح-1`): متابعةٌ داخليّةٌ
+   * في هذه الشاشةِ. فلا يُكسَرُ اختبارٌ قائمٌ ولا يُحذَفُ مسارٌ عملَ.
+   */
+  readonly onActiveRide?: (orderId: string) => void;
   readonly initialLanguage?: MiniAppLanguage;
   /** تُحقَنُ في الاختبارِ كي تُقاسَ المدّةُ بلا انتظارٍ حقيقيٍّ. */
   readonly now?: () => number;
@@ -184,6 +190,7 @@ export function SearchScreen({
   read = readViaApi,
   cancel = cancelViaApi,
   onBack,
+  onActiveRide,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   now = () => Date.now(),
 }: SearchScreenProps) {
@@ -323,6 +330,10 @@ export function SearchScreen({
   /** متابعةُ رحلةٍ قائمةٍ: الرفضُ يحملُ معرّفَها، فيُتابَعُ ولا يُعادُ الإنشاءُ. */
   const follow = useCallback(
     (orderId: string) => {
+      if (onActiveRide !== undefined) {
+        onActiveRide(orderId);
+        return;
+      }
       setState({
         kind: "tracking",
         orderId,
@@ -332,7 +343,7 @@ export function SearchScreen({
         measuredAtMs: now(),
       });
     },
-    [now],
+    [now, onActiveRide],
   );
 
   if (system !== null) {
@@ -478,6 +489,22 @@ export function SearchScreen({
             </button>
           </div>
         )}
+
+        {/*
+          أُسنِدَ سائقٌ ⇒ البابُ إلى شاشةِ الرحلةِ النشطةِ (`F2-06`). والزرُّ
+          **لا يُرسَمُ إن لم يُمرَّرِ البابُ**: زرٌّ بلا مسارٍ لا يُرسَمُ ولو مُعطَّلاً.
+        */}
+        {onActiveRide !== undefined &&
+          view !== null &&
+          (view.status === "matched" || view.status === "in_progress") && (
+            <button
+              type="button"
+              className="sys__action"
+              onClick={() => onActiveRide(state.orderId)}
+            >
+              {t("rider.search.activeRide.follow")}
+            </button>
+          )}
 
         {/* الرايةُ من القاعدةِ وحدَها: لا زرَّ إلغاءٍ بعدَ الإسنادِ. */}
         {view?.cancellableWithoutPenalty === true && (
