@@ -314,8 +314,14 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
       "تعطيلُ مدينةٍ في CORE يُرى في `cities` عندَ MOVE في نافذةٍ مقيسةٍ، **وكتابةٌ محليّةٌ على الجدولِ تُرفَضُ** — يُقاسُ بمحاولةِ كتابةٍ مزروعةٍ في اختبارِ تكاملٍ لا بمراجعةِ شيفرةٍ.",
     executed: false,
   },
+  // `F2-03` · حدُّ منطقةِ الخدمةِ ودليلُ المعالمِ: كلاهما **مملوكٌ لـMOVE
+  // بلا تحفُّظٍ** في الجردِ (`W-1`) — الأوّلُ سياسةُ نقلٍ («أينَ نخدمُ») والثاني
+  // بيانةُ مرجعٍ يملكُها المستودعُ بديلاً عن مُرمِّزٍ خارجيٍّ (`O-7`). ولا صفَّ
+  // مستخدمٍ في أيٍّ منهما، فلا شيءَ ههنا يُهاجَرُ إلى CORE ولا يُقرأُ منه.
+  { ...noMigration("city_service_areas") },
   { ...noMigration("core_event_inbox") },
   { ...noMigration("db_backups") },
+  { ...noMigration("destination_landmarks") },
   { ...noMigration("driver_availability") },
   { ...noMigration("driver_capabilities") },
   { ...noMigration("driver_location_history") },

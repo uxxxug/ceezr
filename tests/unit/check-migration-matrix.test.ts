@@ -69,10 +69,12 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
   // الاختبارُ صحيحاً بالإنشاءِ فلا يُوقِعُ نمواً صامتاً. ويُرفَعُ يداً معَ كلِّ
   // جدولٍ جديدٍ — ورُفِعَ من 47 إلى 48 بجدولِ `user_consents` (`F2-01`)، ثمَّ من 48
   // إلى 49 بجدولِ `saved_places` (`F2-02`) — ولا جدولَ ثانياً لأخرِ الوجهاتِ
-  // فهيَ قراءةٌ من `orders`.
+  // فهيَ قراءةٌ من `orders` — ثمَّ من 49 إلى **51** بجدولَي `F2-03`:
+  // `city_service_areas` و`destination_landmarks`، وكلاهما `NONE` في الموجةِ ٠
+  // لأنَّه مملوكٌ لـMOVE بلا صفِّ مستخدمٍ فيه.
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(49);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(49);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(51);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(51);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {

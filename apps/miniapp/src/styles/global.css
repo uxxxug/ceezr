@@ -357,3 +357,165 @@ a {
   padding-block-start: 0.5rem;
   border-block-start: 1px solid var(--tg-section-separator-color);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * شاشةُ اختيارِ الوجهةِ `SR-03` (البند `F2-03`)
+ *
+ * كلُّ لونٍ ههنا من متغيّراتِ سِمةِ تيليجرام لا من لوحةٍ خاصّةٍ: التطبيقُ
+ * المصغَّرُ يُفتَحُ في سِمةٍ فاتحةٍ وداكنةٍ يختارُها المستخدمُ في مُضيفِه، ولونٌ
+ * مُثبَّتٌ يجعلُ النصَّ غيرَ مقروءٍ في إحداهما.
+ *
+ * ولماذا ثُمَّ أنماطٌ لهذه الشاشةِ وليسَ لشاشةِ `SR-02`: الأنماطُ الغائبةُ في
+ * `.rh__*` نقصٌ **مُسجَّلٌ** لا مُصحَّحٌ ههنا (`UX-021` في `ROADMAP.md`) —
+ * تصحيحُه تعديلٌ في بندٍ مُغلَقٍ بلا حجزِ نطاقٍ، وذاكَ ما تمنعُه الخارطةُ.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+.rd {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.rd__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+/*
+ * إعلانُ تعذّرِ الخريطةِ: إطارٌ متقطِّعٌ **لا مستطيلٌ مصمَتٌ**. المصمَتُ يُقرأُ
+ * خريطةً لم تُحمَّلْ بعدُ فيُنتَظَرُ، والمتقطِّعُ يُقرأُ موضعاً معلَناً أنَّه فارغٌ.
+ */
+.rd__map--off {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 6rem;
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed var(--tg-section-separator-color);
+  border-radius: 0.9rem;
+  background: transparent;
+  color: var(--tg-subtitle-text-color);
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.rd__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.rd__input {
+  padding: 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.75rem;
+  background: var(--tg-section-bg-color);
+  color: var(--tg-text-color);
+  font: inherit;
+}
+
+.rd__locate {
+  align-self: flex-start;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--tg-button-color);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--tg-button-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rd__results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rd__row {
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.9rem;
+  background: var(--tg-section-bg-color);
+}
+
+/*
+ * المطابقةُ القويّةُ (بدايةُ كلمةٍ) تُعرَفُ **بحدٍّ جانبيٍّ** لا بلونِ خطٍّ:
+ * الحدُّ يُقرأُ في تدرّجِ رَمادٍ وفي عمى الألوانِ سواءً، وترتيبُ الصفوفِ نفسُه
+ * يبقى حاملَ المعنى الأوّلَ (`UX-10`).
+ */
+.rd__row--strong {
+  border-inline-start: 3px solid var(--tg-button-color);
+}
+
+.rd__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  width: 100%;
+  padding: 0.8rem;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.rd__row-label {
+  font-weight: 600;
+}
+
+.rd__row-meta {
+  color: var(--tg-subtitle-text-color);
+  font-size: 0.8rem;
+}
+
+/* الإبرازُ: خلفيّةٌ خفيفةٌ لا صفراءُ مُثبَّتةٌ تُطفئُ النصَّ في السِّمةِ الداكنةِ. */
+.rd__mark {
+  background: color-mix(in srgb, var(--tg-button-color) 22%, transparent);
+  color: inherit;
+  border-radius: 0.2rem;
+}
+
+.rd__empty {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem;
+  border: 1px dashed var(--tg-section-separator-color);
+  border-radius: 0.9rem;
+}
+
+.rd__verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.9rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.9rem;
+  background: var(--tg-section-bg-color);
+}
+
+.rd__verdict--ok {
+  border-color: var(--tg-button-color);
+}
+
+.rd__chosen {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.rd__back {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  color: var(--tg-link-color);
+  font: inherit;
+  cursor: pointer;
+}

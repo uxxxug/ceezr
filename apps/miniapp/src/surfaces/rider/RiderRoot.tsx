@@ -24,22 +24,54 @@
  * الفراغِ الأصليّةُ **باقيةٌ في الملفِّ** (القاعدة ح-1) موصوفةً أدناه: هيَ ما كانَ
  * يُعرَضُ قبلَ `F2-02`، وقد صارَ لها بديلٌ مبنيٌّ، فلا تُرسَمُ. ولا يُدَّعى بذاكَ
  * أنَّ سلسلةَ `F2` تمَّت: الطلبُ والعروضُ والتتبّعُ بنودٌ تالية.
+ *
+ * ## إضافةُ البند `F2-03` (2026-09-13)
+ *
+ * صارَ للسطحِ **مرحلةٌ ثالثةٌ**: بعدَ أن تُختارَ وجهةٌ في `SR-02` تُركَّبُ شاشةُ
+ * `SR-03` لِتُصادَقَ تلكَ الوجهةُ على حدِّ منطقةِ الخدمةِ. وما قبلَها **باقٍ كما
+ * هوَ** (القاعدة ح-1): الترحيبُ ثمَّ الشاشةُ الرئيسةُ، ولا سطرَ حُذِفَ.
+ *
+ * ولماذا مرحلةٌ لا حوارٌ فوقَ الشاشةِ: الاختيارُ ههنا **قد يُرفَضُ**، والرفضُ
+ * نصٌّ يُقرأُ ويُعادُ معه الاختيارُ — وحوارٌ صغيرٌ فوقَ شاشةٍ كاملةٍ لا يتّسعُ
+ * لِأن يُقرأَ فيه سببٌ ثمَّ يُعادَ فيه بحثٌ.
+ *
+ * وما لا يفعلُه: لا يُنشئُ طلباً بعدَ التأكيدِ. `onConfirmed` يُعيدُ اليومَ إلى
+ * الشاشةِ الرئيسةِ، وإنشاءُ الطلبِ بندُ `F2-04` ولا يُدَّعى ههنا بزرٍّ لا يفعلُ
+ * شيئاً.
  */
 
 import { useState } from "react";
+import { DestinationScreen } from "./destination/DestinationScreen.tsx";
+import type { ChosenDestination } from "./home/HomeScreen.tsx";
 import { HomeScreen } from "./home/HomeScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
 
 export default function RiderRoot() {
   const [proceeded, setProceeded] = useState(false);
+  const [chosen, setChosen] = useState<ChosenDestination | null>(null);
 
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
 
+  // الوجهةُ المختارةُ تُصادَقُ قبلَ أيِّ خطوةٍ تاليةٍ: لا شاشةَ بعدَها تقبلُ
+  // إحداثيّةً لم تحكمْ عليها القاعدةُ (القاعدة 0.5).
+  if (chosen !== null) {
+    return (
+      <DestinationScreen
+        initialQuery={chosen.lat === null || chosen.lng === null ? chosen.label : ""}
+        {...(chosen.lat === null || chosen.lng === null
+          ? {}
+          : { initialPoint: { label: chosen.label, lat: chosen.lat, lng: chosen.lng } })}
+        onBack={() => setChosen(null)}
+        onConfirmed={() => setChosen(null)}
+      />
+    );
+  }
+
   // ما كانَ ههنا قبلَ `F2-02`: حالةُ فراغٍ من `EmptyState` تقولُ «لا شيءَ يُعرَضُ
   // بعد» — وهيَ صدقُ تلكَ اللحظةِ، وقد نُسِخَ حكمُها إلى شاشةِ `SR-02` نفسِها:
   // «الأماكنُ فارغةٌ» و«لا وجهاتَ» و«لا خريطةَ» تُقالُ مفاتيحَ لا بياضاً.
-  return <HomeScreen />;
+  return <HomeScreen onDestinationChosen={(picked) => setChosen(picked)} />;
 }

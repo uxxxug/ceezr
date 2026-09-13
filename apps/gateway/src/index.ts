@@ -14,6 +14,10 @@ import {
 import { verifySchemaContract } from "../../../packages/infrastructure/db/schema-guard.ts";
 import { createPostgresTelegramUpdateQueue } from "../../../packages/infrastructure/db/telegram-update-queue.ts";
 import {
+  createDestinationResolver,
+  createDestinationSearcher,
+} from "../../../packages/infrastructure/destinations/destinations-store.ts";
+import {
   createPaymentProvider,
   createPaymentRepository,
   createWebhookEventStore,
@@ -581,6 +585,25 @@ const places =
         log,
       };
 
+/**
+ * مساراتُ اختيارِ الوجهةِ (`F2-03`) — تُركَّبُ مع سرِّ الجلسةِ وحدَه، ولا مزوِّدَ
+ * خارجيَّ ههنا: لا مُرمِّزَ جغرافيّاً ولا مفتاحَ خرائطَ (استقلالُ المشروعِ `O-7`
+ * ويفرضُه `check-egress-boundary`). والبحثُ والمصادقةُ كلاهما نداءُ دالّةٍ
+ * واحدةٍ في القاعدةِ يقرأُ مدينةَ صاحبِ الجلسةِ وحدَّها (القاعدتانِ 0.4 و0.5).
+ */
+const destinations =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        destinations: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          searcher: createDestinationSearcher(container.sql),
+          resolver: createDestinationResolver(container.sql),
+          now: () => new Date(),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -684,6 +707,7 @@ const app = createServer({
   ...(me === undefined ? {} : { me }),
   ...(consents === undefined ? {} : { consents }),
   ...(places === undefined ? {} : { places }),
+  ...(destinations === undefined ? {} : { destinations }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
