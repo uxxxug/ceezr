@@ -41,5 +41,11 @@
   "rider.home.map.unavailable": "The map is unavailable right now — you can still type your destination.",
   "rider.home.place.home": "Home",
   "rider.home.place.work": "Work",
-  "rider.home.place.other": "Other place"
+  "rider.home.place.other": "Other place",
+  "rider.home.title": "Where to?",
+  "rider.home.destination.action": "Continue",
+  "rider.home.retry": "Try again",
+  "rider.home.error.malformed": "That input was not accepted. Check the label and the point, then retry.",
+  "rider.home.error.account": "This user has no account yet. Reopen the app from the bot.",
+  "rider.home.error.unavailable": "The service is unavailable right now. Nothing you saved was lost."
 }

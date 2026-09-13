@@ -41,5 +41,11 @@
   "rider.home.map.unavailable": "الخريطةُ غيرُ متاحةٍ الآنَ — يمكنُكَ الاستمرارُ بكتابةِ وجهتِكَ.",
   "rider.home.place.home": "المنزل",
   "rider.home.place.work": "العمل",
-  "rider.home.place.other": "مكانٌ آخرُ"
+  "rider.home.place.other": "مكانٌ آخرُ",
+  "rider.home.title": "إلى أين؟",
+  "rider.home.destination.action": "متابعة",
+  "rider.home.retry": "أعِدِ المحاولة",
+  "rider.home.error.malformed": "تعذّر قبولُ ما كُتب. راجِعِ اللافتةَ والموقعَ ثمَّ أعِد.",
+  "rider.home.error.account": "لا حسابَ لهذا المستخدمِ بعد. أعِد فتحَ التطبيقِ من البوت.",
+  "rider.home.error.unavailable": "الخدمةُ غيرُ متاحةٍ الآن. لم يُفقَد شيءٌ مما حفظتَه."
 }

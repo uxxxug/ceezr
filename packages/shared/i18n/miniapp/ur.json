@@ -41,5 +41,11 @@
   "rider.home.map.unavailable": "نقشہ اس وقت دستیاب نہیں — آپ پھر بھی اپنی منزل لکھ سکتے ہیں۔",
   "rider.home.place.home": "گھر",
   "rider.home.place.work": "دفتر",
-  "rider.home.place.other": "دوسرا مقام"
+  "rider.home.place.other": "دوسرا مقام",
+  "rider.home.title": "کہاں جانا ہے؟",
+  "rider.home.destination.action": "جاری رکھیں",
+  "rider.home.retry": "دوبارہ کوشش کریں",
+  "rider.home.error.malformed": "یہ اندراج قبول نہیں ہوا۔ نام اور مقام دیکھ کر دوبارہ کوشش کریں۔",
+  "rider.home.error.account": "اس صارف کا کوئی اکاؤنٹ نہیں ہے۔ ایپ بوٹ سے دوبارہ کھولیں۔",
+  "rider.home.error.unavailable": "سروس اس وقت دستیاب نہیں۔ آپ کا محفوظ کردہ کچھ ضائع نہیں ہوا۔"
 }
