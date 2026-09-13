@@ -548,8 +548,16 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
     const unrun = SKIP_REGISTRY.filter((entry) => entry.runsIn === null);
-    expect(unrun).toHaveLength(1);
-    expect(unrun[0]?.file).toBe("tests/integration/bench-reset-seed.test.ts");
+    // صارَ ثلاثةً يومَ 2026-09-13 لا واحداً: أُجِّلَ تكاملُ CORE بتعليمةِ `O-7`
+    // (ADR 0095) فنُقِلَ اختباراهُ إلى `deferred/core-integration/tests/`،
+    // ولا خطوةَ تُشغِّلُ مؤجَّلاً. والصدقُ أن يُعلَنَ ذلكَ بياناً لا أن يُزعَمَ
+    // لهما مُشغِّلٌ. والرقمُ السابقُ يبقى مذكوراً ههنا لا ممحوّاً (`ح-8`).
+    expect(unrun).toHaveLength(3);
+    expect(unrun.map((entry) => entry.file).sort()).toEqual([
+      "deferred/core-integration/tests/wasla-core-transport.test.ts",
+      "deferred/core-integration/tests/wasla-fulfillment-lifecycle.test.ts",
+      "tests/integration/bench-reset-seed.test.ts",
+    ]);
     for (const entry of unrun) {
       expect(entry.criticalPath).toBeNull();
       expect((entry.whyNotRun ?? "").length).toBeGreaterThan(40);

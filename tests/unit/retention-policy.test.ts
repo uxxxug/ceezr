@@ -20,7 +20,7 @@ import { retentionGaps, tablesInMigrations } from "../../scripts/check-retention
 
 describe("F7-06 — سياسةُ الاستبقاءِ", () => {
   it("١) كلُّ جدولٍ في الهجراتِ مُصنَّفٌ، ولا مُدخلَ ميّتاً في التصنيفِ", () => {
-    const tables = tablesInMigrations("supabase/migrations");
+    const tables = tablesInMigrations();
     const { unclassified, orphaned } = retentionGaps(tables, TABLE_RETENTION);
     expect(unclassified).toEqual([]);
     expect(orphaned).toEqual([]);

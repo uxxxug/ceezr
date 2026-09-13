@@ -53,8 +53,7 @@
  *   مستقلَّينِ (ثابتُ كودٍ ، ونصُّ SQL) لا من مصدرٍ واحدٍ يُقارَنُ بنفسِه.
  */
 
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import { BACKPRESSURE_DIMENSIONS } from "../packages/application/scheduling/queue-backpressure.ts";
 import { NOTIFICATION_KINDS } from "../packages/shared/config/notification-kinds.ts";
 import {
@@ -63,9 +62,10 @@ import {
   QUEUE_BACKPRESSURE_DECLARATIONS,
   RETIRED_QUEUES,
 } from "../packages/shared/config/queue-backpressure.ts";
+import { declaredMigrations } from "./lib/migration-sources.ts";
 import { deferrableKindsFromMigrations } from "./lib/traffic-priority-sql.ts";
 
-const MIGRATIONS_DIR = "supabase/migrations";
+// إعلانُ الطابورِ تصنيفٌ لا تطبيقٌ، فيقرأُ **المُعلَنَ** (`ADR 0095`).
 
 export interface MigrationFile {
   readonly file: string;
@@ -73,10 +73,7 @@ export interface MigrationFile {
 }
 
 export function readMigrations(): MigrationFile[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((name) => name.endsWith(".sql"))
-    .sort()
-    .map((file) => ({ file, sql: readFileSync(join(MIGRATIONS_DIR, file), "utf8") }));
+  return declaredMigrations().map(({ file, sql }) => ({ file, sql }));
 }
 
 /**

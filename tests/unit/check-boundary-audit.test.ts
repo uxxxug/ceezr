@@ -11,8 +11,7 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import {
   auditProblems,
   generatedSlice,
@@ -21,20 +20,19 @@ import {
   tablesInSchema,
   withGeneratedBlock,
 } from "../../scripts/check-boundary-audit.ts";
+import { declaredMigrations } from "../../scripts/lib/migration-sources.ts";
 import {
   DISPOSITIONS,
   WASLA_BOUNDARY_INVENTORY,
   WASLA_COLUMN_CONCERNS,
 } from "../../scripts/lib/wasla-boundary-registry.ts";
 
-const MIGRATIONS_DIR = "supabase/migrations";
 const AUDIT_DOC = "docs/wasla/boundary-audit.md";
 
+// الجردُ يقرأُ **المُعلَنَ** لا المُطبَّقَ وحدَه (ADR 0095): جدولٌ مؤجَّلٌ يبقى
+// مُصنَّفاً، وإلّا صارَ التأجيلُ محوَ تصنيفٍ.
 function realMigrations(): MigrationFile[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort()
-    .map((file) => ({ file, sql: readFileSync(join(MIGRATIONS_DIR, file), "utf8") }));
+  return declaredMigrations().map(({ file, sql }) => ({ file, sql }));
 }
 
 const realDoc = () => readFileSync(AUDIT_DOC, "utf8");

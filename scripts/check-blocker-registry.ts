@@ -236,12 +236,20 @@ export function blockerProblems(inputs: BlockerInputs): readonly Problem[] {
   const problems: Problem[] = [];
   const blockers = parseBlockers(inputs.roadmapText);
   const declared = new Set(blockers.map((blocker) => blocker.id));
+  /**
+   * معرّفاتٌ مُعلَنةٌ في الخارطةِ **قسماً بعنوانِه** لا صفّاً في جدولِ
+   * القراراتِ — تعليماتُ المالكِ (`O-5` · `O-7`). وهيَ مقروءةُ الحالةِ في
+   * موضعِها، فذكرُها في الشيفرةِ ليسَ ذكراً لمجهولٍ. والقائمةُ نفسُها محروسةٌ
+   * تحتَ البندِ ٢: إعفاءٌ لا يُذكَرُ معرّفُه في الخارطةِ يُقرأُ **ميّتاً**
+   * فيُسقِطُ الحاجزَ، وسببٌ أقصرُ من عشرينَ حرفاً يُسقِطُه. فلا بابَ ههنا.
+   */
+  const exemptRoadmapIds = new Set(inputs.roadmapExemptions.map((entry) => entry.id));
 
   // ١ — كلُّ معرّفٍ في الشيفرةِ مُفكَّكٌ، أو مُعفىً اصطناعيّاً بسببٍ.
   for (const source of inputs.sources) {
     if (source.file === SELF_FILE) continue;
     for (const id of mentionedBlockerIds(source.text)) {
-      if (declared.has(id)) continue;
+      if (declared.has(id) || exemptRoadmapIds.has(id)) continue;
       const exemption = inputs.syntheticExemptions.find(
         (entry) => entry.id === id && entry.file === source.file,
       );
@@ -280,7 +288,6 @@ export function blockerProblems(inputs: BlockerInputs): readonly Problem[] {
   }
 
   // ٢ — كلُّ معرّفٍ في الخارطةِ مُفكَّكٌ أو مُعفىً بسببٍ.
-  const exemptRoadmapIds = new Set(inputs.roadmapExemptions.map((entry) => entry.id));
   for (const id of mentionedBlockerIds(inputs.roadmapText)) {
     if (declared.has(id) || exemptRoadmapIds.has(id)) continue;
     problems.push({

@@ -26,16 +26,17 @@
  *   bun run scripts/check-boundary-audit.ts --write    # توليدُ جدولِ الوثيقةِ
  */
 
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
 import { findTableBlocks } from "./check-migrations.ts";
+import { declaredMigrations } from "./lib/migration-sources.ts";
 import {
   DISPOSITIONS,
   WASLA_BOUNDARY_INVENTORY,
   WASLA_COLUMN_CONCERNS,
 } from "./lib/wasla-boundary-registry.ts";
 
-const MIGRATIONS_DIR = "supabase/migrations";
+// الجردُ يقرأُ **المُعلَنَ** لا المُطبَّقَ وحدَه: جدولٌ مؤجَّلٌ يبقى مُصنَّفاً
+// (`ADR 0095` · `scripts/lib/migration-sources.ts`).
 const AUDIT_DOC = "docs/wasla/boundary-audit.md";
 const BEGIN = "<!-- BEGIN GENERATED: boundary-inventory -->";
 const END = "<!-- END GENERATED: boundary-inventory -->";
@@ -48,10 +49,7 @@ export interface MigrationFile {
 }
 
 function migrationSql(): MigrationFile[] {
-  return readdirSync(MIGRATIONS_DIR)
-    .filter((f) => f.endsWith(".sql"))
-    .sort()
-    .map((file) => ({ file, sql: readFileSync(join(MIGRATIONS_DIR, file), "utf8") }));
+  return declaredMigrations().map(({ file, sql }) => ({ file, sql }));
 }
 
 /** أسماءُ كلِّ الجداولِ التي تُنشئُها الهجراتُ — بالمُستخرِجِ نفسِه الذي يقرؤه حاجزُ `city_id`. */

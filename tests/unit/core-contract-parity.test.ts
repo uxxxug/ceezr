@@ -22,8 +22,14 @@ import {
 } from "../../packages/domain/wasla/event-envelope.ts";
 import { compareObject, compareStateMachine } from "../../scripts/check-core-contract-parity.ts";
 
-const W4 = readFileSync("supabase/migrations/20260911100000_w4_operational_jobs.sql", "utf8");
-const W5 = readFileSync("supabase/migrations/20260911100100_w5_core_inbox_move_outbox.sql", "utf8");
+const W4 = readFileSync(
+  "deferred/core-integration/migrations/20260911100000_w4_operational_jobs.sql",
+  "utf8",
+);
+const W5 = readFileSync(
+  "deferred/core-integration/migrations/20260911100100_w5_core_inbox_move_outbox.sql",
+  "utf8",
+);
 
 function schema(name: string): Record<string, unknown> {
   return JSON.parse(readFileSync(`docs/contracts/core/${name}.schema.json`, "utf8")) as Record<
