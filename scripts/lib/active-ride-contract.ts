@@ -107,17 +107,35 @@ export const UNBUILT_PATH_TOKENS: readonly string[] = [
   "sos",
   "emergency",
   "panic",
-  "share",
   "whatsapp",
   "tel:",
   "callDriver",
   "طوارئ",
   "استغاثة",
-  "مشاركة",
-  "شارك",
   "اتصل",
   "اتّصل",
 ];
+
+/**
+ * ## إضافةُ البند `F2-09` (2026-09-14) — **نقلٌ لا حذفٌ**
+ *
+ * ثلاثةُ رموزٍ (`share` · «مشاركة» · «شارك») كانت في `UNBUILT_PATH_TOKENS`
+ * أعلاه، ونُقِلَت إلى ههنا لأنَّ مسارَها **بُنِيَ** (`F2-09`): رأسُ هذا المِلفِّ
+ * أذِنَ بهذا النقلِ حرفاً يومَ كُتِبَ، وشرطُه أن يكونَ **معَ مسارِها** لا
+ * إسكاتاً للحاجزِ. ولا سطرَ حُذِفَ (القاعدة ح-2): الرموزُ انتقلَت ولم تُمحَ،
+ * وحراستُها انقلبَت ولم تسقطْ.
+ *
+ * وحراستُها الآنَ عكسيّةٌ من وجهَينِ:
+ *   ــ **مفاتيحُ `rider.active.` ما زالت ممنوعةً منها**: نصُّ المشاركةِ مِلكُ
+ *      `rider.share.`، ولو تسرَّبَ إلى مفاتيحِ اللقطةِ لَصارَ للمعنى الواحدِ
+ *      نصّانِ يفترقانِ (القاعدة 0.6).
+ *   ــ **والشاشةُ يجبُ أن تُركِّبَ البطاقةَ فعلاً**: القاعدةُ ٧ أدناه. فمَن حذفَ
+ *      التركيبَ يوماً سقطَ بناؤُه، ولا يمرُّ الحذفُ صامتاً كما يمرُّ عادةً.
+ */
+export const BUILT_PATH_TOKENS: readonly string[] = ["share", "مشاركة", "شارك"];
+
+/** مُركِّبُ بطاقةِ المشاركةِ كما يُكتَبُ في الشاشةِ — اسمٌ واحدٌ في موضعَينِ. */
+export const SHARE_CARD_COMPONENT = "RideShareCard";
 
 export interface ActiveRideContractInput {
   /** مِلفّاتُ السطحِ: مسارٌ ⇒ شِفرةٌ **بلا تعليقاتٍ** (التعليقُ يشرحُ المحظورَ). */
@@ -296,8 +314,38 @@ export function unbuiltPathProblems(input: ActiveRideContractInput): readonly st
       if (!key.startsWith(KEY_PREFIX)) continue;
       problems.push(
         ...tokenProblems(`${language}:${key}`, key, UNBUILT_PATH_TOKENS, "مفتاحٌ لمسارٍ لم يُبنَ"),
+        ...tokenProblems(
+          `${language}:${key}`,
+          key,
+          BUILT_PATH_TOKENS,
+          "مفتاحُ مشاركةٍ في نطاقِ اللقطةِ — موضعُه «rider.share.» (`F2-09`)",
+        ),
       );
     }
+  }
+  return problems;
+}
+
+/**
+ * القاعدة ٧ (`F2-09`) — **المسارُ المبنيُّ يُركَّبُ فعلاً**.
+ *
+ * عكسُ القاعدةِ ٥ تماماً: تلكَ تمنعُ زرّاً لمسارٍ لا يعملُ، وهذه تمنعُ مساراً
+ * يعملُ ولا بابَ له. فبطاقةُ `F2-09` بُنِيَت كاملةً — قاعدةً ومنفذاً ونداءً —
+ * ولو لم تُركَّبْ في الشاشةِ لَكانَ كلُّ ذلكَ **شِفرةً ميتةً تُحسَبُ إنجازاً**،
+ * وهذا أخبثُ من الغيابِ: الغيابُ يُرى في الشاشةِ، والموتُ لا يُرى إلّا في CI.
+ */
+export function sharePathProblems(input: ActiveRideContractInput): readonly string[] {
+  const problems: string[] = [];
+  if (!input.screen.includes(`<${SHARE_CARD_COMPONENT}`)) {
+    problems.push(
+      `${SCREEN_FILE}: بطاقةُ المشاركةِ «${SHARE_CARD_COMPONENT}» غيرُ مُركَّبةٍ — ` +
+        `مسارُ \`F2-09\` مبنيٌّ ولا بابَ له في الشاشةِ.`,
+    );
+  }
+  if (!input.screen.includes(`orderId={orderId}`)) {
+    problems.push(
+      `${SCREEN_FILE}: البطاقةُ لا تأخذُ «orderId» من الشاشةِ — بطاقةٌ بلا رحلةٍ لا تُشارِكُ شيئاً.`,
+    );
   }
   return problems;
 }
@@ -360,5 +408,7 @@ export function activeRideContractProblems(input: ActiveRideContractInput): read
     ...keyParityProblems(input),
     ...unbuiltPathProblems(input),
     ...functionRevokeProblems(input),
+    // القاعدة ٧ (`F2-09`) — أُضيفَت ولم يُمَسَّ ما قبلَها (القاعدة ح-8).
+    ...sharePathProblems(input),
   ];
 }

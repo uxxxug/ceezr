@@ -53,6 +53,7 @@ import {
   createRideRequestCommand,
   createRideSearchReader,
 } from "../../../packages/infrastructure/transport/ride-request-store.ts";
+import { createRideShareReader } from "../../../packages/infrastructure/transport/ride-share-store.ts";
 import {
   createRideRatingCommand,
   createRideSummaryReader,
@@ -699,6 +700,36 @@ const rides =
           sessions: createMiniAppSessionReader(config.miniappSessionSecret),
           details: createRideDetailReader(container.sql),
           now: () => new Date(),
+        },
+        // المشاركةُ (`F2-09`) **ثلاثةُ كائناتٍ** لا واحدٌ: قارئُ الحالِ لا يملكُ
+        // حقَّ إصدارِ رابطٍ، والمُصدِرُ لا يملكُ حقَّ الإلغاءِ. والإصدارُ وحدَه
+        // يحملُ الأساسَ العامَّ — و`issuing: undefined` حينَ يغيبُ
+        // `TRACKING_TOKEN_BASE_URL`: **قرارُ مشغِّلٍ مُعلَنٌ** يُقرأُ
+        // `SHARING_NOT_CONFIGURED`، لا رابطٌ يُبنى بأساسٍ مُخمَّنٍ.
+        share: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          shares: createRideShareReader(container.sql),
+          now: () => new Date(),
+        },
+        shareStart: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          issuing:
+            config.trackingTokenBaseUrl === null
+              ? undefined
+              : {
+                  tokens: container.tracking.tokens,
+                  mint: container.tracking.tokenMint,
+                  baseUrl: config.trackingTokenBaseUrl,
+                },
+        },
+        // الإيقافُ **لا يشترطُ الأساسَ العامَّ**: إلغاءُ رابطٍ قائمٍ لا يحتاجُ أن
+        // يُبنى رابطٌ — ولو رُبِطَ بالأساسِ لَبقيَت روابطُ حيّةٌ بلا زرٍّ يُغلقُها
+        // يومَ يُسحَبُ الإعدادُ.
+        shareStop: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          revoking: { tokens: container.tracking.tokens },
         },
         log,
       };

@@ -1740,3 +1740,176 @@ a {
   font-size: 0.85rem;
   color: var(--tg-subtitle-text-color);
 }
+
+/* =============================================================================
+ * مشاركةُ الرحلةِ برابطٍ مؤقّتٍ — `F2-09` · `SR-13` (إضافةٌ بالذيلِ · `ح-1`)
+ *
+ * ثلاثةُ فوارقَ بصريّةٍ وحدَها، وكلٌّ منها **يحملُ معنىً لا زينةً**:
+ *   ١ المعاينةُ **صندوقٌ واحدٌ** يجمعُ النقطةَ وعُمرَها: لا يُنقَلُ أحدُهما بلا
+ *     الآخرِ، تماماً كما في `.ar__position` — فنقطةٌ بلا عُمرِها شاهدٌ كاذبٌ.
+ *   ٢ الحجبُ والغيابُ يُرسَمانِ **إطاراً منقَّطاً وخفوتاً** لا لوناً وحدَه:
+ *     اللونُ لا يُقرأُ عندَ عمى الألوانِ، والمنقَّطُ يُقرأُ «خبرٌ عن غيابٍ».
+ *   ٣ الإفصاحُ (ما يُرى وما لا يُرى) **قائمتانِ متجاورتانِ** بلا لونِ إنذارٍ:
+ *     هوَ عقدُ خصوصيّةٍ يُقرأُ قبلَ الإعطاءِ لا تحذيرٌ بعدَه.
+ *
+ * والأرقامُ كلُّها `tabular-nums`: بقيّةُ الصلاحيةِ وعُمرُ النقطةِ لا يرقصُ
+ * عرضُهما بينَ رسمتَينِ.
+ * ============================================================================= */
+
+.rs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.rs__title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.rs__state {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.rs__links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rs__link {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* الرابطُ نفسُه يُكتَبُ ليُنسَخَ: يُقطَعُ حيثُ شاءَ ولا يفيضُ عن البطاقةِ. */
+.rs__url {
+  margin: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.rs__lifetime {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+  font-variant-numeric: tabular-nums;
+}
+
+/* المعاينةُ صندوقٌ واحدٌ — النقطةُ وعُمرُها معاً أو لا شيءَ. */
+.rs__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+}
+
+.rs__preview-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.rs__preview-point {
+  margin: 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.rs__preview-age {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+  font-variant-numeric: tabular-nums;
+}
+
+/* الحجبُ إطارٌ منقَّطٌ: غيابٌ مُعلَنٌ لا فراغٌ مسكوتٌ عنه. */
+.rs__preview-hidden {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.rs__disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+}
+
+.rs__disclosure-shown-title,
+.rs__disclosure-hidden-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.rs__disclosure-shown,
+.rs__disclosure-hidden {
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* الامتناعُ سببٌ مقروءٌ لا زرٌّ مُعطَّلٌ. */
+.rs__refusal {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px dashed var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.rs__start {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-button-color, #2ea6ff);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-button-color, #2ea6ff);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* الإيقافُ فعلٌ ساحبٌ لا هادمٌ: حدٌّ محذِّرٌ بلا تعبئةٍ صارخةٍ. */
+.rs__stop {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-destructive-text-color, #d33);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-destructive-text-color, #d33);
+  font: inherit;
+  cursor: pointer;
+}
+
+.rs__refresh {
+  align-self: flex-start;
+}
+
+.rs__start:disabled,
+.rs__stop:disabled,
+.rs__refresh:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

@@ -145,16 +145,36 @@ export function createTrackingTokenRpc(sql: Sql): TrackingTokenRpcPort {
 
       const raw = envelope as unknown as Record<string, unknown>;
       const active = raw.active === true;
-      if (raw.has_position !== true) return ok({ kind: "awaiting", active });
-
-      const lat = toFinite(raw.lat);
-      const lng = toFinite(raw.lng);
-      const updatedAt = toDate(raw.updated_at);
-      if (lat === null || lng === null || updatedAt === null) {
-        // موقعٌ مبتور لا يُرسَم: نقطةٌ على (0,0) في خليج غينيا كانت ستُقرأ موقعاً.
-        return ok({ kind: "awaiting", active });
+      const position = raw.position;
+      if (typeof position !== "object" || position === null || Array.isArray(position)) {
+        // الحمولةُ تغيّرَت في `F2-09`: غيابُ `position` عقدٌ مكسورٌ يُعلَنُ
+        // عطلاً — ولا يُطوى «لا موقعَ» فتُقرأَ هجرةٌ ناقصةٌ حالةً طبيعيّةً.
+        return err(
+          new PortFailureError("trackingTokens.read", "ردٌّ بلا position من get_tracking_position"),
+        );
       }
-      return ok({ kind: "located", active, position: { lat, lng, updatedAt } });
+      const cell = position as Record<string, unknown>;
+      const verdict = typeof cell.verdict === "string" ? cell.verdict : "";
+      const ageSeconds = toFinite(cell.age_seconds);
+
+      if (verdict === "NEVER_REPORTED" || verdict === "NO_TIMESTAMP") {
+        return ok({ kind: "awaiting", active, reason: verdict, ageSeconds });
+      }
+      if (verdict === "TOO_OLD") {
+        return ok({ kind: "awaiting", active, reason: "TOO_OLD", ageSeconds });
+      }
+      if (verdict !== "LOCATED") {
+        return err(new PortFailureError("trackingTokens.read", `حكمٌ مجهولٌ من القاعدةِ: ${verdict}`));
+      }
+
+      const lat = toFinite(cell.lat);
+      const lng = toFinite(cell.lng);
+      if (lat === null || lng === null || ageSeconds === null) {
+        // حكمٌ `LOCATED` بلا إحداثيّةٍ عقدٌ مكسورٌ لا «موقعٌ مبتورٌ»: لو قُرئَ
+        // انتظاراً لَصارَ خللُ القاعدةِ غيرَ مرئيٍّ في أيِّ مقياسٍ.
+        return err(new PortFailureError("trackingTokens.read", "LOCATED بلا lat/lng/age_seconds"));
+      }
+      return ok({ kind: "located", active, position: { lat, lng, ageSeconds } });
     },
 
     async revokeForOrder(

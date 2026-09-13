@@ -2701,3 +2701,61 @@ PostgreSQL حقيقي» **فاشلةٌ** — **بحالتَينِ اثنتَين
 | النطاقُ المحجوزُ | `supabase/migrations/20260914060000_f2_09_*` (طورُ `expand`: دالّةُ العرضِ المشتركةُ + دالّةُ حالةِ المشاركةِ + إعادةُ كتابةِ `get_tracking_position` غلافاً + بذرُ الإعدادِ) · `packages/domain/transport/ride-share.ts` · `packages/application/transport/{read-ride-share,start-ride-share,stop-ride-share}.ts` ومنافذُها · `packages/infrastructure/transport/ride-share-store.ts` · `apps/gateway/src/routes/rides.ts` (ثلاثةُ مساراتٍ جديدةٌ فقط) و`index.ts` (حقنُ التبعيةِ) · `apps/miniapp/src/surfaces/rider/share/*` وتركيبُه في شاشةِ الرحلةِ النشطةِ · `apps/miniapp/src/styles/global.css` (كتلةٌ جديدةٌ) · `packages/shared/i18n/miniapp/{ar,en,ur}.json` (مفاتيحُ جديدةٌ فقط) · `scripts/check-ride-share-contract.ts` و`scripts/lib/ride-share-contract.ts` وتسجيلُهما في `package.json` و`ci.yml` · `scripts/lib/active-ride-contract.ts` (نقلُ المفردةِ معَ شرطٍ موجبٍ) · `packages/infrastructure/db/schema-contract.ts` (تسجيلُ الدوالِّ الجديدةِ) · الاختباراتُ · `docs/adr/0109-*` · `docs/evidence/architecture/F2-09-*` · `ROADMAP.md` · `docs/ROADMAP-MASTER.md` · `docs/SYSTEM_STATE.md` |
 | النطاقُ **غيرُ** المحجوزِ | **`SOS` وزرُّ الطوارئِ** (`F2-10`) · **الاتّصالُ المُقنَّعُ بالسائقِ** (لا مزوّدَ) · **إرسالُ الرابطِ برسالةٍ نصّيّةٍ أو واتساب من الخادمِ** (لا مزوّدَ رسائلَ؛ المشاركةُ من نظامِ الجهازِ) · **الأجرةُ والإيصالُ** (`DEC-11`) · **الخريطةُ ومزوّدُها** (`ADR 0007`) · حوارا البوتَينِ (يُقرآنِ ولا يُعدَّلانِ) · جدولُ `trip_tracking_tokens` مخطَّطاً (لا عمودَ جديدٌ) · `drivers.last_location` كتابةً (`BUG-001` بندٌ آخرُ) |
 | سقفُ الادّعاءِ، مُعلَنٌ سلفاً | لا نشرَ حيَّ (`ADR 0099`)، ولا راكبَ حقيقيَّ شاركَ رابطاً، وبوّابةُ `F2` **غيرُ مُدَّعاةٍ**. **وحكمُ CI محجوبٌ بـ`B-CI-001`** فلا `مَقيس` ولا `مُثبَت` (`ح-5`)، والبندُ يبقى **مفتوحاً** حتّى يُقرأَ حكمٌ. وخصوصيّةُ المشاركةِ نفسُها حدٌّ مُعلَنٌ: مَن أُعطيَ الرابطَ يرى موقعَ **السائقِ** — لا اسمَ الراكبِ ولا وجهتَه ولا هاتفَه — وهذا مكتوبٌ في المعاينةِ نصّاً كي يعرفَ المُشارِكُ ما يُعطي قبلَ أن يُعطيَه. |
+
+### Reservation `F2-09` — additive amendment to the reserved scope (recorded 2026-09-14, during execution · `ح-8`)
+
+**لا يُمحى سطرٌ من الحجزِ أعلاه ولا يُستبدَلُ؛ هذا تصحيحٌ بالزيادةِ** (`ح-8`).
+اتّضحَ عندَ التنفيذِ أنَّ الإصلاحَ الجذريَّ **لا يمكنُ أن يكونَ جذريّاً** ما بقيَ
+مستهلكٌ للحكمِ القديمِ خارجَ النطاقِ المحجوزِ. فالحَكَمُ الواحدُ يقتضي أن
+**يُوصَلَ به قارئُه العامُّ** لا أن يُترَكَ الغلافُ وحدَه. فيُزادُ إلى النطاقِ
+المحجوزِ:
+
+* `apps/gateway/src/routes/public-tracking.ts` و`apps/gateway/src/public/tracking-page.ts`
+  — **مستهلكا** `get_tracking_position`: لولا وصلُهما بالحَكَمِ لبقيَ للسياسةِ
+  مصدرانِ ولَظلَّ الغريبُ يُرى نقطةً متقادمةً، وهوَ **عينُ العطبِ** الذي جاءَ
+  البندُ لإغلاقِه لا تفصيلٌ فيه.
+* `packages/application/tracking/tracking-token-ports.ts` و
+  `packages/infrastructure/tracking/tracking-token-adapters.ts` — منفذُ القراءةِ
+  ومحوّلُه: توسَّعَت حمولتُهما لتحملَ الحكمَ والعُمرَ ومصدرَ الحدِّ، إذ **منفذٌ
+  يُعيدُ إحداثيّةً وحدَها لا يستطيعُ أن ينقلَ حكماً**.
+* `apps/gateway/src/index.ts` — حقنُ التبعيّاتِ الثلاثِ (قراءةٌ · بدءٌ · إيقافٌ).
+
+**وافتراقٌ ثانٍ يُسجَّلُ لا يُبتَلَعُ:** الحجزُ أعلاه سمّى ثلاثةَ ملفّاتٍ
+`{read-ride-share,start-ride-share,stop-ride-share}.ts`، والمُنفَّذُ ملفٌّ واحدٌ
+`packages/application/transport/ride-share.ts` فيه الثلاثةُ **دوالَّ مفصولةً
+بمنافذَ مفصولةٍ مُحقَنةٍ كلٍّ على حدةٍ**. فالفصلُ المقصودُ — أن لا يحملَ
+قارئُ الحالةِ صلاحيةَ الإصدارِ أو الإيقافِ — قائمٌ بالمنافذِ لا بعددِ
+الملفّاتِ، والملفُّ الواحدُ أقلُّ سطحاً بلا خسارةٍ في الفصلِ. **والنطاقُ غيرُ
+المحجوزِ لم يُوسَّعْ بحرفٍ**: لا `SOS`، ولا اتّصالَ، ولا إرسالَ رابطٍ من
+الخادمِ، ولا أجرةَ، ولا خريطةَ، ولا حوارَ بوتٍ عُدِّلَ، ولا عمودَ في
+`trip_tracking_tokens`، ولا كتابةَ في `drivers.last_location`.
+
+### `F2-09` — execution record and why the item stays open (2026-09-14)
+
+**نُفِّذَ البندُ كاملاً، ويبقى `[ ]`.** والسببُ **ليسَ عملاً ناقصاً** بل
+الحاجزُ `B-CI-001` المُسجَّلُ أعلاه: شغلاتُ CI تسقطُ **قبلَ أن تبدأَ**
+(`steps: []` في ثانيتَينِ) لفوترةِ حسابٍ لا لسببِ شِفرةٍ، وثلاثُ محاولاتٍ
+نتيجتُها واحدةٌ. فاختباراتُ التكاملِ **الإحدى والعشرونَ مكتوبةٌ ولم تُشغَّلْ
+قطُّ**، والحاجزُ الجديدُ وخطوتاه في `ci.yml` **لم يُقرأْ لهما حكمٌ**، و`ح-4`
+(ثلاثُ جولاتٍ خضراءُ) **لا تستطيعُ أن تبدأَ**. و`ح-6` صريحةٌ: الأخضرُ المحلّيُّ
+ليسَ حكماً. **فلا قلبَ حالةٍ، ولا دمجَ فرعٍ، ولا `مَقيس` ولا `مُثبَت`
+(`ح-5`).**
+
+| ما نُفِّذَ | الموضعُ |
+|---|---|
+| الحَكَمُ الواحدُ + حالُ المشاركةِ + الغلافُ + بذرُ الإعدادِ + نزعُ الصلاحيّاتِ | `supabase/migrations/20260914060000_f2_09_ride_share_link_view.sql` |
+| النطاقُ والمنافذُ والمحوّلُ والاستخدامُ | `packages/domain/transport/ride-share.ts` · `packages/application/transport/ride-share-ports.ts` · `packages/infrastructure/transport/ride-share-store.ts` · `packages/application/transport/ride-share.ts` |
+| العقودُ الثلاثةُ | `apps/gateway/src/routes/rides.ts` (`GET`/`POST`/`DELETE` على `/v1/rides/:id/share`) |
+| وصلُ القارئِ العامِّ بالحَكَمِ | `apps/gateway/src/routes/public-tracking.ts` · `apps/gateway/src/public/tracking-page.ts` · منفذُ الرمزِ ومحوّلُه |
+| سطحُ المالكةِ | `apps/miniapp/src/surfaces/rider/share/*` + `RideShareCard` في `ActiveRideScreen.tsx` · 44 مفتاحاً × 3 ألسنةٍ (391 → 435) |
+| الحاجزُ الساكنُ | `scripts/lib/ride-share-contract.ts` (8 قواعدَ) · `scripts/check-ride-share-contract.ts` · `package.json` · `ci.yml` (خطوتانِ) |
+| القياسُ المحلّيُّ | 95 حالةَ وحدةٍ جديدةً خضراءَ · `typecheck` = 0 · والتجاوزُ المسجَّلُ **95 ملفّاً و960 حالةً** |
+| الوثائقُ | `ADR 0109` · `docs/evidence/architecture/F2-09-CLOSURE-20260914.md` · `docs/SYSTEM_STATE.md` · `docs/ROADMAP-MASTER.md` §9.5 و§25 |
+
+**وأصدقُ ما في هذا السطرِ**: أنَّ قاعدةَ «الحَكَمُ واحدٌ» في الحاجزِ الجديدِ
+**كانت تمرُّ زوراً** — يدخلُ في جسمِ الغلافِ ذيلُ الهجرةِ حيثُ
+`revoke execute on function tracking_link_view(uuid)` فيُحسَبُ النصُّ في أمرِ
+الصلاحيّةِ نداءً — وكانَ الحاجزُ **أخضرَ على المستودَعِ الحقيقيِّ وهوَ معطوبٌ**.
+كشفَته **الحالةُ السالبةُ المزروعةُ** (`ح-7`) لا أخضرُه. والدرسُ يُسجَّلُ ههنا
+لأنَّه يَعِمُّ: أخضرُ حاجزٍ ليسَ دليلاً على أنَّه يقيسُ؛ الدليلُ سقوطُه على خرقٍ
+مزروعٍ.

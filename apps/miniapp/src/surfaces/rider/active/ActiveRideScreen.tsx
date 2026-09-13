@@ -40,6 +40,18 @@
  *
  * وبلا `onFinished` **لا زرَّ**: مُركِّبٌ لا يعرفُ إلى أينَ يُفضي الزرُّ لا
  * يُرسَمُ له زرٌّ — وزرٌّ بلا مسارٍ وعدٌ لا عقدٌ.
+ *
+ * ## إضافةُ البند `F2-09` (2026-09-14)
+ *
+ * بُنِيَ مسارُ المشاركةِ، فصارَ لها **بطاقةٌ** لا زرٌّ: `RideShareCard`. وما
+ * فوقَ **باقٍ كما هوَ** (القاعدة ح-1)؛ والسطرُ القائلُ إنَّ مسارَ `F2-09` «لم
+ * يُبنَ» كانَ صدقَ لحظتِه، وهذا إنفاذُ وعدِه لا نقضُه: الغيابُ زالَ بالبناءِ لا
+ * بحذفِ ذكرِه. ويبقى `F2-10` (الطوارئُ) **غائباً مُسمَّى** ولا زرَّ له.
+ *
+ * ولماذا بطاقةٌ تقرأُ لنفسِها لا حقلٌ في هذا الردِّ: حالُ المشاركةِ تتغيَّرُ
+ * بأفعالِ صاحبِها (إصدارٌ وإيقافٌ) لا بحالِ الرحلةِ، فلو حُشِرَت في لقطةِ
+ * الرحلةِ لَوجبَ تحديثُ اللقطةِ كلِّها بعدَ كلِّ ضغطةٍ — أو عرضُ حالٍ قديمةٍ.
+ * وحكمٌ واحدٌ لكلٍّ: نداءٌ يُجيبُ عن الرحلةِ ونداءٌ يُجيبُ عن روابطِها.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -61,6 +73,7 @@ import type { ScreenState } from "../../../system/state-text.ts";
 import { cancelRide as cancelViaApi } from "../search/ride-api.ts";
 import type { CancelRideResponse } from "../search/ride-contract.ts";
 import { cancelRefusalKey, newIdempotencyKey } from "../search/search-view.ts";
+import { RideShareCard } from "../share/RideShareCard.tsx";
 import { readRide as readViaApi } from "./active-ride-api.ts";
 import type { ActiveRideResponse } from "./active-ride-contract.ts";
 import {
@@ -373,6 +386,10 @@ export function ActiveRideScreen({
             {t(reading ? "rider.active.refreshing" : "rider.active.refresh")}
           </button>
         </div>
+
+        {/* مشاركةُ الرحلةِ (`F2-09`) — بطاقةٌ تقرأُ حالَها بنفسِها، وتُخفي نفسَها
+            متى لم يكنْ ثمَّةَ ما يُشارَكُ ولا ما يُوقَفُ. */}
+        <RideShareCard orderId={orderId} language={language} />
 
         {/* بابُ الملخَّصِ (`F2-07`) — **بحكمِ القاعدةِ `completed` وحدَه**، وبمُركِّبٍ
             أعطى مساراً. ولا زرَّ قبلَ الانتهاءِ: ملخَّصُ رحلةٍ جاريةٍ ليسَ ملخَّصاً. */}

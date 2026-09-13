@@ -94,6 +94,15 @@ import {
   requestRide,
 } from "../../../../packages/application/transport/request-ride.ts";
 import {
+  type ReadRideShareDeps,
+  type RideSharePublicErrorCode,
+  readRideShare,
+  type StartRideShareDeps,
+  type StopRideShareDeps,
+  startRideShare,
+  stopRideShare,
+} from "../../../../packages/application/transport/ride-share.ts";
+import {
   // الاسمُ يُقصَّرُ عندَ الاستيرادِ **لا يُغيَّرُ في مصدرِه**: خريطةُ الحالاتِ
   // أدناهُ يجبُ أن يبقى تصريحُها **سطراً واحداً** يُرى فيه اتّحادُ الحالاتِ
   // المسموحةِ كما هوَ، وبالاسمِ الطويلِ يتجاوزُ السطرُ عرضَ المُنسِّقِ فيُكسَرُ
@@ -102,6 +111,10 @@ import {
   type SubmitRideRatingDeps,
   submitRideRating,
 } from "../../../../packages/application/transport/submit-ride-rating.ts";
+import {
+  SHARE_DISCLOSED,
+  SHARE_WITHHELD,
+} from "../../../../packages/domain/transport/ride-share.ts";
 import { bearerTokenFrom } from "./me.ts";
 import { readBounded } from "./telegram-webhook.ts";
 
@@ -120,6 +133,19 @@ export interface RidesRouteDependencies {
   readonly history?: ReadRideHistoryDeps;
   /** قارئُ التفاصيلِ (`F2-08`) — منفصلٌ عن السجلِّ: تعطيلُ أحدِهما لا يُسقِطُ الآخرَ. */
   readonly detail?: ReadRideDetailDeps;
+  /** قارئُ حالِ المشاركةِ (`F2-09`) — غيابُه يُعطِّلُ القراءةَ بـ503 صادقاً. */
+  readonly share?: ReadRideShareDeps;
+  /**
+   * إصدارُ الرابطِ (`F2-09`). **منفصلٌ عن القراءةِ بقصدٍ**: الأساسُ العامُّ
+   * (`TRACKING_TOKEN_BASE_URL`) قد يكونُ غيرَ مضبوطٍ فيُطفأُ الإصدارُ وحدَه،
+   * **وتبقى القراءةُ تقولُ للمالكِ ما حالُ روابطِه القائمةِ** — لا شاشةٌ عمياءُ.
+   */
+  readonly shareStart?: StartRideShareDeps;
+  /**
+   * الإيقافُ (`F2-09`). **منفصلٌ عن الإصدارِ**: لو أُطفئَ الإصدارُ لخللٍ وجبَ أن
+   * يبقى الإيقافُ عاملاً — **زرُّ «أوقِفْ» أحقُّ بالبقاءِ من زرِّ «شارِكْ»**.
+   */
+  readonly shareStop?: StopRideShareDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -179,6 +205,21 @@ const STATUS_BY_RATING_ERROR: Readonly<Record<RatingErrorCode, 400 | 401 | 404 |
 
 function ratingRejected(c: Context, error: RatingErrorCode) {
   return c.json({ ok: false, error }, STATUS_BY_RATING_ERROR[error]);
+}
+
+/**
+ * خريطةُ حالاتِ المشاركةِ (`F2-09`) — **شاملةٌ حرفاً** لاتّحادِ رموزِها.
+ *
+ * و`SHARING_NOT_CONFIGURED` تُنشَرُ `503` لا `400`: المُنادي لم يُخطئْ، والمنصّةُ
+ * هيَ التي لم تُضبَطْ. و`400` كانت ستدفعُ العميلَ إلى تصحيحِ طلبٍ سليمٍ أبداً.
+ */
+const STATUS_BY_SHARE_ERROR: Readonly<Record<RideSharePublicErrorCode, 400 | 401 | 404 | 503>> = {
+  ...STATUS_BY_ERROR,
+  SHARING_NOT_CONFIGURED: 503,
+};
+
+function shareRejected(c: Context, error: RideSharePublicErrorCode) {
+  return c.json({ ok: false, error }, STATUS_BY_SHARE_ERROR[error]);
 }
 
 /** ترويسةُ المفتاحِ — تُقرأُ بالاسمِ المُعرَّفِ لا بأيِّ مرادفٍ. */
@@ -621,6 +662,120 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       return c.json({ ok: true, cancelled: false as const, refusal: verdict.refusal });
     }
     return c.json({ ok: true, cancelled: true as const });
+  });
+
+  /**
+   * حالُ المشاركةِ (`F2-09` · `SR-13`).
+   *
+   * **والمعاينةُ تُنشَرُ كما يراها المستلمُ حرفاً**: نفسُ الحكمِ ونفسُ العُمرِ
+   * ونفسُ الحدِّ من `tracking_link_view` — فما يقولُه هذا الردُّ للمالكِ هوَ ما
+   * ستقولُه الصفحةُ العامّةُ للغريبِ في اللحظةِ نفسِها، ولا موضعَ لحكمَينِ.
+   *
+   * **ولا رمزَ في الردِّ**: الرمزُ يُعطى مرّةً عندَ الإصدارِ. ولو أُعيدَ في كلِّ
+   * قراءةٍ لَصارَ في كلِّ سجلٍّ ولقطةِ شاشةٍ مفتاحاً يفتحُ موقعَ إنسانٍ.
+   */
+  app.get("/v1/rides/:id/share", async (c) => {
+    if (deps.share === undefined) {
+      deps.log?.("rides.share_read_disabled", {});
+      return shareRejected(c, "RIDE_STORE_NOT_AVAILABLE");
+    }
+
+    const result = await readRideShare(deps.share, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("id"),
+    });
+    if (!result.ok) return shareRejected(c, result.error);
+
+    const read = result.value;
+    if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
+
+    const s = read.state;
+    return c.json({
+      ok: true,
+      found: true as const,
+      orderId: s.orderId,
+      availability: s.availability,
+      sharingNow: s.sharingNow,
+      longestRemainingSeconds: s.longestRemainingSeconds,
+      // `null` = الإعدادُ غائبٌ. **ولا رقمَ يُخترَعُ**: جملةٌ بلا رقمٍ أصدقُ من
+      // وعدٍ بمدّةٍ لم تقطعْها المنصّةُ.
+      maxLifetimeMinutes: s.maxLifetimeMinutes,
+      graceMinutes: s.graceMinutes,
+      links: s.links.map((link) => ({
+        id: link.id,
+        createdAt: new Date(link.createdAtMs).toISOString(),
+        secondsRemaining: link.secondsRemaining,
+      })),
+      preview:
+        s.preview.verdict === "LOCATED"
+          ? {
+              verdict: "LOCATED" as const,
+              active: s.preview.active,
+              lat: s.preview.position.lat,
+              lng: s.preview.position.lng,
+              ageSeconds: s.preview.position.ageSeconds,
+              maxAgeSeconds: s.preview.maxAgeSeconds,
+              maxAgeSource: s.preview.maxAgeSource,
+            }
+          : {
+              verdict: s.preview.verdict,
+              active: s.preview.active,
+              ageSeconds: s.preview.ageSeconds,
+              maxAgeSeconds: s.preview.maxAgeSeconds,
+              maxAgeSource: s.preview.maxAgeSource,
+            },
+      // إفصاحٌ مُرقَّمٌ يُترجَمُ في الواجهةِ — **لا نصَّ تسويقيٍّ** يُكتَبُ مرّةً
+      // ثمّ يُنسى حينَ يُضافُ حقلٌ إلى الحمولةِ العامّةِ.
+      disclosure: { shown: SHARE_DISCLOSED, hidden: SHARE_WITHHELD },
+    });
+  });
+
+  /**
+   * إصدارُ رابطٍ (`F2-09`). **الرمزُ يُنشَرُ ههنا وههنا وحدَه**، ومعَه الرابطُ
+   * كاملاً كي لا يُبنى شكلُه في الواجهةِ مرّةً ثانيةً.
+   */
+  app.post("/v1/rides/:id/share", async (c) => {
+    if (deps.shareStart === undefined) {
+      deps.log?.("rides.share_start_disabled", {});
+      return shareRejected(c, "SHARING_NOT_CONFIGURED");
+    }
+
+    const result = await startRideShare(deps.shareStart, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("id"),
+    });
+    if (!result.ok) return shareRejected(c, result.error);
+
+    const outcome = result.value;
+    if (!outcome.issued) {
+      return c.json({ ok: true, issued: false as const, refusal: outcome.refusal });
+    }
+    return c.json({
+      ok: true,
+      issued: true as const,
+      url: outcome.link.url,
+      expiresAt: outcome.link.expiresAt.toISOString(),
+    });
+  });
+
+  /**
+   * إيقافُ المشاركةِ (`F2-09`) — **كلُّ روابطِ الرحلةِ دفعةً واحدةً**.
+   *
+   * ويُنشَرُ العددُ لا `true`: «أوقفنا رابطَينِ» غيرُ «لا رابطَ ساري أصلاً»،
+   * والفرقُ يراهُ الضاغطُ فلا يظنُّ أنَّ الزرَّ لم يعملْ.
+   */
+  app.delete("/v1/rides/:id/share", async (c) => {
+    if (deps.shareStop === undefined) {
+      deps.log?.("rides.share_stop_disabled", {});
+      return shareRejected(c, "RIDE_STORE_NOT_AVAILABLE");
+    }
+
+    const result = await stopRideShare(deps.shareStop, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("id"),
+    });
+    if (!result.ok) return shareRejected(c, result.error);
+    return c.json({ ok: true, revoked: result.value });
   });
 
   return app;
