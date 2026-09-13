@@ -22,6 +22,22 @@
  *      `onDestinationChosen`؛ وشاشةُ ما بعدَه بندُ `F2-03`.
  *   ٤. **لم تُفتَح من مستخدمٍ حقيقيٍّ بعد**: لا نشرَ حيَّ لهذه الحزمةِ، فما ههنا
  *      مُختبَرٌ لا مُثبَتٌ عندَ مستخدمٍ (سُلَّمُ القسم 1.3).
+ *
+ * ## إضافةُ البند `F2-08` (2026-09-14)
+ *
+ * صارَ للشاشةِ **مدخلُ سجلٍّ** واحدٌ (`onOpenHistory`) يفتحُ `SR-09`. وما قبلَه
+ * **باقٍ كما هوَ** (القاعدة ح-1) ولا سطرَ حُذِفَ؛ والحدُّ الثالثُ أعلاه القائلُ
+ * إنَّ الاختيارَ يُبلَّغُ للأعلى **باقٍ على حالِه**: هذا المدخلُ كذلكَ لا ينتقلُ
+ * بنفسِه بل يُبلِّغُ `RiderRoot.tsx`.
+ *
+ * ولماذا زرٌّ **لا شريحةٌ رابعةٌ في `rh__services`**: الشرائحُ تختارُ خدمةَ طلبٍ
+ * جديدٍ، والسجلُّ قراءةُ ماضٍ — وضمُّهما يجعلُ «السجلَّ» يُقرأُ خدمةً تُطلَبُ.
+ *
+ * وهوَ مرسومٌ في فرعِ **الرفضِ** أيضاً: تعذُّرُ قراءةِ الأماكنِ لا علاقةَ له
+ * بسجلِّ الرحلاتِ، وحجبُه هناكَ يحبسُ الراكبَ عن ماضيه بسببِ عطبٍ في حاضرِه.
+ *
+ * وما لا يفعلُه: لا يعرضُ عدداً ولا آخرَ رحلةٍ ههنا — ذاكَ نداءٌ ثانٍ لِيُرسَمَ
+ * رقمٌ في زرٍّ، والقائمةُ نفسُها تقولُه بعدَ فتحِها.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -73,6 +89,11 @@ export interface HomeScreenProps {
     readonly destinations: readonly ApiRecentDestination[];
   }>;
   readonly onDestinationChosen?: (chosen: ChosenDestination) => void;
+  /**
+   * مدخلُ سجلِّ الرحلاتِ (`SR-09` · البند `F2-08`). وغيابُه **لا يرسمُ زرّاً
+   * مُعطَّلاً**: مدخلٌ لا يُفتَحُ أسوأُ من غيابِ مدخلٍ.
+   */
+  readonly onOpenHistory?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
   /** اسمُ المزوّدِ المُهيَّأِ فعلاً؛ `"none"` تعني: قُلِ الحدَّ ولا ترسمْ. */
   readonly mapProvider?: string;
@@ -110,6 +131,7 @@ export function HomeScreen({
   loadPlaces = fetchSavedPlaces,
   loadRecent = fetchRecentDestinations,
   onDestinationChosen,
+  onOpenHistory,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   mapProvider = "none",
   cityName,
@@ -191,6 +213,13 @@ export function HomeScreen({
     </h1>
   );
 
+  const historyEntry =
+    onOpenHistory === undefined ? null : (
+      <button type="button" className="rh__history" onClick={() => onOpenHistory()}>
+        {t("rider.home.history.open")}
+      </button>
+    );
+
   if (state.kind === "loading") {
     return (
       <section
@@ -219,6 +248,7 @@ export function HomeScreen({
     return (
       <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
         {title}
+        {historyEntry}
         <div className="sys" role="alert">
           <p className="sys__body">{t(placesErrorKey(state.code))}</p>
           {isRetryablePlacesError(state.code) ? (
@@ -235,6 +265,7 @@ export function HomeScreen({
   return (
     <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
       {title}
+      {historyEntry}
 
       {/* الحدُّ الأوّلُ مكتوبٌ حيثُ يُتوقَّعُ الرسمُ — لا فراغٌ ولا رسمٌ كاذبٌ. */}
       {mapProvider === "none" ? (

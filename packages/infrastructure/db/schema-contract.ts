@@ -100,6 +100,8 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "revoke_order_tracking_tokens",
   "revoke_tracking_token",
   "ride_search_state",
+  "rider_ride_detail",
+  "rider_ride_history",
   "search_destinations",
   "set_user_language",
   "settle_subscription_wallet_system_error",

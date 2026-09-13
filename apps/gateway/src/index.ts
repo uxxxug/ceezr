@@ -45,6 +45,10 @@ import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-s
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { createActiveRideReader } from "../../../packages/infrastructure/transport/active-ride-store.ts";
 import {
+  createRideDetailReader,
+  createRideHistoryReader,
+} from "../../../packages/infrastructure/transport/ride-history-store.ts";
+import {
   createRideCancelCommand,
   createRideRequestCommand,
   createRideSearchReader,
@@ -681,6 +685,19 @@ const rides =
         rating: {
           sessions: createMiniAppSessionReader(config.miniappSessionSecret),
           ratings: createRideRatingCommand(container.sql),
+          now: () => new Date(),
+        },
+        // السجلُّ والتفاصيلُ (`F2-08`) **كائنانِ منفصلانِ** كسوابقِهما، وكلاهما
+        // **قارئٌ محضٌ**: لا حقَّ كتابةٍ في سجلٍّ ولا في تفاصيلَ.
+        // **ولا مزوِّدَ توجيهٍ ولا خرائطَ**: الماضي لا يُتابَعُ (`ADR 0007`).
+        history: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          history: createRideHistoryReader(container.sql),
+          now: () => new Date(),
+        },
+        detail: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          details: createRideDetailReader(container.sql),
           now: () => new Date(),
         },
         log,
