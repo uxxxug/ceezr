@@ -1274,7 +1274,7 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
-    file: "tests/integration/wasla-fulfillment-lifecycle.test.ts",
+    file: "deferred/core-integration/tests/wasla-fulfillment-lifecycle.test.ts",
     suites: ["دورةُ حياةِ مهمّةِ التنفيذِ الواردةِ من CORE — W-4/W-5"],
     skipped: 35,
     gate: "TEST_DATABASE_URL",
@@ -1283,12 +1283,13 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     activation:
       "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها هجرتا W-4 وW-5). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
     owner: "منفّذ المستودع",
-    criticalPath: "دورةُ الرحلةِ والإسناد",
-    runsIn: "اختبارات التكامل على قاعدة حقيقية",
-    whyNotRun: null,
+    criticalPath: null,
+    runsIn: null,
+    whyNotRun:
+      "بيانُ عدمِ التشغيلِ: أُجِّلَ تكاملُ CORE كلُّه بتعليمةِ المالكِ `O-7` (ADR 0094 · ADR 0095)، فنُقِلَت هجراتُه واختباراهُ إلى `deferred/core-integration/` ولا تُطبَّقُ على قاعدةِ المنتجِ. فلا خطوةَ في CI تُشغِّلُ هذا المسارَ — لا لتعذُّرِ بيئةٍ بل لأنَّ الميزةَ نفسَها خارجُ نطاقِ المنتجِ المستقلِّ اليومَ. ولم يُحذَفِ الاختبارُ ولا خُفِّفَ ولا صُنِّفَ تخطّياً بلا سببٍ: هوَ محفوظٌ كما كُتِبَ، ويُستأنَفُ بمسارِه وهجراتِه معاً متى قُرِّرَ رفعُ التأجيلِ، وحينَها يعودُ `runsIn` إلى الوظيفةِ «اختبارات التكامل على قاعدة حقيقية» ويعودُ مسارُه الحرجُ معه.",
   },
   {
-    file: "tests/integration/wasla-core-transport.test.ts",
+    file: "deferred/core-integration/tests/wasla-core-transport.test.ts",
     suites: ["ناقلُ الحدِّ مع CORE موصولاً بالقاعدةِ — W-5"],
     skipped: 7,
     gate: "TEST_DATABASE_URL",
@@ -1297,9 +1298,10 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     activation:
       "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة (ومنها هجرةُ 20260912000000 للإخفاقِ الدائمِ). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محلّياً بحاويةِ postgres.",
     owner: "منفّذ المستودع",
-    criticalPath: "دورةُ الرحلةِ والإسناد",
-    runsIn: "اختبارات التكامل على قاعدة حقيقية",
-    whyNotRun: null,
+    criticalPath: null,
+    runsIn: null,
+    whyNotRun:
+      "بيانُ عدمِ التشغيلِ: أُجِّلَ تكاملُ CORE كلُّه بتعليمةِ المالكِ `O-7` (ADR 0094 · ADR 0095)، فنُقِلَت هجراتُه واختباراهُ إلى `deferred/core-integration/` ولا تُطبَّقُ على قاعدةِ المنتجِ. فلا خطوةَ في CI تُشغِّلُ هذا المسارَ — لا لتعذُّرِ بيئةٍ بل لأنَّ الميزةَ نفسَها خارجُ نطاقِ المنتجِ المستقلِّ اليومَ. ولم يُحذَفِ الاختبارُ ولا خُفِّفَ ولا صُنِّفَ تخطّياً بلا سببٍ: هوَ محفوظٌ كما كُتِبَ، ويُستأنَفُ بمسارِه وهجراتِه معاً متى قُرِّرَ رفعُ التأجيلِ، وحينَها يعودُ `runsIn` إلى الوظيفةِ «اختبارات التكامل على قاعدة حقيقية» ويعودُ مسارُه الحرجُ معه.",
   },
   {
     file: "tests/integration/user-consents.test.ts",

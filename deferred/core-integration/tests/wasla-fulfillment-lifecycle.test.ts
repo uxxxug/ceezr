@@ -27,12 +27,12 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import type {
   EventEnvelope,
   MoveEventShipper,
-} from "../../packages/application/wasla/fulfillment-lifecycle.ts";
-import { createFulfillmentLifecycle } from "../../packages/application/wasla/fulfillment-lifecycle.ts";
-import { validateEnvelope } from "../../packages/domain/wasla/event-envelope.ts";
-import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
-import { createOperationalJobRepository } from "../../packages/infrastructure/wasla/operational-job-repository.ts";
-import { err, isErr, isOk, ok } from "../../packages/shared/result/index.ts";
+} from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
+import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
+import { validateEnvelope } from "../../../packages/domain/wasla/event-envelope.ts";
+import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
+import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
+import { err, isErr, isOk, ok } from "../../../packages/shared/result/index.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 

@@ -60,8 +60,11 @@ import {
 } from "../packages/shared/config/core-event-transport.ts";
 
 const CONTRACTS_DIR = "docs/contracts/core";
-const W4_MIGRATION = "supabase/migrations/20260911100000_w4_operational_jobs.sql";
-const W5_MIGRATION = "supabase/migrations/20260911100100_w5_core_inbox_move_outbox.sql";
+// هجرتا `W-4`/`W-5` مؤجَّلتانِ بتعليمةِ `O-7`، والمُقابِلُ يقرؤهما حيثُ هما:
+// إخراجُ التكاملِ من مسارِ التطبيقِ لا يُسقِطُ مُقابِلَ عقدِه (`ADR 0095`).
+const W4_MIGRATION = "deferred/core-integration/migrations/20260911100000_w4_operational_jobs.sql";
+const W5_MIGRATION =
+  "deferred/core-integration/migrations/20260911100100_w5_core_inbox_move_outbox.sql";
 const CORE_OPENAPI = join(CONTRACTS_DIR, "transport/core-v1.yaml");
 const CORE_OUTBOUND_DOC = join(CONTRACTS_DIR, "transport/outbound-delivery.md");
 

@@ -30,8 +30,9 @@
  * - **لا يلمس قاعدةً.** ولا يعرف ما في الإنتاجِ.
  */
 
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { APPLIED_MIGRATIONS_DIR, declaredMigrations } from "./lib/migration-sources.ts";
 import {
   findRollbackRisks,
   type MigrationSource,
@@ -48,7 +49,9 @@ import {
   type RollbackDeclaration,
 } from "./lib/rollback-registry.ts";
 
-const MIGRATIONS_DIR = "supabase/migrations";
+// مسارُ العودةِ يُعلَنُ لكلِّ هجرةٍ مكتوبةٍ، مُطبَّقةً كانَ أو مؤجَّلةً
+// (`ADR 0095`): سجلٌّ يشيرُ إلى هجرةٍ مؤجَّلةٍ ليسَ ميّتاً.
+const MIGRATIONS_DIR = APPLIED_MIGRATIONS_DIR;
 const ROLLBACK_DOC = "docs/rollback.md";
 const RENDER_FILE = "render.yaml";
 
@@ -62,11 +65,7 @@ const REQUIRED_DOC_SECTIONS = [
 ] as const;
 
 export function readMigrations(root: string): readonly MigrationSource[] {
-  const dir = join(root, MIGRATIONS_DIR);
-  return readdirSync(dir)
-    .filter((name) => name.endsWith(".sql"))
-    .sort()
-    .map((name) => ({ file: name, sql: readFileSync(join(dir, name), "utf8") }));
+  return declaredMigrations(root).map(({ file, sql }) => ({ file, sql }));
 }
 
 export interface AuditInput {

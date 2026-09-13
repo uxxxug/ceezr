@@ -27,6 +27,7 @@
 
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { declaredMigrationsText } from "./lib/migration-sources.ts";
 import {
   buildProbeStatement,
   columnsFromSchema,
@@ -46,6 +47,8 @@ export interface Problem {
 const DOC_PATH = "docs/migration/dry-run-and-reconciliation.md";
 const TOOL_PATH = "scripts/wasla-migration-dry-run.ts";
 const LIB_PATH = "scripts/lib/wasla-migration-dry-run.ts";
+// مسابرُ التحوُّلِ تُقاسُ على المُعلَنِ: عمودٌ في هجرةٍ مؤجَّلةٍ موجودٌ
+// مكتوباً وإن لم يُطبَّقْ بعدُ (`ADR 0095`).
 const MIGRATIONS_DIR = "supabase/migrations";
 const BEGIN_MARKER = "<!-- BEGIN GENERATED: dry-run-and-reconciliation -->";
 const END_MARKER = "<!-- END GENERATED: dry-run-and-reconciliation -->";
@@ -91,7 +94,8 @@ export function stripCommentsAndDocs(source: string): string {
 }
 
 /** يقرأُ كلَّ نصوصِ الهجراتِ مُجمَّعةً. */
-export function readMigrationsText(dir: string = MIGRATIONS_DIR): string {
+export function readMigrationsText(dir?: string): string {
+  if (dir === undefined) return declaredMigrationsText();
   return readdirSync(dir)
     .filter((name) => name.endsWith(".sql"))
     .sort()

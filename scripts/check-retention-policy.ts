@@ -27,16 +27,19 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { TABLE_RETENTION } from "../packages/shared/config/retention-policy.ts";
 import { findTableBlocks } from "./check-migrations.ts";
+import { declaredMigrations } from "./lib/migration-sources.ts";
 
-const MIGRATIONS_DIR = "supabase/migrations";
+// سياسةُ الاستبقاءِ تصنيفٌ لا تطبيقٌ، فتقرأُ **المُعلَنَ** (`ADR 0095`).
 
 /** أسماءُ الجداولِ المُنشأةِ في الهجراتِ — بالقارئِ نفسِه الذي يستعملُه حاجزُ المخطّطِ. */
-export function tablesInMigrations(dir: string): readonly string[] {
+export function tablesInMigrations(dir?: string): readonly string[] {
   const names = new Set<string>();
-  for (const file of readdirSync(dir).filter((entry) => entry.endsWith(".sql"))) {
-    const sql = readFileSync(join(dir, file), "utf8");
-    for (const block of findTableBlocks(sql)) names.add(block.name);
-  }
+  const files = dir
+    ? readdirSync(dir)
+        .filter((entry) => entry.endsWith(".sql"))
+        .map((entry) => readFileSync(join(dir, entry), "utf8"))
+    : declaredMigrations().map((entry) => entry.sql);
+  for (const sql of files) for (const block of findTableBlocks(sql)) names.add(block.name);
   return [...names].sort();
 }
 
@@ -54,7 +57,7 @@ export function retentionGaps(
 }
 
 function main(): void {
-  const tables = tablesInMigrations(MIGRATIONS_DIR);
+  const tables = tablesInMigrations();
   const { unclassified, orphaned } = retentionGaps(tables, TABLE_RETENTION);
 
   if (unclassified.length === 0 && orphaned.length === 0) {

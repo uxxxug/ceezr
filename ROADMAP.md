@@ -177,6 +177,22 @@ Nothing else has been changed in this repository by the WASLA integration work.
 يحملُ `S-1`…`S-4` ولا يمسُّ خطوةَ `city_id` ولا وظيفةَ Redis. أحدَ عشرَ فرعاً
 قديماً على الأصلِ مدموجةٌ أو متروكةٌ، وثلاثةَ عشرَ طلبَ سحبٍ كلُّها `MERGED`.
 
+#### تصحيحٌ بالإضافةِ على مسارِ `S-2` — سُجِّلَ 2026-09-13 بعدَ قياسِ الجذرِ
+
+جدولُ الحجزِ أعلاه **يبقى بنصِّه** (`ح-1` · `ح-8`)، وفيهِ عن `S-2`:
+«`operational_jobs` يحملُ `city_id` مُستَلَماً». وقياسُ الجذرِ أبطلَ ذلكَ
+المسارَ، فلا مصدرَ مدينةٍ في الجدولِ ألبتّةَ: مفاتيحُه معرّفاتٌ مُعتِمةٌ من
+`CORE` (`fulfillment_id` · `organization_id`)، وجدولُ المنتجِ المدينيُّ هوَ
+`orders` (`city_id uuid not null references cities(id)`). فعمودٌ يُضافُ إليهِ
+عمودٌ **مختلَقٌ** يُنتِجُ خُضرةً كاذبةً.
+
+**المسارُ المُنفَّذُ بدلاً منه:** إخراجُ تكاملِ `CORE` بكاملِه من مسارِ التطبيقِ
+إلى `deferred/core-integration/` — ستُّ هجراتٍ واختبارا تكاملٍ، بـ`git mv` لا
+بحذفٍ — مع حاجزٍ يُقفِلُ المنطقةَ، وتفريقٍ مُعلَنٍ بينَ الهجرةِ **المُطبَّقةِ**
+والهجرةِ **المُعلَنةِ** يقرأُ كلُّ حاجزٍ ما يخصُّه. الحاكمُ:
+`docs/adr/0095-deferred-area-for-core-integration.md`. ولا حاجزَ ضُعِّفَ، ولا
+استثناءَ `city_id` وُسِّعَ، ولا صفَّ تصنيفٍ حُذِفَ.
+
 ### Reservation `F2-01` — the welcome and consent record, the first product screen in the repository (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
