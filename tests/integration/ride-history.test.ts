@@ -139,6 +139,19 @@ async function detail(telegramId: number, orderId: string): Promise<DetailPayloa
 }
 
 /**
+ * قيدُ المخطَّطِ `orders_matched_requires_driver` يمنعُ `matched` و`in_progress`
+ * و`completed` **بلا سائقٍ مُسنَدٍ** — وهوَ قيدٌ في القاعدةِ لا شرطٌ في
+ * التطبيقِ. فالزرعُ يحترمُه بدلاً من أن يُخفِقَ به: حالةٌ تستوجبُ سائقاً
+ * تأخذُ سائقَ الملفِّ، وما عداها يُزرَعُ بلا إسنادٍ. **ولا يُخفَّفُ القيدُ
+ * ولا يُلتَفُّ عليه** — المقيسُ قراءةُ السجلِّ لا كتابةُ صفوفٍ مستحيلةٍ.
+ */
+const DRIVER_REQUIRING_STATUSES = new Set(["matched", "in_progress", "completed"]);
+
+function defaultDriverFor(status: string): string | null {
+  return DRIVER_REQUIRING_STATUSES.has(status) ? driverId : null;
+}
+
+/**
  * طلبٌ مزروعٌ بلحظةِ إنشاءٍ مُعيَّنةٍ. والزرعُ مباشرٌ لا عبرَ `request_ride`:
  * المقيسُ ههنا **قراءةُ سجلٍّ**، والسجلُّ يحتاجُ رحلاتٍ في أشهرٍ مختلفةٍ
  * وبأختامٍ متباعدةٍ — وذاكَ ما لا يصنعُه مسارُ الطلبِ الحيُّ.
@@ -178,7 +191,7 @@ async function seedOrder(options: {
       st_setsrid(st_makepoint(${DROPOFF.lng}, ${DROPOFF.lat}), 4326)::geography,
       ${options.pickupLabel === undefined ? "البلد" : options.pickupLabel},
       ${options.dropoffLabel === undefined ? "الروضة" : options.dropoffLabel},
-      ${options.driver ?? null},
+      ${options.driver === undefined ? defaultDriverFor(options.status) : options.driver},
       ${`ride-history:${crypto.randomUUID()}`},
       ${createdAt},
       ${stamp(options.matchedMinutesAgo)},
@@ -466,8 +479,11 @@ describeIf("السجلُّ — منطقةُ الشهرِ من الإعدادِ �
   });
 
   it("١٦) والإعدادُ الغائبُ يُعلَنُ سقوطاً بمصدرٍ آخرَ مفصولٍ", async () => {
-    const [before] = await sql<{ value: string }[]>`
-      select value::text as value from platform_settings
+    // يُلتَقَطُ الصفُّ **بحقولِه التي لا تقبلُ العدمَ** لا بقيمتِه وحدَها:
+    // `description_ar` في `platform_settings` `not null`، فإعادةُ الزرعِ بلا
+    // وصفٍ تُخفِقُ بـ`23502` — وهوَ عطبُ مقياسٍ لا عطبُ مَقيسٍ.
+    const [before] = await sql<{ value: string; description_ar: string }[]>`
+      select value::text as value, description_ar from platform_settings
        where city_id = ${cityId} and key = 'ride_history_month_timezone'
     `;
     await sql`
@@ -480,10 +496,14 @@ describeIf("السجلُّ — منطقةُ الشهرِ من الإعدادِ �
       expect(payload.month_timezone_source).toBe("FALLBACK_UTC_SETTING_ABSENT");
     } finally {
       await sql`
-        insert into platform_settings (city_id, key, value, value_type, is_provisional)
+        insert into platform_settings
+          (city_id, key, value, value_type, description_ar, is_provisional)
         values (${cityId}, 'ride_history_month_timezone',
-                ${before?.value ?? '"Asia/Riyadh"'}::jsonb, 'string', false)
-        on conflict (city_id, key) do update set value = excluded.value
+                ${before?.value ?? '"Asia/Riyadh"'}::jsonb, 'string',
+                ${before?.description_ar ?? "المنطقةُ الزمنيّةُ التي يُحسَبُ بها عنوانُ الشهرِ في سجلِّ رحلاتِ الراكبِ (SR-09). تُنشَرُ في الردِّ نفسِه."},
+                false)
+        on conflict (city_id, key) do update
+          set value = excluded.value, description_ar = excluded.description_ar
       `;
     }
   });

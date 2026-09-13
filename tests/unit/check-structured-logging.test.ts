@@ -18,8 +18,10 @@ import {
   EVENT_CODE_PATTERN,
   findViolations,
   firstStringLiteral,
+  isConsoleQualified,
   isTransparentForward,
   personalFieldNames,
+  scannedFiles,
 } from "../../scripts/check-structured-logging.ts";
 
 const EMITTER_SOURCE = readFileSync(EMITTER, "utf8");
@@ -243,5 +245,61 @@ describe("أدواتُ القراءةِ — دقّةُ الاستخراجِ", ()
     expect(isTransparentForward(forwarding, "message", forwarding.length)).toBe(true);
     const notForwarding = "const message = buildMessage();\nlog(message";
     expect(isTransparentForward(notForwarding, "message", notForwarding.length)).toBe(false);
+  });
+});
+
+/**
+ * استثناءُ `console.log` كانَ نظرةً خلفيّةً متغيّرةَ الطولِ في نمطِ النداءِ،
+ * وكانت تُقيَّمُ عندَ كلِّ موضعٍ فتُكلِّفُ المستودعَ أربعَ ثوانٍ ونصفاً فتنقضي
+ * مهلةُ القياسِ. فصارَ الاستثناءُ مشياً إلى الخلفِ — **وهذا قياسُ أنَّ الحكمَ
+ * لم يتغيَّرْ، وأنَّ الزمنَ وحدَه تغيَّرَ.**
+ */
+describe("استثناءُ `console` — الحكمُ نفسُه بزمنٍ ثابتٍ", () => {
+  test("٢٩) `console.log(` لا يُحسَبُ موضعَ تسجيلٍ وإن طابقَ النمطَ", () => {
+    const source = 'log("gateway.started");\nconsole.log("x");';
+    const { logCallSites } = inspect(source);
+    expect(logCallSites).toBe(1);
+  });
+
+  test("٣٠) والفراغاتُ حولَ النقطةِ لا تُفلِتُ الاستثناءَ", () => {
+    const source = 'log("gateway.started");\nconsole . log("x");\nconsole\n  .log("y");';
+    const { logCallSites } = inspect(source);
+    expect(logCallSites).toBe(1);
+  });
+
+  test("٣١) `catalog(` ليسَ نداءَ تسجيلٍ — اللاحقةُ لا تصنعُ نداءً", () => {
+    const source = 'log("gateway.started");\nconst x = catalog("y");';
+    const { logCallSites } = inspect(source);
+    expect(logCallSites).toBe(1);
+  });
+
+  test("٣٢) و`deps.log(` يُحسَبُ — الاستثناءُ لـ`console` لا لكلِّ ما قبلَ نقطةٍ", () => {
+    const source = 'deps.log("gateway.started");';
+    const { logCallSites } = inspect(source);
+    expect(logCallSites).toBe(1);
+  });
+
+  test("٣٣) والحكمُ مُصدَّرٌ ويُقاسُ وحدَه على مواضعِ `log` الحرفيّةِ", () => {
+    const spaced = "console . log(";
+    expect(isConsoleQualified(spaced, spaced.indexOf("log("))).toBe(true);
+    const bare = "log(";
+    expect(isConsoleQualified(bare, 0)).toBe(false);
+    const deps = "deps.log(";
+    expect(isConsoleQualified(deps, deps.indexOf("log("))).toBe(false);
+    const truncated = "le.log(";
+    expect(isConsoleQualified(truncated, truncated.indexOf("log("))).toBe(false);
+  });
+
+  test("٣٤) والفحصُ على المستودعِ كما هوَ يتمُّ في جزءٍ من مهلةِ القياسِ", () => {
+    const files = scannedFiles();
+    expect(files.length).toBeGreaterThan(100);
+    const started = performance.now();
+    const { logCallSites } = findViolations();
+    const elapsed = performance.now() - started;
+    expect(logCallSites).toBeGreaterThan(100);
+    // ميزانيّةٌ مُعلَنةٌ: الفحصُ قبلَ الإصلاحِ كانَ ٤٥٠٠ مِلّي ثانيةٍ محلّيّاً
+    // وأكثرَ في CI. والميزانيّةُ ههنا أوسعُ من القياسِ الحقيقيِّ عشرةَ أضعافٍ،
+    // فسقوطُها يعني عودةَ التراجُعِ الأُسّيِّ لا بطءَ آلةٍ.
+    expect(elapsed).toBeLessThan(2500);
   });
 });
