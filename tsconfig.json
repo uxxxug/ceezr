@@ -30,7 +30,7 @@
     "packages/**/*.ts",
     "tests/**/*.ts",
     "scripts/**/*.ts",
-    "bench/**/*.ts"
+    "deferred/**/*.ts"
   ],
   "exclude": ["node_modules", "apps/miniapp/src", "**/dist"]
 }

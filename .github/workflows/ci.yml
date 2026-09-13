@@ -175,6 +175,15 @@ jobs:
       - name: سقوطُ حاجزِ خادمِ Redis مقيسٌ بانحرافٍ مزروعٍ لا بالمستودَعِ كما هوَ (S-3)
         run: bun test tests/unit/check-real-redis-runner.test.ts
 
+      # `S-4` · `O-7`: الوثيقةُ وسيلةٌ لا تسليمٌ. سقّاطةٌ تمنعُ نموَّ التوثيقِ:
+      # الجديدُ محدودٌ بسقفٍ، والمُستثنى ينقصُ ولا ينمو، والمُخرَجُ الخامُّ في
+      # `docs/evidence/archive/` وحدَه — بلا حذفِ دليلٍ (`ح-2`).
+      - name: ميزانُ التوثيقِ سقّاطةٌ لا سقفٌ يُرفَعُ (S-4 · O-7)
+        run: bun run scripts/check-docs-budget.ts
+
+      - name: سقوطُ حاجزِ ميزانِ التوثيقِ مقيسٌ بخرقٍ مزروعٍ لا بالمستودَعِ كما هوَ (S-4)
+        run: bun test tests/unit/check-docs-budget.test.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
