@@ -349,7 +349,6 @@
   "rider.history.status.raw": "A state this build does not know: {status}",
   "rider.history.service.ride": "Ride",
   "rider.history.service.delivery": "Delivery",
-  "rider.history.service.errand": "Errand",
   "rider.history.service.other": "A service this build does not know",
   "rider.history.event.requested": "The ride was requested",
   "rider.history.event.matched": "The driver was assigned",

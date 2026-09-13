@@ -349,7 +349,6 @@
   "rider.history.status.raw": "اس نسخے کے لیے نامعلوم حالت: {status}",
   "rider.history.service.ride": "سواری",
   "rider.history.service.delivery": "ڈیلیوری",
-  "rider.history.service.errand": "کام",
   "rider.history.service.other": "اس نسخے کے لیے نامعلوم خدمت",
   "rider.history.event.requested": "سفر کی درخواست دی گئی",
   "rider.history.event.matched": "ڈرائیور مقرر ہوا",

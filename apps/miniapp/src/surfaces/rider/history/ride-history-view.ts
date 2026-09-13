@@ -109,10 +109,17 @@ export function statusLabel(status: string): StatusLabel {
   return { known: true, key };
 }
 
+/**
+ * أسماءُ الخدمةِ **كما في `service_type` حرفاً** لا كما يُظَنُّ.
+ *
+ * وقد كُتِبَت أوّلَ مرّةٍ `ride` و`errand`، وليسَ في المُعدَّدِ إلّا `transport`
+ * و`delivery` — فكانَ كلُّ صفٍّ في السجلِّ يُعرَضُ «خدمةً أخرى» وهوَ رحلةٌ.
+ * **وهذا عطبٌ لا يُخفِقُ به بناءٌ ولا حاجزٌ**: نصٌّ صحيحُ التركيبِ خاطئُ
+ * المعنى. فالمصدرُ هوَ الهجرةُ لا الذاكرةُ.
+ */
 const SERVICE_KEYS: Readonly<Record<string, string>> = {
-  ride: "rider.history.service.ride",
+  transport: "rider.history.service.ride",
   delivery: "rider.history.service.delivery",
-  errand: "rider.history.service.errand",
 };
 
 export function serviceKey(service: string): string {
@@ -141,9 +148,19 @@ export function eventLabel(event: { readonly kind: string; readonly rawKind: str
 }
 
 /** مصدرُ الحدثِ ⇒ مفتاحُ نصِّه: «من ختمِ الطلبِ» أو «من سجلِّ التدقيقِ». */
+/**
+ * مصادرُ الحدثِ **كما تنطقُ بها الهجرةُ حرفاً** — وهيَ تُسمّي العمودَ لا نوعَه،
+ * لأنَّ المراجِعَ في نزاعٍ يسألُ «من أينَ هذا الوقتُ؟» فيُجابُ باسمِ الحقلِ.
+ *
+ * وقد كُتِبَت أوّلَ مرّةٍ `ORDER_STAMP` و`AUDIT_LOG` تخميناً، فكانَ كلُّ حدثٍ
+ * يُعرَضُ «مصدراً آخرَ» — **عطبٌ لا يُخفِقُ به بناءٌ**: نصٌّ صحيحٌ خاطئُ المعنى.
+ */
 const EVENT_SOURCE_KEYS: Readonly<Record<string, string>> = {
-  ORDER_STAMP: "rider.history.eventSource.orderStamp",
-  AUDIT_LOG: "rider.history.eventSource.auditLog",
+  "orders.created_at": "rider.history.eventSource.orderStamp",
+  "orders.matched_at": "rider.history.eventSource.orderStamp",
+  "orders.started_at": "rider.history.eventSource.orderStamp",
+  "orders.completed_at": "rider.history.eventSource.orderStamp",
+  audit_log: "rider.history.eventSource.auditLog",
   UNRECORDED: "rider.history.eventSource.unrecorded",
 };
 
