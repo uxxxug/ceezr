@@ -1,0 +1,27 @@
+name: تشخيصُ زمنِ الشبكةِ إلى القاعدةِ
+
+# تشخيصٌ يدويٌّ لا بوّابةٌ: لا يُشغَّلُ على دفعٍ ولا على طلبِ دمجٍ، ولا يحجبُ شيئاً.
+# غايتُه رقمٌ واحدٌ لا يُستنتَجُ من مكانٍ آخرَ: **أينَ يجري مُشغِّلُ CI فعلاً**،
+# وكم يبعدُ عن مُجمَّعاتِ Supabase في مناطقَ مختلفةٍ. ولا سِرَّ فيه: المُضيفاتُ
+# عامّةٌ، ولا كلمةَ سرٍّ ولا رابطَ قاعدةٍ يُمرَّرُ.
+on:
+  workflow_dispatch:
+
+jobs:
+  rtt:
+    name: موضعُ المُشغِّلِ وزمنُ الوصولِ
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: موضعُ المُشغِّلِ وزمنُ فتحِ الاتّصالِ
+        run: |
+          bun run scripts/measure-db-rtt.ts --where --tcp \
+            aws-0-ap-southeast-2.pooler.supabase.com:5432 \
+            aws-0-eu-central-1.pooler.supabase.com:5432 \
+            aws-0-us-east-1.pooler.supabase.com:5432
