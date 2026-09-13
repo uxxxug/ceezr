@@ -138,6 +138,14 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
    * مِلكُ المُستقبِلِ لا المُرسِلِ.
    */
   {
+    table: "city_service_areas",
+    concern: "حدُّ منطقةِ خدمةٍ لمدينةٍ — الغلافُ الذي تُقبَلُ فيه وجهةٌ",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale:
+      "«أينَ نخدمُ» حكمٌ تشغيليٌّ للنقلِ نفسِه لا داتُ مستخدمٍ: يتغيَّرُ بتوسُّعِ أسطولٍ وبقرارِ مدينةٍ، ولا معنىً له خارجَ رحلةٍ. فمملوكٌ لـMOVE بلا تحفُّظٍ، ولا يُنقَلُ إلى CORE مع `users` و`cities`: المدينةُ كِيانٌ مشتركٌ أمّا حدُّ خدمتِها فسياسةُ المنتَجِ.",
+  },
+  {
     table: "core_event_inbox",
     concern: "إيصالُ استلامِ حدثٍ من CORE (منعُ التكرارِ)",
     owner: "MOVE",
@@ -151,6 +159,14 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     owner: "MOVE",
     disposition: "KEEP",
     rationale: "شأنُ تشغيلِ قاعدةِ هذا المستودعِ نفسِه؛ لا يعبرُ حدّاً.",
+  },
+  {
+    table: "destination_landmarks",
+    concern: "دليلُ معالمَ مملوكٌ للمستودعِ — يُبحَثُ فيه ويُوصَفُ به موقعٌ",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale:
+      "بديلُ مُرمِّزٍ جغرافيٍّ خارجيٍّ (`O-7` والاستقلالُ التامُّ): بيانةُ مرجعٍ يملكُها المستودعُ ومصادرُها مكتوبةٌ صفّاً صفّاً. ولا داتَ مستخدمٍ فيها فلا تخصُّ CORE، وهيَ اليومَ سطحُ بحثِ الوجهةِ في MOVE وحدَه. وإن احتاجَها لاحقاً سطحٌ آخرُ فالنقلُ قرارٌ يُسجَّلُ حينَه لا يُستبَقُ ههنا.",
   },
   {
     table: "driver_availability",

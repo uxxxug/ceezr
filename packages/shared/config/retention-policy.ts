@@ -118,6 +118,13 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   broadcast_recipients: RETENTION_CLASSES.pendingDecision,
   cities: RETENTION_CLASSES.lifecycleBound,
   /**
+   * `F2-03`: حدُّ منطقةِ الخدمةِ بيانةُ **مرجعٍ** يملكُها المشغِّلُ لا أثرُ
+   * مستخدمٍ — عمرُها عمرُ المدينةِ. ولا مهمّةَ تحذفُ منها صفّاً: الإصدارُ
+   * القديمُ هوَ ما يُفسَّرُ به قبولٌ مضى، وحذفُه يمحو تفسيرَ قرارٍ اتُّخِذَ.
+   * والإيقافُ يكونُ بـ`is_active = false` لا بحذفٍ (سجلٌّ إضافيٌّ لا ماحٍ).
+   */
+  city_service_areas: RETENTION_CLASSES.lifecycleBound,
+  /**
    * `W-5`: صندوقُ واردِ أحداثِ CORE — سجلُّ ما استُهلِكَ، وهوَ **دليلُ منعِ
    * التكرارِ نفسُه**: حذفُ صفٍّ منه يجعلُ إعادةَ تسليمٍ قديمةً تُطبَّقُ ثانيةً.
    * فلا مدّةَ له قبلَ `F12-10`.
@@ -127,6 +134,13 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   driver_availability: RETENTION_CLASSES.lifecycleBound,
   driver_capabilities: RETENTION_CLASSES.lifecycleBound,
   driver_location_history: RETENTION_CLASSES.locationHotThenArchive,
+  /**
+   * `F2-03`: دليلُ المعالمِ بيانةُ **مرجعٍ** مملوكةٌ للمستودعِ ومصادرُها مكتوبةٌ
+   * في الهجرةِ — لا صفَّ فيها لمستخدمٍ ولا أثرَ مهمّةٍ، فلا مؤقِّتَ يحذفُ منها.
+   * والمعلَمُ الذي يُغلَقُ يُوقَفُ بـ`is_active = false`: نقطةٌ قَبِلَتها القاعدةُ
+   * أمسِ بوصفِ «قربَ كذا» لا يُترَكُ وصفُها بلا مرجعٍ يُقرأُ.
+   */
+  destination_landmarks: RETENTION_CLASSES.lifecycleBound,
   drivers: RETENTION_CLASSES.lifecycleBound,
   job_heartbeats: RETENTION_CLASSES.pendingDecision,
   ledger_entries: RETENTION_CLASSES.financialSixYears,

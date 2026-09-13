@@ -17,6 +17,10 @@ import {
   createCoreEventIntakeRoutes,
 } from "./routes/core-event-intake.ts";
 import {
+  createDestinationsRoutes,
+  type DestinationsRouteDependencies,
+} from "./routes/destinations.ts";
+import {
   createDriverLocationRoutes,
   type DriverLocationDependencies,
 } from "./routes/driver-location.ts";
@@ -78,6 +82,13 @@ export interface ServerDependencies {
    */
   readonly places?: PlacesRouteDependencies;
   /**
+   * مساراتُ اختيارِ الوجهةِ (`F2-03` / `SR-03`) — كأخواتِها: غيابُ الحقلِ = لا
+   * مسارَ (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`). وهيَ **مفصولةٌ**
+   * عن `places` وإن تشاركَتا سرَّ الجلسةِ: مصدرُ صفوفِها ثلاثةٌ لا واحدٌ، ودالّةُ
+   * المصادقةِ تقرأُ حدَّ المدينةِ لا جدولَ الأماكنِ.
+   */
+  readonly destinations?: DestinationsRouteDependencies;
+  /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
    * سواءٌ رُكِّبَ هذا السطحُ أم لا، لأنَّ القرارَ الحرجَ لا يُترَكُ لسطحِ قراءةٍ
@@ -135,6 +146,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.places !== undefined) {
     app.route("/", createPlacesRoutes(deps.places));
+  }
+  if (deps.destinations !== undefined) {
+    app.route("/", createDestinationsRoutes(deps.destinations));
   }
   if (deps.notifications !== undefined) {
     app.route("/", createNotificationRoutes(deps.notifications));
