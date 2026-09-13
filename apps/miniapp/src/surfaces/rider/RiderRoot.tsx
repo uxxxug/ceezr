@@ -38,22 +38,63 @@
  * وما لا يفعلُه: لا يُنشئُ طلباً بعدَ التأكيدِ. `onConfirmed` يُعيدُ اليومَ إلى
  * الشاشةِ الرئيسةِ، وإنشاءُ الطلبِ بندُ `F2-04` ولا يُدَّعى ههنا بزرٍّ لا يفعلُ
  * شيئاً.
+ *
+ * ## إضافةُ البند `F2-04` (2026-09-13)
+ *
+ * صارَ للسطحِ **مرحلةٌ رابعةٌ**: بعدَ أن تُصادَقَ الوجهةُ في `SR-03` تُركَّبُ شاشةُ
+ * `SR-04` فتُقاسُ المسافةُ وتُعلَنُ المدّةُ وتُعرَضُ الخدماتُ المخدومةُ في
+ * المدينةِ. وما قبلَها **باقٍ كما هوَ** (القاعدة ح-1) ولا سطرَ حُذِفَ؛ والسطرُ
+ * الذي كانَ يقولُ إنَّ `onConfirmed` يُعيدُ إلى الشاشةِ الرئيسةِ **باقٍ أعلاه**
+ * وصفاً لِما كانَ، وقد صارَ التأكيدُ يُقدِّمُ إلى `SR-04`.
+ *
+ * ولماذا مرحلةٌ رابعةٌ لا حقلٌ في `SR-03`: الاقتباسُ يقرأُ **موقعَ الراكبِ الآنَ**
+ * وقد يُرفَضُ إذنُه، وشاشةُ الوجهةِ لا تتّسعُ لِحكمَينِ قد يُرفَضَ كلٌّ منهما
+ * بسببٍ مختلفٍ ويُعرَضَ لكلٍّ فعلُه.
+ *
+ * وما لا يفعلُه بعدَ `F2-04`: لا يُنشئُ طلباً — إنشاءُ الطلبِ بندُ `F2-05`،
+ * و`SR-04` تقولُ ذاكَ صريحاً ولا تعرضُ زرّاً صامتاً. ولا يعرضُ سعراً: آليّةُ
+ * الأجرةِ محجوبةٌ على قرارٍ نظاميٍّ (`ADR 0039` §٤ · `م13-7`).
  */
 
 import { useState } from "react";
+import type { ConfirmedDestination } from "./destination/DestinationScreen.tsx";
 import { DestinationScreen } from "./destination/DestinationScreen.tsx";
 import type { ChosenDestination } from "./home/HomeScreen.tsx";
 import { HomeScreen } from "./home/HomeScreen.tsx";
+import { QuoteScreen } from "./quote/QuoteScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
 
 export default function RiderRoot() {
   const [proceeded, setProceeded] = useState(false);
   const [chosen, setChosen] = useState<ChosenDestination | null>(null);
+  /**
+   * الوجهةُ **المُصادَقةُ** — لا المختارةُ. ولا تُدمَجُ معَ `chosen`: الأولى مرَّت
+   * بحكمِ القاعدةِ والثانيةُ نصٌّ اختارَه الراكبُ، وخلطُهما يُمكِّنُ من اقتباسٍ عن
+   * نقطةٍ لم يحكمْ عليها أحدٌ (القاعدة 0.5).
+   */
+  const [confirmed, setConfirmed] = useState<ConfirmedDestination | null>(null);
 
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
+
+  // الوجهةُ المُصادَقةُ تُقتبَسُ: أوّلُ شاشةٍ بعدَ الحكمِ، ولا تُركَّبُ إلّا بعدَه.
+  if (confirmed !== null) {
+    return (
+      <QuoteScreen
+        destination={{
+          label: confirmed.label,
+          lat: confirmed.lat,
+          lng: confirmed.lng,
+        }}
+        onBack={() => {
+          setConfirmed(null);
+          setChosen(null);
+        }}
+      />
+    );
+  }
 
   // الوجهةُ المختارةُ تُصادَقُ قبلَ أيِّ خطوةٍ تاليةٍ: لا شاشةَ بعدَها تقبلُ
   // إحداثيّةً لم تحكمْ عليها القاعدةُ (القاعدة 0.5).
@@ -65,7 +106,10 @@ export default function RiderRoot() {
           ? {}
           : { initialPoint: { label: chosen.label, lat: chosen.lat, lng: chosen.lng } })}
         onBack={() => setChosen(null)}
-        onConfirmed={() => setChosen(null)}
+        onConfirmed={(destination) => {
+          setConfirmed(destination);
+          setChosen(null);
+        }}
       />
     );
   }

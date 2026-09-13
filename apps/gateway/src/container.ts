@@ -226,6 +226,13 @@ export interface Container {
   readonly handler: UpdateHandler;
   readonly sql: Sql;
   /**
+   * `F2-04` — مزوِّدُ التوجيهِ مكشوفٌ لأنَّ مسارَ الاقتباسِ يحتاجُ **نفسَ** قرارِ
+   * التهيئةِ الذي بُنيَ ههنا: `null` عندَ `ROUTING_PROVIDER=none` لا مزوِّدٌ
+   * صوريٌّ. ولو بُنيَ في `index.ts` ثانيةً لَصارَ للقرارِ موضعانِ يتباعدانِ
+   * (القاعدة 0.6)، ولَأمكنَ أن يمتنعَ أحدُهما ويُجيبَ الآخرُ عن المدّةِ نفسِها.
+   */
+  readonly routing: RoutingProvider | null;
+  /**
    * مُرسِل بوت السائق مكشوف لأن لوحة الإدارة تسلّم رمز الدخول في محادثة المسؤول
    * الخاصة معه — القناة نفسها لا قناة ثانية بمفتاح ثانٍ يُنسى تدويره.
    */
@@ -872,6 +879,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   };
 
   return {
+    routing,
     handler: createUpdateHandler({
       // ترطيب اللغة بمخزن جلسة كلّ بوت على حدة: من كتب لغته في بوت السائق يجدها
       // مطبّقة في بوت الراكب أيضاً — فالقاعدة واحدة (`users.language_code`)، والفصل في

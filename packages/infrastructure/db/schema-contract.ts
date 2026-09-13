@@ -77,6 +77,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "open_unsubscribed_cycle",
   "persist_driver_location_batch",
   "plan_upgrade_quote",
+  "quote_ride",
   "recompute_rating_averages",
   "record_agent_outcome",
   "record_attendance",

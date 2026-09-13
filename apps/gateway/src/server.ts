@@ -35,6 +35,7 @@ import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
 } from "./routes/payment-webhook.ts";
+import { createQuoteRoutes, type QuoteRouteDependencies } from "./routes/quote.ts";
 import {
   createSessionRefreshRoutes,
   type SessionRefreshDependencies,
@@ -88,6 +89,8 @@ export interface ServerDependencies {
    * المصادقةِ تقرأُ حدَّ المدينةِ لا جدولَ الأماكنِ.
    */
   readonly destinations?: DestinationsRouteDependencies;
+  /** غيابُها يُسقِطُ مسارَ الاقتباسِ من التركيبِ أصلاً (`F2-04`). */
+  readonly quote?: QuoteRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
@@ -147,6 +150,10 @@ export function createServer(deps: ServerDependencies): Hono {
   if (deps.places !== undefined) {
     app.route("/", createPlacesRoutes(deps.places));
   }
+  if (deps.quote !== undefined) {
+    app.route("/", createQuoteRoutes(deps.quote));
+  }
+
   if (deps.destinations !== undefined) {
     app.route("/", createDestinationsRoutes(deps.destinations));
   }
