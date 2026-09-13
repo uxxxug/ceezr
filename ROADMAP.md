@@ -448,6 +448,54 @@ branch.** Merged on that verdict under the owner's standing merge instruction.
 unreachable while `O-1` and `O-2` are open — so `F2-01` stays unmarked.
 
 
+### Reservation `F2-01` (closure node) — the claim ceiling is lifted by the removal of its cause, not by preference (opened 2026-09-13, before any file was edited)
+
+Recorded **before** the first edit, per the reservation rule in
+`docs/ROADMAP-MASTER.md` §25. **Nothing of `F2-01` is rebuilt here.**
+
+| Field | Value |
+|---|---|
+| Item | `F2-01` — closure node only: read the acceptance text against the code that already exists on `main`, measure what was skipped on 2026-09-12, then flip the symbol if and only if CI rules green. |
+| Branch | `feat/f2-01-closure`, cut from `main`@`9b7b54f` |
+| Why the ceiling above no longer holds | The ceiling recorded on 2026-09-12 rested on two named causes: `O-1` kept `verify` red at `city_id`, and `O-2` kept the Redis job red — so three consecutive fully green rounds were unreachable. **Both are closed**: `O-1` by `S-2` and `O-2` by `S-3`, and `main` then ruled green in runs `34732986162`, `34734205137` and `34734666105` with all four jobs. The second cause was that `tests/integration/user-consents.test.ts` was `describeIf`-skipped for want of a real database; `S-5` migrated one to the last migration, and the file now runs. |
+| What is measured here | The nine integration cases against the real managed database (9/9, 9.97s) and the 54 unit cases of the item. This raises «consent with a recorded timestamp» from **tested** to **verified** by the §1.4 ladder — and no further. |
+| Scope reserved | `tests/unit/gateway-graceful-shutdown.test.ts` (test harness only) · `docs/adr/0100-*` (new) · `docs/evidence/architecture/F2-01-CLOSURE-20260913.md` (new) · `docs/ROADMAP-MASTER.md` (§9.5 symbol + one §25 row) · `ROADMAP.md` · `docs/SYSTEM_STATE.md` |
+| Scope **not** reserved | Every byte of `F2-01`'s own implementation — migration, routes, domain, application, screen, dictionaries, guard: **not touched**, because the item is being read, not rebuilt · `apps/gateway/src/index.ts` and all production code · the 48 hardcoded literals and the missing §9.11 gate · `F2-02`…`F2-12` · the `F2` gate itself |
+| The red this node inherited and owns | Run `34734754215` on `9b7b54f` — a **docs-only** tree — failed `verify` at step 8: one case in `gateway-graceful-shutdown` timed out at 40s because the spawned gateway died of `EADDRINUSE` on port 33096. The port was computed from `process.pid`, which prevents collisions inside the file and not with any other occupant on the runner. Repaired at the root in `ADR 0100`: the port is asked of the system (`port: 0`), retried up to four times **on `EADDRINUSE` only**, and the wait stops the moment the child exits. **No timeout raised, no assertion weakened, no case skipped, no production code touched.** |
+| Claim ceiling of this node | The `F2` gate is **not** claimed — it requires a full end-to-end trip on a real device, recorded on video, and one item of twelve cannot approach it. No live deployment exists (Render holds no service, measured in `ADR 0099`), so no real user has opened this screen. `مَقيس` and `مُثبَت` are **not** claimed. |
+
+#### Outcome `F2-01` (closure node) — recorded 2026-09-13
+
+The acceptance text of `SR-01` reads, per item, against code already on `main`:
+the three-line explanation and the `ابدأ` action live in the dictionaries
+(`welcome.line.1..3`, `welcome.start`) in `ar`/`en`/`ur`; the language picker is
+`WelcomeScreen.tsx`'s `languagePicker` with `aria-pressed` and a derived `dir`;
+the timestamped consent is `user_consents` plus `record_user_consent`, stamping
+the **server** clock; and the location permission is excluded by published
+decision `ADR 0093` (§9.12 beats a screen inventory in §9.5) — declared, not
+silenced, and the item text is untouched (`ح-1`).
+
+Measured locally: integration **9 pass · 0 fail · 28 assertions · 9.97s**
+against the real database; unit **54 pass · 0 fail · 293 assertions**; the
+repaired shutdown file **3 pass · 0 fail · 15.11s**. Evidence:
+`docs/evidence/architecture/F2-01-CLOSURE-20260913.md`, which keeps the
+2026-09-12 evidence file intact beside it (`ح-8`: corrections are additive).
+
+
+**Follow-up on the same root cause (recorded, not hidden).** One of the two CI
+runs on `be67f25` went red in `تكامل على PostgreSQL حقيقي` step 11 while the
+other run on the **same tree** was green — a race, not a logic fault. The log
+names it: `Failed to start server. Is port 46602 in use?` in
+`tests/integration/admin-service-separation.test.ts`, whose port was computed
+`39_000 + (pid % 1_000) * 10 + 1` — the identical falsified argument in a second
+place. `reserveFreePort` therefore moved to `tests/support/free-port.ts`, both
+files import it, and `spawnService` retries four times **on port conflict only**
+while reading the child's `exitCode` each poll. Measured after the repair
+against the real managed database: **3 pass · 0 fail · 6.85s** (the failing case
+alone used to burn 30086.45ms of timeout). No timeout raised, no assertion
+weakened, no case skipped, no production code touched. `ADR 0100` addendum.
+
+
 ### Reservation `DEP-CORE-005` — a mechanical freshness comparator for the vendored CORE contracts (opened 2026-09-12, before any file was edited)
 
 Recorded **before** the first edit, per the reservation rule in
