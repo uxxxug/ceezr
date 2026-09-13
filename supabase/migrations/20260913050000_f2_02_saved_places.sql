@@ -130,7 +130,11 @@ begin
     'kind', v_row.kind,
     'label', v_row.label,
     'lat', st_y(v_row.point::geometry),
-    'lng', st_x(v_row.point::geometry)
+    'lng', st_x(v_row.point::geometry),
+    -- الختمُ يُعادُ من الصفِّ لا يُختَرَعُ في المحوّلِ بساعةِ الخادمِ: ساعةُ
+    -- التطبيقِ وساعةُ القاعدةِ تختلفانِ، وردٌّ يقولُ «حُدِّثَ في لحظةٍ» غيرِ
+    -- اللحظةِ المكتوبةِ يجعلُ ترتيبَ العميلِ يخالفُ ترتيبَ القراءةِ التاليةِ.
+    'updated_at', v_row.updated_at
   );
 end;
 $$;

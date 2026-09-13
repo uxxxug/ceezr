@@ -22,6 +22,7 @@ import {
 } from "./routes/driver-location.ts";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
+import { createPlacesRoutes, type PlacesRouteDependencies } from "./routes/me-places.ts";
 import {
   createNotificationRoutes,
   type NotificationsDependencies,
@@ -71,6 +72,11 @@ export interface ServerDependencies {
    * يُعلَنُ مسارٌ يقبلُ إقراراً لا موضعَ لكتابتِه.
    */
   readonly consents?: ConsentRouteDependencies;
+  /**
+   * مساراتُ الأماكنِ المحفوظةِ وآخرِ الوجهاتِ (`F2-02` / `SR-02`) — كأخواتِها:
+   * غيابُ الحقلِ = لا مسارَ (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`).
+   */
+  readonly places?: PlacesRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
@@ -126,6 +132,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.consents !== undefined) {
     app.route("/", createConsentRoutes(deps.consents));
+  }
+  if (deps.places !== undefined) {
+    app.route("/", createPlacesRoutes(deps.places));
   }
   if (deps.notifications !== undefined) {
     app.route("/", createNotificationRoutes(deps.notifications));

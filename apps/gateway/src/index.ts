@@ -32,6 +32,11 @@ import {
   createOperationalMetrics,
   createStructuredLogger,
 } from "../../../packages/infrastructure/observability/index.ts";
+import {
+  createRecentDestinationReader,
+  createSavedPlaceReader,
+  createSavedPlaceWriter,
+} from "../../../packages/infrastructure/places/places-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
 import {
@@ -554,6 +559,28 @@ const consents =
         log,
       };
 
+/**
+ * مساراتُ الأماكنِ المحفوظةِ وآخرِ الوجهاتِ (`F2-02`) — تُركَّبُ مع سرِّ الجلسةِ
+ * وحدَه كأخواتِها، والمدينةُ تُستنبَطُ من صفِّ المستخدمِ داخلَ القاعدةِ فلا موضعَ
+ * ههنا يستقبلُ `city_id` أصلاً (القاعدتانِ 0.4 و0.5).
+ *
+ * والوجهاتُ الأخيرةُ **قارئٌ ثالثٌ** لا امتدادٌ للأوّلِ: مصدرُها `orders` لا
+ * `saved_places`، وفصلُها في التركيبِ يمنعُ أن يُظنَّ يوماً أنَّها تُكتَبُ.
+ */
+const places =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        places: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          reader: createSavedPlaceReader(container.sql),
+          writer: createSavedPlaceWriter(container.sql),
+          recent: createRecentDestinationReader(container.sql),
+          now: () => new Date(),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -656,6 +683,7 @@ const app = createServer({
   ...(sessionRefresh === undefined ? {} : { sessionRefresh }),
   ...(me === undefined ? {} : { me }),
   ...(consents === undefined ? {} : { consents }),
+  ...(places === undefined ? {} : { places }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),

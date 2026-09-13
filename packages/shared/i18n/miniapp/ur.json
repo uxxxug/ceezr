@@ -29,5 +29,17 @@
   "consent.terms_of_service.title": "استعمال کی شرائط",
   "consent.terms_of_service.summary": "سروس استعمال کرنے کے قواعد، ہماری ذمہ داریاں، آپ سے توقعات، اور ہماری ذمہ داری کی حدود۔",
   "consent.privacy_policy.title": "پرائیویسی پالیسی",
-  "consent.privacy_policy.summary": "ہم آپ کا کون سا ڈیٹا جمع کرتے ہیں، کیوں، کون دیکھتا ہے، کتنی مدت رکھتے ہیں، اور آپ اپنا ڈیٹا کیسے ڈاؤن لوڈ یا اکاؤنٹ حذف کرتے ہیں۔"
+  "consent.privacy_policy.summary": "ہم آپ کا کون سا ڈیٹا جمع کرتے ہیں، کیوں، کون دیکھتا ہے، کتنی مدت رکھتے ہیں، اور آپ اپنا ڈیٹا کیسے ڈاؤن لوڈ یا اکاؤنٹ حذف کرتے ہیں۔",
+  "rider.home.destination.prompt": "کہاں جانا ہے؟",
+  "rider.home.places.title": "محفوظ مقامات",
+  "rider.home.places.empty": "ابھی کوئی محفوظ مقام نہیں — گھر یا دفتر محفوظ کریں تاکہ ایک ٹیپ میں پہنچ سکیں۔",
+  "rider.home.recent.title": "آپ کی حالیہ منزلیں",
+  "rider.home.recent.empty": "ابھی کوئی سابقہ منزل نہیں۔",
+  "rider.home.service.transport": "سفر",
+  "rider.home.service.delivery": "ڈیلیوری",
+  "rider.home.city.status": "شہر کی صورتحال",
+  "rider.home.map.unavailable": "نقشہ اس وقت دستیاب نہیں — آپ پھر بھی اپنی منزل لکھ سکتے ہیں۔",
+  "rider.home.place.home": "گھر",
+  "rider.home.place.work": "دفتر",
+  "rider.home.place.other": "دوسرا مقام"
 }
