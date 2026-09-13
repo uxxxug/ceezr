@@ -73,6 +73,14 @@ import {
   readActiveRide,
 } from "../../../../packages/application/transport/read-active-ride.ts";
 import {
+  type ReadRideDetailDeps,
+  readRideDetail,
+} from "../../../../packages/application/transport/read-ride-detail.ts";
+import {
+  type ReadRideHistoryDeps,
+  readRideHistory,
+} from "../../../../packages/application/transport/read-ride-history.ts";
+import {
   type ReadRideSearchDeps,
   readRideSearch,
 } from "../../../../packages/application/transport/read-ride-search.ts";
@@ -108,6 +116,10 @@ export interface RidesRouteDependencies {
   readonly summary?: ReadRideSummaryDeps;
   /** أمرُ التقييمِ (`F2-07`) — غيابُه يُعطِّلُ المسارَ بـ503 لا بـ500 صامتٍ. */
   readonly rating?: SubmitRideRatingDeps;
+  /** قارئُ السجلِّ (`F2-08`) — غيابُه يُعطِّلُ `GET /v1/rides` بـ503 صادقاً. */
+  readonly history?: ReadRideHistoryDeps;
+  /** قارئُ التفاصيلِ (`F2-08`) — منفصلٌ عن السجلِّ: تعطيلُ أحدِهما لا يُسقِطُ الآخرَ. */
+  readonly detail?: ReadRideDetailDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -461,6 +473,133 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       ratingId: verdict.rating.ratingId,
       stars: verdict.rating.stars,
       tags: verdict.rating.tags,
+    });
+  });
+
+  /**
+   * سجلُّ رحلاتِ الراكبِ — صفحةٌ بمفتاحٍ (`F2-08` · `SR-09`).
+   *
+   * **ولا ترقيمَ بصفحاتٍ مرقَّمةٍ** (`?page=3`): سجلٌّ يُضافُ إليه من أعلاه
+   * يُزيحُ كلَّ صفحةٍ مرقَّمةٍ عندَ أوّلِ رحلةٍ جديدةٍ، فيُقرأُ صفٌّ مرّتَينِ
+   * أو يُقفَزُ عنه. والمفتاحُ (لحظةٌ ومعرِّفٌ) ثابتٌ لا يُزيحُه إدخالٌ.
+   *
+   * **ونصفُ مفتاحٍ رفضٌ مُعلَنٌ** لا مفتاحٌ يُكمِلُه الخادمُ بافتراضٍ: لحظةٌ بلا
+   * معرِّفٍ تُنتِجُ حدّاً غيرَ حاسمٍ بينَ صفَّينِ في الميكروثانيةِ نفسِها.
+   */
+  app.get("/v1/rides", async (c) => {
+    if (deps.history === undefined) {
+      deps.log?.("rides.history_disabled", {});
+      return rejected(c, "RIDE_STORE_NOT_AVAILABLE");
+    }
+
+    const cursorCreatedAt = c.req.query("cursorCreatedAt");
+    const cursorId = c.req.query("cursorId");
+    // نصفُ مفتاحٍ يُمرَّرُ **كما هوَ** إلى القاعدةِ فتردَّ `INVALID_CURSOR`:
+    // حكمُ المفتاحِ حكمٌ واحدٌ في موضعٍ واحدٍ (القاعدة 0.6).
+    const cursor =
+      cursorCreatedAt === undefined && cursorId === undefined
+        ? null
+        : { createdAt: cursorCreatedAt ?? "", id: cursorId ?? "" };
+
+    const result = await readRideHistory(deps.history, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      query: c.req.query("q") ?? null,
+      pageSize: c.req.query("pageSize") ?? null,
+      cursor,
+    });
+    if (!result.ok) return rejected(c, result.error);
+
+    const read = result.value;
+    if (!read.ok) return c.json({ ok: true, accepted: false as const, refusal: read.refusal });
+
+    const { view } = read;
+    return c.json({
+      ok: true,
+      accepted: true as const,
+      query: view.query,
+      // منطقةُ التصنيفِ ودرجةُ الثقةِ بها تُنشَرانِ: عنوانُ شهرٍ بلا سندِ
+      // ساعتِه حكمٌ لا يُراجَعُ.
+      monthTimezone: view.monthTimezone,
+      monthTimezoneTrust: view.monthTimezoneTrust,
+      groups: view.groups.map((group) => ({
+        monthKey: group.monthKey,
+        rides: group.rides.map((ride) => ({
+          orderId: ride.orderId,
+          status: ride.status,
+          service: ride.service,
+          pickupLabel: ride.pickupLabel,
+          dropoffLabel: ride.dropoffLabel,
+          createdAt: new Date(ride.createdAtMs).toISOString(),
+          // `null` = لم تنتهِ. ولا يُستبدَلُ بلحظةِ الإنشاءِ.
+          completedAt:
+            ride.completedAtMs === null ? null : new Date(ride.completedAtMs).toISOString(),
+        })),
+      })),
+      hasMore: view.hasMore,
+      nextCursor:
+        view.nextCursor === null
+          ? null
+          : { createdAt: view.nextCursor.createdAt, id: view.nextCursor.id },
+    });
+  });
+
+  /**
+   * تفاصيلُ رحلةٍ واحدةٍ وسجلُّ أحداثِها (`F2-08` · `SR-10`).
+   *
+   * **ولا ملكيّةَ تُفحَصُ ههنا**: القاعدةُ تجعلُ الملكيّةَ قيداً في الاستعلامِ،
+   * فرحلةُ غيرِك **لا توجدُ** — ولا يُميَّزُ ذاكَ عن العَدَمِ برمزٍ ثانٍ.
+   *
+   * **ولا إيصالَ ولا مبلغَ ولا زرَّ «مشكلةٌ في هذه الرحلةِ»**: الأوّلانِ
+   * مُجمَّدانِ (`ADR 0039` §٤ · `م13-7`)، والثالثُ `F2-12` — غيابٌ مُصرَّحٌ بلا
+   * زرٍّ مُعطَّلٍ يَعِدُ بما لا يفي.
+   */
+  app.get("/v1/rides/:id/detail", async (c) => {
+    if (deps.detail === undefined) {
+      deps.log?.("rides.detail_disabled", {});
+      return rejected(c, "RIDE_STORE_NOT_AVAILABLE");
+    }
+
+    const result = await readRideDetail(deps.detail, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("id"),
+    });
+    if (!result.ok) return rejected(c, result.error);
+
+    const read = result.value;
+    if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
+
+    const { state, outcome } = read.view;
+    const driver = state.driver;
+    return c.json({
+      ok: true,
+      found: true as const,
+      orderId: state.orderId,
+      status: state.status,
+      outcome,
+      service: state.service,
+      pickupLabel: state.pickupLabel,
+      dropoffLabel: state.dropoffLabel,
+      cancelledReason: state.cancelledReason,
+      driver:
+        driver === null
+          ? null
+          : {
+              firstName: driver.firstName,
+              vehicleType: driver.vehicleType,
+              plateNumber: driver.plateNumber,
+              ratingAverage: driver.ratingAverage,
+              ratingCount: driver.ratingCount,
+            },
+      events: state.events.map((event) => ({
+        kind: event.kind,
+        // النوعُ الخامُّ يُنشَرُ معَ المُصنَّفِ: نوعٌ جديدٌ في القاعدةِ يُرى في
+        // الردِّ ولا يُطوى تحتَ `UNKNOWN` بلا أثرٍ.
+        rawKind: event.rawKind,
+        // `null` = حدثٌ بلا ختمٍ مكتوبٍ. ولا يُستبدَلُ بلحظةِ قراءةٍ.
+        at: event.atMs === null ? null : new Date(event.atMs).toISOString(),
+        source: event.source,
+        detail: event.detail,
+      })),
     });
   });
 

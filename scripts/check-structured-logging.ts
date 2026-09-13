@@ -51,9 +51,47 @@ export const EVENT_CODE_PATTERN = /^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$/;
  * نداءاتُ التسجيلِ: `log(` · `deps.log?.(` · `log.info(` · `log.warn(` · `log.error(`.
  * ولا يُلتقَطُ `function log(` ولا `catalog(` ولا `console.log(` — الأوّلُ تعريفٌ
  * والثاني اسمٌ يشتركُ في اللاحقةِ والثالثُ يحكمُه فحصُ `console` وحدَه.
+ *
+ * **والاستثناءُ الثالثُ يُحكَمُ بمشيٍ إلى الخلفِ لا بنظرةٍ خلفيّةٍ متغيّرةِ الطولِ.**
+ * الصيغةُ السابقةُ كانت تحملُ `(?<!console\s*\.\s*)`، ونظرةٌ خلفيّةٌ غيرُ ثابتةِ
+ * الطولِ تُقيَّمُ في المُحرِّكِ بمحاولةِ تراجُعٍ عندَ **كلِّ موضعٍ** من المُدخَلِ،
+ * فصارَ زمنُ الفحصِ على ملفٍّ واحدٍ من ثلاثةَ عشرَ كيلوبايتاً مئةَ مِلّي ثانيةٍ
+ * وبلغَ المستودعُ كلُّه أربعَ ثوانٍ ونصفاً — فانقضَتْ مهلةُ القياسِ في CI.
+ * والمشيُ إلى الخلفِ يحكمُ الحكمَ نفسَه في زمنٍ ثابتٍ لكلِّ مطابقةٍ لا لكلِّ حرفٍ.
+ * **ولا تُخفَّفُ القاعدةُ**: ما كانَ يُستَثنى قبلاً يُستَثنى بعداً، والحالاتُ
+ * السالبةُ تُقاسُ في `tests/unit/check-structured-logging.test.ts`.
  */
 const LOG_CALL_PATTERN =
-  /(?<![A-Za-z0-9_$])(?<!console\s*\.\s*)log(?:\?\.)?(?:\s*\.\s*(?:info|warn|error))?\s*(?:\?\.)?\(/g;
+  /(?<![A-Za-z0-9_$])log(?:\?\.)?(?:\s*\.\s*(?:info|warn|error))?\s*(?:\?\.)?\(/g;
+
+/**
+ * هل المطابقةُ في `index` مؤهَّلةٌ بـ`console` قبلَها (مع فراغٍ ونقطةٍ)؟
+ * أي: هل هيَ `console.log(` أو `console . log(`؟ فذاكَ تشخيصُ القاعدةِ الأولى
+ * لا الثانيةِ، ولا يُحسَبُ موضعَ تسجيلٍ.
+ */
+export function isConsoleQualified(source: string, index: number): boolean {
+  let i = index - 1;
+  while (i >= 0) {
+    const ch = source[i];
+    if (ch === undefined || !/\s/.test(ch)) break;
+    i -= 1;
+  }
+  if (source[i] !== ".") return false;
+  i -= 1;
+  while (i >= 0) {
+    const ch = source[i];
+    if (ch === undefined || !/\s/.test(ch)) break;
+    i -= 1;
+  }
+  const CONSOLE = "console";
+  const start = i - CONSOLE.length + 1;
+  if (start < 0) return false;
+  // ولا يُشترَطُ حدُّ كلمةٍ قبلَ `console` — **مطابقةً للنظرةِ الخلفيّةِ التي
+  // حُلَّتْ محلَّها حرفاً بحرفٍ**. فالنظرةُ كانت تقبلُ `myconsole.log(` استثناءً،
+  // فيُقبَلُ ههنا كذلك. وتغييرُ ذلك تغييرٌ في الحكمِ لا في الزمنِ، وهذا التبديلُ
+  // زمنيٌّ محضٌ: القاعدةُ الأولى تحكمُ `console` أينَ كانَ على كلِّ حالٍ.
+  return source.slice(start, i + 1) === CONSOLE;
+}
 
 /** ما لا يُعَدُّ نداءً وإن طابقَ: تعريفُ دالّةٍ أو نوعٍ. */
 const DECLARATION_BEFORE = /(?:function|const|let|var|type|interface|readonly)\s*$/;
@@ -309,6 +347,7 @@ export function findViolations(
     for (const match of source.matchAll(LOG_CALL_PATTERN)) {
       const before = source.slice(Math.max(0, match.index - 12), match.index);
       if (DECLARATION_BEFORE.test(before)) continue;
+      if (isConsoleQualified(source, match.index)) continue;
       const openParen = match.index + match[0].length - 1;
       const args = argumentsAt(source, openParen);
       const line = lineOf(source, match.index);

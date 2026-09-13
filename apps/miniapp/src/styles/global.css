@@ -1431,3 +1431,312 @@ a {
   font: inherit;
   cursor: pointer;
 }
+
+/* سجلُّ الرحلاتِ وتفاصيلُ رحلةٍ (`F2-08` · `SR-09` · `SR-10`).
+   والبادئتانِ `hs__` و`hd__` **لا** `rh__` و`rd__`: تلكَ مأخوذتانِ للشاشةِ
+   الرئيسةِ ولشاشةِ الوجهةِ، وإعادةُ استعمالِهما تُسرِّبُ قواعدَ شاشةٍ إلى أخرى.
+   وزرُّ المدخلِ `.rh__history` مكتوبٌ ههنا لا في كتلةِ `rh` أعلاه: الإضافةُ
+   بالذيلِ، ولا سطرَ سابقٌ يُنقَلُ ولا يُمحى (`ح-1`). */
+
+.rh__history {
+  align-self: flex-start;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hs,
+.hd {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.hs__title,
+.hd__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.hs__pending,
+.hd__pending {
+  margin: 0;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* شريطُ البحثِ عمودٌ لا سطرٌ: الزرُّ صريحٌ ومعه تنبيهٌ يُقرأُ، وسطرٌ واحدٌ
+   يعصرُ الثلاثةَ في عرضِ هاتفٍ. */
+.hs__search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.hs__search-label {
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.hs__search-input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.hs__search-submit {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-button-color, #2ea6ff);
+  border-radius: 0.7rem;
+  background: var(--tg-button-color, #2ea6ff);
+  color: var(--tg-button-text-color, #fff);
+  font: inherit;
+  cursor: pointer;
+}
+
+.hs__search-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hs__search-hint,
+.hs__timezone {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* إنذارُ منطقةِ التصنيفِ يُرسَمُ **بحدٍّ جانبيٍّ** لا بلونِ نصٍّ وحدَه: من لا
+   يُميِّزُ اللونَ يرى الحدَّ. */
+.hs__timezone {
+  padding-inline-start: 0.6rem;
+  border-inline-start: 3px solid var(--tg-hint-color, #ccc);
+}
+
+.hs__empty {
+  margin: 0;
+  color: var(--tg-subtitle-text-color);
+}
+
+.hs__month {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hs__month-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.hs__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hs__item {
+  display: block;
+}
+
+/* البطاقةُ زرٌّ كاملُ العرضِ: مساحةُ لمسٍ واحدةٌ لا نصٌّ فيه رابطٌ صغيرٌ. */
+.hs__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.8rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.hs__card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* شارةُ المآلِ تُعلَنُ **بحدٍّ ولونٍ** لا باللونِ وحدَه (`UX-10`). */
+.hs__badge,
+.hd__badge {
+  align-self: flex-start;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.5rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.hs__badge--in-flight,
+.hd__badge--in-flight {
+  border-color: var(--tg-button-color, #2ea6ff);
+  color: var(--tg-button-color, #2ea6ff);
+}
+
+.hs__badge--completed,
+.hd__badge--completed {
+  border-color: var(--tg-hint-color, #ccc);
+  color: var(--tg-subtitle-text-color);
+}
+
+.hs__badge--not-completed,
+.hd__badge--not-completed {
+  border-color: var(--tg-destructive-text-color, #d14343);
+  color: var(--tg-destructive-text-color, #d14343);
+}
+
+/* «حالةٌ أخرى» **لها مُحدِّدُها** ولا تُتركَ لأنماطِ المتصفِّحِ: مآلٌ لا يعرفُه
+   هذا الإصدارُ يظهرُ شارةً مقروءةً لا نصّاً عارياً. */
+.hs__badge--other,
+.hd__badge--other {
+  border-style: dashed;
+  color: var(--tg-subtitle-text-color);
+}
+
+.hs__status,
+.hd__status {
+  font-weight: 600;
+}
+
+.hs__service,
+.hs__when,
+.hd__service {
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.hs__route,
+.hd__route {
+  margin: 0;
+}
+
+.hs__more {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hs__more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.hs__back,
+.hd__back {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.hd__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+/* سببُ الإلغاءِ نصٌّ خامٌ من القاعدةِ: يُرسَمُ في إطارٍ كي يُقرأَ نقلاً لا
+   حكماً من الشاشةِ. */
+.hd__cancelled {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--tg-destructive-text-color, #d14343);
+  border-radius: 0.7rem;
+  color: var(--tg-destructive-text-color, #d14343);
+}
+
+.hd__no-driver {
+  margin: 0;
+  color: var(--tg-subtitle-text-color);
+}
+
+.hd__driver {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.8rem;
+}
+
+.hd__driver-name {
+  font-weight: 600;
+}
+
+.hd__driver-vehicle,
+.hd__driver-rating {
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.hd__events-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.hd__events {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* كلُّ حدثٍ صفٌّ من ثلاثةٍ: ما جرى · متى · **من أينَ عُلِمَ**. والمصدرُ ليسَ
+   زينةً: ثقةُ الراكبِ في الوقتِ تختلفُ بينَ طابَعِ طلبٍ وسجلِّ تدقيقٍ. */
+.hd__event {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 3px solid var(--tg-hint-color, #ccc);
+}
+
+.hd__event-kind {
+  font-weight: 600;
+}
+
+.hd__event-at,
+.hd__event-source {
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* الغياباتُ المُصرَّحةُ تُرسَمُ **إطاراً منقَّطاً**: حدٌّ مُعلَنٌ لا عطبٌ ولا
+   زرٌّ مُعطَّلٌ — على نهجِ كتلةِ الحجبِ أعلاه. */
+.hd__absent {
+  margin: 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px dashed var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
