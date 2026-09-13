@@ -302,7 +302,56 @@ export function unbuiltPathProblems(input: ActiveRideContractInput): readonly st
   return problems;
 }
 
-/** الحكمُ المُجمَّعُ — خمسُ قواعدَ بترتيبِها، وكلُّ مشكلةٍ بموضعِها وسببِها. */
+/** الأدوارُ التي لا يجوزُ أن تُنفِّذَ دالّةً من دوالِّنا. */
+export const REVOKED_ROLES: readonly string[] = ["public", "anon", "authenticated"];
+
+/**
+ * القاعدة ٦ — كلُّ دالّةٍ تُنشَأُ في الهجرةِ يُنزَعُ تنفيذُها عن الأدوارِ
+ * العامّةِ، **وبالأدوارِ الثلاثةِ مُسمّاةً لا بواحدٍ منها**.
+ *
+ * ولمَ قاعدةٌ ساكنةٌ ومعَها اختبارُ صلاحيّاتٍ على قاعدةٍ حقيقيّةٍ أصلاً: لأنَّ
+ * ذاكَ يقيسُ **الأثرَ** ولا يُقاسُ إلّا بمحرِّكٍ وأدوارٍ، وهذه تقرأُ **النصَّ**
+ * فتُمسَكُ محلّيّاً في ثوانٍ. ولأنَّ المنحَ ضمنيٌّ (`public` يُمنَحُ تلقائيّاً)
+ * فالنسيانُ **هوَ** الحالةُ الافتراضيّةُ لا الشاذّةُ — وحاجزٌ لا يمسكُ
+ * الافتراضيَّ لا يحجُزُ شيئاً.
+ */
+export function functionRevokeProblems(input: ActiveRideContractInput): readonly string[] {
+  const problems: string[] = [];
+  const sql = input.sql.toLowerCase().replace(/\s+/g, " ");
+  const created = [...sql.matchAll(/create (?:or replace )?function ([a-z0-9_]+)\s*\(/g)].map(
+    (match) => match[1] ?? "",
+  );
+  // قائمةٌ فارغةٌ تجعلُ القاعدةَ تمرُّ زوراً: هجرةُ اللقطةِ تُنشئُ دالّةً واحدةً
+  // على الأقلِّ، فغيابُها خللٌ في القراءةِ لا براءةٌ.
+  if (created.length === 0) {
+    problems.push(
+      `${SNAPSHOT_SQL_FILE}: لم تُقرأْ دالّةٌ واحدةٌ في الهجرةِ — القاعدةُ لا تمرُّ بقائمةٍ فارغةٍ.`,
+    );
+    return problems;
+  }
+  for (const name of new Set(created)) {
+    const pattern = new RegExp(`revoke execute on function ${name}\\s*\\([^)]*\\) from ([^;]+);`);
+    const match = sql.match(pattern);
+    if (match === null) {
+      problems.push(
+        `${SNAPSHOT_SQL_FILE}: الهجرةُ تُنشئُ «${name}» ولا تنزعُ تنفيذَها — ` +
+          `و«public» يُمنَحُ التنفيذَ تلقائيّاً فتصيرُ الدالّةُ منالاً للمفتاحِ العامِّ.`,
+      );
+      continue;
+    }
+    const roles = match[1] ?? "";
+    for (const role of REVOKED_ROLES) {
+      if (!roles.includes(role)) {
+        problems.push(
+          `${SNAPSHOT_SQL_FILE}: نزعُ تنفيذِ «${name}» لا يذكرُ الدورَ «${role}» — نزعٌ ناقصٌ بابٌ مفتوحٌ.`,
+        );
+      }
+    }
+  }
+  return problems;
+}
+
+/** الحكمُ المُجمَّعُ — ستُّ قواعدَ بترتيبِها، وكلُّ مشكلةٍ بموضعِها وسببِها. */
 export function activeRideContractProblems(input: ActiveRideContractInput): readonly string[] {
   return [
     ...moneyProblems(input),
@@ -310,5 +359,6 @@ export function activeRideContractProblems(input: ActiveRideContractInput): read
     ...positionAgeProblems(input),
     ...keyParityProblems(input),
     ...unbuiltPathProblems(input),
+    ...functionRevokeProblems(input),
   ];
 }

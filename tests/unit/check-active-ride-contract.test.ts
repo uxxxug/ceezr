@@ -1,6 +1,6 @@
 /**
  * الغرض: قياسُ حاجزِ عقدِ الرحلةِ النشطةِ — **حالةٌ سلبيّةٌ مبذورةٌ لكلِّ قاعدةٍ
- *   من الخمسِ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ).
+ *   من السِّتِّ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ).
  * الحالة: منفَّذٌ فعليّاً — البند `F2-06`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: `bun test` وسلسلةُ `ci`.
@@ -16,6 +16,7 @@ import {
   type ActiveRideContractInput,
   activeRideContractProblems,
   driverGateProblems,
+  functionRevokeProblems,
   keyParityProblems,
   moneyProblems,
   positionAgeProblems,
@@ -33,6 +34,7 @@ begin
   return jsonb_build_object('driver', v_driver);
 end;
 $$ language plpgsql stable security invoker;
+revoke execute on function active_ride_snapshot(bigint, uuid) from public, anon, authenticated;
 `;
 
 const PORTS = `
@@ -82,7 +84,7 @@ describe("حاجزُ عقدِ الرحلةِ النشطةِ — الحالةُ �
     expect(activeRideContractProblems(input())).toEqual([]);
   });
 
-  it("المستودعُ الحقيقيُّ نفسُه يمرُّ بالقواعدِ الخمسِ", () => {
+  it("المستودعُ الحقيقيُّ نفسُه يمرُّ بالقواعدِ السِّتِّ", () => {
     expect(activeRideContractProblems(readRepository())).toEqual([]);
   });
 });
@@ -209,5 +211,62 @@ describe("القاعدة ٥ — لا زرَّ لمسارٍ لم يُبنَ", () 
       input({ surface: { "surface.tsx": 'const href = "tel:+966500000000";' } }),
     );
     expect(problems.some((text) => text.includes("tel:"))).toBe(true);
+  });
+});
+
+/**
+ * ولمَ زُرِعَت هذه الحالاتُ **بعدَ** أوّلِ حكمِ CI لا قبلَه: لأنَّ الدفعةَ
+ * الأولى مرَّت بخمسِ قواعدَ محلّيّاً ثمَّ **أسقطَها CI** في اختبارِ سطحِ
+ * الصلاحيّاتِ — كانَ `active_ride_snapshot` منفَّذاً من `public` لأنَّ المنحَ
+ * ضمنيٌّ ولا حاجزَ ساكنٌ يقرؤه. فالقاعدةُ السادسةُ **أثرُ إخفاقٍ حقيقيٍّ
+ * موثَّقٍ**، وهذه حالاتُها السلبيّةُ كي لا تكونَ نصّاً بلا إنفاذٍ (`ح-7`).
+ */
+describe("القاعدة ٦ — لا دالّةَ بلا نزعِ تنفيذٍ", () => {
+  it("هجرةٌ تُنشئُ دالّةً ولا تنزعُ تنفيذَها تُسقِطُ الحاجزَ", () => {
+    const problems = functionRevokeProblems(
+      input({ sql: "create function active_ride_snapshot(p_id bigint) returns jsonb as $$ $$;" }),
+    );
+    expect(problems.some((text) => text.includes("ولا تنزعُ تنفيذَها"))).toBe(true);
+  });
+
+  it("نزعٌ ناقصُ الأدوارِ يُسقِطُ الحاجزَ — «public» وحدَه لا يكفي", () => {
+    const problems = functionRevokeProblems(
+      input({
+        sql:
+          "create function active_ride_snapshot(p_id bigint) returns jsonb as $$ $$;" +
+          " revoke execute on function active_ride_snapshot(bigint) from public;",
+      }),
+    );
+    expect(problems.some((text) => text.includes("anon"))).toBe(true);
+    expect(problems.some((text) => text.includes("authenticated"))).toBe(true);
+  });
+
+  it("نزعٌ لدالّةٍ أخرى لا يُعَدُّ نزعاً لهذه", () => {
+    const problems = functionRevokeProblems(
+      input({
+        sql:
+          "create function active_ride_snapshot(p_id bigint) returns jsonb as $$ $$;" +
+          " revoke execute on function other_function(bigint) from public, anon, authenticated;",
+      }),
+    );
+    expect(problems.some((text) => text.includes("ولا تنزعُ تنفيذَها"))).toBe(true);
+  });
+
+  it("هجرةٌ بلا دالّةٍ واحدةٍ تُسقِطُ الحاجزَ — لا تمرُّ بقائمةٍ فارغةٍ", () => {
+    const problems = functionRevokeProblems(input({ sql: "select 1;" }));
+    expect(problems.some((text) => text.includes("قائمةٍ فارغةٍ"))).toBe(true);
+  });
+
+  it("دالّتانِ في هجرةٍ واحدةٍ: نزعُ واحدةٍ لا يُبرِّئُ الأخرى", () => {
+    const problems = functionRevokeProblems(
+      input({
+        sql:
+          "create function a_fn(p_id bigint) returns jsonb as $$ $$;" +
+          " create function b_fn(p_id bigint) returns jsonb as $$ $$;" +
+          " revoke execute on function a_fn(bigint) from public, anon, authenticated;",
+      }),
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("b_fn");
   });
 });
