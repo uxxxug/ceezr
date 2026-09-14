@@ -393,6 +393,12 @@ describeIf("حَكَمٌ واحدٌ: المالكةُ والغريبُ يريا�
 
     // القيمةُ الأصليّةُ تُعادُ **كما كانت** لا كرقمٍ مكتوبٍ ههنا: رقمٌ مكتوبٌ في
     // الاختبارِ يصيرُ مصدرَ حقيقةٍ ثانياً يُخالِفُ بذرةَ الهجرةِ بصمتٍ.
+    // والإعادةُ بـ`::text::jsonb` لا بـ`::jsonb`: في `$1::jsonb` يستنبِطُ
+    // PostgreSQL نوعَ المُعامِلِ `jsonb` فيُرمِّزُ السائقُ النصَّ ثانيةً
+    // (`90` ← `"90"`) فيصلُ القاعدةَ `jsonb` من نوعِ `string` فيخرقُ
+    // `platform_settings_value_type_coherent`. والوسيطُ `::text` يثبِّتُ نوعَ
+    // المُعامِلِ نصّاً فيمرُّ البايتُ كما هو. وحاجزُ `check-jsonb-binding` يمنعُ
+    // عودةَ النمطِ المعطوبِ إلى المستودَعِ ألبتةً.
     const [before] = await sql<{ value_text: string }[]>`
       select value::text as value_text from platform_settings
        where city_id = ${cityId} and key = 'driver_position_max_age_seconds'
@@ -409,7 +415,7 @@ describeIf("حَكَمٌ واحدٌ: المالكةُ والغريبُ يريا�
       );
     } finally {
       await sql`
-        update platform_settings set value = ${before.value_text}::jsonb
+        update platform_settings set value = ${before.value_text}::text::jsonb
          where city_id = ${cityId} and key = 'driver_position_max_age_seconds'
       `;
     }
@@ -451,7 +457,7 @@ describeIf("حَكَمٌ واحدٌ: المالكةُ والغريبُ يريا�
       await sql`
         insert into platform_settings (city_id, key, value, value_type, description_ar, is_provisional)
         values (${cityId}, 'driver_position_max_age_seconds',
-                ${saved.value_text}::jsonb, ${saved.value_type},
+                ${saved.value_text}::text::jsonb, ${saved.value_type},
                 ${saved.description_ar}, ${saved.is_provisional})
         on conflict (city_id, key) do update
            set value = excluded.value, value_type = excluded.value_type
