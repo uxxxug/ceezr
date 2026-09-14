@@ -741,6 +741,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "الهويةُ والجلسةُ والصلاحيات",
     documentedIn: null,
   },
+  {
+    migration: "20260914220000_f2_12_support_reference_and_rider_categories.sql",
+    change: "revoke_function:open_support_ticket(5)",
+    why: "الهجرةُ `20260914220000` تُعيدُ تعريفَ `open_support_ticket` بـ`create or replace` لتزيدَ **مرجعَ التذكرةِ** في جوابِها وحدَه (`ADR 0114`)؛ ومنطقُ الحكمِ — التهدئةُ وقفلُ صفِّ المستخدمِ ومِلكيّةُ الطلبِ والحظرُ وقروبُ المدينةِ وسجلُّ التدقيقِ — منسوخٌ حرفاً بحرفٍ ولم يُمَسَّ. والسحبُ بعدَه **إعادةُ قفلِ السطحِ كما كانَ لا تضييقٌ جديدٌ**: الدالّةُ كانت لـ`service_role` وحدَه قبلَ التغييرِ وتبقى كذلكَ بعدَه، و`create or replace` لا تُسقِطُ منحاً قائماً — فالسطرُ تكرارٌ مقصودٌ ليكفيَ الملفُّ بذاتِه إن أُعيدَ بناءُ القاعدةِ. **والعودةُ بالكودِ وحدَها لا تكفي ههنا**: النسخةُ السابقةُ تُعيدُ جواباً بلا `reference`، فالمحوّلُ الذي يقرؤه يجبُ أن يعودَ معَها — ولذا `coupledDeploy: true`. وأمّا العمودُ والمرجعُ المُعطى فلا يُمَسّانِ في العودةِ: مرجعٌ صارَ في يدِ إنسانٍ لا يُسحَبُ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
 ];
 
 /**

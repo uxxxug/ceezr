@@ -2325,3 +2325,290 @@ a {
   font-size: 0.85rem;
   color: var(--tg-subtitle-text-color);
 }
+
+/* ══════════════════ الدعمُ والشكاوى (`F2-12` · `SR-11`) ══════════════════
+   المرجعُ `WSL-000123` هوَ الشيءُ الوحيدُ الذي يخرجُ من هذه الشاشةِ إلى العالمِ:
+   يُقرأُ في قروبٍ ويُكتَبُ في رسالةٍ ويُنطَقُ في مكالمةٍ. ولذلكَ حجمُه ههنا
+   **أكبرُ ما على الشاشةِ** بعدَ العنوانِ، وتباعُدُ حروفِه مفتوحٌ كي لا يُقرأَ
+   الصفرُ حرفاً — رقمٌ يُنسَخُ خطأً يُسقِطُ الشكوى كلَّها. */
+.sup {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.sup__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.sup__back {
+  align-self: flex-start;
+}
+
+/* ── إيصالُ الفتحِ ── */
+.sup__receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.85rem;
+  border-inline-start: 3px solid var(--tg-link-color, #2f80ed);
+  border-radius: 0.35rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.sup__receipt-lead {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-text-color);
+}
+
+.sup__reference {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--tg-text-color);
+}
+
+.sup__receipt-hint,
+.sup__expected,
+.sup__list-expected,
+.sup__remaining,
+.sup__form-lead,
+.sup__order-bound {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* ── النموذجُ ── */
+.sup__form,
+.sup__list,
+.sup__debt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sup__categories {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.35rem;
+}
+
+.sup__categories-legend {
+  padding-inline: 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--tg-text-color);
+}
+
+/* الصنفُ **سطرٌ كاملٌ يُلمَسُ**: دائرةٌ بقطرِ ٢٠px وحدَها هدفٌ لا يُصابُ بإبهامٍ
+   في سيّارةٍ متحرِّكةٍ، والنصُّ معَها يجعلُ الهدفَ سطراً. */
+.sup__category {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.5rem;
+  cursor: pointer;
+}
+
+.sup__category-label {
+  font-size: 0.95rem;
+  color: var(--tg-text-color);
+}
+
+.sup__order-required {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-inline-start: 3px solid var(--tg-hint-color, #999);
+  border-radius: 0.35rem;
+  background: var(--tg-secondary-bg-color);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-text-color);
+}
+
+.sup__message-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--tg-text-color);
+}
+
+.sup__message {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 0.6rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.35rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.sup__submit,
+.sup__retry,
+.sup__more {
+  align-self: flex-start;
+}
+
+.sup__submit:disabled,
+.sup__more:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sup__error,
+.sup__list-error {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #d14343);
+}
+
+/* ── تذاكري ── */
+.sup__list-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.sup__list-loading,
+.sup__list-empty {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sup__tickets {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sup__ticket {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--tg-secondary-bg-color);
+  border-radius: 0.4rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.sup__ticket-reference {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--tg-text-color);
+}
+
+/* شارةُ الحالةِ — **لونٌ ونصٌّ معاً** لا لونٌ وحدَه: مَن لا يُميِّزُ اللونَ
+   يقرأُ الحالةَ من الكلمةِ، والشارةُ زينةٌ فوقَها لا بديلٌ عنها. */
+.sup__ticket-status {
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.sup__ticket-status--open {
+  background: var(--tg-link-color, #2f80ed);
+  color: var(--tg-button-text-color, #fff);
+}
+
+.sup__ticket-status--working {
+  background: var(--tg-button-color, #40a7e3);
+  color: var(--tg-button-text-color, #fff);
+}
+
+.sup__ticket-status--done {
+  background: #2e7d32;
+  color: #fff;
+}
+
+.sup__ticket-status--refused {
+  background: var(--tg-destructive-text-color, #d14343);
+  color: #fff;
+}
+
+.sup__ticket-category,
+.sup__ticket-ride {
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sup__ticket-message {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--tg-text-color);
+  overflow-wrap: anywhere;
+}
+
+.sup__ticket-resolution {
+  flex-basis: 100%;
+  margin: 0;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 3px solid var(--tg-link-color, #2f80ed);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-text-color);
+  overflow-wrap: anywhere;
+}
+
+/* ── الدَّينُ المُعلَنُ: نصٌّ لا زرٌّ ── */
+.sup__debt {
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--tg-hint-color, #999);
+}
+
+.sup__debt-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.sup__debt-list {
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sup__debt-item {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* بابُ الدعمِ من شاشةِ الحسابِ، وزرُّ «مشكلةٌ في هذه الرحلةِ» في تفاصيلِها
+   (`F2-12`) — قاعدتانِ صغيرتانِ في كتلتَيهما لا في كتلةِ الدعمِ: الزرُّ يُرسَمُ
+   في تلكَ الشاشتَينِ، والصنفُ يتبعُ موضعَه لا الشاشةَ التي يفتحُها. */
+.ac__support {
+  align-self: flex-start;
+}
+
+.hd__report {
+  align-self: flex-start;
+  margin-top: 0.25rem;
+}

@@ -105,6 +105,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "rider_ride_detail",
   "rider_ride_history",
   "rider_ride_share_state",
+  "rider_support_tickets",
   "search_destinations",
   "set_user_language",
   "settle_subscription_wallet_system_error",
