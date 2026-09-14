@@ -41,6 +41,7 @@ import {
   createSavedPlaceReader,
   createSavedPlaceWriter,
 } from "../../../packages/infrastructure/places/places-store.ts";
+import { PostgresDataRightsStore } from "../../../packages/infrastructure/privacy/data-rights-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
@@ -762,6 +763,24 @@ const safety =
         log,
       };
 
+/**
+ * حقّا البيانةِ (`F2-11`) — **تبعيةٌ واحدةٌ لحقَّينِ**: مصدرُ حقيقةِ ما يُنزَّلُ
+ * وما يُمحى سجلٌّ واحدٌ (`erasure-policy.ts`)، فمنفذٌ واحدٌ يقرؤه. ولا دورَ
+ * مُركَّبٌ ههنا: الدالّتانِ في القاعدةِ تقرآنِ دورَ الصفِّ وترفضانِ غيرَ الراكبِ
+ * برمزٍ مُصنَّفٍ — فحقُّ السائقِ (`SD-12`) يُفتَحُ في القاعدةِ لا بسطرٍ ههنا.
+ */
+const dataRights =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        dataRights: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          store: new PostgresDataRightsStore(container.sql),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -869,6 +888,7 @@ const app = createServer({
   ...(quote === undefined ? {} : { quote }),
   ...(rides === undefined ? {} : { rides }),
   ...(safety === undefined ? {} : { safety }),
+  ...(dataRights === undefined ? {} : { dataRights }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),

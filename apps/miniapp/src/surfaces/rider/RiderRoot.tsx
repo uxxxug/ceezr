@@ -112,6 +112,7 @@
  */
 
 import { useState } from "react";
+import { AccountScreen } from "./account/AccountScreen.tsx";
 import { ActiveRideScreen } from "./active/ActiveRideScreen.tsx";
 import type { ConfirmedDestination } from "./destination/DestinationScreen.tsx";
 import { DestinationScreen } from "./destination/DestinationScreen.tsx";
@@ -168,11 +169,24 @@ export default function RiderRoot() {
     readonly orderId: string;
     readonly timeZone: string;
   } | null>(null);
+  /**
+   * هل شاشةُ الحسابِ مفتوحةٌ (`F2-11` · `SR-12`)؟ — **رايةٌ لا معرِّفٌ**: الشاشةُ
+   * تملِكُ حالَها كلَّه داخلَها (إيصالُ الحذفِ وكلمةُ التأكيدِ ومفتاحُ اللاتكرارِ)،
+   * ورفعُ شيءٍ منها إلى ههنا يجعلُ إيصالَ حذفٍ يعيشُ في حالةِ موجِّهٍ بعدَ أن
+   * صارَ صاحبُه محذوفاً.
+   */
+  const [account, setAccount] = useState(false);
 
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
+
+  // شاشةُ الحسابِ (`SR-12`) — **أعلى الترتيبِ كلِّه**: فيها بابُ حذفِ الحسابِ،
+  // ورسمُ شاشةٍ أخرى فوقَها بعدَ فتحِها صراحةً قد يُخفي إيصالَ حذفٍ لم يُقرأْ.
+  if (account) {
+    return <AccountScreen onBack={() => setAccount(false)} />;
+  }
 
   // تفاصيلُ رحلةٍ من السجلِّ (`SR-10`) — **أعلى الترتيبِ**: ما دامَت مفتوحةً
   // فلا تُرسَمُ قائمةٌ ولا شاشةُ ملخَّصٍ تحتَها. والرجوعُ **إلى السجلِّ** لا إلى
@@ -297,6 +311,7 @@ export default function RiderRoot() {
     <HomeScreen
       onDestinationChosen={(picked) => setChosen(picked)}
       onOpenHistory={() => setBrowsed(true)}
+      onOpenAccount={() => setAccount(true)}
     />
   );
 }
