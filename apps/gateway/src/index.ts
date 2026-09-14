@@ -45,6 +45,7 @@ import { PostgresDataRightsStore } from "../../../packages/infrastructure/privac
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import { PostgresRiderSupportStore } from "../../../packages/infrastructure/support/rider-support-store.ts";
 import { createActiveRideReader } from "../../../packages/infrastructure/transport/active-ride-store.ts";
 import {
   createRideDetailReader,
@@ -781,6 +782,24 @@ const dataRights =
         log,
       };
 
+/**
+ * الدعمُ من داخلِ التطبيقِ (`F2-12`) — **منفذٌ واحدٌ لمسارَينِ**: الفتحُ
+ * والقراءةُ يمسّانِ جدولاً واحداً بحكمٍ واحدٍ، فمخزنٌ واحدٌ يقرؤهما. ولا دورَ
+ * مُركَّبٌ ههنا: `open_support_ticket` تقرأُ دورَ الصفِّ وتردُّ غيرَ صاحبِه
+ * برمزٍ مُصنَّفٍ — فشكوى السائقِ (`SD-10`) تُفتَحُ في القاعدةِ لا بسطرٍ ههنا.
+ */
+const support =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        support: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          store: new PostgresRiderSupportStore(container.sql),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -889,6 +908,7 @@ const app = createServer({
   ...(rides === undefined ? {} : { rides }),
   ...(safety === undefined ? {} : { safety }),
   ...(dataRights === undefined ? {} : { dataRights }),
+  ...(support === undefined ? {} : { support }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),

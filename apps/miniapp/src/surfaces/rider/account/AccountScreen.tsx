@@ -61,6 +61,11 @@ import {
 export interface AccountScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /**
+   * فتحُ شاشةِ الدعمِ (`F2-12` · `SR-11`) — **اختياريٌّ**: هذه الشاشةُ تُقاسُ
+   * وحدَها في الاختبارِ بلا موجِّهٍ، وزرٌّ بلا مُستقبِلٍ لا يُرسَمُ أصلاً.
+   */
+  readonly onOpenSupport?: () => void;
   readonly exportData?: () => Promise<DataExportResponse>;
   readonly erase?: (input: {
     readonly confirmation: string;
@@ -121,6 +126,7 @@ const DECLARED_DEBT: readonly string[] = [
 export function AccountScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  onOpenSupport,
   exportData = requestDataExport,
   erase = requestErasure,
   saveFile = saveViaBrowser,
@@ -232,6 +238,16 @@ export function AccountScreen({
         <button type="button" className="sys__action" onClick={addToHomeScreen}>
           {t("rider.account.addToHomeScreen")}
         </button>
+        {/*
+          بابُ الدعمِ (`F2-12`) — **يُرسَمُ إذا كانَ له مُستقبِلٌ فحسب**: زرُّ
+          «الدعمُ» لا يفتحُ شيئاً أسوأُ من غيابِه، وهوَ عينُ ما تمنعُه هذه الشاشةُ
+          في رأسِ مِلفِّها.
+        */}
+        {onOpenSupport !== undefined && (
+          <button type="button" className="sys__action ac__support" onClick={onOpenSupport}>
+            {t("rider.account.support.open")}
+          </button>
+        )}
       </nav>
 
       {/* **الحدُّ يُقالُ**: انظرْ رأسَ المِلفِّ — حقلٌ لا يُحفَظُ أسوأُ من غيابِه. */}

@@ -50,6 +50,7 @@ import {
   createSessionTelegramRoutes,
   type SessionTelegramDependencies,
 } from "./routes/session-telegram.ts";
+import { createSupportRoutes, type SupportRouteDependencies } from "./routes/support-tickets.ts";
 import {
   createTelegramWebhookRoutes,
   type WebhookDependencies,
@@ -112,6 +113,14 @@ export interface ServerDependencies {
   readonly safety?: SafetyRouteDependencies;
   /** حقّا البيانةِ (`F2-11`) — غيابُهما تعطيلٌ صريحٌ لا ردٌّ صوريٌّ. */
   readonly dataRights?: DataRightsRouteDependencies;
+  /**
+   * الدعمُ والشكوى من داخلِ التطبيقِ (`F2-12` / `SR-11`) — يُركَّبُ مع سرِّ
+   * الجلسةِ والقاعدةِ. وغيابُه **لا يُغلِقُ بابَ الدعمِ**: قروبُ المدينةِ
+   * ومسارُ البوتِ قائمانِ على `open_support_ticket` عينِها، فهذا سطحٌ ثانٍ على
+   * الحاكمِ نفسِه لا مصدرُ حقيقةٍ ثانٍ. **وغيابُه يُعلَنُ `503`** ولا يُجابُ
+   * بـ`201` بلا تذكرةٍ: مرجعٌ يُعرَضُ ولا تذكرةَ خلفَه أسوأُ من بابٍ مُغلَقٍ.
+   */
+  readonly support?: SupportRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
@@ -182,6 +191,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.dataRights !== undefined) {
     app.route("/", createDataRightsRoutes(deps.dataRights));
+  }
+  if (deps.support !== undefined) {
+    app.route("/", createSupportRoutes(deps.support));
   }
 
   if (deps.destinations !== undefined) {

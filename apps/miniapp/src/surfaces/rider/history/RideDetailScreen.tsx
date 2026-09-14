@@ -5,7 +5,8 @@
  * ينتمي إلى: apps/miniapp/src/surfaces/rider/history
  * يُستخدم من: `apps/miniapp/src/surfaces/rider/RiderRoot.tsx` (طورُ `inspected`)
  * يُتوقع أن يستخدمه لاحقاً: `F2-12` (تذكرةُ الدعمِ) تُضيفُ مدخلَها **ههنا**
- *   حينَ يُبنى مسارُها — لا زرَّ قبلَ مسارٍ.
+ *   حينَ يُبنى مسارُها — لا زرَّ قبلَ مسارٍ. **وقد بُنيَ المسارُ**: المدخلُ
+ *   قائمٌ الآنَ بـ`onReportProblem`، والوعدُ موفٌّ لا ممحُوّ (`ح-8`).
  *
  * ## لماذا سجلُّ الأحداثِ **يُعرَضُ بمصدرِ كلِّ حدثٍ**
  *
@@ -25,8 +26,11 @@
  *      إيصالٌ.**
  *   ــ **لا ترسمُ خريطةً ولا مستطيلاً يُشبِهُها**: لا مزوِّدَ (`ADR 0007`) ولا
  *      أثرَ مسارٍ في المخطَّطِ — **غيابٌ مُصرَّحٌ**، ومستطيلٌ رماديٌّ كذبٌ مرسومٌ.
- *   ــ **لا ترسمُ زرَّ «مشكلةٌ في هذه الرحلةِ»**: مسارُه `F2-12` — وزرٌّ مُعطَّلٌ
- *      وعدٌ لا عقدٌ.
+ *   ــ ~~**لا ترسمُ زرَّ «مشكلةٌ في هذه الرحلةِ»**: مسارُه `F2-12` — وزرٌّ مُعطَّلٌ
+ *      وعدٌ لا عقدٌ~~ — **نُقِضَ بالبندِ `F2-12`**: المسارُ قائمٌ
+ *      (`POST /v1/support/tickets`)، فالزرُّ عقدٌ لا وعدٌ. والسطرُ يُترَكُ مشطوباً
+ *      لا ممحُوّاً: **تصحيحٌ بالإضافةِ** (`ح-8`)، ودليلٌ على متى وقعَ الوفاءُ.
+ *      والزرُّ **مشروطٌ بمُستقبِلٍ**: بلا `onReportProblem` يبقى الغيابُ مُصرَّحاً.
  *   ــ **لا تعرضُ مدّةً ولا وترَ خطٍّ**: حقولُ الملخَّصِ (`F2-07`)، وتكرارُها
  *      مصدرُ حقيقةٍ ثانٍ (القاعدة 0.6).
  *   ــ **لا تعرضُ نموذجَ تقييمٍ**: بابُه شاشةُ الملخَّصِ وحدَها.
@@ -69,6 +73,12 @@ export interface RideDetailScreenProps {
   readonly timeZone: string;
   readonly read?: (orderId: string) => Promise<RideDetailResponse>;
   readonly onBack?: () => void;
+  /**
+   * فتحُ شكوى **عن هذه الرحلةِ** (`F2-12` · `SR-11`) — الموجِّهُ هوَ من يحملُ
+   * المعرّفَ، فلا تعرفُ هذه الشاشةُ شيئاً عن تذاكرَ الدعمِ ولا عن أصنافِها.
+   * وبلا مُستقبِلٍ **يبقى الغيابُ مُصرَّحاً نصّاً** كما كانَ قبلَ البندِ.
+   */
+  readonly onReportProblem?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
 }
 
@@ -127,6 +137,7 @@ export function RideDetailScreen({
   timeZone,
   read = readViaApi,
   onBack,
+  onReportProblem,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
 }: RideDetailScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
@@ -279,10 +290,20 @@ export function RideDetailScreen({
           })}
         </ol>
 
-        {/* غيابانِ **مُصرَّحانِ نصّاً**: خريطةٌ لا مزوِّدَ لها، وتذكرةُ دعمٍ لا
-            مسارَ لها بعدُ. والتصريحُ أصدقُ من زرٍّ مُعطَّلٍ ومن صمتٍ. */}
+        {/*
+          الخريطةُ غيابٌ **مُصرَّحٌ** باقٍ (`ADR 0007`). وأمّا الدعمُ فقد صارَ
+          **مساراً**: فمعَ مُستقبِلٍ يُرسَمُ زرٌّ يفتحُ شكوى مربوطةً بالرحلةِ،
+          وبلا مُستقبِلٍ يُقالُ الغيابُ كما كانَ. **ولا يُجمَعانِ**: سطرٌ يقولُ
+          «غيرُ متاحٍ» تحتَ زرٍّ يفتحُه يُكذّبُ أحدُهما الآخَرَ.
+        */}
         <p className="hd__absent">{t("rider.history.detail.noMap")}</p>
-        <p className="hd__absent">{t("rider.history.detail.noSupport")}</p>
+        {onReportProblem === undefined ? (
+          <p className="hd__absent">{t("rider.history.detail.noSupport")}</p>
+        ) : (
+          <button type="button" className="sys__action hd__report" onClick={onReportProblem}>
+            {t("rider.history.detail.reportProblem")}
+          </button>
+        )}
       </div>
     );
   };

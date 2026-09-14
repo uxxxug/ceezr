@@ -107,8 +107,13 @@
  * الراكبِ عنها «أينَ سائقي الآنَ؟» لا «ماذا جرى؟».
  *
  * وما لا يفعلُه بعدَ `F2-08`: لا يعرضُ إيصالاً ولا مبلغاً ولا مجموعَ شهرٍ
- * (`ADR 0039` §٤)، ولا يرسمُ خريطةً لمسارٍ ماضٍ (`ADR 0007`)، ولا يفتحُ تذكرةَ
- * دعمٍ (`F2-12`) — **غياباتٌ مُصرَّحةٌ نصّاً** لا أزرارٌ مُعطَّلةٌ.
+ * (`ADR 0039` §٤)، ولا يرسمُ خريطةً لمسارٍ ماضٍ (`ADR 0007`) — **غياباتٌ
+ * مُصرَّحةٌ نصّاً** لا أزرارٌ مُعطَّلةٌ.
+ *
+ * وقد كانَ مكتوباً ههنا «ولا يفتحُ تذكرةَ دعمٍ (`F2-12`)»، وذاكَ **صدقُ تلكَ
+ * اللحظةِ**؛ وقد نُقِضَ بالبندِ `F2-12` تصحيحاً بالإضافةِ لا بالمحوِ (`ح-8`):
+ * شاشةُ الدعمِ تُفتَحُ الآنَ من شاشةِ الحسابِ ومن تفاصيلِ رحلةٍ، وتُحمَلُ إليها
+ * الرحلةُ مُثبَّتةً لا مكتوبةً بيدٍ.
  */
 
 import { useState } from "react";
@@ -124,6 +129,7 @@ import { QuoteScreen } from "./quote/QuoteScreen.tsx";
 import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
 import { SearchScreen } from "./search/SearchScreen.tsx";
 import { RideSummaryScreen } from "./summary/RideSummaryScreen.tsx";
+import { SupportScreen } from "./support/SupportScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
 
 export default function RiderRoot() {
@@ -176,16 +182,37 @@ export default function RiderRoot() {
    * صارَ صاحبُه محذوفاً.
    */
   const [account, setAccount] = useState(false);
+  /**
+   * شاشةُ الدعمِ (`F2-12` · `SR-11`) — **رايةٌ تحملُ رحلةً أو لا تحملُها**، ولا
+   * تُدمَجُ معَ `inspected`: تلكَ رحلةٌ تُقرأُ، وهذه شكوى تُكتَبُ **عنها أو عن
+   * غيرِها**. وحملُ المعرّفِ ههنا هوَ ما يجعلُ الشكوى المُقدَّمةَ من تفاصيلِ رحلةٍ
+   * مربوطةً بها **بلا حقلِ معرّفٍ يُملأُ بيدٍ** — وحقلٌ كذاكَ بابُ خطأٍ لا بابُ
+   * دعمٍ. و`null` في الداخلِ = «شكوى عامّةٌ»، و`null` للحالةِ كلِّها = «مُغلقةٌ»؛
+   * فرقٌ يضيعُ لو كانَت الحالةُ معرّفاً وحدَه.
+   */
+  const [support, setSupport] = useState<{ readonly orderId: string | null } | null>(null);
 
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
 
-  // شاشةُ الحسابِ (`SR-12`) — **أعلى الترتيبِ كلِّه**: فيها بابُ حذفِ الحسابِ،
+  // شاشةُ الدعمِ (`SR-11`) — **أعلى الترتيبِ كلِّه**: فيها نموذجٌ نصفُه مكتوبٌ
+  // ومرجعُ تذكرةٍ يُقرأُ ويُنسَخُ، ورسمُ شاشةٍ أخرى فوقَها يمحو الاثنَينِ. والرجوعُ
+  // **إلى ما جاءَ منه** محفوظٌ: الرايةُ تُطفأُ وحدَها فيظهرُ ما تحتَها كما كانَ.
+  if (support !== null) {
+    return <SupportScreen orderId={support.orderId} onBack={() => setSupport(null)} />;
+  }
+
+  // شاشةُ الحسابِ (`SR-12`) — **أعلى الترتيبِ بعدَ الدعمِ**: فيها بابُ حذفِ الحسابِ،
   // ورسمُ شاشةٍ أخرى فوقَها بعدَ فتحِها صراحةً قد يُخفي إيصالَ حذفٍ لم يُقرأْ.
   if (account) {
-    return <AccountScreen onBack={() => setAccount(false)} />;
+    return (
+      <AccountScreen
+        onBack={() => setAccount(false)}
+        onOpenSupport={() => setSupport({ orderId: null })}
+      />
+    );
   }
 
   // تفاصيلُ رحلةٍ من السجلِّ (`SR-10`) — **أعلى الترتيبِ**: ما دامَت مفتوحةً
@@ -197,6 +224,9 @@ export default function RiderRoot() {
         orderId={inspected.orderId}
         timeZone={inspected.timeZone}
         onBack={() => setInspected(null)}
+        // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `inspected`: الراكبُ
+        // يرجعُ من الشكوى إلى الرحلةِ التي كانَ يقرؤها لا إلى قائمةٍ.
+        onReportProblem={() => setSupport({ orderId: inspected.orderId })}
       />
     );
   }
