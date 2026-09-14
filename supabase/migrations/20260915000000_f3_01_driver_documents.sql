@@ -111,6 +111,20 @@ do $$ begin
     check (status <> 'accepted' or expires_at is not null) not valid;
 exception when duplicate_object then null; end $$;
 
+-- ── ٤·١) قفلُ الصفِّ — RLS مُفعَّلةٌ وبابٌ واحدٌ للخدمةِ ──────────────────────
+-- الجدولُ **لا يُقرأُ ولا يُكتَبُ إلّا من الدالّاتِ**: كلُّ مسارٍ في هذا البندِ
+-- يمرُّ من دالّةٍ بـ`security definer` تملكُها الخدمةُ، ولا محوّلَ يلمسُ الجدولَ
+-- بنداءٍ مباشرٍ (وذاكَ مقيسٌ في عقدِ المخطَّطِ). فالسياسةُ الواحدةُ للخدمةِ هيَ
+-- كلُّ ما يُحتاجُ، وغيابُ سياسةٍ للمستخدمِ **قرارٌ لا سهوٌ**: وثيقةُ سائقٍ فيها
+-- رقمُ رخصتِه وصورتُها، ومفتاحٌ منشورٌ في تطبيقٍ مصغَّرٍ لا يُؤتمَنُ على قراءةِ
+-- صفٍّ منها ولو بشرطٍ. ولو فُتِحَ بابُ قراءةٍ للسائقِ لصارَ سطحُ الخطرِ
+-- «كلُّ صفوفِ الجدولِ إن أخطأَ الشرطُ» بدلَ «ما تُعيدُه دالّةٌ مكتوبةٌ».
+alter table driver_documents enable row level security;
+
+drop policy if exists driver_documents_service_all on driver_documents;
+create policy driver_documents_service_all on driver_documents
+  for all to service_role using (true) with check (true);
+
 comment on table driver_documents is
   'وثائقُ السائقِ: صفٌّ لكلِّ نوعٍ بحالتِه وتاريخِ انتهائِه، والمِلفُّ في مخزنِ الكائناتِ لا في العمودِ (F3-01 · ADR 0115).';
 

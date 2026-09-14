@@ -139,6 +139,24 @@ async function acceptRow(driver: string, docType: string, expiresAt: string): Pr
   `;
 }
 
+/**
+ * يجعلُ سائقاً **محجوباً بوثيقةٍ مُناقِضةٍ**: كلُّ وثائقِه مقبولةٌ إلّا واحدةً
+ * انتهى تاريخُها أمسِ. وهذا هوَ الحجبُ الذي يُسقِطُ مرشَّحاً من دورةِ العرضِ
+ * بعدَ تضييقِ البابِ في `20260915010000` — لا مجرَّدُ غيابِ صفٍّ.
+ */
+async function makeExpired(telegramId: number, driver: string): Promise<void> {
+  await makeClear(telegramId, driver);
+  await sql`
+    update driver_documents set expires_at = current_date - 1
+     where driver_id = ${driver}::uuid and doc_type = 'insurance'
+  `;
+}
+
+/** يُفرِغُ وثائقَ سائقٍ — حالُ سائقٍ اعتمدَته الإدارةُ قبلَ `F3-01`. */
+async function makeUndocumented(driver: string): Promise<void> {
+  await sql`delete from driver_documents where driver_id = ${driver}::uuid`;
+}
+
 /** كلُّ الوثائقِ الإلزاميّةِ مقبولةً وصالحةً — نقطةُ بدءٍ «غيرِ محجوبٍ». */
 async function makeClear(telegramId: number, driver: string): Promise<void> {
   const future = await dbDay(400);
@@ -520,6 +538,10 @@ describeIf("`F12-14` — الدالّةُ آخرُ بابٍ: المحجوبُ ل
 
   it("٢٣) دورةٌ فيها محجوبٌ وسليمٌ: عرضٌ واحدٌ، والمحجوبُ **معدودٌ باسمِه**", async () => {
     await makeClear(DRIVER_TELEGRAM_ID, driverId);
+    // المحجوبُ محجوبٌ **بوثيقةٍ منتهيةٍ** لا بغيابِ صفٍّ: هذا ما يُسقِطُ مرشَّحاً
+    // بعدَ `20260915010000`، والاختبارُ يقيسُ الحاجزَ القائمَ لا حاجزاً مُتخيَّلاً.
+    await makeExpired(OTHER_DRIVER_TELEGRAM_ID, otherDriverId);
+    expect(await blockReasons(otherDriverId)).toContain("EXPIRED:insurance");
     const orderId = await seedSearchingOrder();
     const result = await openRound(orderId, [
       { driver_id: driverId, score: 1, distance_km: 1 },
@@ -536,6 +558,7 @@ describeIf("`F12-14` — الدالّةُ آخرُ بابٍ: المحجوبُ ل
 
   it("٢٤) **ولا إشعارَ للمحجوبِ**: ما لم يُدرَجْ عرضُه لم يُكتَبْ صفُّ إشعارٍ", async () => {
     await makeClear(DRIVER_TELEGRAM_ID, driverId);
+    await makeExpired(OTHER_DRIVER_TELEGRAM_ID, otherDriverId);
     const orderId = await seedSearchingOrder();
     await openRound(orderId, [
       { driver_id: driverId, score: 1, distance_km: 1 },
@@ -564,5 +587,37 @@ describeIf("`F12-14` — الدالّةُ آخرُ بابٍ: المحجوبُ ل
     ]);
     expect(after.offers).toBe(0);
     expect(after.blocked_by_documents).toBe(1);
+  });
+
+  it("٢٦) **الرفضُ يحجبُ كالانتهاءِ**: وثيقةٌ مرفوضةٌ بسببٍ تُسقِطُ المرشَّحَ", async () => {
+    await makeClear(DRIVER_TELEGRAM_ID, driverId);
+    await sql`
+      update driver_documents
+         set status = 'rejected', review_note = 'الصورةُ غيرُ مقروءةٍ', reviewed_at = now()
+       where driver_id = ${driverId} and doc_type = 'driving_license'
+    `;
+    expect(await blockReasons(driverId)).toContain("REJECTED:driving_license");
+    const result = await openRound(await seedSearchingOrder(), [
+      { driver_id: driverId, score: 1, distance_km: 1 },
+    ]);
+    expect(result.offers).toBe(0);
+    expect(result.blocked_by_documents).toBe(1);
+  });
+
+  it("٢٧) **وغيابُ الوثائقِ كلِّها لا يُسقِطُ سائقاً اعتمدَته الإدارةُ** — حدُّ البندِ مكتوبٌ ومقيسٌ", async () => {
+    // سائقٌ `verified` بلا صفِّ وثيقةٍ واحدٍ: حالُ كلِّ سائقٍ في القاعدةِ قبلَ
+    // نشرِ `F3-01`. حجبُه ههنا يعني انقطاعَ خدمةٍ في لحظةِ الهجرةِ، ومنعُ
+    // اعتمادِه ابتداءً بابُ لوحِ المراجعةِ (`SD-02`) — دَينٌ مُعلَنٌ لا مُنجَزٌ.
+    await makeUndocumented(driverId);
+    expect(await blockReasons(driverId)).toContain("MISSING:insurance");
+    const [dispatchOnly] = await sql<{ reasons: string[] }[]>`
+      select driver_document_dispatch_block_reasons(${driverId}::uuid) as reasons
+    `;
+    expect(dispatchOnly?.reasons).toEqual([]);
+    const result = await openRound(await seedSearchingOrder(), [
+      { driver_id: driverId, score: 1, distance_km: 1 },
+    ]);
+    expect(result.offers).toBe(1);
+    expect(result.blocked_by_documents).toBe(0);
   });
 });
