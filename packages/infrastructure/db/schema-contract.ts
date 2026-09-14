@@ -107,6 +107,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "set_user_language",
   "settle_subscription_wallet_system_error",
   "settle_unsubscribed_negotiation",
+  "sos_surface_state",
   "start_ride",
   "start_trial",
   "submit_rating",

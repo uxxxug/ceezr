@@ -42,6 +42,11 @@ import { readFileSync } from "node:fs";
 export const RIDER_MODULE = "packages/application/bots/rider-dialog.ts";
 /** بوتُ السائقِ. */
 export const DRIVER_MODULE = "packages/application/bots/driver-dialog.ts";
+/**
+ * سطحُ الاستغاثةِ في التطبيقِ المصغَّرِ (`F2-10`) — **موضعُ الاستقبالِ الثالثُ**.
+ * زِيدَ ولم يُخفَّفْ شيءٌ: يلزمُه ما يلزمُ أختَيه حرفاً.
+ */
+export const MINIAPP_MODULE = "packages/application/safety/sos-surface.ts";
 
 export interface IntakeSite {
   /** الملفُّ الذي يحوي الدالّةَ. */
@@ -60,6 +65,11 @@ export const INTAKE_SITES: readonly IntakeSite[] = [
   { module: RIDER_MODULE, fn: "handleRiderSos", what: "أمرُ `/sos` من الراكبِ" },
   { module: RIDER_MODULE, fn: "handleSosCallback", what: "زرُّ الاستغاثةِ من الراكبِ" },
   { module: DRIVER_MODULE, fn: "handleDriverSos", what: "أمرُ `/sos` من السائقِ" },
+  {
+    module: MINIAPP_MODULE,
+    fn: "requestMiniAppSos",
+    what: "بطاقةُ الاستغاثةِ في التطبيقِ المصغَّرِ (`F2-10`)",
+  },
 ];
 
 export interface DispatcherSite {
@@ -175,7 +185,34 @@ export function functionBody(source: string, name: string): FunctionBody | null 
   const clean = stripComments(source);
   const declaration = new RegExp(`function\\s+${name}\\s*\\(`).exec(clean);
   if (declaration === null) return null;
-  const open = clean.indexOf("{", declaration.index);
+  /**
+   * **قائمةُ المُعامِلاتِ تُتجاوَزُ أوّلاً بعدَّ الأقواسِ** (`F2-10`). وكانَ
+   * ههنا `indexOf("{")` من بعدِ اسمِ الدالّةِ رأساً، فإن كانَ في المُعامِلاتِ
+   * نمطٌ كائنيٌّ حرفيٌّ (`input: { token: string }`) قُرِئَ **ذلكَ النمطُ بدناً
+   * للدالّةِ**، فقيلَ «صفرُ انتظاراتٍ» عن دالّةٍ فيها انتظارٌ. وذلكَ خطأٌ
+   * **يُعمي الحاجزَ في الجهتَينِ**: لو زِيدَ انتظارٌ ثانٍ حقيقيٌّ في موضعِ
+   * استقبالٍ موقّعٍ هكذا لَمَرَّ صامتاً. فالإصلاحُ في القارئِ لا في إعادةِ
+   * تشكيلِ الشيفرةِ لتُرضيَ مُحلِّلاً أعورَ.
+   */
+  let parens = 0;
+  let afterParams = -1;
+  for (
+    let index = declaration.index + declaration[0].length - 1;
+    index < clean.length;
+    index += 1
+  ) {
+    const char = clean[index];
+    if (char === "(") parens += 1;
+    else if (char === ")") {
+      parens -= 1;
+      if (parens === 0) {
+        afterParams = index + 1;
+        break;
+      }
+    }
+  }
+  if (afterParams === -1) return null;
+  const open = clean.indexOf("{", afterParams);
   if (open === -1) return null;
   let depth = 0;
   for (let index = open; index < clean.length; index += 1) {

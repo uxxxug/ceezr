@@ -25,6 +25,7 @@ import {
   findViolations,
   functionBody,
   INTAKE_SITES,
+  MINIAPP_MODULE,
   NULL_ORDER_LITERAL,
   type Reader,
   RIDER_MODULE,
@@ -85,9 +86,28 @@ async function handleCommand(command, sender, state, deps) {
 }
 `;
 
+/**
+ * نسخةٌ سليمةٌ مُصغَّرةٌ من موضعِ الاستقبالِ الثالثِ (`F2-10`) — بطاقةُ التطبيقِ
+ * المصغَّرِ. ولا `DISPATCHERS` له: مسارُ HTTP يُوزَّعُ بـ`app.post` في `hono`
+ * لا بـ`switch` على نصٍّ، فلا موضعَ توزيعٍ يُقاسُ ههنا.
+ *
+ * ووسيطُها نوعٌ كتليٌّ عن قصدٍ: هيَ الصورةُ التي كشفَت عطبَ `functionBody`.
+ */
+const CLEAN_MINIAPP = `
+export async function requestMiniAppSos(input, deps) {
+  if (deps.trigger === undefined) return { ok: false, code: "SAFETY_STORE_NOT_AVAILABLE" };
+  const raised = await triggerSos(
+    { ${NULL_ORDER_LITERAL}, actorTelegramId: input.telegramId, reporterRole: "rider" },
+    deps.trigger,
+  );
+  return raised;
+}
+`;
+
 const CLEAN_FILES: Record<string, string> = {
   [RIDER_MODULE]: CLEAN_RIDER,
   [DRIVER_MODULE]: CLEAN_DRIVER,
+  [MINIAPP_MODULE]: CLEAN_MINIAPP,
 };
 
 function readerFor(files: Record<string, string | null>): Reader {
@@ -336,6 +356,38 @@ describe("حاجزُ عزلِ الاستغاثةِ — أدواتُ القراء
 
   test("`functionBody` يُعيدُ `null` لدالّةٍ غيرِ مُعلَنةٍ", () => {
     expect(functionBody("const a = 1;\n", "handleDriverSos")).toBeNull();
+  });
+
+  /**
+   * ## عطبٌ حقيقيٌّ أُمسِكَ في `F2-10` — **أعمى في الاتّجاهَينِ**
+   *
+   * كانَ `functionBody` يأخذُ أوّلَ `{` بعدَ اسمِ الدالّةِ جسداً لها. فدالّةٌ
+   * وسيطُها نوعٌ كتليٌّ (`{ readonly a: b }`) يُقرأُ **وسيطُها** جسداً: فيُعَدُّ
+   * انتظارٌ صِفراً حيثُ هوَ واحدٌ (فيسقطُ البناءُ بلا ذنبٍ)، أو يُعَدُّ صِفراً
+   * حيثُ هيَ ثلاثةٌ (فيمرُّ الخرقُ صامتاً) — والثانيةُ هيَ الخطرُ: **حاجزٌ
+   * يُطمئِنُ زوراً أخطرُ من غيابِه**.
+   *
+   * وأُصلِحَ في الأداةِ لا في الشِفرةِ المقيسةِ: لو أُعيدَ تشكيلُ الوسيطِ
+   * لِيُوافِقَ قارئاً معطوباً لَبقيَ العطبُ ينتظرُ أوّلَ مَن يكتبُ نوعاً كتليّاً.
+   */
+  test("`functionBody` لا يأخذُ نوعَ وسيطٍ كتليّاً جسداً — عطبُ `F2-10`", () => {
+    const found = functionBody(
+      "export async function f(deps: { readonly a: number }, id: string) {\n" +
+        "  const x = await deps.store.read(id);\n  return x;\n}\n",
+      "f",
+    );
+    expect(found).not.toBeNull();
+    expect(found?.body.includes("await deps.store.read")).toBe(true);
+    expect(found?.body.includes("readonly a")).toBe(false);
+  });
+
+  test("وسيطٌ كتليٌّ متداخلٌ لا يُخدَعُ به القارئُ", () => {
+    const found = functionBody(
+      "async function g(d: { readonly p: { readonly q: string } }) {\n  return 1;\n}\n",
+      "g",
+    );
+    expect(found?.body.includes("return 1")).toBe(true);
+    expect(found?.body.includes("readonly q")).toBe(false);
   });
 
   test("`awaitedCalls` يقرأُ النداءَ المُنقَّطَ كاملاً", () => {

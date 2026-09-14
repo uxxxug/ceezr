@@ -23,6 +23,7 @@ import type {
 } from "../../../packages/application/financial/ports.ts";
 import type { UpdateDriverLocationDeps } from "../../../packages/application/geo/update-driver-location.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
+import type { TriggerSosPort } from "../../../packages/application/safety/ports.ts";
 import {
   type CustomerLiveRelay,
   createCustomerLiveRelay,
@@ -248,6 +249,13 @@ export interface Container {
    * ومسار الويبهوك يستعملان هذا المحول الإنتاجي نفسه عند تفعيل واجهتهما.
    */
   readonly financial: SubscriptionWalletRpcPort;
+  /**
+   * `F2-10` — منفذُ الاستغاثةِ مكشوفٌ لأنَّ مسارَ `POST /v1/safety/sos` يجبُ أن
+   * يُقَيِّدَ الحادثَ بـ**نفسِ** المنفذِ الذي يكتبُ به بوتُ الراكبِ وبوتُ السائقِ.
+   * وبناؤُ منفذٍ ثانٍ في `index.ts` كانَ سيُنشئُ **حاكمَينِ للاستغاثةِ** يفترقانِ
+   * يومَ يتغيَّرُ شرطٌ في أحدِهما (القاعدة 0.6) — وفي الطوارئِ لا يُحتمَلُ حاكمانِ.
+   */
+  readonly safety: { readonly trigger: { readonly incidents: TriggerSosPort } };
   /**
    * المرحلة ٦ — النقل اللحظي مكشوف لأن مسار SSE يحتاج نفس الناقل الذي ينشر
    * فيه مسار البوت — لا ناقلاً ثانياً يُبنى في `index.ts`. والاختبارات تقرأ منه
@@ -907,6 +915,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     sql,
     driverSender,
     financial,
+    safety: { trigger: safety.trigger },
     driverLocation: {
       drivers,
       ingest: {

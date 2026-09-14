@@ -104,14 +104,9 @@ export const MONEY_TOKENS: readonly string[] = [
 
 /** معجمُ المساراتِ التي لم تُبنَ — زرٌّ لها اليومَ زرٌّ كاذبٌ. */
 export const UNBUILT_PATH_TOKENS: readonly string[] = [
-  "sos",
-  "emergency",
-  "panic",
   "whatsapp",
   "tel:",
   "callDriver",
-  "طوارئ",
-  "استغاثة",
   "اتصل",
   "اتّصل",
 ];
@@ -133,6 +128,37 @@ export const UNBUILT_PATH_TOKENS: readonly string[] = [
  *      التركيبَ يوماً سقطَ بناؤُه، ولا يمرُّ الحذفُ صامتاً كما يمرُّ عادةً.
  */
 export const BUILT_PATH_TOKENS: readonly string[] = ["share", "مشاركة", "شارك"];
+
+/**
+ * ## إضافةُ البند `F2-10` (2026-09-14) — **نقلٌ لا حذفٌ، وقائمةٌ ثانيةٌ لا خلطٌ**
+ *
+ * خمسةُ رموزٍ (`sos` · `emergency` · `panic` · «طوارئ» · «استغاثة») كانت في
+ * `UNBUILT_PATH_TOKENS` أعلاه، ونُقِلَت إلى ههنا لأنَّ مسارَها **بُنِيَ**
+ * (`F2-10`): قاعدةً (`sos_surface_state` · `trigger_sos` بنافذةِ ما بعدَ
+ * الرحلةِ) ومنفذاً ومساراً وبطاقةً. ولا سطرَ حُذِفَ (القاعدة ح-2): الرموزُ
+ * انتقلَت ولم تُمحَ، وحراستُها انقلبَت ولم تسقطْ.
+ *
+ * **وثلاثةٌ بقيَت ممنوعةً حيثُ كانت**: `whatsapp` و`tel:` و`callDriver`
+ * و«اتصل» و«اتّصل». وهذا ليسَ سهواً: `SR-06` يطلبُ **اتّصالاً** معَ الطوارئِ،
+ * والاتّصالُ **لم يُبنَ ولا مزوِّدَ له في المستودَعِ**. وبناءُ الاستغاثةِ لا
+ * يُطلِقُ زرَّ اتّصالٍ معه — بل يجعلُ منعَه أوجبَ: مَن رأى بطاقةَ استغاثةٍ
+ * تعملُ صدَّقَ أنَّ زرَّ الاتّصالِ يعملُ مثلَها.
+ *
+ * **ولماذا قائمةٌ ثانيةٌ لا زيادةٌ في `BUILT_PATH_TOKENS`**: تلكَ رموزُ
+ * المشاركةِ ونصُّها مِلكُ `rider.share.`، وهذه رموزُ الاستغاثةِ ونصُّها مِلكُ
+ * `rider.sos.`. ولو خُلِطَتا لَقالَ الحاجزُ لمفتاحٍ اسمُه `rider.active.sos`
+ * إنَّ «موضعَه rider.share.» — رسالةٌ تُرسِلُ مُصلِحَها إلى المِلفِّ الخطأِ.
+ */
+export const SOS_BUILT_PATH_TOKENS: readonly string[] = [
+  "sos",
+  "emergency",
+  "panic",
+  "طوارئ",
+  "استغاثة",
+];
+
+/** مُركِّبُ بطاقةِ الاستغاثةِ كما يُكتَبُ في الشاشةِ — اسمٌ واحدٌ في موضعَينِ. */
+export const SOS_CARD_COMPONENT = "SosCard";
 
 /** مُركِّبُ بطاقةِ المشاركةِ كما يُكتَبُ في الشاشةِ — اسمٌ واحدٌ في موضعَينِ. */
 export const SHARE_CARD_COMPONENT = "RideShareCard";
@@ -320,6 +346,12 @@ export function unbuiltPathProblems(input: ActiveRideContractInput): readonly st
           BUILT_PATH_TOKENS,
           "مفتاحُ مشاركةٍ في نطاقِ اللقطةِ — موضعُه «rider.share.» (`F2-09`)",
         ),
+        ...tokenProblems(
+          `${language}:${key}`,
+          key,
+          SOS_BUILT_PATH_TOKENS,
+          "مفتاحُ استغاثةٍ في نطاقِ اللقطةِ — موضعُه «rider.sos.» (`F2-10`)",
+        ),
       );
     }
   }
@@ -345,6 +377,32 @@ export function sharePathProblems(input: ActiveRideContractInput): readonly stri
   if (!input.screen.includes(`orderId={orderId}`)) {
     problems.push(
       `${SCREEN_FILE}: البطاقةُ لا تأخذُ «orderId» من الشاشةِ — بطاقةٌ بلا رحلةٍ لا تُشارِكُ شيئاً.`,
+    );
+  }
+  return problems;
+}
+
+/**
+ * القاعدة ٨ (`F2-10`) — **بطاقةُ الاستغاثةِ تُركَّبُ فعلاً**.
+ *
+ * عينُ حكمِ القاعدةِ ٧ ولسببٍ أثقلَ: مسارُ `F2-10` مبنيٌّ كاملاً — دالّتانِ في
+ * القاعدةِ ومنفذٌ ومساران ونداءانِ وبطاقةٌ وثلاثةُ قواميسَ — ولو لم يُركَّبْ في
+ * الشاشةِ لَكانَ **شِفرةً ميتةً تُحسَبُ إنجازاً**. والفرقُ بينَ مشاركةٍ ميتةٍ
+ * واستغاثةٍ ميتةٍ أنَّ الثانيةَ تُقرأُ في السجلِّ «سطحُ الاستغاثةِ مُنجَزٌ»
+ * فيُغلَقُ البندُ، ولا يكتشفُ أحدٌ الغيابَ إلّا راكبٌ يبحثُ عن بطاقةٍ لا وجودَ
+ * لها في اللحظةِ التي يحتاجُها.
+ *
+ * **ولا يُفحَصُ تمريرُ `orderId` ههنا** بخلافِ القاعدةِ ٧: البطاقةُ لا تأخذُ
+ * رحلةً عن قصدٍ — الطلبُ يُحَلُّ في القاعدةِ تحتَ القفلِ (`ADR 0077`)، وسطحُ
+ * الاستغاثةِ يبقى مفتوحاً دقائقَ بعدَ انتهاءِ الرحلةِ فلا رحلةَ «جاريةً»
+ * تُمرَّرُ إليه أصلاً.
+ */
+export function sosPathProblems(input: ActiveRideContractInput): readonly string[] {
+  const problems: string[] = [];
+  if (!input.screen.includes(`<${SOS_CARD_COMPONENT}`)) {
+    problems.push(
+      `${SCREEN_FILE}: بطاقةُ الاستغاثةِ «${SOS_CARD_COMPONENT}» غيرُ مُركَّبةٍ — ` +
+        `مسارُ \`F2-10\` مبنيٌّ ولا بابَ له في الشاشةِ.`,
     );
   }
   return problems;
@@ -410,5 +468,6 @@ export function activeRideContractProblems(input: ActiveRideContractInput): read
     ...functionRevokeProblems(input),
     // القاعدة ٧ (`F2-09`) — أُضيفَت ولم يُمَسَّ ما قبلَها (القاعدة ح-8).
     ...sharePathProblems(input),
+    ...sosPathProblems(input),
   ];
 }

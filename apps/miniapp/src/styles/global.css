@@ -1913,3 +1913,177 @@ a {
   opacity: 0.6;
   cursor: progress;
 }
+
+/* ============================================================================
+   بطاقةُ الاستغاثةِ — البند `F2-10` · `SR-14`
+   ----------------------------------------------------------------------------
+   ## لماذا **حدٌّ جانبيٌّ** لا بطاقةٌ حمراءُ ملأى
+
+   لأنَّ سطحاً أحمرَ كاملاً في شاشةِ رحلةٍ عاديّةٍ يُقلِقُ مَن لا خطرَ عليه، ومَن
+   يُقلَقُ كلَّ يومٍ يكفُّ عن رؤيةِ اللونِ يومَ يعني شيئاً. فالحدُّ يُميِّزُ بلا
+   إفزاعٍ، والحُمرةُ تُحجَزُ لزرِّ التأكيدِ وحدَه — لحظةَ الفعلِ لا لحظةَ العرضِ.
+
+   ## ولماذا زرُّ التأكيدِ **أكبرُ** من زرِّ التسليحِ
+
+   لأنَّ الثانيةَ تُضغَطُ بيدٍ ترتعشُ. ومساحةُ لمسٍ ضيّقةٌ في لحظةِ خوفٍ ثمنُها
+   ضغطةٌ تُخطئُ — أو تُصيبُ «تراجَعْ» وصاحبُها يظنُّ أنَّه أرسلَ.
+
+   ## وما لا تفعلُه هذه الأنماطُ عن قصدٍ
+
+     ــ **لا وميضَ ولا حركةَ**: نبضٌ يلفتُ النظرَ دائماً يُستَهلَكُ فيُهمَلُ،
+        وحركةٌ تُربِكُ من يقرأُ بصعوبةٍ (`prefers-reduced-motion` ليسَ عذراً
+        لكتابةِ حركةٍ لا تلزمُ أصلاً).
+     ــ **لا تعتمدُ على اللونِ وحدَه**: كلُّ حالٍ لها **نصٌّ** — فالمصابُ بعمى
+        الألوانِ يقرأُ ما يقرؤُه غيرُه.
+   ========================================================================== */
+
+.sos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 1rem;
+  border-inline-start: 3px solid var(--tg-destructive-text-color, #ef4444);
+  background: var(--tg-section-bg-color);
+  border-radius: 0.75rem;
+}
+
+.sos--broken {
+  border-inline-start-style: dashed;
+}
+
+.sos__title {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.sos__incident {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.sos__incident-status {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.sos__incident-age,
+.sos__origin,
+.sos__window {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sos__blocked,
+.sos__error {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.sos__disclosure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sos__disclosure-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.sos__disclosure-list {
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sos__disclosure-item {
+  font-size: 0.88rem;
+  color: var(--tg-subtitle-text-color);
+  line-height: 1.55;
+}
+
+.sos__sent {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tg-accent-text-color);
+}
+
+.sos__refusal {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-destructive-text-color, #ef4444);
+}
+
+.sos__arm {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--tg-destructive-text-color, #ef4444);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-destructive-text-color, #ef4444);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sos__confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.7rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.sos__confirm-question {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+/* أكبرُ مساحةِ لمسٍ في البطاقةِ: تُضغَطُ بيدٍ ترتعشُ (انظرْ رأسَ الكتلةِ). */
+.sos__confirm-send {
+  padding: 1.05rem 1rem;
+  border: 0;
+  border-radius: 0.7rem;
+  background: var(--tg-destructive-text-color, #ef4444);
+  color: #ffffff;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sos__confirm-cancel {
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--tg-hint-color);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.sos__retry,
+.sos__refresh {
+  align-self: flex-start;
+}
+
+.sos__arm:disabled,
+.sos__confirm-send:disabled,
+.sos__confirm-cancel:disabled,
+.sos__refresh:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}

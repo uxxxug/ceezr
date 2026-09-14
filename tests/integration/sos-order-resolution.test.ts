@@ -35,20 +35,36 @@ async function firstId(rows: { id: string }[], what: string): Promise<string> {
   return id;
 }
 
-/** يُنشئُ طلباً للرّاكبِ بحالةٍ وعمرٍ محدَّدَين، ويُسنِدُه للسّائقِ إن طُلِبَ. */
+/**
+ * يُنشئُ طلباً للرّاكبِ بحالةٍ وعمرٍ محدَّدَين، ويُسنِدُه للسّائقِ إن طُلِبَ.
+ *
+ * **وختمُ الانتهاءِ يُكتَبُ صراحةً لا يُترَكُ لافتراضٍ (`F2-10`)**: كانَ الإدراجُ
+ * يكتبُ `created_at` وحدَه، فيبقى `updated_at` عندَ `now()` مهما قيلَ
+ * `minutesAgo`. فطلبٌ «مكتملٌ منذُ ساعتَينِ» كانَ في القاعدةِ **مكتملاً هذه
+ * اللحظةَ** — وهوَ كذبُ تجهيزٍ لم يظهرْ ما دامَ الحكمُ لا ينظرُ إلّا إلى
+ * الحالةِ. ولمّا صارَ `trigger_sos` يقيسُ `coalesce(completed_at, updated_at)`
+ * لنافذةِ ما بعدَ الرحلةِ، كشفَ المحرِّكُ الحقيقيُّ كذبَ التجهيزِ في أوّلِ
+ * جولةٍ. فصُدِّقَ التجهيزُ ولم يُخفَّفِ الحكمُ.
+ */
 async function makeOrder(options: {
   status: string;
   minutesAgo: number;
   assigned: boolean;
 }): Promise<string> {
+  const completed = options.status === "completed";
   const rows = await sql<{ id: string }[]>`
-    insert into orders (city_id, rider_id, assigned_driver_id, service, status, pickup, created_at)
+    insert into orders (
+      city_id, rider_id, assigned_driver_id, service, status, pickup,
+      created_at, updated_at, completed_at
+    )
     values (
       ${cityId}, ${riderId}::uuid,
       ${options.assigned ? driverId : null}::uuid,
       'transport', ${options.status}::order_status,
       ST_SetSRID(ST_MakePoint(39.1728, 21.5433), 4326)::geography,
-      now() - make_interval(mins => ${options.minutesAgo})
+      now() - make_interval(mins => ${options.minutesAgo}),
+      now() - make_interval(mins => ${options.minutesAgo}),
+      ${completed ? sql`now() - make_interval(mins => ${options.minutesAgo})` : sql`null`}
     )
     returning id
   `;
@@ -123,6 +139,12 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
         orders, driver_availability, drivers, riders, users restart identity cascade
     `;
     await createFixture();
+    // `platform_settings` لا تُقطَعُ، فيُرَدُّ إعدادُ النافذةِ إلى ما بذَرتْه الهجرةُ قبلَ
+    // كلِّ حالةٍ؛ وإلّا سرَبَ تعديلُ حالةٍ إلى تالياتِها فصارَ الترتيبُ حَكَماً.
+    await sql`
+      update platform_settings set value = '30'::jsonb
+      where city_id = ${cityId}::uuid and key = 'sos_post_ride_window_minutes'
+    `;
     trigger = createTriggerSosPort(sql);
   });
 
@@ -178,7 +200,10 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
     expect(attributed).not.toBe(older);
   });
 
-  /** الطلبُ المنتهي ليسَ قائماً: لا تُنسَبُ إليه استغاثةُ اليومِ. */
+  /**
+   * الطلبُ المنتهي منذُ ساعتَينِ خارجَ نافذةِ ما بعدَ الرحلةِ (ثلاثونَ دقيقةً
+   * `sos_post_ride_window_minutes`)، فلا تُنسَبُ إليه استغاثةُ اليومِ.
+   */
   it("لا طلبَ قائمَ للرّاكبِ: `NO_ACTIVE_ORDER` صريحاً لا عطلاً", async () => {
     await makeOrder({ status: "completed", minutesAgo: 120, assigned: true });
     const result = await trigger.trigger({
@@ -191,6 +216,59 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
     expect(result.value).toEqual({ incidentId: null, error: "NO_ACTIVE_ORDER" });
     const count = await sql<{ n: string }[]>`select count(*)::text n from safety_incidents`;
     expect(count[0]?.n).toBe("0");
+  });
+
+  /**
+   * `F2-10` · القرارُ الأوّلُ: ما بعدَ الرحلةِ **نافذةٌ لا عدَمٌ**. وأخطرُ ما
+   * يقعُ للراكبِ قد يقعُ **بعدَ** أن يُنهيَ السائقُ الرحلةَ في شاشتِه — ثمَّ
+   * يُنزِلُه في مكانٍ آخرَ أو يتبعُه. فرفضُ النداءِ هنا أسوأُ من غيابِ الزرِّ.
+   */
+  it("رحلةٌ انتهتْ داخلَ النافذةِ: الاستغاثةُ تُقبَلُ وتُنسَبُ إلى طلبِها", async () => {
+    const order = await makeOrder({ status: "completed", minutesAgo: 5, assigned: true });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderId(result.value.incidentId)).toBe(order);
+  });
+
+  /**
+   * حدُّ النافذةِ حدٌّ لا مُنحدَرٌ: ثلاثونَ دقيقةً هي الإعدادُ، فما جاوزَها
+   * يُردُّ باسمِه ولا يُترَكُ للتقديرِ. وهذا ما يجعلُ النافذةَ نافذةً لا أبداً.
+   */
+  it("رحلةٌ انتهتْ بعدَ النافذةِ بدقيقةٍ: تُردَّ `NO_ACTIVE_ORDER`", async () => {
+    await makeOrder({ status: "completed", minutesAgo: 31, assigned: true });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value).toEqual({ incidentId: null, error: "NO_ACTIVE_ORDER" });
+  });
+
+  /**
+   * النافذةُ **إعدادٌ بمدينةِ الطلبِ** لا ثابتٌ في الشِّفرةِ (القاعدة 0.3). ولو كانَ
+   * الثلاثونَ محفوراً لمرَّ هذا الاختبارُ وسابقُه جميعاً وهوَ كاذبٌ.
+   */
+  it("إعدادُ المدينةِ يُطَاعُ: توسيعُ النافذةِ يقلبُ الحكمَ بلا تغييرِ شِفرةٍ", async () => {
+    await sql`
+      update platform_settings set value = '90'::jsonb
+      where city_id = ${cityId}::uuid and key = 'sos_post_ride_window_minutes'
+    `;
+    const order = await makeOrder({ status: "completed", minutesAgo: 60, assigned: true });
+    const result = await trigger.trigger({
+      orderId: null,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderId(result.value.incidentId)).toBe(order);
   });
 
   /** السّائقُ يُسأَلُ عن التزامٍ قائمٍ عليه: `matched`/`in_progress` لا `searching`. */

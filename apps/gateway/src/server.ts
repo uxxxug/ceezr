@@ -37,6 +37,7 @@ import {
 } from "./routes/payment-webhook.ts";
 import { createQuoteRoutes, type QuoteRouteDependencies } from "./routes/quote.ts";
 import { createRidesRoutes, type RidesRouteDependencies } from "./routes/rides.ts";
+import { createSafetyRoutes, type SafetyRouteDependencies } from "./routes/safety.ts";
 import {
   createSessionRefreshRoutes,
   type SessionRefreshDependencies,
@@ -99,6 +100,12 @@ export interface ServerDependencies {
    * أسوأُ من مسارٍ غائبٍ، لأنَّ الشاشةَ تنتقلُ إلى بحثٍ عن رحلةٍ لا وجودَ لها.
    */
   readonly rides?: RidesRouteDependencies;
+  /**
+   * سطحُ الاستغاثةِ في التطبيقِ المصغَّرِ (`F2-10` / `SR-14`) — يُركَّبُ معَ سرِّ
+   * الجلسةِ. وغيابُه **لا يُعطِّلُ الاستغاثةَ**: مسارُ البوتِ قائمٌ ومستقلٌّ،
+   * وهذا سطحٌ ثانٍ على الحاكمِ نفسِه لا بديلٌ عنه.
+   */
+  readonly safety?: SafetyRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
@@ -163,6 +170,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.rides !== undefined) {
     app.route("/", createRidesRoutes(deps.rides));
+  }
+  if (deps.safety !== undefined) {
+    app.route("/", createSafetyRoutes(deps.safety));
   }
 
   if (deps.destinations !== undefined) {
