@@ -93,6 +93,10 @@ describeIf("حقَّا البيانةِ على قاعدةٍ حقيقيّةٍ (F2
   afterAll(async () => {
     // **لا يُترَكُ أثرٌ**: الصفوفُ المبذورةُ تُزالُ بترتيبِ التبعيّةِ، وصفُّ
     // `users` آخرُها لأنَّ مفاتيحَ `restrict` تحرسُه.
+    // **الأثرُ يَعبُرُ الحذفَ فيَعبُرُ التنظيفَ كذلكَ** (`ADR 0113`): `identity_marks`
+    // يحملُ `city_id` بمفتاحٍ `restrict`، فمدينةُ هذا الملفِّ لا تُحذَفُ ما بقيَ
+    // له صفٌّ. ولا يُحلُّ ذلكَ بإرخاءِ المفتاحِ — المفتاحُ مقصودٌ — بل بإزالةِ
+    // ما بذرَه هذا الملفُّ بعينِه: صفوفُ الأثرِ المرتبطةُ بمدينتِه وحدَها.
     for (const id of created) {
       await sql`delete from user_consents where user_id = ${id}`;
       await sql`delete from audit_log where actor_user_id = ${id}`;
@@ -101,11 +105,19 @@ describeIf("حقَّا البيانةِ على قاعدةٍ حقيقيّةٍ (F2
       await sql`delete from riders where user_id = ${id}`;
       await sql`delete from users where id = ${id}`;
     }
+    await sql`delete from identity_marks where city_id = ${cityId}`;
     await sql`delete from cities where code = 'f211'`;
     await sql.end();
   });
 
-  it("يُنزِّلُ الأقسامَ الاثنَي عشرَ كلَّها ولو كانَ بعضُها فارغاً", async () => {
+  /**
+   * **ثلاثةَ عشرَ لا اثنَي عشرَ بعدَ `ADR 0113`**: القسمُ الثالثَ عشرَ
+   * `identityBar` أضافَه القرارُ نفسُه لأنَّ أثرَ الهُويّةِ يبقى بعدَ المحوِ،
+   * **وما يبقى يجبُ أن يُنزَّلَ** وإلّا كانَ التنزيلُ يُخبِرُ بأقلَّ مِمّا نحفظُ.
+   * فالقائمةُ **وُسِّعَت بالعقدِ الجديدِ ولم تُرَخَّ**: هيَ مجالٌ مغلقٌ يُقارَنُ
+   * بالتساوي لا بالاحتواءِ، فقسمٌ رابعَ عشرَ يُضافُ سهواً يُسقِطُ الاختبارَ.
+   */
+  it("يُنزِّلُ الأقسامَ الثلاثةَ عشرَ كلَّها ولو كانَ بعضُها فارغاً", async () => {
     erasedUserId = await seedRider(TG_ERASED);
     const userId = erasedUserId;
     await sql`
@@ -121,6 +133,7 @@ describeIf("حقَّا البيانةِ على قاعدةٍ حقيقيّةٍ (F2
       "auditTrail",
       "broadcastsReceived",
       "consents",
+      "identityBar",
       "notificationsReceived",
       "orders",
       "profile",

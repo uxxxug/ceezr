@@ -352,11 +352,25 @@ describeIf("الفحص الهجومي الفعلي: ويبهوك ودخول وق
       expect(functions.every((fn) => !fn.executable)).toBe(true);
     });
 
+    /**
+     * **مجالٌ مغلقٌ من شكلَينِ لا شكلٌ واحدٌ**: كانَ الحاجزُ يشترطُ
+     * `search_path=public` حرفاً، فأسقطَ دوالَّ `ADR 0113` المكتوبةَ
+     * `set search_path = public, pg_temp`. **والشكلُ الثاني أمتنُ لا أرخى**:
+     * إن لم يُذكرِ `pg_temp` صراحةً بحثَ عنه المحرِّكُ **أوّلاً** ضمناً،
+     * فإملاءُ موقعِه في الذيلِ يمنعُ تظليلَ جدولٍ موقّتٍ لجدولٍ حقيقيٍّ داخلَ
+     * دالّةِ `definer` — وهو ما توصي به وثائقُ PostgreSQL نفسُها.
+     * فيُوسَّعُ المجالُ إلى الشكلَينِ **ويبقى مغلقاً**: أيُّ شكلٍ ثالثٍ —
+     * ومنه `pg_temp` في الصدرِ، أو مخطّطٌ غريبٌ، أو غيابُ `proconfig` رأساً —
+     * يُسقِطُ الاختبارَ.
+     */
     const unsafeDefiners = await sql<{ sig: string }[]>`
       select p.oid::regprocedure::text as sig
         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
        where n.nspname = 'public' and p.prosecdef
-         and not coalesce(p.proconfig, array[]::text[]) @> array['search_path=public']::text[]
+         and coalesce(array_to_string(p.proconfig, ','), '') not in (
+           'search_path=public',
+           'search_path=public, pg_temp'
+         )
     `;
     expect(unsafeDefiners.length).toBe(0);
   });

@@ -261,6 +261,16 @@ create trigger users_mark_identity_before_erasure
   for each row
   execute function public.mark_identity_before_erasure();
 
+-- **دالّةُ مُشغِّلٍ تُولَدُ مفتوحةً لـPUBLIC ما لم تُسحَبْ صراحةً**: منحةُ
+-- التنفيذِ الضمنيّةُ يُصدِرُها المحرِّكُ لا الهجرةُ، و`alter default privileges`
+-- لا يُلغيها (العِلَّةُ مشروحةٌ في `20260812000000_phase_1_seal_definer_surface`).
+-- والمُشغِّلُ يعملُ بلا هذه المنحةِ — الإطلاقُ من المُشغِّلِ لا يُفحَصُ له `EXECUTE` —
+-- فالسحبُ لا يُعطِّلُ شيئاً ويُغلقُ باباً. وهذا هوَ عينُ ما أخفقَ فيه أوّلُ
+-- حكمٍ لـCI على هذا الفرعِ: الطبقةُ الثانيةُ في
+-- `tests/integration/database-privilege-surface.test.ts` رأت ثلاثَ دوالَّ
+-- قابلةً للتنفيذِ من `anon` — فالإصلاحُ ههنا في الجذرِ لا في التوكيدِ.
+revoke execute on function public.mark_identity_before_erasure() from public, anon, authenticated;
+
 -- ── ٤) القراءةُ: مُشغِّلٌ قبلَ الإنشاءِ يُعيدُ ما كانَ ──────────────────────
 create or replace function public.apply_identity_mark_on_signup()
 returns trigger
@@ -312,6 +322,8 @@ create trigger users_apply_identity_mark_on_signup
   for each row
   execute function public.apply_identity_mark_on_signup();
 
+revoke execute on function public.apply_identity_mark_on_signup() from public, anon, authenticated;
+
 -- ── ٥) المقامُ يَلحَقُ الملفَّ لا الصفَّ الجذرَ ─────────────────────────────
 -- `users` لا يحملُ تقييماً؛ يحملُه `riders` و`drivers`. فيُبذَرُ المقامُ
 -- المحمولُ عندَ إنشاءِ الملفِّ، لا عندَ إنشاءِ المستخدمِ.
@@ -359,6 +371,8 @@ create trigger riders_seed_carried_standing
   after insert on public.riders
   for each row
   execute function public.seed_carried_standing();
+
+revoke execute on function public.seed_carried_standing() from public, anon, authenticated;
 
 -- ── ٦) الإيصالُ والتنزيلُ: يقولانِ ما بقيَ ─────────────────────────────────
 -- تُستبدَلُ الدالّتانِ لا لتغييرِ منطقِهما بل ليَصدُقَ ما تقولانِه. والأثرُ
