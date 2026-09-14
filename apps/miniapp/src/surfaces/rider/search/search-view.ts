@@ -186,8 +186,11 @@ export function isRetryableRideError(code: string): boolean {
  * `crypto.randomUUID` حيثُ وُجِدَ — ولا يُشتقُّ من الوقتِ وحدَه: ضغطتانِ في
  * مِلّي ثانيةٍ واحدةٍ تُنتِجانِ المفتاحَ نفسَه فتُفقَدُ رحلةٌ قُصِدَتْ.
  */
-export function newIdempotencyKey(random: () => string = defaultRandom): string {
-  return `ride:${random()}`;
+export function newIdempotencyKey(random: () => string = defaultRandom, scope = "ride"): string {
+  // **النطاقُ وسيطٌ لا نسخةٌ ثانيةٌ من الدالّةِ**: مفتاحُ اللاتكرارِ واحدٌ في
+  // العميلِ كلِّه (`ADR 0043`)، وأوَّلُ مَن نسخَه لنفسِه نسخَ معه بديلَ بيئةٍ
+  // بلا `crypto` — فيصيرُ في الشاشتَينِ حكمانِ للعشوائيّةِ يتفارقانِ.
+  return `${scope}:${random()}`;
 }
 
 function defaultRandom(): string {

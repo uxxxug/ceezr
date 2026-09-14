@@ -94,6 +94,8 @@ export interface HomeScreenProps {
    * مُعطَّلاً**: مدخلٌ لا يُفتَحُ أسوأُ من غيابِ مدخلٍ.
    */
   readonly onOpenHistory?: () => void;
+  /** مدخلُ شاشةِ الحسابِ (`SR-12`) — **اختياريٌّ** كأختِه: غيابُه لا يُبيِّضُ الرئيسةَ. */
+  readonly onOpenAccount?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
   /** اسمُ المزوّدِ المُهيَّأِ فعلاً؛ `"none"` تعني: قُلِ الحدَّ ولا ترسمْ. */
   readonly mapProvider?: string;
@@ -132,6 +134,7 @@ export function HomeScreen({
   loadRecent = fetchRecentDestinations,
   onDestinationChosen,
   onOpenHistory,
+  onOpenAccount,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   mapProvider = "none",
   cityName,
@@ -220,6 +223,15 @@ export function HomeScreen({
       </button>
     );
 
+  // مدخلُ الحسابِ (`SR-12`). **زرٌّ لا أيقونةٌ عاريةٌ**: أيقونةُ تروسٍ بلا نصٍّ
+  // لا يقرؤها قارئُ الشاشةِ، وفيها بابُ حذفِ الحسابِ (`UX-10`).
+  const accountEntry =
+    onOpenAccount === undefined ? null : (
+      <button type="button" className="rh__account" onClick={() => onOpenAccount()}>
+        {t("rider.home.account.open")}
+      </button>
+    );
+
   if (state.kind === "loading") {
     return (
       <section
@@ -249,6 +261,7 @@ export function HomeScreen({
       <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
         {title}
         {historyEntry}
+        {accountEntry}
         <div className="sys" role="alert">
           <p className="sys__body">{t(placesErrorKey(state.code))}</p>
           {isRetryablePlacesError(state.code) ? (
@@ -266,6 +279,7 @@ export function HomeScreen({
     <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
       {title}
       {historyEntry}
+      {accountEntry}
 
       {/* الحدُّ الأوّلُ مكتوبٌ حيثُ يُتوقَّعُ الرسمُ — لا فراغٌ ولا رسمٌ كاذبٌ. */}
       {mapProvider === "none" ? (

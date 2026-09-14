@@ -2087,3 +2087,230 @@ a {
   opacity: 0.6;
   cursor: progress;
 }
+
+/* ═══ شاشةُ الحسابِ وحقَّا البيانةِ (`F2-11` · `SR-12`) ═══
+   والبادئةُ `ac__` **لا** `account__`: بادئاتُ هذا المستودعِ قصيرةٌ مُعلَنةٌ في
+   `DECLARED_BLOCKS`، وبادئةٌ طويلةٌ مخترَعةٌ تُخفي أنماطَ الشاشةِ عن كلِّ قياسٍ
+   لاحقٍ. والإيصالُ `ac__receipt-*` **داخلَ كتلةِ الحسابِ لا كتلةٌ ثانيةٌ**: لا
+   يُعرَضُ إلّا فيها، وكتلةٌ لا تُرى وحدَها لا تستحقُّ بادئةً وحدَها.
+   والإضافةُ بالذيلِ: لا سطرَ سابقٌ يُنقَلُ ولا يُمحى (`ح-1`). */
+
+/* مدخلُ الحسابِ من الرئيسةِ — أخو `.rh__history` حرفاً كي لا يختلفَ زرّانِ
+   متجاورانِ في الشاشةِ نفسِها بلا سببٍ. */
+.rh__account {
+  align-self: flex-start;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ac {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+.ac__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.ac__erased-at,
+.ac__export-note,
+.ac__erase-kept {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.ac__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ac__back,
+.ac__close {
+  align-self: flex-start;
+}
+
+/* ── الحقّانِ: قسمانِ مفصولانِ بحدٍّ، لا قائمةٌ واحدةٌ ──
+   التنزيلُ والحذفُ **لا يُصفّانِ متجاورَينِ**: مَن قصدَ التنزيلَ فوقعَ على
+   الحذفِ لا يجدُ تراجعاً، ولذا بينهما حدٌّ وعنوانٌ. */
+.ac__rights,
+.ac__export,
+.ac__erase,
+.ac__debt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.ac__rights-title,
+.ac__debt-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.ac__export,
+.ac__erase {
+  padding: 0.85rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.9rem;
+}
+
+.ac__erase {
+  border-color: var(--tg-destructive-text-color, #ef4444);
+}
+
+.ac__erase-warning {
+  margin: 0;
+  font-weight: 700;
+  color: var(--tg-destructive-text-color, #ef4444);
+}
+
+.ac__export-run {
+  align-self: flex-start;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid var(--tg-button-color, #2ea6ff);
+  border-radius: 0.7rem;
+  background: var(--tg-button-color, #2ea6ff);
+  color: var(--tg-button-text-color, #ffffff);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ac__erase-open,
+.ac__erase-run {
+  align-self: flex-start;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid var(--tg-destructive-text-color, #ef4444);
+  border-radius: 0.7rem;
+  background: var(--tg-destructive-text-color, #ef4444);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ac__erase-cancel {
+  align-self: flex-start;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.ac__erase-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ac__erase-label {
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.ac__erase-input {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.ac__export-run:disabled,
+.ac__erase-open:disabled,
+.ac__erase-run:disabled,
+.ac__erase-cancel:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.ac__error,
+.ac__export-refusal,
+.ac__erase-refusal {
+  margin: 0;
+  color: var(--tg-destructive-text-color, #ef4444);
+}
+
+.ac__export-done {
+  margin: 0;
+  font-weight: 700;
+}
+
+/* ── الدَّينُ المُعلَنُ ──
+   يُكتَبُ بلونِ الملحوظةِ لا بلونِ الخطأِ: هوَ إقرارٌ بما لم يُبنَ، لا عطبٌ. */
+.ac__debt-list {
+  margin: 0;
+  padding-inline-start: 1.1rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.ac__debt-item {
+  font-size: 0.9rem;
+}
+
+/* ── إيصالُ الحذفِ ──
+   **الوثيقةُ الوحيدةُ التي يخرجُ بها صاحبُ الحسابِ**، فلها إطارٌ يُميِّزُها
+   عمّا حولَها ولا تُقرأُ فقرةً عابرةً بينَ الفقراتِ. */
+.ac--erased .ac__title {
+  color: var(--tg-destructive-text-color, #ef4444);
+}
+
+.ac__receipt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.9rem;
+}
+
+.ac__receipt-total {
+  margin: 0;
+  font-weight: 700;
+}
+
+.ac__receipt-heading {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.ac__receipt-list {
+  margin: 0;
+  padding-inline-start: 1.1rem;
+}
+
+.ac__receipt-item {
+  font-size: 0.9rem;
+}
+
+/* المُبقى **يُقرأُ بسببِه لا بعددِه وحدَه**: السببُ سطرٌ تحتَ القسمِ لا حاشيةٌ. */
+.ac__receipt-list--retained .ac__receipt-item {
+  margin-bottom: 0.35rem;
+}
+
+.ac__receipt-section {
+  font-weight: 700;
+}
+
+.ac__receipt-basis {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}

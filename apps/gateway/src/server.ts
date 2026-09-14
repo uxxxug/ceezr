@@ -26,6 +26,10 @@ import {
 } from "./routes/driver-location.ts";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
+import {
+  createDataRightsRoutes,
+  type DataRightsRouteDependencies,
+} from "./routes/me-data-rights.ts";
 import { createPlacesRoutes, type PlacesRouteDependencies } from "./routes/me-places.ts";
 import {
   createNotificationRoutes,
@@ -106,6 +110,8 @@ export interface ServerDependencies {
    * وهذا سطحٌ ثانٍ على الحاكمِ نفسِه لا بديلٌ عنه.
    */
   readonly safety?: SafetyRouteDependencies;
+  /** حقّا البيانةِ (`F2-11`) — غيابُهما تعطيلٌ صريحٌ لا ردٌّ صوريٌّ. */
+  readonly dataRights?: DataRightsRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
@@ -173,6 +179,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.safety !== undefined) {
     app.route("/", createSafetyRoutes(deps.safety));
+  }
+  if (deps.dataRights !== undefined) {
+    app.route("/", createDataRightsRoutes(deps.dataRights));
   }
 
   if (deps.destinations !== undefined) {
