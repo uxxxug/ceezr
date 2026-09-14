@@ -2612,3 +2612,214 @@ a {
   align-self: flex-start;
   margin-top: 0.25rem;
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   وثائقُ السائقِ (`F3-01` · `SD-01` · `SD-02`) — الكتلةُ `dd`
+
+   ولِمَ كتلةٌ سادسةَ عشرةَ لا توسيعٌ لِـ`ac`: شاشةُ الحسابِ تُقرأُ **مرّةً**،
+   وهذه تُقرأُ عندَ كلِّ حجبٍ وكلِّ انتهاءٍ قريبٍ — وشارتُها **تُلِحُّ بلونٍ**
+   لأنَّ رخصةً منتهيةً منعُ عملٍ لا سطرَ بيانٍ. وخلطُ البادئتَينِ يُورِّثُ
+   الحسابَ إلحاحاً لا يحتاجُه أو يُهدِّئُ هذه فتُقرأُ خبراً.
+   ══════════════════════════════════════════════════════════════════════════ */
+.dd {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dd__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.dd__headline {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-weight: 600;
+}
+
+.dd__loading {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* سببُ الحجبِ **أوّلُ ما يُقرأُ** وبإطارٍ يفصلُه عن بقيّةِ الشاشةِ. */
+.dd__blocks {
+  margin: 0;
+  padding: 0.7rem 1.1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--tg-destructive-text-color, #f87171);
+  background: var(--tg-secondary-bg-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.dd__block {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--tg-destructive-text-color, #f87171);
+}
+
+.dd__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.dd__item {
+  padding: 0.8rem;
+  border-radius: 0.75rem;
+  background: var(--tg-section-bg-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dd__item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.dd__label {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.dd__badge {
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dd__badge--missing {
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-subtitle-text-color);
+  border: 1px solid var(--tg-hint-color, #94a3b8);
+}
+
+.dd__badge--waiting {
+  background: rgb(56 189 248 / 18%);
+  color: var(--tg-accent-text-color, #38bdf8);
+}
+
+.dd__badge--accepted {
+  background: rgb(34 197 94 / 18%);
+  color: #22c55e;
+}
+
+.dd__badge--refused {
+  background: rgb(248 113 113 / 18%);
+  color: var(--tg-destructive-text-color, #f87171);
+}
+
+/* المنتهيةُ قريباً **ليست مقبولةً هادئةً**: تُصفَّرُ لأنَّ عليها فعلاً بموعدٍ. */
+.dd__badge--expiring {
+  background: rgb(250 204 21 / 20%);
+  color: #facc15;
+}
+
+.dd__expiry,
+.dd__step {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* سببُ الرفضِ نصُّ مراجعٍ — يُعرَضُ كما كُتِبَ ولا يُقَصُّ. */
+.dd__note {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.65;
+  padding-inline-start: 0.6rem;
+  border-inline-start: 3px solid var(--tg-destructive-text-color, #f87171);
+  overflow-wrap: anywhere;
+}
+
+.dd__upload {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.dd__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dd__input {
+  font: inherit;
+  color: var(--tg-text-color);
+  background: var(--tg-bg-color);
+  border: 1px solid var(--tg-section-separator-color, #334155);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.6rem;
+  min-height: 2.75rem;
+}
+
+.dd__error {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #f87171);
+}
+
+.dd__ok {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #22c55e;
+}
+
+.dd__submit,
+.dd__retry,
+.dd__back {
+  font: inherit;
+  min-height: 2.75rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: 0.6rem;
+  border: none;
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  cursor: pointer;
+}
+
+.dd__back {
+  align-self: flex-start;
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+}
+
+.dd__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dd__debt {
+  margin: 0;
+  padding-top: 0.6rem;
+  padding-inline-start: 1.1rem;
+  border-top: 1px solid var(--tg-hint-color, #999);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dd__debt-item {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color);
+}

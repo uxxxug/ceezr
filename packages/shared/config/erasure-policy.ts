@@ -213,6 +213,23 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     exportSection: "driverCapabilities",
     deferredTo: "SD-12",
   },
+  /**
+   * `F3-01`: وثائقُ السائقِ. **تُمحى محواً تامّاً** — لا أساسَ إبقاءٍ لها: الصفُّ
+   * حكمُ أهليّةٍ لسائقٍ قائمٍ، ومن مضى حسابُه لا أهليّةَ تُحكَمُ له.
+   *
+   * وحدٌّ يُقالُ ولا يُضمَرُ: حذفُ الصفِّ **لا يحذفُ الجسمَ من المخزنِ** — المسارُ
+   * في العمودِ والملفُّ في دلوٍ خاصٍّ، فمحوٌ يمسحُ الصفَّ وحدَه يُبقي صورةَ رخصةٍ
+   * في مخزنٍ بلا مرجعٍ يدلُّ عليها. فحذفُ الأجسامِ بندٌ من `SD-12` نفسِه لا
+   * ملحوظةٌ ههنا، وهوَ مكتوبٌ في دليلِ `F3-01`.
+   */
+  driver_documents: {
+    disposition: D.erase,
+    subjects: [S.driver],
+    linkedBy: "driver_documents.driver_id → drivers.user_id",
+    basis: null,
+    exportSection: "driverDocuments",
+    deferredTo: "SD-12",
+  },
   driver_location_history: {
     disposition: D.erase,
     subjects: [S.driver],
