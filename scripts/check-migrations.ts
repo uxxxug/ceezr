@@ -33,6 +33,11 @@ import {
   DOMAIN_INGRESS_RECEIPT_TABLES,
   isDomainIngressReceiptTable,
 } from "../packages/shared/config/domain-ingress.ts";
+import {
+  isPlatformSecretTable,
+  PLATFORM_SECRET_DECLARATION_PREFIX,
+  PLATFORM_SECRET_TABLES,
+} from "../packages/shared/config/platform-secret.ts";
 
 const MIGRATIONS_DIR = "supabase/migrations";
 
@@ -122,18 +127,28 @@ export function tablesWithRlsEnabled(sql: string): Set<string> {
  * نصوصٍ ولا مُستنتَجةً من شكلِ الجدول — والقصدُ أن يكون التصريحُ مقروءاً بالعينِ
  * كما يُقرأ بالفاحص، فمن أعفى جدولاً أعلن ذلك في الملفِّ نفسِه بسطرٍ لا يُخطئه أحد.
  */
-export function declaredDomainIngressReceipts(sql: string): Set<string> {
+function declaredWithPrefix(sql: string, prefix: string): Set<string> {
   const declared = new Set<string>();
-  const escapedPrefix = DOMAIN_INGRESS_RECEIPT_DECLARATION_PREFIX.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&",
-  );
+  const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`^\\s*${escapedPrefix}\\s+([a-z_][a-z0-9_]*)\\s*$`, "gim");
   for (const match of sql.matchAll(pattern)) {
     const name = match[1];
     if (name !== undefined) declared.add(name);
   }
   return declared;
+}
+
+export function declaredDomainIngressReceipts(sql: string): Set<string> {
+  return declaredWithPrefix(sql, DOMAIN_INGRESS_RECEIPT_DECLARATION_PREFIX);
+}
+
+/**
+ * التصريحاتُ بصنفِ `platform secret` في نصِّ هجرةٍ — الملحقُ الحاكمُ
+ * 2026-09-14. يُقرأُ بالآليّةِ نفسِها التي يُقرأُ بها الصنفُ الأوّلُ، فلا
+ * يختلفُ صنفٌ عن صنفٍ في صرامةِ القراءةِ.
+ */
+export function declaredPlatformSecrets(sql: string): Set<string> {
+  return declaredWithPrefix(sql, PLATFORM_SECRET_DECLARATION_PREFIX);
 }
 
 function main(): void {
@@ -145,6 +160,8 @@ function main(): void {
   const rlsEnabled = new Set<string>();
   /** ما صُرِّح به فعلاً، وفي أيِّ ملفٍّ — كي يُرى المُدخلُ الميّتُ والتصريحُ اليتيم. */
   const declaredReceipts = new Map<string, string>();
+  /** كسابقِه للصنفِ الثاني: المُدخلُ الميّتُ والتصريحُ اليتيمُ يُريانِ كلاهما. */
+  const declaredSecrets = new Map<string, string>();
   const exemptedTables: string[] = [];
 
   for (const file of files) {
@@ -166,12 +183,31 @@ function main(): void {
       }
     }
 
+    const declaredSecretsHere = declaredPlatformSecrets(sql);
+    for (const name of declaredSecretsHere) {
+      declaredSecrets.set(name, file);
+      if (!isPlatformSecretTable(name)) {
+        violations.push({
+          file,
+          table: name,
+          problem:
+            "صُرِّح كـplatform secret وليس في القائمة المغلقة " +
+            "PLATFORM_SECRET_TABLES — والصنفُ لا يُوسَّع بتعليقٍ في هجرة " +
+            "(الملحق الحاكم 2026-09-14)",
+        });
+      }
+    }
+
     for (const { name, body } of findTableBlocks(sql)) {
       allTables.push(name);
 
       if (!/\bcity_id\b/.test(body)) {
         // الإعفاءُ مزدوجُ الشرطِ: إعلانٌ في القائمةِ المغلقةِ، وتصريحٌ في هذا الملفِّ.
         if (isDomainIngressReceiptTable(name) && declaredHere.has(name)) {
+          exemptedTables.push(name);
+          continue;
+        }
+        if (isPlatformSecretTable(name) && declaredSecretsHere.has(name)) {
           exemptedTables.push(name);
           continue;
         }
@@ -233,6 +269,28 @@ function main(): void {
     }
   }
 
+  // والصنفُ الثاني يُقابَلُ في الاتّجاهَينِ نفسِهما: تصريحٌ بلا جدولٍ، ومُدخلٌ
+  // بلا تصريحٍ. وإلّا صارَ الصنفُ الجديدُ أرخى من القديمِ، وذاكَ نقضٌ للغرضِ
+  // الذي من أجلِه فُصِلَ عنه.
+  for (const [table, file] of declaredSecrets) {
+    if (!allTables.includes(table)) {
+      violations.push({
+        file,
+        table,
+        problem: "صُرِّح كـplatform secret بلا create table يقابله",
+      });
+    }
+  }
+  for (const table of PLATFORM_SECRET_TABLES) {
+    if (!declaredSecrets.has(table)) {
+      violations.push({
+        file: "packages/shared/config/platform-secret.ts",
+        table,
+        problem: "مُعلَن في القائمة المغلقة بلا تصريحٍ في أيّ هجرة (مُدخلٌ ميّت)",
+      });
+    }
+  }
+
   if (violations.length > 0) {
     console.error("❌ مخالفات في المخططات:");
     for (const v of violations) {
@@ -244,8 +302,8 @@ function main(): void {
   const exemptNote =
     exemptedTables.length === 0
       ? ""
-      : ` · وإعفاءُ city_id مقصورٌ على ${exemptedTables.length} جدولٍ من صنفِ domain-ingress receipt` +
-        ` بشرطَيه (${exemptedTables.join(", ")})`;
+      : ` · وإعفاءُ city_id مقصورٌ على ${exemptedTables.length} جدولٍ من صنفَي` +
+        ` domain-ingress receipt و platform secret بشرطَيهما (${exemptedTables.join(", ")})`;
   console.log(
     `✅ ${allTables.length} جدولاً: كلها تحمل city_id و RLS مفعّلة باسمها صراحةً (${rlsEnabled.size} اسماً في قائمة التفعيل)${exemptNote}.`,
   );

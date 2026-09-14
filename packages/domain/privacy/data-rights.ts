@@ -36,6 +36,15 @@ export const RETENTION_BASES = {
   safetyReportMayBeDisputed: "SAFETY_REPORT_MAY_BE_DISPUTED",
   /** سجلُّ التدقيقِ **هوَ** إثباتُ أنَّ هذا الحذفَ وقعَ. */
   auditTrailProvesThisErasure: "AUDIT_TRAIL_PROVES_THIS_ERASURE",
+  /**
+   * `ADR 0113`. **السببُ الوحيدُ ههنا الذي يبقى به ما يُدينُ صاحبَ الطلبِ**:
+   * سائرُ الأسبابِ فوقَه تُبقي حقَّ غيرِه، وهذا يُبقي **حكماً عليه**. ولأنَّ
+   * حقَّ المحوِ لو محا الحظرَ لصارَ أرخصَ بابٍ يُنقّى به سِجِلُّ محتالٍ ثمَّ
+   * يعودُ إلى الركّابِ أنفسِهم بوجهٍ نظيفٍ. ولا يبقى به معرّفٌ: تجزئةٌ
+   * أحاديّةٌ مُفلفَلةٌ، وحكمُ حظرٍ، ومقامُ تقييمٍ، وعدُّ مرّاتٍ — ويُقالُ
+   * للإنسانِ **قبلَ** أن يضغطَ لا في الإيصالِ وحدَه.
+   */
+  blockAndStandingSurviveErasure: "BLOCK_AND_STANDING_SURVIVE_ERASURE",
 } as const;
 
 export type RetentionBasis = (typeof RETENTION_BASES)[keyof typeof RETENTION_BASES];

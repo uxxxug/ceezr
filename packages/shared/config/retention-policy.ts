@@ -193,6 +193,20 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
    * وحذفُه يُعيدُ عليه كتابةَ ما كتبَ. وأمّا حذفُ الحسابِ (القسم 9.12) فيأخذُه
    * معَه بـ`on delete cascade` المُعلَنِ في الهجرةِ نفسِها.
    */
+  /**
+   * `ADR 0113`: فِلفِلُ التجزئةِ. صفٌّ واحدٌ **أبديٌّ بالضرورةِ**: إخراجُه
+   * يُبطِلُ كلَّ أثرِ حظرٍ مكتوبٍ بلا رجعةٍ، فهوَ عمرُ المنصّةِ لا عمرُ مدّةٍ.
+   */
+  identity_hash_pepper: RETENTION_CLASSES.lifecycleBound,
+
+  /**
+   * `ADR 0113`: أثرُ الهُويّةِ بعدَ التجهيلِ. **لا مهمّةَ ليليّةٌ تُخرِجُه**:
+   * الأثرُ الذي يُمحى بعدَ مدّةٍ هوَ عفوٌ مؤقَّتٌ عن محتالٍ يكفيه أن ينتظرَ.
+   * وليسَ صنفُه `audit-unbounded` لأنَّه ليسَ دليلَ امتثالٍ بل حاجزَ سلامةٍ
+   * حيٌّ يُقرأُ في كلِّ تسجيلٍ — وعمرُه عمرُ الحاجزِ.
+   */
+  identity_marks: RETENTION_CLASSES.lifecycleBound,
+
   saved_places: RETENTION_CLASSES.lifecycleBound,
   user_consents: RETENTION_CLASSES.auditUnboundedUntilCompliance,
   user_notifications: RETENTION_CLASSES.pendingDecision,
