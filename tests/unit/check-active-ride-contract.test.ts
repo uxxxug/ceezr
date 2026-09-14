@@ -1,6 +1,7 @@
 /**
  * الغرض: قياسُ حاجزِ عقدِ الرحلةِ النشطةِ — **حالةٌ سلبيّةٌ مبذورةٌ لكلِّ قاعدةٍ
- *   من السِّتِّ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ).
+ *   من الثمانِ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ). وكُنَّ ستّاً يومَ
+ *   كُتِبَ هذا المِلفُّ، فزادَت `F2-09` سابعةً وزادَت `F2-10` ثامنةً.
  * الحالة: منفَّذٌ فعليّاً — البند `F2-06`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: `bun test` وسلسلةُ `ci`.
@@ -21,6 +22,7 @@ import {
   moneyProblems,
   positionAgeProblems,
   sharePathProblems,
+  sosPathProblems,
   unbuiltPathProblems,
   usedKeys,
 } from "../../scripts/lib/active-ride-contract.ts";
@@ -58,6 +60,7 @@ const a = <p className="ar__position-point" />;
 const b = <p className="ar__position-age" />;
 const c = t("rider.active.title");
 const share = <RideShareCard orderId={orderId} />;
+const rescue = <SosCard language={language} />;
 `;
 
 function dictionary(): Record<string, string> {
@@ -86,7 +89,7 @@ describe("حاجزُ عقدِ الرحلةِ النشطةِ — الحالةُ �
     expect(activeRideContractProblems(input())).toEqual([]);
   });
 
-  it("المستودعُ الحقيقيُّ نفسُه يمرُّ بالقواعدِ السِّتِّ", () => {
+  it("المستودعُ الحقيقيُّ نفسُه يمرُّ بالقواعدِ الثمانِ", () => {
     expect(activeRideContractProblems(readRepository())).toEqual([]);
   });
 });
@@ -193,9 +196,32 @@ describe("القاعدة ٤ — مفاتيحُ ثلاثةٌ متطابقةٌ", (
 });
 
 describe("القاعدة ٥ — لا زرَّ لمسارٍ لم يُبنَ", () => {
-  it("زرُّ طوارئَ في السطحِ يُسقِطُ الحاجزَ", () => {
+  /**
+   * `F2-10` (2026-09-14): هذه الحالةُ **انقلبَ حكمُها ولم تُحذَفْ** (`ح-2`).
+   * كانَت تُسقِطُ الحاجزَ لأنَّ مسارَ الاستغاثةِ لم يُبنَ؛ وقد بُنِيَ اليومَ
+   * كاملاً — دالّتانِ في القاعدةِ ومنفذٌ ومساران وبطاقةٌ — فذكرُ «sos» في سطحٍ
+   * لم يبقَ زرّاً كاذباً. **والحراسةُ لم تسقطْ بل انتقلَت**: القاعدةُ ٨ أدناه
+   * تطلبُ البطاقةَ مُركَّبةً فعلاً، ومفاتيحُ `rider.active.` ما زالت ممنوعةً من
+   * لفظِ الاستغاثةِ (الحالةُ التاليةُ) — فلا مَوضِعَ خلا من حاجزٍ.
+   */
+  it("ذكرُ الاستغاثةِ في سطحٍ لم يبقَ زرّاً كاذباً — المسارُ بُنِيَ (`F2-10`)", () => {
     const problems = unbuiltPathProblems(
-      input({ surface: { "surface.tsx": 'const a = <button>{t("sos")}</button>;' } }),
+      input({ surface: { "surface.tsx": 'const a = <button>{t("rider.sos.arm")}</button>;' } }),
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it("مفتاحُ استغاثةٍ في نطاقِ اللقطةِ يُسقِطُ الحاجزَ — موضعُه «rider.sos.»", () => {
+    const dirty = { ...dictionary(), "rider.active.sos": "نجدة" };
+    const problems = unbuiltPathProblems(
+      input({ translations: { ar: dirty, en: dirty, ur: dirty } }),
+    );
+    expect(problems.some((text) => text.includes("موضعُه «rider.sos.»"))).toBe(true);
+  });
+
+  it("زرُّ اتّصالٍ بالسائقِ ما زالَ زرّاً كاذباً — لا مزوِّدَ مكالماتٍ", () => {
+    const problems = unbuiltPathProblems(
+      input({ surface: { "surface.tsx": "const a = <button onClick={callDriver} />;" } }),
     );
     expect(problems.some((text) => text.includes("لم يُبنَ"))).toBe(true);
   });
@@ -309,5 +335,41 @@ describe("القاعدة ٧ — المسارُ المبنيُّ يُركَّبُ
 
   it("الشاشةُ المصنوعةُ السليمةُ تمرُّ", () => {
     expect(sharePathProblems(input())).toEqual([]);
+  });
+});
+
+/**
+ * ولمَ قاعدةٌ ثامنةٌ تُشبِهُ السابعةَ: لأنَّ المقيسَ غيرُ المقيسِ. السابعةُ
+ * تحرسُ بطاقةَ مشاركةٍ، وهذه تحرسُ بطاقةَ استغاثةٍ — والثانيةُ **تُخلِفُ
+ * صامتةً**: مشاركةٌ لا تظهرُ يشكو منها صاحبُها في دقيقةٍ، واستغاثةٌ لا تظهرُ
+ * لا يشكو منها أحدٌ لأنَّ مَن احتاجَها لا يفتحُ تذكرةً. ولو جُمِعَتا في قاعدةٍ
+ * واحدةٍ لَسقطَتا معاً برسالةٍ واحدةٍ تُرسِلُ مُصلِحَها إلى المِلفِّ الخطأِ.
+ */
+describe("القاعدة ٨ — بطاقةُ الاستغاثةِ تُركَّبُ فعلاً (`F2-10`)", () => {
+  it("شاشةٌ بلا بطاقةِ استغاثةٍ تُسقِطُ الحاجزَ", () => {
+    const problems = sosPathProblems(input({ screen: "const a = 1;" }));
+    expect(problems.some((text) => text.includes("SosCard"))).toBe(true);
+  });
+
+  it("ذكرُ الاسمِ في نصٍّ لا يكفي — التركيبُ وسمٌ لا كلمةٌ", () => {
+    const problems = sosPathProblems(input({ screen: "const note = 'SosCard سيُركَّبُ لاحقاً';" }));
+    expect(problems.some((text) => text.includes("غيرُ مُركَّبةٍ"))).toBe(true);
+  });
+
+  /**
+   * وبخلافِ القاعدةِ ٧ **لا يُطلَبُ «orderId»**: الطلبُ يُحَلُّ في القاعدةِ تحتَ
+   * القفلِ (`ADR 0077`)، وسطحُ الاستغاثةِ يبقى مفتوحاً دقائقَ بعدَ انتهاءِ
+   * الرحلةِ فلا رحلةَ «جاريةً» تُمرَّرُ إليه أصلاً. وهذه الحالةُ تُثبِتُ أنَّ
+   * الغيابَ مقصودٌ لا مَسهوٌّ عنه.
+   */
+  it("بطاقةٌ بلا «orderId» تمرُّ — الطلبُ يُحَلُّ في القاعدةِ لا في الشاشةِ", () => {
+    const problems = sosPathProblems(
+      input({ screen: "const a = <RideShareCard orderId={orderId} />; const b = <SosCard />;" }),
+    );
+    expect(problems).toEqual([]);
+  });
+
+  it("الشاشةُ المصنوعةُ السليمةُ تمرُّ", () => {
+    expect(sosPathProblems(input())).toEqual([]);
   });
 });

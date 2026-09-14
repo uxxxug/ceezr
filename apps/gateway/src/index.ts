@@ -42,6 +42,7 @@ import {
   createSavedPlaceWriter,
 } from "../../../packages/infrastructure/places/places-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
+import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { createActiveRideReader } from "../../../packages/infrastructure/transport/active-ride-store.ts";
 import {
@@ -734,6 +735,33 @@ const rides =
         log,
       };
 
+/**
+ * سطحُ الاستغاثةِ (`F2-10`) — **كائنانِ** كسوابقِه: قارئُ الحكمِ لا يملكُ حقَّ
+ * تقييدِ حادثٍ، وآمرُ الضغطةِ لا يقرأُ حكماً. والدورُ `"rider"` **مُركَّبٌ ههنا**
+ * لا مقروءٌ من الطلبِ: لو قُرِئَ من الجسمِ لَأمكنَ لراكبٍ أن يُبلِّغَ بصفةِ سائقٍ.
+ *
+ * **والمنفذُ هوَ منفذُ البوتَينِ نفسُه** (`container.safety.trigger.incidents`):
+ * مسارانِ للسطحِ وحاكمٌ واحدٌ، لا حاكمانِ يفترقانِ يومَ يتغيَّرُ شرطٌ في القاعدةِ.
+ */
+const safety =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        surface: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          surface: createSosSurfaceReader(container.sql),
+          role: "rider" as const,
+        },
+        trigger: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          incidents: container.safety.trigger.incidents,
+          role: "rider" as const,
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -840,6 +868,7 @@ const app = createServer({
   ...(destinations === undefined ? {} : { destinations }),
   ...(quote === undefined ? {} : { quote }),
   ...(rides === undefined ? {} : { rides }),
+  ...(safety === undefined ? {} : { safety }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
