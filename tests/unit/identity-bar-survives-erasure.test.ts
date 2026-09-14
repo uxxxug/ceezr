@@ -257,3 +257,46 @@ describe("`lastDefiningMigration`: العطبُ الذي كشفَه هذا ال�
     ).toBe("c");
   });
 });
+
+/**
+ * **مَقرُّ `pgcrypto` لا يُفترَضُ.** أوّلُ صياغةٍ قالت `extensions.hmac` لأنَّ
+ * الامتدادةَ تسكنُ ذلكَ المخطَّطَ على Supabase، فمضَت الهجرةُ على قاعدةِ
+ * التجريبِ **وسقطَت في CI** بـ`schema "extensions" does not exist` على
+ * الوظائفِ الثلاثِ كلِّها. والعِلَّةُ الجذريّةُ أنَّ الدالّةَ `security definer`
+ * بـ`search_path` مُثبَّتٍ فلا يُغنيها اسمٌ غيرُ مُؤهَّلٍ — فلا يُحَلُّ ذلكَ
+ * بتخفيفِ التثبيتِ (ثغرةُ اختطافِ مسارٍ) ولا بإضافةِ `extensions` إليهِ
+ * (افتراضٌ ثانٍ مكانَ الأوّلِ)، بل بسؤالِ `pg_proc` وقتَ التطبيقِ.
+ *
+ * وهذا حَرَسٌ نصّيٌّ لازمٌ (`ح-7`): أخضرُ التكاملِ يجري على قاعدةٍ **واحدةٍ**
+ * فلا يرى فرقَ المخطَّطاتِ أصلاً، ومَن أعادَ التأهيلَ الجامدَ غداً لبقيَ
+ * أخضرَ عندَه وسقطَ في CI أو في قاعدةِ العملاءِ.
+ */
+describe("الهجرةُ لا تفترضُ مخطَّطَ `pgcrypto`", () => {
+  const executable = sql
+    .split("\n")
+    .filter((line) => !line.trimStart().startsWith("--"))
+    .join("\n");
+
+  test("لا تأهيلَ جامداً لمخطَّطِ الامتدادةِ في نصٍّ يُنفَّذُ", () => {
+    expect(executable).not.toContain("extensions.hmac");
+    expect(executable).not.toContain("extensions.gen_random_bytes");
+  });
+
+  test("المَقرُّ يُسأَلُ عنه `pg_proc` بالتوقيعِ لا بالاسمِ وحدَه", () => {
+    expect(executable).toContain("from pg_proc p");
+    expect(executable).toContain(
+      "pg_get_function_identity_arguments(p.oid) = 'bytea, bytea, text'",
+    );
+    expect(executable).toContain("%I.hmac(");
+  });
+
+  test("غيابُ `hmac` يُسقِطُ التطبيقَ صريحاً — لا تجزئةَ أضعفَ بديلاً", () => {
+    expect(executable).toContain("raise exception");
+    expect(executable).toMatch(/raise exception\s*\n?\s*'ADR 0113/);
+  });
+
+  test("التثبيتُ باقٍ: `search_path` لم يُوسَّعْ ليَبلُغَ الامتدادةَ", () => {
+    expect(executable).toContain("set search_path = public, pg_temp");
+    expect(executable).not.toMatch(/set search_path = [^\n]*extensions/);
+  });
+});

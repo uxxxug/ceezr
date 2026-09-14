@@ -116,10 +116,15 @@ describeOrSkip("ADR 0113 · الحظرُ والمقامُ يَعبُرانِ ا�
   test("الجدولُ يرفضُ معرّفاً صريحاً في خانةِ التجزئةِ", async () => {
     // لو كتبَ مُهاجِرٌ مستقبَليٌّ `telegram_id::text` بدلَ التجزئةِ، تَرُدَّه
     // القاعدةُ في وجهِه ولا يمرُّ صامتاً.
+    //
+    // **و`city_id` يُمرَّرُ صحيحاً عن قصدٍ**: أوّلُ صياغةٍ أسقطَتْه فردَّ
+    // القاعدةُ الصفَّ بـ`not null` قبلَ أن تبلُغَ قيدَ التجزئةِ — فكانَ
+    // الاختبارُ **يمرُّ على الرفضِ الخطأِ**، ولو حُذِفَ القيدُ يوماً لبقيَ
+    // أخضرَ. فالمقيسُ ههنا قيدٌ بعينِه لا «أيُّ رفضٍ».
     const message = await rejectionOf(
       () =>
-        sql`insert into identity_marks (telegram_hash, block_origin)
-            values ('991200001', 'not-blocked')`,
+        sql`insert into identity_marks (city_id, telegram_hash, block_origin)
+            values (${cityId}, '991200001', 'not-blocked')`,
     );
     expect(message).toContain("identity_marks_carry_no_plain_identity");
   });
@@ -211,8 +216,14 @@ describeOrSkip("ADR 0113 · الحظرُ والمقامُ يَعبُرانِ ا�
       select column_name from information_schema.columns
        where table_schema = 'public' and table_name = 'identity_marks'`;
     const names = columns.map((c) => c.column_name).sort();
+    // `city_id` عمودٌ **مقصودٌ** (القاعدةُ ٠.٤): يُحفَظُ ليُعرَفَ أيُّ مدينةٍ
+    // حظرتْ، ولا تُصفّى بهِ المطابقةُ أبداً — وذاكَ مَحروسٌ نصّاً في
+    // `tests/unit/identity-bar-survives-erasure.test.ts`. وأوّلُ صياغةٍ
+    // أسقطَتْه من هذا الجردِ فمرَّت على جدولٍ قديمٍ في قاعدةِ التجريبِ لا على
+    // الهجرةِ كما كُتِبَت — **فالأخضرُ كانَ على مخطَّطٍ متقادمٍ**.
     expect(names).toEqual([
       "block_origin",
+      "city_id",
       "erasure_count",
       "first_marked_at",
       "id",

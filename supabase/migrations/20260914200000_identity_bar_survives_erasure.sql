@@ -48,9 +48,68 @@ create table if not exists public.identity_hash_pepper (
 comment on table public.identity_hash_pepper is
   'فِلفِلُ تجزئةِ الهُويّةِ: صفٌّ واحدٌ، سرٌّ من ٢٥٦ بتّاً، يُكتَبُ مرّةً ولا يُدوَّرُ — تدويرُه يمحو كلَّ أثرِ حظرٍ بلا رجعةٍ (ADR 0113).';
 
-insert into public.identity_hash_pepper (only_row, pepper)
-values (true, gen_random_bytes(32))
-on conflict (only_row) do nothing;
+-- **لا يُفترَضُ مَقرُّ `pgcrypto`، بل يُسأَلُ عنه المُفهرِسُ**: على Supabase
+-- تسكنُ الامتدادةُ مخطَّطَ `extensions`، وعلى قاعدةِ CI مخطَّطَ `public`،
+-- وقاعدةٌ ثالثةٌ قد تُسكِنَها غيرَهما. وقُلنا `extensions.hmac` فمضَت الهجرةُ
+-- على Supabase وسقطَت في CI بـ«schema \"extensions\" does not exist» —
+-- **والعِلَّةُ أنَّ الدالّةَ `security definer` بـ`search_path` مُثبَّتٍ، فلا
+-- يُغنيها اسمٌ غيرُ مُؤهَّلٍ**؛ فلا يُحَلُّ ذلكَ بتخفيفِ التثبيتِ (وهوَ ثغرةُ
+-- اختطافٍ) ولا بإضافةِ `extensions` إلى المسارِ (وهوَ افتراضٌ ثانٍ)، بل
+-- **بسؤالِ `pg_proc` عن مَقرِّ `hmac` وقتَ التطبيقِ** وبناءِ النصِّ به.
+-- ويُسقَطُ التطبيقُ صريحاً إن غابَت — لا تجزئةَ بلا `hmac`.
+do $bootstrap$
+declare
+  v_schema text;
+begin
+  select n.nspname
+    into v_schema
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+   where p.proname = 'hmac'
+     and pg_get_function_identity_arguments(p.oid) = 'bytea, bytea, text'
+   order by (n.nspname = 'extensions') desc, (n.nspname = 'public') desc, n.nspname
+   limit 1;
+
+  if v_schema is null then
+    raise exception
+      'ADR 0113: لا تُوجَدُ hmac(bytea, bytea, text) في أيِّ مخطَّطٍ — فعِّلْ pgcrypto قبلَ هذه الهجرةِ. ولا بديلَ أضعفَ: تجزئةٌ بلا سرٍّ تُكشَفُ بالقوّةِ الغاشمةِ لأنَّ مدى معرِّفاتِ تيليجرامَ محدودٌ.';
+  end if;
+
+  execute format(
+    'insert into public.identity_hash_pepper (only_row, pepper)
+     values (true, %I.gen_random_bytes(32))
+     on conflict (only_row) do nothing',
+    v_schema
+  );
+
+  -- الدالّةُ تُبنى بالمخطَّطِ المكتشَفِ مُؤهَّلاً في نصِّها، فيبقى
+  -- `search_path` مُثبَّتاً على `public, pg_temp` ولا يُوسَّعُ.
+  execute format(
+    $body$
+    create or replace function public.identity_hash(p_value text)
+    returns text
+    language sql
+    stable
+    security definer
+    set search_path = public, pg_temp
+    as $fn$
+      select case
+               when p_value is null or btrim(p_value) = '' then null
+               else encode(
+                      %I.hmac(
+                        convert_to(btrim(p_value), 'utf8'),
+                        (select pepper from public.identity_hash_pepper where only_row),
+                        'sha256'
+                      ),
+                      'hex'
+                    )
+             end;
+    $fn$
+    $body$,
+    v_schema
+  );
+end
+$bootstrap$;
 
 -- **إعلانُ الصنفِ المُعفى من القاعدةِ ٠.٤ بشرطَيه** (`ADR 0113`): هذا الجدولُ
 -- لا صفَّ فيه لإنسانٍ ولا لمدينةٍ — صفٌّ واحدٌ أبديٌّ يحملُ سرَّ النشرِ. ولو
@@ -62,25 +121,6 @@ alter table public.identity_hash_pepper enable row level security;
 revoke all on table public.identity_hash_pepper from public;
 revoke all on table public.identity_hash_pepper from anon, authenticated;
 
-create or replace function public.identity_hash(p_value text)
-returns text
-language sql
-stable
-security definer
-set search_path = public, pg_temp
-as $fn$
-  select case
-           when p_value is null or btrim(p_value) = '' then null
-           else encode(
-                  extensions.hmac(
-                    convert_to(btrim(p_value), 'utf8'),
-                    (select pepper from public.identity_hash_pepper where only_row),
-                    'sha256'
-                  ),
-                  'hex'
-                )
-         end;
-$fn$;
 
 comment on function public.identity_hash(text) is
   'تجزئةٌ أحاديّةٌ مُفلفَلةٌ لمعرّفٍ: تُطابِقُ ولا تكشفُ. الفارغُ يُرَدُّ فارغاً فلا يُكتَبُ أثرٌ لمعرّفٍ غيرِ موجودٍ (ADR 0113).';
