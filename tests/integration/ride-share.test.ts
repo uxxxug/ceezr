@@ -112,6 +112,14 @@ async function issue(
     select issue_tracking_token(${orderId}::uuid, ${telegramId}::bigint, ${token}) as result
   `;
   if (row === undefined) throw new Error("لا ردَّ من الإصدارِ");
+  // `TOKEN_TOO_SHORT` **عيبُ المِرصادِ لا حُكمُ النِّظامِ**: إنّه يُرَدُّ قبلَ أيِّ
+  // حكمٍ موضوعيٍّ، فلو مرَّ صامتاً لادَّعى اختبارُ رفضٍ أنَّه قاسَ حالةَ الرحلةِ
+  // وهوَ لم يبلغِ الشرطَ. فيُرفَعُ ههنا **عطبَ أداةٍ** لا فشلَ توقُّعٍ.
+  if (row.result.error === "TOKEN_TOO_SHORT") {
+    throw new Error(
+      `رمزُ الاختبارِ أقصرُ من ${TOKEN_MIN_LENGTH} — القياسُ لم يبلغِ الموضوعَ (طولُ المُرسَلِ: ${token.length}).`,
+    );
+  }
   return row.result;
 }
 
@@ -123,8 +131,21 @@ async function revokeAll(orderId: string, telegramId: number): Promise<Record<st
   return row.result;
 }
 
+/**
+ * رمزٌ يوافقُ **قيدَ القاعدةِ** لا تقديرَ الكاتبِ: `trip_tracking_tokens_token_long_enough`
+ * و`issue_tracking_token` يشترطانِ أربعةً وستّينَ محرفاً على الأقلِّ، ورمزٌ أقصرُ
+ * يُرَدُّ `TOKEN_TOO_SHORT` **قبلَ** أيِّ حكمٍ آخرَ — فيمرُّ الاختبارُ كاذباً إذ
+ * يظنُّ أنَّه قاسَ حالةَ الرحلةِ وهوَ لم يبلغْها. والطولُ يُقرأُ من الثابتِ أدناه
+ * لا من رقمٍ مبذورٍ في الدالّةِ.
+ */
+const TOKEN_MIN_LENGTH = 64;
+
 function freshToken(): string {
-  return `f209${crypto.randomUUID().replaceAll("-", "")}`;
+  let token = "f209";
+  while (token.length < TOKEN_MIN_LENGTH) {
+    token += crypto.randomUUID().replaceAll("-", "");
+  }
+  return token;
 }
 
 async function seedOrder(options: {
@@ -370,6 +391,19 @@ describeIf("حَكَمٌ واحدٌ: المالكةُ والغريبُ يريا�
     expect((await issue(orderId, RIDER_TELEGRAM_ID, token)).ok).toBe(true);
     expect((await publicView(token)).position?.verdict).toBe("TOO_OLD");
 
+    // القيمةُ الأصليّةُ تُعادُ **كما كانت** لا كرقمٍ مكتوبٍ ههنا: رقمٌ مكتوبٌ في
+    // الاختبارِ يصيرُ مصدرَ حقيقةٍ ثانياً يُخالِفُ بذرةَ الهجرةِ بصمتٍ.
+    // والإعادةُ بـ`::text::jsonb` لا بـ`::jsonb`: في `$1::jsonb` يستنبِطُ
+    // PostgreSQL نوعَ المُعامِلِ `jsonb` فيُرمِّزُ السائقُ النصَّ ثانيةً
+    // (`90` ← `"90"`) فيصلُ القاعدةَ `jsonb` من نوعِ `string` فيخرقُ
+    // `platform_settings_value_type_coherent`. والوسيطُ `::text` يثبِّتُ نوعَ
+    // المُعامِلِ نصّاً فيمرُّ البايتُ كما هو. وحاجزُ `check-jsonb-binding` يمنعُ
+    // عودةَ النمطِ المعطوبِ إلى المستودَعِ ألبتةً.
+    const [before] = await sql<{ value_text: string }[]>`
+      select value::text as value_text from platform_settings
+       where city_id = ${cityId} and key = 'driver_position_max_age_seconds'
+    `;
+    if (before === undefined) throw new Error("لا إعدادَ لحدِّ العُمرِ في مدينةِ الاختبارِ");
     await sql`
       update platform_settings set value = '600'::jsonb
        where city_id = ${cityId} and key = 'driver_position_max_age_seconds'
@@ -381,7 +415,7 @@ describeIf("حَكَمٌ واحدٌ: المالكةُ والغريبُ يريا�
       );
     } finally {
       await sql`
-        update platform_settings set value = '90'::jsonb
+        update platform_settings set value = ${before.value_text}::text::jsonb
          where city_id = ${cityId} and key = 'driver_position_max_age_seconds'
       `;
     }
@@ -390,10 +424,27 @@ describeIf("حَكَمٌ واحدٌ: المالكةُ والغريبُ يريا�
   it("١٢) غيابُ الإعدادِ يُنشَرُ افتراضاً **باسمِه** لا صمتاً", async () => {
     const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
     await seedDriverLocation(5);
-    const [saved] = await sql<{ value: unknown }[]>`
-      select value from platform_settings
+    // الصفُّ يُحفَظُ **بتمثيلِ القاعدةِ نفسِها** (`value::text`) لا بتمثيلِ العميلِ:
+    // المُحرِّكُ يُعيدُ `jsonb` رقماً أو نصّاً بحسبِ إعدادِه، فـ`JSON.stringify`
+    // عليه قد يُنتِجُ `'"90"'` — نصّاً — فيخرقُ القيدَ
+    // `platform_settings_value_type_coherent` عندَ الإعادةِ، فتسقطُ الإعادةُ
+    // **وتبقى المدينةُ ناقصةَ مفتاحٍ فتُسمِّمَ كلَّ ملفٍّ يُفعِّلُ مدينةً بعدَها**.
+    // وهذا ما حدثَ بالفعلِ في أوّلِ حكمٍ لـCI. فالنوعُ والوصفُ والمؤقّتيّةُ
+    // تُحفَظُ كلُّها وتُعادُ كما كانت، ثمَّ **يُتحقَّقُ من الإعادةِ** — فإن فشلَت
+    // سقطَ هذا الاختبارُ وحدَه ولم يُنقَلْ عطبُه إلى غيرِه.
+    const [saved] = await sql<
+      {
+        value_text: string;
+        value_type: string;
+        description_ar: string | null;
+        is_provisional: boolean;
+      }[]
+    >`
+      select value::text as value_text, value_type, description_ar, is_provisional
+        from platform_settings
        where city_id = ${cityId} and key = 'driver_position_max_age_seconds'
     `;
+    if (saved === undefined) throw new Error("لا إعدادَ لحدِّ العُمرِ في مدينةِ الاختبارِ");
     await sql`
       delete from platform_settings
        where city_id = ${cityId} and key = 'driver_position_max_age_seconds'
@@ -406,10 +457,17 @@ describeIf("حَكَمٌ واحدٌ: المالكةُ والغريبُ يريا�
       await sql`
         insert into platform_settings (city_id, key, value, value_type, description_ar, is_provisional)
         values (${cityId}, 'driver_position_max_age_seconds',
-                ${JSON.stringify(saved?.value ?? 90)}::jsonb, 'number', 'أقصى عُمرٍ بالثواني', false)
-        on conflict (city_id, key) do update set value = excluded.value
+                ${saved.value_text}::text::jsonb, ${saved.value_type},
+                ${saved.description_ar}, ${saved.is_provisional})
+        on conflict (city_id, key) do update
+           set value = excluded.value, value_type = excluded.value_type
       `;
     }
+    const [restored] = await sql<{ value_text: string }[]>`
+      select value::text as value_text from platform_settings
+       where city_id = ${cityId} and key = 'driver_position_max_age_seconds'
+    `;
+    expect(restored?.value_text).toBe(saved.value_text);
   });
 });
 
