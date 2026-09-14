@@ -282,6 +282,16 @@ export function AccountScreen({
         <div className="ac__erase">
           <p className="ac__erase-warning">{t("rider.account.erasure.warning")}</p>
           <p className="ac__erase-kept">{t("rider.account.erasure.whatStays")}</p>
+          {/*
+            `ADR 0113`: **إفصاحٌ قبلَ الضغطِ لا بعدَه**. الإيصالُ يقولُ ما بقيَ
+            بعدَ أن وقعَ الحذفُ، وذاكَ متأخِّرٌ عن قرارٍ لا يُنقَضُ: مَن ضغطَ
+            يظنُّ أنَّه يمحو حظراً ثمَّ وجدَه عائداً يكونُ قد خُدِعَ بالسكوتِ.
+            وسطرٌ مُفصَلٌ بـ`role="note"` لا مُدمَجٌ في `whatStays` لأنَّ هذا
+            **حكمٌ عليه** وذاكَ حقُّ غيرِه، فلا يُخبَّأُ في ذيلِ فقرةٍ.
+          */}
+          <p className="ac__erase-bar" role="note">
+            {t("rider.account.erasure.barStays")}
+          </p>
 
           {eraseState.kind === "idle" || eraseState.kind === "refused" ? (
             <>

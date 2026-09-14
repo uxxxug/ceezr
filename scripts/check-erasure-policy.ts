@@ -265,10 +265,37 @@ export function auditErasurePolicy(options: {
   return out;
 }
 
+/**
+ * **آخرُ هجرةٍ تُعرِّفُ الدالّةَ لا أوّلُها.**
+ *
+ * الصياغةُ الأولى كانت `migrations.find(...)`، وهيَ تُعطي **الأقدمَ**
+ * — و`create or replace function` في هجرةٍ لاحقةٍ تجعلُ الأقدمَ **نصّاً
+ * ميّتاً** لا وجودَ له في القاعدةِ. فكانَ الحاجزُ يُقابِلُ السجلَّ بتعريفٍ
+ * مهجورٍ، **فيكذبُ في الاتّجاهَينِ**: يُخفِقُ على قسمٍ زِيدَ فعلاً ويسكتُ
+ * عن قسمٍ حُذِفَ فعلاً. والهجراتُ مُرتَّبةٌ باسمِها الزمنيِّ، فآخرُ مطابقةٍ
+ * هيَ التعريفُ النافذُ (`ADR 0113`).
+ *
+ * ولا يُقاسُ بعُمقِ الأقواسِ ولا يُحلَّلُ `SQL`: المطلوبُ **أيُّ ملفٍّ** هوَ
+ * المرجعُ لا أيُّ سطرٍ فيه، وذاكَ يكفيه وجودُ التوقيعِ في النصِّ.
+ */
+export function lastDefiningMigration<T extends { sql: string }>(
+  entries: readonly T[],
+  needle: string,
+): T | undefined {
+  let found: T | undefined;
+  for (const entry of entries) {
+    if (entry.sql.includes(needle)) found = entry;
+  }
+  return found;
+}
+
 function main(): void {
   const migrations = declaredMigrations();
-  const sqlWithExport = migrations.find((entry) => entry.sql.includes("function export_my_data("));
-  const sqlWithErase = migrations.find((entry) => entry.sql.includes("function erase_my_account("));
+  const lastDefining = <T extends { sql: string }>(entries: readonly T[], needle: string) =>
+    lastDefiningMigration(entries, needle);
+
+  const sqlWithExport = lastDefining(migrations, "function export_my_data(");
+  const sqlWithErase = lastDefining(migrations, "function erase_my_account(");
 
   if (sqlWithExport === undefined || sqlWithErase === undefined) {
     console.error(

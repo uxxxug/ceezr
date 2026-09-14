@@ -719,6 +719,28 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "دورةُ الرحلةِ والإسناد",
     documentedIn: null,
   },
+  {
+    migration: "20260914200000_identity_bar_survives_erasure.sql",
+    change: "revoke_function:export_my_data(1)",
+    why: "الهجرةُ `20260914200000` تُعيدُ تعريفَ `export_my_data` بـ`create or replace` لتزيدَ قسمَ `identityBar` وحدَه (`ADR 0113`)، ومنطقُ الدالّةِ الباقي منسوخٌ حرفاً بحرفٍ ولم يُمَسَّ. والسحبُ بعدَه **إعادةُ قفلِ السطحِ كما كانَ لا تضييقٌ جديدٌ**: الدالّةُ كانت ممنوحةً لـ`service_role` وحدَه قبلَ التغييرِ وتبقى كذلكَ بعدَه، و`create or replace` لا تُسقِطُ منحاً قائماً أصلاً — فالسطرانِ تكرارٌ مقصودٌ ليبقى الملفُّ قابلاً للتشغيلِ وحدَه. والعودةُ بالكودِ وحدَه: النسخةُ السابقةُ تُرجِعُ اثنَي عشرَ قسماً بلا `identityBar`، والمحوّلُ الذي يقرؤه يحتملُ غيابَه لأنَّه قسمٌ مُضافٌ لا مُبدَّلٌ. فرجوعُ الدالّةِ وحدَها يُسقِطُ إفصاحاً ولا يكسرُ تنزيلاً.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
+  {
+    migration: "20260914200000_identity_bar_survives_erasure.sql",
+    change: "revoke_function:erase_my_account(1)",
+    why: "الهجرةُ `20260914200000` تُعيدُ تعريفَ `erase_my_account` بـ`create or replace` لتزيدَ قسمَ `identityBar` وحدَه (`ADR 0113`)، ومنطقُ الدالّةِ الباقي منسوخٌ حرفاً بحرفٍ ولم يُمَسَّ. والسحبُ بعدَه **إعادةُ قفلِ السطحِ كما كانَ لا تضييقٌ جديدٌ**: الدالّةُ كانت ممنوحةً لـ`service_role` وحدَه قبلَ التغييرِ وتبقى كذلكَ بعدَه، و`create or replace` لا تُسقِطُ منحاً قائماً أصلاً — فالسطرانِ تكرارٌ مقصودٌ ليبقى الملفُّ قابلاً للتشغيلِ وحدَه. والعودةُ بالكودِ وحدَه: النسخةُ السابقةُ تُرجِعُ إيصالاً بخمسةِ أقسامٍ باقيةٍ بلا `identityBar`. **والأثرُ يبقى مكتوباً**: يكتبُه المُشغِّلُ لا الدالّةُ. فرجوعُ الدالّةِ وحدَها يجعلُ الإيصالَ **ساكتاً عن أثرٍ قائمٍ** — وذاكَ نقصُ إفصاحٍ يُوجِبُ إرجاعَ المُشغِّلِ معَها، لا إبقاءَه بلا قولٍ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
 ];
 
 /**

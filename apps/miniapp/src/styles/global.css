@@ -2121,6 +2121,17 @@ a {
   font-weight: 700;
 }
 
+.ac__erase-bar {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-inline-start: 3px solid var(--tg-destructive-text-color, #d14343);
+  border-radius: 0.35rem;
+  background: var(--tg-secondary-bg-color);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-text-color);
+}
+
 .ac__erased-at,
 .ac__export-note,
 .ac__erase-kept {

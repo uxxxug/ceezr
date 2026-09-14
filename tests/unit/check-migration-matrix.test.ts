@@ -71,10 +71,13 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
   // إلى 49 بجدولِ `saved_places` (`F2-02`) — ولا جدولَ ثانياً لأخرِ الوجهاتِ
   // فهيَ قراءةٌ من `orders` — ثمَّ من 49 إلى **51** بجدولَي `F2-03`:
   // `city_service_areas` و`destination_landmarks`، وكلاهما `NONE` في الموجةِ ٠
-  // لأنَّه مملوكٌ لـMOVE بلا صفِّ مستخدمٍ فيه.
+  // لأنَّه مملوكٌ لـMOVE بلا صفِّ مستخدمٍ فيه. ثمَّ من 51 إلى **53** بجدولَي
+  // `ADR 0113`: `identity_hash_pepper` و`identity_marks`، وكلاهما
+  // `HANDOVER_WITH_OPAQUE_REFERENCE` في الموجةِ ٤ لأنَّ الحظرَ والسمعةَ
+  // مملوكانِ لـCORE؛ والأرقامُ السابقةُ مكتوبةٌ لا ممحوّةٌ (`ح-8`).
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(51);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(51);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(53);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(53);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {

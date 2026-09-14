@@ -136,7 +136,10 @@ export interface CoverageInput {
   readonly retained?: readonly RetainedRule[];
 }
 
-const NAME = String.raw`[a-z][a-z0-9]*(?:-[a-z0-9]+)*`;
+// لا `String.raw` ههنا: النمطُ خلوٌ من الشرطةِ المائلةِ أصلاً، فيكونُ `raw`
+// زينةً بلا أثرٍ يردُّها `noUselessStringRaw` — والقاعدةُ محقّةٌ، فالزينةُ
+// تُوهِمُ قارئاً لاحقاً أنَّ ههنا هرباً يجبُ الحذرُ منه وليسَ.
+const NAME = "[a-z][a-z0-9]*(?:-[a-z0-9]+)*";
 const CLASS_NAME_PATTERN = new RegExp(`^(${NAME})(?:__(${NAME}))?(?:--(${NAME}))?$`);
 
 /** أسماءُ الخصائصِ التي تحملُ صنفاً حرفيّاً في جدولٍ (القاعدة ٣، الشكلُ الثالثُ). */
