@@ -108,6 +108,103 @@ async function setSetting(
   `;
 }
 
+/**
+ * لقطةُ إعدادٍ **كما وُجِدَ** — قيمةً ونوعاً أو غياباً. وهيَ الفرقُ بينَ إرجاعِ
+ * الحالِ وبينَ **اختراعِ** قيمةٍ «معقولةٍ» في `finally`: أوزانُ المطابَقةِ يجبُ أن
+ * يكونَ مجموعُها واحداً، فوزنٌ يُكتَبُ 0.2 حيثُ لم يكن شيءٌ يُفسِدُ كلَّ ما يقرأُ
+ * إعداداتَ المدينةِ بعدَ هذا الملفِّ — وهوَ عطبٌ **يظهرُ في ملفٍّ آخرَ** فيُقرأُ
+ * عطبَ غيرِنا.
+ */
+interface SettingSnapshot {
+  readonly key: string;
+  /** القيمةُ **مُقشَّرةً** نصّاً (`#>> '{}'`) أو `null` إن لم يكن للمفتاحِ صفٌّ. */
+  readonly text: string | null;
+  readonly valueType: "string" | "number" | null;
+}
+
+const snapshots = new Map<string, SettingSnapshot>();
+
+/**
+ * تُقرأُ القيمةُ **مُقشَّرةً** لا بـ`value::text`: الأخيرةُ تُعيدُ نصَّ JSON
+ * (`"Asia/Riyadh"` بعلامتَي تنصيصٍ)، ورَدُّه معامِلاً يُغلَّفُ مرّةً أخرى فيصيرُ
+ * الإرجاعُ **إفساداً متزايداً** في كلِّ تشغيلٍ. فالطريقُ الواحدُ للكتابةِ هوَ
+ * `setSetting` نفسُه — مصدرُ تحويلٍ واحدٌ لا اثنانِ.
+ */
+async function snapshotSetting(key: string): Promise<SettingSnapshot> {
+  const existing = snapshots.get(key);
+  if (existing !== undefined) return existing;
+  const [row] = await sql<{ text: string; value_type: string }[]>`
+    select value #>> '{}' as text, value_type
+      from platform_settings
+     where city_id = ${cityId} and key = ${key}
+  `;
+  let snapshot: SettingSnapshot;
+  if (row === undefined) {
+    snapshot = { key, text: null, valueType: null };
+  } else {
+    if (row.value_type !== "string" && row.value_type !== "number") {
+      throw new Error(`نوعٌ لا يُرجِعُه هذا الملفُّ: ${key}=${row.value_type}`);
+    }
+    snapshot = { key, text: row.text, valueType: row.value_type };
+  }
+  snapshots.set(key, snapshot);
+  return snapshot;
+}
+
+async function restoreSetting(snapshot: SettingSnapshot): Promise<void> {
+  if (snapshot.valueType === null || snapshot.text === null) {
+    await setSetting(snapshot.key, null, "string");
+    return;
+  }
+  const value = snapshot.valueType === "number" ? Number(snapshot.text) : snapshot.text;
+  await setSetting(snapshot.key, value, snapshot.valueType);
+}
+
+async function restoreSnapshots(): Promise<void> {
+  for (const snapshot of snapshots.values()) await restoreSetting(snapshot);
+  snapshots.clear();
+}
+
+/**
+ * بصمةُ **كلِّ** إعداداتِ المدينةِ — تُقاسُ قبلَ الملفِّ وبعدَه فلا يُغادِرُ الملفُّ
+ * أثراً. والفحصُ هنا لا في مكانٍ عامٍّ لأنَّ العطبَ الذي وقعَ ظهرَ في ملفٍّ آخرَ
+ * فقُرِئَ عطبَ غيرِنا؛ فمَن يُبدِّلُ إعداداً يُثبِتُ بنفسِه أنَّه أرجعَه.
+ */
+async function settingsDigest(): Promise<string> {
+  const rows = await sql<{ key: string; text: string; value_type: string }[]>`
+    select key, value::text as text, value_type
+      from platform_settings
+     where city_id = ${cityId}
+     order by key
+  `;
+  return rows.map((row) => `${row.key}=${row.text}:${row.value_type}`).join("\n");
+}
+
+let settingsDigestBefore = "";
+
+/**
+ * تُبدِّلُ إعداداً لمُدّةِ فحصٍ واحدٍ ثمَّ **تُرجِعُ ما كانَ** — لا ما نحسبُه
+ * صواباً. وهذا فرقٌ قِيسَ لا فرقٌ نظريٌّ: وزنُ المنطقةِ المُفضَّلةِ في المدينةِ
+ * **صفرٌ** بذراً، فكتابةُ 0.2 في `finally` جعلَت مجموعَ الأوزانِ 1.2 فسقطَ
+ * `INCONSISTENT_WEIGHTS` في **ملفٍّ آخرَ** (`scheduled-jobs`) بعدَ هذا الملفِّ —
+ * عطبٌ يُقرأُ عطبَ غيرِنا.
+ */
+async function withSetting<T>(
+  key: string,
+  value: string | number | null,
+  valueType: "string" | "number",
+  body: () => Promise<T>,
+): Promise<T> {
+  const snapshot = await snapshotSetting(key);
+  await setSetting(key, value, valueType);
+  try {
+    return await body();
+  } finally {
+    snapshots.set(key, snapshot);
+    await restoreSetting(snapshot);
+  }
+}
+
 /** رحلةٌ **مُكتمِلةٌ** بأختامِها وعرضٌ مقبولٌ لها — الحالةُ تُصنَعُ بالإيكالِ الحقيقيِّ. */
 async function seedCompletedRide(options: {
   readonly completedAt: string;
@@ -232,6 +329,8 @@ beforeAll(async () => {
   if (stranger === undefined) throw new Error("تعذّر زرعُ الغريبِ");
   strangerUserId = stranger.id;
 
+  settingsDigestBefore = await settingsDigest();
+  await snapshotSetting(KEY_TIMEZONE);
   await setSetting(KEY_TIMEZONE, "Asia/Riyadh", "string");
 });
 
@@ -253,8 +352,14 @@ afterAll(async () => {
     await sql`delete from audit_log where actor_user_id = ${id}`;
     await sql`delete from users where id = ${id}`;
   }
+  await restoreSnapshots();
   await restoreCityBaseline(sql, cityHandle);
+  const settingsDigestAfter = await settingsDigest();
+  const settingsClean = settingsDigestAfter === settingsDigestBefore;
   await sql.end();
+  if (!settingsClean) {
+    throw new Error("إعداداتُ المدينةِ لم تُرجَع كما كانت — تلويثٌ يسقُطُ على ملفٍّ آخرَ");
+  }
 });
 
 describeIf("النافذةُ — حقيقةُ خادمٍ بمنطقةِ زمنٍ منشورةٍ", () => {
@@ -290,15 +395,12 @@ describeIf("النافذةُ — حقيقةُ خادمٍ بمنطقةِ زمنٍ
   });
 
   it("٤) إعدادُ منطقةِ الزمنِ غائبٌ ⇒ `WINDOW_UNRESOLVED` لا أرقامٌ على نافذةٍ خاطئةٍ", async () => {
-    await setSetting(KEY_TIMEZONE, null, "string");
-    try {
+    await withSetting(KEY_TIMEZONE, null, "string", async () => {
       const result = await summary(DRIVER_TELEGRAM_ID, "day");
       expect(result).toEqual({ ok: false, error: "WINDOW_UNRESOLVED" });
       const log = await entries(DRIVER_TELEGRAM_ID, "day", 10);
       expect(log).toEqual({ ok: false, error: "WINDOW_UNRESOLVED" });
-    } finally {
-      await setSetting(KEY_TIMEZONE, "Asia/Riyadh", "string");
-    }
+    });
   });
 });
 
@@ -383,14 +485,11 @@ describeIf("التقييمُ وعواملُ الترتيبِ — من مصادر
   });
 
   it("١٣) حدُّ ثقةٍ غيرُ مضبوطٍ ⇒ `below_trust` معدومٌ — لا حدَّ يُخترَعُ", async () => {
-    await setSetting(KEY_TRUST, null, "number");
-    try {
+    await withSetting(KEY_TRUST, null, "number", async () => {
       const rating = block(await summary(DRIVER_TELEGRAM_ID, "day"), "rating");
       expect(rating.trust_min_count).toBeNull();
       expect(rating.below_trust).toBeNull();
-    } finally {
-      await setSetting(KEY_TRUST, 5, "number");
-    }
+    });
   });
 
   it("١٤) تقييمٌ مَوسومٌ (`is_flagged`) لا يدخلُ المتوسّطَ — كما يستثنيهِ الإسنادُ", async () => {
@@ -416,8 +515,7 @@ describeIf("التقييمُ وعواملُ الترتيبِ — من مصادر
   });
 
   it("١٥) العواملُ ثلاثٌ بأوزانِها، ووزنٌ غائبٌ `null` لا صفرٌ", async () => {
-    await setSetting(KEY_WEIGHT_AREA, null, "number");
-    try {
+    await withSetting(KEY_WEIGHT_AREA, null, "number", async () => {
       const ranking = block(await summary(DRIVER_TELEGRAM_ID, "day"), "ranking");
       const factors = ranking.factors as { key: string; weight: number | null }[];
       expect(factors.map((factor) => factor.key)).toEqual([
@@ -428,9 +526,7 @@ describeIf("التقييمُ وعواملُ الترتيبِ — من مصادر
       expect(factors[2]?.weight).toBeNull();
       // **الحقيقةُ كما هيَ**: معادلةُ النقاطِ اليومَ لا تقرأُ سلوكاً.
       expect(ranking.behaviour_affects_ranking).toBe(false);
-    } finally {
-      await setSetting(KEY_WEIGHT_AREA, 0.2, "number");
-    }
+    });
   });
 
   it("١٦) المالُ مفتاحٌ **مُعلَنُ الغيابِ** بسببِه لا صفرٌ ولا وعدٌ", async () => {
