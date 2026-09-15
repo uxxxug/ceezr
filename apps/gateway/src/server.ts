@@ -37,6 +37,10 @@ import {
   createDriverOfferRoutes,
   type DriverOfferRouteDependencies,
 } from "./routes/driver-offers.ts";
+import {
+  createDriverSubscriptionRoutes,
+  type DriverSubscriptionRouteDependencies,
+} from "./routes/driver-subscription.ts";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
 import {
@@ -166,6 +170,12 @@ export interface ServerDependencies {
    */
   readonly driverActivity?: DriverActivityRouteDependencies;
   /**
+   * اشتراكُ السائقِ (`F3-06` / `SD-07`) — يُركَّبُ مع سرِّ الجلسةِ والقاعدةِ.
+   * وغيابُه **يُعلَنُ `503`** ولا يُجابُ بلوحٍ فارغٍ: لوحٌ بلا أسعارٍ يُقرأُ
+   * «لا اشتراكَ» في حينَ أنَّ الأسعارَ موجودةٌ في الإعداداتِ.
+   */
+  readonly driverSubscription?: DriverSubscriptionRouteDependencies;
+  /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
    * سواءٌ رُكِّبَ هذا السطحُ أم لا، لأنَّ القرارَ الحرجَ لا يُترَكُ لسطحِ قراءةٍ
@@ -250,6 +260,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.driverActivity !== undefined) {
     app.route("/", createDriverActivityRoutes(deps.driverActivity));
+  }
+  if (deps.driverSubscription !== undefined) {
+    app.route("/", createDriverSubscriptionRoutes(deps.driverSubscription));
   }
 
   if (deps.destinations !== undefined) {
