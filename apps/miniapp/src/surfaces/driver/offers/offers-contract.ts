@@ -1,0 +1,111 @@
+/**
+ * الغرض: شكلُ ردودِ مساراتِ عروضِ السائقِ كما يقرؤها العميلُ — أنواعٌ لا منطقٌ
+ *   (البند `F3-02` · `SD-03` · `SD-04`).
+ * الحالة: منفَّذٌ فعليّاً — البند `F3-02`.
+ * ينتمي إلى: apps/miniapp/src/surfaces/driver/offers
+ * يُستخدم من: `offers-api.ts` · `offers-view.ts` · `OffersScreen.tsx` ·
+ *   `OfferDetailScreen.tsx`
+ * يُتوقع أن يستخدمه لاحقاً: `SD-05` — الرحلةُ النشطةُ تبدأُ من `order_id` الذي
+ *   يُعيدُه القبولُ، فالحقلُ ههنا هوَ مِفصلُ البندِ القادمِ.
+ *
+ * ## لِمَ لا حقلَ `expires_at` في هذا العقدِ ألبتّةَ
+ *
+ * لأنَّ ما لا يُنشَرُ **لا يُسيءُ أحدٌ استعمالَه**: لحظةُ انتهاءٍ مُطلقةٌ في
+ * الحمولةِ دعوةٌ صريحةٌ إلى `expires_at - Date.now()`، وذاكَ يُدخِلُ انحرافَ
+ * ساعةِ الهاتفِ في حكمِ صلاحيّةِ عرضٍ. فالخادمُ يقولُ `seconds_left` **ولحظتَه**
+ * (`server_time`)، والباقي فرقُ قراءتَينِ من ساعةٍ واحدةٍ.
+ *
+ * ## وما لا يصفُه هذا الملفُّ عن قصدٍ (`ح-5`)
+ *
+ *   ــ **لا أجرةَ ولا حقلَ لها**: الطبقةُ الماليّةُ **غائبةٌ بإعلانٍ**
+ *      (`ADR 0039` §٤ · `م13-7` · `DEC-11`) — لا `fare` ولا `fare: null`.
+ *   ــ **لا مدّةَ وصولٍ**: امتناعٌ مُصنَّفٌ (`ADR 0024`)، والشاشةُ تقولُه سطراً.
+ *   ــ **لا هويّةَ راكبٍ**: لا اسمَ ولا هاتفَ ولا معرِّفَ تلغرامَ — عرضٌ
+ *      **مُحتَملٌ** لا يُبرِّرُ كشفَ راكبٍ لكلِّ سائقٍ في الجولةِ.
+ *   ــ **لا خريطةَ ولا مسارَ طريقٍ**: إحداثيّتانِ فحسب، والخريطةُ دَينٌ مُعلَنٌ.
+ */
+
+/** مسافةٌ **موسومةٌ في نوعِها** — لا رقمَ عارياً يُقرأُ طولَ طريقٍ (`ADR 0024`). */
+export interface ApiTaggedDistance {
+  readonly kind: "STRAIGHT_LINE";
+  readonly meters: number;
+}
+
+export type ApiDriverOfferService = "transport" | "delivery";
+
+export type ApiDriverOfferStatus = "pending" | "accepted" | "rejected" | "expired" | "cancelled";
+
+export type ApiDriverOrderStatus =
+  | "searching"
+  | "matched"
+  | "in_progress"
+  | "completed"
+  | "cancelled"
+  | "failed";
+
+export interface ApiDriverOfferCard {
+  readonly offer_id: string;
+  readonly order_id: string;
+  readonly round: number;
+  readonly service: ApiDriverOfferService;
+  /** الباقي **لحظةَ القراءةِ** بساعةِ القاعدةِ — لا لحظةَ انتهاءٍ مُطلقةً. */
+  readonly seconds_left: number;
+  /** `null` = صفُّ عرضٍ بلا قياسٍ محفوظٍ — **غيابٌ لا صفرٌ** (`ADR 0023`). */
+  readonly rider_distance: ApiTaggedDistance | null;
+  readonly trip_distance: ApiTaggedDistance | null;
+  readonly pickup_label: string | null;
+  readonly dropoff_label: string | null;
+}
+
+export interface DriverOffersResponse {
+  readonly ok: true;
+  /** لحظةُ الخادمِ — تُقرأُ لتُوثِّقَ أنَّ المؤقّتَ من عندِه لا من الجهازِ. */
+  readonly server_time: string;
+  readonly is_available: boolean;
+  readonly availability_changed_at: string | null;
+  readonly is_blocked: boolean;
+  /** `EXPIRED:insurance` ونظائرُها — نصٌّ من القاعدةِ يُقسَمُ في `offers-view`. */
+  readonly block_reasons: readonly string[];
+  readonly offers: readonly ApiDriverOfferCard[];
+}
+
+export interface ApiDriverOfferPlace {
+  readonly label: string | null;
+  readonly latitude: number;
+  readonly longitude: number;
+}
+
+export interface DriverOfferDetailResponse {
+  readonly ok: true;
+  readonly server_time: string;
+  readonly offer_id: string;
+  readonly order_id: string;
+  readonly round: number;
+  readonly service: ApiDriverOfferService;
+  readonly offer_status: ApiDriverOfferStatus;
+  readonly order_status: ApiDriverOrderStatus;
+  readonly seconds_left: number;
+  /** **حكمُ الخادمِ** على القبولِ — الشاشةُ تُخفي زرّاً ولا تحكمُ بنفسِها. */
+  readonly is_claimable: boolean;
+  readonly pickup: ApiDriverOfferPlace;
+  readonly dropoff: ApiDriverOfferPlace | null;
+  readonly rider_distance: ApiTaggedDistance | null;
+  readonly trip_distance: ApiTaggedDistance | null;
+  readonly notes: string | null;
+}
+
+export interface AcceptDriverOfferResponse {
+  readonly ok: true;
+  readonly order_id: string;
+  readonly matched_at: string | null;
+}
+
+export interface RejectDriverOfferResponse {
+  readonly ok: true;
+  readonly offer_id: string;
+}
+
+export interface DriverAvailabilityResponse {
+  readonly ok: true;
+  readonly is_available: boolean;
+}

@@ -28,6 +28,10 @@ import {
   createDriverLocationRoutes,
   type DriverLocationDependencies,
 } from "./routes/driver-location.ts";
+import {
+  createDriverOfferRoutes,
+  type DriverOfferRouteDependencies,
+} from "./routes/driver-offers.ts";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
 import {
@@ -134,6 +138,14 @@ export interface ServerDependencies {
    */
   readonly driverDocuments?: DriverDocumentRouteDependencies;
   /**
+   * عروضُ السائقِ (`F3-02` / `SD-03` / `SD-04`) — تُركَّبُ مع سرِّ الجلسةِ
+   * والقاعدةِ. وغيابُها **يُعلَنُ `503`** ولا يُجابُ بلوحٍ فارغٍ: لوحٌ فارغٌ
+   * يُقرأُ «لا عملَ الآنَ» فيُغلِقُ السائقُ التطبيقَ والعروضُ تُبَثُّ إليهِ فعلاً.
+   * والمساراتُ **لا تُعَطَّلُ بغيابِ موقِّعٍ ولا مزوِّدِ توجيهٍ**: القبولُ
+   * فعلُ قاعدةٍ لا فعلُ خدمةٍ خارجيّةٍ.
+   */
+  readonly driverOffers?: DriverOfferRouteDependencies;
+  /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
    * سواءٌ رُكِّبَ هذا السطحُ أم لا، لأنَّ القرارَ الحرجَ لا يُترَكُ لسطحِ قراءةٍ
@@ -209,6 +221,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.driverDocuments !== undefined) {
     app.route("/", createDriverDocumentRoutes(deps.driverDocuments));
+  }
+  if (deps.driverOffers !== undefined) {
+    app.route("/", createDriverOfferRoutes(deps.driverOffers));
   }
 
   if (deps.destinations !== undefined) {

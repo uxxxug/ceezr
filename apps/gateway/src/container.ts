@@ -11,7 +11,11 @@
 import type { DriverBotDependencies } from "../../../packages/application/bots/driver-dialog.ts";
 import type { RiderBotDependencies } from "../../../packages/application/bots/rider-dialog.ts";
 import type { SupportDialogDependencies } from "../../../packages/application/bots/support-dialog.ts";
-import type { DriverDirectory, SessionStore } from "../../../packages/application/bots/types.ts";
+import type {
+  DriverDirectory,
+  OfferDecisionPort,
+  SessionStore,
+} from "../../../packages/application/bots/types.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
 import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
@@ -270,6 +274,19 @@ export interface Container {
    * موقعٍ تنزلقُ إحداهما عن الأخرى بلا أن يُخفِقَ اختبارٌ.
    */
   readonly driverLocation: DriverLocationWiring;
+  /**
+   * `F3-02` — تبعياتُ عروضِ السائقِ مكشوفةٌ لأنَّ مسارَ الرفضِ
+   * `POST /v1/driver/offers/:offerId/reject` يجبُ أن يرفضَ بـ**نفسِ** المنفذِ الذي
+   * يرفضُ به حوارُ البوتِ: منفذٌ ثانٍ يُبنى في `index.ts` كانَ سيُنشئُ كاتبَينِ
+   * لانتقالٍ واحدٍ (القاعدة 0.6)، ولَأمكنَ أن يُصحَّحَ قيدُ `BUG-003` (رفضُ عرضٍ
+   * **واحدٍ** بمعرِّفِه لا كلِّ عروضِ السائقِ) في أحدِهما ويبقى الآخرُ يمحو
+   * الجولةَ كلَّها بلا أن يُخفِقَ اختبارٌ. والدليلُ **هوَ هوَ** الذي يقرأُ به
+   * مسارُ الموقعِ، فتوفُّرُ السائقِ حالةٌ واحدةٌ لا حالتانِ.
+   */
+  readonly driverOffers: {
+    readonly drivers: DriverDirectory;
+    readonly decisions: OfferDecisionPort;
+  };
   close(): Promise<void>;
 }
 
@@ -769,6 +786,13 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     log("driver_location.hot_state_degraded", detail);
   };
 
+  /**
+   * `F3-02` — **منفذٌ واحدٌ لرفضِ العرضِ** يتقاسمُه حوارُ البوتِ ومسارُ التطبيقِ
+   * المصغَّرِ: نسختانِ من محوِّلٍ واحدٍ ليستا عطباً اليومَ ولكنَّهما موضِعا تعديلٍ
+   * غداً، والتعديلُ يقعُ في أحدِهما.
+   */
+  const offerDecisions = createOfferDecisionPort(sql);
+
   const driverDeps: DriverBotDependencies = {
     gpsPolicy,
     sessions: driverSessions,
@@ -799,7 +823,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       overrides.metrics === undefined
         ? createDispatchRpc(sql)
         : instrumentDispatchRpc(createDispatchRpc(sql), overrides.metrics),
-    offers: createOfferDecisionPort(sql),
+    offers: offerDecisions,
     clock: systemClock,
     negotiation: { claims: claimDeps, relay: relayDeps },
     support: driverSupport,
@@ -916,6 +940,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     driverSender,
     financial,
     safety: { trigger: safety.trigger },
+    driverOffers: { drivers, decisions: offerDecisions },
     driverLocation: {
       drivers,
       ingest: {
