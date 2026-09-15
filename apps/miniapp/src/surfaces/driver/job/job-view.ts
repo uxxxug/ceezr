@@ -89,14 +89,10 @@ export const JOB_PHASE_KEY: Readonly<Record<ApiDriverJobAction, string>> = {
 };
 
 /**
- * رابطُ ملاحةٍ إلى نقطةٍ — نصٌّ يُنقَرُ، **ولا نداءَ شبكةٍ من هذه العمليّةِ**.
- * والمُضيفُ حرفيٌّ `maps.google.com` كي يُقرأَ في سجلِّ المخارجِ ولا يُبنى من
- * تهيئةٍ تُغيَّرُ بلا مراجعةٍ.
+ * رابطُ الملاحةِ **يأتي من الخادمِ ولا يُركَّبُ ههنا** (`F1-10` · `TG-005`):
+ * حزمةُ المصغَّرِ لا تحملُ عنواناً مطلقاً لِمُضيفٍ ثالثٍ، والمُضيفُ يُقرأُ في
+ * سجلِّ المخارجِ عندَ موضعِه في البوّابةِ. وههنا **نقلٌ لا بناءٌ**.
  */
-export function navigationLink(place: ApiDriverJobPlace): string {
-  return `https://maps.google.com/?q=${place.latitude},${place.longitude}`;
-}
-
 export interface JobPlaceModel {
   readonly label: string | null;
   readonly latitude: number;
@@ -109,7 +105,7 @@ function toPlace(place: ApiDriverJobPlace): JobPlaceModel {
     label: place.label,
     latitude: place.latitude,
     longitude: place.longitude,
-    navigationUrl: navigationLink(place),
+    navigationUrl: place.navigation_url,
   };
 }
 

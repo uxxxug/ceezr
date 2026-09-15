@@ -324,15 +324,15 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
   },
   {
     id: "google-maps-link-driver-job",
-    purpose: "رابطُ ملاحةٍ يُبنى نصًّا لينقرَه السائقُ في مَهمّتِه النشطةِ (`F3-03`) — لا نداءَ شبكةٍ",
+    purpose: "رابطُ ملاحةٍ تبنيه البوّابةُ في حمولةِ المَهمّةِ ليفتحَه السائقُ (`F3-03`) — لا نداءَ شبكةٍ",
     peerClass: "USER_LINK",
     system: "NONE",
     source: { kind: "literal", hosts: ["maps.google.com"] },
-    callSite: "apps/miniapp/src/surfaces/driver/job/job-view.ts",
+    callSite: "apps/gateway/src/routes/driver-job.ts",
     runtimeGate: {
       kind: "not-applicable",
       reason:
-        "نصٌّ يُمَرَّرُ إلى `openExternalLink` في تطبيقِ تلغرام المصغَّرِ، ولا نداءَ شبكةٍ من هذه العمليّةِ ألبتَّةَ.",
+        "نصٌّ يُنشَرُ في الحمولةِ ليُمَرَّرَ إلى `openExternalLink` في المصغَّرِ، ولا نداءَ شبكةٍ من البوّابةِ ألبتَّةَ.",
     },
     removed: false,
   },

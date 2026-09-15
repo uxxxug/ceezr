@@ -84,6 +84,35 @@ function unavailable(code: DriverJobPublicErrorCode): DriverJobRejection {
   return { code };
 }
 
+/**
+ * رابطُ الملاحةِ **يُبنى في الخادمِ ويُنشَرُ في الحمولةِ** — ولا يُبنى في حزمةِ
+ * التطبيقِ المصغَّرِ. والسببُ حاجزٌ لا ذوقٌ: `F1-10` و`TG-005` يقصُرانِ كلَّ
+ * عنوانٍ مطلقٍ في شيفرةِ المصغَّرِ على قائمةٍ **مغلقةٍ** بسندٍ مكتوبٍ، وفيها
+ * مضيفٌ واحدٌ لأصلٍ تنفيذيٍّ. ورابطُ ملاحةٍ **ليسَ أصلاً تنفيذيّاً**، لكنَّ
+ * توسيعَ القائمةِ لأجلِه كانَ سيُوسِّعُ `script-src` نفسَه لِمُضيفٍ لا نُشغِّلُ
+ * منه شيفرةً — أي إضعافُ حاجزٍ لِسببٍ لا يستحقُّه. فالمُضيفُ يبقى **في الخادمِ
+ * وحدَه** حيثُ يُقرأُ في سجلِّ المخارجِ (`W-6`)، والشاشةُ تفتحُ **ما أُعطِيَت**
+ * ولا تُركِّبُ عنواناً — وهوَ نفسُ ما فعلَته لوحةُ الإشرافِ قبلَها.
+ *
+ * والمُضيفُ حرفيٌّ لا من تهيئةٍ: تهيئةٌ تُغيَّرُ بلا مراجعةٍ تُحوِّلُ الرابطَ
+ * إلى وجهةٍ أُخرى في يدِ مَن يملكُ متغيّرَ بيئةٍ.
+ */
+export function navigationUrlFor(place: {
+  readonly latitude: number;
+  readonly longitude: number;
+}): string {
+  return `https://maps.google.com/?q=${place.latitude},${place.longitude}`;
+}
+
+function wirePlace(place: { latitude: number; longitude: number; label: string | null }) {
+  return {
+    label: place.label,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    navigation_url: navigationUrlFor(place),
+  };
+}
+
 export function createDriverJobRoutes(deps: DriverJobRouteDependencies): Hono {
   const app = new Hono();
 
@@ -117,8 +146,8 @@ export function createDriverJobRoutes(deps: DriverJobRouteDependencies): Hono {
               matched_at: job.matchedAt,
               arrived_at: job.arrivedAt,
               started_at: job.startedAt,
-              pickup: job.pickup,
-              dropoff: job.dropoff,
+              pickup: wirePlace(job.pickup),
+              dropoff: job.dropoff === null ? null : wirePlace(job.dropoff),
               notes: job.notes,
               rider: {
                 first_name: job.rider.firstName,

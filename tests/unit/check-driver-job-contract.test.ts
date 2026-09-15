@@ -1,6 +1,6 @@
 /**
  * الغرض: برهانُ سقوطِ حاجزِ عقدِ مَهمّةِ السائقِ — حالةٌ سلبيّةٌ مصنوعةٌ لكلِّ
- *   قاعدةٍ من الثمانِ، وحالةٌ موجبةٌ واحدةٌ على المستودعِ الحقيقيِّ (`ح-7`).
+ *   قاعدةٍ من التسعِ، وحالةٌ موجبةٌ واحدةٌ على المستودعِ الحقيقيِّ (`ح-7`).
  * الحالة: منفَّذٌ فعليّاً — البند `F3-03`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: `bun test`.
@@ -26,6 +26,7 @@ import { describe, expect, test } from "bun:test";
 import { readRepository } from "../../scripts/check-driver-job-contract.ts";
 import {
   blankSqlObjectComments,
+  CONTRACT_FILE,
   type DriverJobContractInput,
   driverJobContractProblems,
   errorTextProblems,
@@ -34,6 +35,7 @@ import {
   knownErrorCodesInSurface,
   mentions,
   moneyVocabularyProblems,
+  navigationOriginProblems,
   phaseHonestyProblems,
   publishedPayloadKeys,
   riderPrivacyProblems,
@@ -361,6 +363,42 @@ describe("القاعدة ٨ — هويّةُ الراكبِ", () => {
   test("الاسمُ الأوّلُ واللغةُ مسموحانِ بإعلانٍ — والحدُّ مُعلَنٌ لا مضمرٌ", () => {
     expect(publishedPayloadKeys(REAL.functionsSql).has("first_name")).toBe(true);
     expect(riderPrivacyProblems(REAL)).toEqual([]);
+  });
+});
+
+describe("القاعدة ٩ — مُضيفُ الملاحةِ في الخادمِ وحدَه", () => {
+  test("عنوانٌ مطلقٌ يُركَّبُ في الشاشةِ يُسقِطُ — والحاجزُ يسبقُ البناءَ", () => {
+    const input = withSurface(
+      VIEW_FILE,
+      (source) => `${source}\nconst nav = \`https://maps.google.com/?q=\${1},\${2}\`;\n`,
+    );
+    const problems = navigationOriginProblems(input).join("\n");
+    expect(problems).toContain("maps.google.com");
+    expect(problems).toContain(VIEW_FILE);
+  });
+
+  test("أيُّ مُضيفٍ ثالثٍ يُسقِطُ لا «جوجل» وحدَها — القاعدةُ نطاقٌ لا اسمٌ", () => {
+    const input = withSurface(
+      SCREEN_FILE,
+      (source) => `${source}\nconst t = "http://tiles.example.net/x.png";\n`,
+    );
+    expect(navigationOriginProblems(input).join("\n")).toContain("tiles.example.net");
+  });
+
+  test("عقدٌ لا يقرأُ «navigation_url» يُسقِطُ: مَن لا يُعطَ رابطاً يبنيه", () => {
+    const input = withSurface(CONTRACT_FILE, (source) =>
+      source.replaceAll("navigation_url", "nav_link"),
+    );
+    expect(navigationOriginProblems(input).join("\n")).toContain(CONTRACT_FILE);
+  });
+
+  test("بوّابةٌ لا تُنشِرُ «navigation_url» تُسقِطُ ولو كانَ العميلُ نظيفاً", () => {
+    const input = spoil({ route: REAL.route.replaceAll("navigation_url", "nav_link") });
+    expect(navigationOriginProblems(input).join("\n")).toContain("navigation_url");
+  });
+
+  test("والمستودعُ الحقيقيُّ نظيفٌ: لا عنوانَ مطلقاً في حزمةِ المصغَّرِ", () => {
+    expect(navigationOriginProblems(REAL)).toEqual([]);
   });
 });
 

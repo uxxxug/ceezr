@@ -26,7 +26,7 @@
  *      العميلِ يتقادَمُ حينَ يُزادُ طَورٌ في القاعدةِ، فيُعرَضُ «ابدأِ الرحلةَ»
  *      على مَهمّةٍ لم يُختَم وصولُها.
  *
- * ## القواعدُ الثمانِ
+ * ## القواعدُ التسعُ
  *
  *   ١. **مفاتيحُ النصِّ ثلاثةٌ متطابقةٌ**، وكلُّ مُنادًى أو مبنيٍّ بقالبٍ موجودٌ.
  *   ٢. **كلُّ رمزٍ عامٍّ له نصُّه** في الثلاثةِ، والسطحُ يعرفُ الرموزَ **حرفاً**
@@ -41,6 +41,9 @@
  *   ٧. **جدولُ الحالاتِ مُستوفٍ حرفاً** في الاتّجاهَينِ.
  *   ٨. **هويّةُ الراكبِ محدودةٌ بإعلانٍ**: الاسمُ الأوّلُ واللغةُ فحسب، ولا هاتفَ
  *      ولا معرِّفَ تلغرامَ ولا اسمَ كامِلاً في حمولةٍ ولا في مِلفِّ عميلٍ.
+ *   ٩. **مُضيفُ الملاحةِ في الخادمِ وحدَه**: لا عنوانَ مطلقاً في شيفرةِ السطحِ،
+ *      والبوّابةُ تُنشِرُ `navigation_url` والشاشةُ تفتحُ ما أُعطِيَت (`F1-10` ·
+ *      `TG-005`) — فلا يُوسَّعُ `script-src` لِمُضيفٍ لا شيفرةَ منه.
  *
  * ## وما لا يفعلُه هذا الحاجزُ عن قصدٍ — وحدودُه مُعلَنةٌ (`ح-5`)
  *
@@ -587,7 +590,42 @@ export function riderPrivacyProblems(input: DriverJobContractInput): readonly st
   return problems;
 }
 
-/** الحكمُ المُجمَّعُ — ثمانُ قواعدَ بترتيبِها، وكلُّ مشكلةٍ بموضعِها وسببِها. */
+/**
+ * القاعدة ٩ — **مُضيفُ الملاحةِ في الخادمِ وحدَه**، والشاشةُ تفتحُ ما أُعطِيَت.
+ *
+ * ولِمَ حاجزٌ: `F1-10` و`TG-005` يقصُرانِ كلَّ عنوانٍ مطلقٍ في حزمةِ المصغَّرِ على
+ * قائمةٍ مغلقةٍ لأصلٍ تنفيذيٍّ. ورابطُ ملاحةٍ ليسَ أصلاً تنفيذيّاً، وتوسيعُ القائمةِ
+ * لأجلِه يُوسِّعُ `script-src` لِمُضيفٍ لا نُشغِّلُ منه شيفرةً — فإضعافُ الحاجزِ
+ * **ليسَ الحلَّ**، والحلُّ أن يُنشَرَ الرابطُ من البوّابةِ حيثُ يُقرأُ في سجلِّ
+ * المخارجِ. وهذه القاعدةُ تمنعُ الرجعةَ: فسطرٌ واحدٌ يُريدُ أن يُركِّبَ
+ * العنوانَ في العميلِ يُسقِطُ البناءَ في `check-single-origin-assets` بعدَ البناءِ
+ * وحدَه، وههنا يُسقَطُ **قبلَه وبسببٍ مقروءٍ**.
+ */
+export function navigationOriginProblems(input: DriverJobContractInput): readonly string[] {
+  const problems: string[] = [];
+  const absolute = /https?:\/\/[^\s"'`)]+/g;
+  for (const [path, source] of Object.entries(input.surface)) {
+    for (const match of source.matchAll(absolute)) {
+      problems.push(
+        `${path}: يحملُ عنواناً مطلقاً «${match[0]}» — وحزمةُ المصغَّرِ لا تبني مُضيفاً ` +
+          `ثالثاً (F1-10 · TG-005): الرابطُ يُنشَرُ من البوّابةِ ويُقرأُ في سجلِّ المخارجِ.`,
+      );
+    }
+  }
+  const contract = input.surface[CONTRACT_FILE];
+  if (contract !== undefined && !contract.includes("navigation_url")) {
+    problems.push(
+      `${CONTRACT_FILE}: لا يقرأُ «navigation_url» — وإن لم يُعطَ الرابطُ رجعَ العميلُ ` +
+        `يُركِّبُه من عندِه عندَ أوّلِ حاجةٍ.`,
+    );
+  }
+  if (!input.route.includes("navigation_url")) {
+    problems.push(`${ROUTE_FILE}: لا يُنشِرُ «navigation_url» — ومَن لا يُعطَ رابطاً يبنيه.`);
+  }
+  return problems;
+}
+
+/** الحكمُ المُجمَّعُ — تسعُ قواعدَ بترتيبِها، وكلُّ مشكلةٍ بموضعِها وسببِها. */
 export function driverJobContractProblems(input: DriverJobContractInput): readonly string[] {
   return [
     ...keyParityProblems(input),
@@ -598,5 +636,6 @@ export function driverJobContractProblems(input: DriverJobContractInput): readon
     ...phaseHonestyProblems(input),
     ...statusExhaustiveProblems(input),
     ...riderPrivacyProblems(input),
+    ...navigationOriginProblems(input),
   ];
 }
