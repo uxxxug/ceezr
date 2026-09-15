@@ -16,6 +16,11 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import {
   disputeResolutionHandler,
@@ -47,6 +52,7 @@ let container: ReturnType<typeof buildContainer>;
 let driverSent: SentMessage[];
 let riderSent: SentMessage[];
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 
 async function post(bot: string, update: unknown): Promise<Response> {
   return app.fetch(
@@ -119,6 +125,7 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -127,14 +134,10 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
                              unsubscribed_negotiations, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = ${SUPPORT_GROUP},
-             telegram_escalation_group_id = -1002,
-             telegram_unsubscribed_drivers_group_id = -1003
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, {
+      groups: { support: SUPPORT_GROUP, escalation: -1002, unsubscribed: -1003 },
+      prior: cityHandle,
+    });
     // platform_settings لا يُفرغ: أي اختبار يغيّر إعداداً يلوّث التشغيل التالي للملف كله
     await sql`
       update platform_settings

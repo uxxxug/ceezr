@@ -34,6 +34,11 @@ import { createDriverLocationBatchPersistence } from "../../packages/infrastruct
 import { createDriverLocationPartitionMaintenance } from "../../packages/infrastructure/geo/driver-location-partition-maintenance.ts";
 import { createDriverDirectory } from "../../packages/infrastructure/identity/directories.ts";
 import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -43,6 +48,7 @@ const DEGREE_STEP = 0.0005;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let directory: ReturnType<typeof createDriverDirectory>;
 let batch: ReturnType<typeof createDriverLocationBatchPersistence>;
 let partitions: ReturnType<typeof createDriverLocationPartitionMaintenance>;
@@ -96,6 +102,7 @@ describeIf("F7-03 — أثرُ الموقعِ المقسَّمُ على PostgreS
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -111,15 +118,7 @@ describeIf("F7-03 — أثرُ الموقعِ المقسَّمُ على PostgreS
                              restart identity cascade`;
     // والتفعيلُ معَ القروباتِ في العبارةِ نفسِها (حاجزُ `check-test-city-activation`):
     // مدينةٌ تُفعَّلُ بلا قروباتِها تجعلُ النجاحَ معلّقاً على ترتيبِ التهيئةِ.
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-             telegram_unsubscribed_drivers_group_id =
-               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   });
 
   async function seedDriver(chat: number): Promise<string> {

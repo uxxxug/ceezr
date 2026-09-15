@@ -36,6 +36,11 @@ import { createSettingsRepository } from "../../packages/infrastructure/policy/s
 import { createOrderRepository } from "../../packages/infrastructure/transport/order-adapters.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../packages/shared/kernel/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -69,6 +74,7 @@ const config: AppConfig = testConfig({
 
 let sql: Sql;
 let cityId: CityId;
+let cityHandle: ActiveCityHandle | undefined;
 let container: ReturnType<typeof buildContainer>;
 let app: ReturnType<typeof createServer>;
 const driverSent: SentMessage[] = [];
@@ -160,10 +166,10 @@ beforeAll(async () => {
   await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log,
                            order_offers, orders, subscriptions, driver_capabilities,
                            driver_availability, drivers, riders, users restart identity cascade`;
-  await sql`
-    update cities set is_active = true, telegram_support_group_id = -1001,
-           telegram_escalation_group_id = -1002, telegram_unsubscribed_drivers_group_id = -1003
-     where id = ${cityId}`;
+  cityHandle = await ensureActiveCity(sql, {
+    groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
+    prior: cityHandle,
+  });
 
   container = buildContainer(config, {
     driverSender: capturing(driverSent),
@@ -205,6 +211,7 @@ beforeAll(async () => {
 afterAll(async () => {
   if (DATABASE_URL === "") return;
   await container.close();
+  await restoreCityBaseline(sql, cityHandle);
   await sql.end({ timeout: 5 });
 });
 

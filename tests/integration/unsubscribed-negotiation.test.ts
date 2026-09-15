@@ -19,6 +19,11 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { CityId, OrderId } from "../../packages/shared/kernel/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import {
   drainNotificationOutbox,
@@ -48,6 +53,7 @@ let container: ReturnType<typeof buildContainer>;
 let driverSent: SentMessage[];
 let riderSent: SentMessage[];
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 
 async function post(bot: string, update: unknown): Promise<Response> {
   return app.fetch(
@@ -113,6 +119,7 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -121,14 +128,10 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
                              unsubscribed_negotiations, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = -1001,
-             telegram_escalation_group_id = ${ESCALATION_GROUP},
-             telegram_unsubscribed_drivers_group_id = ${UNSUB_GROUP}
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, {
+      groups: { support: -1001, escalation: ESCALATION_GROUP, unsubscribed: UNSUB_GROUP },
+      prior: cityHandle,
+    });
     // platform_settings لا يُفرغ، فأي اختبار يغيّر إعداداً يُلوّث من بعده — ويلوّث التشغيل التالي
     // للملف كله. نعيد إعدادات الدورة لقيم البذر قبل كل اختبار ليكون الملف مستقراً مهما تكرر.
     await sql`

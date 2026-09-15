@@ -15,6 +15,11 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import { createSupportResolutionPort } from "../../packages/infrastructure/dispute/support-adapters.ts";
 import { createNotificationOutboxPort } from "../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
@@ -25,6 +30,7 @@ const RIDER_TELEGRAM = 880002;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let driverId: string;
 let riderId: string;
 let driverTicketId: string;
@@ -63,15 +69,7 @@ async function createFixture(): Promise<void> {
   if (cityId === "") throw new Error("مدينة جدة غير مبذورة");
   // تفعيلٌ وقروباتُه في عبارةٍ واحدةٍ: مدينةٌ تُفعّل بلا قروباتِها تجعلُ نجاحَ
   // الاختبارِ معلّقاً على ملفٍ أسبقَ ضبطَها — والحاجزُ `check-test-city-activation` يمنعُه.
-  await sql`
-    update cities
-       set is_active = true,
-           telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-           telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-           telegram_unsubscribed_drivers_group_id =
-             coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-     where id = ${cityId}
-  `;
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
 
   await sql`
     insert into users (city_id, telegram_id, full_name, phone, role, language_code)
@@ -136,6 +134,7 @@ describeIf("قرارُ الدعمِ في صندوقِ الصادرِ الموح�
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 

@@ -24,6 +24,11 @@ import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -90,6 +95,7 @@ let driverSent: SentMessage[];
 let riderSent: SentMessage[];
 let provider: ReturnType<typeof stubProvider>;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 
 async function post(bot: string, update: unknown): Promise<Response> {
   return app.fetch(
@@ -142,6 +148,7 @@ describeIf("محادثة بلغتين عبر الترجمة على قاعدة ح
 
   afterAll(async () => {
     await container.close();
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -164,14 +171,10 @@ describeIf("محادثة بلغتين عبر الترجمة على قاعدة ح
                              unsubscribed_claims, unsubscribed_negotiations, order_offers,
                              orders, subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = -1401,
-             telegram_escalation_group_id = ${ESCALATION_GROUP},
-             telegram_unsubscribed_drivers_group_id = ${UNSUB_GROUP}
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, {
+      groups: { support: -1401, escalation: ESCALATION_GROUP, unsubscribed: UNSUB_GROUP },
+      prior: cityHandle,
+    });
     await sql`
       update platform_settings
          set value = case key

@@ -24,6 +24,11 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig, TrackingEnvOverrides } from "../../packages/shared/config/index.ts";
 import { NO_TRACKING_OVERRIDES, tryLoadConfig } from "../../packages/shared/config/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -47,6 +52,7 @@ function configWith(tracking: TrackingEnvOverrides): AppConfig {
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let container: ReturnType<typeof buildContainer> | null = null;
 let app: ReturnType<typeof createServer>;
 
@@ -100,6 +106,7 @@ describeIf("حدود التتبّع من البيئة تُغيّر المسار 
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -115,15 +122,7 @@ describeIf("حدود التتبّع من البيئة تُغيّر المسار 
      * الجهازِ المحلّيّ وآلةِ التكامل. فمرّ محلّياً وسقط بعيداً، ثمّ سرَّب فشلُه
      * حاوياتٍ لم تُغلَق فأنفدَ اتّصالاتَ القاعدة وأسقط ملفّاتٍ لا علاقة لها به.
      */
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-             telegram_unsubscribed_drivers_group_id =
-               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   });
 
   afterEach(async () => {

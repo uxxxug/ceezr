@@ -40,6 +40,11 @@ import {
   createLocationArchiveCodec,
 } from "../../packages/infrastructure/geo/location-archive-adapters.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -50,6 +55,7 @@ const PART_ROWS = 3;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let catalog: ReturnType<typeof createLocationArchiveCatalog>;
 
 const codec = createLocationArchiveCodec();
@@ -105,6 +111,7 @@ describeIf("F7-06 — أرشفةُ أثرِ الموقعِ وإسقاطُه عل
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -114,15 +121,7 @@ describeIf("F7-06 — أرشفةُ أثرِ الموقعِ وإسقاطُه عل
     await sql`truncate table tracking_sessions, attendance_log, driver_availability,
                              driver_capabilities, subscriptions, drivers, users
                              restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-             telegram_unsubscribed_drivers_group_id =
-               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   });
 
   /**

@@ -1,0 +1,219 @@
+/**
+ * الغرض: إثباتُ أنَّ حاجزَ الشرطِ المسبقِ للمدينةِ المفعَّلةِ (`OPS-019` · `ADR 0116`)
+ *   **يُخفِقُ فعلاً** على كلِّ افتراقٍ يدّعي منعَه — لا أنَّه يمرُّ على المستودعِ
+ *   كما هوَ اليومَ. وحاجزٌ بلا حالةٍ سالبةٍ اطمئنانٌ مُشترى بلا ثمنٍ، وهوَ أخطرُ
+ *   من غيابِه لأنَّه يُقرأُ إنفاذاً وهوَ نصٌّ (`ح-7`).
+ * الحالة: اختبار فعلي — الحَكَمُ النقيُّ يُستدعى على مُدخلاتٍ مُصنَّعةٍ لكلِّ قاعدةٍ
+ *   من قواعدِه الخمسِ، ثمَّ على المستودعِ الحقيقيِّ في آخرِ الملفِّ.
+ * ينتمي إلى: tests/unit
+ * يُستخدم من: CI — خطوةٌ مُسمّاةٌ في `.github/workflows/ci.yml` وسلسلةُ `ci`.
+ * يُتوقع أن يستخدمه لاحقاً: كلُّ قاعدةٍ تُضافُ إلى الحاجزِ — قاعدةٌ بلا حالةٍ
+ *   سالبةٍ ههنا لا تُحسَبُ مفروضةً.
+ * ملاحظات مستقبلية: المُدخلاتُ المُصنَّعةُ ههنا صغيرةٌ بقصدٍ؛ والحكمُ على المستودعِ
+ *   كما هوَ يبقى في آخرِ وصفٍ كي يُكشَفَ أيُّ انحرافٍ لاحقٍ في CI.
+ */
+
+import { describe, expect, it } from "bun:test";
+import { readRepository } from "../../scripts/check-integration-city-precondition.ts";
+import {
+  auditCityPrecondition,
+  type CityPreconditionInput,
+  ENSURE_FN,
+  HELPER_PATH,
+  type PreconditionExemption,
+  RESTORE_FN,
+  stripComments,
+} from "../../scripts/lib/city-precondition-audit.ts";
+
+const FILE = "tests/integration/probe.test.ts";
+
+/** معينٌ مستوفٍ لقيدِ القاعدةِ ٤ — يُستعمَلُ أساساً لا يُقاسُ هوَ. */
+const SOUND_HELPER = `
+export async function ${ENSURE_FN}(sql, options) {
+  await sql\`select is_active, telegram_support_group_id, telegram_escalation_group_id,
+                   telegram_unsubscribed_drivers_group_id from cities\`;
+  await sql\`update cities set is_active = true\`;
+}
+export async function ${RESTORE_FN}(sql, handle) {
+  await sql\`update cities set is_active = \${previous.isActive}\`;
+}
+`;
+
+function input(
+  source: string,
+  overrides?: {
+    readonly helper?: string | undefined;
+    readonly exemptions?: readonly PreconditionExemption[];
+  },
+): CityPreconditionInput {
+  return {
+    integrationFiles: [{ path: FILE, source }],
+    helper: overrides !== undefined && "helper" in overrides ? overrides.helper : SOUND_HELPER,
+    exemptions: overrides?.exemptions ?? [],
+  };
+}
+
+/** خروقُ قاعدةٍ بعينِها — كي لا يُقرأَ خرقُ قاعدةٍ أخرى نجاحاً للمقصودةِ. */
+function rules(result: readonly { readonly rule: number }[]): readonly number[] {
+  return result.map((v) => v.rule);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("القاعدة ١ — لا شرطَ مُستعارٌ: المدينةُ تُختارُ بـ`is_active`", () => {
+  const BORROWED = `
+    const [city] = await sql\`
+      select c.id from cities c
+        join city_service_areas a on a.city_id = c.id and a.is_active
+       where c.is_active limit 1\`;
+  `;
+
+  it("`where c.is_active` يُسقِطُ الحاجزَ — وهوَ النمطُ الذي أحمرَ CI فعلاً", () => {
+    expect(rules(auditCityPrecondition(input(BORROWED)))).toContain(1);
+  });
+
+  it("كلُّ لَقَبٍ مُستعملٍ في المستودعِ يُكشَفُ: `ci`، `city`، `cities`", () => {
+    for (const alias of ["ci", "city", "cities"]) {
+      const source = `const r = await sql\`select id from cities ${alias} where ${alias}.is_active\`;`;
+      expect(rules(auditCityPrecondition(input(source)))).toContain(1);
+    }
+  });
+
+  it("`a.is_active` على منطقةِ الخدمةِ وحدَها لا يُقرأُ خرقاً — لا إنذارَ كاذباً", () => {
+    const source = `const r = await sql\`select 1 from city_service_areas a where a.is_active\`;`;
+    expect(rules(auditCityPrecondition(input(source)))).not.toContain(1);
+  });
+
+  it("النمطُ في تعليقٍ لا يُقرأُ شِفرةً — التعليقاتُ تُنزَعُ قبلَ الحكمِ", () => {
+    const source = `// where c.is_active — هكذا كانَ قبلَ OPS-019\nconst x = 1;`;
+    expect(stripComments(source)).not.toContain("is_active");
+    expect(rules(auditCityPrecondition(input(source)))).toEqual([]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("القاعدة ٢ — من فعَّلَ مدينةً ردَّها", () => {
+  const ACTIVATES = `
+    await sql\`update cities set is_active = true where id = \${cityId}\`;
+  `;
+
+  it("تفعيلٌ بلا ردٍّ يُسقِطُ الحاجزَ — وهوَ مصدرُ الأخضرِ المُستعارِ لِمَن بعدَه", () => {
+    expect(rules(auditCityPrecondition(input(ACTIVATES)))).toContain(2);
+  });
+
+  it(`الردُّ بـ\`${RESTORE_FN}\` يُرضي القاعدةَ`, () => {
+    const source = `${ACTIVATES}\nawait ${RESTORE_FN}(sql, cityHandle);`;
+    expect(rules(auditCityPrecondition(input(source)))).not.toContain(2);
+  });
+
+  it("الردُّ بـ`is_active = false` صريحاً يُرضي القاعدةَ كذلك", () => {
+    const source = `${ACTIVATES}\nawait sql\`update cities set is_active = false\`;`;
+    expect(rules(auditCityPrecondition(input(source)))).not.toContain(2);
+  });
+
+  it("ملفٌّ يملكُ صفوفَ مدنِه (يُدخِلُها ويحذفُها) لا يُقرأُ مُستعيراً", () => {
+    const owned = `
+      await sql\`insert into cities (code) values ('ZY1')\`;
+      ${ACTIVATES}
+      await sql\`delete from cities where code = 'ZY1'\`;
+    `;
+    expect(rules(auditCityPrecondition(input(owned)))).not.toContain(2);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("القاعدة ٣ — منادي المعينِ يردُّ خطَّ الأساسِ", () => {
+  it(`نداءُ \`${ENSURE_FN}\` بلا \`${RESTORE_FN}\` يُسقِطُ الحاجزَ`, () => {
+    const source = `cityHandle = await ${ENSURE_FN}(sql, { prior: cityHandle });`;
+    expect(rules(auditCityPrecondition(input(source)))).toContain(3);
+  });
+
+  it("النداءانِ معاً يُرضيانِ القاعدةَ — وهوَ عقدُ الملفّاتِ الستِّ والأربعينَ", () => {
+    const source = `
+      cityHandle = await ${ENSURE_FN}(sql, { prior: cityHandle });
+      await ${RESTORE_FN}(sql, cityHandle);
+    `;
+    expect(auditCityPrecondition(input(source))).toEqual([]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("القاعدة ٤ — المعينُ نفسُه مُستوفٍ، وغيابُه خرقٌ لا صمتٌ", () => {
+  const CALLER = `
+    cityHandle = await ${ENSURE_FN}(sql, { prior: cityHandle });
+    await ${RESTORE_FN}(sql, cityHandle);
+  `;
+
+  it("غيابُ ملفِّ المعينِ يُسقِطُ الحاجزَ ولا يُقرأُ نجاحاً", () => {
+    const result = auditCityPrecondition(input(CALLER, { helper: undefined }));
+    expect(rules(result)).toContain(4);
+    expect(result.some((v) => v.path === HELPER_PATH)).toBe(true);
+  });
+
+  it("معينٌ لا يُصدِّرُ أحدَ الدالّتينِ يُسقِطُ الحاجزَ", () => {
+    for (const missing of [ENSURE_FN, RESTORE_FN]) {
+      const helper = SOUND_HELPER.replace(
+        `export async function ${missing}`,
+        `async function ${missing}`,
+      );
+      expect(rules(auditCityPrecondition(input(CALLER, { helper })))).toContain(4);
+    }
+  });
+
+  it("معينٌ يُغفِلُ عمودَ قروبٍ يُسقِطُ الحاجزَ — والقيدُ يرفضُ التفعيلَ بلا الثلاثةِ", () => {
+    const helper = SOUND_HELPER.replace("telegram_escalation_group_id,", "");
+    expect(rules(auditCityPrecondition(input(CALLER, { helper })))).toContain(4);
+  });
+
+  it("معينٌ يُفعِّلُ ولا يَردُّ من اللقطةِ يُسقِطُ الحاجزَ — وهوَ عينُ العطبِ المُصلَحِ", () => {
+    const helper = SOUND_HELPER.replace("previous.isActive", "false");
+    expect(rules(auditCityPrecondition(input(CALLER, { helper })))).toContain(4);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("القاعدة ٥ — لا إعفاءَ ميّتاً ولا بلا سببٍ ومالكٍ", () => {
+  const BORROWED = `const r = await sql\`select id from cities c where c.is_active\`;`;
+  const SOUND: PreconditionExemption = {
+    path: FILE,
+    reason: "سببٌ مُعلَنٌ يُقرأُ في المراجعةِ",
+    owner: "uxxxug",
+  };
+
+  it("إعفاءٌ مستوفٍ يُسكِتُ القاعدةَ ١ — وهوَ المنفذُ الوحيدُ المشروعُ", () => {
+    const result = auditCityPrecondition(input(BORROWED, { exemptions: [SOUND] }));
+    expect(rules(result)).not.toContain(1);
+    expect(rules(result)).not.toContain(5);
+  });
+
+  it("إعفاءٌ **ميّتٌ** (الملفُّ لا يحملُ النمطَ) يُسقِطُ الحاجزَ", () => {
+    const result = auditCityPrecondition(input("const x = 1;", { exemptions: [SOUND] }));
+    expect(rules(result)).toContain(5);
+  });
+
+  it("إعفاءٌ بلا سببٍ أو بلا مالكٍ يُسقِطُ الحاجزَ — لا ثقبَ مجهولَ النسبِ", () => {
+    for (const broken of [
+      { ...SOUND, reason: "   " },
+      { ...SOUND, owner: "" },
+    ]) {
+      expect(rules(auditCityPrecondition(input(BORROWED, { exemptions: [broken] })))).toContain(5);
+    }
+  });
+
+  it("إعفاءٌ لملفٍّ لا وجودَ له يُسقِطُ الحاجزَ — سجلٌّ يُشيرُ إلى لا شيءَ", () => {
+    const ghost: PreconditionExemption = { ...SOUND, path: "tests/integration/ghost.test.ts" };
+    expect(rules(auditCityPrecondition(input(BORROWED, { exemptions: [ghost] })))).toContain(5);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("المستودعُ الحقيقيُّ", () => {
+  it("لا خرقَ في المستودعِ كما هوَ: الحاجزُ يُقرأُ على الشِّفرةِ لا على مُصنَّعٍ", () => {
+    expect(auditCityPrecondition(readRepository())).toEqual([]);
+  });
+
+  it("المستودعُ يحملُ ملفّاتِ تكاملٍ فعلاً — حاجزٌ بلا محروسٍ أخضرُ كاذبٌ", () => {
+    const repo = readRepository();
+    expect(repo.integrationFiles.length).toBeGreaterThan(50);
+    expect(repo.helper).toBeDefined();
+  });
+});

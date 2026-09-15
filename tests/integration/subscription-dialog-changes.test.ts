@@ -20,6 +20,11 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -39,6 +44,7 @@ let container: ReturnType<typeof buildContainer>;
 let driverSent: SentMessage[];
 let riderSent: SentMessage[];
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let driverId: string;
 
 const ar = (key: string, params: Record<string, string | number> = {}) =>
@@ -121,6 +127,7 @@ describeIf("تغييرات الاشتراك من بوت السائق على قا
 
   afterAll(async () => {
     if (DATABASE_URL === undefined) return;
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -130,14 +137,10 @@ describeIf("تغييرات الاشتراك من بوت السائق على قا
                              order_offers, orders, payment_transactions, subscriptions,
                              driver_capabilities, driver_availability, drivers, riders, users
                              restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = -2001,
-             telegram_escalation_group_id = -2002,
-             telegram_unsubscribed_drivers_group_id = -2003
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, {
+      groups: { support: -2001, escalation: -2002, unsubscribed: -2003 },
+      prior: cityHandle,
+    });
     driverSent = [];
     riderSent = [];
     container = buildContainer(config, {

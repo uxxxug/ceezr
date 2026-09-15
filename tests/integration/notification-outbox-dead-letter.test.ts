@@ -14,6 +14,11 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import { createOfferWriter } from "../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createNotificationOutboxPort } from "../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
@@ -23,6 +28,7 @@ const RETRY_SECONDS = 30;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let orderId: string;
 let driverId: string;
 
@@ -50,15 +56,7 @@ async function createFixture(): Promise<void> {
   const city = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
   cityId = city[0]?.id ?? "";
   if (cityId === "") throw new Error("مدينة جدة غير مبذورة");
-  await sql`
-    update cities
-       set is_active = true,
-           telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-           telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-           telegram_unsubscribed_drivers_group_id =
-             coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-     where id = ${cityId}
-  `;
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
 
   // السقفُ والأساسُ يُثبَّتانِ صراحةً: اختبارٌ يعتمدُ على قيمةٍ مبذورةٍ في هجرةٍ
   // أخرى ينكسرُ يومَ تُغيَّرُ تلك القيمةُ لسببٍ لا علاقةَ له به.
@@ -125,6 +123,7 @@ describeIf("طابورُ الموتى في صندوقِ الصادرِ على Po
   }, 60_000);
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 

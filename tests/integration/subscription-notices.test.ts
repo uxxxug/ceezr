@@ -19,12 +19,18 @@ import type {
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createSubscriptionNoticeDeliveryPort } from "../../packages/infrastructure/subscription/notice-adapters.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let driverId: string;
 let driverUserId: string;
 let notices: ReturnType<typeof createSubscriptionNoticeDeliveryPort>;
@@ -42,14 +48,7 @@ async function createFixture(): Promise<void> {
     await sql<{ id: string }[]>`select id from cities where code = 'JED'`,
     "مدينة جدة",
   );
-  await sql`
-    update cities set is_active = true,
-      telegram_support_group_id = coalesce(telegram_support_group_id, -1009001),
-      telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1009002),
-      telegram_unsubscribed_drivers_group_id =
-        coalesce(telegram_unsubscribed_drivers_group_id, -1009003)
-    where id = ${cityId}
-  `;
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   driverUserId = await firstId(
     await sql<{ id: string }[]>`
       insert into users (city_id, telegram_id, full_name, phone, role, language_code)
@@ -142,6 +141,7 @@ describeIf("إشعارات دورة حياة الاشتراك على PostgreSQL 
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
