@@ -227,16 +227,21 @@ describeIf("F3-07 driver vehicle on real PostgreSQL", () => {
     expect(row.inspection_status).toBeNull();
   });
 
+  // **لا تُمرَّرُ وسمُ استعلامٍ خامّاً إلى `expect(…).rejects`**: استعلامُ
+  // `postgres.js` **مُرجئٌ لا وعدٌ مُنطلقٌ**: لا يُرسَلُ حتّى يُنادى `then`،
+  // ومُطابِقُ الرفضِ لا يُناديه — فالوعدُ **لا يُحسَمُ أبداً** وتعليقُ واحدٍ
+  // يُعلِّقُ وظيفةَ CI ساعاتٍ بلا رسالةٍ. فالمُمرَّرُ دالّةٌ غيرُ متزامنةٍ
+  // بدأَ عملُها فعلاً (`ADR 0122` · وحاجزُ `check-lazy-query-assertion.ts`).
   it("update_driver_vehicle raises USER_NOT_FOUND for unknown user", async () => {
-    await expect(
-      sql`select update_driver_vehicle(${STRANGER_TELEGRAM_ID}::bigint, 'sedan'::text, 'TEST'::text, 2020::int)`,
-    ).rejects.toThrow(/USER_NOT_FOUND/);
+    await expect(updateVehicle(STRANGER_TELEGRAM_ID, "sedan", "TEST", 2020)).rejects.toThrow(
+      /USER_NOT_FOUND/,
+    );
   });
 
   it("update_driver_vehicle_assets raises USER_NOT_FOUND for unknown user", async () => {
-    await expect(
-      sql`select update_driver_vehicle_assets(${STRANGER_TELEGRAM_ID}::bigint, 'logo.png'::text, 'barcode.png'::text)`,
-    ).rejects.toThrow(/USER_NOT_FOUND/);
+    await expect(updateAssets(STRANGER_TELEGRAM_ID, "logo.png", "barcode.png")).rejects.toThrow(
+      /USER_NOT_FOUND/,
+    );
   });
 
   it("reads back updated year", async () => {
