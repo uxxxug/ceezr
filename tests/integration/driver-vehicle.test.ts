@@ -34,6 +34,7 @@ if (DATABASE_URL === undefined) {
 
 const DRIVER_TELEGRAM_ID = 900_000_571;
 const STRANGER_TELEGRAM_ID = 900_000_572;
+const DRIVER_USER_ID = "a3f07071-0000-0000-0000-0000000571a3";
 
 let cityId = "";
 let cityHandle: ActiveCityHandle | undefined;
@@ -41,7 +42,7 @@ let driverUserId = "";
 let driverId = "";
 
 async function seedDriver(telegramId: number): Promise<{ userId: string; driverId: string }> {
-  const userId = `f3-07-${telegramId}`;
+  const userId = DRIVER_USER_ID;
   await sql`
     insert into users (id, telegram_id, city_id, language_code, role)
     values (${userId}::uuid, ${telegramId}::bigint, ${cityId}::uuid, 'ar', 'driver')

@@ -168,6 +168,23 @@ begin
 end;
 $$;
 
+-- ── ٤-ب) سلبُ التنفيذِ عن العامةِ — الملكيّةُ للخدمةِ وحدها ───────────────
+
+revoke all on function driver_vehicle(bigint) from public;
+revoke all on function driver_vehicle(bigint) from anon;
+revoke all on function driver_vehicle(bigint) from authenticated;
+grant execute on function driver_vehicle(bigint) to service_role;
+
+revoke all on function update_driver_vehicle(bigint, text, text, int) from public;
+revoke all on function update_driver_vehicle(bigint, text, text, int) from anon;
+revoke all on function update_driver_vehicle(bigint, text, text, int) from authenticated;
+grant execute on function update_driver_vehicle(bigint, text, text, int) to service_role;
+
+revoke all on function update_driver_vehicle_assets(bigint, text, text) from public;
+revoke all on function update_driver_vehicle_assets(bigint, text, text) from anon;
+revoke all on function update_driver_vehicle_assets(bigint, text, text) from authenticated;
+grant execute on function update_driver_vehicle_assets(bigint, text, text) to service_role;
+
 -- ── ٥) إعدادُ `vehicle_logo_max_bytes` لكلِّ مدينةٍ ─────────────────────────
 -- سقفُ حجمِ مِلفِّ الشعارِ والباركودِ — إعدادُ مدينةٍ لا ثابتٌ في شيفرةٍ.
 
