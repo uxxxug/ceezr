@@ -44,7 +44,7 @@ function rejected(c: Context, code: string) {
 }
 
 function failClosed(c: Context, log?: (m: string, m2: Record<string, unknown>) => void) {
-  log?.("driver-vehicle routes unavailable — deps not wired", {});
+  log?.("driver.vehicle.routes.unavailable", {});
   return rejected(c, "VEHICLE_STORE_NOT_AVAILABLE");
 }
 
