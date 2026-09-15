@@ -29,6 +29,12 @@
  *      لا بديلاً عنه (بابانِ لا بابٌ واحدٌ).
  */
 
+import type {
+  OpenedSupportTicketOf,
+  SupportTicketsPage,
+  SupportTicketView,
+} from "./ticket-types.ts";
+
 /**
  * أصنافُ شكوى الراكبِ — **مجالٌ مغلقٌ يُقابِلُ النوعَ المعدودَ في القاعدةِ**
  * (`support_ticket_type`) في قيمِ الراكبِ وحدَها. و`subscription` غائبٌ عن
@@ -71,15 +77,18 @@ export function categoryRequiresOrder(category: RiderSupportCategory): boolean {
   return CATEGORIES_REQUIRING_ORDER.includes(category);
 }
 
-/** حالاتُ التذكرةِ كما في `support_ticket_status` — مجالٌ مغلقٌ. */
-export const SUPPORT_TICKET_STATUSES = ["open", "claimed", "resolved", "rejected"] as const;
-export type SupportTicketStatus = (typeof SUPPORT_TICKET_STATUSES)[number];
-
-export function isSupportTicketStatus(value: unknown): value is SupportTicketStatus {
-  return (
-    typeof value === "string" && (SUPPORT_TICKET_STATUSES as readonly string[]).includes(value)
-  );
-}
+/**
+ * حالاتُ التذكرةِ ومؤشِّرُ صفحتِها وشكلُ صفِّها — **نُقِلَت إلى**
+ * `ticket-types.ts` في `F3-08` لأنَّها **عديمةُ الدورِ**: حالةُ تذكرةٍ لا
+ * تختلفُ بمَن فتحَها، وصفٌّ يُقرأُ لا يعرفُ دوراً. **وتُصدَّرُ من ههنا كما
+ * كانَت** فلا يُمَسُّ مُستورِدٌ قائمٌ (`ح-8`: نقلٌ بلا كسرٍ، لا نسخٌ يفترقُ).
+ */
+export {
+  isSupportTicketStatus,
+  SUPPORT_TICKET_STATUSES,
+  type SupportTicketCursor,
+  type SupportTicketStatus,
+} from "./ticket-types.ts";
 
 /**
  * صيغةُ المرجعِ المنطوقِ: `WSL-` ثمَّ ستُّ خاناتٍ عشريّةٍ بحدٍّ أدنى، **بلا حرفٍ
@@ -102,43 +111,14 @@ export const MAX_SUPPORT_MESSAGE_CHARS = 1000;
 export const MAX_SUPPORT_PAGE_SIZE = 50;
 export const DEFAULT_SUPPORT_PAGE_SIZE = 20;
 
-/** تذكرةٌ كما تُعرَضُ لصاحبِها — **بلا اسمِ موظّفٍ ولا معرّفِه**. */
-export interface RiderSupportTicket {
-  readonly id: string;
-  readonly reference: string;
-  readonly category: RiderSupportCategory | "subscription";
-  readonly status: SupportTicketStatus;
-  readonly message: string;
-  readonly resolution: string | null;
-  readonly orderId: string | null;
-  readonly createdAt: string;
-  readonly resolvedAt: string | null;
-}
-
-/** مؤشِّرُ الصفحةِ التاليةِ — **شطرانِ معاً أو لا شيءَ** (`ADR 0108`). */
-export interface SupportTicketCursor {
-  readonly createdAt: string;
-  readonly id: string;
-}
-
-export interface RiderSupportPage {
-  readonly tickets: readonly RiderSupportTicket[];
-  readonly hasMore: boolean;
-  readonly nextCursor: SupportTicketCursor | null;
-  /**
-   * يُعرَضُ للمستخدمِ نصّاً؛ مصدرُه إعدادُ المدينةِ لا شِفرةٌ. و`null` معناه
-   * **لا وعدَ زمنٍ لهذه المدينةِ بعدُ** — والشاشةُ تسكتُ عنه ولا تختلقُ رقماً.
-   */
-  readonly expectedResponseMinutes: number | null;
-}
-
 /**
- * إيصالُ فتحِ تذكرةٍ — **المرجعُ أوّلُ ما يُقرأُ** لأنَّه ما يُنطَقُ. ولا زمنَ
- * استجابةٍ ههنا: الفتحُ لا يقرأُ إعداداً ثانياً بعدَ كتابتِه، والشاشةُ تقرؤه من
- * صفحةِ التذاكرِ التي تُعرَضُ بعدَ الفتحِ — قراءةٌ واحدةٌ لا قراءتانِ.
+ * تذكرةٌ كما تُعرَضُ لصاحبِها، وصفحتُها، وإيصالُ فتحِها — **أسماءٌ للراكبِ على
+ * أشكالٍ عديمةِ الدورِ** في `ticket-types.ts`. والصنفُ في القراءةِ **مجالُ
+ * النوعِ كلِّه** لا مجالُ الراكبِ: حسابٌ سائقٌ وراكبٌ تُكتَبُ تذكرتُه بمعرِّفَي
+ * الدورَينِ معاً، فصفحتُه الراكبةُ تحملُ صنفَ سائقٍ — ومحوّلٌ يرفضُه يُسقِطُ
+ * الصفحةَ كلَّها `503` (العِلّةُ مكتوبةٌ في `ticket-types.ts`). **والكتابةُ
+ * تبقى بدورِها**: إيصالُ الفتحِ لا يحملُ إلّا صنفَ راكبٍ.
  */
-export interface OpenedSupportTicket {
-  readonly reference: string;
-  readonly ticketId: string;
-  readonly category: RiderSupportCategory;
-}
+export type RiderSupportTicket = SupportTicketView;
+export type RiderSupportPage = SupportTicketsPage;
+export type OpenedSupportTicket = OpenedSupportTicketOf<RiderSupportCategory>;

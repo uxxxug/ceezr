@@ -20,6 +20,9 @@
  *   ــ **لا يُوجِّهُ بمسارٍ**: لا مُوجِّهَ في التطبيقِ المصغَّرِ اليومَ، والانتقالُ
  *      حالةٌ محليّةٌ. ومُوجِّهُ عناوينٍ **دَينٌ مُعلَنٌ** لا يُحتاجُ بشاشتَينِ.
  *   ــ **لا يعرضُ اشتراكاً**: بندُ `SD-07`.
+ *   ــ **لا يعرضُ شاشةَ حسابٍ**: بندُ `SD-12`، وهوَ **الموضعُ الطبيعيُّ لمدخلِ
+ *      الدعمِ لاحقاً**؛ ومدخلُ اللوحِ اليومَ ليسَ بديلاً عنه بل أقربُ منه إلى
+ *      موضعِ الضررِ.
  *
  * ## وقد صارَت الحصيلةُ ههنا بـ`F3-05` — **زيادةً لا نقصاً** (`ح-8`)
  *
@@ -64,6 +67,7 @@ import { LocationBroadcast } from "./location/LocationBroadcast.tsx";
 import { OfferDetailScreen } from "./offers/OfferDetailScreen.tsx";
 import { OffersScreen } from "./offers/OffersScreen.tsx";
 import { SubscriptionScreen } from "./subscription/SubscriptionScreen.tsx";
+import { DriverSupportScreen } from "./support/SupportScreen.tsx";
 import { VehicleScreen } from "./vehicle/VehicleScreen.tsx";
 
 type DriverView =
@@ -74,6 +78,7 @@ type DriverView =
   | { readonly kind: "subscription" }
   | { readonly kind: "vehicle" }
   | { readonly kind: "documents" }
+  | { readonly kind: "support" }
   | { readonly kind: "placeholder" };
 
 export default function DriverRoot() {
@@ -92,6 +97,7 @@ export default function DriverRoot() {
           onOpenJob={() => setView({ kind: "job" })}
           onOpenActivity={() => setView({ kind: "activity" })}
           onOpenSubscription={() => setView({ kind: "subscription" })}
+          onOpenSupport={() => setView({ kind: "support" })}
           onBack={() => setView({ kind: "documents" })}
         />
       </>
@@ -130,6 +136,13 @@ export default function DriverRoot() {
 
   if (view.kind === "vehicle") {
     return <VehicleScreen onBack={() => setView({ kind: "offers" })} />;
+  }
+
+  if (view.kind === "support") {
+    // **لا `orderId` من اللوحِ**: شكوى «راكبٌ مسيءٌ» تُفتَحُ من رحلةٍ بعينِها
+    // (مَهمّةٌ أو سجلُّ نشاطٍ)، ولوحُ العروضِ ليسَ رحلةً. والشاشةُ تقولُ ذلكَ
+    // نصّاً لمَن اختارَ الصنفَ ههنا ولا تعرضُ حقلَ معرّفٍ يُملأُ بيدٍ.
+    return <DriverSupportScreen onBack={() => setView({ kind: "offers" })} />;
   }
 
   if (view.kind === "documents") {

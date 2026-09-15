@@ -4,8 +4,10 @@
  * الحالة: منفَّذٌ فعليّاً — البند `F2-12`.
  * ينتمي إلى: scripts/lib
  * يُستخدم من: `scripts/check-support-intake-contract.ts` و`tests/unit`.
- * يُتوقع أن يستخدمه لاحقاً: `SD-10` (دعمُ السائقِ) — تُزادُ مِلفّاتُه ههنا ولا
- *   تُكتَبُ قواعدُ ثانيةٌ للسؤالِ نفسِه.
+ * يُتوقع أن يستخدمه لاحقاً: أيُّ دورٍ ثالثٍ يفتحُ تذكرةً — يُزادُ **مدخلاً في
+ *   `SUPPORT_ROLES`** ولا تُكتَبُ قواعدُ ثانيةٌ للسؤالِ نفسِه.
+ * زِيدَ في: البند `F3-08` · `SD-10` (دعمُ السائقِ) — القواعدُ السبعُ نفسُها
+ *   تُقاسُ على **دورَينِ** لا على دورٍ واحدٍ.
  * الحاكم: docs/adr/0114-a-support-ticket-is-a-spoken-reference-not-a-uuid.md
  *
  * ## لماذا حاجزٌ خاصٌّ لسطحٍ يبدو بسيطاً
@@ -41,31 +43,65 @@
  *   ــ **لا يحكمُ في جودةِ النصِّ ولا في ترجمتِه**: يفرضُ وجودَه لا صحّتَه
  *      اللغويّةَ. ودقّةُ الأردو والإنجليزيّةِ مراجعةٌ بشريّةٌ مُعلَنةٌ كدَينٍ.
  *   ــ **لا يُشغِّلُ قاعدةً**: يقرأُ نصَّ الهجرةِ. والأثرُ يُقاسُ في `tests/integration`.
+ *   ــ **لا يقيسُ تطابقَ نصِّ الراكبِ ونصِّ السائقِ**: المفتاحانِ مِرآةٌ في
+ *      البِنيةِ لا في المعنى — «خصمٌ من مستحقّاتي» للسائقِ و«خصمٌ من مستحقّاتِ
+ *      سائقٍ» للراكبِ الذي يراها في قائمتِه، وحاجزٌ يُلزِمُ التساويَ يُنتِجُ نصّاً
+ *      كاذباً لأحدِهما.
  *   ــ **لا يمنعُ ذكرَ «صورةٍ» في النصِّ**: سطرُ الدَّينِ يقولُ «إرفاقُ صورةٍ لم
  *      يُبنَ» — وهوَ إفصاحٌ واجبٌ. والممنوعُ **آليّةُ** رفعٍ لا ذكرُها.
  */
 
-import { RIDER_SUPPORT_PUBLIC_ERROR_CODES } from "../../packages/application/support/rider-support.ts";
+import { SUPPORT_PUBLIC_ERROR_CODES } from "../../packages/application/support/intake.ts";
+import { DRIVER_SUPPORT_CATEGORIES } from "../../packages/domain/support/driver-support.ts";
 import {
   RIDER_SUPPORT_CATEGORIES,
   SUPPORT_TICKET_REFERENCE_PATTERN,
   SUPPORT_TICKET_STATUSES,
 } from "../../packages/domain/support/rider-support.ts";
 
-/** مِلفّاتُ سطحِ الدعمِ — مكتوبةً لا مُكتشَفةً بنمطٍ. */
+/**
+ * مِلفّاتُ سطحِ الدعمِ — مكتوبةً لا مُكتشَفةً بنمطٍ، و**اللبُّ المشتركُ ضمنَها**:
+ * بابُ إرفاقٍ يُزرَعُ في اللبِّ يظهرُ في الشاشتَينِ معاً، فحاجزٌ يقرأُ مِلفّاتِ
+ * الدورَينِ ولا يقرأُ ما يشتركانِ فيه يمرُّ أخضرَ على أخطرِ موضعٍ.
+ */
 export const SURFACE_FILES: readonly string[] = [
+  "apps/miniapp/src/surfaces/support/TicketsScreen.tsx",
+  "apps/miniapp/src/surfaces/support/ticket-view.ts",
+  "apps/miniapp/src/surfaces/support/ticket-api.ts",
+  "apps/miniapp/src/surfaces/support/ticket-contract.ts",
   "apps/miniapp/src/surfaces/rider/support/SupportScreen.tsx",
   "apps/miniapp/src/surfaces/rider/support/support-view.ts",
   "apps/miniapp/src/surfaces/rider/support/support-api.ts",
   "apps/miniapp/src/surfaces/rider/support/support-contract.ts",
+  "apps/miniapp/src/surfaces/driver/support/SupportScreen.tsx",
+  "apps/miniapp/src/surfaces/driver/support/support-view.ts",
+  "apps/miniapp/src/surfaces/driver/support/support-api.ts",
 ];
 
-/** الشاشةُ وحدَها — عليها القاعدةُ ٥ (المرجعُ يُعرَضُ). */
-export const SCREEN_FILE = "apps/miniapp/src/surfaces/rider/support/SupportScreen.tsx";
+/**
+ * الشاشةُ التي تحملُ القاعدةَ ٥ (المرجعُ يُعرَضُ) — **الشاشةُ المشتركةُ** بعدَ
+ * `SD-10`، لا شاشةُ الراكبِ. وشاشةُ الراكبِ اليومَ مُحوِّلٌ نحيفٌ يُمرِّرُ وصفاً
+ * إلى اللبِّ ولا يكتبُ حرفاً من العرضِ؛ فقاعدةٌ تقرأُ فيها كلمةَ `reference`
+ * تسقطُ على تصحيحٍ صحيحٍ — وذاكَ حاجزٌ يُعلِّمُ نقلَ الشِفرةِ لا جودتَها.
+ */
+export const SCREEN_FILE = "apps/miniapp/src/surfaces/support/TicketsScreen.tsx";
 
-/** هجرةُ البندِ التي تُنشئُ المرجعَ والدالّاتِ. */
+/**
+ * هجرةُ المرجعِ — عليها القاعدةُ ٤ وحدَها (المتسلسلةُ تُنشأُ مرّةً واحدةً في
+ * عمرِ المشروعِ، وهجرةٌ لاحقةٌ لا تُعيدُ إنشاءَها).
+ */
 export const SUPPORT_SQL_FILE =
   "supabase/migrations/20260914220000_f2_12_support_reference_and_rider_categories.sql";
+
+/**
+ * كلُّ هجرةٍ تُنشئُ أو تُعيدُ إنشاءَ دالّةِ دعمٍ — عليها القاعدةُ ٧. و`create or
+ * replace` **يُعيدُ منحَ التنفيذِ ضمنيّاً**، فهجرةٌ ثانيةٌ تُعيدُ كتابةَ دالّةٍ
+ * سابقةٍ ولا تنزعُ تنفيذَها تفتحُ بابَ الأولى من جديدٍ.
+ */
+export const SUPPORT_SQL_FILES: readonly string[] = [
+  SUPPORT_SQL_FILE,
+  "supabase/migrations/20260916020000_f3_08_driver_support_tickets.sql",
+];
 
 export const TRANSLATION_FILES: Readonly<Record<string, string>> = {
   ar: "packages/shared/i18n/miniapp/ar.json",
@@ -73,15 +109,54 @@ export const TRANSLATION_FILES: Readonly<Record<string, string>> = {
   ur: "packages/shared/i18n/miniapp/ur.json",
 };
 
-/** بادئةُ مفاتيحِ هذا السطحِ. */
+/**
+ * أصنافٌ **تُقرأُ ولا تُختارُ** في مِلفِّ دورٍ: التذكرةُ يفتحُها الدورُ الآخرُ
+ * ويراها هذا في «تذاكري» لأنَّ مجالَ القراءةِ أوسعُ من مجالِ الكتابةِ (إنسانٌ
+ * واحدٌ راكبٌ وسائقٌ معاً). فلها نصٌّ واجبٌ **وليسَ** لها مدخلٌ في نموذجِ الفتحِ،
+ * ومَن رآها في قائمتِه بلا نصٍّ ظنَّ العطبَ.
+ */
+export interface SupportRoleScope {
+  /** اسمٌ يُقرأُ في رسالةِ الخرقِ. */
+  readonly label: string;
+  /** بادئةُ مفاتيحِ هذا الدورِ في قواميسِ التطبيقِ المُصغَّرِ. */
+  readonly keyPrefix: string;
+  /** أصنافٌ يختارُها هذا الدورُ في نموذجِ الفتحِ. */
+  readonly selectable: readonly string[];
+  /** أصنافٌ يقرؤها ولا يختارُها. */
+  readonly readOnly: readonly string[];
+}
+
+/** الدورانِ اللذانِ يفتحانِ تذكرةً اليومَ — مصدرُ الأصنافِ هوَ النطاقُ. */
+export const SUPPORT_ROLES: readonly SupportRoleScope[] = [
+  {
+    label: "الراكبُ",
+    keyPrefix: "rider.support.",
+    selectable: RIDER_SUPPORT_CATEGORIES,
+    // `subscription` كانَ الاستثناءَ الوحيدَ قبلَ `SD-10`؛ ثمَّ صارَ للسائقِ
+    // ثلاثةُ أصنافٍ أخرى يراها الراكبُ في قائمتِه لو كانَ سائقاً.
+    readOnly: ["subscription", "deduction", "rider_conduct", "vehicle"],
+  },
+  {
+    label: "السائقُ",
+    keyPrefix: "driver.support.",
+    selectable: DRIVER_SUPPORT_CATEGORIES,
+    readOnly: ["ride_dispute", "lost_item", "driver_conduct"],
+  },
+];
+
+/** بادئةُ مفاتيحِ الراكبِ — تُركَت لأنَّ مِلفّاتٍ أخرى تستوردُها بالاسمِ. */
 export const KEY_PREFIX = "rider.support.";
 
-/** مفتاحُ السقوطِ لرمزٍ لا تعرفُه هذه النسخةُ (القاعدة ٣). */
-export const FALLBACK_KEYS: readonly string[] = [
-  "rider.support.error.UNKNOWN",
-  "rider.support.category.unknown",
-  "rider.support.status.unknown",
+/** مفاتيحُ السقوطِ لرمزٍ لا تعرفُه هذه النسخةُ — لكلِّ دورٍ نسخةٌ (القاعدة ٣). */
+export const FALLBACK_SUFFIXES: readonly string[] = [
+  "error.UNKNOWN",
+  "category.unknown",
+  "status.unknown",
 ];
+
+export const FALLBACK_KEYS: readonly string[] = SUPPORT_ROLES.flatMap((role) =>
+  FALLBACK_SUFFIXES.map((suffix) => `${role.keyPrefix}${suffix}`),
+);
 
 /** آليّاتُ الرفعِ — ممنوعةٌ في السطحِ (القاعدة ٦). */
 export const UPLOAD_TOKENS: readonly string[] = [
@@ -95,22 +170,20 @@ export const UPLOAD_TOKENS: readonly string[] = [
 /** الأدوارُ التي لا يجوزُ أن تُنفِّذَ دالّةً من دوالِّنا (القاعدة ٧). */
 export const REVOKED_ROLES: readonly string[] = ["public", "anon", "authenticated"];
 
-/**
- * أصنافُ التذاكرِ التي **تُقرأُ ولا تُختارُ**: `subscription` يفتحُها السائقُ من
- * بوتِه، ويراها الراكبُ في «تذاكري» لو كانَ سائقاً. فلها نصٌّ واجبٌ **وليسَ**
- * لها مدخلٌ في نموذجِ الفتحِ — ومَن رآها في القائمةِ بلا نصٍّ ظنَّ العطبَ.
- */
-export const READ_ONLY_CATEGORIES: readonly string[] = ["subscription"];
+/** أصنافُ الراكبِ التي تُقرأُ ولا تُختارُ — يُقرأُ من `SUPPORT_ROLES`. */
+export const READ_ONLY_CATEGORIES: readonly string[] = SUPPORT_ROLES[0]?.readOnly ?? [];
 
 export interface SupportIntakeContractInput {
   /** مِلفّاتُ السطحِ: مسارٌ ⇒ شِفرةٌ **بلا تعليقاتٍ**. */
   readonly surface: Readonly<Record<string, string>>;
-  /** نصُّ هجرةِ البندِ كما هوَ. */
+  /** نصُّ هجرةِ المرجعِ كما هوَ (القاعدة ٤). */
   readonly sql: string;
+  /** نصُّ كلِّ هجرةِ دعمٍ: مسارٌ ⇒ نصٌّ (القاعدة ٧). */
+  readonly sqlByPath: Readonly<Record<string, string>>;
   /** القواميسُ الثلاثةُ مُحلَّلةً: لغةٌ ⇒ (مفتاحٌ ⇒ نصٌّ). */
   readonly translations: Readonly<Record<string, Readonly<Record<string, string>>>>;
-  /** الأصنافُ كما نشرَها النطاقُ. */
-  readonly categories: readonly string[];
+  /** الأدوارُ ومجالُ كلِّ دورٍ — لا دورٌ واحدٌ مضمَرٌ. */
+  readonly roles: readonly SupportRoleScope[];
   /** الحالاتُ كما نشرَها النطاقُ. */
   readonly statuses: readonly string[];
   /** رموزُ العطبِ كما نشرَها التطبيقُ. */
@@ -123,34 +196,36 @@ function mentions(text: string, token: string): boolean {
   return text.toLowerCase().includes(token.toLowerCase());
 }
 
-/** القاعدة ١ — لكلِّ صنفٍ وحالةٍ ورمزٍ نصٌّ في كلِّ قاموسٍ. */
+/** القاعدة ١ — لكلِّ صنفٍ وحالةٍ ورمزٍ نصٌّ في كلِّ قاموسٍ، **لكلِّ دورٍ**. */
 export function textCoverageProblems(input: SupportIntakeContractInput): readonly string[] {
   const problems: string[] = [];
-  const groups: readonly { readonly label: string; readonly keys: readonly string[] }[] = [
-    {
-      label: "صنفُ شكوى",
-      keys: [...input.categories, ...READ_ONLY_CATEGORIES].map((c) => `${KEY_PREFIX}category.${c}`),
-    },
-    { label: "حالةُ تذكرةٍ", keys: input.statuses.map((s) => `${KEY_PREFIX}status.${s}`) },
-    { label: "رمزُ عطبٍ", keys: input.errorCodes.map((c) => `${KEY_PREFIX}error.${c}`) },
-  ];
   // مجالٌ فارغٌ يجعلُ القاعدةَ تمرُّ زوراً — والفراغُ خللُ قراءةٍ لا براءةٌ.
-  if (
-    input.categories.length === 0 ||
-    input.statuses.length === 0 ||
-    input.errorCodes.length === 0
-  ) {
-    problems.push("لم يُقرأْ صنفٌ أو حالةٌ أو رمزُ عطبٍ واحدٌ — القاعدةُ لا تمرُّ بمجالٍ فارغٍ.");
+  if (input.roles.length === 0 || input.statuses.length === 0 || input.errorCodes.length === 0) {
+    problems.push("لم يُقرأْ دورٌ أو حالةٌ أو رمزُ عطبٍ واحدٌ — القاعدةُ لا تمرُّ بمجالٍ فارغٍ.");
     return problems;
   }
-  for (const group of groups) {
-    for (const key of group.keys) {
-      for (const [language, dictionary] of Object.entries(input.translations)) {
-        if (!(key in dictionary)) {
-          problems.push(
-            `${language}: ${group.label} بلا نصٍّ («${key}») — ` +
-              `يُعرَضُ مفتاحاً خاماً في اللحظةِ التي يشكو فيها إنسانٌ.`,
-          );
+  for (const role of input.roles) {
+    if (role.selectable.length === 0) {
+      problems.push(`${role.label}: لم يُقرأْ صنفٌ واحدٌ يُختارُ — القاعدةُ لا تمرُّ بمجالٍ فارغٍ.`);
+      continue;
+    }
+    const groups: readonly { readonly label: string; readonly keys: readonly string[] }[] = [
+      {
+        label: "صنفُ شكوى",
+        keys: [...role.selectable, ...role.readOnly].map((c) => `${role.keyPrefix}category.${c}`),
+      },
+      { label: "حالةُ تذكرةٍ", keys: input.statuses.map((s) => `${role.keyPrefix}status.${s}`) },
+      { label: "رمزُ عطبٍ", keys: input.errorCodes.map((c) => `${role.keyPrefix}error.${c}`) },
+    ];
+    for (const group of groups) {
+      for (const key of group.keys) {
+        for (const [language, dictionary] of Object.entries(input.translations)) {
+          if (!(key in dictionary)) {
+            problems.push(
+              `${language} · ${role.label}: ${group.label} بلا نصٍّ («${key}») — ` +
+                `يُعرَضُ مفتاحاً خاماً في اللحظةِ التي يشكو فيها إنسانٌ.`,
+            );
+          }
         }
       }
     }
@@ -158,29 +233,38 @@ export function textCoverageProblems(input: SupportIntakeContractInput): readonl
   return problems;
 }
 
-/** القاعدة ٢ — مفاتيحُ البادئةِ متطابقةٌ في القواميسِ الثلاثةِ. */
+/** القاعدة ٢ — مفاتيحُ كلِّ بادئةٍ متطابقةٌ في القواميسِ الثلاثةِ. */
 export function keyParityProblems(input: SupportIntakeContractInput): readonly string[] {
   const problems: string[] = [];
   const languages = Object.keys(input.translations);
   if (languages.length < 2) {
     return ["لم يُقرأْ قاموسانِ على الأقلِّ — قاعدةُ التطابقِ لا تمرُّ بقاموسٍ واحدٍ."];
   }
-  const keysOf = (language: string): ReadonlySet<string> =>
-    new Set(
-      Object.keys(input.translations[language] ?? {}).filter((k) => k.startsWith(KEY_PREFIX)),
-    );
-  const reference = keysOf("ar");
-  if (reference.size === 0) {
-    return ["القاموسُ العربيُّ بلا مفتاحِ دعمٍ واحدٍ — القاعدةُ لا تمرُّ بمرجعٍ فارغٍ."];
+  if (input.roles.length === 0) {
+    return ["لم يُقرأْ دورٌ واحدٌ — قاعدةُ التطابقِ لا تمرُّ بمجالٍ فارغٍ."];
   }
-  for (const language of languages) {
-    if (language === "ar") continue;
-    const keys = keysOf(language);
-    for (const key of reference) {
-      if (!keys.has(key)) problems.push(`${language}: مفتاحٌ ناقصٌ «${key}» مقابلَ العربيّةِ.`);
+  for (const role of input.roles) {
+    const keysOf = (language: string): ReadonlySet<string> =>
+      new Set(
+        Object.keys(input.translations[language] ?? {}).filter((k) => k.startsWith(role.keyPrefix)),
+      );
+    const reference = keysOf("ar");
+    if (reference.size === 0) {
+      problems.push(
+        `${role.label}: القاموسُ العربيُّ بلا مفتاحٍ واحدٍ ببادئةِ «${role.keyPrefix}» — ` +
+          `القاعدةُ لا تمرُّ بمرجعٍ فارغٍ.`,
+      );
+      continue;
     }
-    for (const key of keys) {
-      if (!reference.has(key)) problems.push(`${language}: مفتاحٌ زائدٌ «${key}» لا مقابلَ له.`);
+    for (const language of languages) {
+      if (language === "ar") continue;
+      const keys = keysOf(language);
+      for (const key of reference) {
+        if (!keys.has(key)) problems.push(`${language}: مفتاحٌ ناقصٌ «${key}» مقابلَ العربيّةِ.`);
+      }
+      for (const key of keys) {
+        if (!reference.has(key)) problems.push(`${language}: مفتاحٌ زائدٌ «${key}» لا مقابلَ له.`);
+      }
     }
   }
   return problems;
@@ -189,7 +273,10 @@ export function keyParityProblems(input: SupportIntakeContractInput): readonly s
 /** القاعدة ٣ — مفاتيحُ السقوطِ موجودةٌ في كلِّ قاموسٍ. */
 export function fallbackKeyProblems(input: SupportIntakeContractInput): readonly string[] {
   const problems: string[] = [];
-  for (const key of FALLBACK_KEYS) {
+  const keys = input.roles.flatMap((role) =>
+    FALLBACK_SUFFIXES.map((suffix) => `${role.keyPrefix}${suffix}`),
+  );
+  for (const key of keys) {
     for (const [language, dictionary] of Object.entries(input.translations)) {
       if (!(key in dictionary)) {
         problems.push(
@@ -262,39 +349,49 @@ export function uploadAffordanceProblems(input: SupportIntakeContractInput): rea
   return problems;
 }
 
-/** القاعدة ٧ — كلُّ دالّةٍ في الهجرةِ يُنزَعُ تنفيذُها عن الأدوارِ الثلاثةِ. */
+/** القاعدة ٧ — كلُّ دالّةٍ في **كلِّ** هجرةِ دعمٍ يُنزَعُ تنفيذُها عن الأدوارِ الثلاثةِ. */
 export function functionRevokeProblems(input: SupportIntakeContractInput): readonly string[] {
   const problems: string[] = [];
-  const sql = input.sql.toLowerCase().replace(/\s+/g, " ");
-  // الاسمُ يُقرأُ **بلا مُخطَّطٍ**: `public.f(...)` و`f(...)` دالّةٌ واحدةٌ، وحاجزٌ
-  // يقرأُ الأوّلَ ولا يقرأُ الثانيَ يمرُّ أخضرَ على هجرةٍ لم تنزعْ شيئاً.
-  const created = [
-    ...sql.matchAll(/create (?:or replace )?function (?:public\.)?([a-z0-9_]+)\s*\(/g),
-  ].map((match) => match[1] ?? "");
-  if (created.length === 0) {
-    problems.push(`${SUPPORT_SQL_FILE}: لم تُقرأْ دالّةٌ واحدةٌ — القاعدةُ لا تمرُّ بقائمةٍ فارغةٍ.`);
+  const files = Object.entries(input.sqlByPath);
+  if (files.length === 0) {
+    problems.push("لم تُقرأْ هجرةٌ واحدةٌ — القاعدةُ لا تمرُّ بقائمةٍ فارغةٍ.");
     return problems;
   }
-  for (const name of new Set(created)) {
-    const pattern = new RegExp(
-      `revoke execute on function (?:public\\.)?${name}\\s*\\([^)]*\\) from ([^;]+);`,
-    );
-    const match = sql.match(pattern);
-    if (match === null) {
-      problems.push(
-        `${SUPPORT_SQL_FILE}: الهجرةُ تُنشئُ «${name}» ولا تنزعُ تنفيذَها — ` +
-          `و«public» يُمنَحُ التنفيذَ تلقائيّاً فتصيرُ الدالّةُ منالاً للمفتاحِ العامِّ.`,
-      );
+  for (const [path, text] of files) {
+    const sql = text.toLowerCase().replace(/\s+/g, " ");
+    // الاسمُ يُقرأُ **بلا مُخطَّطٍ**: `public.f(...)` و`f(...)` دالّةٌ واحدةٌ، وحاجزٌ
+    // يقرأُ الأوّلَ ولا يقرأُ الثانيَ يمرُّ أخضرَ على هجرةٍ لم تنزعْ شيئاً.
+    const created = [
+      ...sql.matchAll(/create (?:or replace )?function (?:public\.)?([a-z0-9_]+)\s*\(/g),
+    ].map((match) => match[1] ?? "");
+    if (created.length === 0) {
+      // هجرةُ أصنافٍ (قِيَمُ `enum`) لا تُنشئُ دالّةً — وذاكَ ليسَ خرقاً؛ الخرقُ
+      // أن تُنشئَ ولا تنزعَ. فالفراغُ ههنا يُقاسُ على مستوى القائمةِ كلِّها أعلاه.
       continue;
     }
-    const roles = match[1] ?? "";
-    for (const role of REVOKED_ROLES) {
-      if (!roles.includes(role)) {
+    for (const name of new Set(created)) {
+      const pattern = new RegExp(
+        `revoke execute on function (?:public\\.)?${name}\\s*\\([^)]*\\) from ([^;]+);`,
+      );
+      const match = sql.match(pattern);
+      if (match === null) {
         problems.push(
-          `${SUPPORT_SQL_FILE}: نزعُ تنفيذِ «${name}» لا يذكرُ «${role}» — نزعٌ ناقصٌ بابٌ مفتوحٌ.`,
+          `${path}: الهجرةُ تُنشئُ «${name}» ولا تنزعُ تنفيذَها — ` +
+            `و«public» يُمنَحُ التنفيذَ تلقائيّاً فتصيرُ الدالّةُ منالاً للمفتاحِ العامِّ.`,
         );
+        continue;
+      }
+      const roles = match[1] ?? "";
+      for (const role of REVOKED_ROLES) {
+        if (!roles.includes(role)) {
+          problems.push(`${path}: نزعُ تنفيذِ «${name}» لا يذكرُ «${role}» — نزعٌ ناقصٌ بابٌ مفتوحٌ.`);
+        }
       }
     }
+  }
+  const anyCreated = files.some(([, text]) => /create (?:or replace )?function/i.test(text));
+  if (!anyCreated) {
+    problems.push("لم تُقرأْ دالّةٌ واحدةٌ في هجراتِ الدعمِ — القاعدةُ لا تمرُّ بقائمةٍ فارغةٍ.");
   }
   return problems;
 }
@@ -317,5 +414,9 @@ export function supportIntakeContractProblems(
 /** المجالاتُ كما نشرَها النطاقُ والتطبيقُ — مصدرٌ واحدٌ لا نسخةٌ ههنا. */
 export const CATEGORIES: readonly string[] = RIDER_SUPPORT_CATEGORIES;
 export const STATUSES: readonly string[] = SUPPORT_TICKET_STATUSES;
-export const ERROR_CODES: readonly string[] = RIDER_SUPPORT_PUBLIC_ERROR_CODES;
+/**
+ * رموزُ العطبِ **واحدةٌ للدورَينِ**: اللبُّ المشتركُ (`packages/application/support/intake.ts`)
+ * يُصدِرُها، ورمزٌ يُضافُ لأحدِ الدورَينِ دونَ نصٍّ للآخرِ يسقطُ هذا الحاجزُ.
+ */
+export const ERROR_CODES: readonly string[] = SUPPORT_PUBLIC_ERROR_CODES;
 export const REFERENCE_PATTERN: RegExp = SUPPORT_TICKET_REFERENCE_PATTERN;

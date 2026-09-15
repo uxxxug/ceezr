@@ -92,6 +92,13 @@ export interface OffersScreenProps {
    * يُعيدُ هذه الشاشةَ إلى سلوكِها قبلَ `F3-06` حرفاً.
    */
   readonly onOpenSubscription?: () => void;
+  /**
+   * مدخلُ الدعمِ والشكوى (`F3-08` · `SD-10`) — **زيادةٌ في اللوحِ لا تغييرٌ
+   * فيه** (`ح-8`). وموضعُه ههنا لا في قائمةٍ مخفيّةٍ لأنَّ السائقَ الذي لا
+   * يصلُه عرضٌ أو خُصِمَ منه مبلغٌ **يفتحُ اللوحَ أوّلاً**، ومَن لم يجدْ باباً
+   * يشكو منه في الشاشةِ التي وقعَ فيها الضررُ يشكو في قروبٍ عامٍّ أو يصمتُ.
+   */
+  readonly onOpenSupport?: () => void;
   readonly readBoard?: () => Promise<DriverOffersResponse>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly setAvailability?: (isAvailable: boolean) => Promise<DriverAvailabilityResponse>;
@@ -173,6 +180,7 @@ export function OffersScreen({
   onOpenJob,
   onOpenActivity,
   onOpenSubscription,
+  onOpenSupport,
   onOpenOffer,
   readBoard = readDriverOffers,
   reject = rejectDriverOffer,
@@ -402,6 +410,12 @@ export function OffersScreen({
       {onOpenSubscription === undefined ? null : (
         <button type="button" className="dof__subscription" onClick={onOpenSubscription}>
           {t("driver.offers.openSubscription")}
+        </button>
+      )}
+
+      {onOpenSupport === undefined ? null : (
+        <button type="button" className="dof__support" onClick={onOpenSupport}>
+          {t("driver.offers.openSupport")}
         </button>
       )}
 

@@ -1,11 +1,24 @@
 /**
- * الغرض: مسارا الدعمِ من داخلِ التطبيقِ — `POST /v1/support/tickets` و
- *   `GET /v1/support/tickets` (`F2-12` · `SR-11` · §9.11).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-12`.
+ * الغرض: مساراتُ الدعمِ من داخلِ التطبيقِ — `POST|GET /v1/support/tickets`
+ *   للراكبِ و`POST|GET /v1/driver/support/tickets` للسائقِ
+ *   (`F2-12` · `SR-11` · `F3-08` · `SD-10` · §9.11).
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-12` و`F3-08`.
  * ينتمي إلى: apps/gateway/src/routes
  * يُستخدم من: `apps/gateway/src/server.ts` عبرَ تركيبٍ اختياريٍّ.
- * يُتوقع أن يستخدمه لاحقاً: `SD-10` — المساران لا يذكرانِ دوراً في عنوانِهما،
- *   وشكوى السائقِ تدخلُ منهما بأصنافِها لا من مسارٍ ثالثٍ.
+ * ## لِمَ للسائقِ **عنوانٌ باسمِ دورِه** ولا مُعامَلُ دورٍ في العنوانِ نفسِه
+ *
+ * القراءةُ **تفترقُ بالدورِ حتماً**: `where driver_id` لا `rider_id`. فالدورُ
+ * يجبُ أن يُعرَفَ قبلَ الاستعلامِ، وله ثلاثُ صيغٍ لا رابعَ: **(١)** يُستنبَطُ
+ * من الصنفِ — ويسقطُ إذ `app_problem` و`other` **للدورَينِ**؛ **(٢)** مُعامَلٌ
+ * في الجسمِ أو الاستعلامِ — فيزيدُ رمزَ عطبٍ رابعَ عشرَ ونصَّه في ثلاثةِ
+ * قواميسَ لسؤالٍ يعرفُه السطحُ يقيناً؛ **(٣)** في **العنوانِ**، وهوَ ما تفعلُه
+ * البوابةُ في كلِّ سطحِ سائقٍ قائمٍ (`/v1/driver/{documents,offers,job,…}`).
+ * فالثالثةُ: **مصدرُ الدورِ واحدٌ ظاهرٌ**، ومسارُ الراكبِ **لم يُمَسَّ حرفاً**
+ * فلا انحدارَ يُخشى عليه (`ح-8`).
+ *
+ * **ولا فحصَ دورٍ في البوابةِ**: `open_support_ticket` تردُّ `NOT_A_DRIVER` لمن
+ * ليسَ سائقاً، و`driver_support_tickets` كذلكَ — فالحكمُ في القاعدةِ موضعٌ
+ * واحدٌ، والعنوانُ **توجيهٌ لا صلاحيةٌ**.
  * الحاكم: docs/adr/0114-a-support-ticket-is-a-spoken-reference-not-a-uuid.md
  *
  * ## لماذا `409` للتهدئةِ ورأسُ `Retry-After` معَها
@@ -32,6 +45,11 @@
 
 import { type Context, Hono } from "hono";
 import {
+  type DriverSupportDeps,
+  listDriverSupportTickets,
+  openDriverSupportTicket,
+} from "../../../../packages/application/support/driver-support.ts";
+import {
   listRiderSupportTickets,
   openRiderSupportTicket,
   type RiderSupportDeps,
@@ -40,8 +58,10 @@ import {
 } from "../../../../packages/application/support/rider-support.ts";
 
 export interface SupportRouteDependencies {
-  /** غيابُها **يعطّلُ المسارَينِ بـ503** ولا يجعلهما يجيبانِ بلا كتابةٍ. */
+  /** غيابُها **يعطّلُ مسارَي الراكبِ بـ503** ولا يجعلهما يجيبانِ بلا كتابةٍ. */
   readonly support?: RiderSupportDeps;
+  /** ومثلُها لمسارَي السائقِ — **كلُّ سطحٍ يُعطَّلُ وحدَه** لا بغيابِ الآخرِ. */
+  readonly driverSupport?: DriverSupportDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -152,6 +172,66 @@ export function createSupportRoutes(deps: SupportRouteDependencies): Hono {
     }
 
     const result = await listRiderSupportTickets(deps.support, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      limit: c.req.query("limit"),
+      cursorCreatedAt: c.req.query("before_created_at"),
+      cursorId: c.req.query("before_id"),
+    });
+    if (!result.ok) return rejected(c, result.error);
+
+    const page = result.value;
+    return c.json({
+      ok: true,
+      tickets: page.tickets,
+      has_more: page.hasMore,
+      next_cursor: page.nextCursor,
+      expected_response_minutes: page.expectedResponseMinutes,
+    });
+  });
+
+  /**
+   * «أبلِغْ عن مشكلةٍ» للسائقِ — أصنافُه وحدَها، والحكمُ في القاعدةِ.
+   * **جسمُ الجوابِ ورموزُ عطبِه كجوابِ الراكبِ حرفاً**: شاشتانِ لا محوّلانِ.
+   */
+  app.post("/v1/driver/support/tickets", async (c) => {
+    if (deps.driverSupport === undefined) {
+      deps.log?.("driver_support.open_disabled", {});
+      return rejected(c, { code: "SUPPORT_STORE_NOT_AVAILABLE", retryAfterSeconds: null });
+    }
+
+    const body = await readJsonBody(c);
+    const result = await openDriverSupportTicket(deps.driverSupport, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      category: body?.category,
+      message: body?.message,
+      orderId: body?.order_id,
+    });
+    if (!result.ok) return rejected(c, result.error);
+
+    const opened = result.value;
+    deps.log?.("driver_support.ticket_opened", {
+      reference: opened.reference,
+      category: opened.category,
+    });
+    return c.json(
+      {
+        ok: true,
+        reference: opened.reference,
+        ticket_id: opened.ticketId,
+        category: opened.category,
+      },
+      201,
+    );
+  });
+
+  /** «تذاكري» للسائقِ — تُفرَزُ بصفِّ سياقتِه لا بصفِّ ركوبِه. */
+  app.get("/v1/driver/support/tickets", async (c) => {
+    if (deps.driverSupport === undefined) {
+      deps.log?.("driver_support.list_disabled", {});
+      return rejected(c, { code: "SUPPORT_STORE_NOT_AVAILABLE", retryAfterSeconds: null });
+    }
+
+    const result = await listDriverSupportTickets(deps.driverSupport, {
       accessToken: bearerTokenFrom(c.req.header("authorization")),
       limit: c.req.query("limit"),
       cursorCreatedAt: c.req.query("before_created_at"),

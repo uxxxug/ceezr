@@ -1,65 +1,40 @@
 /**
- * الغرض: شكلُ ردَّي `POST /v1/support/tickets` و`GET /v1/support/tickets` كما
- *   يقرأُهما العميلُ — أنواعٌ لا منطقٌ (البند `F2-12` · `SR-11`).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-12`.
+ * الغرض: عقدُ سطحِ دعمِ الراكبِ — **بابٌ إلى النواةِ المشتركةِ** مع اتّحادِ
+ *   أصنافِ الراكبِ الذي تحتاجُه شاشتُه (البند `F2-12` · `SR-11`).
+ * الحالة: منفَّذٌ فعليّاً — البند `F2-12`، **وصارَ باباً بـ`F3-08`** (`S-5`).
  * ينتمي إلى: apps/miniapp/src/surfaces/rider/support
  * يُستخدم من: `support-api.ts` · `support-view.ts` · `SupportScreen.tsx`
- * يُتوقع أن يستخدمه لاحقاً: `SD-10` (شكوى السائقِ) — العقدُ عينُه بلا دورٍ.
+ *   · `tests/unit/rider-support-view.test.ts`
  *
- * ## لماذا `reference` نصٌّ يُعرَضُ ولا يُبنى في العميلِ
+ * ## لِمَ صارَ باباً ولم يبقَ نسخةً
  *
- * لأنَّ مَن يُنشئُ المرجعَ هوَ القاعدةُ (تسلسلٌ)، وبناءُ العميلِ لنصٍّ يُشبِهُه
- * يجعلُ على الشاشةِ رقماً لا وجودَ له في جدولٍ — **يُملى على موظّفٍ فلا يجدُه**.
+ * لأنَّ شكلَ الردِّ يبنيهِ **مُسَجِّلُ مسارٍ واحدٌ** للدورَينِ، ونسختانِ منه
+ * تفترقانِ عندَ أوّلِ حقلٍ يُزادُ — والعطبُ صامتٌ: `undefined` في موضعِ نصٍّ.
+ * والأنواعُ المُصدَّرةُ ههنا **بأسمائِها القديمةِ حرفاً** (`ح-8`): ما استوردَها
+ * يستوردُها كما كانَ، ولا مُستوردَ واحدٌ يُمَسُّ.
  *
  * ## وما لا يصفُه هذا الملفُّ عن قصدٍ (`ح-5`)
  *
- *   ــ **لا مُرفَقَ ولا صورةً**: رفعُ ملفٍّ دَينٌ مُعلَنٌ لا مُنفَّذٌ.
- *   ــ **لا محادثةَ داخلَ التذكرةِ**: الردُّ يجري في قروبِ المدينةِ اليومَ،
- *      وسطرُ «الحالةُ» هوَ ما يُقرأُ ههنا.
- *   ــ **لا اسمَ موظّفٍ ولا معرِّفَه**: ليسا في الردِّ أصلاً.
+ *   ــ **لا مُرفَقَ ولا صورةً** ولا **محادثةً** ولا **اسمَ موظّفٍ**: مُفصَّلةٌ
+ *      في رأسِ `../../support/ticket-contract.ts`.
  */
 
-/** أصنافُ الشكوى كما تُقبَلُ في الخادمِ — **نسخةُ عرضٍ لا مصدرُ حقيقةٍ**. */
+export type {
+  ApiSupportCursor,
+  ApiSupportStatus,
+  ApiSupportTicket,
+  OpenTicketResponse,
+  SupportTicketsResponse,
+} from "../../support/ticket-contract.ts";
+
+/**
+ * أصنافُ شكوى الراكبِ كما تُقبَلُ في الخادمِ — **نسخةُ عرضٍ لا مصدرُ حقيقةٍ**،
+ * ومصدرُها `packages/domain/support/rider-support.ts`. وتبقى ههنا لأنَّ
+ * `SupportScreenProps` تُصرِّحُ بها في توقيعِها.
+ */
 export type ApiSupportCategory =
   | "ride_dispute"
   | "lost_item"
   | "driver_conduct"
   | "app_problem"
   | "other";
-
-export type ApiSupportStatus = "open" | "claimed" | "resolved" | "rejected";
-
-export interface ApiSupportTicket {
-  readonly id: string;
-  readonly reference: string;
-  /** `subscription` تذكرةُ سائقٍ — تُقرأُ ولا تُفتَحُ من هذه الشاشةِ. */
-  readonly category: ApiSupportCategory | "subscription";
-  readonly status: ApiSupportStatus;
-  readonly message: string;
-  /** قرارُ الحلِّ — `null` غيابٌ لا نصٌّ فارغٌ. */
-  readonly resolution: string | null;
-  readonly orderId: string | null;
-  readonly createdAt: string;
-  readonly resolvedAt: string | null;
-}
-
-export interface ApiSupportCursor {
-  readonly createdAt: string;
-  readonly id: string;
-}
-
-export interface SupportTicketsResponse {
-  readonly ok: true;
-  readonly tickets: readonly ApiSupportTicket[];
-  readonly has_more: boolean;
-  readonly next_cursor: ApiSupportCursor | null;
-  /** `null` = لا وعدَ زمنٍ لهذه المدينةِ — والشاشةُ تسكتُ ولا تختلقُ رقماً. */
-  readonly expected_response_minutes: number | null;
-}
-
-export interface OpenTicketResponse {
-  readonly ok: true;
-  readonly reference: string;
-  readonly ticket_id: string;
-  readonly category: ApiSupportCategory;
-}

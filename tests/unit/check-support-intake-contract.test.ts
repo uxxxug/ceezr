@@ -1,9 +1,14 @@
 /**
  * الغرض: قياسُ حاجزِ عقدِ سطحِ الدعمِ — **حالةٌ سلبيّةٌ مبذورةٌ لكلِّ قاعدةٍ من
  *   السبعِ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-12`.
+ * الحالة: منفَّذٌ فعليّاً — البند `F2-12`، ومُوسَّعٌ في `F3-08` · `SD-10`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: `bun test` وسلسلةُ `ci`.
+ *
+ * وزيادةُ `SD-10`: القواعدُ صارَت تُقاسُ على **دورَينِ** وعلى **هجراتٍ عدّةٍ**،
+ * فزِيدَت حالاتٌ سلبيّةٌ للبُعدَينِ الجديدَينِ: نصٌّ ناقصٌ في بادئةِ السائقِ وحدَها،
+ * وصنفُ سائقٍ لا نصَّ له عندَ الراكبِ الذي يقرؤه، ودالّةٌ في **الهجرةِ الثانيةِ**
+ * لا يُنزَعُ تنفيذُها. **وبُعدٌ يُزادُ بلا حالةٍ سلبيّةٍ زيادةٌ غيرُ مُنفَذةٍ.**
  *
  * ولماذا تُقاسُ مدخلاتٌ مصنوعةٌ والمستودعُ معاً: المستودعُ اليومَ نظيفٌ، فلو
  * قِيسَ وحدَه لَنجحَ الاختبارُ ولو كانَ الحاجزُ لا يفحصُ شيئاً. **والحاجزُ الذي
@@ -20,10 +25,14 @@ import {
   referenceShapeProblems,
   SCREEN_FILE,
   type SupportIntakeContractInput,
+  type SupportRoleScope,
   supportIntakeContractProblems,
   textCoverageProblems,
   uploadAffordanceProblems,
 } from "../../scripts/lib/support-intake-contract.ts";
+
+const REFERENCE_SQL_PATH = "supabase/migrations/0001_reference.sql";
+const DRIVER_SQL_PATH = "supabase/migrations/0002_driver.sql";
 
 const SQL = `
 create sequence if not exists support_ticket_reference_seq;
@@ -44,40 +53,68 @@ revoke execute on function public.rider_support_tickets(bigint, integer, timesta
   from public, anon, authenticated;
 `;
 
+/** هجرةٌ ثانيةٌ تُعيدُ إنشاءَ دالّةٍ — و`create or replace` يُعيدُ المنحَ ضمنيّاً. */
+const DRIVER_SQL = `
+create or replace function public.driver_support_tickets(
+  p_telegram_id bigint, p_limit integer, p_before_created_at timestamptz, p_before_id uuid
+) returns jsonb as $$ begin end; $$ language plpgsql;
+
+revoke execute on function public.driver_support_tickets(bigint, integer, timestamptz, uuid)
+  from public, anon, authenticated;
+`;
+
 const SCREEN = `
 const t = miniAppTranslator(language);
 return <p className="sup__reference">{opened.reference}</p>;
 `;
 
-/** قاموسٌ كاملٌ مصنوعٌ — يُبنى من المجالاتِ كي لا يتخلَّفَ عن قاعدةٍ تُزادُ. */
-function dictionary(
-  categories: readonly string[],
-  statuses: readonly string[],
-  codes: readonly string[],
-): Record<string, string> {
-  const out: Record<string, string> = {
-    "rider.support.error.UNKNOWN": "تعثَّرَ",
-    "rider.support.category.unknown": "غيرُ معروفٍ",
-    "rider.support.status.unknown": "غيرُ معروفةٍ",
-    "rider.support.category.subscription": "اشتراكٌ",
-  };
-  for (const c of categories) out[`rider.support.category.${c}`] = c;
-  for (const s of statuses) out[`rider.support.status.${s}`] = s;
-  for (const c of codes) out[`rider.support.error.${c}`] = c;
-  return out;
-}
-
-const CATEGORIES = ["ride_dispute", "lost_item"] as const;
 const STATUSES = ["open", "resolved"] as const;
 const CODES = ["MESSAGE_EMPTY", "COOLDOWN_ACTIVE"] as const;
 
+/** دورانِ مصنوعانِ — أصنافُ كلٍّ منهما مقروءةٌ عندَ الآخرِ كما في الواقعِ. */
+const ROLES: readonly SupportRoleScope[] = [
+  {
+    label: "الراكبُ",
+    keyPrefix: "rider.support.",
+    selectable: ["ride_dispute", "lost_item"],
+    readOnly: ["subscription", "deduction"],
+  },
+  {
+    label: "السائقُ",
+    keyPrefix: "driver.support.",
+    selectable: ["subscription", "deduction"],
+    readOnly: ["ride_dispute"],
+  },
+];
+
+/** قاموسٌ كاملٌ مصنوعٌ — يُبنى من المجالاتِ كي لا يتخلَّفَ عن قاعدةٍ تُزادُ. */
+function dictionary(
+  roles: readonly SupportRoleScope[],
+  statuses: readonly string[],
+  codes: readonly string[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const role of roles) {
+    out[`${role.keyPrefix}error.UNKNOWN`] = "تعثَّرَ";
+    out[`${role.keyPrefix}category.unknown`] = "غيرُ معروفٍ";
+    out[`${role.keyPrefix}status.unknown`] = "غيرُ معروفةٍ";
+    for (const c of [...role.selectable, ...role.readOnly]) {
+      out[`${role.keyPrefix}category.${c}`] = c;
+    }
+    for (const s of statuses) out[`${role.keyPrefix}status.${s}`] = s;
+    for (const c of codes) out[`${role.keyPrefix}error.${c}`] = c;
+  }
+  return out;
+}
+
 function baseInput(): SupportIntakeContractInput {
-  const dict = dictionary(CATEGORIES, STATUSES, CODES);
+  const dict = dictionary(ROLES, STATUSES, CODES);
   return {
     surface: { [SCREEN_FILE]: SCREEN },
     sql: SQL,
+    sqlByPath: { [REFERENCE_SQL_PATH]: SQL, [DRIVER_SQL_PATH]: DRIVER_SQL },
     translations: { ar: { ...dict }, en: { ...dict }, ur: { ...dict } },
-    categories: [...CATEGORIES],
+    roles: ROLES,
     statuses: [...STATUSES],
     errorCodes: [...CODES],
     referencePattern: /^WSL-[0-9]{6,}$/,
@@ -117,9 +154,36 @@ describe("القاعدة ١ — لا رمزَ بلا نصٍّ", () => {
     expect(textCoverageProblems(input).join("\n")).toContain("subscription");
   });
 
+  it("تسقطُ حينَ يغيبُ نصٌّ في بادئةِ السائقِ وحدَها", () => {
+    const input = withDictionary(baseInput(), "ar", (dict) => {
+      delete dict["driver.support.category.deduction"];
+    });
+    const problems = textCoverageProblems(input);
+    expect(problems.join("\n")).toContain("driver.support.category.deduction");
+    expect(problems.join("\n")).toContain("السائقُ");
+  });
+
+  it("تسقطُ حينَ يقرأُ الراكبُ صنفَ سائقٍ بلا نصٍّ عندَه", () => {
+    const input = withDictionary(baseInput(), "en", (dict) => {
+      delete dict["rider.support.category.deduction"];
+    });
+    expect(textCoverageProblems(input).join("\n")).toContain("rider.support.category.deduction");
+  });
+
   it("لا تمرُّ بمجالٍ فارغٍ", () => {
     const problems = textCoverageProblems({ ...baseInput(), errorCodes: [] });
     expect(problems.length).toBeGreaterThan(0);
+  });
+
+  it("لا تمرُّ بقائمةِ أدوارٍ فارغةٍ", () => {
+    expect(textCoverageProblems({ ...baseInput(), roles: [] }).length).toBeGreaterThan(0);
+  });
+
+  it("لا تمرُّ بدورٍ بلا صنفٍ يُختارُ", () => {
+    const roles: readonly SupportRoleScope[] = [
+      { label: "دورٌ فارغٌ", keyPrefix: "driver.support.", selectable: [], readOnly: [] },
+    ];
+    expect(textCoverageProblems({ ...baseInput(), roles }).length).toBeGreaterThan(0);
   });
 });
 
@@ -137,6 +201,22 @@ describe("القاعدة ٢ — تطابقُ مفاتيحِ القواميسِ",
     });
     expect(keyParityProblems(input).join("\n")).toContain("ناقصٌ");
   });
+
+  it("تسقطُ على خللِ تطابقٍ في بادئةِ السائقِ وحدَها", () => {
+    const input = withDictionary(baseInput(), "en", (dict) => {
+      dict["driver.support.form.extra"] = "extra";
+    });
+    expect(keyParityProblems(input).join("\n")).toContain("driver.support.form.extra");
+  });
+
+  it("تسقطُ حينَ تخلو العربيّةُ من بادئةِ دورٍ كاملةٍ", () => {
+    const input = withDictionary(baseInput(), "ar", (dict) => {
+      for (const key of Object.keys(dict)) {
+        if (key.startsWith("driver.support.")) delete dict[key];
+      }
+    });
+    expect(keyParityProblems(input).join("\n")).toContain("driver.support.");
+  });
 });
 
 describe("القاعدة ٣ — سقوطٌ للرمزِ المجهولِ", () => {
@@ -145,6 +225,13 @@ describe("القاعدة ٣ — سقوطٌ للرمزِ المجهولِ", () =>
       delete dict["rider.support.error.UNKNOWN"];
     });
     expect(fallbackKeyProblems(input).join("\n")).toContain("rider.support.error.UNKNOWN");
+  });
+
+  it("تسقطُ حينَ يغيبُ مفتاحُ سقوطِ السائقِ", () => {
+    const input = withDictionary(baseInput(), "ur", (dict) => {
+      delete dict["driver.support.category.unknown"];
+    });
+    expect(fallbackKeyProblems(input).join("\n")).toContain("driver.support.category.unknown");
   });
 });
 
@@ -207,26 +294,67 @@ describe("القاعدة ٦ — لا بابَ إرفاقٍ صوريَّ", () => 
 
 describe("القاعدة ٧ — لا دالّةَ بلا نزعِ تنفيذٍ", () => {
   it("تسقطُ حينَ تُنشأُ دالّةٌ ولا يُنزَعُ تنفيذُها", () => {
+    const base = baseInput();
     const input = {
-      ...baseInput(),
-      sql: SQL.replace(
-        "revoke execute on function public.rider_support_tickets(bigint, integer, timestamptz, uuid)\n  from public, anon, authenticated;",
-        "",
-      ),
+      ...base,
+      sqlByPath: {
+        ...base.sqlByPath,
+        [REFERENCE_SQL_PATH]: SQL.replace(
+          "revoke execute on function public.rider_support_tickets(bigint, integer, timestamptz, uuid)\n  from public, anon, authenticated;",
+          "",
+        ),
+      },
     };
-    expect(functionRevokeProblems(input).join("\n")).toContain("rider_support_tickets");
+    const problems = functionRevokeProblems(input).join("\n");
+    expect(problems).toContain("rider_support_tickets");
+    expect(problems).toContain(REFERENCE_SQL_PATH);
   });
 
   it("تسقطُ على نزعٍ ناقصِ الأدوارِ", () => {
+    const base = baseInput();
     const input = {
-      ...baseInput(),
-      sql: SQL.replace("from public, anon, authenticated;", "from anon;"),
+      ...base,
+      sqlByPath: {
+        ...base.sqlByPath,
+        [REFERENCE_SQL_PATH]: SQL.replace("from public, anon, authenticated;", "from anon;"),
+      },
     };
     expect(functionRevokeProblems(input).join("\n")).toContain("public");
   });
 
-  it("لا تمرُّ بهجرةٍ بلا دالّةٍ", () => {
-    expect(functionRevokeProblems({ ...baseInput(), sql: "select 1;" }).length).toBe(1);
+  it("تسقطُ على دالّةٍ في الهجرةِ **الثانيةِ** بلا نزعٍ", () => {
+    const base = baseInput();
+    const input = {
+      ...base,
+      sqlByPath: {
+        ...base.sqlByPath,
+        [DRIVER_SQL_PATH]: DRIVER_SQL.replace(/revoke execute[\s\S]*$/, ""),
+      },
+    };
+    const problems = functionRevokeProblems(input).join("\n");
+    expect(problems).toContain("driver_support_tickets");
+    expect(problems).toContain(DRIVER_SQL_PATH);
+  });
+
+  it("تمرُّ على هجرةِ أصنافٍ لا تُنشئُ دالّةً معَ هجرةٍ تُنشئُ وتنزعُ", () => {
+    const base = baseInput();
+    const input = {
+      ...base,
+      sqlByPath: {
+        ...base.sqlByPath,
+        "supabase/migrations/0003_enum.sql": "alter type support_ticket_type add value 'vehicle';",
+      },
+    };
+    expect(functionRevokeProblems(input)).toEqual([]);
+  });
+
+  it("لا تمرُّ بهجراتٍ بلا دالّةٍ واحدةٍ", () => {
+    const input = { ...baseInput(), sqlByPath: { [REFERENCE_SQL_PATH]: "select 1;" } };
+    expect(functionRevokeProblems(input).length).toBe(1);
+  });
+
+  it("لا تمرُّ بقائمةِ هجراتٍ فارغةٍ", () => {
+    expect(functionRevokeProblems({ ...baseInput(), sqlByPath: {} }).length).toBe(1);
   });
 });
 

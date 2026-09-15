@@ -61,6 +61,7 @@ import {
   readSignedUploadConfig,
   UnconfiguredUploadSigner,
 } from "../../../packages/infrastructure/storage/signed-upload.ts";
+import { PostgresDriverSupportStore } from "../../../packages/infrastructure/support/driver-support-store.ts";
 import { PostgresRiderSupportStore } from "../../../packages/infrastructure/support/rider-support-store.ts";
 import { createActiveRideReader } from "../../../packages/infrastructure/transport/active-ride-store.ts";
 import {
@@ -800,10 +801,11 @@ const dataRights =
       };
 
 /**
- * الدعمُ من داخلِ التطبيقِ (`F2-12`) — **منفذٌ واحدٌ لمسارَينِ**: الفتحُ
- * والقراءةُ يمسّانِ جدولاً واحداً بحكمٍ واحدٍ، فمخزنٌ واحدٌ يقرؤهما. ولا دورَ
- * مُركَّبٌ ههنا: `open_support_ticket` تقرأُ دورَ الصفِّ وتردُّ غيرَ صاحبِه
- * برمزٍ مُصنَّفٍ — فشكوى السائقِ (`SD-10`) تُفتَحُ في القاعدةِ لا بسطرٍ ههنا.
+ * الدعمُ من داخلِ التطبيقِ (`F2-12` · `F3-08`) — **منفذانِ لأربعةِ مساراتٍ**:
+ * الكتابةُ دالّةٌ واحدةٌ للدورَينِ، **والقراءةُ تفترقُ بالفرزِ** (`driver_id` لا
+ * `rider_id`) فلكلِّ دورٍ مخزنُه. ولا فحصَ دورٍ ههنا: `open_support_ticket`
+ * تقرأُ صفَّ صاحبِ الحسابِ وتردُّ غيرَ أهلِه برمزٍ مُصنَّفٍ — **موضعُ الحكمِ
+ * واحدٌ في القاعدةِ**، والتركيبُ ههنا سباكةٌ لا حكمٌ.
  */
 const support =
   config.miniappSessionSecret === null
@@ -813,6 +815,11 @@ const support =
           sessions: createMiniAppSessionReader(config.miniappSessionSecret),
           now: () => new Date(),
           store: new PostgresRiderSupportStore(container.sql),
+        },
+        driverSupport: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          store: new PostgresDriverSupportStore(container.sql),
         },
         log,
       };
