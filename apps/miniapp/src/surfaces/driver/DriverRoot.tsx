@@ -63,12 +63,14 @@ import { JobScreen } from "./job/JobScreen.tsx";
 import { LocationBroadcast } from "./location/LocationBroadcast.tsx";
 import { OfferDetailScreen } from "./offers/OfferDetailScreen.tsx";
 import { OffersScreen } from "./offers/OffersScreen.tsx";
+import { SubscriptionScreen } from "./subscription/SubscriptionScreen.tsx";
 
 type DriverView =
   | { readonly kind: "offers" }
   | { readonly kind: "offer"; readonly offerId: string }
   | { readonly kind: "job" }
   | { readonly kind: "activity" }
+  | { readonly kind: "subscription" }
   | { readonly kind: "documents" }
   | { readonly kind: "placeholder" };
 
@@ -87,6 +89,7 @@ export default function DriverRoot() {
           onOpenOffer={(offerId) => setView({ kind: "offer", offerId })}
           onOpenJob={() => setView({ kind: "job" })}
           onOpenActivity={() => setView({ kind: "activity" })}
+          onOpenSubscription={() => setView({ kind: "subscription" })}
           onBack={() => setView({ kind: "documents" })}
         />
       </>
@@ -117,6 +120,10 @@ export default function DriverRoot() {
 
   if (view.kind === "activity") {
     return <ActivityScreen onBack={() => setView({ kind: "offers" })} />;
+  }
+
+  if (view.kind === "subscription") {
+    return <SubscriptionScreen onBack={() => setView({ kind: "offers" })} />;
   }
 
   if (view.kind === "documents") {

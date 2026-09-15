@@ -6,7 +6,10 @@
  * ملاحظات مستقبلية: مخزن الجلسات يصير Redis بتبديل سطر واحد في container.ts.
  */
 
+import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
+import { parseCitySettings, subscriptionPriceFor } from "../../../packages/domain/policy/entity.ts";
+import type { SubscriptionPlan } from "../../../packages/domain/subscription/entity.ts";
 import {
   createConsentRecordReader,
   createConsentRecordWriter,
@@ -21,11 +24,13 @@ import { PostgresDriverActivityStore } from "../../../packages/infrastructure/dr
 import { PostgresDriverDocumentStore } from "../../../packages/infrastructure/driver/driver-documents-store.ts";
 import { PostgresDriverJobStore } from "../../../packages/infrastructure/driver/driver-job-store.ts";
 import { PostgresDriverOfferStore } from "../../../packages/infrastructure/driver/driver-offers-store.ts";
+import { PostgresDriverSubscriptionStore } from "../../../packages/infrastructure/driver/driver-subscription-store.ts";
 import {
   createPaymentProvider,
   createPaymentRepository,
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/index.ts";
+import { createDriverDirectory } from "../../../packages/infrastructure/identity/directories.ts";
 import { createMiniAppRefreshTokens } from "../../../packages/infrastructure/identity/miniapp-refresh.ts";
 import {
   createMiniAppSessionIssuer,
@@ -45,6 +50,7 @@ import {
   createSavedPlaceReader,
   createSavedPlaceWriter,
 } from "../../../packages/infrastructure/places/places-store.ts";
+import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { PostgresDataRightsStore } from "../../../packages/infrastructure/privacy/data-rights-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
@@ -90,6 +96,7 @@ import {
   singleInstanceInvariantViolation,
 } from "../../../packages/shared/config/single-instance.ts";
 import type { CityId } from "../../../packages/shared/kernel/index.ts";
+import { err, ok } from "../../../packages/shared/result/index.ts";
 import { assertEgressEnvironment } from "../../../packages/shared/wasla/egress-gate.ts";
 import { jobHealthExpectations } from "../../workers/src/container.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
@@ -895,6 +902,53 @@ const driverActivity =
         log,
       };
 
+/**
+ * اشتراكُ السائقِ (`F3-06`) — **مخزنٌ يقرأُ ولا يكتبُ**: لوحُ الاشتراكِ بأسعارِه
+ * وتجربتِه وتحذيرِه، وتاريخُ دفعاتِه. وغيابُ سرِّ الجلسةِ **يُسقِطُ السطحَ**:
+ * لوحُ اشتراكٍ بلا رمزٍ موقَّعٍ يعني أنَّ من عرفَ معرِّفاً قرأَ حالَ غيرِه.
+ */
+const driverSubscription =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        subscription: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          store: new PostgresDriverSubscriptionStore(container.sql),
+        },
+        ...(paymentProvider === null
+          ? {}
+          : {
+              renewal: {
+                sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+                drivers: createDriverDirectory(container.sql),
+                payments: createPaymentRepository(container.sql, async (driverId) => {
+                  const rows = await container.sql<{ city_id: string }[]>`
+                    select city_id from drivers where id = ${driverId}::uuid
+                  `;
+                  return rows[0]?.city_id ?? null;
+                }),
+                provider: paymentProvider,
+                priceReader: async (cityId: CityId, plan: SubscriptionPlan) => {
+                  const settings = createSettingsRepository(container.sql);
+                  const rows = await settings.findByCity(cityId);
+                  if (!rows.ok) {
+                    return err(new PortFailureError("settings.findByCity", rows.error.detail));
+                  }
+                  const city = parseCitySettings(cityId, rows.value);
+                  if (!city.ok) {
+                    const detail = "message" in city.error ? city.error.message : city.error.code;
+                    return err(new PortFailureError("parseCitySettings", String(detail)));
+                  }
+                  const amount = subscriptionPriceFor(city.value, plan) * 100;
+                  return ok({ amount, currency: city.value.currency });
+                },
+                now: () => new Date(),
+              },
+            }),
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -1008,6 +1062,7 @@ const app = createServer({
   ...(driverOffers === undefined ? {} : { driverOffers }),
   ...(driverJob === undefined ? {} : { driverJob }),
   ...(driverActivity === undefined ? {} : { driverActivity }),
+  ...(driverSubscription === undefined ? {} : { driverSubscription }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),

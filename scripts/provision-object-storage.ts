@@ -78,7 +78,7 @@ async function main(): Promise<void> {
       select count(*)::int as policies
         from pg_policies
        where schemaname = 'storage' and tablename = 'objects'
-         and qual like ${"%" + BUCKET + "%"}
+         and qual like ${`%${BUCKET}%`}
     `;
 
     console.log(

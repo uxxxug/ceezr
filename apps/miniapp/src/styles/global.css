@@ -3286,6 +3286,17 @@ a {
   cursor: pointer;
 }
 
+/* مدخلُ «اشتراكي» في لوحِ العروضِ — بهيئةِ مدخلِ «حصيلتي» نفسِها (`ح-8`). */
+.dof__subscription {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
 /* ==========================================================================
    `dac` — حصيلةُ السائقِ وأداؤهُ (`F3-05` · `SD-06` · `SD-09`). **شاشةُ قراءةٍ
    في وقفةٍ** لا شاشةُ قرارٍ في ثوانٍ: فلا زرَّ عريضاً يُلمَسُ بلا تدقيقٍ كما في
@@ -3520,4 +3531,277 @@ a {
   font-size: 0.9rem;
   line-height: 1.6;
   color: var(--tg-destructive-text-color, #f87171);
+}
+
+/* ==========================================================================
+   `dsub` — لوحُ اشتراكِ السائقِ (`F3-06` · `SD-07`). شاشةُ قراءةٍ تُعرضُ فيها
+   الحالُ والخطةُ والسعرُ والتاريخُ والتجديدُ. وهوَ بمثلِ مبادئِ `dac` و`dof`:
+   خلفيّةٌ متسعةٌ، وحشوٌ وحدٌّ معاً للتمييزِ، ونصٌّ ثانويٌّ هادئٌ يُقصدُ به
+   المعلوماتُ لا التركيزُ. **كلُّ سعرٍ ومدّةٍ من `platform_settings`** — لا ثابتٍ.
+   ========================================================================== */
+
+.dsub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dsub__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.dsub__back {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.dsub__loading {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dsub__error,
+.dsub__renew-error,
+.dsub__retry {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #f87171);
+}
+
+.dsub__retry {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  cursor: pointer;
+}
+
+/* اللوحُ الحاليُّ: الحالُ والخطةُ والسعرُ والانتهاءُ — في صندوقٍ ناعمٍ. */
+.dsub__section {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.dsub__status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.7rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.dsub__status-line,
+.dsub__plan,
+.dsub__price,
+.dsub__ends,
+.dsub__plan-price,
+.dsub__payment {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.dsub__plan-label,
+.dsub__status-label,
+.dsub__price-label,
+.dsub__ends-label,
+.dsub__plan-price-label {
+  flex: 0 0 auto;
+  color: var(--tg-subtitle-text-color);
+  font-size: 0.88rem;
+}
+
+.dsub__plan-value,
+.dsub__status-value,
+.dsub__price-value,
+.dsub__ends-value,
+.dsub__plan-price-value {
+  flex: 1 1 auto;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dsub__days-left {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dsub__trial-badge {
+  margin: 0;
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  background: var(--tg-link-color);
+  color: var(--tg-button-text-color);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.dsub__trial-ends,
+.dsub__trial-info {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dsub__ends-value {
+  font-variant-numeric: tabular-nums;
+}
+
+.dsub__warning {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--tg-destructive-text-color, #f87171);
+  background: var(--tg-secondary-bg-color);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.dsub__cancellation {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* السائقُ بلا اشتراكٍ: الأسعارُ تُعرضُ ليختارَ. */
+.dsub__no-subscription {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-weight: 600;
+}
+
+.dsub__plan-prices {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dsub__plan-price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+/* التجديدُ: خطةٌ + زرٌّ + نتيجةٌ — في صندوقٍ ناعمٍ كاللوحِ الحاليِّ. */
+.dsub__renew {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.7rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.dsub__renew-label {
+  font-size: 0.88rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dsub__renew-select {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font-size: 0.95rem;
+}
+
+.dsub__renew-cta {
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dsub__renew-cta:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dsub__renew-success {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-link-color);
+}
+
+.dsub__open-history {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.92rem;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+/* تاريخُ الدفعاتِ: سطورٌ في صندوقٍ واحدٍ بلا هويّةِ راكبٍ. */
+.dsub__payments {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dsub__payment {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--tg-secondary-bg-color);
+  font-size: 0.9rem;
+}
+
+.dsub__payment-status {
+  font-weight: 700;
+}
+
+.dsub__payment-amount {
+  flex: 1 1 auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.dsub__payment-provider,
+.dsub__payment-date,
+.dsub__payment-plan {
+  color: var(--tg-subtitle-text-color);
+  font-variant-numeric: tabular-nums;
 }

@@ -87,6 +87,11 @@ export interface OffersScreenProps {
    * جارٍ أولى من تقريرٍ عن عملٍ مضى.
    */
   readonly onOpenActivity?: () => void;
+  /**
+   * مدخلُ «اشتراكي» (`F3-06` · `SD-07`) — **زيادةٌ لا تغييرٌ** (`ح-8`): غيابُهُ
+   * يُعيدُ هذه الشاشةَ إلى سلوكِها قبلَ `F3-06` حرفاً.
+   */
+  readonly onOpenSubscription?: () => void;
   readonly readBoard?: () => Promise<DriverOffersResponse>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly setAvailability?: (isAvailable: boolean) => Promise<DriverAvailabilityResponse>;
@@ -167,6 +172,7 @@ export function OffersScreen({
   onBack,
   onOpenJob,
   onOpenActivity,
+  onOpenSubscription,
   onOpenOffer,
   readBoard = readDriverOffers,
   reject = rejectDriverOffer,
@@ -390,6 +396,12 @@ export function OffersScreen({
       {onOpenActivity === undefined ? null : (
         <button type="button" className="dof__activity" onClick={onOpenActivity}>
           {t("driver.offers.openActivity")}
+        </button>
+      )}
+
+      {onOpenSubscription === undefined ? null : (
+        <button type="button" className="dof__subscription" onClick={onOpenSubscription}>
+          {t("driver.offers.openSubscription")}
         </button>
       )}
 

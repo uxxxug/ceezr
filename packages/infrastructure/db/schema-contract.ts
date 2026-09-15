@@ -56,6 +56,8 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "driver_offer_board",
   "driver_offer_detail",
   "driver_start_ride",
+  "driver_subscription_dashboard",
+  "driver_subscription_history",
   "ensure_driver_location_partitions",
   "erase_my_account",
   "escalate_order",
