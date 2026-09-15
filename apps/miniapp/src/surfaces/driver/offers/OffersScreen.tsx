@@ -81,6 +81,12 @@ export interface OffersScreenProps {
    * رحلةٍ يحتاجُ طريقاً إلى مَهمّتِه لا يمرُّ بقبولِ عرضٍ ثانٍ.
    */
   readonly onOpenJob?: () => void;
+  /**
+   * مدخلُ «حصيلتي» (`F3-05`) — **زيادةٌ لا تغييرٌ** (`ح-8`): غيابُهُ يُعيدُ
+   * هذه الشاشةَ إلى سلوكِها قبلَ `F3-05` حرفاً. وموضعُه بعدَ «مَهمّتي»: عملٌ
+   * جارٍ أولى من تقريرٍ عن عملٍ مضى.
+   */
+  readonly onOpenActivity?: () => void;
   readonly readBoard?: () => Promise<DriverOffersResponse>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly setAvailability?: (isAvailable: boolean) => Promise<DriverAvailabilityResponse>;
@@ -160,6 +166,7 @@ export function OffersScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
   onOpenJob,
+  onOpenActivity,
   onOpenOffer,
   readBoard = readDriverOffers,
   reject = rejectDriverOffer,
@@ -377,6 +384,12 @@ export function OffersScreen({
       {onOpenJob === undefined ? null : (
         <button type="button" className="dof__job" onClick={onOpenJob}>
           {t("driver.offers.openJob")}
+        </button>
+      )}
+
+      {onOpenActivity === undefined ? null : (
+        <button type="button" className="dof__activity" onClick={onOpenActivity}>
+          {t("driver.offers.openActivity")}
         </button>
       )}
 

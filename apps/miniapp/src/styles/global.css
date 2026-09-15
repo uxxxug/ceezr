@@ -3272,3 +3272,252 @@ a {
   font-size: 0.85rem;
   cursor: pointer;
 }
+
+/* مدخلُ «حصيلتي» في لوحِ العروضِ — زيادةٌ في اللوحِ لا تغييرٌ فيه (`ح-8`).
+   وهوَ بهيئةِ مدخلِ «مَهمّتي» نفسِها: مدخلانِ متجاوِرانِ يختلفُ شكلُهما يُقرآنِ
+   رُتبتَينِ، وليسَ بينهما رُتبةٌ — أحدُهما عملٌ جارٍ والآخرُ تقريرٌ يُقرأُ. */
+.dof__activity {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   `dac` — حصيلةُ السائقِ وأداؤهُ (`F3-05` · `SD-06` · `SD-09`). **شاشةُ قراءةٍ
+   في وقفةٍ** لا شاشةُ قرارٍ في ثوانٍ: فلا زرَّ عريضاً يُلمَسُ بلا تدقيقٍ كما في
+   `djb`، ولا نغمةَ إلحاحٍ كما في `dof`. وليسَت `dof` لأنَّ لوحَ العروضِ يُقرأُ
+   والسائقُ يُنتظِرُ مهلةً تنقضي، وهذه تُقرأُ وهوَ واقفٌ يُراجِعُ ما مضى؛ وخلطُ
+   البادئتَينِ يُورِّثُ تقريراً هادئاً إلحاحَ لوحٍ أو يُهدِّئُ لوحاً يلحُّ.
+
+   والمقامُ ههنا **جزءٌ من الرقمِ لا حاشيةٌ له** (`ADR 0120`): يُعرَضُ بحجمٍ
+   يُقرأُ لا بخطٍّ يُهمَلُ، لأنَّ نسبةً بلا مقامٍ رقمٌ لا يُحاسَبُ عليه.
+   ========================================================================== */
+.dac {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dac__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+/* المُدَدُ الثلاثُ صفٌّ واحدٌ يلتفُّ — لا قائمةَ منسدلةً تُخفي الخيارَ الثالثَ. */
+.dac__periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  /* `fieldset` يأتي بإطارٍ وحشوٍ افتراضيَّينِ من المتصفّحِ — يُصفَّرانِ كما
+     في `.sm__stars` كي لا يُرى صندوقٌ لم يُقصَدْ. */
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.dac__period {
+  padding: 0.4rem 0.85rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+/* المُدّةُ الجاريةُ **بحدٍّ ولونٍ معاً**: لونٌ وحدَه لا يُقرأُ عندَ عمى الألوانِ. */
+.dac__period--active {
+  border-color: var(--tg-link-color);
+  background: var(--tg-secondary-bg-color);
+  font-weight: 700;
+}
+
+.dac__loading {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* النافذةُ ومنطقةُ زمنِها سطرٌ هادئٌ فوقَ الأرقامِ — بها تُفهَمُ لا بها تُزيَّنُ. */
+.dac__window {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dac__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.dac__fact {
+  margin: 0;
+  flex: 1 1 8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.7rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.dac__fact-label {
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dac__fact-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.dac__fact-note {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* غيابُ المالِ **نصٌّ يُقرأُ** لا حاشيةٌ باهتةٌ: هوَ الجوابُ عن أوّلِ سؤالٍ
+   يسألُه سائقٌ، فلا يُصغَّرُ حتّى يُظَنَّ إخفاءً. */
+.dac__money {
+  margin: 0;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  font-size: 0.88rem;
+  line-height: 1.7;
+}
+
+.dac__section {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.dac__ratio,
+.dac__rating {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.dac__ratio-label,
+.dac__rating-label {
+  font-size: 0.95rem;
+  flex: 1 1 auto;
+}
+
+.dac__ratio-value,
+.dac__rating-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+/* المقامُ **يُقرأُ** — بحجمٍ قريبٍ من النسبةِ لا بخطٍّ يُهمَلُ (`ADR 0120`). */
+.dac__ratio-basis,
+.dac__rating-count {
+  font-size: 0.88rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dac__trust,
+.dac__behaviour {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.7;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dac__factors {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dac__factor {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font-size: 0.92rem;
+}
+
+.dac__factor-label {
+  flex: 1 1 auto;
+}
+
+.dac__factor-weight {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dac__open-log,
+.dac__retry,
+.dac__back {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.dac__entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* صفُّ الرحلةِ **بلا هويّةِ راكبٍ**: خدمةٌ ووقتٌ ومُدّةٌ ومسافةٌ، لا أكثرَ. */
+.dac__entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--tg-secondary-bg-color);
+  font-size: 0.9rem;
+}
+
+.dac__entry-service {
+  font-weight: 700;
+}
+
+.dac__entry-time {
+  flex: 1 1 auto;
+  color: var(--tg-subtitle-text-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.dac__entry-duration,
+.dac__entry-distance {
+  color: var(--tg-subtitle-text-color);
+  font-variant-numeric: tabular-nums;
+}
+
+.dac__error {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #f87171);
+}

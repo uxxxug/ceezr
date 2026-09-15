@@ -21,6 +21,10 @@ import {
   type DestinationsRouteDependencies,
 } from "./routes/destinations.ts";
 import {
+  createDriverActivityRoutes,
+  type DriverActivityRouteDependencies,
+} from "./routes/driver-activity.ts";
+import {
   createDriverDocumentRoutes,
   type DriverDocumentRouteDependencies,
 } from "./routes/driver-documents.ts";
@@ -154,6 +158,14 @@ export interface ServerDependencies {
    */
   readonly driverJob?: DriverJobRouteDependencies;
   /**
+   * حصيلةُ السائقِ وأدائُه (`F3-05` / `SD-06` · `SD-09`) — تُركَّبُ مع سرِّ
+   * الجلسةِ والقاعدةِ. و**غيابُها يُعلَنُ `503`** ولا يُجابُ بأصفارٍ: حصيلةٌ
+   * صفرٌ تُقرأُ «لم تعملْ» في وجهِ سائقٍ عملَ نهارَه، وذاكَ كذبٌ لا نقصٌ.
+   * **وهيَ سطحُ قراءةٍ محضٍ** لا يشاركُ منفذَ المَهمّةِ الكاتبَ: لِئلّا يحملَ
+   * قارئُ تقريرٍ سلطةَ ختمِ الأطوارِ.
+   */
+  readonly driverActivity?: DriverActivityRouteDependencies;
+  /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
    * سواءٌ رُكِّبَ هذا السطحُ أم لا، لأنَّ القرارَ الحرجَ لا يُترَكُ لسطحِ قراءةٍ
@@ -235,6 +247,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.driverJob !== undefined) {
     app.route("/", createDriverJobRoutes(deps.driverJob));
+  }
+  if (deps.driverActivity !== undefined) {
+    app.route("/", createDriverActivityRoutes(deps.driverActivity));
   }
 
   if (deps.destinations !== undefined) {

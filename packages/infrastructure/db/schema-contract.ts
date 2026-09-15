@@ -47,6 +47,8 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "deactivate_stale_availability",
   "driver_accept_offer",
   "driver_active_job",
+  "driver_activity_entries",
+  "driver_activity_summary",
   "driver_complete_ride",
   "driver_document_dashboard",
   "driver_document_upload_slot",
