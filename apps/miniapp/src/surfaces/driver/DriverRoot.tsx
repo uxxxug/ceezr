@@ -21,6 +21,13 @@
  *      حالةٌ محليّةٌ. ومُوجِّهُ عناوينٍ **دَينٌ مُعلَنٌ** لا يُحتاجُ بشاشتَينِ.
  *   ــ **لا يعرضُ أرباحاً ولا اشتراكاً**: بنودُ `SD-06`…`SD-07`.
  *
+ * ## وقد صارَ بثُّ الموقعِ ههنا بـ`F3-04` — **زيادةً لا نقصاً** (`ح-8`)
+ *
+ * الباثُّ يُركَّبُ في شاشتَي اللوحِ والمَهمّةِ **لأنَّ حالَ البثِّ حالُ السائقِ لا
+ * حالُ شاشةٍ**: متاحٌ في اللوحِ يبثُّ، وفي رحلةٍ عادَ إلى اللوحِ يبثُّ. وشاشةُ
+ * الوثائقِ وشاشةُ العرضِ خارجَه عن قصدٍ: أُولاهُما ورقٌ يُقرأُ مرّةً، والثانيةُ
+ * قرارٌ في ثوانٍ لا يُزاحَمُ نصُّه بإعلامٍ ثانٍ.
+ *
  * ## وقد صارَت الرحلةُ النشطةُ ههنا بـ`F3-03` — **زيادةً لا نقصاً** (`ح-8`)
  *
  * القبولُ كانَ يعودُ باللوحِ لأنَّ شاشةَ المَهمّةِ لم تكن موجودةً؛ وقد وُجِدَت،
@@ -45,6 +52,7 @@ import { useState } from "react";
 import { EmptyState } from "../../system/EmptyState.tsx";
 import { DocumentsScreen } from "./documents/DocumentsScreen.tsx";
 import { JobScreen } from "./job/JobScreen.tsx";
+import { LocationBroadcast } from "./location/LocationBroadcast.tsx";
 import { OfferDetailScreen } from "./offers/OfferDetailScreen.tsx";
 import { OffersScreen } from "./offers/OffersScreen.tsx";
 
@@ -60,11 +68,18 @@ export default function DriverRoot() {
 
   if (view.kind === "offers") {
     return (
-      <OffersScreen
-        onOpenOffer={(offerId) => setView({ kind: "offer", offerId })}
-        onOpenJob={() => setView({ kind: "job" })}
-        onBack={() => setView({ kind: "documents" })}
-      />
+      <>
+        {/* بثُّ الموقعِ (`F3-04`) في **جذرِ السطحِ** لا في شاشةٍ: سائقٌ متاحٌ يبثُّ
+            وهوَ في اللوحِ، وسائقٌ في رحلةٍ يبثُّ ولو عادَ إلى اللوحِ. ولو رُكِّبَ
+            في شاشةِ المَهمّةِ لَانقطعَ البثُّ بمجرَّدِ خروجِه منها — وهوَ عطبٌ
+            صامتٌ يجعلُ سائقاً يعملُ ولا يُرى موضعُه. */}
+        <LocationBroadcast />
+        <OffersScreen
+          onOpenOffer={(offerId) => setView({ kind: "offer", offerId })}
+          onOpenJob={() => setView({ kind: "job" })}
+          onBack={() => setView({ kind: "documents" })}
+        />
+      </>
     );
   }
 
@@ -82,7 +97,12 @@ export default function DriverRoot() {
   }
 
   if (view.kind === "job") {
-    return <JobScreen onBack={() => setView({ kind: "offers" })} />;
+    return (
+      <>
+        <LocationBroadcast />
+        <JobScreen onBack={() => setView({ kind: "offers" })} />
+      </>
+    );
   }
 
   if (view.kind === "documents") {

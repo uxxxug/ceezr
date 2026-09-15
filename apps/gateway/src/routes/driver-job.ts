@@ -134,6 +134,14 @@ export function createDriverJobRoutes(deps: DriverJobRouteDependencies): Hono {
       ok: true,
       // **لحظةُ الخادمِ تُنشَرُ**: كلُّ عُمرٍ يُعرَضُ فرقٌ عنها.
       server_time: snapshot.serverTime,
+      // **سياسةُ النبضةِ في الجذرِ** (`F3-04`): تُنشَرُ ولو كانَ `job = null`، إذ
+      // سائقٌ متاحٌ بلا مَهمّةٍ يبثُّ أيضاً. **ومُدّةٌ لا ختمُ انتهاءٍ**: العميلُ
+      // يُطيعُ رقماً ولا يطرحُ بساعتِه (نفسُ حكمِ `F3-02`).
+      location_broadcast: {
+        reason: snapshot.locationBroadcast.reason,
+        // `null` = **لا تبثَّ** — غيابٌ يُنشَرُ غياباً لا صفراً (`ADR 0023`).
+        interval_seconds: snapshot.locationBroadcast.intervalSeconds,
+      },
       // **عَدَمٌ صريحٌ** لا كائنٌ فارغٌ: «لا مَهمّةَ» حالٌ تُقالُ لا تُخمَّنُ.
       job:
         job === null

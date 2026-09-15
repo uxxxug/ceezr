@@ -778,5 +778,17 @@
   "driver.job.error.PHASE_MISMATCH": "The ride phase changed. Your job was re-read.",
   "driver.job.error.ALREADY_ARRIVED": "Your arrival was already recorded.",
   "driver.job.error.TRANSITION_REFUSED": "The transition was refused. Your job was re-read.",
-  "driver.job.error.UNKNOWN": "The request could not be completed. Try again."
+  "driver.job.error.UNKNOWN": "The request could not be completed. Try again.",
+  "driver.location.on": "Your location is being shared for dispatch.",
+  "driver.location.onEvery": "Your location is shared every {seconds} seconds.",
+  "driver.location.openSettings": "Open location settings",
+  "driver.location.reason.AVAILABLE": "Because you are available for offers.",
+  "driver.location.reason.TO_PICKUP": "Because you are on your way to the pickup point.",
+  "driver.location.reason.ON_TRIP": "Because your trip is in progress.",
+  "driver.location.stop.NO_REASON_TO_BROADCAST": "Your location is not shared: no active job and you are not available.",
+  "driver.location.stop.INTERVAL_NOT_CONFIGURED": "Your location is not shared: the broadcast interval is not configured for your city.",
+  "driver.location.stop.LOCATION_UNSUPPORTED": "Your location is not shared: this Telegram version does not provide location.",
+  "driver.location.stop.PERMISSION_NOT_GRANTED": "Your location is not shared: location permission is not granted. Without it, nearby offers will not reach you.",
+  "driver.location.stop.SESSION_LOST": "Your location is not shared: your session ended, reopen the app.",
+  "driver.location.stop.NOT_A_DRIVER": "Your location is not shared: your account is not registered as a driver."
 }

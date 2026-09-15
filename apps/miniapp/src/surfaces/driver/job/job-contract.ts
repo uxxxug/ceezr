@@ -66,10 +66,25 @@ export interface ApiDriverActiveJob {
   readonly rider: ApiDriverJobRider;
 }
 
+/** سببُ النبضةِ **كما قالَه الخادمُ** — ولا يُشتَقُّ من `status` في الشاشةِ. */
+export type ApiBroadcastReason = "AVAILABLE" | "TO_PICKUP" | "ON_TRIP";
+
+/**
+ * سياسةُ نبضةِ الموقعِ (`F3-04`). **ومُدّةٌ لا ختمُ انتهاءٍ**: العميلُ ينتظرُ
+ * رقماً ولا يطرحُ بساعتِه. و`interval_seconds = null` **لا تبثَّ** — غيابٌ
+ * يُطاعُ لا نقصٌ يُكمَّلُ بافتراضٍ في الشاشةِ (`ADR 0023`).
+ */
+export interface ApiLocationBroadcast {
+  readonly reason: ApiBroadcastReason | null;
+  readonly interval_seconds: number | null;
+}
+
 export interface DriverActiveJobResponse {
   readonly ok: true;
   /** لحظةُ الخادمِ — كلُّ عُمرٍ يُعرَضُ فرقٌ عنها لا عن ساعةِ الجهازِ. */
   readonly server_time: string;
+  /** في الجذرِ لا داخلَ `job`: سائقٌ متاحٌ بلا مَهمّةٍ يبثُّ أيضاً. */
+  readonly location_broadcast: ApiLocationBroadcast;
   /** `null` = لا مَهمّةَ الآنَ — **عَدَمٌ صريحٌ** لا كائنٌ فارغٌ. */
   readonly job: ApiDriverActiveJob | null;
 }

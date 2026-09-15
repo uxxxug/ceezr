@@ -43,6 +43,7 @@
 
 import type { ServiceType } from "../../shared/kernel/index.ts";
 import type { DriverOfferPlace, DriverOrderStatus } from "./driver-offers.ts";
+import type { BroadcastPolicy } from "./location-broadcast.ts";
 
 /**
  * أفعالُ المرحلةِ — **مجالٌ مغلقٌ يحكمُه الخادمُ**. وغيابُ الفعلِ (`null`)
@@ -95,7 +96,17 @@ export interface DriverJobSnapshot {
   /** لحظةُ الخادمِ — كلُّ عُمرٍ يُعرَضُ فرقٌ عنها لا عن ساعةِ الجهازِ. */
   readonly serverTime: string;
   readonly job: DriverActiveJob | null;
+  /**
+   * سياسةُ نبضةِ الموقعِ (`F3-04`) — **في الجذرِ لا داخلَ `job`** لأنَّ سائقاً
+   * متاحاً بلا مَهمّةٍ يبثُّ أيضاً، و`job = null` لا تعني «لا نبضةَ». والمُدّةُ
+   * `interval_seconds` لا `expires_at`: العميلُ يُطيعُ مُدّةً ولا يحسبُ فرقاً
+   * بساعتِه (نفسُ حكمِ `F3-02`).
+   */
+  readonly locationBroadcast: BroadcastPolicy;
 }
+
+/** يُعادُ تصديرُه ههنا ليكونَ للقراءةِ الواحدةِ نطاقٌ واحدٌ يُقرأُ منه. */
+export type { BroadcastPolicy, BroadcastReason } from "./location-broadcast.ts";
 
 /** أثرُ ختمِ الوصولِ — الختمُ نفسُه يُعادُ ليُعرَضَ بلا قراءةٍ ثانيةٍ. */
 export interface DriverJobArrival {

@@ -778,5 +778,17 @@
   "driver.job.error.PHASE_MISMATCH": "سفر کا مرحلہ بدل گیا۔ آپ کا کام دوبارہ پڑھا گیا۔",
   "driver.job.error.ALREADY_ARRIVED": "آپ کی آمد پہلے ہی درج ہے۔",
   "driver.job.error.TRANSITION_REFUSED": "منتقلی رد ہوئی۔ آپ کا کام دوبارہ پڑھا گیا۔",
-  "driver.job.error.UNKNOWN": "درخواست مکمل نہیں ہو سکی۔ دوبارہ کوشش کریں۔"
+  "driver.job.error.UNKNOWN": "درخواست مکمل نہیں ہو سکی۔ دوبارہ کوشش کریں۔",
+  "driver.location.on": "آپ کا مقام ڈسپیچ کے لیے بھیجا جا رہا ہے۔",
+  "driver.location.onEvery": "آپ کا مقام ہر {seconds} سیکنڈ بعد بھیجا جاتا ہے۔",
+  "driver.location.openSettings": "مقام کی ترتیبات کھولیں",
+  "driver.location.reason.AVAILABLE": "کیونکہ آپ آفرز کے لیے دستیاب ہیں۔",
+  "driver.location.reason.TO_PICKUP": "کیونکہ آپ پک اپ مقام کی طرف جا رہے ہیں۔",
+  "driver.location.reason.ON_TRIP": "کیونکہ آپ کا سفر جاری ہے۔",
+  "driver.location.stop.NO_REASON_TO_BROADCAST": "آپ کا مقام نہیں بھیجا جا رہا: نہ کوئی کام ہے نہ آپ دستیاب ہیں۔",
+  "driver.location.stop.INTERVAL_NOT_CONFIGURED": "آپ کا مقام نہیں بھیجا جا رہا: آپ کے شہر کے لیے وقفہ مقرر نہیں ہے۔",
+  "driver.location.stop.LOCATION_UNSUPPORTED": "آپ کا مقام نہیں بھیجا جا رہا: یہ ٹیلیگرام ورژن مقام فراہم نہیں کرتا۔",
+  "driver.location.stop.PERMISSION_NOT_GRANTED": "آپ کا مقام نہیں بھیجا جا رہا: مقام کی اجازت نہیں دی گئی۔ اس کے بغیر قریبی آفرز نہیں پہنچیں گی۔",
+  "driver.location.stop.SESSION_LOST": "آپ کا مقام نہیں بھیجا جا رہا: سیشن ختم ہو گیا، ایپ دوبارہ کھولیں۔",
+  "driver.location.stop.NOT_A_DRIVER": "آپ کا مقام نہیں بھیجا جا رہا: آپ کا اکاؤنٹ ڈرائیور کے طور پر رجسٹرڈ نہیں ہے۔"
 }
