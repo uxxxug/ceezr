@@ -155,6 +155,27 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `F3-04` — بثُّ الموقعِ التكيّفيُّ: **نبضةٌ لها سببٌ منشورٌ، لا مؤقّتٌ في العميلِ** (opened 2026-09-15, before any file was edited)
+
+حُجِزَ **قبلَ** أوّلِ تعديلٍ، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25.
+مقطوعٌ من `main`@`51ae56f` فرعاً `feat/f3-04-adaptive-location-broadcast`،
+وحُكمُ CI على ذاكَ الالتزامِ **أخضرُ في الشغلتَينِ** (`34936675739` و
+`34936675716`) — قُرِئَ من GitHub قبلَ القطعِ لا بعدَه.
+
+| الحقلُ | القيمةُ |
+|---|---|
+| البندُ | `F3-04` في §9.6 حرفاً: «بثُّ الموقعِ التكيّفيُّ من الواجهةِ عبرَ `LocationManager`». والكلمةُ الحاكمةُ **«التكيّفيُّ»**: نبضةٌ تتغيّرُ بحالِ السائقِ، لا مؤقّتٌ ثابتٌ يُشعِلُ بطاريّةً ويكتبُ صفوفاً بلا سببٍ. |
+| التبعيّةُ المُستوفاةُ | **المستقبِلُ قائمٌ ومُدمَجٌ**: `POST /v1/driver/location` (`F4-01`) بحدِّ معدَّلٍ وحدِّ حجمٍ و`parseDriverFix` و`updateDriverLocation` — يُجيبُ `{accepted, verdict, recordedAtMs, dispatchable}` أو `FIX_REJECTED{findings}` أو `{accepted:false, reason:"STALE"}`. **فلا يُبنى مستقبِلٌ ثانٍ**، ولا تُعدَّلُ حكومتُه. و`tg/location.ts` (`F1-02`) غلافٌ رقيقٌ كتبَ في رأسِه أنَّ سياسةَ البثِّ **`F3-04` وليست فيه** — الحدُّ مُستَلَمٌ لا مُختَرَعٌ. |
+| مصدرُ الحقيقةِ للنبضةِ (القاعدة: أقلُّ مصادرِ حقيقةٍ مكرَّرةٍ) | **الخادمُ يُنشِرُ النبضةَ، والعميلُ يُطيعُ**. فتُوسَّعُ حمولةُ `GET /v1/driver/job` القائمةُ بكتلةٍ `location_broadcast: {reason, interval_seconds}` — لا مسارٌ جديدٌ ولا نداءٌ ثانٍ: الشاشةُ تقرأُ المَهمّةَ أصلاً. **وثلاثُ مُدَدٍ تُقرأُ من `platform_settings`** بمدينةٍ (`location_broadcast_seconds_available`/`_matched`/`_on_trip`) لا من ثوابتَ في شيفرةٍ، فتُضبَطُ بلا نشرِ حزمةٍ. |
+| والغيابُ يُنشَرُ غياباً | `interval_seconds = null` **يعني «لا تبثَّ»** لا «بُثَّ صفراً» (`ADR 0023`): لا جلسةَ، أو ليسَ سائقاً، أو غيرَ متاحٍ ولا مَهمّةَ له، أو **إعدادُ مدينةٍ غائبٌ**. وفشلٌ مغلقٌ ههنا صادقٌ: نبضةٌ بمُدّةٍ مُخترَعةٍ في العميلِ أسوأُ من سكونٍ مُعلَنٍ. |
+| القرارُ دالّةٌ نقيّةٌ تُقاسُ | `nextBroadcastDecision({policy, nowMs, lastAcceptedAtMs, lastAttemptAtMs, consecutiveFailures, access})` ⇒ `SEND` أو `WAIT{delayMs}` أو `STOP{why}` — **بلا ساعةٍ داخليّةٍ ولا مؤقّتٍ ولا شبكةٍ**: الزمنُ مُعطىً والحكمُ مقروءٌ. فتُقاسُ كلُّ فروعِه باختبارِ وحدةٍ لا بمُهلٍ. |
+| التراجعُ عندَ الفشلِ | تضاعُفٌ مُقيَّدٌ (`interval × 2^failures` بسقفٍ) وسقوطٌ إلى السكونِ عندَ رفضٍ لا تُصلِحُه إعادةٌ (`DRIVER_NOT_REGISTERED` · `SESSION_*`). و`FIX_REJECTED` **ليسَ عطلَ شبكةٍ**: إصلاحةٌ رُفِضَت لجودتِها فلا تُعادُ بذاتِها. و`STALE` **ليسَ فشلاً** (`accepted:false` وحالُ القاعدةِ سليمٌ) فلا يُضاعِفُ تراجُعاً. |
+| الإذنُ حالٌ تُعرَضُ لا تُفترَضُ | حالاتُ `locationAccess()` الأربعُ تُقرأُ كما هيَ؛ ومنعُ الإذنِ **يُقالُ للسائقِ بنصٍّ** ويُفتَحُ له لوحُ الإعداداتِ، ولا يُزعَمُ بثٌّ ولا يُستبدَلُ موضعٌ بمركزِ مدينةٍ. |
+| وما لا يُبنى ههنا | لا تتبُّعَ حيَّ للراكبِ (`ADR 0035` §٤ · عائقُ `F2-06` يبقى) · ولا خريطةَ · ولا عملٌ في الخلفيّةِ بعدَ إغلاقِ المصغَّرِ (مستحيلٌ تقنيّاً في Mini App، ويُعلَنُ لا يُوارى) · ولا `Idempotency-Key` على مسارِ الموقعِ (إصلاحةٌ مكرَّرةٌ تُصفّى بـ`STALE`). |
+| النطاقُ المحجوزُ | `supabase/migrations/20260915120000_f3_04_location_broadcast_policy.sql` (جديدةٌ: بذرُ الإعداداتِ الثلاثةِ + `create or replace driver_active_job` بكتلةِ البثِّ) · `packages/domain/driver/location-broadcast.ts` (جديدٌ: القرارُ النقيُّ) · `packages/domain/driver/driver-job.ts` و`packages/infrastructure/driver/driver-job-store.ts` و`apps/gateway/src/routes/driver-job.ts` (حملُ الكتلةِ الجديدةِ **إضافةً**) · `apps/miniapp/src/surfaces/driver/location/*` (جديدٌ) وتركيبُه في `DriverRoot.tsx` و`job-contract.ts` · `packages/shared/i18n/miniapp/{ar,en,ur}.json` (مفاتيحُ جديدةٌ فقط) · `apps/miniapp/src/styles/global.css` (كتلةٌ جديدةٌ) · `scripts/lib/location-broadcast-contract.ts` و`scripts/check-location-broadcast-contract.ts` وخطوتُه في `verify`/`ci` و`.github/workflows/ci.yml` · `tests/unit/*` · `tests/integration/driver-location-broadcast.test.ts` · `scripts/lib/skip-registry.ts` و`tests/unit/skip-audit.test.ts` (أرضيّاتٌ بالزيادةِ) · `docs/adr/0119-*` · `ROADMAP.md` · `docs/ROADMAP-MASTER.md` · `docs/SYSTEM_STATE.md` |
+| النطاقُ **غيرُ** المحجوزِ | جسمُ `updateDriverLocation` وحكومةُ `F4-01` (تُنادى ولا تُعدَّلُ) · `driver_mark_arrived`/`start_ride`/`complete_ride` · سطحُ الراكبِ · الأرباحُ (`F3-05`) والاشتراكُ (`F3-06`) · مزوّدُ خرائطَ · حدُّ المعدَّلِ في البوّابةِ |
+| سقفُ الادّعاءِ، مُعلَنٌ سلفاً | لا نشرَ حيَّ (`ADR 0099`) ولا جهازَ حقيقيَّ: **صدقُ الموقعِ ميدانيّاً لا يُقاسُ ههنا** ولا استهلاكُ بطاريّةٍ. المقيسُ: أنَّ النبضةَ **لا تُخترَعُ في العميلِ**، وأنَّ كلَّ فرعِ قرارٍ مقروءٌ باختبارٍ، وأنَّ الخادمَ يُنشِرُها من إعدادِ مدينةٍ. و`مَقيس` و`مُثبَت` لا يُدَّعيانِ، و`[x]` لا تُكتَبُ قبلَ ثلاثِ جولاتِ CI خضراءَ متتاليةٍ (`ح-4`). |
+
 ### Reservation `F3-03` — الرحلةُ النشطةُ للسائقِ: **طَورٌ لا يُخترَعُ**، ولكلِّ انتقالٍ كاتبُه القائمُ (opened 2026-09-15, before any file was edited)
 
 حُجِزَ **قبلَ** أوّلِ تعديلٍ، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25.
