@@ -41,7 +41,7 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
 import { ApiError } from "../../../api/client.ts";
-import { locationAccess, openLocationSettings, requestLocation } from "../../../tg/location.ts";
+import { locationAccess, openLocationSettings, requestLocation } from "../../../tg/index.ts";
 import { readDriverActiveJob } from "../job/job-api.ts";
 import type { ApiLocationBroadcast } from "../job/job-contract.ts";
 import {
