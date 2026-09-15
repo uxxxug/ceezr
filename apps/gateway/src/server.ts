@@ -21,6 +21,10 @@ import {
   type DestinationsRouteDependencies,
 } from "./routes/destinations.ts";
 import {
+  createDriverDocumentRoutes,
+  type DriverDocumentRouteDependencies,
+} from "./routes/driver-documents.ts";
+import {
   createDriverLocationRoutes,
   type DriverLocationDependencies,
 } from "./routes/driver-location.ts";
@@ -122,6 +126,14 @@ export interface ServerDependencies {
    */
   readonly support?: SupportRouteDependencies;
   /**
+   * وثائقُ السائقِ (`F3-01` / `SD-01` / `SD-02`) — تُركَّبُ مع سرِّ الجلسةِ
+   * والقاعدةِ، ومُوقِّعُ الرفعِ **اختياريٌّ داخِلَها**: غيابُ المفتاحِ يُعطِّلُ
+   * طلبَ الخانةِ بـ`503` **ولا يُعطِّلُ لوحَ الحالاتِ** — سائقٌ يحتاجُ أن يرى
+   * لماذا هو محجوبٌ حتّى لو تعذَّرَ الرفعُ الآنَ. وغيابُ التبعيةِ كلِّها
+   * **يُعلَنُ `503`** ولا يُجابُ بلوحٍ فارغٍ يُقرأُ «لا وثيقةَ مطلوبةً».
+   */
+  readonly driverDocuments?: DriverDocumentRouteDependencies;
+  /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
    * سواءٌ رُكِّبَ هذا السطحُ أم لا، لأنَّ القرارَ الحرجَ لا يُترَكُ لسطحِ قراءةٍ
@@ -194,6 +206,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.support !== undefined) {
     app.route("/", createSupportRoutes(deps.support));
+  }
+  if (deps.driverDocuments !== undefined) {
+    app.route("/", createDriverDocumentRoutes(deps.driverDocuments));
   }
 
   if (deps.destinations !== undefined) {

@@ -193,6 +193,19 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     removed: false,
   },
   {
+    id: "supabase-object-storage",
+    purpose: "مخزنُ الأجسامِ — روابطُ رفعٍ موقَّعةٌ لوثائقِ السائقِ (F3-01)",
+    peerClass: "INFRASTRUCTURE",
+    system: "NONE",
+    source: {
+      kind: "env",
+      envKeys: ["OBJECT_STORAGE_URL", "OBJECT_STORAGE_SECRET_KEY", "DRIVER_DOCUMENTS_BUCKET"],
+    },
+    callSite: "packages/infrastructure/storage/signed-upload.ts",
+    runtimeGate: { kind: "gated" },
+    removed: false,
+  },
+  {
     id: "upstash-redis-rest",
     purpose: "مخزنُ الجلساتِ ومنعُ التكرارِ عبرَ المثيلاتِ",
     peerClass: "INFRASTRUCTURE",
@@ -337,6 +350,15 @@ export const BROWSER_FETCH_SITES: readonly BrowserFetchSite[] = [
     reason:
       "عميلُ تطبيقِ تلغرام المصغَّرِ يعملُ في المتصفّحِ ويُنادي بوّابةَ MOVE نفسَها؛ " +
       "والمجلَّدُ مُستثنًى من `tsconfig` لأنَّه يُبنى ببناءٍ مستقلٍّ",
+  },
+  {
+    path: "apps/miniapp/src/surfaces/driver/documents/documents-api.ts",
+    reason:
+      "رفعُ وثيقةِ السائقِ يجري **من متصفّحِ السائقِ إلى المخزنِ مباشرةً** بإذنٍ " +
+      "موقَّعٍ في العنوانِ نفسِه؛ ولو مرَّ البايتُ من الخادمِ لَحمَلَ ملفَّ كلِّ " +
+      "سائقٍ إلى ذاكرةِ البوّابةِ بلا فائدةٍ. ولا صادرَ من هذه العمليّةِ ههنا، " +
+      "والتوقيعُ نفسُه في `packages/infrastructure/storage/signed-upload.ts` " +
+      "مُبوَّبٌ بالمقصدِ `supabase-object-storage`",
   },
   {
     path: "apps/gateway/src/public/tracking-page.ts",

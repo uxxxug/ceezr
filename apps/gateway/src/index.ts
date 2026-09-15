@@ -17,6 +17,7 @@ import {
   createDestinationResolver,
   createDestinationSearcher,
 } from "../../../packages/infrastructure/destinations/destinations-store.ts";
+import { PostgresDriverDocumentStore } from "../../../packages/infrastructure/driver/driver-documents-store.ts";
 import {
   createPaymentProvider,
   createPaymentRepository,
@@ -45,6 +46,11 @@ import { PostgresDataRightsStore } from "../../../packages/infrastructure/privac
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import {
+  HttpUploadSigner,
+  readSignedUploadConfig,
+  UnconfiguredUploadSigner,
+} from "../../../packages/infrastructure/storage/signed-upload.ts";
 import { PostgresRiderSupportStore } from "../../../packages/infrastructure/support/rider-support-store.ts";
 import { createActiveRideReader } from "../../../packages/infrastructure/transport/active-ride-store.ts";
 import {
@@ -800,6 +806,34 @@ const support =
         log,
       };
 
+/**
+ * وثائقُ السائقِ (`F3-01`) — **مخزنٌ واحدٌ لأربعةِ مساراتٍ**، ومُوقِّعٌ يُقرأُ من
+ * البيئةِ. وغيابُ مفتاحِ التخزينِ **لا يُسقِطُ السطحَ**: يُركَّبُ مُوقِّعٌ غيرُ
+ * مُهيَّأٍ يردُّ رفضاً مُصنَّفاً، فيبقى لوحُ الحالاتِ يقولُ للسائقِ سببَ حجبِه —
+ * وذاكَ أنفعُ من بابٍ مُغلَقٍ بالكامِلِ لأنَّ الرفعَ متعذِّرٌ.
+ */
+const driverDocuments =
+  config.miniappSessionSecret === null
+    ? undefined
+    : (() => {
+        const storage = readSignedUploadConfig(process.env);
+        if (storage === null) {
+          log("driver_documents.signer_not_configured", {
+            hint: "OBJECT_STORAGE_URL + OBJECT_STORAGE_SECRET_KEY",
+          });
+        }
+        return {
+          documents: {
+            sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+            now: () => new Date(),
+            store: new PostgresDriverDocumentStore(container.sql),
+            signer:
+              storage === null ? new UnconfiguredUploadSigner() : new HttpUploadSigner(storage),
+          },
+          log,
+        };
+      })();
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -909,6 +943,7 @@ const app = createServer({
   ...(safety === undefined ? {} : { safety }),
   ...(dataRights === undefined ? {} : { dataRights }),
   ...(support === undefined ? {} : { support }),
+  ...(driverDocuments === undefined ? {} : { driverDocuments }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),

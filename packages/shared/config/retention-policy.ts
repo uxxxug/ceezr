@@ -133,6 +133,15 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   db_backups: RETENTION_CLASSES.selfGoverned,
   driver_availability: RETENTION_CLASSES.lifecycleBound,
   driver_capabilities: RETENTION_CLASSES.lifecycleBound,
+  /**
+   * `F3-01`: وثائقُ السائقِ — صفُّها **حكمُ أهليّةٍ قائمٌ** لا أثرُ حدثٍ: بحالتِه
+   * يُحجَبُ السائقُ أو يُفتَحُ له صفُّ العرضِ اليومَ. فلا مؤقِّتَ يحذفُ منه: حذفُ
+   * صفٍّ منتهيَ الصلاحيّةِ **يفتحُ الحجبَ** بدلَ أن يُبقِيَه — أي يُقلِبُ الحكمَ
+   * إلى نقيضِه بصمتٍ. والانتهاءُ يُقاسُ بـ`expires_at` لا بالحذفِ (`ADR 0115`).
+   * ومسارُ الإخراجِ الشرعيُّ واحدٌ: محوُ حسابِ صاحبِه (`erasure-policy.ts`)،
+   * ومعَه يُحذَفُ الجسمُ من المخزنِ لا الصفُّ وحدَه.
+   */
+  driver_documents: RETENTION_CLASSES.lifecycleBound,
   driver_location_history: RETENTION_CLASSES.locationHotThenArchive,
   /**
    * `F2-03`: دليلُ المعالمِ بيانةُ **مرجعٍ** مملوكةٌ للمستودعِ ومصادرُها مكتوبةٌ

@@ -74,10 +74,12 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
   // لأنَّه مملوكٌ لـMOVE بلا صفِّ مستخدمٍ فيه. ثمَّ من 51 إلى **53** بجدولَي
   // `ADR 0113`: `identity_hash_pepper` و`identity_marks`، وكلاهما
   // `HANDOVER_WITH_OPAQUE_REFERENCE` في الموجةِ ٤ لأنَّ الحظرَ والسمعةَ
-  // مملوكانِ لـCORE؛ والأرقامُ السابقةُ مكتوبةٌ لا ممحوّةٌ (`ح-8`).
+  // مملوكانِ لـCORE؛ والأرقامُ السابقةُ مكتوبةٌ لا ممحوّةٌ (`ح-8`). ثمَّ من 53 إلى
+  // **54** بجدولِ `driver_documents` (`F3-01`)، وهوَ `NONE` في الموجةِ ٠ لأنَّ
+  // حكمَ أهليّةِ القيادةِ مملوكٌ لـMOVE ويُقرأُ في مسارِ العرضِ الحارِّ نفسِه.
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(53);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(53);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(54);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(54);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {
