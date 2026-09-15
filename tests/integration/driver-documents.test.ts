@@ -49,7 +49,14 @@ const BLOCKED_TELEGRAM_ID = 900_000_305;
 const PICKUP = { lat: 21.4858, lng: 39.1925 };
 const DROPOFF = { lat: 21.5433, lng: 39.1728 };
 
+/** مدينةُ الزرعِ: إحداثيّاتُ `PICKUP`/`DROPOFF` أعلاه داخلَ منطقةِ خدمةِ جدّة. */
+const SEED_CITY_CODE = "JED";
+
+/** قروباتُ التفعيلِ الثلاثةُ — قيدُ `cities_active_requires_groups` يوجِبُها. */
+const SEED_GROUP_IDS = { support: -1_003_001, escalation: -1_003_002, unsubscribed: -1_003_003 };
+
 let cityId = "";
+let cityWasActive = false;
 let driverUserId = "";
 let driverId = "";
 let otherUserId = "";
@@ -172,15 +179,36 @@ beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
   sql = createSql({ connectionString: DATABASE_URL });
 
-  const [city] = await sql<{ id: string }[]>`
-    select c.id from cities c
+  // **الشرطُ المسبقُ يُصنَعُ ههنا لا يُستعارُ.** بذرةُ الهجراتِ تُنشئُ مدنَ
+  // الإطلاقِ الخمسَ **معطَّلةً** (`is_active = false`) بقرارِ `F2-05`، ومنطقةُ
+  // خدمةٍ مفعَّلةٌ واحدةٌ لـ`JED` وحدَها. فاستعلامٌ يطلبُ «أوّلَ مدينةٍ مفعَّلةٍ»
+  // لا يجدُ شيئاً على قاعدةٍ نظيفةٍ، ولا ينجحُ إلّا إن سبقَه ملفُّ اختبارٍ آخرُ
+  // فعَّلَ مدينةً ولم يُرجِعْها — فيصيرُ الأخضرُ رهنَ ترتيبِ التشغيلِ لا سلوكِ
+  // المنتَجِ (وهذا عينُ ما أسقطَ وظيفةَ التكاملِ في الجولةِ `34909694080`).
+  // فالمدينةُ تُختارُ بالرمزِ، وتُفعَّلُ صراحةً، وتُردُّ إلى حالتِها في `afterAll`.
+  const [city] = await sql<{ id: string; was_active: boolean }[]>`
+    select c.id, c.is_active as was_active from cities c
       join city_service_areas a on a.city_id = c.id and a.is_active
-     where c.is_active order by c.code limit 1
+     where c.code = ${SEED_CITY_CODE}
+     limit 1
   `;
   if (city === undefined) {
-    throw new Error("تعذّر الزرعُ: لا مدينةَ مفعَّلةً لها منطقةُ خدمةٍ مفعَّلةٌ");
+    throw new Error(`تعذّر الزرعُ: لا مدينةَ بالرمزِ ${SEED_CITY_CODE} لها منطقةُ خدمةٍ مفعَّلةٌ`);
   }
   cityId = city.id;
+  cityWasActive = city.was_active;
+  if (!cityWasActive) {
+    // `cities_active_requires_groups`: مدينةٌ مفعَّلةٌ بلا قروباتٍ حالةٌ ممنوعةٌ
+    // في القاعدةِ نفسِها (`F2-05`)، فالتفعيلُ يستوفي القيدَ ولا يُخفِّفُه.
+    await sql`
+      update cities
+         set is_active = true,
+             telegram_support_group_id = coalesce(telegram_support_group_id, ${SEED_GROUP_IDS.support}),
+             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, ${SEED_GROUP_IDS.escalation}),
+             telegram_unsubscribed_drivers_group_id = coalesce(telegram_unsubscribed_drivers_group_id, ${SEED_GROUP_IDS.unsubscribed})
+       where id = ${cityId}
+    `;
+  }
 
   const [types] = await sql<{ types: string[] }[]>`
     select driver_required_document_types(${cityId}::uuid)::text[] as types
@@ -264,6 +292,22 @@ afterAll(async () => {
     if (id === "") continue;
     await sql`delete from audit_log where actor_user_id = ${id}`;
     await sql`delete from users where id = ${id}`;
+  }
+  // ترجعُ المدينةُ إلى حالتِها قبلَ هذا الملفِّ: تركُها مفعَّلةً يُورِّثُ لِمَن
+  // بعدَها شرطاً لم يطلُبْه، وهوَ الداءُ نفسُه معكوساً.
+  if (cityId !== "" && !cityWasActive) {
+    await sql`
+      update cities
+         set is_active = false,
+             telegram_support_group_id = case when telegram_support_group_id = ${SEED_GROUP_IDS.support}
+               then null else telegram_support_group_id end,
+             telegram_escalation_group_id = case when telegram_escalation_group_id = ${SEED_GROUP_IDS.escalation}
+               then null else telegram_escalation_group_id end,
+             telegram_unsubscribed_drivers_group_id = case
+               when telegram_unsubscribed_drivers_group_id = ${SEED_GROUP_IDS.unsubscribed}
+               then null else telegram_unsubscribed_drivers_group_id end
+       where id = ${cityId}
+    `;
   }
   await sql.end();
 });
