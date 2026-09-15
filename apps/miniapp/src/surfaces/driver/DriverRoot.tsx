@@ -19,7 +19,14 @@
  *
  *   ــ **لا يُوجِّهُ بمسارٍ**: لا مُوجِّهَ في التطبيقِ المصغَّرِ اليومَ، والانتقالُ
  *      حالةٌ محليّةٌ. ومُوجِّهُ عناوينٍ **دَينٌ مُعلَنٌ** لا يُحتاجُ بشاشتَينِ.
- *   ــ **لا يعرضُ أرباحاً ولا اشتراكاً**: بنودُ `SD-06`…`SD-07`.
+ *   ــ **لا يعرضُ اشتراكاً**: بندُ `SD-07`.
+ *
+ * ## وقد صارَت الحصيلةُ ههنا بـ`F3-05` — **زيادةً لا نقصاً** (`ح-8`)
+ *
+ * وهيَ **مدخلٌ من اللوحِ** لا شاشةُ بدايةٍ: السائقُ يفتحُ التطبيقَ ليعملَ لا
+ * ليُراجِعَ ماضيَه، وتقريرٌ يُفتَحُ أوّلاً يُزاحِمُ عرضاً يُنتظَرُ. و**لا باثَّ
+ * موقعٍ معَها** خلافاً للوحِ والمَهمّةِ: قراءةُ تقريرٍ ليست عملاً يُبَثُّ فيهِ
+ * موضعٌ، وبثٌّ من شاشةِ أرشيفٍ يُنفِقُ بطاريّةً بلا سببٍ.
  *
  * ## وقد صارَ بثُّ الموقعِ ههنا بـ`F3-04` — **زيادةً لا نقصاً** (`ح-8`)
  *
@@ -50,6 +57,7 @@
 
 import { useState } from "react";
 import { EmptyState } from "../../system/EmptyState.tsx";
+import { ActivityScreen } from "./activity/ActivityScreen.tsx";
 import { DocumentsScreen } from "./documents/DocumentsScreen.tsx";
 import { JobScreen } from "./job/JobScreen.tsx";
 import { LocationBroadcast } from "./location/LocationBroadcast.tsx";
@@ -60,6 +68,7 @@ type DriverView =
   | { readonly kind: "offers" }
   | { readonly kind: "offer"; readonly offerId: string }
   | { readonly kind: "job" }
+  | { readonly kind: "activity" }
   | { readonly kind: "documents" }
   | { readonly kind: "placeholder" };
 
@@ -77,6 +86,7 @@ export default function DriverRoot() {
         <OffersScreen
           onOpenOffer={(offerId) => setView({ kind: "offer", offerId })}
           onOpenJob={() => setView({ kind: "job" })}
+          onOpenActivity={() => setView({ kind: "activity" })}
           onBack={() => setView({ kind: "documents" })}
         />
       </>
@@ -103,6 +113,10 @@ export default function DriverRoot() {
         <JobScreen onBack={() => setView({ kind: "offers" })} />
       </>
     );
+  }
+
+  if (view.kind === "activity") {
+    return <ActivityScreen onBack={() => setView({ kind: "offers" })} />;
   }
 
   if (view.kind === "documents") {

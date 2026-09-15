@@ -134,6 +134,32 @@ export const COVERAGE_BARS: readonly CriticalPathBar[] = [
     owner: "فريق المنصّة",
   },
   {
+    /**
+     * زيادةٌ يومَ 2026-09-15 معَ `F3-05`: المسارُ الحرجُ «شفافيّةُ الأداءِ
+     * والحصيلة» زِيدَ في القائمةِ المغلقةِ، ولكلِّ مسارٍ مدخلٌ واحدٌ ههنا بحكمِ
+     * `coverage-gate.test.ts`. والجذورُ **ملفّاتٌ لا مجلّداتٌ** لأنَّ شريحةَ
+     * الحصيلةِ تسكنُ مجلّداتِ `driver/` معَ بنودٍ أخرى (`F3-02`/`F3-03`/`F3-04`)
+     * ولها مساراتُها الحرجةُ، فجذرٌ بمجلّدٍ يخلِطُ القياسَينِ.
+     *
+     * والأرقامُ **مقيسةٌ** يومَ 2026-09-15 من `coverage/lcov.info`: النطاقُ
+     * 24/25 والتطبيقُ 4/4 و69/69 — أي 97/98 (98.98%) فالأرضيّةُ 98. والمحوِّلُ
+     * `driver-activity-store.ts` **خارجَ القياسِ** في وظيفةِ `verify` لأنَّ
+     * إثباتَه على قاعدةٍ حقيقيّةٍ (23 حالةَ تكاملٍ) وهيَ لا تُشغَّلُ هناك — وذاكَ
+     * مُعلَنٌ بسقفٍ قدرُه واحدٌ لا مُداوىً بأرضيّةٍ مخفوضةٍ.
+     */
+    criticalPath: "شفافيّةُ الأداءِ والحصيلة",
+    roots: [
+      "packages/domain/driver/activity.ts",
+      "packages/application/driver/activity-ports.ts",
+      "packages/application/driver/driver-activity.ts",
+      "packages/infrastructure/driver/driver-activity-store.ts",
+    ],
+    minLineCoverage: 98,
+    maxUnmeasuredFiles: 1,
+    reason: null,
+    owner: "فريق المنصّة",
+  },
+  {
     criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
     roots: [
       "packages/domain/scheduling",

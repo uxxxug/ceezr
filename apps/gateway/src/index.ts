@@ -17,6 +17,7 @@ import {
   createDestinationResolver,
   createDestinationSearcher,
 } from "../../../packages/infrastructure/destinations/destinations-store.ts";
+import { PostgresDriverActivityStore } from "../../../packages/infrastructure/driver/driver-activity-store.ts";
 import { PostgresDriverDocumentStore } from "../../../packages/infrastructure/driver/driver-documents-store.ts";
 import { PostgresDriverJobStore } from "../../../packages/infrastructure/driver/driver-job-store.ts";
 import { PostgresDriverOfferStore } from "../../../packages/infrastructure/driver/driver-offers-store.ts";
@@ -876,6 +877,24 @@ const driverJob =
         log,
       };
 
+/**
+ * حصيلةُ السائقِ (`F3-05`) — **مخزنٌ يقرأُ ولا يكتبُ**، ولذا لا يُشارِكُ مخزنَ
+ * المَهمّةِ الكاتبَ ولو اتّحدَ الاتصالُ: أوسعُ سلطةٍ في عقدٍ تُقرأُ سلطةَ كلِّ
+ * مُستعمِلِه. وغيابُ سرِّ الجلسةِ **يُسقِطُ السطحَ**: تقريرٌ بلا رمزٍ موقَّعٍ
+ * يعني أنَّ من عرفَ معرِّفاً قرأَ حصيلةَ غيرِه.
+ */
+const driverActivity =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        activity: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          store: new PostgresDriverActivityStore(container.sql),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -988,6 +1007,7 @@ const app = createServer({
   ...(driverDocuments === undefined ? {} : { driverDocuments }),
   ...(driverOffers === undefined ? {} : { driverOffers }),
   ...(driverJob === undefined ? {} : { driverJob }),
+  ...(driverActivity === undefined ? {} : { driverActivity }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
