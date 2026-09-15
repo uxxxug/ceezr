@@ -28,6 +28,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { SERVICE_KINDS } from "../../packages/domain/quote/service-offer.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -45,6 +50,7 @@ const RIDER_TELEGRAM_ID = 900_000_941;
 const ABSENT_TELEGRAM_ID = 900_000_939;
 
 let cityId = "";
+let cityHandle: ActiveCityHandle | undefined;
 let riderId = "";
 let driverUserId = "";
 let driverId = "";
@@ -127,15 +133,9 @@ beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
   sql = createSql({ connectionString: DATABASE_URL });
 
-  const [city] = await sql<{ id: string }[]>`
-    select c.id from cities c
-      join city_service_areas a on a.city_id = c.id and a.is_active
-     where c.is_active order by c.code limit 1
-  `;
-  if (city === undefined) {
-    throw new Error("تعذّر الزرعُ: لا مدينةَ مفعَّلةً لها منطقةُ خدمةٍ مفعَّلةٌ");
-  }
-  cityId = city.id;
+  // `OPS-019`: الشرطُ يُصنَعُ ويُردُّ في `afterAll` — لا يُستعارُ من ملفٍّ سبقَ.
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
+  cityId = cityHandle.cityId;
 
   const [rider] = await sql<{ id: string }[]>`
     insert into users (city_id, telegram_id, role, full_name, phone)
@@ -183,6 +183,7 @@ afterAll(async () => {
   for (const id of [riderId, driverUserId]) {
     if (id !== "") await sql`delete from users where id = ${id}`;
   }
+  await restoreCityBaseline(sql, cityHandle);
   await sql.end();
 });
 

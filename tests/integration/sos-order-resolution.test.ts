@@ -15,6 +15,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test"
 import type { SafetyRole } from "../../packages/application/safety/ports.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createTriggerSosPort } from "../../packages/infrastructure/safety/safety-adapters.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const RIDER_TELEGRAM_ID = "884001";
@@ -25,6 +30,7 @@ const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let riderId: string;
 let driverId: string;
 let trigger: ReturnType<typeof createTriggerSosPort>;
@@ -76,14 +82,10 @@ async function createFixture(): Promise<void> {
   cityId = await firstId(city, "مدينةِ جدّة");
   // القروباتُ الثلاثةُ في عبارةِ التفعيلِ نفسِها: مدينةٌ مُفعَّلةٌ بلا قروباتِها
   // تجعلُ نجاحَ الاختبارِ مُعلَّقاً على ترتيبِ عباراتٍ — وحاجزُ `check-test-city-activation` يمنعُه.
-  await sql`
-    update cities set is_active = true,
-      telegram_escalation_group_id = ${ESCALATION_GROUP}::bigint,
-      telegram_support_group_id = coalesce(telegram_support_group_id, -100885),
-      telegram_unsubscribed_drivers_group_id =
-        coalesce(telegram_unsubscribed_drivers_group_id, -100886)
-    where id = ${cityId}
-  `;
+  cityHandle = await ensureActiveCity(sql, {
+    groups: { escalation: ESCALATION_GROUP },
+    prior: cityHandle,
+  });
   const riderUserId = await firstId(
     await sql<{ id: string }[]>`
       insert into users (city_id, telegram_id, full_name, phone, role)
@@ -130,6 +132,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 

@@ -31,6 +31,11 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import { createTrackingSessionRepository } from "../../packages/infrastructure/tracking/session-repository.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import type { TrackingEvent } from "../../packages/tracking/types.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -51,6 +56,7 @@ const config: AppConfig = testConfig({
 let sql: Sql;
 let container: ReturnType<typeof buildContainer>;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let events: TrackingEvent[];
 let driverSent: SentMessage[];
 let riderSent: SentMessage[];
@@ -91,6 +97,7 @@ describeIf("ترتيبُ أحداثِ التتبُّعِ على PostgreSQL حق�
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -101,15 +108,7 @@ describeIf("ترتيبُ أحداثِ التتبُّعِ على PostgreSQL حق�
                              subscriptions, driver_capabilities, driver_availability,
                              admin_sessions, admin_login_codes,
                              drivers, riders, users restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-             telegram_unsubscribed_drivers_group_id =
-               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
 
     events = [];
     driverSent = [];

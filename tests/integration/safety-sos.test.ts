@@ -13,6 +13,11 @@ import {
   createTriggerSosPort,
 } from "../../packages/infrastructure/safety/safety-adapters.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const RIDER_TELEGRAM_ID = "880001";
@@ -22,6 +27,7 @@ const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let orderId: string;
 let reporterUserId: string;
 let trigger: ReturnType<typeof createTriggerSosPort>;
@@ -31,12 +37,10 @@ async function createFixture(): Promise<void> {
   const city = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
   cityId = city[0]?.id ?? "";
   if (cityId === "") throw new Error("مدينة جدة غير مبذورة");
-  await sql`
-    update cities set is_active = true, telegram_support_group_id = -100881,
-      telegram_escalation_group_id = ${ESCALATION_GROUP}::bigint,
-      telegram_unsubscribed_drivers_group_id = -100882
-    where id = ${cityId}
-  `;
+  cityHandle = await ensureActiveCity(sql, {
+    groups: { support: -100881, escalation: ESCALATION_GROUP, unsubscribed: -100882 },
+    prior: cityHandle,
+  });
   const users = await sql<{ id: string }[]>`
     insert into users (city_id, telegram_id, full_name, phone, role)
     values (${cityId}, ${RIDER_TELEGRAM_ID}::bigint, 'راكب SOS', '+966500880001', 'rider')
@@ -70,6 +74,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 

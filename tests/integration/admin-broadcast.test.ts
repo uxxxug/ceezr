@@ -19,12 +19,18 @@ import {
 } from "../../packages/infrastructure/broadcast/broadcast-adapters.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let adminUserId: string;
 let plainUserId: string;
 /** سائقٌ موثَّق، في تجربةٍ مجانية، ومتاح. */
@@ -63,14 +69,7 @@ async function seedUser(
 async function createFixture(): Promise<void> {
   const city = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
   cityId = await firstId(city, "مدينة جدة");
-  await sql`
-    update cities set is_active = true,
-      telegram_support_group_id = coalesce(telegram_support_group_id, -1009001),
-      telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1009002),
-      telegram_unsubscribed_drivers_group_id =
-        coalesce(telegram_unsubscribed_drivers_group_id, -1009003)
-    where id = ${cityId}
-  `;
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
 
   adminUserId = await seedUser(9001, "admin", "مسؤول البثّ");
   plainUserId = await seedUser(9002, "rider", "راكب لا يملك صفة");
@@ -150,6 +149,7 @@ describeIf("البثّ الجماعي على PostgreSQL فعلية", () => {
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 

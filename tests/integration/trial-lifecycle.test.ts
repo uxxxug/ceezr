@@ -28,6 +28,11 @@ import { createSubscriptionNoticeDeliveryPort } from "../../packages/infrastruct
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import { ok } from "../../packages/shared/result/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { drainNotificationOutbox } from "../support/drain-notification-outbox.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
@@ -52,6 +57,7 @@ let metrics: OperationalMetrics;
 let driverSent: SentMessage[];
 let riderSent: SentMessage[];
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 
 async function post(bot: string, update: unknown): Promise<Response> {
   return app.fetch(
@@ -99,6 +105,7 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -107,14 +114,10 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
                              attendance_log, order_offers, orders, subscriptions,
                              driver_capabilities, driver_availability, drivers, riders, users
                        restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = -1001,
-             telegram_escalation_group_id = -1002,
-             telegram_unsubscribed_drivers_group_id = -1003
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, {
+      groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
+      prior: cityHandle,
+    });
     // الرابطُ إعدادٌ لكلّ مدينة: معرّفُ القروب لا يُفتَح من جهاز السائق
     await sql`
       update platform_settings

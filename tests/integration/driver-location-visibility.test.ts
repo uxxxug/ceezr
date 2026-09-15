@@ -31,6 +31,11 @@ import { createDriverCandidateRepository } from "../../packages/infrastructure/d
 import { createSettingsRepository } from "../../packages/infrastructure/policy/settings-repository.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import type { CityId, DriverId } from "../../packages/shared/kernel/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -53,6 +58,7 @@ let sql: Sql;
 let app: ReturnType<typeof createServer>;
 let container: ReturnType<typeof buildContainer>;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 
 async function post(bot: string, update: unknown): Promise<Response> {
   return app.fetch(
@@ -111,6 +117,7 @@ describeIf("ظهور السائق بلا موقع، ووحدة مصدر التو
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -118,14 +125,10 @@ describeIf("ظهور السائق بلا موقع، ووحدة مصدر التو
     await sql`truncate table agent_outcomes, agent_decisions, audit_log, attendance_log, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = -1001,
-             telegram_escalation_group_id = -1002,
-             telegram_unsubscribed_drivers_group_id = -1003
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, {
+      groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
+      prior: cityHandle,
+    });
     const driverSent: SentMessage[] = [];
     const riderSent: SentMessage[] = [];
     container = buildContainer(config, {

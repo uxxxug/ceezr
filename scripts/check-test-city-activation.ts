@@ -35,7 +35,17 @@ const REQUIRED_WITH_ACTIVATION = [
  * المجرَّدُ **هو** موضوعُ الاختبار ويُتوقَّع أن يُرفَض. اشتراطُ القروبات فيه
  * يُلغي ما يُثبته.
  */
-const INTENTIONAL_BARE_ACTIVATION = new Set(["tests/integration/pilot-city-activation.test.ts"]);
+const INTENTIONAL_BARE_ACTIVATION = new Set([
+  "tests/integration/pilot-city-activation.test.ts",
+  // `check-integration-city-precondition` حاجزٌ آخرُ، وحالاتُه السالبةُ **نصوصٌ
+  // مُصنَّعةٌ** تُمرَّرُ إلى حَكَمٍ نقيٍّ في الذاكرةِ — لا عبارةٌ تُنفَّذُ على قاعدةٍ.
+  // فقراءتُها شِفرةً حقيقيّةً إنذارٌ كاذبٌ يُبطِلُ برهانَ `ح-7` على ذلكَ الحاجزِ.
+  //
+  // وهذا الاستثناءُ **يكشفُ تكراراً في مصدرِ الحقيقةِ** لا يُصلَحُ ههنا: حاجزانِ
+  // يحكُمانِ على تفعيلِ المدينةِ في الاختباراتِ بسجلَّي استثناءاتٍ منفصلينِ. وقد
+  // حُجِزَ توحيدُهما في `OPS-020` بـ`ROADMAP.md` — ولا يُمسُّ في نطاقِ `OPS-019`.
+  "tests/unit/check-integration-city-precondition.test.ts",
+]);
 
 interface Violation {
   readonly file: string;

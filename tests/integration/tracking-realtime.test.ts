@@ -36,6 +36,11 @@ import { DEFAULT_SESSION_POLICY } from "../../packages/domain/tracking/session.t
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -71,6 +76,7 @@ let app: ReturnType<typeof createServer>;
 let adminApp: Hono;
 let container: ReturnType<typeof buildContainer>;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let liveCalls: LiveCall[];
 let adminCodes: string[];
 /**
@@ -215,6 +221,7 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -233,15 +240,7 @@ describeIf("النقل اللحظي على قاعدة حقيقية — المر�
      * الجهازِ المحلّيّ وآلةِ التكامل. فمرّ محلّياً وسقط بعيداً، ثمّ سرَّب فشلُه
      * حاوياتٍ لم تُغلَق فأنفدَ اتّصالاتَ القاعدة وأسقط ملفّاتٍ لا علاقة لها به.
      */
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-             telegram_unsubscribed_drivers_group_id =
-               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
 
     liveCalls = [];
     adminCodes = [];

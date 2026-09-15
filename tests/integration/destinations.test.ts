@@ -39,6 +39,11 @@ import {
   wordStartMatch,
 } from "../../packages/domain/destinations/search-text.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -56,6 +61,7 @@ const SEED_TELEGRAM_ID = 900_000_931;
 const ABSENT_TELEGRAM_ID = 900_000_939;
 
 let cityId = "";
+let cityHandle: ActiveCityHandle | undefined;
 let userId = "";
 
 /** نقطتانِ مُعلَنتانِ: واحدةٌ في غلافِ جدة وأخرى في الرياضِ خارجَه. */
@@ -108,18 +114,8 @@ beforeAll(async () => {
   // مدينةٍ في الجدولِ: القاعدةُ تستنبطُ المدينةَ من صفِّ صاحبِها، فمستخدمٌ في
   // مدينةٍ بلا غلافٍ يُعطي `SERVICE_AREA_NOT_DEFINED` ويُخفِقُ الاختبارُ لسببٍ
   // ليسَ هوَ المقصودَ.
-  const [city] = await sql<{ id: string }[]>`
-    select c.id
-      from cities c
-      join city_service_areas a on a.city_id = c.id and a.is_active
-     where c.is_active
-     order by c.code
-     limit 1
-  `;
-  if (city === undefined) {
-    throw new Error("تعذّر الزرعُ: لا مدينةَ مفعَّلةً لها منطقةُ خدمةٍ مفعَّلةٌ");
-  }
-  cityId = city.id;
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
+  cityId = cityHandle.cityId;
 
   const [user] = await sql<{ id: string }[]>`
     insert into users (city_id, telegram_id, role, full_name, phone)
@@ -142,6 +138,7 @@ afterAll(async () => {
     await sql`delete from saved_places where user_id = ${userId}`;
     await sql`delete from users where id = ${userId}`;
   }
+  await restoreCityBaseline(sql, cityHandle);
   await sql.end();
 });
 

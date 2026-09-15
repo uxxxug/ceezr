@@ -33,6 +33,11 @@
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -53,6 +58,7 @@ const NON_RIDER_TELEGRAM_ID = 900_000_124;
 const ABSENT_TELEGRAM_ID = 900_000_125;
 
 let cityId = "";
+let cityHandle: ActiveCityHandle | undefined;
 let previousGroupId: string | null = null;
 let riderUserId = "";
 let riderId = "";
@@ -162,17 +168,17 @@ beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
   sql = createSql({ connectionString: DATABASE_URL });
 
-  const [city] = await sql<{ id: string; support: string | null }[]>`
-    select c.id, c.telegram_support_group_id::text as support
-      from cities c
-      join city_service_areas a on a.city_id = c.id and a.is_active
-     where c.is_active order by c.code limit 1
+  // `OPS-019`: الشرطُ يُصنَعُ ويُردُّ — لا يُستعارُ من ملفٍّ سبقَ في الجولةِ.
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
+  cityId = cityHandle.cityId;
+
+  // ويُقرأُ قروبُ الدعمِ **بعدَ** التفعيلِ لا قبلَه: فالمعينُ قد يكتبُ قروباً
+  // ليستوفيَ `cities_active_requires_groups`، وقراءةُ ما قبلَه تجعلُ الردَّينِ
+  // يتنازعانِ على عمودٍ واحدٍ. والردُّ ههنا محصورٌ بما كتبَه هذا الملفُ.
+  const [group] = await sql<{ support: string | null }[]>`
+    select telegram_support_group_id::text as support from cities where id = ${cityId}
   `;
-  if (city === undefined) {
-    throw new Error("تعذّر الزرعُ: لا مدينةَ مفعَّلةً لها منطقةُ خدمةٍ مفعَّلةٌ");
-  }
-  cityId = city.id;
-  previousGroupId = city.support;
+  previousGroupId = group?.support ?? null;
   // قروبُ الدعمِ شرطُ فتحِ التذكرةِ (`CITY_GROUP_MISSING`)، ويُعادُ كما كانَ
   // في `afterAll` — الاختبارُ لا يُغيِّرُ حالةَ مدينةٍ ويتركُها.
   await sql`
@@ -249,6 +255,7 @@ afterAll(async () => {
   if (cityId !== "" && previousGroupId === null) {
     await sql`update cities set telegram_support_group_id = null where id = ${cityId}`;
   }
+  await restoreCityBaseline(sql, cityHandle);
   await sql.end();
 });
 

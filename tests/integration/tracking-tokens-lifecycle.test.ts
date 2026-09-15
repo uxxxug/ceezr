@@ -29,6 +29,11 @@ import {
   createTrackingTokenRpc,
 } from "../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import type { CityId, DriverId, OrderId } from "../../packages/shared/kernel/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const RIDER_TELEGRAM = 260_814;
@@ -39,6 +44,7 @@ const HTTP_OK = 200;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let tokens: ReturnType<typeof createTrackingTokenRpc>;
 let dispatch: ReturnType<typeof createDispatchRpc>;
 let ids: { riderId: string; driverId: string; orderId: string };
@@ -64,6 +70,7 @@ describeIf("§4.2 — دورةُ حياة رموز التتبّع على قاع�
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
@@ -71,15 +78,7 @@ describeIf("§4.2 — دورةُ حياة رموز التتبّع على قاع�
     await sql`truncate table trip_tracking_tokens, tracking_sessions, audit_log, attendance_log,
                              order_offers, orders, driver_availability, driver_capabilities,
                              drivers, riders, users restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-             telegram_unsubscribed_drivers_group_id =
-               coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
     ids = await seed();
   });
 

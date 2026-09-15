@@ -20,6 +20,11 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
@@ -41,6 +46,7 @@ let app: ReturnType<typeof createServer>;
 let container: ReturnType<typeof buildContainer>;
 let driverSent: SentMessage[];
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 
 async function post(update: unknown): Promise<Response> {
   return app.fetch(
@@ -88,6 +94,7 @@ describeIf("القسم ج — اقتراح آلي على تذكرة دعم حق�
 
   afterAll(async () => {
     await container.close();
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
     delete process.env.AGENT_CORE_ENABLED;
     delete process.env.AGENT_CORE_RUNTIME_ROOT;
@@ -99,14 +106,10 @@ describeIf("القسم ج — اقتراح آلي على تذكرة دعم حق�
                              unsubscribed_negotiations, order_offers, orders,
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = ${SUPPORT_GROUP},
-             telegram_escalation_group_id = -1102,
-             telegram_unsubscribed_drivers_group_id = -1103
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, {
+      groups: { support: SUPPORT_GROUP, escalation: -1102, unsubscribed: -1103 },
+      prior: cityHandle,
+    });
     driverSent = [];
   });
 

@@ -24,6 +24,11 @@ import { PortFailureError } from "../../packages/application/ports/index.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createNotificationOutboxPort } from "../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
@@ -32,6 +37,7 @@ const RIDER_TELEGRAM = 952001;
 
 let sql: Sql;
 let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 let orderId: string;
 
 /** ما وصلَ فعلًا: النوعُ ووجهتُه ولغتُه ونوعُ خدمتِه. */
@@ -101,15 +107,7 @@ async function createFixture(): Promise<void> {
   cityId = city[0]?.id ?? "";
   if (cityId === "") throw new Error("مدينة جدة غير مبذورة");
   // القروبان شرطٌ: فتحُ الدورةِ يحتاج قروبَ غيرِ المشتركين، والتصعيدُ قروبَ الإسناد.
-  await sql`
-    update cities
-       set is_active = true,
-           telegram_support_group_id = coalesce(telegram_support_group_id, -1001),
-           telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),
-           telegram_unsubscribed_drivers_group_id =
-             coalesce(telegram_unsubscribed_drivers_group_id, -1003)
-     where id = ${cityId}
-  `;
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
 
   const riderUser = await sql<{ id: string }[]>`
     insert into users (city_id, telegram_id, full_name, phone, role, language_code)
@@ -180,6 +178,7 @@ describeIf("إخطارا صاحبِ الطلبِ العالقِ في صندوق�
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 

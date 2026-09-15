@@ -29,6 +29,11 @@
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -134,7 +139,7 @@ function spawnChild(entry: string, extraEnv: Record<string, string>): Child {
 }
 
 let sql: Sql;
-let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
 
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 if (DATABASE_URL === undefined) {
@@ -172,28 +177,17 @@ async function anyHeartbeatWithinWindow(): Promise<boolean> {
 describeIf("فصلُ العامل عن البوابة على قاعدةٍ حقيقيّةٍ — F5-04 / SCL-007", () => {
   beforeAll(async () => {
     sql = createSql({ connectionString: DATABASE_URL ?? "" });
-    const cities = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
-    const id = cities[0]?.id;
-    if (id === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
-    cityId = id;
   });
 
   afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
   });
 
   beforeEach(async () => {
     // المدينةُ مفعَّلةٌ شرطُ تمهيدٍ لا توكيدٌ: `container.jobs()` لا تُنتج مهمّةً
     // واحدةً بلا مدينةٍ مفعَّلةٍ، فتنجح الحالةُ السالبةُ على نظامٍ لا مهامَّ فيه أصلاً.
-    await sql`
-      update cities
-         set is_active = true,
-             telegram_support_group_id = coalesce(telegram_support_group_id, -1401),
-             telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1402),
-             telegram_unsubscribed_drivers_group_id =
-               coalesce(telegram_unsubscribed_drivers_group_id, -1403)
-       where id = ${cityId}
-    `;
+    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
     await sql`truncate table job_heartbeats`;
     expect(await heartbeatCount()).toBe(0);
   });
