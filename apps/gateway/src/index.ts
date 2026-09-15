@@ -25,6 +25,7 @@ import { PostgresDriverDocumentStore } from "../../../packages/infrastructure/dr
 import { PostgresDriverJobStore } from "../../../packages/infrastructure/driver/driver-job-store.ts";
 import { PostgresDriverOfferStore } from "../../../packages/infrastructure/driver/driver-offers-store.ts";
 import { PostgresDriverSubscriptionStore } from "../../../packages/infrastructure/driver/driver-subscription-store.ts";
+import { PostgresDriverVehicleStore } from "../../../packages/infrastructure/driver/driver-vehicle-store.ts";
 import {
   createPaymentProvider,
   createPaymentRepository,
@@ -949,6 +950,22 @@ const driverSubscription =
         log,
       };
 
+/**
+ * مركبةُ السائقِ (`F3-07`) — بياناتُ المركبةِ ووثائقُها الثلاثُ في نداءٍ واحدٍ.
+ * وغيابُ سرِّ الجلسةِ **يُسقِطُ السطحَ** كالعروضِ والنشاطِ.
+ */
+const driverVehicle =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        vehicle: {
+          session: createMiniAppSessionReader(config.miniappSessionSecret),
+          store: new PostgresDriverVehicleStore(container.sql),
+          now: () => new Date(),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -1063,6 +1080,7 @@ const app = createServer({
   ...(driverJob === undefined ? {} : { driverJob }),
   ...(driverActivity === undefined ? {} : { driverActivity }),
   ...(driverSubscription === undefined ? {} : { driverSubscription }),
+  ...(driverVehicle === undefined ? {} : { driverVehicle }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),

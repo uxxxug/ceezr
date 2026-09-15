@@ -64,6 +64,7 @@ import { LocationBroadcast } from "./location/LocationBroadcast.tsx";
 import { OfferDetailScreen } from "./offers/OfferDetailScreen.tsx";
 import { OffersScreen } from "./offers/OffersScreen.tsx";
 import { SubscriptionScreen } from "./subscription/SubscriptionScreen.tsx";
+import { VehicleScreen } from "./vehicle/VehicleScreen.tsx";
 
 type DriverView =
   | { readonly kind: "offers" }
@@ -71,6 +72,7 @@ type DriverView =
   | { readonly kind: "job" }
   | { readonly kind: "activity" }
   | { readonly kind: "subscription" }
+  | { readonly kind: "vehicle" }
   | { readonly kind: "documents" }
   | { readonly kind: "placeholder" };
 
@@ -126,6 +128,10 @@ export default function DriverRoot() {
     return <SubscriptionScreen onBack={() => setView({ kind: "offers" })} />;
   }
 
+  if (view.kind === "vehicle") {
+    return <VehicleScreen onBack={() => setView({ kind: "offers" })} />;
+  }
+
   if (view.kind === "documents") {
     return <DocumentsScreen onBack={() => setView({ kind: "placeholder" })} />;
   }
@@ -145,6 +151,9 @@ export default function DriverRoot() {
       </button>
       <button type="button" className="dof__back" onClick={() => setView({ kind: "offers" })}>
         عروضي
+      </button>
+      <button type="button" className="dveh__nav" onClick={() => setView({ kind: "vehicle" })}>
+        مركبتي
       </button>
     </section>
   );

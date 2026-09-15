@@ -667,8 +667,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // من `payment_transactions`، والملكيّةُ من الدالّتَينِ لا من الطبقةِ، والسقفُ
     // مقصورٌ في الخادمِ. والأرقامُ السابقةُ تبقى مذكورةً لا ممحوّةً، والرفعُ
     // بالزيادةِ لا بالاستبدالِ (`ح-8`).
-    expect(SKIP_REGISTRY).toHaveLength(104);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1114);
+    expect(SKIP_REGISTRY).toHaveLength(105);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1127);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
