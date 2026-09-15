@@ -57,13 +57,20 @@ returns table(
   vehicle_year int,
   logo_object_path text,
   barcode_object_path text,
-  -- وثائقُ المركبةِ الثلاثُ: حالةٌ وتاريخُ انتهاءٍ
+  -- وثائقُ المركبةِ الثلاثُ: حالةٌ وتاريخُ انتهاءٍ.
+  --
+  -- تواريخُ الانتهاءِ تعبرُ الحدَّ **نصّاً** بصيغةِ `YYYY-MM-DD` لا نوعَ `date`:
+  -- سائقُ `postgres` في العميلِ يُحوِّلُ `date` إلى `Date` في JavaScript عندَ
+  -- منتصفِ ليلِ UTC، فيقرأُها المحوِّلُ `readDate` — وعقدُه `string | null` —
+  -- عَدَماً فتُمحى كلُّ تواريخِ الانتهاءِ من الشاشةِ صمتاً؛ ولو عُرِضَت لظهرَ
+  -- اليومُ السابقُ لمن يقرأُ بتوقيتِ +03. فالتاريخُ المجرَّدُ لا لحظةَ له،
+  -- ونقلُه لحظةً كذبٌ في النوعِ قبلَ أن يكونَ عطباً في العرضِ.
   registration_status text,
-  registration_expires_at date,
+  registration_expires_at text,
   insurance_status text,
-  insurance_expires_at date,
+  insurance_expires_at text,
   inspection_status text,
-  inspection_expires_at date
+  inspection_expires_at text
 )
 language sql
 stable
@@ -79,19 +86,19 @@ as $$
     (select status::text from driver_documents dd
        where dd.driver_id = d.id and dd.doc_type = 'vehicle_registration'
        order by dd.updated_at desc limit 1),
-    (select expires_at from driver_documents dd
+    (select to_char(expires_at, 'YYYY-MM-DD') from driver_documents dd
        where dd.driver_id = d.id and dd.doc_type = 'vehicle_registration'
        order by dd.updated_at desc limit 1),
     (select status::text from driver_documents dd
        where dd.driver_id = d.id and dd.doc_type = 'insurance'
        order by dd.updated_at desc limit 1),
-    (select expires_at from driver_documents dd
+    (select to_char(expires_at, 'YYYY-MM-DD') from driver_documents dd
        where dd.driver_id = d.id and dd.doc_type = 'insurance'
        order by dd.updated_at desc limit 1),
     (select status::text from driver_documents dd
        where dd.driver_id = d.id and dd.doc_type = 'periodic_inspection'
        order by dd.updated_at desc limit 1),
-    (select expires_at from driver_documents dd
+    (select to_char(expires_at, 'YYYY-MM-DD') from driver_documents dd
        where dd.driver_id = d.id and dd.doc_type = 'periodic_inspection'
        order by dd.updated_at desc limit 1)
   from drivers d
