@@ -5,7 +5,15 @@
  * ينتمي إلى: packages/application/support
  * يُستخدم من: `packages/application/support/rider-support.ts` ·
  *   `packages/infrastructure/support/rider-support-store.ts`
- * يُتوقع أن يستخدمه لاحقاً: `SD-10` — يُزادُ منفذٌ للسائقِ ولا يُبدَّلُ هذا.
+ * يُتوقع أن يستخدمه لاحقاً: دورٌ ثالثٌ يفتحُ تذكرةً — يُسمّى منفذُه من
+ *   `SupportTicketStore` ولا يُنسَخُ عقدٌ ثالثٌ.
+ *
+ * ## ما زِيدَ في `F3-08` — منفذُ السائقِ **اسمٌ على عقدٍ واحدٍ**
+ *
+ * `SupportTicketStore<C>` هوَ العقدُ، والدورُ **مُعامَلُ صنفٍ** فيه؛ ومنفذُ كلِّ
+ * دورٍ اسمٌ له. ولو كُتِبَ للسائقِ عقدٌ ثانٍ مُطابِقٌ لَافترقَ توقيعُ `listTickets`
+ * بينَ دورَينِ عندَ أوّلِ زيادةٍ. **و`RiderSupportStore` لم يُمَسَّ معناه**: هوَ
+ * اليومَ اسمٌ لِما كانَ يُكتَبُ بيدِه حرفاً (`ح-8`).
  * الحاكم: docs/adr/0114-a-support-ticket-is-a-spoken-reference-not-a-uuid.md
  *
  * ## لماذا رفضُ القاعدةِ **مجالٌ مغلقٌ** ههنا لا نصٌّ يمرُّ
@@ -22,12 +30,14 @@
  *   ــ **لا يقرأُ جلسةً**: `MiniAppSessionReader` منفذٌ قائمٌ لا يُنسَخُ.
  */
 
+import type { DriverSupportCategory } from "../../domain/support/driver-support.ts";
+import type { RiderSupportCategory } from "../../domain/support/rider-support.ts";
 import type {
-  OpenedSupportTicket,
-  RiderSupportCategory,
-  RiderSupportPage,
+  OpenedSupportTicketOf,
   SupportTicketCursor,
-} from "../../domain/support/rider-support.ts";
+  SupportTicketsPage,
+  SupportTicketType,
+} from "../../domain/support/ticket-types.ts";
 import type { Result } from "../../shared/result/index.ts";
 
 /**
@@ -64,19 +74,33 @@ export function isSupportRejection(error: SupportStoreError): error is SupportRe
   return "rejection" in error;
 }
 
-export interface RiderSupportStore {
+/**
+ * عقدُ مخزنِ تذاكرَ لدورٍ واحدٍ — **الكتابةُ بمجالِ الدورِ** (`C`)
+ * **والقراءةُ بمجالِ النوعِ كلِّه** (`SupportTicketsPage`)، بالعِلّةِ المكتوبةِ
+ * في `packages/domain/support/ticket-types.ts`.
+ */
+export interface SupportTicketStore<C extends SupportTicketType> {
   /** **يكتبُ**: تذكرةٌ وسجلُّ تدقيقٍ في معاملةِ القاعدةِ نفسِها. */
   openTicket(input: {
     readonly telegramUserId: string;
-    readonly category: RiderSupportCategory;
+    readonly category: C;
     readonly message: string;
     readonly orderId: string | null;
-  }): Promise<Result<OpenedSupportTicket, SupportStoreError>>;
+  }): Promise<Result<OpenedSupportTicketOf<C>, SupportStoreError>>;
 
   /** **يقرأُ ولا يكتبُ** — صفحةٌ بترقيمِ مفتاحٍ. */
   listTickets(input: {
     readonly telegramUserId: string;
     readonly limit: number;
     readonly cursor: SupportTicketCursor | null;
-  }): Promise<Result<RiderSupportPage, SupportStoreError>>;
+  }): Promise<Result<SupportTicketsPage, SupportStoreError>>;
 }
+
+export type RiderSupportStore = SupportTicketStore<RiderSupportCategory>;
+
+/**
+ * منفذُ السائقِ — يُنفَّذُ بدالّتَي القاعدةِ `open_support_ticket` (بأصنافِ
+ * السائقِ) و`driver_support_tickets`. ورفضُ `NOT_A_DRIVER` **كانَ في المجالِ
+ * أصلاً** فلم يُزَدْ رمزٌ.
+ */
+export type DriverSupportStore = SupportTicketStore<DriverSupportCategory>;

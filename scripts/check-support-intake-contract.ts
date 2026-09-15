@@ -5,7 +5,8 @@
  * الحالة: منفَّذٌ فعليّاً — البند `F2-12`.
  * ينتمي إلى: scripts
  * يُستخدم من: `bun run check:support-intake` وسلسلةُ `ci` وخطوةٌ مُسمّاةٌ في CI.
- * يُتوقع أن يستخدمه لاحقاً: `SD-10` يُضيفُ مِلفّاتَه إلى `SURFACE_FILES`.
+ * زِيدَ في: البند `F3-08` · `SD-10` — يقرأُ مِلفّاتَ الدورَينِ وهجراتِ الدعمِ كلَّها.
+ * يُتوقع أن يستخدمه لاحقاً: أيُّ دورٍ ثالثٍ — يُزادُ في `SUPPORT_ROLES`.
  * الحاكم: docs/adr/0114-a-support-ticket-is-a-spoken-reference-not-a-uuid.md
  *
  * ولماذا القراءةُ ههنا والحكمُ في `lib`: كي يُقاسَ الحكمُ بمدخلاتٍ مصنوعةٍ —
@@ -15,11 +16,12 @@
 import { readFileSync } from "node:fs";
 import { blankComments } from "./lib/blank-comments.ts";
 import {
-  CATEGORIES,
   ERROR_CODES,
   REFERENCE_PATTERN,
   STATUSES,
+  SUPPORT_ROLES,
   SUPPORT_SQL_FILE,
+  SUPPORT_SQL_FILES,
   SURFACE_FILES,
   type SupportIntakeContractInput,
   supportIntakeContractProblems,
@@ -47,11 +49,15 @@ export function readRepository(): SupportIntakeContractInput {
     translations[language] = readJson(path);
   }
 
+  const sqlByPath: Record<string, string> = {};
+  for (const path of SUPPORT_SQL_FILES) sqlByPath[path] = readFileSync(path, "utf8");
+
   return {
     surface,
     sql: readFileSync(SUPPORT_SQL_FILE, "utf8"),
+    sqlByPath,
     translations,
-    categories: CATEGORIES,
+    roles: SUPPORT_ROLES,
     statuses: STATUSES,
     errorCodes: ERROR_CODES,
     referencePattern: REFERENCE_PATTERN,
@@ -64,8 +70,10 @@ if (import.meta.main) {
   if (problems.length === 0) {
     console.log(
       `حاجزُ عقدِ سطحِ الدعمِ: نجحَ — ${SURFACE_FILES.length} مِلفَّ سطحٍ، ` +
-        `و${CATEGORIES.length} صنفاً و${STATUSES.length} حالةً و${ERROR_CODES.length} رمزَ عطبٍ ` +
-        `بنصوصِها الثلاثةِ، وسبعُ قواعدَ مقيسةً: لا رمزَ بلا نصٍّ، ولا مفتاحَ بلا مقابلٍ، ` +
+        `و${SUPPORT_ROLES.length} دورَ فتحٍ (${SUPPORT_ROLES.map((r) => r.keyPrefix).join(" · ")})، ` +
+        `و${SUPPORT_ROLES.reduce((n, r) => n + r.selectable.length + r.readOnly.length, 0)} صنفاً ` +
+        `و${STATUSES.length} حالةً و${ERROR_CODES.length} رمزَ عطبٍ ` +
+        `بنصوصِها الثلاثةِ، و${SUPPORT_SQL_FILES.length} هجرةَ دعمٍ، وسبعُ قواعدَ مقيسةً: لا رمزَ بلا نصٍّ، ولا مفتاحَ بلا مقابلٍ، ` +
         `وسقوطٌ للمجهولِ، ومرجعٌ منطوقٌ من متسلسلةٍ، ويُعرَضُ في الشاشةِ، ` +
         `ولا بابَ إرفاقٍ صوريَّ، ولا دالّةَ بلا نزعِ تنفيذٍ.`,
     );
