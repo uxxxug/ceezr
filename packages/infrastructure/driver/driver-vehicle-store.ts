@@ -57,30 +57,30 @@ function readDate(value: unknown): string | null {
 function rowToVehicle(row: unknown): DriverVehicle | null {
   if (!isRecord(row)) return null;
   return {
-    vehicleType: readText(row["vehicle_type"]),
-    plateNumber: readText(row["plate_number"]),
-    vehicleYear: readInt(row["vehicle_year"]),
-    logoObjectPath: readText(row["logo_object_path"]),
-    barcodeObjectPath: readText(row["barcode_object_path"]),
+    vehicleType: readText(row.vehicle_type),
+    plateNumber: readText(row.plate_number),
+    vehicleYear: readInt(row.vehicle_year),
+    logoObjectPath: readText(row.logo_object_path),
+    barcodeObjectPath: readText(row.barcode_object_path),
     registration:
-      row["registration_status"] || row["registration_expires_at"]
+      row.registration_status || row.registration_expires_at
         ? {
-            status: readText(row["registration_status"]),
-            expiresAt: readDate(row["registration_expires_at"]),
+            status: readText(row.registration_status),
+            expiresAt: readDate(row.registration_expires_at),
           }
         : null,
     insurance:
-      row["insurance_status"] || row["insurance_expires_at"]
+      row.insurance_status || row.insurance_expires_at
         ? {
-            status: readText(row["insurance_status"]),
-            expiresAt: readDate(row["insurance_expires_at"]),
+            status: readText(row.insurance_status),
+            expiresAt: readDate(row.insurance_expires_at),
           }
         : null,
     inspection:
-      row["inspection_status"] || row["inspection_expires_at"]
+      row.inspection_status || row.inspection_expires_at
         ? {
-            status: readText(row["inspection_status"]),
-            expiresAt: readDate(row["inspection_expires_at"]),
+            status: readText(row.inspection_status),
+            expiresAt: readDate(row.inspection_expires_at),
           }
         : null,
   };

@@ -54,7 +54,8 @@ async function seedDriver(telegramId: number): Promise<{ userId: string; driverI
       vehicle_type = 'sedan', plate_number = 'ABC-1234', vehicle_year = 2020
     returning id
   `;
-  return { userId, driverId: driver!.id };
+  if (!driver) throw new Error("seedDriver: failed to insert driver");
+  return { userId, driverId: driver.id };
 }
 
 async function seedDocument(

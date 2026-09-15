@@ -171,20 +171,14 @@ $$;
 -- ── ٥) إعدادُ `vehicle_logo_max_bytes` لكلِّ مدينةٍ ─────────────────────────
 -- سقفُ حجمِ مِلفِّ الشعارِ والباركودِ — إعدادُ مدينةٍ لا ثابتٌ في شيفرةٍ.
 
-insert into platform_settings (city_id, key, value)
-select c.id, 'vehicle_logo_max_bytes', '1048576'
-from cities c
-where not exists (
-  select 1 from platform_settings ps
-  where ps.city_id = c.id and ps.key = 'vehicle_logo_max_bytes'
-)
-on conflict do nothing;
+insert into platform_settings (city_id, key, value, value_type, description_ar)
+select c.id, 'vehicle_logo_max_bytes', to_jsonb(1048576::integer), 'number',
+       'حدُّ حجمِ مِلفِّ شعارِ المركبةِ بالبايت'
+  from cities c
+on conflict (city_id, key) do nothing;
 
-insert into platform_settings (city_id, key, value)
-select c.id, 'vehicle_logo_allowed_content_types', 'image/png,image/jpeg'
-from cities c
-where not exists (
-  select 1 from platform_settings ps
-  where ps.city_id = c.id and ps.key = 'vehicle_logo_allowed_content_types'
-)
-on conflict do nothing;
+insert into platform_settings (city_id, key, value, value_type, description_ar)
+select c.id, 'vehicle_logo_allowed_content_types', to_jsonb(array['image/png','image/jpeg']), 'array',
+       'أنواعُ المحتوى المسموحُ بها لشعارِ المركبةِ'
+  from cities c
+on conflict (city_id, key) do nothing;
