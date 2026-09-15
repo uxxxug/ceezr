@@ -2823,3 +2823,264 @@ a {
   line-height: 1.6;
   color: var(--tg-subtitle-text-color);
 }
+
+/* ── لوحُ عروضِ السائقِ وتفاصيلُ عرضٍ (`F3-02` · `SD-03` · `SD-04`) ───────────
+   والفرقُ عن لوحِ الوثائقِ فرقُ **زمنٍ لا ذوقٍ**: هذه شاشةٌ يُقرأُ فيها رقمٌ
+   يتغيّرُ كلَّ ثانيةٍ ويُتَّخَذُ عليه قرارٌ في ثوانٍ، فالمؤقّتُ أكبرُ خطّاً من
+   كلِّ ما حولَه، ونغمتُه تنتقلُ من هادئةٍ إلى مُلِحّةٍ إلى منقضيةٍ. */
+.dof {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.dof__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.dof__headline {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  font-weight: 600;
+}
+
+.dof__loading {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* مبدّلُ التوفُّرِ في صفٍّ واحدٍ: الحالُ يُقرأُ والزرُّ يُبدِّلُ، ولا يُقرأُ
+   الزرُّ حالاً كي لا يُظَنَّ أنَّ ما فيه هوَ الواقعُ لا المطلوبُ. */
+.dof__availability {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.75rem;
+  background: var(--tg-section-bg-color);
+}
+
+.dof__availability-state {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dof__availability-toggle {
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dof__availability-toggle:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* سببُ الحجبِ **أوّلُ ما يُقرأُ**: بغيرِه تُقرأُ قائمةٌ فارغةٌ سوقاً هادئاً. */
+.dof__blocks {
+  margin: 0;
+  padding: 0.7rem 1.1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--tg-destructive-text-color, #f87171);
+  background: var(--tg-secondary-bg-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dof__block {
+  font-size: 0.92rem;
+  line-height: 1.65;
+  color: var(--tg-destructive-text-color, #f87171);
+}
+
+.dof__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.dof__item {
+  padding: 0.8rem;
+  border-radius: 0.75rem;
+  background: var(--tg-section-bg-color);
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.dof__item-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.dof__service {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* المؤقّتُ **أرقامٌ لا تتراقصُ**: خطٌّ ثابتُ العرضِ كي لا يتزحزحَ السطرُ كلَّ
+   ثانيةٍ، فحركةُ النصِّ تحتَ العينِ تُقرأُ عطلاً لا عدّاً. */
+.dof__timer {
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dof__timer--calm {
+  background: rgb(56 189 248 / 18%);
+  color: var(--tg-accent-text-color, #38bdf8);
+}
+
+/* الإلحاحُ يُصفَّرُ لا يُحمَّرُ: الأحمرُ في هذا المستودعِ لغةُ **منعٍ** لا لغةُ
+   عجلةٍ، وعرضٌ باقٍ عشرَ ثوانٍ ما زالَ مقبولاً. */
+.dof__timer--urgent {
+  background: rgb(250 204 21 / 20%);
+  color: #facc15;
+}
+
+.dof__timer--elapsed {
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-subtitle-text-color);
+  border: 1px solid var(--tg-hint-color, #94a3b8);
+}
+
+.dof__place,
+.dof__status,
+.dof__round,
+.dof__notes {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* الإحداثيّتانِ نصٌّ تقنيٌّ يُنقَلُ إلى تطبيقِ خريطةٍ باليدِ حتّى تُبنى الخريطةُ
+   (دَينٌ مُعلَنٌ): يُصغَّرُ خطُّه ويُثبَّتُ عرضُ رقمِه فيُقرأُ ويُنسَخُ. */
+.dof__coords {
+  margin: 0;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--tg-subtitle-text-color);
+}
+
+.dof__distance {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* غيابُ القياسِ يُقالُ **بخطٍّ مائلٍ** كي لا يُقرأَ رقماً: سطرٌ يقولُ «غيرُ
+   متاحةٍ» بنفسِ هيئةِ سطرٍ فيه رقمٌ يُخدَعُ به الطرفُ. */
+.dof__distance--absent {
+  font-style: italic;
+}
+
+/* الوسمُ **لا يُصغَّرُ حتّى يختفيَ**: «خطٌّ مستقيمٌ» شرطُ صدقِ الرقمِ لا حاشيةٌ. */
+.dof__distance-kind {
+  font-weight: 600;
+}
+
+.dof__actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* القبولُ **أعرضُ الأزرارِ**: الفعلُ المقصودُ من الشاشةِ لا يُساوى بجارِه. */
+.dof__accept {
+  flex: 1 1 auto;
+  padding: 0.65rem 1.1rem;
+  border: none;
+  border-radius: 0.7rem;
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dof__accept:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dof__open,
+.dof__reject,
+.dof__refresh,
+.dof__retry,
+.dof__back {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.dof__reject:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dof__closed,
+.dof__lost {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* الظَفَرُ بالطلبِ **يُقرأُ من بعيدٍ**: أخضرُ وإطارٌ، فهوَ الجوابُ الذي انتظرَه. */
+.dof__won {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.7rem;
+  border: 1px solid #22c55e;
+  background: rgb(34 197 94 / 12%);
+  font-size: 0.95rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.dof__error {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #f87171);
+}
+
+.dof__debt {
+  margin: 0;
+  padding-top: 0.6rem;
+  padding-inline-start: 1.1rem;
+  border-top: 1px solid var(--tg-hint-color, #999);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dof__debt-item {
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color);
+}

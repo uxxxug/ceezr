@@ -1,0 +1,337 @@
+/**
+ * الغرض: محوّلُ عروضِ السائقِ على PostgreSQL — نداءُ الدوالِّ الثلاثِ وقراءةُ
+ *   حمولتِها **بلا افتراضٍ** (`F3-02` · `SD-03` · `SD-04`).
+ * الحالة: منفَّذٌ فعليّاً — البند `F3-02`.
+ * ينتمي إلى: infrastructure/driver
+ * يُستخدم من: `apps/gateway/src/index.ts` عبرَ حقنِ التبعياتِ.
+ * يُتوقع أن يستخدمه لاحقاً: `SD-05` — قراءةُ الرحلةِ النشطةِ للسائقِ تُضافُ
+ *   طريقةً ههنا، فلا محوِّلَ ثانياً للسائقِ على القاعدةِ نفسِها.
+ * الحاكم: docs/adr/0117-a-countdown-is-a-server-fact-and-an-acceptance-has-one-writer.md
+ *
+ * ## لِمَ المسافةُ تُقرأُ **موسومةً أو معدومةً** ولا رقماً
+ *
+ * `order_offers.distance_km` قد يكونُ `null` (صفٌّ كُتِبَ بلا قياسٍ)، و«صفرُ
+ * مترٍ» تُقرأُ «أنتَ عندَ الراكبِ» — وهيَ كذبةٌ لا يُصلِحُها تنسيقٌ في الشاشةِ.
+ * فما لا يُقاسُ يُنقَلُ `null` وينتهي الأمرُ عندَ حدِّه (`ADR 0023`).
+ *
+ * ## ولِمَ حمولةٌ ناقصةٌ **عطبٌ لا صفٌّ ناقصٌ**
+ *
+ * دالّةٌ قالَت `ok: true` ثمَّ غابَ عنها `server_time` **ليسَت نصفَ جوابٍ**:
+ * لوحٌ بلا لحظةِ خادمٍ يجعلُ العدَّ التنازليَّ ساعةَ جهازٍ — وهوَ عينُ ما مُنِعَ.
+ * فتُردُّ `MALFORMED_RESULT` ويُقرأُ `503`، ولا تُخترَعُ لحظةٌ ههنا.
+ *
+ * ## وما لا يفعلُه هذا المحوّلُ عن قصدٍ — (`ح-5`)
+ *
+ *   ــ **لا يُركِّبُ SQL نصّاً**: مُعامَلاتٌ مُمرَّرةٌ، والمعرّفُ يُفحَصُ رقميّاً
+ *      قبلَ إرسالِه إلى `bigint`.
+ *   ــ **لا يُصنِّفُ عطبَ شبكةٍ رفضاً**: استثناءٌ = `STORE_ERROR` = `503`.
+ *   ــ **لا يقفلُ صفّاً ولا يُحدِّثُ حالةً**: القبولُ نداءُ `driver_accept_offer`
+ *      التي تُفوِّضُ إلى `claim_ride` — **ولا `update` ههنا ألبتّةَ**.
+ *   ــ **لا يقرأُ هويّةَ راكبٍ**: لا يُطلَبُ ولا يُنشَرُ.
+ */
+
+import type {
+  DriverOfferStore,
+  DriverOfferStoreError,
+  DriverOfferStoreRejection,
+} from "../../application/driver/offer-ports.ts";
+import {
+  type DriverOfferBoard,
+  type DriverOfferCard,
+  type DriverOfferClaim,
+  type DriverOfferDetail,
+  type DriverOfferPlace,
+  isDriverOfferStatus,
+  isDriverOrderStatus,
+  isServiceType,
+} from "../../domain/driver/driver-offers.ts";
+import type { TaggedDistance } from "../../domain/quote/distance-kind.ts";
+import { err, ok, type Result } from "../../shared/result/index.ts";
+import type { Sql } from "../db/client.ts";
+
+/** مجالُ الرفضِ المغلقُ — يُقابِلُ رموزَ الدوالِّ الثلاثِ و`claim_ride` حرفاً. */
+const REJECTIONS: readonly DriverOfferStoreRejection[] = [
+  "USER_NOT_FOUND",
+  "NOT_A_DRIVER",
+  "OFFER_NOT_FOUND",
+  "ORDER_NOT_CLAIMABLE",
+  "OFFER_NOT_VALID",
+  "CITY_MISMATCH",
+  "CLAIM_REFUSED",
+];
+
+function failed(reason: "STORE_ERROR" | "MALFORMED_RESULT"): DriverOfferStoreError {
+  return { reason } as const;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readText(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readInteger(value: unknown): number | null {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
+function readNumber(value: unknown): number | null {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readInstant(value: unknown): string | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  const text = readText(value);
+  if (text === null) return null;
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+/** كما في `driver-documents-store.ts`: لا نصَّ غيرَ رقميٍّ يُرسَلُ إلى `bigint`. */
+function asTelegramId(value: string): string | null {
+  return /^[0-9]{1,19}$/.test(value) ? value : null;
+}
+
+function rejectionFrom(payload: Record<string, unknown>): DriverOfferStoreError {
+  const code = readText(payload.error);
+  if (code === null || !(REJECTIONS as readonly string[]).includes(code)) {
+    return failed("MALFORMED_RESULT");
+  }
+  return { rejection: code as DriverOfferStoreRejection };
+}
+
+/**
+ * المسافةُ الموسومةُ. و**الوسمُ يُقرأُ ولا يُفترَضُ**: حمولةٌ فيها أمتارٌ بلا
+ * صنفٍ حمولةٌ فاسدةٌ — لأنَّ صنفاً مفروضاً في المحوِّلِ يجعلُ يومَ إضافةِ
+ * `ROUTE` كلَّ مسافةٍ «مستقيمةً» بحكمِ سطرٍ قديمٍ.
+ */
+function readTaggedDistance(value: unknown): TaggedDistance | null | "malformed" {
+  if (value === null || value === undefined) return null;
+  if (!isRecord(value)) return "malformed";
+  if (value.kind !== "STRAIGHT_LINE") return "malformed";
+  const meters = readNumber(value.meters);
+  if (meters === null || meters < 0) return "malformed";
+  return { kind: "STRAIGHT_LINE", meters };
+}
+
+function readPlace(value: unknown): DriverOfferPlace | null {
+  if (!isRecord(value)) return null;
+  const latitude = readNumber(value.latitude);
+  const longitude = readNumber(value.longitude);
+  if (latitude === null || longitude === null) return null;
+  return {
+    label: typeof value.label === "string" ? value.label : null,
+    latitude,
+    longitude,
+  };
+}
+
+function readOfferCard(value: unknown): DriverOfferCard | null {
+  if (!isRecord(value)) return null;
+  const offerId = readText(value.offer_id);
+  const orderId = readText(value.order_id);
+  const round = readInteger(value.round);
+  const secondsLeft = readInteger(value.seconds_left);
+  const service = value.service;
+  if (
+    offerId === null ||
+    orderId === null ||
+    round === null ||
+    secondsLeft === null ||
+    secondsLeft < 0 ||
+    !isServiceType(service)
+  ) {
+    return null;
+  }
+  const riderDistance = readTaggedDistance(value.rider_distance);
+  const tripDistance = readTaggedDistance(value.trip_distance);
+  if (riderDistance === "malformed" || tripDistance === "malformed") return null;
+  return {
+    offerId,
+    orderId,
+    round,
+    service,
+    secondsLeft,
+    riderDistance,
+    tripDistance,
+    pickupLabel: typeof value.pickup_label === "string" ? value.pickup_label : null,
+    dropoffLabel: typeof value.dropoff_label === "string" ? value.dropoff_label : null,
+  };
+}
+
+function readBlockReasons(value: unknown): readonly string[] | null {
+  if (!Array.isArray(value)) return null;
+  const reasons: string[] = [];
+  for (const item of value) {
+    const text = readText(item);
+    // سببٌ لا يُقرأُ نصّاً **يُهمَلُ من التسميةِ ولا يُبطِلُ الحجبَ**: الحجبُ
+    // قائمٌ بـ`is_blocked` سواءٌ فُهِمَ اسمُه أم لا.
+    if (text !== null) reasons.push(text);
+  }
+  return reasons;
+}
+
+interface ResultRow {
+  readonly result: unknown;
+}
+
+export class PostgresDriverOfferStore implements DriverOfferStore {
+  readonly #sql: Sql;
+
+  constructor(sql: Sql) {
+    this.#sql = sql;
+  }
+
+  async readBoard(input: {
+    readonly telegramUserId: string;
+  }): Promise<Result<DriverOfferBoard, DriverOfferStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+
+    let rows: ResultRow[];
+    try {
+      rows = await this.#sql<ResultRow[]>`
+        select driver_offer_board(${telegramId}::bigint) as result`;
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+
+    const payload = rows[0]?.result;
+    if (!isRecord(payload)) return err(failed("MALFORMED_RESULT"));
+    if (payload.ok !== true) return err(rejectionFrom(payload));
+
+    const serverTime = readInstant(payload.server_time);
+    const blockReasons = readBlockReasons(payload.block_reasons);
+    if (
+      serverTime === null ||
+      blockReasons === null ||
+      typeof payload.is_available !== "boolean" ||
+      typeof payload.is_blocked !== "boolean" ||
+      !Array.isArray(payload.offers)
+    ) {
+      return err(failed("MALFORMED_RESULT"));
+    }
+
+    const offers: DriverOfferCard[] = [];
+    for (const item of payload.offers) {
+      const card = readOfferCard(item);
+      // بطاقةٌ لا تُقرأُ **تُسقِطُ اللوحَ كلَّه**: عرضٌ مُهمَلٌ صامتاً عملٌ
+      // يفوتُ سائقاً بلا أن يعلمَ أحدٌ، وذاكَ أسوأُ من عطبٍ مُعلَنٍ.
+      if (card === null) return err(failed("MALFORMED_RESULT"));
+      offers.push(card);
+    }
+
+    return ok({
+      serverTime,
+      isAvailable: payload.is_available,
+      availabilityChangedAt:
+        payload.availability_changed_at === null
+          ? null
+          : readInstant(payload.availability_changed_at),
+      isBlocked: payload.is_blocked,
+      blockReasons,
+      offers,
+    });
+  }
+
+  async readDetail(input: {
+    readonly telegramUserId: string;
+    readonly offerId: string;
+  }): Promise<Result<DriverOfferDetail, DriverOfferStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+
+    let rows: ResultRow[];
+    try {
+      rows = await this.#sql<ResultRow[]>`
+        select driver_offer_detail(${telegramId}::bigint, ${input.offerId}::uuid) as result`;
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+
+    const payload = rows[0]?.result;
+    if (!isRecord(payload)) return err(failed("MALFORMED_RESULT"));
+    if (payload.ok !== true) return err(rejectionFrom(payload));
+
+    const serverTime = readInstant(payload.server_time);
+    const offerId = readText(payload.offer_id);
+    const orderId = readText(payload.order_id);
+    const round = readInteger(payload.round);
+    const secondsLeft = readInteger(payload.seconds_left);
+    const pickup = readPlace(payload.pickup);
+    const riderDistance = readTaggedDistance(payload.rider_distance);
+    const tripDistance = readTaggedDistance(payload.trip_distance);
+    const dropoff = payload.dropoff === null ? null : readPlace(payload.dropoff);
+    if (
+      serverTime === null ||
+      offerId === null ||
+      orderId === null ||
+      round === null ||
+      secondsLeft === null ||
+      secondsLeft < 0 ||
+      pickup === null ||
+      riderDistance === "malformed" ||
+      tripDistance === "malformed" ||
+      (payload.dropoff !== null && dropoff === null) ||
+      !isServiceType(payload.service) ||
+      !isDriverOfferStatus(payload.offer_status) ||
+      !isDriverOrderStatus(payload.order_status) ||
+      typeof payload.is_claimable !== "boolean"
+    ) {
+      return err(failed("MALFORMED_RESULT"));
+    }
+
+    return ok({
+      serverTime,
+      offerId,
+      orderId,
+      round,
+      service: payload.service,
+      offerStatus: payload.offer_status,
+      orderStatus: payload.order_status,
+      secondsLeft,
+      isClaimable: payload.is_claimable,
+      pickup,
+      dropoff,
+      riderDistance,
+      tripDistance,
+      notes: typeof payload.notes === "string" ? payload.notes : null,
+    });
+  }
+
+  async accept(input: {
+    readonly telegramUserId: string;
+    readonly offerId: string;
+  }): Promise<Result<DriverOfferClaim, DriverOfferStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+
+    let rows: ResultRow[];
+    try {
+      rows = await this.#sql<ResultRow[]>`
+        select driver_accept_offer(${telegramId}::bigint, ${input.offerId}::uuid) as result`;
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+
+    const payload = rows[0]?.result;
+    if (!isRecord(payload)) return err(failed("MALFORMED_RESULT"));
+    if (payload.ok !== true) return err(rejectionFrom(payload));
+
+    const orderId = readText(payload.order_id);
+    if (orderId === null) return err(failed("MALFORMED_RESULT"));
+    return ok({
+      orderId,
+      // لحظةُ المطابقةِ من القاعدةِ — وغيابُها **يُقالُ عَدَماً** ولا يُستبدَلُ
+      // بساعةِ العمليّةِ: ختمٌ من ساعتَينِ مختلفتَينِ في سجلٍّ واحدٍ كذبٌ لطيفٌ.
+      matchedAt: readInstant(payload.matched_at),
+    });
+  }
+}

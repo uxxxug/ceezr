@@ -18,6 +18,7 @@ import {
   createDestinationSearcher,
 } from "../../../packages/infrastructure/destinations/destinations-store.ts";
 import { PostgresDriverDocumentStore } from "../../../packages/infrastructure/driver/driver-documents-store.ts";
+import { PostgresDriverOfferStore } from "../../../packages/infrastructure/driver/driver-offers-store.ts";
 import {
   createPaymentProvider,
   createPaymentRepository,
@@ -834,6 +835,27 @@ const driverDocuments =
         };
       })();
 
+/**
+ * عروضُ السائقِ (`F3-02`) — **ثلاثةُ منافذٍ لخمسةِ مساراتٍ**: مخزنُ قاعدةٍ
+ * جديدٌ للقراءةِ والقبولِ، و**منفذانِ قائمانِ كما هما** للرفضِ والتوفُّرِ
+ * (`container.driverOffers`) لأنَّ لكلِّ انتقالٍ كاتباً واحداً (القاعدة 0.6). وغيابُ سرِّ
+ * الجلسةِ **يُسقِطُ السطحَ كلَّه**: مسارُ قبولٍ بلا رمزٍ موقَّعٍ يعني أنَّ من
+ * عرفَ معرِّفَ عرضٍ أخذَ رحلةَ غيرِه.
+ */
+const driverOffers =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        offers: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          store: new PostgresDriverOfferStore(container.sql),
+          drivers: container.driverOffers.drivers,
+          offers: container.driverOffers.decisions,
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -944,6 +966,7 @@ const app = createServer({
   ...(dataRights === undefined ? {} : { dataRights }),
   ...(support === undefined ? {} : { support }),
   ...(driverDocuments === undefined ? {} : { driverDocuments }),
+  ...(driverOffers === undefined ? {} : { driverOffers }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
