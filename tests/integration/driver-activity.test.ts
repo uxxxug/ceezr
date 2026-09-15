@@ -133,6 +133,19 @@ const snapshots = new Map<string, SettingSnapshot>();
 async function snapshotSetting(key: string): Promise<SettingSnapshot> {
   const existing = snapshots.get(key);
   if (existing !== undefined) return existing;
+  const snapshot = await readSetting(key);
+  snapshots.set(key, snapshot);
+  return snapshot;
+}
+
+/**
+ * القيمةُ **كما هيَ الآنَ** بلا تذكيرٍ — تُفرَدُ عن `snapshotSetting` لأنَّ للذاكرةِ
+ * معنىً واحداً: **حالُ الملفِّ قبلَ أن يمسَّه**. فمَن يُبدِّلُ إعداداً لفحصٍ واحدٍ
+ * يُرجِعُ ما كانَ **لحظةَ ندائِه** لا ما كانَ في مطلعِ الملفِّ — والخلطُ بينَهما
+ * قِيسَ لا نُظِرَ: تثبيتُ منطقةِ الزمنِ في `beforeAll` كانَ يُمحى بـ`finally` في
+ * الفحصِ الرابعِ، فتعودُ النافذةُ إلى منطقةٍ تُقاسُ بها ساعةُ الحائطِ.
+ */
+async function readSetting(key: string): Promise<SettingSnapshot> {
   const [row] = await sql<{ text: string; value_type: string }[]>`
     select value #>> '{}' as text, value_type
       from platform_settings
@@ -147,7 +160,6 @@ async function snapshotSetting(key: string): Promise<SettingSnapshot> {
     }
     snapshot = { key, text: row.text, valueType: row.value_type };
   }
-  snapshots.set(key, snapshot);
   return snapshot;
 }
 
@@ -195,13 +207,77 @@ async function withSetting<T>(
   valueType: "string" | "number",
   body: () => Promise<T>,
 ): Promise<T> {
-  const snapshot = await snapshotSetting(key);
+  // ذاكرةُ الحالِ الأوّلِ تُثبَّتُ (فيُرجَعَ في `afterAll`)، والمُرجَعُ ههنا
+  // **قيمةُ اللحظةِ** — لا حالُ المطلعِ ولا قيمةٌ «معقولةٌ» تُخترَعُ.
+  await snapshotSetting(key);
+  const current = await readSetting(key);
   await setSetting(key, value, valueType);
   try {
     return await body();
   } finally {
-    snapshots.set(key, snapshot);
-    await restoreSetting(snapshot);
+    await restoreSetting(current);
+  }
+}
+
+/**
+ * منطقةُ زمنٍ تجعلُ «الآنَ» **وسَطَ** يومِ المدينةِ — تُحسَبُ من ساعةِ القاعدةِ لا
+ * تُكتَبُ حرفاً. والفرقُ ليسَ ذوقاً: نافذةُ `day` تبدأُ عندَ منتصفِ ليلِ المدينةِ،
+ * فاختبارٌ يزرعُ صفّاً «قبلَ ساعتَينِ» ويقرأُ نافذةَ اليومِ **يقيسُ ساعةَ الحائطِ**
+ * لا الدالّةَ: يمرُّ نهاراً ويسقطُ بعدَ منتصفِ الليلِ.
+ *
+ * وقد دُفِعَ الثمنُ فعلاً: تثبيتُ `Asia/Riyadh` حرفاً أسقطَ فحصَينِ في CI عندَ
+ * ٢١:١٨Z (٠٠:١٨ بالرياضِ) — تواجدٌ قُصَّ إلى ١١٠٠ ثانيةً بدلَ ١٨٠٠، وصفٌّ من
+ * «قبلَ ساعتَينِ» سقطَ خارجَ اليومِ. والعلاجُ **تثبيتُ الحدِّ لا تخفيفُ الرقمِ**.
+ *
+ * وتُختارُ مناطقُ `Etc/GMT±N` قصداً: إزاحةٌ ثابتةٌ بلا توقيتٍ صيفيٍّ، فلا يقفزُ
+ * الحدُّ بينَ سطرَينِ من الملفِّ. وإشارتُها معكوسةٌ في POSIX: `Etc/GMT-3` هيَ
+ * UTC+3 — ولذا تُقاسُ الساعةُ المحليّةُ بعدَ التثبيتِ بدلَ الثقةِ بالاسمِ.
+ */
+async function middayCityTimezone(): Promise<string> {
+  const [row] = await sql<{ zone: string; local_hour: number }[]>`
+    with offsets as (
+      select 12 - extract(hour from (now() at time zone 'UTC'))::int as hours
+    ), named as (
+      select case
+               when hours = 0 then 'Etc/GMT'
+               when hours > 0 then 'Etc/GMT-' || hours::text
+               else 'Etc/GMT+' || (-hours)::text
+             end as zone
+        from offsets
+    )
+    select zone, extract(hour from (now() at time zone zone))::int as local_hour from named
+  `;
+  if (row === undefined) throw new Error("تعذّر حسابُ منطقةِ زمنٍ وسَطَ اليومِ");
+  if (row.local_hour !== 12) {
+    throw new Error(`منطقةٌ لا تجعلُ الآنَ وسَطَ اليومِ: ${row.zone} ⇒ ${String(row.local_hour)}`);
+  }
+  return row.zone;
+}
+
+/**
+ * يُثبِتُ أنَّ نافذةَ اليومِ **بعيدةٌ عن حدَّيها** بما يكفي لكلِّ زرعٍ نسبيٍّ في هذا
+ * الملفِّ (أقصاهُ ساعتانِ قبلَ الآنَ). ويُرمى الخطأُ في `beforeAll` لا في الفحصِ:
+ * شرطُ قياسٍ غيرُ محقَّقٍ **ليسَ إخفاقَ منتَجٍ**، فيُقرأُ بوصفِه ما هوَ.
+ */
+async function assertDayWindowFarFromBoundary(): Promise<void> {
+  const [row] = await sql<{ age_seconds: number; left_seconds: number }[]>`
+    with w as (
+      select driver_activity_window('day'::text, (select value #>> '{}'
+                                                    from platform_settings
+                                                   where city_id = ${cityId}
+                                                     and key = ${KEY_TIMEZONE}), now()) as win
+    )
+    select extract(epoch from (now() - (win->>'from')::timestamptz))::int as age_seconds,
+           extract(epoch from ((win->>'to')::timestamptz - now()))::int as left_seconds
+      from w
+  `;
+  const MIN_MARGIN_SECONDS = 4 * 3600;
+  if (row === undefined) throw new Error("لا نافذةَ يومٍ بعدَ تثبيتِ منطقةِ الزمنِ");
+  if (row.age_seconds < MIN_MARGIN_SECONDS || row.left_seconds < MIN_MARGIN_SECONDS) {
+    throw new Error(
+      `نافذةُ اليومِ قريبةٌ من حدٍّ: مضى ${String(row.age_seconds)}ث وبقيَ ` +
+        `${String(row.left_seconds)}ث — الزرعُ النسبيُّ لا يُقاسُ عليها`,
+    );
   }
 }
 
@@ -331,7 +407,9 @@ beforeAll(async () => {
 
   settingsDigestBefore = await settingsDigest();
   await snapshotSetting(KEY_TIMEZONE);
-  await setSetting(KEY_TIMEZONE, "Asia/Riyadh", "string");
+  // منطقةٌ محسوبةٌ لا مكتوبةٌ — النافذةُ تُثبَّتُ وسَطَ اليومِ فلا تُقاسُ ساعةُ الحائطِ.
+  await setSetting(KEY_TIMEZONE, await middayCityTimezone(), "string");
+  await assertDayWindowFarFromBoundary();
 });
 
 afterAll(async () => {

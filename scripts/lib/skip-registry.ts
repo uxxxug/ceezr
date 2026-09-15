@@ -570,6 +570,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/driver-vehicle.test.ts",
+    suites: ["F3-07 driver vehicle on real PostgreSQL"],
+    skipped: 13,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `F3-07` أنَّ لوحَ مركبةِ السائقِ **يَقرأُ بياناتِ المركبةِ ووثائقَها الثلاثَ في نداءٍ واحدٍ** من القاعدةِ، وأنَّ الملكيّةَ (`USER_NOT_FOUND`) من الدالّةِ لا من الطبقةِ. ولا يقيسُ ذلك حاجزٌ ساكنٌ ولا محرِّكٌ مُصنَّعٌ: أنَّ الدالّةَ `driver_vehicle` تُنفَّذُ على PostgreSQL حقيقيّةٍ وتُعيدُ البياناتِ من صفوفٍ لا من ثوابتَ، وأنَّ التحديثَ `update_driver_vehicle` يكتبُ ويُعيدُ القراءةُ ما كُتِبَ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها هجرةُ F3-07: 20260915170000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّيّاً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "توثيقُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-kyc-registration.test.ts",
     suites: ["تسجيل السائق: الملفّ التوثيقي"],
     skipped: 8,

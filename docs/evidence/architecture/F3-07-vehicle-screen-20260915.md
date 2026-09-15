@@ -1,0 +1,115 @@
+# دليلُ البندِ `F3-07` — مركبتي + الشعارُ والباركود (`SD-11`)
+
+الغرض: تسجيلُ ما بُنِيَ في البندِ `F3-07`، وما قِيسَ منه آلةً، وما لم يُقَسْ
+بعدُ — بلا ادّعاءِ إنتاجٍ لِما لم يُشغَّل على قاعدةٍ حقيقيّةٍ (`ح-٥`).
+الحالة: منفَّذٌ فعليّاً · 2026-09-15.
+ينتمي إلى: docs/evidence/architecture
+يُستخدم من: `docs/ROADMAP-MASTER.md` §25 · `docs/SYSTEM_STATE.md`.
+القرارُ الحاكمُ: `ADR 0028` (التطبيقُ المصغَّرُ هو المنتجُ) · `ADR 0094` (استقلالٌ).
+
+## ١) ما بُنِيَ
+
+| الطبقةُ | المِلفُّ | ما فيه |
+|---|---|---|
+| قاعدةٌ | `supabase/migrations/20260915170000_f3_07_driver_vehicle.sql` | `driver_vehicle(bigint)` · `update_driver_vehicle(bigint, text, text, int)` · `update_driver_vehicle_assets(bigint, text, text)` · ثلاثةُ أعمدةٍ جديدةٌ على `drivers` (`vehicle_year`، `logo_file_id`، `barcode_file_id`) · إعدادُ `vehicle_logo_size_kb` و`vehicle_barcode_size_kb` لكلِّ مدينةٍ |
+| نطاقٌ | `packages/domain/driver/driver-vehicle.ts` | `DriverVehicle` · `VehicleUpdateInput` · `VehicleDocument` · `VEHICLE_YEAR_MIN`/`MAX` · `validateVehicleYear` · `VEHICLE_TYPES` |
+| تطبيقٌ | `packages/application/driver/driver-vehicle.ts` | `readDriverVehicle` · `updateDriverVehicle` · `updateDriverVehicleAssets` · `DriverVehicleDeps` · ٧ رموزِ عطبٍ منشورةٍ |
+| منافذُ | `packages/application/driver/driver-vehicle-ports.ts` | `DriverVehicleStore` (قراءةٌ وتحديثٌ) |
+| بنيةٌ | `packages/infrastructure/driver/driver-vehicle-store.ts` | `PostgresDriverVehicleStore` — نداءُ الدوالِّ الثلاثِ · `asTelegramId` · تحويلُ الصفوفِ |
+| بابٌ | `apps/gateway/src/routes/driver-vehicle.ts` | `GET /v1/driver/vehicle` · `PATCH /v1/driver/vehicle` · `POST /v1/driver/vehicle/assets` · ٥٠٣ فشلًا مُغلقًا |
+| واجهةٌ | `apps/miniapp/src/surfaces/driver/vehicle/*` | `VehicleScreen.tsx` · `vehicle-api.ts` · `vehicle-contract.ts` · `vehicle-view.ts` |
+| ترجمةٌ | `packages/shared/i18n/miniapp/{ar,en,ur}.json` | ٤٩ مفتاحاً في كلِّ قاموسٍ (٩٠٥ ← ٩٥٤) |
+| أنماطٌ | `apps/miniapp/src/styles/global.css` | قواعدُ `dveh__*` كاملةٌ · بادئةُ `dveh` مُسجَّلةٌ في `DECLARED_BLOCKS` |
+| ربطٌ | `apps/gateway/src/index.ts` · `apps/gateway/src/server.ts` | تجميعُ `PostgresDriverVehicleStore` و`MiniAppSessionReader` · تسجيلُ المسارات |
+
+### إعادةُ استخدامِ البنية القائمة
+
+- أعمدةُ `vehicle_type` و`plate_number` موجودةٌ مسبقًا في `drivers` من الهجرةِ الأوليّةِ
+- `vehicle_photo_file_id` موجودٌ من `F3-01` (KYC) — لا حاجةَ لتكرارِه
+- `driver_documents` من `F3-01` يخدمُ وثائقَ `vehicle_registration` و`insurance` و`periodic_inspection`
+- بنيةُ الرفعِ الموقَّعِ (`SignedUploadConfig`) تُستخدمُ للشعارِ والباركود
+- `MiniAppSessionReader` من `packages/application/identity/ports.ts` يُعادُ استخدامُه للجلسةِ
+- نمطُ `openSession` يُحاكي ما في `driver-subscription.ts` من `F3-06`
+
+## ٢) ما قِيسَ منه آلةً
+
+| الفحصُ | المِلفُّ | النتيجةُ |
+|---|---|---|
+| عقدُ مركبةِ السائقِ | `scripts/check-driver-vehicle-contract.ts` · `tests/unit/check-driver-vehicle-contract.test.ts` | ٥ قواعدَ · ١٠ اختباراتِ زرعِ انحرافٍ — كلُّها خضراءُ |
+| النوعُ | `bun x tsc --noEmit` · `bun x tsc -p apps/miniapp/tsconfig.json --noEmit` | صفرُ أخطاء |
+| البناءُ | `bun run build:miniapp` | نجحَ في ٢.٠٦ ثانية |
+| اختباراتُ التكاملِ | `tests/integration/driver-vehicle.test.ts` | ١٣ اختبارًا — تتجاوزُ محليّاً بلا `TEST_DATABASE_URL`، تُشغَّلُ على CI |
+| سجلُّ التجاوزِ | `scripts/lib/skip-registry.ts` | `driver-vehicle.test.ts` مُسجَّلٌ: `criticalPath: "توثيقُ السائق"` · ١٣ متجاوزًا |
+| حرسُ الأصنافِ | `scripts/lib/css-class-coverage.ts` · `tests/unit/check-css-class-coverage.test.ts` | `dveh` مُسجَّلٌ · صفرُ خرقٍ |
+
+## ٣) ما لم يُقَسْ بَعد
+
+- اختباراتُ التكاملِ لا تُشغَّلُ محليّاً (بلا `TEST_DATABASE_URL`) — تُشغَّلُ على CI
+- الرّفعُ الفعليُّ للشعارِ والباركودِ عبرَ بوتِّ تلغرامَ لم يُختبَرْ يدويّاً
+- عرضُ الباركودِ كصورةٍ قابلةٍ للقراءةِ بالكاميرا لم يُختبَرْ على جهازٍ حقيقيٍّ
+
+## ٤) حكمُ CI الأوّلُ وما ردَّه (2026-09-15 · `ح-5` · `ح-8` · `ADR 0121`)
+
+[تشغيلُ 35005161181](https://github.com/uxxxug/ceezr/actions/runs/35005161181): أربعُ
+وظائفَ خضراءُ، و`تكامل على PostgreSQL حقيقي` **أحمرُ** على حالةٍ واحدةٍ:
+`Expected: "2027-01-01" · Received: undefined`.
+
+| الحلقةُ | ما جرى |
+|---|---|
+| العقدُ | `driver_vehicle` أعلنَ `registration/insurance/inspection_expires_at` نوعَها `date` |
+| السائقُ | `postgres.js` يُحوِّلُ `date` إلى `Date` عندَ منتصفِ ليلِ UTC |
+| المحوِّلُ | `readDate` عقدُها `string | null` فتقرأُ الكائنَ **عَدَماً** بلا خطأٍ |
+| الأثرُ في المنتَجِ | شاشةُ «مركبتي» تُخفي انتهاءَ رخصةِ السيرِ والتأمينِ والفحصِ — وهيَ سببُ الحجبِ (`ADR 0115`) |
+
+**العلاجُ**: العقدُ صارَ `text` بـ`to_char(x,'YYYY-MM-DD')`، والدرسُ صارَ حاجزاً
+(`scripts/check-date-only-boundary.ts` — ١٣٤ هجرةً) لا تعليقاً، وعشرُ حالاتِ وحدةٍ
+تزرعُ السالبةَ التي أسقطَت CI، وخطوتانِ في `verify`، و`ADR 0121` يحملُ القرارَ
+والبديلَ المرفوضَ.
+
+## ٥) ما صارَ مقيساً بعدَ أن كانَ مُتخطّى
+
+نُصِّبَ PostgreSQL 18 + PostGIS 3.6 في الصندوقِ، وطُبِّقَت **١٣٤ هجرةً** بـ
+`scripts/migrate.ts` (طريقُ CI نفسُه · `ADR 0068`):
+
+| ما جرى محليّاً على قاعدةٍ حقيقيّةٍ | النتيجةُ |
+|---|---|
+| `tests/integration/driver-vehicle.test.ts` | ٩ / ٩ خضراءُ (كانت تُتخطّى) |
+| `bun test tests/unit` | ٤١٤٨ / ٤١٤٨ خضراءُ |
+| `bun run lint` · `bun run typecheck` | صفرُ أخطاءٍ |
+| `bun run scripts/check-date-only-boundary.ts` | ١٣٤ هجرةً · صفرُ خرقٍ |
+| `tests/integration/migration-applier.test.ts` (`F7-07`) | أخفقَ بمهلةِ خُطّافٍ محليّاً — بيئةُ صندوقٍ وPG 18، والاختبارُ لم يُمَسَّ |
+
+والحكمُ الحاكمُ يبقى حكمَ CI (`ح-6`): خادمُه إصدارُ ١٧ لا ١٨.
+
+## ٦) حكمُ CI الثانِ: **تعليقٌ لا سقوطٌ** — وما صارَ بعدَه (`ADR 0122`)
+
+| ما قِيسَ | النتيجةُ |
+|---|---|
+| `verify` (بحاجزِ `ADR 0121` فيه) · Redis · فوضى · `roadmap` | خضراءُ |
+| `تكامل على PostgreSQL حقيقي` | **لا أخضرُ ولا أحمرُ**: `in_progress` > ساعةٍ (المعتادُ ≈ ٣ دقائقَ) |
+| سببُ التعليقِ (مقيسٌ) | `expect(sql`…`).rejects` — وسمٌ مُرجَأٌ فوعدٌ لا يُحسَمُ · الاتّصالُ `idle` في `pg_stat_activity` · مسحُ ١٠٢ ملفٍّ بمهلةٍ قسريّةٍ ردَّ `124` لملفٍّ واحدٍ |
+| `tests/integration/driver-vehicle.test.ts` بعدَ الإصلاحِ | **١٣ / ١٣ خضراءُ** والعمليّةُ تخرُجُ (٨٢ مِلّي) |
+| الحاجزُ الجديدُ على النصِّ **التاريخيِّ** (قبلَ الإصلاحِ) | خرقانِ في السطرَينِ ٢٣٢ و٢٣٨ — فالحاجزُ يقيسُ (`ح-7`) |
+| `bun test` كاملاً | **٤٥٣٨ ناجحةً · ٠ ساقطةً** |
+| سقوفُ الزمنِ في `ci.yml` | `verify` ٢٠ · التكاملُ ٢٥ · Redis ١٥ · فوضى ١٥ |
+
+والحكمُ الحاكمُ يبقى حكمَ CI على الدفعةِ الجديدةِ (`ح-6`)، ولا `[x]` قبلَه (`ح-4`).
+
+## ٧) الحكمُ الثالثُ — أحمرُ **يقولُ أينَ**، وعلاجٌ في القياسِ لا في المقيسِ (`ADR 0123`)
+
+[تشغيلُ 35024571423](https://github.com/uxxxug/ceezr/actions/runs/35024571423) على
+`8bc3f02`: `verify` أخضرُ (١م٥٦ث) · Redis أخضرُ · فوضى `F5-06` أخضرُ ·
+`Roadmap freshness` أخضرُ · **التكاملُ على PostgreSQL أحمرُ في ٢م٤٢ث** —
+`١٠٠٤ pass / ٢ fail / ١٠٠٦ tests across ١٠٣ files [145.13s]`، و
+`error: script "test:integration" exited with code 1`. فالوظيفةُ التي علَّقَت ساعةً في
+الحكمِ السابقِ **رَكَضَت إلى نهايتِها** وقالت موضعَ الخللِ: حاجزُ `ADR 0122` وسقفُه
+أدَّيا ما وُضِعا له.
+
+الساقطتانِ في `tests/integration/driver-activity.test.ts` — لا في ملفِّ `F3-07`:
+`١٩) نافذةٌ جاريةٌ` (توقَّعَ `> 1500` وقاسَ **١١٠٠**) و`٢٣) الجدولُ مرتَّبٌ بالأحدثِ`
+(توقَّعَ صفّينِ وقاسَ **واحداً**). والسببُ: الدورةُ عندَ **٢١:١٨Z = ٠٠:١٨ بالرياضِ**،
+ونافذةُ `day` تبدأُ عندَ منتصفِ ليلِ المدينةِ، والملفُّ يُثبِّتُ المنطقةَ حرفاً ويزرعُ
+صفوفاً نسبيّةً — فقُصَّ الرقمُ وسقطَ الصفُّ الأقدمُ. **أُعيدَ إنتاجُ العطبِ محليّاً**
+عندَ ٠٠:٣٢ بالرياضِ قبلَ أن يُمَسَّ حرفٌ، و**قِيسَ الأخضرُ** عندَ ٠٠:٤٠ بالرياضِ بعدَ
+العلاجِ: ٢٣ من ٢٣. والتفصيلُ في `ADR 0123`، والقاعدةُ مُنفَذةٌ حاجزاً على ٣٦٣ ملفَّ
+اختبارٍ. **ولم تُخفَّفْ الأرقامُ المتوقَّعةُ ولم يتغيّر حرفٌ من الهجرةِ.**

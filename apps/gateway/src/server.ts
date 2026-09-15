@@ -41,6 +41,10 @@ import {
   createDriverSubscriptionRoutes,
   type DriverSubscriptionRouteDependencies,
 } from "./routes/driver-subscription.ts";
+import {
+  createDriverVehicleRoutes,
+  type DriverVehicleRouteDependencies,
+} from "./routes/driver-vehicle.ts";
 import { createHealthRoutes, type HealthDependencies } from "./routes/health.ts";
 import { createMeRoutes, type MeDependencies } from "./routes/me.ts";
 import {
@@ -175,6 +179,7 @@ export interface ServerDependencies {
    * «لا اشتراكَ» في حينَ أنَّ الأسعارَ موجودةٌ في الإعداداتِ.
    */
   readonly driverSubscription?: DriverSubscriptionRouteDependencies;
+  readonly driverVehicle?: DriverVehicleRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
@@ -263,6 +268,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.driverSubscription !== undefined) {
     app.route("/", createDriverSubscriptionRoutes(deps.driverSubscription));
+  }
+  if (deps.driverVehicle !== undefined) {
+    app.route("/", createDriverVehicleRoutes(deps.driverVehicle));
   }
 
   if (deps.destinations !== undefined) {
