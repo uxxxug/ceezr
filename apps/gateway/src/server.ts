@@ -24,6 +24,7 @@ import {
   createDriverDocumentRoutes,
   type DriverDocumentRouteDependencies,
 } from "./routes/driver-documents.ts";
+import { createDriverJobRoutes, type DriverJobRouteDependencies } from "./routes/driver-job.ts";
 import {
   createDriverLocationRoutes,
   type DriverLocationDependencies,
@@ -146,6 +147,13 @@ export interface ServerDependencies {
    */
   readonly driverOffers?: DriverOfferRouteDependencies;
   /**
+   * مَهمّةُ السائقِ النشطةُ (`F3-03` / `SD-05`) — تُركَّبُ مع سرِّ الجلسةِ
+   * والقاعدةِ. وغيابُها **يُعلَنُ `503`** ولا يُجابُ بـ«لا مَهمّةَ لكَ»: سائقٌ
+   * في رحلةٍ يقرأُ الفراغَ إلغاءً فيُنزِلُ راكبَه في الطريقِ. **وهيَ سطحٌ
+   * منفصلٌ عن العروضِ** لأنَّ حقَّ المَهمّةِ حقُّ إسنادٍ لا حقُّ عرضٍ.
+   */
+  readonly driverJob?: DriverJobRouteDependencies;
+  /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
    * وحدَه. وغيابُه **لا يعطّلُ تصنيفَ الإشعاراتِ**: التصنيفُ في القاعدةِ يعملُ
    * سواءٌ رُكِّبَ هذا السطحُ أم لا، لأنَّ القرارَ الحرجَ لا يُترَكُ لسطحِ قراءةٍ
@@ -224,6 +232,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.driverOffers !== undefined) {
     app.route("/", createDriverOfferRoutes(deps.driverOffers));
+  }
+  if (deps.driverJob !== undefined) {
+    app.route("/", createDriverJobRoutes(deps.driverJob));
   }
 
   if (deps.destinations !== undefined) {

@@ -18,6 +18,7 @@ import {
   createDestinationSearcher,
 } from "../../../packages/infrastructure/destinations/destinations-store.ts";
 import { PostgresDriverDocumentStore } from "../../../packages/infrastructure/driver/driver-documents-store.ts";
+import { PostgresDriverJobStore } from "../../../packages/infrastructure/driver/driver-job-store.ts";
 import { PostgresDriverOfferStore } from "../../../packages/infrastructure/driver/driver-offers-store.ts";
 import {
   createPaymentProvider,
@@ -856,6 +857,25 @@ const driverOffers =
         log,
       };
 
+/**
+ * مَهمّةُ السائقِ النشطةُ (`F3-03`) — **منفذٌ واحدٌ لأربعةِ مساراتٍ**: مخزنٌ
+ * يقرأُ الطَورَ ويُنادي كاتبَه. و**لا منفذَ إخطارٍ ولا منفذَ موضعٍ ههنا**:
+ * الإخطارُ صندوقُ الصادرِ القائمُ، والبثُّ بندُ `F3-04`. وغيابُ سرِّ الجلسةِ
+ * **يُسقِطُ السطحَ كلَّه**: ختمُ وصولٍ بلا رمزٍ موقَّعٍ يعني أنَّ من عرفَ معرِّفَ
+ * طلبٍ ختمَ طَوراً في رحلةِ غيرِه.
+ */
+const driverJob =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        job: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          store: new PostgresDriverJobStore(container.sql),
+        },
+        log,
+      };
+
 const app = createServer({
   health: {
     now: () => new Date(),
@@ -967,6 +987,7 @@ const app = createServer({
   ...(support === undefined ? {} : { support }),
   ...(driverDocuments === undefined ? {} : { driverDocuments }),
   ...(driverOffers === undefined ? {} : { driverOffers }),
+  ...(driverJob === undefined ? {} : { driverJob }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),

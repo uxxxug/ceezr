@@ -75,6 +75,12 @@ export interface OffersScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
   readonly onOpenOffer?: (offerId: string) => void;
+  /**
+   * مدخلُ «مَهمّتي» (`F3-03`) — **زيادةٌ لا تغييرٌ** (`ح-8`): غيابُه يُعيدُ هذه
+   * الشاشةَ إلى سلوكِها قبلَ `F3-03` حرفاً. وسائقٌ يُغلِقُ التطبيقَ وهوَ في
+   * رحلةٍ يحتاجُ طريقاً إلى مَهمّتِه لا يمرُّ بقبولِ عرضٍ ثانٍ.
+   */
+  readonly onOpenJob?: () => void;
   readonly readBoard?: () => Promise<DriverOffersResponse>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly setAvailability?: (isAvailable: boolean) => Promise<DriverAvailabilityResponse>;
@@ -153,6 +159,7 @@ function DistanceRow({
 export function OffersScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  onOpenJob,
   onOpenOffer,
   readBoard = readDriverOffers,
   reject = rejectDriverOffer,
@@ -366,6 +373,12 @@ export function OffersScreen({
       <button type="button" className="dof__refresh" onClick={() => void load()}>
         {t("driver.offers.refresh")}
       </button>
+
+      {onOpenJob === undefined ? null : (
+        <button type="button" className="dof__job" onClick={onOpenJob}>
+          {t("driver.offers.openJob")}
+        </button>
+      )}
 
       <ul className="dof__debt" aria-label={t("driver.offers.debtLabel")}>
         {DECLARED_DEBT.map((key) => (
