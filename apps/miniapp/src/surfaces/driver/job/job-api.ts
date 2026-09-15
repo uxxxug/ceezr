@@ -22,6 +22,7 @@
  */
 
 import { apiFetch } from "../../../api/client.ts";
+import { publishLocationBroadcastPolicy } from "../location/broadcast-api.ts";
 import type {
   DriverActiveJobResponse,
   DriverJobArrivedResponse,
@@ -31,8 +32,16 @@ import type {
 
 export type * from "./job-contract.ts";
 
-export function readDriverActiveJob(): Promise<DriverActiveJobResponse> {
-  return apiFetch<DriverActiveJobResponse>("/v1/driver/job", { method: "GET" });
+export async function readDriverActiveJob(): Promise<DriverActiveJobResponse> {
+  const response = await apiFetch<DriverActiveJobResponse>("/v1/driver/job", { method: "GET" });
+  // وقد صارَت هذه القراءةُ تنشُرُ سياسةَ النبضةِ (`F3-04`) **زيادةً** (`ح-8`):
+  // من قرأَ مَهمّتَه فقد قرأَ سياستَه معاً، فلا مسارَ سياسةٍ ثانياً ولا رحلتَينِ
+  // في دورةٍ. **وحمولةٌ بلا كتلةٍ لا تُكتَبُ سياسةً مُخترَعةً**: المخزنُ يبقى
+  // على ما كانَ والباثُّ يقرأُ غياباً فيسكنُ.
+  if (response.location_broadcast !== undefined && response.location_broadcast !== null) {
+    publishLocationBroadcastPolicy(response.location_broadcast);
+  }
+  return response;
 }
 
 export function markDriverArrived(orderId: string): Promise<DriverJobArrivedResponse> {

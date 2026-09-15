@@ -50,6 +50,11 @@ import {
   isDriverOrderStatus,
   isServiceType,
 } from "../../domain/driver/driver-offers.ts";
+import {
+  BROADCAST_REASONS,
+  type BroadcastPolicy,
+  type BroadcastReason,
+} from "../../domain/driver/location-broadcast.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { Sql } from "../db/client.ts";
 
@@ -102,6 +107,34 @@ function rejectionFrom(payload: Record<string, unknown>): DriverJobStoreError {
     return failed("MALFORMED_RESULT");
   }
   return { rejection: code as DriverJobStoreRejection };
+}
+
+/**
+ * سياسةُ النبضةِ. و**الاقترانُ يُفحَصُ لا الحقلانِ منفصلَينِ**: سببٌ بلا مُدّةٍ
+ * حالٌ سويّةٌ (إعدادٌ غائبٌ ⇒ سكونٌ مُعلَنٌ)، أمّا **مُدّةٌ بلا سببٍ فمُحالٌ**
+ * يُقرأُ عطباً — إذ نبضةٌ لا يُقالُ لِمَ هيَ نبضةٌ لا تُطاعُ.
+ */
+function readBroadcastPolicy(value: unknown): BroadcastPolicy | null {
+  if (!isRecord(value)) return null;
+
+  const rawReason = value.reason;
+  let reason: BroadcastReason | null = null;
+  if (rawReason !== null && rawReason !== undefined) {
+    const text = readText(rawReason);
+    if (text === null || !(BROADCAST_REASONS as readonly string[]).includes(text)) return null;
+    reason = text as BroadcastReason;
+  }
+
+  const rawInterval = value.interval_seconds;
+  let intervalSeconds: number | null = null;
+  if (rawInterval !== null && rawInterval !== undefined) {
+    const parsed = readNumber(rawInterval);
+    if (parsed === null || !Number.isInteger(parsed) || parsed <= 0) return null;
+    intervalSeconds = parsed;
+  }
+
+  if (reason === null && intervalSeconds !== null) return null;
+  return { reason, intervalSeconds };
 }
 
 function readPlace(value: unknown): DriverOfferPlace | null {
@@ -192,13 +225,19 @@ export class PostgresDriverJobStore implements DriverJobStore {
     const serverTime = readInstant(payload.server_time);
     if (serverTime === null) return err(failed("MALFORMED_RESULT"));
 
+    // سياسةُ النبضةِ **تُقرأُ صارمةً**: كتلةٌ غائبةٌ أو مُشوَّهةٌ عطبُ عقدٍ يُقرأُ
+    // `503`، **ولا تُقرأُ «لا تبثَّ»** — لأنَّ صمتاً مُخترَعاً من عطبٍ يُسكِتُ
+    // البثَّ كلَّه بلا أن يُلاحَظَ، وسائقٌ لا يظهرُ موضعُه أسوأُ من قراءةٍ فاشلةٍ.
+    const locationBroadcast = readBroadcastPolicy(payload.location_broadcast);
+    if (locationBroadcast === null) return err(failed("MALFORMED_RESULT"));
+
     // العَدَمُ الصريحُ يمرُّ كما هوَ؛ وحمولةٌ موجودةٌ لا تُقرأُ **تُسقِطُ الجوابَ**.
     if (payload.job === null || payload.job === undefined) {
-      return ok({ serverTime, job: null });
+      return ok({ serverTime, job: null, locationBroadcast });
     }
     const job = readJob(payload.job);
     if (job === null) return err(failed("MALFORMED_RESULT"));
-    return ok({ serverTime, job });
+    return ok({ serverTime, job, locationBroadcast });
   }
 
   async markArrived(input: {

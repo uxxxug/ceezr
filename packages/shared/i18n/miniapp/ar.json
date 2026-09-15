@@ -778,5 +778,17 @@
   "driver.job.error.PHASE_MISMATCH": "طَورُ الرحلةِ تغيَّرَ. قُرِئَتْ مَهمّتُك من جديدٍ.",
   "driver.job.error.ALREADY_ARRIVED": "وصولُك مُسجَّلٌ سابقاً.",
   "driver.job.error.TRANSITION_REFUSED": "رُفِضَ الانتقالُ. قُرِئَتْ مَهمّتُك من جديدٍ.",
-  "driver.job.error.UNKNOWN": "تعذَّرَ إتمامُ الطلبِ. أعِدْ المحاولةَ."
+  "driver.job.error.UNKNOWN": "تعذَّرَ إتمامُ الطلبِ. أعِدْ المحاولةَ.",
+  "driver.location.on": "يُبَثُّ موضعُك للتوزيعِ الآنَ.",
+  "driver.location.onEvery": "يُبَثُّ موضعُك كلَّ {seconds} ثانيةً.",
+  "driver.location.openSettings": "افتحْ إعداداتَ الموقعِ",
+  "driver.location.reason.AVAILABLE": "لأنَّك متاحٌ لاستقبالِ العروضِ.",
+  "driver.location.reason.TO_PICKUP": "لأنَّك في طريقِك إلى نقطةِ الالتقاطِ.",
+  "driver.location.reason.ON_TRIP": "لأنَّ رحلتَك جاريةٌ الآنَ.",
+  "driver.location.stop.NO_REASON_TO_BROADCAST": "لا يُبَثُّ موضعُك: لا مَهمّةَ الآنَ ولستَ متاحاً.",
+  "driver.location.stop.INTERVAL_NOT_CONFIGURED": "لا يُبَثُّ موضعُك: مُدّةُ البثِّ غيرُ مضبوطةٍ لمدينتِك، وقد أُبلِغَ التشغيلُ.",
+  "driver.location.stop.LOCATION_UNSUPPORTED": "لا يُبَثُّ موضعُك: تطبيقُ تلغرامَ عندَك لا يُتيحُ الموقعَ.",
+  "driver.location.stop.PERMISSION_NOT_GRANTED": "لا يُبَثُّ موضعُك: إذنُ الموقعِ غيرُ مُعطىً. وبلا موضعٍ لا يصلُك عرضٌ قريبٌ.",
+  "driver.location.stop.SESSION_LOST": "لا يُبَثُّ موضعُك: انتهَت جلستُك، أعِدْ فتحَ التطبيقِ.",
+  "driver.location.stop.NOT_A_DRIVER": "لا يُبَثُّ موضعُك: حسابُك غيرُ مُسجَّلٍ سائقاً."
 }

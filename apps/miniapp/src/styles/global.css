@@ -3234,3 +3234,41 @@ a {
   font-size: 0.92rem;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   `dlb` — بثُّ موقعِ السائقِ (`F3-04`). **سطرٌ يُقرأُ لا لوحٌ يُشغَلُ به**: هذا
+   إعلامٌ عن فعلٍ يجري في الخلفيّةِ، فلا يُنافِسُ زرَّ المرحلةِ بلونٍ ولا حجمٍ.
+   وليسَ `djb` لأنَّه يظهرُ في جذرِ السطحِ فوقَ كلِّ شاشةٍ لا في شاشةِ المَهمّةِ
+   وحدَها، وخلطُ البادئتَينِ يُلبِسُ إعلاماً هادئاً ثوبَ شاشةِ عملٍ.
+   ========================================================================== */
+.dlb {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.dlb__state {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--tg-text-color);
+}
+
+.dlb__reason {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+/* زرُّ الإعدادِ يُعرَضُ عندَ منعِ الإذنِ وحدَه — ولمسةُ الإنسانِ شرطُ فتحِه. */
+.dlb__settings {
+  align-self: flex-start;
+  background: transparent;
+  color: var(--tg-link-color);
+  border: 0;
+  padding: 0.2rem 0;
+  font-size: 0.85rem;
+  cursor: pointer;
+}

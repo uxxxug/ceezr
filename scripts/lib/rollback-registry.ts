@@ -774,6 +774,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "توثيقُ السائق",
     documentedIn: null,
   },
+  {
+    migration: "20260915120000_f3_04_location_broadcast_policy.sql",
+    change: "revoke_function:driver_active_job(1)",
+    why: "الهجرةُ `20260915120000` **إضافةٌ لا استبدالٌ** (`ح-8`) على `20260915030000`: تُعيدُ إنشاءَ `driver_active_job(bigint)` بحمولتِها القديمةِ **حرفاً بحرفٍ** وتزيدُ عليها كتلةً واحدةً في الجذرِ — `location_broadcast {reason, interval_seconds}` — في مَخرجَيها كِلَيهِما، ولم يُحذَفْ مفتاحٌ ولا غُيِّرَ توقيعٌ ولا لُمِسَ كاتبٌ. والسحبُ الذي يراهُ القارئُ الساكنُ بعدَها **إعادةُ قفلِ السطحِ كما كانَ لا تضييقٌ جديدٌ**: `create or replace function` يُعيدُ الأذونَ الافتراضيّةَ إلى `public`، فالسحبُ يُبقيها كما كانت في `20260915030000` — وتركُه هوَ التوسيعُ الخطرُ لا فعلُه. **والعودةُ بالكودِ وحدَه تكفي**: النسخةُ السابقةُ من الدالّةِ توقيعُها ومفاتيحُ جوابِها ذاتُها، والعميلُ الذي لا يرى الكتلةَ يقرأُ ذلكَ كتابةً مُشوَّهةً فيُوقِفُ النبضةَ بسببٍ مُسمّىً (`INTERVAL_NOT_CONFIGURED` سلوكاً مُعلَناً) لا صمتاً. ودالّةُ السياسةِ ومفاتيحُ `platform_settings` **زياداتٌ نقيّةٌ**: بقاؤها بعدَ العودةِ لا يُغيِّرُ سلوكَ نسخةٍ سابقةٍ لا تنادِيها، وحذفُها ليسَ شرطاً للعودةِ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /**
