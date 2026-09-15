@@ -552,6 +552,24 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/driver-subscription.test.ts",
+    suites: [
+      "ملكيّةُ الاشتراكِ — تقريرٌ عن نفسِه وحدَه",
+      "اللوحُ — الحالُ والخطةُ والسعرُ من القاعدةِ",
+      "تاريخُ الدفعاتِ — من `payment_transactions` لا من عدَّادٍ",
+    ],
+    skipped: 13,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `F3-06` أنَّ لوحَ اشتراكِ السائقِ **يَقرأُ كلَّ مَعطياتِه من القاعدةِ** — الحالَ والخطةَ والسعرَ من `platform_settings`، وتاريخَ التجديدِ من `payment_transactions`، والأيّامَ الباقيةَ والتحذيرَ قبلَ الانتهاءِ. ولا يقيسُ ذلك حاجزٌ ساكنٌ ولا محرِّكٌ مُصنَّعٌ: أنَّ الدالّةَ `driver_subscription_dashboard` و`driver_subscription_history` تُنفَّذانِ على PostgreSQL حقيقيّةٍ وتُعيدانِ البياناتِ من صفوفٍ لا من ثوابتَ، وأنَّ الملكيّةَ (`USER_NOT_FOUND`/`NOT_A_DRIVER`) من الدالّتَينِ لا من الطبقةِ، وأنَّ السقفَ مقصورٌ في الخادمِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها هجرةُ F3-06: 20260915160000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّيّاً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الدفعُ والاشتراك",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-kyc-registration.test.ts",
     suites: ["تسجيل السائق: الملفّ التوثيقي"],
     skipped: 8,

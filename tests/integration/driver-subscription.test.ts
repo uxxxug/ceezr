@@ -183,7 +183,7 @@ async function seedPaymentTransaction(options: {
       ${cityId}, ${driverId}, 'platform', 'driver_subscription',
       ${options.amountMinor}, 'SAR', 'manual', ${options.status}::text,
       ${`test:${options.createdAt}:${driverId}:${options.plan}`},
-      ${sql`jsonb_build_object('plan', ${options.plan}, 'checkout_url', null::text)`},
+      ${sql.json({ plan: options.plan, checkout_url: null })},
       ${options.createdAt}::timestamptz
     ) returning id
   `;
