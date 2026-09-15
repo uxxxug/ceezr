@@ -1696,10 +1696,7 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
   {
     file: "tests/integration/driver-support-intake.test.ts",
-    suites: [
-      "بوّابةُ الدورِ — في القاعدةِ لا في الشِفرةِ",
-      "صفحةُ تذاكرِ السائقِ — تُفرَزُ بصفِّ سياقتِه",
-    ],
+    suites: ["بوّابةُ الدورِ — في القاعدةِ لا في الشِفرةِ", "صفحةُ تذاكرِ السائقِ — تُفرَزُ بصفِّ سياقتِه"],
     skipped: 13,
     gate: "TEST_DATABASE_URL",
     reason:
