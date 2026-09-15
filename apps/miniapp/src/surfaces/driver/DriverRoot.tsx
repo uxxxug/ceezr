@@ -2,7 +2,7 @@
  * الغرض: السطحُ الجذريُّ للسائق — تُحمَّل حزمتُه **عندَ كونِ الدورِ سائقاً وحدَه**
  *   (القسم 9.4)، وذاك هو سببُ وجودِه ملفاً منفصلاً لا فرعاً في سطحٍ واحد.
  * الحالة: منفّذ فعلياً — البند `F1-05`، **وفيه اليومَ شاشةُ وثائقٍ** (`F3-01`)
- *   **ولوحُ عروضٍ وتفاصيلُ عرضٍ** (`F3-02`).
+ *   **ولوحُ عروضٍ وتفاصيلُ عرضٍ** (`F3-02`) **ومَهمّةٌ نشطةٌ** (`F3-03`).
  * ينتمي إلى: apps/miniapp/src/surfaces/driver (حزمة `driver` — القسم 9.4)
  * يُستخدم من: `routing/RoleRouter.tsx` (تحميلٌ متأخّرٌ بالدورِ)
  * يُتوقع أن يستخدمه لاحقاً: بقيّةُ شاشاتِ `F3` تُركَّب داخلَ هذا السطح.
@@ -19,7 +19,13 @@
  *
  *   ــ **لا يُوجِّهُ بمسارٍ**: لا مُوجِّهَ في التطبيقِ المصغَّرِ اليومَ، والانتقالُ
  *      حالةٌ محليّةٌ. ومُوجِّهُ عناوينٍ **دَينٌ مُعلَنٌ** لا يُحتاجُ بشاشتَينِ.
- *   ــ **لا يعرضُ رحلةً نشطةً**: بندُ `SD-05` وما بعدَه.
+ *   ــ **لا يعرضُ أرباحاً ولا اشتراكاً**: بنودُ `SD-06`…`SD-07`.
+ *
+ * ## وقد صارَت الرحلةُ النشطةُ ههنا بـ`F3-03` — **زيادةً لا نقصاً** (`ح-8`)
+ *
+ * القبولُ كانَ يعودُ باللوحِ لأنَّ شاشةَ المَهمّةِ لم تكن موجودةً؛ وقد وُجِدَت،
+ * فصارَ القبولُ يفتحُها بمُعرِّفِ الطلبِ الذي أعادَه. وطريقُ اللوحِ باقٍ كما هوَ،
+ * ومدخلُ «مَهمّتي» فيهِ لسائقٍ عادَ إلى التطبيقِ وهوَ في رحلةٍ.
  *
  * ## ولِمَ صارَ اللوحُ هوَ المدخلَ بعدَ `F3-02` والوثائقُ زرّاً
  *
@@ -38,12 +44,14 @@
 import { useState } from "react";
 import { EmptyState } from "../../system/EmptyState.tsx";
 import { DocumentsScreen } from "./documents/DocumentsScreen.tsx";
+import { JobScreen } from "./job/JobScreen.tsx";
 import { OfferDetailScreen } from "./offers/OfferDetailScreen.tsx";
 import { OffersScreen } from "./offers/OffersScreen.tsx";
 
 type DriverView =
   | { readonly kind: "offers" }
   | { readonly kind: "offer"; readonly offerId: string }
+  | { readonly kind: "job" }
   | { readonly kind: "documents" }
   | { readonly kind: "placeholder" };
 
@@ -54,6 +62,7 @@ export default function DriverRoot() {
     return (
       <OffersScreen
         onOpenOffer={(offerId) => setView({ kind: "offer", offerId })}
+        onOpenJob={() => setView({ kind: "job" })}
         onBack={() => setView({ kind: "documents" })}
       />
     );
@@ -64,11 +73,16 @@ export default function DriverRoot() {
       <OfferDetailScreen
         offerId={view.offerId}
         onBack={() => setView({ kind: "offers" })}
-        // القبولُ لا يفتحُ شاشةَ رحلةٍ اليومَ — الرحلةُ بندُ `SD-05`، والعودةُ
-        // إلى اللوحِ **تقرأُ الحالَ من القاعدةِ** فلا تُصدِّقُ الشاشةُ نفسَها.
-        onAccepted={() => setView({ kind: "offers" })}
+        // القبولُ يفتحُ شاشةَ المَهمّةِ (`F3-03`)، وهيَ **تقرأُ الحالَ من
+        // القاعدةِ** ولا تُصدِّقُ جوابَ القبولِ حالاً مُقيماً: مُعرِّفُ الطلبِ لا
+        // يُحمَلُ في الحالةِ لأنَّ المَهمّةَ النشطةَ تُقرأُ بالرمزِ الموقَّعِ وحدَه.
+        onAccepted={() => setView({ kind: "job" })}
       />
     );
+  }
+
+  if (view.kind === "job") {
+    return <JobScreen onBack={() => setView({ kind: "offers" })} />;
   }
 
   if (view.kind === "documents") {

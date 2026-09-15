@@ -322,6 +322,20 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     },
     removed: false,
   },
+  {
+    id: "google-maps-link-driver-job",
+    purpose: "رابطُ ملاحةٍ يُبنى نصًّا لينقرَه السائقُ في مَهمّتِه النشطةِ (`F3-03`) — لا نداءَ شبكةٍ",
+    peerClass: "USER_LINK",
+    system: "NONE",
+    source: { kind: "literal", hosts: ["maps.google.com"] },
+    callSite: "apps/miniapp/src/surfaces/driver/job/job-view.ts",
+    runtimeGate: {
+      kind: "not-applicable",
+      reason:
+        "نصٌّ يُمَرَّرُ إلى `openExternalLink` في تطبيقِ تلغرام المصغَّرِ، ولا نداءَ شبكةٍ من هذه العمليّةِ ألبتَّةَ.",
+    },
+    removed: false,
+  },
 ] as const;
 
 /** موضعُ `fetch` يعملُ في متصفّحِ المستخدمِ لا في هذه العمليّةِ. */

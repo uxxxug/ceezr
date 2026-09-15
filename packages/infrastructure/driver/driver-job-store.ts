@@ -1,0 +1,284 @@
+/**
+ * الغرض: محوّلُ مَهمّةِ السائقِ النشطةِ على PostgreSQL — نداءُ دوالِّ `F3-03`
+ *   الأربعِ وقراءةُ حمولتِها **بلا افتراضٍ** (`F3-03` · `SD-05`).
+ * الحالة: منفَّذٌ فعليّاً — البند `F3-03`.
+ * ينتمي إلى: infrastructure/driver
+ * يُستخدم من: `apps/gateway/src/index.ts` عبرَ حقنِ التبعياتِ.
+ * يُتوقع أن يستخدمه لاحقاً: `SD-06` — قراءةُ الأرباحِ محوِّلٌ يُضافُ لبندِها،
+ *   ولا تُوسَّعُ هذه الطرقُ لتقرأَ تاريخاً.
+ * الحاكم: docs/adr/0118-a-phase-is-a-human-stamp-not-a-distance-inference.md
+ *
+ * ## لِمَ `job: null` تُقرأُ **جواباً صحيحاً** لا حمولةً فاسدةً
+ *
+ * «لا مَهمّةَ لي الآنَ» حالُ السائقِ أغلبَ نهارِه. فلو صُنِّفَ الفراغُ عطباً
+ * لَرأى السائقُ `503` في شاشةٍ سويّةٍ، ولَامتلأَ سجلُّ الأعطابِ بحالٍ طبيعيّةٍ
+ * حتّى يصيرَ العطبُ الحقيقيُّ غيرَ مرئيٍّ فيه.
+ *
+ * ## ولِمَ حمولةٌ ناقصةٌ **عطبٌ لا صفٌّ ناقصٌ**
+ *
+ * مَهمّةٌ بلا `next_action` مقروءٍ تجعلُ الشاشةَ تحكمُ على الزرِّ بنفسِها — وهوَ
+ * عينُ ما مُنِعَ. وموضعُ التقاطٍ بلا إحداثيّةٍ يجعلُ الملاحةَ رابطاً إلى العَدَمِ.
+ * فتُردُّ `MALFORMED_RESULT` ويُقرأُ `503`، **ولا يُخترَعُ بديلٌ ههنا**.
+ *
+ * ## وما لا يفعلُه هذا المحوّلُ عن قصدٍ — (`ح-5`)
+ *
+ *   ــ **لا يُركِّبُ SQL نصّاً**: مُعامَلاتٌ مُمرَّرةٌ، والمعرّفُ يُفحَصُ رقميّاً
+ *      قبلَ إرسالِه إلى `bigint`.
+ *   ــ **لا يُصنِّفُ عطبَ شبكةٍ رفضاً**: استثناءٌ = `STORE_ERROR` = `503`.
+ *   ــ **لا يقفلُ صفّاً ولا يُحدِّثُ حالةً ولا `update` ألبتّةَ**: الأطوارُ نداءُ
+ *      دوالِّ القاعدةِ، والبدءُ والإنهاءُ تفويضٌ إلى كاتبَيهما القائمَينِ.
+ *   ــ **لا يحسبُ مدّةً ولا يقيسُ مسافةً**: المدّةُ من الكاتبِ نقلاً.
+ *   ــ **لا يقرأُ هاتفَ راكبٍ ولا معرِّفَ تلغرامِه**: لا يُطلَبُ ولا يُنشَرُ —
+ *      ولو أعادَتهما دالّةٌ لَما وُجِدَ لهما حقلٌ يُقرأُ فيه.
+ */
+
+import type {
+  DriverJobStore,
+  DriverJobStoreError,
+  DriverJobStoreRejection,
+} from "../../application/driver/job-ports.ts";
+import {
+  type DriverActiveJob,
+  type DriverJobArrival,
+  type DriverJobCompletion,
+  type DriverJobSnapshot,
+  type DriverJobStart,
+  isDriverJobAction,
+} from "../../domain/driver/driver-job.ts";
+import {
+  type DriverOfferPlace,
+  isDriverOrderStatus,
+  isServiceType,
+} from "../../domain/driver/driver-offers.ts";
+import { err, ok, type Result } from "../../shared/result/index.ts";
+import type { Sql } from "../db/client.ts";
+
+/** مجالُ الرفضِ المغلقُ — يُقابِلُ رموزَ دوالِّ `F3-03` الأربعِ حرفاً. */
+const REJECTIONS: readonly DriverJobStoreRejection[] = [
+  "USER_NOT_FOUND",
+  "NOT_A_DRIVER",
+  "JOB_NOT_FOUND",
+  "PHASE_MISMATCH",
+  "ALREADY_ARRIVED",
+  "TRANSITION_REFUSED",
+];
+
+function failed(reason: "STORE_ERROR" | "MALFORMED_RESULT"): DriverJobStoreError {
+  return { reason } as const;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readText(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function readInstant(value: unknown): string | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString();
+  }
+  const text = readText(value);
+  if (text === null) return null;
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+}
+
+/** كما في `driver-offers-store.ts`: لا نصَّ غيرَ رقميٍّ يُرسَلُ إلى `bigint`. */
+function asTelegramId(value: string): string | null {
+  return /^[0-9]{1,19}$/.test(value) ? value : null;
+}
+
+function rejectionFrom(payload: Record<string, unknown>): DriverJobStoreError {
+  const code = readText(payload.error);
+  if (code === null || !(REJECTIONS as readonly string[]).includes(code)) {
+    return failed("MALFORMED_RESULT");
+  }
+  return { rejection: code as DriverJobStoreRejection };
+}
+
+function readPlace(value: unknown): DriverOfferPlace | null {
+  if (!isRecord(value)) return null;
+  const latitude = readNumber(value.latitude);
+  const longitude = readNumber(value.longitude);
+  if (latitude === null || longitude === null) return null;
+  return {
+    label: typeof value.label === "string" ? value.label : null,
+    latitude,
+    longitude,
+  };
+}
+
+/**
+ * المَهمّةُ. و**`next_action` يُقرأُ من مجالٍ مغلقٍ**: نصٌّ غريبٌ فيه يُسقِطُ
+ * القراءةَ — لأنَّ فعلاً لا تعرفُه الشاشةُ يُرسَمُ زرّاً بلا فعلٍ أو لا يُرسَمُ
+ * زرٌّ أصلاً، وكلاهما سائقٌ واقفٌ لا يدري ما يفعلُ.
+ */
+function readJob(value: unknown): DriverActiveJob | null {
+  if (!isRecord(value)) return null;
+  const orderId = readText(value.order_id);
+  const pickup = readPlace(value.pickup);
+  const dropoff =
+    value.dropoff === null || value.dropoff === undefined ? null : readPlace(value.dropoff);
+  const rider = isRecord(value.rider) ? value.rider : null;
+  if (
+    orderId === null ||
+    pickup === null ||
+    rider === null ||
+    (value.dropoff !== null && value.dropoff !== undefined && dropoff === null) ||
+    !isDriverOrderStatus(value.status) ||
+    !isServiceType(value.service)
+  ) {
+    return null;
+  }
+  const nextAction = value.next_action;
+  if (nextAction !== null && nextAction !== undefined && !isDriverJobAction(nextAction))
+    return null;
+
+  return {
+    orderId,
+    status: value.status,
+    service: value.service,
+    nextAction: isDriverJobAction(nextAction) ? nextAction : null,
+    matchedAt: readInstant(value.matched_at),
+    arrivedAt: readInstant(value.arrived_at),
+    startedAt: readInstant(value.started_at),
+    pickup,
+    dropoff,
+    notes: typeof value.notes === "string" ? value.notes : null,
+    rider: {
+      firstName: typeof rider.first_name === "string" ? rider.first_name : null,
+      languageCode: typeof rider.language_code === "string" ? rider.language_code : null,
+    },
+  };
+}
+
+interface ResultRow {
+  readonly result: unknown;
+}
+
+export class PostgresDriverJobStore implements DriverJobStore {
+  readonly #sql: Sql;
+
+  constructor(sql: Sql) {
+    this.#sql = sql;
+  }
+
+  async readActiveJob(input: {
+    readonly telegramUserId: string;
+  }): Promise<Result<DriverJobSnapshot, DriverJobStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+
+    let rows: ResultRow[];
+    try {
+      rows = await this.#sql<ResultRow[]>`
+        select driver_active_job(${telegramId}::bigint) as result`;
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+
+    const payload = rows[0]?.result;
+    if (!isRecord(payload)) return err(failed("MALFORMED_RESULT"));
+    if (payload.ok !== true) return err(rejectionFrom(payload));
+
+    const serverTime = readInstant(payload.server_time);
+    if (serverTime === null) return err(failed("MALFORMED_RESULT"));
+
+    // العَدَمُ الصريحُ يمرُّ كما هوَ؛ وحمولةٌ موجودةٌ لا تُقرأُ **تُسقِطُ الجوابَ**.
+    if (payload.job === null || payload.job === undefined) {
+      return ok({ serverTime, job: null });
+    }
+    const job = readJob(payload.job);
+    if (job === null) return err(failed("MALFORMED_RESULT"));
+    return ok({ serverTime, job });
+  }
+
+  async markArrived(input: {
+    readonly telegramUserId: string;
+    readonly orderId: string;
+  }): Promise<Result<DriverJobArrival, DriverJobStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+
+    let rows: ResultRow[];
+    try {
+      rows = await this.#sql<ResultRow[]>`
+        select driver_mark_arrived(${telegramId}::bigint, ${input.orderId}::uuid) as result`;
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+
+    const payload = rows[0]?.result;
+    if (!isRecord(payload)) return err(failed("MALFORMED_RESULT"));
+    if (payload.ok !== true) return err(rejectionFrom(payload));
+
+    const orderId = readText(payload.order_id);
+    // **الختمُ شرطُ الجوابِ**: «وصلتُ» بلا لحظةٍ لا يُعرَضُ ولا يُسجَّلُ، وساعةُ
+    // هذه العمليّةِ ليسَت بديلاً عن ساعةِ القاعدةِ في ختمٍ واحدٍ.
+    const arrivedAt = readInstant(payload.arrived_at);
+    if (orderId === null || arrivedAt === null) return err(failed("MALFORMED_RESULT"));
+    return ok({ orderId, arrivedAt });
+  }
+
+  async startRide(input: {
+    readonly telegramUserId: string;
+    readonly orderId: string;
+  }): Promise<Result<DriverJobStart, DriverJobStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+
+    let rows: ResultRow[];
+    try {
+      rows = await this.#sql<ResultRow[]>`
+        select driver_start_ride(${telegramId}::bigint, ${input.orderId}::uuid) as result`;
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+
+    const payload = rows[0]?.result;
+    if (!isRecord(payload)) return err(failed("MALFORMED_RESULT"));
+    if (payload.ok !== true) return err(rejectionFrom(payload));
+
+    const orderId = readText(payload.order_id);
+    if (orderId === null) return err(failed("MALFORMED_RESULT"));
+    // وغيابُ الختمِ ههنا **يُقالُ عَدَماً** ولا يُستبدَلُ بساعةِ العمليّةِ.
+    return ok({ orderId, startedAt: readInstant(payload.started_at) });
+  }
+
+  async completeRide(input: {
+    readonly telegramUserId: string;
+    readonly orderId: string;
+  }): Promise<Result<DriverJobCompletion, DriverJobStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+
+    let rows: ResultRow[];
+    try {
+      rows = await this.#sql<ResultRow[]>`
+        select driver_complete_ride(${telegramId}::bigint, ${input.orderId}::uuid) as result`;
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+
+    const payload = rows[0]?.result;
+    if (!isRecord(payload)) return err(failed("MALFORMED_RESULT"));
+    if (payload.ok !== true) return err(rejectionFrom(payload));
+
+    const orderId = readText(payload.order_id);
+    if (orderId === null) return err(failed("MALFORMED_RESULT"));
+    const duration = readNumber(payload.duration_seconds);
+    return ok({
+      orderId,
+      completedAt: readInstant(payload.completed_at),
+      durationSeconds: duration === null || duration < 0 ? null : duration,
+    });
+  }
+}
