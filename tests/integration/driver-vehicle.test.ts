@@ -43,8 +43,8 @@ let driverId = "";
 async function seedDriver(telegramId: number): Promise<{ userId: string; driverId: string }> {
   const userId = `f3-07-${telegramId}`;
   await sql`
-    insert into users (id, telegram_id, city_id, language)
-    values (${userId}::uuid, ${telegramId}::bigint, ${cityId}::uuid, 'ar')
+    insert into users (id, telegram_id, city_id, language_code, role)
+    values (${userId}::uuid, ${telegramId}::bigint, ${cityId}::uuid, 'ar', 'driver')
     on conflict (telegram_id) do nothing
   `;
   const [driver] = await sql<{ id: string }[]>`
@@ -124,7 +124,7 @@ async function updateAssets(
 
 describeIf("F3-07 driver vehicle on real PostgreSQL", () => {
   beforeAll(async () => {
-    sql = createSql({ connectionString: DATABASE_URL! });
+    sql = createSql({ connectionString: DATABASE_URL ?? "" });
     cityHandle = await ensureActiveCity(sql);
     cityId = cityHandle.cityId;
     const seeded = await seedDriver(DRIVER_TELEGRAM_ID);
@@ -150,43 +150,48 @@ describeIf("F3-07 driver vehicle on real PostgreSQL", () => {
 
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
     expect(row).not.toBeNull();
-    expect(row!.vehicle_type).toBe("sedan");
-    expect(row!.plate_number).toBe("ABC-1234");
-    expect(row!.vehicle_year).toBe(2020);
-    expect(row!.registration_status).toBe("accepted");
-    expect(row!.registration_expires_at).toBe("2027-01-01");
-    expect(row!.insurance_status).toBe("accepted");
-    expect(row!.insurance_expires_at).toBe("2027-06-01");
-    expect(row!.inspection_status).toBe("under_review");
-    expect(row!.inspection_expires_at).toBeNull();
+    if (!row) throw new Error("row should not be null");
+    expect(row.vehicle_type).toBe("sedan");
+    expect(row.plate_number).toBe("ABC-1234");
+    expect(row.vehicle_year).toBe(2020);
+    expect(row.registration_status).toBe("accepted");
+    expect(row.registration_expires_at).toBe("2027-01-01");
+    expect(row.insurance_status).toBe("accepted");
+    expect(row.insurance_expires_at).toBe("2027-06-01");
+    expect(row.inspection_status).toBe("under_review");
+    expect(row.inspection_expires_at).toBeNull();
   });
 
   it("returns null logo and barcode when not set", async () => {
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.logo_object_path).toBeNull();
-    expect(row!.barcode_object_path).toBeNull();
+    if (!row) throw new Error("row should not be null");
+    expect(row.logo_object_path).toBeNull();
+    expect(row.barcode_object_path).toBeNull();
   });
 
   it("updates vehicle basic data", async () => {
     await updateVehicle(DRIVER_TELEGRAM_ID, "suv", "XYZ-5678", 2022);
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.vehicle_type).toBe("suv");
-    expect(row!.plate_number).toBe("XYZ-5678");
-    expect(row!.vehicle_year).toBe(2022);
+    if (!row) throw new Error("row should not be null");
+    expect(row.vehicle_type).toBe("suv");
+    expect(row.plate_number).toBe("XYZ-5678");
+    expect(row.vehicle_year).toBe(2022);
   });
 
   it("updates logo and barcode asset paths", async () => {
     await updateAssets(DRIVER_TELEGRAM_ID, "vehicle/logo.png", "vehicle/barcode.png");
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.logo_object_path).toBe("vehicle/logo.png");
-    expect(row!.barcode_object_path).toBe("vehicle/barcode.png");
+    if (!row) throw new Error("row should not be null");
+    expect(row.logo_object_path).toBe("vehicle/logo.png");
+    expect(row.barcode_object_path).toBe("vehicle/barcode.png");
   });
 
   it("clears logo and barcode with null", async () => {
     await updateAssets(DRIVER_TELEGRAM_ID, null, null);
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.logo_object_path).toBeNull();
-    expect(row!.barcode_object_path).toBeNull();
+    if (!row) throw new Error("row should not be null");
+    expect(row.logo_object_path).toBeNull();
+    expect(row.barcode_object_path).toBeNull();
   });
 
   it("returns no rows for unknown telegram user", async () => {
@@ -197,25 +202,28 @@ describeIf("F3-07 driver vehicle on real PostgreSQL", () => {
   it("clears vehicle type and plate with null", async () => {
     await updateVehicle(DRIVER_TELEGRAM_ID, null, null, null);
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.vehicle_type).toBeNull();
-    expect(row!.plate_number).toBeNull();
-    expect(row!.vehicle_year).toBeNull();
+    if (!row) throw new Error("row should not be null");
+    expect(row.vehicle_type).toBeNull();
+    expect(row.plate_number).toBeNull();
+    expect(row.vehicle_year).toBeNull();
   });
 
   it("reads documents even when some are missing", async () => {
     await sql`delete from driver_documents where driver_id = ${driverId}::uuid and doc_type = 'periodic_inspection'`;
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.registration_status).not.toBeNull();
-    expect(row!.inspection_status).toBeNull();
+    if (!row) throw new Error("row should not be null");
+    expect(row.registration_status).not.toBeNull();
+    expect(row.inspection_status).toBeNull();
   });
 
   it("reads all documents as null when none registered", async () => {
     await sql`delete from driver_documents where driver_id = ${driverId}::uuid`;
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.registration_status).toBeNull();
-    expect(row!.registration_expires_at).toBeNull();
-    expect(row!.insurance_status).toBeNull();
-    expect(row!.inspection_status).toBeNull();
+    if (!row) throw new Error("row should not be null");
+    expect(row.registration_status).toBeNull();
+    expect(row.registration_expires_at).toBeNull();
+    expect(row.insurance_status).toBeNull();
+    expect(row.inspection_status).toBeNull();
   });
 
   it("update_driver_vehicle raises USER_NOT_FOUND for unknown user", async () => {
@@ -233,13 +241,15 @@ describeIf("F3-07 driver vehicle on real PostgreSQL", () => {
   it("reads back updated year", async () => {
     await updateVehicle(DRIVER_TELEGRAM_ID, "sedan", "ABC-1234", 2019);
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.vehicle_year).toBe(2019);
+    if (!row) throw new Error("row should not be null");
+    expect(row.vehicle_year).toBe(2019);
   });
 
   it("update with empty strings clears to null", async () => {
     await updateVehicle(DRIVER_TELEGRAM_ID, "", "", null);
     const row = await readVehicle(DRIVER_TELEGRAM_ID);
-    expect(row!.vehicle_type).toBeNull();
-    expect(row!.plate_number).toBeNull();
+    if (!row) throw new Error("row should not be null");
+    expect(row.vehicle_type).toBeNull();
+    expect(row.plate_number).toBeNull();
   });
 });
