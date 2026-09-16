@@ -11,6 +11,11 @@
  *    و«لوحاتٌ وتنبيهاتٌ» بنودٌ أخرى (`F8-02` · `F8-07`) — **لا تُدَّعى ههنا**،
  *    و`level` يبقى **غائباً** حيثُ لا يُعرَفُ لا مكتوباً `info` كذباً.
  *
+ * **زيادةُ `F8-01` (2026-09-16)**: كلُّ سطرٍ يُكتَبُ داخلَ سياقِ ارتباطٍ جارٍ
+ * يحملُ `request_id` — يُلحَقُ في `emit` **موضعاً واحداً** من `./correlation.ts`،
+ * فلا يُطلَبُ من موضعِ نداءٍ أن يتذكَّرَه ولا يُنسى في موضعٍ. **ويغيبُ الحقلُ حيثُ
+ * لا سياقَ** ولا يُملأُ بمولَّدٍ: الغيابُ إعلانٌ لا نقصٌ يُرقَعُ.
+ *
  * لماذا مُصدِرٌ واحدٌ لا دالّةٌ في كلِّ تطبيقٍ: قبلَ هذا الملفِّ كانت في المستودعِ
  * **أربعُ** دالّاتِ تسجيلٍ مستقلّةٍ بثلاثةِ أشكالٍ متنافرةٍ — سطرُ البوابةِ فيه
  * `at` بلا `level`، وسطرُ العاملِ فيه `level` **بلا `at`**، ومسارُ الإقلاعِ نصٌّ
@@ -26,6 +31,8 @@
  */
 
 import { createHash, randomUUID } from "node:crypto";
+
+import { currentRequestId } from "./correlation.ts";
 
 /** حدُّ العمقِ في تنقيةِ الحقولِ. أعمقُ منه يُستبدَلُ بعلامةٍ لا يُقصُّ صامتاً. */
 export const MAX_FIELD_DEPTH = 4;
@@ -151,6 +158,12 @@ export interface StructuredLogLine {
   readonly service: string;
   readonly event: string;
   readonly level?: LogLevel;
+  /**
+   * معرّفُ وحدةِ العملِ إن وُجِدَ سياقٌ جارٍ (`F8-01`). **يغيبُ حيثُ لا سياقَ**
+   * ولا يُملأُ بمولَّدٍ: سطرٌ بلا `request_id` يقولُ «كُتِبَ خارجَ وحدةِ عملٍ
+   * موصولةٍ»، ومعرّفٌ مُختلَقٌ يقولُ كذباً «هذا من ذاكَ الطلبِ».
+   */
+  readonly request_id?: string;
   readonly [field: string]: unknown;
 }
 
@@ -272,11 +285,13 @@ export function createStructuredLogger(options: StructuredLoggerOptions): Struct
     // أو رقمٌ أو عنوانٌ، وكتابتُه في حقلٍ آخرَ تنقلُ العطبَ لا تُصلِحُه. فيُعلَنُ
     // بصوتٍ: حدثٌ مجهولٌ بطولِه لا بنصِّه.
     if (!EVENT_CODE_PATTERN.test(event)) {
+      const invalidRequestId = currentRequestId();
       const line: StructuredLogLine = {
         at,
         service: options.service,
         event: "log.invalid_event_code",
         level: "error",
+        ...(invalidRequestId === undefined ? {} : { request_id: invalidRequestId }),
         requested_length: event.length,
       };
       sink(safeStringify(line), "error");
@@ -284,11 +299,18 @@ export function createStructuredLogger(options: StructuredLoggerOptions): Struct
     }
 
     const sanitised = sanitiseFields(fields ?? {});
+
+    // المعرّفُ يُلحَقُ **ههنا وحدَه** لا في مواضعِ النداءِ: هذا الملفُ المُصدِرُ
+    // الوحيدُ للسجلِّ في المستودعِ (`F8-03` · `ADR 0078`)، فإلحاقُه ههنا يجعلُ
+    // الارتباطَ الافتراضَ لا واجباً على كلِّ من يكتبُ سطراً أن يتذكَّرَه. ويُوضَعُ قبلَ
+    // حقولِ النداءِ لا بعدَها فلا يكتمُ حقلاً من موضعِ النداءِ اسمُه `request_id`.
+    const requestId = currentRequestId();
     const line: StructuredLogLine = {
       at,
       service: options.service,
       event,
       ...(level === undefined ? {} : { level }),
+      ...(requestId === undefined ? {} : { request_id: requestId }),
       ...sanitised.fields,
       ...(sanitised.redacted.length === 0 ? {} : { redacted: sanitised.redacted }),
     };

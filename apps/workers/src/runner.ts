@@ -13,6 +13,10 @@ import type {
   JobHeartbeatRecorderPort,
   JobHeartbeatStatus,
 } from "../../../packages/application/scheduling/job-heartbeat.ts";
+import {
+  newWorkerCorrelationId,
+  runWithCorrelationId,
+} from "../../../packages/infrastructure/observability/correlation.ts";
 import type { CityId, Clock } from "../../../packages/shared/kernel/index.ts";
 
 export interface JobDefinition {
@@ -178,6 +182,22 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
     }
 
     inFlight.add(job.name);
+    // `F8-01` — لكلِّ شوطٍ معرِّفُ ارتباطٍ خاصٌّ به (`job-…`) يجري في سياقِه كلُّ
+    // سطرِ سجلٍّ وكلُّ كتابةٍ في القاعدةِ من هذا الشوطِ. والبادئةُ مقصودةٌ: شوطٌ
+    // دوريٌّ لا ينشأُ عن طلبِ مستخدمٍ فلا يجوزُ أن يتنكّرَ بمعرِّفِ طلبٍ. وما
+    // نشأَ عن طلبٍ فعليٍّ (صفُّ طابورٍ يحملُ معرِّفَه) يستعيدُ معرِّفَه داخلَ
+    // هذا السياقِ فيَغلبُه — سلسلةُ السببِ أصدقُ من سلسلةِ الجدولةِ.
+    return await runWithCorrelationId(
+      { requestId: newWorkerCorrelationId(), entry: "worker" },
+      () => runOneTraced(job, nowMs),
+    );
+  }
+
+  /**
+   * جسمُ الشوطِ. فُصِلَ عن `runOne` ليجريَ كلُّه داخلَ سياقِ ارتباطِ الشوطِ
+   * (`F8-01`) بلا تكرارٍ للفِّ في كلِّ فرعٍ — والسلوكُ لم يتغيّرْ حرفاً.
+   */
+  async function runOneTraced(job: JobDefinition, nowMs: number): Promise<JobOutcome> {
     const startedAt = options.clock.now().getTime();
 
     try {

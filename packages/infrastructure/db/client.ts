@@ -8,12 +8,17 @@
  * ملاحظات مستقبلية: في الإنتاج يُستخدم رابط pooler الخاص بـ Supabase. يُشتقّ وضعُ pooler
  *   من الرابط عبر detectDbPoolerMode، فإذا كان transaction pooler يُعطَّل `prepare` تلقائيّاً
  *   لأنّ transaction pooling لا يدعم الجُملَ المُحضَّرة (CAP-004 / ADR 0056).
+ *
+ * **زيادةُ `F8-01` (2026-09-16)**: ههنا `withRequestContext` — **الموضعُ الوحيدُ**
+ * الذي ينقلُ معرّفَ وحدةِ العملِ من التطبيقِ إلى المحرِّكِ (`ADR 0129`)، ومنهُ تملأُ
+ * مُشغِّلاتُ `before insert` عمودَ `request_id` في الجداولِ المُعلَنةِ.
  */
 
 import postgres from "postgres";
 import { PortFailureError } from "../../application/ports/index.ts";
 import { DEFAULT_DB_POOL_MAX } from "../../shared/config/connection-budget.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
+import { currentRequestId } from "../observability/correlation.ts";
 
 export type Sql = postgres.Sql<Record<string, never>>;
 
@@ -91,6 +96,43 @@ export async function guard<T>(
     const detail = cause instanceof Error ? cause.message : String(cause);
     return err(new PortFailureError(port, detail));
   }
+}
+
+/**
+ * اسمُ متغيرِ الجلسةِ (`GUC`) الذي يحملُ معرّفَ وحدةِ العملِ إلى المحرِّكِ (`F8-01`).
+ * **موضعُ حقيقةٍ واحدٌ للاسمِ في شِفرةِ TypeScript**، ونسختُه الأخرى الوحيدةُ
+ * في دالّةِ `current_request_id()` في الهجرةِ — يحرسُ الاثنتَينِ `check-request-correlation`.
+ */
+export const REQUEST_ID_SETTING = "app.request_id";
+
+/**
+ * يُشغِّلُ عملاً قاعديّاً **داخلَ معاملةٍ واحدةٍ يُعرَّفُ في أوّلِها معرّفُ وحدةِ
+ * العملِ**، فتحملُ كلُّ كتابةٍ فيها (سجلُ تدقيقٍ · صندوقٌ صادرٌ) المعرّفَ نفسَه بلا
+ * أن يُمرَّرَ وسيطاً إلى مائةِ دالّةٍ.
+ *
+ * وثلاثةُ قراراتٍ مكتوبةٍ ههنا لا مسكوتٍ عنها:
+ *   ــ **`set_config(…, true)` أي: محليٌّ للمعاملةِ لا للجلسةِ**. وسببُه أنَّ
+ *      الإنتاجَ يمرُّ بـ`pooler` معاملاتٍ (`CAP-004` · `ADR 0056`): قيمةٌ تبقى في
+ *      الجلسةِ تُورَّثُ لطلبٍ أجنبيٍّ يأخذُ الاتّصالَ بعدَك، **فيُنسَبُ عملُه إليك**.
+ *      وذاكَ أخطرُ من لا ارتباطٍ ألبتّةَ: أثرٌ يكذِبُ.
+ *   ــ **المعاملةُ تُفتَحُ ولو لا سياقَ** فلا تختلفُ ذرّيةُ العملِ باختلافِ وجودِ
+ *      معرّفٍ: دالّةٌ تكونُ ذرّيّةً في طلبٍ وغيرَ ذرّيّةٍ في مهمّةٍ عطبٌ مُستترٌ.
+ *   ــ **لا توليدَ معرّفٍ ههنا**: غيابُ السياقِ يُترَكُ غياباً، فيكتبُ المُشغِّلُ
+ *      `null` في العمودِ — «لم يُقَسْ» لا معرّفٌ يُوهِمُ ربطاً.
+ *
+ * ومواضعُ النداءِ التي تلفُّ بهذه الدالّةِ **مجموعةٌ مُعلَنةٌ** في
+ * `scripts/lib/request-correlation-contract.ts` يحرسُها حاجزٌ، وما لم يُلفَّ بعدُ
+ * **دَينٌ مُعلَنٌ لا مُخضَّرٌ**.
+ */
+export async function withRequestContext<T>(sql: Sql, run: (tx: Sql) => Promise<T>): Promise<T> {
+  const requestId = currentRequestId();
+  return (await sql.begin(async (tx) => {
+    const scoped = tx as unknown as Sql;
+    if (requestId !== undefined) {
+      await scoped`select set_config(${REQUEST_ID_SETTING}, ${requestId}, true)`;
+    }
+    return run(scoped);
+  })) as T;
 }
 
 /** شكل ردّ كل دوال RPC عندنا: jsonb فيه ok وerror. */

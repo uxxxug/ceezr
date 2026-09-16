@@ -98,6 +98,7 @@ import { createSafetyCardPublisher } from "../../../packages/infrastructure/noti
 import { createTicketOwnerNotifier } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import { createTelegramUnmatchedMessenger } from "../../../packages/infrastructure/notification/telegram-unmatched-notifier.ts";
 import { withTrafficPriority } from "../../../packages/infrastructure/notification/traffic-priority-sender.ts";
+import { runWithCorrelationId } from "../../../packages/infrastructure/observability/correlation.ts";
 import {
   instrumentExpireOffersRpc,
   instrumentOfferWriter,
@@ -1071,6 +1072,18 @@ export function buildWorkerContainer(
                   const report = await deliverNotifications({
                     outbox: notificationOutbox,
                     handlers: notificationHandlers,
+                    // `F8-01` — عبورُ الطابورِ: معالجةُ الصفِّ وإعلانُ نتيجتِه
+                    // تجريانِ **بمعرِّفِ الطلبِ الذي أنشأَ الصفَّ**، فمَن بحثَ
+                    // بمعرِّفٍ من ردٍّ وجدَ أثرَ الإرسالِ في العاملِ أيضاً لا في
+                    // البوّابةِ وحدَها. وصفٌّ بلا معرِّفٍ يمضي بسياقِ الشوطِ نفسِه
+                    // (`job-…`) ولا يُلفَّقُ له معرِّفُ طلبٍ.
+                    withDeliveryCorrelation: (delivery, run) =>
+                      delivery.requestId === null
+                        ? run()
+                        : runWithCorrelationId(
+                            { requestId: delivery.requestId, entry: "worker" },
+                            run,
+                          ),
                   });
                   if (!report.ok) throw new Error(report.error.detail);
                   return [

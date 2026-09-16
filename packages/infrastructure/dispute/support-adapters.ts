@@ -28,7 +28,7 @@ import type {
   SupportTicketType,
 } from "../../domain/dispute/index.ts";
 import type { SubscriptionPlan, SubscriptionStatus } from "../../domain/subscription/entity.ts";
-import { guard, readEnvelope, type Sql } from "../db/client.ts";
+import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
 
 function unreadable(fn: string): never {
   throw new Error(`ردّ ${fn} غير مفهوم`);
@@ -51,15 +51,22 @@ export function createSupportTicketPort(sql: Sql): SupportTicketPort {
   return {
     open: (input) =>
       guard("rpc.open_support_ticket", async (): Promise<OpenTicketOutcome> => {
-        const rows = await sql<{ result: unknown }[]>`
-          select open_support_ticket(
-            ${input.telegramUserId}::bigint,
-            ${input.type}::support_ticket_type,
-            ${input.message}::text,
-            ${input.attachmentFileId}::text,
-            ${input.orderId}::uuid
-          ) as result
-        `;
+        // `F8-01` — موضعٌ موصولٌ مُعلَنٌ: تجري الدعوةُ داخلَ معاملةٍ يُضبَطُ فيها
+        // المتغيّرُ الجلسيُّ للمعرِّفِ أوّلاً (اسمُه في `client.ts` وحدَه), فكلُ ما تكتبُه هذه الدالّةُ الذرّيّةُ في الجداولِ
+        // المُعلَنةِ يحملُ معرِّفَ وحدةِ العملِ. والقائمةُ في سجلِّ العقدِ لا ههنا،
+        // فالحاجزُ يعُدُّها ويمنعُ توسيعَها صمتاً.
+        const rows = await withRequestContext(
+          sql,
+          (tx) => tx<{ result: unknown }[]>`
+            select open_support_ticket(
+              ${input.telegramUserId}::bigint,
+              ${input.type}::support_ticket_type,
+              ${input.message}::text,
+              ${input.attachmentFileId}::text,
+              ${input.orderId}::uuid
+            ) as result
+          `,
+        );
         const envelope = readEnvelope(rows[0]?.result);
         if (envelope === null) unreadable("open_support_ticket");
         if (!envelope.ok) {

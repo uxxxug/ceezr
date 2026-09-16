@@ -44,6 +44,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "create_broadcast",
   "create_payment",
   "create_subscription_wallet",
+  "current_request_id",
   "deactivate_stale_availability",
   "driver_accept_offer",
   "driver_active_job",

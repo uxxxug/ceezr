@@ -986,6 +986,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/request-correlation.test.ts",
+    suites: ["ارتباطُ الطلبِ يصلُ القاعدةَ — F8-01"],
+    skipped: 8,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت «ارتباطُ الطلبِ يصلُ القاعدةَ — F8-01» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرة: المقصودُ سلوكُ المحرّكِ نفسِه — مُشغِّلُ الإدراجِ، وقيدُ الشكلِ، ومحدوديّةُ المتغيّرِ الجلسيِّ بالمعاملةِ، وحالُ القيدِ في فهرسِ النظامِ — لا سلوكُ محاكٍ نكتبه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/observability-database-gauges.test.ts",
     suites: ["gauges المراقبة على قاعدة PostgreSQL حقيقية"],
     skipped: 3,

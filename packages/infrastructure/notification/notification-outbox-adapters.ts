@@ -11,7 +11,8 @@ import type {
   OutboxDelivery,
 } from "../../application/notification/deliver-notification.ts";
 import type { CityId } from "../../shared/kernel/index.ts";
-import { guard, readEnvelope, type Sql } from "../db/client.ts";
+import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
+import { readCorrelationId } from "../observability/correlation.ts";
 
 const FINISH_OUTCOMES: readonly string[] = ["delivered", "dead", "retried"];
 
@@ -49,6 +50,18 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
           };
         }
         const payload = delivery.payload;
+
+        // معرِّفُ الطلبِ الذي أنشأَ الصفَّ (`F8-01`) يُقرأُ بقراءةٍ ثانيةٍ بالمفتاحِ
+        // الأوّليِّ **لا بتعديلِ `claim_notification_delivery`**: تلكَ دالّةٌ ذرّيّةٌ
+        // حاكمةٌ (`FOR UPDATE SKIP LOCKED` · ضغطٌ عكسيٌّ · أولويّةُ مرورٍ) يُعادُ
+        // تعريفُها بجسمِها كلِّه في أيِّ هجرةٍ تمسُّها، فنسخُ مائةٍ وخمسينَ سطراً
+        // لأجلِ حقلِ مراقبةٍ يُنشئُ مصدرَ حقيقةٍ ثانياً للالتقاطِ — والقاعدةُ 0.6
+        // تمنعُ ذلك. والقراءةُ ههنا **بعدَ** الالتقاطِ فالصفُّ مملوكٌ برمزِ الحجزِ،
+        // فلا تسابُقَ. وفشلُها لا يُخفى: `guard` يردُّه عطباً كسائرِ الاستعلامِ.
+        const correlationRows = await sql<{ request_id: string | null }[]>`
+          select request_id from notification_outbox where id = ${String(delivery.delivery_id)}::uuid
+        `;
+
         return {
           delivery: {
             deliveryId: String(delivery.delivery_id),
@@ -58,6 +71,10 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
             attempts: Number(delivery.attempts),
             maxAttempts: Number(delivery.max_attempts),
             batchLimit: Number(delivery.batch_limit),
+            // معرِّفُ الطلبِ الذي أنشأَ الصفَّ (`F8-01`): تكتبُه مُشغِّلاتُ القاعدةِ
+            // عندَ الإدراجِ، ويُعادُ ههنا **كما هوَ في الصفِّ** فيستعيدُ العاملُ
+            // سلسلةَ الارتباطِ. ونصٌّ غيرُ صالحٍ أو غيابٌ يعودُ `null` لا مولَّداً.
+            requestId: readCorrelationId(correlationRows[0]?.request_id),
             payload:
               typeof payload === "object" && payload !== null
                 ? (payload as Record<string, unknown>)
@@ -67,9 +84,16 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
       }),
     finish: (input) =>
       guard("rpc.finish_notification_delivery", async () => {
-        const rows = await sql<
-          { result: unknown }[]
-        >`select finish_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid, ${input.messageId}::text, ${input.messageId !== null}, ${input.error}::text) result`;
+        // `F8-01` — موضعٌ موصولٌ مُعلَنٌ: إعلانُ نتيجةِ التسليمِ يجري في معاملةٍ
+        // مضبوطةٍ بمعرِّفِ الطلبِ الذي أنشأَ الصفَّ (استعادَه العاملُ من الصفِّ)،
+        // فأثرُ الإرسالِ في القاعدةِ يُقرأُ بمعرِّفِ الطلبِ نفسِه لا بمعرِّفٍ آخرَ.
+        const rows = await withRequestContext(
+          sql,
+          (tx) =>
+            tx<
+              { result: unknown }[]
+            >`select finish_notification_delivery(${input.deliveryId}::uuid, ${input.claimToken}::uuid, ${input.messageId}::text, ${input.messageId !== null}, ${input.error}::text) result`,
+        );
         const row = envelope(rows[0]?.result, "finish_notification_delivery");
         return { ok: row.ok === true, outcome: finishOutcome(row.outcome) };
       }),

@@ -38,7 +38,7 @@ import type {
 } from "../../domain/subscription/entity.ts";
 import type { Order } from "../../domain/transport/entity.ts";
 import type { CityId, DriverId, OfferId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
-import { guard, readEnvelope, type Sql } from "../db/client.ts";
+import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
 
 interface CandidateRow {
   readonly driver_id: string;
@@ -392,9 +392,16 @@ export function createDispatchRpc(sql: Sql): DispatchRpcPort {
   return {
     claimRide: (orderId: OrderId, driverId: DriverId) =>
       guard("rpc.claim_ride", async () => {
-        const rows = await sql<{ result: unknown }[]>`
-          select claim_ride(${orderId}::uuid, ${driverId}::uuid) as result
-        `;
+        // `F8-01` — موضعٌ موصولٌ مُعلَنٌ: تجري الدعوةُ داخلَ معاملةٍ يُضبَطُ فيها
+        // المتغيّرُ الجلسيُّ للمعرِّفِ أوّلاً (اسمُه في `client.ts` وحدَه), فكلُ ما تكتبُه هذه الدالّةُ الذرّيّةُ في الجداولِ
+        // المُعلَنةِ يحملُ معرِّفَ وحدةِ العملِ. والقائمةُ في سجلِّ العقدِ لا ههنا،
+        // فالحاجزُ يعُدُّها ويمنعُ توسيعَها صمتاً.
+        const rows = await withRequestContext(
+          sql,
+          (tx) => tx<{ result: unknown }[]>`
+            select claim_ride(${orderId}::uuid, ${driverId}::uuid) as result
+          `,
+        );
         const envelope = readEnvelope(rows[0]?.result);
         if (envelope === null) throw new Error("ردّ claim_ride غير مفهوم");
         if (!envelope.ok) {

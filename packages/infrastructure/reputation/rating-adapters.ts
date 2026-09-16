@@ -22,7 +22,7 @@ import type {
   SubmitRatingReason,
 } from "../../domain/reputation/index.ts";
 import type { OrderId } from "../../shared/kernel/index.ts";
-import { guard, readEnvelope, type Sql } from "../db/client.ts";
+import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
 
 /** طرف الرحلة كما يعود في jsonb — الحقول اختيارية دفاعياً لا تفاؤلاً. */
 interface RawParty {
@@ -95,9 +95,16 @@ export function createRideLifecyclePort(sql: Sql): RideLifecyclePort {
 
     complete: (input) =>
       guard("rpc.complete_ride", async () => {
-        const rows = await sql<{ result: unknown }[]>`
-          select complete_ride(${input.orderId}::uuid, ${input.driverTelegramId}::bigint) as result
-        `;
+        // `F8-01` — موضعٌ موصولٌ مُعلَنٌ: تجري الدعوةُ داخلَ معاملةٍ يُضبَطُ فيها
+        // المتغيّرُ الجلسيُّ للمعرِّفِ أوّلاً (اسمُه في `client.ts` وحدَه), فكلُ ما تكتبُه هذه الدالّةُ الذرّيّةُ في الجداولِ
+        // المُعلَنةِ يحملُ معرِّفَ وحدةِ العملِ. والقائمةُ في سجلِّ العقدِ لا ههنا،
+        // فالحاجزُ يعُدُّها ويمنعُ توسيعَها صمتاً.
+        const rows = await withRequestContext(
+          sql,
+          (tx) => tx<{ result: unknown }[]>`
+            select complete_ride(${input.orderId}::uuid, ${input.driverTelegramId}::bigint) as result
+          `,
+        );
         const envelope = readEnvelope(rows[0]?.result);
         if (envelope === null) return { ok: false, reason: null, summary: null };
         if (!envelope.ok) {
