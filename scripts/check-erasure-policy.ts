@@ -223,8 +223,16 @@ export function auditErasurePolicy(options: {
 
   // ٨) **التنفيذُ يُقابَلُ بالسجلِّ**: لا قسمَ يُوعَدُ ولا يُبنى، ولا قسمَ يُبنى
   //    ولا يُوعَدُ، ولا جدولَ يملكُه هذا البندُ ولا تمسُّه دالّةُ الحذفِ.
-  const promised = exportSectionsForSubject(DATA_SUBJECTS.rider).filter((section) =>
-    tablesOwnedHere(DATA_SUBJECTS.rider).some((table) => erasure[table]?.exportSection === section),
+  //
+  // **والمُقابَلةُ على أصحابِ البيانةِ كلِّهم لا على الراكبِ وحدَه** (`SD-12`):
+  // كانت القاعدةُ تقرأُ `rider` حرفاً، فلمّا نُفِّذَ حذفُ حسابِ السائقِ صارَ ثمانيةَ
+  // عشرَ جدولاً محكوماً **خارجَ الإنفاذِ**: تُعلَنُ أحكامُها ولا يُقاسُ تنفيذُها.
+  // وحاجزٌ يحرسُ نصفَ سجلٍّ يُقرأُ حرزاً وهوَ إذنٌ.
+  const ENFORCED_SUBJECTS: readonly DataSubject[] = [DATA_SUBJECTS.rider, DATA_SUBJECTS.driver];
+  const promised = ENFORCED_SUBJECTS.flatMap((subject) =>
+    exportSectionsForSubject(subject).filter((section) =>
+      tablesOwnedHere(subject).some((table) => erasure[table]?.exportSection === section),
+    ),
   );
   const built = options.implementedSections ?? sectionsBuiltBySql(options.exportSql ?? "");
   if (options.exportSql !== undefined || options.implementedSections !== undefined) {
@@ -246,18 +254,39 @@ export function auditErasurePolicy(options: {
     }
   }
 
+  // ٩) **الحكمُ يُقابَلُ بعبارةٍ تُجريه لا بذكرِ اسمٍ**.
+  //
+  // كانت القاعدةُ تكتفي بوجودِ اسمِ الجدولِ في نصِّ الدالّةِ — و`select count(*)`
+  // يُرضيها. فجدولٌ حكمُه `erase-row` يُعَدُّ صفوفُه ثمَّ يُقالُ في الإيصالِ
+  // «مُحيَ: صفران» **وهوَ لم يُمَسَّ**: حاجزٌ يُرضيه العدُّ يُجيزُ عينَ الكذبِ
+  // الذي بُنيَ ليمنعَه (`ح-7`). فصارَ المطلوبُ عبارةً بعينِها:
+  //   `erase-row`          ⇐ `delete from <جدول>`
+  //   `anonymize-in-place` ⇐ `update <جدول>`
+  // ولذا صُحِّحَ حكمُ `order_offers` و`unsubscribed_claims` في السجلِّ إلى
+  // «يبقى بأساسٍ»: لا عمودَ تعريفٍ فيهما يُجهَّلُ، وكتابةٌ صوريّةٌ تُرضي حاجزاً
+  // كذبٌ آخرُ (`ح-5`).
   const eraseSql = options.eraseSql;
   if (eraseSql !== undefined) {
-    for (const table of tablesOwnedHere(DATA_SUBJECTS.rider)) {
-      const rule = erasure[table];
-      if (rule === undefined) continue;
-      if (rule.disposition !== D.erase && rule.disposition !== D.anonymize) continue;
-      if (!new RegExp(`\\b${table}\\b`).test(eraseSql)) {
-        add(
-          "REGISTRY_MATCHES_IMPLEMENTATION",
-          `\`${table}\`: حكمُه \`${rule.disposition}\` ويملكُه \`F2-11\`، ولا تمسُّه \`erase_my_account\` — ` +
-            "حكمٌ مكتوبٌ لا يُنفَّذُ، وهوَ بعينِه ما يجعلُ «حُذِفَ حسابُكَ» كذباً.",
-        );
+    const statementFor: Readonly<Record<string, string>> = {
+      [D.erase]: "delete from",
+      [D.anonymize]: "update",
+    };
+    const seen = new Set<string>();
+    for (const subject of ENFORCED_SUBJECTS) {
+      for (const table of tablesOwnedHere(subject)) {
+        if (seen.has(table)) continue;
+        seen.add(table);
+        const rule = erasure[table];
+        if (rule === undefined) continue;
+        const statement = statementFor[rule.disposition];
+        if (statement === undefined) continue;
+        if (!new RegExp(`${statement}\\s+${table}\\b`).test(eraseSql)) {
+          add(
+            "REGISTRY_MATCHES_IMPLEMENTATION",
+            `\`${table}\`: حكمُه \`${rule.disposition}\` ولا عبارةَ \`${statement} ${table}\` في ` +
+              "`erase_my_account` — حكمٌ مكتوبٌ لا يُنفَّذُ، وهوَ بعينِه ما يجعلُ «حُذِفَ حسابُكَ» كذباً.",
+          );
+        }
       }
     }
   }

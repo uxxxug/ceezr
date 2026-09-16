@@ -6,6 +6,10 @@
  * يُستخدم من: `application/privacy/*` · `infrastructure/privacy/*`
  * يُتوقع أن يستخدمه لاحقاً: حقُّ السائقِ في بياناتِه (`SD-12`) — الأصنافُ
  *   ههنا لا تعرفُ دوراً، فلا سطرَ يُزادُ فيها حينَ يُبنى.
+ *   **وقد بُنيَ يومَ 2026-09-16 وكانَ التوقّعُ مُخطِئاً جزئيّاً** (`ح-8`): صدَقَ
+ *   أنَّ الأصنافَ لا تعرفُ دوراً، ولكنَّ حسابَ السائقِ جاءَ بما لم يكن للراكبِ:
+ *   **رصيدٌ في محفظةٍ** يمنعُ المحوَ حتّى يُردَّ، و**أساسُ إبقاءٍ ماليٌّ** لا وجودَ
+ *   له في بيانةِ راكبٍ. فزادَ رمزانِ وثلاثةُ أسسٍ — زيادةً لا تبديلاً.
  * الحاكم: docs/adr/0112-erasure-is-a-per-table-judgement-not-a-delete.md
  *
  * ## لماذا **إيصالٌ** لا رسالةُ «تمَّ الحذفُ»
@@ -45,6 +49,31 @@ export const RETENTION_BASES = {
    * للإنسانِ **قبلَ** أن يضغطَ لا في الإيصالِ وحدَه.
    */
   blockAndStandingSurviveErasure: "BLOCK_AND_STANDING_SURVIVE_ERASURE",
+
+  // ــ أسسُ حسابِ السائقِ (`SD-12` · `ADR 0125`) — تُزادُ ولا تُبدِّلُ. ــ
+
+  /**
+   * **المالُ لا يُمحى ولا يُجهَّلُ**: فاتورةٌ وقيدٌ واستردادٌ وحركةُ
+   * محفظةٍ — قيودٌ محاسبيّةٌ تُراجَعُ وتُوازَنُ، ومحوُ صفٍّ منها يجعلُ
+   * دفترَ المنصّةِ لا يوازنُ **ولا يوازنُ لأحدٍ أبداً بعدَها**: لا للمنصّةِ
+   * ولا للسائقِ نفسِه لو نازعَ. وهوَ أساسٌ يحميه قبلَ أن يحمينا.
+   */
+  moneyRecordIsAccountingEvidence: "MONEY_RECORD_IS_ACCOUNTING_EVIDENCE",
+
+  /**
+   * سجلُّ الحُضورِ **هوَ ما يُثبِتُ أنَّ السائقَ عمِلَ**: منه يُحسَبُ ما
+   * يُستحَقُّ ومنه يُنازَعُ فيه، فمحوُه يسلبُ السائقَ دليلَ حقِّه لا دليلَ
+   * المنصّةِ عليه.
+   */
+  attendanceProvesDriverEntitlement: "ATTENDANCE_PROVES_DRIVER_ENTITLEMENT",
+
+  /**
+   * قرارُ الإسنادِ — عَرضٌ قُبِلَ أو رُفِضَ أو انقضى وقتُه — **واقعةٌ في
+   * رحلةِ راكبٍ لا في حسابِ سائقٍ وحدَه**: به يُعرَفُ لمَ انتطرَ الراكبُ
+   * ثلاثَ دوراتٍ، ومحوُه يترُكُ شكوى راكبٍ بلا جوابٍ. ولا يُجهَّلُ لأنَّ لا
+   * عمودَ تعريفٍ فيه أصلاً: مُعرِّفٌ داخليٌّ ودورةٌ ومسافةٌ وحالٌ.
+   */
+  dispatchDecisionIsEvidenceForTheOtherParty: "DISPATCH_DECISION_IS_EVIDENCE_FOR_THE_OTHER_PARTY",
 } as const;
 
 export type RetentionBasis = (typeof RETENTION_BASES)[keyof typeof RETENTION_BASES];
@@ -61,7 +90,26 @@ export function isRetentionBasis(value: unknown): value is RetentionBasis {
  */
 export const ERASURE_REFUSALS = {
   activeOrder: "ACTIVE_ORDER",
+  /**
+   * **يبقى ولا يُمحى وإن لم تعُدِ القاعدةُ تردُّه** (`ح-8`): كانَ ردَّ من
+   * ليسَ راكباً يومَ كانَ المحوُ للراكبِ وحدَه، وصارَ منذُ `SD-12` موضوعُه من
+   * لا دورَ له يمحو نفسَه (`ROLE_NOT_SELF_ERASABLE`). ويُحفَظُ لأنَّ مسارَ
+   * الدعمِ يقولُه، ورمزٌ يُحذَفُ من المجالِ يجعلُ دليلاً مكتوباً غيرَ مقروءٍ.
+   */
   notARider: "NOT_A_RIDER",
+  /**
+   * **لا يُمحى حسابٌ فيه مالٌ لصاحبِه**: محفظةٌ فيها رصيدٌ ثمَّ محوٌ
+   * تُسقَطُ فيه الهويّةُ يجعلُ المالَ بلا مُطالِبٍ يُعرَفُ — وهوَ كسبٌ للمنصّةِ
+   * من حقِّ إنسانٍ مارسَه. **فالمالُ يُردُّ أوّلاً ثمَّ يُمحى**، والرقمُ
+   * يُقالُ معَ الرفضِ لا يُخفى: منعٌ بلا رقمٍ يُقرأُ تعلُّلاً.
+   */
+  walletHasBalance: "WALLET_HAS_BALANCE",
+  /**
+   * دورٌ لا يمحو نفسَه (`support` · `admin`): حسابُ موظَّفٍ أداةُ عملٍ
+   * تُمنَحُ وتُسحَبُ إداريّاً، **ووزرٌ يمحو موظَّفَ دعمٍ نفسَه يمحو معَه
+   * من يُحاسَبُ على قراراتِه**.
+   */
+  roleNotSelfErasable: "ROLE_NOT_SELF_ERASABLE",
   userNotFound: "USER_NOT_FOUND",
   invalidActor: "INVALID_ACTOR",
 } as const;
@@ -98,7 +146,16 @@ export type ErasureOutcome =
   | { readonly erased: true; readonly erasedAt: string; readonly receipt: ErasureReceipt }
   /** حُذِفَ من قبلُ — يُقرأُ نجاحاً لا عطباً: النتيجةُ المطلوبةُ قائمةٌ. */
   | { readonly erased: true; readonly erasedAt: string; readonly receipt: null }
-  | { readonly erased: false; readonly refusal: ErasureRefusal; readonly activeOrders: number };
+  | {
+      readonly erased: false;
+      readonly refusal: ErasureRefusal;
+      readonly activeOrders: number;
+      /**
+       * رصيدُ المحفظةِ بأصغرِ وحدةٍ حينَ يكونُ المالُ هوَ المانعَ، وصفرٌ فيما
+       * سواه. **يُقرأُ من مصدرِ حقيقةِ الرصيدِ ولا يُحسَبُ ههنا** (القاعدة 0.6).
+       */
+      readonly walletBalanceMinor: number;
+    };
 
 /**
  * حزمةُ التنزيلِ. **لا تُفسَّرُ أقسامُها في هذه الطبقةِ**: مصدرُ حقيقةِ
