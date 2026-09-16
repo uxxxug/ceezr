@@ -11,6 +11,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   type CityOption,
+  type CityPulse,
   escapeHtml,
   formatDuration,
   formatStars,
@@ -36,6 +37,7 @@ import {
   sha256Hex,
 } from "../../apps/gateway/src/admin/auth.ts";
 import { healthIndicators } from "../../apps/gateway/src/admin/queries.ts";
+import type { MetricTruthStamp } from "../../packages/domain/admin/metric-snapshot.ts";
 
 const CITIES: readonly CityOption[] = [
   { id: "11111111-1111-1111-1111-111111111111", code: "JED", nameAr: "جدة" },
@@ -154,6 +156,15 @@ describe("الصفحات الثماني", () => {
           entityType: "users",
         },
       ],
+      stamp: {
+        source: "snapshot",
+        computedAt: new Date(NOW.getTime() - 30_000).toISOString(),
+        ageSeconds: 30,
+        isStale: false,
+        staleAfterSeconds: 180,
+        citiesMeasured: 1,
+        citiesExpected: 1,
+      },
     });
 
     expect(html).toContain("نظرة عامة");
@@ -559,5 +570,120 @@ describe("مصادقة اللوحة", () => {
 
   it("اسم كعكة الجلسة ثابت لا يُشتقّ في كل موضع", () => {
     expect(ADMIN_SESSION_COOKIE).toBe("waslah_admin");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// `F7-08` — لا رقمَ يُنشَرُ بلا وَسْمِ صدقِه
+// ---------------------------------------------------------------------------
+
+describe("شريطُ صدقِ عدَّاداتِ النظرةِ العامّةِ", () => {
+  const COUNTERS = {
+    searchingOrders: 0,
+    matchedOrders: 0,
+    inProgressOrders: 0,
+    availableDrivers: 0,
+    verifiedDrivers: 0,
+    pendingDrivers: 0,
+    activeSubscriptions: 0,
+    trialSubscriptions: 0,
+    openTickets: 0,
+    completedOrdersDay: 0,
+    failedOrdersDay: 0,
+    cancelledOrdersDay: 0,
+    averageMatchSeconds: null,
+    averageDriverRating: null,
+  } as const;
+
+  function page(stamp: MetricTruthStamp, cities: readonly CityPulse[] = []): string {
+    return renderOverviewPage({
+      now: NOW,
+      windowHours: 24,
+      counters: COUNTERS,
+      health: [],
+      cities,
+      recentAudit: [],
+      stamp,
+    });
+  }
+
+  it("لا لقطةَ ألبتّةَ ⇒ تُقالُ **عدمُ الإتاحةِ** ولا تُقرَأُ الأصفارُ هدوءاً", () => {
+    const html = page({
+      source: "snapshot",
+      computedAt: null,
+      ageSeconds: null,
+      isStale: true,
+      staleAfterSeconds: 180,
+      citiesMeasured: 0,
+      citiesExpected: 2,
+    });
+    expect(html).toContain("غيرُ متاحةٍ");
+    expect(html).toContain("لم تُقَس");
+    expect(html).toContain("مدنٌ مقيسةٌ: 0 من 2");
+  });
+
+  it("لقطةٌ متقادِمةٌ تُوسَمُ متقادِمةً وتُنشَرُ بعُمرِها لا تُكتَمُ", () => {
+    const html = page({
+      source: "snapshot",
+      computedAt: new Date(NOW.getTime() - 3_600_000).toISOString(),
+      ageSeconds: 3600,
+      isStale: true,
+      staleAfterSeconds: 180,
+      citiesMeasured: 2,
+      citiesExpected: 2,
+    });
+    expect(html).toContain("متقادِم");
+    expect(html).toContain("عُمرُ القياسِ");
+  });
+
+  it("مسحٌ حيٌّ يُنشَرُ مصدرُه صراحةً فلا يُقرأُ لقطةً", () => {
+    const html = page({
+      source: "live",
+      computedAt: NOW.toISOString(),
+      ageSeconds: 0,
+      isStale: false,
+      staleAfterSeconds: 180,
+      citiesMeasured: 1,
+      citiesExpected: 1,
+    });
+    expect(html).toContain("مسحٌ حيٌّ مباشرٌ");
+  });
+
+  it("مدينةٌ لم تُقَسْ تُعرَضُ «لم تُقَس» لا صفراً", () => {
+    const html = page(
+      {
+        source: "snapshot",
+        computedAt: NOW.toISOString(),
+        ageSeconds: 0,
+        isStale: false,
+        staleAfterSeconds: 180,
+        citiesMeasured: 0,
+        citiesExpected: 1,
+      },
+      [
+        {
+          code: "RUH",
+          nameAr: "الرياض",
+          isActive: true,
+          liveOrders: null,
+          availableDrivers: null,
+          openTickets: null,
+        },
+      ],
+    );
+    expect(html).toContain("لم تُقَس");
+  });
+
+  it("حدُّ تقادُمٍ غيرُ مضبوطٍ يُقالُ صراحةً ولا يُقرَأُ سليماً", () => {
+    const html = page({
+      source: "snapshot",
+      computedAt: NOW.toISOString(),
+      ageSeconds: 0,
+      isStale: true,
+      staleAfterSeconds: 0,
+      citiesMeasured: 1,
+      citiesExpected: 1,
+    });
+    expect(html).toContain("غيرُ مضبوطٍ");
   });
 });

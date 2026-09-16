@@ -14,7 +14,7 @@ import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { AdminAuthPort } from "../admin/auth.ts";
 import { type AdminEnv, createAdminGuard } from "../admin/guard.ts";
 import {
-  cityPulse,
+  adminOverviewReading,
   DAY_WINDOW_HOURS,
   HEATMAP_CELL_FALLBACK_DEGREES,
   healthSignals,
@@ -22,7 +22,6 @@ import {
   listCities,
   listLiveOrders,
   numericSetting,
-  overviewCounters,
   recentAudit,
   SEARCH_LIMIT,
   stallSeconds,
@@ -53,18 +52,24 @@ export function createAdminApiRoutes(deps: AdminApiDependencies): Hono<AdminEnv>
 
   app.get("/overview", async (c) => {
     const stall = await stallSeconds(deps.sql, null);
-    const [counters, pulse, audit, health] = await Promise.all([
-      overviewCounters(deps.sql, DAY_WINDOW_HOURS),
-      cityPulse(deps.sql),
+    /** لحظةُ ملاحظةٍ واحدةٌ للردِّ كلِّه — العمرُ والآنُ من ساعةٍ واحدةٍ (`F7-08`). */
+    const observedAt = new Date();
+    const [reading, audit, health] = await Promise.all([
+      adminOverviewReading(deps.sql, DAY_WINDOW_HOURS, observedAt),
       recentAudit(deps.sql, AUDIT_PREVIEW_LIMIT),
       healthSignals(deps.sql, stall),
     ]);
     return c.json({
       ok: true,
-      now: new Date().toISOString(),
+      now: observedAt.toISOString(),
       windowHours: DAY_WINDOW_HOURS,
-      counters,
-      cities: pulse,
+      counters: reading.counters,
+      cities: reading.cities,
+      /**
+       * الوَسْمُ يُنشَرُ في `JSON` أيضاً لا في الصفحةِ وحدَها: من يقرأُ الواجهةَ
+       * آلةً يحتاجُ عُمرَ الرقمِ كما يحتاجُه المُشغِّلُ عيناً.
+       */
+      metrics: reading.stamp,
       recentAudit: audit,
       health,
     });

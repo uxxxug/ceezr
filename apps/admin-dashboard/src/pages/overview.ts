@@ -8,6 +8,7 @@
  * ملاحظات مستقبلية: عند وصل مراقبة خارجية (القسم د.4) تُعرض حالتها هنا مؤشراً تاسعاً.
  */
 
+import type { MetricTruthStamp } from "../../../../packages/domain/admin/metric-snapshot.ts";
 import { formatDateTime, formatDuration, formatNumber, formatStars } from "../format.ts";
 import { type BadgeTone, badge, escapeHtml, metricCard, section, table } from "../layout.ts";
 
@@ -34,13 +35,18 @@ export interface OverviewCounters {
   readonly averageDriverRating: number | null;
 }
 
+/**
+ * نبضُ مدينةٍ. و`null` **ليسَ صفراً** (`F7-08`): مدينةٌ بلا لقطةٍ لم تُقَس،
+ * ومدينةٌ بلقطةٍ أصفارٍ مقيسةٌ هادئةٌ — وعرضُهما بنفسِ الشكلِ يسترُ عطبَ الشوطِ
+ * وراءَ هدوءٍ مُريحٍ.
+ */
 export interface CityPulse {
   readonly code: string;
   readonly nameAr: string;
   readonly isActive: boolean;
-  readonly liveOrders: number;
-  readonly availableDrivers: number;
-  readonly openTickets: number;
+  readonly liveOrders: number | null;
+  readonly availableDrivers: number | null;
+  readonly openTickets: number | null;
 }
 
 export interface AuditEntry {
@@ -58,6 +64,11 @@ export interface OverviewData {
   readonly recentAudit: readonly AuditEntry[];
   /** نافذة الحساب اليومية بالساعات — تأتي من الاستعلام لا من افتراض في العرض. */
   readonly windowHours: number;
+  /**
+   * وَسمُ صدقِ العدَّاداتِ (`F7-08`). **حقلٌ واجبٌ لا اختياريٌ**: لو كانَ
+   * `?` لمرَّ مسارٌ ينشُرُ أرقاماً بلا عُمرٍ بلا أن يمنعَهُ مُترجِمٌ.
+   */
+  readonly stamp: MetricTruthStamp;
 }
 
 const TONE_BY_STATUS: Readonly<Record<HealthIndicator["status"], BadgeTone>> = {
@@ -71,6 +82,40 @@ const STATUS_LABEL: Readonly<Record<HealthIndicator["status"], string>> = {
   warn: "انتبه",
   bad: "عطل",
 };
+
+/** عدَدٌ غائبٌ يُعرَضُ «لم تُقَس» ولا يُعرَضُ صفراً. */
+function measured(value: number | null): string {
+  return value === null ? "لم تُقَس" : formatNumber(value);
+}
+
+const SOURCE_LABEL: Readonly<Record<MetricTruthStamp["source"], string>> = {
+  snapshot: "لقطةٌ مجمّعةٌ",
+  live: "مسحٌ حيٌّ مباشرٌ",
+};
+
+/**
+ * شريطُ صدقِ العدَّاداتِ — **فوقَ الأرقامِ لا تحتَها**. وحينَ لا لقطةَ ألبتَّةَ
+ * يقولُ إنَّ الأرقامَ غيرُ متاحةٍ صراحةً: أصفارٌ بلا لقطةٍ تُقرَأُ «ليلةٌ هادئةٌ»
+ * وهيَ في الحقيقةِ «لا أحدَ يقيسُ».
+ */
+function truthBanner(stamp: MetricTruthStamp): string {
+  const source = SOURCE_LABEL[stamp.source];
+  const coverage = `مدنٌ مقيسةٌ: ${formatNumber(stamp.citiesMeasured)} من ${formatNumber(stamp.citiesExpected)}`;
+
+  if (stamp.computedAt === null) {
+    return `<p class="note">${badge("عدَّاداتٌ غيرُ متاحةٍ", "bad")} لا توجدُ لقطةٌ محسوبةٌ بعدُ، فالأرقامُ أعلاهُ لم تُقَس وليستِ أصفاراً مقيسةً. ${escapeHtml(coverage)}</p>`;
+  }
+
+  const age =
+    stamp.ageSeconds === null ? "عُمرٌ غيرُ معروفٍ" : `عُمرُ القياسِ: ${formatDuration(stamp.ageSeconds)}`;
+  const tone = stamp.isStale ? badge("متقادِمٌ", "warn") : badge("حديثٌ", "ok");
+  const threshold =
+    stamp.staleAfterSeconds > 0
+      ? `حدُّ التقادُمِ: ${formatDuration(stamp.staleAfterSeconds)}`
+      : "حدُّ التقادُمِ غيرُ مضبوطٍ — فيُعامَلُ متقادِماً";
+
+  return `<p class="note">${tone} ${escapeHtml(source)} · ${escapeHtml(age)} · قيسَ في ${escapeHtml(formatDateTime(stamp.computedAt))} · ${escapeHtml(threshold)} · ${escapeHtml(coverage)}</p>`;
+}
 
 export function renderOverviewPage(data: OverviewData): string {
   const c = data.counters;
@@ -113,9 +158,9 @@ export function renderOverviewPage(data: OverviewData): string {
   const cityRows = data.cities.map((city) => [
     `${escapeHtml(city.nameAr)} <span class="mono">${escapeHtml(city.code)}</span>`,
     city.isActive ? badge("مفعَّلة", "ok") : badge("غير مفعَّلة", "muted"),
-    formatNumber(city.liveOrders),
-    formatNumber(city.availableDrivers),
-    formatNumber(city.openTickets),
+    escapeHtml(measured(city.liveOrders)),
+    escapeHtml(measured(city.availableDrivers)),
+    escapeHtml(measured(city.openTickets)),
   ]);
 
   const auditRows = data.recentAudit.map((entry) => [
@@ -127,6 +172,7 @@ export function renderOverviewPage(data: OverviewData): string {
 
   return `<h1>نظرة عامة</h1>
 <p class="note">حالة اللحظة: ${escapeHtml(formatDateTime(data.now))}</p>
+${truthBanner(data.stamp)}
 ${section("التشغيل الآن", `<div class="cards">${liveCards}</div>`)}
 ${section(`الحصيلة — ${window}`, `<div class="cards">${dayCards}</div>`)}
 ${section(

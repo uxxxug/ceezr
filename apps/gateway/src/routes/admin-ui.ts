@@ -68,8 +68,8 @@ import {
 } from "../admin/guard.ts";
 import {
   ATTENDANCE_WINDOWS,
+  adminOverviewReading,
   attendanceSummary,
-  cityPulse,
   DAY_WINDOW_HOURS,
   DISPUTES_LIMIT,
   DRIVER_TICKETS_LIMIT,
@@ -94,7 +94,6 @@ import {
   listRatings,
   listSettings,
   numericSetting,
-  overviewCounters,
   RATINGS_LIMIT,
   ratingsTotals,
   recentAudit,
@@ -588,9 +587,13 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
 
   app.get("/", async (c) => {
     const stall = await stallSeconds(deps.sql, null);
-    const [counters, pulse, audit, signals] = await Promise.all([
-      overviewCounters(deps.sql, DAY_WINDOW_HOURS),
-      cityPulse(deps.sql),
+    /**
+     * لحظةُ الملاحظةِ **واحدةٌ للصفحةِ كلِّها** (`F7-08`): لو قُرئتِ الساعةُ في
+     * موضِعَينِ لظهرَ عُمرٌ في الشريطِ وعُمرٌ آخرُ في الترويسةِ على شاشةٍ واحدةٍ.
+     */
+    const observedAt = new Date();
+    const [reading, audit, signals] = await Promise.all([
+      adminOverviewReading(deps.sql, DAY_WINDOW_HOURS, observedAt),
       recentAudit(deps.sql, AUDIT_PREVIEW_LIMIT),
       healthSignals(deps.sql, stall),
     ]);
@@ -600,12 +603,13 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       "نظرة عامة",
       "/admin",
       renderOverviewPage({
-        now: new Date(),
-        counters,
-        cities: pulse,
+        now: observedAt,
+        counters: reading.counters,
+        cities: reading.cities,
         recentAudit: audit,
         health: healthIndicators(signals),
         windowHours: DAY_WINDOW_HOURS,
+        stamp: reading.stamp,
       }),
       OVERVIEW_REFRESH_SECONDS,
     );

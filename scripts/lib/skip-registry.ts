@@ -191,6 +191,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/admin-metric-snapshots.test.ts",
+    suites: ["لقطةُ مقاييسِ الإدارةِ على قاعدةٍ حقيقيّةٍ"],
+    skipped: 11,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ «لقطةُ مقاييسِ الإدارةِ» على PostgreSQL حقيقيّةٍ بالهجراتِ مطبَّقةً، ولا يُثبَتُ ببديلٍ في الذاكرةِ: المقيسُ سلوكُ المحرِّكِ نفسِه — ساعةُ القاعدةِ التي تكتبُ `computed_at`، وذرِّيّةُ عبارةِ الشوطِ الواحدةِ، وفريدُ `(city_id, window_hours)` عندَ إعادةِ التنفيذِ، ورفعُ `INVALID_WINDOW_HOURS` من `plpgsql` لا من الطبقةِ، ومطابقةُ العدَّادِ لعَدٍّ مستقلٍّ على الجداولِ الحارّةِ. ومحاكٍ نكتبُه نحنُ يقيسُ ما كتبناه لا ما يفعلُه المحرِّكُ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/admin-route-guard.test.ts",
     suites: ["حارس اللوحة يغطّي كل مسار مسجَّل"],
     skipped: 3,

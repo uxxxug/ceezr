@@ -109,6 +109,18 @@ export const ARCHIVE_MAX_DAYS_PER_RUN = 3;
  */
 export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   admin_login_codes: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `F7-08` · `CAP-011`: لقطةُ عدَّاداتِ لوحةِ الإدارةِ — **صفٌّ واحدٌ لكلِّ
+   * مدينةٍ ونافذةٍ يُحدَّثُ في موضعِه**، فالجدولُ **لا ينمو** ولا مدّةَ زمنيّةً
+   * له تُحسَمُ. وعمرُ الصفِّ عمرُ مدينتِه حرفاً: `on delete cascade` على
+   * `city_id` يُسقِطُه معَها، ولا مهمّةَ صيانةٍ تحذفُ منه شيئاً.
+   *
+   * وليسَ هذا تصنيفاً متسامحاً: الجدولُ **مُشتَقٌّ بالكامِلِ** ولا بيانةَ إنسانٍ
+   * فيه — لا اسمَ ولا هاتفَ ولا معرِّفَ مستخدمٍ — فحذفُ صفٍّ منه لا يمحو دليلاً
+   * ولا يُخفي أثراً، ويُعادُ بناؤه كلُّه من الجداولِ الأصليّةِ بشوطٍ واحدٍ.
+   * ولذلكَ **لا يدخلُ في محوِ البيانةِ الشخصيّةِ** أصلاً.
+   */
+  admin_metric_snapshots: RETENTION_CLASSES.lifecycleBound,
   admin_sessions: RETENTION_CLASSES.pendingDecision,
   agent_decisions: RETENTION_CLASSES.pendingDecision,
   agent_outcomes: RETENTION_CLASSES.pendingDecision,

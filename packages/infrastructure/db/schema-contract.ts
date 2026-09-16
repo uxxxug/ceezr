@@ -111,6 +111,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "record_subscription_warning",
   "record_user_consent",
   "record_webhook_event",
+  "refresh_admin_metric_snapshots",
   "refund_subscription_payment",
   "register_unsubscribed_claim",
   "request_ride",
@@ -150,6 +151,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
 
 /** جداولُ القاعدة التي يقرؤها كودُ التشغيل أو يكتب فيها مباشرةً. */
 export const CONTRACT_TABLES: readonly string[] = [
+  "admin_metric_snapshots",
   "agent_decisions",
   "attendance_log",
   "audit_log",
