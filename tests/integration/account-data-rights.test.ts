@@ -19,8 +19,11 @@
  * ═══ ما لا يُقاسُ ههنا عن قصدٍ ═══
  * ــ **لا يُقاسُ أثرُ `RLS`**: الاتصالُ بمالكِ القاعدةِ وهوَ يتخطّاه (سابقةُ
  *    `active-ride.test.ts`).
- * ــ **لا يُقاسُ حذفُ سائقٍ إلى تمامِه**: `driver_documents` و`payout_*` يملكُها
- *    `F3` وما زالت مؤجَّلةً؛ وادِّعاءُ قياسِها ادِّعاءٌ (`ح-5`).
+ * ــ **لا يُقاسُ حذفُ سائقٍ ههنا** — لا لأنَّه غيرُ مقيسٍ، بل لأنَّه **مقيسٌ في
+ *    ملفٍّ آخرَ**: `tests/integration/driver-account-erasure.test.ts` (`SD-12`).
+ *    وكانَ السطرُ ههنا يقولُ حتّى 2026-09-16: «`driver_documents` و`payout_*`
+ *    يملكُها `F3` وما زالت مؤجَّلةً»، وذاكَ **صحيحٌ في وقتِه ومنسوخٌ الآنَ**؛
+ *    يبقى مكتوباً ولا يُمحى (`ح-8`). والمُقاسُ ههنا حذفُ **الراكبِ** وحدَه.
  * ــ **لا تُقاسُ الشاشةُ**: هذا ملفُّ قاعدةٍ، والسطحُ مقيسٌ في `tests/unit`.
  */
 
@@ -117,7 +120,15 @@ describeIf("حقَّا البيانةِ على قاعدةٍ حقيقيّةٍ (F2
    * فالقائمةُ **وُسِّعَت بالعقدِ الجديدِ ولم تُرَخَّ**: هيَ مجالٌ مغلقٌ يُقارَنُ
    * بالتساوي لا بالاحتواءِ، فقسمٌ رابعَ عشرَ يُضافُ سهواً يُسقِطُ الاختبارَ.
    */
-  it("يُنزِّلُ الأقسامَ الثلاثةَ عشرَ كلَّها ولو كانَ بعضُها فارغاً", async () => {
+  /**
+   * **كانَ العددُ ثلاثةَ عشرَ فصارَ واحداً وثلاثينَ يومَ 2026-09-16** (`ح-8`):
+   * `SD-12` زادَ أقسامَ السائقِ الثمانيةَ عشرَ إلى **الدالّةِ نفسِها** لا إلى
+   * دالّةٍ ثانيةٍ، لأنَّ حزمةً يتغيَّرُ شكلُها بالدورِ تكسرُ كلَّ قارئٍ آليٍّ لها.
+   * والاسمُ القديمُ يبقى مذكوراً ههنا لا ممحوّاً. **والمُدَّعى ههنا أدقُّ من
+   * عَدٍّ**: أقسامُ الراكبِ الثلاثةَ عشرَ حاضرةٌ، وأقسامُ السائقِ حاضرةٌ
+   * **فارغةً** — والفراغُ قولٌ صادقٌ لا نقصٌ: لا صفَّ سياقةٍ لهذا الإنسانِ.
+   */
+  it("يُنزِّلُ أقسامَ الراكبِ كلَّها، وأقسامُ السائقِ تُقرأُ فارغةً لا غائبةً", async () => {
     erasedUserId = await seedRider(TG_ERASED);
     const userId = erasedUserId;
     await sql`
@@ -128,8 +139,10 @@ describeIf("حقَّا البيانةِ على قاعدةٍ حقيقيّةٍ (F2
     const result = await store.exportMyData({ telegramUserId: String(TG_ERASED) });
     expect(result.ok).toBe(true);
     if (!result.ok || !result.value.exported) throw new Error("توقّعنا حزمةً");
-    const sections = Object.keys(result.value.bundle.sections).sort();
-    expect(sections).toEqual([
+    const sections = result.value.bundle.sections;
+    const names = Object.keys(sections).sort();
+
+    const riderSections = [
       "auditTrail",
       "broadcastsReceived",
       "consents",
@@ -143,8 +156,36 @@ describeIf("حقَّا البيانةِ على قاعدةٍ حقيقيّةٍ (F2
       "savedPlaces",
       "supportTickets",
       "tripTrackingTokens",
-    ]);
-    expect((result.value.bundle.sections.savedPlaces as unknown[]).length).toBe(1);
+    ];
+    for (const section of riderSections) expect(names).toContain(section);
+
+    // أقسامُ السائقِ: حاضرةٌ بأسمائِها وفارغةٌ بمضمونِها.
+    const driverArraySections = [
+      "driverAttendance",
+      "driverAvailability",
+      "driverCapabilities",
+      "driverDocuments",
+      "ledgerEntries",
+      "notificationsSent",
+      "orderOffers",
+      "paymentTransactions",
+      "subscriptionInvoices",
+      "subscriptionNotices",
+      "subscriptionRefunds",
+      "subscriptionWalletEntries",
+      "subscriptionWallets",
+      "subscriptions",
+      "trackingSessions",
+      "unsubscribedClaims",
+    ];
+    for (const section of driverArraySections) {
+      expect(names).toContain(section);
+      expect(sections[section]).toEqual([]);
+    }
+    expect(sections.driverProfile).toEqual({});
+    expect(sections.driverLocationHistory).toEqual({ cap: 5000, newest_first: true, rows: [] });
+
+    expect((sections.savedPlaces as unknown[]).length).toBe(1);
   });
 
   it("**لا يُسرِّبُ التنزيلُ طرفاً آخرَ**: هُويّةُ السائقِ رايةٌ لا اسمٌ", async () => {

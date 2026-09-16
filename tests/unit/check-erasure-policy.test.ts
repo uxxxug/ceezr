@@ -316,6 +316,73 @@ describe("٨ · السجلُّ يُقابَلُ بالتنفيذِ لا بالن
   });
 });
 
+describe("٩ · الحكمُ يُقابَلُ بعبارةٍ تُجريه لا بذكرِ اسمٍ (SD-12)", () => {
+  it("يُخفِقُ على جدولٍ يُعَدُّ ولا يُمحى — وهوَ عينُ ما كانَ يمرُّ", () => {
+    // القاعدةُ القديمةُ كانت تكتفي بورودِ الاسمِ، و`select count(*)` يُرضيها،
+    // فيُقالُ في الإيصالِ «مُحيَ» ولم يُمَسَّ صفٌّ. **الحاجزُ الذي يُجيزُ هذا
+    // يحرسُ الكذبَ الذي بُنيَ ليمنعَه.**
+    const found = audit({
+      implementedSections: ["savedPlaces"],
+      eraseSql: "select count(*) into v_places from saved_places where user_id = v_user.id;",
+    });
+    expect(rules(found)).toContain("REGISTRY_MATCHES_IMPLEMENTATION");
+  });
+
+  it("يُخفِقُ حينَ يكونُ الحكمُ تجهيلاً والعبارةُ محواً — عبارةٌ لا تُنفِذُ الحكمَ", () => {
+    const found = audit({
+      erasure: {
+        ...CLEAN_ERASURE,
+        saved_places: { ...CLEAN_ERASURE.saved_places, disposition: D.anonymize } as ErasureRule,
+      },
+      implementedSections: ["savedPlaces"],
+      eraseSql: "delete from saved_places where user_id = v_user.id;",
+    });
+    expect(rules(found)).toContain("REGISTRY_MATCHES_IMPLEMENTATION");
+  });
+
+  it("يسكتُ حينَ تُطابِقُ العبارةُ الحكمَ: تجهيلٌ ⇐ `update`", () => {
+    // **يُقاسُ سكوتُ هذه القاعدةِ وحدَها لا سكوتُ الحاجزِ كلِّه**: التجهيلُ
+    // يستوجبُ أساساً مكتوباً بقاعدةٍ أُخرى، فالبذرةُ ههنا تحملُه لئلّا يُقرأَ
+    // إخفاقُ تلكَ إخفاقاً لهذه.
+    const found = audit({
+      erasure: {
+        ...CLEAN_ERASURE,
+        saved_places: {
+          ...CLEAN_ERASURE.saved_places,
+          disposition: D.anonymize,
+          basis: "CONSENT_IS_COMPLIANCE_EVIDENCE",
+        } as ErasureRule,
+      },
+      implementedSections: ["savedPlaces"],
+      eraseSql: "update saved_places set label = null where user_id = v_user.id;",
+    });
+    expect(rules(found)).not.toContain("REGISTRY_MATCHES_IMPLEMENTATION");
+  });
+
+  it("يُنفِذُ على جداولِ السائقِ كذلكَ لا على الراكبِ وحدَه", () => {
+    // `driver_documents` يملكُه صاحبُ البيانةِ `driver`، وكانَ خارجَ الإنفاذِ
+    // كلَّه يومَ كانت القاعدةُ تقرأُ `rider` حرفاً.
+    const found = audit({
+      erasure: {
+        ...CLEAN_ERASURE,
+        driver_documents: {
+          disposition: D.erase,
+          subjects: ["driver"],
+          linkedBy: "driver_id",
+          basis: null,
+          exportSection: "driverDocuments",
+          deferredTo: null,
+        },
+      },
+      retention: { ...CLEAN_RETENTION, driver_documents: "untilAccountDeletion" },
+      implementedSections: ["savedPlaces", "driverDocuments"],
+      eraseSql: "delete from saved_places where user_id = v_user.id;",
+    });
+    const messages = found.map((v) => v.message).join(" | ");
+    expect(messages).toContain("driver_documents");
+  });
+});
+
 describe("قارئُ الأقسامِ يقرأُ العُمقَ لا النمطَ", () => {
   it("لا يعُدُّ مفتاحاً متداخلاً قسماً — وهوَ الخطأُ الذي وقعَ فعلاً", () => {
     const nested = `

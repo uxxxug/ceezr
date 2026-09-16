@@ -63,6 +63,18 @@ function readCount(value: unknown): number | null {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
+/**
+ * مبلغٌ **بإشارتِه**: `readCount` يردُّ السالبَ لأنَّ عدَّ صفوفٍ لا يسلُبُ، وهذا
+ * رصيدُ محفظةٍ **قد يكونُ سالباً** (سائقٌ عليه لا له). ولو قُرِئَ بـ`readCount`
+ * لَصارَ الرصيدُ السالبُ `MALFORMED_RESULT`، فيُقالُ للإنسانِ «عطبٌ» والقاعدةُ
+ * قالت رقماً صحيحاً — وذاكَ إخفاءُ دَينٍ بعُطلٍ مُختلَقٍ.
+ */
+function readSignedAmount(value: unknown): number | null {
+  const parsed =
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
+  return Number.isInteger(parsed) ? parsed : null;
+}
+
 /** وقتٌ يُعادُ من `jsonb` قد يكونُ نصّاً أو `Date` حسبَ المُسلسِلِ. */
 function readInstant(value: unknown): string | null {
   if (value instanceof Date) return value.toISOString();
@@ -160,7 +172,12 @@ export class PostgresDataRightsStore implements DataRightsStore {
   }): Promise<Result<ErasureOutcome, DataRightsStoreFailure>> {
     const telegramId = asTelegramId(input.telegramUserId);
     if (telegramId === null) {
-      return ok({ erased: false, refusal: "INVALID_ACTOR", activeOrders: 0 });
+      return ok({
+        erased: false,
+        refusal: "INVALID_ACTOR",
+        activeOrders: 0,
+        walletBalanceMinor: 0,
+      });
     }
 
     let rows: readonly ResultRow[];
@@ -180,7 +197,13 @@ export class PostgresDataRightsStore implements DataRightsStore {
       // رحلةً تمنعُه، وصفرٌ مُفترَضٌ يجعلُها تقولُ «لا شيءَ يمنعُكَ» ثمَّ ترفضُ.
       const activeOrders = refusal === "ACTIVE_ORDER" ? readCount(payload.active_orders) : 0;
       if (activeOrders === null) return err(failed("MALFORMED_RESULT"));
-      return ok({ erased: false, refusal, activeOrders });
+      // `balance_minor` كذلكَ **يُقرأُ ولا يُفترَضُ** (`SD-12`): «لا يمكنُ حذفُ
+      // حسابِكَ لأنَّ فيه رصيداً» بلا رقمٍ تدفعُ الإنسانَ إلى دعمٍ ليسألَ **كم**،
+      // وصفرٌ مُفترَضٌ ههنا يجعلُ الشاشةَ تقولُ «رصيدُكَ ٠٫٠٠» ثمَّ تمنعُه به.
+      const walletBalanceMinor =
+        refusal === "WALLET_HAS_BALANCE" ? readSignedAmount(payload.wallet_balance_minor) : 0;
+      if (walletBalanceMinor === null) return err(failed("MALFORMED_RESULT"));
+      return ok({ erased: false, refusal, activeOrders, walletBalanceMinor });
     }
 
     const erasedAt = readInstant(payload.erased_at);

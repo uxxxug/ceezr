@@ -133,6 +133,9 @@ export function createDataRightsRoutes(deps: DataRightsRouteDependencies): Hono 
         erased: false as const,
         refusal: outcome.refusal,
         activeOrders: outcome.activeOrders,
+        // **الرقمُ يُمرَّرُ ولا يُترجَمُ ههنا** (`SD-12`): المنفذُ لا يعرفُ عملةً
+        // ولا خِزانةَ نصوصٍ، والواجهةُ تُنسِّقُ الأصغرَ إلى مقروءٍ بلغةِ صاحبِه.
+        walletBalanceMinor: outcome.walletBalanceMinor,
       });
     }
     return c.json({

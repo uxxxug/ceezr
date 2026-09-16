@@ -154,7 +154,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "attendance_log.driver_id → drivers.user_id",
     basis: "سجلُّ حضورٍ يُبنى عليه استحقاقٌ ماليٌّ للسائقِ.",
     exportSection: "driverAttendance",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
 
   /**
@@ -203,7 +203,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "driver_availability.driver_id → drivers.user_id",
     basis: null,
     exportSection: "driverAvailability",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   driver_capabilities: {
     disposition: D.erase,
@@ -211,7 +211,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "driver_capabilities.driver_id → drivers.user_id",
     basis: null,
     exportSection: "driverCapabilities",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   /**
    * `F3-01`: وثائقُ السائقِ. **تُمحى محواً تامّاً** — لا أساسَ إبقاءٍ لها: الصفُّ
@@ -228,7 +228,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "driver_documents.driver_id → drivers.user_id",
     basis: null,
     exportSection: "driverDocuments",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   driver_location_history: {
     disposition: D.erase,
@@ -236,7 +236,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "driver_location_history.driver_id → drivers.user_id",
     basis: null,
     exportSection: "driverLocationHistory",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   drivers: {
     disposition: D.anonymize,
@@ -244,7 +244,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "drivers.user_id",
     basis: "أثرٌ ماليٌّ وتقييمٌ للطرفِ الآخرِ معلَّقانِ بالصفِّ — يُجهَّلُ ولا يُحذَفُ.",
     exportSection: "driverProfile",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
 
   job_heartbeats: reference(),
@@ -255,7 +255,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "ledger_entries.driver_id → drivers.user_id",
     basis: "قيدٌ ماليٌّ — ستُّ سنينَ بحدٍّ أدنى داخلَ المملكةِ (`financial-min-6y-in-kingdom`).",
     exportSection: "ledgerEntries",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   location_archive_manifest: reference(),
   move_event_outbox: deferredArea("W-5"),
@@ -266,17 +266,27 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "notification_outbox.driver_id → drivers.user_id",
     basis: "صندوقُ صادرٍ هوَ دليلُ عدمِ تكرارِ الإرسالِ — يُجهَّلُ ولا يُحذَفُ.",
     exportSection: "notificationsSent",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   operational_jobs: deferredArea("W-4"),
 
+  /**
+   * **صُحِّحَ حُكمُه يومَ 2026-09-16 عندَ تنفيذِ `SD-12`، والحكمُ السابقُ يبقى
+   * مذكوراً لا ممحوّاً** (`ح-8`): كانَ `anonymize-in-place`، وحينَ جاءَ وقتُ
+   * التنفيذِ لم يُوجَدْ في الصفِّ **عمودٌ يُجهَّلُ**: لا اسمَ ولا هاتفَ ولا
+   * مقصدَ إيصالٍ — بل معرّفُ صفِّ سياقةٍ ورقمُ جولةٍ ونتيجةٌ ووقتٌ. ونسبتُه إلى
+   * إنسانٍ تنقطعُ عندَ **الجذرِ** (`drivers` و`users` يُجهَّلانِ)، فلا كتابةَ
+   * ههنا تُزيدُ خصوصيّةً. وكتابةٌ صوريّةٌ تُرضي حاجزاً **كذبٌ مقيسٌ** (`ح-5`)،
+   * فالصوابُ أن يُقالَ: يبقى بأساسٍ.
+   */
   order_offers: {
-    disposition: D.anonymize,
+    disposition: D.retainLegalBasis,
     subjects: [S.driver],
     linkedBy: "order_offers.driver_id → drivers.user_id",
-    basis: "سجلُّ عرضٍ ورَدٍّ — يُفسَّرُ به إسنادٌ مضى، فيُجهَّلُ ولا يُحذَفُ.",
+    basis:
+      "سجلُّ عرضٍ ورَدٍّ — شهادةٌ على إسنادٍ مضى يُنازَعُ فيه راكبٌ أو سائقٌ آخرُ، ولا عمودَ تعريفٍ فيه يُجهَّلُ: نسبتُه تنقطعُ بتجهيلِ الجذرِ.",
     exportSection: "orderOffers",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
 
   /**
@@ -301,7 +311,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "payment_transactions.payer_driver_id → drivers.user_id",
     basis: "معاملةٌ ماليّةٌ — ستُّ سنينَ بحدٍّ أدنى داخلَ المملكةِ.",
     exportSection: "paymentTransactions",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   platform_settings: reference(),
   queue_backpressure_events: reference(),
@@ -400,7 +410,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "subscription_invoices.driver_id → drivers.user_id",
     basis: "فاتورةٌ — ستُّ سنينَ بحدٍّ أدنى داخلَ المملكةِ.",
     exportSection: "subscriptionInvoices",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   subscription_notices: {
     disposition: D.anonymize,
@@ -408,7 +418,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "subscription_notices.driver_id → drivers.user_id",
     basis: "إثباتُ إشعارٍ سابقٍ للسائقِ — يُجهَّلُ ولا يُحذَفُ.",
     exportSection: "subscriptionNotices",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   subscription_refunds: {
     disposition: D.retainLegalBasis,
@@ -416,7 +426,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "subscription_refunds.driver_id · subscription_refunds.actor_user_id",
     basis: "ردُّ مالٍ — ستُّ سنينَ بحدٍّ أدنى داخلَ المملكةِ.",
     exportSection: "subscriptionRefunds",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   subscription_wallet_entries: {
     disposition: D.retainLegalBasis,
@@ -424,7 +434,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "subscription_wallet_entries.driver_id · actor_user_id",
     basis: "قيدُ محفظةٍ — ستُّ سنينَ بحدٍّ أدنى داخلَ المملكةِ.",
     exportSection: "subscriptionWalletEntries",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   subscription_wallets: {
     disposition: D.retainLegalBasis,
@@ -432,7 +442,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "subscription_wallets.driver_id → drivers.user_id",
     basis: "رصيدُ محفظةٍ — ستُّ سنينَ بحدٍّ أدنى داخلَ المملكةِ.",
     exportSection: "subscriptionWallets",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   subscriptions: {
     disposition: D.retainLegalBasis,
@@ -440,7 +450,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "subscriptions.driver_id → drivers.user_id",
     basis: "عقدُ اشتراكٍ وأثرُه الماليُّ — ستُّ سنينَ بحدٍّ أدنى داخلَ المملكةِ.",
     exportSection: "subscriptions",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
 
   /**
@@ -464,7 +474,7 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     linkedBy: "tracking_sessions.driver_id → drivers.user_id",
     basis: null,
     exportSection: "trackingSessions",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   trip_tracking_tokens: {
     disposition: D.erase,
@@ -474,13 +484,15 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     exportSection: "tripTrackingTokens",
     deferredTo: null,
   },
+  /** صُحِّحَ حكمُه معَ `order_offers` ولعينِ السببِ (2026-09-16 · `ح-8`). */
   unsubscribed_claims: {
-    disposition: D.anonymize,
+    disposition: D.retainLegalBasis,
     subjects: [S.driver],
     linkedBy: "unsubscribed_claims.driver_id → drivers.user_id",
-    basis: "مطالبةٌ تشغيليّةٌ تُفسَّرُ بها قراراتٌ مضَت — تُجهَّلُ ولا تُحذَفُ.",
+    basis:
+      "مطالبةٌ تشغيليّةٌ تُفسَّرُ بها قراراتُ إسنادٍ مضَت، ولا عمودَ تعريفٍ فيها يُجهَّلُ: نسبتُها تنقطعُ بتجهيلِ الجذرِ.",
     exportSection: "unsubscribedClaims",
-    deferredTo: "SD-12",
+    deferredTo: null,
   },
   unsubscribed_negotiations: reference(),
 
