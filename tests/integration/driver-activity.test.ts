@@ -282,6 +282,27 @@ async function assertDayWindowFarFromBoundary(): Promise<void> {
 }
 
 /** رحلةٌ **مُكتمِلةٌ** بأختامِها وعرضٌ مقبولٌ لها — الحالةُ تُصنَعُ بالإيكالِ الحقيقيِّ. */
+/**
+ * نافذةُ رحلةٍ مُشتَقّةٌ من **قراءةِ ساعةٍ واحدةٍ**.
+ *
+ * كانَ المُستعمَلُ `completedAt: new Date()` و`startedAt: new Date(Date.now() - م)`
+ * — **قراءتانِ للساعةِ تُبنى منهما مُدّةٌ واحدةٌ**. فإن وقعَت بينَهما حافّةُ
+ * مِلِّي ثانيةٍ صارَت المُدّةُ `م - 1` فتُبتَرُ إلى ثانيةٍ أقلَّ، فيُخفِقُ التوكيدُ
+ * على مِلِّي ثانيةٍ لا على عيبٍ في المنطقِ. **وقد أخفقَ فعلاً في CI** (١٤٩٩ مكانَ
+ * ١٥٠٠) وهوَ أخضرُ محلّيّاً — وذاكَ أسوأُ أنواعِ التذبذُبِ لأنَّهُ يُقرأُ انحداراً.
+ *
+ * **ولم يُلَيَّن التوكيدُ** إلى «أكبرَ من» ولا وُسِّعَ هامشُه: العيبُ في القياسِ لا
+ * في المقيسِ. فتُقرأُ الساعةُ **مرّةً** ويُشتَقُّ الطرفانِ منها، فالفارقُ مضبوطٌ
+ * بالبناءِ لا بالحظِّ.
+ */
+function rideWindow(durationMs: number): { completedAt: string; startedAt: string } {
+  const completedAtMs = Date.now();
+  return {
+    completedAt: new Date(completedAtMs).toISOString(),
+    startedAt: new Date(completedAtMs - durationMs).toISOString(),
+  };
+}
+
 async function seedCompletedRide(options: {
   readonly completedAt: string;
   readonly startedAt: string | null;
@@ -519,8 +540,7 @@ describeIf("المقامُ — من صفوفٍ لا من شِعارٍ", () => {
   it("٩) عرضٌ مقبولٌ وعرضٌ منتهٍ ⇒ ١ من ٢ بمقامٍ منشورٍ", async () => {
     await clearOrders();
     await seedCompletedRide({
-      completedAt: new Date().toISOString(),
-      startedAt: new Date(Date.now() - 1_500_000).toISOString(),
+      ...rideWindow(1_500_000),
       distanceKm: 4.2,
     });
     await seedPendingOffer();
@@ -532,8 +552,7 @@ describeIf("المقامُ — من صفوفٍ لا من شِعارٍ", () => {
   it("١٠) مقامُ الإلغاءِ **ما قبِلَه** لا ما عُرِضَ عليه — فلا تخفُّ بكثرةِ العروضِ", async () => {
     await clearOrders();
     await seedCompletedRide({
-      completedAt: new Date().toISOString(),
-      startedAt: new Date(Date.now() - 600_000).toISOString(),
+      ...rideWindow(600_000),
       distanceKm: null,
     });
     await seedPendingOffer();
@@ -573,8 +592,7 @@ describeIf("التقييمُ وعواملُ الترتيبِ — من مصادر
   it("١٤) تقييمٌ مَوسومٌ (`is_flagged`) لا يدخلُ المتوسّطَ — كما يستثنيهِ الإسنادُ", async () => {
     await clearOrders();
     const orderId = await seedCompletedRide({
-      completedAt: new Date().toISOString(),
-      startedAt: new Date(Date.now() - 900_000).toISOString(),
+      ...rideWindow(900_000),
       distanceKm: 2.5,
     });
     await sql`
@@ -664,8 +682,7 @@ describeIf("جدولُ الرحلاتِ — أختامٌ ومسافةٌ موسو
   it("٢٠) صفٌّ بمسافةٍ موسومةٍ ومُدّةٍ من ختمِ البدءِ", async () => {
     await clearOrders();
     await seedCompletedRide({
-      completedAt: new Date().toISOString(),
-      startedAt: new Date(Date.now() - 1_500_000).toISOString(),
+      ...rideWindow(1_500_000),
       distanceKm: 4.2,
     });
     const log = await entries(DRIVER_TELEGRAM_ID, "day", 10);
@@ -704,8 +721,11 @@ describeIf("جدولُ الرحلاتِ — أختامٌ ومسافةٌ موسو
 
   it("٢٣) الجدولُ مرتَّبٌ بالأحدثِ أوّلاً — قراءةٌ لا بحثٌ", async () => {
     await clearOrders();
-    const older = new Date(Date.now() - 7_200_000).toISOString();
-    const newer = new Date(Date.now() - 600_000).toISOString();
+    // قراءةُ ساعةٍ واحدةٍ للطرفَينِ: الترتيبُ المقيسُ يجبُ أن يكونَ مضبوطاً
+    // بالبناءِ لا مُعرَّضاً لحافّةِ مِلِّي ثانيةٍ بينَ قراءتَينِ.
+    const nowMs = Date.now();
+    const older = new Date(nowMs - 7_200_000).toISOString();
+    const newer = new Date(nowMs - 600_000).toISOString();
     await seedCompletedRide({ completedAt: older, startedAt: null, distanceKm: null });
     await seedCompletedRide({ completedAt: newer, startedAt: null, distanceKm: null });
     const rows = (await entries(DRIVER_TELEGRAM_ID, "day", 10)).entries as Record<
