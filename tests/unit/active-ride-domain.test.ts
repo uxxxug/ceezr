@@ -20,29 +20,45 @@ import {
 
 describe("طَورُ الرحلةِ", () => {
   it("`matched` معَ سائقٍ ⇒ إسنادٌ", () => {
-    expect(activeRidePhaseOf({ status: "matched", hasDriver: true })).toBe("driver_assigned");
+    expect(activeRidePhaseOf({ status: "matched", hasDriver: true, arrivedAtMs: null })).toBe(
+      "driver_assigned",
+    );
   });
 
   it("`matched` بلا سائقٍ ⇒ بحثٌ لا إسنادٌ: بطاقةٌ غائبةٌ ليسَت سائقاً", () => {
-    expect(activeRidePhaseOf({ status: "matched", hasDriver: false })).toBe("searching");
+    expect(activeRidePhaseOf({ status: "matched", hasDriver: false, arrivedAtMs: null })).toBe(
+      "searching",
+    );
   });
 
   it("`in_progress` معَ سائقٍ ⇒ رحلةٌ جارِيةٌ", () => {
-    expect(activeRidePhaseOf({ status: "in_progress", hasDriver: true })).toBe("on_trip");
+    expect(activeRidePhaseOf({ status: "in_progress", hasDriver: true, arrivedAtMs: null })).toBe(
+      "on_trip",
+    );
   });
 
   it("`in_progress` بلا سائقٍ ⇒ مُغلَقٌ: حالةٌ لا تُرسَمُ رحلةً جارِيةً", () => {
-    expect(activeRidePhaseOf({ status: "in_progress", hasDriver: false })).toBe("closed");
+    expect(activeRidePhaseOf({ status: "in_progress", hasDriver: false, arrivedAtMs: null })).toBe(
+      "closed",
+    );
   });
 
   it("`completed` ⇒ انتهَت، و`cancelled`/`failed` ⇒ مُغلَقةٌ", () => {
-    expect(activeRidePhaseOf({ status: "completed", hasDriver: true })).toBe("completed");
-    expect(activeRidePhaseOf({ status: "cancelled", hasDriver: false })).toBe("closed");
-    expect(activeRidePhaseOf({ status: "failed", hasDriver: false })).toBe("closed");
+    expect(activeRidePhaseOf({ status: "completed", hasDriver: true, arrivedAtMs: null })).toBe(
+      "completed",
+    );
+    expect(activeRidePhaseOf({ status: "cancelled", hasDriver: false, arrivedAtMs: null })).toBe(
+      "closed",
+    );
+    expect(activeRidePhaseOf({ status: "failed", hasDriver: false, arrivedAtMs: null })).toBe(
+      "closed",
+    );
   });
 
   it("`searching` ⇒ بحثٌ", () => {
-    expect(activeRidePhaseOf({ status: "searching", hasDriver: false })).toBe("searching");
+    expect(activeRidePhaseOf({ status: "searching", hasDriver: false, arrivedAtMs: null })).toBe(
+      "searching",
+    );
   });
 
   it("النشطُ هما الإسنادُ والرحلةُ وحدَهما", () => {

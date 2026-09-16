@@ -48,6 +48,7 @@ export { elapsedSecondsFor, elapsedText, isRetryableRideError, rideStatusKey };
 const PHASE_KEYS: Readonly<Record<string, string>> = {
   searching: "rider.active.phase.searching",
   driver_assigned: "rider.active.phase.driverAssigned",
+  driver_arrived: "rider.active.phase.driverArrived",
   on_trip: "rider.active.phase.onTrip",
   completed: "rider.active.phase.completed",
   closed: "rider.active.phase.closed",

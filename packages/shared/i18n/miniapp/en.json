@@ -1012,5 +1012,7 @@
   "driver.support.error.LIMIT_OUT_OF_RANGE": "That tickets request was not accepted. Reopen the screen.",
   "driver.support.error.CURSOR_INVALID": "We could not continue the list from that point. Reopen the screen.",
   "driver.support.error.UNKNOWN": "Sending failed and we do not know why. Your complaint was not sent; please try again.",
-  "driver.offers.openSupport": "Support and complaints"
+  "driver.offers.openSupport": "Support and complaints",
+  "rider.active.phase.driverArrived": "Your driver has arrived at the pickup point.",
+  "rider.active.liveTracking": "Live tracking of your driver."
 }

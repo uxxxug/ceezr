@@ -39,12 +39,14 @@
 import type { RideStatus } from "./ride-request.ts";
 
 /**
- * طورُ الرحلةِ كما يراهُ الراكبُ. **أربعةٌ لا أكثرُ**، وكلٌّ منها له مصدرٌ في
+ * طورُ الرحلةِ كما يراهُ الراكبُ. **خمسةٌ لا أكثرُ**، وكلٌّ منها له مصدرٌ في
  * القاعدةِ يُقرأُ — لا طورَ بلا عمودٍ يُثبِتُه.
  */
 export type ActiveRidePhase =
   /** `matched` وسائقٌ مُسنَدٌ: في طريقِه إلى نقطةِ الالتقاطِ. */
   | "driver_assigned"
+  /** السائقُ وصلَ نقطةَ الالتقاطِ — `arrived_at` مكتوبٌ (`F3-03` · `F2-06`). */
+  | "driver_arrived"
   /** `in_progress`: الرحلةُ جارياً — `started_at` مكتوبٌ. */
   | "on_trip"
   /** `completed`: انتهَت — والتقييمُ بندُه `F2-07`. */
@@ -58,27 +60,35 @@ export interface ActiveRideSnapshot {
   readonly status: RideStatus;
   /** `true` متى قرأَت القاعدةُ بطاقةَ سائقٍ فعلاً — لا متى وُجِدَ معرَّفٌ. */
   readonly hasDriver: boolean;
+  /** ختمُ «وصلَ السائقُ» — `null` متى لم يُكتبْه السائقُ بعدُ. */
+  readonly arrivedAtMs: number | null;
 }
 
 /**
- * الطورُ من الحالةِ **ووجودِ السائقِ معاً**.
+ * الطورُ من الحالةِ **ووجودِ السائقِ وختمِ الوصولِ معاً**.
  *
  * و`matched` بلا بطاقةِ سائقٍ **تُعادُ `searching`** لا `driver_assigned`:
  * القيدُ `orders_matched_requires_driver` يمنعُ ذلكَ في القاعدةِ، فإن وقعَ فهوَ
  * عطبٌ — والأسلمُ للراكبِ أن يرى «نبحثُ» من أن يرى بطاقةً فارغةً.
+ *
+ * وختمُ `arrived_at` يُقدَّمُ على `started_at`: السائقُ قد يصلُ نقطةَ الالتقاطِ
+ * ثمَّ ينتظِرُ الراكبَ قبلَ بدءِ الرحلةِ، فالطورُ «وصلَ» لا «جاريةٌ».
  */
 export function activeRidePhaseOf(snapshot: ActiveRideSnapshot): ActiveRidePhase {
   const { status } = snapshot;
   if (status === "completed") return "completed";
   if (status === "cancelled" || status === "failed") return "closed";
   if (status === "in_progress") return snapshot.hasDriver ? "on_trip" : "closed";
-  if (status === "matched") return snapshot.hasDriver ? "driver_assigned" : "searching";
+  if (status === "matched") {
+    if (!snapshot.hasDriver) return "searching";
+    return snapshot.arrivedAtMs !== null ? "driver_arrived" : "driver_assigned";
+  }
   return "searching";
 }
 
 /** هل هذا الطورُ شأنُ شاشةِ الرحلةِ النشطةِ أصلاً؟ */
 export function isActivePhase(phase: ActiveRidePhase): boolean {
-  return phase === "driver_assigned" || phase === "on_trip";
+  return phase === "driver_assigned" || phase === "driver_arrived" || phase === "on_trip";
 }
 
 /**
@@ -144,6 +154,7 @@ export type CancelPolicyCode =
 
 export function cancelPolicyOf(phase: ActiveRidePhase): CancelPolicyCode {
   if (phase === "searching") return "FREE_BEFORE_ASSIGNMENT";
-  if (phase === "driver_assigned") return "AFTER_ASSIGNMENT_UNDECIDED";
+  if (phase === "driver_assigned" || phase === "driver_arrived")
+    return "AFTER_ASSIGNMENT_UNDECIDED";
   return "NOT_CANCELLABLE";
 }

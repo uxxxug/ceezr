@@ -346,6 +346,7 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       createdAt: new Date(state.createdAtMs).toISOString(),
       matchedAt: state.matchedAtMs === null ? null : new Date(state.matchedAtMs).toISOString(),
       startedAt: state.startedAtMs === null ? null : new Date(state.startedAtMs).toISOString(),
+      arrivedAt: state.arrivedAtMs === null ? null : new Date(state.arrivedAtMs).toISOString(),
       completedAt:
         state.completedAtMs === null ? null : new Date(state.completedAtMs).toISOString(),
       elapsedSeconds,

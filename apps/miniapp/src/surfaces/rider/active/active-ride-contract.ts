@@ -76,6 +76,7 @@ export type ActiveRideResponse =
       readonly createdAt: string;
       readonly matchedAt: string | null;
       readonly startedAt: string | null;
+      readonly arrivedAt: string | null;
       readonly completedAt: string | null;
       readonly elapsedSeconds: number;
       readonly cancelPolicy: string;

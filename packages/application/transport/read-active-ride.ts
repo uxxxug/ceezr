@@ -101,7 +101,11 @@ export async function readActiveRide(
   if (!verdict.found) return ok({ found: false, refusal: verdict.refusal });
 
   const { state } = verdict;
-  const phase = activeRidePhaseOf({ status: state.status, hasDriver: state.driver !== null });
+  const phase = activeRidePhaseOf({
+    status: state.status,
+    hasDriver: state.driver !== null,
+    arrivedAtMs: state.arrivedAtMs,
+  });
   const position = state.driver === null ? null : driverPositionVerdict(state.driver.position);
 
   return ok({

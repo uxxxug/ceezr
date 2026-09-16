@@ -73,6 +73,8 @@ export interface ActiveRideState {
   readonly createdAtMs: number;
   readonly matchedAtMs: number | null;
   readonly startedAtMs: number | null;
+  /** ختمُ «وصلَ السائقُ» — `null` متى لم يُكتبْه السائقُ بعدُ (`F3-03`). */
+  readonly arrivedAtMs: number | null;
   readonly completedAtMs: number | null;
   /** `null` = لا سائقَ مُسنَدٌ **أو** الحالةُ ليسَت من حالاتِ الإسنادِ. */
   readonly driver: ActiveRideDriver | null;
