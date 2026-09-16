@@ -634,7 +634,6 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const trackingBus: TrackingEventBus = distributedTrackingBus ?? localTrackingBus;
   const trackingSessions = createTrackingSessionRepository(sql);
   const trackingProofs = createTrackingProofReader(sql);
-  const trackingTokens = createTrackingTokenRpc(sql);
   const trackingTokenMint = createTrackingTokenMint();
 
   /**
@@ -772,6 +771,15 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
           onFailure: (detail) => log("driver_location.hot_state_failed", detail),
         })
       : null;
+
+  /**
+   * `F4-05` — رموزُ التتبّعِ العامّةُ تقرأُ الموقعَ من الحالةِ الساخنةِ لا من
+   * القاعدةِ كلَّ خمسِ ثوانٍ. ولا يسقطُ غيابُ `Redis`: القاعدةُ تظلُّ الأرضيّةَ.
+   */
+  const trackingTokens = createTrackingTokenRpc(sql, {
+    ...(driverLocationHotState === null ? {} : { hotStateReader: driverLocationHotState }),
+    clock: systemClock,
+  });
 
   /**
    * أثرُ التدهوّرِ: يُسجَّلُ ولا يُبتلَعُ. والسائقُ لا يُخبَرُ بشيءٍ — موقعُه كُتِبَ

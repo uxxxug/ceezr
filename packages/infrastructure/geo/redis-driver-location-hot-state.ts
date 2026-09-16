@@ -37,10 +37,12 @@
 
 import {
   type DriverLocationBacklogReader,
+  type DriverLocationHotStateReader,
   type DriverLocationHotStateWriter,
   type HotLocationFix,
   type HotLocationLimits,
   type HotLocationRecordOutcome,
+  type HotLocationSnapshot,
   resolveHotLocationLimits,
 } from "../../application/geo/driver-location-hot-state.ts";
 import { PortFailureError, type SettingsRepository } from "../../application/ports/index.ts";
@@ -207,7 +209,8 @@ export interface RedisDriverLocationHotStateOptions {
 
 export interface RedisDriverLocationHotState
   extends DriverLocationHotStateWriter,
-    DriverLocationBacklogReader {
+    DriverLocationBacklogReader,
+    DriverLocationHotStateReader {
   /** الأرقامُ الأربعةُ لمدينةٍ كما تُقرأُ الآنَ — يقرؤها مُشغِّلُ الإفراغِ. */
   limits(cityId: CityId): Promise<Result<HotLocationLimits, PortFailureError>>;
 }
@@ -362,6 +365,35 @@ export function createRedisDriverLocationHotState(
         }
       }
       return ok(undefined);
+    },
+
+    read: async (
+      driverId: DriverId,
+      cityId: CityId,
+    ): Promise<Result<HotLocationSnapshot | null, PortFailureError>> => {
+      const result = await options.redis.command([
+        "HGETALL",
+        hotLocationKey(prefix, cityId, driverId),
+      ]);
+      if (!result.ok) {
+        note("read", `${result.error.kind}: ${result.error.detail}`);
+        return err(new PortFailureError(PORT, `فشلَت قراءةُ الحالةِ الساخنةِ: ${result.error.kind}`));
+      }
+      const value = result.value;
+      if (!Array.isArray(value) || value.length === 0) return ok(null);
+
+      // HGETALL returns flat [field, value, field, value, ...]
+      const map = new Map<string, string>();
+      for (let i = 0; i + 1 < value.length; i += 2) {
+        map.set(String(value[i]), String(value[i + 1]));
+      }
+      const lat = Number(map.get("lat"));
+      const lng = Number(map.get("lng"));
+      const at = Number(map.get("at"));
+      if (!Number.isFinite(lat) || !Number.isFinite(lng) || !Number.isFinite(at)) {
+        return ok(null);
+      }
+      return ok({ lat, lng, observedAtMs: at });
     },
   };
 }
