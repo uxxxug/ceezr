@@ -90,6 +90,7 @@ function harness(outcome: { readonly fail?: TaxInvoiceStoreError } = {}) {
         updatedAt: "2027-05-04T09:59:00.000Z",
         checkoutUrl: null,
         invoiceIssued: true,
+        invoiceIssuable: false,
       });
     },
   };

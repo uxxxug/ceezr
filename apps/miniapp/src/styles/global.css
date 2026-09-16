@@ -3864,11 +3864,227 @@ a {
   font-weight: 700;
 }
 
+/* مَوضِعُ لوحِ الفاتورةِ داخلَ سطرِ دفعةٍ: يشغلُ السطرَ كلَّه تحتَ حقولِها. */
+.dsub__payment-invoice {
+  flex: 1 1 100%;
+}
+
 .dsub__payment-provider,
 .dsub__payment-date,
 .dsub__payment-plan {
   color: var(--tg-subtitle-text-color);
   font-variant-numeric: tabular-nums;
+}
+
+/* =========================================================================
+   dinv — لوحُ الفاتورةِ الضريبيّةِ المبسَّطةِ لدفعةِ اشتراكٍ (F3-09 / SD-08)
+
+   ولِمَ كتلةٌ مستقلّةٌ لا `dsub__invoice-*`: لوحُ الاشتراكِ لوحُ **قرارٍ**
+   (أُجدِّدُ الآنَ أم لا)، وهذا **وثيقةٌ نظاميّةٌ تُقرأُ وتُنقَلُ**: أرقامُها
+   تُقرأُ رقماً رقماً، وحِمْلُ رمزِ استجابتِها يُنتقى بالإصبعِ فيُحدَّدُ كلُّه
+   بلمسةٍ (`user-select: all`)، ولا نغمةَ إلحاحٍ فيها. وخلطُ البادئتَينِ
+   يُورِّثُ الوثيقةَ إلحاحَ زرِّ التجديدِ أو يُورِّثُ الزرَّ هُدوءَ وثيقةٍ.
+
+   والأرقامُ كلُّها `tabular-nums` وسطرُ المجموعِ أثقلُ: العينُ تقيسُ عموداً
+   لا تقرأُ نصّاً. والاتّجاهُ في حِمْلِ الرمزِ ورقمِ الفاتورةِ `ltr` داخلَ
+   صفحةٍ عربيّةٍ لأنَّهما مُعرِّفانِ لاتينيّانِ يُنقَلانِ حرفاً بحرفٍ.
+   ========================================================================= */
+.dinv {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-block-start: 0.6rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--tg-secondary-bg-color, #e6e6e6);
+  border-radius: 0.7rem;
+  background: var(--tg-bg-color);
+}
+
+.dinv__title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--tg-text-color);
+}
+
+/* زرُّ قراءةِ الحالِ وزرُّ الإصدارِ: الأوّلُ هادئٌ مُحدَّدُ الحدِّ، والثاني
+ * فعلٌ يُنشِئُ وثيقةً نظاميّةً فيأخذُ لونَ الفعلِ الأصليَّ. */
+.dinv__check,
+.dinv__show {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.dinv__issue {
+  align-self: flex-start;
+  padding: 0.55rem 1rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dinv__check:disabled,
+.dinv__show:disabled,
+.dinv__issue:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dinv__loading {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--tg-subtitle-text-color, #707579);
+}
+
+.dinv__error {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #c0392b);
+}
+
+/* سطرُ الحالِ وسطرُ المبلغِ: عنوانٌ هادئٌ ثمَّ قيمةٌ تُقرأُ. */
+.dinv__status,
+.dinv__amount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.dinv__status-label,
+.dinv__amount-label {
+  color: var(--tg-subtitle-text-color, #707579);
+}
+
+.dinv__status-value {
+  font-weight: 700;
+  color: var(--tg-text-color);
+}
+
+.dinv__amount-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--tg-text-color);
+}
+
+.dinv__not-payable {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--tg-subtitle-text-color, #707579);
+}
+
+/* بوّابةُ الدفعِ حينَ تصلُ معَ الحالِ — بشكلِ `dsub` عينِه لأنَّ الفعلَ فعلُه. */
+.dinv__checkout-open {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tg-link-color);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dinv__checkout-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #c0392b);
+}
+
+.dinv__checkout-url {
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.5rem;
+  background: var(--tg-secondary-bg-color, #f0f0f0);
+  color: var(--tg-text-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  word-break: break-all;
+  direction: ltr;
+  text-align: start;
+  user-select: all;
+}
+
+/*
+ * جسمُ الوثيقةِ: قائمةُ وصفٍ (`dl`) لا جدولٌ — لأنَّها أزواجُ حقلٍ وقيمةٍ
+ * تُقرأُ في عمودٍ واحدٍ على شاشةِ هاتفٍ، والجدولُ يُجبِرُ تمريراً أفقيّاً.
+ */
+.dinv__doc {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 0.6rem;
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.6rem;
+  background: var(--tg-secondary-bg-color, #f0f0f0);
+  font-size: 0.88rem;
+}
+
+.dinv__already {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color, #707579);
+}
+
+.dinv__k {
+  margin: 0;
+  color: var(--tg-subtitle-text-color, #707579);
+}
+
+.dinv__v {
+  margin: 0;
+  color: var(--tg-text-color);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+/* المجموعُ الشاملُ أثقلُ: هوَ الرقمُ الذي يُطابِقُه السائقُ بما دُفِعَ. */
+.dinv__v--total {
+  font-weight: 700;
+}
+
+/* حِمْلُ رمزِ الاستجابةِ نصّاً: يُعرَضُ كاملاً ويُنتقى بلمسةٍ، ولا يُقصَرُ. */
+.dinv__v--qr {
+  grid-column: 1 / -1;
+}
+
+.dinv__qr {
+  display: block;
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.5rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  word-break: break-all;
+  direction: ltr;
+  text-align: start;
+  user-select: all;
+}
+
+.dinv__qr-hint {
+  display: block;
+  margin-block-start: 0.25rem;
+  font-size: 0.78rem;
+  color: var(--tg-subtitle-text-color, #707579);
 }
 
 /* =========================================================================

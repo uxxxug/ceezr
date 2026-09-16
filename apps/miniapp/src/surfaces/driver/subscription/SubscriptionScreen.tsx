@@ -51,6 +51,15 @@ import {
 import { EmptyState } from "../../../system/EmptyState.tsx";
 import { openExternalLink, type TgOutcome } from "../../../tg/index.ts";
 import {
+  type ApiDriverInvoiceIssueResponse,
+  type ApiDriverInvoiceReadResponse,
+  type ApiDriverPaymentStatusResponse,
+  issueDriverTaxInvoice,
+  readDriverPaymentStatus,
+  readDriverTaxInvoice,
+} from "./invoice-api.ts";
+import { PaymentInvoicePanel } from "./PaymentInvoicePanel.tsx";
+import {
   type ApiDriverSubscriptionDashboardResponse,
   type ApiDriverSubscriptionHistoryResponse,
   type ApiDriverSubscriptionRenewalResponse,
@@ -83,6 +92,14 @@ export interface SubscriptionScreenProps {
    * يُحقَنُ في الاختبارِ ليُقاسَ مسارُ الإخفاقِ لا ليُتجاوَزَ.
    */
   readonly openLink?: (url: string) => TgOutcome<true>;
+  /**
+   * نداءاتُ لوحِ الفاتورةِ — **تُمرَّرُ ولا تُنادى ههنا**: هذه الشاشةُ لا تعرفُ
+   * شكلَ فاتورةٍ، وإنّما تُسلِّمُ اللوحَ معرِّفَ دفعةٍ. وحقنُها في الاختبارِ
+   * يقيسُ مسارَ السطحِ كاملاً من زرِّ التجديدِ إلى الوثيقةِ.
+   */
+  readonly readPaymentStatus?: (transactionId: string) => Promise<ApiDriverPaymentStatusResponse>;
+  readonly issueTaxInvoice?: (transactionId: string) => Promise<ApiDriverInvoiceIssueResponse>;
+  readonly readTaxInvoice?: (transactionId: string) => Promise<ApiDriverInvoiceReadResponse>;
 }
 
 type RenewalState =
@@ -127,6 +144,9 @@ export function SubscriptionScreen({
   readHistory = readDriverSubscriptionHistory,
   renewSubscription = renewDriverSubscription,
   openLink = (url: string) => openExternalLink(url),
+  readPaymentStatus = readDriverPaymentStatus,
+  issueTaxInvoice = issueDriverTaxInvoice,
+  readTaxInvoice = readDriverTaxInvoice,
 }: SubscriptionScreenProps) {
   const t = miniAppTranslator(language);
   const formId = useId();
@@ -135,6 +155,12 @@ export function SubscriptionScreen({
   const [renewal, setRenewal] = useState<RenewalState>({ kind: "idle" });
   const [selectedPlan, setSelectedPlan] = useState<string>("transport");
   const [checkout, setCheckout] = useState<CheckoutState>({ kind: "idle" });
+  /**
+   * أيُّ دفعةٍ من التاريخِ فُتِحَ لوحُ فاتورتِها. **واحدةٌ لا كلُّها**: عشرونَ
+   * لوحاً مفتوحاً تعني عشرينَ نداءً حينَ يضغطُ السائقُ «تحقَّقْ» في أحدِها ظنّاً،
+   * والمفتوحُ واحدٌ يُقرأُ بوعيٍ.
+   */
+  const [openInvoiceFor, setOpenInvoiceFor] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setDashboard({ kind: "loading" });
@@ -368,6 +394,18 @@ export function SubscriptionScreen({
                 ) : null}
               </p>
             ) : null}
+            {/* لوحُ الفاتورةِ لِدفعةِ التجديدِ — **بعدَ الدفعِ لا قبلَه**، ولا
+                يُصدِرُ شيئاً بنفسِه. */}
+            {renewal.kind === "ready" ? (
+              <PaymentInvoicePanel
+                transactionId={renewal.renewal.transactionId}
+                language={language}
+                readStatus={readPaymentStatus}
+                issueInvoice={issueTaxInvoice}
+                readInvoice={readTaxInvoice}
+                openLink={openLink}
+              />
+            ) : null}
             {checkout.kind === "failed" ? (
               <p className="dsub__checkout-fallback" role="status">
                 {t("driver.subscription.renew.checkout_failed")}
@@ -424,6 +462,29 @@ export function SubscriptionScreen({
                 {entry.planLabelKey === null ? null : (
                   <span className="dsub__payment-plan">{t(entry.planLabelKey)}</span>
                 )}
+                <button
+                  type="button"
+                  className="dsub__payment-invoice"
+                  onClick={() =>
+                    setOpenInvoiceFor((current) =>
+                      current === entry.transactionId ? null : entry.transactionId,
+                    )
+                  }
+                >
+                  {openInvoiceFor === entry.transactionId
+                    ? t("driver.subscription.invoice.close")
+                    : t("driver.subscription.invoice.open")}
+                </button>
+                {openInvoiceFor === entry.transactionId ? (
+                  <PaymentInvoicePanel
+                    transactionId={entry.transactionId}
+                    language={language}
+                    readStatus={readPaymentStatus}
+                    issueInvoice={issueTaxInvoice}
+                    readInvoice={readTaxInvoice}
+                    openLink={openLink}
+                  />
+                ) : null}
               </li>
             ))}
           </ul>

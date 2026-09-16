@@ -136,6 +136,7 @@ export function createDriverSubscriptionInvoiceRoutes(
       updated_at: s.updatedAt,
       checkout_url: s.checkoutUrl,
       invoice_issued: s.invoiceIssued,
+      invoice_issuable: s.invoiceIssuable,
     });
   });
 

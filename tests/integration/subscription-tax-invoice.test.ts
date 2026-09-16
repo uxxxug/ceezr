@@ -663,3 +663,88 @@ describeIf("حالُ الدفعةِ — رايةٌ صادقةٌ ولا معرِ�
     expect(row?.count).toBe("0");
   });
 });
+
+describeIf("رايةُ «أيمكنُ الإصدارُ» — محدِّدٌ واحدٌ في القاعدةِ (الدفعةُ الثانيةُ)", () => {
+  it("٣١) دفعةٌ مُسدَّدةٌ بلا فاتورةٍ ⇒ الرايةُ صادقةٌ، وبعدَ الإصدارِ تكذبُ", async () => {
+    const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
+    expect((await readStatus(DRIVER_TELEGRAM_ID, transactionId)).invoice_issuable).toBe(true);
+    await issue(DRIVER_TELEGRAM_ID, transactionId);
+    expect((await readStatus(DRIVER_TELEGRAM_ID, transactionId)).invoice_issuable).toBe(false);
+  });
+
+  it("٣٢) الحالُ المُسدَّدُ **حالانِ لا واحدٌ**: `active` و`refunded` يُصدَرُ لهما", async () => {
+    // ومردودةٌ يُصدَرُ لها **عن قصدٍ**: الضريبةُ استُحِقَّت يومَ السدادِ،
+    // والرَّدُّ حدثٌ لاحقٌ يُوثَّقُ بوثيقةٍ أخرى لا بإخفاءِ الأولى.
+    for (const status of ["active", "refunded"] as const) {
+      const transactionId = await seedTransaction({ amountMinor: 25_000, status });
+      expect((await readStatus(DRIVER_TELEGRAM_ID, transactionId)).invoice_issuable).toBe(true);
+    }
+  });
+
+  it("٣٣) الحالُ غيرُ المُسدَّدِ يكذِبُ الرايةَ — ولا يُصدَرُ لهُ", async () => {
+    // تصحيحٌ بحكمِ CI (`ح-8`): كُتِبَ هذا القياسُ أوّلاً بـ`rejectionOf`، فأخفقَ على
+    // محرِّكٍ حقيقيٍّ بـ«القاعدةُ قبِلَت ما كانَ يجبُ أن تَرُدَّه». والعطبُ في
+    // **القياسِ لا في المنطقِ**: عقدُ الكاتبِ **فشلٌ مغلقٌ مُسمّىً يُرَدُّ في
+    // الجوابِ** لا استثناءٌ يُرفَعُ — كما تقرؤُه الحالةُ ٤. فصارَ القياسُ يُطابِقُ
+    // الجوابَ كاملاً (وهوَ أقوى من مُطابقةِ نصِّ استثناءٍ بنمطٍ)، وزيدَ `past_due`.
+    for (const status of ["pending", "failed", "canceled", "expired", "past_due"] as const) {
+      const transactionId = await seedTransaction({ amountMinor: 25_000, status });
+      expect((await readStatus(DRIVER_TELEGRAM_ID, transactionId)).invoice_issuable).toBe(false);
+      expect(await issue(DRIVER_TELEGRAM_ID, transactionId)).toEqual({
+        ok: false,
+        error: "TRANSACTION_NOT_PAID",
+      });
+    }
+  });
+
+  it("٣٤) **الرايةُ والكاتبُ يقرآنِ المحدِّدَ عينَه** — ولا حالَ يُصدِّقُ أحدَهما ويُكذِّبُ الآخرَ", async () => {
+    // هذا القياسُ هوَ سببُ وجودِ `subscription_payment_is_settled`: لو كانَ
+    // الشرطُ مكتوباً مرّتَينِ لَجازَ أن تُظهِرَ الرايةُ زرّاً يرفضُه الكاتبُ.
+    // وتصحيحٌ بحكمِ CI (`ح-8`): قِيسَ «قَبولُ الكاتبِ» أوّلاً بـ`try/catch` وهوَ
+    // **لا يقيسُ شيئاً** لأنَّ الكاتبَ لا يرفعُ استثناءً بل يَرُدُّ `ok: false`.
+    // فصارَ يُقرأُ من الجوابِ نفسِه — وهذا هوَ التطابقُ المقصودُ.
+    for (const status of [
+      "active",
+      "refunded",
+      "pending",
+      "failed",
+      "canceled",
+      "expired",
+      "past_due",
+    ]) {
+      const transactionId = await seedTransaction({ amountMinor: 25_000, status });
+      const issuable = (await readStatus(DRIVER_TELEGRAM_ID, transactionId)).invoice_issuable;
+      const writerAccepted = (await issue(DRIVER_TELEGRAM_ID, transactionId)).ok === true;
+      expect(writerAccepted).toBe(issuable === true);
+    }
+  });
+
+  it("٣٥) المحدِّدُ **مقفلٌ** عن `anon` و`authenticated` — لا يُنادى من سطحٍ عامٍّ", async () => {
+    const [row] = await sql<{ anon: boolean; authed: boolean; public_: boolean }[]>`
+      select
+        has_function_privilege('anon', 'subscription_payment_is_settled(text)', 'execute') as anon,
+        has_function_privilege('authenticated', 'subscription_payment_is_settled(text)', 'execute')
+          as authed,
+        has_function_privilege('public', 'subscription_payment_is_settled(text)', 'execute')
+          as public_
+    `;
+    expect(row?.anon).toBe(false);
+    expect(row?.authed).toBe(false);
+    expect(row?.public_).toBe(false);
+  });
+
+  it("٣٦) «paid» **حالٌ لا وجودَ له** في قيدِ الجدولِ — والمحدِّدُ يكذِبُه", async () => {
+    // العطبُ الأصليُّ: كانَ السطحُ يشترطُ `status === "paid"` فلا يظهرُ زرٌّ أبداً.
+    // فيُقاسُ ههنا أنَّ القاعدةَ **ترفضُ** الحالَ أصلاً، وأنَّ المحدِّدَ يكذِبُه.
+    const [row] = await sql<{ settled: boolean }[]>`
+      select subscription_payment_is_settled('paid') as settled
+    `;
+    expect(row?.settled).toBe(false);
+    const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
+    expect(
+      await rejectionOf(
+        () => sql`update payment_transactions set status = 'paid' where id = ${transactionId}`,
+      ),
+    ).toMatch(/payment_transactions_status_check/);
+  });
+});
