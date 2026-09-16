@@ -42,6 +42,10 @@ import {
   type DriverSubscriptionRouteDependencies,
 } from "./routes/driver-subscription.ts";
 import {
+  createDriverSubscriptionInvoiceRoutes,
+  type DriverSubscriptionInvoiceRouteDependencies,
+} from "./routes/driver-subscription-invoice.ts";
+import {
   createDriverVehicleRoutes,
   type DriverVehicleRouteDependencies,
 } from "./routes/driver-vehicle.ts";
@@ -179,6 +183,12 @@ export interface ServerDependencies {
    * «لا اشتراكَ» في حينَ أنَّ الأسعارَ موجودةٌ في الإعداداتِ.
    */
   readonly driverSubscription?: DriverSubscriptionRouteDependencies;
+  /**
+   * فاتورةُ الاشتراكِ وحالُ عمليتِه (`F3-09` / `SD-08`) — يُركَّبُ مع سرِّ الجلسةِ
+   * والقاعدةِ. وغيابُه **يُعلَنُ `503`**: وثيقةٌ ضريبيّةٌ إمّا تُصدَرُ كاملةً أو
+   * يُقالُ إنَّها لا تُصدَرُ الآنَ — ولا وسطَ بينَهما.
+   */
+  readonly driverSubscriptionInvoice?: DriverSubscriptionInvoiceRouteDependencies;
   readonly driverVehicle?: DriverVehicleRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
@@ -268,6 +278,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.driverSubscription !== undefined) {
     app.route("/", createDriverSubscriptionRoutes(deps.driverSubscription));
+  }
+  if (deps.driverSubscriptionInvoice !== undefined) {
+    app.route("/", createDriverSubscriptionInvoiceRoutes(deps.driverSubscriptionInvoice));
   }
   if (deps.driverVehicle !== undefined) {
     app.route("/", createDriverVehicleRoutes(deps.driverVehicle));

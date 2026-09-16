@@ -39,6 +39,19 @@ async function fixture(): Promise<Fixture> {
   if (!driver) throw new Error("driver missing");
   return { cityId: city.id, driverId: driver.id, adminId: admin.id };
 }
+/**
+ * هويّةُ البائعِ **في الاختبارِ لا في هجرةٍ**: رقمٌ مبذورٌ في هجرةٍ يصيرُ
+ * رقماً في فاتورةٍ حقيقيّةٍ لا يملكُه أحدٌ — ويمنعُه حاجزُ عقدِ الفاتورةِ
+ * (القاعدةُ ٧). وفي الاختبارِ هوَ مُدخَلٌ لا دعوى إنتاجٍ.
+ */
+async function seedTaxIdentity(cityId: string): Promise<void> {
+  await sql`insert into platform_settings(city_id,key,value,value_type,description_ar,is_provisional)
+    values(${cityId},'tax_seller_name',${sql.json("منشأةٌ اختباريّةٌ")},'string','اسمُ بائعٍ للاختبارِ',true)
+    on conflict (city_id,key) do update set value=excluded.value`;
+  await sql`insert into platform_settings(city_id,key,value,value_type,description_ar,is_provisional)
+    values(${cityId},'tax_seller_vat_number',${sql.json("300000000000003")},'string','رقمٌ ضريبيٌّ للاختبارِ',true)
+    on conflict (city_id,key) do update set value=excluded.value`;
+}
 async function payment(f: Fixture, key: string, amount = 1200): Promise<string> {
   const created = await sql<
     { result: { transaction_id: string } }[]
@@ -135,9 +148,25 @@ describeIf("financial subscription wallet on real database", () => {
     >`select count(*)::int n from subscription_refunds where payment_transaction_id=${id}::uuid`;
     expect(count[0]?.n).toBe(1);
   });
+  // زيادةٌ بعدَ `F3-09` (`ح-8`): صارَ الكاتبُ يُفوتِرُ **ضريبيّاً**، والإصدارُ
+  // **فشلٌ مغلقٌ** دونَ هويّةِ بائعٍ مُهَيّأةٍ. فيُقاسُ الوجهانِ: الغيابُ يمنعُ،
+  // والتهيئةُ تُصدِرُ رقماً واحداً تحتَ السباقِ.
+  it("يرفض الفاتورة دون هوية بائع ضريبية مهيأة", async () => {
+    const f = await fixture();
+    const rpc = createSubscriptionWalletRpc(sql);
+    await sql`delete from platform_settings where city_id=${f.cityId} and key in ('tax_seller_name','tax_seller_vat_number')`;
+    const id = await payment(f, `invoice-notax-${base}-${seq}`);
+    const rejected = await rpc.issueInvoice(id as never);
+    expect(rejected.ok && rejected.value.ok).toBe(false);
+    const count = await sql<
+      { n: number }[]
+    >`select count(*)::int n from subscription_invoices where payment_transaction_id=${id}::uuid`;
+    expect(count[0]?.n).toBe(0);
+  });
   it("يصدر فاتورة فريدة للدفعة نفسها تحت السباق", async () => {
     const f = await fixture();
     const rpc = createSubscriptionWalletRpc(sql);
+    await seedTaxIdentity(f.cityId);
     const id = await payment(f, `invoice-${base}-${seq}`);
     const [a, b] = await Promise.all([
       rpc.issueInvoice(id as never),
@@ -150,6 +179,23 @@ describeIf("financial subscription wallet on real database", () => {
       { n: number }[]
     >`select count(*)::int n from subscription_invoices where payment_transaction_id=${id}::uuid`;
     expect(count[0]?.n).toBe(1);
+    // والصفُّ فاتورةٌ ضريبيّةٌ تامّةٌ لا صفّاً بخاناتٍ فارغةٍ.
+    const row = (
+      await sql<
+        {
+          document_type: string;
+          vat_amount_minor: number;
+          total_excl_vat_minor: number;
+          amount_minor: number;
+          qr_tlv_base64: string;
+        }[]
+      >`select document_type,vat_amount_minor,total_excl_vat_minor,amount_minor,qr_tlv_base64 from subscription_invoices where payment_transaction_id=${id}::uuid`
+    )[0];
+    expect(row?.document_type).toBe("SIMPLIFIED_TAX_INVOICE");
+    expect((row?.total_excl_vat_minor ?? 0) + (row?.vat_amount_minor ?? 0)).toBe(
+      row?.amount_minor ?? -1,
+    );
+    expect((row?.qr_tlv_base64 ?? "").length).toBeGreaterThan(0);
   });
   it("يصصح خطأ نظام موثق مرة واحدة ويكتب audit_log", async () => {
     const f = await fixture();

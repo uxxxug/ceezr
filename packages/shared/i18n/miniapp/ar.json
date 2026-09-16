@@ -922,6 +922,7 @@
   "driver.subscription.renew.loading": "جارٍ بدءُ معاملةِ التجديدِ...",
   "driver.subscription.renew.success": "بدأت معاملةُ التجديدِ بنجاح.",
   "driver.subscription.renew.checkout_open": "اضغط على رابط الدفع لإتمام عملية التجديد.",
+  "driver.subscription.renew.checkout_failed": "لم تُفتَح صفحةُ الدفعِ في تطبيقِك. انسخِ الرابطَ وافتَحه في المتصفّحِ:",
   "driver.subscription.renew.idempotent": "معاملةُ التجديدِ قائمةٌ بالفعل.",
   "driver.subscription.renew.amount": "المبلغ",
   "driver.subscription.renew.currency": "ريال سعودي",

@@ -922,6 +922,7 @@
   "driver.subscription.renew.loading": "تجدید کا لین شروع ہو رہا ہے...",
   "driver.subscription.renew.success": "تجدید کا لین کامیابی سے شروع ہو گیا۔",
   "driver.subscription.renew.checkout_open": "تجدید مکمل کرنے کے لیے ادائیگی کے لنک پر کلک کریں۔",
+  "driver.subscription.renew.checkout_failed": "ادائیگی کا صفحہ آپ کی ایپ میں نہیں کھلا۔ لنک نقل کریں اور براؤزر میں کھولیں:",
   "driver.subscription.renew.idempotent": "تجدید کا لین پہلے سے جاری ہے۔",
   "driver.subscription.renew.amount": "رقم",
   "driver.subscription.renew.currency": "سعودی ریال",

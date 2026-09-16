@@ -28,6 +28,7 @@ import { PostgresDriverJobStore } from "../../../packages/infrastructure/driver/
 import { PostgresDriverOfferStore } from "../../../packages/infrastructure/driver/driver-offers-store.ts";
 import { PostgresDriverSubscriptionStore } from "../../../packages/infrastructure/driver/driver-subscription-store.ts";
 import { PostgresDriverVehicleStore } from "../../../packages/infrastructure/driver/driver-vehicle-store.ts";
+import { PostgresSubscriptionTaxInvoiceStore } from "../../../packages/infrastructure/driver/subscription-invoice-store.ts";
 import {
   createPaymentProvider,
   createPaymentRepository,
@@ -975,6 +976,25 @@ const driverSubscription =
       };
 
 /**
+ * فاتورةُ الاشتراكِ الضريبيّةُ وحالُ عمليتِه (`F3-09`) — **مخزنٌ يُصدِرُ مرّةً
+ * ويقرأُ مرّتَينِ**. وغيابُ سرِّ الجلسةِ **يُسقِطُ السطحَ**: وثيقةٌ ضريبيّةٌ
+ * تُقرَأُ بمعرِّفٍ في مسارٍ وحدَه تجعلُ من خمَّنَ رقماً قارئاً لدفعةِ غيرِه.
+ * ومغيبُ مزوّدِ دفعٍ **لا يُعطِّلُه**: الفواتيرُ تُصدَرُ لدفعاتٍ مضَت ولو توقَّفَ
+ * التحصيلُ — وربطُهما يحجبُ وثائقَ مالٍ قُبِضَ فعلاً.
+ */
+const driverSubscriptionInvoice =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        invoices: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          store: new PostgresSubscriptionTaxInvoiceStore(container.sql),
+          now: () => new Date(),
+        },
+        log,
+      };
+
+/**
  * مركبةُ السائقِ (`F3-07`) — بياناتُ المركبةِ ووثائقُها الثلاثُ في نداءٍ واحدٍ.
  * وغيابُ سرِّ الجلسةِ **يُسقِطُ السطحَ** كالعروضِ والنشاطِ.
  */
@@ -1104,6 +1124,7 @@ const app = createServer({
   ...(driverJob === undefined ? {} : { driverJob }),
   ...(driverActivity === undefined ? {} : { driverActivity }),
   ...(driverSubscription === undefined ? {} : { driverSubscription }),
+  ...(driverSubscriptionInvoice === undefined ? {} : { driverSubscriptionInvoice }),
   ...(driverVehicle === undefined ? {} : { driverVehicle }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),

@@ -3783,6 +3783,45 @@ a {
   color: var(--tg-link-color);
 }
 
+/*
+ * زرُّ فتحِ بوّابةِ الدفعِ — يُشبِهُ رابطاً لأنَّه فعلُ رابطٍ، وهو `button` لأنَّ
+ * الفتحَ يمرُّ بمَسلكِ تلغرامَ لا بمِلاحةِ المتصفّحِ.
+ */
+.dsub__checkout-open {
+  margin-inline-start: 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tg-link-color);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.dsub__checkout-fallback {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #c0392b);
+}
+
+/* الرابطُ يُعرَضُ كاملاً ليُنقَلَ باليدِ — فلا `ellipsis` ههنا عن قصدٍ. */
+.dsub__checkout-url {
+  padding: 0.4rem 0.55rem;
+  border-radius: 0.5rem;
+  background: var(--tg-secondary-bg-color, #f0f0f0);
+  color: var(--tg-text-color);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  word-break: break-all;
+  direction: ltr;
+  text-align: start;
+  user-select: all;
+}
+
 .dsub__open-history {
   padding: 0.5rem 0.9rem;
   border: 1px solid var(--tg-hint-color, #999);

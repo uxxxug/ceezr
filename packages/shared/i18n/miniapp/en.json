@@ -922,6 +922,7 @@
   "driver.subscription.renew.loading": "Starting renewal transaction...",
   "driver.subscription.renew.success": "Renewal transaction started successfully.",
   "driver.subscription.renew.checkout_open": "Tap the payment link to complete the renewal.",
+  "driver.subscription.renew.checkout_failed": "The payment page did not open in your app. Copy the link and open it in a browser:",
   "driver.subscription.renew.idempotent": "A renewal transaction is already in progress.",
   "driver.subscription.renew.amount": "Amount",
   "driver.subscription.renew.currency": "Saudi Riyal",
