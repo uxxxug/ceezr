@@ -3,7 +3,13 @@
  *   PostgreSQL فعلية ومن الويبهوك إلى الصفوف. المطلوب إثباتُه ليس أن رحلة
  *   واحدة تنجح — ذاك مُثبَت في tests/integration/mutual-ratings — بل أن النظام
  *   يصمد على التكرار: لا حالة عالقة من رحلة تسمّم التي بعدها، ولا عدّاد ينحرف،
- *   ولا سائق يبقى مشغولاً بعد الإنهاء، ولا تدهور في الزمن مع الطول.
+ *   ولا سائق يبقى مشغولاً بعد الإنهاء، ولا تدهور في **العمل** مع الطول.
+ *
+ *   وتدهورُ الطولِ يُقاسُ **بعملِ المحرِّكِ لا بزمنِ الساعةِ** (`DEC-18` ·
+ *   `ADR 0130`): صفوفٌ ممسوحةٌ وكُتَلٌ ملموسةٌ من `pg_stat_database`، لا
+ *   `performance.now()`. والسببُ مقيسٌ لا مُفترَضٌ: توكيدُ نسبةِ الزمنِ قرأَ ٣٫٢
+ *   على مُنفِّذٍ مُشترَكٍ في التشغيلِ `35124024068` ثمَّ مرَّ بالبصمةِ نفسِها —
+ *   فكانَ يقيسُ جارَ المُنفِّذِ لا شِفرتَنا. والتفصيلُ في `tests/support/engine-work.ts`.
  *
  *   هذا ما يفرّق «يعمل» عن «يصلح للإطلاق»: العيوب التراكمية لا تظهر في المحاولة
  *   الأولى بل في العشرين.
@@ -19,6 +25,15 @@ import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { testConfig } from "../support/config.ts";
+import {
+  describeWorkGrowth,
+  type EngineWork,
+  settleEngineWork,
+  WORK_BLOCK_RIDES,
+  WORK_GROWTH_CEILING,
+  workBetween,
+  workGrowth,
+} from "../support/engine-work.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -149,12 +164,12 @@ describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", (
 
     /** نجوم دوّارة: متوسّط متوقَّع 4 بالضبط، فالانحراف يُكشف حسابياً لا تقريباً. */
     const starCycle = [3, 4, 5, 4] as const;
-    const durations: number[] = [];
+    /** حدودُ الكُتَلِ الثلاثِ: بعدَ الرحلةِ العاشرةِ والعشرينَ والثلاثينَ. */
+    const boundaries = new Map<number, EngineWork>();
     let expectedStarSum = 0;
 
     for (let ride = 0; ride < RIDES; ride += 1) {
       const riderChat = RIDER_BASE + ride + 1;
-      const startedAt = performance.now();
 
       // عميل جديد لكل رحلة: هذا واقع التشغيل، وهو أيضاً ما يمنع مسار الطلب
       // من الاعتماد على جلسة راكب دافئة من الرحلة السابقة.
@@ -183,7 +198,10 @@ describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", (
       await post("rider", privateCallback(riderChat, `rate:${stars}:${orderId}`));
       await post("driver", privateCallback(DRIVER_CHAT, `rate:5:${orderId}`));
 
-      durations.push(performance.now() - startedAt);
+      // حدُّ كتلةٍ: تُقرأُ العدّاداتُ بعدَ سكونٍ مقيسٍ، ثلاثَ مرّاتٍ لا ثلاثينَ.
+      if ((ride + 1) % WORK_BLOCK_RIDES === 0) {
+        boundaries.set(ride + 1, await settleEngineWork(sql));
+      }
 
       // تحقّق داخل الحلقة: الفشل يجب أن يُنسب إلى رحلته لا أن يظهر مجمّعاً في
       // النهاية، وإلا ضاع أثر أوّل رحلة انكسرت.
@@ -231,11 +249,28 @@ describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", (
       { status: "accepted", count: String(RIDES) },
     ]);
 
-    // لا تدهور مع الطول: آخر خمس رحلات لا تتجاوز ثلاثة أضعاف أوّل خمس. العتبة
-    // فضفاضة قصداً لأن المقصود كشف نموّ خطّي أو أسوأ (فهرس مفقود، تسريب حالة،
-    // استعلام يمسح جدولاً ينمو)، لا قياس أداء دقيق على آلة مشتركة.
-    const firstFive = durations.slice(0, 5).reduce((a, b) => a + b, 0) / 5;
-    const lastFive = durations.slice(-5).reduce((a, b) => a + b, 0) / 5;
-    expect(lastFive).toBeLessThan(firstFive * 3);
+    // لا تدهورَ معَ الطولِ — **مقيساً بعملِ المحرِّكِ**: عملُ آخرِ عشرِ رحلاتٍ لا
+    // يتجاوزُ ثلاثةَ أضعافِ عملِ العشرِ التي قبلَها. والمقصودُ كشفُ نموٍّ خطّيٍّ أو
+    // أسوأَ (فهرسٌ مفقودٌ · تسريبُ حالةٍ · استعلامٌ يمسحُ جدولاً ينمو)، والعتبةُ
+    // **هيَ عينُها قبلَ `DEC-18`**: بُدِّلَت وحدةُ القياسِ لا سقفُه.
+    //
+    // والكتلةُ الأولى (١..١٠) **مُستبعَدةٌ إحماءً مُعلَناً**: فيها أوّلُ لمسةٍ لكلِّ
+    // فهرسٍ وكلِّ خطّةٍ مُخبَّأةٍ، فعملُها أعلى بطبعِه — وجعلُها أساساً يُوسِّعُ
+    // المقامَ فيُخضِّرُ نموّاً حقيقيّاً. فالمقارنةُ بينَ كتلتَينِ **دافئتَينِ**.
+    const atTen = boundaries.get(10);
+    const atTwenty = boundaries.get(20);
+    const atThirty = boundaries.get(30);
+    if (atTen === undefined || atTwenty === undefined || atThirty === undefined) {
+      throw new Error("لم تُقرأْ حدودُ الكُتَلِ الثلاثُ — القياسُ ناقصٌ فلا حكمَ له");
+    }
+    const warmBaseline = workBetween(atTen, atTwenty);
+    const finalBlock = workBetween(atTwenty, atThirty);
+    const growth = workGrowth(warmBaseline, finalBlock);
+    const reading = describeWorkGrowth(warmBaseline, finalBlock, growth);
+    // القراءةُ تُطبَعُ دائماً لا عندَ الفشلِ فقط: حاجزٌ لا يُقرأُ رقمُه حاجزٌ يُصدَّقُ
+    // بلا دليلٍ، وسجلُّ CI هوَ الدليلُ الذي يُراجَعُ بعدَ شهرٍ.
+    console.log(`صمود/عمل: ${reading}`);
+    expect(growth.rowsRatio).toBeLessThan(WORK_GROWTH_CEILING);
+    expect(growth.blocksRatio).toBeLessThan(WORK_GROWTH_CEILING);
   }, 180_000);
 });
