@@ -10,6 +10,8 @@
  */
 
 import { Hono } from "hono";
+import type { OperationalMetrics } from "../../../packages/infrastructure/observability/index.ts";
+import { createHttpMetricsMiddleware } from "./observability/http-metrics.ts";
 import { createRequestIdMiddleware } from "./observability/request-id.ts";
 import { type ConsentRouteDependencies, createConsentRoutes } from "./routes/consents.ts";
 import {
@@ -215,6 +217,14 @@ export interface ServerDependencies {
    * أيِّ حالٍ (ADR 0043).
    */
   readonly newRequestId?: () => string;
+  /**
+   * `F8-02`: مقاييسُ الحافةِ — يُركَّبُ الوسيطُ **متى وُجِدَ المُسجِّلُ** وحدَه.
+   * وغيابُه لا يُغيِّرُ سلوكَ مسارٍ ولا رمزَ حالةٍ: يُفقَدُ العدُّ لا الخدمةُ.
+   * وموضعُه **بعدَ معرِّفِ الطلبِ وقبلَ كلِّ مسارٍ**، فيعُدُّ ردَّ `404` وردَّ
+   * الاستثناءِ كما يعُدُّ ردَّ المسارِ الناجحِ — وردَّانِ من الثلاثةِ هما ما
+   * يحتاجُ المُشغِّلُ عدَّهما فعلاً.
+   */
+  readonly httpMetrics?: OperationalMetrics;
 }
 
 export function createServer(deps: ServerDependencies): Hono {
@@ -228,6 +238,12 @@ export function createServer(deps: ServerDependencies): Hono {
       ? createRequestIdMiddleware()
       : createRequestIdMiddleware(deps.newRequestId),
   );
+
+  // `F8-02`: ثانيَ وسيطٍ — بعدَ معرِّفِ الطلبِ كي يُلحَقَ الرأسُ بالردِّ الذي
+  // نعُدُّه، وقبلَ المساراتِ كي يُعَدَّ `404` والاستثناءُ لا الناجحُ وحدَه.
+  if (deps.httpMetrics !== undefined) {
+    app.use("*", createHttpMetricsMiddleware(deps.httpMetrics));
+  }
 
   app.route("/", createHealthRoutes(deps.health));
   app.route("/", createTelegramWebhookRoutes(deps.webhook));

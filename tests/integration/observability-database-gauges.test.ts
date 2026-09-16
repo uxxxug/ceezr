@@ -10,6 +10,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import {
+  ASSIGNMENT_WINDOW_SECONDS,
   createDatabaseGaugeCollector,
   createOperationalMetrics,
 } from "../../packages/infrastructure/observability/index.ts";
@@ -25,6 +26,8 @@ interface ExpectedGaugesRow {
   readonly outbox_claimed: number;
   readonly telegram_jobs_depth: number;
   readonly telegram_jobs_claimed: number;
+  readonly connections_limit: number;
+  readonly matched_in_window: number;
 }
 
 let sql: Sql;
@@ -89,7 +92,12 @@ describeIf("gauges المراقبة على قاعدة PostgreSQL حقيقية", 
         (select count(*)::int from telegram_update_jobs
           where status in ('pending', 'claimed')) as telegram_jobs_depth,
         (select count(*)::int from telegram_update_jobs
-          where status = 'claimed') as telegram_jobs_claimed
+          where status = 'claimed') as telegram_jobs_claimed,
+        (select current_setting('max_connections')::int) as connections_limit,
+        (select count(*)::int from orders
+          where matched_at is not null
+            and matched_at >= now() - make_interval(secs => ${ASSIGNMENT_WINDOW_SECONDS}))
+          as matched_in_window
     `;
     const expected = expectedRows[0];
     expect(first.value).toEqual({
@@ -98,7 +106,38 @@ describeIf("gauges المراقبة على قاعدة PostgreSQL حقيقية", 
       expiredSubscriptionsToday: expected?.expired_subscriptions_today ?? 0,
       lastSuccessfulBackupTimestampSeconds: expected?.last_successful_backup_timestamp_seconds ?? 0,
       queues: first.value.queues,
+      connections: first.value.connections,
+      maxConnections: expected?.connections_limit ?? 0,
+      assignment: first.value.assignment,
     });
+
+    // الاتّصالاتُ (F8-02): الحالاتُ الأربعُ مُغطّاةٌ ومجموعُها لا يتجاوزُ السقفَ
+    // المُعلَنَ في المحرِّكِ. ولا تُقارَنُ بعددٍ ثابتٍ: الاتّصالاتُ تتغيّرُ بينَ
+    // الاستعلامَينِ بطبعِها، والدعوى القابلةُ للفحصِ هي الحدُّ لا القيمةُ.
+    expect(first.value.connections.map((entry) => entry.state)).toEqual([
+      "active",
+      "idle",
+      "idle_in_transaction",
+      "other",
+    ]);
+    expect(first.value.maxConnections).toBeGreaterThan(0);
+    const totalConnections = first.value.connections.reduce((sum, entry) => sum + entry.count, 0);
+    expect(totalConnections).toBeGreaterThan(0);
+    expect(totalConnections).toBeLessThanOrEqual(first.value.maxConnections);
+
+    // زمنُ الإسنادِ (F8-02): النافذةُ **منشورةٌ** معَ الأرقامِ، والعدُّ يطابقُ
+    // استعلاماً مستقلّاً، والمئينانِ غيرُ سالبَينِ و p90 ≥ p50 بحكمِ التعريفِ.
+    expect(first.value.assignment.windowSeconds).toBe(ASSIGNMENT_WINDOW_SECONDS);
+    expect(first.value.assignment.matchedInWindow).toBe(expected?.matched_in_window ?? 0);
+    expect(first.value.assignment.p50Seconds).toBeGreaterThanOrEqual(0);
+    expect(first.value.assignment.p90Seconds).toBeGreaterThanOrEqual(
+      first.value.assignment.p50Seconds,
+    );
+    // ولا إسنادَ في النافذةِ يُنشَرُ صفراً بعدٍّ صفرٍ، فيُقرأُ غياباً لا سرعةً.
+    if (first.value.assignment.matchedInWindow === 0) {
+      expect(first.value.assignment.p50Seconds).toBe(0);
+      expect(first.value.assignment.p90Seconds).toBe(0);
+    }
 
     // حِمْلُ الطوابيرِ يُقابَلُ باستعلامٍ **مستقلٍّ** لا بقيمةٍ منسوخةٍ من المُجمِّعِ
     // نفسِه: مطابقةُ الشيءِ بنفسِه تنجحُ دائماً ولا تُثبِتُ شيئاً (F6-06).
