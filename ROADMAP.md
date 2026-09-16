@@ -4392,3 +4392,5 @@ PostGIS 3.6 محليّاً، وطُبِّقَت الهجراتُ الـ١٣٤ ب
 و`city_id` إلى `get_tracking_position` للبوابةِ الداخليّةِ. `createTrackingTokenRpc` يقرأُ
 الحالةَ الساخنةَ أوّلاً ويُعَدُّ للقاعدةِ عند غيابِها. ٦ اختباراتِ وحدةٍ ناجحةٍ. الحالةُ `[~]`،
 ينتظرُ ثلاثَ جولاتٍ خضراءَ على `main` (`ح-4`). الدليل: `docs/evidence/architecture/F4-05-20260916.md`.
+
+<!-- F4-05 lint fix: biome organize imports on adapter and test files -->
