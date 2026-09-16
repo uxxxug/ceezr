@@ -682,27 +682,39 @@ describeIf("رايةُ «أيمكنُ الإصدارُ» — محدِّدٌ وا
   });
 
   it("٣٣) الحالُ غيرُ المُسدَّدِ يكذِبُ الرايةَ — ولا يُصدَرُ لهُ", async () => {
-    for (const status of ["pending", "failed", "canceled", "expired"] as const) {
+    // تصحيحٌ بحكمِ CI (`ح-8`): كُتِبَ هذا القياسُ أوّلاً بـ`rejectionOf`، فأخفقَ على
+    // محرِّكٍ حقيقيٍّ بـ«القاعدةُ قبِلَت ما كانَ يجبُ أن تَرُدَّه». والعطبُ في
+    // **القياسِ لا في المنطقِ**: عقدُ الكاتبِ **فشلٌ مغلقٌ مُسمّىً يُرَدُّ في
+    // الجوابِ** لا استثناءٌ يُرفَعُ — كما تقرؤُه الحالةُ ٤. فصارَ القياسُ يُطابِقُ
+    // الجوابَ كاملاً (وهوَ أقوى من مُطابقةِ نصِّ استثناءٍ بنمطٍ)، وزيدَ `past_due`.
+    for (const status of ["pending", "failed", "canceled", "expired", "past_due"] as const) {
       const transactionId = await seedTransaction({ amountMinor: 25_000, status });
       expect((await readStatus(DRIVER_TELEGRAM_ID, transactionId)).invoice_issuable).toBe(false);
-      expect(await rejectionOf(() => issue(DRIVER_TELEGRAM_ID, transactionId))).toMatch(
-        /TRANSACTION_NOT_PAID/,
-      );
+      expect(await issue(DRIVER_TELEGRAM_ID, transactionId)).toEqual({
+        ok: false,
+        error: "TRANSACTION_NOT_PAID",
+      });
     }
   });
 
   it("٣٤) **الرايةُ والكاتبُ يقرآنِ المحدِّدَ عينَه** — ولا حالَ يُصدِّقُ أحدَهما ويُكذِّبُ الآخرَ", async () => {
     // هذا القياسُ هوَ سببُ وجودِ `subscription_payment_is_settled`: لو كانَ
     // الشرطُ مكتوباً مرّتَينِ لَجازَ أن تُظهِرَ الرايةُ زرّاً يرفضُه الكاتبُ.
-    for (const status of ["active", "refunded", "pending", "failed", "canceled", "expired"]) {
+    // وتصحيحٌ بحكمِ CI (`ح-8`): قِيسَ «قَبولُ الكاتبِ» أوّلاً بـ`try/catch` وهوَ
+    // **لا يقيسُ شيئاً** لأنَّ الكاتبَ لا يرفعُ استثناءً بل يَرُدُّ `ok: false`.
+    // فصارَ يُقرأُ من الجوابِ نفسِه — وهذا هوَ التطابقُ المقصودُ.
+    for (const status of [
+      "active",
+      "refunded",
+      "pending",
+      "failed",
+      "canceled",
+      "expired",
+      "past_due",
+    ]) {
       const transactionId = await seedTransaction({ amountMinor: 25_000, status });
       const issuable = (await readStatus(DRIVER_TELEGRAM_ID, transactionId)).invoice_issuable;
-      let writerAccepted = true;
-      try {
-        await issue(DRIVER_TELEGRAM_ID, transactionId);
-      } catch {
-        writerAccepted = false;
-      }
+      const writerAccepted = (await issue(DRIVER_TELEGRAM_ID, transactionId)).ok === true;
       expect(writerAccepted).toBe(issuable === true);
     }
   });
