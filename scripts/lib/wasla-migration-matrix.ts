@@ -257,6 +257,7 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
       "لا استدعاءَ لدالّةِ إصدارِ الرمزِ المحليّةِ في أيِّ مسارٍ (يُقاسُ بحاجزٍ ساكنٍ)، ودخولُ لوحةِ إدارةٍ حقيقيٌّ يتمُّ برمزٍ أصدرَه CORE في اختبارِ تكاملٍ.",
     executed: false,
   },
+  { ...noMigration("admin_metric_snapshots") },
   {
     table: "admin_sessions",
     mechanism: "READ_THROUGH_CORE",

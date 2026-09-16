@@ -10,6 +10,14 @@
  */
 
 import {
+  ADMIN_METRIC_WINDOW_HOURS,
+  type MetricSnapshotRow,
+  type MetricTotals,
+  type MetricTruthStamp,
+  metricTruthStamp,
+  sumMetricRows,
+} from "../../../../packages/domain/admin/metric-snapshot.ts";
+import {
   type OperationsFacts,
   type OperationsStatus,
   operationsStatusOf,
@@ -32,8 +40,16 @@ import type {
   SettingRow,
 } from "../../../admin-dashboard/src/index.ts";
 
-/** نافذة الحصيلة اليومية بالساعات. تقنية عرض لا سياسة تجارية. */
-export const DAY_WINDOW_HOURS = 24;
+/**
+ * نافذةُ الحصيلةِ اليوميةِ بالساعاتِ. **تُقرأُ من النطاقِ ولا تُكتبُ رقماً
+ * ثانياً** (`F7-08`): العاملُ يكتبُ اللقطةَ لنافذةٍ، والبوابةُ تقرأُ
+ * لنافذةٍ؛ فرقمانِ متقاربانِ في ملفَّينِ ينزلقانِ في تعديلٍ واحدٍ فتُقرَأُ
+ * اللوحةُ **فارغةً أبداً** بلا أن يسقطَ شيءٌ.
+ *
+ * وبقيَ الاسمُ مُصدَراً لأنَّ المساراتِ تستوردُهُ وليسَ تغييرُ اسمٍ من عملِ
+ * البندِ؛ والقيمةُ واحدةٌ لا نسختانِ.
+ */
+export const DAY_WINDOW_HOURS = ADMIN_METRIC_WINDOW_HOURS;
 export const ATTENDANCE_WINDOWS: readonly number[] = [6, 12, 24, 72, 168];
 export const HEATMAP_WINDOWS: readonly number[] = [1, 3, 6, 12, 24];
 export const DRIVERS_LIMIT = 200;
@@ -134,7 +150,250 @@ export async function stallSeconds(sql: Sql, cityId: string | null): Promise<num
 // النظرة العامة
 // ---------------------------------------------------------------------------
 
-export async function overviewCounters(sql: Sql, windowHours: number): Promise<OverviewCounters> {
+/**
+ * ## قراءةُ لوحةِ النظرةِ العامّةِ — `F7-08` · `CAP-011`
+ *
+ * كانتْ هذه الصفحةُ تُقاسُ بسبعةَ عشرَ استعلاماً على الجداولِ الرئيسةِ عندَ كلِّ
+ * فتحةٍ (أربعةَ عشرَ عدّاداً في `overviewCounters` وثلاثةٌ × عددِ المدنِ في
+ * `cityPulse`)، وهيَ تُحدَّثُ ذاتيّاً كلَّ ثوانٍ — فمُشغِّلٌ واحدٌ يفتحُها كانَ
+ * يمسحُ `orders` كلَّها مِراراً في الدقيقةِ. وهذا عينُ `CAP-011`.
+ *
+ * فصارتِ القراءةُ **استعلاماً واحداً** على `admin_metric_snapshots` يُخرِجُ:
+ * صفّاً لكلِّ مدينةٍ (نبضُ المدنِ)، ومنه تُجمَعُ حصيلةُ المنصّةِ في الذاكرةِ
+ * بدوالِّ النطاقِ الخالصةِ، ومعَه **سياسةُ الصدقِ** (عتبةُ التقادُمِ وإذنُ السقوطِ
+ * إلى الحيِّ) في `CTE` واحدٍ لا في استعلامٍ ثانٍ.
+ *
+ * وثلاثةُ أحكامٍ ههنا لا تُنقَضُ:
+ *
+ *   ١. **لا رقمَ بلا وَسْمِه**: كلُّ عائدٍ يحملُ `MetricTruthStamp` (المصدرُ،
+ *      زمنُ القياسِ، العمرُ، التقادُمُ، المقيسُ من المتوقَّعِ) — كما لا يُنشَرُ
+ *      موضِعُ سائقٍ بلا عُمرِه في `F4-05`.
+ *   ٢. **السقوطُ إلى المسحِ الحيِّ مُعلَنٌ لا صامتٌ**: لا يجري إلّا بإذنِ
+ *      `admin_overview_live_fallback_enabled` (افتراضُه `false`)، **وحينَ لا لقطةَ
+ *      ألبتّةَ** لا حينَ تقادَمَتْ. لقطةٌ متقادِمةٌ تُنشَرُ بعُمرِها؛ واستبدالُها
+ *      بمسحٍ ثقيلٍ هوَ الحِملُ الذي جاءَ البندُ يرفعُه.
+ *   ٣. **بلا إذنٍ وبلا لقطةٍ تُقالُ عدمُ الإتاحةِ**: أصفارٌ تُقرَأُ «هدوءٌ» وهذا
+ *      كذبٌ؛ فتُعادُ الأصفارُ **مقرونةً بوَسْمٍ يقولُ صراحةً إنّها غيرُ مقيسةٍ**.
+ */
+
+/** صفٌّ خامٌ كما يعودُ من الاستعلامِ الواحدِ: مدينةٌ ولقطتُها (أو غيابُها) والسياسةُ. */
+interface OverviewSnapshotRow {
+  readonly city_id: string;
+  readonly code: string;
+  readonly name_ar: string;
+  readonly is_active: boolean;
+  readonly window_hours: number | null;
+  readonly computed_at: string | null;
+  readonly searching_orders: number | null;
+  readonly matched_orders: number | null;
+  readonly in_progress_orders: number | null;
+  readonly available_drivers: number | null;
+  readonly verified_drivers: number | null;
+  readonly pending_drivers: number | null;
+  readonly active_subscriptions: number | null;
+  readonly trial_subscriptions: number | null;
+  readonly open_tickets: number | null;
+  readonly completed_orders_window: number | null;
+  readonly failed_orders_window: number | null;
+  readonly cancelled_orders_window: number | null;
+  readonly match_seconds_sum: number | null;
+  readonly match_seconds_count: number | null;
+  readonly rating_stars_sum: number | null;
+  readonly rating_count: number | null;
+  readonly stale_after_seconds: number | null;
+  readonly live_fallback: boolean | null;
+}
+
+/**
+ * نبضُ مدينةٍ. والعدَّاداتُ **قابلةٌ للغيابِ** (`null`) لأنَّ مدينةً بلا لقطةٍ
+ * «لم تُقَسْ» وليستْ «صفراً»: الأولى عطبٌ في الشوطِ، والثانيةُ هدوءٌ حقيقيٌّ،
+ * وعرضُهما بنفسِ الشكلِ يُخفي الأوّلَ خلفَ الثاني.
+ */
+export interface CityPulseRow {
+  readonly code: string;
+  readonly nameAr: string;
+  readonly isActive: boolean;
+  readonly liveOrders: number | null;
+  readonly availableDrivers: number | null;
+  readonly openTickets: number | null;
+}
+
+export interface AdminOverviewReading {
+  readonly counters: OverviewCounters;
+  readonly cities: readonly CityPulseRow[];
+  readonly stamp: MetricTruthStamp;
+}
+
+/** يقرأُ عدَداً قد يعودُ نصّاً من `numeric`؛ وغيرُ الرقمِ **غيابٌ** لا صفرٌ. */
+function numberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function toSnapshotRow(row: OverviewSnapshotRow, windowHours: number): MetricSnapshotRow | null {
+  if (row.computed_at === null) return null;
+  return {
+    cityId: row.city_id,
+    windowHours: row.window_hours ?? windowHours,
+    computedAt: String(row.computed_at),
+    searchingOrders: numberOrNull(row.searching_orders) ?? 0,
+    matchedOrders: numberOrNull(row.matched_orders) ?? 0,
+    inProgressOrders: numberOrNull(row.in_progress_orders) ?? 0,
+    availableDrivers: numberOrNull(row.available_drivers) ?? 0,
+    verifiedDrivers: numberOrNull(row.verified_drivers) ?? 0,
+    pendingDrivers: numberOrNull(row.pending_drivers) ?? 0,
+    activeSubscriptions: numberOrNull(row.active_subscriptions) ?? 0,
+    trialSubscriptions: numberOrNull(row.trial_subscriptions) ?? 0,
+    openTickets: numberOrNull(row.open_tickets) ?? 0,
+    completedOrdersWindow: numberOrNull(row.completed_orders_window) ?? 0,
+    failedOrdersWindow: numberOrNull(row.failed_orders_window) ?? 0,
+    cancelledOrdersWindow: numberOrNull(row.cancelled_orders_window) ?? 0,
+    matchSecondsSum: numberOrNull(row.match_seconds_sum) ?? 0,
+    matchSecondsCount: numberOrNull(row.match_seconds_count) ?? 0,
+    ratingStarsSum: numberOrNull(row.rating_stars_sum) ?? 0,
+    ratingCount: numberOrNull(row.rating_count) ?? 0,
+  };
+}
+
+function countersOf(totals: MetricTotals): OverviewCounters {
+  return {
+    searchingOrders: totals.searchingOrders,
+    matchedOrders: totals.matchedOrders,
+    inProgressOrders: totals.inProgressOrders,
+    availableDrivers: totals.availableDrivers,
+    verifiedDrivers: totals.verifiedDrivers,
+    pendingDrivers: totals.pendingDrivers,
+    activeSubscriptions: totals.activeSubscriptions,
+    trialSubscriptions: totals.trialSubscriptions,
+    openTickets: totals.openTickets,
+    completedOrdersDay: totals.completedOrdersWindow,
+    failedOrdersDay: totals.failedOrdersWindow,
+    cancelledOrdersDay: totals.cancelledOrdersWindow,
+    averageMatchSeconds: totals.matchSeconds.average,
+    averageDriverRating: totals.driverRating.average,
+  };
+}
+
+/**
+ * قراءةُ الصفحةِ كلِّها. `observedAt` **يُمرَّرُ** ولا يُقرأُ ههنا: العمرُ يُحسَبُ
+ * على لحظةٍ واحدةٍ للصفحةِ بأسرِها، فلا تختلفُ أعمارُ بطاقاتٍ على شاشةٍ واحدةٍ.
+ */
+export async function adminOverviewReading(
+  sql: Sql,
+  windowHours: number,
+  observedAt: Date,
+): Promise<AdminOverviewReading> {
+  const rows = await sql<OverviewSnapshotRow[]>`
+    with policy as (
+      select
+        (
+          select min((value)::numeric)::float8
+          from platform_settings
+          where key = 'admin_metrics_stale_after_seconds'
+            and jsonb_typeof(value) = 'number'
+        ) as stale_after_seconds,
+        (
+          select bool_and((value)::boolean)
+          from platform_settings
+          where key = 'admin_overview_live_fallback_enabled'
+            and jsonb_typeof(value) = 'boolean'
+        ) as live_fallback
+    )
+    select
+      c.id::text as city_id, c.code, c.name_ar, c.is_active,
+      s.window_hours, s.computed_at,
+      s.searching_orders, s.matched_orders, s.in_progress_orders,
+      s.available_drivers, s.verified_drivers, s.pending_drivers,
+      s.active_subscriptions, s.trial_subscriptions, s.open_tickets,
+      s.completed_orders_window, s.failed_orders_window, s.cancelled_orders_window,
+      s.match_seconds_sum, s.match_seconds_count, s.rating_stars_sum, s.rating_count,
+      p.stale_after_seconds, p.live_fallback
+    from cities c
+    cross join policy p
+    left join admin_metric_snapshots s
+      on s.city_id = c.id and s.window_hours = ${windowHours}::integer
+    order by c.code
+  `;
+
+  /**
+   * العتبةُ **تُؤخَذُ أصغرَ المدنِ** (`min`): وَسْمُ المنصّةِ حكمٌ واحدٌ على مجموعٍ
+   * من مدنٍ لكلٍّ عتبتُها، فأخذُ الأكبرِ يجعلُ مدينةً متسامحةً تُسكِتُ تحذيرَ
+   * الباقياتِ. وغيابُ الإعدادِ يُمرَّرُ صفراً — والنطاقُ يحكمُ عليهِ بالتقادُمِ
+   * لا بالسلامةِ (فشلٌ مغلَقٌ).
+   */
+  const staleAfterSeconds = numberOrNull(rows[0]?.stale_after_seconds) ?? 0;
+  /**
+   * والإذنُ **يُؤخَذُ بـ`bool_and`**: المسحُ الحيُّ يضربُ الجداولَ الرئيسةَ لكلِّ
+   * المدنِ معاً، فلا تأذَنُ مدينةٌ بحِملٍ يقعُ على غيرِها. وغيابُ الإعدادِ منعٌ.
+   */
+  const liveFallbackAllowed = rows[0]?.live_fallback === true;
+
+  const citiesExpected = rows.length;
+  const snapshotRows: MetricSnapshotRow[] = [];
+  const cities: CityPulseRow[] = [];
+  for (const row of rows) {
+    const snapshot = toSnapshotRow(row, windowHours);
+    if (snapshot !== null) snapshotRows.push(snapshot);
+    cities.push({
+      code: row.code,
+      nameAr: row.name_ar,
+      isActive: row.is_active,
+      liveOrders:
+        snapshot === null
+          ? null
+          : snapshot.searchingOrders + snapshot.matchedOrders + snapshot.inProgressOrders,
+      availableDrivers: snapshot?.availableDrivers ?? null,
+      openTickets: snapshot?.openTickets ?? null,
+    });
+  }
+
+  if (snapshotRows.length === 0 && liveFallbackAllowed) {
+    const [live, pulse] = await Promise.all([
+      overviewCountersLive(sql, windowHours),
+      cityPulseLive(sql),
+    ]);
+    return {
+      counters: live,
+      cities: pulse,
+      /**
+       * المسحُ الحيُّ مقيسٌ **الآنَ**: عمرُه صفرٌ وليسَ متقادِماً — لكنَّ مصدرَه
+       * يُنشَرُ `live` كي يُقرأَ الحِملُ في اللوحةِ لا يُخفى وراءَ كلمةِ «محدَّثٌ».
+       */
+      stamp: {
+        source: "live",
+        computedAt: observedAt.toISOString(),
+        ageSeconds: 0,
+        isStale: false,
+        staleAfterSeconds,
+        citiesMeasured: pulse.length,
+        citiesExpected: pulse.length,
+      },
+    };
+  }
+
+  return {
+    counters: countersOf(sumMetricRows(snapshotRows)),
+    cities,
+    stamp: metricTruthStamp({
+      source: "snapshot",
+      rows: snapshotRows,
+      observedAt,
+      staleAfterSeconds,
+      citiesExpected,
+    }),
+  };
+}
+
+/**
+ * المسحُ الحيُّ للعدَّاداتِ — **مسارُ سقوطٍ لا مسارٌ معتادٌ**. سبعةَ عشرَ استعلاماً
+ * فرعيّاً على الجداولِ الرئيسةِ: يُستدعى بإذنٍ صريحٍ فقط (انظرْ أعلاه)، وبقيَ
+ * قائماً لأنَّ حذفَه يجعلُ أوّلَ إقلاعٍ قبلَ أوّلِ شوطٍ لوحةً فارغةً بلا مخرجٍ.
+ */
+export async function overviewCountersLive(
+  sql: Sql,
+  windowHours: number,
+): Promise<OverviewCounters> {
   const rows = await sql<
     {
       searching: number;
@@ -202,16 +461,12 @@ export async function overviewCounters(sql: Sql, windowHours: number): Promise<O
   };
 }
 
-export interface CityPulseRow {
-  readonly code: string;
-  readonly nameAr: string;
-  readonly isActive: boolean;
-  readonly liveOrders: number;
-  readonly availableDrivers: number;
-  readonly openTickets: number;
-}
-
-export async function cityPulse(sql: Sql): Promise<readonly CityPulseRow[]> {
+/**
+ * نبضُ المدنِ بمسحٍ حيٍّ — ثلاثةُ عدّاداتٍ × عددُ المدنِ. **مسارُ سقوطٍ** بنفسِ
+ * الإذنِ والشرطِ، ولذا يُستدعى معَ `overviewCountersLive` لا وحدَه: عدَّاداتُ
+ * منصّةٍ من لقطةٍ ونبضُ مدنٍ من مسحٍ حيٍّ رقمانِ من زمنَينِ في شاشةٍ واحدةٍ.
+ */
+export async function cityPulseLive(sql: Sql): Promise<readonly CityPulseRow[]> {
   const rows = await sql<
     {
       code: string;

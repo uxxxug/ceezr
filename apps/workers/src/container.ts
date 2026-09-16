@@ -40,6 +40,8 @@ import type { ExpiryWarningSender } from "../../../packages/application/subscrip
 import type { SubscriptionNoticePublisher } from "../../../packages/application/subscription/notice-ports.ts";
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
 import { shipDueMoveEvents } from "../../../packages/application/wasla/ship-due-move-events.ts";
+import { ADMIN_METRIC_WINDOW_HOURS } from "../../../packages/domain/admin/metric-snapshot.ts";
+import { createMetricSnapshotRefreshPort } from "../../../packages/infrastructure/admin/metric-snapshot-store.ts";
 import {
   createGoogleDriveStorage,
   createLocalBackupStorage,
@@ -141,6 +143,7 @@ import { expireTrackingTokens } from "./jobs/expire-tracking-tokens.ts";
 import { recomputeRatings } from "./jobs/recompute-ratings.ts";
 import { runReconcilePendingPayments } from "./jobs/reconcile-pending-payments.ts";
 import { runRedispatchSearching } from "./jobs/redispatch-searching.ts";
+import { refreshAdminMetrics } from "./jobs/refresh-admin-metrics.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
 import { runBackupRestoreVerification } from "./jobs/verify-backup-restore.ts";
@@ -220,6 +223,18 @@ export const JOB_INTERVALS = {
    * أوّلَ إقلاعٍ بعدَ عطلٍ طويلٍ يُصلحُ النافذةَ فوراً لا بعدَ يومٍ.
    */
   ensureLocationPartitions: 86_400,
+  /**
+   * `F7-08` — كلَّ ستِّينَ ثانيةً: لوحةُ الإدارةِ تُقرَأُ ليُقرَّرَ فيها شيءٌ
+   * (توثيقُ سائقٍ، تذكرةُ نزاعٍ)، فدقيقةٌ تأخُّرٍ في عدَدٍ مقروءٍ **معَ عُمرِه
+   * المنشورِ** لا تُغيرُ قراراً. وأسرعُ من ذلكَ يُناقِضُ البندَ نفسَه: الشوطُ
+   * يمسحُ ستّةَ جداولَ مرّةً، فتواتُرٌ أقصرُ من زمنِ الشوطِ يُحيلُ التخفيفَ
+   * تثقيلاً دائماً. وأبطأُ يجعلُ الوسمَ المتقادِمَ الحالَ المعتادَ فيُقرَأُ ضجيجاً.
+   *
+   * **وموضِعُ التواتُرِ ههنا وحدَه وليسَ في `platform_settings`**: المُشغِّلُ
+   * يقرأُ `everySeconds` مرّةً عندَ البناءِ، فإعدادٌ في القاعدةِ يُغَيَّرُ ولا يُتبَعُ
+   * وعدٌ مكتوبٌ لا يُوفى.
+   */
+  refreshAdminMetrics: 60,
 } as const;
 
 /** المهلة الافتراضية للتوفّر البائت حين يغيب الإعداد — ثلاث ساعات. */
@@ -464,6 +479,7 @@ export function buildWorkerContainer(
   const lifecycleRpc = createSubscriptionLifecycleRpc(sql);
   const availabilityRpc = createStaleAvailabilityRpc(sql);
   const recomputePort = createRatingRecomputePort(sql);
+  const adminMetricSnapshotPort = createMetricSnapshotRefreshPort(sql);
   const trackingTokens = createTrackingTokenRpc(sql);
 
   /**
@@ -1083,6 +1099,37 @@ export function buildWorkerContainer(
             const report = await recomputeRatings({ recompute: recomputePort });
             if (!report.ok) throw new Error(JSON.stringify(report.error));
             return `drivers=${report.value.driversUpdated} riders=${report.value.ridersUpdated}`;
+          },
+        },
+        {
+          /**
+           * `F7-08` · `CAP-011` — شوطٌ واحدٌ يُعيدُ بناءَ لقطةِ لوحةِ الإدارةِ
+           * لكلِّ المدنِ. وعائدُه **زمنُ القياسِ لا زمنُ الكتابةِ**: هوَ عينُ ما
+           * يُنشَرُ للمُشغِّلِ في اللوحةِ، فوجودُه في السجلِّ يجعلُ مقارنةَ ما رأى
+           * بما جرى مُمكنةً بلا استنتاجٍ.
+           */
+          name: "refresh-admin-metrics",
+          everySeconds: JOB_INTERVALS.refreshAdminMetrics,
+          run: async () => {
+            const report = await refreshAdminMetrics(
+              { port: adminMetricSnapshotPort },
+              { windowHours: ADMIN_METRIC_WINDOW_HOURS },
+            );
+            if (!report.ok) throw new Error(JSON.stringify(report.error));
+            const value = report.value;
+            /**
+             * صفرُ مدنٍ مكتوبةٍ يُرفَعُ إلى `error` لا `info`: الشوطُ يمسحُ
+             * `cities` كلَّها ويكتبُ أصفاراً للساكنةِ، فصفرٌ لا يعني «لا نشاطَ»
+             * بل **لا مدينةَ في القاعدةِ** — ولوحةٌ تُقرَأُ فارغةً أبداً بلا أن
+             * يسقطَ شيءٌ أسوأُ من لوحةٍ تسقُطُ.
+             */
+            if (value.citiesWritten === 0) {
+              log.error("admin_metrics.no_cities_written", {
+                windowHours: value.windowHours,
+                computedAt: value.computedAt,
+              });
+            }
+            return `cities=${value.citiesWritten} computed_at=${value.computedAt}`;
           },
         },
       ];
