@@ -17,15 +17,15 @@ import {
   ACCOUNT_ERROR_CODES,
   ACCOUNT_ROLES,
   type AccountSurfaceContractInput,
-  accountSurfaceContractProblems,
   ALLOWED_PLACEHOLDERS,
+  accountSurfaceContractProblems,
   CORE_FILES,
   DOMAIN_ERASURE_REFUSALS,
   DOMAIN_EXPORT_REFUSALS,
   DOMAIN_RETENTION_BASES,
   ERASURE_SQL_FILES,
-  receiptSectionsFromSql,
   ROLE_SURFACE_FILES,
+  receiptSectionsFromSql,
   TRANSLATION_FILES,
 } from "./lib/account-surface-contract.ts";
 import { blankComments } from "./lib/blank-comments.ts";

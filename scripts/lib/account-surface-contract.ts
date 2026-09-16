@@ -190,7 +190,9 @@ const NOT_A_SECTION: ReadonlySet<string> = new Set([
 ]);
 
 /** أقسامُ الإيصالِ المقروءةُ من نصوصِ الهجراتِ — مشتقّةٌ لا مكتوبةٌ. */
-export function receiptSectionsFromSql(sqlByPath: Readonly<Record<string, string>>): readonly string[] {
+export function receiptSectionsFromSql(
+  sqlByPath: Readonly<Record<string, string>>,
+): readonly string[] {
   const found = new Set<string>();
   for (const sql of Object.values(sqlByPath)) {
     for (const match of sql.matchAll(SECTION_NAME_PATTERN)) {
@@ -306,7 +308,8 @@ export function accountSurfaceContractProblems(
     if (reference !== undefined) {
       for (const [language, keys] of rest) {
         for (const key of reference[1]) {
-          if (!keys.has(key)) problems.push(`القاعدةُ ٣: «${key}» في ${reference[0]} وغائبٌ في ${language}.`);
+          if (!keys.has(key))
+            problems.push(`القاعدةُ ٣: «${key}» في ${reference[0]} وغائبٌ في ${language}.`);
         }
         for (const key of keys) {
           if (!reference[1].has(key)) {
@@ -337,9 +340,7 @@ export function accountSurfaceContractProblems(
   for (const [path, source] of Object.entries(input.core)) {
     for (const role of input.roles) {
       if (source.includes(`"${role.keyPrefix}`) || source.includes(`'${role.keyPrefix}`)) {
-        problems.push(
-          `القاعدةُ ٦: «${path}» يذكرُ بادئةَ «${role.keyPrefix}» — اللبُّ لا يعرفُ دوراً.`,
-        );
+        problems.push(`القاعدةُ ٦: «${path}» يذكرُ بادئةَ «${role.keyPrefix}» — اللبُّ لا يعرفُ دوراً.`);
       }
     }
   }

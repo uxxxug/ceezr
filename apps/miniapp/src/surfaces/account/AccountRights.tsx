@@ -35,7 +35,10 @@
 
 import { useCallback, useId, useState } from "react";
 import type { MiniAppLanguage } from "../../../../../packages/shared/i18n/miniapp/index.ts";
-import { MINIAPP_DEFAULT_LANGUAGE, miniAppTranslator } from "../../../../../packages/shared/i18n/miniapp/index.ts";
+import {
+  MINIAPP_DEFAULT_LANGUAGE,
+  miniAppTranslator,
+} from "../../../../../packages/shared/i18n/miniapp/index.ts";
 import { addAppToHomeScreen } from "../../tg/index.ts";
 import { newIdempotencyKey } from "../rider/search/search-view.ts";
 import { requestDataExport, requestErasure } from "./account-api.ts";
@@ -350,7 +353,9 @@ export function AccountRights({
       {error !== null && (
         <div className="ac__error" role="alert">
           <p>{t(view.accountErrorKey(error))}</p>
-          {isRetryableAccountError(error) && <p className="sys__hint">{t(`${k}error.retryHint`)}</p>}
+          {isRetryableAccountError(error) && (
+            <p className="sys__hint">{t(`${k}error.retryHint`)}</p>
+          )}
         </div>
       )}
     </section>

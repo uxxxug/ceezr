@@ -24,15 +24,19 @@
  * كانَ سيجعلَ اختباراً أخضرَ يُعدَّلُ ليُوافقَ شِفرةً — وذاكَ نقضُ القياسِ.
  */
 
+import type { ApiErasureReceipt } from "../../account/account-contract.ts";
 import {
   accountViewModel,
   type ReceiptLine,
   type ReceiptView,
 } from "../../account/account-view.ts";
-import type { ApiErasureReceipt } from "../../account/account-contract.ts";
 
-export { exportSectionCount, isRetryableAccountError, toReceiptView } from "../../account/account-view.ts";
-export type { ReceiptLine, ReceiptView, ApiErasureReceipt };
+export {
+  exportSectionCount,
+  isRetryableAccountError,
+  toReceiptView,
+} from "../../account/account-view.ts";
+export type { ApiErasureReceipt, ReceiptLine, ReceiptView };
 
 /**
  * عناصرُ `SR-12` التي لا سندَ لها في قاعدةٍ ولا حدَّ API — تُقالُ ولا تُخترَعُ

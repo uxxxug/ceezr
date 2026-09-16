@@ -17,7 +17,6 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { minorUnitsToMajorText } from "../../packages/domain/financial/minor-units.ts";
 import {
   accountViewModel,
   exportSectionCount,
@@ -33,6 +32,7 @@ import {
   RIDER_ACCOUNT_SPEC,
   riderAccountView,
 } from "../../apps/miniapp/src/surfaces/rider/account/account-view.ts";
+import { minorUnitsToMajorText } from "../../packages/domain/financial/minor-units.ts";
 import { readRepository } from "../../scripts/check-account-surface-contract.ts";
 import {
   ACCOUNT_ROLES,
@@ -307,9 +307,9 @@ describe("حاجزُ عقدِ سطحِ الحسابِ — حالةٌ سلبيّ�
       ...input,
       translations: { ...input.translations, en },
     });
-    expect(problems.some((p) => p.startsWith("القاعدةُ ٣:") && p.includes("rider.account.extra"))).toBe(
-      true,
-    );
+    expect(
+      problems.some((p) => p.startsWith("القاعدةُ ٣:") && p.includes("rider.account.extra")),
+    ).toBe(true);
   });
 
   it("٤ — يسقطُ عندَ غيابِ مفتاحِ سقوطٍ للمجهولِ", () => {
@@ -323,9 +323,7 @@ describe("حاجزُ عقدِ سطحِ الحسابِ — حالةٌ سلبيّ�
     );
     const problems = accountSurfaceContractProblems({ ...input, translations });
     expect(
-      problems.some(
-        (p) => p.startsWith("القاعدةُ ٤:") && p.includes("export.refusal.UNKNOWN"),
-      ),
+      problems.some((p) => p.startsWith("القاعدةُ ٤:") && p.includes("export.refusal.UNKNOWN")),
     ).toBe(true);
   });
 

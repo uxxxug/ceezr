@@ -31,8 +31,8 @@
  */
 
 import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
-import { AccountRights } from "../../account/AccountRights.tsx";
 import type { AccountRightsProps } from "../../account/AccountRights.tsx";
+import { AccountRights } from "../../account/AccountRights.tsx";
 import { riderAccountView } from "./account-view.ts";
 
 export interface AccountScreenProps extends Omit<AccountRightsProps, "view"> {
