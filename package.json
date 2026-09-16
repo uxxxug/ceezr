@@ -65,6 +65,8 @@
   "dependencies": {
     "grammy": "^1.45.1",
     "hono": "^4.13.0",
-    "postgres": "^3.4.9"
+    "postgres": "^3.4.9",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3"
   }
 }
