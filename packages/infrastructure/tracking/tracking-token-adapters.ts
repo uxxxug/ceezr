@@ -20,6 +20,10 @@
  */
 
 import { randomBytes } from "node:crypto";
+import type {
+  DriverLocationHotStateReader,
+  HotLocationSnapshot,
+} from "../../application/geo/driver-location-hot-state.ts";
 import { PortFailureError } from "../../application/ports/index.ts";
 import type {
   IssueTokenOutcome,
@@ -28,10 +32,6 @@ import type {
   TrackingTokenMintPort,
   TrackingTokenRpcPort,
 } from "../../application/tracking/tracking-token-ports.ts";
-import type {
-  DriverLocationHotStateReader,
-  HotLocationSnapshot,
-} from "../../application/geo/driver-location-hot-state.ts";
 import type { CityId, DriverId, OrderId } from "../../shared/kernel/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { guard, readEnvelope, type Sql } from "../db/client.ts";
