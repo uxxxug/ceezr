@@ -4439,3 +4439,8 @@ PostGIS 3.6 محليّاً، وطُبِّقَت الهجراتُ الـ١٣٤ ب
 `apps/miniapp/src/services/` لكسرِ سلسلةِ الاستيرادِ التي كانت تسحبُ ملفاتِ
 miniapp (التي تستعملُ أنواعَ DOM) إلى تجميعِ الجذرِ (الذي بلا DOM). وتغييرُ
 استيرادِ `socket.io-client` إلى type-only مع تحميلٍ كسولٍ.
+
+### F4-07 — إصلاحُ استيرادِ socket.io-client كـESM (2026-09-16)
+
+استعادةُ الاستيرادِ المستوى الأعلى (top-level import) لِـ`socket.io-client` في
+`production-ride-channel.ts` بدلَ `require()` الذي لا يعملُ في حزمةِ المتصفحِ.
