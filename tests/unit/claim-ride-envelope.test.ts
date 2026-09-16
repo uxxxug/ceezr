@@ -37,7 +37,13 @@ function fakeSql(result: unknown | { readonly throws: true }): {
     }
     return [{ result }];
   };
-  return { sql: tagged as unknown as Sql, calls };
+  // `F8-01`: صارت الدعوةُ تجري داخلَ معاملةٍ (`withRequestContext`)، فالمُزيَّفُ
+  // يلزمُه `begin` يُمرِّرُ المُوسومَ نفسَه. ولا سياقَ ارتباطٍ في هذا الاختبارِ،
+  // فلا `set_config` يُسجَّلُ — وهوَ ما يُثبتُه `calls` بطولِه ونصِّه.
+  const sql = Object.assign(tagged, {
+    begin: (run: (tx: unknown) => unknown) => run(sql),
+  }) as unknown as Sql;
+  return { sql, calls };
 }
 
 const ORDER = "22222222-2222-4222-8222-222222222222" as OrderId;

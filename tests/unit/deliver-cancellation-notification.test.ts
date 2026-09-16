@@ -46,6 +46,9 @@ function delivery(payload: Readonly<Record<string, unknown>>) {
     attempts: 1,
     maxAttempts: 3,
     batchLimit: 8,
+    // `F8-01`: صفٌّ كُتِبَ بلا سياقِ ارتباطٍ — وهيَ الحالُ التي يجبُ أن تبقى
+    // ماضيةً بلا اختلالٍ، فالمراقبةُ لا تشترطُ نفسَها على التسليمِ.
+    requestId: null,
     payload,
   };
 }

@@ -28,6 +28,7 @@ function delivery(index: number, batchLimit: number, maxAttempts: number): Outbo
     attempts: 1,
     maxAttempts,
     batchLimit,
+    requestId: null,
     payload: {},
   };
 }

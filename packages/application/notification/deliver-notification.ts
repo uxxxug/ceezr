@@ -29,6 +29,12 @@ export interface OutboxDelivery {
    * كلَّ التسليمِ في صفٍّ واحدٍ لكلِّ دورةٍ. فصارَ للسعةِ مفتاحُها.
    */
   readonly batchLimit: number;
+  /**
+   * معرِّفُ وحدةِ العملِ التي **أنشأَت** هذا الصفَّ، كما حُفِظَ في القاعدةِ
+   * (`F8-01`). `null` يعني أنَّ الصفَّ كُتِبَ خارجَ وحدةِ عملٍ موصولةٍ — ويبقى
+   * `null` ولا يُستبدَلُ بمولَّدٍ: سلسلةٌ مجهولةٌ أصدقُ من سلسلةٍ مُلفَّقةٍ.
+   */
+  readonly requestId: string | null;
   readonly payload: Readonly<Record<string, unknown>>;
 }
 
@@ -94,6 +100,21 @@ export type NotificationHandler = (
 export interface NotificationDeliveryDeps {
   readonly outbox: NotificationOutboxPort;
   readonly handlers: Readonly<Record<string, NotificationHandler>>;
+  /**
+   * **الرجلُ الثالثةُ من `F8-01`: عبورُ الطابورِ.** تُحقَنُ من العاملِ فتُشغِّلُ
+   * معالجةَ الصفِّ وإعلانَ نتيجتِه **داخلَ سياقِ ارتباطٍ مُستعادٍ من الصفِّ
+   * نفسِه**، فتحملُ كتاباتُ العاملِ معرِّفَ الطلبِ الذي أنشأَ الصفَّ.
+   *
+   * وهيَ **حَقنٌ لا استيرادٌ** لأنَّ هذه الطبقةَ لا تعرفُ `AsyncLocalStorage`
+   * ولا القاعدةَ: طبقةُ التطبيقِ تُعلِنُ الحاجةَ، والطبقةُ التحتيّةُ تُلبّيها.
+   *
+   * وغيابُها **لا يُسقِطُ التسليمَ**: الشوطُ يجري بلا ارتباطٍ (وهو حالُ كلِّ
+   * اختبارٍ لا يعنيهِ الارتباطُ) — حاجزُ مراقبةٍ لا يجوزُ أن يمنعَ عملاً.
+   */
+  readonly withDeliveryCorrelation?: <T>(
+    delivery: OutboxDelivery,
+    run: () => Promise<T>,
+  ) => Promise<T>;
 }
 
 export interface DeliveryAttemptOutcome {
@@ -134,6 +155,24 @@ export async function deliverNotification(
       failure: null,
     });
   }
+  // ومن ههنا إلى آخرِ هذا الشوطِ يجري العملُ **داخلَ سياقِ الصفِّ**: معالجتُه
+  // وإعلانُ نتيجتِه وكلُّ كتابةٍ تُوَلَّدُ عنهما. والالتقاطُ نفسُه يبقى خارجَه
+  // لأنَّ المعرِّفَ لا يُعرَفُ قبلَ أن يعودَ الصفُّ.
+  const run = deps.withDeliveryCorrelation;
+  return run === undefined
+    ? deliverClaimed(deps, delivery)
+    : run(delivery, () => deliverClaimed(deps, delivery));
+}
+
+/**
+ * معالجةُ صفٍّ **مُلتقَطٍ** وإعلانُ نتيجتِه. فُصِلَت عن `deliverNotification`
+ * ليجريَ كلُّ ما بعدَ الالتقاطِ داخلَ سياقِ ارتباطِ الصفِّ (`F8-01`) — لا لتُقرأَ
+ * بأجزاءٍ: السلوكُ لم يتغيّرْ حرفاً، والفصلُ هوَ ما جعلَ اللفَّ ممكناً بلا تكرارٍ.
+ */
+async function deliverClaimed(
+  deps: NotificationDeliveryDeps,
+  delivery: OutboxDelivery,
+): Promise<Result<DeliveryAttemptOutcome, PortFailureError>> {
   const handler = deps.handlers[delivery.kind];
   if (handler === undefined) {
     // نوعٌ في القاعدةِ بلا معالجٍ في الكودِ: تعارضُ هجرةٍ ونشرٍ. يُعلَنُ خطأً —

@@ -4,7 +4,7 @@ import type {
   SafetyResolutionPort,
   TriggerSosPort,
 } from "../../application/safety/ports.ts";
-import { guard, readEnvelope, type Sql } from "../db/client.ts";
+import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
 
 function envelope(value: unknown, name: string): Record<string, unknown> {
   const result = readEnvelope(value);
@@ -15,9 +15,17 @@ export function createTriggerSosPort(sql: Sql): TriggerSosPort {
   return {
     trigger: (input) =>
       guard("rpc.trigger_sos", async () => {
-        const rows = await sql<
-          { result: unknown }[]
-        >`select trigger_sos(${input.orderId}::uuid, ${input.actorTelegramId}::bigint, ${input.reporterRole}::text) result`;
+        // `F8-01` — موضعٌ موصولٌ مُعلَنٌ: تجري الدعوةُ داخلَ معاملةٍ يُضبَطُ فيها
+        // المتغيّرُ الجلسيُّ للمعرِّفِ أوّلاً (اسمُه في `client.ts` وحدَه), فكلُ ما تكتبُه هذه الدالّةُ الذرّيّةُ في الجداولِ
+        // المُعلَنةِ يحملُ معرِّفَ وحدةِ العملِ. والقائمةُ في سجلِّ العقدِ لا ههنا،
+        // فالحاجزُ يعُدُّها ويمنعُ توسيعَها صمتاً.
+        const rows = await withRequestContext(
+          sql,
+          (tx) =>
+            tx<
+              { result: unknown }[]
+            >`select trigger_sos(${input.orderId}::uuid, ${input.actorTelegramId}::bigint, ${input.reporterRole}::text) result`,
+        );
         const row = envelope(rows[0]?.result, "trigger_sos");
         return row.ok === true
           ? { incidentId: String(row.incident_id), created: row.created === true }
