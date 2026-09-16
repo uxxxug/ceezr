@@ -169,28 +169,43 @@ export function createTrackingTokenRpc(
       }
       const cell = position as Record<string, unknown>;
       const verdict = typeof cell.verdict === "string" ? cell.verdict : "";
-      const dbAgeSeconds = toFinite(cell.age_seconds);
-      const driverId = typeof raw.driver_id === "string" ? (raw.driver_id as DriverId) : null;
-      const cityId = typeof raw.city_id === "string" ? (raw.city_id as CityId) : null;
+      const ageSeconds = toFinite(cell.age_seconds);
 
-      // F4-05: اقرأِ الحالةَ الساخنةَ إن وُجدَ قارئٌ ومعرّفاتُ.
-      // الحالةُ الساخنةُ أحدثُ من القاعدةِ لأنَّ الإفراغَ المجمَّعَ يتأخّر.
-      if (hotStateReader !== undefined && driverId !== null && cityId !== null) {
-        const hot = await hotStateReader.read(driverId, cityId);
-        if (hot.ok && hot.value !== null) {
-          const snapshot = hot.value as HotLocationSnapshot;
-          const ageMs = clock.now().getTime() - snapshot.observedAtMs;
-          const ageSeconds = Math.max(0, Math.trunc(ageMs / 1000));
-          return ok({
-            kind: "located",
-            active,
-            position: { lat: snapshot.lat, lng: snapshot.lng, ageSeconds },
-          });
+      // F4-05: اقرأِ الحالةَ الساخنةَ إن وُجدَ قارئٌ.
+      // والمعرّفاتُ تُحلُّ بنداءٍ مستقلٍّ لا بتعديلِ get_tracking_position —
+      // فحمولتُها العامّةُ بلا هويّةٍ عقدٌ مكتوبٌ لا يُكسَر.
+      if (hotStateReader !== undefined) {
+        const resolveResult = await guard("trackingTokens.resolveDriver", async () => {
+          const rows = await sql<{ driver_id: string | null; city_id: string | null }[]>`
+            select o.assigned_driver_id as driver_id, o.city_id
+              from trip_tracking_tokens t
+              join orders o on o.id = t.order_id
+             where t.token = ${token}
+               and t.revoked_at is null
+               and t.expires_at > now()
+          `;
+          return rows[0] ?? null;
+        });
+        if (resolveResult.ok && resolveResult.value !== null) {
+          const driverId = resolveResult.value.driver_id;
+          const cityId = resolveResult.value.city_id;
+          if (driverId !== null && cityId !== null) {
+            const hot = await hotStateReader.read(driverId as DriverId, cityId as CityId);
+            if (hot.ok && hot.value !== null) {
+              const snapshot = hot.value as HotLocationSnapshot;
+              const hotAgeMs = clock.now().getTime() - snapshot.observedAtMs;
+              const hotAgeSeconds = Math.max(0, Math.trunc(hotAgeMs / 1000));
+              return ok({
+                kind: "located",
+                active,
+                position: { lat: snapshot.lat, lng: snapshot.lng, ageSeconds: hotAgeSeconds },
+              });
+            }
+          }
         }
       }
 
       // لا حالةً ساخنةً — عُد إلى القاعدةِ.
-      const ageSeconds = dbAgeSeconds;
       if (verdict === "NEVER_REPORTED" || verdict === "NO_TIMESTAMP") {
         return ok({ kind: "awaiting", active, reason: verdict, ageSeconds });
       }

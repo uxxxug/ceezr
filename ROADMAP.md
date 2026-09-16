@@ -4388,9 +4388,9 @@ PostGIS 3.6 محليّاً، وطُبِّقَت الهجراتُ الـ١٣٤ ب
 
 ### F4-05 — التتبّع العام من القناة المشتركة (2026-09-16)
 
-أُضيفَ منفذُ `DriverLocationHotStateReader` بـ`HGETALL` على Redis، وهجرةٌ أضافت `driver_id`
-و`city_id` إلى `get_tracking_position` للبوابةِ الداخليّةِ. `createTrackingTokenRpc` يقرأُ
-الحالةَ الساخنةَ أوّلاً ويُعَدُّ للقاعدةِ عند غيابِها. ٦ اختباراتِ وحدةٍ ناجحةٍ. الحالةُ `[~]`،
+أُضيفَ منفذُ `DriverLocationHotStateReader` بـ`HGETALL` على Redis. `createTrackingTokenRpc` يقرأُ
+الحالةَ الساخنةَ أوّلاً ويُعَدُّ للقاعدةِ عند غيابِها. المعرّفاتُ تُحلُّ بنداءٍ مستقلٍّ لا
+بتعديلِ `get_tracking_position` (عقدُ الهويّةِ محفوظٌ). ٨ اختباراتِ وحدةٍ ناجحةٍ. الحالةُ `[~]`،
 ينتظرُ ثلاثَ جولاتٍ خضراءَ على `main` (`ح-4`). الدليل: `docs/evidence/architecture/F4-05-20260916.md`.
 
 <!-- F4-05 lint fix: biome organize imports on adapter and test files -->
