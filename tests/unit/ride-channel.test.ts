@@ -21,6 +21,7 @@ import type {
 import type { TrackingEvent } from "../../packages/tracking/types.ts";
 
 const PORT = 9123;
+const TIMEOUT = 5000;
 
 interface FakeBusInternals {
   subscribers: Map<symbol, (event: TrackingEvent) => void>;
@@ -61,6 +62,14 @@ function makeEvent(type: string, tripId: string, driverId = "drv-1"): TrackingEv
     cityId: "city-1",
     timestamp: new Date("2026-09-16T10:00:00Z"),
   };
+}
+
+/** Race a promise against a timeout — resolves to the value or a sentinel. */
+function withTimeout<T>(promise: Promise<T>, ms = TIMEOUT): Promise<T | { _timeout: true }> {
+  return Promise.race([
+    promise,
+    new Promise<{ _timeout: true }>((resolve) => setTimeout(() => resolve({ _timeout: true }), ms)),
+  ]);
 }
 
 describe("RideChannel (F4-04)", () => {
@@ -113,11 +122,12 @@ describe("RideChannel (F4-04)", () => {
       transports: ["websocket"],
       auth: auth ?? { sessionToken: "good-token" },
     });
-    await new Promise<void>((resolve, reject) => {
-      client.on("connect", resolve);
-      client.on("connect_error", reject);
-      setTimeout(() => reject(new Error("connect timeout")), 3000);
-    });
+    await withTimeout(
+      new Promise<void>((resolve, reject) => {
+        client.on("connect", resolve);
+        client.on("connect_error", reject);
+      }),
+    );
     return client;
   }
 
@@ -131,12 +141,11 @@ describe("RideChannel (F4-04)", () => {
     });
 
     client.emit("ride:join", {});
-    const error = await new Promise<{ code: string }>((resolve) => {
-      client.on("ride:error", resolve);
-      setTimeout(() => {
-        resolve({ code: "TIMEOUT" });
-      }, 2000);
-    });
+    const error = (await withTimeout(
+      new Promise<{ code: string }>((resolve) => {
+        client.on("ride:error", resolve);
+      }),
+    )) as { code: string };
 
     expect(error.code).toBe("NO_SESSION");
     client.disconnect();
@@ -145,12 +154,12 @@ describe("RideChannel (F4-04)", () => {
   it("rejects invalid session token", async () => {
     const client = await connectClient({ sessionToken: "bad-token" });
     client.emit("ride:join", {});
-    const error = await new Promise<{ code: string }>((resolve) => {
-      client.on("ride:error", resolve);
-      setTimeout(() => {
-        resolve({ code: "TIMEOUT" });
-      }, 2000);
-    });
+    const error = (await withTimeout(
+      new Promise<{ code: string }>((resolve) => {
+        client.on("ride:error", resolve);
+      }),
+    )) as { code: string };
+
     expect(error.code).toBe("INVALID_SESSION");
     client.disconnect();
   });
@@ -158,12 +167,12 @@ describe("RideChannel (F4-04)", () => {
   it("joins ride room and receives ride:joined", async () => {
     const client = await connectClient();
     client.emit("ride:join", { tripId: "trip-123" });
-    const joined = await new Promise<{ tripId: string; driverId: string }>((resolve) => {
-      client.on("ride:joined", resolve);
-      setTimeout(() => {
-        throw new Error("timeout");
-      }, 3000);
-    });
+    const joined = (await withTimeout(
+      new Promise<{ tripId: string; driverId: string }>((resolve) => {
+        client.on("ride:joined", resolve);
+      }),
+    )) as { tripId: string; driverId: string };
+
     expect(joined.tripId).toBe("trip-123");
     expect(joined.driverId).toBe("drv-1");
     client.disconnect();
@@ -172,19 +181,19 @@ describe("RideChannel (F4-04)", () => {
   it("forwards location_updated events to ride room", async () => {
     const client = await connectClient();
     client.emit("ride:join", { tripId: "trip-456" });
-    await new Promise<void>((resolve) => {
-      client.on("ride:joined", () => resolve());
-      setTimeout(() => resolve(), 2000);
-    });
+    await withTimeout(
+      new Promise<void>((resolve) => {
+        client.on("ride:joined", () => resolve());
+      }),
+    );
 
     emitEvent(bus, makeEvent("location_updated", "trip-456"));
 
-    const event = await new Promise<{ type: string; tripId: string }>((resolve) => {
-      client.on("ride:event", resolve);
-      setTimeout(() => {
-        throw new Error("no event");
-      }, 3000);
-    });
+    const event = (await withTimeout(
+      new Promise<{ type: string; tripId: string }>((resolve) => {
+        client.on("ride:event", resolve);
+      }),
+    )) as { type: string; tripId: string };
 
     expect(event.type).toBe("location_updated");
     expect(event.tripId).toBe("trip-456");
@@ -194,10 +203,11 @@ describe("RideChannel (F4-04)", () => {
   it("does not forward non-ride events (session_ended)", async () => {
     const client = await connectClient();
     client.emit("ride:join", { tripId: "trip-789" });
-    await new Promise<void>((resolve) => {
-      client.on("ride:joined", () => resolve());
-      setTimeout(() => resolve(), 2000);
-    });
+    await withTimeout(
+      new Promise<void>((resolve) => {
+        client.on("ride:joined", () => resolve());
+      }),
+    );
 
     // session_ended should NOT be forwarded
     emitEvent(bus, makeEvent("session_ended", "trip-789"));
@@ -219,12 +229,12 @@ describe("RideChannel (F4-04)", () => {
   it("rejects join when rider has no active ride", async () => {
     const client = await connectClient({ sessionToken: "rider-no-ride" });
     client.emit("ride:join", {});
-    const error = await new Promise<{ code: string }>((resolve) => {
-      client.on("ride:error", resolve);
-      setTimeout(() => {
-        resolve({ code: "TIMEOUT" });
-      }, 2000);
-    });
+    const error = (await withTimeout(
+      new Promise<{ code: string }>((resolve) => {
+        client.on("ride:error", resolve);
+      }),
+    )) as { code: string };
+
     expect(error.code).toBe("NO_ACTIVE_RIDE");
     client.disconnect();
   });
