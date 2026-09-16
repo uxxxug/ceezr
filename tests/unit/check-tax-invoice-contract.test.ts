@@ -70,6 +70,20 @@ export function createDriverSubscriptionInvoiceRoutes(deps: Deps) {
 }
 `;
 
+/**
+ * سطحٌ صالحٌ: يقرأُ رايةَ القاعدةِ، ولا يُسمّي حالاً، ولا يُرمِّزُ حِمْلاً، ولا
+ * يحملُ رقمَ ضريبةٍ. **وفيه تحويلُ الوحدةِ المسموحُ** (قسمةٌ على مئةٍ) لِيُقاسَ
+ * أنَّ القاعدةَ ١٢ لا تمنعُ الصوابَ.
+ */
+const VALID_SURFACE = `
+export function toPaymentStatus(response) {
+  return { canIssueInvoice: response.invoice_issuable, statusLabelKey: keyOf(response) };
+}
+export function vatRatePercentText(bps) {
+  return String(Math.trunc(bps / 100));
+}
+`;
+
 function baseline(): TaxInvoiceContractInput {
   return {
     invoiceMigration: VALID_MIGRATION,
@@ -78,7 +92,18 @@ function baseline(): TaxInvoiceContractInput {
     routeFile: VALID_ROUTE,
     storeRejections: ["NOT_A_DRIVER", "TRANSACTION_NOT_FOUND", "USER_NOT_FOUND"],
     publicErrorCodes: ["NOT_A_DRIVER", "TRANSACTION_NOT_FOUND", "USER_NOT_FOUND"],
+    surfaceFiles: { "apps/miniapp/src/surfaces/x/invoice-view.ts": VALID_SURFACE },
+    i18nFiles: { ar: validTexts(), en: validTexts(), ur: validTexts() },
   };
+}
+
+/** نصوصٌ صالحةٌ: لكلِّ رمزٍ عامٍّ في الأساسِ مفتاحٌ، و`UNKNOWN` معَها. */
+function validTexts(): Record<string, string> {
+  const texts: Record<string, string> = {};
+  for (const code of ["NOT_A_DRIVER", "TRANSACTION_NOT_FOUND", "USER_NOT_FOUND", "UNKNOWN"]) {
+    texts[`driver.subscription.invoice.error.${code}`] = `نصٌّ لـ${code}`;
+  }
+  return texts;
 }
 
 function problemsWith(patch: Partial<TaxInvoiceContractInput>): readonly string[] {
@@ -231,6 +256,74 @@ end; $$;`,
       routeFile: `${VALID_ROUTE}\nconst body = { providerTransactionId: row.provider_transaction_id };`,
     });
     expect(problems.some((problem) => problem.startsWith("[كتمان]"))).toBe(true);
+  });
+});
+
+describe("سالباتٌ مزروعةٌ للسطحِ — القواعدُ ٩ و١٠ و١١ و١٢ (`ح-7`)", () => {
+  test("٩ — مقارنةُ حالِ الدفعةِ بحرفيّةٍ في سطحٍ تُلتقَطُ", () => {
+    const problems = problemsWith({
+      surfaceFiles: {
+        "apps/miniapp/src/surfaces/x/invoice-view.ts":
+          'const canIssue = response.status === "active";',
+      },
+    });
+    expect(problems.some((problem) => problem.includes("«active»"))).toBe(true);
+  });
+
+  test("٩ — والحالُ الذي لا وجودَ له في القيدِ («paid») يُلتقَطُ كذلكَ — وهوَ العطبُ الأصليُّ", () => {
+    const problems = problemsWith({
+      surfaceFiles: {
+        "apps/miniapp/src/surfaces/x/invoice-view.ts":
+          'canIssueInvoice: response.status === "paid" && !response.invoice_issued,',
+      },
+    });
+    expect(problems.some((problem) => problem.includes("«paid»"))).toBe(true);
+  });
+
+  test("٩ — واسمُ حالِ لوحٍ لا يُقارِنُ حقلَ حالٍ لا يُلتقَطُ — القاعدةُ لا تمنعُ الصوابَ", () => {
+    const problems = problemsWith({
+      surfaceFiles: {
+        "apps/miniapp/src/surfaces/x/Panel.tsx":
+          'type S = { kind: "failed" } | { kind: "pending" };\nconst s: S = { kind: "failed" };',
+      },
+    });
+    expect(problems).toEqual([]);
+  });
+
+  test("١٠ — ترميزُ حِمْلٍ في سطحٍ يُلتقَطُ", () => {
+    for (const token of ["btoa(", "atob(", "TextEncoder", "TextDecoder", "Buffer.from"]) {
+      const problems = problemsWith({
+        surfaceFiles: { "apps/miniapp/src/surfaces/x/qr.ts": `const x = ${token}payload);` },
+      });
+      expect(problems.some((problem) => problem.includes(token))).toBe(true);
+    }
+  });
+
+  test("١١ — لغةٌ ينقصُها نصُّ رمزٍ عامٍّ تُلتقَطُ باسمِها", () => {
+    const short = validTexts();
+    delete short["driver.subscription.invoice.error.NOT_A_DRIVER"];
+    const problems = problemsWith({
+      i18nFiles: { ar: validTexts(), en: short, ur: validTexts() },
+    });
+    expect(
+      problems.some((problem) => problem.includes("en") && problem.includes("NOT_A_DRIVER")),
+    ).toBe(true);
+  });
+
+  test("١١ — وغيابُ نصِّ «UNKNOWN» يُلتقَطُ ولو كانَت الرموزُ المُعلَنةُ كاملةً", () => {
+    const short = validTexts();
+    delete short["driver.subscription.invoice.error.UNKNOWN"];
+    const problems = problemsWith({ i18nFiles: { ar: short, en: validTexts(), ur: validTexts() } });
+    expect(problems.some((problem) => problem.includes("UNKNOWN"))).toBe(true);
+  });
+
+  test("١٢ — رقمُ ضريبةٍ منسوخٌ في سطحٍ يُلتقَطُ", () => {
+    for (const literal of ["1500", "0.15", "1.15", "10000 +"]) {
+      const problems = problemsWith({
+        surfaceFiles: { "apps/miniapp/src/surfaces/x/vat.ts": `const rate = ${literal};` },
+      });
+      expect(problems.some((problem) => problem.includes(literal))).toBe(true);
+    }
   });
 });
 

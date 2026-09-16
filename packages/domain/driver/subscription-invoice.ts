@@ -71,4 +71,10 @@ export interface SubscriptionPaymentStatus {
   readonly checkoutUrl: string | null;
   /** هل صارَ للمعاملةِ صفُّ فاتورةٍ — **رايةٌ تمنعُ سؤالاً ثانياً**. */
   readonly invoiceIssued: boolean;
+  /**
+   * أيصحُّ طلبُ الإصدارِ الآنَ — **حكمُ القاعدةِ لا رأيُ شاشةٍ**. ومحدِّدُ
+   * «مُسدَّدةٍ» دالّةٌ واحدةٌ (`subscription_payment_is_settled`) يقرؤها الكاتبُ
+   * وهذا القارئُ، فلا تنسخُ واجهةٌ قائمةَ حالاتٍ تتخلَّفُ عن القاعدةِ.
+   */
+  readonly invoiceIssuable: boolean;
 }

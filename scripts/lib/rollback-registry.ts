@@ -119,6 +119,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     documentedIn: HEADING_TAX_IDENTITY_CLOSED,
   },
   {
+    migration: "20260916120000_f3_09_settled_predicate_and_issuable_flag.sql",
+    change: "revoke_function:driver_subscription_payment_status(2)",
+    why: "الهجرةُ `20260916120000` تُعيدُ تعريفَ `driver_subscription_payment_status(bigint, uuid)` بـ`create or replace` لِتُضيفَ حقلاً واحداً إلى جوابِها: `invoice_issuable` — رايةٌ تقولُ للسطحِ **أيُمكِنُ إصدارُ فاتورةٍ لهذه الدفعةِ الآنَ**، محسوبةً بمحدِّدٍ واحدٍ في القاعدةِ (`subscription_payment_is_settled(text)`) لا بمقارنةِ حالٍ منسوخةٍ في عميلٍ (`ADR 0127` §٧ · `F3-09` الدفعةُ الثانيةُ). وباقي الحقولِ والقُفلُ وشرطُ المِلكيّةِ منسوخٌ حرفاً بحرفٍ ولم يُمَسَّ، والمُرجَعُ **مجموعةٌ فائقةٌ** بمفاتيحِه القديمةِ نفسِها. والسحبُ بعدَه **إعادةُ قفلِ السطحِ كما كانَ لا تضييقٌ جديدٌ**: الدالّةُ كانت لـ`service_role` وحدَه قبلَ التغييرِ وتبقى كذلكَ بعدَه، و`create or replace` لا تُسقِطُ منحاً قائماً — فالسطرُ تكرارٌ مقصودٌ ليكفيَ الملفُّ بذاتِه إن أُعيدَ بناءُ القاعدةِ. **والصورةُ السابقةُ من الشيفرةِ لا تنكسرُ**: قارئُ الحالِ في `packages/infrastructure/driver/subscription-invoice-store.ts` يقرأُ المفاتيحَ التي يعرفُها ويُهمِلُ ما لا يعرفُ، فحقلٌ زائدٌ لا يُسقِطُ نشراً قديماً. **والاعتمادُ في الاتّجاهِ الآخرِ مُعلَنٌ**: الصورةُ الجديدةُ **تشترطُ** الرايةَ وترفضُ جواباً بلا `invoice_issuable` منطقاً بوليانيّاً — فالهجرةُ تُطبَّقُ **قبلَ** نشرِ الشيفرةِ أو معَها في نافذةٍ واحدةٍ، وإلّا قرأَ السائقُ عطبَ قراءةِ حالٍ. ولا مسارَ عودةٍ للأمامِ مطلوبٌ: العودةُ إسقاطُ الشيفرةِ وحدَها، والدالّةُ القديمةُ تُستعادُ بتطبيقِ `20260916050000` مرّةً أخرى.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الدفعُ والاشتراك",
+    documentedIn: null,
+  },
+  {
     migration: "20260810160000_phase_6_fix_login_code_race.sql",
     change: "revoke_function:issue_admin_login_code(5)",
     why: "إعادةُ تثبيتِ الصلاحياتِ كما كانت بعدَ `create or replace` — وهي لا تُسقِط المنِحَ أصلاً، فالتصريحُ ههنا للقراءةِ لا للتضييق.",

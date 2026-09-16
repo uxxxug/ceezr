@@ -53,6 +53,22 @@
  *   ٨. **لا معرِّفَ مزوِّدٍ في جسمٍ عامٍّ**: لا `providerTransactionId` ولا
  *      `provider_transaction_id` في جسمِ جوابٍ يُرسَلُ إلى التطبيقِ. مُعرِّفُ
  *      المزوِّدِ مِفتاحُ تظلُّمٍ في لوحتِه، وليسَ من حقِّ الواجهةِ.
+ *   ٩. **لا حالَ سدادٍ مقيسٌ في سطحٍ**: مِلفّاتُ سطحِ التطبيقِ المُصغَّرِ لا تحملُ
+ *      اسمَ حالٍ من حالاتِ `payment_transactions` (`active` · `refunded` ·
+ *      `paid` · `pending` …) لِتُقرِّرَ به أيُعرَضُ زرُّ إصدارٍ. فالمحدِّدُ دالّةٌ
+ *      في القاعدةِ ورايةُ `invoice_issuable` تصلُ في الجوابِ. **وهذه القاعدةُ
+ *      وُلِدَت من عطبٍ حقيقيٍّ**: كُتِبَ السطحُ أوّلاً يقيسُ `status === "paid"` —
+ *      وهوَ حالٌ **لا وجودَ له في قيدِ الجدولِ** — فكانَ الزرُّ لا يظهرُ أبداً،
+ *      واختبارُ وحدةٍ يبذُرُ ما تكتبُه يدُه لا يكشفُ ذلكَ.
+ *  ١٠. **لا ترميزَ ولا تفكيكَ لِحِمْلِ رمزِ الاستجابةِ في سطحٍ**: لا `btoa` ولا
+ *      `atob` ولا `TextEncoder` ولا `Buffer.from` — والحِمْلُ يُنقَلُ كما خزنَتْهُ
+ *      القاعدةُ. ومُرمِّزٌ ثانٍ في العميلِ يُمكِنُ أن يُخالِفَ الأصلَ بلا أن يُقاسَ.
+ *  ١١. **تكافؤُ نصوصِ الأعطابِ في اللغاتِ الثلاثِ**: لكلِّ رمزٍ عامٍّ مفتاحُ نصٍّ
+ *      في `ar` و`en` و`ur`، و`UNKNOWN` معَها. ورمزٌ يصلُ السائقَ بلا نصٍّ يُعرَضُ
+ *      اسمَه الإنجليزيَّ الخامَ — وذاكَ عطبُ عرضٍ يُخفي حكماً مفهوماً.
+ *  ١٢. **لا حسابَ ضريبةٍ في سطحٍ**: لا `1500` ولا `0.15` ولا `1.15` ولا
+ *      `10000 +` في مِلفّاتِ السطحِ. الأرقامُ من الوثيقةِ، والمسموحُ **تحويلُ
+ *      وحدةٍ** (نقاطُ أساسٍ ⇒ نسبةٌ مئويّةٌ بقسمةٍ على مئةٍ) لا اشتقاقُ رقمٍ.
  *
  * ## وما لا يفعلُه هذا الحاجزُ عن قصدٍ (`ح-5`)
  *
@@ -103,7 +119,43 @@ export interface TaxInvoiceContractInput {
   readonly storeRejections: readonly string[];
   /** الرموزُ العامّةُ كما هيَ في طبقةِ التطبيقِ. */
   readonly publicErrorCodes: readonly string[];
+  /** مِلفّاتُ سطحِ التطبيقِ المُصغَّرِ بمساراتِها — للقواعدِ ٩ و١٠ و١٢. */
+  readonly surfaceFiles: Readonly<Record<string, string>>;
+  /** نصوصُ الترجمةِ بلغاتِها — للقاعدةِ ١١. */
+  readonly i18nFiles: Readonly<Record<string, Readonly<Record<string, string>>>>;
 }
+
+/**
+ * حالاتُ `payment_transactions` كما هيَ في قيدِ الجدولِ. **تُقاسُ لِتُمنَعَ في
+ * السطحِ** لا لِتُنسَخَ فيه: وجودُ أحدِها في مِلفِّ سطحٍ دليلُ محدِّدٍ منسوخٍ.
+ * و`paid` مذكورٌ ههنا **وهوَ لا وجودَ له في القيدِ** — لأنَّ السطحَ كُتِبَ أوّلاً
+ * يقيسُه، فمنعُه صريحاً يمنعُ عودةَ العطبِ عينِه.
+ */
+const PAYMENT_STATUS_VOCABULARY: readonly string[] = [
+  "active",
+  "refunded",
+  "paid",
+  "pending",
+  "past_due",
+  "canceled",
+  "expired",
+  "failed",
+];
+
+/** بادئةُ مفاتيحِ نصوصِ أعطابِ الفاتورةِ — موضعٌ واحدٌ يُبنى منه المفتاحُ. */
+const INVOICE_ERROR_KEY_PREFIX = "driver.subscription.invoice.error.";
+
+/** مُفرداتُ ترميزٍ مُحرَّمةٌ في السطحِ — القاعدةُ ١٠. */
+const CODEC_VOCABULARY: readonly string[] = [
+  "btoa(",
+  "atob(",
+  "TextEncoder",
+  "TextDecoder",
+  "Buffer.from",
+];
+
+/** أرقامُ ضريبةٍ مُحرَّمةٌ نصّاً في السطحِ — القاعدةُ ١٢. */
+const HARDCODED_VAT_LITERALS: readonly string[] = ["1500", "0.15", "1.15", "10000 +"];
 
 /** اسمُ الدالّةِ التي تُصدِرُ — الإصدارُ فعلٌ واحدٌ في موضعٍ واحدٍ. */
 const ISSUING_FUNCTION = "issue_subscription_tax_invoice";
@@ -274,6 +326,61 @@ export function taxInvoiceContractProblems(input: TaxInvoiceContractInput): read
     )
   ) {
     problems.push("[كتمان] الموجِّه: معرِّفُ المزوِّدِ في جسمٍ عامٍّ — وهوَ مِفتاحُ تظلُّمٍ لا حقُّ واجهةٍ.");
+  }
+
+  // ٩ — لا حالَ سدادٍ مقيسٌ في سطحٍ.
+  //
+  // **المقيسُ سطرٌ يجمعُ كلمةَ `status` وحرفيّةَ حالٍ**: أسماءُ حالاتِ لوحٍ
+  // (`kind: "failed"`) ليسَت محدِّدَ سدادٍ، والمنسوخُ يُعرَفُ باقترانِه بالحقلِ.
+  for (const [path, source] of Object.entries(input.surfaceFiles)) {
+    for (const [index, line] of source.split("\n").entries()) {
+      if (!/status/i.test(line)) continue;
+      for (const status of PAYMENT_STATUS_VOCABULARY) {
+        if (new RegExp(`["'\`]${status}["'\`]`).test(line)) {
+          problems.push(
+            `[سطح] ${path}:${String(index + 1)}: اسمُ الحالِ «${status}» مقروناً بحقلِ الحالِ — ` +
+              "والمحدِّدُ دالّةٌ في القاعدةِ ورايةُ «invoice_issuable» تصلُ في الجوابِ، " +
+              "فلا يُنسَخُ محدِّدُ عملٍ في عميلٍ.",
+          );
+        }
+      }
+    }
+  }
+
+  // ١٠ — لا ترميزَ ولا تفكيكَ لِحِمْلِ رمزِ الاستجابةِ في سطحٍ.
+  for (const [path, source] of Object.entries(input.surfaceFiles)) {
+    for (const token of CODEC_VOCABULARY) {
+      if (source.includes(token)) {
+        problems.push(
+          `[سطح] ${path}: «${token}» — والحِمْلُ يُنقَلُ كما خزنَتْهُ القاعدةُ، ` +
+            "ومُرمِّزٌ ثانٍ في العميلِ يُخالِفُ الأصلَ بلا أن يُقاسَ.",
+        );
+      }
+    }
+  }
+
+  // ١١ — تكافؤُ نصوصِ الأعطابِ في اللغاتِ الثلاثِ.
+  for (const [lang, texts] of Object.entries(input.i18nFiles)) {
+    for (const code of [...input.publicErrorCodes, "UNKNOWN"]) {
+      if (texts[`${INVOICE_ERROR_KEY_PREFIX}${code}`] === undefined) {
+        problems.push(
+          `[نص] ${lang}: لا نصَّ لـ«${code}» — فيُعرَضُ للسائقِ اسمُه الخامُ ` +
+            "ويُخفي حكماً مفهوماً كانَ يجبُ أن يُقالَ.",
+        );
+      }
+    }
+  }
+
+  // ١٢ — لا حسابَ ضريبةٍ في سطحٍ.
+  for (const [path, source] of Object.entries(input.surfaceFiles)) {
+    for (const literal of HARDCODED_VAT_LITERALS) {
+      if (source.includes(literal)) {
+        problems.push(
+          `[سطح] ${path}: الرقمُ «${literal}» نصّاً — والضريبةُ ونسبتُها من الوثيقةِ، ` +
+            "ورقمٌ منسوخٌ يُخالِفُ وثيقةً صدرَت بنسبةٍ أخرى.",
+        );
+      }
+    }
   }
 
   return problems;

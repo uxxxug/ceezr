@@ -166,6 +166,9 @@ function readStatusPayload(payload: Record<string, unknown>): SubscriptionPaymen
     return null;
   }
   if (typeof payload.invoice_issued !== "boolean") return null;
+  // **رايةٌ غائبةٌ ليسَت «لا»**: قاعدةٌ لم تُطبَّق عليها الهجرةُ الثانيةُ تُقرأُ
+  // عطباً صريحاً لا «لا يُمكِنُ الإصدارُ» — فلا يُخفى نقصُ نشرٍ في زرٍّ لا يظهرُ.
+  if (typeof payload.invoice_issuable !== "boolean") return null;
 
   return {
     serverTime,
@@ -177,6 +180,7 @@ function readStatusPayload(payload: Record<string, unknown>): SubscriptionPaymen
     updatedAt: readInstant(payload.updated_at),
     checkoutUrl: readText(payload.checkout_url),
     invoiceIssued: payload.invoice_issued,
+    invoiceIssuable: payload.invoice_issuable,
   };
 }
 

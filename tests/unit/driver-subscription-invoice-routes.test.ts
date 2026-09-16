@@ -100,6 +100,7 @@ function harness(options: Options = {}) {
         updatedAt: "2027-05-04T09:59:00.000Z",
         checkoutUrl: "https://checkout.example.com/s/abc",
         invoiceIssued: true,
+        invoiceIssuable: false,
       });
     },
   };
@@ -318,6 +319,7 @@ describe("ما لا يُكشَفُ في الجوابِ — كتمانٌ مقيس
       "checkout_url",
       "created_at",
       "currency",
+      "invoice_issuable",
       "invoice_issued",
       "ok",
       "server_time",
