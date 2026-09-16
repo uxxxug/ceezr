@@ -99,6 +99,13 @@ export interface OffersScreenProps {
    * يشكو منه في الشاشةِ التي وقعَ فيها الضررُ يشكو في قروبٍ عامٍّ أو يصمتُ.
    */
   readonly onOpenSupport?: () => void;
+  /**
+   * فتحُ شاشةِ الحسابِ (`SD-12`) — **زيادةُ مدخلٍ لا نقصُ آخرَ** (`ح-8`): مدخلُ
+   * الدعمِ ههنا يبقى كما هوَ لأنَّه أقربُ إلى موضعِ الضررِ، ويُزادُ بابُ الحسابِ
+   * لأنَّ حقَّ التنزيلِ وحقَّ الحذفِ **مبنيّانِ في القاعدةِ ولا بابَ لهما في
+   * سطحِ السائقِ** — وحقٌّ بلا بابٍ حقٌّ غيرُ ممنوحٍ عملاً (القسم 9.12).
+   */
+  readonly onOpenAccount?: () => void;
   readonly readBoard?: () => Promise<DriverOffersResponse>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly setAvailability?: (isAvailable: boolean) => Promise<DriverAvailabilityResponse>;
@@ -181,6 +188,7 @@ export function OffersScreen({
   onOpenActivity,
   onOpenSubscription,
   onOpenSupport,
+  onOpenAccount,
   onOpenOffer,
   readBoard = readDriverOffers,
   reject = rejectDriverOffer,
@@ -416,6 +424,12 @@ export function OffersScreen({
       {onOpenSupport === undefined ? null : (
         <button type="button" className="dof__support" onClick={onOpenSupport}>
           {t("driver.offers.openSupport")}
+        </button>
+      )}
+
+      {onOpenAccount === undefined ? null : (
+        <button type="button" className="dof__account" onClick={onOpenAccount}>
+          {t("driver.offers.openAccount")}
         </button>
       )}
 
