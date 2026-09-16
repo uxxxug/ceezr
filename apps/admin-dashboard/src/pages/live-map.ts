@@ -73,6 +73,17 @@ export interface LiveMapData {
    * يقول الجدولُ «متأخّر» والحالةُ المُشتقّة تقول غيرَ ذلك.
    */
   readonly staleAfterSeconds: number;
+  /**
+   * F4-06 — بصمة أمن المحتوى لنصّ العميل (SSE). تأتي من البوابة (`cspNonce`).
+   * حين تكون `undefined` لا يُحقَن نصُّ المجرى: الصفحةُ تعمل بإعادة تحميلٍ دوريّة.
+   */
+  readonly cspNonce?: string;
+  /**
+   * F4-06 — رابط مجرى SSE مع فلتر المدينة إن وُجد. مثلًا:
+   * `/admin/api/live/drivers` أو `/admin/api/live/drivers?city=uuid`.
+   * حين يكون `undefined` لا يُحقَن نصُّ المجرى.
+   */
+  readonly sseUrl?: string;
 }
 
 const STATUS_LABEL: Readonly<Record<LiveMapStatus, string>> = {
@@ -160,7 +171,7 @@ export function renderLiveMapPage(data: LiveMapData): string {
   ].join("");
 
   const rows = data.rows.map((row) => [
-    `<div>${escapeHtml(row.driverName ?? "بلا اسم")}</div>
+    `<div data-driver-id="${escapeHtml(row.driverId)}">${escapeHtml(row.driverName ?? "بلا اسم")}</div>
      <div class="card-hint mono">${escapeHtml(shortId(row.driverId))}</div>`,
     `<span class="mono">${escapeHtml(row.cityCode)}</span>`,
     badge(STATUS_LABEL[row.status], STATUS_TONE[row.status]),
@@ -174,12 +185,14 @@ export function renderLiveMapPage(data: LiveMapData): string {
          )}</div>`,
     // العمرُ يُعرض دائماً بلا تلوينٍ ثانٍ: الشارةُ في عمود الحالة قالت الحكمَ
     // مرّةً، وتكرارُه هنا كان سيسمح باختلافِ الشاشة عن نفسها لو تباعد الحدّان.
-    row.lastFixAt === null ? EMPTY_CELL : escapeHtml(formatAge(row.lastFixAt, data.now)),
+    row.lastFixAt === null
+      ? EMPTY_CELL
+      : `<span data-driver-fix="${escapeHtml(row.driverId)}">${escapeHtml(formatAge(row.lastFixAt, data.now))}</span>`,
     row.quality === null
       ? EMPTY_CELL
       : badge(escapeHtml(row.quality), QUALITY_TONE[row.quality] ?? "muted"),
     row.accuracyMeters === null ? EMPTY_CELL : `${formatNumber(Math.round(row.accuracyMeters))} م`,
-    `<span class="mono">${escapeHtml(
+    `<span class="mono" data-driver-coords="${escapeHtml(row.driverId)}">${escapeHtml(
       `${row.lat.toFixed(COORD_DIGITS)}, ${row.lng.toFixed(COORD_DIGITS)}`,
     )}</span>`,
     row.sessionStartedAt === null
@@ -205,7 +218,8 @@ export function renderLiveMapPage(data: LiveMapData): string {
 
   return `<h1>خريطة العمليات</h1>
 <p class="note">حالة اللحظة: ${escapeHtml(formatDateTime(data.now))}. تُعرض مواقعُ من له
-جلسةُ تتبّعٍ مفتوحة أو رحلةٌ حيّة؛ ومن ليس في الخدمة ولا على رحلةٍ لا يُعرض موقعُه.</p>
+جلسةُ تتبّعٍ مفتوحة أو رحلةٌ حيّة؛ ومن ليس في الخدمة ولا على رحلةٍ لا يُعرض موقعُه.
+<span id="live-map-status" class="card-hint"></span></p>
 <form class="filters" method="get" action="/admin/live-map">
   <label>المدينة
     <select name="city">
@@ -214,7 +228,89 @@ export function renderLiveMapPage(data: LiveMapData): string {
   </label>
   <button type="submit">تطبيق</button>
 </form>
-<div class="cards" style="margin-bottom:16px">${cards}</div>
+<div class="cards" style="margin-bottom:16px" id="fleet-metrics">${cards}</div>
 ${section("حالة الأسطول", statusTable)}
-${data.mapPanel ?? ""}`;
+${data.mapPanel ?? ""}
+${sseScript(data)}`;
+}
+
+/**
+ * F4-06 — نصُّ عميل SSE يفتح المجرى المشترك ويحدّث الصفحة بلا إعادة تحميل.
+ *
+ * اللقطةُ تُستبدَل كاملةً (مصالحة)، والدلتا تُطبَّق بفاصل الترتيب (BUG-009).
+ * والصفحةُ تعمل كاملةً بلا هذا النص: الجدولُ والخريطةُ مُصيَّران من الخادم،
+ * فإن فشل المجرى أو تعطّل JS تبقى الشاشةُ الأخيرةُ مرئيّةً حتى يُصلِحها المشغّل.
+ */
+function sseScript(data: LiveMapData): string {
+  if (data.cspNonce === undefined || data.sseUrl === undefined) return "";
+  const nonce = escapeHtml(data.cspNonce);
+  const url = escapeHtml(data.sseUrl);
+  return `<script nonce="${nonce}">
+(function(){
+  var statusEl = document.getElementById("live-map-status");
+  var coords = {};
+  document.querySelectorAll("[data-driver-coords]").forEach(function(el){
+    coords[el.getAttribute("data-driver-coords")] = el;
+  });
+  var lastSeq = null, lastSessionId = null;
+  function setStatus(text){ if(statusEl) statusEl.textContent = text; }
+  function fmtCoord(lat, lng){ return lat.toFixed(5) + ", " + lng.toFixed(5); }
+  function applySnapshot(rows){
+    var metrics = document.getElementById("fleet-metrics");
+    if(!metrics) return;
+    var onTrip = 0, available = 0, attention = 0;
+    rows.forEach(function(r){
+      if(["TO_PICKUP","AT_PICKUP","PICKED_UP","TO_CUSTOMER","ARRIVED"].indexOf(r.status) >= 0) onTrip++;
+      if(r.status === "AVAILABLE") available++;
+      if(["STALE","ASSIGNED"].indexOf(r.status) >= 0) attention++;
+    });
+    var cards = metrics.querySelectorAll(".card");
+    if(cards.length >= 4){
+      cards[0].querySelector(".card-value").textContent = String(rows.length);
+      cards[1].querySelector(".card-value").textContent = String(onTrip);
+      cards[2].querySelector(".card-value").textContent = String(available);
+      cards[3].querySelector(".card-value").textContent = String(attention);
+    }
+    var latest = null;
+    rows.forEach(function(r){
+      if(r.sessionSequence !== undefined && r.sessionId && (!latest || r.sessionSequence > latest.sessionSequence)) latest = r;
+    });
+    if(latest){ lastSeq = latest.sessionSequence; lastSessionId = latest.sessionId; }
+    if(typeof window.waslahMap === "object" && window.waslahMap){
+      var pts = rows.filter(function(r){ return r.lat && r.lng; }).map(function(r){
+        return { id: r.driverId, position: { lat: r.lat, lng: r.lng }, label: r.driverName || r.driverId, type: "driver" };
+      });
+      window.waslahMap.update(pts);
+    }
+  }
+  function applyDelta(d){
+    if(lastSessionId !== null && d.sessionId !== lastSessionId) return;
+    if(lastSeq !== null && d.sequence <= lastSeq) return;
+    lastSeq = d.sequence;
+    if(d.position === null) return;
+    var el = coords[d.driverId];
+    if(el) el.textContent = fmtCoord(d.position.lat, d.position.lng);
+    if(typeof window.waslahMap === "object" && window.waslahMap){
+      window.waslahMap.update([{ id: d.driverId, position: { lat: d.position.lat, lng: d.position.lng }, label: d.driverName || d.driverId, type: "driver" }]);
+    }
+  }
+  try {
+    var es = new EventSource("${url}");
+    es.addEventListener("snapshot", function(e){
+      var data = JSON.parse(e.data);
+      setStatus("");
+      applySnapshot(data.rows || []);
+    });
+    es.addEventListener("tracking", function(e){
+      applyDelta(JSON.parse(e.data));
+    });
+    es.addEventListener("heartbeat", function(){
+      setStatus("");
+    });
+    es.addEventListener("error", function(){
+      setStatus("— إعادة الاتصال…");
+    });
+  } catch(_) { setStatus("— المجرى غير متاح"); }
+})();
+</script>`;
 }
