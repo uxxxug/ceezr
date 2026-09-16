@@ -6,6 +6,8 @@
  * ملاحظات مستقبلية: مخزن الجلسات يصير Redis بتبديل سطر واحد في container.ts.
  */
 
+import http from "node:http";
+import { Server as IoServer } from "socket.io";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
 import { parseCitySettings, subscriptionPriceFor } from "../../../packages/domain/policy/entity.ts";
@@ -125,6 +127,9 @@ import {
   createRedisRateLimiter,
   type RateLimiter,
 } from "./rate-limit/fixed-window.ts";
+import { createActiveRideResolver, createSessionVerifier } from "./realtime/adapters.ts";
+import { createHttpBridge } from "./realtime/http-bridge.ts";
+import { createRideChannel } from "./realtime/ride-channel.ts";
 import { createUpstashRedis } from "./redis/upstash.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
 import { createPublicTrackingRoutes } from "./routes/public-tracking.ts";
@@ -323,11 +328,14 @@ let embeddedWorker: EmbeddedWorkerHandle | null = null;
 let updateDrainer: TelegramUpdateDrainer | null = null;
 
 /**
- * مقبضُ خادمِ `Bun.serve` — يُملأ آخرَ الإقلاع. التصريفُ الرشيقُ يقرؤه عبر الإغلاقِ
+ * مقبضُ خادمِ HTTP من Node — يُملأ آخرَ الإقلاع. التصريفُ الرشيقُ يقرؤه عبر الإغلاقِ
  * لا مباشرةً، لأنّ الإشارةَ قد تصل قبلَ اكتمالِ التركيبِ (F5-05).
+ * `Bun.serve` استُبدِلَ بـ`http.createServer` ليرتبطَ به Socket.IO (F4-04 · ADR 0042).
  */
-type GatewayServer = ReturnType<typeof Bun.serve>;
+type GatewayServer = import("node:http").Server;
 let serverHandle: GatewayServer | null = null;
+let rideChannel: ReturnType<typeof createRideChannel> | null = null;
+let ioServer: IoServer | null = null;
 
 /**
  * عددُ الطلباتِ الجاريةِ لحظةً بلحظة. يُزادُ عند الاستلامِ ويُنقصُ عند الفراغِ،
@@ -344,7 +352,7 @@ const lifecycle = createLifecycle({
     inFlight: () => inFlightRequests,
     forceClose: () => {
       // بعدَ انقضاءِ المهلةِ: إغلاقٌ قسريٌّ لما تبقّى من جارٍ.
-      serverHandle?.stop(true);
+      serverHandle?.close();
     },
     close: async () => {
       // الدرينرُ قبلَ القاعدةِ: شوطٌ جارٍ يحجزُ وظيفةً بإيجارٍ، وإغلاقُ القاعدةِ
@@ -361,9 +369,18 @@ const lifecycle = createLifecycle({
       // العدِّ، فيصير مجموعُ النظامِ ناقصاً بمقدارِ عددِ إعاداتِ النشرِ في اليوم.
       // وقبلَ القاعدةِ لأنّ `beforeSnapshot` يستعلمها.
       if (metricsExporter !== null) await metricsExporter.stop();
+      // قناةُ الرحلةِ الآنيةُ قبلَ الخادمِ: تُفصلُ مقابسِ Socket.IO نظيفاً.
+      if (rideChannel !== null) {
+        rideChannel.stop();
+        rideChannel = null;
+      }
+      if (ioServer !== null) {
+        ioServer.close();
+        ioServer = null;
+      }
       await container.close();
       // الخادمُ أخيراً — بقيَ يستقبلُ طوالَ التصريفِ حتى يُجيبَ `/ready` بـ«مُصرِّف».
-      serverHandle?.stop(true);
+      serverHandle?.close();
     },
   },
   graceMs: 10_000,
@@ -1346,28 +1363,45 @@ updateDrainer = startTelegramUpdateDrainer(
  * فقط (حتى يرى المُوجِّهُ حالةَ «مُصرِّف») ويُرفَضُ ما عداهما بـ`503 draining`؛
  * (٣) و`serverHandle` يُملأ هنا فيقرؤهُ `lifecycle` عند الإشارةِ عبر الإغلاقِ.
  */
-serverHandle = Bun.serve({
-  port: config.port,
-  fetch: async (request, server) => {
-    const { pathname } = new URL(request.url);
-    const isProbe = pathname === "/health" || pathname === "/ready";
+const httpHandler = createHttpBridge(
+  {
+    fetch: async (request: Request, server?: unknown) => {
+      const { pathname } = new URL(request.url);
+      const isProbe = pathname === "/health" || pathname === "/ready";
 
-    // أثناءَ التصريفِ: نرفضُ الجديدَ من الطلباتِ التجاريّةِ، لكنّنا نبقى نُجيبُ
-    // فحوصَ الصحةِ حتى يرى المُوجِّهُ «مُصرِّف» لا «مرفوضُ اتصال».
-    if (lifecycle.isDraining() && !isProbe) {
-      return Response.json({ status: "draining" }, { status: 503 });
-    }
+      if (lifecycle.isDraining() && !isProbe) {
+        return Response.json({ status: "draining" }, { status: 503 });
+      }
 
-    // فحوصُ الصحةِ لا تُعدُّ جاريةً — لا تُؤخِّرُ التصريفَ.
-    if (isProbe) {
-      return app.fetch(request, server);
-    }
+      if (isProbe) {
+        return app.fetch(request, server);
+      }
 
-    inFlightRequests += 1;
-    try {
-      return await app.fetch(request, server);
-    } finally {
-      inFlightRequests -= 1;
-    }
+      inFlightRequests += 1;
+      try {
+        return await app.fetch(request, server);
+      } finally {
+        inFlightRequests -= 1;
+      }
+    },
   },
+  config.port,
+);
+
+serverHandle = http.createServer(httpHandler);
+serverHandle.listen(config.port);
+
+ioServer = new IoServer(serverHandle, {
+  cors: { origin: "*" },
 });
+
+if (config.miniappSessionSecret !== null) {
+  rideChannel = createRideChannel({
+    io: ioServer,
+    eventBus: container.tracking.bus,
+    rides: createActiveRideResolver(container.sql),
+    sessions: createSessionVerifier(container.sql, config.miniappSessionSecret, () => Date.now()),
+    log,
+  });
+  rideChannel.start();
+}
