@@ -20,9 +20,23 @@
  *   ــ **لا يُوجِّهُ بمسارٍ**: لا مُوجِّهَ في التطبيقِ المصغَّرِ اليومَ، والانتقالُ
  *      حالةٌ محليّةٌ. ومُوجِّهُ عناوينٍ **دَينٌ مُعلَنٌ** لا يُحتاجُ بشاشتَينِ.
  *   ــ **لا يعرضُ اشتراكاً**: بندُ `SD-07`.
- *   ــ **لا يعرضُ شاشةَ حسابٍ**: بندُ `SD-12`، وهوَ **الموضعُ الطبيعيُّ لمدخلِ
- *      الدعمِ لاحقاً**؛ ومدخلُ اللوحِ اليومَ ليسَ بديلاً عنه بل أقربُ منه إلى
- *      موضعِ الضررِ.
+ *
+ * ## وقد صارَت شاشةُ الحسابِ ههنا بـ`SD-12` — **زيادةً لا نقصاً** (`ح-8`)
+ *
+ * كانَ رأسُ هذا المِلفِّ يقولُ نصّاً: «لا يعرضُ شاشةَ حسابٍ: بندُ `SD-12`، وهوَ
+ * **الموضعُ الطبيعيُّ لمدخلِ الدعمِ لاحقاً**؛ ومدخلُ اللوحِ اليومَ ليسَ بديلاً
+ * عنه بل أقربُ منه إلى موضعِ الضررِ». **وذاكَ النصُّ يبقى مقروءاً ههنا لا
+ * يُمحى**، وقد أُنجِزَ البندُ: الشاشةُ عضوٌ في الاتّحادِ، ومدخلُها من اللوحِ.
+ *
+ * **ومدخلُ الدعمِ في اللوحِ لم يُنقَلْ ولم يُنقَصْ**: الحكمُ الذي وضعَه هناكَ —
+ * أنَّ بابَ الشكوى يُوضَعُ حيثُ وقعَ الضررُ — لم يُنقَضْ ببناءِ شاشةِ حسابٍ.
+ * فزِيدَ مدخلٌ **ثانٍ** للدعمِ من شاشةِ الحسابِ كما أعلنَ هذا الرأسُ أنَّه
+ * الموضعُ الطبيعيُّ، وبقيَ الأوّلُ. ورجوعُ شاشةِ الحسابِ إلى اللوحِ لا إلى
+ * الوثائقِ: اللوحُ مدخلُ السائقِ العامِلِ.
+ *
+ * **وحقٌّ مبنيٌّ بلا بابٍ حقٌّ غيرُ ممنوحٍ عملاً** (القسم 9.12): `erase_my_account`
+ * تحكمُ للسائقِ منذُ `SD-12` الأوّلِ وحزمةُ تنزيلِه إحدى وثلاثونَ قسماً، ولم
+ * يكنْ في التطبيقِ زرٌّ يبلغُهما.
  *
  * ## وقد صارَت الحصيلةُ ههنا بـ`F3-05` — **زيادةً لا نقصاً** (`ح-8`)
  *
@@ -60,6 +74,7 @@
 
 import { useState } from "react";
 import { EmptyState } from "../../system/EmptyState.tsx";
+import { AccountScreen } from "./account/AccountScreen.tsx";
 import { ActivityScreen } from "./activity/ActivityScreen.tsx";
 import { DocumentsScreen } from "./documents/DocumentsScreen.tsx";
 import { JobScreen } from "./job/JobScreen.tsx";
@@ -79,6 +94,7 @@ type DriverView =
   | { readonly kind: "vehicle" }
   | { readonly kind: "documents" }
   | { readonly kind: "support" }
+  | { readonly kind: "account" }
   | { readonly kind: "placeholder" };
 
 export default function DriverRoot() {
@@ -98,6 +114,7 @@ export default function DriverRoot() {
           onOpenActivity={() => setView({ kind: "activity" })}
           onOpenSubscription={() => setView({ kind: "subscription" })}
           onOpenSupport={() => setView({ kind: "support" })}
+          onOpenAccount={() => setView({ kind: "account" })}
           onBack={() => setView({ kind: "documents" })}
         />
       </>
@@ -143,6 +160,18 @@ export default function DriverRoot() {
     // (مَهمّةٌ أو سجلُّ نشاطٍ)، ولوحُ العروضِ ليسَ رحلةً. والشاشةُ تقولُ ذلكَ
     // نصّاً لمَن اختارَ الصنفَ ههنا ولا تعرضُ حقلَ معرّفٍ يُملأُ بيدٍ.
     return <DriverSupportScreen onBack={() => setView({ kind: "offers" })} />;
+  }
+
+  if (view.kind === "account") {
+    // **المدخلُ الثاني للدعمِ** من ههنا كما أعلنَ رأسُ هذا المِلفِّ أنَّه الموضعُ
+    // الطبيعيُّ — والأوّلُ في اللوحِ باقٍ: مَن خُصِمَ منه مبلغٌ يشكو من موضعِ
+    // الضررِ، ومَن جاءَ يسألُ عن بيانتِه يشكو من حيثُ سألَ.
+    return (
+      <AccountScreen
+        onBack={() => setView({ kind: "offers" })}
+        onOpenSupport={() => setView({ kind: "support" })}
+      />
+    );
   }
 
   if (view.kind === "documents") {

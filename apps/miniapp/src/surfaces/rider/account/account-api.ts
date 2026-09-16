@@ -1,45 +1,22 @@
 /**
- * الغرض: نداءا حقَّي البيانةِ — سطرانِ فوقَ حدِّ API بلا منطقِ عرضٍ
- *   (البند `F2-11`).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-11`.
+ * الغرض: **مُهايئٌ رقيقٌ** لنداءَي حقَّي البيانةِ — المسارانِ لا يذكرانِ دوراً،
+ *   فالنداءُ واحدٌ (`F2-11` · `SD-12`).
+ * الحالة: منفَّذٌ فعليّاً — البند `F2-11`، ومُهيَّأٌ في `SD-12`.
  * ينتمي إلى: apps/miniapp/src/surfaces/rider/account
  * يُستخدم من: `AccountScreen.tsx`.
- * يُتوقع أن يستخدمه لاحقاً: سطحُ السائقِ — المسارُ واحدٌ والدورُ خادميٌّ.
+ * الحاكم: docs/adr/0126-one-account-core-two-roles.md
  *
- * ## لماذا كلمةُ التأكيدِ تُرسَلُ ولا تُستنتَجُ
+ * ## لماذا كلمةُ التأكيدِ تُرسَلُ ولا تُستنتَجُ (الحكمُ باقٍ حرفاً)
  *
  * الخادمُ يُقابِلُها حرفاً على مجالٍ مغلقٍ من ثلاثِ كلماتٍ. ولو أرسلَت الشاشةُ
  * `confirmed: true` لَكانَ الحاجزُ في الواجهةِ وحدَها — وهيَ الطبقةُ التي
  * تُتجاوَزُ بنداءٍ مباشرٍ.
  *
- * ## وما لا يفعلانِه عن قصدٍ
+ * ## وما نُقِلَ (`ح-8`)
  *
- *   ــ **لا يُعيدانِ محاولةً تلقائيّاً**: حذفٌ يُعادُ إرسالُه فعلٌ لا يُنقَضُ
- *      يقعُ مرّتَينِ، وتنزيلٌ يُعادُ نسخةٌ ثانيةٌ من بيانةِ إنسانٍ على الشبكةِ.
- *   ــ **لا يحفظانِ الحزمةَ في ذاكرةٍ محليّةٍ**: تُعرَضُ وتُنزَّلُ ثمَّ تذهبُ.
+ * جسمُ النداءَينِ في `surfaces/account/account-api.ts` موضعاً واحداً، وههنا
+ * إعادةُ تصديرٍ بالأسماءِ نفسِها: `requestDataExport` · `requestErasure`.
  */
 
-import { apiFetch } from "../../../api/client.ts";
-import type { DataExportResponse, ErasureResponse } from "./account-contract.ts";
-
-export type * from "./account-contract.ts";
-
-export function requestDataExport(): Promise<DataExportResponse> {
-  return apiFetch<DataExportResponse>("/v1/me/data-export", { method: "GET" });
-}
-
-/**
- * **مفتاحُ اللاتكرارِ من المُنادي** (القسم 10): يُولَّدُ مرّةً عندَ فتحِ نافذةِ
- * التأكيدِ ويثبُتُ لكلِّ محاولاتِها، فنقرةٌ مزدوجةٌ أو شبكةٌ تعثَّرَت لا تُنشئانِ
- * أمرَ حذفٍ ثانياً على حسابٍ قد يكونُ الأوّلُ محاه بالفعلِ.
- */
-export function requestErasure(input: {
-  readonly confirmation: string;
-  readonly idempotencyKey: string;
-}): Promise<ErasureResponse> {
-  return apiFetch<ErasureResponse>("/v1/me/erasure", {
-    method: "POST",
-    idempotencyKey: input.idempotencyKey,
-    body: { confirmation: input.confirmation },
-  });
-}
+export { requestDataExport, requestErasure } from "../../account/account-api.ts";
+export type * from "../../account/account-contract.ts";
