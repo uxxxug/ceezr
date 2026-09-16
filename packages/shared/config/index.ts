@@ -247,6 +247,17 @@ export interface AppConfig {
    * وهذا السرُّ يوقّع تفويضَ نظامِنا؛ فتسريبُ أحدهما لا يُسقِط الآخر.
    */
   readonly miniappSessionSecret: string | null;
+
+  /**
+   * `F4-07` — هل يُفعَّلُ مُرحِّلُ الموقعِ الحيِّ عبر تلغرام كاحتياطٍ؟
+   *
+   * **افتراضيًّا `false`**: قناةُ Socket.IO صارَت المسارَ الرئيسيَّ لتتبُّعِ الراكبِ،
+   * فلا يُنشَأُ مُرحِّلُ تلغرام ولا خريطةُ `tripId→messageId`. ويُفعَّلُ فقط إن
+   * كان هناك مستهلكٌ لا يفتحُ التطبيقَ المصغَّرَ (بوتٌ قديمٌ، أو رحلةٌ بلا قناةٍ).
+   *
+   * ولا يُفعَّلُ بثقةٍ: إن لم يكن `riderBotToken` صالحًا فلا مُرحِّلَ أصلاً.
+   */
+  readonly liveLocationFallbackEnabled: boolean;
 }
 
 /** مخازن الجلسات المدعومة. */
@@ -1003,6 +1014,7 @@ export function tryLoadConfig(
     tracking,
     trackingTokenBaseUrl,
     miniappSessionSecret,
+    liveLocationFallbackEnabled: parseBooleanEnv(source.LIVE_LOCATION_FALLBACK_ENABLED, false),
     metricsExport,
   });
 }

@@ -117,6 +117,11 @@
  */
 
 import { useState } from "react";
+import {
+  productionChannelBaseUrl,
+  productionRideChannelTransport,
+  productionSessionReader,
+} from "../../services/production-ride-channel.ts";
 import { AccountScreen } from "./account/AccountScreen.tsx";
 import { ActiveRideScreen } from "./active/ActiveRideScreen.tsx";
 import type { ConfirmedDestination } from "./destination/DestinationScreen.tsx";
@@ -271,6 +276,9 @@ export default function RiderRoot() {
     return (
       <ActiveRideScreen
         orderId={followed}
+        channelTransport={productionRideChannelTransport}
+        sessionReader={productionSessionReader}
+        channelBaseUrl={productionChannelBaseUrl()}
         onFinished={(orderId) => setSummarized(orderId)}
         onBack={() => {
           setFollowed(null);

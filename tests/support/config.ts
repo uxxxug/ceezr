@@ -82,6 +82,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     // `null` يعني أنّ مسارَ جلسةِ التطبيقِ المصغَّر غيرُ مُركَّبٍ في الاختبارِ أصلاً
     // (`F1-03`): من أراده يُعلن سرّاً في `overrides` فيظهر الفرقُ في موضعِ الاستدعاء.
     miniappSessionSecret: null,
+    liveLocationFallbackEnabled: false,
     ...overrides,
   };
 }
