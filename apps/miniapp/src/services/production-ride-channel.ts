@@ -9,7 +9,7 @@
  * يُتوقَّع أن يستخدمه: `RiderRoot.tsx` لحقنِّ `ActiveRideScreen`.
  */
 
-import type { Socket } from "socket.io-client";
+import { io, type Socket } from "socket.io-client";
 import { getSession } from "../identity/session.ts";
 import type { RideChannelTransport, SessionTokenReader } from "./ride-channel-client.ts";
 
@@ -17,23 +17,17 @@ import type { RideChannelTransport, SessionTokenReader } from "./ride-channel-cl
  * ناقلُ Socket.IO للإنتاجِ — يُوصِلُ `transport.connect` بـ`socket.io-client`.
  * يُفصَلُ عن `ride-channel-client.ts` كي يبقى الأخيرُ نقيًّا من `socket.io-client`
  * في الاختباراتِ.
- *
- * الاستيرادُ كسولٌ داخلَ `connect` كي لا يُحمَّلَ `socket.io-client` في تجميعِ
- * الجذرِ (الذي بلا أنواعِ DOM) — يُحمَّلُ فقط حينَ يُستدعى في المتصفح.
  */
 export const productionRideChannelTransport: RideChannelTransport = {
-  connect: (url: string, auth: { readonly sessionToken: string }): Socket => {
-    // الاستيرادُ الديناميكيُّ يُحمَّلُ في المتصفحِ لا في تجميعِ الجذرِ.
-    const mod = require("socket.io-client") as typeof import("socket.io-client");
-    return mod.io(url, {
+  connect: (url: string, auth: { readonly sessionToken: string }): Socket =>
+    io(url, {
       auth,
       transports: ["websocket"],
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1_000,
       reconnectionDelayMax: 10_000,
-    });
-  },
+    }),
 };
 
 /**
