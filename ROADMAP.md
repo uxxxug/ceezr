@@ -4423,3 +4423,12 @@ PostGIS 3.6 محليّاً، وطُبِّقَت الهجراتُ الـ١٣٤ ب
 `20260916030000` إلى `20260916040000` لتجنبِ التعارضِ مع
 `20260916030000_sd_12_driver_account_erasure.sql`. وأُضيفَ إعلانُ خطرِ التراجعِ
 `revoke_function:active_ride_snapshot(2)` إلى `scripts/lib/rollback-registry.ts`.
+
+### F4-07 — إسقاط Live Location كمسار رئيسي (2026-09-16)
+
+تركيبُ Socket.IO في الإنتاجِ عبر `RiderRoot.tsx` (ناقلٌ حقيقيٌّ ورمزُ جلسةٍ من
+`getSession`). وإسقاطُ `CustomerLiveRelay` كمسارٍ رئيسيٍّ: لا يُنشَأُ ولا يُشترِكُ
+إلّا إن كان `liveLocationFallbackEnabled` مُفعَّلًا (افتراضيًّا `false`). وخريطةُ
+`tripId→messageId` لا تُنشَأُ إلّا معه. والكودُ لم يُحذَفْ. 7 اختباراتٍ ناجحةٍ.
+الحالةُ `[~]`، يُقرأُ حكمُ CI بعدَ الدفعِ. الدليل:
+`docs/evidence/architecture/F4-07-20260916.md`.

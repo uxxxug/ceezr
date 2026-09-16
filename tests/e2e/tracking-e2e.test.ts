@@ -631,7 +631,7 @@ describeIf("التتبّع من الطرف إلى الطرف — المرحلة 
 
     // لا بثّ مفتوحٌ بعد لهذه الرحلة: الحَرَس يُفحص في مسار الفتح لا التحديث.
     liveCalls = [];
-    expect(container.tracking.relay.openBroadcasts).toBe(0);
+    expect(container.tracking.relay?.openBroadcasts ?? 0).toBe(0);
     expect(driverA).not.toBe(driverB);
 
     await container.tracking.bus.publish({
@@ -650,7 +650,7 @@ describeIf("التتبّع من الطرف إلى الطرف — المرحلة 
     });
 
     expect(liveCalls).toHaveLength(0);
-    expect(container.tracking.relay.openBroadcasts).toBe(0);
+    expect(container.tracking.relay?.openBroadcasts ?? 0).toBe(0);
 
     // وإصلاحةُ السائق الحقيقي بعده تفتح الخريطة على إحداثياته هو
     await post("driver", location(DRIVER_CHAT, DRIVER_MOVED));

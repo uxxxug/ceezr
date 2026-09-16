@@ -300,7 +300,7 @@ export interface TrackingWiring {
    * الذاكرة لا أثر لها في القاعدة، فبلا عرضها لا يستطيع اختبارٌ ولا مقياسُ
    * تشغيلٍ أن يشهد على تسريبٍ فيها إلا بالاستدلال من رسائل تلغرام.
    */
-  readonly relay: CustomerLiveRelay;
+  readonly relay: CustomerLiveRelay | null;
   /**
    * قارئ بطاقة رحلة السائق — يُعرَض لنفس سبب عرض `relay`: بلا عرضه لا يستطيع
    * اختبارٌ أن يشهد على أنّ المفتاحين (معرّف السائق ومعرّف تلغرام) يجيبان بنفس
@@ -641,54 +641,39 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    * وإرسالها من بوت السائق يعني محادثةً لا يفتحها العميل أصلاً (وترفضها تلغرام
    * لمن لم يبدأ المحادثة). وهو نفس منطق `counterpartNotifier` القائم.
    */
-  const liveLocationChannel =
-    overrides.liveLocationChannel ?? grammyLiveLocationChannel(config.riderBotToken);
-
-  const customerRelay = createCustomerLiveRelay({
-    channel: liveLocationChannel,
-    customers: { resolve: (tripId) => trackingProofs.customerOf(tripId) },
-    clock: systemClock,
-    /**
-     * المرحلة ١١ — مدّةُ البثّ سقفُ الجلسة في المجال لا سقفُ تلغرام.
-     *
-     * `live_period` ليست إعداد جودة: هي مفتاحُ الرجل الميّت — الشيء الوحيد الذي
-     * يُغلق خريطة العميل حين لا يبلغ المرحّلَ حدثٌ آخر أبداً (انهيار البوّابة،
-     * موتُ تطبيق السائق، فشلُ كلّ تعديل). وكانت مضبوطةً على
-     * `TELEGRAM_MAX_LIVE_PERIOD_SECONDS` = ٢٤ ساعة، وهو خطأٌ تعريفيّ لا مجرّد
-     * سخاء: `DEFAULT_SESSION_POLICY.maxSessionSeconds` = ١٢ ساعة تعني أنّ أطول
-     * جلسة تتبّعٍ ممكنة نصفُ ذلك — فكان البثُّ يبقى «حيّاً» في هاتف العميل
-     * ضعفَ عمر الجلسة التي وُلد منها، ونقطةٌ مجمّدةٌ اثنتي عشرة ساعة أسوأ من
-     * خريطةٍ مغلقة: العميل يقرؤها موقعاً راهناً.
-     *
-     * والاشتقاق من سياسة المجال لا رقمٌ مكتوبٌ بيدٍ هنا: مصدرُ الحقيقة لعمر
-     * الجلسة واحد، ورقمٌ ثانٍ كان سينحرف عنه عند أوّل تعديل. وسقفُ تلغرام يبقى
-     * مستورداً لأن القناة تحصر القيمة فيه أصلاً — فالاشتقاق آمنٌ ولو رُفعت
-     * السياسة فوق اليوم.
-     */
-    livePeriodSeconds: Math.min(
-      DEFAULT_SESSION_POLICY.maxSessionSeconds,
-      TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
-    ),
-    log,
-    /**
-     * `SCL-005` — مخزنُ البثّ المشترك: Redis حين يكون متاحاً (حالةٌ تبقى بعدَ
-     * إعادةِ التشغيلِ ومشاركةٌ بينَ النسخِ + ادّعاءٌ ذرّيٌّ لبدءِ البثّ)، وإلّا
-     * الذاكرةُ (تنازلٌ موثَّقٌ كنشرِ نسخةٍ واحدةٍ، لا أكثر).
-     */
-    ...(redis ? { store: createRedisLiveBroadcastStore(redis) } : {}),
-    newClaimToken: () => crypto.randomUUID(),
-  });
-
   /**
-   * المُرحِّل يُشترك مرّةً واحدة عند التركيب لا لكل رحلة. البديل — اشتراكٌ عند بدء
-   * كل رحلة وفصلٌ عند نهايتها — يبدو أدقّ، وهو في الحقيقة تسريبٌ منتظر: رحلةٌ
-   * تنتهي بطريقةٍ لا يمرّ بها الفصل (إلغاء، إعادة نشر) تترك مشتركاً معلّقاً.
-   * والحصر هنا ليس بالاشتراك بل باشتقاق الوجهة من `orders` في كل حدث.
+   * `F4-07` — مُرحِّلُ الموقعِ الحيِّ عبر تلغرام احتياطٌ لا مسارٌ رئيسيٌّ.
+   *
+   * كانَ المُرحِّلُ يُنشَأُ ويُشترِكُ في كلِّ تركيبٍ. والآنَ صارَ يُنشَأُ ويُشترِكُ
+   * فقط إن كان `liveLocationFallbackEnabled` مُفعَّلًا. وخريطةُ `tripId→messageId`
+   * (مخزنُ البثِّ) لا تُنشَأُ إلّا معه. فالإنتاجُ الافتراضيُّ بلا مُرحِّلَ ولا خريطة:
+   * قناةُ Socket.IO وحدها.
+   *
+   * والكودُ **لم يُحذَفْ** (القاعدة ح-١): `createCustomerLiveRelay` و`LiveBroadcastStore`
+   * باقيان كاحتياطٍ يُفعَّلُ بصراحةٍ لا افتراضًا.
    */
-  trackingBus.subscribe(
-    { kind: "operations", scope: { kind: "all_cities" } },
-    { deliver: (event) => customerRelay.handle(event) },
-  );
+  const customerRelay =
+    config.liveLocationFallbackEnabled || overrides.liveLocationChannel !== undefined
+      ? createCustomerLiveRelay({
+          channel: overrides.liveLocationChannel ?? grammyLiveLocationChannel(config.riderBotToken),
+          customers: { resolve: (tripId) => trackingProofs.customerOf(tripId) },
+          clock: systemClock,
+          livePeriodSeconds: Math.min(
+            DEFAULT_SESSION_POLICY.maxSessionSeconds,
+            TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
+          ),
+          log,
+          ...(redis ? { store: createRedisLiveBroadcastStore(redis) } : {}),
+          newClaimToken: () => crypto.randomUUID(),
+        })
+      : null;
+
+  if (customerRelay !== null) {
+    trackingBus.subscribe(
+      { kind: "operations", scope: { kind: "all_cities" } },
+      { deliver: (event) => customerRelay.handle(event) },
+    );
+  }
 
   /**
    * المرحلة ١٢ — قارئٌ واحد يُمرَّر إلى حوار السائق وحوار التقييم: نسختان منه
