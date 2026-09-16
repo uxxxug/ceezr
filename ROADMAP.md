@@ -4394,3 +4394,4 @@ PostGIS 3.6 محليّاً، وطُبِّقَت الهجراتُ الـ١٣٤ ب
 ينتظرُ ثلاثَ جولاتٍ خضراءَ على `main` (`ح-4`). الدليل: `docs/evidence/architecture/F4-05-20260916.md`.
 
 <!-- F4-05 lint fix: biome organize imports on adapter and test files -->
+<!-- F4-05 schema contract: trip_tracking_tokens reference added -->
