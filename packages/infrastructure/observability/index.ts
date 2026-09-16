@@ -7,8 +7,10 @@
  */
 
 export * from "./database-gauges.ts";
+export * from "./http-metrics.ts";
 export * from "./metrics.ts";
 export * from "./metrics-exporter.ts";
 export * from "./otlp.ts";
+export * from "./process-metrics.ts";
 export * from "./registry.ts";
 export * from "./structured-log.ts";

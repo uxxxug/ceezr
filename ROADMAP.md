@@ -1261,6 +1261,23 @@ scope, per the reservation rule in `docs/ROADMAP-MASTER.md` §25.
 | Conflicting work checked | no open pull request, and no branch on `origin` carries a `docs/migration/` path or a `check-migration-matrix` guard (checked against every `origin/*` ref on 2026-09-12) |
 | Claim ceiling | this item may **not** be marked `[x]`: `ح-4` requires a read CI verdict, and rule 0.4 keeps `verify` red for `O-1`, so the matrix lands as a plan with its own gate and nothing is claimed executed. "Migrated" stays empty. |
 
+## Status of `F8-02` — core metrics published, recorded 2026-09-16 (additive; the reservation text above is unchanged)
+
+**النطاقُ المحجوزُ نُفِّذَ**، والحجزُ أعلاه يبقى مكتوباً لا ممحوّاً (`ح-8`).
+الفرعُ `feat/f8-02-core-metrics` من `main`@`e2ebd66`.
+الحاكمُ `docs/adr/0131-a-published-metric-is-a-contract-not-a-comment.md`،
+والدليلُ `docs/evidence/architecture/F8-02-20260916.md`،
+والسطرُ في `docs/ROADMAP-MASTER.md` §25.
+
+| الحقلُ | القيمةُ |
+|---|---|
+| المبنيُّ | ثلاثَ عشرةَ عائلةً جديدةً تُغطّي الفئاتِ التسعَ في نصِّ البندِ: طلباتٌ وزمنُها وأخطاؤها بوسمِ **قالبِ** المسارِ · خمسُ عائلاتِ عمليّةٍ تُقرأُ عندَ المسحِ · اتّصالاتُ القاعدةِ من `pg_stat_activity` **مع سقفِها** · زمنُ الإسنادِ بمئينَيهِ ونافذتِه وعدِّه. |
+| الحاجزُ | `scripts/check-core-metrics.ts` (+ `scripts/lib/core-metrics-contract.ts`) بإحدى عشرةَ قاعدةً، لكلِّ واحدةٍ سالبةٌ مبذورةٌ (`ح-7`)، في سلسلةِ `bun run ci` وخطوتَينِ مُسمّاتَينِ في وظيفةِ `verify`. |
+| ما صُحِّحَ من جذرِه | التطبيعُ كانَ يقبلُ مساراً خامّاً `/v1/rides/<uuid>`. صُحِّحَ التطبيعُ، **وأُضيفَت قاعدةٌ ثانيةٌ** (`http.every-route-labelled`) تُسقِطُ البناءَ إن طُمِرَ أيُّ قالبٍ مُعلَنٍ في `other` — ٧٨ قالباً كلُّها تبقى وسمَ نفسِها. لا تخفيفَ اختبارٍ ولا إسكاتَ قاعدةٍ. |
+| القياسُ المحليُّ | `lint`=0 (٢٩ تحذيراً سابقةً) · `typecheck`=0 · `bun test tests/unit` ٤٥٥١ ناجحةً · ٠ ساقطةً · الحاجزُ الجديدُ 0 · وعلى PostgreSQL 18 حقيقيٍّ: اختبارُ الـgauges ١ ناجحةٌ · ٢٤ توكيداً. |
+| ما لا يُدَّعى (`ح-5`) | **لا لوحةَ ولا إنذارَ ولا جامِعَ Prometheus** يمسحُ `/metrics` في أيِّ بيئةٍ — `F8-07` و`OPS-003`. ولا أثرَ موزَّعاً (`F8-01` `[~]` · `DEC-17`). ولا قياسَ لكلفةِ الوسيطِ تحتَ تزامنٍ إنتاجيٍّ. فالبندُ `[~]` لا `[x]`، ولا `[x]` قبلَ ثلاثِ جولاتٍ خضراءَ على `main` (`ح-4`). |
+| حكمُ CI | يُلحَقُ بالزيادةِ بعدَ الدفعِ، مقروءاً **لكلِّ وظيفةٍ** — والأخضرُ المحليُّ لا يُعتَدُّ بهِ بديلاً. |
+
 ## Remaining, in dependency order
 
 Item ids `W-1` … `W-9` are stable and are the ids used in commits, ADRs,
