@@ -171,6 +171,7 @@ export function createActiveRideReader(sql: Sql): ActiveRideReader {
         createdAtMs,
         matchedAtMs: readInstantMs(result.matched_at),
         startedAtMs: readInstantMs(result.started_at),
+        arrivedAtMs: readInstantMs(result.arrived_at),
         completedAtMs: readInstantMs(result.completed_at),
         driver: readDriver(result.driver),
       };

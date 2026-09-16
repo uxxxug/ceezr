@@ -818,6 +818,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "دورةُ الرحلةِ والإسناد",
     documentedIn: null,
   },
+  {
+    migration: "20260916040000_f2_06_arrived_phase.sql",
+    change: "revoke_function:active_ride_snapshot(2)",
+    why: "إعادةُ تثبيتِ إبطالِ `execute` عن `public` بعدَ `create or replace function` — والتصريحُ ههنا للقراءةِ لا للتضييقِ: الدالّةُ `security invoker` فلا تُستدعى إلّا بدعوةِ المالكِ أو بدورٍ ممنوحٍ، والسحبُ الذي يُبقي `public` ينشرُها لكلِّ سائلٍ. **والعودةُ بالكودِ وحدَه تكفي**: النسخةُ السابقةُ من الدالّةِ توقيعُها ومفاتيحُ جوابِها ذاتُها (زيادةُ `arrived_at` حقلٌ واحدٌ في الـ JSONB)، والعميلُ الذي لا يرى الحقلَ يُهملُه. ولا كسرَ لنسخةٍ سابقةٍ: الحقلُ زيادةٌ نقيّةٌ لا تضييقٌ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /**

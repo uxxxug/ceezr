@@ -73,6 +73,18 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
 import {
+  applyTrackingEvent,
+  INITIAL_TRACKING_STATE,
+  type LiveTrackingState,
+  shouldRefreshFromHttp,
+} from "../../../services/live-tracking-reducer.ts";
+import {
+  type RideChannelSubscription,
+  type RideChannelTransport,
+  type SessionTokenReader,
+  subscribeRideChannel,
+} from "../../../services/ride-channel-client.ts";
+import {
   classifyFailure,
   failureFromThrown,
   shouldProbeReachability,
@@ -119,6 +131,16 @@ export interface ActiveRideScreenProps {
   readonly initialLanguage?: MiniAppLanguage;
   /** تُحقَنُ في الاختبارِ كي تُقاسَ المدّةُ بلا انتظارٍ حقيقيٍّ. */
   readonly now?: () => number;
+  /**
+   * منفذُ قناةِ الرحلةِ الآنيةِ (`F4-04`) — يُحقَنُ كي تُقاسَ الشاشةُ بلا شبكةٍ.
+   * بغيابِه تظلُّ الشاشةُ على اللقطةِ بزرِّ تحديثٍ، ولا يُخترَعُ ناقلٌ لا يعرفُه
+   * المُركِّبُ.
+   */
+  readonly channelTransport?: RideChannelTransport;
+  /** منفذُ رمزِ الجلسةِ — يُحقَنُ كي لا يُستورَدَ `session.ts` مباشرة. */
+  readonly sessionReader?: SessionTokenReader;
+  /** أساسُ عنوانِ الخادمِ — يُحقَنُ كي يُقاسَ بلا عنوانٍ حقيقيٍّ. */
+  readonly channelBaseUrl?: string;
 }
 
 type Found = Extract<ActiveRideResponse, { found: true }>;
@@ -157,12 +179,17 @@ export function ActiveRideScreen({
   onFinished,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   now = () => Date.now(),
+  channelTransport,
+  sessionReader,
+  channelBaseUrl = "",
 }: ActiveRideScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<ActiveState>({ kind: "reading" });
   const [system, setSystem] = useState<SystemState>(null);
   const [busy, setBusy] = useState(false);
   const [reading, setReading] = useState(false);
+  /** حالةُ التتبُّعِ الحيِّ — تُحدِّثُ الموقعَ المرسومَ بلا استقصاءٍ (`F4-04`). */
+  const [liveTracking, setLiveTracking] = useState<LiveTrackingState>(INITIAL_TRACKING_STATE);
   const mounted = useRef(true);
   /** حاجزا تزامنٍ **مرجعانِ**: قراءةٌ واحدةٌ وإلغاءٌ واحدٌ، بلا تغييرِ هويّةِ دالّةٍ. */
   const readingRef = useRef(false);
@@ -218,6 +245,43 @@ export function ActiveRideScreen({
   useEffect(() => {
     void refresh(orderId);
   }, [orderId, refresh]);
+
+  /**
+   * الاشتراكُ في القناةِ الآنيّةِ (`F4-04`) — يتّصلُ مرةً عندَ الدخولِ، ويفصلُ
+   * نظيفاً عندَ الخروجِ أو تغييرِ الرحلةِ. وبغيابِ منفذِ الناقلِ لا يُخترَعُ
+   * اتصالٌ: الشاشةُ تعودُ إلى اللقطةِ بزرِّ تحديثٍ ولا تُفاجئُ بمسارٍ مجهولٍ.
+   */
+  const channelRef = useRef<RideChannelSubscription | null>(null);
+  useEffect(() => {
+    if (channelTransport === undefined || sessionReader === undefined) return;
+
+    const subscription = subscribeRideChannel(
+      {
+        transport: channelTransport,
+        sessions: sessionReader,
+        baseUrl: channelBaseUrl,
+      },
+      {
+        orderId,
+        onEvent: (event) => {
+          if (!mounted.current) return;
+          setLiveTracking((prev) => {
+            const next = applyTrackingEvent(prev, event);
+            if (shouldRefreshFromHttp(prev, next)) {
+              void refresh(orderId);
+            }
+            return next;
+          });
+        },
+      },
+    );
+    channelRef.current = subscription;
+
+    return () => {
+      subscription.disconnect();
+      channelRef.current = null;
+    };
+  }, [orderId, channelTransport, sessionReader, channelBaseUrl, refresh]);
 
   const askCancel = useCallback(async () => {
     if (busyRef.current) return;
@@ -318,7 +382,20 @@ export function ActiveRideScreen({
         nowMs: drawnAtMs,
       }),
     );
-    const position = positionLine(view.position);
+    const snapshotPosition = view.position;
+    const livePosition =
+      liveTracking.position !== null &&
+      snapshotPosition !== null &&
+      snapshotPosition.show &&
+      snapshotPosition.ageSeconds !== null
+        ? {
+            show: true as const,
+            lat: liveTracking.position.lat,
+            lng: liveTracking.position.lng,
+            ageSeconds: snapshotPosition.ageSeconds,
+          }
+        : snapshotPosition;
+    const position = positionLine(livePosition);
     const eta = etaLine(view.eta);
     const driver = view.driver === null ? null : driverIdentityLine(view.driver);
 
@@ -386,9 +463,15 @@ export function ActiveRideScreen({
           </p>
         )}
 
-        {/* لقطةٌ لا بثٌّ: يُقالُ ذلكَ نصّاً ويُعطى بابُ سؤالٍ. */}
+        {/* لقطةٌ بثٌّ حيٌّ: يُقالُ ذلكَ نصّاً ويُعطى بابُ سؤالٍ يدويٌّ احتياطيٌّ. */}
         <div className="ar__snapshot" role="status">
-          <p className="sys__hint">{t("rider.active.snapshot")}</p>
+          <p className="sys__hint">
+            {t(
+              channelTransport !== undefined && liveTracking.position !== null
+                ? "rider.active.liveTracking"
+                : "rider.active.snapshot",
+            )}
+          </p>
           <button
             type="button"
             className="sys__action"

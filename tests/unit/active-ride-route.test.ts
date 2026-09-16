@@ -53,6 +53,7 @@ function state(over: Partial<ActiveRideState> = {}): ActiveRideState {
     matchedAtMs: NOW.getTime() - 240_000,
     startedAtMs: null,
     completedAtMs: null,
+    arrivedAtMs: null,
     driver: {
       firstName: "خالد",
       vehicleType: "سيدان",

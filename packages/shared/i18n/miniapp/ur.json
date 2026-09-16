@@ -1012,5 +1012,7 @@
   "driver.support.error.LIMIT_OUT_OF_RANGE": "ٹکٹوں کی درخواست قبول نہیں ہوئی۔ اسکرین دوبارہ کھولیں۔",
   "driver.support.error.CURSOR_INVALID": "ہم فہرست وہاں سے جاری نہیں رکھ سکے۔ اسکرین دوبارہ کھولیں۔",
   "driver.support.error.UNKNOWN": "بھیجنا ناکام ہوا اور وجہ معلوم نہیں۔ آپ کی شکایت نہیں بھیجی گئی؛ دوبارہ کوشش کریں۔",
-  "driver.offers.openSupport": "سپورٹ اور شکایات"
+  "driver.offers.openSupport": "سپورٹ اور شکایات",
+  "rider.active.phase.driverArrived": "ڈرائیور پک اپ پوائنٹ پر پہنچ گیا ہے۔",
+  "rider.active.liveTracking": "ڈرائیور کی لائیو ٹریکنگ۔"
 }

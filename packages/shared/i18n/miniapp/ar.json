@@ -1012,5 +1012,7 @@
   "driver.support.error.LIMIT_OUT_OF_RANGE": "طلب غير مقبول لقائمة التذاكر. أعد فتح الشاشة.",
   "driver.support.error.CURSOR_INVALID": "تعذّر إكمال القائمة من موضعها. أعد فتح الشاشة.",
   "driver.support.error.UNKNOWN": "تعثّر الإرسال ولم نعرف السبب. شكواك لم تُرسل، وحاول مرة أخرى.",
-  "driver.offers.openSupport": "الدعم والشكاوى"
+  "driver.offers.openSupport": "الدعم والشكاوى",
+  "rider.active.phase.driverArrived": "وصلَ السائقُ إلى نقطةِ الالتقاطِ.",
+  "rider.active.liveTracking": "تتبُّعٌ حيٌّ لموقعِ السائقِ."
 }
