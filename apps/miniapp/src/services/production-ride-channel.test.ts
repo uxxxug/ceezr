@@ -10,7 +10,7 @@ import {
   productionChannelBaseUrl,
   productionRideChannelTransport,
   productionSessionReader,
-} from "../../apps/miniapp/src/services/production-ride-channel.ts";
+} from "./production-ride-channel.ts";
 
 describe("production-ride-channel", () => {
   it("الناقلُ مُعرَّفٌ وليسَ `undefined`", () => {
