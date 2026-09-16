@@ -79,8 +79,15 @@ export interface PublicTrackingDeps extends GetLivePositionDeps {
    * وسيطُ ترويسات الأمن. يُمرَّر ليُسجَّل **قبل** المُعالِجات في هذا الموجّه نفسه:
    * Hono يُنفّذ الوسائط بترتيب تسجيلها، فوسيطٌ يُضاف بعد تسجيل المسار لا يعمل
    * قبله — والصفحةُ تحتاج الـ`nonce` موضوعاً على السياق قبل أن تُصيَّر.
+   *
+   * **ومُلزِمٌ لا اختياريٌّ** (`SEC-06` · `ADR 0135`): كانَ
+   * `securityHeaders?` ومُركَّباً بشرطِ `!== undefined`، فكانَ نسيانُه في مُنشِئٍ
+   * واحدٍ يُخرِجُ صفحةً عامّةً **عاريةً** بلا سياسةِ محتوىً ولا منعِ تأطيرٍ ولا
+   * كتمِ مُحيلٍ — **بلا خطأٍ ولا تحذيرٍ ولا سطرِ سجلٍّ**. وهذا أخطرُ من غيابِ
+   * الوسيطِ أصلاً لأنَّ الوسيطَ موجودٌ فيُقرَأُ تغطيةً. فصارَ حقلاً مطلوباً:
+   * المُترجِمُ يرفضُ المُنشِئَ الذي يُهمِلُه.
    */
-  readonly securityHeaders?: MiddlewareHandler<PublicEnv>;
+  readonly securityHeaders: MiddlewareHandler<PublicEnv>;
 }
 
 const NOT_FOUND = 404 as const;
@@ -146,7 +153,8 @@ function toPayload(state: TrackingReadState): PositionPayload | null {
 
 export function createPublicTrackingRoutes(deps: PublicTrackingDeps): Hono<PublicEnv> {
   const app = new Hono<PublicEnv>();
-  if (deps.securityHeaders !== undefined) app.use("*", deps.securityHeaders);
+  // بلا شرطٍ: الشرطُ كانَ يجعلُ الوسيطَ وعداً لا ضماناً (`SEC-06` · `ADR 0135`).
+  app.use("*", deps.securityHeaders);
 
   /**
    * ردُّ الموقع. **الأخصّ أوّلاً** يُطبَّق هنا داخل الموجّه نفسه: المسار الحرفيّ
