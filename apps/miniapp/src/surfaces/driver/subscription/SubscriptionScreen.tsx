@@ -6,8 +6,20 @@
  * يُستخدم من: `DriverRoot.tsx`
  * يُتوقع أن يستخدمه لاحقاً: `F3-09` — زرُّ التجديدِ يُضافُ، ولا يُوضَعُ هنا
  *   الآنَ لأنَّ مسارَ الدفعِ غيرُ مبنيٍّ بعدُ.
- * يحرسُه: scripts/check-driver-subscription-contract.ts
- * الحاكم: docs/adr/0094-project-independence.md
+ * يحرسُه: scripts/check-driver-subscription-contract.ts ·
+ *   scripts/check-tax-invoice-contract.ts
+ * الحاكم: docs/adr/0094-project-independence.md ·
+ *   docs/adr/0127-simplified-tax-invoice.md
+ *
+ * ## تصحيحٌ مُضافٌ (`F3-09` · 2026-09-16 · `ح-8`)
+ *
+ * مُكتوبٌ في ترويسةِ هذا المِلفِّ أنَّ زرَّ التجديدِ «لا يُوضَعُ هنا الآنَ» — **وقد
+ * وُضِعَ فعلاً** في `F3-06` نفسِها؛ والسَّطرُ يُترَكُ كما هوَ مُتجاوَزاً لا يُمحى.
+ * وما أُضيفَ في `F3-09` هوَ **مَسلكُ فتحِ الرابطِ**: كانَت صفحةُ الدفعِ تُفتَحُ
+ * بـ`<a target="_blank">`، وهوَ في وِعاءِ تلغرامَ **لا يفعلُ شيئاً في أحيانٍ ولا يقولُ**
+ * — فيرى السائقُ «بوّابةُ الدفعِ فُتِحَت» ولا تُفتَحُ. ومسارُ الملاحةِ في
+ * `JobScreen` كانَ يمرُّ بالمَسلكِ المُقنَّنِ من قبلُ، **فكانَ المالُ وحدَه هوَ
+ * الخارجَ عنِ السَّابقةِ**.
  *
  * ## لِمَ السعرُ يُعرَضُ من الجوابِ لا من ثابتٍ
  *
@@ -30,12 +42,14 @@
  */
 
 import { useCallback, useEffect, useId, useState } from "react";
+import { minorUnitsToMajorText } from "../../../../../../packages/domain/financial/minor-units.ts";
 import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
+import { openExternalLink, type TgOutcome } from "../../../tg/index.ts";
 import {
   type ApiDriverSubscriptionDashboardResponse,
   type ApiDriverSubscriptionHistoryResponse,
@@ -64,6 +78,11 @@ export interface SubscriptionScreenProps {
   readonly readDashboard?: () => Promise<ApiDriverSubscriptionDashboardResponse>;
   readonly readHistory?: (limit: number) => Promise<ApiDriverSubscriptionHistoryResponse>;
   readonly renewSubscription?: (plan: string) => Promise<ApiDriverSubscriptionRenewalResponse>;
+  /**
+   * فتحُ رابطٍ خارجيٍّ — **المَسلكُ المُقنَّنُ وحدَه** (`ADR 0031` · `ARCH-014`).
+   * يُحقَنُ في الاختبارِ ليُقاسَ مسارُ الإخفاقِ لا ليُتجاوَزَ.
+   */
+  readonly openLink?: (url: string) => TgOutcome<true>;
 }
 
 type RenewalState =
@@ -71,6 +90,16 @@ type RenewalState =
   | { readonly kind: "loading" }
   | { readonly kind: "ready"; readonly renewal: SubscriptionRenewalModel }
   | { readonly kind: "failed"; readonly code: string };
+
+/**
+ * حالُ فتحِ بوّابةِ الدفعِ. **`opened` لا يُعرَضُ نصّاً**: من فُتِحَت له رأى
+ * الصفحةَ بعينِه، وقولُ «فُتِحَت» فوقَ ذلكَ حشوٌ. والإخفاقُ وحدَه يستحقُّ نصّاً
+ * لأنَّه **غيرُ مرئيٍّ بغيرِه**.
+ */
+type CheckoutState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "opened" }
+  | { readonly kind: "failed"; readonly url: string };
 
 type DashboardState =
   | { readonly kind: "loading" }
@@ -97,6 +126,7 @@ export function SubscriptionScreen({
   readDashboard = readDriverSubscriptionDashboard,
   readHistory = readDriverSubscriptionHistory,
   renewSubscription = renewDriverSubscription,
+  openLink = (url: string) => openExternalLink(url),
 }: SubscriptionScreenProps) {
   const t = miniAppTranslator(language);
   const formId = useId();
@@ -104,6 +134,7 @@ export function SubscriptionScreen({
   const [history, setHistory] = useState<HistoryState>({ kind: "closed" });
   const [renewal, setRenewal] = useState<RenewalState>({ kind: "idle" });
   const [selectedPlan, setSelectedPlan] = useState<string>("transport");
+  const [checkout, setCheckout] = useState<CheckoutState>({ kind: "idle" });
 
   const load = useCallback(async () => {
     setDashboard({ kind: "loading" });
@@ -320,10 +351,27 @@ export function SubscriptionScreen({
               <p className="dsub__renew-success" role="status">
                 {t("driver.subscription.renew.success")}
                 {renewal.renewal.checkoutUrl !== null ? (
-                  <a href={renewal.renewal.checkoutUrl} target="_blank" rel="noopener noreferrer">
+                  <button
+                    type="button"
+                    className="dsub__checkout-open"
+                    onClick={() => {
+                      const url = renewal.renewal.checkoutUrl;
+                      if (url === null) return;
+                      const outcome = openLink(url);
+                      // **الإخفاقُ يُقالُ ويُعطى مخرجاً**: رابطٌ لا يُفتَحُ في
+                      // وِعاءٍ قديمٍ يبقى ممكنَ النقلِ بيدٍ — فالمالُ لا يُترَكُ لزرٍّ صامتٍ.
+                      setCheckout(outcome.ok ? { kind: "opened" } : { kind: "failed", url });
+                    }}
+                  >
                     {t("driver.subscription.renew.checkout_open")}
-                  </a>
+                  </button>
                 ) : null}
+              </p>
+            ) : null}
+            {checkout.kind === "failed" ? (
+              <p className="dsub__checkout-fallback" role="status">
+                {t("driver.subscription.renew.checkout_failed")}
+                <span className="dsub__checkout-url">{checkout.url}</span>
               </p>
             ) : null}
             {renewal.kind === "failed" ? (
@@ -368,7 +416,7 @@ export function SubscriptionScreen({
                 <span className="dsub__payment-status">{t(entry.statusLabelKey)}</span>
                 <span className="dsub__payment-amount">
                   {t("driver.subscription.price.value")
-                    .replace("{amount}", String(entry.amountMinor / 100))
+                    .replace("{amount}", minorUnitsToMajorText(entry.amountMinor))
                     .replace("{currency}", entry.currency)}
                 </span>
                 <span className="dsub__payment-provider">{entry.provider}</span>
