@@ -179,6 +179,20 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
 
   // ── بنيةٌ تحتيّةٌ يشغّلُها المُشغِّلُ ──────────────────────────────────────
   {
+    id: "socket-io-server",
+    purpose:
+      "مكتبةُ Socket.IO لقناةِ الرحلةِ الآنيةِ (F4-04، ADR 0042) — خادمٌ يستقبلُ اتصالاتٍ لا يصلُ إلى مضيفٍ خارجيٍّ",
+    peerClass: "INFRASTRUCTURE",
+    system: "NONE",
+    source: { kind: "library-default", packageName: "socket.io", host: "socket.io" },
+    callSite: "apps/gateway/src/realtime/ride-channel.ts",
+    runtimeGate: {
+      kind: "not-applicable",
+      reason: "خادمٌ يستقبلُ اتصالاتِ WebSocket من المتصفّحِ على المنفذِ نفسِه لا يصلُ إلى مضيفٍ خارجيٍّ.",
+    },
+    removed: false,
+  },
+  {
     id: "supabase-postgres",
     purpose: "قاعدةُ البياناتِ — مخزنُ الحقيقةِ الوحيدُ",
     peerClass: "INFRASTRUCTURE",

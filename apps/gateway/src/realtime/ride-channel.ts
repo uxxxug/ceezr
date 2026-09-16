@@ -113,7 +113,7 @@ export function createRideChannel(deps: RideChannelDeps): RideChannel {
 
     const rideEvent = toRideChannelEvent(event);
     deps.io.to(`ride:${event.tripId}`).emit("ride:event", rideEvent);
-    log("ride:event forwarded", {
+    log("ride.event_forwarded", {
       tripId: event.tripId,
       type: event.type,
       sequence: event.sequence,
@@ -122,7 +122,7 @@ export function createRideChannel(deps: RideChannelDeps): RideChannel {
 
   deps.io.on("connection", (socket: IoSocket) => {
     connectedSockets += 1;
-    log("socket:connected", { socketId: socket.id, count: connectedSockets });
+    log("socket.connected", { socketId: socket.id, count: connectedSockets });
 
     let joinedTripId: string | null = null;
 
@@ -162,12 +162,12 @@ export function createRideChannel(deps: RideChannelDeps): RideChannel {
         driverId: ride.driverId,
         status: ride.status,
       });
-      log("ride:joined", { socketId: socket.id, tripId: ride.tripId });
+      log("ride.joined", { socketId: socket.id, tripId: ride.tripId });
     });
 
     socket.on("disconnect", () => {
       connectedSockets -= 1;
-      log("socket:disconnected", { socketId: socket.id, count: connectedSockets });
+      log("socket.disconnected", { socketId: socket.id, count: connectedSockets });
     });
   });
 
@@ -176,7 +176,7 @@ export function createRideChannel(deps: RideChannelDeps): RideChannel {
       if (unsub) return;
       const sink: TrackingEventSink = { deliver: handleEvent };
       unsub = deps.eventBus.subscribe({ kind: "operations", scope: { kind: "all_cities" } }, sink);
-      log("ride-channel:started", { subscriberCount: deps.eventBus.subscriberCount });
+      log("ride_channel.started", { subscriberCount: deps.eventBus.subscriberCount });
     },
     stop: () => {
       if (unsub) {
@@ -184,7 +184,7 @@ export function createRideChannel(deps: RideChannelDeps): RideChannel {
         unsub = null;
       }
       deps.io.close();
-      log("ride-channel:stopped", {});
+      log("ride_channel.stopped", {});
     },
     get connectedSockets() {
       return connectedSockets;
