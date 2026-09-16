@@ -4395,3 +4395,13 @@ PostGIS 3.6 محليّاً، وطُبِّقَت الهجراتُ الـ١٣٤ ب
 
 <!-- F4-05 lint fix: biome organize imports on adapter and test files -->
 <!-- F4-05 schema contract: trip_tracking_tokens reference added -->
+
+
+### F4-06 — خريطة المشرف من المجرى المشترك (2026-09-16)
+
+ربطت صفحة `/admin/live-map` بمجرى SSE القائم عند `/admin/api/live/drivers` بدلَ إعادة
+التحميلِ الدوريّة كلَّ ٢٠ ثانية. اختزالُ حالةٍ قابلٌ للاختبارِ في `packages/maps/live-map-reducer.ts`
+(اللقطةُ مصالحةٌ كاملة، والدلتا بفاصلِ الترتيب BUG-009/ADR 0053). وإزالةُ `LIVE_REFRESH_SECONDS`
+من مسارِ الخريطة. السطحُ الخادميُّ يبقى احتياطيًّا. ١٤ اختبارَ وحدةٍ ناجحةً. CAP-011 لم يُغلق —
+نماذجُ القراءة المادية والنسخةُ التحليليةُ تبقى F7-08. الحالةُ `[~]`، ينتظرُ ثلاثَ جولاتٍ خضراءَ
+على `main` (`ح-4`). الدليل: `docs/evidence/architecture/F4-06-20260916.md`.

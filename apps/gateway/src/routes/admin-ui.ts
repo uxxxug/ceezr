@@ -672,8 +672,10 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         cityId,
         mapPanel,
         staleAfterSeconds: DEFAULT_SESSION_POLICY.staleAfterSeconds,
+        cspNonce: c.get("cspNonce"),
+        sseUrl:
+          cityId === null ? "/admin/api/live/drivers" : `/admin/api/live/drivers?city=${cityId}`,
       }),
-      LIVE_REFRESH_SECONDS,
     );
   });
 
