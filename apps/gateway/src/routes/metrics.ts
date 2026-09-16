@@ -11,7 +11,9 @@ import { Hono } from "hono";
 import type {
   DatabaseGaugeCollector,
   OperationalMetrics,
+  ProcessMemorySnapshot,
 } from "../../../../packages/infrastructure/observability/index.ts";
+import { readProcessMemory } from "../../../../packages/infrastructure/observability/index.ts";
 
 export const PROMETHEUS_CONTENT_TYPE = "text/plain; version=0.0.4; charset=utf-8";
 const METRICS_TOKEN_HEADER = "x-metrics-token";
@@ -22,6 +24,12 @@ export interface MetricsRouteDependencies {
   readonly metricsToken: string | undefined;
   readonly databaseGauges?: DatabaseGaugeCollector;
   readonly log?: (message: string, fields: Record<string, unknown>) => void;
+  /**
+   * `F8-02`: قارئُ ذاكرةِ العمليّةِ — يُحقَنُ للاختبارِ وحدَه، وللإنتاجِ
+   * `readProcessMemory`. والقراءةُ **عندَ المسحِ بعدَ التحقُّقِ من السرِّ**:
+   * مُجهولٌ يطرقُ المسارَ لا يُشغِّلُ عملاً في العمليّةِ بردَّةٍ واحدةٍ.
+   */
+  readonly readProcessMetrics?: () => ProcessMemorySnapshot;
 }
 
 /** مقارنة زمن ثابت تمنع استنتاج أجزاء سرّ مسار المراقبة من زمن الرفض. */
@@ -53,6 +61,18 @@ export function createMetricsRoutes(deps: MetricsRouteDependencies): Hono {
         reason: "invalid_or_missing_token",
       });
       return c.json({ ok: false, error: "UNAUTHORIZED" }, 401);
+    }
+
+    // `F8-02`: ذاكرةُ العمليّةِ تُقرأُ لحظةَ المسحِ لا بمؤقِّتٍ دائرٍ. وفشلُ
+    // القراءةِ **لا يُسقِطُ المسحةَ**: مقاييسُ القاعدةِ والطوابيرِ والحافةِ
+    // تُنشَرُ وإن عجزت واجهةُ المُنفِّذِ عن رقمِ ذاكرةٍ.
+    try {
+      deps.metrics.setProcessGauges((deps.readProcessMetrics ?? readProcessMemory)());
+    } catch (cause) {
+      deps.log?.("metrics.process_gauges_failed", {
+        component: "metrics",
+        error: cause instanceof Error ? cause.message : String(cause),
+      });
     }
 
     if (deps.databaseGauges !== undefined) {
