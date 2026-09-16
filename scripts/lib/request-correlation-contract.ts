@@ -30,7 +30,7 @@ export const SETTING_NAME_ALLOWLIST = [
   "scripts/check-request-correlation.ts",
   "tests/unit/request-correlation-guard.test.ts",
   "tests/integration/request-correlation.test.ts",
-  "docs/adr/0129-request-correlation.md",
+  "docs/adr/0129-one-id-from-the-edge-to-the-row.md",
 ] as const;
 
 /** الهجرةُ التي تُنشئُ العمودَ والقيدَ والمُشغِّلَ. */
@@ -255,6 +255,33 @@ export function auditRequestCorrelation(input: CorrelationSources): readonly Rul
     add("db.missing", `${DB_CONTEXT_FILE} غيرُ موجودٍ`);
   } else if (/newCorrelationId\s*\(|randomUUID\s*\(/.test(dbContext)) {
     add("db.fabricate", `${DB_CONTEXT_FILE}: يُولِّدُ معرِّفاً — الغيابُ يجبُ أن يبقى NULL`);
+  }
+
+  // (١١) كلُّ دالّةٍ تُنشِئُها هجرةُ الارتباطِ تُنزَعُ صلاحيّتُها من `public` صراحةً.
+  //
+  // **قاعدةٌ كتبَها حكمُ CI لا التخمينُ** (يُضافُ ولا يُمحى): أوّلُ نسخةٍ من
+  // الهجرةِ نزعَت الصلاحيةَ من `anon` و`authenticated` وحدَهما، فأخفقَ اختبارُ
+  // سطحِ الصلاحياتِ على PostgreSQL حقيقيّةٍ بحالتَينِ. والسببُ الجذريُّ:
+  // PostgreSQL يمنحُ `execute` للدورِ `PUBLIC` **تلقائيّاً** عندَ إنشاءِ أيِّ
+  // دالّةٍ، و`anon` يورِّثُ منه — **فنزعُ الصلاحيةِ من دورٍ لا يُبطِلُ منحةَ
+  // `PUBLIC`**. وذاكَ عطبٌ لا يُرى في مراجعةٍ ولا في أخضرَ محلّيٍّ، ولا تُخفِقُ
+  // به وحدةٌ: إنّما يُرى بمحرِّكٍ حقيقيٍّ. فيُثبَّتُ ههنا حاجزاً ساكناً كي
+  // **لا تُدفَعَ دالّةٌ ثانيةٌ بالعطبِ عينِه** ولا يُنتظَرَ حكمُ CI ليقولَه.
+  for (const match of input.migration.matchAll(
+    /create\s+(or\s+replace\s+)?function\s+public\.([a-z_][a-z0-9_]*)\s*\(/gi,
+  )) {
+    const fn = match[2];
+    if (fn === undefined) continue;
+    const revoke = new RegExp(
+      `revoke\\s+[^;]*on\\s+function\\s+public\\.${fn}\\s*\\([^)]*\\)\\s+from\\s+[^;]*\\bpublic\\b`,
+      "i",
+    );
+    if (!revoke.test(input.migration)) {
+      add(
+        "grant.public",
+        `${fn}: لا نزعَ صريحاً من الدورِ public — منحةُ PUBLIC التلقائيّةُ تبقى ويورِّثُها anon`,
+      );
+    }
   }
 
   return findings;

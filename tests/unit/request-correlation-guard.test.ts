@@ -36,6 +36,10 @@ function migrationText(): string {
       `create trigger ${table}_set_request_id before insert on public.${table} for each row execute function public.set_request_id();`,
     );
   }
+  parts.push(
+    "revoke all on function public.current_request_id() from public, anon, authenticated;",
+  );
+  parts.push("revoke all on function public.set_request_id() from public, anon, authenticated;");
   return parts.join("\n");
 }
 
@@ -243,6 +247,24 @@ describe("حاجزُ سلسلةِ ارتباطِ الطلبِ — F8-01", () => 
       },
     };
     expect(rules(broken)).toContain("db.fabricate");
+  });
+
+  // **سالبةٌ كتبَها حكمُ CI**: أوّلُ نسخةٍ من الهجرةِ نزعَت الصلاحيةَ من `anon`
+  // و`authenticated` وحدَهما فأخفقَ اختبارُ سطحِ الصلاحياتِ على محرِّكٍ حقيقيٍّ،
+  // إذ منحةُ `PUBLIC` التلقائيّةُ على الدوالِّ تبقى ويورِّثُها `anon`. فصارَت
+  // القاعدةُ ساكنةً ولها ههنا سالبتُها (`ح-7`).
+  test("دالّةٌ بلا نزعٍ من الدورِ public تُرَدُّ — منحةُ PUBLIC التلقائيّةُ لا يُبطِلُها نزعُ دورٍ", () => {
+    const input = cleanSources();
+    const weakened = input.migration.replace(
+      "revoke all on function public.current_request_id() from public, anon, authenticated;",
+      "revoke all on function public.current_request_id() from anon, authenticated;",
+    );
+    expect(weakened).not.toBe(input.migration);
+    expect(rules({ ...input, migration: weakened })).toContain("grant.public");
+  });
+
+  test("الهجرةُ القائمةُ تنزعُ من public فعلاً — موجبةٌ تمنعُ أخضرَ ميّتاً", () => {
+    expect(rules(cleanSources())).not.toContain("grant.public");
   });
 
   test("ملفٌّ مفقودٌ يُرى عطباً لا يُمرَّرُ صامتاً", () => {

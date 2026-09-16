@@ -168,5 +168,12 @@ create trigger ledger_entries_set_request_id
 --    بياناً، لكنَّ القاعدةَ الخامسةَ في `README` تفرضُ ألّا يُوسَّعَ السطحُ العلنيُّ
 --    بلا قرارٍ. فتُسحَبُ الصلاحيةُ من الدورَينِ العلنيَّينِ صراحةً.
 -- ----------------------------------------------------------------------------
-revoke all on function public.current_request_id() from anon, authenticated;
-revoke all on function public.set_request_id() from anon, authenticated;
+--    **وتصحيحٌ بعدَ حكمِ CI (يُضافُ ولا يُمحى)**: أوّلُ نسخةٍ نزعَت الصلاحيةَ من
+--    `anon` و`authenticated` **وحدَهما**، فأخفقَ اختبارُ سطحِ الصلاحياتِ على
+--    PostgreSQL حقيقيّةٍ. والسببُ الجذريُّ: PostgreSQL يمنحُ `execute` للدورِ
+--    `PUBLIC` **تلقائيّاً** عندَ إنشاءِ أيِّ دالّةٍ، و`anon` يورِّثُ منه — فنزعُ
+--    الصلاحيةِ من دورٍ **لا يُبطِلُ منحةَ `PUBLIC`**. فيُنزَعُ `public` صراحةً
+--    كما تفعلُ كلُّ هجراتِ الدوالِّ في المستودعِ. **ولم يُخفَّفْ الاختبارُ ولم
+--    يُصنَّفْ تجاوزٌ**: العطبُ كانَ في الهجرةِ لا في الحاجزِ.
+revoke all on function public.current_request_id() from public, anon, authenticated;
+revoke all on function public.set_request_id() from public, anon, authenticated;
