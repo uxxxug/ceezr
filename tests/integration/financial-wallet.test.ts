@@ -44,7 +44,14 @@ async function fixture(): Promise<Fixture> {
  * رقماً في فاتورةٍ حقيقيّةٍ لا يملكُه أحدٌ — ويمنعُه حاجزُ عقدِ الفاتورةِ
  * (القاعدةُ ٧). وفي الاختبارِ هوَ مُدخَلٌ لا دعوى إنتاجٍ.
  */
+const taxSeededCities = new Set<string>();
 async function seedTaxIdentity(cityId: string): Promise<void> {
+  // **يُسجَّلُ ما يُبذَرُ ليُنزَعَ**: `platform_settings` مفتاحُه `(city_id, key)`،
+  // ومفتاحٌ يبقى في مدينةٍ بعدَ الاختبارِ يجعلُ المدنَ الأخرى **ناقصةً** فيُسقِطُ
+  // `tests/integration/settings-parity.test.ts` — وقد أسقطَهُ فعلاً في الجولةِ
+  // `35076192872` بثمانِ فجواتٍ. فتلويثُ ملفٍّ يُقاسُ في ملفٍّ آخرَ، والنظافةُ
+  // شرطُ صدقِ القياسِ لا أدبٌ زائدٌ.
+  taxSeededCities.add(cityId);
   await sql`insert into platform_settings(city_id,key,value,value_type,description_ar,is_provisional)
     values(${cityId},'tax_seller_name',${sql.json("منشأةٌ اختباريّةٌ")},'string','اسمُ بائعٍ للاختبارِ',true)
     on conflict (city_id,key) do update set value=excluded.value`;
@@ -65,7 +72,14 @@ beforeAll(async () => {
   if (DATABASE_URL) sql = createSql({ connectionString: DATABASE_URL });
 });
 afterAll(async () => {
-  if (DATABASE_URL) await sql.end();
+  if (!DATABASE_URL) return;
+  for (const cityId of taxSeededCities) {
+    await sql`delete from platform_settings
+               where city_id = ${cityId}
+                 and key in ('tax_seller_name', 'tax_seller_vat_number')`;
+  }
+  taxSeededCities.clear();
+  await sql.end();
 });
 describeIf("financial subscription wallet on real database", () => {
   it("ينشئ محفظة واحدة تحت السباق ويقرأ مجموع دفترها", async () => {

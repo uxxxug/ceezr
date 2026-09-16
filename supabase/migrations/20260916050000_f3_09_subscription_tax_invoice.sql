@@ -222,13 +222,21 @@ returns text
 language sql
 immutable
 as $$
-  select encode(
-    zatca_tlv_field(1, p_seller_name)
-    || zatca_tlv_field(2, p_seller_vat_number)
-    || zatca_tlv_field(3, to_char(p_issued_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
-    || zatca_tlv_field(4, to_char(p_total_incl_vat_minor::numeric / 100, 'FM999999999990.00'))
-    || zatca_tlv_field(5, to_char(p_vat_amount_minor::numeric / 100, 'FM999999999990.00')),
-    'base64'
+  -- `translate` **ليسَ زينةً**: `encode(…, 'base64')` في PostgreSQL يلفُّ السطرَ
+  -- كلَّ ٧٦ محرفاً بـ`\n` (سلوكٌ موروثٌ من `MIME`)، ورمزُ الاستجابةِ حِمْلٌ
+  -- واحدٌ لا رسالةُ بريدٍ: سطرٌ ملفوفٌ يُنتِجُ نصّاً **لا يُفَكُّ** بأيِّ قارئٍ
+  -- صارمٍ. وقد ردَّت وظيفةُ CI هذا العيبَ بخمسِ حالاتٍ ساقطةٍ في الجولةِ
+  -- `35076192872`، ولم تكن لتراهُ قاعدةٌ وهميّةٌ ألبتّةَ.
+  select translate(
+    encode(
+      zatca_tlv_field(1, p_seller_name)
+      || zatca_tlv_field(2, p_seller_vat_number)
+      || zatca_tlv_field(3, to_char(p_issued_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+      || zatca_tlv_field(4, to_char(p_total_incl_vat_minor::numeric / 100, 'FM999999999990.00'))
+      || zatca_tlv_field(5, to_char(p_vat_amount_minor::numeric / 100, 'FM999999999990.00')),
+      'base64'
+    ),
+    e'\n\r', ''
   );
 $$;
 
@@ -542,3 +550,18 @@ revoke all on function driver_subscription_payment_status(bigint, uuid) from pub
 revoke all on function driver_subscription_payment_status(bigint, uuid) from anon;
 revoke all on function driver_subscription_payment_status(bigint, uuid) from authenticated;
 grant execute on function driver_subscription_payment_status(bigint, uuid) to service_role;
+
+-- **سطحُ الصلاحياتِ يُقفَلُ صراحةً لكلِّ دالّةٍ جديدةٍ**: `create function` في
+-- PostgreSQL يمنحُ `execute` لـ`public` تلقائيّاً، و`public` تشملُ `anon` و
+-- `authenticated` في Supabase — فدالّةٌ تُنشَأُ ولا تُقفَلُ **مفتوحةٌ للعالمِ**
+-- ولو لم تُذكَر في أيِّ مسارٍ. وذاكَ ما ردَّتهُ وظيفةُ CI في الجولةِ
+-- `35076192872` بأربعِ دوالَّ مكشوفةٍ (اختبارُ «سطحِ الصلاحياتِ» الطبقةُ ٢
+-- والفحصُ الهجوميُّ)، ولا يُقاسُ محليّاً بلا محرِّكٍ حقيقيٍّ.
+-- ودالّةُ الزنادِ من بينِها: زنادٌ يُنفَّذُ بحقِّ مالكِ الجدولِ لا بحقِّ المنادي،
+-- فسحبُ `execute` منها لا يُعطِّلُ الزنادَ ويُغلِقُ ندائَها المباشرَ.
+revoke all on function zatca_tlv_field(integer, text) from public, anon, authenticated;
+revoke all on function zatca_simplified_invoice_qr(text, text, timestamptz, integer, integer)
+  from public, anon, authenticated;
+revoke all on function subscription_tax_invoice_payload(subscription_invoices)
+  from public, anon, authenticated;
+revoke all on function subscription_invoices_are_immutable() from public, anon, authenticated;

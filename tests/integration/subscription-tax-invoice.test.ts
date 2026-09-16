@@ -552,6 +552,18 @@ describeIf("رمزُ الاستجابةِ — يُفكِّكُه عرّافٌ ل
     expect(decoded.fields.map((field) => field.tag)).toEqual([...SIMPLIFIED_INVOICE_TAGS]);
   });
 
+  it("٢١أ) الحِمْلُ سطرٌ واحدٌ بلا فراغٍ — لا لفَّ `MIME` في رمزِ استجابةٍ", async () => {
+    const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
+    const invoice = invoiceOf(await issue(DRIVER_TELEGRAM_ID, transactionId));
+    const raw = String(invoice.qr_tlv_base64);
+    // `encode(…, 'base64')` في PostgreSQL يلفُّ كلَّ ٧٦ محرفاً بـ`\n`، ورمزُ
+    // الاستجابةِ حِمْلٌ واحدٌ: سطرٌ ملفوفٌ لا يُفَكُّ. وهذا القياسُ يمنعُ عودَ
+    // العيبِ الذي ردَّتهُ الجولةُ `35076192872` بخمسِ حالاتٍ.
+    expect(raw).not.toMatch(/\s/);
+    expect(raw).toMatch(/^[A-Za-z0-9+/]+={0,2}$/);
+    expect(raw.length).toBeGreaterThan(76);
+  });
+
   it("٢٢) القيمُ المُفكَّكةُ **تُطابِقُ** حقولَ الفاتورةِ نفسَها", async () => {
     const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
     const invoice = invoiceOf(await issue(DRIVER_TELEGRAM_ID, transactionId));

@@ -118,6 +118,28 @@ describe("السوالبُ المزروعةُ — لكلِّ سببِ سقوطٍ
     expect(decoded.failure.reason).toBe("TAG_IS_ZERO");
   });
 
+  /**
+   * **العرّافُ لا يُصلِحُ حِمْلاً معطوباً**: `encode(…, 'base64')` في PostgreSQL
+   * يلفُّ السطرَ كلَّ ٧٦ محرفاً، ولو تسامحَ القارئُ بالفراغِ لَمرَّ حِمْلٌ لا
+   * يقرؤُه ماسحٌ حقيقيٌّ. فالرفضُ ههنا هوَ ما كشفَ العيبَ في وظيفةِ CI.
+   */
+  test("حِمْلٌ ملفوفٌ بـ`\\n` ⇒ `NOT_BASE64` — ولا فراغٌ يُحذَفُ صامتاً", () => {
+    const oneLine = encodeLocal([
+      { tag: 1, value: SELLER },
+      { tag: 2, value: "300000000000003" },
+      { tag: 3, value: "2026-09-16T08:54:18Z" },
+      { tag: 4, value: "250.00" },
+      { tag: 5, value: "32.61" },
+    ]);
+    expect(oneLine.length).toBeGreaterThan(76);
+    const wrapped = `${oneLine.slice(0, 76)}\n${oneLine.slice(76)}`;
+    expect(decodeTlv(oneLine).ok).toBe(true);
+    const decoded = decodeTlv(wrapped);
+    expect(decoded.ok).toBe(false);
+    if (decoded.ok) return;
+    expect(decoded.failure.reason).toBe("NOT_BASE64");
+  });
+
   test("وسمٌ مُبدَّلٌ يُقرأُ مُبدَّلاً — ولا يُصحَّحُ صامتاً", () => {
     const swapped = encodeLocal([
       { tag: 7, value: SELLER },
