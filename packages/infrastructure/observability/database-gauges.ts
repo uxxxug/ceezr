@@ -25,7 +25,23 @@ interface GaugeRow {
   readonly telegram_jobs_oldest_due_age_seconds: number | null;
   readonly telegram_jobs_dead_recent: number;
   readonly telegram_jobs_claimed: number;
+  readonly connections_active: number;
+  readonly connections_idle: number;
+  readonly connections_idle_in_transaction: number;
+  readonly connections_other: number;
+  readonly connections_limit: number;
+  readonly matched_in_window: number;
+  readonly assignment_p50_seconds: number | null;
+  readonly assignment_p90_seconds: number | null;
 }
+
+/**
+ * نافذةُ زمنِ الإسنادِ (`F8-02`): خمسُ دقائقَ. ولَم قصيرةٌ؟ لأنَّ الغرضَ
+ * إنذارٌ حيٌّ: نافذةٌ بساعاتٍ تغمرُ تدهوراً عمرُه دقائقُ في متوسّطٍ هادئٍ
+ * فيُقرأُ أنَّ شيئاً لم يقعْ. وهيَ **تُنشَرُ مقياساً** فلا يُقارَنُ رقمُها
+ * برقمِ لوحةِ الإدارةِ (`F7-08`) وهما على نافذتينِ مختلفتينِ.
+ */
+export const ASSIGNMENT_WINDOW_SECONDS = 300;
 
 export interface DatabaseGaugeCollectionError {
   readonly code: "DATABASE_GAUGE_COLLECTION_FAILED";
@@ -120,7 +136,118 @@ export function createDatabaseGaugeCollector(
                 and completed_at > now() - make_interval(secs => ${QUEUE_DEAD_WINDOW_SECONDS}))
               as telegram_jobs_dead_recent,
             (select count(*)::int from telegram_update_jobs
-              where status = 'claimed') as telegram_jobs_claimed
+              where status = 'claimed') as telegram_jobs_claimed,
+            -- الاتصالاتُ (F8-02): من pg_stat_activity وهيَ رؤيةُ المحرِّكِ
+            -- لا عدٌّ في العمليّةِ: عدٌّ في العمليّةِ يرى مجمعَ نفسِها وحدَه،
+            -- والسقفُ مشترَكٌ بينَ النسخِ كلِّها والعاملينَ والهجراتِ.
+            -- ولا وسمَ مستخدمٍ ولا تطبيقٍ ولا عنوانٍ: ثلاثُ حالاتٍ ورابعةٌ
+            -- جامعةٌ، وما سوى ذلكَ يُنشئُ سلسلةً لكلِّ نسخةٍ تُنشَرُ.
+            (select count(*)::int from pg_stat_activity
+              where datname = current_database() and state = 'active') as connections_active,
+            (select count(*)::int from pg_stat_activity
+              where datname = current_database() and state = 'idle') as connections_idle,
+            (select count(*)::int from pg_stat_activity
+              where datname = current_database()
+                and state in ('idle in transaction', 'idle in transaction (aborted)'))
+              as connections_idle_in_transaction,
+            (select count(*)::int from pg_stat_activity
+              where datname = current_database()
+                and (state is null
+                  or state not in (
+                    'active', 'idle',
+                    'idle in transaction', 'idle in transaction (aborted)')))
+              as connections_other,
+            (select current_setting('max_connections')::int) as connections_limit,
+            -- زمنُ الإسنادِ (F8-02): من الختمينِ المكتوبَينِ لا من مؤقِّتٍ
+            -- في الذاكرةِ: الطلبُ يُنشَأُ في عمليّةٍ ويُسنَدُ في أخرى، ومؤقِّتٌ
+            -- في الذاكرةِ يُفقَدُ بإعادةِ التشغيلِ ويكذبُ عندَ تعدُّدِ النسخِ.
+            -- والشرطُ على ختمِ المطابقةِ لا على ختمِ الإنشاءِ: المقيسُ متى وقعَ
+            -- الإسنادُ لا متى وردَ الطلبُ، وإلّا سقطَ من النافذةِ كلُّ طلبٍ
+            -- بطيءِ الإسنادِ — وهوَ عينُ ما يُرادُ قياسُه.
+            (select count(*)::int from orders where status = 'searching') as searching_orders,
+            (select count(*)::int from driver_availability where is_available) as available_drivers,
+            (select count(*)::int
+               from subscriptions
+              where status = 'expired'
+                and updated_at >= date_trunc('day', now())
+                and updated_at < date_trunc('day', now()) + interval '1 day')
+              as expired_subscriptions_today,
+            (select extract(epoch from max(created_at))::float8
+               from db_backups
+              where status = 'success') as last_successful_backup_timestamp_seconds,
+            -- حِمْلُ الطوابيرِ الصامدةِ (F6-06): مجموعٌ على المدنِ كلِّها، فلا وسمَ
+            -- مدينةٍ في المقياسِ. والتعريفاتُ حرفاً حرفاً كما في دالَّتَي الحِمْلِ
+            -- notification_outbox_load وtelegram_update_jobs_load: عمقٌ = عملٌ لم
+            -- يُنهَ (معلَّقٌ + محجوزٌ)، وعمرٌ = أقدمُ **مستحقٍّ** معلَّقٍ، وموتى في
+            -- نافذةٍ. واختلافُ التعريفِ بينَ اللوحةِ وحكمِ القاعدةِ هوَ عينُ العطبِ
+            -- الذي يُصلِحُه هذا البندُ: رقمانِ باسمٍ واحدٍ ومعنيَينِ.
+            (select count(*)::int from notification_outbox
+              where status in ('pending', 'sending')) as outbox_depth,
+            (select extract(epoch from now() - min(next_attempt_at))::float8
+               from notification_outbox
+              where status = 'pending' and next_attempt_at <= now())
+              as outbox_oldest_due_age_seconds,
+            (select count(*)::int from notification_outbox
+              where status = 'dead' and died_at is not null
+                and died_at > now() - make_interval(secs => ${QUEUE_DEAD_WINDOW_SECONDS}))
+              as outbox_dead_recent,
+            (select count(*)::int from notification_outbox
+              where status = 'sending') as outbox_claimed,
+            (select count(*)::int from telegram_update_jobs
+              where status in ('pending', 'claimed')) as telegram_jobs_depth,
+            (select extract(epoch from now() - min(coalesce(next_attempt_at, created_at)))::float8
+               from telegram_update_jobs
+              where status = 'pending' and coalesce(next_attempt_at, created_at) <= now())
+              as telegram_jobs_oldest_due_age_seconds,
+            (select count(*)::int from telegram_update_jobs
+              where status = 'dead' and completed_at is not null
+                and completed_at > now() - make_interval(secs => ${QUEUE_DEAD_WINDOW_SECONDS}))
+              as telegram_jobs_dead_recent,
+            (select count(*)::int from telegram_update_jobs
+              where status = 'claimed') as telegram_jobs_claimed,
+            -- الاتصالاتُ (F8-02): من pg_stat_activity وهيَ رؤيةُ المحرِّكِ
+            -- لا عدٌّ في العمليّةِ: عدٌّ في العمليّةِ يرى مجمعَ نفسِها وحدَه،
+            -- والسقفُ مشترَكٌ بينَ النسخِ كلِّها والعاملينَ والهجراتِ.
+            -- ولا وسمَ مستخدمٍ ولا تطبيقٍ ولا عنوانٍ: ثلاثُ حالاتٍ ورابعةٌ
+            -- جامعةٌ، وما سوى ذلكَ يُنشئُ سلسلةً لكلِّ نسخةٍ تُنشَرُ.
+            (select count(*)::int from pg_stat_activity
+              where datname = current_database() and state = 'active') as connections_active,
+            (select count(*)::int from pg_stat_activity
+              where datname = current_database() and state = 'idle') as connections_idle,
+            (select count(*)::int from pg_stat_activity
+              where datname = current_database()
+                and state in ('idle in transaction', 'idle in transaction (aborted)'))
+              as connections_idle_in_transaction,
+            (select count(*)::int from pg_stat_activity
+              where datname = current_database()
+                and (state is null
+                  or state not in (
+                    'active', 'idle',
+                    'idle in transaction', 'idle in transaction (aborted)')))
+              as connections_other,
+            (select current_setting('max_connections')::int) as connections_limit,
+            -- زمنُ الإسنادِ (F8-02): من الختمينِ المكتوبَينِ لا من مؤقِّتٍ
+            -- في الذاكرةِ: الطلبُ يُنشَأُ في عمليّةٍ ويُسنَدُ في أخرى، ومؤقِّتٌ
+            -- في الذاكرةِ يُفقَدُ بإعادةِ التشغيلِ ويكذبُ عندَ تعدُّدِ النسخِ.
+            -- والشرطُ على ختمِ المطابقةِ لا ختمِ الإنشاءِ: المقيسُ متى وقعَ
+            -- الإسنادُ لا متى وردَ الطلبُ، وإلّا سقطَ من النافذةِ كلُّ طلبٍ
+            -- بطيءِ الإسنادِ — وهوَ عينُ ما يُرادُ قياسُه.
+            (select count(*)::int from orders
+              where matched_at is not null
+                and matched_at >= now() - make_interval(secs => ${ASSIGNMENT_WINDOW_SECONDS}))
+              as matched_in_window,
+            (select percentile_cont(0.5) within group (
+                order by extract(epoch from (matched_at - created_at)))::float8
+               from orders
+              where matched_at is not null
+                and matched_at >= now() - make_interval(secs => ${ASSIGNMENT_WINDOW_SECONDS}))
+              as assignment_p50_seconds,
+            (select percentile_cont(0.9) within group (
+                order by extract(epoch from (matched_at - created_at)))::float8
+               from orders
+              where matched_at is not null
+                and matched_at >= now() - make_interval(secs => ${ASSIGNMENT_WINDOW_SECONDS}))
+              as assignment_p90_seconds
         `;
       });
       const row = rows[0];
@@ -145,6 +272,21 @@ export function createDatabaseGaugeCollector(
             claimed: row?.telegram_jobs_claimed ?? 0,
           },
         ],
+        connections: [
+          { state: "active", count: row?.connections_active ?? 0 },
+          { state: "idle", count: row?.connections_idle ?? 0 },
+          { state: "idle_in_transaction", count: row?.connections_idle_in_transaction ?? 0 },
+          { state: "other", count: row?.connections_other ?? 0 },
+        ],
+        maxConnections: row?.connections_limit ?? 0,
+        assignment: {
+          matchedInWindow: row?.matched_in_window ?? 0,
+          // ولاَ إسنادَ في النافذةِ يُعيدُ `null` من `percentile_cont`، ويُنشَرُ
+          // صفراً معَ `matchedInWindow = 0` الذي يقرأُ معَه فيُفهَمُ غياباً لا سرعةً.
+          p50Seconds: row?.assignment_p50_seconds ?? 0,
+          p90Seconds: row?.assignment_p90_seconds ?? 0,
+          windowSeconds: ASSIGNMENT_WINDOW_SECONDS,
+        },
       };
       metrics.observeCriticalDatabaseQuery("operational_gauges", now() - startedAt);
       metrics.setDatabaseGauges(value);

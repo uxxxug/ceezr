@@ -7,6 +7,8 @@
  * ملاحظات مستقبلية: لا تُضاف وسوم user_id أو order_id أو city_id كي لا يرتفع cardinality.
  */
 
+import { methodLabel, routeLabel, statusClass } from "./http-metrics.ts";
+import type { ProcessMemorySnapshot } from "./process-metrics.ts";
 import { PrometheusRegistry } from "./registry.ts";
 
 const DEFAULT_HISTOGRAM_BUCKETS = [
@@ -52,6 +54,21 @@ export interface OperationalMetrics {
   observeCriticalDatabaseQuery(query: string, durationMs: number): void;
   setDatabaseGauges(values: DatabaseGaugeValues): void;
   recordDatabaseGaugeCollectionFailure(): void;
+  /**
+   * `F8-02` — معدَّلُ الحافةِ وتأخّرُها وأخطاؤُها في تسجيلٍ واحدٍ: الوسومُ
+   * **مُطبَّعةٌ داخلَ هذه الدالّةِ** (`methodLabel` · `routeLabel` · `statusClass`)
+   * فلا يملكُ موضعُ النداءِ أن يُمرِّرَ مساراً خاماً فيه معرِّفٌ.
+   */
+  recordHttpRequest(
+    method: string,
+    routePath: string | undefined,
+    status: number,
+    durationMs: number,
+  ): void;
+  /** طلبٌ خرجَ باستثناءٍ لم يُلتقَطْ — يُعَدُّ ويُعَدُّ معَه `5xx`. */
+  recordHttpUnhandledError(method: string, routePath: string | undefined): void;
+  /** `F8-02` — ذاكرةُ العمليّةِ وعمرُها لحظةَ المسحِ. */
+  setProcessGauges(values: ProcessMemorySnapshot): void;
 }
 
 /**
@@ -69,6 +86,44 @@ export interface QueueGaugeValues {
   readonly claimed: number;
 }
 
+/**
+ * اتصالاتُ القاعدةِ لحظةَ القياسِ (`F8-02` — «اتصالات»). والوسمُ **الحالةُ**
+ * وحدَها (`active` · `idle` · `idle_in_transaction` · `other`): وسمُ المستخدمِ أو
+ * التطبيقِ أو العنوانِ يُنشئُ سلسلةً لكلِّ نسخةٍ تُنشَرُ، ولا يُجيبُ عن السؤالِ
+ * الذي يُسأَلُ ههنا: **أقاربٌ نحنُ من السقفِ أم لا؟**
+ */
+export interface DatabaseConnectionGaugeValues {
+  readonly state: string;
+  readonly count: number;
+}
+
+/**
+ * زمنُ الإسنادِ (`F8-02` — «زمن الإسناد»): الفارقُ بينَ `orders.created_at` و
+ * `orders.matched_at` لما أُسنِدَ **في نافذةٍ أخيرةٍ مُعلَنةٍ**. ويُقاسُ في
+ * القاعدةِ لا في العمليّةِ لأنَّ الطلبَ يُنشَأُ في عمليّةٍ وقد يُسنَدُ في أخرى،
+ * ومؤقِّتٌ في الذاكرةِ **يُفقَدُ بإعادةِ التشغيلِ ويكذبُ عندَ تعدُّدِ النسخِ**.
+ *
+ * و**الغيابُ صفرُ عدٍّ لا صفرُ زمنٍ**: إن لم يقعْ إسنادٌ في النافذةِ فالعدُّ صفرٌ
+ * والزمنانِ صفرانِ، ويُقرآنِ بشرطِ العدِّ. وقارئٌ يقرأُ الزمنَ بلا العدِّ يقرأُ
+ * «إسنادٌ فوريٌّ» حيثُ لا إسنادَ أصلاً — ولذلكَ نُشِرَ العدُّ معَهما.
+ */
+export interface AssignmentLatencyGaugeValues {
+  /** عددُ الطلباتِ التي أُسنِدَت في النافذةِ. */
+  readonly matchedInWindow: number;
+  /** الوسيطُ بالثواني — صفرٌ إن لم يقعْ إسنادٌ. */
+  readonly p50Seconds: number;
+  /** المئينُ التسعونَ بالثواني — صفرٌ إن لم يقعْ إسنادٌ. */
+  readonly p90Seconds: number;
+  /**
+   * طولُ النافذةِ بالثواني — **يُنشَرُ مقياساً لا يُتركُ تعليقاً**. ولقطةُ
+   * لوحةِ الإدارةِ (`F7-08`) تقرأُ **العمودَينِ نفسَهما** (`created_at` و
+   * `matched_at`) بنافذةٍ أخرى يضبطُها المُشغِّلُ. فالمصدرُ واحدٌ والنافذتانِ
+   * مختلفتانِ؛ **ورقمانِ باسمٍ واحدٍ ونافذتينِ مسكوتٍ عنهما هوَ عينُ الكذبِ**،
+   * فلذلكَ تُنشَرُ النافذةُ معَ الرقمِ لا في ورقةٍ جانبيّةٍ.
+   */
+  readonly windowSeconds: number;
+}
+
 export interface DatabaseGaugeValues {
   readonly searchingOrders: number;
   readonly availableDrivers: number;
@@ -76,6 +131,11 @@ export interface DatabaseGaugeValues {
   readonly lastSuccessfulBackupTimestampSeconds: number;
   /** حِمْلُ الطوابيرِ الصامدةِ — سطرٌ لكلِّ طابورٍ، بلا وسمِ مدينةٍ. */
   readonly queues: readonly QueueGaugeValues[];
+  /** اتصالاتُ القاعدةِ بحسبِ الحالةِ — سطرٌ لكلِّ حالةٍ. */
+  readonly connections: readonly DatabaseConnectionGaugeValues[];
+  /** السقفُ المضبوطُ في المحرِّكِ (`max_connections`) — بلا سقفٍ لا معنى للعدِّ. */
+  readonly maxConnections: number;
+  readonly assignment: AssignmentLatencyGaugeValues;
 }
 
 function secondsFromMs(durationMs: number): number {
@@ -211,6 +271,76 @@ export function createOperationalMetrics(): OperationalMetrics {
     labelNames: ["queue"],
   });
 
+  /**
+   * `F8-02` — الحافةُ: معدَّلٌ وتأخّرٌ وأخطاءٌ. والعدَّادُ يحملُ صنفَ الحالةِ فيُقرأُ
+   * منه المعدَّلُ ونسبةُ الأخطاءِ **من مصدرٍ واحدٍ**؛ ومعَه عدَّادٌ صريحٌ للأخطاءِ
+   * ليُقرأَ الإنذارُ بلا شرطٍ على وسمٍ (`5xx` مجموعةٌ فرعيّةٌ مُعلَنةٌ منه لا رقمٌ ثانٍ).
+   */
+  registry.defineCounter({
+    name: "waslah_http_requests_total",
+    help: "عددُ طلباتِ HTTP بحسبِ القالبِ والطريقةِ وصنفِ الحالةِ — معدَّلُ الحافةِ.",
+    labelNames: ["route", "method", "status_class"],
+  });
+  registry.defineHistogram({
+    name: "waslah_http_request_duration_seconds",
+    help: "زمنُ خدمةِ طلبِ HTTP من دخولِ الوسيطِ إلى خروجِ الردِّ.",
+    labelNames: ["route", "method"],
+    buckets: DEFAULT_HISTOGRAM_BUCKETS,
+  });
+  registry.defineCounter({
+    name: "waslah_http_errors_total",
+    help: "عددُ ردودِ HTTP التي صنفُها 5xx أو التي خرجت باستثناءٍ لم يُلتقَط.",
+    labelNames: ["route", "method", "status_class"],
+  });
+
+  /** `F8-02` — الذاكرةُ: قيمٌ لحظيّةٌ تُقرأُ عندَ المسحِ لا بمؤقِّتٍ. */
+  registry.defineGauge({
+    name: "waslah_process_resident_memory_bytes",
+    help: "الذاكرةُ المقيمةُ للعمليّةِ بالبايتِ لحظةَ المسحِ.",
+  });
+  registry.defineGauge({
+    name: "waslah_process_heap_used_bytes",
+    help: "الكومةُ المستعملةُ بالبايتِ لحظةَ المسحِ.",
+  });
+  registry.defineGauge({
+    name: "waslah_process_heap_total_bytes",
+    help: "الكومةُ المحجوزةُ كلُّها بالبايتِ لحظةَ المسحِ.",
+  });
+  registry.defineGauge({
+    name: "waslah_process_external_memory_bytes",
+    help: "الذاكرةُ خارجَ الكومةِ بالبايتِ لحظةَ المسحِ.",
+  });
+  registry.defineGauge({
+    name: "waslah_process_uptime_seconds",
+    help: "عمرُ العمليّةِ بالثواني — يفرِّقُ بينَ نموِّ الذاكرةِ وإعادةِ التشغيلِ.",
+  });
+
+  /** `F8-02` — الاتصالاتُ: العدُّ بحسبِ الحالةِ والسقفُ معاً، فالعدُّ بلا سقفٍ لا يُقرأُ. */
+  registry.defineGauge({
+    name: "waslah_database_connections",
+    help: "عددُ اتصالاتِ PostgreSQL بحسبِ الحالةِ لحظةَ القياسِ.",
+    labelNames: ["state"],
+  });
+  registry.defineGauge({
+    name: "waslah_database_connections_limit",
+    help: "سقفُ الاتصالاتِ المضبوطُ في المحرِّكِ (max_connections).",
+  });
+
+  /** `F8-02` — زمنُ الإسنادِ: مقيسٌ في القاعدةِ على نافذةٍ، ومعَه عدُّ النافذةِ. */
+  registry.defineGauge({
+    name: "waslah_order_assignment_seconds",
+    help: "زمنُ الإسنادِ (من إنشاءِ الطلبِ إلى مطابقتِه) في النافذةِ الأخيرةِ بحسبِ المئينِ.",
+    labelNames: ["quantile"],
+  });
+  registry.defineGauge({
+    name: "waslah_order_assignment_window_seconds",
+    help: "طولُ نافذةِ قياسِ زمنِ الإسنادِ بالثواني — منشورٌ معَ الرقمِ لا مفترَضٌ.",
+  });
+  registry.defineGauge({
+    name: "waslah_orders_matched_in_window",
+    help: "عددُ الطلباتِ التي أُسنِدَت في نافذةِ قياسِ زمنِ الإسنادِ — شرطُ قراءةِ الزمنِ.",
+  });
+
   return {
     registry,
     recordTelegramUpdate: (bot, outcome, durationMs) => {
@@ -288,8 +418,63 @@ export function createOperationalMetrics(): OperationalMetrics {
         );
         registry.setGauge("waslah_queue_claimed", labels, integralCount(value.claimed));
       }
+      for (const connection of values.connections) {
+        registry.setGauge(
+          "waslah_database_connections",
+          { state: connection.state },
+          integralCount(connection.count),
+        );
+      }
+      registry.setGauge(
+        "waslah_database_connections_limit",
+        {},
+        integralCount(values.maxConnections),
+      );
+      registry.setGauge(
+        "waslah_orders_matched_in_window",
+        {},
+        integralCount(values.assignment.matchedInWindow),
+      );
+      registry.setGauge(
+        "waslah_order_assignment_seconds",
+        { quantile: "0.5" },
+        Math.max(0, values.assignment.p50Seconds),
+      );
+      registry.setGauge(
+        "waslah_order_assignment_window_seconds",
+        {},
+        Math.max(0, values.assignment.windowSeconds),
+      );
+      registry.setGauge(
+        "waslah_order_assignment_seconds",
+        { quantile: "0.9" },
+        Math.max(0, values.assignment.p90Seconds),
+      );
     },
     recordDatabaseGaugeCollectionFailure: () =>
       registry.increment("waslah_database_gauge_collection_failures_total"),
+    recordHttpRequest: (method, routePath, status, durationMs) => {
+      const labels = { route: routeLabel(routePath), method: methodLabel(method) };
+      const klass = statusClass(status);
+      registry.increment("waslah_http_requests_total", { ...labels, status_class: klass });
+      registry.observe("waslah_http_request_duration_seconds", labels, secondsFromMs(durationMs));
+      if (klass === "5xx") {
+        registry.increment("waslah_http_errors_total", { ...labels, status_class: klass });
+      }
+    },
+    recordHttpUnhandledError: (method, routePath) => {
+      registry.increment("waslah_http_errors_total", {
+        route: routeLabel(routePath),
+        method: methodLabel(method),
+        status_class: "5xx",
+      });
+    },
+    setProcessGauges: (values) => {
+      registry.setGauge("waslah_process_resident_memory_bytes", {}, values.residentBytes);
+      registry.setGauge("waslah_process_heap_used_bytes", {}, values.heapUsedBytes);
+      registry.setGauge("waslah_process_heap_total_bytes", {}, values.heapTotalBytes);
+      registry.setGauge("waslah_process_external_memory_bytes", {}, values.externalBytes);
+      registry.setGauge("waslah_process_uptime_seconds", {}, values.uptimeSeconds);
+    },
   };
 }
