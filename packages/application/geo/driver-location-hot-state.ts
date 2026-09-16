@@ -107,6 +107,36 @@ export interface DriverLocationHotStateWriter {
   ): Promise<Result<HotLocationRecordOutcome, PortFailureError>>;
 }
 
+/**
+ * لقطةُ موقعٍ من الحالةِ الساخنةِ — البندُ `F4-05`.
+ *
+ * الحالةُ الساخنةُ هيَ «المجرى المشترك» الذي يُغذّي صفحةَ التتبّعِ العامّةَ (`SS-06`)
+ * بدلَ قراءةِ القاعدةِ كلَّ خمسِ ثوانٍ. والموضعُ ههنا **أحدثُ** من عمودِ
+ * `drivers.last_location` لأنَّ الإفراغَ المجمَّعَ يتأخّر، ولا يُفترَضُ أن يُساويَه.
+ *
+ * ولا حقلَ هويّةٍ فيه: `lat` و`lng` و`observedAtMs` — وهذا كلُّ ما تحتاجُه الصفحةُ.
+ */
+export interface HotLocationSnapshot {
+  readonly lat: number;
+  readonly lng: number;
+  /** زمنُ قبولِ الإصلاحةِ بالملّي — لا طابعُ جهازٍ. */
+  readonly observedAtMs: number;
+}
+
+/**
+ * منفذُ قراءةِ الحالةِ الساخنةِ كما تحتاجُه صفحةُ التتبّعِ العامّةُ (`SS-06`) — البندُ `F4-05`.
+ *
+ * **لا إفراغَ ولا كتابةَ فيه**: قراءةٌ بـ`HGETALL` على مفتاحِ السائقِ والمدينةِ.
+ * والغيابُ ليسَ خطأً: الحالةُ تذوي بـ`TTL`، فلا وجودَ يعني «غيرُ مخزَّنٍ ساخناً»
+ * ويُرجَعُ `null` فيُعَدُّ القارئُ إلى القاعدةِ.
+ */
+export interface DriverLocationHotStateReader {
+  read(
+    driverId: DriverId,
+    cityId: CityId,
+  ): Promise<Result<HotLocationSnapshot | null, PortFailureError>>;
+}
+
 /** منفذُ الإفراغِ كما تحتاجُه المهمّةُ الدوريّةُ وحدَها — لا كتابةَ ساخنةً فيه. */
 export interface DriverLocationBacklogReader {
   /** يسحبُ حتّى `limit` سائقاً من قائمةِ الانتظارِ **ويُزيلُهم منها** معَ إصلاحاتِهم. */

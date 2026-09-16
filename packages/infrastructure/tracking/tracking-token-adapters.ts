@@ -28,7 +28,11 @@ import type {
   TrackingTokenMintPort,
   TrackingTokenRpcPort,
 } from "../../application/tracking/tracking-token-ports.ts";
-import type { CityId, OrderId } from "../../shared/kernel/index.ts";
+import type {
+  DriverLocationHotStateReader,
+  HotLocationSnapshot,
+} from "../../application/geo/driver-location-hot-state.ts";
+import type { CityId, DriverId, OrderId } from "../../shared/kernel/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { guard, readEnvelope, type Sql } from "../db/client.ts";
 
@@ -71,7 +75,19 @@ export function createTrackingTokenMint(): TrackingTokenMintPort {
   return { mint: () => randomBytes(TOKEN_BYTES).toString("hex") };
 }
 
-export function createTrackingTokenRpc(sql: Sql): TrackingTokenRpcPort {
+export interface TrackingTokenRpcOptions {
+  /** قارئُ الحالةِ الساخنةِ — إن وُجدَ، يُقرأُ الموقعُ من Redis لا من القاعدةِ. */
+  readonly hotStateReader?: DriverLocationHotStateReader;
+  /** ساعةٌ للقارئِ — تُستعمَلُ لحسابِ عمرِ النقطةِ من `observedAtMs`. */
+  readonly clock?: { now(): Date };
+}
+
+export function createTrackingTokenRpc(
+  sql: Sql,
+  options: TrackingTokenRpcOptions = {},
+): TrackingTokenRpcPort {
+  const hotStateReader = options.hotStateReader;
+  const clock = options.clock ?? { now: () => new Date() };
   return {
     async issue(
       orderId: OrderId,
@@ -147,16 +163,34 @@ export function createTrackingTokenRpc(sql: Sql): TrackingTokenRpcPort {
       const active = raw.active === true;
       const position = raw.position;
       if (typeof position !== "object" || position === null || Array.isArray(position)) {
-        // الحمولةُ تغيّرَت في `F2-09`: غيابُ `position` عقدٌ مكسورٌ يُعلَنُ
-        // عطلاً — ولا يُطوى «لا موقعَ» فتُقرأَ هجرةٌ ناقصةٌ حالةً طبيعيّةً.
         return err(
           new PortFailureError("trackingTokens.read", "ردٌّ بلا position من get_tracking_position"),
         );
       }
       const cell = position as Record<string, unknown>;
       const verdict = typeof cell.verdict === "string" ? cell.verdict : "";
-      const ageSeconds = toFinite(cell.age_seconds);
+      const dbAgeSeconds = toFinite(cell.age_seconds);
+      const driverId = typeof raw.driver_id === "string" ? (raw.driver_id as DriverId) : null;
+      const cityId = typeof raw.city_id === "string" ? (raw.city_id as CityId) : null;
 
+      // F4-05: اقرأِ الحالةَ الساخنةَ إن وُجدَ قارئٌ ومعرّفاتُ.
+      // الحالةُ الساخنةُ أحدثُ من القاعدةِ لأنَّ الإفراغَ المجمَّعَ يتأخّر.
+      if (hotStateReader !== undefined && driverId !== null && cityId !== null) {
+        const hot = await hotStateReader.read(driverId, cityId);
+        if (hot.ok && hot.value !== null) {
+          const snapshot = hot.value as HotLocationSnapshot;
+          const ageMs = clock.now().getTime() - snapshot.observedAtMs;
+          const ageSeconds = Math.max(0, Math.trunc(ageMs / 1000));
+          return ok({
+            kind: "located",
+            active,
+            position: { lat: snapshot.lat, lng: snapshot.lng, ageSeconds },
+          });
+        }
+      }
+
+      // لا حالةً ساخنةً — عُد إلى القاعدةِ.
+      const ageSeconds = dbAgeSeconds;
       if (verdict === "NEVER_REPORTED" || verdict === "NO_TIMESTAMP") {
         return ok({ kind: "awaiting", active, reason: verdict, ageSeconds });
       }
@@ -170,8 +204,6 @@ export function createTrackingTokenRpc(sql: Sql): TrackingTokenRpcPort {
       const lat = toFinite(cell.lat);
       const lng = toFinite(cell.lng);
       if (lat === null || lng === null || ageSeconds === null) {
-        // حكمٌ `LOCATED` بلا إحداثيّةٍ عقدٌ مكسورٌ لا «موقعٌ مبتورٌ»: لو قُرئَ
-        // انتظاراً لَصارَ خللُ القاعدةِ غيرَ مرئيٍّ في أيِّ مقياسٍ.
         return err(new PortFailureError("trackingTokens.read", "LOCATED بلا lat/lng/age_seconds"));
       }
       return ok({ kind: "located", active, position: { lat, lng, ageSeconds } });
