@@ -10,7 +10,12 @@
  */
 
 import { describe, expect, test } from "bun:test";
-import { findTableBlocks, tablesWithRlsEnabled } from "../../scripts/check-migrations.ts";
+import { readdirSync } from "node:fs";
+import {
+  duplicateTimestampPrefixes,
+  findTableBlocks,
+  tablesWithRlsEnabled,
+} from "../../scripts/check-migrations.ts";
 
 const set = (sql: string) => [...tablesWithRlsEnabled(sql)].sort();
 const tableNames = (sql: string) => findTableBlocks(sql).map((b) => b.name);
@@ -128,5 +133,48 @@ describe("استخراج تعريفات الجداول", () => {
     const blocks = findTableBlocks("create table public.sneaky (id uuid, note text);");
     expect(blocks).toHaveLength(1);
     expect(/\bcity_id\b/.test(blocks[0]?.body ?? "")).toBe(false);
+  });
+});
+
+describe("تكرارُ الطابعِ الزمنيِّ بينَ الهجراتِ", () => {
+  test("طابعانِ متطابقانِ في ملفَّينِ يُرصَدانِ باسمَيهما — وهيَ السالبةُ المزروعةُ", () => {
+    const dup = duplicateTimestampPrefixes([
+      "20260916210000_f8_02_orders_matched_at_index.sql",
+      "20260916210000_sec12_safety_incident_audit_trail.sql",
+      "20260916190000_f8_01_request_correlation.sql",
+    ]);
+    expect([...dup.keys()]).toEqual(["20260916210000"]);
+    expect(dup.get("20260916210000")).toEqual([
+      "20260916210000_f8_02_orders_matched_at_index.sql",
+      "20260916210000_sec12_safety_incident_audit_trail.sql",
+    ]);
+  });
+
+  test("ثلاثةُ ملفّاتٍ بطابعٍ واحدٍ تُرصَدُ كلُّها لا اثنانِ منها", () => {
+    const dup = duplicateTimestampPrefixes([
+      "20260101000000_a.sql",
+      "20260101000000_b.sql",
+      "20260101000000_c.sql",
+    ]);
+    expect(dup.get("20260101000000")).toHaveLength(3);
+  });
+
+  test("الطوابعُ المتمايزةُ تمرُّ ولا تُدانُ", () => {
+    expect(
+      duplicateTimestampPrefixes([
+        "20260916210000_f8_02_orders_matched_at_index.sql",
+        "20260916210100_sec12_safety_incident_audit_trail.sql",
+      ]).size,
+    ).toBe(0);
+  });
+
+  test("ما ليسَ هجرةً وما لا طابعَ له لا يُحاكَمانِ", () => {
+    expect(duplicateTimestampPrefixes(["README.md", "README.md", "notes.txt"]).size).toBe(0);
+    expect(duplicateTimestampPrefixes(["seed.sql", "seed.sql"]).size).toBe(0);
+  });
+
+  test("المستودَعُ كما هوَ على القرصِ بلا طابعٍ مكرَّرٍ", () => {
+    const names = readdirSync("supabase/migrations").filter((n) => n.endsWith(".sql"));
+    expect([...duplicateTimestampPrefixes(names).keys()]).toEqual([]);
   });
 });
