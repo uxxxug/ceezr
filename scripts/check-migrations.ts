@@ -151,11 +151,58 @@ export function declaredPlatformSecrets(sql: string): Set<string> {
   return declaredWithPrefix(sql, PLATFORM_SECRET_DECLARATION_PREFIX);
 }
 
+/**
+ * الطوابعُ الزمنيّةُ المتكرِّرةُ بينَ الهجراتِ — كلُّ طابعٍ ومَن حملَه.
+ *
+ * ## لِمَ هذا خرقٌ لا تفصيلُ تسميةٍ
+ *
+ * `scripts/migrate.ts` **لا يحتفظُ بسجلِّ هجراتٍ مُطبَّقةٍ**؛ يُستأنَفُ التطبيقُ
+ * بـ`--from <طابع>` والمقارنةُ **حصريّةٌ** (`name.slice(0, from.length) > from`).
+ * فطابعٌ واحدٌ يحملُه ملفّانِ يعني: مَن طبَّقَ أوّلَهما ثمَّ استأنفَ من طابعِه
+ * **يتخطّى الثانيَ صمتاً** — لا خطأٌ ولا سطرٌ في سجلٍّ، ومخطَّطٌ ناقصٌ يُظنُّ تامّاً.
+ * وهذا عطبٌ **لا يُمسِكُه أخضرُ CI**: قاعدةُ الوظيفةِ تُبنى من الصفرِ فتُطبَّقُ
+ * الهجرتانِ كلتاهما بالترتيبِ المعجميِّ، ولا يظهرُ التخطّي إلّا على قاعدةٍ قائمةٍ
+ * — أي في الإنتاجِ وحدَه.
+ *
+ * وقعَ ذلكَ فعلاً يومَ 2026-09-16: `20260916210000_f8_02_orders_matched_at_index.sql`
+ * و`20260916210000_sec12_safety_incident_audit_trail.sql` وُلِدا في فرعَينِ متوازيَينِ
+ * بالطابعِ عينِه، ولم يتعارضا في `git` لأنَّهما ملفّانِ مختلفانِ. فصارَ المنعُ
+ * **آليّاً في بوابةٍ** لا عُرفاً في مراجعةٍ.
+ */
+export function duplicateTimestampPrefixes(names: readonly string[]): Map<string, string[]> {
+  const byPrefix = new Map<string, string[]>();
+  for (const name of names) {
+    if (!name.endsWith(".sql")) continue;
+    const prefix = /^(\d{14})_/.exec(name)?.[1];
+    if (prefix === undefined) continue;
+    const bucket = byPrefix.get(prefix);
+    if (bucket === undefined) byPrefix.set(prefix, [name]);
+    else bucket.push(name);
+  }
+  const duplicates = new Map<string, string[]>();
+  for (const [prefix, bucket] of byPrefix) {
+    if (bucket.length > 1) duplicates.set(prefix, [...bucket].sort());
+  }
+  return duplicates;
+}
+
 function main(): void {
   const files = readdirSync(MIGRATIONS_DIR)
     .filter((f) => f.endsWith(".sql"))
     .sort();
   const violations: Violation[] = [];
+
+  // الطابعُ الزمنيُّ مفتاحُ الاستئنافِ في `migrate.ts`، فتكرارُه يُخفي هجرةً
+  // صمتاً على قاعدةٍ قائمةٍ. يُرى ههنا قبلَ أن يُرى في الإنتاجِ.
+  for (const [prefix, bucket] of duplicateTimestampPrefixes(files)) {
+    violations.push({
+      file: bucket.join(" · "),
+      table: "—",
+      problem:
+        `طابعٌ زمنيٌّ مكرَّرٌ (${prefix}) في ${bucket.length} هجرةٍ — و\`migrate.ts\` ` +
+        "يستأنفُ بـ`--from` بمقارنةٍ حصريّةٍ فيتخطّى الثانيَ صمتاً على قاعدةٍ قائمةٍ",
+    });
+  }
   const allTables: string[] = [];
   const rlsEnabled = new Set<string>();
   /** ما صُرِّح به فعلاً، وفي أيِّ ملفٍّ — كي يُرى المُدخلُ الميّتُ والتصريحُ اليتيم. */
