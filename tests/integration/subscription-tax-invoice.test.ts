@@ -44,6 +44,23 @@ function nextDirectSequence(): number {
   return directSequenceCounter;
 }
 
+/**
+ * يردُّ نصَّ الخطأِ الذي ردَّتْ بهِ القاعدةُ، أو يرمي إن قبِلَت ما كانَ يجبُ أن
+ * تَرُدَّه. **ولا يُستعمَلُ `expect(…).rejects` على استعلامٍ ههنا**: كائنُ استعلامِ
+ * `postgres.js` مُرجَأٌ لا وعدٌ منطلقٌ، ومطالبتُه بالإنجازِ من مُطابِقٍ لا يُنادي
+ * `then` تُعلِّقُ المجرى بلا حدٍّ — **وقد علَّقَت وظيفةَ CI ساعةً في `F3-07` بلا
+ * سطرِ فشلٍ واحدٍ** (`ADR 0122`)، وحاجزُ `check-lazy-query-assertion` يمنعُ عودَها.
+ * والتعليقُ الصامتُ أسوأُ من الأحمرِ: الأحمرُ يقولُ أينَ.
+ */
+async function rejectionOf(run: () => Promise<unknown>): Promise<string> {
+  try {
+    await run();
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  throw new Error("القاعدةُ قبِلَت ما كانَ يجبُ أن تَرُدَّه");
+}
+
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
 let sql: Sql;
@@ -445,7 +462,8 @@ describeIf("مرّةٌ واحدةٌ — رقمٌ واحدٌ لتوريدٍ وا�
     const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
     await issue(DRIVER_TELEGRAM_ID, transactionId);
     const directSeq = nextDirectSequence();
-    const attempt = sql`
+    const message = await rejectionOf(
+      () => sql`
       insert into subscription_invoices (
         city_id, payment_transaction_id, driver_id, invoice_year, invoice_sequence,
         invoice_number, amount_minor, currency, plan, document_type,
@@ -456,8 +474,9 @@ describeIf("مرّةٌ واحدةٌ — رقمٌ واحدٌ لتوريدٍ وا�
         ${`DIRECT-2999-${String(directSeq).padStart(6, "0")}`}, 25000, 'SAR', 'transport',
         'SIMPLIFIED_TAX_INVOICE', ${SELLER_NAME}, ${SELLER_VAT}, 1500, 21739, 3261, 'AQEB'
       )
-    `;
-    await expect(attempt).rejects.toThrow();
+    `,
+    );
+    expect(message).toMatch(/subscription_invoices_payment_transaction_id_key|duplicate key/);
   });
 });
 
@@ -465,23 +484,28 @@ describeIf("الثباتُ — حاجزٌ في القاعدةِ لا أدبٌ ف
   it("١٧) `update` على صفِّ فاتورةٍ ⇒ استثناءٌ مُسمّىً", async () => {
     const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
     await issue(DRIVER_TELEGRAM_ID, transactionId);
-    const attempt = sql`
+    const message = await rejectionOf(
+      () => sql`
       update subscription_invoices set vat_amount_minor = 1 where payment_transaction_id = ${transactionId}
-    `;
-    await expect(attempt).rejects.toThrow(/TAX_INVOICE_IS_IMMUTABLE/);
+    `,
+    );
+    expect(message).toMatch(/TAX_INVOICE_IS_IMMUTABLE/);
   });
 
   it("١٨) `delete` على صفِّ فاتورةٍ ⇒ استثناءٌ مُسمّىً", async () => {
     const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
     await issue(DRIVER_TELEGRAM_ID, transactionId);
-    const attempt = sql`delete from subscription_invoices where payment_transaction_id = ${transactionId}`;
-    await expect(attempt).rejects.toThrow(/TAX_INVOICE_IS_IMMUTABLE/);
+    const message = await rejectionOf(
+      () => sql`delete from subscription_invoices where payment_transaction_id = ${transactionId}`,
+    );
+    expect(message).toMatch(/TAX_INVOICE_IS_IMMUTABLE/);
   });
 
   it("١٩) قيدُ الجمعِ يرفضُ صفّاً حسابُه كاذبٌ", async () => {
     const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
     const directSeq = nextDirectSequence();
-    const attempt = sql`
+    const message = await rejectionOf(
+      () => sql`
       insert into subscription_invoices (
         city_id, payment_transaction_id, driver_id, invoice_year, invoice_sequence,
         invoice_number, amount_minor, currency, plan, document_type,
@@ -492,14 +516,16 @@ describeIf("الثباتُ — حاجزٌ في القاعدةِ لا أدبٌ ف
         ${`DIRECT-2999-${String(directSeq).padStart(6, "0")}`}, 25000, 'SAR', 'transport',
         'SIMPLIFIED_TAX_INVOICE', ${SELLER_NAME}, ${SELLER_VAT}, 1500, 20000, 3261, 'AQEB'
       )
-    `;
-    await expect(attempt).rejects.toThrow();
+    `,
+    );
+    expect(message).toMatch(/subscription_invoices_tax_all_or_none/);
   });
 
   it("٢٠) رقمٌ ضريبيٌّ ليسَ خمسةَ عشرَ رقماً ⇒ مرفوضٌ في القاعدةِ", async () => {
     const transactionId = await seedTransaction({ amountMinor: 25_000, status: "active" });
     const directSeq = nextDirectSequence();
-    const attempt = sql`
+    const message = await rejectionOf(
+      () => sql`
       insert into subscription_invoices (
         city_id, payment_transaction_id, driver_id, invoice_year, invoice_sequence,
         invoice_number, amount_minor, currency, plan, document_type,
@@ -510,8 +536,9 @@ describeIf("الثباتُ — حاجزٌ في القاعدةِ لا أدبٌ ف
         ${`DIRECT-2999-${String(directSeq).padStart(6, "0")}`}, 25000, 'SAR', 'transport',
         'SIMPLIFIED_TAX_INVOICE', ${SELLER_NAME}, '30000', 1500, 21739, 3261, 'AQEB'
       )
-    `;
-    await expect(attempt).rejects.toThrow();
+    `,
+    );
+    expect(message).toMatch(/subscription_invoices_tax_all_or_none/);
   });
 });
 
@@ -573,12 +600,16 @@ describeIf("رمزُ الاستجابةِ — يُفكِّكُه عرّافٌ ل
   });
 
   it("٢٦) وسمٌ خارجَ المدى ⇒ استثناءٌ من الدالّةِ لا بايتٌ مقطوعٌ", async () => {
-    await expect(sql`select zatca_tlv_field(0, 'س')`).rejects.toThrow(/TLV_TAG_OUT_OF_RANGE/);
-    await expect(sql`select zatca_tlv_field(256, 'س')`).rejects.toThrow(/TLV_TAG_OUT_OF_RANGE/);
+    expect(await rejectionOf(() => sql`select zatca_tlv_field(0, 'س')`)).toMatch(
+      /TLV_TAG_OUT_OF_RANGE/,
+    );
+    expect(await rejectionOf(() => sql`select zatca_tlv_field(256, 'س')`)).toMatch(
+      /TLV_TAG_OUT_OF_RANGE/,
+    );
   });
 
   it("٢٧) قيمةٌ تفوقُ ٢٥٥ بايتاً ⇒ استثناءٌ مُسمّىً", async () => {
-    await expect(sql`select zatca_tlv_field(1, repeat('س', 200))`).rejects.toThrow(
+    expect(await rejectionOf(() => sql`select zatca_tlv_field(1, repeat('س', 200))`)).toMatch(
       /TLV_VALUE_TOO_LONG/,
     );
   });

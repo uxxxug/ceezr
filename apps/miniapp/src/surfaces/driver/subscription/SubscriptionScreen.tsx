@@ -49,8 +49,7 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
-import { openExternalLink } from "../../../tg/app.ts";
-import type { TgOutcome } from "../../../tg/outcome.ts";
+import { openExternalLink, type TgOutcome } from "../../../tg/index.ts";
 import {
   type ApiDriverSubscriptionDashboardResponse,
   type ApiDriverSubscriptionHistoryResponse,
