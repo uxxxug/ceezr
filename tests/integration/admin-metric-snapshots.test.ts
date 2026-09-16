@@ -131,8 +131,16 @@ describeIf("لقطةُ مقاييسِ الإدارةِ على قاعدةٍ حق�
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
+    // القراءةُ نصّاً مُنسَقاً في القاعدةِ لا زينةٌ: المُشغِّلُ يُرجِعُ `timestamptz`
+    // كائنَ `Date`، و`String(Date)` يُسقِطُ الملّيّاتِ فيرتدُّ زمنُ القياسِ
+    // مقروءاً على حدِّ الثانيةِ — فتُقارَنُ لحظةٌ مقطوعةٌ بلحظةٍ دقيقةٍ
+    // فيخفِقُ القياسُ والنِّظامُ سليمٌ. وكشفَ ذاكَ **حكمُ CI** لا التشغيلُ
+    // المحلّيُّ (لا قاعدةَ حقيقيّةَ في صندوقِ التنفيذِ)، والتصحيحُ **رفعٌ للدقّةِ
+    // لا تخفيفٌ للشرطِ**: المُدَّعى أنَّ الزمنَ المنشورَ عَينُ المخزونِ بالملّيّةِ.
     const [row] = await sql<{ computed_at: string }[]>`
-      select computed_at from admin_metric_snapshots
+      select to_char(computed_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+               as computed_at
+        from admin_metric_snapshots
        where city_id = ${cityId} and window_hours = ${DAY_WINDOW_HOURS}::integer
     `;
     expect(row).not.toBeUndefined();
