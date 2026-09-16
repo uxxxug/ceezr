@@ -65,6 +65,19 @@ describe("مقاييس التشغيل بصيغة Prometheus", () => {
           claimed: 0,
         },
       ],
+      connections: [
+        { state: "active", count: 3 },
+        { state: "idle", count: 5 },
+        { state: "idle_in_transaction", count: 1 },
+        { state: "other", count: 0 },
+      ],
+      maxConnections: 100,
+      assignment: {
+        matchedInWindow: 9,
+        p50Seconds: 12.5,
+        p90Seconds: 41,
+        windowSeconds: 300,
+      },
     });
 
     const text = metrics.registry.render();
@@ -94,6 +107,12 @@ describe("مقاييس التشغيل بصيغة Prometheus", () => {
     ).toBe(1_786_579_200);
     expect(metricValue(text, "waslah_orders_searching")).toBe(4);
     expect(text).toContain("waslah_telegram_webhook_duration_seconds_bucket");
+    // الاتّصالاتُ وزمنُ الإسنادِ (F8-02) يُنشَرانِ من نفسِ نداءِ الـ gauges.
+    expect(metricValue(text, "waslah_database_connections", '{state="idle"}')).toBe(5);
+    expect(metricValue(text, "waslah_database_connections_limit")).toBe(100);
+    expect(metricValue(text, "waslah_order_assignment_seconds", '{quantile="0.9"}')).toBe(41);
+    expect(metricValue(text, "waslah_order_assignment_window_seconds")).toBe(300);
+    expect(metricValue(text, "waslah_orders_matched_in_window")).toBe(9);
   });
 });
 

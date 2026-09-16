@@ -1011,6 +1011,9 @@ const driverVehicle =
       };
 
 const app = createServer({
+  // `F8-02`: مقاييسُ الحافةِ على المُسجِّلِ **نفسِه** الذي ينشرُه مسارُ `/metrics`؛
+  // مُسجِّلانِ في عمليّةٍ واحدةٍ يعني أنَّ المنشورَ نصفُ المقيسِ.
+  httpMetrics: operationalMetrics,
   health: {
     now: () => new Date(),
     startedAt,

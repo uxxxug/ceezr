@@ -201,6 +201,23 @@ Nothing else has been changed in this repository by the WASLA integration work.
 دمجٍ ليسَت ثلاثَ جولاتٍ على `main` (`ح-4`)، **ولا بندَ مرحلةٍ يُقلَبُ** — `F8-01` و
 `F7-08` يبقيانِ `[~]`.
 
+### Reservation `F8-02` — **أربعةَ عشرَ مقياساً منشوراً: ما يُقاسُ عندَ الحافةِ وما يُقاسُ في المحرِّكِ** (opened 2026-09-16)
+
+حُجِزَ **قبلَ أوّلِ تعديلٍ**، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25.
+مقطوعٌ من `main`@`e2ebd66` فرعاً `feat/f8-02-core-metrics`.
+وطلبا الدمجِ المفتوحانِ (`#68` وثائقيٌّ · `#69` قرارُ `DEC-18`) **لا يمسّانِ المقاييسَ**،
+مقروءاً من `gh pr list` لا مفترَضاً.
+
+| الحقلُ | القيمةُ |
+|---|---|
+| البندُ | `F8-02` في §12 حرفاً: «~14 مقياساً أساسياً منشوراً (معدل، تأخّر، طوابير، أعمار، أخطاء، اتصالات، ذاكرة، معدل قبول العروض، زمن الإسناد)». |
+| **المقروءُ في المستودعِ قبلَ العملِ** | مُسجِّلُ Prometheus مبنيٌّ (`packages/infrastructure/observability/registry.ts`) ومسارُ `/metrics` محميٌّ بسرٍّ (`apps/gateway/src/routes/metrics.ts`) و**٢٤ عائلةً مُعرَّفةً** في `metrics.ts` تغطّي الطوابيرَ والأعمارَ وتيليجرام والتوزيعَ والدفعَ والمهامَّ الدوريّةَ. **والغائبُ من نصِّ البندِ أربعةٌ**: (١) **المعدَّلُ والتأخّرُ عندَ الحافةِ** — لا مقياسَ HTTP واحدٌ في المستودعِ كلِّه، فلا يُعرَفُ معدَّلُ الطلباتِ ولا زمنُها ولا نسبةُ الأخطاءِ؛ (٢) **الاتصالاتُ** — ميزانيّةُ الاتصالاتِ قرارٌ قائمٌ (`DEC-03`) ولا رقمَ منشورٌ عنها؛ (٣) **الذاكرةُ** — لا مقياسَ عمليّةٍ ألبتّةَ؛ (٤) **زمنُ الإسنادِ**. |
+| **معدَّلُ القبولِ لا يُنشَأُ له مقياسٌ ثالثٌ** | `waslah_dispatch_offers_sent_total` و`waslah_dispatch_offers_accepted_total` منشورانِ، والنسبةُ تُحسَبُ في الاستعلامِ. **ونشرُ نسبةٍ محسوبةٍ مُسبَقاً مصدرُ حقيقةٍ ثالثٌ يتناقضُ معَ بسطِه ومقامِه** عندَ إعادةِ التشغيلِ. فالمنشورُ العدّادانِ، وهذا مُدوَّنٌ لا مسكوتٌ عنه. |
+| **وزمنُ الإسنادِ يُقاسُ في القاعدةِ لا في العمليّةِ** | الطلبُ يُنشَأُ في عمليّةٍ وقد يُسنَدُ في أخرى (بوّابةٌ أو عاملٌ)، وتوقيتُ الفارقِ في الذاكرةِ **يُفقَدُ بإعادةِ التشغيلِ ويكذبُ عندَ تعدُّدِ النسخِ**. و`orders.created_at` و`orders.matched_at` **حقيقتانِ مكتوبتانِ**، فالفارقُ يُحسَبُ منهما بنافذةٍ مُعلَنةٍ. |
+| النطاقُ المحجوزُ | `packages/infrastructure/observability/metrics.ts` (تعريفاتٌ ومنافذُ تسجيلٍ جديدةٌ) · `packages/infrastructure/observability/http-metrics.ts` و`process-metrics.ts` (جديدانِ) · `packages/infrastructure/observability/database-gauges.ts` (اتصالاتٌ + زمنُ إسنادٍ) · `apps/gateway/src/observability/http-metrics.ts` (وسيطٌ جديدٌ) · `apps/gateway/src/server.ts` (تركيبُ الوسيطِ بعدَ معرِّفِ الطلبِ) · `apps/gateway/src/index.ts` و`routes/metrics.ts` (جمعُ مقاييسِ العمليّةِ عندَ المسحِ) · `scripts/lib/core-metrics-contract.ts` و`scripts/check-core-metrics.ts` (جديدانِ) وخطوتُهما في `package.json` و`.github/workflows/ci.yml` · `tests/unit/*` و`tests/integration/*` (جديدةٌ) · `scripts/lib/coverage-registry.ts` و`scripts/lib/skip-registry.ts` و`docs/*` عندَ الحاجةِ **بالزيادةِ** · `docs/adr/0131-*` · `docs/evidence/architecture/F8-02-*.md` · `ROADMAP.md` · `docs/ROADMAP-MASTER.md` (§25 سطرٌ واحدٌ) · `docs/SYSTEM_STATE.md` |
+| النطاقُ **غيرُ** المحجوزِ | نصُّ أيِّ بندٍ (`ح-1`) · **لا لوحةَ ولا تنبيهَ ولا ميزانيّةَ خطأٍ** (`F8-07` · `OPS-003`) · **لا ناقلَ OpenTelemetry** (`DEC-17`) · `F8-06` (مصفوفةُ الدفعِ) و`F8-08` (ضوابطُ الأمنِ) و`F8-09` · بنودُ `F2` (`DEC-11`) و`F5-06` (`DEC-14`) و`F7-05` (`DEC-16`) · **لا يُغيَّرُ سرُّ مسارِ `/metrics` ولا يُفتَحُ للعامةِ** · لا مقياسَ يُحذَفُ من الأربعةِ والعشرينَ القائمةِ |
+| سقفُ الادّعاءِ، مُعلَنٌ سلفاً | المُدَّعى: **المقاييسُ الأساسيّةُ مُعرَّفةٌ ومُسجَّلةٌ ومنشورةٌ على مسارٍ محميٍّ، ويحرسُ اكتمالَها حاجزٌ ساكنٌ بسوالبَ مبذورةٍ (`ح-7`)**. **ولا يُدَّعى** أنَّ أحداً يقرأُها: لا جامِعَ Prometheus ولا لوحةَ ولا تنبيهَ في المستودعِ — وذاكَ `F8-07` المحجوبُ بـ`OPS-003`، **ولا يُبنى حولَه** (`ح-6`). ولا `[x]` قبلَ حكمِ CI لكلِّ وظيفةٍ وثلاثِ جولاتٍ خضراءَ على `main` (`ح-4`). |
+
 ### Reservation `F8-01` — **معرِّفُ الطلبِ سياقٌ محمولٌ لا رأسٌ في ردٍّ**: من الحافةِ إلى الصفِّ في القاعدةِ وعبرَ الطابورِ (opened 2026-09-16, before any file was edited)
 
 حُجِزَ **قبلَ** أوّلِ تعديلٍ، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25.
@@ -1288,6 +1305,43 @@ scope, per the reservation rule in `docs/ROADMAP-MASTER.md` §25.
 | Dependencies checked before opening | `W-1` is done and its registry is the single source of truth this item reads. `B-1` (production inventory unknown) and `DEP-CORE-003` (no CORE geography change event) block **execution** of any wave in the matrix, not the authoring of the matrix itself — so the plan is deliverable and no wave may be marked executed. `O-1` and `O-2` are unrelated to this scope. |
 | Conflicting work checked | no open pull request, and no branch on `origin` carries a `docs/migration/` path or a `check-migration-matrix` guard (checked against every `origin/*` ref on 2026-09-12) |
 | Claim ceiling | this item may **not** be marked `[x]`: `ح-4` requires a read CI verdict, and rule 0.4 keeps `verify` red for `O-1`, so the matrix lands as a plan with its own gate and nothing is claimed executed. "Migrated" stays empty. |
+
+## Status of `F8-02` — core metrics published, recorded 2026-09-16 (additive; the reservation text above is unchanged)
+
+**النطاقُ المحجوزُ نُفِّذَ**، والحجزُ أعلاه يبقى مكتوباً لا ممحوّاً (`ح-8`).
+الفرعُ `feat/f8-02-core-metrics` من `main`@`e2ebd66`.
+الحاكمُ `docs/adr/0131-a-published-metric-is-a-contract-not-a-comment.md`،
+والدليلُ `docs/evidence/architecture/F8-02-20260916.md`،
+والسطرُ في `docs/ROADMAP-MASTER.md` §25.
+
+| الحقلُ | القيمةُ |
+|---|---|
+| المبنيُّ | ثلاثَ عشرةَ عائلةً جديدةً تُغطّي الفئاتِ التسعَ في نصِّ البندِ: طلباتٌ وزمنُها وأخطاؤها بوسمِ **قالبِ** المسارِ · خمسُ عائلاتِ عمليّةٍ تُقرأُ عندَ المسحِ · اتّصالاتُ القاعدةِ من `pg_stat_activity` **مع سقفِها** · زمنُ الإسنادِ بمئينَيهِ ونافذتِه وعدِّه. |
+| الحاجزُ | `scripts/check-core-metrics.ts` (+ `scripts/lib/core-metrics-contract.ts`) بإحدى عشرةَ قاعدةً، لكلِّ واحدةٍ سالبةٌ مبذورةٌ (`ح-7`)، في سلسلةِ `bun run ci` وخطوتَينِ مُسمّاتَينِ في وظيفةِ `verify`. |
+| ما صُحِّحَ من جذرِه | التطبيعُ كانَ يقبلُ مساراً خامّاً `/v1/rides/<uuid>`. صُحِّحَ التطبيعُ، **وأُضيفَت قاعدةٌ ثانيةٌ** (`http.every-route-labelled`) تُسقِطُ البناءَ إن طُمِرَ أيُّ قالبٍ مُعلَنٍ في `other` — ٧٨ قالباً كلُّها تبقى وسمَ نفسِها. لا تخفيفَ اختبارٍ ولا إسكاتَ قاعدةٍ. |
+| القياسُ المحليُّ | `lint`=0 (٢٩ تحذيراً سابقةً) · `typecheck`=0 · `bun test tests/unit` ٤٥٥١ ناجحةً · ٠ ساقطةً · الحاجزُ الجديدُ 0 · وعلى PostgreSQL 18 حقيقيٍّ: اختبارُ الـgauges ١ ناجحةٌ · ٢٤ توكيداً. |
+| ما لا يُدَّعى (`ح-5`) | **لا لوحةَ ولا إنذارَ ولا جامِعَ Prometheus** يمسحُ `/metrics` في أيِّ بيئةٍ — `F8-07` و`OPS-003`. ولا أثرَ موزَّعاً (`F8-01` `[~]` · `DEC-17`). ولا قياسَ لكلفةِ الوسيطِ تحتَ تزامنٍ إنتاجيٍّ. فالبندُ `[~]` لا `[x]`، ولا `[x]` قبلَ ثلاثِ جولاتٍ خضراءَ على `main` (`ح-4`). |
+| حكمُ CI | يُلحَقُ بالزيادةِ بعدَ الدفعِ، مقروءاً **لكلِّ وظيفةٍ** — والأخضرُ المحليُّ لا يُعتَدُّ بهِ بديلاً. |
+
+## CI verdicts on branch `feat/f8-02-core-metrics` (additive)
+
+مقروءٌ **لكلِّ وظيفةٍ** من `gh run view` لا مُستنتَجاً من خُلاصةٍ، ولا يُمحى منهُ حرفٌ (`ح-8`).
+
+| الجولةُ | الحدثُ | التزامُ الرأسِ | `verify` | تكامل PostgreSQL | تكامل Redis | فوضى (F5-06) | الحكمُ |
+|---|---|---|---|---|---|---|---|
+| `35140246149` | `push` | `147f5b1` | ✅ | ✅ | ✅ | ✅ | ناجحةٌ |
+| `35140340112` | `pull_request` (#70) | `147f5b1` | ✅ | ✅ | ✅ | ✅ | ناجحةٌ |
+| `35140245968` | Roadmap freshness | `147f5b1` | — | — | — | — | ناجحةٌ |
+
+**ولا `[x]`**: هذهِ جولاتٌ على **فرعٍ**، وقاعدةُ `ح-4` تطلبُ ثلاثَ جولاتٍ خضراءَ
+متتاليةً على `main` بعدَ الدمجِ، تُقرأُ كلُّ وظيفةٍ فيها بحكمِها. والبندُ يبقى
+`[~]` لِما لم يُبنَ منهُ (لا لوحةَ ولا إنذارَ ولا جامِعَ).
+
+## CI verdict on branch `fix/dec-18-soak-work-measure`, final head (additive)
+
+الجولةُ `35136376482` على `39290d7` (رأسُ الفرعِ وطلبِ الدمجِ `#69`):
+`verify` ✅ · تكامل PostgreSQL ✅ · تكامل Redis ✅ · فوضى (F5-06) ✅.
+وهيَ تُطابِقُ الجولةَ المسجَّلةَ سابقاً على `8efd74b`، **والسابقُ باقٍ مكتوباً**.
 
 ## Remaining, in dependency order
 
