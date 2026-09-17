@@ -587,6 +587,15 @@ jobs:
       - name: سقوطُ حاجزِ الأثرِ التدقيقيِّ مقيسٌ بسالبةٍ مزروعةٍ لكلِّ قاعدةٍ (SEC-12 · ح-7)
         run: bun test tests/unit/check-audit-actions.test.ts
 
+      # `F8-06` · ADR 0138: كُتّابُ حالةِ الدفعِ **مُكتشَفونَ من الهجراتِ** وحالاتُ
+      # الدفعِ من **قيدِ المخطَّطِ** — فكاتبٌ جديدٌ بلا طورٍ مقيسٍ، أو حالٌ تُضافُ
+      # إلى القيدِ بلا قياسٍ ولا إعلانِ دَينٍ، يُسقِطُ البناءَ ههنا.
+      - name: كلُّ كاتبِ حالةِ دفعٍ مُكتشَفٌ وله طورٌ مقيسٌ في المصفوفةِ (F8-06)
+        run: bun run scripts/check-payment-lifecycle-matrix.ts
+
+      - name: سقوطُ حاجزِ مصفوفةِ الدفعِ مقيسٌ بسالبةٍ مزروعةٍ لكلِّ قاعدةٍ (F8-06 · ح-7)
+        run: bun test tests/unit/check-payment-lifecycle-matrix.test.ts
+
       # `S-4` · `O-7`: الوثيقةُ وسيلةٌ لا تسليمٌ. سقّاطةٌ تمنعُ نموَّ التوثيقِ:
       # الجديدُ محدودٌ بسقفٍ، والمُستثنى ينقصُ ولا ينمو، والمُخرَجُ الخامُّ في
       # `docs/evidence/archive/` وحدَه — بلا حذفِ دليلٍ (`ح-2`).
@@ -932,6 +941,14 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/audit-trail-authority.test.ts
+
+      # `F8-06`: أطوارُ دورةِ حياةِ الدفعِ (نجاحٌ · فشلٌ · معلّقٌ · مكرّرٌ · استرجاعٌ ·
+      # تناقضٌ) **يُشغِّلُها المحرِّكُ** لا الحاجزُ الساكنُ. وخطوةٌ باسمِها كي يُقرأَ
+      # حُكمُها مفرَداً لا مُبتلَعاً في حزمةٍ من خمسٍ وخمسينَ.
+      - name: مصفوفةُ أطوارِ دورةِ حياةِ الدفعِ على محرِّكٍ حقيقيٍّ (F8-06)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/payment-lifecycle-matrix.test.ts
 
       - name: اختبارات التكامل على قاعدة حقيقية
         env:
