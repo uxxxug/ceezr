@@ -1,3 +1,4 @@
+-- migration-phase: backfill
 -- D-02 / DEC-11 — تعديلُ أسعارِ الاشتراكِ بقرارِ المالكِ
 -- 2026-09-17
 -- المرجع: docs/decisions/DEC-11-20260917-owner-fare-policy.md
