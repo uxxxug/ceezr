@@ -5821,7 +5821,7 @@ D-06 (فرضُ `force RLS` وتقليلُ `service_role using(true)`) محجوز
 **النطاقُ:** توثيقُ قرارِ المالكِ في `DEC-11` + تعديلُ أسعارِ الاشتراكِ + تأجيلُ بوابةِ الدفعِ.
 **ما يُفعَلُ:**
 - `docs/decisions/DEC-11-20260917-owner-fare-policy.md` — نصُّ القرارِ.
-- `supabase/migrations/20260917140000_d02_dec11_subscription_prices.sql` — تعديلُ 250→150 · 250→150 · 400→300.
-- تحديثُ `tests/support/in-memory-ports.ts` و `tests/unit/policy-settings.test.ts` و `tests/integration/driver-subscription.test.ts` لتعكس الأسعارَ الجديدةَ.
+- `supabase/migrations/20260917140000_d02_dec11_subscription_prices.sql` — تعديلُ 250→150 · 250→150 · 400→300 (طورُ backfill).
+- تحديثُ `tests/support/in-memory-ports.ts` و `tests/unit/policy-settings.test.ts` و `tests/integration/driver-subscription.test.ts` و `tests/unit/driver-dialog.test.ts` لتعكس الأسعارَ الجديدةَ.
 **ما لا يُفعَلُ:** لا شيفرةَ تطبيقيّةً · لا بوابةَ دفعٍ تُفعَّل · لا رقمَ أجرةٍ يُكتبُ (التقديرُ مُجمَّدٌ حتّى اعتمادِ سياسةِ الهيئة) · لا بندَ F12 يُنفَّذ (يُسجَّلُ في الخارطةِ فقط).
 **ما لا يُدَّعى:** لا يُدَّعى أنَّ القرارَ يُغلقُ DEC-14/16/17 أو ADR 0099 — DEC-11 وحدَهُ مُغلَقٌ.
