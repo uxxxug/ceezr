@@ -63,7 +63,13 @@ async function post(update: unknown): Promise<Response> {
   );
 }
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const message = (chatId: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
@@ -72,6 +78,7 @@ const contact = (chatId: number, phone: string) =>
 const photo = (chatId: number, fileId: string) =>
   message(chatId, { photo: [{ file_id: `${fileId}_thumb` }, { file_id: fileId }] });
 const callback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
 

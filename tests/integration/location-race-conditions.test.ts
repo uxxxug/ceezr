@@ -64,6 +64,11 @@ const SECOND_DRIVER_CHAT = 140_802;
 const JEDDAH = { latitude: 21.5471, longitude: 39.1751 };
 const DEGREE_STEP = 0.0005;
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const MS_PER_SECOND = 1000;
 
 const config: AppConfig = testConfig({
@@ -180,6 +185,7 @@ describeIf("سباقاتُ مسارِ الموقعِ على PostgreSQL حقيق�
    */
   function locationUpdate(chatId: number, agoSeconds: number, step: number): unknown {
     return {
+      update_id: nextUpdateId(),
       message: {
         chat: { id: chatId },
         from: { id: chatId, language_code: "ar" },

@@ -204,6 +204,7 @@ describeIf("سباقُ انقطاعِ المخزنِ الساخنِ على Redis
 
   async function postLocation(agoSeconds: number, step: number): Promise<void> {
     await container.handler.handle("driver", {
+      update_id: step,
       message: {
         chat: { id: DRIVER_CHAT },
         from: { id: DRIVER_CHAT, language_code: "ar" },
