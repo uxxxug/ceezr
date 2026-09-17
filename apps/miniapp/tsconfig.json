@@ -19,9 +19,9 @@
     "exactOptionalPropertyTypes": true,
     "verbatimModuleSyntax": true,
     "resolveJsonModule": true,
-    "baseUrl": ".",
+    "types": ["bun"],
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": ["src"]
