@@ -28,6 +28,12 @@ export const REMOTE_ONLY_EXEMPTIONS: readonly GuardExemption[] = [
       "ولا سرَّ في البيئةِ المحلّيّةِ — فتشغيلُه محلّيًّا يُخرِجُ أخضرَ لأنَّه لم يقرأْ شيئاً، وذاكَ أسوأُ من غيابِه.",
   },
   {
+    script: "scripts/check-no-skipped-tests.ts",
+    reason:
+      "يقرأُ سجلَّ مخرجاتِ خطوةِ الاختبارِ نفسِها (`/tmp/ci-output.log`) الذي تُنتِجُه وظيفةُ CI، " +
+      "ويُخفِقُ بلا مسارِ سجلٍّ (خروجٌ 1) — ومحاكاتُه محلّيًّا بأنبوبٍ تُخفي رمزَ خروجِ الاختباراتِ نفسِها، أي تُعطِّلُ بوّابةً أقوى.",
+  },
+  {
     script: "scripts/check-real-redis-proof.ts",
     reason:
       "يفحصُ الأثرَ (`real-redis-proof`) الذي تُنتِجُه وظيفةُ Redis الحقيقيِّ في سيرِ العملِ نفسِه (OPS-006 · ADR 0049)؛ " +
