@@ -48,6 +48,8 @@ import {
   CORE_INBOUND_MAX_BYTES,
   CORE_INBOUND_MIN_SECRET_LENGTH,
 } from "../../../../packages/shared/config/core-event-transport.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 
 export const CORE_EVENT_INTAKE_PATH = "/webhook/core-events";
 
@@ -59,6 +61,13 @@ export interface CoreEventIntakeDependencies {
    */
   readonly signingSecret?: string;
   readonly lifecycle: FulfillmentLifecycle;
+  /**
+   * حاصرُ المعدَّلِ — **اختياريٌّ في النوعِ لا في التشغيلِ**: يُمرَّرُ من موضعِ
+   * التركيبِ (`apps/gateway/src/index.ts`) بأرقامِ `rate-limit/policy.ts`، ويغيبُ في
+   * اختباراتِ المسارِ التي لا تقيسُ الحدَّ. وغيابُه **مُعلَنٌ في السِجلِّ** لا
+   * مسكوتٌ عنه، وحاجزُ `check-rate-limit-coverage` يطلبُ نصَّ تركيبِه.
+   */
+  readonly limits?: { readonly perAddress: RateLimiter };
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -121,6 +130,23 @@ export function createCoreEventIntakeRoutes(deps: CoreEventIntakeDependencies): 
   const app = new Hono();
 
   app.post(CORE_EVENT_INTAKE_PATH, async (c) => {
+    /**
+     * الحدُّ قبلَ قراءةِ الجسمِ وقبلَ حسابِ التوقيعِ. و`429` ههنا **تأجيلٌ لا
+     * موتٌ**: جدولُ إعادةِ `CORE` يقرؤها إعادةً — فلا يُفقَدُ حدثٌ بالحدِّ
+     * (`SEC-07`).
+     */
+    const exceeded = rateLimitRejection(
+      c,
+      await deps.limits?.perAddress.hit(
+        `core-events:${clientAddress(c.req.header("x-forwarded-for"))}`,
+      ),
+    );
+    if (exceeded !== null) return exceeded;
+    /**
+     * **والحدُّ قبلَ فحصِ التركيبِ** لا بعدَه: بابٌ غيرُ مُهيَّأٍ يُجيبُ `503`، وذاكَ
+     * جوابٌ يُحسَبُ ثمنُه أيضاً — فلا يُترَكُ سطحٌ مكشوفٌ بلا عدٍّ لأنَّه معطَّلٌ.
+     */
+
     const secret = deps.signingSecret;
     if (secret === undefined || secret.length < CORE_INBOUND_MIN_SECRET_LENGTH) {
       deps.log?.("core.intake.route_disabled", {

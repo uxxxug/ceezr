@@ -24,6 +24,8 @@ import {
   type ExchangeTelegramSessionDeps,
   exchangeTelegramSession,
 } from "../../../../packages/application/identity/exchange-telegram-session.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 import { readBounded } from "./telegram-webhook.ts";
 
 /** حدُّ الجسم: `initData` نصٌّ صغير؛ وما تجاوز 16KB ليس `initData`. */
@@ -36,6 +38,13 @@ export interface SessionTelegramDependencies {
    */
   readonly exchange?: ExchangeTelegramSessionDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * حاصرُ المعدَّلِ — **اختياريٌّ في النوعِ لا في التشغيلِ**: يُمرَّرُ من موضعِ
+   * التركيبِ (`apps/gateway/src/index.ts`) بأرقامِ `rate-limit/policy.ts`، ويغيبُ في
+   * اختباراتِ المسارِ التي لا تقيسُ الحدَّ. وغيابُه **مُعلَنٌ في السِجلِّ** لا
+   * مسكوتٌ عنه، وحاجزُ `check-rate-limit-coverage` يطلبُ نصَّ تركيبِه.
+   */
+  readonly limits?: { readonly perAddress: RateLimiter };
 }
 
 function rejected(c: Context, error: string, status: 400 | 401 | 413 | 503) {
@@ -46,6 +55,24 @@ export function createSessionTelegramRoutes(deps: SessionTelegramDependencies): 
   const app = new Hono();
 
   app.post("/v1/session/telegram", async (c) => {
+    /**
+     * الحدُّ **قبلَ قراءةِ الجسمِ وقبلَ حسابِ `HMAC`**: كلُّ نداءٍ ههنا يستهلكُ
+     * تحقُّقاً تشفيريّاً لِمُنادٍ لا هويّةَ له بعدُ، فحدٌّ بعدَ الحسابِ يدفعُ الثمنَ
+     * الذي جاءَ ليمنعَه. والمفتاحُ عنوانٌ — وهوَ مُنتحَلٌ، وذاكَ **يُقالُ لا
+     * يُدَّعى خلافُه** (`SEC-07` · ADR 0139).
+     */
+    const exceeded = rateLimitRejection(
+      c,
+      await deps.limits?.perAddress.hit(
+        `session-telegram:${clientAddress(c.req.header("x-forwarded-for"))}`,
+      ),
+    );
+    if (exceeded !== null) return exceeded;
+    /**
+     * **والحدُّ قبلَ فحصِ التركيبِ** لا بعدَه: بابٌ غيرُ مُهيَّأٍ يُجيبُ `503`، وذاكَ
+     * جوابٌ يُحسَبُ ثمنُه أيضاً — فلا يُترَكُ سطحٌ مكشوفٌ بلا عدٍّ لأنَّه معطَّلٌ.
+     */
+
     if (deps.exchange === undefined) {
       deps.log?.("session.telegram_route_disabled", {});
       return rejected(c, "SESSION_NOT_CONFIGURED", 503);

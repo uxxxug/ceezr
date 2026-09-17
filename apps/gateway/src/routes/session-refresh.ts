@@ -24,6 +24,8 @@ import {
   type RenewMiniAppSessionDeps,
   renewMiniAppSession,
 } from "../../../../packages/application/identity/renew-miniapp-session.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 import { readBounded } from "./telegram-webhook.ts";
 
 /**
@@ -40,6 +42,13 @@ export interface SessionRefreshDependencies {
    */
   readonly renew?: RenewMiniAppSessionDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * حاصرُ المعدَّلِ — **اختياريٌّ في النوعِ لا في التشغيلِ**: يُمرَّرُ من موضعِ
+   * التركيبِ (`apps/gateway/src/index.ts`) بأرقامِ `rate-limit/policy.ts`، ويغيبُ في
+   * اختباراتِ المسارِ التي لا تقيسُ الحدَّ. وغيابُه **مُعلَنٌ في السِجلِّ** لا
+   * مسكوتٌ عنه، وحاجزُ `check-rate-limit-coverage` يطلبُ نصَّ تركيبِه.
+   */
+  readonly limits?: { readonly perAddress: RateLimiter };
 }
 
 function rejected(c: Context, error: string, status: 400 | 401 | 413 | 503) {
@@ -50,6 +59,23 @@ export function createSessionRefreshRoutes(deps: SessionRefreshDependencies): Ho
   const app = new Hono();
 
   app.post("/v1/session/refresh", async (c) => {
+    /**
+     * الحدُّ قبلَ قراءةِ الجسمِ وقبلَ التحقُّقِ من التوقيعِ: التجديدُ بابٌ قبلَ
+     * المصادقةِ كإصدارِ الجلسةِ، ومَن يُجرِّبُ رموزَ تجديدٍ يُعَدُّ عليه لا يُحسَبُ
+     * صاحبَ جلسةٍ (`SEC-07`).
+     */
+    const exceeded = rateLimitRejection(
+      c,
+      await deps.limits?.perAddress.hit(
+        `session-refresh:${clientAddress(c.req.header("x-forwarded-for"))}`,
+      ),
+    );
+    if (exceeded !== null) return exceeded;
+    /**
+     * **والحدُّ قبلَ فحصِ التركيبِ** لا بعدَه: بابٌ غيرُ مُهيَّأٍ يُجيبُ `503`، وذاكَ
+     * جوابٌ يُحسَبُ ثمنُه أيضاً — فلا يُترَكُ سطحٌ مكشوفٌ بلا عدٍّ لأنَّه معطَّلٌ.
+     */
+
     if (deps.renew === undefined) {
       deps.log?.("session.refresh_route_disabled", {});
       return rejected(c, "SESSION_NOT_CONFIGURED", 503);

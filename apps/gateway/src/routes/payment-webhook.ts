@@ -14,6 +14,8 @@ import {
 } from "../../../../packages/application/financial/index.ts";
 import type { PaymentProvider } from "../../../../packages/application/financial/ports.ts";
 import type { PaymentTransactionId } from "../../../../packages/domain/financial/index.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 import { readBounded } from "./telegram-webhook.ts";
 
 export const PAYMENT_WEBHOOK_MAX_BYTES = 256 * 1024;
@@ -29,6 +31,13 @@ export interface PaymentWebhookDependencies {
   readonly webhookSecret?: string;
   /** توافق تركيبي مؤقت فقط؛ الاسم الفعلي provider.name. */
   readonly providerName?: string;
+  /**
+   * حاصرُ المعدَّلِ — **اختياريٌّ في النوعِ لا في التشغيلِ**: يُمرَّرُ من موضعِ
+   * التركيبِ (`apps/gateway/src/index.ts`) بأرقامِ `rate-limit/policy.ts`، ويغيبُ في
+   * اختباراتِ المسارِ التي لا تقيسُ الحدَّ. وغيابُه **مُعلَنٌ في السِجلِّ** لا
+   * مسكوتٌ عنه، وحاجزُ `check-rate-limit-coverage` يطلبُ نصَّ تركيبِه.
+   */
+  readonly limits?: { readonly perAddress: RateLimiter };
 }
 
 function rejected(c: Context, error: string, status: 400 | 401 | 409 | 422 | 503) {
@@ -39,6 +48,23 @@ export function createPaymentWebhookRoutes(deps: PaymentWebhookDependencies): Ho
   const app = new Hono();
 
   app.post("/webhook/payment", async (c) => {
+    /**
+     * الحدُّ قبلَ قراءةِ الجسمِ وقبلَ التحقُّقِ: **السرُّ لا يَحُدُّ** — مَن لا
+     * يعرفُه يُرَدُّ بعدَ تحقُّقٍ يُحسَبُ لكلِّ نداءٍ. والرقمُ واسعٌ عن قصدٍ لأنَّ
+     * المزوّدَ يُعيدُ الإرسالَ ودفعةٌ مفقودةٌ **مالٌ لا طلبٌ** (`SEC-07`).
+     */
+    const exceeded = rateLimitRejection(
+      c,
+      await deps.limits?.perAddress.hit(
+        `payment-webhook:${clientAddress(c.req.header("x-forwarded-for"))}`,
+      ),
+    );
+    if (exceeded !== null) return exceeded;
+    /**
+     * **والحدُّ قبلَ فحصِ التركيبِ** لا بعدَه: بابٌ غيرُ مُهيَّأٍ يُجيبُ `503`، وذاكَ
+     * جوابٌ يُحسَبُ ثمنُه أيضاً — فلا يُترَكُ سطحٌ مكشوفٌ بلا عدٍّ لأنَّه معطَّلٌ.
+     */
+
     if (deps.provider === undefined) {
       deps.log?.("payment.webhook.route_disabled", {});
       return rejected(c, "PAYMENT_PROVIDER_NOT_CONFIGURED", 503);

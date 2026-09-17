@@ -66,6 +66,8 @@ import type { TrackingReadState } from "../../../../packages/application/trackin
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
 import type { PublicEnv } from "../public/security-headers.ts";
 import { renderTrackingPage } from "../public/tracking-page.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { rateLimitRejection } from "../rate-limit/guard.ts";
 
 export interface PublicTrackingDeps extends GetLivePositionDeps {
   /** نمطُ الخريطة المُحلَّل عند الإقلاع — نفسُ ما تستعمله اللوحة. */
@@ -87,6 +89,15 @@ export interface PublicTrackingDeps extends GetLivePositionDeps {
    * الوسيطِ أصلاً لأنَّ الوسيطَ موجودٌ فيُقرَأُ تغطيةً. فصارَ حقلاً مطلوباً:
    * المُترجِمُ يرفضُ المُنشِئَ الذي يُهمِلُه.
    */
+  /**
+   * حاصرا المعدَّلِ **بمفتاحِ الرمزِ لا العنوانِ**: وُصلةُ التتبّعِ تُرسَلُ في
+   * محادثةٍ فيفتحُها أهلُ الراكبِ من عناوينَ شتّى — والمحميُّ رحلةٌ لا شبكةٌ.
+   * يُمرَّرانِ من موضعِ التركيبِ بأرقامِ `rate-limit/policy.ts` (`SEC-07`).
+   */
+  readonly limits?: {
+    readonly perTokenPage: RateLimiter;
+    readonly perTokenPosition: RateLimiter;
+  };
   readonly securityHeaders: MiddlewareHandler<PublicEnv>;
 }
 
@@ -169,6 +180,17 @@ export function createPublicTrackingRoutes(deps: PublicTrackingDeps): Hono<Publi
       return c.json({ error: "NOT_FOUND" }, NOT_FOUND);
     }
 
+    /**
+     * الحدُّ **بعدَ فحصِ الشكلِ وقبلَ نداءِ القاعدةِ**: بعدَه كي لا يُنشَأَ مفتاحُ
+     * عدٍّ لكلِّ نصٍّ عشوائيٍّ فيُتَّخذَ الحاصرُ نفسُه سبيلاً لإتخامِ الذاكرةِ،
+     * وقبلَه كي لا يُدفَعَ ثمنُ استعلامٍ لكلِّ نداءٍ (`SEC-07`).
+     */
+    const exceeded = rateLimitRejection(
+      c,
+      await deps.limits?.perTokenPosition.hit(`track-position:${token}`),
+    );
+    if (exceeded !== null) return exceeded;
+
     const result = await getLivePosition(token, deps);
     if (!result.ok) {
       // عطلُ قاعدةٍ ليس رمزاً منتهياً: 503 كي يُقرأ عطلاً في المراقبة، ولا يُقال
@@ -191,6 +213,18 @@ export function createPublicTrackingRoutes(deps: PublicTrackingDeps): Hono<Publi
     if (token.length > MAX_TOKEN_LENGTH || !TOKEN_PATTERN.test(token)) {
       return c.html(renderTrackingPage({ kind: "not-found", nonce: c.get("cspNonce") }), NOT_FOUND);
     }
+
+    /**
+     * تجاوزُ الصفحةِ يُجابُ **جسمَ `JSON` معَ `Retry-After`** لا صفحةً: لم يُخترَعْ
+     * لِـ`renderTrackingPage` طَورٌ سادسٌ لحالةٍ لا يبلغُها راكبٌ بيدِه، وشكلُ
+     * الجوابِ واحدٌ في كلِّ البوّابةِ فيُقاسُ مرّةً. **وما لا يُدَّعى** (`ح-5`):
+     * ليسَ للتجاوزِ ههنا صفحةٌ عربيّةٌ مُصيَّرةٌ.
+     */
+    const exceeded = rateLimitRejection(
+      c,
+      await deps.limits?.perTokenPage.hit(`track-page:${token}`),
+    );
+    if (exceeded !== null) return exceeded;
 
     const result = await getLivePosition(token, deps);
     if (!result.ok) {

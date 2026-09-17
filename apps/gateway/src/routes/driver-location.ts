@@ -48,6 +48,7 @@ import {
 import type { PortFailureError } from "../../../../packages/application/ports/index.ts";
 import type { Result } from "../../../../packages/shared/result/index.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { rateLimitRejection } from "../rate-limit/guard.ts";
 import { bearerTokenFrom } from "./me.ts";
 import { readBounded } from "./telegram-webhook.ts";
 
@@ -194,11 +195,15 @@ export function createDriverLocationRoutes(deps: DriverLocationDependencies): Ho
      * الحدُّ **قبلَ** قراءةِ الجسمِ وبعدَ إثباتِ الجلسةِ: مفتاحُه هويّةٌ موقَّعةٌ
      * لا عنوانٌ يُنتحَلُ، ولا يُستنزَفُ الحدُّ بنصٍّ عشوائيٍّ من غيرِ صاحبِ جلسةٍ.
      * والحدُّ يفشلُ مفتوحاً في مُنفِّذِه — انقطاعُ مخزنِه يُضعِفُ ولا يُعطِّلُ.
+     *
+     * **تصحيحٌ (`ح-8`)**: كانَ الجوابُ `429` **بلا `Retry-After`** لأنَّ الجوابَ
+     * الموحَّدَ كانَ خاصّاً في `telegram-webhook.ts` فكُتِبَ ههنا من جديدٍ ناقصاً —
+     * وعميلٌ يُرَدُّ ولا يُخبَرُ متى يعودُ يُعيدُ فوراً. صارَ من
+     * `../rate-limit/guard.ts` (`SEC-07` · ADR 0139).
      */
     const decision = await deps.limits?.perDriver.hit(`driver-location:${auth.viewer.sessionId}`);
-    if (decision !== undefined && !decision.allowed) {
-      return rejected(c, "RATE_LIMITED", 429);
-    }
+    const exceeded = rateLimitRejection(c, decision);
+    if (exceeded !== null) return exceeded;
 
     const declaredLength = Number(c.req.header("content-length") ?? Number.NaN);
     if (Number.isFinite(declaredLength) && declaredLength > DRIVER_LOCATION_MAX_BYTES) {

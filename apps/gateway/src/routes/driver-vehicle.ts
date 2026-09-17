@@ -6,6 +6,17 @@
  * يُستخدم من: `apps/gateway/src/server.ts` عبرَ تركيبٍ اختياريٍّ.
  * الحاكم: docs/adr/0094-project-independence.md
  *
+ * ## تصحيحٌ (`ح-8`) — كانَت هذه المساراتُ **مُركَّبةً على الجِذرِ** لا على مسارِها
+ *
+ * كُتِبَت التسجيلاتُ `"/"` و`"/assets"` على أنَّ الموجِّهَ يُركَّبُ ببادئةٍ، ثمَّ
+ * رُكِّبَ في `server.ts` بـ`app.route("/", ...)` كسائرِ الموجِّهاتِ — وهيَ تحملُ
+ * مساراتِها كاملةً في تسجيلاتِها. فكانَ المخدومُ فعلاً `GET /` و`PATCH /` و
+ * `POST /assets`، **وكانَ `GET /v1/driver/vehicle` يُجيبُ `404`** والوثيقةُ وشاشةُ
+ * `F3-07` تُناديه. كشفَهُ جردُ المساراتِ المُكتشَفُ في `SEC-07` (`ADR 0139`) — لا
+ * اختبارٌ، إذ **لم يكن لهذا الملفِّ اختبارُ مسارٍ واحدٌ**. والعلاجُ في الجِذرِ:
+ * المساراتُ مطلقةٌ ههنا كأخواتِها، وحاجزُ الجردِ يرفضُ أيَّ مسارٍ لا يبدأُ ببادئةٍ
+ * عامّةٍ معروفةٍ — فلا يعودُ بابٌ يُولَدُ على الجِذرِ صامتاً.
+ *
  * ## وما لا تفعلُه هذه المساراتُ عن قصدٍ — (`ح-5`)
  *
  *   ــ **لا تقرأُ معرّفَ سائقٍ من الطلبِ**: من الرمزِ الموقَّعِ وحدَه.
@@ -54,10 +65,17 @@ function bearerTokenFrom(header: string | undefined): string | undefined {
   return header;
 }
 
+/**
+ * مسارا المركبةِ **مطلقانِ**: الموجِّهُ يُركَّبُ على `"/"` فلا بادئةَ تُضافُ، وحملُ
+ * المسارِ الكاملِ ههنا هوَ ما يجعلُ ما يُخدَمُ فعلاً هوَ ما توصفُ به الوثيقةُ.
+ */
+export const VEHICLE_BASE_PATH = "/v1/driver/vehicle";
+export const VEHICLE_ASSETS_PATH = "/v1/driver/vehicle/assets";
+
 export function createDriverVehicleRoutes(deps: DriverVehicleRouteDependencies): Hono {
   const vehicle = new Hono();
 
-  vehicle.get("/", async (c) => {
+  vehicle.get(VEHICLE_BASE_PATH, async (c) => {
     if (deps.vehicle === undefined) return failClosed(c, deps.log);
     const result = await readDriverVehicle(deps.vehicle, {
       accessToken: bearerTokenFrom(c.req.header("authorization")),
@@ -67,7 +85,7 @@ export function createDriverVehicleRoutes(deps: DriverVehicleRouteDependencies):
     return c.json(result.value, 200);
   });
 
-  vehicle.patch("/", async (c) => {
+  vehicle.patch(VEHICLE_BASE_PATH, async (c) => {
     if (deps.vehicle === undefined) return failClosed(c, deps.log);
     const body = await c.req.json().catch(() => ({}));
     const input = {
@@ -83,7 +101,7 @@ export function createDriverVehicleRoutes(deps: DriverVehicleRouteDependencies):
     return c.json({ ok: true }, 200);
   });
 
-  vehicle.post("/assets", async (c) => {
+  vehicle.post(VEHICLE_ASSETS_PATH, async (c) => {
     if (deps.vehicle === undefined) return failClosed(c, deps.log);
     const body = await c.req.json().catch(() => ({}));
     const logoPath = typeof body.logoObjectPath === "string" ? body.logoObjectPath : null;

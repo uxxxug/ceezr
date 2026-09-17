@@ -128,6 +128,7 @@ import {
   createRedisRateLimiter,
   type RateLimiter,
 } from "./rate-limit/fixed-window.ts";
+import { type KeyDimension, rateLimitPolicy } from "./rate-limit/policy.ts";
 import { createActiveRideResolver, createSessionVerifier } from "./realtime/adapters.ts";
 import { createHttpBridge } from "./realtime/http-bridge.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
@@ -403,14 +404,12 @@ process.on("SIGINT", () => {
 });
 
 /**
- * حدود تقنية لا تجارية: لا مكان لها في platform_settings.
- *
- * - محاولات السرّ الخاطئ: من يجرّب أكثر من عشرين سرّاً في الدقيقة لا يُخطئ بل يُخمّن.
- * - تحديثات المستخدم الواحد: ثلاثون في عشر ثوانٍ — ثلاث ضغطات في الثانية بلا توقّف،
- *   وهو فوق ما تبلغه يد إنسان وتحت ما يزعج مستخدماً سريعاً.
+ * حدودٌ تقنيّةٌ لا تجاريّةٌ: لا مكانَ لها في `platform_settings`. **وأرقامُها لم تَبقَ
+ * ههنا**: نُقِلَت إلى `rate-limit/policy.ts` بلا تغييرِ قيمةٍ (`SEC-07` · ADR 0139)،
+ * لأنَّ رقماً في موضعِ التركيبِ وعهداً في وثيقةٍ موضعا حقيقةٍ يفترقانِ. وموضعُ
+ * التركيبِ يطلبُ حدَّه بمسارِه وبُعدِ مفتاحِه، **فإن لم يكن مُعلَناً رمى عندَ
+ * الإقلاعِ** ولم يخترعْ حدَّاً في التشغيلِ.
  */
-const PROBE_LIMIT = { limit: 20, windowSeconds: 60 } as const;
-const USER_LIMIT = { limit: 30, windowSeconds: 10 } as const;
 
 /**
  * الحدّ على Redis عند تعدّد النسخ، وفي الذاكرة عند نسخة واحدة: حدٌّ يعدّ كل نسخة
@@ -434,6 +433,15 @@ function limiter(options: { readonly limit: number; readonly windowSeconds: numb
       });
 }
 
+/**
+ * حاصرٌ لمسارٍ بعينِه من السِجلِّ المغلقِ. **والنداءُ نصُّه هوَ الدليلُ**: حاجزُ
+ * `scripts/check-rate-limit-coverage.ts` يقرأُ هذا الملفَّ ويطلبُ نصَّ النداءِ
+ * المُعلَنِ في `wiredIn` لكلِّ حدٍّ — فحدٌّ مُعلَنٌ بلا تركيبٍ يُسقِطُ البناءَ.
+ */
+function limiterFor(method: string, path: string, keyDimension: KeyDimension): RateLimiter {
+  return limiter(rateLimitPolicy(method, path, keyDimension));
+}
+
 const paymentWebhook =
   paymentProvider === null
     ? undefined
@@ -451,6 +459,7 @@ const paymentWebhook =
           },
           operationalMetrics,
         ),
+        limits: { perAddress: limiterFor("POST", "/webhook/payment", "عنوانُ العميلِ") },
         log,
       };
 
@@ -495,6 +504,7 @@ const sessionTelegram =
           now: () => new Date(),
           log,
         },
+        limits: { perAddress: limiterFor("POST", "/v1/session/telegram", "عنوانُ العميلِ") },
         log,
       };
 
@@ -512,6 +522,7 @@ const sessionRefresh =
           now: () => new Date(),
           log,
         },
+        limits: { perAddress: limiterFor("POST", "/v1/session/refresh", "عنوانُ العميلِ") },
         log,
       };
 
@@ -560,7 +571,7 @@ const notifications =
  * البوتِ — لا دليلَ سائقينَ ثانياً ولا سياسةَ مجالٍ ثانيةً.
  *
  * وحدُّ المعدّلِ رقمُه ههنا لا في المسارِ: نبضةُ موقعٍ كلَّ ثانيةٍ هيَ المعتادُ في
- * تطبيقٍ حيٍّ، فحدُّ المستخدمِ العامُّ (`USER_LIMIT`) هوَ عينُ ما يَسَعُها ولا
+ * تطبيقٍ حيٍّ، فحدُّ المستخدمِ العامُّ (`/webhook/telegram/:bot`) هوَ عينُ ما يَسَعُها ولا
  * يُخترَعُ له رقمٌ ثالثٌ يُصانُ في موضعينِ.
  */
 const driverLocation =
@@ -575,7 +586,9 @@ const driverLocation =
         },
         drivers: container.driverLocation.drivers,
         ingest: container.driverLocation.ingest,
-        limits: { perDriver: limiter(USER_LIMIT) },
+        limits: {
+          perDriver: limiterFor("POST", "/v1/driver/location", "جلسةٌ موقَّعةٌ منّا"),
+        },
         log,
       };
 
@@ -593,6 +606,7 @@ const coreEventIntake =
     : {
         signingSecret: coreInboundSigningSecret,
         lifecycle: createFulfillmentLifecycle(createOperationalJobRepository(container.sql)),
+        limits: { perAddress: limiterFor("POST", "/webhook/core-events", "عنوانُ العميلِ") },
       };
 
 /**
@@ -1108,7 +1122,10 @@ const app = createServer({
     // فلا يصيرَ dedup الذاكرةُ مساراً صامتاً (ADR 0059).
     requireDurableIntake: config.env === "production",
     dedup: instrumentUpdateDeduplicator(createUpdateDeduplicator(), operationalMetrics),
-    rateLimits: { probes: limiter(PROBE_LIMIT), users: limiter(USER_LIMIT) },
+    rateLimits: {
+      probes: limiterFor("POST", "/webhook/telegram/:bot", "عنوانُ العميلِ"),
+      users: limiterFor("POST", "/webhook/telegram/:bot", "مستخدمُ تيليجرامَ"),
+    },
   },
   ...(paymentWebhook === undefined ? {} : { paymentWebhook }),
   ...(sessionTelegram === undefined ? {} : { sessionTelegram }),
@@ -1246,6 +1263,10 @@ const publicTracking = createPublicTrackingRoutes({
     mapOrigins,
     scriptOrigin: MAPLIBRE_CDN_ORIGIN,
   }),
+  limits: {
+    perTokenPage: limiterFor("GET", "/track/:token", "رمزُ المشاركةِ"),
+    perTokenPosition: limiterFor("GET", "/api/track/:token/position", "رمزُ المشاركةِ"),
+  },
   log,
 });
 app.route("/", publicTracking);
