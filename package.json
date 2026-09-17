@@ -66,7 +66,8 @@
     "check:cutover-plan": "bun run scripts/check-cutover-plan.ts",
     "check:schema-contract": "bun run scripts/check-schema-contract.ts",
     "check:retention": "bun run scripts/check-retention-policy.ts",
-    "bench:open-loop": "bun run deferred/field-experiments/bench/run-open-loop.ts"
+    "bench:open-loop": "bun run deferred/field-experiments/bench/run-open-loop.ts",
+    "check:rate-limit-coverage": "bun run scripts/check-rate-limit-coverage.ts"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.7",
