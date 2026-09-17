@@ -149,6 +149,8 @@ export function createRideRequestCommand(sql: Sql): RideRequestCommand {
 
       if (result.ok !== true) {
         const code = result.error;
+        // [TEMP D-01 DEBUG] surface refusal code in CI log
+        console.warn("[D-01 DEBUG] request_ride refused:", JSON.stringify(result), "input:", JSON.stringify({ telegramId, service: input.service, idempotencyKey: input.idempotencyKey, hasDest: input.destination !== null }));
         if (code === "USER_NOT_FOUND") return err(failed("USER_NOT_FOUND"));
         if (code === "RIDER_NOT_REGISTERED") return err(failed("RIDER_NOT_REGISTERED"));
         if (!isRideRefusal(code)) return err(failed("STORE_ERROR"));
