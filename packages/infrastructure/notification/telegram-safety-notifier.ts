@@ -17,15 +17,29 @@ export function createSafetyCardPublisher(sender: TelegramSender): SafetyCardPub
   return {
     publish: async (card: SafetyDelivery): Promise<Result<string, PortFailureError>> => {
       const tr = t(DEFAULT_LANGUAGE);
-      const text = tr("safety.group_card", {
-        incident: card.incidentId.slice(0, 8),
-        order: card.orderId,
-        reporter: tr(`safety.reporter_${card.reporterRole}`),
-        service: tr(
-          card.service === "delivery" ? "safety.service_delivery" : "safety.service_transport",
-        ),
-        location: coordinates(card.locationWkt),
-      });
+      /**
+       * `F12-03` — بلاغٌ بلا رحلةٍ **بطاقةٌ أخرى لا حقلٌ محذوفٌ**: سطرُ «الطلب:
+       * —» في بطاقةِ طوارئٍ يُقرأُ عطلَ تسليمٍ فيُنتَظَرُ توضيحٌ، والمنتَظَرُ ثوانٍ
+       * لا تُعوَّضُ. فَتُقالُ الحقيقةُ صريحةً: بلاغٌ من حسابٍ لا من رحلةٍ.
+       */
+      const text =
+        card.orderId === null
+          ? tr("safety.group_card_no_order", {
+              incident: card.incidentId.slice(0, 8),
+              reporter: tr(`safety.reporter_${card.reporterRole}`),
+              location: coordinates(card.locationWkt),
+            })
+          : tr("safety.group_card", {
+              incident: card.incidentId.slice(0, 8),
+              order: card.orderId,
+              reporter: tr(`safety.reporter_${card.reporterRole}`),
+              service: tr(
+                card.service === "delivery"
+                  ? "safety.service_delivery"
+                  : "safety.service_transport",
+              ),
+              location: coordinates(card.locationWkt),
+            });
       const keyboard = {
         inline_keyboard: [
           [{ text: tr("safety.claim_button"), callback_data: `sos:claim:${card.incidentId}` }],

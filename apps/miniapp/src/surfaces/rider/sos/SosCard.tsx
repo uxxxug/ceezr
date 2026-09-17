@@ -202,8 +202,13 @@ export function SosCard({
       {view.eligible ? (
         <>
           <p className="sos__origin">{t(originKey(view.origin))}</p>
-          {/* نافذةُ ما بعدَ الرحلةِ تُقالُ **بقيمةِ المدينةِ** لا برقمٍ مكتوبٍ. */}
-          {view.origin === "RECENT_ORDER" && (
+          {/*
+            نافذةُ ما بعدَ الرحلةِ تُقالُ **بقيمةِ المدينةِ** لا برقمٍ مكتوبٍ.
+            و`view.orderId !== null` أوّلاً ليسَ حشواً: بلاغٌ بلا رحلةٍ (`F12-03`)
+            لا يُنشَرُ له رقمُ نافذةٍ ألبتّةَ، وبه يمنعُ المُصرِّفُ قراءةَ حقلٍ
+            لم يُنشَرْ فيُطبَعَ `undefined` في شاشةِ استغاثةٍ.
+          */}
+          {view.orderId !== null && view.origin === "RECENT_ORDER" && (
             <p className="sos__window">
               {t("rider.sos.window").replace("{minutes}", String(view.postRideWindowMinutes))}
             </p>

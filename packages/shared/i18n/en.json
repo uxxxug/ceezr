@@ -349,6 +349,7 @@
   "safety.already_sent": "🆘 Your SOS alert is already recorded and the escalation team is following it.",
   "safety.no_active_order": "There is no active order for an SOS alert.",
   "safety.group_card": "🆘 SOS emergency #{incident}\nOrder: {order}\nService: {service}\nReporter: {reporter}\nLast known location: {location}\n\nA human escalation decision is required.",
+  "safety.group_card_no_order": "🆘 SOS emergency #{incident}\nNo ride: reported directly from the account\nReporter: {reporter}\nLast known location: {location}\n\nA human escalation decision is required.",
   "safety.location_unknown": "Unavailable",
   "safety.reporter_rider": "Rider",
   "safety.reporter_driver": "Driver",

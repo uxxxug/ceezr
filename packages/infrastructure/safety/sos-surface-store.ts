@@ -130,21 +130,42 @@ export function createSosSurfaceReader(sql: Sql): SosSurfaceReader {
 
       const orderId = readText(result.order_id);
       const origin = result.origin;
+      if (!isSosOrigin(origin)) return err(failed("STORE_ERROR"));
+
+      /**
+       * `F12-03` — بلاغٌ بلا رحلةٍ: **الطلبُ `null` ونافذةُ ما بعدَ الرحلةِ غائبةٌ
+       * كلتاهُما شرطٌ لا صدفةٌ**. فلو وصلَ `orderId` معَ `NO_ORDER`، أو وصلَ رقمُ
+       * نافذةٍ لحالٍ لا نافذةَ فيها، فذاكَ افتراقُ حَكَمٍ عن نطاقٍ — عطبُ عقدٍ
+       * يُرمى، لا حقلٌ يُطوى بصمتٍ.
+       */
+      if (origin === "NO_ORDER") {
+        if (
+          orderId !== null ||
+          result.post_ride_window_minutes !== null ||
+          result.post_ride_window_source !== null
+        ) {
+          return err(failed("STORE_ERROR"));
+        }
+        const state: SosSurfaceState = {
+          eligible: true,
+          origin,
+          orderId: null,
+          incident,
+          disclosure,
+        };
+        return ok({ found: true, state });
+      }
+
       const minutes = readCount(result.post_ride_window_minutes);
       const source = result.post_ride_window_source;
-      if (
-        orderId === null ||
-        !isSosOrigin(origin) ||
-        minutes === null ||
-        !isSosWindowSource(source)
-      ) {
+      if (orderId === null || minutes === null || !isSosWindowSource(source)) {
         return err(failed("STORE_ERROR"));
       }
 
       const state: SosSurfaceState = {
         eligible: true,
-        orderId,
         origin,
+        orderId,
         postRideWindowMinutes: minutes,
         postRideWindowSource: source,
         incident,

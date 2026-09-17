@@ -1,7 +1,7 @@
 /**
  * الغرض: شكلُ ردَّي `/v1/safety/sos` كما يقرؤهما العميلُ — أنواعٌ لا منطقٌ
  *   (البند `F2-10` · `SR-14`).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-10`. حكمُ CI **غيرُ مقروءٍ** بعدُ.
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-10` و`F12-03`.
  * ينتمي إلى: apps/miniapp/src/surfaces/rider/sos
  * يُستخدم من: `sos-api.ts` و`sos-view.ts` و`SosCard.tsx`.
  * يُتوقع أن يستخدمه لاحقاً: سطحُ السائقِ — الردُّ واحدٌ والدورُ مُركَّبٌ خادميّاً.
@@ -51,6 +51,20 @@ export type SosSurfaceResponse =
       readonly postRideWindowMinutes: number;
       /** مصدرُ العددِ باسمِه: رقمٌ بلا مصدرٍ يُقرأُ وعداً وهوَ افتراضٌ. */
       readonly postRideWindowSource: string;
+      readonly incident: ApiSosIncident | null;
+      readonly disclosure: readonly string[];
+    }
+  /**
+   * `F12-03` — جوازٌ **بلا رحلةٍ**. والمُميَّزُ `orderId: null` مكتوباً:
+   * فبه يمنعُ المُصرِّفُ قراءةَ `postRideWindowMinutes` في حالٍ لا نافذةَ فيها،
+   * ويُقرأُ غيابُ الرحلةِ **حكماً منشوراً** لا حقلاً منسيّاً.
+   */
+  | {
+      readonly ok: true;
+      readonly found: true;
+      readonly eligible: true;
+      readonly orderId: null;
+      readonly origin: string;
       readonly incident: ApiSosIncident | null;
       readonly disclosure: readonly string[];
     };

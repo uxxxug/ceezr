@@ -154,7 +154,8 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
     });
     expect(triggered.ok).toBe(true);
 
-    const published: string[] = [];
+    // `string | null` بعدَ `F12-03`: بلاغٌ بلا رحلةٍ يصلُ الناشرَ بـ`null` صريحٍ.
+    const published: (string | null)[] = [];
     const report = await deliverSafetyIncidents({
       deliveries: createSafetyDeliveryPort(sql),
       publisher: {
@@ -330,5 +331,179 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
       where i.id = ${incidentId}::uuid
     `;
     expect(audit[0]).toEqual({ decision: "block_reporter", is_blocked: true });
+  });
+
+  /**
+   * `F12-03` — الطوارئُ لا تشترطُ رحلةً. وههنا تُقاسُ الدعوى على قاعدةٍ حقيقيّةٍ
+   * لا على وحدةٍ مُقنَّعةٍ: القيدُ المُرخى، والقفلُ المستقلُّ، و**التسليمُ** الذي
+   * كانَ يعلَقُ في `sending` أبداً حينَ لا طلبَ — عيبٌ لم يكن اختبارُ وحدةٍ
+   * ليكشفَه لأنَّ سببَه وصلٌ داخليٌّ في SQL.
+   */
+  describe("`F12-03` — استغاثةٌ بلا رحلةٍ", () => {
+    const ORDERLESS_TELEGRAM_ID = "880002";
+
+    /** حسابٌ بمدينةٍ ولا رحلةَ له قطُّ: ولا صفَّ `riders` كذلك، فالبلاغُ لا يشترطُه. */
+    async function createOrderlessRider(): Promise<string> {
+      const rows = await sql<{ id: string }[]>`
+        insert into users (city_id, telegram_id, full_name, phone, role)
+        values (${cityId}, ${ORDERLESS_TELEGRAM_ID}::bigint, 'راكبٌ بلا رحلةٍ', '+966500880002', 'rider')
+        returning id
+      `;
+      const id = rows[0]?.id;
+      if (id === undefined) throw new Error("تعذر تجهيز الحساب بلا رحلةٍ");
+      return id;
+    }
+
+    it("يُقيَّدُ البلاغُ بلا طلبٍ بمدينةِ الحسابِ ويُودَعُ تسليمُه في المعاملةِ نفسِها", async () => {
+      const actorId = await createOrderlessRider();
+      const triggered = await trigger.trigger({
+        orderId: null,
+        actorTelegramId: ORDERLESS_TELEGRAM_ID,
+        reporterRole: "rider",
+      });
+      expect(triggered.ok).toBe(true);
+      if (!triggered.ok || triggered.value.incidentId === null) return;
+      expect("created" in triggered.value && triggered.value.created).toBe(true);
+
+      const rows = await sql<
+        {
+          order_id: string | null;
+          city_id: string;
+          reporter_user_id: string;
+          reporter_role: string;
+          status: string;
+          location: string | null;
+          outbox: string;
+        }[]
+      >`
+        select
+          i.order_id::text as order_id,
+          i.city_id::text as city_id,
+          i.reporter_user_id::text as reporter_user_id,
+          i.reporter_role,
+          i.status,
+          i.last_known_location::text as location,
+          (
+            select count(*)::text from notification_outbox o
+             where o.kind = 'safety_incident'
+               and o.dedup_key = 'safety_incident:' || i.id::text
+          ) as outbox
+        from safety_incidents i where i.id = ${triggered.value.incidentId}::uuid
+      `;
+      // مدينةُ الحسابِ هيَ المصدرُ الثاني الصادقُ للمدينةِ، لا ثابتٌ ولا تخمينٌ.
+      expect(rows[0]?.order_id).toBeNull();
+      expect(rows[0]?.city_id).toBe(cityId);
+      expect(rows[0]?.reporter_user_id).toBe(actorId);
+      expect(rows[0]?.reporter_role).toBe("rider");
+      expect(rows[0]?.status).toBe("open");
+      // ولا موقعَ يُلفَّقُ: راكبٌ بلا رحلةٍ لا نقطةَ التقاطٍ له، ويُفصَحُ عن ذلكَ.
+      expect(rows[0]?.location).toBeNull();
+      expect(Number(rows[0]?.outbox)).toBe(1);
+    });
+
+    it("ضغطتانِ متزامنتانِ بلا طلبٍ تنشئانِ حادثاً واحداً وoutbox واحداً", async () => {
+      await createOrderlessRider();
+      const results = await Promise.all([
+        trigger.trigger({
+          orderId: null,
+          actorTelegramId: ORDERLESS_TELEGRAM_ID,
+          reporterRole: "rider",
+        }),
+        trigger.trigger({
+          orderId: null,
+          actorTelegramId: ORDERLESS_TELEGRAM_ID,
+          reporterRole: "rider",
+        }),
+      ]);
+      expect(results.every((result) => result.ok)).toBe(true);
+      expect(
+        results.filter((result) => result.ok && "created" in result.value && result.value.created),
+      ).toHaveLength(1);
+      const persisted = await sql<{ incidents: string; deliveries: string }[]>`
+        select
+          (select count(*)::text from safety_incidents where order_id is null) incidents,
+          (select count(*)::text from notification_outbox where kind = 'safety_incident') deliveries
+      `;
+      expect(Number(persisted[0]?.incidents)).toBe(1);
+      expect(Number(persisted[0]?.deliveries)).toBe(1);
+    });
+
+    /**
+     * **دليلُ العيبِ الكامنِ**: `claim_safety_incident_delivery` كانت تَسِمُ الصفَّ
+     * `sending` ثمَّ تقرأُه بوصلٍ داخليٍّ على `orders`، فصفٌّ بلا طلبٍ يعودُ فارغاً
+     * ويبقى `sending` أبداً — بلاغُ استغاثةٍ يُدفَنُ بصمتٍ. و`left join` يُصلِحُه،
+     * وهذا الاختبارُ يفشلُ حرفاً إن عادَ الوصلُ الداخليُّ.
+     */
+    it("تُسلَّمُ بطاقةُ بلاغٍ بلا طلبٍ بـ`orderId: null` ولا تعلَقُ في `sending`", async () => {
+      await createOrderlessRider();
+      const triggered = await trigger.trigger({
+        orderId: null,
+        actorTelegramId: ORDERLESS_TELEGRAM_ID,
+        reporterRole: "rider",
+      });
+      expect(triggered.ok).toBe(true);
+
+      const published: { orderId: string | null; service: string | null }[] = [];
+      const report = await deliverSafetyIncidents({
+        deliveries: createSafetyDeliveryPort(sql),
+        publisher: {
+          publish: async (card) => {
+            published.push({ orderId: card.orderId, service: card.service });
+            return ok("552");
+          },
+        } satisfies SafetyCardPublisher,
+      });
+
+      expect(report.ok).toBe(true);
+      if (!report.ok) return;
+      expect(report.value.delivered).toBe(1);
+      expect(report.value.failed).toBe(0);
+      // لا رقمَ رحلةٍ مُلفَّقاً ولا خدمةً مُختَرَعةً: `null` صريحٌ يُصاغُ نصّاً مختلفاً.
+      expect(published).toEqual([{ orderId: null, service: null }]);
+      const row = await sql<{ status: string; attempts: number; message_id: string }[]>`
+        select status, attempts, delivered_message_id::text as message_id
+        from notification_outbox where kind = 'safety_incident'
+      `;
+      expect(row[0]).toEqual({ status: "delivered", attempts: 1, message_id: "552" });
+    });
+
+    it("يُعلِنُ حَكَمُ السطحِ أصلاً `NO_ORDER` بلا حقولِ نافذةٍ ويُفصِحُ خمسةَ رموزٍ", async () => {
+      await createOrderlessRider();
+      const rows = await sql<
+        {
+          state: {
+            ok: boolean;
+            origin: string;
+            eligible: boolean;
+            reason: string;
+            order_id: string | null;
+            post_ride_window_minutes: number | null;
+            post_ride_window_source: string | null;
+            disclosure: string[];
+            incident: { status: string } | null;
+          };
+        }[]
+      >`
+        select sos_surface_state(${ORDERLESS_TELEGRAM_ID}::bigint, 'rider') as state
+      `;
+      const state = rows[0]?.state;
+      if (state === undefined) throw new Error("لم يُقرأ حَكَمُ السطحِ");
+      expect(state.ok).toBe(true);
+      expect(state.origin).toBe("NO_ORDER");
+      expect(state.eligible).toBe(true);
+      expect(state.reason).toBe("NO_ORDER");
+      // حقولُ النافذةِ تُحجَبُ لا تُصفَّرُ: صفرُ دقيقةٍ دعوى، و`null` غيابٌ صادقٌ.
+      expect(state.order_id).toBeNull();
+      expect(state.post_ride_window_minutes).toBeNull();
+      expect(state.post_ride_window_source).toBeNull();
+      expect(state.incident).toBeNull();
+      expect(state.disclosure).toEqual([
+        "SOS_NO_LOCATION_AVAILABLE",
+        "SOS_NO_ORDER_REFERENCE",
+        "SOS_SHARES_ROLE",
+        "SOS_NOTIFIES_ACCOUNT_CITY_TEAM",
+        "SOS_NO_PHONE_CALL",
+      ]);
+    });
   });
 });
