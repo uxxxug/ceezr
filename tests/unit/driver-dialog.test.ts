@@ -408,7 +408,7 @@ describe("الاشتراك", () => {
       build({ drivers: driverDirectory(verifiedDriver()) }),
     );
     expect(replies[0]?.text).toBe(
-      ar("driver.subscription_none", { plan: "transport", price: 250, currency: "SAR" }),
+      ar("driver.subscription_none", { plan: "transport", price: 150, currency: "SAR" }),
     );
   });
 
@@ -435,7 +435,7 @@ describe("الاشتراك", () => {
         payerId: "driver-1" as DriverId,
         payeeId: "platform" as const,
         purpose: "driver_subscription" as const,
-        amount: { amount: 25_000, currency: "SAR" },
+        amount: { amount: 15_000, currency: "SAR" },
         provider: "test-provider",
         providerTransactionId: null,
         status: "pending" as const,
@@ -508,8 +508,8 @@ describe("الاشتراك", () => {
         build({ drivers: driverDirectory(verifiedDriver()), subscriptionPurchase: purchase }),
       );
       expect(replies[0]?.text).toContain("https://pay.test/inv_1");
-      // ٢٥٠ ريالاً = ٢٥٠٠٠ هلّة؛ تمريرُ ٢٥٠ كان سيبيع اشتراكاً بريالين ونصف.
-      expect(state.amounts[0]).toBe(25_000);
+      // ١٥٠ ريالاً = ١٥٠٠٠ هلّة؛ تمريرُ ١٥٠ كان سيبيع اشتراكاً بريال ونصف.
+      expect(state.amounts[0]).toBe(15_000);
     });
 
     it("لا يُفعِّل الاشتراك من البوت: لا تأكيد دفعٍ ولا اشتراكٌ سارٍ في الردّ", async () => {
@@ -524,7 +524,7 @@ describe("الاشتراك", () => {
       expect(replies[0]?.text).toBe(
         ar("driver.subscription_checkout", {
           plan: "transport",
-          price: 250,
+          price: 150,
           currency: "SAR",
           url: "https://pay.test/inv_1",
         }),
