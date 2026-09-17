@@ -638,6 +638,11 @@ jobs:
       - name: سقوطُ حاجزِ ميزانِ التوثيقِ مقيسٌ بخرقٍ مزروعٍ لا بالمستودَعِ كما هوَ (S-4)
         run: bun test tests/unit/check-docs-budget.test.ts
 
+      # D-15: ملفّاتُ القوالبِ الفارغةُ (export {};) مُقيسةٌ — لا يُستوردُ منها
+      # في الإنتاجِ. القالبُ الفارغُ مشروعٌ ما دامَ لا يُستعملُ.
+      - name: لا استيرادَ من ملفّاتٍ فارغةٍ في الإنتاجِ (D-15)
+        run: bun run scripts/check-scaffold-sprawl.ts
+
       - name: منع أي جدول بلا city_id في المخططات
         run: |
           bun run scripts/check-migrations.ts
