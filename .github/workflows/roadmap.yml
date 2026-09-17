@@ -35,7 +35,7 @@ jobs:
       # `ADR 0090` and `scripts/check-vendored-pin-follows-bytes.ts`.
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.2
       - name: A re-vendored contract carries its pin (DEP-CORE-005)
         env:
           BASE_SHA: ${{ github.event.before }}

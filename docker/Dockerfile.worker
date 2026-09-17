@@ -7,7 +7,7 @@
 #     القفلُ الواحد يشمل مساحاتِ العمل كلَّها منذ انضمام تطبيق تِلِغرام المصغَّر،
 #     و`--frozen-lockfile` يرفض التثبيتَ إذا غاب بيانُ إحداها — فلا يكفي نسخُ
 #     بيانِ الجذر وحده. والحارس في scripts/verify-container-build.sh يُلزم بهذا.
-FROM oven/bun:1.3.14 AS base
+FROM oven/bun:1.4.2 AS base
 WORKDIR /app
 
 COPY package.json bun.lock tsconfig.json ./
