@@ -43,7 +43,7 @@ create or replace function request_ride(
   p_origin_lng      double precision,
   p_dest_lat        double precision,
   p_dest_lng        double precision,
-  p_notes           text
+  p_notes           text default null
 )
 returns jsonb
 language plpgsql
