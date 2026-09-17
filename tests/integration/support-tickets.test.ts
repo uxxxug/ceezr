@@ -91,10 +91,12 @@ const photo = (chatId: number, fileId: string, caption?: string) =>
     ...(caption === undefined ? {} : { caption }),
   });
 const privateCallback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
 /** ضغطة زرّ داخل قروب الدعم: chatId هو القروب لا المستخدم. */
 const groupCallback = (userId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: userId }, message: { chat: { id: SUPPORT_GROUP } } },
 });
 

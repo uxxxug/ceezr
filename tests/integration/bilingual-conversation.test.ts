@@ -127,9 +127,11 @@ const location = (chatId: number, at: { latitude: number; longitude: number }) =
 const contact = (chatId: number, phone: string) =>
   message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 const groupCallback = (userId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: userId }, message: { chat: { id: UNSUB_GROUP } } },
 });
 const privateCallback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
 
