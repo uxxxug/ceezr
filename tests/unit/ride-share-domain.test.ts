@@ -1,6 +1,6 @@
 /**
- * الغرض: قياسُ نطاقِ مشاركةِ الرحلةِ — حياةُ الرابطِ، وأطولُ ما بقيَ، وتصنيفُ
- *   الإتاحةِ، وقائمتا الإفصاحِ والكتمانِ (البند `F2-09` · `SR-13`).
+ * الغرض: قياسُ نطاقِ مشاركةِ الرحلةِ — حكمُ الحياةِ (`F12-04`)، وأقربُ سقفٍ،
+ *   وتصنيفُ الإتاحةِ، وقائمتا الإفصاحِ والكتمانِ (البند `F2-09` · `SR-13`).
  * الحالة: منفَّذٌ فعليّاً — البند `F2-09`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: CI (الوظيفة `verify`)
@@ -19,52 +19,99 @@
 
 import { describe, expect, it } from "bun:test";
 import {
-  isLiveLink,
   isPositionMaxAgeSource,
   isSharedPositionVerdict,
+  isShareLifetimeLive,
+  isShareLifetimeVerdict,
   isSharingNow,
-  liveLinks,
-  longestRemainingSeconds,
   SHARE_DISCLOSED,
+  SHARE_LIFETIME_VERDICTS,
   SHARE_WITHHELD,
   SHARED_POSITION_VERDICTS,
+  type ShareLifetime,
   type ShareLink,
   shareAvailabilityOf,
+  shareCountdownSeconds,
+  soonestCeilingSeconds,
+  TRACKING_LINK_GRACE_MINUTES,
 } from "../../packages/domain/transport/ride-share.ts";
 
-function link(secondsRemaining: number, id = "l1"): ShareLink {
-  return { id, createdAtMs: 1_700_000_000_000, secondsRemaining };
+function link(ceilingSecondsRemaining: number, id = "l1"): ShareLink {
+  return { id, createdAtMs: 1_700_000_000_000, ceilingSecondsRemaining };
 }
 
-describe("حياةُ الرابطِ", () => {
-  it("الثانيةُ الواحدةُ حياةٌ والصفرُ موتٌ — والحدُّ مقيسٌ لا مُخمَّنٌ", () => {
-    expect(isLiveLink(link(1))).toBe(true);
-    expect(isLiveLink(link(0))).toBe(false);
+const RIDING: ShareLifetime = {
+  verdict: "LIVE_RIDE_ACTIVE",
+  graceMinutes: TRACKING_LINK_GRACE_MINUTES,
+  graceSource: "SETTING",
+};
+const GRACE: ShareLifetime = {
+  verdict: "LIVE_GRACE",
+  secondsRemaining: 240,
+  graceMinutes: TRACKING_LINK_GRACE_MINUTES,
+  graceSource: "SETTING",
+};
+const DEAD: ShareLifetime = {
+  verdict: "EXPIRED_RIDE_ENDED",
+  graceMinutes: TRACKING_LINK_GRACE_MINUTES,
+  graceSource: "FALLBACK_DEFAULT",
+};
+
+/**
+ * **`F12-04`** — والحياةُ صفةُ **الرحلةِ** لا صفةُ الرابطِ. وكانَ ههنا قياسٌ
+ * على `isLiveLink`/`liveLinks`/`longestRemainingSeconds`: ثلاثُ دالّاتٍ تحكمُ
+ * بالحياةِ من **بقيّةِ السقفِ** (`expires_at - now()`). **ولم يُلَيَّنْ توكيدٌ
+ * ولم يُحذَفْ**: الدعوى التي كانت تحملُها — «رابطٌ منتهٍ لا يجعلُها مُشارَكةً»
+ * و«العدَمُ لا يُساوي الصفرَ» — باقيةٌ بحرفِها أدناهُ وقد صارت أقوى، إذ تُقاسُ
+ * على الحكمِ الصادقِ (`EXPIRED_RIDE_ENDED`) لا على سقفٍ ليسَ هوَ الموعدَ. وذاكَ
+ * السقفُ هوَ عينُ العطبِ: رابطٌ أمامَه إحدى عشرةَ ساعةً من سقفِه كانَ يُقرأُ
+ * «حيّاً» وقد ماتَ بانتهاءِ الرحلةِ ومهلتِها (`ADR 0146`).
+ */
+describe("حكمُ حياةِ المشاركةِ", () => {
+  it("الأحكامُ ثلاثةٌ بأسماءِ القاعدةِ نفسِها — وما سواها يُرفَضُ", () => {
+    expect([...SHARE_LIFETIME_VERDICTS]).toEqual([
+      "LIVE_RIDE_ACTIVE",
+      "LIVE_GRACE",
+      "EXPIRED_RIDE_ENDED",
+    ]);
+    for (const verdict of SHARE_LIFETIME_VERDICTS) {
+      expect(isShareLifetimeVerdict(verdict)).toBe(true);
+    }
+    for (const bad of ["LIVE", "live_grace", "EXPIRED", "", 1, null, undefined]) {
+      expect(isShareLifetimeVerdict(bad)).toBe(false);
+    }
   });
 
-  // عددٌ سالبٌ ليسَ فرضاً نظريّاً: ساعةُ القاعدةِ قد تتجاوزُ الانتهاءَ بينَ
-  // الحسابِ والنشرِ. والمطلوبُ أن يُقرأَ **ميتاً** لا أن يُقلَبَ حيّاً بمطلقِ قيمةٍ.
-  it("باقٍ سالبٌ ميتٌ — لا يُقلَبُ حيّاً بمطلقِ قيمةٍ", () => {
-    expect(isLiveLink(link(-30))).toBe(false);
-    expect(liveLinks([link(-30, "a"), link(5, "b")]).map((l) => l.id)).toEqual(["b"]);
+  it("رحلةٌ جاريةٌ حياةٌ، ومهلةٌ جاريةٌ حياةٌ، والانقضاءُ موتٌ", () => {
+    expect(isShareLifetimeLive(RIDING)).toBe(true);
+    expect(isShareLifetimeLive(GRACE)).toBe(true);
+    expect(isShareLifetimeLive(DEAD)).toBe(false);
   });
 
-  it("«أمُشارَكةٌ الآنَ» جوابٌ واحدٌ: رابطٌ منتهٍ لا يجعلُها مُشارَكةً", () => {
-    expect(isSharingNow([])).toBe(false);
-    expect(isSharingNow([link(0, "a"), link(0, "b")])).toBe(false);
-    expect(isSharingNow([link(0, "a"), link(12, "b")])).toBe(true);
+  // **لا عدَّ تنازليّاً لرحلةٍ جاريةٍ**: موعدُها غيرُ معلومٍ، وأيُّ رقمٍ كذبٌ.
+  // وهذا هوَ العطبُ الثاني الذي أُغلِقَ: عدٌّ نحوَ سقفٍ ليسَ هوَ الموعدَ.
+  it("العدُّ التنازليُّ للمهلةِ وحدَها — ورحلةٌ جاريةٌ بلا رقمٍ ألبتّةَ", () => {
+    expect(shareCountdownSeconds(RIDING)).toBeNull();
+    expect(shareCountdownSeconds(GRACE)).toBe(240);
+    expect(shareCountdownSeconds(DEAD)).toBeNull();
   });
 
-  it("أطولُ ما بقيَ يُحسَبُ من الحيِّ وحدَه، و«لا رابطَ» عَدَمٌ لا صفرٌ", () => {
-    expect(longestRemainingSeconds([])).toBeNull();
-    expect(longestRemainingSeconds([link(0, "a")])).toBeNull();
-    expect(longestRemainingSeconds([link(40, "a"), link(900, "b"), link(0, "c")])).toBe(900);
+  it("«أمُشارَكةٌ الآنَ» شرطانِ: رابطٌ قائمٌ وحياةٌ لم تنقضِ", () => {
+    expect(isSharingNow(RIDING, [])).toBe(false);
+    expect(isSharingNow(RIDING, [link(9000)])).toBe(true);
+    expect(isSharingNow(GRACE, [link(9000)])).toBe(true);
+    // **السقفُ لا يُنقِذُ رابطاً ماتَ سببُه**: أمامَه ساعاتٌ ومعَ ذلكَ لا مشاركةَ.
+    expect(isSharingNow(DEAD, [link(40_000)])).toBe(false);
   });
 
-  // الفرقُ بينَ `null` و`0` هوَ الفرقُ بينَ «لا مشاركةَ» و«ينتهي الآنَ»،
-  // والشاشةُ تكتبُ لهما جملتَينِ مختلفتَينِ — فلا يُطوى أحدُهما في الآخرِ.
-  it("عَدَمُ الرابطِ لا يُساوي صفرَ الثواني", () => {
-    expect(longestRemainingSeconds([link(0, "a")])).not.toBe(0);
+  it("أقربُ سقفٍ يُقرأُ سقفاً، و«لا رابطَ» عَدَمٌ لا صفرٌ", () => {
+    expect(soonestCeilingSeconds([])).toBeNull();
+    expect(soonestCeilingSeconds([])).not.toBe(0);
+    expect(soonestCeilingSeconds([link(900, "a"), link(40, "b"), link(9000, "c")])).toBe(40);
+  });
+
+  it("مهلةُ ما بعدَ الرحلةِ حكمٌ واحدٌ يُقاسُ ببذرةِ الهجرةِ", () => {
+    expect(TRACKING_LINK_GRACE_MINUTES).toBe(15);
   });
 });
 

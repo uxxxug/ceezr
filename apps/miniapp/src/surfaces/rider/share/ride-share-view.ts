@@ -19,6 +19,13 @@
  * «بقيَت ٠ دقيقةٍ» تُقرأُ «ما زالَ يعملُ». والحقيقةُ أنَّه ماتَ — والفرقُ عندَ
  * مَن يظنُّ أنَّ أهلَه يرَونه.
  *
+ * **زيادةُ `F12-04`**: وحياةُ الرابطِ صارت **حكماً يصلُ من القاعدةِ**
+ * (`lifetime`) لا رقماً يُقارَنُ بالصفرِ ههنا. ولذلكَ نُزِعَت
+ * `isLiveRemaining`: كانت تحكمُ بالحياةِ من **بقيّةِ السقفِ**، والسقفُ ليسَ
+ * الموعدَ — فرابطٌ أمامَه إحدى عشرةَ ساعةً من سقفِه كانَ يُعَدُّ «حيّاً» وقد
+ * ماتَ بانتهاءِ الرحلةِ ومهلتِها. والحكمُ الآنَ في `tracking_link_lifetime`
+ * وحدَها، وما ههنا **قراءتُه** وصياغةُ جملتِه.
+ *
  * ## وما لا يفعلُه هذا المِلفُّ عن قصدٍ
  *
  *   ــ **لا يُصيغُ نصّاً**: النصُّ في `packages/shared/i18n` وحدَه.
@@ -26,12 +33,11 @@
  *   ــ **لا يحسبُ عُمرَ نقطةٍ**: الحكمُ والعُمرُ يصلانِ مقيسَينِ من القاعدةِ.
  */
 
-import type { ApiSharePreview, ApiSharePreviewLocated } from "./ride-share-contract.ts";
-
-/** أهوَ رابطٌ حيٌّ؟ صفرٌ ودونَه **ميتٌ** ولا يُعرَضُ (انظرْ رأسَ المِلفِّ). */
-export function isLiveRemaining(secondsRemaining: number): boolean {
-  return Number.isFinite(secondsRemaining) && secondsRemaining > 0;
-}
+import type {
+  ApiShareLifetime,
+  ApiSharePreview,
+  ApiSharePreviewLocated,
+} from "./ride-share-contract.ts";
 
 export interface RemainingText {
   readonly key: string;
@@ -49,6 +55,43 @@ export function remainingText(secondsRemaining: number): RemainingText {
     minutes,
     seconds: safe % 60,
   };
+}
+
+/**
+ * سطرُ حياةِ المشاركةِ (`F12-04`) — **متى تنتهي؟** والجوابُ ثلاثةٌ لا واحدٌ،
+ * ولكلِّ حكمٍ جملتُه: «حتّى تنتهيَ رحلتُكَ ثمَّ {minutes} دقيقةً» · «انتهَت
+ * رحلتُكَ: يبقى {minutes}:{seconds}» · «انتهَت المشاركةُ».
+ *
+ * **ولا عدَّ تنازليّاً لرحلةٍ جاريةٍ**: موعدُها غيرُ معلومٍ، وعقربٌ يعدُّ إلى
+ * سقفٍ كانَ يقولُ «يبقى إحدى عشرةَ ساعةً» لرابطٍ يموتُ بعدَ ربعِ ساعةٍ من نهايةِ
+ * الرحلةِ. وحكمٌ لا يُعرَفُ يُقالُ مفتاحاً عامّاً لا رمزاً خاماً.
+ */
+export interface LifetimeLine {
+  readonly key: string;
+  readonly minutes: number;
+  readonly seconds: number;
+}
+
+export function lifetimeLine(lifetime: ApiShareLifetime): LifetimeLine {
+  if (lifetime.verdict === "LIVE_RIDE_ACTIVE") {
+    const grace =
+      Number.isFinite(lifetime.graceMinutes) && lifetime.graceMinutes > 0
+        ? Math.trunc(lifetime.graceMinutes)
+        : 0;
+    return { key: "rider.share.until.rideEnds", minutes: grace, seconds: 0 };
+  }
+  if (lifetime.verdict === "LIVE_GRACE") {
+    const remaining = remainingText(lifetime.secondsRemaining ?? 0);
+    return {
+      key: "rider.share.until.grace",
+      minutes: remaining.minutes,
+      seconds: remaining.seconds,
+    };
+  }
+  if (lifetime.verdict === "EXPIRED_RIDE_ENDED") {
+    return { key: "rider.share.until.ended", minutes: 0, seconds: 0 };
+  }
+  return { key: "rider.share.until.unknown", minutes: 0, seconds: 0 };
 }
 
 /**

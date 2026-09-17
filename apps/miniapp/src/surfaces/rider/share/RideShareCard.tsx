@@ -53,11 +53,10 @@ import type {
 } from "./ride-share-contract.ts";
 import {
   disclosureKey,
-  isLiveRemaining,
   isRetryableShareError,
+  lifetimeLine,
   previewLine,
   readRefusalKey,
-  remainingText,
   shareErrorKey,
   startRefusalKey,
 } from "./ride-share-view.ts";
@@ -189,7 +188,10 @@ export function RideShareCard({
   }
 
   const view = state.view;
-  const live = view.links.filter((link) => isLiveRemaining(link.secondsRemaining));
+  // **الروابطُ الواصلةُ حيّةٌ بحكمِ القاعدةِ** (`F12-04`): لا تُرشَّحُ ههنا
+  // ببقيّةِ سقفٍ — السقفُ ليسَ الموعدَ، وحكمُ الحياةِ في `view.lifetime`.
+  const live = view.links;
+  const lifetime = lifetimeLine(view.lifetime);
   const preview = previewLine(view.preview);
   const canShare = view.availability === "CAN_SHARE";
 
@@ -211,21 +213,13 @@ export function RideShareCard({
         <p className="rs__state">{t("rider.share.notSharing")}</p>
       )}
 
-      {/* المتبقّي لكلِّ رابطٍ حيٍّ — رقمٌ قاسَته القاعدةُ لا عقربٌ يدقُّ. */}
-      {live.length > 0 && (
-        <ul className="rs__links">
-          {live.map((link) => {
-            const remaining = remainingText(link.secondsRemaining);
-            return (
-              <li className="rs__link" key={link.id}>
-                {t(remaining.key)
-                  .replace("{minutes}", String(remaining.minutes))
-                  .replace("{seconds}", String(remaining.seconds))}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {/* **متى تنتهي المشاركةُ؟** حكمُ الرحلةِ لا بقيّةُ سقفٍ (`F12-04`) — رقمٌ
+          قاسَته القاعدةُ لا عقربٌ يدقُّ، ولا عدَّ لرحلةٍ جاريةٍ. */}
+      <p className="rs__until" role="status">
+        {t(lifetime.key)
+          .replace("{minutes}", String(lifetime.minutes))
+          .replace("{seconds}", String(lifetime.seconds))}
+      </p>
 
       {/* **جوابُ المستلمِ نفسُه**، لا وعدٌ عن جوابِه. */}
       <div className="rs__preview" role="status">

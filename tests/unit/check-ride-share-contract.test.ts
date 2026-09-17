@@ -1,7 +1,7 @@
 /**
  * الغرض: قياسُ حاجزِ عقدِ مشاركةِ الرحلةِ — **حالةٌ سلبيّةٌ مبذورةٌ لكلِّ قاعدةٍ
- *   من الثمانِ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-09`.
+ *   من العشرِ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ).
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-09` و`F12-04`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: `bun test` وسلسلةُ `ci`.
  *
@@ -14,7 +14,10 @@ import { describe, expect, it } from "bun:test";
 import { readRepository } from "../../scripts/check-ride-share-contract.ts";
 import {
   disclosureTextProblems,
+  graceParityProblems,
   identityLeakProblems,
+  lastDefiner,
+  livenessJudgeProblems,
   maxAgeParityProblems,
   type RideShareContractInput,
   rideShareContractProblems,
@@ -28,6 +31,15 @@ import {
 
 const SQL = `
 insert into city_settings (key, value) values ('driver_position_max_age_seconds', '90'::jsonb);
+insert into city_settings (key, value) values ('tracking_link_grace_minutes', '15'::jsonb);
+
+create or replace function tracking_link_lifetime(p_order_id uuid)
+returns jsonb as $$
+begin
+  v_grace := 15;
+  return jsonb_build_object('verdict', 'LIVE_RIDE_ACTIVE');
+end;
+$$ language plpgsql stable security invoker;
 
 create or replace function tracking_link_view(p_order_id uuid)
 returns jsonb as $$
@@ -41,20 +53,38 @@ create or replace function rider_ride_share_state(p_telegram_id bigint, p_order_
 returns jsonb as $$
 begin
   v_view := tracking_link_view(v_order.id);
+  v_life := tracking_link_lifetime(v_order.id);
 end;
 $$ language plpgsql stable security invoker;
 
 create or replace function get_tracking_position(p_token text)
 returns jsonb as $$
 begin
+  v_order_id := tracking_link_token_order(p_token);
   v_view := tracking_link_view(v_token.order_id);
 end;
 $$ language plpgsql stable security invoker;
 
+create or replace function tracking_link_token_order(p_token text)
+returns uuid as $$
+begin
+  select t.order_id into v_id from trip_tracking_tokens t
+   where t.token = p_token and t.revoked_at is null and t.expires_at > now();
+  v_life := tracking_link_lifetime(v_id);
+end;
+$$ language plpgsql stable security invoker;
+
+revoke execute on function tracking_link_lifetime(uuid) from public, anon, authenticated;
+revoke execute on function tracking_link_token_order(text) from public, anon, authenticated;
 revoke execute on function tracking_link_view(uuid) from public, anon, authenticated;
 revoke execute on function rider_ride_share_state(bigint, uuid) from public, anon, authenticated;
 revoke execute on function get_tracking_position(text) from public, anon, authenticated;
 `;
+
+/** الهجراتُ المصنوعةُ: مسارٌ واحدٌ يكفي حيثُ لا يُقاسُ ترتيبُ التعريفِ. */
+function sqlOf(text: string): Record<string, string> {
+  return { "20260918020000_fake.sql": text };
+}
 
 const PUBLIC_SOURCE = `
 const payload = { lat: position.lat, lng: position.lng, age_seconds: position.ageSeconds };
@@ -89,10 +119,11 @@ function input(overrides: Partial<RideShareContractInput> = {}): RideShareContra
   return {
     publicFiles: { "public-tracking.ts": PUBLIC_SOURCE },
     surface: { "RideShareCard.tsx": SURFACE },
-    sql: SQL,
+    sqlFiles: sqlOf(SQL),
     route: ROUTE,
     domain: "export const SHARE_DISCLOSED = ['DRIVER_POSITION'];",
     maxAgeSeconds: 90,
+    graceMinutes: 15,
     translations: { ar: dictionary(), en: dictionary(), ur: dictionary() },
     disclosure: { shown: [...DISCLOSURE.shown], hidden: [...DISCLOSURE.hidden] },
     ...overrides,
@@ -104,7 +135,7 @@ describe("حاجزُ عقدِ المشاركةِ — الحالةُ الموجب
     expect(rideShareContractProblems(input())).toEqual([]);
   });
 
-  it("المستودعُ الحقيقيُّ نفسُه يمرُّ بالقواعدِ الثمانِ", () => {
+  it("المستودعُ الحقيقيُّ نفسُه يمرُّ بالقواعدِ العشرِ", () => {
     expect(rideShareContractProblems(readRepository())).toEqual([]);
   });
 });
@@ -142,7 +173,12 @@ describe("القاعدة ١ — لا هويّةَ في الحمولةِ العا
 describe("القاعدة ٢ — لا موضعَ بلا عُمرِه", () => {
   it("قاعدةٌ تنشرُ إحداثيّةً بلا «age_seconds» تُسقِطُ الحاجزَ", () => {
     const problems = shareAgeProblems(
-      input({ sql: "select jsonb_build_object('lat', 21.5, 'lng', 39.1);" }),
+      input({
+        sqlFiles: sqlOf(
+          "create or replace function f_leak(p uuid) returns jsonb as $$ begin" +
+            " return jsonb_build_object('lat', 21.5, 'lng', 39.1); end; $$ language plpgsql;",
+        ),
+      }),
     );
     expect(problems.some((text) => text.includes("age_seconds"))).toBe(true);
   });
@@ -172,9 +208,11 @@ describe("القاعدة ٣ — حدُّ العُمرِ حكمٌ واحدٌ", ()
   it("بذرةٌ تخالفُ ثابتَ النطاقِ تُسقِطُ الحاجزَ", () => {
     const problems = maxAgeParityProblems(
       input({
-        sql: SQL.replace(
-          "'driver_position_max_age_seconds', '90'",
-          "'driver_position_max_age_seconds', '300'",
+        sqlFiles: sqlOf(
+          SQL.replace(
+            "'driver_position_max_age_seconds', '90'",
+            "'driver_position_max_age_seconds', '300'",
+          ),
         ),
       }),
     );
@@ -183,13 +221,13 @@ describe("القاعدة ٣ — حدُّ العُمرِ حكمٌ واحدٌ", ()
 
   it("احتياطٌ يخالفُ ثابتَ النطاقِ يُسقِطُ الحاجزَ", () => {
     const problems = maxAgeParityProblems(
-      input({ sql: SQL.replace("v_max_age := 90;", "v_max_age := 600;") }),
+      input({ sqlFiles: sqlOf(SQL.replace("v_max_age := 90;", "v_max_age := 600;")) }),
     );
-    expect(problems.some((text) => text.includes("احتياطُ الحدِّ"))).toBe(true);
+    expect(problems.some((text) => text.includes("احتياطُ «v_max_age»"))).toBe(true);
   });
 
   it("هجرةٌ بلا بذرةٍ تُسقِطُ الحاجزَ — الإعدادُ غيرُ منشورٍ", () => {
-    const problems = maxAgeParityProblems(input({ sql: "select 1; v_max_age := 90;" }));
+    const problems = maxAgeParityProblems(input({ sqlFiles: sqlOf("select 1; v_max_age := 90;") }));
     expect(problems.some((text) => text.includes("لا بذرةَ"))).toBe(true);
   });
 
@@ -227,7 +265,9 @@ describe("القاعدة ٥ — حَكَمٌ واحدٌ في القاعدةِ", 
   it("دالّةُ الغريبِ لا تُنادي الحَكَمَ تُسقِطُ الحاجزَ", () => {
     const problems = singleJudgeProblems(
       input({
-        sql: SQL.replace("v_view := tracking_link_view(v_token.order_id);", "select 1;"),
+        sqlFiles: sqlOf(
+          SQL.replace("v_view := tracking_link_view(v_token.order_id);", "select 1;"),
+        ),
       }),
     );
     expect(problems.some((text) => text.includes("get_tracking_position"))).toBe(true);
@@ -235,13 +275,15 @@ describe("القاعدة ٥ — حَكَمٌ واحدٌ في القاعدةِ", 
 
   it("دالّةُ المالكِ لا تُنادي الحَكَمَ تُسقِطُ الحاجزَ", () => {
     const problems = singleJudgeProblems(
-      input({ sql: SQL.replace("v_view := tracking_link_view(v_order.id);", "select 1;") }),
+      input({
+        sqlFiles: sqlOf(SQL.replace("v_view := tracking_link_view(v_order.id);", "select 1;")),
+      }),
     );
     expect(problems.some((text) => text.includes("rider_ride_share_state"))).toBe(true);
   });
 
   it("غيابُ الحَكَمِ نفسِه يُسقِطُ الحاجزَ", () => {
-    const problems = singleJudgeProblems(input({ sql: "select 1;" }));
+    const problems = singleJudgeProblems(input({ sqlFiles: sqlOf("select 1;") }));
     expect(problems.some((text) => text.includes("غيرُ مُنشَأٍ"))).toBe(true);
   });
 });
@@ -305,7 +347,9 @@ describe("القاعدة ٧ — كلُّ رمزِ إفصاحٍ له نصُّه",
 describe("القاعدة ٨ — لا دالّةَ بلا نزعِ تنفيذٍ", () => {
   it("دالّةٌ بلا نزعٍ تُسقِطُ الحاجزَ", () => {
     const problems = shareRevokeProblems(
-      input({ sql: "create or replace function f_one(p uuid) returns jsonb as $$ $$;" }),
+      input({
+        sqlFiles: sqlOf("create or replace function f_one(p uuid) returns jsonb as $$ $$;"),
+      }),
     );
     expect(problems.some((text) => text.includes("بلا نزعِ تنفيذٍ"))).toBe(true);
   });
@@ -313,9 +357,10 @@ describe("القاعدة ٨ — لا دالّةَ بلا نزعِ تنفيذٍ",
   it("نزعٌ ناقصُ الأدوارِ يُسقِطُ الحاجزَ — «public» وحدَه لا يكفي", () => {
     const problems = shareRevokeProblems(
       input({
-        sql:
+        sqlFiles: sqlOf(
           "create or replace function f_one(p uuid) returns jsonb as $$ $$;" +
-          " revoke execute on function f_one(uuid) from public;",
+            " revoke execute on function f_one(uuid) from public;",
+        ),
       }),
     );
     expect(problems.some((text) => text.includes("anon"))).toBe(true);
@@ -323,7 +368,124 @@ describe("القاعدة ٨ — لا دالّةَ بلا نزعِ تنفيذٍ",
   });
 
   it("هجرةٌ بلا دالّةٍ واحدةٍ تُسقِطُ الحاجزَ", () => {
-    const problems = shareRevokeProblems(input({ sql: "select 1;" }));
+    const problems = shareRevokeProblems(input({ sqlFiles: sqlOf("select 1;") }));
     expect(problems.some((text) => text.includes("قائمةٍ فارغةٍ"))).toBe(true);
+  });
+});
+
+/**
+ * ولمَ قاعدةٌ كاملةٌ لـ«مَن يحكمُ بالحياةِ»: **لأنَّ العطبَ كانَ صامتاً**.
+ * `expires_at` سقفٌ يُكتَبُ اثنتَي عشرةَ ساعةً عندَ الإصدارِ، ولا يُقرَّبُ إلى
+ * «نهايةِ الرحلةِ + المهلةِ» إلّا بوظيفةٍ دوريّةٍ. فيومَ تتأخّرُ الوظيفةُ يبقى
+ * الرابطُ ينشرُ موضعَ السائقِ ساعاتٍ بعدَ نهايةِ الرحلةِ — ولا شيءَ يسقطُ.
+ */
+describe("القاعدة ٩ — الحياةُ حكمٌ لا رايةٌ", () => {
+  it("قارئُ الغريبِ بلا حَكَمِ الحياةِ (ولا واسطةٍ أمينةٍ) يُسقِطُ الحاجزَ", () => {
+    const problems = livenessJudgeProblems(
+      input({
+        sqlFiles: sqlOf(SQL.replace("v_life := tracking_link_lifetime(v_id);", "select 1;")),
+      }),
+    );
+    expect(problems.some((text) => text.includes("get_tracking_position"))).toBe(true);
+  });
+
+  it("قارئُ المالكِ بلا حَكَمِ الحياةِ يُسقِطُ الحاجزَ", () => {
+    const problems = livenessJudgeProblems(
+      input({
+        sqlFiles: sqlOf(SQL.replace("v_life := tracking_link_lifetime(v_order.id);", "select 1;")),
+      }),
+    );
+    expect(problems.some((text) => text.includes("rider_ride_share_state"))).toBe(true);
+  });
+
+  // **عينُ العطبِ المُصلَحِ**: بوّابةٌ من السقفِ وحدَه، بلا سؤالٍ عن حالِ الرحلةِ.
+  it("بوّابةٌ من «expires_at > now()» وحدَها تُسقِطُ الحاجزَ", () => {
+    const problems = livenessJudgeProblems(
+      input({
+        sqlFiles: sqlOf(
+          "create or replace function f_gate(p text) returns uuid as $$ begin" +
+            " select t.order_id into v_id from trip_tracking_tokens t" +
+            " where t.token = p and t.expires_at > now(); end; $$ language plpgsql;" +
+            " revoke execute on function f_gate(text) from public, anon, authenticated;",
+        ),
+      }),
+    );
+    expect(problems.some((text) => text.includes("f_gate"))).toBe(true);
+  });
+
+  it("غيابُ الحَكَمِ نفسِه يُسقِطُ الحاجزَ", () => {
+    const problems = livenessJudgeProblems(input({ sqlFiles: sqlOf("select 1;") }));
+    expect(problems.some((text) => text.includes("tracking_link_lifetime"))).toBe(true);
+  });
+
+  // ووظيفةُ التقاربِ الدوريّةُ **مُستثناةٌ باسمِها وسببِها**: تُحرِّكُ السقفَ ولا
+  // تُجيبُ قارئاً — ولو لزِمَها الحَكَمُ لَدارَت في حلقةٍ (انظرْ `CEILING_WRITERS`).
+  it("وظيفةُ تحريكِ السقفِ مُستثناةٌ باسمِها ولا تُسقِطُ الحاجزَ", () => {
+    const problems = livenessJudgeProblems(
+      input({
+        sqlFiles: sqlOf(
+          SQL +
+            "\ncreate or replace function expire_tracking_tokens(p uuid) returns jsonb as $$" +
+            " begin update trip_tracking_tokens set expires_at = v_due" +
+            " where expires_at > now(); end; $$ language plpgsql;" +
+            " revoke execute on function expire_tracking_tokens(uuid)" +
+            " from public, anon, authenticated;",
+        ),
+      }),
+    );
+    expect(problems).toEqual([]);
+  });
+});
+
+describe("القاعدة ١٠ — مهلةُ ما بعدَ الرحلةِ حكمٌ واحدٌ", () => {
+  it("بذرةٌ تخالفُ ثابتَ النطاقِ تُسقِطُ الحاجزَ", () => {
+    const problems = graceParityProblems(
+      input({
+        sqlFiles: sqlOf(
+          SQL.replace("'tracking_link_grace_minutes', '15'", "'tracking_link_grace_minutes', '45'"),
+        ),
+      }),
+    );
+    expect(problems.some((text) => text.includes("TRACKING_LINK_GRACE_MINUTES"))).toBe(true);
+  });
+
+  it("احتياطٌ يخالفُ ثابتَ النطاقِ يُسقِطُ الحاجزَ", () => {
+    const problems = graceParityProblems(
+      input({ sqlFiles: sqlOf(SQL.replace("v_grace := 15;", "v_grace := 5;")) }),
+    );
+    expect(problems.some((text) => text.includes("احتياطُ"))).toBe(true);
+  });
+
+  it("هجرةٌ بلا بذرةِ مهلةٍ تُسقِطُ الحاجزَ", () => {
+    const problems = graceParityProblems(input({ sqlFiles: sqlOf("select 1; v_grace := 15;") }));
+    expect(problems.some((text) => text.includes("لا بذرةَ"))).toBe(true);
+  });
+
+  it("ثابتٌ غيرُ مقروءٍ يُسقِطُ الحاجزَ — لا حكمَ بلا مرجعٍ", () => {
+    const problems = graceParityProblems(input({ graceMinutes: null }));
+    expect(problems.some((text) => text.includes("لا حكمَ بلا مرجعٍ"))).toBe(true);
+  });
+});
+
+/**
+ * وهذا القياسُ **هوَ الذي يجعلُ الحاجزَ يقيسُ العاملَ لا المكتوبَ أوّلاً**:
+ * هجرةٌ لاحقةٌ تُعيدُ تعريفَ دالّةٍ كانت تمرُّ بلا قياسٍ ألبتّةَ قبلَ `F12-04`.
+ */
+describe("آخرُ مُعرِّفٍ — الحكمُ على العاملِ لا على أوّلِ مكتوبٍ", () => {
+  it("إعادةُ تعريفٍ في هجرةٍ لاحقةٍ هيَ المقيسةُ", () => {
+    const first =
+      "create or replace function f(p uuid) returns jsonb as $$ begin return 1; end; $$ language plpgsql;";
+    const second =
+      "create or replace function f(p uuid) returns jsonb as $$ begin return 2; end; $$ language plpgsql;";
+    const definer = lastDefiner(
+      { "20260101000000_a.sql": first, "20260202000000_b.sql": second },
+      "f",
+    );
+    expect(definer?.path).toBe("20260202000000_b.sql");
+    expect(definer?.body.includes("return 2")).toBe(true);
+  });
+
+  it("دالّةٌ غيرُ مُعرَّفةٍ ترجعُ عَدَماً لا جسماً فارغاً يُقرأُ نجاحاً", () => {
+    expect(lastDefiner({ "a.sql": "select 1;" }, "f")).toBeNull();
   });
 });

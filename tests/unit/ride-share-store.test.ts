@@ -50,7 +50,13 @@ function located(overrides: Record<string, unknown> = {}): Record<string, unknow
     can_share: true,
     max_lifetime_minutes: 60,
     grace_minutes: 10,
-    links: [{ id: "a1", created_at: "2027-03-01T09:00:00.000Z", seconds_remaining: 1200 }],
+    links: [{ id: "a1", created_at: "2027-03-01T09:00:00.000Z", ceiling_seconds_remaining: 1200 }],
+    lifetime: {
+      verdict: "LIVE_RIDE_ACTIVE",
+      seconds_remaining: null,
+      grace_minutes: 10,
+      grace_source: "SETTING",
+    },
     preview: {
       active: true,
       position: {
@@ -167,12 +173,12 @@ describe("تصنيفُ رفضِ القاعدةِ", () => {
 });
 
 describe("تحويلُ الحمولةِ", () => {
-  it("الحالُ يُحسَبُ من الروابطِ لا من حقلٍ يُصدِّقُه المحوّلُ", async () => {
+  it("الحالُ يُحسَبُ من حكمِ الحياةِ والروابطِ لا من حقلٍ يُصدِّقُه المحوّلُ", async () => {
     const { sql } = fakeSql(
       located({
         links: [
-          { id: "a", created_at: "2027-03-01T09:00:00.000Z", seconds_remaining: 0 },
-          { id: "b", created_at: "2027-03-01T09:02:00.000Z", seconds_remaining: 300 },
+          { id: "a", created_at: "2027-03-01T09:00:00.000Z", ceiling_seconds_remaining: 900 },
+          { id: "b", created_at: "2027-03-01T09:02:00.000Z", ceiling_seconds_remaining: 300 },
         ],
       }),
     );
@@ -183,8 +189,77 @@ describe("تحويلُ الحمولةِ", () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok || !outcome.value.found) throw new Error("قراءةٌ لم تنجحْ");
     expect(outcome.value.state.sharingNow).toBe(true);
-    expect(outcome.value.state.longestRemainingSeconds).toBe(300);
+    // **أقربُ سقفٍ** يُنشَرُ سقفاً باسمِه — لا موعداً لانتهاءِ المشاركةِ (`F12-04`).
+    expect(outcome.value.state.soonestCeilingSeconds).toBe(300);
     expect(outcome.value.state.availability).toBe("CAN_SHARE");
+  });
+
+  /**
+   * **`F12-04`** — والسقفُ لا يُنقِذُ رابطاً ماتَ سببُه: حكمٌ منقضٍ معَ سقفٍ
+   * أمامَه إحدى عشرةَ ساعةً **لا يُقرأُ مشاركةً**. وهذا عينُ العطبِ الذي كانَ:
+   * قارئٌ يحكمُ بالحياةِ من `expires_at` وحدَه بعدَ أن انتهَت الرحلةُ ومهلتُها.
+   */
+  it("حكمٌ منقضٍ لا تُنجِيه بقيّةُ السقفِ — لا مشاركةَ ولو بقيَت ساعاتٌ", async () => {
+    const { sql } = fakeSql(
+      located({
+        links: [
+          { id: "a", created_at: "2027-03-01T09:00:00.000Z", ceiling_seconds_remaining: 40_000 },
+        ],
+        lifetime: {
+          verdict: "EXPIRED_RIDE_ENDED",
+          seconds_remaining: null,
+          grace_minutes: 10,
+          grace_source: "SETTING",
+        },
+      }),
+    );
+    const outcome = await createRideShareReader(sql).read({
+      telegramUserId: TELEGRAM_ID,
+      orderId: ORDER_ID,
+    });
+    if (!outcome.ok || !outcome.value.found) throw new Error("قراءةٌ لم تنجحْ");
+    expect(outcome.value.state.sharingNow).toBe(false);
+    expect(outcome.value.state.lifetime.verdict).toBe("EXPIRED_RIDE_ENDED");
+  });
+
+  it("مهلةٌ جاريةٌ بلا عدٍّ حكمٌ مكسورٌ يُعلَنُ عطباً ولا يُرقَّعُ بصفرٍ", async () => {
+    const { sql } = fakeSql(
+      located({
+        lifetime: {
+          verdict: "LIVE_GRACE",
+          seconds_remaining: null,
+          grace_minutes: 10,
+          grace_source: "SETTING",
+        },
+      }),
+    );
+    const outcome = await createRideShareReader(sql).read({
+      telegramUserId: TELEGRAM_ID,
+      orderId: ORDER_ID,
+    });
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.error.reason).toBe("STORE_ERROR");
+  });
+
+  // **ورحلةٌ جاريةٌ معَ عدٍّ تنازليٍّ وعدٌ لم تقطعْه القاعدةُ**: يُعلَنُ عطباً
+  // ولا يُطوى بحذفِ الرقمِ — الطيُّ يجعلُ الخرقَ غيرَ مرئيٍّ أبداً.
+  it("رحلةٌ جاريةٌ معَ عدٍّ تنازليٍّ تُعلَنُ عطباً لا تُطوى", async () => {
+    const { sql } = fakeSql(
+      located({
+        lifetime: {
+          verdict: "LIVE_RIDE_ACTIVE",
+          seconds_remaining: 600,
+          grace_minutes: 10,
+          grace_source: "SETTING",
+        },
+      }),
+    );
+    const outcome = await createRideShareReader(sql).read({
+      telegramUserId: TELEGRAM_ID,
+      orderId: ORDER_ID,
+    });
+    expect(outcome.ok).toBe(false);
+    if (!outcome.ok) expect(outcome.error.reason).toBe("STORE_ERROR");
   });
 
   it("رحلةٌ ليست جاريةً تُصنَّفُ منعاً مُسمّىً لا زرّاً رمادِيّاً", async () => {

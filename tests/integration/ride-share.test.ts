@@ -11,6 +11,9 @@
  *     ــ أنَّ العُمرَ والبقيّةَ **بساعةِ القاعدةِ** لا بساعةِ جهازٍ.
  *     ــ أنَّ الحدَّ يأتي من `platform_settings` بمدينةِ الطلبِ، وأنَّ غيابَه
  *        يُنشَرُ `FALLBACK_DEFAULT` **باسمِه** لا صمتاً.
+ *     ــ أنَّ **حياةَ الرابطِ حكمٌ يُحسَبُ لحظةَ القراءةِ** (`F12-04`): يموتُ في
+ *        موعدِه — نهايةُ الرحلةِ + المهلةُ — **والوظيفةُ الدوريّةُ لم تدُرْ قطُّ**
+ *        و`expires_at` ما زالَ بعدَ ساعاتٍ. وهذا ما لا يقدرُ عليه اختبارُ وحدةٍ.
  *     ــ أنَّ المِلكيّةَ **قيدُ استعلامٍ**: رحلةُ غيرِكَ `ORDER_NOT_FOUND` بالحرفِ
  *        الذي يُرَدُّ به معرِّفٌ معدومٌ.
  *     ــ أنَّ الإيقافَ **يُبطِلُ كلَّ الروابطِ** بمعرِّفِ الطلبِ لا بالرمزِ.
@@ -74,6 +77,14 @@ interface PositionPayload {
   readonly lng?: number;
 }
 
+interface LifetimePayload {
+  readonly verdict?: string;
+  readonly seconds_remaining?: number | null;
+  readonly grace_minutes?: number;
+  readonly grace_source?: string;
+  readonly ride_ended_at?: string | null;
+}
+
 interface SharePayload {
   readonly ok?: boolean;
   readonly error?: string;
@@ -83,6 +94,7 @@ interface SharePayload {
   readonly links?: ReadonlyArray<Record<string, unknown>>;
   readonly max_lifetime_minutes?: number | null;
   readonly grace_minutes?: number | null;
+  readonly lifetime?: LifetimePayload;
   readonly preview?: { active: boolean; position: PositionPayload };
 }
 
@@ -190,6 +202,32 @@ async function seedDriverLocation(ageSeconds: number | null, hasPoint = true): P
       }
     where id = ${driverId}
   `;
+}
+
+/**
+ * إنهاءُ الرحلةِ **بساعةِ القاعدةِ** قبلَ دقائقَ مُعيَّنةٍ: `completed_at` هوَ الحرفُ
+ * الأوّلُ الذي يقرؤُه `tracking_link_lifetime` (و`expire_tracking_tokens` نفسُها)،
+ * ويُضبَطُ `updated_at` معَه كي لا يُقاسَ فرقٌ بين حرفَين لنهايةٍ واحدةٍ.
+ */
+async function endRide(orderId: string, minutesAgo: number): Promise<void> {
+  await sql`
+    update orders set
+      status = 'completed'::order_status,
+      completed_at = now() - make_interval(mins => ${minutesAgo}),
+      updated_at = now() - make_interval(mins => ${minutesAgo})
+    where id = ${orderId}
+  `;
+}
+
+/** مهلةُ المدينةِ كما تقرؤُها القاعدةُ — لا رقمٌ مبذورٌ في الاختبارِ. */
+async function graceMinutes(): Promise<number> {
+  const [row] = await sql<{ grace: number | null }[]>`
+    select (get_setting(${cityId}, 'tracking_link_grace_minutes') #>> '{}')::numeric::integer as grace
+  `;
+  if (row?.grace === null || row?.grace === undefined) {
+    throw new Error("لا إعدادَ لمهلةِ الرابطِ في مدينةِ الاختبارِ");
+  }
+  return row.grace;
 }
 
 beforeAll(async () => {
@@ -479,7 +517,10 @@ describeIf("الروابطُ — ساريةٌ وحدَها، وبلا رمزٍ،
     const payload = await shareState(RIDER_TELEGRAM_ID, orderId);
     expect(payload.links).toHaveLength(1);
     const link = payload.links?.[0] ?? {};
-    expect(Number(link.seconds_remaining)).toBeGreaterThan(0);
+    // السقفُ يُنشَرُ **باسمِه** لا عدّاً يُقرأُ موعداً (`F12-04`)، والاسمُ القديمُ
+    // يُقاسُ غيابُه: بقاؤُه يعني قارئاً يُعِدُّ نحوَ موعدٍ ليسَ هوَ الموعدَ.
+    expect(Number(link.ceiling_seconds_remaining)).toBeGreaterThan(0);
+    expect(Object.hasOwn(link, "seconds_remaining")).toBe(false);
   });
 
   // الرمزُ كلمةُ السرِّ: يُعطى مرّةً عندَ الإصدارِ **ولا يُعادُ في قراءةٍ** —
@@ -572,13 +613,17 @@ describeIf("الحمولةُ العامّةُ بلا هويّةٍ", () => {
   });
 });
 
-describeIf("سطحُ الصلاحيّاتِ لدوالِّ المشاركةِ الثلاثِ", () => {
+describeIf("سطحُ الصلاحيّاتِ لدوالِّ المشاركةِ", () => {
   // درسُ `F2-06` بثمنِه: `postgres` يمنحُ `execute` لـ`public` تلقائيّاً.
   // و`tracking_link_view` **بلا إذنٍ فيها**، فتركُها مكشوفةً يعني قراءةَ موقعِ
   // أيِّ طلبٍ بمعرِّفِه بلا رمزٍ ولا مِلكيّةٍ. والمقيسُ **حكمُ القاعدةِ** لا نصُّ الهجرةِ.
-  it("٢١) لا `anon` ولا `authenticated` ينفِّذُ دوالَّ البندِ الثلاثَ", async () => {
+  it("٢١) لا `anon` ولا `authenticated` ينفِّذُ دالّةً من دوالِّ البندِ", async () => {
+    // والحَكَمُ الجديدُ (`F12-04`) يُقاسُ ههنا معَهنَّ: دالّةٌ **بلا إذنٍ فيها**
+    // تُركَتْ مكشوفةً تعني قراءةَ حالِ أيِّ رحلةٍ بمعرِّفِها بلا رمزٍ ولا مِلكيّةٍ.
     const signatures = [
       "tracking_link_view(uuid)",
+      "tracking_link_lifetime(uuid)",
+      "tracking_link_token_order(text)",
       "rider_ride_share_state(bigint, uuid)",
       "get_tracking_position(text)",
     ];
@@ -594,5 +639,149 @@ describeIf("سطحُ الصلاحيّاتِ لدوالِّ المشاركةِ ا
         });
       }
     }
+  });
+});
+
+/**
+ * ═══ `F12-04` — «المشاركةُ تدومُ ما دامَت الرحلةُ» ═══
+ *
+ * وأهمُّ ما ههنا **لا يقدرُ عليه اختبارُ وحدةٍ**: أنَّ الحكمَ يموتُ في موعدِه
+ * **وَالوظيفةُ الدوريّةُ لم تدُرْ قطُّ**. فكلُّ اختبارٍ أدناه يزرعُ رحلةً ورابطاً
+ * ثمَّ **لا يُنادي `expire_tracking_tokens` ألبتّةَ**، ويُثبِتُ أنَّ `expires_at`
+ * ما زالَ في المستقبلِ البعيدِ — فلو كانَ الحكمُ رايةً مخزَّنةً لَمَرَّ الرابطُ.
+ */
+describeIf("حياةُ الرابطِ حكمٌ يُحسَبُ لا رايةٌ تسحبُها وظيفةٌ (F12-04)", () => {
+  it("٢٢) رحلةٌ جاريةٌ: `LIVE_RIDE_ACTIVE` **بلا عدٍّ تنازليٍّ** — لا رقمَ يُوعَدُ به", async () => {
+    const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    expect((await issue(orderId, RIDER_TELEGRAM_ID, freshToken())).ok).toBe(true);
+    const payload = await shareState(RIDER_TELEGRAM_ID, orderId);
+    expect(payload.lifetime?.verdict).toBe("LIVE_RIDE_ACTIVE");
+    expect(payload.lifetime?.seconds_remaining).toBeNull();
+    expect(payload.lifetime?.ride_ended_at).toBeNull();
+    expect(payload.lifetime?.grace_minutes).toBe(await graceMinutes());
+    expect(payload.lifetime?.grace_source).toBe("SETTING");
+    expect(payload.links).toHaveLength(1);
+  });
+
+  it("٢٣) انتهَت الرحلةُ قبلَ قليلٍ: `LIVE_GRACE` وعدٌّ نحوَ **نهايةِ الرحلةِ + المهلةِ** لا نحوَ السقفِ", async () => {
+    const grace = await graceMinutes();
+    if (grace < 2) throw new Error(`مهلةُ المدينةِ ${grace} دقيقةً — القياسُ لا يبلغُ موضوعَه`);
+    const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    const token = freshToken();
+    expect((await issue(orderId, RIDER_TELEGRAM_ID, token)).ok).toBe(true);
+    await endRide(orderId, 1);
+
+    const payload = await shareState(RIDER_TELEGRAM_ID, orderId);
+    const remaining = Number(payload.lifetime?.seconds_remaining);
+    expect(payload.lifetime?.verdict).toBe("LIVE_GRACE");
+    // البقيّةُ **دقيقةٌ أقلُّ من المهلةِ** لا اثنتا عشرةَ ساعةً: هذا هوَ الفرقُ
+    // بينَ عدٍّ نحوَ الموعدِ وعدٍّ نحوَ سقفٍ أعمى.
+    expect(remaining).toBeGreaterThan(0);
+    expect(remaining).toBeLessThanOrEqual((grace - 1) * 60);
+    expect(remaining).toBeGreaterThan((grace - 1) * 60 - 120);
+    expect(payload.lifetime?.ride_ended_at).not.toBeNull();
+    // والرابطُ حيٌّ للاثنَينِ في المهلةِ — المالكةُ والغريبُ حكمٌ واحدٌ.
+    expect(payload.links).toHaveLength(1);
+    expect((await publicView(token)).ok).toBe(true);
+    // والسقفُ في المستقبلِ البعيدِ، فالعدُّ ليسَ منه.
+    const [ceiling] = await sql<{ far: boolean }[]>`
+      select expires_at > now() + interval '6 hours' as far
+        from trip_tracking_tokens where token = ${token}
+    `;
+    expect(ceiling?.far).toBe(true);
+  });
+
+  it("٢٤) مضَت المهلةُ **والوظيفةُ لم تدُرْ**: الرابطُ ميّتٌ للاثنَينِ والسقفُ ما زالَ بعدَ ساعاتٍ", async () => {
+    const grace = await graceMinutes();
+    const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    const token = freshToken();
+    expect((await issue(orderId, RIDER_TELEGRAM_ID, token)).ok).toBe(true);
+    await seedDriverLocation(5);
+    await endRide(orderId, grace + 5);
+
+    // **لا نداءَ لـ`expire_tracking_tokens` ههنا عن قصدٍ**: هذا هوَ المقيسُ.
+    const [row] = await sql<{ far: boolean; revoked: boolean }[]>`
+      select expires_at > now() + interval '6 hours' as far,
+             revoked_at is not null as revoked
+        from trip_tracking_tokens where token = ${token}
+    `;
+    expect(row?.far).toBe(true);
+    expect(row?.revoked).toBe(false);
+
+    const payload = await shareState(RIDER_TELEGRAM_ID, orderId);
+    expect(payload.lifetime?.verdict).toBe("EXPIRED_RIDE_ENDED");
+    expect(payload.lifetime?.seconds_remaining).toBe(0);
+    expect(payload.links).toHaveLength(0);
+
+    // والغريبُ يُرَدُّ بالجوابِ الواحدِ، **ولا إحداثيّةَ تُغادِرُ القاعدةَ**.
+    const stranger = await publicView(token);
+    expect(stranger.ok).toBe(false);
+    expect(stranger.error).toBe("TOKEN_NOT_FOUND");
+    expect(JSON.stringify(stranger)).not.toContain(String(DRIVER_POINT.lat));
+  });
+
+  it("٢٥) الحَكَمُ يُجيبُ الحكمَ نفسَه للطلبِ مباشرةً — حَكَمٌ واحدٌ لا حكمانِ", async () => {
+    const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    const token = freshToken();
+    expect((await issue(orderId, RIDER_TELEGRAM_ID, token)).ok).toBe(true);
+    await endRide(orderId, (await graceMinutes()) + 30);
+
+    const [direct] = await sql<{ result: LifetimePayload }[]>`
+      select tracking_link_lifetime(${orderId}::uuid) as result
+    `;
+    const viaOwner = (await shareState(RIDER_TELEGRAM_ID, orderId)).lifetime;
+    expect(direct?.result.verdict).toBe("EXPIRED_RIDE_ENDED");
+    expect(viaOwner?.verdict).toBe(direct?.result.verdict);
+    expect(viaOwner?.grace_minutes).toBe(direct?.result.grace_minutes);
+    expect(viaOwner?.grace_source).toBe(direct?.result.grace_source);
+
+    // وطلبٌ معدومٌ: `null` حكماً — لا صفٌّ مُختلَقٌ ولا حكمٌ متسامحٌ.
+    const [absent] = await sql<{ result: LifetimePayload | null }[]>`
+      select tracking_link_lifetime(${crypto.randomUUID()}::uuid) as result
+    `;
+    expect(absent?.result).toBeNull();
+  });
+
+  it("٢٦) غيابُ إعدادِ المهلةِ يُنشَرُ `FALLBACK_DEFAULT` **باسمِه** ويُحكَمُ به", async () => {
+    const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    expect((await issue(orderId, RIDER_TELEGRAM_ID, freshToken())).ok).toBe(true);
+    await endRide(orderId, 1);
+    const [saved] = await sql<
+      {
+        value_text: string;
+        value_type: string;
+        description_ar: string | null;
+        is_provisional: boolean;
+      }[]
+    >`
+      select value::text as value_text, value_type, description_ar, is_provisional
+        from platform_settings
+       where city_id = ${cityId} and key = 'tracking_link_grace_minutes'
+    `;
+    if (saved === undefined) throw new Error("لا إعدادَ لمهلةِ الرابطِ في مدينةِ الاختبارِ");
+    await sql`
+      delete from platform_settings
+       where city_id = ${cityId} and key = 'tracking_link_grace_minutes'
+    `;
+    try {
+      const payload = await shareState(RIDER_TELEGRAM_ID, orderId);
+      expect(payload.lifetime?.grace_source).toBe("FALLBACK_DEFAULT");
+      expect(payload.lifetime?.grace_minutes).toBe(15);
+      expect(payload.lifetime?.verdict).toBe("LIVE_GRACE");
+    } finally {
+      await sql`
+        insert into platform_settings (city_id, key, value, value_type, description_ar, is_provisional)
+        values (${cityId}, 'tracking_link_grace_minutes',
+                ${saved.value_text}::text::jsonb, ${saved.value_type},
+                ${saved.description_ar}, ${saved.is_provisional})
+        on conflict (city_id, key) do update
+           set value = excluded.value, value_type = excluded.value_type
+      `;
+    }
+    const [restored] = await sql<{ value_text: string }[]>`
+      select value::text as value_text from platform_settings
+       where city_id = ${cityId} and key = 'tracking_link_grace_minutes'
+    `;
+    expect(restored?.value_text).toBe(saved.value_text);
   });
 });

@@ -59,7 +59,12 @@ function state(): RideShareState {
     availability: "CAN_SHARE",
     links: [],
     sharingNow: false,
-    longestRemainingSeconds: null,
+    lifetime: {
+      verdict: "LIVE_RIDE_ACTIVE",
+      graceMinutes: 10,
+      graceSource: "SETTING",
+    },
+    soonestCeilingSeconds: null,
     maxLifetimeMinutes: 60,
     graceMinutes: 10,
     preview: {
