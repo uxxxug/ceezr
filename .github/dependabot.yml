@@ -1,0 +1,64 @@
+# Dependabot — فحصُ اعتمادياتٍ آليٌّ (D-09)
+#
+# يُغطّي ثلاثةَ أنظمةٍ بيئيّةٍ:
+# 1. npm — جذرُ المشروعِ و`apps/miniapp`
+# 2. github-actions — تحديثُ إجراءاتِ CI
+# 3. docker — صورُ `docker/upstash-rest-shim/Dockerfile`
+#
+# الجدولةُ: أسبوعيّاً (الاثنين) لتقليلِ الضوضاءِ معَ تغطيةٍ منتظمةٍ.
+# لا يُفتحُ التحديثُ تلقائيًّا — يُنشِئُ PR ينتظرُ المراجعةَ والفحصَ.
+
+version: 2
+
+updates:
+  # npm — جذرُ المشروعِ
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore(deps)
+    labels:
+      - dependencies
+      - npm
+
+  # npm — تطبيقُ المُصغَّرِ
+  - package-ecosystem: npm
+    directory: /apps/miniapp
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(deps-miniapp)
+    labels:
+      - dependencies
+      - npm
+
+  # GitHub Actions — تحديثُ إجراءاتِ CI
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: chore(ci-deps)
+    labels:
+      - dependencies
+      - github-actions
+
+  # Docker — صورُ الحاويات
+  - package-ecosystem: docker
+    directory: /docker/upstash-rest-shim
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore(docker-deps)
+    labels:
+      - dependencies
+      - docker
