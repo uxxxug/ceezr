@@ -28,12 +28,14 @@ import type {
 import {
   isPositionMaxAgeSource,
   isSharedPositionVerdict,
+  isShareLifetimeVerdict,
   isSharingNow,
-  longestRemainingSeconds,
   type RideShareState,
+  type ShareLifetime,
   type ShareLink,
   type SharePreview,
   shareAvailabilityOf,
+  soonestCeilingSeconds,
 } from "../../domain/transport/ride-share.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { Sql } from "../db/client.ts";
@@ -82,9 +84,9 @@ function readLink(value: unknown): ShareLink | null {
   if (!isRecord(value)) return null;
   const id = readText(value.id);
   const createdAtMs = readInstantMs(value.created_at);
-  const secondsRemaining = readCount(value.seconds_remaining);
-  if (id === null || createdAtMs === null || secondsRemaining === null) return null;
-  return { id, createdAtMs, secondsRemaining };
+  const ceilingSecondsRemaining = readCount(value.ceiling_seconds_remaining);
+  if (id === null || createdAtMs === null || ceilingSecondsRemaining === null) return null;
+  return { id, createdAtMs, ceilingSecondsRemaining };
 }
 
 function readLinks(value: unknown): readonly ShareLink[] | null {
@@ -96,6 +98,36 @@ function readLinks(value: unknown): readonly ShareLink[] | null {
     links.push(link);
   }
   return links;
+}
+
+/**
+ * حكمُ الحياةِ (`F12-04`) — **يُقرأُ ولا يُحسَبُ**. وحمولةٌ لا تُفهَمُ عطبُ عقدٍ
+ * يُعلَنُ لا فراغٌ يُملأُ بافتراضٍ: `LIVE_GRACE` بلا عدٍّ، أو عدٌّ معَ حكمٍ لا
+ * موعدَ له، كلاهما `null` ههنا فتُردَّ القراءةُ كلُّها `STORE_ERROR`.
+ */
+function readLifetime(value: unknown): ShareLifetime | null {
+  if (!isRecord(value)) return null;
+  const verdict = value.verdict;
+  if (!isShareLifetimeVerdict(verdict)) return null;
+
+  const graceMinutes = readCount(value.grace_minutes);
+  const graceSource = value.grace_source;
+  if (graceMinutes === null || !isPositionMaxAgeSource(graceSource)) return null;
+
+  const secondsRemaining =
+    value.seconds_remaining === null ? null : readCount(value.seconds_remaining);
+
+  if (verdict === "LIVE_GRACE") {
+    // مهلةٌ جاريةٌ **بلا بقيّةٍ** حكمٌ مكسورٌ: العدُّ هوَ معنى هذا الحكمِ.
+    if (secondsRemaining === null || secondsRemaining <= 0) return null;
+    return { verdict, secondsRemaining, graceMinutes, graceSource };
+  }
+
+  // ورحلةٌ جاريةٌ معَ عدٍّ تنازليٍّ: **وعدٌ لم تقطعْه القاعدةُ** — يُعلَنُ عطباً
+  // ولا يُطوى ههنا بحذفِ الرقمِ، فطيُّه يجعلُه غيرَ مرئيٍّ أبداً.
+  if (verdict === "LIVE_RIDE_ACTIVE" && secondsRemaining !== null) return null;
+
+  return { verdict, graceMinutes, graceSource };
 }
 
 function readPreview(value: unknown): SharePreview | null {
@@ -170,7 +202,8 @@ export function createRideShareReader(sql: Sql): RideShareReader {
       const orderId = readText(result.order_id);
       const links = readLinks(result.links);
       const preview = readPreview(result.preview);
-      if (orderId === null || links === null || preview === null) {
+      const lifetime = readLifetime(result.lifetime);
+      if (orderId === null || links === null || preview === null || lifetime === null) {
         return err(failed("STORE_ERROR"));
       }
 
@@ -178,8 +211,9 @@ export function createRideShareReader(sql: Sql): RideShareReader {
         orderId,
         availability: shareAvailabilityOf(result.can_share === true),
         links,
-        sharingNow: isSharingNow(links),
-        longestRemainingSeconds: longestRemainingSeconds(links),
+        sharingNow: isSharingNow(lifetime, links),
+        lifetime,
+        soonestCeilingSeconds: soonestCeilingSeconds(links),
         // إعدادٌ غائبٌ يُنشَرُ غائباً: **لا رقمَ يُخترَعُ** ليُعرَضَ وعداً.
         maxLifetimeMinutes:
           result.max_lifetime_minutes === null ? null : readCount(result.max_lifetime_minutes),

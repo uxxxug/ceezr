@@ -63,7 +63,21 @@ export type ApiSharePreview =
 export interface ApiShareLink {
   readonly id: string;
   readonly createdAt: string;
-  readonly secondsRemaining: number;
+  /** السقفُ المطلقُ **باسمِه** — وليسَ موعدَ انتهاءِ المشاركةِ (`F12-04`). */
+  readonly ceilingSecondsRemaining: number;
+}
+
+/**
+ * حكمُ حياةِ المشاركةِ (`F12-04`). **والحكمُ نصٌّ لا اتّحادٌ مُغلَقٌ** كما في
+ * `verdict` أعلاه: حكمٌ جديدٌ في القاعدةِ لا يجبُ أن يُبيِّضَ شاشةً.
+ * و`secondsRemaining` **`null` حكمٌ لا نقصٌ**: رحلةٌ جاريةٌ لا موعدَ لها يُعَدُّ
+ * إليه، وأيُّ رقمٍ يُعرَضُ لها كذبٌ.
+ */
+export interface ApiShareLifetime {
+  readonly verdict: string;
+  readonly secondsRemaining: number | null;
+  readonly graceMinutes: number;
+  readonly graceSource: string;
 }
 
 export interface ApiShareDisclosure {
@@ -79,7 +93,8 @@ export type ShareStateResponse =
       readonly orderId: string;
       readonly availability: ApiShareAvailability;
       readonly sharingNow: boolean;
-      readonly longestRemainingSeconds: number | null;
+      readonly lifetime: ApiShareLifetime;
+      readonly soonestCeilingSeconds: number | null;
       /** `null` = الإعدادُ غائبٌ — **وتُعرَضُ الجملةُ بلا رقمٍ** لا برقمٍ مُخترَعٍ. */
       readonly maxLifetimeMinutes: number | null;
       readonly graceMinutes: number | null;

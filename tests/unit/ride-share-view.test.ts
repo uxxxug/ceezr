@@ -16,11 +16,14 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import type { ApiSharePreview } from "../../apps/miniapp/src/surfaces/rider/share/ride-share-contract.ts";
+import type {
+  ApiShareLifetime,
+  ApiSharePreview,
+} from "../../apps/miniapp/src/surfaces/rider/share/ride-share-contract.ts";
 import {
   disclosureKey,
-  isLiveRemaining,
   isRetryableShareError,
+  lifetimeLine,
   previewLine,
   readRefusalKey,
   remainingText,
@@ -28,18 +31,64 @@ import {
   startRefusalKey,
 } from "../../apps/miniapp/src/surfaces/rider/share/ride-share-view.ts";
 
+function lifetime(over: Partial<ApiShareLifetime> = {}): ApiShareLifetime {
+  return {
+    verdict: "LIVE_RIDE_ACTIVE",
+    secondsRemaining: null,
+    graceMinutes: 15,
+    graceSource: "SETTING",
+    ...over,
+  };
+}
+
+/**
+ * **`F12-04`** — وكانَ ههنا قياسٌ على `isLiveRemaining`: حكمٌ بالحياةِ من
+ * **بقيّةِ السقفِ**. والدعوى التي كانَ يحملُها — «صفرٌ لا يُقرأُ عاملاً» —
+ * باقيةٌ أدناهُ في `rider.share.until.ended`، وقد صارت تُقاسُ على الحكمِ الصادقِ
+ * لا على رقمٍ يُقارَنُ بالصفرِ (`ADR 0146`).
+ */
+describe("سطرُ حياةِ المشاركةِ", () => {
+  it("رحلةٌ جاريةٌ: جملةٌ بلا عدٍّ تنازليٍّ، ومهلةٌ معلومةٌ بقيمةِ المدينةِ", () => {
+    expect(lifetimeLine(lifetime())).toEqual({
+      key: "rider.share.until.rideEnds",
+      minutes: 15,
+      seconds: 0,
+    });
+  });
+
+  it("مهلةٌ جاريةٌ: عدٌّ تنازليٌّ إلى الموعدِ الحقيقيِّ لا إلى السقفِ", () => {
+    expect(lifetimeLine(lifetime({ verdict: "LIVE_GRACE", secondsRemaining: 605 }))).toEqual({
+      key: "rider.share.until.grace",
+      minutes: 10,
+      seconds: 5,
+    });
+  });
+
+  it("انقضاءٌ: يُقالُ «انتهَت» صريحاً ولا يُعرَضُ رقمٌ يُقرأُ وعداً", () => {
+    expect(lifetimeLine(lifetime({ verdict: "EXPIRED_RIDE_ENDED" }))).toEqual({
+      key: "rider.share.until.ended",
+      minutes: 0,
+      seconds: 0,
+    });
+  });
+
+  // حكمٌ جديدٌ في القاعدةِ **لا يُبيِّضُ شاشةً ولا يُنشَرُ رمزاً خاماً**.
+  it("حكمٌ لا تعرفُه النسخةُ يُقالُ مفتاحاً عامّاً لا رمزاً خاماً", () => {
+    expect(lifetimeLine(lifetime({ verdict: "SOMETHING_NEW" })).key).toBe(
+      "rider.share.until.unknown",
+    );
+  });
+
+  it("مهلةٌ مشوَّهةٌ أو سالبةٌ تُطوى إلى صفرٍ ولا تُنشَرُ رقماً سالباً", () => {
+    expect(lifetimeLine(lifetime({ graceMinutes: -5 })).minutes).toBe(0);
+    expect(lifetimeLine(lifetime({ graceMinutes: Number.NaN })).minutes).toBe(0);
+    expect(lifetimeLine(lifetime({ verdict: "LIVE_GRACE", secondsRemaining: -90 })).seconds).toBe(
+      0,
+    );
+  });
+});
+
 describe("المتبقّي", () => {
-  it("صفرٌ ودونَه ميتٌ — و«بقيَت ٠ دقيقةٍ» لا تُقرأُ «ما زالَ يعملُ»", () => {
-    expect(isLiveRemaining(1)).toBe(true);
-    expect(isLiveRemaining(0)).toBe(false);
-    expect(isLiveRemaining(-120)).toBe(false);
-  });
-
-  it("رقمٌ ليسَ رقماً يُقرأُ ميتاً لا حيّاً", () => {
-    expect(isLiveRemaining(Number.NaN)).toBe(false);
-    expect(isLiveRemaining(Number.POSITIVE_INFINITY)).toBe(false);
-  });
-
   it("دونَ الدقيقةِ يُقالُ بالثواني كي لا يُقرأَ «٠»", () => {
     expect(remainingText(45)).toEqual({
       key: "rider.share.remainingSeconds",

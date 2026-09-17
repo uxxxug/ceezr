@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
- * الغرض: تشغيلُ قواعدِ عقدِ مشاركةِ الرحلةِ على المستودعِ الحقيقيِّ وإسقاطُ
- *   البناءِ عندَ نقضِ واحدةٍ (البند `F2-09` · الحاجز `UX-023`).
+ * الغرض: تشغيلُ قواعدِ عقدِ مشاركةِ الرحلةِ العشرِ على المستودعِ الحقيقيِّ
+ *   وإسقاطُ البناءِ عندَ نقضِ واحدةٍ (البند `F2-09` · `F12-04` · الحاجز `UX-023`).
  * الحالة: منفَّذٌ فعليّاً — البند `F2-09`.
  * ينتمي إلى: scripts
  * يُستخدم من: `bun run check:ride-share` وسلسلةُ `ci` وخطوةٌ مُسمّاةٌ في CI.
@@ -21,7 +21,7 @@ import {
   type RideShareContractInput,
   rideShareContractProblems,
   SHARE_ROUTE_FILE,
-  SHARE_SQL_FILE,
+  SHARE_SQL_FILES,
   SHARE_SURFACE_FILES,
   TRANSLATION_FILES,
 } from "./lib/ride-share-contract.ts";
@@ -48,12 +48,22 @@ export function readMaxAgeSeconds(): number | null {
   return match === null ? null : Number(match[1]);
 }
 
+/** وكذا مهلةُ ما بعدَ الرحلةِ (`F12-04`): تُقرأُ نصّاً من النطاقِ لا استيراداً. */
+export function readGraceMinutes(): number | null {
+  const source = readFileSync(DOMAIN_FILE, "utf8");
+  const match = source.match(/TRACKING_LINK_GRACE_MINUTES\s*=\s*(\d+)/);
+  return match === null ? null : Number(match[1]);
+}
+
 export function readRepository(): RideShareContractInput {
   const publicFiles: Record<string, string> = {};
   for (const path of PUBLIC_FILES) publicFiles[path] = blankComments(readFileSync(path, "utf8"));
 
   const surface: Record<string, string> = {};
   for (const path of SHARE_SURFACE_FILES) surface[path] = blankComments(readFileSync(path, "utf8"));
+
+  const sqlFiles: Record<string, string> = {};
+  for (const path of SHARE_SQL_FILES) sqlFiles[path] = readFileSync(path, "utf8");
 
   const translations: Record<string, Readonly<Record<string, string>>> = {};
   for (const [language, path] of Object.entries(TRANSLATION_FILES)) {
@@ -63,10 +73,11 @@ export function readRepository(): RideShareContractInput {
   return {
     publicFiles,
     surface,
-    sql: readFileSync(SHARE_SQL_FILE, "utf8"),
+    sqlFiles,
     route: blankComments(readFileSync(SHARE_ROUTE_FILE, "utf8")),
     domain: readFileSync(DOMAIN_FILE, "utf8"),
     maxAgeSeconds: readMaxAgeSeconds(),
+    graceMinutes: readGraceMinutes(),
     translations,
     disclosure: { shown: SHARE_DISCLOSED, hidden: SHARE_WITHHELD },
   };
@@ -78,7 +89,7 @@ if (import.meta.main) {
   if (problems.length === 0) {
     const codes = input.disclosure.shown.length + input.disclosure.hidden.length;
     console.log(
-      `حاجزُ عقدِ مشاركةِ الرحلةِ: نجحَ — ${PUBLIC_FILES.length} مِلفَّ حمولةٍ عامّةٍ، و${codes} رمزَ إفصاحٍ بنصوصِها الثلاثةِ، وثمانِ قواعدَ مقيسةً: لا هويّةَ لغريبٍ، ولا موضعَ بلا عُمرِه، وحدُّ عُمرٍ واحدٌ، ولا رمزَ في قراءةٍ، وحَكَمٌ واحدٌ في القاعدةِ، ولا مفتاحَ ناقصاً، ولا إفصاحَ بلا نصٍّ، ولا دالّةَ بلا نزعِ تنفيذٍ.`,
+      `حاجزُ عقدِ مشاركةِ الرحلةِ: نجحَ — ${PUBLIC_FILES.length} مِلفَّ حمولةٍ عامّةٍ، و${SHARE_SQL_FILES.length} هجرةَ مشاركةٍ بحكمِ آخرِ مُعرِّفٍ، و${codes} رمزَ إفصاحٍ بنصوصِها الثلاثةِ، وعشرُ قواعدَ مقيسةً: لا هويّةَ لغريبٍ، ولا موضعَ بلا عُمرِه، وحدُّ عُمرٍ واحدٌ، ولا رمزَ في قراءةٍ، وحَكَمٌ واحدٌ في القاعدةِ، ولا مفتاحَ ناقصاً، ولا إفصاحَ بلا نصٍّ، ولا دالّةَ بلا نزعِ تنفيذٍ، والحياةُ حكمٌ لا رايةٌ، ومهلةٌ واحدةٌ بعدَ الرحلةِ.`,
     );
   } else {
     console.error("حاجزُ عقدِ مشاركةِ الرحلةِ: سقطَ.");

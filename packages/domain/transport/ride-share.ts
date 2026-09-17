@@ -88,37 +88,109 @@ export type SharePreview =
     };
 
 /**
+ * **`F12-04`**: حكمُ حياةِ مشاركةِ الرحلةِ — و**الحياةُ صفةُ الرحلةِ لا صفةُ
+ * الرابطِ**. ولذلكَ العدُّ التنازليُّ نُقِلَ من الرابطِ إلى ههنا: رابطانِ لرحلةٍ
+ * واحدةٍ يموتانِ في اللحظةِ نفسِها لأنَّ الذي يموتُ هوَ سببُهما.
+ *
+ * والأحكامُ الثلاثةُ **مفصولةٌ** بأسمائِها كما تنطِقُ بها القاعدةُ
+ * (`tracking_link_lifetime`)، ولا يُشتَقُّ أحدُها من رقمٍ ههنا.
+ */
+export type ShareLifetimeVerdict = "LIVE_RIDE_ACTIVE" | "LIVE_GRACE" | "EXPIRED_RIDE_ENDED";
+
+export const SHARE_LIFETIME_VERDICTS: readonly ShareLifetimeVerdict[] = [
+  "LIVE_RIDE_ACTIVE",
+  "LIVE_GRACE",
+  "EXPIRED_RIDE_ENDED",
+];
+
+export function isShareLifetimeVerdict(value: unknown): value is ShareLifetimeVerdict {
+  return (
+    typeof value === "string" && SHARE_LIFETIME_VERDICTS.some((candidate) => candidate === value)
+  );
+}
+
+/**
+ * مهلةُ ما بعدَ الرحلةِ بالدقائقِ كما بذرَتها هجرةُ 2026-08-14 — **حكمٌ واحدٌ**
+ * تُقاسُ به البذرةُ واحتياطُ الحَكَمِ في القاعدةِ بحاجزٍ ساكنٍ (القاعدة 0.3
+ * و0.6)، فلا تصيرُ المهلةُ رقمَينِ يفترقانِ بلا أن يُخفِقَ شيءٌ.
+ */
+export const TRACKING_LINK_GRACE_MINUTES = 15;
+
+/**
+ * حالُ الحياةِ. **والعدُّ التنازليُّ موجودٌ في النوعِ متى كانَ له معنىً وحدَه**:
+ * رحلةٌ جاريةٌ موعدُ نهايتِها غيرُ معلومٍ، فأيُّ رقمٍ يُعرَضُ لها كذبٌ — ولذلكَ
+ * لا حقلَ اختياريًّا يُنسى فحصُه، بل اتّحادٌ يُجبِرُ المُصرِّفَ على قراءةِ الحكمِ
+ * قبلَ الوصولِ إلى ثانيةٍ واحدةٍ.
+ */
+export type ShareLifetime =
+  | {
+      readonly verdict: "LIVE_RIDE_ACTIVE";
+      /** مهلةُ ما بعدَ الرحلةِ **بقيمةِ المدينةِ** — تُعرَضُ وعداً معلوماً. */
+      readonly graceMinutes: number;
+      readonly graceSource: PositionMaxAgeSource;
+    }
+  | {
+      readonly verdict: "LIVE_GRACE";
+      /** ما بقيَ إلى **الموعدِ الحقيقيِّ** (نهايةُ الرحلةِ + المهلةُ). */
+      readonly secondsRemaining: number;
+      readonly graceMinutes: number;
+      readonly graceSource: PositionMaxAgeSource;
+    }
+  | {
+      readonly verdict: "EXPIRED_RIDE_ENDED";
+      readonly graceMinutes: number;
+      readonly graceSource: PositionMaxAgeSource;
+    };
+
+export function isShareLifetimeLive(lifetime: ShareLifetime): boolean {
+  return lifetime.verdict !== "EXPIRED_RIDE_ENDED";
+}
+
+/**
  * رابطٌ سارٍ. **لا رمزَ فيه**: الرمزُ كلمةُ السرِّ، يُعطى مرّةً عندَ الإصدارِ
  * ولا يُعادُ في أيِّ قراءةٍ — فلا يُلتقَطُ من سجلٍّ ولا من لقطةِ شاشةٍ لاحقةٍ.
+ *
+ * **و`F12-04` نزعَ منه العدَّ التنازليَّ**: كانَ `secondsRemaining` يُطرَحُ من
+ * **السقفِ** (`expires_at`) فيُعرَضُ موعداً وليسَ موعداً — «يبقى إحدى عشرةَ
+ * ساعةً» في رابطٍ يموتُ بعدَ ربعِ ساعةٍ من نهايةِ الرحلةِ. فالسقفُ يبقى منشوراً
+ * **باسمِه** (`ceilingSecondsRemaining`) والموعدُ في `ShareLifetime`.
  */
 export interface ShareLink {
   readonly id: string;
   readonly createdAtMs: number;
-  /** ما بقيَ من عمرِه **بحسابِ القاعدةِ**. صفرٌ يعني منتهياً فلا يُعرَضُ. */
-  readonly secondsRemaining: number;
-}
-
-export function isLiveLink(link: ShareLink): boolean {
-  return link.secondsRemaining > 0;
-}
-
-export function liveLinks(links: readonly ShareLink[]): readonly ShareLink[] {
-  return links.filter(isLiveLink);
+  /**
+   * ما بقيَ من **السقفِ المطلقِ** بحسابِ القاعدةِ — حمايةٌ من رحلةٍ لم تُغلَقْ
+   * أبداً. **وليسَ موعدَ انتهاءِ المشاركةِ**: ذاكَ حكمُ `ShareLifetime`.
+   */
+  readonly ceilingSecondsRemaining: number;
 }
 
 /**
  * أهيَ مُشارَكةٌ الآنَ؟ سؤالٌ واحدٌ تُجيبُه الشاشةُ بعنوانٍ مختلفٍ كلّيّاً
  * («رحلتُكَ مُشارَكةٌ معَ ١» مقابلَ «شارِكْ رحلتَكَ»)، فيُحسَبُ مرّةً ههنا.
+ *
+ * **وشرطانِ لا شرطٌ** (`F12-04`): رابطٌ قائمٌ **وحياةٌ لم تنقضِ**. ورابطٌ حيٌّ
+ * في رحلةٍ انقضَت مهلتُها لا يُعَدُّ مشاركةً — لأنَّه لا يُجيبُ حاملَه.
  */
-export function isSharingNow(links: readonly ShareLink[]): boolean {
-  return liveLinks(links).length > 0;
+export function isSharingNow(lifetime: ShareLifetime, links: readonly ShareLink[]): boolean {
+  return isShareLifetimeLive(lifetime) && links.length > 0;
 }
 
-/** أطولُ ما بقيَ من بينِ الروابطِ — و`null` متى لا رابطَ حيّاً. */
-export function longestRemainingSeconds(links: readonly ShareLink[]): number | null {
-  const live = liveLinks(links);
-  if (live.length === 0) return null;
-  return live.reduce((most, link) => Math.max(most, link.secondsRemaining), 0);
+/**
+ * ما بقيَ من المشاركةِ بالثواني — و`null` **حكمٌ لا نقصٌ**: رحلةٌ جاريةٌ لا موعدَ
+ * لها يُعَدُّ إليه، ورحلةٌ انقضَت مهلتُها لا بقيّةَ لها.
+ */
+export function shareCountdownSeconds(lifetime: ShareLifetime): number | null {
+  return lifetime.verdict === "LIVE_GRACE" ? lifetime.secondsRemaining : null;
+}
+
+/** أقربُ سقفٍ ينقضي من بينِ الروابطِ — و`null` متى لا رابطَ. */
+export function soonestCeilingSeconds(links: readonly ShareLink[]): number | null {
+  if (links.length === 0) return null;
+  return links.reduce(
+    (least, link) => Math.min(least, link.ceilingSecondsRemaining),
+    Number.POSITIVE_INFINITY,
+  );
 }
 
 /**
@@ -168,7 +240,10 @@ export interface RideShareState {
   readonly availability: ShareAvailability;
   readonly links: readonly ShareLink[];
   readonly sharingNow: boolean;
-  readonly longestRemainingSeconds: number | null;
+  /** حكمُ حياةِ المشاركةِ (`F12-04`) — به تُقالُ الجملةُ الصادقةُ عن الموعدِ. */
+  readonly lifetime: ShareLifetime;
+  /** أقربُ سقفٍ ينقضي — **سقفٌ باسمِه** لا موعدُ المشاركةِ. */
+  readonly soonestCeilingSeconds: number | null;
   /**
    * سقفُ عمرِ الرابطِ ومهلةُ ما بعدَ الرحلةِ **بقيمةِ المدينةِ** — و`null` متى
    * غابَ الإعدادُ: تُعرَضُ الجملةُ بلا رقمٍ، **ولا يُخترَعُ رقمٌ افتراضيٌّ**

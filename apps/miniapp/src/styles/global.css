@@ -1775,6 +1775,19 @@ a {
   font-weight: 600;
 }
 
+/* **متى تنتهي المشاركةُ** — سطرُ حكمِ الرحلةِ (`F12-04` · `ADR 0146`). يحلُّ محلَّ
+   قائمةِ الروابطِ وعدَّادِ كلِّ رابطٍ: العدُّ صارَ واحداً نحوَ موعدٍ واحدٍ، والأرقامُ
+   جدوليّةُ العرضِ كي لا يرتجفَ السطرُ كلَّ ثانيةٍ. والمُحدِّدانِ `.rs__links`
+   و`.rs__link` يبقيانِ مكتوبَينِ ولا يُمحيانِ (`ح-1`) وهما مُسجَّلانِ في
+   `RETAINED_RULES`. */
+.rs__until {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--tg-text-color);
+  font-variant-numeric: tabular-nums;
+}
+
 .rs__links {
   display: flex;
   flex-direction: column;

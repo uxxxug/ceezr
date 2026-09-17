@@ -697,7 +697,15 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       orderId: s.orderId,
       availability: s.availability,
       sharingNow: s.sharingNow,
-      longestRemainingSeconds: s.longestRemainingSeconds,
+      // **حكمُ الحياةِ يُنشَرُ كما حكمَته القاعدةُ** (`F12-04`): الشاشةُ تقولُ
+      // «حتّى تنتهيَ رحلتُكَ» أو تعدُّ إلى الموعدِ الحقيقيِّ — ولا تعدُّ إلى سقفٍ.
+      lifetime: {
+        verdict: s.lifetime.verdict,
+        secondsRemaining: s.lifetime.verdict === "LIVE_GRACE" ? s.lifetime.secondsRemaining : null,
+        graceMinutes: s.lifetime.graceMinutes,
+        graceSource: s.lifetime.graceSource,
+      },
+      soonestCeilingSeconds: s.soonestCeilingSeconds,
       // `null` = الإعدادُ غائبٌ. **ولا رقمَ يُخترَعُ**: جملةٌ بلا رقمٍ أصدقُ من
       // وعدٍ بمدّةٍ لم تقطعْها المنصّةُ.
       maxLifetimeMinutes: s.maxLifetimeMinutes,
@@ -705,7 +713,8 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       links: s.links.map((link) => ({
         id: link.id,
         createdAt: new Date(link.createdAtMs).toISOString(),
-        secondsRemaining: link.secondsRemaining,
+        // **سقفٌ باسمِه** لا موعدَ انتهاءِ المشاركةِ (`F12-04`).
+        ceilingSecondsRemaining: link.ceilingSecondsRemaining,
       })),
       preview:
         s.preview.verdict === "LOCATED"
