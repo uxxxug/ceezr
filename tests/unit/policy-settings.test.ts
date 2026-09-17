@@ -46,8 +46,8 @@ describe("parseCitySettings — المسار السليم", () => {
     const r = parseCitySettings(JED, seededRows(JED));
     expect(isOk(r)).toBe(true);
     if (!isOk(r)) return;
-    expect(r.value.subscriptionPriceTransport).toBe(250);
-    expect(r.value.subscriptionPriceBoth).toBe(400);
+    expect(r.value.subscriptionPriceTransport).toBe(150);
+    expect(r.value.subscriptionPriceBoth).toBe(300);
     expect(r.value.currency).toBe("SAR");
     expect(r.value.trialDays).toBe(30);
     expect(r.value.offerTimeoutSeconds).toBe(45);
@@ -163,9 +163,9 @@ describe("subscriptionPriceFor", () => {
   it("سعر كل خطة يأتي من الإعدادات", () => {
     const parsed = parseCitySettings(JED, seededRows(JED));
     if (!isOk(parsed)) throw new Error("فشل التحليل");
-    expect(subscriptionPriceFor(parsed.value, "transport")).toBe(250);
-    expect(subscriptionPriceFor(parsed.value, "delivery")).toBe(250);
-    expect(subscriptionPriceFor(parsed.value, "both")).toBe(400);
+    expect(subscriptionPriceFor(parsed.value, "transport")).toBe(150);
+    expect(subscriptionPriceFor(parsed.value, "delivery")).toBe(150);
+    expect(subscriptionPriceFor(parsed.value, "both")).toBe(300);
   });
 
   it("يتبع تغيير السعر في الإعدادات فوراً", () => {

@@ -268,9 +268,9 @@ describeIf("اللوحُ — سائقٌ بلا اشتراكٍ سارٍ", () => {
     expect(result.ok).toBe(true);
     expect(result.has_subscription).toBe(false);
     const prices = block(result, "plan_prices");
-    expect(Number(prices.transport)).toBe(250);
-    expect(Number(prices.delivery)).toBe(250);
-    expect(Number(prices.both)).toBe(400);
+    expect(Number(prices.transport)).toBe(150);
+    expect(Number(prices.delivery)).toBe(150);
+    expect(Number(prices.both)).toBe(300);
     expect(result.currency).toBe("SAR");
     expect(Number(result.trial_days)).toBe(30);
     expect(Number(result.period_days)).toBe(30);
@@ -298,7 +298,7 @@ describeIf("اللوحُ — سائقٌ بلا اشتراكٍ سارٍ: تجرب
     const [sub] = await sql<{ id: string }[]>`
       insert into subscriptions (city_id, driver_id, plan, status, trial_ends_at, price_amount, currency)
       values (${cityId}, ${driverId}, 'transport'::subscription_plan, 'trialing'::subscription_status,
-              ${trialEnds}::timestamptz, 250, 'SAR')
+              ${trialEnds}::timestamptz, 150, 'SAR')
       returning id
     `;
     if (sub === undefined) throw new Error("تعذّر زرعُ الاشتراكِ");

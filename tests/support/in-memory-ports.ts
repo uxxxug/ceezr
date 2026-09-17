@@ -23,11 +23,11 @@ import type { Order } from "../../packages/domain/transport/entity.ts";
 import type { CityId, Clock, OrderId } from "../../packages/shared/kernel/index.ts";
 import { err, ok, type Result } from "../../packages/shared/result/index.ts";
 
-/** القيم المبذورة فعلياً في المخطط (20260806120200_phase_2_1_seed_cities_and_settings.sql). */
+/** القيم المبذورة فعلياً في المخطط (20260917140000_d02_dec11_subscription_prices.sql). */
 export const SEEDED_SETTINGS: Readonly<Record<SettingKey, unknown>> = {
-  subscription_price_transport: 250,
-  subscription_price_delivery: 250,
-  subscription_price_both: 400,
+  subscription_price_transport: 150,
+  subscription_price_delivery: 150,
+  subscription_price_both: 300,
   currency: "SAR",
   trial_days: 30,
   rating_min_count_for_trust: 3,
