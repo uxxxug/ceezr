@@ -17,12 +17,11 @@
     "noEmit": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "baseUrl": ".",
     "paths": {
-      "@waslah/shared/*": ["packages/shared/*"],
-      "@waslah/domain/*": ["packages/domain/*"],
-      "@waslah/application/*": ["packages/application/*"],
-      "@waslah/infrastructure/*": ["packages/infrastructure/*"]
+      "@waslah/shared/*": ["./packages/shared/*"],
+      "@waslah/domain/*": ["./packages/domain/*"],
+      "@waslah/application/*": ["./packages/application/*"],
+      "@waslah/infrastructure/*": ["./packages/infrastructure/*"]
     }
   },
   "include": [

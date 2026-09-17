@@ -1,0 +1,99 @@
+# مزامنةُ `bun.lock` على فروعِ Dependabot — D-09 · ADR 0142
+#
+# **العطبُ الجذريُّ المقيسُ:** Dependabot لا يفهمُ `bun.lock` (نظامُه البيئيُّ
+# `npm` يُحدِّثُ `package.json` و`package-lock.json`/`yarn.lock` وحدَها). ووظيفةُ
+# `verify` في CI تبدأُ بـ`bun install --frozen-lockfile`. فكلُّ طلبِ دمجٍ يفتحُه
+# Dependabot **يُولَدُ أحمرَ بالبنيةِ** برسالةٍ واحدةٍ:
+#
+#     error: lockfile had changes, but lockfile is frozen
+#
+# وذلك ليسَ إخفاقَ اختبارٍ ولا انحدارَ شيفرةٍ — هو نقصُ خطوةٍ ميكانيكيّةٍ. وقاعدةُ
+# الحَوكمةِ `0-7` تمنعُ دمجَ طلبٍ لم يمرَّ بـCI، والحلُّ الذي لا يُخفِّفُ الحاجزَ هو
+# أن **يُولَّدَ القفلُ آليًّا على الفرعِ** لا أن يُرفَعَ الحاجزُ عن الفرعِ.
+#
+# **ما يفعلُه هذا السيرُ:** على كلِّ دفعةٍ إلى `dependabot/**` يُعيدُ توليدَ
+# `bun.lock` من ملفّاتِ `package.json` كما هيَ في الفرعِ، ويتحقّقُ أنَّ **القفلَ
+# وحدَه** تغيّرَ، ثمَّ يُلزِمُه ويدفعُه إلى الفرعِ نفسِه، ثمَّ يستدعي `CI` على الفرعِ
+# لأنَّ دفعةَ `GITHUB_TOKEN` **لا تُشعِلُ زنادَ `push`/`pull_request`** (سياسةُ
+# المنصّةِ لمنعِ الحلقاتِ) — وهذا القيدُ نفسُه هوَ ما يضمنُ ألّا يستدعيَ هذا السيرُ
+# نفسَه إلى ما لا نهاية.
+#
+# **ما لا يفعلُه عن قصدٍ:**
+# - **لا يُخفِّفُ `--frozen-lockfile`** في `ci.yml` ولا يستثني فرعاً من الفحصِ.
+# - **لا يدمجُ ولا يعتمدُ** طلبَ دمجٍ — الحكمُ يبقى لـCI وللمراجعِ.
+# - **لا يلمسُ ملفّاً غيرَ `bun.lock`**؛ وإن تغيّرَ غيرُه سقطَ السيرُ بلا دفعٍ.
+# - **لا يعملُ إلّا إذا كانَ الدافعُ `dependabot[bot]`** — فرعٌ بشريٌّ بهذا الاسمِ
+#   لا يُكتَبُ فيه آليًّا.
+
+name: مزامنةُ قفلِ الاعتماديات (Dependabot)
+
+on:
+  push:
+    branches:
+      - "dependabot/**"
+
+# الأذوناتُ أضيقُ ما يكفي: كتابةُ المحتوى لدفعِ القفلِ، وكتابةُ الإجراءاتِ
+# لاستدعاءِ `CI` على الفرعِ بعدَ الدفعِ. لا `pull-requests: write` — لا تعليقَ ولا
+# اعتمادَ ولا دمجَ من ههنا.
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  sync-lockfile:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # `fetch-depth: 0` غيرُ لازمٍ — نحنُ نُلزِمُ على رأسِ الفرعِ لا نقرأُ تاريخاً.
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: إعادةُ توليدِ القفلِ من ملفّاتِ package.json
+        run: bun install --ignore-scripts
+
+      - name: التحقّقُ من أنَّ المتغيّرَ هو القفلُ وحدَه
+        id: diff
+        run: |
+          changed="$(git diff --name-only | tr '\n' ' ' | xargs || true)"
+          if [ -z "$changed" ]; then
+            echo "القفلُ متزامنٌ سلفاً — لا دفعَ." >> "$GITHUB_STEP_SUMMARY"
+            echo "changed=none" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$changed" != "bun.lock" ]; then
+            echo "::error::تغيّرَ أكثرُ من القفلِ ($changed) — لا يُدفَعُ شيءٌ آليًّا."
+            exit 1
+          fi
+          echo "changed=lockfile" >> "$GITHUB_OUTPUT"
+
+      - name: التحقّقُ من أنَّ القفلَ المولَّدَ مُجمَّدٌ فعلاً
+        if: steps.diff.outputs.changed == 'lockfile'
+        # الغرضُ: ألّا يُدفَعَ قفلٌ لا يمرُّ بالحاجزِ نفسِه الذي أسقطَ الفرعَ. فإن لم
+        # يمرَّ ههنا فالعطبُ في `package.json` لا في القفلِ، ويبقى الفرعُ أحمرَ بحقٍّ.
+        run: bun install --frozen-lockfile
+
+      - name: إلزامُ القفلِ ودفعُه إلى الفرعِ
+        if: steps.diff.outputs.changed == 'lockfile'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bun.lock
+          git commit -m "chore(deps): مزامنةُ bun.lock مع package.json (D-09 · ADR 0142)"
+          git push origin "HEAD:${{ github.ref_name }}"
+
+      - name: استدعاءُ CI على الفرعِ بعدَ الدفعِ
+        if: steps.diff.outputs.changed == 'lockfile'
+        # دفعةُ `GITHUB_TOKEN` لا تُشعِلُ `push`/`pull_request`، فلولا هذا الاستدعاءُ
+        # لبقيَ الحكمُ الأحمرُ الأوّلُ معلَّقاً على رأسٍ لم يُفحَص. و`workflow_dispatch`
+        # يُشعَلُ بهذا الرمزِ ويُنسَبُ تشغيلُه إلى رأسِ الفرعِ الجديدِ.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ci.yml --ref "${{ github.ref_name }}"
