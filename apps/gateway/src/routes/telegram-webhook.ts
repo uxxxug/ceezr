@@ -27,6 +27,7 @@ import { Hono } from "hono";
 import { pseudonymise } from "../../../../packages/infrastructure/observability/structured-log.ts";
 import { TELEGRAM_JOB_PRODUCER_RETRY_AFTER_SECONDS } from "../../../../packages/shared/config/domain-ingress.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { clientAddress, tooManyRequests } from "../rate-limit/guard.ts";
 import { createUpdateDeduplicator, type UpdateDeduplicator, updateIdOf } from "./update-dedup.ts";
 import type {
   DurableUpdateIntake,
@@ -124,14 +125,10 @@ function isBotKind(value: string): value is BotKind {
 }
 
 /**
- * عنوان المُرسِل خلف وسيط Render. أول قيمة في `x-forwarded-for` هي العميل، وما بعدها
- * الوسطاء. القيمة مُنتحَلة بطبيعتها، ولذلك لا يُبنى عليها إلا حدّ محاولات فاشلة —
- * لا صلاحية ولا هوية.
+ * عنوانُ المُرسِلِ ومفتاحُ عدِّه — **نُقِلَ إلى `../rate-limit/guard.ts`** في `SEC-07`
+ * ويُصدَّرُ ههنا للمُستوردينَ القائمينَ بلا نسخةٍ ثانيةٍ من منطقِه (`ح-8`).
  */
-export function clientAddress(header: string | undefined): string {
-  const first = (header ?? "").split(",")[0]?.trim() ?? "";
-  return first === "" ? "unknown" : first;
-}
+export { clientAddress };
 
 /**
  * معرّف صاحب التحديث كما يرسله تلغرام: من `message.from` أو `callback_query.from`.
@@ -144,18 +141,6 @@ export function updateActorId(update: object): string | null {
   };
   const id = shape.message?.from?.id ?? shape.callback_query?.from?.id;
   return typeof id === "number" || typeof id === "string" ? String(id) : null;
-}
-
-/** جواب موحَّد للتجاوز: 429 مع Retry-After كي يعرف المُرسِل متى يعود. */
-function tooManyRequests(
-  c: {
-    json: (body: unknown, status: 429, headers: Record<string, string>) => Response;
-  },
-  resetSeconds: number,
-): Response {
-  return c.json({ ok: false, error: "RATE_LIMITED" }, 429, {
-    "retry-after": String(resetSeconds),
-  });
 }
 
 /**

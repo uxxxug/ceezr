@@ -753,8 +753,10 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // مزدوجٌ في الذاكرةِ: المقيسُ قيدُ `unique(payment_transaction_id)` على
     // الاستردادِ، وقيدُ حالاتِ الدفعِ، وأثرُ صفوفِ القيدِ والاشتراكِ
     // والمحفظةِ داخلَ معاملةٍ واحدةٍ. والأرقامُ السابقةُ محفوظةٌ أعلاهُ.
-    expect(SKIP_REGISTRY).toHaveLength(114);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1242);
+    // زيادةٌ (`ح-8`): والآنَ 115 و 1244 بقياسِ حدِّ المسارِ المكشوفِ على Redis
+    // حقيقيٍّ (`SEC-07`) — ملفٌّ واحدٌ وحالتانِ مشروطتانِ بِـ`UPSTASH_REDIS_REST_URL`.
+    expect(SKIP_REGISTRY).toHaveLength(115);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1244);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
