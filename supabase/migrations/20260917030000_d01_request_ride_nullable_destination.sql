@@ -33,8 +33,6 @@
 -- - **لا يُضيفُ عموداً** — `dropoff` موجودٌ وقابلٌ للعدمِ أصلاً.
 -- - **لا يُغيِّر** الفهرسَ الفريدَ على `(rider_id, idempotency_key)`.
 
-set local search_path = public;
-
 create or replace function request_ride(
   p_telegram_id     bigint,
   p_idempotency_key text,
@@ -48,19 +46,21 @@ create or replace function request_ride(
 returns jsonb
 language plpgsql
 volatile
+security invoker
+set search_path = public
 as $fn$
 declare
-  v_user_id   uuid;
-  v_rider_id  uuid;
-  v_city      record;
-  v_area      record;
-  v_origin    geography(Point, 4326);
-  v_destination geography(Point, 4326);
-  v_services  service_type[];
-  v_existing  record;
-  v_order_id  uuid;
-  v_created_at timestamptz;
-  v_reused    boolean := false;
+  v_user          record;
+  v_rider_id      uuid;
+  v_city          record;
+  v_area          record;
+  v_origin        geography(Point, 4326);
+  v_destination   geography(Point, 4326);
+  v_services      service_type[];
+  v_existing      record;
+  v_order_id      uuid;
+  v_created_at    timestamptz;
+  v_reused        boolean := false;
 begin
   -- المفتاحُ شرطُ الأمرِ لا زينتُه: أمرٌ بلا مفتاحٍ **يُرَدُّ** ولا يُكتَبُ
   -- بمفتاحٍ مُختلَقٍ في القاعدةِ — لأنَّ مفتاحاً يختلقُه الخادمُ لكلِّ نداءٍ يجعلُ
@@ -69,15 +69,21 @@ begin
     return jsonb_build_object('ok', false, 'error', 'IDEMPOTENCY_KEY_REQUIRED');
   end if;
 
-  if length(p_idempotency_key) > 255 then
+  if length(p_idempotency_key) > 200 then
     return jsonb_build_object('ok', false, 'error', 'IDEMPOTENCY_KEY_TOO_LONG');
   end if;
 
+  -- ملاحظةُ السائقِ (`SR-04`) نصٌّ حرٌّ، **وحدُّه حكمٌ في القاعدةِ أيضاً** لا في
+  -- الناقلِ وحدَه: من نادى الدالّةَ من بوتٍ أو من سِفرٍ آخرَ لا يُفلِتُ بحدٍّ
+  -- فحصَه مسارُ HTTP وحدَه (القاعدة 0.6: المصدرُ واحدٌ ومرآتُه حاجزٌ).
+  -- والحدُّ 280 محرفاً يُقابِلُ `RIDE_NOTES_MAX_LENGTH` في
+  -- `packages/domain/transport/ride-request.ts`، ويفحصُه
+  -- `scripts/check-ride-request-contract.ts` على الملفَّينِ معاً.
   if p_notes is not null and length(btrim(p_notes)) > 280 then
     return jsonb_build_object('ok', false, 'error', 'NOTES_TOO_LONG');
   end if;
 
-  -- البدايةُ إلزاميّةٌ دائماً. والوجهةُ **كلٌّ أو لا شيء**: وجودُ أحدِ
+  -- البدايةُ إلزاميّةٌ دائماً. والوجهةُ **كلٌّ أو لا شيء**: وجودَ أحدِ
   -- الإحداثيَّين دونَ الآخرِ عيبُ عميلٍ لا غيابُ وجهة.
   if p_origin_lat is null or p_origin_lng is null
      or p_origin_lat <> p_origin_lat or p_origin_lng <> p_origin_lng
@@ -115,11 +121,16 @@ begin
   where r.user_id = v_user.id
   for update;
 
+  -- صفُّ الراكبِ شرطُ الطلبِ: `orders.rider_id` يُشيرُ إلى `riders` لا إلى
+  -- `users`. ومن لم يُسجَّلْ راكباً **يُعلَمُ بذلكَ** ولا يُنشَأُ له صفٌّ ضمناً:
+  -- إنشاءُ كيانٍ من أمرٍ آخرَ يُخفي خطوةَ تسجيلٍ ناقصةً.
   if v_rider_id is null then
     return jsonb_build_object('ok', false, 'error', 'RIDER_NOT_REGISTERED');
   end if;
 
-  -- الإعادةُ تُقرأُ **قبلَ** أيِّ حكمٍ آخرَ بعدَ القفلِ.
+  -- الإعادةُ تُقرأُ **قبلَ** أيِّ حكمٍ آخرَ بعدَ القفلِ: من أعادَ الأمرَ نفسَه
+  -- يستحقُّ الجوابَ الأوّلَ حتّى لو تغيَّرَ العالَمُ بعدَه (خرجَ سائقٌ، أو أُغلِقَت
+  -- المدينةُ) — وإلّا صارَت الإعادةُ رفضاً لأمرٍ **نُفِّذَ فعلاً**.
   select o.id, o.created_at into v_existing
   from orders o
   where o.rider_id = v_rider_id and o.idempotency_key = p_idempotency_key;
@@ -146,11 +157,7 @@ begin
     return jsonb_build_object('ok', false, 'error', 'CITY_HAS_NO_SERVICE_AREA');
   end if;
 
-  v_origin := st_setsrid(st_makepoint(p_origin_lng, p_origin_lat), 4326)::geography;
-
-  if not st_covers(v_area.area, v_origin) then
-    return jsonb_build_object('ok', false, 'error', 'ORIGIN_OUTSIDE_SERVICE_AREA');
-  end if;
+  v_origin      := st_setsrid(st_makepoint(p_origin_lng, p_origin_lat), 4326)::geography;
 
   -- الوجهةُ معدومةٌ: لا فحصَ منطقةٍ عليها. الوجهةُ موجودةٌ: فحصُ المنطقةِ باقٍ.
   if p_dest_lat is not null then
@@ -161,13 +168,17 @@ begin
     end if;
   end if;
 
+  -- القدرةُ تُقرأُ من `city_served_services` نفسِها التي يقرأُها الاقتباسُ، فلا
+  -- تُكرَّرُ قاعدةُ «سائقٌ موثَّقٌ مشترِكٌ قادرٌ» في موضعَينِ فتفترقا (القاعدة 0.6).
   v_services := city_served_services(v_user.city_id);
 
   if not (p_service = any(v_services)) then
     return jsonb_build_object('ok', false, 'error', 'SERVICE_NOT_AVAILABLE_IN_CITY');
   end if;
 
-  -- طلبٌ نشطٌ واحدٌ لكلِّ راكبٍ **لكلِّ خدمةٍ**.
+  -- طلبٌ نشطٌ واحدٌ لكلِّ راكبٍ **لكلِّ خدمةٍ**: من ينتظرُ سيّارةً لا يطلبُ ثانيةً،
+  -- ومن ينتظرُ مندوبَ توصيلٍ **يجوزُ** أن يطلبَ سيّارةً — فالحدُّ على الخدمةِ لا
+  -- على الراكبِ. والقراءةُ تحتَ قفلِ صفِّ الراكبِ أعلاهُ فلا سباقَ.
   select o.id, o.status into v_existing
   from orders o
   where o.rider_id = v_rider_id
@@ -193,6 +204,8 @@ begin
     )
     returning id, created_at into v_order_id, v_created_at;
   exception when unique_violation then
+    -- السباقُ يُحسَمُ في المحرِّكِ: الخاسرُ يقرأُ ما كتبَه الفائزُ ويُعيدُ معرّفَه.
+    -- ولا يُرفَعُ عطبٌ لأمرٍ **نُفِّذَ فعلاً** بمفتاحِه.
     select o.id, o.created_at into v_order_id, v_created_at
     from orders o
     where o.rider_id = v_rider_id and o.idempotency_key = p_idempotency_key;
@@ -209,6 +222,7 @@ end;
 $fn$;
 
 comment on function request_ride(bigint, text, service_type, double precision, double precision, double precision, double precision, text) is
-  'إنشاءُ الرحلةِ أمراً ذرّيّاً: مفتاحُ تكرارٍ، فحصُ منطقةِ خدمةٍ، منعُ طلبٍ نشطٍ '
-  'لنفسِ الخدمةِ، وكتابةُ الصفِّ — كلُّه في معاملةٍ واحدةٍ. والوجهةُ معدومةٌ '
-  'مقبولةٌ (مسارُ البوتِ `/skip`).';
+  'إنشاءُ الرحلةِ أمراً ذرّيّاً بمفتاحِ تكرارٍ (ARCH-006): حدُّ الخدمةِ للطرفَينِ برمزَينِ '
+  'منفصلَينِ، وقدرةُ المدينةِ، وطلبٌ نشطٌ واحدٌ لكلِّ خدمةٍ تحتَ قفلِ صفِّ الراكبِ. '
+  'ولا إسنادَ ولا بثَّ (F3)، ولا أجرةَ ولا عقوبةَ إلغاءٍ (ADR 0039 §4 · م13-7). '
+  'والوجهةُ معدومةٌ مقبولةٌ (D-01: مسارُ البوتِ `/skip`).';
