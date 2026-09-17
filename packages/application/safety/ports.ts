@@ -36,8 +36,14 @@ export interface SafetyDelivery {
   readonly incidentId: string;
   readonly claimToken: string;
   readonly groupId: string;
-  readonly orderId: string;
-  readonly service: string;
+  /**
+   * `null` = بلاغٌ **بلا رحلةٍ** (`F12-03`). ولا يُقرأُ فراغاً ولا يُستبدَلُ بنصٍّ
+   * مثلِ «غيرُ متاحٍ» ههنا: بطاقةُ الفريقِ تُصاغُ نصّاً مختلفاً لا حقلاً فارغاً،
+   * ورقمُ رحلةٍ مُلفَّقٌ يُرسِلُ فريقَ سلامةٍ يبحثُ عن رحلةٍ لا وجودَ لها.
+   */
+  readonly orderId: string | null;
+  /** `null` معَ `orderId: null` — لا خدمةَ بلا رحلةٍ. */
+  readonly service: string | null;
   readonly reporterRole: SafetyRole;
   readonly status: string;
   readonly locationWkt: string | null;

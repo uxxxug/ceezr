@@ -2,7 +2,7 @@
  * الغرض: قياسُ محوّلِ قراءةِ حالِ سطحِ الاستغاثةِ — النداءُ الواحدُ، وتحويلُ
  *   الحمولةِ، وتصنيفُ الرفضِ، و**إعلانُ العطبِ بدلَ ادّعاءِ الغيابِ**
  *   (البند `F2-10` · `SR-14`).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-10`.
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-10` و`F12-03`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: `bun test` وسلسلةُ `ci`.
  *
@@ -232,6 +232,76 @@ describe("محوّلُ سطحِ الاستغاثةِ — حمولةٌ معطوب
   for (const [label, payload] of broken) {
     it(`${label} ⇒ عطبُ مخزنٍ لا «لا سطحَ»`, async () => {
       const { read } = readerFor(payload);
+      const result = (await read()) as { ok: boolean; error?: { reason: string } };
+      expect(result.ok).toBe(false);
+      expect(result.error?.reason).toBe("STORE_ERROR");
+    });
+  }
+});
+
+/**
+ * ## `F12-03` — حالُ «بلا رحلةٍ» يُقرأُ حكماً، وحمولتُه المتناقضةُ تُعلَنُ عطباً
+ *
+ * والتناقضُ المقيسُ ههنا **ليسَ نظريّاً**: دالّةٌ تُعادُ كتابتُها غداً فتنسى
+ * إفراغَ حقولِ النافذةِ في فرعِ «بلا رحلةٍ» تُرسِلُ «لكَ ثلاثونَ دقيقةً» لمَن
+ * لا رحلةَ له أصلاً — نافذةٌ لا مُنتهى لها تُقرأُ حَدّاً على حقٍّ مفتوحٍ. فيُعلَنُ
+ * ولا يُطوى.
+ */
+describe("محوّلُ سطحِ الاستغاثةِ — `F12-03` بلا رحلةٍ", () => {
+  function orderless(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      ok: true,
+      role: "rider",
+      order_id: null,
+      origin: "NO_ORDER",
+      eligible: true,
+      reason: null,
+      post_ride_window_minutes: null,
+      post_ride_window_source: null,
+      incident: null,
+      disclosure: ["SOS_NO_ORDER_REFERENCE", "SOS_NO_PHONE_CALL"],
+      ...overrides,
+    };
+  }
+
+  it("حالٌ جائزٌ بلا رحلةٍ يُحوَّلُ بمُعرِّفٍ فارغٍ وبلا حقولِ نافذةٍ", async () => {
+    const { read } = readerFor(orderless());
+    const result = (await read()) as {
+      ok: boolean;
+      value?: { found: boolean; state: Record<string, unknown> };
+    };
+    expect(result.ok).toBe(true);
+    expect(result.value?.found).toBe(true);
+    expect(result.value?.state).toEqual({
+      eligible: true,
+      orderId: null,
+      origin: "NO_ORDER",
+      incident: null,
+      disclosure: ["SOS_NO_ORDER_REFERENCE", "SOS_NO_PHONE_CALL"],
+    });
+  });
+
+  it("بلاغٌ قائمٌ بلا رحلةٍ يُنقَلُ بعُمرِه", async () => {
+    const { read } = readerFor(
+      orderless({ incident: { id: "inc-9", status: "open", age_seconds: 5 } }),
+    );
+    const result = (await read()) as { value?: { state: Record<string, unknown> } };
+    expect(result.value?.state.incident).toEqual({
+      incidentId: "inc-9",
+      status: "open",
+      ageSeconds: 5,
+    });
+  });
+
+  const contradictions: readonly (readonly [string, Record<string, unknown>])[] = [
+    ["مُعرِّفُ طلبٍ معَ «بلا رحلةٍ»", { order_id: "3f1c9a02-4b7e-4d21-9f88-0a1b2c3d4e5f" }],
+    ["دقائقُ نافذةٍ معَ «بلا رحلةٍ»", { post_ride_window_minutes: 30 }],
+    ["مصدرُ نافذةٍ معَ «بلا رحلةٍ»", { post_ride_window_source: "SETTING" }],
+  ];
+
+  for (const [label, overrides] of contradictions) {
+    it(`${label} ⇒ عطبُ مخزنٍ لا حكمٌ`, async () => {
+      const { read } = readerFor(orderless(overrides));
       const result = (await read()) as { ok: boolean; error?: { reason: string } };
       expect(result.ok).toBe(false);
       expect(result.error?.reason).toBe("STORE_ERROR");

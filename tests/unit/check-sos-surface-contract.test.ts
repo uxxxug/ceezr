@@ -1,7 +1,7 @@
 /**
  * الغرض: قياسُ حاجزِ عقدِ سطحِ الاستغاثةِ — **حالةٌ سلبيّةٌ مبذورةٌ لكلِّ قاعدةٍ
- *   من الستِّ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-10`.
+ *   من السبعِ** (`ح-7`: قاعدةٌ بلا حالةٍ سلبيّةٍ غيرُ مُنفَذةٍ).
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-10` و`F12-03`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: `bun test` وسلسلةُ `ci` وخطوةٌ مُسمّاةٌ في CI.
  *
@@ -15,11 +15,13 @@ import { readRepository } from "../../scripts/check-sos-surface-contract.ts";
 import {
   API_FILE,
   callPromiseProblems,
+  deliveryOuterJoinProblems,
   deviceClockProblems,
   disclosureTextProblems,
   functionRevokeProblems,
   mandatoryDisclosureProblems,
   orderIdInPathProblems,
+  SOS_SQL_FILES,
   type SosSurfaceContractInput,
   sosSurfaceContractProblems,
   VIEW_FILE,
@@ -36,9 +38,47 @@ begin
 end;
 $$ language plpgsql stable security definer;
 
+create or replace function claim_safety_incident_delivery()
+returns table (incident_id uuid, order_id uuid) as $$
+begin
+  return query
+    select i.id, o.id
+    from safety_incidents i
+    left join orders o on o.id = i.order_id;
+end;
+$$ language plpgsql volatile security definer;
+
 revoke execute on function sos_post_ride_window(uuid) from public, anon, authenticated;
 revoke execute on function sos_surface_state(bigint, text) from public, anon, authenticated;
+revoke execute on function claim_safety_incident_delivery() from public, anon, authenticated;
 `;
+
+/**
+ * هجرةُ التاريخِ: أنشأتِ الدالّةَ بوصلٍ **داخليٍّ** — وذاكَ ما كانَ فعلاً قبلَ
+ * `F12-03`. وتُبقى ههنا لأنَّ القاعدةَ ٧ يجبُ أن تُقاسَ **وهيَ لا تُدينُ التاريخَ**:
+ * حاجزٌ يسقطُ على هجرةٍ مُطبَّقةٍ لا يُصلَحُ إلّا بإعادةِ كتابةِ التاريخِ.
+ */
+const LEGACY_SQL = `
+create or replace function claim_safety_incident_delivery()
+returns table (incident_id uuid, order_id uuid) as $$
+begin
+  return query
+    select i.id, o.id
+    from safety_incidents i
+    join orders o on o.id = i.order_id;
+end;
+$$ language plpgsql volatile security definer;
+
+revoke execute on function claim_safety_incident_delivery() from public, anon, authenticated;
+`;
+
+const LEGACY_FILE = SOS_SQL_FILES[0] ?? "";
+const GOVERNING_FILE = SOS_SQL_FILES.at(-1) ?? "";
+
+/** خريطةُ الهجراتِ كما يقرأُها الحاجزُ — تاريخٌ ثمَّ حاكمٌ. */
+function sqlFiles(overrides: Readonly<Record<string, string>> = {}): Record<string, string> {
+  return { [LEGACY_FILE]: LEGACY_SQL, [GOVERNING_FILE]: SQL, ...overrides };
+}
 
 const CARD = `
 const visible = isSosCardVisible(state);
@@ -81,7 +121,7 @@ function input(overrides: Partial<SosSurfaceContractInput> = {}): SosSurfaceCont
       [API_FILE]: API,
       "apps/miniapp/src/surfaces/rider/sos/sos-contract.ts": CONTRACT,
     },
-    sql: SQL,
+    sqlFiles: sqlFiles(),
     route: ROUTE,
     translations: { ar: dictionary(), en: dictionary(), ur: dictionary() },
     disclosureCodes: [...CODES],
@@ -166,9 +206,9 @@ describe("القاعدة ٣ — نفيُ الاتّصالِ منشورٌ في ك
 
   it("هجرةٌ لا تنشرُ الرمزَ تُسقِطُ الحاجزَ — رمزٌ لا يُرسَلُ لا يُعرَضُ", () => {
     const problems = mandatoryDisclosureProblems(
-      input({ sql: SQL.replace(", 'SOS_NO_PHONE_CALL'", "") }),
+      input({ sqlFiles: sqlFiles({ [GOVERNING_FILE]: SQL.replace(", 'SOS_NO_PHONE_CALL'", "") }) }),
     );
-    expect(problems.some((text) => text.includes("لا تنشرُ"))).toBe(true);
+    expect(problems.some((text) => text.includes("ولا ينشُرُ"))).toBe(true);
   });
 });
 
@@ -235,10 +275,12 @@ describe("القاعدة ٦ — لا دالّةَ بلا نزعِ تنفيذٍ",
   it("دالّةٌ بلا نزعٍ تُسقِطُ الحاجزَ", () => {
     const problems = functionRevokeProblems(
       input({
-        sql: SQL.replace(
-          "revoke execute on function sos_surface_state(bigint, text) from public, anon, authenticated;",
-          "",
-        ),
+        sqlFiles: sqlFiles({
+          [GOVERNING_FILE]: SQL.replace(
+            "revoke execute on function sos_surface_state(bigint, text) from public, anon, authenticated;",
+            "",
+          ),
+        }),
       }),
     );
     expect(problems.some((text) => text.includes("sos_surface_state"))).toBe(true);
@@ -247,17 +289,85 @@ describe("القاعدة ٦ — لا دالّةَ بلا نزعِ تنفيذٍ",
   it("نزعٌ ناقصُ الأدوارِ يُسقِطُ الحاجزَ", () => {
     const problems = functionRevokeProblems(
       input({
-        sql: SQL.replace(
-          "revoke execute on function sos_surface_state(bigint, text) from public, anon, authenticated;",
-          "revoke execute on function sos_surface_state(bigint, text) from public;",
-        ),
+        sqlFiles: sqlFiles({
+          [GOVERNING_FILE]: SQL.replace(
+            "revoke execute on function sos_surface_state(bigint, text) from public, anon, authenticated;",
+            "revoke execute on function sos_surface_state(bigint, text) from public;",
+          ),
+        }),
       }),
     );
     expect(problems.some((text) => text.includes("anon"))).toBe(true);
   });
 
   it("هجرةٌ بلا دالّةٍ تُسقِطُ الحاجزَ ولا تمرُّ زوراً", () => {
-    const problems = functionRevokeProblems(input({ sql: "select 1;" }));
+    const problems = functionRevokeProblems(input({ sqlFiles: { [GOVERNING_FILE]: "select 1;" } }));
     expect(problems.some((text) => text.includes("قائمةٍ فارغةٍ"))).toBe(true);
+  });
+});
+
+/**
+ * ولمَ قاعدةٌ نصّيّةٌ ووصلٌ خارجيٌّ يُقاسُ أثرُه في تكاملٍ على PostgreSQL حقيقيّةٍ:
+ * التكاملُ يقيسُ **ما يُسَلَّمُ اليومَ**، والقاعدةُ ههنا تمنعُ أن يُقلَبَ الوصلُ غداً
+ * داخليّاً في هجرةٍ جديدةٍ **مع حذفِ حالةِ الاختبارِ في الدفعةِ نفسِها** — وحينَها
+ * لا يسقطُ شيءٌ: البلاغُ يُختَمُ «sending» ويبقى عالقاً بلا خطأٍ ولا إعادةٍ.
+ */
+describe("القاعدة ٧ — مطالبةُ التسليمِ توصِلُ الطلبَ وصلاً خارجيّاً", () => {
+  it("أحدثُ تعريفٍ يوصِلُ «orders» داخليّاً يُسقِطُ الحاجزَ", () => {
+    const problems = deliveryOuterJoinProblems(
+      input({
+        sqlFiles: sqlFiles({
+          [GOVERNING_FILE]: SQL.replace("left join orders", "join orders"),
+        }),
+      }),
+    );
+    expect(problems.some((text) => text.includes("وصلاً داخليّاً"))).toBe(true);
+  });
+
+  it("أحدثُ تعريفٍ بلا وصلِ «orders» أصلاً يُسقِطُ الحاجزَ", () => {
+    const problems = deliveryOuterJoinProblems(
+      input({
+        sqlFiles: sqlFiles({
+          [GOVERNING_FILE]: SQL.replace(
+            "left join orders o on o.id = i.order_id",
+            "cross join lateral (select 1) z",
+          ),
+        }),
+      }),
+    );
+    expect(problems.some((text) => text.includes("وصلاً خارجيّاً"))).toBe(true);
+  });
+
+  it("هجرةُ التاريخِ وحدَها لا تُدانُ — الحكمُ على آخرِ تعريفٍ", () => {
+    expect(deliveryOuterJoinProblems(input())).toEqual([]);
+  });
+
+  it("مجموعةٌ بلا مطالبةِ تسليمٍ تُسقِطُ الحاجزَ ولا تمرُّ زوراً", () => {
+    const problems = deliveryOuterJoinProblems(
+      input({ sqlFiles: { [GOVERNING_FILE]: "select 1;" } }),
+    );
+    expect(problems.some((text) => text.includes("لم يُقرأْ مِلفٌّ"))).toBe(true);
+  });
+});
+
+/** والقاعدةُ ٣ تُقاسُ **لِكلِّ مَن يُعيدُ الحَكَمَ**: هجرةٌ تاليةٌ تُسقِطُ الرمزَ تُلغيه. */
+describe("القاعدة ٣ — الحكمُ على المِلفِّ الذي يُعيدُ تعريفَ الحَكَمِ", () => {
+  it("مِلفٌّ يُعيدُ تعريفَ «sos_surface_state» بلا الرمزِ يُسقِطُ الحاجزَ وإن نشرَه غيرُه", () => {
+    const problems = mandatoryDisclosureProblems(
+      input({
+        sqlFiles: sqlFiles({
+          [LEGACY_FILE]: SQL,
+          [GOVERNING_FILE]: SQL.replace(", 'SOS_NO_PHONE_CALL'", ""),
+        }),
+      }),
+    );
+    expect(problems.some((text) => text.includes(GOVERNING_FILE))).toBe(true);
+  });
+
+  it("مجموعةٌ بلا حَكَمٍ تُسقِطُ الحاجزَ ولا تمرُّ زوراً", () => {
+    const problems = mandatoryDisclosureProblems(
+      input({ sqlFiles: { [GOVERNING_FILE]: "select 1;" } }),
+    );
+    expect(problems.some((text) => text.includes("لا حَكَمَ فيها"))).toBe(true);
   });
 });

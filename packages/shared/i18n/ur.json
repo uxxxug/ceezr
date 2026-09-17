@@ -349,6 +349,7 @@
   "safety.already_sent": "🆘 آپ کا SOS الرٹ پہلے ہی درج ہے اور ایسکلیشن ٹیم اسے دیکھ رہی ہے۔",
   "safety.no_active_order": "SOS الرٹ کے لیے کوئی فعال آرڈر نہیں ہے۔",
   "safety.group_card": "🆘 SOS ایمرجنسی #{incident}\nآرڈر: {order}\nسروس: {service}\nرپورٹ کرنے والا: {reporter}\nآخری معلوم مقام: {location}\n\nایسکلیشن ٹیم کا انسانی فیصلہ درکار ہے۔",
+  "safety.group_card_no_order": "🆘 SOS ایمرجنسی #{incident}\nکوئی سفر نہیں: اطلاع براہِ راست اکاؤنٹ سے\nرپورٹ کرنے والا: {reporter}\nآخری معلوم مقام: {location}\n\nایسکلیشن ٹیم کا انسانی فیصلہ درکار ہے۔",
   "safety.location_unknown": "دستیاب نہیں",
   "safety.reporter_rider": "رائیڈر",
   "safety.reporter_driver": "ڈرائیور",

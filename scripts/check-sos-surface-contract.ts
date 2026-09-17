@@ -2,7 +2,7 @@
 /**
  * الغرض: تشغيلُ قواعدِ عقدِ سطحِ الاستغاثةِ على المستودعِ الحقيقيِّ وإسقاطُ
  *   البناءِ عندَ نقضِ واحدةٍ (البند `F2-10` · `SR-14` · الحاجز `UX-024`).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-10`.
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-10` و`F12-03`.
  * ينتمي إلى: scripts
  * يُستخدم من: `bun run check:sos-surface` وسلسلةُ `ci` وخطوةٌ مُسمّاةٌ في CI.
  * يُتوقع أن يستخدمه لاحقاً: سطحُ السائقِ يُضيفُ مِلفّاتَه إلى `SURFACE_FILES`.
@@ -17,7 +17,7 @@ import { blankComments } from "./lib/blank-comments.ts";
 import {
   DISCLOSURE_CODES,
   SOS_ROUTE_FILE,
-  SOS_SQL_FILE,
+  SOS_SQL_FILES,
   type SosSurfaceContractInput,
   SURFACE_FILES,
   sosSurfaceContractProblems,
@@ -47,7 +47,7 @@ export function readRepository(): SosSurfaceContractInput {
 
   return {
     surface,
-    sql: readFileSync(SOS_SQL_FILE, "utf8"),
+    sqlFiles: Object.fromEntries(SOS_SQL_FILES.map((path) => [path, readFileSync(path, "utf8")])),
     route: blankComments(readFileSync(SOS_ROUTE_FILE, "utf8")),
     translations,
     disclosureCodes: DISCLOSURE_CODES,
@@ -60,9 +60,11 @@ if (import.meta.main) {
   if (problems.length === 0) {
     console.log(
       `حاجزُ عقدِ سطحِ الاستغاثةِ: نجحَ — ${SURFACE_FILES.length} مِلفَّ سطحٍ، ` +
-        `و${DISCLOSURE_CODES.length} رمزَ إفصاحٍ بنصوصِها الثلاثةِ، وستُّ قواعدَ مقيسةً: ` +
-        `لا وعدَ اتّصالٍ، ولا رمزَ بلا نصٍّ، ونفيُ الاتّصالِ منشورٌ، ` +
-        `ولا ساعةَ جهازٍ في العُمرِ، ولا مُعرِّفَ طلبٍ من الشاشةِ، ولا دالّةَ بلا نزعِ تنفيذٍ.`,
+        `و${DISCLOSURE_CODES.length} رمزَ إفصاحٍ بنصوصِها الثلاثةِ، ` +
+        `و${SOS_SQL_FILES.length} هجرةً مقروءةً كلٌّ في نفسِها، وسبعُ قواعدَ مقيسةً: ` +
+        `لا وعدَ اتّصالٍ، ولا رمزَ بلا نصٍّ، ونفيُ الاتّصالِ منشورٌ من كلِّ مَن يُعيدُ الحَكَمَ، ` +
+        `ولا ساعةَ جهازٍ في العُمرِ، ولا مُعرِّفَ طلبٍ من الشاشةِ، ولا دالّةَ بلا نزعِ تنفيذٍ، ` +
+        `ومطالبةُ التسليمِ توصِلُ الطلبَ وصلاً خارجيّاً.`,
     );
   } else {
     console.error("حاجزُ عقدِ سطحِ الاستغاثةِ: سقطَ.");

@@ -87,8 +87,10 @@ export function createSafetyDeliveryPort(sql: Sql): SafetyDeliveryPort {
             incidentId: String(delivery.incident_id),
             claimToken: String(delivery.claim_token),
             groupId: String(delivery.group_id),
-            orderId: String(delivery.order_id),
-            service: String(delivery.service),
+            // `F12-03` — بلاغٌ بلا رحلةٍ يصلُ بـ`null` صريحٍ، و`String(null)` كانَ
+            // سيُطبعُ «null» نصّاً في بطاقةِ فريقِ السلامةِ مكانَ رقمِ الرحلةِ.
+            orderId: delivery.order_id == null ? null : String(delivery.order_id),
+            service: delivery.service == null ? null : String(delivery.service),
             reporterRole: String(delivery.reporter_role) as "rider" | "driver",
             status: String(delivery.status),
             locationWkt: delivery.location_wkt == null ? null : String(delivery.location_wkt),

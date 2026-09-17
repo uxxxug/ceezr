@@ -10,6 +10,14 @@
  * الحاكم: docs/adr/0077-sos-intake-resolves-its-own-order.md
  * ملاحظات مستقبلية: إن أُضيفَت حالةُ طلبٍ جديدةٌ فحرسُ `20260814140000` يُسقِطُ
  *   الهجرةَ أوّلاً؛ وهذا الملفُّ يُثبِتُ الأثرَ لا التّسميةَ.
+ *
+ * **زيادةٌ — `F12-03` · `ADR 0145` (`ح-8`)**: ثلاثُ حالاتٍ ههنا كانت تُوكِّدُ
+ *   `NO_ACTIVE_ORDER`، وذاكَ كانَ **العقدَ القديمَ**: لا طلبَ ⇒ لا استغاثةَ. وقد
+ *   نُسِخَ ذلكَ العقدُ عن قصدٍ إذ الطارئُ لا يشترطُ رحلةً. **ولم يُحذَفْ توكيدٌ
+ *   ولم يُلَيَّنْ**: الدعوى التي كانت تحملُها كلُّ حالةٍ — أنَّ الاستغاثةَ **لا
+ *   تُنسَبُ** إلى ذلكَ الطلبِ — بقيت مُوكَّدةً بحرفِها وصارت أقوى (`order_id is
+ *   null` صريحاً + صفٌّ واحدٌ في الصندوقِ)، وزادَ عليها أنَّ النداءَ **يُقبَلُ**
+ *   لا يُرَدُّ. ورمزُ `NO_ACTIVE_ORDER` يبقى في مجالِ الأسبابِ ولا يُنشَرُ.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import type { SafetyRole } from "../../packages/application/safety/ports.ts";
@@ -126,6 +134,31 @@ async function incidentOrderId(incidentId: string): Promise<string> {
   return firstId(rows, "قراءةِ الحادثِ");
 }
 
+/**
+ * يقرأُ نسبةَ الحادثِ **جائزةَ الغيابِ** (`F12-03`): `null` ههنا ليسَ إخفاقَ
+ * قراءةٍ بل الحكمَ نفسَه — بلاغٌ لا يُنسَبُ إلى طلبٍ. ولذلكَ لا يُقرأُ بالدالّةِ
+ * أعلاهُ: تلكَ تُسقِطُ الحالةَ عندَ الغيابِ، وههنا الغيابُ هوَ المُوكَّدُ عليه.
+ */
+async function incidentOrderIdOrNull(incidentId: string): Promise<string | null> {
+  const rows = await sql<{ id: string | null }[]>`
+    select order_id::text as id from safety_incidents where id = ${incidentId}::uuid
+  `;
+  if (rows.length === 0) throw new Error("تعذّرَ قراءةُ الحادثِ");
+  return rows[0]?.id ?? null;
+}
+
+/** عددُ حوادثِ السلامةِ وصفوفِ تسليمِها — لقطةٌ تُقرأُ لا تُفترَضُ. */
+async function safetyCounts(): Promise<{ incidents: string; queued: string }> {
+  const rows = await sql<{ incidents: string; queued: string }[]>`
+    select
+      (select count(*)::text from safety_incidents) incidents,
+      (select count(*)::text from notification_outbox where kind = 'safety_incident') queued
+  `;
+  const row = rows[0];
+  if (row === undefined) throw new Error("تعذّرَ العدُّ");
+  return row;
+}
+
 describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", () => {
   beforeAll(() => {
     sql = createSql({ connectionString: DATABASE_URL ?? "" });
@@ -205,9 +238,12 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
 
   /**
    * الطلبُ المنتهي منذُ ساعتَينِ خارجَ نافذةِ ما بعدَ الرحلةِ (ثلاثونَ دقيقةً
-   * `sos_post_ride_window_minutes`)، فلا تُنسَبُ إليه استغاثةُ اليومِ.
+   * `sos_post_ride_window_minutes`)، **فلا تُنسَبُ إليه استغاثةُ اليومِ** — وهذه
+   * هيَ الدعوى التي لا تتغيَّرُ. وكانَ النداءُ يُرَدُّ `NO_ACTIVE_ORDER`، وصارَ
+   * **يُقبَلُ بلاغاً بلا طلبٍ** (`F12-03` · `ADR 0145`): الطارئُ لا يشترطُ رحلةً،
+   * وغيابُ الرحلةِ معلومةٌ صادقةٌ لا فراغٌ يُملأُ بأقربِ طلبٍ.
    */
-  it("لا طلبَ قائمَ للرّاكبِ: `NO_ACTIVE_ORDER` صريحاً لا عطلاً", async () => {
+  it("رحلةٌ منتهيةٌ منذُ ساعتَينِ: بلاغٌ بلا طلبٍ لا نسبةٌ إليها", async () => {
     await makeOrder({ status: "completed", minutesAgo: 120, assigned: true });
     const result = await trigger.trigger({
       orderId: null,
@@ -215,10 +251,9 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       reporterRole: "rider",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value).toEqual({ incidentId: null, error: "NO_ACTIVE_ORDER" });
-    const count = await sql<{ n: string }[]>`select count(*)::text n from safety_incidents`;
-    expect(count[0]?.n).toBe("0");
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderIdOrNull(result.value.incidentId)).toBeNull();
+    expect(await safetyCounts()).toEqual({ incidents: "1", queued: "1" });
   });
 
   /**
@@ -239,10 +274,12 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
   });
 
   /**
-   * حدُّ النافذةِ حدٌّ لا مُنحدَرٌ: ثلاثونَ دقيقةً هي الإعدادُ، فما جاوزَها
-   * يُردُّ باسمِه ولا يُترَكُ للتقديرِ. وهذا ما يجعلُ النافذةَ نافذةً لا أبداً.
+   * حدُّ النافذةِ حدٌّ لا مُنحدَرٌ: ثلاثونَ دقيقةً هي الإعدادُ، فما جاوزَها **لا
+   * يُنسَبُ إليه بلاغٌ** ولو بدقيقةٍ — وذلكَ ما يجعلُ النافذةَ نافذةً. وبعدَ
+   * `F12-03` لا يعودُ الحدُّ بابَ رفضٍ بل بابَ **تحوُّلٍ**: البلاغُ يُقبَلُ بلا
+   * طلبٍ. ولو تسامحَ الحدُّ لظهرَ ههنا `order_id` غيرَ فارغٍ فسقطَت الحالةُ.
    */
-  it("رحلةٌ انتهتْ بعدَ النافذةِ بدقيقةٍ: تُردَّ `NO_ACTIVE_ORDER`", async () => {
+  it("رحلةٌ انتهتْ بعدَ النافذةِ بدقيقةٍ: البلاغُ يُقبَلُ بلا نسبةٍ إليها", async () => {
     await makeOrder({ status: "completed", minutesAgo: 31, assigned: true });
     const result = await trigger.trigger({
       orderId: null,
@@ -250,8 +287,8 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       reporterRole: "rider",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value).toEqual({ incidentId: null, error: "NO_ACTIVE_ORDER" });
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderIdOrNull(result.value.incidentId)).toBeNull();
   });
 
   /**
@@ -289,9 +326,12 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
 
   /**
    * الفرقُ بينَ الدّورَين حكمٌ لا تفصيلٌ: طلبٌ في `searching` لا سائقَ فيه بعدُ،
-   * فلا يجوزُ أن يُنسَبَ إلى سائقٍ استغاثةٌ في رحلةٍ لم يلتزمْ بها.
+   * **فلا يجوزُ أن يُنسَبَ إلى سائقٍ استغاثةٌ في رحلةٍ لم يلتزمْ بها** — وهذه
+   * هيَ الدعوى التي لا تتغيَّرُ، وهيَ ههنا أقوى: النداءُ يُقبَلُ فلو تسامحَ حكمُ
+   * الدّورِ لظهرَ `order_id` غيرَ فارغٍ وسقطَت الحالةُ. وبعدَ `F12-03` يصيرُ
+   * البلاغُ بلا طلبٍ بمدينةِ **حسابِ السائقِ** لا بمدينةِ طلبٍ ليسَ له.
    */
-  it("`searching` لا يُعَدُّ التزاماً على سائقٍ: `NO_ACTIVE_ORDER`", async () => {
+  it("`searching` لا يُعَدُّ التزاماً على سائقٍ: بلاغٌ بلا طلبٍ لا نسبةٌ إليه", async () => {
     await makeOrder({ status: "searching", minutesAgo: 6, assigned: false });
     const result = await trigger.trigger({
       orderId: null,
@@ -299,8 +339,13 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       reporterRole: "driver",
     });
     expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value).toEqual({ incidentId: null, error: "NO_ACTIVE_ORDER" });
+    if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
+    expect(await incidentOrderIdOrNull(result.value.incidentId)).toBeNull();
+    const incident = await sql<{ city_id: string; role: string }[]>`
+      select city_id::text, reporter_role as role
+      from safety_incidents where id = ${result.value.incidentId}::uuid
+    `;
+    expect(incident[0]).toEqual({ city_id: cityId, role: "driver" });
   });
 
   /** مسارُ المُعرِّفِ الصّريحِ باقٍ كما كانَ: العودةُ لا تكسرُ مُنادياً قديماً. */

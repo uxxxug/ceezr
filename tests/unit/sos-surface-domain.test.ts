@@ -1,7 +1,7 @@
 /**
  * الغرض: قياسُ نطاقِ سطحِ الاستغاثةِ — المجالاتُ المغلقةُ وحُرّاسُها، وحسابا
  *   «بلاغٌ قائمٌ» و«تُعرَضُ البطاقةُ» (البند `F2-10` · `SR-14`).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-10`.
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-10` و`F12-03`.
  * ينتمي إلى: tests/unit
  * يُستخدم من: `bun test` وسلسلةُ `ci`.
  *
@@ -51,7 +51,7 @@ describe("مجالاتُ سطحِ الاستغاثةِ المغلقةُ", () => 
     });
   }
 
-  /** رموزُ الإفصاحِ ستّةٌ لا تُزادُ بلا نصٍّ — والحاجزُ `UX-024` يقيسُ ذلكَ. */
+  /** رموزُ الإفصاحِ لا تُزادُ بلا نصٍّ في القواميسِ — والحاجزُ `UX-024` يقيسُ ذلكَ. */
   it("مجالُ الإفصاحِ بلا تكرارٍ", () => {
     expect(new Set(SOS_DISCLOSURE_CODES).size).toBe(SOS_DISCLOSURE_CODES.length);
   });
@@ -117,5 +117,45 @@ describe("أتُعرَضُ البطاقةُ؟ — البطاقةُ تُخفي ن
 
   it("لا جوازَ وبلاغٌ مُغلَقٌ ⇒ تُعرَضُ كذلكَ حتّى يُقرأَ الإغلاقُ", () => {
     expect(isSurfaceVisible({ ...BLOCKED, incident: incident("closed") })).toBe(true);
+  });
+});
+
+/**
+ * ## `F12-03` — «بلا رحلةٍ» أصلُ جوازٍ ثالثٌ لا رفضٌ
+ *
+ * وأثقلُ ما يُقاسُ ههنا أنَّ الأصلَ الثالثَ **في المجالِ المغلقِ**: مجالٌ لا
+ * يعرفُه يجعلُ المُخزِّنَ يُعلِنُ عطباً على حالٍ صحيحٍ من القاعدةِ، فتغيبُ
+ * البطاقةُ عن **مَن لا رحلةَ له وحدَه** — وهوَ عينُ مَن أرادَ البندُ أن يفتحَ له.
+ */
+describe("F12-03 — أصلُ «بلا رحلةٍ» في المجالِ", () => {
+  it("«NO_ORDER» أصلٌ منشورٌ يقبلُه حارسُه", () => {
+    expect(SOS_ORIGINS).toContain("NO_ORDER");
+    expect(isSosOrigin("NO_ORDER")).toBe(true);
+  });
+
+  it("الأصولُ ثلاثةٌ لا تُزادُ صامتةً", () => {
+    expect([...SOS_ORIGINS]).toEqual(["ACTIVE_ORDER", "RECENT_ORDER", "NO_ORDER"]);
+  });
+
+  it("رمزا الإفصاحِ الجديدانِ منشورانِ في المجالِ", () => {
+    expect(SOS_DISCLOSURE_CODES).toContain("SOS_NO_ORDER_REFERENCE");
+    expect(SOS_DISCLOSURE_CODES).toContain("SOS_NOTIFIES_ACCOUNT_CITY_TEAM");
+  });
+
+  /**
+   * حالٌ جائزٌ بلا رحلةٍ **لا يحملُ حقولَ النافذةِ**: نافذةٌ تُقالُ لمَن لا رحلةَ
+   * له تعني «لكَ ثلاثونَ دقيقةً» — ووعدُ وقتٍ لا معنى له ههنا يُقرأُ حَدّاً.
+   */
+  it("الحالُ الجائزُ بلا رحلةٍ يُكتَبُ بمُعرِّفٍ فارغٍ وبلا نافذةٍ", () => {
+    const state: SosSurfaceState = {
+      eligible: true,
+      orderId: null,
+      origin: "NO_ORDER",
+      incident: null,
+      disclosure: ["SOS_NO_ORDER_REFERENCE", "SOS_NO_PHONE_CALL"],
+    };
+    expect(state.orderId).toBeNull();
+    expect(isSurfaceVisible(state)).toBe(true);
+    expect("postRideWindowMinutes" in state).toBe(false);
   });
 });

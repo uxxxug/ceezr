@@ -114,6 +114,19 @@ export function createSafetyRoutes(deps: SafetyRouteDependencies): Hono {
         disclosure: s.disclosure,
       });
     }
+    // `F12-03` — بلاغٌ بلا رحلةٍ: **حقولُ النافذةِ تُحجَبُ ولا تُنشَرُ أصفاراً**،
+    // فرقمٌ منشورٌ في حالٍ لا تحكمُها نافذةٌ يُقرأُ وعداً مضبوطاً وهوَ حَشوٌ.
+    if (s.origin === "NO_ORDER") {
+      return c.json({
+        ok: true,
+        found: true as const,
+        eligible: true as const,
+        orderId: null,
+        origin: s.origin,
+        incident,
+        disclosure: s.disclosure,
+      });
+    }
     return c.json({
       ok: true,
       found: true as const,

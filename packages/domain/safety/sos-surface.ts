@@ -2,14 +2,13 @@
  * الغرض: نطاقُ سطحِ الاستغاثةِ (`F2-10` · `SR-14`) — مفرداتُ الجوازِ وأسبابِه،
  *   وحالُ الحادثِ القائمِ، **ومجالُ رموزِ الإفصاحِ المغلقُ**. بلا نصٍّ معروضٍ
  *   وبلا نداءِ شبكةٍ: رموزٌ وأرقامٌ وحدَها.
- * الحالة: منفَّذٌ فعليّاً — البند `F2-10`.
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-10` و`F12-03`.
  * ينتمي إلى: packages/domain/safety
  * يُستخدم من: `application/safety/sos-surface.ts` ·
  *   `infrastructure/safety/sos-surface-store.ts` · `apps/gateway/src/routes/safety.ts`
  *   · سطحُ الطوارئِ في التطبيقِ المصغَّرِ · `scripts/lib/sos-surface-contract.ts`.
- * يُتوقع أن يستخدمه لاحقاً: `F12-03` حينَ يُسمَحُ بحادثٍ بلا طلبٍ — يُزادُ أصلٌ
- *   ثالثٌ إلى `SOS_ORIGINS` ولا يُكتَبُ اتّحادٌ ثانٍ.
  * الحاكم: docs/adr/0111-sos-surface-is-a-judged-card-not-a-button.md
+ *   · docs/adr/0145-an-emergency-does-not-require-a-ride.md
  *
  * ## لماذا سببُ المنعِ **رمزُ القاعدةِ نفسُه** لا مفرداتٌ للواجهةِ
  *
@@ -41,9 +40,19 @@
  * الجملةَ: «أنتَ في رحلةٍ» غيرُ «رحلتُكَ انتهت قبلَ قليلٍ وما يزالُ بوسعِكَ
  * النداءُ» — والثانيةُ تُطمئنُ مَن يظنُّ أنَّ البابَ أُغلِقَ بنزولِه.
  */
-export type SosOrigin = "ACTIVE_ORDER" | "RECENT_ORDER";
+export type SosOrigin =
+  /** رحلةٌ جاريةٌ الآنَ — البلاغُ يُنسَبُ إليها. */
+  | "ACTIVE_ORDER"
+  /** رحلةٌ انتهت داخلَ نافذةِ ما بعدَ الرحلةِ — البابُ ما زالَ مفتوحاً بها. */
+  | "RECENT_ORDER"
+  /**
+   * **بلا رحلةٍ ألبتّةَ** (`F12-03`): الخطرُ لا يشترطُ رحلةً، فالبابُ لا يشترطُها.
+   * والمدينةُ ههنا مدينةُ **الحسابِ** (`users.city_id`) لا مدينةُ رحلةٍ، ويُفصَحُ
+   * عن ذلكَ برمزٍ خاصٍّ كي لا يظنَّ مسافرٌ أنَّ فريقَ مكانِه الآنَ هوَ المُخطَرُ.
+   */
+  | "NO_ORDER";
 
-export const SOS_ORIGINS: readonly SosOrigin[] = ["ACTIVE_ORDER", "RECENT_ORDER"];
+export const SOS_ORIGINS: readonly SosOrigin[] = ["ACTIVE_ORDER", "RECENT_ORDER", "NO_ORDER"];
 
 export function isSosOrigin(value: unknown): value is SosOrigin {
   return typeof value === "string" && SOS_ORIGINS.some((candidate) => candidate === value);
@@ -54,7 +63,14 @@ export function isSosOrigin(value: unknown): value is SosOrigin {
  * حينَ يكونُ جوازاً. فمن قرأَ سبباً ههنا يقرؤُه بالمعنى نفسِه في ردِّ الضغطِ.
  */
 export type SosBlockReason =
-  /** لا رحلةَ قائمةٌ ولا رحلةَ انتهت ضمنَ نافذةِ ما بعدَ الرحلةِ. */
+  /**
+   * لا رحلةَ قائمةٌ ولا رحلةَ انتهت ضمنَ نافذةِ ما بعدَ الرحلةِ.
+   *
+   * **لم تعُدْ `sos_surface_state` تنشرُ هذا الرمزَ بعدَ `F12-03`**: غيابُ الرحلةِ
+   * صارَ أصلاً ثالثاً جائزاً لا منعاً. ويبقى الرمزُ في المجالِ ولا يُحذَفُ
+   * (`ح-8`): حذفُه كانَ سيجعلُ قارئاً يقرأُ قاعدةً لم تُهاجَرْ بعدُ يرمي
+   * عطبَ عقدٍ في سطحِ استغاثةٍ، وذاكَ أسوأُ من رمزٍ لا يُنشَرُ.
+   */
   | "NO_ACTIVE_ORDER"
   /** مدينةُ الرحلةِ بلا قروبِ تصعيدٍ مضبوطٍ — نقصُ تهيئةٍ لا رفضُ سياسةٍ. */
   | "ESCALATION_GROUP_MISSING"
@@ -98,6 +114,17 @@ export type SosDisclosureCode =
   | "SOS_SHARES_ROLE"
   /** فريقُ سلامةِ مدينتِكَ يُخطَرُ فوراً. */
   | "SOS_NOTIFIES_CITY_TEAM"
+  /**
+   * لا رحلةَ لتُذكَرَ (`F12-03`) — فلا مرجعَ طلبٍ ولا خدمةَ تصلُ الفريقَ. **يُقالُ
+   * صراحةً** لا يُكتفى بحذفِ `SOS_SHARES_ORDER_REFERENCE`: قائمةٌ أقصرُ لا تُقرأُ
+   * وعداً، والصمتُ ههنا يُقرأُ سياقاً سيصلُ ولن يصلَ.
+   */
+  | "SOS_NO_ORDER_REFERENCE"
+  /**
+   * فريقُ سلامةِ مدينةِ **حسابِكَ** يُخطَرُ (`F12-03`) — لا مدينةِ رحلةٍ ولا
+   * المكانِ الذي أنتَ فيه الآنَ. والفرقُ ليسَ لفظيّاً لمسافرٍ خارجَ مدينتِه.
+   */
+  | "SOS_NOTIFIES_ACCOUNT_CITY_TEAM"
   /** المنصّةُ **لا تتّصلُ** بشرطةٍ ولا إسعافٍ نيابةً عنكَ. */
   | "SOS_NO_PHONE_CALL";
 
@@ -107,6 +134,8 @@ export const SOS_DISCLOSURE_CODES: readonly SosDisclosureCode[] = [
   "SOS_SHARES_ORDER_REFERENCE",
   "SOS_SHARES_ROLE",
   "SOS_NOTIFIES_CITY_TEAM",
+  "SOS_NO_ORDER_REFERENCE",
+  "SOS_NOTIFIES_ACCOUNT_CITY_TEAM",
   "SOS_NO_PHONE_CALL",
 ];
 
@@ -133,14 +162,27 @@ export interface SosIncidentState {
 /**
  * حالُ السطحِ. **اتّحادٌ لا حقولٌ اختياريّةٌ**: «لا رحلةَ» ليست حالةً ناقصةً من
  * «رحلةٌ»، وخلطُهما في شكلٍ واحدٍ يجعلُ كلَّ قارئٍ يخترعُ شرطَه.
+ *
+ * وجوازُ النداءِ **فرعانِ لا فرعٌ** بعدَ `F12-03`، ويُميَّزانِ بـ`origin`: نافذةُ
+ * ما بعدَ الرحلةِ رقمٌ **لا معنى له بلا رحلةٍ**، فلو بقيَ حقلاً واحداً لَوجبَ أن
+ * يُنشَرَ صفراً أو افتراضاً في حالٍ لا يحكمُها — ورقمٌ يُقرأُ وعداً وهوَ حَشوٌ.
+ * و`orderId: null` مكتوبٌ في الفرعِ الثاني صراحةً لا محذوفاً: قارئٌ ينسى الحقلَ
+ * يُخطئُ، وقارئٌ يراهُ `null` يُقرِّرُ.
  */
 export type SosSurfaceState =
   | {
       readonly eligible: true;
+      readonly origin: "ACTIVE_ORDER" | "RECENT_ORDER";
       readonly orderId: string;
-      readonly origin: SosOrigin;
       readonly postRideWindowMinutes: number;
       readonly postRideWindowSource: SosWindowSource;
+      readonly incident: SosIncidentState | null;
+      readonly disclosure: readonly SosDisclosureCode[];
+    }
+  | {
+      readonly eligible: true;
+      readonly origin: "NO_ORDER";
+      readonly orderId: null;
       readonly incident: SosIncidentState | null;
       readonly disclosure: readonly SosDisclosureCode[];
     }

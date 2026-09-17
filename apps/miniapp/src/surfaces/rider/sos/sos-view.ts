@@ -1,7 +1,7 @@
 /**
  * الغرض: نموذجُ عرضِ الاستغاثةِ — دالّاتٌ نقيّةٌ تُحوِّلُ الردَّ إلى مفاتيحِ نصٍّ
  *   وأعدادٍ، بلا JSX وبلا شبكةٍ (البند `F2-10` · القسم 9.11).
- * الحالة: منفَّذٌ فعليّاً — البند `F2-10`.
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-10` و`F12-03`.
  * ينتمي إلى: apps/miniapp/src/surfaces/rider/sos
  * يُستخدم من: `SosCard.tsx`، ويُقاسُ مباشرةً في `tests/unit`.
  * يُتوقع أن يستخدمه لاحقاً: سطحُ السائقِ — المفاتيحُ مُعامَلةٌ بالدورِ لا مكتوبةٌ.
@@ -70,10 +70,16 @@ export function incidentStatusKey(status: string): string {
   return "rider.sos.incident.status.unknown";
 }
 
-/** أصلُ الأهليّةِ ⇒ مفتاحُ نصٍّ: «رحلةٌ جاريةٌ» أو «رحلةٌ انتهَت قريباً». */
+/**
+ * أصلُ الأهليّةِ ⇒ مفتاحُ نصٍّ: «رحلةٌ جاريةٌ» أو «رحلةٌ انتهَت قريباً» أو
+ * — بعدَ `F12-03` — **«بلا رحلةٍ»**. والثالثُ له نصُّه لا يُردَُّ إلى
+ * `unknown`: مَن لا رحلةَ له يحتاجُ أن يقرأَ أنَّ البابَ **مفتوحٌ له معَ ذلكَ**،
+ * و«أصلٌ غيرُ معروفٍ» يُقرأُ عطلاً فيُحجِمُ عن الضغطِ.
+ */
 export function originKey(origin: string): string {
   if (origin === "ACTIVE_ORDER") return "rider.sos.origin.active";
   if (origin === "RECENT_ORDER") return "rider.sos.origin.recent";
+  if (origin === "NO_ORDER") return "rider.sos.origin.noOrder";
   return "rider.sos.origin.unknown";
 }
 
