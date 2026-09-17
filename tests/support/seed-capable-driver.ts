@@ -49,7 +49,7 @@ export async function seedCapableDriver(input: SeedCapableDriverInput): Promise<
 
   await sql`
     insert into subscriptions (city_id, driver_id, plan, status)
-    values (${cityId}, ${driverId}, 'starter'::subscription_plan, 'active'::subscription_status)
+    values (${cityId}, ${driverId}, 'both'::subscription_plan, 'active'::subscription_status)
     on conflict (driver_id) where status in ('trialing', 'active')
       do update set status = 'active', updated_at = now()
   `;
