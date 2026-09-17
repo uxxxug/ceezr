@@ -865,6 +865,43 @@ jobs:
       - name: بوابةُ تغطيةٍ دنيا على المسارات الحرجة (OPS-005 · القسم 11-د · ADR 0048)
         run: bun run check:coverage
 
+      # **تصحيحٌ مُضافٌ — تكافؤُ الإنفاذِ (2026-09-17 · ADR 0143):** سبعةُ حواجزَ
+      # كانَت في `package.json → ci` **ولا تُنادى في أيِّ سيرِ عملٍ** — لا ههنا ولا
+      # في غيرِها. ووثيقتانِ تدَّعيانِ صراحةً أنَّ إحداها «حاجزُ CI قائمٌ». وهوَ
+      # عينُ عطبِ `F6-07` أعلاه مكرَّراً سبعَ مرّاتٍ: **حاجزٌ لا يُسقِطُ بناءً بعيداً
+      # ليسَ حاجزاً**، إنّما عادةٌ محلّيّةٌ تنكسرُ بأوّلِ من ينسى. فأُضيفَت خطواتٍ
+      # ههنا، وأُضيفَ حاجزٌ يقيسُ التكافؤَ نفسَه كي لا يتكرَّرَ بلا مُكتشِفٍ.
+      - name: مِلكيّةُ الحذفِ لكلِّ جدولٍ حكماً لا أمراً (F2-11 · ADR 0112)
+        run: bun run scripts/check-erasure-policy.ts
+
+      - name: سياسةُ الاستبقاءِ مُعلَنةٌ لكلِّ بياناتٍ تُعمَّرُ (F7-06 · CAP-010)
+        run: bun run scripts/check-retention-policy.ts
+
+      - name: أمانُ الاستعادةِ — لا هجرةَ تُكسِرُ الرجوعَ (OPS-010)
+        run: bun run scripts/check-rollback-safety.ts
+
+      - name: ثابتُ المثيلِ الواحدِ مفروضٌ في النصِّ لا موصىً به (SCL-002 · ADR 0050)
+        run: bun run scripts/check-instance-invariant.ts
+
+      - name: منطقةُ التأجيلِ لا تُستورَدُ ولا تُطبَّقُ ولها README (O-7 · ADR 0095)
+        run: bun run scripts/check-deferred-area.ts
+
+      - name: عقدُ شاشةِ اشتراكِ السائقِ (F3-06)
+        run: bun run scripts/check-driver-subscription-contract.ts
+
+      - name: عقدُ شاشةِ مركبةِ السائقِ (F3-07)
+        run: bun run scripts/check-driver-vehicle-contract.ts
+
+      # والحاجزُ الذي يحرسُ الحواجزَ: يقابلُ المشغِّلَ بسيرِ العملِ بالقرصِ في
+      # الاتجاهاتِ الثلاثةِ، ويفكُّ الأسماءَ المتداخلةَ، **ولا يقرأُ تعليقاً تنفيذاً**
+      # (وذاكَ بعينِه ما أخفى الخلَلَ في أوّلِ قياسٍ). فلا يتقادمُ بإضافةِ حاجزٍ
+      # جديدٍ: مصدرُ حقيقتِه المستودعُ نفسُه لا قائمةٌ تُصانُ يدويًّا.
+      - name: كلُّ حاجزٍ يُنفَّذُ حيثُ يُدَّعى — محلّيًّا وفي CI (ADR 0143)
+        run: bun run scripts/check-guard-enforcement.ts
+
+      - name: سقوطُ حاجزِ تكافؤِ الإنفاذِ مقيسٌ بسالبةٍ مزروعةٍ لكلِّ قاعدةٍ (ح-7)
+        run: bun test tests/unit/check-guard-enforcement.test.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then
