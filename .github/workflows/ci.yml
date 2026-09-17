@@ -1229,7 +1229,7 @@ jobs:
       # نفسِه. وهو خالٍ من النقطةِ والرمزِ بحكمِ الحاجزِ الذي سبقَه لا بحسنِ الظنّ.
       - name: رفع دليل التشغيل الحقيقي
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: real-redis-proof
           path: /tmp/real-redis-proof.json
