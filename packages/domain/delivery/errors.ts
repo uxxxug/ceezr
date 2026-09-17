@@ -20,4 +20,16 @@ export class DeliveryDropoffRequiredError {
   readonly code = "DELIVERY_DROPOFF_REQUIRED" as const;
 }
 
-export type DeliveryRequestError = InvalidParcelDescriptionError | DeliveryDropoffRequiredError;
+/**
+ * رفضُ التوصيلِ لوجودِ طلبِ توصيلٍ نشطٍ — رفضٌ مقيسٌ لا عطبٌ تقنيٌ.
+ * D-01: البوتُ ينشئُ عبرَ `RideRequestCommand` الذرّيِّ، والرفضُ يُعاد صراحةً لا يُبتلَع.
+ */
+export class ActiveDeliveryExistsError {
+  readonly code = "ACTIVE_DELIVERY_EXISTS" as const;
+  constructor(readonly orderId: string) {}
+}
+
+export type DeliveryRequestError =
+  | InvalidParcelDescriptionError
+  | DeliveryDropoffRequiredError
+  | ActiveDeliveryExistsError;

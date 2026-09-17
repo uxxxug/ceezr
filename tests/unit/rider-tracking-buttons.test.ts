@@ -30,6 +30,7 @@ import {
   JEDDAH,
   offerWriterDouble,
   orderWriter,
+  rideRequestCommand,
   riderDirectory,
 } from "../support/bot-doubles.ts";
 import {
@@ -55,10 +56,10 @@ const ar = (key: string, params: Record<string, string | number> = {}) =>
   translate("ar", key, params);
 
 function text(value: string): IncomingUpdate {
-  return { kind: "text", from: SENDER, text: value };
+  return { kind: "text", from: SENDER, updateId: 1, text: value };
 }
 function callback(data: string): IncomingUpdate {
-  return { kind: "callback", from: SENDER, data };
+  return { kind: "callback", from: SENDER, updateId: 1, data };
 }
 
 function order(status: string): ActiveOrderSummary {
@@ -121,6 +122,7 @@ beforeEach(() => {
     riders: riderDirectory(RIDER),
     cities: cityDirectory([JEDDAH]),
     orders: orderWriter(ORDER_ID),
+    rides: rideRequestCommand(),
     activeOrdersOf: async () => [order("matched")],
     pastOrdersOf: async () => [],
     matching: {

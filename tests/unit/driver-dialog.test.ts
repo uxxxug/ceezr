@@ -47,13 +47,13 @@ const ar = (key: string, params: Record<string, string | number> = {}) =>
   translate("ar", key, params);
 
 function text(value: string): IncomingUpdate {
-  return { kind: "text", from: SENDER, text: value };
+  return { kind: "text", from: SENDER, updateId: 1, text: value };
 }
 function callback(data: string): IncomingUpdate {
-  return { kind: "callback", from: SENDER, data };
+  return { kind: "callback", from: SENDER, updateId: 1, data };
 }
 function photo(fileId: string): IncomingUpdate {
-  return { kind: "photo", from: SENDER, fileId, caption: null };
+  return { kind: "photo", from: SENDER, updateId: 1, fileId, caption: null };
 }
 /** الخطوات الأربع التي صار التسجيل يمرّ بها بعد اختيار الخدمة. */
 async function completeKyc(deps: DriverBotDependencies) {
@@ -67,7 +67,7 @@ function contact(
   phone: string,
   ownerTelegramId: string | null = SENDER.telegramUserId,
 ): IncomingUpdate {
-  return { kind: "contact", from: SENDER, phone, ownerTelegramId };
+  return { kind: "contact", from: SENDER, updateId: 1, phone, ownerTelegramId };
 }
 
 let drivers: DriverDirectoryDouble;
@@ -332,7 +332,12 @@ describe("التوافر", () => {
   it("وصول الموقع لمن كان متاحاً يُخبره أنه صار ظاهراً فعلاً", async () => {
     const drivers = driverDirectory(verifiedDriver({ hasLocation: false, isAvailable: true }));
     const replies = await handleDriverUpdate(
-      { kind: "location", from: SENDER, location: { latitude: 21.5433, longitude: 39.1728 } },
+      {
+        kind: "location",
+        from: SENDER,
+        updateId: 1,
+        location: { latitude: 21.5433, longitude: 39.1728 },
+      },
       build({ drivers }),
     );
     expect(replies[0]?.text).toBe(ar("driver.location_saved_now_live"));
@@ -341,7 +346,12 @@ describe("التوافر", () => {
   it("وصول الموقع لغير المتاح يبقى على الرسالة العادية", async () => {
     const drivers = driverDirectory(verifiedDriver({ hasLocation: false, isAvailable: false }));
     const replies = await handleDriverUpdate(
-      { kind: "location", from: SENDER, location: { latitude: 21.5433, longitude: 39.1728 } },
+      {
+        kind: "location",
+        from: SENDER,
+        updateId: 1,
+        location: { latitude: 21.5433, longitude: 39.1728 },
+      },
       build({ drivers }),
     );
     expect(replies[0]?.text).toBe(ar("driver.location_saved"));
@@ -768,6 +778,7 @@ describe("متانة الحوار", () => {
     const english: IncomingUpdate = {
       kind: "text",
       from: { telegramUserId: "901", chatId: "901", languageHint: "en" },
+      updateId: 1,
       text: "/help",
     };
     const replies = await handleDriverUpdate(english, deps);
@@ -779,7 +790,12 @@ describe("متانة الحوار", () => {
   it("يحفظ موقع السائق المسجَّل فعلاً", async () => {
     const drivers = driverDirectory(verifiedDriver({ hasLocation: false }));
     const replies = await handleDriverUpdate(
-      { kind: "location", from: SENDER, location: { latitude: 21.4, longitude: 39.2 } },
+      {
+        kind: "location",
+        from: SENDER,
+        updateId: 1,
+        location: { latitude: 21.4, longitude: 39.2 },
+      },
       build({ drivers }),
     );
     expect(replies[0]?.text).toBe(ar("driver.location_saved"));
@@ -802,7 +818,12 @@ describe("متانة الحوار", () => {
     const published: string[] = [];
     const redispatched: string[] = [];
     const replies = await handleDriverUpdate(
-      { kind: "location", from: SENDER, location: { latitude: 21.4, longitude: 39.2 } },
+      {
+        kind: "location",
+        from: SENDER,
+        updateId: 1,
+        location: { latitude: 21.4, longitude: 39.2 },
+      },
       build({
         drivers,
         tracking: {
@@ -832,7 +853,12 @@ describe("متانة الحوار", () => {
   it("لا يحفظ موقعاً لغير مسجَّل", async () => {
     const drivers = driverDirectory(null);
     const replies = await handleDriverUpdate(
-      { kind: "location", from: SENDER, location: { latitude: 21.4, longitude: 39.2 } },
+      {
+        kind: "location",
+        from: SENDER,
+        updateId: 1,
+        location: { latitude: 21.4, longitude: 39.2 },
+      },
       build({ drivers }),
     );
     expect(replies[0]?.text).toBe(ar("driver.must_register_first"));
@@ -842,7 +868,7 @@ describe("متانة الحوار", () => {
   it("يرفض إحداثيات مستحيلة ولا يكتبها", async () => {
     const drivers = driverDirectory(verifiedDriver());
     const replies = await handleDriverUpdate(
-      { kind: "location", from: SENDER, location: { latitude: 999, longitude: 39.2 } },
+      { kind: "location", from: SENDER, updateId: 1, location: { latitude: 999, longitude: 39.2 } },
       build({ drivers }),
     );
     expect(replies[0]?.text).toBe(ar("driver.location_invalid"));
@@ -1000,6 +1026,7 @@ describe("المنطقة المفضّلة للسائق", () => {
   const AREA_PIN: IncomingUpdate = {
     kind: "location",
     from: SENDER,
+    updateId: 1,
     location: { latitude: 21.5433, longitude: 39.1728 },
   };
 

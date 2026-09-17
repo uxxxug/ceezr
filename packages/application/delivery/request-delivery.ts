@@ -9,6 +9,7 @@
  * ملاحظات مستقبلية: تسعير التوصيل يُضاف بـestimate-delivery-fare بقراءة platform_settings لا هنا.
  */
 
+import { ActiveDeliveryExistsError } from "../../domain/delivery/errors.ts";
 import {
   type DeliveryRequestError,
   type DeliveryRequestInput,
@@ -16,13 +17,14 @@ import {
 } from "../../domain/delivery/index.ts";
 import type { DriverId, OrderId } from "../../shared/kernel/index.ts";
 import { ok, type Result } from "../../shared/result/index.ts";
-import type { OrderWriter } from "../bots/types.ts";
 import { type BroadcastDependencies, broadcastOffers } from "../dispatch/broadcast-offers.ts";
 import type { MatchOrderError } from "../dispatch/match-order.ts";
-import type { PortFailureError } from "../ports/index.ts";
+import { PortFailureError } from "../ports/index.ts";
+import type { RideRequestCommand } from "../transport/ride-request-ports.ts";
 
 export interface RequestDeliveryDependencies {
-  readonly orders: OrderWriter;
+  /** D-01: الإنشاءُ عبر `RideRequestCommand` الذرّيِّ الآمنِ لا الكتابةَ المباشرة. */
+  readonly rides: RideRequestCommand;
   readonly matching: BroadcastDependencies;
 }
 
@@ -50,28 +52,46 @@ export type RequestDeliveryError = DeliveryRequestError | PortFailureError;
 export async function requestDelivery(
   input: DeliveryRequestInput,
   deps: RequestDeliveryDependencies,
+  /** مفتاحُ التكرارِ — حتميٌّ من `update_id` لا عشوائيٌّ (D-01). */
+  idempotencyKey: string,
+  telegramUserId: string,
 ): Promise<Result<RequestDeliveryResult, RequestDeliveryError>> {
   const request = makeDeliveryRequest(input);
   if (!request.ok) return request;
 
-  const created = await deps.orders.create({
-    cityId: request.value.cityId,
-    riderId: request.value.riderId,
+  const created = await deps.rides.create({
+    telegramUserId,
+    idempotencyKey,
     service: request.value.service,
-    pickup: request.value.pickup,
-    dropoff: request.value.dropoff,
-    // وصف الطرد يُحفظ مع الطلب: السائق ولوحة الإدارة يقرآنه من مصدر واحد
+    origin: { lat: request.value.pickup.latitude, lng: request.value.pickup.longitude },
+    destination: { lat: request.value.dropoff.latitude, lng: request.value.dropoff.longitude },
     notes: request.value.parcelDescription,
   });
-  if (!created.ok) return created;
+  if (!created.ok) {
+    return { ok: false, error: new PortFailureError("rides", created.error.reason) };
+  }
 
-  const broadcast = await broadcastOffers({ orderId: created.value }, deps.matching);
+  if (!created.value.accepted) {
+    // `ACTIVE_RIDE_EXISTS` رفضٌ مقيسٌ لا عطبٌ — نُعادُهُ صراحةً ليُعالِجَهُ المُستدعي.
+    if (created.value.refusal === "ACTIVE_RIDE_EXISTS" && created.value.activeRide !== null) {
+      return { ok: false, error: new ActiveDeliveryExistsError(created.value.activeRide.orderId) };
+    }
+    return { ok: false, error: new PortFailureError("rides", created.value.refusal) };
+  }
+
+  // `reused: true` = الأمرُ سُبِقَ — لا بثَّ ثانٍ.
+  const orderId = created.value.ride.orderId as OrderId;
+  if (created.value.ride.reused) {
+    return ok({ orderId, offered: [], broadcastFailure: null });
+  }
+
+  const broadcast = await broadcastOffers({ orderId }, deps.matching);
   if (!broadcast.ok) {
-    return ok({ orderId: created.value, offered: [], broadcastFailure: broadcast.error });
+    return ok({ orderId, offered: [], broadcastFailure: broadcast.error });
   }
 
   return ok({
-    orderId: created.value,
+    orderId,
     offered: broadcast.value.offered,
     broadcastFailure: null,
   });

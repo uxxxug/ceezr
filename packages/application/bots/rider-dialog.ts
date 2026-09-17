@@ -31,6 +31,7 @@ import {
 } from "../tracking/issue-tracking-token.ts";
 import type { LiveTrackingPort } from "../tracking/live-tracking.ts";
 import { revokeOrderTrackingTokens } from "../tracking/revoke-tracking-token.ts";
+import type { RideRequestCommand } from "../transport/ride-request-ports.ts";
 import {
   handleLanguageCallback,
   handleLanguageCommand,
@@ -65,7 +66,7 @@ import {
   INITIAL_STATE,
   type IncomingUpdate,
   type Keyboard,
-  type OrderWriter,
+  type OrderCancellationPort,
   type PastOrderSummary,
   type RiderDirectory,
   type RiderProfile,
@@ -78,7 +79,13 @@ export interface RiderBotDependencies {
   readonly sessions: SessionStore;
   readonly riders: RiderDirectory;
   readonly cities: CityDirectory;
-  readonly orders: OrderWriter;
+  /**
+   * منفذُ الإلغاءِ وحدَه — الإنشاءُ عبر `rides` (D-01).
+   * الكتابةُ المباشرةُ في `orders` من البوتِ دَينٌ مغلقٌ.
+   */
+  readonly orders: OrderCancellationPort;
+  /** الأمرُ الذرّيُّ الآمنُ لإنشاءِ الرحلةِ — مفتاحُ تكرارٍ وفحصُ منطقةٍ ومنعُ تكرارٍ. */
+  readonly rides: RideRequestCommand;
   /** كل الطلبات النشطة للعميل — لا الأحدث وحده، فقد يملك مشواراً وطرداً معاً. */
   readonly activeOrdersOf: (riderId: RiderProfile["id"]) => Promise<readonly ActiveOrderSummary[]>;
   /**
@@ -196,7 +203,7 @@ export async function handleRiderUpdate(
     if (prefix === "cmd") {
       const command = rest.join(":");
       return isMenuCommand("rider", command)
-        ? handleCommand(command, sender, state, deps)
+        ? handleCommand(command, sender, state, update.updateId, deps)
         : [reply(sender, tr("common.unknown_command"))];
     }
     if (prefix === "rate") {
@@ -213,7 +220,7 @@ export async function handleRiderUpdate(
   }
 
   if (update.kind === "location") {
-    return handleLocation(update.location, sender, state, deps);
+    return handleLocation(update.location, sender, state, update.updateId, deps);
   }
 
   if (update.kind === "photo") {
@@ -236,13 +243,13 @@ export async function handleRiderUpdate(
   }
 
   const text = update.text.trim();
-  if (text.startsWith("/")) return handleCommand(text, sender, state, deps);
+  if (text.startsWith("/")) return handleCommand(text, sender, state, update.updateId, deps);
 
   // زرّ القائمة الدائمة يصل نصّاً لا بيانات (Reply Keyboard)، فيُترجَم إلى أمره هنا —
   // **قبل** أي فحص خطوة. الموضع هو المطلوب نفسه في البند 4.3: ضغطة واحدة في كل
   // الحالات. ولو جاء الفحص بعد الخطوات لصار زرّ «الدعم» يُسجَّل اسماً للعميل الجديد.
   const fromMenu = commandForMenuText("rider", text);
-  if (fromMenu !== null) return handleCommand(fromMenu, sender, state, deps);
+  if (fromMenu !== null) return handleCommand(fromMenu, sender, state, update.updateId, deps);
 
   if (state.step === "awaiting_name") return handleName(text, sender, state, deps);
   if (state.step === "awaiting_support_message") {
@@ -255,7 +262,8 @@ export async function handleRiderUpdate(
           deps.support,
         );
   }
-  if (state.step === "awaiting_parcel") return handleParcel(text, sender, state, deps);
+  if (state.step === "awaiting_parcel")
+    return handleParcel(text, sender, state, update.updateId, deps);
   if (state.step === "awaiting_pickup" || state.step === "awaiting_dropoff") {
     // لا نقبل عنواناً نصياً مكان إحداثيات: الموقع الوهمي أسوأ من لا موقع
     return [reply(sender, tr("rider.location_required"))];
@@ -911,6 +919,7 @@ async function handleCommand(
   command: string,
   sender: Sender,
   state: DialogState,
+  updateId: number,
   deps: RiderBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
@@ -960,7 +969,7 @@ async function handleCommand(
       if (state.draftService === "delivery") {
         return [reply(sender, tr("rider.delivery_dropoff_required"))];
       }
-      return createOrderAndMatch(sender, state, rider, state.draftPickup, null, deps);
+      return createOrderAndMatch(sender, state, rider, state.draftPickup, null, updateId, deps);
     }
 
     // البند 2.2: لا يُشترط له منفذ اختياري، فمنفذ الطلبات النشطة أساسي في الحوار أصلاً
@@ -1266,6 +1275,7 @@ async function handleLocation(
   location: { readonly latitude: number; readonly longitude: number },
   sender: Sender,
   state: DialogState,
+  updateId: number,
   deps: RiderBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
@@ -1305,7 +1315,7 @@ async function handleLocation(
       if (!saved.ok) return technicalFailure(sender, state);
       return [reply(sender, tr("rider.ask_parcel"), menu(state))];
     }
-    return createOrderAndMatch(sender, state, rider, state.draftPickup, location, deps);
+    return createOrderAndMatch(sender, state, rider, state.draftPickup, location, updateId, deps);
   }
 
   return [reply(sender, tr("common.unknown_command"))];
@@ -1319,6 +1329,7 @@ async function handleParcel(
   raw: string,
   sender: Sender,
   state: DialogState,
+  updateId: number,
   deps: RiderBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
@@ -1342,7 +1353,9 @@ async function handleParcel(
       dropoff: state.draftDropoff,
       parcelDescription: raw,
     },
-    { orders: deps.orders, matching: deps.matching },
+    { rides: deps.rides, matching: deps.matching },
+    `telegram-update:${sender.telegramUserId}:${updateId}`,
+    sender.telegramUserId,
   );
 
   if (!requested.ok) {
@@ -1353,6 +1366,9 @@ async function handleParcel(
       const key =
         requested.error.reason === "too_long" ? "rider.parcel_too_long" : "rider.parcel_invalid";
       return [reply(sender, tr(key))];
+    }
+    if (requested.error.code === "ACTIVE_DELIVERY_EXISTS") {
+      return [reply(sender, tr("rider.already_searching", { orderId: requested.error.orderId }))];
     }
     return technicalFailure(sender, state);
   }
@@ -1378,22 +1394,47 @@ async function handleParcel(
 async function createOrderAndMatch(
   sender: Sender,
   state: DialogState,
-  rider: RiderProfile,
+  _rider: RiderProfile,
   pickup: { readonly latitude: number; readonly longitude: number },
   dropoff: { readonly latitude: number; readonly longitude: number } | null,
+  updateId: number,
   deps: RiderBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
 
-  // مسار النقل حصراً: التوصيل يُنشَأ في handleParcel عبر requestDelivery
-  const created = await deps.orders.create({
-    cityId: rider.cityId,
-    riderId: rider.id,
+  // D-01: المسارُ الذرّيُّ الآمنُ — مفتاحُ تكرارٍ من `update_id` وفحصُ منطقةِ خدمةٍ ومنعُ تكرارٍ.
+  // لا كتابةً مباشرةً في `orders` بعدَ اليوم.
+  const idempotencyKey = `telegram-update:${sender.telegramUserId}:${updateId}`;
+  const created = await deps.rides.create({
+    telegramUserId: sender.telegramUserId,
+    idempotencyKey,
     service: "transport",
-    pickup,
-    dropoff,
+    origin: { lat: pickup.latitude, lng: pickup.longitude },
+    destination: dropoff === null ? null : { lat: dropoff.latitude, lng: dropoff.longitude },
+    notes: null,
   });
   if (!created.ok) return technicalFailure(sender, state);
+
+  // الرفضُ مقيسٌ لا عطبٌ — لكنَّ البوتَ يُبلِّغُهُ بصدقٍ.
+  if (!created.value.accepted) {
+    if (created.value.refusal === "ACTIVE_RIDE_EXISTS" && created.value.activeRide !== null) {
+      return [
+        reply(
+          sender,
+          tr("rider.already_searching", { orderId: created.value.activeRide?.orderId ?? "" }),
+        ),
+      ];
+    }
+    return technicalFailure(sender, state);
+  }
+
+  // `reused: true` = الأمرُ نفسُه سُبِقَ — لا بثَّ ثانٍ ولا إشعارٌ ثانٍ.
+  const orderId = created.value.ride.orderId as OrderId;
+  if (created.value.ride.reused) {
+    return [
+      reply(sender, waitingLine("riderSearching", orderId, state.language), trackingMenu(state)),
+    ];
+  }
 
   await deps.sessions.clear(sender.telegramUserId);
 
@@ -1401,17 +1442,13 @@ async function createOrderAndMatch(
   // سطرُ الانتظار يختلف بين طلبٍ وطلب: العميلُ الذي يطلب كلّ يوم يقرأ الجملةَ
   // نفسَها فيراها آلةً، لا فريقاً يبحث له. والبذرةُ معرّفُ الطلب فيثبت السطرُ لطلبه.
   const replies: BotReply[] = [
-    reply(
-      sender,
-      waitingLine("riderSearching", created.value, state.language),
-      trackingMenu(state),
-    ),
+    reply(sender, waitingLine("riderSearching", orderId, state.language), trackingMenu(state)),
   ];
 
   // البثّ الحقيقي يبدأ فوراً: تُكتب العروض في order_offers ويُكتب لكلِّ عرضٍ صفُّ
   // إشعارٍ في معاملةِ الدورةِ نفسِها، والإرسالُ إلى السائقِ يتولّاه عاملُ التسليم (BUG-004).
   // لا سائق الآن؟ الطلب يبقى في حالة البحث وتتولّاه دورات البثّ التالية — والعميل يُخبَر بصدق.
-  const broadcast = await broadcastOffers({ orderId: created.value }, deps.matching);
+  const broadcast = await broadcastOffers({ orderId }, deps.matching);
   if (!broadcast.ok) return replies;
   if (broadcast.value.offered.length === 0) return replies;
 

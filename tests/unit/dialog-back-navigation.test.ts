@@ -29,11 +29,22 @@ const SENDER: Sender = { telegramUserId: "900", chatId: "900", languageHint: "ar
 
 const ar = (key: string) => translate("ar", key, {});
 
-const text = (value: string): IncomingUpdate => ({ kind: "text", from: SENDER, text: value });
-const callback = (data: string): IncomingUpdate => ({ kind: "callback", from: SENDER, data });
+const text = (value: string): IncomingUpdate => ({
+  kind: "text",
+  from: SENDER,
+  updateId: 1,
+  text: value,
+});
+const callback = (data: string): IncomingUpdate => ({
+  kind: "callback",
+  from: SENDER,
+  updateId: 1,
+  data,
+});
 const contact = (phone: string): IncomingUpdate => ({
   kind: "contact",
   from: SENDER,
+  updateId: 1,
   phone,
   ownerTelegramId: SENDER.telegramUserId,
 });
@@ -113,7 +124,7 @@ describe("الرجوع من اختيار الخدمة إلى اختيار الم
     await handleDriverUpdate(text("أ ب ج 1234"), deps);
     await handleDriverUpdate(text("1012345678"), deps);
     await handleDriverUpdate(
-      { kind: "photo", from: SENDER, fileId: "vphoto_900", caption: null },
+      { kind: "photo", from: SENDER, updateId: 1, fileId: "vphoto_900", caption: null },
       deps,
     );
     expect(drivers.registrations[0]?.cityId).toBe(MAKKAH.id);

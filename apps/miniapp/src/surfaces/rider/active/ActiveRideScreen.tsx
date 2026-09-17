@@ -384,10 +384,7 @@ export function ActiveRideScreen({
     );
     const snapshotPosition = view.position;
     const livePosition =
-      liveTracking.position !== null &&
-      snapshotPosition !== null &&
-      snapshotPosition.show &&
-      snapshotPosition.ageSeconds !== null
+      liveTracking.position && snapshotPosition?.show && snapshotPosition.ageSeconds !== null
         ? {
             show: true as const,
             lat: liveTracking.position.lat,

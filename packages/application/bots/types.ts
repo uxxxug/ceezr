@@ -67,8 +67,18 @@ export type LocationWriteOutcome =
   | { readonly kind: "no_driver" };
 
 export type IncomingUpdate =
-  | { readonly kind: "text"; readonly from: Sender; readonly text: string }
-  | { readonly kind: "callback"; readonly from: Sender; readonly data: string }
+  | {
+      readonly kind: "text";
+      readonly from: Sender;
+      readonly updateId: number;
+      readonly text: string;
+    }
+  | {
+      readonly kind: "callback";
+      readonly from: Sender;
+      readonly updateId: number;
+      readonly data: string;
+    }
   /**
    * `quality` اختياري لأن المصادر تختلف فيما تُبلّغ عنه: زرّ الموقع في تلغرام
    * يرسل الدقّة والاتجاه، والبطاقة اليدوية لا ترسل شيئاً. وغيابه ليس معناه
@@ -78,6 +88,7 @@ export type IncomingUpdate =
   | {
       readonly kind: "location";
       readonly from: Sender;
+      readonly updateId: number;
       readonly location: Coordinates;
       readonly quality?: LocationQualityHints;
     }
@@ -89,6 +100,7 @@ export type IncomingUpdate =
   | {
       readonly kind: "contact";
       readonly from: Sender;
+      readonly updateId: number;
       readonly phone: string;
       readonly ownerTelegramId: string | null;
     }
@@ -99,10 +111,11 @@ export type IncomingUpdate =
   | {
       readonly kind: "photo";
       readonly from: Sender;
+      readonly updateId: number;
       readonly fileId: string;
       readonly caption: string | null;
     }
-  | { readonly kind: "unsupported"; readonly from: Sender };
+  | { readonly kind: "unsupported"; readonly from: Sender; readonly updateId: number };
 
 export interface Sender {
   readonly telegramUserId: string;
@@ -442,6 +455,17 @@ export type CancelOutcome =
 
 export interface OrderWriter {
   create(input: CreateOrderInput): Promise<Result<OrderId, PortFailureError>>;
+  cancelByRider(
+    orderId: OrderId,
+    riderId: RiderId,
+  ): Promise<Result<CancelOutcome, PortFailureError>>;
+}
+
+/**
+ * منفذُ الإلغاءِ وحدَه — الإنشاءُ عبر `RideRequestCommand` (D-01).
+ * فصلُ الإنشاءِ عن الإلغاءِ يمنعُ البوتَ من حملِ قدرةِ الكتابةِ المباشرةِ.
+ */
+export interface OrderCancellationPort {
   cancelByRider(
     orderId: OrderId,
     riderId: RiderId,

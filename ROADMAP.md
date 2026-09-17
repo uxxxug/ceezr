@@ -5667,3 +5667,25 @@ PostgreSQL حقيقي»** التي شغَّلَت المصفوفةَ على مح
 **الفرعُ:** `docs/owner-debt-closure-rule` · **من** `main`@`c3d7a44`
 **النطاقُ:** إضافةُ قاعدةِ حوكمةٍ جديدةٍ إلى `docs/MASTER_DIRECTIVE.md` §0 + تحديثُ سجلِّ الديون + `SYSTEM_STATE.md`.
 **ما لا يُفعَلُ:** لا تغييرَ في حالاتِ البنودِ · لا شيفرةَ · لا هجرةَ ولا اختبارَ.
+
+### حجزُ نطاقِ «D-01 توحيدُ مسارِ إنشاءِ الطلب» — 2026-09-17
+
+**الفرعُ:** `fix/d-01-unify-order-authority` · **من** `main`@`7a600b3`
+**النطاقُ:**
+1. إصلاحُ خطأٍ مطبعيٍّ: «المليار» → «المليون» في `MASTER_DIRECTIVE.md` §0-8
+2. توسيعُ `request_ride()` لدعمِ وجهةٍ معدومةٍ (transport `/skip`)
+3. إضافةُ `updateId` إلى `IncomingUpdate` و`RawTelegramUpdate`
+4. إضافةُ `RideRequestCommand` إلى `RiderBotDependencies`
+5. هجرةُ `createOrderAndMatch` و`requestDelivery` إلى `RideRequestCommand.create()`
+6. فصلُ `OrderWriter` إلى `OrderCancellationPort` (إلغاءٌ فقط)
+7. توسيعُ حاجزِ `check-ride-request-contract.ts` لمنعِ الكتابةِ المباشرةِ من كلِّ المسارات
+8. اختباراتٌ سلبيّةٌ للحاجزِ + تحديثُ اختباراتِ البوت
+9. معالجةُ `ACTIVE_RIDE_EXISTS` صراحةً في مسارِ التوصيلِ (`ActiveDeliveryExistsError`)
+10. تغليفُ `orderCancellation` في `container.ts` — البوتُ لا يحملُ `create` وقتَ التشغيلِ
+**ما لا يُفعَلُ:** لا تغييرَ في حالاتِ البنودِ · لا هجرةَ بيانات
+
+#### سجلُ التنفيذِ — D-01
+
+- **2026-09-17:** أُنشئَ الفرعُ من `main`@`7a600b3`. نُفِّذَتْ جميعُ التغييراتِ: هجرةُ قاعدةِ البياناتِ، إعادةُ كتابةِ `createOrderAndMatch` و`requestDelivery`، فصلُ `OrderCancellationPort`، توسيعُ الحاجزِ، اختباراتٌ سلبيّةٌ، معالجةُ `ACTIVE_RIDE_EXISTS`، تغليفُ `orderCancellation`.
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 6435 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء (28 تحذيراً سابقاً `noTemplateCurlyInString`) · الحاجزُ نجحَ (13 مِلفّاً). الفحصُ النهائي فشلَ بسببِ اختلافِ إصدارِ Bun المحلّي `1.4.2` عن المتوقَّعِ `1.3.14` — مسألةُ بيئةٍ لا كود.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ `ActiveRideScreen.tsx` و`check-driver-vehicle-contract.test.ts` ضمنَ نطاقِ D-01 — هما إصلاحُ lint سابقٌ أُصلِحَ في طريقِ التنفيذِ لتمريرِ `bun run lint`.

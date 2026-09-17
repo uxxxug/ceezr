@@ -135,8 +135,8 @@ export function createRideRequestCommand(sql: Sql): RideRequestCommand {
             input.service,
             input.origin.lat,
             input.origin.lng,
-            input.destination.lat,
-            input.destination.lng,
+            input.destination?.lat ?? null,
+            input.destination?.lng ?? null,
             input.notes,
           ],
         );

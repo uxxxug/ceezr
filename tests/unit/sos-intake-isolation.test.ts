@@ -40,6 +40,7 @@ import {
   offerDecisionPort,
   offerWriterDouble,
   orderWriter,
+  rideRequestCommand,
   riderDirectory,
   subscriptionReader,
   trialPort,
@@ -59,10 +60,10 @@ const SENDER: Sender = { telegramUserId: "900", chatId: "900", languageHint: "ar
 const ar = (key: string) => translate("ar", key);
 
 function text(value: string): IncomingUpdate {
-  return { kind: "text", from: SENDER, text: value };
+  return { kind: "text", from: SENDER, updateId: 1, text: value };
 }
 function callback(data: string): IncomingUpdate {
-  return { kind: "callback", from: SENDER, data };
+  return { kind: "callback", from: SENDER, updateId: 1, data };
 }
 
 /** يُسجِّلُ ما وصلَ إلى الدالّةِ الذرّيّةِ، ويُعيدُ الحكمَ المطلوبَ. */
@@ -254,6 +255,7 @@ describe("عزلُ استقبالِ الاستغاثةِ — أمرُ الراك
       riders: riderDirectory(null),
       cities: cityDirectory([JEDDAH]),
       orders: orderWriter(),
+      rides: rideRequestCommand(),
       activeOrdersOf: async () => [],
       pastOrdersOf: async () => [],
       matching: {

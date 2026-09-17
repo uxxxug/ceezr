@@ -27,6 +27,7 @@ import {
   offerDecisionPort,
   offerWriterDouble,
   orderWriter,
+  rideRequestCommand,
   riderDirectory,
   subscriptionReader,
   trialPort,
@@ -71,10 +72,12 @@ function deps(): DriverBotDependencies {
 describe("toIncomingUpdate", () => {
   it("يقرأ رسالة نصية", () => {
     const incoming = toIncomingUpdate({
+      update_id: 1,
       message: { chat: { id: 900 }, from: { id: 900, language_code: "ar" }, text: "/start" },
     });
     expect(incoming).toEqual({
       kind: "text",
+      updateId: 1,
       from: { telegramUserId: "900", chatId: "900", languageHint: "ar" },
       text: "/start",
     });
@@ -82,6 +85,7 @@ describe("toIncomingUpdate", () => {
 
   it("يقرأ ضغطة زرّ ويأخذ الدردشة من الرسالة المرفقة", () => {
     const incoming = toIncomingUpdate({
+      update_id: 1,
       callback_query: {
         data: "offer:accept:order-1",
         from: { id: 900 },
@@ -94,11 +98,13 @@ describe("toIncomingUpdate", () => {
 
   it("يقرأ الموقع وجهة الاتصال", () => {
     const loc = toIncomingUpdate({
+      update_id: 1,
       message: { chat: { id: 1 }, from: { id: 1 }, location: { latitude: 21.5, longitude: 39.1 } },
     });
     expect(loc).toMatchObject({ kind: "location", location: { latitude: 21.5, longitude: 39.1 } });
 
     const phone = toIncomingUpdate({
+      update_id: 1,
       message: {
         chat: { id: 1 },
         from: { id: 1 },
@@ -110,14 +116,19 @@ describe("toIncomingUpdate", () => {
 
   it("يعيد null لما لا يخصّنا بلا خطأ", () => {
     expect(toIncomingUpdate({})).toBeNull();
-    expect(toIncomingUpdate({ message: { text: "بلا مُرسِل" } })).toBeNull();
+    expect(toIncomingUpdate({ update_id: 1, message: { text: "بلا مُرسِل" } })).toBeNull();
     expect(
-      toIncomingUpdate({ callback_query: { from: { id: 1 }, message: { chat: { id: 1 } } } }),
+      toIncomingUpdate({
+        update_id: 1,
+        callback_query: { from: { id: 1 }, message: { chat: { id: 1 } } },
+      }),
     ).toBeNull();
   });
 
   it("رسالة بلا نص ولا موقع تُصنَّف غير مدعومة لا مهمَلة", () => {
-    expect(toIncomingUpdate({ message: { chat: { id: 1 }, from: { id: 1 } } })).toMatchObject({
+    expect(
+      toIncomingUpdate({ update_id: 1, message: { chat: { id: 1 }, from: { id: 1 } } }),
+    ).toMatchObject({
       kind: "unsupported",
     });
   });
@@ -198,6 +209,7 @@ describe("محوّل بوت السائق", () => {
     const sender = capturingSender();
     const bot = createDriverBot(deps(), sender);
     const handled = await bot.handleUpdate({
+      update_id: 1,
       message: { chat: { id: 900 }, from: { id: 900, language_code: "ar" }, text: "/start" },
     });
     expect(handled).toBe(true);
@@ -212,8 +224,12 @@ describe("محوّل بوت السائق", () => {
     const sender = capturingSender();
     const shared = deps();
     const bot = createDriverBot(shared, sender);
-    await bot.handleUpdate({ message: { chat: { id: 900 }, from: { id: 900 }, text: "/start" } });
     await bot.handleUpdate({
+      update_id: 1,
+      message: { chat: { id: 900 }, from: { id: 900 }, text: "/start" },
+    });
+    await bot.handleUpdate({
+      update_id: 1,
       message: { chat: { id: 900 }, from: { id: 900 }, text: "أحمد العمري" },
     });
     const last = sender.sent[sender.sent.length - 1];
@@ -239,6 +255,7 @@ describe("محوّل بوت السائق", () => {
   it("يعيد false إن فشل الإرسال فعلاً — بلا ادّعاء نجاح", async () => {
     const bot = createDriverBot(deps(), failingSender("429 too many requests"));
     const handled = await bot.handleUpdate({
+      update_id: 1,
       message: { chat: { id: 900 }, from: { id: 900 }, text: "/start" },
     });
     expect(handled).toBe(false);
@@ -257,11 +274,16 @@ describe("محوّل بوت السائق", () => {
       sender,
       (message) => logs.push(message),
     );
-    await bot.handleUpdate({ message: { chat: { id: 900 }, from: { id: 900 }, text: "/start" } });
     await bot.handleUpdate({
+      update_id: 1,
+      message: { chat: { id: 900 }, from: { id: 900 }, text: "/start" },
+    });
+    await bot.handleUpdate({
+      update_id: 1,
       message: { chat: { id: 900 }, from: { id: 900 }, text: "أحمد العمري" },
     });
     const handled = await bot.handleUpdate({
+      update_id: 1,
       message: {
         chat: { id: 900 },
         from: { id: 900 },
@@ -330,6 +352,7 @@ describe("تركيب التبعيات (container)", () => {
           riders: riderDirectory(null),
           cities: cityDirectory([JEDDAH]),
           orders: orderWriter(),
+          rides: rideRequestCommand(),
           activeOrdersOf: async () => [],
           pastOrdersOf: async () => [],
           matching: {
@@ -346,7 +369,7 @@ describe("تركيب التبعيات (container)", () => {
       },
     });
 
-    const update = { message: { chat: { id: 7 }, from: { id: 7 }, text: "/start" } };
+    const update = { update_id: 1, message: { chat: { id: 7 }, from: { id: 7 }, text: "/start" } };
     expect(await handler.handle("driver", update)).toBe(true);
     expect(await handler.handle("rider", update)).toBe(true);
 
@@ -363,6 +386,7 @@ describe("تركيب التبعيات (container)", () => {
           riders: riderDirectory(null),
           cities: cityDirectory([JEDDAH]),
           orders: orderWriter(),
+          rides: rideRequestCommand(),
           activeOrdersOf: async () => [],
           pastOrdersOf: async () => [],
           matching: {

@@ -14,6 +14,7 @@ import type { SupportDialogDependencies } from "../../../packages/application/bo
 import type {
   DriverDirectory,
   OfferDecisionPort,
+  OrderCancellationPort,
   SessionStore,
 } from "../../../packages/application/bots/types.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
@@ -146,6 +147,7 @@ import {
   createOrderWriter,
   createPastOrdersLookup,
 } from "../../../packages/infrastructure/transport/order-adapters.ts";
+import { createRideRequestCommand } from "../../../packages/infrastructure/transport/ride-request-store.ts";
 import type { RoutingProvider } from "../../../packages/maps/index.ts";
 import { createOsrmProvider } from "../../../packages/maps/index.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
@@ -444,6 +446,11 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const riders = createRiderDirectory(sql);
   const orders = createOrderRepository(sql);
   const orderWriter = createOrderWriter(sql);
+  const rides = createRideRequestCommand(sql);
+  // D-01: البوتُ يحملُ الإلغاءَ وحدَه لا الإنشاءَ — نُمرِّرُ غلافاً يكشفُ `cancelByRider` فقط.
+  const orderCancellation: OrderCancellationPort = {
+    cancelByRider: (orderId, riderId) => orderWriter.cancelByRider(orderId, riderId),
+  };
   const offers = createOfferRepository(sql);
   const candidates = createDriverCandidateRepository(sql);
 
@@ -869,7 +876,8 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     sessions: riderSessions,
     riders,
     cities,
-    orders: orderWriter,
+    orders: orderCancellation,
+    rides,
     activeOrdersOf: createActiveOrdersLookup(sql),
     pastOrdersOf: createPastOrdersLookup(sql),
     matching,

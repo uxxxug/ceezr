@@ -52,7 +52,7 @@ const tr = (language: string, key: string, params: Record<string, string | numbe
   translate(language, key, params);
 
 function callback(data: string): IncomingUpdate {
-  return { kind: "callback", from: SENDER, data };
+  return { kind: "callback", from: SENDER, updateId: 1, data };
 }
 
 /** الرسائلُ الخارجة إلى بوتٍ آخر — تُجمع لتُعدّ لا لتُقرأ فقط: التكرارُ عيبٌ يُقاس. */
