@@ -19,7 +19,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -879,7 +879,7 @@ jobs:
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -1147,7 +1147,7 @@ jobs:
           SRH_CONNECTION_STRING: redis://redis:6379
         ports: ["8079:80"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -1229,7 +1229,7 @@ jobs:
       # نفسِه. وهو خالٍ من النقطةِ والرمزِ بحكمِ الحاجزِ الذي سبقَه لا بحسنِ الظنّ.
       - name: رفع دليل التشغيل الحقيقي
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: real-redis-proof
           path: /tmp/real-redis-proof.json
@@ -1248,7 +1248,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
