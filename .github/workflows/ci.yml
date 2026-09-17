@@ -585,6 +585,17 @@ jobs:
       - name: مساراتُ مركبةِ السائقِ تُخدَمُ حيثُ توصفُ (F3-07)
         run: bun test tests/unit/driver-vehicle-mount-paths.test.ts
 
+      # `SEC-10` · ADR 0140 (ومعَ `ADR 0006` القائمِ): الشرطُ الحاكمُ كانَ مكتوباً في
+      # وثيقةٍ وحدَها — ووثيقةٌ لا تُسقِطُ بناءً. فأيُّ سياسةٍ لِـ`anon` أو
+      # `authenticated` أو `public`، أو `force`، أو تعطيلٍ، أو مفتاحٍ عامٍّ في
+      # المصدرِ، يُسقِطُ البناءَ ههنا. **وغيابُ ملفِّ القياسِ يُسقِطُهُ كذلكَ**: حاجزٌ
+      # لا يحرسُ دليلَه يُنسَخُ بحذفِ ملفٍ.
+      - name: لا بابَ لدورٍ عامٍّ في القاعدةِ بلا سياسةٍ مُختبَرةٍ (SEC-10)
+        run: bun run scripts/check-row-security-condition.ts
+
+      - name: سقوطُ حاجزِ شرطِ أمنِ الصفِّ مقيسٌ بسالبةٍ مزروعةٍ لكلِّ صنفٍ (SEC-10 · ح-7)
+        run: bun test tests/unit/check-row-security-condition.test.ts
+
       # `SEC-06` · ADR 0135: القياسُ **معكوسٌ** — تُكتشَفُ أسطحُ الصفحاتِ من القرصِ
       # ثمَّ تُطابَقُ بالسِجلِّ، فصفحةٌ جديدةٌ بلا وسيطِ ترويساتٍ تُسقِطُ البناءَ.
       # وحاجزٌ يفحصُ الموجودَ وحدَه لا يكشفُ الناقصَ أبداً.
@@ -971,6 +982,16 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/payment-lifecycle-matrix.test.ts
+
+      # `SEC-10` · ADR 0140: الحاجزُ الساكنُ يُثبِتُ أنَّ `RLS` **مكتوبٌ**، وهذا
+      # يُثبِتُ ما **تفعلُه القاعدةُ** بدورٍ `nobypassrls` يُنشِئُه الاختبارُ: منعٌ
+      # شاملٌ حيثُ لا سياسةَ · إذنٌ شاملٌ لِـ`service_role` · وتجاوزُ المالكِ الذي
+      # تردُّه `force` وحدَها. وخطوةٌ باسمِها كي يُقرأَ الحكمُ مفرَداً؛ ولو صارَ
+      # `RLS` زخرفةَ مخطَّطٍ لَبقيَ الساكنُ أخضرَ وسقطَ هذا.
+      - name: أثرُ أمنِ الصفِّ مقيسٌ بدورٍ غيرِ مالكٍ لا موصوفٌ (SEC-10)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/row-security-effect.test.ts
 
       - name: اختبارات التكامل على قاعدة حقيقية
         env:

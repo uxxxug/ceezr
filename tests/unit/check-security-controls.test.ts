@@ -141,6 +141,38 @@ describe("سالبةٌ مزروعةٌ لكلِّ قاعدةٍ", () => {
     );
   });
 
+  test("`built.no-gap-measurement` — فجوةٌ مقيسةٌ على ضابطٍ يُدَّعى بناؤُه", () => {
+    // تناقضٌ يُمسَكُ آليّاً: إمّا الفجوةُ قائمةٌ فالحالُ ليسَ `built`، وإمّا زالَت
+    // فالملفُّ دليلُ بناءٍ يُذكَرُ في `evidence`.
+    expect(
+      rulesOf(sixteen({ gapMeasurement: "docs/evidence/security/SEC-10-20260917.md" })),
+    ).toContain("built.no-gap-measurement");
+  });
+
+  test("`gap-measurement.exists` — قياسُ فجوةٍ مذكورٌ لا وجودَ لهُ", () => {
+    const rules = rulesOf(
+      sixteen({
+        state: "partial",
+        evidence: null,
+        gapMeasurement: "docs/evidence/security/لا-وجودَ-لهُ.md",
+      }),
+    );
+    expect(rules).toContain("gap-measurement.exists");
+  });
+
+  test("مُوجَبةٌ: قياسُ فجوةٍ موجودٌ على ضابطٍ جزئيٍّ لا يُسقِطُ شيئاً", () => {
+    const rules = rulesOf(
+      sixteen({
+        state: "partial",
+        evidence: null,
+        gapMeasurement: "docs/evidence/security/SEC-10-20260917.md",
+      }),
+    );
+    expect(rules).not.toContain("gap-measurement.exists");
+    expect(rules).not.toContain("built.no-gap-measurement");
+    expect(rules).not.toContain("unbuilt.no-evidence-claim");
+  });
+
   test("`guard.exists` — حاجزٌ مذكورٌ لا وجودَ لهُ", () => {
     expect(rulesOf(sixteen({ guard: "scripts/check-وهمٌ.ts" }))).toContain("guard.exists");
   });
