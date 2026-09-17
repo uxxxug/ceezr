@@ -55,6 +55,14 @@ export interface SecurityControl {
    * وفي غيرِه يُقبَلُ `null` — دعوى بلا دليلٍ أشرفُ من دليلٍ بلا دعوى.
    */
   readonly evidence: string | null;
+  /**
+   * مسارُ ملفٍّ **يقيسُ الفجوةَ** لا يُثبِتُ البناءَ — لِـ`partial` و`not-built`
+   * وحدَهما. وحقلٌ منفصلٌ عن `evidence` عن قصدٍ: `evidence` دعوى بناءٍ تُشترى
+   * بها ثقةٌ، وهذا **إقرارٌ مقيسٌ بما لا يفعلُه الضابطُ**. ودمجُهما يُحوِّلُ
+   * الإقرارَ إلى دعوى بمرورِ الوقتِ، ومنعُ الإقرارِ رأساً يُبقي الفجوةَ موصوفةً
+   * لا مقيسةً — وكلا الأمرَينِ خسارةٌ.
+   */
+  readonly gapMeasurement?: string | null;
   /** مسارُ حاجزٍ آليٍّ يحرسُه على القرصِ. **إلزاميٌّ متى كانَ `built`.** */
   readonly guard: string | null;
   /** مالكٌ من قائمةٍ مغلقةٍ — عائقٌ بلا مالكٍ لا يُغلَقُ أبداً. */
@@ -187,9 +195,10 @@ export const SECURITY_CONTROLS: readonly SecurityControl[] = [
     name: "أمنُ الصفِّ في القاعدةِ (`RLS`)",
     state: "partial",
     rationale:
-      "`RLS` مُفعَّلٌ على ٦٩ جدولاً من ٧٠ في المخطَّطِ المقيسِ. **والفجوةُ بعينِها**: الخدمةُ تتّصلُ بمالكِ القاعدةِ، و`RLS` **لا يُنفَذُ على المالكِ** — فالمُفعَّلُ موجودٌ غيرُ مُختبَرٍ أثراً. ولا يُدَّعى أنَّهُ يحمي اليومَ؛ يُدَّعى أنَّهُ مكتوبٌ.",
+      "`RLS` مُفعَّلٌ على **٦٨ جدولاً من ٦٩** مقيساً، والواحدُ الباقي `spatial_ref_sys` جدولُ امتدادِ PostGIS لا جدولُنا (تصحيحٌ بالإضافةِ لنصٍّ سابقٍ قالَ «٦٩ من ٧٠» — `ح-8`). **والفجوةُ الباقيةُ بعينِها**: الخدمةُ تتّصلُ بمالكِ القاعدةِ و`force row level security` صفرٌ على كلِّ جدولٍ، **فالمالكُ يمرُّ**؛ و`٢٥` سياسةً قائمةً كلُّها `to service_role using (true)` أي **إذنٌ شاملٌ لا ضابطُ وصولٍ**. ولا يُدَّعى أنَّ القاعدةَ تحمي اليومَ. **والذي زادَ**: صارَ الأثرُ **مقيساً** بدورٍ `nobypassrls` يُنشِئُه الاختبارُ (منعٌ شاملٌ على ٤٧ جدولاً بلا سياسةٍ · تجاوزُ المالكِ · وردُّ `force` لهُ)، وصارَ الشرطُ الحاكمُ في `ADR 0006` **يُسقِطُ البناءَ** بحاجزٍ ساكنٍ بدلاً من أن يُقرأَ بالنيّةِ.",
     evidence: null,
-    guard: "scripts/check-schema-contract.ts",
+    gapMeasurement: "docs/evidence/security/SEC-10-20260917.md",
+    guard: "scripts/check-row-security-condition.ts",
     owner: "منفّذ المستودع",
     blockedBy: null,
   },
@@ -345,6 +354,23 @@ export function securityControlViolations(inputs: ControlInputs): ControlViolati
       violations.push({
         rule: "unbuilt.no-evidence-claim",
         detail: `${control.id}: حالُه «${control.state}» ومعَهُ دليلٌ مذكورٌ — الدليلُ دعوى بناءٍ`,
+      });
+    }
+
+    const gapMeasurement = control.gapMeasurement ?? null;
+    if (gapMeasurement !== null && control.state === "built") {
+      // «قياسُ فجوةٍ» على ضابطٍ مبنيٍّ تناقضٌ: إمّا الفجوةُ قائمةٌ فالحالُ ليسَ
+      // `built`، وإمّا زالَت فالملفُّ دليلُ بناءٍ يُذكَرُ في `evidence`.
+      violations.push({
+        rule: "built.no-gap-measurement",
+        detail: `${control.id}: حالُه «مبنيٌّ» ومعَهُ قياسُ فجوةٍ — فجوةٌ مقيسةٌ تنقضُ دعوى البناءِ`,
+      });
+    }
+    if (gapMeasurement !== null && !inputs.pathExists(gapMeasurement)) {
+      // وملفٌّ مذكورٌ لا يُفتَحُ أسوأُ من لا ملفٍّ: يُقرأُ إقراراً ولا وجودَ لهُ.
+      violations.push({
+        rule: "gap-measurement.exists",
+        detail: `${control.id}: قياسُ فجوةٍ مذكورٌ لا وجودَ لهُ — ${gapMeasurement}`,
       });
     }
 
