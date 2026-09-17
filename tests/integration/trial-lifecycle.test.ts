@@ -35,6 +35,7 @@ import {
 } from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { drainNotificationOutbox } from "../support/drain-notification-outbox.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -124,6 +125,17 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
     cityHandle = await ensureActiveCity(sql, {
       groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
       prior: cityHandle,
+    });
+    /*
+     * بعد D-01، يمرّ مسارُ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
+     * قدرةِ المدينةِ. هذه الاختباراتُ تحتاجُ الطلبَ أن يُنشأَ ويبقى في `searching`
+     * بلا إسنادٍ، فنُبذر سائقاً قادراً غير متاحٍ.
+     */
+    await seedCapableDriver({
+      sql,
+      cityId,
+      service: "transport",
+      telegramId: 200_099,
     });
     // الرابطُ إعدادٌ لكلّ مدينة: معرّفُ القروب لا يُفتَح من جهاز السائق
     await sql`

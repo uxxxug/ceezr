@@ -30,6 +30,7 @@ import {
   restoreCityBaseline,
 } from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -182,6 +183,16 @@ describeIf("محادثة بلغتين عبر الترجمة على قاعدة ح
     cityHandle = await ensureActiveCity(sql, {
       groups: { support: -1401, escalation: ESCALATION_GROUP, unsubscribed: UNSUB_GROUP },
       prior: cityHandle,
+    });
+    /*
+     * بعد D-01، يمرّ مسارُ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
+     * قدرةِ المدينةِ. نُبذر سائقاً قادراً غير متاحٍ ليمرَّ الطلبُ ويبقى في `searching`.
+     */
+    await seedCapableDriver({
+      sql,
+      cityId,
+      service: "transport",
+      telegramId: 140_099,
     });
     await sql`
       update platform_settings

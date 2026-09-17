@@ -5710,3 +5710,13 @@ PostgreSQL حقيقي»** التي شغَّلَت المصفوفةَ على مح
 - **الملفاتُ المُعدَّلةُ:** `tests/support/seed-capable-driver.ts` (جديد) · `tests/integration/order-cancellation.test.ts` · `tests/integration/unsubscribed-negotiation.test.ts`.
 - **الفحوصُ المحليّةُ:** typecheck نجحَ · 6435 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على قاعدةٍ حقيقيّةٍ يُنتظَرُ من CI.
 - **ما لا يُدَّعى:** لا يُدَّعى أنَّ بذرةَ القدرةِ تُغيِّرُ سلوكَ الإنتاجِ — هي دعامةُ اختبارٍ لا أكثر.
+
+#### توسيعُ بذرةِ القدرةِ وتصحيحُ فحصِ نقطةِ البدايةِ — D-01 (2026-09-17)
+
+بعدَ إدخالِ `seed-capable-driver` إلى `order-cancellation` و`unsubscribed-negotiation`، تحوَّلَ الفشلُ في `تكامل على PostgreSQL` إلى أربعِ مجموعاتٍ أخرى تُنشئُ الطلبَ عبر مسارِ البوتِ بلا سائقٍ قادرٍ: `unmatched-escalation` و`five-cities-launch` و`trial-lifecycle` و`bilingual-conversation`. السببُ الجذريُّ نفسُه: `request_ride()` تُلزِمُ قدرةً في المدينة. أُضيفتِ `seedCapableDriver` إلى `beforeEach` في كلِّ ملفٍ (في `five-cities-launch` لكلِّ مدينةٍ من الخمس).
+
+وخلالَ التتبُّعِ اكتُشِفَ **انحدارٌ في هجرةِ D-01 نفسِها**: الترحيلُ `20260917030000_d01_request_ride_nullable_destination.sql` أُعيدت كتابتُه لِ«يطابقَ الأصلَ تماماً» لكنه أسقطَ فحصَ نقطةِ البدايةِ `st_covers(v_area.area, v_origin)` → `ORIGIN_OUTSIDE_SERVICE_AREA`، فأصبحَ الطلبُ ببدايةٍ خارجَ منطقةِ الخدمةِ يُمرَّرَ بدلَ أن يُرفَضَ. أُعيدَ الفحصُ كما كانَ في `20260913230000_f2_05_ride_request_judgement.sql`. شاهدُ الاختبارِ: `ride-request.test.ts` «١١) انقلابٌ خارجَ الغلافِ».
+
+- **الملفاتُ المُعدَّلةُ:** `supabase/migrations/20260917030000_d01_request_ride_nullable_destination.sql` (استعادةُ فحصِ البدايةِ + تعليقُ التصحيحِ) · `tests/integration/unmatched-escalation.test.ts` · `tests/integration/five-cities-launch.test.ts` · `tests/integration/trial-lifecycle.test.ts` · `tests/integration/bilingual-conversation.test.ts`.
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 4717 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على PostgreSQL يُنتظَرُ من CI.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ استعادةَ الفحصِ تُغيِّرُ سلوكَ الإنتاجِ — هي إصلاحُ انحدارٍ أدخلتهُ هجرةُ D-01، والسلوكُ الصحيحُ هو ما كانَ قبلَها.

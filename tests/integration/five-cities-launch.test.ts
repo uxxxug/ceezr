@@ -24,6 +24,7 @@ import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { LAUNCH_CITY_CODES } from "../../scripts/activate-launch-cities.ts";
 import { testConfig } from "../support/config.ts";
 import { drainNotificationOutbox } from "../support/drain-notification-outbox.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -237,6 +238,19 @@ describeIf("إطلاقُ المدنِ الخمسِ معاً على قاعدةٍ 
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
     await activateAllFive();
+    /*
+     * بعد D-01، يمرّ مسارُ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
+     * قدرةِ المدينةِ. نُبذر سائقاً قادراً غير متاحٍ لكلِّ مدينةٍ وخدمةٍ تُنشأُ فيها
+     * الطلباتُ في هذه الاختبارات.
+     */
+    for (const city of cities) {
+      await seedCapableDriver({
+        sql,
+        cityId: city.id,
+        service: "transport",
+        telegramId: city.driverChat + 100_000,
+      });
+    }
     driverSent = [];
     riderSent = [];
     container = buildContainer(config, {

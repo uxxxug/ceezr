@@ -40,6 +40,7 @@ import {
   drainNotificationOutbox,
   unmatchedHandlers,
 } from "../support/drain-notification-outbox.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -275,6 +276,17 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     cityHandle = await ensureActiveCity(sql, {
       groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
       prior: cityHandle,
+    });
+    /*
+     * بعد D-01، يمرّ مسارُ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
+     * قدرةِ المدينةِ (`city_served_services`). هذه الاختباراتُ تحتاجُ الطلبَ أن يُنشأَ
+     * ويبقى في `searching` ليُكنَس ويُصعَّد، فنُبذر سائقاً قادراً غير متاحٍ ولا يملكُ موقعاً.
+     */
+    await seedCapableDriver({
+      sql,
+      cityId,
+      service: "transport",
+      telegramId: 250_099,
     });
     riderSent = [];
     groupSent = [];
