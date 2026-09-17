@@ -5720,3 +5720,17 @@ PostgreSQL حقيقي»** التي شغَّلَت المصفوفةَ على مح
 - **الملفاتُ المُعدَّلةُ:** `supabase/migrations/20260917030000_d01_request_ride_nullable_destination.sql` (استعادةُ فحصِ البدايةِ + تعليقُ التصحيحِ) · `tests/integration/unmatched-escalation.test.ts` · `tests/integration/five-cities-launch.test.ts` · `tests/integration/trial-lifecycle.test.ts` · `tests/integration/bilingual-conversation.test.ts`.
 - **الفحوصُ المحليّةُ:** typecheck نجحَ · 4717 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على PostgreSQL يُنتظَرُ من CI.
 - **ما لا يُدَّعى:** لا يُدَّعى أنَّ استعادةَ الفحصِ تُغيِّرُ سلوكَ الإنتاجِ — هي إصلاحُ انحدارٍ أدخلتهُ هجرةُ D-01، والسلوكُ الصحيحُ هو ما كانَ قبلَها.
+
+#### مناطقُ الخدمةِ والبذرةُ القادرةُ في اختباراتِ التكاملِ المتبقية — D-01 (2026-09-17)
+
+بعدَ استعادةِ فحصِ نقطةِ البدايةِ وإصلاحِ `unmatched-escalation`، بقيَ الفشلُ في ثلاثِ مجموعاتٍ، لكلٍّ منها سببٌ مختلفٌ:
+
+1. **`five-cities-launch` (3 اختبارات):** البذرةُ تُنشئُ منطقةَ خدمةٍ لـJED وحدَها. المدنُ الأربعُ الباقيةُ (MKK · RUH · TIF · MED) بلا منطقةِ خدمةٍ مُفعَّلة، فيُرفضُ الطلبُ بـ`CITY_HAS_NO_SERVICE_AREA` قبلَ فحصِ القدرةِ. الحلُّ: `activateAllFive()` تُنشئُ مستطيلاً محيطاً حولَ نقطةِ الانتفاعِ لكلِّ مدينةٍ تفتقرُ إلى منطقةٍ. سائقو الاختبارِ أنفسُهم قادرونَ بعدَ `makeDriverAvailable` (موثَّقونَ بتجرِبةٍ `trialing`)، فلا حاجةَ إلى `seedCapableDriver` هنا.
+
+2. **`trial-lifecycle` (1 اختبار):** اختبارُ «بعد انتهاءِ التجربة» يُنهي اشتراكَ السائقِ المُسجَّلِ فيُصبحُ غيرَ قادرٍ. `request_ride()` ترفضُ الطلبَ بـ`SERVICE_NOT_AVAILABLE_IN_CITY` لأنَّ لا سائقَ قادراً. الحلُّ: `seedCapableDriver` في `beforeEach` مع تصحيحِ استعلامِ `registerDriver` من `select id from drivers limit 1` إلى استعلامٍ مقيَّدٍ بـ`telegram_id` كي لا يلتقطَ السائقَ المُبذَرَ.
+
+3. **`bilingual-conversation` (4 اختبارات):** `unsubscribedDriver` يضبطُ الاشتراكَ إلى `expired`، فلا سائقَ قادراً. الحلُّ: `seedCapableDriver` في `beforeEach`. استعلامُ `unsubscribedDriver` مقيَّدٌ بـ`telegram_id` أصلاً فلا تعارضَ.
+
+- **الملفاتُ المُعدَّلةُ:** `tests/integration/five-cities-launch.test.ts` (مناطقُ الخدمةِ) · `tests/integration/trial-lifecycle.test.ts` (تصحيحُ الاستعلامِ + البذرة) · `tests/integration/bilingual-conversation.test.ts` (البذرة).
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 4717 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على PostgreSQL يُنتظَرُ من CI.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ مناطقَ الخدمةِ المُنشأةَ للمدنِ الأربعِ حدودٌ بلديّةٌ رسميّةٌ — هي مستطيلاتٌ محيطةٌ للاختبارِ وحدَه.

@@ -24,7 +24,6 @@ import type { AppConfig } from "../../packages/shared/config/index.ts";
 import { LAUNCH_CITY_CODES } from "../../scripts/activate-launch-cities.ts";
 import { testConfig } from "../support/config.ts";
 import { drainNotificationOutbox } from "../support/drain-notification-outbox.ts";
-import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -119,6 +118,28 @@ async function activateAllFive(): Promise<void> {
              telegram_escalation_group_id = ${city.escalation}::bigint,
              telegram_unsubscribed_drivers_group_id = ${city.drivers}::bigint
        where id = ${city.id}::uuid
+    `;
+    /*
+     * D-01 وحَّد مسارَ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
+     * منطقةِ الخدمةِ المُفعَّلةِ قبلَ القدرةِ. البذرةُ تُنشئُ منطقةَ خدمةٍ لـJED
+     * وحدَها، فالمدنُ الأربعُ الباقيةُ تُرفَضُ بـ`CITY_HAS_NO_SERVICE_AREA`.
+     * نُنشئُ مستطيلاً محيطاً حولَ نقطةِ الانتفاعِ لكلِّ مدينةٍ تفتقرُ إلى منطقةٍ.
+     */
+    await sql`
+      insert into city_service_areas (city_id, area, area_version, source, is_active)
+      select ${city.id}::uuid,
+             st_multi(st_makeenvelope(
+               ${city.pickup.longitude - 0.3}, ${city.pickup.latitude - 0.3},
+               ${city.pickup.longitude + 0.3}, ${city.pickup.latitude + 0.3},
+               4326
+             ))::geography,
+             ${`${city.code}-test-envelope-v1`},
+             'منطقةُ اختبارٍ مُنشأةٌ بواسطةِ activateAllFive — مستطيلٌ محيطٌ حولَ نقطةِ الانتفاعِ لا حدٌّ بلديٌّ رسميٌّ',
+             true
+      where not exists (
+        select 1 from city_service_areas a
+         where a.city_id = ${city.id}::uuid and a.is_active
+      )
     `;
   }
 }
@@ -238,19 +259,6 @@ describeIf("إطلاقُ المدنِ الخمسِ معاً على قاعدةٍ 
                              subscriptions, driver_capabilities, driver_availability,
                              drivers, riders, users restart identity cascade`;
     await activateAllFive();
-    /*
-     * بعد D-01، يمرّ مسارُ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
-     * قدرةِ المدينةِ. نُبذر سائقاً قادراً غير متاحٍ لكلِّ مدينةٍ وخدمةٍ تُنشأُ فيها
-     * الطلباتُ في هذه الاختبارات.
-     */
-    for (const city of cities) {
-      await seedCapableDriver({
-        sql,
-        cityId: city.id,
-        service: "transport",
-        telegramId: city.driverChat + 100_000,
-      });
-    }
     driverSent = [];
     riderSent = [];
     container = buildContainer(config, {
