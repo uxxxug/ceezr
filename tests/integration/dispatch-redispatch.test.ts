@@ -91,7 +91,13 @@ const post = (bot: string, update: unknown) =>
       body: JSON.stringify(update),
     }),
   );
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const msg = (chat: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chat }, from: { id: chat, language_code: "ar" }, ...body },
 });
 const text = (c: number, v: string) => msg(c, { text: v });
@@ -99,6 +105,7 @@ const photo = (c: number, f: string) => msg(c, { photo: [{ file_id: `${f}_t` }, 
 const loc = (c: number, at: { latitude: number; longitude: number }) => msg(c, { location: at });
 const contact = (c: number, p: string) => msg(c, { contact: { user_id: c, phone_number: p } });
 const cb = (c: number, d: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data: d, from: { id: c }, message: { chat: { id: c } } },
 });
 

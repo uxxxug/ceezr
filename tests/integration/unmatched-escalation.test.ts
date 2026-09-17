@@ -40,6 +40,7 @@ import {
   drainNotificationOutbox,
   unmatchedHandlers,
 } from "../support/drain-notification-outbox.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -77,7 +78,13 @@ async function post(bot: string, update: unknown): Promise<Response> {
   );
 }
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const message = (chatId: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
@@ -86,6 +93,7 @@ const location = (chatId: number, at: { latitude: number; longitude: number }) =
 const contact = (chatId: number, phone: string) =>
   message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 const callback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
 
@@ -268,6 +276,17 @@ describeIf("الطلب الذي لا يجد سائقاً: تصعيد وإشعا�
     cityHandle = await ensureActiveCity(sql, {
       groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
       prior: cityHandle,
+    });
+    /*
+     * بعد D-01، يمرّ مسارُ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
+     * قدرةِ المدينةِ (`city_served_services`). هذه الاختباراتُ تحتاجُ الطلبَ أن يُنشأَ
+     * ويبقى في `searching` ليُكنَس ويُصعَّد، فنُبذر سائقاً قادراً غير متاحٍ ولا يملكُ موقعاً.
+     */
+    await seedCapableDriver({
+      sql,
+      cityId,
+      service: "transport",
+      telegramId: 250_099,
     });
     riderSent = [];
     groupSent = [];

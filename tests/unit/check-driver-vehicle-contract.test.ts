@@ -59,7 +59,7 @@ describe("F3-07 driver vehicle contract — positive on real repository", () => 
 
 describe("1) no separate vehicle table", () => {
   test("create table in store fails", () => {
-    const spoiled = withStore((source) => source + "\ncreate table driver_vehicles (id uuid);\n");
+    const spoiled = withStore((source) => `${source}\ncreate table driver_vehicles (id uuid);\n`);
     expect(separateTableProblems(spoiled).length).toBeGreaterThan(0);
   });
 });

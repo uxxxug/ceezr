@@ -20,7 +20,7 @@ import {
 import type { DistanceKm } from "../../packages/domain/geo/value-objects.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/index.ts";
-import { JEDDAH, offerWriterDouble, orderWriter } from "../support/bot-doubles.ts";
+import { JEDDAH, offerWriterDouble, rideRequestCommand } from "../support/bot-doubles.ts";
 import {
   candidateRepo,
   fixedClock,
@@ -132,7 +132,7 @@ function candidate(
 
 describe("application/delivery — requestDelivery", () => {
   it("يكتب طلباً بخدمة delivery ووصف الطرد في notes ثم يبثّه على سائق التوصيل", async () => {
-    const orders = orderWriter(ORDER_ID);
+    const rides = rideRequestCommand(ORDER_ID);
     const offers = offerWriterDouble();
     const courier = candidate("courier-1", "delivery", "delivery");
 
@@ -145,7 +145,7 @@ describe("application/delivery — requestDelivery", () => {
         parcelDescription: PARCEL,
       },
       {
-        orders,
+        rides,
         matching: {
           orders: orderRepo([DELIVERY_ORDER]),
           offers: offerRepo([]),
@@ -155,21 +155,26 @@ describe("application/delivery — requestDelivery", () => {
           clock: fixedClock(NOW),
         },
       },
+      "telegram-update:1:1",
+      "1",
     );
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(orders.createdFull).toHaveLength(1);
-    expect(orders.createdFull[0]?.service).toBe("delivery");
-    expect(orders.createdFull[0]?.notes).toBe(PARCEL);
-    expect(orders.createdFull[0]?.dropoff).toEqual(DROPOFF);
+    expect(rides.createCalls).toHaveLength(1);
+    expect(rides.createCalls[0]?.service).toBe("delivery");
+    expect(rides.createCalls[0]?.notes).toBe(PARCEL);
+    expect(rides.createCalls[0]?.destination).toEqual({
+      lat: DROPOFF.latitude,
+      lng: DROPOFF.longitude,
+    });
     expect(result.value.offered).toEqual([courier.driverId]);
     expect(result.value.broadcastFailure).toBeNull();
     expect(offers.rounds[0]?.entries.map((e) => e.driverId)).toEqual([courier.driverId]);
   });
 
   it("لا يكتب طلباً أصلاً إن كان المُدخَل غير صالح", async () => {
-    const orders = orderWriter(ORDER_ID);
+    const rides = rideRequestCommand(ORDER_ID);
     const result = await requestDelivery(
       {
         cityId: JEDDAH.id,
@@ -179,7 +184,7 @@ describe("application/delivery — requestDelivery", () => {
         parcelDescription: PARCEL,
       },
       {
-        orders,
+        rides,
         matching: {
           orders: orderRepo([DELIVERY_ORDER]),
           offers: offerRepo([]),
@@ -189,13 +194,15 @@ describe("application/delivery — requestDelivery", () => {
           clock: fixedClock(NOW),
         },
       },
+      "telegram-update:1:1",
+      "1",
     );
     expect(result.ok).toBe(false);
-    expect(orders.createdFull).toHaveLength(0);
+    expect(rides.createCalls).toHaveLength(0);
   });
 
   it("فشل البثّ لا يُلغي الطلب المكتوب بل يُعاد سببه صراحةً", async () => {
-    const orders = orderWriter(ORDER_ID);
+    const rides = rideRequestCommand(ORDER_ID);
     const result = await requestDelivery(
       {
         cityId: JEDDAH.id,
@@ -205,7 +212,7 @@ describe("application/delivery — requestDelivery", () => {
         parcelDescription: PARCEL,
       },
       {
-        orders,
+        rides,
         matching: {
           // لا سائق مؤهل إطلاقاً: matchOrder يرفض والطلب يبقى قائماً
           orders: orderRepo([DELIVERY_ORDER]),
@@ -216,10 +223,12 @@ describe("application/delivery — requestDelivery", () => {
           clock: fixedClock(NOW),
         },
       },
+      "telegram-update:1:1",
+      "1",
     );
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(orders.createdFull).toHaveLength(1);
+    expect(rides.createCalls).toHaveLength(1);
     expect(result.value.offered).toEqual([]);
     expect(result.value.broadcastFailure).not.toBeNull();
   });

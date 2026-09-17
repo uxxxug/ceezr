@@ -10,6 +10,8 @@ import type { IncomingUpdate, Sender } from "../../../../../packages/application
 
 /** الشكل الجزئي الذي نعتمد عليه فعلاً من تحديث تلغرام — لا نثق ببقية الحقول. */
 export interface RawTelegramUpdate {
+  /** معرّفُ التحديثِ من تلغرام — فريدٌ ومتزايدٌ. مفتاحُ تكرارٍ للبوتِ. */
+  readonly update_id?: number;
   readonly message?: {
     readonly chat?: { readonly id?: number | string };
     readonly from?: { readonly id?: number | string; readonly language_code?: string };
@@ -59,13 +61,17 @@ function senderFrom(
 /**
  * يعيد null لكل تحديث لا نتعامل معه (انضمام عضو، تعديل رسالة، …) بلا خطأ ولا ردّ.
  * تجاهل صريح أفضل من معالجة نصف مفهومة.
+ * يعيد null أيضًا إن غاب `update_id` — فبدونه لا مفتاحَ تكرارٍ للبوتِ.
  */
 export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null {
+  const updateId = raw.update_id;
+  if (updateId === undefined || !Number.isInteger(updateId)) return null;
+
   if (raw.callback_query !== undefined) {
     const query = raw.callback_query;
     const sender = senderFrom(query.from?.id, query.message?.chat?.id, query.from?.language_code);
     if (sender === null || query.data === undefined || query.data === "") return null;
-    return { kind: "callback", from: sender, data: query.data };
+    return { kind: "callback", from: sender, updateId, data: query.data };
   }
 
   const message = raw.message;
@@ -79,6 +85,7 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
     return {
       kind: "location",
       from: sender,
+      updateId,
       location: { latitude: location.latitude, longitude: location.longitude },
       /**
        * تُمرَّر كما وصلت بلا تنقية: التحقّق قرار مجال، ووظيفة هذه الطبقة النقل لا
@@ -98,6 +105,7 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
     return {
       kind: "contact",
       from: sender,
+      updateId,
       phone,
       // غيابه يعني بطاقة يدوية بلا حساب تلغرام — تُعامَل كغير مملوكة
       ownerTelegramId: ownerId === undefined ? null : String(ownerId),
@@ -116,6 +124,7 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
       return {
         kind: "photo",
         from: sender,
+        updateId,
         fileId,
         caption: caption === undefined || caption === "" ? null : caption,
       };
@@ -123,8 +132,8 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
   }
 
   if (message.text !== undefined && message.text.trim() !== "") {
-    return { kind: "text", from: sender, text: message.text };
+    return { kind: "text", from: sender, updateId, text: message.text };
   }
 
-  return { kind: "unsupported", from: sender };
+  return { kind: "unsupported", from: sender, updateId };
 }

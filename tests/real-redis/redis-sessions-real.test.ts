@@ -371,7 +371,8 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
           body: JSON.stringify(update),
         }),
       );
-    const text = (value: string) => ({
+    const text = (value: string, uid: number) => ({
+      update_id: uid,
       message: {
         chat: { id: DRIVER_CHAT },
         from: { id: DRIVER_CHAT, language_code: "ar" },
@@ -380,7 +381,7 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
     });
 
     try {
-      await post(text("/start"));
+      await post(text("/start", 1));
 
       // الحالةُ في الخادمِ الحقيقيِّ لا في ذاكرةِ العمليةِ — يُقرأ المفتاحُ بأمرٍ مستقلٍّ.
       const raw = await redis.client.command(["GET", productionKey]);
@@ -392,28 +393,31 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       };
       expect(envelope.state?.step).toBe("awaiting_name");
 
-      await post(text("عبدالله الحربي"));
+      await post(text("عبدالله الحربي", 2));
       await post({
+        update_id: 3,
         message: {
           chat: { id: DRIVER_CHAT },
           from: { id: DRIVER_CHAT, language_code: "ar" },
           contact: { user_id: DRIVER_CHAT, phone_number: "+966500000222" },
         },
       });
-      const callback = (data: string) => ({
+      const callback = (data: string, uid: number) => ({
+        update_id: uid,
         callback_query: {
           data,
           from: { id: DRIVER_CHAT },
           message: { chat: { id: DRIVER_CHAT } },
         },
       });
-      await post(callback(`city:${cityId}`));
-      await post(callback("service:transport"));
-      await post(callback("vehicle:sedan"));
-      await post(text("أ ب ج 4321"));
+      await post(callback(`city:${cityId}`, 4));
+      await post(callback("service:transport", 5));
+      await post(callback("vehicle:sedan", 6));
+      await post(text("أ ب ج 4321", 7));
       // رقمُ هويّةٍ من عشرِ خاناتٍ: معرّفُ المحادثةِ ستُّ خاناتٍ فتُكمِلُه بادئةٌ ثابتةٌ.
-      await post(text(`1000${DRIVER_CHAT}`));
+      await post(text(`1000${DRIVER_CHAT}`, 8));
       await post({
+        update_id: 9,
         message: {
           chat: { id: DRIVER_CHAT },
           from: { id: DRIVER_CHAT, language_code: "ar" },

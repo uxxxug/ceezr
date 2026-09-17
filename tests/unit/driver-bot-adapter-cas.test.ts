@@ -80,6 +80,7 @@ function buildDeps(sessions: SessionStore): DriverBotDependencies {
 
 function startUpdate(): unknown {
   return {
+    update_id: 1,
     message: {
       chat: { id: Number(CHAT) },
       from: { id: Number(CHAT), language_code: "ar" },

@@ -74,7 +74,13 @@ let app: ReturnType<typeof createServer>;
 let driverSent: SentMessage[];
 let riderSent: SentMessage[];
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const message = (chatId: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
@@ -85,6 +91,7 @@ const location = (chatId: number, at: { latitude: number; longitude: number }) =
 const photo = (chatId: number, fileId: string) =>
   message(chatId, { photo: [{ file_id: `${fileId}_thumb` }, { file_id: fileId }] });
 const callback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
 
@@ -111,6 +118,28 @@ async function activateAllFive(): Promise<void> {
              telegram_escalation_group_id = ${city.escalation}::bigint,
              telegram_unsubscribed_drivers_group_id = ${city.drivers}::bigint
        where id = ${city.id}::uuid
+    `;
+    /*
+     * D-01 وحَّد مسارَ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
+     * منطقةِ الخدمةِ المُفعَّلةِ قبلَ القدرةِ. البذرةُ تُنشئُ منطقةَ خدمةٍ لـJED
+     * وحدَها، فالمدنُ الأربعُ الباقيةُ تُرفَضُ بـ`CITY_HAS_NO_SERVICE_AREA`.
+     * نُنشئُ مستطيلاً محيطاً حولَ نقطةِ الانتفاعِ لكلِّ مدينةٍ تفتقرُ إلى منطقةٍ.
+     */
+    await sql`
+      insert into city_service_areas (city_id, area, area_version, source, is_active)
+      select ${city.id}::uuid,
+             st_multi(st_makeenvelope(
+               ${city.pickup.longitude - 0.3}, ${city.pickup.latitude - 0.3},
+               ${city.pickup.longitude + 0.3}, ${city.pickup.latitude + 0.3},
+               4326
+             ))::geography,
+             ${`${city.code}-test-envelope-v1`},
+             'منطقةُ اختبارٍ مُنشأةٌ بواسطةِ activateAllFive — مستطيلٌ محيطٌ حولَ نقطةِ الانتفاعِ لا حدٌّ بلديٌّ رسميٌّ',
+             true
+      where not exists (
+        select 1 from city_service_areas a
+         where a.city_id = ${city.id}::uuid and a.is_active
+      )
     `;
   }
 }

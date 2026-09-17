@@ -423,3 +423,49 @@ export function offerWriterDouble(): OfferWriterDouble {
     },
   };
 }
+
+// D-01: مزدوجُ أمرِ الرحلةِ — يحاكي `RideRequestCommand.create` بلا قاعدةِ بيانات.
+export interface RideRequestCommandDouble {
+  readonly createCalls: {
+    telegramUserId: string;
+    idempotencyKey: string;
+    service: string;
+    origin: { lat: number; lng: number };
+    destination: { lat: number; lng: number } | null;
+    notes: string | null;
+  }[];
+  /** إن رُفِعَ، يُعيدُ رفضَ `ACTIVE_RIDE_EXISTS` بالطلَبِ المُعطى. */
+  activeRideBlocker: { orderId: string; status: string } | null;
+}
+
+export function rideRequestCommand(
+  orderId = "order-1" as OrderId,
+): RideRequestCommandDouble &
+  import("../../packages/application/transport/ride-request-ports.ts").RideRequestCommand {
+  const createCalls: RideRequestCommandDouble["createCalls"] = [];
+  const activeRideBlocker: RideRequestCommandDouble["activeRideBlocker"] = {
+    orderId: "existing-order" as OrderId,
+    status: "searching",
+  };
+  return {
+    createCalls,
+    activeRideBlocker,
+    create: async (input) => {
+      createCalls.push({
+        telegramUserId: input.telegramUserId,
+        idempotencyKey: input.idempotencyKey,
+        service: input.service,
+        origin: input.origin,
+        destination: input.destination,
+        notes: input.notes,
+      });
+      // إن وُجدَ مفتاحٌ مُستهلَكٌ، فالإعادةُ.
+      const reused =
+        createCalls.filter((c) => c.idempotencyKey === input.idempotencyKey).length > 1;
+      if (reused) {
+        return ok({ accepted: true, ride: { orderId, createdAtMs: Date.now(), reused: true } });
+      }
+      return ok({ accepted: true, ride: { orderId, createdAtMs: Date.now(), reused: false } });
+    },
+  };
+}

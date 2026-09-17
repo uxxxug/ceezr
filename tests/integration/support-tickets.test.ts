@@ -67,7 +67,13 @@ async function post(bot: string, update: unknown): Promise<Response> {
   );
 }
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const message = (chatId: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
@@ -85,10 +91,12 @@ const photo = (chatId: number, fileId: string, caption?: string) =>
     ...(caption === undefined ? {} : { caption }),
   });
 const privateCallback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
 /** ضغطة زرّ داخل قروب الدعم: chatId هو القروب لا المستخدم. */
 const groupCallback = (userId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: userId }, message: { chat: { id: SUPPORT_GROUP } } },
 });
 

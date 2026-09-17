@@ -5667,3 +5667,90 @@ PostgreSQL حقيقي»** التي شغَّلَت المصفوفةَ على مح
 **الفرعُ:** `docs/owner-debt-closure-rule` · **من** `main`@`c3d7a44`
 **النطاقُ:** إضافةُ قاعدةِ حوكمةٍ جديدةٍ إلى `docs/MASTER_DIRECTIVE.md` §0 + تحديثُ سجلِّ الديون + `SYSTEM_STATE.md`.
 **ما لا يُفعَلُ:** لا تغييرَ في حالاتِ البنودِ · لا شيفرةَ · لا هجرةَ ولا اختبارَ.
+
+### حجزُ نطاقِ «D-01 توحيدُ مسارِ إنشاءِ الطلب» — 2026-09-17
+
+**الفرعُ:** `fix/d-01-unify-order-authority` · **من** `main`@`7a600b3`
+**النطاقُ:**
+1. إصلاحُ خطأٍ مطبعيٍّ: «المليار» → «المليون» في `MASTER_DIRECTIVE.md` §0-8
+2. توسيعُ `request_ride()` لدعمِ وجهةٍ معدومةٍ (transport `/skip`)
+3. إضافةُ `updateId` إلى `IncomingUpdate` و`RawTelegramUpdate`
+4. إضافةُ `RideRequestCommand` إلى `RiderBotDependencies`
+5. هجرةُ `createOrderAndMatch` و`requestDelivery` إلى `RideRequestCommand.create()`
+6. فصلُ `OrderWriter` إلى `OrderCancellationPort` (إلغاءٌ فقط)
+7. توسيعُ حاجزِ `check-ride-request-contract.ts` لمنعِ الكتابةِ المباشرةِ من كلِّ المسارات
+8. اختباراتٌ سلبيّةٌ للحاجزِ + تحديثُ اختباراتِ البوت
+9. معالجةُ `ACTIVE_RIDE_EXISTS` صراحةً في مسارِ التوصيلِ (`ActiveDeliveryExistsError`)
+10. تغليفُ `orderCancellation` في `container.ts` — البوتُ لا يحملُ `create` وقتَ التشغيلِ
+**ما لا يُفعَلُ:** لا تغييرَ في حالاتِ البنودِ · لا هجرةَ بيانات
+
+#### سجلُ التنفيذِ — D-01
+
+- **2026-09-17:** أُنشئَ الفرعُ من `main`@`7a600b3`. نُفِّذَتْ جميعُ التغييراتِ: هجرةُ قاعدةِ البياناتِ، إعادةُ كتابةِ `createOrderAndMatch` و`requestDelivery`، فصلُ `OrderCancellationPort`، توسيعُ الحاجزِ، اختباراتٌ سلبيّةٌ، معالجةُ `ACTIVE_RIDE_EXISTS`، تغليفُ `orderCancellation`.
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 6435 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء (28 تحذيراً سابقاً `noTemplateCurlyInString`) · الحاجزُ نجحَ (13 مِلفّاً). الفحصُ النهائي فشلَ بسببِ اختلافِ إصدارِ Bun المحلّي `1.4.2` عن المتوقَّعِ `1.3.14` — مسألةُ بيئةٍ لا كود.
+- **إصلاحاتُ CI الأولى:** الهجرةُ الأولى لم تطابقْ خصائصَ الدالّةِ الأصلية (`security invoker`، `set search_path`، `p_notes default null`، `v_user record`). أُصلِحَتْ الهجرةُ لتطابقَ الأصلَ تماماً مع تغييرِ الوجهةِ وحدها.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ `ActiveRideScreen.tsx` و`check-driver-vehicle-contract.test.ts` ضمنَ نطاقِ D-01 — هما إصلاحُ lint سابقٌ أُصلِحَ في طريقِ التنفيذِ لتمريرِ `bun run lint`.
+
+#### إصلاحُ fixtures التكامل لمطابقة عقد Telegram — D-01 (2026-09-17)
+
+بعدَ إصلاحاتِ الهجرةِ، نجحَ `verify` و`roadmap` و`فوضى متعدد المثيلات (F5-06)` في CI، لكن ظلَّت وظيفتا التكاملِ على PostgreSQL وRedis فاشلتين. السببُ الجذريُّ: بعدَ إضافةِ `updateId` إلى `IncomingUpdate` (لازمٌ لبناءِ مفتاحِ Idempotency في D-01)، صار `telegram-mapper.ts` يرفضُ صامتاً أيَّ تحديثٍ خالٍ من `update_id` — وهذا سلوكٌ صحيحٌ يطابقُ عقدَ Telegram (الحقلُ الوحيدُ المُلزَمُ على `Update`). لكن ~25 ملفَّ اختبارٍ تكامليٍّ كانت تبني حمولاتٍ خامًا عبر هيلبراتٍ محلّيةٍ لا تُمرِّرُ `update_id`، فلم تعدْ تصلُ فعلاً — سقطت عشراتُ الاختباراتِ دونَ صلةٍ بمنطقِ D-01 التجاريِّ.
+
+الحلُّ: إضافةُ `update_id` إلى الهيلبراتِ المحلّيةِ (`message()` / `callback()` / `text()` / `location()` / `contact()` / `postLocation()` / `locationUpdate()` وغيرِها) في كلِّ ملفٍّ عبرَ عدّادٍ رتيبٍ لكلِّ ملفٍّ (`nextUpdateId()`). لم يُلغَّ المفتاحُ الصارمُ في `telegram-mapper.ts`، ولم يُخفَّفِ النوعُ `IncomingUpdate`، ولم يُعدَّل بيانٌ اختباريٌّ أو منطقيٌّ. الملفاتُ التي كانت تضعُ `update_id` صراحةً لأغراضِ تكرارٍ/استرجاعٍ (`adversarial.test.ts` · `queue-backpressure.test.ts` · `telegram-durable-intake.test.ts`) لم تُمَسَّ.
+
+- **الملفاتُ المُصالَحةُ:** `agent-core-measurement` · `agent-core-support-advice` · `bilingual-conversation` · `blocking-enforcement` · `canonical-driver-location` · `dispatch-redispatch` · `driver-kyc-registration` · `driver-location-freshness` · `driver-location-visibility` · `five-cities-launch` · `full-delivery` · `full-ride` · `live-sequence-validation` · `location-race-conditions` · `mutual-ratings` · `order-cancellation` · `pilot-city-activation` · `redis-sessions` (integration) · `subscription-dialog-changes` · `support-tickets` · `tracking-env-limits` · `tracking-realtime` · `tracking-sequence` · `trial-lifecycle` · `unmatched-escalation` · `unsubscribed-negotiation` (integration) + `redis-sessions-real` · `location-hot-state-outage-real` (real-redis).
+- **الفحوصُ المحليّةُ بعدَ الإصلاح:** typecheck نجحَ · 6435 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على قاعدةٍ حقيقيّةٍ لا يُجارى محلّياً (هجرةُ D-01 لم تُطبَّقْ على قاعدةِ الاختبارِ المشترَكةِ؛ CI يطبِّقُها طازجةً).
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ إصلاحَ fixtures يُغلِقُ D-01 — يُنتظَرُ حكمُ CI لكلِّ وظيفةٍ قبلَ القلبِ.
+
+#### إكمالُ بذرةِ القدرةِ في اختباراتِ التكاملِ — D-01 (2026-09-17)
+
+بعدَ إصلاحِ fixtures التيلغراميّة، نجحَ `verify` و`roadmap` و`Redis` و`F5-06`، لكنَّ وظيفةَ التكاملِ على PostgreSQL ظلَّت فاشلةً في `order-cancellation` و`unsubscribed-negotiation` فقط. السببُ الجذريُّ: D-01 وحَّدَ مسارَ البوتِ لإنشاءِ الطلبِ عبرَ `RideRequestCommand.create()` → `request_ride()`، التي تتحقَّقُ من قدرةِ المدينةِ (`city_served_services`) — سائقٌ موثَّقٌ مشترِكٌ قادرٌ. المسارُ القديمُ (`OrderWriter.create`) كان إدراجاً مباشراً بلا هذا الفحصِ، فكانت اختباراتُ الإلغاءِ والتفاوضِ تنشئُ طلباً بلا سائقٍ قادرٍ في المدينةِ. بعدَ D-01 يُرفضُ الطلبُ بـ`SERVICE_NOT_AVAILABLE_IN_CITY`.
+
+الحلُّ: ملفُّ دعمٍ جديدٌ `tests/support/seed-capable-driver.ts` يُبذرُ سائقاً موثَّقاً مشترِكاً قادراً على خدمةٍ في مدينةٍ، لكنَّهُ **غيرُ متاحٍ ولا يملكُ موقعاً حيًّا** — فيُشبِعُ شرطَ القدرةِ ويتركُ الطلبَ في `searching` بلا إسنادٍ. يُستدعى في `beforeEach` في `order-cancellation` (لـ`transport` و`delivery`) و`unsubscribed-negotiation` (لـ`transport`). لم يُخفَّفْ فحصُ `request_ride` ولم يُلغَّ — هذا هو بالضبطِ ما صُمِّمَ D-01 لمنعِهِ: إنشاءُ طلبٍ في مدينةٍ بلا قُدرةٍ.
+
+- **الملفاتُ المُعدَّلةُ:** `tests/support/seed-capable-driver.ts` (جديد) · `tests/integration/order-cancellation.test.ts` · `tests/integration/unsubscribed-negotiation.test.ts`.
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 6435 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على قاعدةٍ حقيقيّةٍ يُنتظَرُ من CI.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ بذرةَ القدرةِ تُغيِّرُ سلوكَ الإنتاجِ — هي دعامةُ اختبارٍ لا أكثر.
+
+#### توسيعُ بذرةِ القدرةِ وتصحيحُ فحصِ نقطةِ البدايةِ — D-01 (2026-09-17)
+
+بعدَ إدخالِ `seed-capable-driver` إلى `order-cancellation` و`unsubscribed-negotiation`، تحوَّلَ الفشلُ في `تكامل على PostgreSQL` إلى أربعِ مجموعاتٍ أخرى تُنشئُ الطلبَ عبر مسارِ البوتِ بلا سائقٍ قادرٍ: `unmatched-escalation` و`five-cities-launch` و`trial-lifecycle` و`bilingual-conversation`. السببُ الجذريُّ نفسُه: `request_ride()` تُلزِمُ قدرةً في المدينة. أُضيفتِ `seedCapableDriver` إلى `beforeEach` في كلِّ ملفٍ (في `five-cities-launch` لكلِّ مدينةٍ من الخمس).
+
+وخلالَ التتبُّعِ اكتُشِفَ **انحدارٌ في هجرةِ D-01 نفسِها**: الترحيلُ `20260917030000_d01_request_ride_nullable_destination.sql` أُعيدت كتابتُه لِ«يطابقَ الأصلَ تماماً» لكنه أسقطَ فحصَ نقطةِ البدايةِ `st_covers(v_area.area, v_origin)` → `ORIGIN_OUTSIDE_SERVICE_AREA`، فأصبحَ الطلبُ ببدايةٍ خارجَ منطقةِ الخدمةِ يُمرَّرَ بدلَ أن يُرفَضَ. أُعيدَ الفحصُ كما كانَ في `20260913230000_f2_05_ride_request_judgement.sql`. شاهدُ الاختبارِ: `ride-request.test.ts` «١١) انقلابٌ خارجَ الغلافِ».
+
+- **الملفاتُ المُعدَّلةُ:** `supabase/migrations/20260917030000_d01_request_ride_nullable_destination.sql` (استعادةُ فحصِ البدايةِ + تعليقُ التصحيحِ) · `tests/integration/unmatched-escalation.test.ts` · `tests/integration/five-cities-launch.test.ts` · `tests/integration/trial-lifecycle.test.ts` · `tests/integration/bilingual-conversation.test.ts`.
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 4717 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على PostgreSQL يُنتظَرُ من CI.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ استعادةَ الفحصِ تُغيِّرُ سلوكَ الإنتاجِ — هي إصلاحُ انحدارٍ أدخلتهُ هجرةُ D-01، والسلوكُ الصحيحُ هو ما كانَ قبلَها.
+
+#### مناطقُ الخدمةِ والبذرةُ القادرةُ في اختباراتِ التكاملِ المتبقية — D-01 (2026-09-17)
+
+بعدَ استعادةِ فحصِ نقطةِ البدايةِ وإصلاحِ `unmatched-escalation`، بقيَ الفشلُ في ثلاثِ مجموعاتٍ، لكلٍّ منها سببٌ مختلفٌ:
+
+1. **`five-cities-launch` (3 اختبارات):** البذرةُ تُنشئُ منطقةَ خدمةٍ لـJED وحدَها. المدنُ الأربعُ الباقيةُ (MKK · RUH · TIF · MED) بلا منطقةِ خدمةٍ مُفعَّلة، فيُرفضُ الطلبُ بـ`CITY_HAS_NO_SERVICE_AREA` قبلَ فحصِ القدرةِ. الحلُّ: `activateAllFive()` تُنشئُ مستطيلاً محيطاً حولَ نقطةِ الانتفاعِ لكلِّ مدينةٍ تفتقرُ إلى منطقةٍ. سائقو الاختبارِ أنفسُهم قادرونَ بعدَ `makeDriverAvailable` (موثَّقونَ بتجرِبةٍ `trialing`)، فلا حاجةَ إلى `seedCapableDriver` هنا.
+
+2. **`trial-lifecycle` (1 اختبار):** اختبارُ «بعد انتهاءِ التجربة» يُنهي اشتراكَ السائقِ المُسجَّلِ فيُصبحُ غيرَ قادرٍ. `request_ride()` ترفضُ الطلبَ بـ`SERVICE_NOT_AVAILABLE_IN_CITY` لأنَّ لا سائقَ قادراً. الحلُّ: `seedCapableDriver` في `beforeEach` مع تصحيحِ استعلامِ `registerDriver` من `select id from drivers limit 1` إلى استعلامٍ مقيَّدٍ بـ`telegram_id` كي لا يلتقطَ السائقَ المُبذَرَ.
+
+3. **`bilingual-conversation` (4 اختبارات):** `unsubscribedDriver` يضبطُ الاشتراكَ إلى `expired`، فلا سائقَ قادراً. الحلُّ: `seedCapableDriver` في `beforeEach`. استعلامُ `unsubscribedDriver` مقيَّدٌ بـ`telegram_id` أصلاً فلا تعارضَ.
+
+- **الملفاتُ المُعدَّلةُ:** `tests/integration/five-cities-launch.test.ts` (مناطقُ الخدمةِ) · `tests/integration/trial-lifecycle.test.ts` (تصحيحُ الاستعلامِ + البذرة) · `tests/integration/bilingual-conversation.test.ts` (البذرة).
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 4717 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على PostgreSQL يُنتظَرُ من CI.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ مناطقَ الخدمةِ المُنشأةَ للمدنِ الأربعِ حدودٌ بلديّةٌ رسميّةٌ — هي مستطيلاتٌ محيطةٌ للاختبارِ وحدَه.
+
+#### إصلاحُ `update_id` في اختباراتِ e2e — D-01 (2026-09-17)
+
+بعدَ إصلاحِ اختباراتِ التكاملِ، صارَت خطوةُ `test:e2e` تعملُ (كانت تُتخطَّى لأنَّ خطوةَ التكاملِ كانت تفشلُ قبلَها). فكشفتْ عن فشلٍ في `ride-soak` و`tracking-e2e`: «لم يُسجَّل السائق» — الرسائلُ لم تصلْ إلى معالجِ البوتِ أصلاً. السببُ الجذريُّ هو نفسُهُ الذي أُصلِحَ في اختباراتِ التكاملِ (الإصلاحُ `cab2c9d`): مساعداتُ `text()` و`callback()` و`privateCallback()` و`location()` و`photo()` و`contact()` في الملفَّينِ لا تُضمِّنُ `update_id` في حمولةِ Telegram. بعدَ D-01، يرفضُ `telegram-mapper.ts` أيَّ تحديثٍ خالٍ من `update_id` — وهذا سلوكٌ صحيحٌ يطابقُ عقدَ Telegram. الحلُّ: حقنُ `update_id` عبرَ عدّادٍ تزايديٍّ في كلِّ ملفٍّ، كما فُعِلَ في اختباراتِ التكامل.
+
+- **الملفاتُ المُعدَّلةُ:** `tests/e2e/ride-soak.test.ts` · `tests/e2e/tracking-e2e.test.ts`.
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 4717 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. اختباراتُ e2e على PostgreSQL تُنتظَرُ من CI.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ الإصلاحَ يُغيِّرُ سلوكَ الإنتاجِ — هو دعامةُ اختبارٍ لا أكثر.
+
+#### CI أخضرٌ بالكامل — D-01 مُغلَقٌ (2026-09-17)
+
+جميعُ وظائفِ CI نجحتْ في الجولةِ `35213533426` (البصمةُ `c03f448`):
+
+- `verify` ✅ — typecheck · lint · 4717 اختباراً ناجحاً · الحواجز
+- `تكامل على PostgreSQL حقيقي` ✅ — التكاملُ + e2e على postgres:17 طازجٍ
+- `تكامل على Redis حقيقي` ✅
+- `فوضى متعدد المثيلات (F5-06)` ✅
+- `Roadmap freshness` ✅
+
+D-01 مُغلَقٌ بالأدلّةِ الآليّةِ وحكمِ CI — لا يتعلَّقُ بالمالكِ، فالإغلاقُ مشروعٌ وفقَ القاعدةِ 0-9. سجلُّ الدَّينِ محدَّثٌ. 

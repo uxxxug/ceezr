@@ -35,6 +35,7 @@ import {
 } from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
 import { drainNotificationOutbox } from "../support/drain-notification-outbox.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -72,7 +73,13 @@ async function post(bot: string, update: unknown): Promise<Response> {
   );
 }
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const message = (chatId: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
@@ -83,6 +90,7 @@ const location = (chatId: number, at: { latitude: number; longitude: number }) =
 const contact = (chatId: number, phone: string) =>
   message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 const callback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
 
@@ -118,6 +126,18 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
       groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
       prior: cityHandle,
     });
+    /*
+     * بعد D-01، يمرّ مسارُ البوتِ لإنشاءِ الطلبِ عبر `request_ride()` التي تتحقَّقُ من
+     * قدرةِ المدينةِ. اختبارُ «بعد انتهاءِ التجربة» يُنهي اشتراكَ السائقِ المسجَّلِ
+     * فيُصبحُ غيرَ قادرٍ، فلا يُنشأُ الطلبُ. نُبذر سائقاً قادراً غير متاحٍ لتلبيةِ
+     * شرطِ القدرةِ دونَ التدخُّلِ في إسنادِ الطلبِ للسائقِ المُختبَرِ.
+     */
+    await seedCapableDriver({
+      sql,
+      cityId,
+      service: "transport",
+      telegramId: 200_099,
+    });
     // الرابطُ إعدادٌ لكلّ مدينة: معرّفُ القروب لا يُفتَح من جهاز السائق
     await sql`
       update platform_settings
@@ -148,7 +168,12 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
     await post("driver", text(DRIVER_CHAT, "أ ب ج 1234"));
     await post("driver", text(DRIVER_CHAT, "1000001007"));
     await post("driver", photo(DRIVER_CHAT, "vphoto_1000001007"));
-    const rows = await sql<{ id: string }[]>`select id from drivers limit 1`;
+    const rows = await sql<{ id: string }[]>`
+      select d.id from drivers d
+        join users u on u.id = d.user_id
+       where u.telegram_id = ${DRIVER_CHAT}::bigint
+       limit 1
+    `;
     const id = rows[0]?.id;
     if (id === undefined) throw new Error("لم يُسجَّل السائق");
     return id;

@@ -328,6 +328,26 @@ describe("القاعدةُ ٤ — مسارُ الشبكةِ لا يكتبُ صف
     );
     expect(violations).toEqual([]);
   });
+
+  it("\u0627\u0633\u062a\u062f\u0639\u0627\u0621\u064f `deps.orders.create` \u0641\u064a \u0628\u0648\u062a\u0650 \u0627\u0644\u0639\u0645\u064a\u0644\u0650 \u064a\u064f\u0633\u0642\u0637\u064f \u0627\u0644\u062d\u0627\u062c\u0632\u064e (D-01)", () => {
+    const violations = findViolations(
+      withSlice(
+        "packages/application/bots/rider-dialog.ts",
+        "const result = await deps.orders.create({ cityId, riderId, service });\n",
+      ),
+    );
+    expect(violations.some((text) => text.includes("RideRequestCommand"))).toBe(true);
+  });
+
+  it("\u0627\u0633\u062a\u062f\u0639\u0627\u0621\u064f `orders.create` \u0645\u0628\u0627\u0634\u0631\u0629\u064b \u0641\u064a \u0627\u0644\u062a\u0648\u0635\u064a\u0644\u0650 \u064a\u064f\u0633\u0642\u0637\u064f \u0627\u0644\u062d\u0627\u062c\u0632\u064e (D-01)", () => {
+    const violations = findViolations(
+      withSlice(
+        "packages/application/delivery/request-delivery.ts",
+        "const id = await orders.create({ cityId, riderId, service });\n",
+      ),
+    );
+    expect(violations.some((text) => text.includes("RideRequestCommand"))).toBe(true);
+  });
 });
 
 describe("القاعدةُ ٥ — لا مفردةَ أجرةٍ في الشريحةِ ولا في هجرتِها", () => {

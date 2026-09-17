@@ -45,6 +45,11 @@ const DRIVER_CHAT = 130_909;
 
 const JEDDAH = { latitude: 21.5471, longitude: 39.1751 };
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 /** ثانيةٌ بالمللي — `recordedAtMs` من تلغرام بدقّةِ الثانيةِ، فالفروقُ تُقاس بها. */
 const MS_PER_SECOND = 1000;
 
@@ -182,6 +187,7 @@ describeIf("ترتيبُ أحداثِ التتبُّعِ على PostgreSQL حق�
    */
   async function postLocation(chatId: number, agoSeconds: number): Promise<void> {
     const handled = await container.handler.handle("driver", {
+      update_id: nextUpdateId(),
       message: {
         chat: { id: chatId },
         from: { id: chatId, language_code: "ar" },

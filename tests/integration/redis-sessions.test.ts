@@ -120,7 +120,13 @@ async function post(update: unknown): Promise<Response> {
   );
 }
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const text = (value: string) => ({
+  update_id: nextUpdateId(),
   message: {
     chat: { id: DRIVER_CHAT },
     from: { id: DRIVER_CHAT, language_code: "ar" },
@@ -128,6 +134,7 @@ const text = (value: string) => ({
   },
 });
 const photo = (fileId: string) => ({
+  update_id: nextUpdateId(),
   message: {
     chat: { id: DRIVER_CHAT },
     from: { id: DRIVER_CHAT, language_code: "ar" },
@@ -135,6 +142,7 @@ const photo = (fileId: string) => ({
   },
 });
 const callback = (data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: {
     data,
     from: { id: DRIVER_CHAT },
@@ -142,6 +150,7 @@ const callback = (data: string) => ({
   },
 });
 const contact = (phone: string) => ({
+  update_id: nextUpdateId(),
   message: {
     chat: { id: DRIVER_CHAT },
     from: { id: DRIVER_CHAT, language_code: "ar" },

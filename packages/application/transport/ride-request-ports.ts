@@ -95,7 +95,8 @@ export interface RideRequestCommand {
     readonly idempotencyKey: string;
     readonly service: string;
     readonly origin: RidePoint;
-    readonly destination: RidePoint;
+    /** الوجهةُ — معدومةٌ في مسارِ البوتِ `/skip`. كلٌّ أو لا شيء. */
+    readonly destination: RidePoint | null;
     /** ملاحظةُ السائقِ (`SR-04`) — `null` غيابٌ، لا نصٌّ فارغٌ. */
     readonly notes: string | null;
   }): Promise<Result<RideRequestVerdict, RideStoreFailure>>;

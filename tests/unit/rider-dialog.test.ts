@@ -34,6 +34,7 @@ import {
   type OrderWriterDouble,
   offerWriterDouble,
   orderWriter,
+  rideRequestCommand,
   riderDirectory,
 } from "../support/bot-doubles.ts";
 import {
@@ -54,14 +55,19 @@ const ORDER_ID = "order-1" as OrderId;
 const ar = (key: string, params: Record<string, string | number> = {}) =>
   translate("ar", key, params);
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 function text(value: string): IncomingUpdate {
-  return { kind: "text", from: SENDER, text: value };
+  return { kind: "text", from: SENDER, updateId: nextUpdateId(), text: value };
 }
 function location(coords: { latitude: number; longitude: number }): IncomingUpdate {
-  return { kind: "location", from: SENDER, location: coords };
+  return { kind: "location", from: SENDER, updateId: nextUpdateId(), location: coords };
 }
 function callback(data: string): IncomingUpdate {
-  return { kind: "callback", from: SENDER, data };
+  return { kind: "callback", from: SENDER, updateId: nextUpdateId(), data };
 }
 
 const SEARCHING_ORDER: Order = {
@@ -76,6 +82,7 @@ const SEARCHING_ORDER: Order = {
 };
 
 let orders: OrderWriterDouble;
+let rides: ReturnType<typeof rideRequestCommand>;
 let deps: RiderBotDependencies;
 
 function build(overrides: Partial<RiderBotDependencies> = {}): RiderBotDependencies {
@@ -83,12 +90,15 @@ function build(overrides: Partial<RiderBotDependencies> = {}): RiderBotDependenc
 }
 
 beforeEach(() => {
+  updateIdCounter = 0;
   orders = orderWriter(ORDER_ID);
+  rides = rideRequestCommand(ORDER_ID);
   deps = {
     sessions: createMemorySessionStore(fixedClock(NOW)),
     riders: riderDirectory(null),
     cities: cityDirectory([JEDDAH]),
     orders,
+    rides,
     activeOrdersOf: async () => [],
     pastOrdersOf: async () => [],
     matching: {
@@ -179,13 +189,13 @@ describe("تسجيل العميل وطلب رحلة", () => {
     const dropoff = await handleRiderUpdate(location(DROPOFF), withRiders);
     expect(waitingVariants("riderSearching", "ar")).toContain(dropoff[0]?.text ?? "");
 
-    expect(orders.created).toEqual([
-      {
-        cityId: JEDDAH.id,
-        riderId: "rider-1" as RiderId,
-        pickup: PICKUP,
-        dropoff: DROPOFF,
-      },
+    expect(rides.createCalls).toEqual([
+      expect.objectContaining({
+        service: "transport",
+        origin: { lat: PICKUP.latitude, lng: PICKUP.longitude },
+        destination: { lat: DROPOFF.latitude, lng: DROPOFF.longitude },
+        notes: null,
+      }),
     ]);
   });
 
@@ -201,7 +211,7 @@ describe("تسجيل العميل وطلب رحلة", () => {
     await handleRiderUpdate(location(PICKUP), d);
     const created = await handleRiderUpdate(text("/skip"), d);
     expect(waitingVariants("riderSearching", "ar")).toContain(created[0]?.text ?? "");
-    expect(orders.created[0]?.dropoff).toBeNull();
+    expect(rides.createCalls[0]?.destination).toBeNull();
   });
 
   it("يرفض عنواناً نصياً مكان الموقع", async () => {
@@ -215,7 +225,7 @@ describe("تسجيل العميل وطلب رحلة", () => {
     await handleRiderUpdate(text("/ride"), d);
     const refused = await handleRiderUpdate(text("حي الصفا قرب المسجد"), d);
     expect(refused[0]?.text).toBe(ar("rider.location_required"));
-    expect(orders.created).toHaveLength(0);
+    expect(rides.createCalls).toHaveLength(0);
   });
 
   it("يرفض زر خدمة قديماً أثناء انتظار موقع الانطلاق ولا يبدّل نوع الطلب", async () => {
@@ -278,7 +288,7 @@ describe("تسجيل العميل وطلب رحلة", () => {
     await handleRiderUpdate(text("/ride"), d);
     const refused = await handleRiderUpdate(location({ latitude: 200, longitude: 39 }), d);
     expect(refused[0]?.text).toBe(ar("rider.location_required"));
-    expect(orders.created).toHaveLength(0);
+    expect(rides.createCalls).toHaveLength(0);
   });
 
   it("يطلب التسجيل قبل /ride", async () => {
@@ -413,7 +423,7 @@ describe("المطابقة بعد الإنشاء", () => {
     await handleRiderUpdate(location(PICKUP), d);
     const replies = await handleRiderUpdate(text("/skip"), d);
     expect(waitingVariants("riderSearching", "ar")).toContain(replies[0]?.text ?? "");
-    expect(orders.created).toHaveLength(1);
+    expect(rides.createCalls).toHaveLength(1);
   });
 
   it("يبثّ على سائق مؤهل عند وجوده", async () => {
@@ -520,15 +530,13 @@ describe("مسار التوصيل في حوار العميل", () => {
     const done = await handleRiderUpdate(text("صندوق كتب متوسط"), d);
     expect(waitingVariants("riderSearchingDelivery", "ar")).toContain(done[0]?.text ?? "");
 
-    expect(orders.createdFull).toEqual([
-      {
-        cityId: JEDDAH.id,
-        riderId: REGISTERED.id,
+    expect(rides.createCalls).toEqual([
+      expect.objectContaining({
         service: "delivery",
-        pickup: PICKUP,
-        dropoff: DROPOFF,
+        origin: { lat: PICKUP.latitude, lng: PICKUP.longitude },
+        destination: { lat: DROPOFF.latitude, lng: DROPOFF.longitude },
         notes: "صندوق كتب متوسط",
-      },
+      }),
     ]);
   });
 
@@ -545,7 +553,7 @@ describe("مسار التوصيل في حوار العميل", () => {
     await handleRiderUpdate(location(PICKUP), d);
     const refused = await handleRiderUpdate(text("/skip"), d);
     expect(refused[0]?.text).toBe(ar("rider.delivery_dropoff_required"));
-    expect(orders.createdFull).toHaveLength(0);
+    expect(rides.createCalls).toHaveLength(0);
   });
 
   it("يرفض وصف طرد قصيراً ويبقى في نفس الخطوة حتى يصحّ", async () => {
@@ -556,11 +564,11 @@ describe("مسار التوصيل في حوار العميل", () => {
 
     const refused = await handleRiderUpdate(text("أب"), d);
     expect(refused[0]?.text).toBe(ar("rider.parcel_invalid"));
-    expect(orders.createdFull).toHaveLength(0);
+    expect(rides.createCalls).toHaveLength(0);
 
     const accepted = await handleRiderUpdate(text("كيس ملابس"), d);
     expect(waitingVariants("riderSearchingDelivery", "ar")).toContain(accepted[0]?.text ?? "");
-    expect(orders.createdFull).toHaveLength(1);
+    expect(rides.createCalls).toHaveLength(1);
   });
 
   it("يرفض وصفاً أطول من الحد ولا ينشئ طلباً", async () => {
@@ -570,7 +578,7 @@ describe("مسار التوصيل في حوار العميل", () => {
     await handleRiderUpdate(location(DROPOFF), d);
     const refused = await handleRiderUpdate(text("ط".repeat(201)), d);
     expect(refused[0]?.text).toBe(ar("rider.parcel_too_long"));
-    expect(orders.createdFull).toHaveLength(0);
+    expect(rides.createCalls).toHaveLength(0);
   });
 
   it("يرفض نصاً مكان موقع التسليم", async () => {
@@ -586,8 +594,8 @@ describe("مسار التوصيل في حوار العميل", () => {
     await handleRiderUpdate(text("/ride"), d);
     await handleRiderUpdate(location(PICKUP), d);
     await handleRiderUpdate(location(DROPOFF), d);
-    expect(orders.createdFull[0]?.service).toBe("transport");
-    expect(orders.createdFull[0]?.notes).toBeNull();
+    expect(rides.createCalls[0]?.service).toBe("transport");
+    expect(rides.createCalls[0]?.notes).toBeNull();
   });
 });
 

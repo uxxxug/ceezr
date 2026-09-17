@@ -30,6 +30,7 @@ import {
   negotiationHandlers,
   unmatchedHandlers,
 } from "../support/drain-notification-outbox.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -68,7 +69,13 @@ async function post(bot: string, update: unknown): Promise<Response> {
   );
 }
 
+let updateIdCounter = 0;
+function nextUpdateId(): number {
+  return ++updateIdCounter;
+}
+
 const message = (chatId: number, body: Record<string, unknown>) => ({
+  update_id: nextUpdateId(),
   message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
 });
 const text = (chatId: number, value: string) => message(chatId, { text: value });
@@ -80,9 +87,11 @@ const contact = (chatId: number, phone: string) =>
   message(chatId, { contact: { user_id: chatId, phone_number: phone } });
 /** ضغطة زرّ داخل قروب: chatId هو القروب لا المستخدم — هذا هو واقع تلغرام. */
 const groupCallback = (userId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: userId }, message: { chat: { id: UNSUB_GROUP } } },
 });
 const privateCallback = (chatId: number, data: string) => ({
+  update_id: nextUpdateId(),
   callback_query: { data, from: { id: chatId }, message: { chat: { id: chatId } } },
 });
 
@@ -131,6 +140,20 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
     cityHandle = await ensureActiveCity(sql, {
       groups: { support: -1001, escalation: ESCALATION_GROUP, unsubscribed: UNSUB_GROUP },
       prior: cityHandle,
+    });
+    /*
+     * بعد D-01، مسارُ البوتِ يمرّ عبر `request_ride()` التي تتحقَّقُ من قدرةِ
+     * المدينةِ (`city_served_services`) قبلَ أن يُنشأَ الطلبَ. هذه الاختباراتُ تحتاجُ
+     * الطلبَ أن يُنشأَ ويبقى في `searching` ليُسرَّ إلى قروب غير المشتركين، لا أن
+     * يُرفضَ بـ`SERVICE_NOT_AVAILABLE_IN_CITY`. فنُبذُر سائقاً قادراً غير متاحٍ ولا
+     * يملكُ موقعاً حيًّا، فيُشبِعُ شرطَ القدرةِ ويتركُ الطلبَ بلا إسنادٍ — وهو ما يُرسي
+     * الدورةَ كلَّها.
+     */
+    await seedCapableDriver({
+      sql,
+      cityId,
+      service: "transport",
+      telegramId: 310_099,
     });
     // platform_settings لا يُفرغ، فأي اختبار يغيّر إعداداً يُلوّث من بعده — ويلوّث التشغيل التالي
     // للملف كله. نعيد إعدادات الدورة لقيم البذر قبل كل اختبار ليكون الملف مستقراً مهما تكرر.

@@ -20,11 +20,13 @@
  *    يهبطُ إلى «تعذَّرَ الطلبُ» فيُحجَبُ عن الراكبِ سببٌ كانَ يُصلِحُه. ويُقرأُ
  *    الجانبانِ من الشكلِ لا من قائمةٍ ثالثةٍ (القاعدة 0.6).
  *
- * ٤) **مسارُ الشبكةِ لا يكتبُ صفَّ رحلةٍ بنفسِه.** في المستودعِ كاتبٌ أقدمُ
+ * ٤) **لا مسارَ إنتاجٍ يكتبُ صفَّ رحلةٍ بنفسِه.** في المستودعِ كاتبٌ أقدمُ
  *    (`createOrderWriter.create` في `order-adapters.ts`) يُدخِلُ `orders` بجملةِ
- *    `insert` عاريةٍ بلا مفتاحِ تكرارٍ — وهوَ **دَينٌ مُعلَنٌ** يخدمُ حوارَ البوتِ.
- *    فالحاجزُ يمنعُ أن يتسلَّلَ إلى شريحةِ الشبكةِ: لا استيرادَ له ههنا، ولا
- *    `insert into orders` في مخزنِ الرحلةِ. وهذا أصدقُ من زعمِ إصلاحٍ لم يقع.
+ *    `insert` عاريةٍ بلا مفتاحِ تكرارٍ — وهوَ **دَينٌ مُعلَنٌ (D-01)** كانَ يخدمُ حوارَ
+ *    البوتِ والتوصيل. بعدَ D-01 صارَ الإنشاءُ كُلُّهُ عبرَ `RideRequestCommand` الذرّيِّ.
+ *    فالحاجزُ يمنعُ أن يتسلَّلَ مُدخِلٌ مباشرٌ إلى أيِّ مسارِ إنتاجٍ (شبكةً كانَ أم بوتاً):
+ *    لا استيرادَ لـ`OrderWriter` خارجَ مخزنِ الرحلةِ، ولا `deps.orders.create` أو
+ *    `orders.create` في مساراتِ البوت، ولا `insert into orders` في مخزنِ الرحلةِ.
  *
  * ٥) **لا مفردةَ أجرةٍ ولا دفعٍ في الشريحةِ ولا في هجرتِها** — `ADR 0039` §٤ و§٦
  *    و`م13-7`. والقائمةُ والسماحُ يُستورَدانِ من حاجزِ الاقتباسِ ولا يُنسَخانِ
@@ -56,7 +58,9 @@
  *   PostgreSQL حقيقيٍّ في `tests/integration/ride-request.test.ts`.
  * - **لا يفحصُ جودةَ الترجمةِ**: يفرضُ الوجودَ لا الفصاحةَ.
  * - **لا يُصلِحُ الدَّينَ الأقدمَ**: كاتبُ `order-adapters.ts` يبقى بلا مفتاحٍ
- *   لحوارِ البوتِ، والقاعدةُ الرابعةُ تحرسُ **الحدَّ** لا تزعمُ نظافةَ الماضي.
+ *   لإغلاقِ الدَّينِ، والقاعدةُ الرابعةُ تحرسُ **الحدَّ** لا تزعمُ نظافةَ الماضي.
+ *   D-01 أغلقَ الدَّينَ بتحويلِ البوتِ إلى `RideRequestCommand`، لكنَّ الكاتبَ
+ *   القديمَ يبقى كذلك بلا مفتاحٍ.
  * - **لا يزعمُ أنَّ الشاشةَ جُرِّبَت عندَ مستخدمٍ**: لا نشرَ حيَّ (`ADR 0099`).
  */
 
@@ -84,6 +88,8 @@ export const SLICE_FILES: readonly string[] = [
   "packages/application/transport/read-ride-search.ts",
   "packages/application/transport/cancel-ride-request.ts",
   "packages/infrastructure/transport/ride-request-store.ts",
+  "packages/application/bots/rider-dialog.ts",
+  "packages/application/delivery/request-delivery.ts",
   "apps/gateway/src/routes/rides.ts",
   "apps/miniapp/src/surfaces/rider/search/ride-contract.ts",
   "apps/miniapp/src/surfaces/rider/search/ride-api.ts",
@@ -106,6 +112,10 @@ export const NETWORK_PATH_FILES: readonly string[] = [
 
 /** الكاتبُ الأقدمُ — دَينٌ مُعلَنٌ يخدمُ حوارَ البوتِ ولا يُستوردُ في الشبكةِ. */
 export const FORBIDDEN_WRITER_IMPORT = "order-adapters";
+export const BOT_PATH_FILES: readonly string[] = [
+  "packages/application/bots/rider-dialog.ts",
+  "packages/application/delivery/request-delivery.ts",
+];
 
 /** دالّاتُ القاعدةِ الثلاثُ بتواقيعِها كما تُنزَعُ. */
 export const REVOKED_FUNCTIONS: readonly string[] = [
@@ -309,19 +319,35 @@ export function findViolations(input: RepositoryInput): readonly string[] {
     }
   }
 
-  // ===== القاعدةُ ٤ — مسارُ الشبكةِ لا يكتبُ صفّاً بنفسِه ولا يستوردُ الكاتبَ الأقدمَ.
+  // ===== القاعدةُ ۴ — لا إنشاءَ طلبٍ بلا حكمِ القاعدةِ في أيِّ مسارٍ إنتاجيّٟ (D-01).
   for (const path of NETWORK_PATH_FILES) {
     const source = input.sliceSources[path];
     if (typeof source !== "string") continue;
     const code = blankComments(source);
     if (code.includes(FORBIDDEN_WRITER_IMPORT)) {
       violations.push(
-        `«${path}» يستوردُ «${FORBIDDEN_WRITER_IMPORT}» — ذاكَ الكاتبُ يُدخِلُ \`orders\` بلا مفتاحِ تكرارٍ (دَينٌ مُعلَنٌ لحوارِ البوتِ)، واستعمالُه في مسارِ الشبكةِ يُبطِلُ \`ARCH-006\` ويُنتِجُ رحلتَينِ بضغطتَينِ.`,
+        `«${path}» يستوردُ «${FORBIDDEN_WRITER_IMPORT}» — ذاكَ الكاتبُ يُدَخِلُ \`orders\` بلا مَفتاحِ تكرارٍ، واستعمالُهُ في مسارِ الشبكةِ يُبطِلُ \`ARCH-006\` ويُنتِجُ رحلتَينِ بضغطتَينِ.`,
       );
     }
     if (/insert\s+into\s+orders/i.test(code)) {
       violations.push(
-        `«${path}» فيه \`insert into orders\` — الإنشاءُ حكمُ دالّةٍ في القاعدةِ (القاعدة 0.5)، وإدخالٌ مباشرٌ يتخطّى قيدَ المفتاحِ والفحوصَ الذرّيّةَ.`,
+        `«${path}» فيهِ \`insert into orders\` — الإنشاءُ حكمُ دالّاتِ في القاعدةِ (القاعدة 0.5)، وإدخالٌ مباشرٌ يتخطّى قيدَ المَفتاحِ والفحوصَ الذرّيّةَ.`,
+      );
+    }
+  }
+  // D-01: البوتُ والتوصيلُ يُنشِئانِ عبرَ `RideRequestCommand` لا الكاتبَ الأقدمَ.
+  for (const path of BOT_PATH_FILES) {
+    const source = input.sliceSources[path];
+    if (typeof source !== "string") continue;
+    const code = blankComments(source);
+    if (/deps\.orders\.create\b/.test(code)) {
+      violations.push(
+        `«${path}» ينادي \`deps.orders.create\` — الإنشاءُ جيبُ أن يمرَّ بـ\`RideRequestCommand\` الذرّيِّ الآمنِ (D-01)، والكاتبُ الأقدمُ بلا مَفتاحِ تكرارٍ.`,
+      );
+    }
+    if (/\borders\.create\b/.test(code) && !/deps\.orders\.create/.test(code)) {
+      violations.push(
+        `«${path}» ينادي \`orders.create\` مباشرةً — الإنشاءُ جيبُ أن يمرَّ بـ\`RideRequestCommand\` (D-01).`,
       );
     }
   }
@@ -529,7 +555,7 @@ if (import.meta.main) {
   const violations = findViolations(readRepository());
   if (violations.length === 0) {
     console.log(
-      `حاجزُ عقدِ طلبِ الرحلةِ: نجحَ — ${SLICE_FILES.length} مِلفّاً مفحوصاً بـ${FORBIDDEN_FARE_WORDS.length} مفردةَ أجرةٍ ممنوعةً، مفتاحُ تكرارٍ قيدَ مخطَّطٍ بفهرسٍ فريدٍ جزئيٍّ متوازٍ وحدَه في مِلفِّه، كلُّ رمزِ رفضٍ مُترجَماً، مسارُ شبكةٍ بلا إدخالٍ عارٍ، مؤقّتٌ من ميلادِ الرحلةِ، صفرٌ مُعلَنٌ نصّاً، إلغاءٌ مشروطٌ برايةِ القاعدةِ، ${REVOKED_FUNCTIONS.length} دالّاتٍ منزوعةَ التنفيذِ عن ${REVOKED_ROLES.length} أدوارٍ، و${REQUIRED_SEARCH_KEYS.length} مفتاحاً في ثلاثِ لغاتٍ.`,
+      `حاجزُ عقدِ طلبِ الرحلةِ: نجحَ — ${SLICE_FILES.length} مِلفّاً مفحوصاً بـ${FORBIDDEN_FARE_WORDS.length} مفردةَ أجرةٍ ممنوعةً، مفتاحُ تكرارٍ قيدَ مخطَّطٍ بفهرسٍ فريدٍ جزئيٍّ متوازٍ وحدَه في مِلفِّه، كلُّ رمزِ رفضٍ مُترجَماً، مسارُ إنتاجٍ بلا إدخالٍ عارٍ، مؤقّتٌ من ميلادِ الرحلةِ، صفرٌ مُعلَنٌ نصّاً، إلغاءٌ مشروطٌ برايةِ القاعدةِ، ${REVOKED_FUNCTIONS.length} دالّاتٍ منزوعةَ التنفيذِ عن ${REVOKED_ROLES.length} أدوارٍ، و${REQUIRED_SEARCH_KEYS.length} مفتاحاً في ثلاثِ لغاتٍ.`,
     );
   } else {
     console.error("حاجزُ عقدِ طلبِ الرحلةِ: سقطَ.");
