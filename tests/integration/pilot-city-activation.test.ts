@@ -42,7 +42,10 @@ function nextUpdateId(): number {
 }
 
 function update(chatId: number, body: Record<string, unknown>): unknown {
-  return { update_id: nextUpdateId(), message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body } };
+  return {
+    update_id: nextUpdateId(),
+    message: { chat: { id: chatId }, from: { id: chatId, language_code: "ar" }, ...body },
+  };
 }
 
 async function post(bot: "driver" | "rider", body: unknown): Promise<Response> {
