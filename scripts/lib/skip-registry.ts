@@ -1070,6 +1070,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/payment-lifecycle-matrix.test.ts",
+    suites: ["مصفوفةُ أطوارِ دورةِ حياةِ الدفعِ على PostgreSQL حقيقيٍّ"],
+    skipped: 12,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِتُ أطوارَ دورةِ حياةِ الدفعِ الاثنَي عشرَ (`F8-06` · `ADR 0138`) على PostgreSQL حقيقيةٍ بالهجراتِ مطبَّقةً. ولا يُثبَتُ ذلك ببديلٍ في الذاكرةِ: المقيسُ **حكمُ المحرِّكِ نفسِه** — قيدُ `unique(payment_transaction_id)` على الاستردادِ، وقيدُ حالاتِ الدفعِ، وأثرُ صفوفِ `ledger_entries` والاشتراكاتِ والمحفظةِ داخلَ معاملةٍ واحدةٍ — لا سلوكُ محاكٍ نكتبُه نحنُ فيوافقُنا دائماً.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي» بخطوةٍ باسمِها «مصفوفةُ أطوارِ دورةِ حياةِ الدفعِ على محرِّكٍ حقيقيٍّ (F8-06)»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الدفعُ والاشتراك",
+    runsIn: "مصفوفةُ أطوارِ دورةِ حياةِ الدفعِ على محرِّكٍ حقيقيٍّ (F8-06)",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/pilot-city-activation.test.ts",
     suites: ["تفعيل مدينة الـPilot على قاعدة حقيقية"],
     skipped: 5,
