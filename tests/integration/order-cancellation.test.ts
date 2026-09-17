@@ -32,6 +32,7 @@ import {
   cancellationHandlers,
   drainNotificationOutbox,
 } from "../support/drain-notification-outbox.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -153,6 +154,25 @@ describeIf("إلغاء الطلب: أي طلب أُلغي، ومن عَلِم ب
     cityHandle = await ensureActiveCity(sql, {
       groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
       prior: cityHandle,
+    });
+    /*
+     * بعد D-01، إنشاء الطلب يمرّ عبر `request_ride()` التي تتحقَّقُ من قدرةِ
+     * المدينةِ (`city_served_services`): سائقٌ موثَّقٌ مشترِكٌ قادرٌ. الاختباراتُ
+     * هنا لا تُنشئ سائقاً بهذا المسارِ (إلّا واحدٌ)، فيُبذَرُ هنا سائقٌ قادرٌ لكنَّهُ
+     * غيرُ متاحٍ ولا يملكُ موقعاً حيًّا — فيُشبِعُ شرطَ القدرةِ ويتركُ الطلبَ في
+     * `searching` بلا إسنادٍ، وهو ما يحتاجهُ كلُّ اختبارٍ في الملفّ.
+     */
+    await seedCapableDriver({
+      sql,
+      cityId,
+      service: "transport",
+      telegramId: 270_099,
+    });
+    await seedCapableDriver({
+      sql,
+      cityId,
+      service: "delivery",
+      telegramId: 270_098,
     });
     riderSent = [];
     driverSent = [];

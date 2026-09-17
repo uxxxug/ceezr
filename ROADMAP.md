@@ -5700,3 +5700,13 @@ PostgreSQL حقيقي»** التي شغَّلَت المصفوفةَ على مح
 - **الملفاتُ المُصالَحةُ:** `agent-core-measurement` · `agent-core-support-advice` · `bilingual-conversation` · `blocking-enforcement` · `canonical-driver-location` · `dispatch-redispatch` · `driver-kyc-registration` · `driver-location-freshness` · `driver-location-visibility` · `five-cities-launch` · `full-delivery` · `full-ride` · `live-sequence-validation` · `location-race-conditions` · `mutual-ratings` · `order-cancellation` · `pilot-city-activation` · `redis-sessions` (integration) · `subscription-dialog-changes` · `support-tickets` · `tracking-env-limits` · `tracking-realtime` · `tracking-sequence` · `trial-lifecycle` · `unmatched-escalation` · `unsubscribed-negotiation` (integration) + `redis-sessions-real` · `location-hot-state-outage-real` (real-redis).
 - **الفحوصُ المحليّةُ بعدَ الإصلاح:** typecheck نجحَ · 6435 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على قاعدةٍ حقيقيّةٍ لا يُجارى محلّياً (هجرةُ D-01 لم تُطبَّقْ على قاعدةِ الاختبارِ المشترَكةِ؛ CI يطبِّقُها طازجةً).
 - **ما لا يُدَّعى:** لا يُدَّعى أنَّ إصلاحَ fixtures يُغلِقُ D-01 — يُنتظَرُ حكمُ CI لكلِّ وظيفةٍ قبلَ القلبِ.
+
+#### إكمالُ بذرةِ القدرةِ في اختباراتِ التكاملِ — D-01 (2026-09-17)
+
+بعدَ إصلاحِ fixtures التيلغراميّة، نجحَ `verify` و`roadmap` و`Redis` و`F5-06`، لكنَّ وظيفةَ التكاملِ على PostgreSQL ظلَّت فاشلةً في `order-cancellation` و`unsubscribed-negotiation` فقط. السببُ الجذريُّ: D-01 وحَّدَ مسارَ البوتِ لإنشاءِ الطلبِ عبرَ `RideRequestCommand.create()` → `request_ride()`، التي تتحقَّقُ من قدرةِ المدينةِ (`city_served_services`) — سائقٌ موثَّقٌ مشترِكٌ قادرٌ. المسارُ القديمُ (`OrderWriter.create`) كان إدراجاً مباشراً بلا هذا الفحصِ، فكانت اختباراتُ الإلغاءِ والتفاوضِ تنشئُ طلباً بلا سائقٍ قادرٍ في المدينةِ. بعدَ D-01 يُرفضُ الطلبُ بـ`SERVICE_NOT_AVAILABLE_IN_CITY`.
+
+الحلُّ: ملفُّ دعمٍ جديدٌ `tests/support/seed-capable-driver.ts` يُبذرُ سائقاً موثَّقاً مشترِكاً قادراً على خدمةٍ في مدينةٍ، لكنَّهُ **غيرُ متاحٍ ولا يملكُ موقعاً حيًّا** — فيُشبِعُ شرطَ القدرةِ ويتركُ الطلبَ في `searching` بلا إسنادٍ. يُستدعى في `beforeEach` في `order-cancellation` (لـ`transport` و`delivery`) و`unsubscribed-negotiation` (لـ`transport`). لم يُخفَّفْ فحصُ `request_ride` ولم يُلغَّ — هذا هو بالضبطِ ما صُمِّمَ D-01 لمنعِهِ: إنشاءُ طلبٍ في مدينةٍ بلا قُدرةٍ.
+
+- **الملفاتُ المُعدَّلةُ:** `tests/support/seed-capable-driver.ts` (جديد) · `tests/integration/order-cancellation.test.ts` · `tests/integration/unsubscribed-negotiation.test.ts`.
+- **الفحوصُ المحليّةُ:** typecheck نجحَ · 6435 اختباراً ناجحاً (0 فشل) · lint 0 أخطاء. التكاملُ على قاعدةٍ حقيقيّةٍ يُنتظَرُ من CI.
+- **ما لا يُدَّعى:** لا يُدَّعى أنَّ بذرةَ القدرةِ تُغيِّرُ سلوكَ الإنتاجِ — هي دعامةُ اختبارٍ لا أكثر.
