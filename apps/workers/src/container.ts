@@ -14,6 +14,10 @@ import {
   createOrderCancelledHandler,
 } from "../../../packages/application/dispatch/deliver-cancellation-notification.ts";
 import {
+  createLostItemReportHandler,
+  type LostItemMessenger,
+} from "../../../packages/application/dispatch/deliver-lost-item-notification.ts";
+import {
   createAgreedHandler,
   createTurnClosedHandler,
   createTurnOpenedHandler,
@@ -86,6 +90,7 @@ import { createTelegramCancellationMessenger } from "../../../packages/infrastru
 import { createTelegramApi } from "../../../packages/infrastructure/notification/telegram-client.ts";
 import type { OutboundSender } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
 import { createOfferPublisher } from "../../../packages/infrastructure/notification/telegram-driver-notifier.ts";
+import { createTelegramLostItemMessenger } from "../../../packages/infrastructure/notification/telegram-lost-item-notifier.ts";
 import {
   createTelegramNegotiationMessenger,
   type IdentifyingSender,
@@ -335,6 +340,8 @@ export interface WorkerContainerOverrides {
   readonly unmatchedMessenger?: UnmatchedRiderMessenger;
   /** مُرسِلُ إخطارِ الإلغاءِ للسائقينِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ. (BUG-004) */
   readonly cancellationMessenger?: CancellationMessenger;
+  /** مُرسِلُ بلاغِ المفقودِ للسائقِ — يُستبدَلُ في الاختبارِ بمُرسِلٍ يجمعُ. (F12-07) */
+  readonly lostItemMessenger?: LostItemMessenger;
   /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
   readonly safetyPublisher?: SafetyCardPublisher;
   /** ناشرُ إشعارِ العرضِ — يُستبدَلُ في الاختبار بناشرٍ يجمع ويُرجعُ معرّفًا. (BUG-004) */
@@ -636,6 +643,15 @@ export function buildWorkerContainer(
     createTelegramCancellationMessenger(
       asIdentifyingSender(withTrafficPriority(telegram, "order_cancelled")),
     );
+  /**
+   * بلاغُ المفقودِ للسائقِ (`F12-07`): يُرسَلُ ببوتِ السائقِ، وهو تحديثُ دعمٍ ذو
+   * قيمةٍ زمنيّةٍ (متوسّطٌ) لا إلغاءُ رحلةٍ (حرجٌ) — فلذلك مُرسِلٌ مستقلٌّ برتبتِه.
+   */
+  const lostItemMessenger =
+    overrides.lostItemMessenger ??
+    createTelegramLostItemMessenger(
+      asIdentifyingSender(withTrafficPriority(telegram, "lost_item_report")),
+    );
   const notificationHandlers = {
     offer: createOfferNotificationHandler(offerPublisher),
     dispute_resolution: createDisputeResolutionHandler({
@@ -658,6 +674,7 @@ export function buildWorkerContainer(
     ),
     no_driver_found: createNoDriverFoundHandler(unmatchedMessengerFor("no_driver_found")),
     order_cancelled: createOrderCancelledHandler(cancellationMessenger),
+    lost_item_report: createLostItemReportHandler(lostItemMessenger),
   };
 
   /**

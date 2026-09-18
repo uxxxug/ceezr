@@ -37,6 +37,7 @@ function fixtureMigrations(): SqlMigration[] {
     ["no_driver_found", 3],
     ["dispute_resolution", 3],
     ["subscription_notice", 3],
+    ["lost_item_report", 3],
     ["broadcast_recipient", 4],
   ] as const;
   return [
