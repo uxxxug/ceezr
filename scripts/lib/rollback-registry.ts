@@ -1003,6 +1003,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "الدفعُ والاشتراك",
     documentedIn: null,
   },
+  {
+    migration: "20260918210000_f2_08_arabic_fuzzy_search.sql",
+    change: "revoke_function:rider_ride_history(5)",
+    why: "الهجرةُ `20260918210000` (`F2-08`) تُعيدُ تعريفَ `rider_ride_history(bigint,text,timestamptz,uuid,integer)` بـ`create or replace` **لتُضيفَ التطبيعَ العربيَّ والمطابقةَ الضبابيّةَ بالمثلثاتِ** (`pg_trgm` + `normalize_search_text`). والتوقيعُ والمردُّ (jsonb) كما هما — لكنَّ شرطَ البحثِ تغيَّرَ: `ilike` خامٌ على الوسومِ صارَ `normalize_search_text(label) ilike '%' || normalize_search_text(query) || '%'` **و** `normalize_search_text(label) % normalize_search_text(query)`. والسحبُ بعدَه **إعادةُ قفلِ السطحِ كما كانَ لا تضييقٌ جديدٌ**: الدالّةُ كانت لـ`service_role` وحدَها قبلَ التغييرِ وتبقى كذلكَ بعدَه، و`create or replace` لا تُسقِطُ منحاً قائماً — فالسطرُ تكرارٌ مقصودٌ ليكفيَ الملفُّ بذاتِه إن أُعيدَ بناءُ القاعدةِ. **ولا كسرَ لنسخةٍ سابقةٍ**: شيفرةٌ لا تعرفُ التطبيعَ تُعيدُ بحثَ `ilike` خامٍ — وهوَ نقصُ دقّةٍ لا فقدُ بياناتٍ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /**
