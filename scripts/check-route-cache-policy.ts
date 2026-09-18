@@ -22,8 +22,8 @@
  * - لا يمنعُ النداءَ المباشرَ في غيرِ المسارِ الساخنِ — بطاقةُ الرحلةِ طلبٌ صريح.
  */
 
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 const ROUTE_CACHE_PATH = "packages/application/tracking/route-cache.ts";
 const CACHED_ROUTING_PATH = "packages/application/tracking/cached-routing-provider.ts";
@@ -48,7 +48,10 @@ function checkMigrations(): void {
   for (const f of files) {
     if (!f.endsWith(".sql")) continue;
     const content = readFileSync(join(MIGRATIONS_DIR, f), "utf-8");
-    if (content.includes("route_cache_min_change_meters") && content.includes("route_cache_ttl_seconds")) {
+    if (
+      content.includes("route_cache_min_change_meters") &&
+      content.includes("route_cache_ttl_seconds")
+    ) {
       found = true;
       break;
     }
@@ -59,7 +62,6 @@ function checkMigrations(): void {
   }
 }
 
-const repoRoot = resolve(import.meta.dir, "..");
 
 async function main(): Promise<void> {
   // 1. route-cache.ts موجود ويُصدّر المطلوب
@@ -98,7 +100,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  console.log(`✓ سياسةُ تخزينِ المسارات (CAP-012): ${REQUIRED_EXPORTS.length} تصديراتٍ · لا نداءَ مباشرَ في البثِّ الحيِّ · عتباتٌ في الهجرة · المزوّدُ مُغلَّفٌ بـCachedRoutingProvider`);
+  console.log(
+    `✓ سياسةُ تخزينِ المسارات (CAP-012): ${REQUIRED_EXPORTS.length} تصديراتٍ · لا نداءَ مباشرَ في البثِّ الحيِّ · عتباتٌ في الهجرة · المزوّدُ مُغلَّفٌ بـCachedRoutingProvider`,
+  );
 }
 
 await main();
