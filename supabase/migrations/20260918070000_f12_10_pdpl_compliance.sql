@@ -18,7 +18,7 @@
 
 -- ── ١) الأنواعُ المُعدَّدةُ ──────────────────────────────────────────────────
 
-create type if not exists pdpl_processing_basis as enum (
+create type pdpl_processing_basis as enum (
   'consent',
   'publicly_available',
   'public_interest_security',
@@ -30,14 +30,14 @@ create type if not exists pdpl_processing_basis as enum (
   'judicial_requirement'
 );
 
-create type if not exists pdpl_activity_status as enum (
+create type pdpl_activity_status as enum (
   'draft',
   'active',
   'suspended',
   'retired'
 );
 
-create type if not exists pdpl_subject_right as enum (
+create type pdpl_subject_right as enum (
   'be_informed',
   'access',
   'obtain_copy',
@@ -49,7 +49,7 @@ create type if not exists pdpl_subject_right as enum (
   'withdraw_consent'
 );
 
-create type if not exists pdpl_right_request_status as enum (
+create type pdpl_right_request_status as enum (
   'received',
   'in_progress',
   'fulfilled',
@@ -57,13 +57,13 @@ create type if not exists pdpl_right_request_status as enum (
   'partially_fulfilled'
 );
 
-create type if not exists pdpl_dpia_risk_level as enum (
+create type pdpl_dpia_risk_level as enum (
   'high_risk',
   'medium_risk',
   'low_risk'
 );
 
-create type if not exists pdpl_dpia_status as enum (
+create type pdpl_dpia_status as enum (
   'required',
   'in_progress',
   'completed',
@@ -71,14 +71,14 @@ create type if not exists pdpl_dpia_status as enum (
   'rejected'
 );
 
-create type if not exists pdpl_transfer_basis as enum (
+create type pdpl_transfer_basis as enum (
   'treaty_obligation',
   'ksa_interests',
   'subject_contractual_obligation',
   'other_regulated_purpose'
 );
 
-create type if not exists pdpl_transfer_status as enum (
+create type pdpl_transfer_status as enum (
   'requested',
   'approved',
   'rejected',

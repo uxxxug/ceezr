@@ -88,14 +88,14 @@ check(
 
 // ── ٢) الأنواعُ المُعدَّدةُ ─────────────────────────────────────────────────
 
-check(migration, "create type if not exists pdpl_processing_basis", "نوعُ أساسِ المعالجةِ");
-check(migration, "create type if not exists pdpl_activity_status", "نوعُ حالةِ النشاطِ");
-check(migration, "create type if not exists pdpl_subject_right", "نوعُ حقِّ صاحبِ البياناتِ");
-check(migration, "create type if not exists pdpl_right_request_status", "نوعُ حالةِ الطلبِ");
-check(migration, "create type if not exists pdpl_dpia_risk_level", "نوعُ مستوى خطرِ DPIA");
-check(migration, "create type if not exists pdpl_dpia_status", "نوعُ حالةِ DPIA");
-check(migration, "create type if not exists pdpl_transfer_basis", "نوعُ أساسِ النقلِ");
-check(migration, "create type if not exists pdpl_transfer_status", "نوعُ حالةِ النقلِ");
+check(migration, "create type pdpl_processing_basis", "نوعُ أساسِ المعالجةِ");
+check(migration, "create type pdpl_activity_status", "نوعُ حالةِ النشاطِ");
+check(migration, "create type pdpl_subject_right", "نوعُ حقِّ صاحبِ البياناتِ");
+check(migration, "create type pdpl_right_request_status", "نوعُ حالةِ الطلبِ");
+check(migration, "create type pdpl_dpia_risk_level", "نوعُ مستوى خطرِ DPIA");
+check(migration, "create type pdpl_dpia_status", "نوعُ حالةِ DPIA");
+check(migration, "create type pdpl_transfer_basis", "نوعُ أساسِ النقلِ");
+check(migration, "create type pdpl_transfer_status", "نوعُ حالةِ النقلِ");
 
 // ── ٣) الدوالُ ──────────────────────────────────────────────────────────────
 

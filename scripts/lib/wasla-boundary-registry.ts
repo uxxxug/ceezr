@@ -134,7 +134,7 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale:
       "إبلاغُ الاختراقِ التزامٌ نظاميٌّ (PDPL · المادةُ ٢٤) يملكُه CORE لا MOVE: الحادثُ يتعدّى التطبيقَ ويخصُّ المنصّةَ كلَّها، وسجلُّ الإبلاغِ دليلُ امتثالٍ يحتفظُ به CORE.",
   },
-  
+
   {
     table: "broadcast_campaigns",
     concern: "حملةُ بثٍّ إداريّةٍ — إشعارٌ",
@@ -370,15 +370,6 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale:
       "الإعدادُ التشغيليُّ (نُصُبُ التوزيعِ · عمرُ الموقعِ · حدودُ الطوابيرِ) يبقى، وإعدادُ السعرِ والاشتراكِ يعودُ إلى قواعدِ CORE؛ فمصدرُ الحقيقةِ يُشَقُّ بالمفتاحِ.",
   },
-  
-  
-  
-  
-
-  
-  
-  
-  
 
   {
     table: "queue_backpressure_events",
