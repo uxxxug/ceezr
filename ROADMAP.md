@@ -6595,3 +6595,8 @@ bulkhead + بديلٌ لكلِّ اعتماديّةٍ (تلغرام · الخر�
 - تركيبُ الحاصرِ في `index.ts` عبر `limiterFor`
 - إضافةُ القياسِ في `tests/unit/rate-limit-enforced.test.ts`
 - تحديثُ `ROUTE_POLICY_COUNT` من 94 إلى 95 و`LIMITED_ROUTE_COUNT` من 8 إلى 9
+
+## F12-17 — إصلاح تعليق طور الترحيل (2026-09-18)
+
+إضافةُ `-- migration-phase: expand` إلى ترحيلِ `20260918190000_f12_17_commission_policy.sql`
+لا يغيّرُ السلوكَ — البيانُ نفسُه `INSERT ... ON CONFLICT DO NOTHING`.
