@@ -144,7 +144,7 @@ describe("صلاحيّةُ نداءِ أوامرِ المشغِّلِ (D-24)", (
     const inputs = defaultInputs();
     const key = inputs.commands
       .map((command) => command.namedScript)
-      .find((name): name is string => name?.includes("apps/miniapp#"));
+      .find((name): name is string => name !== undefined && name.includes("apps/miniapp#"));
     expect(key).toBeDefined();
     expect(inputs.definedNamedScripts).toContain(key ?? "");
   });
