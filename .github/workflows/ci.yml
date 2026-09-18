@@ -801,10 +801,11 @@ jobs:
           bun run scripts/emit-run-manifest.ts /tmp/run-manifests/verify.json
 
       # F9-05: الحاجزُ الساكن — يقرأُ البصمةَ ويحكمُ على كمالِ حقولِها.
-      - name: بصمةُ التشغيل — حاجز (F9-05)
+      - name: بصمةُ التشغيل — حاجز (verify) (F9-05)
         if: always()
         env:
           RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: verify
         run: bun run scripts/check-run-manifest.ts
 
       # F12-06: الشعارُ والباركودُ في المركبة — روابطُ قراءةٍ موقَّعةٌ.
@@ -1258,6 +1259,7 @@ jobs:
         if: always()
         env:
           RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: integration
         run: bun run scripts/check-run-manifest.ts
 
   # وظيفةٌ ثالثةٌ لا خطوةٌ في القائمتَين: هذه وحدَها تُخاطِب خدمةً خارجيّةً حقيقيّةً
@@ -1409,6 +1411,7 @@ jobs:
         if: always()
         env:
           RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: real-redis
         run: bun run scripts/check-run-manifest.ts
 
   # ── F5-06 / SCL-008: برهانُ البنيةِ متعدّدِ المثيلاتِ في CI ──────────────────
@@ -1498,4 +1501,5 @@ jobs:
         if: always()
         env:
           RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: chaos-multi-instance
         run: bun run scripts/check-run-manifest.ts

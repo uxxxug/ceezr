@@ -90,7 +90,7 @@ function main(): void {
     timestamp: new Date().toISOString(),
   };
 
-  writeFileSync(output, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  writeFileSync(output, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   console.log(`✓ بصمةُ التشغيلِ كُتِبَت في ${output}`);
   console.log(`  الوظيفة: ${manifest.job} · الحكم: ${manifest.verdict}`);
 }
