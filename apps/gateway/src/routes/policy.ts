@@ -21,11 +21,15 @@
 
 import { type Context, Hono } from "hono";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 
 export interface PolicyRouteDependencies {
   /** غيابُها يُعطِّل المسارَ بـ503 ولا يجعلُه يُجيبُ بلا تحقّقٍ. */
   readonly sql?: Sql;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /** حدُّ المعدَّلِ للمسارِ العلنيِّ — يُركَّبُ في `index.ts`. */
+  readonly perAddress?: RateLimiter;
 }
 
 interface PolicySettingRow {
@@ -37,7 +41,7 @@ interface PolicySettingRow {
 const UNAVAILABLE_STATUS = 503 as const;
 const NOT_FOUND_STATUS = 404 as const;
 
-function rejected(c: Context, error: string, status: 400 | 404 | 503) {
+function rejected(c: Context, error: string, status: 400 | 404 | 429 | 503) {
   return c.json({ ok: false, error }, status);
 }
 
@@ -45,6 +49,13 @@ export function createPolicyRoutes(deps: PolicyRouteDependencies): Hono {
   const app = new Hono();
 
   app.get("/v1/policy", async (c) => {
+    if (deps.perAddress !== undefined) {
+      const decision = await deps.perAddress.hit(
+        `policy:${clientAddress(c.req.header("x-forwarded-for"))}`,
+      );
+      const exceeded = rateLimitRejection(c, decision);
+      if (exceeded !== null) return exceeded;
+    }
     if (deps.sql === undefined) {
       deps.log?.("policy.route_disabled", {});
       return rejected(c, "POLICY_NOT_AVAILABLE", UNAVAILABLE_STATUS);
