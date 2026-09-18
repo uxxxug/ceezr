@@ -968,6 +968,13 @@ jobs:
       - name: سقوطُ حاجزِ صلاحيّةِ النداءِ مقيسٌ بسالبةٍ مزروعةٍ ومنها العطبُ التاريخيُّ (ح-7)
         run: bun test tests/unit/check-runner-command-validity.test.ts
 
+      # F9-04: حتميّةُ بذرةِ القياس — الدوالُّ الصرفةُ تُنتجُ البصمةَ نفسَها.
+      - name: حتميّةُ بذرةِ القياس — بصمةٌ ثابتةٌ وUUIDv5 صالح (F9-04)
+        run: bun run scripts/check-bench-seed-determinism.ts
+
+      - name: سقوطُ حاجزِ حتميّةِ البذرةِ مقيسٌ بسالبةٍ مزروعةٍ (ح-7)
+        run: bun test tests/unit/bench-determinism.test.ts
+
       - name: لا نصّ ظاهر للمستخدم مكتوب داخل منطق الحوار
         run: |
           if grep -rnE '(reply\(sender, ")[^t]' packages/application/bots/ ; then

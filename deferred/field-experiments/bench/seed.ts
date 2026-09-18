@@ -29,18 +29,27 @@
  * على المسار الحقيقيّ نفسِه.
  */
 
-import { createHash } from "node:crypto";
 import type { Sql } from "../../../packages/infrastructure/db/client.ts";
+import {
+  benchUuid,
+  computeSeedFingerprint,
+  DEFAULT_SEED_FINGERPRINT,
+  DEFAULT_SEED_PLAN,
+  SEED_EPOCH,
+  type SeedPlan,
+  VEHICLE_TYPES,
+} from "../../../scripts/lib/bench-seed-fingerprint.ts";
 import { assertConnectedToBenchDatabase, BENCH_TELEGRAM_ID_MIN } from "./isolation.ts";
 
-/**
- * لحظةٌ ثابتة يُشتقّ منها كلُّ زمنٍ ذي معنىً في البذر.
- *
- * وثباتُها هو ما يجعل `trial_ends_at` قابلاً للمقارنة بين تشغيلين. ولو اشتُقّ من
- * `Date.now()` لاختلف في كلّ ثانية، فاختلفت البصمة، فصار كلُّ تشغيلٍ يبدأ من
- * حالةٍ «مختلفة» بلا أن يكون اختلافُه ذا معنى.
- */
-export const SEED_EPOCH = new Date("2026-01-01T00:00:00.000Z");
+export {
+  benchUuid,
+  computeSeedFingerprint,
+  DEFAULT_SEED_FINGERPRINT,
+  DEFAULT_SEED_PLAN,
+  SEED_EPOCH,
+  type SeedPlan,
+  VEHICLE_TYPES,
+};
 
 const DAY_MS = 86_400_000;
 
@@ -49,9 +58,6 @@ export const BENCH_DRIVER_TELEGRAM_BASE = BENCH_TELEGRAM_ID_MIN;
 /** ونطاقُ العملاء منفصلٌ عنه بمسافةٍ واسعة، فلا يتراكبان مهما كبر المقياس. */
 export const BENCH_RIDER_TELEGRAM_BASE = BENCH_TELEGRAM_ID_MIN + 100_000;
 
-/** أنواعُ المركبات — منسوخةٌ عن عقد المنتج بترتيبها لأن البذر يوزّعها دوريّاً. */
-const VEHICLE_TYPES = ["sedan", "suv", "van", "motorcycle"] as const;
-
 export const SEEDED_TABLES = [
   "users",
   "drivers",
@@ -59,32 +65,6 @@ export const SEEDED_TABLES = [
   "subscriptions",
   "driver_capabilities",
 ] as const;
-
-export interface SeedPlan {
-  readonly drivers: number;
-  readonly riders: number;
-}
-
-export const DEFAULT_SEED_PLAN: SeedPlan = { drivers: 20, riders: 10 };
-
-/**
- * معرّفٌ مُشتقٌّ اشتقاقاً تامّاً من اسمه (UUIDv5، فضاءُ أسماءٍ خاصٌّ بالقياس).
- *
- * ولماذا v5 لا مجرّد قصٍّ لتلبيدة؟ لأن v5 يضبط رقمَ الإصدار وبتّاتَ الصنف، فيكون
- * الناتجُ UUID صالحاً يقبله عمودُ `uuid` وأيُّ أداةٍ تقرؤه — لا سلسلةً تشبه UUID.
- */
-export function benchUuid(name: string): string {
-  const namespace = "1b671a64-40d5-491e-99b0-da01ff1f3341";
-  const nsBytes = Buffer.from(namespace.replace(/-/g, ""), "hex");
-  const hash = createHash("sha1").update(nsBytes).update(name, "utf8").digest();
-  const bytes = Buffer.from(hash.subarray(0, 16));
-  const b6 = bytes[6] ?? 0;
-  const b8 = bytes[8] ?? 0;
-  bytes[6] = (b6 & 0x0f) | 0x50;
-  bytes[8] = (b8 & 0x3f) | 0x80;
-  const hex = bytes.toString("hex");
-  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
-}
 
 export interface SeedResult {
   readonly plan: SeedPlan;
@@ -226,17 +206,9 @@ export async function seed(sql: Sql, plan: SeedPlan = DEFAULT_SEED_PLAN): Promis
     cities: cities.map((c) => ({ id: c.id, code: c.code })),
     insertedRows,
     durationMs: (Bun.nanoseconds() - started) / 1e6,
-    fingerprint: createHash("sha256")
-      .update(
-        JSON.stringify({
-          drivers: plan.drivers,
-          riders: plan.riders,
-          epoch: SEED_EPOCH.toISOString(),
-          cities: cities.map((c) => c.code),
-          vehicleTypes: VEHICLE_TYPES,
-        }),
-      )
-      .digest("hex")
-      .slice(0, 16),
+    fingerprint: computeSeedFingerprint(
+      plan,
+      cities.map((c) => c.code),
+    ),
   };
 }
