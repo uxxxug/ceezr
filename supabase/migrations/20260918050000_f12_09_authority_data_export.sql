@@ -98,6 +98,11 @@ $$;
 comment on function authority_data_request_is_overdue(uuid) is
   'F12-09: هل انقضى موعدُ تزويدِ الهيئةِ بلا تسليمٍ.';
 
+revoke execute on function authority_data_request_deadline(authority_request_urgency, timestamptz) from public, anon, authenticated;
+grant execute on function authority_data_request_deadline(authority_request_urgency, timestamptz) to service_role;
+revoke execute on function authority_data_request_is_overdue(uuid) from public, anon, authenticated;
+grant execute on function authority_data_request_is_overdue(uuid) to service_role;
+
 -- ── ٥) إنشاءُ الطلب ──────────────────────────────────────────────────────────
 
 create or replace function create_authority_data_request(
