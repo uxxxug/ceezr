@@ -109,6 +109,17 @@ create policy breach_incidents_service_role_all
 revoke all on breach_incidents from public, anon, authenticated;
 grant select, insert, update on breach_incidents to service_role;
 
+-- ── ٦.٥) سلبُ التنفيذِ من الأدوارِ العامّةِ ───────────────────────────────────
+-- `SEC-10` · `ADR 0140`: لا دالّةً تُنفَّذُ بلا سياسةٍ صريحةٍ. والافتراضُ في
+-- PostgreSQL: `EXECUTE` لِـ`public` ما لم يُسلب. فهذه سلبٌ صريحٌ من ثلاثةِ أدوارٍ.
+revoke execute on function authority_notification_deadline(timestamptz) from public, anon, authenticated;
+revoke execute on function authority_notification_is_overdue(uuid) from public, anon, authenticated;
+revoke execute on function subject_notification_required(uuid) from public, anon, authenticated;
+revoke execute on function record_breach_incident(uuid, uuid, text, timestamptz, timestamptz) from public, anon, authenticated;
+revoke execute on function assess_breach_incident(uuid, breach_severity, text[], integer, text[], text, text, text) from public, anon, authenticated;
+revoke execute on function mark_authority_notified(uuid) from public, anon, authenticated;
+revoke execute on function mark_subjects_notified(uuid) from public, anon, authenticated;
+
 -- ── ٧) دالّةُ الموعدِ والانقضاءِ ─────────────────────────────────────────────
 
 -- موعدُ إبلاغِ الهيئةِ: ٧٢ ساعةً من وقتِ العلمِ. دالّةٌ نقيّةٌ (`immutable`).
