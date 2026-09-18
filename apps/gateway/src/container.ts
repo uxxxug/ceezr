@@ -29,6 +29,7 @@ import type {
 import type { UpdateDriverLocationDeps } from "../../../packages/application/geo/update-driver-location.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
 import type { TriggerSosPort } from "../../../packages/application/safety/ports.ts";
+import { CachedRoutingProvider } from "../../../packages/application/tracking/cached-routing-provider.ts";
 import {
   type CustomerLiveRelay,
   createCustomerLiveRelay,
@@ -704,7 +705,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    */
   const routing: RoutingProvider | null =
     config.routingProvider === "osrm" && config.osrmBaseUrl !== null
-      ? createOsrmProvider({ baseUrl: config.osrmBaseUrl })
+      ? new CachedRoutingProvider(createOsrmProvider({ baseUrl: config.osrmBaseUrl }))
       : null;
 
   const liveTracking = createLiveTracking({

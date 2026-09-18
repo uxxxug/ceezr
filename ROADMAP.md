@@ -6621,3 +6621,18 @@ bulkhead + بديلٌ لكلِّ اعتماديّةٍ (تلغرام · الخر�
 إصلاحُ هجرةِ `20260918200000_cap_012_route_cache_thresholds.sql`:
 - استخدامُ `cross join cities` بدلَ سلاسلَ نصيّةٍ لـ city_id (العمود UUID)
 - value_type = `number` لا `integer` (قيدُ الفحصِ يسمحُ number/string/boolean/array)
+
+## CAP-012 — وصل طبقة التخزين بمسار ETA (2026-09-18)
+
+وصلُ طبقةِ تخزينِ المساراتِ بالمسارِ الفعليِّ للـETA:
+- `packages/application/tracking/cached-routing-provider.ts` — `CachedRoutingProvider`
+  يُغلِّفُ `RoutingProvider` بـ`InMemoryRouteCache`، فيُخزِّنُ `RouteResult` كاملةً
+  (بما فيها `snap`) ولا يُعيدُ نداءَ المزوّدِ إلّا عند تغيُّرٍ ذي معنى.
+- `apps/gateway/src/container.ts` — المزوّدُ مُغلَّفٌ بـ`CachedRoutingProvider`،
+  فجميعُ مستدعِي `routing.route()` (read-active-ride · driver-trip-card) يمرُّون
+  عبرَ التخزين.
+- 7 اختباراتِ وحدةٍ: النداءُ الأولُ يستدعي المزوّدَ · cache hit لا يستدعيه ·
+  تغيُّر غير ذي معنى لا يستدعيه · تغيُّر ذو معنى يستدعيه · فشلُ المزوّد يعيد
+  الخطأ · النتيجةُ المخزَّنةُ تشملُ snap.
+- حارسُ `check-route-cache-policy.ts` يفحصُ أنّ `container.ts` يُغلِّفُ المزوّدَ
+  بـ`CachedRoutingProvider`، لا فقطَ أنّ `ride-channel.ts` لا ينادي `estimateArrival`.
