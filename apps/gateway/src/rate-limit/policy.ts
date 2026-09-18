@@ -1088,6 +1088,24 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
     ],
     exemption: null,
   },
+
+  {
+    method: "GET",
+    path: "/v1/policy",
+    file: "apps/gateway/src/routes/policy.ts",
+    exposure: "قبلَ المصادقةِ",
+    limits: [
+      {
+        limit: 30,
+        windowSeconds: 60,
+        keyDimension: "عنوانُ العميلِ",
+        wiredIn: 'apps/gateway/src/index.ts:limiterFor("GET", "/v1/policy", "عنوانُ العميلِ")',
+        rationale:
+          "سياسةٌ علنيّةٌ تُقرأُ من القاعدةِ: لا سرَّ ولا حسابَ توقيعٍ ولا كتابةَ حالةٍ — وثلاثونَ نداءً في الدقيقةِ فوقَ ما يقرأُه إنسانٌ في جلسةٍ واحدةٍ، وتحتَ ما يُغرقُ القاعدةَ بسؤالٍ واحدٍ متكرّرٍ. والحدُّ بعنوانِ العميلِ لا بجلسةٍ: المسارُ بلا مصادقةٍ فلا مفتاحَ غيرُه.",
+      },
+    ],
+    exemption: null,
+  },
 ];
 
 /**
@@ -1098,8 +1116,8 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * والإعفاءاتُ **ثلاثةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها — وكلُّها محدودٌ فعلُها
  * في القاعدةِ لا في عدَّادٍ.
  */
-export const ROUTE_POLICY_COUNT = 94;
-export const LIMITED_ROUTE_COUNT = 8;
+export const ROUTE_POLICY_COUNT = 95;
+export const LIMITED_ROUTE_COUNT = 9;
 export const EXEMPT_ROUTE_COUNT = 3;
 
 /** حدودُ مسارٍ بعينِه — يُعيدُ مصفوفةً فارغةً لِما لا حدَّ له. */

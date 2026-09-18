@@ -1170,6 +1170,11 @@ const app = createServer({
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
+  policy: {
+    sql: container.sql,
+    perAddress: limiterFor("GET", "/v1/policy", "عنوانُ العميلِ"),
+    log,
+  },
 });
 
 /**
