@@ -992,6 +992,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "الهويةُ والجلسةُ والصلاحيات",
     documentedIn: null,
   },
+  {
+    migration: "20260918080000_f12_12_zatca_phase2.sql",
+    change: "revoke_function:issue_subscription_invoice(1)",
+    why: "الهجرةُ `20260918080000` (`F12-12`) تُعيدُ تعريفَ `issue_subscription_invoice(uuid)` بـ`create or replace` **لتُدرجَ عناصرَ المرحلةِ الثانيةِ من الفوترةِ الإلكترونيّةِ** (UUID، تجزئة، PIH، ICV، UBL XML، حالةُ إبلاغ) في INSERT واحدٍ مع عناصرِ المرحلةِ الأولى. والتوقيعُ (uuid) والمردُّ (jsonb) كما هما — لكنَّ INSERT زادَ ستّةَ أعمدةٍ، والقيدُ `subscription_invoices_phase2_all_or_none` يُلزِمُ الكلَّ أو لا شيء. والسحبُ بعدَه **إعادةُ قفلِ السطحِ كما كانَ لا تضييقٌ جديدٌ**: الدالّةُ كانت لـ`service_role` وحدَها قبلَ التغييرِ وتبقى كذلكَ بعدَه، و`create or replace` لا تُسقِطُ منحاً قائماً — فالسطرُ تكرارٌ مقصودٌ ليكفيَ الملفُّ بذاتِه إن أُعيدَ بناءُ القاعدةِ. **ولا كسرَ لنسخةٍ سابقةٍ**: شيفرةٌ لا تعرفُ أعمدةَ المرحلةِ الثانيةِ تُصدِرُ فاتورةً بلا UUID وتجزئةٍ — وهوَ عيبُ امتثالٍ لا فقدُ بياناتٍ. **والعودةُ بالصورةِ السابقةِ تكفي**: أقصى أثرِها أنَّ الفواتيرَ تعودُ بلا عناصرِ المرحلةِ الثانيةِ — وذاكَ عيبُ امتثالٍ لا فقدُ بياناتٍ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الدفعُ والاشتراك",
+    documentedIn: null,
+  },
 ];
 
 /**
