@@ -3220,6 +3220,18 @@ a {
   cursor: pointer;
 }
 
+.djb__summary {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-button-color, #2481cc);
+  border-radius: 0.6rem;
+  background: var(--tg-button-color, #2481cc);
+  color: var(--tg-button-text-color, #fff);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.5rem;
+}
+
 .djb__done {
   margin: 0;
   padding: 0.6rem 0.8rem;
@@ -4328,4 +4340,109 @@ a {
   color: var(--tg-destructive-text-color);
   text-align: center;
   font-size: 0.875rem;
+}
+
+/* ── dsm: ملخَّصُ رحلةِ السائقِ (`F12-05`) ────────────────────────────────── */
+
+.dsm {
+  padding: 1rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.dsm__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.dsm__rider-card {
+  padding: 0.75rem;
+  background: var(--tg-secondary-bg-color, #f0f0f0);
+  border-radius: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.dsm__rider-card h2 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--tg-hint-color, #999);
+}
+
+.dsm__rider-name,
+.dsm__rider-rating {
+  font-size: 0.9375rem;
+  margin: 0.25rem 0;
+}
+
+.dsm__duration,
+.dsm__distance {
+  font-size: 0.875rem;
+  margin: 0.5rem 0;
+  color: var(--tg-hint-color, #999);
+}
+
+.dsm__rate-form {
+  margin-top: 1.5rem;
+}
+
+.dsm__rate-form h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 0 0.75rem;
+}
+
+.dsm__stars {
+  display: flex;
+  gap: 0.25rem;
+  border: none;
+  margin-bottom: 0.75rem;
+}
+
+.dsm__stars legend {
+  font-size: 0.8125rem;
+  color: var(--tg-hint-color, #999);
+  margin-bottom: 0.25rem;
+}
+
+.dsm__stars button {
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+}
+
+.dsm__comment {
+  width: 100%;
+  min-height: 4rem;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+}
+
+.dsm__submit {
+  width: 100%;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: var(--tg-button-color, #2481cc);
+  color: var(--tg-button-text-color, #fff);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dsm__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.dsm__already-rated {
+  margin-top: 1rem;
+  font-size: 0.875rem;
+  color: var(--tg-hint-color, #999);
 }

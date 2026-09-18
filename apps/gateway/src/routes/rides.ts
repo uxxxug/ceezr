@@ -415,6 +415,7 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
 
     const { state, duration, straightLine, eligibility } = read.view;
     const driver = state.driver;
+    const rider = state.rider;
     return c.json({
       ok: true,
       found: true as const,
@@ -450,10 +451,19 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
               ratingAverage: driver.ratingAverage,
               ratingCount: driver.ratingCount,
             },
+      rider:
+        rider === null
+          ? null
+          : {
+              firstName: rider.firstName,
+              ratingAverage: rider.ratingAverage,
+              ratingCount: rider.ratingCount,
+            },
       rating: {
         // حكمُ النطاقِ **وحكمُ القاعدةِ** معاً: الأوّلُ يُترجَمُ نصّاً والثاني
         // هوَ المُلزِمُ، وتنافرُهما عطبٌ يُرى في الردِّ لا يُطوى فيه.
         eligibility,
+        direction: state.rating.direction,
         canRate: state.rating.canRate,
         alreadyRated: state.rating.alreadyRated,
         windowHours: state.rating.windowHours,

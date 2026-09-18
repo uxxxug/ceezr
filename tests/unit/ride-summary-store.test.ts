@@ -67,7 +67,13 @@ function summary(overrides: Record<string, unknown> = {}): Record<string, unknow
       rating_average: "4.70",
       rating_count: 31,
     },
-    rating: { already_rated: false, window_hours: 48, window_closed: false, can_rate: true },
+    rating: {
+      direction: "rider_to_driver",
+      already_rated: false,
+      window_hours: 48,
+      window_closed: false,
+      can_rate: true,
+    },
     ...overrides,
   };
 }
@@ -120,6 +126,7 @@ describe("قارئُ الملخَّصِ — تحويلُ الحمولةِ", () =
       ratingCount: 31,
     });
     expect(state.rating).toEqual({
+      direction: "rider_to_driver",
       alreadyRated: false,
       windowHours: 48,
       windowClosed: false,

@@ -58,8 +58,19 @@ export interface RideSummaryDriver {
   readonly ratingCount: number;
 }
 
+/** بطاقةُ الراكبِ في ملخَّصِ السائقِ — **بلا هاتفٍ ولا معرِّفَ تلغرام**. */
+export interface RideSummaryRider {
+  /** الاسمُ الأوّلُ وحدَه — و`null` غيابٌ لا نصٌّ فارغٌ. */
+  readonly firstName: string | null;
+  /** `null` = لا تقييمَ بعدُ. **ولا يُستبدَلُ برقمٍ افتراضيٍّ.** */
+  readonly ratingAverage: number | null;
+  readonly ratingCount: number;
+}
+
 /** وقائعُ حالةِ التقييمِ كما قاسَتها القاعدةُ **بساعتِها**. */
 export interface RideSummaryRatingState {
+  /** الاتّجاهُ المستنتَجُ من هويّةِ المُقيِّمِ — `rider_to_driver` أو `driver_to_rider`. */
+  readonly direction: string;
   readonly alreadyRated: boolean;
   /** طولُ النافذةِ بالساعاتِ كما قُرِئَ من الإعدادِ (أو بديلِه المُصرَّحِ). */
   readonly windowHours: number;
@@ -85,6 +96,8 @@ export interface RideSummaryState {
   /** وترُ الخطِّ المستقيمِ بالأمتارِ — `null` = **لا وجهةَ**، لا صفرَ. */
   readonly straightLineMeters: number | null;
   readonly driver: RideSummaryDriver | null;
+  /** بطاقةُ الراكبِ — `null` ما لم يكنِ المنظورُ منظورَ السائقِ. (`F12-05`) */
+  readonly rider: RideSummaryRider | null;
   readonly rating: RideSummaryRatingState;
 }
 

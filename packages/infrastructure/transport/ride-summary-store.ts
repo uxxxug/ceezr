@@ -42,6 +42,7 @@ import type {
   RideRatingVerdict,
   RideSummaryDriver,
   RideSummaryReader,
+  RideSummaryRider,
   RideSummaryState,
   RideSummaryVerdict,
 } from "../../application/transport/ride-summary-ports.ts";
@@ -95,6 +96,15 @@ function readDriver(value: unknown): RideSummaryDriver | null {
     firstName: readText(value.first_name),
     vehicleType: readText(value.vehicle_type),
     plateNumber: readText(value.plate_number),
+    ratingAverage: readNumber(value.rating_average),
+    ratingCount: readCount(value.rating_count) ?? 0,
+  };
+}
+
+function readRider(value: unknown): RideSummaryRider | null {
+  if (!isRecord(value)) return null;
+  return {
+    firstName: readText(value.first_name),
     ratingAverage: readNumber(value.rating_average),
     ratingCount: readCount(value.rating_count) ?? 0,
   };
@@ -165,6 +175,9 @@ export function createRideSummaryReader(sql: Sql): RideSummaryReader {
       const windowHours = readNumber(rating.window_hours);
       if (windowHours === null) return err(failed("STORE_ERROR"));
 
+      const direction = readText(rating.direction);
+      if (direction === null) return err(failed("STORE_ERROR"));
+
       const state: RideSummaryState = {
         orderId,
         status,
@@ -181,7 +194,9 @@ export function createRideSummaryReader(sql: Sql): RideSummaryReader {
         // و**العَدَمُ ههنا يعني «لا وجهةَ»** لا «صفرَ أمتارٍ».
         straightLineMeters: readNumber(result.straight_line_meters),
         driver: readDriver(result.driver),
+        rider: readRider(result.rider),
         rating: {
+          direction,
           alreadyRated: rating.already_rated,
           windowHours,
           windowClosed: rating.window_closed,

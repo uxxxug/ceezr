@@ -58,12 +58,22 @@ export type ApiStraightLine =
   | { readonly known: true; readonly meters: number }
   | { readonly known: false; readonly reason: string };
 
+export interface ApiRideSummaryRider {
+  /** الاسمُ الأوّلُ وحدَه — كما في بطاقةِ السائقِ. */
+  readonly firstName: string | null;
+  /** `null` = لا تقييمَ بعدُ. */
+  readonly ratingAverage: number | null;
+  readonly ratingCount: number;
+}
+
 export interface ApiRideRatingState {
   /** تصنيفُ النطاقِ — يُترجَمُ نصّاً. */
   readonly eligibility: string;
   /** حكمُ القاعدةِ — **هوَ المُلزِمُ**، ويُقرأُ معَ التصنيفِ لا بدلاً منه. */
   readonly canRate: boolean;
   readonly alreadyRated: boolean;
+  /** اتّجاهُ التقييمِ — `rider_to_driver` أو `driver_to_rider`. */
+  readonly direction: string;
   readonly windowHours: number;
   readonly windowClosed: boolean;
 }
@@ -85,6 +95,7 @@ export type RideSummaryResponse =
       readonly duration: ApiRideDuration;
       readonly straightLine: ApiStraightLine;
       readonly driver: ApiRideSummaryDriver | null;
+      readonly rider: ApiRideSummaryRider | null;
       readonly rating: ApiRideRatingState;
     }
   | { readonly ok: true; readonly found: false; readonly refusal: string };

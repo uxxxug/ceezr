@@ -1885,4 +1885,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/mutual-rating.test.ts",
+    suites: ["F12-05 — التقييمُ المتبادلُ: منظورُ السائقِ في الملخَّصِ"],
+    skipped: 8,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "التقييمُ المتبادلُ منظورٌ في القاعدةِ لا في الذاكرةِ: `completed_ride_summary` تستنتجُ المنظورَ من علاقةِ الطلبِ، و`submit_rating_with_tags` تستنتجُ الاتّجاهَ من هويّةِ المُقيِّمِ، والقيدُ الفريدُ على `(order_id, direction)` يمنعُ التكرارَ لكلِّ اتّجاهٍ لا لكلِّ طلبٍ. وكلُّها أحكامٌ في القاعدةِ لا يقدرُ عليها مزدوجٌ في الذاكرةِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;

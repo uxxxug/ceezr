@@ -32,7 +32,17 @@ create or replace function active_ride_snapshot(p_telegram_id bigint, p_order_id
 returns jsonb as $$
 begin
   if v_order.assigned_driver_id is not null and v_order.status in ('matched','in_progress') then
-    v_driver := jsonb_build_object('position', jsonb_build_object('age_seconds', 4));
+    v_driver_name := nullif(split_part(coalesce(trim(v_full_name), ''), ' ', 1), '');
+    select d.vehicle_type, d.plate_number, d.rating_average, d.rating_count
+      into v_vehicle_type, v_plate_number, v_rating_average, v_rating_count;
+    v_driver := jsonb_build_object(
+      'first_name', v_driver_name,
+      'vehicle_type', v_vehicle_type,
+      'plate_number', v_plate_number,
+      'rating_average', v_rating_average,
+      'rating_count', v_rating_count,
+      'position', jsonb_build_object('age_seconds', 4)
+    );
   end if;
   return jsonb_build_object('driver', v_driver);
 end;
@@ -41,12 +51,26 @@ revoke execute on function active_ride_snapshot(bigint, uuid) from public, anon,
 `;
 
 const PORTS = `
+export interface ActiveRideDriver {
+  readonly firstName: string | null;
+  readonly vehicleType: string | null;
+  readonly plateNumber: string | null;
+  readonly ratingAverage: number | null;
+  readonly ratingCount: number;
+}
 export interface ActiveRideState {
   readonly driver: ActiveRideDriver | null;
 }
 `;
 
 const CONTRACT = `
+export type ApiActiveRideDriver = {
+  readonly firstName: string | null;
+  readonly vehicleType: string | null;
+  readonly plateNumber: string | null;
+  readonly ratingAverage: number | null;
+  readonly ratingCount: number;
+};
 export type ActiveRideResponse = {
   readonly driver: ApiActiveRideDriver | null;
   readonly lat: number;
@@ -138,6 +162,36 @@ describe("القاعدة ٢ — لا سائقَ بلا إسنادٍ", () => {
   it("شاشةٌ ترسمُ السائقَ بلا فحصِ عدمِه تُسقِطُ الحاجزَ", () => {
     const problems = driverGateProblems(input({ screen: "const name = view.driver.firstName;" }));
     expect(problems.some((text) => text.includes("view.driver === null"))).toBe(true);
+  });
+
+  it("لقطةٌ بلا مفتاحِ vehicle_type تُسقِطُ الحاجزَ (F12-05)", () => {
+    const problems = driverGateProblems(
+      input({ sql: SQL.replace("'vehicle_type'", "/* removed */") }),
+    );
+    expect(problems.some((text) => text.includes("vehicle_type"))).toBe(true);
+  });
+
+  it("منفذٌ بلا firstName تُسقِطُ الحاجزَ (F12-05)", () => {
+    const problems = driverGateProblems(input({ ports: PORTS.replace("firstName", "dummyName") }));
+    expect(problems.some((text) => text.includes("firstName"))).toBe(true);
+  });
+
+  it("عقدٌ بلا plateNumber تُسقِطُ الحاجزَ (F12-05)", () => {
+    const problems = driverGateProblems(
+      input({ contract: CONTRACT.replace("plateNumber", "dummyPlate") }),
+    );
+    expect(problems.some((text) => text.includes("plateNumber"))).toBe(true);
+  });
+
+  it("حقولٌ في الإعلاناتِ لا في كائنِ السائقِ تُسقِطُ الحاجزَ (F12-05)", () => {
+    // أزِلْ المفاتيحَ من كائنِ السائقِ معَ إبقاءِ الإعلاناتِ.
+    const sqlNoJsonKeys = SQL.replace("'first_name'", "/* removed */")
+      .replace("'vehicle_type'", "/* removed */")
+      .replace("'plate_number'", "/* removed */")
+      .replace("'rating_average'", "/* removed */")
+      .replace("'rating_count'", "/* removed */");
+    const problems = driverGateProblems(input({ sql: sqlNoJsonKeys }));
+    expect(problems.some((text) => text.includes("vehicle_type"))).toBe(true);
   });
 });
 

@@ -65,6 +65,8 @@ export interface JobScreenProps {
   readonly start?: (orderId: string) => Promise<unknown>;
   readonly complete?: (orderId: string) => Promise<unknown>;
   readonly openLink?: (url: string) => unknown;
+  /** يُستدعى عند إتمامِ الرحلةِ لفتحِ شاشةِ الملخصِّ (`F12-05`). */
+  readonly onCompleted?: (orderId: string) => void;
 }
 
 type JobState =
@@ -75,7 +77,7 @@ type JobState =
 type ActState =
   | { readonly kind: "idle" }
   | { readonly kind: "busy" }
-  | { readonly kind: "done"; readonly key: string }
+  | { readonly kind: "done"; readonly key: string; readonly completedOrderId: string | undefined }
   | { readonly kind: "failed"; readonly key: string };
 
 function codeOf(thrown: unknown): string {
@@ -111,6 +113,7 @@ function StampRow({
 export function JobScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  onCompleted,
   readJob = readDriverActiveJob,
   arrive = markDriverArrived,
   start = startDriverRide,
@@ -146,7 +149,11 @@ export function JobScreen({
         job.action === "MARK_ARRIVED" ? arrive : job.action === "START_RIDE" ? start : complete;
       try {
         await writer(job.orderId);
-        setAct({ kind: "done", key: DONE_KEY[job.action] });
+        setAct({
+          kind: "done",
+          key: DONE_KEY[job.action],
+          completedOrderId: job.action === "COMPLETE_RIDE" ? job.orderId : undefined,
+        });
         // **القاعدةُ تقولُ الطَورَ التاليَ**: لا تُحرَّكُ الشاشةُ بتخمينٍ محليٍّ.
         await load();
       } catch (thrown) {
@@ -282,6 +289,18 @@ export function JobScreen({
         <p className="djb__done" role="status">
           {t(act.key)}
         </p>
+      ) : null}
+      {act.kind === "done" &&
+      act.key === DONE_KEY.COMPLETE_RIDE &&
+      onCompleted !== undefined &&
+      act.completedOrderId !== undefined ? (
+        <button
+          type="button"
+          className="djb__summary"
+          onClick={() => onCompleted(act.completedOrderId as string)}
+        >
+          {t("driver.job.viewSummary")}
+        </button>
       ) : null}
       {act.kind === "failed" ? (
         <p className="djb__error" role="status">
