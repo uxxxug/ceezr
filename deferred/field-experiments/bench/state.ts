@@ -45,47 +45,24 @@
 
 import { createHash } from "node:crypto";
 import type { Sql } from "../../../packages/infrastructure/db/client.ts";
+import {
+  canonicalizeRowJson,
+  emptyDigest,
+  PORTABLE_DIGEST_ROW_LIMIT,
+  type StateSnapshot,
+  type TableState,
+  VOLATILE_COLUMNS,
+} from "../../../scripts/lib/bench-state-compare.ts";
 import { listOperationalTables, MIGRATION_OWNED_TABLES, quoteIdent } from "./schema.ts";
 
-/** أعمدةٌ تُكتَب من ساعة الجدار، فلا تدخل بصمةَ الحالة المنطقيّة. */
-export const VOLATILE_COLUMNS = ["created_at", "updated_at"] as const;
-
-export interface TableState {
-  readonly table: string;
-  readonly rows: number;
-  /** بصمةُ محتوى الجدول بعد استثناء الأعمدة المتغيّرة بالزمن. صالحةٌ داخل القاعدة نفسِها. */
-  readonly digest: string;
-  /** البصمةُ نفسُها بعد تقييس الهويّات التي تُسنِدها القاعدةُ عشوائياً. صالحةٌ بين القواعد. */
-  readonly portableDigest: string;
-}
-
-/**
- * سقفُ الصفوف التي تُقيَّس بصمتُها المنقولة في جدولٍ واحد.
- *
- * والسقفُ موجودٌ لأن التقييسَ يجري في العملية لا في القاعدة (استبدالٌ نصّيّ
- * لمعرّفاتٍ مُسنَدة)، فهو يحمل صفوفَ الجدول في الذاكرة. وحين يُتجاوَز السقف
- * **يُرفَع خطأٌ ولا تُحسَب بصمةٌ ناقصة**: بصمةٌ على جزءٍ من الجدول تبدو بصمةً
- * كاملةً وتُخفي فرقاً — وهذا بالضبط صنفُ الخطأ الذي وُجدت هذه الوحدةُ لمنعه.
- */
-export const PORTABLE_DIGEST_ROW_LIMIT = 250_000;
-
-export interface StateSnapshot {
-  readonly database: string;
-  readonly capturedAt: string;
-  /** الجداولُ غيرُ الفارغة وحدها، مرتّبةً بالاسم. الفارغةُ لا تُذكَر: ذكرُها يُضخّم الصورة بلا معلومة. */
-  readonly tables: readonly TableState[];
-  /**
-   * الجداولُ التي لا يمحوها `reset` — المخطّطُ وما تبذره الترحيلاتُ وما تضبطه
-   * التهيئة. تُصوَّر ولا تُمحى.
-   *
-   * ولماذا تُصوَّر إن كانت محفوظة؟ لأن «محفوظة» تعني أنّ الأداةَ لا تمسّها، لا
-   * أنّها لا تتغيّر: مدينةٌ عُطّلت بين تجربتين، أو إعدادٌ تجاريٌّ عُدِّل، يُغيّران
-   * نتيجةَ القياس تغييراً جذريّاً ولا يظهران في أيّ جدولٍ تشغيليّ. فتركُها بلا
-   * تصويرٍ كان سيُنتج تجربتين «متطابقتي الحالة» ونتيجتين مختلفتين بلا تفسير.
-   */
-  readonly preserved: readonly TableState[];
-  readonly totalRows: number;
-}
+export {
+  canonicalizeRowJson,
+  compareStates,
+  formatComparison,
+  type StateSnapshot,
+  type TableState,
+  VOLATILE_COLUMNS,
+} from "../../../scripts/lib/bench-state-compare.ts";
 
 /**
  * يبني خريطةَ تقييسٍ من المعرّف المُسنَد إلى اسمه المنطقيّ الثابت.
@@ -115,21 +92,6 @@ export async function buildIdentityAliases(sql: Sql): Promise<ReadonlyMap<string
   }
 
   return aliases;
-}
-
-const UUID_PATTERN = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
-
-/**
- * يستبدل في نصّ الصفّ كلَّ معرّفٍ مُسنَدٍ من القاعدة باسمه المنطقيّ.
- *
- * دالّةٌ صرفةٌ عن قصد: منطقُ التقييس هو موضعُ الخطأ المحتمل (استبدالٌ ناقص أو
- * زائد)، فيجب أن يكون مُختبَراً بلا قاعدةِ بيانات. وما ليس في الخريطة يبقى كما
- * هو — لأن معرّفات البذر مُشتقّةٌ اشتقاقاً فهي محمولةٌ أصلاً، واستبدالُها بلا
- * حاجةٍ كان سيطمر فرقاً حقيقياً.
- */
-export function canonicalizeRowJson(json: string, aliases: ReadonlyMap<string, string>): string {
-  if (aliases.size === 0) return json;
-  return json.replace(UUID_PATTERN, (match) => aliases.get(match.toLowerCase()) ?? match);
 }
 
 export async function captureState(sql: Sql): Promise<StateSnapshot> {
@@ -191,7 +153,7 @@ async function portableDigest(
   rowCount: number,
   aliases: ReadonlyMap<string, string>,
 ): Promise<string> {
-  if (rowCount === 0) return createHash("md5").update("").digest("hex");
+  if (rowCount === 0) return emptyDigest();
   if (rowCount > PORTABLE_DIGEST_ROW_LIMIT) {
     throw new Error(
       `[bench/state] «${table}» فيه ${rowCount} صفّاً وسقفُ البصمة المنقولة ${PORTABLE_DIGEST_ROW_LIMIT}. ` +
@@ -205,107 +167,4 @@ async function portableDigest(
   );
   const canonical = rows.map((row) => canonicalizeRowJson(row.j, aliases)).sort();
   return createHash("md5").update(canonical.join("|")).digest("hex");
-}
-
-export type StateDifferenceKind =
-  | "missing_table"
-  | "extra_table"
-  | "row_count"
-  | "content"
-  | "identity_only";
-
-export interface StateDifference {
-  readonly kind: StateDifferenceKind;
-  readonly table: string;
-  readonly detail: string;
-}
-
-export interface StateComparison {
-  readonly identical: boolean;
-  readonly differences: readonly StateDifference[];
-  /**
-   * جداولُ حالتُها المنطقيّة متطابقةٌ واختلفت فيها المعرّفاتُ التي تُسنِدها
-   * القاعدةُ عشوائياً. ولا تُعدَّ فروقاً (فلا تُسقِط `identical`) لأنّها ليست
-   * فرقاً في ما يقيسه القياس؛ وتُذكر ولا تُخفَى لأنّ ظهورَها داخل قاعدةٍ
-   * واحدةٍ يعني أنّ شيئاً أعاد بذرَ الجداول المملوكة للترحيلات — وهذا خبرٌ جلل.
-   */
-  readonly identityOnly: readonly StateDifference[];
-}
-
-/**
- * مقارنةٌ آليّةٌ لا بصريّة، وتُسمّي ما اختلف لا أنّه اختلف.
- *
- * وتفصيلُ الفرق مقصود: «الحالتان مختلفتان» جوابٌ لا يُفيد من يُصلح. أمّا
- * «`drivers` كان 20 وصار 40» فيقول إنّ إعادةَ البذر ضاعفت ولم تُعِد — وهو
- * بالضبط العطبُ الذي تحرس منه هذه المقارنة.
- *
- * والمقارنةُ تجري على **البصمة المنقولة**، لأنّ السّؤال المقصود دائماً هو هل
- * الحالةُ المنطقيّة واحدة، لا هل أسندت القاعدةُ المعرّفاتَ العشوائيّة نفسَها.
- * وداخل قاعدةٍ واحدة لا يضعُف هذا شيئاً: الأسماءُ المقيّسة ثابتةٌ فهناك كلُّ
- * فرقٍ خامٍ يظهر فرقاً منقولاً أيضاً، إلاّ أن تُبذرَ الجداولُ المملوكة من جديد.
- */
-export function compareStates(before: StateSnapshot, after: StateSnapshot): StateComparison {
-  const differences: StateDifference[] = [];
-  const identityOnly: StateDifference[] = [];
-  const beforeMap = new Map([...before.tables, ...before.preserved].map((t) => [t.table, t]));
-  const afterMap = new Map([...after.tables, ...after.preserved].map((t) => [t.table, t]));
-
-  for (const [table, left] of beforeMap) {
-    const right = afterMap.get(table);
-    if (right === undefined) {
-      differences.push({
-        kind: "missing_table",
-        table,
-        detail: `كان فيه ${left.rows} صفّاً وصار فارغاً`,
-      });
-      continue;
-    }
-    if (left.rows !== right.rows) {
-      differences.push({
-        kind: "row_count",
-        table,
-        detail: `عدد الصفوف ${left.rows} ← ${right.rows}`,
-      });
-      continue;
-    }
-    if (left.portableDigest !== right.portableDigest) {
-      differences.push({
-        kind: "content",
-        table,
-        detail: `العدد نفسه (${left.rows}) لكن المحتوى مختلف: ${left.portableDigest.slice(0, 12)} ← ${right.portableDigest.slice(0, 12)}`,
-      });
-      continue;
-    }
-    if (left.digest !== right.digest) {
-      identityOnly.push({
-        kind: "identity_only",
-        table,
-        detail: `الحالة المنطقيّة نفسُها (${left.rows} صفّاً)، واختلفت المعرّفاتُ المُسنَدة: ${left.digest.slice(0, 12)} ← ${right.digest.slice(0, 12)}`,
-      });
-    }
-  }
-
-  for (const [table, right] of afterMap) {
-    if (!beforeMap.has(table)) {
-      differences.push({
-        kind: "extra_table",
-        table,
-        detail: `كان فارغاً وصار فيه ${right.rows} صفّاً`,
-      });
-    }
-  }
-
-  return { identical: differences.length === 0, differences, identityOnly };
-}
-
-export function formatComparison(comparison: StateComparison): string {
-  const lines = [...comparison.differences, ...comparison.identityOnly].map(
-    (d) => `- [${d.kind}] ${d.table}: ${d.detail}`,
-  );
-  if (comparison.identical) {
-    return comparison.identityOnly.length === 0
-      ? "الحالتان متطابقتان منطقيّاً."
-      : `الحالتان متطابقتان منطقيّاً، مع اختلاف معرّفاتٍ مُسنَدةٍ من القاعدة:\n${lines.join("\n")}`;
-  }
-  return lines.join("\n");
 }

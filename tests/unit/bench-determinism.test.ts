@@ -17,12 +17,12 @@ import {
   DEFAULT_SEED_FINGERPRINT,
   DEFAULT_SEED_PLAN,
   SEED_EPOCH,
-} from "../../deferred/field-experiments/bench/seed.ts";
+} from "../../scripts/lib/bench-seed-fingerprint.ts";
 import {
   canonicalizeRowJson,
   compareStates,
   type StateSnapshot,
-} from "../../deferred/field-experiments/bench/state.ts";
+} from "../../scripts/lib/bench-state-compare.ts";
 
 const UUID_V5_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
