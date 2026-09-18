@@ -335,10 +335,15 @@ describeIf("آليّةُ بلاغِ المفقودِ على PostgreSQL حقيق�
   it("صفٌّ بلا سائقٍ يُوجَدُ يُهجَرُ ولا يُعطِّلُ غيرَه", async () => {
     const opened = await openTicket({ telegramId: RIDER_TELEGRAM, orderId: completedOrderId });
     expect(opened.ok).toBe(true);
-    // محادثةُ السائقِ قُطِعَت قبلَ الالتقاطِ: telegram_id = null فلا محادثةَ
-    // تُقرأُ — فالصفُّ يُهجَرُ لا يُعادُ أبداً. (لا يُحذَفُ السائقُ لأنَّ الطلبَ
-    // يَحيلُ إليه بقيدِ مفتاحٍ أجنبيٍّ، فيُكتفى بنزعِ المحادثةِ.)
-    await sql`update users set telegram_id = null where id = ${driverUserId}::uuid`;
+    // السائقُ غيرُ قابلٍ للوصولِ: نُبدِّلُ driver_id في الحمولةِ بمعرّفٍ لا سائقَ
+    // له — فالالتقاطُ يَفشَلُ في قراءةِ المحادثةِ، والمعالجُ يُهجِرُ الصفَّ.
+    // (لا يُحذَفُ السائقُ المُسنَدُ لأنَّ الطلبَ يَحيلُ إليه بقيدِ مفتاحٍ أجنبيٍّ،
+    // ولا يُمكنُ تفريغُ telegram_id لأنَّ العمودَ not null.)
+    await sql`
+      update notification_outbox
+         set payload = jsonb_set(payload, '{driver_id}', to_jsonb('00000000-0000-0000-0000-000000000000'))
+       where kind = 'lost_item_report'
+    `;
 
     const sent: Sent[] = [];
     const report = await run(sent);
