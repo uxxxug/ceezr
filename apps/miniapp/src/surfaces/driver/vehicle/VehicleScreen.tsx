@@ -1,7 +1,7 @@
 /**
  * الغرض: شاشةُ مركبةِ السائقِ — بياناتُ المركبةِ الأساسيّةُ ووثائقُها الثلاثُ
- *   والشعارُ والباركودُ (`F3-07` · `SD-11`).
- * الحالة: مبنيٌّ — البند `F3-07`.
+ *   والشعارُ والباركودُ (`F3-07` · `SD-11` · `F12-06`).
+ * الحالة: مبنيٌّ — البندُ `F3-07` · `F12-06`.
  * ينتمي إلى: apps/miniapp/src/surfaces/driver/vehicle
  * يُستخدم من: `DriverRoot.tsx`
  * الحاكم: docs/adr/0094-project-independence.md · docs/adr/0115-a-document-expires-so-the-block-is-a-clock-not-a-flag.md
@@ -10,7 +10,6 @@
  *
  *   ــ **لا ترفعُ بايتاً**: رفعُ الشعارِ والباركودِ يمرُّ عبرَ `F3-01`.
  *   ــ **لا تُولِّدُ باركوداً**: توليدُهُ من الشعارِ عملُ عرضٍ.
- *   ــ **لا تُوقِّعُ روابطَ قراءةٍ**: عرضُ الشعارِ والباركودِ دَينٌ مُعلَنٌ.
  *   ــ **لا تُفعِّلُ تيليجرامَ**: `showScanQrPopup` يُستدعى من الشاشةِ.
  */
 
@@ -22,8 +21,10 @@ import {
 } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
 import {
+  type ApiDriverVehicleAssetsReadResponse,
   type ApiDriverVehicleResponse,
   readDriverVehicle,
+  readDriverVehicleAssets,
   updateDriverVehicle,
 } from "./vehicle-api.ts";
 import {
@@ -37,6 +38,7 @@ export interface VehicleScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
   readonly readVehicle?: () => Promise<ApiDriverVehicleResponse>;
+  readonly readAssets?: () => Promise<ApiDriverVehicleAssetsReadResponse>;
 }
 
 type VehicleState =
@@ -62,11 +64,16 @@ export function VehicleScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
   readVehicle = readDriverVehicle,
+  readAssets = readDriverVehicleAssets,
 }: VehicleScreenProps) {
   const t = miniAppTranslator(language);
   const formId = useId();
   const [state, setState] = useState<VehicleState>({ kind: "loading" });
   const [saveState, setSaveState] = useState<SaveState>({ kind: "idle" });
+  const [assetUrls, setAssetUrls] = useState<{
+    logo: string | null;
+    barcode: string | null;
+  }>({ logo: null, barcode: null });
 
   // نموذج التحرير
   const [vehicleType, setVehicleType] = useState<string>("");
@@ -81,10 +88,26 @@ export function VehicleScreen({
       setVehicleType(response.vehicle_type ?? "");
       setPlateNumber(response.plate_number ?? "");
       setVehicleYear(response.vehicle_year !== null ? String(response.vehicle_year) : "");
+      // تحميل روابط القراءة الموقعة للشعار والباركود بعد قراءة المركبة.
+      // لا يُعطَّل قراءة المركبة بغياب المُوقِّع — روابطُ القراءةِ تكميليّةٌ.
+      if (response.logo_object_path !== null || response.barcode_object_path !== null) {
+        try {
+          const assets = await readAssets();
+          setAssetUrls({
+            logo: assets.logoReadUrl,
+            barcode: assets.barcodeReadUrl,
+          });
+        } catch {
+          // غيابُ روابطِ القراءةِ لا يُسقِطُ الشاشةَ — الحالةُ تُعرَضُ نصّاً.
+          setAssetUrls({ logo: null, barcode: null });
+        }
+      } else {
+        setAssetUrls({ logo: null, barcode: null });
+      }
     } catch (error) {
       setState({ kind: "failed", code: codeOf(error) });
     }
-  }, [readVehicle]);
+  }, [readVehicle, readAssets]);
 
   useEffect(() => {
     void load();
@@ -221,7 +244,13 @@ export function VehicleScreen({
           <div className="dveh__card dveh__card--logo">
             <h2 className="dveh__card-title">{t("driver.vehicle.section.logo_barcode")}</h2>
             <p className="dveh__logo-hint">{t("driver.vehicle.logo.hint")}</p>
-            {state.vehicle.logoObjectPath !== null ? (
+            {assetUrls.logo !== null ? (
+              <img
+                className="dveh__logo-image"
+                src={assetUrls.logo}
+                alt={t("driver.vehicle.logo.set")}
+              />
+            ) : state.vehicle.logoObjectPath !== null ? (
               <p className="dveh__logo-status dveh__logo-status--set">
                 {t("driver.vehicle.logo.set")}
               </p>
@@ -230,7 +259,13 @@ export function VehicleScreen({
                 {t("driver.vehicle.logo.unset")}
               </p>
             )}
-            {state.vehicle.barcodeObjectPath !== null ? (
+            {assetUrls.barcode !== null ? (
+              <img
+                className="dveh__barcode-image"
+                src={assetUrls.barcode}
+                alt={t("driver.vehicle.barcode.set")}
+              />
+            ) : state.vehicle.barcodeObjectPath !== null ? (
               <p className="dveh__logo-status dveh__logo-status--set">
                 {t("driver.vehicle.barcode.set")}
               </p>

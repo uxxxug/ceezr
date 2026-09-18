@@ -14,6 +14,7 @@
 
 import { apiFetch } from "../../../api/client.ts";
 import type {
+  ApiDriverVehicleAssetsReadResponse,
   ApiDriverVehicleAssetsResponse,
   ApiDriverVehicleResponse,
   ApiDriverVehicleUpdateResponse,
@@ -45,5 +46,11 @@ export function updateDriverVehicleAssets(
   return apiFetch<ApiDriverVehicleAssetsResponse>("/v1/driver/vehicle/assets", {
     method: "POST",
     body: JSON.stringify({ logoObjectPath, barcodeObjectPath }),
+  });
+}
+
+export function readDriverVehicleAssets(): Promise<ApiDriverVehicleAssetsReadResponse> {
+  return apiFetch<ApiDriverVehicleAssetsReadResponse>("/v1/driver/vehicle/assets", {
+    method: "GET",
   });
 }
