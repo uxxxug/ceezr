@@ -68,6 +68,34 @@ export interface SeedPlan {
 export const DEFAULT_SEED_PLAN: SeedPlan = { drivers: 20, riders: 10 };
 
 /**
+ * بصمةُ خطةِ البذر — دالّةٌ صرفةٌ تُحسَب بلا قاعدةِ بيانات.
+ *
+ * وُضِعَت ههنا لتُختبَر وحدَها: حتميّةُ البذر ليست زعمَ تشغيلٍ واحدٍ، بل
+ * برهانٌ آليٌّ أنّ المدخلاتِ نفسَها تُنتجُ البصمةَ نفسَها — وأنّ مدخلاتٍ مختلفةً
+ * تُنتجُ بصمةً مختلفة. وهذا هو ما يجعل البذرةَ «قابلةً لإعادة الإنتاج»:
+ * ليست لأنّها تعمل، بل لأنّ انكسارَ حتميّتِها يُسقِطُ البناء.
+ */
+export function computeSeedFingerprint(plan: SeedPlan, cityCodes: readonly string[]): string {
+  return createHash("sha256")
+    .update(
+      JSON.stringify({
+        drivers: plan.drivers,
+        riders: plan.riders,
+        epoch: SEED_EPOCH.toISOString(),
+        cities: cityCodes,
+        vehicleTypes: VEHICLE_TYPES,
+      }),
+    )
+    .digest("hex")
+    .slice(0, 16);
+}
+
+export const DEFAULT_SEED_FINGERPRINT = computeSeedFingerprint(
+  DEFAULT_SEED_PLAN,
+  [], // بصمةُ الكود وحدَه — بلا مدنٍ لأنّ المدنَ تأتي من القاعدة.
+);
+
+/**
  * معرّفٌ مُشتقٌّ اشتقاقاً تامّاً من اسمه (UUIDv5، فضاءُ أسماءٍ خاصٌّ بالقياس).
  *
  * ولماذا v5 لا مجرّد قصٍّ لتلبيدة؟ لأن v5 يضبط رقمَ الإصدار وبتّاتَ الصنف، فيكون
@@ -226,17 +254,9 @@ export async function seed(sql: Sql, plan: SeedPlan = DEFAULT_SEED_PLAN): Promis
     cities: cities.map((c) => ({ id: c.id, code: c.code })),
     insertedRows,
     durationMs: (Bun.nanoseconds() - started) / 1e6,
-    fingerprint: createHash("sha256")
-      .update(
-        JSON.stringify({
-          drivers: plan.drivers,
-          riders: plan.riders,
-          epoch: SEED_EPOCH.toISOString(),
-          cities: cities.map((c) => c.code),
-          vehicleTypes: VEHICLE_TYPES,
-        }),
-      )
-      .digest("hex")
-      .slice(0, 16),
+    fingerprint: computeSeedFingerprint(
+      plan,
+      cities.map((c) => c.code),
+    ),
   };
 }
