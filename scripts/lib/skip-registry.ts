@@ -1941,4 +1941,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/zatca-phase2.test.ts",
+    suites: ["F12-12 — امتثال ZATCA المرحلة الثانية: UUID وتجزئة وPIH وICV وUBL"],
+    skipped: 6,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `F12-12` هوَ **أنَّ القاعدةَ تُولِّدُ عناصرَ المرحلةِ الثانيةِ وتُسلسِلُها**: UUID فريدٌ لكلِّ فاتورةٍ، وتجزئةٌ ثابتةٌ (SHA-256)، وPIH يطابقُ التجزئةَ السابقةَ (بذرةُ ZATCA لأولِ فاتورةٍ)، وICV متسلسلٌ لا ينقصُ، وUBL 2.1 XML يحوي ProfileID وInvoiceTypeCode وUUID وICV وPIH. وكلُّها دوالَّ في القاعدةِ (`zatca_generate_invoice_uuid` و`zatca_invoice_hash` و`zatca_previous_invoice_hash` و`zatca_next_invoice_counter` و`zatca_generate_ubl_xml` و`zatca_verify_invoice_chain`) لا يقدرُ عليها مزدوجٌ في الذاكرةِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20260918080000 لامتثالِ ZATCA). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;

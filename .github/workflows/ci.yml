@@ -784,6 +784,11 @@ jobs:
       - name: امتثال PDPL — أساسُ معالجةٍ وحقوقٌ وDPIA ونقلٌ (F12-10)
         run: bun run scripts/check-pdpl-compliance.ts
 
+      # F12-12: المرحلةُ الثانيةُ من الفوترةِ الإلكترونيّةِ لـZATCA — UUID، تجزئة،
+      # PIH، ICV، UBL 2.1، حالةُ إبلاغ. والكشفُ الفارغُ لا يُقرأُ نجاحاً (`ح-7`).
+      - name: امتثال ZATCA المرحلة الثانية — UUID وتجزئة وPIH وUBL (F12-12)
+        run: bun run scripts/check-zatca-phase2.ts
+
       # F12-06: الشعارُ والباركودُ في المركبة — روابطُ قراءةٍ موقَّعةٌ.
       # وجودُ المسارِ والمُوقِّعِ والقارئِ والعَرضِ في كلِّ ملفٍّ يمسُّه.
       # والكشفُ الفارغُ لا يُقرأُ نجاحاً (`ح-7`).
@@ -1093,6 +1098,13 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/pdpl-compliance.test.ts
+
+      # F12-12: اختباراتُ المرحلةِ الثانيةِ من امتثال ZATCA على PostgreSQL حقيقيٍّ.
+      # بذرةُ PIH · دوالُ UUID والتجزئة والعدّاد · UBL XML · سلسلةُ الفواتير.
+      - name: امتثال ZATCA المرحلة الثانية (F12-12)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/zatca-phase2.test.ts
 
       # `SEC-10` · ADR 0140: الحاجزُ الساكنُ يُثبِتُ أنَّ `RLS` **مكتوبٌ**، وهذا
       # يُثبِتُ ما **تفعلُه القاعدةُ** بدورٍ `nobypassrls` يُنشِئُه الاختبارُ: منعٌ
