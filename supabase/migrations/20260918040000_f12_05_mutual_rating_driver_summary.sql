@@ -41,6 +41,7 @@ declare
   v_rider_id uuid;
   v_driver_id     uuid;
   v_order         record;
+  v_order_found   boolean := false;
   v_is_driver     boolean := false;
   v_vehicle_type   text;
   v_plate_number   text;
@@ -67,7 +68,20 @@ begin
   -- المنظورُ يُستنتَجُ من علاقةِ الطلبِ تحديداً لا من دورٍ مُسبَقٍ:
   -- راكبٌ يرى الطلبَ الذي rider_id له، وسائقٌ مُسنَدٌ يرى الطلبَ الذي assigned_driver_id
   -- له. ومن ليسَ طرفاً لا يرى شيئاً.
+  --
+  -- **وهويّتا المجالِ (`v_rider_id` · `v_driver_id`) تُقرآنِ معاً أوّلاً** — لا
+  -- بترتيبٍ متتاليٍ يُخفي الحالةَ الثالثةَ: مستخدمٌ له صفٌّ في `users` (وربّما
+  -- سُجِّل بدورٍ ما) ولا صفَّ له في `riders` ولا في `drivers`. هذه الحالةُ ترُدُّ
+  -- `RIDER_NOT_REGISTERED` **قبلَ** أيِّ مساسٍ بـ`v_order`، لأنَّ `v_order`
+  -- سجلٌّ (`record`) لا يجوزُ ذِكرُ حقلٍ منه قبلَ أن يُسنَدَ إليه شيءٌ — والإسنادُ
+  -- هنا مشروطٌ بوجودِ طلبٍ فعلاً، فلا يجوزُ اتّخاذُ `v_order.id is null` حارساً
+  -- على أصلٍ لم يُقرأ قط (`55000`: `record "v_order" is not assigned yet`).
   select r.id into v_rider_id from riders r where r.user_id = v_user_id;
+  select d.id into v_driver_id from drivers d where d.user_id = v_user_id;
+
+  if v_rider_id is null and v_driver_id is null then
+    return jsonb_build_object('ok', false, 'error', 'RIDER_NOT_REGISTERED');
+  end if;
 
   if v_rider_id is not null then
     -- راكبٌ: ابحث عن الطلبِ بصفتهِ راكبَه.
@@ -98,74 +112,46 @@ begin
     from orders o
     where o.id = p_order_id and o.rider_id = v_rider_id;
 
-    if v_order.id is null then
-      -- ليسَ راكبَ هذا الطلبِ: قد يكونُ سائقَه. ابحث في السائقين.
-      select d.id into v_driver_id from drivers d where d.user_id = v_user_id;
-      if v_driver_id is not null then
-        v_is_driver := true;
-        select o.id,
-               o.status,
-               o.service,
-               o.city_id,
-               o.assigned_driver_id,
-               o.rider_id,
-               o.pickup_label,
-               o.dropoff_label,
-               o.created_at,
-               o.matched_at,
-               o.started_at,
-               o.completed_at,
-               case
-                 when o.started_at is null or o.completed_at is null then null
-                 else greatest(
-                   0,
-                   floor(extract(epoch from (o.completed_at - o.started_at)))::bigint
-                 )
-               end as duration_seconds,
-               case
-                 when o.dropoff is null then null
-                 else round(st_distance(o.pickup, o.dropoff)::numeric, 1)
-               end as straight_line_meters
-          into v_order
-        from orders o
-        where o.id = p_order_id and o.assigned_driver_id = v_driver_id;
-      end if;
-    end if;
-  else
-    -- ليسَ راكاً أصلاً: ابحث في السائقين.
-    select d.id into v_driver_id from drivers d where d.user_id = v_user_id;
-    if v_driver_id is not null then
-      v_is_driver := true;
-      select o.id,
-             o.status,
-             o.service,
-             o.city_id,
-             o.assigned_driver_id,
-             o.rider_id,
-             o.pickup_label,
-             o.dropoff_label,
-             o.created_at,
-             o.matched_at,
-             o.started_at,
-             o.completed_at,
-             case
-               when o.started_at is null or o.completed_at is null then null
-               else greatest(
-                 0,
-                 floor(extract(epoch from (o.completed_at - o.started_at)))::bigint
-               )
-             end as duration_seconds,
-             case
-               when o.dropoff is null then null
-               else round(st_distance(o.pickup, o.dropoff)::numeric, 1)
-             end as straight_line_meters
-        into v_order
-      from orders o
-      where o.id = p_order_id and o.assigned_driver_id = v_driver_id;
+    v_order_found := found;
+  end if;
+
+  if not v_order_found and v_driver_id is not null then
+    -- ليسَ راكبَ هذا الطلبِ (أو ليسَ راكباً أصلاً): ابحث بصفتِه سائقَه.
+    v_is_driver := true;
+    select o.id,
+           o.status,
+           o.service,
+           o.city_id,
+           o.assigned_driver_id,
+           o.rider_id,
+           o.pickup_label,
+           o.dropoff_label,
+           o.created_at,
+           o.matched_at,
+           o.started_at,
+           o.completed_at,
+           case
+             when o.started_at is null or o.completed_at is null then null
+             else greatest(
+               0,
+               floor(extract(epoch from (o.completed_at - o.started_at)))::bigint
+             )
+           end as duration_seconds,
+           case
+             when o.dropoff is null then null
+             else round(st_distance(o.pickup, o.dropoff)::numeric, 1)
+           end as straight_line_meters
+      into v_order
+    from orders o
+    where o.id = p_order_id and o.assigned_driver_id = v_driver_id;
+
+    v_order_found := found;
+    if not v_order_found then
+      v_is_driver := false;
     end if;
   end if;
 
-  if v_order.id is null then
+  if not v_order_found then
     return jsonb_build_object('ok', false, 'error', 'ORDER_NOT_FOUND');
   end if;
 
