@@ -132,6 +132,13 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   agent_outcomes: RETENTION_CLASSES.pendingDecision,
   attendance_log: RETENTION_CLASSES.pendingDecision,
   audit_log: RETENTION_CLASSES.auditUnboundedUntilCompliance,
+  /**
+   * `F12-08`: سجلُّ حوادثِ اختراقِ البياناتِ الشخصيّةِ — المادةُ ٢٤ من اللائحةِ
+   * التنفيذيّةِ لـPDPL تُلزِمُ بالاحتفاظِ بنسخِ البلاغاتِ والإجراءاتِ
+   * التصحيحيّةِ والأدلّةِ. ولا مدّةَ محسومةً بعدُ (`pendingDecision`)،
+   * و`F12-10` يَحكُمُ في أرشفتِهِ.
+   */
+  breach_incidents: RETENTION_CLASSES.pendingDecision,
   broadcast_campaigns: RETENTION_CLASSES.pendingDecision,
   broadcast_recipients: RETENTION_CLASSES.pendingDecision,
   cities: RETENTION_CLASSES.lifecycleBound,

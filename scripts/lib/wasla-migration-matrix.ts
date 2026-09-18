@@ -273,6 +273,7 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
   { ...noMigration("agent_outcomes") },
   { ...noMigration("attendance_log") },
   { ...noMigration("authority_data_requests") },
+  { ...noMigration("breach_incidents") },
   {
     table: "audit_log",
     mechanism: "SPLIT_TABLE",
