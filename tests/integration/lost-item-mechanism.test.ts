@@ -341,7 +341,7 @@ describeIf("آليّةُ بلاغِ المفقودِ على PostgreSQL حقيق�
     // ولا يُمكنُ تفريغُ telegram_id لأنَّ العمودَ not null.)
     await sql`
       update notification_outbox
-         set payload = jsonb_set(payload, '{driver_id}', to_jsonb('00000000-0000-0000-0000-000000000000'))
+         set payload = jsonb_set(payload, '{driver_id}', '"00000000-0000-0000-0000-000000000000"'::jsonb)
        where kind = 'lost_item_report'
     `;
 
