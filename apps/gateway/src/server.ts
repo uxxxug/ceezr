@@ -66,6 +66,7 @@ import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
 } from "./routes/payment-webhook.ts";
+import { createPolicyRoutes, type PolicyRouteDependencies } from "./routes/policy.ts";
 import { createQuoteRoutes, type QuoteRouteDependencies } from "./routes/quote.ts";
 import { createRidesRoutes, type RidesRouteDependencies } from "./routes/rides.ts";
 import { createSafetyRoutes, type SafetyRouteDependencies } from "./routes/safety.ts";
@@ -116,6 +117,11 @@ export interface ServerDependencies {
    * غيابُ الحقلِ = لا مسارَ (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`).
    */
   readonly places?: PlacesRouteDependencies;
+  /**
+   * مسارُ السياسةِ (`F12-17`) — اختياريٌّ بنفسِ المنطقِ: غيابُه = لا مسار (`404`)،
+   * وحضورُه بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`).
+   */
+  readonly policy?: PolicyRouteDependencies;
   /**
    * مساراتُ اختيارِ الوجهةِ (`F2-03` / `SR-03`) — كأخواتِها: غيابُ الحقلِ = لا
    * مسارَ (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`). وهيَ **مفصولةٌ**
@@ -264,6 +270,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.places !== undefined) {
     app.route("/", createPlacesRoutes(deps.places));
+  }
+  if (deps.policy !== undefined) {
+    app.route("/", createPolicyRoutes(deps.policy));
   }
   if (deps.quote !== undefined) {
     app.route("/", createQuoteRoutes(deps.quote));

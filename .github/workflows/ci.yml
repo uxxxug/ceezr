@@ -932,6 +932,9 @@ jobs:
       - name: سياسةُ الاستبقاءِ مُعلَنةٌ لكلِّ بياناتٍ تُعمَّرُ (F7-06 · CAP-010)
         run: bun run scripts/check-retention-policy.ts
 
+      - name: سياسةُ العمولةِ مكتوبةٌ ومرئيةٌ (F12-17)
+        run: bun run scripts/check-commission-policy.ts
+
       - name: أمانُ الاستعادةِ — لا هجرةَ تُكسِرُ الرجوعَ (OPS-010)
         run: bun run scripts/check-rollback-safety.ts
 
