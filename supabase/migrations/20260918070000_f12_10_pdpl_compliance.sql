@@ -227,25 +227,25 @@ create table if not exists pdpl_cross_border_transfers (
 
 alter table pdpl_processing_activities enable row level security;
 create policy "service_role full access" on pdpl_processing_activities
-  for all using (true) with check (true);
+  for all to service_role using (true) with check (true);
 revoke all on pdpl_processing_activities from public, anon, authenticated;
 grant select, insert, update on pdpl_processing_activities to service_role;
 
 alter table pdpl_data_subject_requests enable row level security;
 create policy "service_role full access" on pdpl_data_subject_requests
-  for all using (true) with check (true);
+  for all to service_role using (true) with check (true);
 revoke all on pdpl_data_subject_requests from public, anon, authenticated;
 grant select, insert, update on pdpl_data_subject_requests to service_role;
 
 alter table pdpl_dpia_assessments enable row level security;
 create policy "service_role full access" on pdpl_dpia_assessments
-  for all using (true) with check (true);
+  for all to service_role using (true) with check (true);
 revoke all on pdpl_dpia_assessments from public, anon, authenticated;
 grant select, insert, update on pdpl_dpia_assessments to service_role;
 
 alter table pdpl_cross_border_transfers enable row level security;
 create policy "service_role full access" on pdpl_cross_border_transfers
-  for all using (true) with check (true);
+  for all to service_role using (true) with check (true);
 revoke all on pdpl_cross_border_transfers from public, anon, authenticated;
 grant select, insert, update on pdpl_cross_border_transfers to service_role;
 
