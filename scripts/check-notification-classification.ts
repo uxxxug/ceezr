@@ -39,7 +39,16 @@ import {
 } from "../packages/shared/config/notification-kinds.ts";
 
 const MIGRATIONS_DIR = "supabase/migrations";
-const POLICY_MIGRATION_SUFFIX = "_f6_05_notification_classification_and_center.sql";
+
+/**
+ * أنماطُ بذرِ السياسةِ التي تُقرأُ: كتلةُ `cross join (values ...) as k(kind,
+ * description_ar)` نفسُها التي في هجرةِ `F6-05`، أيًّا كانَ ملفُّها. والقراءةُ من
+ * كلِّ الهجراتِ لا من `F6-05` وحدَها: الهجراتُ تُضافُ ولا تُحرَّفُ، فكلُّ نوعٍ جديدٍ
+ * يُبذَرُ في هجرتِهِ هو، والحاجزُ يقرأُ الاتّحادَ كلَّهُ لا آخرَ ملفٍّ فقط. ولو قرأَ
+ * `F6-05` وحدهُ لكانَ كلُّ نوعٍ يُضافُ بعدَهُ يُخفِقُ الحاجزَ أو يُلجئُ إلى تحريفِ ملفٍّ
+ * منشورٍ — وكلاهُما عيبٌ.
+ */
+const SEEDED_KINDS_PATTERN = /cross join \(values([\s\S]*?)\) as k\(kind, description_ar\)/g;
 
 function readMigrations(): { readonly file: string; readonly sql: string }[] {
   return readdirSync(MIGRATIONS_DIR)
@@ -79,15 +88,28 @@ function groupKindsFromFunction(migrations: readonly { file: string; sql: string
   return new Set([...last.matchAll(/'([a-z_]+)'/g)].map((m) => m[1] as string));
 }
 
+/**
+ * أنواعُ السياسةِ المبذورةِ — اتحادُ كلِّ كتلةِ `cross join (values ...) as
+ * k(kind, description_ar)` في كلِّ هجرةٍ. كانت تُقرأُ من هجرةِ `F6-05` وحدَها، فكانَ
+ * كلُّ نوعٍ جديدٍ بعدَها يُلجئُ إلى تحريفِ ملفٍّ منشورٍ أو إخفاقِ الحاجزِ. والقراءةُ
+ * من كلِّ الهجراتِ تحفظُ النصَّ نفسَهُ وتُمَكِّنُ كلَّ نوعٍ جديدٍ من بذرِ سياستِهِ في
+ * هجرتِهِ هو.
+ */
 function seededKindsFromMigration(
   migrations: readonly { file: string; sql: string }[],
 ): Set<string> {
-  const source = migrations.find((entry) => entry.file.endsWith(POLICY_MIGRATION_SUFFIX));
-  if (source === undefined) return new Set();
-  const block = /cross join \(values([\s\S]*?)\) as k\(kind, description_ar\)/.exec(source.sql);
-  const body = block?.[1];
-  if (body === undefined) return new Set();
-  return new Set([...body.matchAll(/\(\s*'([a-z_]+)'/g)].map((m) => m[1] as string));
+  const kinds = new Set<string>();
+  for (const { sql } of migrations) {
+    for (const match of sql.matchAll(SEEDED_KINDS_PATTERN)) {
+      const body = match[1];
+      if (body === undefined) continue;
+      for (const kindMatch of body.matchAll(/\(\s*'([a-z_]+)'/g)) {
+        const kind = kindMatch[1];
+        if (kind !== undefined) kinds.add(kind);
+      }
+    }
+  }
+  return kinds;
 }
 
 function difference(left: ReadonlySet<string>, right: ReadonlySet<string>): string[] {
@@ -126,7 +148,9 @@ export function findViolations(
   const declaredKinds = new Set<string>(declared.kinds);
   const seededKinds = seededKindsFromMigration(migrations);
   if (seededKinds.size === 0) {
-    violations.push(`لم يُعثر على كتلةِ بذرِ السياسةِ في هجرةٍ تنتهي بـ${POLICY_MIGRATION_SUFFIX}.`);
+    violations.push(
+      `لم يُعثر على كتلةِ بذرِ السياسةِ (cross join (values ...) as k(kind, description_ar)) في أيِّ هجرةٍ.`,
+    );
   }
 
   for (const missing of difference(constraintKinds, declaredKinds)) {
@@ -136,10 +160,10 @@ export function findViolations(
     violations.push(`النوعُ «${extra}» مُعلَنٌ في القائمةِ المغلقةِ ولا وجودَ له في قيدِ القاعدةِ.`);
   }
   for (const missing of difference(constraintKinds, seededKinds)) {
-    violations.push(`النوعُ «${missing}» في قيدِ القاعدةِ ولا صفَّ بذرِ سياسةٍ له في هجرةِ F6-05.`);
+    violations.push(`النوعُ «${missing}» في قيدِ القاعدةِ ولا صفَّ بذرِ سياسةٍ له في أيِّ هجرةٍ.`);
   }
   for (const extra of difference(seededKinds, constraintKinds)) {
-    violations.push(`النوعُ «${extra}» مبذورٌ في هجرةِ F6-05 ولا وجودَ له في قيدِ القاعدةِ.`);
+    violations.push(`النوعُ «${extra}» مبذورٌ في هجرةٍ ولا وجودَ له في قيدِ القاعدةِ.`);
   }
 
   for (const kind of declared.kinds) {

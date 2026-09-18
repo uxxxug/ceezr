@@ -124,6 +124,10 @@ export const TRAFFIC_PRIORITY_RANK: Readonly<Record<TrafficPriorityClass, number
  *   التجديدِ كلَّه فأفرغَ الصنفَ الحرجَ من معناه.
  * - `broadcast_recipient` ← **البثُّ الجماعيُّ** نصّاً (منخفضٌ). وهوَ المُنتِجُ
  *   الذي بُنيَ حدُّ المُنتِجِ في `F6-06` لأجلِه.
+ * - `lost_item_report` ← **تحديثُ دعمٍ ذو قيمةٍ زمنيّةٍ** (متوسّطٌ): بلاغٌ إلى
+ *   سائقٍ أن يفتّشَ سيّارتَهُ الآنَ. ليسَ استغاثةً ولا حالةَ رحلةٍ ولا مطالبةَ
+ *   إسنادٍ ذا مؤقّتٍ يجري، فلا يُحمى حمايةَ الحرجِ ولا يُقدَّمَ تقديمَ المرتفعِ؛
+ *   وليسَ في تتابعٍ سببيٍّ مع دورةِ الرحلةِ فيؤجَّلُ بأمانٍ عندَ الإشباعِ.
  */
 export const NOTIFICATION_KIND_PRIORITY: Readonly<Record<NotificationKind, TrafficPriorityClass>> =
   {
@@ -137,6 +141,7 @@ export const NOTIFICATION_KIND_PRIORITY: Readonly<Record<NotificationKind, Traff
     no_driver_found: "medium",
     dispute_resolution: "medium",
     subscription_notice: "medium",
+    lost_item_report: "medium",
     broadcast_recipient: "low",
   };
 

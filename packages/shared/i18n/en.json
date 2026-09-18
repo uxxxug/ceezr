@@ -45,6 +45,7 @@
   "driver.offer_taken": "Another driver took this order first.",
   "driver.order_cancelled_assigned": "The rider cancelled the order you accepted. Do not continue to the pickup.",
   "driver.order_cancelled_offer": "The rider cancelled this order. The offer is no longer available.",
+  "driver.lost_item_report": "🔎 Lost item report: a rider reported losing something in your ride (ticket #{reference}). Please check your car now — if you find anything, reply to this message to let support know.",
   "driver.phone_invalid": "Invalid number. Accepted format: 05XXXXXXXX",
   "driver.phone_must_use_button": "📱 Please tap the share-number button below instead of typing it — one tap, and it guarantees customers reach you on the right number.",
   "driver.phone_not_yours": "🤝 That contact card belongs to someone else. Tap the button below to share your own number — customers will use it to reach you.",

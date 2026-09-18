@@ -45,6 +45,7 @@
   "driver.offer_taken": "Another driver took this order first.",
   "driver.order_cancelled_assigned": "گاہک نے وہ آرڈر منسوخ کر دیا جو آپ نے قبول کیا تھا۔ آگے نہ بڑھیں۔",
   "driver.order_cancelled_offer": "گاہک نے آرڈر منسوخ کر دیا۔ پیشکش اب دستیاب نہیں۔",
+  "driver.lost_item_report": "🔎 گم شدہ اشیاء کی اطلاع: کسی گاہک نے اپنی سواری میں کچھ گم ہونے کی اطلاع دی ہے (ٹکٹ #{reference})۔ براہ کرم اب اپنی گاڑی چیک کریں — اگر کچھ ملتا ہے تو سپورٹ کو بتانے کے لیے اس پیغام کا جواب دیں۔",
   "driver.phone_invalid": "Invalid number. Accepted format: 05XXXXXXXX",
   "driver.phone_must_use_button": "📱 نمبر ٹائپ کرنے کے بجائے نیچے شیئر بٹن دبائیں — ایک ٹیپ، اور گاہک درست نمبر پر آپ تک پہنچیں گے۔",
   "driver.phone_not_yours": "🤝 یہ کسی اور کا رابطہ کارڈ ہے۔ اپنا نمبر شیئر کرنے کے لیے نیچے کا بٹن دبائیں — گاہک اسی نمبر سے آپ تک پہنچیں گے۔",
