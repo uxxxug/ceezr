@@ -1,6 +1,7 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- F12-09 — قدرةُ تزويدِ الهيئةِ بالبيانات: حزمةٌ مُتعلَّمةٌ لا بثٌّ حيٌّ
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- migration-phase: expand
 --
 -- البندُ: F12-09 في §16 — «قدرةُ تزويدِ الهيئةِ بالبياناتِ خلالَ 6 ساعاتٍ
 -- (عاجل) و48 ساعةً (غيرُ عاجل)».
@@ -45,11 +46,6 @@ create table if not exists authority_data_requests (
   created_at      timestamptz not null default now(),
   updated_at      timestamptz not null default now()
 );
-
-create index if not exists authority_data_requests_city_idx
-  on authority_data_requests (city_id, created_at desc);
-create index if not exists authority_data_requests_status_idx
-  on authority_data_requests (status, deadline_at);
 
 create trigger authority_data_requests_set_updated_at before update on authority_data_requests
   for each row execute function set_updated_at();
