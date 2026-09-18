@@ -6600,3 +6600,18 @@ bulkhead + بديلٌ لكلِّ اعتماديّةٍ (تلغرام · الخر�
 
 إضافةُ `-- migration-phase: expand` إلى ترحيلِ `20260918190000_f12_17_commission_policy.sql`
 لا يغيّرُ السلوكَ — البيانُ نفسُه `INSERT ... ON CONFLICT DO NOTHING`.
+
+## CAP-012 — طبقة تخزين المسارات (2026-09-18)
+
+طبقةُ تخزينِ المساراتِ تمنعُ نداءَ مزوّدِ التوجيهِ لكلِّ نبضةِ GPS:
+- `packages/application/tracking/route-cache.ts` — دوالٌ نقيّةٌ: `shouldRecomputeRoute`
+  و`hasMeaningfulChange` و`InMemoryRouteCache`
+- العتباتُ من `platform_settings`: `route_cache_min_change_meters` (50م)
+  و`route_cache_ttl_seconds` (60ث)
+- هجرةُ `20260918200000_cap_012_route_cache_thresholds.sql` تزرعُ العتباتِ لكلِّ مدينة
+- حارسٌ ساكنٌ `scripts/check-route-cache-policy.ts` يمنعُ نداءَ `estimateArrival`
+  مباشرةً في مسارِ البثِّ الحيِّ
+- قاطعُ الدائرةِ موجودٌ (`F8-04`) وسياسةُ ETA مطبَّقةٌ (`ADR 0024`)
+
+**النموذج**: لا مسار إلا عند تغيُّرٍ ذي معنى. لا يُدَّعى أنَّ ETA موصولٌ بالبثِّ الحيِّ —
+ذلك قرارٌ يتوقّفُ على قياسِ الحملِ (ADR 0024 خارج النطاق). ولا `مَقيس` ولا `مُثبَت`.

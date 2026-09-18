@@ -935,6 +935,9 @@ jobs:
       - name: سياسةُ العمولةِ مكتوبةٌ ومرئيةٌ (F12-17)
         run: bun run scripts/check-commission-policy.ts
 
+      - name: سياسةُ تخزينِ المساراتِ — لا نداءَ لكلِّ نبضة (CAP-012)
+        run: bun run scripts/check-route-cache-policy.ts
+
       - name: أمانُ الاستعادةِ — لا هجرةَ تُكسِرُ الرجوعَ (OPS-010)
         run: bun run scripts/check-rollback-safety.ts
 
