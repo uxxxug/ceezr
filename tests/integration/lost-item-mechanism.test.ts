@@ -335,8 +335,10 @@ describeIf("آليّةُ بلاغِ المفقودِ على PostgreSQL حقيق�
   it("صفٌّ بلا سائقٍ يُوجَدُ يُهجَرُ ولا يُعطِّلُ غيرَه", async () => {
     const opened = await openTicket({ telegramId: RIDER_TELEGRAM, orderId: completedOrderId });
     expect(opened.ok).toBe(true);
-    // السائقُ حُذِفَ قبلَ الالتقاطِ: لا محادثةَ تُقرأُ — فالصفُّ يُهجَرُ لا يُعادُ أبداً.
-    await sql`delete from drivers where id = ${driverId}::uuid`;
+    // محادثةُ السائقِ قُطِعَت قبلَ الالتقاطِ: telegram_id = null فلا محادثةَ
+    // تُقرأُ — فالصفُّ يُهجَرُ لا يُعادُ أبداً. (لا يُحذَفُ السائقُ لأنَّ الطلبَ
+    // يَحيلُ إليه بقيدِ مفتاحٍ أجنبيٍّ، فيُكتفى بنزعِ المحادثةِ.)
+    await sql`update users set telegram_id = null where id = ${driverUserId}::uuid`;
 
     const sent: Sent[] = [];
     const report = await run(sent);
