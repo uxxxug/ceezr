@@ -1927,4 +1927,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/pdpl-compliance.test.ts",
+    suites: ["F12-10 — امتثال PDPL: أساسُ المعالجةِ وحقوقُ أصحابِ البياناتِ"],
+    skipped: 6,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `F12-10` هوَ **أنَّ القاعدةَ تَحكُمُ بالسماحِ والرفضِ لا التطبيقُ**: نشاطٌ بلا أساسٍ غيرُ مسموحٍ، ونشاطٌ عاليُ الخطرِ بلا تقييمِ أثرٍ معتمدٍ يُرفَضُ، وتقييمُ أثرٍ معتمدٌ يُغيِّرُ الحُكمَ، ونقلٌ خارجَ المملكةِ مرفوضٌ افتراضياً، والمعتمدُ غيرُ المنتهي وحدَه مسموحٌ، وطلبُ حقٍّ له مهلةٌ ثلاثونَ يوماً وحالاتُ انتقالٍ. وكلُّها أحكامٌ في القاعدةِ (دوالُّ `pdpl_processing_activity_is_allowed` و`pdpl_high_risk_requires_dpia` و`pdpl_cross_border_transfer_allowed` و`pdpl_right_request_deadline`) لا يقدرُ عليها مزدوجٌ في الذاكرةِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20260918070000 لامتثالِ PDPL). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;

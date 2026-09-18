@@ -198,6 +198,11 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
    */
   breach_incidents: reference(),
 
+  pdpl_processing_activities: reference(),
+  pdpl_data_subject_requests: reference(),
+  pdpl_dpia_assessments: reference(),
+  pdpl_cross_border_transfers: reference(),
+
   broadcast_campaigns: {
     disposition: D.retainLegalBasis,
     subjects: [S.admin],

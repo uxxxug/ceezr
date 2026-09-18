@@ -274,6 +274,10 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
   { ...noMigration("attendance_log") },
   { ...noMigration("authority_data_requests") },
   { ...noMigration("breach_incidents") },
+  { ...noMigration("pdpl_processing_activities") },
+  { ...noMigration("pdpl_data_subject_requests") },
+  { ...noMigration("pdpl_dpia_assessments") },
+  { ...noMigration("pdpl_cross_border_transfers") },
   {
     table: "audit_log",
     mechanism: "SPLIT_TABLE",

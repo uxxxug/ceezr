@@ -143,6 +143,24 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   broadcast_recipients: RETENTION_CLASSES.pendingDecision,
   cities: RETENTION_CLASSES.lifecycleBound,
   /**
+   * `F12-10`: سجلُّ أنشطةِ معالجةِ البياناتِ الشخصيّةِ — المادةُ ٣١ من PDPL
+   * تُلزِمُ بالاحتفاظِ بسجلّاتِ أنشطةِ المعالجةِ. ولا مدّةَ محسومةً بعدُ
+   * (`pendingDecision`)، وحين يُحسَمُ النقلُ خارجَ المملكةِ يُحدَّدُ.
+   */
+  pdpl_processing_activities: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `F12-10`: طلباتُ أصحابِ البياناتِ — المادةُ ٤ من PDPL.
+   */
+  pdpl_data_subject_requests: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `F12-10`: تقييماتُ أثرِ المعالجةِ — المادةُ ٢٢ من PDPL.
+   */
+  pdpl_dpia_assessments: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `F12-10`: سجلُّ النقلِ خارجَ المملكةِ — المادةُ ٢٩ من PDPL.
+   */
+  pdpl_cross_border_transfers: RETENTION_CLASSES.pendingDecision,
+  /**
    * `F2-03`: حدُّ منطقةِ الخدمةِ بيانةُ **مرجعٍ** يملكُها المشغِّلُ لا أثرُ
    * مستخدمٍ — عمرُها عمرُ المدينةِ. ولا مهمّةَ تحذفُ منها صفّاً: الإصدارُ
    * القديمُ هوَ ما يُفسَّرُ به قبولٌ مضى، وحذفُه يمحو تفسيرَ قرارٍ اتُّخِذَ.

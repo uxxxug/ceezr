@@ -134,6 +134,7 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale:
       "إبلاغُ الاختراقِ التزامٌ نظاميٌّ (PDPL · المادةُ ٢٤) يملكُه CORE لا MOVE: الحادثُ يتعدّى التطبيقَ ويخصُّ المنصّةَ كلَّها، وسجلُّ الإبلاغِ دليلُ امتثالٍ يحتفظُ به CORE.",
   },
+  
   {
     table: "broadcast_campaigns",
     concern: "حملةُ بثٍّ إداريّةٍ — إشعارٌ",
@@ -329,6 +330,39 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale: "الدفعُ والتفويضُ والاستيفاءُ مملوكةٌ لـCORE، ومنشورةٌ فيه فعلاً.",
   },
   {
+    table: "pdpl_cross_border_transfers",
+    concern: "سجلُّ نقلِ بياناتٍ خارجَ المملكةِ — المادةُ ٢٩ من PDPL",
+    owner: "CORE",
+    disposition: "KEEP",
+    rationale:
+      "ضوابطُ النقلِ خارجَ المملكةِ التزامٌ نظاميٌّ (PDPL · المادةُ ٢٩) يملكُه CORE: النقلُ يتعدّى التطبيقَ ويخصُّ المنصّةَ كلَّها.",
+  },
+  {
+    table: "pdpl_data_subject_requests",
+    concern: "طلبُ صاحبِ بياناتٍ — المادةُ ٤ من PDPL",
+    owner: "CORE",
+    disposition: "KEEP",
+    rationale:
+      "حقوقُ أصحابِ البياناتِ التزامٌ نظاميٌّ (PDPL · المادةُ ٤) يملكُه CORE: الطلبُ يتعدّى التطبيقَ ويخصُّ المنصّةَ كلَّها.",
+  },
+  {
+    table: "pdpl_dpia_assessments",
+    concern: "تقييمُ أثرِ معالجةٍ — المادةُ ٢٢ من PDPL",
+    owner: "CORE",
+    disposition: "KEEP",
+    rationale:
+      "تقييمُ الأثرِ التزامٌ نظاميٌّ (PDPL · المادةُ ٢٢) يملكُه CORE: تقييمُ الخطرِ يخصُّ المنصّةَ كلَّها.",
+  },
+  {
+    table: "pdpl_processing_activities",
+    concern: "سجلُّ نشاطِ معالجةِ بياناتٍ — المادةُ ٣١ من PDPL",
+    owner: "CORE",
+    disposition: "KEEP",
+    rationale:
+      "سجلُّ أنشطةِ المعالجةِ التزامٌ نظاميٌّ (PDPL · المادةُ ٣١) يملكُه CORE لا MOVE: الامتثالُ النظاميُّ يخصُّ المنصّةَ كلَّها.",
+  },
+
+  {
     table: "platform_settings",
     concern: "إعداداتُ المنصّةِ — تشغيليّةٌ وتجاريّةٌ مختلطةٌ",
     owner: "MOVE",
@@ -336,6 +370,16 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale:
       "الإعدادُ التشغيليُّ (نُصُبُ التوزيعِ · عمرُ الموقعِ · حدودُ الطوابيرِ) يبقى، وإعدادُ السعرِ والاشتراكِ يعودُ إلى قواعدِ CORE؛ فمصدرُ الحقيقةِ يُشَقُّ بالمفتاحِ.",
   },
+  
+  
+  
+  
+
+  
+  
+  
+  
+
   {
     table: "queue_backpressure_events",
     concern: "أحداثُ الضغطِ العكسيِّ في طوابيرِ MOVE",

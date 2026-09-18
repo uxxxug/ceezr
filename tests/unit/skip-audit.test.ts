@@ -765,8 +765,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (`ح-8`): والآنَ 120 و 1276 بقياسِ إبلاغِ حوادثِ اختراقِ البياناتِ
     // (`F12-08`) — خمسُ حالاتٍ على قاعدةٍ حقيقيّةٍ: تسجيلُ الحادثِ، وموعدُ
     // ٧٢ ساعةً الثابتُ، وتقييمُ الخطرِ، وكشفُ الانقضاءِ، وإبلاغُ الهيئةِ وأصحابِ البياناتِ.
-    expect(SKIP_REGISTRY).toHaveLength(120);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1276);
+    expect(SKIP_REGISTRY).toHaveLength(121);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1282);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
