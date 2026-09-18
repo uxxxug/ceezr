@@ -33,6 +33,7 @@ import { createMemoryRateLimiter } from "../../apps/gateway/src/rate-limit/fixed
 import { ROUTE_POLICIES } from "../../apps/gateway/src/rate-limit/policy.ts";
 import { createCoreEventIntakeRoutes } from "../../apps/gateway/src/routes/core-event-intake.ts";
 import { createPaymentWebhookRoutes } from "../../apps/gateway/src/routes/payment-webhook.ts";
+import { createPolicyRoutes } from "../../apps/gateway/src/routes/policy.ts";
 import { createPublicTrackingRoutes } from "../../apps/gateway/src/routes/public-tracking.ts";
 import { createSessionRefreshRoutes } from "../../apps/gateway/src/routes/session-refresh.ts";
 import { createSessionTelegramRoutes } from "../../apps/gateway/src/routes/session-telegram.ts";
@@ -96,6 +97,11 @@ const PROBES: readonly Probe[] = [
     name: "GET /api/track/:token/position",
     app: trackingApp(),
     request: () => get(`/api/track/${TOKEN}/position`),
+  },
+  {
+    name: "GET /v1/policy",
+    app: createPolicyRoutes({ perAddress: createMemoryRateLimiter(LIMIT) }),
+    request: () => get("/v1/policy?city_id=00000000-0000-0000-0000-000000000000"),
   },
 ];
 
@@ -177,6 +183,8 @@ function unlimitedFor(
       return createPaymentWebhookRoutes({ confirmDeps: {} as never });
     case "POST /webhook/core-events":
       return createCoreEventIntakeRoutes({ lifecycle: {} as never });
+    case "GET /v1/policy":
+      return createPolicyRoutes({});
     default:
       return null;
   }
