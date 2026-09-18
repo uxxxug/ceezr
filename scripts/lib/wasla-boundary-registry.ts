@@ -119,6 +119,14 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
       "مدخلُ التدقيقِ للشؤونِ المشتركةِ (هويّةٌ · دفعٌ · اشتراكٌ) يملكُه CORE، وأثرُ الإجراءِ التنفيذيِّ يبقى هنا؛ فيُشَقُّ بالمصدرِ لا يُنقَلُ جملةً.",
   },
   {
+    table: "authority_data_requests",
+    concern: "طلبُ تزويدِ الهيئةِ بالبياناتِ — سجلُّ طلبٍ وحزمةِ بياناتٍ مُولَّدةٌ",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale:
+      "تزويدُ الهيئةِ بالبياناتِ قدرةٌ تشغيليّةٌ ميدانيّةٌ يملكُها MOVE؛ الطلبُ والحزمةُ يُولَّدانِ من جداولِ MOVE المُصنَّفةِ أصلاً.",
+  },
+  {
     table: "broadcast_campaigns",
     concern: "حملةُ بثٍّ إداريّةٍ — إشعارٌ",
     owner: "CORE",

@@ -182,6 +182,13 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     deferredTo: null,
   },
 
+  /**
+   * `F12-09`: طلبُ تزويدِ الهيئةِ بالبياناتِ — سجلُّ طلبٍ تشغيليٌّ.
+   * `requested_by` مرجعُ منشئِ الطلبِ، والحزمةُ بياناتٌ مُجمَّعةٌ لا بياناتِ
+   * شخصٍ. فالحذفُ لا يمسُّ الحزمةَ ولا الطلبَ.
+   */
+  authority_data_requests: reference(),
+
   broadcast_campaigns: {
     disposition: D.retainLegalBasis,
     subjects: [S.admin],

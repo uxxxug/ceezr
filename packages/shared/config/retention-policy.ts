@@ -122,6 +122,12 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
    */
   admin_metric_snapshots: RETENTION_CLASSES.lifecycleBound,
   admin_sessions: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `F12-09`: طلبُ تزويدِ الهيئةِ بالبياناتِ — سجلُّ طلبٍ مُسجَّلٌ بموعدِهِ
+   * وحالتِهِ وحزمتِه. ينمو معَ الطلباتِ ولا مدّةَ محسومةً له بعدُ (`pendingDecision`)،
+   * و`F12-10` يَحكُمُ في أرشفتِهِ.
+   */
+  authority_data_requests: RETENTION_CLASSES.pendingDecision,
   agent_decisions: RETENTION_CLASSES.pendingDecision,
   agent_outcomes: RETENTION_CLASSES.pendingDecision,
   attendance_log: RETENTION_CLASSES.pendingDecision,
