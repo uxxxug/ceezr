@@ -24,6 +24,7 @@ import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { BLOCKS_TOUCHED_BUDGET, ROWS_SCANNED_BUDGET } from "../../scripts/lib/work-budget.ts";
 import { testConfig } from "../support/config.ts";
 import {
   describeWorkGrowth,
@@ -279,5 +280,16 @@ describeIf("صمود: ثلاثون رحلة متتابعة بلا تدخّل", (
     console.log(`صمود/عمل: ${reading}`);
     expect(growth.rowsRatio).toBeLessThan(WORK_GROWTH_CEILING);
     expect(growth.blocksRatio).toBeLessThan(WORK_GROWTH_CEILING);
+
+    // ميزانيةُ العملِ المطلقةِ (`F9-06`): سقفٌ لا يكشفُهُ نسبةُ `DEC-18`.
+    // الانحدارُ الذي يضاعفُ العملَ في الكتلتَينِ معاً يمرُّ أصفاراً في النسبةِ —
+    // فالنسبةُ ×0.46 سواءٌ أكانَ العملُ سبعةَ آلافٍ أم أربعةَ عشرَ ألفاً.
+    // وهذا السقفُ يمسكُه. والسقفُ مقيسٌ من CI ومضروبٌ في ٢ هامشاً.
+    console.log(
+      `صمود/ميزانية: الصفوفُ ${String(warmBaseline.rowsScanned)}/${String(ROWS_SCANNED_BUDGET)} ` +
+        `· الكُتَلُ ${String(warmBaseline.blocksTouched)}/${String(BLOCKS_TOUCHED_BUDGET)}`,
+    );
+    expect(Number(warmBaseline.rowsScanned)).toBeLessThanOrEqual(ROWS_SCANNED_BUDGET);
+    expect(Number(warmBaseline.blocksTouched)).toBeLessThanOrEqual(BLOCKS_TOUCHED_BUDGET);
   }, 180_000);
 });
