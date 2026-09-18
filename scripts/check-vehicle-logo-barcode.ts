@@ -12,7 +12,7 @@
  * طبقةِ التطبيقِ. والكشفُ الفارغُ لا يُقرأُ نجاحاً (`ح-7`).
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
