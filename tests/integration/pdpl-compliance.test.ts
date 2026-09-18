@@ -1,11 +1,12 @@
 import { beforeAll, describe, expect, it } from "bun:test";
 import postgres from "postgres";
 
-const sql = postgres(
-  process.env.TEST_DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/waslah",
-);
+const DATABASE_URL = process.env.TEST_DATABASE_URL;
+const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 
-describe("F12-10 — امتثال PDPL: أساسُ المعالجةِ وحقوقُ أصحابِ البياناتِ", () => {
+const sql = postgres(DATABASE_URL ?? "postgres://postgres:postgres@localhost:5432/waslah");
+
+describeIf("F12-10 — امتثال PDPL: أساسُ المعالجةِ وحقوقُ أصحابِ البياناتِ", () => {
   let cityId: string;
   let userId: string;
 
