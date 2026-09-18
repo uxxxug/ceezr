@@ -69,7 +69,14 @@ function state(over: Partial<RideSummaryState> = {}): RideSummaryState {
       ratingAverage: 4.7,
       ratingCount: 31,
     },
-    rating: { alreadyRated: false, windowHours: 48, windowClosed: false, canRate: true },
+    rider: null,
+    rating: {
+      direction: "rider_to_driver",
+      alreadyRated: false,
+      windowHours: 48,
+      windowClosed: false,
+      canRate: true,
+    },
     ...over,
   };
 }
@@ -194,11 +201,13 @@ describe("ملخَّصُ الرحلةِ — الحمولةُ", () => {
     expect(json.straightLine).toEqual({ known: true, meters: 4210.5 });
     expect(json.rating).toEqual({
       eligibility: "CAN_RATE",
+      direction: "rider_to_driver",
       canRate: true,
       alreadyRated: false,
       windowHours: 48,
       windowClosed: false,
     });
+    expect(json.rider).toBe(null);
     expect(harness.seen.reads).toEqual([{ telegramUserId: TELEGRAM_ID, orderId: ORDER_ID }]);
   });
 
@@ -240,7 +249,13 @@ describe("ملخَّصُ الرحلةِ — الحمولةُ", () => {
     const harness = buildHarness({
       state: state({
         status: "in_progress",
-        rating: { alreadyRated: false, windowHours: 48, windowClosed: false, canRate: false },
+        rating: {
+          direction: "rider_to_driver",
+          alreadyRated: false,
+          windowHours: 48,
+          windowClosed: false,
+          canRate: false,
+        },
       }),
     });
     const { json } = await get(harness, `/v1/rides/${ORDER_ID}/summary`, authed());

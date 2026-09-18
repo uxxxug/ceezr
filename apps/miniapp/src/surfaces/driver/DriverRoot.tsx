@@ -82,6 +82,7 @@ import { LocationBroadcast } from "./location/LocationBroadcast.tsx";
 import { OfferDetailScreen } from "./offers/OfferDetailScreen.tsx";
 import { OffersScreen } from "./offers/OffersScreen.tsx";
 import { SubscriptionScreen } from "./subscription/SubscriptionScreen.tsx";
+import { DriverRideSummaryScreen } from "./summary/DriverRideSummaryScreen.tsx";
 import { DriverSupportScreen } from "./support/SupportScreen.tsx";
 import { VehicleScreen } from "./vehicle/VehicleScreen.tsx";
 
@@ -95,6 +96,7 @@ type DriverView =
   | { readonly kind: "documents" }
   | { readonly kind: "support" }
   | { readonly kind: "account" }
+  | { readonly kind: "summary"; readonly orderId: string }
   | { readonly kind: "placeholder" };
 
 export default function DriverRoot() {
@@ -138,7 +140,10 @@ export default function DriverRoot() {
     return (
       <>
         <LocationBroadcast />
-        <JobScreen onBack={() => setView({ kind: "offers" })} />
+        <JobScreen
+          onBack={() => setView({ kind: "offers" })}
+          onCompleted={(orderId) => setView({ kind: "summary", orderId })}
+        />
       </>
     );
   }
@@ -176,6 +181,10 @@ export default function DriverRoot() {
 
   if (view.kind === "documents") {
     return <DocumentsScreen onBack={() => setView({ kind: "placeholder" })} />;
+  }
+
+  if (view.kind === "summary") {
+    return <DriverRideSummaryScreen orderId={view.orderId} />;
   }
 
   return (

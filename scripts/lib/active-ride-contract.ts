@@ -246,6 +246,43 @@ export function driverGateProblems(input: ActiveRideContractInput): readonly str
   if (!input.screen.includes("view.driver === null")) {
     problems.push(`${SCREEN_FILE}: الشاشةُ لا تفحصُ «view.driver === null» صراحةً قبلَ رسمِ السائقِ.`);
   }
+  // `F12-05` — بياناتُ السائقِ والسيارةِ في اللقطةِ: لا يكفي أن تُوجَدَ كتلةُ «driver»،
+  // بل لا بدَّ من الحقولِ التي يَدَّعي العقدُ نشرَها في كائنِ السائقِ. ولا يكفي أن
+  // تُوجَدَ الأسماءُ في إعلاناتِ المتغيِّراتِ — بل لا بدَّ أن تَظهَرَ كمفاتيحَ في
+  // `jsonb_build_object`، فذلك دليلُ الإصدارِ لا الإعلانِ.
+  // والعقدُ والمنفذُ يَدَّعيانِ الحقولَ نفسَها — فلا يكفي أن تُوجَدَ في اللقطةِ وحدَها.
+  const requiredSqlFields = [
+    "vehicle_type",
+    "plate_number",
+    "rating_average",
+    "rating_count",
+    "first_name",
+  ];
+  for (const field of requiredSqlFields) {
+    const pattern = new RegExp(`['"]${field}['"]`);
+    if (!pattern.test(input.sql)) {
+      problems.push(
+        `${SNAPSHOT_SQL_FILE}: اللقطةُ لا تُصدِرُ مفتاحَ «${field}» في كائنِ السائقِ — والعقدُ يَدَّعي إظهارَ بياناتِ السائقِ والسيارةِ طوالَ الرحلةِ (F12-05).`,
+      );
+    }
+  }
+  const requiredPortFields = [
+    "firstName",
+    "vehicleType",
+    "plateNumber",
+    "ratingAverage",
+    "ratingCount",
+  ];
+  for (const field of requiredPortFields) {
+    if (!input.ports.includes(field)) {
+      problems.push(
+        `${PORTS_FILE}: المنفذُ لا يُصدِرُ «${field}» — والعقدُ يَدَّعي إظهارَ بياناتِ السائقِ والسيارةِ (F12-05).`,
+      );
+    }
+    if (!input.contract.includes(field)) {
+      problems.push(`${CONTRACT_FILE}: العقدُ لا يُصدِرُ «${field}» — والشاشةُ لا ترسمُه (F12-05).`);
+    }
+  }
   return problems;
 }
 

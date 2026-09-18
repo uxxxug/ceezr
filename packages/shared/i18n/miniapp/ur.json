@@ -1181,5 +1181,17 @@
   "driver.subscription.invoice.error.INVOICE_NOT_ISSUED": "اس ادائیگی کے لیے ابھی کوئی رسید جاری نہیں ہوئی۔",
   "driver.subscription.invoice.error.UNKNOWN": "درخواست مکمل نہ ہو سکی۔ کچھ دیر بعد کوشش کریں۔",
   "driver.subscription.invoice.open": "ٹیکس رسید",
-  "driver.subscription.invoice.close": "رسید بند کریں"
+  "driver.subscription.invoice.close": "رسید بند کریں",
+  "driver.summary.title": "سفر کا خلاصہ",
+  "driver.summary.notFound": "اس ID سے کوئی سفر نہیں ملا۔",
+  "driver.summary.riderCard": "مسافر",
+  "driver.summary.riderName": "نام",
+  "driver.summary.riderRating": "درجہ بندی",
+  "driver.summary.rateRider": "مسافر کی درجہ بندی کریں",
+  "driver.summary.stars.label": "ستاروں کی درجہ بندی",
+  "driver.summary.stars.one": "{stars} ستارے",
+  "driver.summary.commentPlaceholder": "نوٹ لکھیں (اختیاری)",
+  "driver.summary.submitRating": "درجہ بندی جمع کریں",
+  "driver.summary.alreadyRated": "آپ نے پہلے ہی اس مسافر کی درجہ بندی کر دی ہے۔",
+  "driver.job.viewSummary": "سفر کا خلاصہ دیکھیں"
 }

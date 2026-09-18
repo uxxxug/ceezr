@@ -1181,5 +1181,17 @@
   "driver.subscription.invoice.error.INVOICE_NOT_ISSUED": "لم تُصدَرْ فاتورةٌ لهذه الدفعةِ بعدُ.",
   "driver.subscription.invoice.error.UNKNOWN": "تعذَّرَ إتمامُ الطلبِ. أعِدِ المحاولةَ بعدَ قليلٍ.",
   "driver.subscription.invoice.open": "الفاتورةُ الضريبيّةُ",
-  "driver.subscription.invoice.close": "أغلِقِ الفاتورةَ"
+  "driver.subscription.invoice.close": "أغلِقِ الفاتورةَ",
+  "driver.summary.title": "ملخَّصُ الرحلةِ",
+  "driver.summary.notFound": "لا توجدُ رحلةٌ بهذا المعرِّفِ.",
+  "driver.summary.riderCard": "بطاقةُ الراكبِ",
+  "driver.summary.riderName": "الاسمُ",
+  "driver.summary.riderRating": "التقييمُ",
+  "driver.summary.rateRider": "قيِّمِ الراكبَ",
+  "driver.summary.stars.label": "عددُ النجومِ",
+  "driver.summary.stars.one": "{stars} نجومٍ",
+  "driver.summary.commentPlaceholder": "اكتُبْ ملاحظةً (اختياريٌّ)",
+  "driver.summary.submitRating": "أرسِلِ التقييمَ",
+  "driver.summary.alreadyRated": "لقد قيَّمتَ هذا الراكبَ بالفعل.",
+  "driver.job.viewSummary": "عرضُ ملخَّصِ الرحلةِ"
 }

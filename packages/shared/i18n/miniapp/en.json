@@ -1181,5 +1181,17 @@
   "driver.subscription.invoice.error.INVOICE_NOT_ISSUED": "No invoice has been issued for this payment yet.",
   "driver.subscription.invoice.error.UNKNOWN": "The request could not be completed. Try again shortly.",
   "driver.subscription.invoice.open": "Tax invoice",
-  "driver.subscription.invoice.close": "Close invoice"
+  "driver.subscription.invoice.close": "Close invoice",
+  "driver.summary.title": "Ride Summary",
+  "driver.summary.notFound": "No ride found with this ID.",
+  "driver.summary.riderCard": "Rider",
+  "driver.summary.riderName": "Name",
+  "driver.summary.riderRating": "Rating",
+  "driver.summary.rateRider": "Rate the Rider",
+  "driver.summary.stars.label": "Star rating",
+  "driver.summary.stars.one": "{stars} stars",
+  "driver.summary.commentPlaceholder": "Write a note (optional)",
+  "driver.summary.submitRating": "Submit Rating",
+  "driver.summary.alreadyRated": "You have already rated this rider.",
+  "driver.job.viewSummary": "View Ride Summary"
 }

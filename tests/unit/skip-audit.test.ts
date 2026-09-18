@@ -759,8 +759,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (`ح-8`): والآنَ 117 و 1257 بقياسِ آليّةِ بلاغِ المفقودِ (`F12-07`) —
     // ثماني حالاتٍ على قاعدةٍ حقيقيّةٍ: الإيداعُ المشروطُ في معاملةِ التذكرةِ،
     // والإغناءُ الحيُّ، ومنعُ التكرارِ، والهجرُ بلا تعطيلٍ.
-    expect(SKIP_REGISTRY).toHaveLength(117);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1257);
+    expect(SKIP_REGISTRY).toHaveLength(118);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1265);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
