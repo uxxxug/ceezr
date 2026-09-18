@@ -9,9 +9,10 @@
  * يُستخدم من: `bun run check:authority-data-export` وسلسلةُ `ci` وخطوةٌ مُسمّاةٌ في CI.
  * الحاكم: docs/adr/0040-regulatory-integration-is-critical-architecture.md
  *
- * القاعدةُ: كلُّ مِلفِّ هجرةٍ يَحوي ذِكرَ `F12-09` أو `authority_data` يجبُ أن
- * يُعرِّفَ الدوالَّ الثلاثَ بالأسماءِ المُعلَنةِ. والكشفُ الفارغُ لا يُقرأُ
- * نجاحاً (`ح-7`).
+ * القاعدةُ: ملفّاتُ هجرةِ F12-09 مَجتمعةً تُعرِّفُ الدوالَّ الثلاثَ
+ * بالأسماءِ المُعلَنةِ. والكشفُ الفارغُ لا يُقرأُ نجاحاً (`ح-7`).
+ * الفهارسُ المتزامنةُ ملفّاتٌ مستقلّةٌ لا تُعرِّفُ دوالَّ — تُجمَعُ
+ * الدوالُّ من جميعِ الملفّاتِ لا من كلِّ ملفٍّ على حدة.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -56,18 +57,20 @@ if (import.meta.main) {
 
   const problems: string[] = [];
 
-  for (const [index, content] of f12_09Migrations.entries()) {
-    for (const fnName of REQUIRED_FUNCTIONS) {
-      if (!hasFunction(content, fnName)) {
-        problems.push(`هجرةُ F12-09 رقمَ ${index + 1}: الدالّةُ «${fnName}» غيرُ مُعرَّفةٍ.`);
-      }
+  // الدوالُّ تُجمَعُ من جميعِ ملفّاتِ F12-09 مَجتمعةً لا من كلِّ ملفٍّ على حدة —
+  // فالفهارسُ المتزامنةُ ملفّاتٌ مستقلّةٌ لا تُعرِّفُ دوالَّ.
+  const combinedContent = f12_09Migrations.join("\n\n");
+
+  for (const fnName of REQUIRED_FUNCTIONS) {
+    if (!hasFunction(combinedContent, fnName)) {
+      problems.push(`الدالّةُ «${fnName}» غيرُ مُعرَّفةٍ في أيِّ هجرةٍ من هجراتِ F12-09.`);
     }
   }
 
   if (problems.length === 0) {
     console.log(
       `حاجزُ تزويدِ الهيئةِ بالبيانات: نجحَ — ${f12_09Migrations.length} هجرةً ` +
-        `تُعرِّفُ الدوالَّ الثلاثَ: ${REQUIRED_FUNCTIONS.join(" · ")}.`,
+        `تُعرِّفُ الدوالَّ الثلاثَ مجتمعةً: ${REQUIRED_FUNCTIONS.join(" · ")}.`,
     );
   } else {
     console.error("حاجزُ تزويدِ الهيئةِ بالبيانات: سقطَ.");
