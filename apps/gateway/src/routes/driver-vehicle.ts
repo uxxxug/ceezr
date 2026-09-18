@@ -1,7 +1,8 @@
 /**
  * الغرض: مساراتُ مركبةِ السائقِ — `GET /v1/driver/vehicle` و
- *   `PATCH /v1/driver/vehicle` و`POST /v1/driver/vehicle/assets` (`F3-07` · `SD-11`).
- * الحالة: مبنيٌّ — البند `F3-07`.
+ *   `PATCH /v1/driver/vehicle` و`POST /v1/driver/vehicle/assets` و
+ *   `GET /v1/driver/vehicle/assets` (`F3-07` · `SD-11` · `F12-06`).
+ * الحالة: مبنيٌّ — البندُ `F3-07` · `F12-06`.
  * ينتمي إلى: apps/gateway/src/routes
  * يُستخدم من: `apps/gateway/src/server.ts` عبرَ تركيبٍ اختياريٍّ.
  * الحاكم: docs/adr/0094-project-independence.md
@@ -31,9 +32,14 @@ import {
   updateDriverVehicle,
   updateDriverVehicleAssets,
 } from "../../../../packages/application/driver/driver-vehicle.ts";
+import {
+  type DriverVehicleAssetsDeps,
+  readDriverVehicleAssets,
+} from "../../../../packages/application/driver/driver-vehicle-assets.ts";
 
 export interface DriverVehicleRouteDependencies {
   readonly vehicle?: DriverVehicleDeps;
+  readonly vehicleAssets?: DriverVehicleAssetsDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -47,6 +53,7 @@ const STATUS_BY_CODE: Readonly<Record<string, 401 | 403 | 422 | 503>> = {
   USER_NOT_FOUND: 403,
   NOT_A_DRIVER: 403,
   CITY_NOT_READY: 503,
+  ASSET_SIGNER_NOT_AVAILABLE: 503,
 };
 
 function rejected(c: Context, code: string) {
@@ -99,6 +106,16 @@ export function createDriverVehicleRoutes(deps: DriverVehicleRouteDependencies):
     });
     if (!result.ok) return rejected(c, result.error.code);
     return c.json({ ok: true }, 200);
+  });
+
+  vehicle.get(VEHICLE_ASSETS_PATH, async (c) => {
+    if (deps.vehicleAssets === undefined) return failClosed(c, deps.log);
+    const result = await readDriverVehicleAssets(deps.vehicleAssets, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+    });
+    if (!result.ok) return rejected(c, result.error.code);
+    if (result.value === null) return c.json(null, 200);
+    return c.json(result.value, 200);
   });
 
   vehicle.post(VEHICLE_ASSETS_PATH, async (c) => {

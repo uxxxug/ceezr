@@ -8,6 +8,10 @@
 
 import http from "node:http";
 import { Server as IoServer } from "socket.io";
+import {
+  ReadUrlSignerAdapter,
+  UnconfiguredAssetReader,
+} from "../../../packages/application/driver/vehicle-asset-reader.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
 import { parseCitySettings, subscriptionPriceFor } from "../../../packages/domain/policy/entity.ts";
@@ -59,6 +63,10 @@ import { PostgresDataRightsStore } from "../../../packages/infrastructure/privac
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import {
+  HttpReadSigner,
+  readSignedReadConfig,
+} from "../../../packages/infrastructure/storage/signed-read.ts";
 import {
   HttpUploadSigner,
   readSignedUploadConfig,
@@ -1009,9 +1017,16 @@ const driverSubscriptionInvoice =
       };
 
 /**
- * مركبةُ السائقِ (`F3-07`) — بياناتُ المركبةِ ووثائقُها الثلاثُ في نداءٍ واحدٍ.
+ * مركبةُ السائقِ (`F3-07` · `F12-06`) — بياناتُ المركبةِ ووثائقُها الثلاثُ
+ * في نداءٍ واحدٍ، وروابطُ قراءةٍ موقَّعةٌ للشعارِ والباركودِ.
  * وغيابُ سرِّ الجلسةِ **يُسقِطُ السطحَ** كالعروضِ والنشاطِ.
  */
+const vehicleReadStorage = readSignedReadConfig(process.env);
+const vehicleAssetReader =
+  vehicleReadStorage === null
+    ? new UnconfiguredAssetReader()
+    : new ReadUrlSignerAdapter(new HttpReadSigner(vehicleReadStorage));
+
 const driverVehicle =
   config.miniappSessionSecret === null
     ? undefined
@@ -1019,6 +1034,12 @@ const driverVehicle =
         vehicle: {
           session: createMiniAppSessionReader(config.miniappSessionSecret),
           store: new PostgresDriverVehicleStore(container.sql),
+          now: () => new Date(),
+        },
+        vehicleAssets: {
+          session: createMiniAppSessionReader(config.miniappSessionSecret),
+          store: new PostgresDriverVehicleStore(container.sql),
+          assetReader: vehicleAssetReader,
           now: () => new Date(),
         },
         log,

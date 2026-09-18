@@ -700,6 +700,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "GET",
+    path: "/v1/driver/vehicle/assets",
+    file: "apps/gateway/src/routes/driver-vehicle.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
     path: "/health",
     file: "apps/gateway/src/routes/health.ts",
     exposure: "فحصُ تشغيلٍ",
@@ -1089,7 +1098,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * والإعفاءاتُ **ثلاثةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها — وكلُّها محدودٌ فعلُها
  * في القاعدةِ لا في عدَّادٍ.
  */
-export const ROUTE_POLICY_COUNT = 93;
+export const ROUTE_POLICY_COUNT = 94;
 export const LIMITED_ROUTE_COUNT = 8;
 export const EXEMPT_ROUTE_COUNT = 3;
 

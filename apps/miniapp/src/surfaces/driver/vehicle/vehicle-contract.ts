@@ -40,3 +40,9 @@ export interface ApiDriverVehicleUpdateResponse {
 export interface ApiDriverVehicleAssetsResponse {
   readonly ok: true;
 }
+
+/** روابطُ قراءةٍ موقَّعةٌ للشعارِ والباركودِ — من `GET /v1/driver/vehicle/assets`. */
+export interface ApiDriverVehicleAssetsReadResponse {
+  readonly logoReadUrl: string | null;
+  readonly barcodeReadUrl: string | null;
+}
