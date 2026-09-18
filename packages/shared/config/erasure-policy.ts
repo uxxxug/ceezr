@@ -189,6 +189,15 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
    */
   authority_data_requests: reference(),
 
+  /**
+   * `F12-08`: حادثُ اختراقِ بياناتٍ شخصيّةٍ — سجلُّ حادثٍ وتقييمُ خطرٍ وإبلاغٌ
+   * الهيئةِ وأصحابِ البياناتِ. `detected_by` مرجعُ من اكتشفَ الحادثَ، والبياناتُ
+   * فيه تخصُّ الحادثَ لا صاحبَ الحادث. والمادةُ ٢٤ من اللائحةِ التنفيذيّةِ
+   * لـPDPL تُلزِمُ بالاحتفاظِ بنسخِ البلاغاتِ والإجراءاتِ التصحيحيّةِ والأدلّةِ.
+   * فالحذفُ لا يمسُّ الحادثَ ولا إبلاغَه.
+   */
+  breach_incidents: reference(),
+
   broadcast_campaigns: {
     disposition: D.retainLegalBasis,
     subjects: [S.admin],

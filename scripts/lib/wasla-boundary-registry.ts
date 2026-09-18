@@ -127,6 +127,14 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
       "تزويدُ الهيئةِ بالبياناتِ قدرةٌ تشغيليّةٌ ميدانيّةٌ يملكُها MOVE؛ الطلبُ والحزمةُ يُولَّدانِ من جداولِ MOVE المُصنَّفةِ أصلاً.",
   },
   {
+    table: "breach_incidents",
+    concern: "حادثُ اختراقِ بياناتٍ شخصيّةٍ — سجلُّ حادثٍ وتقييمُ خطرٍ وإبلاغٌ",
+    owner: "CORE",
+    disposition: "KEEP",
+    rationale:
+      "إبلاغُ الاختراقِ التزامٌ نظاميٌّ (PDPL · المادةُ ٢٤) يملكُه CORE لا MOVE: الحادثُ يتعدّى التطبيقَ ويخصُّ المنصّةَ كلَّها، وسجلُّ الإبلاغِ دليلُ امتثالٍ يحتفظُ به CORE.",
+  },
+  {
     table: "broadcast_campaigns",
     concern: "حملةُ بثٍّ إداريّةٍ — إشعارٌ",
     owner: "CORE",
