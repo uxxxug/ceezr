@@ -37,7 +37,9 @@ describeIf("F12-12 — امتثال ZATCA المرحلة الثانية: UUID و
   it("دالّةُ المرحلةِ الثانيةِ موجودةٌ وتُعيدُ النوعَ الصحيحَ", async () => {
     // UUID
     const uuid = await sql`select zatca_generate_invoice_uuid() as uuid`;
-    expect(uuid[0]?.uuid).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    expect(uuid[0]?.uuid).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
 
     // PIH (بذرةٌ إذا لم تكن هناك فواتيرُ سابقة)
     const pih = await sql`select zatca_previous_invoice_hash(${cityId}::uuid) as pih`;
