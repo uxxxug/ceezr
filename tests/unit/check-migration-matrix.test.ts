@@ -81,9 +81,11 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
   // في الموجةِ ٠ لأنَّهُ **تجميعٌ مشتقٌّ من جداولٍ مملوكةٍ لـMOVE** يُعادُ
   // حسابُهُ كلَّ ستّينَ ثانيةً، فلا صفَّ يُنقَلُ ولا مفهومَ فيهِ يملِكُهُ CORE —
   // ولو مُحِيَ كلُّهُ لأُعيدَ بناءُهُ من مصادرِه في شوطٍ واحدٍ.
+  // ثمَّ من 55 إلى **56** بجدولِ `authority_data_requests` (`F12-09`)، وهوَ `NONE`
+  // في الموجةِ ٠ لأنَّهُ سجلُّ طلبٍ تشغيليٌّ يملكُهُ MOVE ولا مفهومَ فيهِ يملِكُهُ CORE.
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(55);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(55);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(56);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(56);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {
