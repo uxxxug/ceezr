@@ -14,7 +14,7 @@
  * نجاحاً (`ح-7`).
  */
 
-import { readFileSync, readdirSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { blankComments } from "./lib/blank-comments.ts";
 
@@ -38,8 +38,10 @@ function isF12_09Migration(content: string): boolean {
 }
 
 function hasFunction(content: string, fnName: string): boolean {
-  return content.includes(`create or replace function ${fnName}`) ||
-         content.includes(`create function ${fnName}`);
+  return (
+    content.includes(`create or replace function ${fnName}`) ||
+    content.includes(`create function ${fnName}`)
+  );
 }
 
 if (import.meta.main) {
@@ -57,9 +59,7 @@ if (import.meta.main) {
   for (const [index, content] of f12_09Migrations.entries()) {
     for (const fnName of REQUIRED_FUNCTIONS) {
       if (!hasFunction(content, fnName)) {
-        problems.push(
-          `هجرةُ F12-09 رقمَ ${index + 1}: الدالّةُ «${fnName}» غيرُ مُعرَّفةٍ.`
-        );
+        problems.push(`هجرةُ F12-09 رقمَ ${index + 1}: الدالّةُ «${fnName}» غيرُ مُعرَّفةٍ.`);
       }
     }
   }
@@ -67,7 +67,7 @@ if (import.meta.main) {
   if (problems.length === 0) {
     console.log(
       `حاجزُ تزويدِ الهيئةِ بالبيانات: نجحَ — ${f12_09Migrations.length} هجرةً ` +
-        `تُعرِّفُ الدوالَّ الثلاثَ: ${REQUIRED_FUNCTIONS.join(" · ")}.`
+        `تُعرِّفُ الدوالَّ الثلاثَ: ${REQUIRED_FUNCTIONS.join(" · ")}.`,
     );
   } else {
     console.error("حاجزُ تزويدِ الهيئةِ بالبيانات: سقطَ.");

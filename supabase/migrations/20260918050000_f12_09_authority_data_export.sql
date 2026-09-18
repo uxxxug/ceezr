@@ -287,6 +287,7 @@ alter table authority_data_requests enable row level security;
 create policy authority_data_requests_service_role_all
   on authority_data_requests
   for all
+  to service_role
   using (true)
   with check (true);
 revoke all on authority_data_requests from public, anon, authenticated;

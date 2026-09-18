@@ -31,7 +31,7 @@ const REQUESTER_TELEGRAM = 959001;
 
 describeIf("F12-09 — قدرةُ تزويدِ الهيئةِ بالبيانات", () => {
   beforeAll(async () => {
-    sql = createSql({ connectionString: DATABASE_URL! });
+    sql = createSql({ connectionString: DATABASE_URL as string });
 
     const cityResult = await ensureActiveCity(sql);
     cityId = cityResult.cityId;
@@ -69,7 +69,8 @@ describeIf("F12-09 — قدرةُ تزويدِ الهيئةِ بالبيانات
       from authority_data_requests
       where id = ${requestId}::uuid
     `;
-    const row = rows[0]!;
+    const row = rows[0];
+    if (row === undefined) throw new Error("row not found");
 
     const deadline = new Date(row.deadline_at as string).getTime();
     const now = Date.now();
@@ -96,7 +97,8 @@ describeIf("F12-09 — قدرةُ تزويدِ الهيئةِ بالبيانات
       from authority_data_requests
       where id = ${requestId}::uuid
     `;
-    const row = rows[0]!;
+    const row = rows[0];
+    if (row === undefined) throw new Error("row not found");
 
     const deadline = new Date(row.deadline_at as string).getTime();
     const now = Date.now();
@@ -126,7 +128,8 @@ describeIf("F12-09 — قدرةُ تزويدِ الهيئةِ بالبيانات
       from authority_data_requests
       where id = ${requestId}::uuid
     `;
-    const row = rows[0]!;
+    const row = rows[0];
+    if (row === undefined) throw new Error("row not found");
     expect(row.status as string).toBe("generated");
     expect(row.generated_at).not.toBeNull();
 
@@ -157,7 +160,8 @@ describeIf("F12-09 — قدرةُ تزويدِ الهيئةِ بالبيانات
     const rows = await sql`
       select package from authority_data_requests where id = ${requestId}::uuid
     `;
-    const row = rows[0]!;
+    const row = rows[0];
+    if (row === undefined) throw new Error("row not found");
     const pkg = row.package as Record<string, unknown>;
     const sections = pkg.sections as Record<string, unknown>;
 
