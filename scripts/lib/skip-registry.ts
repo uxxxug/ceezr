@@ -1913,4 +1913,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/breach-notification.test.ts",
+    suites: ["F12-08 — إبلاغُ حوادثِ اختراقِ البياناتِ الشخصيّةِ"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `F12-08` هوَ **أنَّ موعدَ ٧٢ ساعةً ثابتٌ يُحسَبُ من وقتِ العلمِ لا من وقتِ الحادثِ**، وأنَّ تقييمَ الخطرِ يُحدِّدُ هل إبلاغُ أصحابِ البياناتِ واجبٌ، وأنَّ الموعدَ المنقضي يُكشَفُ، وأنَّ إبلاغَي الهيئةِ وأصحابِ البياناتِ يُسجَّلانِ بتحويلِ الحالةِ الصحيحِ. وكلُّها أحكامٌ في القاعدةِ (دوالُّ `authority_notification_deadline` و`authority_notification_is_overdue` و`subject_notification_required` و`assess_breach_incident` و`mark_authority_notified` و`mark_subjects_notified`) لا يقدرُ عليها مزدوجٌ في الذاكرةِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20260918060000 لإبلاغِ الاختراقِ). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;
