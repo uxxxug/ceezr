@@ -4283,6 +4283,15 @@ a {
   color: var(--tg-hint-color);
 }
 
+.dveh__logo-image,
+.dveh__barcode-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+}
+
 .dveh__edit-form {
   background: var(--tg-bg-color);
   border-radius: 0.75rem;
