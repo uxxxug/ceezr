@@ -6636,3 +6636,8 @@ bulkhead + بديلٌ لكلِّ اعتماديّةٍ (تلغرام · الخر�
   الخطأ · النتيجةُ المخزَّنةُ تشملُ snap.
 - حارسُ `check-route-cache-policy.ts` يفحصُ أنّ `container.ts` يُغلِّفُ المزوّدَ
   بـ`CachedRoutingProvider`، لا فقطَ أنّ `ride-channel.ts` لا ينادي `estimateArrival`.
+
+## CAP-012 — إصلاح typecheck و lint (2026-09-18)
+
+إزالةُ `repoRoot` غير المستخدم من `check-route-cache-policy.ts` وإصلاحُ ترتيبِ
+الاستيراد.

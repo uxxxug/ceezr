@@ -62,7 +62,6 @@ function checkMigrations(): void {
   }
 }
 
-
 async function main(): Promise<void> {
   // 1. route-cache.ts موجود ويُصدّر المطلوب
   const routeCache = checkFile(ROUTE_CACHE_PATH);
