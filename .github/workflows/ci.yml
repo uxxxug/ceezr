@@ -789,6 +789,25 @@ jobs:
       - name: امتثال ZATCA المرحلة الثانية — UUID وتجزئة وPIH وUBL (F12-12)
         run: bun run scripts/check-zatca-phase2.ts
 
+      # F9-05: بصمةُ التشغيل — تُكتَبُ بعد كلِّ وظيفةٍ بـ`if: always()`
+      # حتى الإخفاقُ يُنتِجُ بصمةً تقولُ «failure» لا صمتاً.
+      - name: بصمةُ التشغيل — كتابة (F9-05)
+        if: always()
+        env:
+          JOB_NAME: verify
+          CI_VERDICT: ${{ job.status }}
+        run: |
+          mkdir -p /tmp/run-manifests
+          bun run scripts/emit-run-manifest.ts /tmp/run-manifests/verify.json
+
+      # F9-05: الحاجزُ الساكن — يقرأُ البصمةَ ويحكمُ على كمالِ حقولِها.
+      - name: بصمةُ التشغيل — حاجز (verify) (F9-05)
+        if: always()
+        env:
+          RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: verify
+        run: bun run scripts/check-run-manifest.ts
+
       # F12-06: الشعارُ والباركودُ في المركبة — روابطُ قراءةٍ موقَّعةٌ.
       # وجودُ المسارِ والمُوقِّعِ والقارئِ والعَرضِ في كلِّ ملفٍّ يمسُّه.
       # والكشفُ الفارغُ لا يُقرأُ نجاحاً (`ح-7`).
@@ -1225,6 +1244,24 @@ jobs:
       - name: منع تخطّي اختبارات e2e صامتاً
         run: bun run scripts/check-no-skipped-tests.ts /tmp/ci-output.log
 
+      # F9-05: بصمةُ التشغيلِ للتكامل.
+      - name: بصمةُ التشغيل — كتابة (integration) (F9-05)
+        if: always()
+        env:
+          JOB_NAME: integration
+          CI_VERDICT: ${{ job.status }}
+        run: |
+          mkdir -p /tmp/run-manifests
+          bun run scripts/emit-run-manifest.ts /tmp/run-manifests/integration.json
+
+      # F9-05: الحاجزُ الساكن.
+      - name: بصمةُ التشغيل — حاجز (integration) (F9-05)
+        if: always()
+        env:
+          RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: integration
+        run: bun run scripts/check-run-manifest.ts
+
   # وظيفةٌ ثالثةٌ لا خطوةٌ في القائمتَين: هذه وحدَها تُخاطِب خدمةً خارجيّةً حقيقيّةً
   # بسرٍّ من مخزنِ أسرارِ المستودعِ (OPS-006 · ADR 0049). وفصلُها مقصودٌ لسببَين:
   # أنّ سقوطَها لسببِ شبكةٍ لا يجوز أن يُخفي نتيجةَ الحواجزِ في `verify`، وأنّ السرَّ
@@ -1358,6 +1395,25 @@ jobs:
           path: /tmp/real-redis-proof.json
           if-no-files-found: warn
 
+      # F9-05: بصمةُ التشغيلِ للـRedis الحقيقي.
+      - name: بصمةُ التشغيل — كتابة (real-redis) (F9-05)
+        if: always()
+        env:
+          JOB_NAME: real-redis
+          CI_VERDICT: ${{ job.status }}
+          REDIS_URL: http://localhost:8079
+        run: |
+          mkdir -p /tmp/run-manifests
+          bun run scripts/emit-run-manifest.ts /tmp/run-manifests/real-redis.json
+
+      # F9-05: الحاجزُ الساكن.
+      - name: بصمةُ التشغيل — حاجز (real-redis) (F9-05)
+        if: always()
+        env:
+          RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: real-redis
+        run: bun run scripts/check-run-manifest.ts
+
   # ── F5-06 / SCL-008: برهانُ البنيةِ متعدّدِ المثيلاتِ في CI ──────────────────
   #
   # لا بديلَ سحابيٌّ مدفوعٌ متاحٌ، فالثابتُ يُثبَتُ هنا: ٣ بوّاباتٍ خلفَ موزّعٍ يفحصُ
@@ -1429,3 +1485,21 @@ jobs:
       - name: إزالةُ الرصة
         if: always()
         run: docker compose -f docker-compose.f5-06.yml down -v
+
+      # F9-05: بصمةُ التشغيلِ للفوضى متعددِ المثيلات.
+      - name: بصمةُ التشغيل — كتابة (chaos-multi-instance) (F9-05)
+        if: always()
+        env:
+          JOB_NAME: chaos-multi-instance
+          CI_VERDICT: ${{ job.status }}
+        run: |
+          mkdir -p /tmp/run-manifests
+          bun run scripts/emit-run-manifest.ts /tmp/run-manifests/chaos-multi-instance.json
+
+      # F9-05: الحاجزُ الساكن.
+      - name: بصمةُ التشغيل — حاجز (chaos-multi-instance) (F9-05)
+        if: always()
+        env:
+          RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: chaos-multi-instance
+        run: bun run scripts/check-run-manifest.ts
