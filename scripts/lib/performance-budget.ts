@@ -67,6 +67,15 @@ export const DECLARED_EXTRA_BUNDLES: Readonly<Record<string, string>> = {
   "vendor-react": "مكتبةُ العرضِ تُفصَل كي لا يُبطِل تعديلٌ في شيفرتِنا خُبَيْئتَها في الجهاز (ADR 0044)",
   admin:
     "سطحُ المشرفِ داخلَ التطبيقِ المصغَّرِ — قرارُ مالكِ المنتجِ في `F1-05`، وتوتُّرُه مع ADR 0007 (لوحةٌ مُصيَّرةٌ من الخادم) نقطةٌ مفتوحةٌ لم تُحسَم",
+  /**
+   * D-23: حزمةٌ قسريّةٌ (٢٢٠ بايت) يُولِّدُها Rolldown لتوافقِ CommonJS —
+   * `__commonJS` + namespace. ثلاثُ محاولاتٍ لإزالتِها في D-09 باءت بالفشلِ:
+   * لا تُطابِقُ `id.includes("rolldown:runtime")`، و`includeDependenciesRecursively:
+   * false` يزيدُ الطلباتِ، وحذفُ وسمِ `modulepreload` وحدَهُ تلوينُ قياسٍ.
+   * فالإذنُ بها سندٌ مكتوبٌ لا سطرٌ صامتٌ.
+   */
+  "rolldown-runtime":
+    "حزمةٌ قسريّةٌ يُولِّدُها Rolldown لتوافقِ CommonJS — ٢٢٠ بايت، لا تُستطاعُ إزالتُها بلا إضعافِ طبقةِ التوافق (D-23 · D-09)",
 };
 
 export interface AssetSize {

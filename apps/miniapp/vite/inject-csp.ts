@@ -48,6 +48,28 @@ function inlineStyleSources(html: string): string[] {
   return sources;
 }
 
+/**
+ * كتلُ `<script type="module">` المُدمَجةُ في المستند (المدخلُ في `D-23`).
+ * المُبصَّمُ **ما بين الوسمَين حرفاً حرفاً** — كالأنماطِ سواءً بسواء.
+ * ولا تُبصَّمُ السكربتاتُ الخارجيّةُ (لها `src=`) ولا سكربتاتُ تيليجرام: تلكَ
+ * تُحمَّلُ من `'self'` أو من النطاقِ المأذونِ، لا بصمةَ لها.
+ */
+function inlineScriptSources(html: string): string[] {
+  const sources: string[] = [];
+  const pattern = /<script\s+[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/g;
+  let match = pattern.exec(html);
+  while (match !== null) {
+    const tag = match[0];
+    const body = match[1];
+    /** السكربتُ الخارجيُّ (له `src=`) ليس مُدمَجاً — يُتخطَّى. */
+    if (body !== undefined && !/\ssrc=/.test(tag)) {
+      sources.push(body);
+    }
+    match = pattern.exec(html);
+  }
+  return sources;
+}
+
 export function injectCsp(): Plugin {
   let apiBase: string | undefined;
 
@@ -74,8 +96,13 @@ export function injectCsp(): Plugin {
     transformIndexHtml: {
       order: "post",
       handler(html) {
-        const hashes = inlineStyleSources(html).map(sha256Source);
-        const policy = buildCsp({ apiBase, inlineStyleHashes: hashes });
+        const styleHashes = inlineStyleSources(html).map(sha256Source);
+        const scriptHashes = inlineScriptSources(html).map(sha256Source);
+        const policy = buildCsp({
+          apiBase,
+          inlineStyleHashes: styleHashes,
+          inlineScriptHashes: scriptHashes,
+        });
         const tag = cspMetaTag(policy);
 
         /**
