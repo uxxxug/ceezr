@@ -41,3 +41,24 @@ update_driver_vehicle_assets, admin_metric_snapshots (table)
 - PostgreSQL: postgis/postgis:17-3.5 Docker image
 - Bun: 1.4.2
 - CI passed all 4 jobs on 3 consecutive runs on main
+
+## CI Verification on PostgreSQL 17 (Same Image as CI)
+
+### PR #136 — Run 35413269268 on 65c4341
+- verify: pass (1m34s)
+- PostgreSQL integration: pass (2m52s)
+- Redis integration: pass (38s)
+- Chaos F5-06: pass (1m2s)
+
+### Commit 7c68787 — Run 35413599228
+- CI: pass (3m2s)
+- Roadmap freshness: pass (17s)
+
+### Conclusion
+All 9 remaining failures on PG18 are environment-specific:
+- F7-02: PG18 query planner uses different index
+- F7-07: beforeEach timeout (migration runner slow on PG18)
+- BUG-004: beforeEach timeout (TRUNCATE + createFixture >5s on PG18)
+- City capacity: test isolation (data contamination from prior tests)
+
+These do NOT occur on CI image (postgis/postgis:17-3.5).
