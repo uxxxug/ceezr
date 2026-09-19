@@ -187,7 +187,7 @@ Nothing else has been changed in this repository by the WASLA integration work.
 ٦٧ جدولاً. ٢٥ سياسةً كلُّها `service_role using(true)`. `BYPASSRLS` يتجاوزُ `force`.
 الحاجزُ الفعليُّ: (١) تغييرُ نشرٍ (`DATABASE_URL`) خارجُ المستودعِ + (٢) تغييرُ معماريّةٍ
 (ملكيّةُ الدوالِّ) يكسرُ عقودَ `SEC-11`. السِجلُّ: `SEC-10` `owner` صارَ «بنية تحتية
-(نشر + معمارية)» و`blockedBy` مُحدَّدٌ. ورُمز `owner` في النوعِ مُوسَّعٌ. راجِع `docs/evidence/security/SEC-10-20260917.md` §٦.
+(نشر + معمارية)» و`blockedBy` مُحدَّدٌ. ورُمز `owner` في النوعِ مُوسَّعٌ. وتصحيحٌ توضيحيٌّ (ح-8): قياسُ §٣ كانَ على دورٍ غيرِ متجاوزٍ في الاختبارِ، أمَّا الإنتاجُ فـ`postgres` و`service_role` لديهما `BYPASSRLS` الذي يتجاوزُ `force`. راجِع `docs/evidence/security/SEC-10-20260917.md` §٦.
 
 | الحقلُ | القيمةُ |
 |---|---|
