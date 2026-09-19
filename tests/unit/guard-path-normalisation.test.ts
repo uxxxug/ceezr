@@ -20,8 +20,28 @@ import {
   findMatchServiceUses,
   SELF,
 } from "../../scripts/check-map-matching-scope.ts";
-import { analyseSource } from "../../scripts/check-test-city-activation.ts";
+import {
+  auditCityPrecondition,
+  type Violation,
+} from "../../scripts/lib/city-precondition-audit.ts";
+import { CITY_PRECONDITION_EXEMPTIONS } from "../../scripts/lib/city-precondition-exemptions.ts";
 import { toPosixPath } from "../../scripts/lib/repo-path.ts";
+
+/**
+ * توحيدُ `OPS-020` نقلَ قاعدةَ «القروباتُ في نفسِ العبارةِ» من `analyseSource`
+ * في `check-test-city-activation.ts` إلى القاعدةِ ٦ في الحَكَمِ الموحَّدِ،
+ * وسجلَّ استثنائها إلى السجلِّ الواحدِ. **وتوكيداتُ هذا الوصفِ كما هيَ**: دعواها
+ * أنَّ الإعفاءَ لا يتعلّقُ بفاصلِ المسارِ، وهيَ دعوى على الحَكَمِ لا على اسمِ دالّةٍ.
+ */
+function أخراقُ_التفعيلِ(path: string, source: string): readonly Violation[] {
+  return auditCityPrecondition({
+    integrationFiles: [],
+    activationFiles: [{ path, source }],
+    scriptFiles: [],
+    helper: undefined,
+    exemptions: CITY_PRECONDITION_EXEMPTIONS,
+  }).filter((v) => v.rule === 6);
+}
 
 describe("توحيدُ فاصلِ المسار", () => {
   it("يحوّل فاصلَ Windows ويترك مسارَ POSIX كما هو", () => {
@@ -80,26 +100,26 @@ describe("فاحصُ تفعيلِ المدن في الاختبارات: الاس
   ].join("");
 
   it("يصرخ على تفعيلٍ مجرّدٍ في ملفٍّ عاديّ", () => {
-    const violations = analyseSource("tests/integration/example.test.ts", عبارةٌ_مجرّدة);
+    const violations = أخراقُ_التفعيلِ("tests/integration/example.test.ts", عبارةٌ_مجرّدة);
     expect(violations).toHaveLength(1);
-    expect(violations[0]?.missing).toContain("telegram_support_group_id");
+    expect(violations[0]?.message).toContain("telegram_support_group_id");
   });
 
   it("يستثني ملفَّ فحصِ القيدِ نفسِه بفاصلِ POSIX", () => {
-    expect(analyseSource("tests/integration/pilot-city-activation.test.ts", عبارةٌ_مجرّدة)).toEqual(
+    expect(أخراقُ_التفعيلِ("tests/integration/pilot-city-activation.test.ts", عبارةٌ_مجرّدة)).toEqual(
       [],
     );
   });
 
   it("يستثنيه أيضاً حين يأتي المسارُ بفاصلِ Windows", () => {
-    expect(analyseSource("tests\\integration\\pilot-city-activation.test.ts", عبارةٌ_مجرّدة)).toEqual(
+    expect(أخراقُ_التفعيلِ("tests\\integration\\pilot-city-activation.test.ts", عبارةٌ_مجرّدة)).toEqual(
       [],
     );
   });
 
   it("لا يستثني ملفّاً آخرَ في نفسِ المجلّد بفاصلِ Windows", () => {
     expect(
-      analyseSource("tests\\integration\\five-cities-launch.test.ts", عبارةٌ_مجرّدة),
+      أخراقُ_التفعيلِ("tests\\integration\\five-cities-launch.test.ts", عبارةٌ_مجرّدة),
     ).toHaveLength(1);
   });
 });
