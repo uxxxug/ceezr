@@ -30,12 +30,7 @@ describe.skipIf(skip)("F12-05 — التقييمُ المتبادلُ: منظو�
   });
 
   beforeEach(async () => {
-    await sql`delete from ratings`;
-    await sql`delete from audit_log`;
-    await sql`delete from orders`;
-    await sql`delete from drivers`;
-    await sql`delete from riders`;
-    await sql`delete from users`;
+    await sql`truncate ratings, audit_log, orders, drivers, riders, users cascade`;
   });
 
   async function seedUser(telegramId: string, role: string, fullName: string): Promise<string> {
