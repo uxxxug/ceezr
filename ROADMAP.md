@@ -5972,6 +5972,8 @@ D-06 (فرضُ `force RLS` وتقليلُ `service_role using(true)`) محجوز
 
 **القياسُ المحلّيُّ:** `typecheck`=0 · `lint`=0 · `build:miniapp`=0 · ميزانيةُ الأداءِ=0 (٦ طلباتٍ / ٧٥٫٨ كيلوبايت) · `check-single-origin-assets`=0 · `bun test tests/unit/content-security-policy.test.ts tests/unit/inject-csp.test.ts` → **٣٧ ناجحةً · ٠ فاشلةً**.
 
+**إصلاحاتُ ما بعدَ الدفعِ:** `TS2538` في `inline-entry-script.ts` (فحصُ `undefined`) · دمجُ ملفِّ ADR مُكرَّرٍ في الأصلِ (0045-content-security-policy-is-hash-based-in-a-meta-tag.md).
+
 ### حجزُ نطاقِ «تكافؤِ إنفاذِ الحواجزِ» — 2026-09-17
 
 **الفرعُ:** `fix/guard-enforcement-parity` · **من** `main`@`04343a2`
