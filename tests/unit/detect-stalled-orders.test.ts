@@ -14,7 +14,12 @@ import {
   detectStalledOrders,
   STALLED_ORDER_BATCH,
 } from "../../apps/workers/src/jobs/detect-stalled-orders.ts";
-import type { StalledOrderRow } from "../../packages/application/tracking/stalled-order-ports.ts";
+import {
+  isKnownStallSignalSource,
+  STALL_SIGNAL_SOURCES,
+  STALL_VERDICTS,
+  type StalledOrderRow,
+} from "../../packages/application/tracking/stalled-order-ports.ts";
 import type { CityId, OrderId } from "../../packages/shared/kernel/index.ts";
 
 const CITY = "11111111-1111-1111-1111-111111111111" as CityId;
@@ -128,5 +133,53 @@ describe("F12-04 — كاشفُ الطلباتِ العالقةِ", () => {
     const portSurface = Object.keys(h.deps.stalled);
     expect(portSurface).toEqual(["listStalled"]);
     expect(Object.keys(h.deps).sort()).toEqual(["escalate", "stalled"]);
+  });
+});
+
+/**
+ * ## معجمُ الإشاراتِ والأحكامِ — عقدٌ بينَ الهجرةِ والشيفرةِ
+ *
+ * النوعُ يختفي عندَ الترجمةِ، والصفُّ يأتي من القاعدةِ في زمنِ التشغيلِ. فالمقيسُ
+ * ههنا أنَّ **نصَّ الهجرةِ ونصَّ العقدِ يقولانِ الشيءَ نفسَه** — ولو أضافَ أحدٌ
+ * حكماً في إحداهما ونسيَ الأخرى لسقطَ هذا الملفُّ.
+ */
+describe("F12-04 — معجمُ الإشاراتِ والأحكامِ مُطابِقٌ للهجرةِ", () => {
+  const MIGRATION = "supabase/migrations/20260919060000_f12_04_stalled_order_detector.sql";
+
+  it("كلُّ إشارةٍ وكلُّ حكمٍ في العقدِ موجودٌ في الهجرةِ حرفاً", async () => {
+    const sqlText = await Bun.file(MIGRATION).text();
+    for (const source of STALL_SIGNAL_SOURCES) {
+      expect(sqlText).toContain(`'${source}'`);
+    }
+    for (const verdict of STALL_VERDICTS) {
+      expect(sqlText).toContain(`'${verdict}'`);
+    }
+  });
+
+  it("والهجرةُ لا تحملُ إشارةً خارجَ المعجمِ المغلقِ — وإلّا عبرَ نصٌّ مجهولٌ صامتاً", async () => {
+    const sqlText = await Bun.file(MIGRATION).text();
+    // كلُّ نصٍّ مُفرَدٍ بحروفٍ كبيرةٍ وشُرطاتٍ سفليّةٍ في الهجرةِ: إمّا إشارةٌ أو
+    // حكمٌ مُعلَنٌ ههنا، أو حكمُ حياةِ الرابطِ، أو مصدرُ العتبةِ.
+    const KNOWN = new Set<string>([
+      ...STALL_SIGNAL_SOURCES,
+      ...STALL_VERDICTS,
+      "SETTING",
+      "FALLBACK_DEFAULT",
+      "LIVE_RIDE_ACTIVE",
+      "LIVE_GRACE",
+      "EXPIRED_RIDE_ENDED",
+      "EXPIRED_RIDE_STALLED",
+    ]);
+    const found = [...sqlText.matchAll(/'([A-Z][A-Z_]{3,})'/g)].map((m) => m[1] as string);
+    expect(found.length).toBeGreaterThan(0);
+    expect([...new Set(found)].filter((token) => !KNOWN.has(token))).toEqual([]);
+  });
+
+  it("سالبٌ (ح-7): نصٌّ خارجَ المعجمِ لا يُقرأُ إشارةً معروفةً", () => {
+    expect(isKnownStallSignalSource("DRIVER_LOCATION")).toBe(true);
+    expect(isKnownStallSignalSource("ORDER_TOUCHED")).toBe(true);
+    // ولو رُدَّ `true` لِما لا يُعرَفُ لَمرَّ حكمٌ ثالثٌ مُختلَقٌ بلا صوتٍ.
+    expect(isKnownStallSignalSource("DRIVER_GUESSED")).toBe(false);
+    expect(isKnownStallSignalSource("")).toBe(false);
   });
 });

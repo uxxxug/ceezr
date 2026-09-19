@@ -821,15 +821,16 @@ describeIf("F12-04 — حَكَمُ الحالاتِ العالقةِ", () => {
     return row?.result ?? null;
   }
 
-  /** يُقدِّمُ طوابعَ الطلبِ إلى الماضي — فيَسكُنُ بلا انتظارٍ حقيقيٍّ. */
-  async function ageOrder(orderId: string, minutesAgo: number): Promise<void> {
-    await sql`
-      update orders
-         set updated_at = now() - make_interval(mins => ${minutesAgo}),
-             created_at = now() - make_interval(mins => ${minutesAgo})
-       where id = ${orderId}
-    `;
-  }
+  /**
+   * **ولا مُساعِدَ يُقدِّمُ `orders.updated_at` ههنا — لأنَّه مستحيلٌ.**
+   *
+   * محرِّكُ `orders_set_updated_at` (`before update on orders`) يفرضُ
+   * `updated_at = now()` عندَ **كلِّ** كتابةٍ، فعبارةٌ تكتبُ فيه ماضياً يُبطِلُها
+   * المحرِّكُ في اللحظةِ نفسِها. فالسكونُ يُزرَعُ حيثُ **يُمكِنُ** زرعُه:
+   * `drivers.last_location_at` — وهوَ الإشارةُ التي يحكمُ بها الحَكَمُ أصلاً متى
+   * كانَ سائقٌ مُسنَداً يبثُّ. ولولا هذا الاكتشافُ لبقيَ الحكمُ يأخذُ أحدثَ
+   * الطابعَينِ فيُقنِّعُ سائقاً ميّتاً بلمسةِ صفٍّ.
+   */
 
   it("٢٧) طلبٌ جارٍ حديثُ الإشارةِ حكمُه `LIVE` لا `STALLED`", async () => {
     const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
@@ -846,17 +847,19 @@ describeIf("F12-04 — حَكَمُ الحالاتِ العالقةِ", () => {
   it("٢٨) طلبٌ جارٍ سكنَ فوقَ مهلتِه حكمُه `STALLED` بساعةِ القاعدةِ", async () => {
     const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
     await seedDriverLocation(4 * 60 * 60);
-    await ageOrder(orderId, 240);
     const stall = await stallOf(orderId);
 
     expect(stall?.verdict).toBe("STALLED");
+    // والحكمُ على **موقعِ السائقِ** لا على لمسةِ الصفِّ — و`updated_at` الآنَ
+    // `now()` بفعلِ المحرِّكِ، فلو أُخِذَ أحدثُ الطابعَينِ لقُرِئَ الطلبُ حيّاً.
+    expect(stall?.signal_source).toBe("DRIVER_LOCATION");
     expect(stall?.status).toBe("in_progress");
     expect(stall?.idle_seconds ?? 0).toBeGreaterThan((stall?.threshold_minutes ?? 0) * 60);
   });
 
   it("٢٩) سالبٌ (ح-7): طلبٌ منتهٍ **لا يَعلَقُ** — والمعنى لا يُمَدُّ إلى غيرِ محلِّه", async () => {
     const orderId = await seedOrder({ riderId, status: "completed", driver: driverId });
-    await ageOrder(orderId, 5000);
+    await seedDriverLocation(9 * 60 * 60);
     const stall = await stallOf(orderId);
 
     // القاعدةُ الحارسةُ: `is_active_order_status` هوَ المصدرُ الوحيدُ لمعنى
@@ -878,6 +881,7 @@ describeIf("F12-04 — حَكَمُ الحالاتِ العالقةِ", () => {
     const a = await stallOf(searching);
     const b = await stallOf(inProgress);
 
+    // `searching` بلا سائقٍ مُسنَدٍ فلا تُدَّعى إشارةُ سائقٍ لها.
     expect(a?.signal_source).toBe("ORDER_TOUCHED");
     expect(b?.signal_source).toBe("DRIVER_LOCATION");
     // مهلةٌ واحدةٌ لحالتَينِ مختلفتَينِ كانت ستُخطئَ في إحداهما حتماً:
@@ -890,7 +894,6 @@ describeIf("F12-04 — حَكَمُ الحالاتِ العالقةِ", () => {
     const token = freshToken();
     expect((await issue(orderId, RIDER_TELEGRAM_ID, token)).ok).toBe(true);
     await seedDriverLocation(6 * 60 * 60);
-    await ageOrder(orderId, 360);
 
     // **لا نداءَ لـ`expire_tracking_tokens` ههنا عن قصدٍ**، و`expires_at` بعيدٌ.
     const [row] = await sql<{ far: boolean; revoked: boolean }[]>`
@@ -914,24 +917,27 @@ describeIf("F12-04 — حَكَمُ الحالاتِ العالقةِ", () => {
   });
 
   it("٣٣) الكاشفُ يُحصي العالقَ وحدَه، أطولَ سكوناً أوّلاً، ولا يمسُّ الحيَّ", async () => {
-    const stuckOld = await seedOrder({ riderId, status: "in_progress", driver: driverId });
-    const stuckNew = await seedOrder({ riderId, status: "in_progress", driver: driverId });
-    await ageOrder(stuckOld, 600);
-    await ageOrder(stuckNew, 120);
+    const stuckA = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    const stuckB = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    const fresh = await seedOrder({ riderId, status: "searching", driver: null });
     await seedDriverLocation(10 * 60 * 60);
 
     const rows = await sql<{ order_id: string; idle_seconds: number }[]>`
       select order_id, idle_seconds from detect_stalled_orders(${cityId}::uuid, 100)
     `;
     const ids = rows.map((r) => r.order_id);
-    expect(ids).toContain(stuckOld);
-    expect(ids).toContain(stuckNew);
-    // أطولُ سكوناً أوّلاً: من عَلِقَ منذُ عشرِ ساعاتٍ أحقُّ بنظرِ المُشغِّلِ.
-    expect(ids.indexOf(stuckOld)).toBeLessThan(ids.indexOf(stuckNew));
+    expect(ids).toContain(stuckA);
+    expect(ids).toContain(stuckB);
+    // **وطلبٌ حيٌّ لا يُحصى**: حاجزٌ يردُّ كلَّ شيءٍ لا يُميِّزُ شيئاً.
+    expect(ids).not.toContain(fresh);
+
+    // عقدُ الترتيبِ: أطولَ سكوناً أوّلاً — فمن عَلِقَ أطولَ أحقُّ بنظرِ المُشغِّلِ.
+    const idle = rows.map((r) => Number(r.idle_seconds));
+    expect(idle).toEqual([...idle].sort((a, b) => b - a));
 
     // **ولا يُغيِّرُ الكاشفُ حالةَ طلبٍ**: قراءةٌ محضةٌ، والحالاتُ كما زُرِعَت.
     const after = await sql<{ status: string }[]>`
-      select status from orders where id in (${stuckOld}, ${stuckNew})
+      select status from orders where id in (${stuckA}, ${stuckB})
     `;
     expect(after.every((r) => r.status === "in_progress")).toBe(true);
   });

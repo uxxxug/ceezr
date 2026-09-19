@@ -31,8 +31,9 @@
 -- مقابلَ مهلةٍ **لكلِّ حالةٍ على حدةٍ** من `platform_settings`.
 --
 -- والمهلةُ تفترقُ بالحالةِ لأنَّ معناها يفترقُ: `searching` لا سائقَ فيها فإشارتُها
--- الوحيدةُ عمرُ الطلبِ؛ و`matched` انتظارُ وصولِ سائقٍ؛ و`in_progress` رحلةٌ
--- تحتَ التنفيذِ وإشارتُها **أقوى الإشاراتِ**: طابعُ قبولِ آخرِ موقعٍ للسائقِ.
+-- آخرُ كتابةٍ على الصفِّ؛ و`matched` انتظارُ وصولِ سائقٍ؛ و`in_progress` رحلةٌ
+-- تحتَ التنفيذِ. وفي الحالتَينِ الأخيرتَينِ **إن كانَ سائقٌ مُسنَداً يبثُّ**
+-- فالإشارةُ طابعُ قبولِ موقعِه **وحدَه** لا أحدثُ الطابعَينِ — والعلّةُ في §٢.
 --
 -- ## وما **لا** تفعلُه هذه الهجرةُ — وهذا حدٌّ مقصودٌ لا نقصٌ
 --
@@ -122,9 +123,7 @@ begin
   select o.id,
          o.status,
          o.city_id,
-         o.created_at,
          o.updated_at,
-         o.arrived_at,
          o.assigned_driver_id,
          d.last_location_at
     into v_order
@@ -151,43 +150,42 @@ begin
   end if;
 
   -- المهلةُ والإشارةُ: **لكلِّ حالةٍ حكمُها**، والإشارةُ أقوى ما يُنبئُ عنها.
+  --
+  -- ### ولِمَ **ليسَ** `greatest(updated_at, last_location_at)`
+  --
+  -- كانَ الحكمُ أوّلَ ما كُتِبَ يأخذُ **أحدثَ** الطابعَينِ، وكانَ ذلكَ عطباً
+  -- يُبطِلُ البندَ من أصلِه: `orders.updated_at` يفرضُه محرِّكٌ
+  -- (`orders_set_updated_at` · `set_updated_at()`) إلى `now()` عندَ **كلِّ**
+  -- كتابةٍ على الصفِّ. فأيُّ لمسةٍ لا تُنبئُ عن حركةٍ — تحديثُ ملاحظةٍ، إعادةُ
+  -- توزيعٍ، كتابةُ حقلٍ إداريٍّ — كانت **تُقنِّعُ سائقاً ميّتاً** وتردُّ الطلبَ
+  -- «حيّاً» ساعاتٍ. وهذا بالحرفِ هوَ العطبُ الذي جاءَ البندُ ليكشفَه.
+  --
+  -- فالإشارةُ متى كانَ سائقٌ مُسنَداً يبثُّ: **طابعُ قبولِ موقعِه وحدَه**، لا
+  -- أحدثُ الطابعَينِ. ولا يُرجَعُ إلى `updated_at` إلّا حيثُ لا موقعَ ألبتّةَ.
   case v_order.status
     when 'searching' then
       v_thr_key := 'stalled_order_searching_minutes';
       v_default := 30;
-      -- لا سائقَ فيها، فأقوى ما يُنبئُ آخرُ تغيُّرٍ على الصفِّ أو إنشاؤه.
-      v_last_signal := greatest(v_order.updated_at, v_order.created_at);
+      -- لا سائقَ فيها، فأقوى ما يُنبئُ آخرُ كتابةٍ على الصفِّ. و`created_at` لا
+      -- يُضَمُّ: `updated_at` لا ينزلُ تحتَه أبداً فضَمُّه حسابٌ لا أثرَ له.
+      v_last_signal := v_order.updated_at;
       v_signal_src := 'ORDER_TOUCHED';
-    when 'matched' then
-      v_thr_key := 'stalled_order_matched_minutes';
-      v_default := 45;
-      -- سائقٌ أُسنِدَ: موقعُه إشارةٌ إن بثَّ، وإلّا فآخرُ تغيُّرٍ على الصفِّ.
-      v_last_signal := greatest(
-        v_order.updated_at,
-        coalesce(v_order.arrived_at, v_order.updated_at),
-        coalesce(v_order.last_location_at, v_order.updated_at)
-      );
-      v_signal_src := case
-                        when v_order.last_location_at is not null
-                         and v_order.last_location_at >= v_order.updated_at
-                        then 'DRIVER_LOCATION'
-                        else 'ORDER_TOUCHED'
-                      end;
-    else -- 'in_progress'
-      v_thr_key := 'stalled_order_in_progress_minutes';
-      v_default := 20;
-      -- رحلةٌ تحتَ التنفيذِ: طابعُ قبولِ آخرِ موقعٍ **أقوى الإشاراتِ** — وهوَ
-      -- زمنُ قبولِ الخادمِ لا زمنُ الجهازِ ولا زمنُ الإفراغِ (`F4-05` · ADR 0076).
-      v_last_signal := greatest(
-        v_order.updated_at,
-        coalesce(v_order.last_location_at, v_order.updated_at)
-      );
-      v_signal_src := case
-                        when v_order.last_location_at is not null
-                         and v_order.last_location_at >= v_order.updated_at
-                        then 'DRIVER_LOCATION'
-                        else 'ORDER_TOUCHED'
-                      end;
+    else -- 'matched' و 'in_progress'
+      v_thr_key := case v_order.status
+                     when 'matched' then 'stalled_order_matched_minutes'
+                     else 'stalled_order_in_progress_minutes'
+                   end;
+      v_default := case v_order.status when 'matched' then 45 else 20 end;
+      if v_order.assigned_driver_id is not null and v_order.last_location_at is not null then
+        -- زمنُ **قبولِ الخادمِ** لا زمنُ الجهازِ ولا زمنُ الإفراغِ (`F4-05` · ADR 0076).
+        v_last_signal := v_order.last_location_at;
+        v_signal_src := 'DRIVER_LOCATION';
+      else
+        -- لا موقعَ ألبتّةَ: لا تُدَّعى إشارةُ سائقٍ، ويُصرَّحُ بالمرجعِ الأضعفِ
+        -- باسمِه — فقارئُ السطرِ يعلمُ أنَّ الحكمَ على لمسةِ صفٍّ لا على حركةٍ.
+        v_last_signal := v_order.updated_at;
+        v_signal_src := 'ORDER_TOUCHED';
+      end if;
   end case;
 
   v_raw := get_setting(v_order.city_id, v_thr_key);
