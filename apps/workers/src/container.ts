@@ -121,6 +121,7 @@ import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/sch
 import { createJobHeartbeatRecorder } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
 import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastructure/subscription/notice-adapters.ts";
+import { createStalledOrderAdapter } from "../../../packages/infrastructure/tracking/stalled-order-adapters.ts";
 import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import { createCoreEventShipper } from "../../../packages/infrastructure/wasla/core-event-shipper.ts";
@@ -143,6 +144,7 @@ import { deliverBroadcasts } from "./jobs/deliver-broadcasts.ts";
 import { deliverNotifications } from "./jobs/deliver-notifications.ts";
 import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { deliverSubscriptionNotices } from "./jobs/deliver-subscription-notices.ts";
+import { detectStalledOrders } from "./jobs/detect-stalled-orders.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
 import { expireTrackingTokens } from "./jobs/expire-tracking-tokens.ts";
@@ -222,6 +224,12 @@ export const JOB_INTERVALS = {
    * سبب. وليس هو حدَّ الأمن — التفصيل في رأس ملفّ المهمّة.
    */
   expireTrackingTokens: 60,
+  /**
+   * `F12-04` — كشفُ الطلباتِ العالقةِ. ١٢٠ ثانيةً لا ٦٠: أقصرُ مهلةِ عَلَقٍ
+   * عشرونَ دقيقةً، فنبضةٌ كلَّ دقيقتَينِ تكشفُ في حدودِ ١٪ من المهلةِ — وأسرعُ
+   * من ذلكَ نداءُ قاعدةٍ بلا فائدةٍ لأنَّ الحكمَ لا يتغيَّرُ في ثانيةٍ.
+   */
+  detectStalledOrders: 120,
   /**
    * كلَّ يومٍ: تقديمُ نافذةِ أقسامِ `driver_location_history` (`F7-03`). لا يُسرَّعُ
    * لأنَّ القِسمَ يوميٌّ فنداءٌ ثانٍ في اليومِ نفسِه لا يُنشئُ شيئاً، ولا يُبطَّأُ
@@ -489,6 +497,7 @@ export function buildWorkerContainer(
   const recomputePort = createRatingRecomputePort(sql);
   const adminMetricSnapshotPort = createMetricSnapshotRefreshPort(sql);
   const trackingTokens = createTrackingTokenRpc(sql);
+  const stalledOrders = createStalledOrderAdapter(sql);
 
   /**
    * مزوّد الدفع في العامل يُبنى من نفس متغيّرات البيئة التي تبنيه في البوابة، لا
@@ -800,6 +809,28 @@ export function buildWorkerContainer(
                 const report = await expireTrackingTokens(cityId, { tokens: trackingTokens });
                 if (!report.ok) throw new Error(JSON.stringify(report.error));
                 return `pulled=${report.value.pulled}`;
+              },
+            },
+            {
+              /**
+               * `F12-04` — كشفُ الطلباتِ العالقةِ. **ليست في `CRITICAL_CITY_JOBS`**:
+               * تعطُّلُها لا يفتحُ رابطاً ولا يُبقي موقعاً حيّاً، لأنَّ الحَكَمَ
+               * (`tracking_link_lifetime` عن `order_stall_state`) يُجيبُ لحظةَ
+               * القراءةِ لا عن صفٍّ تكتبُه هذه المهمّةُ. فهيَ **عينُ مُشغِّلٍ**
+               * لا حدُّ أمنٍ، وإدراجُها حرجةً كانَ سيُرجِعُ 503 من `/ready` على
+               * تأخُّرٍ لا يمسُّ أحداً.
+               */
+              name: `detect-stalled-orders:${cityId}`,
+              everySeconds: JOB_INTERVALS.detectStalledOrders,
+              run: async () => {
+                const report = await detectStalledOrders(cityId, {
+                  stalled: stalledOrders,
+                  escalate: (fields) => {
+                    log.info("worker.order_stalled", fields);
+                  },
+                });
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                return `stalled=${report.value.stalled} worstIdle=${report.value.worstIdleSeconds ?? "-"}`;
               },
             },
             {
