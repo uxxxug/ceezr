@@ -78,6 +78,14 @@ export interface CspInputs {
    * المستند. مصدرُها المُخرَجُ نفسُه لا وعدٌ.
    */
   readonly inlineStyleHashes: readonly string[];
+  /**
+   * بصماتُ `sha256` **بالنصِّ الكاملِ** (`'sha256-…'`) لكلِّ سكربتٍ مُدمَجٍ في
+   * المستند (المدخلُ في `D-23`). مصدرُها المُخرَجُ نفسُه لا وعدٌ. والنمطُ هو
+   * عينُه نمطُ الأنماطِ المُدمَجةِ: بصمةٌ لا `'unsafe-inline'`.
+   * اختياريٌّ: إن لم يُمرَّر فلن تُضافَ بصماتٌ إلى `script-src` (التوافقُ مع ما
+   * قبلَ `D-23`).
+   */
+  readonly inlineScriptHashes?: readonly string[];
 }
 
 /**
@@ -102,7 +110,9 @@ export function originOf(value: string | undefined): string | null {
  * ولكلِّ تعليمةٍ سببٌ:
  * - `default-src 'none'` — الأصلُ المنعُ، وكلُّ ما يُسمَح يُسمَّى صريحاً. فقالبٌ
  *   جديدٌ (خطٌّ · عامِلٌ · بيانُ تطبيقٍ) يُمنَع حتى يُقرَّر، لا يمرُّ صامتاً.
- * - `script-src 'self' <المأذونُ>` — بلا `'unsafe-inline'` ولا `'unsafe-eval'`.
+ * - `script-src 'self' <المأذونُ> <بصماتُ السكربتِ المُدمَجِ>` — بلا `'unsafe-inline'`
+ *   ولا `'unsafe-eval'`. والبصماتُ تمديدٌ من `D-23`: المدخلُ مُدمَجٌ في المستندِ
+ *   بنمطِ الأنماطِ، فبصمتُه في `script-src` شرطُ عملِ التطبيق.
  * - `style-src 'self' <بصماتُ الأنماطِ المُدمَجةِ>` — الأنماطُ صارت في المستندِ
  *   بقرارِ `F1-09` (طلبُ شبكةٍ أقلُّ)، فبصمتُها **شرطُ عملِ التطبيق**: البندانِ
  *   مقترنانِ لا مستقلّانِ.
@@ -122,10 +132,15 @@ export function buildCsp(inputs: CspInputs): string {
     inputs.inlineStyleHashes.length === 0
       ? "'self'"
       : `'self' ${inputs.inlineStyleHashes.join(" ")}`;
+  const scriptHashes = inputs.inlineScriptHashes ?? [];
+  const scripts =
+    scriptHashes.length === 0
+      ? `'self' ${external}`
+      : `'self' ${external} ${scriptHashes.join(" ")}`;
 
   return [
     "default-src 'none'",
-    `script-src 'self' ${external}`,
+    `script-src ${scripts}`,
     `style-src ${styles}`,
     "img-src 'self' data:",
     `connect-src ${connect}`,

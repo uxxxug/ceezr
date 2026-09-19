@@ -5917,7 +5917,7 @@ D-06 (فرضُ `force RLS` وتقليلُ `service_role using(true)`) محجوز
 
 ### بندٌ مُكتشَفٌ — D-23 · هجرةُ الجامعِ إلى Rolldown (`vite@8` + `@vitejs/plugin-react@6`)
 
-- [ ] **D-23** هجرةُ جامعِ miniapp من Rollup إلى Rolldown دونَ خرقِ جدولِ الحِزَمِ (القسم 9.4) ولا ميزانيةِ الأداءِ (القسم 9.9).
+- [x] **D-23** هجرةُ جامعِ miniapp من Rollup إلى Rolldown دونَ خرقِ جدولِ الحِزَمِ (القسم 9.4) ولا ميزانيةِ الأداءِ (القسم 9.9). — [`feat/d-23-rolldown-migration`](https://github.com/uxxxug/ceezr/pull/TBD) · [الدليل](docs/evidence/toolchain/D-23-20260919.md)
 
 **سببُ وجودِ البندِ:** الترقيةُ ليسَت رقمَ إصدارٍ في طلبِ اعتماديةٍ؛ هيَ **تغييرُ مُخرَجٍ يخضعُ لعقدَينِ مكتوبَينِ**. اكتُشِفَ أثناءَ `D-09` وقِيسَ ولم يُدَسَّ في طلبِ تحديثٍ.
 
@@ -5928,6 +5928,51 @@ D-06 (فرضُ `force RLS` وتقليلُ `service_role using(true)`) محجوز
 **ما لا يُفعَلُ في هذا البندِ:** لا رفعَ سقفِ طلباتِ أوّلِ رسمٍ · لا توسيعَ `DECLARED_EXTRA_BUNDLES` بلا سببٍ مكتوبٍ في القسم 9.4 · لا حذفَ وسمِ `modulepreload` وحدَه (يُنقِصُ الرقمَ في المستندِ لا الطلبَ في الجهازِ: تلوينُ قياسٍ).
 
 **ما لا يُدَّعى:** لا يُدَّعى أنَّ الهجرةَ مطلوبةٌ للأداءِ — `vite@6` يُحقِّقُ الميزانيةَ اليومَ؛ المطلوبُ ألّا يبقى إصدارٌ رئيسٌ مُهمَلاً بلا قرارٍ.
+
+### حجزُ نطاقِ «D-23» — هجرةُ الجامعِ إلى Rolldown — 2026-09-19
+
+**الفرعُ:** `feat/d-23-rolldown-migration` · **من** `main`@`fcb474a`
+
+**النطاقُ المحجوزُ:**
+- `apps/miniapp/package.json` (`vite` · `@vitejs/plugin-react`)
+- `apps/miniapp/vite.config.ts` (هجرةُ `manualChunks` إلى `codeSplitting.groups` · `import.meta.dirname`)
+- `apps/miniapp/vite/inline-entry-script.ts` (جديدٌ: إدماجُ حزمةِ المدخلِ في المستندِ)
+- `apps/miniapp/vite/inject-csp.ts` (حسابُ بصمةِ السكربتِ المُدمَجِ)
+- `apps/miniapp/vite/inline-stylesheet.ts` (تصحيحُ التعليقِ بالإضافةِ)
+- `scripts/lib/content-security-policy.ts` (`inlineScriptHashes` في `CspInputs` · `script-src`)
+- `scripts/lib/performance-budget.ts` (إن لزمَ)
+- `scripts/check-single-origin-assets.ts` (إن لزمَ)
+- `docs/adr/0045-*.md` (إضافةٌ: تمديدُ البصماتِ من `style-src` إلى `script-src`)
+- `docs/evidence/toolchain/D-23-20260919.md` (جديدٌ)
+- `ROADMAP.md`
+
+**النطاقُ **غيرُ** المحجوزِ:**
+- **لا رفعَ سقفِ طلباتِ أوّلِ رسمٍ** (`BUDGET.firstPaintRequests = 6`)
+- **لا توسيعَ `DECLARED_EXTRA_BUNDLES`** بلا سببٍ مكتوبٍ في القسم 9.4
+- **لا حذفَ وسمِ `modulepreload` وحدَه** (تلوينُ قياسٍ)
+- **لا `'unsafe-inline'` ولا `'unsafe-eval'`** في `script-src` بحالٍ
+- **لا تعديلَ جدولِ القسم 9.4** (أسماءُ الحزمِ ثابتةٌ)
+- نصُّ أيِّ بندٍ (`ح-1`) · لا قلبَ حالةٍ (`ح-4`) · لا مسَّ `DEC-18` ولا `F1-09`/`F1-10` نصّاً
+
+**ما يُفعَلُ:**
+1. ترقيةُ `vite` إلى `^8.3.0` و`@vitejs/plugin-react` إلى `^6.1.1`
+2. هجرةُ `manualChunks` إلى `build.rolldownOptions.output.codeSplitting.groups` (مُجرَّبةٌ في D-09)
+3. تصحيحُ `__dirname` إلى `import.meta.dirname`
+4. إنشاءُ `inline-entry-script.ts`: يدمجُ حزمةَ المدخلِ في `<script type="module">` داخلَ المستندِ
+5. تمديدُ `content-security-policy.ts` لقبولِ `inlineScriptHashes` وإضافتِها إلى `script-src`
+6. تحديثُ `inject-csp.ts` لحسابِ بصمةِ السكربتِ المُدمَجِ من المُخرَجِ
+7. تصحيحُ تعليقِ `inline-stylesheet.ts` بالإضافةِ (`ح-8`)
+8. إضافةٌ إلى ADR 0045: تمديدُ البصماتِ من `style-src` إلى `script-src` (نفسُ النمطِ لا تخفيفٌ)
+
+**ما لا يُدَّعى:** لا يُدَّعى أنَّ الإدماجَ آمنٌ بلا اختبارِ متصفّحٍ — البصمةُ تُقرأ من المُخرَجِ حرفاً حرفاً كالأنماطِ، لكنَّ المتصفّحَ لا يُختبَر ههنا (ADR 0045 §٥-٢). ولا يُدَّعى أنَّ `rolldown-runtime` أُزيلَ — بقيَ طلبَ `modulepreload` سابعاً، وإدماجُ المدخلِ يُنقِصُ العددَ إلى ٦ بإسقاطِ طلبِ `index.js` لا بإسقاطِ `rolldown-runtime`.
+
+---
+
+**تنفيذُ — 2026-09-19:**
+
+**القياسُ المحلّيُّ:** `typecheck`=0 · `lint`=0 · `build:miniapp`=0 · ميزانيةُ الأداءِ=0 (٦ طلباتٍ / ٧٥٫٨ كيلوبايت) · `check-single-origin-assets`=0 · `bun test tests/unit/content-security-policy.test.ts tests/unit/inject-csp.test.ts` → **٣٧ ناجحةً · ٠ فاشلةً**.
+
+**إصلاحاتُ ما بعدَ الدفعِ:** `TS2538` في `inline-entry-script.ts` (فحصُ `undefined`) · دمجُ ملفِّ ADR مُكرَّرٍ في الأصلِ (0045-content-security-policy-is-hash-based-in-a-meta-tag.md).
 
 ### حجزُ نطاقِ «تكافؤِ إنفاذِ الحواجزِ» — 2026-09-17
 

@@ -230,10 +230,24 @@ function main(): void {
     styleMatch = stylePattern.exec(dist);
   }
 
+  /** D-23: بصماتُ السكربتِ المُدمَجِ — نفسُ النمطِ، لكن للسكربتِ الخارجيّ. */
+  const scriptHashes: string[] = [];
+  const scriptPattern = /<script\s+[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/g;
+  let scriptMatch = scriptPattern.exec(dist);
+  while (scriptMatch !== null) {
+    const tag = scriptMatch[0];
+    const body = scriptMatch[1] ?? "";
+    if (!/\ssrc=/.test(tag)) {
+      scriptHashes.push(`'sha256-${createHash("sha256").update(body, "utf8").digest("base64")}'`);
+    }
+    scriptMatch = scriptPattern.exec(dist);
+  }
+
   const expected = cspMetaTag(
     buildCsp({
       apiBase: process.env.VITE_WASLAH_API_BASE,
       inlineStyleHashes: styleHashes,
+      inlineScriptHashes: scriptHashes,
     }),
   );
 
@@ -254,15 +268,15 @@ function main(): void {
 
   /** ولا سكربتَ من نطاقٍ غيرِ مأذونٍ له في المُخرَجِ نفسِه. */
   const scriptSrc = /<script[^>]*\ssrc=["'](https?:\/\/[^"']+)["']/gi;
-  let scriptMatch = scriptSrc.exec(dist);
-  while (scriptMatch !== null) {
-    const url = scriptMatch[1] ?? "";
+  let externalScriptMatch = scriptSrc.exec(dist);
+  while (externalScriptMatch !== null) {
+    const url = externalScriptMatch[1] ?? "";
     const origin = new URL(url).origin.toLowerCase();
     if (!allowed.has(origin)) {
       console.error(`✗ سكربتٌ في المُخرَجِ من نطاقٍ غيرِ مأذونٍ له: ${origin} (TG-005)`);
       process.exit(1);
     }
-    scriptMatch = scriptSrc.exec(dist);
+    externalScriptMatch = scriptSrc.exec(dist);
   }
 
   if (violations.length > 0) {
