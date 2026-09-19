@@ -1044,6 +1044,31 @@ jobs:
           end $$;
           SQL
 
+      # `BUG-017`: autovacuum was inflating `pg_stat_database` block-touch
+      # counters during the ride-soak test. The soak test measures engine
+      # work via `blks_read + blks_hit` from `pg_stat_database`, which
+      # includes ALL block accesses — including autovacuum's. On a fresh
+      # CI database with default autovacuum settings, autovacuum can trigger
+      # during the warm-baseline window (rides 11–20), inflating the
+      # `blocksTouched` delta by up to 161% (32481 vs 12430 on the same
+      # commit, same code — run 35428393006 first attempt vs rerun).
+      # The asymmetry (161% blocks vs 61% rows) is the signature of
+      # autovacuum: it scans many blocks looking for dead tuples but
+      # doesn't return tuples through the normal query path.
+      # Disabling autovacuum here is a root-cause fix, not a budget raise:
+      # the test measures application query work, not PostgreSQL
+      # maintenance work. The budget (`scripts/lib/work-budget.ts`)
+      # is not touched.
+      - name: تعطيل autovacuum لقياسٍ حتميٍّ في اختبار الصمود (BUG-017)
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 <<'SQL'
+          alter system set autovacuum = off;
+          select pg_reload_conf();
+          SQL
+
+
       # مصدرُ الحقيقةِ الواحدُ لتطبيقِ الهجراتِ: `scripts/migrate.ts` (F7-07 · ADR 0068).
       # وحلقةُ `psql` العارية أُزيلَت لأنّها كانت تُطبِّق على CI بطريقٍ يخالف طريقَ
       # الإنتاج، فيصير الأخضرُ شاهداً على غيرِ ما يُشغَّل. والمُطبِّقُ يحكم على كلِّ
