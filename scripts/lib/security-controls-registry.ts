@@ -66,7 +66,11 @@ export interface SecurityControl {
   /** مسارُ حاجزٍ آليٍّ يحرسُه على القرصِ. **إلزاميٌّ متى كانَ `built`.** */
   readonly guard: string | null;
   /** مالكٌ من قائمةٍ مغلقةٍ — عائقٌ بلا مالكٍ لا يُغلَقُ أبداً. */
-  readonly owner: "منفّذ المستودع" | "مالك المشروع" | "بنية تحتية (F9)";
+  readonly owner:
+    | "منفّذ المستودع"
+    | "مالك المشروع"
+    | "بنية تحتية (F9)"
+    | "بنية تحتية (نشر + معمارية)";
   /** معرِّفُ عائقٍ أو قرارٍ يمنعُ البناءَ، متى كانَ المانعُ خارجَ المستودَعِ. */
   readonly blockedBy: string | null;
 }
@@ -199,8 +203,9 @@ export const SECURITY_CONTROLS: readonly SecurityControl[] = [
     evidence: null,
     gapMeasurement: "docs/evidence/security/SEC-10-20260917.md",
     guard: "scripts/check-row-security-condition.ts",
-    owner: "منفّذ المستودع",
-    blockedBy: null,
+    owner: "بنية تحتية (نشر + معمارية)",
+    blockedBy:
+      "ملكيّةُ النشرِ (`DATABASE_URL` بـ`BYPASSRLS`) + معماريّةُ الدوالِّ (`security definer` بـ`postgres` ذي `BYPASSRLS`) — قياسُ الإنتاجِ في §٦",
   },
   {
     id: "SEC-11",
