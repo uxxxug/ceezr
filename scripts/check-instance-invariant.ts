@@ -164,6 +164,7 @@ const TRACKED_ENV_KEYS = [
   "PROCESS_TOPOLOGY",
   "RUN_WORKER_IN_GATEWAY",
   "RUN_ADMIN_IN_GATEWAY",
+  "LIVE_LOCATION_FALLBACK_ENABLED",
 ] as const;
 
 type TrackedEnvKey = (typeof TRACKED_ENV_KEYS)[number];
@@ -179,6 +180,14 @@ export interface ServiceDeclaration {
    * بلا `NODE_ENV` تُنتِجُ حكماً على نصفِ الشرطِ.
    */
   readonly nodeEnv: string | null;
+  /**
+   * قيمةُ `LIVE_LOCATION_FALLBACK_ENABLED` المُعلَنةُ للخدمةِ، أو `null` إن لم تُعلَن
+   * (`F2-06` · قرارُ المالكِ 2026-09-19). وهي **بثُّ موقعِ السائقِ الحيِّ خريطةً في
+   * محادثةِ العميلِ على تلغرام**، والتتبّعُ الحيُّ ممنوعٌ في إنتاجِ الإطلاقِ منعاً
+   * باتّاً. والضبطُ يَرُدُّها عندَ الإقلاعِ، وهذا الحرزُ يمنعُ **كتابتَها في ملفِّ
+   * النشرِ أصلاً** فلا يُكتشَفُ المنعُ بخدمةٍ ساقطةٍ.
+   */
+  readonly liveLocationFallbackEnabled: string | null;
   /** قيمةُ `PROCESS_TOPOLOGY` المُعلَنةُ للخدمةِ، أو `null` إن لم تُعلَن (ADR 0051). */
   readonly processTopology: string | null;
   /**
@@ -209,6 +218,7 @@ interface MutableService {
   name: string | null;
   numInstances: string | null;
   nodeEnv: string | null;
+  liveLocationFallbackEnabled: string | null;
   processTopology: string | null;
   runWorkerInGateway: string | null;
   runAdminInGateway: string | null;
@@ -242,6 +252,7 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
         name: null,
         numInstances: null,
         nodeEnv: null,
+        liveLocationFallbackEnabled: null,
         processTopology: null,
         runWorkerInGateway: null,
         runAdminInGateway: null,
@@ -299,6 +310,9 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
         case "NODE_ENV":
           current.nodeEnv = value;
           break;
+        case "LIVE_LOCATION_FALLBACK_ENABLED":
+          current.liveLocationFallbackEnabled = value;
+          break;
         case "SESSION_STORE":
           current.sessionStore = value;
           break;
@@ -334,6 +348,7 @@ export interface Finding {
     | "INSTANCES_ABOVE_ONE"
     | "SESSION_STORE_INCOHERENT"
     | "SESSION_STORE_MEMORY_IN_PRODUCTION"
+    | "LIVE_TRACKING_ENABLED_IN_PRODUCTION"
     | "MISSING_PROCESS_TOPOLOGY"
     | "INVALID_PROCESS_TOPOLOGY"
     | "TOPOLOGY_INSTANCES_MISMATCH"
@@ -530,6 +545,35 @@ export function analyse(content: string): readonly Finding[] {
           "الضبطِ (apps/gateway/src/index.ts · apps/workers/src/index.ts). " +
           "فهذا ليسَ تفضيلاً: الخدمةُ **لا تُقلعُ** بهذا الإعلانِ. اضبط SESSION_STORE=redis. " +
           "ولا يُعتبرُ `autoDeploy: false` حلّاً — فهو يُؤخِّرُ العطلَ ولا يمنعُه.",
+      });
+    }
+
+    /*
+     * `F2-06` — **لا تتبّعَ حيّاً في الإنتاجِ** · قرارُ المالكِ 2026-09-19.
+     *
+     * قناةُ Socket.IO مُغلَقةٌ بحكمِ البيئةِ في
+     * `apps/gateway/src/realtime/live-tracking-policy.ts`، وهذا البابُ الثاني:
+     * متغيِّرٌ يُكتَبُ ههنا فيُعيدُ بثَّ الموقعِ في محادثةِ العميلِ. والضبطُ يردُّه
+     * عندَ الإقلاعِ — **والرفضُ عندَ الإقلاعِ خدمةٌ لا تُقلعُ**، فالمنعُ ههنا
+     * أرخصُ: يُقرأُ في CI قبلَ النشرِ لا بعدَ سقوطِه.
+     *
+     * وهذا الحكمُ **مستقلٌّ عن عددِ النسخِ** كأخيه أعلاه، ولسببٍ آخرَ: بثُّ
+     * الموقعِ خرقُ خصوصيّةٍ بنسخةٍ واحدةٍ كما هو بعشرٍ.
+     */
+    if (
+      service.nodeEnv === "production" &&
+      service.liveLocationFallbackEnabled !== null &&
+      /^(true|1|yes|on)$/i.test(service.liveLocationFallbackEnabled.trim())
+    ) {
+      findings.push({
+        code: "LIVE_TRACKING_ENABLED_IN_PRODUCTION",
+        message:
+          `الخدمةُ «${service.name}» (${at}): NODE_ENV = production و` +
+          `LIVE_LOCATION_FALLBACK_ENABLED = «${service.liveLocationFallbackEnabled}». ` +
+          "والتتبّعُ الحيُّ ممنوعٌ في إنتاجِ الإطلاقِ منعاً باتّاً (F2-06 · قرارُ المالكِ " +
+          "2026-09-19): هذا المتغيِّرُ يبثُّ موقعَ السائقِ خريطةً حيّةً في محادثةِ العميلِ " +
+          "على تلغرام. و`packages/shared/config/index.ts` يَرُدُّ `InvalidEnvVarError` على " +
+          "هذا الاقترانِ فلا تُقلعُ الخدمةُ. احذف المتغيِّرَ أو اضبطهُ false.",
       });
     }
 
