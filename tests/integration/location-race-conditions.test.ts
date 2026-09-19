@@ -324,9 +324,32 @@ describeIf("سباقاتُ مسارِ الموقعِ على PostgreSQL حقيق�
       new Set(positions.map((event) => `${event.position?.lat},${event.position?.lng}`)).size,
     ).toBe(1);
 
-    // ولا يُنتِجُ جلسةً ثانيةً، ورقمُ الصفِّ هوَ آخرُ ما نُشِرَ.
+    // ولا يُنتِجُ جلسةً ثانيةً، و**أعلى** رقمٍ منشورٍ هوَ رقمُ الصفِّ.
+    //
+    // **تصحيحُ `OPS-017` (2026-09-19 · حكمُ CI `35431980350`).** كانَ المُوجَبُ
+    // ههنا «آخرُ ما نُشِرَ = رقمُ الصفِّ» (`positions.at(-1)`)، وذاكَ **شاهدٌ على
+    // جدولةِ التنفيذِ لا على العقدِ** — وهوَ عينُ العطبِ الذي شخَّصَهُ `OPS-016`
+    // وأصلحَهُ في السطرِ 210 من هذا الملفِّ: الرقمُ يُمنَحُ داخلَ `update` واحدةٍ
+    // في `session-repository.ts:182`، والنشرُ يقعُ **بعدَ** إغلاقِ المعاملةِ في
+    // `live-tracking.ts:325` وخارجَ أيِّ قفلٍ — فمن نداءَينِ متزامنَينِ قد يأخذُ
+    // أحدُهما ٣ والآخرُ ٢ ثمَّ ينشرُ صاحبُ ٣ أوّلاً، فيكونُ «آخرُ المنشورِ» ٢
+    // والصفُّ ٣ **بلا خللٍ في السلوكِ**. وذاكَ حرفاً ما قرأَهُ CI:
+    // `Expected: 3 · Received: 2`. ولا عقدَ يضمنُ ترتيبَ التسليمِ: `ADR 0053`
+    // يجعلُ **الرقمَ** هوَ الترتيبَ، والمستهلكُ يرتّبُ بهِ.
+    //
+    // والشاهدُ **شُدَّ لا خُفِّفَ**: أعلى رقمٍ منشورٍ = رقمُ الصفِّ (فلا رقمَ
+    // وُلِدَ خارجَ كتابةٍ قبِلَت)، **ولا رقمَ منشورٌ يتجاوزُ رقمَ الصفِّ** (فلا
+    // رقمَ نُشِرَ قبلَ أن يُكتَبَ)، وكلٌّ منهما لا يقرأُ ترتيبَ الوصولِ.
     expect((await sessionsOf(driverId)).length).toBe(1);
-    expect(positions.at(-1)?.sequence).toBe(row.last_sequence);
+    const duplicateSequences = positions.map((event) => event.sequence);
+    // وسلامةً للقياسِ لا تخفيفاً: `Math.max` على فارغٍ يُعطي `-Infinity`
+    // فيُقرأُ الفراغُ عطباً في العقدِ، والفراغُ ههنا عطبٌ بنفسِهِ.
+    expect(duplicateSequences.length).toBeGreaterThan(0);
+    expect(Math.max(...duplicateSequences)).toBe(row.last_sequence);
+    for (const sequence of duplicateSequences) {
+      expect(sequence).toBeLessThanOrEqual(row.last_sequence);
+      expect(sequence).toBeGreaterThan(0);
+    }
   });
 
   it("ساعتانِ متباعدتانِ: سائقانِ بساعتَينِ متباينتَينِ يترقّمانِ استقلالاً ولا يتلوّثُ ترتيبُ أيٍّ منهما", async () => {
@@ -387,9 +410,26 @@ describeIf("سباقاتُ مسارِ الموقعِ على PostgreSQL حقيق�
     expect(byChannel.size).toBe(2);
     for (const [, sequences] of byChannel) expectStrictlyIncreasing(sequences);
 
-    // وكلُّ قناةٍ تنتهي عندَ رقمِ صفِّها هوَ — لا عدّادَ مشتركٌ بينهما.
-    expect(byChannel.get(firstRow.id)?.at(-1)).toBe(firstRow.last_sequence);
-    expect(byChannel.get(secondRow.id)?.at(-1)).toBe(secondRow.last_sequence);
+    // وكلُّ قناةٍ **أعلى رقمٍ منشورٍ فيها** هوَ رقمُ صفِّها — لا عدّادَ مشتركٌ
+    // بينهما.
+    //
+    // **تصحيحُ `OPS-017`** (انظر الشرحَ في الحالةِ الثانيةِ أعلاهُ): كانَ
+    // المُوجَبُ `at(-1)` وهوَ قراءةُ ترتيبِ التسليمِ، وعليهِ سقطَ التشغيلُ
+    // `34719287936` في السطرِ 387 على بايتاتٍ مطابقةٍ لتشغيلٍ ناجحٍ. والمُوجَبُ
+    // الآنَ مقيسٌ على المجموعةِ: أعلى المنشورِ في كلِّ قناةٍ = رقمُ صفِّها، ولا
+    // رقمَ منشورٌ يتجاوزُ رقمَ صفِّهِ — أقوى، ومستقلٌّ عن التداخلِ.
+    const firstPublished = byChannel.get(firstRow.id) ?? [];
+    const secondPublished = byChannel.get(secondRow.id) ?? [];
+    expect(firstPublished.length).toBeGreaterThan(0);
+    expect(secondPublished.length).toBeGreaterThan(0);
+    expect(Math.max(...firstPublished)).toBe(firstRow.last_sequence);
+    expect(Math.max(...secondPublished)).toBe(secondRow.last_sequence);
+    for (const sequence of firstPublished) {
+      expect(sequence).toBeLessThanOrEqual(firstRow.last_sequence);
+    }
+    for (const sequence of secondPublished) {
+      expect(sequence).toBeLessThanOrEqual(secondRow.last_sequence);
+    }
 
     // والساعةُ المنحرفةُ لم تمنع القناةَ الثانيةَ من التقدُّمِ.
     expect(secondRow.last_sequence).toBeGreaterThan(1);

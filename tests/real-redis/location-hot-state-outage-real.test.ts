@@ -256,15 +256,34 @@ describeIf("سباقُ انقطاعِ المخزنِ الساخنِ على Redis
 
     const positions = events.filter((event) => event.type === "location_updated");
 
-    // لا رقمَ مكرَّرٌ ولا راجعٌ عبرَ الانقطاعِ والعودةِ.
+    /**
+     * لا رقمَ مكرَّرٌ ولا راجعٌ عبرَ الانقطاعِ والعودةِ.
+     *
+     * **تصحيحُ `OPS-017` (2026-09-19):** كانَ التزايدُ مقيساً **بترتيبِ
+     * التسليمِ**، والنبضتانِ الثانيةُ والثالثةُ تُطلَقانِ **معاً** في السطرِ 236
+     * — والرقمُ يُمنَحُ داخلَ المعاملةِ ويُنشَرُ بعدَها بلا قفلٍ
+     * (`session-repository.ts` · `live-tracking.ts`)، فصاحبُ ٣ قد ينشرُ قبلَ
+     * صاحبِ ٢ بلا خللٍ في السلوكِ. وهوَ عينُ العطبِ الذي أسقطَ CI ثلاثَ
+     * مرّاتٍ في `tests/integration/location-race-conditions.test.ts`، وكشفَهُ ههنا
+     * الحاجزُ الجديدُ `scripts/check-sequence-witness-order.ts` **قبلَ** أن يُسقِطَ
+     * وظيفةَ Redis. والمُوجَبُ الآنَ مقيسٌ على **المجموعةِ**: لا رقمَ
+     * يتكرَّرُ، والمرتَّبُ بالرقمِ متزايدٌ صارماً — ولا يُقرأُ فيهِ ترتيبُ
+     * الوصولِ (`ADR 0053`: الرقمُ هوَ الترتيبُ، والمستهلكُ يرتّبُ بهِ).
+     */
     const sequences = positions.map((event) => event.sequence);
     expect(new Set(sequences).size).toBe(sequences.length);
-    for (let index = 1; index < sequences.length; index += 1) {
-      expect(sequences[index] ?? 0).toBeGreaterThan(sequences[index - 1] ?? 0);
+    const orderedSequences = [...sequences].sort((left, right) => left - right);
+    for (let index = 1; index < orderedSequences.length; index += 1) {
+      expect(orderedSequences[index] ?? 0).toBeGreaterThan(orderedSequences[index - 1] ?? 0);
     }
 
-    // ولا موضعَ يتراجعُ: طوابعُ الجهازِ غيرُ متناقصةٍ في المنشورِ.
-    const stamps = positions.map(recordedMsOf);
+    /**
+     * ولا موضعَ يتراجعُ: طوابعُ الجهازِ غيرُ متناقصةٍ **بترتيبِ الرقمِ**
+     * — وهوَ الترتيبُ الذي يقرأُهُ المستهلكُ، لا ترتيبُ الوصولِ (`OPS-017`).
+     */
+    const stamps = [...positions]
+      .sort((left, right) => left.sequence - right.sequence)
+      .map(recordedMsOf);
     for (let index = 1; index < stamps.length; index += 1) {
       expect(stamps[index] ?? 0).toBeGreaterThanOrEqual(stamps[index - 1] ?? 0);
     }
@@ -272,8 +291,14 @@ describeIf("سباقُ انقطاعِ المخزنِ الساخنِ على Redis
     // والانقطاعُ لم يبتلع النبضاتِ: ما بعدَ الانقطاعِ نُشِرَ أيضاً.
     expect(positions.length).toBeGreaterThan(beforeOutage);
 
-    // ورقمُ الصفِّ هوَ آخرُ ما نُشِرَ — لا رقمَ وُلِدَ خارجَ كتابةٍ قبِلَت.
-    expect(sequences.at(-1)).toBe(row.last_sequence);
+    // ورقمُ الصفِّ هوَ **أعلى** ما نُشِرَ — لا رقمَ وُلِدَ خارجَ كتابةٍ
+    // قبِلَت، **ولا رقمَ منشورٌ يتجاوزُهُ** فلا رقمَ نُشِرَ قبلَ أن يُكتَبَ
+    // (`OPS-017`: مقيسٌ على المجموعةِ لا على ترتيبِ التسليمِ).
+    expect(sequences.length).toBeGreaterThan(0);
+    expect(Math.max(...sequences)).toBe(row.last_sequence);
+    for (const sequence of sequences) {
+      expect(sequence).toBeLessThanOrEqual(row.last_sequence);
+    }
     expect(new Set(positions.map((event) => event.sessionId))).toEqual(new Set([row.id]));
 
     // والنبضةُ الأخيرةُ (قبلَ عشرِ ثوانٍ) هيَ ما استقرَّ في الصفِّ.
