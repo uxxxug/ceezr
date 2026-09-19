@@ -65,6 +65,7 @@ export function inlineEntryScript(): Plugin {
         if (srcMatch === null) return output;
 
         const fileName = srcMatch[1];
+        if (fileName === undefined) return output;
         /** المفتاحُ في الحزمةِ يحملُ المسارَ الكاملَ: `assets/index-*.js`. */
         const bundleKey = `assets/${fileName}`;
         const chunk = bundle[bundleKey];
