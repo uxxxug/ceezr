@@ -5917,7 +5917,7 @@ D-06 (فرضُ `force RLS` وتقليلُ `service_role using(true)`) محجوز
 
 ### بندٌ مُكتشَفٌ — D-23 · هجرةُ الجامعِ إلى Rolldown (`vite@8` + `@vitejs/plugin-react@6`)
 
-- [x] **D-23** هجرةُ جامعِ miniapp من Rollup إلى Rolldown دونَ خرقِ جدولِ الحِزَمِ (القسم 9.4) ولا ميزانيةِ الأداءِ (القسم 9.9). — [`feat/d-23-rolldown-migration`](https://github.com/uxxxug/ceezr/pull/TBD) · [الدليل](docs/evidence/toolchain/D-23-20260919.md)
+- [x] **D-23** هجرةُ جامعِ miniapp من Rollup إلى Rolldown دونَ خرقِ جدولِ الحِزَمِ (القسم 9.4) ولا ميزانيةِ الأداءِ (القسم 9.9). — [`feat/d-23-rolldown-migration`](https://github.com/uxxxug/ceezr/pull/150) · [الدليل](docs/evidence/toolchain/D-23-20260919.md)
 
 **سببُ وجودِ البندِ:** الترقيةُ ليسَت رقمَ إصدارٍ في طلبِ اعتماديةٍ؛ هيَ **تغييرُ مُخرَجٍ يخضعُ لعقدَينِ مكتوبَينِ**. اكتُشِفَ أثناءَ `D-09` وقِيسَ ولم يُدَسَّ في طلبِ تحديثٍ.
 
@@ -5973,6 +5973,8 @@ D-06 (فرضُ `force RLS` وتقليلُ `service_role using(true)`) محجوز
 **القياسُ المحلّيُّ:** `typecheck`=0 · `lint`=0 · `build:miniapp`=0 · ميزانيةُ الأداءِ=0 (٦ طلباتٍ / ٧٥٫٨ كيلوبايت) · `check-single-origin-assets`=0 · `bun test tests/unit/content-security-policy.test.ts tests/unit/inject-csp.test.ts` → **٣٧ ناجحةً · ٠ فاشلةً**.
 
 **إصلاحاتُ ما بعدَ الدفعِ:** `TS2538` في `inline-entry-script.ts` (فحصُ `undefined`) · دمجُ ملفِّ ADR مُكرَّرٍ في الأصلِ (0045-content-security-policy-is-hash-based-in-a-meta-tag.md).
+
+**حكمُ CI:** ✓ جميعُ الوظائفِ ناجحةٌ — `verify` (1m35s) · `roadmap` (13s) · `تكامل على PostgreSQL` (3m15s) · `تكامل على Redis` (35s) · `فوضى متعدد المثيلات` (52s). الدفعُ `fa16fc0` على `main`.
 
 ### حجزُ نطاقِ «تكافؤِ إنفاذِ الحواجزِ» — 2026-09-17
 
