@@ -36,8 +36,15 @@ services:
       - key: PORT
         value: "8080"
       # مخزن الجلسات — أين تُحفظ حالة الحوار وحدها. لا يدلّ على عدد العمليات (ADR 0051).
+      #
+      # BUG-016: كانت القيمة `memory` وهي **تمنع الإقلاع رأساً** لا تُضعف ضماناً:
+      # `packages/shared/config/index.ts` يردّ `InvalidEnvVarError` على اقتران
+      # `NODE_ENV=production` مع `SESSION_STORE=memory` (SCL-002 · BUG-007)،
+      # و`apps/gateway/src/index.ts` ينفّذ `process.exit(1)` عند فشل الضبط.
+      # وحاجز `check-instance-invariant.ts` يمنع عودة التناقض برمز
+      # `SESSION_STORE_MEMORY_IN_PRODUCTION`.
       - key: SESSION_STORE
-        value: memory
+        value: redis
       # طوبولوجيا التشغيل — «كم عمليةً نحن» (ADR 0051). يكافئ numInstances أعلاه،
       # ورفعه إلى multi-process يُسقط الحاجز ما دامت آلية التوزيع in-process.
       - key: PROCESS_TOPOLOGY
@@ -244,9 +251,15 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-      # العامل لا يخدّم حواراً فلا يقرأ جلسات؛ يُترك memory بلا أثر.
+      # العامل لا يخدّم حواراً فلا يقرأ جلساتٍ فعلاً.
+      #
+      # BUG-016 — تصحيح دعوى كانت ههنا: كان مكتوباً «يُترك memory بلا أثر»
+      # وهي **دعوى كاذبة مُكلّفة**: عدم قراءة القيمة لا يعني عدم الحكم عليها.
+      # فـ`apps/workers/src/index.ts:28` يستدعي `tryLoadConfig` وينفّذ `process.exit(1)`
+      # عند الفشل، والضبط يرفض `memory` في الإنتاج **قبل أن يسأل من يقرأها**.
+      # فالعامل كان لا يُقلع في الإنتاج، لا يُقلع بلا أثر.
       - key: SESSION_STORE
-        value: memory
+        value: redis
       # عمليةٌ واحدة كذلك — والقفل الموزّع يحمي المهامّ لا الطوبولوجيا (ADR 0051).
       - key: PROCESS_TOPOLOGY
         value: single-process

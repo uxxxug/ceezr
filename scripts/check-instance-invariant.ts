@@ -40,10 +40,31 @@
  * - **لا يُحلِّل YAML تحليلاً عامّاً.** لا مكتبةَ YAML في الاعتمادياتِ، وإدخالُ
  *   واحدةٍ لأجلِ حاجزٍ توسيعٌ لسطحِ الاعتمادِ. فالمقروءُ **شكلٌ ضيّقٌ مُلزَمٌ**
  *   (خدمةٌ عندَ مسافتَين، حقلٌ عندَ أربعٍ، متغيّرٌ عندَ ستٍّ) وما خرج عنه سقوطٌ.
- * - **لا يحكم على قيمةِ `SESSION_STORE` بذاتِها.** إلزامُ `redis` في الإنتاجِ بندٌ
- *   آخرُ مفتوحٌ (`F5-03` · `SCL-002`)، وليس هذا موضعَه. وإنّما يُقرأ ههنا
- *   **اقتراناً**: عددُ نسخٍ فوقَ الواحدةِ مع `memory` خرقٌ مزدوجٌ (ADR 0011).
  * - **لا يمسّ عددَ النسخِ.** يقرأ ولا يكتب.
+ *
+ * ## التوسعةُ بـ`BUG-016` — عقدُ الإنتاجِ يُقرأ ههنا لا يُؤجَّل
+ *
+ * كانَ مكتوباً في هذا الموضعِ أنَّ الحاجزَ **لا يحكمُ على قيمةِ `SESSION_STORE`
+ * بذاتِها**، وأنَّ إلزامَ `redis` في الإنتاجِ «بندٌ آخرُ وليس هذا موضعَه». وذلكَ
+ * الامتناعُ **كلَّفَ عطلاً قاتلاً مقيساً**: `render.yaml` أعلنَ
+ * `SESSION_STORE=memory` مع `NODE_ENV=production` لخدمتَي `waslah-gateway`
+ * و`waslah-worker`، و`packages/shared/config/index.ts` يَرُدُّ `InvalidEnvVarError`
+ * على هذا الاقترانِ بعينِه (`SCL-002` · `BUG-007`) — فكلتا الخدمتَينِ **تُنفِّذُ
+ * `process.exit(1)` عندَ الإقلاعِ** (`apps/gateway/src/index.ts` · `apps/workers/src/index.ts`).
+ * أي أنَّ ملفَّ النشرِ كانَ يَصِفُ إنتاجاً **لا يُقلعُ**، ومرَّ الحاجزُ عليه أخضرَ.
+ *
+ * ولمَ ههنا لا في حاجزٍ جديدٍ: لأنَّ هذا الملفَّ **يقرأُ `render.yaml` أصلاً**
+ * ويملكُ محلِّلَه، وحارسٌ ثانٍ يقرأُ الملفَّ نفسَه يُنشئُ موضعَي حقيقةٍ يتباعدانِ
+ * (نفسُ حجّةِ توسعةِ `ADR 0051` أعلاه). فالمُضافُ قراءةُ `NODE_ENV` وإنفاذُ:
+ *
+ * ```
+ * NODE_ENV == production   ⟹   SESSION_STORE != memory
+ * ```
+ *
+ * وهذا **شرطُ صحّةٍ مُقاسٌ من مصدرَينِ**، لا رأيٌ معماريٌّ: الحكمُ منقولٌ حرفاً
+ * عن `packages/shared/config/index.ts` فلا يُخترَعُ ههنا حكمٌ جديدٌ. ويبقى
+ * الاقترانُ القديمُ (نسخٌ فوقَ الواحدةِ مع `memory` · `ADR 0011`) قائماً بحالِه
+ * فحكمانِ لا واحدٌ: ذاكَ يمنعُ تشارُكاً مكسوراً، وهذا يمنعُ إقلاعاً ساقطاً.
  *
  * ## التوسعةُ بـADR 0051 — الطوبولوجيا تُعلَن ولا تُستنتَج
  *
@@ -138,6 +159,7 @@ const TRUTHY_BOOLEAN_LITERALS: readonly string[] = VALID_BOOLEAN_LITERALS.filter
 
 /** متغيّراتُ البيئةِ التي يلتقطها الحاجزُ من كلِّ خدمةٍ. قائمةٌ مغلقةٌ. */
 const TRACKED_ENV_KEYS = [
+  "NODE_ENV",
   "SESSION_STORE",
   "PROCESS_TOPOLOGY",
   "RUN_WORKER_IN_GATEWAY",
@@ -150,6 +172,13 @@ export interface ServiceDeclaration {
   readonly name: string | null;
   readonly numInstances: string | null;
   readonly sessionStore: string | null;
+  /**
+   * قيمةُ `NODE_ENV` المُعلَنةُ للخدمةِ، أو `null` إن لم تُعلَن (`BUG-016`).
+   * وهي **مفتاحُ الحكمِ على العقدِ لا وصفٌ زائدٌ**: شروطُ
+   * `packages/shared/config` تفترقُ بينَ الإنتاجِ وغيرِهِ، فقراءةُ `SESSION_STORE`
+   * بلا `NODE_ENV` تُنتِجُ حكماً على نصفِ الشرطِ.
+   */
+  readonly nodeEnv: string | null;
   /** قيمةُ `PROCESS_TOPOLOGY` المُعلَنةُ للخدمةِ، أو `null` إن لم تُعلَن (ADR 0051). */
   readonly processTopology: string | null;
   /**
@@ -179,6 +208,7 @@ export interface ServiceDeclaration {
 interface MutableService {
   name: string | null;
   numInstances: string | null;
+  nodeEnv: string | null;
   processTopology: string | null;
   runWorkerInGateway: string | null;
   runAdminInGateway: string | null;
@@ -211,6 +241,7 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
       current = {
         name: null,
         numInstances: null,
+        nodeEnv: null,
         processTopology: null,
         runWorkerInGateway: null,
         runAdminInGateway: null,
@@ -265,6 +296,9 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
        * `typecheck`** لا تُنتِج قراءةً خاطئةً صامتةً.
        */
       switch (pendingEnvKey) {
+        case "NODE_ENV":
+          current.nodeEnv = value;
+          break;
         case "SESSION_STORE":
           current.sessionStore = value;
           break;
@@ -299,6 +333,7 @@ export interface Finding {
     | "INVALID_NUM_INSTANCES"
     | "INSTANCES_ABOVE_ONE"
     | "SESSION_STORE_INCOHERENT"
+    | "SESSION_STORE_MEMORY_IN_PRODUCTION"
     | "MISSING_PROCESS_TOPOLOGY"
     | "INVALID_PROCESS_TOPOLOGY"
     | "TOPOLOGY_INSTANCES_MISMATCH"
@@ -472,6 +507,30 @@ export function analyse(content: string): readonly Finding[] {
             "في الذاكرةِ لا يُشاركانِ بين عمليّاتٍ.",
         });
       }
+    }
+
+    /*
+     * عقدُ الإنتاجِ لمخزنِ الجلساتِ — `BUG-016` · `SCL-002` · `BUG-007`.
+     *
+     * وموضعُه **خارجَ شرطِ عددِ النسخِ أعلاه لا داخلَه**: ذاكَ يشترطُ قراءةً
+     * صالحةً لـ`numInstances`، وهذا الحكمُ لا يتعلّقُ بالعددِ ألبتّةَ: خدمةٌ
+     * بنسخةٍ واحدةٍ و`NODE_ENV=production` و`SESSION_STORE=memory` **لا تُقلعُ
+     * أصلاً** — وهو عينُ ما وقعَ. فربطُه بالعددِ يُعيدُ إنتاجَ الثُقبةِ نفسِها.
+     *
+     * ولا يُشترطُ حضورُ `SESSION_STORE`: غيابُه له افتراضٌ مُعلَنٌ في الضبطِ،
+     * والمُحاكَمُ ههنا **الإعلانُ الصريحُ بـ`memory`** وحدَه.
+     */
+    if (service.nodeEnv === "production" && service.sessionStore === "memory") {
+      findings.push({
+        code: "SESSION_STORE_MEMORY_IN_PRODUCTION",
+        message:
+          `الخدمةُ «${service.name}» (${at}): NODE_ENV = production وSESSION_STORE = memory. ` +
+          "و`packages/shared/config/index.ts` يَرُدُّ `InvalidEnvVarError` على هذا الاقترانِ " +
+          "بعينِه (SCL-002 · BUG-007)، ونقطتا التشغيلِ تُنفِّذانِ `process.exit(1)` عندَ فشلِ " +
+          "الضبطِ (apps/gateway/src/index.ts · apps/workers/src/index.ts). " +
+          "فهذا ليسَ تفضيلاً: الخدمةُ **لا تُقلعُ** بهذا الإعلانِ. اضبط SESSION_STORE=redis. " +
+          "ولا يُعتبرُ `autoDeploy: false` حلّاً — فهو يُؤخِّرُ العطلَ ولا يمنعُه.",
+      });
     }
 
     /*
