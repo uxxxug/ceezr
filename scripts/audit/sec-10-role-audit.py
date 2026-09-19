@@ -10,7 +10,7 @@ import sys
 import os
 CONN = os.environ.get("CEZR_AUDIT_DB_URL", "")
 if not CONN:
-    print("error: set CERZR_AUDIT_DB_URL env var", file=sys.stderr)
+    print("error: set CEZR_AUDIT_DB_URL env var", file=sys.stderr)
     sys.exit(1)
 
 def main():
