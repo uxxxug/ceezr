@@ -16,6 +16,7 @@ import { join } from "node:path";
 import {
   BOOLEAN_ENV_LITERALS,
   PROCESS_TOPOLOGY_NAMES,
+  tryLoadConfig,
 } from "../../packages/shared/config/index.ts";
 import {
   ADMIN_SERVICE_NAME,
@@ -535,4 +536,120 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
     });
     expect(await onRealRepo.exited).toBe(0);
   }, 30_000);
+});
+
+/**
+ * عقدُ الإنتاجِ لمخزنِ الجلساتِ — `BUG-016` · `SCL-002` · `BUG-007`.
+ *
+ * والسالبُ ههنا **مبذورٌ من واقعٍ وقعَ** لا من خيالٍ: `render.yaml` أعلنَ
+ * `NODE_ENV=production` مع `SESSION_STORE=memory` لخدمتَي البوّابةِ والعاملِ،
+ * فكانَ ملفُّ النشرِ يصفُ إنتاجاً لا يُقلعُ — ومرَّ الحاجزُ عليه أخضرَ لأنَّه
+ * كانَ يمتنعُ عن الحكمِ على القيمةِ بذاتِها.
+ */
+describe("عقدُ الإنتاجِ لمخزنِ الجلساتِ — BUG-016", () => {
+  const inProduction = (manifest: string): string =>
+    manifest.replaceAll(
+      "    envVars:",
+      "    envVars:\n      - key: NODE_ENV\n        value: production",
+    );
+
+  it("الخرقُ المبذورُ: production + memory ⇒ سقوطٌ", () => {
+    expect(codes(inProduction(SOUND))).toContain("SESSION_STORE_MEMORY_IN_PRODUCTION");
+  });
+
+  it("الإصلاحُ يرفعُ الخرقَ: production + redis ⇒ لا سقوطَ لهذا السببِ", () => {
+    const fixed = inProduction(SOUND).replaceAll("        value: memory", "        value: redis");
+    expect(codes(fixed)).not.toContain("SESSION_STORE_MEMORY_IN_PRODUCTION");
+  });
+
+  /**
+   * أهمُّ فحصٍ في هذا القسمِ: الحكمُ **ليس مستقلّاً بعددِ النسخِ**. فالثُقبةُ
+   * التي وقعَت كانَت على نسخةٍ واحدةٍ بالضبطِ — ولو رُبِطَ الحكمُ بالعددِ
+   * لعادَت الثُقبةُ نفسُها بحرفِها.
+   */
+  it("الحكمُ لا يتعلّقُ بعددِ النسخِ: نسخةٌ واحدةٌ تُسقِطُ كذلك", () => {
+    const single = inProduction(SOUND);
+    expect(single).toContain("numInstances: 1");
+    expect(codes(single)).toContain("SESSION_STORE_MEMORY_IN_PRODUCTION");
+    // ولا يُنسَبُ السقوطُ إلى حكمِ ADR 0011 الذي يشترطُ رفعَ النسخِ.
+    expect(codes(single)).not.toContain("SESSION_STORE_INCOHERENT");
+  });
+
+  it("غيرُ الإنتاجِ لا يُحاكَمُ: staging + memory ⇒ لا سقوطَ", () => {
+    const staging = inProduction(SOUND).replaceAll(
+      "        value: production",
+      "        value: staging",
+    );
+    expect(codes(staging)).not.toContain("SESSION_STORE_MEMORY_IN_PRODUCTION");
+  });
+
+  /**
+   * **ربطُ المصدرَينِ كي لا يتباعدا صامتَينِ.** الحاجزُ لا يخترعُ حكماً: هو
+   * ينقلُ حكمَ `packages/shared/config` حرفاً. فلو خُفِّفَ الضبطُ يوماً وصارَ
+   * `memory` مقبولاً في الإنتاجِ، **سقطَ هذا الفحصُ** ونُبِّهَ من يُخفِّفُ إلى
+   * أنَّ ههنا حاجزاً يقولُ غيرَ ما يقولُ الضبطُ — لا حاجزاً يكذبُ بصمتٍ.
+   */
+  it("حكمُ الحاجزِ منقولٌ عن الضبطِ لا مخترعٌ عندَه", () => {
+    // بيئةٌ **كاملةٌ** كي يكونَ السببُ الوحيدُ للرفضِ هو مخزنُ الجلساتِ لا نقصُ
+    // مفاتيحَ — فالمقيسُ حكمٌ بعينِه لا سقوطٌ لأيِّ سببٍ كانَ.
+    const FULL_ENV: Record<string, string> = {
+      SUPABASE_URL: "https://project.supabase.co",
+      DATABASE_URL: "postgres://user:pass@db.project.supabase.co:5432/postgres",
+      SUPABASE_SERVICE_ROLE_KEY: "service-key",
+      UPSTASH_REDIS_REST_URL: "https://redis.upstash.io",
+      UPSTASH_REDIS_REST_TOKEN: "redis-token",
+      DRIVER_BOT_TOKEN: "driver-token",
+      RIDER_BOT_TOKEN: "rider-token",
+      RUN_WORKER_IN_GATEWAY: "false",
+      RUN_ADMIN_IN_GATEWAY: "false",
+      // الإنتاجُ يُلزمُ طولاً أدنى للأسرارِ، فتُستعملُ أسرارٌ صالحةٌ في الإنتاجِ
+      // كي لا يسقطَ الضبطُ لسببٍ غيرِ المقيسِ.
+      TELEGRAM_WEBHOOK_SECRET: "t".repeat(48),
+      SESSION_SECRET: "s".repeat(48),
+      BOOTSTRAP_ADMIN_TELEGRAM_ID: "900000",
+      PROCESS_TOPOLOGY: "single-process",
+    };
+
+    // الطرفُ المرفوضُ: هو بعينِه ما كانَ `render.yaml` يُعلنُه.
+    const rejected = tryLoadConfig({
+      ...FULL_ENV,
+      NODE_ENV: "production",
+      SESSION_STORE: "memory",
+    });
+    expect(rejected.ok).toBe(false);
+    if (!rejected.ok) {
+      expect(rejected.error.message).toContain("SESSION_STORE");
+    }
+
+    // والطرفُ المقبولُ: هو بعينِه ما صارَ `render.yaml` يُعلنُه بعدَ الإصلاحِ.
+    const accepted = tryLoadConfig({
+      ...FULL_ENV,
+      NODE_ENV: "production",
+      SESSION_STORE: "redis",
+    });
+    expect(accepted.ok).toBe(true);
+  });
+
+  /**
+   * حراسةُ الانحدارِ على المستودعِ الحقيقيِّ: لا خدمةَ إنتاجيّةً واحدةً في
+   * `render.yaml` تُعلِنُ `memory`. وهذا هو الفحصُ الذي كانَ غائباً يومَ وقعَ العطلُ.
+   */
+  it("المستودعُ الحقيقيُّ: لا خدمةَ إنتاجيّةً بمخزنِ جلساتٍ في الذاكرةِ", () => {
+    const offenders = servicesFromManifest(REAL_MANIFEST)
+      .filter((service) => service.nodeEnv === "production" && service.sessionStore === "memory")
+      .map((service) => service.name);
+    expect(offenders).toEqual([]);
+    expect(codes(REAL_MANIFEST)).not.toContain("SESSION_STORE_MEMORY_IN_PRODUCTION");
+  });
+
+  /**
+   * وأنَّ الحاجزَ يقرأُ `NODE_ENV` فعلاً من الملفِّ الحقيقيِّ — كي لا يمرَّ
+   * الفحصُ أعلاه لأنَّ القراءةَ `null` دائماً (نجاحٌ على ملفٍّ لم يُفهَم).
+   */
+  it("الحاجزُ يقرأُ NODE_ENV من الملفِّ الحقيقيِّ لا يتجاهلُه", () => {
+    const declared = servicesFromManifest(REAL_MANIFEST).filter(
+      (service) => service.nodeEnv === "production",
+    );
+    expect(declared.length).toBeGreaterThanOrEqual(3);
+  });
 });
