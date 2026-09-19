@@ -14,16 +14,21 @@
  */
 
 import { describe, expect, it } from "bun:test";
-import { readRepository } from "../../scripts/check-integration-city-precondition.ts";
 import {
+  auditActivationStatements,
   auditCityPrecondition,
+  auditExemptionRegistryUniqueness,
   type CityPreconditionInput,
   ENSURE_FN,
+  EXEMPTION_REGISTRY_PATH,
   HELPER_PATH,
   type PreconditionExemption,
   RESTORE_FN,
+  statementAround,
   stripComments,
 } from "../../scripts/lib/city-precondition-audit.ts";
+import { CITY_PRECONDITION_EXEMPTIONS } from "../../scripts/lib/city-precondition-exemptions.ts";
+import { readRepository } from "../../scripts/lib/city-precondition-repository.ts";
 
 const FILE = "tests/integration/probe.test.ts";
 
@@ -44,10 +49,15 @@ function input(
   overrides?: {
     readonly helper?: string | undefined;
     readonly exemptions?: readonly PreconditionExemption[];
+    readonly scriptFiles?: readonly { readonly path: string; readonly source: string }[];
   },
 ): CityPreconditionInput {
   return {
     integrationFiles: [{ path: FILE, source }],
+    // نفسُ الملفِّ في نطاقِ القاعدةِ ٦ كدليلٍ على أنَّ الحَكَمَ واحدٌ: مُدخَلٌ واحدٌ
+    // تُحكَمُ عليهِ القواعدُ السبعُ معاً لا كلُّ قاعدةٍ بمُدخَلِها.
+    activationFiles: [{ path: FILE, source }],
+    scriptFiles: overrides?.scriptFiles ?? [],
     helper: overrides !== undefined && "helper" in overrides ? overrides.helper : SOUND_HELPER,
     exemptions: overrides?.exemptions ?? [],
   };
@@ -175,6 +185,7 @@ describe("القاعدة ٥ — لا إعفاءَ ميّتاً ولا بلا س�
   const BORROWED = `const r = await sql\`select id from cities c where c.is_active\`;`;
   const SOUND: PreconditionExemption = {
     path: FILE,
+    rule: 1,
     reason: "سببٌ مُعلَنٌ يُقرأُ في المراجعةِ",
     owner: "uxxxug",
   };
@@ -215,5 +226,163 @@ describe("المستودعُ الحقيقيُّ", () => {
     const repo = readRepository();
     expect(repo.integrationFiles.length).toBeGreaterThan(50);
     expect(repo.helper).toBeDefined();
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// القاعدةُ ٦ مَنقولةٌ من `check-test-city-activation.ts` في `OPS-020`، ولم تكنِ
+// لها قبلَ اليومِ حالةٌ سالبةٌ واحدةٌ — فكانت تُقرأُ مفروضةً بوجودِها (`ح-7`).
+describe("القاعدة ٦ — القروباتُ الثلاثةُ في نفسِ عبارةِ التفعيلِ", () => {
+  const GROUPS =
+    "telegram_support_group_id = coalesce(telegram_support_group_id, -1001),\n" +
+    "      telegram_escalation_group_id = coalesce(telegram_escalation_group_id, -1002),\n" +
+    "      telegram_unsubscribed_drivers_group_id = coalesce(telegram_unsubscribed_drivers_group_id, -1003),";
+
+  it("تفعيلٌ مجرَّدٌ يُسقِطُ الحاجزَ — وهوَ النمطُ الذي أحمرَ CI فعلاً قبلَ `OPS-019`", () => {
+    const bare = "await sql`update cities set is_active = true where id = ${cityId}`;";
+    expect(rules(auditCityPrecondition(input(bare)))).toContain(6);
+  });
+
+  it("القروباتُ الثلاثةُ في نفسِ العبارةِ تُرضي القاعدةَ", () => {
+    const sound = `await sql\`update cities set ${GROUPS}\n      is_active = true where id = \${cityId}\`;`;
+    expect(rules(auditCityPrecondition(input(sound)))).not.toContain(6);
+  });
+
+  it("نقصُ عمودٍ واحدٍ يُسقِطُ الحاجزَ — والقيدُ يرفضُ التفعيلَ بلا الثلاثةِ", () => {
+    for (const dropped of [
+      "telegram_support_group_id",
+      "telegram_escalation_group_id",
+      "telegram_unsubscribed_drivers_group_id",
+    ]) {
+      const kept = GROUPS.split("\n")
+        .filter((line) => !line.includes(dropped))
+        .join("\n");
+      const partial = `await sql\`update cities set ${kept}\n      is_active = true\`;`;
+      const found = auditActivationStatements({ path: FILE, source: partial });
+      expect(found.map((v) => v.rule)).toContain(6);
+      expect(found[0]?.message).toContain(dropped);
+    }
+  });
+
+  it("ضبطُ القروباتِ في عبارةٍ **تاليةٍ** لا يُرضي القاعدةَ — القيدُ يُفحَصُ فوراً", () => {
+    const split =
+      "await sql`update cities set is_active = true`;\n" +
+      `await sql\`update cities set ${GROUPS.replace(/,$/, "")}\`;`;
+    expect(rules(auditCityPrecondition(input(split)))).toContain(6);
+  });
+
+  it("`is_active` على جدولٍ آخرَ لا يُقرأُ خرقاً — لا قيدَ عليه أصلاً", () => {
+    const other = "await sql`update city_service_areas set is_active = true`;";
+    expect(rules(auditCityPrecondition(input(other)))).not.toContain(6);
+  });
+
+  it("عبارةُ التفعيلِ تُقتطَعُ من مفتحِ ``sql` `` لا من مسافةٍ جزافاً", () => {
+    const source = "const a = 1;\nawait sql`update cities set is_active = true`;";
+    const statement = statementAround(source, source.indexOf("is_active"));
+    expect(statement.startsWith("sql`")).toBe(true);
+    expect(statement).not.toContain("const a");
+  });
+
+  it("إعفاءٌ من القاعدةِ ١ لا يُسكِتُ القاعدةَ ٦ — الإعفاءُ مقيَّدٌ بقاعدتِه", () => {
+    const bare = "await sql`update cities set is_active = true`;";
+    const wrongRule: PreconditionExemption = {
+      path: FILE,
+      rule: 1,
+      reason: "إعفاءٌ من قاعدةٍ أخرى لا من هذهِ",
+      owner: "uxxxug",
+    };
+    expect(rules(auditCityPrecondition(input(bare, { exemptions: [wrongRule] })))).toContain(6);
+  });
+
+  it("إعفاءُ القاعدةِ ٦ يُسكِتُها وحدَها، وميّتُه يُسقِطُ البناءَ بالقاعدةِ ٥", () => {
+    const live: PreconditionExemption = {
+      path: FILE,
+      rule: 6,
+      reason: "يفحصُ القيدَ نفسَه فالتفعيلُ المجرَّدُ موضوعُه لا عطبُه",
+      owner: "uxxxug",
+    };
+    const bare = "await sql`update cities set is_active = true`;";
+    expect(rules(auditCityPrecondition(input(bare, { exemptions: [live] })))).not.toContain(6);
+    expect(rules(auditCityPrecondition(input("const x = 1;", { exemptions: [live] })))).toContain(
+      5,
+    );
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("القاعدة ٧ — لا سجلَّ إعفاءاتٍ ثانٍ لعقدِ التفعيلِ", () => {
+  /** هذا **شكلُ الحاجزِ القديمِ** قبلَ `OPS-020` — وهوَ السالبةُ المرجعُ. */
+  const SECOND_REGISTRY = [
+    "const REQUIRED_WITH_ACTIVATION = ['telegram_support_group_id'];",
+    "const INTENTIONAL_BARE_ACTIVATION = new Set([",
+    '  "tests/integration/pilot-city-activation.test.ts",',
+    '  "tests/unit/check-integration-city-precondition.test.ts",',
+    "]);",
+  ].join("\n");
+
+  it("سجلٌّ ثانٍ في `scripts/` يُسقِطُ البناءَ — وهوَ عينُ ما كانَ قائماً قبلَ `OPS-020`", () => {
+    const found = auditExemptionRegistryUniqueness([
+      { path: "scripts/check-test-city-activation.ts", source: SECOND_REGISTRY },
+    ]);
+    expect(found.map((v) => v.rule)).toContain(7);
+    expect(found[0]?.message).toContain("INTENTIONAL_BARE_ACTIVATION");
+  });
+
+  it("يُقرأُ من الحَكَمِ الكاملِ كذلكَ لا من الدالّةِ وحدَها", () => {
+    const result = rules(
+      auditCityPrecondition(
+        input("const x = 1;", {
+          scriptFiles: [{ path: "scripts/check-something-else.ts", source: SECOND_REGISTRY }],
+        }),
+      ),
+    );
+    expect(result).toContain(7);
+  });
+
+  it("السجلُّ المشروعُ نفسُه لا يُسقِطُ البناءَ — ولو فعلَ لما قامَ سجلٌّ أصلاً", () => {
+    expect(
+      auditExemptionRegistryUniqueness([
+        { path: EXEMPTION_REGISTRY_PATH, source: SECOND_REGISTRY },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("سجلٌّ لموضوعٍ آخرَ لا يُقرأُ خرقاً — وهذا حدُّ القاعدةِ مقيساً لا مزعوماً", () => {
+    const unrelated = [
+      "const PLANTED_NEGATIVE_FILES = new Set([",
+      '  "tests/unit/check-lazy-query-assertion.test.ts",',
+      "]);",
+    ].join("\n");
+    expect(
+      auditExemptionRegistryUniqueness([{ path: "scripts/lib/other.ts", source: unrelated }]),
+    ).toEqual([]);
+  });
+
+  it("الموضوعُ وحدَه بلا سجلٍّ لا يُقرأُ خرقاً — الشرطانِ معاً لا أحدُهما", () => {
+    const subjectOnly = "await sql`update cities set is_active = true`;";
+    expect(
+      auditExemptionRegistryUniqueness([{ path: "scripts/lib/subject.ts", source: subjectOnly }]),
+    ).toEqual([]);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+describe("وحدةُ الحَكَمِ والسجلِّ على المستودعِ كما هوَ — `OPS-020`", () => {
+  it("نطاقُ القاعدةِ ٦ **لم يُضَيَّق** بالتوحيدِ: الجذورُ الثلاثةُ محروسةٌ", () => {
+    const repo = readRepository();
+    expect(repo.activationFiles.length).toBeGreaterThan(repo.integrationFiles.length);
+    for (const root of ["tests/integration/", "tests/e2e/", "tests/unit/"]) {
+      expect(repo.activationFiles.some((f) => f.path.startsWith(root))).toBe(true);
+    }
+    expect(repo.scriptFiles.length).toBeGreaterThan(100);
+  });
+
+  it("سجلُّ الإعفاءاتِ **واحدٌ**، وكلُّ مُدخَلٍ فيه بقاعدةٍ وسببٍ ومالكٍ", () => {
+    expect(readRepository().exemptions).toBe(CITY_PRECONDITION_EXEMPTIONS);
+    for (const exemption of CITY_PRECONDITION_EXEMPTIONS) {
+      expect(exemption.reason.trim().length).toBeGreaterThan(20);
+      expect(exemption.owner.trim().length).toBeGreaterThan(0);
+      expect([1, 6]).toContain(exemption.rule);
+    }
   });
 });
