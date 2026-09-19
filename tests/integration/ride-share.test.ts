@@ -626,6 +626,11 @@ describeIf("سطحُ الصلاحيّاتِ لدوالِّ المشاركةِ", 
       "tracking_link_token_order(text)",
       "rider_ride_share_state(bigint, uuid)",
       "get_tracking_position(text)",
+      // `F12-04` — حَكَمُ العَلَقِ وكاشفُه: الأوّلُ يُفشي حالَ رحلةٍ بمعرِّفِها،
+      // والثاني يُفشي **كلَّ** طلباتِ مدينةٍ العالقةِ بمعرِّفِها. وتركُ أيِّهما
+      // مكشوفاً أسوأُ من تركِ `tracking_link_view`.
+      "order_stall_state(uuid)",
+      "detect_stalled_orders(uuid, integer)",
     ];
     for (const signature of signatures) {
       for (const role of ["anon", "authenticated", "public"]) {
@@ -783,5 +788,166 @@ describeIf("حياةُ الرابطِ حكمٌ يُحسَبُ لا رايةٌ ت
        where city_id = ${cityId} and key = 'tracking_link_grace_minutes'
     `;
     expect(restored?.value_text).toBe(saved.value_text);
+  });
+});
+
+/**
+ * ═══ `F12-04` — كاشفُ الحالاتِ العالقةِ ═══
+ *
+ * وأهمُّ ما ههنا **لا يقدرُ عليه اختبارُ وحدةٍ**: أنَّ حكمَ «عَلِقَ» يُحسَبُ
+ * بساعةِ القاعدةِ على إشارةِ حياةٍ مُقاسةٍ، وأنَّ رابطَ رحلةٍ عَلِقَت يموتُ
+ * **والوظيفةُ الدوريّةُ لم تدُرْ قطُّ** و`expires_at` ما زالَ بعدَ ساعاتٍ.
+ *
+ * ═══ وما لا يُقاسُ ههنا عن قصدٍ ═══
+ * **لا يُقاسُ إلغاءٌ ولا إفشالٌ ولا عقوبةٌ** — لأنَّ الكاشفَ لا يفعلُها. وتلكَ
+ * قرارٌ تجاريٌّ يمسُّ `F2-05` لم يُتَّخَذْ، واختبارٌ يقيسُها كانَ سيُثبِّتُ
+ * سياسةً مُختلَقةً بدلاً من أن يكشفَ غيابَها.
+ */
+interface StallPayload {
+  readonly verdict: string;
+  readonly status: string | null;
+  readonly idle_seconds: number | null;
+  readonly threshold_minutes: number | null;
+  readonly threshold_source: string | null;
+  readonly signal_source: string | null;
+  readonly last_signal_at: string | null;
+}
+
+describeIf("F12-04 — حَكَمُ الحالاتِ العالقةِ", () => {
+  async function stallOf(orderId: string): Promise<StallPayload | null> {
+    const [row] = await sql<{ result: StallPayload | null }[]>`
+      select order_stall_state(${orderId}::uuid) as result
+    `;
+    return row?.result ?? null;
+  }
+
+  /** يُقدِّمُ طوابعَ الطلبِ إلى الماضي — فيَسكُنُ بلا انتظارٍ حقيقيٍّ. */
+  async function ageOrder(orderId: string, minutesAgo: number): Promise<void> {
+    await sql`
+      update orders
+         set updated_at = now() - make_interval(mins => ${minutesAgo}),
+             created_at = now() - make_interval(mins => ${minutesAgo})
+       where id = ${orderId}
+    `;
+  }
+
+  it("٢٧) طلبٌ جارٍ حديثُ الإشارةِ حكمُه `LIVE` لا `STALLED`", async () => {
+    const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    await seedDriverLocation(5);
+    const stall = await stallOf(orderId);
+
+    expect(stall?.verdict).toBe("LIVE");
+    // والإشارةُ تُنشَرُ باسمِها: رقمٌ بلا نسبٍ لا يُراجَعُ.
+    expect(stall?.signal_source).toBe("DRIVER_LOCATION");
+    expect(stall?.threshold_source).toBe("SETTING");
+    expect(stall?.idle_seconds).toBeLessThan(60);
+  });
+
+  it("٢٨) طلبٌ جارٍ سكنَ فوقَ مهلتِه حكمُه `STALLED` بساعةِ القاعدةِ", async () => {
+    const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    await seedDriverLocation(4 * 60 * 60);
+    await ageOrder(orderId, 240);
+    const stall = await stallOf(orderId);
+
+    expect(stall?.verdict).toBe("STALLED");
+    expect(stall?.status).toBe("in_progress");
+    expect(stall?.idle_seconds ?? 0).toBeGreaterThan((stall?.threshold_minutes ?? 0) * 60);
+  });
+
+  it("٢٩) سالبٌ (ح-7): طلبٌ منتهٍ **لا يَعلَقُ** — والمعنى لا يُمَدُّ إلى غيرِ محلِّه", async () => {
+    const orderId = await seedOrder({ riderId, status: "completed", driver: driverId });
+    await ageOrder(orderId, 5000);
+    const stall = await stallOf(orderId);
+
+    // القاعدةُ الحارسةُ: `is_active_order_status` هوَ المصدرُ الوحيدُ لمعنى
+    // «جارٍ». ولو قِيسَ السكونُ على منتهٍ لصارَ كلُّ طلبٍ قديمٍ في القاعدةِ
+    // «عالقاً» فغرِقَ سجلُّ المُشغِّلِ في ضجيجٍ وضاعَ فيه العالقُ الحقيقيُّ.
+    expect(stall?.verdict).toBe("NOT_ACTIVE");
+    expect(stall?.idle_seconds).toBeNull();
+    expect(stall?.threshold_minutes).toBeNull();
+  });
+
+  it("٣٠) طلبٌ معدومٌ: `null` حكماً لا صفٌّ مُختلَقٌ ولا حكمٌ متسامحٌ", async () => {
+    expect(await stallOf(crypto.randomUUID())).toBeNull();
+  });
+
+  it("٣١) لكلِّ حالةٍ مهلتُها — و`searching` تُقاسُ بعمرِ الصفِّ لا بموقعِ سائقٍ", async () => {
+    const searching = await seedOrder({ riderId, status: "searching", driver: null });
+    const inProgress = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    await seedDriverLocation(5);
+    const a = await stallOf(searching);
+    const b = await stallOf(inProgress);
+
+    expect(a?.signal_source).toBe("ORDER_TOUCHED");
+    expect(b?.signal_source).toBe("DRIVER_LOCATION");
+    // مهلةٌ واحدةٌ لحالتَينِ مختلفتَينِ كانت ستُخطئَ في إحداهما حتماً:
+    // البحثُ بلا سائقٍ يُحتمَلُ فيه طولٌ، والرحلةُ الجاريةُ لا يُحتمَلُ.
+    expect(a?.threshold_minutes).not.toBe(b?.threshold_minutes);
+  });
+
+  it("٣٢) رابطُ رحلةٍ عَلِقَت يموتُ **والوظيفةُ الدوريّةُ لم تدُرْ قطُّ**", async () => {
+    const orderId = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    const token = freshToken();
+    expect((await issue(orderId, RIDER_TELEGRAM_ID, token)).ok).toBe(true);
+    await seedDriverLocation(6 * 60 * 60);
+    await ageOrder(orderId, 360);
+
+    // **لا نداءَ لـ`expire_tracking_tokens` ههنا عن قصدٍ**، و`expires_at` بعيدٌ.
+    const [row] = await sql<{ far: boolean; revoked: boolean }[]>`
+      select expires_at > now() + interval '6 hours' as far,
+             revoked_at is not null as revoked
+        from trip_tracking_tokens where token = ${token}
+    `;
+    expect(row?.far).toBe(true);
+    expect(row?.revoked).toBe(false);
+
+    const [life] = await sql<{ result: LifetimePayload }[]>`
+      select tracking_link_lifetime(${orderId}::uuid) as result
+    `;
+    expect(life?.result.verdict).toBe("EXPIRED_RIDE_STALLED");
+    expect(life?.result.seconds_remaining).toBe(0);
+
+    // والغريبُ يُرَدُّ بالجوابِ الواحدِ، **ولا إحداثيّةَ تُغادِرُ القاعدةَ**.
+    const stranger = await publicView(token);
+    expect(stranger.ok).toBe(false);
+    expect(JSON.stringify(stranger)).not.toContain(String(DRIVER_POINT.lat));
+  });
+
+  it("٣٣) الكاشفُ يُحصي العالقَ وحدَه، أطولَ سكوناً أوّلاً، ولا يمسُّ الحيَّ", async () => {
+    const stuckOld = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    const stuckNew = await seedOrder({ riderId, status: "in_progress", driver: driverId });
+    await ageOrder(stuckOld, 600);
+    await ageOrder(stuckNew, 120);
+    await seedDriverLocation(10 * 60 * 60);
+
+    const rows = await sql<{ order_id: string; idle_seconds: number }[]>`
+      select order_id, idle_seconds from detect_stalled_orders(${cityId}::uuid, 100)
+    `;
+    const ids = rows.map((r) => r.order_id);
+    expect(ids).toContain(stuckOld);
+    expect(ids).toContain(stuckNew);
+    // أطولُ سكوناً أوّلاً: من عَلِقَ منذُ عشرِ ساعاتٍ أحقُّ بنظرِ المُشغِّلِ.
+    expect(ids.indexOf(stuckOld)).toBeLessThan(ids.indexOf(stuckNew));
+
+    // **ولا يُغيِّرُ الكاشفُ حالةَ طلبٍ**: قراءةٌ محضةٌ، والحالاتُ كما زُرِعَت.
+    const after = await sql<{ status: string }[]>`
+      select status from orders where id in (${stuckOld}, ${stuckNew})
+    `;
+    expect(after.every((r) => r.status === "in_progress")).toBe(true);
+  });
+
+  it("٣٤) المهلاتُ الثلاثُ مبذورةٌ `is_provisional` — قيمٌ تشغيليّةٌ لا سياسةٌ مُصادَقٌ عليها", async () => {
+    const rows = await sql<{ key: string; is_provisional: boolean }[]>`
+      select key, is_provisional from platform_settings
+       where city_id = ${cityId} and key like 'stalled_order%'
+       order by key
+    `;
+    expect(rows.map((r) => r.key)).toEqual([
+      "stalled_order_in_progress_minutes",
+      "stalled_order_matched_minutes",
+      "stalled_order_searching_minutes",
+    ]);
+    // والرايةُ **موضعُ الحقيقةِ** لا تعليقٌ في ملفٍّ: المالكُ لم يُصادِقْ عليها بعدُ.
+    expect(rows.every((r) => r.is_provisional)).toBe(true);
   });
 });
