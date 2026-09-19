@@ -139,6 +139,7 @@ import {
 import { type KeyDimension, rateLimitPolicy } from "./rate-limit/policy.ts";
 import { createActiveRideResolver, createSessionVerifier } from "./realtime/adapters.ts";
 import { createHttpBridge } from "./realtime/http-bridge.ts";
+import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
 import { createUpstashRedis } from "./redis/upstash.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
@@ -1466,7 +1467,15 @@ ioServer = new IoServer(serverHandle, {
   cors: { origin: "*" },
 });
 
-if (config.miniappSessionSecret !== null) {
+/**
+ * `F2-06` — **الإنتاجُ لا يبثُّ موقعاً حيّاً** (قرارُ المالكِ 2026-09-19). وقبلَ
+ * هذا السطرِ كانَ الشرطُ `config.miniappSessionSecret !== null` وحدَه، و`render.yaml`
+ * يضبطُ `MINIAPP_SESSION_SECRET` للبوّابةِ — فكانَت القناةُ تبثُّ `location_updated`
+ * بـ`lat/lng` في الإنتاجِ **بلا رايةٍ ولا قرارٍ**، ووجودُ السرِّ وحدَه يُشغِّلُها.
+ * والحكمُ الآنَ في `live-tracking-policy.ts` دالّةً نقيّةً مَقيسةً، لا شرطاً
+ * مسطوراً ههنا لا يُختبَرُ إلّا بإقلاعِ خادمٍ.
+ */
+if (config.miniappSessionSecret !== null && isLiveLocationBroadcastPermitted(config.env)) {
   rideChannel = createRideChannel({
     io: ioServer,
     eventBus: container.tracking.bus,
