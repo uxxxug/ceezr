@@ -51,6 +51,7 @@ export const GUARD_RULE_NAMES = [
   "guard.judge-imported",
   "guard.database-measured",
   "guard.queue-measured",
+  "guard.queue-offers-measured",
   "guard.redis-instrumented",
   "guard.network-measured",
   "guard.storage-measured",
@@ -179,6 +180,12 @@ export function auditResourceUsageBudget(overrides: Partial<AuditInputs> = {}): 
     push(
       "guard.queue-measured",
       "ملفُّ القياسِ لا يعدُّ `notification_outbox` — ورسالةُ الطابورِ تكلفةُ نقلٍ مُؤجَّلةٌ",
+    );
+  }
+  if (!/order_offers/.test(source)) {
+    push(
+      "guard.queue-offers-measured",
+      "ملفُّ القياسِ لا يعدُّ `order_offers` — وعرضُ السائقِ رسالةُ طابورٍ مؤجَّلةٌ",
     );
   }
 

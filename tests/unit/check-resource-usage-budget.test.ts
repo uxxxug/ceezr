@@ -115,6 +115,12 @@ describe("حاجزُ مواردِ الرحلةِ (ECO-004)", () => {
     expect(rulePresent(problems, "guard.queue-measured")).toBe(true);
   });
 
+  it("يسقطُ إن لم يُعدَّ `order_offers`", () => {
+    const src = validSource.replace(/order_offers/g, "driver_proposals");
+    const problems = auditResourceUsageBudget({ ...baseOverrides(), measurementSource: src });
+    expect(rulePresent(problems, "guard.queue-offers-measured")).toBe(true);
+  });
+
   it("يسقطُ إن لم يُذكرْ `Redis`", () => {
     const src = validSource.replace(/redis|Redis/g, "cache");
     const problems = auditResourceUsageBudget({ ...baseOverrides(), measurementSource: src });
@@ -178,7 +184,7 @@ describe("حاجزُ مواردِ الرحلةِ (ECO-004)", () => {
   });
 
   it("قواعدُ الحاجزِ بعددٍ معلومٍ", () => {
-    expect(GUARD_RULE_NAMES.length).toBe(10);
+    expect(GUARD_RULE_NAMES.length).toBe(11);
   });
 
   it("قواعدُ الحَكَمِ بعددٍ معلومٍ", () => {
