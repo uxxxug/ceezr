@@ -426,8 +426,14 @@ describeIf("ECO-004 — مواردُ الرحلةِ في النافذةِ، مع
       }
 
       // ═══ قراءةُ القياسِ بعدَ الرحلةِ ═══
-      // `settlePgStat` هنا أيضًا: الانتظارُ حتّى تُفرِغَ الخوادمُ الخلفيّةُ ما جمعَتْهُ
-      // من استعلاماتِ الرحلةِ، فلا يُقاسَ الفرقُ قبلَ أن يصلَ العملُ الفعليُّ للعدّادِ.
+      // `countingRedis.commandCount` و`networkBytes` يُقرآنِ **قبلَ** `settlePgStat` لا
+      // بعدها: آليّةُ الاستقرارِ تنتظرُ ثوانيَ، والمهامُّ الخلفيّةُ (نبضةُ الموقعِ) قد
+      // تُنفِّذُ أوامرَ `Redis` إضافيّةً خلالَها — وهي ليست من عملِ الرحلةِ بل من عملِ
+      // البنيةِ التحتيّةِ للقياسِ. أمّا `pg_stat_database` فيُقرأُ بعدها لأنّ عدّاداتِهِ غيرُ
+      // متزامنةٍ وتحتاجُ إلى الاستقرارِ.
+      const redisCount = countingRedis.commandCount;
+      const netBytes = networkBytes;
+
       const pgAfter = await settlePgStat();
       const outboxAfter = await countRows("notification_outbox");
       const offersAfter = await countRows("order_offers");
@@ -445,8 +451,8 @@ describeIf("ECO-004 — مواردُ الرحلةِ في النافذةِ، مع
         databaseRowsTouched: Math.max(0, databaseRowsTouched),
         databaseBlocksTouched: Math.max(0, databaseBlocksTouched),
         queueMessagesEnqueued: Math.max(0, queueMessagesEnqueued),
-        redisCommandsExecuted: countingRedis.commandCount,
-        networkBytesTransferred: networkBytes,
+        redisCommandsExecuted: redisCount,
+        networkBytesTransferred: netBytes,
         storageRowsInserted: Math.max(0, storageRowsInserted),
         windowMs: RIDE_RESOURCE_PROFILE.windowMs,
       };
