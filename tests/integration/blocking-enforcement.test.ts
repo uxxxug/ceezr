@@ -147,6 +147,8 @@ describeIf("نفاذ الحجب في مسار الإسناد", () => {
     const driverId = rows[0]?.id;
     if (driverId === undefined) throw new Error("لم يُسجَّل السائق");
     await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
     await post("driver", text(DRIVER_CHAT, "/available"));
     await post("driver", location(DRIVER_CHAT, DRIVER_AT));
     return driverId;

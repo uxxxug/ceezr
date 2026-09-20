@@ -218,6 +218,7 @@ describeIf("ميزانُ رسائلِ تيليجرام في رحلةٍ واحد�
     const driverId = rows[0]?.id;
     if (driverId === undefined) throw new Error("لم يُسجَّل السائق");
     await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
     await post("driver", "driver", text(DRIVER_CHAT, "/available"));
     await post("driver", "driver", location(DRIVER_CHAT, PICKUP));
     return driverId;
@@ -344,6 +345,7 @@ describeIf("ميزانُ رسائلِ تيليجرام في رحلةٍ واحد�
     `;
     const secondId = second[0]?.id ?? "";
     await sql`update drivers set verification_status = 'verified' where id = ${secondId}`;
+    await sql`select start_trial(${secondId}::uuid, 'transport') as result`;
     await post("driver", "driver", text(secondChat, "/available"));
     await post("driver", "driver", location(secondChat, DROPOFF));
     await registerRider();

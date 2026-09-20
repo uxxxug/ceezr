@@ -321,6 +321,8 @@ describeIf("التتبّع من الطرف إلى الطرف — المرحلة 
     if (driverId === undefined)
       throw new Error(`لم يُسجَّل السائق ${chat}: ${JSON.stringify(driverSent.map((m) => m.text))}`);
     await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
     await post("driver", text(chat, "/available"));
     return driverId;
   }

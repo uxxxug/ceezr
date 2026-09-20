@@ -94,6 +94,7 @@ async function makeDriver(kind: "trialing" | "active"): Promise<Fixture> {
     throw new Error("تعذّر إنشاء السائق.");
   }
   if (kind === "trialing") {
+    await sql`update drivers set verification_status = 'verified' where id = ${driver.id}`;
     await sql`select start_trial(${driver.id}::uuid, 'transport')`;
   } else {
     await sql`select activate_subscription(${driver.id}::uuid, 'transport', 30)`;

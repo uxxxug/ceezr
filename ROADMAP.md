@@ -7904,3 +7904,29 @@ CI على main بعدَ الدمج: الجولةُ الأولى خضراءُ ب�
 
 البندُ قُلِبَ إلى `[x]` في `docs/ROADMAP-PRODUCT-DEBT.md` وسجِّلَ الإغلاقُ
 في الجدولِ هناك. نصُّ البندِ لم يُمَسّ (`ح-1`).
+
+## `PD-040` — ربطُ بدءِ التجربةِ بأهليّةِ استلامِ العروض (2026-09-20)
+
+الهجرةُ `20260920200000_pd_040_trial_eligibility.sql` تُضيفُ فحصَينِ إلى
+`start_trial`: لا تجربةَ قبلَ توثيقِ السائقِ (DRIVER_NOT_VERIFIED) ولا في
+مدينةٍ غيرِ مفعّلةٍ (CITY_NOT_ACTIVE). و`admin_set_driver_verification` تُنشئُ
+التجربةَ تلقائيًّا عندَ التحويلِ إلى 'verified' إن لم يكنْ للسائقِ اشتراكٌ
+والمدينةُ مفعّلةٌ.
+
+## `PD-040` — تحديثُ الاختبارات (2026-09-20)
+
+تحديثُ اختبارات التكامل لتعكسَ القاعدةَ الجديدةَ: التجربةُ لا تبدأُ قبلَ
+التوثيق. الإضافات في: `trial-lifecycle` و`subscription-cancel-upgrade` و
+`subscription-dialog-changes` و`telegram-message-budget` و`full-ride` و
+`full-delivery`. وتسجيلُ فعلِ `admin.trial_auto_started` في سجلِّ الأفعالِ.
+
+## `PD-040` — إصلاحات CI الثانية (2026-09-20)
+
+إصلاحُ جميعِ اختبارات التكاملِ التي تعتمدُ على بدءِ التجربةِ خلالَ التسجيل.
+القاعدةُ الجديدةُ تمنعُ `start_trial` قبلَ التوثيقِ، فعُدِّلت دوالُ التهيئةِ
+في: `trial-lifecycle` و`subscription-dialog-changes` و`telegram-message-budget`
+و`full-ride` و`full-delivery` و`mutual-ratings` و`blocking-enforcement` و
+`five-cities-launch` و`order-cancellation` و`unsubscribed-negotiation` لتُوثِّقَ
+السائقَ ثم تستدعي `start_trial` صراحةً. كما أُصلِحَ تنسيقُ `audit-actions-registry`
+و`\`lint/style/useTemplate\`` في `check-work-budget` و`dependency-advisory-registry`
+و`\`lint/complexity/useOptionalChain\`` في `check-runner-command-validity`.

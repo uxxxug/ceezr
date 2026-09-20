@@ -237,8 +237,7 @@ export const judgeAdvisories = (inputs: JudgeInputs): readonly AdvisoryViolation
     } else if (new Date(`${ack.expiresOn}T23:59:59.999Z`).getTime() < now.getTime()) {
       violations.push({
         rule: "ack.not-expired",
-        detail:
-          `إقرارُ النشرةِ ${ack.advisoryId} انقضى في ${ack.expiresOn} — ` + "والمنقضي لا يشتري صمتاً.",
+        detail: `إقرارُ النشرةِ ${ack.advisoryId} انقضى في ${ack.expiresOn} — والمنقضي لا يشتري صمتاً.`,
       });
     } else {
       liveAcks.set(ack.advisoryId, ack);
