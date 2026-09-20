@@ -204,7 +204,24 @@ interface PgStatRow {
   readonly blks_hit: number;
 }
 
+/**
+ * قراءةٌ موثوقةٌ لعدّاداتِ `pg_stat_database` — تُخلي اللقطةَ الجلسيّةَ أوّلاً
+ * (`pg_stat_clear_snapshot`) ثمّ تنتظرُ استقرارَ العدّاداتِ: خادمُ الإحصاءِ
+ * الخلفيُّ في PostgreSQL يُفرِغُ إحصاءَه كلَّ ثانيةٍ تقريباً (`PGSTAT_MIN_INTERVAL`)،
+ * فقراءتانِ متطابقتانِ خلالَ تلك الثانيةِ **سكونٌ كاذبٌ** لا سكونُ عملٍ. ولذلك
+ * تُقرأُ ثلاثُ قراءاتٍ متتاليةٍ مستقرّةٍ قبلَ أن يُعتمَدَ الرقمُ.
+ *
+ * وهذا عينُ ما يفعلهُ `tests/support/engine-work.ts` لقياسِ `DEC-18` و`F9-06` —
+ * فالقياسُ ههنا يستعملُ وحدّةَ القياسِ نفسَها ويجبُ أن يستعملَ آليّةَ الاستقرارِ
+ * نفسَها، وإلّا كانَ الفرقُ بينَ قراءتينِ حاصلَ توقيتٍ لا حاصلَ عملٍ.
+ */
+const PGSTAT_SETTLE_GRACE_MS = 2_500;
+const PGSTAT_SETTLE_TIMEOUT_MS = 20_000;
+const PGSTAT_SETTLE_INTERVAL_MS = 500;
+const PGSTAT_SETTLE_STABLE_READS = 3;
+
 async function readPgStat(): Promise<PgStatRow> {
+  await sql`select pg_stat_clear_snapshot()`;
   const rows = await sql<PgStatRow[]>`
     select tup_returned, tup_fetched, blks_read, blks_hit
       from pg_stat_database
@@ -213,6 +230,38 @@ async function readPgStat(): Promise<PgStatRow> {
   const row = rows[0];
   if (row === undefined) throw new Error("pg_stat_database لا يُرجِعُ صفّاً");
   return row;
+}
+
+/**
+ * قراءةٌ مستقرّةٌ — تنتظرُ أوّلاً مهلةً تتجاوزُ حدَّ الإفراغِ الأدنى، ثمَّ تُعيدُ القراءةَ
+ * حتّى تتطابقَ ثلاثُ قراءاتٍ متتاليةٍ. هذا يضمنُ أنَّ ما أفرغَتْهُ الخوادمُ الخلفيّةُ
+ * صارَ في العدّادِ — لا أنَّ العدّادَ ساكنٌ لأنَّه لم يُفرَغْ بعدُ.
+ */
+async function settlePgStat(): Promise<PgStatRow> {
+  await Bun.sleep(PGSTAT_SETTLE_GRACE_MS);
+  const deadline = Date.now() + PGSTAT_SETTLE_TIMEOUT_MS;
+  let last: PgStatRow | null = null;
+  let stable = 0;
+  while (Date.now() < deadline) {
+    const current = await readPgStat();
+    if (
+      last !== null &&
+      current.tup_returned === last.tup_returned &&
+      current.tup_fetched === last.tup_fetched &&
+      current.blks_read === last.blks_read &&
+      current.blks_hit === last.blks_hit
+    ) {
+      stable += 1;
+      if (stable >= PGSTAT_SETTLE_STABLE_READS) return current;
+    } else {
+      stable = 0;
+    }
+    last = current;
+    await Bun.sleep(PGSTAT_SETTLE_INTERVAL_MS);
+  }
+  // انتهى الوقتُ دونَ استقرارٍ تامٍّ — اقبل آخرَ قراءةٍ ولا تُسقِط القياسَ.
+  if (last === null) throw new Error("pg_stat_database لم يستقرّ");
+  return last;
 }
 
 /** عدُّ صفوفِ جدولٍ — يُرجِعُ صفراً لا `undefined`. */
@@ -271,7 +320,9 @@ describeIf("ECO-004 — مواردُ الرحلةِ في النافذةِ، مع
 
     try {
       // ═══ قراءةُ خطِّ الأساسِ قبلَ الرحلةِ ═══
-      const pgBefore = await readPgStat();
+      // `settlePgStat` لا `readPgStat`: عدّاداتُ `pg_stat_database` تُحدَّثُ غيرَ متزامنٍ،
+      // فقراءةُ خطِّ الأساسِ دونَ استقرارٍ تُدخِلُ ضجيجَ توقيتٍ في الفرقِ.
+      const pgBefore = await settlePgStat();
       const outboxBefore = await countRows("notification_outbox");
       const offersBefore = await countRows("order_offers");
       const ordersBefore = await countRows("orders");
@@ -375,7 +426,9 @@ describeIf("ECO-004 — مواردُ الرحلةِ في النافذةِ، مع
       }
 
       // ═══ قراءةُ القياسِ بعدَ الرحلةِ ═══
-      const pgAfter = await readPgStat();
+      // `settlePgStat` هنا أيضًا: الانتظارُ حتّى تُفرِغَ الخوادمُ الخلفيّةُ ما جمعَتْهُ
+      // من استعلاماتِ الرحلةِ، فلا يُقاسَ الفرقُ قبلَ أن يصلَ العملُ الفعليُّ للعدّادِ.
+      const pgAfter = await settlePgStat();
       const outboxAfter = await countRows("notification_outbox");
       const offersAfter = await countRows("order_offers");
       const ordersAfter = await countRows("orders");
