@@ -7930,3 +7930,7 @@ CI على main بعدَ الدمج: الجولةُ الأولى خضراءُ ب�
 السائقَ ثم تستدعي `start_trial` صراحةً. كما أُصلِحَ تنسيقُ `audit-actions-registry`
 و`\`lint/style/useTemplate\`` في `check-work-budget` و`dependency-advisory-registry`
 و`\`lint/complexity/useOptionalChain\`` في `check-runner-command-validity`.
+
+## `PD-040` — الجولةُ الخضراءُ الأولى على main (2026-09-20)
+
+الدمجُ `8529c43` (PR #177 squash). جولةُ CI الأولى: `35530589273` — خضراء.
