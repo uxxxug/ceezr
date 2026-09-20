@@ -165,8 +165,8 @@ beforeAll(async () => {
   // زرعُ عرضٍ من السائقِ الثانى (لم يُسنَدْ إليه)
   if (orderId !== "" && driver2Id !== "") {
     await sql`
-      insert into order_offers (city_id, order_id, driver_id, status, created_at)
-      values (${cityId}, ${orderId}, ${driver2Id}, 'rejected'::offer_status, ${ORDER_CREATED_AT})
+      insert into order_offers (city_id, order_id, driver_id, status, expires_at, created_at)
+      values (${cityId}, ${orderId}, ${driver2Id}, 'rejected'::offer_status, ${ORDER_COMPLETED_AT}, ${ORDER_CREATED_AT})
     `;
   }
 });

@@ -617,7 +617,7 @@ jobs:
       # · الزيادةُ الأولى): يمنعُ أن يُحذَفَ قياسُ المقاماتِ (المستخدمونَ النشطونَ
       # والرحلاتُ) أو يُفرَّغَ تأكيدُه. والمقاماتُ تُقاسُ على قاعدةٍ حقيقيّةٍ، والسعرُ
       # محقونٌ أو غائبٌ (`REQ-09` · `[!]`).
-      - name: مقاماتُ التكلفةِ لكلِّ مستخدمٍ نشطٍ ولكلِّ رحلةٍ محروسةٌ (ECO-001 · الزيادةُ الأولى)
+      - name: حاجزُ مقاماتِ التكلفةِ محروسٌ (ECO-001 · الزيادةُ الأولى)
         run: bun run scripts/check-eco-user-cost.ts
 
       - name: سقوطُ حاجزِ مقاماتِ التكلفةِ مقيسٌ بسالبةٍ لكلِّ قاعدةٍ (ح-7)
@@ -1322,6 +1322,11 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/resource-usage-budget.test.ts
+
+      - name: مقاماتُ التكلفةِ لكلِّ مستخدمٍ نشطٍ ولكلِّ رحلةٍ محروسةٌ (ECO-001 · الزيادةُ الأولى)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/eco-user-cost.test.ts
 
       - name: اختبارات التكامل على قاعدة حقيقية
         env:
