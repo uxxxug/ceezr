@@ -111,6 +111,8 @@ interface RidePayload {
   readonly service?: unknown;
   readonly broadcast_round?: unknown;
   readonly notified_driver_count?: unknown;
+  readonly wider_circle_opened?: unknown;
+  readonly escalated?: unknown;
   readonly cancellable_without_penalty?: unknown;
 }
 
@@ -246,17 +248,23 @@ export function createRideSearchReader(sql: Sql): RideSearchReader {
       const orderId = readText(result.order_id);
       const createdAtMs = readInstantMs(result.created_at);
       const notifiedDriverCount = readCount(result.notified_driver_count);
-      const broadcastRound = readCount(result.broadcast_round);
       const service = readText(result.service);
       const status = result.status;
+      // الرايتانِ التشغيليّتانِ للمآلِ (`PD-050`): تُقرآنِ وتُصادَقانِ هنا ثم
+      // يُشتقُّ منهما الطورُ في النطاقِ — ولا تعبرانِ إلى الردِّ العامِّ أبدًا.
+      // (و`broadcast_round` يبقى في خرجِ الدالّةِ لكنّهُ لم يُقرأْ هنا بعدَ الآن:
+      // عدّادُ جولاتٍ داخليٌّ لا لغةَ للراكبِ — `IDEA-P`.)
+      const widerCircleOpened = result.wider_circle_opened;
+      const escalated = result.escalated;
       if (
         orderId === null ||
         createdAtMs === null ||
         notifiedDriverCount === null ||
-        broadcastRound === null ||
         service === null ||
         !isServiceKind(service) ||
         !isRideStatus(status) ||
+        typeof widerCircleOpened !== "boolean" ||
+        typeof escalated !== "boolean" ||
         typeof result.cancellable_without_penalty !== "boolean"
       ) {
         return err(failed("STORE_ERROR"));
@@ -266,9 +274,10 @@ export function createRideSearchReader(sql: Sql): RideSearchReader {
         orderId,
         status,
         service,
-        broadcastRound,
         createdAtMs,
         notifiedDriverCount,
+        widerCircleOpened,
+        escalated,
         cancellableWithoutPenalty: result.cancellable_without_penalty,
       };
       return ok({ found: true, state });

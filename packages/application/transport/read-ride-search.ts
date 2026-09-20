@@ -92,6 +92,8 @@ export async function readRideSearch(
         status: state.status,
         notifiedDriverCount: state.notifiedDriverCount,
         createdAtMs: state.createdAtMs,
+        widerCircleOpened: state.widerCircleOpened,
+        escalated: state.escalated,
       }),
       elapsedSeconds: elapsedSecondsSince(state.createdAtMs, deps.now().getTime()),
     },

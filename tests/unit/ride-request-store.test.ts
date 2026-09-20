@@ -216,6 +216,8 @@ describe("createRideSearchReader — قراءةُ حالةِ البحثِ", () =
     broadcast_round: 1,
     created_at: CREATED_AT,
     notified_driver_count: 2,
+    wider_circle_opened: false,
+    escalated: false,
     cancellable_without_penalty: true,
   };
 
@@ -233,9 +235,10 @@ describe("createRideSearchReader — قراءةُ حالةِ البحثِ", () =
         orderId: ORDER_ID,
         status: "searching",
         service: "transport",
-        broadcastRound: 1,
         createdAtMs: Date.parse(CREATED_AT),
         notifiedDriverCount: 2,
+        widerCircleOpened: false,
+        escalated: false,
         cancellableWithoutPenalty: true,
       },
     });
@@ -272,9 +275,13 @@ describe("createRideSearchReader — قراءةُ حالةِ البحثِ", () =
       { ...STATE, status: "flying" },
       { ...STATE, service: "teleport" },
       { ...STATE, notified_driver_count: -1 },
-      { ...STATE, broadcast_round: 1.5 },
       { ...STATE, created_at: null },
       { ...STATE, cancellable_without_penalty: "true" },
+      // رايتا المآلِ (`PD-050`): غيابُهما أو غيرُ المنطقِ منهما عطبٌ — الطورُ لا يُختلَقُ.
+      { ...STATE, wider_circle_opened: undefined },
+      { ...STATE, escalated: undefined },
+      { ...STATE, wider_circle_opened: "نعم" },
+      { ...STATE, escalated: null },
     ]) {
       const result = await createRideSearchReader(fakeSql(payload).sql).read({
         telegramUserId: "5550001",

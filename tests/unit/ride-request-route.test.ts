@@ -61,9 +61,10 @@ const SEARCHING: RideSearchState = {
   orderId: ORDER_ID,
   status: "searching",
   service: "transport",
-  broadcastRound: 1,
   createdAtMs: NOW.getTime() - 90_000,
   notifiedDriverCount: 2,
+  widerCircleOpened: false,
+  escalated: false,
   cancellableWithoutPenalty: true,
 };
 
@@ -459,6 +460,23 @@ describe("GET /v1/rides/:id/search — حالةٌ صادقةٌ", () => {
     const { json } = await get(harness, `/v1/rides/${ORDER_ID}/search`, authed());
     expect(json.phase).toBe("assigned");
     expect(json.cancellableWithoutPenalty).toBe(false);
+  });
+
+  it("مآلُ الانتظارِ يُسرَدُ: توسيعٌ ثمّ تصعيدٌ، والرايتانِ لا تعبرانِ الردَّ (`PD-050`)", async () => {
+    const widened = buildHarness({ state: { ...SEARCHING, widerCircleOpened: true } });
+    const { json: widenedJson } = await get(widened, `/v1/rides/${ORDER_ID}/search`, authed());
+    expect(widenedJson.phase).toBe("widened");
+
+    const escalated = buildHarness({
+      state: { ...SEARCHING, widerCircleOpened: true, escalated: true },
+    });
+    const { json: escalatedJson } = await get(escalated, `/v1/rides/${ORDER_ID}/search`, authed());
+    expect(escalatedJson.phase).toBe("escalated");
+
+    // البنيةُ الداخليّةُ محجوبةٌ (`IDEA-P`): لا جولاتٍ في الردِّ ولا راياتِ مصدرٍ.
+    expect(widenedJson.broadcastRound).toBeUndefined();
+    expect(widenedJson.widerCircleOpened).toBeUndefined();
+    expect(widenedJson.escalated).toBeUndefined();
   });
 
   it("رحلةٌ ليستْ لصاحبِ الجلسةِ تُقالُ «غيرُ موجودةٍ» لا «ممنوعةٌ»", async () => {

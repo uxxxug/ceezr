@@ -121,18 +121,37 @@ export function isRideStatus(value: unknown): value is RideStatus {
  * `announced` = أُخطِرَ سائقٌ واحدٌ على الأقلِّ فعلاً. و`silent` = لم يُخطَرْ أحدٌ
  * بعدُ. والفصلُ بينهما **لأنَّ الصمتَ ليسَ رفضاً** (`ADR 0023`): شاشةٌ تعرضُ
  * دوّاراً واحداً للحالتَينِ تكذبُ على الراكبِ في إحداهما لا محالةَ.
+ *
+ * و`widened` = فُتِحَتْ دورةُ الدائرةِ الأوسعِ (غيرُ المشتركينَ) — «وسّعنا
+ * البحثَ». و`escalated` = وصلَ الطلبُ إلى فريقِ الإسنادِ بتصعيدٍ **مُسلَّمٍ** —
+ * «أحلينا طلبكَ إليهم». وكلتاهما رايتانِ تشغيليّتانِ تقرؤهما القاعدةُ من
+ * حالاتِها القائمةِ (صفٌّ في `unsubscribed_negotiations` · أثرُ `order.escalated`
+ * المُسلَّمُ) لا من رسائلٍ تُرسَلُ مرّةً ثم تُحذَفُ (`PD-050`).
  */
-export type SearchPhase = "silent" | "announced" | "assigned" | "closed";
+export type SearchPhase = "silent" | "announced" | "widened" | "escalated" | "assigned" | "closed";
 
 export interface RideSearchSnapshot {
   readonly status: RideStatus;
   readonly notifiedDriverCount: number;
   readonly createdAtMs: number;
+  /** فُتِحَتْ دورةُ الدائرةِ الأوسعِ لهذا الطلبِ (وجودُ أيِّ صفٍّ في `unsubscribed_negotiations`). */
+  readonly widerCircleOpened: boolean;
+  /** وصلَ الطلبُ إلى قروبِ الإسنادِ بتصعيدٍ مُسلَّمٍ (أثرُ `order.escalated` المُسلَّمُ). */
+  readonly escalated: boolean;
 }
 
+/**
+ * ترتيبُ الأطوارِ مقصودٌ: الإسنادُ يغلبُ الكلَّ لأنّهُ الجوابُ الذي ينتظرُهُ
+ * الراكبُ، ثمّ ما ليسَ بحثًا مُغلَقٌ، ثمّ التصعيدُ (آخرُ الأخبارِ) فالتوسيعُ
+ * (الخبرُ الأقدمُ منهُ) فالإعلانُ فالصمتُ. وطلبٌ صُعِّدَ ثمّ رجعَ إلى دورةٍ
+ * أوسعَ جديدةٍ يبقى «مُصعَّدًا»: عودتُهُ خبرٌ يخصُّ التوزيعَ الداخليَّ لا سؤالَ
+ * الراكبِ، فلا يتراجعُ السردُ إلى الوراءِ.
+ */
 export function searchPhaseOf(snapshot: RideSearchSnapshot): SearchPhase {
   if (snapshot.status === "matched" || snapshot.status === "in_progress") return "assigned";
   if (snapshot.status !== "searching") return "closed";
+  if (snapshot.escalated) return "escalated";
+  if (snapshot.widerCircleOpened) return "widened";
   return snapshot.notifiedDriverCount > 0 ? "announced" : "silent";
 }
 

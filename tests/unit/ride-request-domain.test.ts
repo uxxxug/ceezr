@@ -103,24 +103,105 @@ describe("حالاتُ الطلبِ — تُقرأُ من المخطَّطِ و�
 
 describe("طورُ البحثِ — الصمتُ ليسَ رفضاً ولا إخطاراً", () => {
   it("بحثٌ بلا مُخطَرٍ «silent» وبمُخطَرٍ واحدٍ «announced»", () => {
-    expect(searchPhaseOf({ status: "searching", notifiedDriverCount: 0, createdAtMs: 0 })).toBe(
-      "silent",
-    );
-    expect(searchPhaseOf({ status: "searching", notifiedDriverCount: 1, createdAtMs: 0 })).toBe(
-      "announced",
-    );
+    expect(
+      searchPhaseOf({
+        status: "searching",
+        notifiedDriverCount: 0,
+        createdAtMs: 0,
+        widerCircleOpened: false,
+        escalated: false,
+      }),
+    ).toBe("silent");
+    expect(
+      searchPhaseOf({
+        status: "searching",
+        notifiedDriverCount: 1,
+        createdAtMs: 0,
+        widerCircleOpened: false,
+        escalated: false,
+      }),
+    ).toBe("announced");
   });
 
   it("الإسنادُ والتنفيذُ «assigned» وما بعدَهما «closed»", () => {
-    expect(searchPhaseOf({ status: "matched", notifiedDriverCount: 3, createdAtMs: 0 })).toBe(
-      "assigned",
-    );
-    expect(searchPhaseOf({ status: "in_progress", notifiedDriverCount: 3, createdAtMs: 0 })).toBe(
-      "assigned",
-    );
+    expect(
+      searchPhaseOf({
+        status: "matched",
+        notifiedDriverCount: 3,
+        createdAtMs: 0,
+        widerCircleOpened: true,
+        escalated: true,
+      }),
+    ).toBe("assigned");
+    expect(
+      searchPhaseOf({
+        status: "in_progress",
+        notifiedDriverCount: 3,
+        createdAtMs: 0,
+        widerCircleOpened: true,
+        escalated: true,
+      }),
+    ).toBe("assigned");
     for (const status of ["completed", "cancelled", "failed"] as const) {
-      expect(searchPhaseOf({ status, notifiedDriverCount: 3, createdAtMs: 0 })).toBe("closed");
+      expect(
+        searchPhaseOf({
+          status,
+          notifiedDriverCount: 3,
+          createdAtMs: 0,
+          widerCircleOpened: true,
+          escalated: true,
+        }),
+      ).toBe("closed");
     }
+  });
+});
+
+describe("مآلُ الانتظارِ — سردٌ تدريجيٌّ لا يتراجعُ (`PD-050`)", () => {
+  it("فتحُ الدائرةِ الأوسعِ «widened» بلا تصعيدٍ، والتصعيدُ المُسلَّمُ «escalated»", () => {
+    expect(
+      searchPhaseOf({
+        status: "searching",
+        notifiedDriverCount: 2,
+        createdAtMs: 0,
+        widerCircleOpened: true,
+        escalated: false,
+      }),
+    ).toBe("widened");
+    expect(
+      searchPhaseOf({
+        status: "searching",
+        notifiedDriverCount: 2,
+        createdAtMs: 0,
+        widerCircleOpened: true,
+        escalated: true,
+      }),
+    ).toBe("escalated");
+  });
+
+  it("التصعيدُ يغلبُ التوسيعَ، والتوسيعُ يغلبُ الإعلانَ — والسردُ لا يتراجعُ", () => {
+    // طلبٌ صُعِّدَ ثمّ فُتِحَتْ لهُ دورةٌ أوسعُ جديدةٌ يبقى «مُصعَّدًا»:
+    // رايةُ التوسيعِ صارتْ صحيحةً أيضًا لكنّها خبرٌ أقدمُ من التصعيدِ.
+    expect(
+      searchPhaseOf({
+        status: "searching",
+        notifiedDriverCount: 5,
+        createdAtMs: 0,
+        widerCircleOpened: false,
+        escalated: true,
+      }),
+    ).toBe("escalated");
+  });
+
+  it("ما ليسَ بحثًا مُغلَقٌ ولو صُعِّدَ قَبلَهُ — الطورُ يتبعُ الحالةَ لا الأثرَ", () => {
+    expect(
+      searchPhaseOf({
+        status: "cancelled",
+        notifiedDriverCount: 2,
+        createdAtMs: 0,
+        widerCircleOpened: true,
+        escalated: true,
+      }),
+    ).toBe("closed");
   });
 });
 

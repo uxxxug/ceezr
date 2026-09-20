@@ -107,9 +107,12 @@ export interface RideSearchState {
   readonly orderId: string;
   readonly status: RideStatus;
   readonly service: string;
-  readonly broadcastRound: number;
   readonly createdAtMs: number;
   readonly notifiedDriverCount: number;
+  /** فُتِحَتْ دورةُ الدائرةِ الأوسعِ — رايةٌ داخليةٌ يُشتقُّ منها الطورُ ولا تُنشَرُ كما هي (`PD-050`). */
+  readonly widerCircleOpened: boolean;
+  /** وصلَ الطلبُ إلى قروبِ الإسنادِ بتصعيدٍ مُسلَّمٍ — رايةٌ داخليةٌ مثلُ سابقتِها. */
+  readonly escalated: boolean;
   readonly cancellableWithoutPenalty: boolean;
 }
 

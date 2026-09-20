@@ -75,6 +75,8 @@ interface RidePayload {
   readonly service?: string;
   readonly broadcast_round?: number;
   readonly notified_driver_count?: number | string;
+  readonly wider_circle_opened?: boolean;
+  readonly escalated?: boolean;
   readonly cancellable_without_penalty?: boolean;
 }
 
@@ -483,6 +485,71 @@ describeIf("حالةُ البحثِ مقروءةٌ من الصفوفِ لا مُ
     const state = await searchState(RIDER_TELEGRAM_ID, crypto.randomUUID());
     expect(state.ok).toBe(false);
     expect(state.error).toBe("ORDER_NOT_FOUND");
+  });
+});
+
+describeIf("مآلُ الانتظارِ رايتانِ من الصفوفِ القائمةِ (`PD-050`)", () => {
+  // فتحُ الدورةِ يُودِعُ خبرَ «الدائرةِ الأوسعِ» في صندوقِ الصادرِ، ورفضُ الصادرِ
+  // للطلبِ يمنعُ التنظيفَ العامَّ من حذفِ الطلبِ — فيعلَّقُ الركبُ كلُّهُ. فتنظيفُ
+  // ما زرعَتْهُ هذهِ الكتلةُ وحدَها قبلَ التنظيفِ العامِّ (`ح-8`: لا يُمسُّ ما لم يُزرَعْ هنا).
+  afterEach(async () => {
+    if (DATABASE_URL === undefined || riderId === "") return;
+    await sql`delete from notification_outbox where order_id in (select id from orders where rider_id = ${riderId})`;
+    await sql`delete from audit_log where entity_type = 'order' and entity_id in (select id from orders where rider_id = ${riderId}) and actor_user_id is null`;
+  });
+
+  it("٢٣) السردُ من المصادرِ التشغيليّةِ: صمتٌ ← توسيعٌ ← تصعيدٌ مسلَّمٌ", async () => {
+    const created = await request(RIDER_TELEGRAM_ID, keyFor("narrative"));
+    const orderId = created.order_id ?? "";
+
+    // ١) طلبٌ حديثٌ: لا دائرةً أوسعَ ولا تصعيدًا — الصمتُ وقائعُ لا تخمينُ.
+    const fresh = await searchState(RIDER_TELEGRAM_ID, orderId);
+    expect(fresh.wider_circle_opened).toBe(false);
+    expect(fresh.escalated).toBe(false);
+
+    // ٢) فُتِحَتْ دورةُ الدائرةِ الأوسعِ — «وسّعنا البحثَ» تُقرأُ من الصفِّ لا من الرسالةِ.
+    const opened = await sql<{ result: { ok: boolean } }[]>`
+      select open_unsubscribed_cycle(${orderId}::uuid) as result
+    `;
+    expect(opened[0]?.result.ok).toBe(true);
+    const widened = await searchState(RIDER_TELEGRAM_ID, orderId);
+    expect(widened.wider_circle_opened).toBe(true);
+    expect(widened.escalated).toBe(false);
+
+    // ٣) أثرُ تصعيدٍ **غيرُ مسلَّمٍ** لا يُقالُ للراكبِ: الشوطُ الذي أخفقَ إرسالُهُ
+    //    يُعادُ استعمالُهُ، فعرضُهُ «مُصعَّدًا» يقولُ ما لم يحدثْ بعدُ.
+    await sql`
+      insert into audit_log (city_id, actor_user_id, action, entity_type, entity_id, payload)
+      values (${cityId}, null, 'order.escalated', 'order', ${orderId}::uuid,
+              jsonb_build_object('reason', 'unsubscribed_cycles_exhausted', 'delivered', false))
+    `;
+    const pending = await searchState(RIDER_TELEGRAM_ID, orderId);
+    expect(pending.escalated).toBe(false);
+
+    // ٤) سُلِّمَ الأثرُ — الآنَ وحدَهُ يُقالُ «أحلينا طلبك إلى فريق الإسناد».
+    await sql`
+      update audit_log
+         set payload = payload || jsonb_build_object('delivered', true, 'message_id', '1')
+       where entity_type = 'order' and entity_id = ${orderId}::uuid
+         and action = 'order.escalated'
+    `;
+    const escalated = await searchState(RIDER_TELEGRAM_ID, orderId);
+    expect(escalated.escalated).toBe(true);
+  });
+
+  it("٢٤) أثرٌ قديمٌ بلا مفتاحِ التسليمِ يُقرَأُ مُسلَّمًا — دلالةُ `coalesce` محفوظةٌ", async () => {
+    const created = await request(RIDER_TELEGRAM_ID, keyFor("legacy-escalation"));
+    const orderId = created.order_id ?? "";
+    // صفٌّ بصيغةِ ما قبلَ هجرةِ `20260813090000`: لا `delivered` في الحمولةِ —
+    // وهيَ تصعيداتٌ سلّمتْ فعلاً فلا تُعامَلُ معلَّقةً (راجعْ تعليقَ الرأسِ في الهجرةِ).
+    await sql`
+      insert into audit_log (city_id, actor_user_id, action, entity_type, entity_id, payload)
+      values (${cityId}, null, 'order.escalated', 'order', ${orderId}::uuid,
+              jsonb_build_object('reason', 'no_driver_at_all'))
+    `;
+    const state = await searchState(RIDER_TELEGRAM_ID, orderId);
+    expect(state.escalated).toBe(true);
+    expect(state.wider_circle_opened).toBe(false);
   });
 });
 

@@ -146,6 +146,8 @@
   "rider.search.status.unknown": "This version cannot read the ride state",
   "rider.search.phase.silent": "No one has been notified yet; the request is recorded.",
   "rider.search.phase.announced": "Your request has been announced to drivers.",
+  "rider.search.phase.widened": "No free driver nearby, so we widened the search to more drivers across your city; we will tell you as soon as one accepts.",
+  "rider.search.phase.escalated": "No driver yet; your request has been handed to the dispatch team to follow up manually, and we will tell you as soon as one is available.",
   "rider.search.phase.assigned": "Your ride has been assigned to a driver.",
   "rider.search.phase.closed": "This request is closed.",
   "rider.search.phase.unknown": "This version cannot read the request phase",

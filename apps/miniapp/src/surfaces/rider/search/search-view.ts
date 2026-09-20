@@ -42,6 +42,8 @@ export function rideStatusKey(status: string): string {
 const PHASE_KEYS: Readonly<Record<string, string>> = {
   silent: "rider.search.phase.silent",
   announced: "rider.search.phase.announced",
+  widened: "rider.search.phase.widened",
+  escalated: "rider.search.phase.escalated",
   assigned: "rider.search.phase.assigned",
   closed: "rider.search.phase.closed",
 };
