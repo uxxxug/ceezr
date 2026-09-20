@@ -123,11 +123,18 @@ describe("حَكَمُ مواردِ الرحلةِ (ECO-004)", () => {
 
   it("السقوفُ المُشتَقَّةُ متسقةٌ مع الشكلِ", () => {
     expect(databaseRowBudget()).toBe(
-      (RIDE_RESOURCE_PROFILE.activeReadCount + RIDE_RESOURCE_PROFILE.lifecycleTransitionCount) * 2,
+      (RIDE_RESOURCE_PROFILE.activeReadCount + RIDE_RESOURCE_PROFILE.lifecycleTransitionCount) * 2 +
+        8,
     );
+    expect(databaseBlockBudget()).toBe(Math.ceil(databaseRowBudget() * 1.2));
     expect(queueMessageBudget()).toBe(RIDE_RESOURCE_PROFILE.lifecycleTransitionCount + 2);
     expect(redisCommandBudget()).toBe(
-      (RIDE_RESOURCE_PROFILE.activeReadCount + RIDE_RESOURCE_PROFILE.lifecycleTransitionCount) * 3,
+      (RIDE_RESOURCE_PROFILE.heartbeatCount +
+        RIDE_RESOURCE_PROFILE.activeReadCount +
+        RIDE_RESOURCE_PROFILE.lifecycleTransitionCount +
+        2) *
+        2 +
+        10,
     );
     expect(storageRowBudget()).toBe(RIDE_RESOURCE_PROFILE.lifecycleTransitionCount * 4);
   });

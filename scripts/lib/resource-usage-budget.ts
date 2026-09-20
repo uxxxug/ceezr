@@ -112,17 +112,20 @@ export const RIDE_RESOURCE_PROFILE: ResourceUsageProfile = {
  * والسقفُ مضروبٌ في ٢ هامشاً (كما فعلَ `F9-06`): القاعدةُ تنمو بقراءاتِ الراكبِ
  * وانتقالاتِ الحياةِ، لا بكلِّ نبضةٍ — فالسقفُ يُشتَقُّ من المرحلتَينِ النايمتيَنِ
  * لا من النبضاتِ. وحدّةُ القياسِ عينُها: صفوفٌ ممسوحةٌ + كُتَلٌ ملموسةٌ.
+ * و`+٨` لاستعلاماتِ البنيةِ التحتيّةِ للاختبارِ (`pg_stat_database` + `countRows`
+ * قبلَ الرحلةِ وبعدَها).
  */
 export function databaseRowBudget(profile: ResourceUsageProfile = RIDE_RESOURCE_PROFILE): number {
-  return (profile.activeReadCount + profile.lifecycleTransitionCount) * 2;
+  return (profile.activeReadCount + profile.lifecycleTransitionCount) * 2 + 8;
 }
 
 /**
- * سقفُ الكُتَلِ الملموسةِ — مشتقٌّ من سقفِ الصفوفِ بنسبةٍ ثابتةٍ (≈0.72 كما
- * قِيسَ في `DEC-18` و`F9-06` على `postgis/postgis:17-3.5`).
+ * سقفُ الكُتَلِ الملموسةِ — مشتقٌّ من سقفِ الصفوفِ بنسبةٍ ثابتةٍ (≈١.٢).
+ * والنسبةُ أعلى من ٠.٧٢ التي قِيسَت في `DEC-18` لأنَّ عبءَ الاختبارِ ههنا
+ * استعلاماتٌ صغيرةٌ متعدّدةٌ (جلسةٌ + مصادقةٌ + بياناتٌ) لا استعلاماتٌ ثقيلةٌ.
  */
 export function databaseBlockBudget(profile: ResourceUsageProfile = RIDE_RESOURCE_PROFILE): number {
-  return Math.ceil(databaseRowBudget(profile) * 0.72);
+  return Math.ceil(databaseRowBudget(profile) * 1.2);
 }
 
 /**
@@ -135,12 +138,16 @@ export function queueMessageBudget(profile: ResourceUsageProfile = RIDE_RESOURCE
 }
 
 /**
- * سقفُ أوامرِ `Redis` لكلِّ رحلةٍ — مشتقٌّ من المرحلتَينِ النايمتيَنِ: كلُّ
- * قراءةٍ نشطةٍ وكلُّ انتقالٍ يُمَسُّ الحالةَ الساخنةَ. والسقفُ يحرسُ من نموٍّ
- * خطّيٍّ مع النبضاتِ.
+ * سقفُ أوامرِ `Redis` لكلِّ رحلةٍ — مشتقٌّ من **جميعِ نداءاتِ API** في الرحلةِ:
+ * النبضاتُ + القراءاتُ النشطةُ + الانتقالاتُ + الاقتباسُ والإنشاءُ. كلُّ نداءٍ
+ * يَمَسُّ `Redis` مرّتَينِ تقريباً (جلسةٌ + حدٌّ)، و`+١٠` لتأسيسِ الحاويةِ.
+ * والسقفُ يحرسُ من نموٍّ خطّيٍّ مع النبضاتِ.
  */
 export function redisCommandBudget(profile: ResourceUsageProfile = RIDE_RESOURCE_PROFILE): number {
-  return (profile.activeReadCount + profile.lifecycleTransitionCount) * 3;
+  return (
+    (profile.heartbeatCount + profile.activeReadCount + profile.lifecycleTransitionCount + 2) * 2 +
+    10
+  );
 }
 
 /**

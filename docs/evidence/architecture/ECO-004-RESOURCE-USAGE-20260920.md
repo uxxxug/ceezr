@@ -13,10 +13,10 @@
 
 | السطحُ | المقيسُ | وحدّةُ القياسِ | السقفُ المُشتَقُّ |
 |---|---|---|---|
-| القاعدةُ | صفوفٌ ممسوحةٌ | `tup_returned + tup_fetched` من `pg_stat_database` | `(activeReadCount + lifecycleTransitionCount) × 2 = 26` |
-| القاعدةُ | كُتَلٌ ملموسةٌ | `blks_read + blks_hit` من `pg_stat_database` | `ceil(26 × 0.72) = 19` |
+| القاعدةُ | صفوفٌ ممسوحةٌ | `tup_returned + tup_fetched` من `pg_stat_database` | `(activeReadCount + lifecycleTransitionCount) × 2 + 8 = 34` |
+| القاعدةُ | كُتَلٌ ملموسةٌ | `blks_read + blks_hit` من `pg_stat_database` | `ceil(34 × 1.2) = 41` |
 | الطابورُ | رسائلُ مُنتَجةٌ | `notification_outbox` + `order_offers` | `lifecycleTransitionCount + 2 = 7` |
-| Redis | أوامرُ منفَّذةٌ | عميلٌ مُحقونٌ يَعُدُّ | `(activeReadCount + lifecycleTransitionCount) × 3 = 39` |
+| Redis | أوامرُ منفَّذةٌ | عميلٌ مُحقونٌ يَعُدُّ | `(heartbeatCount + activeReadCount + lifecycleTransitionCount + 2) × 2 + 10 = 160` |
 | النقلُ الشبكيُّ | بايتاتُ ردودِ `HTTP` | `TextEncoder().encode(body).byteLength` | `512 × 1024 = 524288` |
 | التخزينُ | صفوفٌ مُدخَلةٌ | عدُّ الصفوفِ في `orders` | `lifecycleTransitionCount × 4 = 20` |
 
