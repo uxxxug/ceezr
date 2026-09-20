@@ -194,6 +194,9 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
    */
   destination_landmarks: RETENTION_CLASSES.lifecycleBound,
   drivers: RETENTION_CLASSES.lifecycleBound,
+  // PD-001/ADR 0157: عضويّةُ قروبِ غيرِ المشتركينَ تُقَيَّدُ بدورةِ حياةِ الحسابِ
+  // نفسِها — فالقرارُ الحاكمُ لدخولِ السوقِ لا يُدَّعى لهُمومُ الطلباتِ العابرةِ.
+  group_memberships: RETENTION_CLASSES.lifecycleBound,
   job_heartbeats: RETENTION_CLASSES.pendingDecision,
   ledger_entries: RETENTION_CLASSES.financialSixYears,
   location_archive_manifest: RETENTION_CLASSES.lifecycleBound,

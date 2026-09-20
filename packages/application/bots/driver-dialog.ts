@@ -60,6 +60,10 @@ import {
   type UpdateDriverLocationDeps,
   updateDriverLocation,
 } from "../geo/update-driver-location.ts";
+import {
+  type GroupJoinGateDependencies,
+  handleDriverGroupJoinRequest,
+} from "../groups/group-join-gate.ts";
 import type { ClaimRideResult, DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
 import {
   type ResolveSafetyIncidentDeps,
@@ -147,13 +151,24 @@ export interface DriverBotDependencies {
    */
   readonly gpsPolicy?: GpsPolicy;
   /**
-   * مسار قروب غير المشتركين (المرحلة 2.3). اختياري لأن الاختبارات القائمة
+   * مسارُ قروبِ غيرِ المشتركين (المرحلة 2.3). اختياري لأن الاختبارات القائمة
    * تختبر التسجيل والعروض وحدها؛ غيابه يعني أن أزرار القروب لا تُعالَج، لا أن تُعالَج خطأ.
    */
   readonly negotiation?: {
     readonly claims: RegisterUnsubscribedClaimDependencies;
     readonly relay: RelayDependencies;
   };
+  /**
+   * بوّابةُ دخولِ القروبِ (`PD-001` · `ADR 0157`). اختياريٌّ بنفسِ منطقِ `negotiation`:
+   * غيابُهُ يعني أنَّ طلباتِ الانضمامِ تُقرُّ استلامَها ولا يُحكَمُ فيها (البوّابةُ
+   * خاملةٌ)، لا أنَّها تُقبَلُ أو تُرفَضُ جزافاً. والتوصيلُ في `container.ts` دائمٌ
+   * في الإنتاجِ — ورفضُ المطالبةِ البرمجيُّ (`negotiation.claims`) يبقى خطَّ الدفاعِ
+   * الدائمَ سواءً وُصِلَتِ البوّابةُ أم لا.
+   *
+   * ويملكُ هذا الحقلُ وحدهُ رابطَ التسجيلِ العميقَ (`gate.registrationLink`) لأنَّهُ
+   * من هويّةِ بوتِ السائقِ عندَ تلغرامَ يُبنى — لا إعدادٍ يدويٍّ يتقادمُ بصمت.
+   */
+  readonly groupJoinGate?: GroupJoinGateDependencies;
   /**
    * مسار الدعم (المرحلة 2.4). اختياري بنفس منطق negotiation: غيابه يعني أن /support
    * يردّ «أمر غير معروف» بدل أن يفتح حواراً لا نهاية له.
@@ -404,6 +419,35 @@ export async function handleDriverUpdate(
   update: IncomingUpdate,
   deps: DriverBotDependencies,
 ): Promise<readonly BotReply[]> {
+  /**
+   * طلبُ الانضمامِ إلى القروبِ (`PD-001`): **قبلَ تحميلِ الجلسةِ لا بعدها** —
+   * صاحبُ الطلبِ لم يكتبْ للبوتِ بعدُ، وإنشاءُ جلسةٍ لهُ هوَ أثرٌ لمن لم يُوجَدْ.
+   * والقرارُ في البوّابةِ (`handleDriverGroupJoinRequest`) لا في الحوارِ: فلا
+   * نصَّ يُفهمُ ولا زرّاً يُضغَطُ، بل هويّةٌ تُقرأُ من القاعدةِ وحكمٌ يُبلَّغُ
+   * لتلغرامَ. والردُّ هنا إقرارُ استلامٍ لا رسالةَ حوارٍ — فالبوّابةُ تُراسِلُ
+   * صاحبَها بنفسِها (خاصةً) متى احتاجتْ.
+   *
+   * وغيابُ `groupJoinGate` يعني بوّابةً خاملةً: يُقرُّ الاستلامُ ولا يُحكَمُ —
+   * لا يُقبَلُ غريبٌ ولا يُرفَضُ مسجَّلٌ جزافاً. (وحدُّ المطالبةِ البرمجيُّ باقٍ
+   * خطَّ الدفاعِ الدائمَ في الحالتَين.)
+   */
+  if (update.kind === "join_request") {
+    if (deps.groupJoinGate === undefined) return [];
+    // عجزُ البوّابةِ التقنيُّ يُسجَّلُ فيها لا يُرمى: فالرسائلُ هنا إقرارُ استلامٍ
+    // لا نتيجةَ حوارٍ، وإسقاطُ التحديثِ كلِّهِ لا يعيدُ فتحَهُ (تسلسلُ الويبهوكِ
+    // انتهى بإقرارِ الاستلامِ عندَ الإيداعِ — ADR 0054/0057).
+    await handleDriverGroupJoinRequest(
+      {
+        groupChatId: update.groupChatId,
+        telegramUserId: update.from.telegramUserId,
+        userChatId: update.userChatId,
+        languageHint: update.from.languageHint,
+      },
+      deps.groupJoinGate,
+    );
+    return [];
+  }
+
   const sender = update.from;
   const state = await loadState(deps, sender);
 
@@ -579,7 +623,22 @@ async function handleUnsubscribedClaim(
   const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
   if (!found.ok) return technicalFailure(sender, state);
   const driver = found.value;
-  if (driver === null) return [privateReply(sender, tr("driver.not_registered"))];
+  if (driver === null) {
+    // `PD-001c`: غيرُ المسجَّلِ كانَ يصلُهُ حرفيًّا نصُّ المفتاحِ (`driver.not_registered`
+    // لم يكنْ في أيِّ قاموسٍ) — والآنَ يصلُهُ أمرُ التسجيلِ، ومعَهُ رابطٌ عميقٌ
+    // متى وُجِدَتِ البوّابةُ. والرابطُ أفضلُ جهدٍ لا وعدٌ: تعذُّرُهُ يردُّ إلى
+    // النصِّ العاريِّ لا إلى حرفِ مفتاحٍ مقروءٍ كمخرجٍ.
+    const link =
+      deps.groupJoinGate === undefined ? null : await deps.groupJoinGate.gate.registrationLink();
+    return [
+      privateReply(
+        sender,
+        link === null
+          ? tr("driver.not_registered")
+          : tr("driver.not_registered_with_link", { link }),
+      ),
+    ];
+  }
 
   const claimed = await registerUnsubscribedClaim(
     { negotiationId, driverId: driver.id },

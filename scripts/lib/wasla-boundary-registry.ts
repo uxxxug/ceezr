@@ -231,6 +231,14 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
       "السائقُ وملفُّه مملوكانِ لـMOVE، ولكنَّ الجدولَ يحملُ عمودَي سمعةٍ (`rating_average` · `rating_count`) يملكُهما CORE ويشيرُ إلى `users` وهي هويّةٌ؛ فيُعادُ ربطُه بمُعرِّفِ هويّةٍ من CORE وتُنزَعُ السمعةُ.",
   },
   {
+    table: "group_memberships",
+    concern: "قرارُ بوّابةِ دخولِ قروبِ السائقينَ غيرِ المشتركينَ",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale:
+      "عضويّةُ القروبِ توزيعٌ يملكُهُ MOVEُ (بوّابةُ `PD-001` · ADR 0157) ويُقرأُ استحقاقُ «غيرِ مشتركٍ» من CORE عندَ المطالبةِ لا من هذا الجدولِ — فالبوّابةُ تُنظِّمُ الوصولَ ولا تُصدرُ استحقاقًا.",
+  },
+  {
     table: "identity_hash_pepper",
     concern: "سرُّ المنصّةِ لتجزئةِ الهُويّةِ (`ADR 0113`)",
     owner: "CORE",

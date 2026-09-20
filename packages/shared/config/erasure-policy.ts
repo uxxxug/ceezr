@@ -230,6 +230,15 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
   db_backups: reference(),
   destination_landmarks: reference(),
 
+  group_memberships: {
+    disposition: D.erase,
+    subjects: [S.driver],
+    linkedBy: "group_memberships.driver_id → drivers.user_id",
+    basis: null,
+    exportSection: "groupMemberships",
+    deferredTo: null,
+  },
+
   driver_availability: {
     disposition: D.erase,
     subjects: [S.driver],

@@ -152,6 +152,21 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     runtimeGate: { kind: "gated" },
     removed: false,
   },
+  {
+    id: "telegram-deep-links",
+    purpose:
+      "روابطُ t.me العميقةُ داخلَ نصِّ رسائلِ البوتِ (رابطُ التسجيلِ في بوّابةِ القروبِ · `PD-001`) — حرفٌ في رسالةٍ يضغطُهُ المستخدمُ، لا نداءَ شبكةٍ من الشيفرةِ",
+    peerClass: "CHANNEL",
+    system: "NONE",
+    source: { kind: "literal", hosts: ["t.me"] },
+    callSite: "packages/infrastructure/notification/telegram-join-gate.ts",
+    runtimeGate: {
+      kind: "not-applicable",
+      reason:
+        "مضيفُ الروابطِ لا يُنادى من الشيفرةِ: النصُّ يسيرُ في رسالةِ تلغرامَ التي هي أصلًا قناةً مُعلَنةً مُبوَّبةً، وفتحُ الرابطِ فعلُ المستخدمِ في تطبيقِهِ لا فعْلُ الخدمةِ",
+    },
+    removed: false,
+  },
 
   // ── تكاملٌ تجاريٌّ مباشرٌ: دَينٌ مُعلَنٌ ينتظرُ `W-7` ─────────────────────
   {
