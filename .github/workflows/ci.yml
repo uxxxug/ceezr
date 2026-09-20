@@ -587,6 +587,23 @@ jobs:
       - name: حكمُ ميزانِ الرسائلِ مبرهَنُ السقوطِ قاعدةً قاعدةً (ECO-003 · ح-7)
         run: bun test tests/unit/telegram-message-budget.test.ts
 
+      # `ECO-004` (الشقُّ المملوكُ للمستودَعِ من القسمِ 17 — الزيادةُ الأولى):
+      # «مواردُ رحلةٍ واحدةٍ مقيسةٌ لا مُقدَّرةٌ». والزيادةُ الأولى تقيسُ خمسةَ أسطحِ
+      # مواردَ: القاعدةُ (`pg_stat_database` — وحدّةُ `DEC-18`)، والطابورُ
+      # (`notification_outbox` + `order_offers`)، و`Redis` (عميلٌ مُحقونٌ يَعُدُّ)،
+      # والنقلُ الشبكيُّ (بايتاتُ ردودِ `HTTP`)، والتخزينُ (صفوفٌ مُدخَلةٌ). ولا
+      # تُقاسُ النسخُ (`WAL`/`LSN`) — غيرُ مستقرٍّ في CI. والسقوفُ مُشتَقَّةٌ من شكلِ
+      # الرحلةِ المُعلَنِ لا مكتوبةٌ رقماً. والعددُ وحدَه محروسٌ: السعرُ في فاتورةِ
+      # مزوّدِ سحابةٍ (`REQ-09` · `[!]`).
+      - name: مواردُ الرحلةِ مقيسةٌ لا مُقدَّرةٌ — خمسةُ أسطحٍ (ECO-004 · الزيادةُ الأولى)
+        run: bun run scripts/check-resource-usage-budget.ts
+
+      - name: سقوطُ حاجزِ مواردِ الرحلةِ مقيسٌ بسالبةٍ لكلِّ قاعدةٍ (ح-7)
+        run: bun test tests/unit/check-resource-usage-budget.test.ts
+
+      - name: حكمُ ميزانِ المواردِ مبرهَنُ السقوطِ قاعدةً قاعدةً (ECO-004 · ح-7)
+        run: bun test tests/unit/resource-usage-budget.test.ts
+
       # `S-3` · `O-2`: يُقاسُ ههنا — في `verify` — أنَّ وظيفةَ Redis تملكُ خادمَها،
       # لأنَّ الوظيفةَ نفسَها لا تقيسُ تهيئتَها: لو انحرفَ منفذُها أو رمزُها لسقطَت
       # على رفضِ اتّصالٍ يُقرَأُ عيباً في كودِ الجلساتِ. وهذا نصٌّ لا شبكةٌ ولا سرٌّ.
@@ -1277,6 +1294,15 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/telegram-message-budget.test.ts
+
+      # `ECO-004` (الزيادةُ الأولى): مواردُ رحلةٍ واحدةٍ تُقاسُ على السِلكِ —
+      # `pg_stat_database` للصفوفِ والكُتَلِ، و`notification_outbox` + `order_offers`
+      # للطابورِ، وعميلُ `Redis` مُحقونٌ يَعُدُّ، وبايتاتُ ردودِ `HTTP` للنقلِ،
+      # وعدُّ الصفوفِ المُدخَلةِ للتخزينِ. وخطوةٌ باسمِها كي يُقرأَ الرقمُ مفرَداً.
+      - name: مواردُ رحلةٍ واحدةٍ مقيسةٌ على السِلكِ — خمسةُ أسطحٍ (ECO-004 · الزيادةُ الأولى)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/resource-usage-budget.test.ts
 
       - name: اختبارات التكامل على قاعدة حقيقية
         env:
