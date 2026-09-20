@@ -24,6 +24,12 @@
  *   ــ **لا يخترعُ رمزاً**: ما لا يُعرَفُ يُقالُ مفتاحاً عامّاً لا رمزاً خاماً.
  */
 
+import {
+  isSosIncidentStatus,
+  isSosTeamDeliveryStatus,
+  type SosIncidentNarrative,
+  sosIncidentNarrative,
+} from "../../../../../../packages/domain/safety/sos-surface.ts";
 import type { ApiSosIncident } from "./sos-contract.ts";
 
 /**
@@ -68,6 +74,28 @@ export function incidentStatusKey(status: string): string {
   if (status === "received") return "rider.sos.incident.status.received";
   if (status === "closed") return "rider.sos.incident.status.closed";
   return "rider.sos.incident.status.unknown";
+}
+
+/**
+ * سردُ مآلِ البلاغِ ⇒ مفتاحُ نصٍّ (`PD-020` · `ADR 0159`) — **مُشتَقٌّ في
+ * النطاقِ لا ههنا**: «استُقبِلَ» تُقاسُ من حالِ التسليمِ، و«اطَّلعَ» مطالبةٌ
+ * بشريّةٌ تضبطُ الحالةَ، فالسردُ يُقرأُ من الحقلَينِ معاً لا من حالةٍ واحدةٍ
+ * تقولُ ما لا تعرفُهُ. والاشتقاقُ في النطاقِ **مصدرٌ واحدٌ** لسؤالٍ واحدٍ —
+ * لغرباءِ السائقِ والراكبِ — لا شرطٌ يُكتَبُ في كلِّ واجهةٍ.
+ */
+const NARRATIVE_KEYS: Readonly<Record<SosIncidentNarrative, string>> = {
+  SENDING: "rider.sos.incident.narrative.sending",
+  DELIVERED_TO_TEAM: "rider.sos.incident.narrative.delivered",
+  TEAM_REVIEWING: "rider.sos.incident.status.received",
+  CLOSED: "rider.sos.incident.status.closed",
+};
+
+export function incidentNarrativeKey(status: string, teamDeliveryStatus: string): string {
+  // قيمةٌ لا يعرفُها النطاقُ تُقالُ «قيدَ المتابعةِ» لا فراغاً ولا رمزاً خاماً.
+  if (!isSosIncidentStatus(status) || !isSosTeamDeliveryStatus(teamDeliveryStatus)) {
+    return "rider.sos.incident.status.unknown";
+  }
+  return NARRATIVE_KEYS[sosIncidentNarrative(status, teamDeliveryStatus)];
 }
 
 /**

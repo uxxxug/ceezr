@@ -355,6 +355,7 @@
   "safety.no_active_order": "لا يوجد طلب نشط لإرسال نداء SOS بشأنه.",
   "safety.group_card": "🆘 طوارئ SOS #{incident}\nالطلب: {order}\nالخدمة: {service}\nالطرف المُبلّغ: {reporter}\nآخر موقع معروف: {location}\n\nيلزم قرار بشري من فريق الإسناد.",
   "safety.group_card_no_order": "🆘 طوارئ SOS #{incident}\nبلا رحلة: بلاغ من الحساب مباشرة\nالطرف المُبلّغ: {reporter}\nآخر موقع معروف: {location}\n\nيلزم قرار بشري من فريق الإسناد.",
+  "safety.group_card_cannot_complete": "⚠️ تعذَّرَ الإكمالُ #{incident}\nالطلب: {order}\nالخدمة: {service}\nآخر موقع معروف: {location}\n\nالسائقُ لا يستطيعُ إكمالَ المهمّةِ — يلزمُ قرارٌ بشريٌّ من فريقِ الإسنادِ.",
   "safety.location_unknown": "غير متاح",
   "safety.reporter_rider": "الراكب",
   "safety.reporter_driver": "السائق",

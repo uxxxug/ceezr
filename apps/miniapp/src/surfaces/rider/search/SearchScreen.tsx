@@ -73,11 +73,13 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { SosEntry } from "../sos/SosEntry.tsx";
 import {
   cancelRide as cancelViaApi,
   readRideSearch as readViaApi,
   requestRide as requestViaApi,
 } from "./ride-api.ts";
+
 import type {
   CancelRideResponse,
   RequestRideResponse,
@@ -127,6 +129,8 @@ export interface SearchScreenProps {
     readonly idempotencyKey: string;
   }) => Promise<CancelRideResponse>;
   readonly onBack?: () => void;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
+  readonly onOpenSos?: () => void;
   /**
    * بابُ `F2-06`: إن مُرِّرَ، انتقلَت المتابعةُ إلى شاشةِ الرحلةِ النشطةِ. وإن
    * غابَ، **بقيَ سلوكُ `F2-05` كما كانَ حرفاً** (القاعدة `ح-1`): متابعةٌ داخليّةٌ
@@ -190,6 +194,7 @@ export function SearchScreen({
   read = readViaApi,
   cancel = cancelViaApi,
   onBack,
+  onOpenSos,
   onActiveRide,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   now = () => Date.now(),
@@ -529,6 +534,9 @@ export function SearchScreen({
       <p className="rs__destination">
         {t("rider.search.destination").replace("{label}", intent.destinationLabel)}
       </p>
+
+      {/* مدخلُ الاستغاثةِ (`PD-020`) — يُرسَمُ إذا مُرِّرَ، فيبقى البابُ في كلِّ سطحٍ. */}
+      {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
       {body()}
     </section>
   );

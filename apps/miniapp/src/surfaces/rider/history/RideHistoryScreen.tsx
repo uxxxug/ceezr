@@ -53,7 +53,9 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { SosEntry } from "../sos/SosEntry.tsx";
 import { readRideHistory as readViaApi } from "./ride-history-api.ts";
+
 import type {
   ApiRideHistoryCursor,
   ApiRideHistoryGroup,
@@ -92,6 +94,8 @@ export interface RideHistoryScreenProps {
    *  **ولا يفتحُ تفاصيلَ ساكنةً بدلاً منها**. */
   readonly onOpenActive?: (orderId: string) => void;
   readonly onBack?: () => void;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
+  readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
 }
 
@@ -190,6 +194,7 @@ export function RideHistoryScreen({
   onOpenDetail,
   onOpenActive,
   onBack,
+  onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
 }: RideHistoryScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
@@ -461,6 +466,9 @@ export function RideHistoryScreen({
         <button type="button" className="hs__back" onClick={() => onBack?.()}>
           {t("rider.history.back")}
         </button>
+
+        {/* مدخلُ الاستغاثةِ (`PD-020`) — رحلةٌ في السجلِّ جاريةٌ أو مضَت قريباً. */}
+        {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
       </>
     );
   };

@@ -30,7 +30,7 @@
  *   ــ **لا تُوجِّهُ بمسارٍ**: الانتقالُ حالةٌ محليّةٌ في جذرِ السطحِ.
  */
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useId, useState } from "react";
 import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
@@ -82,6 +82,12 @@ export interface TicketsScreenProps {
   readonly orderId?: string | null;
   /** صنفٌ مبدئيٌّ حينَ جاءَ من سياقٍ يدلُّ عليه — يُبدِّلُه صاحبُه. */
   readonly initialCategory?: string | null;
+  /**
+   * مدخلٌ يُعرَضُ بعدَ بابِ الرجوعِ (`PD-020`) — **عقدةٌ لا تعريفُ زرٍّ**:
+   * سطحُ الراكبِ يُمرِّرُ مدخلَ الاستغاثةِ فيُوضَعُ في سياقِ الشاشةِ، وسطحُ
+   * السائقِ لا يُمرِّرُ شيئاً فلا يتغيَّرُ شيءٌ.
+   */
+  readonly header?: ReactNode | undefined;
 }
 
 type ListState =
@@ -116,6 +122,7 @@ export function TicketsScreen({
   onBack,
   orderId = null,
   initialCategory = null,
+  header,
 }: TicketsScreenProps) {
   const t = miniAppTranslator(language);
   const messageId = useId();
@@ -187,6 +194,9 @@ export function TicketsScreen({
           {t(`${prefix}back`)}
         </button>
       )}
+
+      {/* مدخلُ سطحِ الدورِ (`PD-020`) — يُرسَمُ كما جاءَ أو لا يُرسَمُ. */}
+      {header}
 
       {/* ــ إيصالُ الفتحِ: **المرجعُ أوّلاً وأكبرُ** ــ */}
       {opened !== null && (

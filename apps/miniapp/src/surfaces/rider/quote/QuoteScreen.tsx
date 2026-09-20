@@ -77,6 +77,8 @@ import type { ScreenState } from "../../../system/state-text.ts";
 import { initLocation, openLocationSettings, requestLocation } from "../../../tg/index.ts";
 import { locationRefusalKey, offersLocationSettings } from "../destination/destination-view.ts";
 import { newIdempotencyKey } from "../search/search-view.ts";
+import { SosEntry } from "../sos/SosEntry.tsx";
+
 import { type QuoteRideResponse, quoteRide as quoteViaApi } from "./quote-api.ts";
 import {
   distanceLine,
@@ -109,6 +111,8 @@ export interface QuoteScreenProps {
   >;
   readonly openSettings?: () => void;
   readonly onBack?: () => void;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
+  readonly onOpenSos?: () => void;
   /**
    * `F2-05`: تُسلَّمُ النيّةُ ولا تُنشَأُ الرحلةُ ههنا. و`null` في الملاحظةِ يعني
    * «لا ملاحظةَ» لا «ملاحظةٌ فارغةٌ»، والمفتاحُ مُولَّدٌ لتلكَ النيّةِ وحدَها.
@@ -187,6 +191,7 @@ export function QuoteScreen({
   readDeviceLocation = defaultDeviceLocation,
   openSettings = () => void openLocationSettings(),
   onBack,
+  onOpenSos,
   onRequest,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
 }: QuoteScreenProps) {
@@ -444,6 +449,9 @@ export function QuoteScreen({
       <button type="button" className="qt__back" onClick={() => onBack?.()}>
         {t("rider.quote.back")}
       </button>
+
+      {/* مدخلُ الاستغاثةِ (`PD-020`) — يُرسَمُ إذا مُرِّرَ، فيبقى البابُ في كلِّ سطحٍ. */}
+      {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
     </section>
   );
 }

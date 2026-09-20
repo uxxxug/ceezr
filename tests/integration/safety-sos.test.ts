@@ -151,6 +151,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
       orderId,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(triggered.ok).toBe(true);
 
@@ -184,8 +185,18 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
 
   it("ضغطتا SOS متزامنتان تنشئان حادثاً واحداً وoutbox واحداً", async () => {
     const results = await Promise.all([
-      trigger.trigger({ orderId, actorTelegramId: RIDER_TELEGRAM_ID, reporterRole: "rider" }),
-      trigger.trigger({ orderId, actorTelegramId: RIDER_TELEGRAM_ID, reporterRole: "rider" }),
+      trigger.trigger({
+        orderId,
+        actorTelegramId: RIDER_TELEGRAM_ID,
+        reporterRole: "rider",
+        reason: "sos",
+      }),
+      trigger.trigger({
+        orderId,
+        actorTelegramId: RIDER_TELEGRAM_ID,
+        reporterRole: "rider",
+        reason: "sos",
+      }),
     ]);
     expect(results.every((result) => result.ok)).toBe(true);
     expect(results.filter((result) => result.ok)).toHaveLength(2);
@@ -212,6 +223,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
       orderId,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(opened.ok).toBe(true);
     let failedCalls = 0;
@@ -267,6 +279,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
       orderId,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(opened.ok).toBe(true);
     if (!opened.ok || opened.value.incidentId === null) return;
@@ -312,6 +325,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
       orderId,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(opened.ok).toBe(true);
     if (!opened.ok || opened.value.incidentId === null) return;
@@ -360,6 +374,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
         orderId: null,
         actorTelegramId: ORDERLESS_TELEGRAM_ID,
         reporterRole: "rider",
+        reason: "sos",
       });
       expect(triggered.ok).toBe(true);
       if (!triggered.ok || triggered.value.incidentId === null) return;
@@ -408,11 +423,13 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
           orderId: null,
           actorTelegramId: ORDERLESS_TELEGRAM_ID,
           reporterRole: "rider",
+          reason: "sos",
         }),
         trigger.trigger({
           orderId: null,
           actorTelegramId: ORDERLESS_TELEGRAM_ID,
           reporterRole: "rider",
+          reason: "sos",
         }),
       ]);
       expect(results.every((result) => result.ok)).toBe(true);
@@ -440,6 +457,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
         orderId: null,
         actorTelegramId: ORDERLESS_TELEGRAM_ID,
         reporterRole: "rider",
+        reason: "sos",
       });
       expect(triggered.ok).toBe(true);
 

@@ -130,9 +130,6 @@ export const UNBUILT_PATH_TOKENS: readonly string[] = [
   "complaint",
   "dispute",
   "share",
-  "sos",
-  "emergency",
-  "panic",
   "whatsapp",
   "tel:",
   "دعم",
@@ -141,11 +138,37 @@ export const UNBUILT_PATH_TOKENS: readonly string[] = [
   "اعتراض",
   "مشاركة",
   "شارك",
-  "طوارئ",
-  "استغاثة",
   "اتصل",
   "اتّصل",
 ];
+
+/**
+ * ## إضافةُ البند `PD-020` (2026-09-20) — **نقلٌ لا حذفٌ**
+ *
+ * خمسةُ رموزٍ (`sos` · `emergency` · `panic` · «طوارئ» · «استغاثة») كانت في
+ * `UNBUILT_PATH_TOKENS` أعلاه، ونُقِلَت إلى ههنا لأنَّ مدخلَها **بُنِيَ وصارَ
+ * من كلِّ سطحٍ ذي صلةٍ** (`PD-020`): شاشةُ الملخصِ نفسُها كانت من «الأسطحِ
+ * التسعةِ» التي عليها مدخلُ الاستغاثةِ — فبقاؤها في معجمِ المحظورِ كان سيردُّ
+ * البناءَ بعدَ أن صارَ الحضورُ هو الصوابَ. ولا سطرَ حُذِفَ (القاعدة ح-2):
+ * الرموزُ انتقلَت ولم تُمحَ، وحراستُها انقلبَت ولم تسقطْ:
+ *   ــ **مفاتيحُ `rider.summary.` ما زالت ممنوعةً منها**: نصُّ الاستغاثةِ مِلكُ
+ *      `rider.sos.`، ولو تسرّبَ إلى مفاتيحِ الملخصِ لَصارَ للمعنى الواحدِ نصّانِ.
+ *   ــ **والشاشةُ يجبُ أن تركّبَ المدخلَ فعلاً**: القاعدةُ السابعةُ أدناه —
+ *      مَن حذفَ التركيبَ سقطَ بناؤُهُ، ولا يمرُّ الحذفُ صامتاً.
+ */
+export const SOS_BUILT_PATH_TOKENS: readonly string[] = [
+  "sos",
+  "emergency",
+  "panic",
+  "طوارئ",
+  "استغاثة",
+];
+
+/** الشاشةُ — يُفحَصُ تركيبُ مدخلِ الاستغاثةِ فيها (`PD-020`). */
+export const SCREEN_FILE = "apps/miniapp/src/surfaces/rider/summary/RideSummaryScreen.tsx";
+
+/** مُركِّبُ مدخلِ الاستغاثةِ كما يُكتَبُ في الشاشةِ — اسمٌ واحدٌ في موضعَينِ. */
+export const SOS_ENTRY_COMPONENT = "SosEntry";
 
 /**
  * علامةُ **الخطِّ المستقيمِ** في كلِّ لغةٍ — نصٌّ يحملُ رقمَ مسافةٍ بلا واحدةٍ
@@ -411,8 +434,38 @@ export function unbuiltPathProblems(input: RideSummaryContractInput): readonly s
     for (const key of prefixedKeys(dictionary)) {
       problems.push(
         ...tokenProblems(`${language}:${key}`, key, UNBUILT_PATH_TOKENS, "مفتاحٌ لمسارٍ لم يُبنَ"),
+        ...tokenProblems(
+          `${language}:${key}`,
+          key,
+          SOS_BUILT_PATH_TOKENS,
+          "مفتاحُ استغاثةٍ في نطاقِ الملخصِ — موضعه «rider.sos.» (`PD-020`)",
+        ),
       );
     }
+  }
+  return problems;
+}
+
+/**
+ * القاعدةُ السابعةُ (`PD-020`) — **مدخلُ الاستغاثةِ يُركّبُ فعلاً**.
+ *
+ * عينُ حكمِ القاعدةِ الثامنةِ في `active-ride-contract.ts` لسببٍ أثقلَ في الشاشاتِ
+ * اللاحقةِ: مَن أنجزَ رحلةً للتوِّ لا يزالُ أقربَ الناسِ إلى الحاجةِ للسلامةِ
+ * (نافذةُ ما بعدَ الرحلةِ)، ولو حُذِفَ المدخلُ من شاشةِ الملخصِ لَصارَ مسارُ
+ * `PD-020` شِفرةً ميتةً تُحسَبُ إنجازاً — والغيابُ لا يُكتشَفُ إلّا في CI أو
+ * على راكبٍ يحتاجُهُ.
+ */
+export function sosEntryProblems(input: RideSummaryContractInput): readonly string[] {
+  const screen = input.surface[SCREEN_FILE] ?? "";
+  const problems: string[] = [];
+  if (!screen.includes(`<${SOS_ENTRY_COMPONENT}`)) {
+    problems.push(
+      `${SCREEN_FILE}: مدخلُ الاستغاثةِ «${SOS_ENTRY_COMPONENT}» غيرُ مُركَّبٍ — ` +
+        `مسارُ \`PD-020\` مبنيٌّ ولا بابَ لهُ في شاشةِ الملخصِ.`,
+    );
+  }
+  if (!screen.includes("onOpenSos")) {
+    problems.push(`${SCREEN_FILE}: الشاشةُ لا تُمرّرُ «onOpenSos» — مدخلٌ بلا بابٍ يفتحُهُ.`);
   }
   return problems;
 }
@@ -469,6 +522,7 @@ export function rideSummaryContractProblems(input: RideSummaryContractInput): re
     ...tagLexiconProblems(input),
     ...keyParityProblems(input),
     ...unbuiltPathProblems(input),
+    ...sosEntryProblems(input),
     ...functionRevokeProblems(input),
   ];
 }

@@ -108,3 +108,22 @@ export interface DriverJobCompletedResponse {
   /** مقيسةٌ في الكاتبِ — تُنقَلُ ولا تُحسَبُ في العميلِ. */
   readonly duration_seconds: number | null;
 }
+
+/**
+ * فعلُ «تعذّرَ الإكمالُ» (`PD-020` · `ADR 0159`) — **بلاغُ سلامةٍ لا تغييرُ
+ * حالةٍ**: الرحلةُ تبقى على حالِها والفريقُ يقرَّرُ. والرفضُ جوابٌ لا عطبُ
+ * طلبٍ (رمزُ حالةٍ 200) — سائقٌ في لحظةِ عُجزٍ لا يُدرَّبُ على إعادةِ الصياغةِ.
+ */
+export type DriverCannotCompleteResponse =
+  | { readonly ok: true; readonly accepted: false; readonly refusal: string }
+  | {
+      readonly ok: true;
+      readonly accepted: true;
+      readonly order_id: string;
+      readonly incident_id: string;
+      /**
+       * `false` = «بلاغُكَ الأوّلُ ما يزالُ قائماً» — مثلُه مثلَ استغاثةِ الراكبِ:
+       * مَن أبلغَ ثمَّ رأى «لم يحدثْ شيءٌ» ضغطَ ثانيةً فيُشتِّتُ الفريقَ.
+       */
+      readonly created: boolean;
+    };

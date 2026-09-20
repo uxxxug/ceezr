@@ -62,7 +62,7 @@ describe("مجالاتُ سطحِ الاستغاثةِ المغلقةُ", () => 
 });
 
 function incident(status: SosIncidentState["status"]): SosIncidentState {
-  return { incidentId: "inc-1", status, ageSeconds: 12 };
+  return { incidentId: "inc-1", status, teamDeliveryStatus: "pending" as const, ageSeconds: 12 };
 }
 
 describe("أَبلاغٌ قائمٌ؟ — حسابٌ واحدٌ في النطاقِ", () => {

@@ -169,6 +169,8 @@ interface TriggerCall {
   readonly orderId: string | null;
   readonly actorTelegramId: string;
   readonly reporterRole: string;
+  /** جنسُ البلاغِ (`PD-020`) — الراكبُ يُبلِّغُ استغاثةَ سلامةٍ دائماً. */
+  readonly reason: string;
 }
 
 function incidents(
@@ -198,7 +200,9 @@ describe("ضغطةُ الاستغاثةِ — الحِملُ المُقيَّد�
       { sessions: sessions(), now: NOW, incidents: port, role: "rider" },
       { accessToken: TOKEN },
     );
-    expect(calls).toEqual([{ orderId: null, actorTelegramId: TELEGRAM_ID, reporterRole: "rider" }]);
+    expect(calls).toEqual([
+      { orderId: null, actorTelegramId: TELEGRAM_ID, reporterRole: "rider", reason: "sos" },
+    ]);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value).toEqual({ accepted: true, incidentId: "inc-9", created: true });

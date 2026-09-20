@@ -195,6 +195,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -211,6 +212,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -228,6 +230,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -249,6 +252,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -267,6 +271,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -285,6 +290,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -305,6 +311,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -318,6 +325,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: DRIVER_TELEGRAM_ID,
       reporterRole: "driver",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -337,6 +345,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: DRIVER_TELEGRAM_ID,
       reporterRole: "driver",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -355,6 +364,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: order,
       actorTelegramId: RIDER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok || result.value.incidentId === null) throw new Error("رُفِضَ النّداءُ");
@@ -368,6 +378,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: order,
       actorTelegramId: STRANGER_TELEGRAM_ID,
       reporterRole: "rider",
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -383,6 +394,7 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
       orderId: null,
       actorTelegramId: "999999999",
       reporterRole: "admin" as unknown as SafetyRole,
+      reason: "sos",
     });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -397,11 +409,13 @@ describeIf("حلُّ الطلبِ داخلَ trigger_sos (F8-05 · ADR 0077)", (
         orderId: null,
         actorTelegramId: RIDER_TELEGRAM_ID,
         reporterRole: "rider",
+        reason: "sos",
       }),
       trigger.trigger({
         orderId: null,
         actorTelegramId: RIDER_TELEGRAM_ID,
         reporterRole: "rider",
+        reason: "sos",
       }),
     ]);
     expect(results.every((result) => result.ok)).toBe(true);

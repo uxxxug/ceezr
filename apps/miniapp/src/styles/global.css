@@ -2101,6 +2101,46 @@ a {
   cursor: progress;
 }
 
+/* ─── إضافاتُ `PD-020` — شاشةُ الاستغاثةِ ومدخلُها (ADR 0159) ───
+   وهيَ داخلَ كتلةِ `sos` لا كتلةً ثانيةً: بطاقةٌ وشاشةٌ ومدخلٌ لسؤالٍ واحدٍ،
+   وبادئةٌ ثانيةٌ تُورِّثُ السؤالَ نفسَهُ جهتَينِ. والإضافةُ بالذيلِ (`ح-1`). */
+
+/* الشاشةُ — طبقةٌ تحفظُ ما تحتَها: عمودٌ واحدٌ لا يُقسِّمُ انتباهَ خائفٍ. */
+.sos__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+}
+
+/* بابُ الرجوعِ — مساحةُ لمسٍ لا تُجاوِرُ زرَّ التأكيدَ الأحمرَ في البطاقةِ:
+   مَن يريدُ الخروجَ يخرجُ، ومَن يريدُ الإرسالَ لا يُخطِئُهُ الخروجُ. */
+.sos__back {
+  align-self: flex-start;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* المدخلُ الموحَّدُ في الشاشاتِ — أخو `.rh__history` في مساحةِ اللمسِ، لكنَّهُ
+   **خطٌّ حديدٍ أحمرُ** يُعرَفُ بلونِهِ ونصِّهِ لا يُبحَثُ عنهُ: الاستغاثةُ
+   آخرُ ما يُبحثُ عنهُ في شاشةٍ. والنصُّ يقولُ الحاجةَ لا يَعِدُ نتيجةً. */
+.sos__entry {
+  align-self: flex-start;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--tg-destructive-text-color, #ef4444);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: var(--tg-destructive-text-color, #ef4444);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
 /* ═══ شاشةُ الحسابِ وحقَّا البيانةِ (`F2-11` · `SR-12`) ═══
    والبادئةُ `ac__` **لا** `account__`: بادئاتُ هذا المستودعِ قصيرةٌ مُعلَنةٌ في
    `DECLARED_BLOCKS`، وبادئةٌ طويلةٌ مخترَعةٌ تُخفي أنماطَ الشاشةِ عن كلِّ قياسٍ
@@ -3247,6 +3287,108 @@ a {
   font-size: 0.9rem;
   line-height: 1.6;
   color: var(--tg-destructive-text-color, #f87171);
+}
+
+/*
+  قسمُ «تعذّرَ الإكمالُ» (`PD-020` · `ADR 0159`) — بلاغُ سلامةٍ لا تغييرُ حالةٍ.
+  لونُهُ لونُ تحذيرٍ لا لونَ زرِّ المرحلةِ الأزرق، حتى لا يُقرَأَ «فعلٌ مُتوقَّعٌ
+  منكَ الآنَ» فيُضغَطَ عادةً، ولا لونَ الخطأِ الأحمرَّ، حتى لا يُقرأَ «هذا
+  عطبٌ في التطبيقِ» — بل «بابٌ يُفتَحُ حينَ تُحتاجُهُ وحدَهُ».
+*/
+.djb__cannot {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.djb__cannot-narrative {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  background: var(--tg-secondary-bg-color, rgb(127 127 127 / 12%));
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.djb__cannot-sent {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.7rem;
+  border: 1px solid #22c55e;
+  background: rgb(34 197 94 / 12%);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.djb__cannot-refusal,
+.djb__cannot-failed {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--tg-destructive-text-color, #f87171);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: var(--tg-destructive-text-color, #f87171);
+}
+
+.djb__cannot-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.8rem;
+  border-radius: 0.7rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  background: var(--tg-secondary-bg-color, rgb(127 127 127 / 12%));
+}
+
+.djb__cannot-question {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.djb__cannot-send {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-button-color, #2481cc);
+  border-radius: 0.6rem;
+  background: var(--tg-button-color, #2481cc);
+  color: var(--tg-button-text-color, #fff);
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.djb__cannot-send:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.djb__cannot-cancel {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.djb__cannot-cancel:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.djb__cannot-arm {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #999);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font-size: 0.92rem;
+  cursor: pointer;
 }
 
 /* مدخلُ «مَهمّتي» في لوحِ العروضِ — زيادةٌ في اللوحِ لا تغييرٌ فيه (`ح-8`). */

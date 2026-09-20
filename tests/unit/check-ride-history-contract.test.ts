@@ -27,6 +27,8 @@ import {
   offsetPagingProblems,
   type RideHistoryContractInput,
   rideHistoryContractProblems,
+  SOS_ENTRY_SCREEN_FILES,
+  sosEntryProblems,
   unbuiltPathProblems,
   unmeasuredNumberProblems,
   usedKeys,
@@ -60,9 +62,17 @@ function dictionary(): Record<string, string> {
   };
 }
 
+function compliantSosScreens(): Record<string, string> {
+  const entry =
+    'import { SosEntry } from "../sos/SosEntry.tsx";\n{onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}';
+  const out: Record<string, string> = {};
+  for (const path of SOS_ENTRY_SCREEN_FILES) out[path] = entry;
+  return out;
+}
+
 function input(overrides: Partial<RideHistoryContractInput> = {}): RideHistoryContractInput {
   return {
-    surface: { "surface.tsx": SCREEN },
+    surface: { "surface.tsx": SCREEN, ...compliantSosScreens() },
     sql: SQL,
     translations: { ar: dictionary(), en: dictionary(), ur: dictionary() },
     ...overrides,
@@ -76,6 +86,11 @@ function withScreen(extra: string): RideHistoryContractInput {
 describe("حاجزُ عقدِ السجلِّ والتفاصيلِ — الحالةُ الموجبةُ", () => {
   it("مدخلاتٌ سليمةٌ لا تُنتِجُ مشكلةً", () => {
     expect(rideHistoryContractProblems(input())).toEqual([]);
+  });
+
+  it("مدخلُ استغاثةٍ محذوفٌ يُسقِطُ الحاجزَ (`PD-020`)", () => {
+    const problems = sosEntryProblems(input({ surface: { "surface.tsx": SCREEN } }));
+    expect(problems).toHaveLength(2 * SOS_ENTRY_SCREEN_FILES.length);
   });
 
   it("المستودعُ الحقيقيُّ يمرُّ — وإلّا كانَ الحاجزُ يقيسُ خيالاً", () => {

@@ -31,6 +31,15 @@
  *      سلامةٍ أسوأُ من غيابِه.
  *   ــ **لا تبثُّ موضعاً**: البثُّ بندُ `F3-04`، ولا يُشتَقُّ طَورٌ من قُربٍ.
  *   ــ **لا تُبقي حالاً بعدَ رفضٍ يعني تقادُماً**: تُعيدُ القراءةَ من القاعدةِ.
+ *
+ * ## إضافةُ البندِ `PD-020` (2026-09-20)
+ *
+ * صارَ للشاشةِ **قسمُ «تعذّرَ الإكمالُ»**: تأكيدٌ بخطوتَينِ يُبلِّغُ فريقَ
+ * الإسنادِ بلاغَ سلامةٍ بسببِ `driver_cannot_complete` — **ولا يُغيِّرُ حالةَ
+ * الرحلةِ ألبتّةَ** ولا يوقفُها ولا يُنهيها: الفريقُ يقرَّرُ. وما كانَ مكتوباً
+ * أعلاه من أنَّ نجدةَ السائقِ **دَينٌ مُعلَنٌ** **باقٍ وصفاً لِما كانَ**: ذاكَ
+ * كانَ لأنَّ مسارَ `F2-10` يُركِّبُ الدورَ راكباً حرفاً، وقد صارَ للسائقِ
+ * حاكمُهُ بدورِهِ (`GET /v1/driver/safety/sos`) بلا تركيبِ دورٍ في الشاشةِ.
  */
 
 import { useCallback, useEffect, useId, useState } from "react";
@@ -41,16 +50,22 @@ import {
 } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
 import { openExternalLink } from "../../../tg/index.ts";
+import type { SosSurfaceResponse } from "../../rider/sos/sos-contract.ts";
 import {
   completeDriverRide,
   type DriverActiveJobResponse,
+  type DriverCannotCompleteResponse,
   markDriverArrived,
   readDriverActiveJob,
+  readDriverSafetyNarrative,
+  reportDriverCannotComplete,
   startDriverRide,
 } from "./job-api.ts";
 import type { ApiDriverJobAction } from "./job-contract.ts";
 import {
   type ActiveJobModel,
+  cannotCompleteNarrativeKey,
+  cannotCompleteRefusalKey,
   isRetryableJobError,
   jobErrorKey,
   shouldReloadAfterJobError,
@@ -64,6 +79,13 @@ export interface JobScreenProps {
   readonly arrive?: (orderId: string) => Promise<unknown>;
   readonly start?: (orderId: string) => Promise<unknown>;
   readonly complete?: (orderId: string) => Promise<unknown>;
+  /**
+   * فعلُ «تعذّرَ الإكمالُ» (`PD-020`) — بلاغُ سلامةٍ لا تغييرُ حالةٍ، يُحقَنُ
+   * في الاختبارِ ولا يُخترَعُ جوابُهُ.
+   */
+  readonly reportCannotComplete?: (orderId: string) => Promise<DriverCannotCompleteResponse>;
+  /** قراءةُ سردِ البلاغِ القائمِ (`PD-020`) — من القاعدةِ لا من ذاكرةِ شاشةٍ. */
+  readonly readSafetyNarrative?: () => Promise<SosSurfaceResponse>;
   readonly openLink?: (url: string) => unknown;
   /** يُستدعى عند إتمامِ الرحلةِ لفتحِ شاشةِ الملخصِّ (`F12-05`). */
   readonly onCompleted?: (orderId: string) => void;
@@ -79,6 +101,24 @@ type ActState =
   | { readonly kind: "busy" }
   | { readonly kind: "done"; readonly key: string; readonly completedOrderId: string | undefined }
   | { readonly kind: "failed"; readonly key: string };
+
+/**
+ * `PD-020` — حالةُ قسمِ «تعذّرَ الإكمالُ». والخطوةُ الثانيةُ تُطفَأُ بعدَ كلِّ
+ * إرسالٍ فلا تبقى مُسلَّحةً في خلفيّةِ شاشةِ قيادةٍ.
+ */
+type CannotState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "armed" }
+  | { readonly kind: "busy" }
+  | { readonly kind: "refused"; readonly refusal: string }
+  | { readonly kind: "failed" }
+  | { readonly kind: "sent" };
+
+/** البلاغُ القائمُ — حقلا سردٍ فحسب: الحكمُ كلُّهُ في القاعدةِ. */
+type IncidentState = {
+  readonly status: string;
+  readonly teamDeliveryStatus: string;
+} | null;
 
 function codeOf(thrown: unknown): string {
   if (thrown !== null && typeof thrown === "object" && "code" in thrown) {
@@ -118,25 +158,66 @@ export function JobScreen({
   arrive = markDriverArrived,
   start = startDriverRide,
   complete = completeDriverRide,
+  reportCannotComplete = reportDriverCannotComplete,
+  readSafetyNarrative = readDriverSafetyNarrative,
   openLink = (url: string) => openExternalLink(url),
 }: JobScreenProps) {
   const t = miniAppTranslator(language);
   const formId = useId();
   const [state, setState] = useState<JobState>({ kind: "loading" });
   const [act, setAct] = useState<ActState>({ kind: "idle" });
+  const [cannot, setCannot] = useState<CannotState>({ kind: "idle" });
+  const [incident, setIncident] = useState<IncidentState>(null);
+
+  /**
+   * سردُ البلاغِ القائمِ (`PD-020`) — يُقرأُ **من القاعدةِ** في كلِّ تركيبٍ
+   * وبعدَ كلِّ إرسالٍ، فلا تُخمِّنُ الشاشةُ ما صارَ. وفشلُ قراءتِهِ لا يُخفي
+   * القسمَ ولا يوقفُ الفعلَ: السردُ سياقٌ يُقالُ، والفعلُ بابُهُ مفتوحٌ.
+   */
+  const refreshNarrative = useCallback(async () => {
+    try {
+      const response = await readSafetyNarrative();
+      const i = response.found ? (response.incident ?? null) : null;
+      setIncident(
+        i === null ? null : { status: i.status, teamDeliveryStatus: i.teamDeliveryStatus },
+      );
+    } catch {
+      setIncident(null);
+    }
+  }, [readSafetyNarrative]);
+
+  const sendCannot = useCallback(
+    async (orderId: string) => {
+      setCannot({ kind: "busy" });
+      try {
+        const response = await reportCannotComplete(orderId);
+        if (response.accepted) {
+          // «بلاغُكَ الأوّلُ قائمٌ» نجاحٌ لا فشلٌ — والسردُ يُقرأُ بعدها من القاعدةِ.
+          setCannot({ kind: "sent" });
+          await refreshNarrative();
+        } else {
+          setCannot({ kind: "refused", refusal: response.refusal });
+        }
+      } catch {
+        setCannot({ kind: "failed" });
+      }
+    },
+    [refreshNarrative, reportCannotComplete],
+  );
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
     try {
       const response = await readJob();
-      setState({
-        kind: "ready",
-        job: response.job === null ? null : toActiveJob(response.job),
-      });
+      const job = response.job === null ? null : toActiveJob(response.job);
+      setState({ kind: "ready", job });
+      // `PD-020` — سردُ بلاغٍ قائمٍ يُقرأُ مع المَهمّةِ: سائقٌ عادَ إلى شاشةٍ
+      // بعدَ بلاغٍ يجدُ أثرَهُ، لا شاشةً تقولُ إنَّ شيئاً لم يقعْ.
+      if (job !== null) void refreshNarrative();
     } catch (thrown) {
       setState({ kind: "failed", code: codeOf(thrown) });
     }
-  }, [readJob]);
+  }, [readJob, refreshNarrative]);
 
   useEffect(() => {
     void load();
@@ -283,6 +364,64 @@ export function JobScreen({
         >
           {t(job.actionLabelKey)}
         </button>
+      </div>
+
+      {/*
+        قسمُ «تعذّرَ الإكمالُ» (`PD-020` · `ADR 0159`) — بلاغُ سلامةٍ لا تغييرُ
+        حالةٍ: يُعرَضُ في المَهمّةِ قبلَ الإكمالِ لا في طَورٍ دونَ طَورٍ، لأنَّ
+        العجزَ لا يُنتَظِرُ ختمَ وصولٍ. وتأكيدٌ بخطوتَينِ كما في استغاثةِ الراكبِ:
+        بلاغٌ يُوقِظُ فريقاً لا يُرسَلُ بلمسةٍ عابرةٍ.
+      */}
+      <div className="djb__cannot">
+        {incident !== null && (
+          <p className="djb__cannot-narrative" role="status">
+            {t(cannotCompleteNarrativeKey(incident.status, incident.teamDeliveryStatus))}
+          </p>
+        )}
+        {cannot.kind === "sent" ? (
+          <p className="djb__cannot-sent" role="status">
+            {t("driver.job.cannotComplete.sent")}
+          </p>
+        ) : null}
+        {cannot.kind === "refused" ? (
+          <p className="djb__cannot-refusal" role="alert">
+            {t(cannotCompleteRefusalKey(cannot.refusal))}
+          </p>
+        ) : null}
+        {cannot.kind === "failed" ? (
+          <p className="djb__cannot-failed" role="alert">
+            {t("driver.job.cannotComplete.failed")}
+          </p>
+        ) : null}
+        {cannot.kind === "armed" || cannot.kind === "busy" ? (
+          <div className="djb__cannot-confirm">
+            <p className="djb__cannot-question">{t("driver.job.cannotComplete.confirmQuestion")}</p>
+            <button
+              type="button"
+              className="djb__cannot-send"
+              disabled={cannot.kind === "busy"}
+              onClick={() => void sendCannot(job.orderId)}
+            >
+              {t("driver.job.cannotComplete.confirmSend")}
+            </button>
+            <button
+              type="button"
+              className="djb__cannot-cancel"
+              disabled={cannot.kind === "busy"}
+              onClick={() => setCannot({ kind: "idle" })}
+            >
+              {t("driver.job.cannotComplete.cancel")}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="djb__cannot-arm"
+            onClick={() => setCannot({ kind: "armed" })}
+          >
+            {t("driver.job.cannotComplete.label")}
+          </button>
+        )}
       </div>
 
       {act.kind === "done" ? (

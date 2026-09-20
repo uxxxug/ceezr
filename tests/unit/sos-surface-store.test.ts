@@ -143,12 +143,20 @@ describe("محوّلُ سطحِ الاستغاثةِ — الحالُ الجائ
 
   it("بلاغٌ قائمٌ يُنقَلُ بعُمرِه المقيسِ في القاعدةِ", async () => {
     const { read } = readerFor(
-      state({ incident: { id: "inc-1", status: "received", age_seconds: 42 } }),
+      state({
+        incident: {
+          id: "inc-1",
+          status: "received",
+          team_delivery_status: "pending",
+          age_seconds: 42,
+        },
+      }),
     );
     const result = (await read()) as { value?: { state: Record<string, unknown> } };
     expect(result.value?.state.incident).toEqual({
       incidentId: "inc-1",
       status: "received",
+      teamDeliveryStatus: "pending",
       ageSeconds: 42,
     });
   });
@@ -283,12 +291,20 @@ describe("محوّلُ سطحِ الاستغاثةِ — `F12-03` بلا رحل�
 
   it("بلاغٌ قائمٌ بلا رحلةٍ يُنقَلُ بعُمرِه", async () => {
     const { read } = readerFor(
-      orderless({ incident: { id: "inc-9", status: "open", age_seconds: 5 } }),
+      orderless({
+        incident: {
+          id: "inc-9",
+          status: "open",
+          team_delivery_status: "delivered",
+          age_seconds: 5,
+        },
+      }),
     );
     const result = (await read()) as { value?: { state: Record<string, unknown> } };
     expect(result.value?.state.incident).toEqual({
       incidentId: "inc-9",
       status: "open",
+      teamDeliveryStatus: "delivered",
       ageSeconds: 5,
     });
   });

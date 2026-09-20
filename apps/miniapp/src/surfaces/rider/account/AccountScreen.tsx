@@ -33,12 +33,27 @@
 import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
 import type { AccountRightsProps } from "../../account/AccountRights.tsx";
 import { AccountRights } from "../../account/AccountRights.tsx";
+import { SosEntry } from "../sos/SosEntry.tsx";
 import { riderAccountView } from "./account-view.ts";
 
 export interface AccountScreenProps extends Omit<AccountRightsProps, "view"> {
   readonly language?: MiniAppLanguage;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — راكبٌ وحدَهُ لا السائقُ. */
+  readonly onOpenSos?: () => void;
 }
 
 export function AccountScreen(props: AccountScreenProps) {
-  return <AccountRights {...props} view={riderAccountView} />;
+  return (
+    <AccountRights
+      {...props}
+      view={riderAccountView}
+      // مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — يُمرَّرُ عقدةً لا يُنشَرُ
+      // إلى الشاشةِ المشتركةِ علمُ الراكبِ: الدورُ يُقرَّرُ هنا لا ههناك.
+      header={
+        props.onOpenSos === undefined ? undefined : (
+          <SosEntry onOpen={props.onOpenSos} language={props.language} />
+        )
+      }
+    />
+  );
 }

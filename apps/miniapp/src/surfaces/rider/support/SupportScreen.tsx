@@ -30,6 +30,7 @@ import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/min
 import { TicketsScreen } from "../../support/TicketsScreen.tsx";
 import type { OpenTicketInput, ReadTicketsInput } from "../../support/ticket-api.ts";
 import type { OpenTicketResponse, SupportTicketsResponse } from "../../support/ticket-contract.ts";
+import { SosEntry } from "../sos/SosEntry.tsx";
 import { openSupportTicket, readSupportTickets } from "./support-api.ts";
 import {
   DEFAULT_SUPPORT_PAGE_SIZE,
@@ -41,6 +42,8 @@ import {
 export interface SupportScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — راكبٌ وحدَهُ لا السائقُ. */
+  readonly onOpenSos?: () => void;
   /**
    * رحلةٌ جاءَ منها الراكبُ (`F2-08` تفاصيلُ رحلةٍ) — **تُثبَّتُ ولا تُكتَبُ
    * بيدٍ**: حقلُ معرّفٍ يُملأُ يدويّاً بابُ خطأٍ لا بابُ دعمٍ.
@@ -65,6 +68,7 @@ const DECLARED_DEBT: readonly string[] = [
 export function SupportScreen({
   language,
   onBack,
+  onOpenSos,
   orderId = null,
   openTicket,
   readTickets = readSupportTickets,
@@ -81,6 +85,9 @@ export function SupportScreen({
   return (
     <TicketsScreen
       declaredDebt={DECLARED_DEBT}
+      header={
+        onOpenSos === undefined ? undefined : <SosEntry onOpen={onOpenSos} language={language} />
+      }
       // رحلةٌ جاءَ منها الراكبُ = شكوى رحلةٍ **مبدئيّاً** لا قطعاً: يُبدِّلُها.
       initialCategory={orderId === null ? null : "ride_dispute"}
       language={language}

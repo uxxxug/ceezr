@@ -53,7 +53,7 @@ import {
   blockReasonKey,
   disclosureKey,
   incidentAgeText,
-  incidentStatusKey,
+  incidentNarrativeKey,
   isRetryableSosError,
   isSosCardVisible,
   originKey,
@@ -187,7 +187,13 @@ export function SosCard({
       {/* البلاغُ القائمُ أوّلاً: مَن أبلغَ يسألُ «هل وصلَ؟» قبلَ كلِّ شيءٍ. */}
       {incident !== null && (
         <div className="sos__incident" role="status">
-          <p className="sos__incident-status">{t(incidentStatusKey(incident.status))}</p>
+          <p className="sos__incident-status">
+            {/*
+              `PD-020` — سردٌ مفصولٌ: «استُقبِلَ» (حالُ التسليمِ) لا يُقالُ «اطّلعَ»
+              (حالُ المطالبةِ). والسردُ يُشتَقُّ في النطاقِ من الحقلَينِ معاً.
+            */}
+            {t(incidentNarrativeKey(incident.status, incident.teamDeliveryStatus))}
+          </p>
           <p className="sos__incident-age">
             {(() => {
               const age = incidentAgeText(incident.ageSeconds);

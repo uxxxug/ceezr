@@ -133,6 +133,7 @@ import { HomeScreen } from "./home/HomeScreen.tsx";
 import { QuoteScreen } from "./quote/QuoteScreen.tsx";
 import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
 import { SearchScreen } from "./search/SearchScreen.tsx";
+import { SosScreen } from "./sos/SosScreen.tsx";
 import { RideSummaryScreen } from "./summary/RideSummaryScreen.tsx";
 import { SupportScreen } from "./support/SupportScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
@@ -196,17 +197,40 @@ export default function RiderRoot() {
    * فرقٌ يضيعُ لو كانَت الحالةُ معرّفاً وحدَه.
    */
   const [support, setSupport] = useState<{ readonly orderId: string | null } | null>(null);
+  /**
+   * شاشةُ الاستغاثةِ (`PD-020` · `ADR 0159`) — **رايةٌ لا معرّفٌ**: الحكمُ كلُّهُ
+   * يُقرأُ من القاعدةِ داخلَها، فلا يُرفَعُ إلى الموجِّهِ إلّا «مفتوحةٌ» و«مغلقةٌ».
+   * وهيَ **أعلى الترتيبِ كلِّهِ وفوقَ الدعمِ**: فيها تأكيدٌ بخطوتَينِ وسردٌ
+   * يُقرأُ بعدَ الإرسالِ، ورسمُ شاشةٍ أخرى فوقَها بعدَ فتحِها يمحو مقصودَهما —
+   * والدعمُ لا يُفتَحُ منها فلا يُختلَطُ الترتيبُ. والرحلةُ النشطةُ **بلا مدخلٍ**
+   * ههنا: بطاقتُها المدمجةُ فيها أقربُ من مدخلٍ يفتحُ شاشةً فوقَها.
+   */
+  const [sosOpen, setSosOpen] = useState(false);
+  /** مدخلٌ واحدٌ لكلِّ الشاشاتِ — لا يُنشَرُ لمن لا يعرفُهُ الاستغاثةَ. */
+  const onOpenSos = () => setSosOpen(true);
 
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
   if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
 
+  // شاشةُ الاستغاثةِ (`PD-020`) — **أعلى الترتيبِ كلِّهِ وفوقَ الدعمِ**: مَن فتحَها
+  // صراحةً لا تُغطَّى بشاشةٍ أخرى، والرجوعُ يُطفِئُ الرايةَ فيظهرُ ما تحتها كما كانَ.
+  if (sosOpen) {
+    return <SosScreen onBack={() => setSosOpen(false)} />;
+  }
+
   // شاشةُ الدعمِ (`SR-11`) — **أعلى الترتيبِ كلِّه**: فيها نموذجٌ نصفُه مكتوبٌ
   // ومرجعُ تذكرةٍ يُقرأُ ويُنسَخُ، ورسمُ شاشةٍ أخرى فوقَها يمحو الاثنَينِ. والرجوعُ
   // **إلى ما جاءَ منه** محفوظٌ: الرايةُ تُطفأُ وحدَها فيظهرُ ما تحتَها كما كانَ.
   if (support !== null) {
-    return <SupportScreen orderId={support.orderId} onBack={() => setSupport(null)} />;
+    return (
+      <SupportScreen
+        orderId={support.orderId}
+        onBack={() => setSupport(null)}
+        onOpenSos={onOpenSos}
+      />
+    );
   }
 
   // شاشةُ الحسابِ (`SR-12`) — **أعلى الترتيبِ بعدَ الدعمِ**: فيها بابُ حذفِ الحسابِ،
@@ -216,6 +240,7 @@ export default function RiderRoot() {
       <AccountScreen
         onBack={() => setAccount(false)}
         onOpenSupport={() => setSupport({ orderId: null })}
+        onOpenSos={onOpenSos}
       />
     );
   }
@@ -229,6 +254,7 @@ export default function RiderRoot() {
         orderId={inspected.orderId}
         timeZone={inspected.timeZone}
         onBack={() => setInspected(null)}
+        onOpenSos={onOpenSos}
         // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `inspected`: الراكبُ
         // يرجعُ من الشكوى إلى الرحلةِ التي كانَ يقرؤها لا إلى قائمةٍ.
         onReportProblem={() => setSupport({ orderId: inspected.orderId })}
@@ -249,6 +275,7 @@ export default function RiderRoot() {
           setFollowed(orderId);
         }}
         onBack={() => setBrowsed(false)}
+        onOpenSos={onOpenSos}
       />
     );
   }
@@ -259,6 +286,7 @@ export default function RiderRoot() {
     return (
       <RideSummaryScreen
         orderId={summarized}
+        onOpenSos={onOpenSos}
         onBack={() => {
           setSummarized(null);
           setFollowed(null);
@@ -296,6 +324,7 @@ export default function RiderRoot() {
     return (
       <SearchScreen
         intent={intent}
+        onOpenSos={onOpenSos}
         onActiveRide={(orderId) => setFollowed(orderId)}
         onBack={() => {
           setIntent(null);
@@ -319,6 +348,7 @@ export default function RiderRoot() {
           setConfirmed(null);
           setChosen(null);
         }}
+        onOpenSos={onOpenSos}
         onRequest={(picked) => setIntent(picked)}
       />
     );
@@ -334,6 +364,7 @@ export default function RiderRoot() {
           ? {}
           : { initialPoint: { label: chosen.label, lat: chosen.lat, lng: chosen.lng } })}
         onBack={() => setChosen(null)}
+        onOpenSos={onOpenSos}
         onConfirmed={(destination) => {
           setConfirmed(destination);
           setChosen(null);
@@ -350,6 +381,7 @@ export default function RiderRoot() {
       onDestinationChosen={(picked) => setChosen(picked)}
       onOpenHistory={() => setBrowsed(true)}
       onOpenAccount={() => setAccount(true)}
+      onOpenSos={onOpenSos}
     />
   );
 }

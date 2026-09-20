@@ -49,11 +49,13 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { SosEntry } from "../sos/SosEntry.tsx";
 import {
   readRideSummary as readViaApi,
   submitRideRating as submitViaApi,
 } from "./ride-summary-api.ts";
 import type { RideRatingResponse, RideSummaryResponse } from "./ride-summary-contract.ts";
+
 import {
   canSubmitRating,
   durationLine,
@@ -80,6 +82,8 @@ export interface RideSummaryScreenProps {
     },
   ) => Promise<RideRatingResponse>;
   readonly onBack?: () => void;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
+  readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
 }
 
@@ -116,6 +120,7 @@ export function RideSummaryScreen({
   read = readViaApi,
   rate = submitViaApi,
   onBack,
+  onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
 }: RideSummaryScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
@@ -425,6 +430,9 @@ export function RideSummaryScreen({
         <button type="button" className="sm__back" onClick={() => onBack?.()}>
           {t("rider.summary.back")}
         </button>
+
+        {/* مدخلُ الاستغاثةِ (`PD-020`) — نافذةُ ما بعدَ الرحلةِ مفتوحةٌ فالبابُ كذلك. */}
+        {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
       </>
     );
   };

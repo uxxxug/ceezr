@@ -57,6 +57,8 @@ import { SOS_DISCLOSURE_CODES } from "../../packages/domain/safety/sos-surface.t
 /** مِلفّاتُ سطحِ الاستغاثةِ — مكتوبةً لا مُكتشَفةً بنمطٍ. */
 export const SURFACE_FILES: readonly string[] = [
   "apps/miniapp/src/surfaces/rider/sos/SosCard.tsx",
+  "apps/miniapp/src/surfaces/rider/sos/SosEntry.tsx",
+  "apps/miniapp/src/surfaces/rider/sos/SosScreen.tsx",
   "apps/miniapp/src/surfaces/rider/sos/sos-view.ts",
   "apps/miniapp/src/surfaces/rider/sos/sos-api.ts",
   "apps/miniapp/src/surfaces/rider/sos/sos-contract.ts",
@@ -77,6 +79,7 @@ export const SOS_SQL_FILES: readonly string[] = [
   "supabase/migrations/20260908010000_unified_outbox_safety_incident.sql",
   "supabase/migrations/20260914120000_f2_10_sos_surface.sql",
   "supabase/migrations/20260918010000_f12_03_sos_without_a_ride.sql",
+  "supabase/migrations/20260920180000_pd_020_safety_channel.sql",
 ];
 
 /** اسمُ دالّةِ مطالبةِ التسليمِ — موضوعُ القاعدةِ ٧. */

@@ -11,7 +11,7 @@ import { err, ok } from "../../packages/shared/result/index.ts";
 describe("حالات استخدام SOS", () => {
   it("لا يرسل بطاقته قبل قبول كتابة الحادث الذرية", async () => {
     const report = await triggerSos(
-      { orderId: "order-1", actorTelegramId: "10", reporterRole: "rider" },
+      { orderId: "order-1", actorTelegramId: "10", reporterRole: "rider", reason: "sos" },
       {
         incidents: {
           trigger: async () => ok({ incidentId: null, error: "ORDER_NOT_OWNED" }),
@@ -31,6 +31,7 @@ describe("حالات استخدام SOS", () => {
     service: "transport",
     reporterRole: "rider" as const,
     status: "open",
+    incidentReason: "sos" as const,
     locationWkt: null,
     maxAttempts,
   });

@@ -820,7 +820,7 @@ async function handleSosCallback(
     return [reply(sender, tr("common.unknown_command"))];
   }
   const result = await triggerSos(
-    { orderId: null, actorTelegramId: sender.telegramUserId, reporterRole: "rider" },
+    { orderId: null, actorTelegramId: sender.telegramUserId, reporterRole: "rider", reason: "sos" },
     deps.safety.trigger,
   );
   if (!result.ok) {
@@ -869,7 +869,7 @@ async function handleRiderSos(
   const tr = t(state.language);
   if (deps.safety === undefined) return [reply(sender, tr("common.unknown_command"))];
   const result = await triggerSos(
-    { orderId: null, actorTelegramId: sender.telegramUserId, reporterRole: "rider" },
+    { orderId: null, actorTelegramId: sender.telegramUserId, reporterRole: "rider", reason: "sos" },
     deps.safety.trigger,
   );
   if (!result.ok) {

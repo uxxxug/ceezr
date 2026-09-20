@@ -555,6 +555,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "POST",
+    path: "/v1/driver/job/:orderId/cannot-complete",
+    file: "apps/gateway/src/routes/driver-job.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
     path: "/v1/driver/location",
     file: "apps/gateway/src/routes/driver-location.ts",
     exposure: "مُصادَقٌ بجلسةٍ",
@@ -971,6 +980,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "GET",
+    path: "/v1/driver/safety/sos",
+    file: "apps/gateway/src/routes/safety.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
     path: "/v1/safety/sos",
     file: "apps/gateway/src/routes/safety.ts",
     exposure: "مُصادَقٌ بجلسةٍ",
@@ -1116,7 +1134,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * والإعفاءاتُ **ثلاثةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها — وكلُّها محدودٌ فعلُها
  * في القاعدةِ لا في عدَّادٍ.
  */
-export const ROUTE_POLICY_COUNT = 95;
+export const ROUTE_POLICY_COUNT = 97;
 export const LIMITED_ROUTE_COUNT = 9;
 export const EXEMPT_ROUTE_COUNT = 3;
 

@@ -32,6 +32,7 @@ import {
   isSosDisclosureCode,
   isSosIncidentStatus,
   isSosOrigin,
+  isSosTeamDeliveryStatus,
   isSosWindowSource,
   type SosDisclosureCode,
   type SosIncidentState,
@@ -70,9 +71,19 @@ function readIncident(value: unknown): SosIncidentState | null | "BROKEN" {
   if (!isRecord(value)) return "BROKEN";
   const incidentId = readText(value.id);
   const status = value.status;
+  // `PD-020` — «استُقبِلَ» قبلَ «اطّلعَ»: حالُ التسليمِ حقلٌ لازمٌ في العقدِ،
+  // فغيابُهُ حمولةٌ من دالّةٍ أقدمَ لا بلاغٌ بلا تسليمٍ — يُسقِطُ القراءةَ.
+  const teamDeliveryStatus = value.team_delivery_status;
   const ageSeconds = readCount(value.age_seconds);
-  if (incidentId === null || !isSosIncidentStatus(status) || ageSeconds === null) return "BROKEN";
-  return { incidentId, status, ageSeconds };
+  if (
+    incidentId === null ||
+    !isSosIncidentStatus(status) ||
+    !isSosTeamDeliveryStatus(teamDeliveryStatus) ||
+    ageSeconds === null
+  ) {
+    return "BROKEN";
+  }
+  return { incidentId, status, teamDeliveryStatus, ageSeconds };
 }
 
 /** رمزُ إفصاحٍ خارجَ المجالِ المغلقِ **يُسقِطُ القراءةَ** ولا يُحذَفُ بصمتٍ. */

@@ -2,14 +2,16 @@
  * الغرض: مسارا سطحِ الاستغاثةِ في التطبيقِ المصغَّرِ —
  *   `GET /v1/safety/sos` (حكمٌ مقروءٌ قبلَ العرضِ) و
  *   `POST /v1/safety/sos` (ضغطةٌ تُقيِّدُ وتُودِعُ وترجعُ) — البند `F2-10` ·
- *   `SR-14`.
- * الحالة: منفَّذٌ فعليّاً — البند `F2-10`.
+ *   `SR-14`؛ ومعَهما قراءةُ السائقِ `GET /v1/driver/safety/sos` — البند `PD-020`.
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F2-10` و`PD-020`.
  * ينتمي إلى: apps/gateway/src/routes
  * يُستخدم من: `apps/gateway/src/server.ts` عبرَ تركيبٍ اختياريٍّ، وسطحُ الطوارئِ
- *   في `apps/miniapp/src/surfaces/rider/sos`.
- * يُتوقع أن يستخدمه لاحقاً: سطحُ السائقِ — يُركَّبُ بدورٍ آخرَ ولا يُكتَبُ مسارٌ
- *   ثالثٌ للسؤالِ نفسِه.
- * الحاكم: docs/adr/0111-sos-surface-is-a-judged-card-not-a-button.md
+ *   في `apps/miniapp/src/surfaces/rider/sos`، وسطحُ المَهمّةِ للسائقِ في
+ *   `apps/miniapp/src/surfaces/driver/job`.
+ * يُتوقع أن يستخدمه لاحقاً: سطحُ السائقِ — يُركَّبُ بدورٍ آخرَ — وقد صارَ مسارُهُ
+ *   ههنا: للسؤالِ نفسِه حاكمٌ واحدٌ ولا يُكتَبُ مسارٌ لجوابٍ آخرَ.
+ * الحاكم: docs/adr/0111-sos-surface-is-a-judged-card-not-a-button.md ·
+ *   docs/adr/0159-safety-channel-entry-delivery-review-and-driver-cannot-complete.md
  *
  * ## لماذا المسارُ `/v1/safety/sos` لا `/v1/rides/:id/sos`
  *
@@ -53,6 +55,12 @@ import { bearerTokenFrom } from "./me.ts";
 export interface SafetyRouteDependencies {
   /** قارئُ الحكمِ — أو `undefined` متى غابَ سرُّ الجلسةِ فيُقرأُ `503`. */
   readonly surface?: ReadSosSurfaceDeps;
+  /**
+   * قارئُ حكمِ السائقِ (`PD-020` · الشقُّ `ج`) — **حاكمٌ واحدٌ بدورٍ مُركَّبٍ**:
+   * `sos_surface_state` تَحُلُّ للدورِ `driver` مَهمّتَهُ الجاريةَ أو الأخيرة، فلا
+   * يُكتبُ جوابٌ ثانٍ للسؤالِ نفسِه ولا يُقرأُ الدورُ من الطلبِ.
+   */
+  readonly driverSurface?: ReadSosSurfaceDeps;
   /** آمرُ الضغطةِ — **كائنٌ آخرُ**: القارئُ لا يملكُ حقَّ تقييدِ حادثٍ. */
   readonly trigger?: RequestMiniAppSosDeps;
   readonly log?: (event: string, fields: Record<string, unknown>) => void;
@@ -100,6 +108,10 @@ export function createSafetyRoutes(deps: SafetyRouteDependencies): Hono {
         : {
             id: s.incident.incidentId,
             status: s.incident.status,
+            // `PD-020` — «استُقبِلَ» قبلَ «اطَّلعَ»: حالُ التسليمِ يُنشرُ معَ الحالةِ،
+            // فالسردُ المفصولُ يُشتَقُّ في الواجهةِ من الحقلَينِ معاً لا من حالةٍ واحدةٍ
+            // تقولُ ما لا تعرفُهُ.
+            teamDeliveryStatus: s.incident.teamDeliveryStatus,
             // بساعةِ القاعدةِ حرفاً: ساعةُ الجهازِ تُضبَطُ يدوياً وقد تُخالِفُ.
             ageSeconds: s.incident.ageSeconds,
           };
@@ -135,6 +147,72 @@ export function createSafetyRoutes(deps: SafetyRouteDependencies): Hono {
       origin: s.origin,
       postRideWindowMinutes: s.postRideWindowMinutes,
       // مصدرُ القيمةِ باسمِه: رقمٌ بلا مصدرٍ يُقرأُ وعداً مضبوطاً وهوَ افتراضٌ.
+      postRideWindowSource: s.postRideWindowSource,
+      incident,
+      disclosure: s.disclosure,
+    });
+  });
+
+  /**
+   * حكمُ السطحِ **بدورِ السائقِ** (`PD-020` · الشقُّ `ج`) — نفسُ الحاكمِ ونفسُ
+   * شكلِ الجوابِ، والدورُ **مُركَّبٌ** لا مقروءٌ من الطلبِ: «أنا سائقٌ» لو
+   * قُرِئَ من الجسمِ لَصارَ مُدخَلاً يُزوَّرُ. يَحُلُّ للسائقِ مَهمّتَهُ الجاريةَ
+   * — التي عندها يُقرأُ سردُ بلاغِ «تعذّرَ الإكمالُ» في شاشةِ المَهمّةِ — أو
+   * آخرَ مَهمّةٍ انتهَت ضمنَ نافذتِها.
+   */
+  app.get("/v1/driver/safety/sos", async (c) => {
+    if (deps.driverSurface === undefined) {
+      deps.log?.("safety.driver_sos_read_disabled", {});
+      return rejected(c, "SAFETY_STORE_NOT_AVAILABLE");
+    }
+
+    const result = await readSosSurface(deps.driverSurface, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+    });
+    if (!result.ok) return rejected(c, result.error);
+
+    const read = result.value;
+    if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
+
+    const s = read.state;
+    const incident =
+      s.incident === null
+        ? null
+        : {
+            id: s.incident.incidentId,
+            status: s.incident.status,
+            teamDeliveryStatus: s.incident.teamDeliveryStatus,
+            ageSeconds: s.incident.ageSeconds,
+          };
+
+    if (!s.eligible) {
+      return c.json({
+        ok: true,
+        found: true as const,
+        eligible: false as const,
+        reason: s.reason,
+        incident,
+        disclosure: s.disclosure,
+      });
+    }
+    if (s.origin === "NO_ORDER") {
+      return c.json({
+        ok: true,
+        found: true as const,
+        eligible: true as const,
+        orderId: null,
+        origin: s.origin,
+        incident,
+        disclosure: s.disclosure,
+      });
+    }
+    return c.json({
+      ok: true,
+      found: true as const,
+      eligible: true as const,
+      orderId: s.orderId,
+      origin: s.origin,
+      postRideWindowMinutes: s.postRideWindowMinutes,
       postRideWindowSource: s.postRideWindowSource,
       incident,
       disclosure: s.disclosure,

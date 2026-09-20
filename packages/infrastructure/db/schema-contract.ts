@@ -51,6 +51,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "driver_active_job",
   "driver_activity_entries",
   "driver_activity_summary",
+  "driver_cannot_complete",
   "driver_complete_ride",
   "driver_document_dashboard",
   "driver_document_upload_slot",

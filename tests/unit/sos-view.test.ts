@@ -25,6 +25,7 @@ import {
   blockReasonKey,
   disclosureKey,
   incidentAgeText,
+  incidentNarrativeKey,
   incidentStatusKey,
   isIncidentPending,
   isRetryableSosError,
@@ -71,13 +72,36 @@ describe("بطاقةٌ محكومةٌ — أتُعرَضُ؟", () => {
 
   /** ومَن أبلغَ ثمَّ اختفَت بطاقتُه يظنُّ بلاغَه ضاعَ فيُبلِّغُ ثانيةً أو ييأسُ. */
   it("لا جوازَ وبلاغٌ قائمٌ ⇒ تُعرَضُ حتّى يُقرأَ مصيرُ ندائِه", () => {
-    expect(isSosCardVisible(false, { id: "i", status: "open", ageSeconds: 3 })).toBe(true);
+    expect(
+      isSosCardVisible(false, {
+        id: "i",
+        status: "open",
+        teamDeliveryStatus: "pending",
+        ageSeconds: 3,
+      }),
+    ).toBe(true);
   });
 
   it("«closed» وحدَها منتهيةٌ", () => {
-    expect(isIncidentPending({ id: "i", status: "open", ageSeconds: 1 })).toBe(true);
-    expect(isIncidentPending({ id: "i", status: "received", ageSeconds: 1 })).toBe(true);
-    expect(isIncidentPending({ id: "i", status: "closed", ageSeconds: 1 })).toBe(false);
+    expect(
+      isIncidentPending({ id: "i", status: "open", teamDeliveryStatus: "pending", ageSeconds: 1 }),
+    ).toBe(true);
+    expect(
+      isIncidentPending({
+        id: "i",
+        status: "received",
+        teamDeliveryStatus: "delivered",
+        ageSeconds: 1,
+      }),
+    ).toBe(true);
+    expect(
+      isIncidentPending({
+        id: "i",
+        status: "closed",
+        teamDeliveryStatus: "delivered",
+        ageSeconds: 1,
+      }),
+    ).toBe(false);
   });
 });
 
@@ -106,6 +130,36 @@ describe("عُمرُ البلاغِ ⇒ مفتاحٌ وأعدادٌ", () => {
     expect(incidentAgeText(-9).seconds).toBe(0);
     expect(incidentAgeText(Number.NaN).seconds).toBe(0);
     expect(incidentAgeText(Number.POSITIVE_INFINITY).seconds).toBe(0);
+  });
+});
+
+/**
+ * `PD-020` · `ADR 0159` — السردُ المفصولُ: «استُقبِلَ البلاغُ» (حالُ التسليمِ)
+ * غيرُ «اطَّلعَ عليهِ الفريقُ» (حالُ المطالبةِ). والاشتقاقُ في النطاقِ — ههنا
+ * يُقاسُ مفتاحُه بعينِهِ، فلا يُقالَ «اطَّلعَ» عن بلاغٍ لم يُسلَّمْ بعدُ.
+ */
+describe("سردُ مآلِ البلاغِ — استُقبِلَ غيرُ اطَّلعَ", () => {
+  it("بلاغٌ مفتوحٌ لم يُسلَّمْ بعدُ ⇒ «نُرسِلُ بلاغَكَ» لا «في انتظارِ الفريقِ»", () => {
+    expect(incidentNarrativeKey("open", "pending")).toBe("rider.sos.incident.narrative.sending");
+  });
+
+  it("بلاغٌ مفتوحٌ سُلِّمَ ⇒ «استُقبِلَ ووصلَ إلى الفريقِ» — ولا يُقالُ «اطَّلعَ»", () => {
+    expect(incidentNarrativeKey("open", "delivered")).toBe(
+      "rider.sos.incident.narrative.delivered",
+    );
+  });
+
+  it("بلاغٌ اطَّلعَ عليهِ الفريقُ ⇒ نصُّ الاطّلاعِ كما هوَ أياً كانَ حالُ التسليمِ", () => {
+    expect(incidentNarrativeKey("received", "delivered")).toBe(
+      "rider.sos.incident.status.received",
+    );
+    expect(incidentNarrativeKey("received", "pending")).toBe("rider.sos.incident.status.received");
+  });
+
+  it("بلاغٌ مُغلَقٌ ⇒ نصُّ الإغلاقِ، وقيمةٌ لا يُعرَفُها النطاقُ تُقالُ «قيدَ المتابعةِ»", () => {
+    expect(incidentNarrativeKey("closed", "delivered")).toBe("rider.sos.incident.status.closed");
+    expect(incidentNarrativeKey("archived", "delivered")).toBe("rider.sos.incident.status.unknown");
+    expect(incidentNarrativeKey("open", "maybe")).toBe("rider.sos.incident.status.unknown");
   });
 });
 
