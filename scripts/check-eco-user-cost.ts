@@ -113,11 +113,11 @@ export function auditEcoUserCost(inputs: AuditInputs): Problem[] {
     );
   }
 
-  // ٥. السائقونَ النشطونَ معدودونَ من `orders.assigned_driver_id`.
-  if (!/assigned_driver_id/.test(source)) {
+  // ٥. السائقونَ النشطونَ معدودونَ كاتحادٍ على `users.id` — لا جمعَ عدّين.
+  if (!/users/.test(source) || !/assigned_driver_id/.test(source)) {
     push(
       "guard.drivers-counted",
-      "ملفُّ القياسِ لا يعدُّ السائقينَ من `orders.assigned_driver_id` — والمقامُ نشطٌ لا مُسجَّلٌ",
+      "ملفُّ القياسِ لا يعدُّ السائقينَ كاتحادٍ على `users.id` من `assigned_driver_id` و`order_offers` — والعدُّ المنفصلُ قد يُضاعِفُ السائقَ نفسَه",
     );
   }
 

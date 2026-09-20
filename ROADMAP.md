@@ -7616,3 +7616,11 @@ freshness» (`35479570318`) ناجحٌ. **ولا خطوةَ ساقطةً ولا 
 - إعادةُ تسميةِ خطوةِ verify لتجنبِ تعارضِ الأسماءِ مع خطوةِ PostgreSQL.
 - خطوةُ تكاملِ ECO-001 مضافةٌ في وظيفةِ PostgreSQL مع `TEST_DATABASE_URL`.
 - تحويلُ `count(*)` من نصٍّ إلى رقمٍ في اختباراتِ التكامل.
+
+### تصحيحُ الاتحادِ على `users.id` (2026-09-20)
+
+العدُّ المنفصلُ للسائقينَ من `assigned_driver_id` و`order_offers.driver_id` قد
+يُضاعِفُ السائقَ الذي يظهرُ في المسارَين. فأُصلِحَ إلى اتحادٍ على `users.id`:
+`orders.rider_id → riders.user_id` ∪ `orders.assigned_driver_id → drivers.user_id`
+∪ `order_offers.driver_id → drivers.user_id`. وزُرِعَ في اختبارِ التكاملِ حالةٌ
+يظهرُ فيها السائقُ المُسنَدُ في عرضٍ أيضاً، وتأكَّدَ أنَّه يُحسَبُ مرّةً واحدةً.
