@@ -290,6 +290,9 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
     if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
 
     const { state, phase, elapsedSeconds } = read.view;
+    // الطورُ وحدهُ لغةُ العميلِ (`PD-050` · `IDEA-P`): رايتا المصدرِ
+    // (`widerCircleOpened`/`escalated`) تُشتقُّ منهما الطورُ فوقَ ولا تُعبُرُ إلى
+    // هنا، وعدّادُ الجولاتِ الداخليُّ (`broadcastRound`) حُجبَ عن الردِّ العامِّ.
     return c.json({
       ok: true,
       found: true as const,
@@ -297,7 +300,6 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       status: state.status,
       service: state.service,
       phase,
-      broadcastRound: state.broadcastRound,
       createdAt: new Date(state.createdAtMs).toISOString(),
       // العددُ يُنشَرُ كما قاسَته القاعدةُ، **والصفرُ يُنشَرُ صفراً** (`ADR 0023`).
       notifiedDriverCount: state.notifiedDriverCount,

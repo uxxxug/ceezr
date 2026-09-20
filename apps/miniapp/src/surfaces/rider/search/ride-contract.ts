@@ -62,7 +62,6 @@ export type RideSearchResponse =
       readonly status: ApiRideStatus;
       readonly service: string;
       readonly phase: string;
-      readonly broadcastRound: number;
       readonly createdAt: string;
       /** عددُ السائقينَ المبلَّغينَ كما قاسَته القاعدةُ — والصفرُ صفرٌ. */
       readonly notifiedDriverCount: number;
