@@ -26,14 +26,16 @@ function fakeSql(): Sql {
   return sql;
 }
 
-/** مُرسِلٌ يلتقطُ اللوحةَ الفعليةَ ويُرجعُ معرّفًا ثابتًا — لا شبكةَ ولا اتصالَ بتيليجرام. */
+/** مُرسِلٌ يلتقطُ اللوحةَ الفعليةَ والنصَّ ويُرجعُ معرّفًا ثابتًا — لا شبكةَ ولا اتصالَ بتيليجرام. */
 function capturingSender(captured: {
   keyboard: Keyboard | null;
   messageId: string | null;
+  text: string | null;
 }): IdentifyingSender {
   return {
-    sendReturningId: async (_chatId: string, _text: string, keyboard: Keyboard | null) => {
+    sendReturningId: async (_chatId: string, text: string, keyboard: Keyboard | null) => {
       captured.keyboard = keyboard;
+      captured.text = text;
       return captured.messageId;
     },
   };
@@ -41,9 +43,10 @@ function capturingSender(captured: {
 
 describe("createOfferPublisher — زرُّ الرفضِ يحملُ offerId، ويُرجعُ معرّفَ الرسالةِ (BUG-003 + BUG-004)", () => {
   it("زرُّ الرفضِ بياناتُه `offer:reject:<offerId>` لا `offer:reject:<orderId>`، ويُرجعُ معرّفَ الرسالةِ", async () => {
-    const captured: { keyboard: Keyboard | null; messageId: string | null } = {
+    const captured: { keyboard: Keyboard | null; messageId: string | null; text: string | null } = {
       keyboard: null,
       messageId: "msg-42",
+      text: null,
     };
     const publisher = createOfferPublisher(fakeSql(), capturingSender(captured));
 
@@ -54,6 +57,10 @@ describe("createOfferPublisher — زرُّ الرفضِ يحملُ offerId، و
       driverId: "drv-1" as DriverId,
       distanceKm: 2.3 as DistanceKm,
       expiresInSeconds: 30,
+      service: "transport",
+      pickupLabel: "الرياض - حي العليا",
+      dropoffLabel: "الرياض - حي الملقا",
+      notes: null,
     };
 
     const result = await publisher.publishOffer(notification);
@@ -89,9 +96,10 @@ describe("createOfferPublisher — زرُّ الرفضِ يحملُ offerId، و
 
   it("سائقٌ غيرُ موجودٍ يُرجَعُ خطأً دائمًا (DRIVER_CONTACT_NOT_FOUND) — لا يُعالَجُ بإعادةِ الإرسال", async () => {
     const missingSql = (() => Promise.resolve([])) as unknown as Sql;
-    const captured: { keyboard: Keyboard | null; messageId: string | null } = {
+    const captured: { keyboard: Keyboard | null; messageId: string | null; text: string | null } = {
       keyboard: null,
       messageId: "msg-42",
+      text: null,
     };
     const publisher = createOfferPublisher(missingSql, capturingSender(captured));
 
@@ -101,6 +109,10 @@ describe("createOfferPublisher — زرُّ الرفضِ يحملُ offerId، و
       driverId: "drv-ghost" as DriverId,
       distanceKm: 2.3 as DistanceKm,
       expiresInSeconds: 30,
+      service: null,
+      pickupLabel: null,
+      dropoffLabel: null,
+      notes: null,
     });
 
     expect(isErr(result)).toBe(true);
@@ -111,9 +123,10 @@ describe("createOfferPublisher — زرُّ الرفضِ يحملُ offerId، و
   });
 
   it("رفضُ تيليجرامَ للرسالةِ (null) يُرجَعُ خطأً مؤقّتًا (TELEGRAM_SEND_FAILED) — يُعادُ إرسالُه", async () => {
-    const captured: { keyboard: Keyboard | null; messageId: string | null } = {
+    const captured: { keyboard: Keyboard | null; messageId: string | null; text: string | null } = {
       keyboard: null,
       messageId: null,
+      text: null,
     };
     const publisher = createOfferPublisher(fakeSql(), capturingSender(captured));
 
@@ -123,10 +136,98 @@ describe("createOfferPublisher — زرُّ الرفضِ يحملُ offerId، و
       driverId: "drv-1" as DriverId,
       distanceKm: 2.3 as DistanceKm,
       expiresInSeconds: 30,
+      service: null,
+      pickupLabel: null,
+      dropoffLabel: null,
+      notes: null,
     });
 
     expect(isErr(result)).toBe(true);
     if (!isErr(result)) return;
     expect(result.error.detail).toBe("TELEGRAM_SEND_FAILED");
+  });
+});
+
+describe("PD-051 — ترتيبُ بطاقةِ عرضِ السائقِ (خدمةٌ ← من أينَ ← إلى أينَ ← مسافة/وقتٌ ← قيود)", () => {
+  it("الترتيبُ الصحيحُ: الخدمةُ قبلَ الانطلاقِ قبلَ الوصولِ قبلَ المسافةِ قبلَ القيود", async () => {
+    const captured: { keyboard: Keyboard | null; messageId: string | null; text: string | null } = {
+      keyboard: null,
+      messageId: "msg-51",
+      text: null,
+    };
+    const publisher = createOfferPublisher(fakeSql(), capturingSender(captured));
+
+    await publisher.publishOffer({
+      orderId: "order-51" as OrderId,
+      offerId: "offer-51" as OfferId,
+      driverId: "drv-51" as DriverId,
+      distanceKm: 3.5 as DistanceKm,
+      expiresInSeconds: 45,
+      service: "transport",
+      pickupLabel: "حي العليا",
+      dropoffLabel: "حي الملقا",
+      notes: "ملاحظة خاصة",
+    });
+
+    expect(captured.text).not.toBeNull();
+    if (captured.text === null) return;
+    const text = captured.text;
+
+    // PD-051: الترتيبُ — خدمةٌ ← من أينَ ← إلى أينَ ← مسافة/وقتٌ ← قيود.
+    const serviceIdx = text.indexOf("الخدمة");
+    const fromIdx = text.indexOf("من:");
+    const toIdx = text.indexOf("إلى:");
+    const distanceIdx = text.indexOf("المسافة");
+    const timeIdx = text.indexOf("ثانية");
+    const notesIdx = text.indexOf("ملاحظات");
+
+    // كلُّ سطرٍ موجودٌ.
+    expect(serviceIdx).toBeGreaterThanOrEqual(0);
+    expect(fromIdx).toBeGreaterThanOrEqual(0);
+    expect(toIdx).toBeGreaterThanOrEqual(0);
+    expect(distanceIdx).toBeGreaterThanOrEqual(0);
+    expect(timeIdx).toBeGreaterThanOrEqual(0);
+    expect(notesIdx).toBeGreaterThanOrEqual(0);
+
+    // الترتيبُ الصحيحُ: خدمةٌ < من < إلى < مسافة < وقت < قيود.
+    expect(serviceIdx).toBeLessThan(fromIdx);
+    expect(fromIdx).toBeLessThan(toIdx);
+    expect(toIdx).toBeLessThan(distanceIdx);
+    expect(distanceIdx).toBeLessThan(timeIdx);
+    expect(timeIdx).toBeLessThan(notesIdx);
+  });
+
+  it("الحقولُ الفارغةُ تُحذفُ — لا خطٍّ لغيابِ البيانات", async () => {
+    const captured: { keyboard: Keyboard | null; messageId: string | null; text: string | null } = {
+      keyboard: null,
+      messageId: "msg-52",
+      text: null,
+    };
+    const publisher = createOfferPublisher(fakeSql(), capturingSender(captured));
+
+    await publisher.publishOffer({
+      orderId: "order-52" as OrderId,
+      offerId: "offer-52" as OfferId,
+      driverId: "drv-52" as DriverId,
+      distanceKm: 1.0 as DistanceKm,
+      expiresInSeconds: 30,
+      service: null,
+      pickupLabel: null,
+      dropoffLabel: null,
+      notes: null,
+    });
+
+    expect(captured.text).not.toBeNull();
+    if (captured.text === null) return;
+    const text = captured.text;
+
+    // المسافةُ والوقتُ دائمًا موجودانِ.
+    expect(text).toContain("المسافة");
+    expect(text).toContain("ثانية");
+    // لا خطَّ للخدمةِ أو الانطلاقِ أو الوصولِ أو القيودِ.
+    expect(text).not.toContain("الخدمة");
+    expect(text).not.toContain("من:");
+    expect(text).not.toContain("إلى:");
+    expect(text).not.toContain("ملاحظات");
   });
 });

@@ -65,10 +65,34 @@ export function createOfferPublisher(sql: Sql, sender: IdentifyingSender): Offer
         }
 
         const tr = t(contact.language_code);
-        const text = tr("driver.offer_received", {
-          distance: notification.distanceKm.toFixed(KM_DECIMALS),
-          seconds: notification.expiresInSeconds,
-        });
+        // PD-051: ترتيبُ بطاقةِ العرضِ — خدمةٌ ← من أينَ ← إلى أينَ ← مسافة/وقتٌ ← قيود.
+        // البياناتُ كلُّها من الطلبِ الموجودِ مسبقًا — إعادةُ ترتيبٍ لا بياناتٍ جديدة.
+        const serviceLabel =
+          notification.service === "transport"
+            ? tr("driver.offer_card_service_transport")
+            : notification.service === "delivery"
+              ? tr("driver.offer_card_service_delivery")
+              : (notification.service ?? "");
+        const lines: string[] = [];
+        if (notification.service !== null) {
+          lines.push(tr("driver.offer_card_service", { service: serviceLabel }));
+        }
+        if (notification.pickupLabel !== null && notification.pickupLabel !== "") {
+          lines.push(tr("driver.offer_card_from", { pickup: notification.pickupLabel }));
+        }
+        if (notification.dropoffLabel !== null && notification.dropoffLabel !== "") {
+          lines.push(tr("driver.offer_card_to", { dropoff: notification.dropoffLabel }));
+        }
+        lines.push(
+          tr("driver.offer_card_distance", {
+            distance: notification.distanceKm.toFixed(KM_DECIMALS),
+          }),
+        );
+        lines.push(tr("driver.offer_card_time", { seconds: notification.expiresInSeconds }));
+        if (notification.notes !== null && notification.notes !== "") {
+          lines.push(tr("driver.offer_card_notes", { notes: notification.notes }));
+        }
+        const text = lines.join("\n");
         const keyboard: Keyboard = {
           kind: "inline",
           rows: [
