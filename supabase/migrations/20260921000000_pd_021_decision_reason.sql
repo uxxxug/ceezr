@@ -15,9 +15,8 @@
 --      السابقةَ (لا سببَ لها ولا يُختَرَعُ لها واحدٌ).
 --
 --   ٢) `resolve_safety_incident` تُوسَّعُ بمعاملٍ رابعٍ `p_decision_reason text`
---      يُلزَمُ بلا سببٍ — وتُسقَطُ الدالّةُ القديمةُ صراحةً فلا يبقى مسارٌ
---      قديمٌ يُغلقُ بلا سببٍ. والسببُ يُكتَبُ في `audit_log` مع القرارِ.
---      والقرارُ `block_reporter` يَمرُّ بالسببِ إلى حمولةِ أثرِ `audit_log`.
+--      يُلزَمُ بلا سببٍ. والدالّةُ القديمةُ (٣ معاملاتٍ) تُسقَطُ في طورِ
+--      `contract` تالٍ. والسببُ يُكتَبُ في `audit_log` مع القرارِ.
 --
 --   ٣) إشعارُ المُبلِّغِ بالمآلِ عبرَ `notification_outbox` في معاملةِ الإغلاقِ
 --      نفسِها — حمولتُها القرارُ (لا السببُ الداخليُّ)، والعاملُ يُسلِّمُها
@@ -39,31 +38,74 @@
 -- ---------------------------------------------------------------------------
 alter table safety_incidents add column if not exists decision_reason text;
 
-alter table safety_incidents
-  drop constraint if exists safety_incidents_closed_has_decision_reason;
-alter table safety_incidents
-  add constraint safety_incidents_closed_has_decision_reason
-  check (status <> 'closed' or decision_reason is not null) not valid;
+-- القيدُ يُضافُ **مرّةً** ويُصادَقُ في العبارةِ نفسِها، ولذلكَ سببٌ:
+--   ــ `not valid` مكتوبٌ نصّاً كما تفرضُ قواعدُ سلامةِ الهجراتِ (`CAP-007`):
+--      لا مسحَ جدولٍ تحتَ قفلٍ حاجزٍ عندَ الإضافةِ.
+--   ــ ثمَّ `validate constraint` **ههنا لا في ملفٍّ تالٍ**: العمودُ **جديدٌ**
+--      فكلُّ صفٍّ قائمٍ يحملُ `null` وهوَ ما يقبلُه المُسنَدُ، والمصادقةُ تأخذُ
+--      `share update exclusive` وحدَه (لا تمنعُ قراءةً ولا كتابةً).
+--   ــ والغلافُ `do` **للاسترجاعِ** (idempotence): المُطبِّقُ يُعيدُ كلَّ ملفٍّ
+--      في كلِّ تشغيلٍ، و`add constraint` لا تقبلُ `if not exists`، و`drop
+--      constraint if exists` حذفٌ لا يجوزُ خارجَ طورِ `contract`.
+do $do$
+begin
+  if not exists (
+    select 1
+      from pg_constraint
+     where conrelid = 'public.safety_incidents'::regclass
+       and conname = 'safety_incidents_closed_has_decision_reason'
+  ) then
+    alter table safety_incidents
+      add constraint safety_incidents_closed_has_decision_reason
+      check (status <> 'closed' or decision_reason is not null) not valid;
+  end if;
 
--- قائمةُ الرموزِ المغلقةُ — تُوسَّعُ بقرارٍ لا بالكتابةِ المباشرةِ.
-alter table safety_incidents
-  drop constraint if exists safety_incidents_decision_reason_domain;
-alter table safety_incidents
-  add constraint safety_incidents_decision_reason_domain
-  check (
-    decision_reason is null
-    or decision_reason in (
-      'resolved', 'false_report', 'duplicate', 'escalated',
-      'safety_risk', 'policy_violation'
-    )
-  );
+  if exists (
+    select 1
+      from pg_constraint
+     where conrelid = 'public.safety_incidents'::regclass
+       and conname = 'safety_incidents_closed_has_decision_reason'
+       and not convalidated
+  ) then
+    alter table safety_incidents validate constraint safety_incidents_closed_has_decision_reason;
+  end if;
+
+  if not exists (
+    select 1
+      from pg_constraint
+     where conrelid = 'public.safety_incidents'::regclass
+       and conname = 'safety_incidents_decision_reason_domain'
+  ) then
+    alter table safety_incidents
+      add constraint safety_incidents_decision_reason_domain
+      check (
+        decision_reason is null
+        or decision_reason in (
+          'resolved', 'false_report', 'duplicate', 'escalated',
+          'safety_risk', 'policy_violation'
+        )
+      ) not valid;
+  end if;
+
+  if exists (
+    select 1
+      from pg_constraint
+     where conrelid = 'public.safety_incidents'::regclass
+       and conname = 'safety_incidents_decision_reason_domain'
+       and not convalidated
+  ) then
+    alter table safety_incidents validate constraint safety_incidents_decision_reason_domain;
+  end if;
+end
+$do$;
 
 comment on column safety_incidents.decision_reason is
   'رمزُ السببِ الداخليِّ لقرارِ الإغلاقِ (`PD-021`). مُلزَمٌ عندَ الإغلاقِ، وحمولتُه رمزٌ مغلقٌ لا نصٌّ حرٌّ. لا يُنشَرُ للمُبلِّغِ — رسالةُ الحالةِ العامّةُ تُشتَقُّ من القرارِ لا من السببِ.';
 
 -- ---------------------------------------------------------------------------
--- ٢) `resolve_safety_incident` — توقيعٌ رابعٌ جديدٌ، والدالّةُ القديمةُ تُسقَطُ.
---    المسارُ القديمُ بلا سببٍ يُغلقُ — لا يبقى مسارٌ بلا سببٍ.
+-- ٢) `resolve_safety_incident` — توقيعٌ رابعٌ جديدٌ، والدالّةُ القديمةُ (٣
+--    معاملاتٍ) تُسقَطُ هنا في الملفِّ نفسِه. المسارُ القديمُ بلا سببٍ يُغلقُ —
+--    لا يبقى مسارٌ بلا سببٍ.
 --
 --    `p_decision_reason` رمزٌ مغلقٌ من المجموعةِ نفسِها في قيدِ العمودِ، ويُلزَمُ
 --    بلا سببٍ. والسببُ يُكتَبُ في `audit_log` مع القرارِ، ويُمرَّرُ في حمولةِ
@@ -166,26 +208,12 @@ revoke execute on function public.resolve_safety_incident(uuid, bigint, text, te
 grant execute on function public.resolve_safety_incident(uuid, bigint, text, text) to service_role;
 
 -- ---------------------------------------------------------------------------
--- ٣) توسيعُ قيدِ أنواعِ `notification_outbox` لاستقبالِ إشعاراتِ المآلِ العامّةِ.
---    الأنواعُ الجديدةُ لا تَكشفُ السببَ الداخليَّ — حمولتُها القرارُ فقط.
--- ---------------------------------------------------------------------------
-alter table notification_outbox drop constraint if exists notification_outbox_kind_check;
-alter table notification_outbox add constraint notification_outbox_kind_check
-  check (kind in (
-    'offer', 'dispute_resolution',
-    'negotiation_turn_opened', 'negotiation_turn_closed', 'negotiation_agreed',
-    'wider_circle_opened', 'no_driver_found',
-    'order_cancelled', 'safety_incident', 'subscription_notice', 'broadcast_recipient',
-    'lost_item_report',
-    'safety_resolution_closed', 'safety_resolution_blocked'
-  )) not valid;
-
--- ---------------------------------------------------------------------------
--- ٤) `claim_notification_delivery` — توسيعُ مصفوفةِ الأنواعِ وإثراءُ المآلِ العامِّ.
+-- ٣) `claim_notification_delivery` — توسيعُ مصفوفةِ الأنواعِ وإثراءُ المآلِ العامِّ.
 --    الأنواعُ الجديدةُ تُلتقطُ وتُغنى بمحادثةِ المُبلِّغِ ولغتِهِ من `safety_incidents`.
 --    الدالّةُ تُعادُ تعريفُها بالكاملِ لأنَّ `create or replace` لا يُضيفُ فرعاً —
 --    يَستبدِلُ الجسمَ. فتُنسَخُ الفروعُ القائمةُ كما هي، ويُضافُ الفرعُ الجديدُ.
 -- ---------------------------------------------------------------------------
+
 create or replace function claim_notification_delivery()
 returns jsonb
 language plpgsql
