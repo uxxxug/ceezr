@@ -13,8 +13,8 @@
 
 | السطحُ | المقيسُ | وحدّةُ القياسِ | السقفُ المُشتَقُّ |
 |---|---|---|---|
-| القاعدةُ | صفوفٌ ممسوحةٌ | `tup_returned + tup_fetched` من `pg_stat_database` | `(activeReadCount + lifecycleTransitionCount) × 2 + 8 = 34` |
-| القاعدةُ | كُتَلٌ ملموسةٌ | `blks_read + blks_hit` من `pg_stat_database` | `ceil(34 × 1.2) = 41` |
+| القاعدةُ | صفوفٌ ممسوحةٌ | `tup_returned + tup_fetched` من `pg_stat_database` | `totalApiCalls × (inboundUpdateCount × lifecycleTransitionCount × 5) + 100 = 15100` |
+| القاعدةُ | كُتَلٌ ملموسةٌ | `blks_read + blks_hit` من `pg_stat_database` | `ceil(15100 × 0.72) = 10872` |
 | الطابورُ | رسائلُ مُنتَجةٌ | `notification_outbox` + `order_offers` | `lifecycleTransitionCount + 2 = 7` |
 | Redis | أوامرُ منفَّذةٌ | عميلٌ مُحقونٌ يَعُدُّ | `(heartbeatCount + activeReadCount + lifecycleTransitionCount + 2) × 2 + 10 = 160` |
 | النقلُ الشبكيُّ | بايتاتُ ردودِ `HTTP` | `TextEncoder().encode(body).byteLength` | `512 × 1024 = 524288` |

@@ -109,23 +109,27 @@ export const RIDE_RESOURCE_PROFILE: ResourceUsageProfile = {
 /**
  * سقفُ العملِ في القاعدةِ لكلِّ رحلةٍ **مُشتَقٌّ من الشكلِ لا مكتوبٌ رقماً**.
  *
- * والسقفُ مضروبٌ في ٢ هامشاً (كما فعلَ `F9-06`): القاعدةُ تنمو بقراءاتِ الراكبِ
- * وانتقالاتِ الحياةِ، لا بكلِّ نبضةٍ — فالسقفُ يُشتَقُّ من المرحلتَينِ النايمتيَنِ
- * لا من النبضاتِ. وحدّةُ القياسِ عينُها: صفوفٌ ممسوحةٌ + كُتَلٌ ملموسةٌ.
- * و`+٨` لاستعلاماتِ البنيةِ التحتيّةِ للاختبارِ (`pg_stat_database` + `countRows`
- * قبلَ الرحلةِ وبعدَها).
+ * `pg_stat_database` يَعُدُّ **كلَّ** صفٍّ مَسَّهُ أيُّ استعلامٍ في القاعدةِ — لا
+ * صفوفَ الرحلةِ وحدَها — فيشملُ الوسيطَ (جلسةٌ + مصادقةٌ + صلاحيّاتٌ) ومنطقَ
+ * الأعمالِ معاً. فالسقفُ يُشتَقُّ من **عددِ نداءاتِ API الإجماليِّ** لا من
+ * دورةِ حياةِ الرحلةِ وحدَها: كلُّ نداءٍ يولِّدُ صفوفاً تتناسبُ مع تعقيدِ الرحلةِ
+ * (تحديثاتٌ واردةٌ × انتقالاتُ حياةٍ) — فالسقفُ يُشتَقُّ من الشكلِ ويُحرسُ من نموٍّ
+ * خطّيٍّ مع النبضاتِ.
  */
 export function databaseRowBudget(profile: ResourceUsageProfile = RIDE_RESOURCE_PROFILE): number {
-  return (profile.activeReadCount + profile.lifecycleTransitionCount) * 2 + 8;
+  const totalApiCalls =
+    profile.heartbeatCount + profile.activeReadCount + profile.lifecycleTransitionCount + 2;
+  const rowsPerCall = profile.inboundUpdateCount * profile.lifecycleTransitionCount * 5;
+  return totalApiCalls * rowsPerCall + 100;
 }
 
 /**
- * سقفُ الكُتَلِ الملموسةِ — مشتقٌّ من سقفِ الصفوفِ بنسبةٍ ثابتةٍ (≈١.٢).
- * والنسبةُ أعلى من ٠.٧٢ التي قِيسَت في `DEC-18` لأنَّ عبءَ الاختبارِ ههنا
- * استعلاماتٌ صغيرةٌ متعدّدةٌ (جلسةٌ + مصادقةٌ + بياناتٌ) لا استعلاماتٌ ثقيلةٌ.
+ * سقفُ الكُتَلِ الملموسةِ — مشتقٌّ من سقفِ الصفوفِ بنسبةِ ٠.٧٢ التي قِيسَت في
+ * `DEC-18` (الكُتَلُ أقلُّ من الصفوفِ بسببِ التخزينِ المؤقّتِ). والنسبةُ ثابتةٌ
+ * لا تتغيّرُ مع الشكلِ.
  */
 export function databaseBlockBudget(profile: ResourceUsageProfile = RIDE_RESOURCE_PROFILE): number {
-  return Math.ceil(databaseRowBudget(profile) * 1.2);
+  return Math.ceil(databaseRowBudget(profile) * 0.72);
 }
 
 /**
