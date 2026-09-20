@@ -65,7 +65,7 @@ function auditFake(dir: string) {
       problem: "لا توكيدَ على BLOCKS_TOUCHED_BUDGET",
     });
   }
-  const dup = new RegExp(String(ROWS_SCANNED_BUDGET) + "|" + String(BLOCKS_TOUCHED_BUDGET));
+  const dup = new RegExp(`${String(ROWS_SCANNED_BUDGET)}|${String(BLOCKS_TOUCHED_BUDGET)}`);
   if (dup.test(src)) {
     problems.push({ rule: "budget.single-source", problem: "قيمٌ مكرَّرةٌ لا مستوردةٌ" });
   }
