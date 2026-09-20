@@ -6,6 +6,28 @@ import type { PortFailureError } from "../ports/index.ts";
 
 export type SafetyRole = "rider" | "driver";
 export type SafetyDecision = "close" | "block_reporter";
+/**
+ * رمزُ السببِ الداخليِّ لقرارِ الإغلاقِ (`PD-021`). مجموعةٌ مغلقةٌ قابلةٌ
+ * للتوسعةِ بقرارٍ. لا يُنشَرُ للمُبلِّغِ — رسالةُ الحالةِ العامّةُ تُشتَقُّ من
+ * القرارِ لا من السببِ.
+ */
+export type SafetyDecisionReason =
+  | "resolved"
+  | "false_report"
+  | "duplicate"
+  | "escalated"
+  | "safety_risk"
+  | "policy_violation";
+export const SAFETY_DECISION_REASONS: readonly SafetyDecisionReason[] = [
+  "resolved",
+  "false_report",
+  "duplicate",
+  "escalated",
+  "safety_risk",
+  "policy_violation",
+];
+export const isSafetyDecisionReason = (value: unknown): value is SafetyDecisionReason =>
+  typeof value === "string" && SAFETY_DECISION_REASONS.some((r) => r === value);
 
 export interface TriggerSosPort {
   trigger(input: {
@@ -36,6 +58,8 @@ export interface SafetyResolutionPort {
     incidentId: string;
     actorTelegramId: string;
     decision: SafetyDecision;
+    /** رمزُ السببِ الداخليِّ الإلزاميُّ (`PD-021`). */
+    decisionReason: SafetyDecisionReason;
   }): Promise<Result<{ resolved: boolean; error: string | null }, PortFailureError>>;
 }
 export interface SafetyDelivery {

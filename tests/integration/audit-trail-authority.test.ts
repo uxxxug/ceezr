@@ -187,9 +187,10 @@ describeIf("الأثرُ التدقيقيُّ مقيسٌ بالأثرِ لا ب�
   const resolve = async (
     telegramId: number,
     decision: string,
+    decisionReason: string = "resolved",
   ): Promise<Record<string, unknown>> => {
     const rows = await sql<{ result: Record<string, unknown> }[]>`
-      select resolve_safety_incident(${incidentId}::uuid, ${telegramId}::bigint, ${decision})
+      select resolve_safety_incident(${incidentId}::uuid, ${telegramId}::bigint, ${decision}, ${decisionReason})
              as result
     `;
     return rows[0]?.result ?? {};
@@ -241,9 +242,23 @@ describeIf("الأثرُ التدقيقيُّ مقيسٌ بالأثرِ لا ب�
     expect(await auditCount()).toBe(after);
   });
 
+  it("٥ب) سببٌ مفقودٌ: رفضٌ ولا أثرَ (`PD-021`)", async () => {
+    await claim(TG_ADMIN);
+    const after = await auditCount();
+    expect(await resolve(TG_ADMIN, "close", "")).toEqual({
+      ok: false,
+      error: "DECISION_REASON_REQUIRED",
+    });
+    expect(await auditCount()).toBe(after);
+  });
+
   it("٦) إغلاقٌ بقرارِ `close`: صفٌّ يحملُ القرارَ في حمولتِه لا استنتاجاً", async () => {
     await claim(TG_ADMIN);
-    expect(await resolve(TG_ADMIN, "close")).toEqual({ ok: true, decision: "close" });
+    expect(await resolve(TG_ADMIN, "close")).toEqual({
+      ok: true,
+      decision: "close",
+      decision_reason: "resolved",
+    });
     const rows = await auditRows();
     expect(rows.map((row) => row.action)).toEqual([
       "safety.incident_claimed",
@@ -260,6 +275,7 @@ describeIf("الأثرُ التدقيقيُّ مقيسٌ بالأثرِ لا ب�
     expect(await resolve(TG_ADMIN, "block_reporter")).toEqual({
       ok: true,
       decision: "block_reporter",
+      decision_reason: "resolved",
     });
     const actions = (await auditRows()).map((row) => row.action);
     expect(actions).toContain("safety.incident_resolved");

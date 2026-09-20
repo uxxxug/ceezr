@@ -205,6 +205,7 @@ describeIf("فعل تعذّر الإكمال على PostgreSQL فعلية", () =
       incidentId,
       actorTelegramId: SUPPORT_TELEGRAM_ID,
       decision: "close",
+      decisionReason: "resolved",
     });
     expect(closed.ok).toBe(true);
     if (closed.ok) expect(closed.value.resolved).toBe(true);

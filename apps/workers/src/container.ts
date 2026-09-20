@@ -34,6 +34,10 @@ import { archiveDueLocationPartitions } from "../../../packages/application/geo/
 import { ensureLocationPartitions } from "../../../packages/application/geo/ensure-location-partitions.ts";
 import { flushDriverLocationBacklog } from "../../../packages/application/geo/flush-driver-location-backlog.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
+import {
+  createSafetyResolutionClosedHandler,
+  type SafetyResolutionMessenger,
+} from "../../../packages/application/safety/deliver-safety-resolution.ts";
 import type { SafetyCardPublisher } from "../../../packages/application/safety/ports.ts";
 import type { DistributedLock } from "../../../packages/application/scheduling/distributed-lock.ts";
 import type {
@@ -100,6 +104,7 @@ import {
   grammyNoticeApi,
 } from "../../../packages/infrastructure/notification/telegram-notice-sender.ts";
 import { createSafetyCardPublisher } from "../../../packages/infrastructure/notification/telegram-safety-notifier.ts";
+import { createTelegramSafetyResolutionMessenger } from "../../../packages/infrastructure/notification/telegram-safety-resolution-notifier.ts";
 import { createTicketOwnerNotifier } from "../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import { createTelegramUnmatchedMessenger } from "../../../packages/infrastructure/notification/telegram-unmatched-notifier.ts";
 import { withTrafficPriority } from "../../../packages/infrastructure/notification/traffic-priority-sender.ts";
@@ -352,6 +357,7 @@ export interface WorkerContainerOverrides {
   readonly lostItemMessenger?: LostItemMessenger;
   /** بطاقة SOS قابلة للاستبدال في اختبار فشل تيليجرام ثم إعادة التسليم. */
   readonly safetyPublisher?: SafetyCardPublisher;
+  readonly safetyResolutionMessenger?: SafetyResolutionMessenger;
   /** ناشرُ إشعارِ العرضِ — يُستبدَلُ في الاختبار بناشرٍ يجمع ويُرجعُ معرّفًا. (BUG-004) */
   readonly offerPublisher?: OfferPublisher;
   /** ناشر البثّ الجماعي — يُستبدل في الاختبار بناشرٍ يجمع ويُخفق عند الطلب. */
@@ -607,6 +613,16 @@ export function buildWorkerContainer(
   );
   const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
   const safetyPublisher = overrides.safetyPublisher ?? createSafetyCardPublisher(telegram);
+
+  /**
+   * `PD-021` — مُرسِلُ مآلِ البلاغِ للمُبلِّغِ. يُرسَلُ ببوتِ الراكبِ: المُبلِّغُ هو
+   * راكبٌ أو سائقٌ، وكلاهُما يَفتحُ محادثةً معَ بوتِ الراكبِ، فلا مناصَ من بوتِهِ.
+   */
+  const safetyResolutionMessenger =
+    overrides.safetyResolutionMessenger ??
+    createTelegramSafetyResolutionMessenger(
+      asIdentifyingSender(withTrafficPriority(riderTelegram, "safety_resolution_closed")),
+    );
   const safetyDeliveries = createSafetyDeliveryPort(sql);
   const offerPublisher =
     overrides.offerPublisher ??
@@ -684,6 +700,8 @@ export function buildWorkerContainer(
     no_driver_found: createNoDriverFoundHandler(unmatchedMessengerFor("no_driver_found")),
     order_cancelled: createOrderCancelledHandler(cancellationMessenger),
     lost_item_report: createLostItemReportHandler(lostItemMessenger),
+    safety_resolution_closed: createSafetyResolutionClosedHandler(safetyResolutionMessenger),
+    safety_resolution_blocked: createSafetyResolutionClosedHandler(safetyResolutionMessenger),
   };
 
   /**

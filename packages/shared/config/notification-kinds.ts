@@ -48,6 +48,8 @@ export const NOTIFICATION_KINDS = [
   "subscription_notice",
   "broadcast_recipient",
   "lost_item_report",
+  "safety_resolution_closed",
+  "safety_resolution_blocked",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -82,6 +84,8 @@ export const SEEDED_NOTIFICATION_CHANNELS: Readonly<Record<NotificationKind, Not
     subscription_notice: "critical",
     broadcast_recipient: "critical",
     lost_item_report: "critical",
+    safety_resolution_closed: "critical",
+    safety_resolution_blocked: "critical",
   };
 
 /**

@@ -120,6 +120,8 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "request_ride",
   "resolve_destination",
   "resolve_safety_incident",
+  // PD-021: resolve_safety_incident now takes a 4th arg (decision_reason).
+  // The contract entry above covers the function name; arity is enforced by the migration.
   "resolve_support_ticket",
   "resume_subscription",
   "revoke_order_tracking_tokens",

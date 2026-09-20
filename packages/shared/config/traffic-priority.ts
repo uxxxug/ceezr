@@ -142,6 +142,8 @@ export const NOTIFICATION_KIND_PRIORITY: Readonly<Record<NotificationKind, Traff
     dispute_resolution: "medium",
     subscription_notice: "medium",
     lost_item_report: "medium",
+    safety_resolution_closed: "medium",
+    safety_resolution_blocked: "medium",
     broadcast_recipient: "low",
   };
 
