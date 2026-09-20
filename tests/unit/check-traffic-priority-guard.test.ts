@@ -38,6 +38,8 @@ function fixtureMigrations(): SqlMigration[] {
     ["dispute_resolution", 3],
     ["subscription_notice", 3],
     ["lost_item_report", 3],
+    ["safety_resolution_closed", 3],
+    ["safety_resolution_blocked", 3],
     ["broadcast_recipient", 4],
   ] as const;
   return [
