@@ -169,6 +169,16 @@ beforeAll(async () => {
       values (${cityId}, ${orderId}, ${driver2Id}, 'rejected'::offer_status, ${ORDER_COMPLETED_AT}, ${ORDER_CREATED_AT})
     `;
   }
+
+  // زرعُ عرضٍ من السائقِ الأولِ أيضاً (المُسنَدُ إليه) — لاختبارِ أنَّ الاتحادَ على
+  // `users.id` لا يُضاعِفُ السائقَ الذي يظهرُ في `assigned_driver_id` و`order_offers.driver_id`
+  if (orderId !== "" && driverId !== "") {
+    await sql`
+      insert into order_offers (city_id, order_id, driver_id, status, expires_at, created_at)
+      values (${cityId}, ${orderId}, ${driverId}, 'accepted'::offer_status, ${ORDER_COMPLETED_AT}, ${ORDER_CREATED_AT})
+      on conflict (order_id, driver_id, round) do nothing
+    `;
+  }
 });
 
 afterAll(async () => {
@@ -217,40 +227,63 @@ afterAll(async () => {
 });
 
 describeIf("ECO-001 — مقاماتُ التكلفةِ لكلِّ مستخدمٍ نشطٍ ولكلِّ رحلة", () => {
-  it("يعدُّ الراكبينَ النشطينَ من `orders.rider_id` في النافذةِ", async () => {
+  it("يعدُّ المستخدمينَ النشطينَ عبر اتحادٍ على `users.id` لا جمعَ عدّين", async () => {
+    // الاتحادُ على `users.id`: الراكبُ من `orders.rider_id → riders.user_id`،
+    // والسائقونَ من `orders.assigned_driver_id → drivers.user_id` ∪
+    // `order_offers.driver_id → drivers.user_id`. والسائقُ المُسنَدُ الذي بثَّ عرضاً
+    // أيضاً يُحسَبُ مرّةً واحدةً لا مرّتين.
     const rows = await sql<{ count: string }[]>`
-      select count(DISTINCT rider_id) as count from orders
-      where created_at >= ${WINDOW_FROM} and created_at < ${WINDOW_TO}
+      select count(DISTINCT u.id) as count
+      from users u
+      where u.id in (
+        select r.user_id from orders o
+        join riders r on r.id = o.rider_id
+        where o.created_at >= ${WINDOW_FROM} and o.created_at < ${WINDOW_TO}
+      ) or u.id in (
+        select d.user_id from orders o
+        join drivers d on d.id = o.assigned_driver_id
+        where o.assigned_driver_id is not null
+          and o.created_at >= ${WINDOW_FROM} and o.created_at < ${WINDOW_TO}
+      ) or u.id in (
+        select d.user_id from order_offers of
+        join drivers d on d.id = of.driver_id
+        where of.created_at >= ${WINDOW_FROM} and of.created_at < ${WINDOW_TO}
+      )
     `;
-    expect(Number(rows[0]?.count)).toBeGreaterThanOrEqual(1);
+    // راكبٌ واحدٌ + سائقانِ = 3 مستخدمينَ نشطينَ (لا 4)
+    expect(Number(rows[0]?.count)).toBe(3);
   });
 
-  it("يعدُّ السائقينَ النشطينَ من `orders.assigned_driver_id` ∪ `order_offers.driver_id`", async () => {
-    const assignedRows = await sql<{ count: string }[]>`
-      select count(DISTINCT assigned_driver_id) as count from orders
-      where assigned_driver_id is not null
-        and created_at >= ${WINDOW_FROM} and created_at < ${WINDOW_TO}
+  it("يعدُّ السائقينَ النشطينَ كاتحادٍ لا كمجموعِ عدّين", async () => {
+    const rows = await sql<{ count: string }[]>`
+      select count(DISTINCT d.id) as count
+      from drivers d
+      where d.id in (
+        select o.assigned_driver_id from orders o
+        where o.assigned_driver_id is not null
+          and o.created_at >= ${WINDOW_FROM} and o.created_at < ${WINDOW_TO}
+      ) or d.id in (
+        select of.driver_id from order_offers of
+        where of.created_at >= ${WINDOW_FROM} and of.created_at < ${WINDOW_TO}
+      )
     `;
-    const offerRows = await sql<{ count: string }[]>`
-      select count(DISTINCT driver_id) as count from order_offers
-      where created_at >= ${WINDOW_FROM} and created_at < ${WINDOW_TO}
-    `;
-    // السائقُ المُسنَدُ + السائقُ الذي بثَّ عرضاً = 2
-    const totalDrivers = Number(assignedRows[0]?.count) + Number(offerRows[0]?.count);
-    expect(totalDrivers).toBeGreaterThanOrEqual(2);
+    // سائقانِ: الأولُ مُسنَدٌ وبثَّ عرضاً، والثانى بثَّ عرضاً فقط — كلاهما يُحسَبُ مرّةً
+    expect(Number(rows[0]?.count)).toBe(2);
   });
 
   it("يعدُّ الطلباتِ المُنشأةَ والرحلاتِ المُكمَّلةَ منفصلةً", async () => {
     const createdRows = await sql<{ count: string }[]>`
       select count(*) as count from orders
       where created_at >= ${WINDOW_FROM} and created_at < ${WINDOW_TO}
+        and rider_id = ${riderId}
     `;
     const completedRows = await sql<{ count: string }[]>`
       select count(*) as count from orders
       where completed_at >= ${WINDOW_FROM} and completed_at < ${WINDOW_TO}
+        and rider_id = ${riderId}
     `;
-    expect(Number(createdRows[0]?.count)).toBeGreaterThanOrEqual(1);
-    expect(Number(completedRows[0]?.count)).toBeGreaterThanOrEqual(1);
+    expect(Number(createdRows[0]?.count)).toBe(1);
+    expect(Number(completedRows[0]?.count)).toBe(1);
   });
 
   it("يحسبُ الكميّاتِ الشهريّةَ والنِسبَ لكلِّ مستخدمٍ من حدٍّ أعلى مُشتقٍّ", () => {

@@ -18,9 +18,8 @@ import type { UnitPrices } from "../../scripts/lib/eco-user-cost.ts";
 const from = new Date("2026-08-20T00:00:00Z");
 const to = new Date("2026-09-20T00:00:00Z");
 
-const activeRiders = await sql\`SELECT count(DISTINCT rider_id) FROM orders WHERE created_at >= \${from} AND created_at < \${to}\`;
-const activeDrivers = await sql\`SELECT count(DISTINCT assigned_driver_id) FROM orders WHERE assigned_driver_id IS NOT NULL AND created_at >= \${from} AND created_at < \${to}\`;
-const driversFromOffers = await sql\`SELECT count(DISTINCT driver_id) FROM order_offers WHERE created_at >= \${from} AND created_at < \${to}\`;
+const activeUsers = await sql\`SELECT count(DISTINCT u.id) FROM users u WHERE u.id IN (SELECT r.user_id FROM orders o JOIN riders r ON r.id = o.rider_id WHERE o.created_at >= \${from} AND o.created_at < \${to}) OR u.id IN (SELECT d.user_id FROM orders o JOIN drivers d ON d.id = o.assigned_driver_id WHERE o.assigned_driver_id IS NOT NULL AND o.created_at >= \${from} AND o.created_at < \${to}) OR u.id IN (SELECT d.user_id FROM order_offers of JOIN drivers d ON d.id = of.driver_id WHERE of.created_at >= \${from} AND of.created_at < \${to})\`;
+const activeDrivers = await sql\`SELECT count(DISTINCT d.id) FROM drivers d WHERE d.id IN (SELECT o.assigned_driver_id FROM orders o WHERE o.assigned_driver_id IS NOT NULL AND o.created_at >= \${from} AND o.created_at < \${to}) OR d.id IN (SELECT of.driver_id FROM order_offers of WHERE of.created_at >= \${from} AND of.created_at < \${to})\`;
 
 const ordersCreated = await sql\`SELECT count(*) FROM orders WHERE created_at >= \${from} AND created_at < \${to}\`;
 const completedRides = await sql\`SELECT count(*) FROM orders WHERE completed_at >= \${from} AND completed_at < \${to}\`;
@@ -82,8 +81,8 @@ describe("check-eco-user-cost", () => {
     expect(problems.some((p) => p.rule === "guard.riders-counted")).toBe(true);
   });
 
-  it("يسقطُ إذا لم يُعدَّ السائقونَ من `assigned_driver_id`", () => {
-    const source = VALID_SOURCE.replace(/assigned_driver_id/g, "assigned_driver_account");
+  it("يسقطُ إذا لم يُعدَّ السائقونَ كاتحادٍ على `users.id`", () => {
+    const source = VALID_SOURCE.replace(/users/g, "accounts");
     const problems = auditEcoUserCost({
       measurementSource: source,
       packageJson: VALID_PACKAGE_JSON,
