@@ -180,10 +180,22 @@ export const COVERAGE_BARS: readonly CriticalPathBar[] = [
      * في وظيفةِ `verify`، إذ الحَكَمُ نقيٌّ والحاجزُ ساكنٌ. وما نقصَ من الحاجزِ
      * مسالكُ `main()` — قراءةُ قرصٍ وطبعٌ وخروجٌ — تُقاسُ بتشغيلِه في `CI` لا
      * بتغطيةِ وحدةٍ.
+     *
+     * زيادةٌ يومَ 2026-09-20 (`ح-8`): ضُمَّ إلى الجذورِ حَكَمُ عدِّ رسائلِ تيليجرام
+     * وحاجزُه (`ECO-003`) — إذ هوَ عينُ هذا المسارِ الحرجِ لا مسارٌ ثانٍ، ومسارانِ
+     * باسمَينِ لِمَعنًى واحدٍ يُكثِّرانِ مصادرَ الحقيقةِ. والأرقامُ **مقيسةٌ** في اليومِ
+     * نفسِه من `coverage/lcov.info` بمِخرَجِ `bun run test:coverage`: الحَكَمانِ
+     * 121/122 و 187/187، والحاجزانِ 143/180 و 199/230 — أي 650/719 (90.4%)
+     * فرُفِعَت الأرضيّةُ من 87 إلى 90. والأرضيّةُ السابقةُ تبقى مذكورةً لا ممحوّةً.
      */
     criticalPath: "الاستدامةُ الاقتصاديّةُ",
-    roots: ["scripts/lib/routing-call-budget.ts", "scripts/check-routing-call-budget.ts"],
-    minLineCoverage: 87,
+    roots: [
+      "scripts/lib/routing-call-budget.ts",
+      "scripts/check-routing-call-budget.ts",
+      "scripts/lib/telegram-message-budget.ts",
+      "scripts/check-telegram-message-budget.ts",
+    ],
+    minLineCoverage: 90,
     maxUnmeasuredFiles: 0,
     reason: null,
     owner: "فريق المنصّة",
