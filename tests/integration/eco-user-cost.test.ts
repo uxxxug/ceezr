@@ -218,39 +218,39 @@ afterAll(async () => {
 
 describeIf("ECO-001 — مقاماتُ التكلفةِ لكلِّ مستخدمٍ نشطٍ ولكلِّ رحلة", () => {
   it("يعدُّ الراكبينَ النشطينَ من `orders.rider_id` في النافذةِ", async () => {
-    const rows = await sql<{ count: number }[]>`
+    const rows = await sql<{ count: string }[]>`
       select count(DISTINCT rider_id) as count from orders
       where created_at >= ${WINDOW_FROM} and created_at < ${WINDOW_TO}
     `;
-    expect(rows[0]?.count).toBeGreaterThanOrEqual(1);
+    expect(Number(rows[0]?.count)).toBeGreaterThanOrEqual(1);
   });
 
   it("يعدُّ السائقينَ النشطينَ من `orders.assigned_driver_id` ∪ `order_offers.driver_id`", async () => {
-    const assignedRows = await sql<{ count: number }[]>`
+    const assignedRows = await sql<{ count: string }[]>`
       select count(DISTINCT assigned_driver_id) as count from orders
       where assigned_driver_id is not null
         and created_at >= ${WINDOW_FROM} and created_at < ${WINDOW_TO}
     `;
-    const offerRows = await sql<{ count: number }[]>`
+    const offerRows = await sql<{ count: string }[]>`
       select count(DISTINCT driver_id) as count from order_offers
       where created_at >= ${WINDOW_FROM} and created_at < ${WINDOW_TO}
     `;
     // السائقُ المُسنَدُ + السائقُ الذي بثَّ عرضاً = 2
-    const totalDrivers = (assignedRows[0]?.count ?? 0) + (offerRows[0]?.count ?? 0);
+    const totalDrivers = Number(assignedRows[0]?.count) + Number(offerRows[0]?.count);
     expect(totalDrivers).toBeGreaterThanOrEqual(2);
   });
 
   it("يعدُّ الطلباتِ المُنشأةَ والرحلاتِ المُكمَّلةَ منفصلةً", async () => {
-    const createdRows = await sql<{ count: number }[]>`
+    const createdRows = await sql<{ count: string }[]>`
       select count(*) as count from orders
       where created_at >= ${WINDOW_FROM} and created_at < ${WINDOW_TO}
     `;
-    const completedRows = await sql<{ count: number }[]>`
+    const completedRows = await sql<{ count: string }[]>`
       select count(*) as count from orders
       where completed_at >= ${WINDOW_FROM} and completed_at < ${WINDOW_TO}
     `;
-    expect(createdRows[0]?.count).toBeGreaterThanOrEqual(1);
-    expect(completedRows[0]?.count).toBeGreaterThanOrEqual(1);
+    expect(Number(createdRows[0]?.count)).toBeGreaterThanOrEqual(1);
+    expect(Number(completedRows[0]?.count)).toBeGreaterThanOrEqual(1);
   });
 
   it("يحسبُ الكميّاتِ الشهريّةَ والنِسبَ لكلِّ مستخدمٍ من حدٍّ أعلى مُشتقٍّ", () => {
