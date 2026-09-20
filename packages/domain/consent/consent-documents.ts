@@ -43,6 +43,12 @@ export interface ConsentDocument {
   /** مفتاحُ وصفِ ما يُوافَقُ عليه — لا النصُّ القانونيُّ الكاملُ. */
   readonly summaryKey: string;
   /**
+   * مفتاحُ نصِّ الوثيقةِ الكاملِ — قابلٌ للفتحِ قبلَ القبولِ وبعدَهُ بإصدارِهِ.
+   * النمطُ: `consent.{kind}.{version}.text` — فكلُّ إصدارٍ مفتاحُه ثابتٌ لا يتغيّرُ
+   * بتحديثِ النصِّ الجاري، والقواميسُ تحفظُ نسخةً لكلِّ إصدارٍ (ح-8).
+   */
+  readonly textKey: string;
+  /**
    * `true` تعني: لا يُقرأُ التهيئةُ مكتملةً بغيرِها. وكلتا وثيقتَي `F2-01`
    * واجبتانِ — فالخدمةُ لا تُقدَّمُ بلا شروطٍ ولا بلا سياسةِ خصوصيّةٍ.
    */
@@ -55,6 +61,7 @@ export const DECLARED_CONSENT_DOCUMENTS: readonly ConsentDocument[] = Object.fre
     version: "2026-09-12",
     titleKey: "consent.terms_of_service.title",
     summaryKey: "consent.terms_of_service.summary",
+    textKey: "consent.terms_of_service.2026-09-12.text",
     requiredForOnboarding: true,
   }),
   Object.freeze({
@@ -62,6 +69,7 @@ export const DECLARED_CONSENT_DOCUMENTS: readonly ConsentDocument[] = Object.fre
     version: "2026-09-12",
     titleKey: "consent.privacy_policy.title",
     summaryKey: "consent.privacy_policy.summary",
+    textKey: "consent.privacy_policy.2026-09-12.text",
     requiredForOnboarding: true,
   }),
 ]);

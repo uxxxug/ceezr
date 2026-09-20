@@ -91,6 +91,7 @@ export interface PublishedConsentDocument {
   readonly version: string;
   readonly titleKey: string;
   readonly summaryKey: string;
+  readonly textKey: string;
   readonly requiredForOnboarding: boolean;
 }
 
@@ -105,6 +106,7 @@ const PUBLISHED_DOCUMENTS: readonly PublishedConsentDocument[] = DECLARED_CONSEN
     version: d.version,
     titleKey: d.titleKey,
     summaryKey: d.summaryKey,
+    textKey: d.textKey,
     requiredForOnboarding: d.requiredForOnboarding,
   }),
 );

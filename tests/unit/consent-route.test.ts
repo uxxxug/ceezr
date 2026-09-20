@@ -169,12 +169,18 @@ describe("GET /v1/consents", () => {
     const { status, json } = await call(harness, { method: "GET", headers: authed() });
 
     expect(status).toBe(200);
-    const documents = json.documents as { kind: string; titleKey: string; version: string }[];
+    const documents = json.documents as {
+      kind: string;
+      titleKey: string;
+      textKey: string;
+      version: string;
+    }[];
     expect(documents.map((d) => d.kind).sort()).toEqual(
       [TERMS.kind, PRIVACY.kind].sort() as string[],
     );
     for (const document of documents) {
       expect(document.titleKey.length).toBeGreaterThan(0);
+      expect(document.textKey.length).toBeGreaterThan(0);
       expect(document.version.length).toBeGreaterThan(0);
     }
     const onboarding = json.onboarding as { satisfied: boolean; documents: { state: string }[] };
