@@ -125,7 +125,7 @@ export function findViolations(input: RepositoryInput): readonly string[] {
     }
     for (const language of LANGUAGES) {
       const dictionary = input.miniappDictionaries[language] ?? {};
-      for (const key of [document.titleKey, document.summaryKey]) {
+      for (const key of [document.titleKey, document.summaryKey, document.textKey]) {
         if ((dictionary[key] ?? "").trim().length === 0) {
           violations.push(
             `المفتاحُ «${key}» ناقصٌ أو فارغٌ في «${language}» — شاشةُ موافقةٍ تعرضُ مفتاحاً خامّاً أو فراغاً.`,

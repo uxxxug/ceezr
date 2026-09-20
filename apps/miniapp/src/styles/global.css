@@ -336,6 +336,25 @@ a {
   color: var(--tg-destructive-text-color);
 }
 
+.wc__doc-text {
+  margin: 0.5rem 0 0 0;
+}
+
+.wc__doc-text summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.wc__doc-text-body {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  color: var(--tg-text-color);
+}
+
 .wc__primary {
   align-self: stretch;
   text-align: center;

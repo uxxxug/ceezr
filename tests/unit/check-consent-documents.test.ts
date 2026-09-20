@@ -29,6 +29,7 @@ function fullDictionaries(): Record<string, Record<string, string>> {
     for (const document of DECLARED_CONSENT_DOCUMENTS) {
       dictionary[document.titleKey] = `${document.kind} title ${language}`;
       dictionary[document.summaryKey] = `${document.kind} summary ${language}`;
+      dictionary[document.textKey] = `${document.kind} text ${language}`;
     }
     dictionaries[language] = dictionary;
   }

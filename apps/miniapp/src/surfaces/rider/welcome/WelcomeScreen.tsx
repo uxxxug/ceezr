@@ -241,6 +241,10 @@ export function WelcomeScreen({
             <li key={row.kind} className="wc__doc">
               <h3 className="wc__doc-title">{t(row.titleKey)}</h3>
               <p className="sys__hint">{t(row.summaryKey)}</p>
+              <details className="wc__doc-text">
+                <summary>{t("welcome.consent_read_full")}</summary>
+                <pre className="wc__doc-text-body">{t(row.textKey)}</pre>
+              </details>
               {/* الحالةُ مكتوبةٌ لا ملوّنةٌ وحدَها (UX-10). */}
               <p className="wc__doc-state">
                 {busy ? t("welcome.consent_recording") : t(row.statusKey)}

@@ -43,6 +43,7 @@ describe("سجلُّ الوثائقِ المُعلَنةِ", () => {
       expect(document.version.length).toBeGreaterThan(0);
       expect(document.titleKey.length).toBeGreaterThan(0);
       expect(document.summaryKey.length).toBeGreaterThan(0);
+      expect(document.textKey.length).toBeGreaterThan(0);
     }
   });
 

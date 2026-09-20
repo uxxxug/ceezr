@@ -28,6 +28,7 @@ const TERMS = {
   version: "2026-09-12",
   titleKey: "consent.terms_of_service.title",
   summaryKey: "consent.terms_of_service.summary",
+  textKey: "consent.terms_of_service.2026-09-12.text",
   requiredForOnboarding: true,
 } as const;
 
@@ -36,6 +37,7 @@ const PRIVACY = {
   version: "2026-09-12",
   titleKey: "consent.privacy_policy.title",
   summaryKey: "consent.privacy_policy.summary",
+  textKey: "consent.privacy_policy.2026-09-12.text",
   requiredForOnboarding: true,
 } as const;
 

@@ -24,6 +24,7 @@ export interface ConsentApiDocument {
   readonly version: string;
   readonly titleKey: string;
   readonly summaryKey: string;
+  readonly textKey: string;
   readonly requiredForOnboarding: boolean;
 }
 
@@ -48,6 +49,7 @@ export interface ConsentRow {
   readonly version: string;
   readonly titleKey: string;
   readonly summaryKey: string;
+  readonly textKey: string;
   readonly required: boolean;
   readonly state: ConsentRowState;
   /** مفتاحُ النصِّ الذي يُقالُ تحتَ الصفِّ — لا لونٌ وحدَه (UX-10). */
@@ -75,6 +77,7 @@ export function consentRows(status: ConsentApiStatus): readonly ConsentRow[] {
       version: document.version,
       titleKey: document.titleKey,
       summaryKey: document.summaryKey,
+      textKey: document.textKey,
       required: document.requiredForOnboarding,
       state,
       statusKey: STATUS_KEY_BY_STATE[state],
