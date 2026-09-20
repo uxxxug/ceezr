@@ -75,7 +75,7 @@ export function auditWorkBudget(): Problem[] {
 
   // 5. لا تكرارُ القيمِ في الاختبارِ — مصدرُ حقيقةٍ واحد
   const budgetInTest = new RegExp(
-    String(ROWS_SCANNED_BUDGET) + "|" + String(BLOCKS_TOUCHED_BUDGET),
+    `${String(ROWS_SCANNED_BUDGET)}|${String(BLOCKS_TOUCHED_BUDGET)}`,
   );
   if (budgetInTest.test(testSource)) {
     problems.push({

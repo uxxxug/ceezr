@@ -144,6 +144,7 @@ describe("صلاحيّةُ نداءِ أوامرِ المشغِّلِ (D-24)", (
     const inputs = defaultInputs();
     const key = inputs.commands
       .map((command) => command.namedScript)
+      // biome-ignore lint/complexity/useOptionalChain: type guard requires `name is string`, optional chain returns `boolean | undefined`
       .find((name): name is string => name !== undefined && name.includes("apps/miniapp#"));
     expect(key).toBeDefined();
     expect(inputs.definedNamedScripts).toContain(key ?? "");

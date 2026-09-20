@@ -182,6 +182,8 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
   async function readyDriver(): Promise<string> {
     const driverId = await registerDriver();
     await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
     await post("driver", text(DRIVER_CHAT, "/available"));
     await post("driver", location(DRIVER_CHAT, DRIVER_AT));
     return driverId;
@@ -218,8 +220,19 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
     `;
   }
 
-  it("التسجيلُ يبدأ تجربةً واحدةً بمدّةِ الإعدادات، ولا تُمنَح ثانيةً", async () => {
+  it("التسجيلُ لا يبدأُ تجربةً قبلَ التوثيقِ، وبعدَ التوثيقِ تبدأُ بمدّةِ الإعداداتِ ولا تُمنَح ثانيةً", async () => {
     const driverId = await registerDriver();
+
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    const noTrial = await sql<{ result: { ok: boolean; error?: string } }[]>`
+      select start_trial(${driverId}::uuid, 'transport') as result
+    `;
+    expect(noTrial[0]?.result.ok).toBe(false);
+    expect(noTrial[0]?.result.error).toBe("DRIVER_NOT_VERIFIED");
+
+    // بعدَ التوثيقِ تبدأُ التجربةُ
+    await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
 
     const rows = await sql<{ status: string; trial_ends_at: Date | null; plan: string }[]>`
       select status, trial_ends_at, plan from subscriptions where driver_id = ${driverId}
@@ -384,7 +397,7 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
    * ويعدُّ أيّامَه ويشرح الطريقين.
    */
   it("بطاقةُ /subscription في التجربة تُسمّي الشهرَ المجانيَّ وتعدُّ أيّامَه", async () => {
-    const driverId = await registerDriver();
+    const driverId = await readyDriver();
     driverSent.length = 0;
 
     await post("driver", text(DRIVER_CHAT, "/subscription"));
@@ -405,7 +418,7 @@ describeIf("دورةُ الشهر المجاني للسائق على قاعدة 
    * أين بابه. والرابطُ يُلحَق من إعدادات المدينة متى كان مضبوطاً.
    */
   it("بطاقةُ ما بعد الانتهاء تشرح الطريقين وتُرفق رابطَ قروب غير المشتركين", async () => {
-    const driverId = await registerDriver();
+    const driverId = await readyDriver();
     await endTrialNow(driverId);
     await sql`select expire_due_subscriptions()`;
     driverSent.length = 0;

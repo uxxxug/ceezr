@@ -160,6 +160,8 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
   async function verifyAndActivate(driverId: string): Promise<void> {
     // ما تفعله الإدارة يدوياً اليوم، وستفعله لوحة الإدارة في 2.4
     await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
     await post("driver", text(DRIVER_CHAT, "/available"));
     await post("driver", location(DRIVER_CHAT, DRIVER_AT));
   }
@@ -174,8 +176,11 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     return id;
   }
 
-  it("يسجّل سائقاً حقيقياً في users و drivers ويبدأ تجربته المجانية", async () => {
+  it("يسجّل سائقاً حقيقياً في users و drivers ويبدأ تجربته المجانية بعد التوثيق", async () => {
     const driverId = await registerDriver();
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
 
     const users = await sql<{ full_name: string; phone: string; role: string; city_id: string }[]>`
       select full_name, phone, role, city_id from users where telegram_id = ${DRIVER_CHAT}
@@ -238,6 +243,9 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
 
   it("يعرض سعر مدينة السائق من platform_settings لا من قيمة مرمَّزة", async () => {
     const driverId = await registerDriver();
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
     // انتهت التجربة: عندئذٍ يُعرض السعر، ومصدره الإعدادات لا ثابت في الكود
     await sql`update subscriptions set status = 'expired' where driver_id = ${driverId}`;
     driverSent.length = 0;
@@ -404,6 +412,8 @@ describeIf("المسار الكامل على قاعدة حقيقية", () => {
     `;
     const secondDriver = secondRows[0]?.id ?? "";
     await sql`update drivers set verification_status = 'verified' where id = ${secondDriver}`;
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`select start_trial(${secondDriver}::uuid, 'transport') as result`;
     await post("driver", text(secondChat, "/available"));
     await post("driver", location(secondChat, { latitude: 21.5501, longitude: 39.1801 }));
 

@@ -173,6 +173,10 @@ describeIf("تغييرات الاشتراك من بوت السائق على قا
     const found = rows[0]?.id;
     if (found === undefined) throw new Error("لم يُنشأ السائق في التهيئة");
     driverId = found;
+
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ — نُوثِّقُ السائقَ ثم نبدأُ التجربة
+    await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
   });
 
   /** دورة مدفوعة حقيقية عبر الدالّة الذرّية — لا صفٌّ يُكتب يدوياً بحالةٍ مخترعة. */

@@ -99,7 +99,10 @@ export interface AuditedPrivilegedAction {
  * **التزامٌ لا إعفاءٌ**.
  */
 export const AUDITED_PRIVILEGED_ACTIONS: readonly AuditedPrivilegedAction[] = [
-  { fn: "admin_set_driver_verification", actions: ["admin.driver_verification_changed"] },
+  {
+    fn: "admin_set_driver_verification",
+    actions: ["admin.driver_verification_changed", "admin.trial_auto_started"],
+  },
   { fn: "admin_set_user_blocked", actions: ["admin.user_blocked_changed"] },
   { fn: "admin_update_city_group_ids", actions: ["admin.city_group_ids_updated"] },
   { fn: "admin_update_setting", actions: ["admin.setting_updated"] },

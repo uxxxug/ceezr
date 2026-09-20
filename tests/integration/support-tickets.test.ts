@@ -186,6 +186,8 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
     const driverId = rows[0]?.id;
     if (driverId === undefined) throw new Error(`لم يُسجَّل السائق ${chatId}`);
     await sql`update drivers set verification_status = 'verified' where id = ${driverId}`;
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
     await post("driver", text(chatId, "/available"));
     await post("driver", location(chatId, DRIVER_AT));
     return driverId;

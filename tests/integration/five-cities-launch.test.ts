@@ -166,6 +166,8 @@ async function registerDriver(city: CityFixture): Promise<string> {
 
 async function makeDriverAvailable(city: CityFixture, driverId: string): Promise<void> {
   await sql`update drivers set verification_status = 'verified' where id = ${driverId}::uuid`;
+  // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+  await sql`select start_trial(${driverId}::uuid, 'transport') as result`;
   await post("driver", text(city.driverChat, "/available"));
   await post("driver", location(city.driverChat, city.driverAt));
 }

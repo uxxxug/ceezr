@@ -277,6 +277,8 @@ describeIf("إلغاء الطلب: أي طلب أُلغي، ومن عَلِم ب
     await post("driver", text(DRIVER_CHAT, "1000000270"));
     await post("driver", photo(DRIVER_CHAT, "photo_270"));
     await sql`update drivers set verification_status = 'verified'`;
+    // PD-040: التجربةُ لا تبدأُ قبلَ التوثيقِ
+    await sql`select start_trial((select id from drivers where user_id = (select id from users where telegram_id = ${DRIVER_CHAT}::bigint))::uuid, 'transport') as result`;
     await post("driver", location(DRIVER_CHAT, PICKUP));
     await post("driver", text(DRIVER_CHAT, "/available"));
 
