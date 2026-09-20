@@ -89,6 +89,11 @@ export interface OfferNotification {
   readonly driverId: DriverId;
   readonly distanceKm: DistanceKm;
   readonly expiresInSeconds: number;
+  /** PD-051: بياناتُ الطلبِ للترتيبِ على البطاقةِ — خدمةٌ ← انطلاقٌ ← وصولٌ ← مسافة/وقتٌ ← قيود. */
+  readonly service: string | null;
+  readonly pickupLabel: string | null;
+  readonly dropoffLabel: string | null;
+  readonly notes: string | null;
 }
 
 /**

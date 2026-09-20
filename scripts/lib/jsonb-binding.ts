@@ -104,6 +104,6 @@ export function describeJsonbViolation(violation: JsonbViolation): string {
     `${violation.file}:${violation.line}: ${violation.expression}`,
     "      ربطُ مُعامِلٍ بـ`::jsonb` يجعلُ السائقَ يُرمِّزُ القيمةَ ثانيةً فتصلُ القاعدةَ",
     "      `jsonb` من نوعِ `string` بلا خطأٍ ولا سجلٍّ. البديلُ: `sql.json(x)::jsonb`",
-    "      أو `to_jsonb(x::نوع)` أو `${x}::text::jsonb`.",
+    "      أو `to_jsonb(x::نوع)` أو $" + "{x}::text::jsonb`.",
   ].join("\n");
 }

@@ -26,6 +26,11 @@ interface OfferPayload {
   readonly distanceKm: string;
   readonly expiresAt: string;
   readonly offerStatus: string;
+  /** PD-051: بياناتُ الطلبِ الموجودةُ مسبقًا — إعادةُ ترتيبٍ لا بياناتٍ جديدة. */
+  readonly service: string | null;
+  readonly pickupLabel: string | null;
+  readonly dropoffLabel: string | null;
+  readonly notes: string | null;
 }
 
 function readOfferPayload(payload: Readonly<Record<string, unknown>>): OfferPayload | null {
@@ -45,6 +50,11 @@ function readOfferPayload(payload: Readonly<Record<string, unknown>>): OfferPayl
   ) {
     return null;
   }
+  // PD-051: حقولُ الطلبِ قد تكونُ null في الحمولاتِ القديمةِ (قبلَ الإثراء).
+  const service = payload.service;
+  const pickupLabel = payload.pickup_label;
+  const dropoffLabel = payload.dropoff_label;
+  const notes = payload.notes;
   return {
     offerId: offerId as OfferId,
     orderId: orderId as OrderId,
@@ -52,6 +62,10 @@ function readOfferPayload(payload: Readonly<Record<string, unknown>>): OfferPayl
     distanceKm,
     expiresAt,
     offerStatus,
+    service: typeof service === "string" ? service : null,
+    pickupLabel: typeof pickupLabel === "string" ? pickupLabel : null,
+    dropoffLabel: typeof dropoffLabel === "string" ? dropoffLabel : null,
+    notes: typeof notes === "string" ? notes : null,
   };
 }
 
@@ -84,6 +98,10 @@ export function createOfferNotificationHandler(publisher: OfferPublisher): Notif
         0,
         Math.ceil((Date.parse(offer.expiresAt) - Date.now()) / MS_PER_SECOND),
       ),
+      service: offer.service,
+      pickupLabel: offer.pickupLabel,
+      dropoffLabel: offer.dropoffLabel,
+      notes: offer.notes,
     };
     const sent = await publisher.publishOffer(notification);
     return ok({

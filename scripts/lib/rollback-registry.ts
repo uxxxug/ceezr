@@ -1036,6 +1036,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "دورةُ الرحلةِ والإسناد",
     documentedIn: null,
   },
+  {
+    migration: "20260920210000_pd_051_offer_card_reorder.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "الهجرةُ تُعيدُ تعريفَ `claim_notification_delivery` بـ`create or replace` لتُضيفَ إلى حمولةِ العرضِ بياناتِ الطلبِ الموجودةِ مسبقًا (الخدمةُ، الانطلاقُ، الوصولُ، الملاحظاتُ) — إعادةُ ترتيبٍ لا بياناتٍ جديدة. وبقيةُ الفروعِ منسوخةٌ حرفًا بحرفٍ. والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كان — الدالّةُ كانت ممنوحةً لـ`service_role` وحدَها قبلَ التغييرِ وتبقى كذلك بعدَه، و`create or replace` لا تُسقِطُ منحًا قائمًا أصلًا. والعودةُ بالكودِ وحده: الصورةُ السابقةُ لا تقرأُ حقولَ الطلبِ الجديدةَ من الحمولةِ فلا تُنشَرُ الهجرةُ دونَ كودِها ولا يُرجَعُ الكودُ دونَ إرجاعِ الدالّةِ معه.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    documentedIn: null,
+  },
 ];
 
 /**
