@@ -21,25 +21,42 @@ export function createSafetyCardPublisher(sender: TelegramSender): SafetyCardPub
        * `F12-03` — بلاغٌ بلا رحلةٍ **بطاقةٌ أخرى لا حقلٌ محذوفٌ**: سطرُ «الطلب:
        * —» في بطاقةِ طوارئٍ يُقرأُ عطلَ تسليمٍ فيُنتَظَرُ توضيحٌ، والمنتَظَرُ ثوانٍ
        * لا تُعوَّضُ. فَتُقالُ الحقيقةُ صريحةً: بلاغٌ من حسابٍ لا من رحلةٍ.
+       *
+       * `PD-020` — وجنسُ البلاغِ كذلكَ يختارُ البطاقةَ قبلَ وجودِ الرحلةِ:
+       * تعذُّرُ الإكمالِ عملٌ تشغيليٌّ يُقرَؤُ برمزٍ مُهادنٍ لا برمزِ طوارئِ
+       * الاستغاثةِ (🆘) — فمَن يفتحُ القروبَ يُميِّزُ في نصفِ ثانيةٍ ماذا
+       * يقرأُ وماذا يُجهِّزُ، وفريقُ السلامةِ السريعُ لا يُستنفَرُ لقرارِ
+       * إسنادٍ.
        */
       const text =
-        card.orderId === null
-          ? tr("safety.group_card_no_order", {
-              incident: card.incidentId.slice(0, 8),
-              reporter: tr(`safety.reporter_${card.reporterRole}`),
-              location: coordinates(card.locationWkt),
-            })
-          : tr("safety.group_card", {
+        card.incidentReason === "driver_cannot_complete" && card.orderId !== null
+          ? tr("safety.group_card_cannot_complete", {
               incident: card.incidentId.slice(0, 8),
               order: card.orderId,
-              reporter: tr(`safety.reporter_${card.reporterRole}`),
               service: tr(
                 card.service === "delivery"
                   ? "safety.service_delivery"
                   : "safety.service_transport",
               ),
               location: coordinates(card.locationWkt),
-            });
+            })
+          : card.orderId === null
+            ? tr("safety.group_card_no_order", {
+                incident: card.incidentId.slice(0, 8),
+                reporter: tr(`safety.reporter_${card.reporterRole}`),
+                location: coordinates(card.locationWkt),
+              })
+            : tr("safety.group_card", {
+                incident: card.incidentId.slice(0, 8),
+                order: card.orderId,
+                reporter: tr(`safety.reporter_${card.reporterRole}`),
+                service: tr(
+                  card.service === "delivery"
+                    ? "safety.service_delivery"
+                    : "safety.service_transport",
+                ),
+                location: coordinates(card.locationWkt),
+              });
       const keyboard = {
         inline_keyboard: [
           [{ text: tr("safety.claim_button"), callback_data: `sos:claim:${card.incidentId}` }],

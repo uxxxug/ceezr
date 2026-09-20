@@ -41,6 +41,8 @@ import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { initLocation, openLocationSettings, requestLocation } from "../../../tg/index.ts";
+import { SosEntry } from "../sos/SosEntry.tsx";
+
 import {
   type AcceptedSummary,
   acceptedSummary,
@@ -82,6 +84,8 @@ export interface DestinationScreenProps {
   readonly openSettings?: () => void;
   readonly onConfirmed?: (destination: ConfirmedDestination) => void;
   readonly onBack?: () => void;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
+  readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
   /** ما كتبَه الراكبُ في شاشةِ `SR-02` — يُبتدأُ به البحثُ بلا إعادةِ كتابةٍ. */
   readonly initialQuery?: string;
@@ -160,6 +164,7 @@ export function DestinationScreen({
   openSettings = () => void openLocationSettings(),
   onConfirmed,
   onBack,
+  onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   initialQuery = "",
   initialPoint,
@@ -473,6 +478,9 @@ export function DestinationScreen({
           {t("rider.destination.back")}
         </button>
       )}
+
+      {/* مدخلُ الاستغاثةِ (`PD-020`) — يُرسَمُ إذا مُرِّرَ، فيبقى البابُ في كلِّ سطحٍ. */}
+      {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
     </section>
   );
 }

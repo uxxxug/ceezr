@@ -1351,6 +1351,11 @@ jobs:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/eco-user-cost.test.ts
 
+      - name: فعلُ تعذُّرِ الإكمالِ على PostgreSQL حقيقيّة (PD-020)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/driver-cannot-complete.test.ts
+
       - name: اختبارات التكامل على قاعدة حقيقية
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah

@@ -8,5 +8,17 @@
 export type SafetyReporterRole = "rider" | "driver";
 export type SafetyIncidentStatus = "open" | "received" | "closed";
 export type SafetyDecision = "close" | "block_reporter";
+/**
+ * جنسُ البلاغِ (`PD-020` · `ADR 0159`): استغاثةُ سلامةٍ أو تعذُّرُ إكمالٍ من
+ * السائقِ. لا يُختَرَقُ المجالُ — قيمةٌ خارجُهُ تُقرَأُ عطبَ عقدٍ لا حالةً
+ * تُطوى، فبطاقةُ الفريقِ تُختارُ بهذا الحقلِ.
+ */
+export type SafetyIncidentReason = "sos" | "driver_cannot_complete";
+export const SAFETY_INCIDENT_REASONS: readonly SafetyIncidentReason[] = [
+  "sos",
+  "driver_cannot_complete",
+];
+export const isSafetyIncidentReason = (value: unknown): value is SafetyIncidentReason =>
+  typeof value === "string" && SAFETY_INCIDENT_REASONS.some((candidate) => candidate === value);
 export const isSafetyDecision = (value: string): value is SafetyDecision =>
   value === "close" || value === "block_reporter";

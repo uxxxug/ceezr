@@ -11,6 +11,8 @@
  *   ولا تضف `await` قبل هذا النداء في مسار الاستقبال: حاجزُ
  *   `scripts/check-sos-intake-isolation.ts` يُسقِطُ البناءَ.
  */
+
+import type { SafetyIncidentReason } from "../../domain/safety/value-objects.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
 import type { SafetyRole, TriggerSosPort } from "./ports.ts";
@@ -42,6 +44,12 @@ export interface TriggerSosInput {
   readonly orderId: string | null;
   readonly actorTelegramId: string;
   readonly reporterRole: SafetyRole;
+  /**
+   * جنسُ البلاغِ (`PD-020` · `ADR 0159`) — يُمرَّرُ كما هو إلى الحاكمِ،
+   * ولا قيمةَ افتراضيّةً ههنا: الطبقةُ التي تَندُبُ تعرفُ جنسَ ندائِها، وافتراضٌ
+   * ههنا كانَ سيموّهُ نداءً بجنسِ آخرَ.
+   */
+  readonly reason: SafetyIncidentReason;
 }
 export interface TriggerSosDeps {
   readonly incidents: TriggerSosPort;

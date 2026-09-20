@@ -35,6 +35,12 @@
  *   ــ **لا يُظهِرُ هاتفاً ولا معرِّفَ تلغرامَ**: العقدُ لا يحملُهما أصلاً.
  */
 
+import {
+  isSosIncidentStatus,
+  isSosTeamDeliveryStatus,
+  type SosIncidentNarrative,
+  sosIncidentNarrative,
+} from "../../../../../../packages/domain/safety/sos-surface.ts";
 import type { ApiDriverActiveJob, ApiDriverJobAction, ApiDriverJobPlace } from "./job-contract.ts";
 
 /** رموزُ العطبِ التي لهذه الشاشةِ نصٌّ لها — مُقابِلةٌ لقائمةِ الطبقةِ حرفاً. */
@@ -155,4 +161,42 @@ export function toActiveJob(job: ApiDriverActiveJob): ActiveJobModel {
     riderFirstName: job.rider.first_name,
     riderLanguageCode: job.rider.language_code,
   };
+}
+
+/**
+ * `PD-020` · `ADR 0159` — سردُ مآلِ بلاغِ «تعذّرَ الإكمالُ» ⇒ مفتاحُ نصٍّ.
+ * **مُشتَقٌّ في النطاقِ لا ههنا** — الاشتقاقُ نفسُهُ الذي يَقرأُهُ راكبٌ في
+ * بطاقتِهِ (`sos-view.ts`): سؤالٌ واحدٌ («أُنشئَ؟ سُلِّمَ؟ اطَّلعَ؟») يُجابُ
+ * بجوابٍ واحدٍ، والنصُّ وحدَهُ يختلفُ لأنَّهُ بلسانِ السائقِ ومخاطَبُهُ فريقُ
+ * الإسنادِ — لا فريقُ السلامةِ الذي يخاطِبُ الراكبَ.
+ */
+const CANNOT_COMPLETE_NARRATIVE_KEYS: Readonly<Record<SosIncidentNarrative, string>> = {
+  SENDING: "driver.job.cannotComplete.delivery.pending",
+  DELIVERED_TO_TEAM: "driver.job.cannotComplete.delivery.delivered",
+  TEAM_REVIEWING: "driver.job.cannotComplete.status.received",
+  CLOSED: "driver.job.cannotComplete.status.closed",
+};
+
+export function cannotCompleteNarrativeKey(status: string, teamDeliveryStatus: string): string {
+  // قيمةٌ لا يعرفُها النطاقُ تُقالَ «نُرسِلُ بلاغَكَ» لا فراغاً: صِدقُ الجوابِ
+  // في أسوأِ حالٍ أنَّ البلاغَ **يُتابَعُ**، لا أنَّهُ ضاعَ.
+  if (!isSosIncidentStatus(status) || !isSosTeamDeliveryStatus(teamDeliveryStatus)) {
+    return "driver.job.cannotComplete.delivery.pending";
+  }
+  return CANNOT_COMPLETE_NARRATIVE_KEYS[sosIncidentNarrative(status, teamDeliveryStatus)];
+}
+
+/**
+ * رفضُ حاكمِ فعلِ التعذُّرِ ⇒ مفتاحُ نصٍّ — **مُقابِلَةٌ لقائمةِ الطبقةِ حرفاً**
+ * كما أخواتِها في هذا المِلفِّ. والرفضُ جوابٌ لا عطبُ طلبٍ: يُقالُ نصُّهُ
+ * ولا يُدرَّبُ السائقُ على إعادةِ الصياغةِ برمزِ حالةٍ يقودُ إلى إعادةِ محاولةٍ.
+ */
+export function cannotCompleteRefusalKey(refusal: string): string {
+  if (refusal === "NOT_A_DRIVER" || refusal === "ACTOR_BLOCKED") {
+    return "driver.job.cannotComplete.refusal.notAllowed";
+  }
+  if (refusal === "JOB_NOT_FOUND") return "driver.job.cannotComplete.refusal.jobNotFound";
+  if (refusal === "CITY_NOT_READY") return "driver.job.cannotComplete.refusal.cityNotReady";
+  if (refusal === "REPORT_REJECTED") return "driver.job.cannotComplete.refusal.rejected";
+  return "driver.job.cannotComplete.refusal.rejected";
 }

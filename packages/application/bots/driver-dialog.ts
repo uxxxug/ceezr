@@ -693,7 +693,12 @@ async function handleDriverSos(
   const tr = t(languageOf(state));
   if (deps.safety === undefined) return [reply(sender, tr("common.unknown_command"))];
   const raised = await triggerSos(
-    { orderId: null, actorTelegramId: sender.telegramUserId, reporterRole: "driver" },
+    {
+      orderId: null,
+      actorTelegramId: sender.telegramUserId,
+      reporterRole: "driver",
+      reason: "sos",
+    },
     deps.safety.trigger,
   );
   if (!raised.ok) {

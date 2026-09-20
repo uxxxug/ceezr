@@ -56,6 +56,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { SosEntry } from "../sos/SosEntry.tsx";
 import {
   HOME_SERVICES,
   type HomeService,
@@ -96,6 +97,8 @@ export interface HomeScreenProps {
   readonly onOpenHistory?: () => void;
   /** مدخلُ شاشةِ الحسابِ (`SR-12`) — **اختياريٌّ** كأختِه: غيابُه لا يُبيِّضُ الرئيسةَ. */
   readonly onOpenAccount?: () => void;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ كأخوتَيهِ. */
+  readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
   /** اسمُ المزوّدِ المُهيَّأِ فعلاً؛ `"none"` تعني: قُلِ الحدَّ ولا ترسمْ. */
   readonly mapProvider?: string;
@@ -135,6 +138,7 @@ export function HomeScreen({
   onDestinationChosen,
   onOpenHistory,
   onOpenAccount,
+  onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   mapProvider = "none",
   cityName,
@@ -232,6 +236,10 @@ export function HomeScreen({
       </button>
     );
 
+  // مدخلُ الاستغاثةِ (`PD-020`) — مدخلٌ موحَّدٌ لا زرٌّ يكتبُه كلُّ سطحٍ بيدِه.
+  const sosEntry =
+    onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />;
+
   if (state.kind === "loading") {
     return (
       <section
@@ -262,6 +270,7 @@ export function HomeScreen({
         {title}
         {historyEntry}
         {accountEntry}
+        {sosEntry}
         <div className="sys" role="alert">
           <p className="sys__body">{t(placesErrorKey(state.code))}</p>
           {isRetryablePlacesError(state.code) ? (
@@ -280,6 +289,7 @@ export function HomeScreen({
       {title}
       {historyEntry}
       {accountEntry}
+      {sosEntry}
 
       {/* الحدُّ الأوّلُ مكتوبٌ حيثُ يُتوقَّعُ الرسمُ — لا فراغٌ ولا رسمٌ كاذبٌ. */}
       {mapProvider === "none" ? (

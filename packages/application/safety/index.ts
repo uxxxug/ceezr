@@ -7,6 +7,7 @@
  */
 
 export * from "./deliver-safety-incident.ts";
+export * from "./driver-cannot-complete.ts";
 export * from "./ports.ts";
 export * from "./resolve-safety-incident.ts";
 export * from "./trigger-sos.ts";

@@ -61,6 +61,7 @@ import {
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { PostgresDataRightsStore } from "../../../packages/infrastructure/privacy/data-rights-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
+import { createDriverCannotCompletePort } from "../../../packages/infrastructure/safety/driver-cannot-complete-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import {
@@ -814,6 +815,14 @@ const safety =
           surface: createSosSurfaceReader(container.sql),
           role: "rider" as const,
         },
+        // `PD-020` · الشقُّ `ج` — الحاكمُ نفسُه بدورِ السائقِ: يحلُّ مَهمّتَهُ
+        // الجاريةَ فيُقرأُ سردُ بلاغِ «تعذّرَ الإكمالُ» في شاشةِ المَهمّةِ.
+        driverSurface: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          surface: createSosSurfaceReader(container.sql),
+          role: "driver" as const,
+        },
         trigger: {
           sessions: createMiniAppSessionReader(config.miniappSessionSecret),
           now: () => new Date(),
@@ -929,6 +938,14 @@ const driverJob =
           sessions: createMiniAppSessionReader(config.miniappSessionSecret),
           now: () => new Date(),
           store: new PostgresDriverJobStore(container.sql),
+        },
+        // `PD-020` · الشقُّ `ج` — فعلُ «تعذّرَ الإكمالُ»: بلاغُ سلامةٍ يُحفَظُ في
+        // بيتِ السلامةِ ويدخلُ من بابِ المَهمّةِ، فمَنفذُهُ مَنفذُ السلامةِ لا
+        // مَنفذَ النقلِ.
+        cannotReport: {
+          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          now: () => new Date(),
+          reports: createDriverCannotCompletePort(container.sql),
         },
         log,
       };

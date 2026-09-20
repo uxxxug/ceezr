@@ -52,7 +52,9 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { SosEntry } from "../sos/SosEntry.tsx";
 import { readRideDetail as readViaApi } from "./ride-history-api.ts";
+
 import type { RideDetailResponse } from "./ride-history-contract.ts";
 import {
   detailRefusalKey,
@@ -73,6 +75,8 @@ export interface RideDetailScreenProps {
   readonly timeZone: string;
   readonly read?: (orderId: string) => Promise<RideDetailResponse>;
   readonly onBack?: () => void;
+  /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
+  readonly onOpenSos?: () => void;
   /**
    * فتحُ شكوى **عن هذه الرحلةِ** (`F2-12` · `SR-11`) — الموجِّهُ هوَ من يحملُ
    * المعرّفَ، فلا تعرفُ هذه الشاشةُ شيئاً عن تذاكرَ الدعمِ ولا عن أصنافِها.
@@ -137,6 +141,7 @@ export function RideDetailScreen({
   timeZone,
   read = readViaApi,
   onBack,
+  onOpenSos,
   onReportProblem,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
 }: RideDetailScreenProps) {
@@ -349,6 +354,9 @@ export function RideDetailScreen({
         <button type="button" className="hd__back" onClick={() => onBack?.()}>
           {t("rider.history.back")}
         </button>
+
+        {/* مدخلُ الاستغاثةِ (`PD-020`) — من تفاصيلِ رحلةٍ مضَت والنافذةُ مفتوحةٌ. */}
+        {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
       </>
     );
   };

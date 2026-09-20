@@ -4,12 +4,23 @@ import type {
   SafetyResolutionPort,
   TriggerSosPort,
 } from "../../application/safety/ports.ts";
+import {
+  isSafetyIncidentReason,
+  type SafetyIncidentReason,
+} from "../../domain/safety/value-objects.ts";
 import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
 
 function envelope(value: unknown, name: string): Record<string, unknown> {
   const result = readEnvelope(value);
   if (result === null) throw new Error(`ردّ ${name} غير مفهوم`);
   return result;
+}
+
+function parseIncidentReason(value: unknown): SafetyIncidentReason {
+  if (!isSafetyIncidentReason(value)) {
+    throw new Error(`جنسُ بلاغٍ خارجَ المجالِ: ${String(value)}`);
+  }
+  return value;
 }
 export function createTriggerSosPort(sql: Sql): TriggerSosPort {
   return {
@@ -24,7 +35,7 @@ export function createTriggerSosPort(sql: Sql): TriggerSosPort {
           (tx) =>
             tx<
               { result: unknown }[]
-            >`select trigger_sos(${input.orderId}::uuid, ${input.actorTelegramId}::bigint, ${input.reporterRole}::text) result`,
+            >`select trigger_sos(${input.orderId}::uuid, ${input.actorTelegramId}::bigint, ${input.reporterRole}::text, ${input.reason}::text) result`,
         );
         const row = envelope(rows[0]?.result, "trigger_sos");
         return row.ok === true
@@ -93,6 +104,10 @@ export function createSafetyDeliveryPort(sql: Sql): SafetyDeliveryPort {
             service: delivery.service == null ? null : String(delivery.service),
             reporterRole: String(delivery.reporter_role) as "rider" | "driver",
             status: String(delivery.status),
+            // `PD-020` — جنسُ البلاغِ يختارُ بطاقةَ الفريقِ؛ قيمةٌ خارجَ المجالِ
+            // ليست «sos بالافتراضِ» بل عطبُ عقدٍ يُعلَنُ: بطاقةٌ خاطئةٌ تُرسِلُ
+            // فريقَ طوارئٍ إلى عملٍ تشغيليٍّ والعكسُ أدهى.
+            incidentReason: parseIncidentReason(delivery.reason),
             locationWkt: delivery.location_wkt == null ? null : String(delivery.location_wkt),
             maxAttempts: Number(delivery.max_attempts),
           },

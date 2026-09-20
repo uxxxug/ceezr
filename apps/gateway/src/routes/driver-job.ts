@@ -1,13 +1,14 @@
 /**
  * الغرض: مساراتُ مَهمّةِ السائقِ النشطةِ — `GET /v1/driver/job` و
  *   `POST /v1/driver/job/:orderId/arrived` و`…/start` و`…/complete`
- *   (`F3-03` · `SD-05`).
- * الحالة: منفَّذٌ فعليّاً — البند `F3-03`.
+ *   و`…/cannot-complete` (`F3-03` · `SD-05` · `PD-020`).
+ * الحالة: منفَّذٌ فعليّاً — البندانِ `F3-03` و`PD-020`.
  * ينتمي إلى: apps/gateway/src/routes
  * يُستخدم من: `apps/gateway/src/server.ts` عبرَ تركيبٍ اختياريٍّ.
  * يُتوقع أن يستخدمه لاحقاً: `SD-06` — الأرباحُ مسارٌ يُضافُ، ولا يُغيَّرُ جوابُ
  *   الإنهاءِ ليحملَ حصيلةً.
- * الحاكم: docs/adr/0118-a-phase-is-a-human-stamp-not-a-distance-inference.md
+ * الحاكم: docs/adr/0118-a-phase-is-a-human-stamp-not-a-distance-inference.md ·
+ *   docs/adr/0159-safety-channel-entry-delivery-review-and-driver-cannot-complete.md
  *
  * ## لِمَ المعرِّفُ **في المسارِ** لا في الجسمِ
  *
@@ -44,10 +45,21 @@ import {
   readDriverActiveJob,
   startDriverRide,
 } from "../../../../packages/application/driver/driver-job.ts";
+import {
+  type DriverCannotCompleteDeps,
+  type DriverCannotCompletePublicErrorCode,
+  requestDriverCannotComplete,
+} from "../../../../packages/application/safety/driver-cannot-complete.ts";
 
 export interface DriverJobRouteDependencies {
   /** غيابُها **يُعطّلُ المساراتِ بـ503** ولا يجعلها تُجيبُ بلا قاعدةٍ. */
   readonly job?: DriverJobDeps;
+  /**
+   * فعلُ «تعذّرَ الإكمالُ» (`PD-020` · الشقُّ `ج`) — **تبعيّةٌ مستقلّةٌ عن مَهمّةِ
+   * النقلِ**: بلاغُ سلامةٍ يدخلُ من بابِ المَهمّةِ ويُحفَظُ في بيتِ السلامةِ،
+   * فغيابُها يُعطّلُ الفعلَ وحدَهُ لا القراءةَ والأفعالَ الأخرى.
+   */
+  readonly cannotReport?: DriverCannotCompleteDeps;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -103,6 +115,28 @@ export function navigationUrlFor(place: {
 }): string {
   return `https://maps.google.com/?q=${place.latitude},${place.longitude}`;
 }
+
+/**
+ * خريطةُ حالاتِ فعلِ «تعذّرَ الإكمالُ» — رموزُ قناةِ السلامةِ لا رموزَ النقلِ:
+ * `CITY_NOT_READY` نقصُ تهيئةٍ في مدينةِ المَهمّةِ (لا قروبَ تصعيدٍ) يُقرأُ
+ * عطبَ خادمٍ لا رفضًا للسائقِ؛ والبلاغُ المرفوضُ **يُقالُ مرفوضاً في الجوابِ
+ * الصحيحِ للسؤالِ الصحيحِ** كما سياستَه في مسارَي سلامةِ الراكبِ.
+ */
+const CANNOT_COMPLETE_STATUS_BY_ERROR: Readonly<
+  Record<DriverCannotCompletePublicErrorCode, 401 | 403 | 404 | 409 | 422 | 503>
+> = {
+  SESSION_REQUIRED: 401,
+  SESSION_EXPIRED: 401,
+  SESSION_INVALID: 401,
+  SESSION_NOT_AVAILABLE: 503,
+  SAFETY_STORE_NOT_AVAILABLE: 503,
+  NOT_A_DRIVER: 403,
+  ORDER_ID_INVALID: 422,
+  JOB_NOT_FOUND: 404,
+  ACTOR_BLOCKED: 403,
+  CITY_NOT_READY: 503,
+  REPORT_REJECTED: 409,
+};
 
 function wirePlace(place: { latitude: number; longitude: number; label: string | null }) {
   return {
@@ -236,6 +270,54 @@ export function createDriverJobRoutes(deps: DriverJobRouteDependencies): Hono {
       completed_at: result.value.completedAt,
       // المدّةُ **مقيسةٌ في الكاتبِ** — تُنقَلُ ولا تُحسَبُ ههنا.
       duration_seconds: result.value.durationSeconds,
+    });
+  });
+
+  /**
+   * «تعذّرَ الإكمالُ» (`PD-020` · الشقُّ `ج`) — فعلُ السائقِ الذي لا يملكُ
+   * فعلاً. **بلاغُ سلامةٍ مرتبطٌ بالمَهمّةِ لا انتقالُ حالةِ رحلةٍ**: لا يُفتَحُ
+   * الطلبُ من جديدٍ ولا يُخطَرُ الراكبُ ولا تُمسُّ حالةُ المَهمّةِ — بطاقةٌ تصلُ
+   * قروبَ الإسنادِ وقرارُ الإسنادِ يبقى للفريقِ البشريِّ. و`created:false`
+   * جوابٌ صحيحٌ لا فشلَ: بلاغُهُ الأوّلُ على المَهمّةِ نفسِها ما يزالُ قائماً.
+   */
+  app.post("/v1/driver/job/:orderId/cannot-complete", async (c) => {
+    if (deps.cannotReport === undefined) {
+      deps.log?.("driver_job.cannot_complete_disabled", {});
+      return c.json(
+        { ok: false, error: "SAFETY_STORE_NOT_AVAILABLE" },
+        CANNOT_COMPLETE_STATUS_BY_ERROR.SAFETY_STORE_NOT_AVAILABLE,
+      );
+    }
+
+    const result = await requestDriverCannotComplete(deps.cannotReport, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      orderId: c.req.param("orderId"),
+    });
+    if (!result.ok) {
+      deps.log?.("driver_job.cannot_complete_rejected", { error: result.error });
+      return c.json(
+        { ok: false, error: result.error },
+        CANNOT_COMPLETE_STATUS_BY_ERROR[result.error],
+      );
+    }
+
+    const outcome = result.value;
+    if (!outcome.accepted) {
+      // رفضُ الحاكمِ **جوابٌ لا عطبُ طلبٍ**: سائقٌ في لحظةِ عُجزٍ لا يُدرَّبُ على
+      // إعادةِ الصياغةِ برمزِ حالةٍ يقودُ إلى إعادةِ المحاولةِ.
+      return c.json({ ok: true, accepted: false as const, refusal: outcome.rejection.code });
+    }
+    deps.log?.("driver_job.cannot_complete", {
+      order_id: outcome.orderId,
+      incident_id: outcome.incidentId,
+      created: outcome.created,
+    });
+    return c.json({
+      ok: true,
+      accepted: true as const,
+      order_id: outcome.orderId,
+      incident_id: outcome.incidentId,
+      created: outcome.created,
     });
   });
 

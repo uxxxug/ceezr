@@ -22,7 +22,9 @@ import {
   moneyProblems,
   type RideSummaryContractInput,
   rideSummaryContractProblems,
+  SCREEN_FILE,
   separateCamelCase,
+  sosEntryProblems,
   sqlTagVocabularies,
   straightLineProblems,
   tagLexiconProblems,
@@ -75,7 +77,11 @@ function dictionary(language: "ar" | "en" | "ur"): Record<string, string> {
 
 function input(overrides: Partial<RideSummaryContractInput> = {}): RideSummaryContractInput {
   return {
-    surface: { "surface.tsx": SCREEN },
+    surface: {
+      "surface.tsx": SCREEN,
+      // (`PD-020`) — شاشةٌ حقيقيّةُ الاسمِ تُركِّبُ مدخلَ الاستغاثةِ كما ينبغي.
+      [SCREEN_FILE]: "<SosEntry onOpen={onOpenSos} language={language} />",
+    },
     sql: SQL,
     domain: DOMAIN,
     view: VIEW,
@@ -87,6 +93,11 @@ function input(overrides: Partial<RideSummaryContractInput> = {}): RideSummaryCo
 describe("حاجزُ عقدِ الإنهاءِ والتقييمِ — الحالةُ الموجبةُ", () => {
   it("مدخلاتٌ سليمةٌ لا تُنتِجُ مشكلةً", () => {
     expect(rideSummaryContractProblems(input())).toEqual([]);
+  });
+
+  it("مدخلُ استغاثةٍ محذوفٌ يُسقِطُ الحاجزَ (`PD-020`)", () => {
+    const problems = sosEntryProblems(input({ surface: { "surface.tsx": SCREEN } }));
+    expect(problems).toHaveLength(2);
   });
 
   it("المستودعُ الحقيقيُّ نفسُه يمرُّ بالقواعدِ السِّتِّ", () => {

@@ -33,7 +33,7 @@
  *      ههنا ولا تُخفى.
  */
 
-import { useCallback, useId, useState } from "react";
+import { type ReactNode, useCallback, useId, useState } from "react";
 import type { MiniAppLanguage } from "../../../../../packages/shared/i18n/miniapp/index.ts";
 import {
   MINIAPP_DEFAULT_LANGUAGE,
@@ -56,6 +56,12 @@ export interface AccountRightsProps {
    * بلا موجِّهٍ، وزرٌّ بلا مُستقبِلٍ لا يُرسَمُ أصلاً.
    */
   readonly onOpenSupport?: () => void;
+  /**
+   * مدخلٌ يُعرَضُ بعدَ روابطِ الشاشةِ (`PD-020`) — **عقدةٌ لا معرفةُ زرٍّ**:
+   * سطحُ الراكبِ يُمرِّرُ مدخلَ الاستغاثةِ فيُوضَعُ في سياقِ الشاشةِ لا فوقَها
+   * خارجَ إطارِها، وسطحُ السائقِ لا يُمرِّرُ شيئاً فلا يتغيَّرُ شيءٌ.
+   */
+  readonly header?: ReactNode | undefined;
   readonly exportData?: () => Promise<DataExportResponse>;
   readonly erase?: (input: {
     readonly confirmation: string;
@@ -114,6 +120,7 @@ export function AccountRights({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
   onOpenSupport,
+  header,
   exportData = requestDataExport,
   erase = requestErasure,
   saveFile = saveViaBrowser,
@@ -238,6 +245,9 @@ export function AccountRights({
           </button>
         )}
       </nav>
+
+      {/* مدخلُ سطحِ الدورِ (`PD-020`) — يُرسَمُ كما جاءَ أو لا يُرسَمُ. */}
+      {header}
 
       {/* **الحدُّ يُقالُ**: انظرْ رأسَ المِلفِّ — حقلٌ لا يُحفَظُ أسوأُ من غيابِه. */}
       <div className="ac__debt">

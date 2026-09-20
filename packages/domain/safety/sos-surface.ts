@@ -99,6 +99,47 @@ export function isSosIncidentStatus(value: unknown): value is SosIncidentStatus 
 }
 
 /**
+ * **حالُ التسليمِ إلى الفريقِ** (`PD-020` · `ADR 0159`): «استُقبِلَ البلاغُ»
+ * وقيعةٌ تُقاسُ — صفُّ الصادرِ للحادثِ بلغَ `delivered` بمعرّفِ رسالةٍ فعليةٍ —
+ * وهيَ **مستقلةٌ عن الاطّلاعِ**: «اطَّلعَ عليهِ الفريقُ» مطالبةٌ بشريّةٌ تضبطُ
+ * الحالةَ `received` وحدَها (`SEC12`). و`pending` تقولُ «لم يُسلَّمْ بعدُ»
+ * فيشملُ الصفَّ العابرَ في الطريقِ — فما زالَ في الطريقِ فعلاً.
+ */
+export type SosTeamDeliveryStatus = "pending" | "delivered";
+
+export const SOS_TEAM_DELIVERY_STATUSES: readonly SosTeamDeliveryStatus[] = [
+  "pending",
+  "delivered",
+];
+
+export function isSosTeamDeliveryStatus(value: unknown): value is SosTeamDeliveryStatus {
+  return (
+    typeof value === "string" && SOS_TEAM_DELIVERY_STATUSES.some((candidate) => candidate === value)
+  );
+}
+
+/**
+ * **سردُ مآلِ البلاغِ للضاغطِ** — قيمةٌ واحدةٌ تُشتقُّ في النطاقِ لا شرطٌ
+ * يُكتَبُ في الواجهةِ مرّتَينِ: `open` لا معنى لوعدها بلا حالةِ تسليمِها،
+ * فتُشتقُّ من الاثنَينِ معاً. والقيمُ الأربعُ نفسُها لغرباءِ السائقِ (`ج`)
+ * والراكبِ (`ب`) — نموذجٌ واحدٌ لسؤالٍ واحدٍ: أُنشئَ؟ سُلِّمَ؟ اطَّلعَ؟
+ */
+export type SosIncidentNarrative = "SENDING" | "DELIVERED_TO_TEAM" | "TEAM_REVIEWING" | "CLOSED";
+
+export function sosIncidentNarrative(
+  status: SosIncidentStatus,
+  teamDeliveryStatus: SosTeamDeliveryStatus,
+): SosIncidentNarrative {
+  if (status === "closed") return "CLOSED";
+  if (status === "received") return "TEAM_REVIEWING";
+  return teamDeliveryStatus === "delivered" ? "DELIVERED_TO_TEAM" : "SENDING";
+}
+
+export function sosIncidentNarrativeOf(incident: SosIncidentState): SosIncidentNarrative {
+  return sosIncidentNarrative(incident.status, incident.teamDeliveryStatus);
+}
+
+/**
  * مجالُ رموزِ الإفصاحِ المغلقُ. **كلُّ رمزٍ ههنا له مفتاحُ ترجمةٍ في القواميسِ
  * الثلاثةِ**، ويُحرَسُ ذلكَ بحاجزٍ ساكنٍ: رمزٌ بلا نصٍّ يصلُ المستخدمَ فراغاً في
  * موضعِ وعدِ خصوصيّةٍ.
@@ -156,6 +197,8 @@ export function isSosWindowSource(value: unknown): value is SosWindowSource {
 export interface SosIncidentState {
   readonly incidentId: string;
   readonly status: SosIncidentStatus;
+  /** حالُ تسليمِهِ إلى فريقِ مدينتِكَ — «استُقبِلَ» قبلَ «اطَّلعَ» (`PD-020`). */
+  readonly teamDeliveryStatus: SosTeamDeliveryStatus;
   readonly ageSeconds: number;
 }
 

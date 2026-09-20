@@ -1,4 +1,6 @@
 /** منافذ safety: الدوال الذرية هي مصدر الحقيقة؛ لا قرار أو قفل في التطبيق. */
+
+import type { SafetyIncidentReason } from "../../domain/safety/value-objects.ts";
 import type { Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
 
@@ -11,6 +13,11 @@ export interface TriggerSosPort {
     orderId: string | null;
     actorTelegramId: string;
     reporterRole: SafetyRole;
+    /**
+     * جنسُ البلاغِ (`PD-020` · `ADR 0159`): `sos` للنداءِ العامّ، و
+     * `driver_cannot_complete` لفعلِ «تعذّرَ الإكمالُ» من سطحِ مهمّةِ السائقِ.
+     */
+    reason: SafetyIncidentReason;
   }): Promise<
     Result<
       { incidentId: string; created: boolean } | { incidentId: null; error: string },
@@ -46,6 +53,8 @@ export interface SafetyDelivery {
   readonly service: string | null;
   readonly reporterRole: SafetyRole;
   readonly status: string;
+  /** جنسُ البلاغِ — تُختارُ بهِ بطاقةُ الفريقِ (`PD-020` · `ADR 0159`). */
+  readonly incidentReason: SafetyIncidentReason;
   readonly locationWkt: string | null;
   readonly maxAttempts: number;
 }

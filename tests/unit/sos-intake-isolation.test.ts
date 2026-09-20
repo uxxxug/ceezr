@@ -149,7 +149,12 @@ describe("عزلُ استقبالِ الاستغاثةِ — أمرُ السائ
     const safety = safetyPort({ incidentId: "incident-1", error: null });
     const replies = await handleDriverUpdate(text("/sos"), { ...deps, safety: safety.dep });
     expect(safety.seen).toEqual([
-      { orderId: null, actorTelegramId: SENDER.telegramUserId, reporterRole: "driver" },
+      {
+        orderId: null,
+        actorTelegramId: SENDER.telegramUserId,
+        reporterRole: "driver",
+        reason: "sos",
+      },
     ]);
     expect(replies[0]?.text).toBe(ar("safety.sent"));
   });
@@ -274,7 +279,12 @@ describe("عزلُ استقبالِ الاستغاثةِ — أمرُ الراك
     const safety = safetyPort({ incidentId: "incident-1", error: null });
     const replies = await handleRiderUpdate(text("/sos"), { ...deps, safety: safety.dep });
     expect(safety.seen).toEqual([
-      { orderId: null, actorTelegramId: SENDER.telegramUserId, reporterRole: "rider" },
+      {
+        orderId: null,
+        actorTelegramId: SENDER.telegramUserId,
+        reporterRole: "rider",
+        reason: "sos",
+      },
     ]);
     expect(replies[0]?.text).toBe(ar("safety.sent"));
   });
@@ -322,7 +332,12 @@ describe("عزلُ استقبالِ الاستغاثةِ — أمرُ الراك
       safety: safety.dep,
     });
     expect(safety.seen).toEqual([
-      { orderId: null, actorTelegramId: SENDER.telegramUserId, reporterRole: "rider" },
+      {
+        orderId: null,
+        actorTelegramId: SENDER.telegramUserId,
+        reporterRole: "rider",
+        reason: "sos",
+      },
     ]);
     expect(replies[0]?.text).toBe(ar("safety.sent"));
   });

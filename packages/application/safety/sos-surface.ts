@@ -147,6 +147,8 @@ export async function requestMiniAppSos(
       orderId: null,
       actorTelegramId: session.value.telegramUserId,
       reporterRole: deps.role,
+      /** زرُّ التطبيقِ نداءُ استغاثةٍ عامّةٌ — فعلُ السائقِ التنفيذيُّ لهُ مدخلُهُ الخاصُّ (`ج`). */
+      reason: "sos",
     },
     deps,
   );

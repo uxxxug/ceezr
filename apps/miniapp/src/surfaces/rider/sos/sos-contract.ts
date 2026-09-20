@@ -29,6 +29,12 @@
 export interface ApiSosIncident {
   readonly id: string;
   readonly status: string;
+  /**
+   * `PD-020` — **حالُ التسليمِ إلى الفريقِ**، مستقلةٌ عن الحالِ الظاهرةِ أعلاه:
+   * «استُقبِلَ البلاغُ» واقعةٌ تُقاسُ، و«اطَّلعَ عليهِ الفريقُ» مطالبةٌ بشريّةٌ،
+   * والسردُ يُشتَقُّ في نموذجِ العرضِ من الحقلَينِ معاً لا من واحدةٍ منهما.
+   */
+  readonly teamDeliveryStatus: string;
   readonly ageSeconds: number;
 }
 

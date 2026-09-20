@@ -60,6 +60,8 @@
 import {
   MONEY_TOKENS,
   REVOKED_ROLES,
+  SOS_BUILT_PATH_TOKENS,
+  SOS_ENTRY_COMPONENT,
   separateCamelCase,
   UNBUILT_PATH_TOKENS,
 } from "./ride-summary-contract.ts";
@@ -310,6 +312,12 @@ export function unbuiltPathProblems(input: RideHistoryContractInput): readonly s
       if (declared.has(key)) continue;
       problems.push(
         ...tokenProblems(`${language}:${key}`, key, UNBUILT_PATH_TOKENS, "مفتاحٌ لمسارٍ لم يُبنَ"),
+        ...tokenProblems(
+          `${language}:${key}`,
+          key,
+          SOS_BUILT_PATH_TOKENS,
+          "مفتاحُ استغاثةٍ في نطاقِ السجلِّ — موضعه «rider.sos.» (`PD-020`)",
+        ),
       );
     }
   }
@@ -461,10 +469,43 @@ export function rideHistoryContractProblems(input: RideHistoryContractInput): re
     ...moneyProblems(input),
     ...mapAbsenceProblems(input),
     ...unbuiltPathProblems(input),
+    ...sosEntryProblems(input),
     ...unmeasuredNumberProblems(input),
     ...deviceClockProblems(input),
     ...offsetPagingProblems(input),
     ...keyParityProblems(input),
     ...functionRevokeProblems(input),
   ];
+}
+
+/**
+ * ## إضافةُ البند `PD-020` (2026-09-20) — مدخلُ الاستغاثةِ من شاشتَي السجلِّ
+ *
+ * السجلُّ والتفاصيلُ من «الأسطحِ التسعةِ» التي عليها مدخلُ الاستغاثةِ (`PD-020`):
+ * نافذةُ ما بعدَ الرحلةِ تُدرَكُ من التفاصيلِ كما تُدرَكُ من اللقطةِ النشطةِ.
+ * فالرموزُ الخمسةُ انتقلَت من معجمِ المحظورِ في `ride-summary-contract.ts`
+ * (نقلٌ لا حذفٌ · ح-2)، وحراستُها ههنا انقلبَت: المدخلُ المبنيُّ **يجبُ أن
+ * يُركّبَ** في الشاشتينِ، ومَن حذفَهُ سقطَ بناؤُهُ ولا يمرُّ الحذفُ صامتاً.
+ */
+export const SOS_ENTRY_SCREEN_FILES: readonly string[] = [
+  "apps/miniapp/src/surfaces/rider/history/RideHistoryScreen.tsx",
+  "apps/miniapp/src/surfaces/rider/history/RideDetailScreen.tsx",
+];
+
+/** القاعدةُ التاسعةُ (`PD-020`) — مدخلُ الاستغاثةِ يُركّبُ في شاشتَي السجلِّ فعلاً. */
+export function sosEntryProblems(input: RideHistoryContractInput): readonly string[] {
+  const problems: string[] = [];
+  for (const path of SOS_ENTRY_SCREEN_FILES) {
+    const screen = input.surface[path] ?? "";
+    if (!screen.includes(`<${SOS_ENTRY_COMPONENT}`)) {
+      problems.push(
+        `${path}: مدخلُ الاستغاثةِ «${SOS_ENTRY_COMPONENT}» غيرُ مُركَّبٍ — ` +
+          `مسارُ \`PD-020\` مبنيٌّ ولا بابَ لهُ في هذه الشاشةِ.`,
+      );
+    }
+    if (!screen.includes("onOpenSos")) {
+      problems.push(`${path}: الشاشةُ لا تُمرّرُ «onOpenSos» — مدخلٌ بلا بابٍ يفتحُهُ.`);
+    }
+  }
+  return problems;
 }
