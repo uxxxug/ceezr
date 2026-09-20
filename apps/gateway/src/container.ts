@@ -27,6 +27,10 @@ import type {
   SubscriptionWalletRpcPort,
 } from "../../../packages/application/financial/ports.ts";
 import type { UpdateDriverLocationDeps } from "../../../packages/application/geo/update-driver-location.ts";
+import type {
+  GroupJoinGateDependencies,
+  TelegramGroupGatePort,
+} from "../../../packages/application/groups/group-join-gate.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
 import type { TriggerSosPort } from "../../../packages/application/safety/ports.ts";
 import { CachedRoutingProvider } from "../../../packages/application/tracking/cached-routing-provider.ts";
@@ -77,6 +81,10 @@ import { createSubscriptionWalletRpc } from "../../../packages/infrastructure/fi
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 import {
+  createGroupMembershipStore,
+  createUnsubscribedGroupCityDirectory,
+} from "../../../packages/infrastructure/groups/pg-group-memberships.ts";
+import {
   createLanguagePreferencePort,
   createMemoryTranslationCache,
   createTranslationProvider,
@@ -88,6 +96,7 @@ import {
 } from "../../../packages/infrastructure/identity/directories.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
 import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
+import { grammyGroupJoinGate } from "../../../packages/infrastructure/notification/telegram-join-gate.ts";
 import {
   grammyLiveLocationChannel,
   TELEGRAM_MAX_LIVE_PERIOD_SECONDS,
@@ -339,6 +348,13 @@ export interface DriverLocationWiring {
 export interface ContainerOverrides {
   readonly driverSender?: TelegramSender;
   readonly riderSender?: TelegramSender;
+  /**
+   * بوّابةُ دخولِ القروبِ البديلةُ (`PD-001` · `ADR 0157`). تُحقن في الاختبارِ
+   * ببوّابةٍ تلتقطُ القرارَ (قبولٌ/رفضٌ/مراسلةٌ) بلا شبكةِ تلغرامَ، فيُثبَتُ
+   * حكمُ البوّابةِ كاملاً على قاعدةٍ حقيقيّةٍ. والغيابُ يبني البوّابةَ الفعليّةَ
+   * (تلقائيّةَ الاختبارِ الذاتيّ عبرَ `getMe` لا الإنتاجِ وحده).
+   */
+  readonly driverJoinGate?: TelegramGroupGatePort;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
   /**
    * مزوّد ترجمة بديل. يُحقن في الاختبار بمزوّد حتمي بلا شبكة، فيُثبَت مسار
@@ -827,6 +843,19 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     offers: offerDecisions,
     clock: systemClock,
     negotiation: { claims: claimDeps, relay: relayDeps },
+    /**
+     * `PD-001` · `ADR 0157` — بوّابةُ دخولِ قروبِ غيرِ المشتركينَ: طلبُ
+     * الانضمامِ يُحكَمُ فيهِ من هويّةِ السائقِ المسجَّلةِ (مدينتُهُ وتوثيقُهُ)
+     * لا من انتمائِهِ للقروبِ — فالقروبُ ليسَ شهادةً. والبوّابةُ تلغراميّةُ هنا
+     * والقرارُ مطروقٌ عبرَ الحقنِ في الاختبارِ لا عبرَ شبكةٍ حقيقيّةٍ.
+     */
+    groupJoinGate: {
+      cities: createUnsubscribedGroupCityDirectory(sql),
+      memberships: createGroupMembershipStore(sql),
+      drivers,
+      gate: overrides.driverJoinGate ?? grammyGroupJoinGate(config.driverBotToken),
+      log,
+    } satisfies GroupJoinGateDependencies,
     support: driverSupport,
     safety,
     tracking: liveTracking,

@@ -1432,6 +1432,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/group-join-gate.test.ts",
+    suites: ["بوّابةُ دخولِ قروبِ غيرِ المشتركينَ على قاعدةٍ حقيقيّةٍ"],
+    skipped: 8,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت بوّابةَ دخولِ قروبِ غيرِ المشتركينَ (`PD-001` · `ADR 0157`) على PostgreSQL حقيقيّةٍ بالهجرات مطبَّقة: حكمُ القروبِ من عزوِ المدينةِ، وكتابةُ قراراتِ العضويّةِ بقيودِها (صفٌّ واحدٌ لكلِّ قروبٍ × سائقٍ، وأوّلُ طلبٍ لا يُطمَسُ)، وصفرُ صفوفَ لغيرِ المسجَّلينَ وللقروبِ المجهولِ. ووصلُ العضويّةِ بالاشتراكِ (`PD-001e`) استعلامٌ على المحرّكِ نفسِهِ لا على مزدوجٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الدفعُ والاشتراك",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/admin-service-separation.test.ts",
     suites: ["فصلُ لوحةِ الإدارةِ عن البوّابةِ على قاعدةٍ حقيقيّةٍ — F5-08 / ARCH-011"],
     skipped: 5,

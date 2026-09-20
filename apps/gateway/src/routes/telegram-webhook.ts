@@ -131,15 +131,19 @@ function isBotKind(value: string): value is BotKind {
 export { clientAddress };
 
 /**
- * معرّف صاحب التحديث كما يرسله تلغرام: من `message.from` أو `callback_query.from`.
+ * معرّف صاحب التحديث كما يرسله تلغرام: من `message.from` أو `callback_query.from`
+ * أو `chat_join_request.from` (`PD-001`: طلبُ الانضمامِ عملٌ من مستخدمٍ يحتسبُ
+ * على حصّتِهِ كغيرِهِ — بلا هذا الفرعِ كان الطلبُ خارجَ حدِّ المعدّلِ كلّيّاً).
  * تحديث بلا صاحب معلوم (منشور قناة مثلاً) يُعاد له `null` فلا يُحسب على أحد.
  */
 export function updateActorId(update: object): string | null {
   const shape = update as {
     message?: { from?: { id?: unknown } };
     callback_query?: { from?: { id?: unknown } };
+    chat_join_request?: { from?: { id?: unknown } };
   };
-  const id = shape.message?.from?.id ?? shape.callback_query?.from?.id;
+  const id =
+    shape.message?.from?.id ?? shape.callback_query?.from?.id ?? shape.chat_join_request?.from?.id;
   return typeof id === "number" || typeof id === "string" ? String(id) : null;
 }
 

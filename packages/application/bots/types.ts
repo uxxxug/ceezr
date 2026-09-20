@@ -115,7 +115,23 @@ export type IncomingUpdate =
       readonly fileId: string;
       readonly caption: string | null;
     }
-  | { readonly kind: "unsupported"; readonly from: Sender; readonly updateId: number };
+  | { readonly kind: "unsupported"; readonly from: Sender; readonly updateId: number }
+  /**
+   * طلبُ انضمامٍ إلى قروبٍ (`PD-001` · `ADR 0157`). لا يحملُ نصاً ولا زرّاً:
+   * صاحبُهُ لم يكتبْ للبوتِ بعدُ، فلا جلسةَ لهُ ولا حواراً — والبوتُ الذي
+   * استقبلَهُ يقرّر في بوّابةِ الدخولِ قبلَ أيِّ شيءٍ آخر.
+   *
+   * `groupChatId`: القروبُ المطلوبُ ( سالبٌ عندَ تيليجرامَ عادةً). و`userChatId`:
+   * محادثةُ المستخدمِ الخاصةُ معَ البوتِ إن فتحَها تلغرامُ (تُستعملُ لأفضلِ
+   * جهدٍ في مراسلتِهِ)، وإلّا فمعرّفُهُ نفسُهُ.
+   */
+  | {
+      readonly kind: "join_request";
+      readonly from: Sender;
+      readonly updateId: number;
+      readonly groupChatId: string;
+      readonly userChatId: string;
+    };
 
 export interface Sender {
   readonly telegramUserId: string;

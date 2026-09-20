@@ -43,6 +43,17 @@ export interface RawTelegramUpdate {
     readonly from?: { readonly id?: number | string; readonly language_code?: string };
     readonly message?: { readonly chat?: { readonly id?: number | string } };
   };
+  /**
+   * طلبُ انضمامٍ إلى قروبٍ (`PD-001` · `ADR 0157`) — يصلُ البوتَ لكونِهِ مشرفاً
+   * بصلاحيّةِ دعوةٍ، والقرارُ في بوّابةِ الدخولِ لا في الحوار.
+   * `user_chat_id`: محادثةُ المستخدمِ الخاصةُ معَ البوتِ — تلغرامُ يفتحُها
+   * بذاتِهِ عندَ طلبِ الانضمامِ، وهي الطريقُ الوحيدُ الموثوقُ لمراسلتِهِ.
+   */
+  readonly chat_join_request?: {
+    readonly chat?: { readonly id?: number | string };
+    readonly from?: { readonly id?: number | string; readonly language_code?: string };
+    readonly user_chat_id?: number | string;
+  };
 }
 
 function senderFrom(
@@ -72,6 +83,31 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
     const sender = senderFrom(query.from?.id, query.message?.chat?.id, query.from?.language_code);
     if (sender === null || query.data === undefined || query.data === "") return null;
     return { kind: "callback", from: sender, updateId, data: query.data };
+  }
+
+  /**
+   * طلبُ الانضمامِ يُعالَجُ قبلَ الرسائلِ: صاحبُهُ لم يُنشئْ جلسةً بعدُ، وحوارُ
+   * البوتِ لا شأنَ لهُ بالقرارِ — البوّابةُ (`PD-001`) تقرأُ هويتَهُ من القاعدةِ
+   * لا من محادثتِهِ. والمراسلةُ الخاصةُ — إن وقعتْ — تذهبُ إلى `userChatId` لا إلى
+   * القروبِ، فلا يُعلَنُ رفضُ أحدٍ أمامَ الجميعِ.
+   */
+  const joinRequest = raw.chat_join_request;
+  if (joinRequest !== undefined) {
+    const groupChatId = joinRequest.chat?.id;
+    const userId = joinRequest.from?.id;
+    if (groupChatId === undefined || userId === undefined) return null;
+    const userChatId = joinRequest.user_chat_id ?? userId;
+    return {
+      kind: "join_request",
+      from: {
+        telegramUserId: String(userId),
+        chatId: String(userChatId),
+        languageHint: joinRequest.from?.language_code ?? "ar",
+      },
+      updateId,
+      groupChatId: String(groupChatId),
+      userChatId: String(userChatId),
+    };
   }
 
   const message = raw.message;

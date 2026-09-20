@@ -114,6 +114,43 @@ describe("toIncomingUpdate", () => {
     expect(phone).toMatchObject({ kind: "contact", phone: "+966501234567" });
   });
 
+  it("يقرأ طلبَ انضمامٍ إلى قروبٍ — قروبٌ ومستخدمٌ ومحادثةٌ خاصةٌ واحدة", () => {
+    const incoming = toIncomingUpdate({
+      update_id: 7,
+      chat_join_request: {
+        chat: { id: -1001234 },
+        from: { id: 900, language_code: "en" },
+        user_chat_id: 900,
+      },
+    });
+    expect(incoming).toEqual({
+      kind: "join_request",
+      updateId: 7,
+      from: { telegramUserId: "900", chatId: "900", languageHint: "en" },
+      groupChatId: "-1001234",
+      userChatId: "900",
+    });
+  });
+
+  it("طلبُ انضمامٍ غابَتْ user_chat_id يُراسَلُ عبرَ معرّفِ المُرسِلِ نفسِهِ", () => {
+    const incoming = toIncomingUpdate({
+      update_id: 8,
+      chat_join_request: { chat: { id: -100 }, from: { id: 42 } },
+    });
+    expect(incoming).toMatchObject({
+      kind: "join_request",
+      userChatId: "42",
+      from: { languageHint: "ar" },
+    });
+  });
+
+  it("طلبُ انضمامٍ بلا قروبٍ ولا مُرسِلٍ يُهمَلُ بلا خطأ", () => {
+    expect(toIncomingUpdate({ update_id: 9, chat_join_request: {} })).toBeNull();
+    expect(
+      toIncomingUpdate({ update_id: 10, chat_join_request: { chat: { id: -100 } } }),
+    ).toBeNull();
+  });
+
   it("يعيد null لما لا يخصّنا بلا خطأ", () => {
     expect(toIncomingUpdate({})).toBeNull();
     expect(toIncomingUpdate({ update_id: 1, message: { text: "بلا مُرسِل" } })).toBeNull();

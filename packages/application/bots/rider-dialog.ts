@@ -181,6 +181,13 @@ export async function handleRiderUpdate(
   update: IncomingUpdate,
   deps: RiderBotDependencies,
 ): Promise<readonly BotReply[]> {
+  /**
+   * طلبُ انضمامٍ إلى قروبٍ (`PD-001`): قروبُ غيرِ المشتركينَ مسارُ سائقينَ،
+   * وبوّابتُهُ في بوتِ السائقِ (`ADR 0157`). وإن وصلَ بوتَ العميلِ فإقرارُ استلامٍ
+   * بلا حكمٍ — **قبلَ تحميلِ الجلسةِ** كي لا يُخلَقَ أثرٌ لمن لم يحاورِ البوتَ.
+   */
+  if (update.kind === "join_request") return [];
+
   const sender = update.from;
   const state = await loadState(deps, sender);
   const tr = t(state.language);
