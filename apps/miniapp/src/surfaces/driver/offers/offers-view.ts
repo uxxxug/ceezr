@@ -141,6 +141,10 @@ export interface OfferBlockLine {
   readonly id: string;
   readonly messageKey: string;
   readonly labelKey: string | null;
+  /** نوعُ الوثيقةِ الذي يُصلِحُ هذا السببَ — `null` للسببِ المجهولِ (`PD-081`). */
+  readonly docType: string | null;
+  /** مفتاحُ نصِّ الفعلِ — `null` للسببِ المجهولِ (`PD-081`). */
+  readonly fixLabelKey: string | null;
 }
 
 const KNOWN_BLOCK_CODES: ReadonlySet<string> = new Set(["EXPIRED", "REJECTED"]);
@@ -166,6 +170,8 @@ export function toOfferBlockLines(reasons: readonly string[]): readonly OfferBlo
       id: `${index}:${reason}`,
       messageKey: knownCode ? `driver.documents.block.${code}` : "driver.documents.block.UNKNOWN",
       labelKey: KNOWN_DOC_TYPES.has(docType) ? `driver.documents.type.${docType}` : null,
+      docType: KNOWN_DOC_TYPES.has(docType) ? docType : null,
+      fixLabelKey: knownCode && KNOWN_DOC_TYPES.has(docType) ? "driver.documents.block.fix" : null,
     };
   });
 }
