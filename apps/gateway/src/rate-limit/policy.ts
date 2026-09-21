@@ -383,6 +383,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "POST",
+    path: "/admin/users/:id/revoke-sessions",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
     path: "/admin/users/:id/blocked",
     file: "apps/gateway/src/routes/admin-ui.ts",
     exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
@@ -1134,7 +1143,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * والإعفاءاتُ **ثلاثةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها — وكلُّها محدودٌ فعلُها
  * في القاعدةِ لا في عدَّادٍ.
  */
-export const ROUTE_POLICY_COUNT = 97;
+export const ROUTE_POLICY_COUNT = 98;
 export const LIMITED_ROUTE_COUNT = 9;
 export const EXEMPT_ROUTE_COUNT = 3;
 

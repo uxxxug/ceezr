@@ -39,6 +39,7 @@
  */
 
 import type { Hono } from "hono";
+import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
@@ -62,6 +63,11 @@ export interface AdminSurfaceDependencies {
   readonly mapStyle?: ResolvedMapStyle;
   readonly maplibreSri?: string | null;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * مخزنُ إبطالِ جلساتِ Mini App (`SEC-18-ب`) — يُمرَّرُ ولا يُبنى ههنا، كسائرِ
+   * تبعيّاتِ هذا السطحِ. وغيابُهُ يُعطِّلُ مسلكَ الإبطالِ ردَّ ٥٠٣ ولا يُسكِتُهُ.
+   */
+  readonly revocation?: SessionRevocationStore;
 }
 
 /**
@@ -100,6 +106,7 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.mapStyle === undefined ? {} : { mapStyle: deps.mapStyle }),
       ...(deps.maplibreSri === undefined ? {} : { maplibreSri: deps.maplibreSri }),
       ...(deps.log === undefined ? {} : { log: deps.log }),
+      ...(deps.revocation === undefined ? {} : { revocation: deps.revocation }),
     }),
   );
 

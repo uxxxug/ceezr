@@ -21,6 +21,7 @@ import {
 import { createAdminApiRoutes } from "../../apps/gateway/src/routes/admin-api.ts";
 import { createAdminUiRoutes } from "../../apps/gateway/src/routes/admin-ui.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import { createMemorySessionRevocationStore } from "../../packages/infrastructure/identity/memory-session-revocation-store.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const ADMIN_TELEGRAM = "770001";
@@ -28,6 +29,7 @@ const OTHER_TELEGRAM = "770002";
 const DRIVER_TELEGRAM = "770003";
 
 let sql: Sql;
+let revocationStore: ReturnType<typeof createMemorySessionRevocationStore>;
 let auth: AdminAuthPort;
 let app: Hono;
 let cityId: string;
@@ -156,6 +158,8 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     `;
 
     sentCodes = [];
+    // مخزنٌ جديدٌ لكلِّ حالةٍ: عتبةُ حالةٍ سابقةٍ لا تُقرأُ إنفاذاً في هذه.
+    revocationStore = createMemorySessionRevocationStore();
     app = new Hono();
     // الأخصّ أولاً: /admin/api قبل /admin كما في index.ts
     app.route("/admin/api", createAdminApiRoutes({ sql, auth }));
@@ -172,6 +176,7 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
             return true;
           },
         },
+        revocation: revocationStore,
       }),
     );
   });
@@ -919,5 +924,118 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     expect(html).toContain("سائق قيد التوثيق");
     // ساعتان متّصلتان حتى الآن: لا يجوز أن تُقرأ صفراً لأنه لم يُطفئ بعد
     expect(html).not.toMatch(/سائق قيد التوثيق[\s\S]{0,400}0 ثانية/);
+  });
+
+  // -------------------------------------------------------------------------
+  // إبطالُ جلساتِ Mini App (SEC-18-ب)
+  // -------------------------------------------------------------------------
+
+  /*
+   * الترتيبُ هو المقيسُ ههنا: **الإنفاذُ قبلَ التسجيلِ**. فلو سُجِّلَ أوّلاً ثمَّ
+   * فشِلَ الإنفاذُ لبقِيَ في السِجلِّ صفٌّ يقولُ ما لم يقعْ — وصفٌّ كاذبٌ أسوأُ
+   * من غيابِه. ولذا يُقاسُ في كلِّ رفضٍ أنَّ **العتبةَ لم تُضرَبْ** كما يُقاسُ
+   * أنَّ **الأثرَ لم يُكتَبْ**.
+   */
+
+  it("إبطالٌ بسببٍ من المعجمِ يضربُ العتبةَ ويكتبُ الأثرَ", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, "/admin/drivers");
+    const targets = await sql<{ id: string }[]>`
+      select id from users where telegram_id = ${OTHER_TELEGRAM}::bigint
+    `;
+    const targetId = targets[0]?.id;
+    expect(targetId).toBeDefined();
+    if (targetId === undefined) return;
+
+    const response = await request(`/admin/users/${targetId}/revoke-sessions`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, reason: "stolen_device", back: "/admin/drivers" }),
+    });
+    const SEE_OTHER = 303;
+    expect(response.status).toBe(SEE_OTHER);
+
+    // الإنفاذُ: عتبةٌ مضروبةٌ بمُعرِّفِ تيليجرام — وهو مفتاحُ المخزنِ لا `users.id`.
+    const epoch = await revocationStore.revokedAtMsForUser(OTHER_TELEGRAM);
+    expect(epoch.ok).toBe(true);
+    if (!epoch.ok) return;
+    expect(epoch.value).not.toBeNull();
+
+    // الأثرُ: صفٌّ واحدٌ بمعناهُ، لا يُستنتَجُ قرارُه من التجاورِ الزمنيِّ.
+    const rows = await sql<
+      { action: string; entity_id: string; payload: Record<string, unknown> }[]
+    >`
+      select action, entity_id::text, payload from audit_log
+       where action = 'admin.miniapp_sessions_revoked'
+    `;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.entity_id).toBe(targetId);
+    expect(rows[0]?.payload.reason).toBe("stolen_device");
+  });
+
+  it("سببٌ خارجَ المعجمِ يُرفَضُ، ولا عتبةَ ولا أثرَ", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, "/admin/drivers");
+    const targets = await sql<{ id: string }[]>`
+      select id from users where telegram_id = ${OTHER_TELEGRAM}::bigint
+    `;
+    const targetId = targets[0]?.id ?? "";
+
+    const response = await request(`/admin/users/${targetId}/revoke-sessions`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, reason: "just-because" }),
+    });
+    const UNPROCESSABLE = 422;
+    expect(response.status).toBe(UNPROCESSABLE);
+    expect(await response.text()).toContain("INVALID_REASON");
+
+    const epoch = await revocationStore.revokedAtMsForUser(OTHER_TELEGRAM);
+    expect(epoch.ok && epoch.value).toBeNull();
+    const rows = await sql`select 1 from audit_log where action = 'admin.miniapp_sessions_revoked'`;
+    expect(rows).toHaveLength(0);
+  });
+
+  it("بلا مخزنِ إبطالٍ موصولٍ يُردُّ 503 لا نجاحٌ صامتٌ", async () => {
+    /*
+     * التبعيَّةُ اختياريَّةٌ في النوعِ كي لا يُكسَرَ بناءُ كلِّ موضعِ تركيبٍ،
+     * و**الثقبُ محروسٌ ههنا**: غيابُها يُغلِقُ البابَ ولا يُقالُ «تمَّ».
+     */
+    const bare = new Hono();
+    bare.route(
+      "/admin",
+      createAdminUiRoutes({
+        sql,
+        auth,
+        codeSender: {
+          send: async (chatId, text) => {
+            sentCodes.push({ chatId, text });
+            return true;
+          },
+        },
+      }),
+    );
+    const previous = app;
+    app = bare;
+    try {
+      const cookie = await login(ADMIN_TELEGRAM);
+      const csrf = await csrfFrom(cookie, "/admin/drivers");
+      const targets = await sql<{ id: string }[]>`
+        select id from users where telegram_id = ${OTHER_TELEGRAM}::bigint
+      `;
+      const response = await request(`/admin/users/${targets[0]?.id ?? ""}/revoke-sessions`, {
+        method: "POST",
+        cookie,
+        body: form({ csrf, reason: "stolen_device" }),
+      });
+      const UNAVAILABLE = 503;
+      expect(response.status).toBe(UNAVAILABLE);
+      expect(await response.text()).toContain("SESSION_REVOCATION_NOT_AVAILABLE");
+      const rows =
+        await sql`select 1 from audit_log where action = 'admin.miniapp_sessions_revoked'`;
+      expect(rows).toHaveLength(0);
+    } finally {
+      app = previous;
+    }
   });
 });

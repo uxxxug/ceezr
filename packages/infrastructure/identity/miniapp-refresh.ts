@@ -145,6 +145,7 @@ export function createMiniAppRefreshTokens(
         bot: payload.bot,
         sessionId: payload.sid,
         absoluteExpiresAtSeconds: payload.abs,
+        startedAtSeconds: payload.abs - absoluteTtl,
         generation: payload.gen,
       },
     });
@@ -260,6 +261,7 @@ export function createMiniAppRefreshTokens(
         bot,
         sessionId: sid,
         absoluteExpiresAtSeconds: abs,
+        startedAtSeconds: abs - absoluteTtl,
         generation: gen,
       });
     },

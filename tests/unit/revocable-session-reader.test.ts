@@ -23,6 +23,7 @@ const VALID_SESSION: VerifiedViewerSession = {
   telegramUserId: "12345",
   bot: "rider",
   sessionId: "session-abc",
+  issuedAtSeconds: 500_000,
   expiresAtSeconds: 1_000_000,
 };
 
@@ -61,6 +62,10 @@ describe("createRevocableSessionReader", () => {
       isRevoked: async () =>
         err({ kind: "STORE_UNAVAILABLE" as const, detail: "connection refused" }),
       revoke: async () => err({ kind: "STORE_UNAVAILABLE" as const, detail: "connection refused" }),
+      revokedAtMsForUser: async () =>
+        err({ kind: "STORE_UNAVAILABLE" as const, detail: "connection refused" }),
+      revokeAllForUser: async () =>
+        err({ kind: "STORE_UNAVAILABLE" as const, detail: "connection refused" }),
     };
     const reader = createRevocableSessionReader(fakeReader(ok(VALID_SESSION)), failingStore);
     const result = await reader.read("token", Date.now());

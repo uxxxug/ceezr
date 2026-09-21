@@ -112,6 +112,14 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
     method: "post",
+    template: "/users/:id/revoke-sessions",
+    kind: "admin-guard",
+    reason:
+      "إبطالُ جلساتِ مستخدِمٍ سلطةُ إدارةٍ على غيرِ صاحبِ الجلسةِ، فلا يكونُ التفويضُ فيهِ مِلكِيَّةً — ولو اشتُرِطَت لَما قدِرَ مسؤولٌ على إبطالِ جلسةِ جهازٍ مسروقٍ. ومصدرُه وسيطُ جلسةِ الإدارةِ على الموجّهِ كلِّه، وصفةُ الفاعلِ تُحكَمُ ثانيةً في `admin_revoke_miniapp_sessions` وهيَ `security definer`.",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
     template: "/users/:id/blocked",
     kind: "admin-guard",
     reason:

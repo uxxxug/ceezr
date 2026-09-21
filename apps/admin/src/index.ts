@@ -82,6 +82,7 @@ async function main(): Promise<void> {
     mapOrigins: container.mapOrigins,
     ...(container.mapStyle === null ? {} : { mapStyle: container.mapStyle }),
     maplibreSri: container.maplibreSri,
+    ...(container.sessionRevocation === null ? {} : { revocation: container.sessionRevocation }),
     log,
   });
 
