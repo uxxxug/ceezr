@@ -106,6 +106,7 @@ import {
 } from "./rating-dialog.ts";
 import {
   handleActivateCommand,
+  handleAnswerCommand,
   handleSupportGroupAction,
   handleSupportTypeChoice,
   type SupportDialogDependencies,
@@ -912,6 +913,15 @@ async function handleCommand(
     case "/activate": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
       return handleActivateCommand(command, sender, state, deps.support);
+    }
+
+    /**
+     * `/answer` معَ `/activate` في هذا المُوزِّعِ لا في مُوزِّعِ الراكبِ: قروبُ
+     * الدعمِ يُخدَمُ ببوتِ السائقِ — وهوَ مقروءٌ من موضعِ `/activate` لا مُقدَّرٌ.
+     */
+    case "/answer": {
+      if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
+      return handleAnswerCommand(command, sender, state, deps.support);
     }
 
     case "/subscription": {

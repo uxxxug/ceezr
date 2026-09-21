@@ -301,6 +301,8 @@ export async function handleSupportGroupAction(
   sender: Sender,
   state: DialogState,
   deps: SupportDialogDependencies,
+  /** نصُّ الردِّ — لا يأتي إلّا من `/answer`، فالزرُّ لا يحملُ نصّاً. */
+  note: string | null = null,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
   const [action, ticketId] = parts;
@@ -341,8 +343,18 @@ export async function handleSupportGroupAction(
 
   if (!isSupportResolution(action)) return [reply(sender, tr("common.unknown_command"))];
 
+  /**
+   * ردٌّ بلا نصٍّ يُردُّ ههنا لا في القاعدةِ: زرُّ تلغرامَ لا يحملُ نصّاً، فنقرةُ
+   * `sup:answer:<id>` — ولا يُنشئُها `availableActions` أصلاً — كانت ستسقُطُ
+   * بـ`ANSWER_NOTE_REQUIRED`، ورسالةُ عطبٍ جوابُها الصحيحُ **سبيلُ الردِّ** لا
+   * «حاول مرّةً أخرى». والقاعدةُ تبقى تمنعُه: هذا حرسُ لفظٍ لا حرسُ صحّةٍ.
+   */
+  if (action === "answer" && (note === null || note.trim() === "")) {
+    return [privateReply(sender, tr("support.answer_usage"))];
+  }
+
   const resolved = await resolveDispute(
-    { ticketId, actorTelegramId: sender.telegramUserId, action },
+    { ticketId, actorTelegramId: sender.telegramUserId, action, note },
     deps.resolutions,
   );
   if (!resolved.ok) return [reply(sender, tr("common.error_try_again"))];
@@ -354,6 +366,8 @@ export async function handleSupportGroupAction(
         return [privateReply(sender, tr("support.ticket_not_found"))];
       case "TICKET_HAS_NO_DRIVER":
         return [privateReply(sender, tr("support.no_driver_on_ticket"))];
+      case "ANSWER_NOTE_REQUIRED":
+        return [privateReply(sender, tr("support.answer_note_required"))];
       case "ACTOR_NOT_AUTHORIZED":
       case "ACTOR_NOT_FOUND":
       case "ACTOR_BLOCKED":
@@ -371,8 +385,37 @@ export async function handleSupportGroupAction(
       ? "support.action_done_activate"
       : action === "terminate"
         ? "support.action_done_terminate"
-        : "support.action_done_reject";
+        : action === "answer"
+          ? "support.action_done_answer"
+          : "support.action_done_reject";
   return [reply(sender, tr(key, { ticket_short: shortTicketId(ticketId) }))];
+}
+
+/**
+ * `/answer <ticket_id> <نصّ>` — ردٌّ مكتوبٌ يصلُ صاحبَ التذكرةِ حرفاً ويُقفِلُها.
+ *
+ * ولمَ أمرٌ لا زرٌّ: الردُّ نصٌّ، وزرُّ تلغرامَ لا يحملُ نصّاً. ولمَ نصُّ الردِّ
+ * كلُّ ما بعدَ المعرّفِ بلا قَصٍّ إلّا الفراغَ: قَصُّه يُغيِّرُ ما يقرؤُهُ صاحبُ
+ * التذكرةِ، والفراغُ وحدَه لا معنى له. والفارغُ لا يُنادى بهِ القاعدةَ ألبتَّةَ —
+ * نداءٌ يُعلَمُ سقوطُه يُردُّ ههنا برسالةِ سبيلٍ لا برسالةِ عطبٍ.
+ */
+export async function handleAnswerCommand(
+  command: string,
+  sender: Sender,
+  state: DialogState,
+  deps: SupportDialogDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  const trimmed = command.trim();
+  const firstGap = trimmed.search(/\s/);
+  if (firstGap === -1) return [reply(sender, tr("support.answer_usage"))];
+  const rest = trimmed.slice(firstGap).trim();
+  const secondGap = rest.search(/\s/);
+  if (secondGap === -1) return [reply(sender, tr("support.answer_usage"))];
+  const ticketId = rest.slice(0, secondGap);
+  const note = rest.slice(secondGap).trim();
+  if (ticketId === "" || note === "") return [reply(sender, tr("support.answer_usage"))];
+  return handleSupportGroupAction(["answer", ticketId], sender, state, deps, note);
 }
 
 /** `/activate <ticket_id>` — نفس مسار الزرّ حرفياً، لا فرع ثانٍ للمنطق. */

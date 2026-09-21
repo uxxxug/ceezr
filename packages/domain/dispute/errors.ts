@@ -37,6 +37,7 @@ export type ResolveTicketReason =
   | "TICKET_HAS_NO_DRIVER"
   | "UNKNOWN_ACTION"
   | "ACTIVATION_DAYS_MISSING"
+  | "ANSWER_NOTE_REQUIRED"
   | "DRIVER_NOT_FOUND";
 
 /** كل رموز الفشل التي قد تُعاد من مسار الدعم، لتوحيد جدول الترجمة في البوت. */

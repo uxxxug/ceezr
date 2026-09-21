@@ -30,6 +30,9 @@ export function createDisputeResolutionHandler(
     const action = delivery.payload.action;
     const language = delivery.payload.owner_language;
     const ownerKind = delivery.payload.owner_kind;
+    // النصُّ يُقرَأُ حيّاً في claim من `support_tickets.resolution`، فهوَ نصٌّ أو عدمٌ.
+    const note =
+      typeof delivery.payload.resolution === "string" ? delivery.payload.resolution : null;
     if (
       typeof telegramId !== "string" ||
       telegramId === "" ||
@@ -41,11 +44,21 @@ export function createDisputeResolutionHandler(
       // أبدًا فلا يُعادُ أبدًا.
       return ok({ abandon: true, messageId: null, failure: null });
     }
+    /**
+     * ردٌّ بلا نصٍّ لا يُرسَلُ إطاراً فارغاً: القاعدةُ تمنعُ وقوعَه
+     * (`ANSWER_NOTE_REQUIRED` في `resolve_support_ticket`)، فبلوغُه ههنا يعني أنَّ
+     * الصفَّ سبقَ الهجرةَ أو أنَّ النصَّ مُحيَ بعدَ الإيداعِ. وفي الحالتَينِ لا
+     * إعادةَ تُصلِحُه — فيُتخلّى عن الصفِّ ولا يُرسَلُ «أُجيبَت» بلا جوابٍ.
+     */
+    if (action === "answer" && (note === null || note.trim() === "")) {
+      return ok({ abandon: true, messageId: null, failure: null });
+    }
     const notifier = ownerKind === "driver" ? notifiers.driver : notifiers.rider;
     const sent = await notifier.notifyResolution({
       telegramId,
       action,
       language: typeof language === "string" && language !== "" ? language : "ar",
+      note,
     });
     return ok({
       abandon: false,

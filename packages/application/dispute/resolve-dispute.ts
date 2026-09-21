@@ -50,6 +50,12 @@ export interface TicketOwnerNotifier {
     readonly telegramId: string;
     readonly action: SupportResolution;
     readonly language: string;
+    /**
+     * ملاحظةُ الدعمِ المكتوبةُ كما هيَ في `support_tickets.resolution` لحظةَ
+     * الالتقاطِ. لازمةٌ للردِّ `answer` ولا معنى لها لغيرِه. وقبلَ الخطوةِ ١٠ كانَ
+     * هذا العمودُ يُكتَبُ ولا يُقرَأُ: ملاحظةٌ مخزَّنةٌ لا تصلُ أحداً.
+     */
+    readonly note: string | null;
   }): Promise<Result<string | null, PortFailureError>>;
 }
 

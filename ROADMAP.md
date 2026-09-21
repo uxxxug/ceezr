@@ -8376,3 +8376,35 @@ test where it previously was not stated at all.
 programmatic client calling `POST /v1/rides` directly reads any text — an interface
 disclosure limit, recorded rather than dressed up — or that every bot string is
 truthful; nine named claims are forbidden, not the whole dictionary.
+
+## Appendix — Step 10: a written reply that actually reaches the complainant (`ADR 0171`)
+
+Support was already built broadly — intake, city groups, claim, the three Mini App
+surfaces, the advice agent and its measurement. **The defect was in the exit, not the
+entrance.** `resolve_support_ticket` accepted three actions, and two of them return
+`TICKET_HAS_NO_DRIVER` when `driver_id is null`. **A rider complaining about a ride has
+no driver in that column**, so the only available outcome for a valid complaint was
+`reject`, whose text sends the person back to the start of the queue.
+
+Worse, `support_tickets.resolution` was **written and never read**: the notifier built
+its message from the action alone, so the written resolution stayed in the table while
+`support.ticket_created` promised «the reply will arrive right here». **Same defect class
+as step 9:** a sentence promising what the structure cannot deliver.
+
+A fourth action `answer` now requires non-blank text (checked **before** the ticket is
+read — the fault is in the request, not the ticket), is **deliberately outside** the
+driver requirement, has no subscription effect, and carries no button: a button with no
+text cannot reply, so the path is a command that carries its own words. The written text
+is read **live at claim time** from the table, never copied into the queue, so there is
+one source of truth.
+
+Two defects were caught by measurement rather than by the author. The driver-requirement
+check was first written against a **line**, while the PostgreSQL condition spans two
+lines — so the rule **could never fail**, and was green on the very defect it existed
+for. A negative test caught it. Separately `tsc` caught a map index producing a **silent
+pass** while the tests stayed green. **Both are the same class: green does not mean
+enforced.**
+
+**Not claimed:** any response-time commitment — the promise now has a path but still no
+deadline, no escalation, and a ticket may stay `open` indefinitely, recorded as an open
+gap — nor multi-turn conversation, nor that a single reply has reached a real user.

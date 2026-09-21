@@ -16,9 +16,13 @@
 import { readFileSync } from "node:fs";
 import { blankComments } from "./lib/blank-comments.ts";
 import {
+  ANSWER_PATH_FILES,
+  ANSWER_SQL_FILE,
+  BOT_DICTIONARY_FILES,
   ERROR_CODES,
   REFERENCE_PATTERN,
   STATUSES,
+  SUPPORT_RESOLUTION_KEYS,
   SUPPORT_ROLES,
   SUPPORT_SQL_FILE,
   SUPPORT_SQL_FILES,
@@ -40,6 +44,16 @@ function readJson(path: string): Readonly<Record<string, string>> {
   return out;
 }
 
+/** قراءةٌ لا تُلقي: العدمُ يُعلَنُ للقاعدةِ فتسقُطُ برسالةٍ مفهومةٍ. */
+function readOrNull(path: string): string | null {
+  if (path === "") return null;
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return null;
+  }
+}
+
 export function readRepository(): SupportIntakeContractInput {
   const surface: Record<string, string> = {};
   for (const path of SURFACE_FILES) surface[path] = blankComments(readFileSync(path, "utf8"));
@@ -52,6 +66,16 @@ export function readRepository(): SupportIntakeContractInput {
   const sqlByPath: Record<string, string> = {};
   for (const path of SUPPORT_SQL_FILES) sqlByPath[path] = readFileSync(path, "utf8");
 
+  /**
+   * القاعدةُ ٨ تقرأُ مِلفّاتَها بنفسِها وتُعلِنُ `null` عن كلِّ ما تعذَّرَ — ولا
+   * تُلقي: مِلفٌّ نُقِلَ يجبُ أن يُسقِطَ البناءَ برسالةٍ تقولُ أيُّ مِلفٍّ، لا
+   * بأثرِ استثناءٍ يُقرأُ عطبَ أداةٍ. وحاجزٌ يمرُّ حيثُ لا يقرأُ أسوأُ من غائبٍ.
+   */
+  const botDictionaries: Record<string, Readonly<Record<string, string>> | null> = {};
+  for (const [language, path] of Object.entries(BOT_DICTIONARY_FILES)) {
+    botDictionaries[language] = readOrNull(path) === null ? null : readJson(path);
+  }
+
   return {
     surface,
     sql: readFileSync(SUPPORT_SQL_FILE, "utf8"),
@@ -61,6 +85,12 @@ export function readRepository(): SupportIntakeContractInput {
     statuses: STATUSES,
     errorCodes: ERROR_CODES,
     referencePattern: REFERENCE_PATTERN,
+    botDictionaries,
+    notifierSource: readOrNull(ANSWER_PATH_FILES.notifier ?? ""),
+    supportDialogSource: readOrNull(ANSWER_PATH_FILES.supportDialog ?? ""),
+    driverDialogSource: readOrNull(ANSWER_PATH_FILES.driverDialog ?? ""),
+    ticketEntitySource: readOrNull(ANSWER_PATH_FILES.ticketEntity ?? ""),
+    answerSql: readOrNull(ANSWER_SQL_FILE),
   };
 }
 
@@ -73,9 +103,10 @@ if (import.meta.main) {
         `و${SUPPORT_ROLES.length} دورَ فتحٍ (${SUPPORT_ROLES.map((r) => r.keyPrefix).join(" · ")})، ` +
         `و${SUPPORT_ROLES.reduce((n, r) => n + r.selectable.length + r.readOnly.length, 0)} صنفاً ` +
         `و${STATUSES.length} حالةً و${ERROR_CODES.length} رمزَ عطبٍ ` +
-        `بنصوصِها الثلاثةِ، و${SUPPORT_SQL_FILES.length} هجرةَ دعمٍ، وسبعُ قواعدَ مقيسةً: لا رمزَ بلا نصٍّ، ولا مفتاحَ بلا مقابلٍ، ` +
+        `بنصوصِها الثلاثةِ، و${SUPPORT_SQL_FILES.length} هجرةَ دعمٍ، و${Object.keys(SUPPORT_RESOLUTION_KEYS).length} فعلَ حسمٍ بنصوصِها، وثماني قواعدَ مقيسةً: لا رمزَ بلا نصٍّ، ولا مفتاحَ بلا مقابلٍ، ` +
         `وسقوطٌ للمجهولِ، ومرجعٌ منطوقٌ من متسلسلةٍ، ويُعرَضُ في الشاشةِ، ` +
-        `ولا بابَ إرفاقٍ صوريَّ، ولا دالّةَ بلا نزعِ تنفيذٍ.`,
+        `ولا بابَ إرفاقٍ صوريَّ، ولا دالّةَ بلا نزعِ تنفيذٍ، ` +
+        `ووعدٌ بردٍّ لا يُقالُ بلا مسارٍ يحملُ المكتوبَ إلى صاحبِه.`,
     );
   } else {
     console.error("حاجزُ عقدِ سطحِ الدعمِ: سقطَ.");

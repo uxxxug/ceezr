@@ -18,6 +18,7 @@
 import { describe, expect, it } from "bun:test";
 import { readRepository } from "../../scripts/check-support-intake-contract.ts";
 import {
+  answerPathProblems,
   fallbackKeyProblems,
   functionRevokeProblems,
   keyParityProblems,
@@ -118,7 +119,34 @@ function baseInput(): SupportIntakeContractInput {
     statuses: [...STATUSES],
     errorCodes: [...CODES],
     referencePattern: /^WSL-[0-9]{6,}$/,
+    botDictionaries: { ar: botDictionary(), en: botDictionary(), ur: botDictionary() },
+    notifierSource: NOTIFIER,
+    supportDialogSource: SUPPORT_DIALOG,
+    driverDialogSource: DRIVER_DIALOG,
+    ticketEntitySource: TICKET_ENTITY,
+    answerSql: ANSWER_SQL,
   };
+}
+
+/** قاموسُ بوتٍ سليمٌ — الوعدُ ونصوصُ الأفعالِ الأربعةِ، وموضعُ المكتوبِ في الردِّ. */
+function botDictionary(): Record<string, string> {
+  return {
+    "support.ticket_created": "وصلت شكواك — سيصلك الردّ هنا.",
+    "support.resolved_activated": "فُعِّل اشتراكك.",
+    "support.resolved_terminated": "أُنهي اشتراكك.",
+    "support.resolved_rejected": "لم يُقبل طلبك.",
+    "support.resolved_answered": "ردّ الدعم:\n\n{answer}",
+  };
+}
+
+function withBotDictionary(
+  input: SupportIntakeContractInput,
+  language: string,
+  change: (dict: Record<string, string>) => void,
+): SupportIntakeContractInput {
+  const dict = { ...(input.botDictionaries[language] ?? {}) };
+  change(dict);
+  return { ...input, botDictionaries: { ...input.botDictionaries, [language]: dict } };
 }
 
 function withDictionary(
@@ -130,6 +158,47 @@ function withDictionary(
   change(dict);
   return { ...input, translations: { ...input.translations, [language]: dict } };
 }
+
+const NOTIFIER = `
+function resolutionKey(action) {
+  if (action === "activate") return "support.resolved_activated";
+  if (action === "terminate") return "support.resolved_terminated";
+  if (action === "answer") return "support.resolved_answered";
+  return "support.resolved_rejected";
+}
+const text = input.action === "answer" ? tr(key, { answer: input.note ?? "" }) : tr(key);
+`;
+
+const SUPPORT_DIALOG = `
+export async function handleAnswerCommand(command, sender, state, deps) { return []; }
+`;
+
+const DRIVER_DIALOG = `
+    case "/answer": {
+      return handleAnswerCommand(command, sender, state, deps.support);
+    }
+`;
+
+const TICKET_ENTITY = `
+  if (canClaim(ticket.status)) actions.push("claim");
+  actions.push("reject");
+`;
+
+const ANSWER_SQL = `
+  if p_action not in ('activate', 'terminate', 'reject', 'answer') then
+    return jsonb_build_object('ok', false, 'error', 'UNKNOWN_ACTION');
+  end if;
+  if p_action = 'answer' and v_note is null then
+    return jsonb_build_object('ok', false, 'error', 'ANSWER_NOTE_REQUIRED');
+  end if;
+  if p_action in ('activate', 'terminate') and v_ticket.driver_id is null then
+    return jsonb_build_object('ok', false, 'error', 'TICKET_HAS_NO_DRIVER');
+  end if;
+    v_payload := v_delivery.payload || jsonb_build_object(
+      'owner_kind', v_owner_kind,
+      'resolution', v_resolution
+    );
+`;
 
 describe("عقدُ سطحِ الدعمِ — المدخلُ النظيفُ يمرُّ", () => {
   it("لا خرقَ في المدخلِ المصنوعِ الكاملِ", () => {
@@ -355,6 +424,192 @@ describe("القاعدة ٧ — لا دالّةَ بلا نزعِ تنفيذٍ",
 
   it("لا تمرُّ بقائمةِ هجراتٍ فارغةٍ", () => {
     expect(functionRevokeProblems({ ...baseInput(), sqlByPath: {} }).length).toBe(1);
+  });
+});
+
+describe("القاعدة ٨ — الوعدُ بردٍّ يقتضي مسارَ ردٍّ", () => {
+  it("المدخلُ السليمُ يمرُّ — فالقاعدةُ لا تمنعُ الصوابَ", () => {
+    expect(answerPathProblems(baseInput())).toEqual([]);
+  });
+
+  it("لا تمرُّ بمجالِ قواميسَ فارغٍ", () => {
+    expect(answerPathProblems({ ...baseInput(), botDictionaries: {} }).length).toBe(1);
+  });
+
+  for (const language of ["ar", "en", "ur"]) {
+    it(`تسقُطُ متى تعذَّرَ قاموسُ «${language}» — لا خضرةَ عن تعذُّرِ قراءةٍ`, () => {
+      const input = baseInput();
+      const problems = answerPathProblems({
+        ...input,
+        botDictionaries: { ...input.botDictionaries, [language]: null },
+      });
+      expect(problems.some((p) => p.includes(language))).toBe(true);
+    });
+
+    it(`تسقُطُ متى غابَ نصُّ الردِّ في «${language}»`, () => {
+      const input = withBotDictionary(baseInput(), language, (d) => {
+        delete d["support.resolved_answered"];
+      });
+      expect(answerPathProblems(input).some((p) => p.includes("resolved_answered"))).toBe(true);
+    });
+
+    it(`تسقُطُ متى غابَ وعدُ الاستلامِ في «${language}»`, () => {
+      const input = withBotDictionary(baseInput(), language, (d) => {
+        delete d["support.ticket_created"];
+      });
+      expect(answerPathProblems(input).some((p) => p.includes("ticket_created"))).toBe(true);
+    });
+
+    it(`تسقُطُ متى كانَ نصُّ الردِّ فراغاً في «${language}»`, () => {
+      const input = withBotDictionary(baseInput(), language, (d) => {
+        d["support.resolved_answered"] = "   ";
+      });
+      expect(answerPathProblems(input).length).toBeGreaterThan(0);
+    });
+
+    it(`تسقُطُ متى خلا نصُّ الردِّ من موضعِ المكتوبِ في «${language}» — وهوَ العطبُ بعينِه`, () => {
+      const input = withBotDictionary(baseInput(), language, (d) => {
+        d["support.resolved_answered"] = "راجع الدعم تذكرتك وأُقفلت.";
+      });
+      expect(answerPathProblems(input).some((p) => p.includes("{answer}"))).toBe(true);
+    });
+  }
+
+  it("تسقُطُ متى تعذَّرَ المُبلِّغُ", () => {
+    const problems = answerPathProblems({ ...baseInput(), notifierSource: null });
+    expect(problems.some((p) => p.includes("مُبلِّغُ القرارِ لم يُقرأْ"))).toBe(true);
+  });
+
+  it("تسقُطُ متى لم يذكرِ المُبلِّغُ مفتاحَ الردِّ — نصٌّ لا يُنادى بهِ أحدٌ", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      notifierSource: (input.notifierSource ?? "").replace('"support.resolved_answered"', '"x"'),
+    });
+    expect(problems.some((p) => p.includes("support.resolved_answered"))).toBe(true);
+  });
+
+  it("تسقُطُ متى لم يُمرِّرِ المُبلِّغُ المكتوبَ — وهوَ عطبُ ما قبلَ الخطوةِ ١٠", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      notifierSource: (input.notifierSource ?? "").replace("input.note", '""'),
+    });
+    expect(problems.some((p) => p.includes("input.note"))).toBe(true);
+  });
+
+  it("تسقُطُ متى تعذَّرَت الهجرةُ", () => {
+    expect(
+      answerPathProblems({ ...baseInput(), answerSql: null }).some((p) =>
+        p.includes("هجرةُ الردِّ لم تُقرأْ"),
+      ),
+    ).toBe(true);
+  });
+
+  it("تسقُطُ متى لم تُوجِبِ القاعدةُ نصّاً للردِّ", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      answerSql: (input.answerSql ?? "").replaceAll("ANSWER_NOTE_REQUIRED", "OK"),
+    });
+    expect(problems.some((p) => p.includes("ANSWER_NOTE_REQUIRED"))).toBe(true);
+  });
+
+  it("تسقُطُ متى غابَ الفعلُ نفسُه من الهجرةِ", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      answerSql: (input.answerSql ?? "").replaceAll("'answer'", "'x'"),
+    });
+    expect(problems.length).toBeGreaterThan(0);
+  });
+
+  it("تسقُطُ متى اشترطَ الردُّ سائقاً — فتذكرةُ راكبٍ لا مخرجَ لها إلّا الرفضُ", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      answerSql: (input.answerSql ?? "").replace(
+        "if p_action in ('activate', 'terminate') and v_ticket.driver_id is null then",
+        "if p_action in ('activate', 'terminate', 'answer') and v_ticket.driver_id is null then",
+      ),
+    });
+    expect(problems.some((p) => p.includes("تشترطُ سائقاً"))).toBe(true);
+  });
+
+  it("تسقُطُ متى لم تُلحِقْ حمولةُ الالتقاطِ المكتوبَ", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      answerSql: (input.answerSql ?? "").replace("'resolution', v_resolution", "'x', 1"),
+    });
+    expect(problems.some((p) => p.includes("حمولةِ الالتقاطِ"))).toBe(true);
+  });
+
+  it("تسقُطُ متى تعذَّرَ مُوزِّعُ الدعمِ", () => {
+    expect(
+      answerPathProblems({ ...baseInput(), supportDialogSource: null }).some((p) =>
+        p.includes("مُوزِّعُ الدعمِ لم يُقرأْ"),
+      ),
+    ).toBe(true);
+  });
+
+  it("تسقُطُ متى غابَ مَسلَكُ الردِّ — فعلٌ لا مَسلَكَ له لا يستعملُه أحدٌ", () => {
+    expect(
+      answerPathProblems({ ...baseInput(), supportDialogSource: "export {};" }).some((p) =>
+        p.includes("handleAnswerCommand"),
+      ),
+    ).toBe(true);
+  });
+
+  it("تسقُطُ متى تعذَّرَ مُوزِّعُ السائقِ", () => {
+    expect(
+      answerPathProblems({ ...baseInput(), driverDialogSource: null }).some((p) =>
+        p.includes("مُوزِّعُ السائقِ لم يُقرأْ"),
+      ),
+    ).toBe(true);
+  });
+
+  it("تسقُطُ متى كانَ المَسلَكُ مكتوباً غيرَ مُوصَّلٍ", () => {
+    expect(
+      answerPathProblems({ ...baseInput(), driverDialogSource: "switch (command) {}" }).some((p) =>
+        p.includes("/answer"),
+      ),
+    ).toBe(true);
+  });
+
+  it("تسقُطُ متى تعذَّرَ كِيانُ التذكرةِ", () => {
+    expect(
+      answerPathProblems({ ...baseInput(), ticketEntitySource: null }).some((p) =>
+        p.includes("كِيانُ التذكرةِ لم يُقرأْ"),
+      ),
+    ).toBe(true);
+  });
+
+  it("تسقُطُ متى عُرِضَ الردُّ زرّاً — وزرٌّ لا يحملُ نصّاً لا يَرُدُّ", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      ticketEntitySource: `${input.ticketEntitySource ?? ""}\n  actions.push("answer");`,
+    });
+    expect(problems.some((p) => p.includes("يعرضُ الردَّ زرّاً"))).toBe(true);
+  });
+
+  it("لا تسقُطُ على زرٍّ آخرَ يُدفَعُ — فالحكمُ على الردِّ وحدَه", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      ticketEntitySource: `${input.ticketEntitySource ?? ""}\n  actions.push("terminate");`,
+    });
+    expect(problems).toEqual([]);
+  });
+
+  it("لا تسقُطُ على ذِكرِ «answer» في سطرٍ لا يُنشئُ زرّاً", () => {
+    const input = baseInput();
+    const problems = answerPathProblems({
+      ...input,
+      ticketEntitySource: `${input.ticketEntitySource ?? ""}\n  // "answer" لا زرَّ له`,
+    });
+    expect(problems).toEqual([]);
   });
 });
 
