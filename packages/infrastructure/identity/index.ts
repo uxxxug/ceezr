@@ -8,6 +8,8 @@
  *   حالةٍ خلفَ منفذٍ صريح. أمّا استمرارُ الجلسةِ على الخادمِ وإبطالُها الفوريُّ
  *   فغيرُ منفَّذَين ولا مُدَّعيَين — قرارٌ معلَنٌ لا نقصٌ مسكوتٌ عنه.
  */
+
+export { createMemoryInitDataReplayGuard } from "./memory-init-data-replay-guard.ts";
 export {
   createMiniAppRefreshTokens,
   MINIAPP_REFRESH_TTL_SECONDS,
@@ -24,6 +26,7 @@ export {
   type SessionReadRejection,
   type VerifiedMiniAppSession,
 } from "./miniapp-session.ts";
+export { createRedisInitDataReplayGuard } from "./redis-init-data-replay-guard.ts";
 export {
   createTelegramInitDataVerifier,
   dataCheckString,
