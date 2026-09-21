@@ -102,7 +102,8 @@ const AUXILIARY_TEXT: Readonly<Record<AuxiliaryScreen["kind"], SystemScreenText>
   outside_telegram: {
     title: "افتح وَصْلة من تيليجرام",
     body: "هذا التطبيق يعمل داخل تيليجرام اليوم. تشغيله في متصفّح بمصادقة بديلة لم يُنفَّذ بعد.",
-    actionLabel: null,
+    // زرٌّ يفتحُ البوتَ لا يُعيدُ محاولةَ الإقلاعِ: الإقلاعُ ههنا يفشلُ حتماً.
+    actionLabel: "العودة إلى بوت وَصْلة",
     hint: null,
   },
   missing_init_data: {

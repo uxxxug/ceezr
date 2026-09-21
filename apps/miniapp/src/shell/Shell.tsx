@@ -36,6 +36,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { BootFailureReason } from "../identity/boot.ts";
 import { RoleRouter } from "../routing/RoleRouter.tsx";
 import { applyDocumentDirection } from "../styles/direction.ts";
+import { botLink } from "../system/bot-link.ts";
 import { classifyFailure, failureFromThrown } from "../system/failure.ts";
 import { deviceOnline, probeReachability } from "../system/health.ts";
 import { Skeleton } from "../system/Skeleton.tsx";
@@ -66,6 +67,16 @@ async function screenForBootFailure(
   const failure = failureFromThrown(thrown) ?? ({ transport: "failed" } as const);
   const probe = failure.transport === "failed" && online ? await probeReachability() : "not_probed";
   return classifyFailure(failure, probe, online) ?? { kind: "unknown_error" };
+}
+
+/**
+ * وِجهةُ زرِّ العودةِ خاصّيّةً **حاضرةً أو غائبةً**، لا حاضرةً بقيمةِ `undefined`:
+ * الضبطُ `exactOptionalPropertyTypes` يفرّقُ بينَهما، **والفرقُ مقصودٌ ههنا** —
+ * غيابُ الخاصّيّةِ هو ما يجعلُ `SystemScreen` تُمسِكُ عن عرضِ زرٍّ بلا وِجهةٍ.
+ */
+function botLinkProp(): { readonly actionHref?: string } {
+  const href = botLink();
+  return href === null ? {} : { actionHref: href };
 }
 
 export interface ShellProps {
@@ -136,7 +147,14 @@ export function Shell({ identity, telemetry }: ShellProps) {
   if (boot.kind === "screen") {
     return (
       <Layout>
-        <SystemScreen state={boot.screen} onAction={() => void runBoot(true)} />
+        {boot.screen.kind === "outside_telegram" ? (
+          // **لا إعادةَ محاولةٍ ههنا**: الإقلاعُ خارجَ تيليجرامَ يفشلُ حتماً، وزرٌّ
+          // يُعيدُ المحاولةَ يَعِدُ بما لا يقعُ. والوِجهةُ وحدَها، وقد تكونُ `null`
+          // فلا يُعرَضُ زرٌّ — والشاشةُ تبقى سليمةً بنصِّها.
+          <SystemScreen state={boot.screen} {...botLinkProp()} />
+        ) : (
+          <SystemScreen state={boot.screen} onAction={() => void runBoot(true)} />
+        )}
       </Layout>
     );
   }

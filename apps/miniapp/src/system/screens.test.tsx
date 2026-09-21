@@ -37,12 +37,20 @@ const FAILURES: readonly ScreenState[] = [
   { kind: "missing_init_data" },
 ];
 
+/**
+ * إخباريّةٌ **ولا فعلَ فيها للمستخدمِ** — فلا زرَّ ولا رابطَ.
+ *
+ * **زيادةٌ 2026-09-21 (`ح-8`)**: كانَ `outside_telegram` في هذه القائمةِ، وكانَ
+ * الحكمُ «لا زرَّ فيها» صحيحاً حينَها لأنَّ عنوانَ فعلِها كانَ `null`. وقد صارَ
+ * لها **فعلُ مغادرةٍ** — العودةُ إلى البوتِ — وهوَ ليسَ إعادةَ محاولةٍ، فأُفرِدَت
+ * بحكمٍ خاصٍّ أدناه **ولم يُوسَّعْ حكمُ هذه القائمةِ ولم يُضعَّفْ**: الأربعُ الباقيةُ
+ * ما زالت تُحاكَمُ بـ«لا `<button>`» حرفاً.
+ */
 const INFORMATIONAL: readonly ScreenState[] = [
   { kind: "unsupported_city" },
   { kind: "unregistered" },
   { kind: "blocked" },
   { kind: "no_surface_yet" },
-  { kind: "outside_telegram" },
 ];
 
 describe("شاشةُ الحالة: نصٌّ وفعلٌ وإعلان", () => {
@@ -63,6 +71,43 @@ describe("شاشةُ الحالة: نصٌّ وفعلٌ وإعلان", () => {
       expect(html).toContain('role="status"');
       expect(html).not.toContain("<button");
     }
+  });
+
+  /**
+   * شاشةُ «خارجَ تيليجرام» فعلُها **مغادرةٌ** لا إعادةُ محاولةٍ: الإقلاعُ ثمَّةَ
+   * يفشلُ حتماً، فزرٌّ يُعيدُ المحاولةَ يَعِدُ بما لا يقعُ. والمِرساةُ هي العنصرُ
+   * الصادقُ دلاليّاً — يقرؤها قارئُ الشاشةِ رابطاً لا زرَّاً.
+   */
+  it("خارجَ تيليجرام: وِجهةٌ ⇒ مِرساةٌ لا زرَّ، وتُعلَن `status`", () => {
+    const html = renderToStaticMarkup(
+      <SystemScreen state={{ kind: "outside_telegram" }} actionHref="https://t.me/waslah_bot" />,
+    );
+    expect(html).toContain('role="status"');
+    expect(html).not.toContain("<button");
+    expect(html).toContain('href="https://t.me/waslah_bot"');
+    expect(html).toContain(screenText({ kind: "outside_telegram" }).actionLabel ?? "");
+  });
+
+  /** **الحكمُ الذي يمنعُ زرّاً لا يعملُ** — لا يُترَكُ لانتباهِ مراجعٍ. */
+  it("خارجَ تيليجرام: لا وِجهةَ ⇒ لا مِرساةَ ولا زرَّ، والنصُّ قائمٌ", () => {
+    const html = renderToStaticMarkup(<SystemScreen state={{ kind: "outside_telegram" }} />);
+    expect(html).not.toContain("<button");
+    expect(html).not.toContain("<a");
+    expect(html).toContain(screenText({ kind: "outside_telegram" }).title);
+    expect(html).toContain(screenText({ kind: "outside_telegram" }).body);
+  });
+
+  /** والوِجهةُ تسبقُ المُعالِجَ: لا فعلانِ في زرٍّ واحدٍ. */
+  it("وِجهةٌ ومُعالِجٌ معاً ⇒ مِرساةٌ وحدَها", () => {
+    const html = renderToStaticMarkup(
+      <SystemScreen
+        state={{ kind: "outside_telegram" }}
+        actionHref="https://t.me/waslah_bot"
+        onAction={() => {}}
+      />,
+    );
+    expect(html).not.toContain("<button");
+    expect(html).toContain("<a");
   });
 
   it("بلا فعلٍ مُمرَّرٍ لا يُرسَم زرٌّ ولو كان للحالةِ عنوانُ فعل", () => {
