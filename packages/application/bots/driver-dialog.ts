@@ -65,6 +65,7 @@ import {
   handleDriverGroupJoinRequest,
 } from "../groups/group-join-gate.ts";
 import type { ClaimRideResult, DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import { isSafetyDecisionReason } from "../safety/ports.ts";
 import {
   type ResolveSafetyIncidentDeps,
   resolveSafetyIncident,
@@ -959,6 +960,39 @@ async function handleSafetyGroupAction(
   if (deps.safety === undefined || incidentId === undefined || incidentId === "") {
     return [reply(sender, tr("common.unknown_command"))];
   }
+
+  // `PD-021` — الإغلاقُ والحظرُ بلا سببٍ داخليٍّ مُختارٍ لا يُنفَّذان. الضغطُ
+  // الأولُ يَعرضُ قائمةَ أسبابٍ مغلقةً، والثاني يُنفِّذُ القرارَ بالسببِ.
+  if (action === "resolve") {
+    const [, , decisionRaw, reasonRaw] = parts;
+    if (decisionRaw !== "close" && decisionRaw !== "block") {
+      return [reply(sender, tr("common.unknown_command"))];
+    }
+    if (!isSafetyDecisionReason(reasonRaw)) {
+      return [reply(sender, tr("common.unknown_command"))];
+    }
+    const mapped = decisionRaw === "block" ? "block_reporter" : "close";
+    const resolved = await resolveSafetyIncident(
+      {
+        incidentId,
+        actorTelegramId: sender.telegramUserId,
+        action: mapped,
+        decisionReason: reasonRaw,
+      },
+      deps.safety.resolutions,
+    );
+    if (!resolved.ok) {
+      const key =
+        resolved.error.detail === "ACTOR_NOT_AUTHORIZED"
+          ? "safety.not_authorized"
+          : resolved.error.detail === "DECISION_REASON_REQUIRED"
+            ? "safety.reason_required"
+            : "safety.already_handled";
+      return [{ chatId: sender.telegramUserId, text: tr(key), keyboard: null }];
+    }
+    return [reply(sender, tr(mapped === "block_reporter" ? "safety.blocked" : "safety.closed"))];
+  }
+
   const mapped =
     action === "claim"
       ? "claim"
@@ -968,20 +1002,71 @@ async function handleSafetyGroupAction(
           ? "block_reporter"
           : null;
   if (mapped === null) return [reply(sender, tr("common.unknown_command"))];
-  const resolved = await resolveSafetyIncident(
-    { incidentId, actorTelegramId: sender.telegramUserId, action: mapped },
-    deps.safety.resolutions,
-  );
-  if (!resolved.ok) {
-    const key =
-      resolved.error.detail === "ACTOR_NOT_AUTHORIZED"
-        ? "safety.not_authorized"
-        : "safety.already_handled";
-    return [{ chatId: sender.telegramUserId, text: tr(key), keyboard: null }];
-  }
-  if (mapped === "claim")
+
+  if (mapped === "claim") {
+    const resolved = await resolveSafetyIncident(
+      { incidentId, actorTelegramId: sender.telegramUserId, action: "claim", decisionReason: null },
+      deps.safety.resolutions,
+    );
+    if (!resolved.ok) {
+      const key =
+        resolved.error.detail === "ACTOR_NOT_AUTHORIZED"
+          ? "safety.not_authorized"
+          : "safety.already_handled";
+      return [{ chatId: sender.telegramUserId, text: tr(key), keyboard: null }];
+    }
     return [reply(sender, tr("safety.claimed", { actor: sender.telegramUserId }))];
-  return [reply(sender, tr(mapped === "block_reporter" ? "safety.blocked" : "safety.closed"))];
+  }
+
+  // `PD-021` — اعرض قائمةَ أسبابٍ مغلقةٍ قبلَ تنفيذِ القرارِ.
+  const decisionKey = mapped === "block_reporter" ? "block" : "close";
+  return [
+    {
+      chatId: sender.telegramUserId,
+      text: tr("safety.choose_reason", { incident: incidentId.slice(0, 8) }),
+      keyboard: {
+        kind: "inline",
+        rows: [
+          [
+            {
+              label: tr("safety.reason_resolved"),
+              data: `sos:resolve:${incidentId}:${decisionKey}:resolved`,
+            },
+          ],
+          [
+            {
+              label: tr("safety.reason_false_report"),
+              data: `sos:resolve:${incidentId}:${decisionKey}:false_report`,
+            },
+          ],
+          [
+            {
+              label: tr("safety.reason_duplicate"),
+              data: `sos:resolve:${incidentId}:${decisionKey}:duplicate`,
+            },
+          ],
+          [
+            {
+              label: tr("safety.reason_escalated"),
+              data: `sos:resolve:${incidentId}:${decisionKey}:escalated`,
+            },
+          ],
+          [
+            {
+              label: tr("safety.reason_safety_risk"),
+              data: `sos:resolve:${incidentId}:${decisionKey}:safety_risk`,
+            },
+          ],
+          [
+            {
+              label: tr("safety.reason_policy_violation"),
+              data: `sos:resolve:${incidentId}:${decisionKey}:policy_violation`,
+            },
+          ],
+        ],
+      },
+    },
+  ];
 }
 
 async function liveSubscription(deps: DriverBotDependencies, driverId: DriverId) {

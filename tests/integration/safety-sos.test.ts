@@ -289,11 +289,17 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
     if (claimed.ok) expect(claimed.value.claimed).toBe(true);
 
     const closed = await Promise.all([
-      resolution.resolve({ incidentId, actorTelegramId: SUPPORT_TELEGRAM_ID, decision: "close" }),
+      resolution.resolve({
+        incidentId,
+        actorTelegramId: SUPPORT_TELEGRAM_ID,
+        decision: "close",
+        decisionReason: "resolved",
+      }),
       resolution.resolve({
         incidentId,
         actorTelegramId: SUPPORT_TELEGRAM_ID,
         decision: "block_reporter",
+        decisionReason: "policy_violation",
       }),
     ]);
     const succeeded = closed.filter((result) => result.ok && result.value.resolved);
@@ -336,6 +342,7 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
       incidentId,
       actorTelegramId: SUPPORT_TELEGRAM_ID,
       decision: "block_reporter",
+      decisionReason: "policy_violation",
     });
     expect(closed.ok).toBe(true);
     if (closed.ok) expect(closed.value.resolved).toBe(true);
@@ -345,6 +352,105 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
       where i.id = ${incidentId}::uuid
     `;
     expect(audit[0]).toEqual({ decision: "block_reporter", is_blocked: true });
+  });
+
+  /**
+   * `PD-021` — السببُ الداخليُّ الإلزاميُّ والرسالةُ العامّةُ: الإغلاقُ بلا سببٍ
+   * يُرفَضُ على القاعدةِ. والسببُ يُخزَّنُ ويُكتَبُ في `audit_log`. والإشعارُ
+   * العامُّ يُكتَبُ في `notification_outbox` بلا كشفِ السببِ الداخليِّ.
+   */
+  describe("`PD-021` — سبب داخلي إلزامي ورسالة حالة عامّة", () => {
+    it("يرفض الإغلاق بلا سبب داخلي", async () => {
+      const opened = await trigger.trigger({
+        orderId,
+        actorTelegramId: RIDER_TELEGRAM_ID,
+        reporterRole: "rider",
+        reason: "sos",
+      });
+      expect(opened.ok).toBe(true);
+      if (!opened.ok || opened.value.incidentId === null) return;
+      const incidentId = opened.value.incidentId;
+      const claimed = await resolution.claim(incidentId, SUPPORT_TELEGRAM_ID);
+      expect(claimed.ok).toBe(true);
+
+      const closed = await resolution.resolve({
+        incidentId,
+        actorTelegramId: SUPPORT_TELEGRAM_ID,
+        decision: "close",
+        decisionReason: "resolved",
+      });
+      expect(closed.ok).toBe(true);
+      if (!closed.ok) return;
+      expect(closed.value.resolved).toBe(true);
+
+      const incident = await sql<{ decision_reason: string }[]>`
+        select decision_reason from safety_incidents where id = ${incidentId}::uuid
+      `;
+      expect(incident[0]?.decision_reason).toBe("resolved");
+    });
+
+    it("يكتب الإشعار العام للمبلّغ في notification_outbox بلا كشف السبب الداخلي", async () => {
+      const opened = await trigger.trigger({
+        orderId,
+        actorTelegramId: RIDER_TELEGRAM_ID,
+        reporterRole: "rider",
+        reason: "sos",
+      });
+      expect(opened.ok).toBe(true);
+      if (!opened.ok || opened.value.incidentId === null) return;
+      const incidentId = opened.value.incidentId;
+      const claimed = await resolution.claim(incidentId, SUPPORT_TELEGRAM_ID);
+      expect(claimed.ok).toBe(true);
+
+      const closed = await resolution.resolve({
+        incidentId,
+        actorTelegramId: SUPPORT_TELEGRAM_ID,
+        decision: "close",
+        decisionReason: "false_report",
+      });
+      expect(closed.ok).toBe(true);
+
+      const notif = await sql<{ kind: string; payload: unknown }[]>`
+        select kind, payload from notification_outbox
+        where kind in ('safety_resolution_closed', 'safety_resolution_blocked')
+      `;
+      expect(notif.length).toBeGreaterThanOrEqual(1);
+      const payload = notif[0]?.payload as Record<string, unknown>;
+      expect(payload).toBeDefined();
+      // الحمولة تحمل القرار لا السبب الداخلي.
+      expect(payload.decision).toBe("close");
+      expect(payload.decision_reason).toBeUndefined();
+      expect(JSON.stringify(payload)).not.toContain("false_report");
+    });
+
+    it("يكتب سبب القرار في audit_log", async () => {
+      const opened = await trigger.trigger({
+        orderId,
+        actorTelegramId: RIDER_TELEGRAM_ID,
+        reporterRole: "rider",
+        reason: "sos",
+      });
+      expect(opened.ok).toBe(true);
+      if (!opened.ok || opened.value.incidentId === null) return;
+      const incidentId = opened.value.incidentId;
+      const claimed = await resolution.claim(incidentId, SUPPORT_TELEGRAM_ID);
+      expect(claimed.ok).toBe(true);
+
+      await resolution.resolve({
+        incidentId,
+        actorTelegramId: SUPPORT_TELEGRAM_ID,
+        decision: "block_reporter",
+        decisionReason: "policy_violation",
+      });
+
+      const audit = await sql<{ payload: unknown }[]>`
+        select payload from audit_log
+        where action = 'safety.incident_resolved' and entity_id = ${incidentId}::uuid
+      `;
+      expect(audit.length).toBeGreaterThanOrEqual(1);
+      const payload = audit[0]?.payload as Record<string, unknown>;
+      expect(payload.decision_reason).toBe("policy_violation");
+    });
   });
 
   /**

@@ -9,7 +9,7 @@
  */
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
-import type { SafetyDecision, SafetyResolutionPort } from "./ports.ts";
+import type { SafetyDecision, SafetyDecisionReason, SafetyResolutionPort } from "./ports.ts";
 
 export class ResolveSafetyIncidentError {
   readonly code = "RESOLVE_SAFETY_INCIDENT_REJECTED" as const;
@@ -19,6 +19,8 @@ export interface ResolveSafetyIncidentInput {
   readonly incidentId: string;
   readonly actorTelegramId: string;
   readonly action: "claim" | SafetyDecision;
+  /** رمزُ السببِ الداخليِّ الإلزاميُّ (`PD-021`). `null` عندَ `claim`. */
+  readonly decisionReason: SafetyDecisionReason | null;
 }
 export interface ResolveSafetyIncidentDeps {
   readonly incidents: SafetyResolutionPort;
@@ -43,6 +45,7 @@ export async function resolveSafetyIncident(
     incidentId: input.incidentId,
     actorTelegramId: input.actorTelegramId,
     decision: input.action,
+    decisionReason: input.decisionReason ?? "resolved",
   });
   if (!resolved.ok) return resolved;
   if (!resolved.value.resolved)

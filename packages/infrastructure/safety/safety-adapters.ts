@@ -62,7 +62,7 @@ export function createSafetyResolutionPort(sql: Sql): SafetyResolutionPort {
       guard("rpc.resolve_safety_incident", async () => {
         const rows = await sql<
           { result: unknown }[]
-        >`select resolve_safety_incident(${input.incidentId}::uuid, ${input.actorTelegramId}::bigint, ${input.decision}::text) result`;
+        >`select resolve_safety_incident(${input.incidentId}::uuid, ${input.actorTelegramId}::bigint, ${input.decision}::text, ${input.decisionReason}::text) result`;
         const row = envelope(rows[0]?.result, "resolve_safety_incident");
         return {
           resolved: row.ok === true,

@@ -115,7 +115,12 @@ describe("حالات استخدام SOS", () => {
   it("لا يقفل الحادث إلا بعد استلامه من الموظف نفسه", async () => {
     let resolved = false;
     const result = await resolveSafetyIncident(
-      { incidentId: "incident-1", actorTelegramId: "77", action: "close" },
+      {
+        incidentId: "incident-1",
+        actorTelegramId: "77",
+        action: "close",
+        decisionReason: "resolved",
+      },
       {
         incidents: {
           claim: async () =>
@@ -129,5 +134,33 @@ describe("حالات استخدام SOS", () => {
     );
     expect(result.ok).toBe(true);
     expect(resolved).toBe(true);
+  });
+
+  /**
+   * `PD-021` — السببُ الداخليُّ الإلزاميُّ: `resolve` لا يُستدعى بلا سببٍ. الطبقةُ
+   * التطبيقيةُ تُمرِّرُ السببَ المُختارَ، والدالّةُ تُلزِمُهُ. والرسالةُ العامّةُ لا
+   * تَكشفُهُ.
+   */
+  it("ينقل سبب القرار الداخلي إلى منفذ الإغلاق", async () => {
+    const holder: { reason: string | null } = { reason: null };
+    const result = await resolveSafetyIncident(
+      {
+        incidentId: "incident-9",
+        actorTelegramId: "77",
+        action: "close",
+        decisionReason: "safety_risk",
+      },
+      {
+        incidents: {
+          claim: async () => ok({ claimed: true, error: null, claimedBy: "77" }),
+          resolve: async (input) => {
+            holder.reason = input.decisionReason;
+            return ok({ resolved: true, error: null });
+          },
+        },
+      },
+    );
+    expect(result.ok).toBe(true);
+    expect(holder.reason).toBe("safety_risk");
   });
 });
