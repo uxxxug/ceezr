@@ -21,7 +21,9 @@
  * ممكناً أصلاً، وهو نتيجةُ `ARCH-005` مُحصَّلةً لا مصادفةً.
  */
 
+import type { SessionRevocationStore } from "../../../packages/application/identity/ports.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
+import { createRedisSessionRevocationStore } from "../../../packages/infrastructure/identity/redis-session-revocation-store.ts";
 import { createTelegramApi } from "../../../packages/infrastructure/notification/telegram-client.ts";
 import { createUpstashRedis } from "../../../packages/infrastructure/redis/upstash.ts";
 import {
@@ -49,6 +51,11 @@ export interface AdminContainer {
   readonly maplibreSri: string | null;
   /** `true` إن كان الناقلُ مغلَّفاً بـRedis Streams — يُسجَّلُ عندَ الإقلاع. */
   readonly busCrossesProcesses: boolean;
+  /**
+   * مخزنُ إبطالِ جلساتِ Mini App (`SEC-18-ب`). `null` حينَ لا Redis — وحينَها
+   * مسلكُ الإبطالِ يردُّ ٥٠٣، فلا يُسجَّلُ قرارٌ بلا إنفاذٍ.
+   */
+  readonly sessionRevocation: SessionRevocationStore | null;
   readonly close: () => Promise<void>;
 }
 
@@ -111,6 +118,13 @@ export function buildAdminContainer(
           pollMs: DEFAULT_POLL_MS,
         })
       : null;
+  /*
+   * الإبطالُ **يقتضي مخزناً مشتركاً**: عمليةُ اللوحةِ تكتبُ العتبةَ وعمليةُ البوّابةِ
+   * تقرؤها، فذاكرةُ العمليةِ لا تصلُحُ ههنا ولو صلَحَت في نسخةٍ واحدةٍ. فبلا Redis
+   * لا مخزنَ — والمسلكُ يردُّ ٥٠٣ ولا يُوهِمُ بإبطالٍ لا يراهُ أحدٌ.
+   */
+  const sessionRevocation = redis === null ? null : createRedisSessionRevocationStore(redis);
+
   if (distributedBus !== null) distributedBus.start();
   const bus: TrackingEventBus = distributedBus ?? localBus;
 
@@ -164,6 +178,7 @@ export function buildAdminContainer(
     mapOrigins,
     maplibreSri: config.maplibreSri,
     busCrossesProcesses: distributedBus !== null,
+    sessionRevocation,
     close: async () => {
       distributedBus?.stop();
       await sql.end({ timeout: 5 });

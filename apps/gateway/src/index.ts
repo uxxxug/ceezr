@@ -1393,6 +1393,8 @@ if (config.runAdminInGateway) {
     sql: container.sql,
     auth: adminAuth,
     bus: container.tracking.bus,
+    // مسلكُ إبطالِ جلساتِ Mini App منَ اللوحةِ (`SEC-18-ب`) — بلا هذا السطرِ يردُّ ٥٠٣.
+    revocation: sessionRevocationStore,
     mapOrigins,
     ...(mapStyle.ok ? { mapStyle: mapStyle.value } : {}),
     maplibreSri: config.maplibreSri,

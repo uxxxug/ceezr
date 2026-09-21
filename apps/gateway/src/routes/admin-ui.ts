@@ -13,9 +13,12 @@ import type {
   BroadcastAdminPort,
   BroadcastFilters,
 } from "../../../../packages/application/broadcast/ports.ts";
+import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
+import { isSessionRevocationReason } from "../../../../packages/application/identity/session-revocation-reasons.ts";
 import { DEFAULT_SESSION_POLICY } from "../../../../packages/domain/tracking/session.ts";
 import { createBroadcastAdminPort } from "../../../../packages/infrastructure/broadcast/broadcast-adapters.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
+import { MINIAPP_SESSION_ABSOLUTE_TTL_SECONDS } from "../../../../packages/infrastructure/identity/miniapp-refresh.ts";
 import {
   MAPLIBRE_SRI_UNSET,
   type MapPoint,
@@ -93,9 +96,11 @@ import {
   listLiveOrders,
   listRatings,
   listSettings,
+  logMiniAppSessionRevocation,
   numericSetting,
   RATINGS_LIMIT,
   ratingsTotals,
+  readUserTelegramId,
   recentAudit,
   setDriverVerification,
   setUserBlocked,
@@ -132,6 +137,14 @@ export interface AdminUiDependencies {
    * ثم تسقط عند أوّل إرسال. الحقلُ للاستبدال في الاختبار لا للتشغيل بدونه.
    */
   readonly broadcast?: BroadcastAdminPort;
+  /**
+   * مخزنُ إبطالِ الجلساتِ (`SEC-18-ب`) — بهِ يُنفَذُ إبطالُ جلساتِ Mini App من
+   * اللوحةِ. **وغيابُهُ إغلاقٌ لا تجاوُزٌ**: المسلكُ يردُّ ٥٠٣ ولا يُسجِّلُ قراراً،
+   * إذ أثرٌ بلا إنفاذٍ كذبٌ في السجلِّ — وهو عينُ ما يُغلِقُهُ هذا البندُ.
+   * واختياريٌّ لا إلزاميٌّ كي لا تُكسَرَ عشرةُ مُتصِلي اختبارٍ لا تمسُّ هذا المسلكَ،
+   * **والثقبُ محروسٌ لا مأمولٌ**: اختبارٌ يُثبِتُ الردَّ ٥٠٣ عندَ الغيابِ.
+   */
+  readonly revocation?: SessionRevocationStore;
 }
 
 /** الافتراضُ حين لا سائقَ مرئيّاً: مركزُ الجزيرة تقريباً بتكبيرٍ واسع. */
@@ -175,6 +188,8 @@ const AUDIT_PREVIEW_LIMIT = 12;
 const DEFAULT_HEATMAP_HOURS = 6;
 const SEE_OTHER = 303;
 const HTML_UNPROCESSABLE = 422;
+const SERVER_ERROR = 500;
+const SERVICE_UNAVAILABLE = 503;
 const TELEGRAM_ID_PATTERN = /^[0-9]{5,20}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_FOUND = 404;
@@ -1156,6 +1171,67 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       blocked,
     );
     log("admin.user_block_changed", { ok: outcome.ok, error: outcome.error, blocked });
+    return c.redirect(formText(checked.form, "back") ?? "/admin/drivers", SEE_OTHER);
+  });
+
+  /*
+   * إبطالُ جلساتِ Mini App لمستخدمٍ (`SEC-18-ب`) — الساقُ الغائبةُ التي أبقَت
+   * `SEC-18` على `[~]`: المحرِّكُ كانَ مبنيّاً و`revoke` بلا موضعِ نداءٍ إنتاجيٍّ.
+   *
+   * والترتيبُ **مقصودٌ ومُحتجٌّ لهُ**: تحقُّقُ السببِ، ثمَّ الإنفاذُ، ثمَّ التسجيلُ.
+   *   ــ السببُ أوّلاً لأنَّهُ الشرطُ الوحيدُ الذي يُبطِلُ الطلبَ كلَّه، فلا يُنفَذُ
+   *      إبطالٌ ثمَّ يُرفَضُ سببُه.
+   *   ــ والإنفاذُ قبلَ التسجيلِ لأنَّ إخفاقَ التسجيلِ يُخلِّفُ **إنفاذاً بلا أثرٍ**
+   *      وذاكَ يُعاد بلا ضرَرٍ، أمّا إخفاقُ الإنفاذِ بعدَ التسجيلِ فيُخلِّفُ
+   *      **أثراً يكذبُ**: سجلٌّ يقولُ «أُبطِلَت» وجلسةٌ حيّةٌ بيدِ مَن سُرِقَت منه.
+   */
+  app.post("/users/:id/revoke-sessions", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const reason = formText(checked.form, "reason");
+    if (!isSessionRevocationReason(reason)) {
+      return c.text("INVALID_REASON", HTML_UNPROCESSABLE);
+    }
+
+    const revocation = deps.revocation;
+    if (revocation === undefined) {
+      log("admin.miniapp_sessions_revoke_unavailable", { reason: "STORE_NOT_WIRED" });
+      return c.text("SESSION_REVOCATION_NOT_AVAILABLE", SERVICE_UNAVAILABLE);
+    }
+
+    const targetUserId = c.req.param("id");
+    const telegramUserId = await readUserTelegramId(deps.sql, targetUserId);
+    if (telegramUserId === null) {
+      return c.text("USER_NOT_FOUND", HTML_UNPROCESSABLE);
+    }
+
+    const nowMs = Date.now();
+    const enforced = await revocation.revokeAllForUser(
+      telegramUserId,
+      nowMs,
+      MINIAPP_SESSION_ABSOLUTE_TTL_SECONDS,
+      reason,
+    );
+    if (!enforced.ok) {
+      log("admin.miniapp_sessions_revoke_enforcement_failed", { detail: enforced.error.detail });
+      return c.text("SESSION_REVOCATION_NOT_AVAILABLE", SERVICE_UNAVAILABLE);
+    }
+
+    const logged = await logMiniAppSessionRevocation(
+      deps.sql,
+      c.get("admin").userId,
+      targetUserId,
+      reason,
+    );
+    log("admin.miniapp_sessions_revoked", { ok: logged.ok, error: logged.error });
+    if (!logged.ok) {
+      /*
+       * الإبطالُ **نافذٌ** والأثرُ غائبٌ. فلا يُقالُ «تمَّ»: يُردُّ خطأٌ ليُعادَ
+       * الطلبُ، والإعادةُ تضربُ العتبةَ نفسَها وتكتبُ الأثرَ.
+       */
+      return c.text("REVOKED_BUT_NOT_LOGGED", SERVER_ERROR);
+    }
     return c.redirect(formText(checked.form, "back") ?? "/admin/drivers", SEE_OTHER);
   });
 

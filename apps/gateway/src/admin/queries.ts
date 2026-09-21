@@ -1754,6 +1754,40 @@ export async function setDriverVerification(
   return readWrite(rows[0]?.result);
 }
 
+/**
+ * مُعرِّفُ تيليجرام للمستخدمِ الهدفِ — يُقرأُ **قبلَ** الإنفاذِ (`SEC-18-ب`).
+ *
+ * ولِمَ قراءةٌ منفصلةٌ لا قيمةٌ تُردُّ منَ الدالّةِ المُسجِّلةِ: الإنفاذُ يسبقُ
+ * التسجيلَ (`ADR 0174`)، ومفتاحُ الإنفاذِ في Redis مُعرِّفُ تيليجرام لا
+ * `users.id` — فلو انتُظِرَ التسجيلُ ليُعرَفَ المفتاحُ لانقلبَ الترتيبُ.
+ */
+export async function readUserTelegramId(sql: Sql, userId: string): Promise<string | null> {
+  const rows = await sql<{ telegram_id: string | null }[]>`
+    select telegram_id::text as telegram_id from users where id = ${userId}::uuid
+  `;
+  const value = rows[0]?.telegram_id;
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/**
+ * سجلُّ قرارِ إبطالِ جلساتِ Mini App (`SEC-18-ب`). **يُستدعى بعدَ الإنفاذِ**:
+ * إنفاذٌ بلا أثرٍ أسلمُ من أثرٍ بلا إنفاذٍ، وإخفاقُ التسجيلِ يُعادُ بلا ضرَرٍ
+ * (ضربُ العتبةِ نفسِها مرّتَينِ لا يُغيِّرُ شيئاً).
+ */
+export async function logMiniAppSessionRevocation(
+  sql: Sql,
+  actorUserId: string,
+  targetUserId: string,
+  reason: string,
+): Promise<WriteOutcome> {
+  const rows = await sql<{ result: unknown }[]>`
+    select admin_revoke_miniapp_sessions(
+      ${actorUserId}::uuid, ${targetUserId}::uuid, ${reason}::text
+    ) as result
+  `;
+  return readWrite(rows[0]?.result);
+}
+
 export async function setUserBlocked(
   sql: Sql,
   actorUserId: string,

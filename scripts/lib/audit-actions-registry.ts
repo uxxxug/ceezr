@@ -99,6 +99,7 @@ export interface AuditedPrivilegedAction {
  * **التزامٌ لا إعفاءٌ**.
  */
 export const AUDITED_PRIVILEGED_ACTIONS: readonly AuditedPrivilegedAction[] = [
+  { fn: "admin_revoke_miniapp_sessions", actions: ["admin.miniapp_sessions_revoked"] },
   {
     fn: "admin_set_driver_verification",
     actions: ["admin.driver_verification_changed", "admin.trial_auto_started"],
@@ -159,7 +160,7 @@ export const AUDIT_EXEMPT_PRIVILEGED_FUNCTIONS: readonly AuditExemption[] = [
  * عددُ الدوالِّ المُسجَّلةِ **كنصِّ بندٍ** لا كطولِ مصفوفةٍ: لو قُرِئَ من
  * `AUDITED_PRIVILEGED_ACTIONS.length` لصارَ السِجلُّ يحرسُ نفسَه فلا يحرسُ شيئاً.
  */
-export const REQUIRED_AUDITED_FUNCTION_COUNT = 18;
+export const REQUIRED_AUDITED_FUNCTION_COUNT = 19;
 
 /** وعددُ الإعفاءاتِ كذلكَ: نموُّهُ خفيةً هوَ بعينِه ما يُخشى. */
 export const REQUIRED_EXEMPTION_COUNT = 1;

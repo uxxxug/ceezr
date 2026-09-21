@@ -13,6 +13,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "abandon_notification_delivery",
   "abandon_telegram_update_job",
   "active_ride_snapshot",
+  "admin_revoke_miniapp_sessions",
   "admin_set_driver_verification",
   "admin_set_user_blocked",
   "admin_update_city_group_ids",
