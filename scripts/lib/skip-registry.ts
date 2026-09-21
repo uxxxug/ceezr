@@ -1888,6 +1888,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/ticket-type-enum-parity.test.ts",
+    suites: ["PD-080 — مواءمةُ `support_ticket_type` بين القاعدةِ والشيفرةِ"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `PD-080` هوَ **تطابقُ `pg_enum` و`SUPPORT_TICKET_TYPES` في كلا الاتجاهَين** — لا قيمةَ في القاعدةِ بلا مقابلٍ في الشيفرةِ ولا صنفاً في الشيفرةِ بلا قيمةٍ في القاعدةِ. وهذا لا يُقاسُ إلّا بقراءةِ `pg_enum` من قاعدةٍ حقيقيّةٍ: القائمةُ في `ticket-types.ts` مكتوبةٌ يدويّاً، فالانفصالُ عن القاعدةِ خطأٌ صامتٌ لا يكشفُه أحدٌ حتى يصطدمَ به راكبٌ في شاشةٍ. والترتيبُ مقيسٌ كذلك: `enumsortorder` يُقرأُ من القاعدةِ ويُقارَنُ بالقائمةِ كما كُتِبَت.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي» عبر `bun run test:integration`.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/audit-trail-authority.test.ts",
     suites: ["الأثرُ التدقيقيُّ مقيسٌ بالأثرِ لا بالنصِّ (SEC-12)"],
     skipped: 9,
