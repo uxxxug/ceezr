@@ -91,17 +91,19 @@ Full suite: 5751 pass / 0 fail / 1440 skip / 18268 expect() calls
   - SOS path uses readSync (no revocation check — ADR-0077)
 ```
 
-### CI verdict on main
+### حكمُ CI على `main` (`ح-4`) — يُضافُ ولا يُمحى
 
-**PR #199 merged** — commit on main. First green CI run on main:
+مقروءٌ **بالوظيفةِ لا بالجولةِ**، كما في سابقةِ `ح-4`. ولا إعادةَ تشغيلٍ لبصمةٍ
+واحدةٍ تُحسَبُ جولةً ثانيةً: كلُّ جولةٍ على بصمةٍ متمايزةٍ على `main`.
 
-- `verify`: pass (1m33s)
-- PostgreSQL integration: pass (4m18s)
-- Redis integration: pass (37s)
-- F5-06 chaos: pass (54s)
-- Roadmap freshness: pass (16s)
+| # | الجولةُ | البصمةُ | `verify` | PostgreSQL | Redis | فوضى (F5-06) | Roadmap freshness |
+|---|---|---|---|---|---|---|---|
+| ١ | `35660794565` | `96414e32` (دمجُ `#199`) | ✅ | ✅ | ✅ | ✅ | ✅ `35660794540` |
+| ٢ | `35661430725` | `ad73e996` (تسجيلُ الحكمِ) | ✅ | ✅ | ✅ | ✅ | ✅ `35661430756` |
 
-**SEC-18 is `[~]`** — needs 3 green CI runs on main before `[x]` (`ح-4`).
+الجولةُ الثالثةُ تُسجَّلُ ههنا عندَ قراءةِ حكمِها.
+
+**SEC-18 يبقى `[~]`** حتّى تكتملَ ثلاثُ جولاتٍ خضراءَ متتاليةٍ على `main` (`ح-4`).
 
 ## What is measured
 
