@@ -22,18 +22,32 @@ export interface SystemScreenProps {
   readonly onAction?: () => void;
   /** الفعلُ جارٍ: يُعطَّل الزرُّ فلا يُنادى مرّتين بلمستين. */
   readonly busy?: boolean;
+  /**
+   * وِجهةُ الفعلِ إن كانَ **مغادرةً** لا إعادةَ محاولةٍ (شاشةُ «خارجَ تيليجرام»).
+   * والوِجهةُ **تسبقُ** `onAction` عندَ حضورِها: لا يُعرَضُ فعلانِ في زرٍّ واحدٍ.
+   */
+  readonly actionHref?: string;
 }
 
-export function SystemScreen({ state, onAction, busy = false }: SystemScreenProps) {
+export function SystemScreen({ state, onAction, busy = false, actionHref }: SystemScreenProps) {
   const text = screenText(state);
-  const showAction = text.actionLabel !== null && onAction !== undefined;
+  // **لا يُعرَضُ زرٌّ بلا فعلٍ**: عنوانٌ موجودٌ أو مُعالِجٌ موجودٌ — وإلّا فلا زرَّ.
+  // فشاشةٌ لها عنوانُ فعلٍ في نصِّها ولا وِجهةَ له (متغيّرُ بناءٍ غائبٌ) تُعرَضُ
+  // بنصِّها وحدَه، ولا يُعرَضُ زرٌّ يفتحُ لا شيءَ.
+  const showAction =
+    text.actionLabel !== null && (actionHref !== undefined || onAction !== undefined);
 
   return (
     <section className="sys" role={screenTone(state)}>
       <h1 className="sys__title">{text.title}</h1>
       <p className="sys__body">{text.body}</p>
       {text.hint === null ? null : <p className="sys__hint">{text.hint}</p>}
-      {showAction ? (
+      {showAction && actionHref !== undefined ? (
+        <a className="sys__action" href={actionHref} rel="noopener noreferrer">
+          {text.actionLabel}
+        </a>
+      ) : null}
+      {showAction && actionHref === undefined ? (
         <button
           type="button"
           className="sys__action"

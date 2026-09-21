@@ -62,6 +62,18 @@ describe("لا حالةَ بلا نصّ (UX-5)", () => {
       expect(screenText({ kind }).actionLabel).toBeNull();
     }
   });
+
+  /**
+   * **زيادةٌ 2026-09-21**: `outside_telegram` له عنوانُ فعلٍ — **مغادرةٌ إلى
+   * البوتِ لا إعادةُ محاولةٍ**. وليسَ «زرّاً كاذباً» لأنَّ العرضَ يُمسِكُ عنه
+   * عندَ غيابِ الوِجهةِ (`screens.test.tsx`).
+   */
+  it("خارجَ تيليجرام: عنوانُ الفعلِ مغادرةٌ لا إعادةُ محاولةٍ", () => {
+    const label = screenText({ kind: "outside_telegram" }).actionLabel;
+    expect(label).not.toBeNull();
+    expect(label).not.toContain("إعادة");
+    expect(label).toContain("بوت");
+  });
 });
 
 describe("SS-01: ما يمكن فعلُه بلا شبكة (القسم 9.7)", () => {

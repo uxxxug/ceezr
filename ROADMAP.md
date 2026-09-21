@@ -8159,3 +8159,68 @@ CI على main بعدَ الدمج: الجولةُ الأولى خضراءُ ب�
 - لا يُدَّعى أنَّ البنودَ العشرةَ `[!]` كلُّها قراراتٌ مستقلّةٌ — بعضُها يَفتحُ بعضًا (`PD-064` يَفتحُ `PD-090` · `PD-061` يَفتحُ `PD-063`).
 - لا يُدَّعى أنَّ هذا الحاجزَ نهائيٌّ — قرارُ مالكٍ واحدٌ يفتحُ تنفيذًا جديدًا.
 
+
+## Step 6 of the owner's order after `DEC-07` — an exit from the "outside Telegram" screen, recorded 2026-09-21 (additive; no item text changed)
+
+`F1-07` shipped a truthful "outside Telegram" screen and deliberately gave it no
+button, because the only action that surface knew was **retry** — and retry is
+meaningless where boot fails by definition under `DEC-07`. So the screen told the
+user to stop and did not tell them where to go.
+
+That gap is now closed with a **leave** action, not a retry:
+
+- `apps/miniapp/src/system/bot-link.ts` — the destination comes from the single
+  build-time variable `VITE_WASLAH_BOT_LINK`, parsed with `URL` and required to be
+  `https:`, host exactly `t.me`, and a non-empty path. `https://evil-t.me/x`,
+  `https://t.me.attacker.example/x`, `javascript:`, `data:`, and a bare
+  `https://t.me` are all rejected. **The destination is untrusted input even though
+  the owner types it.**
+- **If the variable is absent or fails validation, no button is rendered at all** —
+  not a disabled one, not one that opens nothing. The title and body stay. This is
+  guarded as its own test case, not left to a reviewer's attention.
+- The element is an **anchor, not a button**: a screen reader must hear a link, and
+  it must be openable in another tab (`UX-10`). The href takes precedence over any
+  handler, and `Shell` passes no retry handler for this screen alone.
+- No server call. This screen renders with no session and no Telegram host and is
+  itself the "something did not work" state; a call would need a **new public
+  unauthenticated endpoint** with its own failure mode, making the failure screen
+  fail twice.
+
+**The honest cost, recorded not glossed:** the bot handle now has **two sources of
+truth** — `getMe` on the server and a hand-entered variable in the deploy
+dashboard. This violates the "fewest sources of truth" criterion. The mitigations
+(divergence is immediately visible and not silent; validation blocks the worst
+case; absence is safe by default) do not erase it. The correct fix — one public
+endpoint echoing what `getMe` reads — is recorded and deliberately not built: a
+public surface is not created for the sake of one link. See `ADR 0166` §4.
+
+One existing assertion went red and that is recorded without colouring: the
+"informational screens carry no button" case included this screen, and its verdict
+was correct at the time. **The blanket rule was not widened and not weakened** —
+this screen was given three sharper cases of its own, and the other four are still
+judged by "no `<button>`" literally (`ح-8`).
+
+Local: lint 0 warnings (1702 files) · typecheck pass · `build:miniapp` pass ·
+`bun test` whole suite **5647 pass / 0 fail** / 18071 assertions / 483 files ·
+system screens **56 / 0** (was 40). **Not `measured`, not `proven`** (`ح-5`): no
+browser, no device, no click that opened Telegram. What is measured is render
+output as text. Evidence:
+`docs/evidence/architecture/STEP6-BACK-TO-BOT-BUTTON-20260921.md`.
+
+### `OPS-ROADMAP-GATE` — a gap found while doing the above, registered not fixed here
+
+`scripts/check-roadmap.mjs` defaults to `BASE_SHA=${{ github.event.before }}`. On
+the **first push of a new branch** that value is `0000000…`, `git diff` throws, and
+the script takes its `catch` path and **exits 0 with "check skipped"**. Since every
+feature branch begins with a first push, the roadmap-freshness rule is effectively
+unenforced for exactly the commits it exists to police — including PR #191, whose
+`roadmap` job was green while touching only `docs/ROADMAP-MASTER.md`.
+
+There is a second, related duplication: the gate names `ROADMAP.md` while the
+project's working roadmap is `docs/ROADMAP-MASTER.md`. **Two roadmap files, and the
+gate guards the one that is updated less often.**
+
+This is **not fixed in this unit** — it is a change to a guard's semantics plus a
+decision about which roadmap file is authoritative, and folding it into a UI unit
+would expand that unit's scope against the non-regression protocol. It is recorded
+here as an open item so it is measurable and closable rather than remembered.

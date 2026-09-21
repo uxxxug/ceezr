@@ -599,3 +599,9 @@ services:
       # وفراغُها يعني «نفسُ الأصلِ» (apps/miniapp/src/api/client.ts).
       - key: VITE_WASLAH_API_BASE
         sync: false
+      # رابطُ العودةِ إلى البوتِ لشاشةِ «خارجَ تيليجرام». ليسَ سرّاً — يُخبَزُ في
+      # حزمةٍ عامّةٍ — لكنَّه **غيرُ معلومٍ في المستودعِ**: اسمُ البوتِ يُقرأُ في
+      # الخادمِ من `getMe`. وغيابُه لا يُعطِّلُ شيئاً: لا يُعرَضُ زرٌّ، والشاشةُ
+      # تبقى سليمةً بنصِّها (`apps/miniapp/src/system/bot-link.ts`).
+      - key: VITE_WASLAH_BOT_LINK
+        sync: false
