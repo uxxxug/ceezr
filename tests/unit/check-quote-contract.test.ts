@@ -17,9 +17,14 @@
 import { describe, expect, it } from "bun:test";
 import { SERVICE_KINDS } from "../../packages/domain/quote/service-offer.ts";
 import {
+  BOT_PAYMENT_NOTICE_KEY,
   CLIENT_TEXT_FILES,
   containsWord,
+  FINAL_INPUT_GATE,
+  FINAL_INPUT_KEYS,
+  FORBIDDEN_BOT_FARE_CLAIMS,
   findArabicLiterals,
+  findBotPaymentDisclosureViolations,
   findForbiddenWords,
   findPaymentDisclosureViolations,
   findViolations,
@@ -101,11 +106,43 @@ function sources(): Record<string, string | null> {
   return slice;
 }
 
+/*
+ * حوارُ الراكبِ في المُدخَلِ السليمِ: مَعبَرٌ واحدٌ يُرسِلُ بيانَ الدفعِ، ولا مفتاحَ
+ * مُدخَلٍ أخيرٍ يُطلَبُ من غيرِه. والقاعدةُ ٩ تُوجِبُه (`ADR 0170`).
+ */
+function dialog(): string {
+  return [
+    `function ${FINAL_INPUT_GATE}(`,
+    "  sender: Sender,",
+    "  state: DialogState,",
+    `  key: "rider.ask_dropoff" | "rider.ask_parcel",`,
+    "): readonly BotReply[] {",
+    `  return [reply(sender, tr("${BOT_PAYMENT_NOTICE_KEY}")), reply(sender, tr(key), menu(state))];`,
+    "}",
+    `    return ${FINAL_INPUT_GATE}(sender, state, "rider.ask_dropoff");`,
+    `      return ${FINAL_INPUT_GATE}(sender, state, "rider.ask_parcel");`,
+  ].join("\n");
+}
+
+/** قاموسُ البوتِ السليمُ: بيانُ الدفعِ موجودٌ ولا دعوى أجرةٍ. */
+function botDictionaries(): Record<string, Record<string, string>> {
+  const built: Record<string, Record<string, string>> = {};
+  for (const language of ["ar", "en", "ur"]) {
+    built[language] = {
+      [BOT_PAYMENT_NOTICE_KEY]: "تدفعُ للسائقِ نقداً وخارجَ التطبيقِ.",
+      "rider.guide": "أرسِلْ موقعَك ثمَّ المقصدَ.",
+    };
+  }
+  return built;
+}
+
 function healthy(): RepositoryInput {
   return {
     migrationSql: migration(),
     sliceSources: sources(),
     miniappDictionaries: dictionaries(),
+    riderDialogSource: dialog(),
+    botDictionaries: botDictionaries(),
   };
 }
 
@@ -471,5 +508,104 @@ describe("المستودعُ الحقيقيُّ", () => {
 
   it("مِلفّا العميلِ المحكومانِ بالنصِّ من الشريحةِ نفسِها", () => {
     for (const path of CLIENT_TEXT_FILES) expect(SLICE_FILES).toContain(path);
+  });
+});
+
+/*
+ * القاعدةُ ٩ — بيانُ الدفعِ في بابِ البوتِ (`ADR 0170`).
+ *
+ * القاعدةُ ٨ حرسَت شاشةً واحدةً، والطلبُ يُنشَأُ من بابَينِ. وهذه الحالاتُ تُرى
+ * **ساقطةً** على كلِّ خرقٍ منفرداً، إذ حاجزٌ بلا حالةٍ سالبةٍ مقيسةٍ دعوًى لا إنفاذٌ.
+ */
+describe("القاعدةُ ٩ — بيانُ الدفعِ قبلَ المُدخَلِ الأخيرِ في البوتِ", () => {
+  const dialogSource = (): string => healthy().riderDialogSource ?? "";
+  const dicts = (): Record<string, Record<string, string>> => ({ ...botDictionaries() });
+
+  it("المُدخَلُ السليمُ يمرُّ — فالحاجزُ لا يمنعُ الصوابَ", () => {
+    expect(findBotPaymentDisclosureViolations(dialogSource(), dicts())).toEqual([]);
+  });
+
+  it("الحاجزُ لا يمرُّ حيثُ لا يقرأُ حوارَ الراكبِ", () => {
+    const violations = findBotPaymentDisclosureViolations(null, dicts());
+    expect(violations.length).toBeGreaterThan(0);
+    expect(violations.some((v) => v.includes("غيرُ مقروءٍ"))).toBe(true);
+  });
+
+  for (const language of ["ar", "en", "ur"]) {
+    it(`مفتاحُ البيانِ غائبٌ في «${language}» ⇒ يسقُطُ باسمِ اللغةِ`, () => {
+      const broken = dicts();
+      const copy = { ...(broken[language] ?? {}) };
+      delete copy[BOT_PAYMENT_NOTICE_KEY];
+      broken[language] = copy;
+      const violations = findBotPaymentDisclosureViolations(dialogSource(), broken);
+      expect(violations.some((v) => v.includes(`${language}.json`))).toBe(true);
+    });
+  }
+
+  it("مفتاحُ البيانِ فراغٌ ⇒ يسقُطُ، فالفراغُ ليسَ بياناً", () => {
+    const broken = dicts();
+    broken["ar"] = { ...(broken["ar"] ?? {}), [BOT_PAYMENT_NOTICE_KEY]: "   " };
+    expect(findBotPaymentDisclosureViolations(dialogSource(), broken).length).toBeGreaterThan(0);
+  });
+
+  it("المَعبَرُ غائبٌ ⇒ يسقُطُ، فبيانٌ مبثوثٌ في الفروعِ يُنسى في الفرعِ التالي", () => {
+    const violations = findBotPaymentDisclosureViolations(
+      dialogSource().split(`function ${FINAL_INPUT_GATE}`).join("function somethingElse"),
+      dicts(),
+    );
+    expect(violations.some((v) => v.includes("لا مَعبَرَ"))).toBe(true);
+  });
+
+  it("المَعبَرُ قائمٌ بلا بيانٍ ⇒ يسقُطُ، فمَعبَرٌ بلا بيانٍ بابٌ سُمِّيَ حاجزاً", () => {
+    const violations = findBotPaymentDisclosureViolations(
+      dialogSource().split(`tr("${BOT_PAYMENT_NOTICE_KEY}")`).join('tr("rider.welcome")'),
+      dicts(),
+    );
+    expect(violations.some((v) => v.includes("لا يُرسِلُ"))).toBe(true);
+  });
+
+  for (const key of FINAL_INPUT_KEYS) {
+    it(`«${key}» مطلوبٌ بغيرِ المَعبَرِ ⇒ يسقُطُ`, () => {
+      const bypassed = dialogSource()
+        .split(`${FINAL_INPUT_GATE}(sender, state, "${key}");`)
+        .join(`reply(sender, tr("${key}"), menu(state));`);
+      const violations = findBotPaymentDisclosureViolations(bypassed, dicts());
+      expect(violations.some((v) => v.includes(key) && v.includes("بغيرِ"))).toBe(true);
+    });
+
+    it(`«${key}» لا يُطلَبُ ألبتَّةَ ⇒ يسقُطُ صريحاً لا يُقرأُ خضرةً`, () => {
+      const removed = dialogSource()
+        .split("\n")
+        .filter((line) => !line.includes(`${FINAL_INPUT_GATE}(sender, state, "${key}")`))
+        .join("\n")
+        .split(`| "${key}"`)
+        .join("")
+        .split(`"${key}" |`)
+        .join("");
+      const violations = findBotPaymentDisclosureViolations(removed, dicts());
+      expect(violations.some((v) => v.includes(key) && v.includes("ألبتَّةَ"))).toBe(true);
+    });
+  }
+
+  for (const claim of FORBIDDEN_BOT_FARE_CLAIMS) {
+    it(`دعوى «${claim}» في نصِّ راكبٍ ⇒ يسقُطُ`, () => {
+      const broken = dicts();
+      broken["ar"] = { ...(broken["ar"] ?? {}), "rider.guide": `نصٌّ فيه ${claim} لا أكثرَ` };
+      const violations = findBotPaymentDisclosureViolations(dialogSource(), broken);
+      expect(violations.some((v) => v.includes(claim))).toBe(true);
+    });
+  }
+
+  it("دعوى الأجرةِ في نصِّ سائقٍ لا تُسقِطُ — الحكمُ على شريحةِ الراكبِ لا على كلِّ نصٍّ", () => {
+    const broken = dicts();
+    broken["ar"] = { ...(broken["ar"] ?? {}), "driver.note": "السعر التقديري للاشتراكِ" };
+    expect(findBotPaymentDisclosureViolations(dialogSource(), broken)).toEqual([]);
+  });
+
+  it("المستودعُ الحقيقيُّ يمرُّ بالقاعدةِ ٩", () => {
+    const input = readRepository();
+    expect(
+      findBotPaymentDisclosureViolations(input.riderDialogSource, input.botDictionaries),
+    ).toEqual([]);
   });
 });
