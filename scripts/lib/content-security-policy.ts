@@ -66,6 +66,39 @@ export const ALLOWED_EXTERNAL_ORIGIN_LIST: readonly string[] = Object.freeze(
  */
 export const SOLE_EXTERNAL_SCRIPT_HOST_FILE = "apps/miniapp/index.html";
 
+/**
+ * مَن يُسمَحُ له بتأطيرِ التطبيقِ المصغَّرِ — `frame-ancestors` (ADR 0165 · `F1-10`).
+ *
+ * وهذا **شرطُ عملٍ لا تشديدٌ أمنيٌّ**: التطبيقُ يُفتَحُ داخلَ إطارٍ في
+ * تلغرام، فمنعُ التأطيرِ يُنتِجُ **شاشةً بيضاءَ بلا رسالةِ خطأٍ** في
+ * Telegram Desktop وWeb — وهو أسوأُ من عطلٍ صارخٍ.
+ *
+ * **وموضعُها رأسُ استجابةٍ لا وسمُ `<meta>` — ولا خيارَ لنا في ذلك**:
+ * `frame-ancestors` من التوجيهاتِ التي **يتجاهلُها المتصفّحُ في الوسمِ**
+ * بحكمِ المواصفةِ. ولذلكَ لا تدخلُ هذهِ القيمةُ في `buildCsp`: إقحامُها في
+ * الوسمِ يكتبُ توجيهاً لا يعملُ فيُوهِمُ أنَّ الحمايةَ قائمةٌ.
+ *
+ * `*.telegram.org` لأنَّ عملاءَ الويبِ يُقدَّمونَ من نطاقاتٍ فرعيّةٍ
+ * (`web.telegram.org`)، و`telegram.org` معَها لأنَّ النمطَ الفرعيَّ **لا يشملُ
+ * النطاقَ الأصليَّ** في CSP.
+ */
+export const MINIAPP_FRAME_ANCESTORS: readonly string[] = Object.freeze([
+  "https://telegram.org",
+  "https://*.telegram.org",
+]);
+
+/**
+ * قيمةُ رأسِ `Content-Security-Policy` للموقعِ الساكنِ — **توجيهٌ واحدٌ**.
+ *
+ * والاقتصارُ مقصودٌ: توجيهاتُ الجلبِ (`script-src` · `connect-src` …) تبقى في
+ * الوسمِ وحدَه لأنَّ `connect-src` فيها يُبنى من `VITE_WASLAH_API_BASE` في زمنِ
+ * البناءِ، وكتابتُها رأساً **أيضاً** تُنشِءُ مصدَرَي حقيقةٍ لشيءٍ واحدٍ
+ * يفترقانِ بسهوٍ — والمتصفّحُ يُطبّقُ أشدَّهما فيصيرُ المنعُ من حيثُ لا يُقرأ.
+ */
+export function frameAncestorsHeaderValue(): string {
+  return `frame-ancestors ${MINIAPP_FRAME_ANCESTORS.join(" ")}`;
+}
+
 export interface CspInputs {
   /**
    * قيمةُ `VITE_WASLAH_API_BASE` كما تُبنى بها الحزمةُ. الفراغُ (أو `undefined`)

@@ -113,7 +113,26 @@ export const CLASSIFIED_SERVICES: Readonly<Record<string, string>> = {
    */
   "waslah-admin":
     "لا حالةَ محلّيّةً فيها (التصريحُ في القاعدةِ · ARCH-005)، لكنّ رفعَ النسخِ يضاعف مستهلِكي مجرى Redis وبِركَ الاتّصالِ — قرارُ سعةٍ يوجب ADR ودليلاً مقيساً",
+  /**
+   * موقعُ التطبيقِ المصغَّرِ الساكنُ (`F1-10` · `TG-005` · ADR 0165). **خارجٌ عن
+   * شرطِ `R-17` بطبيعتِه لا باستثناءٍ ممنوحٍ له**: لا عمليّةَ Node تُقلِعُ أصلاً،
+   * فلا ناقِلَ أحداثٍ داخلَ عمليّةٍ ولا حدَّ معدّلٍ في الذاكرةِ ولا حالةَ حوارٍ
+   * ولا مخزنَ جلساتٍ — ملفّاتٌ تُوزَّعُ على شبكةِ توزيعٍ وحدها. ولذلكَ لا
+   * يُحاكَمُ بـ`numInstances` ولا `PROCESS_TOPOLOGY`: إلزامُه بهما **كتابةُ وصفٍ
+   * كاذبٍ في مانيفستٍ** لِيُرضيَ حاجزاً، ووصفٌ كاذبٌ مُرضٍ لحاجزٍ أسوأُ منَ
+   * سكوتٍ. **وليسَ الإعفاءُ تركاً**: يُفحَصُ بضوابطَ موجبةٍ معكوسةٍ — أنَّ هذهِ
+   * الحقولَ ومخزنَ الجلساتِ **غائبةٌ فعلاً**، فخدمةُ Docker تتنكّرُ
+   * بـ`runtime: static` لتَنفلتَ منَ الشرطِ تسقُطُ لا تمرُّ.
+   */
+  "waslah-miniapp":
+    "موقعٌ ساكنٌ بلا عمليّةٍ — خارجٌ عن شرطِ R-17 بطبيعتِه لا باستثناءٍ، ويُحاكَمُ بضوابطَ موجبةٍ معكوسةٍ (F1-10 · TG-005 · ADR 0165)",
 };
+
+/**
+ * قيمةُ `runtime` التي تدلُّ على موقعٍ ساكنٍ بلا عمليّةٍ. ثابتٌ مُصدَّرٌ لا
+ * نصٌّ مكرَّرٌ: يُقرأ في الحكمِ وفي الاختبارِ، ونسختانِ يدويّتانِ تختلفانِ بسهوٍ.
+ */
+export const STATIC_RUNTIME = "static";
 
 /**
  * اسمُ خدمةِ اللوحةِ. ثابتٌ مُصدَّرٌ لا نصٌّ مكرَّرٌ: يُقرأ في حكمَي `ADMIN_DUPLICATED`
@@ -209,6 +228,13 @@ export interface ServiceDeclaration {
    * والاسمُ وحدَه لا يكفي: خدمةٌ تُسمّى `waslah-worker` وتُعلَن `type: web` ليست عاملاً.
    */
   readonly serviceType: string | null;
+  /**
+   * قيمةُ `runtime:` (`docker` · `static` · …)، أو `null` إن غابَ. تُقرأ لأنَّ
+   * `type: web` وحدَه **لا يفرّقُ** بينَ خدمةٍ تُقلِعُ عمليّةً تقرأُ
+   * `packages/shared/config` وموقعٍ ساكنٍ لا يُقلِعُ شيئاً — وكلُّ أحكامِ هذا
+   * الحاجزِ عن عمليّةٍ تُقلِعُ.
+   */
+  readonly runtime: string | null;
   /** رقمُ سطرِ `numInstances` — للإحالةِ في الرسالةِ، أو `null` إن غاب الحقلُ. */
   readonly instancesLine: number | null;
   readonly startLine: number;
@@ -223,6 +249,7 @@ interface MutableService {
   runWorkerInGateway: string | null;
   runAdminInGateway: string | null;
   serviceType: string | null;
+  runtime: string | null;
   sessionStore: string | null;
   instancesLine: number | null;
   startLine: number;
@@ -257,6 +284,7 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
         runWorkerInGateway: null,
         runAdminInGateway: null,
         serviceType: null,
+        runtime: null,
         sessionStore: null,
         instancesLine: null,
         startLine: index + 1,
@@ -265,6 +293,7 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
       pendingEnvKey = null;
       if (serviceStart[1] === "name") current.name = bareValue(serviceStart[2] ?? "");
       if (serviceStart[1] === "type") current.serviceType = bareValue(serviceStart[2] ?? "");
+      if (serviceStart[1] === "runtime") current.runtime = bareValue(serviceStart[2] ?? "");
       return;
     }
 
@@ -275,6 +304,7 @@ export function servicesFromManifest(content: string): readonly ServiceDeclarati
       pendingEnvKey = null;
       if (field[1] === "name") current.name = bareValue(field[2] ?? "");
       if (field[1] === "type") current.serviceType = bareValue(field[2] ?? "");
+      if (field[1] === "runtime") current.runtime = bareValue(field[2] ?? "");
       if (field[1] === "numInstances") {
         current.numInstances = bareValue(field[2] ?? "");
         current.instancesLine = index + 1;
@@ -359,7 +389,10 @@ export interface Finding {
     | "MISSING_RUN_ADMIN_DECLARATION"
     | "INVALID_RUN_ADMIN_VALUE"
     | "ADMIN_DUPLICATED"
-    | "ADMIN_ORPHANED";
+    | "ADMIN_ORPHANED"
+    | "STATIC_DECLARES_INSTANCES"
+    | "STATIC_DECLARES_TOPOLOGY"
+    | "STATIC_DECLARES_SESSION_STORE";
   readonly message: string;
 }
 
@@ -413,6 +446,53 @@ export function analyse(content: string): readonly Finding[] {
           "أُضيفت خدمةٌ إلى ملفِّ النشرِ بلا بيانِ علاقتِها بشرطِ صحّةِ R-17: " +
           "يُضاف مدخلُها إلى CLASSIFIED_SERVICES بسببٍ مكتوبٍ قبلَ أن يمرَّ البناءُ.",
       });
+      continue;
+    }
+
+    /*
+     * المواقعُ الساكنةُ (`runtime: static`) — `F1-10` · ADR 0165.
+     *
+     * كلُّ ما يلي في هذا الدورانِ يُحاكِمُ **عمليّةً تُقلِعُ**: عددَ نسخِها،
+     * وطوبولوجياها، ومخزنَ جلساتِها، ومتغيّراتٍ يقرأُها `packages/shared/config`
+     * عندَ الإقلاعِ. والموقعُ الساكنُ لا يُقلِعُ شيئاً — ملفّاتٌ على شبكةِ
+     * توزيعٍ — فإلزامُه بـ`numInstances: 1` و`PROCESS_TOPOLOGY` و`RUN_WORKER_IN_GATEWAY`
+     * ليسَ تشديداً بل **إدخالُ وصفٍ كاذبٍ في ملفِّ النشرِ** يقرأُه من يأتي بعدَنا
+     * حقّاً. ولذلكَ يُفرَزُ ههنا ويُفحَصُ بـ**ضوابطَ موجبةٍ معكوسةٍ**: غيابُ ما
+     * يُلزَمُ به أخواتُه — فلا ينجحُ الحاجزُ على خدمةِ Docker تُسمّي نفسَها
+     * ساكنةً لتنفلتَ منَ شرطِ `R-17`. والتصنيفُ أعلاه يُشترطُ أوّلاً، فلا
+     * يدخلُ هذا الفرعَ موقعٌ ساكنٌ لم يُكتب له سببٌ مكتوبٌ.
+     */
+    if (service.runtime === STATIC_RUNTIME) {
+      if (service.numInstances !== null && service.numInstances.length > 0) {
+        findings.push({
+          code: "STATIC_DECLARES_INSTANCES",
+          message:
+            `الخدمةُ «${service.name}» (${at}): runtime = static وتُعلِنُ numInstances = ` +
+            `«${service.numInstances}». والموقعُ الساكنُ بلا عمليّةٍ أصلاً، فهذا الحقلُ فيه ` +
+            "**إمّا وصفٌ كاذبٌ كُتِبَ لإرضاءِ حاجزٍ، وإمّا دليلٌ على أنَّ الخدمةَ ليست ساكنةً** — " +
+            "وكلاهما أسوأُ من سكوتٍ. يُحذَفُ الحقلُ، أو يُصحَّحُ `runtime` إن كانت تُقلِعُ عمليّةً.",
+        });
+      }
+      if (service.processTopology !== null && service.processTopology.length > 0) {
+        findings.push({
+          code: "STATIC_DECLARES_TOPOLOGY",
+          message:
+            `الخدمةُ «${service.name}» (السطر ${service.startLine}): runtime = static وتُعلِنُ ` +
+            `PROCESS_TOPOLOGY = «${service.processTopology}». والطوبولوجيا وصفُ عمليّةٍ ` +
+            "تُقلِعُ (ADR 0051 §٢-ب)، ولا عمليّةَ ههنا تقرأُ المتغيّرَ. " +
+            "فإعلانٌ لا يقرأُه أحدٌ **يُوهِمُ قارئَ الملفِّ أنَّ الشرطَ محروسٌ ههنا وليسَ**. يُحذَف.",
+        });
+      }
+      if (service.sessionStore !== null && service.sessionStore.length > 0) {
+        findings.push({
+          code: "STATIC_DECLARES_SESSION_STORE",
+          message:
+            `الخدمةُ «${service.name}» (السطر ${service.startLine}): runtime = static وتُعلِنُ ` +
+            `SESSION_STORE = «${service.sessionStore}». ومخزنُ الجلساتِ شأنُ خادمٍ، ` +
+            "والموقعُ الساكنُ لا يحفظُ جلسةً ولا يقرأُ سرّاً: جلسةُ Waslah تُصدَرُ وتُتحقَّقُ " +
+            "في البوّابةِ (DEC-07). ومتغيّرُ موقعٍ ساكنٍ **يُخبَزُ في حزمةٍ عامّةٍ** لا يُقرأُ سرّاً. يُحذَف.",
+        });
+      }
       continue;
     }
 

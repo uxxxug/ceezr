@@ -23,6 +23,8 @@ import {
   analyse,
   CLASSIFIED_SERVICES,
   REQUIRED_SERVICES,
+  type ServiceDeclaration,
+  STATIC_RUNTIME,
   servicesFromManifest,
   VALID_BOOLEAN_LITERALS,
   VALID_PROCESS_TOPOLOGIES,
@@ -87,6 +89,27 @@ const withoutRunWorker = (content: string): string =>
 
 const codes = (content: string): readonly string[] => analyse(content).map((f) => f.code);
 
+/**
+ * خدماتُ **العمليّاتِ** وحدَها من ملفِّ النشرِ — لا المواقعُ الساكنةُ (ADR 0165).
+ *
+ * والحلقاتُ أدناه تقولُ «لكلِّ خدمةٍ» وتعني «لكلِّ عمليّةٍ تُقلِعُ»: `numInstances`
+ * و`PROCESS_TOPOLOGY` و`RUN_WORKER_IN_GATEWAY` كلُّها أوصافُ عمليّةٍ تقرأُ
+ * `packages/shared/config` عندَ الإقلاعِ. ويومَ دخلَ الموقعُ الساكنُ الملفَّ صارَ
+ * نصُّ الحلقةِ يَعِدُ بأكثرَ من معناه، **وتشديدُها عليه ليس تشديداً** بل إلزامٌ
+ * بكتابةِ وصفٍ كاذبٍ. فالتضييقُ ههنا تصحيحٌ لنصِّ الحلقةِ إلى مرادِها المكتوبِ،
+ * لا إضعافٌ لها — والمواقعُ الساكنةُ محروسةٌ بضوابطَ موجبةٍ معكوسةٍ في الحاجزِ.
+ *
+ * ولا تمرُّ الحلقةُ فراغاً: `expect(processes.length)` يمنعُ ملفّاً بلا عمليّةٍ
+ * من إرضاءِ حلقةٍ لا تدورُ.
+ */
+const processServices = (manifest: string): readonly ServiceDeclaration[] => {
+  const processes = servicesFromManifest(manifest).filter(
+    (service) => service.runtime !== STATIC_RUNTIME,
+  );
+  expect(processes.length).toBeGreaterThan(0);
+  return processes;
+};
+
 describe("قراءةُ الخدماتِ من ملفِّ النشرِ", () => {
   it("تقرأ الاسمَ وعددَ النسخِ ومخزنَ الجلساتِ لكلِّ خدمةٍ", () => {
     const services = servicesFromManifest(SOUND);
@@ -105,7 +128,7 @@ describe("قراءةُ الخدماتِ من ملفِّ النشرِ", () => {
     expect(gateway).toBeDefined();
     expect(gateway?.numInstances).toBe("1");
     expect(gateway?.processTopology).toBe("single-process");
-    for (const service of services) {
+    for (const service of processServices(REAL_MANIFEST)) {
       expect(service.numInstances).toBe("1");
       expect(service.processTopology).toBe("single-process");
     }
@@ -247,9 +270,126 @@ describe("الحكمُ — قبولٌ ورفضٌ", () => {
     expect(Object.keys(CLASSIFIED_SERVICES).sort()).toEqual([
       ADMIN_SERVICE_NAME,
       "waslah-gateway",
+      "waslah-miniapp",
       "waslah-worker",
     ]);
     expect(REQUIRED_SERVICES).toContain("waslah-gateway");
+  });
+});
+
+/*
+ * المواقعُ الساكنةُ — `F1-10` · ADR 0165.
+ *
+ * والمقصودُ برهانُ أنَّ الفرعَ الجديدَ **إعفاءٌ مشروطٌ لا ثُقبةٌ**: لا يمرُّ
+ * منه موقعٌ غيرُ مصنَّفٍ، ولا تنفلتُ منه خدمةُ Docker تُسمّي نفسَها ساكنةً،
+ * ولا يُقبَلُ فيه وصفٌ كاذبٌ كُتِبَ لإرضاءِ حاجزٍ.
+ */
+describe("المواقعُ الساكنةُ — F1-10 · ADR 0165", () => {
+  const staticService = [
+    "services:",
+    "  - type: web",
+    `    runtime: ${STATIC_RUNTIME}`,
+    "    name: waslah-miniapp",
+    "  - type: web",
+    "    runtime: docker",
+    "    name: waslah-gateway",
+    "    numInstances: 1",
+    "    envVars:",
+    "      - key: PROCESS_TOPOLOGY",
+    "        value: single-process",
+    "      - key: RUN_WORKER_IN_GATEWAY",
+    "        value: false",
+    "      - key: RUN_ADMIN_IN_GATEWAY",
+    "        value: false",
+    "  - type: worker",
+    "    runtime: docker",
+    "    name: waslah-worker",
+    "    numInstances: 1",
+    "    envVars:",
+    "      - key: PROCESS_TOPOLOGY",
+    "        value: single-process",
+    "      - key: RUN_WORKER_IN_GATEWAY",
+    "        value: true",
+    "      - key: RUN_ADMIN_IN_GATEWAY",
+    "        value: false",
+    "  - type: web",
+    "    runtime: docker",
+    `    name: ${ADMIN_SERVICE_NAME}`,
+    "    numInstances: 1",
+    "    envVars:",
+    "      - key: PROCESS_TOPOLOGY",
+    "        value: single-process",
+    "      - key: RUN_WORKER_IN_GATEWAY",
+    "        value: false",
+    "      - key: RUN_ADMIN_IN_GATEWAY",
+    "        value: true",
+  ].join("\n");
+
+  it("يُقرأ حقلُ runtime منَ المانيفستِ", () => {
+    const services = servicesFromManifest(staticService);
+    const miniapp = services.find((service) => service.name === "waslah-miniapp");
+    expect(miniapp?.runtime).toBe(STATIC_RUNTIME);
+    expect(services.find((service) => service.name === "waslah-gateway")?.runtime).toBe("docker");
+  });
+
+  it("موقعٌ ساكنٌ بلا numInstances ولا طوبولوجيا يمرُّ — لا عمليّةَ تُحاكَمُ", () => {
+    const findings = analyse(staticService);
+    expect(findings).toEqual([]);
+  });
+
+  it("موقعٌ ساكنٌ غيرُ مصنَّفٍ يسقُطُ — الإعفاءُ لا يسبقُ التصنيفَ", () => {
+    const codes = analyse(staticService.replace("name: waslah-miniapp", "name: waslah-ghost")).map(
+      (finding) => finding.code,
+    );
+    expect(codes).toContain("UNCLASSIFIED_SERVICE");
+  });
+
+  it("موقعٌ ساكنٌ يُعلِنُ numInstances يسقُطُ — وصفٌ كاذبٌ أو خدمةٌ متنكّرةٌ", () => {
+    const codes = analyse(
+      staticService.replace(
+        "    name: waslah-miniapp",
+        "    name: waslah-miniapp\n    numInstances: 1",
+      ),
+    ).map((finding) => finding.code);
+    expect(codes).toContain("STATIC_DECLARES_INSTANCES");
+  });
+
+  it("موقعٌ ساكنٌ يُعلِنُ PROCESS_TOPOLOGY يسقُطُ — إعلانٌ لا يقرأُه أحدٌ", () => {
+    const codes = analyse(
+      staticService.replace(
+        "    name: waslah-miniapp",
+        "    name: waslah-miniapp\n    envVars:\n      - key: PROCESS_TOPOLOGY\n        value: single-process",
+      ),
+    ).map((finding) => finding.code);
+    expect(codes).toContain("STATIC_DECLARES_TOPOLOGY");
+  });
+
+  it("موقعٌ ساكنٌ يُعلِنُ SESSION_STORE يسقُطُ — سرُّ خادمٍ في حزمةٍ عامّةٍ", () => {
+    const codes = analyse(
+      staticService.replace(
+        "    name: waslah-miniapp",
+        "    name: waslah-miniapp\n    envVars:\n      - key: SESSION_STORE\n        value: redis",
+      ),
+    ).map((finding) => finding.code);
+    expect(codes).toContain("STATIC_DECLARES_SESSION_STORE");
+  });
+
+  it("خدمةُ Docker لا تنفلتُ منَ الشرطِ — الحكمُ على runtime لا على الاسمِ", () => {
+    const codes = analyse(
+      staticService.replace(
+        "    runtime: docker\n    name: waslah-gateway",
+        "    name: waslah-gateway",
+      ),
+    ).map((finding) => finding.code);
+    expect(codes).toEqual([]);
+    const escaped = analyse(
+      staticService.replace(
+        "    runtime: docker\n    name: waslah-gateway",
+        `    runtime: ${STATIC_RUNTIME}\n    name: waslah-gateway`,
+      ),
+    ).map((finding) => finding.code);
+    expect(escaped).toContain("STATIC_DECLARES_INSTANCES");
+    expect(escaped).toContain("STATIC_DECLARES_TOPOLOGY");
   });
 });
 
@@ -276,7 +416,9 @@ describe("موضعُ المهامِّ الدوريّةِ — F5-04 / SCL-007 · 
     const gateway = services.find((service) => service.name === "waslah-gateway");
     expect(gateway?.runWorkerInGateway).toBe("false");
     expect(services.some((service) => service.serviceType === "worker")).toBe(true);
-    for (const service of services) expect(service.runWorkerInGateway).not.toBeNull();
+    for (const service of processServices(REAL_MANIFEST)) {
+      expect(service.runWorkerInGateway).not.toBeNull();
+    }
   });
 
   it("غيابُ الإعلانِ ⇒ سقوطٌ — لأنّ الإنتاجَ لا يُقلع بلا سطرِه", () => {
@@ -453,7 +595,10 @@ describe("موضعُ سطحِ الإدارةِ — F5-08 / ARCH-011 · ADR 0064"
     expect(gateway?.runAdminInGateway).toBe("false");
     expect(services.some((service) => service.name === ADMIN_SERVICE_NAME)).toBe(true);
     // والإعلانُ في **كلِّ** خدمةٍ لا في المعنيّةِ وحدَها: الإلزامُ على كلِّ عمليّةٍ.
-    for (const service of services) expect(service.runAdminInGateway).not.toBeNull();
+    // و«كلُّ خدمةٍ» ههنا «كلُّ عمليّةٍ» حرفاً — لا موقعَ ساكناً (ADR 0165).
+    for (const service of processServices(REAL_MANIFEST)) {
+      expect(service.runAdminInGateway).not.toBeNull();
+    }
   });
 
   it("خدمةُ اللوحةِ الحقيقيّةُ نسخةٌ واحدةٌ وتُعلِن redis لمجرى الأحداثِ", () => {
