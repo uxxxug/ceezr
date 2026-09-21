@@ -8224,3 +8224,33 @@ This is **not fixed in this unit** — it is a change to a guard's semantics plu
 decision about which roadmap file is authoritative, and folding it into a UI unit
 would expand that unit's scope against the non-regression protocol. It is recorded
 here as an open item so it is measurable and closable rather than remembered.
+
+## `OPS-ROADMAP-GATE` closed, recorded 2026-09-21 (additive; the open-item text above is unchanged)
+
+The gate is fixed and now has tests. `ADR 0167` ·
+`docs/evidence/correctness/OPS-ROADMAP-GATE-20260921.md`.
+
+**Strengthened.** `scripts/check-roadmap.mjs` resolves its range or fails: a valid
+`BASE_SHA`, else the branch's `merge-base` with `main`, else **exit 3 with a named
+reason**. No path in the script produces 0 from an inability to look. The
+merge-base fallback is not an invention — it is exactly what its sibling in the
+same workflow, `check-vendored-pin-follows-bytes.ts` (`ADR 0090`), has always done.
+
+**Loosened, and said plainly.** `docs/ROADMAP-MASTER.md` now satisfies the rule
+alongside `ROADMAP.md`. The gate's letter named the file nobody maintains while its
+purpose pointed at the one everybody does; requiring both would only teach people
+to make a cosmetic edit in an abandoned file. **The duplication itself is not
+fixed** — which roadmap is authoritative is a governance decision, not a script's.
+
+**Tested, for the first time.** The logic is split into two pure exported functions
+with 15 cases, including the all-zeros base and an unresolvable head. The absence
+of any test is how the blind spot survived: a guard with no measured negative case
+is a claim, not enforcement.
+
+Net effect: before, the first push of a branch proved nothing about any file; now
+every push must move a roadmap, and an unreadable range fails.
+
+**Not claimed:** that other guards' ranges were audited (only this one was measured;
+its sibling was read and found already sound, which is why it was copied), and past
+green `roadmap` verdicts are **not deleted** from evidence files (`ح-8`) — they are
+read for what they were: green meaning "I did not look".
