@@ -243,19 +243,25 @@ export function readMiniAppSession(
  * أحدُهما عن حالةٍ فيه فتُقرأ حالةٌ مجهولةٌ «صالحة».
  */
 export function createMiniAppSessionReader(secret: string): MiniAppSessionReader {
+  const readSyncImpl = (
+    accessToken: string,
+    nowMs: number,
+  ): Result<VerifiedViewerSession, ViewerSessionRejection> => {
+    const read = readMiniAppSession(accessToken, secret, nowMs);
+    if (!read.ok) return err({ code: "SESSION_REJECTED", reason: read.error });
+    return ok({
+      telegramUserId: read.value.telegramUserId,
+      bot: read.value.bot,
+      sessionId: read.value.sessionId,
+      expiresAtSeconds: read.value.expiresAtSeconds,
+    });
+  };
   return {
-    read: (
+    read: async (
       accessToken: string,
       nowMs: number,
-    ): Result<VerifiedViewerSession, ViewerSessionRejection> => {
-      const read = readMiniAppSession(accessToken, secret, nowMs);
-      if (!read.ok) return err({ code: "SESSION_REJECTED", reason: read.error });
-      return ok({
-        telegramUserId: read.value.telegramUserId,
-        bot: read.value.bot,
-        sessionId: read.value.sessionId,
-        expiresAtSeconds: read.value.expiresAtSeconds,
-      });
-    },
+    ): Promise<Result<VerifiedViewerSession, ViewerSessionRejection>> =>
+      readSyncImpl(accessToken, nowMs),
+    readSync: readSyncImpl,
   };
 }

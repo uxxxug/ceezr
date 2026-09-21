@@ -187,7 +187,8 @@ function deps(patch: {
   readonly calls?: StoreCall[];
 }): DriverActivityDeps {
   const sessions: MiniAppSessionReader = {
-    read: () => patch.session ?? ok(SESSION),
+    read: async () => patch.session ?? ok(SESSION),
+    readSync: () => patch.session ?? ok(SESSION),
   };
   const store: DriverActivityStore = {
     readSummary: async (input) => {

@@ -109,13 +109,13 @@ function sessionErrorFrom(reason: string): SupportPublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession<C extends SupportTicketType>(
+async function openSession<C extends SupportTicketType>(
   deps: SupportIntakeDeps<C>,
   accessToken: string | undefined,
-): Result<string, SupportRejection> {
+): Promise<Result<string, SupportRejection>> {
   if (accessToken === undefined || accessToken.length === 0)
     return err(rejection("SESSION_REQUIRED"));
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -165,7 +165,7 @@ export async function openSupportTicket<C extends SupportTicketType>(
     readonly orderId: unknown;
   },
 ): Promise<Result<OpenedSupportTicketOf<C>, SupportRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   if (!spec.isCategory(input.category)) return err(rejection("CATEGORY_UNKNOWN"));
@@ -207,7 +207,7 @@ export async function listSupportTickets<C extends SupportTicketType>(
     readonly cursorId: unknown;
   },
 ): Promise<Result<SupportTicketsPage, SupportRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   let limit = DEFAULT_SUPPORT_PAGE_SIZE;

@@ -58,14 +58,14 @@ function sessionErrorFrom(reason: string): DriverVehicleAssetsPublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession(
+async function openSession(
   deps: DriverVehicleAssetsDeps,
   accessToken: string | undefined,
-): Result<string, AssetsRejection> {
+): Promise<Result<string, AssetsRejection>> {
   if (accessToken === undefined || accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED"));
   }
-  const session = deps.session.read(accessToken, deps.now().getTime());
+  const session = await deps.session.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -86,7 +86,7 @@ export async function readDriverVehicleAssets(
   deps: DriverVehicleAssetsDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<VehicleAssetReadUrls | null, AssetsRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const storeResult = await deps.store.readVehicle(session.value);

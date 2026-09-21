@@ -49,7 +49,12 @@ const ELIGIBLE: SosSurfaceState = {
 /** جلسةٌ سليمةٌ ما لم يُطلَبْ رفضٌ بسببٍ مُسمّى. */
 function sessions(reason?: string): MiniAppSessionReader {
   return {
-    read: (accessToken: string) => {
+    read: async (accessToken: string) => {
+      if (reason !== undefined) return err({ reason }) as never;
+      expect(accessToken).toBe(TOKEN);
+      return ok({ telegramUserId: TELEGRAM_ID }) as never;
+    },
+    readSync: (accessToken: string) => {
       if (reason !== undefined) return err({ reason }) as never;
       expect(accessToken).toBe(TOKEN);
       return ok({ telegramUserId: TELEGRAM_ID }) as never;

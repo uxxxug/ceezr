@@ -25,6 +25,7 @@ import {
   MINIAPP_SESSION_TTL_SECONDS,
 } from "../../packages/infrastructure/identity/miniapp-session.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import { createTestRevocationStore } from "../helpers/revocation-store.ts";
 
 const SESSION_SECRET = "test-only-session-signing-secret-0123456789";
 const WEBHOOK_SECRET = "test-webhook-secret-value";
@@ -74,6 +75,7 @@ function buildHarness(
   };
   const viewer = {
     sessions: createMiniAppSessionReader(SESSION_SECRET),
+    revocation: createTestRevocationStore(),
     // `null` قيمةٌ ذاتُ معنىً ههنا («لا صفَّ») فلا تُبدَّل بافتراضٍ عندَ الغياب.
     accounts: reader(
       "account" in options ? (options.account as Outcome) : { role: "rider", isBlocked: false },

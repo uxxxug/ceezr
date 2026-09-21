@@ -10,6 +10,7 @@
  */
 
 export { createMemoryInitDataReplayGuard } from "./memory-init-data-replay-guard.ts";
+export { createMemorySessionRevocationStore } from "./memory-session-revocation-store.ts";
 export {
   createMiniAppRefreshTokens,
   MINIAPP_REFRESH_TTL_SECONDS,
@@ -27,6 +28,8 @@ export {
   type VerifiedMiniAppSession,
 } from "./miniapp-session.ts";
 export { createRedisInitDataReplayGuard } from "./redis-init-data-replay-guard.ts";
+export { createRedisSessionRevocationStore } from "./redis-session-revocation-store.ts";
+export { createRevocableSessionReader } from "./revocable-session-reader.ts";
 export {
   createTelegramInitDataVerifier,
   dataCheckString,

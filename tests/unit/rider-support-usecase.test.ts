@@ -48,7 +48,8 @@ function sessions(
   }),
 ): MiniAppSessionReader {
   return {
-    read: () => outcome as unknown as ReturnType<MiniAppSessionReader["read"]>,
+    read: async () => outcome as unknown as ReturnType<MiniAppSessionReader["read"]>,
+    readSync: () => outcome as unknown as ReturnType<MiniAppSessionReader["readSync"]>,
   } as MiniAppSessionReader;
 }
 

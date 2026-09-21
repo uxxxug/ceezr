@@ -89,14 +89,14 @@ function sessionErrorFrom(reason: string): TaxInvoicePublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession(
+async function openSession(
   deps: SubscriptionInvoiceDeps,
   accessToken: string | undefined,
-): Result<string, TaxInvoiceRejection> {
+): Promise<Result<string, TaxInvoiceRejection>> {
   if (accessToken === undefined || accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED"));
   }
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -152,7 +152,7 @@ export async function issueSubscriptionTaxInvoice(
   deps: SubscriptionInvoiceDeps,
   input: { readonly accessToken: string | undefined; readonly transactionId: unknown },
 ): Promise<Result<TaxInvoiceIssueOutcome, TaxInvoiceRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const transactionId = parseTransactionId(input.transactionId);
@@ -170,7 +170,7 @@ export async function readSubscriptionTaxInvoice(
   deps: SubscriptionInvoiceDeps,
   input: { readonly accessToken: string | undefined; readonly transactionId: unknown },
 ): Promise<Result<SimplifiedTaxInvoice, TaxInvoiceRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const transactionId = parseTransactionId(input.transactionId);
@@ -188,7 +188,7 @@ export async function readSubscriptionPaymentStatus(
   deps: SubscriptionInvoiceDeps,
   input: { readonly accessToken: string | undefined; readonly transactionId: unknown },
 ): Promise<Result<SubscriptionPaymentStatus, TaxInvoiceRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const transactionId = parseTransactionId(input.transactionId);

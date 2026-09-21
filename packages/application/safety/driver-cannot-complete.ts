@@ -136,7 +136,7 @@ export async function requestDriverCannotComplete(
   if (input.accessToken === undefined || input.accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED").code);
   }
-  const session = deps.sessions.read(input.accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(input.accessToken, deps.now().getTime());
   if (!session.ok) return err(sessionErrorFrom(session.error.reason));
 
   const orderId = input.orderId.trim();

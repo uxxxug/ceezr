@@ -28,6 +28,7 @@ import {
   createMiniAppSessionReader,
 } from "../../packages/infrastructure/identity/miniapp-session.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import { createTestRevocationStore } from "../helpers/revocation-store.ts";
 
 const SESSION_SECRET = "test-only-session-signing-secret-0123456789";
 const WEBHOOK_SECRET = "test-webhook-secret-value";
@@ -90,6 +91,7 @@ function buildHarness(
 
   const quote = {
     sessions: createMiniAppSessionReader(SESSION_SECRET),
+    revocation: createTestRevocationStore(),
     judge,
     // لا محرِّكَ توجيهٍ: وهوَ الحالُ في كلِّ البيئاتِ اليومَ (`ADR 0024`).
     routing: null,

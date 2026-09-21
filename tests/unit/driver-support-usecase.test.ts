@@ -56,8 +56,12 @@ const ORDER_ID = "3f1c9a02-4b7e-4d21-9f88-0a1b2c3d4e5f";
 
 function sessions(): MiniAppSessionReader {
   return {
-    read: () =>
+    read: async () =>
       ok({ telegramUserId: TELEGRAM_ID }) as unknown as ReturnType<MiniAppSessionReader["read"]>,
+    readSync: () =>
+      ok({ telegramUserId: TELEGRAM_ID }) as unknown as ReturnType<
+        MiniAppSessionReader["readSync"]
+      >,
   } as MiniAppSessionReader;
 }
 

@@ -93,12 +93,12 @@ function readTelegramId(raw: string): number | null {
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
 
-function openSession(
+async function openSession(
   deps: SessionDeps,
   accessToken: string | undefined,
-): Result<{ readonly telegramUserId: string }, RideSharePublicErrorCode> {
+): Promise<Result<{ readonly telegramUserId: string }, RideSharePublicErrorCode>> {
   if (accessToken === undefined || accessToken.length === 0) return err("SESSION_REQUIRED");
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(sessionErrorFrom(session.error.reason));
   return ok({ telegramUserId: session.value.telegramUserId });
 }
@@ -115,7 +115,7 @@ export async function readRideShare(
   deps: ReadRideShareDeps,
   input: { readonly accessToken: string | undefined; readonly orderId: string },
 ): Promise<Result<RideShareVerdict, RideSharePublicErrorCode>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const read = await deps.shares.read({
@@ -143,7 +143,7 @@ export async function startRideShare(
   deps: StartRideShareDeps,
   input: { readonly accessToken: string | undefined; readonly orderId: string },
 ): Promise<Result<StartRideShareOutcome, RideSharePublicErrorCode>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
   if (deps.issuing === undefined) return err("SHARING_NOT_CONFIGURED");
 
@@ -184,7 +184,7 @@ export async function stopRideShare(
   deps: StopRideShareDeps,
   input: { readonly accessToken: string | undefined; readonly orderId: string },
 ): Promise<Result<number, RideSharePublicErrorCode>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const telegramId = readTelegramId(session.value.telegramUserId);

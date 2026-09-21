@@ -64,12 +64,12 @@ export interface DataRightsDeps {
   readonly now: () => Date;
 }
 
-function openSession(
+async function openSession(
   deps: DataRightsDeps,
   accessToken: string | undefined,
-): Result<string, DataRightsPublicErrorCode> {
+): Promise<Result<string, DataRightsPublicErrorCode>> {
   if (accessToken === undefined || accessToken.length === 0) return err("SESSION_REQUIRED");
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(sessionErrorFrom(session.error.reason));
   return ok(session.value.telegramUserId);
 }
@@ -78,7 +78,7 @@ export async function exportMyData(
   deps: DataRightsDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<ExportVerdict, DataRightsPublicErrorCode>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const read = await deps.store.exportMyData({ telegramUserId: session.value });
@@ -93,7 +93,7 @@ export async function eraseMyAccount(
     readonly confirmation: string | undefined;
   },
 ): Promise<Result<ErasureOutcome, DataRightsPublicErrorCode>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   // **الترتيبُ مقصودٌ**: جلسةٌ ثمَّ تأكيدٌ ثمَّ كتابةٌ. ولا يُمَسُّ صفٌّ واحدٌ

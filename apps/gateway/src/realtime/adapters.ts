@@ -11,6 +11,7 @@
  * لا الحاوية.
  */
 
+import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
 import type { WatchedTripStatus } from "../../../../packages/domain/tracking/visibility.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import { readMiniAppSession } from "../../../../packages/infrastructure/identity/miniapp-session.ts";
@@ -32,11 +33,16 @@ export function createSessionVerifier(
   sql: Sql,
   sessionSecret: string,
   nowMs: () => number,
+  revocationStore: SessionRevocationStore,
 ): RideChannelSessionVerifier {
   return {
     verify: async (sessionToken: string) => {
       const result = readMiniAppSession(sessionToken, sessionSecret, nowMs());
       if (!result.ok) return null;
+
+      // فحصُ الإبطالِ (`SEC-18`): بعدَ التحقّقِ التشفيريِّ وقبلَ قبولِ الجلسة.
+      const revoked = await revocationStore.isRevoked(result.value.sessionId);
+      if (!revoked.ok || revoked.value) return null;
 
       const telegramId = result.value.telegramUserId;
       if (!/^[0-9]{1,19}$/.test(telegramId)) return null;

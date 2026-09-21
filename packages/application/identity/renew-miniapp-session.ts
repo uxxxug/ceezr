@@ -23,11 +23,14 @@ import type {
   MiniAppRefreshTokenIssuer,
   MiniAppSessionGrantIssuer,
   RefreshTokenRejectionReason,
+  SessionRevocationStore,
 } from "./ports.ts";
 
 export interface RenewMiniAppSessionDeps {
   readonly refresh: MiniAppRefreshTokenIssuer;
   readonly issuer: MiniAppSessionGrantIssuer;
+  /** مخزنُ إبطالِ الجلساتِ (`SEC-18`) — يُمنعُ التجديدُ لجلسةٍ مُبطَلة. */
+  readonly revocation: SessionRevocationStore;
   /** الساعةُ محقونةٌ لا مقروءةٌ من العالم: سياسةُ الانتهاءِ تُختبَر حتمياً. */
   readonly now: () => Date;
   /**
@@ -125,6 +128,29 @@ export async function renewMiniAppSession(
   }
 
   // لا يصل الإصدارُ إلا من هذا السطر: مسارٌ واحدٌ لا فرعَ له.
+  // فحصُ الإبطالِ (`SEC-18`): الجلسةُ المُبطَلةُ لا تُجدَّد — وإلّا صارَ الإبطالُ
+  // إبطالاً لرمزٍ واحدٍ لا للجلسة. والمعرّفُ ثابتٌ عبرَ التجديد.
+  const revoked = await deps.revocation.isRevoked(read.value.sessionId);
+  if (!revoked.ok) {
+    deps.log?.("session.renew_revocation_store_unavailable", {
+      sessionId: read.value.sessionId,
+      detail: revoked.error.detail,
+    });
+    return err({
+      code: "SESSION_ISSUE_FAILED",
+      reason: "NOT_CONFIGURED",
+      publicCode: "SESSION_NOT_AVAILABLE",
+    });
+  }
+  if (revoked.value) {
+    deps.log?.("session.renew_revoked_session", { sessionId: read.value.sessionId });
+    return err({
+      code: "REFRESH_TOKEN_REJECTED",
+      reason: "MALFORMED",
+      publicCode: "REFRESH_TOKEN_REJECTED",
+    });
+  }
+
   const nextRefresh = deps.refresh.issueForRenewal(read.value, nowMs);
   if (!nextRefresh.ok) {
     deps.log?.("session.renew_refresh_issue_failed", { reason: nextRefresh.error.reason });

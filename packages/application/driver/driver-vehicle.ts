@@ -66,14 +66,14 @@ function sessionErrorFrom(reason: string): DriverVehiclePublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession(
+async function openSession(
   deps: DriverVehicleDeps,
   accessToken: string | undefined,
-): Result<string, VehicleRejection> {
+): Promise<Result<string, VehicleRejection>> {
   if (accessToken === undefined || accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED"));
   }
-  const session = deps.session.read(accessToken, deps.now().getTime());
+  const session = await deps.session.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -81,7 +81,7 @@ export async function readDriverVehicle(
   deps: DriverVehicleDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<DriverVehicle | null, VehicleRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const storeResult = await deps.store.readVehicle(session.value);
@@ -104,7 +104,7 @@ export async function updateDriverVehicle(
   deps: DriverVehicleDeps,
   input: { readonly accessToken: string | undefined; readonly body: VehicleUpdateInput },
 ): Promise<Result<{ ok: true }, VehicleRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const yearCheck = validateVehicleYear(input.body.vehicleYear);
@@ -134,7 +134,7 @@ export async function updateDriverVehicleAssets(
     readonly barcodePath: string | null;
   },
 ): Promise<Result<{ ok: true }, VehicleRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const storeResult = await deps.store.updateAssets(

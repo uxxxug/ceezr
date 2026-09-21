@@ -245,7 +245,8 @@ export type ViewerSessionRejectionReason =
   | "SIGNATURE_MISMATCH"
   | "UNSUPPORTED_VERSION"
   | "EXPIRED"
-  | "NOT_CONFIGURED";
+  | "NOT_CONFIGURED"
+  | "REVOKED";
 
 export interface ViewerSessionRejection {
   readonly code: "SESSION_REJECTED";
@@ -260,7 +261,19 @@ export interface ViewerSessionRejection {
  * وكلُّ انتهاءٍ يُقاس بالساعةِ المحقونةِ ههنا: لا يُقبَل انتهاءٌ يُرسِله العميل.
  */
 export interface MiniAppSessionReader {
-  read(accessToken: string, nowMs: number): Result<VerifiedViewerSession, ViewerSessionRejection>;
+  read(
+    accessToken: string,
+    nowMs: number,
+  ): Promise<Result<VerifiedViewerSession, ViewerSessionRejection>>;
+  /**
+   * قراءةٌ متزامنةٌ بلا فحصِ إبطالٍ — لمسارِ الاستغاثةِ (`SOS`) حصراً، حيثُ
+   * السلامةُ تسبقُ الأمنَ: مستخدمٌ مُبطَلٌ قد يحتاجُ نداءَ استغاثةٍ، فلا يُحجَبُ
+   * بفحصِ قائمةِ المنعِ (`ADR-0077`). ولا يُستعمَلُ في مسارٍ آخر.
+   */
+  readSync(
+    accessToken: string,
+    nowMs: number,
+  ): Result<VerifiedViewerSession, ViewerSessionRejection>;
 }
 
 /* ──────────────────── حمايةُ إعادةِ `initData` (`SEC-17`) ──────────────────── */
@@ -291,4 +304,50 @@ export interface ReplayGuardFailure {
  */
 export interface InitDataReplayGuard {
   consume(rawInitData: string, ttlSeconds: number): Promise<Result<true, ReplayGuardFailure>>;
+}
+
+/* ──────────────────── إبطالُ الجلسةِ من الخادمِ (`SEC-18`) ──────────────────── */
+
+/**
+ * نوعُ فشلِ مخزنِ الإبطال — حتميٌّ ومصنَّفٌ كالرفضِ الأوّل.
+ * - `STORE_UNAVAILABLE`: تعذّرَ الوصولُ إلى مخزنِ الإبطال، والمرورُ **ممنوعٌ** لا
+ *   مسموحٌ — فالعجزُ عن الفحصِ لا يُسقِطُ الفحصَ. الجلسةُ لا تُقبَل ولا تُجدَّد.
+ */
+export type RevocationStoreFailureKind = "STORE_UNAVAILABLE";
+
+export interface RevocationStoreFailure {
+  readonly kind: RevocationStoreFailureKind;
+  readonly detail: string;
+}
+
+/**
+ * مخزنُ إبطالِ الجلساتِ (`SEC-18`). قائمةُ منعٍ يقرؤها كلُّ تحقُّقٍ من جلسةٍ —
+ * في المسارِ المحميِّ (`authorizeViewer`) وفي مسارِ التجديدِ (`renewMiniAppSession`)
+ * وفي مسارِ الزمنِ الحقيقيِّ (`createSessionVerifier`).
+ *
+ * والمفتاحُ هو `jti` (معرّفُ الجلسة) لا `sub` (المستخدم): الإبطالُ يستهدفُ جلسةً
+ * واحدةً، لا كلَّ جلساتِ المستخدم. والمعرّفُ ثابتٌ عبرَ التجديدِ، فإبطالُه يمنعُ
+ * التجديدَ أيضًا.
+ *
+ * والعمرُ يُغطّي السقفَ المطلقَ للجلسة (٤٣٢٠٠ ثانية) لا عمرَ رمزِ الوصولِ الحاليّ
+ * (٦٠٠ ثانية) — وإلّا استطاعتَ جلسةٌ مُبطَلةٌ أن تصدرَ رمزًا جديدًا عبرَ التجديد.
+ *
+ * والفشلُ في الوصولِ إلى المخزنِ **إغلاقٌ لا فتحٌ**: لا تُقبَل الجلسةُ ولا تُجدَّد.
+ */
+export interface SessionRevocationStore {
+  /**
+   * هل أُبطِلَت هذه الجلسةُ؟ يُستشارُ بعدَ التحقّقِ التشفيريِّ وقبلَ قبولِ الجلسة.
+   * والفشلُ في الوصولِ يُعيدُ `STORE_UNAVAILABLE` لا `false`.
+   */
+  isRevoked(sessionId: string): Promise<Result<boolean, RevocationStoreFailure>>;
+
+  /**
+   * إبطالُ جلسةٍ فورًا. يُستدعى من مسارِ الإدارةِ معَ سببٍ مسجَّل. والعمرُ يُغطّي
+   * السقفَ المطلقَ للجلسةِ لا عمرَ الرمزِ الحاليّ.
+   */
+  revoke(
+    sessionId: string,
+    ttlSeconds: number,
+    reason: string,
+  ): Promise<Result<true, RevocationStoreFailure>>;
 }

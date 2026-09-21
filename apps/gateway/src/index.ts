@@ -40,12 +40,15 @@ import {
 } from "../../../packages/infrastructure/financial/index.ts";
 import { createDriverDirectory } from "../../../packages/infrastructure/identity/directories.ts";
 import { createMemoryInitDataReplayGuard } from "../../../packages/infrastructure/identity/memory-init-data-replay-guard.ts";
+import { createMemorySessionRevocationStore } from "../../../packages/infrastructure/identity/memory-session-revocation-store.ts";
 import { createMiniAppRefreshTokens } from "../../../packages/infrastructure/identity/miniapp-refresh.ts";
 import {
   createMiniAppSessionIssuer,
   createMiniAppSessionReader,
 } from "../../../packages/infrastructure/identity/miniapp-session.ts";
 import { createRedisInitDataReplayGuard } from "../../../packages/infrastructure/identity/redis-init-data-replay-guard.ts";
+import { createRedisSessionRevocationStore } from "../../../packages/infrastructure/identity/redis-session-revocation-store.ts";
+import { createRevocableSessionReader } from "../../../packages/infrastructure/identity/revocable-session-reader.ts";
 import {
   createTelegramInitDataVerifier,
   TELEGRAM_INIT_DATA_MAX_AGE_SECONDS,
@@ -515,6 +518,16 @@ const initDataReplayGuard =
     ? createMemoryInitDataReplayGuard(() => new Date())
     : createRedisInitDataReplayGuard(rateRedis);
 
+/**
+ * مخزنُ إبطالِ الجلساتِ (`SEC-18`) — قائمةُ منعٍ يقرؤها كلُّ تحقُّقٍ من جلسةٍ.
+ * نفسُ المنطقِ: Redis متى وُجِدَ، والذاكرةُ للنسخةِ الواحدةِ والاختبار. والفشلُ
+ * في الوصولِ **إغلاقٌ لا فتحٌ**.
+ */
+const sessionRevocationStore =
+  rateRedis === null
+    ? createMemorySessionRevocationStore()
+    : createRedisSessionRevocationStore(rateRedis);
+
 const sessionTelegram =
   miniappSessionIssuer === null
     ? undefined
@@ -548,6 +561,7 @@ const sessionRefresh =
         renew: {
           refresh: refreshChain.refresh,
           issuer: refreshChain.grantIssuer,
+          revocation: sessionRevocationStore,
           now: () => new Date(),
           log,
         },
@@ -565,7 +579,10 @@ const me =
     ? undefined
     : {
         viewer: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           accounts: createViewerAccountReader(container.sql),
           now: () => new Date(),
           log,
@@ -585,7 +602,10 @@ const notifications =
     ? undefined
     : {
         viewer: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           accounts: createViewerAccountReader(container.sql),
           now: () => new Date(),
           log,
@@ -608,7 +628,10 @@ const driverLocation =
     ? undefined
     : {
         viewer: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           accounts: createViewerAccountReader(container.sql),
           now: () => new Date(),
           log,
@@ -652,7 +675,10 @@ const consents =
     ? undefined
     : {
         consent: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           reader: createConsentRecordReader(container.sql),
           writer: createConsentRecordWriter(container.sql),
           now: () => new Date(),
@@ -674,7 +700,10 @@ const places =
     ? undefined
     : {
         places: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           reader: createSavedPlaceReader(container.sql),
           writer: createSavedPlaceWriter(container.sql),
           recent: createRecentDestinationReader(container.sql),
@@ -694,7 +723,10 @@ const destinations =
     ? undefined
     : {
         destinations: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           searcher: createDestinationSearcher(container.sql),
           resolver: createDestinationResolver(container.sql),
           now: () => new Date(),
@@ -714,7 +746,10 @@ const quote =
     ? undefined
     : {
         quote: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           judge: createQuoteJudge(container.sql),
           routing: container.routing,
           now: () => new Date(),
@@ -733,12 +768,18 @@ const rides =
     ? undefined
     : {
         request: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           rides: createRideRequestCommand(container.sql),
           now: () => new Date(),
         },
         search: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           search: createRideSearchReader(container.sql),
           now: () => new Date(),
         },
@@ -747,13 +788,19 @@ const rides =
         // مشغِّلٍ مُعلَنٍ، فتعودُ المدّةُ `NOT_CONFIGURED` امتناعاً مُصنَّفاً — ولا
         // يُعطَّلُ المسارُ كلُّه لأجلِ حقلٍ تكميليٍّ.
         active: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           rides: createActiveRideReader(container.sql),
           now: () => new Date(),
           routing: { routing: container.routing },
         },
         cancel: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           canceller: createRideCancelCommand(container.sql),
           now: () => new Date(),
         },
@@ -761,12 +808,18 @@ const rides =
         // الملخَّصِ لا يملكُ حقَّ كتابةِ تقييمٍ، وآمرُ التقييمِ لا يملكُ قراءةَ
         // ملخَّصٍ. **ولا مزوِّدَ توجيهٍ ههنا**: لا مدّةَ وصولٍ لرحلةٍ انتهت.
         summary: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           rides: createRideSummaryReader(container.sql),
           now: () => new Date(),
         },
         rating: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           ratings: createRideRatingCommand(container.sql),
           now: () => new Date(),
         },
@@ -774,12 +827,18 @@ const rides =
         // **قارئٌ محضٌ**: لا حقَّ كتابةٍ في سجلٍّ ولا في تفاصيلَ.
         // **ولا مزوِّدَ توجيهٍ ولا خرائطَ**: الماضي لا يُتابَعُ (`ADR 0007`).
         history: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           history: createRideHistoryReader(container.sql),
           now: () => new Date(),
         },
         detail: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           details: createRideDetailReader(container.sql),
           now: () => new Date(),
         },
@@ -789,12 +848,18 @@ const rides =
         // `TRACKING_TOKEN_BASE_URL`: **قرارُ مشغِّلٍ مُعلَنٌ** يُقرأُ
         // `SHARING_NOT_CONFIGURED`، لا رابطٌ يُبنى بأساسٍ مُخمَّنٍ.
         share: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           shares: createRideShareReader(container.sql),
           now: () => new Date(),
         },
         shareStart: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           issuing:
             config.trackingTokenBaseUrl === null
@@ -809,7 +874,10 @@ const rides =
         // يُبنى رابطٌ — ولو رُبِطَ بالأساسِ لَبقيَت روابطُ حيّةٌ بلا زرٍّ يُغلقُها
         // يومَ يُسحَبُ الإعدادُ.
         shareStop: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           revoking: { tokens: container.tracking.tokens },
         },
@@ -829,7 +897,10 @@ const safety =
     ? undefined
     : {
         surface: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           surface: createSosSurfaceReader(container.sql),
           role: "rider" as const,
@@ -837,13 +908,19 @@ const safety =
         // `PD-020` · الشقُّ `ج` — الحاكمُ نفسُه بدورِ السائقِ: يحلُّ مَهمّتَهُ
         // الجاريةَ فيُقرأُ سردُ بلاغِ «تعذّرَ الإكمالُ» في شاشةِ المَهمّةِ.
         driverSurface: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           surface: createSosSurfaceReader(container.sql),
           role: "driver" as const,
         },
         trigger: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           incidents: container.safety.trigger.incidents,
           role: "rider" as const,
@@ -862,7 +939,10 @@ const dataRights =
     ? undefined
     : {
         dataRights: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           store: new PostgresDataRightsStore(container.sql),
         },
@@ -881,12 +961,18 @@ const support =
     ? undefined
     : {
         support: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           store: new PostgresRiderSupportStore(container.sql),
         },
         driverSupport: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           store: new PostgresDriverSupportStore(container.sql),
         },
@@ -911,7 +997,10 @@ const driverDocuments =
         }
         return {
           documents: {
-            sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+            sessions: createRevocableSessionReader(
+              createMiniAppSessionReader(config.miniappSessionSecret),
+              sessionRevocationStore,
+            ),
             now: () => new Date(),
             store: new PostgresDriverDocumentStore(container.sql),
             signer:
@@ -933,7 +1022,10 @@ const driverOffers =
     ? undefined
     : {
         offers: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           store: new PostgresDriverOfferStore(container.sql),
           drivers: container.driverOffers.drivers,
@@ -954,7 +1046,10 @@ const driverJob =
     ? undefined
     : {
         job: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           store: new PostgresDriverJobStore(container.sql),
         },
@@ -962,7 +1057,10 @@ const driverJob =
         // بيتِ السلامةِ ويدخلُ من بابِ المَهمّةِ، فمَنفذُهُ مَنفذُ السلامةِ لا
         // مَنفذَ النقلِ.
         cannotReport: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           reports: createDriverCannotCompletePort(container.sql),
         },
@@ -980,7 +1078,10 @@ const driverActivity =
     ? undefined
     : {
         activity: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           store: new PostgresDriverActivityStore(container.sql),
         },
@@ -997,7 +1098,10 @@ const driverSubscription =
     ? undefined
     : {
         subscription: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           now: () => new Date(),
           store: new PostgresDriverSubscriptionStore(container.sql),
         },
@@ -1005,7 +1109,10 @@ const driverSubscription =
           ? {}
           : {
               renewal: {
-                sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+                sessions: createRevocableSessionReader(
+                  createMiniAppSessionReader(config.miniappSessionSecret),
+                  sessionRevocationStore,
+                ),
                 drivers: createDriverDirectory(container.sql),
                 payments: createPaymentRepository(container.sql, async (driverId) => {
                   const rows = await container.sql<{ city_id: string }[]>`
@@ -1046,7 +1153,10 @@ const driverSubscriptionInvoice =
     ? undefined
     : {
         invoices: {
-          sessions: createMiniAppSessionReader(config.miniappSessionSecret),
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           store: new PostgresSubscriptionTaxInvoiceStore(container.sql),
           now: () => new Date(),
         },
@@ -1069,12 +1179,18 @@ const driverVehicle =
     ? undefined
     : {
         vehicle: {
-          session: createMiniAppSessionReader(config.miniappSessionSecret),
+          session: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           store: new PostgresDriverVehicleStore(container.sql),
           now: () => new Date(),
         },
         vehicleAssets: {
-          session: createMiniAppSessionReader(config.miniappSessionSecret),
+          session: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
           store: new PostgresDriverVehicleStore(container.sql),
           assetReader: vehicleAssetReader,
           now: () => new Date(),
@@ -1516,7 +1632,12 @@ if (config.miniappSessionSecret !== null && isLiveLocationBroadcastPermitted(con
     io: ioServer,
     eventBus: container.tracking.bus,
     rides: createActiveRideResolver(container.sql),
-    sessions: createSessionVerifier(container.sql, config.miniappSessionSecret, () => Date.now()),
+    sessions: createSessionVerifier(
+      container.sql,
+      config.miniappSessionSecret,
+      () => Date.now(),
+      sessionRevocationStore,
+    ),
     log,
   });
   rideChannel.start();

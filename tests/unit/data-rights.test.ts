@@ -33,7 +33,8 @@ import { PostgresDataRightsStore } from "../../packages/infrastructure/privacy/d
 import { ok } from "../../packages/shared/result/index.ts";
 
 const SESSION = {
-  read: () => ok({ telegramUserId: "12345" }),
+  read: async () => ok({ telegramUserId: "12345" }),
+  readSync: () => ok({ telegramUserId: "12345" }),
 } as never;
 
 function deps(store: DataRightsStore) {

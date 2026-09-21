@@ -107,14 +107,14 @@ function sessionErrorFrom(reason: string): DriverOfferPublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession(
+async function openSession(
   deps: DriverOfferDeps,
   accessToken: string | undefined,
-): Result<string, DriverOfferRejection> {
+): Promise<Result<string, DriverOfferRejection>> {
   if (accessToken === undefined || accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED"));
   }
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -160,7 +160,7 @@ export async function readDriverOfferBoard(
   deps: DriverOfferDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<DriverOfferBoard, DriverOfferRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const read = await deps.store.readBoard({ telegramUserId: session.value });
@@ -172,7 +172,7 @@ export async function readDriverOfferDetail(
   deps: DriverOfferDeps,
   input: { readonly accessToken: string | undefined; readonly offerId: unknown },
 ): Promise<Result<DriverOfferDetail, DriverOfferRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const offerId = readOfferId(input.offerId);
@@ -187,7 +187,7 @@ export async function acceptDriverOffer(
   deps: DriverOfferDeps,
   input: { readonly accessToken: string | undefined; readonly offerId: unknown },
 ): Promise<Result<DriverOfferClaim, DriverOfferRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const offerId = readOfferId(input.offerId);
@@ -207,7 +207,7 @@ export async function rejectDriverOffer(
   deps: DriverOfferDeps,
   input: { readonly accessToken: string | undefined; readonly offerId: unknown },
 ): Promise<Result<DriverOfferRejected, DriverOfferRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const offerId = readOfferId(input.offerId);
@@ -227,7 +227,7 @@ export async function setDriverAvailability(
   deps: DriverOfferDeps,
   input: { readonly accessToken: string | undefined; readonly isAvailable: unknown },
 ): Promise<Result<DriverAvailabilityChanged, DriverOfferRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   // **لا تخميناً لقيمةٍ منطقيّةٍ**: `"false"` نصّاً يُقرأُ صادقاً في أيِّ تحويلٍ

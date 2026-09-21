@@ -1,0 +1,56 @@
+/**
+ * الغرض: غلافٌ على `MiniAppSessionReader` يُضيفُ فحصَ الإبطالِ (`SEC-18`).
+ *   يُغلِّفُ قارئَ الجلسةِ ومخزنَ الإبطالِ في قارئٍ واحدٍ — فلا يُمكنُ الوصولُ
+ *   إلى جلسةٍ صحيحةٍ بلا فحصِ الإبطال. وهذا يضمنُ أنَّ كلَّ تحقُّقٍ يقرأُ القائمةَ.
+ * الحالة: منفّذ — البند `SEC-18`.
+ * ينتمي إلى: infrastructure/identity
+ *
+ * قواعدُ صارمة: الفشلُ في الوصولِ إلى مخزنِ الإبطالِ **إغلاقٌ لا فتحٌ**.
+ */
+
+import type {
+  MiniAppSessionReader,
+  RevocationStoreFailure,
+  SessionRevocationStore,
+  VerifiedViewerSession,
+  ViewerSessionRejection,
+} from "../../application/identity/ports.ts";
+import { err, ok, type Result } from "../../shared/result/index.ts";
+
+/**
+ * يُنشئ قارئَ جلسةٍ يفحصُ الإبطالَ بعدَ التحقّقِ التشفيريِّ. يُستعمَلُ مكانَ
+ * `createMiniAppSessionReader` في كلِّ مسارٍ يحتاجُ تحقُّقًا من الجلسة.
+ */
+export function createRevocableSessionReader(
+  reader: MiniAppSessionReader,
+  revocation: SessionRevocationStore,
+): MiniAppSessionReader {
+  return {
+    read: async (
+      accessToken: string,
+      nowMs: number,
+    ): Promise<Result<VerifiedViewerSession, ViewerSessionRejection>> => {
+      const session = await reader.read(accessToken, nowMs);
+      if (!session.ok) return session;
+
+      // فحصُ الإبطالِ (`SEC-18`): بعدَ التحقّقِ التشفيريِّ وقبلَ قبولِ الجلسة.
+      const revoked = await revocation.isRevoked(session.value.sessionId);
+      if (!revoked.ok) {
+        // الفشلُ في الوصولِ إلى المخزنِ — إغلاقٌ لا فتحٌ.
+        return err({ code: "SESSION_REJECTED", reason: "NOT_CONFIGURED" });
+      }
+      if (revoked.value) {
+        return err({ code: "SESSION_REJECTED", reason: "REVOKED" });
+      }
+      return ok(session.value);
+    },
+    // `readSync` لا يفحصُ الإبطالَ — لمسارِ الاستغاثةِ (`SOS`) حصراً، حيثُ السلامةُ
+    // تسبقُ الأمنَ (`ADR-0077`).
+    readSync: (accessToken, nowMs) => reader.readSync(accessToken, nowMs),
+  };
+}
+
+/**
+ * نوعُ نتيجةِ فحصِ الإبطالِ للقارئِ القابلِ للإبطال. يُستعمَلُ في الاختبارات.
+ */
+export type { RevocationStoreFailure };

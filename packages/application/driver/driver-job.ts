@@ -90,14 +90,14 @@ function sessionErrorFrom(reason: string): DriverJobPublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession(
+async function openSession(
   deps: DriverJobDeps,
   accessToken: string | undefined,
-): Result<string, DriverJobRejection> {
+): Promise<Result<string, DriverJobRejection>> {
   if (accessToken === undefined || accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED"));
   }
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -136,7 +136,7 @@ export async function readDriverActiveJob(
   deps: DriverJobDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<DriverJobSnapshot, DriverJobRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const read = await deps.store.readActiveJob({ telegramUserId: session.value });
@@ -148,7 +148,7 @@ export async function markDriverArrived(
   deps: DriverJobDeps,
   input: { readonly accessToken: string | undefined; readonly orderId: unknown },
 ): Promise<Result<DriverJobArrival, DriverJobRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const orderId = readOrderId(input.orderId);
@@ -163,7 +163,7 @@ export async function startDriverRide(
   deps: DriverJobDeps,
   input: { readonly accessToken: string | undefined; readonly orderId: unknown },
 ): Promise<Result<DriverJobStart, DriverJobRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const orderId = readOrderId(input.orderId);
@@ -178,7 +178,7 @@ export async function completeDriverRide(
   deps: DriverJobDeps,
   input: { readonly accessToken: string | undefined; readonly orderId: unknown },
 ): Promise<Result<DriverJobCompletion, DriverJobRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const orderId = readOrderId(input.orderId);

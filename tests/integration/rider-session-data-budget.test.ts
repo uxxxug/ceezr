@@ -73,6 +73,7 @@ import {
   SESSION_DATA_BUDGET_BYTES,
   type SessionDataFacts,
 } from "../../scripts/lib/session-data-budget.ts";
+import { createTestRevocationStore } from "../helpers/revocation-store.ts";
 import {
   type ActiveCityHandle,
   ensureActiveCity,
@@ -370,7 +371,12 @@ describeIf("F1-09 — بياناتُ جلسةِ راكبٍ في عشرِ دقا�
       io,
       eventBus: bus,
       rides: createActiveRideResolver(sql),
-      sessions: createSessionVerifier(sql, SESSION_SECRET, () => Date.now()),
+      sessions: createSessionVerifier(
+        sql,
+        SESSION_SECRET,
+        () => Date.now(),
+        createTestRevocationStore(),
+      ),
     });
     channel.start();
 
