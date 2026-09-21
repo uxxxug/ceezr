@@ -32,6 +32,26 @@
       "preset": "recommended"
     }
   },
+  "overrides": [
+    {
+      "includes": [
+        "tests/unit/check-jsonb-binding.test.ts",
+        "tests/unit/check-css-class-coverage.test.ts",
+        "tests/unit/check-driver-documents-contract.test.ts",
+        "tests/unit/check-integration-city-precondition.test.ts",
+        "tests/unit/check-lazy-query-assertion.test.ts",
+        "tests/unit/check-sos-surface-contract.test.ts",
+        "tests/unit/check-wall-clock-window-tests.test.ts"
+      ],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noTemplateCurlyInString": "off"
+          }
+        }
+      }
+    }
+  ],
   "javascript": {
     "formatter": {
       "quoteStyle": "double",

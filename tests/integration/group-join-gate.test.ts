@@ -46,9 +46,18 @@ interface GateCapture {
 /** بوّابةٌ تلتقطُ القرارَ بلا شبكةِ تلغرامَ — والقرارُ نفسُهُ يُنفَّذُ كاملًا. */
 function capturingGate(capture: GateCapture): TelegramGroupGatePort {
   return {
-    approve: async (group, user) => (capture.approved.push(`${group}:${user}`), true),
-    decline: async (group, user) => (capture.declined.push(`${group}:${user}`), true),
-    messageUser: async (chatId, text) => (capture.messaged.push({ chatId, text }), true),
+    approve: async (group, user) => {
+      capture.approved.push(`${group}:${user}`);
+      return true;
+    },
+    decline: async (group, user) => {
+      capture.declined.push(`${group}:${user}`);
+      return true;
+    },
+    messageUser: async (chatId, text) => {
+      capture.messaged.push({ chatId, text });
+      return true;
+    },
     registrationLink: async () => LINK,
   };
 }
