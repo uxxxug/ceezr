@@ -8293,3 +8293,45 @@ difference is the function alone.
 trial doors were measured — and **not** that step 8 is operationally done. Choosing
 the first city and entering its boundary and groups is an owner action. What is done
 here is that the code **no longer lies** if it is not.
+
+## Owner step 9 — the payment method is stated before the order, not after
+
+Read the order path in the code, not in a description: the `rider.quote.request`
+button in `QuoteScreen` is the point of no return. `onRequest` assigns the intent,
+`SearchScreen` mounts, and `request_ride` is called immediately — **there is no
+confirmation screen in between.** And what the rider was told about payment at that
+moment was **nothing**: not one rider-facing payment key existed in the dictionary.
+
+**Silence here is not neutrality.** An app on a phone that is asked for a ride is
+read, by default, as handling the amount and the collection, because that is how
+every comparable app the user knows behaves. So the absence of a statement does not
+produce neutral ignorance — it plants one specific false belief: that Waslah sets an
+amount, takes it, and guarantees it. **That is the same false belief a non-functional
+pay button would plant**, only cheaper for the author and costlier for the rider,
+because it is invisible and therefore never reviewed.
+
+**The hardest part of the argument is that our own guard was enforcing that silence.**
+`check-quote-contract` forbids `payment`, `cash`, «الدفع» and «نقداً» in the rider
+slice. So a guard written to prevent a fare mechanism was, by its letter, preventing
+us from telling a rider that they pay the driver in cash. This was measured, not
+assumed: the guard failed with five violations on `payment` before it was touched.
+**A guard that produces the harm it was written to prevent is a defective guard, not
+an argument against the statement.**
+
+Delivered as a three-part explicit negation, rendered **above** the order button: you
+pay the driver directly, in cash, outside the app · Waslah does not take, hold, or
+guarantee your money, and there is no card, wallet, or electronic payment · Waslah
+does not set or calculate the amount, so ask the driver before you ride. No number,
+no display field, no pay button, no commission, no database column.
+
+The guard was **extended, not weakened**: rule 8 is the inverse of rule 1 — rule 1
+forbids a fare mechanism, rule 8 *requires* its denial in words, and fails the build
+if a key is missing from the dictionary, is not rendered in the screen, or is rendered
+**after** the button. The allowance is by full key literal, never by prefix, and a line
+exempted by a key is re-scanned **after the key is stripped out**, so no fare field can
+hide in the shadow of a permitted line.
+
+**Not claimed:** that the fare mechanism is resolved — `DEC-11` and `F12-16`…`F12-19`
+remain blocked on a written opinion from a qualified Saudi regulatory advisor — nor
+that any rider has read the text, nor that the bot path states it too. That last one is
+a recorded gap, not a blank.

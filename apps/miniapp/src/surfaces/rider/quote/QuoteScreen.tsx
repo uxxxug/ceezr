@@ -365,6 +365,30 @@ export function QuoteScreen({
           )}
         </section>
 
+        {/*
+         * ## طريقةُ الدفعِ **قبلَ** الطلبِ لا بعدَه — الخطوةُ ٩
+         *
+         * وموضعُها ههنا **حكمٌ لا تنسيقٌ**: زرُّ `rider.quote.request` أسفلَ هذا
+         * الموضعِ هوَ **نقطةُ اللاعودةِ** — لا شاشةَ تأكيدٍ بعدَه، بل يُسنَدُ
+         * `intent` فتُركَّبُ `SearchScreen` فتُنادي `request_ride` فوراً. فراكبٌ
+         * يطلُبُ وهوَ لا يعلمُ كيفَ يدفعُ قد صعِدَ على صمتِنا لا على علمِه.
+         *
+         * **والصمتُ ههنا ليسَ حياداً**: تطبيقٌ في هاتفٍ يُقرأُ افتراضاً «التطبيقُ
+         * يتولّى الدفعَ»، فغيابُ البيانِ يزرعُ الظنَّ الكاذبَ نفسَه الذي يزرعُه
+         * زرُّ دفعٍ لا يعملُ. فالبيانُ **نفيٌ ثلاثيٌّ صريحٌ**: لا قبضَ، ولا
+         * حفظَ، ولا تحديدَ مبلغٍ.
+         *
+         * **ولا يُخالِفُ `ADR 0039` §٤ بل يُنفِذُه**: المحجوبُ هناكَ **آليّةُ
+         * أجرةٍ** — حقلٌ أو حسبةٌ أو عمولةٌ. وهذا نصٌّ يقولُ إنَّ الآليةَ
+         * **غيرُ موجودةٍ**، وهوَ ضدُّ بنائِها لا تمهيدٌ لها. ولا رقمَ ههنا ولا
+         * حقلَ عرضٍ ولا زرَّ دفعٍ.
+         */}
+        <section className="qt__payment" aria-label={t("rider.quote.payment.title")}>
+          <h2 className="qt__subtitle">{t("rider.quote.payment.title")}</h2>
+          <p className="qt__payment-line">{t("rider.quote.payment.direct")}</p>
+          <p className="qt__payment-line">{t("rider.quote.payment.noCustody")}</p>
+          <p className="qt__payment-line">{t("rider.quote.payment.noAmount")}</p>
+        </section>
         <section className="qt__services" aria-label={t("rider.quote.services")}>
           <h2 className="qt__subtitle">{t("rider.quote.services")}</h2>
           <ul className="qt__list">
