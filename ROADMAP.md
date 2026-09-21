@@ -8408,3 +8408,48 @@ enforced.**
 **Not claimed:** any response-time commitment — the promise now has a path but still no
 deadline, no escalation, and a ticket may stay `open` indefinitely, recorded as an open
 gap — nor multi-turn conversation, nor that a single reply has reached a real user.
+
+## SEC-17 — initData replay is a single-use fingerprint, not a lifetime check (`ADR 0172`)
+
+`DEC-07` made Telegram the sole identity provider. A single provider turns every gap
+in the identity layer into a gap in the whole system. `SEC-17` is the first of five gaps
+the owner named: the existing verifier checks the signature and `auth_date` staleness,
+**but not whether the same signed payload has already been used.** A captured `initData`
+— valid, signed, within its 300-second window — could be replayed as many times as an
+attacker could submit it.
+
+**The guard is inserted after verification and before issuance.** A fingerprint
+(`sha256(rawInitData)`) is consumed atomically — `SET key NX EX ttl` on Redis, a
+`Map` with lazy expiry for single-instance. The second presentation of the same
+payload is rejected as `REPLAYED`. The TTL is the **remaining lifetime** of the
+acceptance window, not a fixed duration: a payload at the edge of its window has a
+near-zero TTL; a fresh one has the full 300 seconds.
+
+**The ordering is mandatory and measured:** a bad signature does not consume a
+fingerprint (the verifier runs first), a stale `auth_date` does not consume a
+fingerprint (rejected before the guard), and the issuer is never called before the
+guard returns `ok`. The store fails **closed**: if Redis is down, the session exchange
+returns `503` — no session is issued when the guard cannot be consulted.
+
+**The public code is `INIT_DATA_REJECTED`** — the same as a bad signature. The
+attacker learns nothing about whether the payload was replayed or never valid.
+
+**Not claimed** (`ح-5`): no real Redis was consulted, no real attacker replayed a
+payload, no concurrency on a live multi-instance system. The in-memory adapter does
+not share state across processes — multi-instance replay prevention requires Redis,
+which is `SEC-18`'s domain. And `SEC-17` is not `SEC-18` (session revocation) or
+`SEC-19` (nullable `telegram_id`).
+
+Local: lint 0 (1714 files) · typecheck pass · `bun test` **5738 pass / 0 fail / 1440
+skip** / 18248 assertions / 486 files. Evidence:
+`docs/evidence/security/SEC-17-initdata-replay-20260921.md`.
+
+**Correction (additive, same commit):** Biome import ordering in `index.ts`
+fixed — the new adapters were inserted out of alphabetical order. No logic
+change.
+
+**Coverage gate (additive):** smoke test for `redis-init-data-replay-guard.ts`
+added — the Redis adapter was the 14th unmeasured file in the identity
+critical path, exceeding the ceiling of 13 (OPS-005). The smoke test loads
+the module with a mock Redis client, covering construction, fail-closed
+behavior, replay rejection, and first-use acceptance.

@@ -105,6 +105,9 @@ export function createSessionTelegramRoutes(deps: SessionTelegramDependencies): 
       if (result.error.code === "SESSION_ISSUE_FAILED") {
         return rejected(c, result.error.publicCode, 503);
       }
+      if (result.error.code === "REPLAY_GUARD_UNAVAILABLE") {
+        return rejected(c, result.error.publicCode, 503);
+      }
       // 401 لا 400 في الأصل: المدخلُ سليمُ الشكلِ نحوياً لكنّ إثباتَ الهويةِ لم
       // يُقبَل؛ أمّا التشويهُ وغيابُ الحقولِ الملزَمةِ فخطأُ طلبٍ صريح.
       if (result.error.publicCode === "INIT_DATA_MALFORMED") {

@@ -13,6 +13,7 @@
 
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type {
+  InitDataReplayGuard,
   IssuedMiniAppRefresh,
   IssuedMiniAppSession,
   MiniAppRefreshTokenIssuer,
@@ -44,6 +45,18 @@ export interface ExchangeTelegramSessionDeps {
   readonly issuer: MiniAppSessionIssuer;
   /** سلسلةُ التجديد (`F1-04`). غيابُها = جلسةٌ بلا تجديدٍ لا جلسةٌ بلا توقيع. */
   readonly refreshChain?: SessionRefreshChain;
+  /**
+   * حارسُ إعادةِ استعمالِ `initData` (`SEC-17`). اختياريٌّ في العقدِ لا في التشغيلِ:
+   * حين يُوصَل يُستشارُ بعدَ التحقّقِ وقبلَ الإصدار، وحين يغيب يبقى المسارُ كما كان
+   * حرفيًّا — فالغيابُ مُعلَنٌ في السجلِّ لا مسكوتٌ عنه. **والإغلاقُ عند العجزِ
+   * لا عند الغياب**: غيابُ الحارسِ غيابُ الحماية، وعجزُه عجزُها.
+   */
+  readonly replayGuard?: InitDataReplayGuard;
+  /**
+   * حدُّ عمرِ `initData` بالثواني — يُستعمَل لحسابِ مدّةِ البقاءِ المتبقّيةِ للبصمة.
+   * إن لم يُمرَّر يُستعمَلُ افتراضيًّا `TELEGRAM_INIT_DATA_MAX_AGE_SECONDS`.
+   */
+  readonly initDataMaxAgeSeconds?: number;
   /** الساعةُ محقونةٌ لا مقروءةٌ من العالم: سياسةُ الصلاحيةِ تُختبَر حتمياً. */
   readonly now: () => Date;
   /**
@@ -79,6 +92,14 @@ export type ExchangeTelegramSessionError =
   | {
       readonly code: "SESSION_ISSUE_FAILED";
       readonly reason: "NOT_CONFIGURED" | "ISSUER_ERROR";
+      readonly publicCode: "SESSION_NOT_AVAILABLE";
+    }
+  | {
+      readonly code: "INIT_DATA_REPLAYED";
+      readonly publicCode: PublicRejectionCode;
+    }
+  | {
+      readonly code: "REPLAY_GUARD_UNAVAILABLE";
       readonly publicCode: "SESSION_NOT_AVAILABLE";
     };
 
@@ -130,6 +151,34 @@ export async function exchangeTelegramSession(
       reason,
       publicCode: publicCodeFor(reason),
     });
+  }
+
+  // `SEC-17` — حمايةُ إعادةِ الاستعمال: بعدَ نجاحِ التوقيعِ والعمر، وقبلَ الإصدار.
+  // الترتيبُ ملزِم: التحقّقُ أوّلاً فالاستهلاكُ فالإصدار — ولا تُستهلَك بصمةٌ لبيانٍ
+  // لم يُتحقَّق منه، وإلّا استنزفَ المهاجمُ المخزنَ بمدخلاتٍ سيّئةٍ بلا فائدة.
+  // والبصمةُ تُحسبُ داخلَ الحارسِ لا خارجه: لا يرى هذا الملفُّ `initData` الخامَّ ولا
+  // يمرّرُه إلى غيرِ الحارس. ومدّةُ البقاءِ هي ما تبقّى من نافذةِ العمر، لا مدّةٌ
+  // ثابتةٌ قد تسمحُ بإعادةٍ بعدَ انتهاءِ القبولِ أو تحفظُ أطولَ من اللازم.
+  const replayGuard = deps.replayGuard;
+  if (replayGuard !== undefined) {
+    const maxAge = deps.initDataMaxAgeSeconds ?? 300;
+    const remainingTtl = maxAge - (nowSeconds - verified.value.authDateSeconds);
+    const consumed = await replayGuard.consume(input.initData, remainingTtl);
+    if (!consumed.ok) {
+      if (consumed.error.kind === "REPLAYED") {
+        deps.log?.("session.init_data_replayed", {});
+        return err({
+          code: "INIT_DATA_REPLAYED",
+          publicCode: "INIT_DATA_REJECTED",
+        });
+      }
+      // STORE_UNAVAILABLE — إغلاقٌ لا فتح: لا تُصدَر جلسةٌ حين يُعجزُ الحارس.
+      deps.log?.("session.replay_guard_unavailable", { detail: consumed.error.detail });
+      return err({
+        code: "REPLAY_GUARD_UNAVAILABLE",
+        publicCode: "SESSION_NOT_AVAILABLE",
+      });
+    }
   }
 
   // لا يصل الإصدارُ إلا من بعدِ هذا السطر: مسارٌ واحدٌ لا فرعَ له قبلَ التحقّق.

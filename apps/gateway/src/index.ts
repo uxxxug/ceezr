@@ -39,12 +39,17 @@ import {
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/index.ts";
 import { createDriverDirectory } from "../../../packages/infrastructure/identity/directories.ts";
+import { createMemoryInitDataReplayGuard } from "../../../packages/infrastructure/identity/memory-init-data-replay-guard.ts";
 import { createMiniAppRefreshTokens } from "../../../packages/infrastructure/identity/miniapp-refresh.ts";
 import {
   createMiniAppSessionIssuer,
   createMiniAppSessionReader,
 } from "../../../packages/infrastructure/identity/miniapp-session.ts";
-import { createTelegramInitDataVerifier } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
+import { createRedisInitDataReplayGuard } from "../../../packages/infrastructure/identity/redis-init-data-replay-guard.ts";
+import {
+  createTelegramInitDataVerifier,
+  TELEGRAM_INIT_DATA_MAX_AGE_SECONDS,
+} from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
 import { createUserNotificationCenter } from "../../../packages/infrastructure/notification/user-notification-center.ts";
 import {
@@ -498,6 +503,18 @@ const refreshChain =
         grantIssuer: miniappSessionIssuer,
       };
 
+/**
+ * `SEC-17` — حارسُ إعادةِ استعمالِ `initData`. على Redis عند تعدّدِ النسخ، وفي
+ * الذاكرة عند نسخةٍ واحدة: نفسُ مفتاح `SESSION_STORE` لأنَّ السؤالَ واحدٌ — هل نحن
+ * أكثرُ من عملية؟ وإن غابَ Redis (نسخةٌ واحدة) فالذاكرةُ كافيةٌ، وإن حضرَ فالاستهلاكُ
+ * ذرّيٌّ عبرَ `SET NX`. **والحارسُ دائمًا موصولٌ**: لا يُتركُ المسارُ بلا حمايةٍ إلا
+ * حين لا يُوجَدُ سرٌّ أصلاً (المسارُ نفسه معطَّل).
+ */
+const initDataReplayGuard =
+  rateRedis === null
+    ? createMemoryInitDataReplayGuard(() => new Date())
+    : createRedisInitDataReplayGuard(rateRedis);
+
 const sessionTelegram =
   miniappSessionIssuer === null
     ? undefined
@@ -511,6 +528,8 @@ const sessionTelegram =
           }),
           issuer: miniappSessionIssuer,
           ...(refreshChain === undefined ? {} : { refreshChain }),
+          replayGuard: initDataReplayGuard,
+          initDataMaxAgeSeconds: TELEGRAM_INIT_DATA_MAX_AGE_SECONDS,
           now: () => new Date(),
           log,
         },

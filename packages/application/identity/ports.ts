@@ -262,3 +262,33 @@ export interface ViewerSessionRejection {
 export interface MiniAppSessionReader {
   read(accessToken: string, nowMs: number): Result<VerifiedViewerSession, ViewerSessionRejection>;
 }
+
+/* ──────────────────── حمايةُ إعادةِ `initData` (`SEC-17`) ──────────────────── */
+
+/**
+ * نوعُ فشلِ حارسِ إعادةِ الاستعمال — حتميٌّ ومصنَّفٌ كالرفضِ الأوّل.
+ * - `REPLAYED`: البصمةُ استُهلِكَت مرّةً سابقةً ضمنَ نافذةِ العمر، فالبيانُ الموقَّعُ
+ *   نفسُه يُعاد عرضُه.
+ * - `STORE_UNAVAILABLE`: تعذّرَ الوصولُ إلى المخزن، والمرورُ **ممنوعٌ** لا مسموحٌ —
+ *   فالعجزُ عن الفحصِ لا يُسقِطُ الفحصَ.
+ */
+export type ReplayGuardFailureKind = "REPLAYED" | "STORE_UNAVAILABLE";
+
+export interface ReplayGuardFailure {
+  readonly kind: ReplayGuardFailureKind;
+  readonly detail: string;
+}
+
+/**
+ * حارسُ إعادةِ استعمالِ `initData` (`SEC-17`). يُستشارُ بعدَ نجاحِ التحقّقِ التشفيريِّ
+ * وقبلَ إصدارِ الجلسة. لا يقبلُ النصَّ الخامَّ مباشرةً من العميلِ بلا تحقّقٍ سابق.
+ *
+ * والاستهلاكُ ذرّيٌّ: إمّا أن يُسجَّلَ أوّلَ مرّة، وإمّا أن يُرفَضَ ثانيةً — ولا طريقَ ثالثَ.
+ * والفشلُ في الوصولِ إلى المخزنِ **إغلاقٌ لا فتحٌ**: لا تُصدَر جلسةٌ حين يُعجزُ الحارس.
+ *
+ * ولا يُخزَّنُ `initData` الخامُّ ولا `hash` ولا أيُّ جزءٍ منه — البصمةُ وحدها تُخزَّن،
+ * وهي هضمٌ لا يُسترجَعُ منه الأصل.
+ */
+export interface InitDataReplayGuard {
+  consume(rawInitData: string, ttlSeconds: number): Promise<Result<true, ReplayGuardFailure>>;
+}
