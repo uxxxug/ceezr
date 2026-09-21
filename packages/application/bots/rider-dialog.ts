@@ -1374,9 +1374,13 @@ async function handleLocation(
       draftPickup: location,
     });
     if (!saved.ok) return technicalFailure(sender, state);
-    const key = isDelivery ? "rider.ask_parcel_dropoff" : "rider.ask_dropoff";
-    // القائمة بدل `remove`: المقصود إنهاء لوحة طلب الموقع لا ترك العميل عارياً.
-    return [reply(sender, tr(key), menu(state))];
+    // التوصيلُ يبقى له وصفُ الطردِ بعدَ الوجهةِ، فهذه ليست الخطوةَ الأخيرةَ فيه؛
+    // والنقلُ يُنشئُ الطلبَ فورَ الوجهةِ، فهذه آخرُ رسالةٍ قبلَ نقطةِ اللاعودةِ.
+    if (isDelivery) {
+      // القائمة بدل `remove`: المقصود إنهاء لوحة طلب الموقع لا ترك العميل عارياً.
+      return [reply(sender, tr("rider.ask_parcel_dropoff"), menu(state))];
+    }
+    return askFinalInputBeforeOrder(sender, state, "rider.ask_dropoff");
   }
 
   if (state.step === "awaiting_dropoff" && state.draftPickup !== null) {
@@ -1388,7 +1392,7 @@ async function handleLocation(
         draftDropoff: location,
       });
       if (!saved.ok) return technicalFailure(sender, state);
-      return [reply(sender, tr("rider.ask_parcel"), menu(state))];
+      return askFinalInputBeforeOrder(sender, state, "rider.ask_parcel");
     }
     return createOrderAndMatch(sender, state, rider, state.draftPickup, location, updateId, deps);
   }
@@ -1464,6 +1468,30 @@ async function handleParcel(
     ...replies,
     reply(sender, tr("rider.drivers_notified", { count: requested.value.offered.length })),
   ];
+}
+
+/**
+ * ADR 0170 — مَعبَرٌ واحدٌ لطلبِ المُدخَلِ الأخيرِ قبلَ إنشاءِ الطلبِ.
+ *
+ * في البوتِ لا شاشةَ تأكيدٍ ألبتَّةَ: `createOrderAndMatch` تُنادى **فورَ** وصولِ
+ * المُدخَلِ الأخيرِ (موقعُ الوصولِ في النقلِ · وصفُ الطردِ في التوصيلِ · `/skip`).
+ * فآخرُ ما يقرأُهُ الراكبُ قبلَ نقطةِ اللاعودةِ هوَ **طلبُ ذاكَ المُدخَلِ** — وهوَ
+ * ما يُقابِلُ `QuoteScreen` في المِنِي آب (`ADR 0169`).
+ *
+ * ولذا لا يُطلَبُ المُدخَلُ الأخيرُ إلّا من هنا، ومن هنا وحدَهُ يُرسَلُ بيانُ الدفعِ
+ * **قبلَهُ** لا بعدَهُ. **وهذا موضعٌ واحدٌ لا تنسيقٌ**: مسارٌ جديدٌ يطلبُ مُدخَلاً
+ * أخيراً بلا هذا المَعبَرِ يعودُ بالصمتِ الذي هوَ إيهامٌ، ولذا يحرُسُهُ
+ * `check-quote-contract` بالقاعدةِ ٩ فيُسقِطُ البناءَ.
+ */
+function askFinalInputBeforeOrder(
+  sender: Sender,
+  state: DialogState,
+  key: "rider.ask_dropoff" | "rider.ask_parcel",
+): readonly BotReply[] {
+  const tr = t(state.language);
+  // البيانُ أوّلاً: تلغرام يعرِضُ الرسائلَ بترتيبِ إرسالِها، فالترتيبُ ههنا هوَ
+  // ترتيبُ القراءةِ. والقائمةُ على الرسالةِ الثانيةِ لأنَّها هيَ التي تنتظرُ فعلاً.
+  return [reply(sender, tr("rider.payment_notice")), reply(sender, tr(key), menu(state))];
 }
 
 async function createOrderAndMatch(

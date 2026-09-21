@@ -60,6 +60,8 @@ import { blankComments, blankSqlComments } from "./lib/blank-comments.ts";
 const MIGRATIONS_DIR = "supabase/migrations";
 const QUOTE_MIGRATION_SUFFIX = "_f2_04_ride_quote_judgement.sql";
 const MINIAPP_I18N_DIR = "packages/shared/i18n/miniapp";
+const BOT_I18N_DIR = "packages/shared/i18n";
+const RIDER_DIALOG_FILE = "packages/application/bots/rider-dialog.ts";
 const LANGUAGES = ["ar", "en", "ur"] as const;
 
 /** مِلفّاتُ الشريحةِ — كلُّ ما يُقرأُ ويُفحَصُ، مكتوبةً لا مُكتشَفةً بنمطٍ. */
@@ -141,6 +143,9 @@ export const PAYMENT_DISCLOSURE_LITERALS: readonly string[] = [
   "qt__payment",
 ];
 
+/** مفتاحُ بيانِ الدفعِ في البوتِ — مُعلَنٌ بنصِّه الكاملِ لا بسابقةٍ (`ADR 0170`). */
+export const BOT_PAYMENT_NOTICE_LITERAL = '"rider.payment_notice"';
+
 export const DECLARED_FARE_ALLOWANCES: readonly string[] = [
   // سعرُ اشتراكِ السائقِ — مصدرُ الإيرادِ المُقرَّرُ (`ADR 0027`).
   "subscription_price_",
@@ -156,6 +161,15 @@ export const DECLARED_FARE_ALLOWANCES: readonly string[] = [
    * ولا يصيرُ سماحاً ميّتاً يُتَّكَأُ عليه.
    */
   ...PAYMENT_DISCLOSURE_LITERALS,
+  /*
+   * ومفتاحُ بيانِ الدفعِ في **البوتِ** كذلكَ (`ADR 0170`). والعطبُ تكرَّرَ حرفاً:
+   * `check-ride-request-contract` يستوردُ هذه القائمةَ ويمنعُ `payment` في حوارِ
+   * الراكبِ، فسقطَ على السطرِ ١٤٩٤ — **فحاجزانِ لا حاجزٌ كانا يفرضانِ الصمتَ**.
+   * وعِوَضُ السماحِ **القاعدةُ ٩**: تُسقِطُ البناءَ إن غابَ المفتاحُ أو غابَ
+   * مَعبَرُه أو طُلِبَ مُدخَلٌ أخيرٌ من غيرِه، **وتُعيدُ فحصَ سطرِه بعدَ نزعِه**
+   * فلا يستترُ حقلُ أجرةٍ في ظلِّ سماحٍ.
+   */
+  BOT_PAYMENT_NOTICE_LITERAL,
   // اسمُ القرارِ المحجوبِ ونصُّ المنعِ: ذِكرُ الممنوعِ لِبيانِ منعِه مشروعٌ.
   "0039",
   "DEC-11",
@@ -233,6 +247,9 @@ export interface RepositoryInput {
   readonly migrationSql: string | null;
   readonly sliceSources: Readonly<Record<string, string | null>>;
   readonly miniappDictionaries: Readonly<Record<string, Record<string, string>>>;
+  /** القاعدةُ ٩ — بابُ البوتِ يُنشئُ الطلبَ كذلكَ، فيُقرأُ معَ المِنِي آب لا بعدَه. */
+  readonly riderDialogSource: string | null;
+  readonly botDictionaries: Readonly<Record<string, Record<string, string>>>;
 }
 
 function latestMigration(suffix: string): string | null {
@@ -260,10 +277,18 @@ export function readRepository(): RepositoryInput {
   }
   const sliceSources: Record<string, string | null> = {};
   for (const path of SLICE_FILES) sliceSources[path] = readIfPresent(path);
+  const botDictionaries: Record<string, Record<string, string>> = {};
+  for (const language of LANGUAGES) {
+    botDictionaries[language] = JSON.parse(
+      readFileSync(join(BOT_I18N_DIR, `${language}.json`), "utf8"),
+    ) as Record<string, string>;
+  }
   return {
     migrationSql: latestMigration(QUOTE_MIGRATION_SUFFIX),
     sliceSources,
     miniappDictionaries,
+    riderDialogSource: readIfPresent(RIDER_DIALOG_FILE),
+    botDictionaries,
   };
 }
 
@@ -424,6 +449,140 @@ export function findArabicLiterals(path: string, source: string): readonly WordH
     }
   }
   return hits;
+}
+
+/**
+ * القاعدةُ ٩ — بيانُ الدفعِ في **بابِ البوتِ** كذلكَ (`ADR 0170`).
+ *
+ * القاعدةُ ٨ حرسَت `QuoteScreen` وحدَها، **والطلبُ يُنشَأُ من بابَينِ**:
+ * `apps/gateway` ← المِنِي آب، و`rider-dialog.ts` ← تلغرام مباشرةً عبرَ
+ * `deps.rides.create`. **فحاجزٌ يحرُسُ باباً ويترُكُ باباً يُقرأُ إنفاذاً وهوَ
+ * نصفُ إنفاذٍ** — والنصفُ في هذا البابِ أخطرُ لأنَّه الأقدمُ والأكثرُ استعمالاً.
+ *
+ * وفي البوتِ **لا شاشةَ تأكيدٍ** ولا ترتيبَ حرفٍ يُقاسُ كما في شاشةٍ، فآخرُ ما
+ * يُقرأُ قبلَ نقطةِ اللاعودةِ هوَ **طلبُ المُدخَلِ الأخيرِ**. ولذا يُحرَسُ
+ * **بنيويّاً**: لا يُطلَبُ مُدخَلٌ أخيرٌ إلّا من مَعبَرٍ واحدٍ يُرسِلُ البيانَ قبلَه.
+ *
+ * أربعةُ أحكامٍ:
+ * ١) `rider.payment_notice` موجودٌ غيرُ فارغٍ في اللغاتِ الثلاثِ.
+ * ٢) والمَعبَرُ `askFinalInputBeforeOrder` موجودٌ **ويُرسِلُ المفتاحَ**.
+ * ٣) وكلُّ ذكرٍ لمفتاحِ مُدخَلٍ أخيرٍ لا يكونُ إلّا في سطرِ نداءِ المَعبَرِ أو في
+ *    توقيعِه — فمسارٌ جديدٌ يطلبُ وجهةً بنفسِه يُسقِطُ البناءَ.
+ * ٤) ولا **دعوى أجرةٍ** في قاموسِ الراكبِ: «سعرٌ تقديريٌّ» أو «تأكيدُ الطلبِ» أو
+ *    «تتفقان على الأجرة عبرَ البوتِ» — وثلاثتُها كانت مكتوبةً فعلاً، والأخيرةُ
+ *    تُوهِمُ بمُساومةٍ داخلَ التطبيقِ لا وجودَ لها.
+ */
+export const BOT_PAYMENT_NOTICE_KEY = "rider.payment_notice";
+export const FINAL_INPUT_KEYS: readonly string[] = ["rider.ask_dropoff", "rider.ask_parcel"];
+export const FINAL_INPUT_GATE = "askFinalInputBeforeOrder";
+
+/** دعاوى أجرةٍ كانت مكتوبةً في قاموسِ البوتِ — تُمنَعُ بنصِّها لا بتخمينٍ. */
+export const FORBIDDEN_BOT_FARE_CLAIMS: readonly string[] = [
+  "السعر التقديري",
+  "أكّد الطلب",
+  "عبر البوت.",
+  "estimated fare",
+  "confirm the order",
+  "through the bot.",
+  "اندازاً کرایہ",
+  "تصدیق کریں ✅",
+  "بوٹ کے ذریعے",
+];
+
+export function findBotPaymentDisclosureViolations(
+  dialogSource: string | null,
+  dictionaries: Readonly<Record<string, Record<string, string>>>,
+): readonly string[] {
+  const violations: string[] = [];
+
+  // ١) المفتاحُ في اللغاتِ الثلاثِ.
+  for (const language of LANGUAGES) {
+    const text = dictionaries[language]?.[BOT_PAYMENT_NOTICE_KEY];
+    if (typeof text !== "string" || text.trim().length === 0) {
+      violations.push(
+        `القاعدةُ ٩: «${BOT_PAYMENT_NOTICE_KEY}» غائبٌ أو فارغٌ في «${language}.json» — فالراكبُ في تلغرام يُنشئُ رحلةً وهوَ لا يعلمُ كيفَ يدفعُ، والصمتُ ههنا إيهامٌ لا حيادٌ.`,
+      );
+    }
+  }
+
+  // ٤) دعاوى الأجرةِ في كلِّ نصوصِ الراكبِ.
+  for (const language of LANGUAGES) {
+    for (const [key, text] of Object.entries(dictionaries[language] ?? {})) {
+      if (!key.startsWith("rider.")) continue;
+      if (typeof text !== "string") continue;
+      for (const claim of FORBIDDEN_BOT_FARE_CLAIMS) {
+        if (text.includes(claim)) {
+          violations.push(
+            `القاعدةُ ٩: «${key}» في «${language}.json» يحملُ دعوى «${claim}» — ولا سعرَ تُحسِبُه وَصْلة ولا خطوةَ تأكيدٍ في البوتِ ولا مُساومةَ أجرةٍ داخلَه، فهذا وعدٌ بما لا يقعُ.`,
+          );
+        }
+      }
+    }
+  }
+
+  // الحاجزُ لا يمرُّ حيثُ لا يقرأُ.
+  if (dialogSource === null) {
+    violations.push(
+      `القاعدةُ ٩: «${RIDER_DIALOG_FILE}» غيرُ مقروءٍ — وحاجزٌ يخرُجُ أخضرَ عن تعذُّرِ قراءةٍ أسوأُ من غيابِه (\`ADR 0167\`).`,
+    );
+    return violations;
+  }
+
+  // ٢) المَعبَرُ موجودٌ ويُرسِلُ البيانَ.
+  const gateIndex = dialogSource.indexOf(`function ${FINAL_INPUT_GATE}`);
+  if (gateIndex === -1) {
+    violations.push(
+      `القاعدةُ ٩: لا مَعبَرَ «${FINAL_INPUT_GATE}» في حوارِ الراكبِ — وبيانٌ مبثوثٌ في كلِّ فرعٍ يُنسى في الفرعِ التالي.`,
+    );
+  } else {
+    const body = dialogSource.slice(gateIndex, gateIndex + 1200);
+    if (!body.includes(`"${BOT_PAYMENT_NOTICE_KEY}"`)) {
+      violations.push(
+        `القاعدةُ ٩: مَعبَرُ «${FINAL_INPUT_GATE}» لا يُرسِلُ «${BOT_PAYMENT_NOTICE_KEY}» — مَعبَرٌ بلا بيانٍ بابٌ سُمِّيَ حاجزاً.`,
+      );
+    }
+  }
+
+  /*
+   * والسماحُ يُفحَصُ بعدَ نزعِه: سطرٌ استُثنيَ بمفتاحِ البيانِ لا يصيرُ سطراً
+   * حرّاً. وهذا ما أمسكَ أصنافَ العرضِ في القاعدةِ ٨، فيُطبَّقُ ههنا سلفاً.
+   */
+  for (const [index, rawLine] of dialogSource.split("\n").entries()) {
+    if (!rawLine.includes(BOT_PAYMENT_NOTICE_LITERAL)) continue;
+    const stripped = rawLine.split(BOT_PAYMENT_NOTICE_LITERAL).join(" ");
+    for (const word of FORBIDDEN_FARE_WORDS) {
+      if (containsWord(stripped, word)) {
+        violations.push(
+          `القاعدةُ ٩: السطرُ ${index + 1} استُثنيَ ببيانِ الدفعِ ثمَّ بقيَ فيه «${word}» بعدَ نزعِ المفتاحِ — والسماحُ للمفتاحِ لا لِما جاورَه.`,
+        );
+      }
+    }
+  }
+
+  // ٣) ولا يُطلَبُ مُدخَلٌ أخيرٌ من غيرِ المَعبَرِ.
+  const lines = dialogSource.split("\n");
+  for (const key of FINAL_INPUT_KEYS) {
+    const literal = `"${key}"`;
+    let seen = 0;
+    for (const [index, line] of lines.entries()) {
+      if (!line.includes(literal)) continue;
+      seen += 1;
+      const throughGate = line.includes(`${FINAL_INPUT_GATE}(`) || line.includes(`| "${key}"`);
+      const inSignature = line.trimStart().startsWith("key:") || line.includes(`key: "${key}"`);
+      if (!throughGate && !inSignature) {
+        violations.push(
+          `القاعدةُ ٩: «${key}» مطلوبٌ في السطرِ ${index + 1} بغيرِ «${FINAL_INPUT_GATE}» — وهذا مُدخَلٌ أخيرٌ يُنشئُ الطلبَ فورَ وصولِه، فطلبُه بلا بيانِ دفعٍ هوَ العطبُ نفسُه في بابٍ آخرَ.`,
+        );
+      }
+    }
+    if (seen === 0) {
+      violations.push(
+        `القاعدةُ ٩: «${key}» لا يُطلَبُ في حوارِ الراكبِ ألبتَّةَ — ومفتاحٌ غابَ طلبُه يُبطِلُ الحُكمَ عليه بلا أن يُسقِطَ البناءَ، فيُسقَطُ صريحاً.`,
+      );
+    }
+  }
+
+  return violations;
 }
 
 export function findViolations(input: RepositoryInput): readonly string[] {
@@ -629,6 +788,11 @@ export function findViolations(input: RepositoryInput): readonly string[] {
     ),
   );
 
+  // القاعدةُ ٩ — بيانُ الدفعِ في بابِ البوتِ (`ADR 0170`).
+  violations.push(
+    ...findBotPaymentDisclosureViolations(input.riderDialogSource, input.botDictionaries),
+  );
+
   return violations;
 }
 
@@ -636,7 +800,7 @@ if (import.meta.main) {
   const violations = findViolations(readRepository());
   if (violations.length === 0) {
     console.log(
-      `حاجزُ عقدِ الاقتباسِ: نجحَ — ${SLICE_FILES.length} مِلفّاً مفحوصاً بـ${FORBIDDEN_FARE_WORDS.length} مفردةَ أجرةٍ ممنوعةً و${FORBIDDEN_SPEED_WORDS.length} مفردةَ اختراعٍ زمنيٍّ، مسافةٌ موسومةٌ في القاعدةِ والعقدِ، رمزا رفضٍ مفصولانِ، ${REVOKED_FUNCTIONS.length} دالّتَينِ منزوعتَي التنفيذِ عن ${REVOKED_ROLES.length} أدوارٍ، و${REQUIRED_QUOTE_KEYS.length + SERVICE_KINDS.length} مفتاحاً في ثلاثِ لغاتٍ، وبيانُ طريقةِ الدفعِ بـ${PAYMENT_DISCLOSURE_KEYS.length} مفاتيحَ مرسومةٍ قبلَ زرِّ الطلبِ.`,
+      `حاجزُ عقدِ الاقتباسِ: نجحَ — ${SLICE_FILES.length} مِلفّاً مفحوصاً بـ${FORBIDDEN_FARE_WORDS.length} مفردةَ أجرةٍ ممنوعةً و${FORBIDDEN_SPEED_WORDS.length} مفردةَ اختراعٍ زمنيٍّ، مسافةٌ موسومةٌ في القاعدةِ والعقدِ، رمزا رفضٍ مفصولانِ، ${REVOKED_FUNCTIONS.length} دالّتَينِ منزوعتَي التنفيذِ عن ${REVOKED_ROLES.length} أدوارٍ، و${REQUIRED_QUOTE_KEYS.length + SERVICE_KINDS.length} مفتاحاً في ثلاثِ لغاتٍ، وبيانُ طريقةِ الدفعِ بـ${PAYMENT_DISCLOSURE_KEYS.length} مفاتيحَ مرسومةٍ قبلَ زرِّ الطلبِ، وبابُ البوتِ يُبيِّنُ قبلَ ${FINAL_INPUT_KEYS.length} مُدخَلَينِ أخيرَينِ بلا ${FORBIDDEN_BOT_FARE_CLAIMS.length} دعوى أجرةٍ.`,
     );
   } else {
     console.error("حاجزُ عقدِ الاقتباسِ: سقطَ.");

@@ -8335,3 +8335,44 @@ hide in the shadow of a permitted line.
 remain blocked on a written opinion from a qualified Saudi regulatory advisor — nor
 that any rider has read the text, nor that the bot path states it too. That last one is
 a recorded gap, not a blank.
+
+## Owner step 9 (completed) — the second door
+
+The owner read `main@0451745` against the gap `ADR 0169` had recorded and found it
+understated. The record said the bot path "was not checked." What was actually there:
+`rider-dialog.ts` **creates rides itself** (`rides.create` for transport,
+`requestDelivery` for delivery), with **no payment disclosure at all**, and with
+dictionary text that **contradicted the decision** — `rider.guide` promised "you will
+see the estimated fare and distance — confirm the order", and
+`rider.searching_wider_circle` said you "agree on the fare together **through the
+bot**".
+
+**The third finding is worse than the second.** Silence misleads by omission; those
+lines **promised something that does not exist** — no amount is computed, **the bot has
+no confirmation step at all** (the ride is created the instant the last input arrives),
+and there is no in-app fare negotiation. So a gap recorded in words lighter than its
+reality is a record that reassures where it should alarm. That is corrected by
+addition, not erased.
+
+Enforcement here is **structural, not positional**. Rule 8 measured character order in
+`QuoteScreen.tsx`, which is valid for a screen rendered once; it is meaningless in a
+dialog file, where source order is not reading order. So: the last input before
+creation may only be requested through one gate, `askFinalInputBeforeOrder`, which
+sends the disclosure **then** the prompt. A new branch that asks for a destination on
+its own fails the build — which is exactly how the original defect was born.
+
+**And the defect repeated verbatim in a second guard.** `check-ride-request-contract`
+imports the same forbidden-word and allowance lists from its neighbour, so it failed on
+`payment` at line 1494. **Two guards, not one, were enforcing the silence** — the shared
+list was the real site of the bug. Fixed by declaring the key **in full, never as a
+prefix**, and re-scanning its line **after stripping it**.
+
+Three existing dialog cases failed on the shifted reply index. The fixtures were
+corrected, not the rule, and the new assertion is **stronger** than the old: it proves
+`[0]` is the disclosure and `[1]` is the prompt, so the ordering itself is now under
+test where it previously was not stated at all.
+
+**Not claimed:** that the fare mechanism is resolved (`DEC-11` remains blocked), that a
+programmatic client calling `POST /v1/rides` directly reads any text — an interface
+disclosure limit, recorded rather than dressed up — or that every bot string is
+truthful; nine named claims are forbidden, not the whole dictionary.

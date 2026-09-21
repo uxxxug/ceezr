@@ -184,7 +184,10 @@ describe("تسجيل العميل وطلب رحلة", () => {
     );
 
     const pickup = await handleRiderUpdate(location(PICKUP), withRiders);
-    expect(pickup[0]?.text).toBe(ar("rider.ask_dropoff"));
+    // ADR 0170: طلبُ المُدخَلِ الأخيرِ يُسبَقُ ببيانِ الدفعِ، فالتوقُّعُ **اثنانِ**
+    // بترتيبٍ لا رسالةٌ واحدةٌ: والترتيبُ ههنا هوَ ترتيبُ القراءةِ عندَ الراكبِ.
+    expect(pickup[0]?.text).toBe(ar("rider.payment_notice"));
+    expect(pickup[1]?.text).toBe(ar("rider.ask_dropoff"));
 
     const dropoff = await handleRiderUpdate(location(DROPOFF), withRiders);
     expect(waitingVariants("riderSearching", "ar")).toContain(dropoff[0]?.text ?? "");
@@ -243,7 +246,10 @@ describe("تسجيل العميل وطلب رحلة", () => {
 
     // لو قُبل الزرّ القديم لتحوّل السؤال إلى موقع استلام طرد؛ يبقى الطلب نقلاً.
     const pickup = await handleRiderUpdate(location(PICKUP), d);
-    expect(pickup[0]?.text).toBe(ar("rider.ask_dropoff"));
+    // ADR 0170: طلبُ المُدخَلِ الأخيرِ يُسبَقُ ببيانِ الدفعِ، فالتوقُّعُ **اثنانِ**
+    // بترتيبٍ لا رسالةٌ واحدةٌ: والترتيبُ ههنا هوَ ترتيبُ القراءةِ عندَ الراكبِ.
+    expect(pickup[0]?.text).toBe(ar("rider.payment_notice"));
+    expect(pickup[1]?.text).toBe(ar("rider.ask_dropoff"));
   });
 
   it("يلغي تسجيل العميل غير المكتمل ويمحو جلسته", async () => {
@@ -525,7 +531,9 @@ describe("مسار التوصيل في حوار العميل", () => {
     expect(pickup[0]?.text).toBe(ar("rider.ask_parcel_dropoff"));
 
     const dropoff = await handleRiderUpdate(location(DROPOFF), d);
-    expect(dropoff[0]?.text).toBe(ar("rider.ask_parcel"));
+    // ADR 0170: وصفُ الطردِ هوَ المُدخَلُ الأخيرُ في التوصيلِ، فيُسبَقُ بالبيانِ.
+    expect(dropoff[0]?.text).toBe(ar("rider.payment_notice"));
+    expect(dropoff[1]?.text).toBe(ar("rider.ask_parcel"));
 
     const done = await handleRiderUpdate(text("صندوق كتب متوسط"), d);
     expect(waitingVariants("riderSearchingDelivery", "ar")).toContain(done[0]?.text ?? "");
