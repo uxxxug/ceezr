@@ -71,3 +71,20 @@ Full suite: 5738 pass / 0 fail / 1440 skip (integration tests requiring real Pos
 - No concurrency was measured on a live multi-instance system.
 - The guard is not `SEC-18` (session revocation) or `SEC-19` (nullable telegram_id).
 - The in-memory adapter does not share state across processes.
+
+## CI verdict — first green run on `main`
+
+**PR #198** merged (squash) to `main` as commit `c2251e8` on 2026-09-21.
+
+CI run `35655098495` (pull_request) — all jobs `success`:
+
+| Job | Duration |
+|---|---|
+| verify | 1m52s |
+| PostgreSQL integration | 5m23s |
+| Redis integration | 46s |
+| F5-06 multi-instance chaos | 58s |
+| Roadmap freshness | 20s (push run) |
+
+This is the **first** green CI run on `main` for SEC-17. Three consecutive green runs
+are required before flipping `[~]` to `[x]` (`ح-4`).
