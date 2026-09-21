@@ -68,4 +68,4 @@ begin
 end;
 $$;
 
-revoke all on function admin_revoke_miniapp_sessions(uuid, uuid, text) from anon, authenticated;
+revoke all on function admin_revoke_miniapp_sessions(uuid, uuid, text) from public, anon, authenticated;
