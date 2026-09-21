@@ -362,6 +362,9 @@ describe("الصفحات الثماني", () => {
           message: "السائق لم يصل",
           claimedByName: null,
           claimedAt: null,
+          resolvedByName: null,
+          resolvedAt: null,
+          resolutionNote: null,
           agentSuggestion: null,
           agentClassification: null,
           agentConfidence: null,
@@ -398,6 +401,9 @@ describe("الصفحات الثماني", () => {
       message: "المبلغ خُصم مرّتين",
       claimedByName: null,
       claimedAt: null,
+      resolvedByName: null,
+      resolvedAt: null,
+      resolutionNote: null,
     };
 
     const withAdvice = renderDisputesPage({
