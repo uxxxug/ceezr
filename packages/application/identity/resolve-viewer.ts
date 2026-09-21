@@ -81,6 +81,7 @@ function fail(publicCode: ViewerPublicErrorCode): ResolveViewerError {
 export function publicViewerCodeFor(reason: ViewerSessionRejectionReason): ViewerPublicErrorCode {
   if (reason === "EXPIRED") return "SESSION_EXPIRED";
   if (reason === "NOT_CONFIGURED") return "SESSION_NOT_AVAILABLE";
+  if (reason === "REVOKED") return "SESSION_INVALID";
   return "SESSION_INVALID";
 }
 
@@ -116,8 +117,10 @@ export async function authorizeViewer(
   }
 
   // التحقّقُ أوّلاً: لا تُقرأ القاعدةُ لرمزٍ لم يُثبَت توقيعُه — وإلا صار المسارُ
-  // مِرقاباً يُستنزَف به الاستعلامُ بأيِّ نصٍّ عشوائي.
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  // مِرقاباً يُستنزَف به الاستعلامُ بأيِّ نصٍّ عشوائي. والقارئُ القابلُ للإبطالِ
+  // (`SEC-18`) يفحصُ الإبطالَ بعدَ التحقّقِ التشفيريِّ — فلا يصلُ رمزٌ مُبطَلٌ
+  // إلى القاعدة.
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) {
     const publicCode = publicViewerCodeFor(session.error.reason);
     // السجلُّ يحمل السببَ المصنَّفَ ولا يحمل رمزاً ولا جزءاً منه (`F1-03`).

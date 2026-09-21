@@ -18,7 +18,14 @@ import { requestDriverCannotComplete } from "../../packages/application/safety/d
 import { ok } from "../../packages/shared/result/index.ts";
 
 const SESSION: MiniAppSessionReader = {
-  read: () =>
+  read: async () =>
+    ok({
+      telegramUserId: "7001",
+      bot: "rider",
+      sessionId: "session-1",
+      expiresAtSeconds: 1_000_000_000,
+    }),
+  readSync: () =>
     ok({
       telegramUserId: "7001",
       bot: "rider",

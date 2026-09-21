@@ -29,6 +29,7 @@ import {
   readMiniAppSession,
 } from "../../packages/infrastructure/identity/miniapp-session.ts";
 import { createTelegramInitDataVerifier } from "../../packages/infrastructure/identity/telegram-init-data.ts";
+import { createTestRevocationStore } from "../helpers/revocation-store.ts";
 import {
   buildInitData,
   FAKE_DRIVER_BOT_TOKEN,
@@ -71,6 +72,7 @@ function harness(nowMs: number): Harness {
     deps: {
       refresh,
       issuer: spy,
+      revocation: createTestRevocationStore(),
       now: () => new Date(nowMs),
       log: (message, meta) => logs.push({ message, meta }),
     },
@@ -226,6 +228,7 @@ describe("تجديد جلسة التطبيق المصغَّر (F1-04)", () => {
       {
         refresh: weak,
         issuer: createMiniAppSessionIssuer({ secret: SECRET }),
+        revocation: createTestRevocationStore(),
         now: () => new Date(NOW_MS),
         log: (message, meta) => logs.push({ message, meta }),
       },

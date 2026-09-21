@@ -75,12 +75,12 @@ function rejectionErrorFrom(rejection: ConsentRejection): ConsentPublicErrorCode
   return rejection.reason;
 }
 
-function authenticate(
+async function authenticate(
   deps: ConsentDeps,
   accessToken: string | undefined,
-): Result<string, ConsentPublicErrorCode> {
+): Promise<Result<string, ConsentPublicErrorCode>> {
   if (accessToken === undefined || accessToken.length === 0) return err("SESSION_REQUIRED");
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(sessionErrorFrom(session.error.reason));
   return ok(session.value.telegramUserId);
 }
@@ -120,7 +120,7 @@ export async function readConsentStatus(
   deps: ConsentDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<ConsentStatusOutput, ConsentPublicErrorCode>> {
-  const identified = authenticate(deps, input.accessToken);
+  const identified = await authenticate(deps, input.accessToken);
   if (!identified.ok) return identified;
 
   const recorded = await deps.reader.listForTelegramUser(identified.value);
@@ -150,7 +150,7 @@ export async function recordConsent(
     readonly submission: ConsentSubmission;
   },
 ): Promise<Result<RecordConsentOutput, ConsentPublicErrorCode>> {
-  const identified = authenticate(deps, input.accessToken);
+  const identified = await authenticate(deps, input.accessToken);
   if (!identified.ok) return identified;
 
   const admitted = admitConsentSubmission(input.submission);

@@ -84,14 +84,14 @@ function sessionErrorFrom(reason: string): DriverActivityPublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession(
+async function openSession(
   deps: DriverActivityDeps,
   accessToken: string | undefined,
-): Result<string, DriverActivityRejection> {
+): Promise<Result<string, DriverActivityRejection>> {
   if (accessToken === undefined || accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED"));
   }
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -123,7 +123,7 @@ export async function readDriverActivitySummary(
   deps: DriverActivityDeps,
   input: { readonly accessToken: string | undefined; readonly period: unknown },
 ): Promise<Result<DriverActivitySummary, DriverActivityRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const period: ActivityPeriod | null = isActivityPeriod(input.period) ? input.period : null;
@@ -142,7 +142,7 @@ export async function readDriverActivityEntries(
     readonly limit: unknown;
   },
 ): Promise<Result<DriverActivityLog, DriverActivityRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const period: ActivityPeriod | null = isActivityPeriod(input.period) ? input.period : null;

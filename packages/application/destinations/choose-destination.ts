@@ -66,12 +66,12 @@ function storeErrorFrom(failure: DestinationStoreFailure): DestinationsPublicErr
   return "DESTINATION_STORE_NOT_AVAILABLE";
 }
 
-function authenticate(
+async function authenticate(
   deps: DestinationsDeps,
   accessToken: string | undefined,
-): Result<string, DestinationsPublicErrorCode> {
+): Promise<Result<string, DestinationsPublicErrorCode>> {
   if (accessToken === undefined || accessToken.length === 0) return err("SESSION_REQUIRED");
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(sessionErrorFrom(session.error.reason));
   return ok(session.value.telegramUserId);
 }
@@ -103,7 +103,7 @@ export async function searchDestinations(
     readonly limit: number;
   },
 ): Promise<Result<DestinationSearchOutput, DestinationsPublicErrorCode>> {
-  const identified = authenticate(deps, input.accessToken);
+  const identified = await authenticate(deps, input.accessToken);
   if (!identified.ok) return identified;
 
   // التطبيعُ قبلَ القياسِ وقبلَ الشبكةِ: «  ـًـ  » مدخلٌ غيرُ فارغٍ وصفرٌ مُطبَّعاً،
@@ -134,7 +134,7 @@ export async function resolveDestination(
     readonly body: unknown;
   },
 ): Promise<Result<DestinationResolveOutput, DestinationsPublicErrorCode>> {
-  const identified = authenticate(deps, input.accessToken);
+  const identified = await authenticate(deps, input.accessToken);
   if (!identified.ok) return identified;
 
   if (typeof input.body !== "object" || input.body === null) return err("MALFORMED");

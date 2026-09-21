@@ -27,6 +27,7 @@ import {
   createMiniAppSessionReader,
 } from "../../packages/infrastructure/identity/miniapp-session.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
+import { createTestRevocationStore } from "../helpers/revocation-store.ts";
 
 const SESSION_SECRET = "test-only-session-signing-secret-0123456789";
 const WEBHOOK_SECRET = "test-webhook-secret-value";
@@ -114,6 +115,7 @@ function harness(options: Options = {}) {
             : {
                 invoices: {
                   sessions: createMiniAppSessionReader(SESSION_SECRET),
+                  revocation: createTestRevocationStore(),
                   store,
                   now: () => NOW,
                 },

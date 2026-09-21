@@ -119,14 +119,14 @@ function sessionErrorFrom(reason: string): DriverDocumentPublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession(
+async function openSession(
   deps: DriverDocumentDeps,
   accessToken: string | undefined,
-): Result<string, DriverDocumentRejection> {
+): Promise<Result<string, DriverDocumentRejection>> {
   if (accessToken === undefined || accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED"));
   }
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -183,7 +183,7 @@ export async function requestDriverDocumentUploadSlot(
     readonly sizeBytes: unknown;
   },
 ): Promise<Result<DriverDocumentUploadSlot, DriverDocumentRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   if (!isDriverDocumentType(input.docType)) return err(rejection("DOC_TYPE_UNKNOWN"));
@@ -245,7 +245,7 @@ export async function recordDriverDocument(
     readonly expiresAt: unknown;
   },
 ): Promise<Result<RecordedDriverDocument, DriverDocumentRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   if (!isDriverDocumentType(input.docType)) return err(rejection("DOC_TYPE_UNKNOWN"));
@@ -276,7 +276,7 @@ export async function submitDriverDocumentsForReview(
   deps: DriverDocumentDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<SubmittedForReview, DriverDocumentRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const submitted = await deps.store.submitForReview({ telegramUserId: session.value });
@@ -288,7 +288,7 @@ export async function readDriverDocumentDashboard(
   deps: DriverDocumentDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<DriverDocumentDashboard, DriverDocumentRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const read = await deps.store.readDashboard({ telegramUserId: session.value });

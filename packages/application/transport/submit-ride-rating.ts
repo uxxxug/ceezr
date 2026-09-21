@@ -79,7 +79,7 @@ export async function submitRideRating(
   if (input.accessToken === undefined || input.accessToken.length === 0) {
     return err("SESSION_REQUIRED");
   }
-  const session = deps.sessions.read(input.accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(input.accessToken, deps.now().getTime());
   if (!session.ok) {
     const reason = session.error.reason;
     if (reason === "EXPIRED") return err("SESSION_EXPIRED");

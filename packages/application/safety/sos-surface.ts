@@ -82,12 +82,22 @@ interface SessionDeps {
   readonly now: () => Date;
 }
 
-function openSession(
+function openSessionSync(
   deps: SessionDeps,
   accessToken: string | undefined,
 ): Result<{ readonly telegramUserId: string }, SosSurfacePublicErrorCode> {
   if (accessToken === undefined || accessToken.length === 0) return err("SESSION_REQUIRED");
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = deps.sessions.readSync(accessToken, deps.now().getTime());
+  if (!session.ok) return err(sessionErrorFrom(session.error.reason));
+  return ok({ telegramUserId: session.value.telegramUserId });
+}
+
+async function openSession(
+  deps: SessionDeps,
+  accessToken: string | undefined,
+): Promise<Result<{ readonly telegramUserId: string }, SosSurfacePublicErrorCode>> {
+  if (accessToken === undefined || accessToken.length === 0) return err("SESSION_REQUIRED");
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(sessionErrorFrom(session.error.reason));
   return ok({ telegramUserId: session.value.telegramUserId });
 }
@@ -106,7 +116,7 @@ export async function readSosSurface(
   deps: ReadSosSurfaceDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<SosSurfaceVerdict, SosSurfacePublicErrorCode>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const read = await deps.surface.read({
@@ -139,7 +149,7 @@ export async function requestMiniAppSos(
   deps: RequestMiniAppSosDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<TriggerSosOutcome, SosSurfacePublicErrorCode>> {
-  const session = openSession(deps, input.accessToken);
+  const session = openSessionSync(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const triggered = await triggerSos(

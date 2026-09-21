@@ -73,12 +73,12 @@ function storeErrorFrom(failure: PlaceStoreFailure): PlacesPublicErrorCode {
   return "PLACE_STORE_NOT_AVAILABLE";
 }
 
-function authenticate(
+async function authenticate(
   deps: PlacesDeps,
   accessToken: string | undefined,
-): Result<string, PlacesPublicErrorCode> {
+): Promise<Result<string, PlacesPublicErrorCode>> {
   if (accessToken === undefined || accessToken.length === 0) return err("SESSION_REQUIRED");
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(sessionErrorFrom(session.error.reason));
   return ok(session.value.telegramUserId);
 }
@@ -91,7 +91,7 @@ export async function listSavedPlaces(
   deps: PlacesDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<SavedPlacesOutput, PlacesPublicErrorCode>> {
-  const identified = authenticate(deps, input.accessToken);
+  const identified = await authenticate(deps, input.accessToken);
   if (!identified.ok) return identified;
 
   const listed = await deps.reader.listForTelegramUser(identified.value);
@@ -117,7 +117,7 @@ export async function savePlace(
     readonly body: unknown;
   },
 ): Promise<Result<SavePlaceOutput, PlacesPublicErrorCode>> {
-  const identified = authenticate(deps, input.accessToken);
+  const identified = await authenticate(deps, input.accessToken);
   if (!identified.ok) return identified;
 
   if (typeof input.body !== "object" || input.body === null) return err("MALFORMED");
@@ -169,7 +169,7 @@ export async function listRecentDestinations(
     readonly limit: number;
   },
 ): Promise<Result<RecentDestinationsOutput, PlacesPublicErrorCode>> {
-  const identified = authenticate(deps, input.accessToken);
+  const identified = await authenticate(deps, input.accessToken);
   if (!identified.ok) return identified;
 
   const listed = await deps.recent.listForTelegramUser(identified.value, input.limit);

@@ -108,14 +108,14 @@ function sessionErrorFrom(reason: string): DriverSubscriptionPublicErrorCode {
   return "SESSION_INVALID";
 }
 
-function openSession(
+async function openSession(
   deps: { readonly sessions: MiniAppSessionReader; readonly now: () => Date },
   accessToken: string | undefined,
-): Result<string, DriverSubscriptionRejection> {
+): Promise<Result<string, DriverSubscriptionRejection>> {
   if (accessToken === undefined || accessToken.length === 0) {
     return err(rejection("SESSION_REQUIRED"));
   }
-  const session = deps.sessions.read(accessToken, deps.now().getTime());
+  const session = await deps.sessions.read(accessToken, deps.now().getTime());
   if (!session.ok) return err(rejection(sessionErrorFrom(session.error.reason)));
   return ok(session.value.telegramUserId);
 }
@@ -147,7 +147,7 @@ export async function readDriverSubscriptionDashboard(
   deps: DriverSubscriptionDeps,
   input: { readonly accessToken: string | undefined },
 ): Promise<Result<DriverSubscriptionDashboard, DriverSubscriptionRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const read = await deps.store.readDashboard({ telegramUserId: session.value });
@@ -159,7 +159,7 @@ export async function readDriverSubscriptionHistory(
   deps: DriverSubscriptionDeps,
   input: { readonly accessToken: string | undefined; readonly limit: unknown },
 ): Promise<Result<DriverSubscriptionHistory, DriverSubscriptionRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const read = await deps.store.readHistory({
@@ -180,7 +180,7 @@ export async function renewDriverSubscription(
   deps: DriverSubscriptionRenewalDeps,
   input: { readonly accessToken: string | undefined; readonly plan: unknown },
 ): Promise<Result<DriverSubscriptionRenewal, DriverSubscriptionRejection>> {
-  const session = openSession(deps, input.accessToken);
+  const session = await openSession(deps, input.accessToken);
   if (!session.ok) return err(session.error);
 
   const plan = parsePlan(input.plan);

@@ -8438,7 +8438,10 @@ attacker learns nothing about whether the payload was replayed or never valid.
 payload, no concurrency on a live multi-instance system. The in-memory adapter does
 not share state across processes — multi-instance replay prevention requires Redis,
 which is `SEC-18`'s domain. And `SEC-17` is not `SEC-18` (session revocation) or
-`SEC-19` (nullable `telegram_id`).
+`SEC-19` (nullable `telegram_id`). `SEC-18` is now implemented: a per-`jti`
+blocklist is built into the `MiniAppSessionReader` via `createRevocableSessionReader`,
+so every verification path checks revocation after signature verification. The
+renewal path and realtime channel have separate checks. `ADR 0173`.
 
 Local: lint 0 (1714 files) · typecheck pass · `bun test` **5738 pass / 0 fail / 1440
 skip** / 18248 assertions / 486 files. Evidence:
