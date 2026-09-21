@@ -8447,3 +8447,9 @@ skip** / 18248 assertions / 486 files. Evidence:
 **Correction (additive, same commit):** Biome import ordering in `index.ts`
 fixed — the new adapters were inserted out of alphabetical order. No logic
 change.
+
+**Coverage gate (additive):** smoke test for `redis-init-data-replay-guard.ts`
+added — the Redis adapter was the 14th unmeasured file in the identity
+critical path, exceeding the ceiling of 13 (OPS-005). The smoke test loads
+the module with a mock Redis client, covering construction, fail-closed
+behavior, replay rejection, and first-use acceptance.
