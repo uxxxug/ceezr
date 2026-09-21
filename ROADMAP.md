@@ -8443,3 +8443,7 @@ which is `SEC-18`'s domain. And `SEC-17` is not `SEC-18` (session revocation) or
 Local: lint 0 (1714 files) · typecheck pass · `bun test` **5738 pass / 0 fail / 1440
 skip** / 18248 assertions / 486 files. Evidence:
 `docs/evidence/security/SEC-17-initdata-replay-20260921.md`.
+
+**Correction (additive, same commit):** Biome import ordering in `index.ts`
+fixed — the new adapters were inserted out of alphabetical order. No logic
+change.
