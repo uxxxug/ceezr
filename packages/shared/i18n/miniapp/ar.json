@@ -955,6 +955,7 @@
   "rider.search.refresh": "حدِّثِ الحالةَ الآنَ",
   "rider.search.refreshing": "جارٍ القراءةُ…",
   "rider.search.refused.activeRide": "لديكَ رحلةٌ قائمةٌ، ولا تُنشَأُ رحلةٌ ثانيةٌ قبلَ انتهائِها.",
+  "rider.search.refused.cityNotActive": "وَصْلة لم تُفتَحْ في مدينتِك بعدُ.",
   "rider.search.refused.destinationOutside": "وجهتُك خارجَ منطقةِ الخدمةِ.",
   "rider.search.refused.invalidPoint": "الإحداثيّاتُ غيرُ صحيحةٍ.",
   "rider.search.refused.keyRequired": "تعذَّرَ إرسالُ الطلبِ: مفتاحُ الطلبِ ناقصٌ.",

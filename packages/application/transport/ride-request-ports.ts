@@ -57,6 +57,13 @@ export interface RideStoreFailure {
 export type RideRequestRefusal =
   | "INVALID_POINT"
   | "CITY_HAS_NO_SERVICE_AREA"
+  /**
+   * المدينةُ غيرُ مُفعَّلةٍ — الخطوةُ ٨.
+   *
+   * ويُقابِلُ الرمزَ نفسَه في بابِ السائقِ (`start_trial`): بابانِ بلغةٍ واحدةٍ
+   * لا رمزانِ لمعنىً واحدٍ (القاعدة 0.6).
+   */
+  | "CITY_NOT_ACTIVE"
   | "ORIGIN_OUTSIDE_SERVICE_AREA"
   | "DESTINATION_OUTSIDE_SERVICE_AREA"
   | "SERVICE_NOT_AVAILABLE_IN_CITY"

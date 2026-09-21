@@ -407,6 +407,76 @@ describeIf("منعُ الطلبَينِ النشطَينِ في معاملةٍ �
   });
 });
 
+describeIf("تفعيلُ المدينةِ بابٌ لا وصفٌ — الخطوةُ ٨", () => {
+  /**
+   * **الحُكمُ**: مدينةٌ غيرُ مُفعَّلةٍ لا تقبَلُ طلباً، ولا يُكتَبُ صفٌّ.
+   *
+   * وكانَت تقبَلُ: `request_ride` تحكُمُ بحدِّ الخدمةِ وبقدرةِ المدينةِ **ولا
+   * تقرأُ `cities.is_active` ألبتَّةَ**. وقيدُ `cities_active_requires_groups`
+   * يمنعُ **تفعيلَ** مدينةٍ بلا قروباتٍ، ولا يمنعُ **طلباً** في مدينةٍ لم
+   * تُفعَّلْ — فالقيدُ على عمودٍ لا على بابٍ.
+   *
+   * والتفعيلُ يُعادُ في `finally` كي لا تُلوَّثَ بقيّةُ الملفِّ (`ح-7`: لا
+   * يُبنى حولَ حالةٍ متروكةٍ).
+   */
+  it("١٤) مدينةٌ خاملةٌ ⇒ `CITY_NOT_ACTIVE` ولا صفَّ طلبٍ يُكتَبُ", async () => {
+    const before = (
+      await sql<{ count: string }[]>`
+        select count(*)::text as count from orders where rider_id = ${riderId}
+      `
+    )[0]?.count;
+
+    await sql`update cities set is_active = false where id = ${cityId}::uuid`;
+    try {
+      const verdict = await request(RIDER_TELEGRAM_ID, keyFor("city-closed"));
+      expect(verdict.ok).toBe(false);
+      expect(verdict.error).toBe("CITY_NOT_ACTIVE");
+      expect(
+        (
+          await sql<{ count: string }[]>`
+            select count(*)::text as count from orders where rider_id = ${riderId}
+          `
+        )[0]?.count,
+      ).toBe(before);
+    } finally {
+      // **لا تفعيلٌ بعبارةٍ عاريةٍ**: قيدُ `cities_active_requires_groups` يشترطُ
+      // القروباتِ الثلاثةَ في نفسِ العبارةِ، وحاجزُ
+      // `check-integration-city-precondition` يُسقِطُ البناءَ على النمطِ الخامِ —
+      // **وقد أسقطَه على أوّلِ صيغةٍ لهذا الاختبارِ فعلاً**. فالمعينُ المُقرَّرُ
+      // هوَ الطريقُ، ويُمرَّرُ المِقبَضُ فتبقى أوّلُ لقطةٍ حاكمةً للردِّ.
+      cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
+    }
+  });
+
+  /**
+   * **والإعادةُ أقوى من الإغلاقِ**: من أنشأَ طلبَه ثمَّ أُغلِقَت المدينةُ ثمَّ
+   * أعادَ أمرَه بمفتاحِه **يستحقُّ جوابَه الأوّلَ**، وإلّا صارَ الرفضُ إنكاراً
+   * لأمرٍ نُفِّذَ فعلاً. وهذا سببُ قراءةِ الحُكمِ بعدَ فحصِ المفتاحِ لا قبلَه،
+   * وهوَ ما ينصُّ عليه تعليقُ الإعادةِ في الدالّةِ حرفاً.
+   */
+  it("١٥) إعادةٌ بمفتاحٍ سابقٍ بعدَ الإغلاقِ تُعيدُ الطلبَ الأوّلَ لا رفضاً", async () => {
+    const key = keyFor("closed-replay");
+    const first = await request(RIDER_TELEGRAM_ID, key);
+    expect(first.ok).toBe(true);
+
+    await sql`update cities set is_active = false where id = ${cityId}::uuid`;
+    try {
+      const replay = await request(RIDER_TELEGRAM_ID, key);
+      expect(replay.ok).toBe(true);
+      expect(replay.order_id).toBe(first.order_id);
+    } finally {
+      // **لا تفعيلٌ بعبارةٍ عاريةٍ**: قيدُ `cities_active_requires_groups` يشترطُ
+      // القروباتِ الثلاثةَ في نفسِ العبارةِ، وحاجزُ
+      // `check-integration-city-precondition` يُسقِطُ البناءَ على النمطِ الخامِ —
+      // **وقد أسقطَه على أوّلِ صيغةٍ لهذا الاختبارِ فعلاً**. فالمعينُ المُقرَّرُ
+      // هوَ الطريقُ، ويُمرَّرُ المِقبَضُ فتبقى أوّلُ لقطةٍ حاكمةً للردِّ.
+      cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
+      await sql`update orders set status = 'cancelled'::order_status
+                 where id = ${first.order_id ?? ""}::uuid`;
+    }
+  });
+});
+
 describeIf("رفضا منطقةِ الخدمةِ والحسابُ الغائبُ", () => {
   it("١١) انطلاقٌ خارجَ الغلافِ ثمَّ مقصدٌ خارجَه: رمزانِ مفصولانِ بلا صفٍّ", async () => {
     const origin = await request(RIDER_TELEGRAM_ID, keyFor("out-origin"), { origin: RIYADH });

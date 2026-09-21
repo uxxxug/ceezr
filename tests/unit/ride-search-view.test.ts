@@ -123,6 +123,10 @@ describe("ترجمةُ الرفضِ والعطبِ — ولا رمزٌ يتيم�
       "rider.search.refused.destinationOutside",
     );
     expect(rideRefusalKey("ACTIVE_RIDE_EXISTS")).toBe("rider.search.refused.activeRide");
+    // الخطوةُ ٨: «لم تُفتَحْ في مدينتِك» ليسَ «تعذَّرَ الطلبُ» — والفرقُ
+    // أنَّ الأوّلَ يُخبِرُ الراكبَ بما لا سبيلَ له إلى إصلاحِه فيكُفُّ، والثاني
+    // يدعوهُ إلى إعادةٍ لا تُجدي (`ADR 0023`).
+    expect(rideRefusalKey("CITY_NOT_ACTIVE")).toBe("rider.search.refused.cityNotActive");
     expect(rideRefusalKey("SOMETHING_NEW")).toBe("rider.search.refused.unknown");
   });
 

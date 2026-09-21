@@ -118,6 +118,7 @@ export function elapsedSecondsFromBirth(createdAtMs: number, nowMs: number): num
 const REFUSAL_KEYS: Readonly<Record<string, string>> = {
   INVALID_POINT: "rider.search.refused.invalidPoint",
   CITY_HAS_NO_SERVICE_AREA: "rider.search.refused.noServiceArea",
+  CITY_NOT_ACTIVE: "rider.search.refused.cityNotActive",
   ORIGIN_OUTSIDE_SERVICE_AREA: "rider.search.refused.originOutside",
   DESTINATION_OUTSIDE_SERVICE_AREA: "rider.search.refused.destinationOutside",
   SERVICE_NOT_AVAILABLE_IN_CITY: "rider.search.refused.serviceUnavailable",

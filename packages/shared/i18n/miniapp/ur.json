@@ -955,6 +955,7 @@
   "rider.search.refresh": "ابھی تازہ کریں",
   "rider.search.refreshing": "پڑھا جا رہا ہے…",
   "rider.search.refused.activeRide": "آپ کا ایک سفر پہلے سے جاری ہے؛ اس کے خاتمے سے پہلے دوسرا نہیں بنتا۔",
+  "rider.search.refused.cityNotActive": "وَصْلہ ابھی آپ کے شہر میں نہیں کھلا۔",
   "rider.search.refused.destinationOutside": "آپ کی منزل سروس کے علاقے سے باہر ہے۔",
   "rider.search.refused.invalidPoint": "کوآرڈینیٹس درست نہیں۔",
   "rider.search.refused.keyRequired": "درخواست نہیں بھیجی جا سکی: اس کی کلید موجود نہیں۔",
