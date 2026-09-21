@@ -83,12 +83,25 @@ renewal because the renewal path also checks revocation.
 ### Test results
 
 ```
-Full suite: unit tests pass / 0 fail
+Full suite: 5751 pass / 0 fail / 1440 skip / 18268 expect() calls
   - Mock readers return Promise<Result<...>>
   - Revocation check verified in authorizeViewer, realtime, and renewal paths
   - Fail-closed behavior verified
   - TTL covers absolute session ceiling
+  - SOS path uses readSync (no revocation check — ADR-0077)
 ```
+
+### CI verdict on main
+
+**PR #199 merged** — commit on main. First green CI run on main:
+
+- `verify`: pass (1m33s)
+- PostgreSQL integration: pass (4m18s)
+- Redis integration: pass (37s)
+- F5-06 chaos: pass (54s)
+- Roadmap freshness: pass (16s)
+
+**SEC-18 is `[~]`** — needs 3 green CI runs on main before `[x]` (`ح-4`).
 
 ## What is measured
 
