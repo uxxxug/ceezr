@@ -260,7 +260,7 @@
 
 هذه ليست بنودَ بناءٍ بل **قراراتُ ترتيبِ هويّة** يعرضُها المستودَعُ على المالكِ
 بوثيقةٍ واحدةٍ، كلُّ قرارٍ منها يفتحُ أو يُغلقُ بنودًا أعلاه:
-- **`PD-062`** `[~]` — مرجعٌ نافذٌ واحدٌ لملكيّةِ المنتَجِ وقناتِهِ (`STR-04`):
+- **`PD-062`** `[x]` — مرجعٌ نافذٌ واحدٌ لملكيّةِ المنتَجِ وقناتِهِ (`STR-04`):
   مصالحةُ `README`/`MASTER_DIRECTIVE`/`SYSTEM_STATE` في سطرٍ حاكمٍ واحدٍ (زيادةً
   لا حذفًا — `ح-8`).
 
@@ -367,3 +367,4 @@
 | 2026-09-21 | `PD-080` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-080-TICKET-TYPE-ENUM-PARITY-20260921.md`. | — | `[x]` | `—` |
 | 2026-09-21 | `PD-082` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-082-DISPUTE-RESOLUTION-VISIBILITY-20260921.md`. | — | `[x]` | `—` |
 | 2026-09-21 | `PD-081` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`b4eff54` · `1c9e2f6` · `fdab41f`). الدليلُ في `docs/evidence/architecture/PD-081-BLOCK-REASON-FIX-ACTION-20260921.md`. | — | `[x]` | `—` |
+| 2026-09-21 | `PD-062` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`1c9e2f6` · `fdab41f` · `fb5991c`). الدليلُ في `docs/evidence/architecture/PD-062-CANONICAL-OWNERSHIP-20260921.md`. | — | `[x]` | `—` |
