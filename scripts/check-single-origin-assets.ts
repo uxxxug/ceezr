@@ -14,6 +14,9 @@
  *    (٥) **سياسةُ المُخرَجِ = سياسةُ الوحدةِ حرفاً حرفاً**: وسمُ `dist/index.html`
  *        يُقارَن بما تبنيه الوحدةُ من أنماطِ المُخرَجِ نفسِه. فسياسةٌ تُعدَّل بيدٍ في
  *        المستندِ المصدريِّ أو بصمةُ أنماطٍ متقادمةٌ لا تمرُّ.
+ *    (٦) **من يُأطِّرُنا محروسٌ في ملفِّ النشرِ**: خدمةُ الموقعِ الساكنِ تحملُ
+ *        رأسَ `frame-ancestors` لتلغرام، **ولا تحملُ `X-Frame-Options`** — والأخيرُ
+ *        يُنتِجُ شاشةً بيضاءَ بلا رسالةِ خطأٍ، فهو عطلٌ صامتٌ لا تشديدٌ.
  * الحالة: منفّذ فعلياً — أداة تحقق، ليست منطق أعمال.
  * ينتمي إلى: scripts
  * يُتوقع أن يستخدمه لاحقاً: .github/workflows/ci.yml و`bun run ci`
@@ -23,6 +26,7 @@
  *      والتوتُّرُ اليومَ **مُعلَنٌ غيرُ محسومٍ** (ADR 0045 §٦).
  *    - حين يُوجَد مضيفٌ للتطبيقِ في `render.yaml` يُضاف فحصٌ لرأسِ الاستجابةِ إلى
  *      جانبِ الوسمِ — والوسمُ **أضعفُ من الرأسِ** ولا يُدَّعى غيرُ ذلك.
+ *      **وقد وُجِدَ المضيفُ فأُنفِذَ ذلك — القاعدةُ (٦) أدناه** (ADR 0165).
  *
  * لماذا فحصٌ لا اتفاق: سطرٌ واحدٌ يُنشئ `<script>` ويُسنِد إليه عنواناً من نطاقٍ
  * ثالثٍ يُدخِل كودَ غيرِنا إلى مستندٍ يحمل جلسةَ المستخدمِ — ولا يظهر في مراجعةٍ
@@ -35,11 +39,13 @@
 import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
+import { STATIC_RUNTIME } from "./check-instance-invariant.ts";
 import { blankComments } from "./lib/blank-comments.ts";
 import {
   ALLOWED_EXTERNAL_ORIGIN_LIST,
   buildCsp,
   cspMetaTag,
+  frameAncestorsHeaderValue,
   SOLE_EXTERNAL_SCRIPT_HOST_FILE,
 } from "./lib/content-security-policy.ts";
 
@@ -52,6 +58,11 @@ const DIST_INDEX = "apps/miniapp/dist/index.html";
 const POLICY_MODULE = "scripts/lib/content-security-policy.ts";
 /** هذا الملفُّ يذكر الأنماطَ الممنوعةَ نصّاً فيُستثنى من نفسِه. */
 const SELF = "scripts/check-single-origin-assets.ts";
+
+/** ملفُّ النشرِ — موضعُ رأسِ `frame-ancestors` الوحيدُ (ADR 0165). */
+const DEPLOY_MANIFEST = "render.yaml";
+/** اسمُ خدمةِ الموقعِ الساكنِ كما في المانيفستِ. */
+const MINIAPP_SERVICE_NAME = "waslah-miniapp";
 
 const isTest = (file: string): boolean => file.includes(".test.");
 /** شيفرةُ إنتاجٍ في التطبيقِ المصغَّرِ — لا اختبارات، ولا مُخرَجُ بناءٍ. */
@@ -113,7 +124,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-interface Violation {
+export interface Violation {
   readonly file: string;
   readonly line: number;
   readonly text: string;
@@ -146,8 +157,153 @@ const NON_FETCHED_ORIGIN_PREFIXES: readonly string[] = [
   "https://www.w3.org",
 ];
 
+/**
+ * يقرأ كتلةَ خدمةِ الموقعِ الساكنِ من `render.yaml` — من سطرِ اسمِها حتّى
+ * بدايةِ الخدمةِ التاليةِ أو نهايةِ الملفِّ. وقراءةُ الكتلةِ وحدَها مقصودةٌ:
+ * رأسٌ مكتوبٌ في خدمةٍ أخرى لا يحمي التطبيقَ، وفحصٌ يقرأُ الملفَّ كلَّه
+ * ينجحُ على ملفٍّ وُضِعَ الرأسُ فيه في الموضعِ الخطأِ — أي حاجزٌ يمرُّ على عطلٍ.
+ */
+function miniappServiceBlock(manifest: string): readonly string[] | null {
+  const lines = manifest.split("\n");
+  const nameLine = lines.findIndex((line) => line.trim() === `name: ${MINIAPP_SERVICE_NAME}`);
+  if (nameLine === -1) return null;
+  let start = nameLine;
+  while (start > 0 && !/^ {2}-\s/.test(lines[start] ?? "")) start -= 1;
+  let end = start + 1;
+  while (end < lines.length && !/^ {2}-\s/.test(lines[end] ?? "")) end += 1;
+  return lines.slice(start, end);
+}
+
+/**
+ * القاعدةُ (٦) — من يُأطِّرُنا، محروساً في ملفِّ النشرِ (ADR 0165).
+ *
+ * وأربعةُ أحكامٍ، كلُّ واحدٍ منها عن عطلٍ يقعُ فعلاً لا عن تقديرٍ:
+ *
+ * أ. **غيابُ `frame-ancestors`** — فيُطبّقُ Render افتراضَه ولا شيءَ في
+ *    المستودعِ يقولُ من يُسمَحُ له بتأطيرِنا.
+ * ب. **حضورُ `X-Frame-Options`** — وهو أخطرُ من الأوّلِ: `DENY` و`SAMEORIGIN`
+ *    كلتاهما تمنعانِ تأطيرَ تلغرام، فيرى الراكبُ **شاشةً بيضاءَ** ويقولُ
+ *    «التطبيقُ لا يعمل». والرأسُ يبدو تشديداً مشروعاً في مراجعةٍ عابرةٍ
+ *    فيُضافُ بحسنِ نيّةٍ — ولذلكَ يُمنَعُ مكتوباً لا يُترَكُ للمراجعةِ.
+ * ج. **توجيهُ جلبٍ زائدٌ في الرأسِ** — إن حملَ الرأسُ `script-src` أو
+ *    `connect-src` فقد صارَ للسياسةِ مصدَرا حقيقةٍ: الوسمُ والرأسُ. والمتصفّحُ
+ *    يُطبّقُ **أشدَّهما**، فيُحاصَرُ التطبيقُ من حيثُ لا يُقرأُ المنعُ.
+ * د. **خدمةٌ ليست ساكنةً** — رأسُ `headers:` في مخطّطِ Render خاصٌّ بالمواقعِ
+ *    الساكنةِ، فتحويلُ الخدمةِ إلى docker يجعلُ كلَّ رأسٍ أدناه نصّاً مُهمَلاً
+ *    ويبقى الحاجزُ أخضرَ على حمايةٍ لا تُطبَّقُ.
+ *
+ * وإن لم توجد خدمةُ موقعٍ ساكنٍ في الملفِّ فهو **سقوطٌ لا تخطٍّ**: كانت
+ * موجودةً يومَ كُتِبَ هذا، فغيابُها حذفٌ لا حالةٌ أوّليّةٌ.
+ */
+export function analyseManifestHeaders(manifest: string): readonly Violation[] {
+  const violations: Violation[] = [];
+  const block = miniappServiceBlock(manifest);
+  if (block === null) {
+    violations.push({
+      file: DEPLOY_MANIFEST,
+      line: 1,
+      text: `(لا خدمةَ باسمِ ${MINIAPP_SERVICE_NAME})`,
+      why:
+        `خدمةُ الموقعِ الساكنِ «${MINIAPP_SERVICE_NAME}» غائبةٌ من ${DEPLOY_MANIFEST}. ` +
+        "وكانت موجودةً يومَ كُتِبَ هذا الحاجزُ (ADR 0165)، فغيابُها حذفٌ لا حالةٌ أوّليّةٌ — " +
+        "ومعَ الحذفِ يُفقَدُ رأسُ frame-ancestors صامتاً.",
+    });
+    return violations;
+  }
+
+  const body = block.join("\n");
+
+  if (!new RegExp(`^\\s*runtime:\\s*${STATIC_RUNTIME}\\s*(#.*)?$`, "m").test(body)) {
+    violations.push({
+      file: DEPLOY_MANIFEST,
+      line: 1,
+      text: `(خدمةُ ${MINIAPP_SERVICE_NAME} بلا runtime: ${STATIC_RUNTIME})`,
+      why:
+        "رأسُ الاستجابةِ في مخطّطِ Render **خاصٌّ بالمواقعِ الساكنةِ**، والخدمةُ " +
+        `«${MINIAPP_SERVICE_NAME}» لا تُعلِنُ runtime: ${STATIC_RUNTIME}. فكلُّ رأسٍ في كتلتِها ` +
+        "نصٌّ مُهمَلٌ وحمايةُ التأطيرِ غيرُ مُطبّقةٍ — والحاجزُ أخضرُ على لا شيءٍ.",
+    });
+  }
+
+  const expectedValue = frameAncestorsHeaderValue();
+  const cspHeader = /^\s*name:\s*Content-Security-Policy\s*$\n\s*value:\s*(.+)$/m.exec(body);
+
+  if (cspHeader === null) {
+    violations.push({
+      file: DEPLOY_MANIFEST,
+      line: 1,
+      text: `(لا رأسَ Content-Security-Policy في خدمةِ ${MINIAPP_SERVICE_NAME})`,
+      why:
+        "خدمةُ الموقعِ الساكنِ بلا رأسِ Content-Security-Policy. و`frame-ancestors` " +
+        "**لا تعملُ في وسمِ `<meta>` ألبتَّةَ** بحكمِ المواصفةِ، فهذا الموضعُ موضعُها " +
+        `الوحيدُ. يُكتبُ: «${expectedValue}» (ADR 0165).`,
+    });
+  } else {
+    const actual = (cspHeader[1] ?? "").trim().replace(/^["']|["']$/g, "");
+    if (actual !== expectedValue) {
+      violations.push({
+        file: DEPLOY_MANIFEST,
+        line: 1,
+        text: actual.slice(0, 160),
+        why:
+          "رأسُ Content-Security-Policy لا يطابقُ ما تبنيه وحدةُ السياسةِ. " +
+          `المتوقَّع: «${expectedValue}» — ${POLICY_MODULE} هو مصدَرُ الحقيقةِ لا هذا الملفُّ. ` +
+          "والرأسُ يحملُ `frame-ancestors` وحدَه: توجيهاتُ الجلبِ تبقى في الوسمِ، " +
+          "وكتابتُها ههنا أيضاً تُنشِءُ مصدَرَي حقيقةٍ يفترقانِ بسهوٍ.",
+      });
+    }
+    for (const forbidden of ["default-src", "script-src", "connect-src", "style-src", "img-src"]) {
+      if (!actual.includes(forbidden)) continue;
+      violations.push({
+        file: DEPLOY_MANIFEST,
+        line: 1,
+        text: actual.slice(0, 160),
+        why:
+          `توجيهُ جلبٍ «${forbidden}» في رأسِ الاستجابةِ — وموضعُه وسمُ ` +
+          `${SOLE_EXTERNAL_SCRIPT_HOST_FILE} المحروسُ حرفاً بحرفٍ في القاعدةِ (٥). ` +
+          "ومصدَرا حقيقةٍ لسياسةٍ واحدةٍ يفترقانِ بسهوٍ، والمتصفّحُ يُطبّقُ أشدَّهما " +
+          "فيُحاصَرُ التطبيقُ من حيثُ لا يُقرأُ المنعُ.",
+      });
+    }
+  }
+
+  if (/^\s*name:\s*X-Frame-Options\s*$/im.test(body)) {
+    violations.push({
+      file: DEPLOY_MANIFEST,
+      line: 1,
+      text: "name: X-Frame-Options",
+      why:
+        "رأسُ X-Frame-Options في خدمةِ التطبيقِ المصغَّرِ — وقيمتاه DENY وSAMEORIGIN " +
+        "كلتاهما تمنعانِ تأطيرَ تلغرام، فيرى الراكبُ **شاشةً بيضاءَ بلا رسالةِ خطأٍ** " +
+        "في Telegram Desktop وWeb. وهو ليسَ مُكمِّلاً لـframe-ancestors بل مناقضٌ له ههنا. " +
+        "يُحذَف (ADR 0165).",
+    });
+  }
+
+  return violations;
+}
+
+/**
+ * الغلافُ الذي يقرأُ الملفَّ. وفصلُ القراءةِ عن الحكمِ مقصودٌ: الحكمُ أعلاه
+ * دالّةٌ نقيّةٌ تُختبَرُ بخرقٍ مبذورٍ في نصٍّ، فلا يُعبَثُ بملفِّ النشرِ الحقيقيِّ
+ * لإثباتِ أنَّ الحاجزَ يسقُطُ.
+ */
+function checkFrameAncestorsHeader(violations: Violation[]): void {
+  let manifest = "";
+  try {
+    manifest = readFileSync(DEPLOY_MANIFEST, "utf8");
+  } catch {
+    console.error(`✗ ${DEPLOY_MANIFEST} غيرُ موجودٍ: لا يُفحَصُ رأسُ التأطيرِ في فراغٍ.`);
+    process.exit(1);
+  }
+  violations.push(...analyseManifestHeaders(manifest));
+}
+
 function main(): void {
   const violations: Violation[] = [];
+
+  /** (٦) من يُأطِّرُنا — في ملفِّ النشرِ لا في الوسمِ (ADR 0165). */
+  checkFrameAncestorsHeader(violations);
 
   /** حاجزٌ لا يمرُّ فراغاً: القائمةُ المغلقةُ ليست فارغةً. */
   if (ALLOWED_EXTERNAL_ORIGIN_LIST.length === 0) {
@@ -291,8 +447,11 @@ function main(): void {
 
   console.log(
     `✅ النطاقُ واحدٌ: ${allowed.size} نطاقاً خارجيّاً مأذوناً له بسندٍ مكتوبٍ، ` +
-      `وسياسةُ المُخرَجِ تطابق وحدةَ السياسةِ حرفاً حرفاً (${styleHashes.length} بصمةَ أنماطٍ مُدمَجةٍ).`,
+      `وسياسةُ المُخرَجِ تطابق وحدةَ السياسةِ حرفاً حرفاً (${styleHashes.length} بصمةَ أنماطٍ مُدمَجةٍ)، ` +
+      `ورأسُ التأطيرِ في ${DEPLOY_MANIFEST} «${frameAncestorsHeaderValue()}» بلا X-Frame-Options.`,
   );
 }
 
-main();
+if (import.meta.main) {
+  main();
+}
