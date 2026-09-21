@@ -129,6 +129,7 @@ import {
   createTrialRpc,
 } from "../../../packages/infrastructure/subscription/subscription-adapters.ts";
 import { createSubscriptionChangeRpc } from "../../../packages/infrastructure/subscription/subscription-change-adapters.ts";
+import { PostgresRiderSupportStore } from "../../../packages/infrastructure/support/rider-support-store.ts";
 import {
   createTrackingEventBus,
   type TrackingEventBus,
@@ -915,6 +916,20 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     negotiation: { rotation: rotationDeps, relay: relayDeps },
     support: riderSupport,
     safety: { trigger: safety.trigger },
+    // PD-053 — قائمة تذاكر الدعم للراكب في البوت: نتيجة الإجراء تصل صاحبها.
+    ticketLister: (() => {
+      const store = new PostgresRiderSupportStore(sql);
+      return {
+        list: async (telegramUserId: string) => {
+          const page = await store.listTickets({
+            telegramUserId,
+            limit: 10,
+            cursor: null,
+          });
+          return page.ok ? page.value.tickets : [];
+        },
+      };
+    })(),
     rating: {
       sessions: riderSessions,
       lifecycle: lifecyclePort,

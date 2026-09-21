@@ -10,6 +10,7 @@
 import { haversineKm } from "../../domain/geo/index.ts";
 import { makeCoordinates } from "../../domain/geo/value-objects.ts";
 import { parseFullName } from "../../domain/identity/value-objects.ts";
+import type { SupportTicketView } from "../../domain/support/ticket-types.ts";
 import { DEFAULT_SESSION_POLICY } from "../../domain/tracking/session.ts";
 import { t } from "../../shared/i18n/index.ts";
 import type { Clock, OrderId, ServiceType } from "../../shared/kernel/index.ts";
@@ -135,6 +136,58 @@ export interface RiderBotDependencies {
   readonly trackingLinks?: IssueTrackingTokenDeps;
   /** SOS اختياري في الاختبارات القديمة، ومربوط دائماً في الحاوية الحية. */
   readonly safety?: { readonly trigger: TriggerSosDeps };
+  /**
+   * PD-053 — قائمة تذاكر الدعم للراكب: نتيجة الإجراء تصل صاحبها لا تُدفن في القروب.
+   * اختياري عمداً: غيابه يعني أن المسار غير مُجهَّز في هذه الحاوية.
+   */
+  readonly ticketLister?: {
+    readonly list: (telegramUserId: string) => Promise<readonly SupportTicketView[]>;
+  };
+}
+
+/**
+ * PD-053 — تنسيق تذكرة دعم واحدة لعرضها في البوت: المرجع، الصنف، الحالة، والقرار.
+ */
+function formatTicketLine(
+  ticket: SupportTicketView,
+  tr: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  const statusKey =
+    ticket.status === "open"
+      ? "support.status_open"
+      : ticket.status === "claimed"
+        ? "support.status_claimed"
+        : ticket.status === "resolved"
+          ? "support.status_resolved"
+          : "support.status_closed";
+  const categoryKey =
+    ticket.category === "lost_item"
+      ? "support.category_lost_item"
+      : ticket.category === "ride_dispute"
+        ? "support.category_ride_dispute"
+        : ticket.category === "driver_conduct"
+          ? "support.category_driver_conduct"
+          : ticket.category === "app_problem"
+            ? "support.category_app_problem"
+            : ticket.category === "deduction"
+              ? "support.category_deduction"
+              : ticket.category === "subscription"
+                ? "support.category_subscription"
+                : "support.category_other";
+  const resolution =
+    ticket.resolution === null ? "" : ` — ${tr("support.resolution_label")}: ${ticket.resolution}`;
+  return `• ${ticket.reference} — ${tr(categoryKey)} — ${tr(statusKey)}${resolution}`;
+}
+
+/**
+ * PD-053 — تنسيق صفحة تذاكر الدعم للراكب.
+ */
+function formatTicketsPage(
+  tickets: readonly SupportTicketView[],
+  tr: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  if (tickets.length === 0) return tr("support.no_tickets");
+  return tickets.map((t) => formatTicketLine(t, tr)).join("\n");
 }
 
 function reply(sender: Sender, text: string, keyboard: Keyboard | null = null): BotReply {
@@ -993,6 +1046,21 @@ async function handleCommand(
       if (rider === null) return [reply(sender, tr("support.not_registered"), menu(state))];
       // العميل لا يملك اشتراكاً، فسؤاله عن نوع المشكلة يولّد تذاكر مرفوضة حتماً
       return startSupportDialog(sender, state, deps.support, { allowSubscriptionType: false });
+    }
+
+    case "/tickets": {
+      // PD-053 — نتيجة الإجراء تصل صاحبها لا تُدفن في القروب: قائمة تذاكر الدعم
+      // والمفقودات للراكب في البوت نفسه، لا في القروب وحده.
+      if (deps.ticketLister === undefined) return [reply(sender, tr("common.unknown_command"))];
+      if (rider === null) return [reply(sender, tr("support.not_registered"), menu(state))];
+      const tickets = await deps.ticketLister.list(sender.telegramUserId);
+      return [
+        reply(
+          sender,
+          `${tr("support.my_tickets")}\n\n${formatTicketsPage(tickets, tr)}`,
+          menu(state),
+        ),
+      ];
     }
 
     case "/cancel": {
