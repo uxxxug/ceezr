@@ -91,7 +91,15 @@ function memberships(): {
   store: GroupJoinGateDependencies["memberships"];
 } {
   const written: GroupMembershipDecision[] = [];
-  return { written, store: { recordDecision: async (d) => (written.push(d), ok(undefined)) } };
+  return {
+    written,
+    store: {
+      recordDecision: async (d) => {
+        written.push(d);
+        return ok(undefined);
+      },
+    },
+  };
 }
 
 const REQUEST = {
