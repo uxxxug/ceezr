@@ -55,6 +55,8 @@ export const RIDER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.rider.cancel", command: "/cancel" },
   { key: "menu.rider.city", command: "/city" },
   { key: "menu.rider.history", command: "/history" },
+  // PD-053: قائمة تذاكر الدعم — نتيجة الإجراء تصل صاحبها لا تُدفن في القروب.
+  { key: "menu.rider.tickets", command: "/tickets" },
   { key: "menu.language", command: "/language" },
   { key: "safety.menu_sos", command: "/sos" },
   { key: "menu.support", command: "/support" },
