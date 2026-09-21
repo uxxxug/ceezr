@@ -249,7 +249,7 @@
   (نتيجةُ الإجراءِ تصلُ صاحبَها لا تُدفَنُ في القروب).
 
 ### الأولويّةُ السادسة — الاستراتيجيّةُ (`STR-02`..`STR-05`)
-- **`PD-081`** `[~]` — ربطُ سببِ حجبِ المركبةِ بفعلِ إصلاحِهِ من موضعِ الحجبِ نفسِهِ
+- **`PD-081`** `[x]` — ربطُ سببِ حجبِ المركبةِ بفعلِ إصلاحِهِ من موضعِ الحجبِ نفسِهِ
   (`DRV-02`).
 - **`PD-080`** `[x]` — مواءمةُ قاموسِ أنواعِ التذاكرِ بينَ مرجعِ الدعمِ التشغيليِّ
   ومصفوفةِ `SUPPORT_TICKET_TYPES` المقيسةِ (فحصُ تكاملٍ يقارنُ `pg_enum` بالقائمة).
@@ -366,3 +366,4 @@
 | 2026-09-21 | `PD-053` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-053-TICKET-TRACKING-20260921.md`. | — | `[x]` | `—` |
 | 2026-09-21 | `PD-080` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-080-TICKET-TYPE-ENUM-PARITY-20260921.md`. | — | `[x]` | `—` |
 | 2026-09-21 | `PD-082` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-082-DISPUTE-RESOLUTION-VISIBILITY-20260921.md`. | — | `[x]` | `—` |
+| 2026-09-21 | `PD-081` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`b4eff54` · `1c9e2f6` · `fdab41f`). الدليلُ في `docs/evidence/architecture/PD-081-BLOCK-REASON-FIX-ACTION-20260921.md`. | — | `[x]` | `—` |
