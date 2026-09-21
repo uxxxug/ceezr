@@ -61,16 +61,23 @@ export function canClaim(status: SupportTicketStatus): boolean {
 /**
  * التفعيل والإنهاء يقتضيان اشتراكاً، فلا معنى لهما في تذكرة عميل.
  * الرفض ممكن في كل تذكرة غير محسومة: هو إقفال إداري لا تصرّف في اشتراك.
+ * والردُّ كذلكَ ممكنٌ في كلِّ تذكرةٍ غيرِ محسومةٍ — وهوَ المخرجُ الذي لم يكن
+ * لتذكرةِ راكبٍ قبلَ الخطوةِ ١٠ (لا تُرفَضُ شكوى محقّةٌ لأنَّ لا فعلَ غيرَه).
  */
 export function canResolve(ticket: SupportTicket, resolution: SupportResolution): boolean {
   if (isSettled(ticket.status)) return false;
-  if (resolution === "reject") return true;
+  if (resolution === "reject" || resolution === "answer") return true;
   return ticket.subscription !== null || ticket.type === "subscription";
 }
 
 /**
  * الأزرار المعروضة على البطاقة تتبع حالتها: لا نعرض «تفعيل» لتذكرة نزاع بلا اشتراك،
  * ولا «استلام» لمن استُلمت. عرض زرّ لا يعمل أسوأ من عدم عرضه.
+ *
+ * و`answer` **لا يُعرَضُ زرّاً** وإن كانَ `canResolve` يُجيزُه: الردُّ يقتضي نصّاً
+ * مكتوباً، وزرُّ تلغرامَ لا يحملُ نصّاً. فزرُّ «ردّ» كانَ سيُقفِلُ التذكرةَ بردٍّ
+ * فارغٍ أو يسقُطُ بـANSWER_NOTE_REQUIRED — وعرضُ زرٍّ لا يعملُ أسوأُ من عدمِ عرضِه،
+ * وهوَ نصُّ هذا التعليقِ نفسُه. فمَسلَكُ الردِّ أمرٌ يحملُ نصَّه: `/answer`.
  */
 export function availableActions(ticket: SupportTicket): readonly (SupportResolution | "claim")[] {
   if (isSettled(ticket.status)) return [];

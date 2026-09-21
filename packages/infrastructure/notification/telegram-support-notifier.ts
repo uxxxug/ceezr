@@ -71,6 +71,11 @@ function identityLine(telegramId: string, username: string | null): string {
 
 function keyboardFor(card: SupportCard, tr: (key: string) => string): unknown {
   const rows = card.actions.map((action) => {
+    /**
+     * `answer` لا زرَّ له (انظر `availableActions`): الردُّ يقتضي نصّاً والزرُّ لا
+     * يحملُه. ولا يُكتَبُ فرعٌ يُسمّيهِ زرّاً — ولو وصلَ ههنا لكانَ العطبُ في
+     * `availableActions` لا في الوَسمِ، فيُصرَّحُ به ولا يُغطّى بوَسمِ الرفضِ.
+     */
     const label =
       action === "claim"
         ? tr("support.claim_button")
@@ -78,7 +83,9 @@ function keyboardFor(card: SupportCard, tr: (key: string) => string): unknown {
           ? tr("support.activate_button")
           : action === "terminate"
             ? tr("support.terminate_button")
-            : tr("support.reject_button");
+            : action === "reject"
+              ? tr("support.reject_button")
+              : tr("support.answer_needs_command");
     return [{ text: label, callback_data: `sup:${action}:${card.ticket.id}` }];
   });
   return { inline_keyboard: rows };
@@ -104,11 +111,18 @@ export function createSupportCardPublisher(sender: SupportSender): SupportCardPu
           message: ticket.message,
         });
         const keyboard = keyboardFor(card, tr);
+        // سبيلُ الردِّ يُقالُ على البطاقةِ نفسِها: أمرٌ لا يعرفُه الفريقُ أمرٌ لا وجودَ له.
+        const withHint = `${text}\n\n${tr("support.answer_hint")}`;
 
         if (ticket.attachmentFileId === null) {
-          return sender.sendReturningId(card.groupId, text, keyboard);
+          return sender.sendReturningId(card.groupId, withHint, keyboard);
         }
-        return sender.sendPhotoReturningId(card.groupId, ticket.attachmentFileId, text, keyboard);
+        return sender.sendPhotoReturningId(
+          card.groupId,
+          ticket.attachmentFileId,
+          withHint,
+          keyboard,
+        );
       }),
   };
 }
@@ -116,6 +130,7 @@ export function createSupportCardPublisher(sender: SupportSender): SupportCardPu
 function resolutionKey(action: SupportResolution): string {
   if (action === "activate") return "support.resolved_activated";
   if (action === "terminate") return "support.resolved_terminated";
+  if (action === "answer") return "support.resolved_answered";
   return "support.resolved_rejected";
 }
 
@@ -131,11 +146,16 @@ export function createTicketOwnerNotifier(sender: SupportSender): TicketOwnerNot
         // يجب أن يصل بلغة يقرؤها صاحبه لا بلغة النظام.
         const tr = t(input.language);
         // معرّفُ الرسالةِ يُرجَعُ لا يُهمَلُ: صندوقُ الصادرِ لا يُعلنُ «سُلّمت» إلّا به.
-        return await sender.sendReturningId(
-          input.telegramId,
-          tr(resolutionKey(input.action)),
-          undefined,
-        );
+        /**
+         * نصُّ الردِّ يُحشَرُ حرفاً كما كتبَه موظّفُ الدعمِ: إعادةُ صياغتِه تُفقِدُ
+         * المعنى الأصليَّ — وهوَ حكمُ بطاقةِ الشكوى نفسِه في هذا المِلفِّ. والإطارُ
+         * مُترجَمٌ بلغةِ صاحبِه، والنصُّ بلغةِ كاتبِه: ولا يُدَّعى أنَّهما لغةٌ واحدةٌ.
+         */
+        const text =
+          input.action === "answer"
+            ? tr(resolutionKey(input.action), { answer: input.note ?? "" })
+            : tr(resolutionKey(input.action));
+        return await sender.sendReturningId(input.telegramId, text, undefined);
       }),
   };
 }

@@ -22,8 +22,28 @@ export type SupportTicketType = FullSupportTicketType;
 
 export type SupportTicketStatus = "open" | "claimed" | "resolved" | "rejected";
 
-/** التصرّفات الثلاثة الممكنة على تذكرة: التفعيل، الإنهاء اليدوي، الرفض. */
-export type SupportResolution = "activate" | "terminate" | "reject";
+/**
+ * التصرّفاتُ الأربعةُ الممكنةُ على تذكرةٍ: التفعيلُ، الإنهاءُ اليدويُّ، الرفضُ، والردُّ.
+ *
+ * و`answer` زِيدَ في الخطوةِ ١٠ لأنَّ الثلاثةَ الأولى كلَّها لا تُجيبُ شاكياً:
+ * الأوّلانِ يقتضيانِ اشتراكاً فيسقطانِ على تذكرةِ راكبٍ، والثالثُ إقفالٌ برفضٍ.
+ * فكانَ الراكبُ الشاكي لا مخرجَ لشكواهُ إلّا أن تُرفَضَ. و`answer` وحدَه يُوجِبُ
+ * ملاحظةً مكتوبةً تصلُ صاحبَها حرفاً.
+ */
+export type SupportResolution = "activate" | "terminate" | "reject" | "answer";
+
+/**
+ * الردُّ وحدَه يقتضي نصّاً. والحكمُ ههنا لا في الحاجزِ ولا في القاعدةِ وحدَها:
+ * ردٌّ بلا نصٍّ يُقفِلُ تذكرةً ويُرسِلُ إطاراً فارغاً، فيُسجَّلُ «مُجابةٌ» ولم يُجَبْ.
+ */
+export function requiresWrittenNote(resolution: SupportResolution): boolean {
+  return resolution === "answer";
+}
+
+/** الردُّ لا يقتضي سائقاً — وهوَ كلُّ الفائدةِ منه: تذكرةُ راكبٍ تُجابُ. */
+export function requiresDriver(resolution: SupportResolution): boolean {
+  return resolution === "activate" || resolution === "terminate";
+}
 
 /**
  * حدّ أدنى معقول: «مشكلة» وحدها لا تُمكِّن موظّف الدعم من فهم شيء، وردّه سيكون
@@ -56,7 +76,7 @@ export function isSupportTicketType(value: string): value is SupportTicketType {
 }
 
 export function isSupportResolution(value: string): value is SupportResolution {
-  return value === "activate" || value === "terminate" || value === "reject";
+  return value === "activate" || value === "terminate" || value === "reject" || value === "answer";
 }
 
 /**

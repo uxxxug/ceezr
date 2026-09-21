@@ -1080,6 +1080,28 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "السلامةُ والاستغاثة",
     documentedIn: null,
   },
+  {
+    migration: "20260921230000_step10_support_answer_resolution.sql",
+    change: "revoke_function:resolve_support_ticket(5)",
+    why: "الهجرةُ تُعيدُ تعريفَ `resolve_support_ticket` بـ`create or replace` لتُضيفَ فعلًا رابعًا `answer` — ردًّا مكتوبًا يُوجِبُ نصًّا ولا يقتضي سائقًا — والأفعالُ الثلاثةُ السابقةُ منسوخةٌ حرفًا بحرفٍ ولا تتغيَّرُ. والتوقيعُ نفسُه (٥ معاملاتٍ) لم يتغيَّرْ، فلا نداءَ قائمٌ يفقدُ مطابقتَه. والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كان — الدالّةُ ممنوحةٌ لـ`service_role` وحدَها قبلَ التغييرِ وبعدَه، و`create or replace` لا تُسقِطُ منحًا قائمًا أصلًا. والعودةُ بالكودِ وحدَه: الصورةُ السابقةُ لا تُنادي `answer` ألبتَّةَ فالدالّةُ الجديدةُ تُلبّي نداءَها القديمَ كاملًا، والعكسُ لا — فلا يُرجَعُ الكودُ الجديدُ دونَ إرجاعِ الدالّةِ معه.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
+  {
+    migration: "20260921230000_step10_support_answer_resolution.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "الهجرةُ تُعيدُ تعريفَ `claim_notification_delivery` بـ`create or replace` لتُلحِقَ `support_tickets.resolution` بحمولةِ إشعارِ حسمِ التذكرةِ — نصُّ الردِّ يُقرَأُ حيًّا من الجدولِ لحظةَ الالتقاطِ ولا يُنسَخُ في الصفِّ، وبقيةُ الفروعِ منسوخةٌ حرفًا بحرفٍ عن آخرِ تعريفٍ لها. والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كان — الدالّةُ ممنوحةٌ لـ`service_role` وحدَها قبلَ التغييرِ وبعدَه، و`create or replace` لا تُسقِطُ منحًا قائمًا أصلًا. والعودةُ بالكودِ وحدَه: حمولةٌ فيها مفتاحٌ زائدٌ لا تكسرُ قارئًا لا يقرؤُه، فالصورةُ السابقةُ تعملُ على الدالّةِ الجديدةِ؛ والصورةُ الجديدةُ على الدالّةِ القديمةِ تتخلّى عن صفِّ ردٍّ بلا نصٍّ ولا تُرسِلُ إطارًا فارغًا — فلا يُرجَعُ الكودُ دونَ إرجاعِ الدالّةِ معه.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**

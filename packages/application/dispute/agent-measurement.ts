@@ -15,6 +15,7 @@
  * قرصٍ يُمحى عند كل نشر. مصدر الحقيقة للقياس هو قاعدة البيانات، وهذا الملف بابها.
  */
 
+import type { SupportResolution } from "../../domain/dispute/index.ts";
 import type { Result } from "../../shared/result/index.ts";
 import { err, ok } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
@@ -85,10 +86,18 @@ export interface AgentMeasurementPort {
  */
 export function inferVerdict(
   classification: string | null,
-  resolution: "activate" | "reject" | "terminate",
+  resolution: SupportResolution,
 ): AdviceVerdict {
   // بلا تصنيف لا دعوى، وبلا دعوى لا صواب ولا خطأ.
   if (classification === null) return "ignored";
+
+  /**
+   * الردُّ المكتوبُ لا يُكذِّبُ تصنيفاً ولا يُصدِّقُه: يُجابُ بهِ نزاعُ رحلةٍ
+   * ومشكلةُ اشتراكٍ وسؤالٌ عامٌّ سواءً. فلو طُوِيَ في الثنائيّةِ القائمةِ لقِيسَ
+   * «موافقاً» على نزاعٍ و«مخالفاً» على اشتراكٍ — وكِلاهما قياسٌ لِما لم يقعْ.
+   * فيُهمَلُ صريحاً: مقياسٌ يُخبِرُ عمّا لا دليلَ فيهِ أسوأُ من مقياسٍ ساكتٍ.
+   */
+  if (resolution === "answer") return "ignored";
 
   if (classification === "subscription_issue") {
     return resolution === "activate" ? "accepted" : "rejected";
@@ -125,7 +134,7 @@ export async function recordAdviceFeedback(
 
 export interface InferAdviceOutcomeInput {
   readonly ticketId: string;
-  readonly resolution: "activate" | "reject" | "terminate";
+  readonly resolution: SupportResolution;
 }
 
 /**
