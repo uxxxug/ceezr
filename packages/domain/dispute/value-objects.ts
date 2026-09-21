@@ -8,8 +8,17 @@
  */
 
 import { err, ok, type Result } from "../../shared/result/index.ts";
+import {
+  type SupportTicketType as FullSupportTicketType,
+  SUPPORT_TICKET_TYPES,
+} from "../support/ticket-types.ts";
 
-export type SupportTicketType = "subscription" | "ride_dispute";
+/**
+ * نوعُ تذكرةِ الدعمِ — يُعادُ تصديرُهُ من `domain/support/ticket-types.ts` لأنّهُ
+ * نفسُ قيمِ `support_ticket_type` في القاعدةِ. كانَ هنا نسخةٌ قديمةٌ تَحصُرُهُ في
+ * نوعَين، فكسرتْ مسارَ الاعتراضِ الماليّ (`deduction`) الذي هو صنفٌ قائمٌ في القاعدةِ.
+ */
+export type SupportTicketType = FullSupportTicketType;
 
 export type SupportTicketStatus = "open" | "claimed" | "resolved" | "rejected";
 
@@ -43,7 +52,7 @@ export function parseSupportMessage(raw: string): Result<string, InvalidSupportM
 }
 
 export function isSupportTicketType(value: string): value is SupportTicketType {
-  return value === "subscription" || value === "ride_dispute";
+  return (SUPPORT_TICKET_TYPES as readonly string[]).includes(value);
 }
 
 export function isSupportResolution(value: string): value is SupportResolution {

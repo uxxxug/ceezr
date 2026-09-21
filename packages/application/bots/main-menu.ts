@@ -37,7 +37,8 @@ export const DRIVER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.driver.trip", command: "/trip" },
   { key: "menu.driver.available", command: "/available" },
   { key: "menu.driver.unavailable", command: "/unavailable" },
-  { key: "menu.driver.subscription", command: "/subscription" },
+  // PD-041: الزرّ الدائم صار «المركز المالي» لا «الاشتراك» وحده — السائق يرى كلَّ وضعِهِ الماليِّ من نقطةٍ واحدة. `/subscription` ما زال مفهومًا.
+  { key: "menu.driver.finance", command: "/finance" },
   // البند 2.4: المنطقة المفضّلة زرٌّ دائم لا خطوةَ تسجيلٍ وحدها — سائقو القاعدة
   // كلّهم سجّلوا قبل وجودها، ومن غيّر حيّه يحتاج تغييرها بعد شهور من تسجيله.
   { key: "menu.driver.area", command: "/area" },
