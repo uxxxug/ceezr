@@ -12,7 +12,7 @@ describe("createRedisInitDataReplayGuard (smoke)", () => {
 
   it("fails closed when Redis is unreachable", async () => {
     const guard = createRedisInitDataReplayGuard({
-      command: () => Promise.resolve(err({ detail: "ECONNREFUSED" })),
+      command: () => Promise.resolve(err({ kind: "network", detail: "ECONNREFUSED" })),
     });
     const result = await guard.consume("test-fingerprint", 300);
     expect(result.ok).toBe(false);
