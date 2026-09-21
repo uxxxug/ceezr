@@ -841,6 +841,25 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
+/*
+ * بيانُ طريقةِ الدفعِ — الخطوةُ ٩. ويُرسَمُ **مُبرَزاً بحدٍّ** لا فقرةً باهتةً:
+ * نصٌّ يُشترَطُ أن يُقرأَ قبلَ فعلٍ لا رجعةَ فيه لا يُخفَّفُ لونُه.
+ */
+.qt__payment {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border: 1px solid var(--tg-theme-hint-color, #999);
+  border-radius: 0.5rem;
+}
+
+.qt__payment-line {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 .qt__services {
   display: flex;
   flex-direction: column;

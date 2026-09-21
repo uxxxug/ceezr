@@ -35,6 +35,12 @@
  *
  * ٧) **لا سرعةَ ثابتةً ولا معاملَ التفافٍ في الشريحةِ** — مفرداتٍ وأرقاماً.
  *
+ * ٨) **بيانُ طريقةِ الدفعِ موجودٌ ومرسومٌ وقبلَ زرِّ الطلبِ** (الخطوةُ ٩). وهذه
+ *    القاعدةُ **مقلوبةُ الأولى**: الأولى تمنعُ آليّةَ أجرةٍ، وهذه تُوجِبُ نفيَها
+ *    نصّاً. ولولاها لَكانَ الحاجزُ يفرضُ الصمتَ قبلَ فعلٍ لا رجعةَ فيه، والصمتُ
+ *    يُقرأُ «التطبيقُ يتولّى الدفعَ». والسماحُ لمفاتيحِها **بنصِّها الكاملِ**
+ *    ومشروطٌ: سطرٌ استُثنيَ بها يُفحَصُ بعدَ نزعِها.
+ *
  * **ينتمي إلى:** سلسلةَ حرّاسِ CI · خطوةً مُسمّاةً في `.github/workflows/ci.yml`.
  *
  * **ما لا يفعلُه هذا الحاجزُ عن قصدٍ — وحدودُه مُعلَنةٌ لا مضمرةٌ:**
@@ -108,9 +114,48 @@ export const FORBIDDEN_FARE_WORDS: readonly string[] = [
  * السماحُ المُعلَنُ. يُفحَصُ **قبلَ** المنعِ، ويُعلَنُ ههنا لا يُخفى في تعليقٍ:
  * الفرقُ بينَ حاجزٍ يُحتَرَمُ وحاجزٍ يُلفُّ عليه هوَ أن يكونَ استثناؤه مكتوباً.
  */
+/**
+ * مفاتيحُ بيانِ طريقةِ الدفعِ — الخطوةُ ٩. **أربعةُ مفاتيحَ بنصِّها الكاملِ**، لا
+ * سابقةٌ ولا نمطٌ: سماحٌ بسابقةِ `rider.quote.payment.` يُمرِّرُ
+ * `rider.quote.payment.amount` غداً، وذاكَ عينُ ما تمنعُه القاعدةُ الأولى.
+ */
+export const PAYMENT_DISCLOSURE_KEYS: readonly string[] = [
+  "rider.quote.payment.title",
+  "rider.quote.payment.direct",
+  "rider.quote.payment.noCustody",
+  "rider.quote.payment.noAmount",
+];
+
+/**
+ * وأسماءُ أصنافِ العرضِ للبيانِ نفسِه. **والأطولُ أوّلاً** كي يُنزَعَ
+ * `qt__payment-line` قبلَ `qt__payment` في فحصِ السطرِ المسموحِ.
+ *
+ * ولِمَ تُعلَنُ أصلاً؟ لأنَّ مُطابِقَ القاعدةِ الأولى **لا يَعُدُّ الشُّرطةَ
+ * السفليّةَ حدّاً** بسببٍ مقيسٍ (`price_amount` كانَ يُفلِتُ)، فـ`qt__payment`
+ * يُقرأُ مفردةً. **وهذا صوابُ المُطابِقِ لا خطؤه**، فلا يُضعَّفُ لأجلِ صنفٍ؛
+ * يُعلَنُ الصنفُ ويُحرَسُ سطرُه.
+ */
+export const PAYMENT_DISCLOSURE_LITERALS: readonly string[] = [
+  ...PAYMENT_DISCLOSURE_KEYS,
+  "qt__payment-line",
+  "qt__payment",
+];
+
 export const DECLARED_FARE_ALLOWANCES: readonly string[] = [
   // سعرُ اشتراكِ السائقِ — مصدرُ الإيرادِ المُقرَّرُ (`ADR 0027`).
   "subscription_price_",
+  /*
+   * بيانُ طريقةِ الدفعِ. **وهوَ ضدُّ آليّةِ الأجرةِ لا تمهيدٌ لها**: نصٌّ يقولُ
+   * إنَّ وَصْلة لا تقبضُ ولا تحفظُ ولا تُحدِّدُ مبلغاً. ولو مُنِعَ لَكانَ
+   * الحاجزُ يفرضُ **الصمتَ** قبلَ فعلٍ لا رجعةَ فيه، والصمتُ في تطبيقٍ يُقرأُ
+   * «التطبيقُ يتولّى الدفعَ» — فيصيرُ الحاجزُ سبباً في الإيهامِ الذي كُتِبَ
+   * لمنعِه.
+   *
+   * **والسماحُ مقلوبٌ لا مُمرِّرٌ**: القاعدةُ ٨ تُسقِطُ البناءَ إن **غابَ** هذا
+   * البيانُ أو لم يُرسَمْ أو رُسِمَ بعدَ زرِّ الطلبِ. فهوَ واجبٌ لا رخصةٌ،
+   * ولا يصيرُ سماحاً ميّتاً يُتَّكَأُ عليه.
+   */
+  ...PAYMENT_DISCLOSURE_LITERALS,
   // اسمُ القرارِ المحجوبِ ونصُّ المنعِ: ذِكرُ الممنوعِ لِبيانِ منعِه مشروعٌ.
   "0039",
   "DEC-11",
@@ -292,6 +337,73 @@ export function findForbiddenWords(
     }
   }
   return hits;
+}
+
+/**
+ * القاعدةُ ٨ — بيانُ طريقةِ الدفعِ **موجودٌ ومرسومٌ وقبلَ زرِّ الطلبِ**.
+ *
+ * وثلاثةُ توكيداتٍ لا واحدٌ، لأنَّ كلَّ واحدٍ منها يسقُطُ وحدَه:
+ *
+ * ١) **مفتاحٌ في القاموسِ لا يُرسَمُ لا يقولُ شيئاً لأحدٍ.** فيُشترَطُ ذِكرُ كلِّ
+ *    مفتاحٍ في `QuoteScreen.tsx` نفسِها.
+ * ٢) **مفتاحٌ مرسومٌ بلا نصٍّ يُعرَضُ خاماً.** فيُشترَطُ في اللغاتِ الثلاثِ.
+ * ٣) **بيانٌ بعدَ الزرِّ ليسَ بياناً**: زرُّ `rider.quote.request` نقطةُ
+ *    اللاعودةِ، فيُشترَطُ أن يَسبِقَه البيانُ في ترتيبِ الرسمِ — ويُقاسُ
+ *    بموضعِ الحرفِ، فهوَ ما يراهُ القارئُ فعلاً.
+ *
+ * **ورابعٌ يَحرُسُ السماحَ نفسَه**: سطرٌ استُثنيَ بمفتاحِ بيانٍ يُفحَصُ بعدَ نزعِ
+ * المفتاحِ منه، فلا يستترُ حقلُ أجرةٍ في ظلِّ سطرٍ مسموحٍ. وبذاكَ يبقى السماحُ
+ * **مشروطاً بما سُمِحَ له** لا رخصةً للسطرِ كلِّه.
+ */
+export function findPaymentDisclosureViolations(
+  screenSource: string | null | undefined,
+  dictionaries: Readonly<Record<string, Readonly<Record<string, string>> | undefined>>,
+): readonly string[] {
+  const violations: string[] = [];
+  for (const language of LANGUAGES) {
+    const dictionary = dictionaries[language] ?? {};
+    for (const key of PAYMENT_DISCLOSURE_KEYS) {
+      const text = dictionary[key];
+      if (typeof text !== "string" || text.trim().length === 0) {
+        violations.push(
+          `بيانُ طريقةِ الدفعِ: المفتاحُ «${key}» غائبٌ أو فارغٌ في «${language}.json» — والخطوةُ ٩ تُوجِبُ بياناً **مقروءاً** قبلَ الطلبِ، ومفتاحٌ خامٌّ ليسَ بياناً.`,
+        );
+      }
+    }
+  }
+  if (typeof screenSource !== "string") return violations;
+  const code = blankComments(screenSource);
+  let lastDisclosureAt = -1;
+  for (const key of PAYMENT_DISCLOSURE_KEYS) {
+    const at = code.indexOf(key);
+    if (at < 0) {
+      violations.push(
+        `بيانُ طريقةِ الدفعِ: المفتاحُ «${key}» غيرُ مرسومٍ في «QuoteScreen.tsx» — مفتاحٌ في القاموسِ لا يُرسَمُ لا يقولُ شيئاً لراكبٍ، وخضرةٌ عليه خضرةٌ كاذبةٌ.`,
+      );
+      continue;
+    }
+    if (at > lastDisclosureAt) lastDisclosureAt = at;
+  }
+  const requestAt = code.indexOf('"rider.quote.request"');
+  if (requestAt >= 0 && lastDisclosureAt > requestAt) {
+    violations.push(
+      "بيانُ طريقةِ الدفعِ يُرسَمُ **بعدَ** زرِّ الطلبِ — والزرُّ نقطةُ اللاعودةِ: لا شاشةَ تأكيدٍ بعدَه بل يُنشَأُ الطلبُ فوراً. فبيانٌ بعدَه إخبارٌ بما لا يُرَدُّ.",
+    );
+  }
+  for (const [index, line] of code.split("\n").entries()) {
+    const matched = PAYMENT_DISCLOSURE_LITERALS.filter((key) => line.includes(key));
+    if (matched.length === 0) continue;
+    let rest = line;
+    for (const key of matched) rest = rest.split(key).join(" ");
+    for (const word of FORBIDDEN_FARE_WORDS) {
+      if (containsWord(rest, word)) {
+        violations.push(
+          `«QuoteScreen.tsx:${index + 1}» يستترُ فيه «${word}» في ظلِّ سطرٍ استُثنيَ بمفتاحِ بيانٍ — والسماحُ مشروطٌ بالمفتاحِ وحدَه لا برخصةٍ للسطرِ كلِّه.`,
+        );
+      }
+    }
+  }
+  return violations;
 }
 
 const ARABIC_LETTERS = /[\u0620-\u064A]/u;
@@ -509,6 +621,14 @@ export function findViolations(input: RepositoryInput): readonly string[] {
     }
   }
 
+  // القاعدةُ ٨ — بيانُ طريقةِ الدفعِ قبلَ الطلبِ (الخطوةُ ٩).
+  violations.push(
+    ...findPaymentDisclosureViolations(
+      input.sliceSources["apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx"],
+      input.miniappDictionaries,
+    ),
+  );
+
   return violations;
 }
 
@@ -516,7 +636,7 @@ if (import.meta.main) {
   const violations = findViolations(readRepository());
   if (violations.length === 0) {
     console.log(
-      `حاجزُ عقدِ الاقتباسِ: نجحَ — ${SLICE_FILES.length} مِلفّاً مفحوصاً بـ${FORBIDDEN_FARE_WORDS.length} مفردةَ أجرةٍ ممنوعةً و${FORBIDDEN_SPEED_WORDS.length} مفردةَ اختراعٍ زمنيٍّ، مسافةٌ موسومةٌ في القاعدةِ والعقدِ، رمزا رفضٍ مفصولانِ، ${REVOKED_FUNCTIONS.length} دالّتَينِ منزوعتَي التنفيذِ عن ${REVOKED_ROLES.length} أدوارٍ، و${REQUIRED_QUOTE_KEYS.length + SERVICE_KINDS.length} مفتاحاً في ثلاثِ لغاتٍ.`,
+      `حاجزُ عقدِ الاقتباسِ: نجحَ — ${SLICE_FILES.length} مِلفّاً مفحوصاً بـ${FORBIDDEN_FARE_WORDS.length} مفردةَ أجرةٍ ممنوعةً و${FORBIDDEN_SPEED_WORDS.length} مفردةَ اختراعٍ زمنيٍّ، مسافةٌ موسومةٌ في القاعدةِ والعقدِ، رمزا رفضٍ مفصولانِ، ${REVOKED_FUNCTIONS.length} دالّتَينِ منزوعتَي التنفيذِ عن ${REVOKED_ROLES.length} أدوارٍ، و${REQUIRED_QUOTE_KEYS.length + SERVICE_KINDS.length} مفتاحاً في ثلاثِ لغاتٍ، وبيانُ طريقةِ الدفعِ بـ${PAYMENT_DISCLOSURE_KEYS.length} مفاتيحَ مرسومةٍ قبلَ زرِّ الطلبِ.`,
     );
   } else {
     console.error("حاجزُ عقدِ الاقتباسِ: سقطَ.");

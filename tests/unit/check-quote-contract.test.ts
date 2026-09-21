@@ -21,8 +21,11 @@ import {
   containsWord,
   findArabicLiterals,
   findForbiddenWords,
+  findPaymentDisclosureViolations,
   findViolations,
   NON_REFUSAL_ERROR_CODES,
+  PAYMENT_DISCLOSURE_KEYS,
+  PAYMENT_DISCLOSURE_LITERALS,
   REQUIRED_QUOTE_KEYS,
   REVOKED_FUNCTIONS,
   type RepositoryInput,
@@ -41,6 +44,8 @@ function dictionaries(): Record<string, Record<string, string>> {
   const keys = [
     ...REQUIRED_QUOTE_KEYS,
     ...SERVICE_KINDS.map((service) => `rider.quote.service.${service}`),
+    // القاعدةُ ٨ — بيانُ طريقةِ الدفعِ مطلوبٌ في اللغاتِ الثلاثِ كذلكَ.
+    ...PAYMENT_DISCLOSURE_KEYS,
   ];
   for (const language of LANGUAGES) {
     const dictionary: Record<string, string> = {};
@@ -84,6 +89,15 @@ function sources(): Record<string, string | null> {
   ].join("\n");
   slice["packages/application/quote/quote-ride.ts"] =
     "const arrival = await estimateArrival(pair, ports);\n";
+  /*
+   * والشاشةُ في المُدخَلِ السليمِ تحملُ بيانَ طريقةِ الدفعِ **قبلَ** زرِّ الطلبِ:
+   * القاعدةُ ٨ تُوجِبُه، فمُدخَلٌ «سليمٌ» بلا بيانٍ **ليسَ سليماً** بعدَ اليومِ.
+   * وهذا تحديثُ مُصنَّعٍ لِمطلبٍ جديدٍ لا تخفيفُ قاعدةٍ.
+   */
+  slice["apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx"] = [
+    ...PAYMENT_DISCLOSURE_KEYS.map((key) => `  <p>{t("${key}")}</p>`),
+    '  <button>{t("rider.quote.request")}</button>',
+  ].join("\n");
   return slice;
 }
 
@@ -346,6 +360,103 @@ describe("أدواتُ المطابقةِ", () => {
   it("الوحدةُ المشتركةُ هيَ المستخدَمةُ لا نسخةٌ رابعةٌ", () => {
     expect(typeof blankComments).toBe("function");
     expect(typeof blankSqlComments).toBe("function");
+  });
+});
+
+/**
+ * القاعدةُ ٨ — والحالاتُ السالبةُ ههنا هيَ **كلُّ** قيمةِ القاعدةِ: أن يمرَّ
+ * المستودعُ كما هوَ اليومَ لا يُثبِتُ أنَّ الحاجزَ يمنعُ شيئاً.
+ */
+describe("القاعدة ٨ — بيانُ طريقةِ الدفعِ قبلَ الطلبِ", () => {
+  const dictionaries = () => {
+    const one: Record<string, string> = {};
+    for (const key of PAYMENT_DISCLOSURE_KEYS) one[key] = "نصٌّ";
+    return { ar: { ...one }, en: { ...one }, ur: { ...one } };
+  };
+  const screen = (order: "before" | "after") => {
+    const lines = PAYMENT_DISCLOSURE_KEYS.map((key) => `  <p>{t("${key}")}</p>`);
+    const button = '  <button>{t("rider.quote.request")}</button>';
+    return order === "before" ? [...lines, button].join("\n") : [button, ...lines].join("\n");
+  };
+
+  it("الشكلُ المستقيمُ لا يُسقِطُ شيئاً — وإلّا لَكانَ الحاجزُ يمنعُ الصوابَ", () => {
+    expect(findPaymentDisclosureViolations(screen("before"), dictionaries())).toEqual([]);
+  });
+
+  it("مفتاحٌ غائبٌ من القاموسِ يُسقِطُ البناءَ — في كلِّ لغةٍ على حدةٍ", () => {
+    for (const language of ["ar", "en", "ur"] as const) {
+      const dicts = dictionaries();
+      delete dicts[language][PAYMENT_DISCLOSURE_KEYS[1] as string];
+      const found = findPaymentDisclosureViolations(screen("before"), dicts);
+      expect(found.length).toBe(1);
+      expect(found[0]).toContain(`${language}.json`);
+    }
+  });
+
+  it("مفتاحٌ فارغٌ أو فراغٌ محضٌ يُسقِطُ البناءَ — فراغٌ ليسَ بياناً", () => {
+    for (const value of ["", "   "]) {
+      const dicts = dictionaries();
+      dicts.ar[PAYMENT_DISCLOSURE_KEYS[0] as string] = value;
+      expect(findPaymentDisclosureViolations(screen("before"), dicts).length).toBe(1);
+    }
+  });
+
+  it("**مفتاحٌ في القاموسِ غيرُ مرسومٍ في الشاشةِ يُسقِطُ البناءَ** — وهوَ الخضرةُ الكاذبةُ التي تُخشى", () => {
+    for (const key of PAYMENT_DISCLOSURE_KEYS) {
+      const source = screen("before").split(`  <p>{t("${key}")}</p>\n`).join("");
+      const found = findPaymentDisclosureViolations(source, dictionaries());
+      expect(found.length).toBe(1);
+      expect(found[0]).toContain(key);
+      expect(found[0]).toContain("غيرُ مرسومٍ");
+    }
+  });
+
+  it("**بيانٌ بعدَ زرِّ الطلبِ يُسقِطُ البناءَ** — والزرُّ نقطةُ لا رجعةَ فيها", () => {
+    const found = findPaymentDisclosureViolations(screen("after"), dictionaries());
+    expect(found.length).toBe(1);
+    expect(found[0]).toContain("بعدَ");
+  });
+
+  it("السماحُ مشروطٌ لا رخصةَ سطرٍ: مفردةٌ ممنوعةٌ تستترُ بجانبِ مفتاحٍ تُمسَكُ", () => {
+    const hidden = ["f", "are"].join("");
+    const source = [
+      `  <p data-${hidden}="10">{t("${PAYMENT_DISCLOSURE_KEYS[0] as string}")}</p>`,
+      ...PAYMENT_DISCLOSURE_KEYS.slice(1).map((key) => `  <p>{t("${key}")}</p>`),
+      '  <button>{t("rider.quote.request")}</button>',
+    ].join("\n");
+    const found = findPaymentDisclosureViolations(source, dictionaries());
+    expect(found.length).toBe(1);
+    expect(found[0]).toContain("يستترُ");
+  });
+
+  it("وصنفُ العرضِ المُعلَنُ لا يُسقِطُ سطرَه — وإلّا صارَ الإعلانُ بلا معنىً", () => {
+    const source = [
+      `  <section className="qt__payment">`,
+      ...PAYMENT_DISCLOSURE_KEYS.map(
+        (key) => `    <p className="qt__payment-line">{t("${key}")}</p>`,
+      ),
+      '  <button>{t("rider.quote.request")}</button>',
+    ].join("\n");
+    expect(findPaymentDisclosureViolations(source, dictionaries())).toEqual([]);
+  });
+
+  it("شاشةٌ غائبةٌ لا تُخرِجُ الحاجزَ أخضرَ: نقصُ القاموسِ يُقالُ رغمَ ذلكَ", () => {
+    expect(findPaymentDisclosureViolations(null, { ar: {}, en: {}, ur: {} }).length).toBe(12);
+  });
+
+  it("الأصنافُ مُعلَنةٌ والأطولُ أوّلاً — وإلّا بقيَ `-line` يُقرأُ مفردةً بعدَ النزعِ", () => {
+    expect(PAYMENT_DISCLOSURE_LITERALS).toContain("qt__payment-line");
+    expect(PAYMENT_DISCLOSURE_LITERALS.indexOf("qt__payment-line")).toBeLessThan(
+      PAYMENT_DISCLOSURE_LITERALS.indexOf("qt__payment"),
+    );
+    for (const key of PAYMENT_DISCLOSURE_KEYS) expect(PAYMENT_DISCLOSURE_LITERALS).toContain(key);
+  });
+
+  it("**السماحُ ليسَ سابقةً**: مفتاحٌ أخٌ لم يُعلَنْ لا يُستَثنى", () => {
+    for (const literal of PAYMENT_DISCLOSURE_LITERALS) {
+      expect(literal).not.toBe("rider.quote.payment.");
+      expect(literal).not.toBe("payment");
+    }
   });
 });
 
