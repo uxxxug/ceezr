@@ -243,17 +243,17 @@
 - **`PD-021`** `[x]` — سببٌ داخليٌّ **إلزاميٌّ في القاعدة** عندَ إغلاقِ حادثِ سلامةٍ
   أو حظرِ مبلِّغٍ، ورسالةُ حالةٍ للمستخدِمِ تحملُ ما يُحِلُّ مراجعتُه دونَ كشفِ الداخل.
   - التنفيذ: `PR` مفتوح — بانتظار حكم CI. الهجرة `20260921000000_pd_021_decision_reason.sql` تضيفُ عمودَ `decision_reason` وقيداً مغلق الرموز، وتُوسِّعُ `resolve_safety_incident` بمعاملٍ رابعٍ إلزاميٍّ، وتُودِعُ إشعارَ مآلٍ عامٍّ في `notification_outbox` في معاملةِ الإغلاقِ. `ADR 0160`.
-- **`PD-041`** `[~]` — مسارُ ماليٍّ واحدٌ للسائق: سياسةُ العمولةِ والاشتراكِ والاعتراضُ
+- **`PD-041`** `[x]` — مسارُ ماليٍّ واحدٌ للسائق: سياسةُ العمولةِ والاشتراكِ والاعتراضُ
   والاستردادُ في سطحِ قرارٍ موصولٍ (لا قنواتٌ متفرّقة). يشملُ كشفَ الاعتراضِ الماليِّ.
-- **`PD-053`** `[~]` — أدلةُ الدعمِ وحالةُ المفقوداتِ تتبعانِ المستخدِمَ عبرَ القناةِ
+- **`PD-053`** `[x]` — أدلةُ الدعمِ وحالةُ المفقوداتِ تتبعانِ المستخدِمَ عبرَ القناةِ
   (نتيجةُ الإجراءِ تصلُ صاحبَها لا تُدفَنُ في القروب).
 
 ### الأولويّةُ السادسة — الاستراتيجيّةُ (`STR-02`..`STR-05`)
 - **`PD-081`** `[~]` — ربطُ سببِ حجبِ المركبةِ بفعلِ إصلاحِهِ من موضعِ الحجبِ نفسِهِ
   (`DRV-02`).
-- **`PD-080`** `[~]` — مواءمةُ قاموسِ أنواعِ التذاكرِ بينَ مرجعِ الدعمِ التشغيليِّ
+- **`PD-080`** `[x]` — مواءمةُ قاموسِ أنواعِ التذاكرِ بينَ مرجعِ الدعمِ التشغيليِّ
   ومصفوفةِ `SUPPORT_TICKET_TYPES` المقيسةِ (فحصُ تكاملٍ يقارنُ `pg_enum` بالقائمة).
-- **`PD-082`** `[~]` — «قصةُ حالةٍ» كاملةٌ للمشغِّلِ في مراجعةِ النزاعِ (مبرِّرُ
+- **`PD-082`** `[x]` — «قصةُ حالةٍ» كاملةٌ للمشغِّلِ في مراجعةِ النزاعِ (مبرِّرُ
   الحلِّ ظاهرٌ من لوحةِ العملِ بلا رجوعٍ إلى قروب).
 
 ### ديونٌ فكريّةٌ «هيكلية» من التقريرِ الثاني (`IDEA-P`, `P-01`..`P-04`)
@@ -362,3 +362,7 @@
 | 2026-09-21 | `PD-041` | وكيل Perplexity Computer | مسارٌ ماليٌّ واحدٌ للسائق: أمرُ `/finance` في بوتِ السائقِ يَعرضُ في بطاقةٍ واحدةٍ حالَ الاشتراكِ والعملةَ وزرَّيْ تفاصيلِ الاشتراكِ والاعتراضِ الماليّ. زرُّ القائمةِ الدائمِ تحوّلَ من «اشتراكي» إلى «مركزي المالي» — و`/subscription` يَبقى مفهوماً للتوافقِ. الاعتراضُ الماليُّ يَفتحُ تذكرةَ `deduction` من السطحِ نفسِه لا من قناةٍ منفصلةٍ. وإصلاحٌ جانبيٌّ: `SupportTicketType` في `domain/dispute/value-objects.ts` كانَ محصوراً في نوعينِ بينما قاعدةُ البياناتِ تَعرفُ تسعةً — صُحِّحَ ليُعادَ تصديرُهُ من `domain/support/ticket-types.ts`. `ADR 0161`. typecheck وlint نجاح. | `docs/evidence/architecture/PD-041-DRIVER-FINANCE-SURFACE-20260921.md` · `docs/adr/0161-pd-041-driver-finance-surface.md` · `packages/application/bots/driver-dialog.ts` · `packages/application/bots/main-menu.ts` · `packages/application/bots/types.ts` · `packages/application/financial/driver-finance-overview.ts` · `packages/domain/dispute/value-objects.ts` · `packages/shared/i18n/ar.json` · `packages/shared/i18n/en.json` · `packages/shared/i18n/ur.json` | `[~]` | `—` |
 | 2026-09-21 | `PD-053` | وكيل Perplexity Computer | أدلةُ الدعمِ وحالةُ المفقوداتِ تتبعانِ المستخدمَ عبرَ القناةِ: أمرُ `/tickets` في بوتِ الراكبِ يَعرضُ آخرَ تذاكرِ الدعمِ بمرجعِها وصنفِها وحالتِها وقرارِها — من `SupportTicketStore.listTickets` القائمِ. زرّ «تذاكري» في القائمةِ الدائمةِ. ١٦ مفتاحاً في القواميسِ الثلاثةِ (الأصنافُ والحالاتُ والقرارُ). `ADR 0162`. typecheck وlint نجاح. | `docs/evidence/architecture/PD-053-TICKET-TRACKING-20260921.md` · `docs/adr/0162-pd-053-ticket-tracking.md` · `packages/application/bots/rider-dialog.ts` · `packages/application/bots/main-menu.ts` · `apps/gateway/src/container.ts` · `packages/shared/i18n/ar.json` · `packages/shared/i18n/en.json` · `packages/shared/i18n/ur.json` | `[~]` | `—` |
 | 2026-09-21 | `PD-080` | وكيل Perplexity Computer | مواءمةُ قاموسِ أنواعِ التذاكرِ: فحصُ تكاملٍ يقارنُ `pg_enum` بـ`SUPPORT_TICKET_TYPES` في كلا الاتجاهَين — لا قيمةَ في القاعدةِ بلا مقابلٍ في الشيفرةِ ولا صنفاً في الشيفرةِ بلا قيمةٍ في القاعدةِ. ثلاثُ حالاتٍ: التطابقُ من القاعدةِ إلى الشيفرةِ، والتطابقُ من الشيفرةِ إلى القاعدةِ، والتطابقُ في العددِ والترتيبِ. سُجِّلَ في `skip-registry.ts` (١٣١ ملفّاً · ١٣١٠ حالةً). typecheck وlint نجاح. | `tests/integration/ticket-type-enum-parity.test.ts` · `scripts/lib/skip-registry.ts` · `tests/unit/skip-audit.test.ts` | `[~]` | `—` |
+| 2026-09-21 | `PD-041` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-041-DRIVER-FINANCE-SURFACE-20260921.md`. | — | `[x]` | `—` |
+| 2026-09-21 | `PD-053` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-053-TICKET-TRACKING-20260921.md`. | — | `[x]` | `—` |
+| 2026-09-21 | `PD-080` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-080-TICKET-TYPE-ENUM-PARITY-20260921.md`. | — | `[x]` | `—` |
+| 2026-09-21 | `PD-082` | وكيل Perplexity Computer | ثلاثُ جولاتٍ خضراءَ متتالياتٍ على `main` (`bca41be` · `b4eff54` · `1c9e2f6`). الدليلُ في `docs/evidence/architecture/PD-082-DISPUTE-RESOLUTION-VISIBILITY-20260921.md`. | — | `[x]` | `—` |
