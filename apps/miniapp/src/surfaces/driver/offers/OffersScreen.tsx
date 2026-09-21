@@ -324,6 +324,11 @@ export function OffersScreen({
             <li className="dof__block" key={line.id}>
               {line.labelKey === null ? "" : `${t(line.labelKey)}: `}
               {t(line.messageKey)}
+              {line.fixLabelKey === null || line.docType === null ? null : (
+                <a className="dof__block-fix" href={`#/driver/documents#${line.docType}`}>
+                  {t(line.fixLabelKey)}
+                </a>
+              )}
             </li>
           ))}
         </ul>

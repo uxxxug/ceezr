@@ -279,12 +279,27 @@ export function DocumentsScreen({
 
       {summary.blockLines.length === 0 ? null : (
         <ul className="dd__blocks" aria-label={t("driver.documents.blocksLabel")}>
-          {summary.blockLines.map((line) => (
-            <li className="dd__block" key={line.id}>
-              {line.labelKey === null ? "" : `${t(line.labelKey)}: `}
-              {t(line.messageKey)}
-            </li>
-          ))}
+          {summary.blockLines.map((line) => {
+            const fixDocType = line.docType;
+            return (
+              <li className="dd__block" key={line.id}>
+                {line.labelKey === null ? "" : `${t(line.labelKey)}: `}
+                {t(line.messageKey)}
+                {line.fixLabelKey === null || fixDocType === null ? null : (
+                  <a
+                    className="dd__block-fix"
+                    href={`#${fixDocType}`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      document.getElementById(fixDocType)?.focus();
+                    }}
+                  >
+                    {t(line.fixLabelKey)}
+                  </a>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
 
@@ -295,7 +310,7 @@ export function DocumentsScreen({
           // `badge.modifier` — تعبيراً يُحَلُّ ساكناً لحاجزِ الأنماطِ (القاعدة ٣).
           const badge = TONE_BADGE[card.tone];
           return (
-            <li className="dd__item" key={card.docType}>
+            <li className="dd__item" id={card.docType} key={card.docType} tabIndex={-1}>
               <div className="dd__item-head">
                 <span className="dd__label">{t(card.labelKey)}</span>
                 <span className={`dd__badge ${badge.modifier}`}>{t(card.statusKey)}</span>

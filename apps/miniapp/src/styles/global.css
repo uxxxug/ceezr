@@ -2736,6 +2736,13 @@ a {
   color: var(--tg-destructive-text-color, #f87171);
 }
 
+.dd__block-fix {
+  margin-inline-start: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--tg-link-color, #64a5ff);
+  cursor: pointer;
+}
+
 .dd__list {
   margin: 0;
   padding: 0;
@@ -2974,6 +2981,13 @@ a {
   font-size: 0.92rem;
   line-height: 1.65;
   color: var(--tg-destructive-text-color, #f87171);
+}
+
+.dof__block-fix {
+  margin-inline-start: 0.4rem;
+  font-size: 0.88rem;
+  color: var(--tg-link-color, #64a5ff);
+  cursor: pointer;
 }
 
 .dof__list {

@@ -145,6 +145,14 @@ export interface BlockLine {
   readonly messageKey: string;
   /** `null` = سببٌ لا يُعرَفُ نوعُ وثيقتِه في هذه النسخةِ. */
   readonly labelKey: string | null;
+  /**
+   * نوعُ الوثيقةِ الذي يُصلِحُ هذا السببَ — `null` للسببِ المجهولِ. ربطُ الحجبِ
+   * بفعلِ الإصلاحِ (`PD-081`): السطرُ نفسُهُ يُؤشِّرُ إلى البطاقةِ التي تَرفَعُ
+   * الوثيقةَ الناقصةَ، فلا يَتخطّاها السائقُ إلى الدعمِ.
+   */
+  readonly docType: ApiDriverDocumentType | null;
+  /** مفتاحُ نصِّ الفعلِ — «أصلِح» — `null` للسببِ المجهولِ. */
+  readonly fixLabelKey: string | null;
 }
 
 export function toBlockLines(
@@ -160,6 +168,8 @@ export function toBlockLines(
         ? `driver.documents.block.${reason.code}`
         : "driver.documents.block.UNKNOWN",
       labelKey: known ? `driver.documents.type.${reason.doc_type}` : null,
+      docType: known ? reason.doc_type : null,
+      fixLabelKey: known ? "driver.documents.block.fix" : null,
     });
   }
   if (unreadable > 0) {
@@ -167,6 +177,8 @@ export function toBlockLines(
       id: `UNREADABLE:${unreadable}`,
       messageKey: "driver.documents.block.UNKNOWN",
       labelKey: null,
+      docType: null,
+      fixLabelKey: null,
     });
   }
   return lines;
