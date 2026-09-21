@@ -39,14 +39,17 @@ import {
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/index.ts";
 import { createDriverDirectory } from "../../../packages/infrastructure/identity/directories.ts";
+import { createMemoryInitDataReplayGuard } from "../../../packages/infrastructure/identity/memory-init-data-replay-guard.ts";
 import { createMiniAppRefreshTokens } from "../../../packages/infrastructure/identity/miniapp-refresh.ts";
 import {
   createMiniAppSessionIssuer,
   createMiniAppSessionReader,
 } from "../../../packages/infrastructure/identity/miniapp-session.ts";
-import { createTelegramInitDataVerifier, TELEGRAM_INIT_DATA_MAX_AGE_SECONDS } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
-import { createMemoryInitDataReplayGuard } from "../../../packages/infrastructure/identity/memory-init-data-replay-guard.ts";
 import { createRedisInitDataReplayGuard } from "../../../packages/infrastructure/identity/redis-init-data-replay-guard.ts";
+import {
+  createTelegramInitDataVerifier,
+  TELEGRAM_INIT_DATA_MAX_AGE_SECONDS,
+} from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
 import { createUserNotificationCenter } from "../../../packages/infrastructure/notification/user-notification-center.ts";
 import {
