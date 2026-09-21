@@ -140,6 +140,7 @@ const SESSION: VerifiedViewerSession = {
   telegramUserId: "900000501",
   bot: "driver",
   sessionId: "s-1",
+  issuedAtSeconds: 1_000_000,
   expiresAtSeconds: 4_000_000_000,
 };
 

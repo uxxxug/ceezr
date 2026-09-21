@@ -134,6 +134,14 @@ export interface MiniAppSessionRenewalGrant {
   /** معرّفُ الجلسةِ — يبقى نفسَه عبرَ كلِّ تجديد: التجديدُ لا يُنشئ جلسةً جديدة. */
   readonly sessionId: string;
   readonly absoluteExpiresAtSeconds: number;
+  /**
+   * لحظةُ **بدءِ الجلسةِ** (تسجيلِ الدخولِ الأوّلِ) بالثواني — ثابتةٌ عبرَ كلِّ
+   * تجديدٍ، تُحسَبُ من السقفِ المطلقِ ناقصَ عمرِه في طبقةِ البنيةِ التي تملِكُ
+   * الثابتَ. وتُكشَفُ لأنَّ عتبةَ إبطالِ المستخدمِ (`SEC-18-ب`) تُقاسُ ببدءِ
+   * الجلسةِ لا بـ`iat` رمزِ التجديدِ — إذ التجديدُ يُدوِّرُ الرمزَ فيتجدَّدُ
+   * `iat`، فلو قِيسَت بهِ لأفلتَت جلسةٌ مُبطَلةٌ بتجديدٍ واحدٍ.
+   */
+  readonly startedAtSeconds: number;
   /** عدّادُ التجديد — للسجلِّ المصنَّفِ لا للإبطال (لا إبطالَ بلا حالةٍ على الخادم). */
   readonly generation: number;
 }
@@ -236,6 +244,13 @@ export interface VerifiedViewerSession {
   readonly telegramUserId: string;
   readonly bot: string;
   readonly sessionId: string;
+  /**
+   * لحظةُ إصدارِ **هذا الرمزِ** (`iat`). يُكشَفُ لأنَّ الإبطالَ من اللوحةِ يستهدفُ
+   * **مستخدماً** لا `jti` (`SEC-18-ب`): فتُقارَنُ هذه اللحظةُ بعتبةِ إبطالِ
+   * المستخدمِ. والتجديدُ يُبقي `jti` ويُحدِّثُ `iat`، فبلا هذا الحقلِ لا تُقاسُ
+   * العتبةُ أصلاً.
+   */
+  readonly issuedAtSeconds: number;
   readonly expiresAtSeconds: number;
 }
 
@@ -347,6 +362,34 @@ export interface SessionRevocationStore {
    */
   revoke(
     sessionId: string,
+    ttlSeconds: number,
+    reason: string,
+  ): Promise<Result<true, RevocationStoreFailure>>;
+
+  /**
+   * عتبةُ إبطالِ **كلِّ جلساتِ مستخدمٍ** (`not-before`) بالمللي ثانية، أو `null`
+   * إن لم تُضرَب عتبةٌ. تُستشارُ بعدَ قائمةِ المنعِ بـ`jti` ولا تُبدِلُها.
+   *
+   * ولِمَ عتبةٌ لا سجلُّ جلساتٍ: الإداريُّ يعرفُ **مستخدماً** لا `jti`، ولا سجلَّ
+   * جلساتٍ قائمٌ يُعَدُّ منه — وبناؤهُ يقتضي ربطَ **الإصدارِ** بالمخزنِ وجعلَ
+   * `issue()` غيرَ متزامنٍ، وذاكَ يمسُّ حاجزَ عزلِ الاستغاثةِ (`ADR 0077`).
+   * والعتبةُ تُغلِقُ الجلساتَ القائمةَ **وسلاسلَ تجديدِها** بكتابةٍ واحدةٍ.
+   */
+  revokedAtMsForUser(
+    telegramUserId: string,
+  ): Promise<Result<number | null, RevocationStoreFailure>>;
+
+  /**
+   * ضربُ عتبةِ إبطالٍ لكلِّ جلساتِ مستخدمٍ عندَ `atMs`. يُستدعى من مسارِ اللوحةِ
+   * معَ سببٍ مسجَّلٍ. والعمرُ يُغطّي السقفَ المطلقَ للجلسةِ: بعدَهُ لا جلسةَ أقدمَ
+   * منَ العتبةِ باقيةً، فلا معنى لحفظِها.
+   *
+   * **ولا يمنعُ تسجيلَ دخولٍ جديدٍ**: رمزٌ يُصدَرُ بعدَ العتبةِ مقبولٌ — والمنعُ
+   * الدائمُ شأنُ `users.is_blocked` لا هذا المخزنِ.
+   */
+  revokeAllForUser(
+    telegramUserId: string,
+    atMs: number,
     ttlSeconds: number,
     reason: string,
   ): Promise<Result<true, RevocationStoreFailure>>;

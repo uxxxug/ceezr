@@ -151,6 +151,38 @@ export async function renewMiniAppSession(
     });
   }
 
+  /*
+   * عتبةُ إبطالِ المستخدمِ (`SEC-18-ب`) — **وهاهنا موضِعُ وجوبِها لا تحسينِها**:
+   * التجديدُ يسكُّ رمزَ وصولٍ بـ`iat` لحظيٍّ، فلو فُحِصَ القارئُ وحدَهُ لأفلتَ منِ
+   * العتبةِ بتجديدٍ واحدٍ — فصارَ الإبطالُ تأخيرَ دقائقَ لا إبطالاً.
+   *
+   * والمقاسُ **بدءُ الجلسةِ** لا `iat` رمزِ التجديدِ (وهو مُدوَّرٌ)، فجلسةٌ بدأتْ
+   * قبلَ العتبةِ لا تُجدَّدُ، وتسجيلُ دخولٍ جديدٌ بعدَها يُجدَّدُ بلا مانعٍ.
+   */
+  const userRevokedAtMs = await deps.revocation.revokedAtMsForUser(read.value.telegramUserId);
+  if (!userRevokedAtMs.ok) {
+    deps.log?.("session.renew_revocation_store_unavailable", {
+      sessionId: read.value.sessionId,
+      detail: userRevokedAtMs.error.detail,
+    });
+    return err({
+      code: "SESSION_ISSUE_FAILED",
+      reason: "NOT_CONFIGURED",
+      publicCode: "SESSION_NOT_AVAILABLE",
+    });
+  }
+  if (
+    userRevokedAtMs.value !== null &&
+    read.value.startedAtSeconds * 1000 < userRevokedAtMs.value
+  ) {
+    deps.log?.("session.renew_revoked_user", { sessionId: read.value.sessionId });
+    return err({
+      code: "REFRESH_TOKEN_REJECTED",
+      reason: "MALFORMED",
+      publicCode: "REFRESH_TOKEN_REJECTED",
+    });
+  }
+
   const nextRefresh = deps.refresh.issueForRenewal(read.value, nowMs);
   if (!nextRefresh.ok) {
     deps.log?.("session.renew_refresh_issue_failed", { reason: nextRefresh.error.reason });

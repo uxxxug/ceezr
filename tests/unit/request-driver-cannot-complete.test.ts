@@ -23,6 +23,7 @@ const SESSION: MiniAppSessionReader = {
       telegramUserId: "7001",
       bot: "rider",
       sessionId: "session-1",
+      issuedAtSeconds: 1_000_000,
       expiresAtSeconds: 1_000_000_000,
     }),
   readSync: () =>
@@ -30,6 +31,7 @@ const SESSION: MiniAppSessionReader = {
       telegramUserId: "7001",
       bot: "rider",
       sessionId: "session-1",
+      issuedAtSeconds: 1_000_000,
       expiresAtSeconds: 1_000_000_000,
     }),
 };

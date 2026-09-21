@@ -19,8 +19,16 @@ interface RevokedEntry {
   readonly reason: string;
 }
 
+interface UserEpochEntry {
+  readonly revokedAtMs: number;
+  readonly expiresAtMs: number;
+  readonly reason: string;
+}
+
 export function createMemorySessionRevocationStore(): SessionRevocationStore {
   const store = new Map<string, RevokedEntry>();
+  /** عتباتُ إبطالِ المستخدمينَ (`SEC-18-ب`) — منفصلةٌ عن قائمةِ منعِ `jti`. */
+  const userEpochs = new Map<string, UserEpochEntry>();
 
   function cleanup(nowMs: number): void {
     for (const [key, entry] of store) {
@@ -50,6 +58,43 @@ export function createMemorySessionRevocationStore(): SessionRevocationStore {
     ): Promise<Result<true, RevocationStoreFailure>> {
       const ttl = Math.max(1, Math.ceil(ttlSeconds));
       store.set(sessionId, {
+        expiresAtMs: Date.now() + ttl * 1000,
+        reason,
+      });
+      return ok(true);
+    },
+
+    async revokedAtMsForUser(
+      telegramUserId: string,
+    ): Promise<Result<number | null, RevocationStoreFailure>> {
+      const nowMs = Date.now();
+      const entry = userEpochs.get(telegramUserId);
+      if (entry === undefined) return ok(null);
+      if (entry.expiresAtMs <= nowMs) {
+        userEpochs.delete(telegramUserId);
+        return ok(null);
+      }
+      return ok(entry.revokedAtMs);
+    },
+
+    async revokeAllForUser(
+      telegramUserId: string,
+      atMs: number,
+      ttlSeconds: number,
+      reason: string,
+    ): Promise<Result<true, RevocationStoreFailure>> {
+      const ttl = Math.max(1, Math.ceil(ttlSeconds));
+      /*
+       * عتبةٌ أحدثُ لا تُدهَسُ بأقدمَ: الإبطالُ لا يُنقَضُ بطلبٍ متأخِّرٍ حملَ
+       * لحظةً أسبقَ. والاختيارُ صريحٌ ههنا لأنَّ الذاكرةَ تسمحُ بهِ بلا كلفةٍ.
+       */
+      const existing = userEpochs.get(telegramUserId);
+      const revokedAtMs =
+        existing !== undefined && existing.expiresAtMs > Date.now()
+          ? Math.max(existing.revokedAtMs, Math.floor(atMs))
+          : Math.floor(atMs);
+      userEpochs.set(telegramUserId, {
+        revokedAtMs,
         expiresAtMs: Date.now() + ttl * 1000,
         reason,
       });

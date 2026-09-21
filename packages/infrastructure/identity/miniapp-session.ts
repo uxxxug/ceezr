@@ -253,6 +253,7 @@ export function createMiniAppSessionReader(secret: string): MiniAppSessionReader
       telegramUserId: read.value.telegramUserId,
       bot: read.value.bot,
       sessionId: read.value.sessionId,
+      issuedAtSeconds: read.value.issuedAtSeconds,
       expiresAtSeconds: read.value.expiresAtSeconds,
     });
   };
