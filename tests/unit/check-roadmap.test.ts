@@ -10,6 +10,7 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { execFileSync } from "node:child_process";
 
 import {
   evaluateRoadmapFreshness,
@@ -87,25 +88,74 @@ describe("حلُّ المدى — العطبُ الذي كانَ يُخرِجُ 
     const r = resolveRange(undefined, undefined, { BASE_SHA: "   ", HEAD_SHA: "HEAD" });
     expect(typeof r === "string" ? r : r.base).not.toBe("");
   });
+});
 
-  /**
-   * الرجوعُ إلى أصلِ الفرعِ من `main` — وهوَ ما يفعلُه جارُه في سيرِ العملِ
-   * نفسِه (`ADR 0090`). ويُقاسُ على المستودعِ الحقيقيِّ: أساسٌ مُحَلٌّ إلى عقدةٍ.
-   */
-  it("لا `BASE_SHA` ⇒ يُرجَعُ إلى أصلِ الفرعِ من `main` لا إلى التخطّي", () => {
-    const r = resolveRange(undefined, undefined, { HEAD_SHA: "HEAD" });
+/**
+ * هل مرجعُ `main` موجودٌ في هذه النسخةِ؟
+ *
+ * **وهذا السؤالُ نفسُه نتيجةُ قياسٍ لا احتياطٌ نظريٌّ**: أوّلُ صيغةٍ لهذَينِ
+ * الاختبارَينِ سقطت في وظيفةِ `verify` على CI، إذ نسختُها لا تحملُ مرجعَ `main`،
+ * فلا أصلَ يُرجَعُ إليه. **والعطبُ كانَ في الاختبارِ لا في الحاجزِ**: توكيدٌ
+ * يفترضُ بيئةً ويُقرأُ دعوى عن منطقٍ.
+ *
+ * **والدرسُ يُسجَّلُ**: رجوعُ الحاجزِ إلى `main` **مشروطٌ بعُمقِ النسخةِ**، وسيرُ
+ * عملِ `roadmap` يضبطُ `fetch-depth: 0` فيتحقّقُ الشرطُ ثمَّةَ — **ولا يُقالُ إنَّ
+ * الرجوعَ يعملُ في كلِّ نسخةٍ**.
+ */
+function mainIsReachable(): boolean {
+  try {
+    execFileSync("git", ["rev-parse", "--verify", "origin/main"], { stdio: "ignore" });
+    return true;
+  } catch {
+    /* يُجرَّبُ المحلّيُّ */
+  }
+  try {
+    execFileSync("git", ["rev-parse", "--verify", "main"], { stdio: "ignore" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * العقدُ **كليٌّ ولا فرعَ فيه يمرُّ فراغاً**: إمّا مدىً بأساسٍ من أربعينَ خانةً،
+ * وإمّا **سببٌ مكتوبٌ**. والمنهيُّ عنه ثالثٌ: مدىً صامتٌ أو استثناءٌ أو أصفارٌ.
+ */
+function expectTotalVerdict(r: ReturnType<typeof resolveRange>): void {
+  if (mainIsReachable()) {
     expect(typeof r).not.toBe("string");
-    if (typeof r !== "string") expect(r.base).toMatch(/^[0-9a-f]{40}$/);
+    if (typeof r !== "string") {
+      expect(r.base).toMatch(/^[0-9a-f]{40}$/);
+      expect(r.base).not.toBe(ZERO_SHA);
+    }
+    return;
+  }
+  expect(typeof r).toBe("string");
+  if (typeof r === "string") expect(r).toContain("No range resolves");
+}
+
+describe("حلُّ المدى — الرجوعُ إلى الأصلِ، بعقدٍ كليٍّ", () => {
+  it("لا `BASE_SHA` ⇒ أصلٌ من `main` إن أمكنَ، وإلّا سببٌ مكتوبٌ — لا تخطٍّ ألبتَّةَ", () => {
+    expectTotalVerdict(resolveRange(undefined, undefined, { HEAD_SHA: "HEAD" }));
   });
 
-  it("‏`BASE_SHA` لعقدةٍ لا وجودَ لها ⇒ يُرجَعُ إلى الأصلِ لا يُرمى استثناءٌ", () => {
-    const r = resolveRange(undefined, undefined, {
-      BASE_SHA: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
-      HEAD_SHA: "HEAD",
-    });
-    expect(typeof r).not.toBe("string");
+  it("‏`BASE_SHA` لعقدةٍ لا وجودَ لها ⇒ لا يُرمى استثناءٌ، والعقدُ قائمٌ", () => {
+    expectTotalVerdict(
+      resolveRange(undefined, undefined, {
+        BASE_SHA: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        HEAD_SHA: "HEAD",
+      }),
+    );
   });
 
+  it("والأصفارُ كذلكَ: لا تُقبَلُ أساساً ولا تُنتِجُ تخطّياً", () => {
+    const r = resolveRange(undefined, undefined, { BASE_SHA: ZERO_SHA, HEAD_SHA: "HEAD" });
+    if (typeof r !== "string") expect(r.base).not.toBe(ZERO_SHA);
+    expectTotalVerdict(r);
+  });
+});
+
+describe("حلُّ المدى — بقيّةُ الأحكامِ", () => {
   it("رأسٌ لا يُحَلُّ ⇒ **سببٌ مكتوبٌ** لا مدىً صامتٌ", () => {
     const r = resolveRange(undefined, undefined, { HEAD_SHA: "refs/heads/لا-وجود-له-قطعاً" });
     expect(typeof r).toBe("string");
