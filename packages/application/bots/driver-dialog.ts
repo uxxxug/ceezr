@@ -920,6 +920,16 @@ async function handleCommand(
     }
 
     /**
+     * PD-041 — `/finance`: المركزُ الماليُّ للسائقِ في بطاقةٍ واحدةٍ.
+     * يَعرضُ الاشتراكَ + المحفظةَ + الاعتراضَ الماليَّ + الاستردادَ.
+     * `/subscription` ما زال يعمل للتوافق — لكنّ الزرّ الدائمَ صار `/finance`.
+     */
+    case "/finance": {
+      if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+      return describeFinanceCenter(sender, state, driver, deps);
+    }
+
+    /**
      * المرحلة ١٢ — `/trip`: أين أنا، وإلى أين، وكم بقي.
      *
      * قبله كان `/trip` و`/mytrip` و`/route` و`/map` كلّها تردّ «لم أفهم هذه
@@ -1415,6 +1425,92 @@ async function handleUpgradeButton(
   ];
 }
 
+/**
+ * PD-041 — المركزُ الماليُّ للسائقِ: بطاقةٌ واحدةٌ تَعرضُ الاشتراكَ والمحفظةَ
+ * والاعتراضَ الماليَّ والاستردادَ. لا تُنشئُ شيئًا — تَقرأُ ما هو قائمٌ.
+ */
+async function describeFinanceCenter(
+  sender: Sender,
+  state: DialogState,
+  driver: DriverProfile,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+
+  const found = await deps.subscriptions.findLive(driver.id);
+  if (!found.ok) return technicalFailure(sender, state);
+
+  const subscription = found.value;
+  const settings = await citySettingsOf(deps, driver);
+  if (settings === null) return technicalFailure(sender, state);
+
+  const rows: { readonly label: string; readonly data: string }[][] = [];
+
+  // الاشتراك: زرٌّ يَفتحُ تفاصيلَ الاشتراكِ القائمةَ (مسار `sub:`).
+  rows.push([{ label: tr("driver.finance_subscription_button"), data: "fin:subscription" }]);
+
+  // الاعتراضُ الماليّ: زرٌّ يَفتحُ تذكرةَ خصمٍ.
+  rows.push([{ label: tr("driver.finance_objection_button"), data: "fin:objection" }]);
+
+  const subscriptionLine =
+    subscription !== null && isSubscriptionLive(subscription, deps.clock.now())
+      ? tr("driver.finance_subscription_active", {
+          plan: subscription.plan,
+          until: subscription.currentPeriodEnd !== null ? dayOf(subscription.currentPeriodEnd) : "",
+        })
+      : tr("driver.finance_subscription_inactive");
+
+  const currencyLine = tr("driver.finance_currency", { currency: settings.currency });
+
+  return [
+    reply(
+      sender,
+      tr("driver.finance_center", {
+        subscription: subscriptionLine,
+        currency: currencyLine,
+      }),
+      { kind: "inline", rows },
+    ),
+  ];
+}
+
+/**
+ * PD-041 — مُعالِجُ أزرارِ المركزِ الماليّ: `fin:subscription` يَعرضُ الاشتراكَ،
+ * و`fin:objection` يَفتحُ اعتراضًا ماليًّا (تذكرةَ خصمٍ).
+ */
+async function handleFinanceCallback(
+  parts: readonly string[],
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const [action] = parts;
+
+  const found = await deps.drivers.findByTelegramId(sender.telegramUserId);
+  if (!found.ok) return technicalFailure(sender, state);
+  const driver = found.value;
+  if (driver === null) return [reply(sender, tr("driver.must_register_first"))];
+
+  if (action === "subscription") {
+    return describeSubscription(sender, state, driver, deps);
+  }
+
+  if (action === "objection") {
+    // فتحُ تذكرةِ خصمٍ عبر مسارِ الدعمِ القائمِ: نُحدِّدُ الصنفَ ونَطلبُ الرسالةَ.
+    if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
+    const saved = await deps.sessions.save(sender.telegramUserId, {
+      ...state,
+      step: "awaiting_support_message",
+      draftSupportType: "deduction",
+    });
+    if (!saved.ok) return [reply(sender, tr("common.error_try_again"))];
+    return [reply(sender, tr("driver.finance_objection_prompt"))];
+  }
+
+  return [reply(sender, tr("common.unknown_command"))];
+}
+
 async function describeSubscription(
   sender: Sender,
   state: DialogState,
@@ -1726,6 +1822,12 @@ async function handleCallback(
     // تغييرات الاشتراك: الإلغاء والتراجع عنه والترقية — أمر المالك 2026-08-12.
     case "sub":
       return handleSubscriptionChange(rest, sender, state, deps);
+    /**
+     * PD-041 — `fin:` المركزُ الماليُّ للسائقِ: عرضُ البطاقةِ الماليّةِ الكاملةِ،
+     * وفتحُ الاعتراضِ الماليّ، وعرضُ الاشتراكِ من السطحِ نفسِه.
+     */
+    case "fin":
+      return handleFinanceCallback(rest, sender, state, deps);
     case "sup": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
       const [action, ...tail] = rest;

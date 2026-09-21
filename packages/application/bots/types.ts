@@ -272,7 +272,7 @@ export interface DialogState {
   /** وجهة محفوظة بين خطوتين — يحتاجها التوصيل لأن وصف الطرد يأتي بعدها. */
   readonly draftDropoff: Coordinates | null;
   /** نوع تذكرة الدعم المختار، محفوظاً حتى تصل رسالة الشكوى. */
-  readonly draftSupportType: "subscription" | "ride_dispute" | null;
+  readonly draftSupportType: "subscription" | "ride_dispute" | "deduction" | null;
   /**
    * مسوّدة الملفّ التوثيقي. تُجمَع في الجلسة ولا تُكتب في القاعدة إلا مكتملة:
    * سائقٌ يتوقّف في منتصف التسجيل لا يجوز أن يترك صفّاً نصف موثَّق يظنّه
