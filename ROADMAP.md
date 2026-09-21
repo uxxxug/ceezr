@@ -8254,3 +8254,42 @@ every push must move a roadmap, and an unreadable range fails.
 its sibling was read and found already sound, which is why it was copied), and past
 green `roadmap` verdicts are **not deleted** from evidence files (`ح-8`) — they are
 read for what they were: green meaning "I did not look".
+
+## Owner step 8 — service area with real drivers, recorded 2026-09-21 (additive)
+
+`ADR 0168` · `docs/evidence/correctness/STEP8-CITY-ACTIVE-GATE-20260921.md`.
+
+**Most of step 8 was already built, and reading the repo proved it before any code
+was written.** Geographic boundary: `city_service_areas` holds a versioned,
+sourced `MultiPolygon` and `request_ride` tests the origin with `st_covers`. Real
+drivers: `city_served_services()` already requires a `verified` driver with a
+`trialing`/`active` subscription and an enabled capability, else
+`SERVICE_NOT_AVAILABLE_IN_CITY`. Dispatch groups: `cities_active_requires_groups`
+forbids activating a city before all three Telegram groups are attached. **No
+weaker duplicate of any of these was added.**
+
+**One real hole remained.** `request_ride()` never read `cities.is_active`. The
+constraint forbids *activating* a city without groups; it does not forbid *ordering*
+in a city that was never activated — **a constraint on a column, a door with no
+constraint.** So a city that was never opened, or was deliberately closed, accepted
+orders as long as one service-area row and one verified driver survived — into
+support and escalation groups that do not exist. The driver side was already
+stricter: `start_trial` has returned `CITY_NOT_ACTIVE` since `PD-040`. **Two doors
+were giving two different answers about one fact.**
+
+Fixed with one judgment: `cities.is_active is not true` ⇒ `CITY_NOT_ACTIVE`, reusing
+the driver side's existing code rather than inventing a second name for one meaning.
+It is read **after** the idempotency lookup on purpose: a replay deserves its first
+answer even if the city closed since, otherwise a refusal denies an order that
+actually executed.
+
+**Measured, not asserted.** On a real PostGIS database in a rolled-back transaction:
+active city ⇒ accepted; same city closed ⇒ `CITY_NOT_ACTIVE`; replay after closing ⇒
+the original order; rows written by the refusal ⇒ none. **And the counterfactual: the
+previous function, same seed, same closed city, same call ⇒ accepted.** The
+difference is the function alone.
+
+**Not claimed:** that every other door reads `cities.is_active` — only the order and
+trial doors were measured — and **not** that step 8 is operationally done. Choosing
+the first city and entering its boundary and groups is an owner action. What is done
+here is that the code **no longer lies** if it is not.

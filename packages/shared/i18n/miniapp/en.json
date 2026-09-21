@@ -955,6 +955,7 @@
   "rider.search.refresh": "Refresh now",
   "rider.search.refreshing": "Reading…",
   "rider.search.refused.activeRide": "You already have an open ride; a second one is not created before it ends.",
+  "rider.search.refused.cityNotActive": "Waslah is not open in your city yet.",
   "rider.search.refused.destinationOutside": "Your destination is outside the service area.",
   "rider.search.refused.invalidPoint": "The coordinates are not valid.",
   "rider.search.refused.keyRequired": "The request could not be sent: its key is missing.",
