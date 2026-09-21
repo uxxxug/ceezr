@@ -4,8 +4,9 @@
  * الحالة: منفّذ فعلياً — المرحلة 2.7 (القسم د.1).
  * ينتمي إلى: apps/admin-dashboard/pages
  * يُتوقع أن يستخدمه لاحقاً: apps/gateway/src/routes/admin-ui.ts
- * ملاحظات مستقبلية: الحلّ والاستلام يبقيان في قروب الدعم على تلغرام عمداً: مسار
- *   واحد للحسم يمنع تذكرة يستلمها اثنان من بابين مختلفين.
+ * ملاحظات مستقبلية: الاستلام يبقى في قروب الدعم على تلغرام عمداً: مسارٌ واحد
+ *   للاستلام يمنع تذكرة يستلمها اثنان من بابين مختلفين. أمّا الحلُّ فمبرّرُه
+ *   ظاهرٌ ههنا (`PD-082`) — لا لِيُحلَّ من اللوحةِ بل ليُقرأَ مَن حلَّ ولماذا.
  */
 
 import { EMPTY_CELL, formatAge, formatDateTime, formatNumber, shortId } from "../format.ts";
@@ -25,6 +26,18 @@ export interface DisputeRow {
   readonly message: string;
   readonly claimedByName: string | null;
   readonly claimedAt: string | null;
+  /**
+   * من حلَّ التذكرة ومتى — ظاهرانِ من لوحةِ العملِ بلا رجوعٍ إلى قروبٍ (`PD-082`).
+   * مَن حلَّ قد يكونُ غيرَ مَن استلمَ: الاستلامُ نقلُ المسؤوليّةِ والحلُّ قرارٌ.
+   * `null` ما لم تُحسَمِ التذكرةُ بعدُ.
+   */
+  readonly resolvedByName: string | null;
+  readonly resolvedAt: string | null;
+  /**
+   * مبرّرُ الحلِّ — نصٌّ كتبَهُ مَن حسمَ التذكرةَ. ظاهرٌ من اللوحةِ بلا رجوعٍ إلى
+   * قروبِ الدعمِ (`PD-082`). `null` حين لا يُوجدُ أو حينَ رُفضَتِ التذكرةُ بلا تعليلٍ.
+   */
+  readonly resolutionNote: string | null;
   /**
    * اقتراح طبقة الذكاء الاصطناعي على هذه التذكرة، إن وُجد. **قراءةٌ فقط**: لا زرّ
    * هنا ولا مسار حسم — الحلّ والاستلام يبقيان في قروب الدعم كما هما، والسقف
@@ -137,6 +150,15 @@ export function renderDisputesPage(data: DisputesPageData): string {
       ? EMPTY_CELL
       : `<div>${escapeHtml(row.claimedByName)}</div>
          <div class="card-hint">${escapeHtml(formatDateTime(row.claimedAt))}</div>`,
+    row.resolvedByName === null
+      ? EMPTY_CELL
+      : `<div>${escapeHtml(row.resolvedByName)}</div>
+         <div class="card-hint">${escapeHtml(formatDateTime(row.resolvedAt))}</div>
+         ${
+           row.resolutionNote === null
+             ? ""
+             : `<div class="card-hint">${escapeHtml(row.resolutionNote)}</div>`
+}`,
     renderAdvice(row),
     row.status === "open"
       ? badge(formatAge(row.createdAt, data.now), "bad")
@@ -171,6 +193,7 @@ ${section(
       "الطلب",
       "النصّ",
       "المستلِم",
+      "الحلّ",
       "اقتراح الطبقة",
       "العمر",
     ],
@@ -178,6 +201,7 @@ ${section(
     emptyText: "لا تذكرة تطابق هذا الفلتر.",
   }),
   `الأقدم أولاً — آخر ${formatNumber(data.limit)} تذكرة كحدّ أقصى. ` +
-    `عمود «اقتراح الطبقة» للقراءة فقط: الحسم يبقى في قروب الدعم.`,
+    `عمودا «الحلّ» و«اقتراح الطبقة» للقراءة فقط: الحسم يبقى في قروب الدعم، ` +
+    `ومبرّرُه ظاهرٌ ههنا (PD-082).`,
 )}`;
 }

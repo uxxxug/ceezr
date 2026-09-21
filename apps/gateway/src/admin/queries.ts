@@ -1340,6 +1340,9 @@ export async function listDisputes(
       message: string;
       claimed_by_name: string | null;
       claimed_at: string | null;
+      resolved_by_name: string | null;
+      resolved_at: string | null;
+      resolution_note: string | null;
       agent_suggestion: string | null;
       agent_classification: string | null;
       agent_confidence: string | null;
@@ -1352,6 +1355,8 @@ export async function listDisputes(
            coalesce(du.telegram_id, ru.telegram_id)::text as party_telegram_id,
            t.order_id, t.message,
            cu.full_name as claimed_by_name, t.claimed_at,
+           ru2.full_name as resolved_by_name, t.resolved_at,
+           t.resolution as resolution_note,
            ad.recommended_action as agent_suggestion,
            ad.classification as agent_classification,
            ad.confidence::text as agent_confidence
@@ -1362,6 +1367,7 @@ export async function listDisputes(
     left join riders r on r.id = t.rider_id
     left join users ru on ru.id = r.user_id
     left join users cu on cu.id = t.claimed_by_user_id
+    left join users ru2 on ru2.id = t.resolved_by_user_id
     -- الاقتراح المنشور لهذه التذكرة — lateral لأن المطلوب أحدث قرار واحد لا
     -- صفّ لكل قرار: الربط المباشر كان يُكرّر التذكرة مرّتين لو أُعيد تقييمها يوماً.
     -- وشرط published مقصود: قرارٌ لم يره الدعم في القروب لا يُعرض هنا كأنّه معروض.
@@ -1396,6 +1402,9 @@ export async function listDisputes(
     message: row.message,
     claimedByName: row.claimed_by_name,
     claimedAt: row.claimed_at === null ? null : String(row.claimed_at),
+    resolvedByName: row.resolved_by_name,
+    resolvedAt: row.resolved_at === null ? null : String(row.resolved_at),
+    resolutionNote: row.resolution_note,
     agentSuggestion: row.agent_suggestion,
     agentClassification: row.agent_classification,
     // `numeric` يصل نصّاً من المُشغّل حفاظاً على الدقة؛ التحويل هنا لأن العرض نسبة مئوية.
