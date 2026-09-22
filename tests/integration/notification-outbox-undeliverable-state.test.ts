@@ -66,15 +66,16 @@ describeIf("حالةُ «غيرُ قابلٍ للتسليمِ» في notificatio
     const userId = user[0]?.id as string;
 
     const rider = await sql<{ id: string }[]>`
-      insert into riders (city_id, user_id, full_name, phone)
-      values (${cityId}::uuid, ${userId}::uuid, ${MARK}, ${MARK})
+      insert into riders (city_id, user_id)
+      values (${cityId}::uuid, ${userId}::uuid)
       returning id
     `;
     const riderId = rider[0]?.id as string;
 
     const order = await sql<{ id: string }[]>`
-      insert into orders (city_id, rider_id, service, status, created_at)
-      values (${cityId}::uuid, ${riderId}::uuid, 'delivery', 'pending', now())
+      insert into orders (city_id, rider_id, service, status, pickup)
+      values (${cityId}::uuid, ${riderId}::uuid, 'delivery', 'pending',
+              st_setsrid(st_makepoint(0, 0), 4326))
       returning id
     `;
     orderId = order[0]?.id as string;
@@ -87,8 +88,8 @@ describeIf("حالةُ «غيرُ قابلٍ للتسليمِ» في notificatio
     const driverUserId = driverUser[0]?.id as string;
 
     const driver = await sql<{ id: string }[]>`
-      insert into drivers (city_id, user_id, full_name, phone, verification_status)
-      values (${cityId}::uuid, ${driverUserId}::uuid, ${`${MARK}-driver`}, ${MARK}, 'approved')
+      insert into drivers (city_id, user_id, verification_status)
+      values (${cityId}::uuid, ${driverUserId}::uuid, 'approved')
       returning id
     `;
     driverId = driver[0]?.id as string;
