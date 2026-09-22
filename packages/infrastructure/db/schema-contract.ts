@@ -98,6 +98,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "location_archive_due_days",
   "mark_escalation_delivered",
   "mark_notification_read",
+  "mark_notification_undeliverable",
   "open_admin_session",
   "open_offer_round",
   "open_support_ticket",
