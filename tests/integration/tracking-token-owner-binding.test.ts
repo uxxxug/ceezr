@@ -120,12 +120,14 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
     const token = mint.mint();
     const result = await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token);
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.ok).toBe(true);
 
-    const rows = await sql<{ created_by: number; created_by_user_id: string }[]>`
+    const rows = await sql<{ created_by: string; created_by_user_id: string }[]>`
       select created_by, created_by_user_id from trip_tracking_tokens where token = ${token}
     `;
     expect(rows.length).toBe(1);
-    expect(rows[0]?.created_by).toBe(RIDER_TELEGRAM);
+    expect(Number(rows[0]?.created_by)).toBe(RIDER_TELEGRAM);
     expect(rows[0]?.created_by_user_id).not.toBeNull();
   });
 
@@ -135,16 +137,26 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
 
     const token1 = mint.mint();
     const token2 = mint.mint();
-    await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token1);
-    await tokens.issue(otherOrderId as OrderId, OTHER_TELEGRAM, token2);
+    const issue1 = await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token1);
+    expect(issue1.ok).toBe(true);
+    if (!issue1.ok) return;
+    expect(issue1.value.ok).toBe(true);
+    const issue2 = await tokens.issue(otherOrderId as OrderId, OTHER_TELEGRAM, token2);
+    expect(issue2.ok).toBe(true);
+    if (!issue2.ok) return;
+    expect(issue2.value.ok).toBe(true);
 
     // المالكُ يُلغي رمزَه
     const revokeOk = await tokens.revoke(token1, RIDER_TELEGRAM);
     expect(revokeOk.ok).toBe(true);
+    if (!revokeOk.ok) return;
+    expect(revokeOk.value).toBe(true);
 
     // غيرُ المالكِ لا يُلغي رمزَ غيره
     const revokeFail = await tokens.revoke(token2, RIDER_TELEGRAM);
-    expect(revokeFail.ok).toBe(false);
+    expect(revokeFail.ok).toBe(true);
+    if (!revokeFail.ok) return;
+    expect(revokeFail.value).toBe(false);
 
     // رمزُ المالكِ مُلغى، ورمزُ غيره لم يُمسَّ
     const rows = await sql<{ token: string; revoked_at: string | null }[]>`
@@ -159,7 +171,10 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
   it("التجهيلُ يَحذُفُ رموزَ التتبُّعِ بـ`created_by_user_id`", async () => {
     const { orderId, userId } = await seedRiderAndOrder(sql, RIDER_TELEGRAM, cityId);
     const token = mint.mint();
-    await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token);
+    const issueResult = await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token);
+    expect(issueResult.ok).toBe(true);
+    if (!issueResult.ok) return;
+    expect(issueResult.value.ok).toBe(true);
 
     // قبلَ التجهيلِ: الرمزُ موجودٌ
     const before = await sql<{ count: number }[]>`

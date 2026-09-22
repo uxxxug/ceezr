@@ -1390,6 +1390,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/tracking-token-owner-binding.test.ts",
+    suites: ["SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت ربطَ `trip_tracking_tokens.created_by_user_id` بـ`users.id` على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة — لا يُثبَتُ ببديلٍ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/trial-lifecycle.test.ts",
     suites: ["دورةُ الشهر المجاني للسائق على قاعدة حقيقية"],
     skipped: 10,
