@@ -74,7 +74,7 @@ describeIf("حالةُ «غيرُ قابلٍ للتسليمِ» في notificatio
 
     const order = await sql<{ id: string }[]>`
       insert into orders (city_id, rider_id, service, status, pickup)
-      values (${cityId}::uuid, ${riderId}::uuid, 'delivery', 'pending',
+      values (${cityId}::uuid, ${riderId}::uuid, 'delivery', 'searching',
               st_setsrid(st_makepoint(0, 0), 4326))
       returning id
     `;
