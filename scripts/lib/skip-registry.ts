@@ -2150,4 +2150,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "فعلُ تعذُّرِ الإكمالِ على PostgreSQL حقيقيّة (PD-020)",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/notification-outbox-undeliverable-state.test.ts",
+    suites: ["حالةُ «غيرُ قابلٍ للتسليمِ» في notification_outbox (SEC-19-ب-٢)"],
+    skipped: 10,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى أنَّ حالةَ `undeliverable` الجديدةَ تُفصلُ صراحةً بينَ «لا قناةَ» و«فشلَ بعدَ محاولاتٍ» في `notification_outbox`: القيدُ المنشورُ يقبلُها، و`undeliverable` بلا `died_at`/`dead_reason` يُرفَضُ، وسببٌ خارجَ القائمةِ المغلقةِ يُرفَضُ، و`dead` القديمُ لا يزالُ يلزمُه `died_at`/`dead_reason` (لا انحدارَ)، و`in_app_only` تبقى صالحةً بلا `dead_reason` (لا خلطَ سياسةٍ بتعذُّرٍ). والقيودُ الثلاثةُ تُقاسُ من `pg_constraint` لا من ملفِّ الهجرةِ. **ولا يُدَّعى**: لا مسلكَ إرسالٍ حُصِّنَ — الحالةُ تُتيحُ الإعلانَ لا تُنفِّذُه. والقياسُ على PostgreSQL حقيقيٍّ لا على مُزدوجٍ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة (ومنها 20260922040000 للحالةِ الجديدةِ) وبها مدينةٌ واحدةٌ على الأقلِّ. يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;
