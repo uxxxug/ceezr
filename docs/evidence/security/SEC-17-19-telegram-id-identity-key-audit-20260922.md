@@ -109,17 +109,19 @@
 
 ## ٤. الخلاصة
 
-**لا يوجدَ مسارٌ إنتاجيٌّ يستعملُ `telegram_id` كمفتاحِ مِلكيّةٍ داخليٍّ بعدَ `SEC-19`.**
+**لا يوجدُ استعمالٌ دائمٌ لـ`telegram_id` كمفتاحِ مِلكيّةٍ داخليٍّ أو علاقةٍ إنتاجيّةٍ بعدَ `SEC-19`.**
 
 كلُّ مسارٍ إنتاجيٍّ داخليٍّ إمّا:
 
-1. **يحوّلُ إلى `users.id` فورًا** (١٨ مسارًا — كلُّها «حلٌّ انتقاليٌّ» أو «حدُّ دخولٍ خارجيٌّ»)، أو
-2. **هو تسليمٌ محصَّنٌ** (٦ مسارات — كلُّها «legacy-safe» أو «رابطُ تسليمٍ»).
+1. **يحوّلُ إلى `users.id` فورًا** (٢٠ دالّةً SQL و١٧ ملفَّ TypeScript — كلُّها «حلٌّ انتقاليٌّ» أو «حدُّ دخولٍ خارجيٌّ»)، أو
+2. **هو تسليمٌ محصَّنٌ** (٧ مسارات — كلُّها «legacy-safe» أو «رابطُ تسليمٍ»).
 
-والمتبقّي (٤ مسارات) هو نطاقُ `SEC-20`/`SEC-21` بعينه:
+والمتبقّي (٥ مسارات) هو نطاقُ `SEC-20`/`SEC-21` بعينه:
 
-- مسارُ الدخولِ الإداريِّ (SEC-21)
-- جدولُ طلباتِ PDPL (SEC-20)
+- مسارُ الدخولِ الإداريِّ (SEC-21): `issue_admin_login_code` و`consume_admin_login_code` و`open_admin_session` + `admin-ui.ts` و`admin/auth.ts`
+- جدولُ طلباتِ PDPL (SEC-20): `pdpl_data_subject_requests.requester_telegram_id`
+
+**الحدودُ الخارجيّةُ (initData، البوتات)** ما زالت تستعملُ `telegram_id` كمقبضِ الممثّلِ الخارجيِّ إلى أن يُحلَّ بـ`users.id` — وهذا مقبولٌ مؤقَّتًا لأنَّ تيليجرام هو المزوِّدُ الوحيدُ للهويّةِ قبلَ `ARCH-014`.
 
 **وهذا يفتحُ البابَ أمامَ `SEC-20`/`SEC-21`** بلا عائقٍ بنيويٍّ من `telegram_id` كهويّةٍ داخليةٍ.
 
@@ -131,3 +133,87 @@
 - `ARCH-014` **لا يُستوفى** بهذا التدقيق: يلزمُه مدخلُ هويّةٍ ثانٍ بـ`users.id`، وهو بندٌ مستقلٌّ.
 - التدقيقُ لا يُثبتُ أنَّ `SEC-20`/`SEC-21` آمنتانِ — يُثبتُ فقط أنَّ لا مسارَ داخليًّا يعتمدُ على `telegram_id` كهويّةٍ يمنعُ فتحَهما.
 - الأرقامُ في الإحصاءِ قد تختلفُ عن جردي السابق (الذي عدَّ ٨٨ دالّةً و٩٤ موضعَ حلٍّ و٤٥ موضعَ قراءة) لأنَّ هذا التدقيقَ يصنِّفُ المساراتِ لا المواضعَ — مسارٌ واحدٌ قد يحوي مواضعَ متعدِّدةً.
+
+---
+
+## ٦. الملحقُ — الجردُ الخامُّ الكاملُ (إضافةٌ توثيقيّةٌ)
+
+### ٦-١. دوالُّ SQL الآخذةُ `p_telegram_id` — الجردُ الكاملُ
+
+كلُّ دالّةٍ تأخذُ `p_telegram_id bigint` وسيطًا، مع نوعِ الحلِّ والحكمِ:
+
+| # | الدالّةُ | نوعُ الحلِّ | كيف تُحلِّلُ `p_telegram_id` | الحكمُ | الملاحظاتُ |
+|---|---|---|---|---|---|
+| ١ | `grant_bootstrap_admin()` | حدٌّ خارجيٌّ | `select * into v_user from users where telegram_id = p_telegram_id for update` | **cleared** | أداةُ إقلاعٍ نادرةٌ، ليست مسارَ إنتاجٍ متكرِّر |
+| ٢ | `is_support_actor()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | يُعيدُ `user_id` و`is_blocked` |
+| ٣ | `get_reputation_summary()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | يستعملُ `v_user.id` في كلِّ ما يليه |
+| ٤ | `get_user_language()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | يقرأُ `language_code` من `v_user` |
+| ٥ | `list_user_consents()` | حلٌّ انتقاليٌّ | `join users u ... where u.telegram_id = p_telegram_id` | **cleared** | يطابقُ بـ`u.id = c.user_id` |
+| ٦ | `list_saved_places()` | حلٌّ انتقاليٌّ | `join users u on u.id = p.user_id where u.telegram_id = p_telegram_id` | **cleared** | |
+| ٧ | `list_recent_destinations()` | حلٌّ انتقاليٌّ | `where u.telegram_id = p_telegram_id` | **cleared** | |
+| ٨ | `rider_ride_history()` | حلٌّ انتقاليٌّ | `select u.id, u.city_id into v_user_id from users u where u.telegram_id = p_telegram_id` | **cleared** | النموذجُ الكاملُ: `p_telegram_id` → `users.id` → بقيةُ المنطق |
+| ٩ | `rider_ride_detail()` | حلٌّ انتقاليٌّ | `select u.id into v_user_id from users u where u.telegram_id = p_telegram_id` | **cleared** | |
+| ١٠ | `driver_document_dashboard()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | |
+| ١١ | `submit_driver_documents_for_review()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | |
+| ١٢ | `driver_offer_board()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | |
+| ١٣ | `driver_active_job()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | |
+| ١٤ | `driver_subscription_dashboard()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | |
+| ١٥ | `erase_my_account()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id for update` | **cleared** | حارسٌ صريحٌ `if p_telegram_id is null`؛ يكتبُ `telegram_id = null` (SEC-19) |
+| ١٦ | `export_my_data()` | حلٌّ انتقاليٌّ | `select * into v_user from users where telegram_id = p_telegram_id` | **cleared** | حارسٌ صريحٌ |
+| ١٧ | `issue_tracking_token()` | حلٌّ انتقاليٌّ | `p_telegram_id` وسيطٌ، يُحمِّلُ `v_owner_id` من `users.id` | **cleared** | `SEC-19` بندُ ٣: `created_by_user_id` من `users.id` |
+| ١٨ | `revoke_tracking_token()` | حلٌّ انتقاليٌّ | `select u.id into v_actor_id from users u where u.telegram_id = p_telegram_id` | **cleared** | يطابقُ بـ`created_by_user_id` أو `created_by` (تراثيٌّ) |
+| ١٩ | `revoke_order_tracking_tokens()` | حلٌّ انتقاليٌّ | `select u.id into v_actor_id from users u where u.telegram_id = p_telegram_id` | **cleared** | |
+| ٢٠ | `get_user_notifications()` (غلافٌ) | حلٌّ انتقاليٌّ | `select u.id into v_user from users u where u.telegram_id = p_telegram_id` | **cleared** | يُفوِّضُ إلى `get_user_notifications_by_user_id(v_user, …)` |
+| ٢١ | `issue_admin_login_code()` | حدٌّ خارجيٌّ (إدارة) | `select * into v_user from users where telegram_id = p_telegram_id` | **remaining dependency** | **مسارُ `SEC-21`**: الرمزُ يُرسَلُ على تيليجرام |
+| ٢٢ | `consume_admin_login_code()` | حدٌّ خارجيٌّ (إدارة) | `where telegram_id = p_telegram_id` | **remaining dependency** | **مسارُ `SEC-21`** |
+| ٢٣ | `open_admin_session()` | حدٌّ خارجيٌّ (إدارة) | يأخذُ `p_telegram_id` وسيطًا | **remaining dependency** | **مسارُ `SEC-21`** |
+| ٢٤ | `subscriptions_expiring_soon()` | رابطُ تسليمٍ | يقرأُ `u.telegram_id` للإشعار، مُصفّى بـ`is_blocked = false` | **cleared** | المُجهَّلُ محجوبٌ |
+
+### ٦-٢. ملفّات TypeScript الإنتاجيّةُ التي تمرِّرُ `telegramId`/`telegramUserId` إلى RPC
+
+| # | الملفُ | الدالّةُ المستدعاةُ | الحكمُ | الملاحظاتُ |
+|---|---|---|---|---|
+| ١ | `consent-store.ts` | `list_user_consents($1::bigint)` · `record_user_consent($1::bigint, …)` | **cleared** | حلٌّ انتقاليٌّ في SQL؛ `asTelegramId` يرفضُ غيرَ الرقميِّ |
+| ٢ | `places-store.ts` | `list_saved_places($1::bigint)` · `save_place($1::bigint, …)` · `list_recent_destinations($1::bigint)` | **cleared** | كالسابق |
+| ٣ | `data-rights-store.ts` | `export_my_data($1::bigint)` · `erase_my_account($1::bigint)` | **cleared** | حارسٌ صريحٌ `if telegramId === null` |
+| ٤ | `driver-job-store.ts` | `driver_active_job($1::bigint)` · `driver_mark_arrived($1::bigint, …)` · `driver_start_ride($1::bigint, …)` | **cleared** | حلٌّ انتقاليٌّ في SQL |
+| ٥ | `driver-documents-store.ts` | `driver_document_dashboard($1::bigint)` · `submit_driver_documents_for_review($1::bigint, …)` | **cleared** | |
+| ٦ | `driver-offers-store.ts` | `driver_offer_board($1::bigint, …)` | **cleared** | |
+| ٧ | `driver-subscription-store.ts` | `driver_subscription_dashboard($1::bigint)` | **cleared** | |
+| ٨ | `driver-vehicle-store.ts` | دوالُّ إدارةِ المركبةِ بـ`$1::bigint` | **cleared** | |
+| ٩ | `driver-activity-store.ts` | دوالُّ نشاطِ السائقِ بـ`$1::bigint` | **cleared** | |
+| ١٠ | `subscription-invoice-store.ts` | دوالُّ الفواتيرِ بـ`$1::bigint` | **cleared** | |
+| ١١ | `rider-support-store.ts` | دوالُّ تذاكرِ الراكبِ بـ`$1::bigint` | **cleared** | |
+| ١٢ | `driver-support-store.ts` | دوالُّ تذاكرِ السائقِ بـ`$1::bigint` | **cleared** | |
+| ١٣ | `tracking-token-adapters.ts` | `issue_tracking_token(…, $1::bigint, …)` · `revoke_tracking_token(…, $1::bigint)` | **cleared** | `SEC-19` بندُ ٣: `created_by_user_id` |
+| ١٤ | `viewer-account.ts` | `select role, is_blocked from users where telegram_id = $1` | **cleared** | حلٌّ انتقاليٌّ: يُعيدُ `role` و`is_blocked` فقط |
+| ١٥ | `directories.ts` | `findByTelegramId` (سائق/راكب) — `where u.telegram_id = $1` | **cleared** | `join users u on u.id = d.user_id` |
+| ١٦ | `bootstrap-admin.ts` | `grant_bootstrap_admin($1::bigint)` | **cleared** | أداةُ إقلاعٍ نادرةٌ |
+| ١٧ | `language-adapters.ts` | `get_user_language($1::bigint)` · `set_user_language($1::bigint, …)` | **cleared** | |
+| ١٨ | `rating-adapters.ts` | يقرأُ `telegram_id` من صفٍّ للتسليمِ (`String(row.telegram_id)`) | **legacy-safe** | تسليمٌ صرفٌ |
+| ١٩ | `lifecycle-adapters.ts` | يقرأُ `telegram_id` من `subscriptions_expiring_soon` للتسليمِ | **legacy-safe** | مُصفّى بـ`is_blocked = false` |
+| ٢٠ | `support-adapters.ts` | يقرأُ `telegram_id` من `notification_outbox` للتسليمِ | **legacy-safe** | تسليمٌ صرفٌ |
+| ٢١ | `telegram-driver-notifier.ts` | يقرأُ `u.telegram_id` من `users` للتسليمِ | **cleared** | حرسُ `String(null)` من `SEC-19` بندُ «ب-٤» |
+| ٢٢ | `admin/auth.ts` | `issue_admin_login_code($1::bigint, …)` · `consume_admin_login_code($1::bigint, …)` | **remaining dependency** | **مسارُ `SEC-21`** |
+| ٢٣ | `admin/queries.ts` | `readUserTelegramId` — يقرأُ `telegram_id` من `users where id = $1::uuid` | **cleared** | يقرأُ بالهويّةِ الداخليّةِ، يستعملُ `telegram_id` للتسليمِ وحدَه |
+| ٢٤ | `admin-ui.ts` | `POST /login/code` · `POST /login/verify` — `telegramId` من النموذجِ | **remaining dependency** | **مسارُ `SEC-21`** |
+
+### ٦-٣. ملفّات TypeScript التي تقرأُ `telegram_id` من نتائجَ استعلامٍ (للتسليمِ أو للعرضِ)
+
+| # | الملفُ | الغرضُ | الحكمُ |
+|---|---|---|---|
+| ١ | `dispatch-adapters.ts` | قراءةُ `telegram_id` للعرضِ في لوحةِ الإدارةِ | **legacy-safe** — عرضٌ لا هويّةٌ |
+| ٢ | `negotiation-adapters.ts` | قراءةُ `telegram_id` للتسليمِ | **legacy-safe** |
+| ٣ | `unmatched-adapters.ts` | قراءةُ `telegram_id` للتسليمِ (مُصفّى بـ`status = 'searching'`) | **legacy-safe** — المُجهَّلُ عندهُ `cancelled` |
+| ٤ | `tracking-queries.ts` | قراءةُ `telegram_id` للعرضِ في لوحةِ الإدارةِ | **legacy-safe** |
+| ٥ | `notification/user-notification-center.ts` | يُرسلُ `telegramId::bigint` إلى `get_user_notifications` (الغلافُ الانتقاليُّ) | **cleared** — الغلافُ يُفوِّضُ إلى `by_user_id` |
+
+### ٦-٤. جداولُ قاعدةِ البياناتِ التي تخزِّنُ `telegram_id`
+
+| # | الجدولُ | العمودُ | النوعُ | الحكمُ |
+|---|---|---|---|---|
+| ١ | `users` | `telegram_id` | `bigint` (كانَ `not null`، صارَ `null` بعدَ `SEC-19`) | **cleared** — العمودُ نفسُهُ هويّةُ الدخولِ الخارجيّةُ، لا مفتاحٌ أساسيٌّ |
+| ٢ | `pdpl_data_subject_requests` | `requester_telegram_id` | `text not null` | **remaining dependency** — **نطاقُ `SEC-20`**: مسارُ الاستردادِ |
+| ٣ | `trip_tracking_tokens` | `created_by` | `bigint not null` (تراثيٌّ) | **legacy-safe** — `created_by_user_id uuid` هو المطابقُ الأوّلُ (`SEC-19` بندُ ٣) |
+| ٤ | `notification_outbox` | `chat_id` (عنوانُ تسليمٍ) | `bigint` (يأخذُ `v_sentinel` لا `null`) | **legacy-safe** — قيدُ `n <> 0` يَمنعُ `null` |
+| ٥ | `broadcast_recipients` | `n` (عنوانُ تسليمٍ) | `bigint` (يأخذُ `v_sentinel` لا `null`) | **legacy-safe** — كالسابق |
