@@ -67,11 +67,11 @@ create table if not exists account_recovery_requests (
   created_at timestamptz not null default now()
 );
 
-create index if not exists account_recovery_requests_status_idx
-  on account_recovery_requests (city_id, status, submitted_at desc);
-
-create index if not exists account_recovery_requests_target_idx
-  on account_recovery_requests (target_user_id);
+-- الفهرسانِ (`status` · `target`) لا يُنشآنِ ههنا: طورُ `expand` يُطبَّقُ داخلَ
+-- معاملةٍ، و`create index` العاديُّ يأخذُ قفلاً يحجبُ الكتابةَ (`CAP-007`).
+-- يُنشآنِ في ملفَّي طورِ `index` لاحقَينِ بلا معاملةٍ:
+--   20260923000100_sec_20_account_recovery_status_idx.sql
+--   20260923000110_sec_20_account_recovery_target_idx.sql
 
 -- RLS: مفعّلةٌ ومرفوضةٌ افتراضياً لكلِّ الأدوارِ العامّةِ.
 -- الوصولُ يتمُّ حصراً من الخادمِ بمفتاحِ service_role (يتجاوز RLS).

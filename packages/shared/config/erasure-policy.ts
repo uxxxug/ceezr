@@ -152,6 +152,25 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
   },
 
   agent_decisions: reference(),
+  /**
+   * `SEC-20`: طلبُ استردادِ حسابٍ بمراجعةٍ إداريّةٍ — **الصاحبُ المُنفِّذُ هوَ
+   * المشرفُ**: الطلبُ يُنشَأُ ويُراجَعُ من مسؤولٍ، ولا يُنشئهُ صاحبُ الحسابِ
+   * ولا يملكُ قراره. وفيه بيانةٌ شخصيّةٌ عن الهدفِ (`claimant_telegram_id` ·
+   * ملخّصُ الأدلّةِ)، فلا بيانةً مرجعٍ ولا «لا صاحبَ». والحكمُ **إبقاءٌ بأساسٍ**:
+   * سجلُّ القرارِ دليلُ مراجعةٍ بشريّةٍ على ربطِ هويّةٍ خارجيّةٍ بمستخدمٍ داخليٍّ —
+   * ومحوُهُ يمحو شهادةَ المراجعةِ نفسِها. وأثرُ الحذفِ مُسجَّلٌ **أصلًا** في
+   * `audit_log` (`admin.account_recovery_approved/rejected`) الذي لا يُمَسُّ.
+   * والتنزيلُ والإنفاذُ دَينٌ مُعلَنٌ على `F12-10` لا وعدٌ بلا اسمٍ.
+   */
+  account_recovery_requests: {
+    disposition: D.retainLegalBasis,
+    subjects: [S.admin],
+    linkedBy: "account_recovery_requests.target_user_id",
+    basis:
+      "سجلُّ طلبِ استردادٍ ومراجعةٍ إداريّةٍ — دليلُ قرارٍ بشريٍّ على ربطِ هويّةٍ خارجيّةٍ بمستخدمٍ داخليٍّ لا بياناتُ تشغيلٍ.",
+    exportSection: "accountRecoveryRequests",
+    deferredTo: "F12-10",
+  },
   agent_outcomes: {
     disposition: D.retainLegalBasis,
     subjects: [S.admin],

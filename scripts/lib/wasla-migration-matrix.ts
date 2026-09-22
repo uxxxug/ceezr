@@ -269,6 +269,7 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
       "`GET /v1/sessions/current` هوَ الطريقُ الوحيدُ للتحقُّقِ في اختبارِ تكاملٍ، ولا قراءةَ من `admin_sessions` في أيِّ مسارٍ — يُقاسُ بحاجزٍ ساكنٍ لا بمراجعةٍ.",
     executed: false,
   },
+  { ...noMigration("account_recovery_requests") },
   { ...noMigration("agent_decisions") },
   { ...noMigration("agent_outcomes") },
   { ...noMigration("attendance_log") },
