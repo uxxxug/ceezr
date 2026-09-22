@@ -254,11 +254,11 @@ describeIf("حقَّا بيانةِ السائقِ على قاعدةٍ حقيق�
       count: 0,
     });
 
-    // صفُّ المستخدمِ: مُعرِّفُ تيليجرامَ صارَ سالباً ووقتُ المحوِ مكتوبٌ.
-    const [user] = await sql<{ tg: string; erased_at: Date | null }[]>`
+    // صفُّ المستخدمِ: مُعرِّفُ تيليجرامَ صارَ `null` (SEC-19 بندُ ٤) ووقتُ المحوِ مكتوبٌ.
+    const [user] = await sql<{ tg: string | null; erased_at: Date | null }[]>`
       select telegram_id::text as tg, erased_at from users where id = ${userId}
     `;
-    expect(Number(user?.tg)).toBeLessThan(0);
+    expect(user?.tg).toBeNull();
     expect(user?.erased_at).not.toBeNull();
 
     // نداءٌ ثانٍ بالمعرِّفِ نفسِه **لا يجدُ أحداً**: المعرِّفُ بُدِّلَ بسَنَدٍ
@@ -304,10 +304,10 @@ describeIf("حقَّا بيانةِ السائقِ على قاعدةٍ حقيق�
     const result = await store.eraseMyAccount({ telegramUserId: String(TG_BARE) });
     if (!result.ok || !result.value.erased) throw new Error("كانَ يجبُ أن يمضيَ المحوُ");
     expect(result.value.receipt?.erased.savedPlaces).toBe(1);
-    const [user] = await sql<{ tg: string }[]>`
+    const [user] = await sql<{ tg: string | null }[]>`
       select telegram_id::text as tg from users where id = ${userId}
     `;
-    expect(Number(user?.tg)).toBeLessThan(0);
+    expect(user?.tg).toBeNull();
   });
 
   it("حزمةُ التنزيلِ للسائقِ: أقسامُها مبنيّةٌ ولا تُخرِجُ بيانةَ غيرِه ولا مسارَ مخزَنٍ", async () => {

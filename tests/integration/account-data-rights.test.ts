@@ -241,14 +241,14 @@ describeIf("حقَّا البيانةِ على قاعدةٍ حقيقيّةٍ (F2
 
     // ٢) صفُّ المستخدمِ **باقٍ مُجهَّلاً** — لا محذوفاً.
     const [user] = await sql<
-      { full_name: string | null; telegram_id: string; erased_at: string | null }[]
+      { full_name: string | null; telegram_id: string | null; erased_at: string | null }[]
     >`select full_name, telegram_id::text, erased_at from users where id = ${before.id}`;
     expect(user).toBeDefined();
     expect(user?.erased_at).not.toBeNull();
     expect(user?.full_name).toBeNull();
-    // **ومعرِّفُ تيليجرامَ نفسُه بيانةٌ شخصيّةٌ**: يُبدَّلُ بمعرِضٍ سالبٍ، ولذا
-    // لا يُوجَدُ الصفُّ بعدَ اليومِ بمعرِّفِه الأوَّلِ. وهذا **قصدٌ لا عَرَضٌ**.
-    expect(Number(user?.telegram_id)).toBeLessThan(0);
+    // **ومعرِّفُ تيليجرامَ نفسُه بيانةٌ شخصيّةٌ**: يُجهَّلُ بـ`null` (SEC-19 بندُ ٤)،
+    // ولذا لا يُوجَدُ الصفُّ بعدَ اليومِ بمعرِّفِه الأوَّلِ. وهذا **قصدٌ لا عَرَضٌ**.
+    expect(user?.telegram_id).toBeNull();
 
     // ٣) الموافقةُ **باقيةٌ** ومعلَنةٌ في الإيصالِ بأساسِها.
     const [consents] = await sql<{ n: string }[]>`

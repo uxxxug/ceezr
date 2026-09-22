@@ -197,4 +197,69 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
     `;
     expect(after[0]?.count).toBe(0);
   });
+
+  // ------------------------------------------------------------------
+  // SEC-19 بندُ ٤ (متابعة): `erase_my_account` يكتبُ `null` لا السالبَ
+  // ------------------------------------------------------------------
+  it("التجهيلُ يكتبُ `telegram_id = null` و`erased_at` ويُحصِّنُ القيدَ", async () => {
+    const { orderId, userId } = await seedRiderAndOrder(sql, RIDER_TELEGRAM, cityId);
+    const token = mint.mint();
+    const issueResult = await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token);
+    expect(issueResult.ok).toBe(true);
+    if (!issueResult.ok) return;
+    expect(issueResult.value.ok).toBe(true);
+
+    // إنهاءُ الطلبِ قبلَ التجهيلِ
+    await sql`update orders set status = 'cancelled' where id = ${orderId}::uuid`;
+
+    // التجهيلُ
+    const eraseResult = await sql`select erase_my_account(${RIDER_TELEGRAM}::bigint) as result`;
+    const envelope = eraseResult[0]?.result as { ok?: boolean; reason?: string } | null;
+    expect(envelope?.ok).toBe(true);
+
+    // ١. `telegram_id` صارَ `null` لا سالبًا
+    const rows = await sql<
+      {
+        telegram_id: string | null;
+        erased_at: string | null;
+        full_name: string | null;
+        phone: string | null;
+        telegram_username: string | null;
+      }[]
+    >`
+      select telegram_id, erased_at, full_name, phone, telegram_username
+        from users where id = ${userId}::uuid`;
+    expect(rows[0]?.telegram_id).toBeNull();
+    expect(rows[0]?.erased_at).not.toBeNull();
+    expect(rows[0]?.full_name).toBeNull();
+    expect(rows[0]?.phone).toBeNull();
+    expect(rows[0]?.telegram_username).toBeNull();
+
+    // ٢. `trip_tracking_tokens` لذلك `user_id` = 0
+    const tokensAfter = await sql<{ count: number }[]>`
+      select count(*)::int as count from trip_tracking_tokens where created_by_user_id = ${userId}::uuid
+    `;
+    expect(tokensAfter[0]?.count).toBe(0);
+
+    // ٣. القيدُ `users_erased_rows_carry_no_identity` يَقبَلُ `null`: صفٌّ
+    // مُجهَّلٌ بلا هويّةٍ. لكنَّ صفًّ غيرَ مُجهَّلٍ بلا مُعرِّفٍ يُرفَضُ.
+    const constraint = await sql<{ conname: string }[]>`
+      select conname from pg_constraint
+       where conname = 'users_erased_rows_carry_no_identity'`;
+    expect(constraint.length).toBe(1);
+
+    // ٤. مُحاوَلةُ إدخالِ صفٍّ مُجهَّلٍ يحملُ اسمًا — يُرفَضُ بالقيدِ
+    let rejected = false;
+    try {
+      await sql`
+        insert into users (city_id, telegram_id, role, full_name, phone,
+                           telegram_username, is_blocked, erased_at)
+        values (${cityId}::uuid, null, 'rider',
+                'متبقٍ', null, null, true, now())
+      `;
+    } catch {
+      rejected = true;
+    }
+    expect(rejected).toBe(true);
+  });
 });
