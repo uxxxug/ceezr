@@ -45,10 +45,25 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import { createPaymentRepository } from "../../packages/infrastructure/financial/payment-adapters.ts";
 import { createSubscriptionChangeRpc } from "../../packages/infrastructure/subscription/subscription-change-adapters.ts";
 import type { DriverId } from "../../packages/shared/kernel/index.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
 let sql: Sql;
+
+/**
+ * شرطُ «مدينةٌ مفعَّلةٌ» يُصنَعُ ويُردُّ — لا يُستعارُ (`OPS-019`): هذا الملفُّ
+ * كانَ يزرعُ في «أوّلِ مدينةٍ بترتيبِ الرمزِ» رهنًا بمن فعَّلَ مدينةً قبلهُ،
+ * فخضرتُهُ كانتْ رهنَ ترتيبِ التشغيلِ لا صحّةِ ما يقيسُ — وقِيسَ ذلكَ فعلاً
+ * في جولةِ CI 35794705603: `start_trial` يرفضُ `CITY_NOT_ACTIVE` فأخفقَ الملفُّ
+ * حينَ جرى قبلَ أيِّ مُفعِّلٍ. والمعينُ يضمنُ الشرطَ من خطِّ الأساسِ ويردُّه.
+ */
+let cityHandle: ActiveCityHandle | undefined;
+let ensuredCityId: string | undefined;
 
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 if (DATABASE_URL === undefined) {
@@ -69,11 +84,8 @@ interface Fixture {
 
 async function makeDriver(kind: "trialing" | "active"): Promise<Fixture> {
   seq += 1;
-  const rows = await sql<{ id: string }[]>`select id from cities order by code limit 1`;
-  const city = rows[0];
-  if (city === undefined) {
-    throw new Error("لا مدن في القاعدة — الهجرات غير مطبّقة.");
-  }
+  if (ensuredCityId === undefined) throw new Error("لم يُضمنْ شرطُ المدينةِ المفعَّلةِ — beforeAll.");
+  const city = { id: ensuredCityId };
   const users = await sql<{ id: string }[]>`
     insert into users (city_id, telegram_id, full_name, phone, role)
     values (${city.id}, ${RUN_BASE + seq}, ${`اشتراك ${seq}`},
@@ -176,10 +188,13 @@ async function payAndConfirm(
 beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
   sql = createSql({ connectionString: DATABASE_URL });
+  cityHandle = await ensureActiveCity(sql);
+  ensuredCityId = cityHandle.cityId;
 });
 
 afterAll(async () => {
   if (DATABASE_URL === undefined) return;
+  await restoreCityBaseline(sql, cityHandle);
   await sql.end();
 });
 

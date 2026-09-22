@@ -128,6 +128,22 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
     method: "post",
+    template: "/users/:id/recovery",
+    kind: "admin-guard",
+    reason:
+      "تقديمُ طلبِ استردادِ حسابٍ سلطةُ إدارةٍ لا مِلكيّةُ المستهدَفِ نفسِه؛ والمصدرُ وسيطُ جلسةِ الإدارةِ على الموجّهِ كلِّه.",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
+    template: "/recovery/:requestId/review",
+    kind: "admin-guard",
+    reason:
+      "مراجعةُ طلبِ استردادِ حسابٍ سلطةُ إدارةٍ بطبيعتِها: لا مالكَ لهُ غيرُ المُشغِّلِ، والوسيطُ على الموجّهِ كلِّه هو التفويضُ.",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
     template: "/settings/:cityId/group-ids",
     kind: "admin-guard",
     reason:

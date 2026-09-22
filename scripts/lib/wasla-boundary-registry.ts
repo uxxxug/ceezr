@@ -68,6 +68,14 @@ export interface ColumnConcern {
  */
 export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
   {
+    table: "account_recovery_requests",
+    concern: "طلبُ استردادِ حسابٍ بمراجعةٍ إداريّةٍ صريحةٍ — سجلُّ طلبٍ وقرارٍ ومَن راجعَ ولماذا",
+    owner: "CORE",
+    disposition: "KEEP",
+    rationale:
+      "استردادُ الحسابِ بعدَ فقدانِ مقبضِ الهويّةِ الخارجيِّ عملٌ على رابطِ الهويّةِ نفسِهِ (`users.telegram_id`)، والرابطُ مملوكٌ لـCORE (`ADR 0031`): فالقرارُ الذي يعيدُ الربطَ أو يرفُضُه لا يُتَّخَذُ في نظامِ النقلِ بل عندَ مالكِ الهويّةِ. ويُحفَظُ ههنا (KEEP) لا يُنقَلُ اليومَ: `W-3` الذي ينقلُ `users` إلى CORE يأخذُ معه مسارَ الاستردادِ، والطلبُ يقرأُ الهدفَ بـ`users.id` الداخليِّ لا بمقبضٍ خارجيٍّ، والمراجعةُ والقرارُ يُسجَّلانِ في `audit_log` (`ADR 0080`) (`SEC-20`).",
+  },
+  {
     table: "admin_login_codes",
     concern: "رمزُ دخولٍ لمرّةٍ واحدةٍ للوحةِ الإدارةِ — مصادقةٌ",
     owner: "CORE",

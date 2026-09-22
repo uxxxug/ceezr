@@ -115,6 +115,10 @@ export {
   renderRatingsPage,
 } from "./pages/ratings.ts";
 export {
+  type RecoveryRequestRow,
+  renderRecoveryPage,
+} from "./pages/recovery.ts";
+export {
   type CityGroupStatus,
   renderSettingsPage,
   type SettingRow,

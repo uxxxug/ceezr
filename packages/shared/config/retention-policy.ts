@@ -108,6 +108,13 @@ export const ARCHIVE_MAX_DAYS_PER_RUN = 3;
  * واسمٌ ههنا بلا جدولٍ يُسقِطُه أيضاً (مُدخلٌ ميّتٌ يُوهِمُ أنَّ شيئاً حُسِمَ).
  */
 export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
+  /**
+   * `SEC-20`: طلبُ استردادِ حسابٍ بمراجعةٍ إداريّةٍ صريحةٍ — سجلُّ القرارِ
+   * (مَن راجعَ · السببُ · الوقتُ) **دليلُ مراجعةٍ** لا أثرَ تشغيلٍ: حذفُهُ
+   * يمحو شهادةَ أنَّ ربطَ هويّةٍ خارجيّةٍ بمستخدمٍ داخليٍّ مرَّ بمراجعةٍ بشريّةٍ.
+   * ولا مدّةَ محسومةً بعدُ (`pendingDecision`)، و`F12-10` يحكُمُ في أرشفتِهِ.
+   */
+  account_recovery_requests: RETENTION_CLASSES.pendingDecision,
   admin_login_codes: RETENTION_CLASSES.pendingDecision,
   /**
    * `F7-08` · `CAP-011`: لقطةُ عدَّاداتِ لوحةِ الإدارةِ — **صفٌّ واحدٌ لكلِّ
