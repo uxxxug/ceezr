@@ -1,0 +1,176 @@
+/**
+ * الغرض: SEC-19 بندُ الترتيبِ ٣ — التحقُّقُ من أنَّ `trip_tracking_tokens.created_by_user_id`
+ *   يُكتبُ ويُستعمَلُ بدلاً من `created_by` (bigint) في الإلغاءِ والحذفِ.
+ *
+ *   (١) **العمودُ موجودٌ** والربطُ الخارجيُّ إلى `users(id)` قائمٌ.
+ *   (٢) **الإصدارُ يكتبُ العمودينِ**: `created_by_user_id` لا `null`، و`created_by`
+ *       يَساوي `p_telegram_id`.
+ *   (٣) **الإلغاءُ يطابقُ بـ`created_by_user_id`**: رمزٌ صادرٌ من راكبٍ يُلغى
+ *       برقمِ تيليجرامِ ذلك الراكبِ، ورمزٌ من راكبٍ آخرَ لا يُلغى.
+ *   (٤) **التجهيلُ يَحذُفُ بـ`created_by_user_id`**: بعدَ التجهيلِ لا يبقى رمزٌ
+ *       لذلك المستخدمِ — لا بـ`telegram_id` الذي صارَ سالبًا ولا بغيره.
+ *
+ * الحالة: اختبار تكامل فعلي — يتطلب TEST_DATABASE_URL. أُضيف في 2026-09-22.
+ * ينتمي إلى: tests/integration
+ * يُتوقع أن يستخدمه لاحقاً: CI
+ */
+
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import {
+  type ActiveCityHandle,
+  ensureActiveCity,
+  restoreCityBaseline,
+} from "../support/active-city.ts";
+import { createTrackingTokenMint } from "../../packages/infrastructure/tracking/tracking-token-adapters.ts";
+import { createTrackingTokenRpc } from "../../packages/infrastructure/tracking/tracking-token-adapters.ts";
+
+const DATABASE_URL = process.env.TEST_DATABASE_URL;
+const RIDER_TELEGRAM = 260_819;
+const OTHER_TELEGRAM = 260_820;
+const DRIVER_TELEGRAM = 160_819;
+
+let sql: Sql;
+let cityId: string;
+let cityHandle: ActiveCityHandle | undefined;
+let tokens: ReturnType<typeof createTrackingTokenRpc>;
+const mint = createTrackingTokenMint();
+
+const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
+if (DATABASE_URL === undefined) {
+  console.warn(
+    "⚠️  اختبارات التكامل مُتخطّاة: عيّن TEST_DATABASE_URL لقاعدة PostgreSQL بها الهجرات مطبَّقة.",
+  );
+}
+
+async function seedRiderAndOrder(
+  sql: Sql,
+  telegramId: number,
+  cityId: string,
+): Promise<{ riderId: string; userId: string; orderId: string }> {
+  const users = await sql<{ id: string }[]>`
+    insert into users (telegram_id, city_id, role, language, full_name)
+    values (${telegramId}, ${cityId}, 'rider', 'ar', 'اختبار')
+    returning id
+  `;
+  const userId = users[0].id;
+
+  const riders = await sql<{ id: string }[]>`
+    insert into riders (user_id, city_id, rating_average, rating_count)
+    values (${userId}, ${cityId}, null, 0)
+    returning id
+  `;
+  const riderId = riders[0].id;
+
+  const orders = await sql<{ id: string }[]>`
+    insert into orders (city_id, rider_id, status, from_location, to_location)
+    values (${cityId}, ${riderId}, 'matched',
+      st_setsrid(st_makepoint(39.1, 21.5), 4326),
+      st_setsrid(st_makepoint(39.2, 21.6), 4326))
+    returning id
+  `;
+  const orderId = orders[0].id;
+
+  return { riderId, userId, orderId };
+}
+
+describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => {
+  beforeAll(async () => {
+    sql = createSql({ connectionString: DATABASE_URL ?? "" });
+    const cities = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
+    const id = cities[0]?.id;
+    if (id === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
+    cityId = id;
+    tokens = createTrackingTokenRpc(sql);
+  });
+
+  afterAll(async () => {
+    await restoreCityBaseline(sql, cityHandle);
+    await sql.end({ timeout: 5 });
+  });
+
+  beforeEach(async () => {
+    await sql`truncate table trip_tracking_tokens, tracking_sessions, audit_log, attendance_log,
+                             order_offers, orders, driver_availability, driver_capabilities,
+                             drivers, riders, users restart identity cascade`;
+    cityHandle = await ensureActiveCity(sql, cityId);
+  });
+
+  it("العمودُ والربطُ الخارجيُّ موجودانِ", async () => {
+    const cols = await sql<{ column_name: string }[]>`
+      select column_name from information_schema.columns
+       where table_name = 'trip_tracking_tokens' and column_name = 'created_by_user_id'
+    `;
+    expect(cols.length).toBe(1);
+
+    const fks = await sql<{ constraint_name: string }[]>`
+      select constraint_name from information_schema.table_constraints
+       where table_name = 'trip_tracking_tokens'
+         and constraint_type = 'FOREIGN KEY'
+         and constraint_name = 'trip_tracking_tokens_created_by_user_id_fkey'
+    `;
+    expect(fks.length).toBe(1);
+  });
+
+  it("الإصدارُ يكتبُ `created_by_user_id` معَ `created_by`", async () => {
+    const { orderId } = await seedRiderAndOrder(sql, RIDER_TELEGRAM, cityId);
+    const token = mint();
+    const result = await tokens.issue(orderId, RIDER_TELEGRAM, token);
+    expect(result.ok).toBe(true);
+
+    const rows = await sql<{ created_by: number; created_by_user_id: string }[]>`
+      select created_by, created_by_user_id from trip_tracking_tokens where token = ${token}
+    `;
+    expect(rows.length).toBe(1);
+    expect(rows[0].created_by).toBe(RIDER_TELEGRAM);
+    expect(rows[0].created_by_user_id).not.toBeNull();
+  });
+
+  it("الإلغاءُ يطابقُ بـ`created_by_user_id` — المالكُ يُلغي، وغيرُه لا", async () => {
+    const { orderId } = await seedRiderAndOrder(sql, RIDER_TELEGRAM, cityId);
+    const { orderId: otherOrderId } = await seedRiderAndOrder(sql, OTHER_TELEGRAM, cityId);
+
+    const token1 = mint();
+    const token2 = mint();
+    await tokens.issue(orderId, RIDER_TELEGRAM, token1);
+    await tokens.issue(otherOrderId, OTHER_TELEGRAM, token2);
+
+    // المالكُ يُلغي رمزَه
+    const revokeOk = await tokens.revoke(token1, RIDER_TELEGRAM);
+    expect(revokeOk.ok).toBe(true);
+
+    // غيرُ المالكِ لا يُلغي رمزَ غيره
+    const revokeFail = await tokens.revoke(token2, RIDER_TELEGRAM);
+    expect(revokeFail.ok).toBe(false);
+
+    // رمزُ المالكِ مُلغى، ورمزُ غيره لم يُمسَّ
+    const rows = await sql<{ token: string; revoked_at: string | null }[]>`
+      select token, revoked_at from trip_tracking_tokens order by token
+    `;
+    const t1 = rows.find((r) => r.token === token1);
+    const t2 = rows.find((r) => r.token === token2);
+    expect(t1?.revoked_at).not.toBeNull();
+    expect(t2?.revoked_at).toBeNull();
+  });
+
+  it("التجهيلُ يَحذُفُ رموزَ التتبُّعِ بـ`created_by_user_id`", async () => {
+    const { orderId, userId } = await seedRiderAndOrder(sql, RIDER_TELEGRAM, cityId);
+    const token = mint();
+    await tokens.issue(orderId, RIDER_TELEGRAM, token);
+
+    // قبلَ التجهيلِ: الرمزُ موجودٌ
+    const before = await sql<{ count: number }[]>`
+      select count(*)::int as count from trip_tracking_tokens where created_by_user_id = ${userId}
+    `;
+    expect(before[0].count).toBe(1);
+
+    // التجهيلُ
+    await sql`select erase_my_account(${RIDER_TELEGRAM}::bigint)`;
+
+    // بعدَ التجهيلِ: لا رمزَ لذلك المستخدمِ
+    const after = await sql<{ count: number }[]>`
+      select count(*)::int as count from trip_tracking_tokens where created_by_user_id = ${userId}
+    `;
+    expect(after[0].count).toBe(0);
+  });
+});
