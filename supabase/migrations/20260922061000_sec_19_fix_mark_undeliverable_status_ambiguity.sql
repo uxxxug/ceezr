@@ -1,6 +1,7 @@
 -- migration-phase: expand
 -- =============================================================================
--- `SEC-19` · الساقُ «ب-٤» — إصلاحُ غموضِ `status` في `mark_notification_undeliverable`.
+-- `SEC-19` · الساقُ «ب-٤» — إصلاحُ غموضِ `status` ونوعِ الإرجاعِ في
+-- `mark_notification_undeliverable`.
 --
 -- **السياقُ:** الدالّةُ `mark_notification_undeliverable` التي أنشأها
 -- `20260922060000` تُعيدُ `table(... status text ...)`، فصارَ مرجعُ
@@ -8,21 +9,24 @@
 -- الداخليِّ. **قِيسَ هذا على PostgreSQL حقيقيٍّ** أثناءَ قياسِ الخطوةِ الخامسة:
 -- `PostgresError: column reference "status" is ambiguous`.
 --
--- **الإصلاحُ:** تأهيلُ المراجعِ باسمِ الجدولِ المُستعارِ `n`:
--- `from notification_outbox n` و`n.id`/`n.status`/`n.claim_token`.
--- ولا تغييرَ في عقدِ الدالّةِ — لا في الحالةِ ولا في الإرجاعِ.
+-- **الإصلاحُ الثاني:** الدالّةُ تُعيدُ `table(...)` لكنَّ المحوّلَ `envelope()`
+-- يتوقّعُ `jsonb` (كـ`abandon_notification_delivery`) — فالناتجُ المُركَّبُ لا
+-- يُفكُّ إلى كائنٍ في `postgres`. فصارَ الإرجاعُ `jsonb`.
+--
+-- **الإصلاحُ:** تأهيلُ المراجعِ باسمِ الجدولِ المُستعارِ `n` وتغييرُ الإرجاعِ
+-- إلى `jsonb`. ولا تغييرَ في عقدِ الدالّةِ المنطقيِّ — لا في الحالةِ ولا في
+-- الأسبابِ.
 -- =============================================================================
 
+-- =====================================================================
+-- السطحُ: المنحُ والدعمُ كـ`abandon_notification_delivery` سواءً بسواءٍ.
+-- =====================================================================
+drop function if exists mark_notification_undeliverable(uuid, uuid, text);
 create or replace function mark_notification_undeliverable(
   p_delivery_id uuid,
   p_claim_token uuid,
   p_reason text
-) returns table(
-  ok boolean,
-  delivery_id uuid,
-  status text,
-  dead_reason text
-)
+) returns jsonb
 language plpgsql
 security definer
 set search_path = public
@@ -38,8 +42,7 @@ begin
    for update;
 
   if not found then
-    return query select false, p_delivery_id, null::text, null::text;
-    return;
+    return jsonb_build_object('ok', false, 'delivery_id', p_delivery_id);
   end if;
 
   update notification_outbox
@@ -50,7 +53,12 @@ begin
          claimed_at = null
    where id = p_delivery_id;
 
-  return query select true, p_delivery_id, 'undeliverable'::text, p_reason;
+  return jsonb_build_object(
+    'ok', true,
+    'delivery_id', p_delivery_id,
+    'status', 'undeliverable',
+    'dead_reason', p_reason
+  );
 end;
 $$;
 
