@@ -2163,3 +2163,99 @@ export async function listBroadcastCampaigns(
     createdAt: String(row.created_at),
   }));
 }
+
+// ---------------------------------------------------------------------------
+// SEC-20 — مسارُ استردادِ حسابٍ بمراجعةٍ إداريّةٍ صريحةٍ وسجلِّ قرارٍ كاملٍ
+//
+// الفجوةُ: لا مسارَ استردادٍ إن فُقِدَ حسابُ تيليجرام. والطلبُ يُربَطُ بـ
+// `users.id` الداخليِّ لا بـ`telegram_id`. المسؤولُ يحدِّدُ `target_user_id`
+// صراحةً، والقرارُ يلزمُ سببًا من معجمٍ مغلقٍ، والأثرُ في `audit_log`.
+// ---------------------------------------------------------------------------
+
+export interface AccountRecoveryRequest {
+  readonly id: string;
+  readonly targetUserId: string;
+  readonly claimantTelegramId: string | null;
+  readonly evidenceSummary: string;
+  readonly submittedAt: string;
+  readonly targetFullName: string | null;
+  readonly targetTelegramId: string | null;
+  readonly targetIsBlocked: boolean;
+}
+
+/** أسبابُ القرارِ من معجمٍ مغلقٍ (سابقةُ `PD-021`). */
+const RECOVERY_DECISION_REASONS = [
+  "identity_verified",
+  "identity_not_confirmed",
+  "insufficient_evidence",
+  "telegram_account_lost",
+  "duplicate_account",
+  "policy_violation",
+  "user_request",
+] as const;
+
+export type RecoveryDecisionReason = (typeof RECOVERY_DECISION_REASONS)[number];
+
+export function isRecoveryDecisionReason(value: string): value is RecoveryDecisionReason {
+  return (RECOVERY_DECISION_REASONS as readonly string[]).includes(value);
+}
+
+export function submitAccountRecoveryRequest(
+  sql: Sql,
+  cityId: string,
+  targetUserId: string,
+  claimantTelegramId: string | null,
+  evidenceSummary: string,
+  createdBy: string,
+): Promise<WriteOutcome> {
+  return sql<{ result: unknown }[]>`
+    select submit_account_recovery_request(
+      ${cityId}::uuid, ${targetUserId}::uuid,
+      ${claimantTelegramId}::text, ${evidenceSummary}::text,
+      ${createdBy}::uuid
+    ) as result
+  `.then((rows) => readWrite(rows[0]?.result));
+}
+
+export function reviewAccountRecoveryRequest(
+  sql: Sql,
+  requestId: string,
+  actorUserId: string,
+  decision: "approved" | "rejected",
+  reason: string,
+): Promise<WriteOutcome> {
+  return sql<{ result: unknown }[]>`
+    select review_account_recovery_request(
+      ${requestId}::uuid, ${actorUserId}::uuid,
+      ${decision}::account_recovery_status, ${reason}::account_recovery_decision_reason
+    ) as result
+  `.then((rows) => readWrite(rows[0]?.result));
+}
+
+export async function listPendingRecoveryRequests(
+  sql: Sql,
+  actorUserId: string,
+  cityId: string,
+): Promise<AccountRecoveryRequest[]> {
+  const rows = await sql<{ result: unknown }[]>`
+    select list_pending_account_recovery_requests(
+      ${actorUserId}::uuid, ${cityId}::uuid
+    ) as result
+  `;
+  const parsed = rows[0]?.result as
+    | { ok: boolean; requests?: Array<Record<string, unknown>> }
+    | undefined;
+  if (!parsed?.ok || !Array.isArray(parsed.requests)) {
+    return [];
+  }
+  return parsed.requests.map((r) => ({
+    id: String(r.id),
+    targetUserId: String(r.target_user_id),
+    claimantTelegramId: r.claimant_telegram_id === null ? null : String(r.claimant_telegram_id),
+    evidenceSummary: String(r.evidence_summary),
+    submittedAt: String(r.submitted_at),
+    targetFullName: r.target_full_name === null ? null : String(r.target_full_name),
+    targetTelegramId: r.target_telegram_id === null ? null : String(r.target_telegram_id),
+    targetIsBlocked: r.target_is_blocked === true,
+  }));
+}

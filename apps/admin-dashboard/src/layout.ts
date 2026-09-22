@@ -53,6 +53,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/admin/payments", label: "المدفوعات" },
   // البثّ قبل الإعدادات وبعد المدفوعات: فعلٌ تشغيليٌّ يوميٌّ لا ضبطٌ يُمسّ مرّةً.
   { path: "/admin/broadcast", label: "البثّ الجماعي" },
+  // الاسترداد قبل الإعدادات: فعلٌ تشغيليٌّ لا ضبطٌ.
+  { path: "/admin/recovery", label: "استرداد الحسابات" },
   { path: "/admin/settings", label: "الإعدادات" },
 ];
 

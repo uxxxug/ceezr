@@ -2206,4 +2206,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/account-recovery.test.ts",
+    suites: ["مسارُ استردادِ حسابٍ بمراجعةٍ إداريّةٍ (SEC-20)"],
+    skipped: 8,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `SEC-20` هوَ **مسارُ استردادٍ بمراجعةٍ إداريّةٍ صريحةٍ وسجلِّ قرارٍ كاملٍ**، ولا يقدرُ عليهِ حاجزٌ ساكنٌ: الدوالُّ `submit_account_recovery_request` و`review_account_recovery_request` و`list_pending_account_recovery_requests` كلُّها `security definer` في المحرِّكِ، وحكمُ الصفةِ وحكمُ المعجمِ والإدراجُ في `audit_log` في المعاملةِ نفسِها. والقياسُ على PostgreSQL حقيقيٍّ: تقديمُ طلبٍ بملخّصِ أدلّةٍ فارغٍ يُرفَضُ، و`telegram_id` مستعمَلٌ لحسابٍ آخرَ يُرفَضُ، وقرارٌ مكرَّرٌ يُرفَضُ، وغيرُ مسؤولٍ يُرفَضُ، والموافقةُ مع `claimant_telegram_id` تُحدِّثُ `users.telegram_id`، والرفضُ لا يُحدِّثُه، وسجلُّ `audit_log` يكتبُ الفاعلَ والسببَ والوقتَ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها هجرةُ 20260923000000 لدوالِّ الاستردادِ). يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;

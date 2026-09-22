@@ -47,6 +47,7 @@ import {
   renderOverviewPage,
   renderPaymentsPage,
   renderRatingsPage,
+  renderRecoveryPage,
   renderSettingsPage,
   renderShell,
 } from "../../../admin-dashboard/src/index.ts";
@@ -85,6 +86,7 @@ import {
   healthIndicators,
   healthSignals,
   heatmap,
+  isRecoveryDecisionReason,
   type LiveDriverStatusRow,
   LOW_RATING_FALLBACK,
   listAttendanceEvents,
@@ -94,6 +96,7 @@ import {
   listDrivers,
   listLiveDriverStatuses,
   listLiveOrders,
+  listPendingRecoveryRequests,
   listRatings,
   listSettings,
   logMiniAppSessionRevocation,
@@ -102,9 +105,11 @@ import {
   ratingsTotals,
   readUserTelegramId,
   recentAudit,
+  reviewAccountRecoveryRequest,
   setDriverVerification,
   setUserBlocked,
   stallSeconds,
+  submitAccountRecoveryRequest,
   updateCityGroupIds,
   updateSetting,
 } from "../admin/queries.ts";
@@ -1233,6 +1238,78 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       return c.text("REVOKED_BUT_NOT_LOGGED", SERVER_ERROR);
     }
     return c.redirect(formText(checked.form, "back") ?? "/admin/drivers", SEE_OTHER);
+  });
+
+  // ── SEC-20 — مسارُ استردادِ حسابٍ بمراجعةٍ إداريّةٍ صريحةٍ ──────────────────
+
+  app.post("/users/:id/recovery", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const targetUserId = c.req.param("id");
+    const admin = c.get("admin");
+    const evidenceSummary = formText(checked.form, "evidence_summary");
+    const claimantTelegramId = formText(checked.form, "claimant_telegram_id");
+
+    if (!evidenceSummary || evidenceSummary.trim().length === 0) {
+      return c.text("EMPTY_EVIDENCE_SUMMARY", HTML_UNPROCESSABLE);
+    }
+
+    const outcome = await submitAccountRecoveryRequest(
+      deps.sql,
+      admin.cityId,
+      targetUserId,
+      claimantTelegramId,
+      evidenceSummary,
+      admin.userId,
+    );
+    if (!outcome.ok) {
+      log("admin.account_recovery_submit_failed", { error: outcome.error });
+      return c.text(outcome.error ?? "SUBMIT_FAILED", HTML_UNPROCESSABLE);
+    }
+
+    log("admin.account_recovery_submitted", { target: targetUserId });
+    return c.redirect("/admin/recovery", SEE_OTHER);
+  });
+
+  app.post("/recovery/:requestId/review", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const requestId = c.req.param("requestId");
+    const admin = c.get("admin");
+    const decision = formText(checked.form, "decision");
+    const reason = formText(checked.form, "reason");
+
+    if (decision !== "approved" && decision !== "rejected") {
+      return c.text("INVALID_DECISION", HTML_UNPROCESSABLE);
+    }
+
+    if (!reason || !isRecoveryDecisionReason(reason)) {
+      return c.text("INVALID_REASON", HTML_UNPROCESSABLE);
+    }
+
+    const outcome = await reviewAccountRecoveryRequest(
+      deps.sql,
+      requestId,
+      admin.userId,
+      decision,
+      reason,
+    );
+    if (!outcome.ok) {
+      log("admin.account_recovery_review_failed", { error: outcome.error });
+      return c.text(outcome.error ?? "REVIEW_FAILED", HTML_UNPROCESSABLE);
+    }
+
+    log("admin.account_recovery_reviewed", { request: requestId, decision });
+    return c.redirect("/admin/recovery", SEE_OTHER);
+  });
+
+  app.get("/recovery", async (c) => {
+    const admin = c.get("admin");
+    const requests = await listPendingRecoveryRequests(deps.sql, admin.userId, admin.cityId);
+
+    return page(c, "استرداد الحسابات", "/admin/recovery", renderRecoveryPage(requests), 60);
   });
 
   // هذا المسار الأخصّ يجب أن يسبق :key، وإلا عومل group-ids كمفتاح إعداد عادي.
