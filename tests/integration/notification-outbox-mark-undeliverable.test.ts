@@ -69,6 +69,7 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
   let offerId: string;
   let outboxId: string;
   let claimToken: string;
+  let secondOfferId: string;
 
   beforeAll(async () => {
     sql = createSql({ connectionString: DATABASE_URL as string });
@@ -357,11 +358,19 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
        where id = ${outboxId}::uuid
     `;
 
+    // أنشِئ عرضاً ثانياً للصفِّ الثاني — `offer_id` فريدٌ في `notification_outbox`.
+    const secondOffer = await sql<{ id: string }[]>`
+      insert into order_offers (city_id, order_id, driver_id, distance_km, expires_at, status)
+      values (${cityId}::uuid, ${orderId}::uuid, ${driverId}::uuid, 3.0, now() + interval '5 minutes', 'pending')
+      returning id
+    `;
+    secondOfferId = secondOffer[0]?.id as string;
+
     // أنشِئ صفَّاً ثانياً.
     const second = await sql<{ id: string }[]>`
       insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload,
                                        status, next_attempt_at)
-      values (${cityId}::uuid, 'offer', ${offerId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      values (${cityId}::uuid, 'offer', ${secondOfferId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:second:${Date.now()}`}, ${sql.json({ mark: `${MARK}-2` })},
               'pending', now())
       returning id
@@ -418,6 +427,7 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
       expect(secondRow?.status).toBe("delivered");
     } finally {
       await sql`delete from notification_outbox where id = ${secondId}::uuid`;
+      await sql`delete from order_offers where id = ${secondOfferId}::uuid`;
     }
   });
 });
