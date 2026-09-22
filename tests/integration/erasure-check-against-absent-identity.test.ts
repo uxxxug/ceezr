@@ -12,20 +12,20 @@
  *
  * ## ولِمَ جدولٌ مؤقَّتٌ، ولِمَ لا يُلمَسُ `users`
  *
- * لأنَّ `users.telegram_id` **لا يزالُ `not null`** — وذاكَ عينُ ما لم يُنزَعْ بعدُ.
+ * **قبلَ البندِ ٤ (هجرةُ `20260922090000`):** كانَ `users.telegram_id` `not null`،
  * فإدخالُ صفٍّ بـ`telegram_id = null` في `users` يُرفَضُ بخطأِ **العمودِ** قبلَ أن
  * يبلُغَ `check` ألبتّةَ، فيُنتِجُ اختباراً **مُضلِّلاً**: يحمرُّ أو يخضرُّ لسببٍ
- * غيرِ السببِ المُدَّعى. والجدولُ المؤقَّتُ يحملُ المُسنَدَ حرفاً بعمودٍ اختياريٍّ،
+ * غيرِ السببِ المُدَّعى. وكانَ الجدولُ المؤقَّتُ يحملُ المُسنَدَ حرفاً بعمودٍ اختياريٍّ،
  * فيُقاسُ **المُسنَدُ** لا العمودُ.
+ *
+ * **بعدَ البندِ ٤:** صارَ `users.telegram_id` اختياريًّا، فالجدولُ المؤقَّتُ لم يعدْ
+ * ضروريًّا للضلعِ الأوّلِ — لكنَّه يبقى للضلعِ الثالثِ (دلالةُ SQL الثلاثيّةُ
+ * مُقاسةٌ على بياناتٍ مُصطَنعةٍ لا على `users`). والضلعُ الأوّلُ يتحوَّلُ إلى قياسٍ
+ * مباشرٍ على `pg_attribute`: `attnotnull = false`.
  *
  * ## وما لا يُقاسُ ههنا — مُسمّىً لا مسكوتاً عنه
  *
- * **لا يُقاسُ أنَّ `users` يَقبَلُ `telegram_id = null`. هوَ لا يَقبَلُه.** ولا
- * يُدَّعى أنَّ قيدَ التجهيلِ اختُبِرَ على `users` نفسِه — اختُبِرَ **نصُّه كما هوَ
- * منشورٌ**، و**سلوكُه** على جدولٍ يحاكيه. فمن قرأَ هذا الملفَّ فلا يقُلْ إنَّ
- * `users` قِيسَ أمامَ الغيابِ.
- *
- * **ولا يُقاسُ مسارُ التجهيلِ نفسُه** (`erase_my_account`): ذاكَ يُسكُّ مُعرِّفاً
+ * **لا يُقاسُ مسارُ التجهيلِ نفسُه** (`erase_my_account`): ذاكَ يُسكُّ مُعرِّفاً
  * سالباً منَ المَعرِضِ، ولا يُنادى ههنا.
  *
  * ## تاريخُ التقويةِ
@@ -154,14 +154,53 @@ describeIf("قيدُ التجهيلِ أمامَ هويّةٍ خارجيّةٍ �
     expect(rows[0]?.conislocal).toBe(true);
   });
 
-  it("`users.telegram_id` لا يزالُ `not null` — فلا يُقاسُ عليه غيابٌ", async () => {
+  it("`users.telegram_id` صارَ اختياريًّا بعدَ البندِ ٤ — `attnotnull = false`", async () => {
     const rows = await sql<{ attnotnull: boolean }[]>`
       select attnotnull from pg_attribute
       where attrelid = 'public.users'::regclass and attname = 'telegram_id'`;
 
-    // هذا التوكيدُ هوَ **سببُ وجودِ الجدولِ المؤقَّتِ**: ما دامَ هذا `true` فإدخالُ
-    // غيابٍ في `users` يُرفَضُ بخطأِ العمودِ لا بحكمِ `check`.
-    expect(rows[0]?.attnotnull).toBe(true);
+    // البندُ ٤ (هجرةُ `20260922090000`) أسقطَ `not null`. فالعمودُ يَقبَلُ `null`
+    // الآن، والقيدُ `users_erased_rows_carry_no_identity` يحرسُ المعنى: صفٌّ
+    // مُجهَّلٌ بلا هويّةٍ يُقبَلُ، وصفٌّ غيرُ مُجهَّلٍ بلا مُعرِّفٍ يُرفَضُ.
+    expect(rows[0]?.attnotnull).toBe(false);
+  });
+
+  it("`users` يَقبَلُ `telegram_id = null` معَ `erased_at`، ويَرفَضُ الاسمَ معَ الغيابِ", async () => {
+    // الحصولُ على مدينةٍ صالحةٍ للقيدِ المرجعيِّ
+    const cities = await sql<{ id: string }[]>`
+      select c.id from cities c
+      join city_service_areas a on a.city_id = c.id and a.is_active
+      limit 1`;
+    const cityId = cities[0]?.id;
+    if (cityId === undefined) throw new Error("لا مدينةٌ نشطةٌ في قاعدةِ الاختبارِ");
+
+    // إدخالُ صفٍّ مُجهَّلٍ تامٍّ (لا هويّةَ ولا معرِّفَ) — يُقبَلُ.
+    const inserted = await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, role, full_name, phone,
+                         telegram_username, is_blocked, erased_at)
+      values (${cityId}::uuid, null, 'rider',
+              null, null, null, true, now())
+      returning id`;
+    expect(inserted.length).toBe(1);
+
+    // صفٌّ مُجهَّلٌ لكنَّه يَحمِلُ اسمًا — يُرفَضُ بالقيدِ.
+    let rejected = false;
+    try {
+      await sql`
+        insert into users (city_id, telegram_id, role, full_name, phone,
+                           telegram_username, is_blocked, erased_at)
+        values (${cityId}::uuid, null, 'rider',
+                'متبقٍ', null, null, true, now())
+      `;
+    } catch {
+      rejected = true;
+    }
+    expect(rejected).toBe(true);
+
+    // تنظيفٌ
+    if (inserted[0]?.id !== undefined) {
+      await sql`delete from users where id = ${inserted[0].id}::uuid`;
+    }
   });
 
   // ------------------------------------------------------------------
