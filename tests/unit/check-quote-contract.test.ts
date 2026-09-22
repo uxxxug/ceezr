@@ -544,7 +544,7 @@ describe("القاعدةُ ٩ — بيانُ الدفعِ قبلَ المُدخ�
 
   it("مفتاحُ البيانِ فراغٌ ⇒ يسقُطُ، فالفراغُ ليسَ بياناً", () => {
     const broken = dicts();
-    broken["ar"] = { ...(broken["ar"] ?? {}), [BOT_PAYMENT_NOTICE_KEY]: "   " };
+    broken.ar = { ...(broken.ar ?? {}), [BOT_PAYMENT_NOTICE_KEY]: "   " };
     expect(findBotPaymentDisclosureViolations(dialogSource(), broken).length).toBeGreaterThan(0);
   });
 
@@ -590,7 +590,7 @@ describe("القاعدةُ ٩ — بيانُ الدفعِ قبلَ المُدخ�
   for (const claim of FORBIDDEN_BOT_FARE_CLAIMS) {
     it(`دعوى «${claim}» في نصِّ راكبٍ ⇒ يسقُطُ`, () => {
       const broken = dicts();
-      broken["ar"] = { ...(broken["ar"] ?? {}), "rider.guide": `نصٌّ فيه ${claim} لا أكثرَ` };
+      broken.ar = { ...(broken.ar ?? {}), "rider.guide": `نصٌّ فيه ${claim} لا أكثرَ` };
       const violations = findBotPaymentDisclosureViolations(dialogSource(), broken);
       expect(violations.some((v) => v.includes(claim))).toBe(true);
     });
@@ -598,7 +598,7 @@ describe("القاعدةُ ٩ — بيانُ الدفعِ قبلَ المُدخ�
 
   it("دعوى الأجرةِ في نصِّ سائقٍ لا تُسقِطُ — الحكمُ على شريحةِ الراكبِ لا على كلِّ نصٍّ", () => {
     const broken = dicts();
-    broken["ar"] = { ...(broken["ar"] ?? {}), "driver.note": "السعر التقديري للاشتراكِ" };
+    broken.ar = { ...(broken.ar ?? {}), "driver.note": "السعر التقديري للاشتراكِ" };
     expect(findBotPaymentDisclosureViolations(dialogSource(), broken)).toEqual([]);
   });
 

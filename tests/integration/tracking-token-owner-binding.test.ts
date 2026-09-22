@@ -18,17 +18,19 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import {
+  createTrackingTokenMint,
+  createTrackingTokenRpc,
+} from "../../packages/infrastructure/tracking/tracking-token-adapters.ts";
+import type { OrderId } from "../../packages/shared/kernel/index.ts";
+import {
   type ActiveCityHandle,
   ensureActiveCity,
   restoreCityBaseline,
 } from "../support/active-city.ts";
-import { createTrackingTokenMint } from "../../packages/infrastructure/tracking/tracking-token-adapters.ts";
-import { createTrackingTokenRpc } from "../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const RIDER_TELEGRAM = 260_819;
 const OTHER_TELEGRAM = 260_820;
-const DRIVER_TELEGRAM = 160_819;
 
 let sql: Sql;
 let cityId: string;
@@ -49,27 +51,28 @@ async function seedRiderAndOrder(
   cityId: string,
 ): Promise<{ riderId: string; userId: string; orderId: string }> {
   const users = await sql<{ id: string }[]>`
-    insert into users (telegram_id, city_id, role, language, full_name)
-    values (${telegramId}, ${cityId}, 'rider', 'ar', 'اختبار')
+    insert into users (city_id, telegram_id, role, language_code, full_name)
+    values (${cityId}, ${telegramId}::bigint, 'rider', 'ar', 'اختبار')
     returning id
   `;
-  const userId = users[0].id;
+  const userId = users[0]?.id;
+  if (userId === undefined) throw new Error("تعذّر إنشاء المستخدم");
 
   const riders = await sql<{ id: string }[]>`
-    insert into riders (user_id, city_id, rating_average, rating_count)
-    values (${userId}, ${cityId}, null, 0)
-    returning id
+    insert into riders (city_id, user_id) values (${cityId}, ${userId}::uuid) returning id
   `;
-  const riderId = riders[0].id;
+  const riderId = riders[0]?.id;
+  if (riderId === undefined) throw new Error("تعذّر إنشاء الراكب");
 
   const orders = await sql<{ id: string }[]>`
-    insert into orders (city_id, rider_id, status, from_location, to_location)
-    values (${cityId}, ${riderId}, 'matched',
-      st_setsrid(st_makepoint(39.1, 21.5), 4326),
-      st_setsrid(st_makepoint(39.2, 21.6), 4326))
+    insert into orders (city_id, rider_id, service, status, pickup, dropoff)
+    values (${cityId}, ${riderId}::uuid, 'transport', 'matched',
+      st_point(39.1751, 21.5471)::geography,
+      st_point(39.1901, 21.5601)::geography)
     returning id
   `;
-  const orderId = orders[0].id;
+  const orderId = orders[0]?.id;
+  if (orderId === undefined) throw new Error("تعذّر إنشاء الطلب");
 
   return { riderId, userId, orderId };
 }
@@ -93,7 +96,7 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
     await sql`truncate table trip_tracking_tokens, tracking_sessions, audit_log, attendance_log,
                              order_offers, orders, driver_availability, driver_capabilities,
                              drivers, riders, users restart identity cascade`;
-    cityHandle = await ensureActiveCity(sql, cityId);
+    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
   });
 
   it("العمودُ والربطُ الخارجيُّ موجودانِ", async () => {
@@ -114,26 +117,26 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
 
   it("الإصدارُ يكتبُ `created_by_user_id` معَ `created_by`", async () => {
     const { orderId } = await seedRiderAndOrder(sql, RIDER_TELEGRAM, cityId);
-    const token = mint();
-    const result = await tokens.issue(orderId, RIDER_TELEGRAM, token);
+    const token = mint.mint();
+    const result = await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token);
     expect(result.ok).toBe(true);
 
     const rows = await sql<{ created_by: number; created_by_user_id: string }[]>`
       select created_by, created_by_user_id from trip_tracking_tokens where token = ${token}
     `;
     expect(rows.length).toBe(1);
-    expect(rows[0].created_by).toBe(RIDER_TELEGRAM);
-    expect(rows[0].created_by_user_id).not.toBeNull();
+    expect(rows[0]?.created_by).toBe(RIDER_TELEGRAM);
+    expect(rows[0]?.created_by_user_id).not.toBeNull();
   });
 
   it("الإلغاءُ يطابقُ بـ`created_by_user_id` — المالكُ يُلغي، وغيرُه لا", async () => {
     const { orderId } = await seedRiderAndOrder(sql, RIDER_TELEGRAM, cityId);
     const { orderId: otherOrderId } = await seedRiderAndOrder(sql, OTHER_TELEGRAM, cityId);
 
-    const token1 = mint();
-    const token2 = mint();
-    await tokens.issue(orderId, RIDER_TELEGRAM, token1);
-    await tokens.issue(otherOrderId, OTHER_TELEGRAM, token2);
+    const token1 = mint.mint();
+    const token2 = mint.mint();
+    await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token1);
+    await tokens.issue(otherOrderId as OrderId, OTHER_TELEGRAM, token2);
 
     // المالكُ يُلغي رمزَه
     const revokeOk = await tokens.revoke(token1, RIDER_TELEGRAM);
@@ -155,14 +158,14 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
 
   it("التجهيلُ يَحذُفُ رموزَ التتبُّعِ بـ`created_by_user_id`", async () => {
     const { orderId, userId } = await seedRiderAndOrder(sql, RIDER_TELEGRAM, cityId);
-    const token = mint();
-    await tokens.issue(orderId, RIDER_TELEGRAM, token);
+    const token = mint.mint();
+    await tokens.issue(orderId as OrderId, RIDER_TELEGRAM, token);
 
     // قبلَ التجهيلِ: الرمزُ موجودٌ
     const before = await sql<{ count: number }[]>`
       select count(*)::int as count from trip_tracking_tokens where created_by_user_id = ${userId}
     `;
-    expect(before[0].count).toBe(1);
+    expect(before[0]?.count).toBe(1);
 
     // التجهيلُ
     await sql`select erase_my_account(${RIDER_TELEGRAM}::bigint)`;
@@ -171,6 +174,6 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
     const after = await sql<{ count: number }[]>`
       select count(*)::int as count from trip_tracking_tokens where created_by_user_id = ${userId}
     `;
-    expect(after[0].count).toBe(0);
+    expect(after[0]?.count).toBe(0);
   });
 });
