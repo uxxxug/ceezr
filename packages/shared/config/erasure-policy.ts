@@ -521,7 +521,10 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
   trip_tracking_tokens: {
     disposition: D.erase,
     subjects: [S.rider],
-    linkedBy: "trip_tracking_tokens.created_by",
+    // SEC-19 بندُ ٣: الملكيةُ بـ`created_by_user_id` (uuid، ثابتٌ) لا بـ`created_by`
+    // (bigint، معرّفُ تيليجرام). والعمودُ القديمُ مسلكٌ تراثيٌّ للصفوفِ التي لم
+    // تُعَيَّن.
+    linkedBy: "trip_tracking_tokens.created_by_user_id → users.id",
     basis: null,
     exportSection: "tripTrackingTokens",
     deferredTo: null,
