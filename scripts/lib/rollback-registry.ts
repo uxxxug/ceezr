@@ -1124,6 +1124,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: null,
     documentedIn: null,
   },
+  {
+    migration: "20260922050000_sec_19_claim_undeliverable_guard.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "الهجرةُ تُعيدُ تعريفَ `claim_notification_delivery` بـ`create or replace` لتُضيفَ حرسًا واحدًا بعدَ حلِّ العنوانِ: إذا كانَ `chat_id` غائبًا، يُعلَنُ الصفُّ `undeliverable` بـ`died_at` وسببٍ مُسمّىً، ويُعادُ `delivery: null`. وبقيةُ الفروعِ والبنيةِ منسوخةٌ حرفًا بحرفٍ عن آخرِ تعريفٍ لها. والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كان — الدالّةُ ممنوحةٌ لـ`service_role` وحدَها قبلَ التغييرِ وبعدَه، و`create or replace` لا تُسقِطُ منحًا قائمًا أصلًا. والعودةُ بالكودِ وحدَها لا تكفي: الصفوفُ التي أُعلِنَت `undeliverable` بهذا الحرسِ لا تلتقطُها الصورةُ السابقةُ فتبقى `pending` — وهوَ سلوكُ الأمسِ لا كسرٌ، لكنَّ الحرسَ عائدٌ إلى حضانتِه.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
 ];
 
 /**

@@ -349,10 +349,13 @@ describeIf("آليّةُ بلاغِ المفقودِ على PostgreSQL حقيق�
     const report = await run(sent);
     expect(report.ok).toBe(true);
     if (!report.ok) return;
-    expect(report.value.abandoned).toBe(1);
+    // `SEC-19-ب-٣` — العنوانُ غائبٌ فلا يُحاوَلُ إرسالُه ولا يُعادُ: عُذِرَ تسليمُه
+    // في القاعدةِ بـ`TELEGRAM_DELIVERY_NOT_REQUIRED` (غيرُ جوهريٍّ).
+    expect(report.value.undeliverable).toBe(1);
+    expect(report.value.abandoned).toBe(0);
     expect(report.value.delivered).toBe(0);
     expect(sent).toHaveLength(0);
     const rows = await outboxRows();
-    expect(rows[0]?.status).toBe("dead");
+    expect(rows[0]?.status).toBe("undeliverable");
   });
 });
