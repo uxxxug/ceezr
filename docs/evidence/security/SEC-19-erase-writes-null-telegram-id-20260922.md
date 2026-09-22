@@ -65,8 +65,17 @@
 مسلكُ `claim_notification_delivery()` (الخانقُ) مُغطَّى بخطواتِ SEC-19 ١–٥:
 التحويلُ `String(null)` يُرفَضُ، والرسالةُ تُفشَّلُ بـ`UNDISCLOSED_TARGET`.
 وباقي المسالكِ إمَّا مُحَصَّنةٌ بفحصِ `null` صراحةً
-(`telegram-driver-notifier.ts:70`) أو مُغطَّاةٌ بتدقيقٍ ساكنٍ —
-لا مسارَ إرسالٍ يُحاولُ إرسالَ `null` دونَ حارسٍ.
+(`telegram-driver-notifier.ts:70`) أو مُغطَّاةٌ بمرشِّحٍ يَستبعدُ المستخدمَ المُجهَّلَ:
+
+| المسلكُ | المرشِّحُ | الأمانُ |
+|---|---|---|
+| `claim_notification_delivery()` | خطواتُ SEC-19 ١–٥ | مَقيسٌ |
+| `telegram-driver-notifier.ts` | `contact.telegram_id === null` (سطر ٧٠) | مَقيسٌ |
+| `unmatched-adapters.ts` | `o.status = 'searching'` — المُجهَّلُ لا يملكُ طلبًا جاريًا | مُدقَّقٌ ساكنًا |
+| `lifecycle-adapters.ts` | `u.is_blocked = false` — المُجهَّلُ محظورٌ | مُدقَّقٌ ساكنًا |
+| `where telegram_id = p_telegram_id` | لا يُطابِقُ `null` | مُدقَّقٌ ساكنًا |
+
+لا مسارَ إرسالٍ يُحاولُ إرسالَ `null` دونَ حارسٍ أو مرشِّحٍ يَستبعدُهُ.
 
 ## الخلاصةُ
 
