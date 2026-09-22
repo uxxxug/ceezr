@@ -145,8 +145,8 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
 
   async function insertOutbox(kind: string, payload: Record<string, unknown>): Promise<string> {
     const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, ${kind}, ${offerId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
+      values (${cityId}::uuid, ${kind}, ${orderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:${kind}:${Date.now()}:${Math.random()}`}, ${sql.json(payload as unknown as Record<string, never>)})
       returning id
     `;
@@ -179,8 +179,8 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   it("٢) `order_cancelled` بمعرِّفِ سائقٍ غيرِ موجودٍ ⇒ `undeliverable` بـ`TELEGRAM_DELIVERY_UNAVAILABLE`", async () => {
     const fakeDriverId = "00000000-0000-0000-0000-000000000001";
     const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'order_cancelled', ${offerId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
+      values (${cityId}::uuid, 'order_cancelled', ${orderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:cancel-fake:${Date.now()}`}, ${sql.json({ driver_id: fakeDriverId })})
       returning id
     `;
@@ -211,8 +211,8 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   it("٣) `wider_circle_opened` بعنوانٍ غائبٍ ⇒ `TELEGRAM_DELIVERY_NOT_REQUIRED` (غيرُ جوهريٍّ)", async () => {
     const fakeOrderId = "00000000-0000-0000-0000-000000000002";
     const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'wider_circle_opened', ${offerId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
+      values (${cityId}::uuid, 'wider_circle_opened', ${orderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:wider-fake:${Date.now()}`}, ${sql.json({ order_id: fakeOrderId })})
       returning id
     `;
@@ -237,8 +237,8 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   it("٤) `lost_item_report` بعنوانٍ غائبٍ ⇒ `TELEGRAM_DELIVERY_NOT_REQUIRED`", async () => {
     const fakeDriverId = "00000000-0000-0000-0000-000000000003";
     const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'lost_item_report', ${offerId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
+      values (${cityId}::uuid, 'lost_item_report', ${orderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:lost-fake:${Date.now()}`}, ${sql.json({ driver_id: fakeDriverId })})
       returning id
     `;
@@ -262,8 +262,8 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   it("٥) صفٌّ `undeliverable` لا يُلتقَطُ مرةً ثانيةً — لا محاولةَ تُعادُ", async () => {
     const fakeDriverId = "00000000-0000-0000-0000-000000000004";
     const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'order_cancelled', ${offerId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
+      values (${cityId}::uuid, 'order_cancelled', ${orderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:no-retry:${Date.now()}`}, ${sql.json({ driver_id: fakeDriverId })})
       returning id
     `;
@@ -289,8 +289,8 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   it("٦) `safety_resolution_closed` بعنوانٍ غائبٍ ⇒ `TELEGRAM_DELIVERY_UNAVAILABLE`", async () => {
     const fakeIncidentId = "00000000-0000-0000-0000-000000000005";
     const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'safety_resolution_closed', ${offerId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
+      values (${cityId}::uuid, 'safety_resolution_closed', ${orderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:safety-fake:${Date.now()}`}, ${sql.json({ incident_id: fakeIncidentId })})
       returning id
     `;
@@ -315,8 +315,8 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   it("٧) `claim_token` و`claimed_at` يُنزَعانِ من الصفِّ `undeliverable`", async () => {
     const fakeDriverId = "00000000-0000-0000-0000-000000000006";
     const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'order_cancelled', ${offerId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
+      values (${cityId}::uuid, 'order_cancelled', ${orderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:no-token:${Date.now()}`}, ${sql.json({ driver_id: fakeDriverId })})
       returning id
     `;
