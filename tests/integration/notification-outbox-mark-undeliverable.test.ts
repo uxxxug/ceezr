@@ -203,22 +203,53 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
     expect(row?.claim_token).toBe(realToken);
   });
 
-  it("٣) mark_notification_undeliverable: صفٌّ ليسَ في `sending` ⇒ ok=false", async () => {
+  it("٣) mark_notification_undeliverable: صفٌّ ليسَ في `sending` ⇒ ok=false (pending, delivered, dead)", async () => {
     // صفٌّ `delivered` — لا يُعلَنُ تعذُّرٌ على ما سُلِّمَ.
+    // (يلزمه `delivered_at` و`delivered_message_id` بسبب `notification_delivered_pair`.)
     await sql`
       update notification_outbox
          set status = 'delivered', claim_token = ${claimToken}::uuid, claimed_at = now(),
+             delivered_at = now(), delivered_message_id = 'msg-test',
              died_at = null, dead_reason = null
        where id = ${outboxId}::uuid
     `;
 
-    const rows = await sql<{ result: FunctionResult }[]>`
+    const deliveredRows = await sql<{ result: FunctionResult }[]>`
       select mark_notification_undeliverable(${outboxId}::uuid, ${claimToken}::uuid, 'TELEGRAM_DELIVERY_UNAVAILABLE'::text) result
     `;
-    expect(rows[0]?.result).toMatchObject({ ok: false });
+    expect(deliveredRows[0]?.result).toMatchObject({ ok: false });
+    const deliveredRow = await readRow(outboxId);
+    expect(deliveredRow?.status).toBe("delivered");
 
-    const row = await readRow(outboxId);
-    expect(row?.status).toBe("delivered");
+    // صفٌّ `pending` — لم يُحجَز بعدُ.
+    await sql`
+      update notification_outbox
+         set status = 'pending', claim_token = null, claimed_at = null,
+             delivered_at = null, delivered_message_id = null,
+             died_at = null, dead_reason = null
+       where id = ${outboxId}::uuid
+    `;
+    const pendingRows = await sql<{ result: FunctionResult }[]>`
+      select mark_notification_undeliverable(${outboxId}::uuid, '00000000-0000-0000-0000-000000000001'::uuid, 'TELEGRAM_DELIVERY_UNAVAILABLE'::text) result
+    `;
+    expect(pendingRows[0]?.result).toMatchObject({ ok: false });
+    const pendingRow = await readRow(outboxId);
+    expect(pendingRow?.status).toBe("pending");
+
+    // صفٌّ `dead` — مات، فلا يُعلَنُ تعذُّرٌ عليه.
+    await sql`
+      update notification_outbox
+         set status = 'dead', claim_token = null, claimed_at = null,
+             delivered_at = null, delivered_message_id = null,
+             died_at = now(), dead_reason = 'TELEGRAM_ID_MISSING'
+       where id = ${outboxId}::uuid
+    `;
+    const deadRows = await sql<{ result: FunctionResult }[]>`
+      select mark_notification_undeliverable(${outboxId}::uuid, '00000000-0000-0000-0000-000000000002'::uuid, 'TELEGRAM_DELIVERY_UNAVAILABLE'::text) result
+    `;
+    expect(deadRows[0]?.result).toMatchObject({ ok: false });
+    const deadRow = await readRow(outboxId);
+    expect(deadRow?.status).toBe("dead");
   });
 
   it("٤) NotificationOutboxAdapter.undeliverable: ينادي الدالّةَ ويُعيدُ النتيجةَ", async () => {
@@ -289,40 +320,30 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
     expect(row?.dead_reason).toBe("TELEGRAM_DELIVERY_UNAVAILABLE");
   });
 
-  it("٦) deliverNotification: معالجٌ ناجحٌ ⇒ الصفُّ delivered لا undeliverable", async () => {
-    // أعد ضبطَ الصفِّ إلى `pending`.
+  it("٦) سببٌ خارجُ القائمةِ المغلقةِ يُرفَضُ (notification_undeliverable_reason_check)", async () => {
+    // أعد ضبطَ الصفِّ إلى `sending` برمزِ حجزٍ.
+    const invalidToken = "77777777-7777-7777-7777-777777777777";
     await sql`
       update notification_outbox
-         set status = 'pending', claim_token = null, claimed_at = null,
-             died_at = null, dead_reason = null, attempts = 0, next_attempt_at = now()
+         set status = 'sending', claim_token = ${invalidToken}::uuid, claimed_at = now(),
+             died_at = null, dead_reason = null
        where id = ${outboxId}::uuid
     `;
 
-    const port = createNotificationOutboxPort(sql);
+    // سببٌ غيرُ مسموحٍ به — القيدُ يرفضُه.
+    try {
+      await sql`
+        select mark_notification_undeliverable(${outboxId}::uuid, ${invalidToken}::uuid, 'INVALID_REASON'::text) result
+      `;
+      throw new Error("كانَ ينبغي أن يُرفَضَ السببُ غيرُ المسموحِ به");
+    } catch (e: unknown) {
+      const msg = String((e as Error).message);
+      expect(msg).toContain("notification_undeliverable_reason_check");
+    }
 
-    const handler: NotificationHandler = async () =>
-      ok({
-        abandon: false,
-        messageId: "msg-123",
-        failure: null,
-        undeliverable: false,
-      });
-
-    const deps: NotificationDeliveryDeps = {
-      outbox: port,
-      handlers: { offer: handler },
-    };
-
-    const result = await deliverNotification(deps);
-
-    expect(result.ok).toBe(true);
-    if (!result.ok) return;
-    expect(result.value.found).toBe(true);
-    expect(result.value.delivered).toBe(true);
-    expect(result.value.undeliverable).toBe(false);
-
+    // الصفُّ لم يتغيَّر — ظلَّ في `sending`.
     const row = await readRow(outboxId);
-    expect(row?.status).toBe("delivered");
+    expect(row?.status).toBe("sending");
   });
 
   it("٧) deliverNotificationBatch: شوطٌ لا ينكسرُ بعدَ صفٍّ undeliverable", async () => {
