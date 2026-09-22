@@ -153,11 +153,18 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
     return rows[0]?.id as string;
   }
 
-  // امسحْ صفوفِ دورةِ الرحلةِ المعلَّقةِ التي أُنشِئَت في هذه الجلسةِ وحدَها —
-  // فالترتيبُ السببيُّ يمنعُ التقاطَ صفٍّ إذا كانَ هناكَ صفٌّ أقدمُ بنفسِ
-  // order_id. ولا نمسحُ صفوفَ اختباراتٍ أخرى تشاركُ القاعدةَ.
+  // امسحْ كلَّ صفوفِ دورةِ الرحلةِ المعلَّقةِ — فالترتيبُ السببيُّ يمنعُ التقاطَ
+  // صفٍّ إذا كانَ هناكَ صفٌّ أقدمُ بنفسِ order_id، والأنواعُ ذاتُ الأولويةِ الأعلى
+  // (مثل `offer`) تُلتقَطُ قبلَ صفِّنا. فالصفوفُ المعلَّقةُ المتروكةُ من اختباراتٍ
+  // أخرى تُربِكُ القياسَ. والاختباراتُ اللاحقةُ تُنشِئُ صفوفَها بنفسِها.
   async function clearPending(): Promise<void> {
-    await sql`delete from notification_outbox where status = 'pending' and dedup_key like ${`${MARK}%`}`;
+    await sql`delete from notification_outbox where status = 'pending' and kind in (
+      'offer', 'dispute_resolution',
+      'negotiation_turn_opened', 'negotiation_turn_closed', 'negotiation_agreed',
+      'wider_circle_opened', 'no_driver_found', 'order_cancelled',
+      'lost_item_report',
+      'safety_resolution_closed', 'safety_resolution_blocked'
+    )`;
   }
 
   // ──────────────────────────────────────────────────────────────────────

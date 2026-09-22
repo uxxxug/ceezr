@@ -257,6 +257,15 @@ begin
     'wider_circle_opened', 'no_driver_found',
     'order_cancelled', 'lost_item_report',
     'safety_resolution_closed', 'safety_resolution_blocked'
+  ) and (
+    -- الحرسُ يقعُ فقطَ حينَ يَحملُ الحمولةُ المعرِّفَ المطلوبَ: فالكيانُ كانَ
+    -- مُستهدَفاً لكنَّهُ تعذَّرَ الوصولُ إليه. أمّا الحمولةُ الفارغةُ فعيبُ بياناتٍ
+    -- لا عجزَ تسليمٍ، فيُترَكُ للسلوكِ القائمِ (إرجاعٌ بـ`chat_id` غائبةٍ).
+    (v_delivery.kind = 'dispute_resolution' and v_delivery.payload->>'ticket_id' is not null)
+    or (v_delivery.kind in ('negotiation_turn_opened','negotiation_turn_closed','negotiation_agreed') and v_delivery.payload->>'claim_id' is not null)
+    or (v_delivery.kind in ('wider_circle_opened','no_driver_found') and v_delivery.payload->>'order_id' is not null)
+    or (v_delivery.kind in ('order_cancelled','lost_item_report') and v_delivery.payload->>'driver_id' is not null)
+    or (v_delivery.kind in ('safety_resolution_closed','safety_resolution_blocked') and v_delivery.payload->>'incident_id' is not null)
   ) then
     if v_delivery.kind in (
       'wider_circle_opened', 'no_driver_found',
