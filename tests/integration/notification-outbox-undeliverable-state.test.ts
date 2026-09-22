@@ -89,7 +89,7 @@ describeIf("حالةُ «غيرُ قابلٍ للتسليمِ» في notificatio
 
     const driver = await sql<{ id: string }[]>`
       insert into drivers (city_id, user_id, verification_status)
-      values (${cityId}::uuid, ${driverUserId}::uuid, 'approved')
+      values (${cityId}::uuid, ${driverUserId}::uuid, 'verified')
       returning id
     `;
     driverId = driver[0]?.id as string;
