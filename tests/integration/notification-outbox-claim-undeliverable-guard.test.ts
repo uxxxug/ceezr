@@ -10,7 +10,7 @@
  *
  * ## المسألةُ التي يقيسُها هذا الملفُّ
  *
- * `claim_notification_delivery` تلتقطُ صفّاً من `notification_outbox`، تزيدُ
+ * `claim_notification_delivery` تلتقطُ صفًّا من `notification_outbox`، تزيدُ
  * `attempts`، ثمَّ تُحَلُّ العنوانَ حيّاً من القاعدةِ. فإذا كانَ العنوانُ
  * غائبًا (المستخدمُ محذوفٌ أو بلا `telegram_id`)، فإنَّ الدالّةَ كانت تُسلِّمُ
  * الصفَّ للعاملِ كأنَّه قابلٌ للإرسالِ. والآنَ — بعدَ الحرسِ — يُعلَنُ الصفُّ
@@ -153,16 +153,27 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
     return rows[0]?.id as string;
   }
 
+  // امسحْ كلَّ صفوفِ دورةِ الرحلةِ المعلَّقةِ ليكونَ صفُّنا هو الوحيدَ القابلاً
+  // للالتقاطِ — فالترتيبُ السببيُّ يمنعُ التقاطَ صفٍّ إذا كانَ هناكَ صفٌّ أقدمُ
+  // بنفسِ order_id، وأيُّ صفٍّ آخرَ قد يُلتقَطُ بدلاً من صفِّنا.
+  async function clearPending(): Promise<void> {
+    await sql`delete from notification_outbox where status = 'pending' and kind = any(array[
+      'offer', 'dispute_resolution',
+      'negotiation_turn_opened', 'negotiation_turn_closed', 'negotiation_agreed',
+      'wider_circle_opened', 'no_driver_found', 'order_cancelled',
+      'lost_item_report', 'safety_resolution_closed', 'safety_resolution_blocked'
+    ])`;
+  }
+
   // ──────────────────────────────────────────────────────────────────────
   // ١) صفٌّ قابلٌ للتسليمِ يُلتقَطُ طبيعياً — لا انحدارَ
   // ──────────────────────────────────────────────────────────────────────
   it("١) صفٌّ بعنوانٍ صالحٍ يُلتقَطُ ويُسلَّمُ للمُرسِلِ — لا انحدارَ", async () => {
+    await clearPending();
     const id = await insertOutbox("order_cancelled", {
       driver_id: driverId,
       side: "driver",
     });
-    // امسحْ صفوفًا معلَّقةً سابقةً ليكونَ صفُّنا هو التالي.
-    await sql`delete from notification_outbox where id <> ${id}::uuid and status = 'pending' and kind = 'order_cancelled'`;
 
     const result = await claimNext();
     expect(result.ok).toBe(true);
@@ -177,17 +188,9 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   // ٢) `order_cancelled` بمعرِّفِ سائقٍ غيرِ موجودٍ ⇒ `undeliverable`
   // ──────────────────────────────────────────────────────────────────────
   it("٢) `order_cancelled` بمعرِّفِ سائقٍ غيرِ موجودٍ ⇒ `undeliverable` بـ`TELEGRAM_DELIVERY_UNAVAILABLE`", async () => {
+    await clearPending();
     const fakeDriverId = "00000000-0000-0000-0000-000000000001";
-    const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'order_cancelled', ${orderId}::uuid, ${driverId}::uuid,
-              ${`${MARK}:cancel-fake:${Date.now()}`}, ${sql.json({ driver_id: fakeDriverId })})
-      returning id
-    `;
-    const id = rows[0]?.id as string;
-
-    // امسحْ صفوفًا معلَّقةً سابقةً ليكونَ صفُّنا هو التالي.
-    await sql`delete from notification_outbox where id <> ${id}::uuid and status = 'pending' and kind = 'order_cancelled'`;
+    const id = await insertOutbox("order_cancelled", { driver_id: fakeDriverId });
 
     const result = await claimNext();
     expect(result.ok).toBe(true);
@@ -209,16 +212,9 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   //    بـ`TELEGRAM_DELIVERY_NOT_REQUIRED` (غيرُ جوهريٍّ)
   // ──────────────────────────────────────────────────────────────────────
   it("٣) `wider_circle_opened` بعنوانٍ غائبٍ ⇒ `TELEGRAM_DELIVERY_NOT_REQUIRED` (غيرُ جوهريٍّ)", async () => {
+    await clearPending();
     const fakeOrderId = "00000000-0000-0000-0000-000000000002";
-    const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'wider_circle_opened', ${orderId}::uuid, ${driverId}::uuid,
-              ${`${MARK}:wider-fake:${Date.now()}`}, ${sql.json({ order_id: fakeOrderId })})
-      returning id
-    `;
-    const id = rows[0]?.id as string;
-
-    await sql`delete from notification_outbox where id <> ${id}::uuid and status = 'pending' and kind = 'wider_circle_opened'`;
+    const id = await insertOutbox("wider_circle_opened", { order_id: fakeOrderId });
 
     const result = await claimNext();
     expect(result.delivery).toBeNull();
@@ -235,16 +231,9 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   // ٤) `lost_item_report` بمعرِّفِ سائقٍ غيرِ موجودٍ ⇒ `TELEGRAM_DELIVERY_NOT_REQUIRED`
   // ──────────────────────────────────────────────────────────────────────
   it("٤) `lost_item_report` بعنوانٍ غائبٍ ⇒ `TELEGRAM_DELIVERY_NOT_REQUIRED`", async () => {
+    await clearPending();
     const fakeDriverId = "00000000-0000-0000-0000-000000000003";
-    const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'lost_item_report', ${orderId}::uuid, ${driverId}::uuid,
-              ${`${MARK}:lost-fake:${Date.now()}`}, ${sql.json({ driver_id: fakeDriverId })})
-      returning id
-    `;
-    const id = rows[0]?.id as string;
-
-    await sql`delete from notification_outbox where id <> ${id}::uuid and status = 'pending' and kind = 'lost_item_report'`;
+    const id = await insertOutbox("lost_item_report", { driver_id: fakeDriverId });
 
     const result = await claimNext();
     expect(result.delivery).toBeNull();
@@ -260,16 +249,9 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   // ٥) صفٌّ `undeliverable` لا يُلتقَطُ مرةً ثانيةً — لا محاولةَ تُعادُ
   // ──────────────────────────────────────────────────────────────────────
   it("٥) صفٌّ `undeliverable` لا يُلتقَطُ مرةً ثانيةً — لا محاولةَ تُعادُ", async () => {
+    await clearPending();
     const fakeDriverId = "00000000-0000-0000-0000-000000000004";
-    const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'order_cancelled', ${orderId}::uuid, ${driverId}::uuid,
-              ${`${MARK}:no-retry:${Date.now()}`}, ${sql.json({ driver_id: fakeDriverId })})
-      returning id
-    `;
-    const id = rows[0]?.id as string;
-
-    await sql`delete from notification_outbox where id <> ${id}::uuid and status = 'pending' and kind = 'order_cancelled'`;
+    const id = await insertOutbox("order_cancelled", { driver_id: fakeDriverId });
 
     // الالتقاطُ الأوّلُ: يُعلَنُ `undeliverable`.
     const first = await claimNext();
@@ -287,16 +269,9 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   // ٦) `safety_resolution_closed` بعنوانٍ غائبٍ ⇒ `TELEGRAM_DELIVERY_UNAVAILABLE`
   // ──────────────────────────────────────────────────────────────────────
   it("٦) `safety_resolution_closed` بعنوانٍ غائبٍ ⇒ `TELEGRAM_DELIVERY_UNAVAILABLE`", async () => {
+    await clearPending();
     const fakeIncidentId = "00000000-0000-0000-0000-000000000005";
-    const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'safety_resolution_closed', ${orderId}::uuid, ${driverId}::uuid,
-              ${`${MARK}:safety-fake:${Date.now()}`}, ${sql.json({ incident_id: fakeIncidentId })})
-      returning id
-    `;
-    const id = rows[0]?.id as string;
-
-    await sql`delete from notification_outbox where id <> ${id}::uuid and status = 'pending' and kind = 'safety_resolution_closed'`;
+    const id = await insertOutbox("safety_resolution_closed", { incident_id: fakeIncidentId });
 
     const result = await claimNext();
     expect(result.delivery).toBeNull();
@@ -313,16 +288,9 @@ describeIf("حرسُ العنوانِ الغائبِ في claim_notification_del
   // ٧) `claim_token` يُنزَعُ من الصفِّ `undeliverable` — لا رمزَ لميِّتٍ
   // ──────────────────────────────────────────────────────────────────────
   it("٧) `claim_token` و`claimed_at` يُنزَعانِ من الصفِّ `undeliverable`", async () => {
+    await clearPending();
     const fakeDriverId = "00000000-0000-0000-0000-000000000006";
-    const rows = await sql<{ id: string }[]>`
-      insert into notification_outbox (city_id, kind, order_id, driver_id, dedup_key, payload)
-      values (${cityId}::uuid, 'order_cancelled', ${orderId}::uuid, ${driverId}::uuid,
-              ${`${MARK}:no-token:${Date.now()}`}, ${sql.json({ driver_id: fakeDriverId })})
-      returning id
-    `;
-    const id = rows[0]?.id as string;
-
-    await sql`delete from notification_outbox where id <> ${id}::uuid and status = 'pending' and kind = 'order_cancelled'`;
+    const id = await insertOutbox("order_cancelled", { driver_id: fakeDriverId });
 
     await claimNext();
 
