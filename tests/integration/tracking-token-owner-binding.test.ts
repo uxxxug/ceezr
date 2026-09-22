@@ -182,8 +182,13 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
     `;
     expect(before[0]?.count).toBe(1);
 
+    // إنهاءُ الطلبِ قبلَ التجهيلِ: `erase_my_account` يرفضُ الطلباتِ الجاريةَ
+    await sql`update orders set status = 'completed' where id = ${orderId}::uuid`;
+
     // التجهيلُ
-    await sql`select erase_my_account(${RIDER_TELEGRAM}::bigint)`;
+    const eraseResult = await sql`select erase_my_account(${RIDER_TELEGRAM}::bigint) as result`;
+    const envelope = eraseResult[0]?.result as { ok?: boolean; reason?: string } | null;
+    expect(envelope?.ok).toBe(true);
 
     // بعدَ التجهيلِ: لا رمزَ لذلك المستخدمِ
     const after = await sql<{ count: number }[]>`
