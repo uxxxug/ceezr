@@ -261,8 +261,5 @@ describeIf("SEC-19 بندُ ٣ — ربطُ `created_by` بـ`users.id`", () => 
       rejected = true;
     }
     expect(rejected).toBe(true);
-
-    // تنظيفٌ
-    await sql`delete from users where id = ${userId}::uuid`;
   });
 });
