@@ -140,13 +140,19 @@ describeIf("حالةُ «غيرُ قابلٍ للتسليمِ» في notificatio
          set status = 'pending', died_at = null, dead_reason = null, claim_token = null, claimed_at = null
        where id = ${undeliverableId}::uuid
     `;
-    await expect(
-      sql`
+    // `sql` وسمٌ مؤجَّلٌ لا وعدٌ منطلقٌ (ADR 0122) — فـ`expect(sql\`…\`).rejects`
+    // لا يُحسَمُ أبدًا. التقاطُ الخطأ بـ`try`/`catch` هو النمطُ الصادقُ.
+    let threw = false;
+    try {
+      await sql`
         update notification_outbox
            set status = 'undeliverable'
          where id = ${undeliverableId}::uuid
-      `,
-    ).rejects.toThrow();
+      `;
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
   });
 
   it("٣) `undeliverable` بـ`died_at` و`dead_reason` مقبولٌ — القيدُ يرضى", async () => {
@@ -175,15 +181,19 @@ describeIf("حالةُ «غيرُ قابلٍ للتسليمِ» في notificatio
          set status = 'pending', died_at = null, dead_reason = null, claim_token = null, claimed_at = null
        where id = ${undeliverableId}::uuid
     `;
-    await expect(
-      sql`
+    let threw = false;
+    try {
+      await sql`
         update notification_outbox
            set status = 'undeliverable',
                died_at = now(),
                dead_reason = 'UNKNOWN_REASON'
          where id = ${undeliverableId}::uuid
-      `,
-    ).rejects.toThrow();
+      `;
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
   });
 
   it("٥) `TELEGRAM_DELIVERY_UNAVAILABLE` سببٌ مقبولٌ", async () => {
@@ -232,13 +242,18 @@ describeIf("حالةُ «غيرُ قابلٍ للتسليمِ» في notificatio
        where id = ${undeliverableId}::uuid
     `;
     // `dead` بلا `died_at` و`dead_reason` يُرفَضُ — القيدُ الأوّلُ لم يُضعَفْ.
-    await expect(
-      sql`
+    // (ADR 0122: التقاطٌ بـtry/catch لا expect(sql).rejects)
+    let threw = false;
+    try {
+      await sql`
         update notification_outbox
            set status = 'dead'
          where id = ${undeliverableId}::uuid
-      `,
-    ).rejects.toThrow();
+      `;
+    } catch {
+      threw = true;
+    }
+    expect(threw).toBe(true);
 
     // `dead` بهما مقبولٌ — السلوكُ القائمُ بحرفِه.
     await sql`
