@@ -848,8 +848,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // (`SEC-19-ب-٢`) — عشرةٌ على قاعدةٍ حقيقيّةٍ: القيدُ يقبلُ الحالةَ الجديدةَ،
     // ورفضُ الغيابِ مقيسٌ، والأسبابُ مغلقةٌ، ولا انحدارَ في القيدِ الأوّلِ.
     // والأرقامُ السابقةُ تبقى مذكورةً لا ممحوّةً (`ح-8`).
-    expect(SKIP_REGISTRY).toHaveLength(136);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1348);
+    expect(SKIP_REGISTRY).toHaveLength(137);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1355);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

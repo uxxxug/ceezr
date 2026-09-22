@@ -2178,4 +2178,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/notification-outbox-mark-undeliverable.test.ts",
+    suites: ["دالّةُ ومحوّلُ التعذُّرِ من طبقةِ التطبيقِ (SEC-19-ب-٤ · Step 5)"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى أنَّ `mark_notification_undeliverable` تُعلِنُ الصفَّ `undeliverable` (لا `dead`) من طبقةِ التطبيقِ، وأنَّ `NotificationOutboxAdapter.undeliverable` يناديها، وأنَّ `deliverNotification` يُمرِّرُ الإشارةَ ولا يُرسِلُ `abandon`، وأنَّ الشوطَ لا ينكسرُ. والقياسُ على PostgreSQL حقيقيٍّ: الدالّةُ تعملُ برمزِ حجزٍ مطابِقٍ وتُحرِمُ الخطأَ برمزٍ خاطئٍ، والمحوّلُ يناديها، وتدفقُ `deliverNotification` يُعلِنُ `undeliverable` لا `dead`، والشوطُ يلتقطُ صفَّينِ بعدَ تعذُّرِ الأوّلِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة (ومنها 20260922060000 للدالّةِ) وبها مدينةٌ واحدةٌ على الأقلِّ. يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;

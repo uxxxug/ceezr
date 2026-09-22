@@ -1135,6 +1135,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "الهويةُ والجلسةُ والصلاحيات",
     documentedIn: null,
   },
+  {
+    migration: "20260922061000_sec_19_fix_mark_undeliverable_status_ambiguity.sql",
+    change: "revoke_function:mark_notification_undeliverable(3)",
+    why: "إعادةُ تطبيقِ سطحِ الصلاحيّاتِ بعدَ `drop function` — `drop` يُسقِطُ المنحَ أيًّا كان، فيُعادُ السحبُ من `public/anon/authenticated` ثمَّ المنحُ لـ`service_role` صراحةً كما يفعلُ `abandon_notification_delivery`، بلا الاعتمادِ على منحٍ ضمنيٍّ من `create or replace`. و`drop function` قبلَ الإنشاءِ بالتوقيعِ نفسه إعادةُ تعريفٍ متساويةٌ لا خطرٌ مستقلٌّ بموجبِ منطقِ الحاجزِ نفسه.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: true,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
 ];
 
 /**
