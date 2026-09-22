@@ -69,5 +69,15 @@ comment on function mark_notification_undeliverable(uuid, uuid, text) is
 
 -- =====================================================================
 -- السطحُ: المنحُ والدعمُ كـ`abandon_notification_delivery` سواءً بسواءٍ.
+--
+--   **`drop` أسقطَ منحَ`service_role`** خلافاً لـ`create or replace`. الهجرةُ
+--   الأصليّةُ `20260922060000` لا تُمنحُ صراحةً `service_role` (ولم تنقلها من
+--   هجرةٍ سابقة)، لكنَّ هذا الخطِّ كان مفقوداً. أُعادُ المنحَ هنا كما يفعلُ
+--   `abandon_notification_delivery`: السحبُ من `public` ثمَّ المنحُ لـ
+--   `service_role`، فلا يُتركُ السطحُ مفتوحاً للعامِ ولا مقفولاً على
+--   `postgres` وحده.
 -- =====================================================================
-revoke execute on function mark_notification_undeliverable(uuid, uuid, text) from public;
+revoke execute on function mark_notification_undeliverable(uuid, uuid, text)
+  from public, anon, authenticated;
+grant execute on function mark_notification_undeliverable(uuid, uuid, text)
+  to service_role;

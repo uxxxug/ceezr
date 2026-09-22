@@ -140,7 +140,11 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
     await sql`delete from notification_outbox where id = ${outboxId}::uuid`;
     await sql`delete from notification_outbox where dedup_key like ${`${MARK}:%`}`;
     await sql`delete from order_offers where id = ${offerId}::uuid`;
+    if (secondOfferId !== undefined) {
+      await sql`delete from order_offers where id = ${secondOfferId}::uuid`;
+    }
     await sql`delete from orders where id = ${orderId}::uuid`;
+    await sql`delete from orders where rider_id in (select id from riders where user_id in (select id from users where full_name like ${`${MARK}-rider2%`}))`;
     await sql`delete from drivers where id = ${driverId}::uuid`;
     await sql`delete from riders where user_id in (select id from users where full_name like ${`${MARK}%`})`;
     await sql`delete from users where full_name like ${`${MARK}%`}`;
@@ -358,10 +362,34 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
        where id = ${outboxId}::uuid
     `;
 
-    // أنشِئ عرضاً ثانياً للصفِّ الثاني — `offer_id` فريدٌ في `notification_outbox`.
+    // أنشِئ طلباً ثانياً وعرضاً ثانياً للصفِّ الثاني — `offer_id` فريدٌ في
+    // `notification_outbox` و`order_offers_order_id_driver_id_round_key` فريدٌ في
+    // `order_offers`.
+    const secondRiderUser = await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, full_name, language_code, role)
+      values (${cityId}::uuid, ${String(8_500_000_000_001 + Date.now())}::bigint, ${`${MARK}-rider2`}, 'ar', 'rider')
+      returning id
+    `;
+    const secondRiderUserId = secondRiderUser[0]?.id as string;
+
+    const secondRider = await sql<{ id: string }[]>`
+      insert into riders (city_id, user_id)
+      values (${cityId}::uuid, ${secondRiderUserId}::uuid)
+      returning id
+    `;
+    const secondRiderId = secondRider[0]?.id as string;
+
+    const secondOrder = await sql<{ id: string }[]>`
+      insert into orders (city_id, rider_id, service, status, pickup)
+      values (${cityId}::uuid, ${secondRiderId}::uuid, 'delivery', 'searching',
+              st_setsrid(st_makepoint(0, 0), 4326))
+      returning id
+    `;
+    const secondOrderId = secondOrder[0]?.id as string;
+
     const secondOffer = await sql<{ id: string }[]>`
       insert into order_offers (city_id, order_id, driver_id, distance_km, expires_at, status)
-      values (${cityId}::uuid, ${orderId}::uuid, ${driverId}::uuid, 3.0, now() + interval '5 minutes', 'pending')
+      values (${cityId}::uuid, ${secondOrderId}::uuid, ${driverId}::uuid, 3.0, now() + interval '5 minutes', 'pending')
       returning id
     `;
     secondOfferId = secondOffer[0]?.id as string;
@@ -370,7 +398,7 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
     const second = await sql<{ id: string }[]>`
       insert into notification_outbox (city_id, kind, offer_id, order_id, driver_id, dedup_key, payload,
                                        status, next_attempt_at)
-      values (${cityId}::uuid, 'offer', ${secondOfferId}::uuid, ${orderId}::uuid, ${driverId}::uuid,
+      values (${cityId}::uuid, 'offer', ${secondOfferId}::uuid, ${secondOrderId}::uuid, ${driverId}::uuid,
               ${`${MARK}:second:${Date.now()}`}, ${sql.json({ mark: `${MARK}-2` })},
               'pending', now())
       returning id
@@ -428,6 +456,9 @@ describeIf("دالّةُ ومحوّلُ التعذُّرِ من طبقةِ ال�
     } finally {
       await sql`delete from notification_outbox where id = ${secondId}::uuid`;
       await sql`delete from order_offers where id = ${secondOfferId}::uuid`;
+      await sql`delete from orders where id = ${secondOrderId}::uuid`;
+      await sql`delete from riders where user_id in (select id from users where full_name like ${`${MARK}-rider2%`})`;
+      await sql`delete from users where full_name like ${`${MARK}-rider2%`}`;
     }
   });
 });

@@ -1138,7 +1138,7 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
   {
     migration: "20260922061000_sec_19_fix_mark_undeliverable_status_ambiguity.sql",
     change: "revoke_function:mark_notification_undeliverable(3)",
-    why: "إعادةُ قفلِ السطحِ بعدَ `create or replace` — الدالّةُ ممنوحةٌ لـ`service_role` وحدَها قبلَ التغييرِ وبعدَه، و`create or replace` لا تُسقِطُ منحًا قائمًا أصلًا. و`drop function` قبلَ الإنشاءِ بالتوقيعِ نفسه إعادةُ تعريفٍ مُتساويةٌ لا خطرٌ مستقلٌّ بموجبِ منطقِ الحاجزِ نفسه.",
+    why: "إعادةُ تطبيقِ سطحِ الصلاحيّاتِ بعدَ `drop function` — `drop` يُسقِطُ المنحَ أيًّا كان، فيُعادُ السحبُ من `public/anon/authenticated` ثمَّ المنحُ لـ`service_role` صراحةً كما يفعلُ `abandon_notification_delivery`، بلا الاعتمادِ على منحٍ ضمنيٍّ من `create or replace`. و`drop function` قبلَ الإنشاءِ بالتوقيعِ نفسه إعادةُ تعريفٍ متساويةٌ لا خطرٌ مستقلٌّ بموجبِ منطقِ الحاجزِ نفسه.",
     breaksPreviousRelease: false,
     rollbackPath: "code-only",
     coupledDeploy: true,
