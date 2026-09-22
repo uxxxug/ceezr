@@ -113,6 +113,28 @@ const HEADING_TAX_IDENTITY_CLOSED =
 
 export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
   {
+    migration: "20260922020000_sec_19_notification_center_reads_by_internal_id.sql",
+    change: "revoke_function:get_user_notifications(3)",
+    why: "الهجرةُ `20260922020000` (`SEC-19` · `ADR 0031`) **تنقُلُ** منطقَ مركزِ الإشعاراتِ إلى توقيعٍ يقبلُ `users.id`، وتُبقي التوقيعَ القديمَ **غلافاً يُفوِّضُ بعقدِه حرفاً**: الحقولُ كلُّها بأسمائِها، و`USER_NOT_FOUND` كما كانَ، والتكافؤُ **مقيسٌ** في `tests/integration/notification-center-reads-by-internal-id.test.ts` بمطابقةِ الموجَزِ كاملاً لا حقلاً منه. والسحبُ بعدَ `create or replace` **إعادةُ إحكامِ السطحِ لا تضييقٌ**: الدالّةُ كانت لـ`service_role` وحدَه قبلَ الهجرةِ وتبقى كذلكَ بعدَها، و`create or replace` **يُعيدُ منحَ التنفيذِ ضمنيّاً** فالسطرُ إبطالٌ لذاكَ المنحِ الضمنيِّ لا انتزاعُ صلاحيّةٍ قائمةٍ — والإغلاقُ **مقيسٌ بالأثرِ** بـ`has_function_privilege` لا بوجودِ السطرِ. ولا مسارَ سابقاً يُخفِقُ: لا سطرَ TypeScript عُدِّلَ في هذه الهجرةِ، و`user-notification-center.ts` لا يزالُ يُنادي التوقيعَ القديمَ فيَعملُ بحرفِه. والعودةُ بالصورةِ السابقةِ تكفي: يُستعادُ المنطقُ في التوقيعِ القديمِ ويُسقَطُ الجديدُ الذي **لا يُناديه متعامِلٌ بعدُ** — تراجعُ إمكانٍ لا فقدُ قراءةٍ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
+  {
+    migration: "20260922020000_sec_19_notification_center_reads_by_internal_id.sql",
+    change: "revoke_function:mark_notification_read(2)",
+    why: "الهجرةُ `20260922020000` (`SEC-19` · `ADR 0031`) **تنقُلُ** منطقَ مركزِ الإشعاراتِ إلى توقيعٍ يقبلُ `users.id`، وتُبقي التوقيعَ القديمَ **غلافاً يُفوِّضُ بعقدِه حرفاً**: الحقولُ كلُّها بأسمائِها، و`USER_NOT_FOUND` كما كانَ، والتكافؤُ **مقيسٌ** في `tests/integration/notification-center-reads-by-internal-id.test.ts` بمطابقةِ الموجَزِ كاملاً لا حقلاً منه. والسحبُ بعدَ `create or replace` **إعادةُ إحكامِ السطحِ لا تضييقٌ**: الدالّةُ كانت لـ`service_role` وحدَه قبلَ الهجرةِ وتبقى كذلكَ بعدَها، و`create or replace` **يُعيدُ منحَ التنفيذِ ضمنيّاً** فالسطرُ إبطالٌ لذاكَ المنحِ الضمنيِّ لا انتزاعُ صلاحيّةٍ قائمةٍ — والإغلاقُ **مقيسٌ بالأثرِ** بـ`has_function_privilege` لا بوجودِ السطرِ. ولا مسارَ سابقاً يُخفِقُ: لا سطرَ TypeScript عُدِّلَ في هذه الهجرةِ، و`user-notification-center.ts` لا يزالُ يُنادي التوقيعَ القديمَ فيَعملُ بحرفِه. والعودةُ بالصورةِ السابقةِ تكفي: يُستعادُ المنطقُ في التوقيعِ القديمِ ويُسقَطُ الجديدُ الذي **لا يُناديه متعامِلٌ بعدُ** — تراجعُ إمكانٍ لا فقدُ قراءةٍ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    documentedIn: null,
+  },
+  {
     migration: "20260920180000_pd_020_safety_channel.sql",
     change: "revoke_function:sos_surface_state(2)",
     why: "الهجرةُ `20260920180000` (`PD-020` · `ADR 0159`) تُضيفُ إلى حمولةِ `sos_surface_state` حقلَ `team_delivery_status` مشتقًّا من صفِّ التسليمِ القائمِ للحادثِ — فَصْلُ «استُقبِلَ البلاغُ» عن «اطّلعَ عليهِ الفريقُ» في نصوصِ الحالةِ. والتوقيعُ `(bigint, text)` بحرفِه، والسحبُ بعدَ `create or replace` إعادةُ إحكامِ السطحِ لا تضييقٌ. والكسرُ **مُقاسٌ لا مُنكَرٌ**: صورةٌ سابقةٌ من المخزِّنِ تعدُّ الحقلَ الجديدَ لازمًا فتردُّ `STORE_ERROR` وتُخفي البطاقةَ — لذلك النشرُ **مقرونٌ**: الشيفرةُ والمخطّطُ في التزامٍ واحدٍ، والنسخةُ القديمةُ للمخزِّنِ مع الحقلِ الجديدِ تُطبِقُ غيابَهُ إلى `pending` فلا يُفقَدُ بلاغٌ. والعودةُ بالصورةِ السابقةِ تكفي: يُعرَضُ السردُ بلا فصلِ «استُقبِلَ» عن «اطّلعَ» — تراجعُ نصٍّ لا فقدُ حالٍ.",
