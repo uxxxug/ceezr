@@ -2164,4 +2164,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+  {
+    file: "tests/integration/notification-outbox-claim-undeliverable-guard.test.ts",
+    suites: ["حرسُ العنوانِ الغائبِ في claim_notification_delivery (SEC-19-ب-٣)"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى أنَّ `claim_notification_delivery` تُعلِنُ الصفَّ `undeliverable` حينَ يغيبُ عنوانُ التسليمِ، فلا يُسلَّمُ للعاملِ ولا تُعادُ محاولتُه. والأسبابُ مُسمّاةٌ: `TELEGRAM_DELIVERY_UNAVAILABLE` للجوهريِّ والسلامةِ، و`TELEGRAM_DELIVERY_NOT_REQUIRED` لغيرِ الجوهريِّ. والقياسُ على PostgreSQL حقيقيٍّ: صفٌّ صالحٌ يُلتقَطُ طبيعياً (لا انحدارَ)، وصفٌّ بمعرِّفٍ غيرِ موجودٍ يُعلَنُ `undeliverable`، والسببُ يطابقُ التصنيفَ، ولا رمزَ ادّعاءَ لميِّتٍ، ولا يُلتقَطُ مرّتينِ. **ولا يُقاسُ الفرعُ `offer`** — عنوانُهُ في TypeScript (الخطوةُ الرابعة).",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة (ومنها 20260922050000 للحرسِ) وبها مدينةٌ واحدةٌ على الأقلِّ. يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
 ] as const;
