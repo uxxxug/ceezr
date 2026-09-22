@@ -91,16 +91,38 @@ export interface NotificationOutboxPort {
     /** سببُ التخلّي الصريحُ — يُحفظُ في `dead_reason`. */
     reason: string | null;
   }): Promise<Result<boolean, PortFailureError>>;
+  /**
+   * يُعلِنُ صفًّا **غيرَ قابلٍ للتسليمِ** من طبقةِ التطبيقِ (`SEC-19-ب-٤`):
+   * العنوانُ غائبٌ فلا يُحاوَلُ إرسالُه ولا يُعادُ، ويُفصَلُ عن `dead` الذي
+   * يعني فشلاً بعدَ جهدٍ. يَضَعُ `status = 'undeliverable'` بـ`dead_reason` و`died_at`.
+   */
+  undeliverable(input: {
+    deliveryId: string;
+    claimToken: string;
+    reason: string;
+  }): Promise<Result<boolean, PortFailureError>>;
 }
 
 /**
  * حكمُ المعالجِ على الصفِّ: إمّا تخلٍّ نهائيٌّ (أثرٌ لن يُقبلَ أبدًا)، وإمّا نشرٌ
  * نجحَ بمعرّفِ رسالةٍ، وإمّا فشلٌ بسببٍ مُعلَنٍ يعودُ به الصفُّ pending.
+ * أو عجزُ تسليمٍ (`SEC-19-ب-٤`): العنوانُ غائبٌ فلا يُحاوَلُ ولا يُعادُ.
  */
 export interface HandlerOutcome {
   readonly abandon: boolean;
   readonly messageId: string | null;
   readonly failure: string | null;
+  /**
+   * `SEC-19-ب-٤` — العنوانُ غائبٌ لا فشلٌ بعدَ جهدٍ. يُستدعى `outbox.undeliverable`
+   * لا `outbox.abandon`، فيُفصَلُ عجزُ التسليمِ عن `dead`.
+   */
+  readonly undeliverable?: boolean;
+  /**
+   * سببُ التعذُّرِ حينَ `undeliverable = true` — يُحفظُ في `dead_reason`.
+   * أسماءٌ مغلقةٌ: `TELEGRAM_DELIVERY_UNAVAILABLE` (جوهريٌّ) و
+   * `TELEGRAM_DELIVERY_NOT_REQUIRED` (غيرُ جوهريٍّ).
+   */
+  readonly undeliverableReason?: string;
 }
 
 export type NotificationHandler = (
@@ -214,6 +236,29 @@ async function deliverClaimed(
   }
   const handled = await handler(delivery);
   if (!handled.ok) return handled;
+  // `SEC-19-ب-٤` — العنوانُ غائبٌ: عجزُ تسليمٍ لا فشلُ محاولاتٍ. يُفصَلُ عن
+  // `abandon` (الذي يَضَعُ `dead`) فيُعلَنُ `undeliverable` بـ`dead_reason` مُسمّىً.
+  if (handled.value.undeliverable === true) {
+    const reason = handled.value.undeliverableReason ?? "TELEGRAM_ID_MISSING";
+    const marked = await deps.outbox.undeliverable({
+      deliveryId: delivery.deliveryId,
+      claimToken: delivery.claimToken,
+      reason,
+    });
+    if (!marked.ok) return marked;
+    return ok({
+      found: true,
+      kind: delivery.kind,
+      delivered: false,
+      abandoned: false,
+      died: false,
+      undeliverable: true,
+      maxAttempts: delivery.maxAttempts,
+      batchLimit: delivery.batchLimit,
+      backpressure: null,
+      failure: null,
+    });
+  }
   if (handled.value.abandon) {
     const abandoned = await deps.outbox.abandon({
       deliveryId: delivery.deliveryId,

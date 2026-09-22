@@ -104,6 +104,18 @@ export function createOfferNotificationHandler(publisher: OfferPublisher): Notif
       notes: offer.notes,
     };
     const sent = await publisher.publishOffer(notification);
+    // `SEC-19-ب-٤` — لو كانَ عنوانُ السائقِ غائبًا (telegram_id = null) رمى الناشرُ
+    // `TELEGRAM_DELIVERY_UNAVAILABLE`. لا يُعادُ ولا يُتخلَّى عنه كـ`dead`، بل
+    // يُعلَنُ `undeliverable` بسببٍ مُسمّىً — مفصولاً عن فشلِ المحاولاتِ.
+    if (!sent.ok && sent.error.detail === "TELEGRAM_DELIVERY_UNAVAILABLE") {
+      return ok({
+        abandon: false,
+        messageId: null,
+        failure: null,
+        undeliverable: true,
+        undeliverableReason: "TELEGRAM_DELIVERY_UNAVAILABLE",
+      });
+    }
     return ok({
       abandon: false,
       messageId: sent.ok ? sent.value : null,
