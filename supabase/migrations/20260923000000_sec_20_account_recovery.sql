@@ -94,6 +94,7 @@ as $$
 declare
   v_target       users%rowtype;
   v_existing     bigint;
+  v_request_id   uuid;
 begin
   -- التحققُ من وجودِ المستخدمِ المستهدَفِ
   select * into v_target from users where id = p_target_user_id;
@@ -132,9 +133,9 @@ begin
     p_evidence_summary,
     'submitted', now(), p_created_by, now()
   )
-  returning id into v_existing;
+  returning id into v_request_id;
 
-  return jsonb_build_object('ok', true, 'request_id', v_existing::text);
+  return jsonb_build_object('ok', true, 'request_id', v_request_id::text);
 end;
 $$;
 
