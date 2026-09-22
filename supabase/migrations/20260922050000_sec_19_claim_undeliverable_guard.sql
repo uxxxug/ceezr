@@ -278,7 +278,9 @@ begin
     return jsonb_build_object(
       'ok', true, 'delivery', null,
       'undeliverable', v_delivery.id,
-      'reason', v_undeliverable_reason
+      'kind', v_delivery.kind,
+      'reason', v_undeliverable_reason,
+      'batch_limit', v_batch_limit
     );
   end if;
 

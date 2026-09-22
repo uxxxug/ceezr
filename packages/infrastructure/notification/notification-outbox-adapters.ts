@@ -40,6 +40,21 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
         if (row.ok !== true) throw new Error(String(row.error ?? "UNKNOWN"));
         const delivery = row.delivery as Record<string, unknown> | null;
         if (delivery == null) {
+          // `SEC-19-ب-٣` — صفٌّ عُذِرَ تسليمُه في القاعدةِ: العنوانُ غائبٌ فلا
+          // يُحاوَلُ إرسالُه. ويُمَرَّرُ للعدِّ فيُكملُ الشوطَ لا يُنهيهِ.
+          const undeliverableId = row.undeliverable;
+          if (undeliverableId != null) {
+            return {
+              delivery: null,
+              undeliverable: {
+                deliveryId: String(undeliverableId),
+                kind: String(row.kind),
+                reason: String(row.reason),
+                batchLimit: Number(row.batch_limit),
+              },
+              backpressure: null,
+            };
+          }
           // لا صفَّ: إمّا الطابورُ فارغٌ، وإمّا سقفُ تزامنِ المستهلِكِ منعَ الالتقاطَ
           // (`F6-06`). ويُقرأُ السببُ كما أعلنَته القاعدةُ لا كما يُشتهى: نصٌّ غيرُ
           // معروفٍ يعودُ `null` فلا يُحسبَ تشبُّعاً بالغلطِ.

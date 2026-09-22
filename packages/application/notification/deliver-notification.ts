@@ -63,6 +63,16 @@ export interface NotificationOutboxPort {
     Result<
       {
         delivery: OutboxDelivery | null;
+        /**
+         * صفٌّ التُقطَ وعُذِرَ تسليمُه في القاعدةِ (`SEC-19-ب-٣`): العنوانُ غائبٌ
+         * فلا يُحاوَلُ إرسالُه ولا يُعادُ. والعدُّ يُكملُ الشوطَ لا يُنهيهِ.
+         */
+        readonly undeliverable?: {
+          readonly deliveryId: string;
+          readonly kind: string;
+          readonly reason: string;
+          readonly batchLimit: number;
+        } | null;
         backpressure?: ClaimBackpressure | null;
       },
       PortFailureError
@@ -124,6 +134,11 @@ export interface DeliveryAttemptOutcome {
   readonly abandoned: boolean;
   /** ماتَ الصفُّ باستنفادِ المحاولاتِ في `finish` — لا بتخلٍّ صريحٍ (CAP-002). */
   readonly died: boolean;
+  /**
+   * عُذِرَ تسليمُ الصفِّ في القاعدةِ (`SEC-19-ب-٣`): العنوانُ غائبٌ فلا يُحاوَلُ
+   * إرسالُه. والعدُّ يُكملُ الشوطَ لا يُنهيهِ.
+   */
+  readonly undeliverable: boolean;
   readonly maxAttempts: number | null;
   /** سقفُ صفوفِ الشوطِ كما أعلنَه الالتقاطُ الذرّيُّ — `null` إن لم يُلتقَط صفٌّ. */
   readonly batchLimit: number | null;
@@ -142,13 +157,31 @@ export async function deliverNotification(
   const claimed = await deps.outbox.claim();
   if (!claimed.ok) return claimed;
   const delivery = claimed.value.delivery;
+  const undeliverable = claimed.value.undeliverable ?? null;
   if (delivery === null) {
+    // `SEC-19-ب-٣` — صفٌّ عُذِرَ تسليمُه في القاعدةِ: العنوانُ غائبٌ. لا يُحاوَلُ
+    // إرسالُه ولا يُعادُ، والعدُّ يُكملُ الشوطَ لا يُنهيهِ كفراغِ الطابورِ.
+    if (undeliverable !== null) {
+      return ok({
+        found: true,
+        kind: undeliverable.kind,
+        delivered: false,
+        abandoned: false,
+        died: false,
+        undeliverable: true,
+        maxAttempts: null,
+        batchLimit: undeliverable.batchLimit,
+        backpressure: null,
+        failure: null,
+      });
+    }
     return ok({
       found: false,
       kind: null,
       delivered: false,
       abandoned: false,
       died: false,
+      undeliverable: false,
       maxAttempts: null,
       batchLimit: null,
       backpressure: claimed.value.backpressure ?? null,
@@ -194,6 +227,7 @@ async function deliverClaimed(
       delivered: false,
       abandoned: true,
       died: false,
+      undeliverable: false,
       maxAttempts: delivery.maxAttempts,
       batchLimit: delivery.batchLimit,
       backpressure: null,
@@ -217,6 +251,7 @@ async function deliverClaimed(
     delivered: handled.value.messageId !== null && finished.value.ok,
     abandoned: false,
     died: finished.value.outcome === "dead",
+    undeliverable: false,
     maxAttempts: delivery.maxAttempts,
     batchLimit: delivery.batchLimit,
     backpressure: null,
@@ -229,6 +264,8 @@ export interface DeliveryBatchOutcome {
   readonly delivered: number;
   readonly failed: number;
   readonly abandoned: number;
+  /** عُذِرَ تسليمُها في القاعدةِ (`SEC-19-ب-٣`) — العنوانُ غائبٌ. */
+  readonly undeliverable: number;
   /** ماتت باستنفادِ المحاولاتِ — تُعدُّ منفصلةً عن التخلّي الصريحِ (CAP-002). */
   readonly died: number;
   /**
@@ -257,6 +294,7 @@ export async function deliverNotificationBatch(
   let delivered = 0;
   let failed = 0;
   let abandoned = 0;
+  let undeliverable = 0;
   let died = 0;
   let limit = 1;
   let backpressure: ClaimBackpressure | "BATCH_LIMIT" | null = null;
@@ -271,6 +309,7 @@ export async function deliverNotificationBatch(
     if (attempt.value.batchLimit !== null) limit = attempt.value.batchLimit;
     if (attempt.value.delivered) delivered += 1;
     if (attempt.value.abandoned) abandoned += 1;
+    if (attempt.value.undeliverable) undeliverable += 1;
     if (attempt.value.died) died += 1;
     // فشلُ نشرٍ واحد لا يُسقطُ الشوط: مجموعةُ مدينةٍ معطوبة كانت تمنعُ تسليمَ
     // إشعاراتِ المدنِ الأخرى في نفسِ الدورة. يُعدّ ويُبلَّغ، ويستمرّ الشوط.
@@ -279,5 +318,5 @@ export async function deliverNotificationBatch(
     // والدورةُ التاليةُ تُكمِلُ. وكتمُه كانَ سيُخفِي تراكُماً مستمرّاً.
     if (claimed >= limit) backpressure = "BATCH_LIMIT";
   }
-  return ok({ claimed, delivered, failed, abandoned, died, backpressure });
+  return ok({ claimed, delivered, failed, abandoned, undeliverable, died, backpressure });
 }

@@ -1157,6 +1157,7 @@ export function buildWorkerContainer(
                     `delivered=${report.value.delivered}`,
                     `failed=${report.value.failed}`,
                     `abandoned=${report.value.abandoned}`,
+                    `undeliverable=${report.value.undeliverable}`,
                   ].join(" ");
                 },
               },

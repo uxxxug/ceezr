@@ -372,12 +372,15 @@ describeIf("إخطارُ إلغاءِ الراكبِ في صندوقِ الصا�
     expect(report.ok).toBe(true);
     if (!report.ok) return;
     expect(report.value.delivered).toBe(1);
-    expect(report.value.abandoned).toBe(1);
+    // `SEC-19-ب-٣` — السائقُ المحذوفُ لا عنوانَ له فلا يُحاوَلُ إرسالُه ولا
+    // يُعادُ: عُذِرَ تسليمُه في القاعدةِ بـ`TELEGRAM_DELIVERY_UNAVAILABLE`.
+    expect(report.value.undeliverable).toBe(1);
+    expect(report.value.abandoned).toBe(0);
     expect(sent).toHaveLength(1);
     expect(sent[0]?.driverId).toBe(assignedDriverId);
 
     const settled = await rows();
     expect(settled.find((row) => row.driver_id === assignedDriverId)?.status).toBe("delivered");
-    expect(settled.find((row) => row.driver_id === offeredDriverId)?.status).toBe("dead");
+    expect(settled.find((row) => row.driver_id === offeredDriverId)?.status).toBe("undeliverable");
   });
 });
