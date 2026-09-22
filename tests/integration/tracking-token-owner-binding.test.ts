@@ -66,7 +66,7 @@ async function seedRiderAndOrder(
 
   const orders = await sql<{ id: string }[]>`
     insert into orders (city_id, rider_id, service, status, pickup, dropoff)
-    values (${cityId}, ${riderId}::uuid, 'transport', 'matched',
+    values (${cityId}, ${riderId}::uuid, 'transport', 'searching',
       st_point(39.1751, 21.5471)::geography,
       st_point(39.1901, 21.5601)::geography)
     returning id
