@@ -1135,17 +1135,6 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "الهويةُ والجلسةُ والصلاحيات",
     documentedIn: null,
   },
-  {
-    migration: "20260922060000_sec_19_mark_undeliverable_function.sql",
-    change: "revoke_function:mark_notification_undeliverable(uuid, uuid, text)",
-    why: "الهجرةُ تُنشِئُ دالّةً `mark_notification_undeliverable` تُعالِجُ إعلانَ التعذُّرِ من طبقةِ التطبيقِ — فلا يُعادُ استخدامُ `abandon_notification_delivery` الذي يَضَعُ `dead` لا `undeliverable`. والسحبُ بعدَه إسقاطُ الدالّةِ وعودةُ الكودِ إلى `abandon` — وهوَ سلوكُ الأمسِ لا كسرٌ، لكنَّ `offer` بلا عنوانٍ سيعودُ `dead` لا `undeliverable`.",
-    breaksPreviousRelease: false,
-    rollbackPath: "code-only",
-    coupledDeploy: true,
-    owner: "منفّذ المستودع",
-    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
-    documentedIn: null,
-  },
 ];
 
 /**
