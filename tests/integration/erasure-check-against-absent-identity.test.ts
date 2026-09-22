@@ -184,12 +184,18 @@ describeIf("قيدُ التجهيلِ أمامَ هويّةٍ خارجيّةٍ �
     expect(inserted.length).toBe(1);
 
     // صفٌّ مُجهَّلٌ لكنَّه يَحمِلُ اسمًا — يُرفَضُ بالقيدِ.
-    await expect(sql`
-      insert into users (city_id, telegram_id, role, full_name, phone,
-                         telegram_username, is_blocked, erased_at)
-      values (${cityId}::uuid, null, 'rider',
-              'متبقٍ', null, null, true, now())
-    `).rejects.toThrow();
+    let rejected = false;
+    try {
+      await sql`
+        insert into users (city_id, telegram_id, role, full_name, phone,
+                           telegram_username, is_blocked, erased_at)
+        values (${cityId}::uuid, null, 'rider',
+                'متبقٍ', null, null, true, now())
+      `;
+    } catch {
+      rejected = true;
+    }
+    expect(rejected).toBe(true);
 
     // تنظيفٌ
     if (inserted[0]?.id !== undefined) {
