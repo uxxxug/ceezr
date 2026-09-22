@@ -32,7 +32,7 @@ export interface OutboundSender {
 }
 
 interface DriverContactRow {
-  readonly telegram_id: string;
+  readonly telegram_id: string | null;
   readonly language_code: string;
 }
 
@@ -62,6 +62,13 @@ export function createOfferPublisher(sql: Sql, sender: IdentifyingSender): Offer
         const contact = rows[0];
         if (contact === undefined) {
           throw new Error("DRIVER_CONTACT_NOT_FOUND");
+        }
+
+        // `SEC-19-ب-٤` — حرسُ العنوانِ الغائبِ قبلَ `String(...)`: لو كانَ
+        // `telegram_id` غائبًا (مستخدمٌ بلا قناةٍ) فلا يُصبَحُ "null" نصًّا
+        // يُرسَلُ إلى تيليجرامَ. `offer` نوعٌ جوهريٌّ فالسببُ `TELEGRAM_DELIVERY_UNAVAILABLE`.
+        if (contact.telegram_id === null || contact.telegram_id === undefined) {
+          throw new Error("TELEGRAM_DELIVERY_UNAVAILABLE");
         }
 
         const tr = t(contact.language_code);

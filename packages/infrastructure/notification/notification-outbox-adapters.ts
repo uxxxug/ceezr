@@ -120,5 +120,13 @@ export function createNotificationOutboxPort(sql: Sql): NotificationOutboxPort {
         const row = envelope(rows[0]?.result, "abandon_notification_delivery");
         return row.ok === true;
       }),
+    undeliverable: (input) =>
+      guard("rpc.mark_notification_undeliverable", async () => {
+        const rows = await sql<
+          { result: unknown }[]
+        >`select mark_notification_undeliverable(${input.deliveryId}::uuid, ${input.claimToken}::uuid, ${input.reason}::text) result`;
+        const row = envelope(rows[0]?.result, "mark_notification_undeliverable");
+        return row.ok === true;
+      }),
   };
 }

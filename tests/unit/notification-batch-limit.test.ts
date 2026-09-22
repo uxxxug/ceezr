@@ -49,6 +49,7 @@ function endlessOutbox(
     },
     finish: async () => ok({ ok: true, outcome: "delivered" as const }),
     abandon: async () => ok(true),
+    undeliverable: async () => ok(true),
   } as unknown as NotificationOutboxPort;
 }
 
