@@ -90,7 +90,10 @@ export function auditSupportVolumeBudget(overrides: Partial<AuditInputs> = {}): 
 
   // ١. السقفُ عقلانيٌّ — حاجزٌ بلا رقمٍ صالحٍ لا يحجزُ.
   if (!Number.isInteger(inputs.supportTicketsBudget) || inputs.supportTicketsBudget <= 0) {
-    push("guard.budget-sane", `السقفُ «supportTicketsBudget» غيرُ صالحٍ: ${String(inputs.supportTicketsBudget)}`);
+    push(
+      "guard.budget-sane",
+      `السقفُ «supportTicketsBudget» غيرُ صالحٍ: ${String(inputs.supportTicketsBudget)}`,
+    );
   }
   if (inputs.judgeRuleCount === 0) {
     push("guard.budget-sane", "حكمٌ بلا قاعدةٍ واحدةٍ — لا شيءَ يُخالَفُ");
