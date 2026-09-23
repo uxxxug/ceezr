@@ -11,9 +11,9 @@
 
 import { describe, expect, it } from "bun:test";
 import {
+  type AuditInputs,
   auditSupportVolumeBudget,
   GUARD_RULE_NAMES,
-  type AuditInputs,
 } from "../../scripts/check-support-volume-budget.ts";
 import { JUDGE_RULE_NAMES } from "../../scripts/lib/support-volume-budget.ts";
 

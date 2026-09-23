@@ -25,6 +25,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { buildContainer } from "../../apps/gateway/src/container.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
+import { SUPPORT_TICKET_TYPES } from "../../packages/domain/support/ticket-types.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import {
   createMiniAppSessionIssuer,
@@ -39,13 +40,12 @@ import {
   createRideSearchReader,
 } from "../../packages/infrastructure/transport/ride-request-store.ts";
 import type { Result } from "../../packages/shared/result/index.ts";
-import { SUPPORT_TICKET_TYPES } from "../../packages/domain/support/ticket-types.ts";
 import { RIDE_RESOURCE_PROFILE } from "../../scripts/lib/resource-usage-budget.ts";
 import {
   judgeSupportVolume,
   type SupportVolumeFacts,
-  supportTicketBudget,
   summarizeSupportVolume,
+  supportTicketBudget,
 } from "../../scripts/lib/support-volume-budget.ts";
 import {
   type ActiveCityHandle,
@@ -66,16 +66,16 @@ const MOVE_STEP_DEGREES = 0.001;
 
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
 if (DATABASE_URL === undefined) {
-  console.warn(
-    "ECO-006: TEST_DATABASE_URL غير مضبوطٍ — اختبارُ تكاملِ عدِّ تذاكرِ الدعمِ لن يُشغَّلَ ههنا.",
-  );
+  console.warn("ECO-006: TEST_DATABASE_URL غير مضبوطٍ — اختبارُ تكاملِ عدِّ تذاكرِ الدعمِ لن يُشغَّلَ ههنا.");
 }
 
-function tokenFor(telegramId: string, kind: "rider" | "driver"): string {
-  const issuer = createMiniAppSessionIssuer(SESSION_SECRET);
-  const result = issuer.issue({ telegramId, kind, displayName: `ECO-006 ${kind} ${telegramId}` });
-  if (!result.ok) throw new Error(`فشلَ إصدارُ جلسةٍ: ${result.error}`);
-  return result.token;
+function tokenFor(telegramUserId: string, bot: "rider" | "driver"): string {
+  const issued = createMiniAppSessionIssuer({ secret: SESSION_SECRET }).issue(
+    { telegramUserId, bot, authDateSeconds: Math.floor(Date.now() / 1000) },
+    Date.now(),
+  );
+  if (!issued.ok) throw new Error("إصدارُ الجلسةِ فاشلٌ");
+  return issued.value.accessToken;
 }
 
 const noOpRedis: RedisClient = {
@@ -94,30 +94,65 @@ const noOpRedis: RedisClient = {
 };
 
 let sql: Sql;
-let cityHandle: ActiveCityHandle;
+let cityHandle: ActiveCityHandle | undefined;
+let cityId = "";
+let riderUserId = "";
 let riderId = "";
+let driverUserId = "";
 let driverId = "";
 
 beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
-  sql = createSql({ connectionString: DATABASE_URL, max: 4 });
-  cityHandle = await ensureActiveCity(sql);
-  await sql`
-    insert into riders (telegram_id, first_name, last_name, phone_number)
-    values (${RIDER_TELEGRAM_ID}, 'ECO-006', 'Rider', '+966500000016')
-    on conflict (telegram_id) do update set first_name = excluded.first_name
+  sql = createSql({ connectionString: DATABASE_URL });
+  cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
+  cityId = cityHandle.cityId;
+
+  const [riderUser] = await sql<{ id: string }[]>`
+    insert into users (city_id, telegram_id, role, full_name, phone)
+    values (${cityId}, ${RIDER_TELEGRAM_ID}, 'rider', 'راكب تذاكر الدعم', '+966500000991')
     returning id
-  `.then(([row]) => {
-    riderId = String((row as { id: string }).id);
-  });
-  await sql`
-    insert into drivers (telegram_id, first_name, last_name, phone_number, vehicle_plate, vehicle_kind, status)
-    values (${DRIVER_TELEGRAM_ID}, 'ECO-006', 'Driver', '+966500000017', 'ECO-006', 'sedan', 'approved')
-    on conflict (telegram_id) do update set first_name = excluded.first_name, status = 'approved'
+  `;
+  if (riderUser === undefined) throw new Error("تعذّر زرعُ مستخدمِ الراكبِ");
+  riderUserId = riderUser.id;
+  const [rider] = await sql<{ id: string }[]>`
+    insert into riders (city_id, user_id) values (${cityId}, ${riderUserId}) returning id
+  `;
+  if (rider === undefined) throw new Error("تعذّر زرعُ الراكبِ");
+  riderId = rider.id;
+
+  const [driverUser] = await sql<{ id: string }[]>`
+    insert into users (city_id, telegram_id, role, full_name, phone)
+    values (${cityId}, ${DRIVER_TELEGRAM_ID}, 'driver', 'سائق تذاكر الدعم', '+966500000992')
     returning id
-  `.then(([row]) => {
-    driverId = String((row as { id: string }).id);
-  });
+  `;
+  if (driverUser === undefined) throw new Error("تعذّر زرعُ مستخدمِ السائقِ");
+  driverUserId = driverUser.id;
+  const [driver] = await sql<{ id: string }[]>`
+    insert into drivers (city_id, user_id, verification_status, vehicle_type, plate_number)
+    values (${cityId}, ${driverUserId}, 'verified'::verification_status, 'سيدان', 'ت ذ د 4902')
+    returning id
+  `;
+  if (driver === undefined) throw new Error("تعذّر زرعُ السائقِ");
+  driverId = driver.id;
+
+  await sql`
+    insert into subscriptions (city_id, driver_id, plan, status)
+    values (${cityId}, ${driverId}, 'both'::subscription_plan, 'active'::subscription_status)
+  `;
+  await sql`
+    insert into driver_capabilities (city_id, driver_id, service, is_enabled)
+    values (${cityId}, ${driverId}, 'transport'::service_type, true)
+  `;
+  await sql`
+    insert into driver_availability (city_id, driver_id, is_available)
+    values (${cityId}, ${driverId}, true)
+  `;
+  await sql`
+    update drivers set
+      last_location = st_setsrid(st_makepoint(${PICKUP.lng}, ${PICKUP.lat}), 4326)::geography,
+      last_location_at = now()
+    where id = ${driverId}
+  `;
 });
 
 afterAll(async () => {
@@ -128,9 +163,18 @@ afterAll(async () => {
     await sql`delete from orders where rider_id = ${riderId}`;
     await sql`delete from riders where id = ${riderId}`;
   }
+  if (riderUserId !== "") {
+    await sql`delete from users where id = ${riderUserId}`;
+  }
   if (driverId !== "") {
     await sql`delete from driver_location_history where driver_id = ${driverId}`;
+    await sql`delete from driver_availability where driver_id = ${driverId}`;
+    await sql`delete from driver_capabilities where driver_id = ${driverId}`;
+    await sql`delete from subscriptions where driver_id = ${driverId}`;
     await sql`delete from drivers where id = ${driverId}`;
+  }
+  if (driverUserId !== "") {
+    await sql`delete from users where id = ${driverUserId}`;
   }
   if (cityHandle) await restoreCityBaseline(sql, cityHandle);
   await sql.end();
