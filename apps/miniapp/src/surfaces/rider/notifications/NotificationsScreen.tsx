@@ -49,6 +49,9 @@ import {
 import type { ApiNotificationItem, NotificationsResponse } from "./notifications-contract.ts";
 import { channelKey, instantLabel, kindKey, notificationsErrorKey } from "./notifications-view.ts";
 
+/** حجمُ الصفحةِ — يُرسَلُ إلى الخادمِ ويُقاسُ به «هل ثَمَّةَ مزيدٌ؟». */
+const NOTIFICATION_PAGE_SIZE = 20;
+
 export interface NotificationsScreenProps {
   readonly read?: (input: {
     readonly limit?: number;
@@ -137,6 +140,7 @@ export function NotificationsScreen({
       setBusy(true);
       try {
         const response = await read({
+          limit: NOTIFICATION_PAGE_SIZE,
           ...(input.before === undefined ? {} : { before: input.before }),
         });
         if (!mounted.current) return;
@@ -148,7 +152,9 @@ export function NotificationsScreen({
           loaded: {
             items,
             unread: response.unread,
-            hasMore: response.items.length > 0 && oldest !== undefined,
+            // «مزيدٌ» يُرسَمُ فقط حين تَمتلِئُ الصفحةُ: صفحةٌ ناقصةٌ تعني أنَّ ما
+            // قبلَها قد استَنفَدَ، و«مزيدٌ» بلا ما بعده زرٌّ لا يُردُّ.
+            hasMore: response.items.length >= NOTIFICATION_PAGE_SIZE && oldest !== undefined,
           },
         });
       } catch (thrown) {
@@ -174,8 +180,10 @@ export function NotificationsScreen({
       if (marking !== null) return;
       setMarking(notificationId);
       try {
-        await mark(notificationId);
+        const result = await mark(notificationId);
         if (!mounted.current) return;
+        // وقتُ القراءةِ من الخادمِ لا من الجهازِ: الخادمُ هو مصدرُ الحقيقةِ،
+        // وساعتُه هيَ التي تُقارَنُ بها الأحداثُ لا ساعةُ الهاتفِ.
         setState((prev) => {
           if (prev.kind !== "ready") return prev;
           return {
@@ -183,9 +191,11 @@ export function NotificationsScreen({
             loaded: {
               ...prev.loaded,
               items: prev.loaded.items.map((item) =>
-                item.id === notificationId ? { ...item, read_at: new Date().toISOString() } : item,
+                item.id === notificationId ? { ...item, read_at: result.read_at } : item,
               ),
-              unread: Math.max(0, prev.loaded.unread - 1),
+              unread: result.already_read
+                ? prev.loaded.unread
+                : Math.max(0, prev.loaded.unread - 1),
             },
           };
         });
@@ -219,7 +229,7 @@ export function NotificationsScreen({
           disabled={!unread || marking !== null}
           onClick={() => void markRead(item.id)}
         >
-          <span className="nc__kind">{t(kindKey(item.kind))}</span>
+          <span className="nc__kind">{t(kindKey(item.kind)).replace("{kind}", item.kind)}</span>
           <span className="nc__channel">{t(channelKey(item.channel))}</span>
           <span className="nc__when">
             {when.known

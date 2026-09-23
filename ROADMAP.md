@@ -8562,3 +8562,25 @@ behavior, replay rejection, and first-use acceptance.
 | النطاقُ المحجوزُ | `apps/miniapp/src/surfaces/rider/notifications/notifications-contract.ts` · `notifications-api.ts` · `notifications-view.ts` · `NotificationsScreen.tsx` · `apps/miniapp/src/surfaces/rider/RiderRoot.tsx` (طورُ `notificationsOpen`) · `apps/miniapp/src/surfaces/rider/home/HomeScreen.tsx` (مدخلُ `onOpenNotifications`) · `apps/miniapp/src/styles/global.css` (كتلةُ `nc` + زرُّ `rh__notifications`) · `packages/shared/i18n/miniapp/{ar,en,ur}.json` (مفاتيحُ `rider.notifications.*` و`rider.home.notifications.open`) · `scripts/lib/css-class-coverage.ts` (إضافةُ `nc` إلى `DECLARED_BLOCKS`) · `tests/unit/notifications-view.test.ts` · `tests/unit/sos-entry-surfaces.test.ts` (تحديثُ القائمةِ من تسعةٍ إلى عشرةٍ) |
 | النطاقُ **غيرُ** المحجوزِ | **لا يُعادُ تصنيفُ نوعٍ من `critical` إلى `in_app`** — ذاكَ قرارُ منتَجٍ منفصلٌ (القائمةُ مُغلَقةٌ في `notification-kinds.ts` وجميعُها `critical` عمداً حتى تُبنى الشاشةُ). **لا يُفكُّ `payload`** · **لا تُضافُ دالّةٌ قاعدةٌ جديدةٌ** · **لا تُمَسُّ مساراتُ البوّابةِ** · **لا يُدَّعى أنَّ الشاشةَ نُشِرَت لمستخدمٍ حقيقيٍّ** (`ADR 0099`) · **لا `مَقيس` ولا `مُثبَت`** (`ح-5`) · **لا يُقلَبُ `TG-001` إلى `[x]`** — ذاكَ يحتاجُ ثلاثَ خضرٍ متتاليةٍ على `main` (ح-4) |
 | سقفُ الادّعاءِ، مُعلَنٌ سلفاً | البندُ `[~]` لا `[x]`: الشاشةُ مبنيّةٌ ومختبَرةٌ ومدمجةٌ، لكنَّ `TG-001` لا يُقلَبُ إلّا بعدَ ثلاثِ خضرٍ على `main` بح-4. ولا نشرَ حيَّ. |
+
+### Correction `SS-07` — reservation timing and code follow-up (2026-09-23 · `ح-8`)
+
+هذا القسمُ **زيادةٌ لا تمحو** ما فوقَه (`ح-1` · `ح-8`). ويُصحِّحُ أمرينِ:
+
+**١. توقيتُ الحجزِ:** كُتِبَ الحجزُ أعلاه **بعدَ** تنفيذِ الشاشةِ لا قبلَه —
+وذلكَ مخالفٌ لقاعدةِ الحجزِ في §25. والصوابُ أنَّ الحجزَ يُكتبُ قبلَ أوّلِ
+تعديلٍ. ويُصحَّحُ بالإضافةِ لا بالمحوِ: يُقرَأُ ما فوقَه على أنَّه وُثِّقَ
+بأثرٍ رجعيٍّ، والمُنفِّذُ التالي يرى أنَّ الشاشةَ بُنِيَتْ في `7d9a7d6` (PR #220)
+قبلَ أن يُكتبَ الحجزُ نفسُه.
+
+**٢. تصحيحاتُ الكودِ (PR تالٍ):**
+- وقتُ القراءةِ يُؤخَذُ من ردِّ الخادمِ (`result.read_at`) لا من ساعةِ الجهازِ
+  (`new Date().toISOString()`): الخادمُ مصدرُ الحقيقةِ.
+- نوعٌ غيرُ معروفٍ يُعرَضُ خامّاً: المفتاحُ `rider.notifications.kind.unknown`
+  يحملُ `{kind}` ويُستبدَلُ بقيمةِ النوعِ الفعليّةِ.
+- «مزيدٌ» يُرسَمُ فقط حين تَمتلِئُ الصفحةُ (يُرسَلُ `limit=20` ويُقاسُ به):
+  صفحةٌ ناقصةٌ تعني أنَّ ما قبلَها قد استَنفَدَ.
+- `already_read` يُحترَمُ: لو كانَ الإشعارُ مقروءاً فلا يُنقَصُ العددُ.
+
+**ولا يُقلَبُ `TG-001` بعدُ:** ح-4 تَلزَمُ ثلاثَ خضرٍ متتاليةٍ على `main` بِـ
+SHA متميِّزة. هذا هو أولُها (`7d9a7d6`).
