@@ -40,7 +40,15 @@ const UNAUTHORIZED = 401;
  * يحتاجها ليدخل. تُذكر صريحةً باسمها لا بنمطٍ عام، فمسارٌ جديد اسمُه يبدأ
  * بـ`/login` لن يُستثنى تلقائياً بل يُضاف هنا بقرارٍ مكتوب.
  */
-const PUBLIC_PATHS = new Set(["/admin/login", "/admin/login/code", "/admin/login/verify"]);
+// `POST /admin/login/break-glass` أُضيف بقرارٍ مكتوبٍ (`SEC-21` · ADR 0176):
+// البابُ الموازيَّ يُطرَقُ بلا جلسةٍ بحكمِ تعريفِهِ — والرفضُ الموحَّدُ (422)
+// حكمُ القلبِ لا تسريبًا، والإقفالُ والعدُّ في القاعدةِ لا في الذاكرةِ.
+const PUBLIC_PATHS = new Set([
+  "/admin/login",
+  "/admin/login/code",
+  "/admin/login/verify",
+  "/admin/login/break-glass",
+]);
 
 let sql: Sql;
 let auth: AdminAuthPort;
