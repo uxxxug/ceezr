@@ -15,6 +15,7 @@
 
 import type {
   ViewerAccount,
+  ViewerAccountLanguageWriter,
   ViewerAccountReader,
   ViewerLookupFailure,
   ViewerRole,
@@ -25,6 +26,7 @@ import type { Sql } from "../db/client.ts";
 interface AccountRow {
   readonly role: string;
   readonly is_blocked: boolean;
+  readonly language_code: string;
 }
 
 /** قيمُ نوعِ `user_role` في القاعدة — مصدرُها المخطَّطُ لا اجتهادُ العميل. */
@@ -58,7 +60,7 @@ export function createViewerAccountReader(sql: Sql): ViewerAccountReader {
       let rows: AccountRow[];
       try {
         rows = await sql.unsafe<AccountRow[]>(
-          "select role::text as role, is_blocked from users where telegram_id = $1",
+          "select role::text as role, is_blocked, language_code from users where telegram_id = $1",
           [telegramId],
         );
       } catch {
@@ -76,7 +78,34 @@ export function createViewerAccountReader(sql: Sql): ViewerAccountReader {
         return err(lookupFailed("UNSUPPORTED_ROLE"));
       }
 
-      return ok({ role, isBlocked: row.is_blocked === true });
+      return ok({ role, isBlocked: row.is_blocked === true, languageCode: row.language_code });
+    },
+  };
+}
+
+/** `PD-030` (2026-09-23): اللغاتُ المسموحُ كتابتُها — من `MINIAPP_LANGUAGES`. */
+const ALLOWED_LANGUAGE_CODES: readonly string[] = ["ar", "en", "ur"];
+
+export function createViewerAccountLanguageWriter(sql: Sql): ViewerAccountLanguageWriter {
+  return {
+    updateLanguageCode: async (
+      telegramUserId: string,
+      languageCode: string,
+    ): Promise<Result<void, ViewerLookupFailure>> => {
+      const telegramId = asTelegramId(telegramUserId);
+      if (telegramId === null) return err(lookupFailed("READER_ERROR"));
+      if (!ALLOWED_LANGUAGE_CODES.includes(languageCode)) {
+        return err(lookupFailed("READER_ERROR"));
+      }
+      try {
+        await sql.unsafe(
+          "update users set language_code = $1, updated_at = now() where telegram_id = $2",
+          [languageCode, telegramId],
+        );
+      } catch {
+        return err(lookupFailed("READER_ERROR"));
+      }
+      return ok(undefined);
     },
   };
 }

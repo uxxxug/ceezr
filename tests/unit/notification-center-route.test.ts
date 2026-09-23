@@ -119,7 +119,7 @@ function buildHarness(
     revocation: createTestRevocationStore(),
     accounts: {
       findByTelegramUserId: async () =>
-        ok({ role: "rider" as const, isBlocked: options.blocked === true }),
+        ok({ role: "rider" as const, isBlocked: options.blocked === true, languageCode: "ar" }),
     },
     now: () => NOW,
     log,

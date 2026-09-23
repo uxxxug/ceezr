@@ -93,12 +93,12 @@ function harness(
 
 describe("تحديد الدور: القبول", () => {
   it("١) دورُ الراكبِ يُعاد من القاعدةِ بحالةٍ نشِطة", async () => {
-    const h = harness({ role: "rider", isBlocked: false });
+    const h = harness({ role: "rider", isBlocked: false, languageCode: "ar" });
     const result = await resolveViewer({ accessToken: tokenFor() }, h.deps);
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("متوقَّع نجاح");
-    expect(result.value).toEqual({ role: "rider", status: "active" });
+    expect(result.value).toEqual({ role: "rider", status: "active", languageCode: "ar" });
     // المعرّفُ المستعملُ في القراءةِ هو المستخرَجُ من الرمزِ الموقَّعِ لا مُدخَلٌ.
     expect(h.reader.calls).toEqual([TELEGRAM_ID]);
   });
@@ -106,7 +106,7 @@ describe("تحديد الدور: القبول", () => {
   it("٢) دورُ السائقِ يُعاد كما هو ولا يُخفَّض إلى راكب", async () => {
     const result = await resolveViewer(
       { accessToken: tokenFor() },
-      harness({ role: "driver", isBlocked: false }).deps,
+      harness({ role: "driver", isBlocked: false, languageCode: "ar" }).deps,
     );
     expect(result.ok && result.value.role).toBe("driver");
   });
@@ -114,7 +114,7 @@ describe("تحديد الدور: القبول", () => {
   it("٣) دورُ المشرفِ يُعاد كما هو", async () => {
     const result = await resolveViewer(
       { accessToken: tokenFor() },
-      harness({ role: "admin", isBlocked: false }).deps,
+      harness({ role: "admin", isBlocked: false, languageCode: "ar" }).deps,
     );
     expect(result.ok && result.value.role).toBe("admin");
   });
@@ -122,31 +122,35 @@ describe("تحديد الدور: القبول", () => {
   it("٤) `support` دورٌ قائمٌ يُعاد صريحاً ولا يُطوى على غيرِه", async () => {
     const result = await resolveViewer(
       { accessToken: tokenFor() },
-      harness({ role: "support", isBlocked: false }).deps,
+      harness({ role: "support", isBlocked: false, languageCode: "ar" }).deps,
     );
-    expect(result.ok && result.value).toEqual({ role: "support", status: "active" });
+    expect(result.ok && result.value).toEqual({
+      role: "support",
+      status: "active",
+      languageCode: "ar",
+    });
   });
 
   it("٥) لا صفَّ في القاعدة = «غير مسجَّل» بلا كتابةٍ وبلا دورٍ مفترَض", async () => {
     const result = await resolveViewer({ accessToken: tokenFor() }, harness(null).deps);
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("متوقَّع نجاح");
-    expect(result.value).toEqual({ role: "unknown", status: "unregistered" });
+    expect(result.value).toEqual({ role: "unknown", status: "unregistered", languageCode: "ar" });
   });
 
-  it("٦) الردُّ حقلان فقط: لا اسمَ ولا هاتفَ ولا مدينةَ ولا معرّفَ جلسة", async () => {
+  it("٦) الردُّ ثلاثةُ حقول: لا اسمَ ولا هاتفَ ولا مدينةَ ولا معرّفَ جلسة", async () => {
     const result = await resolveViewer(
       { accessToken: tokenFor() },
-      harness({ role: "rider", isBlocked: false }).deps,
+      harness({ role: "rider", isBlocked: false, languageCode: "ar" }).deps,
     );
     if (!result.ok) throw new Error("متوقَّع نجاح");
-    expect(Object.keys(result.value).sort()).toEqual(["role", "status"]);
+    expect(Object.keys(result.value).sort()).toEqual(["languageCode", "role", "status"]);
   });
 });
 
 describe("تحديد الدور: الرفض", () => {
   it("٧) لا رمزَ = `SESSION_REQUIRED` ولا تُقرأ القاعدةُ إطلاقاً", async () => {
-    const h = harness({ role: "rider", isBlocked: false });
+    const h = harness({ role: "rider", isBlocked: false, languageCode: "ar" });
     const result = await resolveViewer({ accessToken: undefined }, h.deps);
 
     expect(result.ok).toBe(false);
@@ -158,13 +162,13 @@ describe("تحديد الدور: الرفض", () => {
   it("٨) رمزٌ فارغٌ يُعامَل «لا رمزَ» لا رمزاً باطلاً", async () => {
     const result = await resolveViewer(
       { accessToken: "" },
-      harness({ role: "rider", isBlocked: false }).deps,
+      harness({ role: "rider", isBlocked: false, languageCode: "ar" }).deps,
     );
     expect(result.ok === false && result.error.publicCode).toBe("SESSION_REQUIRED");
   });
 
   it("٩) رمزٌ مشوَّهٌ = `SESSION_INVALID` بلا قراءةِ قاعدة", async () => {
-    const h = harness({ role: "admin", isBlocked: false });
+    const h = harness({ role: "admin", isBlocked: false, languageCode: "ar" });
     const result = await resolveViewer({ accessToken: "not-a-token" }, h.deps);
 
     expect(result.ok === false && result.error.publicCode).toBe("SESSION_INVALID");
@@ -173,7 +177,7 @@ describe("تحديد الدور: الرفض", () => {
 
   it("١٠) توقيعٌ من سرٍّ آخرَ = `SESSION_INVALID` ولا يفتح دوراً", async () => {
     const h = harness(
-      { role: "admin", isBlocked: false },
+      { role: "admin", isBlocked: false, languageCode: "ar" },
       {
         secret: "another-test-only-secret-9876543210abcd",
       },
@@ -186,7 +190,7 @@ describe("تحديد الدور: الرفض", () => {
 
   it("١١) رمزٌ منتهٍ = `SESSION_EXPIRED` — يُفرَّق عن الباطلِ ليعرف العميلُ أن يجدّد", async () => {
     const expiredAt = new Date(NOW.getTime() + (MINIAPP_SESSION_TTL_SECONDS + 1) * 1000);
-    const h = harness({ role: "rider", isBlocked: false }, { now: expiredAt });
+    const h = harness({ role: "rider", isBlocked: false, languageCode: "ar" }, { now: expiredAt });
     const result = await resolveViewer({ accessToken: tokenFor() }, h.deps);
 
     expect(result.ok === false && result.error.publicCode).toBe("SESSION_EXPIRED");
@@ -194,7 +198,7 @@ describe("تحديد الدور: الرفض", () => {
   });
 
   it("١٢) سرٌّ غيرُ مهيّأ = تعطيلٌ معلَنٌ لا تسامح", async () => {
-    const h = harness({ role: "rider", isBlocked: false }, { secret: "" });
+    const h = harness({ role: "rider", isBlocked: false, languageCode: "ar" }, { secret: "" });
     const result = await resolveViewer({ accessToken: tokenFor() }, h.deps);
 
     expect(result.ok === false && result.error.publicCode).toBe("SESSION_NOT_AVAILABLE");
@@ -204,7 +208,7 @@ describe("تحديد الدور: الرفض", () => {
   it("١٣) محجوبٌ برمزٍ صالحٍ لا يمرّ — الحجبُ يُفحَص في كلِّ طلب", async () => {
     const result = await resolveViewer(
       { accessToken: tokenFor() },
-      harness({ role: "driver", isBlocked: true }).deps,
+      harness({ role: "driver", isBlocked: true, languageCode: "ar" }).deps,
     );
     expect(result.ok === false && result.error.publicCode).toBe("ACCOUNT_BLOCKED");
   });
@@ -228,7 +232,7 @@ describe("تحديد الدور: الرفض", () => {
 
 describe("تحديد الدور: الأسرارُ والسجل", () => {
   it("١٦) السجلُّ لا يحمل الرمزَ ولا جزءاً منه", async () => {
-    const h = harness({ role: "rider", isBlocked: false });
+    const h = harness({ role: "rider", isBlocked: false, languageCode: "ar" });
     const token = tokenFor();
     await resolveViewer({ accessToken: `${token}x` }, h.deps);
 
@@ -238,7 +242,7 @@ describe("تحديد الدور: الأسرارُ والسجل", () => {
   });
 
   it("١٧) سجلُّ الحجبِ لا يحمل معرّفَ تيليجرام", async () => {
-    const h = harness({ role: "rider", isBlocked: true });
+    const h = harness({ role: "rider", isBlocked: true, languageCode: "ar" });
     await resolveViewer({ accessToken: tokenFor() }, h.deps);
 
     expect(h.logs.length).toBeGreaterThan(0);

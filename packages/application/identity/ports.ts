@@ -214,10 +214,12 @@ export type ViewerRole = "rider" | "driver" | "support" | "admin";
 /** حالةُ الحسابِ كما تُقرأ — لا كما يقرّرها العميل. */
 export type ViewerStatus = "active" | "unregistered";
 
-/** صفُّ الحسابِ المقروءُ: الدورُ والحجبُ وحدَهما. لا اسمَ ولا هاتفَ ولا مدينة. */
+/** صفُّ الحسابِ المقروءُ: الدورُ والحجبُ ولغةُ الواجهةِ. لا اسمَ ولا هاتفَ ولا مدينة. */
 export interface ViewerAccount {
   readonly role: ViewerRole;
   readonly isBlocked: boolean;
+  /** `PD-030` (2026-09-23): لغةُ الواجهةِ من الحسابِ لا الجلسةِ. */
+  readonly languageCode: string;
 }
 
 export type ViewerLookupFailureReason = "READER_ERROR" | "UNSUPPORTED_ROLE";
@@ -237,6 +239,17 @@ export interface ViewerAccountReader {
   findByTelegramUserId(
     telegramUserId: string,
   ): Promise<Result<ViewerAccount | null, ViewerLookupFailure>>;
+}
+
+/**
+ * `PD-030` (2026-09-23): تحديثُ لغةِ الواجهةِ في حسابِ المستخدمِ — كتابةٌ وحيدةٌ
+ * محصورةٌ بعمودٍ واحد. لا دورَ ولا حظرَ ولا مدينةَ يُكتبُ من التطبيقِ المصغَّر.
+ */
+export interface ViewerAccountLanguageWriter {
+  updateLanguageCode(
+    telegramUserId: string,
+    languageCode: string,
+  ): Promise<Result<void, ViewerLookupFailure>>;
 }
 
 /** ما يُقرأ من رمزِ وصولٍ صحيح — لا يُبنى إلا بعدَ نجاحِ التحقّقِ من التوقيع. */

@@ -51,6 +51,8 @@ export type ResolvedViewerRole = ViewerRole | "unknown";
 export interface ResolveViewerOutput {
   readonly role: ResolvedViewerRole;
   readonly status: ViewerStatus;
+  /** `PD-030` (2026-09-23): لغةُ الواجهةِ من الحسابِ — `ar` إذا لم يكن صفٌّ. */
+  readonly languageCode: string;
 }
 
 /**
@@ -100,6 +102,7 @@ export interface AuthorizedViewer {
   readonly sessionId: string;
   readonly role: ResolvedViewerRole;
   readonly status: ViewerStatus;
+  readonly languageCode: string;
 }
 
 /**
@@ -148,6 +151,7 @@ export async function authorizeViewer(
       sessionId: session.value.sessionId,
       role: "unknown",
       status: "unregistered",
+      languageCode: "ar",
     });
   }
 
@@ -164,6 +168,7 @@ export async function authorizeViewer(
     sessionId: session.value.sessionId,
     role: account.value.role,
     status: "active",
+    languageCode: account.value.languageCode,
   });
 }
 
@@ -179,5 +184,9 @@ export async function resolveViewer(
 ): Promise<Result<ResolveViewerOutput, ResolveViewerError>> {
   const authorized = await authorizeViewer(input, deps);
   if (!authorized.ok) return err(authorized.error);
-  return ok({ role: authorized.value.role, status: authorized.value.status });
+  return ok({
+    role: authorized.value.role,
+    status: authorized.value.status,
+    languageCode: authorized.value.languageCode,
+  });
 }
