@@ -1,25 +1,32 @@
 /**
- * الغرض: قياسُ **تذاكرِ الدعمِ لكلِّ رحلةٍ** على السِلكِ — البندُ `ECO-006`
- *   (الشقُّ المملوكُ للمستودَعِ). لا يُقدَّرُ العددُ ولا يُستنبَطُ من قراءةِ
- *   شيفرةٍ: تُدارُ رحلةٌ كاملةٌ من الاقتباسِ إلى القراءاتِ المتكرَّرةِ عبرَ
- *   بوّابةٍ من `buildContainer` وقاعدةِ PostgreSQL حقيقيّةٍ، وتُعدُّ تذاكرُ
- *   الدعمِ المُنشَأةُ في دورةِ الحياةِ، ثمَّ يُحاكَمُ الناتجُ بحَكَمِ
- *   `scripts/lib/support-volume-budget.ts`.
+ * الغرض: قياسُ **تذاكرِ الدعمِ النظاميّةِ** التي يُنشِئُها مسارُ رحلةٍ واحدةٍ على
+ *   السِلكِ — البندُ `ECO-006` (شقُّ قياسٍ أوّليٌّ مملوكٌ للمستودَعِ). ويُحاكَمُ
+ *   الناتجُ بحَكَمِ `scripts/lib/support-volume-budget.ts`.
  *
- *   والمقيسُ: تذاكرُ الدعمِ في جدولِ `support_tickets` — عدّاً لا تقديراً.
- *   ودورةُ الحياةِ نفسُها لا تُنشِئُ تذاكرَ دعمٍ: التذاكرُ فعلُ مستخدمٍ.
+ *   **المسارُ المقيسُ كما هوَ** (ADR 0180):
+ *     ١) اقتباسٌ وإنشاءُ رحلةٍ عبرَ بوّابةٍ من `buildContainer`؛
+ *     ٢) عرضٌ `pending` يُزرَعُ صفّاً — كما في `driver-job.test.ts` — فلا تُقاسُ جولةُ الإرسالِ؛
+ *     ٣) `claim_ride` ← `driver_mark_arrived` ← `driver_start_ride` — دوالُّ النظامِ لا تحديثُ
+ *        حالةٍ يدويٌّ؛
+ *     ٤) نبضاتُ موقعٍ وقراءاتٌ نشطةٌ عبرَ البوّابةِ أثناءَ `in_progress`؛
+ *     ٥) `driver_complete_ride`.
+ *   **ولا يُشغَّلُ** التقييمُ ولا الإلغاءُ ولا التصعيدُ ولا النزاعُ.
+ *
+ *   والمقيسُ: `support_tickets` المنسوبةُ إلى الطلبِ أو راكبِه أو سائقِه قبلَ وبعدُ —
+ *   **الفرقُ خاماً** بلا تطهيرٍ (الحَكَمُ يكشفُ الشذوذَ بـ`counts.sane`)؛ وانتقالاتُ
+ *   الحالةِ **معدودةً من `audit_log`** للطلبِ لا منسوخةً من الثابتِ.
  *
  * الحالة: اختبار تكامل فعلي — يتطلب TEST_DATABASE_URL.
  * ينتمي إلى: tests/integration
  * يُتوقَّع أن يستخدمه لاحقاً: CI (وظيفةُ «تكامل على PostgreSQL حقيقي») ·
  *   `scripts/check-support-volume-budget.ts`
  * يحرسُه: `scripts/check-support-volume-budget.ts` في سلسلةِ `ci`
- * الحاكم: `docs/adr/0179-support-tickets-per-ride-are-counted-not-estimated.md`
+ * الحاكم: `docs/adr/0179-support-tickets-per-ride-are-counted-not-estimated.md` · `docs/adr/0180-eco-006-measures-system-tickets-only-not-support-rate.md`
  *
  * ═══ ما لا يُقاسُ ههنا عن قصدٍ — ويُعلَنُ في الدليلِ ═══
- * ــ **لا تُحسَبُ تكلفةٌ بالمالِ**: السعرُ بيدِ المالكِ (`REQ-09`).
- * ــ **لا يُقاسُ سلوكُ مستخدمينَ حقيقيّينَ**: شكلُ النافذةِ مُعلَنٌ (`ADR 0099`).
- * ــ **لا يُقاسُ معدَّلُ التذاكرِ في الإنتاجِ**: ذاكَ قراءةٌ ميدانيّةٌ.
+ * ــ **معدَّلُ التذاكرِ التي يفتحُها المستخدمونَ لكلِّ ١٠٠٠ رحلةٍ**: سلوكُ مستخدمينَ لا شيفرةٍ.
+ * ــ **سعرُ تذكرةِ الدعمِ**: خارجيٌّ، ولا قرارَ مالكٍ موثَّقٌ يُحدِّدُه بعدُ.
+ * ــ **مساراتُ التقييمِ والإلغاءِ والتصعيدِ والنزاعِ**: خارجَ المسارِ المقيسِ.
  */
 
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
@@ -43,6 +50,7 @@ import type { Result } from "../../packages/shared/result/index.ts";
 import { RIDE_RESOURCE_PROFILE } from "../../scripts/lib/resource-usage-budget.ts";
 import {
   judgeSupportVolume,
+  MEASURED_TRANSITION_ACTIONS,
   type SupportVolumeFacts,
   summarizeSupportVolume,
   supportTicketBudget,
@@ -149,7 +157,16 @@ beforeAll(async () => {
 afterAll(async () => {
   if (DATABASE_URL === undefined) return;
   if (riderId !== "") {
-    await sql`delete from support_tickets where rider_id = ${riderId}`;
+    await sql`delete from support_tickets where rider_id = ${riderId} or driver_id = ${driverId}`;
+    await sql`
+      delete from notification_outbox
+       where order_id in (select id from orders where rider_id = ${riderId})
+    `;
+    await sql`
+      delete from audit_log
+       where entity_type = 'order'
+         and entity_id in (select id from orders where rider_id = ${riderId})
+    `;
     await sql`delete from order_offers where order_id in (select id from orders where rider_id = ${riderId})`;
     await sql`delete from orders where rider_id = ${riderId}`;
     await sql`delete from riders where id = ${riderId}`;
@@ -171,14 +188,44 @@ afterAll(async () => {
   await sql.end();
 });
 
-/** عدُّ صفوفِ جدولٍ — يُرجِعُ صفراً لا `undefined`. */
-async function countRows(table: string): Promise<number> {
-  const rows = await sql<{ count: number }[]>`select count(*)::int as count from ${sql(table)}`;
-  return rows[0]?.count ?? 0;
+/**
+ * تذاكرُ الدعمِ المنسوبةُ إلى هذه الرحلةِ أو طرفَيها — لا الجدولُ كلُّه، كي لا
+ * يُحسَبَ على الرحلةِ ما يكتبُه ملفٌّ آخرُ.
+ */
+async function countRideTickets(orderId: string | null): Promise<number> {
+  const rows = await sql<{ count: number }[]>`
+    select count(*)::int as count from support_tickets
+     where rider_id = ${riderId}
+        or driver_id = ${driverId}
+        or (${orderId}::uuid is not null and order_id = ${orderId}::uuid)
+  `;
+  const count = rows[0]?.count;
+  if (count === undefined) throw new Error("تعذّر عدُّ support_tickets");
+  return count;
+}
+
+/** انتقالاتُ الحالةِ المرصودةُ في `audit_log` للطلبِ — ما كتبَته دوالُّ النظامِ نفسُها. */
+async function countAuditedTransitions(orderId: string): Promise<number> {
+  const rows = await sql<{ count: number }[]>`
+    select count(*)::int as count from audit_log
+     where entity_type = 'order' and entity_id = ${orderId}::uuid
+       and action in ${sql([...MEASURED_TRANSITION_ACTIONS])}
+  `;
+  const count = rows[0]?.count;
+  if (count === undefined) throw new Error("تعذّر عدُّ audit_log");
+  return count;
+}
+
+type Payload = Record<string, unknown>;
+
+async function callJson(query: Promise<{ result: Payload }[]>): Promise<Payload> {
+  const [row] = await query;
+  if (row === undefined) throw new Error("لا ردَّ من الدالّةِ");
+  return row.result;
 }
 
 describeIf("ECO-006 — تذاكرُ الدعمِ لكلِّ رحلةٍ، معدودةً على السِلكِ", () => {
-  it("رحلةٌ واحدةٌ: دورةُ الحياةِ لا تُنشِئُ تذاكرَ دعمٍ ضمنَ السقفِ المُشتَقِّ", async () => {
+  it("المسارُ المقيسُ (إيكالٌ ← وصولٌ ← بدءٌ ← إنهاءٌ بدوالِّ النظامِ): تذاكرُ نظاميّةٌ ضمنَ السقفِ المُشتَقِّ", async () => {
     const driverSent: SentMessage[] = [];
     const riderSent: SentMessage[] = [];
 
@@ -224,7 +271,7 @@ describeIf("ECO-006 — تذاكرُ الدعمِ لكلِّ رحلةٍ، معد
 
     try {
       // ═══ قراءةُ خطِّ الأساسِ قبلَ الرحلةِ ═══
-      const ticketsBefore = await countRows("support_tickets");
+      const ticketsBefore = await countRideTickets(null);
 
       // ═══ ١) الاقتباسُ ═══
       const quoted = await app.fetch(
@@ -268,13 +315,28 @@ describeIf("ECO-006 — تذاكرُ الدعمِ لكلِّ رحلةٍ، معد
       const orderId = rideBody.orderId ?? "";
       expect(orderId).not.toBe("");
 
+      // ═══ ٣) الإيكالُ والوصولُ والبدءُ — بدوالِّ النظامِ لا بتحديثٍ يدويٍّ ═══
+      // العرضُ يُزرَعُ صفّاً (كما في `driver-job.test.ts`): جولةُ الإرسالِ خارجَ المسارِ المقيسِ.
       await sql`
-        update orders set status = 'in_progress'::order_status, assigned_driver_id = ${driverId},
-                          matched_at = now(), started_at = now()
-         where id = ${orderId}
+        insert into order_offers (city_id, order_id, driver_id, round, status, expires_at)
+        values (${cityId}, ${orderId}, ${driverId}, 1, 'pending'::offer_status,
+                now() + make_interval(secs => 120))
       `;
+      const claim = await callJson(sql<{ result: Payload }[]>`
+        select claim_ride(${orderId}::uuid, ${driverId}::uuid) as result
+      `);
+      if (claim.ok !== true) throw new Error(`claim_ride مرفوضٌ: ${String(claim.error)}`);
+      const arrived = await callJson(sql<{ result: Payload }[]>`
+        select driver_mark_arrived(${DRIVER_TELEGRAM_ID}::bigint, ${orderId}::uuid) as result
+      `);
+      if (arrived.ok !== true)
+        throw new Error(`driver_mark_arrived مرفوضٌ: ${String(arrived.error)}`);
+      const started = await callJson(sql<{ result: Payload }[]>`
+        select driver_start_ride(${DRIVER_TELEGRAM_ID}::bigint, ${orderId}::uuid) as result
+      `);
+      if (started.ok !== true) throw new Error(`driver_start_ride مرفوضٌ: ${String(started.error)}`);
 
-      // ═══ ٣) نبضاتُ موقعِ السائقِ ═══
+      // ═══ ٤) نبضاتُ موقعِ السائقِ ═══
       for (let index = 0; index < RIDE_RESOURCE_PROFILE.heartbeatCount; index += 1) {
         const response = await app.fetch(
           new Request("http://localhost/v1/driver/location", {
@@ -296,7 +358,7 @@ describeIf("ECO-006 — تذاكرُ الدعمِ لكلِّ رحلةٍ، معد
         }
       }
 
-      // ═══ ٤) قراءاتُ الراكبِ ═══
+      // ═══ ٥) قراءاتُ الراكبِ ═══
       for (let index = 0; index < RIDE_RESOURCE_PROFILE.activeReadCount; index += 1) {
         await sql`
           update drivers set
@@ -317,9 +379,23 @@ describeIf("ECO-006 — تذاكرُ الدعمِ لكلِّ رحلةٍ، معد
         }
       }
 
-      // ═══ قراءةُ القياسِ بعدَ الرحلةِ ═══
-      const ticketsAfter = await countRows("support_tickets");
-      const supportTicketsCreated = Math.max(0, ticketsAfter - ticketsBefore);
+      // ═══ ٦) الإنهاءُ بدالّةِ النظامِ ═══
+      const completed = await callJson(sql<{ result: Payload }[]>`
+        select driver_complete_ride(${DRIVER_TELEGRAM_ID}::bigint, ${orderId}::uuid) as result
+      `);
+      if (completed.ok !== true) {
+        throw new Error(`driver_complete_ride مرفوضٌ: ${String(completed.error)}`);
+      }
+      const [finalOrder] = await sql<{ status: string }[]>`
+        select status::text as status from orders where id = ${orderId}
+      `;
+      expect(finalOrder?.status).toBe("completed");
+
+      // ═══ قراءةُ القياسِ بعدَ الرحلةِ — الفرقُ خاماً، والشذوذُ للحَكَمِ ═══
+      const ticketsAfter = await countRideTickets(orderId);
+      const supportTicketsCreated = ticketsAfter - ticketsBefore;
+      const lifecycleTransitions = await countAuditedTransitions(orderId);
+      expect(lifecycleTransitions).toBe(MEASURED_TRANSITION_ACTIONS.length);
 
       // الأصنافُ من المصدرِ الواحدِ — لا تُنسَخُ ولا تُعادُ تعريفُها.
       expect(SUPPORT_TICKET_TYPES.length).toBeGreaterThan(0);
@@ -327,7 +403,7 @@ describeIf("ECO-006 — تذاكرُ الدعمِ لكلِّ رحلةٍ، معد
       const facts: SupportVolumeFacts = {
         measured: true,
         supportTicketsCreated,
-        lifecycleTransitions: RIDE_RESOURCE_PROFILE.lifecycleTransitionCount,
+        lifecycleTransitions,
       };
 
       const violations = judgeSupportVolume({

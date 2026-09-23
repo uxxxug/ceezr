@@ -6,7 +6,8 @@
  * الحالة: اختبار وحدة فعلي — يشغّل الحاجزَ عينَه لا نسخةً منه.
  * ينتمي إلى: tests/unit
  * يحرسُ: `scripts/check-support-volume-budget.ts`
- * الحاكم: `docs/adr/0179-support-tickets-per-ride-are-counted-not-estimated.md`
+ * الحاكم: `docs/adr/0179-support-tickets-per-ride-are-counted-not-estimated.md` ·
+ *   `docs/adr/0180-eco-006-measures-system-tickets-only-not-support-rate.md`
  */
 
 import { describe, expect, it } from "bun:test";
@@ -14,6 +15,7 @@ import {
   type AuditInputs,
   auditSupportVolumeBudget,
   GUARD_RULE_NAMES,
+  REQUIRED_SYSTEM_TRANSITIONS,
 } from "../../scripts/check-support-volume-budget.ts";
 import { JUDGE_RULE_NAMES } from "../../scripts/lib/support-volume-budget.ts";
 
@@ -24,10 +26,14 @@ import { SUPPORT_TICKET_TYPES } from "../../packages/domain/support/ticket-types
 
 describe("ECO-006", () => {
   it("counts support_tickets on the wire", async () => {
-    const ticketsBefore = await countRows("support_tickets");
-    // ... ride lifecycle ...
-    const ticketsAfter = await countRows("support_tickets");
-    const facts = { measured: true, supportTicketsCreated: ticketsAfter - ticketsBefore, lifecycleTransitions: 5 };
+    const ticketsBefore = await sql\`select count(*) from support_tickets\`;
+    await sql\`select claim_ride(\${orderId}::uuid, \${driverId}::uuid) as result\`;
+    await sql\`select driver_mark_arrived(\${tg}::bigint, \${orderId}::uuid) as result\`;
+    await sql\`select driver_start_ride(\${tg}::bigint, \${orderId}::uuid) as result\`;
+    await sql\`select driver_complete_ride(\${tg}::bigint, \${orderId}::uuid) as result\`;
+    const ticketsAfter = await sql\`select count(*) from support_tickets\`;
+    const lifecycleTransitions = await sql\`select count(*) from audit_log where entity_id = \${orderId}\`;
+    const facts = { measured: true, supportTicketsCreated: ticketsAfter - ticketsBefore, lifecycleTransitions };
     const violations = judgeSupportVolume({ facts, profile: { lifecycleTransitionCount: 5 }, supportTicketsBudget: 5 });
     expect(violations).toEqual([]);
   });
@@ -117,6 +123,44 @@ describe("check-support-volume-budget — سالبةٌ لكلِّ قاعدةٍ (
     });
     expect(problems.some((p) => p.rule === "guard.self-enforced")).toBe(true);
   });
+
+  it("guard.no-clamping: القياسُ يُطهِّرُ الفرقَ بـMath.max", () => {
+    const source = GREEN_SOURCE.replace(
+      "supportTicketsCreated: ticketsAfter - ticketsBefore",
+      "supportTicketsCreated: Math.max(0, ticketsAfter - ticketsBefore)",
+    );
+    const problems = auditSupportVolumeBudget({ ...greenInputs, measurementSource: source });
+    expect(problems.some((p) => p.rule === "guard.no-clamping")).toBe(true);
+  });
+
+  it("guard.transitions-measured: الانتقالاتُ منسوخةٌ من الثابتِ", () => {
+    const source = GREEN_SOURCE.replace(
+      "lifecycleTransitions };",
+      "lifecycleTransitions: RIDE_RESOURCE_PROFILE.lifecycleTransitionCount };",
+    );
+    const problems = auditSupportVolumeBudget({ ...greenInputs, measurementSource: source });
+    expect(problems.some((p) => p.rule === "guard.transitions-measured")).toBe(true);
+  });
+
+  it("guard.transitions-measured: لا عدَّ من audit_log", () => {
+    const source = GREEN_SOURCE.replace("from audit_log", "from other_log");
+    const problems = auditSupportVolumeBudget({ ...greenInputs, measurementSource: source });
+    expect(problems.some((p) => p.rule === "guard.transitions-measured")).toBe(true);
+  });
+
+  it("guard.real-transitions: قفزٌ يدويٌّ بالحالةِ", () => {
+    const source = `${GREEN_SOURCE}\nawait sql\`update orders set status = 'in_progress'\`;`;
+    const problems = auditSupportVolumeBudget({ ...greenInputs, measurementSource: source });
+    expect(problems.some((p) => p.rule === "guard.real-transitions")).toBe(true);
+  });
+
+  for (const fn of REQUIRED_SYSTEM_TRANSITIONS) {
+    it(`guard.real-transitions: نداءُ ${fn} غائبٌ`, () => {
+      const source = GREEN_SOURCE.replace(`select ${fn}(`, "select other_fn(");
+      const problems = auditSupportVolumeBudget({ ...greenInputs, measurementSource: source });
+      expect(problems.some((p) => p.rule === "guard.real-transitions")).toBe(true);
+    });
+  }
 
   it("GUARD_RULE_NAMES لكلُّ قاعدةٍ اسمٌ فريدٌ", () => {
     const names = GUARD_RULE_NAMES.map((n) => n);
