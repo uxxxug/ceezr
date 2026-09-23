@@ -15,7 +15,12 @@ import { describe, expect, it } from "bun:test";
 import type { ViewerRole, ViewerView } from "../identity/viewer.ts";
 import { loadSurface, routeForViewer, type SurfaceLoaders } from "./role-route.ts";
 
-const active = (role: ViewerRole): ViewerView => ({ kind: "viewer", role, status: "active" });
+const active = (role: ViewerRole): ViewerView => ({
+  kind: "viewer",
+  role,
+  status: "active",
+  languageCode: "ar",
+});
 
 describe("التوجيه: سطحٌ لكلِّ دور", () => {
   it("١) الراكبُ إلى سطحِ الراكب", () => {
@@ -40,7 +45,14 @@ describe("التوجيه: سطحٌ لكلِّ دور", () => {
 
 describe("التوجيه: لا سطحَ عندَ الشك", () => {
   it("٥) «غير مسجَّل» لا سطحَ له بسببٍ صريح", () => {
-    expect(routeForViewer({ kind: "viewer", role: "unknown", status: "unregistered" })).toEqual({
+    expect(
+      routeForViewer({
+        kind: "viewer",
+        role: "unknown",
+        status: "unregistered",
+        languageCode: "ar",
+      }),
+    ).toEqual({
       surface: "none",
       reason: "unregistered",
     });
@@ -69,7 +81,9 @@ describe("التوجيه: لا سطحَ عندَ الشك", () => {
   });
 
   it("٩) دورٌ نشِطٌ مع حالةِ «غير مسجَّل» لا يفتح سطحاً — الحالةُ تحسم", () => {
-    expect(routeForViewer({ kind: "viewer", role: "admin", status: "unregistered" })).toEqual({
+    expect(
+      routeForViewer({ kind: "viewer", role: "admin", status: "unregistered", languageCode: "ar" }),
+    ).toEqual({
       surface: "none",
       reason: "unregistered",
     });
@@ -120,8 +134,8 @@ describe("تحميلُ الحزم: حزمةُ الدورِ وحدَها", () => 
       { kind: "blocked" } as const,
       { kind: "session_invalid" } as const,
       { kind: "unavailable" } as const,
-      { kind: "viewer", role: "unknown", status: "unregistered" } as const,
-      { kind: "viewer", role: "support", status: "active" } as const,
+      { kind: "viewer", role: "unknown", status: "unregistered", languageCode: "ar" } as const,
+      { kind: "viewer", role: "support", status: "active", languageCode: "ar" } as const,
     ]) {
       const spy = spyLoaders();
       const outcome = await loadSurface(routeForViewer(view), spy.loaders);

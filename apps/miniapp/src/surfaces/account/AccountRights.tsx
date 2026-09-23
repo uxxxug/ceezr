@@ -34,14 +34,15 @@
  */
 
 import { type ReactNode, useCallback, useId, useState } from "react";
-import type { MiniAppLanguage } from "../../../../../packages/shared/i18n/miniapp/index.ts";
 import {
   MINIAPP_DEFAULT_LANGUAGE,
+  MINIAPP_LANGUAGES,
+  type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../packages/shared/i18n/miniapp/index.ts";
 import { addAppToHomeScreen } from "../../tg/index.ts";
 import { newIdempotencyKey } from "../rider/search/search-view.ts";
-import { requestDataExport, requestErasure } from "./account-api.ts";
+import { requestDataExport, requestErasure, updateAccountLanguage } from "./account-api.ts";
 import type { DataExportResponse, ErasureResponse } from "./account-contract.ts";
 import type { AccountViewModel, ReceiptView } from "./account-view.ts";
 import { exportSectionCount, isRetryableAccountError, toReceiptView } from "./account-view.ts";
@@ -76,6 +77,16 @@ export interface AccountRightsProps {
    * كانَ يُدخِلُ `crypto.randomUUID` مباشرةً فيسقطُ حاجزُ `F1-08`.
    */
   readonly makeKey?: () => string;
+  /**
+   * حفظُ لغةِ الواجهةِ في الحسابِ (`PD-030`). يُحقَنُ في الاختبارِ، وافتراضُه
+   * `updateAccountLanguage`. يُنادى عندَ تغييرِ اللغةِ في الإعداداتِ.
+   */
+  readonly saveLanguage?: (language: MiniAppLanguage) => Promise<MiniAppLanguage>;
+  /**
+   * تُنادى حينَ يُغيِّرُ المستخدمُ لغةَ الواجهةِ بنجاحٍ — ليُحدِّثَ التطبيقُ
+   * لغتَه فوراً لا أن ينتظرَ إعادةَ الإقلاعِ.
+   */
+  readonly onLanguageChanged?: (language: MiniAppLanguage) => void;
 }
 
 type ExportState =
@@ -115,6 +126,12 @@ function saveViaBrowser(fileName: string, json: string): void {
   URL.revokeObjectURL(url);
 }
 
+type LanguageState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "saving" }
+  | { readonly kind: "saved" }
+  | { readonly kind: "error"; readonly code: string };
+
 export function AccountRights({
   view,
   language = MINIAPP_DEFAULT_LANGUAGE,
@@ -128,6 +145,8 @@ export function AccountRights({
     addAppToHomeScreen();
   },
   makeKey = () => newIdempotencyKey(undefined, "erasure"),
+  saveLanguage = updateAccountLanguage,
+  onLanguageChanged,
 }: AccountRightsProps) {
   const t = miniAppTranslator(language);
   const k = view.keyPrefix;
@@ -137,6 +156,23 @@ export function AccountRights({
   const [typed, setTyped] = useState("");
   const [eraseKey, setEraseKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [langState, setLangState] = useState<LanguageState>({ kind: "idle" });
+
+  const changeLanguage = useCallback(
+    async (code: MiniAppLanguage) => {
+      if (code === language) return;
+      setLangState({ kind: "saving" });
+      setError(null);
+      try {
+        const saved = await saveLanguage(code);
+        setLangState({ kind: "saved" });
+        if (onLanguageChanged) onLanguageChanged(saved);
+      } catch (thrown) {
+        setLangState({ kind: "error", code: codeOf(thrown) });
+      }
+    },
+    [language, saveLanguage, onLanguageChanged],
+  );
 
   const runExport = useCallback(async () => {
     setError(null);
@@ -248,6 +284,40 @@ export function AccountRights({
 
       {/* مدخلُ سطحِ الدورِ (`PD-020`) — يُرسَمُ كما جاءَ أو لا يُرسَمُ. */}
       {header}
+
+      {/* ــ لغةُ الواجهةِ (`PD-030`) — مصدرُها الحسابُ، وتُغَيَّرُ من الإعداداتِ ــ */}
+      <div className="ac__lang">
+        <p className="ac__lang-label">{t(`${k}language.label`)}</p>
+        <div className="ac__lang-picker">
+          {MINIAPP_LANGUAGES.map((code: MiniAppLanguage) => (
+            <button
+              key={code}
+              type="button"
+              className={`ac__lang-option${code === language ? " ac__lang-option--on" : ""}`}
+              aria-pressed={code === language}
+              disabled={langState.kind === "saving"}
+              onClick={() => void changeLanguage(code)}
+            >
+              {t(`welcome.language.${code}`)}
+            </button>
+          ))}
+        </div>
+        {langState.kind === "saving" && (
+          <p className="ac__lang-saving" role="status">
+            {t(`${k}language.saving`)}
+          </p>
+        )}
+        {langState.kind === "saved" && (
+          <p className="ac__lang-saved" role="status">
+            {t(`${k}language.saved`)}
+          </p>
+        )}
+        {langState.kind === "error" && (
+          <p className="ac__lang-error" role="alert">
+            {t(`${k}language.error`)}
+          </p>
+        )}
+      </div>
 
       {/* **الحدُّ يُقالُ**: انظرْ رأسَ المِلفِّ — حقلٌ لا يُحفَظُ أسوأُ من غيابِه. */}
       <div className="ac__debt">

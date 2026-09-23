@@ -20,7 +20,8 @@
  *   ــ لا تُتيحُ «ابدأ» قبلَ اكتمالِ ما يُطلَبُ، ولا تُخفيه: زرٌّ معطَّلٌ بسببٍ
  *      مكتوبٍ أصدقُ من زرٍّ غائبٍ بلا تفسيرٍ (UX-5).
  *   ــ لا تحسبُ «اكتملَت» عندَها: `satisfied` من الخادمِ بعدَ إعادةِ قراءةِ السجلِّ.
- *   ــ لا تحفظُ اللغةَ في الحسابِ: `F2-11`، والنصُّ لا يَدَّعي الحفظَ.
+ *   ــ **لا تحفظُ اللغةَ في الحسابِ** مباشرةً: بل تُمرِّرُها عبر `saveLanguagePreference`
+ *      إلى من يصِلُ الخادمَ (`PD-030`)، فإن غابَ المنفذُ فاللغةُ محليّةٌ فحسبُ.
  *   ــ لا تحملُ نصّاً عربيّاً داخلَ المكوّنِ: كلُّ حرفٍ من `shared/i18n/miniapp`.
  */
 
@@ -59,6 +60,11 @@ export interface WelcomeScreenProps {
   /** يُنادى حينَ تكتملُ الموافقاتُ ويضغطُ المستخدمُ الفعلَ الأساسيَّ. */
   readonly onProceed?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
+  /**
+   * حفظُ اللغةِ في الحسابِ (`PD-030`). إن وُجِدَ نُودِيَ عندَ كلِّ اختيارِ لغةٍ،
+   * وإن غابَ فاللغةُ محليّةٌ فحسبُ (شاشةُ الترحيبِ قد تُرى قبلَ التسجيلِ).
+   */
+  readonly saveLanguagePreference?: (language: MiniAppLanguage) => Promise<void>;
 }
 
 type LoadState =
@@ -91,6 +97,7 @@ export function WelcomeScreen({
   recordOne = submitConsent,
   onProceed,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
+  saveLanguagePreference,
 }: WelcomeScreenProps) {
   const [language, setLanguage] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -159,7 +166,10 @@ export function WelcomeScreen({
           className={`wc__lang${code === language ? " wc__lang--on" : ""}`}
           aria-pressed={code === language}
           onClick={() => {
-            if (isMiniAppLanguage(code)) setLanguage(code);
+            if (isMiniAppLanguage(code)) {
+              setLanguage(code);
+              if (saveLanguagePreference) void saveLanguagePreference(code);
+            }
           }}
         >
           {t(`welcome.language.${code}`)}

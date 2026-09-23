@@ -57,9 +57,14 @@ afterEach(() => {
 describe("قراءةُ الدورِ من الخادم: القبول", () => {
   it("١) تقرأ الدورَ والحالةَ كما أعادهما الخادمُ", async () => {
     withSession();
-    respond(200, { ok: true, role: "driver", status: "active" });
+    respond(200, { ok: true, role: "driver", status: "active", languageCode: "ar" });
 
-    expect(await fetchViewer()).toEqual({ kind: "viewer", role: "driver", status: "active" });
+    expect(await fetchViewer()).toEqual({
+      kind: "viewer",
+      role: "driver",
+      status: "active",
+      languageCode: "ar",
+    });
     expect(seen.url).toContain("/v1/me");
     expect(seen.method).toBe("GET");
     expect(seen.auth).toBe("Bearer access-token-value");
@@ -67,19 +72,25 @@ describe("قراءةُ الدورِ من الخادم: القبول", () => {
 
   it("٢) «غير مسجَّل» حالةٌ تُقرأ لا خطأٌ يُخفى", async () => {
     withSession();
-    respond(200, { ok: true, role: "unknown", status: "unregistered" });
+    respond(200, { ok: true, role: "unknown", status: "unregistered", languageCode: "ar" });
 
     expect(await fetchViewer()).toEqual({
       kind: "viewer",
       role: "unknown",
       status: "unregistered",
+      languageCode: "ar",
     });
   });
 
   it("٣) `support` يُقرأ كما هو ولا يُطوى على راكب", async () => {
     withSession();
-    respond(200, { ok: true, role: "support", status: "active" });
-    expect(await fetchViewer()).toEqual({ kind: "viewer", role: "support", status: "active" });
+    respond(200, { ok: true, role: "support", status: "active", languageCode: "ar" });
+    expect(await fetchViewer()).toEqual({
+      kind: "viewer",
+      role: "support",
+      status: "active",
+      languageCode: "ar",
+    });
   });
 });
 
@@ -202,6 +213,31 @@ describe("قراءةُ الدورِ من الخادم: لا ترقيةَ عند�
   it("١٥) ردٌّ فارغٌ يُرفَض", async () => {
     withSession();
     respond(200, {});
+    expect(await fetchViewer()).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("قراءةُ لغةِ الواجهةِ من الخادم (PD-030)", () => {
+  it("١٦) لغةٌ غيرُ الافتراضية تُمرَّر كما هي", async () => {
+    withSession();
+    respond(200, { ok: true, role: "rider", status: "active", languageCode: "ur" });
+    expect(await fetchViewer()).toEqual({
+      kind: "viewer",
+      role: "rider",
+      status: "active",
+      languageCode: "ur",
+    });
+  });
+
+  it("١٧) لغةٌ غيرُ معروفةٍ = `unavailable` لا افتراض", async () => {
+    withSession();
+    respond(200, { ok: true, role: "rider", status: "active", languageCode: "fr" });
+    expect(await fetchViewer()).toEqual({ kind: "unavailable" });
+  });
+
+  it("١٨) لغةٌ غائبةٌ = `unavailable` لا `ar` صامت", async () => {
+    withSession();
+    respond(200, { ok: true, role: "rider", status: "active" });
     expect(await fetchViewer()).toEqual({ kind: "unavailable" });
   });
 });
