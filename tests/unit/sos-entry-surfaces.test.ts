@@ -1,5 +1,5 @@
 /**
- * الغرض: قياسُ حاجزِ أسطحِ دخولِ الاستغاثةِ — **تسعةُ أسطحٍ مُلتزمةٌ** يُمرِّرُ
+ * الغرض: قياسُ حاجزِ أسطحِ دخولِ الاستغاثةِ — **عشرةُ أسطحٍ مُلتزمةٌ** يُمرِّرُ
  *   إليها `RiderRoot` مدخلَ الاستغاثةِ، فلا يختفي البابُ من شاشةٍ بحجّةِ أنَّ
  *   رحلةً نشطةً بطاقتُها المدمجةُ أقربُ (البند `PD-020` · `ADR 0159`).
  * الحالة: منفَّذٌ فعليّاً — البند `PD-020`.
@@ -40,6 +40,7 @@ const COMMITTED_SURFACES: readonly string[] = [
   "apps/miniapp/src/surfaces/rider/summary/RideSummaryScreen.tsx",
   "apps/miniapp/src/surfaces/rider/history/RideHistoryScreen.tsx",
   "apps/miniapp/src/surfaces/rider/history/RideDetailScreen.tsx",
+  "apps/miniapp/src/surfaces/rider/notifications/NotificationsScreen.tsx",
   "apps/miniapp/src/surfaces/rider/account/AccountScreen.tsx",
   "apps/miniapp/src/surfaces/rider/support/SupportScreen.tsx",
 ];
@@ -57,7 +58,7 @@ function read(path: string): string {
   return readFileSync(path, "utf8");
 }
 
-describe("أسطحُ دخولِ الاستغاثةِ — تسعةٌ لا تختفي منها واحدةٌ", () => {
+describe("أسطحُ دخولِ الاستغاثةِ — عشرةٌ لا تختفي منها واحدةٌ", () => {
   it("كلُّ سطحٍ ملتزَمٍ يقبلُ المدخلَ ويُحيلُ إلى المُكوِّنِ الموحَّدِ", () => {
     for (const path of COMMITTED_SURFACES) {
       const source = read(path);
@@ -69,13 +70,13 @@ describe("أسطحُ دخولِ الاستغاثةِ — تسعةٌ لا تخت�
     }
   });
 
-  it("القائمةُ تسعةٌ لا تزيدُ ولا تنقصُ — فالزيادةَ عهدٌ يُصرَّحُ بهِ", () => {
-    expect(COMMITTED_SURFACES).toHaveLength(9);
+  it("القائمةُ عشرةٌ لا تزيدُ ولا تنقصُ — فالزيادةَ عهدٌ يُصرَّحُ بهِ", () => {
+    expect(COMMITTED_SURFACES).toHaveLength(10);
   });
 
-  it("الموجِّهُ يُمرِّرُ المدخلَ إلى الأسطحِ التسعةِ ويُركِّبُ شاشةَ الاستغاثةِ", () => {
+  it("الموجِّهُ يُمرِّرُ المدخلَ إلى الأسطحِ العشرةِ ويُركِّبُ شاشةَ الاستغاثةِ", () => {
     const root = read(ROOT);
-    expect(root.match(/onOpenSos=\{onOpenSos\}/g) ?? []).toHaveLength(9);
+    expect(root.match(/onOpenSos=\{onOpenSos\}/g) ?? []).toHaveLength(10);
     expect(root.includes("import { SosScreen } from ./sos/SosScreen.tsx")).toBe(false);
     expect(root.includes('import { SosScreen } from "./sos/SosScreen.tsx"')).toBe(true);
     expect(root.includes("<SosScreen onBack={() => setSosOpen(false)} />")).toBe(true);

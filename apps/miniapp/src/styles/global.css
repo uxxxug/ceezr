@@ -2213,6 +2213,19 @@ a.sys__action {
   cursor: pointer;
 }
 
+/* مدخلُ مركزِ الإشعاراتِ من الرئيسةِ (`SS-07`) — أخو `.rh__history` حرفاً كي لا
+   يختلفَ زرّانِ متجاورانِ في الشاشةِ نفسِها بلا سببٍ. */
+.rh__notifications {
+  align-self: flex-start;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .ac {
   display: flex;
   flex-direction: column;
@@ -4662,4 +4675,131 @@ a.sys__action {
   margin-top: 1rem;
   font-size: 0.875rem;
   color: var(--tg-hint-color, #999);
+}
+
+/* مركزُ الإشعاراتِ (`SS-07` · `F6-05`). والبادئةُ `nc` لا `hs` فتلكَ للسجلِّ:
+   سجلٌّ يُقرأُ بالشهرِ، وموجَزٌ يُقرأُ بالتتابعِ — وخلطُ البادئتَينِ يُورِّثُ
+   إحداهما أنماطَ الأخرى. */
+
+.nc {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.nc__title {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.nc__pending {
+  margin: 0;
+  color: var(--tg-subtitle-text-color);
+}
+
+.nc__unread-count {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--tg-button-color, #2ea6ff);
+}
+
+.nc__empty {
+  margin: 0;
+  color: var(--tg-subtitle-text-color);
+}
+
+.nc__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nc__item {
+  display: block;
+}
+
+.nc__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.7rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.8rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  position: relative;
+}
+
+.nc__card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nc__card--unread {
+  border-inline-start: 3px solid var(--tg-button-color, #2ea6ff);
+}
+
+.nc__card--read {
+  opacity: 0.75;
+}
+
+.nc__kind {
+  font-weight: 600;
+}
+
+.nc__channel {
+  font-size: 0.8rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.nc__when {
+  font-size: 0.85rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.nc__dot {
+  position: absolute;
+  inset-inline-end: 0.7rem;
+  top: 0.7rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--tg-button-color, #2ea6ff);
+}
+
+.nc__more {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.nc__more:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.nc__back {
+  align-self: flex-start;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
