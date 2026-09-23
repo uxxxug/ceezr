@@ -492,7 +492,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     deps.breakGlass ??
     createAdminBreakGlassPort(deps.sql, {
       totpKey: deps.breakGlassTotpKey ?? null,
-      issuer: "Waslah",
+      issuer: "WASLA",
     });
 
   // قبل كل مسار، ومنها /login: الدخول هو الصفحة التي تُرسَل فيها كلمةُ المرور
