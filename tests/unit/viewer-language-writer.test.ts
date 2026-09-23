@@ -18,16 +18,13 @@ interface Recorded {
 function fakeSql(): {
   sql: Sql;
   calls: Recorded[];
-  throws: boolean;
 } {
   const calls: Recorded[] = [];
-  const throws = false;
   const unsafe = async (text: string, params: readonly unknown[] = []) => {
     calls.push({ text, params });
-    if (throws) throw new Error("فشلُ اتصالٍ مُصنَّع");
     return [];
   };
-  return { sql: { unsafe } as unknown as Sql, calls, throws };
+  return { sql: { unsafe } as unknown as Sql, calls };
 }
 
 describe("كاتبُ لغةِ الحساب: الكتابة (PD-030)", () => {
@@ -37,8 +34,10 @@ describe("كاتبُ لغةِ الحساب: الكتابة (PD-030)", () => {
 
     expect(result.ok).toBe(true);
     expect(calls).toHaveLength(1);
-    expect(calls[0].text).toContain("update users set language_code = $1");
-    expect(calls[0].params).toEqual(["en", "5550001"]);
+    const first = calls[0];
+    expect(first).toBeDefined();
+    expect(first?.text).toContain("update users set language_code = $1");
+    expect(first?.params).toEqual(["en", "5550001"]);
   });
 
   it("٢) معرّفٌ غيرُ رقميٍّ لا يُرسَل إلى القاعدة", async () => {
@@ -59,9 +58,9 @@ describe("كاتبُ لغةِ الحساب: الكتابة (PD-030)", () => {
 
   it("٤) خطأُ القاعدةِ يُعاد سبباً مصنَّفاً لا ٥٠٠", async () => {
     const sql: Sql = {
-      unsafe: (async () => {
+      unsafe: (() => {
         throw new Error("connection lost");
-      }) as typeof sql.unsafe,
+      }) as unknown as Sql["unsafe"],
     } as unknown as Sql;
     const result = await createViewerAccountLanguageWriter(sql).updateLanguageCode("5550001", "ar");
 
