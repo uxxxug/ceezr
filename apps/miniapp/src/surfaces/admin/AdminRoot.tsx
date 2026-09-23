@@ -11,9 +11,10 @@
  *   ولذلك **لا أداةَ إشرافٍ ههنا**: لوحةُ الإدارةِ الفعليةُ تبقى على الخادم.
  */
 
+import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
 import { EmptyState } from "../../system/EmptyState.tsx";
 
-export default function AdminRoot() {
+export default function AdminRoot(_props: LanguageSurfaceProps) {
   return (
     <section aria-labelledby="admin-root-title">
       <h1 id="admin-root-title" style={{ margin: 0, fontSize: "1.5rem" }}>

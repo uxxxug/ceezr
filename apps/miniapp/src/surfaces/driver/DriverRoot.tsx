@@ -73,6 +73,7 @@
  */
 
 import { useState } from "react";
+import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
 import { EmptyState } from "../../system/EmptyState.tsx";
 import { AccountScreen } from "./account/AccountScreen.tsx";
 import { ActivityScreen } from "./activity/ActivityScreen.tsx";
@@ -99,7 +100,7 @@ type DriverView =
   | { readonly kind: "summary"; readonly orderId: string }
   | { readonly kind: "placeholder" };
 
-export default function DriverRoot() {
+export default function DriverRoot({ language, onLanguageChanged }: LanguageSurfaceProps) {
   const [view, setView] = useState<DriverView>({ kind: "offers" });
 
   if (view.kind === "offers") {
@@ -173,6 +174,8 @@ export default function DriverRoot() {
     // الضررِ، ومَن جاءَ يسألُ عن بيانتِه يشكو من حيثُ سألَ.
     return (
       <AccountScreen
+        language={language}
+        {...(onLanguageChanged ? { onLanguageChanged } : {})}
         onBack={() => setView({ kind: "offers" })}
         onOpenSupport={() => setView({ kind: "support" })}
       />

@@ -117,6 +117,8 @@
  */
 
 import { useState } from "react";
+import type { MiniAppLanguage } from "../../../../../packages/shared/i18n/miniapp/index.ts";
+import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
 import {
   productionChannelBaseUrl,
   productionRideChannelTransport,
@@ -139,7 +141,7 @@ import { RideSummaryScreen } from "./summary/RideSummaryScreen.tsx";
 import { SupportScreen } from "./support/SupportScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
 
-export default function RiderRoot() {
+export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfaceProps) {
   const [proceeded, setProceeded] = useState(false);
   const [chosen, setChosen] = useState<ChosenDestination | null>(null);
   /**
@@ -218,7 +220,16 @@ export default function RiderRoot() {
   // العنوانُ الأصليُّ باقٍ في فرعِ ما بعدَ الترحيبِ ولم يُحذَف؛ ولا يُرسَمُ فوقَ
   // شاشةِ الترحيبِ لأنَّ لها عنوانَها، وعنوانانِ بالنصِّ ذاتِه يُقرآنِ تكراراً في
   // قارئِ الشاشةِ (`UX-10`).
-  if (!proceeded) return <WelcomeScreen onProceed={() => setProceeded(true)} />;
+  if (!proceeded) {
+    const welcomeProps = {
+      initialLanguage: language,
+      onProceed: () => setProceeded(true),
+      ...(onLanguageChanged
+        ? { saveLanguagePreference: async (lang: MiniAppLanguage) => onLanguageChanged(lang) }
+        : {}),
+    };
+    return <WelcomeScreen {...welcomeProps} />;
+  }
 
   // شاشةُ الاستغاثةِ (`PD-020`) — **أعلى الترتيبِ كلِّهِ وفوقَ الدعمِ**: مَن فتحَها
   // صراحةً لا تُغطَّى بشاشةٍ أخرى، والرجوعُ يُطفِئُ الرايةَ فيظهرُ ما تحتها كما كانَ.
@@ -244,6 +255,8 @@ export default function RiderRoot() {
   if (account) {
     return (
       <AccountScreen
+        language={language}
+        {...(onLanguageChanged ? { onLanguageChanged } : {})}
         onBack={() => setAccount(false)}
         onOpenSupport={() => setSupport({ orderId: null })}
         onOpenSos={onOpenSos}

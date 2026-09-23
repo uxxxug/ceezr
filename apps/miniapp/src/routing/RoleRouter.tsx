@@ -28,6 +28,10 @@
  */
 
 import { type ComponentType, useCallback, useEffect, useRef, useState } from "react";
+import {
+  MINIAPP_DEFAULT_LANGUAGE,
+  type MiniAppLanguage,
+} from "../../../../packages/shared/i18n/miniapp/index.ts";
 import type { ViewerView } from "../identity/viewer.ts";
 import { ErrorBoundary } from "../shell/ErrorBoundary.tsx";
 import {
@@ -48,7 +52,17 @@ import {
 } from "./role-route.ts";
 
 interface SurfaceModule {
-  readonly default: ComponentType;
+  readonly default: ComponentType<LanguageSurfaceProps>;
+}
+
+export interface LanguageSurfaceProps {
+  /** لغةُ الواجهةِ من الحسابِ (`PD-030`) — تُحقَنُ من الموجّهِ الذي قرأَها من الخادمِ. */
+  readonly language: MiniAppLanguage;
+  /**
+   * تُنادى حينَ يُغيِّرُ المستخدمُ لغتَه من الإعداداتِ — ليُحدِّثَ الموجّهُ حالتَه
+   * فينعكسَ التغييرُ على كلِّ السطحِ فوراً.
+   */
+  readonly onLanguageChanged?: (language: MiniAppLanguage) => void;
 }
 
 /**
@@ -63,7 +77,7 @@ const SURFACE_LOADERS: SurfaceLoaders<SurfaceModule> = {
 
 type RouterState =
   | { readonly kind: "resolving" }
-  | { readonly kind: "surface"; readonly Component: ComponentType }
+  | { readonly kind: "surface"; readonly Component: ComponentType<LanguageSurfaceProps> }
   | { readonly kind: "screen"; readonly screen: ScreenState };
 
 export interface RoleRouterProps {
@@ -97,6 +111,7 @@ async function screenForReason(reason: NoSurfaceReason, view: ViewerView): Promi
 
 export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const [state, setState] = useState<RouterState>({ kind: "resolving" });
+  const [language, setLanguage] = useState<MiniAppLanguage>(MINIAPP_DEFAULT_LANGUAGE);
   const mounted = useRef(true);
   useEffect(() => {
     mounted.current = true;
@@ -112,6 +127,9 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const resolve = useCallback(async () => {
     setState({ kind: "resolving" });
     const view = await fetchViewer();
+    // `PD-030`: لغةُ الواجهةِ تُقرأُ من الحسابِ لا تُفترَضُ. وغيابُها أو بطلانُها
+    // يعني أنَّ الردَّ ناقصٌ فلا يُكملُ — `fetchViewer` يُعيدُ `unavailable` حينَها.
+    if (view.kind === "viewer" && mounted.current) setLanguage(view.languageCode);
     const route: RoleRoute = routeForViewer(view);
     if (route.surface === "none") {
       const screen = await screenForReason(route.reason, view);
@@ -153,7 +171,7 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const { Component } = state;
   return (
     <ErrorBoundary label="surface" onReset={retry}>
-      <Component />
+      <Component language={language} onLanguageChanged={setLanguage} />
     </ErrorBoundary>
   );
 }
