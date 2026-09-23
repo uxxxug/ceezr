@@ -15,14 +15,16 @@
  *
  * **يحرسُه:** `tests/unit/check-support-volume-budget.test.ts` — سالبةٌ لكلِّ قاعدةٍ.
  *
- * **الحاكم:** `docs/adr/0179-support-tickets-per-ride-are-counted-not-estimated.md`
+ * **الحاكم:** `docs/adr/0179-support-tickets-per-ride-are-counted-not-estimated.md` كما صحَّحَه
+ * `docs/adr/0180-eco-006-measures-system-tickets-only-not-support-rate.md`.
  *
  * **ما لا يفعلُه هذا الحاجزُ عن قصدٍ:**
  * - **لا يُثبِتُ أنَّ الرحلةَ ضمنَ السقفِ**: ذاكَ قياسٌ على السِلكِ في
  *   `tests/integration/support-volume-budget.test.ts`، ووجودُ هذا الحاجزِ **ليسَ**
  *   دليلَ التزامٍ.
- * - **لا يعرفُ سعراً ولا يحسبُ فاتورةً**: السعرُ بيدِ المالكِ (`REQ-09` · `[!]`).
- *   فالمحروسُ **العددُ** وحدَه.
+ * - **لا يعرفُ سعراً ولا يحسبُ فاتورةً**: سعرُ تذكرةِ الدعمِ خارجيٌّ لا يملكُه
+ *   المستودَعُ ولا قرارَ مالكٍ موثَّقٌ يُحدِّدُه بعدُ. فالمحروسُ **العددُ** وحدَه.
+ * - **لا يقيسُ معدَّلَ التذاكرِ التي يفتحُها المستخدمونَ**: ذاكَ سلوكُ مستخدمينَ.
  * - **لا يقرأُ قاعدةً**: ساكنٌ عن قصدٍ.
  */
 
@@ -45,6 +47,17 @@ export const GUARD_RULE_NAMES = [
   "guard.assertion-intact",
   "guard.budget-sane",
   "guard.self-enforced",
+  "guard.no-clamping",
+  "guard.transitions-measured",
+  "guard.real-transitions",
+] as const;
+
+/** دوالُّ النظامِ التي يجبُ أن يقودَ القياسُ الرحلةَ عبرَها (ADR 0180). */
+export const REQUIRED_SYSTEM_TRANSITIONS = [
+  "claim_ride",
+  "driver_mark_arrived",
+  "driver_start_ride",
+  "driver_complete_ride",
 ] as const;
 
 export type GuardRuleName = (typeof GUARD_RULE_NAMES)[number];
@@ -149,6 +162,41 @@ export function auditSupportVolumeBudget(overrides: Partial<AuditInputs> = {}): 
     );
   }
 
+  // ٨. لا تطهيرَ للقياسِ قبلَ الحَكَمِ: الفرقُ السالبُ شذوذٌ يكشفُه `counts.sane`.
+  if (/Math\.(max|abs)\s*\(/.test(source)) {
+    push(
+      "guard.no-clamping",
+      "ملفُّ القياسِ يُطهِّرُ عدداً بـ`Math.max`/`Math.abs` — والشذوذُ يصلُ الحَكَمَ خاماً",
+    );
+  }
+
+  // ٩. الانتقالاتُ مقيسةٌ لا منسوخةٌ من الثابتِ المُعلَنِ.
+  if (/lifecycleTransitions\s*:\s*RIDE_RESOURCE_PROFILE/.test(source)) {
+    push(
+      "guard.transitions-measured",
+      "`lifecycleTransitions` يُعيَّنُ من `RIDE_RESOURCE_PROFILE` — ومقارنةُ الثابتِ بنفسِه ليسَت قياساً",
+    );
+  }
+  if (!/from\s+audit_log/.test(source)) {
+    push(
+      "guard.transitions-measured",
+      "ملفُّ القياسِ لا يعدُّ الانتقالاتِ من `audit_log` — فالرقمُ غيرُ مرصودٍ",
+    );
+  }
+
+  // ١٠. الرحلةُ تُقادُ بدوالِّ النظامِ لا بتحديثِ حالةٍ يدويٍّ.
+  if (/update\s+orders\s+set\s+status/i.test(source)) {
+    push(
+      "guard.real-transitions",
+      "ملفُّ القياسِ يقفزُ بالحالةِ يدويّاً (`update orders set status`) متجاوزاً مساراتِ النظامِ",
+    );
+  }
+  for (const fn of REQUIRED_SYSTEM_TRANSITIONS) {
+    if (!new RegExp(`select\\s+${fn}\\(`).test(source)) {
+      push("guard.real-transitions", `ملفُّ القياسِ لا ينادي \`${fn}\` — والانتقالُ لا يُقاسُ بلا نداءٍ`);
+    }
+  }
+
   // ٧. الحاجزُ يحرسُ نفسَه: حاجزٌ غيرُ موصولٍ في السلسلةِ وثيقةٌ لا بوّابةٌ.
   if (!inputs.packageJson?.includes("check-support-volume-budget")) {
     push(
@@ -181,7 +229,8 @@ function main(): void {
     `✓ عدُّ تذاكرِ الدعمِ محروسٌ (ECO-006 · الشقُّ المملوكُ للمستودَعِ): ` +
       `سقفُ ${supportTicketBudget()} تذكرةً لكلِّ رحلةٍ. ` +
       `${JUDGE_RULE_NAMES.length} قواعدَ حكمٍ · ${GUARD_RULE_NAMES.length} قواعدَ حاجزٍ. ` +
-      "وهذا **حِفظُ شرطٍ لا قياسُ فاتورةٍ**: العددُ يُقاسُ على السِلكِ، والسعرُ بيدِ المالكِ (REQ-09).",
+      "وهذا **حِفظُ شرطٍ لا قياسُ فاتورةٍ**: التذاكرُ النظاميّةُ تُقاسُ على السِلكِ؛ " +
+      "ومعدَّلُ المستخدمينَ غيرُ مقيسٍ، والسعرُ خارجيٌّ بلا قرارِ مالكٍ موثَّقٍ.",
   );
 }
 
