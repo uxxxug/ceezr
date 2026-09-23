@@ -78,7 +78,9 @@ function buildHarness(
     revocation: createTestRevocationStore(),
     // `null` قيمةٌ ذاتُ معنىً ههنا («لا صفَّ») فلا تُبدَّل بافتراضٍ عندَ الغياب.
     accounts: reader(
-      "account" in options ? (options.account as Outcome) : { role: "rider", isBlocked: false },
+      "account" in options
+        ? (options.account as Outcome)
+        : { role: "rider", isBlocked: false, languageCode: "ar" },
       reads,
     ),
     now: () => now,
@@ -125,7 +127,7 @@ function authed(token: string = tokenFor()): { authorization: string } {
 }
 
 describe("GET /v1/me — القبول", () => {
-  it("١) يعيد الدورَ والحالةَ فقط بردٍّ محدودِ الحقول", async () => {
+  it("١) يعيد الدورَ والحالةَ واللغةَ بردٍّ محدودِ الحقول", async () => {
     const harness = buildHarness();
     const { status, json } = await get(harness, { headers: authed() });
 
@@ -133,11 +135,13 @@ describe("GET /v1/me — القبول", () => {
     expect(json.ok).toBe(true);
     expect(json.role).toBe("rider");
     expect(json.status).toBe("active");
-    expect(Object.keys(json).sort()).toEqual(["ok", "role", "status"]);
+    expect(Object.keys(json).sort()).toEqual(["languageCode", "ok", "role", "status"]);
   });
 
   it("٢) دورُ السائقِ يصل كما هو من القاعدة", async () => {
-    const harness = buildHarness({ account: { role: "driver", isBlocked: false } });
+    const harness = buildHarness({
+      account: { role: "driver", isBlocked: false, languageCode: "ar" },
+    });
     const { status, json } = await get(harness, { headers: authed() });
     expect(status).toBe(200);
     expect(json.role).toBe("driver");
@@ -208,7 +212,9 @@ describe("GET /v1/me — الرفض", () => {
   });
 
   it("١٠) حسابٌ محجوبٌ برمزٍ صالح: ٤٠٣ `ACCOUNT_BLOCKED`", async () => {
-    const harness = buildHarness({ account: { role: "driver", isBlocked: true } });
+    const harness = buildHarness({
+      account: { role: "driver", isBlocked: true, languageCode: "ar" },
+    });
     const { status, json } = await get(harness, { headers: authed() });
 
     expect(status).toBe(403);
@@ -243,7 +249,9 @@ describe("GET /v1/me — الرفض", () => {
 
 describe("GET /v1/me — الدورُ لا يأتي من الطلب", () => {
   it("١٤) دورٌ في ترويسةٍ مخصَّصةٍ يُتجاهَل تماماً", async () => {
-    const harness = buildHarness({ account: { role: "rider", isBlocked: false } });
+    const harness = buildHarness({
+      account: { role: "rider", isBlocked: false, languageCode: "ar" },
+    });
     const { status, json } = await get(harness, {
       headers: { ...authed(), "x-role": "admin", "x-user-role": "admin" },
     });
@@ -253,7 +261,9 @@ describe("GET /v1/me — الدورُ لا يأتي من الطلب", () => {
   });
 
   it("١٥) دورٌ في سلسلةِ الاستعلامِ يُتجاهَل تماماً", async () => {
-    const harness = buildHarness({ account: { role: "rider", isBlocked: false } });
+    const harness = buildHarness({
+      account: { role: "rider", isBlocked: false, languageCode: "ar" },
+    });
     const { status, json } = await get(harness, {
       headers: authed(),
       path: "/v1/me?role=admin&status=active",
@@ -265,7 +275,9 @@ describe("GET /v1/me — الدورُ لا يأتي من الطلب", () => {
   });
 
   it("١٦) محجوبٌ يرسل دوراً في ترويسةٍ لا يمرّ", async () => {
-    const harness = buildHarness({ account: { role: "rider", isBlocked: true } });
+    const harness = buildHarness({
+      account: { role: "rider", isBlocked: true, languageCode: "ar" },
+    });
     const { status } = await get(harness, { headers: { ...authed(), "x-role": "admin" } });
     expect(status).toBe(403);
   });

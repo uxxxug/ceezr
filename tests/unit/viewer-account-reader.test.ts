@@ -34,15 +34,15 @@ function fakeSql(rows: readonly Record<string, unknown>[] | { readonly throws: t
 
 describe("قارئُ حسابِ صاحبِ الجلسة: القراءة", () => {
   it("١) يعيد الدورَ والحجبَ من الصفِّ المقروء", async () => {
-    const { sql } = fakeSql([{ role: "driver", is_blocked: false }]);
+    const { sql } = fakeSql([{ role: "driver", is_blocked: false, language_code: "ar" }]);
     const result = await createViewerAccountReader(sql).findByTelegramUserId("5550001");
 
     expect(result.ok).toBe(true);
     if (!result.ok) throw new Error("متوقَّع نجاح");
-    expect(result.value).toEqual({ role: "driver", isBlocked: false });
+    expect(result.value).toEqual({ role: "driver", isBlocked: false, languageCode: "ar" });
   });
 
-  it("٢) الاستعلامُ مُمَعلَمٌ ويقرأ عمودَين فقط", async () => {
+  it("٢) الاستعلامُ مُمَعلَمٌ ويقرأ ثلاثةَ أعمدةٍ فقط", async () => {
     const { sql, calls } = fakeSql([{ role: "rider", is_blocked: false }]);
     await createViewerAccountReader(sql).findByTelegramUserId("5550001");
 
@@ -73,9 +73,13 @@ describe("قارئُ حسابِ صاحبِ الجلسة: القراءة", () => 
   });
 
   it("٥) حسابٌ محجوبٌ يُعاد بحقلِ حجبٍ صحيحٍ لا يُطوى", async () => {
-    const { sql } = fakeSql([{ role: "admin", is_blocked: true }]);
+    const { sql } = fakeSql([{ role: "admin", is_blocked: true, language_code: "ar" }]);
     const result = await createViewerAccountReader(sql).findByTelegramUserId("5550001");
-    expect(result.ok && result.value).toEqual({ role: "admin", isBlocked: true });
+    expect(result.ok && result.value).toEqual({
+      role: "admin",
+      isBlocked: true,
+      languageCode: "ar",
+    });
   });
 
   it("٦) `support` دورٌ معروفٌ في القاعدةِ يُعاد كما هو", async () => {

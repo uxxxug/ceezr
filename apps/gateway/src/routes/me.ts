@@ -20,7 +20,9 @@
  */
 
 import { type Context, Hono } from "hono";
+import type { ViewerAccountLanguageWriter } from "../../../../packages/application/identity/ports.ts";
 import {
+  authorizeViewer,
   type ResolveViewerDeps,
   resolveViewer,
   type ViewerPublicErrorCode,
@@ -32,6 +34,7 @@ export interface MeDependencies {
    * تحقّق (سابقةُ مسارَي `F1-03` و`F1-04`: غيابُ السرِّ تعطيلٌ لا تسامح).
    */
   readonly viewer?: ResolveViewerDeps;
+  readonly languageWriter?: ViewerAccountLanguageWriter;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -89,7 +92,38 @@ export function createMeRoutes(deps: MeDependencies): Hono {
 
     // الردُّ: دورٌ وحالةٌ فقط — قرارُ المالكِ في `F1-05`. لا اسمَ ولا هاتفَ ولا
     // مدينةَ ولا لغةَ ولا معرّفَ جلسةٍ ولا معرّفَ تيليجرام.
-    return c.json({ ok: true, role: result.value.role, status: result.value.status });
+    return c.json({
+      ok: true,
+      role: result.value.role,
+      status: result.value.status,
+      languageCode: result.value.languageCode,
+    });
+  });
+
+  // `PD-030` (2026-09-23): تحديثُ لغةِ الواجهةِ في الحسابِ.
+  app.put("/v1/me/language", async (c) => {
+    if (deps.viewer === undefined || deps.languageWriter === undefined) {
+      deps.log?.("language.route_disabled", {});
+      return c.json({ ok: false, error: "SESSION_NOT_AVAILABLE" }, UNAVAILABLE_STATUS);
+    }
+    const accessToken = bearerTokenFrom(c.req.header("authorization"));
+    const auth = await authorizeViewer({ accessToken }, deps.viewer);
+    if (!auth.ok) return rejected(c, auth.error.publicCode);
+
+    const body = await c.req.json().catch(() => null);
+    const languageCode = body?.languageCode;
+    if (typeof languageCode !== "string" || !["ar", "en", "ur"].includes(languageCode)) {
+      return c.json({ ok: false, error: "INVALID_LANGUAGE" }, 400);
+    }
+
+    const result = await deps.languageWriter.updateLanguageCode(
+      auth.value.telegramUserId,
+      languageCode,
+    );
+    if (!result.ok) {
+      return c.json({ ok: false, error: "PROFILE_NOT_AVAILABLE" }, UNAVAILABLE_STATUS);
+    }
+    return c.json({ ok: true, languageCode });
   });
 
   return app;

@@ -25,6 +25,7 @@ import type { Sql } from "../db/client.ts";
 interface AccountRow {
   readonly role: string;
   readonly is_blocked: boolean;
+  readonly language_code: string;
 }
 
 /** قيمُ نوعِ `user_role` في القاعدة — مصدرُها المخطَّطُ لا اجتهادُ العميل. */
@@ -58,7 +59,7 @@ export function createViewerAccountReader(sql: Sql): ViewerAccountReader {
       let rows: AccountRow[];
       try {
         rows = await sql.unsafe<AccountRow[]>(
-          "select role::text as role, is_blocked from users where telegram_id = $1",
+          "select role::text as role, is_blocked, language_code from users where telegram_id = $1",
           [telegramId],
         );
       } catch {
@@ -76,7 +77,7 @@ export function createViewerAccountReader(sql: Sql): ViewerAccountReader {
         return err(lookupFailed("UNSUPPORTED_ROLE"));
       }
 
-      return ok({ role, isBlocked: row.is_blocked === true });
+      return ok({ role, isBlocked: row.is_blocked === true, languageCode: row.language_code });
     },
   };
 }

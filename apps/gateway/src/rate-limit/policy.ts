@@ -870,6 +870,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    method: "PUT",
+    path: "/v1/me/language",
+    file: "apps/gateway/src/routes/me.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "GET",
     path: "/metrics",
     file: "apps/gateway/src/routes/metrics.ts",
@@ -1219,7 +1228,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * دخولُهُ العامُّ محدودٌ في صفِّ الاعتمادِ في القاعدةِ (`admin_break_glass_finish_failure`)
  * والبقيةُ خلفَ حارسِ الجلسةِ.
  */
-export const ROUTE_POLICY_COUNT = 105;
+export const ROUTE_POLICY_COUNT = 106;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
