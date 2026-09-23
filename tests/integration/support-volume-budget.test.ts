@@ -79,17 +79,10 @@ function tokenFor(telegramUserId: string, bot: "rider" | "driver"): string {
 }
 
 const noOpRedis: RedisClient = {
-  async send(_command: string[]): Promise<Result<unknown, RedisFailure>> {
-    return { ok: false, error: { kind: "unavailable", reason: "no-op" } };
-  },
-  async sendMany(_commands: string[][]): Promise<Result<unknown[], RedisFailure>> {
-    return { ok: false, error: { kind: "unavailable", reason: "no-op" } };
-  },
-  async ping(): Promise<Result<boolean, RedisFailure>> {
-    return { ok: false, error: { kind: "unavailable", reason: "no-op" } };
-  },
-  async close(): Promise<void> {
-    /* no-op */
+  command: async (
+    _args: readonly (string | number)[],
+  ): Promise<Result<unknown, RedisFailure>> => {
+    return { ok: false, error: { kind: "network", reason: "no-op" } };
   },
 };
 
@@ -190,15 +183,18 @@ describeIf("ECO-006 — تذاكرُ الدعمِ لكلِّ رحلةٍ، معد
   it("رحلةٌ واحدةٌ: دورةُ الحياةِ لا تُنشِئُ تذاكرَ دعمٍ ضمنَ السقفِ المُشتَقِّ", async () => {
     const driverSent: SentMessage[] = [];
     const riderSent: SentMessage[] = [];
-    const { bot: driverBot } = capturing(driverSent);
-    const { bot: riderBot } = capturing(riderSent);
-    const container = buildContainer({
-      config: testConfig,
-      sql,
-      redis: noOpRedis,
-      driverBot,
-      riderBot,
-    });
+
+    const container = buildContainer(
+      testConfig({
+        port: 3995,
+        telegramWebhookSecret: WEBHOOK_SECRET,
+      }),
+      {
+        driverSender: capturing(driverSent),
+        riderSender: capturing(riderSent),
+        redis: noOpRedis,
+      },
+    );
 
     const sessions = createMiniAppSessionReader(SESSION_SECRET);
     const now = (): Date => new Date();
