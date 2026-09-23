@@ -1258,7 +1258,7 @@
   "welcome.language.ur": "اردو",
   "welcome.language_label": "App language",
   "welcome.language_note": "Language changes this screen's text now. Saving it to your account is item F2-11 — we do not claim it is saved today.",
-  "welcome.line1": "Rides and deliveries in your city, from inside Telegram — no app to install.",
+  "welcome.line1": "Waslah connects you with the nearest trusted driver, and you agree directly.",
   "welcome.line2": "You pick your destination and get an estimate from a real route — and when we cannot compute one we say «unavailable» rather than guess.",
   "welcome.line3": "Before we start: read the terms and the privacy policy and accept them. The time you accept is recorded.",
   "welcome.location_note": "We do not ask for location permission on this screen. We ask at the moment it is needed, when you set a destination.",
