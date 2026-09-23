@@ -130,6 +130,7 @@ import { RideDetailScreen } from "./history/RideDetailScreen.tsx";
 import { RideHistoryScreen } from "./history/RideHistoryScreen.tsx";
 import type { ChosenDestination } from "./home/HomeScreen.tsx";
 import { HomeScreen } from "./home/HomeScreen.tsx";
+import { NotificationsScreen } from "./notifications/NotificationsScreen.tsx";
 import { QuoteScreen } from "./quote/QuoteScreen.tsx";
 import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
 import { SearchScreen } from "./search/SearchScreen.tsx";
@@ -170,6 +171,11 @@ export default function RiderRoot() {
    * موضعَ تصفُّحِها ونصَّ بحثِها داخلَها، فلا تُرفَعُ ههنا حالةٌ ثانيةٌ لها.
    */
   const [browsed, setBrowsed] = useState(false);
+  /**
+   * هل مركزُ الإشعاراتِ مفتوحٌ (`SS-07`)? — رايةٌ لا معرِّفٌ: الموجَزُ يُقرأُ
+   * بالتتابعِ، وكلُّ ما يُرفَعُ هنا هو «مفتوحٌ» أو «مُغلَقٌ».
+   */
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   /**
    * الرحلةُ المفتوحةُ تفاصيلُها (`F2-08`) — معرِّفٌ **ومنطقةُ تصنيفٍ** معاً.
    * ولا يُدمَجُ معَ `summarized`: ذاكَ ملخَّصُ **رحلةٍ انتهت** فيه نموذجُ
@@ -266,6 +272,12 @@ export default function RiderRoot() {
   // بطلبِ الراكبِ صراحةً، ورسمُ شاشةٍ أخرى تحتَه بعدَ طلبِه تجاوُزٌ لا ترتيبٌ.
   // ورحلةٌ جاريةٌ تُسلَّمُ إلى `followed` **ويُغلَقُ السجلُّ**: متابعةٌ تحتَ قائمةٍ
   // مفتوحةٍ تُعيدُ الراكبَ إلى السجلِّ من رحلةٍ يُفترَضُ أنَّه دخلَها ليُتابِعَ.
+  //
+  // مركزُ الإشعاراتِ (`SS-07`) — **أعلى من السجلِّ**: راكبٌ يَفتَحُ الإشعاراتِ
+  // يطلبُ الحدثَ الأحدثَ لا ماضيَه، فلا يُغطَّى ما تحتَه بالماضي فوقه.
+  if (notificationsOpen) {
+    return <NotificationsScreen onBack={() => setNotificationsOpen(false)} onOpenSos={onOpenSos} />;
+  }
   if (browsed) {
     return (
       <RideHistoryScreen
@@ -380,6 +392,7 @@ export default function RiderRoot() {
     <HomeScreen
       onDestinationChosen={(picked) => setChosen(picked)}
       onOpenHistory={() => setBrowsed(true)}
+      onOpenNotifications={() => setNotificationsOpen(true)}
       onOpenAccount={() => setAccount(true)}
       onOpenSos={onOpenSos}
     />

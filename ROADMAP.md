@@ -8543,3 +8543,22 @@ added — the Redis adapter was the 14th unmeasured file in the identity
 critical path, exceeding the ceiling of 13 (OPS-005). The smoke test loads
 the module with a mock Redis client, covering construction, fail-closed
 behavior, replay rejection, and first-use acceptance.
+
+### Reservation `SS-07` — read-only notification center screen: feed, mark-read, no synthesis (recorded 2026-09-23, before the first edit)
+
+حُجِزَ **قبلَ** أوّلِ تعديلٍ، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25.
+مقطوعٌ من `main`@`889f78b` فرعاً `feat/ss-07-notification-center-screen`.
+
+| الحقلُ | القيمةُ |
+|---|---|
+| البندُ | `SS-07` — شاشةُ مركزِ الإشعاراتِ داخلَ التطبيقِ المصغَّرِ. البدءُ الخلفيُّ مبنيٌّ بالكاملِ (`F6-05`): مساراتُ البوّابةِ `GET /v1/notifications` و`POST /v1/notifications/:id/read`، ومنفذُ `UserNotificationCenter`، ومحوِّلُ البنيةِ التحتيّةِ، ودالّتا القاعدةِ `get_user_notifications` و`mark_notification_read`. **لا شاشةَ موجودةٌ** — هذا بناءٌ لا قراءةٌ. |
+| التبعيّةُ المُستوفاةُ | `F6-05` مدموجٌ: تصنيفُ الإشعاراتِ ومركزُها الخلفيُّ مبنيّانِ، والبوّابةُ موصولةٌ في `apps/gateway/src/index.ts`. و`F1-05` مبنيٌّ: `RiderRoot` يُوجِّهُ الأسطحَ بمراحلَ. و`F1-07` مبنيٌّ: `apiFetch` و`SystemScreen` و`Skeleton` وحدودُ الفشلِ. |
+| العقدُ | `GET /v1/notifications` يُعيدُ `{ ok, unread, items: [{ id, kind, channel, payload, created_at, read_at }] }` بصفحاتٍ بمؤشِّرٍ زمنيٍّ `before`. و`POST /v1/notifications/:id/read` يُعيدُ `{ ok, id, read_at, already_read }`. **موجودانِ** لا جديدانِ — لا يُمَسُّ عقدُهما ولا مسارُهما. |
+| لماذا لا يُفكُّ `payload` | حمولةٌ `jsonb` مُختومةٌ من القاعدةِ، **ولا عقدَ يحكمُ معاني حقولِ كلِّ نوعٍ**. فالعميلُ لا يُركِّبُ نصّاً من داخلِها — وذاكَ يُترَكُ لقرارِ منتَجٍ يُكتبُ عقدهُ قبلَ أن يُكتبَ عرضُه (القاعدة 0.6). وتُعرَضُ المفاتيحُ العامّةُ للصنفِ والقناةِ والوقتِ وحالةِ القراءةِ فقط. |
+| لماذا لا يُوسَمُ «مقروءاً» عندَ الفتحِ | لأنَّ «فُتِحَ الموجَزُ» ليسَ «قُرِئَ الإشعارُ»: الوسمُ التلقائيُّ بالفتحِ يُفقِدُ المستخدمَ إشعاراً حرجاً مرَّ أمامَ عينِه ولم يقرأْه (ADR 0035 §2). فالوسمُ فعلٌ صريحٌ: لمسةٌ على البطاقةِ. |
+| لماذا المؤشِّرُ زمنٌ وحدَه | لأنَّ `GET /v1/notifications` يُقبِلُ `before` بصيغةِ ISO-8601 لا غيرَه — لا `beforeId`. فلو حملَ المؤشِّرُ معرّفاً آخرَ لكانَ صانعاً معنىً للقيمةِ لا يفهمُه الخادمُ. |
+| لماذا المنطقةُ الزمنيّةُ من الجهازِ | لأنَّ الخادمَ لا يُصدِرُ منطقةً زمنيّةً في ردِّ الإشعاراتِ — وهذه ليست قائمةً تُجمَّعُ بالشهرِ، بل بطاقاتٌ تُقرأُ بالتتابعِ. فأقربُ ساعةٍ متاحةٌ هيَ ساعةُ الجهازِ. |
+| الملكيّةُ | كما في `F2-08`: قيدُ استعلامٍ لا فرعُ `if`. الإشعاراتُ تُقرأُ لمستلِمِها وحدَه، والوسمُ لا يتجاوزُ مالكَه. |
+| النطاقُ المحجوزُ | `apps/miniapp/src/surfaces/rider/notifications/notifications-contract.ts` · `notifications-api.ts` · `notifications-view.ts` · `NotificationsScreen.tsx` · `apps/miniapp/src/surfaces/rider/RiderRoot.tsx` (طورُ `notificationsOpen`) · `apps/miniapp/src/surfaces/rider/home/HomeScreen.tsx` (مدخلُ `onOpenNotifications`) · `apps/miniapp/src/styles/global.css` (كتلةُ `nc` + زرُّ `rh__notifications`) · `packages/shared/i18n/miniapp/{ar,en,ur}.json` (مفاتيحُ `rider.notifications.*` و`rider.home.notifications.open`) · `scripts/lib/css-class-coverage.ts` (إضافةُ `nc` إلى `DECLARED_BLOCKS`) · `tests/unit/notifications-view.test.ts` · `tests/unit/sos-entry-surfaces.test.ts` (تحديثُ القائمةِ من تسعةٍ إلى عشرةٍ) |
+| النطاقُ **غيرُ** المحجوزِ | **لا يُعادُ تصنيفُ نوعٍ من `critical` إلى `in_app`** — ذاكَ قرارُ منتَجٍ منفصلٌ (القائمةُ مُغلَقةٌ في `notification-kinds.ts` وجميعُها `critical` عمداً حتى تُبنى الشاشةُ). **لا يُفكُّ `payload`** · **لا تُضافُ دالّةٌ قاعدةٌ جديدةٌ** · **لا تُمَسُّ مساراتُ البوّابةِ** · **لا يُدَّعى أنَّ الشاشةَ نُشِرَت لمستخدمٍ حقيقيٍّ** (`ADR 0099`) · **لا `مَقيس` ولا `مُثبَت`** (`ح-5`) · **لا يُقلَبُ `TG-001` إلى `[x]`** — ذاكَ يحتاجُ ثلاثَ خضرٍ متتاليةٍ على `main` (ح-4) |
+| سقفُ الادّعاءِ، مُعلَنٌ سلفاً | البندُ `[~]` لا `[x]`: الشاشةُ مبنيّةٌ ومختبَرةٌ ومدمجةٌ، لكنَّ `TG-001` لا يُقلَبُ إلّا بعدَ ثلاثِ خضرٍ على `main` بح-4. ولا نشرَ حيَّ. |

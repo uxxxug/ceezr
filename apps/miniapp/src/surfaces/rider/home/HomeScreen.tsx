@@ -95,6 +95,8 @@ export interface HomeScreenProps {
    * مُعطَّلاً**: مدخلٌ لا يُفتَحُ أسوأُ من غيابِ مدخلٍ.
    */
   readonly onOpenHistory?: () => void;
+  /** مدخلُ مركزِ الإشعاراتِ (`SS-07`) — **اختياريٌّ** كأختِه: غيابُه لا يُبيِّضُ الرئيسةَ. */
+  readonly onOpenNotifications?: () => void;
   /** مدخلُ شاشةِ الحسابِ (`SR-12`) — **اختياريٌّ** كأختِه: غيابُه لا يُبيِّضُ الرئيسةَ. */
   readonly onOpenAccount?: () => void;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ كأخوتَيهِ. */
@@ -137,6 +139,7 @@ export function HomeScreen({
   loadRecent = fetchRecentDestinations,
   onDestinationChosen,
   onOpenHistory,
+  onOpenNotifications,
   onOpenAccount,
   onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
@@ -227,6 +230,13 @@ export function HomeScreen({
       </button>
     );
 
+  const notificationsEntry =
+    onOpenNotifications === undefined ? null : (
+      <button type="button" className="rh__notifications" onClick={() => onOpenNotifications()}>
+        {t("rider.home.notifications.open")}
+      </button>
+    );
+
   // مدخلُ الحسابِ (`SR-12`). **زرٌّ لا أيقونةٌ عاريةٌ**: أيقونةُ تروسٍ بلا نصٍّ
   // لا يقرؤها قارئُ الشاشةِ، وفيها بابُ حذفِ الحسابِ (`UX-10`).
   const accountEntry =
@@ -269,6 +279,7 @@ export function HomeScreen({
       <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
         {title}
         {historyEntry}
+        {notificationsEntry}
         {accountEntry}
         {sosEntry}
         <div className="sys" role="alert">
@@ -288,6 +299,7 @@ export function HomeScreen({
     <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
       {title}
       {historyEntry}
+      {notificationsEntry}
       {accountEntry}
       {sosEntry}
 
