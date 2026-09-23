@@ -75,6 +75,47 @@ describe("tryLoadConfig", () => {
     }
   });
 
+  // `SEC-21` · ADR 0176: مفتاحُ تشفيرِ سرِّ TOTP للبابِ الموازي — اختياريٌّ
+  // اختياراً **محروساً**: غيابُهُ يُغلقُ البابَ موحَّدًا، وحضورُهُ الناقصُ أو
+  // المشوَّهُ يُسقِطُ الإقلاعَ لا يُضعِفُ السرَّ في صمتٍ. والمسافةُ تُقَاسُ على
+  // القيمةِ نفسِها (بايتُها لا طولُ نصِّها) — فمفتاحٌ "قصيرٌ مرموزٌ" لا يمرّ.
+  it("SEC-21: غيابُ مفتاحِ TOTP مسموحٌ — البابُ يُغلقُ موحَّدًا لا سقوطًا", () => {
+    const result = tryLoadConfig({ ...FULL });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.adminBreakGlassTotpKey).toBe(null);
+  });
+
+  it("SEC-21: مفتاحُ TOTP الصالحُ يُقبَلُ كما هو (بلا فكٍّ ولا اشتقاقٍ في الضبطِ)", () => {
+    const key = Buffer.from("k".repeat(32)).toString("base64");
+    const result = tryLoadConfig({ ...FULL, ADMIN_BREAK_GLASS_TOTP_KEY: key });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.adminBreakGlassTotpKey).toBe(key);
+  });
+
+  it("SEC-21: مفتاحُ TOTP بترميزٍ غيرِ قاعدةِ 64 يُرفضُ بالاسمِ", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      ADMIN_BREAK_GLASS_TOTP_KEY: "يوجدُ هنا رموزٌ ليست قاعدةَ 64؟!!",
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("INVALID_ENV_VAR");
+    expect(result.error.message).toContain("ADMIN_BREAK_GLASS_TOTP_KEY");
+  });
+
+  it("SEC-21: مفتاحُ TOTP أقصرُ من 32 بايتًا يُرفضُ ولو كانَ ترميزَهُ صحيحًا", () => {
+    const result = tryLoadConfig({
+      ...FULL,
+      ADMIN_BREAK_GLASS_TOTP_KEY: Buffer.from("short-key").toString("base64"),
+    });
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error.code).toBe("INVALID_ENV_VAR");
+    expect(result.error.message).toContain("32");
+  });
+
   it("يرفض رابط Supabase بلا https", () => {
     const result = tryLoadConfig({ ...FULL, SUPABASE_URL: "http://project.supabase.co" });
     expect(result.ok).toBe(false);

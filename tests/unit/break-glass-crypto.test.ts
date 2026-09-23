@@ -76,6 +76,18 @@ describe("TOTP: متجهاتُ المعيارِ", () => {
     expect(totpCode(RFC_SECRET, 9n)).toBe("520489");
   });
 
+  test("رموزُ RFC 6238 §B (الوقتُ الحقيقيُّ بثوانيه لا عدّادٌ مجرَّدٌ)", () => {
+    // متجهاتُ الملحقِ ب منَ المعيارِ نفسِهِ: الوقتُ بالثواني يُشتَقُّ منهُ العدّادُ
+    // بخطوةِ الثلاثينَ، والرمزُ ستُّ خاناتٍ (الخاناتُ الستُّ الأخيرةُ من رمزِ
+    // المعيارِ الثماني). وسرُّها السرُّ نفسُهُ الذي فوقَ — فاختلافُ النتيجةِ كاشفٌ.
+    expect(totpCode(RFC_SECRET, totpCounterAt(59))).toBe("287082");
+    expect(totpCode(RFC_SECRET, totpCounterAt(1111111109))).toBe("081804");
+    expect(totpCode(RFC_SECRET, totpCounterAt(1111111111))).toBe("050471");
+    expect(totpCode(RFC_SECRET, totpCounterAt(1234567890))).toBe("005924");
+    expect(totpCode(RFC_SECRET, totpCounterAt(2000000000))).toBe("279037");
+    expect(totpCode(RFC_SECRET, totpCounterAt(20000000000))).toBe("353130");
+  });
+
   test("العدّادُ مشتقٌّ من الوقتِ: 59 ثانيةً = خطوةٌ 1، و61 = خطوةٌ 2", () => {
     expect(totpCounterAt(59)).toBe(1n);
     expect(totpCounterAt(61)).toBe(2n);

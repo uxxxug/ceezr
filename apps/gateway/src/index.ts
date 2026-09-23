@@ -1397,6 +1397,9 @@ if (config.runAdminInGateway) {
     revocation: sessionRevocationStore,
     // مفتاحُ سرِّ البابِ الموازي (`SEC-21`) — غيابُهُ يُغلقُ البابَ موحَّدًا لا سقوطًا.
     breakGlassTotpKey: config.adminBreakGlassTotpKey,
+    // حاصرُ دخولِ البابِ الموازي (`SEC-21`): منَ السِجلِّ المغلقِ كما كلَّ حدٍّ،
+    // ويُرقّى إلى Redis متى وُجدَ كسائرِ حدودِ ما قبلَ المصادقةِ (ADR 0139).
+    breakGlassLoginPerAddress: limiterFor("POST", "/admin/login/break-glass", "عنوانُ العميلِ"),
     mapOrigins,
     ...(mapStyle.ok ? { mapStyle: mapStyle.value } : {}),
     maplibreSri: config.maplibreSri,

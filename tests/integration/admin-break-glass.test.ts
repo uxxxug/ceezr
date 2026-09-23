@@ -24,6 +24,10 @@ import {
   generateSessionToken,
   sha256Hex,
 } from "../../apps/gateway/src/admin/auth.ts";
+import {
+  createMemoryRateLimiter,
+  type RateLimiter,
+} from "../../apps/gateway/src/rate-limit/fixed-window.ts";
 import { createAdminUiRoutes } from "../../apps/gateway/src/routes/admin-ui.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import {
@@ -103,7 +107,10 @@ describeIf("البابُ الموازي للإدارةِ مقيسًا بالسل
     return id;
   };
 
-  const buildApp = (): Hono => {
+  const buildApp = (opts?: {
+    readonly breakGlassLoginPerAddress?: RateLimiter;
+    readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  }): Hono => {
     const app = new Hono();
     app.route(
       "/admin",
@@ -112,6 +119,10 @@ describeIf("البابُ الموازي للإدارةِ مقيسًا بالسل
         auth: createAdminAuthPort(sql),
         codeSender: { send: async () => true },
         breakGlassTotpKey: TOTP_KEY,
+        ...(opts?.breakGlassLoginPerAddress === undefined
+          ? {}
+          : { breakGlassLoginPerAddress: opts.breakGlassLoginPerAddress }),
+        ...(opts?.log === undefined ? {} : { log: opts.log }),
       }),
     );
     return app;
@@ -292,7 +303,10 @@ describeIf("البابُ الموازي للإدارةِ مقيسًا بالسل
   });
 
   it("الاسمُ المجهولُ يُجابُ بالردِّ نفسِهِ ولا يُنتحِلُ مستخدمًا في التدقيقِ", async () => {
-    const app = buildApp();
+    const structured: Array<{ message: string; meta: Record<string, unknown> }> = [];
+    const app = buildApp({
+      log: (message, meta) => structured.push({ message, meta }),
+    });
     const before = await sql<{ n: number }[]>`
       select count(*)::int as n from audit_log where action like 'admin.break_glass%'
     `;
@@ -314,6 +328,9 @@ describeIf("البابُ الموازي للإدارةِ مقيسًا بالسل
       select count(*)::int as n from admin_break_glass_credentials where login_name = 'ghost-admin-name'
     `;
     expect(ghost[0]?.n).toBe(0);
+    // والسجلُّ المهيكلُ يقبَلُ الحدثَ موحَّدًا بلا تفصيلٍ يميِّزُ الاسمَ —
+    // الرفضُ لا يُخبِرُ الصفحةَ، والتشخيصُ يُصبُّ في البوّابةِ لا في الردِّ.
+    expect(structured).toEqual([{ message: "admin.break_glass_login_rejected", meta: {} }]);
   });
 
   it("غيرُ المسؤولِ لا يصلُ إلى صفحةِ التسجيلِ أصلاً (الحارسُ يردُّه قبلَ الدالّةِ)", async () => {
@@ -453,5 +470,65 @@ describeIf("البابُ الموازي للإدارةِ مقيسًا بالسل
       totp_code: currentCode(secret),
     });
     expect(rejected.status).toBe(HTML_UNPROCESSABLE);
+  });
+
+  // حذفُ حسابِ المسؤولِ (المسارُ الإداريُّ لا مسارُ الراكبِ الذاتيَّ —
+  // `erase_my_account` يردُّ `NOT_A_RIDER` للمسؤولِ بحكمِ دورِهِ) يجبُ أن يجرفَ
+  // سرَّ البابِ معهُ: لا يبقى في القاعدةِ صفٌّ يحملُ تجزئةً وسرًّا مشفَّرًا
+  // لحسابٍ زالَ — فذلك بقاءُ مادةٍ سرّيةٍ بلا مالكٍ يُسألُ عنها.
+  it("حذفُ حسابِ المسؤولِ يجرفُ سرَّ البابِ الموازي معهُ (on delete cascade)", async () => {
+    await enrollViaHttp(TG_ADMIN, "waseelah-strong-pw-1");
+    const before = await sql<{ n: number }[]>`
+      select count(*)::int as n from admin_break_glass_credentials c
+      join users u on u.id = c.user_id where u.telegram_id = ${TG_ADMIN}::bigint
+    `;
+    expect(before[0]?.n).toBe(1);
+
+    // سجلُّ التدقيقِ يحرِّمُ حذفَ فاعلِهِ ما دامَ أثرُهُ قائمًا (`restrict`) —
+    // وهذا عينُ الصوابِ: الأثرُ لا يُمحى لمحوِ صاحبِهِ. فالتدقيقُ يُفكُّ أوّلًا
+    // (كما يفعلُ `purge` نفسُهُ)، ثمَّ يُحذفُ الحسابُ ويُقاسُ ما تبقّى.
+    await sql`
+      delete from audit_log where actor_user_id = (
+        select id from users where telegram_id = ${TG_ADMIN}::bigint
+      )
+    `;
+    await sql`delete from users where telegram_id = ${TG_ADMIN}::bigint`;
+
+    const after = await sql<{ n: number }[]>`
+      select count(*)::int as n from admin_break_glass_credentials where login_name = ${LOGIN_NAME}
+    `;
+    expect(after[0]?.n).toBe(0);
+  });
+
+  // الحدُّ قبلَ المصادقةِ (`SEC-21`): الاسمُ المجهولُ لا صفَّ لهُ في القاعدةِ فلا
+  // يلمسُهُ إقفالُ القاعدةِ — فالعدّادُ في الذاكرةِ هو ما يحصرُ همْرَتهُ. والدليلُ
+  // بالأثرِ: نداءاتٌ ناجحةٌ ثمّ `429` برأسِ `Retry-After` فوقَ الحدِّ.
+  it("بابُ الدخولِ الموازيُّ محدودٌ قبلَ المصادقةِ: 429 فوقَ الحدِّ لا 422", async () => {
+    const limiter = createMemoryRateLimiter({ limit: 2, windowSeconds: 60 });
+    const app = new Hono();
+    app.route(
+      "/admin",
+      createAdminUiRoutes({
+        sql,
+        auth: createAdminAuthPort(sql),
+        codeSender: { send: async () => true },
+        breakGlassTotpKey: TOTP_KEY,
+        limits: { breakGlassLoginPerAddress: limiter },
+      }),
+    );
+    const body = {
+      login_name: LOGIN_NAME,
+      password: "whatever-it-is",
+      totp_code: "123456",
+    };
+    const first = await postForm(app, "/admin/login/break-glass", body);
+    const second = await postForm(app, "/admin/login/break-glass", body);
+    const third = await postForm(app, "/admin/login/break-glass", body);
+    // الدونَ الحدِّ: رفضُ اعتمادٍ موحَّدٌ (422) — الحدُّ لم يُدركْهُ بَعدُ
+    expect(first.status).toBe(HTML_UNPROCESSABLE);
+    expect(second.status).toBe(HTML_UNPROCESSABLE);
+    // وفوقَ الحدِّ: 429 مع تأجيلٍ معلنٍ — والدليلُ بالرأسِ لا بالنصِّ وحدَهُ
+    expect(third.status).toBe(429);
+    expect(third.headers.get("retry-after")).not.toBe(null);
   });
 });

@@ -33,6 +33,8 @@ import { Hono } from "hono";
 import { createStructuredLogger } from "../../../packages/infrastructure/observability/index.ts";
 import { tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { mountAdminSurface } from "../../gateway/src/admin/mount.ts";
+import { createMemoryRateLimiter } from "../../gateway/src/rate-limit/fixed-window.ts";
+import { rateLimitPolicy } from "../../gateway/src/rate-limit/policy.ts";
 import { buildAdminContainer } from "./container.ts";
 
 /**
@@ -80,6 +82,13 @@ async function main(): Promise<void> {
     bus: container.bus,
     // مفتاحُ سرِّ البابِ الموازي (`SEC-21`) — غيابُهُ يُغلقُ البابَ موحَّدًا لا سقوطًا.
     breakGlassTotpKey: config.value.adminBreakGlassTotpKey,
+    // حاصرُ دخولِ البابِ الموازي (`SEC-21`): الرقمُ والنافذةُ منَ السِجلِّ
+    // المغلقِ نفسِهِ الذي تقرأُهُ البوّابةُ (`rate-limit/policy.ts` — لا رقمًا
+    // ثانيًا ههنا)، والعدُّ في ذاكرةِ هذه العمليةِ: لا Redis في حاويتِها الضيّقةِ،
+    // وهذا التدهورُ **مُعلَنٌ** في تعليلِ الحدِّ لا مسكوتٌ عنهُ.
+    breakGlassLoginPerAddress: createMemoryRateLimiter(
+      rateLimitPolicy("POST", "/admin/login/break-glass", "عنوانُ العميلِ"),
+    ),
     codeSender: container.codeSender,
     mapOrigins: container.mapOrigins,
     ...(container.mapStyle === null ? {} : { mapStyle: container.mapStyle }),

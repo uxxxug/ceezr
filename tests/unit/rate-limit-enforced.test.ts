@@ -28,9 +28,14 @@
  */
 
 import { describe, expect, test } from "bun:test";
+import { Hono } from "hono";
 import { createPublicSecurityHeaders } from "../../apps/gateway/src/public/security-headers.ts";
-import { createMemoryRateLimiter } from "../../apps/gateway/src/rate-limit/fixed-window.ts";
+import {
+  createMemoryRateLimiter,
+  type RateLimiter,
+} from "../../apps/gateway/src/rate-limit/fixed-window.ts";
 import { ROUTE_POLICIES } from "../../apps/gateway/src/rate-limit/policy.ts";
+import { createAdminUiRoutes } from "../../apps/gateway/src/routes/admin-ui.ts";
 import { createCoreEventIntakeRoutes } from "../../apps/gateway/src/routes/core-event-intake.ts";
 import { createPaymentWebhookRoutes } from "../../apps/gateway/src/routes/payment-webhook.ts";
 import { createPolicyRoutes } from "../../apps/gateway/src/routes/policy.ts";
@@ -103,7 +108,41 @@ const PROBES: readonly Probe[] = [
     app: createPolicyRoutes({ perAddress: createMemoryRateLimiter(LIMIT) }),
     request: () => get("/v1/policy?city_id=00000000-0000-0000-0000-000000000000"),
   },
+  {
+    // `SEC-21` · ADR 0176: البابُ الموازيُّ يُطرَقُ بلا جلسةٍ — والاسمُ المجهولُ
+    // لا صفَّ لهُ في القاعدةِ فلا يلمسُهُ إقفالُها: العدّادُ في الذاكرةِ هوَ ما
+    // يُقاسُ ههنا. الموجِّهُ يُبنى بتبعيّاتٍ فارغةٍ كسائرِ القياساتِ: الحاصرُ
+    // **قبلَ** كلِّ عملٍ، فالردُّ فوقَ الحدِّ يأتي قبلَ أن يُفتَحَ اتصالُ قاعدةٍ.
+    name: "POST /admin/login/break-glass",
+    app: adminGate({ limits: { breakGlassLoginPerAddress: createMemoryRateLimiter(LIMIT) } }),
+    request: () =>
+      new Request("http://gate.test/admin/login/break-glass", {
+        method: "POST",
+        headers: { "x-forwarded-for": "203.0.113.7" },
+        body: new FormData(),
+      }),
+  },
 ];
+
+/**
+ * الموجِّهُ يُبنى مركَّبًا تحت `/admin` كما في `mount.ts` — قياسُ المسارِ الحقيقيِّ
+ * لا المسارِ المجرَّدِ: قاعدةُ «الأخصُّ أوّلًا» في التركيبِ جزءٌ من السلوكِ.
+ */
+function adminGate(
+  limits: { readonly breakGlassLoginPerAddress: RateLimiter } | Record<string, never>,
+): Hono {
+  const app = new Hono();
+  app.route(
+    "/admin",
+    createAdminUiRoutes({
+      sql: {} as never,
+      auth: {} as never,
+      codeSender: { send: async () => true },
+      ...limits,
+    }),
+  );
+  return app;
+}
 
 function trackingApp(): ReturnType<typeof createPublicTrackingRoutes> {
   return createPublicTrackingRoutes({
@@ -185,6 +224,8 @@ function unlimitedFor(
       return createCoreEventIntakeRoutes({ lifecycle: {} as never });
     case "GET /v1/policy":
       return createPolicyRoutes({});
+    case "POST /admin/login/break-glass":
+      return adminGate({});
     default:
       return null;
   }

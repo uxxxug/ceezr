@@ -242,12 +242,18 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
     path: "/admin/login/break-glass",
     file: "apps/gateway/src/routes/admin-ui.ts",
     exposure: "قبلَ المصادقةِ",
-    limits: [],
-    exemption: {
-      reason:
-        "محدودٌ **في القاعدةِ لا في الذاكرةِ** (`SEC-21` · ADR 0176): `admin_break_glass_finish_failure` يُنفِّذُ `BREAK_GLASS_MAX_ATTEMPTS = 5` فشلٍ ثمَّ إقفالَ ربعِ ساعةٍ في صفِّ الاعتمادِ نفسِهِ (`apps/gateway/src/admin/break-glass.ts`) — عدَّادٌ يصمدُ لإعادةِ التشغيلِ وانقطاعِ Redis ومفتاحُهُ الاعتمادُ لا العنوانُ. **والاسمُ المجهولُ لا يُنتِحِلُ مستخدمًا في التدقيقِ**: لا صفَّ لهُ في القاعدةِ ولا أثرَ كاذبًا، وعدُّهُ علةُ حدِّ حافةٍ بلا منفّذٍ اليومَ — **مسمّىً لا مُدَّعى** (`ح-5`).",
-      owner: REPO_EXECUTOR,
-    },
+    limits: [
+      {
+        limit: 10,
+        windowSeconds: 3600,
+        keyDimension: "عنوانُ العميلِ",
+        wiredIn:
+          'apps/gateway/src/index.ts:limiterFor("POST", "/admin/login/break-glass", "عنوانُ العميلِ")',
+        rationale:
+          "بلا كعكةٍ ولا هويةٍ، والاسمُ المجهولُ لا صفَّ لهُ في القاعدةِ فلا يلمسُهُ إقفالُها — فبلا حدٍّ على العنوانِ يبقى همْرُ الأسماءِ العشوائيّةِ بلا حصرٍ، وكلُّ نداءٍ يستهلكُ scryptًا قبلَ أن يُعرَفَ أحدٌ. عشرةٌ في الساعةِ فوقَ ما يحتاجُهُ مسؤولٌ صادقٌ يُخِطّئُ الرمزَ مرّتَينِ وثلاثًا في نافذةِ إقفالِ القاعدةِ (ربعُ ساعةٍ)، وتحتَ ما يُتاحُ لهادمٍ يَعدُّ الأسماءَ. **طبقتانِ لا طبقةٌ واحدةٌ**: هذا العدّادُ في الذاكرةِ يحدُّ العنوانَ، وإقفالُ القاعدةِ (خمسُ فشلاتٍ ثمَّ ربعُ ساعةٍ في صفِّ الاعتمادِ) يحدُّ السرَّ ويصمدُ لإعادةِ التشغيلِ — فتبديلُ العنوانِ يُعيدُ الهمْرَ ولا يُعيدُ المحاولاتِ على اعتمادٍ واحدٍ (`SEC-21` · ADR 0176).",
+      },
+    ],
+    exemption: null,
   },
 
   {
@@ -1214,8 +1220,8 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * والبقيةُ خلفَ حارسِ الجلسةِ.
  */
 export const ROUTE_POLICY_COUNT = 105;
-export const LIMITED_ROUTE_COUNT = 9;
-export const EXEMPT_ROUTE_COUNT = 4;
+export const LIMITED_ROUTE_COUNT = 10;
+export const EXEMPT_ROUTE_COUNT = 3;
 
 /** حدودُ مسارٍ بعينِه — يُعيدُ مصفوفةً فارغةً لِما لا حدَّ له. */
 export function limitsFor(method: string, path: string): readonly RateLimitPolicy[] {

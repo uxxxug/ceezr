@@ -121,6 +121,8 @@ import {
   updateSetting,
 } from "../admin/queries.ts";
 import { createAdminSecurityHeaders } from "../admin/security-headers.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 
 export interface AdminUiDependencies {
   readonly sql: Sql;
@@ -170,6 +172,15 @@ export interface AdminUiDependencies {
    * المنفذُ الحقيقيُّ على `sql` والمفتاحِ المُمرَّرِ أعلاهُ.
    */
   readonly breakGlass?: AdminBreakGlassPort;
+  /**
+   * حاصرُ دخولِ البابِ الموازي قبلَ المصادقةِ (`SEC-21` · ADR 0176). الاسمُ
+   * المجهولُ لا صفَّ لهُ في القاعدةِ فلا يلمسُهُ إقفالُ القاعدةِ — فالهمْرُ عليه
+   * لا يَحدُّهُ إلّا هذا العدّادُ في الذاكرةِ. يُمرَّرُ ولا يُبنى ههنا (الموجِّهُ لا
+   * يقرأُ سِجلَّ السياسةِ)، والغيابُ تدهورٌ مُعلَنٌ لا صمتٌ: نقطةُ التركيبِ
+   * تُسجِّلُ الحدَّ في `rate-limit/policy.ts` — **مصدرِ الحقيقةِ الواحدِ** —
+   * وتُركِّبُهُ في موضعَي التشغيلِ كليهما.
+   */
+  readonly limits?: { readonly breakGlassLoginPerAddress: RateLimiter };
 }
 
 /** الافتراضُ حين لا سائقَ مرئيّاً: مركزُ الجزيرة تقريباً بتكبيرٍ واسع. */
@@ -638,6 +649,18 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   // عطبِه. الردُّ على كلِّ فشلٍ واحدٌ ونصُّهُ واحدٌ (رفضٌ عامٌّ موحَّدٌ) — لا
   // فرقَ في الردِّ بينَ اسمٍ مجهولٍ وكلمةِ سرٍّ خاطئةٍ ورمزٍ مُستهلَكٍ.
   app.post("/login/break-glass", async (c) => {
+    // الحدُّ قبلَ قراءةِ الجسمِ وقبلَ scrypt (`SEC-21`): الاسمُ المجهولُ لا صفَّ
+    // لهُ في القاعدةِ فلا يلمسُهُ إقفالُها — فبلا هذا العدّادِ يبقى همْرُهُ بلا
+    // حصرٍ. والنداءُ يقرأُ العنوانَ المُنتحَلَ من الوسيطِ بوصفِهِ مفتاحَ عدٍّ لا
+    // هويّةً (`ADR 0139`). والغيابُ تدهورٌ مُعلَنٌ في السِجلِّ لا صمتٌ.
+    const exceeded = rateLimitRejection(
+      c,
+      await deps.limits?.breakGlassLoginPerAddress.hit(
+        `admin-break-glass:${clientAddress(c.req.header("x-forwarded-for"))}`,
+      ),
+    );
+    if (exceeded !== null) return exceeded;
+
     const form = await c.req.formData();
     const loginName = formText(form, "login_name");
     const password = formText(form, "password");
