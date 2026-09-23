@@ -18,6 +18,10 @@
  *   ــ لا يقرّر صلاحيةً: يترجم ردَّ الخادمِ إلى حالةٍ صريحةٍ ويسلّمها للموجّه.
  */
 
+import {
+  isMiniAppLanguage,
+  type MiniAppLanguage,
+} from "../../../../packages/shared/i18n/miniapp/index.ts";
 import { ApiError, apiFetch } from "../api/client.ts";
 import { failureFromThrown, type RequestFailure } from "../system/failure.ts";
 
@@ -32,7 +36,12 @@ export type ViewerRole = ServerRole | "unknown";
 export type ViewerStatus = "active" | "unregistered";
 
 export type ViewerView =
-  | { readonly kind: "viewer"; readonly role: ViewerRole; readonly status: ViewerStatus }
+  | {
+      readonly kind: "viewer";
+      readonly role: ViewerRole;
+      readonly status: ViewerStatus;
+      readonly languageCode: MiniAppLanguage;
+    }
   /** حسابٌ محجوبٌ — قرارُ تفويضٍ من الخادمِ (`403`) لا استنتاجٌ محلي. */
   | { readonly kind: "blocked" }
   /** انتهى رمزُ الوصولِ: علاجُه تجديدٌ (`F1-04`) ثم إعادةُ قراءةٍ. */
@@ -53,6 +62,11 @@ export type ViewerView =
 interface MePayload {
   readonly role?: unknown;
   readonly status?: unknown;
+  readonly languageCode?: unknown;
+}
+
+function readLanguage(value: unknown): MiniAppLanguage | null {
+  return typeof value === "string" && isMiniAppLanguage(value) ? value : null;
 }
 
 function readRole(value: unknown): ViewerRole | null {
@@ -90,7 +104,8 @@ export async function fetchViewer(): Promise<ViewerView> {
 
   const role = readRole(payload.role);
   const status = readStatus(payload.status);
+  const languageCode = readLanguage(payload.languageCode);
   // ردٌّ ناقصٌ أو بقيمةٍ لا تُعرَف = `unavailable`، لا افتراضَ راكبٍ ولا مشرف.
-  if (role === null || status === null) return { kind: "unavailable" };
-  return { kind: "viewer", role, status };
+  if (role === null || status === null || languageCode === null) return { kind: "unavailable" };
+  return { kind: "viewer", role, status, languageCode };
 }

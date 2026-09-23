@@ -2275,17 +2275,61 @@ a.sys__action {
 .ac__rights,
 .ac__export,
 .ac__erase,
-.ac__debt {
+.ac__debt,
+.ac__lang {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
+.ac__lang-label,
 .ac__rights-title,
 .ac__debt-title {
   margin: 0;
   font-size: 1.05rem;
   font-weight: 700;
+}
+
+.ac__lang-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.ac__lang-option {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.6rem;
+  background: transparent;
+  color: var(--tg-text-color, #222);
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.ac__lang-option--on {
+  border-color: var(--tg-button-color, #2563eb);
+  background: var(--tg-button-color, #2563eb);
+  color: var(--tg-button-text-color, #fff);
+}
+
+.ac__lang-option:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.ac__lang-saving,
+.ac__lang-saved,
+.ac__lang-error {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.ac__lang-error {
+  color: var(--tg-destructive-text-color, #ef4444);
+}
+
+.ac__lang-saved {
+  color: var(--tg-hint-color, #16a34a);
 }
 
 .ac__export,

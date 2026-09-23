@@ -105,7 +105,7 @@ export interface ApiObservation {
 export type ApiObserver = (observation: ApiObservation) => void;
 
 export type ApiRequestInit = {
-  method?: "GET" | "POST" | "PATCH" | "DELETE";
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
   body?: unknown;
   idempotencyKey?: string;
   /**

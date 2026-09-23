@@ -18,6 +18,10 @@
  *   ــ **لا يحفظانِ الحزمةَ في ذاكرةٍ محليّةٍ**: تُعرَضُ وتُنزَّلُ ثمَّ تذهبُ.
  */
 
+import {
+  isMiniAppLanguage,
+  type MiniAppLanguage,
+} from "../../../../../packages/shared/i18n/miniapp/index.ts";
 import { apiFetch } from "../../api/client.ts";
 import type { DataExportResponse, ErasureResponse } from "./account-contract.ts";
 
@@ -41,4 +45,21 @@ export function requestErasure(input: {
     idempotencyKey: input.idempotencyKey,
     body: { confirmation: input.confirmation },
   });
+}
+
+/**
+ * تحديثُ لغةِ الواجهةِ في الحسابِ (`PD-030`). الخادمُ يُصادِقُ على القيمةِ،
+ * والعميلُ يُصادِقُ على الردِّ لا يُصدِّقُه. ولا دورَ يُذكرُ: الرمزُ الموقَّعُ هو المعرِّف.
+ */
+export async function updateAccountLanguage(
+  languageCode: MiniAppLanguage,
+): Promise<MiniAppLanguage> {
+  const result = await apiFetch<{ readonly languageCode?: unknown }>("/v1/me/language", {
+    method: "PUT",
+    body: { languageCode },
+  });
+  if (typeof result.languageCode !== "string" || !isMiniAppLanguage(result.languageCode)) {
+    throw new Error("INVALID_LANGUAGE_RESPONSE");
+  }
+  return result.languageCode;
 }

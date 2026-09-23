@@ -41,7 +41,6 @@ import { accountViewModel } from "../../account/account-view.ts";
  */
 export const DRIVER_ACCOUNT_DEBT_KEYS: readonly string[] = [
   "driver.account.debt.editIdentity",
-  "driver.account.debt.language",
   "driver.account.debt.notificationPrefs",
   "driver.account.debt.region",
 ];
