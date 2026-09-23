@@ -80,7 +80,7 @@ describe("support-volume-budget — سالبةٌ لكلِّ قاعدةِ حكم�
   });
 
   it("كلُّ قاعدةِ حكمٍ مُسمّاةٌ لها سالبةٌ في هذا الملفِّ", () => {
-    expect([...JUDGE_RULE_NAMES].sort()).toEqual(
+    expect([...JUDGE_RULE_NAMES].map(String).sort()).toEqual(
       [
         "budget.derived",
         "counts.sane",
