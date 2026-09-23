@@ -15,11 +15,12 @@ import type {
   ViewerAccountLanguageWriter,
   ViewerLookupFailure,
 } from "../../application/identity/ports.ts";
+import { MINIAPP_LANGUAGES } from "../../shared/i18n/miniapp/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { Sql } from "../db/client.ts";
 
-/** اللغاتُ المسموحُ كتابتُها — من `MINIAPP_LANGUAGES`. */
-const ALLOWED_LANGUAGE_CODES: readonly string[] = ["ar", "en", "ur"];
+/** اللغاتُ المسموحُ كتابتُها — مصدرٌ واحدٌ: `MINIAPP_LANGUAGES`. */
+const ALLOWED_LANGUAGE_CODES: readonly string[] = MINIAPP_LANGUAGES;
 
 function lookupFailed(reason: ViewerLookupFailure["reason"]): ViewerLookupFailure {
   return { code: "VIEWER_LOOKUP_FAILED", reason };
@@ -45,10 +46,14 @@ export function createViewerAccountLanguageWriter(sql: Sql): ViewerAccountLangua
         return err(lookupFailed("READER_ERROR"));
       }
       try {
-        await sql.unsafe(
-          "update users set language_code = $1, updated_at = now() where telegram_id = $2",
+        const rows = await sql.unsafe<{ readonly telegram_id: string }[]>(
+          "update users set language_code = $1, updated_at = now() where telegram_id = $2 returning telegram_id",
           [languageCode, telegramId],
         );
+        if (rows.length === 0) {
+          // لا صفَّ يُحدَّث: المستخدمُ غيرُ مسجَّلٍ أو معرّفُ تيليجرام غيرُ صحيحٍ.
+          return err(lookupFailed("READER_ERROR"));
+        }
       } catch {
         return err(lookupFailed("READER_ERROR"));
       }

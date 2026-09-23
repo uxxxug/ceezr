@@ -1,7 +1,7 @@
 /**
  * الغرض: اختبارُ محوّلِ كتابةِ لغةِ الواجهةِ (`PD-030`): أنّه **يكتب لغةً وحدَها**،
  *   وأنّ الاستعلامَ مُمَعلَمٌ لا مبنيٌّ بالوصل، وأنّ معرّفاً غيرَ رقميٍّ لا يُرسَل
- *   إلى القاعدةِ، وأنّ لغةً غيرَ مسموحةٍ تُرفَض.
+ *   إلى القاعدةِ، وأنّ لغةً غيرَ مسموحةٍ تُرفَض، وأنّ صفًّا غيرَ موجودٍ يُفشَل.
  * الحالة: اختبار فعلي — بديلٌ للـ`sql` يسجّل النصَّ والمعاملات؛ لا قاعدةَ ههنا.
  * ينتمي إلى: tests/unit
  */
@@ -15,14 +15,14 @@ interface Recorded {
   readonly params: readonly unknown[];
 }
 
-function fakeSql(): {
+function fakeSql(rows: readonly Record<string, unknown>[] = [{ telegram_id: "123" }]): {
   sql: Sql;
   calls: Recorded[];
 } {
   const calls: Recorded[] = [];
   const unsafe = async (text: string, params: readonly unknown[] = []) => {
     calls.push({ text, params });
-    return [];
+    return rows;
   };
   return { sql: { unsafe } as unknown as Sql, calls };
 }
@@ -34,10 +34,8 @@ describe("كاتبُ لغةِ الحساب: الكتابة (PD-030)", () => {
 
     expect(result.ok).toBe(true);
     expect(calls).toHaveLength(1);
-    const first = calls[0];
-    expect(first).toBeDefined();
-    expect(first?.text).toContain("update users set language_code = $1");
-    expect(first?.params).toEqual(["en", "5550001"]);
+    expect(calls[0]?.text).toContain("update users set language_code = $1");
+    expect(calls[0]?.params).toEqual(["en", "5550001"]);
   });
 
   it("٢) معرّفٌ غيرُ رقميٍّ لا يُرسَل إلى القاعدة", async () => {
@@ -73,5 +71,19 @@ describe("كاتبُ لغةِ الحساب: الكتابة (PD-030)", () => {
       const result = await createViewerAccountLanguageWriter(sql).updateLanguageCode("123", lang);
       expect(result.ok).toBe(true);
     }
+  });
+
+  it("٦) صفٌّ غيرُ موجودٍ (مستخدمٌ غيرُ مسجَّلٍ) يُفشَل لا ينجحُ صامتاً", async () => {
+    const { sql } = fakeSql([]); // RETURNING returns no rows
+    const result = await createViewerAccountLanguageWriter(sql).updateLanguageCode("9999999", "en");
+
+    expect(result.ok).toBe(false);
+  });
+
+  it("٧) الاستعلامُ يستخدم RETURNING لا update بلا تحقق", async () => {
+    const { sql, calls } = fakeSql();
+    await createViewerAccountLanguageWriter(sql).updateLanguageCode("123", "en");
+
+    expect(calls[0]?.text).toContain("returning");
   });
 });
