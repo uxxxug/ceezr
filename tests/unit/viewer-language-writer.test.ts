@@ -21,7 +21,7 @@ function fakeSql(): {
   throws: boolean;
 } {
   const calls: Recorded[] = [];
-  let throws = false;
+  const throws = false;
   const unsafe = async (text: string, params: readonly unknown[] = []) => {
     calls.push({ text, params });
     if (throws) throw new Error("فشلُ اتصالٍ مُصنَّع");
@@ -59,7 +59,9 @@ describe("كاتبُ لغةِ الحساب: الكتابة (PD-030)", () => {
 
   it("٤) خطأُ القاعدةِ يُعاد سبباً مصنَّفاً لا ٥٠٠", async () => {
     const sql: Sql = {
-      unsafe: (async () => { throw new Error("connection lost"); }) as typeof sql.unsafe,
+      unsafe: (async () => {
+        throw new Error("connection lost");
+      }) as typeof sql.unsafe,
     } as unknown as Sql;
     const result = await createViewerAccountLanguageWriter(sql).updateLanguageCode("5550001", "ar");
 
