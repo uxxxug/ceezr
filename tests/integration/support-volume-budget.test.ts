@@ -79,9 +79,7 @@ function tokenFor(telegramUserId: string, bot: "rider" | "driver"): string {
 }
 
 const noOpRedis: RedisClient = {
-  command: async (
-    _args: readonly (string | number)[],
-  ): Promise<Result<unknown, RedisFailure>> => {
+  command: async (_args: readonly (string | number)[]): Promise<Result<unknown, RedisFailure>> => {
     return { ok: false, error: { kind: "network", reason: "no-op" } };
   },
 };

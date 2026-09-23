@@ -8652,3 +8652,4 @@ SHA متميِّزة. هذا هو أولُها (`7d9a7d6`).
 - تصحيحُ ترتيبِ الاستيرادِ لِـ Biome (import sorting)
 - تصحيحُ واجهةِ `RedisClient` (دالّةٌ `command` لا `send`)
 - تصحيحُ نداءِ `buildContainer` (نمطُ `testConfig` و`driverSender`/`riderSender`)
+
