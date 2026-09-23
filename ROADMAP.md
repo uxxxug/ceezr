@@ -8653,3 +8653,4 @@ SHA متميِّزة. هذا هو أولُها (`7d9a7d6`).
 - تصحيحُ واجهةِ `RedisClient` (دالّةٌ `command` لا `send`)
 - تصحيحُ نداءِ `buildContainer` (نمطُ `testConfig` و`driverSender`/`riderSender`)
 
+
