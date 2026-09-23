@@ -211,7 +211,7 @@ export function renderTrackingPage(input: TrackingPageInput): string {
     return shell(
       input.nonce,
       "رابط تتبّع غير صالح",
-      `<header><h1>وصلة</h1></header>
+      `<header><h1>وَصْلة</h1></header>
 <main><p class="notice">هذا الرابط غير صالح أو انتهت مدّته.<br>
 <span class="muted">روابط التتبّع مؤقّتة وتنتهي بانتهاء الرحلة أو بإلغائها من صاحبها.</span></p></main>`,
     );
@@ -221,7 +221,7 @@ export function renderTrackingPage(input: TrackingPageInput): string {
     return shell(
       input.nonce,
       "تعذّر عرض التتبّع",
-      `<header><h1>وصلة</h1></header>
+      `<header><h1>وَصْلة</h1></header>
 <main><p class="notice">تعذّر جلب الموقع الآن.<br>
 <span class="muted">الرابط قد يكون سليماً — أعِد المحاولة بعد لحظات.</span></p></main>`,
     );
