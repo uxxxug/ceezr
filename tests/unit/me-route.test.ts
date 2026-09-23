@@ -17,6 +17,7 @@ import { bearerTokenFrom } from "../../apps/gateway/src/routes/me.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import type {
   ViewerAccount,
+  ViewerAccountLanguageWriter,
   ViewerAccountReader,
 } from "../../packages/application/identity/ports.ts";
 import {
@@ -86,10 +87,13 @@ function buildHarness(
     now: () => now,
     log,
   };
+  const languageWriter: ViewerAccountLanguageWriter = {
+    updateLanguageCode: async (_id, _lang) => ok(undefined),
+  };
   const me =
     options.mounted === false
       ? undefined
-      : { ...(options.configured === false ? {} : { viewer }), log };
+      : { ...(options.configured === false ? {} : { viewer, languageWriter }), log };
 
   const app = createServer({
     health: { now: () => now, startedAt: now, env: FULL_ENV },
@@ -319,5 +323,82 @@ describe("قراءةُ ترويسةِ التفويض", () => {
     expect(bearerTokenFrom("Bearer a b")).toBeUndefined();
     expect(bearerTokenFrom("Basic abc")).toBeUndefined();
     expect(bearerTokenFrom(undefined)).toBeUndefined();
+  });
+});
+
+describe("PUT /v1/me/language — تحديثُ لغةِ الواجهة (PD-030)", () => {
+  it("٢١) يُحدِّث اللغةَ بنجاحٍ ويعيدها", async () => {
+    const harness = buildHarness();
+    const token = tokenFor();
+    const response = await harness.app.fetch(
+      new Request("http://localhost/v1/me/language", {
+        method: "PUT",
+        headers: { ...authed(token), "content-type": "application/json" },
+        body: JSON.stringify({ languageCode: "en" }),
+      }),
+    );
+    const json = (await response.json()) as Record<string, unknown>;
+    expect(response.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.languageCode).toBe("en");
+  });
+
+  it("٢٢) لغةٌ غيرُ مسموحةٍ: ٤٠٠ `INVALID_LANGUAGE`", async () => {
+    const harness = buildHarness();
+    const response = await harness.app.fetch(
+      new Request("http://localhost/v1/me/language", {
+        method: "PUT",
+        headers: { ...authed(), "content-type": "application/json" },
+        body: JSON.stringify({ languageCode: "fr" }),
+      }),
+    );
+    const json = (await response.json()) as Record<string, unknown>;
+    expect(response.status).toBe(400);
+    expect(json.error).toBe("INVALID_LANGUAGE");
+  });
+
+  it("٢٣) بلا ترويسةِ تفويضٍ: ٤٠١", async () => {
+    const harness = buildHarness();
+    const response = await harness.app.fetch(
+      new Request("http://localhost/v1/me/language", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ languageCode: "en" }),
+      }),
+    );
+    expect(response.status).toBe(401);
+  });
+
+  it("٢٤) جسمٌ غيرُ صالحٍ: ٤٠٠", async () => {
+    const harness = buildHarness();
+    const response = await harness.app.fetch(
+      new Request("http://localhost/v1/me/language", {
+        method: "PUT",
+        headers: { ...authed(), "content-type": "application/json" },
+        body: "not json",
+      }),
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it("٢٥) تبعياتٌ غائبةٌ: ٥٠٣", async () => {
+    const harness = buildHarness({ configured: false });
+    const response = await harness.app.fetch(
+      new Request("http://localhost/v1/me/language", {
+        method: "PUT",
+        headers: { ...authed(), "content-type": "application/json" },
+        body: JSON.stringify({ languageCode: "en" }),
+      }),
+    );
+    expect(response.status).toBe(503);
+  });
+
+  it("٢٦) GET /v1/me يُمرِّر لغةً غيرَ افتراضية", async () => {
+    const harness = buildHarness({
+      account: { role: "rider", isBlocked: false, languageCode: "ur" },
+    });
+    const { status, json } = await get(harness, { headers: authed() });
+    expect(status).toBe(200);
+    expect(json.languageCode).toBe("ur");
   });
 });

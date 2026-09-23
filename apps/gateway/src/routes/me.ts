@@ -27,6 +27,7 @@ import {
   resolveViewer,
   type ViewerPublicErrorCode,
 } from "../../../../packages/application/identity/resolve-viewer.ts";
+import { MINIAPP_LANGUAGES } from "../../../../packages/shared/i18n/miniapp/index.ts";
 
 export interface MeDependencies {
   /**
@@ -112,7 +113,10 @@ export function createMeRoutes(deps: MeDependencies): Hono {
 
     const body = await c.req.json().catch(() => null);
     const languageCode = body?.languageCode;
-    if (typeof languageCode !== "string" || !["ar", "en", "ur"].includes(languageCode)) {
+    if (
+      typeof languageCode !== "string" ||
+      !(MINIAPP_LANGUAGES as readonly string[]).includes(languageCode)
+    ) {
       return c.json({ ok: false, error: "INVALID_LANGUAGE" }, 400);
     }
 
