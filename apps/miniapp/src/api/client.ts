@@ -161,7 +161,7 @@ export async function apiFetch<T>(path: string, init: ApiRequestInit = {}): Prom
       requestId: null,
       outcome: "not_attempted",
     });
-    throw new ApiError(401, "SESSION_REQUIRED", "Waslah session required");
+    throw new ApiError(401, "SESSION_REQUIRED", "WASLA session required");
   }
 
   const headers: Record<string, string> = {
