@@ -239,6 +239,51 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "POST",
+    path: "/admin/login/break-glass",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "قبلَ المصادقةِ",
+    limits: [
+      {
+        limit: 10,
+        windowSeconds: 3600,
+        keyDimension: "عنوانُ العميلِ",
+        wiredIn:
+          'apps/gateway/src/index.ts:limiterFor("POST", "/admin/login/break-glass", "عنوانُ العميلِ")',
+        rationale:
+          "بلا كعكةٍ ولا هويةٍ، والاسمُ المجهولُ لا صفَّ لهُ في القاعدةِ فلا يلمسُهُ إقفالُها — فبلا حدٍّ على العنوانِ يبقى همْرُ الأسماءِ العشوائيّةِ بلا حصرٍ، وكلُّ نداءٍ يستهلكُ scryptًا قبلَ أن يُعرَفَ أحدٌ. عشرةٌ في الساعةِ فوقَ ما يحتاجُهُ مسؤولٌ صادقٌ يُخِطّئُ الرمزَ مرّتَينِ وثلاثًا في نافذةِ إقفالِ القاعدةِ (ربعُ ساعةٍ)، وتحتَ ما يُتاحُ لهادمٍ يَعدُّ الأسماءَ. **طبقتانِ لا طبقةٌ واحدةٌ**: هذا العدّادُ في الذاكرةِ يحدُّ العنوانَ، وإقفالُ القاعدةِ (خمسُ فشلاتٍ ثمَّ ربعُ ساعةٍ في صفِّ الاعتمادِ) يحدُّ السرَّ ويصمدُ لإعادةِ التشغيلِ — فتبديلُ العنوانِ يُعيدُ الهمْرَ ولا يُعيدُ المحاولاتِ على اعتمادٍ واحدٍ (`SEC-21` · ADR 0176).",
+      },
+    ],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
+    path: "/admin/break-glass",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/admin/break-glass",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/admin/break-glass/disable",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+  {
+    method: "POST",
     path: "/admin/logout",
     file: "apps/gateway/src/routes/admin-ui.ts",
     exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
@@ -1167,11 +1212,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * لَحرسَ السِجلُّ نفسَه فلم يحرسْ شيئاً، **ونموُّ الإعفاءاتِ خفيةً هوَ بعينِه ما
  * يُخشى**. ومَن أضافَ مساراً يُغيِّرُ الرقمَ بيدِه فيُقرأُ التغييرُ في المراجعةِ.
  *
- * والإعفاءاتُ **ثلاثةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها — وكلُّها محدودٌ فعلُها
- * في القاعدةِ لا في عدَّادٍ.
+ * والإعفاءاتُ **أربعةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها وبابُ النجاةِ
+ * (`SEC-21`) — وكلُّها محدودٌ فعلُها في القاعدةِ لا في عدَّادٍ.
+ *
+ * 101 → 105 و3 → 4 في 2026-09-23 (`SEC-21`): أربعةُ مساراتِ البابِ الموازي —
+ * دخولُهُ العامُّ محدودٌ في صفِّ الاعتمادِ في القاعدةِ (`admin_break_glass_finish_failure`)
+ * والبقيةُ خلفَ حارسِ الجلسةِ.
  */
-export const ROUTE_POLICY_COUNT = 101;
-export const LIMITED_ROUTE_COUNT = 9;
+export const ROUTE_POLICY_COUNT = 105;
+export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
 /** حدودُ مسارٍ بعينِه — يُعيدُ مصفوفةً فارغةً لِما لا حدَّ له. */

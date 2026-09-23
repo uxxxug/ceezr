@@ -90,9 +90,14 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
   // الموجةِ ٠ لأنَّ وجهتَهُ في جردِ الحدودِ `KEEP` لِمالكِ الهويّةِ (CORE):
   // لا جدولًا يُنقَلُ ولا مرجعًا يُعادُ ربطُهُ — مسارُ الاستردادِ يقرأُ الهدفَ
   // بـ`users.id` الداخليِّ، وينتقلُ بأكملِهِ معَ `users` في `W-3` متى نُفِّذَ.
+  // ثمَّ من 63 إلى **64** بجدولِ `admin_break_glass_credentials` (`SEC-21` ·
+  // ADR 0176)، وهوَ `NONE` في الموجةِ ٠ لأنَّ وجهتَهُ في جردِ الحدودِ `KEEP`
+  // لِمالكِ الهويّةِ (CORE): سرُّ البابِ الموازي يُقفَلُ على `user_id` لا
+  // على `telegram_id`، فينتقلُ بأكملِهِ معَ `users` في `W-3` متى نُفِّذَ.
+  // والأرقامُ السابقةُ محفوظةٌ لا ممحوّةٌ (`ح-8`).
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(63);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(63);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(64);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(64);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {

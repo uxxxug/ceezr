@@ -82,6 +82,12 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     // `null` يعني أنّ مسارَ جلسةِ التطبيقِ المصغَّر غيرُ مُركَّبٍ في الاختبارِ أصلاً
     // (`F1-03`): من أراده يُعلن سرّاً في `overrides` فيظهر الفرقُ في موضعِ الاستدعاء.
     miniappSessionSecret: null,
+    /**
+     * `SEC-21`: مفتاحُ تشفيرِ أسرارِ TOTP للبابِ الموازي — قيمةٌ اختباريّةٌ
+     * ثابتةٌ (لا سرَّ حقيقيًّا: اختبارٌ محليٌّ لا يحمِلُ سرَّ إنتاجٍ)، ومن
+     * أراد مفتاحًا مختلفًا أعلنَهُ في `overrides`.
+     */
+    adminBreakGlassTotpKey: "dGVzdC1icmVhay1nbGFzcy10b3RwLWtleS0zMi1ieXRlcy1sb25n",
     liveLocationFallbackEnabled: false,
     ...overrides,
   };

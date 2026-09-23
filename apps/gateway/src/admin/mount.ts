@@ -43,6 +43,7 @@ import type { SessionRevocationStore } from "../../../../packages/application/id
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { createAdminApiRoutes } from "../routes/admin-api.ts";
 import { createAdminLiveRoutes } from "../routes/admin-live.ts";
 import { createAdminUiRoutes } from "../routes/admin-ui.ts";
@@ -68,6 +69,19 @@ export interface AdminSurfaceDependencies {
    * تبعيّاتِ هذا السطحِ. وغيابُهُ يُعطِّلُ مسلكَ الإبطالِ ردَّ ٥٠٣ ولا يُسكِتُهُ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * مفتاحُ تشفيرِ سرِّ TOTP للبابِ الموازي (`SEC-21` · ADR 0176) — اختياريٌّ
+   * كأخواتِهِ: غيابُهُ يُفعِّلُ الرفضَ الموحَّدَ للبابِ ولا يُسقِطُ الخدمةَ.
+   */
+  readonly breakGlassTotpKey?: string | null;
+  /**
+   * حاصرُ دخولِ البابِ الموازي قبلَ المصادقةِ (`SEC-21`): يُمرَّرُ ولا يُبنى
+   * ههنا — **المُركِّبانِ كلاهما يبنيانِهِ منَ السِجلِّ المغلقِ نفسِهِ**
+   * (`rate-limit/policy.ts` — مصدرِ الحقيقةِ الواحدِ للرقمِ والنافذةِ)، فالبوّابةُ
+   * تُرقّيهِ إلى Redis متى وُجدَ، وعمليةُ اللوحةِ تعدُّهُ في ذاكرتِها. وغيابُهُ
+   * تدهورٌ مُعلَنٌ في واجهةِ الموجِّهِ لا صمتٌ.
+   */
+  readonly breakGlassLoginPerAddress?: RateLimiter;
 }
 
 /**
@@ -107,6 +121,12 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.maplibreSri === undefined ? {} : { maplibreSri: deps.maplibreSri }),
       ...(deps.log === undefined ? {} : { log: deps.log }),
       ...(deps.revocation === undefined ? {} : { revocation: deps.revocation }),
+      ...(deps.breakGlassTotpKey === undefined
+        ? {}
+        : { breakGlassTotpKey: deps.breakGlassTotpKey }),
+      ...(deps.breakGlassLoginPerAddress === undefined
+        ? {}
+        : { limits: { breakGlassLoginPerAddress: deps.breakGlassLoginPerAddress } }),
     }),
   );
 

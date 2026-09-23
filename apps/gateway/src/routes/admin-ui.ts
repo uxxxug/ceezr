@@ -36,6 +36,7 @@ import {
   type CityGroupStatus,
   type CityOption,
   renderAttendancePage,
+  renderBreakGlassPage,
   renderBroadcastPage,
   renderDisputesPage,
   renderDriverDetailPage,
@@ -62,6 +63,11 @@ import {
   sha256Hex,
 } from "../admin/auth.ts";
 import {
+  type AdminBreakGlassPort,
+  BREAK_GLASS_INVALID_CREDENTIALS,
+  createAdminBreakGlassPort,
+} from "../admin/break-glass.ts";
+import {
   type AdminEnv,
   clearSessionCookie,
   createAdminGuard,
@@ -72,6 +78,7 @@ import {
 } from "../admin/guard.ts";
 import {
   ATTENDANCE_WINDOWS,
+  adminBreakGlassCredential,
   adminOverviewReading,
   attendanceSummary,
   DAY_WINDOW_HOURS,
@@ -114,6 +121,8 @@ import {
   updateSetting,
 } from "../admin/queries.ts";
 import { createAdminSecurityHeaders } from "../admin/security-headers.ts";
+import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 
 export interface AdminUiDependencies {
   readonly sql: Sql;
@@ -150,6 +159,28 @@ export interface AdminUiDependencies {
    * **والثقبُ محروسٌ لا مأمولٌ**: اختبارٌ يُثبِتُ الردَّ ٥٠٣ عندَ الغيابِ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * `SEC-21` · `ADR 0176` — مفتاحُ تشفيرِ أسرارِ TOTP للبابِ الموازي من
+   * البيئةِ (`ADMIN_BREAK_GLASS_TOTP_KEY`). يُمرَّرُ ولا يُقرأُ ههنا (هذا
+   * الموجِّهُ لا يقرأُ الضبطَ — كسائرِ حقولِ هذه الواجهةِ). غيابُهُ (`null`)
+   * يُعطِّلُ تسجيلَ البابِ ودخولَهُ بردٍّ موحَّدٍ لا بإسقاطِ الخدمةِ، ويُسجَّلُ
+   * أثرُهُ في السجلِّ المهيكلِ.
+   */
+  readonly breakGlassTotpKey?: string | null;
+  /**
+   * منفذُ البابِ الموازي — للاستبدالِ في الاختبارِ. الافتراضُ عندَ الغيابِ هو
+   * المنفذُ الحقيقيُّ على `sql` والمفتاحِ المُمرَّرِ أعلاهُ.
+   */
+  readonly breakGlass?: AdminBreakGlassPort;
+  /**
+   * حاصرُ دخولِ البابِ الموازي قبلَ المصادقةِ (`SEC-21` · ADR 0176). الاسمُ
+   * المجهولُ لا صفَّ لهُ في القاعدةِ فلا يلمسُهُ إقفالُ القاعدةِ — فالهمْرُ عليه
+   * لا يَحدُّهُ إلّا هذا العدّادُ في الذاكرةِ. يُمرَّرُ ولا يُبنى ههنا (الموجِّهُ لا
+   * يقرأُ سِجلَّ السياسةِ)، والغيابُ تدهورٌ مُعلَنٌ لا صمتٌ: نقطةُ التركيبِ
+   * تُسجِّلُ الحدَّ في `rate-limit/policy.ts` — **مصدرِ الحقيقةِ الواحدِ** —
+   * وتُركِّبُهُ في موضعَي التشغيلِ كليهما.
+   */
+  readonly limits?: { readonly breakGlassLoginPerAddress: RateLimiter };
 }
 
 /** الافتراضُ حين لا سائقَ مرئيّاً: مركزُ الجزيرة تقريباً بتكبيرٍ واسع. */
@@ -204,6 +235,19 @@ const MAX_BIGINT = 2n ** 63n - 1n;
 
 /** رسائل الرفض موحَّدة عمداً: من يجرّب معرّفات لا يعرف أيّها موجود. */
 const GENERIC_LOGIN_ERROR = "تعذّر إرسال الرمز. تأكّد من المعرّف، أو راجع صاحب النظام.";
+
+/** نصوصُ رفضِ التسجيلِ للمسؤولِ (جلسةٌ مُوثَّقةٌ — صريحةٌ لا مكتومة). */
+function enrollmentErrorText(code: string): string {
+  if (code === "SESSION_NOT_FOUND") return "انتهت الجلسةُ — أعدِ الدخولَ ثم أعدِ المحاولةَ.";
+  if (code === "NOT_ADMIN") return "هذه الصفحةُ لمسؤولٍ فحسبُ.";
+  if (code === "INVALID_LOGIN_NAME")
+    return "اسمُ الدخولِ حروفٌ لاتينيّةٌ صغيرةٌ وأرقامٌ وشرطاتٌ (3-64) بلا فراغاتٍ.";
+  if (code === "LOGIN_NAME_TAKEN") return "اسمُ الدخولِ محجوزٌ لمسؤولٍ آخر — اختر اسمًا آخر.";
+  if (code === "TOTP_KEY_NOT_CONFIGURED")
+    return "مفتاحُ تشفيرِ المصادقةِ غيرُ مضبوطٍ في البيئةِ (ADMIN_BREAK_GLASS_TOTP_KEY) — راجع صاحبَ النظام.";
+  if (code === "EMPTY_CREDENTIAL") return "كلمةُ السرِّ والسرُّ لا يكونانِ فارغَينِ.";
+  return `تعذّر إتمامُ التسجيلِ (${code}). راجع السجلَّ ثم أعد المحاولة.`;
+}
 
 function cityParam(value: string | undefined): string | null {
   return value === undefined || value === "" || value === "all" ? null : value;
@@ -444,6 +488,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   const app = new Hono<AdminEnv>();
   const log = deps.log ?? ((): void => undefined);
   const broadcast = deps.broadcast ?? createBroadcastAdminPort(deps.sql);
+  const breakGlass =
+    deps.breakGlass ??
+    createAdminBreakGlassPort(deps.sql, {
+      totpKey: deps.breakGlassTotpKey ?? null,
+      issuer: "Waslah",
+    });
 
   // قبل كل مسار، ومنها /login: الدخول هو الصفحة التي تُرسَل فيها كلمةُ المرور
   // الوقتية، فإخراجُها من السياسة كان سيترك أضعفَ صفحةٍ بلا حماية.
@@ -454,6 +504,11 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   // -------------------------------------------------------------------------
 
   app.get("/login", (c) => {
+    // بابُ النجاةِ (`SEC-21`): وصلٌ صريحٌ لا رابطٌ مُكتومٌ — من لا يعرفُ أنَّ
+    // للبابِ وجودًا لا يُقايضُ صبرَهُ على تجريبِه، ومن يعرفُهُ يصلُهُ بأقصرِ طريقٌ.
+    if (c.req.query("break") === "1") {
+      return c.html(renderLoginPage({ cspNonce: c.get("cspNonce"), step: "break-glass" }));
+    }
     const notice = c.req.query("sent") === "1" ? "أُرسِل الرمز إلى محادثتك مع بوت السائق." : null;
     return c.html(
       renderLoginPage({
@@ -590,6 +645,78 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     return c.redirect("/admin", SEE_OTHER);
   });
 
+  // بابُ النجاةِ (`SEC-21` · ADR 0176): دخولُ المسؤولِ بديلًا عن تلغرام وقتَ
+  // عطبِه. الردُّ على كلِّ فشلٍ واحدٌ ونصُّهُ واحدٌ (رفضٌ عامٌّ موحَّدٌ) — لا
+  // فرقَ في الردِّ بينَ اسمٍ مجهولٍ وكلمةِ سرٍّ خاطئةٍ ورمزٍ مُستهلَكٍ.
+  app.post("/login/break-glass", async (c) => {
+    // الحدُّ قبلَ قراءةِ الجسمِ وقبلَ scrypt (`SEC-21`): الاسمُ المجهولُ لا صفَّ
+    // لهُ في القاعدةِ فلا يلمسُهُ إقفالُها — فبلا هذا العدّادِ يبقى همْرُهُ بلا
+    // حصرٍ. والنداءُ يقرأُ العنوانَ المُنتحَلَ من الوسيطِ بوصفِهِ مفتاحَ عدٍّ لا
+    // هويّةً (`ADR 0139`). والغيابُ تدهورٌ مُعلَنٌ في السِجلِّ لا صمتٌ.
+    const exceeded = rateLimitRejection(
+      c,
+      await deps.limits?.breakGlassLoginPerAddress.hit(
+        `admin-break-glass:${clientAddress(c.req.header("x-forwarded-for"))}`,
+      ),
+    );
+    if (exceeded !== null) return exceeded;
+
+    const form = await c.req.formData();
+    const loginName = formText(form, "login_name");
+    const password = formText(form, "password");
+    const totpCode = formText(form, "totp_code");
+
+    const invalid =
+      loginName === null || password === null || totpCode === null || !CODE_PATTERN.test(totpCode);
+    if (invalid) {
+      return c.html(
+        renderLoginPage({
+          cspNonce: c.get("cspNonce"),
+          step: "break-glass",
+          error: "الاسمُ وكلمةُ السرِّ ورمزُ المصادقةِ (ستُّ خاناتٍ) كلُّها مطلوبة.",
+        }),
+        HTML_UNPROCESSABLE,
+      );
+    }
+
+    const token = generateSessionToken();
+    const result = await breakGlass.login(
+      loginName,
+      password,
+      totpCode,
+      sha256Hex(token),
+      c.req.header("user-agent") ?? null,
+    );
+    let loginFailed: { port: string | null; reason: string | null } | null = null;
+    if (!result.ok) {
+      loginFailed = { port: String(result.error), reason: null };
+    } else if (!result.value.ok) {
+      loginFailed = { port: null, reason: result.value.error };
+    }
+    if (loginFailed !== null) {
+      if (loginFailed.port !== null) {
+        log("admin.break_glass_login_port_failure", { detail: loginFailed.port });
+      } else if (loginFailed.reason === BREAK_GLASS_INVALID_CREDENTIALS) {
+        // رفضٌ مقصودٌ بلا تفصيلٍ في الردِّ العامِّ؛ السجلُّ المهيكلُ هو موضعُ
+        // التشخيصِ لا صفحةُ الدخولِ.
+        log("admin.break_glass_login_rejected", {});
+      } else {
+        log("admin.break_glass_login_db_error", { reason: loginFailed.reason ?? "UNKNOWN" });
+      }
+      return c.html(
+        renderLoginPage({
+          cspNonce: c.get("cspNonce"),
+          step: "break-glass",
+          error: "اعتمادٌ غيرُ صحيحٍ أو مقفلٌ. أعدِ المحاولةَ بعدَ ربعِ ساعةٍ إن استمرَّ.",
+        }),
+        HTML_UNPROCESSABLE,
+      );
+    }
+
+    writeSessionCookie(c, token);
+    return c.redirect("/admin", SEE_OTHER);
+  });
+
   // -------------------------------------------------------------------------
   // كل ما بعد هذا السطر يمرّ بالحارس
   // -------------------------------------------------------------------------
@@ -603,6 +730,148 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     if (token !== null) await deps.auth.closeSession(sha256Hex(token));
     clearSessionCookie(c);
     return c.redirect("/admin/login", SEE_OTHER);
+  });
+
+  // -------------------------------------------------------------------------
+  // البابُ الموازي (`SEC-21` · ADR 0176): تسجيلُ الاعتمادِ وتدويرُهُ وتعطيلُهُ
+  // — من داخلِ جلسةِ مسؤولٍ فتحَها رمزُ القناةِ الأولى (تيليجرام) فحسبُ؛
+  // الجلسةُ المفتوحةُ منَ البابِ نفسِهِ لا تُنشئُ بابًا موازيًا (يُرفضُ في
+  // الدالّةِ الذرّيّةِ بشرطِ `origin = 'telegram_code'` لا في الواجهةِ وحدَها).
+  // -------------------------------------------------------------------------
+
+  app.get("/break-glass", async (c) => {
+    const credential = await adminBreakGlassCredential(deps.sql, c.get("admin").userId);
+    return c.html(
+      renderShell({
+        title: "بابُ النجاة",
+        activePath: "/admin/break-glass",
+        user: c.get("admin"),
+        csrfToken: c.get("csrfToken"),
+        cspNonce: c.get("cspNonce"),
+        body: renderBreakGlassPage({
+          csrfToken: c.get("csrfToken"),
+          hasActiveCredential: credential?.isActive === true,
+          loginName: credential?.loginName ?? null,
+          ...(c.req.query("registered") === "1"
+            ? { notice: "سُجِّلَ الاعتمادُ. اضبط تطبيقَ المصادقةِ من الرابطِ أعلاهُ قبلَ مغادرةِ الصفحةِ." }
+            : {}),
+        }),
+      }),
+    );
+  });
+
+  app.post("/break-glass", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+    const form = await c.req.formData();
+    const loginName = formText(form, "login_name");
+    const password = formText(form, "password");
+
+    if (
+      loginName === null ||
+      password === null ||
+      !/^[a-z0-9_-]{3,64}$/.test(loginName) ||
+      password.length < 12 ||
+      password.length > 200
+    ) {
+      return c.html(
+        renderShell({
+          title: "بابُ النجاة",
+          activePath: "/admin/break-glass",
+          user: c.get("admin"),
+          csrfToken: c.get("csrfToken"),
+          cspNonce: c.get("cspNonce"),
+          body: renderBreakGlassPage({
+            csrfToken: c.get("csrfToken"),
+            hasActiveCredential: false,
+            loginName: null,
+            error: "اسمُ الدخولِ حروفٌ لاتينيّةٌ صغيرةٌ وأرقامٌ وشرطاتٌ (3-64)، وكلمةُ السرِّ 12 محرفًا فأكثر.",
+          }),
+        }),
+        HTML_UNPROCESSABLE,
+      );
+    }
+
+    const token = readSessionToken(c);
+    if (token === null) return c.redirect("/admin/login", SEE_OTHER);
+    const result = await breakGlass.enroll(sha256Hex(token), loginName, password);
+
+    const credential = await adminBreakGlassCredential(deps.sql, c.get("admin").userId);
+    const enrollFailure = !result.ok
+      ? { port: String(result.error) }
+      : !result.value.ok
+        ? { reason: result.value.error }
+        : null;
+    const pageError =
+      enrollFailure === null
+        ? undefined
+        : "port" in enrollFailure
+          ? `تعذّر إتمامُ التسجيلِ (${enrollFailure.port}). راجع السجلَّ ثم أعد المحاولة.`
+          : enrollmentErrorText(enrollFailure.reason);
+
+    if (pageError !== undefined) {
+      log("admin.break_glass_enroll_failed", {
+        reason:
+          enrollFailure === null
+            ? "UNKNOWN"
+            : "port" in enrollFailure
+              ? "PORT_FAILURE"
+              : enrollFailure.reason,
+      });
+      return c.html(
+        renderShell({
+          title: "بابُ النجاة",
+          activePath: "/admin/break-glass",
+          user: c.get("admin"),
+          csrfToken: c.get("csrfToken"),
+          cspNonce: c.get("cspNonce"),
+          body: renderBreakGlassPage({
+            csrfToken: c.get("csrfToken"),
+            hasActiveCredential: credential?.isActive === true,
+            loginName: credential?.loginName ?? null,
+            error: pageError,
+          }),
+        }),
+        HTML_UNPROCESSABLE,
+      );
+    }
+
+    // النجاحُ: الرابطُ يُعرضُ في الصفحةِ نفسِها (مرّةً واحدةً) لا في ترويسةِ
+    // تحويلٍ تُبتلَعُ ولا في معاملِ رابطٍ يبقى في سجلِّ المتصفحِ.
+    return c.html(
+      renderShell({
+        title: "بابُ النجاة",
+        activePath: "/admin/break-glass",
+        user: c.get("admin"),
+        csrfToken: c.get("csrfToken"),
+        cspNonce: c.get("cspNonce"),
+        body: renderBreakGlassPage({
+          csrfToken: c.get("csrfToken"),
+          hasActiveCredential: true,
+          loginName,
+          ...(result.ok && result.value.ok ? { otpauthUri: result.value.value.otpauthUri } : {}),
+          notice:
+            "سُجِّلَ الاعتمادُ. اضبط تطبيقَ المصادقةِ من الرابطِ أدناهُ قبلَ مغادرةِ الصفحةِ — لن يُعرضَ مرةً أخرى.",
+        }),
+      }),
+    );
+  });
+
+  app.post("/break-glass/disable", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+    const token = readSessionToken(c);
+    if (token === null) return c.redirect("/admin/login", SEE_OTHER);
+    const result = await breakGlass.disable(sha256Hex(token));
+    const disableFailure = !result.ok
+      ? "PORT_FAILURE"
+      : !result.value.ok
+        ? result.value.error
+        : null;
+    if (disableFailure !== null) {
+      log("admin.break_glass_disable_failed", { reason: disableFailure });
+    }
+    return c.redirect("/admin/break-glass", SEE_OTHER);
   });
 
   app.get("/", async (c) => {
