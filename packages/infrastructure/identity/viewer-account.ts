@@ -15,7 +15,6 @@
 
 import type {
   ViewerAccount,
-  ViewerAccountLanguageWriter,
   ViewerAccountReader,
   ViewerLookupFailure,
   ViewerRole,
@@ -79,33 +78,6 @@ export function createViewerAccountReader(sql: Sql): ViewerAccountReader {
       }
 
       return ok({ role, isBlocked: row.is_blocked === true, languageCode: row.language_code });
-    },
-  };
-}
-
-/** `PD-030` (2026-09-23): اللغاتُ المسموحُ كتابتُها — من `MINIAPP_LANGUAGES`. */
-const ALLOWED_LANGUAGE_CODES: readonly string[] = ["ar", "en", "ur"];
-
-export function createViewerAccountLanguageWriter(sql: Sql): ViewerAccountLanguageWriter {
-  return {
-    updateLanguageCode: async (
-      telegramUserId: string,
-      languageCode: string,
-    ): Promise<Result<void, ViewerLookupFailure>> => {
-      const telegramId = asTelegramId(telegramUserId);
-      if (telegramId === null) return err(lookupFailed("READER_ERROR"));
-      if (!ALLOWED_LANGUAGE_CODES.includes(languageCode)) {
-        return err(lookupFailed("READER_ERROR"));
-      }
-      try {
-        await sql.unsafe(
-          "update users set language_code = $1, updated_at = now() where telegram_id = $2",
-          [languageCode, telegramId],
-        );
-      } catch {
-        return err(lookupFailed("READER_ERROR"));
-      }
-      return ok(undefined);
     },
   };
 }

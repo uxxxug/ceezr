@@ -1,0 +1,58 @@
+/**
+ * الغرض: كتابةُ لغةِ الواجهةِ في حسابِ المستخدمِ — محوّلٌ **للكتابةِ وحدها**
+ *   لمنفذِ `ViewerAccountLanguageWriter` (البند `PD-030` · `ADR 0178`).
+ * الحالة: منفّذ فعلياً — `PD-030`.
+ * ينتمي إلى: infrastructure/identity
+ * يُتوقع أن يستخدمه لاحقاً: `apps/gateway/src/index.ts` عبر حقنِ التبعياتِ فقط.
+ *
+ * ولماذا ملفٌّ منفصلٌ لا في `viewer-account.ts`؟ لأنَّ `viewer-account.ts` محوّلُ
+ * **قراءةٍ وحدَها** بحكمِ `F1-05` و`ADR 0035`: لا `update` ولا `insert` فيه،
+ * وحاجزُ `check-viewer-role-authority.ts` يُسقِطُ البناءَ إن وُجدَ فيه `update`.
+ * فالكتابةُ في ملفٍّ منفصلٍ تفصلُ المسؤوليتَين وتُبقي الحاجزَ صادقاً.
+ */
+
+import type {
+  ViewerAccountLanguageWriter,
+  ViewerLookupFailure,
+} from "../../application/identity/ports.ts";
+import { err, ok, type Result } from "../../shared/result/index.ts";
+import type { Sql } from "../db/client.ts";
+
+/** اللغاتُ المسموحُ كتابتُها — من `MINIAPP_LANGUAGES`. */
+const ALLOWED_LANGUAGE_CODES: readonly string[] = ["ar", "en", "ur"];
+
+function lookupFailed(reason: ViewerLookupFailure["reason"]): ViewerLookupFailure {
+  return { code: "VIEWER_LOOKUP_FAILED", reason };
+}
+
+/**
+ * `users.telegram_id` عمودُ `bigint`، ومعرّفُ الجلسةِ نصٌّ. فالنصُّ غيرُ الرقميِّ
+ * **لا يُرسَل إلى القاعدةِ أصلاً**: لا صفَّ يمكن أن يطابقه.
+ */
+function asTelegramId(value: string): string | null {
+  return /^[0-9]{1,19}$/.test(value) ? value : null;
+}
+
+export function createViewerAccountLanguageWriter(sql: Sql): ViewerAccountLanguageWriter {
+  return {
+    updateLanguageCode: async (
+      telegramUserId: string,
+      languageCode: string,
+    ): Promise<Result<void, ViewerLookupFailure>> => {
+      const telegramId = asTelegramId(telegramUserId);
+      if (telegramId === null) return err(lookupFailed("READER_ERROR"));
+      if (!ALLOWED_LANGUAGE_CODES.includes(languageCode)) {
+        return err(lookupFailed("READER_ERROR"));
+      }
+      try {
+        await sql.unsafe(
+          "update users set language_code = $1, updated_at = now() where telegram_id = $2",
+          [languageCode, telegramId],
+        );
+      } catch {
+        return err(lookupFailed("READER_ERROR"));
+      }
+      return ok(undefined);
+    },
+  };
+}

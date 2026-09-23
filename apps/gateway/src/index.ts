@@ -54,6 +54,7 @@ import {
   TELEGRAM_INIT_DATA_MAX_AGE_SECONDS,
 } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
+import { createViewerAccountLanguageWriter } from "../../../packages/infrastructure/identity/viewer-language.ts";
 import { createUserNotificationCenter } from "../../../packages/infrastructure/notification/user-notification-center.ts";
 import {
   createConfiguredMetricsExporter,
@@ -587,6 +588,7 @@ const me =
           now: () => new Date(),
           log,
         },
+        languageWriter: createViewerAccountLanguageWriter(container.sql),
         log,
       };
 

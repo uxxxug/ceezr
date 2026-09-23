@@ -39,3 +39,4 @@ export {
   type TelegramInitDataVerifierOptions,
 } from "./telegram-init-data.ts";
 export { createViewerAccountReader } from "./viewer-account.ts";
+export { createViewerAccountLanguageWriter } from "./viewer-language.ts";
