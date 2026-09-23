@@ -100,6 +100,22 @@ export interface AuditedPrivilegedAction {
  */
 export const AUDITED_PRIVILEGED_ACTIONS: readonly AuditedPrivilegedAction[] = [
   {
+    fn: "admin_break_glass_disable",
+    actions: ["admin.break_glass_disabled"],
+  },
+  {
+    fn: "admin_break_glass_enroll",
+    actions: ["admin.break_glass_enrolled"],
+  },
+  {
+    fn: "admin_break_glass_finish_failure",
+    actions: ["admin.break_glass_login_rejected"],
+  },
+  {
+    fn: "admin_break_glass_finish_success",
+    actions: ["admin.break_glass_session_opened"],
+  },
+  {
     fn: "review_account_recovery_request",
     actions: ["admin.account_recovery_approved", "admin.account_recovery_rejected"],
   },
@@ -163,8 +179,12 @@ export const AUDIT_EXEMPT_PRIVILEGED_FUNCTIONS: readonly AuditExemption[] = [
 /**
  * عددُ الدوالِّ المُسجَّلةِ **كنصِّ بندٍ** لا كطولِ مصفوفةٍ: لو قُرِئَ من
  * `AUDITED_PRIVILEGED_ACTIONS.length` لصارَ السِجلُّ يحرسُ نفسَه فلا يحرسُ شيئاً.
+ *
+ * 20 → 24 في 2026-09-23 (`SEC-21` · `ADR 0176`): أربعُ دوالِّ البابِ الموازي
+ * (break-glass) — التسجيلُ والتدويرُ والتعطيلُ وإتمامُ الفشلِ وإتمامُ النجاحِ
+ * — رُفِعَ العددُ بالزيادةِ لا بالاستبدالِ (`ح-8`).
  */
-export const REQUIRED_AUDITED_FUNCTION_COUNT = 20;
+export const REQUIRED_AUDITED_FUNCTION_COUNT = 24;
 
 /** وعددُ الإعفاءاتِ كذلكَ: نموُّهُ خفيةً هوَ بعينِه ما يُخشى. */
 export const REQUIRED_EXEMPTION_COUNT = 1;

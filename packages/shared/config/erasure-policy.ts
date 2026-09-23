@@ -134,6 +134,21 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
    */
   admin_metric_snapshots: reference(),
   // ───────── حسابُ المشرفِ: جلسةٌ ورمزُ دخولٍ، مِلكُ صاحبِه وحدَه ─────────
+  /**
+   * `SEC-21` · `ADR 0176`: اعتمادُ البابِ الموازي (break-glass) — كلمةُ سرٍّ
+   * مُهضَمةٌ وسرُّ TOTP مُشفَّرٌ. **المحوُ لا الانتظارُ**: تركُ اعتمادِ دخولٍ
+   * بعدَ محوِ صاحبِهِ بابٌ معلّقٌ — والمفتاحُ الأجنبيُّ `on delete cascade`
+   * المُعلَنُ في الهجرةِ يأخذُهُ معَ الحسابِ. ولا أساسَ للإبقاءِ: ما يبقى
+   * بعدَ الحذفِ هو أثرُ القراراتِ في `audit_log` لا مفتاحُ بابٍ.
+   */
+  admin_break_glass_credentials: {
+    disposition: D.erase,
+    subjects: [S.admin],
+    linkedBy: "admin_break_glass_credentials.user_id",
+    basis: null,
+    exportSection: "adminSessions",
+    deferredTo: "F12-10",
+  },
   admin_login_codes: {
     disposition: D.erase,
     subjects: [S.admin],

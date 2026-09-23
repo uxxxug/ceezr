@@ -56,6 +56,10 @@ export {
   renderAttendancePage,
 } from "./pages/attendance.ts";
 export {
+  type BreakGlassPageData,
+  renderBreakGlassPage,
+} from "./pages/break-glass.ts";
+export {
   BROADCAST_BODY_LIMIT,
   type BroadcastAudienceChoice,
   type BroadcastFormState,

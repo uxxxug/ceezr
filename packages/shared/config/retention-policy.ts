@@ -115,6 +115,14 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
    * ولا مدّةَ محسومةً بعدُ (`pendingDecision`)، و`F12-10` يحكُمُ في أرشفتِهِ.
    */
   account_recovery_requests: RETENTION_CLASSES.pendingDecision,
+  /**
+   * `SEC-21` · `ADR 0176`: اعتمادُ البابِ الموازي (break-glass) — كلمةُ سرٍّ
+   * مُهضَمةٌ وسرُّ TOTP مُشفَّرٌ وعدّاداتُ إقفالٍ. **عمرُهُ عمرُ الحسابِ**: حذفُ
+   * المستخدمِ يأخذُهُ بـ`on delete cascade` المُعلَنِ، وتركُهُ بعدَ الحذفِ
+   * بابٌ معلّقٌ بلا صاحبٍ. ولا مهمّةَ ليليّةً تُخرِجُهُ: تعطيلُهُ صريحٌ
+   * مُدقَّقٌ لا تقادمٌ صامتٌ يُطفِئُ بابَ نجاةٍ بلا أثرٍ.
+   */
+  admin_break_glass_credentials: RETENTION_CLASSES.lifecycleBound,
   admin_login_codes: RETENTION_CLASSES.pendingDecision,
   /**
    * `F7-08` · `CAP-011`: لقطةُ عدَّاداتِ لوحةِ الإدارةِ — **صفٌّ واحدٌ لكلِّ

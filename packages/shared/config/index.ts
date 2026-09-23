@@ -249,6 +249,15 @@ export interface AppConfig {
   readonly miniappSessionSecret: string | null;
 
   /**
+   * `SEC-21` · `ADR 0176` — مفتاحُ تشفيرِ أسرارِ TOTP للبابِ الموازي
+   * (break-glass) AES-256-GCM. اختياريٌّ حتّى لا يُوقَفَ إقلاعُ بيئةٍ لم تُنشئ
+   * بابًا بعدُ، لكنَّ ما وُجدَ منهُ لا يُقبَلُ دونَ 32 بايتًا (64 ستَّ عشريّةً أو
+   * 44 قاعدةً 64). وهو **منفصلٌ عن فِلفِلِ التجزئةِ**: ذاكَ يُهضَمُ به في
+   * القاعدةِ، وهذا يُشفَّرُ به في الخادمِ — فتسريبُ أحدهما لا يفتحُ الآخرَ.
+   */
+  readonly adminBreakGlassTotpKey: string | null;
+
+  /**
    * `F4-07` — هل يُفعَّلُ مُرحِّلُ الموقعِ الحيِّ عبر تلغرام كاحتياطٍ؟
    *
    * **افتراضيًّا `false`**: قناةُ Socket.IO صارَت المسارَ الرئيسيَّ لتتبُّعِ الراكبِ،
@@ -599,6 +608,26 @@ export function tryLoadConfig(
       new InvalidEnvVarError(
         "MINIAPP_SESSION_SECRET",
         `يجب ألا يقلّ عن ${MIN_SESSION_SECRET_LENGTH} محرفاً — وردت ${miniappSessionSecret.length}`,
+      ),
+    );
+  }
+
+  const adminBreakGlassTotpKey = isBlank(source.ADMIN_BREAK_GLASS_TOTP_KEY)
+    ? null
+    : (source.ADMIN_BREAK_GLASS_TOTP_KEY as string).trim();
+  if (adminBreakGlassTotpKey !== null && !/^[A-Za-z0-9+/=]+$/.test(adminBreakGlassTotpKey)) {
+    return err(
+      new InvalidEnvVarError(
+        "ADMIN_BREAK_GLASS_TOTP_KEY",
+        "مفتاحُ تشفيرِ TOTP يقبلُ ترميزَ قاعدةِ 64 فقط (A-Za-z0-9+/=)",
+      ),
+    );
+  }
+  if (adminBreakGlassTotpKey !== null && Buffer.byteLength(adminBreakGlassTotpKey, "utf8") < 32) {
+    return err(
+      new InvalidEnvVarError(
+        "ADMIN_BREAK_GLASS_TOTP_KEY",
+        `مفتاحُ تشفيرِ TOTP لا يقلُّ عن 32 بايتًا — وردت ${Buffer.byteLength(adminBreakGlassTotpKey, "utf8")} بايتًا`,
       ),
     );
   }
@@ -1034,6 +1063,7 @@ export function tryLoadConfig(
     tracking,
     trackingTokenBaseUrl,
     miniappSessionSecret,
+    adminBreakGlassTotpKey,
     liveLocationFallbackEnabled: parseBooleanEnv(source.LIVE_LOCATION_FALLBACK_ENABLED, false),
     metricsExport,
   });

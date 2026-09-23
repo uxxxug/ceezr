@@ -13,6 +13,11 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "abandon_notification_delivery",
   "abandon_telegram_update_job",
   "active_ride_snapshot",
+  "admin_break_glass_disable",
+  "admin_break_glass_enroll",
+  "admin_break_glass_finish_failure",
+  "admin_break_glass_finish_success",
+  "admin_break_glass_load_attempt",
   "admin_revoke_miniapp_sessions",
   "admin_set_driver_verification",
   "admin_set_user_blocked",
@@ -159,6 +164,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
 
 /** جداولُ القاعدة التي يقرؤها كودُ التشغيل أو يكتب فيها مباشرةً. */
 export const CONTRACT_TABLES: readonly string[] = [
+  "admin_break_glass_credentials",
   "admin_metric_snapshots",
   "agent_decisions",
   "attendance_log",

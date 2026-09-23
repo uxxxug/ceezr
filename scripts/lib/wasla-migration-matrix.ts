@@ -246,6 +246,7 @@ function noMigration(table: string): MatrixEntry {
  * الترتيبُ أبجديٌّ لأنَّ الوثيقةَ تُولَّدُ منه.
  */
 export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
+  { ...noMigration("admin_break_glass_credentials") },
   {
     table: "admin_login_codes",
     mechanism: "READ_THROUGH_CORE",

@@ -78,6 +78,8 @@ async function main(): Promise<void> {
     sql: container.sql,
     auth: container.auth,
     bus: container.bus,
+    // مفتاحُ سرِّ البابِ الموازي (`SEC-21`) — غيابُهُ يُغلقُ البابَ موحَّدًا لا سقوطًا.
+    breakGlassTotpKey: config.value.adminBreakGlassTotpKey,
     codeSender: container.codeSender,
     mapOrigins: container.mapOrigins,
     ...(container.mapStyle === null ? {} : { mapStyle: container.mapStyle }),

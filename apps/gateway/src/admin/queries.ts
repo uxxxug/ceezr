@@ -139,6 +139,25 @@ export const HEATMAP_CELL_FALLBACK_DEGREES = 0.01;
  * عتبة اعتبار الطلب متعثّراً: مهلة العرض مضروبة في عدد الدورات المسموح بها.
  * طلب تجاوزها لم يعد ينتظر دورةً قادمة، بل توقف عنده شيء.
  */
+/**
+ * `SEC-21`: اعتمادُ البابِ الموازي للمسؤولِ الحاليِّ — لعرضِ حالِهِ في صفحةِ
+ * البابِ فحسبُ. قراءةٌ مباشرةٌ بلا دالّةٍ متسلِّطةٍ: عمودانِ لا سرَّ فيهما
+ * (`login_name` · `is_active`) والسرُّانِ المُشفَّرانِ لا يُختارانِ أصلًا.
+ */
+export async function adminBreakGlassCredential(
+  sql: Sql,
+  userId: string,
+): Promise<{ loginName: string; isActive: boolean } | null> {
+  const rows = await sql<{ login_name: string; is_active: boolean }[]>`
+    select login_name, is_active from admin_break_glass_credentials
+    where user_id = ${userId}::uuid
+    limit 1
+  `;
+  const row = rows[0];
+  if (row === undefined) return null;
+  return { loginName: row.login_name, isActive: row.is_active };
+}
+
 export async function stallSeconds(sql: Sql, cityId: string | null): Promise<number> {
   const timeout = await numericSetting(sql, "offer_timeout_seconds", cityId, 0);
   const rounds = await numericSetting(sql, "max_broadcast_rounds", cityId, 0);

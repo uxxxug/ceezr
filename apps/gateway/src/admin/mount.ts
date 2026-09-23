@@ -68,6 +68,11 @@ export interface AdminSurfaceDependencies {
    * تبعيّاتِ هذا السطحِ. وغيابُهُ يُعطِّلُ مسلكَ الإبطالِ ردَّ ٥٠٣ ولا يُسكِتُهُ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * مفتاحُ تشفيرِ سرِّ TOTP للبابِ الموازي (`SEC-21` · ADR 0176) — اختياريٌّ
+   * كأخواتِهِ: غيابُهُ يُفعِّلُ الرفضَ الموحَّدَ للبابِ ولا يُسقِطُ الخدمةَ.
+   */
+  readonly breakGlassTotpKey?: string | null;
 }
 
 /**
@@ -107,6 +112,9 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.maplibreSri === undefined ? {} : { maplibreSri: deps.maplibreSri }),
       ...(deps.log === undefined ? {} : { log: deps.log }),
       ...(deps.revocation === undefined ? {} : { revocation: deps.revocation }),
+      ...(deps.breakGlassTotpKey === undefined
+        ? {}
+        : { breakGlassTotpKey: deps.breakGlassTotpKey }),
     }),
   );
 

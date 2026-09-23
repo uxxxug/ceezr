@@ -239,6 +239,45 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "POST",
+    path: "/admin/login/break-glass",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "قبلَ المصادقةِ",
+    limits: [],
+    exemption: {
+      reason:
+        "محدودٌ **في القاعدةِ لا في الذاكرةِ** (`SEC-21` · ADR 0176): `admin_break_glass_finish_failure` يُنفِّذُ `BREAK_GLASS_MAX_ATTEMPTS = 5` فشلٍ ثمَّ إقفالَ ربعِ ساعةٍ في صفِّ الاعتمادِ نفسِهِ (`apps/gateway/src/admin/break-glass.ts`) — عدَّادٌ يصمدُ لإعادةِ التشغيلِ وانقطاعِ Redis ومفتاحُهُ الاعتمادُ لا العنوانُ. **والاسمُ المجهولُ لا يُنتِحِلُ مستخدمًا في التدقيقِ**: لا صفَّ لهُ في القاعدةِ ولا أثرَ كاذبًا، وعدُّهُ علةُ حدِّ حافةٍ بلا منفّذٍ اليومَ — **مسمّىً لا مُدَّعى** (`ح-5`).",
+      owner: REPO_EXECUTOR,
+    },
+  },
+
+  {
+    method: "GET",
+    path: "/admin/break-glass",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/admin/break-glass",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/admin/break-glass/disable",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+  {
+    method: "POST",
     path: "/admin/logout",
     file: "apps/gateway/src/routes/admin-ui.ts",
     exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
@@ -1167,12 +1206,16 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * لَحرسَ السِجلُّ نفسَه فلم يحرسْ شيئاً، **ونموُّ الإعفاءاتِ خفيةً هوَ بعينِه ما
  * يُخشى**. ومَن أضافَ مساراً يُغيِّرُ الرقمَ بيدِه فيُقرأُ التغييرُ في المراجعةِ.
  *
- * والإعفاءاتُ **ثلاثةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها — وكلُّها محدودٌ فعلُها
- * في القاعدةِ لا في عدَّادٍ.
+ * والإعفاءاتُ **أربعةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها وبابُ النجاةِ
+ * (`SEC-21`) — وكلُّها محدودٌ فعلُها في القاعدةِ لا في عدَّادٍ.
+ *
+ * 101 → 105 و3 → 4 في 2026-09-23 (`SEC-21`): أربعةُ مساراتِ البابِ الموازي —
+ * دخولُهُ العامُّ محدودٌ في صفِّ الاعتمادِ في القاعدةِ (`admin_break_glass_finish_failure`)
+ * والبقيةُ خلفَ حارسِ الجلسةِ.
  */
-export const ROUTE_POLICY_COUNT = 101;
+export const ROUTE_POLICY_COUNT = 105;
 export const LIMITED_ROUTE_COUNT = 9;
-export const EXEMPT_ROUTE_COUNT = 3;
+export const EXEMPT_ROUTE_COUNT = 4;
 
 /** حدودُ مسارٍ بعينِه — يُعيدُ مصفوفةً فارغةً لِما لا حدَّ له. */
 export function limitsFor(method: string, path: string): readonly RateLimitPolicy[] {
