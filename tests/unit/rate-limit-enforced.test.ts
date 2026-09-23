@@ -128,9 +128,9 @@ const PROBES: readonly Probe[] = [
  * الموجِّهُ يُبنى مركَّبًا تحت `/admin` كما في `mount.ts` — قياسُ المسارِ الحقيقيِّ
  * لا المسارِ المجرَّدِ: قاعدةُ «الأخصُّ أوّلًا» في التركيبِ جزءٌ من السلوكِ.
  */
-function adminGate(
-  limits: { readonly breakGlassLoginPerAddress: RateLimiter } | Record<string, never>,
-): Hono {
+function adminGate(limits: {
+  readonly limits?: { readonly breakGlassLoginPerAddress: RateLimiter };
+}): Hono {
   const app = new Hono();
   app.route(
     "/admin",
