@@ -18,7 +18,7 @@
       inside Telegram. Outside Telegram the tg/ wrapper degrades gracefully
       (ARCH-014 / ADR 0031). No other third-party executable origins.
     -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script defer src="https://telegram.org/js/telegram-web-app.js"></script>
     <!--
       `DEC-19` · `F1-09`: الهيكلُ الساكنُ يُرسَمُ قبلَ تنزيلِ حزمِ الشيفرةِ، فيصبحُ
       أوّلُ رسمٍ ذي محتوى (FCP) بعدَ طلبِ المستندِ وحدَه لا بعدَ تنزيلِ الشيفرةِ.
@@ -46,6 +46,14 @@
       .sk-preboot__line--short {
         max-inline-size: 45%;
       }
+      .sk-preboot__visually-hidden {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+      }
       @keyframes sk-preboot-pulse {
         0%, 100% { opacity: 0.45; }
         50% { opacity: 0.85; }
@@ -61,19 +69,18 @@
   <body>
     <div id="root">
       <div class="sk-preboot" aria-hidden="true">
+        <span class="sk-preboot__visually-hidden">جارٍ التحميل</span>
         <span class="sk-preboot__line sk-preboot__line--title"></span>
         <span class="sk-preboot__line"></span>
         <span class="sk-preboot__line"></span>
         <span class="sk-preboot__line sk-preboot__line--short"></span>
       </div>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
-    <!--
-      `DEC-19` · `F1-09`: التقديمُ الساكنُ — يبدأُ تبادلَ الجلسةِ وقراءةَ الدورِ
-      والموافقاتِ قبلَ اكتمالِ تنزيلِ حزمِ الشيفرةِ، فتتداخلُ الطلباتُ مع التنزيلِ.
-      ولا يفعلُ شيئًا خارجَ تيليجرامَ. النتائجُ تُستهلَكُ من `identity/preboot.ts`.
-    -->
-    <script>
+    <script type="module">
+      // `DEC-19` · `F1-09`: التقديمُ الساكنُ — يبدأُ تبادلَ الجلسةِ وقراءةَ الدورِ
+      // والموافقاتِ قبلَ اكتمالِ تنزيلِ حزمِ الشيفرةِ، فتتداخلُ الطلباتُ مع التنزيلِ.
+      // ولا يفعلُ شيئًا خارجَ تيليجرامَ. النتائجُ تُستهلَكُ من `identity/preboot.ts`.
+      // `defer` على سكربتِ تيليجرامَ يضمنُ أنّ `window.Telegram.WebApp` متاحٌ قبلَ هذا.
       (function () {
         var wa = window.Telegram && window.Telegram.WebApp;
         if (!wa || typeof wa.initData !== "string" || wa.initData.length === 0) return;
@@ -100,5 +107,6 @@
         }, function () {});
       })();
     </script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
