@@ -35,6 +35,19 @@ const HOST_PAGE = "apps/miniapp/index.html";
 /** هذا الملفُّ نفسُه يذكر الأنماطَ نصّاً، فيُستثنى من مطابقتِها. */
 const SELF = "scripts/check-telegram-wrapper-isolation.ts";
 
+/**
+ * قناةٌ test-only معلنةٌ (F1-09 الصفُّ ٥ · D-26 · ADR 0184): `scripts/measure-tti.ts`
+ * يحتاج بناءَ وهمِ مضيفِ تيليجرامَ للمتصفّحِ، وهذا الوهمُ يلمسُ `window.Telegram`
+ * فلا يكونُ إلا داخلَ الطبقةِ. القناةُ تربطُ السكربتَ بـ`tg/measure-host.ts` وحدَه،
+ * ولا تسمحُ لأيِّ سكربتٍ آخرَ بدخولِ الطبقةِ إلا من بابِها `tg/index.ts`.
+ */
+const TEST_ONLY_TG_CHANNELS: ReadonlySet<string> = new Set(["apps/miniapp/src/tg/measure-host.ts"]);
+
+/** استيرادٌ مسموحٌ به عبرَ قناةٍ test-only معلنة. */
+function isTestOnlyChannel(specifier: string): boolean {
+  return [...TEST_ONLY_TG_CHANNELS].some((ch) => specifier.endsWith(ch));
+}
+
 type Rule = {
   readonly pattern: RegExp;
   readonly why: string;
@@ -77,7 +90,7 @@ const RULES: readonly Rule[] = [
 /** استيرادُ الطبقةِ من خارجِها: لا يُقبل إلا بابُها الواحد. */
 const TG_IMPORT = /(?:from|import)\s+["']([^"']*\/tg\/[^"']+)["']/g;
 
-interface Violation {
+export interface Violation {
   readonly file: string;
   readonly line: number;
   readonly text: string;
@@ -100,12 +113,13 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-function main(): void {
+/** يفحصُ نصوصَ ملفّاتٍ مُعطاةٌ ويُعيدُ المخالفاتِ — قابلٌ للاختبارِ بخرقٍ مزروعٍ. */
+export function findWrapperViolations(files: ReadonlyMap<string, string>): Violation[] {
   const violations: Violation[] = [];
-  const files = ROOTS.flatMap((root) => walk(root)).filter((file) => file !== SELF);
 
-  for (const file of files) {
-    const lines = readFileSync(file, "utf8").split("\n");
+  for (const [file, content] of files) {
+    if (file === SELF) continue;
+    const lines = content.split("\n");
 
     for (const [index, text] of lines.entries()) {
       for (const rule of RULES) {
@@ -126,6 +140,7 @@ function main(): void {
           specifier.endsWith("/tg/index") ||
           specifier.endsWith("/tg");
         if (isEntry) continue;
+        if (isTestOnlyChannel(specifier)) continue;
         violations.push({
           file,
           line: index + 1,
@@ -135,6 +150,15 @@ function main(): void {
       }
     }
   }
+
+  return violations;
+}
+
+function main(): void {
+  const files = ROOTS.flatMap((root) => walk(root)).filter((file) => file !== SELF);
+  const contents = new Map<string, string>();
+  for (const file of files) contents.set(file, readFileSync(file, "utf8"));
+  const violations = findWrapperViolations(contents);
 
   if (violations.length > 0) {
     console.error(`✗ ${violations.length} خرقاً لعزلِ طبقةِ تيليجرام (F1-02):\n`);

@@ -1693,6 +1693,73 @@ jobs:
       - name: حَكَمُ أوّلِ الرسمِ وإطلاقُ مُعيِّناتِ المدخلِ — سوالبُ مزروعة
         run: bun test tests/unit/first-paint-budget.test.ts tests/unit/inline-entry-script.test.ts
 
+  # ── F1-09 الصفُّ ٥ · D-26: وقتُ التفاعلِ بعدَ فتحِ تيليجرام ───────────────────────
+  #
+  # وظيفةٌ منفصلةٌ عن `browser-first-paint` لأنَّ الصفَّ ٥ يَقطَعُ مسارَ الإقلاعِ كاملَه:
+  # `initData` مُوقَّعٌ + بوّابةٌ حقيقيّةٌ + `POST /v1/session/telegram` + `GET /v1/me` +
+  # تحميلُ السطحِ. فلا يُخلَطُ بقياسِ الرسمِ وحدِه (الصفَّينِ ٣ و٤).
+  #
+  # والبوّابةُ نسخةٌ واحدةٌ في الذاكرةِ (لا Redis) — وهذا حدُّ الإنتاجِ اليومَ (`DEC-14`).
+  # والقاعدةُ `PostgreSQL` حقيقيّةٌ بها الهجراتُ — `GET /v1/me` يقرأُ `users`. و`initData`
+  # يُولَّدُ ببروتوكولِ تيليجرامَ الرسميِّ (`HMAC-SHA256`) فلا اتصالَ بتيليجرامَ.
+  browser-tti:
+    name: متصفّحٌ حقيقيٌّ — وقتُ التفاعلِ (F1-09 الصفُّ ٥ · D-26)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: waslah
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: أدوار Supabase التي تفترضها الهجرات
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then
+              create role anon nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+              create role authenticated nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then
+              create role service_role nologin noinherit bypassrls;
+            end if;
+          end $$;
+          SQL
+
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/migrate.ts
+
+      - name: بناء تطبيق تِلِغرام المصغَّر
+        run: bun run build:miniapp
+
+      - name: وقتُ التفاعلِ بعدَ فتحِ تيليجرام — مسارُ إقلاعٍ كاملٌ (F1-09 الصفُّ ٥ · D-26)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/measure-tti.ts
+
+      - name: حَكَمُ وقتِ التفاعلِ وتوليدُ initData — سوالبُ مزروعة
+        run: bun test tests/unit/interactive-budget.test.ts tests/unit/telegram-test-init-data.test.ts
+
   chaos-multi-instance:
     name: فوضى متعدد المثيلات (F5-06)
     runs-on: ubuntu-latest
