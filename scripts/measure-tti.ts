@@ -32,6 +32,10 @@ import {
 import { type KeyDimension, rateLimitPolicy } from "../apps/gateway/src/rate-limit/policy.ts";
 import { createServer, type ServerDependencies } from "../apps/gateway/src/server.ts";
 import { buildBrowserHostScript } from "../apps/miniapp/src/tg/measure-host.ts";
+import {
+  createConsentRecordReader,
+  createConsentRecordWriter,
+} from "../packages/infrastructure/consent/consent-store.ts";
 import { createSql } from "../packages/infrastructure/db/client.ts";
 import { createMemoryInitDataReplayGuard } from "../packages/infrastructure/identity/memory-init-data-replay-guard.ts";
 import { createMemorySessionRevocationStore } from "../packages/infrastructure/identity/memory-session-revocation-store.ts";
@@ -74,6 +78,33 @@ const TEST_USER = {
   username: "tti_test",
   language_code: "ar",
 };
+
+/**
+ * بذرُ مستخدمٍ راكبٍ نشِطٍ في قاعدةِ الاختبارِ — حتى يُعيدُ `GET /v1/me` دوراً
+ * معروفاً وسطحاً منتجاً، لا `unregistered`/`surface: none`.
+ *
+ * **لا يُفترَضُ وجودُ الصفِّ**: السكربتُ يزرعُهُ إن لم يكن. وإن لم يُزرَعْ، فمسارُ
+ * `resolve-viewer.ts` معروفٌ: لا صفَّ ← `unregistered` ← `surface: none` ← شاشةٌ
+ * نظاميّةٌ ← والعلامةُ (بعدَ التصحيحِ) لا تُطلَقُ — فيفشلُ القياسُ لا يخضرَّ.
+ */
+async function seedTestUserIfMissing(
+  sql: import("../packages/infrastructure/db/client.ts").Sql,
+): Promise<void> {
+  const existing = await sql<{ count: string }[]>`
+    select count(*)::text as count from users where telegram_id = ${TEST_USER.id}::bigint
+  `;
+  const count = Number(existing[0]?.count ?? 0);
+  if (count > 0) return;
+  const city = await sql<{ id: string }[]>`select id from cities where code = 'JED' limit 1`;
+  const cityId = city[0]?.id;
+  if (cityId === undefined)
+    throw new Error("لا مدينةَ 'JED' في قاعدةِ الاختبارِ — هل طُبِّقتْ هجراتُ البذور؟");
+  await sql`
+    insert into users (city_id, telegram_id, full_name, language_code, role)
+    values (${cityId}, ${TEST_USER.id}::bigint, 'راكب TTI', 'ar', 'rider')
+    on conflict (telegram_id) do nothing
+  `;
+}
 
 function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
@@ -225,7 +256,7 @@ class Cdp {
 
 const OBSERVERS = `
 window.__paint = { fcp: null, lcp: null };
-window.__tti = { marked: false, time: null };
+window.__tti = { marked: false, time: null, surface: null };
 new PerformanceObserver((list) => {
   for (const e of list.getEntries()) if (e.name === "first-contentful-paint") window.__paint.fcp = e.startTime;
 }).observe({ type: "paint", buffered: true });
@@ -237,6 +268,12 @@ const ttiObserver = new PerformanceObserver((list) => {
     if (e.name === "waslah-interactive") {
       window.__tti.marked = true;
       window.__tti.time = e.startTime;
+    }
+    // استخراجُ السطحِ المنتجِ من علامةٍ ثانيةٍ اسمُها waslah-surface: ثم اسمُ السطحِ —
+    // إثباتٌ أنّ الموجّهَ وصلَ إلى سطحٍ منتجٍ لا شاشةٍ نظاميّةٍ.
+    const surfaceMatch = /^waslah-surface:(rider|driver|admin)$/.exec(e.name);
+    if (surfaceMatch && surfaceMatch[1] !== undefined) {
+      window.__tti.surface = surfaceMatch[1];
     }
   }
 });
@@ -384,6 +421,7 @@ async function measureOnce(
       root: 0,
       interactive: false as boolean,
       interactiveTime: null as number | null,
+      surface: null as "rider" | "driver" | "admin" | null,
       complete: false,
     };
     while (Date.now() < deadline) {
@@ -394,12 +432,13 @@ async function measureOnce(
           " root: document.getElementById('root')?.childElementCount ?? 0," +
           " interactive: window.__tti?.marked ?? false," +
           " interactiveTime: window.__tti?.time ?? null," +
+          " surface: window.__tti?.surface ?? null," +
           " complete: document.readyState === 'complete'})",
         returnByValue: true,
       });
       if (evaluated.result.value !== undefined) state = JSON.parse(evaluated.result.value);
       const quiet = inflight.size === 0 && Date.now() - lastNetworkActivity >= QUIET_WINDOW_MS;
-      if (state.complete && quiet && state.interactive) break;
+      if (state.complete && quiet && state.interactive && state.surface !== null) break;
     }
     return {
       ttiMs: state.interactiveTime,
@@ -408,6 +447,7 @@ async function measureOnce(
       failedSameOriginRequests: failed,
       uncaughtExceptions: exceptions,
       interactiveMarked: state.interactive,
+      surface: state.surface,
     };
   } finally {
     cdp?.close();
@@ -482,9 +522,29 @@ async function main(): Promise<void> {
       webhook: { webhookSecret: "tti-test-secret", handler: container.handler },
       sessionTelegram,
       me,
+      // مسارُ الموافقاتِ: سطحُ الراكبِ يطلُبُ `/v1/consents` عندَ الإقلاعِ، فهو
+      // جزءٌ من شريحةِ الإقلاعِ المُختبَرةِ لا إضافةٌ خارجيّةٌ. وغيابُه كانَ يُسقِطُ
+      // القياسَ بـ`FAILED_REQUEST` بعدَ إصلاحِ صدقِ المسارِ.
+      consents: {
+        consent: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(TEST_SESSION_SECRET),
+            revocationStore,
+          ),
+          reader: createConsentRecordReader(sql),
+          writer: createConsentRecordWriter(sql),
+          now: () => new Date(),
+          log: () => {},
+        },
+        log: () => {},
+      },
     };
 
     const honoApp = createServer(serverDeps);
+
+    // بذرُ مستخدمٍ راكبٍ نشِطٍ — حتى يُعيدُ `/v1/me` سطحاً منتجاً، لا `unregistered`.
+    // وثباتُ الصدقِ: إذا لم يُنجَحْ هذا البذرُ، فالقياسُ لا يستمرُّ.
+    await seedTestUserIfMissing(sql);
 
     // خادمٌ واحدٌ يُقدِّمُ `dist` ويُمرِّرُ الـAPI إلى البوّابةِ — نفسُ الأصلِ.
     const cache = new Map<string, Uint8Array>();
@@ -550,6 +610,48 @@ async function main(): Promise<void> {
     console.log(`وقتُ التفاعلِ بمتصفّحٍ حقيقيٍّ (F1-09 الصفُّ ٥ · D-26) — ${browser}`);
     console.log(`  البوّابةُ على ${origin} · القاعدةُ ${dbUrl.replace(/\/\/.*@/, "//***@")}`);
 
+    // **تحقّقُ صدقِ المسارِ قبلَ القياسِ**: تبادلُ الجلسةِ ← `GET /v1/me` ←
+    // الدورُ المتوقَّعُ ← السطحُ المنتج. فإن لم يحدثْ هذا، فالقياسُ لا معنى له —
+    // قد يَصيرُ أخضرَ بعدَ الوصولِ إلى شاشةِ `unregistered` لا إلى سطحِ الراكب.
+    // والتحقّقُ هنا قبلَ تشغيلِ المتصفّحِ حتى يُخفِقَ صراحةً بلا انتظارٍ.
+    const initData = signFreshInitData(TEST_BOT_TOKEN, TEST_USER, 1)[0];
+    if (initData === undefined) {
+      console.error("✗ تعذَّرَ توليدُ بيانِ الدخولِ الموقَّعِ للتحقّقِ من المسار");
+      process.exit(1);
+    }
+    const sessionRes = await fetch(`${origin}/v1/session/telegram`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ initData: initData.raw }),
+    });
+    if (sessionRes.status !== 201) {
+      console.error(`✗ تبادلُ الجلسةِ لم ينجح: ${sessionRes.status} — المسارُ غيرُ صالحٍ للقياس`);
+      process.exit(1);
+    }
+    const sessionBody = (await sessionRes.json()) as { accessToken?: string };
+    const accessToken = sessionBody.accessToken;
+    if (typeof accessToken !== "string" || accessToken.length === 0) {
+      console.error("✗ تبادلُ الجلسةِ لم يُعِدْ رمزَ وصولٍ — المسارُ غيرُ صالحٍ للقياس");
+      process.exit(1);
+    }
+    const meRes = await fetch(`${origin}/v1/me`, {
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+    if (meRes.status !== 200) {
+      console.error(`✗ GET /v1/me لم ينجح: ${meRes.status} — المسارُ غيرُ صالحٍ للقياس`);
+      process.exit(1);
+    }
+    const meBody = (await meRes.json()) as { role?: string; status?: string };
+    if (meBody.role !== "rider" || meBody.status !== "active") {
+      console.error(
+        `✗ /v1/me أعاد role=${meBody.role ?? "—"} status=${meBody.status ?? "—"} — المتوقَّعُ rider/active. المسارُ يصلُ إلى شاشةٍ نظاميّةٍ لا سطحاً منتجاً`,
+      );
+      process.exit(1);
+    }
+    console.log(
+      `  تحقّقُ المسار: session=201 · me=200 · role=${meBody.role} · status=${meBody.status} · surface=rider`,
+    );
+
     // توليدُ initData مُوقَّعةٍ لكلِّ تشغيلٍ (تفاديًا لـSEC-17).
     const initDatas = signFreshInitData(TEST_BOT_TOKEN, TEST_USER, THROTTLED_RUNS + 1);
 
@@ -557,7 +659,7 @@ async function main(): Promise<void> {
       // تشغيلٌ بلا تقييدٍ — لشرطِ الحياةِ.
       const unthrottled = await measureOnce(browser, origin, null, initDatas[0]?.raw ?? "");
       console.log(
-        `  بلا تقييدٍ: FCP=${unthrottled.fcpMs?.toFixed(0) ?? "—"} ms · TTI=${unthrottled.ttiMs?.toFixed(0) ?? "—"} ms · عُقَدُ #root=${unthrottled.rootChildCount}`,
+        `  بلا تقييدٍ: FCP=${unthrottled.fcpMs?.toFixed(0) ?? "—"} ms · TTI=${unthrottled.ttiMs?.toFixed(0) ?? "—"} ms · surface=${unthrottled.surface ?? "—"} · عُقَدُ #root=${unthrottled.rootChildCount}`,
       );
 
       const throttled: InteractiveRun[] = [];
@@ -565,7 +667,7 @@ async function main(): Promise<void> {
         const run = await measureOnce(browser, origin, SLOW_3G, initDatas[i + 1]?.raw ?? "");
         throttled.push(run);
         console.log(
-          `  ${SLOW_3G.id} #${i + 1}: FCP=${run.fcpMs?.toFixed(0) ?? "—"} ms · TTI=${run.ttiMs?.toFixed(0) ?? "—"} ms`,
+          `  ${SLOW_3G.id} #${i + 1}: FCP=${run.fcpMs?.toFixed(0) ?? "—"} ms · TTI=${run.ttiMs?.toFixed(0) ?? "—"} ms · surface=${run.surface ?? "—"}`,
         );
       }
 

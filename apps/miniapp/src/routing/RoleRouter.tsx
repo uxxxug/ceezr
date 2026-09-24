@@ -77,8 +77,25 @@ const SURFACE_LOADERS: SurfaceLoaders<SurfaceModule> = {
 
 type RouterState =
   | { readonly kind: "resolving" }
-  | { readonly kind: "surface"; readonly Component: ComponentType<LanguageSurfaceProps> }
+  | {
+      readonly kind: "surface";
+      readonly Component: ComponentType<LanguageSurfaceProps>;
+      readonly surface: "rider" | "driver" | "admin";
+    }
   | { readonly kind: "screen"; readonly screen: ScreenState };
+
+/**
+ * استخراجُ السطحِ المنتجِ من حالةِ الموجّهِ — دالّةٌ صافيةٌ تُختَبَرُ بلا DOM.
+ *
+ * تُعيدُ اسمَ السطحِ (`rider`/`driver`/`admin`) إن وصلَ الموجّهُ إلى سطحٍ منتجٍ،
+ * أو `null` خلافَ ذلك (حلٌّ، شاشةٌ نظاميّةٌ، عطلٌ). العلامةُ التفاعليّةُ لا تُطلَقُ
+ * إلا حين تكونُ هذه القيمةُ غيرَ `null` — وهذا ما يمنعُ الإيجابَ الكاذبَ.
+ */
+export function interactiveSurfaceFromState(
+  state: RouterState,
+): "rider" | "driver" | "admin" | null {
+  return state.kind === "surface" ? state.surface : null;
+}
 
 export interface RoleRouterProps {
   /**
@@ -114,21 +131,30 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const [language, setLanguage] = useState<MiniAppLanguage>(MINIAPP_DEFAULT_LANGUAGE);
   const mounted = useRef(true);
   /**
-   * `F1-09` الصفُّ ٥ — علامةُ «وقتِ التفاعلِ»: تُوضَعُ مرّةً واحدةً حينَ يَنتقلُ
-   * الموجّهُ من «حلٍّ» إلى أيِّ حالةٍ أخرى (سطحٌ أو شاشةُ)، أي حينَ يصيرُ التطبيقُ
-   * قابلاً للتفاعلِ بعدَ الإقلاعِ الكاملِ (تبادلُ الجلسةِ + قراءةُ الدورِ + تحميلُ
-   * السطحِ). والعلامةُ بلا كلفةٍ (`performance.mark` لا يُغيّرُ سلوكاً) وتُقرأُ من
-   * `scripts/measure-tti.ts`.
+   * `F1-09` الصفُّ ٥ — علامةُ «وقتِ التفاعلِ»: تُوضَعُ مرّةً واحدةً حينَ يَصلُ
+   * الموجّهُ إلى **سطحٍ منتجٍ** (راكبٌ أو سائقٌ أو مشرف)، لا عندَ شاشةٍ نظاميّةٍ.
+   * والمسارُ إلى الشاشةِ (`unregistered`/`blocked`/`session_*`/`unavailable`/
+   * `surface_failed`) **لا يُعَدُّ تفاعلاً** — فشاشةُ الخطأِ سليمةٌ تقنيّاً لكنَّها ليست
+   * الناتجَ الذي يُقاسُ زمنُ الوصولِ إليه. والعلامةُ بلا كلفةٍ (`performance.mark`
+   * لا يُغيّرُ سلوكاً) وتُقرأُ من `scripts/measure-tti.ts`.
+   *
+   * **التصحيحُ** (`ح-8`): كانَت تُطلَقُ على `state.kind !== "resolving"` فيدخلُ فيها
+   * `screen`، فيصيرُ الوصولُ إلى شاشةِ «غيرِ مسجَّل» تفاعلاً مقبولاً — وهذا مسارُ
+   * إيجابٍ كاذبٍ يحوّلُ القياسَ إلى زمنِ الوصولِ إلى شاشةِ خطأٍ لا إلى سطحٍ منتج.
    */
   const interactiveMarked = useRef(false);
+  const interactiveSurface = interactiveSurfaceFromState(state);
   useEffect(() => {
-    if (!interactiveMarked.current && state.kind !== "resolving") {
+    if (!interactiveMarked.current && interactiveSurface !== null) {
       interactiveMarked.current = true;
       if (typeof performance !== "undefined" && typeof performance.mark === "function") {
         performance.mark("waslah-interactive");
+        // علامةٌ ثانيةٌ تكشفُ السطحَ المنتجَ الذي وصلَهُ الموجّهُ — تُقرأُ من
+        // `scripts/measure-tti.ts` لإثباتِ أنّ القياسَ لم يصلْ إلى شاشةٍ نظاميّةٍ.
+        performance.mark(`waslah-surface:${interactiveSurface}`);
       }
     }
-  }, [state.kind]);
+  }, [interactiveSurface]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -158,7 +184,7 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
       setState({ kind: "screen", screen: { kind: "surface_failed" } });
       return;
     }
-    setState({ kind: "surface", Component: outcome.module.default });
+    setState({ kind: "surface", Component: outcome.module.default, surface: outcome.loaded });
   }, [fetchViewer]);
 
   useEffect(() => {

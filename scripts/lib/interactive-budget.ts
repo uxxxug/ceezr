@@ -31,17 +31,17 @@ export interface DeclaredTtiBreach {
 }
 
 /**
- * الخرقُ المقيسُ على `SLOW_3G`. والسقفُ = الوسيطُ المقيسُ محلّيًّا مضروبًا في ١٫٢٥
+ * الخرقُ المقيسُ على `SLOW_3G`. والسقفُ = الوسيطُ المقيسُ على CI مضروبًا في ١٫٢٥
  * — هامشُ تذبذبِ مُنفِّذٍ مشتركٍ لا هامشُ تحسينٍ. ويُعادُ قياسُه على CI ويُكتَبُ في
- * الدليل. ويُحدَّثُ بعدَ أوّلِ قياسٍ على CI.
+ * الدليل. ويُحدَّثُ بعدَ كلِّ قياسٍ صادقٍ على CI.
  */
 export const DECLARED_TTI_BREACHES: readonly DeclaredTtiBreach[] = [
   {
     metric: "tti",
-    ceilingMs: 12_000,
+    ceilingMs: 18_000,
     decision: "DEC-19",
     reason:
-      "الصفُّ ٥ يَشملُ مسارَ الإقلاعِ كاملَه: تنزيلُ الحملِ الأوّلِ (~154 KB) + تبادلُ initData + GET /v1/me + تحميلُ السطحِ. وزمنُ الذهابِ والإيابِ (٢ ثانيةٍ) وحدَه يُكلِّفُ نصفَ الحدِّ، فالخرقُ حتميٌّ على Slow 3G.",
+      "الصفُّ ٥ يَشملُ شريحةَ إقلاعٍ مُختبَرةً للهويّةِ والجلسةِ والعارض: تنزيلُ الحملِ الأوّلِ (~154 KB) + تبادلُ initData + GET /v1/me + تحميلُ السطحِ + قراءةُ الموافقاتِ. وزمنُ الذهابِ والإيابِ (٢ ثانيةٍ) وحدَه يُكلِّفُ نصفَ الحدِّ، فالخرقُ حتميٌّ على Slow 3G. السقفُ ١٨٬٠٠٠ ms = الوسيطُ المقيسُ على CI (١٤٬١٥٠ ms) × ١٫٢٥ — بُنيَ على قياسٍ صادقٍ بعدَ إصلاحِ مسارِ الإيجابِ الكاذبِ (run 35962104791).",
   },
 ];
 
@@ -58,6 +58,12 @@ export interface InteractiveRun {
   readonly uncaughtExceptions: readonly string[];
   /** علامةُ `waslah-interactive` ظهرَت. */
   readonly interactiveMarked: boolean;
+  /**
+   * **السطحُ المنتجُ** الذي وصلَ إليه الموجّهُ — `rider`/`driver`/`admin`، أو
+   * `null` إن وصلَ إلى شاشةٍ نظاميّةٍ (`unregistered`/`blocked`/…) أو لم يُحلَّ
+   * بعدُ. وغيابُ السطحِ مع علامةٍ تفاعليّةٍ كانَ مسارَ إيجابٍ كاذبٍ قبلَ التصحيح.
+   */
+  readonly surface: "rider" | "driver" | "admin" | null;
 }
 
 export interface InteractiveProblem {
@@ -67,6 +73,8 @@ export interface InteractiveProblem {
     | "FAILED_REQUEST"
     | "UNCAUGHT_EXCEPTION"
     | "NO_INTERACTIVE"
+    | "NO_SURFACE"
+    | "INTERACTIVE_WITHOUT_SURFACE"
     | "UNDECLARED_BREACH"
     | "BREACH_REGRESSED"
     | "DEAD_DECLARATION"
@@ -110,6 +118,19 @@ export function interactiveLivenessProblems(
     problems.push({
       rule: "NO_INTERACTIVE",
       detail: `${label}: لم تظهر علامةُ waslah-interactive — التطبيقُ لم يَصِرْ قابلاً للتفاعلِ`,
+    });
+  }
+  if (run.surface === null) {
+    problems.push({
+      rule: "NO_SURFACE",
+      detail: `${label}: الموجّهُ لم يصلْ إلى سطحٍ منتجٍ (rider/driver/admin) — قد يكونُ على شاشةٍ نظاميّةٍ`,
+    });
+  }
+  // حارسٌ متقابلٌ: علامةٌ تفاعليّةٌ بلا سطحٍ = إيجابٌ كاذبٌ.
+  if (run.interactiveMarked && run.surface === null) {
+    problems.push({
+      rule: "INTERACTIVE_WITHOUT_SURFACE",
+      detail: `${label}: علامةُ تفاعلٍ ظهرَت بلا سطحٍ منتجٍ — مسارُ إيجابٍ كاذبٍ`,
     });
   }
   return problems;
