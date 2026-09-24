@@ -152,7 +152,7 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
       const verdict = evaluateInteractive({
         unthrottled: goodRun(100),
         profileId: "test",
-        throttled: [goodRun(13000), goodRun(14000), goodRun(12000)],
+        throttled: [goodRun(19000), goodRun(20000), goodRun(18000)],
         declared: DECLARED_TTI_BREACHES,
         knownDecisions: VALID_DECISIONS,
       });
@@ -185,11 +185,11 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
       const verdict = evaluateInteractive({
         unthrottled: goodRun(100),
         profileId: "test",
-        throttled: [goodRun(8000), goodRun(13000), goodRun(8000)],
+        throttled: [goodRun(14000), goodRun(19000), goodRun(14000)],
         declared: DECLARED_TTI_BREACHES,
         knownDecisions: VALID_DECISIONS,
       });
-      // الوسيطُ 8000 — ضمنَ السقفِ.
+      // الوسيطُ 14000 — ضمنَ السقفِ.
       expect(verdict.problems).toHaveLength(0);
     });
   });

@@ -32,6 +32,10 @@ import {
 import { type KeyDimension, rateLimitPolicy } from "../apps/gateway/src/rate-limit/policy.ts";
 import { createServer, type ServerDependencies } from "../apps/gateway/src/server.ts";
 import { buildBrowserHostScript } from "../apps/miniapp/src/tg/measure-host.ts";
+import {
+  createConsentRecordReader,
+  createConsentRecordWriter,
+} from "../packages/infrastructure/consent/consent-store.ts";
 import { createSql } from "../packages/infrastructure/db/client.ts";
 import { createMemoryInitDataReplayGuard } from "../packages/infrastructure/identity/memory-init-data-replay-guard.ts";
 import { createMemorySessionRevocationStore } from "../packages/infrastructure/identity/memory-session-revocation-store.ts";
@@ -518,6 +522,22 @@ async function main(): Promise<void> {
       webhook: { webhookSecret: "tti-test-secret", handler: container.handler },
       sessionTelegram,
       me,
+      // مسارُ الموافقاتِ: سطحُ الراكبِ يطلُبُ `/v1/consents` عندَ الإقلاعِ، فهو
+      // جزءٌ من شريحةِ الإقلاعِ المُختبَرةِ لا إضافةٌ خارجيّةٌ. وغيابُه كانَ يُسقِطُ
+      // القياسَ بـ`FAILED_REQUEST` بعدَ إصلاحِ صدقِ المسارِ.
+      consents: {
+        consent: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(TEST_SESSION_SECRET),
+            revocationStore,
+          ),
+          reader: createConsentRecordReader(sql),
+          writer: createConsentRecordWriter(sql),
+          now: () => new Date(),
+          log: () => {},
+        },
+        log: () => {},
+      },
     };
 
     const honoApp = createServer(serverDeps);
@@ -629,7 +649,7 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     console.log(
-      `  تحقّقُ المسار: session=200 · me=200 · role=${meBody.role} · status=${meBody.status} · surface=rider`,
+      `  تحقّقُ المسار: session=201 · me=200 · role=${meBody.role} · status=${meBody.status} · surface=rider`,
     );
 
     // توليدُ initData مُوقَّعةٍ لكلِّ تشغيلٍ (تفاديًا لـSEC-17).
