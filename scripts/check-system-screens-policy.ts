@@ -32,6 +32,8 @@ const MINIAPP_ROOT = "apps/miniapp";
 const HEALTH_FILE = "apps/miniapp/src/system/health.ts";
 /** موضعُ مبادلةِ الجلسةِ الوحيد. */
 const BOOT_FILE = "apps/miniapp/src/identity/boot.ts";
+/** صفحةُ المضيفِ — السكربتُ الساكنُ يُقدِّمُ الجلسةَ والدورَ والموافقاتِ (`F1-09`). */
+const HOST_PAGE = "apps/miniapp/index.html";
 /** موضعُ تصنيفِ الفشلِ الوحيد. */
 const FAILURE_FILE = "apps/miniapp/src/system/failure.ts";
 /** هذا الملفُّ نفسُه يذكر الأنماطَ نصّاً فيُستثنى. */
@@ -70,8 +72,10 @@ const RULES: readonly Rule[] = [
     pattern: /["'`]\/v1\/session\/telegram\b/,
     // الاختباراتُ تُستثنى كما في حارسِ `\/v1\/me`: نصُّها لا يُشحَن، ويلزمها ذكرُ
     // المسارِ لتتحقّق منه أصلاً. والقاعدةُ على شيفرةِ الإنتاجِ وهي التي تعمل.
+    // و`index.html` يستثنى للسكربتِ الساكنِ (`F1-09`): التقديمُ ليس مبادلةً
+    // مستقلةً بل بدءٌ مبكِّرٌ لنفسِ النداءِ الذي يُستهلَكُ في `boot.ts`.
     why: "مبادلةُ `initData` مسارُ إقلاعٍ واحدٌ لا مسارات (F1-07 · القسم 9.8)",
-    allowed: (file) => file === BOOT_FILE || isTest(file),
+    allowed: (file) => file === BOOT_FILE || file === HOST_PAGE || isTest(file),
   },
   {
     pattern: /\bnavigator\s*\.\s*onLine\b/,
