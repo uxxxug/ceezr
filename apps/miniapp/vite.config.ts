@@ -12,6 +12,7 @@ import {
 import { injectCsp } from "./vite/inject-csp.ts";
 import { inlineEntryScript } from "./vite/inline-entry-script.ts";
 import { inlineStylesheet } from "./vite/inline-stylesheet.ts";
+import { warmRiderHome } from "./vite/warm-rider-home.ts";
 
 /**
  * F1-01 — static-asset build for Telegram Mini App (and browser fallback later).
@@ -42,6 +43,8 @@ export default defineConfig({
     assertInitialDictionaries(),
     // `F1-09` · `D-30`: يُسقِطُ البناءَ إن عادَت حزمُ 9.4 المؤجَّلةُ إلى حِملِ سطحِ الراكبِ الأوّلِ.
     assertRiderFirstSurface(),
+    // `F1-09` · `D-31`: اسمُ `rider-home` في السكربتِ الساكنِ **قبلَ** بصمةِ `injectCsp` (`ADR 0187`).
+    warmRiderHome(),
     injectCsp(),
     // `F1-09` · `D-30`: بعدَ اكتمالِ المُخرَجِ — لا مرجعَ إلى أصلٍ محذوفٍ (كالأنماطِ المُدمَجةِ).
     assertAssetReferences(),
