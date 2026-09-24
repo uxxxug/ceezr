@@ -8733,3 +8733,16 @@ SHA متميِّزة. هذا هو أولُها (`7d9a7d6`).
   و`apps/miniapp/src/surfaces/rider/` و`scripts/measure-tti.ts`. الخياراتُ في
   `docs/evidence/architecture/F1-09-20260924-dec19-decision.md`.
 - **الحالةُ**: الفرعُ غيرُ مدموجٍ · `F1-09` `[~]` · `DEC-19` `[!]`.
+
+#### قرارُ المالكِ في آليّةِ المقياسِ الثالثِ (2026-09-24 · حجزٌ قبلَ التعديلِ)
+
+- **القرارُ**: Element Timing — عنصرٌ مرئيٌّ واحدٌ في أوّلِ شاشةِ سطحِ `rider` يحملُ `elementtiming="waslah-rider-surface"`،
+  و`PerformanceObserver({type:"element", buffered:true})` يلتقطُه بـ`identifier`، والقيمةُ المحكومةُ
+  `PerformanceElementTiming.renderTime` من `performance.timeOrigin`. غيابُ العنصرِ أو `renderTime` فشلُ قياسٍ؛
+  ولا يُقبَلُ إلّا و`surface === "rider"`. **لا** علامةَ `rAF` · **لا** حذفَ لـ`RENDERED_BEFORE_PAINT` ·
+  **لا** `max(mark, FCP)` · **لا** تغييرَ للحدودِ · ولا عنصرَ في حالةِ تحميلٍ.
+- **المحجوزُ**: `apps/miniapp/src/surfaces/rider/welcome/WelcomeScreen.tsx` (أوّلُ شاشةٍ: `proceeded` يبدأُ
+  `false` في `RiderRoot.tsx`) · `apps/miniapp/src/routing/RoleRouter.tsx` (إزالةُ علامةِ `rAF` غيرِ المدموجةِ) ·
+  `scripts/measure-tti.ts` · `scripts/lib/interactive-budget.ts` · `scripts/lib/rider-surface-budget.ts` ·
+  حاجزٌ جديدٌ `scripts/check-rider-surface-timing.ts` + `scripts/lib/rider-surface-timing.ts` واختباراتُهما ·
+  `package.json` (سلسلةُ `ci`) · `.github/workflows/ci.yml` (خطوةٌ في `verify`) · الوثائقُ بالإضافةِ.
