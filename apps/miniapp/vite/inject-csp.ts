@@ -23,53 +23,20 @@
  *     والبناءُ أخضرُ.
  */
 
-import { createHash } from "node:crypto";
 import type { Plugin } from "vite";
-import { buildCsp, cspMetaTag } from "../../../scripts/lib/content-security-policy.ts";
-
-/** بصمةُ `sha256` بصيغةِ السياسةِ: `'sha256-<base64>'`. */
-function sha256Source(source: string): string {
-  return `'sha256-${createHash("sha256").update(source, "utf8").digest("base64")}'`;
-}
-
-/**
- * كتلُ `<style>` المُدمَجةُ في المستند. المُبصَّمُ **ما بين الوسمَين حرفاً حرفاً**:
- * أيُّ اختلافٍ ولو بمسافةٍ يُبطِل البصمةَ، فتُقرأ من المُخرَجِ لا تُعاد بناءً.
- */
-function inlineStyleSources(html: string): string[] {
-  const sources: string[] = [];
-  const pattern = /<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g;
-  let match = pattern.exec(html);
-  while (match !== null) {
-    const body = match[1];
-    if (body !== undefined) sources.push(body);
-    match = pattern.exec(html);
-  }
-  return sources;
-}
+import {
+  buildCsp,
+  cspMetaTag,
+  inlineScriptBodies,
+  inlineStyleBodies,
+  sha256Source,
+} from "../../../scripts/lib/content-security-policy.ts";
 
 /**
- * كتلُ `<script type="module">` المُدمَجةُ في المستند (المدخلُ في `D-23`).
- * المُبصَّمُ **ما بين الوسمَين حرفاً حرفاً** — كالأنماطِ سواءً بسواء.
- * ولا تُبصَّمُ السكربتاتُ الخارجيّةُ (لها `src=`) ولا سكربتاتُ تيليجرام: تلكَ
- * تُحمَّلُ من `'self'` أو من النطاقِ المأذونِ، لا بصمةَ لها.
+ * زيادةٌ 2026-09-25 (`F1-09` · `D-27`): استخراجُ الأجسامِ المُضمَّنةِ وبصمتُها صارا في
+ * وحدةِ السياسةِ مصدراً واحداً يقرؤه هذا الباني والحاجزُ `check-single-origin-assets`
+ * معاً — وكانا نسختَينِ تطابقانِ `type="module"` وحدَه فتُسقِطانِ السكربتَ الكلاسيكيَّ.
  */
-function inlineScriptSources(html: string): string[] {
-  const sources: string[] = [];
-  const pattern = /<script\s+[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/g;
-  let match = pattern.exec(html);
-  while (match !== null) {
-    const tag = match[0];
-    const body = match[1];
-    /** السكربتُ الخارجيُّ (له `src=`) ليس مُدمَجاً — يُتخطَّى. */
-    if (body !== undefined && !/\ssrc=/.test(tag)) {
-      sources.push(body);
-    }
-    match = pattern.exec(html);
-  }
-  return sources;
-}
-
 export function injectCsp(): Plugin {
   let apiBase: string | undefined;
 
@@ -96,8 +63,8 @@ export function injectCsp(): Plugin {
     transformIndexHtml: {
       order: "post",
       handler(html) {
-        const styleHashes = inlineStyleSources(html).map(sha256Source);
-        const scriptHashes = inlineScriptSources(html).map(sha256Source);
+        const styleHashes = inlineStyleBodies(html).map(sha256Source);
+        const scriptHashes = inlineScriptBodies(html).map(sha256Source);
         const policy = buildCsp({
           apiBase,
           inlineStyleHashes: styleHashes,

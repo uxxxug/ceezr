@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { assertPrebootPlacement } from "./vite/assert-preboot-placement.ts";
 import { injectCsp } from "./vite/inject-csp.ts";
 import { inlineEntryScript } from "./vite/inline-entry-script.ts";
 import { inlineStylesheet } from "./vite/inline-stylesheet.ts";
@@ -24,7 +25,14 @@ export default defineConfig({
    * المستندِ بعدَ دمجِهما فيه. ولو سبقهما لبَصَّم لا شيءَ، ومرَّ البناءُ أخضرَ
    * وظهر التطبيقُ بلا أنماطٍ ولا تنفيذٍ على الجهازِ (ADR 0045).
    */
-  plugins: [react(), inlineStylesheet(), inlineEntryScript(), injectCsp()],
+  plugins: [
+    react(),
+    inlineStylesheet(),
+    inlineEntryScript(),
+    // `F1-09` · `D-27`: بعدَ إدماجِ المدخلِ — يُسقِطُ البناءَ إن طُوِيَ التقديمُ فيه.
+    assertPrebootPlacement(),
+    injectCsp(),
+  ],
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "src"),

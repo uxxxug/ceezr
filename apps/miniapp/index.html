@@ -74,24 +74,48 @@
         <span class="sk-preboot__line sk-preboot__line--short"></span>
       </div>
     </div>
-    <script type="module">
-      // `DEC-19` · `F1-09`: التقديمُ الساكنُ — يبدأُ تبادلَ الجلسةِ وقراءةَ الدورِ
-      // والموافقاتِ قبلَ اكتمالِ تنزيلِ حزمِ الشيفرةِ، فتتداخلُ الطلباتُ مع التنزيلِ.
-      // ولا يفعلُ شيئًا خارجَ تيليجرامَ. النتائجُ تُستهلَكُ من `identity/preboot.ts`.
-      // `defer` على سكربتِ تيليجرامَ يضمنُ أنّ `window.Telegram.WebApp` متاحٌ قبلَ هذا.
+    <!--
+      `DEC-19` · `F1-09` · `D-27`: التقديمُ الساكنُ سكربتٌ **كلاسيكيٌّ** لا وحدةٌ، عن قصدٍ:
+      Vite يطوي كلَّ سكربتِ وحدةٍ مُضمَّنٍ في وحدةِ المدخلِ، فيقعُ بعدَ `import`
+      حزمِ الشيفرةِ ولا يُنفَّذُ إلّا بعدَ تنزيلِها — وهذا ما كانَ (CI `35994981204`: الجلسةُ
+      تبدأُ عندَ 2060 ms بعدَ `shell` عندَ 2046). والكلاسيكيُّ يبقى في موضعِه ويُنفَّذُ حينَ
+      يُحلَّلُ، أي بعدَ طلبِ المستندِ وحدَه. وحاجزُ المُخرَجِ `preboot-dist.test.ts` يُسقِطُ
+      البناءَ إن طُوِيَ أو وقعَ بعدَ المدخلِ. وبصمتُه في `script-src` كبصمةِ المدخلِ.
+      `initData` من المضيفِ إن حُقِنَ، وإلّا من `#tgWebAppData` حيثُ يضعُه تيليجرامُ —
+      لأنَّ سكربتَ تيليجرامَ `defer` فلم يُنفَّذْ بعدُ. ويحترمُ أصلَ البوّابةِ (`D-28`) كما
+      يحترمُه `api/client.ts`. ولا يفعلُ شيئاً خارجَ تيليجرامَ. والاستهلاكُ في `identity/preboot.ts`.
+    -->
+    <script>
       (function () {
+        var base = "%VITE_WASLAH_API_BASE%";
+        if (base.charAt(0) === "%") base = "";
+        base = base.replace(/\/$/, "");
+        var initData = "";
         var wa = window.Telegram && window.Telegram.WebApp;
-        if (!wa || typeof wa.initData !== "string" || wa.initData.length === 0) return;
-        var s = fetch("/v1/session/telegram", {
+        if (wa && typeof wa.initData === "string") initData = wa.initData;
+        if (initData.length === 0) {
+          var pairs = window.location.hash.replace(/^#/, "").split("&");
+          for (var i = 0; i < pairs.length; i += 1) {
+            var eq = pairs[i].indexOf("=");
+            if (eq > 0 && pairs[i].slice(0, eq) === "tgWebAppData") {
+              try {
+                initData = decodeURIComponent(pairs[i].slice(eq + 1).replace(/\+/g, "%20"));
+              } catch (e) {
+                initData = "";
+              }
+            }
+          }
+        }
+        if (initData.length === 0) return;
+        var s = fetch(base + "/v1/session/telegram", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ initData: wa.initData }),
+          body: JSON.stringify({ initData: initData }),
         }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("preboot:" + r.status)); });
         var d = s.then(function (res) {
-          var tok = res.accessToken;
-          var h = { authorization: "Bearer " + tok };
-          var v = fetch("/v1/me", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-          var c = fetch("/v1/consents", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+          var h = { authorization: "Bearer " + res.accessToken };
+          var v = fetch(base + "/v1/me", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+          var c = fetch(base + "/v1/consents", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
           return { viewer: v, consents: c };
         });
         window.__waslahPreboot = {

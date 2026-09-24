@@ -34,6 +34,8 @@
  * - **لا تحرس شيئاً**: هي تُعلِن السياسةَ، والفرضُ في الحاجزِ وحدَه.
  */
 
+import { createHash } from "node:crypto";
+
 /**
  * ## النطاقاتُ الخارجيةُ المأذونُ لها بتنفيذِ شيءٍ في مستندِنا
  *
@@ -188,4 +190,48 @@ export function buildCsp(inputs: CspInputs): string {
 /** وسمُ السياسةِ كما يُحقَن في الرأسِ. موضعُ بنائِه واحدٌ فلا يفترق الحاجزُ والباني. */
 export function cspMetaTag(policy: string): string {
   return `<meta http-equiv="Content-Security-Policy" content="${policy}" />`;
+}
+
+/** بصمةُ `sha256` بصيغةِ السياسةِ: `'sha256-<base64>'`. حسابٌ نقيٌّ لا قرصَ فيه. */
+export function sha256Source(source: string): string {
+  return `'sha256-${createHash("sha256").update(source, "utf8").digest("base64")}'`;
+}
+
+/**
+ * التعليقاتُ تُحذَفُ قبلَ الاستخراجِ: المتصفّحُ لا يُنفِّذُ ما فيها، ووسمٌ مذكورٌ نصّاً
+ * في تعليقٍ كانَ سيُطابَقُ فتُحسَبُ بصمةُ جسمٍ لا وجودَ له ويُحجَبُ السكربتُ الحقيقيُّ.
+ */
+function withoutHtmlComments(html: string): string {
+  return html.replace(/<!--[\s\S]*?-->/g, "");
+}
+
+/** أجسامُ كتلِ `<style>` المُضمَّنةِ في مستندٍ، بترتيبِ ورودِها. */
+export function inlineStyleBodies(html: string): string[] {
+  const source = withoutHtmlComments(html);
+  const bodies: string[] = [];
+  const pattern = /<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g;
+  for (let match = pattern.exec(source); match !== null; match = pattern.exec(source)) {
+    bodies.push(match[1] ?? "");
+  }
+  return bodies;
+}
+
+/**
+ * أجسامُ **كلِّ** سكربتٍ مُضمَّنٍ في مستندٍ — وحدةً كانَ (`type="module"`) أو
+ * كلاسيكيّاً (بلا `type`) — بترتيبِ ورودِها؛ ويُتخطّى ما له `src=` لأنَّه ليسَ مُضمَّناً.
+ *
+ * زيادةٌ 2026-09-25 (`F1-09` · `D-27`): كانَ المستخرِجُ نسختَينِ (الباني والحاجزُ)
+ * تطابقانِ `type="module"` وحدَه، فسكربتٌ كلاسيكيٌّ مُضمَّنٌ يخرجُ بلا بصمةٍ فيحجبُه
+ * المتصفّحُ صامتاً. وصارَ مصدراً واحداً هنا يقرؤه الاثنانِ فلا يفترقانِ.
+ */
+export function inlineScriptBodies(html: string): string[] {
+  const source = withoutHtmlComments(html);
+  const bodies: string[] = [];
+  const pattern = /<script(\s[^>]*)?>([\s\S]*?)<\/script>/g;
+  for (let match = pattern.exec(source); match !== null; match = pattern.exec(source)) {
+    const attributes = match[1] ?? "";
+    if (/\ssrc=/.test(attributes)) continue;
+    bodies.push(match[2] ?? "");
+  }
+  return bodies;
 }
