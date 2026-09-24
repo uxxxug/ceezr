@@ -8755,11 +8755,16 @@ SHA متميِّزة. هذا هو أولُها (`7d9a7d6`).
 
 #### تحليلٌ تشخيصيٌّ لسببِ تأخّرِ FCP على Slow 4G + CPU ×4 (2026-09-24 · تشخيصٌ فقط)
 
-- **السببُ المُثبَتُ**: نصُّ الـskeleton مخفيٌّ بصريًّا بـ`clip:rect(0 0 0 0)` — Chromium لا يحتسبُه كـ«contentful». FCP لا يُشعَّلُ إلّا بعدَ تحميلِ JS bundles وعرضِ React لنصٍّ مرئيٍّ.
-- **القياسُ**: بـ`scripts/diagnose-f1-09-fcp-v3.cjs` — ثلاثةُ سيناريوهاتٍ × ثلاثةُ متغيّراتٍ (نصٌّ مخفيٌّ / نصٌّ مرئيٌّ / استئصالُ imports). مع نصٍّ مرئيٍّ: FCP يقفزُ من 2224ms إلى 680ms على Slow 4G + CPU ×4 (sandbox). الشبكةُ 94% من التأخيرِ، CPU ×4 يضيفُ ~5% فقط.
-- **ما لم يُقَس**: التحليلُ المطلقُ للـ~4.1s في CI يحتاجُ التقاطَ traceٍ في CI نفسها.
+- **السببُ المرصودُ في الـsandbox**: نصُّ الـskeleton مخفيٌّ بصريًّا بـ`clip:rect(0 0 0 0)` — Chromium لا يحتسبُه كـ«contentful». FCP لا يُشعَّلُ إلّا بعدَ تحميلِ JS bundles وعرضِ React لنصٍّ مرئيٍّ. في الـsandbox: الشبكةُ 94% من التأخيرِ، CPU ×4 يضيفُ ~5% فقط.
+- **القياسُ في الـsandbox**: بـ`scripts/diagnose-f1-09-fcp-v3.cjs` — مع نصٍّ مرئيٍّ: FCP يقفزُ من 2224ms إلى 680ms على Slow 4G + CPU ×4.
+- **التحققُ السببيُّ في CI (PR #260)**: استبدالُ `sk-preboot__visually-hidden` بـ`sk-preboot__text` (نصٌّ مرئيٌّ) في `apps/miniapp/index.html`:
+  - Slow 4G + CPU×4 قبل: FCP ≈ 4092ms (main، PR #257)
+  - Slow 4G + CPU×4 بعد: FCP = 656 / 660 / 652ms (وسيطٌ 656ms) — **الحدُّ 1800ms مستوفىً**
+  - LCP/surface-rendered بقي ~4056ms — **الحدّان 2500/2000ms غيرُ مستوفياتٍ**
+  - دليلٌ سببيٌّ قويٌّ أن إخفاءَ نصِّ الـskeleton كان سببَ تأخّرِ FCP في مسارِ CI المقاس.
+- **ما لم يُقَس**: التحليلُ المطلقُ للـ~4.05s المتبقّية في LCP/surface-rendered يحتاجُ traceًا في CI.
 - **الدليلُ**: `docs/evidence/architecture/F1-09-20260924-fcp-diagnostic.md`.
-- **الحالةُ**: `F1-09` `[~]` · `SLOW_4G_GATE_MODE` `"report-only"` — لا تغييرَ.
+- **الحالةُ**: `F1-09` `[~]` (LCP/surface-rendered غيرُ مستوفياتٍ) · `SLOW_4G_GATE_MODE` `"report-only"` — لا تغييرَ.
 
 #### تجربةٌ هندسيّةٌ: نصُّ الـskeleton المرئيُّ (2026-09-24 · تجريبيٌّ)
 
