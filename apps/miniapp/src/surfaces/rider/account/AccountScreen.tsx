@@ -30,7 +30,7 @@
  * انظرْ حاشيةَ `account-view.ts` في أساسِ الإبقاءِ الذي لم يُعرَضْ قطُّ.
  */
 
-import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import type { AccountRightsProps } from "../../account/AccountRights.tsx";
 import { AccountRights } from "../../account/AccountRights.tsx";
 import { SosEntry } from "../sos/SosEntry.tsx";

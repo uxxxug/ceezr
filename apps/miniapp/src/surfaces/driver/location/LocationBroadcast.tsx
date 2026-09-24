@@ -39,7 +39,7 @@ import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
   miniAppTranslator,
-} from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { ApiError } from "../../../api/client.ts";
 import { locationAccess, openLocationSettings, requestLocation } from "../../../tg/index.ts";
 import { readDriverActiveJob } from "../job/job-api.ts";

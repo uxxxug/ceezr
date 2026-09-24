@@ -26,7 +26,7 @@
  *   ــ **لا تُظهِرُ زرَّ إعادةٍ فوقَ تهدئةٍ**: تقولُ الثانيةَ الباقيةَ.
  */
 
-import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { TicketsScreen } from "../../support/TicketsScreen.tsx";
 import type { OpenTicketInput, ReadTicketsInput } from "../../support/ticket-api.ts";
 import type { OpenTicketResponse, SupportTicketsResponse } from "../../support/ticket-contract.ts";

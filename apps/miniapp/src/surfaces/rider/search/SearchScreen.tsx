@@ -63,7 +63,7 @@ import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
   miniAppTranslator,
-} from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import {
   classifyFailure,
   failureFromThrown,

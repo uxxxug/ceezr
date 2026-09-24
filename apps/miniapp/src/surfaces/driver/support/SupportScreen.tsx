@@ -24,7 +24,7 @@
  *      وتكرارُ رقمٍ ماليٍّ في شاشتَينِ يُنتِجُ رقمَينِ يفترقانِ.
  */
 
-import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { TicketsScreen } from "../../support/TicketsScreen.tsx";
 import type { ReadTicketsInput } from "../../support/ticket-api.ts";
 import type { OpenTicketResponse, SupportTicketsResponse } from "../../support/ticket-contract.ts";

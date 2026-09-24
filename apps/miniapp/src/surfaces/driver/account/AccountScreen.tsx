@@ -23,7 +23,7 @@
  * يُعلِنُه عقدُ العميلِ.
  */
 
-import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import type { AccountRightsProps } from "../../account/AccountRights.tsx";
 import { AccountRights } from "../../account/AccountRights.tsx";
 import { driverAccountView } from "./account-view.ts";

@@ -21,7 +21,7 @@
 import {
   isMiniAppLanguage,
   type MiniAppLanguage,
-} from "../../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../../packages/shared/i18n/miniapp/core.ts";
 import { apiFetch } from "../../api/client.ts";
 import type { DataExportResponse, ErasureResponse } from "./account-contract.ts";
 

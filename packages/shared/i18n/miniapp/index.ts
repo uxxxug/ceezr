@@ -21,49 +21,15 @@
  * اختياراً — اللغةُ تُمرَّرُ وسيطاً، وحفظُها في الحسابِ بندُ `F2-11`.
  */
 
-import ar from "./ar.json" with { type: "json" };
+// زيادةٌ 2026-09-25 (`F1-09` · `D-29` · `ADR 0186`): النواةُ في `core.ts`، وهذا المدخلُ يُسجِّلُ
+// القواميسَ الثلاثةَ **متزامناً** فيبقى سلوكُه كما كانَ حرفاً للخادمِ والحواجزِ والاختبارات.
+// والتطبيقُ المصغَّرُ لا يستوردُه (يستوردُ `core.ts` و`load.ts`) — يفرضُه حاجزُ البناءِ.
+
+import { registerMiniAppDictionary } from "./core.ts";
 import en from "./en.json" with { type: "json" };
 import ur from "./ur.json" with { type: "json" };
 
-export type MiniAppDictionary = Record<string, string>;
+registerMiniAppDictionary("en", en as Record<string, string>);
+registerMiniAppDictionary("ur", ur as Record<string, string>);
 
-/** اللغاتُ الثلاثُ المُعلَنةُ في القسم 9.11 — لا رابعةَ تُخترَعُ ههنا. */
-export const MINIAPP_LANGUAGES = ["ar", "en", "ur"] as const;
-export type MiniAppLanguage = (typeof MINIAPP_LANGUAGES)[number];
-
-export const MINIAPP_DEFAULT_LANGUAGE: MiniAppLanguage = "ar";
-
-/** اللغاتُ التي تُكتَبُ من اليمينِ — الأردية منها (9.11)، فلا تُقاسُ باللاتينيّةِ. */
-const RIGHT_TO_LEFT: readonly MiniAppLanguage[] = ["ar", "ur"];
-
-const DICTIONARIES: Readonly<Record<MiniAppLanguage, MiniAppDictionary>> = {
-  ar: ar as MiniAppDictionary,
-  en: en as MiniAppDictionary,
-  ur: ur as MiniAppDictionary,
-};
-
-export function isMiniAppLanguage(value: string): value is MiniAppLanguage {
-  return (MINIAPP_LANGUAGES as readonly string[]).includes(value);
-}
-
-export function directionFor(language: MiniAppLanguage): "rtl" | "ltr" {
-  return RIGHT_TO_LEFT.includes(language) ? "rtl" : "ltr";
-}
-
-export function miniAppDictionary(language: MiniAppLanguage): MiniAppDictionary {
-  return DICTIONARIES[language];
-}
-
-/**
- * الترجمةُ: مفتاحٌ مفقودٌ يرتدُّ إلى العربيّةِ، ومفقودٌ فيها أيضاً **يُعيدُ المفتاحَ
- * نفسَه** لا نصّاً فارغاً. والفراغُ في الواجهةِ يُقرأُ عطلاً (UX-5)، أمّا مفتاحٌ
- * ظاهرٌ فيُقرأُ خطأَ ترجمةٍ ويُصلَحُ — وكِلا الحالتَينِ يردُّهما الحاجزُ قبلَ الدمجِ.
- */
-export function translateMiniApp(language: MiniAppLanguage, key: string): string {
-  const fallback = DICTIONARIES[MINIAPP_DEFAULT_LANGUAGE];
-  return DICTIONARIES[language][key] ?? fallback[key] ?? key;
-}
-
-export function miniAppTranslator(language: MiniAppLanguage): (key: string) => string {
-  return (key: string) => translateMiniApp(language, key);
-}
+export * from "./core.ts";

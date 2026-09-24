@@ -39,7 +39,7 @@ import {
   MINIAPP_LANGUAGES,
   type MiniAppLanguage,
   miniAppTranslator,
-} from "../../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../../packages/shared/i18n/miniapp/core.ts";
 import { addAppToHomeScreen } from "../../tg/index.ts";
 import { newIdempotencyKey } from "../rider/search/search-view.ts";
 import { requestDataExport, requestErasure, updateAccountLanguage } from "./account-api.ts";

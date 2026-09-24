@@ -117,7 +117,7 @@
  */
 
 import { useState } from "react";
-import type { MiniAppLanguage } from "../../../../../packages/shared/i18n/miniapp/index.ts";
+import type { MiniAppLanguage } from "../../../../../packages/shared/i18n/miniapp/core.ts";
 import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
 import {
   productionChannelBaseUrl,
