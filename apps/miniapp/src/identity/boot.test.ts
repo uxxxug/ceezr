@@ -243,8 +243,7 @@ describe("استهلاكُ التقديمِ الساكنِ (DEC-19 / F1-09)", ()
   it("يفشلُ كما يفشلُ التبادلُ العاديُّ إن رفضَ الخادمُ التبادلَ المُقدَّمَ", async () => {
     const result = await establishSession(
       baseDeps({
-        consumePreboot: () =>
-          Promise.reject(new ApiError(401, "INIT_DATA_SIGNATURE", "…")),
+        consumePreboot: () => Promise.reject(new ApiError(401, "INIT_DATA_SIGNATURE", "…")),
       }),
     );
     expect(result.established).toBe(false);

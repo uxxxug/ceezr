@@ -32,7 +32,9 @@ export function fetchConsentStatus(): Promise<ConsentApiStatus> {
     const preboot = consumePrebootConsents(session.accessToken);
     if (preboot !== null) {
       return preboot.then((payload) =>
-        payload !== null ? Promise.resolve(payload as ConsentApiStatus) : apiFetch<ConsentApiStatus>("/v1/consents"),
+        payload !== null
+          ? Promise.resolve(payload as ConsentApiStatus)
+          : apiFetch<ConsentApiStatus>("/v1/consents"),
       );
     }
   }

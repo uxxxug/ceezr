@@ -23,9 +23,9 @@ import {
   type MiniAppLanguage,
 } from "../../../../packages/shared/i18n/miniapp/index.ts";
 import { ApiError, apiFetch } from "../api/client.ts";
+import { failureFromThrown, type RequestFailure } from "../system/failure.ts";
 import { consumePrebootViewer } from "./preboot.ts";
 import { getSession } from "./session.ts";
-import { failureFromThrown, type RequestFailure } from "../system/failure.ts";
 
 /** الأدوارُ كما يعيدها الخادمُ من `users.role` — لا قائمةٌ يخترعها العميل. */
 export const SERVER_ROLES = ["rider", "driver", "support", "admin"] as const;

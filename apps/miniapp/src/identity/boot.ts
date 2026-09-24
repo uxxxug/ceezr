@@ -24,9 +24,9 @@
  */
 
 import { ApiError, ApiNetworkError, type ApiObserver, apiFetch } from "../api/client.ts";
-import { consumePrebootSession } from "./preboot.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
 import { getRawInitData, isInsideTelegram } from "../tg/index.ts";
+import { consumePrebootSession } from "./preboot.ts";
 import { renewSessionFromStorage } from "./renew.ts";
 import { hasValidSession, setSession } from "./session.ts";
 import { type DeviceSecureStore, persistRefreshToken } from "./session-storage.ts";

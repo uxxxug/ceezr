@@ -257,10 +257,20 @@ describe("استهلاكُ التقديمِ الساكنِ للدورِ (DEC-19 
 
   it("١٩) يستهلكُ الدورَ المُقدَّمَ ولا يُرسِلُ طلبًا ثانيًا", async () => {
     withSession();
-    setPrebootViewer("access-token-value", { ok: true, role: "rider", status: "active", languageCode: "ar" });
+    setPrebootViewer("access-token-value", {
+      ok: true,
+      role: "rider",
+      status: "active",
+      languageCode: "ar",
+    });
     respond(200, { ok: true, role: "admin", status: "active", languageCode: "ar" });
 
-    expect(await fetchViewer()).toEqual({ kind: "viewer", role: "rider", status: "active", languageCode: "ar" });
+    expect(await fetchViewer()).toEqual({
+      kind: "viewer",
+      role: "rider",
+      status: "active",
+      languageCode: "ar",
+    });
     expect(seen.count).toBe(0);
   });
 
@@ -269,16 +279,31 @@ describe("استهلاكُ التقديمِ الساكنِ للدورِ (DEC-19 
     setPrebootViewer("access-token-value", null);
     respond(200, { ok: true, role: "rider", status: "active", languageCode: "ar" });
 
-    expect(await fetchViewer()).toEqual({ kind: "viewer", role: "rider", status: "active", languageCode: "ar" });
+    expect(await fetchViewer()).toEqual({
+      kind: "viewer",
+      role: "rider",
+      status: "active",
+      languageCode: "ar",
+    });
     expect(seen.count).toBe(1);
   });
 
   it("٢١) يُعاودُ حينَ يخالفُ رمزُ الوصولِ — نتائجُ جلسةٍ سابقةٍ لا تُستهلَك", async () => {
     withSession();
-    setPrebootViewer("old-token", { ok: true, role: "admin", status: "active", languageCode: "ar" });
+    setPrebootViewer("old-token", {
+      ok: true,
+      role: "admin",
+      status: "active",
+      languageCode: "ar",
+    });
     respond(200, { ok: true, role: "rider", status: "active", languageCode: "ar" });
 
-    expect(await fetchViewer()).toEqual({ kind: "viewer", role: "rider", status: "active", languageCode: "ar" });
+    expect(await fetchViewer()).toEqual({
+      kind: "viewer",
+      role: "rider",
+      status: "active",
+      languageCode: "ar",
+    });
     expect(seen.count).toBe(1);
   });
 

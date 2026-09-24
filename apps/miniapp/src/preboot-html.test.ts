@@ -9,10 +9,7 @@ import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const HTML = readFileSync(
-  resolve(import.meta.dirname, "..", "index.html"),
-  "utf-8",
-);
+const HTML = readFileSync(resolve(import.meta.dirname, "..", "index.html"), "utf-8");
 
 describe("الهيكلُ الساكنُ في index.html (DEC-19 / F1-09)", () => {
   it("يحوي هيكلًا ساكنًا داخل #root قبل تحميل الشيفرة", () => {
@@ -23,7 +20,7 @@ describe("الهيكلُ الساكنُ في index.html (DEC-19 / F1-09)", () =>
     // الهيكلُ الساكنُ ليسَ سطحَ الراكبِ، فلا ينبغي أن يُقاسَ.
     const rootMatch = HTML.match(/<div id="root">([\s\S]*?)<\/div>/);
     expect(rootMatch).not.toBeNull();
-    expect(rootMatch![1]).not.toContain("elementtiming");
+    expect(rootMatch?.[1]).not.toContain("elementtiming");
   });
 
   it("يبدأُ التقديمَ الساكنَ بـ `__waslahPreboot`", () => {
