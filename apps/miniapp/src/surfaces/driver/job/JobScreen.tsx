@@ -47,7 +47,7 @@ import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
   miniAppTranslator,
-} from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
 import { openExternalLink } from "../../../tg/index.ts";
 import type { SosSurfaceResponse } from "../../rider/sos/sos-contract.ts";

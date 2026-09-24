@@ -31,7 +31,8 @@ import { type ComponentType, useCallback, useEffect, useRef, useState } from "re
 import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
-} from "../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../packages/shared/i18n/miniapp/core.ts";
+import { loadMiniAppLanguage } from "../../../../packages/shared/i18n/miniapp/load.ts";
 import type { ViewerView } from "../identity/viewer.ts";
 import { ErrorBoundary } from "../shell/ErrorBoundary.tsx";
 import {
@@ -173,15 +174,33 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
     const view = await fetchViewer();
     // `PD-030`: لغةُ الواجهةِ تُقرأُ من الحسابِ لا تُفترَضُ. وغيابُها أو بطلانُها
     // يعني أنَّ الردَّ ناقصٌ فلا يُكملُ — `fetchViewer` يُعيدُ `unavailable` حينَها.
-    if (view.kind === "viewer" && mounted.current) setLanguage(view.languageCode);
+    // `D-29` · `ADR 0186`: قاموسُ لغةِ الحسابِ يُحمَّلُ **بالتوازي** معَ حزمةِ السطحِ، ولا
+    // تُعرَضُ اللغةُ قبلَ تسجيلِ قاموسِها. والفشلُ كفشلِ السطحِ: شاشةٌ بإعادةِ محاولةٍ.
+    const dictionary: Promise<boolean> =
+      view.kind === "viewer"
+        ? loadMiniAppLanguage(view.languageCode).then(
+            () => true,
+            () => false,
+          )
+        : Promise.resolve(true);
     const route: RoleRoute = routeForViewer(view);
     if (route.surface === "none") {
+      await dictionary;
+      if (view.kind === "viewer" && mounted.current) setLanguage(view.languageCode);
       const screen = await screenForReason(route.reason, view);
       if (mounted.current) setState({ kind: "screen", screen });
       return;
     }
-    const outcome = await loadSurface(route, SURFACE_LOADERS);
+    const [outcome, dictionaryLoaded] = await Promise.all([
+      loadSurface(route, SURFACE_LOADERS),
+      dictionary,
+    ]);
     if (!mounted.current) return;
+    if (!dictionaryLoaded) {
+      setState({ kind: "screen", screen: { kind: "surface_failed" } });
+      return;
+    }
+    if (view.kind === "viewer") setLanguage(view.languageCode);
     if (outcome.loaded === "none" || "failed" in outcome) {
       setState({ kind: "screen", screen: { kind: "surface_failed" } });
       return;
@@ -194,6 +213,20 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   }, [resolve]);
 
   const retry = () => void resolve();
+
+  /**
+   * `D-29`: تبديلُ اللغةِ من الإعداداتِ لا يعرضُ لغةً قبلَ تسجيلِ قاموسِها — وإلّا ظهرَ
+   * الافتراضيُّ باسمِ لغةٍ أخرى. وإن تعذَّرَ التحميلُ بقيَت اللغةُ الحاليّةُ (الحفظُ في الحسابِ
+   * تمَّ، والقراءةُ التاليةُ تُعيدُ المحاولةَ).
+   */
+  const changeLanguage = useCallback((next: MiniAppLanguage) => {
+    loadMiniAppLanguage(next).then(
+      () => {
+        if (mounted.current) setLanguage(next);
+      },
+      () => undefined,
+    );
+  }, []);
 
   if (state.kind === "resolving") return <Skeleton />;
 
@@ -215,7 +248,7 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const { Component } = state;
   return (
     <ErrorBoundary label="surface" onReset={retry}>
-      <Component language={language} onLanguageChanged={setLanguage} />
+      <Component language={language} onLanguageChanged={changeLanguage} />
     </ErrorBoundary>
   );
 }

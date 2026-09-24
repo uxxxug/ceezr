@@ -46,7 +46,7 @@ import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
   miniAppTranslator,
-} from "../../../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { readSosSurface as readViaApi, triggerSos as triggerViaApi } from "./sos-api.ts";
 import type { SosSurfaceResponse, SosTriggerResponse } from "./sos-contract.ts";
 import {

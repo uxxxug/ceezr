@@ -35,7 +35,7 @@ import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
   miniAppTranslator,
-} from "../../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../../packages/shared/i18n/miniapp/core.ts";
 import type { OpenTicketInput, ReadTicketsInput } from "./ticket-api.ts";
 import type {
   ApiSupportCursor,

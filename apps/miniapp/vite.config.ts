@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { assertInitialDictionaries } from "./vite/assert-initial-dictionaries.ts";
 import { assertPrebootPlacement } from "./vite/assert-preboot-placement.ts";
 import { injectCsp } from "./vite/inject-csp.ts";
 import { inlineEntryScript } from "./vite/inline-entry-script.ts";
@@ -31,6 +32,8 @@ export default defineConfig({
     inlineEntryScript(),
     // `F1-09` · `D-27`: بعدَ إدماجِ المدخلِ — يُسقِطُ البناءَ إن طُوِيَ التقديمُ فيه.
     assertPrebootPlacement(),
+    // `F1-09` · `D-29`: يُسقِطُ البناءَ إن عادَ قاموسٌ غيرُ افتراضيٍّ إلى الحِملِ الأوّلِ.
+    assertInitialDictionaries(),
     injectCsp(),
   ],
   resolve: {

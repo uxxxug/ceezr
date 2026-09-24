@@ -21,7 +21,7 @@
 import {
   isMiniAppLanguage,
   type MiniAppLanguage,
-} from "../../../../packages/shared/i18n/miniapp/index.ts";
+} from "../../../../packages/shared/i18n/miniapp/core.ts";
 import { ApiError, apiFetch } from "../api/client.ts";
 import { failureFromThrown, type RequestFailure } from "../system/failure.ts";
 import { consumePrebootViewer } from "./preboot.ts";
