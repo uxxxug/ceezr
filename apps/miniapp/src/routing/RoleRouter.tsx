@@ -113,6 +113,22 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const [state, setState] = useState<RouterState>({ kind: "resolving" });
   const [language, setLanguage] = useState<MiniAppLanguage>(MINIAPP_DEFAULT_LANGUAGE);
   const mounted = useRef(true);
+  /**
+   * `F1-09` الصفُّ ٥ — علامةُ «وقتِ التفاعلِ»: تُوضَعُ مرّةً واحدةً حينَ يَنتقلُ
+   * الموجّهُ من «حلٍّ» إلى أيِّ حالةٍ أخرى (سطحٌ أو شاشةُ)، أي حينَ يصيرُ التطبيقُ
+   * قابلاً للتفاعلِ بعدَ الإقلاعِ الكاملِ (تبادلُ الجلسةِ + قراءةُ الدورِ + تحميلُ
+   * السطحِ). والعلامةُ بلا كلفةٍ (`performance.mark` لا يُغيّرُ سلوكاً) وتُقرأُ من
+   * `scripts/measure-tti.ts`.
+   */
+  const interactiveMarked = useRef(false);
+  useEffect(() => {
+    if (!interactiveMarked.current && state.kind !== "resolving") {
+      interactiveMarked.current = true;
+      if (typeof performance !== "undefined" && typeof performance.mark === "function") {
+        performance.mark("waslah-interactive");
+      }
+    }
+  }, [state.kind]);
   useEffect(() => {
     mounted.current = true;
     return () => {
