@@ -3,6 +3,11 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import { assertInitialDictionaries } from "./vite/assert-initial-dictionaries.ts";
 import { assertPrebootPlacement } from "./vite/assert-preboot-placement.ts";
+import {
+  assertRiderFirstSurface,
+  isDeferredRiderModule,
+  RIDER_RIDE,
+} from "./vite/assert-rider-first-surface.ts";
 import { injectCsp } from "./vite/inject-csp.ts";
 import { inlineEntryScript } from "./vite/inline-entry-script.ts";
 import { inlineStylesheet } from "./vite/inline-stylesheet.ts";
@@ -34,6 +39,8 @@ export default defineConfig({
     assertPrebootPlacement(),
     // `F1-09` · `D-29`: يُسقِطُ البناءَ إن عادَ قاموسٌ غيرُ افتراضيٍّ إلى الحِملِ الأوّلِ.
     assertInitialDictionaries(),
+    // `F1-09` · `D-30`: يُسقِطُ البناءَ إن عادَت حزمُ 9.4 المؤجَّلةُ إلى حِملِ سطحِ الراكبِ الأوّلِ.
+    assertRiderFirstSurface(),
     injectCsp(),
   ],
   resolve: {
@@ -80,9 +87,28 @@ export default defineConfig({
               name: "identity",
               test: /\/src\/identity\//,
             },
+            /**
+             * `F1-09` · `D-30`: `rider-home` **قبلَ** حزمِ القسمِ 9.4 المؤجَّلةِ، ونمطُه يستثنيها. والترتيبُ مقصودٌ:
+             * المجموعةُ تضمُّ تبعيّاتِ وحداتِها بالتعدّي، فلو سبقَتها `rider-ride` لسحبَت معَها ما تشاركُه السطحُ الأوّلُ
+             * (الاستغاثةُ ومساعداتُ العرضِ) فصارَ `rider-home` يستوردُ `rider-ride` ثابتاً وعادَت القناةُ إلى المسارِ الحرجِ.
+             */
             {
               name: "rider-home",
-              test: /\/src\/surfaces\/rider\//,
+              test: (id: string) =>
+                /\/src\/surfaces\/rider\//.test(id) && !isDeferredRiderModule(id),
+            },
+            /** `rider-ride`: البحثُ والرحلةُ النشطةُ والملخّصُ والمشاركةُ وقناتُها الحيّةُ ومكتباتُها. */
+            {
+              name: "rider-ride",
+              test: RIDER_RIDE,
+            },
+            {
+              name: "support",
+              test: /\/src\/surfaces\/(?:rider\/)?support\//,
+            },
+            {
+              name: "account",
+              test: /\/src\/surfaces\/(?:rider\/)?account\//,
             },
             {
               name: "driver",

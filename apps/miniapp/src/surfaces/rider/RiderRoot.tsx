@@ -116,16 +116,10 @@
  * الرحلةُ مُثبَّتةً لا مكتوبةً بيدٍ.
  */
 
-import { useState } from "react";
+import { lazy, type ReactNode, Suspense, useEffect, useState } from "react";
 import type { MiniAppLanguage } from "../../../../../packages/shared/i18n/miniapp/core.ts";
 import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
-import {
-  productionChannelBaseUrl,
-  productionRideChannelTransport,
-  productionSessionReader,
-} from "../../services/production-ride-channel.ts";
-import { AccountScreen } from "./account/AccountScreen.tsx";
-import { ActiveRideScreen } from "./active/ActiveRideScreen.tsx";
+import { Skeleton } from "../../system/Skeleton.tsx";
 import type { ConfirmedDestination } from "./destination/DestinationScreen.tsx";
 import { DestinationScreen } from "./destination/DestinationScreen.tsx";
 import { RideDetailScreen } from "./history/RideDetailScreen.tsx";
@@ -135,14 +129,55 @@ import { HomeScreen } from "./home/HomeScreen.tsx";
 import { NotificationsScreen } from "./notifications/NotificationsScreen.tsx";
 import { QuoteScreen } from "./quote/QuoteScreen.tsx";
 import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
-import { SearchScreen } from "./search/SearchScreen.tsx";
 import { SosScreen } from "./sos/SosScreen.tsx";
-import { RideSummaryScreen } from "./summary/RideSummaryScreen.tsx";
-import { SupportScreen } from "./support/SupportScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
+
+/**
+ * `F1-09` · `D-30` — تقسيمُ القسمِ 9.4 الإلزاميُّ: `rider-ride` (البحثُ والرحلةُ النشطةُ والملخّصُ والتقييمُ ومعَها قناةُ
+ * `socket.io`) و`support` و`account` **عندَ الطلبِ** لا في `rider-home`. أوّلُ سطحٍ (`SR-01`) لا يحتاجُ شيئاً منها،
+ * وكانَت تُنزَّلُ قبلَه على المسارِ الحرجِ. والاستغاثةُ (`PD-020`) تبقى ثابتةً في `rider-home` عن قصدٍ: شاشةُ سلامةٍ لا
+ * تُؤخَّرُ بتحميلٍ. ولكي لا يدفعَ الراكبُ زمنَ الشبكةِ عندَ الانتقالِ، تُجلَبُ الحزمُ المؤجَّلةُ **بعدَ رسمِ السطحِ**
+ * (`prefetchDeferredRiderScreens`)، والمحمِّلُ نفسُه يُعادُ استعمالُه فلا تُنزَّلُ مرّتَينِ.
+ * وحاجزُ البناءِ `apps/miniapp/vite/assert-rider-first-surface.ts` يُسقِطُ البناءَ إن عادَت إلى حِملِ السطحِ الأوّلِ.
+ */
+const DEFERRED_RIDER_LOADERS = {
+  ride: () => import("./rider-ride-screens.ts"),
+  account: () => import("./account/AccountScreen.tsx"),
+  support: () => import("./support/SupportScreen.tsx"),
+} as const;
+
+const SearchScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.ride().then((m) => ({ default: m.SearchScreen })),
+);
+const ActiveRideScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.ride().then((m) => ({ default: m.ActiveRideScreenWithChannel })),
+);
+const RideSummaryScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.ride().then((m) => ({ default: m.RideSummaryScreen })),
+);
+const AccountScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.account().then((m) => ({ default: m.AccountScreen })),
+);
+const SupportScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.support().then((m) => ({ default: m.SupportScreen })),
+);
+
+/** يجلبُ الحزمَ المؤجَّلةَ بعدَ الرسمِ؛ الفشلُ هنا لا يُعرَضُ — الشاشةُ نفسُها تُعيدُ المحاولةَ عندَ فتحِها. */
+export function prefetchDeferredRiderScreens(): void {
+  for (const load of Object.values(DEFERRED_RIDER_LOADERS)) void load().catch(() => undefined);
+}
+
+function Deferred({ children }: { readonly children: ReactNode }) {
+  return <Suspense fallback={<Skeleton />}>{children}</Suspense>;
+}
 
 export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfaceProps) {
   const [proceeded, setProceeded] = useState(false);
+  useEffect(() => {
+    // بعدَ الرسمِ لا قبلَه: `useEffect` يجري بعدَ أن يُرسَمَ السطحُ، فالجلبُ لا يُنافِسُ حِملَه.
+    const timer = setTimeout(prefetchDeferredRiderScreens, 0);
+    return () => clearTimeout(timer);
+  }, []);
   const [chosen, setChosen] = useState<ChosenDestination | null>(null);
   /**
    * الوجهةُ **المُصادَقةُ** — لا المختارةُ. ولا تُدمَجُ معَ `chosen`: الأولى مرَّت
@@ -242,11 +277,13 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
   // **إلى ما جاءَ منه** محفوظٌ: الرايةُ تُطفأُ وحدَها فيظهرُ ما تحتَها كما كانَ.
   if (support !== null) {
     return (
-      <SupportScreen
-        orderId={support.orderId}
-        onBack={() => setSupport(null)}
-        onOpenSos={onOpenSos}
-      />
+      <Deferred>
+        <SupportScreen
+          orderId={support.orderId}
+          onBack={() => setSupport(null)}
+          onOpenSos={onOpenSos}
+        />
+      </Deferred>
     );
   }
 
@@ -254,13 +291,15 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
   // ورسمُ شاشةٍ أخرى فوقَها بعدَ فتحِها صراحةً قد يُخفي إيصالَ حذفٍ لم يُقرأْ.
   if (account) {
     return (
-      <AccountScreen
-        language={language}
-        {...(onLanguageChanged ? { onLanguageChanged } : {})}
-        onBack={() => setAccount(false)}
-        onOpenSupport={() => setSupport({ orderId: null })}
-        onOpenSos={onOpenSos}
-      />
+      <Deferred>
+        <AccountScreen
+          language={language}
+          {...(onLanguageChanged ? { onLanguageChanged } : {})}
+          onBack={() => setAccount(false)}
+          onOpenSupport={() => setSupport({ orderId: null })}
+          onOpenSos={onOpenSos}
+        />
+      </Deferred>
     );
   }
 
@@ -309,17 +348,19 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
   // منها إلى الرئيسةِ: الرحلةُ مضَت فلا حالةَ يُعادُ إليها.
   if (summarized !== null) {
     return (
-      <RideSummaryScreen
-        orderId={summarized}
-        onOpenSos={onOpenSos}
-        onBack={() => {
-          setSummarized(null);
-          setFollowed(null);
-          setIntent(null);
-          setConfirmed(null);
-          setChosen(null);
-        }}
-      />
+      <Deferred>
+        <RideSummaryScreen
+          orderId={summarized}
+          onOpenSos={onOpenSos}
+          onBack={() => {
+            setSummarized(null);
+            setFollowed(null);
+            setIntent(null);
+            setConfirmed(null);
+            setChosen(null);
+          }}
+        />
+      </Deferred>
     );
   }
 
@@ -327,19 +368,18 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
   // منها إلى الرئيسةِ لا إلى بحثٍ مضى: البحثُ انتهى بإسنادٍ.
   if (followed !== null) {
     return (
-      <ActiveRideScreen
-        orderId={followed}
-        channelTransport={productionRideChannelTransport}
-        sessionReader={productionSessionReader}
-        channelBaseUrl={productionChannelBaseUrl()}
-        onFinished={(orderId) => setSummarized(orderId)}
-        onBack={() => {
-          setFollowed(null);
-          setIntent(null);
-          setConfirmed(null);
-          setChosen(null);
-        }}
-      />
+      <Deferred>
+        <ActiveRideScreen
+          orderId={followed}
+          onFinished={(orderId) => setSummarized(orderId)}
+          onBack={() => {
+            setFollowed(null);
+            setIntent(null);
+            setConfirmed(null);
+            setChosen(null);
+          }}
+        />
+      </Deferred>
     );
   }
 
@@ -347,16 +387,18 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
   // الاقتباسِ في الترتيبِ: ما دامَت رحلةٌ تُطلَبُ فلا يُعادُ رسمُ اقتباسٍ مضى.
   if (intent !== null) {
     return (
-      <SearchScreen
-        intent={intent}
-        onOpenSos={onOpenSos}
-        onActiveRide={(orderId) => setFollowed(orderId)}
-        onBack={() => {
-          setIntent(null);
-          setConfirmed(null);
-          setChosen(null);
-        }}
-      />
+      <Deferred>
+        <SearchScreen
+          intent={intent}
+          onOpenSos={onOpenSos}
+          onActiveRide={(orderId) => setFollowed(orderId)}
+          onBack={() => {
+            setIntent(null);
+            setConfirmed(null);
+            setChosen(null);
+          }}
+        />
+      </Deferred>
     );
   }
 
