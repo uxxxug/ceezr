@@ -1665,6 +1665,34 @@ jobs:
   # مُعتمَدٌ) و`NODE_ENV=test` — الوضعُ غيرُ الإنتاجيِّ يرخي إجراءاتِ الإقلاعِ فقط،
   # وintake موصولٌ دائمًا فسلوكُ التشغيلِ واحدٌ. لا يُقلبُ هذا البندُ إلى `[x]`:
   # البرهانُ آليٌّ لا إنتاجيٌّ، و«مُثبَت» تتطلّبُ بيئةً شبيهةً بالإنتاج (`ح-5`).
+  # وظيفةٌ منفصلةٌ بطلبِ `check-performance-budget.ts` نفسِه: «فحصٌ حتميٌّ من مُخرَجِ
+  # البناءِ لا يُخلَطُ بقياسٍ مُتقلِّبٍ». ووُلِدَت من عطبٍ لا من ترفٍ (`D-25`): مُخرَجُ
+  # `main`@`571c891` بُنيَ أخضرَ ومرَّ كلُّ حاجزٍ وكانَ يُفتَحُ **شاشةً بيضاءَ** — لأنَّ
+  # لا متصفّحَ في CI يفتحُه. والمتصفّحُ `google-chrome` من صورةِ المُنفِّذِ لا تبعيّةٌ
+  # جديدةٌ، وغيابُه إخفاقٌ لا تخطٍّ (ADR 0183).
+  browser-first-paint:
+    name: متصفّحٌ حقيقيٌّ — أوّلُ رسمٍ (F1-09 · D-25)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: بناء تطبيق تِلِغرام المصغَّر
+        run: bun run build:miniapp
+
+      - name: التطبيقُ يرسمُ، وخرقا FCP/LCP محصوران بـDEC-19 (F1-09 · D-25 · ADR 0183)
+        run: bun run scripts/measure-first-paint.ts
+
+      - name: حَكَمُ أوّلِ الرسمِ وإطلاقُ مُعيِّناتِ المدخلِ — سوالبُ مزروعة
+        run: bun test tests/unit/first-paint-budget.test.ts tests/unit/inline-entry-script.test.ts
+
   chaos-multi-instance:
     name: فوضى متعدد المثيلات (F5-06)
     runs-on: ubuntu-latest
