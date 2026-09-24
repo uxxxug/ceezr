@@ -291,7 +291,7 @@ new PerformanceObserver((list) => {
   for (const e of list.getEntries()) if (e.name === "first-contentful-paint") window.__paint.fcp = e.startTime;
 }).observe({ type: "paint", buffered: true });
 new PerformanceObserver((list) => {
-  for (const e of list.getEntries()) if (e.name === "largest-contentful-paint") window.__paint.lcp = e.startTime;
+  for (const e of list.getEntries()) window.__paint.lcp = e.startTime;
 }).observe({ type: "largest-contentful-paint", buffered: true });
 const ttiObserver = new PerformanceObserver((list) => {
   for (const e of list.getEntries()) {
@@ -763,7 +763,9 @@ async function main(): Promise<void> {
       }
       if (REPORT_ONLY) {
         const med = (xs: number[]): number =>
-          [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] as number;
+          xs.length === 0
+            ? Number.NaN
+            : ([...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] as number);
         const pick = (f: (r: InteractiveRun) => number | null | undefined): number[] =>
           throttled.map(f).filter((v): v is number => typeof v === "number");
         console.log(
