@@ -181,6 +181,14 @@ new PerformanceObserver((list) => {
 }).observe({ type: "largest-contentful-paint", buffered: true });
 `;
 
+/** منفذٌ حرٌّ الآنَ: يُحجَزُ ثمَّ يُحرَّرُ ويُعطى للمتصفّحِ. */
+function freePort(): number {
+  const probe = Bun.listen({ hostname: "127.0.0.1", port: 0, socket: { data() {} } });
+  const port = probe.port;
+  probe.stop(true);
+  return port;
+}
+
 async function measureOnce(
   browserPath: string,
   origin: string,
@@ -188,36 +196,61 @@ async function measureOnce(
 ): Promise<PaintRun> {
   const userDataDir = mkdtempSync(join(tmpdir(), "waslah-paint-"));
   const headlessFlag = browserPath.includes("headless-shell") ? "--headless" : "--headless=new";
+  /**
+   * زيادةٌ (`ح-8`): كانَ المنفذُ `0` ويُنتظَرُ ملفُّ `DevToolsActivePort` — وعلى
+   * `google-chrome` في مُنفِّذِ `ubuntu-latest` لم يظهرِ الملفُّ خلالَ 15 ثانيةً
+   * (التشغيلُ `35942059474`) والخطأُ بلا سببٍ لأنَّ `stderr` كانَ مُهمَلاً. فصارَ المنفذُ
+   * محجوزاً سلفاً ويُسأَلُ `/json/version` نفسُه، و`stderr` يُلتقَطُ ويُطبَعُ ذيلُه متى
+   * أخفقَ الإقلاعُ — فالإخفاقُ يقولُ لماذا لا أينَ فقط.
+   */
+  const port = freePort();
   const proc = Bun.spawn(
     [
       browserPath,
       headlessFlag,
       "--no-sandbox",
       "--disable-gpu",
+      "--disable-dev-shm-usage",
       "--no-first-run",
       "--no-default-browser-check",
       "--disable-extensions",
-      "--remote-debugging-port=0",
+      "--remote-debugging-address=127.0.0.1",
+      `--remote-debugging-port=${port}`,
       `--user-data-dir=${userDataDir}`,
       "about:blank",
     ],
-    { stdout: "ignore", stderr: "ignore" },
+    { stdout: "ignore", stderr: "pipe" },
   );
+  let stderrTail = "";
+  void (async () => {
+    const decoder = new TextDecoder();
+    for await (const chunk of proc.stderr as ReadableStream<Uint8Array>) {
+      stderrTail = (stderrTail + decoder.decode(chunk)).slice(-2000);
+    }
+  })();
   let cdp: Cdp | null = null;
   try {
-    const portFile = join(userDataDir, "DevToolsActivePort");
     const started = Date.now();
-    while (!existsSync(portFile) || readFileSync(portFile, "utf8").split("\n").length < 2) {
-      if (Date.now() - started > 15_000) throw new Error("لم يُقلِعِ المتصفّحُ خلالَ 15 ثانيةً");
-      await Bun.sleep(100);
+    let page: { type: string; webSocketDebuggerUrl: string } | undefined;
+    while (page === undefined) {
+      if (Date.now() - started > 30_000 || proc.exitCode !== null) {
+        throw new Error(
+          `لم يُقلِعِ المتصفّحُ (منفذُ ${port} · خروجٌ ${proc.exitCode ?? "—"}):\n${stderrTail || "(لا مخرجاتِ أخطاءٍ)"}`,
+        );
+      }
+      await Bun.sleep(200);
+      try {
+        const targets = (await (
+          await fetch(`http://127.0.0.1:${port}/json/list`)
+        ).json()) as Array<{
+          type: string;
+          webSocketDebuggerUrl: string;
+        }>;
+        page = targets.find((t) => t.type === "page");
+      } catch {
+        // لم يُصغِ بعدُ — يُعادُ السؤالُ حتّى المهلةِ.
+      }
     }
-    const port = readFileSync(portFile, "utf8").split("\n")[0]?.trim();
-    const targets = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()) as Array<{
-      type: string;
-      webSocketDebuggerUrl: string;
-    }>;
-    const page = targets.find((t) => t.type === "page");
-    if (page === undefined) throw new Error("لا صفحةَ في المتصفّحِ");
     cdp = await Cdp.connect(page.webSocketDebuggerUrl);
 
     const failed: string[] = [];
