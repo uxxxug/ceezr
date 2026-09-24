@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { assertAssetReferences } from "./vite/assert-asset-references.ts";
 import { assertInitialDictionaries } from "./vite/assert-initial-dictionaries.ts";
 import { assertPrebootPlacement } from "./vite/assert-preboot-placement.ts";
 import {
@@ -42,6 +43,8 @@ export default defineConfig({
     // `F1-09` · `D-30`: يُسقِطُ البناءَ إن عادَت حزمُ 9.4 المؤجَّلةُ إلى حِملِ سطحِ الراكبِ الأوّلِ.
     assertRiderFirstSurface(),
     injectCsp(),
+    // `F1-09` · `D-30`: بعدَ اكتمالِ المُخرَجِ — لا مرجعَ إلى أصلٍ محذوفٍ (كالأنماطِ المُدمَجةِ).
+    assertAssetReferences(),
   ],
   resolve: {
     alias: {
@@ -78,7 +81,10 @@ export default defineConfig({
                 /\/src\/api\//.test(id) ||
                 /\/src\/shell\//.test(id) ||
                 /\/src\/routing\//.test(id) ||
-                /\/src\/styles\//.test(id) ||
+                // `D-30`: وحداتُ `styles/` البرمجيّةُ فقط لا `global.css`. الأنماطُ تبقى لحزمةِ المدخلِ المُدمَجةِ في
+                // المستندِ؛ ولو صارَت «أنماطَ `shell`» لأدرجَها Vite في تبعيّاتِ كلِّ `import()` من حزمةٍ غيرِ `shell`،
+                // وهيَ مُدمَجةٌ ومحذوفةٌ من المُخرَجِ، فيُطلَبُ ملفٌّ غيرُ موجودٍ ويسقطُ تحميلُ الشاشةِ (CI `36070289143`).
+                /\/src\/styles\/[^/]*\.ts$/.test(id) ||
                 /\/src\/system\//.test(id) ||
                 /\/src\/telemetry\//.test(id) ||
                 /\/src\/tg\//.test(id),
