@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { clearPreboot } from "../../../identity/preboot.ts";
 import { clearSession, setSession } from "../../../identity/session.ts";
 import { fetchConsentStatus } from "./consent-api.ts";
+import type { ConsentApiStatus } from "./consent-view.ts";
 
 const ORIGINAL_FETCH = globalThis.fetch;
 let fetchCount = 0;
@@ -45,10 +46,19 @@ afterEach(() => {
   clearPreboot();
 });
 
-const SAMPLE_CONSENTS = {
+const SAMPLE_CONSENTS: ConsentApiStatus = {
   ok: true,
-  documents: [{ kind: "terms", version: "1.0", state: "required" }],
-  onboarding: { satisfied: false },
+  documents: [
+    {
+      kind: "terms",
+      version: "1.0",
+      titleKey: "t",
+      summaryKey: "s",
+      textKey: "x",
+      requiredForOnboarding: true,
+    },
+  ],
+  onboarding: { satisfied: false, documents: [] },
 };
 
 describe("استهلاكُ التقديمِ الساكنِ للموافقاتِ (DEC-19 / F1-09)", () => {

@@ -22,13 +22,13 @@ afterEach(() => {
 });
 
 function setPreboot(over: Partial<{ accessToken: string }> = {}): {
-  session: Promise<unknown>;
+  session: Promise<{ ok: true; accessToken: string; expiresAtMs: number }>;
   viewer: Promise<unknown>;
   consents: Promise<unknown>;
   accessToken: string;
 } {
   const state = {
-    session: Promise.resolve({ ok: true, accessToken: "tok", expiresAtMs: 0 }),
+    session: Promise.resolve({ ok: true as const, accessToken: "tok", expiresAtMs: 0 }),
     viewer: Promise.resolve({ ok: true, role: "rider", status: "active", languageCode: "ar" }),
     consents: Promise.resolve({ ok: true, documents: [], onboarding: { satisfied: false } }),
     accessToken: "tok",

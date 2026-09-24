@@ -48,7 +48,7 @@ function readPreboot(): PrebootState | undefined {
 
 /** كتابةُ الحالةِ المُخزَّنةِ. */
 function writePreboot(state: PrebootState | undefined): void {
-  (globalThis as { __waslahPreboot?: PrebootState }).__waslahPreboot = state;
+  (globalThis as { __waslahPreboot?: PrebootState | undefined }).__waslahPreboot = state;
 }
 
 /**
