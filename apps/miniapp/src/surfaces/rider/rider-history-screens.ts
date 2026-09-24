@@ -5,6 +5,9 @@
  * ينتمي إلى: apps/miniapp/src/surfaces/rider
  */
 
+// `D-33` · `ADR 0188`: نصوصُ جزءِ `rider-history` تُسجَّلُ معَ حزمتِه لا في `shell`.
+import "../../../../../packages/shared/i18n/miniapp/ar-parts/rider-history.ts";
+
 export { RideDetailScreen } from "./history/RideDetailScreen.tsx";
 export { RideHistoryScreen } from "./history/RideHistoryScreen.tsx";
 export { NotificationsScreen } from "./notifications/NotificationsScreen.tsx";

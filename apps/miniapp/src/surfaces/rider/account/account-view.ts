@@ -24,6 +24,8 @@
  * كانَ سيجعلَ اختباراً أخضرَ يُعدَّلُ ليُوافقَ شِفرةً — وذاكَ نقضُ القياسِ.
  */
 
+// `D-33` · `ADR 0188`: نصوصُ جزءِ `account` تُسجَّلُ معَ حزمتِه لا في `shell`.
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/account.ts";
 import type { ApiErasureReceipt } from "../../account/account-contract.ts";
 import {
   accountViewModel,

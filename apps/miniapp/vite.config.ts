@@ -1,7 +1,9 @@
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { arabicPartitions } from "./vite/arabic-partitions.ts";
 import { assertAssetReferences } from "./vite/assert-asset-references.ts";
+import { assertDictionaryPartitions } from "./vite/assert-dictionary-partitions.ts";
 import { assertInitialDictionaries } from "./vite/assert-initial-dictionaries.ts";
 import { assertPrebootPlacement } from "./vite/assert-preboot-placement.ts";
 import {
@@ -49,6 +51,9 @@ export default defineConfig({
     injectCsp(),
     // `F1-09` · `D-30`: بعدَ اكتمالِ المُخرَجِ — لا مرجعَ إلى أصلٍ محذوفٍ (كالأنماطِ المُدمَجةِ).
     assertAssetReferences(),
+    // `F1-09` · `D-33` (`ADR 0188`): القاموسُ العربيُّ مقسومٌ بحسبِ مستورِدِه، والحاجزُ يُسقِطُ مفتاحاً بلا جزئِه.
+    arabicPartitions(resolve(import.meta.dirname, "../../packages/shared/i18n/miniapp/ar.json")),
+    assertDictionaryPartitions(),
   ],
   resolve: {
     alias: {

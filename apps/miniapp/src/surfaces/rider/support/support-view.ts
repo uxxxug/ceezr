@@ -25,6 +25,8 @@
  *      نمطٍ**: مُفصَّلةٌ في رأسِ `../../support/ticket-view.ts`.
  */
 
+// `D-33` · `ADR 0188`: نصوصُ جزءِ `support` تُسجَّلُ معَ حزمتِه لا في `shell`.
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/support.ts";
 import { DRIVER_SUPPORT_CATEGORIES } from "../../../../../../packages/domain/support/driver-support.ts";
 import {
   categoryRequiresOrder,

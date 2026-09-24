@@ -31,6 +31,8 @@
  *      كي يقرأَه حاجزُ تغطيةِ الأنماطِ ساكناً (`ADR 0105`).
  */
 
+// `D-33` · `ADR 0188`: نصوصُ جزءِ `support` تُسجَّلُ معَ حزمتِه لا في `shell`.
+import "../../../../../packages/shared/i18n/miniapp/ar-parts/support.ts";
 import type { ApiSupportStatus, ApiSupportTicket } from "./ticket-contract.ts";
 
 /**

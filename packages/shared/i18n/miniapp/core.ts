@@ -31,7 +31,9 @@ export const MINIAPP_DEFAULT_LANGUAGE: MiniAppLanguage = "ar";
 /** اللغاتُ التي تُكتَبُ من اليمينِ — الأردية منها (9.11)، فلا تُقاسُ باللاتينيّةِ. */
 const RIGHT_TO_LEFT: readonly MiniAppLanguage[] = ["ar", "ur"];
 
-const DEFAULT_DICTIONARY = ar as MiniAppDictionary;
+// زيادةٌ `D-33` (`ADR 0188`): نسخةٌ لا المستوردُ نفسُه — تُضافُ إليها أجزاءُ `ar-parts/*` حينَ تُحمَّلُ حزمُها.
+// وفي بناءِ التطبيقِ المصغَّرِ `ar.json` هنا جزءُ `core` وحدَه (ملحقُ `arabic-partitions.ts`)؛ وفي Bun كاملٌ.
+const DEFAULT_DICTIONARY: MiniAppDictionary = { ...(ar as MiniAppDictionary) };
 
 /** السجلُّ: الافتراضيُّ حاضرٌ دائماً، والبقيّةُ تُسجَّلُ حينَ تُحمَّلُ. */
 const DICTIONARIES: Partial<Record<MiniAppLanguage, MiniAppDictionary>> = {
@@ -44,6 +46,14 @@ export function registerMiniAppDictionary(
   dictionary: MiniAppDictionary,
 ): void {
   DICTIONARIES[language] = dictionary;
+}
+
+/**
+ * يضيفُ مفاتيحَ جزءٍ إلى القاموسِ الافتراضيِّ (`D-33`). لا يُبدِّلُ نصّاً قائماً بغيرِه: الأجزاءُ منفصلةٌ بالبادئةِ
+ * فالمفتاحُ الواحدُ لا يأتي من جزأَينِ، وفي Bun الإضافةُ هي القاموسُ نفسُه.
+ */
+export function extendDefaultMiniAppDictionary(part: Readonly<MiniAppDictionary>): void {
+  Object.assign(DEFAULT_DICTIONARY, part);
 }
 
 /** هل قاموسُ اللغةِ مُسجَّلٌ الآنَ؟ الموجّهُ لا يعرضُ لغةً قبلَ أن يصدقَ هذا. */
