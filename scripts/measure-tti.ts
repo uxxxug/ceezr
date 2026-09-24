@@ -31,6 +31,7 @@ import {
 } from "../apps/gateway/src/rate-limit/fixed-window.ts";
 import { type KeyDimension, rateLimitPolicy } from "../apps/gateway/src/rate-limit/policy.ts";
 import { createServer, type ServerDependencies } from "../apps/gateway/src/server.ts";
+import { buildBrowserHostScript } from "../apps/miniapp/src/tg/measure-host.ts";
 import { createSql } from "../packages/infrastructure/db/client.ts";
 import { createMemoryInitDataReplayGuard } from "../packages/infrastructure/identity/memory-init-data-replay-guard.ts";
 import { createMemorySessionRevocationStore } from "../packages/infrastructure/identity/memory-session-revocation-store.ts";
@@ -257,7 +258,7 @@ function buildTelegramMock(initData: string): string {
     username: TEST_USER.username,
     language_code: TEST_USER.language_code,
   });
-  return `window.Telegram = { WebApp: { initData: ${JSON.stringify(initData)}, initDataUnsafe: { user: ${user}, auth_date: ${Math.floor(Date.now() / 1000)} }, version: "8.0", platform: "web", colorScheme: "light", themeParams: {}, isExpanded: true, viewportHeight: 823, viewportStableHeight: 823, ready: () => {}, expand: () => {}, close: () => {} } };`;
+  return buildBrowserHostScript(initData, user);
 }
 
 async function measureOnce(
