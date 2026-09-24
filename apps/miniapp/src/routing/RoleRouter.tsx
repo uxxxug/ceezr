@@ -97,6 +97,25 @@ export function interactiveSurfaceFromState(
   return state.kind === "surface" ? state.surface : null;
 }
 
+/**
+ * `DEC-19` (قرارُ المالكِ 2026-09-24) — علامةُ «زمنِ بلوغِ السطحِ المرسومِ»: تُوضَعُ
+ * `waslah-surface-rendered` في استدعاءِ `requestAnimationFrame` **الثاني** بعدَ إيداعِ
+ * السطحِ المنتجِ. الاستدعاءُ الأوّلُ يسبقُ رسمَ الإطارِ الذي فيه السطحُ، والثاني يسبقُ
+ * رسمَ الإطارِ التالي له — فالعلامةُ **حدٌّ أعلى** لرسمِ أوّلِ إطارٍ للسطحِ بإطارٍ واحدٍ
+ * على الأكثرِ، لا تقديرٌ أدنى منه. وهيَ تُثبتُ الرسمَ لا الاستجابةَ للمسِ، فلا تُسمّى
+ * «وقتَ تفاعلٍ». والدالّةُ نقيّةٌ بتبعيّتَينِ مَحقونتَينِ لتُختبَرَ بلا DOM.
+ */
+export function scheduleSurfaceRenderedMark(
+  raf: (callback: () => void) => void,
+  mark: (name: string) => void,
+): void {
+  raf(() => {
+    raf(() => {
+      mark("waslah-surface-rendered");
+    });
+  });
+}
+
 export interface RoleRouterProps {
   /**
    * `F1-09`: قراءةُ الدورِ **تُحقَن**. والموجّهُ في حزمةِ `shell` و`fetchViewer` في
@@ -152,6 +171,14 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
         // علامةٌ ثانيةٌ تكشفُ السطحَ المنتجَ الذي وصلَهُ الموجّهُ — تُقرأُ من
         // `scripts/measure-tti.ts` لإثباتِ أنّ القياسَ لم يصلْ إلى شاشةٍ نظاميّةٍ.
         performance.mark(`waslah-surface:${interactiveSurface}`);
+        // `DEC-19`: اسمُ `waslah-interactive` تاريخيٌّ ويعني «بلوغَ حالةِ السطحِ» لا
+        // «التفاعلَ». والمقياسُ المحكومُ هوَ العلامةُ التاليةُ بعدَ رسمِ السطحِ.
+        if (typeof requestAnimationFrame === "function") {
+          scheduleSurfaceRenderedMark(
+            (callback) => requestAnimationFrame(callback),
+            (name) => performance.mark(name),
+          );
+        }
       }
     }
   }, [interactiveSurface]);

@@ -1,29 +1,32 @@
 /**
- * الغرض: حَكَمٌ نقيٌّ لصفِّ القسمِ 9.9 الخامسِ — «وقتُ التفاعلِ بعدَ فتحِ تيليجرام» —
- *   يَقيسُ الزمنَ من بدءِ التنزيلِ إلى ظهورِ علامةِ `waslah-interactive` في المتصفّحِ.
- *   والقياسُ نفسُه في `scripts/measure-tti.ts`؛ وهذهِ الوحدةُ تحكمُ على حقائقَ
- *   مصنوعةٍ أو مقيسةٍ سواءً، فتُختبَرُ سوالبُها بلا متصفّحٍ (`ح-7`).
- * الحالة: منفّذ فعلياً — `F1-09` (الصفُّ ٥ · `D-26`).
+ * الغرض: حَكَمٌ نقيٌّ لـ«زمنِ بلوغِ سطحِ الراكبِ المرسومِ» على ملفِّ Chromium «3G» —
+ *   **حارسُ انحدارٍ لا حاجزُ إغلاقٍ** (قرارُ المالكِ `DEC-19` · 2026-09-24 · `ADR 0185`).
+ *   والحاجزُ الإلزاميُّ للصفوفِ 3–5 على ملفِّ «Slow 4G» في `rider-surface-budget.ts`.
+ * الحالة: منفّذ فعلياً — `F1-09` (الصفُّ ٥ · `D-26`)، ومُعادُ التسميةِ والدورِ بـ`DEC-19`.
  * ينتمي إلى: scripts/lib
- * يُتوقع أن يستخدمه لاحقاً: scripts/measure-tti.ts · tests/unit
+ * يُتوقع أن يستخدمه لاحقاً: scripts/measure-tti.ts · scripts/lib/rider-surface-budget.ts · tests/unit
  *
- * **ولماذا وحدةٌ منفصلةٌ لا امتدادٌ لـ`first-paint-budget.ts`**: لأنَّ الصفَّينِ ٣ و٤
- * (`FCP`/`LCP`) يَقيسانِ الرسمَ وحدَه — قبلَ التبادلِ وقبلَ قراءةِ الدورِ — والصفُّ ٥
- * يَقيسُ المسارَ كاملًا: تنزيلٌ ← تنفيذٌ ← تبادلُ `initData` ← `GET /v1/me` ←
- * تحميلُ السطحِ ← أوّلُ تفاعلٍ. والخلطُ يُسقِطُ التمييزَ في التعليقاتِ والاختباراتِ.
+ * **المقياسُ** (لا «وقتُ تفاعلٍ»): `startTime` لعلامةِ `waslah-surface-rendered` مقيسةً من
+ * `performance.timeOrigin` لمستندِ التطبيقِ المصغَّرِ — تُوضَعُ في استدعاءِ
+ * `requestAnimationFrame` الثاني بعدَ إيداعِ السطحِ المنتجِ (`RoleRouter.tsx`)، فهيَ حدٌّ
+ * أعلى لرسمِ أوّلِ إطارٍ للسطحِ. ولا يدخلُ فيه ما قبلَ بدءِ التنقّلِ إلى المستندِ (فتحُ
+ * تيليجرام وتجهيزُ نافذتِه). **وكانَ حتى `DEC-19`** زمنَ علامةِ `waslah-interactive` باسمِ
+ * «TTI» (`ح-8` — التاريخُ في `ADR 0184`)؛ وتلكَ العلامةُ باقيةٌ شرطَ حياةٍ باسمِها التاريخيِّ
+ * وتعني «بلوغَ حالةِ السطحِ» لا التفاعلَ.
  *
- * **والحدُّ (٢٫٠ ثانيةٍ) كالعقدِ بحرفِه**: من نصِّ القسمِ 9.9. وكما في الصفَّينِ ٣ و٤،
- * فالعقدُ متناقضٌ داخليًّا مع «Slow 3G» (ذهابٌ وإيابٌ ٢ ثانيةٍ) — فالخرقُ مُعلَنٌ
- * بقرارِه `DEC-19` وبسقفٍ مقيسٍ.
+ * **ولماذا يبقى الحدُّ (٢٫٠ ثانيةٍ) في هذا الحارسِ**: لأنَّ الخرقَ على «3G» مُعلَنٌ بقرارِه
+ * وبسقفٍ مقيسٍ (18,000 ms) يُسقِطُ البناءَ عندَ الانحدارِ الكبيرِ. **ولا يُدَّعى أنَّ الحدَّ
+ * قابلٌ للتحقيقِ على هذا الملفِّ**: كلُّ طلبٍ يُضافُ إليه تأخيرٌ مُحاكىً 2000 ms (يمثِّلُ في
+ * Chromium شبكةً زمنُ رحلتِها 400 ms × 5)، والمسارُ خمسةُ انتظاراتٍ متتاليةٍ قبلَ السطحِ.
  */
 
-/** حدُّ القسمِ 9.9 الصفِّ ٥ بحرفِه. */
-export const INTERACTIVE_BUDGET_MS = 2_000;
+/** حدُّ القسمِ 9.9 الصفِّ ٥ بحرفِه — لا يُخفَّضُ (`DEC-19`). */
+export const SURFACE_RENDERED_BUDGET_MS = 2_000;
 
-export type InteractiveMetric = "tti";
+export type InteractiveMetric = "surface-rendered";
 
 /** خرقٌ مُعلَنٌ باسمِ قرارِه وبسقفٍ مقيسٍ — كأختِهِ في `first-paint-budget.ts`. */
-export interface DeclaredTtiBreach {
+export interface DeclaredSurfaceRenderedBreach {
   readonly metric: InteractiveMetric;
   readonly ceilingMs: number;
   readonly decision: string;
@@ -35,20 +38,18 @@ export interface DeclaredTtiBreach {
  * — هامشُ تذبذبِ مُنفِّذٍ مشتركٍ لا هامشُ تحسينٍ. ويُعادُ قياسُه على CI ويُكتَبُ في
  * الدليل. ويُحدَّثُ بعدَ كلِّ قياسٍ صادقٍ على CI.
  */
-export const DECLARED_TTI_BREACHES: readonly DeclaredTtiBreach[] = [
+export const DECLARED_SURFACE_RENDERED_BREACHES: readonly DeclaredSurfaceRenderedBreach[] = [
   {
-    metric: "tti",
+    metric: "surface-rendered",
     ceilingMs: 18_000,
     decision: "DEC-19",
     reason:
-      "الصفُّ ٥ يَشملُ شريحةَ إقلاعٍ مُختبَرةً للهويّةِ والجلسةِ والعارض: تنزيلُ الحملِ الأوّلِ (~154 KB) + تبادلُ initData + GET /v1/me + تحميلُ السطحِ + قراءةُ الموافقاتِ. وزمنُ الذهابِ والإيابِ (٢ ثانيةٍ) وحدَه يُكلِّفُ نصفَ الحدِّ، فالخرقُ حتميٌّ على Slow 3G. السقفُ ١٨٬٠٠٠ ms = الوسيطُ المقيسُ على CI (١٤٬١٥٠ ms) × ١٫٢٥ — بُنيَ على قياسٍ صادقٍ بعدَ إصلاحِ مسارِ الإيجابِ الكاذبِ (run 35962104791).",
+      "حارسُ انحدارٍ على «3G» لا حاجزُ إغلاقٍ (DEC-19 · 2026-09-24). المسارُ: تنزيلُ الحملِ الأوّلِ (163,374 بايتاً) ← تبادلُ initData ← GET /v1/me ← حزمةُ السطحِ — خمسةُ انتظاراتٍ متتاليةٍ يُضافُ إلى كلٍّ منها تأخيرٌ مُحاكىً 2000 ms، فالحدُّ غيرُ قابلٍ للتحقيقِ على هذا الملفِّ. السقفُ 18,000 ms = الوسيطُ المقيسُ على CI (14,150 ms · run 35962104791) × 1.25",
   },
 ];
 
 export interface InteractiveRun {
-  /** زمنُ التفاعلِ من بدءِ التنزيلِ (ms) — `null` إن لم تظهر العلامةُ. */
-  readonly ttiMs: number | null;
-  /** زمنُ أوّلِ رسمٍ (`FCP`) — للسياقِ لا للحكمِ. */
+  /** زمنُ أوّلِ رسمٍ (`FCP`) من `performance.timeOrigin` — للسياقِ في هذا الحارسِ. */
   readonly fcpMs: number | null;
   /** عُقَدُ `#root` بعدَ الاستقرارِ — صفرٌ يعني شاشةً بيضاءَ. */
   readonly rootChildCount: number;
@@ -56,7 +57,9 @@ export interface InteractiveRun {
   readonly failedSameOriginRequests: readonly string[];
   /** استثناءاتٌ غيرُ ممسوكةٍ في الصفحةِ. */
   readonly uncaughtExceptions: readonly string[];
-  /** علامةُ `waslah-interactive` ظهرَت. */
+  /** لحظةُ `waslah-surface-rendered` من `performance.timeOrigin` (ms) — `null` إن لم تظهر. */
+  readonly surfaceRenderedMs: number | null;
+  /** علامةُ `waslah-interactive` ظهرَت (اسمٌ تاريخيٌّ: «بلوغُ حالةِ السطحِ»). */
   readonly interactiveMarked: boolean;
   /**
    * **السطحُ المنتجُ** الذي وصلَ إليه الموجّهُ — `rider`/`driver`/`admin`، أو
@@ -75,6 +78,8 @@ export interface InteractiveProblem {
     | "NO_INTERACTIVE"
     | "NO_SURFACE"
     | "INTERACTIVE_WITHOUT_SURFACE"
+    | "NO_SURFACE_RENDERED"
+    | "RENDERED_BEFORE_PAINT"
     | "UNDECLARED_BREACH"
     | "BREACH_REGRESSED"
     | "DEAD_DECLARATION"
@@ -126,6 +131,20 @@ export function interactiveLivenessProblems(
       detail: `${label}: الموجّهُ لم يصلْ إلى سطحٍ منتجٍ (rider/driver/admin) — قد يكونُ على شاشةٍ نظاميّةٍ`,
     });
   }
+  // `DEC-19`: المقياسُ المحكومُ يجبُ أن يُقاسَ — وغيابُه إخفاقٌ لا تخطٍّ.
+  if (run.surface !== null && run.surfaceRenderedMs === null) {
+    problems.push({
+      rule: "NO_SURFACE_RENDERED",
+      detail: `${label}: بلغَ الموجّهُ السطحَ ولم تظهر علامةُ waslah-surface-rendered — القياسُ لم يُجرَ`,
+    });
+  }
+  // `DEC-19`: العلامةُ حدٌّ أعلى لرسمِ السطحِ، فسبقُها أوّلَ رسمٍ في الصفحةِ قياسٌ فاسدٌ.
+  if (run.surfaceRenderedMs !== null && run.fcpMs !== null && run.surfaceRenderedMs < run.fcpMs) {
+    problems.push({
+      rule: "RENDERED_BEFORE_PAINT",
+      detail: `${label}: علامةُ بلوغِ السطحِ المرسومِ (${Math.round(run.surfaceRenderedMs)} ms) قبلَ أوّلِ رسمٍ (${Math.round(run.fcpMs)} ms) — قياسٌ فاسدٌ`,
+    });
+  }
   // حارسٌ متقابلٌ: علامةٌ تفاعليّةٌ بلا سطحٍ = إيجابٌ كاذبٌ.
   if (run.interactiveMarked && run.surface === null) {
     problems.push({
@@ -142,14 +161,14 @@ export interface InteractiveVerdictInput {
   readonly profileId: string;
   /** تشغيلاتٌ مقيَّدةٌ — يُحكَمُ على وسيطِها. */
   readonly throttled: readonly InteractiveRun[];
-  readonly declared: readonly DeclaredTtiBreach[];
+  readonly declared: readonly DeclaredSurfaceRenderedBreach[];
   /** القراراتُ المُعلَنةُ في الخارطةِ (`DEC-*`). */
   readonly knownDecisions: ReadonlySet<string>;
 }
 
 export interface InteractiveVerdict {
   readonly problems: readonly InteractiveProblem[];
-  readonly medianTtiMs: number | null;
+  readonly medianSurfaceRenderedMs: number | null;
 }
 
 export function evaluateInteractive(input: InteractiveVerdictInput): InteractiveVerdict {
@@ -161,11 +180,14 @@ export function evaluateInteractive(input: InteractiveVerdictInput): Interactive
 
   if (input.throttled.length === 0) {
     problems.push({ rule: "NO_RUNS", detail: "لا تشغيلَ مقيَّداً — لا حكمَ على رقمٍ لم يُقَسْ" });
-    return { problems, medianTtiMs: null };
+    return { problems, medianSurfaceRenderedMs: null };
   }
 
-  const ttiValues = input.throttled.map((r) => r.ttiMs).filter((v): v is number => v !== null);
-  const medianTtiMs = ttiValues.length === input.throttled.length ? median(ttiValues) : null;
+  const renderedValues = input.throttled
+    .map((r) => r.surfaceRenderedMs)
+    .filter((v): v is number => v !== null);
+  const medianSurfaceRenderedMs =
+    renderedValues.length === input.throttled.length ? median(renderedValues) : null;
 
   for (const breach of input.declared) {
     if (!input.knownDecisions.has(breach.decision)) {
@@ -176,28 +198,28 @@ export function evaluateInteractive(input: InteractiveVerdictInput): Interactive
     }
   }
 
-  if (medianTtiMs !== null) {
-    const declared = input.declared.find((d) => d.metric === "tti");
-    const over = medianTtiMs > INTERACTIVE_BUDGET_MS;
+  if (medianSurfaceRenderedMs !== null) {
+    const declared = input.declared.find((d) => d.metric === "surface-rendered");
+    const over = medianSurfaceRenderedMs > SURFACE_RENDERED_BUDGET_MS;
     if (over && declared === undefined) {
       problems.push({
         rule: "UNDECLARED_BREACH",
-        detail: `TTI = ${Math.round(medianTtiMs)} ms > ${INTERACTIVE_BUDGET_MS} ms على ${input.profileId} بلا إعلانٍ`,
+        detail: `زمنُ بلوغِ السطحِ المرسومِ = ${Math.round(medianSurfaceRenderedMs)} ms > ${SURFACE_RENDERED_BUDGET_MS} ms على ${input.profileId} بلا إعلانٍ`,
       });
-    } else if (over && declared !== undefined && medianTtiMs > declared.ceilingMs) {
+    } else if (over && declared !== undefined && medianSurfaceRenderedMs > declared.ceilingMs) {
       problems.push({
         rule: "BREACH_REGRESSED",
-        detail: `TTI = ${Math.round(medianTtiMs)} ms تجاوزَ سقفَ الخرقِ المُعلَنِ ${declared.ceilingMs} ms (${declared.decision})`,
+        detail: `زمنُ بلوغِ السطحِ المرسومِ = ${Math.round(medianSurfaceRenderedMs)} ms تجاوزَ سقفَ الخرقِ المُعلَنِ ${declared.ceilingMs} ms (${declared.decision})`,
       });
     } else if (!over && declared !== undefined) {
       problems.push({
         rule: "DEAD_DECLARATION",
-        detail: `TTI = ${Math.round(medianTtiMs)} ms ضمنَ الحدِّ ${INTERACTIVE_BUDGET_MS} ms — أزِلْ إعلانَ الخرقِ (${declared.decision})`,
+        detail: `زمنُ بلوغِ السطحِ المرسومِ = ${Math.round(medianSurfaceRenderedMs)} ms ضمنَ الحدِّ ${SURFACE_RENDERED_BUDGET_MS} ms — أزِلْ إعلانَ الخرقِ (${declared.decision})`,
       });
     }
   }
 
-  return { problems, medianTtiMs };
+  return { problems, medianSurfaceRenderedMs };
 }
 
 /** يستخرجُ معرِّفاتِ `DEC-NN` المُعلَنةَ — يُعادُ استعمالُه من `first-paint-budget.ts`. */
