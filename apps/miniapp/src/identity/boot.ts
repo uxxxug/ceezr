@@ -26,6 +26,7 @@
 import { ApiError, ApiNetworkError, type ApiObserver, apiFetch } from "../api/client.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
 import { getRawInitData, isInsideTelegram } from "../tg/index.ts";
+import { consumePrebootSession } from "./preboot.ts";
 import { renewSessionFromStorage } from "./renew.ts";
 import { hasValidSession, setSession } from "./session.ts";
 import { type DeviceSecureStore, persistRefreshToken } from "./session-storage.ts";
@@ -71,6 +72,12 @@ export interface BootDeps {
   readonly exchange?: (initData: string, observe?: ApiObserver) => Promise<ExchangeResponse>;
   readonly persist?: typeof persistRefreshToken;
   readonly sessionValid?: () => boolean;
+  /**
+   * `F1-09`: استهلاكُ تبادلِ الجلسةِ المُقدَّمِ من السكربتِ الساكنِ في `index.html`.
+   * غيابُه يعني أنَّ السكربتَ الساكنَ لم يُبدِئْ تبادلًا (خارجَ تيليجرامَ مثلًا) —
+   * فيمضي `establishSession` في مسارِه التقليديِّ. والحاقنُ للاختبارِ وحدَه.
+   */
+  readonly consumePreboot?: () => Promise<ExchangeResponse> | null;
   /**
    * `F1-08`: القياسُ اختياريٌّ — غيابُه يعني أنّ الإقلاعَ لا يسجّل حدثاً، وحضورُه
    * يعني حدثاً واحداً لكلِّ إقلاعٍ مربوطاً بمعرّفِ الطلبِ حين يكون هناك طلبٌ.
@@ -146,7 +153,15 @@ export async function establishSession(deps: BootDeps = {}): Promise<BootResult>
 
   let response: ExchangeResponse;
   try {
-    response = await (deps.exchange ?? defaultExchange)(initData, observe);
+    // `F1-09` / `DEC-19`: إن قدّمَ السكربتُ الساكنُ تبادلًا، استُهلِكَ بدلَ إرسالِ
+    // طلبٍ ثانٍ. والاستهلاكُ هنا لا يتجاوزُ التجديدَ من `SecureStorage` — إن نفعَ،
+    // نفعَ قبلَ هذا السطرِ ورجعَ. وما يصلُ ههنا هو حينَ لم يُجدَّ ولم تُرفَض الشبكة.
+    const preboot = (deps.consumePreboot ?? consumePrebootSession)();
+    if (preboot !== null) {
+      response = await preboot;
+    } else {
+      response = await (deps.exchange ?? defaultExchange)(initData, observe);
+    }
   } catch (thrown) {
     const reason = exchangeFailureReason(thrown);
     // معرّفُ الطلبِ من الخطأِ نفسِه إن حمله (ردٌّ وصل)، وإلّا فآخِرُ ما رآه

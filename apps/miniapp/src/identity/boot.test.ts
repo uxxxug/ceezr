@@ -13,10 +13,12 @@
 import { afterEach, describe, expect, it } from "bun:test";
 import { ApiError, ApiNetworkError } from "../api/client.ts";
 import { type BootDeps, establishSession } from "./boot.ts";
+import { clearPreboot } from "./preboot.ts";
 import { clearSession, setSession } from "./session.ts";
 
 afterEach(() => {
   clearSession();
+  clearPreboot();
 });
 
 const HOUR_MS = 3_600_000;
@@ -175,5 +177,112 @@ describe("كلُّ فشلٍ سببٌ صريحٌ لا «تعذّر»", () => {
     );
     expect(result.established).toBe(false);
     if (!result.established) expect(result.reason).toBe("UNAVAILABLE");
+  });
+});
+
+describe("استهلاكُ التقديمِ الساكنِ (DEC-19 / F1-09)", () => {
+  it("يستهلكُ التبادلَ المُقدَّمَ ولا يُرسِلُ طلبًا ثانيًا", async () => {
+    let exchanged = 0;
+    const preboot = Promise.resolve({
+      ok: true as const,
+      accessToken: "pre",
+      expiresAtMs: Date.now() + HOUR_MS,
+    });
+    const result = await establishSession(
+      baseDeps({
+        consumePreboot: () => preboot,
+        exchange: async () => {
+          exchanged += 1;
+          throw new Error("لا ينبغي أن تُنادى");
+        },
+      }),
+    );
+    expect(result).toEqual({ established: true, via: "exchanged" });
+    expect(exchanged).toBe(0);
+  });
+
+  it("لا يستخدمُ التقديمَ حينَ ينجحُ التجديدُ — التجديدُ أرخصُ وأصدقُ", async () => {
+    let prebootCalls = 0;
+    const result = await establishSession(
+      baseDeps({
+        renew: async () =>
+          ({
+            renewed: true,
+            expiresAtMs: Date.now() + HOUR_MS,
+            absoluteExpiresAtMs: Date.now() + HOUR_MS,
+            persisted: true,
+          }) as const,
+        consumePreboot: () => {
+          prebootCalls += 1;
+          return Promise.resolve({ ok: true, accessToken: "x", expiresAtMs: 0 });
+        },
+        exchange: async () => {
+          throw new Error("لا ينبغي أن تُنادى");
+        },
+      }),
+    );
+    expect(result).toEqual({ established: true, via: "renewed" });
+    expect(prebootCalls).toBe(0);
+  });
+
+  it("لا يستخدمُ التقديمَ حينَ تُرفَض الشبكةُ في التجديدِ", async () => {
+    let prebootCalls = 0;
+    const result = await establishSession(
+      baseDeps({
+        renew: async () => ({ renewed: false, reason: "UNAVAILABLE" }) as const,
+        consumePreboot: () => {
+          prebootCalls += 1;
+          return Promise.resolve({ ok: true, accessToken: "x", expiresAtMs: 0 });
+        },
+      }),
+    );
+    expect(result).toEqual({ established: false, reason: "UNAVAILABLE" });
+    expect(prebootCalls).toBe(0);
+  });
+
+  it("يفشلُ كما يفشلُ التبادلُ العاديُّ إن رفضَ الخادمُ التبادلَ المُقدَّمَ", async () => {
+    const result = await establishSession(
+      baseDeps({
+        consumePreboot: () => Promise.reject(new ApiError(401, "INIT_DATA_SIGNATURE", "…")),
+      }),
+    );
+    expect(result.established).toBe(false);
+    if (!result.established) expect(result.reason).toBe("REJECTED");
+  });
+
+  it("يحفظُ رمزَ التجديدِ من التبادلِ المُقدَّمِ إن وُجد", async () => {
+    const persisted: string[] = [];
+    const result = await establishSession(
+      baseDeps({
+        consumePreboot: () =>
+          Promise.resolve({
+            ok: true as const,
+            accessToken: "pre",
+            expiresAtMs: Date.now() + HOUR_MS,
+            refreshToken: "rt-1",
+          }),
+        persist: (async (token: string) => {
+          persisted.push(token);
+          return { stored: true };
+        }) as never,
+      }),
+    );
+    expect(result).toEqual({ established: true, via: "exchanged" });
+    expect(persisted).toEqual(["rt-1"]);
+  });
+
+  it("يستهلكُ `null` كأنَّ التقديمَ لم يُبدَأْ — فيمضي في المبادلةِ العاديةِ", async () => {
+    let exchanged = 0;
+    const result = await establishSession(
+      baseDeps({
+        consumePreboot: () => null,
+        exchange: async () => {
+          exchanged += 1;
+          return { ok: true as const, accessToken: "x", expiresAtMs: Date.now() + HOUR_MS };
+        },
+      }),
+    );
+    expect(result).toEqual({ established: true, via: "exchanged" });
+    expect(exchanged).toBe(1);
   });
 });

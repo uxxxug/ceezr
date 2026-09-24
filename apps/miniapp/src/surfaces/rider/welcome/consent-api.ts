@@ -13,6 +13,8 @@
  */
 
 import { apiFetch } from "../../../api/client.ts";
+import { consumePrebootConsents } from "../../../identity/preboot.ts";
+import { getSession } from "../../../identity/session.ts";
 import type { ConsentApiStatus } from "./consent-view.ts";
 
 export interface RecordConsentResponse {
@@ -23,6 +25,19 @@ export interface RecordConsentResponse {
 }
 
 export function fetchConsentStatus(): Promise<ConsentApiStatus> {
+  // `F1-09` / `DEC-19`: إن قدّمَ السكربتُ الساكنُ قراءةَ الموافقاتِ ورمزُ الوصولِ
+  // نفسُه، استُهلِكَتْ. و`null` = فشلَ التقديمُ — يُعاوَدُ عبرَ `apiFetch`.
+  const session = getSession();
+  if (session !== null) {
+    const preboot = consumePrebootConsents(session.accessToken);
+    if (preboot !== null) {
+      return preboot.then((payload) =>
+        payload !== null
+          ? Promise.resolve(payload as ConsentApiStatus)
+          : apiFetch<ConsentApiStatus>("/v1/consents"),
+      );
+    }
+  }
   return apiFetch<ConsentApiStatus>("/v1/consents");
 }
 

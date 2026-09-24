@@ -7,6 +7,11 @@
       content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <meta name="theme-color" content="#0f172a" />
+    <!--
+      `F1-09`: منعُ طلبِ `favicon.ico` — الخادمُ يُرجِعُ `index.html` لكلِّ مسارٍ
+      غيرِ مطابقٍ، فيُهدرُ ~١٠ كيلوبايت. الرابطُ الفارغُ يُوقف الطلبَ.
+    -->
+    <link rel="icon" href="data:," />
     <title>وَصْلة</title>
     <!--
       Telegram WebApp script is loaded from telegram.org only when running
@@ -14,9 +19,86 @@
       (ARCH-014 / ADR 0031). No other third-party executable origins.
     -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!--
+      `DEC-19` · `F1-09`: الهيكلُ الساكنُ يُرسَمُ قبلَ تنزيلِ حزمِ الشيفرةِ، فيصبحُ
+      أوّلُ رسمٍ ذي محتوى (FCP) بعدَ طلبِ المستندِ وحدَه لا بعدَ تنزيلِ الشيفرةِ.
+      ولا يحملُ `elementtiming` ولا نصًّا — فهو ليسَ نقطةَ قياسِ سطحِ الراكبِ ولا
+      عنصرَ LCP. وReact يُبدِّلُه حين يُركَّبُ.
+    -->
+    <style>
+      .sk-preboot {
+        display: grid;
+        gap: 0.6rem;
+        padding: 1rem;
+        max-inline-size: 28rem;
+        margin-inline: auto;
+      }
+      .sk-preboot__line {
+        block-size: 0.9rem;
+        border-radius: 0.45rem;
+        background: #e2e8f0;
+        animation: sk-preboot-pulse 1.4s ease-in-out infinite;
+      }
+      .sk-preboot__line--title {
+        block-size: 1.5rem;
+        max-inline-size: 60%;
+      }
+      .sk-preboot__line--short {
+        max-inline-size: 45%;
+      }
+      @keyframes sk-preboot-pulse {
+        0%, 100% { opacity: 0.45; }
+        50% { opacity: 0.85; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sk-preboot__line {
+          animation: none;
+          opacity: 0.6;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="sk-preboot" aria-hidden="true">
+        <span class="sk-preboot__line sk-preboot__line--title"></span>
+        <span class="sk-preboot__line"></span>
+        <span class="sk-preboot__line"></span>
+        <span class="sk-preboot__line sk-preboot__line--short"></span>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <!--
+      `DEC-19` · `F1-09`: التقديمُ الساكنُ — يبدأُ تبادلَ الجلسةِ وقراءةَ الدورِ
+      والموافقاتِ قبلَ اكتمالِ تنزيلِ حزمِ الشيفرةِ، فتتداخلُ الطلباتُ مع التنزيلِ.
+      ولا يفعلُ شيئًا خارجَ تيليجرامَ. النتائجُ تُستهلَكُ من `identity/preboot.ts`.
+    -->
+    <script>
+      (function () {
+        var wa = window.Telegram && window.Telegram.WebApp;
+        if (!wa || typeof wa.initData !== "string" || wa.initData.length === 0) return;
+        var s = fetch("/v1/session/telegram", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ initData: wa.initData }),
+        }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("preboot:" + r.status)); });
+        var d = s.then(function (res) {
+          var tok = res.accessToken;
+          var h = { authorization: "Bearer " + tok };
+          var v = fetch("/v1/me", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+          var c = fetch("/v1/consents", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+          return { viewer: v, consents: c };
+        });
+        window.__waslahPreboot = {
+          session: s,
+          viewer: d.then(function (x) { return x.viewer; }),
+          consents: d.then(function (x) { return x.consents; }),
+          accessToken: "",
+        };
+        s.then(function (res) {
+          if (window.__waslahPreboot) window.__waslahPreboot.accessToken = res.accessToken;
+        }, function () {});
+      })();
+    </script>
   </body>
 </html>

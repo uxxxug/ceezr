@@ -24,6 +24,8 @@ import {
 } from "../../../../packages/shared/i18n/miniapp/index.ts";
 import { ApiError, apiFetch } from "../api/client.ts";
 import { failureFromThrown, type RequestFailure } from "../system/failure.ts";
+import { consumePrebootViewer } from "./preboot.ts";
+import { getSession } from "./session.ts";
 
 /** الأدوارُ كما يعيدها الخادمُ من `users.role` — لا قائمةٌ يخترعها العميل. */
 export const SERVER_ROLES = ["rider", "driver", "support", "admin"] as const;
@@ -92,7 +94,35 @@ function viewFromErrorCode(code: string, failure: RequestFailure | null): Viewer
   return failure === null ? { kind: "unavailable" } : { kind: "unavailable", failure };
 }
 
+/**
+ * ترجمةُ حمولةِ الخادمِ الخامِّ إلى `ViewerView`. مُستخرَجةٌ من `fetchViewer` كي
+ * يُعادَ استخدامُها من المسارَين: الاستهلاكُ المُقدَّمُ والنداءُ المباشرُ.
+ */
+function viewFromPayload(payload: MePayload): ViewerView {
+  const role = readRole(payload.role);
+  const status = readStatus(payload.status);
+  const languageCode = readLanguage(payload.languageCode);
+  // ردٌّ ناقصٌ أو بقيمةٍ لا تُعرَف = `unavailable`، لا افتراضَ راكبٍ ولا مشرف.
+  if (role === null || status === null || languageCode === null) return { kind: "unavailable" };
+  return { kind: "viewer", role, status, languageCode };
+}
+
 export async function fetchViewer(): Promise<ViewerView> {
+  // `F1-09` / `DEC-19`: إن قدّمَ السكربتُ الساكنُ قراءةَ الدورِ ورمزُ الوصولِ
+  // نفسُه، استُهلِكَتْ. والاستهلاكُ لا يتجاوزُ `apiFetch` — إن غابَ أو خالفَ الرمزُ،
+  // مضى في المسارِ التقليديِّ.
+  const session = getSession();
+  if (session !== null) {
+    const preboot = consumePrebootViewer(session.accessToken);
+    if (preboot !== null) {
+      const payload = await preboot;
+      // `null` = فشلَ التقديمُ (شبكةٌ أو ردٌّ غير ناجحٍ) — يُعاوَدُ عبرَ `apiFetch`.
+      if (payload !== null) {
+        return viewFromPayload(payload as MePayload);
+      }
+    }
+  }
+
   let payload: MePayload;
   try {
     payload = await apiFetch<MePayload>("/v1/me");
@@ -102,10 +132,5 @@ export async function fetchViewer(): Promise<ViewerView> {
     return failure === null ? { kind: "unavailable" } : { kind: "unavailable", failure };
   }
 
-  const role = readRole(payload.role);
-  const status = readStatus(payload.status);
-  const languageCode = readLanguage(payload.languageCode);
-  // ردٌّ ناقصٌ أو بقيمةٍ لا تُعرَف = `unavailable`، لا افتراضَ راكبٍ ولا مشرف.
-  if (role === null || status === null || languageCode === null) return { kind: "unavailable" };
-  return { kind: "viewer", role, status, languageCode };
+  return viewFromPayload(payload);
 }
