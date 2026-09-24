@@ -8746,3 +8746,9 @@ SHA متميِّزة. هذا هو أولُها (`7d9a7d6`).
   `scripts/measure-tti.ts` · `scripts/lib/interactive-budget.ts` · `scripts/lib/rider-surface-budget.ts` ·
   حاجزٌ جديدٌ `scripts/check-rider-surface-timing.ts` + `scripts/lib/rider-surface-timing.ts` واختباراتُهما ·
   `package.json` (سلسلةُ `ci`) · `.github/workflows/ci.yml` (خطوةٌ في `verify`) · الوثائقُ بالإضافةِ.
+
+#### حكمُ CI على تنفيذِ Element Timing (2026-09-24)
+
+- الدفعةُ `3d8a50f` · CI `35977101351`: **الوظائفُ الستُّ ناجحةٌ**. Slow 4G على سطحِ الراكبِ (وسيطُ 3): FCP 4,108 · LCP 4,692 ·
+  زمنُ بلوغِ السطحِ المرسومِ 4,692 ms — غيرُ مستوفاةٍ (1,800 · 2,500 · 2,000). حارسُ 3G: 16,216 ≤ 18,000.
+- الحالةُ: الفرعُ غيرُ مدموجٍ · `F1-09` `[~]` · `DEC-19` `[~]` (لا قرارَ معلّقاً، والحدودُ غيرُ مستوفاةٍ).
