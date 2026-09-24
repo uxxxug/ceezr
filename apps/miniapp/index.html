@@ -22,7 +22,8 @@
     <!--
       `DEC-19` · `F1-09`: الهيكلُ الساكنُ يُرسَمُ قبلَ تنزيلِ حزمِ الشيفرةِ، فيصبحُ
       أوّلُ رسمٍ ذي محتوى (FCP) بعدَ طلبِ المستندِ وحدَه لا بعدَ تنزيلِ الشيفرةِ.
-      ولا يحملُ `elementtiming` ولا نصًّا — فهو ليسَ نقطةَ قياسِ سطحِ الراكبِ ولا
+      النصُّ «جارٍ التحميل» مرئيٌّ صراحةً ليحتسبه Chromium كـcontentful.
+      ولا يحملُ `elementtiming` — فهو ليسَ نقطةَ قياسِ سطحِ الراكبِ ولا
       عنصرَ LCP. وReact يُبدِّلُه حين يُركَّبُ.
     -->
     <style>
@@ -46,13 +47,10 @@
       .sk-preboot__line--short {
         max-inline-size: 45%;
       }
-      .sk-preboot__visually-hidden {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip: rect(0, 0, 0, 0);
-        white-space: nowrap;
+      .sk-preboot__text {
+        font-size: 0.9rem;
+        color: #64748b;
+        font-weight: 500;
       }
       @keyframes sk-preboot-pulse {
         0%, 100% { opacity: 0.45; }
@@ -69,7 +67,7 @@
   <body>
     <div id="root">
       <div class="sk-preboot" aria-hidden="true">
-        <span class="sk-preboot__visually-hidden">جارٍ التحميل</span>
+        <span class="sk-preboot__text">جارٍ التحميل</span>
         <span class="sk-preboot__line sk-preboot__line--title"></span>
         <span class="sk-preboot__line"></span>
         <span class="sk-preboot__line"></span>
