@@ -36,7 +36,6 @@
  * القائمةُ المغلقةُ: حاجزٌ لا يمكن أن يمرَّ فراغاً.
  */
 
-import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 import { STATIC_RUNTIME } from "./check-instance-invariant.ts";
@@ -46,7 +45,10 @@ import {
   buildCsp,
   cspMetaTag,
   frameAncestorsHeaderValue,
+  inlineScriptBodies,
+  inlineStyleBodies,
   SOLE_EXTERNAL_SCRIPT_HOST_FILE,
+  sha256Source,
 } from "./lib/content-security-policy.ts";
 
 const SCANNED_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".jsx", ".html"]);
@@ -377,27 +379,13 @@ function main(): void {
     process.exit(1);
   }
 
-  const styleHashes: string[] = [];
-  const stylePattern = /<style(?:\s[^>]*)?>([\s\S]*?)<\/style>/g;
-  let styleMatch = stylePattern.exec(dist);
-  while (styleMatch !== null) {
-    const body = styleMatch[1] ?? "";
-    styleHashes.push(`'sha256-${createHash("sha256").update(body, "utf8").digest("base64")}'`);
-    styleMatch = stylePattern.exec(dist);
-  }
-
-  /** D-23: بصماتُ السكربتِ المُدمَجِ — نفسُ النمطِ، لكن للسكربتِ الخارجيّ. */
-  const scriptHashes: string[] = [];
-  const scriptPattern = /<script\s+[^>]*type="module"[^>]*>([\s\S]*?)<\/script>/g;
-  let scriptMatch = scriptPattern.exec(dist);
-  while (scriptMatch !== null) {
-    const tag = scriptMatch[0];
-    const body = scriptMatch[1] ?? "";
-    if (!/\ssrc=/.test(tag)) {
-      scriptHashes.push(`'sha256-${createHash("sha256").update(body, "utf8").digest("base64")}'`);
-    }
-    scriptMatch = scriptPattern.exec(dist);
-  }
+  /**
+   * البصماتُ من المستخرِجِ الواحدِ في وحدةِ السياسةِ — هو نفسُه الذي يقرؤه الباني
+   * (`inject-csp.ts`)، فلا يفترقانِ. زيادةٌ 2026-09-25 (`D-27`): كانَ هنا نمطٌ منسوخٌ
+   * يطابقُ `type="module"` وحدَه.
+   */
+  const styleHashes = inlineStyleBodies(dist).map(sha256Source);
+  const scriptHashes = inlineScriptBodies(dist).map(sha256Source);
 
   const expected = cspMetaTag(
     buildCsp({

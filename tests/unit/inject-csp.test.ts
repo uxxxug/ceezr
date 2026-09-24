@@ -126,3 +126,41 @@ describe("injectCsp — البصمةُ", () => {
     expect(out).not.toContain("unsafe-inline");
   });
 });
+
+/**
+ * زيادةٌ 2026-09-25 (`F1-09` · `D-27`): السكربتُ الكلاسيكيُّ المُضمَّنُ (التقديمُ الساكنُ)
+ * يُبصَّمُ كالوحدةِ — وكانَ المستخرِجُ يطابقُ `type="module"` وحدَه فيخرجُ بلا بصمةٍ
+ * ويحجبُه المتصفّحُ صامتاً. والتعليقُ الذي يذكرُ وسماً نصّاً لا يُبصَّم.
+ */
+describe("injectCsp — بصمةُ السكربتاتِ المُضمَّنة", () => {
+  const sha = (text: string): string =>
+    `'sha256-${createHash("sha256").update(text, "utf8").digest("base64")}'`;
+  const CLASSIC = "(function(){window.__waslahPreboot={};})();";
+  const MODULE = 'import"/assets/a.js";';
+
+  it("يُبصِّمُ الكلاسيكيَّ والوحدةَ معاً، ويتخطّى ذا `src`", () => {
+    const doc = DOCUMENT.replace(
+      "<body></body>",
+      `<body><script type="module">${MODULE}</script><script>${CLASSIC}</script></body>`,
+    );
+    const out = transform(doc);
+    expect(out).toContain(
+      cspMetaTag(
+        buildCsp({
+          inlineStyleHashes: [STYLE_HASH],
+          inlineScriptHashes: [sha(MODULE), sha(CLASSIC)],
+        }),
+      ),
+    );
+  });
+
+  it("لا يُبصِّمُ وسماً مذكوراً في تعليقٍ", () => {
+    const doc = DOCUMENT.replace(
+      "<body></body>",
+      `<body><!-- <script type="module">x</script> --><script>${CLASSIC}</script></body>`,
+    );
+    const out = transform(doc);
+    expect(out).not.toContain(sha("x"));
+    expect(out).toContain(sha(CLASSIC));
+  });
+});
