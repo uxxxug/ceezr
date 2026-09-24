@@ -105,6 +105,7 @@ export async function readActiveRide(
     status: state.status,
     hasDriver: state.driver !== null,
     arrivedAtMs: state.arrivedAtMs,
+    startedAtMs: state.startedAtMs,
   });
   const position = state.driver === null ? null : driverPositionVerdict(state.driver.position);
 

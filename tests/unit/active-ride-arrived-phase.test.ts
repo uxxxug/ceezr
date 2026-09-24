@@ -5,6 +5,7 @@
 import { describe, expect, it } from "bun:test";
 import {
   type ActiveRideSnapshot,
+  activeRideInconsistency,
   activeRidePhaseOf,
   cancelPolicyOf,
   isActivePhase,
@@ -15,6 +16,7 @@ function snapshot(overrides: Partial<ActiveRideSnapshot> = {}): ActiveRideSnapsh
     status: "matched",
     hasDriver: true,
     arrivedAtMs: null,
+    startedAtMs: null,
     ...overrides,
   };
 }
@@ -54,5 +56,57 @@ describe("activeRidePhaseOf مع ختم الوصول", () => {
 
   it("سياسةُ إلغاءِ طورِ driver_arrived: AFTER_ASSIGNMENT_UNDECIDED", () => {
     expect(cancelPolicyOf("driver_arrived")).toBe("AFTER_ASSIGNMENT_UNDECIDED");
+  });
+});
+
+describe("activeRideInconsistency — فحصُ الاتّساقِ (الخطوةُ الثانية)", () => {
+  it("matched + سائق + لا وصول ⇒ لا خللَ", () => {
+    expect(activeRideInconsistency(snapshot())).toBeNull();
+  });
+
+  it("matched + سائق + وصول ⇒ لا خللَ", () => {
+    expect(activeRideInconsistency(snapshot({ arrivedAtMs: 1_000 }))).toBeNull();
+  });
+
+  it("in_progress + سائق + وصول + بدء ⇒ لا خللَ", () => {
+    expect(
+      activeRideInconsistency(
+        snapshot({ status: "in_progress", arrivedAtMs: 1_000, startedAtMs: 2_000 }),
+      ),
+    ).toBeNull();
+  });
+
+  it("arrived_at بلا سائق ⇒ ARRIVED_WITHOUT_DRIVER", () => {
+    expect(activeRideInconsistency(snapshot({ hasDriver: false, arrivedAtMs: 1_000 }))).toBe(
+      "ARRIVED_WITHOUT_DRIVER",
+    );
+  });
+
+  it("started_at بلا arrived_at ⇒ STARTED_WITHOUT_ARRIVAL", () => {
+    expect(
+      activeRideInconsistency(
+        snapshot({ status: "in_progress", startedAtMs: 2_000, arrivedAtMs: null }),
+      ),
+    ).toBe("STARTED_WITHOUT_ARRIVAL");
+  });
+
+  it("matched بلا سائق ⇒ MATCHED_WITHOUT_DRIVER", () => {
+    expect(activeRideInconsistency(snapshot({ hasDriver: false }))).toBe("MATCHED_WITHOUT_DRIVER");
+  });
+
+  it("searching بلا سائق ⇒ لا خللَ", () => {
+    expect(
+      activeRideInconsistency(
+        snapshot({ status: "searching", hasDriver: false, arrivedAtMs: null }),
+      ),
+    ).toBeNull();
+  });
+
+  it("completed ⇒ لا خللَ", () => {
+    expect(
+      activeRideInconsistency(
+        snapshot({ status: "completed", arrivedAtMs: 1_000, startedAtMs: 2_000 }),
+      ),
+    ).toBeNull();
   });
 });

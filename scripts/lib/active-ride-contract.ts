@@ -494,7 +494,52 @@ export function functionRevokeProblems(input: ActiveRideContractInput): readonly
   return problems;
 }
 
-/** الحكمُ المُجمَّعُ — ستُّ قواعدَ بترتيبِها، وكلُّ مشكلةٍ بموضعِها وسببِها. */
+/**
+ * القاعدة ٩ (`F2-06` الخطوة الثانية) — **الحالةُ الصريحةُ في العقدِ لا في الواجهةِ**.
+ *
+ * الطورُ `driver_arrived` صارَ حالةَ عقدٍ من الدرجةِ الأولى لا اشتقاقًا مبعثرًا.
+ * فالواجهةُ تقرأُ `phase` من عقدِ الخادمِ — ولا تُعيدُ اشتقاقَهُ من `arrived_at`
+ * أو `status`. وكلُّ اشتقاقٍ في الواجهةِ مصدرُ حقيقةٍ ثانٍ يفترقُ عن الأوّلِ.
+ *
+ * والمحظوراتُ: لا تُقارِنِ الواجهةُ `arrivedAt` بـ`null` لتحديدِ الطورِ، ولا
+ * تَقرأُ `status` لتُحدِّدَ ما إذا كانَ السائقُ وصلَ. والقراءةُ الوحيدةُ المسموحُ بها
+ * هي `view.phase`.
+ */
+export function explicitPhaseProblems(input: ActiveRideContractInput): readonly string[] {
+  const problems: string[] = [];
+  const forbidden = [
+    // اشتقاقُ الطورِ من ختمِ الوصولِ في الواجهةِ — مصدرُ حقيقةٍ ثانٍ.
+    {
+      pattern: /arrivedAt\s*[!=]==\s*null/,
+      verdict: "الواجهةُ تشتقُّ الطورَ من «arrivedAt» بدلًا من قراءةِ «phase» الصريحِ",
+    },
+    {
+      pattern: /arrivedAtMs\s*[!=]==\s*null/,
+      verdict: "الواجهةُ تشتقُّ الطورَ من «arrivedAtMs» بدلًا من قراءةِ «phase» الصريحِ",
+    },
+    // اشتقاقُ الطورِ من حالةِ الطلبِ في الواجهةِ.
+    {
+      pattern: /status\s*===\s*["']matched["']\s*&&/,
+      verdict: "الواجهةُ تشتقُّ الطورَ من «status» بدلًا من قراءةِ «phase» الصريحِ",
+    },
+  ];
+  for (const [path, source] of Object.entries(input.surface)) {
+    for (const { pattern, verdict } of forbidden) {
+      if (pattern.test(source)) {
+        problems.push(`${path}: ${verdict} (القاعدة ٩ · F2-06 الخطوة الثانية).`);
+      }
+    }
+  }
+  // العقدُ يجبُ أن يُصدِرَ «phase» صريحًا.
+  if (!input.contract.includes("phase") && !input.contract.includes("Phase")) {
+    problems.push(
+      `${CONTRACT_FILE}: العقدُ لا يُصدِرُ «phase» — الواجهةُ لا تملكُ ما تقرأُهُ (القاعدة ٩).`,
+    );
+  }
+  return problems;
+}
+
+/** الحكمُ المُجمَّعُ — تسعُ قواعدَ بترتيبِها، وكلُّ مشكلةٍ بموضعِها وسببِها. */
 export function activeRideContractProblems(input: ActiveRideContractInput): readonly string[] {
   return [
     ...moneyProblems(input),
@@ -506,5 +551,7 @@ export function activeRideContractProblems(input: ActiveRideContractInput): read
     // القاعدة ٧ (`F2-09`) — أُضيفَت ولم يُمَسَّ ما قبلَها (القاعدة ح-8).
     ...sharePathProblems(input),
     ...sosPathProblems(input),
+    // القاعدة ٩ (`F2-06` الخطوة الثانية) — الحالةُ الصريحةُ في العقدِ لا في الواجهةِ.
+    ...explicitPhaseProblems(input),
   ];
 }

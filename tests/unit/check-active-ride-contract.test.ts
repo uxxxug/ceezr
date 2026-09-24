@@ -17,6 +17,7 @@ import {
   type ActiveRideContractInput,
   activeRideContractProblems,
   driverGateProblems,
+  explicitPhaseProblems,
   functionRevokeProblems,
   keyParityProblems,
   moneyProblems,
@@ -72,6 +73,7 @@ export type ApiActiveRideDriver = {
   readonly ratingCount: number;
 };
 export type ActiveRideResponse = {
+  readonly phase: string;
   readonly driver: ApiActiveRideDriver | null;
   readonly lat: number;
   readonly ageSeconds: number;
@@ -425,5 +427,49 @@ describe("القاعدة ٨ — بطاقةُ الاستغاثةِ تُركَّب
 
   it("الشاشةُ المصنوعةُ السليمةُ تمرُّ", () => {
     expect(sosPathProblems(input())).toEqual([]);
+  });
+});
+
+/**
+ * القاعدة ٩ (`F2-06` الخطوة الثانية) — الحالةُ الصريحةُ في العقدِ لا في الواجهةِ.
+ *
+ * الطورُ `driver_arrived` صارَ حالةَ عقدٍ من الدرجةِ الأولى. فالواجهةُ تقرأُ
+ * `phase` من الخادمِ ولا تُعيدُ اشتقاقَهُ. وكلُّ اشتقاقٍ في الواجهةِ مصدرُ
+ * حقيقةٍ ثانٍ يفترقُ عن الأوّلِ يوماً.
+ */
+describe("القاعدة ٩ — الحالةُ الصريحةُ في العقدِ لا في الواجهةِ (`F2-06` الخطوة الثانية)", () => {
+  it("واجهةٌ تشتقُّ الطورَ من «arrivedAt» تُسقِطُ الحاجزَ", () => {
+    const problems = explicitPhaseProblems(
+      input({ surface: { "view.ts": "if (view.arrivedAt !== null) return 'arrived';" } }),
+    );
+    expect(problems.some((text) => text.includes("arrivedAt"))).toBe(true);
+  });
+
+  it("واجهةٌ تشتقُّ الطورَ من «arrivedAtMs» تُسقِطُ الحاجزَ", () => {
+    const problems = explicitPhaseProblems(
+      input({ surface: { "view.ts": "const arrived = view.arrivedAtMs !== null;" } }),
+    );
+    expect(problems.some((text) => text.includes("arrivedAtMs"))).toBe(true);
+  });
+
+  it("واجهةٌ تشتقُّ الطورَ من «status» و«matched» تُسقِطُ الحاجزَ", () => {
+    const problems = explicitPhaseProblems(
+      input({ surface: { "view.ts": "if (view.status === 'matched' && driver) ...;" } }),
+    );
+    expect(problems.some((text) => text.includes("status"))).toBe(true);
+  });
+
+  it("عقدٌ بلا «phase» يُسقِطُ الحاجزَ — الواجهةُ لا تملكُ ما تقرأُهُ", () => {
+    const problems = explicitPhaseProblems(
+      input({ contract: "export type X = { readonly driver: null; };" }),
+    );
+    expect(problems.some((text) => text.includes("phase"))).toBe(true);
+  });
+
+  it("واجهةٌ تقرأُ «phase» الصريحَ تمرُّ", () => {
+    const problems = explicitPhaseProblems(
+      input({ surface: { "view.ts": "if (view.phase === 'driver_arrived') return 'arrived';" } }),
+    );
+    expect(problems).toEqual([]);
   });
 });
