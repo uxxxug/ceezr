@@ -857,6 +857,9 @@ jobs:
       - name: شاشاتُ الحالاتِ بلا استقصاءٍ دوريٍّ ومواضعُها مفردة (F1-07 · ADR 0035 §4)
         run: bun run scripts/check-system-screens-policy.ts
 
+      - name: عنصرُ قياسِ سطحِ الراكبِ واحدٌ في الحالةِ الجاهزةِ لأوّلِ شاشةٍ (DEC-19 · ADR 0185)
+        run: bun run scripts/check-rider-surface-timing.ts
+
       - name: القياسُ لا يخرج من الجهازِ ومعرّفُ الطلبِ من الخادمِ وحدَه (F1-08 · ADR 0043)
         run: bun run scripts/check-telemetry-policy.ts
 
@@ -1703,7 +1706,7 @@ jobs:
   # والقاعدةُ `PostgreSQL` حقيقيّةٌ بها الهجراتُ — `GET /v1/me` يقرأُ `users`. و`initData`
   # يُولَّدُ ببروتوكولِ تيليجرامَ الرسميِّ (`HMAC-SHA256`) فلا اتصالَ بتيليجرامَ.
   browser-tti:
-    name: متصفّحٌ حقيقيٌّ — وقتُ التفاعلِ (F1-09 الصفُّ ٥ · D-26)
+    name: متصفّحٌ حقيقيٌّ — سطحُ الراكبِ على Slow 4G وحارسُ 3G (F1-09 الصفوفُ 3–5 · DEC-19)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     services:

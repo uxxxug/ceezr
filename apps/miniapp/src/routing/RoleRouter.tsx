@@ -152,6 +152,8 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
         // علامةٌ ثانيةٌ تكشفُ السطحَ المنتجَ الذي وصلَهُ الموجّهُ — تُقرأُ من
         // `scripts/measure-tti.ts` لإثباتِ أنّ القياسَ لم يصلْ إلى شاشةٍ نظاميّةٍ.
         performance.mark(`waslah-surface:${interactiveSurface}`);
+        // `DEC-19`: اسمُ `waslah-interactive` تاريخيٌّ ويعني «بلوغَ حالةِ السطحِ» لا التفاعلَ؛
+        // وزمنُ رسمِ سطحِ الراكبِ يُقاسُ بـElement Timing في `WelcomeScreen.tsx` لا هنا.
       }
     }
   }, [interactiveSurface]);

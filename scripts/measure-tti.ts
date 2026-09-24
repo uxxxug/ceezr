@@ -1,5 +1,13 @@
 /**
- * الغرض: قياسُ «وقتِ التفاعلِ بعدَ فتحِ تيليجرام» (القسمُ 9.9 الصفُّ ٥) بمتصفّحٍ
+ * **زيادةُ `DEC-19` (قرارُ المالكِ 2026-09-24 · `ADR 0185` · النصُّ التالي باقٍ للتاريخِ):**
+ *   هذا السكربتُ يقيسُ المسارَ المحكومَ للصفوفِ 3–5 — مسارَ راكبِ تيليجرام المُختبَرِ — على
+ *   ملفَّينِ في تشغيلٍ واحدٍ وعلى البناءِ نفسِه: Chromium «Slow 4G» (المعيارُ الإلزاميُّ ·
+ *   `rider-surface-budget.ts` · تقريرٌ حتى تُستوفى الحدودُ) وChromium «3G» (حارسُ انحدارٍ ·
+ *   `interactive-budget.ts`). والمقاييسُ من `performance.timeOrigin`: FCP · LCP · «زمنُ
+ *   بلوغِ سطحِ الراكبِ المرسومِ» (`PerformanceElementTiming.renderTime` لعنصرِ
+ *   `elementtiming="waslah-rider-surface"` · قرارُ المالكِ) — لا «TTI».
+ *
+ * الغرض (الأصلُ): قياسُ «وقتِ التفاعلِ بعدَ فتحِ تيليجرام» (القسمُ 9.9 الصفُّ ٥) بمتصفّحٍ
  *   حقيقيٍّ على مُخرَجِ البناءِ — معَ مسارِ إقلاعٍ كاملٍ: `initData` مُوقَّعٌ
  *   ببروتوكولِ تيليجرامَ، بوّابةٌ حقيقيّةٌ تُبادلُهُ جلسةً، و`GET /v1/me` يقرأُ
  *   الدورَ. ويُحكَمُ بـ`scripts/lib/interactive-budget.ts`.
@@ -31,6 +39,7 @@ import {
 } from "../apps/gateway/src/rate-limit/fixed-window.ts";
 import { type KeyDimension, rateLimitPolicy } from "../apps/gateway/src/rate-limit/policy.ts";
 import { createServer, type ServerDependencies } from "../apps/gateway/src/server.ts";
+import { RIDER_SURFACE_TIMING_ID } from "../apps/miniapp/src/surfaces/rider/welcome/surface-timing.ts";
 import { buildBrowserHostScript } from "../apps/miniapp/src/tg/measure-host.ts";
 import {
   createConsentRecordReader,
@@ -54,12 +63,18 @@ import { createViewerAccountLanguageWriter } from "../packages/infrastructure/id
 import type { AppConfig } from "../packages/shared/config/index.ts";
 import { SLOW_3G } from "./lib/first-paint-budget.ts";
 import {
-  DECLARED_TTI_BREACHES,
+  DECLARED_SURFACE_RENDERED_BREACHES,
   declaredDecisionIds,
   evaluateInteractive,
-  INTERACTIVE_BUDGET_MS,
-  type InteractiveRun,
+  SURFACE_RENDERED_BUDGET_MS,
 } from "./lib/interactive-budget.ts";
+import {
+  evaluateRiderSurface,
+  RIDER_SURFACE_LIMITS,
+  type RiderSurfaceRun,
+  SLOW_4G,
+  SLOW_4G_GATE_MODE,
+} from "./lib/rider-surface-budget.ts";
 import { signFreshInitData } from "./lib/telegram-test-init-data.ts";
 
 const ROOT = new URL("../", import.meta.url).pathname;
@@ -256,12 +271,14 @@ class Cdp {
 
 const OBSERVERS = `
 window.__paint = { fcp: null, lcp: null };
-window.__tti = { marked: false, time: null, surface: null };
+window.__tti = { marked: false, time: null, surface: null, rendered: null, timingCount: 0, timingInBusy: false };
 new PerformanceObserver((list) => {
   for (const e of list.getEntries()) if (e.name === "first-contentful-paint") window.__paint.fcp = e.startTime;
 }).observe({ type: "paint", buffered: true });
 new PerformanceObserver((list) => {
-  for (const e of list.getEntries()) if (e.name === "largest-contentful-paint") window.__paint.lcp = e.startTime;
+  // DEC-19: مُدخَلاتُ LCP اسمُها فارغٌ — فالترشيحُ بالاسمِ كانَ يُبقي lcp دائماً null.
+  // كلُّ مُدخَلٍ يُرصَدُ يحلُّ محلَّ سابقِه، فالمقروءُ آخرُ مُدخَلٍ حتى توقُّفِ القياسِ.
+  for (const e of list.getEntries()) window.__paint.lcp = e.startTime;
 }).observe({ type: "largest-contentful-paint", buffered: true });
 const ttiObserver = new PerformanceObserver((list) => {
   for (const e of list.getEntries()) {
@@ -278,6 +295,16 @@ const ttiObserver = new PerformanceObserver((list) => {
   }
 });
 ttiObserver.observe({ type: "mark", buffered: true });
+// DEC-19 (قرارُ المالكِ): زمنُ بلوغِ سطحِ الراكبِ المرسومِ = renderTime لعنصرِ القياسِ من timeOrigin.
+// renderTime صفرٌ يعني أنَّه لم يُحسَب — فيبقى null ويُسقِطُ الحَكَمُ القياسَ.
+new PerformanceObserver((list) => {
+  for (const e of list.getEntries()) {
+    if (e.identifier !== ${JSON.stringify(RIDER_SURFACE_TIMING_ID)}) continue;
+    window.__tti.timingCount += 1;
+    if (window.__tti.rendered === null && e.renderTime > 0) window.__tti.rendered = e.renderTime;
+    if (e.element && e.element.closest('[aria-busy="true"]') !== null) window.__tti.timingInBusy = true;
+  }
+}).observe({ type: "element", buffered: true });
 `;
 
 function freePort(): number {
@@ -298,12 +325,49 @@ function buildTelegramMock(initData: string): string {
   return buildBrowserHostScript(initData, user);
 }
 
+interface NetRequest {
+  readonly url: string;
+  readonly start: number;
+  end: number | null;
+  bytes: number;
+}
+
+/** تشغيلٌ مقيسٌ: حقائقُ الحَكَمَينِ + سجلُّ الطلباتِ للتقريرِ. */
+interface MeasuredRun extends RiderSurfaceRun {
+  readonly requests: readonly NetRequest[];
+}
+
+/**
+ * تقريرٌ لا حكمٌ: البايتاتُ المنقولةُ (`encodedDataLength`) للطلباتِ التي اكتملَت حتى علامةِ
+ * بلوغِ السطحِ المرسومِ، وعددُ الطلباتِ التي بدأَت قبلَها. والتوقيتُ منسوبٌ إلى بدءِ طلبِ
+ * المستندِ (وهوَ ≈ `performance.timeOrigin` لا مطابقٌ له بالضبطِ — للتقريرِ لا للحكمِ).
+ */
+function reportRequests(run: MeasuredRun, label: string, verbose: boolean): void {
+  const reqs = [...run.requests].sort((a, b) => a.start - b.start);
+  const t0 = reqs[0]?.start ?? 0;
+  const until = run.surfaceRenderedMs ?? Number.POSITIVE_INFINITY;
+  const started = reqs.filter((r) => r.start - t0 <= until);
+  const bytes = started.reduce(
+    (n, r) => n + (r.end !== null && r.end - t0 <= until ? r.bytes : 0),
+    0,
+  );
+  console.log(
+    `    ${label}: طلباتٌ بدأَت قبلَ السطحِ المرسومِ=${started.length} · بايتاتٌ منقولةٌ حتّاه=${bytes}`,
+  );
+  if (!verbose) return;
+  for (const r of started) {
+    const path = r.url.replace(/^https?:\/\/[^/]+/, "");
+    const end = r.end === null ? "—" : (r.end - t0).toFixed(0);
+    console.log(`      ${(r.start - t0).toFixed(0)}→${end} ms · ${r.bytes} B · ${path}`);
+  }
+}
+
 async function measureOnce(
   browserPath: string,
   origin: string,
-  profile: typeof SLOW_3G | null,
+  profile: typeof SLOW_3G | typeof SLOW_4G | null,
   initData: string,
-): Promise<InteractiveRun> {
+): Promise<MeasuredRun> {
   const userDataDir = mkdtempSync(join(tmpdir(), "waslah-tti-"));
   const headlessFlag = browserPath.includes("headless-shell") ? "--headless" : "--headless=new";
   const port = freePort();
@@ -357,9 +421,23 @@ async function measureOnce(
     const exceptions: string[] = [];
     const urls = new Map<string, string>();
     const inflight = new Set<string>();
+    const netLog = new Map<string, NetRequest>();
     let lastNetworkActivity = Date.now();
     cdp.listeners.push(({ method, params }) => {
       const requestId = String(params.requestId ?? "");
+      // سجلُّ طلباتٍ للتقريرِ وحدَه (الحملُ والانتظاراتُ) — لا يدخلُ في أيِّ حكمٍ.
+      const at = typeof params.timestamp === "number" ? params.timestamp * 1000 : 0;
+      if (method === "Network.requestWillBeSent" && !netLog.has(requestId)) {
+        const url = (params.request as { url: string }).url;
+        if (!url.startsWith("data:"))
+          netLog.set(requestId, { url, start: at, end: null, bytes: 0 });
+      } else if (method === "Network.loadingFinished") {
+        const entry = netLog.get(requestId);
+        if (entry !== undefined) {
+          entry.end = at;
+          entry.bytes = Number(params.encodedDataLength ?? 0);
+        }
+      }
       if (method === "Network.requestWillBeSent") {
         urls.set(requestId, (params.request as { url: string }).url);
         inflight.add(requestId);
@@ -421,6 +499,9 @@ async function measureOnce(
       root: 0,
       interactive: false as boolean,
       interactiveTime: null as number | null,
+      rendered: null as number | null,
+      timingCount: 0,
+      timingInBusy: false as boolean,
       surface: null as "rider" | "driver" | "admin" | null,
       complete: false,
     };
@@ -432,22 +513,38 @@ async function measureOnce(
           " root: document.getElementById('root')?.childElementCount ?? 0," +
           " interactive: window.__tti?.marked ?? false," +
           " interactiveTime: window.__tti?.time ?? null," +
+          " rendered: window.__tti?.rendered ?? null," +
+          " timingCount: window.__tti?.timingCount ?? 0," +
+          " timingInBusy: window.__tti?.timingInBusy ?? false," +
           " surface: window.__tti?.surface ?? null," +
           " complete: document.readyState === 'complete'})",
         returnByValue: true,
       });
       if (evaluated.result.value !== undefined) state = JSON.parse(evaluated.result.value);
       const quiet = inflight.size === 0 && Date.now() - lastNetworkActivity >= QUIET_WINDOW_MS;
-      if (state.complete && quiet && state.interactive && state.surface !== null) break;
+      // توقُّفُ القياسِ (ومعَه قراءةُ آخرِ LCP): المستندُ مكتملٌ · لا طلبَ جارٍ ومضَت ثانيتانِ
+      // على آخرِ نشاطٍ شبكيٍّ · بلغَ الموجّهُ سطحاً · رُصِدَ renderTime لعنصرِ القياسِ. أو المهلةُ.
+      if (
+        state.complete &&
+        quiet &&
+        state.interactive &&
+        state.surface !== null &&
+        state.rendered !== null
+      )
+        break;
     }
     return {
-      ttiMs: state.interactiveTime,
+      surfaceRenderedMs: state.rendered,
+      lcpMs: state.lcp,
+      requests: [...netLog.values()],
       fcpMs: state.fcp,
       rootChildCount: state.root,
       failedSameOriginRequests: failed,
       uncaughtExceptions: exceptions,
       interactiveMarked: state.interactive,
       surface: state.surface,
+      timingEntryCount: state.timingCount,
+      timingInBusyTree: state.timingInBusy,
     };
   } finally {
     cdp?.close();
@@ -659,16 +756,21 @@ async function main(): Promise<void> {
       // تشغيلٌ بلا تقييدٍ — لشرطِ الحياةِ.
       const unthrottled = await measureOnce(browser, origin, null, initDatas[0]?.raw ?? "");
       console.log(
-        `  بلا تقييدٍ: FCP=${unthrottled.fcpMs?.toFixed(0) ?? "—"} ms · TTI=${unthrottled.ttiMs?.toFixed(0) ?? "—"} ms · surface=${unthrottled.surface ?? "—"} · عُقَدُ #root=${unthrottled.rootChildCount}`,
+        `  بلا تقييدٍ: FCP=${unthrottled.fcpMs?.toFixed(0) ?? "—"} ms · بلوغُ السطحِ المرسومِ=${fmt(unthrottled.surfaceRenderedMs)} ms · surface=${unthrottled.surface ?? "—"} · عُقَدُ #root=${unthrottled.rootChildCount}`,
       );
 
-      const throttled: InteractiveRun[] = [];
+      /**
+       * (١) Chromium «3G» — حارسُ انحدارٍ لا حاجزُ إغلاقٍ (`DEC-19`). يُسقِطُ على الانحدارِ
+       * فوقَ السقفِ المُعلَنِ وعلى شرطِ الحياةِ؛ ولا يُدَّعى أنَّ الحدَّ قابلٌ للتحقيقِ عليه.
+       */
+      const throttled: MeasuredRun[] = [];
       for (let i = 0; i < THROTTLED_RUNS; i++) {
         const run = await measureOnce(browser, origin, SLOW_3G, initDatas[i + 1]?.raw ?? "");
         throttled.push(run);
         console.log(
-          `  ${SLOW_3G.id} #${i + 1}: FCP=${run.fcpMs?.toFixed(0) ?? "—"} ms · TTI=${run.ttiMs?.toFixed(0) ?? "—"} ms · surface=${run.surface ?? "—"}`,
+          `  ${SLOW_3G.id} #${i + 1}: FCP=${fmt(run.fcpMs)} ms · LCP=${fmt(run.lcpMs)} ms · بلوغُ السطحِ المرسومِ=${fmt(run.surfaceRenderedMs)} ms · surface=${run.surface ?? "—"}`,
         );
+        reportRequests(run, `${SLOW_3G.id} #${i + 1}`, false);
       }
 
       const roadmap = readFileSync(join(ROOT, "docs/ROADMAP-MASTER.md"), "utf8");
@@ -676,25 +778,49 @@ async function main(): Promise<void> {
         unthrottled,
         profileId: SLOW_3G.id,
         throttled,
-        declared: DECLARED_TTI_BREACHES,
+        declared: DECLARED_SURFACE_RENDERED_BREACHES,
         knownDecisions: declaredDecisionIds(roadmap),
       });
-
       console.log(
-        `  الوسيطُ على ${SLOW_3G.id}: TTI=${verdict.medianTtiMs?.toFixed(0) ?? "—"} ms (الحدُّ ${INTERACTIVE_BUDGET_MS})`,
+        `  [حارسُ انحدارٍ] الوسيطُ على ${SLOW_3G.id}: بلوغُ السطحِ المرسومِ=${fmt(verdict.medianSurfaceRenderedMs)} ms (السقفُ ${DECLARED_SURFACE_RENDERED_BREACHES[0]?.ceilingMs ?? "—"} · الحدُّ ${SURFACE_RENDERED_BUDGET_MS} غيرُ قابلٍ للتحقيقِ على هذا الملفِّ)`,
       );
-      for (const breach of DECLARED_TTI_BREACHES) {
+
+      /**
+       * (٢) Chromium «Slow 4G» — المعيارُ الإلزاميُّ للصفوفِ 3–5 (`DEC-19`) على سطحِ الراكبِ.
+       * الوضعُ `SLOW_4G_GATE_MODE`: تقريرٌ حتى تُستوفى الحدودُ، وشرطُ الحياةِ حاجزٌ دائماً.
+       */
+      const slow4g: MeasuredRun[] = [];
+      const initDatas4g = signFreshInitData(TEST_BOT_TOKEN, TEST_USER, THROTTLED_RUNS);
+      for (let i = 0; i < THROTTLED_RUNS; i++) {
+        const run = await measureOnce(browser, origin, SLOW_4G, initDatas4g[i]?.raw ?? "");
+        slow4g.push(run);
         console.log(
-          `  خرقٌ مُعلَنٌ (${breach.decision}) TTI ≤ ${breach.ceilingMs} ms: ${breach.reason}`,
+          `  ${SLOW_4G.id} #${i + 1}: FCP=${fmt(run.fcpMs)} ms · LCP=${fmt(run.lcpMs)} ms · بلوغُ السطحِ المرسومِ=${fmt(run.surfaceRenderedMs)} ms · surface=${run.surface ?? "—"}`,
+        );
+        reportRequests(run, `${SLOW_4G.id} #${i + 1}`, i === 0);
+      }
+      const rider = evaluateRiderSurface({
+        runs: slow4g,
+        mode: SLOW_4G_GATE_MODE,
+        profileId: SLOW_4G.id,
+      });
+      console.log(`  [DEC-19 · ${SLOW_4G_GATE_MODE}] الوسيطُ على ${SLOW_4G.id} (سطحُ الراكبِ):`);
+      for (const m of rider.metrics) {
+        console.log(
+          `    ${m.metric} = ${fmt(m.medianMs)} ms · الحدُّ ${m.limitMs} ms · ${m.met ? "مستوفىً" : "غيرُ مستوفىً"}`,
         );
       }
-      if (verdict.problems.length > 0) {
-        for (const problem of verdict.problems)
-          console.error(`✗ [${problem.rule}] ${problem.detail}`);
+      console.log(
+        `    الحدودُ: FCP ≤ ${RIDER_SURFACE_LIMITS.fcpMs} · LCP ≤ ${RIDER_SURFACE_LIMITS.lcpMs} · بلوغُ السطحِ المرسومِ ≤ ${RIDER_SURFACE_LIMITS.surfaceRenderedMs} — ${rider.allMet ? "مستوفاةٌ" : "غيرُ مستوفاةٍ؛ F1-09 يبقى [~]"}`,
+      );
+
+      const problems = [...verdict.problems, ...rider.problems];
+      if (problems.length > 0) {
+        for (const problem of problems) console.error(`✗ [${problem.rule}] ${problem.detail}`);
         process.exit(1);
       }
       console.log(
-        "✓ التطبيقُ يَصيرُ قابلاً للتفاعلِ، والخرقُ ضمنَ سقفِه المُعلَنِ — ولا يُقرأُ هذا استيفاءً لحدِّ 9.9 (DEC-19)",
+        "✓ شرطُ الحياةِ مستوفىً على الملفّاتِ كلِّها، وحارسُ «3G» ضمنَ سقفِه — ولا يُقرأُ هذا استيفاءً لحدودِ 9.9 (DEC-19 · F1-09 [~])",
       );
     } finally {
       server.close();
@@ -703,6 +829,10 @@ async function main(): Promise<void> {
     await sql.end({ timeout: 5 });
     await container.close();
   }
+}
+
+function fmt(value: number | null | undefined): string {
+  return typeof value === "number" && Number.isFinite(value) ? value.toFixed(0) : "—";
 }
 
 function readBody(req: http.IncomingMessage): Promise<Buffer> {

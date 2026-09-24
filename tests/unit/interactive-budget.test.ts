@@ -1,11 +1,11 @@
 /**
- * اختباراتُ حَكَمِ وقتِ التفاعلِ — سوالبُ مزروعةٌ بلا متصفّحٍ.
+ * اختباراتُ حَكَمِ زمنِ بلوغِ سطحِ الراكبِ المرسومِ على «3G» (حارسُ انحدارٍ · DEC-19؛ وكانَ «وقتَ التفاعلِ» قبلَه) — سوالبُ مزروعةٌ بلا متصفّحٍ.
  * الحالة: اختبارٌ وحدويٌّ — `ح-7`.
  */
 
 import { describe, expect, it } from "bun:test";
 import {
-  DECLARED_TTI_BREACHES,
+  DECLARED_SURFACE_RENDERED_BREACHES,
   declaredDecisionIds,
   evaluateInteractive,
   type InteractiveRun,
@@ -15,27 +15,31 @@ import {
 
 const VALID_DECISIONS = new Set(["DEC-19"]);
 
-function goodRun(ttiMs: number): InteractiveRun {
+function goodRun(surfaceRenderedMs: number): InteractiveRun {
   return {
-    ttiMs,
+    surfaceRenderedMs,
     fcpMs: 100,
     rootChildCount: 3,
     failedSameOriginRequests: [],
     uncaughtExceptions: [],
     interactiveMarked: true,
     surface: "rider",
+    timingEntryCount: 1,
+    timingInBusyTree: false,
   };
 }
 
 function deadRun(): InteractiveRun {
   return {
-    ttiMs: null,
+    surfaceRenderedMs: null,
     fcpMs: null,
     rootChildCount: 0,
     failedSameOriginRequests: [],
     uncaughtExceptions: [],
     interactiveMarked: false,
     surface: null,
+    timingEntryCount: 0,
+    timingInBusyTree: false,
   };
 }
 
@@ -65,7 +69,7 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
       const run: InteractiveRun = {
         ...goodRun(1000),
         interactiveMarked: false,
-        ttiMs: null,
+        surfaceRenderedMs: null,
         surface: null,
       };
       const problems = interactiveLivenessProblems(run, "test");
@@ -82,13 +86,15 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
       // هذا مسارُ الإيجابِ الكاذبِ الذي أصلحَهُ التصحيحُ: العلامةُ كانت تُطلَقُ على
       // شاشةٍ نظاميّةٍ (unregistered) فيُعَدُّ التطبيقُ تفاعليّاً بلا سطحٍ منتج.
       const run: InteractiveRun = {
-        ttiMs: 1000,
+        surfaceRenderedMs: 1000,
         fcpMs: 100,
         rootChildCount: 3,
         failedSameOriginRequests: [],
         uncaughtExceptions: [],
         interactiveMarked: true,
         surface: null,
+        timingEntryCount: 1,
+        timingInBusyTree: false,
       };
       const problems = interactiveLivenessProblems(run, "test");
       expect(problems.some((p) => p.rule === "INTERACTIVE_WITHOUT_SURFACE")).toBe(true);
@@ -122,7 +128,7 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
         knownDecisions: VALID_DECISIONS,
       });
       expect(verdict.problems).toHaveLength(0);
-      expect(verdict.medianTtiMs).toBe(1500);
+      expect(verdict.medianSurfaceRenderedMs).toBe(1500);
     });
 
     it("فوقَ الحدِّ بلا إعلانٍ ⇒ UNDECLARED_BREACH", () => {
@@ -141,11 +147,11 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
         unthrottled: goodRun(100),
         profileId: "test",
         throttled: [goodRun(8000), goodRun(9000), goodRun(7000)],
-        declared: DECLARED_TTI_BREACHES,
+        declared: DECLARED_SURFACE_RENDERED_BREACHES,
         knownDecisions: VALID_DECISIONS,
       });
       expect(verdict.problems).toHaveLength(0);
-      expect(verdict.medianTtiMs).toBe(8000);
+      expect(verdict.medianSurfaceRenderedMs).toBe(8000);
     });
 
     it("فوقَ السقفِ المُعلَنِ ⇒ BREACH_REGRESSED", () => {
@@ -153,7 +159,7 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
         unthrottled: goodRun(100),
         profileId: "test",
         throttled: [goodRun(19000), goodRun(20000), goodRun(18000)],
-        declared: DECLARED_TTI_BREACHES,
+        declared: DECLARED_SURFACE_RENDERED_BREACHES,
         knownDecisions: VALID_DECISIONS,
       });
       expect(verdict.problems.some((p) => p.rule === "BREACH_REGRESSED")).toBe(true);
@@ -164,7 +170,7 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
         unthrottled: goodRun(100),
         profileId: "test",
         throttled: [goodRun(1500), goodRun(1600), goodRun(1400)],
-        declared: DECLARED_TTI_BREACHES,
+        declared: DECLARED_SURFACE_RENDERED_BREACHES,
         knownDecisions: VALID_DECISIONS,
       });
       expect(verdict.problems.some((p) => p.rule === "DEAD_DECLARATION")).toBe(true);
@@ -175,7 +181,7 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
         unthrottled: goodRun(100),
         profileId: "test",
         throttled: [goodRun(8000), goodRun(9000), goodRun(7000)],
-        declared: DECLARED_TTI_BREACHES,
+        declared: DECLARED_SURFACE_RENDERED_BREACHES,
         knownDecisions: new Set<string>(),
       });
       expect(verdict.problems.some((p) => p.rule === "UNKNOWN_DECISION")).toBe(true);
@@ -186,7 +192,7 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
         unthrottled: goodRun(100),
         profileId: "test",
         throttled: [goodRun(14000), goodRun(19000), goodRun(14000)],
-        declared: DECLARED_TTI_BREACHES,
+        declared: DECLARED_SURFACE_RENDERED_BREACHES,
         knownDecisions: VALID_DECISIONS,
       });
       // الوسيطُ 14000 — ضمنَ السقفِ.
@@ -206,5 +212,78 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
       expect(ids.has("DEC-19")).toBe(true);
       expect(ids.has("DEC-20")).toBe(true);
     });
+  });
+});
+
+describe("DEC-19 — قاعدتا المقياسِ المحكومِ (سوالبُ مزروعةٌ)", () => {
+  it("FCP وصلَ بلا عنصرِ الراكبِ ⇒ NO_SURFACE_RENDERED (ولو كانَ كلُّ ما سواه سليماً)", () => {
+    const run: InteractiveRun = {
+      ...goodRun(1000),
+      fcpMs: 400,
+      surfaceRenderedMs: null,
+      timingEntryCount: 0,
+    };
+    const rules = interactiveLivenessProblems(run, "test").map((p) => p.rule);
+    expect(rules).toEqual(["NO_SURFACE_RENDERED"]);
+  });
+
+  it("العنصرُ موجودٌ مرّةً واحدةً على سطحِ الراكبِ ⇒ لا مشكلةَ", () => {
+    expect(interactiveLivenessProblems(goodRun(1000), "test")).toEqual([]);
+  });
+
+  it("عنصرُ القياسِ على سطحٍ غيرِ الراكبِ ⇒ RENDERED_WITHOUT_RIDER", () => {
+    const rules = interactiveLivenessProblems({ ...goodRun(1000), surface: "driver" }, "t").map(
+      (p) => p.rule,
+    );
+    expect(rules).toContain("RENDERED_WITHOUT_RIDER");
+  });
+
+  it("عنصرُ القياسِ بلا سطحٍ ⇒ RENDERED_WITHOUT_RIDER", () => {
+    const rules = interactiveLivenessProblems({ ...goodRun(1000), surface: null }, "t").map(
+      (p) => p.rule,
+    );
+    expect(rules).toContain("RENDERED_WITHOUT_RIDER");
+  });
+
+  it("مُدخَلانِ بالمعرّفِ ⇒ DUPLICATE_TIMING_ENTRY", () => {
+    const rules = interactiveLivenessProblems({ ...goodRun(1000), timingEntryCount: 2 }, "t").map(
+      (p) => p.rule,
+    );
+    expect(rules).toContain("DUPLICATE_TIMING_ENTRY");
+  });
+
+  it("العنصرُ داخلَ حالةِ تحميلٍ ⇒ TIMING_IN_LOADING", () => {
+    const rules = interactiveLivenessProblems(
+      { ...goodRun(1000), timingInBusyTree: true },
+      "t",
+    ).map((p) => p.rule);
+    expect(rules).toContain("TIMING_IN_LOADING");
+  });
+
+  it("سطحٌ بلا علامةِ بلوغِ السطحِ المرسومِ ⇒ NO_SURFACE_RENDERED", () => {
+    const run: InteractiveRun = { ...goodRun(1000), surfaceRenderedMs: null };
+    const rules = interactiveLivenessProblems(run, "test").map((p) => p.rule);
+    expect(rules).toContain("NO_SURFACE_RENDERED");
+  });
+
+  it("علامةٌ قبلَ أوّلِ رسمٍ ⇒ RENDERED_BEFORE_PAINT", () => {
+    const run: InteractiveRun = { ...goodRun(90), fcpMs: 100 };
+    const rules = interactiveLivenessProblems(run, "test").map((p) => p.rule);
+    expect(rules).toContain("RENDERED_BEFORE_PAINT");
+  });
+
+  it("علامةٌ بعدَ أوّلِ رسمٍ أو معَه ⇒ لا مشكلةَ من القاعدتَينِ", () => {
+    const rules = [
+      ...interactiveLivenessProblems({ ...goodRun(100), fcpMs: 100 }, "a"),
+      ...interactiveLivenessProblems(goodRun(4134), "b"),
+    ].map((p) => p.rule);
+    expect(rules).not.toContain("RENDERED_BEFORE_PAINT");
+    expect(rules).not.toContain("NO_SURFACE_RENDERED");
+  });
+
+  it("المقياسُ باسمِه لا «tti»", () => {
+    expect(DECLARED_SURFACE_RENDERED_BREACHES.every((b) => b.metric === "surface-rendered")).toBe(
+      true,
+    );
   });
 });
