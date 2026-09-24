@@ -126,6 +126,15 @@
         };
         s.then(function (res) {
           if (window.__waslahPreboot) window.__waslahPreboot.accessToken = res.accessToken;
+          // `F1-09` · `D-31` · `ADR 0187`: `rider-home` لازمةٌ لسطحَي الراكبِ والسائقِ معاً، فتُسخَّنُ حينَ تنجحُ الجلسةُ
+          // لا بعدَ الدورِ. لا تقرأُ دوراً. الاسمُ يحقنُه `vite/warm-rider-home.ts` عندَ البناءِ؛ وفي التطويرِ تبقى العلامةُ فلا شيءَ.
+          var warm = "__WASLAH_WARM_RIDER_HOME__";
+          if (warm.charAt(0) === "/") {
+            var l = document.createElement("link");
+            l.rel = "modulepreload";
+            l.href = warm;
+            document.head.appendChild(l);
+          }
         }, function () {});
       })();
     </script>
