@@ -23,6 +23,7 @@ function goodRun(ttiMs: number): InteractiveRun {
     failedSameOriginRequests: [],
     uncaughtExceptions: [],
     interactiveMarked: true,
+    surface: "rider",
   };
 }
 
@@ -34,6 +35,7 @@ function deadRun(): InteractiveRun {
     failedSameOriginRequests: [],
     uncaughtExceptions: [],
     interactiveMarked: false,
+    surface: null,
   };
 }
 
@@ -60,9 +62,42 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
     });
 
     it("العلامةُ لم تظهر ⇒ NO_INTERACTIVE", () => {
-      const run: InteractiveRun = { ...goodRun(1000), interactiveMarked: false, ttiMs: null };
+      const run: InteractiveRun = {
+        ...goodRun(1000),
+        interactiveMarked: false,
+        ttiMs: null,
+        surface: null,
+      };
       const problems = interactiveLivenessProblems(run, "test");
       expect(problems.some((p) => p.rule === "NO_INTERACTIVE")).toBe(true);
+    });
+
+    it("لا سطحَ منتج ⇒ NO_SURFACE", () => {
+      const run: InteractiveRun = { ...goodRun(1000), surface: null };
+      const problems = interactiveLivenessProblems(run, "test");
+      expect(problems.some((p) => p.rule === "NO_SURFACE")).toBe(true);
+    });
+
+    it("علامةٌ تفاعليّةٌ بلا سطحٍ ⇒ INTERACTIVE_WITHOUT_SURFACE (إيجابٌ كاذب)", () => {
+      // هذا مسارُ الإيجابِ الكاذبِ الذي أصلحَهُ التصحيحُ: العلامةُ كانت تُطلَقُ على
+      // شاشةٍ نظاميّةٍ (unregistered) فيُعَدُّ التطبيقُ تفاعليّاً بلا سطحٍ منتج.
+      const run: InteractiveRun = {
+        ttiMs: 1000,
+        fcpMs: 100,
+        rootChildCount: 3,
+        failedSameOriginRequests: [],
+        uncaughtExceptions: [],
+        interactiveMarked: true,
+        surface: null,
+      };
+      const problems = interactiveLivenessProblems(run, "test");
+      expect(problems.some((p) => p.rule === "INTERACTIVE_WITHOUT_SURFACE")).toBe(true);
+      expect(problems.some((p) => p.rule === "NO_SURFACE")).toBe(true);
+    });
+
+    it("شاشةٌ بيضاءُ ⇒ NO_SURFACE أيضاً", () => {
+      const problems = interactiveLivenessProblems(deadRun(), "بلا تقييدٍ");
+      expect(problems.some((p) => p.rule === "NO_SURFACE")).toBe(true);
     });
   });
 
