@@ -11,6 +11,17 @@
  * ملاحظات مستقبلية: لا حقلَ أجرةٍ ولا عقوبةِ إلغاءٍ ههنا قبلَ `DEC-11`
  *   (`ADR 0039` §٤ · `م13-7`) — ولا حقلَ مُعَدّاً لها.
  *
+ * ## الخطوةُ الثانية — الحالةُ الصريحةُ (2026-09-24 · `F2-06`)
+ *
+ * الخطوةُ الأولى أضافتَ `driver_arrived` طوراً مُشتقًّا من `arrived_at` في الدومين.
+ * والخطوةُ الثانيةُ تجعلُهُ **حالةَ عقدٍ من الدرجةِ الأولى** مع انتقالاتٍ وحراسٍ
+ * مقاسةٍ، لا اشتقاقًا مبعثرًا. فالطورُ ليسَ «اقرأِ العمودَ وحدَه» بل «اقرأِ
+ * الوقائعَ كلَّها وحكمْ بالآلةِ» — وكلُّ حالةٍ غيرِ متّسقةٍ تُسقِطُ إلى
+ * `closed` **بعَلَمٍ صريحٍ** لا بصمتٍ، فلا يَغيبُ الخللُ في خضرةٍ زائفةٍ.
+ *
+ * والواجهةُ تقرأُ `phase` من عقدِ الخادمِ — ولا تُعيدُ اشتقاقَهُ من `arrived_at`
+ * أو `status`. وحاجزُ `UX-022` يمنعُ ذلك.
+ *
  * ## لماذا القرارُ ههنا لا في الشاشةِ ولا في SQL
  *
  * «هل تُرسَمُ نقطةُ السائقِ؟» سؤالٌ **واحدٌ** يُسألُ في موضعَينِ: الخادمُ يُقرِّرُ
@@ -62,6 +73,11 @@ export interface ActiveRideSnapshot {
   readonly hasDriver: boolean;
   /** ختمُ «وصلَ السائقُ» — `null` متى لم يُكتبْه السائقُ بعدُ. */
   readonly arrivedAtMs: number | null;
+  /**
+   * ختمُ بدءِ الرحلةِ — `null` متى لم تُبدأْ بعدُ. يُستعملُ في فحصِ الاتّساقِ:
+   * `started_at` بلا `arrived_at` خللٌ مُسمَّى.
+   */
+  readonly startedAtMs: number | null;
 }
 
 /**
@@ -73,6 +89,23 @@ export interface ActiveRideSnapshot {
  *
  * وختمُ `arrived_at` يُقدَّمُ على `started_at`: السائقُ قد يصلُ نقطةَ الالتقاطِ
  * ثمَّ ينتظِرُ الراكبَ قبلَ بدءِ الرحلةِ، فالطورُ «وصلَ» لا «جاريةٌ».
+ *
+ * ## الانتقالاتُ الصريحةُ (الخطوةُ الثانية)
+ *
+ * الآلةُ خمسةُ أطوارٍ لا أكثرُ، وكلُّ انتقالٍ له **شرطُ وقوعٍ** و**شرطُ سلامةٍ**:
+ *
+ *   `searching` → `driver_assigned`: `matched` + `hasDriver` + `arrivedAtMs === null`
+ *   `driver_assigned` → `driver_arrived`: `matched` + `hasDriver` + `arrivedAtMs !== null`
+ *   `driver_arrived` → `on_trip`: `in_progress` + `startedAtMs !== null` (ختمُ الوصولِ لا يُقدَّمُ على الجريانِ)
+ *   `on_trip` → `completed`: `completed`
+ *   أيُّ حالٍ → `closed`: `cancelled` | `failed` | حالةٌ غيرُ متّسقةٍ
+ *
+ * والحالةُ غيرُ المتّسقةِ هي وقوعُ الوقائعِ في ترتيبٍ لا يُجيزُهُ النصُّ:
+ * - `arrived_at` بلا سائقٍ مُسنَدٍ (الختمُ يكتبُهُ السائقُ فلا يكونُ بلا سائقٍ).
+ * - `started_at` بلا `arrived_at` (البدءُ بعدَ الوصولِ، والقاعدةُ تحرسُ هذا).
+ * - `matched` بلا سائقٍ (القيدُ يمنعُهُ، فإن وقعَ فهوَ عطبٌ).
+ *
+ * وكلُّ حالةٍ غيرِ متّسقةٍ تُسقِطُ إلى `closed` بعَلَمٍ صريحٍ لا بصمتٍ.
  */
 export function activeRidePhaseOf(snapshot: ActiveRideSnapshot): ActiveRidePhase {
   const { status } = snapshot;
@@ -84,6 +117,42 @@ export function activeRidePhaseOf(snapshot: ActiveRideSnapshot): ActiveRidePhase
     return snapshot.arrivedAtMs !== null ? "driver_arrived" : "driver_assigned";
   }
   return "searching";
+}
+
+/**
+ * علمُ الاتّساقِ — هل الوقائعُ في ترتيبٍ يُجيزُهُ النصُّ؟
+ *
+ * و`null` تعني: لا اتّساقَ ولا خللَ — الحالةُ سليمةٌ. وغيرُ `null` يعني: خللٌ
+ * مُسمَّى، والطورُ سقطَ إلى `closed` بسبَبِهِ لا بلا سببٍ.
+ *
+ * والهدفُ ليسَ إخفاءُ الخللِ بل إعلانُهُ: من قرأَ `phase === "closed"` لا يعرفُ
+ * هل انتهَتِ الرحلةُ أم وقعَ خللٌ. وهذا التمييزُ يُسجَّلُ في السجلِّ لا في الشاشةِ.
+ */
+export type ActiveRideInconsistency =
+  | "ARRIVED_WITHOUT_DRIVER"
+  | "STARTED_WITHOUT_ARRIVAL"
+  | "MATCHED_WITHOUT_DRIVER";
+
+/**
+ * هل الوقائعُ متّسقةٌ معَ آلةِ الحالةِ؟
+ *
+ * - `arrived_at` بلا سائقٍ ⇒ `ARRIVED_WITHOUT_DRIVER` — الختمُ يكتبُهُ السائقُ
+ *   فلا يكونُ بلا سائقٍ. والقاعدةُ تحرسُ هذا بقيدِ `orders_arrived_requires_driver`،
+ *   فإن وقعَ فهوَ خللٌ في القاعدةِ لا في الواجهةِ.
+ * - `started_at` بلا `arrived_at` ⇒ `STARTED_WITHOUT_ARRIVAL` — البدءُ بعدَ الوصولِ.
+ *   والقاعدةُ تحرسُ هذا، فإن وقعَ فهوَ خللٌ.
+ * - `matched` بلا سائقٍ ⇒ `MATCHED_WITHOUT_DRIVER` — القيدُ يمنعُهُ، فإن وقعَ فعطبٌ.
+ *
+ * و`null` تعني: الوقائعُ سليمةٌ، ولا خللَ.
+ */
+export function activeRideInconsistency(
+  snapshot: ActiveRideSnapshot,
+): ActiveRideInconsistency | null {
+  if (snapshot.arrivedAtMs !== null && !snapshot.hasDriver) return "ARRIVED_WITHOUT_DRIVER";
+  if (snapshot.startedAtMs !== null && snapshot.arrivedAtMs === null && snapshot.hasDriver)
+    return "STARTED_WITHOUT_ARRIVAL";
+  if (snapshot.status === "matched" && !snapshot.hasDriver) return "MATCHED_WITHOUT_DRIVER";
+  return null;
 }
 
 /** هل هذا الطورُ شأنُ شاشةِ الرحلةِ النشطةِ أصلاً؟ */
