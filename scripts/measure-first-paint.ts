@@ -36,6 +36,17 @@ import {
 } from "./lib/first-paint-budget.ts";
 
 const ROOT = new URL("../", import.meta.url).pathname;
+/** [فرعُ قياسٍ — DEC-19 · لا يُدمَجُ] Chromium `Slow4GConditions` بقيمِه الحرفيّةِ · CPU ×4. */
+const SLOW_4G: NetworkProfile = {
+  id: "chromium-slow-4g",
+  source: "Chromium DevTools `Slow4GConditions` (NetworkManager.ts) · CPU ×4",
+  latencyMs: 150 * 3.75,
+  downloadBytesPerSecond: ((1.6 * 1000 * 1000) / 8) * 0.9,
+  uploadBytesPerSecond: ((750 * 1000) / 8) * 0.9,
+  cpuSlowdown: 4,
+};
+const PROFILE = process.env.MEASURE_PROFILE === SLOW_4G.id ? SLOW_4G : SLOW_3G;
+const REPORT_ONLY = process.env.MEASURE_REPORT_ONLY === "1";
 const DIST = join(ROOT, "apps/miniapp/dist");
 const THROTTLED_RUNS = 3;
 const RUN_TIMEOUT_MS = 60_000;
@@ -375,22 +386,32 @@ async function main(): Promise<void> {
     }
     const throttled: PaintRun[] = [];
     for (let i = 0; i < THROTTLED_RUNS; i++) {
-      const run = await measureOnce(browser, origin, SLOW_3G);
+      const run = await measureOnce(browser, origin, PROFILE);
       throttled.push(run);
       console.log(
-        `  ${SLOW_3G.id} #${i + 1}: FCP=${run.fcpMs?.toFixed(0) ?? "—"} ms · LCP=${run.lcpMs?.toFixed(0) ?? "—"} ms`,
+        `  ${PROFILE.id} #${i + 1}: FCP=${run.fcpMs?.toFixed(0) ?? "—"} ms · LCP=${run.lcpMs?.toFixed(0) ?? "—"} ms`,
       );
+    }
+    if (REPORT_ONLY) {
+      const med = (xs: number[]): number =>
+        [...xs].sort((x, y) => x - y)[Math.floor(xs.length / 2)] as number;
+      const f = throttled.map((r) => r.fcpMs ?? Number.NaN);
+      const l = throttled.map((r) => r.lcpMs ?? Number.NaN);
+      console.log(
+        `  [DEC-19 · تقريرٌ لا حكمٌ] الوسيطُ على ${PROFILE.id}: FCP=${med(f).toFixed(0)} ms · LCP=${med(l).toFixed(0)} ms`,
+      );
+      return;
     }
     const roadmap = readFileSync(join(ROOT, "docs/ROADMAP-MASTER.md"), "utf8");
     const verdict = evaluateFirstPaint({
       unthrottled,
-      profile: SLOW_3G,
+      profile: PROFILE,
       throttled,
       declared: DECLARED_BREACHES,
       knownDecisions: declaredDecisionIds(roadmap),
     });
     console.log(
-      `  الوسيطُ على ${SLOW_3G.id}: FCP=${verdict.medians.fcp?.toFixed(0) ?? "—"} ms (الحدُّ ${FIRST_PAINT_BUDGET.fcpMs})` +
+      `  الوسيطُ على ${PROFILE.id}: FCP=${verdict.medians.fcp?.toFixed(0) ?? "—"} ms (الحدُّ ${FIRST_PAINT_BUDGET.fcpMs})` +
         ` · LCP=${verdict.medians.lcp?.toFixed(0) ?? "—"} ms (الحدُّ ${FIRST_PAINT_BUDGET.lcpMs})`,
     );
     for (const breach of DECLARED_BREACHES) {

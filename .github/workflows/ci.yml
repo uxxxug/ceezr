@@ -1690,6 +1690,13 @@ jobs:
       - name: التطبيقُ يرسمُ، وخرقا FCP/LCP محصوران بـDEC-19 (F1-09 · D-25 · ADR 0183)
         run: bun run scripts/measure-first-paint.ts
 
+      # [فرعُ قياسٍ — DEC-19 · لا يُدمَجُ] الملفُّ المقترحُ للمقارنةِ — تقريرٌ لا حكمٌ.
+      - name: "[DEC-19 مقارنة] أوّلُ رسمٍ على Chromium Slow 4G — تقريرٌ لا حكمٌ"
+        env:
+          MEASURE_PROFILE: chromium-slow-4g
+          MEASURE_REPORT_ONLY: "1"
+        run: bun run scripts/measure-first-paint.ts
+
       - name: حَكَمُ أوّلِ الرسمِ وإطلاقُ مُعيِّناتِ المدخلِ — سوالبُ مزروعة
         run: bun test tests/unit/first-paint-budget.test.ts tests/unit/inline-entry-script.test.ts
 
@@ -1755,6 +1762,20 @@ jobs:
       - name: وقتُ التفاعلِ بعدَ فتحِ تيليجرام — مسارُ إقلاعٍ كاملٌ (F1-09 الصفُّ ٥ · D-26)
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/measure-tti.ts
+
+      # [فرعُ قياسٍ — DEC-19 · لا يُدمَجُ] الملفّانِ في الوظيفةِ نفسِها وعلى البناءِ نفسِه.
+      - name: "[DEC-19 مقارنة] وقتُ التفاعلِ على Chromium Slow 3G — تقريرٌ تفصيليٌّ"
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+          MEASURE_REPORT_ONLY: "1"
+        run: bun run scripts/measure-tti.ts
+
+      - name: "[DEC-19 مقارنة] وقتُ التفاعلِ على Chromium Slow 4G — تقريرٌ لا حكمٌ"
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+          MEASURE_PROFILE: chromium-slow-4g
+          MEASURE_REPORT_ONLY: "1"
         run: bun run scripts/measure-tti.ts
 
       - name: حَكَمُ وقتِ التفاعلِ وتوليدُ initData — سوالبُ مزروعة

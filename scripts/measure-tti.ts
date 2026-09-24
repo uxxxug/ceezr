@@ -53,6 +53,36 @@ import { createViewerAccountReader } from "../packages/infrastructure/identity/v
 import { createViewerAccountLanguageWriter } from "../packages/infrastructure/identity/viewer-language.ts";
 import type { AppConfig } from "../packages/shared/config/index.ts";
 import { SLOW_3G } from "./lib/first-paint-budget.ts";
+
+/**
+ * [فرعُ قياسٍ — DEC-19 · لا يُدمَجُ] ملفُّ Chromium «Slow 4G» بقيمِه الحرفيّةِ من
+ * `Slow4GConditions` (NetworkManager.ts): تأخيرٌ `150 * 3.75` ms لكلِّ طلبٍ · تنزيلٌ
+ * `1.6e6/8*.9` بايتاً/ث · رفعٌ `750e3/8*.9` بايتاً/ث · والمعالجُ ×4 كالقياسِ الحاليِّ.
+ * يُختارُ بـ`MEASURE_PROFILE=chromium-slow-4g`، و`MEASURE_REPORT_ONLY=1` يطبعُ ولا يحكمُ.
+ */
+const SLOW_4G = {
+  id: "chromium-slow-4g",
+  source: "Chromium DevTools `Slow4GConditions` (NetworkManager.ts) · CPU ×4",
+  latencyMs: 150 * 3.75,
+  downloadBytesPerSecond: ((1.6 * 1000 * 1000) / 8) * 0.9,
+  uploadBytesPerSecond: ((750 * 1000) / 8) * 0.9,
+  cpuSlowdown: 4,
+} as const;
+const PROFILE = process.env.MEASURE_PROFILE === SLOW_4G.id ? SLOW_4G : SLOW_3G;
+const REPORT_ONLY = process.env.MEASURE_REPORT_ONLY === "1";
+
+interface NetReq {
+  url: string;
+  start: number;
+  end: number | null;
+  bytes: number;
+}
+interface RunExtra {
+  lcpMs: number | null;
+  requests: NetReq[];
+}
+const EXTRA = new WeakMap<object, RunExtra>();
+
 import {
   DECLARED_TTI_BREACHES,
   declaredDecisionIds,
@@ -301,7 +331,12 @@ function buildTelegramMock(initData: string): string {
 async function measureOnce(
   browserPath: string,
   origin: string,
-  profile: typeof SLOW_3G | null,
+  profile: {
+    latencyMs: number;
+    downloadBytesPerSecond: number;
+    uploadBytesPerSecond: number;
+    cpuSlowdown: number;
+  } | null,
   initData: string,
 ): Promise<InteractiveRun> {
   const userDataDir = mkdtempSync(join(tmpdir(), "waslah-tti-"));
@@ -357,9 +392,25 @@ async function measureOnce(
     const exceptions: string[] = [];
     const urls = new Map<string, string>();
     const inflight = new Set<string>();
+    const netLog = new Map<string, NetReq>();
     let lastNetworkActivity = Date.now();
     cdp.listeners.push(({ method, params }) => {
       const requestId = String(params.requestId ?? "");
+      const ts = typeof params.timestamp === "number" ? params.timestamp * 1000 : 0;
+      if (method === "Network.requestWillBeSent" && !netLog.has(requestId)) {
+        netLog.set(requestId, {
+          url: (params.request as { url: string }).url,
+          start: ts,
+          end: null,
+          bytes: 0,
+        });
+      } else if (method === "Network.loadingFinished") {
+        const r = netLog.get(requestId);
+        if (r) {
+          r.end = ts;
+          r.bytes = Number(params.encodedDataLength ?? 0);
+        }
+      }
       if (method === "Network.requestWillBeSent") {
         urls.set(requestId, (params.request as { url: string }).url);
         inflight.add(requestId);
@@ -440,7 +491,7 @@ async function measureOnce(
       const quiet = inflight.size === 0 && Date.now() - lastNetworkActivity >= QUIET_WINDOW_MS;
       if (state.complete && quiet && state.interactive && state.surface !== null) break;
     }
-    return {
+    const result = {
       ttiMs: state.interactiveTime,
       fcpMs: state.fcp,
       rootChildCount: state.root,
@@ -449,11 +500,50 @@ async function measureOnce(
       interactiveMarked: state.interactive,
       surface: state.surface,
     };
+    EXTRA.set(result, { lcpMs: state.lcp, requests: [...netLog.values()] });
+    return result;
   } finally {
     cdp?.close();
     proc.kill();
     await proc.exited;
     rmSync(userDataDir, { recursive: true, force: true });
+  }
+}
+
+/**
+ * يطبعُ لكلِّ تشغيلٍ: LCP، والبايتاتِ المنقولةَ (encodedDataLength) حتى علامةِ التفاعلِ،
+ * وعددَ الدفعاتِ المتتاليةِ بالتوقيتِ: دفعةُ طلبٍ = 1 + أعلى دفعةٍ لطلبٍ اكتملَ قبلَ بدئِه.
+ * ويُحسَبُ ذلكَ على الطلباتِ التي بدأَت قبلَ علامةِ التفاعلِ وحدَها.
+ */
+function reportRun(run: InteractiveRun, label: string, verbose: boolean): void {
+  const extra = EXTRA.get(run);
+  if (!extra) return;
+  const reqs = extra.requests
+    .filter((r) => !r.url.startsWith("data:"))
+    .sort((a, b) => a.start - b.start);
+  const t0 = reqs[0]?.start ?? 0;
+  const tti = run.ttiMs ?? Number.POSITIVE_INFINITY;
+  const before = reqs.filter((r) => r.start - t0 <= tti);
+  const level = new Map<NetReq, number>();
+  for (const r of before) {
+    let lv = 1;
+    for (const q of before) {
+      if (q !== r && q.end !== null && q.end <= r.start) lv = Math.max(lv, (level.get(q) ?? 1) + 1);
+    }
+    level.set(r, lv);
+  }
+  const waves = Math.max(0, ...level.values());
+  const bytes = before.reduce((n, r) => n + (r.end !== null && r.end - t0 <= tti ? r.bytes : 0), 0);
+  console.log(
+    `    ${label}: LCP=${extra.lcpMs?.toFixed(0) ?? "—"} ms · طلباتٌ قبلَ التفاعلِ=${before.length} · دفعاتٌ متتاليةٌ=${waves} · بايتاتٌ منقولةٌ حتى التفاعلِ=${bytes}`,
+  );
+  if (verbose) {
+    for (const r of before) {
+      const path = r.url.replace(/^https?:\/\/[^/]+/, "");
+      console.log(
+        `      دفعة ${level.get(r)} · ${(r.start - t0).toFixed(0)}→${r.end === null ? "—" : (r.end - t0).toFixed(0)} ms · ${r.bytes} B · ${path}`,
+      );
+    }
   }
 }
 
@@ -664,24 +754,35 @@ async function main(): Promise<void> {
 
       const throttled: InteractiveRun[] = [];
       for (let i = 0; i < THROTTLED_RUNS; i++) {
-        const run = await measureOnce(browser, origin, SLOW_3G, initDatas[i + 1]?.raw ?? "");
+        const run = await measureOnce(browser, origin, PROFILE, initDatas[i + 1]?.raw ?? "");
         throttled.push(run);
         console.log(
-          `  ${SLOW_3G.id} #${i + 1}: FCP=${run.fcpMs?.toFixed(0) ?? "—"} ms · TTI=${run.ttiMs?.toFixed(0) ?? "—"} ms · surface=${run.surface ?? "—"}`,
+          `  ${PROFILE.id} #${i + 1}: FCP=${run.fcpMs?.toFixed(0) ?? "—"} ms · TTI=${run.ttiMs?.toFixed(0) ?? "—"} ms · surface=${run.surface ?? "—"}`,
         );
+        if (REPORT_ONLY) reportRun(run, `${PROFILE.id} #${i + 1}`, i === 0);
+      }
+      if (REPORT_ONLY) {
+        const med = (xs: number[]): number =>
+          [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] as number;
+        const pick = (f: (r: InteractiveRun) => number | null | undefined): number[] =>
+          throttled.map(f).filter((v): v is number => typeof v === "number");
+        console.log(
+          `  [DEC-19 · تقريرٌ لا حكمٌ] الوسيطُ على ${PROFILE.id}: FCP=${med(pick((r) => r.fcpMs)).toFixed(0)} ms · LCP=${med(pick((r) => EXTRA.get(r)?.lcpMs)).toFixed(0)} ms · TTI=${med(pick((r) => r.ttiMs)).toFixed(0)} ms`,
+        );
+        return;
       }
 
       const roadmap = readFileSync(join(ROOT, "docs/ROADMAP-MASTER.md"), "utf8");
       const verdict = evaluateInteractive({
         unthrottled,
-        profileId: SLOW_3G.id,
+        profileId: PROFILE.id,
         throttled,
         declared: DECLARED_TTI_BREACHES,
         knownDecisions: declaredDecisionIds(roadmap),
       });
 
       console.log(
-        `  الوسيطُ على ${SLOW_3G.id}: TTI=${verdict.medianTtiMs?.toFixed(0) ?? "—"} ms (الحدُّ ${INTERACTIVE_BUDGET_MS})`,
+        `  الوسيطُ على ${PROFILE.id}: TTI=${verdict.medianTtiMs?.toFixed(0) ?? "—"} ms (الحدُّ ${INTERACTIVE_BUDGET_MS})`,
       );
       for (const breach of DECLARED_TTI_BREACHES) {
         console.log(
