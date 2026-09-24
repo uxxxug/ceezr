@@ -64,5 +64,13 @@ describe("riderFirstSurfaceViolations (F1-09 · D-30)", () => {
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/summary/ride-summary-view.ts`)).toBe(false);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/search/SearchScreen.tsx`)).toBe(true);
     expect(isDeferredRiderModule(`${SRC}/surfaces/account/AccountRights.tsx`)).toBe(true);
+    // `D-32`: السجلُّ وتفاصيلُه والإشعاراتُ مؤجَّلةٌ، والرئيسيةُ والتسعيرُ لا.
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/history/ride-history-view.ts`)).toBe(true);
+    expect(
+      isDeferredRiderModule(`${SRC}/surfaces/rider/notifications/NotificationsScreen.tsx`),
+    ).toBe(true);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/rider-history-screens.ts`)).toBe(true);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/home/HomeScreen.tsx`)).toBe(false);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/quote/QuoteScreen.tsx`)).toBe(false);
   });
 });

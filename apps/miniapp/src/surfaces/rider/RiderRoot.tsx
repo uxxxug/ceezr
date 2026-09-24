@@ -122,11 +122,8 @@ import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
 import { Skeleton } from "../../system/Skeleton.tsx";
 import type { ConfirmedDestination } from "./destination/DestinationScreen.tsx";
 import { DestinationScreen } from "./destination/DestinationScreen.tsx";
-import { RideDetailScreen } from "./history/RideDetailScreen.tsx";
-import { RideHistoryScreen } from "./history/RideHistoryScreen.tsx";
 import type { ChosenDestination } from "./home/HomeScreen.tsx";
 import { HomeScreen } from "./home/HomeScreen.tsx";
-import { NotificationsScreen } from "./notifications/NotificationsScreen.tsx";
 import { QuoteScreen } from "./quote/QuoteScreen.tsx";
 import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
 import { SosScreen } from "./sos/SosScreen.tsx";
@@ -144,6 +141,8 @@ const DEFERRED_RIDER_LOADERS = {
   ride: () => import("./rider-ride-screens.ts"),
   account: () => import("./account/AccountScreen.tsx"),
   support: () => import("./support/SupportScreen.tsx"),
+  // `D-32`: السجلُّ وتفاصيلُه والإشعاراتُ — بطلبِ الراكبِ وحدَه، خارجَ «الرئيسية، التسعير، اختيار الخدمة» (9.4).
+  history: () => import("./rider-history-screens.ts"),
 } as const;
 
 const SearchScreen = lazy(() =>
@@ -154,6 +153,15 @@ const ActiveRideScreen = lazy(() =>
 );
 const RideSummaryScreen = lazy(() =>
   DEFERRED_RIDER_LOADERS.ride().then((m) => ({ default: m.RideSummaryScreen })),
+);
+const RideHistoryScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.history().then((m) => ({ default: m.RideHistoryScreen })),
+);
+const RideDetailScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.history().then((m) => ({ default: m.RideDetailScreen })),
+);
+const NotificationsScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.history().then((m) => ({ default: m.NotificationsScreen })),
 );
 const AccountScreen = lazy(() =>
   DEFERRED_RIDER_LOADERS.account().then((m) => ({ default: m.AccountScreen })),
@@ -308,15 +316,17 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
   // الرئيسةِ: الراكبُ جاءَ من قائمةٍ لها موضعٌ، وإلقاءُه في الرئيسةِ يُضيّعُ موضعَه.
   if (inspected !== null) {
     return (
-      <RideDetailScreen
-        orderId={inspected.orderId}
-        timeZone={inspected.timeZone}
-        onBack={() => setInspected(null)}
-        onOpenSos={onOpenSos}
-        // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `inspected`: الراكبُ
-        // يرجعُ من الشكوى إلى الرحلةِ التي كانَ يقرؤها لا إلى قائمةٍ.
-        onReportProblem={() => setSupport({ orderId: inspected.orderId })}
-      />
+      <Deferred>
+        <RideDetailScreen
+          orderId={inspected.orderId}
+          timeZone={inspected.timeZone}
+          onBack={() => setInspected(null)}
+          onOpenSos={onOpenSos}
+          // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `inspected`: الراكبُ
+          // يرجعُ من الشكوى إلى الرحلةِ التي كانَ يقرؤها لا إلى قائمةٍ.
+          onReportProblem={() => setSupport({ orderId: inspected.orderId })}
+        />
+      </Deferred>
     );
   }
 
@@ -328,19 +338,25 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
   // مركزُ الإشعاراتِ (`SS-07`) — **أعلى من السجلِّ**: راكبٌ يَفتَحُ الإشعاراتِ
   // يطلبُ الحدثَ الأحدثَ لا ماضيَه، فلا يُغطَّى ما تحتَه بالماضي فوقه.
   if (notificationsOpen) {
-    return <NotificationsScreen onBack={() => setNotificationsOpen(false)} onOpenSos={onOpenSos} />;
+    return (
+      <Deferred>
+        <NotificationsScreen onBack={() => setNotificationsOpen(false)} onOpenSos={onOpenSos} />
+      </Deferred>
+    );
   }
   if (browsed) {
     return (
-      <RideHistoryScreen
-        onOpenDetail={(orderId, timeZone) => setInspected({ orderId, timeZone })}
-        onOpenActive={(orderId) => {
-          setBrowsed(false);
-          setFollowed(orderId);
-        }}
-        onBack={() => setBrowsed(false)}
-        onOpenSos={onOpenSos}
-      />
+      <Deferred>
+        <RideHistoryScreen
+          onOpenDetail={(orderId, timeZone) => setInspected({ orderId, timeZone })}
+          onOpenActive={(orderId) => {
+            setBrowsed(false);
+            setFollowed(orderId);
+          }}
+          onBack={() => setBrowsed(false)}
+          onOpenSos={onOpenSos}
+        />
+      </Deferred>
     );
   }
 

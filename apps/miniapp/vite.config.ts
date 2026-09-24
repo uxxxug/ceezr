@@ -7,6 +7,7 @@ import { assertPrebootPlacement } from "./vite/assert-preboot-placement.ts";
 import {
   assertRiderFirstSurface,
   isDeferredRiderModule,
+  RIDER_HISTORY,
   RIDER_RIDE,
 } from "./vite/assert-rider-first-surface.ts";
 import { injectCsp } from "./vite/inject-csp.ts";
@@ -110,6 +111,11 @@ export default defineConfig({
             {
               name: "rider-ride",
               test: RIDER_RIDE,
+            },
+            /** `D-32` · `rider-history`: السجلُّ وتفاصيلُه والإشعاراتُ — بطلبِ الراكبِ. */
+            {
+              name: "rider-history",
+              test: RIDER_HISTORY,
             },
             {
               name: "support",
