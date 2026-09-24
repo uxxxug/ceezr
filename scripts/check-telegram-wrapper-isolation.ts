@@ -60,13 +60,13 @@ const insideWrapper = (file: string): boolean => file.startsWith(WRAPPER_DIR);
 const RULES: readonly Rule[] = [
   {
     pattern: /\bwindow\s*(\?)?\.\s*Telegram\b/,
-    why: "الوصولُ إلى `window.Telegram` داخلَ `apps/miniapp/src/tg/` وحدَه (ADR 0031 §3)",
-    allowed: insideWrapper,
+    why: "الوصولُ إلى `window.Telegram` داخلَ `apps/miniapp/src/tg/` وحدَه، أو في صفحةِ المضيفِ للتقديمِ الساكنِ (ADR 0031 §3 · DEC-19)",
+    allowed: (file) => insideWrapper(file) || file === HOST_PAGE,
   },
   {
     pattern: /\bTelegram\s*(\?)?\.\s*WebApp\b/,
-    why: "الوصولُ إلى `Telegram.WebApp` داخلَ `apps/miniapp/src/tg/` وحدَه (ADR 0031 §3)",
-    allowed: insideWrapper,
+    why: "الوصولُ إلى `Telegram.WebApp` داخلَ `apps/miniapp/src/tg/` وحدَه، أو في صفحةِ المضيفِ للتقديمِ الساكنِ (ADR 0031 §3 · DEC-19)",
+    allowed: (file) => insideWrapper(file) || file === HOST_PAGE,
   },
   {
     pattern: /telegram-web-app\.js/,

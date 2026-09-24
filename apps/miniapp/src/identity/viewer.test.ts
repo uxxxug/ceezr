@@ -10,6 +10,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
+import { clearPreboot } from "./preboot.ts";
 import { clearSession, setSession } from "./session.ts";
 import { fetchViewer } from "./viewer.ts";
 
@@ -43,6 +44,7 @@ function withSession(): void {
 
 beforeEach(() => {
   clearSession();
+  clearPreboot();
   seen.url = null;
   seen.auth = null;
   seen.method = null;
@@ -52,6 +54,7 @@ beforeEach(() => {
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
   clearSession();
+  clearPreboot();
 });
 
 describe("قراءةُ الدورِ من الخادم: القبول", () => {
@@ -239,5 +242,51 @@ describe("قراءةُ لغةِ الواجهةِ من الخادم (PD-030)", ()
     withSession();
     respond(200, { ok: true, role: "rider", status: "active" });
     expect(await fetchViewer()).toEqual({ kind: "unavailable" });
+  });
+});
+
+describe("استهلاكُ التقديمِ الساكنِ للدورِ (DEC-19 / F1-09)", () => {
+  function setPrebootViewer(accessToken: string, payload: unknown): void {
+    (globalThis as { __waslahPreboot?: unknown }).__waslahPreboot = {
+      session: Promise.resolve({ ok: true, accessToken, expiresAtMs: 0 }),
+      viewer: Promise.resolve(payload),
+      consents: Promise.resolve(null),
+      accessToken,
+    };
+  }
+
+  it("١٩) يستهلكُ الدورَ المُقدَّمَ ولا يُرسِلُ طلبًا ثانيًا", async () => {
+    withSession();
+    setPrebootViewer("access-token-value", { ok: true, role: "rider", status: "active", languageCode: "ar" });
+    respond(200, { ok: true, role: "admin", status: "active", languageCode: "ar" });
+
+    expect(await fetchViewer()).toEqual({ kind: "viewer", role: "rider", status: "active", languageCode: "ar" });
+    expect(seen.count).toBe(0);
+  });
+
+  it("٢٠) يُعاودُ عبرَ `apiFetch` حينَ يُعيدُ التقديمُ `null`", async () => {
+    withSession();
+    setPrebootViewer("access-token-value", null);
+    respond(200, { ok: true, role: "rider", status: "active", languageCode: "ar" });
+
+    expect(await fetchViewer()).toEqual({ kind: "viewer", role: "rider", status: "active", languageCode: "ar" });
+    expect(seen.count).toBe(1);
+  });
+
+  it("٢١) يُعاودُ حينَ يخالفُ رمزُ الوصولِ — نتائجُ جلسةٍ سابقةٍ لا تُستهلَك", async () => {
+    withSession();
+    setPrebootViewer("old-token", { ok: true, role: "admin", status: "active", languageCode: "ar" });
+    respond(200, { ok: true, role: "rider", status: "active", languageCode: "ar" });
+
+    expect(await fetchViewer()).toEqual({ kind: "viewer", role: "rider", status: "active", languageCode: "ar" });
+    expect(seen.count).toBe(1);
+  });
+
+  it("٢٢) لا يستهلكُ التقديمَ بلا جلسةٍ — لا طلبَ قبلَ الجلسة", async () => {
+    setPrebootViewer("any", { ok: true, role: "admin", status: "active", languageCode: "ar" });
+    respond(200, { ok: true, role: "admin", status: "active", languageCode: "ar" });
+
+    expect(await fetchViewer()).toEqual({ kind: "session_invalid" });
+    expect(seen.count).toBe(0);
   });
 });

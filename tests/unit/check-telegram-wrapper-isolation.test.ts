@@ -87,4 +87,11 @@ describe("عزلُ طبقةِ تيليجرام — خرقٌ مزروعٌ", () =>
     const v = findWrapperViolations(files);
     expect(v).toEqual([]);
   });
+
+  test(`صفحةُ المضيفِ تصلُ للتقديمِ الساكنِ (DEC-19)`, () => {
+    const code = `var wa = ${w}${dot}${tg}?.${wa};\n`;
+    const files = new Map([["apps/miniapp/index.html", code]]);
+    const v = findWrapperViolations(files);
+    expect(v).toEqual([]);
+  });
 });
