@@ -21,6 +21,8 @@ function run(fcp: number, lcp: number, rendered: number): RiderSurfaceRun {
     uncaughtExceptions: [],
     interactiveMarked: true,
     surface: "rider",
+    timingEntryCount: 1,
+    timingInBusyTree: false,
   };
 }
 /** أرقامُ القرارِ على CI (35972593440) — فوقَ الحدودِ. */

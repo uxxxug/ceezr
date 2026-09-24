@@ -52,6 +52,7 @@ import {
   isRetryable,
   outstandingRows,
 } from "./consent-view.ts";
+import { riderSurfaceTimingAttribute } from "./surface-timing.ts";
 
 export interface WelcomeScreenProps {
   /** يُحقَنُ كي يُختبَرَ المكوّنُ بلا شبكةٍ ولا `fetch` مُرقَّعٍ. */
@@ -234,7 +235,10 @@ export function WelcomeScreen({
       <h1 id="wc-title" className="wc__title">
         {t("welcome.title")}
       </h1>
-      <p className="sys__body">{t("welcome.line1")}</p>
+      {/* `DEC-19`: عنصرُ قياسِ «زمنِ بلوغِ سطحِ الراكبِ المرسومِ» — هنا وحدَه، في الحالةِ الجاهزةِ لا التحميلِ. */}
+      <p className="sys__body" {...riderSurfaceTimingAttribute}>
+        {t("welcome.line1")}
+      </p>
       <p className="sys__body">{t("welcome.line2")}</p>
       <p className="sys__body">{t("welcome.line3")}</p>
 

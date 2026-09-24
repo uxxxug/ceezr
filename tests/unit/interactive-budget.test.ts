@@ -24,6 +24,8 @@ function goodRun(surfaceRenderedMs: number): InteractiveRun {
     uncaughtExceptions: [],
     interactiveMarked: true,
     surface: "rider",
+    timingEntryCount: 1,
+    timingInBusyTree: false,
   };
 }
 
@@ -36,6 +38,8 @@ function deadRun(): InteractiveRun {
     uncaughtExceptions: [],
     interactiveMarked: false,
     surface: null,
+    timingEntryCount: 0,
+    timingInBusyTree: false,
   };
 }
 
@@ -89,6 +93,8 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
         uncaughtExceptions: [],
         interactiveMarked: true,
         surface: null,
+        timingEntryCount: 1,
+        timingInBusyTree: false,
       };
       const problems = interactiveLivenessProblems(run, "test");
       expect(problems.some((p) => p.rule === "INTERACTIVE_WITHOUT_SURFACE")).toBe(true);
@@ -210,6 +216,50 @@ describe("حَكَمُ وقتِ التفاعلِ", () => {
 });
 
 describe("DEC-19 — قاعدتا المقياسِ المحكومِ (سوالبُ مزروعةٌ)", () => {
+  it("FCP وصلَ بلا عنصرِ الراكبِ ⇒ NO_SURFACE_RENDERED (ولو كانَ كلُّ ما سواه سليماً)", () => {
+    const run: InteractiveRun = {
+      ...goodRun(1000),
+      fcpMs: 400,
+      surfaceRenderedMs: null,
+      timingEntryCount: 0,
+    };
+    const rules = interactiveLivenessProblems(run, "test").map((p) => p.rule);
+    expect(rules).toEqual(["NO_SURFACE_RENDERED"]);
+  });
+
+  it("العنصرُ موجودٌ مرّةً واحدةً على سطحِ الراكبِ ⇒ لا مشكلةَ", () => {
+    expect(interactiveLivenessProblems(goodRun(1000), "test")).toEqual([]);
+  });
+
+  it("عنصرُ القياسِ على سطحٍ غيرِ الراكبِ ⇒ RENDERED_WITHOUT_RIDER", () => {
+    const rules = interactiveLivenessProblems({ ...goodRun(1000), surface: "driver" }, "t").map(
+      (p) => p.rule,
+    );
+    expect(rules).toContain("RENDERED_WITHOUT_RIDER");
+  });
+
+  it("عنصرُ القياسِ بلا سطحٍ ⇒ RENDERED_WITHOUT_RIDER", () => {
+    const rules = interactiveLivenessProblems({ ...goodRun(1000), surface: null }, "t").map(
+      (p) => p.rule,
+    );
+    expect(rules).toContain("RENDERED_WITHOUT_RIDER");
+  });
+
+  it("مُدخَلانِ بالمعرّفِ ⇒ DUPLICATE_TIMING_ENTRY", () => {
+    const rules = interactiveLivenessProblems({ ...goodRun(1000), timingEntryCount: 2 }, "t").map(
+      (p) => p.rule,
+    );
+    expect(rules).toContain("DUPLICATE_TIMING_ENTRY");
+  });
+
+  it("العنصرُ داخلَ حالةِ تحميلٍ ⇒ TIMING_IN_LOADING", () => {
+    const rules = interactiveLivenessProblems(
+      { ...goodRun(1000), timingInBusyTree: true },
+      "t",
+    ).map((p) => p.rule);
+    expect(rules).toContain("TIMING_IN_LOADING");
+  });
+
   it("سطحٌ بلا علامةِ بلوغِ السطحِ المرسومِ ⇒ NO_SURFACE_RENDERED", () => {
     const run: InteractiveRun = { ...goodRun(1000), surfaceRenderedMs: null };
     const rules = interactiveLivenessProblems(run, "test").map((p) => p.rule);

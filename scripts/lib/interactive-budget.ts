@@ -6,10 +6,10 @@
  * ينتمي إلى: scripts/lib
  * يُتوقع أن يستخدمه لاحقاً: scripts/measure-tti.ts · scripts/lib/rider-surface-budget.ts · tests/unit
  *
- * **المقياسُ** (لا «وقتُ تفاعلٍ»): `startTime` لعلامةِ `waslah-surface-rendered` مقيسةً من
- * `performance.timeOrigin` لمستندِ التطبيقِ المصغَّرِ — تُوضَعُ في استدعاءِ
- * `requestAnimationFrame` الثاني بعدَ إيداعِ السطحِ المنتجِ (`RoleRouter.tsx`).
- * **اكتشافٌ (`ح-8`)**: CI `35975348387` نقضَ افتراضَ «الحدِّ الأعلى» — العلامةُ وقعَت بينَ −4 و+4 ms من FCP (وهوَ توقيتُ عرضِ الإطارِ)، فهيَ توقيتُ خيطٍ رئيسيٍّ لا توقيتُ عرضٍ. وآليّةُ القياسِ معلّقةٌ على قرارِ المالكِ (`F1-09-20260924-dec19-decision.md`).
+ * **المقياسُ** (لا «وقتُ تفاعلٍ»): `PerformanceElementTiming.renderTime` لعنصرِ
+ * `elementtiming="waslah-rider-surface"` — نصٌّ مرئيٌّ في الحالةِ الجاهزةِ لأوّلِ شاشةِ سطحِ الراكبِ —
+ * مقيساً من `performance.timeOrigin` (قرارُ المالكِ في `DEC-19`). **وكانَ في هذا الفرعِ** علامةَ
+ * `waslah-surface-rendered` بعدَ `rAF` مزدوجٍ، فنقضَ CI `35975348387` أنَّها تُثبتُ العرضَ فأُزيلَت.
  * ولا يدخلُ فيه ما قبلَ بدءِ التنقّلِ إلى المستندِ (فتحُ
  * تيليجرام وتجهيزُ نافذتِه). **وكانَ حتى `DEC-19`** زمنَ علامةِ `waslah-interactive` باسمِ
  * «TTI» (`ح-8` — التاريخُ في `ADR 0184`)؛ وتلكَ العلامةُ باقيةٌ شرطَ حياةٍ باسمِها التاريخيِّ
@@ -58,8 +58,15 @@ export interface InteractiveRun {
   readonly failedSameOriginRequests: readonly string[];
   /** استثناءاتٌ غيرُ ممسوكةٍ في الصفحةِ. */
   readonly uncaughtExceptions: readonly string[];
-  /** لحظةُ `waslah-surface-rendered` من `performance.timeOrigin` (ms) — `null` إن لم تظهر. */
+  /**
+   * `PerformanceElementTiming.renderTime` لعنصرِ `elementtiming="waslah-rider-surface"` من
+   * `performance.timeOrigin` (ms) — `null` إن لم يُرصَد العنصرُ أو كانَ `renderTime` صفراً.
+   */
   readonly surfaceRenderedMs: number | null;
+  /** عددُ مُدخَلاتِ `element` بالمعرّفِ — والمطلوبُ واحدٌ. */
+  readonly timingEntryCount: number;
+  /** العنصرُ المرصودُ داخلَ شجرةِ `aria-busy="true"` (حالةِ تحميلٍ) — قياسٌ للرسمِ المبكرِ. */
+  readonly timingInBusyTree: boolean;
   /** علامةُ `waslah-interactive` ظهرَت (اسمٌ تاريخيٌّ: «بلوغُ حالةِ السطحِ»). */
   readonly interactiveMarked: boolean;
   /**
@@ -80,6 +87,9 @@ export interface InteractiveProblem {
     | "NO_SURFACE"
     | "INTERACTIVE_WITHOUT_SURFACE"
     | "NO_SURFACE_RENDERED"
+    | "RENDERED_WITHOUT_RIDER"
+    | "DUPLICATE_TIMING_ENTRY"
+    | "TIMING_IN_LOADING"
     | "RENDERED_BEFORE_PAINT"
     | "UNDECLARED_BREACH"
     | "BREACH_REGRESSED"
@@ -132,19 +142,39 @@ export function interactiveLivenessProblems(
       detail: `${label}: الموجّهُ لم يصلْ إلى سطحٍ منتجٍ (rider/driver/admin) — قد يكونُ على شاشةٍ نظاميّةٍ`,
     });
   }
-  // `DEC-19`: المقياسُ المحكومُ يجبُ أن يُقاسَ — وغيابُه إخفاقٌ لا تخطٍّ.
-  if (run.surface !== null && run.surfaceRenderedMs === null) {
+  // `DEC-19` (Element Timing · قرارُ المالكِ): المقياسُ المحكومُ يجبُ أن يُقاسَ — غيابُ العنصرِ
+  // أو `renderTime` إخفاقٌ لا تخطٍّ، ولو وصلَ FCP.
+  if (run.surfaceRenderedMs === null) {
     problems.push({
       rule: "NO_SURFACE_RENDERED",
-      detail: `${label}: بلغَ الموجّهُ السطحَ ولم تظهر علامةُ waslah-surface-rendered — القياسُ لم يُجرَ`,
+      detail: `${label}: لم يُرصَد renderTime لعنصرِ waslah-rider-surface — القياسُ لم يُجرَ`,
     });
   }
-  // `DEC-19`: السطحُ المرسومُ لا يُعرَضُ قبلَ أوّلِ رسمٍ في الصفحةِ، فعلامةٌ تسبقُ FCP
-  // ليست زمنَ عرضِ السطحِ — والقاعدةُ هيَ التي كشفَت ذلك في CI `35975348387` (لا تُرخى).
+  // ولا يُقبَلُ القياسُ إلّا على سطحِ الراكبِ.
+  if (run.surfaceRenderedMs !== null && run.surface !== "rider") {
+    problems.push({
+      rule: "RENDERED_WITHOUT_RIDER",
+      detail: `${label}: رُصِدَ عنصرُ القياسِ والسطحُ ${run.surface ?? "—"} لا rider`,
+    });
+  }
+  if (run.timingEntryCount > 1) {
+    problems.push({
+      rule: "DUPLICATE_TIMING_ENTRY",
+      detail: `${label}: ${run.timingEntryCount} مُدخَلاتٍ بالمعرّفِ waslah-rider-surface والمطلوبُ واحدٌ`,
+    });
+  }
+  if (run.timingInBusyTree) {
+    problems.push({
+      rule: "TIMING_IN_LOADING",
+      detail: `${label}: عنصرُ القياسِ داخلَ حالةِ تحميلٍ (aria-busy) — يقيسُ الرسمَ المبكرَ لا السطحَ`,
+    });
+  }
+  // السطحُ المرسومُ لا يُعرَضُ قبلَ أوّلِ رسمٍ في الصفحةِ؛ وقد كشفَت هذهِ القاعدةُ في CI
+  // `35975348387` أنَّ علامةَ `rAF` لا تُثبتُ العرضَ (لا تُرخى).
   if (run.surfaceRenderedMs !== null && run.fcpMs !== null && run.surfaceRenderedMs < run.fcpMs) {
     problems.push({
       rule: "RENDERED_BEFORE_PAINT",
-      detail: `${label}: علامةُ بلوغِ السطحِ المرسومِ (${Math.round(run.surfaceRenderedMs)} ms) قبلَ أوّلِ رسمٍ (${Math.round(run.fcpMs)} ms) — قياسٌ فاسدٌ`,
+      detail: `${label}: زمنُ بلوغِ السطحِ المرسومِ (${Math.round(run.surfaceRenderedMs)} ms) قبلَ أوّلِ رسمٍ (${Math.round(run.fcpMs)} ms) — قياسٌ فاسدٌ`,
     });
   }
   // حارسٌ متقابلٌ: علامةٌ تفاعليّةٌ بلا سطحٍ = إيجابٌ كاذبٌ.

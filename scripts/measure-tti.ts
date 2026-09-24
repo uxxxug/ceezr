@@ -4,7 +4,8 @@
  *   ملفَّينِ في تشغيلٍ واحدٍ وعلى البناءِ نفسِه: Chromium «Slow 4G» (المعيارُ الإلزاميُّ ·
  *   `rider-surface-budget.ts` · تقريرٌ حتى تُستوفى الحدودُ) وChromium «3G» (حارسُ انحدارٍ ·
  *   `interactive-budget.ts`). والمقاييسُ من `performance.timeOrigin`: FCP · LCP · «زمنُ
- *   بلوغِ سطحِ الراكبِ المرسومِ» (علامةُ `waslah-surface-rendered`) — لا «TTI».
+ *   بلوغِ سطحِ الراكبِ المرسومِ» (`PerformanceElementTiming.renderTime` لعنصرِ
+ *   `elementtiming="waslah-rider-surface"` · قرارُ المالكِ) — لا «TTI».
  *
  * الغرض (الأصلُ): قياسُ «وقتِ التفاعلِ بعدَ فتحِ تيليجرام» (القسمُ 9.9 الصفُّ ٥) بمتصفّحٍ
  *   حقيقيٍّ على مُخرَجِ البناءِ — معَ مسارِ إقلاعٍ كاملٍ: `initData` مُوقَّعٌ
@@ -38,6 +39,7 @@ import {
 } from "../apps/gateway/src/rate-limit/fixed-window.ts";
 import { type KeyDimension, rateLimitPolicy } from "../apps/gateway/src/rate-limit/policy.ts";
 import { createServer, type ServerDependencies } from "../apps/gateway/src/server.ts";
+import { RIDER_SURFACE_TIMING_ID } from "../apps/miniapp/src/surfaces/rider/welcome/surface-timing.ts";
 import { buildBrowserHostScript } from "../apps/miniapp/src/tg/measure-host.ts";
 import {
   createConsentRecordReader,
@@ -269,7 +271,7 @@ class Cdp {
 
 const OBSERVERS = `
 window.__paint = { fcp: null, lcp: null };
-window.__tti = { marked: false, time: null, surface: null, rendered: null };
+window.__tti = { marked: false, time: null, surface: null, rendered: null, timingCount: 0, timingInBusy: false };
 new PerformanceObserver((list) => {
   for (const e of list.getEntries()) if (e.name === "first-contentful-paint") window.__paint.fcp = e.startTime;
 }).observe({ type: "paint", buffered: true });
@@ -280,7 +282,6 @@ new PerformanceObserver((list) => {
 }).observe({ type: "largest-contentful-paint", buffered: true });
 const ttiObserver = new PerformanceObserver((list) => {
   for (const e of list.getEntries()) {
-    if (e.name === "waslah-surface-rendered") window.__tti.rendered = e.startTime;
     if (e.name === "waslah-interactive") {
       window.__tti.marked = true;
       window.__tti.time = e.startTime;
@@ -294,6 +295,16 @@ const ttiObserver = new PerformanceObserver((list) => {
   }
 });
 ttiObserver.observe({ type: "mark", buffered: true });
+// DEC-19 (قرارُ المالكِ): زمنُ بلوغِ سطحِ الراكبِ المرسومِ = renderTime لعنصرِ القياسِ من timeOrigin.
+// renderTime صفرٌ يعني أنَّه لم يُحسَب — فيبقى null ويُسقِطُ الحَكَمُ القياسَ.
+new PerformanceObserver((list) => {
+  for (const e of list.getEntries()) {
+    if (e.identifier !== ${JSON.stringify(RIDER_SURFACE_TIMING_ID)}) continue;
+    window.__tti.timingCount += 1;
+    if (window.__tti.rendered === null && e.renderTime > 0) window.__tti.rendered = e.renderTime;
+    if (e.element && e.element.closest('[aria-busy="true"]') !== null) window.__tti.timingInBusy = true;
+  }
+}).observe({ type: "element", buffered: true });
 `;
 
 function freePort(): number {
@@ -489,6 +500,8 @@ async function measureOnce(
       interactive: false as boolean,
       interactiveTime: null as number | null,
       rendered: null as number | null,
+      timingCount: 0,
+      timingInBusy: false as boolean,
       surface: null as "rider" | "driver" | "admin" | null,
       complete: false,
     };
@@ -501,6 +514,8 @@ async function measureOnce(
           " interactive: window.__tti?.marked ?? false," +
           " interactiveTime: window.__tti?.time ?? null," +
           " rendered: window.__tti?.rendered ?? null," +
+          " timingCount: window.__tti?.timingCount ?? 0," +
+          " timingInBusy: window.__tti?.timingInBusy ?? false," +
           " surface: window.__tti?.surface ?? null," +
           " complete: document.readyState === 'complete'})",
         returnByValue: true,
@@ -508,7 +523,7 @@ async function measureOnce(
       if (evaluated.result.value !== undefined) state = JSON.parse(evaluated.result.value);
       const quiet = inflight.size === 0 && Date.now() - lastNetworkActivity >= QUIET_WINDOW_MS;
       // توقُّفُ القياسِ (ومعَه قراءةُ آخرِ LCP): المستندُ مكتملٌ · لا طلبَ جارٍ ومضَت ثانيتانِ
-      // على آخرِ نشاطٍ شبكيٍّ · بلغَ الموجّهُ سطحاً · ظهرَت علامةُ بلوغِ السطحِ المرسومِ. أو المهلةُ.
+      // على آخرِ نشاطٍ شبكيٍّ · بلغَ الموجّهُ سطحاً · رُصِدَ renderTime لعنصرِ القياسِ. أو المهلةُ.
       if (
         state.complete &&
         quiet &&
@@ -528,6 +543,8 @@ async function measureOnce(
       uncaughtExceptions: exceptions,
       interactiveMarked: state.interactive,
       surface: state.surface,
+      timingEntryCount: state.timingCount,
+      timingInBusyTree: state.timingInBusy,
     };
   } finally {
     cdp?.close();
