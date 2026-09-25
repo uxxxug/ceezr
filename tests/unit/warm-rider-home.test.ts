@@ -6,6 +6,8 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   injectWarmChunk,
   resolveWarmChunk,
@@ -55,5 +57,26 @@ describe("injectWarmChunk (F1-09 · D-31)", () => {
     expect(() => injectWarmChunk("<script></script>", "/x.js")).toThrow();
     const twice = `"${WARM_PLACEHOLDER}" "${WARM_PLACEHOLDER}"`;
     expect(() => injectWarmChunk(twice, "/x.js")).toThrow();
+  });
+});
+
+describe("موضعُ التسخينِ في سكربتِ ما قبلَ الإقلاعِ (F1-09 · D-34 · ADR 0189)", () => {
+  const html = readFileSync(resolve(import.meta.dirname, "../../apps/miniapp/index.html"), "utf8");
+  const script = html.slice(
+    html.indexOf("var initData"),
+    html.indexOf("})();", html.indexOf("var initData")),
+  );
+  const warmAt = script.indexOf(`var warm = "${WARM_PLACEHOLDER}"`);
+
+  it("بعدَ شرطِ `initData` وإرسالِ الجلسةِ — لا تسخينَ خارجَ تيليجرامَ", () => {
+    expect(warmAt).toBeGreaterThan(script.indexOf("if (initData.length === 0) return;"));
+    expect(warmAt).toBeGreaterThan(script.indexOf('fetch(base + "/v1/session/telegram"'));
+  });
+
+  it("لا ينتظرُ نجاحَ الجلسةِ ولا الدورَ: خارجَ كلِّ `.then(`", () => {
+    const before = script.slice(0, warmAt);
+    const opened = (before.match(/\{/g) ?? []).length - (before.match(/\}/g) ?? []).length;
+    expect(opened).toBe(0);
+    expect(script.slice(warmAt)).not.toContain("viewer");
   });
 });

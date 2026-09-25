@@ -6,6 +6,8 @@
  * ينتمي إلى: surfaces/rider
  */
 
+// `D-33` · `ADR 0188`: نصوصُ جزءِ `rider-ride` تُسجَّلُ معَ حزمتِه لا في `shell`.
+import "../../../../../packages/shared/i18n/miniapp/ar-parts/rider-ride.ts";
 import { createElement } from "react";
 import {
   productionChannelBaseUrl,

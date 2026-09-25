@@ -72,6 +72,8 @@
  * الخادمَ «أيُّ عرضٍ؟» بابُ عطلٍ، فجُعِلَ المُعرِّفُ شرطَ فتحٍ في النوعِ نفسِه.
  */
 
+// `D-33` · `ADR 0188`: نصوصُ جزءِ `driver` تُسجَّلُ معَ حزمتِه لا في `shell`.
+import "../../../../../packages/shared/i18n/miniapp/ar-parts/driver.ts";
 import { useState } from "react";
 import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
 import { EmptyState } from "../../system/EmptyState.tsx";

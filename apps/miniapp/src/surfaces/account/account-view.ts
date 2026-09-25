@@ -40,6 +40,8 @@
  *      ليسَ كذلكَ — «رحلتُك الجاريةُ» للراكبِ و«مَهمّتُك المُسنَدةُ» للسائقِ.
  */
 
+// `D-33` · `ADR 0188`: نصوصُ جزءِ `account` تُسجَّلُ معَ حزمتِه لا في `shell`.
+import "../../../../../packages/shared/i18n/miniapp/ar-parts/account.ts";
 import { minorUnitsToMajorText } from "../../../../../packages/domain/financial/minor-units.ts";
 import {
   ERASURE_REFUSALS,

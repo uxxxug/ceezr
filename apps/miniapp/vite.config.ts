@@ -1,12 +1,15 @@
 import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { arabicPartitions } from "./vite/arabic-partitions.ts";
 import { assertAssetReferences } from "./vite/assert-asset-references.ts";
+import { assertDictionaryPartitions } from "./vite/assert-dictionary-partitions.ts";
 import { assertInitialDictionaries } from "./vite/assert-initial-dictionaries.ts";
 import { assertPrebootPlacement } from "./vite/assert-preboot-placement.ts";
 import {
   assertRiderFirstSurface,
   isDeferredRiderModule,
+  RIDER_HISTORY,
   RIDER_RIDE,
 } from "./vite/assert-rider-first-surface.ts";
 import { injectCsp } from "./vite/inject-csp.ts";
@@ -48,6 +51,9 @@ export default defineConfig({
     injectCsp(),
     // `F1-09` · `D-30`: بعدَ اكتمالِ المُخرَجِ — لا مرجعَ إلى أصلٍ محذوفٍ (كالأنماطِ المُدمَجةِ).
     assertAssetReferences(),
+    // `F1-09` · `D-33` (`ADR 0188`): القاموسُ العربيُّ مقسومٌ بحسبِ مستورِدِه، والحاجزُ يُسقِطُ مفتاحاً بلا جزئِه.
+    arabicPartitions(resolve(import.meta.dirname, "../../packages/shared/i18n/miniapp/ar.json")),
+    assertDictionaryPartitions(),
   ],
   resolve: {
     alias: {
@@ -110,6 +116,11 @@ export default defineConfig({
             {
               name: "rider-ride",
               test: RIDER_RIDE,
+            },
+            /** `D-32` · `rider-history`: السجلُّ وتفاصيلُه والإشعاراتُ — بطلبِ الراكبِ. */
+            {
+              name: "rider-history",
+              test: RIDER_HISTORY,
             },
             {
               name: "support",

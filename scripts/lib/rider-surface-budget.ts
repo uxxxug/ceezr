@@ -53,7 +53,9 @@ export type GateMode = "report-only" | "blocking";
  * وضعُ البوّابةِ على `main`. **لا يُحوَّلُ إلى `blocking` قبلَ استيفاءِ الحدودِ**، ويجبُ أن
  * يُحوَّلَ متى استُوفيَت (`READY_TO_BLOCK`). والإغلاقُ بعدَها ثلاثُ جولاتٍ خضراءَ (`ح-4`).
  */
-export const SLOW_4G_GATE_MODE: GateMode = "report-only";
+// 2026-09-25 (`F1-09` · `D-34`): استُوفيَت الحدودُ الثلاثةُ على Slow 4G في CI (وسيطُ السطحِ 1,924 ms ·
+// run 36075503975) فأسقطَ `READY_TO_BLOCK` البناءَ؛ فحُوِّلَ الوضعُ كما يفرضُ `ADR 0185` بموافقةِ المالكِ الصريحةِ (2026-09-25).
+export const SLOW_4G_GATE_MODE: GateMode = "blocking";
 
 export type RiderSurfaceMetric = "fcp" | "lcp" | "surface-rendered";
 

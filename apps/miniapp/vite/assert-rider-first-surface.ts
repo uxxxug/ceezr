@@ -26,8 +26,15 @@ export const RIDER_RIDE =
 /** شاشتا الدعمِ والحسابِ للراكبِ وأساسُهما المشتركُ — حزمتا `support` و`account` عندَ الطلبِ. */
 const RIDER_ON_DEMAND = /\/src\/surfaces\/(?:rider\/)?(?:support|account)\//;
 
+/**
+ * `D-32` · `rider-history`: السجلُّ وتفاصيلُه والإشعاراتُ بطلبِ الراكبِ وحدَه. ووحدةُ `ride-history-view` النقيّةُ ليسَت
+ * مستثناةً هنا: لا يستوردُها غيرُ شاشاتِ السجلِّ (مَقيسٌ: `rg "history/" src/surfaces`).
+ */
+export const RIDER_HISTORY =
+  /\/src\/surfaces\/rider\/(?:rider-history-screens\.ts|history\/|notifications\/)/;
+
 export function isDeferredRiderModule(id: string): boolean {
-  return RIDER_RIDE.test(id) || RIDER_ON_DEMAND.test(id);
+  return RIDER_RIDE.test(id) || RIDER_ON_DEMAND.test(id) || RIDER_HISTORY.test(id);
 }
 
 const RIDER_ROOT = /\/src\/surfaces\/rider\/RiderRoot\.tsx$/;
