@@ -23,7 +23,8 @@
  * ## وما يحرسُهُ هذا الملفُّ بالضبطِ
  * أنَّ الوحدةَ لا ترتدُّ إلى الساعةِ خِلسةً، وأنَّ السقفَ مصدرُ حقيقةٍ واحدٌ لا
  * رقمٌ مبثوثٌ في التوكيدِ، وأنَّ القراءةَ تمرُّ بسكونٍ مقيسٍ، وأنَّ الاختبارَ لا
- * يُعادُ تشغيلُه حتّى يخضَرَّ. **ستُّ قواعدَ، لكلِّ واحدةٍ سالبةٌ مبذورةٌ** (`ح-٧`).
+ * يُعادُ تشغيلُه حتّى يخضَرَّ. **ستُّ قواعدَ، لكلِّ واحدةٍ سالبةٌ مبذورةٌ** (`ح-٧`)؛ وسابعةٌ
+ *   `settle.idle-flush` زيادةً (`D-35` · `ADR 0191`).
  *
  * ## وما لا يفعلُه عن قصدٍ
  * ــ **لا يمنعُ `performance.now()` في المستودَعِ كلِّه**: قياسُ زمنٍ للعرضِ أو
@@ -252,6 +253,37 @@ function settleViolations(file: GuardedFile): readonly SoakWorkViolation[] {
   return [];
 }
 
+/**
+ * مهلةُ الإفراغِ الخاملِ في PostgreSQL ≥15 (`PGSTAT_IDLE_INTERVAL` في
+ * `src/include/pgstat.h`): خادمٌ خلفيٌّ أفرغَ قبلَ أقلَّ من ثانيةٍ ثمَّ خمَلَ يُفرِغُ بعدَها.
+ */
+export const PGSTAT_IDLE_INTERVAL_MS = 10_000;
+
+const SETTLE_GRACE_DECLARATION = /const\s+SETTLE_GRACE_MS\s*(?::[^=]+)?=\s*([0-9_]+)\s*;/;
+
+/**
+ * القاعدةُ السابعةُ (`D-35` · `ADR 0191`): **السكونُ أطولُ من مهلةِ الإفراغِ الخاملِ**.
+ * مهلةٌ أقصرُ منها تقرأُ عدّاداتٍ ثابتةً وخادمٌ خامِلٌ ما زالَ يحملُ عملاً لم يُفرِغْه،
+ * فيُنسَبُ إحماءُ كتلةٍ إلى تاليتِها — وهوَ ما أسقطَ `36122019657` ×4.52 وأخضرَ غيرَه ×0.37.
+ */
+function idleFlushViolations(file: GuardedFile): readonly SoakWorkViolation[] {
+  const code = stripComments(file.source);
+  const match = SETTLE_GRACE_DECLARATION.exec(code);
+  const value = match === null ? Number.NaN : Number((match[1] ?? "").replaceAll("_", ""));
+  if (Number.isFinite(value) && value > PGSTAT_IDLE_INTERVAL_MS) return [];
+  return [
+    {
+      rule: "settle.idle-flush",
+      file: file.path,
+      detail:
+        match === null
+          ? "لا `const SETTLE_GRACE_MS = <ms>;` مقروءةٌ: مهلةُ السكونِ غيرُ مُعلَنةٍ فلا تُحرَسُ."
+          : `SETTLE_GRACE_MS = ${match[1] ?? "?"} ≤ ${String(PGSTAT_IDLE_INTERVAL_MS)}: ` +
+            "خادمٌ خامِلٌ يُفرِغُ بعدَ عشرِ ثوانٍ، فالسكونُ الأقصرُ منها كاذبٌ.",
+    },
+  ];
+}
+
 /** القاعدةُ السادسةُ: لا إعادةَ تشغيلٍ حتّى يخضَرَّ — مسارٌ محظورٌ في `DEC-18`. */
 function retryViolations(file: GuardedFile): readonly SoakWorkViolation[] {
   const code = stripComments(file.source);
@@ -296,7 +328,10 @@ export function soakWorkMeasureViolations(
   }
 
   const support = byPath.get(WORK_SUPPORT_FILE);
-  if (support !== undefined) found.push(...workSourceViolations(support));
+  if (support !== undefined) {
+    found.push(...workSourceViolations(support));
+    found.push(...idleFlushViolations(support));
+  }
 
   found.push(...ceilingViolations(files));
   return found;
