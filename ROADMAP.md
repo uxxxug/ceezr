@@ -167,7 +167,7 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
-### Reservation `REQ-09` (الشقُّ المملوكُ للمستودَعِ) — **حدُّ معدّلِ مزوّدِ التوجيهِ «المُعلَنُ» لا يَفرضُه شيءٌ عندَنا** (opened 2026-09-25, before any file was edited)
+### Reservation `REQ-09` (الشقُّ المملوكُ للمستودَعِ) — **حدُّ معدّلِ مزوّدِ التوجيهِ «المُعلَنُ» لا يَفرضُه شيءٌ عندَنا** (opened 2026-09-25, before any file was edited · **merged 2026-09-25 في PR #270**)
 
 حُجِزَ **قبلَ أوّلِ تعديلِ ملفِّ شيفرةٍ**، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25. فرعُ `feat/req-09-declared-routing-quota` من `main`@`f7484d5`؛ لا فرعَ ولا PR آخرُ مفتوحٌ يمسُّ النطاقَ.
 
@@ -180,7 +180,9 @@ Nothing else has been changed in this repository by the WASLA integration work.
 | النطاقُ المحجوزُ | `packages/maps/core/routing-provider.ts` · `packages/maps/providers/osrm/osrm-provider.ts` · `packages/shared/config/index.ts` · `apps/gateway/src/container.ts` · `render.yaml` · `.env.example` · اختباراتُ الوحدةِ المقابلةُ · `ADR 0190` جديدٌ (`ح-6`) · دليلٌ `docs/evidence/architecture/REQ-09-20260925-declared-routing-quota.md` · §23 و§25 في `docs/ROADMAP-MASTER.md` بالإضافةِ · `docs/SYSTEM_STATE.md` |
 | ما لا يُمَسُّ | لا مزوّدٌ يُختارُ ولا حسابٌ يُفتَحُ ولا سعرٌ يُكتَبُ (قرارُ مالكٍ) · لا عتبةُ تخزينٍ ولا `check-route-cache-policy` · لا ميزانيّةُ `F8-04` الزمنيّةُ ولا حدُّ تزامنِه · لا نصُّ `REQ-09` (`ح-1`) · لا خريطةَ في التطبيقِ المصغَّرِ (حدُّ بلاطاتِ الخرائطِ في العميلِ خارجَ هذا النطاقِ ويُسجَّلُ) |
 | ما لا يُدَّعى | **`REQ-09` يبقى `[!]`**: لا حسابَ ولا حدَّ حقيقيَّ ولا فاتورةَ. المبنيُّ **جاهزيّةٌ لفرضِ حدٍّ يُعلِنُه المالكُ** مُختبَرةٌ لا مُثبَتةٌ على مزوّدٍ حقيقيٍّ (`ح-5`). |
-### Reservation `D-35` · `DEC-18`/`F9-06` — **«سكونُ» عدّاداتِ الصمودِ أقصرُ من مهلةِ الإفراغِ الخاملِ في PostgreSQL فيُنسَبُ عملُ كتلةٍ إلى تاليتِها** (opened 2026-09-25, before any file was edited)
+| حكمُ CI (PR #270) | `36126025447` (pull_request) و`36126021871` · `36126021904` (push) على `99c295e` بعدَ دمجِ `main` (D-35): السبعُ خضراءُ. وسقوطُ `36122019657` السابقُ (×4.52) لم يكن من `REQ-09` بل من `D-35` — عولِجَ جذريّاً في PR #271 لا بإعادةِ التشغيلِ. `REQ-09` يبقى `[!]`: فتحُ الحسابِ وضبطُ `ROUTING_RATE_LIMIT` من العقدِ في بيئةِ النشرِ والسعرُ لمدخلاتِ `ECO-004`/`ECO-008` (`ADR 0154`) للمالكِ. |
+
+### Reservation `D-35` · `DEC-18`/`F9-06` — **«سكونُ» عدّاداتِ الصمودِ أقصرُ من مهلةِ الإفراغِ الخاملِ في PostgreSQL فيُنسَبُ عملُ كتلةٍ إلى تاليتِها** (opened 2026-09-25, before any file was edited · **merged 2026-09-25 في PR #271** @`6241455` — CI على `main` `36125905826` · `36125905876` أخضرُ)
 
 حُجِزَ **قبلَ أوّلِ تعديلِ ملفِّ شيفرةٍ**، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25. اكتُشِفَ أثناءَ تنفيذِ `REQ-09` (PR #270): وظيفةُ «تكامل على PostgreSQL حقيقي» في جولةِ الدفعِ `36122019657` سقطَت بنسبةِ صمودٍ ×4.52، وجولةُ `pull_request` `36122025751` **على الالتزامِ عينِه** `c2c060f` مرَّت ×0.37. فرعُ `fix/d-35-soak-settle-idle-flush` من `main`.
 
