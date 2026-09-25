@@ -32,6 +32,9 @@
  * ٢. **لا دورَ ميّتاً.** كلُّ دورٍ في `DB_POOL_MAX` يُستعمَلُ فعلاً في شيفرةِ
  *    الإنتاجِ. ودورٌ يُعلَنُ ولا يُستعمَلُ ميزانيّةٌ تحسبُ ما لا يُفتَحُ — وهو كذبٌ
  *    في الاتّجاهِ الآخرِ.
+ * ٤. **مهلةُ الاستعلامِ من الميزانيّةِ** (`F11-04` · `ADR 0197`). موضعُ إنشاءٍ دورُه ذو مهلةٍ في
+ *    `DB_QUERY_DEADLINE_MS` يُمرِّرُ `queryDeadlineMs: DB_QUERY_DEADLINE_MS.<دورُه>` حرفاً، ودورُه
+ *    بلا مهلةٍ لا يُمرِّرُها. والدورُ من `max` أو الافتراضيُّ حينَ يُغفَلُ — فالبوّابةُ لا تُفلِتُ بإغفالِه.
  * ٣. **تكافؤُ الطوبولوجيا مع المانيفستِ.** `DECLARED_TOPOLOGY` تُساوي ما في
  *    `render.yaml`: `numInstances` لكلِّ خدمةٍ، و`RUN_WORKER_IN_GATEWAY` للبوّابةِ.
  *    وإعلانانِ عن شيءٍ واحدٍ في موضعَين، وتنافرُهما أسوأُ من خطأِ أحدِهما لأنّ كلَّ
@@ -54,6 +57,7 @@ import { join, relative } from "node:path";
 import {
   DB_POOL_MAX,
   DB_POOL_ROLES,
+  DB_QUERY_DEADLINE_MS,
   type DbPoolRole,
   DECLARED_TOPOLOGY,
 } from "../packages/shared/config/connection-budget.ts";
@@ -107,6 +111,33 @@ export interface SourceVerdict {
   readonly calls: number;
 }
 
+/** الفحصُ الرابعُ لنداءٍ واحدٍ عُرِفَ دورُه. */
+function deadlineFindings(rel: string, args: string, role: DbPoolRole): Finding[] {
+  const declared = DB_QUERY_DEADLINE_MS[role];
+  const match = /\bqueryDeadlineMs\s*:\s*([^,}\n]+)/.exec(args);
+  const expression = match === null ? null : (match[1] ?? "").trim();
+  if (declared === null) {
+    return expression === null
+      ? []
+      : [
+          {
+            code: "DEADLINE_ON_UNBOUNDED_ROLE",
+            detail: `${rel}: الدورُ «${role}» بلا مهلةٍ في DB_QUERY_DEADLINE_MS ويُمرَّرُ له «${expression}» (F11-04)`,
+          },
+        ];
+  }
+  if (expression === `DB_QUERY_DEADLINE_MS.${role}`) return [];
+  return [
+    {
+      code: "DEADLINE_NOT_FROM_BUDGET",
+      detail:
+        expression === null
+          ? `${rel}: تجمُّعُ الدورِ «${role}» بلا queryDeadlineMs ومهلتُه المُعلَنةُ ${declared}ms — بطءٌ على جدولٍ يوقفُ التجمُّعَ كلَّه (F11-04)`
+          : `${rel}: queryDeadlineMs «${expression}» ليست DB_QUERY_DEADLINE_MS.${role} (F11-04)`,
+    },
+  ];
+}
+
 /** يحكمُ على نصِّ ملفٍّ واحدٍ: مواضعُ `createSql` فيه وأسقفُها. */
 export function analyseSource(rel: string, source: string): SourceVerdict {
   const findings: Finding[] = [];
@@ -123,7 +154,13 @@ export function analyseSource(rel: string, source: string): SourceVerdict {
       });
       break;
     }
+    // تعريفُ الدالّةِ نفسِها ليسَ موضعَ إنشاءٍ.
+    if (/function\s+$/.test(source.slice(Math.max(0, cursor - 12), cursor))) {
+      cursor = source.indexOf("createSql(", cursor + 1);
+      continue;
+    }
     calls += 1;
+    let callRole: DbPoolRole | null = IMPLICIT_DEFAULT_ROLE;
     const maxMatch = /\bmax\s*:\s*([^,}\n]+)/.exec(args);
     if (maxMatch !== null) {
       const expression = (maxMatch[1] ?? "").trim();
@@ -142,8 +179,16 @@ export function analyseSource(rel: string, source: string): SourceVerdict {
         });
       } else {
         roles.push(roleMatch[1] as DbPoolRole);
+        callRole = roleMatch[1] as DbPoolRole;
+      }
+      if (
+        roleMatch === null ||
+        !(DB_POOL_ROLES as readonly string[]).includes(roleMatch[1] ?? "")
+      ) {
+        callRole = null;
       }
     }
+    if (callRole !== null) findings.push(...deadlineFindings(rel, args, callRole));
     cursor = source.indexOf("createSql(", cursor + 1);
   }
 

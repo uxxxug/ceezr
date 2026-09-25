@@ -42,8 +42,11 @@ describe("قراءةُ مواضعِ إنشاءِ التجمُّعاتِ", () => 
     );
   });
 
-  it("إغفالُ max ⇒ قبولٌ — الافتراضيُّ مُعلَنٌ في الميزانيّةِ", () => {
-    const verdict = analyseSource("x.ts", "createSql({ connectionString: url });");
+  it("إغفالُ max ⇒ قبولٌ — الافتراضيُّ مُعلَنٌ في الميزانيّةِ (ومهلتُه من الميزانيّةِ منذُ F11-04)", () => {
+    const verdict = analyseSource(
+      "x.ts",
+      "createSql({ connectionString: url, queryDeadlineMs: DB_QUERY_DEADLINE_MS.gatewayRequest });",
+    );
     expect(verdict.findings).toEqual([]);
     expect(verdict.calls).toBe(1);
     expect(verdict.roles).toEqual([]);
@@ -87,6 +90,48 @@ describe("قراءةُ مواضعِ إنشاءِ التجمُّعاتِ", () => 
     );
     expect(verdict.calls).toBe(2);
     expect(codes(verdict.findings)).toEqual(["MAX_NOT_FROM_BUDGET"]);
+  });
+});
+
+/** `F11-04` · `ADR 0197` — الفحصُ الرابعُ وسالباتُه المبذورةُ (`ح-7`). */
+describe("مهلةُ الاستعلامِ من الميزانيّةِ", () => {
+  it("البوّابةُ بإغفالِ max وبلا مهلةٍ ⇒ سقوطٌ — الدورُ الافتراضيُّ لا يُفلِتُ", () => {
+    expect(codes(analyseSource("x.ts", "createSql({ connectionString: url });").findings)).toEqual([
+      "DEADLINE_NOT_FROM_BUDGET",
+    ]);
+  });
+
+  it("دورُ اللوحةِ بلا مهلةٍ ⇒ سقوطٌ", () => {
+    expect(
+      codes(analyseSource("x.ts", "createSql({ max: DB_POOL_MAX.adminRequest });").findings),
+    ).toEqual(["DEADLINE_NOT_FROM_BUDGET"]);
+  });
+
+  it("رقمٌ حرفيٌّ للمهلةِ ⇒ سقوطٌ", () => {
+    expect(
+      codes(
+        analyseSource("x.ts", "createSql({ connectionString: url, queryDeadlineMs: 5000 });")
+          .findings,
+      ),
+    ).toEqual(["DEADLINE_NOT_FROM_BUDGET"]);
+  });
+
+  it("مهلةُ دورٍ آخرَ ⇒ سقوطٌ — المهلةُ تتبعُ دورَ السقفِ", () => {
+    const source =
+      "createSql({ max: DB_POOL_MAX.adminRequest, queryDeadlineMs: DB_QUERY_DEADLINE_MS.gatewayRequest });";
+    expect(codes(analyseSource("x.ts", source).findings)).toEqual(["DEADLINE_NOT_FROM_BUDGET"]);
+  });
+
+  it("مهلةٌ على دورٍ بلا مهلةٍ مُعلَنةٍ ⇒ سقوطٌ — العاملُ لا يُلغى عملُه الصحيحُ", () => {
+    const source =
+      "createSql({ max: DB_POOL_MAX.workerJobs, queryDeadlineMs: DB_QUERY_DEADLINE_MS.gatewayRequest });";
+    expect(codes(analyseSource("x.ts", source).findings)).toEqual(["DEADLINE_ON_UNBOUNDED_ROLE"]);
+  });
+
+  it("تعريفُ الدالّةِ ليسَ موضعَ إنشاءٍ", () => {
+    const verdict = analyseSource("x.ts", "export function createSql(options: DbOptions): Sql {}");
+    expect(verdict.calls).toBe(0);
+    expect(verdict.findings).toEqual([]);
   });
 });
 
@@ -195,7 +240,7 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
       [
         "createSql({ max: DB_POOL_MAX.workerJobs });",
         "createSql({ max: DB_POOL_MAX.workerLocks });",
-        "createSql({ max: DB_POOL_MAX.adminRequest });",
+        "createSql({ max: DB_POOL_MAX.adminRequest, queryDeadlineMs: DB_QUERY_DEADLINE_MS.adminRequest });",
         "createSql({ max: DB_POOL_MAX.restoreVerifier });",
         call,
         "",
@@ -232,8 +277,19 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
 
   it("خرقٌ مزروعٌ ⇒ رمزٌ غيرُ صفريٍّ، وإزالتُه ⇒ صفرٌ", async () => {
     expect(await runBarrier(plant("createSql({ max: 12 });", SOUND_MANIFEST))).toBe(1);
+    expect(
+      await runBarrier(
+        plant(
+          "createSql({ connectionString: url, queryDeadlineMs: DB_QUERY_DEADLINE_MS.gatewayRequest });",
+          SOUND_MANIFEST,
+        ),
+      ),
+    ).toBe(0);
+  }, 60_000);
+
+  it("بوّابةٌ بلا مهلةٍ مزروعةً ⇒ رمزٌ غيرُ صفريٍّ (F11-04)", async () => {
     expect(await runBarrier(plant("createSql({ connectionString: url });", SOUND_MANIFEST))).toBe(
-      0,
+      1,
     );
   }, 60_000);
 
@@ -242,7 +298,14 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
       "    name: waslah-worker\n    numInstances: 1",
       "    name: waslah-worker\n    numInstances: 4",
     );
-    expect(await runBarrier(plant("createSql({ connectionString: url });", drifted))).toBe(1);
+    expect(
+      await runBarrier(
+        plant(
+          "createSql({ connectionString: url, queryDeadlineMs: DB_QUERY_DEADLINE_MS.gatewayRequest });",
+          drifted,
+        ),
+      ),
+    ).toBe(1);
   }, 60_000);
 
   it("المستودعُ الحقيقيُّ ⇒ صفرٌ", async () => {
