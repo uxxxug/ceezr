@@ -167,6 +167,18 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `F11-04` — **بطءُ PostgreSQL (brownout): مهلةُ استعلامٍ على تجمُّعِ مسارِ الطلبِ تمنعُ الانهيارَ المتتاليَ** (الشقُّ المملوكُ للمستودَعِ · opened 2026-09-25, before any file was edited)
+
+حُجِزَ **قبلَ أوّلِ تعديلِ ملفٍّ** في فرعِ `feat/f11-04-pg-brownout-deadline` من `main`@`6e2fd60`. لا حجزَ ولا فرعَ ولا PR سابقٌ لـ`F11-04`.
+
+| الحقلُ | القيمةُ |
+|---|---|
+| المقيسُ قبلَ التنفيذِ | `createSql` (`packages/infrastructure/db/client.ts`) بلا أيِّ مهلةِ استعلامٍ؛ تجمُّعُ البوّابةِ 5 اتّصالاتٍ. وعلى قاعدةِ الاختبارِ عبرَ Supavisor (جلسةً ومعاملاتٍ): `statement_timeout` مُمرَّراً مُعامِلَ إقلاعٍ (`connection` أو `options`) **يُهمَلُ صامتاً** (`show statement_timeout` = `2min`، و`pg_sleep(3)` ينامُ 3221ms) — فعلاجٌ من جهةِ الخادمِ يخضرُّ محلّيّاً ولا يعملُ في الإنتاجِ. أمّا إلغاءُ الاستعلامِ من العميلِ (`query.cancel()`) فيعبرُ الوضعينِ: `57014` عندَ 1001ms والتجمُّعُ سليمٌ بعدَه. |
+| الفرضيّةُ المقيسةُ | استعلاماتٌ عالقةٌ خلفَ قفلٍ على جدولٍ واحدٍ تحتجزُ اتّصالاتِ التجمُّعِ كلَّها، فيقفُ مسارٌ لا صلةَ له بالجدولِ طولَ البطءِ (انهيارٌ متتالٍ). |
+| النطاقُ المحجوزُ | `packages/infrastructure/db/client.ts` (مهلةُ استعلامٍ من العميلِ بالإلغاءِ) · `packages/shared/config/connection-budget.ts` (مهلةٌ لكلِّ دورِ تجمُّعٍ، قائمةٌ مغلقةٌ) · `apps/gateway/src/container.ts` و`apps/admin/src/container.ts` (التمريرُ والسجلُّ المُهيكَلُ) · `scripts/check-connection-budget.ts` إن لزمَ · `scripts/lib/brownout-invariants.ts` وسالباتُه · `tests/integration/pg-brownout.test.ts` · اختباراتُ وحدةٍ · `scripts/lib/skip-registry.ts` وعدّادا `tests/unit/skip-audit.test.ts` · `ADR 0197` · دليلٌ · §25 · `SYSTEM_STATE` |
+| ما لا يُمَسُّ | تجمُّعاتُ العاملِ والقفلِ والتحقُّقِ من الاستعادةِ (مهامُّ دفعيّةٌ طويلةٌ مشروعةٌ — تُعلَنُ بلا مهلةٍ وسببُها مكتوبٌ) · إعداداتُ الأدوارِ في Supabase · سقوفُ التجمُّعاتِ |
+| ما لا يُدَّعى | لا قلبَ إلى `[x]` (`ح-4`) ولا «مُثبَتٌ» (`ح-5`): البندُ يُقصَدُ به أثناءَ الحملِ وعلى بيئةٍ شبيهةٍ بالإنتاجِ؛ والبطءُ المقيسُ تنازعُ أقفالٍ لا تشبُّعُ معالجٍ أو قرصٍ. |
+
 ### Reservation `D-37` — **مهلةُ استرجاعِ حجزِ الصادرِ تُقرأُ من مدينةٍ غيرِ محدَّدةٍ** (opened 2026-09-25, before any file was edited · **merged 2026-09-25 في PR #276**)
 
 اكتُشِفَ أثناءَ `F11-02` (`ADR 0195`) وسُجِّلَ في سجلِّ الديونِ؛ يُحجَزُ **قبلَ أيِّ تعديلٍ عليه** في فرعِ `fix/d-37-claim-timeout-per-city` من `main`@`b54ce7d`.
