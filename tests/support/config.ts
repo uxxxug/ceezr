@@ -77,6 +77,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     maplibreSri: null,
     routingProvider: "none",
     osrmBaseUrl: null,
+    routingRateLimit: null,
     tracking: NO_TRACKING_OVERRIDES,
     trackingTokenBaseUrl: null,
     // `null` يعني أنّ مسارَ جلسةِ التطبيقِ المصغَّر غيرُ مُركَّبٍ في الاختبارِ أصلاً

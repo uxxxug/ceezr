@@ -212,6 +212,10 @@ services:
         sync: false
       - key: OSRM_BASE_URL
         sync: false
+      # ‏REQ-09 / ADR 0190: حدُّ عقدِ حسابِ التوجيهِ <طلبات>/<ثوانٍ> — مطلوبٌ في الإنتاجِ
+      # متى كانَ ROUTING_PROVIDER غيرَ none، وإلّا مُنِعَ الإقلاعُ.
+      - key: ROUTING_RATE_LIMIT
+        sync: false
       - key: MAP_STYLE_URL
         sync: false
       - key: MAP_PROVIDER
@@ -343,6 +347,10 @@ services:
       - key: ROUTING_PROVIDER
         sync: false
       - key: OSRM_BASE_URL
+        sync: false
+      # ‏REQ-09 / ADR 0190: حدُّ عقدِ حسابِ التوجيهِ <طلبات>/<ثوانٍ> — مطلوبٌ في الإنتاجِ
+      # متى كانَ ROUTING_PROVIDER غيرَ none، وإلّا مُنِعَ الإقلاعُ.
+      - key: ROUTING_RATE_LIMIT
         sync: false
       - key: MAP_STYLE_URL
         sync: false
@@ -478,6 +486,10 @@ services:
       - key: ROUTING_PROVIDER
         sync: false
       - key: OSRM_BASE_URL
+        sync: false
+      # ‏REQ-09 / ADR 0190: حدُّ عقدِ حسابِ التوجيهِ <طلبات>/<ثوانٍ> — مطلوبٌ في الإنتاجِ
+      # متى كانَ ROUTING_PROVIDER غيرَ none، وإلّا مُنِعَ الإقلاعُ.
+      - key: ROUTING_RATE_LIMIT
         sync: false
       # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
       # اللوحةُ تعرض ما يُنتجه هذا المجال، وقيمُه تُقرأ في الإعداد لا في العرض؛

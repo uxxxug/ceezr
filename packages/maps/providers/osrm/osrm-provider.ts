@@ -22,10 +22,12 @@ import {
   type DistanceMatrixRow,
   deservesRoutingRetry,
   type NearestOptions,
+  ROUTING_QUOTA_KEY,
   type RouteOptions,
   RoutingError,
   type RoutingErrorKind,
   type RoutingProvider,
+  type RoutingQuota,
 } from "../../core/routing-provider.ts";
 import type {
   LatLng,
@@ -81,6 +83,12 @@ export interface OsrmConfig {
    * وحقنُه يُتيحُ كذلكَ اشتراكَ حاجزٍ واحدٍ بينَ مزوّدَينِ لخادمٍ واحدٍ.
    */
   readonly guard?: DependencyGuard;
+  /**
+   * حصّةُ الحسابِ المُعلَنةُ (`REQ-09` · `ADR 0190`). تُستشارُ قبلَ **كلِّ** طلبِ
+   * HTTP. غيابُها يعني «لا حدَّ مُعلَنٌ» — والضبطُ يرفضُ ذلكَ في الإنتاجِ متى كانَ
+   * مزوّدٌ مُهيَّأً، فالغيابُ ههنا للتطويرِ والاختبارِ.
+   */
+  readonly quota?: RoutingQuota;
 }
 
 export type OsrmProfile = "driving" | "walking" | "cycling";
@@ -177,6 +185,17 @@ export function createOsrmProvider(config: OsrmConfig): RoutingProvider {
     path: string,
     budgetMs: number,
   ): Promise<Result<unknown, RoutingError>> {
+    if (config.quota !== undefined) {
+      const decision = await config.quota.hit(ROUTING_QUOTA_KEY);
+      if (!decision.allowed) {
+        return err(
+          fail(
+            `بلغَ حدُّ الحسابِ المُعلَنُ نهايتَه: لم يُرسَلِ الطلبُ (يُفتَحُ بعدَ ${decision.resetSeconds}s)`,
+            "quota_exhausted",
+          ),
+        );
+      }
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), budgetMs);
     try {

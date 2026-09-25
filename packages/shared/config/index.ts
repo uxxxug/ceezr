@@ -214,6 +214,13 @@ export interface AppConfig {
    */
   readonly osrmBaseUrl: string | null;
   /**
+   * حدُّ معدّلِ طلباتِ HTTP إلى مزوّدِ التوجيهِ **كما يُعلِنُه عقدُ الحسابِ**
+   * (`ROUTING_RATE_LIMIT` = `<طلبات>/<ثوانٍ>` · `REQ-09` · `ADR 0190`). `null` =
+   * لا حدَّ مُعلَنٌ، ويُرفَضُ في الإنتاجِ متى كانَ `ROUTING_PROVIDER` غيرَ `none`:
+   * حسابٌ مدفوعٌ بحدٍّ لا نعرفُه يُتجاوَزُ بلا علمِنا ويُفوتَرُ.
+   */
+  readonly routingRateLimit: RoutingRateLimit | null;
+  /**
    * حدود طبقة التتبّع من البيئة — تجاوزاتٌ فوق افتراضات المجال.
    *
    * أُضيف لأنّ هذه المتغيّرات كانت مُعلَنةً في `render.yaml` و`.env.example`
@@ -328,6 +335,35 @@ export type MapProviderName = (typeof MAP_PROVIDER_NAMES)[number];
 export const ROUTING_PROVIDER_NAMES = ["none", "osrm"] as const;
 
 export type RoutingProviderName = (typeof ROUTING_PROVIDER_NAMES)[number];
+
+/** حدٌّ مُعلَنٌ: `calls` طلباً في كلِّ `windowSeconds` ثانيةٍ منزلقةٍ. */
+export interface RoutingRateLimit {
+  readonly calls: number;
+  readonly windowSeconds: number;
+}
+
+/**
+ * سقفا الصيغةِ — لا سقفا الحدِّ: النافذةُ المنزلقةُ على `Redis` مجموعةٌ مرتَّبةٌ
+ * بعضوٍ لكلِّ طلبٍ، فنافذةُ يومٍ بمئةِ ألفِ طلبٍ مفتاحٌ بمئةِ ألفِ عضوٍ. وعقودُ
+ * المزوّدينَ تُعلِنُ حدَّ الثانيةِ أو الدقيقةِ؛ والحصّةُ الشهريّةُ شأنُ الفاتورةِ.
+ */
+export const ROUTING_RATE_LIMIT_MAX_WINDOW_SECONDS = 60;
+export const ROUTING_RATE_LIMIT_MAX_CALLS = 10_000;
+
+/** يُحلِّلُ `<طلبات>/<ثوانٍ>` أو يُعيدُ سببَ الرفضِ نصّاً. */
+export function parseRoutingRateLimit(raw: string): RoutingRateLimit | string {
+  const match = /^([0-9]+)\/([0-9]+)$/.exec(raw.trim());
+  if (match === null) return `الصيغةُ <طلبات>/<ثوانٍ> — وردت: ${raw}`;
+  const calls = Number(match[1]);
+  const windowSeconds = Number(match[2]);
+  if (calls < 1 || calls > ROUTING_RATE_LIMIT_MAX_CALLS) {
+    return `الطلباتُ بينَ 1 و${ROUTING_RATE_LIMIT_MAX_CALLS} — وردت: ${calls}`;
+  }
+  if (windowSeconds < 1 || windowSeconds > ROUTING_RATE_LIMIT_MAX_WINDOW_SECONDS) {
+    return `الثواني بينَ 1 و${ROUTING_RATE_LIMIT_MAX_WINDOW_SECONDS} — وردت: ${windowSeconds}`;
+  }
+  return { calls, windowSeconds };
+}
 
 /** أسماء المزوّدات المدعومة. `none` ليست غياباً بل اختياراً صريحاً. */
 export const TRANSLATION_PROVIDER_NAMES = [
@@ -854,6 +890,24 @@ export function tryLoadConfig(
     );
   }
 
+  // `REQ-09` · `ADR 0190`: الحدُّ المُعلَنُ في عقدِ الحسابِ.
+  let routingRateLimit: RoutingRateLimit | null = null;
+  if (!isBlank(source.ROUTING_RATE_LIMIT)) {
+    const parsed = parseRoutingRateLimit(source.ROUTING_RATE_LIMIT as string);
+    if (typeof parsed === "string") {
+      return err(new InvalidEnvVarError("ROUTING_RATE_LIMIT", parsed));
+    }
+    routingRateLimit = parsed;
+  }
+  if (env === "production" && rawRoutingProvider !== "none" && routingRateLimit === null) {
+    return err(
+      new InvalidEnvVarError(
+        "ROUTING_RATE_LIMIT",
+        "مطلوبٌ في الإنتاجِ مع مزوّدِ توجيهٍ: انقلْ حدَّ عقدِ الحسابِ (REQ-09)",
+      ),
+    );
+  }
+
   const trackingTokenBaseUrl = isBlank(source.TRACKING_TOKEN_BASE_URL)
     ? null
     : (source.TRACKING_TOKEN_BASE_URL as string).trim();
@@ -1060,6 +1114,7 @@ export function tryLoadConfig(
     maplibreSri: isBlank(source.MAPLIBRE_SRI) ? null : (source.MAPLIBRE_SRI as string).trim(),
     routingProvider: rawRoutingProvider as RoutingProviderName,
     osrmBaseUrl,
+    routingRateLimit,
     tracking,
     trackingTokenBaseUrl,
     miniappSessionSecret,
