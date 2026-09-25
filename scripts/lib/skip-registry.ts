@@ -1531,6 +1531,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/real-redis/redis-loss-commercial-state-real.test.ts",
+    suites: ["فقدانُ Redis وسطَ الدورةِ التجاريّةِ على Redis حقيقيٍّ — F11-03"],
+    skipped: 1,
+    gate: "UPSTASH_REDIS_REST_URL",
+    reason:
+      "`F11-03`: يُقطَعُ **كلُّ** أمرٍ إلى Redis وسطَ دورةِ رحلةٍ (قبلَ الإنشاءِ · من القبولِ المتسابقِ إلى الإقفالِ) ثمَّ يعود، ويُحكَمُ على ثوابتِ الحالةِ التجاريّةِ في PostgreSQL. وما قبلَ القطعِ وما بعدَ العودةِ لا يُقاسانِ إلّا على خادمٍ حقيقيٍّ: جلساتٌ باقيةٌ فيه من قبلِ القطعِ هي ما يُمتحَنُ بعدَ العودةِ، ومزدوجٌ في الذاكرةِ لا يحملُ ذلك (ADR 0193).",
+    activation:
+      "يُضبَط UPSTASH_REDIS_REST_URL وUPSTASH_REDIS_REST_TOKEN على قشرةِ REST التي تنشرُها وظيفةُ CI نفسُها فوقَ خادمِ `redis:7-alpine` مُستضافٍ في الشغلةِ (`S-3` · ADR 0096) — لا سرَّ خارجيٌّ ولا حسابٌ عندَ مُزوِّدٍ، وحاجزُ `scripts/check-real-redis-runner.ts` يمنعُ العودةَ صامتاً إلى نقطةٍ بلا خادمٍ. ويفعلُه المطوّرُ محلّياً بالحاويتَينِ نفسِهما أو بنقطةٍ اختباريّةٍ خاصّةٍ به.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات الجلسات على Redis حقيقي",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/row-security-effect.test.ts",
     suites: ["SEC-10 — أثرُ أمنِ الصفِّ مقيسٌ بدورٍ غيرِ مالكٍ لا موصوفٌ"],
     skipped: 5,
