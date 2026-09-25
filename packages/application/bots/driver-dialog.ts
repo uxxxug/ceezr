@@ -104,6 +104,7 @@ import {
   shortOrderId,
   startRideKeyboard,
 } from "./rating-dialog.ts";
+import { readDialogSession, type SessionRead } from "./session-read.ts";
 import {
   handleActivateCommand,
   handleAnswerCommand,
@@ -375,11 +376,24 @@ function preferredAreaLocationRequest(state: DialogState): Keyboard {
   );
 }
 
-async function loadState(deps: DriverBotDependencies, sender: Sender): Promise<DialogState> {
-  const stored = await deps.sessions.load(sender.telegramUserId);
-  if (stored.ok && stored.value !== null) return stored.value;
-  return { ...INITIAL_STATE, language: sender.languageHint === "en" ? "en" : "ar" };
+async function loadState(deps: DriverBotDependencies, sender: Sender): Promise<SessionRead> {
+  return readDialogSession(deps.sessions, sender.telegramUserId, {
+    ...INITIAL_STATE,
+    language: sender.languageHint === "en" ? "en" : "ar",
+  });
 }
+
+/**
+ * `D-36`: نقراتُ خطواتِ التسجيلِ والمنطقةِ المفضّلةِ لا معنى لها إلّا بالطورِ. ونقراتُ
+ * العرضِ والرحلةِ والتقييمِ والاشتراكِ مصدرُ حقيقتِها القاعدةُ فتبقى تعملُ (`ADR 0194`).
+ */
+const DRIVER_STEP_CALLBACKS: ReadonlySet<string> = new Set([
+  "city",
+  "service",
+  "vehicle",
+  "back",
+  "area",
+]);
 
 /** الردّ الموحّد لأي عطل تقني — لا نكشف تفاصيل داخلية للسائق. */
 function technicalFailure(sender: Sender, state: DialogState): readonly BotReply[] {
@@ -451,9 +465,21 @@ export async function handleDriverUpdate(
   }
 
   const sender = update.from;
-  const state = await loadState(deps, sender);
+  const { state, unreadable } = await loadState(deps, sender);
 
-  if (update.kind === "callback") return handleCallback(update.data, sender, state, deps);
+  if (update.kind === "callback") {
+    const prefix = update.data.split(":")[0] ?? "";
+    if (unreadable && DRIVER_STEP_CALLBACKS.has(prefix)) return technicalFailure(sender, state);
+    return handleCallback(update.data, sender, state, deps);
+  }
+  /**
+   * `D-36`: الرقمُ وصورةُ المركبةِ لا يُفهَمانِ إلّا بطورِ التسجيلِ. أمّا الموقعُ فيمرُّ:
+   * نبضةُ السائقِ الحيّةُ مصدرُ حقيقتِها القاعدةُ ولا تُعطَّلُ بفقدانِ Redis (`F4-08`)،
+   * وثمنُه أنَّ نقطةَ المنطقةِ المفضّلةِ أثناءَ الفقدانِ تُقرأُ موقعاً — تُعادُ ولا تُفسِدُ.
+   */
+  if (unreadable && (update.kind === "contact" || update.kind === "photo")) {
+    return technicalFailure(sender, state);
+  }
   if (update.kind === "contact") {
     /**
      * الرقم يُقبل فقط إن أقرّ تلغرام أن البطاقة للمرسِل نفسه. إعادة توجيه بطاقة
@@ -497,6 +523,12 @@ export async function handleDriverUpdate(
   // ولو تأخّر لصار زرّ «الدعم» يُسجَّل رقمَ لوحة السائق أو اسمَه في منتصف التسجيل.
   const fromMenu = commandForMenuText("driver", text);
   if (fromMenu !== null) return handleCommand(fromMenu, sender, state, deps);
+
+  // `D-36`: نصٌّ حرٌّ والطورُ مجهولٌ — يُنقَلُ إلى تفاوضٍ قائمٍ في القاعدةِ إن وُجِدَ، وإلّا
+  // فعطلٌ صادقٌ: لعلَّه اسمٌ أو لوحةٌ أو هويّةٌ أو رسالةُ دعمٍ لا نعرفُ أيَّها.
+  if (unreadable) {
+    return (await relayIfNegotiating(text, sender, state, deps)) ?? technicalFailure(sender, state);
+  }
 
   switch (state.step) {
     case "awaiting_name":

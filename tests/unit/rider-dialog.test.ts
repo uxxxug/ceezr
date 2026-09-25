@@ -25,9 +25,11 @@ import type {
   Sender,
 } from "../../packages/application/bots/types.ts";
 import { waitingVariants } from "../../packages/application/bots/waiting-lines.ts";
+import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type { Order } from "../../packages/domain/transport/entity.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { DriverId, OrderId, RiderId } from "../../packages/shared/kernel/index.ts";
+import { err, ok } from "../../packages/shared/result/index.ts";
 import {
   cityDirectory,
   JEDDAH,
@@ -1159,5 +1161,77 @@ describe("سجلّ الطلبات: /history", () => {
     for (const label of ["حي 1", "حي 2", "حي 3"]) {
       expect(replies[0]?.text).toContain(label);
     }
+  });
+});
+
+/**
+ * `D-36` · `ADR 0194`: جلسةٌ **تعذَّرَت قراءتُها** ليست جلسةً **غائبةً**. المخزنُ ههنا
+ * انقطاعٌ جزئيٌّ — القراءةُ تسقطُ والكتابةُ تمرُّ — وهوَ أسوأُ الصورِ: لو قُرِئَ الإخفاقُ
+ * غياباً لكُتِبَت البدايةُ فوقَ جلسةٍ حقيقيّةٍ.
+ */
+describe("جلسةُ الراكبِ متعذِّرةُ القراءةِ — D-36", () => {
+  function unreadableSessions() {
+    const saves: unknown[] = [];
+    return {
+      saves,
+      store: {
+        load: async () => err(new PortFailureError("sessions", "redis unreachable")),
+        save: async (_id: string, state: unknown) => {
+          saves.push(state);
+          return ok(undefined);
+        },
+        clear: async () => ok(undefined),
+      },
+    };
+  }
+  const registered = () =>
+    riderDirectory({
+      id: "rider-9" as RiderId,
+      cityId: JEDDAH.id,
+      telegramUserId: "500",
+      fullName: "سالم",
+    });
+
+  it("نقطةُ الموقعِ تُجابُ بعطلٍ صادقٍ لا بـ«لم أفهم» ولا تُكتَبُ جلسةٌ ولا طلبٌ", async () => {
+    const sessions = unreadableSessions();
+    const replies = await handleRiderUpdate(
+      location(PICKUP),
+      build({ sessions: sessions.store, riders: registered() }),
+    );
+    expect(replies.map((r) => r.text)).toEqual([ar("common.error_try_again")]);
+    expect(sessions.saves).toEqual([]);
+    expect(rides.createCalls).toEqual([]);
+  });
+
+  it("زرُّ الخدمةِ (خطوةٌ) يُجابُ بعطلٍ صادقٍ ولا يُكتَبُ فوقَ الجلسةِ", async () => {
+    const sessions = unreadableSessions();
+    const replies = await handleRiderUpdate(
+      callback("svc:transport"),
+      build({ sessions: sessions.store, riders: registered() }),
+    );
+    expect(replies.map((r) => r.text)).toEqual([ar("common.error_try_again")]);
+    expect(sessions.saves).toEqual([]);
+  });
+
+  it("نصٌّ حرٌّ بلا تفاوضٍ يُجابُ بعطلٍ صادقٍ — لعلَّه اسمٌ أو وصفُ طردٍ", async () => {
+    const sessions = unreadableSessions();
+    const replies = await handleRiderUpdate(
+      text("سالم"),
+      build({ sessions: sessions.store, riders: registered() }),
+    );
+    expect(replies.map((r) => r.text)).toEqual([ar("common.error_try_again")]);
+    expect(sessions.saves).toEqual([]);
+  });
+
+  it("الأمرُ الصريحُ يبقى يعملُ: نيّةُ المستخدمِ لا تحتاجُ طورَه", async () => {
+    const sessions = unreadableSessions();
+    const replies = await handleRiderUpdate(text("/start"), build({ sessions: sessions.store }));
+    expect(replies[0]?.text).not.toBe(ar("common.error_try_again"));
+    expect(replies[0]?.keyboard).toEqual(mainMenuKeyboard("rider", "ar"));
+  });
+
+  it("الغيابُ الصادقُ باقٍ على حالِه: موقعٌ بلا جلسةٍ ليس عطلاً", async () => {
+    const replies = await handleRiderUpdate(location(PICKUP), build({ riders: registered() }));
+    expect(replies.map((r) => r.text)).toEqual([ar("common.unknown_command")]);
   });
 });
