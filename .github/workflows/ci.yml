@@ -1336,6 +1336,15 @@ jobs:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/routing-call-budget.test.ts
 
+      # `F11-06` (الشقُّ المملوكُ للمستودَعِ): عطلُ مزوّدِ الخرائطِ **محقونٌ على السِلكِ**
+      # — خادمُ `OSRM` حقيقيٌّ يُطفَأُ ويُعلَّقُ ويردُّ 5xx وحمولةً فاسدةً، وحصّةٌ مستنفَدةٌ،
+      # وقاطعٌ مفتوحٌ ثمَّ تعافٍ. وخطوةٌ باسمِها كي يُقرأَ الحكمُ مفرَداً: الرحلةُ عينُها،
+      # والمدّةُ `PROVIDER_DOWN`، والقراءةُ تحتَ ميزانيّةِ المزوّدِ (`ADR 0192`).
+      - name: توقُّفُ مزوّدِ الخرائطِ لا يُخفي الرحلةَ والمدّةُ تُخفى بصدقٍ (F11-06)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/routing-provider-outage.test.ts
+
       # `ECO-003`: رسائلُ تيليجرام تُعَدُّ على **السِلكِ** — مُرسِلٌ يُلتقَطُ خروجُه
       # نصّاً وصورةً ودبّوساً، وبوّابةٌ من `buildContainer` تمرُّ بالـwebhook وصندوقِ
       # الصادرِ. وخطوةٌ باسمِها كي يُقرأَ الرقمُ مفرَداً: خمسُ رسائلِ دفعٍ في رحلةٍ
