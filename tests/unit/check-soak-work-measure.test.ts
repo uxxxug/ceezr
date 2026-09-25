@@ -30,6 +30,7 @@ import {
 /** ملفُّ دعمٍ سليمٌ مزروعٌ: يُستعمَلُ أساساً فتُقاسَ كلُّ سالبةٍ وحدَها. */
 const GOOD_SUPPORT = [
   "export const WORK_GROWTH_CEILING = 3;",
+  "const SETTLE_GRACE_MS = 11_000;",
   "async function readEngineWork(sql) {",
   "  return await sql`select (tup_returned + tup_fetched) as rows_scanned,",
   "    (blks_read + blks_hit) as blocks_touched",
@@ -127,6 +128,18 @@ describe("حاجزُ قياسِ التدهورِ — سالباتٌ مزروعة
   it("١٠) إعادةُ تشغيلٍ حتّى يخضَرَّ تُلتقَطُ", () => {
     const planted = `${GOOD_SOAK}\nit('صمود', { retry: 3 }, async () => {});`;
     expect(rules(planted, GOOD_SUPPORT)).toContain("no-retry");
+  });
+
+  it("١١-أ) `D-35`: سكونٌ أقصرُ من مهلةِ الإفراغِ الخاملِ يُلتقَطُ — والقيمةُ التي أسقطَت `36122019657`", () => {
+    for (const grace of ["2_500", "10_000", "10000"]) {
+      const planted = GOOD_SUPPORT.replace("= 11_000;", `= ${grace};`);
+      expect(rules(GOOD_SOAK, planted)).toContain("settle.idle-flush");
+    }
+  });
+
+  it("١١-ب) `D-35`: حذفُ إعلانِ المهلةِ يُلتقَطُ — ما لا يُقرأُ لا يُحرَسُ", () => {
+    const planted = GOOD_SUPPORT.replace("const SETTLE_GRACE_MS = 11_000;", "");
+    expect(rules(GOOD_SOAK, planted)).toContain("settle.idle-flush");
   });
 
   it("١١) حذفُ ملفِّ القياسِ لا يُسقِطُ القاعدةَ — الغيابُ خرقٌ لا صمتٌ", () => {
