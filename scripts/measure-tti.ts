@@ -149,6 +149,7 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     maplibreSri: null,
     routingProvider: "none",
     osrmBaseUrl: null,
+    routingRateLimit: null,
     tracking: {
       gpsIntervalSeconds: 3,
       gpsIdleIntervalSeconds: 30,

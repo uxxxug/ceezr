@@ -159,7 +159,7 @@ import {
   createPastOrdersLookup,
 } from "../../../packages/infrastructure/transport/order-adapters.ts";
 import { createRideRequestCommand } from "../../../packages/infrastructure/transport/ride-request-store.ts";
-import type { RoutingProvider } from "../../../packages/maps/index.ts";
+import type { RoutingProvider, RoutingQuota } from "../../../packages/maps/index.ts";
 import { createOsrmProvider } from "../../../packages/maps/index.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
@@ -180,6 +180,7 @@ import {
 import { createRedisSessionStore } from "./bots/shared/redis-session.ts";
 import { createMemorySessionStore } from "./bots/shared/session.ts";
 import type { RawTelegramUpdate } from "./bots/shared/telegram-mapper.ts";
+import { createMemoryRateLimiter, createRedisRateLimiter } from "./rate-limit/fixed-window.ts";
 import { createUpstashRedis, type RedisClient } from "./redis/upstash.ts";
 
 import type { BotKind, UpdateHandler } from "./routes/telegram-webhook.ts";
@@ -399,6 +400,26 @@ export interface ContainerOverrides {
  * فيُعالَج موقعُ السائق مرّتين. والأقدمُ أوّلاً، والباقي تتولّاه الأرضيّةُ الدوريّة.
  */
 const IMMEDIATE_REDISPATCH_LIMIT = 10;
+
+/**
+ * حصّةُ مزوّدِ التوجيهِ المُعلَنةُ (`REQ-09` · `ADR 0190`). على `Redis` متى وُجِدَ:
+ * الحدُّ حدُّ **الحسابِ**، فحدٌّ في ذاكرةِ كلِّ نسخةٍ يضربُه في عددِ النسخِ. وسياسةُ
+ * عجزِ `Redis` سياسةُ الحدِّ القائمةِ (يُسمَحُ ويُسجَّلُ) — والمزوّدُ يبقى يردُّ `429`
+ * فلا يُخفى التجاوزُ.
+ */
+function routingQuota(
+  limit: NonNullable<AppConfig["routingRateLimit"]>,
+  redis: RedisClient | null,
+  log: (message: string, meta: Record<string, unknown>) => void,
+): RoutingQuota {
+  const options = { limit: limit.calls, windowSeconds: limit.windowSeconds };
+  return redis === null
+    ? createMemoryRateLimiter(options)
+    : createRedisRateLimiter(redis, {
+        ...options,
+        onFailure: (detail) => log("routing.quota_redis_failed", { detail }),
+      });
+}
 
 export function buildContainer(config: AppConfig, overrides: ContainerOverrides = {}): Container {
   const sql = createSql({ connectionString: config.databaseUrl });
@@ -722,7 +743,16 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    */
   const routing: RoutingProvider | null =
     config.routingProvider === "osrm" && config.osrmBaseUrl !== null
-      ? new CachedRoutingProvider(createOsrmProvider({ baseUrl: config.osrmBaseUrl }))
+      ? new CachedRoutingProvider(
+          createOsrmProvider({
+            baseUrl: config.osrmBaseUrl,
+            // `REQ-09` · `ADR 0190`: الحصّةُ تحتَ الذاكرةِ المؤقّتةِ فلا تستهلكُها إصابةٌ،
+            // وعلى `Redis` متى وُجِدَ لأنَّ الحدَّ حدُّ الحسابِ لا النسخةِ.
+            ...(config.routingRateLimit === null
+              ? {}
+              : { quota: routingQuota(config.routingRateLimit, redis, log) }),
+          }),
+        )
       : null;
 
   const liveTracking = createLiveTracking({

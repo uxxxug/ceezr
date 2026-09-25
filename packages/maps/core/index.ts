@@ -15,8 +15,9 @@ export type {
   RouteOptions,
   RoutingErrorKind,
   RoutingProvider,
+  RoutingQuota,
 } from "./routing-provider.ts";
-export { deservesRoutingRetry, RoutingError } from "./routing-provider.ts";
+export { deservesRoutingRetry, ROUTING_QUOTA_KEY, RoutingError } from "./routing-provider.ts";
 export type {
   LatLng,
   MapPoint,
