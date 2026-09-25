@@ -96,3 +96,8 @@
 - `apps/gateway/src/redis/upstash.ts` — العميل.
 - `apps/gateway/src/bots/shared/redis-session.ts` — المحوّل والتحقّق.
 - `packages/shared/config/index.ts` — `SESSION_STORE_NAMES`.
+
+## زيادةٌ 2026-09-25 (`ح-8`)
+
+§6 عُدِّلَ في `ADR 0194` (`D-36`): إخفاقُ `load` لم يعُدْ غياباً مطلقاً. البدايةُ تبقى لما مصدرُ حقيقتِه القاعدةُ، والمُدخَلُ
+المعتمدُ على الطورِ يُجابُ بعطلٍ صادقٍ بلا كتابةٍ. ونصُّ §6 أعلاه محفوظٌ كما قُرِّرَ.

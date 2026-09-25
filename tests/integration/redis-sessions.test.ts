@@ -17,6 +17,7 @@ import type { RedisClient } from "../../apps/gateway/src/redis/upstash.ts";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import type { AppConfig } from "../../packages/shared/config/index.ts";
+import { translate } from "../../packages/shared/i18n/index.ts";
 import {
   type ActiveCityHandle,
   ensureActiveCity,
@@ -317,7 +318,13 @@ describeIf("جلسات الحوار على Redis بحاوية حقيقية", () 
       // فشل القراءة يعني «لا جلسة»، فالحوار عند بدايته لا عند awaiting_name.
       // النتيجة أن النصّ يقع خارج أي خطوة فيُردّ بإرشاد لا بقبولٍ صامت — وهذا
       // أفضل من رسالة عطل تقني: المستخدم يُوجَّه بدل أن يُترك أمام خطأ مبهم.
-      expect(driverSent.at(-1)?.text).toContain("/help");
+      //
+      // زيادةٌ 2026-09-25 (`ح-8` · `D-36` · `ADR 0194` يُعدِّلُ `ADR 0011` §6): الإرشادُ
+      // كانَ «لم أفهم… /help»، وهوَ ردٌّ يُحمِّلُ المستخدمَ عطلَنا، و`/help` ثمَّ `/start`
+      // تسقطانِ معَ Redis نفسِه. وقُرِئَ في `F11-03` على الراكبِ وسطَ خطوةِ النقطةِ. فالإخفاقُ
+      // الآنَ يُفرَّقُ من الغيابِ: نصٌّ حرٌّ والطورُ مجهولٌ ⇒ عطلٌ صادقٌ. وما يحميه الاختبارُ
+      // باقٍ حرفاً: النصُّ لا يُقبَلُ اسماً، ولا صفَّ يُولَدُ.
+      expect(driverSent.at(-1)?.text).toBe(translate("ar", "common.error_try_again"));
       expect(driverSent.at(-1)?.text).not.toContain("عبدالله");
       const rows = await sql<{ count: string }[]>`
         select count(*)::text as count from users where telegram_id = ${DRIVER_CHAT}

@@ -388,6 +388,11 @@ describeIf("فقدانُ Redis وسطَ الدورةِ التجاريّةِ عل
     );
     // كلُّ طورٍ قُطِعَ فعلاً: طورٌ بلا أمرٍ مقطوعٍ لا يشهدُ على فقدانٍ فيه.
     expect(cutBeforeCreate).toBeGreaterThan(0);
+    // زيادةٌ `D-36` (`ADR 0194`): نقطتا الراكبِ والجلسةُ متعذِّرةٌ تُجابانِ بعطلٍ صادقٍ لا بـ«لم أفهم».
+    expect(repliesDuringCut).toEqual([
+      arMessages["common.error_try_again"],
+      arMessages["common.error_try_again"],
+    ]);
     expect(cutDuringLifecycle).toBeGreaterThan(0);
     expect(statuses.every((status) => status === 200)).toBe(true);
     expect(verdict.violations).toEqual([]);

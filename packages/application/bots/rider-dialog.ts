@@ -52,6 +52,7 @@ import {
   type RatingDialogDependencies,
   shortOrderId,
 } from "./rating-dialog.ts";
+import { readDialogSession, type SessionRead } from "./session-read.ts";
 import {
   handleSupportGroupAction,
   type SupportDialogDependencies,
@@ -220,11 +221,18 @@ function cityKeyboard(cities: readonly CityRef[]): Keyboard {
   };
 }
 
-async function loadState(deps: RiderBotDependencies, sender: Sender): Promise<DialogState> {
-  const stored = await deps.sessions.load(sender.telegramUserId);
-  if (stored.ok && stored.value !== null) return stored.value;
-  return { ...INITIAL_STATE, language: sender.languageHint === "en" ? "en" : "ar" };
+async function loadState(deps: RiderBotDependencies, sender: Sender): Promise<SessionRead> {
+  return readDialogSession(deps.sessions, sender.telegramUserId, {
+    ...INITIAL_STATE,
+    language: sender.languageHint === "en" ? "en" : "ar",
+  });
 }
+
+/**
+ * `D-36`: نقراتٌ لا معنى لها إلّا بطورِ الحوارِ (المدينةُ · الخدمةُ · الرجوعُ). وما عداها
+ * من نقراتٍ مصدرُ حقيقتِه القاعدةُ فيبقى يعملُ والجلسةُ متعذِّرةٌ (`ADR 0194`).
+ */
+const RIDER_STEP_CALLBACKS: ReadonlySet<string> = new Set(["city", "svc", "back"]);
 
 function technicalFailure(sender: Sender, state: DialogState): readonly BotReply[] {
   return [reply(sender, t(state.language)("common.error_try_again"))];
@@ -242,11 +250,14 @@ export async function handleRiderUpdate(
   if (update.kind === "join_request") return [];
 
   const sender = update.from;
-  const state = await loadState(deps, sender);
+  const { state, unreadable } = await loadState(deps, sender);
   const tr = t(state.language);
 
   if (update.kind === "callback") {
     const [prefix, ...rest] = update.data.split(":");
+    if (unreadable && prefix !== undefined && RIDER_STEP_CALLBACKS.has(prefix)) {
+      return technicalFailure(sender, state);
+    }
     if (prefix === "lang") {
       return deps.language === undefined
         ? [reply(sender, tr("common.unknown_command"))]
@@ -277,6 +288,11 @@ export async function handleRiderUpdate(
         : handleSupportGroupAction(rest, sender, state, deps.support);
     }
     return [reply(sender, tr("common.unknown_command"))];
+  }
+
+  // `D-36`: نقطةُ الراكبِ وصورتُه لا تُفهَمانِ إلّا بالطورِ، والطورُ لم يُقرَأْ.
+  if (unreadable && (update.kind === "location" || update.kind === "photo")) {
+    return technicalFailure(sender, state);
   }
 
   if (update.kind === "location") {
@@ -311,6 +327,10 @@ export async function handleRiderUpdate(
   const fromMenu = commandForMenuText("rider", text);
   if (fromMenu !== null) return handleCommand(fromMenu, sender, state, update.updateId, deps);
 
+  // `D-36`: نصٌّ حرٌّ والطورُ مجهولٌ — يُنقَلُ إلى تفاوضٍ قائمٍ في القاعدةِ إن وُجِدَ، وإلّا
+  // فعطلٌ صادقٌ: لعلَّه اسمٌ أو وصفُ طردٍ أو رسالةُ دعمٍ لا نعرفُ أيَّها.
+  if (unreadable) return handleFreeText(text, sender, state, deps, technicalFailure);
+
   if (state.step === "awaiting_name") return handleName(text, sender, state, deps);
   if (state.step === "awaiting_support_message") {
     return deps.support === undefined
@@ -337,15 +357,18 @@ async function handleFreeText(
   sender: Sender,
   state: DialogState,
   deps: RiderBotDependencies,
+  unmatched: (sender: Sender, state: DialogState) => readonly BotReply[] = (to, from) => [
+    reply(to, t(from.language)("common.unknown_command")),
+  ],
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
   const negotiation = deps.negotiation;
-  if (negotiation === undefined) return [reply(sender, tr("common.unknown_command"))];
+  if (negotiation === undefined) return unmatched(sender, state);
 
   const found = await deps.riders.findByTelegramId(sender.telegramUserId);
   if (!found.ok) return technicalFailure(sender, state);
   const rider = found.value;
-  if (rider === null) return [reply(sender, tr("common.unknown_command"))];
+  if (rider === null) return unmatched(sender, state);
 
   const relayed = await relayNegotiationMessage(
     { from: "rider", driverId: null, riderId: rider.id, text },
@@ -355,7 +378,7 @@ async function handleFreeText(
 
   const report = relayed.value;
   if (report.reason === "NO_ACTIVE_NEGOTIATION" || report.reason === "EMPTY_MESSAGE") {
-    return [reply(sender, tr("common.unknown_command"))];
+    return unmatched(sender, state);
   }
   if (report.reason === "UNREACHABLE") return [reply(sender, tr("negotiation.relay_unreachable"))];
   if (report.redacted > 0) return [reply(sender, tr("negotiation.relay_redacted"))];

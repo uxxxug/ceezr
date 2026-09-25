@@ -1563,3 +1563,77 @@ describe("تغييرات الاشتراك من بطاقة /subscription", () => 
     expect(changes.calls.cancels).toEqual([]);
   });
 });
+
+/**
+ * `D-36` · `ADR 0194`: جلسةُ السائقِ متعذِّرةُ القراءةِ. خطواتُ التسجيلِ تُجابُ بعطلٍ صادقٍ،
+ * وما مصدرُ حقيقتِه القاعدةُ — القبولُ ونبضةُ الموقعِ — يبقى يعملُ (`F11-03` · `ADR 0193`).
+ */
+describe("جلسةُ السائقِ متعذِّرةُ القراءةِ — D-36", () => {
+  function unreadableSessions() {
+    const saves: unknown[] = [];
+    return {
+      saves,
+      store: {
+        load: async () => err(new PortFailureError("sessions", "redis unreachable")),
+        save: async (_id: string, state: unknown) => {
+          saves.push(state);
+          return ok(undefined);
+        },
+        clear: async () => ok(undefined),
+      },
+    };
+  }
+
+  it("مشاركةُ الرقمِ تُجابُ بعطلٍ صادقٍ ولا تُكتَبُ جلسةٌ", async () => {
+    const sessions = unreadableSessions();
+    const replies = await handleDriverUpdate(
+      contact("+966501234567"),
+      build({ sessions: sessions.store }),
+    );
+    expect(replies.map((r) => r.text)).toEqual([ar("common.error_try_again")]);
+    expect(sessions.saves).toEqual([]);
+  });
+
+  it("زرُّ المدينةِ (خطوةٌ) يُجابُ بعطلٍ صادقٍ", async () => {
+    const sessions = unreadableSessions();
+    const replies = await handleDriverUpdate(
+      callback(`city:${JEDDAH.id}`),
+      build({ sessions: sessions.store }),
+    );
+    expect(replies.map((r) => r.text)).toEqual([ar("common.error_try_again")]);
+    expect(sessions.saves).toEqual([]);
+  });
+
+  it("نصٌّ حرٌّ بلا تفاوضٍ يُجابُ بعطلٍ صادقٍ — لعلَّه اسمٌ أو لوحةٌ", async () => {
+    const sessions = unreadableSessions();
+    const replies = await handleDriverUpdate(text("محمد"), build({ sessions: sessions.store }));
+    expect(replies.map((r) => r.text)).toEqual([ar("common.error_try_again")]);
+    expect(sessions.saves).toEqual([]);
+  });
+
+  it("قبولُ العرضِ يمرُّ بالدالةِ الذرّيّةِ والجلسةُ متعذِّرةٌ", async () => {
+    const sessions = unreadableSessions();
+    const replies = await handleDriverUpdate(
+      callback("offer:accept:order-77"),
+      build({ sessions: sessions.store, drivers: driverDirectory(verifiedDriver()) }),
+    );
+    expect(claims).toEqual([{ orderId: "order-77" as OrderId, driverId: "driver-1" as DriverId }]);
+    expect(replies[0]?.text).toBe(ar("driver.offer_accepted"));
+  });
+
+  it("نبضةُ الموقعِ تُكتَبُ والجلسةُ متعذِّرةٌ", async () => {
+    const sessions = unreadableSessions();
+    const drivers = driverDirectory(verifiedDriver({ hasLocation: false, isAvailable: false }));
+    const replies = await handleDriverUpdate(
+      {
+        kind: "location",
+        from: SENDER,
+        updateId: 1,
+        location: { latitude: 21.5433, longitude: 39.1728 },
+      },
+      build({ sessions: sessions.store, drivers }),
+    );
+    expect(drivers.locationCalls).toHaveLength(1);
+    expect(replies[0]?.text).toBe(ar("driver.location_saved"));
+  });
+});
