@@ -161,6 +161,7 @@ import {
 import { createRideRequestCommand } from "../../../packages/infrastructure/transport/ride-request-store.ts";
 import type { RoutingProvider, RoutingQuota } from "../../../packages/maps/index.ts";
 import { createOsrmProvider } from "../../../packages/maps/index.ts";
+import { DB_QUERY_DEADLINE_MS } from "../../../packages/shared/config/connection-budget.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { resolveGpsPolicy } from "../../../packages/tracking/config.ts";
@@ -422,8 +423,17 @@ function routingQuota(
 }
 
 export function buildContainer(config: AppConfig, overrides: ContainerOverrides = {}): Container {
-  const sql = createSql({ connectionString: config.databaseUrl });
   const log = overrides.log ?? (() => {});
+  /**
+   * `F11-04` · `ADR 0197` — **مهلةُ استعلامٍ من العميلِ**: بطءٌ على جدولٍ واحدٍ كانَ يحتجزُ
+   * اتّصالاتِ التجمُّعِ الخمسةَ فيقفُ كلُّ مسارٍ طولَ البطءِ. والإلغاءُ مرصودٌ لا صامتٌ.
+   */
+  const sql = createSql({
+    connectionString: config.databaseUrl,
+    queryDeadlineMs: DB_QUERY_DEADLINE_MS.gatewayRequest,
+    onQueryDeadline: ({ deadlineMs }) =>
+      log("db.query_deadline_exceeded", { pool: "gatewayRequest", deadlineMs }),
+  });
 
   // مخزنان منفصلان: حالة حوار السائق لا تخصّ العميل، ودمجهما كان سيخلط خطوتين
   // لشخص واحد يستخدم البوتين بمعرّف تلغرام واحد. الفصل في الذاكرة بخريطتين،

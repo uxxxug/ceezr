@@ -36,7 +36,10 @@ import {
   TRACKING_EVENT_STREAM_KEY,
 } from "../../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
 import { type ResolvedMapStyle, resolveMapStyle } from "../../../packages/maps/index.ts";
-import { DB_POOL_MAX } from "../../../packages/shared/config/connection-budget.ts";
+import {
+  DB_POOL_MAX,
+  DB_QUERY_DEADLINE_MS,
+} from "../../../packages/shared/config/connection-budget.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import type { AdminAuthPort, AdminCodeSender } from "../../gateway/src/admin/auth.ts";
 import { createAdminAuthPort } from "../../gateway/src/admin/auth.ts";
@@ -86,6 +89,10 @@ export function buildAdminContainer(
       connectionString: config.databaseUrl,
       max: DB_POOL_MAX.adminRequest,
       prepare: false,
+      // `F11-04` · `ADR 0197`: تقريرٌ عالقٌ خلفَ قفلٍ لا يحتجزُ تجمُّعَ اللوحةِ طولَ البطءِ.
+      queryDeadlineMs: DB_QUERY_DEADLINE_MS.adminRequest,
+      onQueryDeadline: ({ deadlineMs }) =>
+        log("db.query_deadline_exceeded", { pool: "adminRequest", deadlineMs }),
     });
 
   /**

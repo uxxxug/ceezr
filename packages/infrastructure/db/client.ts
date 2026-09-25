@@ -19,6 +19,7 @@ import { PortFailureError } from "../../application/ports/index.ts";
 import { DEFAULT_DB_POOL_MAX } from "../../shared/config/connection-budget.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { currentRequestId } from "../observability/correlation.ts";
+import { withQueryDeadline } from "./query-deadline.ts";
 
 export type Sql = postgres.Sql<Record<string, never>>;
 
@@ -32,6 +33,18 @@ export interface DbOptions {
   readonly max?: number;
   /** إن لم يُمرَّر يُشتقّ من رابط الاتصال عبر resolvePrepare. */
   readonly prepare?: boolean;
+  /**
+   * **مهلةُ الاستعلامِ من العميلِ** (`F11-04` · `ADR 0197`): استعلامٌ لم يستقرَّ بعدَها
+   * يُلغى بـ`query.cancel()` — إن كانَ في الطابورِ أُزيلَ منه، وإن كانَ جارياً بلغَ الإلغاءُ
+   * الخادمَ فحرَّرَ الاتّصالَ — ويُرفَضُ بـ`57014`. من العميلِ لا من الخادمِ عمداً: Supavisor
+   * يُهمِلُ `statement_timeout` مُعامِلَ إقلاعٍ صامتاً (مقيسٌ)، والإلغاءُ يعبرُه. غيابُها = بلا
+   * مهلةٍ؛ والقيمةُ لكلِّ دورٍ من `DB_QUERY_DEADLINE_MS` لا رقمٌ ههنا.
+   */
+  readonly queryDeadlineMs?: number;
+  /** يُنادى مرّةً لكلِّ استعلامٍ أُلغيَ بالمهلةِ — فيصيرُ البطءُ مرصوداً لا صامتاً. */
+  readonly onQueryDeadline?: (info: { readonly deadlineMs: number }) => void;
+  /** اسمُ التطبيقِ في `pg_stat_activity`؛ غيابُه يُبقي افتراضَ المكتبةِ. */
+  readonly applicationName?: string;
 }
 
 /** وضعُ pooler المُكتشَف من رابط الاتصال. */
@@ -75,11 +88,24 @@ export function resolvePrepare(options: DbOptions): boolean {
 }
 
 export function createSql(options: DbOptions): Sql {
-  return postgres(options.connectionString, {
+  const sql = postgres(options.connectionString, {
     max: options.max ?? DEFAULT_DB_POOL_MAX,
     prepare: resolvePrepare(options),
     onnotice: () => {},
     transform: { undefined: null },
+    ...(options.applicationName === undefined
+      ? {}
+      : { connection: { application_name: options.applicationName } }),
+  }) as Sql;
+  const deadlineMs = options.queryDeadlineMs;
+  if (deadlineMs === undefined) return sql;
+  if (!Number.isInteger(deadlineMs) || deadlineMs <= 0) {
+    throw new Error(`queryDeadlineMs يجبُ أن يكونَ عدداً صحيحاً موجباً: ${deadlineMs}`);
+  }
+  return withQueryDeadline(sql, {
+    deadlineMs,
+    slots: options.max ?? DEFAULT_DB_POOL_MAX,
+    onDeadline: options.onQueryDeadline,
   });
 }
 
