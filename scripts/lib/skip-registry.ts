@@ -2131,6 +2131,22 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/notification-outbox-claim-timeout-per-city.test.ts",
+    suites: ["مهلةُ استرجاعِ الحجزِ لكلِّ مدينةٍ — D-37"],
+    skipped: 2,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى أنَّ `claim_notification_delivery()` تسترجعُ الحجزَ المتروكَ بمهلةِ **مدينةِ الصفِّ** (`D-37` · `ADR 0196`)، وهذا شرطٌ في SQL لا يُرى إلّا بتنفيذِ الدالّةِ على صفوفٍ حقيقيّةٍ في مدينتينِ بمهلتينِ مختلفتينِ؛ ولا بديلَ مزدوجاً يُنفِّذُ `plpgsql`.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ والهجرات مطبَّقة. يفعله CI في «اختبارات التكامل على قاعدة حقيقية» داخلَ وظيفةِ «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres. والملفُّ يُعيدُ `notification_claim_timeout_seconds` لكلِّ المدنِ كما كانت ويحذفُ صفوفَه.",
+    owner: "منفّذ المستودع",
+    // «المهامُّ الدوريةُ والقفلُ الموزَّع»: مهلةٌ من مدينةٍ أخرى تسلبُ حجزاً من عاملٍ حيٍّ
+    // فتتكرّرُ الرسالةُ، أو تُؤخِّرُ استرجاعَ حجزِ عاملٍ ميّتٍ صامتةً.
+    criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/worker-loss-reclaim.test.ts",
     suites: ["فقدانُ عمليّةِ عاملٍ حقيقيّةٍ — F11-02"],
     skipped: 2,

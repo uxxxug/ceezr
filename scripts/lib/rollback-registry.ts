@@ -1146,6 +1146,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "الهويةُ والجلسةُ والصلاحيات",
     documentedIn: null,
   },
+  {
+    migration: "20260925170000_d_37_claim_timeout_per_row_city.sql",
+    change: "revoke_function:claim_notification_delivery(0)",
+    why: "الهجرةُ تُعيدُ تعريفَ `claim_notification_delivery` بـ`create or replace` لتغييرٍ واحدٍ: شرطُ استرجاعِ الحجزِ المتروكِ يقرأُ مهلةَ `n.city_id` لكلِّ صفٍّ بدلَ قيمةٍ واحدةٍ تُقرأُ بـ`limit 1` من مدينةٍ غيرِ محدَّدةٍ (`D-37` · `ADR 0196`)؛ والافتراضُ 300 والحدُّ الأدنى 1 كما كانا، وبقيّةُ الدالّةِ منسوخةٌ حرفاً. والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كان — الدالّةُ لـ`service_role` وحدَها قبلَ التغييرِ وبعدَه. والعودةُ بالكودِ وحدَها تكفي: التوقيعُ والعقدُ مع TypeScript لم يتغيّرا، والصورةُ السابقةُ تعودُ إلى سلوكِ الأمسِ (مهلةٌ واحدةٌ لكلِّ المدنِ) بلا أثرٍ على صفٍّ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
+    documentedIn: null,
+  },
 ];
 
 /**
