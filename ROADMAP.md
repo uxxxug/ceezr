@@ -167,7 +167,7 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
-### Reservation `F11-07` (الشقُّ المملوكُ للمستودَعِ) — **توقُّفُ مزوّدِ الدفع: المعاملةُ تبقى `pending/recoverable` بلا خسارةٍ — لكنَّ المسارَ الذي يفشلُ فيه بدءُ الشحنةِ لا يملكُ سبيلَ استعادةٍ أصلًا** (opened 2026-09-27, before any file was edited)
+### Reservation `F11-07` (الشقُّ المملوكُ للمستودَعِ) — **توقُّفُ مزوّدِ الدفع: المعاملةُ تبقى `pending/recoverable` بلا خسارةٍ — لكنَّ المسارَ الذي يفشلُ فيه بدءُ الشحنةِ لا يملكُ سبيلَ استعادةٍ أصلًا** (opened 2026-09-27, before any file was edited · **merged 2026-09-27 في PR #285 — CI أخضرُ على الفرعِ وعلى main بعدَ الدمجِ**)
 
 حُجِزَ **قبلَ أوّلِ تعديلِ ملفٍّ**، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25. فرعُ `feat/f11-07-payment-provider-outage` من `main`@`f74ec90`. لا فرعَ ولا PR ولا تنفيذَ سابقٌ يمسُّ `F11-07` (قُرِئَ: `git branch -r` · `gh pr list --state open` = فارغٌ · `grep F11-07 docs` = صفُّ الجدولِ وحدَه).
 
