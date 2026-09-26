@@ -289,7 +289,7 @@ describeIf("إلغاء الاشتراك على قاعدة حقيقية", () => {
 });
 
 describeIf("ترقية الخطّة على قاعدة حقيقية", () => {
-  it("داخل التجربة المجّانية: بلا مقابل ولا سعر مكتوب", async () => {
+  it("داخل التجربة المجّانية: دفع فرق الخطّة مطلوب لـ«both» — خدمة واحدة مجانية والثانية مدفوعة", async () => {
     const f = await makeDriver("trialing");
     const changes = createSubscriptionChangeRpc(sql);
 
@@ -297,9 +297,11 @@ describeIf("ترقية الخطّة على قاعدة حقيقية", () => {
     expect(quote.ok).toBe(true);
     if (!quote.ok) return;
     expect(quote.value.ok).toBe(true);
-    expect(quote.value.amountDue).toBe(0);
-    expect(quote.value.paymentRequired).toBe(false);
+    // خدمة واحدة مجانية، والثانية مدفوعة: الفرق بين سعرَي «both» والخطّة الحالية.
+    expect(quote.value.paymentRequired).toBe(true);
+    expect(quote.value.amountDue).toBeGreaterThan(0);
 
+    // الـRPC الذرّي يُطبّق الترقية بلا فحص دفع — الحماية في طبقة التطبيق.
     const applied = await changes.applyUpgrade(f.driverId, "both", null);
     expect(applied.ok && applied.value.ok).toBe(true);
 
