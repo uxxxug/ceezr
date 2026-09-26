@@ -15,7 +15,7 @@ import {
   type SessionStore,
 } from "../../../../../packages/application/bots/types.ts";
 import { PortFailureError } from "../../../../../packages/application/ports/index.ts";
-import type { CityId, SubscriptionPlan } from "../../../../../packages/shared/kernel/index.ts";
+import type { CityId, ServiceType } from "../../../../../packages/shared/kernel/index.ts";
 import { err, ok, type Result } from "../../../../../packages/shared/result/index.ts";
 import type { RedisClient, RedisFailure } from "../../redis/upstash.ts";
 import { SESSION_TTL_SECONDS } from "./session.ts";
@@ -32,7 +32,7 @@ export const REDIS_SESSION_PREFIX = "waslah:session";
 export type SessionNamespace = "driver" | "rider";
 
 const SUPPORT_TYPES = ["subscription", "ride_dispute"] as const;
-const SUBSCRIPTION_PLANS = ["transport", "delivery", "both"] as const;
+const SERVICE_TYPES = ["transport", "delivery"] as const;
 
 function nullableString(value: unknown): string | null | undefined {
   if (value === null) return null;
@@ -91,8 +91,7 @@ export function coerceDialogState(parsed: unknown): DialogState | null {
   if (draftName === undefined || draftPhone === undefined || draftCityId === undefined) return null;
 
   const service = candidate.draftService;
-  if (service !== null && !(SUBSCRIPTION_PLANS as readonly unknown[]).includes(service))
-    return null;
+  if (service !== null && !(SERVICE_TYPES as readonly unknown[]).includes(service)) return null;
 
   const supportType = candidate.draftSupportType;
   if (supportType !== null && !(SUPPORT_TYPES as readonly unknown[]).includes(supportType)) {
@@ -125,7 +124,7 @@ export function coerceDialogState(parsed: unknown): DialogState | null {
     draftName,
     draftPhone,
     draftCityId: draftCityId === null ? null : (draftCityId as CityId),
-    draftService: service === null ? null : (service as SubscriptionPlan),
+    draftService: service === null ? null : (service as ServiceType),
     draftPickup: pickup,
     draftDropoff: dropoff,
     draftSupportType: supportType === null ? null : (supportType as (typeof SUPPORT_TYPES)[number]),

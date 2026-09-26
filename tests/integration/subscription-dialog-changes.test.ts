@@ -290,37 +290,34 @@ describeIf("تغييرات الاشتراك من بوت السائق على قا
     expect(lastText()).toContain(String(difference));
   });
 
-  it("داخل التجربة المجانية: الترقية تُطبَّق فعلاً بعد التأكيد وتاريخ التجربة لا يتغيّر", async () => {
+  it("داخل التجربة المجانية: ترقية «both» تتطلب دفعاً — خدمة واحدة مجانية والثانية مدفوعة", async () => {
     // التسجيل نفسه يبدأ التجربة (driver-dialog.ts: startTrial بعد التوثيق)،
     // فلا نبدأ تجربةً ثانية — `subscriptions_one_live_per_driver` يرفضها بحقّ،
     // ونعمل على الصفّ الذي أنشأه المسار الحقيقي.
     const trialRow = await subscriptionRow();
     expect(trialRow?.status).toBe("trialing");
-    const before = await sql<{ trial_ends_at: Date | null }[]>`
-      select trial_ends_at from subscriptions where id = ${trialRow?.id ?? ""}
-    `;
 
     await post(callback(DRIVER_CHAT, "sub:upgrade:both"));
+    // الخطّة لا تتغيّر قبل الدفع.
     expect((await subscriptionRow())?.plan).toBe("transport");
-    expect(lastText()).toBe(ar("driver.subscription_upgrade_quote_free", { plan: "both" }));
 
+    // عرض السعر المدفوع يُظهر الفرق من platform_settings.
+    const prices = await sql<{ key: string; value: number }[]>`
+      select key, (value #>> '{}')::numeric as value from platform_settings
+       where city_id = ${cityId} and key in ('subscription_price_transport', 'subscription_price_both')
+    `;
+    const priceOf = (key: string) => prices.find((p) => p.key === key)?.value ?? 0;
+    const difference = priceOf("subscription_price_both") - priceOf("subscription_price_transport");
+    expect(difference).toBeGreaterThan(0);
+    // الرسالة الأولى تعرض الفرق.
+    expect(driverSent.at(-2)?.text).toContain(String(difference));
+
+    // تأكيد الترقية: لا مزوّد دفع، فالرسالة يدويّة.
     await post(callback(DRIVER_CHAT, "sub:upgrade:confirm:both"));
-    const row = await subscriptionRow();
-    expect(row?.plan).toBe("both");
-    expect(row?.status).toBe("trialing");
-
-    const after = await sql<{ trial_ends_at: Date | null }[]>`
-      select trial_ends_at from subscriptions where id = ${trialRow?.id ?? ""}
-    `;
-    expect(after[0]?.trial_ends_at?.toISOString()).toBe(before[0]?.trial_ends_at?.toISOString());
-
-    // القدرة تُحدَّث مع الخطّة: ترقيةٌ لا تُوسّع ما يصل السائق من طلبات ترقيةٌ بالاسم فقط.
-    const services = await sql<{ service: string }[]>`
-      select service::text as service from driver_capabilities
-       where driver_id = ${driverId} and is_enabled = true
-       order by service
-    `;
-    expect(services.map((s) => s.service)).toEqual(["delivery", "transport"]);
+    expect((await subscriptionRow())?.plan).toBe("transport");
+    expect(lastText()).toBe(
+      ar("driver.subscription_upgrade_manual_payment", { amount: difference, currency: "SAR" }),
+    );
   });
 
   it("من انتهى اشتراكه لا يُلغي: يُقال لا اشتراك سارٍ ولا يُمسّ الصفّ المنتهي", async () => {
