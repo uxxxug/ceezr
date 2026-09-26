@@ -220,7 +220,7 @@ describe("payment: subscribe-plan", () => {
     expect(first.value.transactionId).toBe(second.value.transactionId);
   });
 
-  it("الإيدمبوتنسي pending: معاملة pending بلا مزوّد لا تستدعي المزوّد ثانية", async () => {
+  it("الإيدمبوتنسي pending: معاملة pending فشلَ بدءُ شحنتِها تُستأنَفُ شحنتُها على الصفِّ نفسِهِ (D-38)", async () => {
     let providerCallCount = 0;
     const trackingProvider: PaymentProvider = {
       name: "track-provider",
@@ -247,7 +247,13 @@ describe("payment: subscribe-plan", () => {
       subscribeDeps(repo, trackingProvider),
     );
     expect(result.ok).toBe(true);
-    expect(providerCallCount).toBe(0); // لم يُستدعَ المزوّد
+    // تصحيحٌ بالإضافةِ (`ح-8` · `D-38` · ADR 0200): كانَ التوقعُ هنا «لا يُستدعى
+    // المزوّدُ ثانيةً» وهوَ عينُ العطبِ الذي أغلقَهُ `F11-07`: صفٌّ pending بلا
+    // مرجعِ مزوّدٍ ولا رابطِ دفعٍ لا سبيلَ لدفعِهِ، وإعادتُهُ بلا شحنةٍ نجاحٌ كاذبٌ
+    // برابطٍ null يسجنُ السائقَ يومَهُ. فالصوابُ المقيسُ الآنَ: الشحنةُ تُستأنَفُ
+    // على الصفِّ نفسِهِ مرّةً واحدةً لا أكثر.
+    expect(providerCallCount).toBe(1); // الشحنةُ استُؤنِفَت على الصفِّ نفسِهِ
+    expect(result.ok && result.value.transactionId).toBe("pending-key");
   });
 
   it("الإيدمبوتنسي pending مع providerTransactionId: لا يُعاد استدعاء المزوّد", async () => {
@@ -280,7 +286,7 @@ describe("payment: subscribe-plan", () => {
     expect(providerCallCount).toBe(0); // لم يُستدعَ المزوّد
   });
 
-  it("السباق (race): findByIdempotencyKey يُرجع null لكن create يُرجع alreadyExists=true — لا يُستدعى المزوّد", async () => {
+  it("السباق (race): findByIdempotencyKey يُرجع null وcreate يُرجع alreadyExists=true — تُستأنَفُ الشحنةُ لا تُهدَرُ المحاولةُ", async () => {
     let providerCallCount = 0;
     const trackingProvider: PaymentProvider = {
       name: "track-provider",
@@ -314,7 +320,10 @@ describe("payment: subscribe-plan", () => {
       subscribeDeps(raceRepo, trackingProvider),
     );
     expect(result.ok).toBe(true);
-    expect(providerCallCount).toBe(0); // المزوّد لم يُستدعَ — alreadyExists=true حسم السباق
+    // تصحيحٌ بالإضافةِ (`ح-8` · `D-38` · ADR 0200): كانَ التوقعُ «المزوّدُ لم
+    // يُستدعَ» — فمحاولةٌ سبقتْ بالفحصِ كانت تُهدَرُ والسائقُ يسجنُ برابطٍ null.
+    // فالصوابُ: من سبقَ بالإنشاءِ ثمَّ فشلَ بدءُ شحنتِهِ، تُستأنَفُ شحنتُهُ مرّةً.
+    expect(providerCallCount).toBe(1); // alreadyExists حسم السباقَ ثمَّ استُؤنِفَت الشحنةُ
   });
 
   it("يفشل عند فشل قراءة السعر", async () => {
