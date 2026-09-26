@@ -46,9 +46,9 @@ export interface UpgradeQuote {
   readonly cityId: CityId | null;
   readonly currentPlan: SubscriptionPlan | null;
   readonly newPlan: SubscriptionPlan | null;
-  /** الفرق المستحقّ بالعملة الأساسية (لا هللات). صفرٌ داخل التجربة المجّانية. */
+  /** الفرق المستحقّ بالعملة الأساسية (لا هللات). الفرق بين سعرَي «both» والخطّة الحالية. */
   readonly amountDue: number;
-  /** false داخل التجربة المجّانية: لا شيء مدفوع فيها فلا فرق يُطالَب به. */
+  /** true دائمًا للترقية إلى «both»: خدمة واحدة مجانية والثانية مدفوعة. */
   readonly paymentRequired: boolean;
   readonly currency: string | null;
   readonly periodEnd: Date | null;

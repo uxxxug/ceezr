@@ -20,7 +20,7 @@ import type {
 } from "../../application/bots/types.ts";
 import type { PortFailureError } from "../../application/ports/index.ts";
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
-import type { CityId, DriverId, RiderId, ServiceType } from "../../shared/kernel/index.ts";
+import type { CityId, DriverId, RiderId } from "../../shared/kernel/index.ts";
 import type { Result } from "../../shared/result/index.ts";
 import { guard, type Sql } from "../db/client.ts";
 
@@ -134,20 +134,12 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
           const driverId = drivers[0]?.id;
           if (driverId === undefined) throw new Error("تعذّر إنشاء السائق");
 
-          /**
-           * «both» ليست خدمةً واحدةً بل اثنتَين: تُدرَج قدرتان لا صفٌّ واحدٌ بخدمةٍ غير موجودة في التعداد.
-           * لا حاجةَ لمنع التكرار بطلبٍ منفصل: `on conflict do update` يغطّي الحالَين.
-           */
-          const services: readonly ServiceType[] =
-            input.service === "both" ? ["transport", "delivery"] : [input.service];
-          for (const svc of services) {
-            await tx`
-              insert into driver_capabilities (city_id, driver_id, service, is_enabled)
-              values (${input.cityId}, ${driverId}, ${svc}, true)
-              on conflict (driver_id, service) do update
-                set is_enabled = true, updated_at = now()
-            `;
-          }
+          await tx`
+            insert into driver_capabilities (city_id, driver_id, service, is_enabled)
+            values (${input.cityId}, ${driverId}, ${input.service}, true)
+            on conflict (driver_id, service) do update
+              set is_enabled = true, updated_at = now()
+          `;
           await tx`
             insert into driver_availability (city_id, driver_id, is_available)
             values (${input.cityId}, ${driverId}, false)
