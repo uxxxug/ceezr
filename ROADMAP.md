@@ -167,7 +167,7 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
-### Reservation `F11-10` (الشقُّ المملوكُ للمستودَعِ) — **تمرينُ استعادةِ النسخةِ الاحتياطيّةِ: يُثبِتُ الاستعادةَ نفسَها لا زمنَها — لا قياسَ ولا توثيقَ لزمنٍ فعليٍّ قطُّ** (opened 2026-09-27, before any file was edited)
+### Reservation `F11-10` (الشقُّ المملوكُ للمستودَعِ) — **تمرينُ استعادةِ النسخةِ الاحتياطيّةِ: يُثبِتُ الاستعادةَ نفسَها لا زمنَها — لا قياسَ ولا توثيقَ لزمنٍ فعليٍّ قطُّ** (opened 2026-09-27, before any file was edited · **merged 2026-09-27 في PR #287 — CI أخضرُ على الفرعِ وعلى main بعدَ الدمجِ**)
 
 حُجِزَ **قبلَ أوّلِ تعديلِ ملفٍّ**، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25. فرعُ `feat/f11-10-restore-drill-timing` من `main`@`4c8f6827`. لا فرعَ ولا PR ولا تنفيذَ سابقٌ يمسُّ `F11-10` (قُرِئَ: `git branch -r` · `gh pr list --state open` = فارغٌ · `grep F11-10 docs` = صفُّ الجدولِ وحدَه).
 
