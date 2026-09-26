@@ -16,6 +16,7 @@ import type {
   OrderId,
   RiderId,
   ServiceType,
+  SubscriptionPlan,
 } from "../../shared/kernel/index.ts";
 import type { Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
@@ -267,7 +268,7 @@ export interface DialogState {
   readonly draftName: string | null;
   readonly draftPhone: string | null;
   readonly draftCityId: CityId | null;
-  readonly draftService: ServiceType | null;
+  readonly draftService: SubscriptionPlan | null;
   readonly draftPickup: Coordinates | null;
   /** وجهة محفوظة بين خطوتين — يحتاجها التوصيل لأن وصف الطرد يأتي بعدها. */
   readonly draftDropoff: Coordinates | null;
@@ -348,7 +349,7 @@ export interface RegisterDriverInput {
   readonly cityId: CityId;
   readonly fullName: string;
   readonly phone: string;
-  readonly service: ServiceType;
+  readonly service: SubscriptionPlan;
   readonly language: string;
   /** الملفّ التوثيقي يُكتب مع التسجيل في عملية واحدة لا في تحديث لاحق. */
   readonly vehicleType: string;
@@ -437,7 +438,7 @@ export interface SubscriptionReader {
 export interface TrialRpcPort {
   startTrial(
     driverId: DriverId,
-    service: ServiceType,
+    plan: SubscriptionPlan,
   ): Promise<
     Result<{ readonly started: boolean; readonly reason: string | null }, PortFailureError>
   >;

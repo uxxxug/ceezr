@@ -70,7 +70,7 @@ export interface DriverDirectoryDouble extends DriverDirectory {
     cityId: CityId;
     fullName: string;
     phone: string;
-    service: ServiceType;
+    service: SubscriptionPlan;
   }[];
   readonly availabilityCalls: { driverId: DriverId; isAvailable: boolean }[];
   readonly locationCalls: { driverId: DriverId; location: Coordinates }[];
@@ -264,12 +264,12 @@ export function subscriptionChangePort(
 export function trialPort(
   started: boolean,
   reason: string | null = null,
-): TrialRpcPort & { readonly calls: { driverId: DriverId; service: ServiceType }[] } {
-  const calls: { driverId: DriverId; service: ServiceType }[] = [];
+): TrialRpcPort & { readonly calls: { driverId: DriverId; plan: SubscriptionPlan }[] } {
+  const calls: { driverId: DriverId; plan: SubscriptionPlan }[] = [];
   return {
     calls,
-    startTrial: async (driverId, service) => {
-      calls.push({ driverId, service });
+    startTrial: async (driverId, plan) => {
+      calls.push({ driverId, plan });
       return ok({ started, reason });
     },
   };
