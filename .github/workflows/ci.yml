@@ -1363,6 +1363,16 @@ jobs:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/payment-provider-outage.test.ts
 
+      # `F11-10` (الشقُّ المملوكُ للمستودَعِ): تمرينُ استعادةِ النسخةِ الاحتياطيّةِ
+      # **موثَّقاً بالزمنِ الفعليِّ** — التمرينُ الكاملُ (`pg_dump` ثم تسجيلٌ ثم
+      # استعادةٌ في قاعدةٍ مستقلّةٍ ثم بصمةٌ وتكافؤٌ) بأطوارٍ مقيسةٍ بالساعةِ
+      # تُطبَعُ في سجلِّ التشغيلِ وتُسجَّلُ في `db_backups`. ولا سقفَ ولا `RTO`:
+      # الزمنُ على قاعدةِ حجمِ الهجراتِ في عدّاءِ CI (`B-1` · ADR 0047 §٣).
+      - name: تمرينُ استعادةِ النسخةِ الاحتياطيّةِ موثَّقاً بالزمنِ الفعليِّ (F11-10)
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/backup-restore-drill.ts
+
       - name: فقدانُ عمليّةِ عاملٍ حقيقيّةٍ يُعادُ استلامُ عملِها بلا تكرارِ أثرٍ (F11-02)
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
