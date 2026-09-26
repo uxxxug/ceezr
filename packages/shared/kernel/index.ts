@@ -29,6 +29,8 @@ export interface Timestamped {
 
 export type ServiceType = "transport" | "delivery";
 
+export type SubscriptionPlan = "transport" | "delivery" | "both";
+
 export type LanguageCode = string;
 
 export interface Paginated<T> {

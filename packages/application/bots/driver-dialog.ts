@@ -37,14 +37,7 @@ import {
 } from "../../domain/subscription/entity.ts";
 import type { RoutingProvider } from "../../maps/core/index.ts";
 import { t } from "../../shared/i18n/index.ts";
-import type {
-  CityId,
-  Clock,
-  DriverId,
-  OfferId,
-  OrderId,
-  ServiceType,
-} from "../../shared/kernel/index.ts";
+import type { CityId, Clock, DriverId, OfferId, OrderId } from "../../shared/kernel/index.ts";
 import { ok } from "../../shared/result/index.ts";
 import {
   type RegisterUnsubscribedClaimDependencies,
@@ -1922,6 +1915,7 @@ async function handleCitySelected(
       rows: [
         [{ label: tr("driver.service_transport"), data: "service:transport" }],
         [{ label: tr("driver.service_delivery"), data: "service:delivery" }],
+        [{ label: tr("driver.plan_both"), data: "service:both" }],
         // اختيار المدينة كان غير قابل للتراجع: تصحيحه يعني /cancel وإعادة الاسم والرقم
         [{ label: tr("common.back_button"), data: "back:city" }],
       ],
@@ -1993,8 +1987,8 @@ async function handleBack(
   return [reply(sender, tr("driver.ask_city"), cityKeyboard(cities.value))];
 }
 
-function isServiceType(value: string): value is ServiceType {
-  return value === "transport" || value === "delivery";
+function isSubscriptionPlan(value: string): value is SubscriptionPlan {
+  return value === "transport" || value === "delivery" || value === "both";
 }
 
 async function handleServiceSelected(
@@ -2004,7 +1998,7 @@ async function handleServiceSelected(
   deps: DriverBotDependencies,
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
-  if (state.step !== "awaiting_service" || !isServiceType(serviceRaw)) {
+  if (state.step !== "awaiting_service" || !isSubscriptionPlan(serviceRaw)) {
     return [reply(sender, tr("common.unknown_command"))];
   }
   if (state.draftName === null || state.draftPhone === null || state.draftCityId === null) {
