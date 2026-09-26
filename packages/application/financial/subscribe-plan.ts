@@ -9,6 +9,7 @@
  *   بتفعيل الاشتراك عبر الدالة الذرّية `activate_subscription` القائمة.
  */
 
+import type { PaymentTransaction } from "../../domain/financial/index.ts";
 import type { SubscriptionPlan } from "../../domain/subscription/entity.ts";
 import type { CityId, DriverId } from "../../shared/kernel/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
@@ -45,6 +46,28 @@ export class SubscriptionPaymentError {
 }
 
 /**
+ * هل بدأت هذه المعاملةُ شحنتَها عند المزوّدِ قطُّ؟
+ *
+ * الصفُّ المعلَّقُ الذي لا يحملُ مرجعَ مزوّدٍ ولا رابطَ دفعٍ محفوظاً هوَ صفٌّ
+ * **فشلَ بدءُ شحنتِهِ فشلاً كاملاً** (`D-38` · `F11-07`): الطلبُ إمّا لم يبلغِ
+ * المزوّدَ أصلاً (عطلُهُ) أو ردَّ بما لا يُفهَمُ، وفي الحالتينِ لم يُسلَّمْ للسائقِ
+ * رابطُ دفعٍ قطُّ — فلا سبيلَ لهُ إلى دفعِها، ولا للمزوّدِ إلى إبلاغِنا عنها.
+ * هذا الصفُّ يظلُّ معلَّقاً **قابلاً للاستئنافِ**: تُبدأُ لهُ شحنةٌ عندَ المحاولةِ
+ * القادمةِ على الصفِّ نفسِهِ، لا بصفٍّ ثانٍ يكسرُ حمايةَ التفرّدِ.
+ *
+ * وأمّا الصفُّ الذي يحملُ مرجعاً أو رابطاً فالشحنةُ بدأَت فعلاً: إعادةُ النداءِ
+ * تنشئُ عندَ المزوّدِ شحنةً ثانيةً لمعاملةٍ واحدةٍ، فتُعادُ المحفوظةُ لا شحنةٌ
+ * جديدةٌ (راتبُ `activate_subscription` الإبدالُ لا الجمعُ).
+ */
+function chargeNeverStarted(transaction: PaymentTransaction): boolean {
+  return (
+    transaction.status === "pending" &&
+    transaction.providerTransactionId === null &&
+    readCheckoutUrl(transaction.metadata) === null
+  );
+}
+
+/**
  * يبدأ اشتراكاً مدفوعاً: ينشئ معاملة دفع (PENDING)، ويستدعي المزوّد.
  * التأكيد النهائي يحدث عند وصول الويبهوك من المزوّد (confirmSubscriptionPayment).
  *
@@ -67,8 +90,15 @@ export async function subscribePlan(
   }
   if (existing.value !== null) {
     // الرابط المحفوظ لا `null`: الضغطة الثانية على زرّ الاشتراك مسارٌ طبيعيّ لا
-    // خطأ، وإعادةُ معاملةٍ معلّقة بلا رابط كانت تسجن السائق بين معاملةٍ لا
+    // خطأ، وإعادةُ معاملةٍ معلّقةٍ بلا رابط كانت تسجن السائق بين معاملةٍ لا
     // يستطيع دفعها ومفتاحٍ يمنع إنشاء غيرها.
+    //
+    // **إلا صفًّا فشلَ بدءُ شحنتِهِ** (`D-38` · `F11-07`): إعادةُ صفٍّ معلَّقٍ بلا
+    // مرجعِ مزوّدٍ ولا رابطٍ نجاحٌ كاذبٌ برابطٍ `null` يسجنُ السائقَ يومَهُ كلَّهُ.
+    // فمثلُهُ يُستأنفُ: تُبدأُ شحنتُهُ عندَ المزوّدِ على الصفِّ نفسِهِ.
+    if (chargeNeverStarted(existing.value)) {
+      return await startCharge(existing.value, input.idempotencyKey, deps);
+    }
     return ok({
       transactionId: existing.value.id,
       checkoutUrl: readCheckoutUrl(existing.value.metadata),
@@ -94,7 +124,14 @@ export async function subscribePlan(
   // الإيدمبوتنسي (خط 2 — حسم السباق): إن أعاد create معاملة موجودة سلفاً،
   // لا نستدعي المزوّد. create_payment RPC ذرّي: يعيد already_exists=true
   // عند التزاحم، فلا يُستدعى المزوّد مرّتين مهما حدث.
+  //
+  // **إلا صفًّا فشلَ بدءُ شحنتِهِ** (`D-38`): محاولتانِ متزامنتانِ على صفٍّ بلا
+  // شحنةٍ يُسلَّمُ لمن سبقَ بالشحنةِ الحقيقيّةِ، ويُعادُ الآخرُ إلى مسارِ الاستئنافِ
+  // نفسِهِ بلا شحنةٍ ثانيةٍ لمعاملةٍ واحدةٍ.
   if (created.value.alreadyExists) {
+    if (chargeNeverStarted(created.value.transaction)) {
+      return await startCharge(created.value.transaction, input.idempotencyKey, deps);
+    }
     return ok({
       transactionId: created.value.transaction.id,
       checkoutUrl: readCheckoutUrl(created.value.transaction.metadata),
@@ -102,13 +139,27 @@ export async function subscribePlan(
     });
   }
 
+  return await startCharge(created.value.transaction, input.idempotencyKey, deps);
+}
+
+/**
+ * يبدأ الشحنةَ عند المزوّدِ لصفٍّ قائمٍ (جديدٍ أو معلَّقٍ فشلَ بدءُ شحنتِهِ)، ويحفظُ
+ * مرجعَ المزوّدِ ورابطَ الدفعِ، ولا يُفعّلُ شيئاً: التفعيلُ حقُّ الويبهوكِ أو
+ * المراجعةِ. المبلغُ من الصفِّ نفسِهِ لا من قراءةِ سعرٍ لاحقةٍ، فيطابِقُ ما سيُقارِنُ
+ * به الويبهوكُ (`AMOUNT_OR_CURRENCY_MISMATCH`) مهما تغيّرَ السعرُ بينَ المحاولتين.
+ */
+async function startCharge(
+  transaction: PaymentTransaction,
+  idempotencyKey: string,
+  deps: SubscribePlanDeps,
+): Promise<Result<SubscribePlanOutcome, SubscriptionPaymentError>> {
   // بدء الدفع عند المزوّد — لا يُخزّن أي بيانات حسّاسة (البند 8.9).
   const charge = await deps.provider.chargeSubscription({
-    transactionId: created.value.transaction.id,
-    driverId: input.driverId,
-    amount: { amount: price.value.amount, currency: price.value.currency },
-    purpose: "driver_subscription",
-    idempotencyKey: input.idempotencyKey,
+    transactionId: transaction.id,
+    driverId: transaction.payerId,
+    amount: transaction.amount,
+    purpose: transaction.purpose,
+    idempotencyKey,
   });
   if (!charge.ok) {
     return err(new SubscriptionPaymentError(charge.error.detail));
@@ -119,7 +170,7 @@ export async function subscribePlan(
   // بدأت عند المزوّد فعلاً، وحجب رابطها عن السائق بعدها يزيد الضرر ولا يدفعه.
   if (charge.value.providerTransactionId !== null) {
     await deps.payments.recordProviderReference({
-      transactionId: created.value.transaction.id,
+      transactionId: transaction.id,
       provider: deps.provider.name,
       providerTransactionId: charge.value.providerTransactionId,
     });
@@ -129,7 +180,7 @@ export async function subscribePlan(
   // يعيد معرّف الدفعة وحالتها من خادمه عند الويبهوك فقط.
   if (charge.value.providerTransactionId !== null && charge.value.status !== "pending") {
     const confirmed = await deps.payments.confirmPayment({
-      transactionId: created.value.transaction.id,
+      transactionId: transaction.id,
       providerTransactionId: charge.value.providerTransactionId,
       newStatus: charge.value.status,
     });
@@ -149,14 +200,14 @@ export async function subscribePlan(
   let checkoutUrl = charge.value.checkoutUrl;
   if (checkoutUrl !== null) {
     const stored = await deps.payments.recordCheckoutUrl({
-      transactionId: created.value.transaction.id,
+      transactionId: transaction.id,
       checkoutUrl,
     });
     if (stored.ok) checkoutUrl = stored.value.checkoutUrl;
   }
 
   return ok({
-    transactionId: created.value.transaction.id,
+    transactionId: transaction.id,
     checkoutUrl,
     status: charge.value.status,
   });
