@@ -176,7 +176,7 @@ export function createRideHistoryReader(sql: Sql): RideHistoryReader {
       let rows: ResultRow[];
       try {
         rows = await sql.unsafe<ResultRow[]>(
-          "select rider_ride_history($1, $2, $3, $4, $5) as result",
+          "select rider_ride_history($1::bigint, $2::text, $3::timestamptz, $4::uuid, $5::integer) as result",
           [
             telegramId,
             input.query,
