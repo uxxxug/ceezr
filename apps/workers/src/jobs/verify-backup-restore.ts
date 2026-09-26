@@ -11,6 +11,7 @@
 
 import {
   type BackupStoragePort,
+  type RestoreTimings,
   verifyBackupRestore,
 } from "../../../../packages/infrastructure/backup/index.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
@@ -36,6 +37,8 @@ export interface VerifyBackupRestoreOutcome {
   readonly status: "verified" | "verification_failed" | "skipped_no_unverified_backup";
   readonly backupRunId?: string;
   readonly targetDatabase?: string;
+  /** أزمنةُ الأطوارِ المقيسةُ — موجودةٌ عندَ نجاحِ التحقُّقِ (`F11-10`). */
+  readonly timings?: RestoreTimings;
 }
 
 export class VerifyBackupRestoreJobError {
@@ -228,6 +231,7 @@ export async function runBackupRestoreVerification(
       indexes: verification.value.restored.indexCount,
       rowCountTables: Object.keys(verification.value.restored.rowCounts).length,
       rolesArtifactVerified: verification.value.rolesArtifactVerified,
+      timings: verification.value.timings,
     },
     verification.value.targetDatabase,
   );
@@ -236,10 +240,12 @@ export async function runBackupRestoreVerification(
     backupRunId: pending.backup_run_id,
     targetDatabase: verification.value.targetDatabase,
     tables: verification.value.restored.tableCount,
+    timings: verification.value.timings,
   });
   return ok({
     status: "verified",
     backupRunId: pending.backup_run_id,
     targetDatabase: verification.value.targetDatabase,
+    timings: verification.value.timings,
   });
 }

@@ -15,6 +15,21 @@ import { DB_POOL_MAX } from "../../shared/config/connection-budget.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import { createSql } from "../db/client.ts";
 
+/**
+ * أزمنةُ الأطوارِ المقيسةُ بالساعةِ (`performance.now()`) أثناءَ التمرينِ نفسِهِ،
+ * لا تقديراتٍ ولا حدودٍ مُعلنةٍ سلفاً (`F11-10` · ADR 0201): التمرينُ يُوثِّقُ
+ * زمنَهُ الفعليَّ ليُقارَنَ به لاحقاً، والزمنُ على قاعدةِ حجمِ الهجراتِ لا حجمِ
+ * الإنتاجِ (`B-1`) فلا يُسمّى `RTO` ولا `RPO` (`ADR 0047` §٣).
+ */
+export interface RestoreTimings {
+  /** مدّةُ قراءةِ بصمةِ المصدرِ قبلَ الاستعادةِ. */
+  readonly sourceFingerprintMs: number;
+  /** مدّةُ `pg_restore` نفسِهِ على القاعدةِ المستهدَفةِ. */
+  readonly restoreMs: number;
+  /** مدّةُ قراءةِ بصمةِ القاعدةِ المستعادةِ للمقارنةِ. */
+  readonly restoredFingerprintMs: number;
+}
+
 export interface DatabaseFingerprint {
   readonly tableCount: number;
   readonly functionCount: number;
@@ -30,6 +45,8 @@ export interface RestoreVerification {
   readonly source: DatabaseFingerprint;
   readonly restored: DatabaseFingerprint;
   readonly rolesArtifactVerified: boolean;
+  /** أزمنةُ الأطوارِ كما قيستْ — موجودةٌ دائماً عندَ نجاحِ التحقُّقِ (`F11-10`). */
+  readonly timings: RestoreTimings;
 }
 
 export interface RestoreVerifyOptions {
@@ -217,7 +234,9 @@ export async function verifyBackupRestore(
   const urls = databaseUrls(options.sourceDatabaseUrl, options.targetDatabaseName);
   if (!urls.ok) return urls;
 
+  const sourceFingerprintStartedAt = performance.now();
   const source = await captureDatabaseFingerprint(options.sourceDatabaseUrl);
+  const sourceFingerprintMs = performance.now() - sourceFingerprintStartedAt;
   if (!source.ok) return source;
   if (!rolesExistInArtifact(source.value.roles, roleDump)) {
     return err(new BackupRestoreError("مرافق الأدوار لا يحتوي تعريف كل أدوار المصدر"));
@@ -251,6 +270,7 @@ export async function verifyBackupRestore(
     if (!create.ok) return create;
     databaseCreated = true;
 
+    const restoreStartedAt = performance.now();
     const restored = await execute([
       "pg_restore",
       "--exit-on-error",
@@ -259,9 +279,12 @@ export async function verifyBackupRestore(
       urls.value.target,
       archivePath,
     ]);
+    const restoreMs = performance.now() - restoreStartedAt;
     if (!restored.ok) return restored;
 
+    const restoredFingerprintStartedAt = performance.now();
     const fingerprint = await captureDatabaseFingerprint(urls.value.target);
+    const restoredFingerprintMs = performance.now() - restoredFingerprintStartedAt;
     if (!fingerprint.ok) return fingerprint;
     if (!sameFingerprint(source.value, fingerprint.value)) {
       return err(new BackupRestoreError("بصمة القاعدة المستعادة لا تكافئ بصمة المصدر"));
@@ -271,6 +294,7 @@ export async function verifyBackupRestore(
       source: source.value,
       restored: fingerprint.value,
       rolesArtifactVerified: true,
+      timings: { sourceFingerprintMs, restoreMs, restoredFingerprintMs },
     });
   } finally {
     await rm(archivePath, { force: true }).catch(() => undefined);
