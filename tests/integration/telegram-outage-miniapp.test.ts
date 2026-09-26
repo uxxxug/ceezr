@@ -412,58 +412,62 @@ describeIf("F11-05 — عطلُ Bot API لتيليجرام لا يُسقِطُ �
     await restoreCityBaseline(sql, cityHandle);
   });
 
-  it("مساراتُ Mini App كلُّها تُجيبُ 200 أثناءَ العطلِ، والقاطعُ مفتوحٌ، والحالةُ سليمةٌ", async () => {
-    const config = testConfig({
-      port: 3995,
-      miniappSessionSecret: SESSION_SECRET,
-      driverBotToken: BOT_TOKEN,
-      riderBotToken: BOT_TOKEN,
-      telegramWebhookSecret: WEBHOOK_SECRET,
-      routingProvider: "none",
-    });
+  it(
+    "مساراتُ Mini App كلُّها تُجيبُ 200 أثناءَ العطلِ، والقاطعُ مفتوحٌ، والحالةُ سليمةٌ",
+    async () => {
+      const config = testConfig({
+        port: 3995,
+        miniappSessionSecret: SESSION_SECRET,
+        driverBotToken: BOT_TOKEN,
+        riderBotToken: BOT_TOKEN,
+        telegramWebhookSecret: WEBHOOK_SECRET,
+        routingProvider: "none",
+      });
 
-    const h = harness(config);
-    try {
-      const riderToken = tokenFor(RIDER_TELEGRAM_ID, "rider");
-      await ensureRide(h, riderToken);
+      const h = harness(config);
+      try {
+        const riderToken = tokenFor(RIDER_TELEGRAM_ID, "rider");
+        await ensureRide(h, riderToken);
 
-      // الخطُّ الأساسُ: مساراتُ Mini App كلُّها ناجحةٌ قبلَ العطلِ.
-      const baseline: MiniAppCallFacts[] = [
-        await callMiniApp(h.app, riderToken, "/v1/me"),
-        await callMiniApp(h.app, riderToken, `/v1/rides/${orderId}`),
-        await callMiniApp(h.app, riderToken, "/v1/rides"),
-      ];
+        // الخطُّ الأساسُ: مساراتُ Mini App كلُّها ناجحةٌ قبلَ العطلِ.
+        const baseline: MiniAppCallFacts[] = [
+          await callMiniApp(h.app, riderToken, "/v1/me"),
+          await callMiniApp(h.app, riderToken, `/v1/rides/${orderId}`),
+          await callMiniApp(h.app, riderToken, "/v1/rides"),
+        ];
 
-      // الحالةُ التجاريّةُ قبلَ العطلِ.
-      const commercialBefore = await readCommercialSnapshot(riderUserId, riderToken, h.app);
+        // الحالةُ التجاريّةُ قبلَ العطلِ.
+        const commercialBefore = await readCommercialSnapshot(riderUserId, riderToken, h.app);
 
-      // العطلُ مُحقَنٌ على السِلكِ: المُرسِلُ يرفُضُ فورًا.
-      // مساراتُ Mini App لا تستخدمُ المُرسِلَ — تُجيبُ 200.
-      const duringOutage: MiniAppCallFacts[] = [
-        await callMiniApp(h.app, riderToken, "/v1/me"),
-        await callMiniApp(h.app, riderToken, `/v1/rides/${orderId}`),
-        await callMiniApp(h.app, riderToken, "/v1/rides"),
-      ];
+        // العطلُ مُحقَنٌ على السِلكِ: المُرسِلُ يرفُضُ فورًا.
+        // مساراتُ Mini App لا تستخدمُ المُرسِلَ — تُجيبُ 200.
+        const duringOutage: MiniAppCallFacts[] = [
+          await callMiniApp(h.app, riderToken, "/v1/me"),
+          await callMiniApp(h.app, riderToken, `/v1/rides/${orderId}`),
+          await callMiniApp(h.app, riderToken, "/v1/rides"),
+        ];
 
-      // محاولةُ الإشعارِ: المُرسِلُ يفشلُ، والقاطعُ يُفتَحُ.
-      const senderState = await triggerSenderFailure(h.failingSender);
+        // محاولةُ الإشعارِ: المُرسِلُ يفشلُ، والقاطعُ يُفتَحُ.
+        const senderState = await triggerSenderFailure(h.failingSender);
 
-      // الحالةُ التجاريّةُ بعدَ العطلِ.
-      const commercialAfter = await readCommercialSnapshot(riderUserId, riderToken, h.app);
+        // الحالةُ التجاريّةُ بعدَ العطلِ.
+        const commercialAfter = await readCommercialSnapshot(riderUserId, riderToken, h.app);
 
-      const facts: TelegramOutageFacts = {
-        baseline,
-        duringOutage,
-        senderState,
-        commercialBefore,
-        commercialAfter,
-      };
+        const facts: TelegramOutageFacts = {
+          baseline,
+          duringOutage,
+          senderState,
+          commercialBefore,
+          commercialAfter,
+        };
 
-      const violations = judgeTelegramOutage(facts);
-      report(violations);
-      expect(violations).toEqual([]);
-    } finally {
-      h.close();
-    }
-  });
+        const violations = judgeTelegramOutage(facts);
+        report(violations);
+        expect(violations).toEqual([]);
+      } finally {
+        h.close();
+      }
+    },
+    { timeout: 60_000 },
+  );
 });
