@@ -108,7 +108,9 @@ describe("قارئُ السجلِّ — نداءٌ واحدٌ وترتيبٌ م�
       limit: 20,
     });
     expect(calls).toHaveLength(1);
-    expect(calls[0]?.text).toBe("select rider_ride_history($1::bigint, $2::text, $3::timestamptz, $4::uuid, $5::integer) as result");
+    expect(calls[0]?.text).toBe(
+      "select rider_ride_history($1::bigint, $2::text, $3::timestamptz, $4::uuid, $5::integer) as result",
+    );
     expect(calls[0]?.values).toEqual(["200001", "البلد", "2026-09-13T21:30:00.000Z", OTHER_ID, 20]);
   });
 
