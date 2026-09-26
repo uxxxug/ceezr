@@ -28,6 +28,7 @@ import { createPgDumper } from "../../apps/workers/src/jobs/backup-database.ts";
 import { runBackupRestoreVerification } from "../../apps/workers/src/jobs/verify-backup-restore.ts";
 import { createLocalBackupStorage } from "../../packages/infrastructure/backup/index.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import { judgeDrillTimings } from "../../scripts/lib/backup-drill-timing.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
@@ -210,5 +211,56 @@ describeIf("تحقق استعادة النسخ الاحتياطية", () => {
     expect(detail.indexes).toBeGreaterThan(0);
     expect(detail.rowCountTables).toBeGreaterThan(0);
     expect(detail.rolesArtifactVerified).toBe(true);
+  }, 90_000);
+
+  it("التدريبُ موثَّقٌ بزمنٍ فعليٍّ مقيسٍ: أطوارٌ موجبةٌ ومسجَّلةٌ في db_backups (F11-10)", async () => {
+    const backup = await prepareBackup(false);
+    const result = await runBackupRestoreVerification(
+      {
+        databaseUrl: sourceUrl,
+        backupRunId: backup.runId,
+        targetDatabaseName: `waslah_restore_timed_${backup.runId.replaceAll("-", "").slice(0, 16)}`,
+      },
+      { storage: backup.storage, sql },
+    );
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.status).toBe("verified");
+
+    // الحَكَمُ الخالصُ (`ح-7`): الأزمنةُ المقيسةُ من استعادةٍ حقيقيّةٍ تُغذّى
+    // إليهِ مع ما سُجِّلَ في القاعدةِ، فالتمرينُ بلا زمنٍ لا يُسمّى «موثَّقاً
+    // بالزمنِ» (`F11-10` · ADR 0201). ولا سقفَ للزمنِ: `RTO` مؤجَّلٌ إلى بيئةٍ
+    // شبيهةٍ بالإنتاجِ (ADR 0047 §٣) والزمنُ هنا على قاعدةِ حجمِ الهجراتِ (`B-1`).
+    const timings = result.value.timings;
+    if (timings === undefined) {
+      throw new Error("نجحَ التحقُّقُ بلا أزمنةٍ مقيسةٍ — التمرينُ غيرُ موثَّقٍ بالزمنِ (F11-10)");
+    }
+    const [record] = await sql<{ status: string; detail: string }[]>`
+      select restore_verification_status as status, restore_verification_detail::text as detail
+        from db_backups where backup_run_id = ${backup.runId}
+    `;
+    expect(record?.status).toBe("verified");
+    const detail = JSON.parse(record?.detail ?? "{}");
+
+    const verdict = judgeDrillTimings({
+      timings,
+      detail: detail as { timings?: Record<string, number> },
+    });
+    expect(verdict.verdict).toBe("ok");
+    expect(verdict.violations).toEqual([]);
+
+    // وسالبةٌ مبذورةٌ في السياقِ نفسِهِ: زمنُ استعادةٍ مُختلَقٌ (صفرٌ) يُدينُهُ
+    // الحَكَمُ لا يقبَلُهُ — فقاعدةُ «موجبٌ منتهٍ» ليست حبراً.
+    const negative = judgeDrillTimings({
+      timings: {
+        sourceFingerprintMs: timings.sourceFingerprintMs,
+        restoreMs: 0,
+        restoredFingerprintMs: timings.restoredFingerprintMs,
+      },
+      detail: detail as { timings?: Record<string, number> },
+    });
+    expect(negative.verdict).toBe("violation");
+    expect(negative.violations).toContain("timing.restore-positive");
   }, 90_000);
 });

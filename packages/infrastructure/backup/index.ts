@@ -13,6 +13,7 @@ export {
   BackupRestoreError,
   captureDatabaseFingerprint,
   type DatabaseFingerprint,
+  type RestoreTimings,
   type RestoreVerification,
   type RestoreVerifyOptions,
   verifyBackupRestore,

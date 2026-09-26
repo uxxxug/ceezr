@@ -35,11 +35,18 @@ async function main(): Promise<void> {
   const archiveName = `waslah-drill-${suffix}.dump`;
   const roleName = `waslah-drill-${suffix}.roles.sql`;
 
+  // زمنُ التمرينِ يُقاسُ من أوّلِ أمرٍ إلى آخرِهِ (`F11-10`): لا ساعةَ = لا
+  // توثيقَ للزمنِ الفعليِّ الذي يطلبُهُ البندُ، فيصيرُ التمرينُ إثباتَ قابلٍيّةٍ
+  // لا تدريباً موثَّقاً. والزمنُ على قاعدةِ حجمِ الهجراتِ لا حجمِ الإنتاجِ (`B-1`).
+  const drillStartedAt = performance.now();
+
   try {
+    const dumpStartedAt = performance.now();
     const [archive, roles] = await Promise.all([
       dumper.dump(databaseUrl),
       dumper.dumpGlobals?.(databaseUrl),
     ]);
+    const dumpMs = performance.now() - dumpStartedAt;
     if (!archive.ok || roles === undefined || !roles.ok) {
       // السببُ يُحسَب في تعبيرٍ مُصرَّحٍ لا داخل ثلاثيّاتٍ مُتداخلة: التضييق داخلها
       // لا يَبلُغ `roles.ok`، فكان `roles.error` يُقرأ على نوعٍ قد يكون `Ok`.
@@ -108,12 +115,22 @@ async function main(): Promise<void> {
        where backup_run_id = ${runId}
        limit 1
     `;
+    const detail = JSON.parse(record?.detail ?? "{}") as Record<string, unknown>;
+    const totalMs = performance.now() - drillStartedAt;
     console.log(
       JSON.stringify({
         status: result.value.status,
         backupRunId: runId,
         targetDatabase: result.value.targetDatabase,
-        equivalence: JSON.parse(record?.detail ?? "{}") as Record<string, unknown>,
+        equivalence: detail,
+        // الزمنُ الفعليُّ للتمرينِ (`F11-10` · ADR 0201): أطوارٌ مقيسةٌ بالساعةِ،
+        // لا سقفَ ولا `RTO` — ذاكَ مؤجَّلٌ إلى بيئةٍ شبيهةٍ بالإنتاجِ (ADR 0047 §٣).
+        timings: {
+          dumpMs,
+          ...result.value.timings,
+          totalMs,
+        },
+        detailTimings: detail.timings ?? null,
       }),
     );
   } finally {
