@@ -56,6 +56,7 @@ export type ChangeKind =
   | "revoke_function"
   | "revoke_table"
   | "truncate"
+  | "add_not_null_column"
   | "stub_function";
 
 /** تغييرٌ واحدٌ قُرِئ من نصِّ هجرةٍ واحدةٍ. */
@@ -81,6 +82,24 @@ export interface CreatedObjects {
 export interface MigrationSource {
   readonly file: string;
   readonly sql: string;
+}
+
+/**
+ * تعريفُ عمودٍ واحدٍ من نافذةٍ نصّيّةٍ تليه: يُقطَعُ عندَ أوّلِ فاصلةٍ لا يزالُ العمقُ
+ * فيها صفريًّا (فاصلةِ تعريفٍ آخرَ في العبارةِ نفسِها) أو عندَ الفاصلةِ المنقوطةِ.
+ * فما بعدَ الحدِّ ليس من تعريفِ هذا العمودِ — ولو قُرِئَ لصارَ افتراضُ عمودٍ
+ * تالٍ في العبارةِ نفسِها نجاتًا لعمودٍ لا افتراضَ له.
+ */
+export function columnDefinitionFragment(window: string): string {
+  let depth = 0;
+  for (let index = 0; index < window.length; index += 1) {
+    const ch = window[index];
+    if (ch === "(") depth += 1;
+    if (ch === ")") depth -= 1;
+    if (ch === ";") return window.slice(0, index);
+    if (ch === "," && depth <= 0) return window.slice(0, index);
+  }
+  return window;
 }
 
 function lineOf(sql: string, index: number): number {
@@ -222,6 +241,31 @@ export function narrowingChanges(migration: string, rawSql: string): SchemaChang
     push(kind, `${bareName(table)}.${bareName(column)}`, match.index);
   }
 
+  /**
+   * **العمودُ المُلزَمُ الجديدُ بلا افتراضٍ** — أعمى البابِ المُعلَنُ في
+   * `docs/rollback.md` («ما لا يُغطّيه هذا المسار»): إدراجُ نسخةٍ سابقةٍ لا يعرفُ
+   * العمودَ فيُرفَضُ بقيدِ الإلزامِ، فتنكسرُ كتابةُ النسخةِ السابقةِ عندَ العودةِ —
+   * ومنها كتابةُ آلةِ حالاتِ الطلبِ نفسِها. والحكمُ للنافذةِ المقروءةِ من تعريفِ
+   * العمودِ حصراً (حتى فاصلةِ عمقٍ صفريٍّ أو فاصلةٍ منقوطةٍ): `not null` بلا
+   * `default` في النافذةِ = تضييقٌ. والافتراضُ يُنقِذُ الإدراجَ القديمَ فيُستثنى،
+   * والجدولُ الجديدُ لا يعرفُه القديمُ أصلاً فيُستثنى (شرطُ `existedBefore`).
+   */
+  for (const match of sql.matchAll(
+    new RegExp(
+      String.raw`alter\s+table\s+(?:if\s+exists\s+)?${NAME}\s+add\s+column\s+(?:if\s+not\s+exists\s+)?"?([a-z_][a-z0-9_]*)"?([\s\S]{0,300})`,
+      "gi",
+    ),
+  )) {
+    const table = match[1];
+    const column = match[2];
+    const window = match[3];
+    if (table === undefined || column === undefined || window === undefined) continue;
+    const fragment = columnDefinitionFragment(window);
+    if (/\bnot\s+null\b/i.test(fragment) && !/\bdefault\b/i.test(fragment)) {
+      push("add_not_null_column", `${bareName(table)}.${bareName(column)}`, match.index);
+    }
+  }
+
   for (const match of sql.matchAll(
     new RegExp(String.raw`alter\s+\w+\s+${NAME}[\s\S]{0,120}?rename\s+(?:column\s+)?`, "gi"),
   )) {
@@ -332,6 +376,13 @@ function recreatedInSameMigration(change: SchemaChange, created: CreatedObjects)
       return created.triggers.has(change.target);
     case "drop_table":
       return created.tables.has(change.target);
+    case "add_not_null_column":
+      /**
+       * هجرةٌ تُنشِئ الجدولَ بنفسِها (جديدٌ أو مُعادُ بناءُه) ثمّ تُلزِم عموداً فيه:
+       * الإلزامُ جزءٌ من ولادةِ الجدولِ لا تضييقٌ على قائمٍ — والجدولُ المُعادُ
+       * بناءَه مكسورٌ للعودةِ بحكمِ إسقاطِه المُعلَنِ وحده.
+       */
+      return created.tables.has(change.target.split(".")[0] ?? change.target);
     default:
       return false;
   }
@@ -352,6 +403,7 @@ function existedBefore(change: SchemaChange, before: CreatedObjects): boolean {
     case "set_not_null":
     case "set_data_type":
     case "drop_default":
+    case "add_not_null_column":
       return before.tables.has(table) || before.columns.has(change.target);
     case "drop_function":
     case "revoke_function":

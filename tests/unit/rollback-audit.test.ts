@@ -25,6 +25,7 @@ import {
 } from "../../scripts/check-rollback-safety.ts";
 import { blankSqlComments } from "../../scripts/lib/blank-comments.ts";
 import {
+  columnDefinitionFragment,
   countArguments,
   createdBy,
   findRollbackRisks,
@@ -140,6 +141,11 @@ describe("قراءةُ التضييق", () => {
     ["revoke usage on schema public from anon;", "revoke_schema", "public"],
     ["revoke all on function f(uuid) from public;", "revoke_function", "f(1)"],
     ["revoke select on table orders from anon;", "revoke_table", "orders"],
+    [
+      "alter table orders add column city_id uuid not null;",
+      "add_not_null_column",
+      "orders.city_id",
+    ],
   ];
   for (const [sql, kind, target] of cases) {
     it(`يُصيب ${kind}`, () => {
@@ -155,6 +161,95 @@ describe("قراءةُ التضييق", () => {
   it("يقرأ رقمَ السطرِ صحيحاً بعدَ تعليقٍ", () => {
     const found = narrowingChanges("0001_x.sql", "-- تعليقٌ\n\ndrop table orders;");
     expect(found[0]?.line).toBe(3);
+  });
+});
+
+describe("العمودُ المُلزَمُ الجديدُ بلا افتراضٍ — البابُ الأعمى المُعلَنُ يُقفَل (`F11-09`)", () => {
+  /**
+   * كانَ هذا البابُ مُعلَنَ العمى في `docs/rollback.md` («ما لا يُغطّيه هذا المسار»):
+   * `add column` ليس تضييقاً في قراءةِ الحاجزِ، ولا يُعِدُّه التمرينُ فقداً — والعمودُ
+   * المُلزَمُ بلا افتراضٍ على جدولٍ قائمٍ يكسرُ إدراجَ النسخةِ السابقةِ عندَ العودةِ.
+   * صارَ مقروءاً في الطبقتَين (ADR 0204)، ولكلِّ قاعدةٍ سالبةٌ تُثبِت أنّها لا تُصيبُ
+   * ما جاورَها (`ح-7`).
+   */
+  it("الافتراضُ قبلَ الإلزامِ يُنقِذُ الإدراجَ القديمَ — لا تضييقَ", () => {
+    const found = narrowingChanges(
+      "0001_x.sql",
+      "alter table orders add column c int default 5 not null;",
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("الافتراضُ بعدَ الإلزامِ يُنقِذُ كذلك — لا تضييقَ", () => {
+    const found = narrowingChanges(
+      "0001_x.sql",
+      "alter table orders add column c int not null default 5;",
+    );
+    expect(found).toEqual([]);
+  });
+
+  it("عمودٌ جديدٌ بلا إلزامٍ لا يكسرُ إدراجاً — لا تضييقَ", () => {
+    const found = narrowingChanges("0001_x.sql", "alter table orders add column c int;");
+    expect(found).toEqual([]);
+  });
+
+  it("افتراضُ عمودٍ تالٍ في العبارةِ نفسِها لا يُنقِذُ عموداً سابقاً بلا افتراضٍ", () => {
+    const found = narrowingChanges(
+      "0001_x.sql",
+      "alter table orders add column a int not null, add column b int default 5;",
+    );
+    expect(found.map((item) => `${item.kind}:${item.target}`)).toEqual([
+      "add_not_null_column:orders.a",
+    ]);
+  });
+
+  it("حدُّ القراءةِ فاصلةُ عمقٍ صفريٍّ أو فاصلةٌ منقوطةٌ — لا أبعدَ", () => {
+    expect(columnDefinitionFragment(" int not null, add column b int default 5")).toBe(
+      " int not null",
+    );
+    expect(columnDefinitionFragment(" int not null; select 1")).toBe(" int not null");
+    expect(columnDefinitionFragment(" text check (c in ('a','b')) not null")).toBe(
+      " text check (c in ('a','b')) not null",
+    );
+  });
+
+  it("إلزامٌ بلا افتراضٍ على جدولٍ من هجرةٍ أسبقَ خطرٌ — الكتابةُ القديمةُ تُرفَضُ بقيدٍ", () => {
+    const risks = findRollbackRisks([
+      { file: "0001_a.sql", sql: "create table orders (id uuid primary key);" },
+      { file: "0002_b.sql", sql: "alter table orders add column city_id uuid not null;" },
+    ]);
+    expect(risks.map(riskTag)).toEqual(["0002_b.sql::add_not_null_column:orders.city_id"]);
+  });
+
+  it("إلزامٌ على جدولٍ تُنشئه الهجرةُ نفسُها ليس خطراً — لا نسخةَ سابقةً تعرفُ الجدولَ", () => {
+    const risks = findRollbackRisks([
+      {
+        file: "0001_a.sql",
+        sql: "create table orders (id uuid primary key); alter table orders add column city_id uuid not null;",
+      },
+    ]);
+    expect(risks).toEqual([]);
+  });
+
+  it("الحاجزُ يسقطُ على إلزامٍ غيرِ مُعلَنٍ ويَخضَرُّ بإعلانِه", () => {
+    const undeclared = auditRollbackSafety(
+      input({ risks: [change("add_not_null_column", "orders.city_id")], declarations: [] }),
+    );
+    expect(undeclared.some((v) => v.includes("add_not_null_column:orders.city_id"))).toBe(true);
+
+    const declared = auditRollbackSafety(
+      input({
+        risks: [change("add_not_null_column", "orders.city_id")],
+        declarations: [
+          {
+            ...VALID,
+            change: "add_not_null_column:orders.city_id",
+            why: "إلزامٌ بلا افتراضٍ على جدولٍ قائمٍ: إدراجُ النسخةِ السابقةِ يُرفَضُ بقيدِ الإلزامِ عندَ العودةِ، فلا بُدَّ من إعلانِهِ ومسارِ عودتِهِ.",
+          },
+        ],
+      }),
+    );
+    expect(declared).toEqual([]);
   });
 });
 
@@ -548,9 +643,30 @@ describe("قراءةُ الفقدِ بين صورتَي كاتالوج", () => {
    * على مطابقةِ التمرينِ للحاجزِ الساكنِ (وهو لا يرى `add column`)؛ والحدُّ مكتوبٌ
    * في `docs/rollback.md` §«ما لا يُغطّيه هذا المسار».
    */
-  it("عمودٌ مُلزَمٌ يُضاف إلى جدولٍ قائمٍ لا يُعَدُّ فقداً — حدٌّ مُعلَنٌ", () => {
+  /**
+   * **تصحيحٌ بالإضافةِ (`ح-8` · `F11-09` · ADR 0204):** كانَ هذا البابُ مُعلَنَ العمى —
+   * عمودٌ مُلزَمٌ جديدٌ على جدولٍ قائمٍ لا يُعَدُّ فقداً إبقاءً على مطابقةِ التمرينِ
+   * للحاجزِ الساكنِ، والحدُّ مكتوبٌ في `docs/rollback.md` §«ما لا يُغطّيه هذا
+   * المسار». صارَ الحكمُ مقروءاً في الطبقتَين: العمودُ الجديدُ المُلزَمُ بلا افتراضٍ
+   * على جدولٍ قائمٍ **فقدٌ يُعلَنُ أو يُسقِطُ التمرينُ** — لأنّه يكسرُ إدراجَ النسخةِ
+   * السابقةِ عندَ العودةِ. والنصُّ القديمُ أعلاهُ يبقى مذكوراً لا ممحوّاً.
+   */
+  it("عمودٌ مُلزَمٌ جديدٌ بلا افتراضٍ على جدولٍ قائمٍ فقدٌ — تصحيحٌ بالإضافةِ", () => {
     const before = new Set(["table:orders", "column:orders.id"]);
     const after = new Set([...before, "column:orders.city_id", "notnull:orders.city_id"]);
+    expect(lossesBetween(before, after)).toEqual([
+      "أُلزِمَ بلا افتراضٍ على جدولٍ قائمٍ: notnull:orders.city_id",
+    ]);
+  });
+
+  it("الافتراضُ يُنقِذُ: عمودٌ مُلزَمٌ جديدٌ على جدولٍ قائمٍ بافتراضٍ ليس فقداً", () => {
+    const before = new Set(["table:orders", "column:orders.id"]);
+    const after = new Set([
+      ...before,
+      "column:orders.city_id",
+      "notnull:orders.city_id",
+      "default:orders.city_id",
+    ]);
     expect(lossesBetween(before, after)).toEqual([]);
   });
 

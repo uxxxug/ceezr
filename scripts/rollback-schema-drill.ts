@@ -157,8 +157,22 @@ export function lossesBetween(before: Snapshot, after: Snapshot): readonly strin
     if (!tag.startsWith("notnull:")) continue;
     if (before.has(tag)) continue;
     const column = `column:${tag.slice("notnull:".length)}`;
-    if (!before.has(column)) continue;
-    losses.push(`ضاق: ${tag}`);
+    if (before.has(column)) {
+      losses.push(`ضاق: ${tag}`);
+      continue;
+    }
+    /**
+     * زيادةٌ (`F11-09` · ADR 0204): العمودُ **الجديدُ** المُلزَمُ **بلا افتراضٍ** على
+     * جدولٍ **قديمٍ** تضييقٌ وإن كان العمودُ جديداً: إدراجُ النسخةِ السابقةِ لا
+     * يعرفُه فيُرفَضُ بقيدِ الإلزامِ. والافتراضُ يُنقِذُ الإدراجَ القديمَ، والجدولُ
+     * الجديدُ لا تعرفُه النسخةُ السابقةُ أصلاً — فالبابُ المقفولُ ههنا هو «إلزامٌ
+     * بلا افتراضٍ على جدولٍ قائمٍ» لا غيرُه.
+     */
+    const table = `table:${tag.slice("notnull:".length).split(".")[0]}`;
+    const hasDefault = after.has(`default:${tag.slice("notnull:".length)}`);
+    if (before.has(table) && !hasDefault) {
+      losses.push(`أُلزِمَ بلا افتراضٍ على جدولٍ قائمٍ: ${tag}`);
+    }
   }
   return losses;
 }
