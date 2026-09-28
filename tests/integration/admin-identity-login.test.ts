@@ -179,9 +179,14 @@ describeIf("الهوية وتسجيل الدخول على قاعدة حقيقي�
   it("لا يصير أول مسؤول إلا عبر grant_bootstrap_admin، ولا يمنح المسار غير المسجَّل شيئاً", async () => {
     const bootstrap = createBootstrapAdminPort(sql);
 
-    // حساب غير مسجَّل: لا ترقية ولا صفّ تدقيق ولا انفجار
-    const missing = await bootstrap.grant(UNKNOWN_TELEGRAM);
-    expect(missing.ok && missing.value).toBe(false);
+    // ADR 0212: الدالّةُ القديمةُ باقيةٌ على عقدِها — الغائبُ لا يُرقّى بها ولا يُنشأ.
+    const direct = await sql<{ result: { ok: boolean; error?: string } }[]>`
+      select grant_bootstrap_admin(${UNKNOWN_TELEGRAM}::bigint) as result
+    `;
+    expect(direct[0]?.result.ok).toBe(false);
+    expect(direct[0]?.result.error).toBe("USER_NOT_FOUND");
+    const none = await sql`select 1 from users where telegram_id = ${UNKNOWN_TELEGRAM}::bigint`;
+    expect(none.length).toBe(0);
 
     // راكب مسجَّل يطابق المعرّف المقصود: يُرقّى فعلاً في القاعدة
     const before = await sql<{ role: string }[]>`
@@ -216,6 +221,49 @@ describeIf("الهوية وتسجيل الدخول على قاعدة حقيقي�
       select action from audit_log where action = 'identity.bootstrap_admin_granted'
     `;
     expect(audited.length).toBe(1);
+  });
+
+  it("ADR 0212: المسؤولُ الأوّلُ بلا حسابٍ يُنشَأُ حسابُه مسؤولاً بصفِّ تدقيقٍ واحدٍ ويفتحُ اللوحةَ", async () => {
+    // حلقةُ الإقلاعِ: لا مدينةَ مفعَّلةً ⇒ لا تسجيلَ ⇒ لا صفَّ. فالمنفذُ يُنشئُه.
+    const bootstrap = createBootstrapAdminPort(sql);
+    const provisioned = await bootstrap.grant(UNKNOWN_TELEGRAM);
+    expect(provisioned.ok && provisioned.value).toBe(true);
+
+    const rows = await sql<{ role: string; is_blocked: boolean; city_code: string }[]>`
+      select u.role, u.is_blocked, c.code as city_code
+        from users u join cities c on c.id = u.city_id
+       where u.telegram_id = ${UNKNOWN_TELEGRAM}::bigint
+    `;
+    expect(rows.length).toBe(1);
+    expect(rows[0]?.role).toBe("admin");
+    expect(rows[0]?.is_blocked).toBe(false);
+    const first = await sql<{ code: string }[]>`select code from cities order by code limit 1`;
+    expect(rows[0]?.city_code).toBe(first[0]?.code ?? "");
+
+    // التكرارُ لا يُنشئُ ثانياً ولا يُدقِّقُ ثانياً ولا يُعدُّ فشلاً.
+    const again = await bootstrap.grant(UNKNOWN_TELEGRAM);
+    expect(again.ok && again.value).toBe(false);
+    const audited = await sql<{ payload: { provisioned?: boolean } }[]>`
+      select payload from audit_log where action = 'identity.bootstrap_admin_granted'
+    `;
+    expect(audited.length).toBe(1);
+    expect(audited[0]?.payload.provisioned).toBe(true);
+
+    // والحسابُ المُنشأُ يدخلُ اللوحةَ فعلاً — هذا هو المخرجُ من الحلقةِ.
+    const cookie = await login(UNKNOWN_TELEGRAM);
+    const overview = await request("/admin", { cookie });
+    expect(overview.status).toBe(OK);
+  });
+
+  it("ADR 0212: الإنشاءُ لا يقعُ من ساحةِ PostgREST — التنفيذُ لـservice_role وحدَه", async () => {
+    const grants = await sql<{ grantee: string }[]>`
+      select grantee::text from information_schema.routine_privileges
+       where routine_name = 'provision_bootstrap_admin' and privilege_type = 'EXECUTE'
+    `;
+    const grantees = grants.map((g) => g.grantee);
+    expect(grantees).not.toContain("anon");
+    expect(grantees).not.toContain("authenticated");
+    expect(grantees).not.toContain("PUBLIC");
   });
 
   // ---------------------------------------------------------------------------
