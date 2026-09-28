@@ -550,7 +550,12 @@ services:
     # bun مثبَّتٌ على نفسِ إصدارِ صورِ Docker (1.4.2) لا على وسمٍ عائمٍ: بناءٌ
     # بإصدارٍ آخرَ ليس البناءَ الذي فحصَه CI. و`--frozen-lockfile` لأنَّ حلَّ
     # الاعتمادياتِ من جديدٍ يجعلُ الأخضرَ شهادةً على شيءٍ آخرَ.
-    buildCommand: npm install -g bun@1.4.2 && bun install --frozen-lockfile && bun run build:miniapp
+    # زيادةٌ 2026-09-28 (`DEC-20` · `ح-8`): كانَ الأمرُ يبدأُ بـ`npm install -g bun@1.4.2`
+    # فأسقطَ أوّلَ بناءٍ حقيقيٍّ على Render (`ENOENT: mkdir '/usr/lib/node_modules/bun'`
+    # — لا صلاحيةَ كتابةٍ على المسارِ العامِّ). وRender يحملُ bun أصلاً ويُثبِّتُه
+    # بالمتغيّرِ `BUN_VERSION` (https://render.com/docs/bun-version)، فالتثبيتُ صارَ
+    # هناكَ والقصدُ نفسُه: الإصدارُ الذي فحصَه CI لا وسمٌ عائمٌ.
+    buildCommand: bun install --frozen-lockfile && bun run build:miniapp
     staticPublishPath: apps/miniapp/dist
     autoDeploy: false # النشرُ بأمرٍ لا بكلِّ دفعةٍ إلى main — كأخواتِها
     # تحذيرٌ لا يُحذَفُ: تغييرُ هذا الرابطِ يُبطِلُ الرابطَ المسجَّلَ في BotFather
@@ -610,6 +615,8 @@ services:
         name: Cache-Control
         value: no-cache
     envVars:
+      - key: BUN_VERSION
+        value: "1.4.2"
       # عنوانُ البوّابةِ العامُّ. `sync: false` كعادةِ الملفِّ، **ولسببٍ آخرَ
       # ههنا**: القيمةُ ليست سرّاً (تُخبَزُ في حزمةٍ عامّةٍ ويقرأُها كلُّ متصفحٍ)،
       # بل هي **غيرُ معلومةٍ في المستودعِ**: عنوانُ الخدمةِ يُصدِرُه Render عندَ
