@@ -39,6 +39,9 @@ const CODE_EXTENSIONS = new Set([".ts", ".tsx", ".js", ".mjs", ".sh"]);
 const READ_BY_PLATFORM_NOT_CODE: Readonly<Record<string, string>> = {
   // Render يقرؤه ليَصِل الخدمة بقاعدتها، ويُصدّره للعملية باسمٍ نقرؤه نحن.
   PORT: "تقرؤه المنصّة لتوجيه المرور، ونقرؤه أيضاً في الضبط",
+  // زيادةٌ 2026-09-28 (`DEC-20`): Render يقرؤه في بناءِ الموقعِ الساكنِ ليُثبِّتَ إصدارَ bun
+  // (https://render.com/docs/bun-version) بدلَ `npm install -g` الذي أسقطَ أوّلَ بناءٍ حقيقيٍّ.
+  BUN_VERSION: "تقرؤه منصّةُ Render زمنَ البناءِ لتثبيتِ إصدارِ bun، لا الكود",
 };
 
 interface Declaration {
