@@ -20,7 +20,9 @@ import {
   functionRevokeProblems,
   keyParityProblems,
   moneyProblems,
+  REPORT_PROBLEM_KEY,
   type RideSummaryContractInput,
+  reportEntryProblems,
   rideSummaryContractProblems,
   SCREEN_FILE,
   separateCamelCase,
@@ -72,20 +74,40 @@ function dictionary(language: "ar" | "en" | "ur"): Record<string, string> {
     "rider.summary.straightLine.meters": straight,
     "rider.summary.tag.cleanliness": "النظافةُ",
     "rider.summary.tag.politeness": "اللباقةُ",
+    "rider.summary.reportProblem": "مشكلةٌ في هذه الرحلةِ",
   };
 }
+
+/** شاشةٌ حقيقيّةُ الاسمِ سليمةٌ: مدخلُ الاستغاثةِ مُركَّبٌ و«الإبلاغُ» مشروطٌ بمُستقبِلٍ. */
+const GOOD_SCREEN = `
+readonly onReportProblem?: () => void;
+<SosEntry onOpen={onOpenSos} language={language} />
+{onReportProblem === undefined ? null : (
+  <button type="button" onClick={onReportProblem}>{t("${"rider.summary.reportProblem"}")}</button>
+)}
+`;
+
+/** موجِّهٌ سليمٌ: الشكوى تحملُ الرحلةَ الملخَّصةَ. */
+const GOOD_ROOT = `
+<RideSummaryScreen
+  orderId={summarized}
+  onReportProblem={() => setSupport({ orderId: summarized })}
+/>
+`;
 
 function input(overrides: Partial<RideSummaryContractInput> = {}): RideSummaryContractInput {
   return {
     surface: {
       "surface.tsx": SCREEN,
       // (`PD-020`) — شاشةٌ حقيقيّةُ الاسمِ تُركِّبُ مدخلَ الاستغاثةِ كما ينبغي.
-      [SCREEN_FILE]: "<SosEntry onOpen={onOpenSos} language={language} />",
+      // و(`SR-08`) — وتُركِّبُ «الإبلاغَ عن مشكلةٍ» مشروطاً بمُستقبِلٍ.
+      [SCREEN_FILE]: GOOD_SCREEN,
     },
     sql: SQL,
     domain: DOMAIN,
     view: VIEW,
     translations: { ar: dictionary("ar"), en: dictionary("en"), ur: dictionary("ur") },
+    root: GOOD_ROOT,
     ...overrides,
   };
 }
@@ -296,6 +318,59 @@ describe("القاعدة ٥ — لا زرَّ لمسارٍ لم يُبنَ", () 
       }),
     );
     expect(problems).toEqual([]);
+  });
+});
+
+describe("القاعدة ٨ — «الإبلاغُ عن مشكلةٍ» موصولٌ بالرحلةِ (`SR-08`)", () => {
+  const withScreen = (screen: string) =>
+    input({ surface: { "surface.tsx": SCREEN, [SCREEN_FILE]: screen } });
+
+  it("المدخلاتُ السليمةُ لا تُنتِجُ مشكلةً", () => {
+    expect(reportEntryProblems(input())).toEqual([]);
+  });
+
+  it("شاشةٌ بلا «onReportProblem?» تُسقِطُ الحاجزَ", () => {
+    const screen = GOOD_SCREEN.replace("readonly onReportProblem?: () => void;", "");
+    const problems = reportEntryProblems(withScreen(screen));
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("لا تقبلُ");
+  });
+
+  it("زرٌّ غيرُ مشروطٍ بمُستقبِلٍ يُسقِطُ الحاجزَ", () => {
+    const screen = GOOD_SCREEN.replace("onReportProblem === undefined ? null : ", "");
+    const problems = reportEntryProblems(withScreen(screen));
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("غيرُ مشروطٍ");
+  });
+
+  it("زرٌّ بمفتاحِ سطحٍ آخرَ يُسقِطُ الحاجزَ", () => {
+    const screen = GOOD_SCREEN.replace(REPORT_PROBLEM_KEY, "rider.history.detail.reportProblem");
+    const problems = reportEntryProblems(withScreen(screen));
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain(REPORT_PROBLEM_KEY);
+  });
+
+  it("موجِّهٌ لا يُوصِلُ المدخلَ يُسقِطُ الحاجزَ", () => {
+    const problems = reportEntryProblems(
+      input({ root: "<RideSummaryScreen orderId={summarized} />" }),
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("الموجِّهُ");
+  });
+
+  it("موجِّهٌ يفتحُ شكوى عامّةً (`orderId: null`) يُسقِطُ الحاجزَ — الربطُ بالرحلةِ هوَ المقيسُ", () => {
+    const root = GOOD_ROOT.replace("orderId: summarized", "orderId: null");
+    expect(reportEntryProblems(input({ root }))).toHaveLength(1);
+  });
+
+  it("القاعدةُ الخامسةُ لم تُخفَّفْ: ذكرُ التذكرةِ في السطحِ ما زالَ يُسقِطُ", () => {
+    const screen = `${GOOD_SCREEN}\nconst go = () => openSupportTicket();`;
+    const problems = unbuiltPathProblems(withScreen(screen));
+    expect(problems.some((text) => text.includes("لم يُبنَ"))).toBe(true);
+  });
+
+  it("المستودعُ الحقيقيُّ يمرُّ بالقاعدةِ الثامنةِ", () => {
+    expect(reportEntryProblems(readRepository())).toEqual([]);
   });
 });
 

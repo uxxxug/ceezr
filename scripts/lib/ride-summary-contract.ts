@@ -36,6 +36,8 @@
  *   ٦. **لا دالّةَ بلا نزعِ تنفيذٍ**: كلُّ دالّةٍ تُنشئُها الهجرةُ يُنزَعُ
  *      تنفيذُها عن `public` و`anon` و`authenticated` **بالثلاثةِ مُسمّاةً**.
  *      والمنحُ ضمنيٌّ، فالنسيانُ هوَ الحالةُ الافتراضيّةُ لا الشاذّةُ.
+ *   ٧. **مدخلُ الاستغاثةِ يُركَّبُ** (`PD-020` — زيادةٌ سابقةٌ).
+ *   ٨. **«الإبلاغُ عن مشكلةٍ» موصولٌ بالرحلةِ** (`SR-08` · 2026-09-28 — زيادةٌ `ح-8`).
  *
  * ## ما لا يفعلُه عن قصدٍ — وحدودُه مُعلَنةٌ لا مضمرةٌ
  *
@@ -167,6 +169,19 @@ export const SOS_BUILT_PATH_TOKENS: readonly string[] = [
 /** الشاشةُ — يُفحَصُ تركيبُ مدخلِ الاستغاثةِ فيها (`PD-020`). */
 export const SCREEN_FILE = "apps/miniapp/src/surfaces/rider/summary/RideSummaryScreen.tsx";
 
+/** الموجِّهُ — يُركِّبُ الملخَّصَ ويُوصِلُ «الإبلاغَ عن مشكلةٍ» بسطحِ الدعمِ (`SR-08`). */
+export const ROOT_FILE = "apps/miniapp/src/surfaces/rider/RiderRoot.tsx";
+
+/** مفتاحُ «الإبلاغِ عن مشكلةٍ» في هذا السطحِ — نصُّه لا يذكرُ تذكرةً ولا دعماً. */
+export const REPORT_PROBLEM_KEY = "rider.summary.reportProblem";
+
+/**
+ * الوصلُ في الموجِّهِ كما يجبُ أن يُكتَبَ: الشكوى **تحملُ الرحلةَ الملخَّصةَ**
+ * لا `null` ولا معرّفاً آخرَ. والفراغاتُ مرنةٌ، والمعنى لا.
+ */
+export const REPORT_PROBLEM_WIRING =
+  /onReportProblem=\{\s*\(\)\s*=>\s*setSupport\(\s*\{\s*orderId:\s*summarized\s*\}\s*\)\s*\}/;
+
 /** مُركِّبُ مدخلِ الاستغاثةِ كما يُكتَبُ في الشاشةِ — اسمٌ واحدٌ في موضعَينِ. */
 export const SOS_ENTRY_COMPONENT = "SosEntry";
 
@@ -207,6 +222,8 @@ export interface RideSummaryContractInput {
   readonly view: string;
   /** القواميسُ الثلاثةُ مُحلَّلةً: لغةٌ ⇒ (مفتاحٌ ⇒ نصٌّ). */
   readonly translations: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /** نصُّ الموجِّهِ `RiderRoot.tsx` **بلا تعليقاتٍ** — القاعدةُ الثامنةُ تقرأُ وصلَه. */
+  readonly root: string;
 }
 
 const ASCII_WORD = /^[a-z]+$/;
@@ -470,6 +487,44 @@ export function sosEntryProblems(input: RideSummaryContractInput): readonly stri
   return problems;
 }
 
+/**
+ * القاعدةُ الثامنةُ (`SR-08` · 2026-09-28 · زيادةٌ `ح-8`) — **«الإبلاغُ عن مشكلةٍ»
+ * موصولٌ فعلاً لا مُعلَنٌ**.
+ *
+ * كانَ غيابُه مُصرَّحاً لأنَّ مسارَ التذكرةِ لم يُبنَ؛ ثمَّ بُنيَ (`F2-12` ·
+ * `ADR 0114`) وصارَ يُفتَحُ من تفاصيلِ السجلِّ، فبقيَ الغيابُ ههنا **نقصاً**
+ * في نصِّ `SR-08` نفسِه. والقاعدةُ الخامسةُ **لم تُخفَّفْ**: السطحُ لا يذكرُ
+ * تذكرةً ولا دعماً ولا شكوى — يرفعُ النيّةَ وحدَها، والموجِّهُ يفتحُ السطحَ
+ * الذي يملكُ تلك الكلماتِ. وما تقيسُه هذه القاعدةُ أربعةُ أشياءَ لكلٍّ سالبةٌ:
+ *   ــ الشاشةُ تقبلُ `onReportProblem?` (اختياريّاً — فلا زرَّ بلا مُستقبِلٍ).
+ *   ــ الزرُّ **مشروطٌ** بالمُستقبِلِ (`onReportProblem === undefined`).
+ *   ــ نصُّه بمفتاحِ هذا السطحِ `rider.summary.reportProblem`.
+ *   ــ الموجِّهُ يُوصِلُه **بالرحلةِ الملخَّصةِ**: `setSupport({ orderId: summarized })`
+ *      — لا شكوى عامّةً تُفقِدُ الربطَ، ولا حقلَ معرّفٍ يُملأُ بيدٍ.
+ */
+export function reportEntryProblems(input: RideSummaryContractInput): readonly string[] {
+  const screen = input.surface[SCREEN_FILE] ?? "";
+  const problems: string[] = [];
+  if (!/onReportProblem\?\s*:/.test(screen)) {
+    problems.push(
+      `${SCREEN_FILE}: الشاشةُ لا تقبلُ «onReportProblem?» — «الإبلاغُ عن مشكلةٍ» (\`SR-08\`) بلا بابٍ.`,
+    );
+  }
+  if (!screen.includes("onReportProblem === undefined")) {
+    problems.push(`${SCREEN_FILE}: زرُّ الإبلاغِ غيرُ مشروطٍ بمُستقبِلٍ — زرٌّ بلا مسارٍ وعدٌ لا عقدٌ.`);
+  }
+  if (!screen.includes(`"${REPORT_PROBLEM_KEY}"`)) {
+    problems.push(`${SCREEN_FILE}: زرُّ الإبلاغِ لا يُنادي «${REPORT_PROBLEM_KEY}».`);
+  }
+  if (!REPORT_PROBLEM_WIRING.test(input.root)) {
+    problems.push(
+      `${ROOT_FILE}: الموجِّهُ لا يُوصِلُ «onReportProblem» بسطحِ الدعمِ حاملاً الرحلةَ الملخَّصةَ ` +
+        `(\`setSupport({ orderId: summarized })\`).`,
+    );
+  }
+  return problems;
+}
+
 /** الأدوارُ التي لا يجوزُ أن تُنفِّذَ دالّةً من دوالِّنا. */
 export const REVOKED_ROLES: readonly string[] = ["public", "anon", "authenticated"];
 
@@ -514,7 +569,7 @@ export function functionRevokeProblems(input: RideSummaryContractInput): readonl
   return problems;
 }
 
-/** الحكمُ المُجمَّعُ — ستُّ قواعدَ بترتيبِها، وكلُّ مشكلةٍ بموضعِها وسببِها. */
+/** الحكمُ المُجمَّعُ — القواعدُ بترتيبِها (ستٌّ ثمَّ السابعةُ `PD-020` والثامنةُ `SR-08`)، وكلُّ مشكلةٍ بموضعِها وسببِها. */
 export function rideSummaryContractProblems(input: RideSummaryContractInput): readonly string[] {
   return [
     ...moneyProblems(input),
@@ -523,6 +578,7 @@ export function rideSummaryContractProblems(input: RideSummaryContractInput): re
     ...keyParityProblems(input),
     ...unbuiltPathProblems(input),
     ...sosEntryProblems(input),
+    ...reportEntryProblems(input),
     ...functionRevokeProblems(input),
   ];
 }

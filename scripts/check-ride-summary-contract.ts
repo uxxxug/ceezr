@@ -20,6 +20,7 @@ import {
   DOMAIN_FILE,
   KEY_PREFIX,
   type RideSummaryContractInput,
+  ROOT_FILE,
   rideSummaryContractProblems,
   SUMMARY_SQL_FILE,
   SURFACE_FILES,
@@ -55,6 +56,7 @@ export function readRepository(): RideSummaryContractInput {
     domain: readFileSync(DOMAIN_FILE, "utf8"),
     view: blankComments(readFileSync(VIEW_FILE, "utf8")),
     translations,
+    root: blankComments(readFileSync(ROOT_FILE, "utf8")),
   };
 }
 
@@ -66,7 +68,7 @@ if (import.meta.main) {
       key.startsWith(KEY_PREFIX),
     ).length;
     console.log(
-      `حاجزُ عقدِ الإنهاءِ والتقييمِ: نجحَ — ${SURFACE_FILES.length} مِلفَّ سطحٍ، و${keyCount} مفتاحاً في ثلاثةِ قواميسَ، وستُّ قواعدَ مقيسةً: لا مالَ، ولا مسافةَ تُدَّعى مقطوعةً، ومُعجَمُ وسومٍ واحدٌ، ولا مفتاحَ ناقصاً، ولا زرَّ لمسارٍ لم يُبنَ، ولا دالّةَ بلا نزعِ تنفيذٍ.`,
+      `حاجزُ عقدِ الإنهاءِ والتقييمِ: نجحَ — ${SURFACE_FILES.length} مِلفَّ سطحٍ، و${keyCount} مفتاحاً في ثلاثةِ قواميسَ، وثماني قواعدَ مقيسةً: لا مالَ، ولا مسافةَ تُدَّعى مقطوعةً، ومُعجَمُ وسومٍ واحدٌ، ولا مفتاحَ ناقصاً، ولا زرَّ لمسارٍ لم يُبنَ، ومدخلُ الاستغاثةِ مُركَّبٌ، و«الإبلاغُ عن مشكلةٍ» موصولٌ بالرحلةِ، ولا دالّةَ بلا نزعِ تنفيذٍ.`,
     );
   } else {
     console.error("حاجزُ عقدِ الإنهاءِ والتقييمِ: سقطَ.");

@@ -1157,6 +1157,7 @@
   "rider.summary.refusal.unknown": "The rating was refused; read the summary again.",
   "rider.summary.refusal.unknownTag": "That tag is not recognised.",
   "rider.summary.refusal.windowClosed": "The rating window has closed.",
+  "rider.summary.reportProblem": "Problem with this ride",
   "rider.summary.retry": "Try again",
   "rider.summary.route": "From {pickup} to {dropoff}",
   "rider.summary.stars.label": "Stars",

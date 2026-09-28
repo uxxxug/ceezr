@@ -6626,3 +6626,9 @@ Slow 4G: FCP 4,108 · LCP 4,692 · السطحُ المرسومُ 4,692 ms — غ
 - `check-connection-budget` (الفحصُ الرابعُ) يُلزِمُ كلَّ تجمُّعٍ دورُه ذو مهلةٍ بتمريرِها من الميزانيّةِ.
 - `tests/integration/pg-brownout.test.ts`: بلا مهلةٍ `cities` 3805ms ويُدانُ؛ بمهلةِ 1s: 806ms والحكمُ `ok`. عبرَ Supavisor الإلغاءُ لا يصلُ المُخطَّطَ فالبوّابةُ تمنعُه.
 - البندُ يبقى `[ ]`. الدليلُ `docs/evidence/architecture/F11-04-20260925-pg-brownout.md`.
+
+## زيادةٌ 2026-09-28 — `F2-07` · `SR-08` («الإبلاغُ عن مشكلةٍ» من شاشةِ نهايةِ الرحلةِ)
+
+- `RideSummaryScreen` تقبلُ `onReportProblem?` وترسمُ زرّاً مشروطاً بالمُستقبِلِ؛ `RiderRoot` يُوصِلُه بـ`setSupport({ orderId: summarized })`.
+- `check-ride-summary-contract`: قاعدةٌ ثامنةٌ `reportEntryProblems` تقرأُ الشاشةَ والموجِّهَ؛ القاعدةُ الخامسةُ (لا ذكرَ لتذكرةٍ في السطحِ) باقيةٌ بحرفِها.
+- `F2-07` يبقى `[~]` (المبلغُ والإيصالُ مجمَّدانِ بأثرِ `DEC-11` · المسافةُ المقطوعةُ غيرُ مقيسةٍ). `ADR 0207` · الدليلُ `docs/evidence/architecture/F2-07-20260928-summary-report-problem.md`.

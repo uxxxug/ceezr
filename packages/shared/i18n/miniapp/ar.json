@@ -1157,6 +1157,7 @@
   "rider.summary.refusal.unknown": "رُفِضَ التقييمُ؛ أعِدِ قراءةَ الملخَّصِ.",
   "rider.summary.refusal.unknownTag": "وسمٌ غيرُ معروفٍ.",
   "rider.summary.refusal.windowClosed": "انقضَت مهلةُ التقييمِ.",
+  "rider.summary.reportProblem": "مشكلة في هذه الرحلة",
   "rider.summary.retry": "أعِدِ المحاولةَ",
   "rider.summary.route": "من {pickup} إلى {dropoff}",
   "rider.summary.stars.label": "النجومُ",
