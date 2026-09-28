@@ -6632,3 +6632,9 @@ Slow 4G: FCP 4,108 · LCP 4,692 · السطحُ المرسومُ 4,692 ms — غ
 - `RideSummaryScreen` تقبلُ `onReportProblem?` وترسمُ زرّاً مشروطاً بالمُستقبِلِ؛ `RiderRoot` يُوصِلُه بـ`setSupport({ orderId: summarized })`.
 - `check-ride-summary-contract`: قاعدةٌ ثامنةٌ `reportEntryProblems` تقرأُ الشاشةَ والموجِّهَ؛ القاعدةُ الخامسةُ (لا ذكرَ لتذكرةٍ في السطحِ) باقيةٌ بحرفِها.
 - `F2-07` يبقى `[~]` (المبلغُ والإيصالُ مجمَّدانِ بأثرِ `DEC-11` · المسافةُ المقطوعةُ غيرُ مقيسةٍ). `ADR 0207` · الدليلُ `docs/evidence/architecture/F2-07-20260928-summary-report-problem.md`.
+
+## زيادةٌ 2026-09-28 — `F2-07` (المسافةُ المقطوعةُ) · `ADR 0208` مقترحٌ · `D-38`
+
+- `ADR 0208` **مقترحٌ بانتظارِ قبولِ المالكِ**؛ لا شيفرةَ ولا مخطّطَ ولا مساسَ بـ`completed_ride_summary`.
+- تدقيقُ المصدرِ: المسارُ المباشرُ والدفعةُ يُلحِقانِ في `driver_location_history`؛ والمؤجَّلُ يُزيحُ المقبولَ داخلَ دورةِ الإفراغِ فلا يبلغُ الأثرَ ⇒ `D-38` (مُسجَّلٌ محجوزٌ · شرطٌ سابقٌ).
+- الدليلُ `docs/evidence/architecture/F2-07-20260928-travelled-distance-source-audit.md`. `F2-07` يبقى `[~]`.
