@@ -1886,3 +1886,114 @@ jobs:
           RUN_MANIFEST_DIR: /tmp/run-manifests
           JOB_NAME: chaos-multi-instance
         run: bun run scripts/check-run-manifest.ts
+
+  # ── F9-03 · OPS-004: مولّدُ حملٍ موزَّعٌ بمنسّقٍ عالميٍّ — برهانُ البنيةِ في CI ────
+  #
+  # البندُ يطلبُ مولّداتٍ في مضيفينَ منفصلينَ ومنسّقاً عالميّاً وبصمةَ إعداداتٍ مع
+  # كلِّ تشغيلٍ. والمضيفونَ الفعليّونَ (≥٣ مناطقٍ) حاجزٌ خارجيٌّ (`REQ-06`) لا يُدَّعى
+  # هنا — فالمُثبَتُ داخلَ المستودعِ هو البنيةُ: مولّداتٌ **عملياتُ نظامٍ منفصلةٌ**
+  # لا تعرفُ الهدفَ ولا المنسّقَ إلا عبرَ HTTP (الدَّرزُ نفسُهُ الذي يفصلُها لو سكنتْ
+  # مضيفاتٍ أخرى)، ومنسّقٌ عالميٌّ يفتحُ البوّابةَ بعدَ اكتمالِ العددِ ويُقسِّمُ الخطةَ
+  # تقسيماً حتميّاً ويُصدرُ الحُكمَ، وخطةٌ مُبصَّمةٌ تُطابقُها كلُّ التقاريرِ. والسالبتانِ
+  # المزروعتانِ تُثبتانِ أنّ المولّدَ الغائبَ أو المقتولَ وسطَ الجولةِ يُفشِلُ الجولةَ
+  # باسمِهِ — لا خسارةَ صامتةَ في جولةِ قياسٍ. والهدفُ بوّابةٌ حقيقيّةٌ (حاويةُ المنتجِ)
+  # على PostgreSQL حقيقيّةٍ لا خادمُ أرقامٍ.
+  distributed-load:
+    name: مولّد حمل موزَّع بمنسّق عالمي (F9-03)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgis/postgis:17-3.5
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: waslah
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: أدوار Supabase التي تفترضها الهجرات
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d waslah -v ON_ERROR_STOP=1 <<'SQL'
+          do $$ begin
+            if not exists (select 1 from pg_roles where rolname = 'anon') then
+              create role anon nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'authenticated') then
+              create role authenticated nologin noinherit;
+            end if;
+            if not exists (select 1 from pg_roles where rolname = 'service_role') then
+              create role service_role nologin noinherit bypassrls;
+            end if;
+          end $$;
+          SQL
+
+      - name: تطبيق الهجرات بالمُطبِّقِ الآمنِ
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun run scripts/migrate.ts
+
+      # الجولةُ المكتملةُ: ٣ مولّداتٍ عملياتٍ منفصلةٍ عبرَ منسّقٍ عالميٍّ ضدَّ بوّابةٍ
+      # حقيقيّةٍ — الحُكمُ بستِّ قواعدٍ (البلاغُ · البصمةُ · سلامةُ التقسيمِ · الوفاءُ
+      # بالجدولةِ · صفرُ أخطاءِ النقلِ · سقفُ الانزلاقِ) وخروجُ السائقِ برمزِ الحُكمِ.
+      - name: جولةٌ موزَّعةٌ مكتملةٌ — ٣ مولّداتٍ عبرَ منسّقٍ عالميٍّ (F9-03)
+        env:
+          BENCH_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: >
+          bun run deferred/field-experiments/bench/distributed/run-distributed-load.ts
+          --rate 30 --duration-ms 3000 --generators 3 --deadline-ms 25000
+
+      # السالبةُ الأولى: مولّدٌ لا ينضمُّ أصلًا — بوّابةُ الانضمامِ لا تُفتحُ،
+      # والمهلةُ النهائيّةُ تُصدرُ حُكمَ الفشلِ لا تعليقًا إلى الأبدِ.
+      - name: سالبةٌ مزروعةٌ — مولّدٌ غائبٌ يُفشِلُ الجولةَ (F9-03)
+        env:
+          BENCH_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: >
+          bun run deferred/field-experiments/bench/distributed/run-distributed-load.ts
+          --rate 30 --duration-ms 2000 --generators 3 --deadline-ms 12000
+          --negative missing-generator
+
+      # السالبةُ الثانية: مولّدٌ يُقتَلُ (SIGKILL) وسطَ نافذةِ الإطلاقِ بعدَ أن
+      # انضمَّ وجُدِّلَ لهُ — والآخرونَ يُبلِّغونَ، والغائبُ يُمسَكُ بفهرسِهِ.
+      - name: سالبةٌ مزروعةٌ — مولّدٌ يُقتَلُ وسطَ الجولةِ (F9-03)
+        env:
+          BENCH_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: >
+          bun run deferred/field-experiments/bench/distributed/run-distributed-load.ts
+          --rate 30 --duration-ms 3000 --generators 3 --deadline-ms 15000
+          --negative dead-mid-round
+
+      # حَكَمُ الخطةِ الصرفةُ وسالباتُهُ المزروعةُ لكلِّ قاعدةٍ (تعملُ في verify أيضًا
+      # ضمنَ bun test؛ تُكرَّر ههنا خطوةً مسمّاةً ليقرأَ الفاحصُ حكمَها في وظيفتِها).
+      - name: حَكَمُ الخطةِ الصرفةُ — سوالبُ مزروعةٌ لكلِّ قاعدةٍ (F9-03)
+        run: bun test tests/unit/bench-distributed-plan.test.ts
+
+      # F9-05: بصمةُ التشغيلِ لمولّدِ الحملِ الموزَّعِ.
+      - name: بصمةُ التشغيل — كتابة (distributed-load) (F9-05)
+        if: always()
+        env:
+          JOB_NAME: distributed-load
+          CI_VERDICT: ${{ job.status }}
+        run: |
+          mkdir -p /tmp/run-manifests
+          bun run scripts/emit-run-manifest.ts /tmp/run-manifests/distributed-load.json
+
+      # F9-05: الحاجزُ الساكن.
+      - name: بصمةُ التشغيل — حاجز (distributed-load) (F9-05)
+        if: always()
+        env:
+          RUN_MANIFEST_DIR: /tmp/run-manifests
+          JOB_NAME: distributed-load
+        run: bun run scripts/check-run-manifest.ts

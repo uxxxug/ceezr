@@ -71,6 +71,7 @@ export const REQUIRED_JOBS = [
   "integration",
   "real-redis",
   "chaos-multi-instance",
+  "distributed-load",
 ] as const;
 
 export type RequiredJob = (typeof REQUIRED_JOBS)[number];
