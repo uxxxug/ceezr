@@ -195,7 +195,7 @@ describeIf("F7-03 — أثرُ الموقعِ المقسَّمُ على PostgreS
     expect(new Date(rows[0]?.recorded_at ?? 0).getTime()).toBe(newerMs);
   });
 
-  it("٣) مسارُ الدفعةِ يُلحِقُ، و`appended` يساوي `applied`", async () => {
+  it("٣) مسارُ الدفعةِ يُلحِقُ كلَّ نبضةٍ، و`appended` يَعُدُّ النبضاتِ لا السائقينَ (`D-38`)", async () => {
     const driverA = await seedDriver(170_303);
     const driverB = await seedDriver(170_304);
     const nowMs = Date.now();
@@ -226,7 +226,11 @@ describeIf("F7-03 — أثرُ الموقعِ المقسَّمُ على PostgreS
     expect(report.ok).toBe(true);
     if (!report.ok) return;
     expect(report.value.applied).toBe(2);
-    /** العقدُ: الإلحاقُ فرعٌ من فرعِ الكتابةِ نفسِه، فاختلافُ العددَينِ عطلٌ. */
+    /**
+     * العقدُ بعدَ `D-38` (`ADR 0209`): الإلحاقُ من الدفعةِ كلِّها فـ`appended`
+     * يَعُدُّ النبضاتِ — وههنا نبضةٌ لكلِّ سائقٍ فساوى `applied` صدفةَ الحالِ لا
+     * عقداً. عقدُ الدفعةِ المتراكمةِ في الأسفلِ.
+     */
     expect(report.value.appended).toBe(report.value.applied);
 
     const rowsA = await historyOf(driverA);
@@ -235,6 +239,49 @@ describeIf("F7-03 — أثرُ الموقعِ المقسَّمُ على PostgreS
     expect(rowsB).toHaveLength(1);
     expect(rowsA[0]?.source).toBe("batch");
     expect(rowsB[0]?.quality).toBe("WARNING");
+  });
+
+  /**
+   * `D-38` (`ADR 0209`): الدفعةُ المتراكمةُ — نبضاتٌ متعددةٌ للسائقِ الواحدِ —
+   * تُلحِقُ في الأثرِ **كلَّها**، وصفُّ السائقِ يبقى على الأحدثِ وحدَه. هذا هوَ
+   * الادعاءُ الذي كانَ مستحيلًا قبلَ هذا القرارِ: نقطةٌ واحدةٌ لكلِّ دورةِ إفراغٍ.
+   */
+  it("٣-ب) الدفعةُ المتراكمةُ: الأثرُ يحملُ النبضاتِ كلَّها والصفُّ على الأحدثِ (`D-38`)", async () => {
+    const driverA = await seedDriver(170_311);
+    const nowMs = Date.now();
+    const pulses = [0, 1, 2, 3].map((step) => ({
+      cityId: cityId as CityId,
+      driverId: driverA as DriverId,
+      latitude: JEDDAH.latitude + step * DEGREE_STEP,
+      longitude: JEDDAH.longitude,
+      recordedAtMs: nowMs - (3 - step) * 1_000,
+      observedAtMs: nowMs + 1_500,
+      accuracyMeters: 8,
+      verdict: "ACCEPT" as const,
+    }));
+
+    const report = await batch.persistBatch(cityId as CityId, pulses);
+
+    expect(report.ok).toBe(true);
+    if (!report.ok) return;
+    // صفُّ السائقِ واحدٌ، والأثرُ أربعٌ — `appended` يَعُدُّ النبضاتِ لا السائقينَ.
+    expect(report.value.applied).toBe(1);
+    expect(report.value.appended).toBe(4);
+
+    const trace = await historyOf(driverA);
+    expect(trace).toHaveLength(4);
+    // بترتيبِ الطابعِ — كلُّ نبضةٍ في الأثرِ لا الأحدثُ وحدَه.
+    expect(trace.map((row) => new Date(row.recorded_at).getTime())).toEqual(
+      pulses.map((pulse) => pulse.recordedAtMs),
+    );
+    const newest = trace.at(-1);
+    expect(newest?.source).toBe("batch");
+
+    const stored = await sql<{ recorded: Date | null }[]>`
+      select last_location_recorded_at as recorded from drivers where id = ${driverA}
+    `;
+    // الصفُّ على الأحدثِ وحدَه — الأثرُ لا يُحرِّكُ الموضعَ الحاليَّ.
+    expect(stored[0]?.recorded?.getTime()).toBe(nowMs);
   });
 
   it("٤) الصفُّ يهبطُ في قِسمِ **يومِه**، لا في شبكةِ الأمانِ", async () => {

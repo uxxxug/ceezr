@@ -67,11 +67,14 @@ describe("حاجزُ صدقِ last_location_at — المستودعُ الحقي
     expect(writers.length).toBeGreaterThan(0);
   });
 
-  test("أحدثُ هجرةٍ حاكمةٍ هي هجرةُ هذا البندِ — والأحدثُ آخراً", () => {
+  test("أحدثُ هجرةٍ حاكمةٍ تنقلُ عقدَ هذا البندِ حرفاً — والأحدثُ آخراً", () => {
     const writers = batchFunctionMigrations(readMigrations());
-    expect(writers[writers.length - 1]?.path).toContain(
-      "f4_05_last_location_at_is_acceptance_time",
-    );
+    // الحاكمةُ اليومَ هجرةُ `D-38` (`ADR 0209`) — وهي تنقلُ كتابةَ
+    // `last_location_at = n.observed_at` حرفاً كما استقرّت في `F4-05`، فالحكمُ
+    // على العهدةِ لا على اسمِ الملفِّ.
+    const governing = writers[writers.length - 1];
+    expect(governing?.path).toContain("d_38_batch_appends_every_accepted_pulse");
+    expect(governing?.source).toContain(`${"last_location_at"} = n.observed_at`);
   });
 
   test("النسخُ المُصغَّرةُ السليمةُ تمرُّ — فالسالبُ بعدَها يعني الخرقَ لا الهيكلَ", () => {

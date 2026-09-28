@@ -1,6 +1,7 @@
 /**
  * الغرض: اختبارُ حاجزِ `scripts/check-hot-location-state.ts` نفسِه — أنَّ المستودعَ
- *    القائمَ يمرُّ، **وأنَّ كلَّ قاعدةٍ من قواعدِه الثمانِ تُسقِطُ الخرقَ فعلاً**.
+ *    القائمَ يمرُّ، **وأنَّ كلَّ قاعدةٍ من قواعدِه العشرِ تُسقِطُ الخرقَ فعلاً**
+ *    (١–٨ كما كانت، و٩–١٠ لِـ`D-38` · `ADR 0209`).
  * الحالة: اختبار فعلي — دوالٌّ خالصةٌ تُمرَّرُ لها نصوصٌ، بلا لمسِ ملفٍّ.
  * ينتمي إلى: tests/unit
  * يُتوقع أن يستخدمه لاحقاً: CI
@@ -211,5 +212,69 @@ describe("F4-02 — حاجزُ الحالةِ الساخنةِ: كلُّ قاع�
      * صارَ القياسُ على مرجعٍ متحرِّكٍ — والخرقُ ههنا هوَ ما يمنعُ ذلكَ.
      */
     expect(violations.some((entry) => entry.includes("الكتابةِ المباشرةِ"))).toBe(true);
+  });
+
+  // ── `D-38` · `ADR 0209` — القاعدتانِ التاسعةُ والعاشرةُ ──────────────────────
+
+  it("٢٠) عضوُ انتظارٍ لكلِّ سائقٍ (لا نبضةٍ) يُسقِطُ البناءَ — عيبُ D-38", () => {
+    const broken = REAL.redisAdapter.replace(
+      `"local member = ARGV[8] .. ':' .. ARGV[1]",`,
+      `"local member = ARGV[8]",`,
+    );
+    expect(broken).not.toBe(REAL.redisAdapter);
+
+    const violations = findViolations(withSource({ redisAdapter: broken }));
+    // العضوُ بلا طابعٍ يُزيحُ النبضةُ التاليةُ سابقتَها قبلَ الإفراغِ — وهوَ عيبُ
+    // D-38 بعينِه، والحاجزُ يُمسِكُ رجوعَه لا ينتظرُ اكتشافَه في الأثرِ.
+    expect(violations.some((entry) => entry.includes("D-38"))).toBe(true);
+  });
+
+  it("٢١) حذفُ بناءِ العضوِ كلِّه يُسقِطُ البناءَ", () => {
+    const broken = REAL.redisAdapter.replace(
+      `"local member = ARGV[8] .. ':' .. ARGV[1]",`,
+      `"-- لا عضوَ"`,
+    );
+
+    const violations = findViolations(withSource({ redisAdapter: broken }));
+    expect(violations.some((entry) => entry.includes("بناءِ عضوٍ"))).toBe(true);
+  });
+
+  it("٢٢) إلحاقُ الأثرِ من فرعِ الكتابةِ وحدَه (عيبُ D-38) يُسقِطُ البناءَ", () => {
+    // إعادةُ العضوِ إلى العهدةِ القديمةِ: من `written` بدلَ `parsed` كُلِّها.
+    const body = batchFunctionBody(REAL.migrations);
+    if (body === null) throw new Error("لا جسمَ للدالّةِ");
+    const oldAppend = body.slice(
+      body.indexOf("appended as ("),
+      body.indexOf("select (select count(*) from newest)"),
+    );
+    const newAppend = oldAppend
+      .replace(
+        /from parsed p[\s\S]*?join drivers d on d\.id = p\.driver_id and d\.city_id = p_city_id/,
+        "from written w join newest n on n.driver_id = w.id",
+      )
+      .replace("p.driver_id", "n.driver_id")
+      .replace("p.longitude", "n.longitude")
+      .replace("p.latitude", "n.latitude")
+      .replace("to_timestamp(p.recorded_at_ms / 1000.0)", "n.recorded_at")
+      .replace("p.accuracy_m", "n.accuracy_m")
+      .replace("p.verdict", "n.verdict");
+    const mutated = REAL.migrations.replace(body, body.replace(oldAppend, newAppend));
+    expect(mutated).not.toBe(REAL.migrations);
+
+    const violations = findViolations(withSource({ migrations: mutated }));
+    expect(violations.some((entry) => entry.includes("parsed"))).toBe(true);
+  });
+
+  it("٢٣) تنقيةٌ في الشيفرةِ (حَكَمانِ على الأحدثِ) تُسقِطُ البناءَ", () => {
+    const broken = REAL.flushUseCase.replace(
+      "const batch = fixes;",
+      "const batch = newestPerDriver(fixes);",
+    );
+    expect(broken).not.toBe(REAL.flushUseCase);
+
+    const violations = findViolations(withSource({ flushUseCase: broken }));
+    // مصدرُ الحقيقةِ واحدٌ: `distinct on` في الدالّةِ الذرّيّةِ — لا نسخةٌ ثانيةٌ
+    // في الشيفرةِ تُسقِطُ أثرَ النبضاتِ الأقدمِ وتبتعدُ بصمتٍ.
+    expect(violations.some((entry) => entry.includes("newestPerDriver"))).toBe(true);
   });
 });

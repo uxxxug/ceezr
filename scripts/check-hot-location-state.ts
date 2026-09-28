@@ -37,6 +37,15 @@
  *    مفروضٌ يعني أنَّ عطلَ `Redis` يُسقِطُ استقبالَ الموقعِ كلَّه — والتدهوّرُ
  *    المُعلَنُ أن يُكتَبَ الموضعُ مباشرةً كما كانَ يُكتَبُ قبلَ هذا البندِ.
  *
+ * ٩) **عضوُ الانتظارِ نبضةٌ لا سائقٌ** (`D-38` · `ADR 0209`): مُعَدُّ العضوِ في
+ *    السكربتِ يُبنى من المعرِّفِ **والطابعِ** معاً، فلا تُزيحُ نبضةٌ سابقتَها في
+ *    القائمةِ قبلَ الإفراغِ. ولو عادَ المُعَدُّ معرِّفاً وحدهُ عادَ الأثرُ نقطةً
+ *    واحدةً لكلِّ دورةِ إفراغٍ — وهوَ عيبُ `D-38` بعينِه.
+ * ١٠) **الأثرُ يُلحَقُ من الدفعةِ كلِّها لا من فرعِ الكتابةِ وحدَه** (`D-38`):
+ *    `appended` في الدالّةِ الذرّيّةِ يقرأُ من `parsed` بقيدِ المدينةِ من صفِّ
+ *    السائقِ، لا من `written`/`newest` — فنبضاتُ السائقِ تبلغُ الأثرَ كلُّها وصفُّ
+ *    السائقِ للأحدثِ. و**لا تنقيةَ في الشيفرةِ**: `newestPerDriver` لا يُستدعى في
+ *    الإفراغِ — التنقيةُ للقاعدةِ وحدَها مصدرٌ واحدٌ لا مصدرانِ يتباعدانِ.
  * **ينتمي إلى:** سلسلةَ حرّاسِ CI · خطوةً مُسمّاةً في `.github/workflows/ci.yml`.
  *
  * **ما لا يفعلُه هذا الحاجزُ عن قصدٍ — وحدودُه مُعلَنةٌ لا مضمرةٌ:**
@@ -64,6 +73,7 @@ const MIGRATIONS_DIR = "supabase/migrations";
 const LIMITS_MODULE = "packages/application/geo/driver-location-hot-state.ts";
 const REDIS_ADAPTER = "packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 const USE_CASE = "packages/application/geo/update-driver-location.ts";
+const FLUSH_USE_CASE = "packages/application/geo/flush-driver-location-backlog.ts";
 const DIRECT_WRITE = "packages/infrastructure/identity/directories.ts";
 
 /** أوامرُ Redis التي لا يجوزُ إرسالُها مفردةً من المحوّلِ — تُغيِّرُ حالةً. */
@@ -75,6 +85,7 @@ export interface RepositorySources {
   readonly limitsModule: string;
   readonly redisAdapter: string;
   readonly useCase: string;
+  readonly flushUseCase: string;
   readonly directWrite: string;
   readonly settingKeys: readonly string[];
 }
@@ -90,6 +101,7 @@ export function readSources(): RepositorySources {
     limitsModule: readFileSync(LIMITS_MODULE, "utf8"),
     redisAdapter: readFileSync(REDIS_ADAPTER, "utf8"),
     useCase: readFileSync(USE_CASE, "utf8"),
+    flushUseCase: readFileSync(FLUSH_USE_CASE, "utf8"),
     directWrite: readFileSync(DIRECT_WRITE, "utf8"),
     settingKeys: HOT_LOCATION_SETTING_KEYS,
   };
@@ -240,6 +252,45 @@ export function findViolations(sources: RepositorySources): string[] {
     );
   }
 
+  // ٩) عضوُ الانتظارِ نبضةٌ لا سائقٌ (D-38 · ADR 0209). و`luaLines` تُرشِّحُ سطورَ
+  // `redis.call` وحدَها وسطرُ بناءِ العضوِ ليسَ منها، فيُقرأُ من سطورِ السكربتِ
+  // المُقتبَسةِ كلِّها.
+  const memberLine = sources.redisAdapter
+    .split("\n")
+    .map((line) => line.trim())
+    .find((line) => line.startsWith('"') && /local member = .*ARGV\[8\]/.test(line));
+  if (memberLine === undefined) {
+    violations.push("سكربتُ الكتابةِ الساخنةِ بلا بناءِ عضوٍ — لا قائمةَ انتظارِ أصلاً.");
+  } else if (!/ARGV\[8\]\s*\.\.\s*':'\s*\.\.\s*ARGV\[1\]/.test(memberLine)) {
+    violations.push(
+      `مُعَدُّ عضوِ الانتظارِ ليسَ «معرّفُ السائقِ:طابعُ الجهازِ»: «${memberLine}» — عضوٌ لكلِّ سائقٍ يُزيحُ النبضةَ التاليةُ سابقتَها قبلَ الإفراغِ فيبلغُ الأثرَ نقطةٌ لكلِّ دورةٍ (D-38 · ADR 0209).`,
+    );
+  }
+
+  // ١٠) الأثرُ من الدفعةِ كلِّها، ولا تنقيةَ في الشيفرةِ (D-38 · ADR 0209).
+  if (body !== null) {
+    const appendedFromParsed =
+      /insert into driver_location_history[\s\S]{0,600}?from parsed p[\s\S]{0,200}?join drivers d on d\.id = p\.driver_id and d\.city_id = p_city_id/.test(
+        body,
+      );
+    if (!appendedFromParsed) {
+      violations.push(
+        `«${DRIVER_LOCATION_BATCH_RPC}» لا تُلحِقُ الأثرَ من «parsed» كُلِّها بقيدِ مدينةِ صفِّ السائقِ — إلحاقٌ من «written»/«newest» وحدَه يُسقِطُ نبضاتٍ مقبولةً من الأثرِ (D-38 · ADR 0209).`,
+      );
+    }
+    const appendedFromWritten = /appended as \([\s\S]{0,400}?from written/.test(body);
+    if (appendedFromWritten) {
+      violations.push(
+        `«${DRIVER_LOCATION_BATCH_RPC}» تُلحِقُ الأثرَ من فرعِ «written» — صفٌّ واحدٌ لكلِّ سائقٍ في كلِّ دورةٍ، وهوَ عيبُ D-38 لا عقدُه.`,
+      );
+    }
+  }
+  if (/newestPerDriver\s*\(/.test(sources.flushUseCase)) {
+    violations.push(
+      "الإفراغُ يُنقّي الدفعةَ بـ«newestPerDriver» في الشيفرةِ — تنقيةٌ ثانيةً بجانبَ «distinct on» في القاعدةِ تُسقِطُ أثرَ النبضاتِ الأقدمِ (D-38 · ADR 0209): مصدرُ الحقيقةِ واحدٌ في الدالّةِ الذرّيّةِ.",
+    );
+  }
+
   return violations;
 }
 
@@ -255,7 +306,8 @@ function main(): void {
   console.log(
     `✅ الحالةُ الساخنةُ للموقعِ محروسةٌ — ${HOT_LOCATION_SETTING_KEYS.length} مفاتيحَ مبذورةٍ بلا افتراضٍ في الشيفرةِ، ` +
       `ومُسنَدُ التسلسلِ واحدٌ في المخزنَينِ، و«${DRIVER_LOCATION_BATCH_RPC}» تُنقّي وتُقيِّدُ المدينةَ، ` +
-      `و${SINGLE_COMMAND_BAN.length} أوامرَ حالةٍ لا تُرسَلُ إلّا داخلَ سكربتٍ ذرّيٍّ.`,
+      `و${SINGLE_COMMAND_BAN.length} أوامرَ حالةٍ لا تُرسَلُ إلّا داخلَ سكربتٍ ذرّيٍّ، ` +
+      `وعضوُ الانتظارِ نبضةٌ والأثرُ من الدفعةِ كلِّها (D-38).`,
   );
 }
 
