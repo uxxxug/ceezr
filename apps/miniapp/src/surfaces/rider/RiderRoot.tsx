@@ -368,6 +368,9 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
         <RideSummaryScreen
           orderId={summarized}
           onOpenSos={onOpenSos}
+          // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `summarized`: الدعمُ أعلى
+          // الترتيبِ، والرجوعُ منه يُظهِرُ الملخَّصَ الذي كانَ الراكبُ يقرؤه (`SR-08`).
+          onReportProblem={() => setSupport({ orderId: summarized })}
           onBack={() => {
             setSummarized(null);
             setFollowed(null);

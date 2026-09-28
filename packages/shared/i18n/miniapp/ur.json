@@ -1157,6 +1157,7 @@
   "rider.summary.refusal.unknown": "درجہ بندی رد ہوئی؛ خلاصہ دوبارہ پڑھیں۔",
   "rider.summary.refusal.unknownTag": "یہ نشان معلوم نہیں۔",
   "rider.summary.refusal.windowClosed": "درجہ بندی کی مدت گزر چکی ہے۔",
+  "rider.summary.reportProblem": "اس سفر میں مسئلہ",
   "rider.summary.retry": "دوبارہ کوشش کریں",
   "rider.summary.route": "{pickup} سے {dropoff} تک",
   "rider.summary.stars.label": "ستارے",
