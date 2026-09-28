@@ -6682,3 +6682,11 @@ Slow 4G: FCP 4,108 · LCP 4,692 · السطحُ المرسومُ 4,692 ms — غ
 - المرحلةُ `F15` في الخارطةِ بـ22 بنداً؛ **`F15-00` `[!]`**: لا عملَ قبلَ أن تُستعمَلَ بوّابةُ الدفعِ فعلاً (تقديرُ المالكِ: شهرٌ بعدَ الإطلاقِ الكاملِ).
 - العمولةُ بقرارِ المالكِ: **على السائقِ وحدَه** — 5% للمشتركِ (ميزةٌ إضافيّةٌ) · 10% لغيرِه · الراكبُ لا يدفعُ شيئاً. `ADR 0027` نافذٌ بحرفِه حتّى `F15-00`.
 - وثيقةُ المالكِ بحرفِها ومواءمتُها في `docs/product/monthly-driver/`. **لا شيفرةَ ولا هجرةَ في هذه الزيادةِ.**
+
+## زيادةٌ 2026-09-28 — حكمُ CI لـ#310 وقياسُ رؤوسِ `F1-10`/`TG-005` من المضيفِ الحيِّ
+
+- PR #310 دُمجَ (squash `76f1366`) والجولةُ خضراءُ بالكاملِ (تشغيل `36420883393` · كلُّ الوظائفِ السبعِ `success` · Roadmap `36420883239`). الدليلُ `docs/evidence/infrastructure/PR310-CI-VERDICT-20260928.md`.
+- رؤوسُ `F1-10`/`TG-005` قُيسَت من `https://waslah-miniapp.onrender.com/`: `content-security-policy: frame-ancestors https://telegram.org https://*.telegram.org` · `x-content-type-options: nosniff` · `strict-transport-security: max-age=315360000; includeSubdomains; preload` · `referrer-policy: strict-origin-when-cross-origin` · `permissions-policy: camera=(), microphone=(), payment=(), usb=()`. `/ready` = `ready` بلا نقصٍ. الدليلُ `docs/evidence/infrastructure/DEC-20-20260928-first-production-deployment.md` §٨.
+- **شرطُ «النشرُ الحيُّ» المانعُ لـ`[x]` في `TG-005`/`F1-10` صارَ مستوفًى** — كانَ «لا نشرَ حيَّ بعدُ»، والنشرُ صارَ موجوداً بـ`DEC-20`.
+- **`ح-4` لـ`F1-10`/`TG-005`**: ٢/٣ جولاتٍ خضراءَ متتاليةٍ على `main` بعدَ أحمرِ #309 (`36417264904`@`27228a8` · `36420883393`@`76f1366`). تحتاجُ جولةً ثالثةً.
+- **ولا يُدَّعى (`ح-5`)**: لا متصفّحَ في CI يُثبِتُ تطبيقَ السياسةِ سلوكيّاً.

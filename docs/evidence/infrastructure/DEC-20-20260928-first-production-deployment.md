@@ -57,3 +57,22 @@
 - المشرفُ الأوّلُ (`8634283336`) يُمنَحُ دورَه عندَ أوّلِ تفاعلٍ له مع بوتِ السائقينَ (`grant_bootstrap_admin` · `ADR 0008`).
 - لا أوّلَ `/start` حقيقيٌّ مُسجَّلٌ بعدُ في هذا الملفِّ.
 - `F10-*` · `F11-*` · `REQ-01`/`REQ-02` بمعناهما (بيئةٌ شبيهةٌ منفصلةٌ) — باقيةٌ على حاجزِها.
+
+## ٨) قياسُ رؤوسِ `F1-10`/`TG-005` من المضيفِ الحيِّ (2026-09-28 · زيادةٌ)
+
+**المرجع**: `ROADMAP-MASTER.md` §F1-10 و§TG-005: «لا نشرَ حيَّ بعدُ» كانَ مانعَ `[x]`. النشرُ الحيُّ صارَ موجوداً بـ`DEC-20`، والرؤوسُ قُيسَت من `https://waslah-miniapp.onrender.com/`:
+
+| الرأسُ | القيمةُ المقروءةُ |
+|---|---|
+| `content-security-policy` | `frame-ancestors https://telegram.org https://*.telegram.org` |
+| `x-content-type-options` | `nosniff` |
+| `strict-transport-security` | `max-age=315360000; includeSubdomains; preload` |
+| `referrer-policy` | `strict-origin-when-cross-origin` |
+| `permissions-policy` | `camera=(), microphone=(), payment=(), usb=()` |
+
+- `GET /ready` → `200 {"status":"ready","missingEnv":[],"failedChecks":[],"degradedChecks":[],"checkDetails":{}}` — البوّابةُ `ready` بلا نقصٍ.
+- `GET /health` → `200 {"status":"ok","uptimeSeconds":21}`.
+
+**ما يُثبِتُ هذا السطرُ**: الرأسَ الذي كانَ «غيرَ قابلٍ للتنفيذِ» في 2026-08-29 لغيابِ مضيفٍ صارَ **منشوراً من مضيفٍ حقيقيٍّ** — شرطُ `[x]` لـ`TG-005`/`F1-10` النصّيُّ («النشرُ الحيُّ») صارَ مستوفًى. **والباقي**: `ح-4` (٣ جولاتٍ خضراءَ متتاليةٍ على `main`) — ٢/٣ بعدَ #311 و#310.
+
+**وما لا يُدَّعى (`ح-5`)**: لا متصفّحَ في CI يُثبِتُ تطبيقَ السياسةِ سلوكيّاً، ولا `report-to`/`report-uri` (مُهمَلٌ بنصِّ `ADR 0043`).
