@@ -9,7 +9,7 @@
 import type { Result } from "../../shared/result/index.ts";
 import { guard, readEnvelope, type Sql } from "../db/client.ts";
 
-/** يعيد true إن رُقّي الحساب الآن، وfalse إن كان مسؤولاً أصلاً أو لم يُسجَّل بعد. */
+/** يعيد true إن رُقّي الحساب أو أُنشئ الآن، وfalse إن كان مسؤولاً أصلاً. */
 export interface BootstrapAdminPort {
   grant(telegramId: string): Promise<Result<boolean, unknown>>;
 }
@@ -17,9 +17,12 @@ export interface BootstrapAdminPort {
 export function createBootstrapAdminPort(sql: Sql): BootstrapAdminPort {
   return {
     grant: (telegramId: string) =>
-      guard("rpc.grant_bootstrap_admin", async (): Promise<boolean> => {
+      // ADR 0212: `provision_bootstrap_admin` لا `grant_bootstrap_admin` — الأولى تُنشئُ
+      // الحسابَ إن غابَ، فلا يتوقّفُ المسؤولُ الأوّلُ على تسجيلٍ يشترطُ مدينةً مفعَّلةً
+      // لا يُفعّلُها إلّا مسؤولٌ. وحين يوجدُ الصفُّ تُنادي هي الثانيةَ بعينِها.
+      guard("rpc.provision_bootstrap_admin", async (): Promise<boolean> => {
         const rows = await sql<{ result: unknown }[]>`
-          select grant_bootstrap_admin(${telegramId}::bigint) as result
+          select provision_bootstrap_admin(${telegramId}::bigint) as result
         `;
         const envelope = readEnvelope(rows[0]?.result);
         // idempotent بالتصميم: تكرار /start لا يكرّر صفّ التدقيق ولا يُعدّ فشلاً
