@@ -33,6 +33,7 @@ import type { SettingsRepository } from "../../packages/application/ports/index.
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import {
   createRedisDriverLocationHotState,
+  pulseQueueMember,
   type RedisDriverLocationHotState,
 } from "../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 import { createSettingsRepository } from "../../packages/infrastructure/policy/settings-repository.ts";
@@ -700,7 +701,7 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       mark("f4-02-hot-ttl-from-settings");
     });
 
-    it("خمسُ نبضاتٍ لسائقٍ تُبقي عضواً واحداً في قائمةِ الانتظارِ — وهذا هوَ التجميعُ", async () => {
+    it("خمسُ نبضاتٍ لسائقٍ تُبقي خمسةَ أعضاءَ — عضواً لكلِّ نبضةٍ (`ADR 0209`)، والصفُّ واحدٌ لا يتضاعفُ", async () => {
       const hot = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 5_000 });
       const city = freshCity();
       const driver = freshDriver();
@@ -711,20 +712,28 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
         expect(outcome.ok && outcome.value.kind).toBe("queued");
       }
 
-      // عضوٌ واحدٌ لا خمسةٌ: صفٌّ لكلِّ نبضةٍ كانَ سيُبقي الحِمْلَ الذي وُجِدَ البندُ لرفعِه.
-      expect(await zcard(city)).toBe(1);
-      expect(await hlen(city)).toBe(1);
+      // عضوٌ لكلِّ نبضةٍ: التجميعُ القديمُ كانَ يُسقِطُ المقبولَ داخلَ دورةِ الإفراغِ
+      // (`D-38`)؛ والصفُّ واحدٌ لكلِّ سائقٍ يُبقى حارسَ التسلسلِ لا يتضاعفُ.
+      expect(await zcard(city)).toBe(5);
+      expect(await hlen(city)).toBe(5);
+
+      // والحارةُ الساخنةُ صفٌّ واحدٌ لا يزالُ: حارسُ التسلسلِ لا يُضاعِفُ أعضاءَهُ.
+      const hotFields = await redis.client.command([
+        "HLEN",
+        `${redis.prefix}:hot:${city}:${driver}`,
+      ]);
+      expect(Number(hotFields.ok ? hotFields.value : -1)).toBe(5);
 
       const score = await redis.client.command([
         "ZSCORE",
         `${redis.prefix}:backlog:${city}`,
-        driver,
+        pulseQueueMember(driver, base + 4_000),
       ]);
       expect(Number(score.ok ? score.value : -1)).toBe(base + 4_000);
-      mark("f4-02-backlog-one-member-per-driver");
+      mark("f4-02-backlog-one-member-per-pulse");
     });
 
-    it("السحبُ يُعيدُ أحدثَ إصلاحةٍ ويُفرِغُ المفتاحَينِ معاً، والسحبُ الثاني فارغٌ", async () => {
+    it("السحبُ يُعيدُ النبضاتِ كلَّها ويُفرِغُ المفتاحَينِ معاً، والسحبُ الثاني فارغٌ", async () => {
       const hot = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 5_000 });
       const city = freshCity();
       const driver = freshDriver();
@@ -736,14 +745,16 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       const drained = await hot.drain(city, 50);
       expect(drained.ok).toBe(true);
       if (!drained.ok) return;
-      expect(drained.value).toHaveLength(1);
-      expect(drained.value[0]?.recordedAtMs).toBe(base + 2_000);
-      expect(drained.value[0]?.latitude).toBe(21.9);
-      expect(drained.value[0]?.driverId).toBe(driver);
+      // النبضتانِ معاً (`D-38`): السحبُ لا يُسقِطُ مقبولاً داخلَ دورتِه.
+      expect(drained.value).toHaveLength(2);
+      expect(drained.value[0]?.recordedAtMs).toBe(base);
+      expect(drained.value[1]?.recordedAtMs).toBe(base + 2_000);
+      expect(drained.value[1]?.latitude).toBe(21.9);
+      expect(drained.value[1]?.driverId).toBe(driver);
       // F4-05: لحظةُ القبولِ تعبُرُ Redis حقيقيّاً وتعودُ **متميّزةً عن**
       // طابعِ الجهازِ. لو سقطَ الحقلُ في الترميزِ لَعادَ `null` فتراجعَت
       // الدالّةُ إلى `now()` لحظةَ الإفراغِ **صامتةً** — وذاكَ العطبُ عينُه.
-      expect(drained.value[0]?.observedAtMs).toBe(base + 2_000 + 1_500);
+      expect(drained.value[1]?.observedAtMs).toBe(base + 2_000 + 1_500);
 
       // السحبُ يُزيلُ العضوَ **وحِمْلَه**: بقاءُ الحِمْلِ كانَ سيُنمِّي مفتاحاً بلا سحبٍ.
       expect(await zcard(city)).toBe(0);
@@ -758,7 +769,7 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
         `${redis.prefix}:hot:${city}:${driver}`,
       ]);
       expect(Number(exists.ok ? exists.value : -1)).toBe(1);
-      mark("f4-02-drain-returns-newest-and-empties");
+      mark("f4-02-drain-returns-every-pulse-and-empties");
     });
 
     it("نسختانِ مستقلّتانِ ترَيانِ حالةً واحدةً — ومعنى «مشتركةٌ» هذا لا غيرُه", async () => {
@@ -783,7 +794,8 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
     });
 
     it("بلوغُ سقفِ التراكمِ يُرجِعُ «مباشرةً» ولا يُنمّي القائمةَ بلا حدٍّ", async () => {
-      // سقفٌ واحدٌ: سائقٌ ثانٍ جديدٌ لا يُضافُ، فيُكتَبُ موضعُه مباشرةً ولا يُفقَدُ.
+      // سقفٌ واحدٌ: نبضةٌ ثانيةٌ لا تُضافُ، فيُكتَبُ موضعُها مباشرةً ولا يُفقَدُ.
+      // والسقفُ الآنَ يَعُدُّ النبضاتِ (`ADR 0209`) لا السائقينَ.
       const hot = hotStateWith({ hot: 120, interval: 10, batch: 200, backlog: 1 });
       const city = freshCity();
       const first = freshDriver();
@@ -799,9 +811,10 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       expect(await zcard(city)).toBe(1);
       expect(await hlen(city)).toBe(1);
 
-      // والسائقُ القائمُ في القائمةِ يبقى مُجمَّعاً: السقفُ على الأعضاءِ لا على النبضاتِ.
+      // ونبضةُ السائقِ القائمِ تُواجهُ السقفَ نفسَهُ: كلُّ نبضةٍ عضوٌ،
+      // فالمباشرُ هنا حكمُ سقفٍ لا فقدٌ — والصفُّ لم يتغيّرْ.
       const heartbeat = await hot.record(fix(city, first, base + 1_000));
-      expect(heartbeat.ok && heartbeat.value.kind).toBe("queued");
+      expect(heartbeat.ok && heartbeat.value.kind).toBe("direct");
       expect(await zcard(city)).toBe(1);
       mark("f4-02-backlog-ceiling-forces-direct");
     });
@@ -821,17 +834,26 @@ describeIf("مخزنُ الجلساتِ على Redis حقيقيٍّ", () => {
       const requeued = await hot.requeue(drained.ok ? drained.value : []);
       expect(requeued.ok).toBe(true);
 
-      const score = await redis.client.command([
+      // العضوُ نبضةٌ (`ADR 0209`): الأقدمُ عادَ بموضعِهِ، والأحدثُ لم يُمسَّ.
+      const older = await redis.client.command([
         "ZSCORE",
         `${redis.prefix}:backlog:${city}`,
-        driver,
+        pulseQueueMember(driver, base),
+      ]);
+      const newer = await redis.client.command([
+        "ZSCORE",
+        `${redis.prefix}:backlog:${city}`,
+        pulseQueueMember(driver, base + 5_000),
       ]);
       // لو كتبَت الإعادةُ بلا شرطٍ لعادَ الموضعُ إلى الوراءِ في قائمةِ الانتظارِ نفسِها.
-      expect(Number(score.ok ? score.value : -1)).toBe(base + 5_000);
+      expect(Number(older.ok ? older.value : -1)).toBe(base);
+      expect(Number(newer.ok ? newer.value : -1)).toBe(base + 5_000);
 
       const after = await hot.drain(city, 50);
-      expect(after.ok && after.value[0]?.recordedAtMs).toBe(base + 5_000);
-      expect(after.ok && after.value[0]?.latitude).toBe(21.8);
+      expect(after.ok && after.value).toHaveLength(2);
+      expect(after.ok && after.value[0]?.recordedAtMs).toBe(base);
+      expect(after.ok && after.value[1]?.recordedAtMs).toBe(base + 5_000);
+      expect(after.ok && after.value[1]?.latitude).toBe(21.8);
       mark("f4-02-requeue-never-moves-backwards");
     });
 

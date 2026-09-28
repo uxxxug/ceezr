@@ -14,11 +14,13 @@
  *       موقعَ سائقِ مدينةٍ أخرى.
  *   (٤) أنَّ الأصنافَ الثلاثةَ (`applied` · `stale` · `missing`) تُحصى في دفعةٍ
  *       مختلطةٍ واحدةٍ حصراً صحيحاً — فالمُشغِّلُ يقرأُ منها صحّةَ الإفراغِ.
- *
+ *   (٥) `D-38` (`ADR 0209`): الأثرُ يُلحِقُ **كلَّ نبضةٍ في الدفعةِ** لسائقٍ قائمٍ في
+ *       المدينةِ — نبضاتُ السائقِ الواحدِ كلُّها تبلغُ الأثرَ، وصفُّ السائقِ على
+ *       الأحدثِ، والنبضةُ الأقدمُ من الصفِّ المخزَّنِ تُلحَقُ أثراً وتُحسَبُ `stale`
+ *       للموضعِ لا للأثرِ.
  * الحالة: اختبار تكامل فعلي — يتطلب TEST_DATABASE_URL.
  * ينتمي إلى: tests/integration
- * ملاحظات مستقبلية: لو صارَ الإفراغُ يكتبُ جدولَ أثرٍ (`driver_location_history`)
- *   فيُضافُ ههنا حصرُ الصفوفِ المُدرَجةِ، لا في اختبارِ وحدةٍ.
+ * ملاحظات مستقبلية: حصرُ صفوفِ الأثرِ المُدرَجةِ صارَ ههنا معَ `D-38` (`ADR 0209`).
  */
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "bun:test";
@@ -105,6 +107,26 @@ async function stored(driver: DriverId = driverId): Promise<Stored> {
   };
 }
 
+/** صفوفُ الأثرِ لسائقٍ — بترتيبِ الطابعِ، للتحققِ من إلحاقِ كلِّ نبضةٍ (`D-38`). */
+async function historyOf(
+  driver: DriverId = driverId,
+): Promise<{ recordedAtMs: number; accuracy: number | null; quality: string; source: string }[]> {
+  const rows = await sql<
+    { recorded: Date; accuracy: number | null; quality: string; source: string }[]
+  >`
+    select recorded_at as recorded, accuracy_m as accuracy, quality, source
+      from driver_location_history
+     where driver_id = ${driver}
+     order by recorded_at asc
+  `;
+  return rows.map((row) => ({
+    recordedAtMs: row.recorded.getTime(),
+    accuracy: row.accuracy,
+    quality: row.quality,
+    source: row.source,
+  }));
+}
+
 /** سائقٌ إضافيٌّ في مدينةٍ مُعيَّنةٍ — للدفعاتِ المختلطةِ وحصرِ المدينةِ. */
 async function seedDriver(telegramId: number, city: CityId = cityId): Promise<DriverId> {
   const users = await sql<{ id: string }[]>`
@@ -170,8 +192,9 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     ]);
     expect(report.ok).toBe(true);
     if (!report.ok) return;
-    // سائقٌ واحدٌ في الدفعةِ فصفٌّ واحدٌ مكتوبٌ لا صفّانِ: التنقيةُ قبلَ الكتابةِ.
-    expect(report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
+    // سائقٌ واحدٌ في الدفعةِ فصفُّ السائقِ واحدٌ (`applied`) — والأثرُ يحملُ
+    // النبضتَينِ كلتيهما (`D-38`): التنقيةُ للصفِّ لا للأثرِ.
+    expect(report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 2 });
 
     const row = await stored();
     expect(row.recordedAtMs).toBe(T2);
@@ -189,11 +212,15 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
       fixOf(driverId, T1, AT_A),
       fixOf(driverId, T2, AT_B),
     ]);
-    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 1 });
+    expect(report.ok && report.value).toEqual({ applied: 1, stale: 0, missing: 0, appended: 2 });
 
     const row = await stored();
     expect(row.recordedAtMs).toBe(T2);
     expect(row.lat).toBeCloseTo(AT_B.latitude, 5);
+    // والأثرُ لا يبالي بترتيبِ الورودِ: النبضتانِ كلتاهما فيهِ (`D-38`).
+    const trace = await historyOf();
+    expect(trace.map((entry) => entry.recordedAtMs)).toEqual([T1, T2]);
+    expect(trace.every((entry) => entry.source === "batch")).toBe(true);
   });
 
   /**
@@ -211,7 +238,9 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
 
     const persistence = createDriverLocationBatchPersistence(sql);
     const report = await persistence.persistBatch(cityId, [fixOf(driverId, T1, AT_A)]);
-    expect(report.ok && report.value).toEqual({ applied: 0, stale: 1, missing: 0, appended: 0 });
+    // `stale` حكمُ **صفِّ السائقِ** لا حكمَ الأثرِ: النبضةُ قُبِلَت عندَ الاستقبالِ
+    // فتُلحَقُ أثراً، والصفُّ لا يتراجعُ (`D-38` · `ADR 0209`).
+    expect(report.ok && report.value).toEqual({ applied: 0, stale: 1, missing: 0, appended: 1 });
 
     const row = await stored();
     expect(row.recordedAtMs).toBe(T3);
@@ -272,7 +301,7 @@ describeIf("الاستمرارُ المجمَّعُ لموقعِ السائقِ 
     ]);
     expect(report.ok).toBe(true);
     if (!report.ok) return;
-    expect(report.value).toEqual({ applied: 1, stale: 1, missing: 1, appended: 1 });
+    expect(report.value).toEqual({ applied: 1, stale: 1, missing: 1, appended: 2 });
 
     expect((await stored(fresh)).recordedAtMs).toBe(T2);
     // والمتأخِّرُ لم يمسَّ صفَّه: صفٌّ واحدٌ معطوبٌ في دفعةٍ لا يُسقِطُ الدفعةَ ولا يُفسِدُ غيرَه.

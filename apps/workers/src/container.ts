@@ -1425,8 +1425,10 @@ export function buildWorkerContainer(
                       });
                       if (!report.ok) throw new Error(JSON.stringify(report.error));
                       const value = report.value;
-                      // `appended` في السطرِ نفسِه بقصدٍ: مساواتُه لـ`applied` هي
-                      // العقدُ (ADR-0074)، وعينٌ تقرأُ السطرَ ترى خرقَه فوراً.
+                      // `appended` في السطرِ نفسِه بقصدٍ: يَعُدُّ صفوفَ الأثرِ
+                      // (النبضاتِ) فيزيدُ على `applied` (السائقينَ) في الدفعةِ
+                      // المتراكمةِ — وهذا هوَ السويُّ بعدَ `D-38` (`ADR 0209`)،
+                      // وعينٌ تقرأُ السطرَ ترى نبضةً مقبولةً لم تبلغِ الأثرَ فوراً.
                       return `drained=${value.drained} batched=${value.batched} applied=${value.applied} stale=${value.stale} missing=${value.missing} appended=${value.appended}`;
                     },
                   };

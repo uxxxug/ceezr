@@ -1157,6 +1157,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "المهامُّ الدوريةُ والقفلُ الموزَّع",
     documentedIn: null,
   },
+  {
+    migration: "20260928080000_d_38_batch_appends_every_accepted_pulse.sql",
+    change: "revoke_function:persist_driver_location_batch(2)",
+    why: "الهجرةُ تُعيدُ تعريفَ `persist_driver_location_batch(uuid, jsonb)` بـ`create or replace` **بالتوقيعِ والمردِّ نفسِهما** لتُلحِقَ الأثرَ من `parsed` كُلِّها لا من فرعِ `written` وحدَه — فنبضاتُ السائقِ الواحدِ تبلغُ `driver_location_history` كلُّها وصفُّ السائقِ للأحدثِ (`D-38` · `ADR 0209`)، وما عدا ذلكَ منقولٌ حرفاً: المُسنَدُ والتنقيةُ (`distinct on`) وحصرُ المدينةِ وزمنُ القبولِ المحمولُ (F4-05). والسحبُ بعدَه إعادةُ قفلِ السطحِ كما كانَ — ممنوحةٌ لـ`service_role` وحدَها قبلُ وبعدُ، فلا تضييقَ فعليَّ. و**لا نشرَ مقروناً في أيِّ الاتجاهَينِ**: النسخةُ القديمةُ من الشيفرةِ تقرأُ المفاتيحَ الخمسةَ كما هيَ (معنَى `appended` وحدهُ تغيّرَ من عدِّ السائقينَ إلى عدِّ صفوفِ الأثرِ — قراءةٌ لا كسرٌ)، والنسخةُ الجديدةُ معَ الدالّةِ القديمةِ تُلحِقُ الأحدثَ وحدَه فلا تعطلًا. والعودةُ إعادةُ تطبيقِ النسخةِ السابقةِ من `20260910200000` وحدَها: يعودُ الأثرُ إلى نقطةٍ واحدةٍ لكلِّ سائقٍ في كلِّ دورةِ إفراغٍ — وهوَ عيبُ D-38 المعروفُ لا عطلٌ جديدٌ، ولا يُفقَدُ صفٌّ ولا يُعطَّلُ إسنادٌ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    documentedIn: null,
+  },
 ];
 
 /**

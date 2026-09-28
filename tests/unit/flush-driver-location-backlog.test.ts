@@ -1,8 +1,9 @@
 /**
  * الغرض: اختبارُ حالةِ استخدامِ الإفراغِ المجمَّعِ (`F4-02`): أنَّ النداءَ **واحدٌ**
- *    لدفعةٍ واحدةٍ مُنقّاةٍ، وأنَّ فشلَ الاستمرارِ **يُعيدُ** ما سُحِبَ فلا يُفقَدُ
- *    موضعٌ، وأنَّ حجمَ الدفعةِ يُقرأُ من الحدودِ لا من ثابتٍ.
- * الحالة: اختبار فعلي — منافذُ مُصطنَعةٌ بلا شبكةٍ ولا قاعدةٍ.
+ *    للدفعةِ كما سُحِبَت لا مُنقّاةً (`D-38` · `ADR 0209`)، وأنَّ فشلَ الاستمرارِ
+ *    **يُعيدُ** ما سُحِبَ كلَّه فلا تُفقَدُ نبضةٌ، وأنَّ حجمَ السحبِ يُقرأُ من الحدودِ
+ *    لا من ثابتٍ.
+ * الحالة: اختبار فعلي — منافذُ مُصطنَعةٌ بلا شبكةٍ ولا قاعدةٍ · حُرِّرَ لِـ`D-38` في 2026-09-28.
  * ينتمي إلى: tests/unit
  * يُتوقع أن يستخدمه لاحقاً: CI
  *
@@ -127,7 +128,7 @@ describe("F4-02 — الإفراغُ المجمَّعُ: النداءُ الوا
     expect(seen.batches).toHaveLength(0);
   });
 
-  it("٢) عشرُ نبضاتٍ لسائقَينِ تُطبَّقُ بنداءٍ **واحدٍ** بصفَّينِ", async () => {
+  it("٢) عشرُ نبضاتٍ لسائقَينِ تُطبَّقُ بنداءٍ **واحدٍ** بالعشرِ كلِّها (`D-38`)", async () => {
     const drained: HotLocationFix[] = [];
     for (let index = 0; index < 5; index += 1) {
       drained.push(fix(DRIVER_A, NOW_MS - index * 1_000));
@@ -140,21 +141,22 @@ describe("F4-02 — الإفراغُ المجمَّعُ: النداءُ الوا
     if (!result.ok) return;
     // هذا هوَ ما يعنيهِ «مجمَّعٌ»: نداءٌ واحدٌ لا عشرةٌ — والقياسُ على العددِ لا على النيّةِ.
     expect(seen.batches).toHaveLength(1);
-    expect(seen.batches[0]).toHaveLength(2);
+    // ولا تنقيةَ بعدَ اليومِ: الدفعةُ كما سُحِبَت — فنبضاتُ السائقِ تبلغُ الأثرَ
+    // كلُّها لا الأحدثُ وحدَه، وصفُّ السائقِ تُطبِّقُه القاعدةُ على الأحدثِ.
+    expect(seen.batches[0]).toHaveLength(10);
     expect(result.value.drained).toBe(10);
-    expect(result.value.batched).toBe(2);
+    expect(result.value.batched).toBe(10);
   });
 
-  it("٣) الدفعةُ المُمرَّرةُ هيَ الأحدثُ لكلِّ سائقٍ ولو وردَ الأقدمُ آخِراً", async () => {
-    const { deps, seen } = harness({
-      drained: [fix(DRIVER_A, NOW_MS, 21.9), fix(DRIVER_A, NOW_MS - 60_000, 21.1)],
-    });
+  it("٣) الدفعةُ المُمرَّرةُ هيَ المسحوبةُ بحرفِها — التنقيةُ للقاعدةِ لا ههنا (`D-38`)", async () => {
+    const drained = [fix(DRIVER_A, NOW_MS, 21.9), fix(DRIVER_A, NOW_MS - 60_000, 21.1)];
+    const { deps, seen } = harness({ drained });
     const result = await flushDriverLocationBacklog(CITY, deps);
 
     expect(result.ok).toBe(true);
-    // لو مُرِّرَ الأقدمُ لتراجعَ موضعُ السائقِ في القاعدةِ — `BUG-001` من بابِ الإفراغِ.
-    expect(seen.batches[0]?.[0]?.recordedAtMs).toBe(NOW_MS);
-    expect(seen.batches[0]?.[0]?.latitude).toBe(21.9);
+    // الأقدمُ يُمرَّرُ كما سُحِبَ: حارسُ التسلسلِ في الدالّةِ الذرّيّةِ هوَ الذي
+    // يُطبِّقُ الأحدثَ في صفِّ السائقِ، لا تنقيةٌ في الشيفرةِ تُسقِطُ الأثرَ.
+    expect(seen.batches[0]).toEqual(drained);
   });
 
   it("٤) حجمُ السحبِ هوَ حدُّ الدفعةِ من الإعداداتِ لا ثابتٌ في الشيفرةِ", async () => {
@@ -178,8 +180,9 @@ describe("F4-02 — الإفراغُ المجمَّعُ: النداءُ الوا
      * وإخفاؤه كانَ سيجعلُ «مُطبَّقٌ أقلُّ من مُدفَعٍ» غموضاً في اللوحةِ.
      */
     /**
-     * `F7-03`: و`appended` يساوي `applied` لا `batched` — ما ردَّه الحارسُ لا
-     * يُلحَقُ أثرُه، وإلاّ لحملَ التاريخُ موضعاً لم يصرْ قطُّ موضعَ السائقِ.
+     * `D-38`/`ADR 0209`: `appended` يَعُدُّ صفوفَ الأثرِ (النبضاتِ) فيزيدُ على
+     * `applied` (السائقينَ) في الدفعةِ المتراكمةِ — وهذا هوَ السويُّ الجديدُ،
+     * والحصيلةُ تُنقَلُ كما ردَّتها القاعدةُ لا تُعادُ حسبتُها ههنا.
      */
     expect(result.value).toEqual({
       drained: 2,
@@ -193,7 +196,7 @@ describe("F4-02 — الإفراغُ المجمَّعُ: النداءُ الوا
 });
 
 describe("F4-02 — الإفراغُ المجمَّعُ: الفشلُ لا يُفقِدُ موضعاً", () => {
-  it("٦) فشلُ الاستمرارِ يُعيدُ الدفعةَ المُنقّاةَ إلى القائمةِ ويُسمّي السببَ", async () => {
+  it("٦) فشلُ الاستمرارِ يُعيدُ الدفعةَ كما سُحِبَت ويُسمّي السببَ", async () => {
     const { deps, seen } = harness({
       drained: [fix(DRIVER_A, NOW_MS), fix(DRIVER_A, NOW_MS - 5_000), fix(DRIVER_B, NOW_MS)],
       persist: "fail",
@@ -203,22 +206,24 @@ describe("F4-02 — الإفراغُ المجمَّعُ: الفشلُ لا يُ�
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.reason).toBe("PERSIST_FAILED");
-    // السحبُ أزالَ الأعضاءَ، فبلا إعادةٍ يُفقَدُ موضعُ سائقَينِ كاملاً.
+    // السحبُ أزالَ الأعضاءَ، فبلا إعادةٍ يُفقَدُ موضعُ سائقَينِ كاملاً — وبلا
+    // إعادةِ **كلِّ** النبضاتِ يُفقَدُ أثرُ السائقِ الأوّلِ القديمُ (`D-38`).
     expect(seen.requeued).toHaveLength(1);
-    expect(seen.requeued[0]).toHaveLength(2);
-    expect(result.error.requeued).toBe(2);
+    expect(seen.requeued[0]).toHaveLength(3);
+    expect(result.error.requeued).toBe(3);
   });
 
-  it("٧) المُعادُ هوَ المُنقّى لا الخامُ: الأقدمُ الذي أُسقِطَ لا يعودُ", async () => {
+  it("٧) المُعادُ هوَ المسحوبُ كلُّه: النبضةُ الأقدمُ تعودُ لتُلحَقَ أثراً (`D-38`)", async () => {
     const { deps, seen } = harness({
       drained: [fix(DRIVER_A, NOW_MS - 60_000, 21.1), fix(DRIVER_A, NOW_MS, 21.9)],
       persist: "fail",
     });
     await flushDriverLocationBacklog(CITY, deps);
 
-    expect(seen.requeued[0]).toHaveLength(1);
-    // إعادةُ الأقدمِ كانت ستُدخِلَ موضعاً متراجعاً إلى قائمةِ الانتظارِ بعدَ كلِّ عطلٍ.
-    expect(seen.requeued[0]?.[0]?.recordedAtMs).toBe(NOW_MS);
+    // لا منتقى بعدَ اليومِ: الأقدمُ يعودُ — حارسُ صفِّ السائقِ في القاعدةِ يردُّه
+    // عن الموضعِ، أمّا أثرُه فمقبولٌ منذُ الاستقبالِ ولا يُفقَدُ بعطلِ إفراغٍ.
+    expect(seen.requeued[0]).toHaveLength(2);
+    expect(seen.requeued[0]?.map((entry) => entry.recordedAtMs)).toEqual([NOW_MS - 60_000, NOW_MS]);
   });
 
   it("٨) فشلُ السحبِ لا يُعيدُ شيئاً ولا يُدَّعى فيه عددٌ", async () => {
