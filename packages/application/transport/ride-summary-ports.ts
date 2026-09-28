@@ -101,6 +101,48 @@ export interface RideSummaryState {
   readonly rating: RideSummaryRatingState;
 }
 
+/**
+ * نقطةُ أثرٍ واحدةٌ كما تُقرأُ من `driver_location_history` — **بلا تفسيرٍ**:
+ * الحكمُ المخزَّنُ (`quality` · `accuracy_m`) والدالّةُ الصرفةُ في النطاقِ تُميِّزانِ.
+ */
+export interface RideTracePoint {
+  readonly recordedAtMs: number;
+  readonly latitude: number;
+  readonly longitude: number;
+  readonly quality: string;
+  readonly accuracyMeters: number | null;
+}
+
+/**
+ * قراءةُ أثرِ رحلةٍ منتهيةٍ — **منفذٌ ضيّقٌ يعيدُ صفوفاً فقط** (`ADR 0208` §٣):
+ * لا حسابَ في القاعدةِ ولا `st_distance` على الأزواجِ؛ الحسابُ في طبقةٍ واحدةٍ
+ * في TypeScript كي تبقى العتبةُ والمسافةُ من مصدرٍ واحدٍ. والنافذةُ تُقرأُ من
+ * `orders` نفسِها (بدءُ الرحلةِ وإتمامُها وسائقُها المُسنَدُ ومدينتُها) فلا
+ * تُبنى على ختمَينِ مرَّا في حمولةٍ قابلةٍ للانحرافِ.
+ *
+ * `gapLimitSeconds` هوَ `driver_location_hot_ttl_seconds` لمدينةِ الرحلةِ —
+ * **`null` خرقُ إعدادٍ مُسمّىً** لا افتراضٌ (`ADR 0208` §٥).
+ */
+export interface RideTraceRead {
+  readonly driverId: string;
+  readonly cityId: string;
+  readonly startedAtMs: number;
+  readonly completedAtMs: number;
+  readonly gapLimitSeconds: number | null;
+  readonly points: readonly RideTracePoint[];
+}
+
+export interface RideTraceReader {
+  read(input: {
+    readonly orderId: string;
+  }): Promise<
+    Result<
+      { readonly found: true; readonly trace: RideTraceRead } | { readonly found: false },
+      RideStoreFailure
+    >
+  >;
+}
+
 export type RideSummaryRefusal = "INVALID_ORDER_ID" | "ORDER_NOT_FOUND";
 
 export type RideSummaryVerdict =

@@ -30,6 +30,7 @@ import {
   sqlTagVocabularies,
   straightLineProblems,
   tagLexiconProblems,
+  travelledTraceProblems,
   unbuiltPathProblems,
   usedKeys,
 } from "../../scripts/lib/ride-summary-contract.ts";
@@ -69,22 +70,29 @@ function dictionary(language: "ar" | "en" | "ur"): Record<string, string> {
     en: "Straight-line distance: {meters} m.",
     ur: "سیدھی لکیر {meters} میٹر۔",
   }[language];
+  const trace = {
+    ar: "مسافةُ الأثرِ المسجَّلِ {meters} متراً.",
+    en: "Recorded trace distance: {meters} m.",
+    ur: "درج شدہ نشان ہوائی مسافت {meters} میٹر۔",
+  }[language];
   return {
     "rider.summary.title": "ملخَّصٌ",
     "rider.summary.straightLine.meters": straight,
+    "rider.summary.travelledTrace.meters": trace,
     "rider.summary.tag.cleanliness": "النظافةُ",
     "rider.summary.tag.politeness": "اللباقةُ",
     "rider.summary.reportProblem": "مشكلةٌ في هذه الرحلةِ",
   };
 }
 
-/** شاشةٌ حقيقيّةُ الاسمِ سليمةٌ: مدخلُ الاستغاثةِ مُركَّبٌ و«الإبلاغُ» مشروطٌ بمُستقبِلٍ. */
+/** شاشةٌ حقيقيّةُ الاسمِ سليمةٌ: مدخلُ الاستغاثةِ مُركَّبٌ و«الإبلاغُ» مشروطٌ بمُستقبِلٍ وسطرُ الأثرِ مُركَّبٌ. */
 const GOOD_SCREEN = `
 readonly onReportProblem?: () => void;
-<SosEntry onOpen={onOpenSos} language={language} />
+<SosEntry onOpenSos={onOpenSos} language={language} />
 {onReportProblem === undefined ? null : (
   <button type="button" onClick={onReportProblem}>{t("${"rider.summary.reportProblem"}")}</button>
 )}
+const traceLine = travelledTraceLine(view.travelledTrace);
 `;
 
 /** موجِّهٌ سليمٌ: الشكوى تحملُ الرحلةَ الملخَّصةَ. */
@@ -408,5 +416,89 @@ describe("القاعدة ٦ — لا دالّةَ بلا نزعِ تنفيذٍ",
   it("هجرةٌ بلا دالّةٍ لا تمرُّ زوراً", () => {
     const problems = functionRevokeProblems(input({ sql: "select 1;" }));
     expect(problems.some((text) => text.includes("لم تُقرأْ دالّةٌ"))).toBe(true);
+  });
+});
+
+describe("القاعدة ٩ — مسافةُ الأثرِ المسجَّلِ تُصرِّحُ بأثرِها (`ADR 0208`)", () => {
+  it("نصٌّ في نطاقِ الأثرِ يحملُ رقمَ مسافةٍ بلا تصريحِ الأثرِ يُسقِطُ الحاجزَ", () => {
+    const problems = travelledTraceProblems(
+      input({
+        translations: {
+          ar: {
+            ...dictionary("ar"),
+            "rider.summary.travelledTrace.meters": "المسافةُ {meters} متراً.",
+          },
+          en: dictionary("en"),
+          ur: dictionary("ur"),
+        },
+      }),
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("rider.summary.travelledTrace.meters");
+  });
+
+  it("الشاشةُ التي لا تركِّبُ سطرَ الأثرِ تُسقِطُ الحاجزَ — لا شِفرةً ميتةً تُحسَبُ إنجازاً", () => {
+    const problems = travelledTraceProblems(
+      input({
+        surface: {
+          "surface.tsx": SCREEN,
+          [SCREEN_FILE]: GOOD_SCREEN.replace("travelledTraceLine", "gone"),
+        },
+      }),
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain(SCREEN_FILE);
+  });
+
+  it("ألفاظُ القطعِ تبقى محظورةً خارجَ نطاقِ الأثرِ — نقلٌ لا حذفٌ", () => {
+    const problems = straightLineProblems(
+      input({
+        translations: {
+          ar: { ...dictionary("ar"), "rider.summary.other": "مسافةٌ مقطوعةٌ {meters} م." },
+          en: dictionary("en"),
+          ur: dictionary("ur"),
+        },
+      }),
+    );
+    expect(problems.some((problem) => problem.includes("مقطوعة"))).toBe(true);
+  });
+
+  it("مفتاحُ مسافةٍ لا يقعُ تحتَ الوترِ ولا الأثرِ يُسقِطُ الحاجزَ", () => {
+    const problems = straightLineProblems(
+      input({
+        view: VIEW + '\nconst bad = "rider.summary.trip.meters";\n',
+      }),
+    );
+    expect(problems.some((problem) => problem.includes("rider.summary.trip.meters"))).toBe(true);
+  });
+
+  it("نطاقُ الأثرِ مسموحٌ لألفاظِ القطعِ (المسارُ مبنيٌّ) — والتصريحُ شرطُه", () => {
+    const problems = straightLineProblems(
+      input({
+        translations: {
+          en: {
+            ...dictionary("en"),
+            "rider.summary.travelledTrace.kilometers": "Distance travelled: {kilometers} km.",
+          },
+          ar: dictionary("ar"),
+          ur: dictionary("ur"),
+        },
+      }),
+    );
+    // لا مشكلةَ من القاعدةِ الثانيةِ: النطاقُ مسموحٌ — والتصريحَ تحكمُهُ التاسعةُ.
+    expect(problems).toEqual([]);
+    const trace = travelledTraceProblems(
+      input({
+        translations: {
+          en: {
+            ...dictionary("en"),
+            "rider.summary.travelledTrace.kilometers": "Distance travelled: {kilometers} km.",
+          },
+          ar: dictionary("ar"),
+          ur: dictionary("ur"),
+        },
+      }),
+    );
+    expect(trace).toHaveLength(1);
   });
 });

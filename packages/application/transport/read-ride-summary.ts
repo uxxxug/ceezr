@@ -39,6 +39,10 @@
  */
 
 import {
+  type TravelledDistance,
+  travelledDistanceFromTrace,
+} from "../../domain/geo/travelled-distance.ts";
+import {
   type RatingEligibility,
   type RideDurationVerdict,
   ratingEligibilityOf,
@@ -46,26 +50,47 @@ import {
   type StraightLineVerdict,
   straightLineVerdict,
 } from "../../domain/transport/ride-summary.ts";
+import { LOCATION_HOT_DAYS } from "../../shared/config/retention-policy.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { MiniAppSessionReader } from "../identity/ports.ts";
 import { type RequestRidePublicErrorCode, rideStoreErrorFrom } from "./request-ride.ts";
+import type { RideStoreFailure } from "./ride-request-ports.ts";
 import type {
   RideSummaryReader,
   RideSummaryRefusal,
   RideSummaryState,
+  RideTraceReader,
 } from "./ride-summary-ports.ts";
 
 export interface ReadRideSummaryDeps {
   readonly sessions: MiniAppSessionReader;
   readonly rides: RideSummaryReader;
   readonly now: () => Date;
+  /**
+   * قارئُ أثرِ الموقعِ للرحلةِ (`ADR 0208`) — اختياريٌّ كسائرَ تبعيّاتِ المسارِ:
+   * غيابُه غيابُ مسافةِ الأثرِ **لا سقوطُ الملخَّصِ كلِّه**. ولا يُقرأُ إلّا بعدَ
+   * نجاحِ قراءةِ الملخَّصِ نفسِه — فالتفويضُ حكمُ الملخَّصِ، والأثرُ تابعٌ لا بابٌ.
+   */
+  readonly trace?: RideTraceReader;
 }
+
+/**
+ * حكمُ مسافةِ الأثرِ المسجَّلِ — **بجانبِ الوترِ لا بدلاً منهُ** (`ADR 0208` §٧):
+ * الوترُ `straightLine` باقٍ بحقلِهِ واسمِهِ، وهذه حقلٌ جديدٌ يُركَّبُ من
+ * الدالّةِ الصرفةِ ومنفذِ القراءةِ الضيّقِ. و`asked: false` صدقٌ: رحلةٌ لم تكتملْ
+ * أو بلا ختمَيْ بدءٍ وإتمامٍ **لا يُسألُ سؤالُ المسافةِ أصلاً** (`§١`) — ولا
+ * يُنشرُ `unmeasured` عن سؤالٍ لم يُسألْ.
+ */
+export type TravelledTraceView =
+  | { readonly asked: false }
+  | { readonly asked: true; readonly verdict: TravelledDistance };
 
 export interface RideSummaryView {
   readonly state: RideSummaryState;
   readonly duration: RideDurationVerdict;
   /** **وترٌ** لا مقطوعٌ — والاسمُ حكمٌ لا تفصيلُ عرضٍ. */
   readonly straightLine: StraightLineVerdict;
+  readonly travelledTrace: TravelledTraceView;
   readonly eligibility: RatingEligibility;
 }
 
@@ -98,17 +123,63 @@ export async function readRideSummary(
   if (!verdict.found) return ok({ found: false, refusal: verdict.refusal });
 
   const { state } = verdict;
+  const traceView = await travelledTraceView(deps, state);
+  if (!traceView.ok) return err(rideStoreErrorFrom(traceView.error));
+  const travelledTrace = traceView.value;
   return ok({
     found: true,
     view: {
       state,
       duration: rideDurationVerdict(state.durationSeconds),
       straightLine: straightLineVerdict(state.straightLineMeters),
+      travelledTrace: travelledTrace,
       eligibility: ratingEligibilityOf({
         status: state.status,
         alreadyRated: state.rating.alreadyRated,
         windowClosed: state.rating.windowClosed,
       }),
     },
+  });
+}
+
+/**
+ * تركيبُ حكمِ مسافةِ الأثرِ المسجَّلِ (`ADR 0208` §١–§٧).
+ *
+ * - **السؤالُ يُسألُ للرحلةِ المكتملةِ ذاتِ الختمَينِ وحدَها** — وما عدا ذلك
+ *   `asked: false` لا `unmeasured`: النافذةُ غيرُ موجودةٍ أصلاً فلا يُدَّعى
+ *   غيابُ أثرٍ عنها.
+ * - **قارئُ الأثرِ غائبٌ** (مسارٌ لم يُوصَلْ) ⇒ السؤالُ لا يُسألُ — لا سقوطَ
+ *   الملخَّصِ كلِّهِ من أجلِ حقلٍ ثانويٍّ، ولا ادّعاءَ قياسٍ بلا قارئٍ.
+ * - **فشلُ قراءةِ الأثرِ** يُرفعُ كما يُرفعُ فشلُ قراءةِ الملخَّصِ: خطأٌ مرئيٌّ
+ *   لا «غيرُ مقيسٍ» صامتٌ — فمن أخطأَ قارئُهُ لا يُنشرُ عن رحلتِهِ حكمُ غيابٍ.
+ * - والقياسُ نفسُهُ في الدالّةِ الصرفةِ في النطاقِ — ههنا التركيبُ وحدَه.
+ */
+async function travelledTraceView(
+  deps: ReadRideSummaryDeps,
+  state: RideSummaryState,
+): Promise<Result<TravelledTraceView, RideStoreFailure>> {
+  const notAsked: TravelledTraceView = { asked: false };
+  if (deps.trace === undefined) return ok(notAsked);
+  if (state.status !== "completed") return ok(notAsked);
+  if (state.startedAtMs === null || state.completedAtMs === null) return ok(notAsked);
+
+  const read = await deps.trace.read({ orderId: state.orderId });
+  if (!read.ok) return read;
+
+  const found = read.value;
+  if (!found.found) return ok(notAsked);
+  const { trace } = found;
+  return ok({
+    asked: true,
+    verdict: travelledDistanceFromTrace({
+      points: trace.points,
+      // النافذةُ من قارئِ الأثرِ (من `orders` نفسِها) لا من حمولةِ الملخَّصِ —
+      // مصدرٌ واحدٌ للختمَينِ، والقارئانِ لا يفترقانِ إلا بعطبٍ يُرى.
+      startedAtMs: trace.startedAtMs,
+      completedAtMs: trace.completedAtMs,
+      gapLimitSeconds: trace.gapLimitSeconds,
+      nowMs: deps.now().getTime(),
+      hotWindowDays: LOCATION_HOT_DAYS,
+    }),
   });
 }

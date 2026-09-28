@@ -99,6 +99,7 @@ import {
   createRideRatingCommand,
   createRideSummaryReader,
 } from "../../../packages/infrastructure/transport/ride-summary-store.ts";
+import { createRideTraceReader } from "../../../packages/infrastructure/transport/ride-trace-store.ts";
 import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
 import {
   MAPLIBRE_CDN_ORIGIN,
@@ -815,6 +816,9 @@ const rides =
             sessionRevocationStore,
           ),
           rides: createRideSummaryReader(container.sql),
+          // مسافةُ الأثرِ المسجَّلِ (`ADR 0208`): منفذُ قراءةٍ ضيّقٌ يعيدُ الصفوفَ
+          // وحدَها، والقياسُ في الدالّةِ الصرفةِ في النطاقِ — طبقةٌ واحدةٌ.
+          trace: createRideTraceReader(container.sql),
           now: () => new Date(),
         },
         rating: {

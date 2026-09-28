@@ -1334,6 +1334,15 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
+/* سطرُ مسافةِ الأثرِ المسجَّلِ — عينُ وزنِ سطرِ الوترِ: رقمانِ ثانويّانِ في
+   الملخَّصِ لا عنوانانِ، ولا يُعطى أحدُهما ثقلاً يُقرأُ مسافةً موثوقةً
+   والآخرُ حاشيةً (`ADR 0208` §٧). */
+.sm__travelled-trace {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--tg-subtitle-text-color);
+}
+
 .sm__no-driver {
   margin: 0;
   font-size: 0.9rem;

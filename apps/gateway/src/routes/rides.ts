@@ -415,7 +415,7 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
     const read = result.value;
     if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
 
-    const { state, duration, straightLine, eligibility } = read.view;
+    const { state, duration, straightLine, travelledTrace, eligibility } = read.view;
     const driver = state.driver;
     const rider = state.rider;
     return c.json({
@@ -442,6 +442,16 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       straightLine: straightLine.known
         ? { known: true as const, meters: straightLine.meters }
         : { known: false as const, reason: straightLine.reason },
+      // مسافةُ الأثرِ المسجَّلِ — **بجانبِ الوترِ لا بدلاً منهُ** (`ADR 0208` §٧):
+      // حقلٌ جديدٌ يُركَّبُ من الدالّةِ الصرفةِ ومنفذِ القراءةِ الضيّقِ، ولا يُمسُّ
+      // حقلُ الوترِ ولا جسمُ `completed_ride_summary`. و`asked:false` صدقٌ: رحلةٌ
+      // لم تكتملْ لا يُسألُ عنها سؤالُ المسافةِ. وغيرُ المقيسِ سببٌ مُسمّىً لا صفرٌ.
+      travelledTrace: travelledTrace.asked
+        ? {
+            asked: true as const,
+            verdict: travelledTrace.verdict,
+          }
+        : { asked: false as const },
       driver:
         driver === null
           ? null

@@ -27,6 +27,7 @@ import {
   summaryErrorKey,
   summaryRefusalKey,
   tagKey,
+  travelledTraceLine,
 } from "../../apps/miniapp/src/surfaces/rider/summary/ride-summary-view.ts";
 
 describe("سطرُ المدّةِ", () => {
@@ -170,5 +171,47 @@ describe("شرطُ قبولِ الإرسالِ في الشاشةِ", () => {
     expect(canSubmitRating({ ...base, comment: "م".repeat(MAX_RATING_COMMENT_LENGTH + 1) })).toBe(
       false,
     );
+  });
+});
+
+describe("سطرُ مسافةِ الأثرِ المسجَّلِ (`ADR 0208`)", () => {
+  it("مفتاحُ النصِّ يُصرِّحُ بالأثرِ المسجَّلِ — كيلومتراً فوقَ الكيلومترِ وأمتاراً دونَهُ", () => {
+    expect(travelledTraceLine({ asked: true, verdict: { kind: "measured", meters: 320 } })).toEqual(
+      {
+        known: true,
+        key: "rider.summary.travelledTrace.meters",
+        meters: 320,
+        kilometers: "0.3",
+      },
+    );
+    expect(
+      travelledTraceLine({ asked: true, verdict: { kind: "measured", meters: 4210 } })?.key,
+    ).toBe("rider.summary.travelledTrace.kilometers");
+  });
+
+  it("غيرُ المقيسِ سببٌ مُسمّىً لا صفرٌ — وكلُّ سببٍ بمفتاحِهِ", () => {
+    expect(
+      travelledTraceLine({ asked: true, verdict: { kind: "unmeasured", reason: "no_history" } }),
+    ).toEqual({
+      known: false,
+      key: "rider.summary.travelledTrace.noHistory",
+    });
+    expect(
+      travelledTraceLine({
+        asked: true,
+        verdict: { kind: "unmeasured", reason: "history_expired" },
+      })?.key,
+    ).toBe("rider.summary.travelledTrace.historyExpired");
+    expect(
+      travelledTraceLine({ asked: true, verdict: { kind: "unmeasured", reason: "gap_exceeded" } })
+        ?.key,
+    ).toBe("rider.summary.travelledTrace.gapExceeded");
+    expect(
+      travelledTraceLine({ asked: true, verdict: { kind: "unmeasured", reason: "strange" } })?.key,
+    ).toBe("rider.summary.travelledTrace.unknown");
+  });
+
+  it("السؤالُ لم يُسألْ ⇒ لا سطرَ أصلًا — لا حكمَ غيابٍ عن سؤالٍ لم يُسألْ", () => {
+    expect(travelledTraceLine({ asked: false })).toBe(null);
   });
 });

@@ -75,6 +75,7 @@ import {
   summaryErrorKey,
   summaryRefusalKey,
   tagKey,
+  travelledTraceLine,
 } from "./ride-summary-view.ts";
 
 export interface RideSummaryScreenProps {
@@ -315,6 +316,7 @@ export function RideSummaryScreen({
   const summaryBody = (view: Found) => {
     const duration = durationLine(view.duration);
     const straight = straightLineLine(view.straightLine);
+    const traceLine = travelledTraceLine(view.travelledTrace);
     const driver = view.driver;
 
     return (
@@ -342,6 +344,19 @@ export function RideSummaryScreen({
                 .replace("{kilometers}", straight.kilometers)
             : t(straight.key)}
         </p>
+
+        {/* مسافةُ الأثرِ المسجَّلِ — **بجانبِ الوترِ**، وبمفتاحٍ يُصرِّحُ
+            بأنَّه أثرٌ مسجَّلٌ، وغيرُ المقيسِ نصٌّ لا صفرٌ. ولا يُرسَمُ السطرُ
+            أصلًا إن لم يُسألِ السؤالُ (رحلةٌ غيرُ مكتملةٍ). */}
+        {traceLine === null ? null : (
+          <p className="sm__travelled-trace">
+            {traceLine.known
+              ? t(traceLine.key)
+                  .replace("{meters}", String(traceLine.meters))
+                  .replace("{kilometers}", traceLine.kilometers)
+              : t(traceLine.key)}
+          </p>
+        )}
 
         {driver === null ? (
           <p className="sm__no-driver">{t("rider.summary.driver.none")}</p>

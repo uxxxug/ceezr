@@ -23,6 +23,8 @@ import type {
   RideRatingRefusal,
   RideSummaryReader,
   RideSummaryState,
+  RideTraceRead,
+  RideTraceReader,
 } from "../../packages/application/transport/ride-summary-ports.ts";
 import {
   createMiniAppSessionIssuer,
@@ -93,6 +95,8 @@ interface HarnessOptions {
   readonly ratingRefusal?: RideRatingRefusal;
   readonly ratingFailure?: RideStoreFailureReason;
   readonly mounted?: boolean;
+  /** أثرُ الموقعِ كما يعيدُه القارئُ (`ADR 0208`) — غيابُه غيابُ القارئِ نفسِهِ. */
+  readonly trace?: RideTraceRead;
 }
 
 function buildHarness(options: HarnessOptions = {}): {
@@ -135,7 +139,20 @@ function buildHarness(options: HarnessOptions = {}): {
       ? { rides: {} }
       : {
           rides: {
-            summary: { sessions, rides: summaryReader, now: () => NOW },
+            summary: {
+              sessions,
+              rides: summaryReader,
+              now: () => NOW,
+              // قارئُ أثرِ الموقعِ (`ADR 0208`): اختياريٌّ كما في التركيبِ الحقيقيِّ —
+              // غيابُه غيابُ مسافةِ الأثرِ لا سقوطُ الملخَّصِ.
+              ...(options.trace === undefined
+                ? {}
+                : {
+                    trace: {
+                      read: async () => ok({ found: true, trace: options.trace as RideTraceRead }),
+                    } satisfies RideTraceReader,
+                  }),
+            },
             rating: { sessions, ratings: ratingCommand, now: () => NOW },
           },
         }),
@@ -446,5 +463,106 @@ describe("التقييمُ — الرفضُ حكماً `200` والعطبُ طل
     );
     expect(broken.status).toBe(503);
     expect(broken.json.ok).toBe(false);
+  });
+});
+
+describe("ملخَّصُ الرحلةِ — مسافةُ الأثرِ المسجَّلِ (`ADR 0208`)", () => {
+  const START = NOW.getTime() - 300_000;
+  const END = NOW.getTime() - 240_000; // رحلةُ دقيقةٍ قُبيلَ «الآنَ» — داخلَ النافذةِ الساخنةِ.
+
+  function trace(over: Partial<RideTraceRead> = {}): RideTraceRead {
+    return {
+      driverId: "d1",
+      cityId: "c1",
+      startedAtMs: START,
+      completedAtMs: END,
+      gapLimitSeconds: 120,
+      points: [
+        {
+          recordedAtMs: START,
+          latitude: 21.4,
+          longitude: 39.8,
+          quality: "ACCEPT",
+          accuracyMeters: 10,
+        },
+        {
+          recordedAtMs: END,
+          latitude: 21.401,
+          longitude: 39.8,
+          quality: "ACCEPT",
+          accuracyMeters: 10,
+        },
+      ],
+      ...over,
+    };
+  }
+
+  it("القياسُ يُنشَرُ بجانبِ الوترِ لا بدلاً منهُ — والحقلانِ معاً في السلكِ", async () => {
+    const harness = buildHarness({ trace: trace() });
+    const { status, json } = await get(harness, `/v1/rides/${ORDER_ID}/summary`, authed());
+    expect(status).toBe(200);
+    // الوترُ باقٍ بحقلِهِ واسمِهِ (`ح-8`) — والمسافةُ الجديدةُ **بجانبِهِ**.
+    expect(json.straightLine).toEqual({ known: true, meters: 4210.5 });
+    const travelled = json.travelledTrace as {
+      asked: boolean;
+      verdict: { kind: string; meters?: number; usablePoints?: number };
+    };
+    expect(travelled.asked).toBe(true);
+    expect(travelled.verdict.kind).toBe("measured");
+    expect(travelled.verdict.meters).toBeGreaterThan(100);
+    expect(travelled.verdict.usablePoints).toBe(2);
+  });
+
+  it("غيرُ المقيسِ سببٌ مُسمّىً لا صفرٌ — الفجوةُ تُسقِطُ الرحلةَ كلَّها", async () => {
+    const harness = buildHarness({
+      trace: trace({
+        completedAtMs: START + 121_000,
+        points: [
+          {
+            recordedAtMs: START,
+            latitude: 21.4,
+            longitude: 39.8,
+            quality: "ACCEPT",
+            accuracyMeters: 10,
+          },
+          {
+            recordedAtMs: START + 121_000,
+            latitude: 21.401,
+            longitude: 39.8,
+            quality: "ACCEPT",
+            accuracyMeters: 10,
+          },
+        ],
+      }),
+    });
+    const { json } = await get(harness, `/v1/rides/${ORDER_ID}/summary`, authed());
+    expect(json.travelledTrace).toEqual({
+      asked: true,
+      verdict: { kind: "unmeasured", reason: "gap_exceeded", largestGapSeconds: 121 },
+    });
+  });
+
+  it("غيابُ سقفِ الفجوةِ من الإعدادِ عطلٌ مُسمّىً لا افتراضٌ (`ADR 0208` §٥)", async () => {
+    const harness = buildHarness({ trace: trace({ gapLimitSeconds: null }) });
+    const { json } = await get(harness, `/v1/rides/${ORDER_ID}/summary`, authed());
+    expect(json.travelledTrace).toEqual({
+      asked: true,
+      verdict: { kind: "unmeasured", reason: "gap_limit_setting_missing" },
+    });
+  });
+
+  it("رحلةٌ غيرُ مكتملةٍ ⇒ السؤالُ لا يُسألُ (`§١`) — `asked:false` لا `unmeasured`", async () => {
+    const harness = buildHarness({
+      state: state({ status: "in_progress", completedAtMs: null, durationSeconds: null }),
+      trace: trace(),
+    });
+    const { json } = await get(harness, `/v1/rides/${ORDER_ID}/summary`, authed());
+    expect(json.travelledTrace).toEqual({ asked: false });
+  });
+
+  it("قارئُ الأثرِ غائبٌ ⇒ لا سطرَ مسافةِ أثرٍ ولا سقوطَ للملخَّصِ", async () => {
+    const { status, json } = await get(buildHarness(), `/v1/rides/${ORDER_ID}/summary`, authed());
+    expect(status).toBe(200);
+    expect(json.travelledTrace).toEqual({ asked: false });
   });
 });

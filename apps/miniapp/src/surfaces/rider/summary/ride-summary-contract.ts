@@ -61,6 +61,30 @@ export type ApiStraightLine =
   | { readonly known: true; readonly meters: number }
   | { readonly known: false; readonly reason: string };
 
+/**
+ * مسافةُ الأثرِ المسجَّلِ (`ADR 0208`) — **بجانبِ الوترِ لا بدلاً منهُ**. والاسمُ
+ * يقولُ مصدرَهُ: أثرٌ مسجَّلٌ (`driver_location_history`) لا طريقٌ مُقدَّرٌ ولا
+ * وترٌ. و`asked:false` صدقٌ: رحلةٌ لم تكتملْ لا يُسألُ عنها السؤالُ. وغيرُ
+ * المقيسِ سببٌ مُسمّىً يُعرَضُ نصّاً — **ولا صفرَ**: «٠ م» تُقرأُ «لم يتحرّكْ»
+ * وهيَ «لم نقِس». و`verdict` نصُّ اتحادِ النطاقِ كما جاءَ من البوّابةِ.
+ */
+export type ApiTravelledTrace =
+  | { readonly asked: false }
+  | { readonly asked: true; readonly verdict: ApiTravelledTraceVerdict };
+
+export type ApiTravelledTraceVerdict =
+  | {
+      readonly kind: "measured";
+      readonly meters: number;
+      readonly usablePoints: number;
+      readonly excluded: {
+        readonly alert: number;
+        readonly coarse: number;
+        readonly noAccuracy: number;
+      };
+    }
+  | { readonly kind: "unmeasured"; readonly reason: string; readonly largestGapSeconds?: number };
+
 export interface ApiRideSummaryRider {
   /** الاسمُ الأوّلُ وحدَه — كما في بطاقةِ السائقِ. */
   readonly firstName: string | null;
@@ -97,6 +121,7 @@ export type RideSummaryResponse =
       readonly completedAt: string | null;
       readonly duration: ApiRideDuration;
       readonly straightLine: ApiStraightLine;
+      readonly travelledTrace: ApiTravelledTrace;
       readonly driver: ApiRideSummaryDriver | null;
       readonly rider: ApiRideSummaryRider | null;
       readonly rating: ApiRideRatingState;

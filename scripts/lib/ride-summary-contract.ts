@@ -38,6 +38,13 @@
  *      والمنحُ ضمنيٌّ، فالنسيانُ هوَ الحالةُ الافتراضيّةُ لا الشاذّةُ.
  *   ٧. **مدخلُ الاستغاثةِ يُركَّبُ** (`PD-020` — زيادةٌ سابقةٌ).
  *   ٨. **«الإبلاغُ عن مشكلةٍ» موصولٌ بالرحلةِ** (`SR-08` · 2026-09-28 — زيادةٌ `ح-8`).
+ *   ٩. **مسافةُ الأثرِ المسجَّلِ تُصرِّحُ بأثرِها** (`ADR 0208` · 2026-09-28 —
+ *      زيادةٌ `ح-8`): بُنيَ القياسُ من `driver_location_history` فصارَ اسمُ
+ *      `travelledTrace` مساراً مبنيّاً. **نقلٌ لا حذف** (عينُ حكمِ `PD-020`):
+ *      ألفاظُ القطعِ (`travelled` · «مقطوعة») تبقى محظورةً في كلِّ نصٍّ ومفتاحٍ
+ *      **إلّا** نطاقَ `rider.summary.travelledTrace.` — وهناكَ يُشترَطُ التصريحُ
+ *      بالأثرِ المسجَّلِ في كلِّ نصٍّ يحملُ رقمَ مسافةٍ، وتركيبُ السطرِ في
+ *      الشاشةِ فعلاً (لا شِفرةً ميتةً تُحسَبُ إنجازاً).
  *
  * ## ما لا يفعلُه عن قصدٍ — وحدودُه مُعلَنةٌ لا مضمرةٌ
  *
@@ -195,6 +202,21 @@ export const STRAIGHT_LINE_MARKERS: Readonly<Record<string, readonly string[]>> 
   ur: ["سیدھی لکیر"],
 };
 
+/** نطاقُ مسافةِ الأثرِ المسجَّلِ — المسموحُ الوحيدُ لألفاظِ القطعِ (`ADR 0208`). */
+export const TRAVELLED_TRACE_KEY_PREFIX = `${KEY_PREFIX}travelledTrace.`;
+
+/**
+ * علامةُ **الأثرِ المسجَّلِ** في كلِّ لغةٍ — نصٌّ في نطاقِ `travelledTrace.`
+ * يحملُ رقمَ مسافةٍ بلا واحدةٍ منها نصٌّ يُقرأُ «مسافةَ طريقٍ» فيُصدَّقُ ما لم
+ * يُقَسْ (`ADR 0208` §٧: «يُسمّى في الواجهةِ مسافةَ الأثرِ المسجَّلِ لا
+ * مسافةَ الطريقِ»).
+ */
+export const TRAVELLED_TRACE_MARKERS: Readonly<Record<string, readonly string[]>> = {
+  ar: ["الأثرِ المسجَّلِ", "الأثر المسجل"],
+  en: ["recorded trace"],
+  ur: ["درج شدہ نشان"],
+};
+
 /** إحلالاتُ المسافةِ — نصٌّ فيه واحدٌ منها نصُّ مسافةٍ يلزمُه التصريحُ. */
 export const DISTANCE_PLACEHOLDERS: readonly string[] = ["{meters}", "{kilometers}"];
 
@@ -303,6 +325,9 @@ export function straightLineProblems(input: RideSummaryContractInput): readonly 
     }
     for (const key of prefixedKeys(dictionary)) {
       const value = dictionary[key] ?? "";
+      // نطاقُ `travelledTrace.` يُصرِّحُ بالأثرِ المسجَّلِ لا بالخطِّ المستقيمِ —
+      // وحدَهُ يَحكُمُه التصريحَ (القاعدةُ التاسعةُ)، فههنا يُستثنى لا يُنسى.
+      if (key.startsWith(TRAVELLED_TRACE_KEY_PREFIX)) continue;
       const carriesDistance = DISTANCE_PLACEHOLDERS.some((token) => value.includes(token));
       // العلامةُ تُقابَلُ **بلا حسابِ حالةِ الحرفِ**: «Straight-line» في صدرِ
       // جملةٍ إنجليزيّةٍ هيَ العلامةُ نفسُها، وحاجزٌ يُسقِطُها لِحرفٍ كبيرٍ
@@ -314,19 +339,31 @@ export function straightLineProblems(input: RideSummaryContractInput): readonly 
             `والقاعدةُ لا تحفظُ أثرَ مسارٍ، فالرقمُ وحدَه ادّعاءٌ.`,
         );
       }
-      problems.push(
-        ...tokenProblems(
-          `${language}:${key}`,
-          value,
-          TRAVELLED_TOKENS,
-          "نصٌّ يُسمّي الوترَ مسافةً مقطوعةً",
-        ),
-      );
+      // نطاقُ `travelledTrace.` مسارٌ مبنيٌّ (`ADR 0208`): ألفاظُ القطعِ فيهِ
+      // مسموحةٌ (وسيُطالِبُه التصريحُ بالأثرِ في القاعدةِ التاسعةِ)، وخارجَهُ
+      // محظورةٌ كما كانت — نقلٌ لا حذفٌ.
+      if (!key.startsWith(TRAVELLED_TRACE_KEY_PREFIX)) {
+        problems.push(
+          ...tokenProblems(
+            `${language}:${key}`,
+            value,
+            TRAVELLED_TOKENS,
+            "نصٌّ يُسمّي الوترَ مسافةً مقطوعةً",
+          ),
+        );
+      }
     }
   }
   for (const [path, source] of Object.entries(input.surface)) {
     problems.push(
-      ...tokenProblems(path, source, TRAVELLED_TOKENS, "شِفرةُ السطحِ تذكرُ قطعَ مسافةٍ لا تُقاسُ"),
+      ...tokenProblems(
+        path,
+        // الاستثناءُ نفسُه في الشِفرةِ: `travelledTrace` معرِّفُ المسارِ المبنيِّ،
+        // فتُمحى مواضعُه قبلَ الفحصِ لا أن يُمحى اللفظُ من المعجمِ.
+        source.replace(/travelled[\s_-]*trace/gi, ""),
+        TRAVELLED_TOKENS,
+        "شِفرةُ السطحِ تذكرُ قطعَ مسافةٍ لا تُقاسُ",
+      ),
     );
   }
   const keys = [...input.view.matchAll(/"(rider\.summary\.[A-Za-z0-9._]+)"/g)].map(
@@ -334,10 +371,15 @@ export function straightLineProblems(input: RideSummaryContractInput): readonly 
   );
   for (const key of keys) {
     if (!/meters|kilometers/i.test(key)) continue;
-    if (!key.startsWith(`${KEY_PREFIX}straightLine.`)) {
+    // نطاقانِ مسموحانِ لمفاتيحِ المسافةِ: الوترُ (تصريحُ الخطِّ المستقيمِ) والأثرُ
+    // المسجَّلُ (تصريحُ الأثرِ — القاعدةُ التاسعةُ) — وكلاهما اسمٌ حاملُ قيدٍ.
+    if (
+      !key.startsWith(`${KEY_PREFIX}straightLine.`) &&
+      !key.startsWith(TRAVELLED_TRACE_KEY_PREFIX)
+    ) {
       problems.push(
-        `${VIEW_FILE}: مفتاحُ مسافةٍ «${key}» لا يقعُ تحتَ «${KEY_PREFIX}straightLine.» — ` +
-          `والاسمُ نفسُه حاملُ القيدِ.`,
+        `${VIEW_FILE}: مفتاحُ مسافةٍ «${key}» لا يقعُ تحتَ «${KEY_PREFIX}straightLine.» ` +
+          `ولا «${TRAVELLED_TRACE_KEY_PREFIX}» — والاسمُ نفسُه حاملُ القيدِ.`,
       );
     }
   }
@@ -569,7 +611,51 @@ export function functionRevokeProblems(input: RideSummaryContractInput): readonl
   return problems;
 }
 
-/** الحكمُ المُجمَّعُ — القواعدُ بترتيبِها (ستٌّ ثمَّ السابعةُ `PD-020` والثامنةُ `SR-08`)، وكلُّ مشكلةٍ بموضعِها وسببِها. */
+/** مِلفُّ الشاشةِ — يُفحَصُ تركيبُ سطرِ الأثرِ فيها (`ADR 0208`). */
+export const TRACE_SCREEN_FILE = "apps/miniapp/src/surfaces/rider/summary/RideSummaryScreen.tsx";
+
+/**
+ * القاعدةُ التاسعةُ (`ADR 0208` · 2026-09-28 · زيادةٌ `ح-8`) — **مسافةُ الأثرِ
+ * المسجَّلِ تُصرِّحُ بأثرِها وترسَمُ فعلاً**.
+ *
+ *   ــ كلُّ نصٍّ في نطاقِ `rider.summary.travelledTrace.` يحملُ رقمَ مسافةٍ
+ *      (`{meters}`/`{kilometers}`) يُصرِّحُ بأنَّه أثرٌ مسجَّلٌ — والرقمُ وحدَهُ
+ *      يُقرأُ «مسافةَ طريقٍ» فيُصدَّقُ ما لم يُقَسْ.
+ *   ــ الشاشةُ تركِّبُ السطرَ فعلاً (`travelledTraceLine` و`travelled.key`):
+ *      حذفُهُ يُسقِطُ البناءَ، فلا تصيرُ شِفرةُ القياسِ ميتةً تُحسَبُ إنجازاً.
+ */
+export function travelledTraceProblems(input: RideSummaryContractInput): readonly string[] {
+  const problems: string[] = [];
+  for (const [language, dictionary] of Object.entries(input.translations)) {
+    const markers = TRAVELLED_TRACE_MARKERS[language];
+    if (markers === undefined) {
+      problems.push(`${language}: لا علامةَ «أثرٍ مسجَّلٍ» مُعلَنةً لهذه اللغةِ — القاعدةُ لا تُقاسُ.`);
+      continue;
+    }
+    for (const key of prefixedKeys(dictionary)) {
+      if (!key.startsWith(TRAVELLED_TRACE_KEY_PREFIX)) continue;
+      const value = dictionary[key] ?? "";
+      if (!DISTANCE_PLACEHOLDERS.some((token) => value.includes(token))) continue;
+      const declares = markers.some((marker) => value.toLowerCase().includes(marker.toLowerCase()));
+      if (!declares) {
+        problems.push(
+          `${language}:${key}: نصٌّ يحملُ رقمَ مسافةٍ في نطاقِ الأثرِ ولا يُصرِّحُ بأنَّه ` +
+            `أثرٌ مسجَّلٌ (ADR 0208 §٧) — والرقمُ وحدَه ادّعاءٌ.`,
+        );
+      }
+    }
+  }
+  const screen = input.surface[TRACE_SCREEN_FILE] ?? "";
+  if (!screen.includes("travelledTraceLine")) {
+    problems.push(
+      `${TRACE_SCREEN_FILE}: الشاشةُ لا تركِّبُ سطرَ مسافةِ الأثرِ المسجَّلِ ` +
+        `(«travelledTraceLine») — مسارٌ مبنيٌّ بلا بابٍ يُرسَمُ (ADR 0208).`,
+    );
+  }
+  return problems;
+}
+
+/** الحكمُ المُجمَّعُ — القواعدُ بترتيبِها (ستٌّ ثمَّ السابعةُ `PD-020` والثامنةُ `SR-08` والتاسعةُ `ADR 0208`)، وكلُّ مشكلةٍ بموضعِها وسببِها. */
 export function rideSummaryContractProblems(input: RideSummaryContractInput): readonly string[] {
   return [
     ...moneyProblems(input),
@@ -580,5 +666,6 @@ export function rideSummaryContractProblems(input: RideSummaryContractInput): re
     ...sosEntryProblems(input),
     ...reportEntryProblems(input),
     ...functionRevokeProblems(input),
+    ...travelledTraceProblems(input),
   ];
 }

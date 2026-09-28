@@ -121,6 +121,67 @@ export function straightLineLine(
   };
 }
 
+/**
+ * سطرُ مسافةِ الأثرِ المسجَّلِ (`ADR 0208` §٧) — **بجانبِ سطرِ الوترِ لا بدلاً
+ * منهُ**، وبمفتاحٍ يُصرِّحُ بأنَّه أثرٌ مسجَّلٌ لا طريقٌ ولا وترٌ. والغيابُ
+ * سببٌ مُسمّىً يُقالُ نصّاً — **ولا صفرَ**. والكيلومترُ بخانةٍ عشريّةٍ واحدةٍ
+ * فوقَ الكيلومترِ والأمتارُ دونَهُ، كالوترِ.
+ */
+export type TravelledTraceLine =
+  | {
+      readonly known: true;
+      readonly key: string;
+      readonly meters: number;
+      readonly kilometers: string;
+    }
+  | { readonly known: false; readonly key: string };
+
+const TRAVELLED_TRACE_MISSING_KEYS: Readonly<Record<string, string>> = {
+  no_history: "rider.summary.travelledTrace.noHistory",
+  insufficient_points: "rider.summary.travelledTrace.insufficientPoints",
+  gap_exceeded: "rider.summary.travelledTrace.gapExceeded",
+  leading_gap: "rider.summary.travelledTrace.leadingGap",
+  trailing_gap: "rider.summary.travelledTrace.trailingGap",
+  history_expired: "rider.summary.travelledTrace.historyExpired",
+  gap_limit_setting_missing: "rider.summary.travelledTrace.settingMissing",
+};
+
+export function travelledTraceLine(
+  trace:
+    | { readonly asked: false }
+    | {
+        readonly asked: true;
+        readonly verdict: {
+          readonly kind: string;
+          readonly reason?: string;
+          readonly meters?: number;
+        };
+      },
+): TravelledTraceLine | null {
+  // السؤالُ لم يُسألْ (رحلةٌ غيرُ مكتملةٍ أو مسارٌ غيرُ موصولٍ) ⇒ لا سطرَ:
+  // لا يُعرَضُ حكمُ غيابٍ عن سؤالٍ لم يُسألْ.
+  if (!trace.asked) return null;
+  const verdict = trace.verdict;
+  if (verdict.kind !== "measured" || verdict.meters === undefined) {
+    const reason = verdict.reason ?? "";
+    return {
+      known: false,
+      key: TRAVELLED_TRACE_MISSING_KEYS[reason] ?? "rider.summary.travelledTrace.unknown",
+    };
+  }
+  const meters = verdict.meters;
+  const safe = Number.isFinite(meters) && meters > 0 ? meters : 0;
+  return {
+    known: true,
+    key:
+      safe >= 1000
+        ? "rider.summary.travelledTrace.kilometers"
+        : "rider.summary.travelledTrace.meters",
+    meters: Math.round(safe),
+    kilometers: (safe / 1000).toFixed(1),
+  };
+}
+
 const ELIGIBILITY_KEYS: Readonly<Record<string, string>> = {
   CAN_RATE: "rider.summary.rating.canRate",
   ALREADY_RATED: "rider.summary.rating.alreadyRated",
