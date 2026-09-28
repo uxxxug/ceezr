@@ -109,7 +109,7 @@ describe("حاجزُ بصمةِ التشغيل — سالباتٌ مزروعةٌ
 
     it("كلُّ الحقولِ الواجبةِ معرُوفةٌ", () => {
       expect(REQUIRED_FIELDS.length).toBe(14);
-      expect(REQUIRED_JOBS.length).toBe(4);
+      expect(REQUIRED_JOBS.length).toBe(5);
     });
   });
 });
