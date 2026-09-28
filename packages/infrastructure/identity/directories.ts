@@ -104,7 +104,9 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
               set full_name = excluded.full_name,
                   phone = excluded.phone,
                   city_id = excluded.city_id,
-                  role = 'driver',
+                  -- ADR 0212: التسجيلُ لا يُنزِلُ مسؤولاً — حسابُ المسؤولِ الأوّلِ يسبقُ
+                  -- تسجيلَه سائقاً الآن، فكانَ يُنزَّلُ ثمَّ يُرقّى بصفِّ تدقيقٍ ثانٍ.
+                  role = case when users.role = 'admin' then users.role else 'driver' end,
                   updated_at = now()
             returning id
           `;
