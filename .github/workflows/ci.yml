@@ -1124,6 +1124,15 @@ jobs:
       - name: سقوطُ حاجزِ صلاحيّةِ النداءِ مقيسٌ بسالبةٍ مزروعةٍ ومنها العطبُ التاريخيُّ (ح-7)
         run: bun test tests/unit/check-runner-command-validity.test.ts
 
+      # F9-01 · OPS-001 · ADR 0206: مخطّطُ staging مُشتقٌّ من render.yaml بفرقٍ مُعلَنٍ مغلقٍ
+      # والحاجزُ يُعيدُ الاشتقاقَ ويُقارنُ بايتاً ببايتٍ — فلا تتباعدُ staging عن الإنتاجِ
+      # بسهوٍ، وكلُّ بعدٍ من OPS-001 مُصنَّفٌ (مُنفَذٌ بالاشتقاقِ أو خارجيٌّ بحاجزٍ قائمٍ).
+      - name: staging مُشتقّةٌ من الإنتاجِ بلا تباعدٍ (F9-01 · OPS-001)
+        run: bun run scripts/check-staging-blueprint.ts
+
+      - name: سقوطُ حاجزِ اشتقاقِ staging مقيسٌ بسالباتٍ مزروعةٍ (ح-7)
+        run: bun test tests/unit/staging-blueprint.test.ts
+
       # F9-04: حتميّةُ بذرةِ القياس — الدوالُّ الصرفةُ تُنتجُ البصمةَ نفسَها.
       - name: حتميّةُ بذرةِ القياس — بصمةٌ ثابتةٌ وUUIDv5 صالح (F9-04)
         run: bun run scripts/check-bench-seed-determinism.ts
