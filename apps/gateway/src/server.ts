@@ -257,7 +257,18 @@ export function createServer(deps: ServerDependencies): Hono {
     app.route("/", createPaymentWebhookRoutes(deps.paymentWebhook));
   }
   if (deps.sessionTelegram !== undefined) {
-    app.route("/", createSessionTelegramRoutes(deps.sessionTelegram));
+    // `ADR 0210`: قراءتا الإقلاعِ تُضمَّنانِ في ردِّ المبادلةِ بتبعيّاتِ مسارَيهما نفسِها — لا
+    // مصدرَ ثانٍ للحقيقةِ. وغيابُ أيٍّ منهما هنا يعني غيابَها من الردِّ لا غيرُ.
+    app.route(
+      "/",
+      createSessionTelegramRoutes({
+        ...deps.sessionTelegram,
+        bootstrap: {
+          ...(deps.me?.viewer === undefined ? {} : { viewer: deps.me.viewer }),
+          ...(deps.consents?.consent === undefined ? {} : { consent: deps.consents.consent }),
+        },
+      }),
+    );
   }
   if (deps.sessionRefresh !== undefined) {
     app.route("/", createSessionRefreshRoutes(deps.sessionRefresh));

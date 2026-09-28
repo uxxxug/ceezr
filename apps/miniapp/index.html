@@ -114,8 +114,9 @@
         }).then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("preboot:" + r.status)); });
         var d = s.then(function (res) {
           var h = { authorization: "Bearer " + res.accessToken };
-          var v = fetch(base + "/v1/me", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
-          var c = fetch(base + "/v1/consents", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+          // `ADR 0210`: الخادمُ يُضمِّنُ القراءتَينِ في ردِّ المبادلةِ فيسقطُ ذهابٌ وإيابٌ؛ وغيابُ إحداهما = نداؤها كما كانَ.
+          var v = res.viewer ? Promise.resolve(res.viewer) : fetch(base + "/v1/me", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+          var c = res.consents ? Promise.resolve(res.consents) : fetch(base + "/v1/consents", { headers: h }).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
           return { viewer: v, consents: c };
         });
         window.__waslahPreboot = {

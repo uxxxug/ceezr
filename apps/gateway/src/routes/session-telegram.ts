@@ -21,9 +21,17 @@
 
 import { type Context, Hono } from "hono";
 import {
+  type ConsentDeps,
+  readConsentStatus,
+} from "../../../../packages/application/consent/record-consent.ts";
+import {
   type ExchangeTelegramSessionDeps,
   exchangeTelegramSession,
 } from "../../../../packages/application/identity/exchange-telegram-session.ts";
+import {
+  type ResolveViewerDeps,
+  resolveViewer,
+} from "../../../../packages/application/identity/resolve-viewer.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 import { readBounded } from "./telegram-webhook.ts";
@@ -45,6 +53,55 @@ export interface SessionTelegramDependencies {
    * مسكوتٌ عنه، وحاجزُ `check-rate-limit-coverage` يطلبُ نصَّ تركيبِه.
    */
   readonly limits?: { readonly perAddress: RateLimiter };
+  /**
+   * `F1-09` · `ADR 0210`: قراءتا الإقلاعِ (`GET /v1/me` · `GET /v1/consents`) تُضمَّنانِ في
+   * ردِّ المبادلةِ **بالرمزِ المُصدَرِ نفسِه وبحالتَي الاستخدامِ نفسَيهما** — فيسقطُ ذهابٌ
+   * وإيابٌ كاملٌ من مسارِ الإقلاعِ (~560 ms على «Slow 4G»). والتضمينُ **إضافةٌ لا بديلٌ**:
+   * كلُّ قراءةٍ تفشلُ تُحذَفُ من الردِّ فيعودُ العميلُ إلى مسارِها المستقلِّ كما كانَ،
+   * ولا تُسقِطُ المبادلةَ أبداً. وغيابُ هذه التبعيّةِ = ردٌّ كما كانَ حرفاً.
+   */
+  readonly bootstrap?: {
+    readonly viewer?: ResolveViewerDeps;
+    readonly consent?: ConsentDeps;
+  };
+}
+
+/**
+ * القراءتانِ متوازيتانِ، وكلٌّ منهما بشكلِ ردِّ مسارِها المستقلِّ حرفاً (`{ ok: true, … }`)
+ * كي يستهلكَه العميلُ بلا فرعٍ جديدٍ. ورميٌ في إحداهما = غيابُها لا فشلُ المبادلةِ.
+ */
+export async function bootstrapReads(
+  bootstrap: SessionTelegramDependencies["bootstrap"],
+  accessToken: string,
+): Promise<Record<string, unknown>> {
+  if (bootstrap === undefined) return {};
+  const viewer =
+    bootstrap.viewer === undefined
+      ? Promise.resolve(undefined)
+      : resolveViewer({ accessToken }, bootstrap.viewer).then(
+          (r) =>
+            r.ok
+              ? {
+                  ok: true,
+                  role: r.value.role,
+                  status: r.value.status,
+                  languageCode: r.value.languageCode,
+                }
+              : undefined,
+          () => undefined,
+        );
+  const consents =
+    bootstrap.consent === undefined
+      ? Promise.resolve(undefined)
+      : readConsentStatus(bootstrap.consent, { accessToken }).then(
+          (r) =>
+            r.ok
+              ? { ok: true, documents: r.value.documents, onboarding: r.value.onboarding }
+              : undefined,
+          () => undefined,
+        );
+  const [v, c] = await Promise.all([viewer, consents]);
+  return { ...(v === undefined ? {} : { viewer: v }), ...(c === undefined ? {} : { consents: c }) };
 }
 
 function rejected(c: Context, error: string, status: 400 | 401 | 413 | 503) {
@@ -121,9 +178,11 @@ export function createSessionTelegramRoutes(deps: SessionTelegramDependencies): 
 
     // الردُّ لا يعيد شيئاً من `initData`، ولا الاسمَ ولا اللغةَ: رمزٌ وانتهاءٌ فقط،
     // ومعرّفُ مستخدمِ تيليجرامَ الذي يعرفه العميلُ عن نفسِه أصلاً.
+    const embedded = await bootstrapReads(deps.bootstrap, result.value.session.accessToken);
     return c.json(
       {
         ok: true,
+        ...embedded,
         accessToken: result.value.session.accessToken,
         tokenType: result.value.session.tokenType,
         expiresAtMs: result.value.session.expiresAtMs,
