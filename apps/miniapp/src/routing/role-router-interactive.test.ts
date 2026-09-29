@@ -45,6 +45,16 @@ describe("D-26: مصدرُ قرارِ العلامةِ التفاعليّةِ ل
     ).toBe("driver");
   });
 
+  it("٤-ب) سطحُ التسجيلِ (`ADR 0213`) ليس سطحاً منتجاً ⇒ null", () => {
+    expect(
+      interactiveSurfaceFromState({
+        kind: "surface",
+        Component: DummySurface,
+        surface: "onboarding",
+      }),
+    ).toBeNull();
+  });
+
   it("٤) سطحٌ منتجٌ (admin) ⇒ اسمُ السطحِ يُعاد كما هو", () => {
     expect(
       interactiveSurfaceFromState({ kind: "surface", Component: DummySurface, surface: "admin" }),

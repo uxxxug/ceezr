@@ -19,7 +19,13 @@
 import type { ViewerView } from "../identity/viewer.ts";
 
 /** الأسطحُ الجذريةُ الموجودةُ اليوم — وليست هي الأدوار. */
-export type Surface = "rider" | "driver" | "admin" | "none";
+export type Surface = "rider" | "driver" | "admin" | "onboarding" | "none";
+
+/**
+ * السطوحُ التي تُحمَّلُ حزمةً. `onboarding` (`ADR 0213`) سطحُ غيرِ المسجَّلِ: كان شاشةَ نظامٍ
+ * تقولُ «سجّل من البوت»، وصارَ سطحاً يسجّلُ فيه الراكبُ نفسَه ويدلُّ السائقَ على بوتِه.
+ */
+export type LoadableSurface = "rider" | "driver" | "admin" | "onboarding";
 
 export type NoSurfaceReason =
   /** لا صفَّ لهذا المستخدمِ في القاعدة: تسجيلُه اليومَ عبرَ البوت. */
@@ -36,7 +42,7 @@ export type NoSurfaceReason =
   | "unavailable";
 
 export type RoleRoute =
-  | { readonly surface: "rider" | "driver" | "admin" }
+  | { readonly surface: LoadableSurface }
   | { readonly surface: "none"; readonly reason: NoSurfaceReason };
 
 /**
@@ -57,7 +63,7 @@ export function routeForViewer(view: ViewerView): RoleRoute {
   }
   if (view.kind === "unavailable") return { surface: "none", reason: "unavailable" };
 
-  if (view.status === "unregistered") return { surface: "none", reason: "unregistered" };
+  if (view.status === "unregistered") return { surface: "onboarding" };
   if (view.role === "rider") return { surface: "rider" };
   if (view.role === "driver") return { surface: "driver" };
   if (view.role === "admin") return { surface: "admin" };
@@ -74,13 +80,14 @@ export interface SurfaceLoaders<TModule> {
   readonly rider: () => Promise<TModule>;
   readonly driver: () => Promise<TModule>;
   readonly admin: () => Promise<TModule>;
+  readonly onboarding: () => Promise<TModule>;
 }
 
 export type SurfaceLoadOutcome<TModule> =
   | { readonly loaded: "none" }
-  | { readonly loaded: "rider" | "driver" | "admin"; readonly module: TModule }
+  | { readonly loaded: LoadableSurface; readonly module: TModule }
   /** فشلُ تحميلِ حزمةٍ يُعلَن فشلاً — ولا يُبدَّل بسطحٍ آخرَ ولا بدورٍ أدنى. */
-  | { readonly loaded: "rider" | "driver" | "admin"; readonly failed: true };
+  | { readonly loaded: LoadableSurface; readonly failed: true };
 
 export async function loadSurface<TModule>(
   route: RoleRoute,

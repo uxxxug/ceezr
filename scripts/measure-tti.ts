@@ -134,6 +134,8 @@ function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     processTopology: "single-process",
     metricsExport: { endpoint: null, headers: {}, intervalSeconds: 15, serviceInstanceId: null },
     telegramTransport: "silent",
+    botSurfaceMode: "legacy",
+    miniAppUrl: null,
     driverBotToken: TEST_BOT_TOKEN,
     riderBotToken: TEST_BOT_TOKEN,
     telegramWebhookSecret: "tti-test-secret",

@@ -142,10 +142,29 @@ export interface Sender {
 
 export type ButtonRow = readonly Button[];
 
-export interface Button {
+export type Button = CallbackButton | WebAppButton;
+
+export interface CallbackButton {
   readonly label: string;
   /** البيانات المرسلة عند الضغط — لأزرار inline فقط. */
   readonly data: string;
+  readonly webAppUrl?: undefined;
+}
+
+/**
+ * زرٌّ يفتحُ التطبيقَ المصغَّرَ على شاشةٍ بعينِها (`ADR 0213`). لا يُرسِلُ إلى البوتِ شيئاً:
+ * الفعلُ كلُّه يجري في التطبيقِ بجلستِه الموقّعةِ، فلا `callback_data` ولا حدَّ الأربعةِ
+ * والستّينَ بايتاً. والرابطُ يُبنى بـ`miniAppUrl` وحدَها (`packages/shared/miniapp-link`).
+ */
+export interface WebAppButton {
+  readonly label: string;
+  readonly webAppUrl: string;
+  /** غائبٌ دائماً: زرُّ التطبيقِ لا يحملُ بياناتِ رجوعٍ إلى البوت. */
+  readonly data?: undefined;
+}
+
+export function isWebAppButton(button: Button): button is WebAppButton {
+  return typeof button.webAppUrl === "string";
 }
 
 export type Keyboard =

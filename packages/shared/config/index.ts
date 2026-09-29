@@ -126,6 +126,14 @@ export interface AppConfig {
    */
   readonly telegramTransport: TelegramTransportName;
   /**
+   * سطحُ البوتِ (`BOT_SURFACE_MODE` — `ADR 0213` · `DEC-22`): `miniapp` يجعلُ البوتَ طبقةَ دخولٍ
+   * وإشعاراتٍ وأوامرَ أساسيّةٍ ويُحيلُ ما سواها إلى التطبيقِ المصغَّرِ؛ و`legacy` يُبقي الحوارَ
+   * القديمَ كاملاً — وهو مسارُ الرجوعِ بتغييرِ متغيّرٍ لا بنشرِ كودٍ.
+   */
+  readonly botSurfaceMode: BotSurfaceModeName;
+  /** أصلُ التطبيقِ المصغَّرِ (`MINIAPP_URL`) — `https` حتماً؛ لازمٌ حين `botSurfaceMode = miniapp`. */
+  readonly miniAppUrl: string | null;
+  /**
    * هل تُشغَّل المهامّ الدورية داخل عملية البوابة نفسها.
    *
    * الأصل أن العامل خدمةٌ مستقلّة (`render.yaml` قسم `waslah-worker`)، وهو الأنظف:
@@ -313,6 +321,15 @@ export type ProcessTopologyName = (typeof PROCESS_TOPOLOGY_NAMES)[number];
 export const TELEGRAM_TRANSPORT_NAMES = ["real", "silent"] as const;
 
 export type TelegramTransportName = (typeof TELEGRAM_TRANSPORT_NAMES)[number];
+
+/**
+ * أوضاعُ سطحِ البوتِ (`ADR 0213`). الافتراضُ عند الغيابِ `legacy`: بيئةٌ لا تعرفُ أصلَ التطبيقِ
+ * لا تستطيعُ أن تبنيَ زرَّه، فالافتراضُ الآمنُ هو السلوكُ الذي لا يحتاجُه. والإنتاجُ يُعلِنُ
+ * `miniapp` صراحةً في `render.yaml`.
+ */
+export const BOT_SURFACE_MODE_NAMES = ["legacy", "miniapp"] as const;
+
+export type BotSurfaceModeName = (typeof BOT_SURFACE_MODE_NAMES)[number];
 
 /**
  * مزوّدات عرض الخريطة المدعومة. `none` اختيارٌ صريح: «اعمل بلا خريطة».
@@ -786,6 +803,39 @@ export function tryLoadConfig(
     );
   }
 
+  const rawBotSurfaceMode = (source.BOT_SURFACE_MODE ?? "legacy").trim().toLowerCase();
+  if (!(BOT_SURFACE_MODE_NAMES as readonly string[]).includes(rawBotSurfaceMode)) {
+    return err(
+      new InvalidEnvVarError(
+        "BOT_SURFACE_MODE",
+        `المتاح: ${BOT_SURFACE_MODE_NAMES.join(", ")} — وردت: ${rawBotSurfaceMode}`,
+      ),
+    );
+  }
+  let miniAppUrl: string | null = null;
+  if (!isBlank(source.MINIAPP_URL)) {
+    const rawMiniAppUrl = (source.MINIAPP_URL as string).trim();
+    let parsedMiniAppUrl: URL | null = null;
+    try {
+      parsedMiniAppUrl = new URL(rawMiniAppUrl);
+    } catch {
+      parsedMiniAppUrl = null;
+    }
+    // تيليجرامُ يرفضُ زرَّ `web_app` بغيرِ `https`، ورفضُه يُسقِطُ الرسالةَ كلَّها لا الزرَّ.
+    if (parsedMiniAppUrl === null || parsedMiniAppUrl.protocol !== "https:") {
+      return err(new InvalidEnvVarError("MINIAPP_URL", "يجب أن يكون رابط https صالحاً"));
+    }
+    miniAppUrl = parsedMiniAppUrl.toString();
+  }
+  if (rawBotSurfaceMode === "miniapp" && miniAppUrl === null) {
+    return err(
+      new InvalidEnvVarError(
+        "MINIAPP_URL",
+        "مطلوبٌ حين BOT_SURFACE_MODE=miniapp: البوتُ يُحيلُ إلى تطبيقٍ لا يعرفُ عنوانَه",
+      ),
+    );
+  }
+
   /**
    * `RUN_WORKER_IN_GATEWAY` في الإنتاج: **إعلانٌ إلزاميٌّ صريحٌ لا افتراضٌ** —
    * `F5-04` / `SCL-007` · ADR 0063.
@@ -1093,6 +1143,8 @@ export function tryLoadConfig(
     sessionStore: rawSessionStore as SessionStoreName,
     processTopology: rawProcessTopology as ProcessTopologyName,
     telegramTransport: rawTelegramTransport as TelegramTransportName,
+    botSurfaceMode: rawBotSurfaceMode as BotSurfaceModeName,
+    miniAppUrl,
     // الافتراض `true` لا `false`، وهذا قلبٌ متعمّد للافتراض القديم. وجها الخطأ ليسا
     // متكافئين: خطأ `true` مع وجود خدمة `waslah-worker` يعني أن القفل الموزّع يجعل
     // إحداهما تتخطّى بحالة `skipped_locked_elsewhere` — أي لا أذى؛ وخطأ `false` بلا تلك

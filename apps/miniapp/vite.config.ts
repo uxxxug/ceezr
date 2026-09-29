@@ -138,6 +138,11 @@ export default defineConfig({
               name: "admin",
               test: /\/src\/surfaces\/admin\//,
             },
+            /** `ADR 0213`: سطحُ التسجيلِ — لا يُنزَّلُ لمسجَّلٍ أبداً. */
+            {
+              name: "onboarding",
+              test: /\/src\/surfaces\/onboarding\//,
+            },
             {
               name: "vendor-react",
               test: /[\\/]node_modules[\\/]react(?:-dom)?[\\/]/,

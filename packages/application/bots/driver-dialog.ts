@@ -45,6 +45,7 @@ import type {
   OrderId,
   ServiceType,
 } from "../../shared/kernel/index.ts";
+import { miniAppUrl } from "../../shared/miniapp-link/index.ts";
 import { ok } from "../../shared/result/index.ts";
 import {
   type RegisterUnsubscribedClaimDependencies,
@@ -292,6 +293,11 @@ export interface DriverBotDependencies {
   readonly acceptNotice?: {
     readonly counterpart: CounterpartNotifier;
     readonly links?: IssueTrackingTokenDeps;
+    /**
+     * `ADR 0213`: أصلُ التطبيقِ المصغَّرِ — حين يُعطى يحملُ إخطارُ القبولِ زرَّ `web_app`
+     * يفتحُ الرحلةَ نفسَها (`ride_<orderId>`) في تطبيقِ الراكبِ: المتابعةُ هناك لا في المحادثةِ.
+     */
+    readonly miniAppUrl?: string | null;
   };
   /** SOS: فتح من السائق وقرارات قروب الإسناد من بوت السائق الذي نشر البطاقة. */
   readonly safety?: {
@@ -2324,7 +2330,25 @@ async function notifyRiderOfAcceptance(
    * آخر كان سيُري السائق «سبقك أحدهم» عن رحلةٍ صارت رحلته. اختبارٌ فعليّ أوقع هذا.
    */
   try {
-    await notice.counterpart.notify(rider.telegramId, full, null);
+    const followInApp: Keyboard | null =
+      notice.miniAppUrl === undefined || notice.miniAppUrl === null
+        ? null
+        : {
+            kind: "inline",
+            rows: [
+              [
+                {
+                  label: tr("miniapp.ride_button"),
+                  webAppUrl: miniAppUrl(notice.miniAppUrl, {
+                    audience: "rider",
+                    screen: "ride",
+                    id: String(orderId),
+                  }),
+                },
+              ],
+            ],
+          };
+    await notice.counterpart.notify(rider.telegramId, full, followInApp);
   } catch {
     // لا سبيلَ للتراجع ولا داعي: الإسنادُ نهائيّ، والراكب سيرى الحالة بـ`/status`.
   }

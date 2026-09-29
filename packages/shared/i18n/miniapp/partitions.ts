@@ -16,6 +16,8 @@ export const ARABIC_DEFERRED_PARTITIONS = {
   account: ["rider.account."],
   support: ["rider.support."],
   "rider-history": ["rider.history.", "rider.notifications."],
+  // `ADR 0213`: سطحُ غيرِ المسجَّلِ — لا يحتاجُه المسجَّلُ أبداً، فلا يُحمَّلُ في النواةِ.
+  onboarding: ["onboarding."],
 } as const satisfies Readonly<Record<string, readonly string[]>>;
 
 export type ArabicDeferredPartition = keyof typeof ARABIC_DEFERRED_PARTITIONS;

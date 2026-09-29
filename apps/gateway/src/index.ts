@@ -38,7 +38,11 @@ import {
   createPaymentRepository,
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/index.ts";
-import { createDriverDirectory } from "../../../packages/infrastructure/identity/directories.ts";
+import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
+import {
+  createDriverDirectory,
+  createRiderDirectory,
+} from "../../../packages/infrastructure/identity/directories.ts";
 import { createMemoryInitDataReplayGuard } from "../../../packages/infrastructure/identity/memory-init-data-replay-guard.ts";
 import { createMemorySessionRevocationStore } from "../../../packages/infrastructure/identity/memory-session-revocation-store.ts";
 import { createMiniAppRefreshTokens } from "../../../packages/infrastructure/identity/miniapp-refresh.ts";
@@ -590,6 +594,23 @@ const me =
           log,
         },
         languageWriter: createViewerAccountLanguageWriter(container.sql),
+        log,
+      };
+
+/**
+ * تسجيلُ الراكبِ من التطبيقِ المصغَّرِ (`ADR 0213`) — **نفسُ** مصادقةِ `me` ونفسُ منفذَي
+ * التسجيلِ اللذَين يستعملُهما حوارُ البوتِ؛ فلا قاعدةَ تسجيلٍ ثانيةٌ تتباعد.
+ */
+const onboarding =
+  me === undefined
+    ? undefined
+    : {
+        onboarding: {
+          viewer: me.viewer,
+          riders: createRiderDirectory(container.sql),
+          cities: createCityDirectory(container.sql),
+          log,
+        },
         log,
       };
 
@@ -1311,6 +1332,7 @@ const app = createServer({
   ...(sessionTelegram === undefined ? {} : { sessionTelegram }),
   ...(sessionRefresh === undefined ? {} : { sessionRefresh }),
   ...(me === undefined ? {} : { me }),
+  ...(onboarding === undefined ? {} : { onboarding }),
   ...(consents === undefined ? {} : { consents }),
   ...(places === undefined ? {} : { places }),
   ...(destinations === undefined ? {} : { destinations }),
@@ -1565,7 +1587,10 @@ for (const [audience, token] of [
   ["driver", config.driverBotToken],
   ["rider", config.riderBotToken],
 ] as const) {
-  void registerBotCommands(audience, grammyCommandRegistrar(token))
+  void registerBotCommands(audience, grammyCommandRegistrar(token), {
+    mode: config.botSurfaceMode,
+    miniAppUrl: config.miniAppUrl,
+  })
     .then(() => log("bot_commands.registered", { audience }))
     .catch((cause: unknown) => {
       const detail = cause instanceof Error ? cause.message : String(cause);

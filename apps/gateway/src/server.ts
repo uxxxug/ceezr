@@ -62,6 +62,7 @@ import {
   createNotificationRoutes,
   type NotificationsDependencies,
 } from "./routes/notifications.ts";
+import { createOnboardingRoutes, type OnboardingRouteDependencies } from "./routes/onboarding.ts";
 import {
   createPaymentWebhookRoutes,
   type PaymentWebhookDependencies,
@@ -105,6 +106,8 @@ export interface ServerDependencies {
    * غيابُه هنا = لا مسار (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَن (`503`).
    */
   readonly me?: MeDependencies;
+  /** تسجيلُ الراكبِ من التطبيقِ المصغَّرِ (`ADR 0213`). */
+  readonly onboarding?: OnboardingRouteDependencies;
   /**
    * مسارا الموافقاتِ (`F2-01`) — اختياريّانِ بنفسِ المنطقِ: غيابُهما هنا = لا
    * مسارَ (`404`)، وحضورُهما بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`). ولا يُركَّبانِ
@@ -275,6 +278,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.me !== undefined) {
     app.route("/", createMeRoutes(deps.me));
+  }
+  if (deps.onboarding !== undefined) {
+    app.route("/", createOnboardingRoutes(deps.onboarding));
   }
   if (deps.consents !== undefined) {
     app.route("/", createConsentRoutes(deps.consents));
