@@ -986,6 +986,13 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
+/* خطأُ تحقُّقِ وصفِ الطردِ — يُعرَضُ عندَ الضغطِ على «اطلُبْ» بلا وصفٍ صالحٍ. */
+.qt__notes-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--tg-destructive-text-color);
+}
+
 .rs {
   display: flex;
   flex-direction: column;
