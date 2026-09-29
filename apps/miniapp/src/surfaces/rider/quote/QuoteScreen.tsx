@@ -83,7 +83,6 @@ import { type QuoteRideResponse, quoteRide as quoteViaApi } from "./quote-api.ts
 import {
   distanceLine,
   durationLine,
-  hasDeliveryService,
   isRetryableQuoteError,
   parcelValidationError,
   quoteErrorKey,
@@ -460,23 +459,23 @@ export function QuoteScreen({
          * الفارغَ والبوّابةُ تحرسُ إن تُخطِّيَ.
          */}
         <section className="qt__request" aria-label={t("rider.quote.request.section")}>
+          {/*
+           * ## حقلٌ محايدٌ لا سياقيٌّ
+           *
+           * الحقلُ واحدٌ لكلِّ الخدماتِ — لا يُغيِّرُ تسميتَهُ أو حدَّهُ لمجرَّدِ
+           * أنَّ التوصيلَ متاحٌ. فالراكبُ الذي يطلُبُ النقلَ لا ينبغي أن يرى
+           * «وصفَ الطردِ» لمجرَّدِ أنَّ التوصيلَ معروضاً. والتحقُّقُ يقعُ عندَ
+           * الضغطِ على بطاقةِ التوصيلِ وحدَها — لا على بطاقةِ النقلِ.
+           */}
           <label className="qt__notes-label" htmlFor="qt-notes">
-            {t(
-              hasDeliveryService(response.services)
-                ? "rider.quote.parcel.label"
-                : "rider.quote.notes.label",
-            )}
+            {t("rider.quote.notes.neutral.label")}
           </label>
           <textarea
             id="qt-notes"
             className="qt__notes"
             value={notes}
-            maxLength={hasDeliveryService(response.services) ? 200 : RIDE_NOTES_MAX_LENGTH}
-            placeholder={t(
-              hasDeliveryService(response.services)
-                ? "rider.quote.parcel.placeholder"
-                : "rider.quote.notes.placeholder",
-            )}
+            maxLength={RIDE_NOTES_MAX_LENGTH}
+            placeholder={t("rider.quote.notes.placeholder")}
             onChange={(event) => {
               setNotes(event.target.value);
               if (parcelError !== null) setParcelError(null);
@@ -484,16 +483,9 @@ export function QuoteScreen({
           />
           {/* الحدُّ يُعرَضُ عدداً لا يُخفى: حقلٌ يقطعُ الكتابةَ صامتاً يُقرأُ عطباً. */}
           <p className="qt__notes-hint">
-            {t(
-              hasDeliveryService(response.services)
-                ? "rider.quote.parcel.limit"
-                : "rider.quote.notes.limit",
-            )
+            {t("rider.quote.notes.limit")
               .replace("{used}", String(notes.trim().length))
-              .replace(
-                "{max}",
-                String(hasDeliveryService(response.services) ? 200 : RIDE_NOTES_MAX_LENGTH),
-              )}
+              .replace("{max}", String(RIDE_NOTES_MAX_LENGTH))}
           </p>
           {parcelError !== null && (
             <p className="qt__notes-error" role="alert">

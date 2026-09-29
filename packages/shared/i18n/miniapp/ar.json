@@ -944,6 +944,7 @@
   "rider.quote.measures": "القياساتُ",
   "rider.quote.next.notBuilt": "طلبُ الرحلةِ لم يُبنَ بعدُ؛ هذا اقتباسٌ لا طلبٌ.",
   "rider.quote.notes.label": "ملاحظةٌ للسائقِ (اختياريّةٌ)",
+  "rider.quote.notes.neutral.label": "ملاحظاتُ الطلبِ",
   "rider.quote.notes.limit": "{used} من {max} محرفاً",
   "rider.quote.notes.placeholder": "مثالٌ: أنا عندَ البوّابةِ الخلفيّةِ.",
   "rider.quote.parcel.label": "وصفُ الطردِ (إلزاميٌّ للتوصيلِ)",

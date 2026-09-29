@@ -39,8 +39,13 @@ export interface ServiceRequestInput {
  * وما سواه → `POST /v1/rides` كما كان.
  *
  * في التوصيلِ، تُستعمَلُ `notes` كوصفٍ للطردِ. والتحقُّقُ من الطولِ يقعُ في البوّابة.
+ *
+ * `apiFetch` يُحقنُ اختياريّاً للإختبارِ — وافتراضُهُ `apiFetch` الحقيقيُّ.
  */
-export function requestByService(input: ServiceRequestInput): Promise<RequestRideResponse> {
+export function requestByService(
+  input: ServiceRequestInput,
+  fetchFn?: ApiFetchFn,
+): Promise<RequestRideResponse> {
   if (input.service === "delivery") {
     const deliveryInput: RequestDeliveryInput = {
       idempotencyKey: input.idempotencyKey,
@@ -50,7 +55,7 @@ export function requestByService(input: ServiceRequestInput): Promise<RequestRid
       destinationLng: input.destinationLng,
       parcelDescription: input.notes ?? "",
     };
-    return requestDelivery(deliveryInput, apiFetch as unknown as ApiFetchFn);
+    return requestDelivery(deliveryInput, fetchFn ?? (apiFetch as unknown as ApiFetchFn));
   }
   return requestRide(input);
 }
