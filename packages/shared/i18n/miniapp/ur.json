@@ -944,6 +944,7 @@
   "rider.quote.measures": "پیمائشیں",
   "rider.quote.next.notBuilt": "سفر کی درخواست ابھی نہیں بنی؛ یہ صرف اندازہ ہے، درخواست نہیں۔",
   "rider.quote.notes.label": "ڈرائیور کے لیے نوٹ (اختیاری)",
+  "rider.quote.notes.neutral.label": "آرڈر نوٹس",
   "rider.quote.notes.limit": "{max} میں سے {used} حروف",
   "rider.quote.notes.placeholder": "مثلاً: میں پچھلے دروازے پر ہوں۔",
   "rider.quote.parcel.label": "پارسل کی وضاحت (ڈیلیوری کے لیے ضروری)",

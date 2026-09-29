@@ -944,6 +944,7 @@
   "rider.quote.measures": "Measurements",
   "rider.quote.next.notBuilt": "Requesting the ride is not built yet; this is a quote, not a request.",
   "rider.quote.notes.label": "Note for the driver (optional)",
+  "rider.quote.notes.neutral.label": "Order notes",
   "rider.quote.notes.limit": "{used} of {max} characters",
   "rider.quote.notes.placeholder": "For example: I am at the back gate.",
   "rider.quote.parcel.label": "Parcel description (required for delivery)",
