@@ -83,7 +83,9 @@ import { type QuoteRideResponse, quoteRide as quoteViaApi } from "./quote-api.ts
 import {
   distanceLine,
   durationLine,
+  hasDeliveryService,
   isRetryableQuoteError,
+  parcelValidationError,
   quoteErrorKey,
   quoteRefusalKey,
   refusalRemedy,
@@ -200,6 +202,8 @@ export function QuoteScreen({
   const [system, setSystem] = useState<SystemState>(null);
   /** ملاحظةُ السائقِ — نصٌّ خامٌّ يُشذَّبُ عندَ التسليمِ لا عندَ كلِّ محرفٍ. */
   const [notes, setNotes] = useState("");
+  /** خطأُ تحقُّقِ وصفِ الطردِ — يُعرَضُ عندَ الضغطِ على «اطلُبْ» للتوصيلِ. */
+  const [parcelError, setParcelError] = useState<string | null>(null);
   const mounted = useRef(true);
   /** ردٌّ متأخِّرٌ لسؤالٍ قديمٍ **يُطرَحُ** ولا يُعرَضُ (عينُ حكمِ `SR-03`). */
   const issued = useRef(0);
@@ -409,7 +413,16 @@ export function QuoteScreen({
                   <button
                     type="button"
                     className="qt__card-request"
-                    onClick={() =>
+                    onClick={() => {
+                      // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ.
+                      if (card.service === "delivery") {
+                        const error = parcelValidationError(notes);
+                        if (error !== null) {
+                          setParcelError(error.errorKey);
+                          return;
+                        }
+                      }
+                      setParcelError(null);
                       onRequest({
                         service: card.service,
                         originLat: origin.lat,
@@ -420,8 +433,8 @@ export function QuoteScreen({
                         notes: noteValue,
                         // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
                         idempotencyKey: newIdempotencyKey(),
-                      })
-                    }
+                      });
+                    }}
                   >
                     {t("rider.quote.request")}
                   </button>
@@ -438,24 +451,55 @@ export function QuoteScreen({
          * الطلبُ، فلم يَعُدْ يُرسَمُ: عرضُ نصٍّ نُقِضَ كذبٌ، وحذفُه من القاموسِ
          * محوُ أثرٍ.
          */}
+        {/*
+         * ## حقلُ الملاحظاتِ / وصفِ الطردِ
+         *
+         * حينَ التوصيلُ متاحٌ، صارَ هذا الحقلُ وصفَ طردٍ إلزاميّاً لا ملاحظةً
+         * اختياريّةً: اللاصقُ والوسمُ والمثالُ والحدُّ كلُّها تتغيَّرُ. والتحقُّقُ
+         * يقعُ في العميلِ قبلَ الإرسالِ وفي البوّابةِ بعده — فالعميلُ يمنعُ الضغطَ
+         * الفارغَ والبوّابةُ تحرسُ إن تُخطِّيَ.
+         */}
         <section className="qt__request" aria-label={t("rider.quote.request.section")}>
           <label className="qt__notes-label" htmlFor="qt-notes">
-            {t("rider.quote.notes.label")}
+            {t(
+              hasDeliveryService(response.services)
+                ? "rider.quote.parcel.label"
+                : "rider.quote.notes.label",
+            )}
           </label>
           <textarea
             id="qt-notes"
             className="qt__notes"
             value={notes}
-            maxLength={RIDE_NOTES_MAX_LENGTH}
-            placeholder={t("rider.quote.notes.placeholder")}
-            onChange={(event) => setNotes(event.target.value)}
+            maxLength={hasDeliveryService(response.services) ? 200 : RIDE_NOTES_MAX_LENGTH}
+            placeholder={t(
+              hasDeliveryService(response.services)
+                ? "rider.quote.parcel.placeholder"
+                : "rider.quote.notes.placeholder",
+            )}
+            onChange={(event) => {
+              setNotes(event.target.value);
+              if (parcelError !== null) setParcelError(null);
+            }}
           />
           {/* الحدُّ يُعرَضُ عدداً لا يُخفى: حقلٌ يقطعُ الكتابةَ صامتاً يُقرأُ عطباً. */}
           <p className="qt__notes-hint">
-            {t("rider.quote.notes.limit")
+            {t(
+              hasDeliveryService(response.services)
+                ? "rider.quote.parcel.limit"
+                : "rider.quote.notes.limit",
+            )
               .replace("{used}", String(notes.trim().length))
-              .replace("{max}", String(RIDE_NOTES_MAX_LENGTH))}
+              .replace(
+                "{max}",
+                String(hasDeliveryService(response.services) ? 200 : RIDE_NOTES_MAX_LENGTH),
+              )}
           </p>
+          {parcelError !== null && (
+            <p className="qt__notes-error" role="alert">
+              {t(parcelError)}
+            </p>
+          )}
         </section>
       </div>
     );

@@ -37,6 +37,33 @@ import {
 } from "../../../../../../packages/domain/quote/service-offer.ts";
 import type { ApiEtaVerdict, ApiServiceOffer, ApiTaggedDistance } from "./quote-contract.ts";
 
+/**
+ * هل التوصيلُ من الخدماتِ المتاحةِ في هذا الاقتباسِ؟ — إن حضرَ، صارَ حقلُ
+ * الملاحظاتِ وصفَ طردٍ إلزاميّاً.
+ */
+export function hasDeliveryService(offers: readonly ApiServiceOffer[]): boolean {
+  return offers.some((o) => o.service === "delivery" && o.available);
+}
+
+/**
+ * نتيجةُ تحقُّقِ وصفِ الطردِ — مفتاحُ خطأٍ أو `null` إن صحَّ.
+ */
+export type ParcelValidationResult = { readonly errorKey: string } | null;
+
+/**
+ * يُتحقَّقُ من وصفِ الطردِ في العميلِ قبلَ الإرسالِ — نفسُ قواعدِ النطاقِ:
+ * فراغٌ، أوامرُ بوتٍ، طولٌ خارجَ ٣–٢٠٠. ولا يُكرَّرُ منطقُ النطاقِ حرفاً:
+ * هذه قواعدُ سلامةِ مُدخَلٍ تنعكسُ على واجهةِ المستخدمِ قبلَ أن تصلَ البوّابةَ.
+ */
+export function parcelValidationError(raw: string): ParcelValidationResult {
+  const trimmed = raw.trim();
+  if (trimmed === "") return { errorKey: "rider.quote.parcel.error.empty" };
+  if (trimmed.startsWith("/")) return { errorKey: "rider.quote.parcel.error.command" };
+  if (trimmed.length < 3) return { errorKey: "rider.quote.parcel.error.too_short" };
+  if (trimmed.length > 200) return { errorKey: "rider.quote.parcel.error.too_long" };
+  return null;
+}
+
 /** سطرُ المسافةِ: مفتاحٌ وقيمةٌ ووسمٌ. `null` لِما لا يُقاسُ — لا صفرٌ. */
 export interface DistanceLine {
   readonly key: string;
