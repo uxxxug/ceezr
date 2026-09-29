@@ -56,7 +56,9 @@ describe("requestByService delivery routing", () => {
 
     expect(capturedPath).toBe("/v1/deliveries");
     expect(capturedBody).not.toBeNull();
-    expect((capturedBody as Record<string, unknown>).parcelDescription).toBe("صندوقٌ صغيرٌ");
+    expect((capturedBody as unknown as Record<string, unknown>).parcelDescription).toBe(
+      "صندوقٌ صغيرٌ",
+    );
   });
 
   it("does not include service field in delivery body (server sets it)", async () => {
@@ -77,7 +79,7 @@ describe("requestByService delivery routing", () => {
     );
 
     expect(capturedBody).not.toBeNull();
-    expect("service" in (capturedBody as Record<string, unknown>)).toBe(false);
+    expect("service" in (capturedBody as unknown as Record<string, unknown>)).toBe(false);
   });
 
   it("passes notes as parcelDescription, not as notes field", async () => {
@@ -97,8 +99,10 @@ describe("requestByService delivery routing", () => {
       mockApiFetch,
     );
 
-    expect((capturedBody as Record<string, unknown>).parcelDescription).toBe("صندوق كبير");
-    expect("notes" in (capturedBody as Record<string, unknown>)).toBe(false);
+    expect((capturedBody as unknown as Record<string, unknown>).parcelDescription).toBe(
+      "صندوق كبير",
+    );
+    expect("notes" in (capturedBody as unknown as Record<string, unknown>)).toBe(false);
   });
 
   it("passes empty string as parcelDescription when notes are empty", async () => {
@@ -119,6 +123,6 @@ describe("requestByService delivery routing", () => {
     );
 
     expect(capturedPath).toBe("/v1/deliveries");
-    expect((capturedBody as Record<string, unknown>).parcelDescription).toBe("");
+    expect((capturedBody as unknown as Record<string, unknown>).parcelDescription).toBe("");
   });
 });
