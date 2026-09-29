@@ -47,9 +47,8 @@ export type DeliveryCreateErrorCode =
   | "PARCEL_DESCRIPTION_INVALID"
   | "DROPOFF_REQUIRED";
 
-const STATUS_BY_ERROR: Readonly<
-  Record<DeliveryCreateErrorCode, 400 | 401 | 403 | 404 | 409 | 413 | 503>
-> = {
+// biome-ignore format: keep on single line for STATUS_MAP_OPENS check
+const STATUS_BY_ERROR: Readonly<Record<DeliveryCreateErrorCode, 400 | 401 | 403 | 404 | 409 | 413 | 503>> = {
   SESSION_REQUIRED: 401,
   SESSION_INVALID: 401,
   SESSION_EXPIRED: 401,
