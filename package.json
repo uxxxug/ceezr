@@ -91,7 +91,7 @@
     "grammy": "^1.45.1",
     "hono": "^4.13.5",
     "postgres": "^3.4.9",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io": "^4.8.4",
+    "socket.io-client": "^4.8.4"
   }
 }
