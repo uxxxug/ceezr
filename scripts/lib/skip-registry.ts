@@ -811,6 +811,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/delivery-lifecycle.test.ts",
+    suites: ["دورة حياة التوصيل الكاملة على قاعدة حقيقية"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت دورةَ حياةِ التوصيلِ الكاملة (إنشاء ← قبول ← وصول ← بدء ← إكمال) على PostgreSQL حقيقيّةٍ بالهجرات مطبَّقة. ويُثبِتُ عزلَ السائقين وحفظَ بياناتِ التوصيلِ والإلغاءَ والإكمالَ المتكرر. ولا يُثبَتُ ذلك ببديلٍ في الذاكرة: المقصودُ سلوكُ دوالِّ النظامِ نفسِها — driver_mark_arrived وdriver_start_ride وdriver_complete_ride — لا سلوكُ محاكٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/notification-outbox.test.ts",
     suites: ["notification_outbox على PostgreSQL فعلية (BUG-004)"],
     skipped: 8,
