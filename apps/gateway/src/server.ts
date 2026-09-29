@@ -18,6 +18,7 @@ import {
   type CoreEventIntakeDependencies,
   createCoreEventIntakeRoutes,
 } from "./routes/core-event-intake.ts";
+import { createDeliveryRoutes, type DeliveryRouteDependencies } from "./routes/deliveries.ts";
 import {
   createDestinationsRoutes,
   type DestinationsRouteDependencies,
@@ -141,6 +142,7 @@ export interface ServerDependencies {
    * أسوأُ من مسارٍ غائبٍ، لأنَّ الشاشةَ تنتقلُ إلى بحثٍ عن رحلةٍ لا وجودَ لها.
    */
   readonly rides?: RidesRouteDependencies;
+  readonly deliveries?: DeliveryRouteDependencies;
   /**
    * سطحُ الاستغاثةِ في التطبيقِ المصغَّرِ (`F2-10` / `SR-14`) — يُركَّبُ معَ سرِّ
    * الجلسةِ. وغيابُه **لا يُعطِّلُ الاستغاثةَ**: مسارُ البوتِ قائمٌ ومستقلٌّ،
@@ -296,6 +298,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.rides !== undefined) {
     app.route("/", createRidesRoutes(deps.rides));
+  }
+  if (deps.deliveries !== undefined) {
+    app.route("/", createDeliveryRoutes(deps.deliveries));
   }
   if (deps.safety !== undefined) {
     app.route("/", createSafetyRoutes(deps.safety));
