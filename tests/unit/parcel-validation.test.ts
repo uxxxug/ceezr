@@ -32,9 +32,7 @@ describe("hasDeliveryService", () => {
   });
 
   it("returns false when only transport is offered", () => {
-    expect(
-      hasDeliveryService([{ service: "transport", available: true }]),
-    ).toBe(false);
+    expect(hasDeliveryService([{ service: "transport", available: true }])).toBe(false);
   });
 
   it("returns false for empty offers", () => {
@@ -58,31 +56,31 @@ describe("parcelValidationError", () => {
   it("returns empty error for empty string", () => {
     const result = parcelValidationError("");
     expect(result).not.toBeNull();
-    expect(result!.errorKey).toBe("rider.quote.parcel.error.empty");
+    expect((result as { errorKey: string }).errorKey).toBe("rider.quote.parcel.error.empty");
   });
 
   it("returns empty error for whitespace-only string", () => {
     const result = parcelValidationError("   ");
     expect(result).not.toBeNull();
-    expect(result!.errorKey).toBe("rider.quote.parcel.error.empty");
+    expect((result as { errorKey: string }).errorKey).toBe("rider.quote.parcel.error.empty");
   });
 
   it("returns too_short error for 2 characters", () => {
     const result = parcelValidationError("ab");
     expect(result).not.toBeNull();
-    expect(result!.errorKey).toBe("rider.quote.parcel.error.too_short");
+    expect((result as { errorKey: string }).errorKey).toBe("rider.quote.parcel.error.too_short");
   });
 
   it("returns too_long error for 201 characters", () => {
     const result = parcelValidationError("a".repeat(201));
     expect(result).not.toBeNull();
-    expect(result!.errorKey).toBe("rider.quote.parcel.error.too_long");
+    expect((result as { errorKey: string }).errorKey).toBe("rider.quote.parcel.error.too_long");
   });
 
   it("returns command error for slash-prefixed text", () => {
     const result = parcelValidationError("/skip");
     expect(result).not.toBeNull();
-    expect(result!.errorKey).toBe("rider.quote.parcel.error.command");
+    expect((result as { errorKey: string }).errorKey).toBe("rider.quote.parcel.error.command");
   });
 
   it("trims before checking length", () => {
