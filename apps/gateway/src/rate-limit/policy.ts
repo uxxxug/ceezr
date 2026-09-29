@@ -880,6 +880,24 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "GET",
+    path: "/v1/onboarding",
+    file: "apps/gateway/src/routes/onboarding.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/v1/onboarding/rider",
+    file: "apps/gateway/src/routes/onboarding.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
     path: "/metrics",
     file: "apps/gateway/src/routes/metrics.ts",
     exposure: "فحصُ تشغيلٍ",
@@ -1224,11 +1242,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * والإعفاءاتُ **أربعةٌ**: صفحةُ دخولِ اللوحةِ ومسارا رمزِها وبابُ النجاةِ
  * (`SEC-21`) — وكلُّها محدودٌ فعلُها في القاعدةِ لا في عدَّادٍ.
  *
+ * 106 → 108 في 2026-09-29 (`ADR 0213`): مسارا التسجيلِ من التطبيقِ المصغَّرِ — خلفَ
+ * الجلسةِ الموقَّعةِ كسائرِ `مُصادَقٌ بجلسةٍ`، والكتابةُ فيهما upsert على `telegram_id`
+ * فتكرارُها لا يُنشئُ صفّاً ثانياً.
+ *
  * 101 → 105 و3 → 4 في 2026-09-23 (`SEC-21`): أربعةُ مساراتِ البابِ الموازي —
  * دخولُهُ العامُّ محدودٌ في صفِّ الاعتمادِ في القاعدةِ (`admin_break_glass_finish_failure`)
  * والبقيةُ خلفَ حارسِ الجلسةِ.
  */
-export const ROUTE_POLICY_COUNT = 106;
+export const ROUTE_POLICY_COUNT = 108;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 

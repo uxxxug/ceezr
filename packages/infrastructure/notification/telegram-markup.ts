@@ -9,8 +9,16 @@
 
 import type { Keyboard } from "../../application/bots/types.ts";
 
+/**
+ * زرُّ inline عند تيليجرام: إمّا بياناتُ رجوعٍ إلى البوتِ وإمّا تطبيقٌ مصغَّرٌ يُفتَح
+ * (`ADR 0213`). والحقلانِ لا يجتمعانِ في زرٍّ واحدٍ — تيليجرامُ يرفضُ الزرَّ كلَّه.
+ */
+export type InlineMarkupButton =
+  | { readonly text: string; readonly callback_data: string }
+  | { readonly text: string; readonly web_app: { readonly url: string } };
+
 export interface InlineMarkup {
-  readonly inline_keyboard: readonly { readonly text: string; readonly callback_data: string }[][];
+  readonly inline_keyboard: readonly InlineMarkupButton[][];
 }
 
 export interface ReplyMarkup {
@@ -98,7 +106,12 @@ export const RETIRED_MARKS: readonly string[] = ["⛔"];
 /** تلغرام يقصر callback_data على 64 بايت، فما زاد يُرفض من الخادم لا من عندنا. */
 export const MAX_CALLBACK_DATA_BYTES = 64;
 
-export function isCallbackDataValid(data: string): boolean {
+/**
+ * `undefined` صالحٌ: زرُّ التطبيقِ المصغَّرِ (`web_app`) لا يحملُ بياناتِ رجوعٍ أصلاً، فلا
+ * يُحتسَبُ عليه حدُّ الأربعةِ والستّينَ بايتاً.
+ */
+export function isCallbackDataValid(data: string | undefined): boolean {
+  if (data === undefined) return true;
   return new TextEncoder().encode(data).length <= MAX_CALLBACK_DATA_BYTES;
 }
 
@@ -129,7 +142,12 @@ export function toTelegramMarkup(keyboard: Keyboard | null): TelegramMarkup | un
     case "inline":
       return {
         inline_keyboard: keyboard.rows.map((row) =>
-          row.map((button) => ({ text: button.label, callback_data: button.data })),
+          row.map(
+            (button): InlineMarkupButton =>
+              button.webAppUrl === undefined
+                ? { text: button.label, callback_data: button.data }
+                : { text: button.label, web_app: { url: button.webAppUrl } },
+          ),
         ),
       };
     case "reply":

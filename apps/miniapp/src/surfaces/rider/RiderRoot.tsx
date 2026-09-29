@@ -122,6 +122,7 @@ import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
 import { Skeleton } from "../../system/Skeleton.tsx";
 import type { ConfirmedDestination } from "./destination/DestinationScreen.tsx";
 import { DestinationScreen } from "./destination/DestinationScreen.tsx";
+import { riderEntryState } from "./entry-view.ts";
 import type { ChosenDestination } from "./home/HomeScreen.tsx";
 import { HomeScreen } from "./home/HomeScreen.tsx";
 import { QuoteScreen } from "./quote/QuoteScreen.tsx";
@@ -179,8 +180,10 @@ function Deferred({ children }: { readonly children: ReactNode }) {
   return <Suspense fallback={<Skeleton />}>{children}</Suspense>;
 }
 
-export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfaceProps) {
+export default function RiderRoot({ language, onLanguageChanged, entry }: LanguageSurfaceProps) {
   const [proceeded, setProceeded] = useState(false);
+  // `ADR 0213`: هدفُ الهبوطِ يُقرأُ مرّةً للحالةِ الأولى — وما بعدَها ملاحةُ المستخدمِ لا الرابطِ.
+  const [landing] = useState(() => riderEntryState(entry));
   useEffect(() => {
     // بعدَ الرسمِ لا قبلَه: `useEffect` يجري بعدَ أن يُرسَمَ السطحُ، فالجلبُ لا يُنافِسُ حِملَه.
     const timer = setTimeout(prefetchDeferredRiderScreens, 0);
@@ -204,23 +207,23 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
    * `intent`: النيّةُ أمرٌ قد يُرفَضُ، والمعرّفُ رحلةٌ **قائمةٌ في القاعدةِ**.
    * وهيَ **أعلى** الترتيبِ: ما دامَت رحلةٌ تُتابَعُ فلا تُرسَمُ شاشةُ إنشاءٍ فوقَها.
    */
-  const [followed, setFollowed] = useState<string | null>(null);
+  const [followed, setFollowed] = useState<string | null>(landing.followed);
   /**
    * الرحلةُ **المنتهيةُ** التي يُقرأُ ملخَّصُها (`F2-07`) — معرّفٌ لا حالةٌ. ولا
    * يُدمَجُ معَ `followed`: تلكَ تجري وتُسألُ، وهذه مضَت وتُقرأُ مرّةً وتُقيَّمُ.
    * وهيَ **أعلى** الترتيبِ كلِّه: ما دامَ ملخَّصٌ مفتوحاً فلا شاشةَ تتبُّعٍ تحتَه.
    */
-  const [summarized, setSummarized] = useState<string | null>(null);
+  const [summarized, setSummarized] = useState<string | null>(landing.summarized);
   /**
    * هل يُتصفَّحُ السجلُّ (`F2-08`)؟ — **رايةٌ لا معرِّفٌ**: القائمةُ تملِكُ
    * موضعَ تصفُّحِها ونصَّ بحثِها داخلَها، فلا تُرفَعُ ههنا حالةٌ ثانيةٌ لها.
    */
-  const [browsed, setBrowsed] = useState(false);
+  const [browsed, setBrowsed] = useState(landing.browsed);
   /**
    * هل مركزُ الإشعاراتِ مفتوحٌ (`SS-07`)? — رايةٌ لا معرِّفٌ: الموجَزُ يُقرأُ
    * بالتتابعِ، وكلُّ ما يُرفَعُ هنا هو «مفتوحٌ» أو «مُغلَقٌ».
    */
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(landing.notificationsOpen);
   /**
    * الرحلةُ المفتوحةُ تفاصيلُها (`F2-08`) — معرِّفٌ **ومنطقةُ تصنيفٍ** معاً.
    * ولا يُدمَجُ معَ `summarized`: ذاكَ ملخَّصُ **رحلةٍ انتهت** فيه نموذجُ
@@ -238,7 +241,7 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
    * ورفعُ شيءٍ منها إلى ههنا يجعلُ إيصالَ حذفٍ يعيشُ في حالةِ موجِّهٍ بعدَ أن
    * صارَ صاحبُه محذوفاً.
    */
-  const [account, setAccount] = useState(false);
+  const [account, setAccount] = useState(landing.account);
   /**
    * شاشةُ الدعمِ (`F2-12` · `SR-11`) — **رايةٌ تحملُ رحلةً أو لا تحملُها**، ولا
    * تُدمَجُ معَ `inspected`: تلكَ رحلةٌ تُقرأُ، وهذه شكوى تُكتَبُ **عنها أو عن
@@ -247,7 +250,9 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
    * دعمٍ. و`null` في الداخلِ = «شكوى عامّةٌ»، و`null` للحالةِ كلِّها = «مُغلقةٌ»؛
    * فرقٌ يضيعُ لو كانَت الحالةُ معرّفاً وحدَه.
    */
-  const [support, setSupport] = useState<{ readonly orderId: string | null } | null>(null);
+  const [support, setSupport] = useState<{ readonly orderId: string | null } | null>(
+    landing.support,
+  );
   /**
    * شاشةُ الاستغاثةِ (`PD-020` · `ADR 0159`) — **رايةٌ لا معرّفٌ**: الحكمُ كلُّهُ
    * يُقرأُ من القاعدةِ داخلَها، فلا يُرفَعُ إلى الموجِّهِ إلّا «مفتوحةٌ» و«مغلقةٌ».
@@ -256,7 +261,7 @@ export default function RiderRoot({ language, onLanguageChanged }: LanguageSurfa
    * والدعمُ لا يُفتَحُ منها فلا يُختلَطُ الترتيبُ. والرحلةُ النشطةُ **بلا مدخلٍ**
    * ههنا: بطاقتُها المدمجةُ فيها أقربُ من مدخلٍ يفتحُ شاشةً فوقَها.
    */
-  const [sosOpen, setSosOpen] = useState(false);
+  const [sosOpen, setSosOpen] = useState(landing.sosOpen);
   /** مدخلٌ واحدٌ لكلِّ الشاشاتِ — لا يُنشَرُ لمن لا يعرفُهُ الاستغاثةَ. */
   const onOpenSos = () => setSosOpen(true);
 

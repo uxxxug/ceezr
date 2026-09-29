@@ -9,6 +9,7 @@
  */
 
 import type { DriverBotDependencies } from "../../../packages/application/bots/driver-dialog.ts";
+import type { MiniAppSurfaceConfig } from "../../../packages/application/bots/miniapp-surface.ts";
 import type { RiderBotDependencies } from "../../../packages/application/bots/rider-dialog.ts";
 import type { SupportDialogDependencies } from "../../../packages/application/bots/support-dialog.ts";
 import type {
@@ -94,6 +95,10 @@ import {
   createDriverDirectory,
   createRiderDirectory,
 } from "../../../packages/infrastructure/identity/directories.ts";
+import {
+  MINIAPP_ENTRY_LABEL,
+  withMiniAppEntry,
+} from "../../../packages/infrastructure/notification/miniapp-entry-sender.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
 import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
 import { grammyGroupJoinGate } from "../../../packages/infrastructure/notification/telegram-join-gate.ts";
@@ -198,6 +203,11 @@ export interface BotWiring {
     readonly language?: LanguageHydration;
   };
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
+  /**
+   * سطحُ البوتِ (`ADR 0213`). غيابُه = الحوارُ القديمُ كاملاً — وهو ما تبنيه الاختباراتُ القائمةُ
+   * فلا يتغيّرُ ما تحرسُه.
+   */
+  readonly surface?: MiniAppSurfaceConfig;
 }
 
 /** يبني معالج التحديثات الحقيقي: كل بوت إلى محوّله، وما سواه يُرفض بلا ادّعاء معالجة. */
@@ -208,12 +218,14 @@ export function createUpdateHandler(wiring: BotWiring): UpdateHandler {
     wiring.driver.sender,
     log,
     wiring.driver.language,
+    wiring.surface,
   );
   const riderBot = createRiderBot(
     wiring.rider.deps,
     wiring.rider.sender,
     log,
     wiring.rider.language,
+    wiring.surface,
   );
 
   const routes: Readonly<Record<BotKind, (raw: RawTelegramUpdate) => Promise<boolean>>> = {
@@ -466,7 +478,12 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     // نداءً منطقيّاً واحداً يُخفي خمسَ محاولاتٍ. ولو لُفَّ القياسُ فوقَ الصمودِ
     // لأظهرَ الرسمُ البيانيُّ صادراً هادئاً بينما البوتُ يضربُ حدَّه فعلاً.
     // و`silent` لا يُستثنى: الاختبارُ يجبُ أن يسلكَ المسارَ الذي يسلكُه الإنتاجُ.
-    return withOutboundResilience(measured, outboundResilience.options);
+    const resilient = withOutboundResilience(measured, outboundResilience.options);
+    // `ADR 0213`: في وضعِ التطبيقِ كلُّ رسالةٍ خاصّةٍ بابٌ إليه — زرٌّ واحدٌ يُلحَقُ عند المُرسِلِ
+    // لا في كلِّ مُخطِرٍ. الغلافُ **فوقَ** الصمودِ: إعادةُ المحاولةِ تُعيدُ الرسالةَ نفسَها بزرِّها.
+    return config.botSurfaceMode === "miniapp" && config.miniAppUrl !== null
+      ? withMiniAppEntry(resilient, { miniAppUrl: config.miniAppUrl, label: MINIAPP_ENTRY_LABEL })
+      : resilient;
   };
   const driverSender = overrides.driverSender ?? buildSender("driver", config.driverBotToken);
   const riderSender = overrides.riderSender ?? buildSender("rider", config.riderBotToken);
@@ -927,6 +944,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
      */
     acceptNotice: {
       counterpart: counterpartNotifier(riderSender),
+      ...(config.botSurfaceMode === "miniapp" ? { miniAppUrl: config.miniAppUrl } : {}),
       ...(config.trackingTokenBaseUrl === null
         ? {}
         : {
@@ -1021,6 +1039,9 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
         }),
       },
       log,
+      ...(config.botSurfaceMode === "miniapp"
+        ? { surface: { mode: config.botSurfaceMode, miniAppUrl: config.miniAppUrl } }
+        : {}),
     }),
     sql,
     driverSender,

@@ -77,6 +77,10 @@ import {
   createLocationArchiveStore,
 } from "../../../packages/infrastructure/geo/location-archive-adapters.ts";
 import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
+import {
+  MINIAPP_ENTRY_LABEL,
+  withMiniAppEntry,
+} from "../../../packages/infrastructure/notification/miniapp-entry-sender.ts";
 import { createNotificationOutboxPort } from "../../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
 import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
@@ -85,6 +89,7 @@ import {
   asOutboundSender,
   asSupportSender,
   grammyTelegramSender,
+  type TelegramSender,
 } from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import {
   createBroadcastPublisher,
@@ -594,9 +599,16 @@ export function buildWorkerContainer(
    * كالبوابة. المُرسِل المبني على رمز بوت السائق هو الصحيح: أزرار القروب يضغطها
    * سائقون، وردّ الضغطة يجب أن يعود إلى البوت الذي نشرها لا إلى بوت العميل.
    */
-  const telegram = withOutboundResilience(
-    grammyTelegramSender(config.driverBotToken),
-    outboundResilience.options,
+  /**
+   * `ADR 0213`: في وضعِ التطبيقِ كلُّ إشعارٍ خاصٍّ بابٌ إليه — الزرُّ يُلحَقُ عند المُرسِلِ مرّةً
+   * لا في كلِّ مُخطِرٍ، والقروباتُ لا تُمَسُّ (`withMiniAppEntry`).
+   */
+  const entryFor = (sender: TelegramSender): TelegramSender =>
+    config.botSurfaceMode === "miniapp" && config.miniAppUrl !== null
+      ? withMiniAppEntry(sender, { miniAppUrl: config.miniAppUrl, label: MINIAPP_ENTRY_LABEL })
+      : sender;
+  const telegram = entryFor(
+    withOutboundResilience(grammyTelegramSender(config.driverBotToken), outboundResilience.options),
   );
   const driverOut = overrides.driverOut ?? asOutboundSender(telegram);
 
@@ -607,9 +619,8 @@ export function buildWorkerContainer(
    * محادثةً مع مستخدم لم يفتحها. فكل رسالة تفاوض موجَّهة للراكب كانت تسقط
    * في الإنتاج بـ403 بلا أثر مرئي — لا خطأ يوقظ أحداً، ولا رسالة تصل.
    */
-  const riderTelegram = withOutboundResilience(
-    grammyTelegramSender(config.riderBotToken),
-    outboundResilience.options,
+  const riderTelegram = entryFor(
+    withOutboundResilience(grammyTelegramSender(config.riderBotToken), outboundResilience.options),
   );
   const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
   const safetyPublisher = overrides.safetyPublisher ?? createSafetyCardPublisher(telegram);
@@ -629,6 +640,7 @@ export function buildWorkerContainer(
     createOfferPublisher(
       sql,
       overrides.identifyingDriver ?? asIdentifyingSender(withTrafficPriority(telegram, "offer")),
+      config.botSurfaceMode === "miniapp" ? { miniAppUrl: config.miniAppUrl } : {},
     );
   /**
    * صندوقُ الصادرِ الموحَّدُ (BUG-004): منفذٌ واحدٌ للجدولِ، ومعالجٌ لكلِّ نوعٍ.

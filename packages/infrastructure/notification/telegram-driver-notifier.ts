@@ -13,6 +13,7 @@ import type {
   OfferPublisher,
 } from "../../application/dispatch/broadcast-offers.ts";
 import { t } from "../../shared/i18n/index.ts";
+import { miniAppUrl } from "../../shared/miniapp-link/index.ts";
 import { guard, type Sql } from "../db/client.ts";
 import type { IdentifyingSender } from "./telegram-negotiation-notifier.ts";
 
@@ -49,7 +50,20 @@ const KM_DECIMALS = 1;
  * عند إرجاعِ `sendReturningId` لـnull — وكلاهما يُحوَّلان عبر `guard` إلى
  * `PortFailureError` يُعاد معالجته من عاملِ التسليم (إعادةُ المحاولة أو الأَماتة).
  */
-export function createOfferPublisher(sql: Sql, sender: IdentifyingSender): OfferPublisher {
+export interface OfferPublisherOptions {
+  /**
+   * `ADR 0213`: أصلُ التطبيقِ المصغَّرِ — حين يُعطى تحملُ البطاقةُ صفّاً ثانياً بزرِّ `web_app`
+   * يفتحُ العرضَ نفسَه (`offer_<offerId>`) في التطبيقِ. زرّا القبولِ والرفضِ يبقيانِ: البطاقةُ
+   * إشعارٌ عاجلٌ، ومن ضغطَ «قبول» في المحادثةِ لا يُجبَرُ على فتحِ شاشةٍ ليقبلَ.
+   */
+  readonly miniAppUrl?: string | null;
+}
+
+export function createOfferPublisher(
+  sql: Sql,
+  sender: IdentifyingSender,
+  options: OfferPublisherOptions = {},
+): OfferPublisher {
   return {
     publishOffer: (notification: OfferNotification) =>
       guard("publisher.publishOffer", async () => {
@@ -113,6 +127,20 @@ export function createOfferPublisher(sql: Sql, sender: IdentifyingSender): Offer
                 data: `offer:reject:${notification.offerId}`,
               },
             ],
+            ...(options.miniAppUrl === undefined || options.miniAppUrl === null
+              ? []
+              : [
+                  [
+                    {
+                      label: tr("miniapp.offer_button"),
+                      webAppUrl: miniAppUrl(options.miniAppUrl, {
+                        audience: "driver",
+                        screen: "offer",
+                        id: String(notification.offerId),
+                      }),
+                    },
+                  ],
+                ]),
           ],
         };
         const messageId = await sender.sendReturningId(String(contact.telegram_id), text, keyboard);

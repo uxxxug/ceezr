@@ -15,7 +15,12 @@ import {
   type DriverBotDependencies,
   handleDriverUpdate,
 } from "../../../../../packages/application/bots/driver-dialog.ts";
-import type { BotReply } from "../../../../../packages/application/bots/types.ts";
+import {
+  handleSurfaceUpdate,
+  type MiniAppSurfaceConfig,
+  type SurfacePorts,
+} from "../../../../../packages/application/bots/miniapp-surface.ts";
+import { type BotReply, INITIAL_STATE } from "../../../../../packages/application/bots/types.ts";
 import type { TelegramSender as TelegramSenderType } from "../../../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { isCallbackDataValid, toTelegramMarkup } from "../shared/keyboards.ts";
 import type { LanguageHydration } from "../shared/language-middleware.ts";
@@ -42,7 +47,24 @@ export function createDriverBot(
   sender: TelegramSenderType,
   log: (message: string, meta: Record<string, unknown>) => void = () => {},
   language?: LanguageHydration,
+  surface?: MiniAppSurfaceConfig,
 ): DriverBotAdapter {
+  // الطبقةُ الخفيفةُ (`ADR 0213`) تقرأُ من تبعيّاتِ الحوارِ نفسِها — لا منفذَ جديدٌ.
+  const ports: SurfacePorts = {
+    sessions: deps.sessions,
+    initialState: INITIAL_STATE,
+    isRegistered: async (telegramUserId) => {
+      const found = await deps.drivers.findByTelegramId(telegramUserId);
+      return found.ok ? found.value !== null : null;
+    },
+    onStart: async (telegramUserId) => {
+      // `ADR 0212`: ترقيةُ المسؤولِ الأوّلِ عند كلِّ `/start` — في وضعِ التطبيقِ كما في القديمِ،
+      // وإخفاقُها لا يمنعُ الدخولَ (مسارٌ إداريٌّ لا شرطُ استخدامٍ).
+      if (deps.bootstrapAdmin !== undefined && deps.bootstrapAdmin.telegramId === telegramUserId) {
+        await deps.bootstrapAdmin.grant(telegramUserId).catch(() => undefined);
+      }
+    },
+  };
   return {
     handleUpdate: async (raw) => {
       const incoming = toIncomingUpdate(raw);
@@ -58,7 +80,12 @@ export function createDriverBot(
       for (let attempt = 0; ; attempt++) {
         try {
           if (language !== undefined) await language.hydrate(incoming.from);
-          replies = await handleDriverUpdate(incoming, deps);
+          replies =
+            surface === undefined
+              ? await handleDriverUpdate(incoming, deps)
+              : await handleSurfaceUpdate("driver", incoming, surface, ports, () =>
+                  handleDriverUpdate(incoming, deps),
+                );
           break;
         } catch (error) {
           if (error instanceof SessionCasConflictError && attempt < MAX_CAS_RETRIES) {

@@ -44,7 +44,9 @@ describe("التوجيه: سطحٌ لكلِّ دور", () => {
 });
 
 describe("التوجيه: لا سطحَ عندَ الشك", () => {
-  it("٥) «غير مسجَّل» لا سطحَ له بسببٍ صريح", () => {
+  // `ADR 0213` (2026-09-29): كان «غيرُ المسجَّلِ» شاشةَ نظامٍ تقولُ «سجّل من البوت»، وصارَ له
+  // سطحُ التسجيلِ. والحكمُ الأصليُّ باقٍ: لا سطحَ **منتجاً** (راكبٌ/سائقٌ/مشرفٌ) عندَ الشكِّ.
+  it("٥) «غير مسجَّل» يُوجَّه إلى سطحِ التسجيلِ لا إلى سطحٍ منتج", () => {
     expect(
       routeForViewer({
         kind: "viewer",
@@ -52,10 +54,7 @@ describe("التوجيه: لا سطحَ عندَ الشك", () => {
         status: "unregistered",
         languageCode: "ar",
       }),
-    ).toEqual({
-      surface: "none",
-      reason: "unregistered",
-    });
+    ).toEqual({ surface: "onboarding" });
   });
 
   it("٦) محجوبٌ لا سطحَ له", () => {
@@ -80,13 +79,10 @@ describe("التوجيه: لا سطحَ عندَ الشك", () => {
     });
   });
 
-  it("٩) دورٌ نشِطٌ مع حالةِ «غير مسجَّل» لا يفتح سطحاً — الحالةُ تحسم", () => {
+  it("٩) دورٌ نشِطٌ مع حالةِ «غير مسجَّل» لا يفتح سطحَ الدورِ — الحالةُ تحسم", () => {
     expect(
       routeForViewer({ kind: "viewer", role: "admin", status: "unregistered", languageCode: "ar" }),
-    ).toEqual({
-      surface: "none",
-      reason: "unregistered",
-    });
+    ).toEqual({ surface: "onboarding" });
   });
 });
 
@@ -104,7 +100,12 @@ function spyLoaders(options: { failing?: string } = {}): LoaderSpy {
   };
   return {
     called,
-    loaders: { rider: make("rider"), driver: make("driver"), admin: make("admin") },
+    loaders: {
+      rider: make("rider"),
+      driver: make("driver"),
+      admin: make("admin"),
+      onboarding: make("onboarding"),
+    },
   };
 }
 
@@ -129,12 +130,11 @@ describe("تحميلُ الحزم: حزمةُ الدورِ وحدَها", () => 
     expect(spy.called).toEqual(["admin"]);
   });
 
-  it("١٣) لا حزمةَ تُطلَب لمحجوبٍ ولا لغيرِ مسجَّلٍ ولا لجلسةٍ باطلة", async () => {
+  it("١٣) لا حزمةَ تُطلَب لمحجوبٍ ولا لجلسةٍ باطلة", async () => {
     for (const view of [
       { kind: "blocked" } as const,
       { kind: "session_invalid" } as const,
       { kind: "unavailable" } as const,
-      { kind: "viewer", role: "unknown", status: "unregistered", languageCode: "ar" } as const,
       { kind: "viewer", role: "support", status: "active", languageCode: "ar" } as const,
     ]) {
       const spy = spyLoaders();
@@ -142,6 +142,21 @@ describe("تحميلُ الحزم: حزمةُ الدورِ وحدَها", () => 
       expect(spy.called).toEqual([]);
       expect(outcome).toEqual({ loaded: "none" });
     }
+  });
+
+  it("١٣-ب) غيرُ المسجَّلِ تُطلَبُ له حزمةُ التسجيلِ وحدَها (`ADR 0213`)", async () => {
+    const spy = spyLoaders();
+    const outcome = await loadSurface(
+      routeForViewer({
+        kind: "viewer",
+        role: "unknown",
+        status: "unregistered",
+        languageCode: "ar",
+      }),
+      spy.loaders,
+    );
+    expect(spy.called).toEqual(["onboarding"]);
+    expect(outcome).toEqual({ loaded: "onboarding", module: "onboarding-module" });
   });
 
   it("١٤) فشلُ تحميلِ حزمةٍ يُعلَن فشلاً ولا يُبدَّل بسطحٍ آخر", async () => {

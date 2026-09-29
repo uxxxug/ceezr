@@ -44,7 +44,9 @@ import { deviceOnline, probeReachability } from "../system/health.ts";
 import { Skeleton } from "../system/Skeleton.tsx";
 import { SystemScreen } from "../system/SystemScreen.tsx";
 import type { ScreenState } from "../system/state-text.ts";
+import { currentEntryTarget } from "./entry-target.ts";
 import {
+  type LoadableSurface,
   loadSurface,
   type NoSurfaceReason,
   type RoleRoute,
@@ -64,6 +66,15 @@ export interface LanguageSurfaceProps {
    * فينعكسَ التغييرُ على كلِّ السطحِ فوراً.
    */
   readonly onLanguageChanged?: (language: MiniAppLanguage) => void;
+  /**
+   * هدفُ الهبوطِ الخامُ (`?open=` — `ADR 0213`). يفكُّه السطحُ بجمهورِه؛ ومن لا يعرفُه يتجاهلُه.
+   */
+  readonly entry?: string | null;
+  /**
+   * تغيّرَ الحسابُ على الخادمِ (سُجِّلَ الآنَ من سطحِ التسجيلِ): يُعادُ حلُّ الدورِ من
+   * `GET /v1/me` كما في الإقلاعِ — لا يُفترَضُ الدورُ الجديدُ في العميلِ (`F1-05`).
+   */
+  readonly onAccountChanged?: () => void;
 }
 
 /**
@@ -74,6 +85,7 @@ const SURFACE_LOADERS: SurfaceLoaders<SurfaceModule> = {
   rider: () => import("../surfaces/rider/RiderRoot.tsx"),
   driver: () => import("../surfaces/driver/DriverRoot.tsx"),
   admin: () => import("../surfaces/admin/AdminRoot.tsx"),
+  onboarding: () => import("../surfaces/onboarding/OnboardingRoot.tsx"),
 };
 
 type RouterState =
@@ -81,7 +93,7 @@ type RouterState =
   | {
       readonly kind: "surface";
       readonly Component: ComponentType<LanguageSurfaceProps>;
-      readonly surface: "rider" | "driver" | "admin";
+      readonly surface: LoadableSurface;
     }
   | { readonly kind: "screen"; readonly screen: ScreenState };
 
@@ -95,7 +107,10 @@ type RouterState =
 export function interactiveSurfaceFromState(
   state: RouterState,
 ): "rider" | "driver" | "admin" | null {
-  return state.kind === "surface" ? state.surface : null;
+  // سطحُ التسجيلِ (`ADR 0213`) ليس سطحاً منتجاً للقياسِ (`D-26`): مستخدمٌ غيرُ مبذورٍ يصلُ إليه،
+  // واحتسابُه «تفاعلاً» يُعيدُ الإيجابَ الكاذبَ الذي وقعَ في CI حين كانت شاشةُ نظامٍ.
+  if (state.kind !== "surface" || state.surface === "onboarding") return null;
+  return state.surface;
 }
 
 export interface RoleRouterProps {
@@ -130,6 +145,8 @@ async function screenForReason(reason: NoSurfaceReason, view: ViewerView): Promi
 export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const [state, setState] = useState<RouterState>({ kind: "resolving" });
   const [language, setLanguage] = useState<MiniAppLanguage>(MINIAPP_DEFAULT_LANGUAGE);
+  // يُقرأُ مرّةً لكلِّ تركيبٍ: الهدفُ يصفُ لحظةَ الفتحِ لا كلَّ إعادةِ رسمٍ.
+  const [entryTarget] = useState<string | null>(currentEntryTarget);
   const mounted = useRef(true);
   /**
    * `F1-09` الصفُّ ٥ — علامةُ «وقتِ التفاعلِ»: تُوضَعُ مرّةً واحدةً حينَ يَصلُ
@@ -248,7 +265,12 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   const { Component } = state;
   return (
     <ErrorBoundary label="surface" onReset={retry}>
-      <Component language={language} onLanguageChanged={changeLanguage} />
+      <Component
+        language={language}
+        onLanguageChanged={changeLanguage}
+        entry={entryTarget}
+        onAccountChanged={retry}
+      />
     </ErrorBoundary>
   );
 }

@@ -100,6 +100,11 @@ export function publicViewerCodeFor(reason: ViewerSessionRejectionReason): Viewe
 export interface AuthorizedViewer {
   readonly telegramUserId: string;
   readonly sessionId: string;
+  /**
+   * البوتُ الذي وقّعَ بياناتِ الدخولِ (`driver` · `rider`) — من الرمزِ الموقَّعِ لا من الطلبِ.
+   * به يعرفُ التسجيلُ من التطبيقِ (`ADR 0213`) جمهورَ غيرِ المسجَّلِ بلا سؤالٍ يُخمَّن جوابُه.
+   */
+  readonly bot: string;
   readonly role: ResolvedViewerRole;
   readonly status: ViewerStatus;
   readonly languageCode: string;
@@ -149,6 +154,7 @@ export async function authorizeViewer(
     return ok({
       telegramUserId: session.value.telegramUserId,
       sessionId: session.value.sessionId,
+      bot: session.value.bot,
       role: "unknown",
       status: "unregistered",
       languageCode: "ar",
@@ -166,6 +172,7 @@ export async function authorizeViewer(
   return ok({
     telegramUserId: session.value.telegramUserId,
     sessionId: session.value.sessionId,
+    bot: session.value.bot,
     role: account.value.role,
     status: "active",
     languageCode: account.value.languageCode,

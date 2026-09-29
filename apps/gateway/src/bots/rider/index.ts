@@ -12,10 +12,15 @@
  */
 
 import {
+  handleSurfaceUpdate,
+  type MiniAppSurfaceConfig,
+  type SurfacePorts,
+} from "../../../../../packages/application/bots/miniapp-surface.ts";
+import {
   handleRiderUpdate,
   type RiderBotDependencies,
 } from "../../../../../packages/application/bots/rider-dialog.ts";
-import type { BotReply } from "../../../../../packages/application/bots/types.ts";
+import { type BotReply, INITIAL_STATE } from "../../../../../packages/application/bots/types.ts";
 import type { TelegramSender } from "../driver/index.ts";
 import { toTelegramMarkup } from "../shared/keyboards.ts";
 import type { LanguageHydration } from "../shared/language-middleware.ts";
@@ -32,7 +37,23 @@ export function createRiderBot(
   sender: TelegramSender,
   log: (message: string, meta: Record<string, unknown>) => void = () => {},
   language?: LanguageHydration,
+  surface?: MiniAppSurfaceConfig,
 ): RiderBotAdapter {
+  // الطبقةُ الخفيفةُ (`ADR 0213`) تقرأُ من تبعيّاتِ الحوارِ نفسِها — لا منفذَ جديدٌ.
+  const ports: SurfacePorts = {
+    sessions: deps.sessions,
+    initialState: INITIAL_STATE,
+    isRegistered: async (telegramUserId) => {
+      const found = await deps.riders.findByTelegramId(telegramUserId);
+      return found.ok ? found.value !== null : null;
+    },
+    activeOrdersOf: async (telegramUserId) => {
+      const found = await deps.riders.findByTelegramId(telegramUserId);
+      if (!found.ok) return null;
+      if (found.value === null) return [];
+      return deps.activeOrdersOf(found.value.id).catch(() => null);
+    },
+  };
   return {
     handleUpdate: async (raw) => {
       const incoming = toIncomingUpdate(raw);
@@ -46,7 +67,12 @@ export function createRiderBot(
       for (let attempt = 0; ; attempt++) {
         try {
           if (language !== undefined) await language.hydrate(incoming.from);
-          replies = await handleRiderUpdate(incoming, deps);
+          replies =
+            surface === undefined
+              ? await handleRiderUpdate(incoming, deps)
+              : await handleSurfaceUpdate("rider", incoming, surface, ports, () =>
+                  handleRiderUpdate(incoming, deps),
+                );
           break;
         } catch (error) {
           if (error instanceof SessionCasConflictError && attempt < MAX_CAS_RETRIES) {

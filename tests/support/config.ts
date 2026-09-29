@@ -59,6 +59,8 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     // الحاوية، فلا نداء شبكيّ أصلاً. وإعلانه `silent` كان سيكذب على القارئ:
     // الناقل الصامت مسارٌ أخر للقياس، لا وصفاً لما تفعله الاختبارات.
     telegramTransport: "real",
+    botSurfaceMode: "legacy",
+    miniAppUrl: null,
     driverBotToken: "driver-token",
     riderBotToken: "rider-token",
     telegramWebhookSecret: "integration-secret",

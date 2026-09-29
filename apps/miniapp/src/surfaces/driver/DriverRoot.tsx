@@ -80,6 +80,7 @@ import { EmptyState } from "../../system/EmptyState.tsx";
 import { AccountScreen } from "./account/AccountScreen.tsx";
 import { ActivityScreen } from "./activity/ActivityScreen.tsx";
 import { DocumentsScreen } from "./documents/DocumentsScreen.tsx";
+import { driverEntryView } from "./entry-view.ts";
 import { JobScreen } from "./job/JobScreen.tsx";
 import { LocationBroadcast } from "./location/LocationBroadcast.tsx";
 import { OfferDetailScreen } from "./offers/OfferDetailScreen.tsx";
@@ -102,8 +103,9 @@ type DriverView =
   | { readonly kind: "summary"; readonly orderId: string }
   | { readonly kind: "placeholder" };
 
-export default function DriverRoot({ language, onLanguageChanged }: LanguageSurfaceProps) {
-  const [view, setView] = useState<DriverView>({ kind: "offers" });
+export default function DriverRoot({ language, onLanguageChanged, entry }: LanguageSurfaceProps) {
+  // `ADR 0213`: هدفُ الهبوطِ (زرُّ «افتح العرض في وَصْلة» مثلاً) يحدّدُ الشاشةَ الأولى وحدَها.
+  const [view, setView] = useState<DriverView>(() => driverEntryView(entry));
 
   if (view.kind === "offers") {
     return (

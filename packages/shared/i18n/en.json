@@ -431,5 +431,15 @@
   "tracking.share_not_active": "⚠️ No live trip for this order — links are issued for active trips only.",
   "tracking.revoked": "🚫 Tracking links for order {order} were cancelled. Anyone holding the link no longer sees the location.",
   "tracking.revoke_none": "ℹ️ There are no active tracking links for this order.",
-  "tracking.share_prompt": "📍 Tracking links for your active orders — the link is temporary and shows the trip location only:"
+  "tracking.share_prompt": "📍 Tracking links for your active orders — the link is temporary and shows the trip location only:",
+  "miniapp.open_button": "📱 Open Wasla",
+  "miniapp.offer_button": "📱 Open the offer in Wasla",
+  "miniapp.ride_button": "📱 Follow your ride in Wasla",
+  "miniapp.entry.welcome_rider": "Welcome to Wasla. Requesting a ride, following it, your history and support all live in the Wasla app inside Telegram, and notifications arrive here. This chat keeps the emergency call and language settings.",
+  "miniapp.entry.welcome_driver": "Welcome to Wasla. Offers, your current trip, subscription, documents and support all live in the Wasla app inside Telegram, and notifications and urgent offers arrive here. This chat keeps the emergency call and language settings.",
+  "miniapp.entry.help_rider": "Everything happens in the Wasla app: request and follow rides, review your history and tickets there. In this chat: /sos for emergencies, /language for language, /delivery for a delivery request and /city to change city.",
+  "miniapp.entry.help_driver": "Everything happens in the Wasla app: offers, your current trip, subscription, documents and support. In this chat: /sos for emergencies, /language for language, /area for your preferred area and /city to change city.",
+  "miniapp.entry.open_prompt": "Tap the button to open the Wasla app.",
+  "miniapp.entry.moved": "This is now in the Wasla app. Tap the button to open it directly.",
+  "miniapp.command.app.description": "Open the Wasla app"
 }
