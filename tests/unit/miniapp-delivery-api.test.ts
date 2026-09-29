@@ -5,9 +5,9 @@
  * ينتمي إلى: apps/miniapp/src/surfaces/rider/search
  */
 
-import { describe, expect, it, beforeEach } from "bun:test";
-import { requestDelivery } from "../../apps/miniapp/src/surfaces/rider/search/delivery-api.ts";
+import { beforeEach, describe, expect, it } from "bun:test";
 import { setSession } from "../../apps/miniapp/src/identity/session.ts";
+import { requestDelivery } from "../../apps/miniapp/src/surfaces/rider/search/delivery-api.ts";
 
 /** يُلتقطُ به النداءُ الفعليُّ إلى fetch. */
 let capturedUrl = "";
@@ -74,9 +74,10 @@ describe("Mini App delivery API", () => {
     });
 
     expect(capturedBody).not.toBeNull();
-    expect(capturedBody!.parcelDescription).toBe("صندوقٌ صغيرٌ");
-    expect(capturedBody!.originLat).toBe(21.4225);
-    expect(capturedBody!.destinationLat).toBe(21.5896);
+    const body = capturedBody as Record<string, unknown>;
+    expect(body.parcelDescription).toBe("صندوقٌ صغيرٌ");
+    expect(body.originLat).toBe(21.4225);
+    expect(body.destinationLat).toBe(21.5896);
   });
 
   it("omits notes when not provided", async () => {
@@ -90,7 +91,7 @@ describe("Mini App delivery API", () => {
     });
 
     expect(capturedBody).not.toBeNull();
-    expect("notes" in capturedBody!).toBe(false);
+    expect("notes" in (capturedBody as Record<string, unknown>)).toBe(false);
   });
 
   it("includes notes when provided", async () => {
@@ -105,7 +106,7 @@ describe("Mini App delivery API", () => {
     });
 
     expect(capturedBody).not.toBeNull();
-    expect(capturedBody!.notes).toBe("اتركه عند الباب");
+    expect((capturedBody as Record<string, unknown>).notes).toBe("اتركه عند الباب");
   });
 
   it("does not include service field (server sets it)", async () => {
@@ -119,6 +120,6 @@ describe("Mini App delivery API", () => {
     });
 
     expect(capturedBody).not.toBeNull();
-    expect("service" in capturedBody!).toBe(false);
+    expect("service" in (capturedBody as Record<string, unknown>)).toBe(false);
   });
 });
