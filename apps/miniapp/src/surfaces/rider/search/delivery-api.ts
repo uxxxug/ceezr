@@ -48,14 +48,7 @@ export interface RequestDeliveryInput {
  * نوعُ دالّةِ النداءِ — يُحقنُ فلا يُستورَدُ فيه `api/client.ts` ولا `session.ts`.
  * يُطابقُ توقيعَ `apiFetch` دونَ الاعتمادِ عليه.
  */
-export type ApiFetchFn = <T>(
-  path: string,
-  init: {
-    method: string;
-    idempotencyKey: string;
-    body: Record<string, unknown>;
-  },
-) => Promise<T>;
+export type ApiFetchFn = (path: string, init: Record<string, unknown>) => Promise<unknown>;
 
 /**
  * يُنشئ طلبَ توصيلٍ عبرَ `POST /v1/deliveries`.
@@ -70,9 +63,9 @@ export function requestDelivery(
   apiFetch: ApiFetchFn,
 ): Promise<RequestRideResponse> {
   const { idempotencyKey, ...body } = input;
-  return apiFetch<RequestRideResponse>("/v1/deliveries", {
+  return apiFetch("/v1/deliveries", {
     method: "POST",
     idempotencyKey,
     body,
-  });
+  }) as Promise<RequestRideResponse>;
 }

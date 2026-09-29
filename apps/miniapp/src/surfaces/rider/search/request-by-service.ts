@@ -1,0 +1,56 @@
+/**
+ * الغرض: موجِّهُ الطلبِ حسبَ الخدمةِ — حينَ يختارُ الراكبُ خدمةَ التوصيلِ
+ *   يُرسَلُ الطلبُ إلى `POST /v1/deliveries` بوصفِ الطردِ الإلزاميِّ،
+ *   وحينَ يختارُ النقلَ يُرسَلُ إلى `POST /v1/rides` كما كان.
+ * الحالة: منفَّذ — يُكمِّلُ `F2-05` لخدمةِ التوصيلِ في شاشةِ البحثِ.
+ * ينتمي إلى: apps/miniapp/src/surfaces/rider/search
+ * يُستخدم من: `SearchScreen.tsx` كافتراضٍ لخاصّيةِ `request`.
+ *
+ * ## لماذا موجِّهٌ لا تعديلُ `requestRide`
+ *
+ * لأنَّ `requestRide` عقدُه مغلقٌ (`F2-05`) ويُرسلُ إلى `/v1/rides` وحده.
+ * والتوصيلُ يحتاجُ وصفَ طردٍ إلزاميٍّ يُرسَلُ إلى `/v1/deliveries`.
+ * فالموجِّهُ يَفصلُ بينَ المسارَينِ بلا تغييرٍ لعقدِ `requestRide`.
+ *
+ * ## ولماذا `notes` مصدرُ وصفِ الطردِ
+ *
+ * لأنَّ شاشةَ البحثِ تأخذُ ملاحظةً واحدةً من الراكبِ. وفي التوصيلِ، وصفُ الطردِ
+ * هو الملاحظةُ — فلا حقلَ ثانٍ يُضافُ ولا شاشةٌ تُبنى. والتحقُّقُ من الطولِ
+ * (٣–٢٠٠) يقعُ في البوّابةِ لا ههنا.
+ */
+import { apiFetch } from "../../../api/client.ts";
+import { type ApiFetchFn, type RequestDeliveryInput, requestDelivery } from "./delivery-api.ts";
+import { requestRide } from "./ride-api.ts";
+import type { RequestRideResponse } from "./ride-contract.ts";
+
+/** مدخلُ الطلبِ الموحَّدُ — يُطابقُ شكلَ `SearchScreenProps.request`. */
+export interface ServiceRequestInput {
+  readonly idempotencyKey: string;
+  readonly service: string;
+  readonly originLat: number;
+  readonly originLng: number;
+  readonly destinationLat: number;
+  readonly destinationLng: number;
+  readonly notes?: string;
+}
+
+/**
+ * يُوجِّهُ الطلبَ حسبَ الخدمةِ: `delivery` → `POST /v1/deliveries`،
+ * وما سواه → `POST /v1/rides` كما كان.
+ *
+ * في التوصيلِ، تُستعمَلُ `notes` كوصفٍ للطردِ. والتحقُّقُ من الطولِ يقعُ في البوّابة.
+ */
+export function requestByService(input: ServiceRequestInput): Promise<RequestRideResponse> {
+  if (input.service === "delivery") {
+    const deliveryInput: RequestDeliveryInput = {
+      idempotencyKey: input.idempotencyKey,
+      originLat: input.originLat,
+      originLng: input.originLng,
+      destinationLat: input.destinationLat,
+      destinationLng: input.destinationLng,
+      parcelDescription: input.notes ?? "",
+    };
+    return requestDelivery(deliveryInput, apiFetch as unknown as ApiFetchFn);
+  }
+  return requestRide(input);
+}

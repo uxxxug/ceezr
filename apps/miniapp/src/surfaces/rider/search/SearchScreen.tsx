@@ -74,11 +74,8 @@ import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
-import {
-  cancelRide as cancelViaApi,
-  readRideSearch as readViaApi,
-  requestRide as requestViaApi,
-} from "./ride-api.ts";
+import { requestByService as requestViaApi } from "./request-by-service.ts";
+import { cancelRide as cancelViaApi, readRideSearch as readViaApi } from "./ride-api.ts";
 
 import type {
   CancelRideResponse,
