@@ -13,6 +13,13 @@
  * ومسارُ `POST /v1/deliveries` يطلبُ وصفَ الطردِ إلزاميّاً ويُحقِّقُه في البوّابة.
  * فالنداءُ المنفصلُ يحترمُ العقدَ المغلقَ ويُرسلُ الحقلَ الخاصَّ بالتوصيل.
  *
+ * ## ولماذا الحاقنُ لا الاستيرادُ المباشرُ
+ *
+ * لأنَّ `apiFetch` في `api/client.ts` يستوردُ `identity/session.ts` فـ`tg/*`
+ * التي تستعملُ `window` و`document` — وهي أنواعٌ غيرُ متاحةٍ في tsconfig الجذر.
+ * فالحقنُ يَفصلُ الاختبارَ عن سلسلةِ الاستيرادِ تلك، ويُبقي `delivery-api.ts`
+ * قابلاً للاختبارِ بلا DOM.
+ *
  * ## وما لا يفعله هذا الملفُّ
  *
  *   ــ **لا يُخزِّنُ ردّاً**: حالةُ بحثٍ محفوظةٌ محلّيّاً تُقرأُ بعدَ إسنادٍ حصلَ.
@@ -21,7 +28,6 @@
  *   ــ **لا يُسعِّرُ التوصيل**: التسعيرُ محجوبٌ بـ`DEC-11`/`F12-16`.
  */
 
-import { apiFetch } from "../../../api/client.ts";
 import type { RequestRideResponse } from "./ride-contract.ts";
 
 export type * from "./ride-contract.ts";
@@ -39,12 +45,30 @@ export interface RequestDeliveryInput {
 }
 
 /**
+ * نوعُ دالّةِ النداءِ — يُحقنُ فلا يُستورَدُ فيه `api/client.ts` ولا `session.ts`.
+ * يُطابقُ توقيعَ `apiFetch` دونَ الاعتمادِ عليه.
+ */
+export type ApiFetchFn = <T>(
+  path: string,
+  init: {
+    method: string;
+    idempotencyKey: string;
+    body: Record<string, unknown>;
+  },
+) => Promise<T>;
+
+/**
  * يُنشئ طلبَ توصيلٍ عبرَ `POST /v1/deliveries`.
  *
  * يُرسلُ `parcelDescription` إلزاميّاً، والوجهةَ إلزاميّاً. والردُّ هو عقدُ
  * `RequestRideResponse` نفسُه — فالطلبُ واحدٌ ولا فرقَ في شكلِ الردِّ.
+ *
+ * `apiFetch` يُحقنُ لا يُستورَدُ — فلا تُجَرُّ سلسلةُ `session` و`tg` في الاختبار.
  */
-export function requestDelivery(input: RequestDeliveryInput): Promise<RequestRideResponse> {
+export function requestDelivery(
+  input: RequestDeliveryInput,
+  apiFetch: ApiFetchFn,
+): Promise<RequestRideResponse> {
   const { idempotencyKey, ...body } = input;
   return apiFetch<RequestRideResponse>("/v1/deliveries", {
     method: "POST",
