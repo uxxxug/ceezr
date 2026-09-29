@@ -272,7 +272,7 @@ describeIf("دورة حياة التوصيل الكاملة على قاعدة ح
 
     // ٥) السائق عاد متاحاً بعد الإكمال
     const driverState = await sql<{ is_available: boolean }[]>`
-      select is_available from drivers where id = ${courierId}
+      select is_available from driver_availability where driver_id = ${courierId}
     `;
     expect(driverState[0]?.is_available).toBe(true);
   });
@@ -323,21 +323,23 @@ describeIf("دورة حياة التوصيل الكاملة على قاعدة ح
   // ═══════════════════════════════════════════════════════════════════
   it("يلغي طلب التوصيل قبل الإسناد بلا عقوبة", async () => {
     await readyDriver(COURIER_CHAT, "أحمد العمري", "0501234567", "delivery", COURIER_AT);
-    await registerRider();
+    const riderId = await registerRider();
 
     await post("rider", callback(RIDER_CHAT, "svc:delivery"));
     await post("rider", location(RIDER_CHAT, PICKUP));
     await post("rider", location(RIDER_CHAT, DROPOFF));
     await post("rider", text(RIDER_CHAT, PARCEL));
 
-    const before = await sql<{ status: string }[]>`
-      select status::text as status from orders limit 1
+    const before = await sql<{ id: string; status: string }[]>`
+      select id, status::text as status from orders limit 1
     `;
     expect(before[0]?.status).toBe("searching");
+    const orderId = before[0]?.id;
+    if (orderId === undefined) throw new Error("لم يُنشَأ طلب");
 
     // الإلغاء قبل الإسناد
     const cancelled = await callJson(sql<{ result: Payload }[]>`
-      select cancel_order_by_rider(${RIDER_CHAT}::bigint) as result
+      select cancel_order_by_rider(${orderId}::uuid, ${riderId}::uuid, 'rider_cancelled') as result
     `);
     expect(cancelled.ok).toBe(true);
 
@@ -352,6 +354,14 @@ describeIf("دورة حياة التوصيل الكاملة على قاعدة ح
   // ═══════════════════════════════════════════════════════════════════
   it("الإكمال المتكرر لا يفسد الحالة: الطلب يبقى completed", async () => {
     const { orderId, courierId } = await createAndMatchDelivery();
+
+    // أكمل دورة الوصول والبدء أولاً
+    await callJson(sql<{ result: Payload }[]>`
+      select driver_mark_arrived(${COURIER_CHAT}::bigint, ${orderId}::uuid) as result
+    `);
+    await callJson(sql<{ result: Payload }[]>`
+      select driver_start_ride(${COURIER_CHAT}::bigint, ${orderId}::uuid) as result
+    `);
 
     // أكمل الرحلة
     const firstComplete = await callJson(sql<{ result: Payload }[]>`
@@ -379,7 +389,7 @@ describeIf("دورة حياة التوصيل الكاملة على قاعدة ح
 
     // السائق لا يزال متاحاً
     const driverState = await sql<{ is_available: boolean }[]>`
-      select is_available from drivers where id = ${courierId}
+      select is_available from driver_availability where driver_id = ${courierId}
     `;
     expect(driverState[0]?.is_available).toBe(true);
   });
