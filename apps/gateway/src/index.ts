@@ -912,6 +912,26 @@ const rides =
       };
 
 /**
+ * مسارُ التوصيلِ (`POST /v1/deliveries`) — يُفوِّضُ الإنشاءَ إلى `requestRide` القائمِ
+ * بـ`service: "delivery"`، ويُضيفُ تحقُّقَ وصفِ الطردِ ووجهةِ التسليمِ الإلزاميّة.
+ * يُركَّبُ معَ نفسِ سرِّ الجلسةِ و`RideRequestCommand` الذي يستعمله `rides`.
+ */
+const deliveries =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        request: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          rides: createRideRequestCommand(container.sql),
+          now: () => new Date(),
+        },
+        log,
+      };
+
+/**
  * سطحُ الاستغاثةِ (`F2-10`) — **كائنانِ** كسوابقِه: قارئُ الحكمِ لا يملكُ حقَّ
  * تقييدِ حادثٍ، وآمرُ الضغطةِ لا يقرأُ حكماً. والدورُ `"rider"` **مُركَّبٌ ههنا**
  * لا مقروءٌ من الطلبِ: لو قُرِئَ من الجسمِ لَأمكنَ لراكبٍ أن يُبلِّغَ بصفةِ سائقٍ.
@@ -1338,6 +1358,7 @@ const app = createServer({
   ...(destinations === undefined ? {} : { destinations }),
   ...(quote === undefined ? {} : { quote }),
   ...(rides === undefined ? {} : { rides }),
+  ...(deliveries === undefined ? {} : { deliveries }),
   ...(safety === undefined ? {} : { safety }),
   ...(dataRights === undefined ? {} : { dataRights }),
   ...(support === undefined ? {} : { support }),

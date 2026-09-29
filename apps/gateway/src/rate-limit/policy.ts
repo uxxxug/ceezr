@@ -997,6 +997,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    method: "POST",
+    path: "/v1/deliveries",
+    file: "apps/gateway/src/routes/deliveries.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "GET",
     path: "/v1/rides/:id/search",
     file: "apps/gateway/src/routes/rides.ts",
@@ -1243,6 +1252,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * (`SEC-21`) — وكلُّها محدودٌ فعلُها في القاعدةِ لا في عدَّادٍ.
  *
  * 106 → 108 في 2026-09-29 (`ADR 0213`): مسارا التسجيلِ من التطبيقِ المصغَّرِ — خلفَ
+ * حارسِ الجلسةِ كله. 108 → 109 في 2026-09-29: مسارُ `POST /v1/deliveries` — خلفَ
  * الجلسةِ الموقَّعةِ كسائرِ `مُصادَقٌ بجلسةٍ`، والكتابةُ فيهما upsert على `telegram_id`
  * فتكرارُها لا يُنشئُ صفّاً ثانياً.
  *
@@ -1250,7 +1260,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * دخولُهُ العامُّ محدودٌ في صفِّ الاعتمادِ في القاعدةِ (`admin_break_glass_finish_failure`)
  * والبقيةُ خلفَ حارسِ الجلسةِ.
  */
-export const ROUTE_POLICY_COUNT = 108;
+export const ROUTE_POLICY_COUNT = 109;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
