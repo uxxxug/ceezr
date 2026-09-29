@@ -27,9 +27,11 @@ const successResponse = {
 /** mockٌّ لـ `apiFetch` يلتقطُ النداءَ ويعيدُ ردّاً ناجحاً. */
 const mockApiFetch: ApiFetchFn = (path, init) => {
   capturedUrl = path;
-  capturedMethod = init.method;
-  capturedBody = init.body;
-  return Promise.resolve(successResponse) as Promise<never>;
+  capturedMethod = (init.method as string) ?? "GET";
+  const body = init.body;
+  capturedBody =
+    typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
+  return Promise.resolve(successResponse);
 };
 
 describe("Mini App delivery API", () => {
