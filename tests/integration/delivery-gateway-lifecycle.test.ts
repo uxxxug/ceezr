@@ -254,7 +254,7 @@ describeIf("دورة حياة التوصيل عبر مسارات HTTP على ق�
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${riderToken}`,
-          "x-idempotency-key": IDEMPOTENCY_KEY,
+          "idempotency-key": IDEMPOTENCY_KEY,
         },
         body: JSON.stringify({
           originLat: PICKUP.latitude,
@@ -419,7 +419,7 @@ describeIf("دورة حياة التوصيل عبر مسارات HTTP على ق�
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-idempotency-key": "no-session-test",
+          "idempotency-key": "no-session-test",
         },
         body: JSON.stringify({
           originLat: PICKUP.latitude,
@@ -451,7 +451,7 @@ describeIf("دورة حياة التوصيل عبر مسارات HTTP على ق�
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${riderToken}`,
-          "x-idempotency-key": "auth-isolation-test",
+          "idempotency-key": "auth-isolation-test",
         },
         body: JSON.stringify({
           originLat: PICKUP.latitude,
