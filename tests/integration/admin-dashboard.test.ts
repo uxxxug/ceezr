@@ -1065,7 +1065,7 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     if (riderId === undefined) throw new Error("تعذّر إنشاء الراكب");
     const tickets = await sql<{ id: string }[]>`
       insert into support_tickets (city_id, rider_id, type, status, message)
-      values (${cityId}, ${riderId}, 'complaint', 'open', 'السائق لم يصل')
+      values (${cityId}, ${riderId}, 'app_problem', 'open', 'السائق لم يصل')
       returning id
     `;
     const ticketId = tickets[0]?.id;
