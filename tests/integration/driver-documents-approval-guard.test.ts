@@ -96,8 +96,8 @@ afterAll(async () => {
     await sql`delete from driver_documents where driver_id = ${driverId}`;
     await sql`delete from driver_availability where driver_id = ${driverId}`;
     await sql`delete from subscriptions where driver_id = ${driverId}`;
-    await sql`delete from payment_transactions where driver_id = ${driverId}`;
-    await sql`delete from wallet_transactions where driver_id = ${driverId}`;
+    await sql`delete from subscription_wallets where driver_id = ${driverId}`;
+    await sql`delete from payment_transactions where payer_driver_id = ${driverId}`;
     await sql`delete from driver_location_history where driver_id = ${driverId}`;
     await sql`delete from drivers where id = ${driverId}`;
   }
