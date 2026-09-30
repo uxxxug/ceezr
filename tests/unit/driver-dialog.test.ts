@@ -1135,6 +1135,91 @@ describe("المنطقة المفضّلة للسائق", () => {
  * اختبارات القاعدة: أيظهر «إلغاء» لمن ألغى؟ أيقع الإلغاء بضغطةٍ واحدة؟
  * أيُنشئ المسار المدفوع معاملةً لا سبيل لدفعها؟
  */
+/**
+ * PD-041 — المركزُ الماليّ (`/finance`): البطاقةُ تُبنى من نموذجِ القراءةِ
+ * `driverFinanceOverview`، فتعرضُ المحفظةَ والاستردادَ والاعتراضَ القائمَ لا
+ * الاشتراكَ والعملةَ وحدَهما. وغيابُ المنفذِ سكوتٌ صادقٌ (ADR 0161) — لا وعدٌ
+ * كاذبٌ بسطرٍ يُعرضُ صفراً.
+ *
+ * كُتبت لأنّ البطاقةَ كانتْ تَسكُتُ عن المحفظةِ والاعتراضِ والاستردادِ مع أنّ
+ * نموذجَ القراءةِ الذي يجمعُها كانَ مبنيّاً وغيرَ موصولٍ، ووصفَ القائمةِ الدائمِ
+ * يَعِدُ بها حرفيّاً («الاشتراك والمحفظة والاعتراض والاسترداد في موضع واحد»).
+ */
+describe("المركز المالي — /finance", () => {
+  const WALLET = { ok: true, error: null, walletId: "w-1", currency: "SAR", balanceMinor: 4200 };
+
+  it("يعرض المحفظة والاسترداد والاعتراض القائم إلى جانب الاشتراك", async () => {
+    const replies = await handleDriverUpdate(
+      text("/finance"),
+      build({
+        drivers: driverDirectory(verifiedDriver()),
+        financeWallet: { balance: async () => ok(WALLET) },
+        financeObjections: {
+          listOpen: async () =>
+            ok([{ reference: "DED-7", status: "open", createdAt: "2026-09-29T10:00:00Z" }]),
+        },
+      }),
+    );
+    expect(replies[0]?.text).toContain(
+      ar("driver.finance_center", { subscription: "", currency: "" }).split("\n")[0] ?? "",
+    );
+    // الرصيدُ معروضٌ بخانتينِ عشريّتَينِ مع العملةِ.
+    expect(replies[0]?.text).toContain("42.00 SAR");
+    // الاستردادُ أهلٌ لأنّ الرصيدَ موجبٌ.
+    expect(replies[0]?.text).toContain(ar("driver.finance_refund_eligible"));
+    // الاعتراضُ القائمُ يُعَدُّ ولا تُنسَخُ تفاصيلُه.
+    expect(replies[0]?.text).toContain(ar("driver.finance_objections_line", { count: "1" }));
+    // والزرّانِ قائمانِ.
+    expect(replies[0]?.keyboard).toEqual({
+      kind: "inline",
+      rows: [
+        [{ label: ar("driver.finance_subscription_button"), data: "fin:subscription" }],
+        [{ label: ar("driver.finance_objection_button"), data: "fin:objection" }],
+      ],
+    });
+  });
+
+  it("غياب منفذ المحفظة سكوت لا وعد كاذب", async () => {
+    const replies = await handleDriverUpdate(
+      text("/finance"),
+      build({ drivers: driverDirectory(verifiedDriver()) }),
+    );
+    expect(replies[0]?.text).not.toContain("42.00");
+    expect(replies[0]?.text).not.toContain(ar("driver.finance_refund_eligible"));
+    expect(replies[0]?.text).not.toContain(
+      ar("driver.finance_refund_not_eligible", { reason: "" }),
+    );
+  });
+
+  it("رصيد صفري يعني استردادًا غير أهل بسبب مسمى", async () => {
+    const replies = await handleDriverUpdate(
+      text("/finance"),
+      build({
+        drivers: driverDirectory(verifiedDriver()),
+        financeWallet: { balance: async () => ok({ ...WALLET, balanceMinor: 0 }) },
+      }),
+    );
+    expect(replies[0]?.text).toContain("0.00 SAR");
+    expect(replies[0]?.text).toContain(
+      ar("driver.finance_refund_not_eligible", { reason: "no_balance" }),
+    );
+  });
+
+  it("فشل منفذ المحفظة عطل فني لا بطاقة نصف مالية", async () => {
+    const replies = await handleDriverUpdate(
+      text("/finance"),
+      build({
+        drivers: driverDirectory(verifiedDriver()),
+        financeWallet: {
+          balance: async () => err({ code: "STORE_ERROR", message: "down" } as never) as never,
+        },
+      }),
+    );
+    // عطلٌ فنيٌّ صادقٌ: رسالةُ «حاول بعد قليل» العامةُ، لا بطاقةً نصفَ ماليّةٍ.
+    expect(replies[0]?.text).toBe(ar("common.error_try_again"));
+  });
+});
+
 describe("تغييرات الاشتراك من بطاقة /subscription", () => {
   const liveSub = (overrides: Partial<Subscription> = {}): Subscription => ({
     driverId: "driver-1" as DriverId,

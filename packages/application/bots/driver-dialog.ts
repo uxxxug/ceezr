@@ -46,7 +46,8 @@ import type {
   ServiceType,
 } from "../../shared/kernel/index.ts";
 import { miniAppUrl } from "../../shared/miniapp-link/index.ts";
-import { ok } from "../../shared/result/index.ts";
+import type { Result } from "../../shared/result/index.ts";
+import { err, ok } from "../../shared/result/index.ts";
 import {
   type RegisterUnsubscribedClaimDependencies,
   registerUnsubscribedClaim,
@@ -55,7 +56,12 @@ import {
   type RelayDependencies,
   relayNegotiationMessage,
 } from "../dispatch/relay-negotiation-message.ts";
-import type { PaymentProvider, PaymentRepository } from "../financial/ports.ts";
+import type {
+  DriverFinanceOverviewDeps,
+  FinanceObjectionView,
+} from "../financial/driver-finance-overview.ts";
+import { driverFinanceOverview } from "../financial/driver-finance-overview.ts";
+import type { PaymentProvider, PaymentRepository, WalletBalance } from "../financial/ports.ts";
 import { subscribePlan } from "../financial/subscribe-plan.ts";
 import {
   type UpdateDriverLocationDeps,
@@ -65,7 +71,12 @@ import {
   type GroupJoinGateDependencies,
   handleDriverGroupJoinRequest,
 } from "../groups/group-join-gate.ts";
-import type { ClaimRideResult, DispatchRpcPort, SettingsRepository } from "../ports/index.ts";
+import type {
+  ClaimRideResult,
+  DispatchRpcPort,
+  PortFailureError,
+  SettingsRepository,
+} from "../ports/index.ts";
 import { isSafetyDecisionReason } from "../safety/ports.ts";
 import {
   type ResolveSafetyIncidentDeps,
@@ -178,6 +189,27 @@ export interface DriverBotDependencies {
    * يردّ «أمر غير معروف» بدل أن يفتح حواراً لا نهاية له.
    */
   readonly support?: SupportDialogDependencies;
+  /**
+   * منفذُ المحفظةِ للمركزِ الماليّ (`PD-041`): قراءةُ الرصيدِ وحدَها — لا إصدارَ
+   * استردادٍ ولا تسويةٍ من يدِ السائقِ (قرارُ `subscription-wallet-adapters.ts`:
+   * هذا المسارُ إداريٌّ/ويبهوكٌ فقط). اختياريٌّ كِسائرِ المنافذِ: غيابُهُ سكوتٌ
+   * عن سطرِ الرصيدِ لا وعدٌ كاذبٌ، والتوصيلُ في الحاويةِ دائمٌ في الإنتاجِ.
+   */
+  readonly financeWallet?: {
+    readonly balance: (
+      driverId: DriverId,
+    ) => Promise<Result<WalletBalance | null, PortFailureError>>;
+  };
+  /**
+   * منفذُ الاعتراضاتِ الماليّةِ المفتوحةِ (`PD-041`): تذاكرُ `deduction` القائمةُ
+   * تُعَدُّ فحسبْ — تفاصيلُها من مسارِ «تذاكري» القائمِ لا تُنسَخُ ههنا.
+   * اختياريٌّ بنفسِ المنطقِ.
+   */
+  readonly financeObjections?: {
+    readonly listOpen: (
+      driverId: DriverId,
+    ) => Promise<Result<readonly FinanceObjectionView[], PortFailureError>>;
+  };
   /**
    * المحاولةُ الفوريّة لإعادة عرض الطلبات الباحثة — المرحلة ١٤.
    *
@@ -1475,7 +1507,16 @@ async function handleUpgradeButton(
 
 /**
  * PD-041 — المركزُ الماليُّ للسائقِ: بطاقةٌ واحدةٌ تَعرضُ الاشتراكَ والمحفظةَ
- * والاعتراضَ الماليَّ والاستردادَ. لا تُنشئُ شيئًا — تَقرأُ ما هو قائمٌ.
+ * والاعتراضَ الماليَّ القائمَ وأهليّةَ الاستردادَ. لا تُنشئُ شيئًا — تَقرأُ ما هو قائمٌ.
+ *
+ * **موصولةٌ بنموذجِ القراءةِ `driverFinanceOverview`** (تصحيحٌ مُلحَقٌ 2026-09-30 ·
+ * `ح-8`): كانت البطاقةُ تقرأُ الاشتراكَ والعملةَ يدويّاً وتسكُتُ عن المحفظةِ
+ * والاعتراضِ والاستردادِ، ونموذجُ القراءةِ الذي يجمعُها كانَ مبنيّاً غيرَ موصولٍ،
+ * ووصفُ القائمةِ الدائمِ يَعِدُ «الاشتراك والمحفظة والاعتراض والاسترداد في
+ * موضع واحد». صارت البطاقةُ تُبنى من النموذجِ: مصدرُ الحقيقةِ واحدٌ لا اثنانِ.
+ * ومنافذا المحفظةِ والاعتراضِ اختياريّانِ في `DriverBotDependencies` كِسائرِ
+ * المنافذِ الاختياريّةِ في هذا الملفّ: غيابُ المنفذِ سكوتٌ صادقٌ لا وعدٌ كاذبٌ،
+ * والتوصيلُ في الحاويةِ دائمٌ في الإنتاجِ.
  */
 async function describeFinanceCenter(
   sender: Sender,
@@ -1485,12 +1526,39 @@ async function describeFinanceCenter(
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
 
-  const found = await deps.subscriptions.findLive(driver.id);
-  if (!found.ok) return technicalFailure(sender, state);
+  const wallet = deps.financeWallet;
+  const objections = deps.financeObjections;
+  const walletPort =
+    wallet === undefined
+      ? undefined
+      : ((async (driverId: DriverId) => {
+          const found = await wallet.balance(driverId);
+          return found.ok ? ok(found.value) : err(new Error(JSON.stringify(found.error)));
+        }) satisfies DriverFinanceOverviewDeps["walletBalance"]);
+  const objectionsPort =
+    objections === undefined
+      ? undefined
+      : ((async (driverId: DriverId) => {
+          const found = await objections.listOpen(driverId);
+          return found.ok ? ok(found.value) : err(new Error(JSON.stringify(found.error)));
+        }) satisfies DriverFinanceOverviewDeps["openObjections"]);
+  const overview = await driverFinanceOverview(driver.id, driver.cityId, {
+    findLiveSubscription: async (driverId) => {
+      const found = await deps.subscriptions.findLive(driverId);
+      return found.ok ? ok(found.value) : err(new Error(JSON.stringify(found.error)));
+    },
+    citySettings: async (cityId) => {
+      const found = await deps.settings.findByCity(cityId);
+      if (!found.ok) return err(new Error("settings unavailable"));
+      const parsed = parseCitySettings(cityId, found.value);
+      return parsed.ok ? ok(parsed.value) : err(new Error("settings unparsable"));
+    },
+    ...(walletPort !== undefined ? { walletBalance: walletPort } : {}),
+    ...(objectionsPort !== undefined ? { openObjections: objectionsPort } : {}),
+  });
+  if (!overview.ok) return technicalFailure(sender, state);
 
-  const subscription = found.value;
-  const settings = await citySettingsOf(deps, driver);
-  if (settings === null) return technicalFailure(sender, state);
+  const card = overview.value;
 
   const rows: { readonly label: string; readonly data: string }[][] = [];
 
@@ -1501,25 +1569,77 @@ async function describeFinanceCenter(
   rows.push([{ label: tr("driver.finance_objection_button"), data: "fin:objection" }]);
 
   const subscriptionLine =
-    subscription !== null && isSubscriptionLive(subscription, deps.clock.now())
+    card.subscription !== null &&
+    isSubscriptionLive(subscriptionOf(card.subscription), deps.clock.now())
       ? tr("driver.finance_subscription_active", {
-          plan: subscription.plan,
-          until: subscription.currentPeriodEnd !== null ? dayOf(subscription.currentPeriodEnd) : "",
+          plan: card.subscription.plan,
+          until:
+            card.subscription.currentPeriodEnd !== null
+              ? dayOf(new Date(card.subscription.currentPeriodEnd))
+              : "",
         })
       : tr("driver.finance_subscription_inactive");
 
-  const currencyLine = tr("driver.finance_currency", { currency: settings.currency });
-
-  return [
-    reply(
-      sender,
-      tr("driver.finance_center", {
-        subscription: subscriptionLine,
-        currency: currencyLine,
-      }),
-      { kind: "inline", rows },
-    ),
+  // سطورُ البطاقةِ: الاشتراكُ والعملةُ دائماً، ثمّ — إن وُجِدَ منفذُ المحفظةِ —
+  // الرصيدُ وأهليّةُ الاستردادِ، ثمّ عددُ الاعتراضاتِ المفتوحةِ. الغائبُ يُسكَتُ
+  // عنهُ لا يُعرَضُ صفراً كاذباً (ADR 0161: «إن لم يكن المزود يدعم الاسترداد يُسكَت عنه»).
+  const lines = [
+    tr("driver.finance_center", {
+      subscription: subscriptionLine,
+      currency:
+        card.earnings !== null
+          ? tr("driver.finance_currency", { currency: card.earnings.currency })
+          : "",
+    }),
   ];
+
+  if (card.walletBalance !== null && card.walletBalance.balanceMinor !== null) {
+    lines.push(
+      tr("driver.finance_wallet", {
+        balance: formatMinorUnits(
+          card.walletBalance.balanceMinor,
+          card.walletBalance.currency ?? "",
+        ),
+      }),
+    );
+    if (card.refund !== null) {
+      lines.push(
+        card.refund.eligible
+          ? tr("driver.finance_refund_eligible")
+          : tr("driver.finance_refund_not_eligible", { reason: card.refund.reason ?? "" }),
+      );
+    }
+  }
+
+  if (card.openObjections.length > 0) {
+    lines.push(tr("driver.finance_objections_line", { count: String(card.openObjections.length) }));
+  }
+
+  return [reply(sender, lines.join("\n"), { kind: "inline", rows })];
+}
+
+/**
+ * يعيد بناءَ كيانِ الاشتراكِ من منظورِ النموذجِ ليفحصَه `isSubscriptionLive` —
+ * النموذجَ يُخرِجُ ISO نصوصاً (عقدُ السلكِ)، والفحصُ بحاجِ حقيقةِ القاعدةِ.
+ */
+function subscriptionOf(view: {
+  readonly plan: string;
+  readonly currentPeriodEnd: string | null;
+  readonly trialEndsAt: string | null;
+  readonly cancelAtPeriodEnd: boolean;
+}): Subscription {
+  return {
+    plan: view.plan as SubscriptionPlan,
+    currentPeriodEnd: view.currentPeriodEnd !== null ? new Date(view.currentPeriodEnd) : null,
+    trialEndsAt: view.trialEndsAt !== null ? new Date(view.trialEndsAt) : null,
+    cancelAtPeriodEnd: view.cancelAtPeriodEnd,
+  } as unknown as Subscription;
+}
+
+/** رصيدٌ بالوحداتِ الصغرى يُعرَضُ بخانتينِ عشريّتَينِ — قراءةً لا حسابَ دفعٍ. */
+function formatMinorUnits(minor: number, currency: string): string {
+  const major = (minor / 100).toFixed(2);
+  return currency === "" ? major : `${major} ${currency}`;
 }
 
 /**
