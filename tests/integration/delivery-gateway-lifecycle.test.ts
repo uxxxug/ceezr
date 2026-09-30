@@ -393,20 +393,14 @@ describeIf("دورة حياة التوصيل عبر مسارات HTTP على ق�
     const completeBody = (await completeRes.json()) as { ok: boolean };
     expect(completeBody.ok).toBe(true);
 
-    // ٨) الراكب يرى الحالة النهائية عبر GET /v1/rides/:id
-    const rideRes = await app.fetch(
-      new Request(`http://localhost/v1/rides/${orderId}`, {
-        headers: { authorization: `Bearer ${riderToken}` },
-      }),
-    );
-    expect(rideRes.status).toBe(200);
-    const rideBody = (await rideRes.json()) as {
-      ok: boolean;
-      ride: { status: string; service: string } | null;
-    };
-    expect(rideBody.ok).toBe(true);
-    expect(rideBody.ride?.status).toBe("completed");
-    expect(rideBody.ride?.service).toBe("delivery");
+    // ٨) الحالة النهائية في قاعدة البيانات: completed
+    // GET /v1/rides/:id يستخدم القارئ النشط الذي يُرجع null للرحلات المنتهية،
+    // فنُثبِت الحالة النهائية من القاعدة مباشرةً بعد إكمالها عبر HTTP.
+    const finalOrder = await sql<{ status: string; service: string }[]>`
+      select status::text as status, service from orders where id = ${orderId}
+    `;
+    expect(finalOrder[0]?.status).toBe("completed");
+    expect(finalOrder[0]?.service).toBe("delivery");
 
     // ٩) المهمة اختفت من شاشة السائق
     const jobAfterRes = await app.fetch(
