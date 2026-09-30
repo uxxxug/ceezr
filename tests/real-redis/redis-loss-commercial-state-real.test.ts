@@ -55,6 +55,7 @@ import {
   type RealRedisHandle,
   realRedisConfigured,
 } from "../support/real-redis.ts";
+import { seedAcceptedDocuments } from "../support/seed-driver-documents.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 // يسقط التشغيلُ فوراً إن كانت الوظيفةُ تزعم Redis حقيقياً ولا نقطةَ لها.
@@ -200,6 +201,7 @@ async function registerDriver(chat: number, suffix: string, actor: string): Prom
     select d.id from drivers d join users u on u.id = d.user_id where u.telegram_id = ${chat}`;
   const driverId = rows[0]?.id;
   if (driverId === undefined) throw new Error(`لم يُسجَّلْ السائقُ ${chat} — الحوارُ لم يكتملْ`);
+  await seedAcceptedDocuments(sql, cityId, driverId);
   await sql`select admin_set_driver_verification(${actor}::uuid, ${driverId}::uuid, 'verified'::text)`;
   await post("driver", text(chat, "/available"));
   await post("driver", loc(chat, DRIVER_AT));
