@@ -1105,6 +1105,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    method: "POST",
+    path: "/v1/driver/safety/sos",
+    file: "apps/gateway/src/routes/safety.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "GET",
     path: "/v1/safety/sos",
     file: "apps/gateway/src/routes/safety.ts",
