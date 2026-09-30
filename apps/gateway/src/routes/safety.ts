@@ -61,6 +61,12 @@ export interface SafetyRouteDependencies {
    * يُكتبُ جوابٌ ثانٍ للسؤالِ نفسِه ولا يُقرأُ الدورُ من الطلبِ.
    */
   readonly driverSurface?: ReadSosSurfaceDeps;
+  /**
+   * `F12-22` — آمرُ ضغطةِ السائقِ عبرَ HTTP: نفسُ `requestMiniAppSos` بدورِ
+   * `"driver"` — **موضعُ استقبالٍ مسجَّلٌ** لا جديدٌ. تيليجرامُ لم يَعُدْ قناةً
+   * وحيدةً للسائقِ.
+   */
+  readonly driverTrigger?: RequestMiniAppSosDeps;
   /** آمرُ الضغطةِ — **كائنٌ آخرُ**: القارئُ لا يملكُ حقَّ تقييدِ حادثٍ. */
   readonly trigger?: RequestMiniAppSosDeps;
   readonly log?: (event: string, fields: Record<string, unknown>) => void;
@@ -231,6 +237,34 @@ export function createSafetyRoutes(deps: SafetyRouteDependencies): Hono {
     }
 
     const result = await requestMiniAppSos(deps.trigger, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+    });
+    if (!result.ok) return rejected(c, result.error);
+
+    const outcome = result.value;
+    if (!outcome.accepted) {
+      return c.json({ ok: true, accepted: false as const, refusal: outcome.refusal });
+    }
+    return c.json({
+      ok: true,
+      accepted: true as const,
+      incidentId: outcome.incidentId,
+      created: outcome.created,
+    });
+  });
+
+  /**
+   * `F12-22` — قناةُ استغاثةٍ ثانيةً للسائقِ بلا تيليجرام. نفسُ `requestMiniAppSos`
+   * بدورِ `"driver"` — موضعُ استقبالٍ مسجَّلٌ لا جديدٌ. **حاكمٌ واحدٌ**: نفسُ
+   * `trigger_sos` ونفسُ القاعدةِ، ولا يُقرأُ الدورُ من الطلبِ.
+   */
+  app.post("/v1/driver/safety/sos", async (c) => {
+    if (deps.driverTrigger === undefined) {
+      deps.log?.("safety.driver_sos_trigger_disabled", {});
+      return rejected(c, "SAFETY_STORE_NOT_AVAILABLE");
+    }
+
+    const result = await requestMiniAppSos(deps.driverTrigger, {
       accessToken: bearerTokenFrom(c.req.header("authorization")),
     });
     if (!result.ok) return rejected(c, result.error);
