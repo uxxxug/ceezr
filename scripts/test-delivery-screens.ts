@@ -41,6 +41,7 @@ import {
 } from "../apps/gateway/src/rate-limit/fixed-window.ts";
 import { type KeyDimension, rateLimitPolicy } from "../apps/gateway/src/rate-limit/policy.ts";
 import { createServer, type ServerDependencies } from "../apps/gateway/src/server.ts";
+import { buildBrowserHostScript } from "../apps/miniapp/src/tg/measure-host.ts";
 import type { DriverJobDeps } from "../packages/application/driver/driver-job.ts";
 import type { DriverOfferDeps } from "../packages/application/driver/driver-offers.ts";
 import {
@@ -337,10 +338,8 @@ window.fetch = async function(input, init) {
 `;
 }
 
-function buildTelegramMock(initData: string, userJson: string): string {
-  const authDate = Math.floor(Date.now() / 1000);
-  return `window.Telegram = { WebApp: { initData: ${JSON.stringify(initData)}, initDataUnsafe: { user: ${userJson}, auth_date: ${authDate} }, version: "8.0", platform: "web", colorScheme: "light", themeParams: {}, isExpanded: true, viewportHeight: 823, viewportStableHeight: 823, ready: () => {}, expand: () => {}, close: () => {} } };`;
-}
+// buildBrowserHostScript from tg/measure-host.ts is the approved channel for
+// Telegram mocks (F1-02 · ADR 0031). Do not construct the host inline.
 
 // ═══════════════════════════════════════════════════════════════════
 // Browser session — launch, navigate, interact, evaluate
@@ -418,6 +417,7 @@ async function launchBrowser(
   });
 
   // Inject Telegram mock + fetch override before any page script
+  // Use the approved channel: buildBrowserHostScript from tg/measure-host.ts (F1-02)
   const userJson = JSON.stringify({
     id: TEST_RIDER.id,
     first_name: TEST_RIDER.first_name,
@@ -426,7 +426,7 @@ async function launchBrowser(
     language_code: TEST_RIDER.language_code,
   });
   await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
-    source: buildTelegramMock(initData, userJson),
+    source: buildBrowserHostScript(initData, userJson),
   });
   await cdp.send("Page.addScriptToEvaluateOnNewDocument", {
     source: buildFetchOverride(),
