@@ -131,6 +131,7 @@ import { createStaleAvailabilityRpc } from "../../../packages/infrastructure/sch
 import { createJobHeartbeatRecorder } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { createSubscriptionLifecycleRpc } from "../../../packages/infrastructure/subscription/lifecycle-adapters.ts";
 import { createSubscriptionNoticeDeliveryPort } from "../../../packages/infrastructure/subscription/notice-adapters.ts";
+import { createCeilingExceededAdapter } from "../../../packages/infrastructure/tracking/ceiling-exceeded-adapters.ts";
 import { createStalledOrderAdapter } from "../../../packages/infrastructure/tracking/stalled-order-adapters.ts";
 import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { createOrderRepository } from "../../../packages/infrastructure/transport/order-adapters.ts";
@@ -154,6 +155,7 @@ import { deliverBroadcasts } from "./jobs/deliver-broadcasts.ts";
 import { deliverNotifications } from "./jobs/deliver-notifications.ts";
 import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { deliverSubscriptionNotices } from "./jobs/deliver-subscription-notices.ts";
+import { detectCeilingExceededOrders } from "./jobs/detect-ceiling-exceeded.ts";
 import { detectStalledOrders } from "./jobs/detect-stalled-orders.ts";
 import { expireOffers } from "./jobs/expire-offers.ts";
 import { expireSubscriptions, warnExpiringSoon } from "./jobs/expire-subscriptions.ts";
@@ -240,6 +242,16 @@ export const JOB_INTERVALS = {
    * من ذلكَ نداءُ قاعدةٍ بلا فائدةٍ لأنَّ الحكمَ لا يتغيَّرُ في ثانيةٍ.
    */
   detectStalledOrders: 120,
+  /**
+   * `F12-20` — كاشفُ تجاوزِ السقفِ. ٣٠٠ ثانيةً (خمسُ دقائقَ): السقفُ بالساعاتِ
+   * (٧٢٠ دقيقةً افتراضاً)، فنبضةٌ كلَّ خمسِ دقائقَ تكشفُ في حدودِ ١٪ من المهلةِ —
+   * وأسرعُ من ذلكَ نداءُ قاعدةٍ بلا فائدةٍ لأنَّ الحكمَ (`started_at` لا يتغيّرُ)
+   * لا يتغيّرُ في دقائقَ، ولا يُبطَّأ لأنَّ رحلةً متجاوزةً السقفَ يُستحسنُ أن تقفَ
+   * أمامَ عينِ المُشغِّلِ في غضونِ دقائقَ لا ساعةٍ. وليست حرجةً في `CRITICAL_CITY_JOBS`:
+   * الكشفُ والتصعيدُ وحدَهما (`ADR 0216`) — لا تغييرَ حالةَ ولا حذفَ بياناتٍ،
+   * فتأخّرُها تأخُّرُ رؤيةٍ لا تأخُّرَ حكمٍ.
+   */
+  detectCeilingExceeded: 300,
   /**
    * كلَّ يومٍ: تقديمُ نافذةِ أقسامِ `driver_location_history` (`F7-03`). لا يُسرَّعُ
    * لأنَّ القِسمَ يوميٌّ فنداءٌ ثانٍ في اليومِ نفسِه لا يُنشئُ شيئاً، ولا يُبطَّأُ
@@ -509,6 +521,7 @@ export function buildWorkerContainer(
   const adminMetricSnapshotPort = createMetricSnapshotRefreshPort(sql);
   const trackingTokens = createTrackingTokenRpc(sql);
   const stalledOrders = createStalledOrderAdapter(sql);
+  const ceilingExceeded = createCeilingExceededAdapter(sql);
 
   /**
    * مزوّد الدفع في العامل يُبنى من نفس متغيّرات البيئة التي تبنيه في البوابة، لا
@@ -861,6 +874,27 @@ export function buildWorkerContainer(
                 });
                 if (!report.ok) throw new Error(JSON.stringify(report.error));
                 return `stalled=${report.value.stalled} worstIdle=${report.value.worstIdleSeconds ?? "-"}`;
+              },
+            },
+            {
+              /**
+               * `F12-20` — كاشفُ تجاوزِ السقفِ (`tracking_link_max_lifetime_minutes`).
+               * **ليست في `CRITICAL_CITY_JOBS`** لِعَينِ العلّةِ في جارتِها أعلاه:
+               * الكشفُ والتصعيدُ وحدَهما (`ADR 0216`) — لا تغييرَ حالةَ طلبٍ ولا
+               * حذفَ بياناتٍ، فتعطُّلُها يؤخّرُ رؤيةَ المُشغِّلِ لا حكمَ النظامِ.
+               * والقراءةُ محضةٌ من القاعدةِ (`detect_ceiling_exceeded_orders`).
+               */
+              name: `detect-ceiling-exceeded:${cityId}`,
+              everySeconds: JOB_INTERVALS.detectCeilingExceeded,
+              run: async () => {
+                const report = await detectCeilingExceededOrders(cityId, {
+                  detector: ceilingExceeded,
+                  escalate: (fields) => {
+                    log.info("worker.order_ceiling_exceeded", fields);
+                  },
+                });
+                if (!report.ok) throw new Error(JSON.stringify(report.error));
+                return `exceeded=${report.value.exceeded} worstElapsed=${report.value.worstElapsedMinutes ?? "-"}`;
               },
             },
             {
