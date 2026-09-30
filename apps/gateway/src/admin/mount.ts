@@ -47,6 +47,7 @@ import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
+import type { ReadUrlSigner } from "../../../../packages/infrastructure/storage/signed-read.ts";
 import { createAdminApiRoutes } from "../routes/admin-api.ts";
 import { createAdminLiveRoutes } from "../routes/admin-live.ts";
 import { createAdminUiRoutes } from "../routes/admin-ui.ts";
@@ -101,6 +102,12 @@ export interface AdminSurfaceDependencies {
    * تدهورٌ مُعلَنٌ في واجهةِ الموجِّهِ لا صمتٌ.
    */
   readonly breakGlassLoginPerAddress?: RateLimiter;
+  /**
+   * مُوقِّعُ روابطِ القراءةِ للوثائقِ — يُمرَّرُ ولا يُبنى ههنا (نفسُ قاعدةِ
+   * `revocation`). غيابُهُ يُغلقُ مسلكَ عرضِ الوثيقةِ بـ٥٠٣ لا نجاحٍ صامتٍ.
+   * `DEC-0xx` — رابطُ قراءةٍ موقَّعٌ لوثائقِ السائقين في اللوحة.
+   */
+  readonly readSigner?: ReadUrlSigner;
 }
 
 /**
@@ -151,6 +158,7 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.breakGlassLoginPerAddress === undefined
         ? {}
         : { limits: { breakGlassLoginPerAddress: deps.breakGlassLoginPerAddress } }),
+      ...(deps.readSigner === undefined ? {} : { readSigner: deps.readSigner }),
     }),
   );
 

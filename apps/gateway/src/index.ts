@@ -1468,6 +1468,8 @@ if (config.runAdminInGateway) {
     // حاصرُ دخولِ البابِ الموازي (`SEC-21`): منَ السِجلِّ المغلقِ كما كلَّ حدٍّ،
     // ويُرقّى إلى Redis متى وُجدَ كسائرِ حدودِ ما قبلَ المصادقةِ (ADR 0139).
     breakGlassLoginPerAddress: limiterFor("POST", "/admin/login/break-glass", "عنوانُ العميلِ"),
+    // مُوقِّعُ روابطِ القراءةِ للوثائقِ — نفسُ المُوقِّعِ الذي يخدمُ مسارَ المركبةِ.
+    ...(vehicleReadStorage === null ? {} : { readSigner: new HttpReadSigner(vehicleReadStorage) }),
     mapOrigins,
     ...(mapStyle.ok ? { mapStyle: mapStyle.value } : {}),
     maplibreSri: config.maplibreSri,

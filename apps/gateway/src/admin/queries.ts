@@ -841,7 +841,7 @@ function toPoint(lat: number | null, lng: number | null): DriverDetailPoint | nu
  * لا صفحةً فارغة تُقرأ كأنها سائقٌ بلا بيانات.
  */
 export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDetail | null> {
-  const [profileRows, orderRows, ticketRows] = await Promise.all([
+  const [profileRows, orderRows, ticketRows, documentRows] = await Promise.all([
     sql<DriverProfileSqlRow[]>`
       select d.id as driver_id, d.user_id,
              u.full_name, u.telegram_id::text as telegram_id, u.telegram_username, u.phone,
@@ -955,6 +955,28 @@ export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDe
        order by t.created_at desc
        limit ${DRIVER_TICKETS_LIMIT}
     `,
+    sql<
+      {
+        doc_type: string;
+        status: string | null;
+        object_path: string;
+        expires_at: string | null;
+        review_note: string | null;
+        submitted_at: string | null;
+        reviewed_at: string | null;
+      }[]
+    >`
+      select doc_type::text as doc_type,
+             status::text as status,
+             object_path,
+             expires_at::text as expires_at,
+             review_note,
+             submitted_at,
+             reviewed_at
+        from driver_documents
+       where driver_id = ${driverId}::uuid
+       order by doc_type
+    `,
   ]);
 
   const row = profileRows[0];
@@ -1030,6 +1052,15 @@ export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDe
       claimedByName: ticket.claimed_by_name,
       linkKind: ticket.link_kind === "filed_by_driver" ? "filed_by_driver" : "about_driver_order",
       counterpartName: ticket.counterpart_name,
+    })),
+    documents: documentRows.map((doc) => ({
+      docType: doc.doc_type,
+      status: doc.status,
+      objectPath: doc.object_path,
+      expiresAt: doc.expires_at,
+      reviewNote: doc.review_note,
+      submittedAt: doc.submitted_at === null ? null : String(doc.submitted_at),
+      reviewedAt: doc.reviewed_at === null ? null : String(doc.reviewed_at),
     })),
   };
 }

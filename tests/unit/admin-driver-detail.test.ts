@@ -13,6 +13,7 @@
 
 import { describe, expect, it } from "bun:test";
 import {
+  type DriverDetailDocument,
   type DriverDetailOrder,
   type DriverDetailProfile,
   type DriverDetailTicket,
@@ -109,6 +110,7 @@ function render(
     profile?: Partial<DriverDetailProfile>;
     orders?: readonly DriverDetailOrder[];
     tickets?: readonly DriverDetailTicket[];
+    documents?: readonly DriverDetailDocument[];
   } = {},
 ): string {
   return renderDriverDetailPage({
@@ -116,6 +118,7 @@ function render(
     profile: profile(overrides.profile ?? {}),
     orders: overrides.orders ?? [ORDER],
     tickets: overrides.tickets ?? [TICKET],
+    documents: overrides.documents ?? [],
     ticketsLimit: 20,
     csrfToken: CSRF,
   });
@@ -222,6 +225,42 @@ describe("صفحة تفاصيل السائق — ما تعرضه", () => {
     expect(html).not.toContain("<img src=x");
     expect(html).not.toContain("<script>alert(2)");
     expect(html).toContain("&lt;img");
+  });
+});
+
+describe("صفحة تفاصيل السائق — الوثائق", () => {
+  const DOCUMENT: DriverDetailDocument = {
+    docType: "driving_license",
+    status: "accepted",
+    objectPath: "drivers/abc/license.jpg",
+    expiresAt: "2027-01-01",
+    reviewNote: null,
+    submittedAt: "2026-09-01T10:00:00.000Z",
+    reviewedAt: "2026-09-02T10:00:00.000Z",
+  };
+
+  it("تعرض جدول الوثائق مع رابط عرض لكل وثيقة", () => {
+    const html = render({ documents: [DOCUMENT] });
+
+    expect(html).toContain("رخصة القيادة");
+    expect(html).toContain("مقبولة");
+    expect(html).toContain("عرض");
+    expect(html).toContain("/admin/drivers/");
+    expect(html).toContain("/documents/driving_license");
+  });
+
+  it("لا وثائق: نصٌّ يقول ذلك لا جدولٌ فارغ", () => {
+    const html = render({ documents: [] });
+
+    expect(html).toContain("لا وثائق مرفوعة لهذا السائق.");
+  });
+
+  it("تهرب من HTML في مسار الكائن", () => {
+    const html = render({
+      documents: [{ ...DOCUMENT, objectPath: "<script>alert(1)</script>" }],
+    });
+
+    expect(html).not.toContain("<script>alert(1)");
   });
 });
 
