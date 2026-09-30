@@ -902,8 +902,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // نصوصُ شِفرةٍ: `driver_document_block_reasons` تُستدعَى داخلَ `admin_set_driver_verification`
     // في المحرِّكِ، ورفضُ `verified` بلا وثائقَ لا يُقاسُ بمزدوجٍ في الذاكرةِ.
     // والأرقامُ السابقةُ محفوظةٌ.
-    expect(SKIP_REGISTRY).toHaveLength(155);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1428);
+    expect(SKIP_REGISTRY).toHaveLength(156);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1432);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
