@@ -23,6 +23,7 @@ import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/a
 import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
+import type { FinanceObjectionView } from "../../../packages/application/financial/driver-finance-overview.ts";
 import type {
   PaymentProvider,
   SubscriptionWalletRpcPort,
@@ -915,6 +916,36 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
       log,
     } satisfies GroupJoinGateDependencies,
     support: driverSupport,
+    /**
+     * `PD-041` — منفذا المحفظةِ والاعتراضاتِ للمركزِ الماليّ: التوصيلُ دائمٌ في
+     * الإنتاجِ (الاختياريّةُ للحقنِ في اختباراتِ الحوارِ القائمةِ التي لا شأنَ
+     * لها بالمالِ). المحفظةُ من `subscription_wallet_balance` قراءةً وحدَها — لا
+     * إصدارَ استردادٍ من يدِ السائقِ. والاعتراضاتُ المفتوحةُ تُعَدُّ من
+     * `support_tickets` بصنفِ `deduction` وحالةٍ غيرِ مُغلقةٍ — عدٌّ لا نسخُ
+     * تفاصيلَ (تفاصيلُها من مسارِ «تذاكري» القائمِ).
+     */
+    financeWallet: {
+      balance: (driverId) => financial.getBalance(driverId),
+    },
+    financeObjections: {
+      listOpen: async (driverId) => {
+        const rows = await sql<{ reference: string; status: string; created_at: string }[]>`
+          select reference, status::text as status, created_at::text as created_at
+          from support_tickets
+          where driver_id = ${driverId}::uuid
+            and type = 'deduction'
+            and status not in ('resolved', 'rejected')
+          order by created_at desc
+          limit 10
+        `;
+        const views: readonly FinanceObjectionView[] = rows.map((row) => ({
+          reference: row.reference,
+          status: row.status,
+          createdAt: row.created_at,
+        }));
+        return { ok: true as const, value: views };
+      },
+    },
     safety,
     tracking: liveTracking,
     tripCards: driverTripCards,
