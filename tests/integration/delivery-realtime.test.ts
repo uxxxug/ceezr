@@ -7,9 +7,15 @@
  * ينتمي إلى: tests/integration
  * يُتوقع أن يستخدمه لاحقاً: CI (خدمة postgis)، وأي تعديل على قناة Realtime
  * ملاحظات مستقبلية: عند إضافة ordering/dedup في العميل يُضاف اختبار هنا.
+ *
+ * ## ولماذا beforeAll/afterAll لا beforeEach/afterEach
+ *
+ * لأنَّ truncate لـ `users` بينَ كلِّ اختبارٍ يُدمِّرُ بياناتِ اختباراتٍ أُخرى
+ * (مثل pdpl-compliance) تشتركُ في نفسِ القاعدةِ في CI. فالإعدادُ مرّةً واحدةً
+ * والتنظيفُ مرّةً واحدةً، وكلُّ اختبارٍ ينظِّفُ موارِدَهُ في `finally`.
  */
 
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { createServer as createHttpServer } from "node:http";
 import { Server as IoServer } from "socket.io";
 import { io as IoClient, type Socket as IoClientSocket } from "socket.io-client";
@@ -63,69 +69,6 @@ function tokenFor(telegramUserId: string, bot: "rider" | "driver"): string {
   );
   if (!issued.ok) throw new Error("إصدارُ الجلسةِ فاشلٌ");
   return issued.value.accessToken;
-}
-
-async function setupRiderAndDriver(): Promise<void> {
-  const [riderUser] = await sql<{ id: string }[]>`
-    insert into users (city_id, telegram_id, role, full_name, phone)
-    values (${cityId}, ${RIDER_CHAT}, 'rider', 'راكب القناة', '+966500000001')
-    returning id
-  `;
-  if (riderUser === undefined) throw new Error("تعذّر زرعُ مستخدمِ الراكبِ");
-  const [rider] = await sql<{ id: string }[]>`
-    insert into riders (city_id, user_id) values (${cityId}, ${riderUser.id}) returning id
-  `;
-  if (rider === undefined) throw new Error("تعذّر زرعُ الراكبِ");
-  riderId = rider.id;
-
-  const [driverUser] = await sql<{ id: string }[]>`
-    insert into users (city_id, telegram_id, role, full_name, phone)
-    values (${cityId}, ${DRIVER_CHAT}, 'driver', 'سائق توصيل', '+966500000002')
-    returning id
-  `;
-  if (driverUser === undefined) throw new Error("تعذّر زرعُ مستخدمِ السائقِ");
-  const [driver] = await sql<{ id: string }[]>`
-    insert into drivers (city_id, user_id, verification_status, vehicle_type, plate_number,
-                         last_location, last_location_at)
-    values (${cityId}, ${driverUser.id}, 'verified'::verification_status, 'سيدان', 'ر س ب 1234',
-            st_setsrid(st_makepoint(${COURIER_AT.lng}, ${COURIER_AT.lat}), 4326)::geography, now())
-    returning id
-  `;
-  if (driver === undefined) throw new Error("تعذّر زرعُ السائقِ");
-  driverId = driver.id;
-  await sql`
-    insert into subscriptions (city_id, driver_id, plan, status)
-    values (${cityId}, ${driverId}, 'delivery'::subscription_plan, 'active'::subscription_status)
-  `;
-  await sql`
-    insert into driver_capabilities (city_id, driver_id, service, is_enabled)
-    values (${cityId}, ${driverId}, 'delivery'::service_type, true)
-  `;
-
-  // راكبٌ آخر لا يملكُ رحلةً
-  const [otherUser] = await sql<{ id: string }[]>`
-    insert into users (city_id, telegram_id, role, full_name, phone)
-    values (${cityId}, ${OTHER_RIDER_CHAT}, 'rider', 'راكب آخر', '+966500000003')
-    returning id
-  `;
-  if (otherUser === undefined) throw new Error("تعذّر زرعُ مستخدمِ الراكبِ الآخر");
-  await sql`insert into riders (city_id, user_id) values (${cityId}, ${otherUser.id})`;
-}
-
-async function createDeliveryOrder(): Promise<void> {
-  const [order] = await sql<{ id: string }[]>`
-    insert into orders (city_id, rider_id, service, status, pickup, dropoff, notes,
-                        broadcast_round, created_at, matched_at, assigned_driver_id)
-    values (
-      ${cityId}, ${riderId}, 'delivery'::service_type, 'matched'::order_status,
-      st_setsrid(st_makepoint(${PICKUP.lng}, ${PICKUP.lat}), 4326)::geography,
-      st_setsrid(st_makepoint(${DROPOFF.lng}, ${DROPOFF.lat}), 4326)::geography,
-      ${"صندوق كتب متوسط الحجم"}, 1, now(), now(), ${driverId}
-    )
-    returning id
-  `;
-  if (order === undefined) throw new Error("تعذّر زرعُ طلبِ التوصيل");
-  orderId = order.id;
 }
 
 /** يُنشئ قناةَ Socket.IO على منفذٍ حرٍّ ويُرجِعُ المقبض. */
@@ -182,20 +125,79 @@ describeIf("قناة Realtime للتوصيل على قاعدة حقيقية", ()
     const cities = await sql<{ id: string }[]>`select id from cities where code = 'JED'`;
     const id = cities[0]?.id;
     if (id === undefined) throw new Error("لم تُطبَّق هجرة بذر المدن على قاعدة الاختبار");
-    cityHandle = await ensureActiveCity(sql, { prior: cityHandle });
+    cityHandle = await ensureActiveCity(sql, {
+      groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
+      prior: cityHandle,
+    });
     cityId = cityHandle.cityId;
-  });
 
-  afterEach(async () => {
-    // لا يُترَكُ صفٌّ بينَ الاختبارات
-    if (orderId !== "") {
-      await sql`delete from order_offers where order_id = ${orderId}`;
-      await sql`delete from orders where id = ${orderId}`;
-      orderId = "";
-    }
+    // زرعُ بياناتٍ مرّةً واحدةً — لا بينَ كلِّ اختبارٍ
+    const [riderUser] = await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, role, full_name, phone)
+      values (${cityId}, ${RIDER_CHAT}, 'rider', 'راكب القناة', '+966500000001')
+      returning id
+    `;
+    if (riderUser === undefined) throw new Error("تعذّر زرعُ مستخدمِ الراكبِ");
+    const [rider] = await sql<{ id: string }[]>`
+      insert into riders (city_id, user_id) values (${cityId}, ${riderUser.id}) returning id
+    `;
+    if (rider === undefined) throw new Error("تعذّر زرعُ الراكبِ");
+    riderId = rider.id;
+
+    const [driverUser] = await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, role, full_name, phone)
+      values (${cityId}, ${DRIVER_CHAT}, 'driver', 'سائق توصيل', '+966500000002')
+      returning id
+    `;
+    if (driverUser === undefined) throw new Error("تعذّر زرعُ مستخدمِ السائقِ");
+    const [driver] = await sql<{ id: string }[]>`
+      insert into drivers (city_id, user_id, verification_status, vehicle_type, plate_number,
+                           last_location, last_location_at)
+      values (${cityId}, ${driverUser.id}, 'verified'::verification_status, 'سيدان', 'ر س ب 1234',
+              st_setsrid(st_makepoint(${COURIER_AT.lng}, ${COURIER_AT.lat}), 4326)::geography, now())
+      returning id
+    `;
+    if (driver === undefined) throw new Error("تعذّر زرعُ السائقِ");
+    driverId = driver.id;
+    await sql`
+      insert into subscriptions (city_id, driver_id, plan, status)
+      values (${cityId}, ${driverId}, 'delivery'::subscription_plan, 'active'::subscription_status)
+    `;
+    await sql`
+      insert into driver_capabilities (city_id, driver_id, service, is_enabled)
+      values (${cityId}, ${driverId}, 'delivery'::service_type, true)
+    `;
+
+    // راكبٌ آخر لا يملكُ رحلةً
+    const [otherUser] = await sql<{ id: string }[]>`
+      insert into users (city_id, telegram_id, role, full_name, phone)
+      values (${cityId}, ${OTHER_RIDER_CHAT}, 'rider', 'راكب آخر', '+966500000003')
+      returning id
+    `;
+    if (otherUser === undefined) throw new Error("تعذّر زرعُ مستخدمِ الراكبِ الآخر");
+    await sql`insert into riders (city_id, user_id) values (${cityId}, ${otherUser.id})`;
+
+    // طلبُ توصيلٍ matched
+    const [order] = await sql<{ id: string }[]>`
+      insert into orders (city_id, rider_id, service, status, pickup, dropoff, notes,
+                          broadcast_round, created_at, matched_at, assigned_driver_id)
+      values (
+        ${cityId}, ${riderId}, 'delivery'::service_type, 'matched'::order_status,
+        st_setsrid(st_makepoint(${PICKUP.lng}, ${PICKUP.lat}), 4326)::geography,
+        st_setsrid(st_makepoint(${DROPOFF.lng}, ${DROPOFF.lat}), 4326)::geography,
+        ${"صندوق كتب متوسط الحجم"}, 1, now(), now(), ${driverId}
+      )
+      returning id
+    `;
+    if (order === undefined) throw new Error("تعذّر زرعُ طلبِ التوصيل");
+    orderId = order.id;
   });
 
   afterAll(async () => {
+    if (orderId !== "") {
+      await sql`delete from order_offers where order_id = ${orderId}`;
+      await sql`delete from orders where id = ${orderId}`;
+    }
     if (driverId !== "") {
       await sql`delete from driver_capabilities where driver_id = ${driverId}`;
       await sql`delete from subscriptions where driver_id = ${driverId}`;
@@ -209,21 +211,6 @@ describeIf("قناة Realtime للتوصيل على قاعدة حقيقية", ()
     }
     await restoreCityBaseline(sql, cityHandle);
     await sql.end({ timeout: 5 });
-  });
-
-  beforeEach(async () => {
-    await sql`truncate table order_offers, orders, driver_capabilities, subscriptions,
-                             driver_availability, drivers, riders, users restart identity cascade`;
-    cityHandle = await ensureActiveCity(sql, {
-      groups: { support: -1001, escalation: -1002, unsubscribed: -1003 },
-      prior: cityHandle,
-    });
-    cityId = cityHandle.cityId;
-    riderId = "";
-    driverId = "";
-    orderId = "";
-    await setupRiderAndDriver();
-    await createDeliveryOrder();
   });
 
   // ═══════════════════════════════════════════════════════════════════
