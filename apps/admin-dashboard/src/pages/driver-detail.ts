@@ -419,9 +419,7 @@ export function renderDriverDetailPage(data: DriverDetailData): string {
       : `${escapeHtml(formatDateTime(doc.submittedAt))}<div class="card-hint">${escapeHtml(
           formatAge(doc.submittedAt, data.now),
         )}</div>`,
-    doc.reviewedAt === null
-      ? EMPTY_CELL
-      : escapeHtml(formatDateTime(doc.reviewedAt)),
+    doc.reviewedAt === null ? EMPTY_CELL : escapeHtml(formatDateTime(doc.reviewedAt)),
     `<a href="/admin/drivers/${escapeHtml(data.profile.driverId)}/documents/${escapeHtml(doc.docType)}">عرض</a>`,
   ]);
 

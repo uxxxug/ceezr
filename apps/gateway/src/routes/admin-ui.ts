@@ -27,6 +27,7 @@ import { DEFAULT_SESSION_POLICY } from "../../../../packages/domain/tracking/ses
 import { createBroadcastAdminPort } from "../../../../packages/infrastructure/broadcast/broadcast-adapters.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import { MINIAPP_SESSION_ABSOLUTE_TTL_SECONDS } from "../../../../packages/infrastructure/identity/miniapp-refresh.ts";
+import type { ReadUrlSigner } from "../../../../packages/infrastructure/storage/signed-read.ts";
 import {
   MAPLIBRE_SRI_UNSET,
   type MapPoint,
@@ -44,13 +45,13 @@ import {
   type BroadcastPreview,
   type CityGroupStatus,
   type CityOption,
+  escapeHtml,
   renderAttendancePage,
   renderBreakGlassPage,
   renderBroadcastPage,
   renderDisputesPage,
   renderDriverDetailPage,
   renderDriversPage,
-  escapeHtml,
   renderHeatmapPage,
   renderLiveMapPage,
   renderLiveOrdersPage,
@@ -134,7 +135,6 @@ import {
 import { createAdminSecurityHeaders } from "../admin/security-headers.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
-import type { ReadUrlSigner } from "../../../../packages/infrastructure/storage/signed-read.ts";
 
 export interface AdminUiDependencies {
   readonly sql: Sql;
@@ -1137,21 +1137,25 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const docLabel =
       // أسماءُ الوثائقِ بالعربيةِ في كودِ العقدِ غيرُ متاحٍ ههنا بلا استيرادٍ كاملٍ —
       // نُسخِّنُها من جدولٍ صغيرٍ يُغطّي الأنواعَ المعروفةَ.
-      ({
-        driving_license: "رخصة القيادة",
-        medical_exam: "الفحص الطبي",
-        criminal_record: "السجل الجنائي",
-        vehicle_registration: "استمارة السيارة",
-        insurance: "التأمين",
-        periodic_inspection: "الفحص الدوري",
-      } as const)[docType as keyof {
-        driving_license: string;
-        medical_exam: string;
-        criminal_record: string;
-        vehicle_registration: string;
-        insurance: string;
-        periodic_inspection: string;
-      }] ?? docType;
+      (
+        {
+          driving_license: "رخصة القيادة",
+          medical_exam: "الفحص الطبي",
+          criminal_record: "السجل الجنائي",
+          vehicle_registration: "استمارة السيارة",
+          insurance: "التأمين",
+          periodic_inspection: "الفحص الدوري",
+        } as const
+      )[
+        docType as keyof {
+          driving_license: string;
+          medical_exam: string;
+          criminal_record: string;
+          vehicle_registration: string;
+          insurance: string;
+          periodic_inspection: string;
+        }
+      ] ?? docType;
 
     const expiresInSeconds = Math.max(
       0,
