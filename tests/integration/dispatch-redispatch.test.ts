@@ -42,6 +42,7 @@ import {
   restoreCityBaseline,
 } from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
+import { seedAcceptedDocuments } from "../support/seed-driver-documents.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL ?? "";
@@ -203,6 +204,7 @@ beforeAll(async () => {
   await post("driver", photo(D1, "vphoto_1502"));
   const dRows = await sql<{ id: string }[]>`
     select d.id from drivers d join users u on u.id = d.user_id where u.telegram_id = ${D1}`;
+  await seedAcceptedDocuments(sql, cityId, dRows[0]?.id ?? "");
   await sql`select admin_set_driver_verification(${actor}::uuid, ${dRows[0]?.id ?? ""}::uuid, 'verified'::text)`;
   await post("driver", text(D1, "/available"));
   await post("driver", loc(D1, DRIVER_AT));
