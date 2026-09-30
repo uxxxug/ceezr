@@ -40,6 +40,7 @@
 
 import type { Hono } from "hono";
 import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
+import type { TrackingTokenRpcPort } from "../../../../packages/application/tracking/tracking-token-ports.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
@@ -69,6 +70,11 @@ export interface AdminSurfaceDependencies {
    * تبعيّاتِ هذا السطحِ. وغيابُهُ يُعطِّلُ مسلكَ الإبطالِ ردَّ ٥٠٣ ولا يُسكِتُهُ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * `F16-03` — منفذُ رموزِ التتبُّعِ لقطعِ روابطِ طلبٍ منَ اللوحةِ. اختياريٌّ
+   * كأخواتِهِ: غيابُهُ يُغلقُ المسلكَ بـ٥٠٣ لا نجاحٍ صامتٍ.
+   */
+  readonly trackingTokens?: TrackingTokenRpcPort;
   /**
    * مفتاحُ تشفيرِ سرِّ TOTP للبابِ الموازي (`SEC-21` · ADR 0176) — اختياريٌّ
    * كأخواتِهِ: غيابُهُ يُفعِّلُ الرفضَ الموحَّدَ للبابِ ولا يُسقِطُ الخدمةَ.
@@ -121,6 +127,7 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.maplibreSri === undefined ? {} : { maplibreSri: deps.maplibreSri }),
       ...(deps.log === undefined ? {} : { log: deps.log }),
       ...(deps.revocation === undefined ? {} : { revocation: deps.revocation }),
+      ...(deps.trackingTokens === undefined ? {} : { trackingTokens: deps.trackingTokens }),
       ...(deps.breakGlassTotpKey === undefined
         ? {}
         : { breakGlassTotpKey: deps.breakGlassTotpKey }),

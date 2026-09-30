@@ -22,6 +22,7 @@
  */
 
 import type { SessionRevocationStore } from "../../../packages/application/identity/ports.ts";
+import type { TrackingTokenRpcPort } from "../../../packages/application/tracking/tracking-token-ports.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import { createRedisSessionRevocationStore } from "../../../packages/infrastructure/identity/redis-session-revocation-store.ts";
 import { createTelegramApi } from "../../../packages/infrastructure/notification/telegram-client.ts";
@@ -35,6 +36,7 @@ import {
   DEFAULT_POLL_MS,
   TRACKING_EVENT_STREAM_KEY,
 } from "../../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
+import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { type ResolvedMapStyle, resolveMapStyle } from "../../../packages/maps/index.ts";
 import {
   DB_POOL_MAX,
@@ -59,6 +61,11 @@ export interface AdminContainer {
    * مسلكُ الإبطالِ يردُّ ٥٠٣، فلا يُسجَّلُ قرارٌ بلا إنفاذٍ.
    */
   readonly sessionRevocation: SessionRevocationStore | null;
+  /**
+   * `F16-03` — منفذُ رموزِ التتبُّعِ لقطعِ الروابطِ منَ اللوحةِ. `null` يعني
+   * إغلاقَ المسلكِ بردِّ ٥٠٣ لا صمتَهُ.
+   */
+  readonly trackingTokens: TrackingTokenRpcPort | null;
   readonly close: () => Promise<void>;
 }
 
@@ -131,6 +138,8 @@ export function buildAdminContainer(
    * لا مخزنَ — والمسلكُ يردُّ ٥٠٣ ولا يُوهِمُ بإبطالٍ لا يراهُ أحدٌ.
    */
   const sessionRevocation = redis === null ? null : createRedisSessionRevocationStore(redis);
+  /** `F16-03` — منفذُ رموزِ التتبُّعِ فوقَ القاعدةِ نفسِها لا نسخةٌ ثانيةٌ. */
+  const trackingTokens = createTrackingTokenRpc(sql);
 
   if (distributedBus !== null) distributedBus.start();
   const bus: TrackingEventBus = distributedBus ?? localBus;
@@ -186,6 +195,7 @@ export function buildAdminContainer(
     maplibreSri: config.maplibreSri,
     busCrossesProcesses: distributedBus !== null,
     sessionRevocation,
+    trackingTokens,
     close: async () => {
       distributedBus?.stop();
       await sql.end({ timeout: 5 });

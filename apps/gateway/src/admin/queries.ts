@@ -1038,6 +1038,23 @@ export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDe
 // الطلبات الحية
 // ---------------------------------------------------------------------------
 
+/**
+ * `F16-02`/`F16-03` — تلغرامُ صاحبِ الطلبِ منَ القاعدةِ لا منَ نموذجٍ يكتبُهُ
+ * المسؤولُ: مسارُ قطعِ روابطِ التتبُّعِ منَ اللوحةِ يُلغي **بالنيابةِ عن
+ * مُصدِرِها** (زرُّ الراكبِ موصولٌ منذُ §4.2)، وملكيّةُ الإلغاءِ في القاعدةِ
+ * تطالبُ تلغرامَ صاحبِ الطلبِ نفسِهِ — فلا يُقبلَ معرّفٌ من خارجِها.
+ */
+export async function orderRiderTelegram(sql: Sql, orderId: string): Promise<string | null> {
+  const rows = await sql<{ telegram_id: string }[]>`
+    select u.telegram_id::text as telegram_id
+      from orders o
+      join riders r on r.id = o.rider_id
+      join users u on u.id = r.user_id
+     where o.id = ${orderId}::uuid
+  `;
+  return rows[0]?.telegram_id ?? null;
+}
+
 export async function listLiveOrders(
   sql: Sql,
   cityId: string | null,

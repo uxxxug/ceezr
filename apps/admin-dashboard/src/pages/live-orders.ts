@@ -39,6 +39,11 @@ export interface LiveOrderRow {
 
 export interface LiveOrdersData {
   readonly now: Date;
+  /**
+   * `F16-03` — بصمةُ CSRF لنموذجِ قطعِ روابطِ التتبُّعِ في كلِّ صفٍّ: الإلغاءُ
+   * بالنيابةِ عن مُصدِرِها (تلغرامُ صاحبِ الطلبِ) بطلبِ دعمٍ.
+   */
+  readonly csrfToken: string;
   readonly rows: readonly LiveOrderRow[];
   readonly cities: readonly CityOption[];
   readonly cityId: string | null;
@@ -104,7 +109,11 @@ export function renderLiveOrdersPage(data: LiveOrdersData): string {
           ? ""
           : ` ${badge(escapeHtml(row.negotiationStage), "warn")}`),
       `<div>${escapeHtml(row.riderName ?? "بلا اسم")}</div>
-       <div class="card-hint mono">${escapeHtml(row.riderTelegramId)}</div>`,
+       <div class="card-hint mono">${escapeHtml(row.riderTelegramId)}</div>
+       <form class="inline" method="post" action="/admin/live-orders/${escapeHtml(row.orderId)}/revoke-tracking">
+  <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
+  <button class="ghost" type="submit">قطع روابط التتبّع</button>
+</form>`,
       escapeHtml(row.driverName ?? EMPTY_CELL),
       `<div>${escapeHtml(row.pickupLabel ?? EMPTY_CELL)}</div>
        <div class="card-hint">${escapeHtml(row.dropoffLabel ?? "")}</div>`,
@@ -118,7 +127,7 @@ export function renderLiveOrdersPage(data: LiveOrdersData): string {
   });
 
   return `<h1>الطلبات الحية</h1>
-<p class="note">تحديث تلقائي كل نصف دقيقة. حالة اللحظة: ${escapeHtml(formatDateTime(data.now))}</p>
+<p class="note">تحديث تلقائي كل نصف دقيقة. «قطع روابط التتبّع» يُلغي روابط الطلب بالنيابة عن صاحبه بطلب دعم — والملكية محكومة في القاعدة. حالة اللحظة: ${escapeHtml(formatDateTime(data.now))}</p>
 <form class="filters" method="get" action="/admin/live-orders">
   <label>المدينة
     <select name="city">

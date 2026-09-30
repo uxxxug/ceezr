@@ -136,6 +136,14 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
     method: "post",
+    template: "/live-orders/:id/revoke-tracking",
+    kind: "admin-guard",
+    reason:
+      "قطعُ روابطِ التتبُّعِ بطلبِ دعمٍ فعلٌ بالنيابةِ عن مُصدِرِها: المُصدِرُ (تلغرامُ صاحبِ الطلبِ) يُقرأُ منَ القاعدةِ لا منَ النموذجِ، وملكيّةُ الإلغاءِ تُطابِقُها القاعدةُ في `revoke_order_tracking_tokens` داخلَ عبارةِ الكتابةِ (القاعدةُ 0.5 · F16-03)؛ وسلطتُها منَ وسيطِ جلسةِ الإدارةِ على الموجّهِ كلِّه.",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
     template: "/recovery/:requestId/review",
     kind: "admin-guard",
     reason:

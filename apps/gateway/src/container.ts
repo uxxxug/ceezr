@@ -282,6 +282,12 @@ export interface Container {
    */
   readonly financial: SubscriptionWalletRpcPort;
   /**
+   * `F16-03` — منفذُ رموزِ التتبُّعِ مكشوفٌ لأنَّ قطعَ الروابطِ منَ اللوحةِ يجبُ
+   * أن يمرَّ على **نفسِ** المنفذِ الذي يُلغي به زرُّ الراكبِ — منفذٌ ثانٍ كانَ
+   * سيجعلُ للملكيّةِ حاكمَينِ يفترقانِ (القاعدةُ 0.6).
+   */
+  readonly trackingTokens: TrackingTokenRpcPort;
+  /**
    * `F2-10` — منفذُ الاستغاثةِ مكشوفٌ لأنَّ مسارَ `POST /v1/safety/sos` يجبُ أن
    * يُقَيِّدَ الحادثَ بـ**نفسِ** المنفذِ الذي يكتبُ به بوتُ الراكبِ وبوتُ السائقِ.
    * وبناؤُ منفذٍ ثانٍ في `index.ts` كانَ سيُنشئُ **حاكمَينِ للاستغاثةِ** يفترقانِ
@@ -1077,6 +1083,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     sql,
     driverSender,
     financial,
+    trackingTokens: trackingTokens,
     safety: { trigger: safety.trigger },
     driverOffers: { drivers, decisions: offerDecisions },
     driverLocation: {

@@ -94,6 +94,8 @@ async function main(): Promise<void> {
     ...(container.mapStyle === null ? {} : { mapStyle: container.mapStyle }),
     maplibreSri: container.maplibreSri,
     ...(container.sessionRevocation === null ? {} : { revocation: container.sessionRevocation }),
+    // `F16-03` — منفذُ رموزِ التتبُّعِ: غيابُهُ يُغلقُ المسلكَ بـ٥٠٣.
+    ...(container.trackingTokens === null ? {} : { trackingTokens: container.trackingTokens }),
     log,
   });
 

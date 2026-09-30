@@ -1455,6 +1455,9 @@ if (config.runAdminInGateway) {
     bus: container.tracking.bus,
     // مسلكُ إبطالِ جلساتِ Mini App منَ اللوحةِ (`SEC-18-ب`) — بلا هذا السطرِ يردُّ ٥٠٣.
     revocation: sessionRevocationStore,
+    // `F16-03` — منفذُ رموزِ التتبُّعِ لقطعِ الروابطِ منَ اللوحةِ: نفسُ منفذِ
+    // زرِّ الراكبِ لا نسخةً ثانيةً.
+    trackingTokens: container.trackingTokens,
     // مفتاحُ سرِّ البابِ الموازي (`SEC-21`) — غيابُهُ يُغلقُ البابَ موحَّدًا لا سقوطًا.
     breakGlassTotpKey: config.adminBreakGlassTotpKey,
     // حاصرُ دخولِ البابِ الموازي (`SEC-21`): منَ السِجلِّ المغلقِ كما كلَّ حدٍّ،
