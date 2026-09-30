@@ -839,6 +839,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/delivery-realtime.test.ts",
+    suites: ["قناة Realtime للتوصيل على قاعدة حقيقية"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت قناةَ Socket.IO للتوصيلِ على PostgreSQL حقيقيّةٍ: session auth، room isolation، event delivery، reconnect/rejoin، snapshot أولي، وعزلَ راكبٍ آخر. ولا يُثبَتُ ذلك ببديلٍ في الذاكرة: المقصودُ سلوكُ الخادمِ والعميلِ الحقيقيَّين والقاعدةِ معًا.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/notification-outbox.test.ts",
     suites: ["notification_outbox على PostgreSQL فعلية (BUG-004)"],
     skipped: 8,
