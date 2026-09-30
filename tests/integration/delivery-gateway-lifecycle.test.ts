@@ -241,13 +241,21 @@ describeIf("دورة حياة التوصيل عبر مسارات HTTP على ق�
   // ١) الدورة الكاملة عبر HTTP: إنشاء ← عروض ← قبول ← وصول ← بدء ← إكمال
   // ═══════════════════════════════════════════════════════════════════
   it("يكمل دورة التوصيل عبر مسارات HTTP: إنشاء ← قبول ← وصول ← بدء ← إكمال", async () => {
-    await readyDriver(COURIER_CHAT, "أحمد العمري", "0501234567", "delivery", COURIER_AT);
+    const courierId = await readyDriver(
+      COURIER_CHAT,
+      "أحمد العمري",
+      "0501234567",
+      "delivery",
+      COURIER_AT,
+    );
     await registerRider();
 
     const riderToken = tokenFor(String(RIDER_CHAT), "rider");
     const driverToken = tokenFor(String(COURIER_CHAT), "driver");
 
     // ١) إنشاء طلب توصيل عبر POST /v1/deliveries
+    // المسار يُنشئ الطلب عبر requestRide؛ بثُّ العرض يتمُّ بواسطة dispatch منفصل،
+    // فنُدرج العرض يدويًّا كما يفعل support-volume-budget.test.ts.
     const createRes = await app.fetch(
       new Request("http://localhost/v1/deliveries", {
         method: "POST",
@@ -276,6 +284,16 @@ describeIf("دورة حياة التوصيل عبر مسارات HTTP على ق�
     const orderId = createBody.orderId;
     if (orderId === undefined) throw new Error("لم يُنشَأ طلب التوصيل");
 
+    // إدراج العرض يدويًّا — كما في support-volume-budget.test.ts
+    const offerRows = await sql<{ id: string }[]>`
+      insert into order_offers (city_id, order_id, driver_id, round, status, expires_at)
+      values (${cityId}, ${orderId}, ${courierId}, 1, 'pending'::offer_status,
+              now() + make_interval(secs => 120))
+      returning id
+    `;
+    const offerId = offerRows[0]?.id;
+    if (offerId === undefined) throw new Error("لم يُنشَأ العرض");
+
     // ٢) السائق يرى العرض عبر GET /v1/driver/offers
     const offersRes = await app.fetch(
       new Request("http://localhost/v1/driver/offers", {
@@ -295,8 +313,6 @@ describeIf("دورة حياة التوصيل عبر مسارات HTTP على ق�
     expect(offersBody.offers).toHaveLength(1);
     expect(offersBody.offers[0]?.order_id).toBe(orderId);
     expect(offersBody.offers[0]?.service).toBe("delivery");
-    const offerId = offersBody.offers[0]?.offer_id;
-    if (offerId === undefined) throw new Error("لا عرضَ في اللوحة");
 
     // ٣) قبول العرض عبر POST /v1/driver/offers/:offerId/accept
     const acceptRes = await app.fetch(
