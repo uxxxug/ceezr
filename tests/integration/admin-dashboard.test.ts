@@ -21,6 +21,7 @@ import {
 import { createAdminApiRoutes } from "../../apps/gateway/src/routes/admin-api.ts";
 import { createAdminUiRoutes } from "../../apps/gateway/src/routes/admin-ui.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
+import { createSupportResolutionPort } from "../../packages/infrastructure/dispute/support-adapters.ts";
 import { createMemorySessionRevocationStore } from "../../packages/infrastructure/identity/memory-session-revocation-store.ts";
 import { createRatingFlagPort } from "../../packages/infrastructure/reputation/rating-adapters.ts";
 import { seedAcceptedDocuments } from "../support/seed-driver-documents.ts";
@@ -181,6 +182,8 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
         revocation: revocationStore,
         // `F16-01` — منفذُ تعليمِ التقييمِ: نفسُ منفذِ `/flag` في القروبِ.
         ratingFlags: createRatingFlagPort(sql),
+        // `F16-02` — منفذُ الإقفالِ الإداريِّ: نفسُ منفذِ أزرارِ القروبِ.
+        disputeResolutions: createSupportResolutionPort(sql),
       }),
     );
   });
@@ -1045,6 +1048,7 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
   });
 
   /*
+  /*
    * `F16-01` — تعليمُ التقييمِ المسيءِ من صفحةِ التقييماتِ: زرٌّ يمرُّ على
    * `flag_rating` فتَحكُمُ القاعدةُ بالدورِ وتكتبُ `audit_log`. المقيسُ ههنا
    * المسارُ كاملًا: الصفحةُ تعرضُ الزرَّ، والـPOST يُعلِّمُ فعلاً، والمعلَّمُ
@@ -1134,6 +1138,105 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
       });
       expect(response.status).toBe(503);
       const rows = await sql`select 1 from audit_log where action = 'rating.flagged'`;
+      expect(rows).toHaveLength(0);
+    } finally {
+      app = previous;
+    }
+  });
+
+  /*
+   * `F16-02` — الإقفالُ الإداريُّ للتذكرةِ من صفحةِ النزاعاتِ (`close-dispute.ts`
+   * الذي كانَ مكتوباً بلا نداءٍ): المسارُ كاملًا — الصفحةُ تعرضُ النموذجَ
+   * للمفتوحةِ، والـPOST بسببعٍ مكتوبٍ يُقفِلُ عبرَ `resolve_support_ticket`
+   * (reject) فتكتبُ القاعدةُ الحالةَ والحاسمَ والسببَ و`audit_log` — كما في
+   * القروبِ سواءً بسواءٍ. والاستلامُ يبقى في القروبِ: هذا قرارٌ لا نقلُ يدٍ.
+   */
+  it("إقفال تذكرة من اللوحة: مرفوضة بسببع موثّق وحاسم مسجّل في سجل التدقيق", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, "/admin/disputes");
+
+    // بذرةُ التذكرةِ: شكوى مفتوحة من الراكب.
+    const riders = await sql<{ id: string }[]>`
+      insert into riders (city_id, user_id)
+      select ${cityId}, id from users where telegram_id = ${OTHER_TELEGRAM}::bigint
+      returning id
+    `;
+    const riderId = riders[0]?.id;
+    if (riderId === undefined) throw new Error("تعذّر إنشاء الراكب");
+    const tickets = await sql<{ id: string }[]>`
+      insert into support_tickets (city_id, rider_id, type, status, message)
+      values (${cityId}, ${riderId}, 'app_problem', 'open', 'السائق لم يصل')
+      returning id
+    `;
+    const ticketId = tickets[0]?.id;
+    if (ticketId === undefined) throw new Error("تعذّر إنشاء التذكرة");
+
+    // الصفحةُ تعرضُ النموذجَ للمفتوحةِ.
+    const page = await (await request("/admin/disputes", { cookie })).text();
+    expect(page).toContain(`action="/admin/disputes/${ticketId}/close"`);
+
+    // بلا سببعٍ لا إقفالَ: 422 لا نجاحٌ صامتٌ.
+    const noNote = await request(`/admin/disputes/${ticketId}/close`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, note: "   " }),
+    });
+    expect(noNote.status).toBe(422);
+
+    const closed = await request(`/admin/disputes/${ticketId}/close`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, note: "لا استجابة من العميل بعد الانتظار" }),
+    });
+    expect(closed.status).toBe(303);
+
+    const after = await sql<
+      { status: string; resolution: string | null; resolvedBy: string | null }[]
+    >`
+      select status, resolution,
+             (select full_name from users u where u.id = resolved_by_user_id) as "resolvedBy"
+      from support_tickets where id = ${ticketId}::uuid
+    `;
+    expect(after[0]?.status).toBe("rejected");
+    expect(after[0]?.resolution).toBe("لا استجابة من العميل بعد الانتظار");
+    expect(after[0]?.resolvedBy).toBe("مسؤول النظام");
+    const audit = await sql`
+      select 1 from audit_log where action = 'support.ticket_reject' and entity_id = ${ticketId}::uuid
+    `;
+    expect(audit).toHaveLength(1);
+
+    // والمرفوضةُ لا يُعرَضُ لها نموذجٌ ثانٍ.
+    const pageAfter = await (await request("/admin/disputes?status=rejected", { cookie })).text();
+    expect(pageAfter).not.toContain(`action="/admin/disputes/${ticketId}/close"`);
+  });
+
+  it("بلا منفذ إقفال موصول يردّ المسلك 503 لا نجاح صامت", async () => {
+    const bare = new Hono();
+    bare.route(
+      "/admin",
+      createAdminUiRoutes({
+        sql,
+        auth,
+        codeSender: {
+          send: async (chatId, text) => {
+            sentCodes.push({ chatId, text });
+            return true;
+          },
+        },
+      }),
+    );
+    const previous = app;
+    app = bare;
+    try {
+      const cookie = await login(ADMIN_TELEGRAM);
+      const csrf = await csrfFrom(cookie, "/admin/disputes");
+      const response = await request("/admin/disputes/1b2c3d4e-5f60-4a1b-8c2d-9e0f1a2b3c4d/close", {
+        method: "POST",
+        cookie,
+        body: form({ csrf, note: "سبب" }),
+      });
+      expect(response.status).toBe(503);
+      const rows = await sql`select 1 from audit_log where action = 'support.ticket_reject'`;
       expect(rows).toHaveLength(0);
     } finally {
       app = previous;

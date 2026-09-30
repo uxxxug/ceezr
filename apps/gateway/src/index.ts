@@ -1455,6 +1455,9 @@ if (config.runAdminInGateway) {
     bus: container.tracking.bus,
     // مسلكُ إبطالِ جلساتِ Mini App منَ اللوحةِ (`SEC-18-ب`) — بلا هذا السطرِ يردُّ ٥٠٣.
     revocation: sessionRevocationStore,
+    // `F16-02` — منفذُ الإقفالِ الإداريِّ للتذاكرِ من صفحةِ النزاعاتِ: نفسُ
+    // منفذِ أزرارِ القروبِ (`resolve_support_ticket`) لا نسخةً ثانيةً.
+    disputeResolutions: container.disputeResolutions,
     // `F16-01` — منفذُ تعليمِ التقييمِ منَ اللوحةِ: نفسُ منفذِ `/flag` في القروبِ.
     ratingFlags: container.reputation.flags,
     // مفتاحُ سرِّ البابِ الموازي (`SEC-21`) — غيابُهُ يُغلقُ البابَ موحَّدًا لا سقوطًا.

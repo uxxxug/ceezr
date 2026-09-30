@@ -136,6 +136,14 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
     method: "post",
+    template: "/disputes/:id/close",
+    kind: "admin-guard",
+    reason:
+      "الإقفالُ الإداريُّ للتذكرةِ سلطةُ إدارةٍ على تذكرةِ دعمٍ لا مِلكيّةُ صاحبِها؛ والمصدرُ وسيطُ جلسةِ الإدارةِ على الموجّهِ كلِّه، وصفةُ الفاعلِ تُحكَمُ ثانيةً في `resolve_support_ticket` (is_support_actor) وهيَ security definer (F16-02).",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
     template: "/ratings/:id/flag",
     kind: "admin-guard",
     reason:

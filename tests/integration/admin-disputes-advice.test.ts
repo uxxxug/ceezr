@@ -98,6 +98,7 @@ describeIf("ظهور اقتراح الطبقة في صفحة النزاعات", 
 
     const html = renderDisputesPage({
       now: new Date(),
+      csrfToken: "csrf-token",
       rows,
       cities: [],
       cityId,
@@ -130,6 +131,7 @@ describeIf("ظهور اقتراح الطبقة في صفحة النزاعات", 
 
     const html = renderDisputesPage({
       now: new Date(),
+      csrfToken: "csrf-token",
       rows,
       cities: [],
       cityId,

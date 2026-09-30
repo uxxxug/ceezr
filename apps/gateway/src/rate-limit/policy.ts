@@ -446,6 +446,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "POST",
+    path: "/admin/disputes/:id/close",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
     path: "/admin/users/:id/blocked",
     file: "apps/gateway/src/routes/admin-ui.ts",
     exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
@@ -1279,9 +1288,11 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * والبقيةُ خلفَ حارسِ الجلسةِ.
  * 105 → 110 في 2026-09-30 (`F12-22`): مسارُ استغاثةِ السائقِ بلا تيليجرام.
  * 110 → 111 في 2026-09-30 (`F16-01` · `ADR 0219`): مسارُ تعليمِ التقييمِ منَ
- * اللوحةِ — خلفَ حارسِ جلسةِ الإدارةِ كما أخواتُه.
+ * اللوحةِ — خلفَ حارسِ جلسةِ الإدارةِ كما أخواتُه. 111 → 112 في 2026-09-30
+ * (`F16-02` · `ADR 0220`): مسارُ الإقفالِ الإداريِّ للتذكرةِ منَ اللوحةِ —
+ * خلفَ حارسِ جلسةِ الإدارةِ كما أخواتُه.
  */
-export const ROUTE_POLICY_COUNT = 111;
+export const ROUTE_POLICY_COUNT = 112;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
