@@ -510,6 +510,18 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/unit/ceiling-exceeded-adapter-load.test.ts",
+    suites: ["F12-20 — تحميلُ الوحداتِ"],
+    skipped: 0,
+    gate: "—",
+    reason: "لا يُتخطَّى شيءٌ — ملفُّ تحميلٍ يحملُ الوحداتِ للقياسِ في lcov.",
+    activation: "—",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: null,
+    whyNotRun: "يُحمَّلُ في خطوةِ Test العامةِ مع سائرِ اختباراتِ الوحدة — لا خطوةَ مُسمّاةً مُستقلّةً له.",
+  },
+  {
     file: "tests/integration/stalled-order-ceiling-detector.test.ts",
     suites: ["F12-20 — كاشفُ تجاوزِ السقفِ"],
     skipped: 4,
