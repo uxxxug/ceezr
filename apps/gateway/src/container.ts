@@ -23,6 +23,7 @@ import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/a
 import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
+import type { SupportResolutionPort } from "../../../packages/application/dispute/resolve-dispute.ts";
 import type { FinanceObjectionView } from "../../../packages/application/financial/driver-finance-overview.ts";
 import type {
   PaymentProvider,
@@ -281,6 +282,12 @@ export interface Container {
    * ومسار الويبهوك يستعملان هذا المحول الإنتاجي نفسه عند تفعيل واجهتهما.
    */
   readonly financial: SubscriptionWalletRpcPort;
+  /**
+   * `F16-02` — منفذُ قراراتِ التذاكرِ مكشوفٌ لأنَّ الإقفالَ الإداريَّ من اللوحةِ
+   * يجبُ أن يمرَّ على **نفسِ** المنفذِ الذي تحكُمُ به أزرارُ قروبِ الدعمِ:
+   * `resolve_support_ticket` — منفذٌ ثانٍ كان سيجعلُ للحدِّ حكمانِ يفترقانِ (0.6).
+   */
+  readonly disputeResolutions: SupportResolutionPort;
   /**
    * `F2-10` — منفذُ الاستغاثةِ مكشوفٌ لأنَّ مسارَ `POST /v1/safety/sos` يجبُ أن
    * يُقَيِّدَ الحادثَ بـ**نفسِ** المنفذِ الذي يكتبُ به بوتُ الراكبِ وبوتُ السائقِ.
@@ -1077,6 +1084,11 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     sql,
     driverSender,
     financial,
+    /**
+     * `F16-02` — منفذُ قراراتِ التذاكرِ للإقفالِ الإداريِّ من اللوحةِ: نفسُ
+     * `resolutionPort` الذي يحكُمُ أزرارَ القروبِ لا نسخةٌ ثانيةٌ (القاعدةُ 0.6).
+     */
+    disputeResolutions: resolutionPort,
     safety: { trigger: safety.trigger },
     driverOffers: { drivers, decisions: offerDecisions },
     driverLocation: {

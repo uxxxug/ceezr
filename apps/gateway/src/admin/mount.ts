@@ -39,6 +39,7 @@
  */
 
 import type { Hono } from "hono";
+import type { SupportResolutionPort } from "../../../../packages/application/dispute/resolve-dispute.ts";
 import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
@@ -69,6 +70,11 @@ export interface AdminSurfaceDependencies {
    * تبعيّاتِ هذا السطحِ. وغيابُهُ يُعطِّلُ مسلكَ الإبطالِ ردَّ ٥٠٣ ولا يُسكِتُهُ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * `F16-02` — منفذُ الإقفالِ الإداريِّ للتذاكرِ من صفحةِ النزاعاتِ (`closeDispute`).
+   * اختياريٌّ كأخواتِهِ: غيابُهُ يُغلقُ المسلكَ بـ٥٠٣ لا نجاحٍ صامتٍ.
+   */
+  readonly disputeResolutions?: SupportResolutionPort;
   /**
    * مفتاحُ تشفيرِ سرِّ TOTP للبابِ الموازي (`SEC-21` · ADR 0176) — اختياريٌّ
    * كأخواتِهِ: غيابُهُ يُفعِّلُ الرفضَ الموحَّدَ للبابِ ولا يُسقِطُ الخدمةَ.
@@ -121,6 +127,9 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.maplibreSri === undefined ? {} : { maplibreSri: deps.maplibreSri }),
       ...(deps.log === undefined ? {} : { log: deps.log }),
       ...(deps.revocation === undefined ? {} : { revocation: deps.revocation }),
+      ...(deps.disputeResolutions === undefined
+        ? {}
+        : { disputeResolutions: deps.disputeResolutions }),
       ...(deps.breakGlassTotpKey === undefined
         ? {}
         : { breakGlassTotpKey: deps.breakGlassTotpKey }),

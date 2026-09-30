@@ -13,6 +13,8 @@ import type {
   BroadcastAdminPort,
   BroadcastFilters,
 } from "../../../../packages/application/broadcast/ports.ts";
+import { closeDispute } from "../../../../packages/application/dispute/close-dispute.ts";
+import type { SupportResolutionPort } from "../../../../packages/application/dispute/resolve-dispute.ts";
 import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
 import { isSessionRevocationReason } from "../../../../packages/application/identity/session-revocation-reasons.ts";
 import { DEFAULT_SESSION_POLICY } from "../../../../packages/domain/tracking/session.ts";
@@ -159,6 +161,14 @@ export interface AdminUiDependencies {
    * **والثقبُ محروسٌ لا مأمولٌ**: اختبارٌ يُثبِتُ الردَّ ٥٠٣ عندَ الغيابِ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * `F16-02` — منفذُ الإقفالِ الإداريِّ للتذكرةِ (`closeDispute` فوقَ
+   * `resolve_support_ticket` بدورِ `reject`). **وغيابُهُ إغلاقٌ لا تجاوُزٌ**:
+   * المسلكُ يردُّ ٥٠٣ ولا يُسجِّلُ قراراً — أثرٌ بلا إنفاذٍ كذبٌ في السجلِّ
+   * (نفسُ حجّةِ `revocation`). اختياريٌّ كي لا تُكسَرَ مُتصِلاتُ الاختبارِ،
+   * والثقبُ محروسٌ باختبارٍ يُثبِتُ الردَّ ٥٠٣ عندَ الغيابِ.
+   */
+  readonly disputeResolutions?: SupportResolutionPort;
   /**
    * `SEC-21` · `ADR 0176` — مفتاحُ تشفيرِ أسرارِ TOTP للبابِ الموازي من
    * البيئةِ (`ADMIN_BREAK_GLASS_TOTP_KEY`). يُمرَّرُ ولا يُقرأُ ههنا (هذا
@@ -1097,6 +1107,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       "/admin/disputes",
       renderDisputesPage({
         now: new Date(),
+        csrfToken: c.get("csrfToken"),
         rows,
         cities: toCityOptions(cities),
         cityId,
@@ -1108,6 +1119,58 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         limit: DISPUTES_LIMIT,
       }),
     );
+  });
+
+  /*
+   * `F16-02` — الإقفالُ الإداريُّ للتذكرةِ (`close-dispute.ts` الذي كانَ مكتوباً
+   * بلا نداءٍ). التفويضُ الرفيعُ نفسُهُ الذي يحكُمُ أزرارَ القروبِ:
+   * `resolve_support_ticket(..., 'reject')` — القاعدةُ تحكُمُ بالدورِ
+   * (`is_support_actor`) والفاعلُ تلغرامُ المسؤولِ من هويةِ الجلسةِ، والسببُ
+   * نصٌّ مكتوبٌ **لا يُقفَلُ بدونه** (`PD-082` — «مَن حلَّ ولماذا»)، ويُودَعُ
+   * في `resolution` و`audit_log` داخلَ معاملةِ القرارِ كما في القروبِ سواءً.
+   * والاستلامُ يبقى في القروبِ وحدَهُ (ملاحظةُ رأسِ الصفحةِ) — الإقفالُ قرارٌ
+   * لا نقلُ مسؤوليّةٍ.
+   */
+  app.post("/disputes/:id/close", async (c) => {
+    if (deps.disputeResolutions === undefined) {
+      return c.text("DISPUTE_CLOSING_UNAVAILABLE", SERVICE_UNAVAILABLE);
+    }
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const ticketId = c.req.param("id");
+    if (!UUID_PATTERN.test(ticketId)) return c.text("INVALID_TICKET_ID", HTML_UNPROCESSABLE);
+
+    const note = formText(checked.form, "note");
+    if (note === null || note.trim() === "") {
+      return c.text("CLOSE_NOTE_REQUIRED", HTML_UNPROCESSABLE);
+    }
+
+    const closed = await closeDispute(
+      { ticketId, actorTelegramId: c.get("admin").telegramId, note },
+      { resolutions: deps.disputeResolutions },
+    );
+    if (!closed.ok) {
+      log("admin.dispute_close_failed", { error: "PORT_FAILURE" });
+      return c.text("DISPUTE_CLOSE_FAILED", SERVER_ERROR);
+    }
+    if (!closed.value.resolved) {
+      const reason = closed.value.reason;
+      if (
+        reason === "ACTOR_NOT_FOUND" ||
+        reason === "ACTOR_NOT_AUTHORIZED" ||
+        reason === "ACTOR_BLOCKED"
+      ) {
+        log("admin.dispute_close_denied", { reason });
+        return c.text("NOT_AUTHORIZED", 403);
+      }
+      // `TICKET_ALREADY_SETTLED` · `TICKET_NOT_FOUND`: لا يُميَّز بينهما عمداً
+      // (من يجرّبُ معرّفاتٍ لا يستكشفُ أيُّها موجودٌ) — إعادةُ توجيهٍ لا خطأٍ.
+      log("admin.dispute_close_rejected", { reason });
+      return c.redirect("/admin/disputes", SEE_OTHER);
+    }
+    log("admin.dispute_closed", { ticketId });
+    return c.redirect("/admin/disputes", SEE_OTHER);
   });
 
   app.get("/heatmap", async (c) => {

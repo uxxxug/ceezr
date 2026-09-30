@@ -51,6 +51,12 @@ export interface DisputeRow {
 
 export interface DisputesPageData {
   readonly now: Date;
+  /**
+   * `F16-02` — بصمةُ CSRF للنموذجِ المُدرَجِ في كلِّ صفٍّ مفتوحٍ أو مستلَمٍ:
+   * إقفالٌ إداريٌّ موثَّقُ السببِ (`PD-082` · «لا لِيُحلَّ من اللوحةِ بل ليُقرأَ
+   * مَن حلَّ ولماذا» — والآنَ يُقفَلُ منها أيضاً والسببُ نصٌّ لا يُقفَلُ بدونه).
+   */
+  readonly csrfToken: string;
   readonly rows: readonly DisputeRow[];
   readonly cities: readonly CityOption[];
   readonly cityId: string | null;
@@ -151,7 +157,13 @@ export function renderDisputesPage(data: DisputesPageData): string {
       : `<div>${escapeHtml(row.claimedByName)}</div>
          <div class="card-hint">${escapeHtml(formatDateTime(row.claimedAt))}</div>`,
     row.resolvedByName === null
-      ? EMPTY_CELL
+      ? row.status === "open" || row.status === "claimed"
+        ? `<form class="inline" method="post" action="/admin/disputes/${escapeHtml(row.ticketId)}/close">
+  <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
+  <input type="text" name="note" required placeholder="سبب الإقفال" maxlength="500">
+  <button class="ghost" type="submit">إقفال إداري</button>
+</form>`
+        : EMPTY_CELL
       : `<div>${escapeHtml(row.resolvedByName)}</div>
          <div class="card-hint">${escapeHtml(formatDateTime(row.resolvedAt))}</div>
          ${
@@ -202,6 +214,7 @@ ${section(
   }),
   `الأقدم أولاً — آخر ${formatNumber(data.limit)} تذكرة كحدّ أقصى. ` +
     `عمودا «الحلّ» و«اقتراح الطبقة» للقراءة فقط: الحسم يبقى في قروب الدعم، ` +
-    `ومبرّرُه ظاهرٌ ههنا (PD-082).`,
+    `ومبرّرُه ظاهرٌ ههنا (PD-082). ` +
+    `والإقفالُ الإداريُّ (F16-02) مُتاحٌ للمفتوحةِ والمستلَمةِ بسببٍ مكتوبٍ لا يُقفَلُ بدونه.`,
 )}`;
 }

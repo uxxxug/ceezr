@@ -340,6 +340,7 @@ describe("الصفحات الثماني", () => {
   it("النزاعات: تعرض نصّ الشكوى وحالتها", () => {
     const html = renderDisputesPage({
       now: NOW,
+      csrfToken: "csrf-token",
       cities: CITIES,
       cityId: null,
       status: null,
@@ -374,11 +375,58 @@ describe("الصفحات الثماني", () => {
 
     expect(html).toContain("السائق لم يصل");
     expect(html).toContain("عميل غاضب");
+    // `F16-02` — الإقفالُ الإداريُّ للمفتوحةِ والمستلَمةِ: نموذجٌ بسببٍ مكتوبٍ.
+    expect(html).toContain('action="/admin/disputes/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/close"');
+    expect(html).toContain('name="note"');
+    expect(html).toContain("إقفال إداري");
+  });
+
+  it("النزاعات: المحلولة والمرفوضة بلا نموذج إقفال — الفعل لمن يملكه فعلًا", () => {
+    const settled = (status: string) =>
+      renderDisputesPage({
+        now: NOW,
+        csrfToken: "csrf-token",
+        cities: CITIES,
+        cityId: null,
+        status: null,
+        openCount: 0,
+        claimedCount: 0,
+        resolvedDayCount: 1,
+        windowHours: 24,
+        limit: 200,
+        rows: [
+          {
+            ticketId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            createdAt: NOW.toISOString(),
+            type: "ride_dispute",
+            status,
+            cityCode: "JED",
+            partyName: "عميل",
+            partyRole: "rider",
+            partyTelegramId: "9400",
+            orderId: null,
+            message: "نص",
+            claimedByName: "دعم",
+            claimedAt: NOW.toISOString(),
+            resolvedByName: "مسؤول",
+            resolvedAt: NOW.toISOString(),
+            resolutionNote: "سبب موثّق",
+            agentSuggestion: null,
+            agentClassification: null,
+            agentConfidence: null,
+          },
+        ],
+      });
+    for (const html of [settled("resolved"), settled("rejected")]) {
+      expect(html).not.toContain('/close">');
+      expect(html).not.toContain("إقفال إداري");
+    }
   });
 
   it("النزاعات: تعرض اقتراح الطبقة للقراءة دون أي زرّ حسم", () => {
     const base = {
       now: NOW,
+      csrfToken: "csrf-token",
       cities: CITIES,
       cityId: null,
       status: null,

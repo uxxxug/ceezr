@@ -21,8 +21,10 @@
  * ممكناً أصلاً، وهو نتيجةُ `ARCH-005` مُحصَّلةً لا مصادفةً.
  */
 
+import type { SupportResolutionPort } from "../../../packages/application/dispute/resolve-dispute.ts";
 import type { SessionRevocationStore } from "../../../packages/application/identity/ports.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
+import { createSupportResolutionPort } from "../../../packages/infrastructure/dispute/support-adapters.ts";
 import { createRedisSessionRevocationStore } from "../../../packages/infrastructure/identity/redis-session-revocation-store.ts";
 import { createTelegramApi } from "../../../packages/infrastructure/notification/telegram-client.ts";
 import { createUpstashRedis } from "../../../packages/infrastructure/redis/upstash.ts";
@@ -59,6 +61,11 @@ export interface AdminContainer {
    * مسلكُ الإبطالِ يردُّ ٥٠٣، فلا يُسجَّلُ قرارٌ بلا إنفاذٍ.
    */
   readonly sessionRevocation: SessionRevocationStore | null;
+  /**
+   * `F16-02` — منفذُ الإقفالِ الإداريِّ للتذاكرِ من صفحةِ النزاعاتِ. `null` يعني
+   * إغلاقَ المسلكِ بردِّ ٥٠٣ لا صمتَهُ — حاويةٌ بلا قاعدةٍ لا تُقفِلُ شيئاً.
+   */
+  readonly disputeResolutions: SupportResolutionPort | null;
   readonly close: () => Promise<void>;
 }
 
@@ -131,6 +138,8 @@ export function buildAdminContainer(
    * لا مخزنَ — والمسلكُ يردُّ ٥٠٣ ولا يُوهِمُ بإبطالٍ لا يراهُ أحدٌ.
    */
   const sessionRevocation = redis === null ? null : createRedisSessionRevocationStore(redis);
+  /** `F16-02` — منفذُ قراراتِ التذاكرِ فوقَ القاعدةِ نفسِها لا نسخةٌ ثانيةٌ. */
+  const disputeResolutions = createSupportResolutionPort(sql);
 
   if (distributedBus !== null) distributedBus.start();
   const bus: TrackingEventBus = distributedBus ?? localBus;
@@ -186,6 +195,7 @@ export function buildAdminContainer(
     maplibreSri: config.maplibreSri,
     busCrossesProcesses: distributedBus !== null,
     sessionRevocation,
+    disputeResolutions,
     close: async () => {
       distributedBus?.stop();
       await sql.end({ timeout: 5 });
