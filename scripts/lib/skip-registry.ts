@@ -496,6 +496,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/driver-documents-approval-guard.test.ts",
+    suites: ["F12-21 — حارسُ اعتمادِ السائقِ"],
+    skipped: 6,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "حارسُ `F12-21` في `admin_set_driver_verification` يُقاسُ على قاعدةٍ حقيقيّةٍ: رفضُ `verified` بلا وثائقَ، وقبولُ `suspended`/`rejected` بلا وثائقَ، ورفضُ `verified` بوثائقَ ناقصةٍ، وقبولُ `verified` بوثائقَ كاملةٍ، ورفضُ `verified` بوثيقةٍ منتهيةٍ. ولا يقدرُ على قياسِ هذا حاجزٌ ساكنٌ لأنَّ المنطقَ في القاعدةِ (`driver_document_block_reasons` تُستدعَى داخلَ الدالّةِ).",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "توثيقُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-offers.test.ts",
     suites: [
       "لوحُ العروضِ — هويّةٌ أوّلاً ثمَّ لوحٌ مفسَّرٌ",

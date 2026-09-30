@@ -43,6 +43,7 @@ import {
   restoreCityBaseline,
 } from "../support/active-city.ts";
 import { testConfig } from "../support/config.ts";
+import { seedAcceptedDocuments } from "../support/seed-driver-documents.ts";
 import { capturing, type SentMessage } from "../support/telegram-capture.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -226,6 +227,8 @@ describeIf("المرحلة ٨ — عمر موقع السائق في الإسنا
     `;
     const driverId = rows[0]?.id;
     if (driverId === undefined) throw new Error("لم يُسجَّل السائق");
+    // زرعُ وثائقَ مقبولةٍ لاجتياز حارسِ F12-21 في مسارِ الاعتمادِ
+    await seedAcceptedDocuments(sql, cityId, driverId);
     const outcome = await sql<{ result: { ok: boolean } }[]>`
       select admin_set_driver_verification(
         ${actorUserId}::uuid, ${driverId}::uuid, 'verified'::text

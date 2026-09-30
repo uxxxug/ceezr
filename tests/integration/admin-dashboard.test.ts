@@ -22,6 +22,7 @@ import { createAdminApiRoutes } from "../../apps/gateway/src/routes/admin-api.ts
 import { createAdminUiRoutes } from "../../apps/gateway/src/routes/admin-ui.ts";
 import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts";
 import { createMemorySessionRevocationStore } from "../../packages/infrastructure/identity/memory-session-revocation-store.ts";
+import { seedAcceptedDocuments } from "../support/seed-driver-documents.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 const ADMIN_TELEGRAM = "770001";
@@ -469,6 +470,7 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
   it("توثيق سائق يُسجَّل في سجلّ التدقيق ويظهر أثره في الصفحة", async () => {
     const cookie = await login(ADMIN_TELEGRAM);
     const { driverId } = await createDriver();
+    await seedAcceptedDocuments(sql, cityId, driverId);
     const csrf = await csrfFrom(cookie, "/admin/drivers");
 
     const SEE_OTHER = 303;

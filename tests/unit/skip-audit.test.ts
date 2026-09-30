@@ -896,8 +896,14 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // (`F2-07` · `ADR 0208`): المنفذُ الضيّقُ لا يقرأُ إلّا نقاطِ السائقِ المُسنَدِ
     // داخلَ نافذةِ رحلتِهِ — فالشوائبُ لا تدخلُ، والفجوةُ لا تُوصَلُ، وغيرُ المقيسِ
     // اتحادٌ مُسمّىً لا صفرٌ.
-    expect(SKIP_REGISTRY).toHaveLength(154);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1422);
+    // زيادةٌ (`ح-8`): والآنَ 155 و 1428 بقياسِ حارسِ اعتمادِ السائقِ على قاعدةٍ
+    // حقيقيّةٍ (`driver-documents-approval-guard.test.ts` · `F12-21` · `ADR 0215`):
+    // ستُّ حالاتٍ على `TEST_DATABASE_URL` لأنَّ المُدَّعى فيها أحكامُ قاعدةٍ لا
+    // نصوصُ شِفرةٍ: `driver_document_block_reasons` تُستدعَى داخلَ `admin_set_driver_verification`
+    // في المحرِّكِ، ورفضُ `verified` بلا وثائقَ لا يُقاسُ بمزدوجٍ في الذاكرةِ.
+    // والأرقامُ السابقةُ محفوظةٌ.
+    expect(SKIP_REGISTRY).toHaveLength(155);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1428);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
