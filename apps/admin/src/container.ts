@@ -23,11 +23,13 @@
 
 import type { SupportResolutionPort } from "../../../packages/application/dispute/resolve-dispute.ts";
 import type { SessionRevocationStore } from "../../../packages/application/identity/ports.ts";
+import type { RatingFlagPort } from "../../../packages/application/reputation/index.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import { createSupportResolutionPort } from "../../../packages/infrastructure/dispute/support-adapters.ts";
 import { createRedisSessionRevocationStore } from "../../../packages/infrastructure/identity/redis-session-revocation-store.ts";
 import { createTelegramApi } from "../../../packages/infrastructure/notification/telegram-client.ts";
 import { createUpstashRedis } from "../../../packages/infrastructure/redis/upstash.ts";
+import { createRatingFlagPort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
 import {
   createTrackingEventBus,
   type TrackingEventBus,
@@ -66,6 +68,11 @@ export interface AdminContainer {
    * إغلاقَ المسلكِ بردِّ ٥٠٣ لا صمتَهُ — حاويةٌ بلا قاعدةٍ لا تُقفِلُ شيئاً.
    */
   readonly disputeResolutions: SupportResolutionPort | null;
+  /**
+   * `F16-01` — منفذُ تعليمِ التقييمِ المسيءِ لصفحةِ التقييماتِ: **`null` يعني إغلاقَ
+   * المسلكِ بردِّ ٥٠٣ لا صمتهُ** — حاويةٌ بلا قاعدةٍ (اختبارٌ) لا تعلِّمُ شيئًا.
+   */
+  readonly ratingFlags: RatingFlagPort | null;
   readonly close: () => Promise<void>;
 }
 
@@ -140,6 +147,8 @@ export function buildAdminContainer(
   const sessionRevocation = redis === null ? null : createRedisSessionRevocationStore(redis);
   /** `F16-02` — منفذُ قراراتِ التذاكرِ فوقَ القاعدةِ نفسِها لا نسخةٌ ثانيةٌ. */
   const disputeResolutions = createSupportResolutionPort(sql);
+  /** `F16-01` — منفذُ التعليمِ فوقَ القاعدةِ نفسِها لا نسخةٌ ثانيةٌ. */
+  const ratingFlags = createRatingFlagPort(sql);
 
   if (distributedBus !== null) distributedBus.start();
   const bus: TrackingEventBus = distributedBus ?? localBus;
@@ -196,6 +205,7 @@ export function buildAdminContainer(
     busCrossesProcesses: distributedBus !== null,
     sessionRevocation,
     disputeResolutions,
+    ratingFlags,
     close: async () => {
       distributedBus?.stop();
       await sql.end({ timeout: 5 });

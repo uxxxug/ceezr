@@ -39,6 +39,8 @@ export const DRIVER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.driver.unavailable", command: "/unavailable" },
   // PD-041: الزرّ الدائم صار «المركز المالي» لا «الاشتراك» وحده — السائق يرى كلَّ وضعِهِ الماليِّ من نقطةٍ واحدة. `/subscription` ما زال مفهومًا.
   { key: "menu.driver.finance", command: "/finance" },
+  // `F16-01`: بطاقةُ السمعةِ — أمرٌ قائمٌ في الحوارِ فصارَ زرًّا (قاعدةُ الملفِ: لا زرّ بلا أمرٍ قائمٍ).
+  { key: "menu.driver.rating", command: "/rating" },
   // البند 2.4: المنطقة المفضّلة زرٌّ دائم لا خطوةَ تسجيلٍ وحدها — سائقو القاعدة
   // كلّهم سجّلوا قبل وجودها، ومن غيّر حيّه يحتاج تغييرها بعد شهور من تسجيله.
   { key: "menu.driver.area", command: "/area" },
@@ -57,6 +59,8 @@ export const RIDER_MENU_ITEMS: readonly MenuItem[] = [
   { key: "menu.rider.history", command: "/history" },
   // PD-053: قائمة تذاكر الدعم — نتيجة الإجراء تصل صاحبها لا تُدفن في القروب.
   { key: "menu.rider.tickets", command: "/tickets" },
+  // `F16-01`: بطاقةُ السمعةِ — السائقُ يقيّمُ الراكبَ أيضاً.
+  { key: "menu.rider.rating", command: "/rating" },
   { key: "menu.language", command: "/language" },
   { key: "safety.menu_sos", command: "/sos" },
   { key: "menu.support", command: "/support" },

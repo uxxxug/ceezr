@@ -17,6 +17,10 @@ import { closeDispute } from "../../../../packages/application/dispute/close-dis
 import type { SupportResolutionPort } from "../../../../packages/application/dispute/resolve-dispute.ts";
 import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
 import { isSessionRevocationReason } from "../../../../packages/application/identity/session-revocation-reasons.ts";
+import {
+  flagAbusiveRating,
+  type RatingFlagPort,
+} from "../../../../packages/application/reputation/index.ts";
 import { DEFAULT_SESSION_POLICY } from "../../../../packages/domain/tracking/session.ts";
 import { createBroadcastAdminPort } from "../../../../packages/infrastructure/broadcast/broadcast-adapters.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
@@ -153,6 +157,13 @@ export interface AdminUiDependencies {
    * ثم تسقط عند أوّل إرسال. الحقلُ للاستبدال في الاختبار لا للتشغيل بدونه.
    */
   readonly broadcast?: BroadcastAdminPort;
+  /**
+   * `F16-01` — منفذُ تعليمِ التقييمِ المسيءِ من صفحةِ التقييماتِ. **وغيابُهُ إغلاقٌ لا
+   * تجاوُزٌ**: المسلكُ يردُّ ٥٠٣ ولا يُسجِّلُ تعليماً — أثرٌ بلا إنفاذٍ كذبٌ في السجلِّ
+   * (نفسُ حجّةِ `revocation`). اختياريٌّ كي لا تُكسَرَ موصِّلاتُ الاختبارِ التي لا تمسُّهُ،
+   * والثقبُ محروسٌ باختبارٍ يُثبِتُ الردَّ ٥٠٣ عندَ الغيابِ.
+   */
+  readonly ratingFlags?: RatingFlagPort;
   /**
    * مخزنُ إبطالِ الجلساتِ (`SEC-18-ب`) — بهِ يُنفَذُ إبطالُ جلساتِ Mini App من
    * اللوحةِ. **وغيابُهُ إغلاقٌ لا تجاوُزٌ**: المسلكُ يردُّ ٥٠٣ ولا يُسجِّلُ قراراً،
@@ -1089,8 +1100,49 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         direction,
         onlyLow,
         limit: RATINGS_LIMIT,
+        csrfToken: c.get("csrfToken"),
       }),
     );
+  });
+
+  /*
+   * `F16-01` — تعليمُ تقييمٍ مسيءٍ من صفحةِ التقييماتِ (`flag-abusive-rating.ts` الذي
+   * كانَ مبنيّاً بلا نداءٍ). الفاعلُ تلغرامُ المسؤولِ من هويةِ الجلسةِ — والقاعدةُ
+   * تحكمُ بالدورِ (`is_support_actor`) لا الصفحةُ، فمن نُزِعَتْ عنهُ الصفةُ يُرَدُّ
+   * برسالةِ رفضٍ لا يُسجَّلُ لهُ تعليمٌ. والتعليمُ استثناءٌ من المتوسطِ لا محوٌ —
+   * الأثرُ في القاعدةِ (`is_flagged` + `audit_log`) والردُّ إعادةُ توجيهٍ إلى الصفحةِ.
+   */
+  app.post("/ratings/:id/flag", async (c) => {
+    if (deps.ratingFlags === undefined) {
+      return c.text("RATING_FLAGGING_UNAVAILABLE", SERVICE_UNAVAILABLE);
+    }
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const ratingId = c.req.param("id");
+    if (!UUID_PATTERN.test(ratingId)) return c.text("INVALID_RATING_ID", HTML_UNPROCESSABLE);
+
+    const flagged = await flagAbusiveRating(
+      { ratingId, actorTelegramId: c.get("admin").telegramId },
+      { flags: deps.ratingFlags },
+    );
+    if (!flagged.ok) {
+      log("admin.rating_flag_failed", { error: "PORT_FAILURE" });
+      return c.text("RATING_FLAG_FAILED", SERVER_ERROR);
+    }
+    if (!flagged.value.flagged) {
+      const reason = flagged.value.reason;
+      if (reason === "ACTOR_NOT_FOUND" || reason === "ACTOR_NOT_AUTHORIZED") {
+        log("admin.rating_flag_denied", { reason });
+        return c.text("NOT_AUTHORIZED", 403);
+      }
+      // `RATING_NOT_FLAGGABLE`: لا وجودٌ أو معلَّمٌ سابقًا — لا يُميَّز بينهما عمداً
+      // (من يجرّبُ معرّفاتٍ لا يستكشفُ أيُّها موجودٌ).
+      log("admin.rating_flag_rejected", { reason });
+      return c.redirect("/admin/ratings", SEE_OTHER);
+    }
+    log("admin.rating_flagged", { ratingId });
+    return c.redirect("/admin/ratings", SEE_OTHER);
   });
 
   app.get("/disputes", async (c) => {

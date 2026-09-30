@@ -35,6 +35,10 @@ import type {
   TelegramGroupGatePort,
 } from "../../../packages/application/groups/group-join-gate.ts";
 import type { TranslationProvider } from "../../../packages/application/i18n-translation/index.ts";
+import type {
+  RatingFlagPort,
+  ReputationReader,
+} from "../../../packages/application/reputation/index.ts";
 import type { TriggerSosPort } from "../../../packages/application/safety/ports.ts";
 import { CachedRoutingProvider } from "../../../packages/application/tracking/cached-routing-provider.ts";
 import {
@@ -124,7 +128,9 @@ import {
 } from "../../../packages/infrastructure/observability/index.ts";
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import {
+  createRatingFlagPort,
   createRatingPort,
+  createReputationReader,
   createRideLifecyclePort,
 } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
 import {
@@ -288,6 +294,12 @@ export interface Container {
    * `resolve_support_ticket` — منفذٌ ثانٍ كان سيجعلُ للحدِّ حكمانِ يفترقانِ (0.6).
    */
   readonly disputeResolutions: SupportResolutionPort;
+  /**
+   * `F16-01` — السمعةُ مكشوفةٌ لأنَّ سطحَ لوحةِ الإدارةِ يحتاجُ **نفسَ** منفذِ
+   * التعليمِ الذي يعلَّمُ بهِ قروبُ الدعمِ (`/flag`) — لا نسخةً ثانيةً تُبنى في
+   * نقطةِ التركيبِ (القاعدةُ 0.6).
+   */
+  readonly reputation: { readonly flags: RatingFlagPort; readonly reader: ReputationReader };
   /**
    * `F2-10` — منفذُ الاستغاثةِ مكشوفٌ لأنَّ مسارَ `POST /v1/safety/sos` يجبُ أن
    * يُقَيِّدَ الحادثَ بـ**نفسِ** المنفذِ الذي يكتبُ به بوتُ الراكبِ وبوتُ السائقِ.
@@ -662,6 +674,12 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     ...(measurement === undefined ? {} : { measurement }),
   };
   const resolutionPort = createSupportResolutionPort(sql);
+  /**
+   * `F16-01` — قارئُ السمعةِ ومنفذُ التعليمِ: نفسُ المحوّلاتِ للبوتَينِ وللوحةِ
+   * الإدارةِ لا نسخٌ ثانويةٌ (القاعدةُ 0.6 — حاكمٌ واحدٌ لكلِّ قرارٍ).
+   */
+  const reputationReader = createReputationReader(sql);
+  const ratingFlagPort = createRatingFlagPort(sql);
   // SOS يكتب الحادث وoutbox في RPC ذرّي؛ العامل، لا webhook، هو من يرسل البطاقة.
   // المنفذ نفسه يُمرَّر لبوت العميل والسائق حتى لا يوجد مساران مختلفان للطوارئ.
   const safety = {
@@ -672,6 +690,9 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   const driverSupport: SupportDialogDependencies = {
     ...supportCore,
     sessions: driverSessions,
+    // `F16-01` — منفذُ التعليمِ لحوارِ الدعمِ: `/flag` من القروبِ — نفسُ المنفذِ
+    // الذي تعلَّمُ بهِ اللوحةُ فلا حاكمانِ للفعلِ الواحدِ.
+    flags: ratingFlagPort,
     // تبليغُ صاحبِ التذكرةِ لا يقعُ في هذا المسارِ: يُودَعُ في صندوقِ الصادرِ داخلَ
     // معاملةِ resolve_support_ticket ويُرسَلُ من عاملِ التسليمِ (BUG-004).
     resolutions: { resolutions: resolutionPort },
@@ -955,6 +976,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     },
     safety,
     tracking: liveTracking,
+    reputation: reputationReader,
     tripCards: driverTripCards,
     // المرحلة ١٥ — الحقل يُسقَط عند `null` لا يُمرَّر: `exactOptionalPropertyTypes`.
     ...(routing === null ? {} : { routing }),
@@ -1012,6 +1034,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     negotiation: { rotation: rotationDeps, relay: relayDeps },
     support: riderSupport,
     safety: { trigger: safety.trigger },
+    reputation: reputationReader,
     // PD-053 — قائمة تذاكر الدعم للراكب في البوت: نتيجة الإجراء تصل صاحبها.
     ticketLister: (() => {
       const store = new PostgresRiderSupportStore(sql);
@@ -1089,6 +1112,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
      * `resolutionPort` الذي يحكُمُ أزرارَ القروبِ لا نسخةٌ ثانيةٌ (القاعدةُ 0.6).
      */
     disputeResolutions: resolutionPort,
+    reputation: { flags: ratingFlagPort, reader: reputationReader },
     safety: { trigger: safety.trigger },
     driverOffers: { drivers, decisions: offerDecisions },
     driverLocation: {

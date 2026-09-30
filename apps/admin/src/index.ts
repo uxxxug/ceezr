@@ -98,6 +98,8 @@ async function main(): Promise<void> {
     ...(container.disputeResolutions === null
       ? {}
       : { disputeResolutions: container.disputeResolutions }),
+    // `F16-01` — منفذُ تعليمِ التقييمِ منَ اللوحةِ: غيابُهُ يُغلقُ المسلكَ بردِّ ٥٠٣.
+    ...(container.ratingFlags === null ? {} : { ratingFlags: container.ratingFlags }),
     log,
   });
 

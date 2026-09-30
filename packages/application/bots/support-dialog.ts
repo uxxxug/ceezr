@@ -30,6 +30,8 @@ import {
   recordAdviceFeedback,
   resolveDispute,
 } from "../dispute/index.ts";
+import type { RatingFlagPort } from "../reputation/index.ts";
+import { flagAbusiveRating } from "../reputation/index.ts";
 import type { BotReply, DialogState, Keyboard, Sender, SessionStore } from "./types.ts";
 import { INITIAL_STATE } from "./types.ts";
 
@@ -39,6 +41,11 @@ export interface SupportDialogDependencies {
   readonly card: PostDisputeCardDependencies;
   readonly claims: ClaimDisputeDependencies;
   readonly resolutions: ResolveDisputeDependencies;
+  /**
+   * `F16-01` — تعليمُ التقييمِ المسيءِ (`/flag`). اختياريٌّ كـ`advice`: غيابُهُ في
+   * اختبارٍ لا يمسُّ الدعمَ يعني أنَّ الأمرَ غيرُ مُجهَّزٍ في تلك الحاويةِ.
+   */
+  readonly flags?: RatingFlagPort;
   /**
    * مستشار التذاكر — **اختياري عمداً**. غيابه هو الحالة الافتراضية وهو ما كان
    * عليه النظام قبل طبقة الذكاء الاصطناعي. راجع `dispute/ticket-advisor.ts`.
@@ -431,4 +438,43 @@ export async function handleActivateCommand(
     return [reply(sender, tr("support.activate_usage"))];
   }
   return handleSupportGroupAction(["activate", ticketId], sender, state, deps);
+}
+
+/**
+ * `F16-01` — `/flag <rating_id>`: تعليمُ تقييمٍ مسيءٍ من قروبِ الدعمِ مباشرةً —
+ * المُعلَنُ في رأسِ `flag-abusive-rating.ts` كمستهلكٍ مستقبليّ. التقييمُ يُستثنى من
+ * المتوسطِ ولا يُمحى من السجلّ، والصلاحيةُ في القاعدةِ (`is_support_actor`) لا هنا.
+ *
+ * وردٌّ القروبِ لا الخاصّةِ: الفعلُ يفيدُ الفريقَ كلَّه (تقييمٌ مسيءٌ عُولِج)، وسببهُ —
+ * من رفعَ العلمَ — في السجلّ القاعديّ لا في نصّ الردّ. وأمّا رفضُ الصلاحيةِ فيذهبُ
+ * للخاصةِ كأخواتِهِ من أزرارِ القروبِ.
+ */
+export async function handleFlagRatingCommand(
+  command: string,
+  sender: Sender,
+  state: DialogState,
+  deps: SupportDialogDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(state.language);
+  if (deps.flags === undefined) return [reply(sender, tr("common.unknown_command"))];
+  const ratingId = command.split(/\s+/)[1];
+  if (ratingId === undefined || ratingId === "") {
+    return [reply(sender, tr("support.flag_usage"))];
+  }
+  const flagged = await flagAbusiveRating(
+    { ratingId, actorTelegramId: sender.telegramUserId },
+    { flags: deps.flags },
+  );
+  if (!flagged.ok) return [reply(sender, tr("common.error_try_again"))];
+  if (!flagged.value.flagged) {
+    const reason = flagged.value.reason;
+    if (reason === "RATING_NOT_FLAGGABLE") {
+      return [privateReply(sender, tr("support.flag_not_flaggable"))];
+    }
+    if (reason === "ACTOR_NOT_FOUND" || reason === "ACTOR_NOT_AUTHORIZED") {
+      return [privateReply(sender, tr("support.not_authorized"))];
+    }
+    return [privateReply(sender, tr("common.error_try_again"))];
+  }
+  return [reply(sender, tr("support.flag_done", { rating: ratingId.slice(0, 8) }))];
 }

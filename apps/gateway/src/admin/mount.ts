@@ -41,6 +41,7 @@
 import type { Hono } from "hono";
 import type { SupportResolutionPort } from "../../../../packages/application/dispute/resolve-dispute.ts";
 import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
+import type { RatingFlagPort } from "../../../../packages/application/reputation/index.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
@@ -75,6 +76,12 @@ export interface AdminSurfaceDependencies {
    * اختياريٌّ كأخواتِهِ: غيابُهُ يُغلقُ المسلكَ بـ٥٠٣ لا نجاحٍ صامتٍ.
    */
   readonly disputeResolutions?: SupportResolutionPort;
+  /**
+   * `F16-01` — منفذُ تعليمِ التقييمِ المسيءِ من صفحةِ التقييماتِ. يُمرَّرُ ولا
+   * يُبنى ههنا (نفسُ قاعدةِ `revocation`): المُركِّبانِ يبنيانِ تبعيّاتِهما، وغيابُهُ
+   * يُغلقُ المسلكَ بردِّ ٥٠٣ لا يُسكِتُهُ.
+   */
+  readonly ratingFlags?: RatingFlagPort;
   /**
    * مفتاحُ تشفيرِ سرِّ TOTP للبابِ الموازي (`SEC-21` · ADR 0176) — اختياريٌّ
    * كأخواتِهِ: غيابُهُ يُفعِّلُ الرفضَ الموحَّدَ للبابِ ولا يُسقِطُ الخدمةَ.
@@ -130,6 +137,7 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.disputeResolutions === undefined
         ? {}
         : { disputeResolutions: deps.disputeResolutions }),
+      ...(deps.ratingFlags === undefined ? {} : { ratingFlags: deps.ratingFlags }),
       ...(deps.breakGlassTotpKey === undefined
         ? {}
         : { breakGlassTotpKey: deps.breakGlassTotpKey }),
