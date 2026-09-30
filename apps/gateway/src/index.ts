@@ -972,6 +972,17 @@ const safety =
           incidents: container.safety.trigger.incidents,
           role: "rider" as const,
         },
+        // `F12-22` — قناةُ استغاثةٍ ثانيةً للسائقِ بلا تيليجرام: نفسُ المنفذِ
+        // ونفسُ الجلسةِ، والدورُ `"driver"` مُركَّبٌ ههنا لا مقروءٌ من الطلبِ.
+        driverTrigger: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          now: () => new Date(),
+          incidents: container.safety.trigger.incidents,
+          role: "driver" as const,
+        },
         log,
       };
 
