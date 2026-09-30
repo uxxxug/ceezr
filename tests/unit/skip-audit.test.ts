@@ -902,15 +902,17 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // نصوصُ شِفرةٍ: `driver_document_block_reasons` تُستدعَى داخلَ `admin_set_driver_verification`
     // في المحرِّكِ، ورفضُ `verified` بلا وثائقَ لا يُقاسُ بمزدوجٍ في الذاكرةِ.
     // والأرقامُ السابقةُ محفوظةٌ.
-    expect(SKIP_REGISTRY).toHaveLength(157);
+    expect(SKIP_REGISTRY).toHaveLength(156);
     expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1432);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
     const unrun = SKIP_REGISTRY.filter((entry) => entry.runsIn === null);
-    // صارَ أربعةً يومَ 2026-09-30: أُضيفَ اختبارُ تحميلٍ للوحداتِ الجديدةِ (`F12-20`)
-    // بلا خطوةٍ مُسمّاةٍ — يُحمَّلُ في خطوةِ Test العامةِ. والأرقامُ السابقةُ محفوظةٌ.
-    expect(unrun).toHaveLength(4);
+    // صارَ ثلاثةً يومَ 2026-09-13 لا واحداً: أُجِّلَ تكاملُ CORE بتعليمةِ `O-7`
+    // (ADR 0095) فنُقِلَ اختباراهُ إلى `deferred/core-integration/tests/`،
+    // ولا خطوةَ تُشغِّلُ مؤجَّلاً. والصدقُ أن يُعلَنَ ذلكَ بياناً لا أن يُزعَمَ
+    // لهما مُشغِّلٌ. والرقمُ السابقُ يبقى مذكوراً ههنا لا ممحوّاً (`ح-8`).
+    expect(unrun).toHaveLength(3);
     expect(unrun.map((entry) => entry.file).sort()).toEqual([
       "deferred/core-integration/tests/wasla-core-transport.test.ts",
       "deferred/core-integration/tests/wasla-fulfillment-lifecycle.test.ts",
@@ -918,7 +920,6 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
       // ميدانيّةٌ خارجَ مسارِ البناءِ، وما زالَ تخطّيهِ مُعلَناً ببيانٍ لا مزعوماً
       // له مُشغِّلٌ. والمسارُ السابقُ يبقى مذكوراً ههنا لا ممحوّاً (`ح-8`).
       "deferred/field-experiments/tests/bench-reset-seed.test.ts",
-      "tests/unit/ceiling-exceeded-adapter-load.test.ts",
     ]);
     for (const entry of unrun) {
       expect(entry.criticalPath).toBeNull();
