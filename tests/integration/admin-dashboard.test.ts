@@ -1064,8 +1064,8 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     const riderId = riders[0]?.id;
     if (riderId === undefined) throw new Error("تعذّر إنشاء الراكب");
     const orders = await sql<{ id: string }[]>`
-      insert into orders (city_id, rider_id, service, status, pickup, dropoff)
-      values (${cityId}, ${riderId}, 'transport', 'completed',
+      insert into orders (city_id, rider_id, assigned_driver_id, service, status, pickup, dropoff)
+      values (${cityId}, ${riderId}, ${driverId}, 'transport', 'completed',
               st_point(39.1751, 21.5471)::geography, st_point(39.1901, 21.5601)::geography)
       returning id
     `;
