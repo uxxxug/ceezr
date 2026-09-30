@@ -1268,8 +1268,9 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * 101 → 105 و3 → 4 في 2026-09-23 (`SEC-21`): أربعةُ مساراتِ البابِ الموازي —
  * دخولُهُ العامُّ محدودٌ في صفِّ الاعتمادِ في القاعدةِ (`admin_break_glass_finish_failure`)
  * والبقيةُ خلفَ حارسِ الجلسةِ.
+ * 105 → 110 في 2026-09-30 (`F12-22`): مسارُ استغاثةِ السائقِ بلا تيليجرام.
  */
-export const ROUTE_POLICY_COUNT = 109;
+export const ROUTE_POLICY_COUNT = 110;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
