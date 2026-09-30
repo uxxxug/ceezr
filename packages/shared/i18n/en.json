@@ -445,5 +445,22 @@
   "miniapp.entry.help_driver": "Everything happens in the Wasla app: offers, your current trip, subscription, documents and support. In this chat: /sos for emergencies, /language for language, /area for your preferred area and /city to change city.",
   "miniapp.entry.open_prompt": "Tap the button to open the Wasla app.",
   "miniapp.entry.moved": "This is now in the Wasla app. Tap the button to open it directly.",
-  "miniapp.command.app.description": "Open the Wasla app"
+  "miniapp.command.app.description": "Open the Wasla app",
+  "menu.driver.rating": "My ratings",
+  "menu.driver.rating.description": "Reputation card and received ratings",
+  "menu.rider.rating": "My ratings",
+  "menu.rider.rating.description": "Reputation card and received ratings",
+  "reputation.heading": "📊 My ratings & reputation",
+  "reputation.as_driver": "As driver: {average} of 5 ({count} ratings)",
+  "reputation.as_driver.empty": "As driver: no ratings yet",
+  "reputation.as_rider": "As rider: {average} of 5 ({count} ratings)",
+  "reputation.as_rider.empty": "As rider: no ratings yet",
+  "reputation.recent": "Latest received ratings:",
+  "reputation.recent_row": "{stars} — {direction}",
+  "reputation.from_rider": "from a rider",
+  "reputation.from_driver": "from a driver",
+  "reputation.empty": "No ratings yet — your reputation builds from your ride ratings.",
+  "support.flag_usage": "Usage: /flag <rating id> — an abusive rating is excluded from the average, never deleted.",
+  "support.flag_done": "Rating {rating} flagged as abusive and excluded from the average.",
+  "support.flag_not_flaggable": "Rating cannot be flagged: not found or already flagged."
 }

@@ -25,6 +25,7 @@ import {
   type RotateNegotiationDependencies,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
+import type { ReputationReader } from "../reputation/index.ts";
 import { type TriggerSosDeps, TriggerSosError, triggerSos } from "../safety/trigger-sos.ts";
 import {
   type IssueTrackingTokenDeps,
@@ -52,6 +53,7 @@ import {
   type RatingDialogDependencies,
   shortOrderId,
 } from "./rating-dialog.ts";
+import { reputationCardReplies } from "./reputation-card.ts";
 import { readDialogSession, type SessionRead } from "./session-read.ts";
 import {
   handleSupportGroupAction,
@@ -137,6 +139,12 @@ export interface RiderBotDependencies {
   readonly trackingLinks?: IssueTrackingTokenDeps;
   /** SOS اختياري في الاختبارات القديمة، ومربوط دائماً في الحاوية الحية. */
   readonly safety?: { readonly trigger: TriggerSosDeps };
+  /**
+   * `F16-01` — قارئُ السمعةِ لأمرِ `/rating`: السائقُ يقيّمُ الراكبَ أيضاً، فالسمعةُ
+   * ليست حكراً على السائقين. اختياريٌّ بنفس منطق `safety`: غيابُهُ يردُّ «أمرٌ غيرُ
+   * معروف» لا بطاقةً فارغةً، والتوصيلُ في الحاويةِ دائمٌ في الإنتاجِ.
+   */
+  readonly reputation?: ReputationReader;
   /**
    * PD-053 — قائمة تذاكر الدعم للراكب: نتيجة الإجراء تصل صاحبها لا تُدفن في القروب.
    * اختياري عمداً: غيابه يعني أن المسار غير مُجهَّز في هذه الحاوية.
@@ -1148,6 +1156,18 @@ async function handleCommand(
       return deps.language === undefined
         ? [reply(sender, tr("common.unknown_command"))]
         : handleLanguageCommand(sender, state.language);
+
+    /**
+     * `F16-01` — `/rating`: بطاقةُ السمعةِ كسائقٍ وزبونٍ — السائقُ يقيّمُ الراكبَ
+     * أيضاً فليست حكراً على السائقين. لا يشترطُ تسجيلًا: السمعةُ تُقرأُ بتلغرامِ
+     * المُرسِلِ نفسِهِ.
+     */
+    case "/rating": {
+      if (deps.reputation === undefined) return [reply(sender, tr("common.unknown_command"))];
+      return reputationCardReplies(sender, state, sender.telegramUserId, {
+        reputation: deps.reputation,
+      });
+    }
 
     case "/help": {
       // قراءة واحدة لتخرج القائمة مطابقةً للواقع: /help أوّل ما يلجأ إليه من ضاعت لوحته،

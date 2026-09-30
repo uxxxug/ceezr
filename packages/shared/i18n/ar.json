@@ -445,5 +445,22 @@
   "miniapp.entry.help_driver": "كل العمل في تطبيق وَصْلة: العروض والرحلة الجارية والاشتراك والمستندات والدعم. وفي المحادثة: /sos للطوارئ، و/language للّغة، و/area للمنطقة المفضّلة، و/city لتغيير المدينة.",
   "miniapp.entry.open_prompt": "اضغط الزر لفتح تطبيق وَصْلة.",
   "miniapp.entry.moved": "هذه الخدمة صارت في تطبيق وَصْلة. اضغط الزر لتفتحها مباشرة.",
-  "miniapp.command.app.description": "فتح تطبيق وَصْلة"
+  "miniapp.command.app.description": "فتح تطبيق وَصْلة",
+  "menu.driver.rating": "تقييمي وسمعتي",
+  "menu.driver.rating.description": "بطاقة السمعة والتقييمات المستلمة",
+  "menu.rider.rating": "تقييمي وسمعتي",
+  "menu.rider.rating.description": "بطاقة السمعة والتقييمات المستلمة",
+  "reputation.heading": "📊 تقييمي وسمعتي",
+  "reputation.as_driver": "كسائق: {average} من 5 ({count} تقييم)",
+  "reputation.as_driver.empty": "كسائق: لا تقييم بعد",
+  "reputation.as_rider": "كزبون: {average} من 5 ({count} تقييم)",
+  "reputation.as_rider.empty": "كزبون: لا تقييم بعد",
+  "reputation.recent": "آخر التقييمات المستلمة:",
+  "reputation.recent_row": "{stars} — {direction}",
+  "reputation.from_rider": "من عميل",
+  "reputation.from_driver": "من سائق",
+  "reputation.empty": "لا تقييمات بعد — تُبنى سمعتك من تقييمات رحلاتك.",
+  "support.flag_usage": "الاستعمال: /flag <معرّف التقييم> — يُستثنى التقييم المسيء من المتوسط ولا يُمحى.",
+  "support.flag_done": "عُلِّم التقييم {rating} كمسيء واستُثني من المتوسط.",
+  "support.flag_not_flaggable": "التقييم غير قابل للتعليم: لا وجود له أو معلَّم سابقًا."
 }

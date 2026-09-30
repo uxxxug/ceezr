@@ -307,8 +307,10 @@ describe("الصفحات الثماني", () => {
         flaggedCount: 0,
         lowThreshold: 2,
       },
+      csrfToken: "csrf-token",
       rows: [
         {
+          ratingId: "aaaaaaaa-0000-4000-8000-000000000001",
           createdAt: NOW.toISOString(),
           orderId: "99999999-9999-9999-9999-999999999999",
           cityCode: "JED",
@@ -320,6 +322,7 @@ describe("الصفحات الثماني", () => {
           isFlagged: false,
         },
         {
+          ratingId: "aaaaaaaa-0000-4000-8000-000000000002",
           createdAt: NOW.toISOString(),
           orderId: "99999999-9999-9999-9999-999999999999",
           cityCode: "JED",
@@ -335,6 +338,45 @@ describe("الصفحات الثماني", () => {
 
     expect(html).toContain("تأخّر كثيراً");
     expect(html).toContain("badge--bad");
+    // `F16-01` — زرُّ التعليمِ لغيرِ المُعلَّمِ لا للمُعلَّمِ: الفعلُ كتابةٌ فلا
+    // يُعرضُ إلا لمن يملكُه فعلًا.
+    expect(html).toContain('action="/admin/ratings/aaaaaaaa-0000-4000-8000-000000000001/flag"');
+    expect(html).toContain("تعليم إساءة");
+  });
+
+  it("التقييمات: المُعلَّم يُعرَض شارةً لا زرًّا", () => {
+    const html = renderRatingsPage({
+      cities: CITIES,
+      cityId: null,
+      direction: null,
+      onlyLow: false,
+      limit: 200,
+      csrfToken: "csrf-token",
+      summary: {
+        total: 1,
+        averageOnDriver: 1,
+        averageOnRider: null,
+        lowCount: 1,
+        flaggedCount: 1,
+        lowThreshold: 2,
+      },
+      rows: [
+        {
+          ratingId: "bbbbbbbb-0000-4000-8000-000000000001",
+          createdAt: NOW.toISOString(),
+          orderId: "99999999-9999-9999-9999-999999999999",
+          cityCode: "JED",
+          direction: "rider_to_driver",
+          raterName: "عميل",
+          rateeName: "سائق",
+          stars: 1,
+          comment: null,
+          isFlagged: true,
+        },
+      ],
+    });
+    expect(html).toContain("مُعلَّم");
+    expect(html).not.toContain("تعليم إساءة");
   });
 
   it("النزاعات: تعرض نصّ الشكوى وحالتها", () => {

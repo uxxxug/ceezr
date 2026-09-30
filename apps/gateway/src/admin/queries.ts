@@ -1249,6 +1249,7 @@ export interface RatingsQuery {
 export async function listRatings(sql: Sql, query: RatingsQuery): Promise<readonly RatingRow[]> {
   const rows = await sql<
     {
+      id: string;
       created_at: string;
       order_id: string;
       city_code: string;
@@ -1260,7 +1261,7 @@ export async function listRatings(sql: Sql, query: RatingsQuery): Promise<readon
       is_flagged: boolean;
     }[]
   >`
-    select r.created_at, r.order_id, c.code as city_code, r.direction::text as direction,
+    select r.id, r.created_at, r.order_id, c.code as city_code, r.direction::text as direction,
            rater.full_name as rater_name, ratee.full_name as ratee_name,
            r.stars, r.comment, r.is_flagged
     from ratings r
@@ -1280,6 +1281,7 @@ export async function listRatings(sql: Sql, query: RatingsQuery): Promise<readon
   `;
 
   return rows.map((row) => ({
+    ratingId: row.id,
     createdAt: String(row.created_at),
     orderId: row.order_id,
     cityCode: row.city_code,

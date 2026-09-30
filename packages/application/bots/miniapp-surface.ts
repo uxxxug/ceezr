@@ -108,6 +108,10 @@ export const COMMAND_HOMES: Readonly<Record<BotAudience, Readonly<Record<string,
     },
     "/language": { home: "bot", why: BOT_BASIC_LANGUAGE },
     "/sos": { home: "bot", why: BOT_BASIC_SOS },
+    "/rating": {
+      home: "bot",
+      why: "بطاقةُ السمعةِ لا شاشةَ لها في التطبيقِ بعدُ (`F16-01`).",
+    },
   },
   driver: {
     "/start": { home: "entry" },
@@ -129,6 +133,10 @@ export const COMMAND_HOMES: Readonly<Record<BotAudience, Readonly<Record<string,
     },
     "/language": { home: "bot", why: BOT_BASIC_LANGUAGE },
     "/sos": { home: "bot", why: BOT_BASIC_SOS },
+    "/rating": {
+      home: "bot",
+      why: "بطاقةُ السمعةِ لا شاشةَ لها في التطبيقِ بعدُ (`F16-01`).",
+    },
   },
 };
 
