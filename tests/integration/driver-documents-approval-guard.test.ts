@@ -92,9 +92,13 @@ beforeAll(async () => {
 afterAll(async () => {
   if (DATABASE_URL === undefined) return;
   if (driverId !== "") {
-    await sql`delete from audit_log where entity_id = ${driverId}`;
+    await sql`delete from audit_log where entity_id = ${driverId} or actor_user_id = ${driverUserId}`;
     await sql`delete from driver_documents where driver_id = ${driverId}`;
     await sql`delete from driver_availability where driver_id = ${driverId}`;
+    await sql`delete from subscriptions where driver_id = ${driverId}`;
+    await sql`delete from payment_transactions where driver_id = ${driverId}`;
+    await sql`delete from wallet_transactions where driver_id = ${driverId}`;
+    await sql`delete from driver_location_history where driver_id = ${driverId}`;
     await sql`delete from drivers where id = ${driverId}`;
   }
   if (driverUserId !== "") {
