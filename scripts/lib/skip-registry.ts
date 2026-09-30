@@ -510,6 +510,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/stalled-order-ceiling-detector.test.ts",
+    suites: ["F12-20 — كاشفُ تجاوزِ السقفِ"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "كاشفُ `F12-20` يُقاسُ على قاعدةٍ حقيقيّةٍ: `detect_ceiling_exceeded_orders` تُحصي طلباتِ `in_progress` فوقَ السقفِ ولا تُحصي المنتهيَ ولا الجاريَ تحتَه. ولا يقدرُ على قياسِ هذا حاجزٌ ساكنٌ لأنَّ المنطقَ في القاعدةِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/driver-offers.test.ts",
     suites: [
       "لوحُ العروضِ — هويّةٌ أوّلاً ثمَّ لوحٌ مفسَّرٌ",
