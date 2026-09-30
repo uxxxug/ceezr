@@ -21,6 +21,8 @@ import {
   flagAbusiveRating,
   type RatingFlagPort,
 } from "../../../../packages/application/reputation/index.ts";
+import { revokeOrderTrackingTokens } from "../../../../packages/application/tracking/revoke-tracking-token.ts";
+import type { TrackingTokenRpcPort } from "../../../../packages/application/tracking/tracking-token-ports.ts";
 import { DEFAULT_SESSION_POLICY } from "../../../../packages/domain/tracking/session.ts";
 import { createBroadcastAdminPort } from "../../../../packages/infrastructure/broadcast/broadcast-adapters.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
@@ -33,6 +35,7 @@ import {
   maplibreStylesheetUrl,
   type ResolvedMapStyle,
 } from "../../../../packages/maps/index.ts";
+import type { OrderId } from "../../../../packages/shared/kernel/index.ts";
 import {
   type AdminUser,
   BROADCAST_BODY_LIMIT,
@@ -114,6 +117,7 @@ import {
   listSettings,
   logMiniAppSessionRevocation,
   numericSetting,
+  orderRiderTelegram,
   RATINGS_LIMIT,
   ratingsTotals,
   readUserTelegramId,
@@ -172,6 +176,13 @@ export interface AdminUiDependencies {
    * **والثقبُ محروسٌ لا مأمولٌ**: اختبارٌ يُثبِتُ الردَّ ٥٠٣ عندَ الغيابِ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * `F16-03` — منفذُ رموزِ التتبُّعِ لقطعِ روابطِ طلبٍ منَ اللوحةِ بطلبِ دعمٍ.
+   * **وغيابُهُ إغلاقٌ لا تجاوُزٌ**: المسلكُ يردُّ ٥٠٣ ولا يُسجِّلُ إلغاءً
+   * (نفسُ حجّةِ `revocation`). اختياريٌّ كي لا تُكسَرَ مُتصِلاتُ الاختبارِ،
+   * والثقبُ محروسٌ باختبارٍ يُثبِتُ الردَّ ٥٠٣ عندَ الغيابِ.
+   */
+  readonly trackingTokens?: TrackingTokenRpcPort;
   /**
    * `F16-02` — منفذُ الإقفالِ الإداريِّ للتذكرةِ (`closeDispute` فوقَ
    * `resolve_support_ticket` بدورِ `reject`). **وغيابُهُ إغلاقٌ لا تجاوُزٌ**:
@@ -938,6 +949,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       "/admin/live-orders",
       renderLiveOrdersPage({
         now: new Date(),
+        csrfToken: c.get("csrfToken"),
         rows,
         cities: toCityOptions(cities),
         cityId,
@@ -945,6 +957,43 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       }),
       LIVE_REFRESH_SECONDS,
     );
+  });
+
+  /*
+   * `F16-03` — قطعُ روابطِ تتبُّعِ طلبٍ منَ اللوحةِ بطلبِ دعمٍ: الإلغاءُ
+   * **بالنيابةِ عن مُصدِرِها** — تلغرامُ صاحبِ الطلبِ يُقرأُ منَ القاعدةِ لا
+   * منَ نموذجٍ، وملكيّةُ الإلغاءِ في القاعدةِ نفسِها (`revoke_order_tracking_tokens`
+   * تُطابِقُ المالكَ في العبارةِ التي تكتبُ — القاعدةُ 0.5). زرُّ الراكبِ موصولٌ
+   * منذُ §4.2 — وهذا مسارُ اللوحةِ بديلُهُ حينَ يطلبُ الدعمُ قطعَ رابطٍ وصلَ
+   * من لا يُريدُهُ صاحبُهُ. والفعلُ واحدٌ: `revokeOrderTrackingTokens` نفسُها.
+   */
+  app.post("/live-orders/:id/revoke-tracking", async (c) => {
+    if (deps.trackingTokens === undefined) {
+      return c.text("TRACKING_REVOCATION_UNAVAILABLE", SERVICE_UNAVAILABLE);
+    }
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const orderId = c.req.param("id");
+    if (!UUID_PATTERN.test(orderId)) return c.text("INVALID_ORDER_ID", HTML_UNPROCESSABLE);
+
+    const riderTelegram = await orderRiderTelegram(deps.sql, orderId);
+    if (riderTelegram === null) {
+      // لا وجودَ للطلبِ: لا يُميَّزَ عن «ليس لهُ روابطَ» عمداً — إعادةُ توجيهٍ.
+      log("admin.tracking_revoke_rejected", { reason: "ORDER_NOT_FOUND" });
+      return c.redirect("/admin/live-orders", SEE_OTHER);
+    }
+
+    const revoked = await revokeOrderTrackingTokens(
+      { orderId: orderId as OrderId, telegramId: Number(riderTelegram) },
+      { tokens: deps.trackingTokens },
+    );
+    if (!revoked.ok) {
+      log("admin.tracking_revoke_failed", { error: revoked.error.reason });
+      return c.text("TRACKING_REVOKE_FAILED", SERVER_ERROR);
+    }
+    log("admin.tracking_revoked", { orderId, count: revoked.value, onBehalfOf: riderTelegram });
+    return c.redirect("/admin/live-orders", SEE_OTHER);
   });
 
   /**

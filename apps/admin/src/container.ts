@@ -24,6 +24,7 @@
 import type { SupportResolutionPort } from "../../../packages/application/dispute/resolve-dispute.ts";
 import type { SessionRevocationStore } from "../../../packages/application/identity/ports.ts";
 import type { RatingFlagPort } from "../../../packages/application/reputation/index.ts";
+import type { TrackingTokenRpcPort } from "../../../packages/application/tracking/tracking-token-ports.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import { createSupportResolutionPort } from "../../../packages/infrastructure/dispute/support-adapters.ts";
 import { createRedisSessionRevocationStore } from "../../../packages/infrastructure/identity/redis-session-revocation-store.ts";
@@ -39,6 +40,7 @@ import {
   DEFAULT_POLL_MS,
   TRACKING_EVENT_STREAM_KEY,
 } from "../../../packages/infrastructure/tracking/redis-stream-event-bus.ts";
+import { createTrackingTokenRpc } from "../../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { type ResolvedMapStyle, resolveMapStyle } from "../../../packages/maps/index.ts";
 import {
   DB_POOL_MAX,
@@ -63,6 +65,11 @@ export interface AdminContainer {
    * مسلكُ الإبطالِ يردُّ ٥٠٣، فلا يُسجَّلُ قرارٌ بلا إنفاذٍ.
    */
   readonly sessionRevocation: SessionRevocationStore | null;
+  /**
+   * `F16-03` — منفذُ رموزِ التتبُّعِ لقطعِ الروابطِ منَ اللوحةِ. `null` يعني
+   * إغلاقَ المسلكِ بردِّ ٥٠٣ لا صمتَهُ.
+   */
+  readonly trackingTokens: TrackingTokenRpcPort | null;
   /**
    * `F16-02` — منفذُ الإقفالِ الإداريِّ للتذاكرِ من صفحةِ النزاعاتِ. `null` يعني
    * إغلاقَ المسلكِ بردِّ ٥٠٣ لا صمتَهُ — حاويةٌ بلا قاعدةٍ لا تُقفِلُ شيئاً.
@@ -145,6 +152,8 @@ export function buildAdminContainer(
    * لا مخزنَ — والمسلكُ يردُّ ٥٠٣ ولا يُوهِمُ بإبطالٍ لا يراهُ أحدٌ.
    */
   const sessionRevocation = redis === null ? null : createRedisSessionRevocationStore(redis);
+  /** `F16-03` — منفذُ رموزِ التتبُّعِ فوقَ القاعدةِ نفسِها لا نسخةٌ ثانيةٌ. */
+  const trackingTokens = createTrackingTokenRpc(sql);
   /** `F16-02` — منفذُ قراراتِ التذاكرِ فوقَ القاعدةِ نفسِها لا نسخةٌ ثانيةٌ. */
   const disputeResolutions = createSupportResolutionPort(sql);
   /** `F16-01` — منفذُ التعليمِ فوقَ القاعدةِ نفسِها لا نسخةٌ ثانيةٌ. */
@@ -204,6 +213,7 @@ export function buildAdminContainer(
     maplibreSri: config.maplibreSri,
     busCrossesProcesses: distributedBus !== null,
     sessionRevocation,
+    trackingTokens,
     disputeResolutions,
     ratingFlags,
     close: async () => {

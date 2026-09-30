@@ -42,6 +42,7 @@ import type { Hono } from "hono";
 import type { SupportResolutionPort } from "../../../../packages/application/dispute/resolve-dispute.ts";
 import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
 import type { RatingFlagPort } from "../../../../packages/application/reputation/index.ts";
+import type { TrackingTokenRpcPort } from "../../../../packages/application/tracking/tracking-token-ports.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
@@ -71,6 +72,11 @@ export interface AdminSurfaceDependencies {
    * تبعيّاتِ هذا السطحِ. وغيابُهُ يُعطِّلُ مسلكَ الإبطالِ ردَّ ٥٠٣ ولا يُسكِتُهُ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * `F16-03` — منفذُ رموزِ التتبُّعِ لقطعِ روابطِ طلبٍ منَ اللوحةِ. اختياريٌّ
+   * كأخواتِهِ: غيابُهُ يُغلقُ المسلكَ بـ٥٠٣ لا نجاحٍ صامتٍ.
+   */
+  readonly trackingTokens?: TrackingTokenRpcPort;
   /**
    * `F16-02` — منفذُ الإقفالِ الإداريِّ للتذاكرِ من صفحةِ النزاعاتِ (`closeDispute`).
    * اختياريٌّ كأخواتِهِ: غيابُهُ يُغلقُ المسلكَ بـ٥٠٣ لا نجاحٍ صامتٍ.
@@ -134,6 +140,7 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.maplibreSri === undefined ? {} : { maplibreSri: deps.maplibreSri }),
       ...(deps.log === undefined ? {} : { log: deps.log }),
       ...(deps.revocation === undefined ? {} : { revocation: deps.revocation }),
+      ...(deps.trackingTokens === undefined ? {} : { trackingTokens: deps.trackingTokens }),
       ...(deps.disputeResolutions === undefined
         ? {}
         : { disputeResolutions: deps.disputeResolutions }),

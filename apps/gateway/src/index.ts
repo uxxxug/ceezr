@@ -1455,6 +1455,9 @@ if (config.runAdminInGateway) {
     bus: container.tracking.bus,
     // مسلكُ إبطالِ جلساتِ Mini App منَ اللوحةِ (`SEC-18-ب`) — بلا هذا السطرِ يردُّ ٥٠٣.
     revocation: sessionRevocationStore,
+    // `F16-03` — منفذُ رموزِ التتبُّعِ لقطعِ الروابطِ منَ اللوحةِ: نفسُ منفذِ
+    // زرِّ الراكبِ لا نسخةً ثانيةً.
+    trackingTokens: container.trackingTokens,
     // `F16-02` — منفذُ الإقفالِ الإداريِّ للتذاكرِ من صفحةِ النزاعاتِ: نفسُ
     // منفذِ أزرارِ القروبِ (`resolve_support_ticket`) لا نسخةً ثانيةً.
     disputeResolutions: container.disputeResolutions,

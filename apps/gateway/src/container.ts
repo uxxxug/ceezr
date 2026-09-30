@@ -289,6 +289,12 @@ export interface Container {
    */
   readonly financial: SubscriptionWalletRpcPort;
   /**
+   * `F16-03` — منفذُ رموزِ التتبُّعِ مكشوفٌ لأنَّ قطعَ الروابطِ منَ اللوحةِ يجبُ
+   * أن يمرَّ على **نفسِ** المنفذِ الذي يُلغي به زرُّ الراكبِ — منفذٌ ثانٍ كانَ
+   * سيجعلُ للملكيّةِ حاكمَينِ يفترقانِ (القاعدةُ 0.6).
+   */
+  readonly trackingTokens: TrackingTokenRpcPort;
+  /**
    * `F16-02` — منفذُ قراراتِ التذاكرِ مكشوفٌ لأنَّ الإقفالَ الإداريَّ من اللوحةِ
    * يجبُ أن يمرَّ على **نفسِ** المنفذِ الذي تحكُمُ به أزرارُ قروبِ الدعمِ:
    * `resolve_support_ticket` — منفذٌ ثانٍ كان سيجعلُ للحدِّ حكمانِ يفترقانِ (0.6).
@@ -1107,6 +1113,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     sql,
     driverSender,
     financial,
+    trackingTokens: trackingTokens,
     /**
      * `F16-02` — منفذُ قراراتِ التذاكرِ للإقفالِ الإداريِّ من اللوحةِ: نفسُ
      * `resolutionPort` الذي يحكُمُ أزرارَ القروبِ لا نسخةٌ ثانيةٌ (القاعدةُ 0.6).

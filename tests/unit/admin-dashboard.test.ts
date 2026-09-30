@@ -231,6 +231,7 @@ describe("الصفحات الثماني", () => {
     const stall = 120;
     const html = renderLiveOrdersPage({
       now: NOW,
+      csrfToken: "csrf-token",
       cities: CITIES,
       cityId: null,
       stallSeconds: stall,
@@ -253,6 +254,9 @@ describe("الصفحات الثماني", () => {
     expect(html).toContain("الطلبات الحية");
     expect(html).toContain("الحرم");
     expect(html).toContain("badge--bad");
+    // `F16-03` — قطعُ روابطِ التتبُّعِ منَ اللوحةِ: زرٌّ في صفِّ كلِّ طلبٍ حيٍّ.
+    expect(html).toContain('/revoke-tracking">');
+    expect(html).toContain("قطع روابط التتبّع");
   });
 
   it("الحضور: يجمع الملخّص والأحداث في صفحة واحدة", () => {

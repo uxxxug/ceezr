@@ -24,6 +24,7 @@ import { createSql, type Sql } from "../../packages/infrastructure/db/client.ts"
 import { createSupportResolutionPort } from "../../packages/infrastructure/dispute/support-adapters.ts";
 import { createMemorySessionRevocationStore } from "../../packages/infrastructure/identity/memory-session-revocation-store.ts";
 import { createRatingFlagPort } from "../../packages/infrastructure/reputation/rating-adapters.ts";
+import { createTrackingTokenRpc } from "../../packages/infrastructure/tracking/tracking-token-adapters.ts";
 import { seedAcceptedDocuments } from "../support/seed-driver-documents.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
@@ -184,6 +185,8 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
         ratingFlags: createRatingFlagPort(sql),
         // `F16-02` — منفذُ الإقفالِ الإداريِّ: نفسُ منفذِ أزرارِ القروبِ.
         disputeResolutions: createSupportResolutionPort(sql),
+        // `F16-03` — منفذُ رموزِ التتبُّعِ: نفسُ منفذِ زرِّ الراكبِ.
+        trackingTokens: createTrackingTokenRpc(sql),
       }),
     );
   });
@@ -1048,7 +1051,6 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
   });
 
   /*
-  /*
    * `F16-01` — تعليمُ التقييمِ المسيءِ من صفحةِ التقييماتِ: زرٌّ يمرُّ على
    * `flag_rating` فتَحكُمُ القاعدةُ بالدورِ وتكتبُ `audit_log`. المقيسُ ههنا
    * المسارُ كاملًا: الصفحةُ تعرضُ الزرَّ، والـPOST يُعلِّمُ فعلاً، والمعلَّمُ
@@ -1143,7 +1145,6 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
       app = previous;
     }
   });
-
   /*
    * `F16-02` — الإقفالُ الإداريُّ للتذكرةِ من صفحةِ النزاعاتِ (`close-dispute.ts`
    * الذي كانَ مكتوباً بلا نداءٍ): المسارُ كاملًا — الصفحةُ تعرضُ النموذجَ
@@ -1238,6 +1239,95 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
       expect(response.status).toBe(503);
       const rows = await sql`select 1 from audit_log where action = 'support.ticket_reject'`;
       expect(rows).toHaveLength(0);
+    } finally {
+      app = previous;
+    }
+  });
+  /*
+   * `F16-03` — قطعُ روابطِ التتبُّعِ منَ اللوحةِ بطلبِ دعمٍ: الإلغاءُ **بالنيابةِ
+   * عن مُصدِرِها** — تلغرامُ صاحبِ الطلبِ يُقرأُ منَ القاعدةِ، وملكيّةُ الإلغاءِ
+   * تُطابِقُها القاعدةُ في `revoke_order_tracking_tokens` داخلَ عبارةِ الكتابةِ.
+   * زرُّ الراكبِ موصولٌ منذُ §4.2 — وهذا مسارُ اللوحةِ. والفعلُ واحدٌ:
+   * `revokeOrderTrackingTokens` نفسُها.
+   */
+  it("قطع روابط تتبع طلب من اللوحة: يُلغي بالنيابة عن صاحبه وإعادة الإلغاء آمنة", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const csrf = await csrfFrom(cookie, "/admin/live-orders");
+
+    // بذرةُ الطلبِ ورابطِ التتبُّعِ.
+    const riders = await sql<{ id: string }[]>`
+      insert into riders (city_id, user_id)
+      select ${cityId}, id from users where telegram_id = ${OTHER_TELEGRAM}::bigint
+      returning id
+    `;
+    const riderId = riders[0]?.id;
+    if (riderId === undefined) throw new Error("تعذّر إنشاء الراكب");
+    const { driverId } = await createDriver();
+    const orders = await sql<{ id: string }[]>`
+      insert into orders (city_id, rider_id, assigned_driver_id, service, status, pickup, dropoff)
+      values (${cityId}, ${riderId}, ${driverId}, 'transport', 'in_progress',
+              st_point(39.1751, 21.5471)::geography, st_point(39.1901, 21.5601)::geography)
+      returning id
+    `;
+    const orderId = orders[0]?.id;
+    if (orderId === undefined) throw new Error("تعذّر إنشاء الطلب");
+    await sql`
+      insert into trip_tracking_tokens (city_id, order_id, token, created_by, expires_at)
+      values (${cityId}, ${orderId}, ${"t".repeat(64)}, ${OTHER_TELEGRAM}::bigint,
+              now() + interval '1 hour')
+    `;
+
+    // الصفحةُ تعرضُ الزرَّ.
+    const page = await (await request("/admin/live-orders", { cookie })).text();
+    expect(page).toContain(`action="/admin/live-orders/${orderId}/revoke-tracking"`);
+
+    const revoked = await request(`/admin/live-orders/${orderId}/revoke-tracking`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf }),
+    });
+    expect(revoked.status).toBe(303);
+
+    const after = await sql<{ revoked_at: string | null }[]>`
+      select revoked_at from trip_tracking_tokens where order_id = ${orderId}::uuid
+    `;
+    expect(after[0]?.revoked_at).not.toBeNull();
+
+    // إعادةُ الإلغاءِ آمنةٌ: لا روابطَ ساريةَ فعددُ المُلغاةِ صفرٌ — والردُّ
+    // إعادةُ توجيهٍ لا خطأٍ (idempotent).
+    const again = await request(`/admin/live-orders/${orderId}/revoke-tracking`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf }),
+    });
+    expect(again.status).toBe(303);
+  });
+
+  it("بلا منفذ تتبع موصول يردّ المسلك 503 لا نجاح صامت", async () => {
+    const bare = new Hono();
+    bare.route(
+      "/admin",
+      createAdminUiRoutes({
+        sql,
+        auth,
+        codeSender: {
+          send: async (chatId, text) => {
+            sentCodes.push({ chatId, text });
+            return true;
+          },
+        },
+      }),
+    );
+    const previous = app;
+    app = bare;
+    try {
+      const cookie = await login(ADMIN_TELEGRAM);
+      const csrf = await csrfFrom(cookie, "/admin/live-orders");
+      const response = await request(
+        "/admin/live-orders/1b2c3d4e-5f60-4a1b-8c2d-9e0f1a2b3c4d/revoke-tracking",
+        { method: "POST", cookie, body: form({ csrf }) },
+      );
+      expect(response.status).toBe(503);
     } finally {
       app = previous;
     }
