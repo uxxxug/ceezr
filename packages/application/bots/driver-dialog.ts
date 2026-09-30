@@ -77,6 +77,7 @@ import type {
   PortFailureError,
   SettingsRepository,
 } from "../ports/index.ts";
+import type { ReputationReader } from "../reputation/index.ts";
 import { isSafetyDecisionReason } from "../safety/ports.ts";
 import {
   type ResolveSafetyIncidentDeps,
@@ -116,10 +117,12 @@ import {
   shortOrderId,
   startRideKeyboard,
 } from "./rating-dialog.ts";
+import { reputationCardReplies } from "./reputation-card.ts";
 import { readDialogSession, type SessionRead } from "./session-read.ts";
 import {
   handleActivateCommand,
   handleAnswerCommand,
+  handleFlagRatingCommand,
   handleSupportGroupAction,
   handleSupportTypeChoice,
   type SupportDialogDependencies,
@@ -242,6 +245,12 @@ export interface DriverBotDependencies {
    * منح المسؤول الأول (§6.2ب من التوجيه). بلا هذا المسار لا توجد طريقة لتعيين
    * أول مسؤول في نظام كل صلاحياته في القاعدة، إلا تعديل صفّ يدوياً في الإنتاج.
    */
+  /**
+   * `F16-01` — قارئُ السمعةِ لأمرِ `/rating` (`get-reputation-summary.ts` الذي كانَ
+   * مبنيّاً بلا نداءٍ). اختياريٌّ بنفس منطق `rating` و`tracking`: غيابُهُ يردُّ
+   * «أمرٌ غيرُ معروف» لا بطاقةً فارغةً، والتوصيلُ في الحاويةِ دائمٌ في الإنتاجِ.
+   */
+  readonly reputation?: ReputationReader;
   /**
    * دورة الرحلة والتقييم (المرحلة 2.5). اختياري بنفس منطق ما قبله: غيابه يعني أن
    * زرّ بدء الرحلة لا يظهر، لا أن يظهر ويفشل.
@@ -992,6 +1001,29 @@ async function handleCommand(
     case "/answer": {
       if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
       return handleAnswerCommand(command, sender, state, deps.support);
+    }
+
+    /**
+     * `F16-01` — `/flag <rating_id>`: تعليمُ تقييمٍ مسيءٍ من قروبِ الدعمِ. معَ
+     * `/answer` و`/activate` في مُوزِّعِ السائقِ لا الراكبِ: القروبُ يُخدَمُ ببوتِ
+     * السائقِ — وهوَ مقروءٌ من موضعِ `/answer` لا مُقدَّرٌ.
+     */
+    case "/flag": {
+      if (deps.support === undefined) return [reply(sender, tr("common.unknown_command"))];
+      return handleFlagRatingCommand(command, sender, state, deps.support);
+    }
+
+    /**
+     * `F16-01` — `/rating`: بطاقةُ السمعةِ — ملخّصٌ كسائقٍ وزبونٍ معَ آخرِ التقييماتِ
+     * المستلمةِ (`get-reputation-summary.ts` الذي كانَ مبنيّاً بلا نداءٍ). لا يشترطُ
+     * تسجيلًا: السمعةَ تُقرأُ بتلغرامِ المُرسِلِ نفسِهِ، والغيرُ المسجَّلِ لا تقييمَ
+     * لهُ أصلاً فتُجيبُهُ البطاقةُ «لا تقييماتٍ بعد» — لا «سجّل أوّلاً».
+     */
+    case "/rating": {
+      if (deps.reputation === undefined) return [reply(sender, tr("common.unknown_command"))];
+      return reputationCardReplies(sender, state, sender.telegramUserId, {
+        reputation: deps.reputation,
+      });
     }
 
     case "/subscription": {

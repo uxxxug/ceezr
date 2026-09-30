@@ -22,10 +22,12 @@
  */
 
 import type { SessionRevocationStore } from "../../../packages/application/identity/ports.ts";
+import type { RatingFlagPort } from "../../../packages/application/reputation/index.ts";
 import { createSql, type Sql } from "../../../packages/infrastructure/db/client.ts";
 import { createRedisSessionRevocationStore } from "../../../packages/infrastructure/identity/redis-session-revocation-store.ts";
 import { createTelegramApi } from "../../../packages/infrastructure/notification/telegram-client.ts";
 import { createUpstashRedis } from "../../../packages/infrastructure/redis/upstash.ts";
+import { createRatingFlagPort } from "../../../packages/infrastructure/reputation/rating-adapters.ts";
 import {
   createTrackingEventBus,
   type TrackingEventBus,
@@ -59,6 +61,11 @@ export interface AdminContainer {
    * مسلكُ الإبطالِ يردُّ ٥٠٣، فلا يُسجَّلُ قرارٌ بلا إنفاذٍ.
    */
   readonly sessionRevocation: SessionRevocationStore | null;
+  /**
+   * `F16-01` — منفذُ تعليمِ التقييمِ المسيءِ لصفحةِ التقييماتِ: **`null` يعني إغلاقَ
+   * المسلكِ بردِّ ٥٠٣ لا صمتهُ** — حاويةٌ بلا قاعدةٍ (اختبارٌ) لا تعلِّمُ شيئًا.
+   */
+  readonly ratingFlags: RatingFlagPort | null;
   readonly close: () => Promise<void>;
 }
 
@@ -131,6 +138,8 @@ export function buildAdminContainer(
    * لا مخزنَ — والمسلكُ يردُّ ٥٠٣ ولا يُوهِمُ بإبطالٍ لا يراهُ أحدٌ.
    */
   const sessionRevocation = redis === null ? null : createRedisSessionRevocationStore(redis);
+  /** `F16-01` — منفذُ التعليمِ فوقَ القاعدةِ نفسِها لا نسخةٌ ثانيةٌ. */
+  const ratingFlags = createRatingFlagPort(sql);
 
   if (distributedBus !== null) distributedBus.start();
   const bus: TrackingEventBus = distributedBus ?? localBus;
@@ -186,6 +195,7 @@ export function buildAdminContainer(
     maplibreSri: config.maplibreSri,
     busCrossesProcesses: distributedBus !== null,
     sessionRevocation,
+    ratingFlags,
     close: async () => {
       distributedBus?.stop();
       await sql.end({ timeout: 5 });

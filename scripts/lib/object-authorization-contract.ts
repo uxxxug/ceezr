@@ -136,6 +136,14 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
     method: "post",
+    template: "/ratings/:id/flag",
+    kind: "admin-guard",
+    reason:
+      "تعليمُ التقييمِ المسيءِ سلطةُ إدارةٍ على تقييمٍ بينَ طرفَينِ لا مِلكيّةُ أحَدِهِما؛ والمصدرُ وسيطُ جلسةِ الإدارةِ على الموجّهِ كلِّه، وصفةُ الفاعلِ تُحكَمُ ثانيةً في `flag_rating` (is_support_actor) وهيَ security definer (F16-01 · ADR 0219).",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
     template: "/recovery/:requestId/review",
     kind: "admin-guard",
     reason:

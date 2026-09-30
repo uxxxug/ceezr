@@ -1235,3 +1235,45 @@ describe("جلسةُ الراكبِ متعذِّرةُ القراءةِ — D-36
     expect(replies.map((r) => r.text)).toEqual([ar("common.unknown_command")]);
   });
 });
+
+/**
+ * `F16-01` — `/rating` في بوت الراكبِ: السمعةُ ليست حكراً على السائقين — السائقُ
+ * يقيّمُ الراكبَ أيضاً (`get-reputation-summary.ts` بلا نداءٍ قبلَ هذا البندِ).
+ */
+describe("بطاقة السمعة — /rating (الراكب)", () => {
+  it("يعرض الملخص كزبون مع التقييمات المستلمة من سائقين", async () => {
+    const replies = await handleRiderUpdate(
+      text("/rating"),
+      build({
+        reputation: {
+          summaryFor: async () =>
+            ok({
+              asDriver: null,
+              asRider: { average: 4.25, count: 4 },
+              received: [{ stars: 4, direction: "driver_to_rider", comment: null, createdAt: NOW }],
+            }),
+        },
+      }),
+    );
+    expect(replies).toHaveLength(1);
+    expect(replies[0]?.text).toContain(ar("reputation.heading"));
+    expect(replies[0]?.text).toContain(ar("reputation.as_rider", { average: "4.3", count: "4" }));
+    expect(replies[0]?.text).toContain(ar("reputation.as_driver.empty"));
+    expect(replies[0]?.text).toContain(ar("reputation.from_driver"));
+  });
+
+  it("لا تقييمات: جواب واحد صريح", async () => {
+    const replies = await handleRiderUpdate(
+      text("/rating"),
+      build({
+        reputation: { summaryFor: async () => ok(null) },
+      }),
+    );
+    expect(replies[0]?.text).toBe(ar("reputation.empty"));
+  });
+
+  it("غياب المنفذ: أمر غير معروف", async () => {
+    const replies = await handleRiderUpdate(text("/rating"), build());
+    expect(replies[0]?.text).toBe(ar("common.unknown_command"));
+  });
+});

@@ -40,6 +40,7 @@
 
 import type { Hono } from "hono";
 import type { SessionRevocationStore } from "../../../../packages/application/identity/ports.ts";
+import type { RatingFlagPort } from "../../../../packages/application/reputation/index.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
@@ -69,6 +70,12 @@ export interface AdminSurfaceDependencies {
    * تبعيّاتِ هذا السطحِ. وغيابُهُ يُعطِّلُ مسلكَ الإبطالِ ردَّ ٥٠٣ ولا يُسكِتُهُ.
    */
   readonly revocation?: SessionRevocationStore;
+  /**
+   * `F16-01` — منفذُ تعليمِ التقييمِ المسيءِ من صفحةِ التقييماتِ. يُمرَّرُ ولا
+   * يُبنى ههنا (نفسُ قاعدةِ `revocation`): المُركِّبانِ يبنيانِ تبعيّاتِهما، وغيابُهُ
+   * يُغلقُ المسلكَ بردِّ ٥٠٣ لا يُسكِتُهُ.
+   */
+  readonly ratingFlags?: RatingFlagPort;
   /**
    * مفتاحُ تشفيرِ سرِّ TOTP للبابِ الموازي (`SEC-21` · ADR 0176) — اختياريٌّ
    * كأخواتِهِ: غيابُهُ يُفعِّلُ الرفضَ الموحَّدَ للبابِ ولا يُسقِطُ الخدمةَ.
@@ -121,6 +128,7 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.maplibreSri === undefined ? {} : { maplibreSri: deps.maplibreSri }),
       ...(deps.log === undefined ? {} : { log: deps.log }),
       ...(deps.revocation === undefined ? {} : { revocation: deps.revocation }),
+      ...(deps.ratingFlags === undefined ? {} : { ratingFlags: deps.ratingFlags }),
       ...(deps.breakGlassTotpKey === undefined
         ? {}
         : { breakGlassTotpKey: deps.breakGlassTotpKey }),
