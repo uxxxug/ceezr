@@ -497,9 +497,7 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
   {
     file: "tests/integration/driver-documents-approval-guard.test.ts",
-    suites: [
-      "F12-21 — حارسُ اعتمادِ السائقِ",
-    ],
+    suites: ["F12-21 — حارسُ اعتمادِ السائقِ"],
     skipped: 6,
     gate: "TEST_DATABASE_URL",
     reason:

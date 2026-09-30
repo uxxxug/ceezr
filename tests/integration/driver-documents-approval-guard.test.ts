@@ -45,6 +45,7 @@ let cityHandle: ActiveCityHandle | undefined;
 let cityId = "";
 let adminUserId = "";
 let driverId = "";
+let driverUserId = "";
 let requiredTypes: readonly string[] = [];
 
 beforeAll(async () => {
@@ -78,6 +79,7 @@ beforeAll(async () => {
     returning id
   `;
   if (user === undefined) throw new Error("تعذّر زرعُ مستخدمِ السائقِ");
+  driverUserId = user.id;
   const [driver] = await sql<{ id: string }[]>`
     insert into drivers (city_id, user_id, verification_status, vehicle_type, plate_number)
     values (${cityId}, ${user.id}, 'pending'::verification_status, 'سيدان', 'ر س د 402')
@@ -90,11 +92,16 @@ beforeAll(async () => {
 afterAll(async () => {
   if (DATABASE_URL === undefined) return;
   if (driverId !== "") {
+    await sql`delete from audit_log where entity_id = ${driverId}`;
     await sql`delete from driver_documents where driver_id = ${driverId}`;
+    await sql`delete from driver_availability where driver_id = ${driverId}`;
     await sql`delete from drivers where id = ${driverId}`;
-    await sql`delete from users where id in (select user_id from drivers where id = ${driverId})`;
+  }
+  if (driverUserId !== "") {
+    await sql`delete from users where id = ${driverUserId}`;
   }
   if (adminUserId !== "") {
+    await sql`delete from audit_log where actor_user_id = ${adminUserId}`;
     await sql`delete from users where id = ${adminUserId}`;
   }
   if (cityHandle !== undefined) {
