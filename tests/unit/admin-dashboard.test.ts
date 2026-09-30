@@ -311,8 +311,10 @@ describe("الصفحات الثماني", () => {
         flaggedCount: 0,
         lowThreshold: 2,
       },
+      csrfToken: "csrf-token",
       rows: [
         {
+          ratingId: "aaaaaaaa-0000-4000-8000-000000000001",
           createdAt: NOW.toISOString(),
           orderId: "99999999-9999-9999-9999-999999999999",
           cityCode: "JED",
@@ -324,6 +326,7 @@ describe("الصفحات الثماني", () => {
           isFlagged: false,
         },
         {
+          ratingId: "aaaaaaaa-0000-4000-8000-000000000002",
           createdAt: NOW.toISOString(),
           orderId: "99999999-9999-9999-9999-999999999999",
           cityCode: "JED",
@@ -339,11 +342,51 @@ describe("الصفحات الثماني", () => {
 
     expect(html).toContain("تأخّر كثيراً");
     expect(html).toContain("badge--bad");
+    // `F16-01` — زرُّ التعليمِ لغيرِ المُعلَّمِ لا للمُعلَّمِ: الفعلُ كتابةٌ فلا
+    // يُعرضُ إلا لمن يملكُه فعلًا.
+    expect(html).toContain('action="/admin/ratings/aaaaaaaa-0000-4000-8000-000000000001/flag"');
+    expect(html).toContain("تعليم إساءة");
+  });
+
+  it("التقييمات: المُعلَّم يُعرَض شارةً لا زرًّا", () => {
+    const html = renderRatingsPage({
+      cities: CITIES,
+      cityId: null,
+      direction: null,
+      onlyLow: false,
+      limit: 200,
+      csrfToken: "csrf-token",
+      summary: {
+        total: 1,
+        averageOnDriver: 1,
+        averageOnRider: null,
+        lowCount: 1,
+        flaggedCount: 1,
+        lowThreshold: 2,
+      },
+      rows: [
+        {
+          ratingId: "bbbbbbbb-0000-4000-8000-000000000001",
+          createdAt: NOW.toISOString(),
+          orderId: "99999999-9999-9999-9999-999999999999",
+          cityCode: "JED",
+          direction: "rider_to_driver",
+          raterName: "عميل",
+          rateeName: "سائق",
+          stars: 1,
+          comment: null,
+          isFlagged: true,
+        },
+      ],
+    });
+    expect(html).toContain("مُعلَّم");
+    expect(html).not.toContain("تعليم إساءة");
   });
 
   it("النزاعات: تعرض نصّ الشكوى وحالتها", () => {
     const html = renderDisputesPage({
       now: NOW,
+      csrfToken: "csrf-token",
       cities: CITIES,
       cityId: null,
       status: null,
@@ -378,11 +421,58 @@ describe("الصفحات الثماني", () => {
 
     expect(html).toContain("السائق لم يصل");
     expect(html).toContain("عميل غاضب");
+    // `F16-02` — الإقفالُ الإداريُّ للمفتوحةِ والمستلَمةِ: نموذجٌ بسببٍ مكتوبٍ.
+    expect(html).toContain('action="/admin/disputes/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/close"');
+    expect(html).toContain('name="note"');
+    expect(html).toContain("إقفال إداري");
+  });
+
+  it("النزاعات: المحلولة والمرفوضة بلا نموذج إقفال — الفعل لمن يملكه فعلًا", () => {
+    const settled = (status: string) =>
+      renderDisputesPage({
+        now: NOW,
+        csrfToken: "csrf-token",
+        cities: CITIES,
+        cityId: null,
+        status: null,
+        openCount: 0,
+        claimedCount: 0,
+        resolvedDayCount: 1,
+        windowHours: 24,
+        limit: 200,
+        rows: [
+          {
+            ticketId: "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            createdAt: NOW.toISOString(),
+            type: "ride_dispute",
+            status,
+            cityCode: "JED",
+            partyName: "عميل",
+            partyRole: "rider",
+            partyTelegramId: "9400",
+            orderId: null,
+            message: "نص",
+            claimedByName: "دعم",
+            claimedAt: NOW.toISOString(),
+            resolvedByName: "مسؤول",
+            resolvedAt: NOW.toISOString(),
+            resolutionNote: "سبب موثّق",
+            agentSuggestion: null,
+            agentClassification: null,
+            agentConfidence: null,
+          },
+        ],
+      });
+    for (const html of [settled("resolved"), settled("rejected")]) {
+      expect(html).not.toContain('/close">');
+      expect(html).not.toContain("إقفال إداري");
+    }
   });
 
   it("النزاعات: تعرض اقتراح الطبقة للقراءة دون أي زرّ حسم", () => {
     const base = {
       now: NOW,
+      csrfToken: "csrf-token",
       cities: CITIES,
       cityId: null,
       status: null,

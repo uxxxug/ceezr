@@ -96,6 +96,12 @@ async function main(): Promise<void> {
     ...(container.sessionRevocation === null ? {} : { revocation: container.sessionRevocation }),
     // `F16-03` — منفذُ رموزِ التتبُّعِ: غيابُهُ يُغلقُ المسلكَ بـ٥٠٣.
     ...(container.trackingTokens === null ? {} : { trackingTokens: container.trackingTokens }),
+    // `F16-02` — منفذُ الإقفالِ الإداريِّ للتذاكرِ: غيابُهُ يُغلقُ المسلكَ بـ٥٠٣.
+    ...(container.disputeResolutions === null
+      ? {}
+      : { disputeResolutions: container.disputeResolutions }),
+    // `F16-01` — منفذُ تعليمِ التقييمِ منَ اللوحةِ: غيابُهُ يُغلقُ المسلكَ بردِّ ٥٠٣.
+    ...(container.ratingFlags === null ? {} : { ratingFlags: container.ratingFlags }),
     log,
   });
 

@@ -1458,6 +1458,11 @@ if (config.runAdminInGateway) {
     // `F16-03` — منفذُ رموزِ التتبُّعِ لقطعِ الروابطِ منَ اللوحةِ: نفسُ منفذِ
     // زرِّ الراكبِ لا نسخةً ثانيةً.
     trackingTokens: container.trackingTokens,
+    // `F16-02` — منفذُ الإقفالِ الإداريِّ للتذاكرِ من صفحةِ النزاعاتِ: نفسُ
+    // منفذِ أزرارِ القروبِ (`resolve_support_ticket`) لا نسخةً ثانيةً.
+    disputeResolutions: container.disputeResolutions,
+    // `F16-01` — منفذُ تعليمِ التقييمِ منَ اللوحةِ: نفسُ منفذِ `/flag` في القروبِ.
+    ratingFlags: container.reputation.flags,
     // مفتاحُ سرِّ البابِ الموازي (`SEC-21`) — غيابُهُ يُغلقُ البابَ موحَّدًا لا سقوطًا.
     breakGlassTotpKey: config.adminBreakGlassTotpKey,
     // حاصرُ دخولِ البابِ الموازي (`SEC-21`): منَ السِجلِّ المغلقِ كما كلَّ حدٍّ،

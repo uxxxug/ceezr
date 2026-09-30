@@ -1722,3 +1722,64 @@ describe("جلسةُ السائقِ متعذِّرةُ القراءةِ — D-36
     expect(replies[0]?.text).toBe(ar("driver.location_saved"));
   });
 });
+
+/**
+ * `F16-01` — `/rating`: بطاقةُ السمعةِ (`get-reputation-summary.ts` الذي كانَ مبنيّاً
+ * بلا نداءٍ). القياسُ على مستوى الحوارِ: البطاقةُ منَ المنفذِ، والغيابُ والفشلُ
+ * صادقانِ، والقائمةُ الدائمةِ مرفقةٌ حيثُ وعدَ بها المُعالِجُ.
+ */
+describe("بطاقة السمعة — /rating", () => {
+  const summary = {
+    asDriver: { average: 4.5, count: 12 },
+    asRider: { average: 5, count: 2 },
+    received: [
+      { stars: 5, direction: "rider_to_driver", comment: null, createdAt: NOW },
+      { stars: 1, direction: "rider_to_driver", comment: "متأخر", createdAt: NOW },
+      { stars: 4, direction: "rider_to_driver", comment: null, createdAt: NOW },
+      { stars: 3, direction: "rider_to_driver", comment: null, createdAt: NOW },
+    ],
+  };
+
+  it("يعرض الملخص كسائق وزبون وآخر ثلاثة تقييمات مستلمة", async () => {
+    const replies = await handleDriverUpdate(
+      text("/rating"),
+      build({
+        reputation: { summaryFor: async () => ok(summary) },
+      }),
+    );
+    expect(replies).toHaveLength(1);
+    expect(replies[0]?.text).toContain(ar("reputation.heading"));
+    expect(replies[0]?.text).toContain(ar("reputation.as_driver", { average: "4.5", count: "12" }));
+    expect(replies[0]?.text).toContain(ar("reputation.as_rider", { average: "5.0", count: "2" }));
+    // آخرُ ثلاثةٍ فقط: الرابعُ (٣ نجومٍ) لا يظهر — تُعَدُّ صفوفُ «مِن عميلٍ».
+    expect(replies[0]?.text.split(ar("reputation.from_rider")).length ?? 0).toBe(4);
+    expect(replies[0]?.text).toContain(ar("reputation.from_rider"));
+  });
+
+  it("لا تقييمات: الغياب ليس صفر نجوم", async () => {
+    const replies = await handleDriverUpdate(
+      text("/rating"),
+      build({
+        reputation: { summaryFor: async () => ok({ asDriver: null, asRider: null, received: [] }) },
+      }),
+    );
+    expect(replies[0]?.text).toBe(ar("reputation.empty"));
+  });
+
+  it("عطل المنفذ عطل فني لا «لا سمعة»", async () => {
+    const replies = await handleDriverUpdate(
+      text("/rating"),
+      build({
+        reputation: {
+          summaryFor: async () => err(new PortFailureError("get_reputation_summary", "db")),
+        },
+      }),
+    );
+    expect(replies[0]?.text).toBe(ar("common.error_try_again"));
+  });
+
+  it("غياب المنفذ: أمر غير معروف لا بطاقة فارغة", async () => {
+    const replies = await handleDriverUpdate(text("/rating"), build());
+    expect(replies[0]?.text).toBe(ar("common.unknown_command"));
+  });
+});

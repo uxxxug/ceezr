@@ -445,5 +445,22 @@
   "miniapp.entry.help_driver": "سارا کام وصلہ ایپ میں ہے: پیشکشیں، جاری سفر، سبسکرپشن، دستاویزات اور مدد۔ اس چیٹ میں: ہنگامی حالت کے لیے /sos، زبان کے لیے /language، پسندیدہ علاقے کے لیے /area اور شہر بدلنے کے لیے /city۔",
   "miniapp.entry.open_prompt": "وصلہ ایپ کھولنے کے لیے بٹن دبائیں۔",
   "miniapp.entry.moved": "یہ سہولت اب وصلہ ایپ میں ہے۔ براہِ راست کھولنے کے لیے بٹن دبائیں۔",
-  "miniapp.command.app.description": "وصلہ ایپ کھولیں"
+  "miniapp.command.app.description": "وصلہ ایپ کھولیں",
+  "menu.driver.rating": "میری ریٹنگ",
+  "menu.driver.rating.description": "شہرت کا کارڈ اور موصولہ ریٹنگیں",
+  "menu.rider.rating": "میری ریٹنگ",
+  "menu.rider.rating.description": "شہرت کا کارڈ اور موصولہ ریٹنگیں",
+  "reputation.heading": "📊 میری ریٹنگ اور شہرت",
+  "reputation.as_driver": "بطور ڈرائیور: 5 میں سے {average} ({count} ریٹنگیں)",
+  "reputation.as_driver.empty": "بطور ڈرائیور: ابھی کوئی ریٹنگ نہیں",
+  "reputation.as_rider": "بطور مسافر: 5 میں سے {average} ({count} ریٹنگیں)",
+  "reputation.as_rider.empty": "بطور مسافر: ابھی کوئی ریٹنگ نہیں",
+  "reputation.recent": "تازہ موصولہ ریٹنگیں:",
+  "reputation.recent_row": "{stars} — {direction}",
+  "reputation.from_rider": "ایک مسافر کی طرف سے",
+  "reputation.from_driver": "ایک ڈرائیور کی طرف سے",
+  "reputation.empty": "ابھی کوئی ریٹنگ نہیں — آپ کی شہرت آپ کی سواریوں کی ریٹنگوں سے بنتی ہے۔",
+  "support.flag_usage": "استعمال: /flag <ریٹنگ کی آئی ڈی> — زیان رساں ریٹنگ اوسط سے نکال دی جاتی ہے، مٹائی نہیں جاتی۔",
+  "support.flag_done": "ریٹنگ {rating} کو زیان رساں نشان زد کر کے اوسط سے نکال دیا گیا۔",
+  "support.flag_not_flaggable": "ریٹنگ نشان زد نہیں ہو سکتی: موجود نہیں یا پہلے سے نشان زد ہے۔"
 }
