@@ -73,6 +73,7 @@ const STATUS_BY_ERROR: Readonly<
   FILE_TOO_LARGE: 413,
   // مسارُ غيرِكَ: **منعُ صلاحيةٍ**، ولا يُفرَّقُ بينَ «لا وجودَ له» و«لغيرِكَ».
   OBJECT_PATH_NOT_MINE: 403,
+  OBJECT_NOT_FOUND: 422,
   ACCOUNT_BLOCKED: 403,
   NOT_A_DRIVER: 403,
   // نقصٌ في الوثائقِ **تعارضٌ مع حالةِ المَورِدِ** لا قيمةٌ خطأٌ في الطلبِ:

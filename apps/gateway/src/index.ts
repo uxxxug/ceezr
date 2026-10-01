@@ -77,6 +77,7 @@ import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-s
 import { createDriverCannotCompletePort } from "../../../packages/infrastructure/safety/driver-cannot-complete-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
+import { HttpObjectExistenceChecker } from "../../../packages/infrastructure/storage/object-existence-checker.ts";
 import {
   HttpReadSigner,
   readSignedReadConfig,
@@ -1064,6 +1065,9 @@ const driverDocuments =
             store: new PostgresDriverDocumentStore(container.sql),
             signer:
               storage === null ? new UnconfiguredUploadSigner() : new HttpUploadSigner(storage),
+            ...(storage === null
+              ? {}
+              : { existenceChecker: new HttpObjectExistenceChecker(storage) }),
           },
           log,
         };

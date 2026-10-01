@@ -47,6 +47,7 @@ import {
   type DriverDocumentStore,
   type DriverDocumentStoreError,
   isDriverDocumentRejection,
+  type ObjectExistenceChecker,
   type RecordedDriverDocument,
   type SubmittedForReview,
   type UploadSigner,
@@ -69,6 +70,7 @@ export const DRIVER_DOCUMENT_PUBLIC_ERROR_CODES = [
   "SIZE_INVALID",
   "FILE_TOO_LARGE",
   "OBJECT_PATH_NOT_MINE",
+  "OBJECT_NOT_FOUND",
   "EXPIRY_REQUIRED",
   "EXPIRY_INVALID",
   "EXPIRY_IN_PAST",
@@ -86,6 +88,12 @@ export interface DriverDocumentDeps {
   readonly store: DriverDocumentStore;
   /** غيابُه يُعطّلُ مسارَ الخانةِ وحدَه بـ`503` ولا يُعطّلُ اللوحَ. */
   readonly signer?: UploadSigner;
+  /**
+   * فاحصُ وجودِ الكائنِ في المخزنِ (`DEC-30` · `ADR 0227`) — اختياريٌّ: غيابُهُ يُبقي
+   * السلوكَ كالسابقِ (يُسجَّلُ ما قالَه العميلُ). وحضورُهُ يَرفُضُ التسجيلَ إن لم
+   * يُوجَدْ الكائنُ فعلاً.
+   */
+  readonly existenceChecker?: ObjectExistenceChecker;
   readonly now: () => Date;
 }
 
@@ -261,6 +269,14 @@ export async function recordDriverDocument(
   }
   const expiresAt = parsePlainDay(input.expiresAt);
   if (expiresAt === null) return err(rejection("EXPIRY_INVALID"));
+
+  // `DEC-30` — مطابقةُ وجودِ الكائنِ فعلاً في المخزنِ قبلَ تسجيلِه. اختياريٌّ:
+  // غيابُ الفاحصِ يُبقي السلوكَ كالسابقِ (تسجيلٌ بلا تحقُّقٍ).
+  if (deps.existenceChecker !== undefined) {
+    const exists = await deps.existenceChecker.checkExists({ objectPath: input.objectPath.trim() });
+    if (!exists.ok) return err(rejection("OBJECT_PATH_NOT_MINE"));
+    if (!exists.value) return err(rejection("OBJECT_NOT_FOUND"));
+  }
 
   const written = await deps.store.record({
     telegramUserId: session.value,
