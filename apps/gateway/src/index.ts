@@ -1065,7 +1065,9 @@ const driverDocuments =
             store: new PostgresDriverDocumentStore(container.sql),
             signer:
               storage === null ? new UnconfiguredUploadSigner() : new HttpUploadSigner(storage),
-            ...(storage === null ? {} : { existenceChecker: new HttpObjectExistenceChecker(storage) }),
+            ...(storage === null
+              ? {}
+              : { existenceChecker: new HttpObjectExistenceChecker(storage) }),
           },
           log,
         };

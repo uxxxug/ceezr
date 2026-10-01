@@ -4,7 +4,10 @@ import type {
   DriverDocumentRejection,
 } from "../../packages/application/driver/driver-documents.ts";
 import { recordDriverDocument } from "../../packages/application/driver/driver-documents.ts";
-import type { ObjectExistenceChecker, ObjectExistenceFailure } from "../../packages/application/driver/ports.ts";
+import type {
+  ObjectExistenceChecker,
+  ObjectExistenceFailure,
+} from "../../packages/application/driver/ports.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
 
 function createMockDeps(overrides?: {
