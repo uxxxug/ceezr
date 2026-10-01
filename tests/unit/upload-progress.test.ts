@@ -3,7 +3,7 @@ import {
   UploadFailedError,
   type UploadProgress,
   uploadFileToSlotWithProgress,
-} from "../../apps/miniapp/src/surfaces/driver/documents/documents-api.ts";
+} from "../../apps/miniapp/src/surfaces/driver/documents/upload-progress.ts";
 
 type ProgressHandler = (event: {
   loaded: number;
