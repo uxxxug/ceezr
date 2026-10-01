@@ -68,6 +68,14 @@ export interface SavedPlaceWriter {
     readonly telegramUserId: string;
     readonly placeId: string;
   }): Promise<Result<{ readonly status: "deleted" }, PlaceStoreFailure>>;
+  update(input: {
+    readonly telegramUserId: string;
+    readonly placeId: string;
+    readonly kind: string;
+    readonly label: string;
+    readonly lat: number;
+    readonly lng: number;
+  }): Promise<Result<SavePlaceOutcome, PlaceStoreFailure>>;
 }
 
 /** وجهةٌ مشتقَّةٌ من طلبٍ سابقٍ: بلا معرّفٍ لأنَّها ليست صفّاً يُحدَّثُ. */
