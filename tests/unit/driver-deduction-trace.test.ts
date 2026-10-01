@@ -1,4 +1,6 @@
 import { describe, expect, it, mock } from "bun:test";
+import { DEDUCTION_TRACE_DEFAULT_LIMIT } from "../../packages/application/financial/deduction-trace.ts";
+import { createDeductionTraceStore } from "../../packages/infrastructure/financial/deduction-trace-store.ts";
 
 /**
  * عقدُ كشفِ الخصومِ التفصيليِّ (DEC-37) — اختبارُ السلوكِ:
@@ -38,5 +40,15 @@ describe("DEC-37 deduction trace contract", () => {
     expect(ar["driver.support.deductionTrace.empty"]).toBeTruthy();
     expect(ar["driver.deduction.kind.subscriptionCharge"]).toBeTruthy();
     expect(ar["driver.deduction.kind.adjustment"]).toBeTruthy();
+  });
+
+  it("حدُّ الصفحةِ الافتراضيُّ ٢٠", () => {
+    expect(DEDUCTION_TRACE_DEFAULT_LIMIT).toBe(20);
+  });
+
+  it("مستودعُ الخصومِ قابلٌ للإنشاءِ", () => {
+    const store = createDeductionTraceStore({} as never);
+    expect(store).toBeDefined();
+    expect(typeof store.listDeductions).toBe("function");
   });
 });

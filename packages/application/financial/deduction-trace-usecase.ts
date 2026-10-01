@@ -8,10 +8,11 @@
 import type { Result } from "../../shared/result/index.ts";
 import { err, ok } from "../../shared/result/index.ts";
 import type { MiniAppSessionReader } from "../identity/ports.ts";
-import type {
-  DeductionEntry,
-  DeductionTracePage,
-  DeductionTracePublicErrorCode,
+import {
+  DEDUCTION_TRACE_DEFAULT_LIMIT,
+  type DeductionEntry,
+  type DeductionTracePage,
+  type DeductionTracePublicErrorCode,
 } from "./deduction-trace.ts";
 
 /** مدخلاتُ كشفِ الخصومِ. */
@@ -38,7 +39,7 @@ export interface DeductionTraceDeps {
   readonly store: DeductionTraceStore | null;
 }
 
-const DEFAULT_LIMIT = 20;
+const DEFAULT_LIMIT = DEDUCTION_TRACE_DEFAULT_LIMIT;
 const MAX_LIMIT = 50;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

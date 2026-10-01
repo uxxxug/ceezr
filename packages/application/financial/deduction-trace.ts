@@ -24,6 +24,9 @@ export interface DeductionTracePage {
   readonly nextCursor: { readonly createdAt: string; readonly id: string } | null;
 }
 
+/** حدُّ الصفحةِ الافتراضيُّ — ٢٠ خصماً في الصفحةِ. */
+export const DEDUCTION_TRACE_DEFAULT_LIMIT = 20;
+
 /** رموزُ الأخطاءِ العلنيّةِ — **شاملةٌ حرفاً**. */
 export type DeductionTracePublicErrorCode =
   | "SESSION_REQUIRED"
