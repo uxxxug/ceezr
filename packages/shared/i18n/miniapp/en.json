@@ -1309,5 +1309,6 @@
   "driver.job.sos.alreadyOpen": "Your first alert is still open — the team is following up.",
   "driver.job.sos.refused": "SOS is unavailable right now — call emergency services if you are in danger.",
   "driver.job.sos.failed": "Failed to send alert — please try again.",
-  "driver.documents.error.OBJECT_NOT_FOUND": "The file was not found in storage. Upload again."
+  "driver.documents.error.OBJECT_NOT_FOUND": "The file was not found in storage. Upload again.",
+  "driver.documents.error.OBJECT_NOT_SUBMITTED": "This document has not been uploaded yet."
 }

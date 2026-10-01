@@ -126,6 +126,12 @@ export interface DriverDocumentStore {
   readDashboard(input: {
     readonly telegramUserId: string;
   }): Promise<Result<DriverDocumentDashboard, DriverDocumentStoreError>>;
+
+  /** **يقرأُ ولا يكتبُ** — مسارُ كائنِ وثيقةٍ مرفوعةٍ (`DEC-31`). */
+  readObjectPath(input: {
+    readonly telegramUserId: string;
+    readonly docType: DriverDocumentType;
+  }): Promise<Result<string | null, DriverDocumentStoreError>>;
 }
 
 /** عطبُ توقيعٍ — **مجالٌ مغلقٌ**، ولا يُخلَطُ برفضِ القاعدةِ. */

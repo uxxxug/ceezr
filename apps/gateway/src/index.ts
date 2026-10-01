@@ -1050,6 +1050,7 @@ const driverDocuments =
     ? undefined
     : (() => {
         const storage = readSignedUploadConfig(process.env);
+        const readStorage = readSignedReadConfig(process.env);
         if (storage === null) {
           log("driver_documents.signer_not_configured", {
             hint: "OBJECT_STORAGE_URL + OBJECT_STORAGE_SECRET_KEY",
@@ -1068,6 +1069,7 @@ const driverDocuments =
             ...(storage === null
               ? {}
               : { existenceChecker: new HttpObjectExistenceChecker(storage) }),
+            ...(readStorage === null ? {} : { readSigner: new HttpReadSigner(readStorage) }),
           },
           log,
         };

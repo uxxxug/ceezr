@@ -371,4 +371,27 @@ export class PostgresDriverDocumentStore implements DriverDocumentStore {
       isBlocked: payload.is_blocked || blocks.reasons.length + blocks.unreadable > 0,
     });
   }
+
+  async readObjectPath(input: {
+    readonly telegramUserId: string;
+    readonly docType: DriverDocumentType;
+  }): Promise<Result<string | null, DriverDocumentStoreError>> {
+    const telegramId = asTelegramId(input.telegramUserId);
+    if (telegramId === null) return err(failed("MALFORMED_RESULT"));
+
+    let rows: ResultRow[];
+    try {
+      rows = await this.#sql<ResultRow[]>`
+        select dd.object_path as result
+        from driver_documents dd
+        join drivers d on d.id = dd.driver_id
+        where d.telegram_user_id = ${telegramId}::bigint
+          and dd.doc_type = ${input.docType}::driver_document_type`;
+    } catch {
+      return err(failed("STORE_ERROR"));
+    }
+
+    const objectPath = readText(rows[0]?.result);
+    return ok(objectPath);
+  }
 }

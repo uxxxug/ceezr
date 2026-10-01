@@ -77,6 +77,21 @@ export function submitDocumentsForReview(): Promise<SubmitDocumentsResponse> {
   return apiFetch<SubmitDocumentsResponse>("/v1/driver/documents/submit", { method: "POST" });
 }
 
+/** رابطُ قراءةٍ موقَّعٌ لوثيقةٍ مرفوعةٍ (`DEC-31`). */
+export interface DriverDocumentReadUrlResponse {
+  readonly ok: true;
+  readonly doc_type: string;
+  readonly read_url: string;
+  readonly expires_at_epoch_ms: number;
+}
+
+export function readDriverDocumentUrl(docType: string): Promise<DriverDocumentReadUrlResponse> {
+  return apiFetch<DriverDocumentReadUrlResponse>(
+    `/v1/driver/documents/${encodeURIComponent(docType)}/read-url`,
+    { method: "GET" },
+  );
+}
+
 export { UploadFailedError, type UploadProgress, type UploadXhr, uploadFileToSlotWithProgress };
 
 /**

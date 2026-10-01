@@ -41,6 +41,7 @@ import {
   MIN_UPLOAD_TTL_SECONDS,
   parsePlainDay,
 } from "../../domain/driver/driver-documents.ts";
+import type { ReadUrlSigner } from "../../infrastructure/storage/signed-read.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { MiniAppSessionReader } from "../identity/ports.ts";
 import {
@@ -71,6 +72,7 @@ export const DRIVER_DOCUMENT_PUBLIC_ERROR_CODES = [
   "FILE_TOO_LARGE",
   "OBJECT_PATH_NOT_MINE",
   "OBJECT_NOT_FOUND",
+  "OBJECT_NOT_SUBMITTED",
   "EXPIRY_REQUIRED",
   "EXPIRY_INVALID",
   "EXPIRY_IN_PAST",
@@ -94,6 +96,11 @@ export interface DriverDocumentDeps {
    * يُوجَدْ الكائنُ فعلاً.
    */
   readonly existenceChecker?: ObjectExistenceChecker;
+  /**
+   * مُوقِّعُ روابطِ القراءةِ (`DEC-31`) — اختياريٌّ: غيابُهُ يُعطِّلُ مسارَ قراءةِ
+   * الوثيقةِ بـ`503` ولا يُعطِّلُ اللوحَ.
+   */
+  readonly readSigner?: ReadUrlSigner;
   readonly now: () => Date;
 }
 
@@ -310,4 +317,46 @@ export async function readDriverDocumentDashboard(
   const read = await deps.store.readDashboard({ telegramUserId: session.value });
   if (!read.ok) return err(publicCodeFrom(read.error));
   return ok(read.value);
+}
+
+/** رابطُ قراءةٍ موقَّعٌ لوثيقةٍ مرفوعةٍ (`DEC-31`). */
+export interface DriverDocumentReadUrl {
+  readonly docType: DriverDocumentType;
+  readonly readUrl: string;
+  readonly expiresAtEpochMs: number;
+}
+
+export async function readDriverDocumentUrl(
+  deps: DriverDocumentDeps,
+  input: {
+    readonly accessToken: string | undefined;
+    readonly docType: unknown;
+  },
+): Promise<Result<DriverDocumentReadUrl, DriverDocumentRejection>> {
+  const session = await openSession(deps, input.accessToken);
+  if (!session.ok) return err(session.error);
+
+  if (!isDriverDocumentType(input.docType)) return err(rejection("DOC_TYPE_UNKNOWN"));
+
+  if (deps.readSigner === undefined) {
+    return err(rejection("UPLOAD_NOT_AVAILABLE"));
+  }
+
+  const objectPathResult = await deps.store.readObjectPath({
+    telegramUserId: session.value,
+    docType: input.docType,
+  });
+  if (!objectPathResult.ok) return err(publicCodeFrom(objectPathResult.error));
+
+  const objectPath = objectPathResult.value;
+  if (objectPath === null) return err(rejection("OBJECT_NOT_SUBMITTED"));
+
+  const signed = await deps.readSigner.signRead({ objectPath, ttlSeconds: 300 });
+  if (!signed.ok) return err(rejection("UPLOAD_NOT_AVAILABLE"));
+
+  return ok({
+    docType: input.docType,
+    readUrl: signed.value.readUrl,
+    expiresAtEpochMs: signed.value.expiresAtEpochMs,
+  });
 }
