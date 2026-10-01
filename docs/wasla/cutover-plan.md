@@ -10,7 +10,7 @@
 مفتوحاً، وأقصى ما يُنتِجُه المُنفِّذُ حينَ تُغلَقُ كلُّها هوَ مِسبارُ قراءةٍ —
 لا شهادةٌ على تحوُّلٍ.
 
-عددُ الخطواتِ: **34**. وترتيبُ الاسترجاعِ **عكسُ** ترتيبِ التحوُّلِ حرفاً بحرفٍ.
+عددُ الخطواتِ: **35**. وترتيبُ الاسترجاعِ **عكسُ** ترتيبِ التحوُّلِ حرفاً بحرفٍ.
 
 ## الخطواتُ بترتيبِ التنفيذِ
 
@@ -47,9 +47,10 @@
 | 29 | `5.029-support_tickets` | 5 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-2` · `B-3` · `DEP-CORE-004` |
 | 30 | `5.030-telegram_update_jobs` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
 | 31 | `5.031-telegram_update_receipts` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
-| 32 | `5.032-user_consents` | 5 | dual-read | READ_THROUGH_CORE | لا | `B-1` · `B-2` · `B-3` · `DEP-CORE-004` · `DEP-CORE-008` |
-| 33 | `5.033-user_notifications` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
-| 34 | `6.034-orders` | 6 | expand | SPLIT_TABLE | لا | `B-1` · `O-1` |
+| 32 | `5.032-ticket_messages` | 5 | cutover | HANDOVER_WITH_OPAQUE_REFERENCE | لا | `B-1` · `B-2` · `B-3` · `DEP-CORE-004` |
+| 33 | `5.033-user_consents` | 5 | dual-read | READ_THROUGH_CORE | لا | `B-1` · `B-2` · `B-3` · `DEP-CORE-004` · `DEP-CORE-008` |
+| 34 | `5.034-user_notifications` | 5 | cutover | DELEGATE_TO_CORE_CHANNEL | لا | `DEP-CORE-004` |
+| 35 | `6.035-orders` | 6 | expand | SPLIT_TABLE | لا | `B-1` · `O-1` |
 
 ## العكسُ والمِسبارُ لكلِّ خطوةٍ
 
@@ -301,63 +302,72 @@
 - **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'telegram_update_receipts') as declared, (select count(*) from public.telegram_update_receipts) as rows`
 - **يُقرأُ «تمَّت» بـ**: منعُ التكرارِ يبقى **في قاعدةٍ** لا في ذاكرةِ عمليّةٍ بعدَ التحويلِ — يُقاسُ بعمليّتَينِ منفصلتَينِ، وسقوطُه على نسخةٍ ثانيةٍ عطبٌ لا تفصيلٌ.
 
-### `5.032-user_consents`
+### `5.032-ticket_messages`
 
-- **الجدولُ**: `user_consents` · **الطورُ**: dual-read · **الرتبةُ**: 32
-- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.032-user_consents`): الجدولُ المحليُّ **لا يُحذَفُ ولا صفٌّ منه** ألبتّةَ حتّى بعدَ قلبِ القارئِ: الصفُّ دليلٌ قانونيٌّ لا نسخةُ قراءةٍ، وحذفُه يُتلِفُ ما يُثبِتُ أنَّ الموافقةَ كانت. فالعودةُ إرجاعُ القارئِ إلى المحليِّ وحدَه، وهيَ مُتاحةٌ دائماً لأنَّ المحليَّ كاملٌ.
+- **الجدولُ**: `ticket_messages` · **الطورُ**: cutover · **الرتبةُ**: 32
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.032-ticket_messages`): رسائلُ التذاكرِ تتبعُ التذاكرَ: تُنقَلُ معها ولا تُفرَّقُ عنها.
+- **شكلُ العودةِ للآليّةِ**: المرجعُ المُعتِمُ يُكتَبُ **قبلَ** إطفاءِ الجدولِ المحليِّ، فالعودةُ إعادةُ القراءةِ من المحليِّ الذي لم يُحذَف بعدُ؛ ولا حذفَ إلّا بعدَ مطابقةٍ مقيسةٍ صفّاً بصفٍّ.
+- **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'ticket_messages') as declared, (select count(*) from public.ticket_messages) as rows`
+- **يُقرأُ «تمَّت» بـ**: لا رسالةَ جديدةٌ تُكتَبُ محليّاً، ورسالةٌ تُكتَبُ وتُقرَأُ عبرَ CORE في اختبارِ تكاملٍ.
+
+### `5.033-user_consents`
+
+- **الجدولُ**: `user_consents` · **الطورُ**: dual-read · **الرتبةُ**: 33
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.033-user_consents`): الجدولُ المحليُّ **لا يُحذَفُ ولا صفٌّ منه** ألبتّةَ حتّى بعدَ قلبِ القارئِ: الصفُّ دليلٌ قانونيٌّ لا نسخةُ قراءةٍ، وحذفُه يُتلِفُ ما يُثبِتُ أنَّ الموافقةَ كانت. فالعودةُ إرجاعُ القارئِ إلى المحليِّ وحدَه، وهيَ مُتاحةٌ دائماً لأنَّ المحليَّ كاملٌ.
 - **شكلُ العودةِ للآليّةِ**: الجدولُ المحليُّ يبقى قائماً ومكتوباً فيه حتّى تُقرأَ الواجهةُ صادقةً في الإنتاجِ؛ فالعودةُ إرجاعُ القارئِ إلى المحليِّ بلا استرجاعِ بياناتٍ.
 - **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'user_consents') as declared, (select count(*) from public.user_consents) as rows`
 - **يُقرأُ «تمَّت» بـ**: موافقةٌ مسجَّلةٌ في MOVE تُقرأُ من CORE **بإصدارِها وختمِها الأصليِّ لا بختمِ النقلِ** في اختبارِ تكاملٍ؛ وحاجزُ `scripts/check-consent-documents.ts` يبقى نافذاً على سجلِّ الوثائقِ الجديدِ ولا يُلغى معَ الجدولِ. وما لا يُقبَلُ دليلاً: مطابقةُ أعدادِ الصفوفِ وحدَها — ختمٌ مُبدَّلٌ يُنتِجُ العددَ عينَه ويُتلِفُ الدليلَ.
 
-### `5.033-user_notifications`
+### `5.034-user_notifications`
 
-- **الجدولُ**: `user_notifications` · **الطورُ**: cutover · **الرتبةُ**: 33
-- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.033-user_notifications`): سجلُّ إشعارٍ يُقرأُ ولا يُكتَبُ بعدَ التحويلِ؛ فالعودةُ إعادةُ الكتابةِ المحليّةِ.
+- **الجدولُ**: `user_notifications` · **الطورُ**: cutover · **الرتبةُ**: 34
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `5.034-user_notifications`): سجلُّ إشعارٍ يُقرأُ ولا يُكتَبُ بعدَ التحويلِ؛ فالعودةُ إعادةُ الكتابةِ المحليّةِ.
 - **شكلُ العودةِ للآليّةِ**: مسارُ التسليمِ المحليُّ يبقى مُعطَّلاً لا محذوفاً حتّى يُقاسَ تسليمُ CORE؛ فالعودةُ إعادةُ تفعيلِ العاملِ المحليِّ بضبطٍ لا بهجرةٍ.
 - **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'user_notifications') as declared, (select count(*) from public.user_notifications) as rows`
 - **يُقرأُ «تمَّت» بـ**: إشعارُ مستخدمٍ يُقرأُ من CORE في اختبارِ تكاملٍ، ولا نوعَ إشعارٍ بلا قناةٍ مُعلَنةٍ — حاجزُ `F6-05` يبقى نافذاً على السجلِّ الجديدِ لا يُلغى معَ الجدولِ.
 
-### `6.034-orders`
+### `6.035-orders`
 
-- **الجدولُ**: `orders` · **الطورُ**: expand · **الرتبةُ**: 34
-- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `6.034-orders`): الشطرُ توسيعٌ محضٌ أوّلاً: `operational_jobs` يُكتَبُ فيه بالتزامنِ مع `orders` و`orders` مصدرُ الحقيقةِ، فالعودةُ إسقاطُ الكتابةِ الثانيةِ. **ولا يُقلَبُ مصدرُ الحقيقةِ ولا يُحذَفُ عمودٌ من `orders` في هذه الموجةِ**.
+- **الجدولُ**: `orders` · **الطورُ**: expand · **الرتبةُ**: 35
+- **خطوةُ الاسترجاعِ العكسيّةُ** (عكسُ `6.035-orders`): الشطرُ توسيعٌ محضٌ أوّلاً: `operational_jobs` يُكتَبُ فيه بالتزامنِ مع `orders` و`orders` مصدرُ الحقيقةِ، فالعودةُ إسقاطُ الكتابةِ الثانيةِ. **ولا يُقلَبُ مصدرُ الحقيقةِ ولا يُحذَفُ عمودٌ من `orders` في هذه الموجةِ**.
 - **شكلُ العودةِ للآليّةِ**: الشطرُ يبدأُ نسخاً مزدوجَ الكتابةِ (المحليُّ مصدرُ الحقيقةِ) فالعودةُ إسقاطُ الكتابةِ الثانيةِ؛ ولا يُقلَبُ مصدرُ الحقيقةِ إلّا بمطابقةٍ مقيسةٍ.
 - **مِسبارُ التحقُّقِ (قراءةٌ فقط)**: `select (select count(*) from information_schema.tables where table_schema = 'public' and table_name = 'orders') as declared, (select count(*) from public.orders) as rows`
 - **يُقرأُ «تمَّت» بـ**: كلُّ صفٍّ تنفيذيٍّ حيٍّ في `orders` له نظيرٌ في `operational_jobs` بحالةٍ مكافئةٍ، ورحلةٌ كاملةٌ تجري على النموذجِ الجديدِ في اختبارِ e2e — ولا يُقرأُ الشطرُ تامّاً ما دامَ `orders.rider_id` مُعلَناً في سجلِّ اختراقاتِ الحدِّ.
 
 ## ترتيبُ الاسترجاعِ (معكوسٌ)
 
-1. عكسُ `6.034-orders`
-2. عكسُ `5.033-user_notifications`
-3. عكسُ `5.032-user_consents`
-4. عكسُ `5.031-telegram_update_receipts`
-5. عكسُ `5.030-telegram_update_jobs`
-6. عكسُ `5.029-support_tickets`
-7. عكسُ `5.028-subscription_notices`
-8. عكسُ `5.027-saved_places`
-9. عكسُ `5.026-safety_incident_deliveries`
-10. عكسُ `5.025-notification_outbox`
-11. عكسُ `5.024-notification_kind_policy`
-12. عكسُ `5.023-broadcast_recipients`
-13. عكسُ `5.022-broadcast_campaigns`
-14. عكسُ `5.021-audit_log`
-15. عكسُ `4.020-ratings`
-16. عكسُ `4.019-identity_marks`
-17. عكسُ `4.018-identity_hash_pepper`
-18. عكسُ `4.017-drivers`
-19. عكسُ `3.016-webhook_events`
-20. عكسُ `3.015-unsubscribed_negotiations`
-21. عكسُ `3.014-unsubscribed_claims`
-22. عكسُ `3.013-subscriptions`
-23. عكسُ `3.012-subscription_wallets`
-24. عكسُ `3.011-subscription_wallet_entries`
-25. عكسُ `3.010-subscription_refunds`
-26. عكسُ `3.009-subscription_invoices`
-27. عكسُ `3.008-platform_settings`
-28. عكسُ `3.007-payment_transactions`
-29. عكسُ `3.006-ledger_entries`
-30. عكسُ `2.005-cities`
-31. عكسُ `1.004-users`
-32. عكسُ `1.003-riders`
-33. عكسُ `1.002-admin_sessions`
-34. عكسُ `1.001-admin_login_codes`
+1. عكسُ `6.035-orders`
+2. عكسُ `5.034-user_notifications`
+3. عكسُ `5.033-user_consents`
+4. عكسُ `5.032-ticket_messages`
+5. عكسُ `5.031-telegram_update_receipts`
+6. عكسُ `5.030-telegram_update_jobs`
+7. عكسُ `5.029-support_tickets`
+8. عكسُ `5.028-subscription_notices`
+9. عكسُ `5.027-saved_places`
+10. عكسُ `5.026-safety_incident_deliveries`
+11. عكسُ `5.025-notification_outbox`
+12. عكسُ `5.024-notification_kind_policy`
+13. عكسُ `5.023-broadcast_recipients`
+14. عكسُ `5.022-broadcast_campaigns`
+15. عكسُ `5.021-audit_log`
+16. عكسُ `4.020-ratings`
+17. عكسُ `4.019-identity_marks`
+18. عكسُ `4.018-identity_hash_pepper`
+19. عكسُ `4.017-drivers`
+20. عكسُ `3.016-webhook_events`
+21. عكسُ `3.015-unsubscribed_negotiations`
+22. عكسُ `3.014-unsubscribed_claims`
+23. عكسُ `3.013-subscriptions`
+24. عكسُ `3.012-subscription_wallets`
+25. عكسُ `3.011-subscription_wallet_entries`
+26. عكسُ `3.010-subscription_refunds`
+27. عكسُ `3.009-subscription_invoices`
+28. عكسُ `3.008-platform_settings`
+29. عكسُ `3.007-payment_transactions`
+30. عكسُ `3.006-ledger_entries`
+31. عكسُ `2.005-cities`
+32. عكسُ `1.004-users`
+33. عكسُ `1.003-riders`
+34. عكسُ `1.002-admin_sessions`
+35. عكسُ `1.001-admin_login_codes`
