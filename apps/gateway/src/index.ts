@@ -153,7 +153,11 @@ import {
   type RateLimiter,
 } from "./rate-limit/fixed-window.ts";
 import { type KeyDimension, rateLimitPolicy } from "./rate-limit/policy.ts";
-import { createActiveRideResolver, createSessionVerifier } from "./realtime/adapters.ts";
+import {
+  createActiveRideResolver,
+  createOffersSessionVerifier,
+  createSessionVerifier,
+} from "./realtime/adapters.ts";
 import { createHttpBridge } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createOffersChannel } from "./realtime/offers-channel.ts";
@@ -1737,8 +1741,7 @@ if (config.miniappSessionSecret !== null && isLiveLocationBroadcastPermitted(con
 
   offersChannel = createOffersChannel({
     io: ioServer,
-    sessions: createSessionVerifier(
-      container.sql,
+    sessions: createOffersSessionVerifier(
       config.miniappSessionSecret,
       () => Date.now(),
       sessionRevocationStore,

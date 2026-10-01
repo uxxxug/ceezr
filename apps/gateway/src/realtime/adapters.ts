@@ -15,6 +15,7 @@ import type { SessionRevocationStore } from "../../../../packages/application/id
 import type { WatchedTripStatus } from "../../../../packages/domain/tracking/visibility.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import { readMiniAppSession } from "../../../../packages/infrastructure/identity/miniapp-session.ts";
+import type { OffersSessionVerifier } from "./offers-channel.ts";
 import type { ActiveRideResolver, RideChannelSessionVerifier } from "./ride-channel.ts";
 
 interface ActiveRideRow {
@@ -58,6 +59,33 @@ export function createSessionVerifier(
       if (row === undefined) return null;
 
       return { riderId: row.rider_id };
+    },
+  };
+}
+
+/**
+ * يُحقِّقُ رمزَ جلسةِ Mini App ويُعيدُ telegram_id — وهو مفتاحُ غرفةِ العروضِ.
+ *
+ * لا يحلُّ rider_id ولا driver_id: العروضُ تُبنى بـtelegram_id (offer-ports.ts)،
+ * فغرفةُ السائقِ بمفتاحِ telegram_id تطابقُ مصدرَ العروضِ مباشرةً.
+ */
+export function createOffersSessionVerifier(
+  sessionSecret: string,
+  nowMs: () => number,
+  revocationStore: SessionRevocationStore,
+): OffersSessionVerifier {
+  return {
+    verify: async (sessionToken: string) => {
+      const result = readMiniAppSession(sessionToken, sessionSecret, nowMs());
+      if (!result.ok) return null;
+
+      const revoked = await revocationStore.isRevoked(result.value.sessionId);
+      if (!revoked.ok || revoked.value) return null;
+
+      const telegramId = result.value.telegramUserId;
+      if (!/^[0-9]{1,19}$/.test(telegramId)) return null;
+
+      return { telegramUserId: telegramId };
     },
   };
 }
