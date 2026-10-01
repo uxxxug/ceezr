@@ -1,4 +1,5 @@
 -- DEC-27 — إشعارُ انتهاءِ وثيقةِ السائقِ قبلَ ثلاثينَ يومًا
+-- migration-phase: expand
 -- الطور: expand — إضافةُ عمودِ تتبُّعِ الإشعارِ بلا قيدٍ
 
 alter table driver_documents
