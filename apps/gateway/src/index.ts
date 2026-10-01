@@ -1034,6 +1034,7 @@ const support =
           now: () => new Date(),
           store: new PostgresDriverSupportStore(container.sql),
         },
+        card: container.supportCard,
         log,
       };
 

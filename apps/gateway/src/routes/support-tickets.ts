@@ -45,6 +45,10 @@
 
 import { type Context, Hono } from "hono";
 import {
+  type PostDisputeCardDependencies,
+  postDisputeCard,
+} from "../../../../packages/application/dispute/post-dispute-card.ts";
+import {
   type DriverSupportDeps,
   listDriverSupportTickets,
   openDriverSupportTicket,
@@ -62,6 +66,11 @@ export interface SupportRouteDependencies {
   readonly support?: RiderSupportDeps;
   /** ومثلُها لمسارَي السائقِ — **كلُّ سطحٍ يُعطَّلُ وحدَه** لا بغيابِ الآخرِ. */
   readonly driverSupport?: DriverSupportDeps;
+  /**
+   * نشرُ بطاقةِ التذكرةِ في قروبِ الدعمِ بعدَ الفتحِ. غيابُها لا يُعطِّلُ المسارَ —
+   * التذكرةُ تُفتَحُ ولا تُنشَرُ بطاقتُها، وهوَ دَينٌ مُعلَنٌ يُنشَّطُ ههنا.
+   */
+  readonly card?: PostDisputeCardDependencies;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -151,6 +160,23 @@ export function createSupportRoutes(deps: SupportRouteDependencies): Hono {
 
     const opened = result.value;
     deps.log?.("support.ticket_opened", { reference: opened.reference, category: opened.category });
+
+    // نشرُ البطاقةِ في قروبِ الدعمِ — فشلُ النشرِ لا يُلغي التذكرةَ المفتوحةَ.
+    if (deps.card !== undefined) {
+      const posted = await postDisputeCard({ ticketId: opened.ticketId }, deps.card);
+      if (!posted.ok || !posted.value.posted) {
+        deps.log?.("support.card_not_published", {
+          reference: opened.reference,
+          reason: posted.ok ? posted.value.reason : "PORT_FAILURE",
+        });
+      } else {
+        deps.log?.("support.card_published", {
+          reference: opened.reference,
+          message_id: posted.value.messageId,
+        });
+      }
+    }
+
     // `201` لأنَّ مَورِداً أُنشئَ، ومرجعُه في الجسمِ لا في رأسِ `Location`:
     // لا مسارَ لقراءةِ تذكرةٍ واحدةٍ اليومَ، ورأسٌ يشيرُ إلى `404` كذبةٌ.
     return c.json(
@@ -213,6 +239,23 @@ export function createSupportRoutes(deps: SupportRouteDependencies): Hono {
       reference: opened.reference,
       category: opened.category,
     });
+
+    // نشرُ البطاقةِ في قروبِ الدعمِ — فشلُ النشرِ لا يُلغي التذكرةَ المفتوحةَ.
+    if (deps.card !== undefined) {
+      const posted = await postDisputeCard({ ticketId: opened.ticketId }, deps.card);
+      if (!posted.ok || !posted.value.posted) {
+        deps.log?.("driver_support.card_not_published", {
+          reference: opened.reference,
+          reason: posted.ok ? posted.value.reason : "PORT_FAILURE",
+        });
+      } else {
+        deps.log?.("driver_support.card_published", {
+          reference: opened.reference,
+          message_id: posted.value.messageId,
+        });
+      }
+    }
+
     return c.json(
       {
         ok: true,

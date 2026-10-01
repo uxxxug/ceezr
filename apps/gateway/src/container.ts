@@ -23,6 +23,7 @@ import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/a
 import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
 import type { RepublishDependencies } from "../../../packages/application/dispatch/republish-order-card.ts";
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
+import type { PostDisputeCardDependencies } from "../../../packages/application/dispute/post-dispute-card.ts";
 import type { SupportResolutionPort } from "../../../packages/application/dispute/resolve-dispute.ts";
 import type { FinanceObjectionView } from "../../../packages/application/financial/driver-finance-overview.ts";
 import type {
@@ -300,6 +301,11 @@ export interface Container {
    * `resolve_support_ticket` — منفذٌ ثانٍ كان سيجعلُ للحدِّ حكمانِ يفترقانِ (0.6).
    */
   readonly disputeResolutions: SupportResolutionPort;
+  /**
+   * `DEC-26` — نشرُ بطاقةِ التذكرةِ مكشوفٌ لأنَّ مسارَ الـ API يحتاجُ **نفسَ**
+   * `supportCore.card` الذي يستخدمهُ حوارُ البوتِ — لا نسخةً ثانيةً (القاعدةُ 0.6).
+   */
+  readonly supportCard: PostDisputeCardDependencies;
   /**
    * `F16-01` — السمعةُ مكشوفةٌ لأنَّ سطحَ لوحةِ الإدارةِ يحتاجُ **نفسَ** منفذِ
    * التعليمِ الذي يعلَّمُ بهِ قروبُ الدعمِ (`/flag`) — لا نسخةً ثانيةً تُبنى في
@@ -1119,6 +1125,11 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
      * `resolutionPort` الذي يحكُمُ أزرارَ القروبِ لا نسخةٌ ثانيةٌ (القاعدةُ 0.6).
      */
     disputeResolutions: resolutionPort,
+    /**
+     * `DEC-26` — نشرُ بطاقةِ التذكرةِ في قروبِ الدعمِ من مسارِ الـ API:
+     * نفسُ `supportCore.card` الذي يستخدمهُ حوارُ البوتِ لا نسخةٌ ثانيةٌ (القاعدةُ 0.6).
+     */
+    supportCard: supportCore.card,
     reputation: { flags: ratingFlagPort, reader: reputationReader },
     safety: { trigger: safety.trigger },
     driverOffers: { drivers, decisions: offerDecisions },
