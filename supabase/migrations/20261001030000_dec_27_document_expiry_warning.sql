@@ -65,3 +65,6 @@ $$;
 
 comment on function record_document_expiry_warning(uuid) is
   'يسجِّلُ أنَّ إشعارَ الاقترابِ من الانتهاءِ أُرسِلَ لهذه الوثيقةِ. DEC-27.';
+
+revoke execute on function driver_documents_expiring_soon(uuid, integer) from public, anon, authenticated;
+revoke execute on function record_document_expiry_warning(uuid) from public, anon, authenticated;
