@@ -1304,6 +1304,42 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    method: "POST",
+    path: "/v1/support/tickets/:id/messages",
+    file: "apps/gateway/src/routes/support-tickets.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
+    path: "/v1/support/tickets/:id/messages",
+    file: "apps/gateway/src/routes/support-tickets.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/v1/driver/support/tickets/:id/messages",
+    file: "apps/gateway/src/routes/support-tickets.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
+    path: "/v1/driver/support/tickets/:id/messages",
+    file: "apps/gateway/src/routes/support-tickets.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "GET",
     path: "/v1/driver/deductions",
     file: "apps/gateway/src/routes/driver-deductions.ts",
@@ -1383,7 +1419,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * (`F16-03` · `ADR 0221`): مسارُ قطعِ روابطِ التتبُّعِ منَ اللوحةِ — خلفَ
  * حارسِ جلسةِ الإدارةِ كما أخواتُه من مساراتِ اللوحةِ.
  */
-export const ROUTE_POLICY_COUNT = 122;
+export const ROUTE_POLICY_COUNT = 126;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
