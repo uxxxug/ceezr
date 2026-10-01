@@ -50,7 +50,6 @@ export const RIDER_ACCOUNT_DEBT_KEYS: readonly string[] = [
   "rider.account.debt.emergencyContact",
   "rider.account.debt.notificationPrefs",
   "rider.account.debt.editPlaces",
-  "rider.account.debt.privacyView",
 ];
 
 /** وصفُ سطحِ الراكبِ — **بادئةٌ ودَينٌ**، ولا سلوكَ يفترقُ. */

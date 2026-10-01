@@ -57,6 +57,8 @@ export interface AccountRightsProps {
    * بلا موجِّهٍ، وزرٌّ بلا مُستقبِلٍ لا يُرسَمُ أصلاً.
    */
   readonly onOpenSupport?: () => void;
+  /** مدخلُ شاشةِ الخصوصيّةِ (DEC-35) — اختياريٌّ كأختِه: غيابُهُ لا يُبيِّضُ الشاشةَ. */
+  readonly onOpenPrivacy?: () => void;
   /**
    * مدخلٌ يُعرَضُ بعدَ روابطِ الشاشةِ (`PD-020`) — **عقدةٌ لا معرفةُ زرٍّ**:
    * سطحُ الراكبِ يُمرِّرُ مدخلَ الاستغاثةِ فيُوضَعُ في سياقِ الشاشةِ لا فوقَها
@@ -137,6 +139,7 @@ export function AccountRights({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
   onOpenSupport,
+  onOpenPrivacy,
   header,
   exportData = requestDataExport,
   erase = requestErasure,
@@ -278,6 +281,11 @@ export function AccountRights({
         {onOpenSupport !== undefined && (
           <button type="button" className="sys__action ac__support" onClick={onOpenSupport}>
             {t(`${k}support.open`)}
+          </button>
+        )}
+        {onOpenPrivacy !== undefined && (
+          <button type="button" className="sys__action ac__privacy" onClick={onOpenPrivacy}>
+            {t(`${k}privacy.open`)}
           </button>
         )}
       </nav>

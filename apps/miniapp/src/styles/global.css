@@ -2804,6 +2804,75 @@ a.sys__action {
   align-self: flex-start;
 }
 
+/* مدخلُ شاشةِ الخصوصيّةِ (DEC-35) — أخو `.ac__support`. */
+.ac__privacy {
+  align-self: flex-start;
+}
+
+/* شاشةُ الخصوصيّةِ (DEC-35) — الكتلةُ `rp` */
+.rp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.rp__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.rp__back {
+  align-self: flex-start;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rp__loading {
+  color: var(--tg-hint-color, #999);
+}
+
+.rp__error {
+  color: var(--tg-destructive-color, #e53935);
+}
+
+.rp__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rp__item {
+  padding: 0.75rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+}
+
+.rp__item-title {
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.rp__item-summary {
+  color: var(--tg-hint-color, #999);
+  margin: 0 0 0.25rem;
+  font-size: 0.9rem;
+}
+
+.rp__item-status {
+  font-size: 0.85rem;
+  margin: 0;
+}
+
 .hd__report {
   align-self: flex-start;
   margin-top: 0.25rem;
