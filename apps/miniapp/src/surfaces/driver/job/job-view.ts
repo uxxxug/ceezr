@@ -200,3 +200,40 @@ export function cannotCompleteRefusalKey(refusal: string): string {
   if (refusal === "REPORT_REJECTED") return "driver.job.cannotComplete.refusal.rejected";
   return "driver.job.cannotComplete.refusal.rejected";
 }
+
+/**
+ * حالةُ زرِّ الاستغاثةِ (`DEC-29` · `ADR 0226`) — نصٌّ يُعرَضُ للسائقِ حسبَ
+ * نتيجةِ الطلبِ. نفسُ العقدِ الذي يستخدمهُ الراكبُ لا نسخةٌ ثانيةٌ (القاعدةُ 0.6).
+ */
+export type SosButtonState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "busy" }
+  | { readonly kind: "sent"; readonly created: boolean }
+  | { readonly kind: "refused"; readonly refusal: string }
+  | { readonly kind: "failed" };
+
+/**
+ * مفتاحُ نصِّ حالةِ الاستغاثةِ — يُقابِلُ قائمةَ الطبقةِ حرفاً.
+ * يعودُ `null` للولاياتِ التي لا نصَّ لها (idle, busy).
+ */
+export function sosStateKey(state: SosButtonState): string | null {
+  switch (state.kind) {
+    case "idle":
+      return null;
+    case "busy":
+      return null;
+    case "sent":
+      return state.created ? "driver.job.sos.sent" : "driver.job.sos.alreadyOpen";
+    case "refused":
+      return "driver.job.sos.refused";
+    case "failed":
+      return "driver.job.sos.failed";
+  }
+}
+
+/**
+ * هل الزرُّ معطَّلٌ؟ — `true` في `busy` و `sent` (لا ضغطتانِ).
+ */
+export function isSosButtonDisabled(state: SosButtonState): boolean {
+  return state.kind === "busy" || state.kind === "sent";
+}
