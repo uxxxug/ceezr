@@ -563,10 +563,8 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
     mechanism: "HANDOVER_WITH_OPAQUE_REFERENCE",
     wave: 5,
     prerequisites: ["B-1", "B-2", "B-3"],
-    rollback:
-      "رسائلُ التذاكرِ تتبعُ التذاكرَ: تُنقَلُ معها ولا تُفرَّقُ عنها.",
-    verification:
-      "لا رسالةَ جديدةٌ تُكتَبُ محليّاً، ورسالةٌ تُكتَبُ وتُقرَأُ عبرَ CORE في اختبارِ تكاملٍ.",
+    rollback: "رسائلُ التذاكرِ تتبعُ التذاكرَ: تُنقَلُ معها ولا تُفرَّقُ عنها.",
+    verification: "لا رسالةَ جديدةٌ تُكتَبُ محليّاً، ورسالةٌ تُكتَبُ وتُقرَأُ عبرَ CORE في اختبارِ تكاملٍ.",
     executed: false,
   },
   {
