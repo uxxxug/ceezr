@@ -491,13 +491,6 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale: "حالةُ الدعمِ (`Support case`) مملوكةٌ لـCORE في `docs/data-ownership.md`.",
   },
   {
-    table: "ticket_messages",
-    concern: "رسائلُ تذكرةِ الدعمِ",
-    owner: "CORE",
-    disposition: "MOVE_TO_CORE",
-    rationale: "رسائلُ الدعمِ مملوكةٌ لـCORE تبعاً لتذكرةِ الدعمِ في `docs/data-ownership.md`.",
-  },
-  {
     table: "telegram_update_jobs",
     concern: "طابورُ تحديثاتِ تلغرام الدائمُ",
     owner: "CORE",
@@ -511,6 +504,13 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     owner: "CORE",
     disposition: "REFACTOR",
     rationale: "إيصالُ الاستقبالِ تابعٌ للقناةِ؛ يبقى ما بقيَ الطابورُ ويُنقَلُ معَه.",
+  },
+  {
+    table: "ticket_messages",
+    concern: "رسائلُ تذكرةِ الدعمِ",
+    owner: "CORE",
+    disposition: "MOVE_TO_CORE",
+    rationale: "رسائلُ الدعمِ مملوكةٌ لـCORE تبعاً لتذكرةِ الدعمِ في `docs/data-ownership.md`.",
   },
   {
     table: "tracking_sessions",
