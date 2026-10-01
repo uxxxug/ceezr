@@ -462,5 +462,6 @@
   "reputation.empty": "No ratings yet — your reputation builds from your ride ratings.",
   "support.flag_usage": "Usage: /flag <rating id> — an abusive rating is excluded from the average, never deleted.",
   "support.flag_done": "Rating {rating} flagged as abusive and excluded from the average.",
-  "support.flag_not_flaggable": "Rating cannot be flagged: not found or already flagged."
+  "support.flag_not_flaggable": "Rating cannot be flagged: not found or already flagged.",
+  "documents.expiry_warning": "Your {document} expires in {days} days (on {expires}). Please renew it soon."
 }

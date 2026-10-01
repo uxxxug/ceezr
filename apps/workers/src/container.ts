@@ -30,6 +30,7 @@ import {
   type UnmatchedRiderMessenger,
 } from "../../../packages/application/dispatch/deliver-unmatched-notification.ts";
 import { createDisputeResolutionHandler } from "../../../packages/application/dispute/deliver-dispute-resolution.ts";
+import type { DocumentExpiryWarningSender } from "../../../packages/application/driver/warn-expiring-documents.ts";
 import { archiveDueLocationPartitions } from "../../../packages/application/geo/archive-location-partitions.ts";
 import { ensureLocationPartitions } from "../../../packages/application/geo/ensure-location-partitions.ts";
 import { flushDriverLocationBacklog } from "../../../packages/application/geo/flush-driver-location-backlog.ts";
@@ -66,6 +67,7 @@ import {
 } from "../../../packages/infrastructure/dispatch/dispatch-adapters.ts";
 import { createNegotiationWiring } from "../../../packages/infrastructure/dispatch/negotiation-wiring.ts";
 import { createUnmatchedOrderFinder } from "../../../packages/infrastructure/dispatch/unmatched-adapters.ts";
+import { createDocumentExpiryRpcPort } from "../../../packages/infrastructure/driver/document-expiry-rpc.ts";
 import { createPaymentRepository } from "../../../packages/infrastructure/financial/payment-adapters.ts";
 import { createPaymentProvider } from "../../../packages/infrastructure/financial/payment-provider-factory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
@@ -167,6 +169,7 @@ import { refreshAdminMetrics } from "./jobs/refresh-admin-metrics.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
 import { runBackupRestoreVerification } from "./jobs/verify-backup-restore.ts";
+import { warnExpiringDocumentsJob } from "./jobs/warn-expiring-documents.ts";
 import type { JobDefinition, JobLogger } from "./runner.ts";
 
 /** تواتر كل مهمّة بالثواني. تقنيّة لا تجارية: لا تُقرأ من platform_settings. */
@@ -176,6 +179,7 @@ export const JOB_INTERVALS = {
   cleanupStale: 1800,
   expireSubscriptions: 900,
   warnExpiring: 21_600,
+  warnExpiringDocuments: 21_600,
   sweepUnmatched: 60,
   /**
    * أقصر من مهلة العرض (45 ثانية افتراضاً) عن قصد: راكبٌ ينتظر، وعرضٌ انتهت مهلته
@@ -1055,6 +1059,34 @@ export function buildWorkerContainer(
                 );
                 if (!report.ok) throw new Error(JSON.stringify(report.error));
                 return `days=${days} examined=${report.value.examined} warned=${report.value.warned} failed=${report.value.failed.length}`;
+              },
+            },
+            {
+              /**
+               * `DEC-27` — إشعارُ انتهاءِ وثائقِ السائقِ قبلَ ثلاثينَ يومًا.
+               * نفسُ نمطِ `warn-expiring` للاشتراكاتِ: مهمّةٌ لكلِّ مدينةٍ،
+               * والقرارُ في القاعدةِ لا هنا.
+               */
+              name: `warn-expiring-documents:${cityId}`,
+              everySeconds: JOB_INTERVALS.warnExpiringDocuments,
+              run: async () => {
+                const documentExpiryRpc = createDocumentExpiryRpcPort(sql);
+                const documentExpirySender =
+                  warningSender as unknown as DocumentExpiryWarningSender;
+                const report = await warnExpiringDocumentsJob(
+                  { cityId, days: 30 },
+                  {
+                    rpc: documentExpiryRpc,
+                    sender: documentExpirySender,
+                    onSendFailure: (documentId, failure) =>
+                      log.error("warn_expiring_documents.send_failed", {
+                        documentId,
+                        detail: failure.detail,
+                      }),
+                  },
+                );
+                if (!report.ok) throw new Error(report.error.message);
+                return `examined=${report.value.examined} warned=${report.value.warned} failed=${report.value.failed.length}`;
               },
             },
             {
