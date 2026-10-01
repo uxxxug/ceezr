@@ -3093,6 +3093,34 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
+/* شريطُ تقدُّمِ الرفعِ (DEC-38) — ٠٪ إلى ١٠٠٪. */
+.dd__progress {
+  margin-top: 0.4rem;
+  height: 1.4rem;
+  background: var(--tg-section-separator-color, rgba(255,255,255,0.08));
+  border-radius: 0.4rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.dd__progress-bar {
+  height: 100%;
+  background: var(--tg-button-color, #4f98f7);
+  border-radius: 0.4rem;
+  transition: width 0.2s ease;
+}
+
+.dd__progress-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  color: var(--tg-text-color, #fff);
+  font-variant-numeric: tabular-nums;
+}
+
 /* سببُ الرفضِ نصُّ مراجعٍ — يُعرَضُ كما كُتِبَ ولا يُقَصُّ. */
 .dd__note {
   margin: 0;
