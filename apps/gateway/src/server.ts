@@ -28,6 +28,10 @@ import {
   type DriverActivityRouteDependencies,
 } from "./routes/driver-activity.ts";
 import {
+  createDriverDeductionsRoutes,
+  type DriverDeductionsRouteDependencies,
+} from "./routes/driver-deductions.ts";
+import {
   createDriverDocumentRoutes,
   type DriverDocumentRouteDependencies,
 } from "./routes/driver-documents.ts";
@@ -48,10 +52,6 @@ import {
   createDriverSubscriptionInvoiceRoutes,
   type DriverSubscriptionInvoiceRouteDependencies,
 } from "./routes/driver-subscription-invoice.ts";
-import {
-  createDriverDeductionsRoutes,
-  type DriverDeductionsRouteDependencies,
-} from "./routes/driver-deductions.ts";
 import {
   createDriverVehicleRoutes,
   type DriverVehicleRouteDependencies,
