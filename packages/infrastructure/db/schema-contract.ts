@@ -176,6 +176,7 @@ export const CONTRACT_TABLES: readonly string[] = [
   "db_backups",
   "driver_availability",
   "driver_capabilities",
+  "driver_documents",
   "drivers",
   "group_memberships",
   "job_heartbeats",

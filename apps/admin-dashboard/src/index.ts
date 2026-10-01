@@ -72,6 +72,7 @@ export { type DisputeRow, type DisputesPageData, renderDisputesPage } from "./pa
 export {
   type DriverDetail,
   type DriverDetailData,
+  type DriverDetailDocument,
   type DriverDetailOrder,
   type DriverDetailPoint,
   type DriverDetailProfile,

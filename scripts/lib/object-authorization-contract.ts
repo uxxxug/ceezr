@@ -95,6 +95,14 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
   },
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "get",
+    template: "/drivers/:id/documents/:docType",
+    kind: "admin-guard",
+    reason:
+      "عرضُ وثيقةِ سائقٍ في اللوحةِ سلطةُ إدارةٍ بطبيعتِها: المسؤولُ يرى ما يتحقَّقُ منه. والسلطةُ من وسيطِ جلسةِ الإدارةِ على الموجّهِ كلِّه لا من رمزِ ناظرٍ في المُعالِجِ.",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
     method: "post",
     template: "/broadcast/:batchId/cancel",
     kind: "admin-guard",

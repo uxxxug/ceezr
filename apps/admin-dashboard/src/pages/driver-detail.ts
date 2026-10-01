@@ -98,6 +98,17 @@ export interface DriverDetailProfile {
   readonly registeredAt: string;
 }
 
+/** وثيقةُ سائقٍ في صفحة التفاصيل — الحالةُ والتاريخُ والمسارُ لا البايتاتُ. */
+export interface DriverDetailDocument {
+  readonly docType: string;
+  readonly status: string | null;
+  readonly objectPath: string;
+  readonly expiresAt: string | null;
+  readonly reviewNote: string | null;
+  readonly submittedAt: string | null;
+  readonly reviewedAt: string | null;
+}
+
 /**
  * ما يعيده الاستعلام: هو نفسه ما تعرضه الصفحة، بلا نوعٍ وسيط يُترجم بينهما —
  * الترجمة الوسيطة هي حيث يضيع حقلٌ بلا أن يشتكي المصرِّف.
@@ -106,6 +117,7 @@ export interface DriverDetail {
   readonly profile: DriverDetailProfile;
   readonly orders: readonly DriverDetailOrder[];
   readonly tickets: readonly DriverDetailTicket[];
+  readonly documents: readonly DriverDetailDocument[];
 }
 
 export interface DriverDetailData extends DriverDetail {
@@ -126,6 +138,31 @@ const VERIFICATION_TONE: Readonly<Record<string, BadgeTone>> = {
   verified: "ok",
   rejected: "bad",
   suspended: "bad",
+};
+
+const DOCUMENT_TYPE_LABEL: Readonly<Record<string, string>> = {
+  driving_license: "رخصة القيادة",
+  medical_exam: "الفحص الطبي",
+  criminal_record: "السجل الجنائي",
+  vehicle_registration: "استمارة السيارة",
+  insurance: "التأمين",
+  periodic_inspection: "الفحص الدوري",
+};
+
+const DOCUMENT_STATUS_LABEL: Readonly<Record<string, string>> = {
+  received: "مُستلَمة",
+  under_review: "قيد المراجعة",
+  incomplete: "ناقصة",
+  accepted: "مقبولة",
+  rejected: "مرفوضة",
+};
+
+const DOCUMENT_STATUS_TONE: Readonly<Record<string, BadgeTone>> = {
+  received: "muted",
+  under_review: "warn",
+  incomplete: "bad",
+  accepted: "ok",
+  rejected: "bad",
 };
 
 const SUBSCRIPTION_LABEL: Readonly<Record<string, string>> = {
@@ -364,6 +401,28 @@ export function renderDriverDetailPage(data: DriverDetailData): string {
         )}</span>`,
   ]);
 
+  const documentRows = data.documents.map((doc) => [
+    escapeHtml(DOCUMENT_TYPE_LABEL[doc.docType] ?? doc.docType),
+    doc.status === null
+      ? EMPTY_CELL
+      : badge(
+          DOCUMENT_STATUS_LABEL[doc.status] ?? doc.status,
+          DOCUMENT_STATUS_TONE[doc.status] ?? "muted",
+        ),
+    doc.expiresAt === null
+      ? EMPTY_CELL
+      : `${escapeHtml(doc.expiresAt)}<div class="card-hint">${
+          doc.reviewNote === null ? "" : escapeHtml(doc.reviewNote)
+        }</div>`,
+    doc.submittedAt === null
+      ? EMPTY_CELL
+      : `${escapeHtml(formatDateTime(doc.submittedAt))}<div class="card-hint">${escapeHtml(
+          formatAge(doc.submittedAt, data.now),
+        )}</div>`,
+    doc.reviewedAt === null ? EMPTY_CELL : escapeHtml(formatDateTime(doc.reviewedAt)),
+    `<a href="/admin/drivers/${escapeHtml(data.profile.driverId)}/documents/${escapeHtml(doc.docType)}">عرض</a>`,
+  ]);
+
   const ticketRows = data.tickets.map((ticket) => [
     `<span class="mono">${escapeHtml(ticket.ticketId)}</span>`,
     escapeHtml(TICKET_TYPE_LABEL[ticket.type] ?? ticket.type),
@@ -431,6 +490,15 @@ ${section(
     emptyText: "لا بيانات.",
   }),
   "«ناقص» يعني حقلاً لم يصل من البوت — لا حقلاً فارغاً بقرار.",
+)}
+${section(
+  "الوثائق",
+  table({
+    headers: ["النوع", "الحالة", "الانتهاء", "رُفعت", "رُوجعت", ""],
+    rows: documentRows,
+    emptyText: "لا وثائق مرفوعة لهذا السائق.",
+  }),
+  "الرابطُ موقَّعٌ لمدّةٍ قصيرةٍ ويُفتَحُ في صفحةٍ مستقلّةٍ.",
 )}
 ${section(
   "الرحلات المكتملة",

@@ -27,6 +27,7 @@ import { DEFAULT_SESSION_POLICY } from "../../../../packages/domain/tracking/ses
 import { createBroadcastAdminPort } from "../../../../packages/infrastructure/broadcast/broadcast-adapters.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
 import { MINIAPP_SESSION_ABSOLUTE_TTL_SECONDS } from "../../../../packages/infrastructure/identity/miniapp-refresh.ts";
+import type { ReadUrlSigner } from "../../../../packages/infrastructure/storage/signed-read.ts";
 import {
   MAPLIBRE_SRI_UNSET,
   type MapPoint,
@@ -44,6 +45,7 @@ import {
   type BroadcastPreview,
   type CityGroupStatus,
   type CityOption,
+  escapeHtml,
   renderAttendancePage,
   renderBreakGlassPage,
   renderBroadcastPage,
@@ -201,7 +203,7 @@ export interface AdminUiDependencies {
   readonly breakGlassTotpKey?: string | null;
   /**
    * منفذُ البابِ الموازي — للاستبدالِ في الاختبارِ. الافتراضُ عندَ الغيابِ هو
-   * المنفذُ الحقيقيُّ على `sql` والمفتاحِ المُمرَّرِ أعلاهُ.
+   * المنفذُ الحقيقيُّ على `sql` والمفتاحِ المُمرَّرِ أعلاهِ.
    */
   readonly breakGlass?: AdminBreakGlassPort;
   /**
@@ -213,6 +215,11 @@ export interface AdminUiDependencies {
    * وتُركِّبُهُ في موضعَي التشغيلِ كليهما.
    */
   readonly limits?: { readonly breakGlassLoginPerAddress: RateLimiter };
+  /**
+   * مُوقِّعُ روابطِ القراءةِ للوثائقِ — يُمرَّرُ ولا يُبنى ههنا. غيابُهُ يُغلقُ
+   * مسلكَ عرضِ الوثيقةِ بـ٥٠٣ لا نجاحٍ صامتٍ.
+   */
+  readonly readSigner?: ReadUrlSigner;
 }
 
 /** الافتراضُ حين لا سائقَ مرئيّاً: مركزُ الجزيرة تقريباً بتكبيرٍ واسع. */
@@ -1090,9 +1097,83 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         profile: detail.profile,
         orders: detail.orders,
         tickets: detail.tickets,
+        documents: detail.documents,
         ticketsLimit: DRIVER_TICKETS_LIMIT,
         csrfToken: c.get("csrfToken"),
       }),
+    );
+  });
+
+  app.get("/drivers/:id/documents/:docType", async (c) => {
+    const driverId = c.req.param("id");
+    const docType = c.req.param("docType");
+    if (!UUID_PATTERN.test(driverId)) {
+      return c.text("معرّف سائق غير صالح.", HTML_UNPROCESSABLE);
+    }
+
+    const detail = await driverDetail(deps.sql, driverId);
+    if (detail === null) {
+      return c.text("لا سائق بهذا المعرّف.", NOT_FOUND);
+    }
+
+    const doc = detail.documents.find((d) => d.docType === docType);
+    if (doc === undefined) {
+      return c.text("لا وثيقة بهذا النوع لهذا السائق.", NOT_FOUND);
+    }
+
+    if (deps.readSigner === undefined) {
+      return c.text("عرضُ الوثائقِ غيرُ مُهيَّأٍ.", SERVICE_UNAVAILABLE);
+    }
+
+    const READ_TTL_SECONDS = 300;
+    const result = await deps.readSigner.signRead({
+      objectPath: doc.objectPath,
+      ttlSeconds: READ_TTL_SECONDS,
+    });
+    if (!result.ok) {
+      return c.text("تعذَّرَ توقيعُ رابطِ القراءةِ.", SERVICE_UNAVAILABLE);
+    }
+
+    const docLabel =
+      // أسماءُ الوثائقِ بالعربيةِ في كودِ العقدِ غيرُ متاحٍ ههنا بلا استيرادٍ كاملٍ —
+      // نُسخِّنُها من جدولٍ صغيرٍ يُغطّي الأنواعَ المعروفةَ.
+      (
+        {
+          driving_license: "رخصة القيادة",
+          medical_exam: "الفحص الطبي",
+          criminal_record: "السجل الجنائي",
+          vehicle_registration: "استمارة السيارة",
+          insurance: "التأمين",
+          periodic_inspection: "الفحص الدوري",
+        } as const
+      )[
+        docType as keyof {
+          driving_license: string;
+          medical_exam: string;
+          criminal_record: string;
+          vehicle_registration: string;
+          insurance: string;
+          periodic_inspection: string;
+        }
+      ] ?? docType;
+
+    const expiresInSeconds = Math.max(
+      0,
+      Math.floor((result.value.expiresAtEpochMs - Date.now()) / 1000),
+    );
+
+    return page(
+      c,
+      `${docLabel} — ${detail.profile.fullName ?? "سائق"}`,
+      `/admin/drivers/${driverId}`,
+      `<h1>${escapeHtml(docLabel)}</h1>
+<p class="note"><a href="/admin/drivers/${escapeHtml(driverId)}">← عودة إلى السائق</a></p>
+<div class="cards">
+  <div class="card">
+    <img src="${escapeHtml(result.value.readUrl)}" alt="${escapeHtml(docLabel)}" style="max-width:100%;height:auto;" />
+    <p class="card-hint">ينتهي الرابط خلال ${expiresInSeconds} ثانية.</p>
+  </div>
+</div>`,
     );
   });
 

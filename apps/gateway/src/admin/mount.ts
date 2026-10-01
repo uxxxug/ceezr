@@ -44,6 +44,7 @@ import type { SessionRevocationStore } from "../../../../packages/application/id
 import type { RatingFlagPort } from "../../../../packages/application/reputation/index.ts";
 import type { TrackingTokenRpcPort } from "../../../../packages/application/tracking/tracking-token-ports.ts";
 import type { Sql } from "../../../../packages/infrastructure/db/client.ts";
+import type { ReadUrlSigner } from "../../../../packages/infrastructure/storage/signed-read.ts";
 import type { TrackingEventBus } from "../../../../packages/infrastructure/tracking/event-bus.ts";
 import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
@@ -101,6 +102,12 @@ export interface AdminSurfaceDependencies {
    * تدهورٌ مُعلَنٌ في واجهةِ الموجِّهِ لا صمتٌ.
    */
   readonly breakGlassLoginPerAddress?: RateLimiter;
+  /**
+   * مُوقِّعُ روابطِ القراءةِ للوثائقِ — يُمرَّرُ ولا يُبنى ههنا (نفسُ قاعدةِ
+   * `revocation`). غيابُهُ يُغلقُ مسلكَ عرضِ الوثيقةِ بـ٥٠٣ لا نجاحٍ صامتٍ.
+   * `DEC-0xx` — رابطُ قراءةٍ موقَّعٌ لوثائقِ السائقين في اللوحة.
+   */
+  readonly readSigner?: ReadUrlSigner;
 }
 
 /**
@@ -151,6 +158,7 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
       ...(deps.breakGlassLoginPerAddress === undefined
         ? {}
         : { limits: { breakGlassLoginPerAddress: deps.breakGlassLoginPerAddress } }),
+      ...(deps.readSigner === undefined ? {} : { readSigner: deps.readSigner }),
     }),
   );
 
