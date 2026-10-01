@@ -156,3 +156,16 @@ export interface UploadSigner {
     readonly ttlSeconds: number;
   }): Promise<Result<SignedUpload, UploadSignerFailure>>;
 }
+
+/**
+ * فاحصُ وجودِ الكائنِ في المخزنِ (`DEC-30` · `ADR 0227`) — يتحقَّقُ أنَّ الكائنَ
+ * المُسجَّلَ في القاعدةِ موجودٌ فعلاً في المخزنِ. فشلُ الفحصِ لا يُسقِطُ الطلبَ —
+ * يُعامَلُ كأنَّ الكائنَ ليسَ للسائقِ (أمانٌ لا عطلٌ).
+ */
+export type ObjectExistenceFailure = "CHECKER_UNAVAILABLE";
+
+export interface ObjectExistenceChecker {
+  checkExists(input: {
+    readonly objectPath: string;
+  }): Promise<Result<boolean, ObjectExistenceFailure>>;
+}
