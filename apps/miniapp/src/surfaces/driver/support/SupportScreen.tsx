@@ -25,6 +25,10 @@
  */
 
 import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import {
+  MINIAPP_DEFAULT_LANGUAGE,
+  miniAppTranslator,
+} from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { TicketsScreen } from "../../support/TicketsScreen.tsx";
 import type { ReadTicketsInput } from "../../support/ticket-api.ts";
 import type { OpenTicketResponse, SupportTicketsResponse } from "../../support/ticket-contract.ts";
@@ -44,6 +48,8 @@ export interface DriverSupportScreenProps {
    * تُكتَبُ بيدٍ**، وبها وحدَها يُفتَحُ صنفُ «راكبٍ مسيءٍ».
    */
   readonly orderId?: string | null;
+  /** مدخلُ كشفِ الخصومِ (DEC-37) — اختياريٌّ. */
+  readonly onOpenDeductionTrace?: () => void;
   readonly openTicket?: (input: {
     readonly category: DriverSupportCategory;
     readonly message: string;
@@ -52,20 +58,22 @@ export interface DriverSupportScreenProps {
   readonly readTickets?: (input: ReadTicketsInput) => Promise<SupportTicketsResponse>;
 }
 
-/** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ. */
+/** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ.
+ * `deductionTrace` رُفِعَ بعدَ DEC-37 (كشفُ الخصومِ من المحفظةِ). */
 const DECLARED_DEBT: readonly string[] = [
   "driver.support.debt.attachment",
   "driver.support.debt.thread",
-  "driver.support.debt.deductionTrace",
 ];
 
 export function DriverSupportScreen({
   language,
   onBack,
   orderId = null,
+  onOpenDeductionTrace,
   openTicket,
   readTickets = readDriverSupportTickets,
 }: DriverSupportScreenProps) {
+  const t = miniAppTranslator(language ?? MINIAPP_DEFAULT_LANGUAGE);
   const open = (input: {
     readonly category: string;
     readonly message: string;
@@ -82,6 +90,13 @@ export function DriverSupportScreen({
   return (
     <TicketsScreen
       declaredDebt={DECLARED_DEBT}
+      header={
+        onOpenDeductionTrace === undefined ? undefined : (
+          <button type="button" className="dsup__deductions" onClick={onOpenDeductionTrace}>
+            {t("driver.support.deductionTrace.open")}
+          </button>
+        )
+      }
       // لا صنفَ مبدئيَّ — انظرْ رأسَ المِلفِّ.
       initialCategory={null}
       language={language}

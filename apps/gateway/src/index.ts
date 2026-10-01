@@ -33,6 +33,7 @@ import { PostgresDriverOfferStore } from "../../../packages/infrastructure/drive
 import { PostgresDriverSubscriptionStore } from "../../../packages/infrastructure/driver/driver-subscription-store.ts";
 import { PostgresDriverVehicleStore } from "../../../packages/infrastructure/driver/driver-vehicle-store.ts";
 import { PostgresSubscriptionTaxInvoiceStore } from "../../../packages/infrastructure/driver/subscription-invoice-store.ts";
+import { createDeductionTraceStore } from "../../../packages/infrastructure/financial/deduction-trace-store.ts";
 import {
   createPaymentProvider,
   createPaymentRepository,
@@ -1239,6 +1240,25 @@ const driverSubscriptionInvoice =
       };
 
 /**
+ * كشفُ الخصومِ التفصيليُّ (`DEC-37`) — قراءةٌ فقط من سجلِّ المحفظةِ. غيابُ سرِّ
+ * الجلسةِ **يُسقِطُ السطحَ** كغيرهِ.
+ */
+const driverDeductions =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        deductions: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          now: () => new Date(),
+          store: createDeductionTraceStore(container.sql),
+        },
+        log,
+      };
+
+/**
  * مركبةُ السائقِ (`F3-07` · `F12-06`) — بياناتُ المركبةِ ووثائقُها الثلاثُ
  * في نداءٍ واحدٍ، وروابطُ قراءةٍ موقَّعةٌ للشعارِ والباركودِ.
  * وغيابُ سرِّ الجلسةِ **يُسقِطُ السطحَ** كالعروضِ والنشاطِ.
@@ -1396,6 +1416,7 @@ const app = createServer({
   ...(driverActivity === undefined ? {} : { driverActivity }),
   ...(driverSubscription === undefined ? {} : { driverSubscription }),
   ...(driverSubscriptionInvoice === undefined ? {} : { driverSubscriptionInvoice }),
+  ...(driverDeductions === undefined ? {} : { driverDeductions }),
   ...(driverVehicle === undefined ? {} : { driverVehicle }),
   ...(notifications === undefined ? {} : { notifications }),
   ...(driverLocation === undefined ? {} : { driverLocation }),

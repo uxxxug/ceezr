@@ -49,6 +49,10 @@ import {
   type DriverSubscriptionInvoiceRouteDependencies,
 } from "./routes/driver-subscription-invoice.ts";
 import {
+  createDriverDeductionsRoutes,
+  type DriverDeductionsRouteDependencies,
+} from "./routes/driver-deductions.ts";
+import {
   createDriverVehicleRoutes,
   type DriverVehicleRouteDependencies,
 } from "./routes/driver-vehicle.ts";
@@ -202,6 +206,7 @@ export interface ServerDependencies {
    * يُقالُ إنَّها لا تُصدَرُ الآنَ — ولا وسطَ بينَهما.
    */
   readonly driverSubscriptionInvoice?: DriverSubscriptionInvoiceRouteDependencies;
+  readonly driverDeductions?: DriverDeductionsRouteDependencies;
   readonly driverVehicle?: DriverVehicleRouteDependencies;
   /**
    * مركزُ الإشعاراتِ داخلَ التطبيقِ (`F6-05` / `SS-07`) — يُركَّبُ مع سرِّ الجلسةِ
@@ -328,6 +333,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.driverSubscriptionInvoice !== undefined) {
     app.route("/", createDriverSubscriptionInvoiceRoutes(deps.driverSubscriptionInvoice));
+  }
+  if (deps.driverDeductions !== undefined) {
+    app.route("/", createDriverDeductionsRoutes(deps.driverDeductions));
   }
   if (deps.driverVehicle !== undefined) {
     app.route("/", createDriverVehicleRoutes(deps.driverVehicle));
