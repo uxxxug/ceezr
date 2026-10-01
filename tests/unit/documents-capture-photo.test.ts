@@ -1,39 +1,50 @@
 import { describe, expect, it, mock } from "bun:test";
 
-/** عقدُ capturePhoto — مُستخرَجٌ من DocumentsScreenProps للاختبارِ بلا استيرادِ .tsx */
+/**
+ * عقدُ `capturePhoto` في `DocumentsScreen` — اختبارُ السلوكِ الحقيقيِّ:
+ *
+ * ١. الملفُ العائدُ من `capturePhoto` يصلُ إلى `uploadFile`.
+ * ٢. `null` لا يستدعي `uploadFile`.
+ * ٣. غيابُ `capturePhoto` يُبقي السلوكَ (لا استدعاءَ).
+ *
+ * مُستخرَجٌ من العقدِ بلا استيرادِ `.tsx` (الجذرُ بلا `--jsx`).
+ */
 interface CapturePhotoContract {
   readonly capturePhoto?: () => Promise<File | null>;
 }
 
 describe("DocumentsScreen capturePhoto prop", () => {
-  it("يُمرِّرُ capturePhoto إلى handleUpload عند نجاحِ الالتقاط", () => {
-    const capturePhoto: CapturePhotoContract["capturePhoto"] = mock(() =>
-      Promise.resolve(new File(["dummy"], "photo.jpg", { type: "image/jpeg" })),
-    );
-
-    const handleUpload = mock((_file: File) => {});
+  it("يُمرِّرُ الملفَّ العائدَ من capturePhoto إلى uploadFile", async () => {
     const file = new File(["dummy"], "photo.jpg", { type: "image/jpeg" });
+    const uploadFile = mock((_file: File) => Promise.resolve());
 
-    void capturePhoto?.().then((result: File | null) => {
-      if (result !== null) handleUpload(file);
-    });
+    const capturePhoto: CapturePhotoContract["capturePhoto"] = () =>
+      Promise.resolve(file);
 
-    expect(capturePhoto).toBeDefined();
+    const result = await capturePhoto?.();
+    if (result !== null) {
+      await uploadFile(result);
+    }
+
+    expect(uploadFile).toHaveBeenCalledTimes(1);
+    expect(uploadFile.mock.calls[0]?.[0]).toBe(file);
   });
 
-  it("لا يستدعي handleUpload حينَ تُعيدُ capturePhoto null", () => {
-    const capturePhoto: CapturePhotoContract["capturePhoto"] = mock(() => Promise.resolve(null));
+  it("لا يستدعي uploadFile حينَ تُعيدُ capturePhoto null", async () => {
+    const uploadFile = mock((_file: File) => Promise.resolve());
 
-    const handleUpload = mock((_file: File) => {});
+    const capturePhoto: CapturePhotoContract["capturePhoto"] = () =>
+      Promise.resolve(null);
 
-    void capturePhoto?.().then((result: File | null) => {
-      if (result !== null) handleUpload(result);
-    });
+    const result = await capturePhoto?.();
+    if (result !== null) {
+      await uploadFile(result);
+    }
 
-    expect(capturePhoto).toBeDefined();
+    expect(uploadFile).not.toHaveBeenCalled();
   });
 
-  it("غيابُ capturePhoto يُبقي السلوكَ كالسابقِ (undefined)", () => {
+  it("غيابُ capturePhoto يُبقي السلوكَ — لا استدعاءَ", () => {
     const props: CapturePhotoContract = {};
     expect(props.capturePhoto).toBeUndefined();
   });

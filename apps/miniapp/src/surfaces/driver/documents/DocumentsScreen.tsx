@@ -106,7 +106,6 @@ const TONE_BADGE: Record<DocumentTone, { readonly modifier: string }> = {
 const DECLARED_DEBT: readonly string[] = [
   "driver.documents.debt.preview",
   "driver.documents.debt.progress",
-  "driver.documents.debt.camera",
 ];
 
 type BoardState =
