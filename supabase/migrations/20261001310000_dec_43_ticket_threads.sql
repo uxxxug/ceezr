@@ -21,6 +21,8 @@ create table if not exists ticket_messages (
   created_at  timestamptz not null default now()
 );
 
+alter table ticket_messages enable row level security;
+
 
 create or replace function add_ticket_message(
   p_telegram_id text,

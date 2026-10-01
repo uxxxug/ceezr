@@ -240,6 +240,7 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   subscription_wallets: RETENTION_CLASSES.financialSixYears,
   subscriptions: RETENTION_CLASSES.financialSixYears,
   support_tickets: RETENTION_CLASSES.pendingDecision,
+  ticket_messages: RETENTION_CLASSES.pendingDecision,
   telegram_update_jobs: RETENTION_CLASSES.pendingDecision,
   telegram_update_receipts: RETENTION_CLASSES.pendingDecision,
   tracking_sessions: RETENTION_CLASSES.pendingDecision,
