@@ -5,20 +5,18 @@
  */
 
 import { describe, expect, it, mock } from "bun:test";
-import { Hono } from "hono";
+import type { Hono } from "hono";
 import {
-  type PostDisputeCardDependencies,
-} from "../../packages/application/dispute/post-dispute-card.ts";
-import {
-  type RiderSupportDeps,
-  type DriverSupportDeps,
-  type SupportRouteDependencies,
   createSupportRoutes,
+  type DriverSupportDeps,
+  type RiderSupportDeps,
+  type SupportRouteDependencies,
 } from "../../apps/gateway/src/routes/support-tickets.ts";
+import type { PostDisputeCardDependencies } from "../../packages/application/dispute/post-dispute-card.ts";
 import type {
   OpenedSupportTicketOf,
-  SupportTicketType,
   SupportTicketsPage,
+  SupportTicketType,
 } from "../../packages/domain/support/ticket-types.ts";
 
 // ── Stubs ──────────────────────────────────────────────────────────────────
@@ -131,9 +129,7 @@ async function postTicket(app: Hono, path: string, body: object): Promise<Respon
 
 describe("مسارات الدعم — نشر البطاقة بعد الفتح (DEC-26)", () => {
   it("ينشر بطاقة التذكرة في قروب الدعم بعد فتح تذكرة راكب", async () => {
-    const publishMock = mock(() =>
-      Promise.resolve({ ok: true as const, value: "msg-123" }),
-    );
+    const publishMock = mock(() => Promise.resolve({ ok: true as const, value: "msg-123" }));
     const cardDeps = makeCardDeps(true);
     cardDeps.publisher.publish = publishMock;
 
@@ -155,9 +151,7 @@ describe("مسارات الدعم — نشر البطاقة بعد الفتح (D
   });
 
   it("ينشر بطاقة التذكرة في قروب الدعم بعد فتح تذكرة سائق", async () => {
-    const publishMock = mock(() =>
-      Promise.resolve({ ok: true as const, value: "msg-456" }),
-    );
+    const publishMock = mock(() => Promise.resolve({ ok: true as const, value: "msg-456" }));
     const cardDeps = makeCardDeps(true);
     cardDeps.publisher.publish = publishMock;
 
