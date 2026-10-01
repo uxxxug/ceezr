@@ -81,7 +81,7 @@ export class StagingDerivationError extends Error {}
  */
 export function deriveStagingBlueprint(production: string): string {
   const lines = production.split("\n");
-  const servicesAt = lines.findIndex((line) => line === "services:");
+  const servicesAt = lines.indexOf("services:");
   if (servicesAt < 0) {
     throw new StagingDerivationError(
       "لا سطرَ «services:» في العمودِ الأوّلِ — بنيةٌ لا يفهمُها الاشتقاقُ.",
