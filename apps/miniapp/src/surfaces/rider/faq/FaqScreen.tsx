@@ -18,6 +18,8 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+// `D-33` · `ADR 0188`: مفاتيحُ `rider.support.faq.*` في جزءِ `support` لا في `core`.
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/support.ts";
 
 export interface FaqScreenProps {
   readonly language?: MiniAppLanguage;
