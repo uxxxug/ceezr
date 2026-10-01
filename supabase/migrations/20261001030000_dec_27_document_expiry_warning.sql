@@ -18,7 +18,7 @@ returns table (
   telegram_id bigint,
   language_code text,
   doc_type text,
-  expires_at date,
+  expires_at text,
   days_left integer
 )
 language sql
@@ -31,7 +31,7 @@ as $$
     u.telegram_id,
     coalesce(u.language_code, 'ar') as language_code,
     dd.doc_type::text,
-    dd.expires_at,
+    to_char(dd.expires_at, 'YYYY-MM-DD') as expires_at,
     (dd.expires_at - current_date) as days_left
   from driver_documents dd
   join users u on u.id = dd.driver_id
