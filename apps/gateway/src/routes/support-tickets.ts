@@ -302,15 +302,15 @@ export function createSupportRoutes(deps: SupportRouteDependencies): Hono {
 
   // ── DEC-43: محادثةٌ داخلَ التذكرةِ ──────────────────────────────────────────
 
-  const THREAD_STATUS: Readonly<Record<TicketThreadPublicErrorCode, 400 | 401 | 403 | 404 | 503>> =
+  const THREAD_STATUS: Readonly<Record<TicketThreadPublicErrorCode, 401 | 403 | 404 | 422 | 503>> =
     {
       SESSION_REQUIRED: 401,
       SESSION_REJECTED: 401,
-      MALFORMED: 400,
+      MALFORMED: 422,
       TICKET_NOT_FOUND: 404,
       TICKET_CLOSED: 403,
-      MESSAGE_EMPTY: 400,
-      MESSAGE_TOO_LONG: 400,
+      MESSAGE_EMPTY: 422,
+      MESSAGE_TOO_LONG: 422,
       TICKET_THREAD_STORE_NOT_AVAILABLE: 503,
     };
 
