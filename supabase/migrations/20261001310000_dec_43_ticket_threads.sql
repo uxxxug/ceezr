@@ -15,6 +15,7 @@
 create table if not exists ticket_messages (
   id          uuid primary key default gen_random_uuid(),
   ticket_id   uuid not null references support_tickets(id) on delete cascade,
+  city_id     uuid not null references cities(id),
   sender_type text not null check (sender_type in ('rider', 'driver', 'support')),
   sender_telegram_id bigint,
   message     text not null check (length(trim(message)) >= 1 and length(message) <= 2000),
@@ -54,7 +55,7 @@ begin
     return jsonb_build_object('ok', false, 'error', 'SENDER_TYPE_INVALID');
   end if;
 
-  select t.id, t.status, t.rider_id, t.driver_id
+  select t.id, t.status, t.rider_id, t.driver_id, t.city_id
     into v_ticket
     from support_tickets t
     where t.id = p_ticket_id::uuid;
@@ -88,8 +89,8 @@ begin
     end if;
   end if;
 
-  insert into ticket_messages (ticket_id, sender_type, sender_telegram_id, message)
-    values (p_ticket_id::uuid, p_sender_type, p_telegram_id::bigint, p_message)
+  insert into ticket_messages (ticket_id, city_id, sender_type, sender_telegram_id, message)
+    values (p_ticket_id::uuid, v_ticket.city_id, p_sender_type, p_telegram_id::bigint, p_message)
     returning id into v_message_id;
 
   return jsonb_build_object(
