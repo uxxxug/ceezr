@@ -18,8 +18,7 @@ describe("DocumentsScreen capturePhoto prop", () => {
     const file = new File(["dummy"], "photo.jpg", { type: "image/jpeg" });
     const uploadFile = mock((_file: File) => Promise.resolve());
 
-    const capturePhoto: CapturePhotoContract["capturePhoto"] = () =>
-      Promise.resolve(file);
+    const capturePhoto: CapturePhotoContract["capturePhoto"] = () => Promise.resolve(file);
 
     const result = await capturePhoto?.();
     if (result !== null) {
@@ -33,8 +32,7 @@ describe("DocumentsScreen capturePhoto prop", () => {
   it("لا يستدعي uploadFile حينَ تُعيدُ capturePhoto null", async () => {
     const uploadFile = mock((_file: File) => Promise.resolve());
 
-    const capturePhoto: CapturePhotoContract["capturePhoto"] = () =>
-      Promise.resolve(null);
+    const capturePhoto: CapturePhotoContract["capturePhoto"] = () => Promise.resolve(null);
 
     const result = await capturePhoto?.();
     if (result !== null) {
