@@ -76,6 +76,7 @@
 import "../../../../../packages/shared/i18n/miniapp/ar-parts/driver.ts";
 import { useState } from "react";
 import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
+import { capturePhotoWithInput } from "../../services/capture-photo.ts";
 import { subscribeOffersChannel } from "../../services/offers-channel-client.ts";
 import {
   productionOffersBaseUrl,
@@ -203,7 +204,12 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
   }
 
   if (view.kind === "documents") {
-    return <DocumentsScreen onBack={() => setView({ kind: "placeholder" })} />;
+    return (
+      <DocumentsScreen
+        capturePhoto={capturePhotoWithInput}
+        onBack={() => setView({ kind: "placeholder" })}
+      />
+    );
   }
 
   if (view.kind === "summary") {

@@ -1312,5 +1312,6 @@
   "driver.documents.error.OBJECT_NOT_FOUND": "The file was not found in storage. Upload again.",
   "driver.documents.error.OBJECT_NOT_SUBMITTED": "This document has not been uploaded yet.",
   "driver.documents.view": "View document",
-  "driver.documents.viewing": "Opening..."
+  "driver.documents.viewing": "Opening...",
+  "driver.documents.camera": "Take photo"
 }
