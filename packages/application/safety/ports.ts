@@ -134,3 +134,26 @@ export interface EmergencyContactWriter {
     readonly phone: string;
   }): Promise<Result<{ readonly status: "saved" }, EmergencyContactStoreFailure>>;
 }
+
+/** DEC-42: تفضيلاتُ الإشعاراتِ غيرِ التشغيليّةِ لصاحبِ الجلسةِ. */
+export interface NotificationPrefs {
+  readonly offersEnabled: boolean;
+  readonly updatesEnabled: boolean;
+}
+
+export type NotificationPrefsStoreFailure = {
+  readonly code: "NOTIFICATION_PREFS_STORE_FAILED";
+  readonly reason: "USER_NOT_FOUND" | "STORE_ERROR";
+};
+
+export interface NotificationPrefsReader {
+  read(userId: string): Promise<Result<NotificationPrefs | null, NotificationPrefsStoreFailure>>;
+}
+
+export interface NotificationPrefsWriter {
+  upsert(input: {
+    readonly telegramUserId: string;
+    readonly offersEnabled: boolean;
+    readonly updatesEnabled: boolean;
+  }): Promise<Result<{ readonly status: "saved" }, NotificationPrefsStoreFailure>>;
+}
