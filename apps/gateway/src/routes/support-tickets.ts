@@ -49,6 +49,12 @@ import {
   postDisputeCard,
 } from "../../../../packages/application/dispute/post-dispute-card.ts";
 import {
+  addTicketMessage,
+  listTicketMessages,
+  type TicketThreadDeps,
+  type TicketThreadPublicErrorCode,
+} from "../../../../packages/application/dispute/ticket-threads.ts";
+import {
   type DriverSupportDeps,
   listDriverSupportTickets,
   openDriverSupportTicket,
@@ -66,6 +72,8 @@ export interface SupportRouteDependencies {
   readonly support?: RiderSupportDeps;
   /** ومثلُها لمسارَي السائقِ — **كلُّ سطحٍ يُعطَّلُ وحدَه** لا بغيابِ الآخرِ. */
   readonly driverSupport?: DriverSupportDeps;
+  /** DEC-43: محادثةٌ داخلَ التذكرةِ. */
+  readonly threads?: TicketThreadDeps;
   /**
    * نشرُ بطاقةِ التذكرةِ في قروبِ الدعمِ بعدَ الفتحِ. غيابُها لا يُعطِّلُ المسارَ —
    * التذكرةُ تُفتَحُ ولا تُنشَرُ بطاقتُها، وهوَ دَينٌ مُعلَنٌ يُنشَّطُ ههنا.
@@ -289,6 +297,104 @@ export function createSupportRoutes(deps: SupportRouteDependencies): Hono {
       has_more: page.hasMore,
       next_cursor: page.nextCursor,
       expected_response_minutes: page.expectedResponseMinutes,
+    });
+  });
+
+  // ── DEC-43: محادثةٌ داخلَ التذكرةِ ──────────────────────────────────────────
+
+  const THREAD_STATUS: Readonly<Record<TicketThreadPublicErrorCode, 400 | 401 | 403 | 404 | 503>> =
+    {
+      SESSION_REQUIRED: 401,
+      SESSION_REJECTED: 401,
+      MALFORMED: 400,
+      TICKET_NOT_FOUND: 404,
+      TICKET_CLOSED: 403,
+      MESSAGE_EMPTY: 400,
+      MESSAGE_TOO_LONG: 400,
+      TICKET_THREAD_STORE_NOT_AVAILABLE: 503,
+    };
+
+  function threadRejected(c: Context, code: TicketThreadPublicErrorCode) {
+    return c.json({ ok: false, error: code }, THREAD_STATUS[code]);
+  }
+
+  /** إضافةُ رسالةٍ لتذكرةِ راكبٍ — `POST /v1/support/tickets/:id/messages`. */
+  app.post("/v1/support/tickets/:id/messages", async (c) => {
+    if (deps.threads === undefined) {
+      return c.json({ ok: false, error: "TICKET_THREAD_STORE_NOT_AVAILABLE" }, 503);
+    }
+    const body = await readJsonBody(c);
+    const result = await addTicketMessage(deps.threads, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      ticketId: c.req.param("id"),
+      senderType: "rider",
+      body,
+    });
+    if (!result.ok) return threadRejected(c, result.error);
+    return c.json({ ok: true, status: "added", message_id: result.value.messageId });
+  });
+
+  /** قراءةُ محادثةِ تذكرةِ راكبٍ — `GET /v1/support/tickets/:id/messages`. */
+  app.get("/v1/support/tickets/:id/messages", async (c) => {
+    if (deps.threads === undefined) {
+      return c.json({ ok: false, error: "TICKET_THREAD_STORE_NOT_AVAILABLE" }, 503);
+    }
+    const limit = parseInt(c.req.query("limit") ?? "50", 10);
+    const result = await listTicketMessages(deps.threads, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      ticketId: c.req.param("id"),
+      senderType: "rider",
+      limit: Number.isNaN(limit) ? 50 : limit,
+    });
+    if (!result.ok) return threadRejected(c, result.error);
+    return c.json({
+      ok: true,
+      messages: result.value.map((m) => ({
+        id: m.id,
+        sender_type: m.senderType,
+        message: m.message,
+        created_at: new Date(m.createdAtMs).toISOString(),
+      })),
+    });
+  });
+
+  /** إضافةُ رسالةٍ لتذكرةِ سائقٍ — `POST /v1/driver/support/tickets/:id/messages`. */
+  app.post("/v1/driver/support/tickets/:id/messages", async (c) => {
+    if (deps.threads === undefined) {
+      return c.json({ ok: false, error: "TICKET_THREAD_STORE_NOT_AVAILABLE" }, 503);
+    }
+    const body = await readJsonBody(c);
+    const result = await addTicketMessage(deps.threads, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      ticketId: c.req.param("id"),
+      senderType: "driver",
+      body,
+    });
+    if (!result.ok) return threadRejected(c, result.error);
+    return c.json({ ok: true, status: "added", message_id: result.value.messageId });
+  });
+
+  /** قراءةُ محادثةِ تذكرةِ سائقٍ — `GET /v1/driver/support/tickets/:id/messages`. */
+  app.get("/v1/driver/support/tickets/:id/messages", async (c) => {
+    if (deps.threads === undefined) {
+      return c.json({ ok: false, error: "TICKET_THREAD_STORE_NOT_AVAILABLE" }, 503);
+    }
+    const limit = parseInt(c.req.query("limit") ?? "50", 10);
+    const result = await listTicketMessages(deps.threads, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      ticketId: c.req.param("id"),
+      senderType: "driver",
+      limit: Number.isNaN(limit) ? 50 : limit,
+    });
+    if (!result.ok) return threadRejected(c, result.error);
+    return c.json({
+      ok: true,
+      messages: result.value.map((m) => ({
+        id: m.id,
+        sender_type: m.senderType,
+        message: m.message,
+        created_at: new Date(m.createdAtMs).toISOString(),
+      })),
     });
   });
 
