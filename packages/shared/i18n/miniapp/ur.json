@@ -1309,5 +1309,6 @@
   "driver.job.sos.alreadyOpen": "آپ کا پہلا الرٹ ابھی کھلا ہے — ٹیم اس پر کام کر رہی ہے۔",
   "driver.job.sos.refused": "ایمرجنسی ابھی دستیاب نہیں — خطرے میں ہوں تو ایمرجنسی سروسز کال کریں۔",
   "driver.job.sos.failed": "الرٹ بھیجنے میں ناکام — دوبارہ کوشش کریں۔",
-  "driver.documents.error.OBJECT_NOT_FOUND": "فائل اسٹوریج میں نہیں ملی۔ دوبارہ اپ لوڈ کریں۔"
+  "driver.documents.error.OBJECT_NOT_FOUND": "فائل اسٹوریج میں نہیں ملی۔ دوبارہ اپ لوڈ کریں۔",
+  "driver.documents.error.OBJECT_NOT_SUBMITTED": "یہ دستاویز ابھی اپ لوڈ نہیں کی گئی۔"
 }

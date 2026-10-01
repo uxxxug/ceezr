@@ -35,8 +35,10 @@ import { type Context, Hono } from "hono";
 import {
   type DriverDocumentDeps,
   type DriverDocumentPublicErrorCode,
+  type DriverDocumentReadUrl,
   type DriverDocumentRejection,
   readDriverDocumentDashboard,
+  readDriverDocumentUrl,
   recordDriverDocument,
   requestDriverDocumentUploadSlot,
   submitDriverDocumentsForReview,
@@ -50,7 +52,7 @@ export interface DriverDocumentRouteDependencies {
 
 /** خريطةُ الحالاتِ — **شاملةٌ حرفاً** لاتّحادِ رموزِ الطبقةِ. */
 const STATUS_BY_ERROR: Readonly<
-  Record<DriverDocumentPublicErrorCode, 401 | 403 | 409 | 413 | 422 | 503>
+  Record<DriverDocumentPublicErrorCode, 401 | 403 | 404 | 409 | 413 | 422 | 503>
 > = {
   SESSION_REQUIRED: 401,
   SESSION_EXPIRED: 401,
@@ -74,6 +76,7 @@ const STATUS_BY_ERROR: Readonly<
   // مسارُ غيرِكَ: **منعُ صلاحيةٍ**، ولا يُفرَّقُ بينَ «لا وجودَ له» و«لغيرِكَ».
   OBJECT_PATH_NOT_MINE: 403,
   OBJECT_NOT_FOUND: 422,
+  OBJECT_NOT_SUBMITTED: 404,
   ACCOUNT_BLOCKED: 403,
   NOT_A_DRIVER: 403,
   // نقصٌ في الوثائقِ **تعارضٌ مع حالةِ المَورِدِ** لا قيمةٌ خطأٌ في الطلبِ:
@@ -262,6 +265,32 @@ export function createDriverDocumentRoutes(deps: DriverDocumentRouteDependencies
       // عامّاً، وقديمةٌ لا تعرضُ شيئاً — و`is_blocked` يبقى صادقاً للاثنتَينِ.
       unreadable_block_reasons: board.unreadableBlockReasons,
       is_blocked: board.isBlocked,
+    });
+  });
+
+  /** «أرِني صورةَ وثيقتي» — رابطُ قراءةٍ موقَّعٌ للوثيقةِ المرفوعةِ (`DEC-31`). */
+  app.get("/v1/driver/documents/:docType/read-url", async (c) => {
+    if (deps.documents === undefined) {
+      deps.log?.("driver_documents.read_url_disabled", {});
+      return rejected(c, unavailable("DOCUMENT_STORE_NOT_AVAILABLE"));
+    }
+
+    const result = await readDriverDocumentUrl(deps.documents, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      docType: c.req.param("docType"),
+    });
+    if (!result.ok) {
+      deps.log?.("driver_documents.read_url_rejected", { error: result.error.code });
+      return rejected(c, result.error);
+    }
+
+    const url: DriverDocumentReadUrl = result.value;
+    deps.log?.("driver_documents.read_url_granted", { doc_type: url.docType });
+    return c.json({
+      ok: true,
+      doc_type: url.docType,
+      read_url: url.readUrl,
+      expires_at_epoch_ms: url.expiresAtEpochMs,
     });
   });
 
