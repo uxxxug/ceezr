@@ -99,3 +99,60 @@ export async function uploadFileToSlot(input: {
   });
   if (!response.ok) throw new UploadFailedError(response.status);
 }
+
+/**
+ * تقدُّمُ الرفعِ — النسبةُ المئويّةُ من ٠ إلى ١٠٠.
+ * `null` يعني أنَّ المضيفَ لم يُخبرْنا بالحجمِ الكلّيِّ (`lengthComputable = false`).
+ */
+export type UploadProgress = number | null;
+
+/**
+ * الرفعُ المباشرُ بالإذنِ الموقَّعِ مع تتبُّعِ التقدُّمِ — `XMLHttpRequest`
+ * وحدَه يُعطي `upload.onprogress`. **لا رمزَ جلسةٍ ولا مفتاحَ خدمةٍ ههنا**.
+ * يُفعِّلُ الدَّينَ المُعلَنَ في `documents-contract.ts` (DEC-28).
+ *
+ * `onProgress` اختياريٌّ — غيابُه يُبقي السلوكَ كالسابقِ بلا تغييرٍ.
+ * `createXhr` مُحقَنٌ للاختبارِ — في المتصفّحِ يُتركُ غيرَ مُمرَّرٍ فيُستخدَمُ الكوكانيُّ.
+ */
+export async function uploadFileToSlotWithProgress(input: {
+  readonly uploadUrl: string;
+  readonly file: Blob;
+  readonly contentType: string;
+  readonly onProgress?: (progress: UploadProgress) => void;
+  readonly createXhr?: () => XMLHttpRequest;
+}): Promise<void> {
+  const xhr = input.createXhr?.() ?? new XMLHttpRequest();
+
+  return new Promise<void>((resolve, reject) => {
+    xhr.open("PUT", input.uploadUrl);
+    xhr.setRequestHeader("content-type", input.contentType);
+
+    xhr.upload.onprogress = (event: ProgressEvent) => {
+      if (!input.onProgress) return;
+      if (event.lengthComputable) {
+        const percent = Math.round((event.loaded / event.total) * 100);
+        input.onProgress(percent);
+      } else {
+        input.onProgress(null);
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve();
+      } else {
+        reject(new UploadFailedError(xhr.status));
+      }
+    };
+
+    xhr.onerror = () => {
+      reject(new UploadFailedError(0));
+    };
+
+    xhr.onabort = () => {
+      reject(new UploadFailedError(0));
+    };
+
+    xhr.send(input.file);
+  });
+}
