@@ -559,6 +559,17 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
     executed: false,
   },
   {
+    table: "ticket_messages",
+    mechanism: "HANDOVER_WITH_OPAQUE_REFERENCE",
+    wave: 5,
+    prerequisites: ["B-1", "B-2", "B-3"],
+    rollback:
+      "رسائلُ التذاكرِ تتبعُ التذاكرَ: تُنقَلُ معها ولا تُفرَّقُ عنها.",
+    verification:
+      "لا رسالةَ جديدةٌ تُكتَبُ محليّاً، ورسالةٌ تُكتَبُ وتُقرَأُ عبرَ CORE في اختبارِ تكاملٍ.",
+    executed: false,
+  },
+  {
     table: "telegram_update_jobs",
     mechanism: "DELEGATE_TO_CORE_CHANNEL",
     wave: 5,
