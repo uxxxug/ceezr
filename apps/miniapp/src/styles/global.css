@@ -2797,14 +2797,9 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
-<<<<<<< HEAD
 /* زرُّ الأسئلة الشائعةِ في ترويسةِ الدعمِ (DEC-36) — أخو `.sup__debt-item`. */
-.sup__faq {
-=======
-/* زرُّ كشفِ الخصومِ في ترويسةِ دعمِ السائقِ (DEC-37) */
-.dsup__deductions {
->>>>>>> b056186 (feat: DEC-37 deduction trace — GET /v1/driver/deductions from wallet ledger)
-  align-self: flex-start;
+.sup__faq {/* زرُّ كشفِ الخصومِ في ترويسةِ دعمِ السائقِ (DEC-37) */
+.dsup__deductions {  align-self: flex-start;
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.7rem;
@@ -2814,35 +2809,20 @@ a.sys__action {
   cursor: pointer;
 }
 
-<<<<<<< HEAD
 /* شاشةُ الأسئلة الشائعةِ (DEC-36) — الكتلةُ `rf` */
-.rf {
-=======
-/* شاشةُ كشفِ الخصومِ التفصيليِّ (DEC-37) — الكتلةُ `dt` */
-.dt {
->>>>>>> b056186 (feat: DEC-37 deduction trace — GET /v1/driver/deductions from wallet ledger)
-  display: flex;
+.rf {/* شاشةُ كشفِ الخصومِ التفصيليِّ (DEC-37) — الكتلةُ `dt` */
+.dt {  display: flex;
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
 }
 
-<<<<<<< HEAD
-.rf__title {
-=======
-.dt__title {
->>>>>>> b056186 (feat: DEC-37 deduction trace — GET /v1/driver/deductions from wallet ledger)
-  font-size: 1.1rem;
+.rf__title {.dt__title {  font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
 }
 
-<<<<<<< HEAD
-.rf__back {
-=======
-.dt__back {
->>>>>>> b056186 (feat: DEC-37 deduction trace — GET /v1/driver/deductions from wallet ledger)
-  align-self: flex-start;
+.rf__back {.dt__back {  align-self: flex-start;
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.7rem;
@@ -2852,19 +2832,14 @@ a.sys__action {
   cursor: pointer;
 }
 
-<<<<<<< HEAD
-.rf__list {
-=======
-.dt__loading,
+.rf__list {.dt__loading,
 .dt__error,
 .dt__empty {
   color: var(--tg-hint-color, #999);
   font-size: 0.9rem;
 }
 
-.dt__list {
->>>>>>> b056186 (feat: DEC-37 deduction trace — GET /v1/driver/deductions from wallet ledger)
-  list-style: none;
+.dt__list {  list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
@@ -2872,33 +2847,20 @@ a.sys__action {
   gap: 0.75rem;
 }
 
-<<<<<<< HEAD
-.rf__item {
-=======
-.dt__item {
->>>>>>> b056186 (feat: DEC-37 deduction trace — GET /v1/driver/deductions from wallet ledger)
-  padding: 0.75rem;
+.rf__item {.dt__item {  padding: 0.75rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.7rem;
 }
 
-<<<<<<< HEAD
-.rf__question {
-=======
-.dt__reference {
->>>>>>> b056186 (feat: DEC-37 deduction trace — GET /v1/driver/deductions from wallet ledger)
-  font-weight: 600;
+.rf__question {.dt__reference {  font-weight: 600;
   margin: 0 0 0.25rem;
 }
 
-<<<<<<< HEAD
 .rf__answer {
   color: var(--tg-hint-color, #999);
   margin: 0;
   font-size: 0.9rem;
-  line-height: 1.6;
-=======
-.dt__kind {
+  line-height: 1.6;.dt__kind {
   color: var(--tg-subtitle-text-color);
   font-size: 0.85rem;
   margin: 0 0 0.25rem;
@@ -2918,9 +2880,7 @@ a.sys__action {
 .dt__date {
   color: var(--tg-hint-color, #999);
   font-size: 0.8rem;
-  margin: 0;
->>>>>>> b056186 (feat: DEC-37 deduction trace — GET /v1/driver/deductions from wallet ledger)
-}
+  margin: 0;}
 
 /* بابُ الدعمِ من شاشةِ الحسابِ، وزرُّ «مشكلةٌ في هذه الرحلةِ» في تفاصيلِها
    (`F2-12`) — قاعدتانِ صغيرتانِ في كتلتَيهما لا في كتلةِ الدعمِ: الزرُّ يُرسَمُ
