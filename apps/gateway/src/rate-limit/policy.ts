@@ -633,6 +633,14 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
     limits: [],
     exemption: null,
   },
+  {
+    method: "GET",
+    path: "/v1/driver/documents/:docType/read-url",
+    file: "apps/gateway/src/routes/driver-documents.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
 
   {
     method: "GET",
@@ -1312,7 +1320,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * (`F16-03` · `ADR 0221`): مسارُ قطعِ روابطِ التتبُّعِ منَ اللوحةِ — خلفَ
  * حارسِ جلسةِ الإدارةِ كما أخواتُه من مساراتِ اللوحةِ.
  */
-export const ROUTE_POLICY_COUNT = 114;
+export const ROUTE_POLICY_COUNT = 115;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
