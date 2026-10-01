@@ -67,8 +67,11 @@ describe("warnExpiringDocuments", () => {
       expect(result.value.failed).toHaveLength(0);
     }
     expect(sender.sent).toHaveLength(1);
-    expect(sender.sent[0]!.chatId).toBe("12345");
-    expect(sender.sent[0]!.text).toContain("رخصة القيادة");
+    const first = sender.sent[0];
+    if (first) {
+      expect(first.chatId).toBe("12345");
+      expect(first.text).toContain("رخصة القيادة");
+    }
   });
 
   it("يسجل التحذير بعد الإرسال الناجح", async () => {
