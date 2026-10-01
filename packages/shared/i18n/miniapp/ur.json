@@ -207,6 +207,7 @@
   "driver.documents.step.signing": "اپ لوڈ کی اجازت تیار ہو رہی ہے…",
   "driver.documents.step.submitting": "جائزے کے لیے بھیجا جا رہا ہے…",
   "driver.documents.step.uploading": "فائل اپ لوڈ ہو رہی ہے…",
+  "driver.documents.step.uploadingProgress": "فائل اپ لوڈ ہو رہی ہے… {percent}%",
   "driver.documents.submit": "جائزے کے لیے بھیجیں",
   "driver.documents.submitted": "آپ کی دستاویزات جائزے کے لیے بھیج دی گئیں۔",
   "driver.documents.submittedStillBlocked": "دستاویزات بھیج دی گئیں؛ سب منظور ہونے تک آپ کا کام رکا رہے گا۔",
