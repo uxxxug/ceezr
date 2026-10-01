@@ -26,8 +26,9 @@
  *      عبرَ `readDriverDocumentUrl` (DEC-31 · `ADR 0228`).
  *   ــ **لا تُظهِرُ تقدُّمَ الرفعِ بالنسبةِ**: الدَّينُ المُعلَنُ مُنشَطٌ —
  *      `uploadFileToSlotWithProgress` تُعطي النسبةَ المئويّةَ (DEC-28).
- *   ــ **لا تُصوِّرُ بالكاميرا داخلَ التطبيقِ**: مُدخَلُ مِلفٍّ يفتحُ الكاميرا في
- *      المنصّةِ، وواجهةُ تصويرٍ خاصّةٌ بها **دَينٌ مُعلَنٌ**.
+ *   ــ **لا تُصوِّرُ بالكاميرا داخلَ التطبيقِ**: الدَّينُ المُعلَنُ مُنشَطٌ —
+ *      `capturePhoto?` prop يُلتقطُ صورةً ويُمرِّرُها إلى مسارِ الرفعِ نفسِه
+ *      (DEC-33 · `ADR 0230`).
  *   ــ **لا تُلغي وثيقةً مرفوعةً**: الحذفُ حكمُ مراجعٍ، والإحلالُ برفعٍ جديدٍ.
  */
 
@@ -80,6 +81,12 @@ export interface DocumentsScreenProps {
     readonly expiresAt: string;
   }) => Promise<unknown>;
   readonly submit?: () => Promise<{ readonly submitted: number; readonly still_blocked: boolean }>;
+  /**
+   * التقاطُ صورةٍ بالكاميرا داخلَ التطبيقِ (`DEC-33` · `ADR 0230`) — اختياريٌّ:
+   * غيابُهُ يُبقي السلوكَ كالسابقِ (مُدخَلُ ملفٍّ وحدَه). حضورُهُ يُضيفُ زرَّ
+   * «التقطْ صورةً» يُمرِّرُ الملفَّ إلى مسارِ الرفعِ نفسِه.
+   */
+  readonly capturePhoto?: () => Promise<File | null>;
   readonly now?: () => Date;
 }
 
@@ -132,6 +139,7 @@ export function DocumentsScreen({
   upload = uploadFileToSlot,
   record = recordDocument,
   submit = submitDocumentsForReview,
+  capturePhoto,
   now = () => new Date(),
 }: DocumentsScreenProps) {
   const t = miniAppTranslator(language);
@@ -376,6 +384,20 @@ export function DocumentsScreen({
                       }}
                     />
                   </label>
+                  {capturePhoto !== undefined ? (
+                    <button
+                      type="button"
+                      className="dd__camera"
+                      disabled={row.kind === "busy"}
+                      onClick={() => {
+                        void capturePhoto().then((file) => {
+                          if (file !== null) void handleUpload(card.docType, file);
+                        });
+                      }}
+                    >
+                      {t("driver.documents.camera")}
+                    </button>
+                  ) : null}
                 </div>
               ) : null}
 
