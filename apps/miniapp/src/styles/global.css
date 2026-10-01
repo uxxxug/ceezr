@@ -3536,6 +3536,43 @@ a.sys__action {
   cursor: pointer;
 }
 
+/* زرُّ الاستغاثةِ في شاشةِ المَهمّةِ (DEC-29 · ADR 0226) */
+.djb__sos {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  border-top: 1px solid var(--tg-separator-color, #ddd);
+}
+.djb__sos-sent,
+.djb__sos-refusal,
+.djb__sos-failed {
+  font-size: 0.88rem;
+  margin-bottom: 0.4rem;
+}
+.djb__sos-sent {
+  color: var(--tg-text-color);
+}
+.djb__sos-refusal,
+.djb__sos-failed {
+  color: var(--tg-destructive-text-color, #e53935);
+}
+.djb__sos-button {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: 0.6rem;
+  background: var(--tg-destructive-text-color, #e53935);
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.djb__sos-button:disabled,
+.djb__sos-button--busy {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* مدخلُ «مَهمّتي» في لوحِ العروضِ — زيادةٌ في اللوحِ لا تغييرٌ فيه (`ح-8`). */
 .dof__job {
   padding: 0.5rem 0.9rem;

@@ -1302,5 +1302,11 @@
   "onboarding.error.generic": "Could not create the account right now. Try again.",
   "onboarding.driver.title": "Register as a driver in the driver bot",
   "onboarding.driver.body": "Driver registration needs your phone number shared from Telegram and a vehicle photo, so it happens in the driver bot chat. Send /start there, then open Wasla from the menu button.",
-  "onboarding.driver.close": "Back to the chat"
+  "onboarding.driver.close": "Back to the chat",
+  "driver.job.sos.label": "🆘 SOS",
+  "driver.job.sos.sending": "Sending alert…",
+  "driver.job.sos.sent": "Your SOS alert has been registered and sent to the support team.",
+  "driver.job.sos.alreadyOpen": "Your first alert is still open — the team is following up.",
+  "driver.job.sos.refused": "SOS is unavailable right now — call emergency services if you are in danger.",
+  "driver.job.sos.failed": "Failed to send alert — please try again."
 }

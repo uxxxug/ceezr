@@ -26,9 +26,9 @@
  *   ــ **لا تُلغي رحلةً**: لا مسارَ إلغاءٍ للسائقِ ههنا، وسياستُه مُجمَّدةٌ
  *      بقرارٍ (`F2-06`) — وزرٌّ بلا كاتبٍ خيانةُ عرضٍ.
  *   ــ **لا تتّصلُ براكبٍ ولا تُراسِلُه**: العقدُ لا يحملُ هاتفاً ولا معرِّفاً.
- *   ــ **لا تُظهِرُ زرَّ نجدةٍ**: نجدةُ السائقِ **دَينٌ مُعلَنٌ** (زيادةٌ ثانيةٌ)
- *      لأنَّ مسارَ `F2-10` يُركِّبُ الدورَ راكباً حرفاً — وزرٌّ رماديٌّ في شاشةِ
- *      سلامةٍ أسوأُ من غيابِه.
+ *   ــ **لا تُظهِرُ زرَّ نجدةٍ**: الدَّينُ المُعلَنُ مُنشَطٌ —
+ *      زرُّ الاستغاثةِ في `JobScreen.tsx` يستدعي `POST /v1/driver/safety/sos`
+ *      (F12-22 · DEC-29 · ADR 0226).
  *   ــ **لا تبثُّ موضعاً**: البثُّ بندُ `F3-04`، ولا يُشتَقُّ طَورٌ من قُربٍ.
  *   ــ **لا تُبقي حالاً بعدَ رفضٍ يعني تقادُماً**: تُعيدُ القراءةَ من القاعدةِ.
  *
@@ -50,7 +50,7 @@ import {
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
 import { openExternalLink } from "../../../tg/index.ts";
-import type { SosSurfaceResponse } from "../../rider/sos/sos-contract.ts";
+import type { SosSurfaceResponse, SosTriggerResponse } from "../../rider/sos/sos-contract.ts";
 import {
   completeDriverRide,
   type DriverActiveJobResponse,
@@ -60,6 +60,7 @@ import {
   readDriverSafetyNarrative,
   reportDriverCannotComplete,
   startDriverRide,
+  triggerDriverSos,
 } from "./job-api.ts";
 import type { ApiDriverJobAction } from "./job-contract.ts";
 import {
@@ -86,6 +87,8 @@ export interface JobScreenProps {
   readonly reportCannotComplete?: (orderId: string) => Promise<DriverCannotCompleteResponse>;
   /** قراءةُ سردِ البلاغِ القائمِ (`PD-020`) — من القاعدةِ لا من ذاكرةِ شاشةٍ. */
   readonly readSafetyNarrative?: () => Promise<SosSurfaceResponse>;
+  /** إطلاقُ استغاثةِ السائقِ (`F12-22` · DEC-29) — يُحقَنُ للاختبارِ. */
+  readonly triggerSos?: () => Promise<SosTriggerResponse>;
   readonly openLink?: (url: string) => unknown;
   /** يُستدعى عند إتمامِ الرحلةِ لفتحِ شاشةِ الملخصِّ (`F12-05`). */
   readonly onCompleted?: (orderId: string) => void;
@@ -119,6 +122,14 @@ type IncidentState = {
   readonly status: string;
   readonly teamDeliveryStatus: string;
 } | null;
+
+/** حالةُ زرِّ الاستغاثةِ (`DEC-29`). */
+type SosState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "busy" }
+  | { readonly kind: "sent"; readonly created: boolean }
+  | { readonly kind: "refused"; readonly refusal: string }
+  | { readonly kind: "failed" };
 
 function codeOf(thrown: unknown): string {
   if (thrown !== null && typeof thrown === "object" && "code" in thrown) {
@@ -160,6 +171,7 @@ export function JobScreen({
   complete = completeDriverRide,
   reportCannotComplete = reportDriverCannotComplete,
   readSafetyNarrative = readDriverSafetyNarrative,
+  triggerSos = triggerDriverSos,
   openLink = (url: string) => openExternalLink(url),
 }: JobScreenProps) {
   const t = miniAppTranslator(language);
@@ -168,6 +180,7 @@ export function JobScreen({
   const [act, setAct] = useState<ActState>({ kind: "idle" });
   const [cannot, setCannot] = useState<CannotState>({ kind: "idle" });
   const [incident, setIncident] = useState<IncidentState>(null);
+  const [sos, setSos] = useState<SosState>({ kind: "idle" });
 
   /**
    * سردُ البلاغِ القائمِ (`PD-020`) — يُقرأُ **من القاعدةِ** في كلِّ تركيبٍ
@@ -218,6 +231,23 @@ export function JobScreen({
       setState({ kind: "failed", code: codeOf(thrown) });
     }
   }, [readJob, refreshNarrative]);
+
+  const sendSos = useCallback(async () => {
+    setSos({ kind: "busy" });
+    try {
+      const response = await triggerSos();
+      if (response.ok && response.accepted) {
+        setSos({ kind: "sent", created: response.created });
+      } else if (response.ok && !response.accepted) {
+        setSos({ kind: "refused", refusal: response.refusal });
+      } else {
+        setSos({ kind: "failed" });
+      }
+      void refreshNarrative();
+    } catch {
+      setSos({ kind: "failed" });
+    }
+  }, [triggerSos, refreshNarrative]);
 
   useEffect(() => {
     void load();
@@ -420,6 +450,42 @@ export function JobScreen({
             onClick={() => setCannot({ kind: "armed" })}
           >
             {t("driver.job.cannotComplete.label")}
+          </button>
+        )}
+      </div>
+
+      {/*
+        زرُّ الاستغاثةِ (`F12-22` · DEC-29 · ADR 0226) — مسارُ السائقِ خاصُّ بهِ
+        لا يُركِّبُ دورَ الراكبِ. زرٌّ أحمرُ يُؤكِّدُ بخطوتَينِ كما في استغاثةِ
+        الراكبِ: بلاغٌ يُوقِظُ فريقاً لا يُرسَلُ بلمسةٍ عابرةٍ.
+      */}
+      <div className="djb__sos">
+        {sos.kind === "sent" ? (
+          <p className="djb__sos-sent" role="status">
+            {sos.created ? t("driver.job.sos.sent") : t("driver.job.sos.alreadyOpen")}
+          </p>
+        ) : null}
+        {sos.kind === "refused" ? (
+          <p className="djb__sos-refusal" role="alert">
+            {t("driver.job.sos.refused")}
+          </p>
+        ) : null}
+        {sos.kind === "failed" ? (
+          <p className="djb__sos-failed" role="alert">
+            {t("driver.job.sos.failed")}
+          </p>
+        ) : null}
+        {sos.kind === "busy" ? (
+          <button type="button" className="djb__sos-button djb__sos-button--busy" disabled>
+            {t("driver.job.sos.sending")}
+          </button>
+        ) : sos.kind === "sent" ? (
+          <button type="button" className="djb__sos-button" disabled>
+            {t("driver.job.sos.sent")}
+          </button>
+        ) : (
+          <button type="button" className="djb__sos-button" onClick={() => void sendSos()}>
+            {t("driver.job.sos.label")}
           </button>
         )}
       </div>

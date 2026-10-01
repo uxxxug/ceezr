@@ -22,7 +22,7 @@
  */
 
 import { apiFetch } from "../../../api/client.ts";
-import type { SosSurfaceResponse } from "../../rider/sos/sos-contract.ts";
+import type { SosSurfaceResponse, SosTriggerResponse } from "../../rider/sos/sos-contract.ts";
 import { publishLocationBroadcastPolicy } from "../location/broadcast-api.ts";
 import type {
   DriverActiveJobResponse,
@@ -84,4 +84,12 @@ export function reportDriverCannotComplete(orderId: string): Promise<DriverCanno
  */
 export function readDriverSafetyNarrative(): Promise<SosSurfaceResponse> {
   return apiFetch<SosSurfaceResponse>("/v1/driver/safety/sos", { method: "GET" });
+}
+
+/**
+ * إطلاقُ استغاثةِ السائقِ (`F12-22` · DEC-29) — نفسُ عقدِ الراكبِ لا نسخةٌ
+ * ثانيةٌ (القاعدةُ 0.6). الدورُ مُركَّبٌ خادميّاً في `trigger_sos` (لا في الطلبِ).
+ */
+export function triggerDriverSos(): Promise<SosTriggerResponse> {
+  return apiFetch<SosTriggerResponse>("/v1/driver/safety/sos", { method: "POST" });
 }
