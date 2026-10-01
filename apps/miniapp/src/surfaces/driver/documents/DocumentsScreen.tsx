@@ -22,7 +22,8 @@
  * ## وما لا تفعلُه هذه الشاشةُ عن قصدٍ — وحدودُها مُعلَنةٌ (`ح-5`)
  *
  *   ــ **لا تعرضُ الوثيقةَ المرفوعةَ**: الدَّينُ المُعلَنُ مُنشَطٌ —
- *      `readDriverDocumentUrl` في `documents-api.ts` تُوقِّعُ رابطَ قراءةٍ (DEC-31).
+ *      زرُّ «عرضُ الوثيقةِ» في `DocumentsScreen.tsx` يفتحُ رابطَ قراءةٍ موقَّعًا
+ *      عبرَ `readDriverDocumentUrl` (DEC-31 · `ADR 0228`).
  *   ــ **لا تُظهِرُ تقدُّمَ الرفعِ بالنسبةِ**: الدَّينُ المُعلَنُ مُنشَطٌ —
  *      `uploadFileToSlotWithProgress` تُعطي النسبةَ المئويّةَ (DEC-28).
  *   ــ **لا تُصوِّرُ بالكاميرا داخلَ التطبيقِ**: مُدخَلُ مِلفٍّ يفتحُ الكاميرا في
@@ -42,6 +43,7 @@ import {
   type DriverDocumentsResponse,
   type DriverUploadSlotResponse,
   readDriverDocuments,
+  readDriverDocumentUrl,
   recordDocument,
   requestUploadSlot,
   submitDocumentsForReview,
@@ -139,6 +141,7 @@ export function DocumentsScreen({
   const [expiry, setExpiry] = useState<Readonly<Record<string, string>>>({});
   const [maxBytes, setMaxBytes] = useState<number | null>(null);
   const [submitState, setSubmitState] = useState<RowState>({ kind: "idle" });
+  const [viewing, setViewing] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setState({ kind: "loading" });
@@ -236,6 +239,18 @@ export function DocumentsScreen({
       setSubmitState({ kind: "failed", key: documentsErrorKey(codeOf(thrown)) });
     }
   }, [load, submit]);
+
+  const handleView = useCallback(async (docType: ApiDriverDocumentType) => {
+    setViewing(docType);
+    try {
+      const result = await readDriverDocumentUrl(docType);
+      (globalThis as unknown as { open: (url: string) => void }).open(result.read_url);
+    } catch {
+      // فشلُ فتحِ الوثيقةِ لا يُسقِطُ اللوحَ — يُسجَّلُ سكوتاً.
+    } finally {
+      setViewing(null);
+    }
+  }, []);
 
   if (state.kind === "loading") {
     return (
@@ -362,6 +377,19 @@ export function DocumentsScreen({
                     />
                   </label>
                 </div>
+              ) : null}
+
+              {card.replaces ? (
+                <button
+                  type="button"
+                  className="dd__view"
+                  disabled={viewing === card.docType}
+                  onClick={() => void handleView(card.docType)}
+                >
+                  {viewing === card.docType
+                    ? t("driver.documents.viewing")
+                    : t("driver.documents.view")}
+                </button>
               ) : null}
 
               {row.kind === "busy" ? <p className="dd__step">{t(row.stepKey)}</p> : null}

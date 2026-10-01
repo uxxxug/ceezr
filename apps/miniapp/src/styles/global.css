@@ -2977,7 +2977,8 @@ a.sys__action {
 
 .dd__submit,
 .dd__retry,
-.dd__back {
+.dd__back,
+.dd__view {
   font: inherit;
   min-height: 2.75rem;
   padding: 0.55rem 1.1rem;
@@ -2986,6 +2987,21 @@ a.sys__action {
   background: var(--tg-button-color);
   color: var(--tg-button-text-color);
   cursor: pointer;
+}
+
+.dd__view {
+  align-self: flex-start;
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+  font-size: 0.9rem;
+  min-height: 2.25rem;
+  padding: 0.4rem 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.dd__view:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .dd__back {

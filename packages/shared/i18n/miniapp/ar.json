@@ -1310,5 +1310,7 @@
   "driver.job.sos.refused": "تعذَّرَ فتحُ بابِ الاستغاثةِ الآنَ — اتّصلْ بالطوارئِ العامّةِ إن كنتَ في خطرٍ.",
   "driver.job.sos.failed": "تعذَّرَ إرسالُ البلاغِ — أعِدِ المحاولةَ.",
   "driver.documents.error.OBJECT_NOT_FOUND": "الملفُ غيرُ موجودٍ في المخزنِ. أعِدْ الرفعَ.",
-  "driver.documents.error.OBJECT_NOT_SUBMITTED": "لم تُرفع هذه الوثيقة بعد."
+  "driver.documents.error.OBJECT_NOT_SUBMITTED": "لم تُرفع هذه الوثيقة بعد.",
+  "driver.documents.view": "عرض الوثيقة",
+  "driver.documents.viewing": "جارٍ الفتح..."
 }
