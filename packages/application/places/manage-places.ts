@@ -50,7 +50,8 @@ export type PlacesPublicErrorCode =
   | "MALFORMED"
   | "UNKNOWN_PLACE_KIND"
   | "ACCOUNT_NOT_FOUND"
-  | "PLACE_STORE_NOT_AVAILABLE";
+  | "PLACE_STORE_NOT_AVAILABLE"
+  | "PLACE_NOT_FOUND";
 
 /** «آخرُ ثلاثِ وجهاتٍ» في `SR-02` نصّاً: الثلاثةُ هيَ الافتراضُ لا اختيارُ عميلٍ. */
 export const DEFAULT_RECENT_DESTINATIONS = 3;
@@ -175,4 +176,34 @@ export async function listRecentDestinations(
   const listed = await deps.recent.listForTelegramUser(identified.value, input.limit);
   if (!listed.ok) return err(storeErrorFrom(listed.error));
   return ok({ destinations: listed.value });
+}
+
+/**
+ * حذفُ مكانٍ محفوظٍ فرادى (`DEC-39`). الترتيبُ: جلسةٌ، ثمَّ تحقُّقُ معرّفٍ، ثمَّ حذفٌ
+ * مُقيَّدٌ بالمستخدمِ. ولا يُفرَّقُ بينَ «غيرِ موجودٍ» و«لِغيرِك» — كلاهما `PLACE_NOT_FOUND`.
+ */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export async function deletePlace(
+  deps: PlacesDeps,
+  input: {
+    readonly accessToken: string | undefined;
+    readonly placeId: string;
+  },
+): Promise<Result<{ readonly status: "deleted" }, PlacesPublicErrorCode>> {
+  const identified = await authenticate(deps, input.accessToken);
+  if (!identified.ok) return identified;
+
+  if (!UUID_PATTERN.test(input.placeId)) return err("PLACE_NOT_FOUND");
+
+  const deleted = await deps.writer.delete({
+    telegramUserId: identified.value,
+    placeId: input.placeId,
+  });
+  if (!deleted.ok) {
+    if (deleted.error.reason === "USER_NOT_FOUND") return err("ACCOUNT_NOT_FOUND");
+    // `STORE_ERROR` يُغطّي معرّفَ UUID غيرِ الصالحِ — لكنّا تحقَّقنا منه أعلاه.
+    return err("PLACE_STORE_NOT_AVAILABLE");
+  }
+  return ok({ status: "deleted" });
 }

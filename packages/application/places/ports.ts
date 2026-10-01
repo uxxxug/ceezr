@@ -64,6 +64,10 @@ export interface SavedPlaceReader {
 
 export interface SavedPlaceWriter {
   save(command: SavePlaceCommand): Promise<Result<SavePlaceOutcome, PlaceStoreFailure>>;
+  delete(input: {
+    readonly telegramUserId: string;
+    readonly placeId: string;
+  }): Promise<Result<{ readonly status: "deleted" }, PlaceStoreFailure>>;
 }
 
 /** وجهةٌ مشتقَّةٌ من طلبٍ سابقٍ: بلا معرّفٍ لأنَّها ليست صفّاً يُحدَّثُ. */

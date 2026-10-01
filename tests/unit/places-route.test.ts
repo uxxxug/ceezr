@@ -110,6 +110,7 @@ function buildHarness(
       rows.push(place);
       return ok({ status: "created", place });
     },
+    delete: async () => ok({ status: "deleted" }),
   };
 
   const recent: RecentDestinationReader = {

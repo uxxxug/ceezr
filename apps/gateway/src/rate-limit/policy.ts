@@ -896,6 +896,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    method: "DELETE",
+    path: "/v1/me/places/:id",
+    file: "apps/gateway/src/routes/me-places.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "GET",
     path: "/v1/me/recent-destinations",
     file: "apps/gateway/src/routes/me-places.ts",
