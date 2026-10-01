@@ -2248,6 +2248,18 @@ a.sys__action {
   cursor: pointer;
 }
 
+/* مدخلُ صفحةِ المفقوداتِ المخصَّصةِ (DEC-34) — أخو `.rh__history` حرفاً. */
+.rh__lost-found {
+  align-self: flex-start;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
 .ac {
   display: flex;
   flex-direction: column;

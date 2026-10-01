@@ -874,6 +874,7 @@
   "rider.home.error.malformed": "تعذّر قبولُ ما كُتب. راجِعِ اللافتةَ والموقعَ ثمَّ أعِد.",
   "rider.home.error.unavailable": "الخدمةُ غيرُ متاحةٍ الآن. لم يُفقَد شيءٌ مما حفظتَه.",
   "rider.home.history.open": "سجلُّ رحلاتي",
+  "rider.home.lostFound.open": "مفقودات",
   "rider.home.map.unavailable": "الخريطةُ غيرُ متاحةٍ الآنَ — يمكنُكَ الاستمرارُ بكتابةِ وجهتِكَ.",
   "rider.home.notifications.open": "الإشعاراتُ",
   "rider.home.place.home": "المنزل",

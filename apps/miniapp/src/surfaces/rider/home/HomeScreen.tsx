@@ -97,6 +97,8 @@ export interface HomeScreenProps {
   readonly onOpenHistory?: () => void;
   /** مدخلُ مركزِ الإشعاراتِ (`SS-07`) — **اختياريٌّ** كأختِه: غيابُه لا يُبيِّضُ الرئيسةَ. */
   readonly onOpenNotifications?: () => void;
+  /** مدخلُ صفحةِ المفقوداتِ المخصَّصةِ (DEC-34) — **اختياريٌّ** كأختِه. */
+  readonly onOpenLostFound?: () => void;
   /** مدخلُ شاشةِ الحسابِ (`SR-12`) — **اختياريٌّ** كأختِه: غيابُه لا يُبيِّضُ الرئيسةَ. */
   readonly onOpenAccount?: () => void;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ كأخوتَيهِ. */
@@ -139,6 +141,7 @@ export function HomeScreen({
   loadRecent = fetchRecentDestinations,
   onDestinationChosen,
   onOpenHistory,
+  onOpenLostFound,
   onOpenNotifications,
   onOpenAccount,
   onOpenSos,
@@ -246,6 +249,14 @@ export function HomeScreen({
       </button>
     );
 
+  // مدخلُ صفحةِ المفقوداتِ المخصَّصةِ (DEC-34) — **زرٌّ اختياريٌّ** كأخوتِه.
+  const lostFoundEntry =
+    onOpenLostFound === undefined ? null : (
+      <button type="button" className="rh__lost-found" onClick={() => onOpenLostFound()}>
+        {t("rider.home.lostFound.open")}
+      </button>
+    );
+
   // مدخلُ الاستغاثةِ (`PD-020`) — مدخلٌ موحَّدٌ لا زرٌّ يكتبُه كلُّ سطحٍ بيدِه.
   const sosEntry =
     onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />;
@@ -280,6 +291,7 @@ export function HomeScreen({
         {title}
         {historyEntry}
         {notificationsEntry}
+        {lostFoundEntry}
         {accountEntry}
         {sosEntry}
         <div className="sys" role="alert">
@@ -300,6 +312,7 @@ export function HomeScreen({
       {title}
       {historyEntry}
       {notificationsEntry}
+      {lostFoundEntry}
       {accountEntry}
       {sosEntry}
 

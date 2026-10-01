@@ -20,9 +20,8 @@
  *
  * ## وما لا تفعلُه هذه الشاشةُ عن قصدٍ (`ح-5`)
  *
- *   ــ **لا تُرفِقُ صورةً** ولا **تفتحُ محادثةً** ولا **تعرضُ أسئلةً شائعةً ولا
- *      صفحةَ مفقوداتٍ**: أربعةُ دُيونٍ مُعلَنةٍ تُقالُ في القائمةِ أسفلَ الشاشةِ،
- *      وبها يبقى البندُ `F2-12` عندَ `[~]`.
+ *   ــ **لا تُرفِقُ صورةً** ولا **تفتحُ محادثةً** ولا **تعرضُ أسئلةً شائعةً**: ثلاثةُ دُيونٍ مُعلَنةٍ تُقالُ في القائمةِ أسفلَ الشاشةِ،
+ *      وبها يبقى البندُ `F2-12` عندَ `[~]`. صفحةُ المفقوداتِ المخصَّصةِ بُنِيَت (DEC-34).
  *   ــ **لا تُظهِرُ زرَّ إعادةٍ فوقَ تهدئةٍ**: تقولُ الثانيةَ الباقيةَ.
  */
 
@@ -49,6 +48,11 @@ export interface SupportScreenProps {
    * بيدٍ**: حقلُ معرّفٍ يُملأُ يدويّاً بابُ خطأٍ لا بابُ دعمٍ.
    */
   readonly orderId?: string | null;
+  /**
+   * صنفٌ مبدئيٌّ إجباريٌّ (DEC-34) — حينَ يُمرَّرُ يَطغى على اشتقاقِ `orderId`.
+   * يُستخدَمُ لصفحةِ المفقوداتِ المخصَّصةِ: `initialCategory={"lost_item"}`.
+   */
+  readonly initialCategory?: RiderSupportCategory | null;
   readonly openTicket?: (input: {
     readonly category: RiderSupportCategory;
     readonly message: string;
@@ -57,12 +61,12 @@ export interface SupportScreenProps {
   readonly readTickets?: (input: ReadTicketsInput) => Promise<SupportTicketsResponse>;
 }
 
-/** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ. */
+/** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ.
+ * `lostFound` رُفِعَ بعدَ DEC-34 (صفحةُ المفقوداتِ المخصَّصةِ موصولةٌ). */
 const DECLARED_DEBT: readonly string[] = [
   "rider.support.debt.attachment",
   "rider.support.debt.thread",
   "rider.support.debt.faq",
-  "rider.support.debt.lostFound",
 ];
 
 export function SupportScreen({
@@ -70,6 +74,7 @@ export function SupportScreen({
   onBack,
   onOpenSos,
   orderId = null,
+  initialCategory = null,
   openTicket,
   readTickets = readSupportTickets,
 }: SupportScreenProps) {
@@ -82,6 +87,10 @@ export function SupportScreen({
           orderId: input.orderId,
         });
 
+  // DEC-34: `initialCategory` يَطغى على اشتقاقِ `orderId` حينَ يُمرَّرُ.
+  const derivedCategory =
+    initialCategory !== null ? initialCategory : orderId === null ? null : "ride_dispute";
+
   return (
     <TicketsScreen
       declaredDebt={DECLARED_DEBT}
@@ -89,7 +98,7 @@ export function SupportScreen({
         onOpenSos === undefined ? undefined : <SosEntry onOpen={onOpenSos} language={language} />
       }
       // رحلةٌ جاءَ منها الراكبُ = شكوى رحلةٍ **مبدئيّاً** لا قطعاً: يُبدِّلُها.
-      initialCategory={orderId === null ? null : "ride_dispute"}
+      initialCategory={derivedCategory}
       language={language}
       onBack={onBack}
       openTicket={open}
