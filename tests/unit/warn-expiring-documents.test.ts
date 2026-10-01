@@ -1,12 +1,12 @@
 import { describe, expect, it } from "bun:test";
 import {
-  warnExpiringDocuments,
   type DocumentExpiryRpcPort,
   type DocumentExpiryWarningSender,
+  warnExpiringDocuments,
 } from "../../packages/application/driver/warn-expiring-documents.ts";
-import { err, ok } from "../../packages/shared/result/index.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
 import type { CityId } from "../../packages/shared/kernel/index.ts";
+import { err, ok } from "../../packages/shared/result/index.ts";
 
 const cityId = "00000000-0000-0000-0000-000000000001" as CityId;
 
