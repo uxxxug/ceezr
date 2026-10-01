@@ -52,16 +52,12 @@ export interface SupportScreenProps {
    * بيدٍ**: حقلُ معرّفٍ يُملأُ يدويّاً بابُ خطأٍ لا بابُ دعمٍ.
    */
   readonly orderId?: string | null;
-<<<<<<< HEAD
   /**
    * صنفٌ مبدئيٌّ إجباريٌّ (DEC-34) — حينَ يُمرَّرُ يَطغى على اشتقاقِ `orderId`.
    * يُستخدَمُ لصفحةِ المفقوداتِ المخصَّصةِ: `initialCategory={"lost_item"}`.
    */
-  readonly initialCategory?: RiderSupportCategory | null;
-=======
-  /** مدخلُ صفحةِ الأسئلة الشائعةِ (DEC-36) — اختياريٌّ. */
+  readonly initialCategory?: RiderSupportCategory | null /** مدخلُ صفحةِ الأسئلة الشائعةِ (DEC-36) — اختياريٌّ. */;
   readonly onOpenFaq?: () => void;
->>>>>>> 4dc488a (feat: DEC-36 FAQ page — 5 Q&A items in i18n, FaqScreen with onOpenFaq in SupportScreen)
   readonly openTicket?: (input: {
     readonly category: RiderSupportCategory;
     readonly message: string;
@@ -71,19 +67,11 @@ export interface SupportScreenProps {
 }
 
 /** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ.
-<<<<<<< HEAD
- * `lostFound` رُفِعَ بعدَ DEC-34 (صفحةُ المفقوداتِ المخصَّصةِ موصولةٌ). */
-const DECLARED_DEBT: readonly string[] = [
-  "rider.support.debt.attachment",
-  "rider.support.debt.thread",
-  "rider.support.debt.faq",
-=======
+ * `lostFound` رُفِعَ بعدَ DEC-34 (صفحةُ المفقوداتِ المخصَّصةِ موصولةٌ).
  * `faq` رُفِعَ بعدَ DEC-36 (صفحةُ الأسئلة الشائعةِ مكتوبةٌ وموصولةٌ). */
 const DECLARED_DEBT: readonly string[] = [
   "rider.support.debt.attachment",
   "rider.support.debt.thread",
-  "rider.support.debt.lostFound",
->>>>>>> 4dc488a (feat: DEC-36 FAQ page — 5 Q&A items in i18n, FaqScreen with onOpenFaq in SupportScreen)
 ];
 
 export function SupportScreen({
@@ -91,11 +79,8 @@ export function SupportScreen({
   onBack,
   onOpenSos,
   orderId = null,
-<<<<<<< HEAD
   initialCategory = null,
-=======
   onOpenFaq,
->>>>>>> 4dc488a (feat: DEC-36 FAQ page — 5 Q&A items in i18n, FaqScreen with onOpenFaq in SupportScreen)
   openTicket,
   readTickets = readSupportTickets,
 }: SupportScreenProps) {
