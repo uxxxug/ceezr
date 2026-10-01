@@ -142,7 +142,11 @@ const DEFERRED_RIDER_LOADERS = {
   ride: () => import("./rider-ride-screens.ts"),
   account: () => import("./account/AccountScreen.tsx"),
   support: () => import("./support/SupportScreen.tsx"),
+<<<<<<< HEAD
   privacy: () => import("./privacy/PrivacyScreen.tsx"),
+=======
+  faq: () => import("./faq/FaqScreen.tsx"),
+>>>>>>> 4dc488a (feat: DEC-36 FAQ page — 5 Q&A items in i18n, FaqScreen with onOpenFaq in SupportScreen)
   // `D-32`: السجلُّ وتفاصيلُه والإشعاراتُ — بطلبِ الراكبِ وحدَه، خارجَ «الرئيسية، التسعير، اختيار الخدمة» (9.4).
   history: () => import("./rider-history-screens.ts"),
 } as const;
@@ -171,9 +175,13 @@ const AccountScreen = lazy(() =>
 const SupportScreen = lazy(() =>
   DEFERRED_RIDER_LOADERS.support().then((m) => ({ default: m.SupportScreen })),
 );
+<<<<<<< HEAD
 const PrivacyScreen = lazy(() =>
   DEFERRED_RIDER_LOADERS.privacy().then((m) => ({ default: m.PrivacyScreen })),
 );
+=======
+const FaqScreen = lazy(() => DEFERRED_RIDER_LOADERS.faq().then((m) => ({ default: m.FaqScreen })));
+>>>>>>> 4dc488a (feat: DEC-36 FAQ page — 5 Q&A items in i18n, FaqScreen with onOpenFaq in SupportScreen)
 
 /** يجلبُ الحزمَ المؤجَّلةَ بعدَ الرسمِ؛ الفشلُ هنا لا يُعرَضُ — الشاشةُ نفسُها تُعيدُ المحاولةَ عندَ فتحِها. */
 export function prefetchDeferredRiderScreens(): void {
@@ -258,11 +266,18 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     landing.support,
   );
   /**
+<<<<<<< HEAD
    * صفحةُ المفقوداتِ المخصَّصةِ (DEC-34) — رايةٌ تفتحُ شاشةَ الدعمِ بصنفِ
    * `lost_item` مبدئيًّا. لا تُدمَجُ معَ `support`: تلكَ تحملُ رحلةً، وهذه
    * تحملُ صنفًا. والرجوعُ يُطفِئُ الرايةَ.
    */
   const [lostFound, setLostFound] = useState(false);
+=======
+   * شاشةُ الأسئلة الشائعةِ (DEC-36) — رايةٌ تفتحُ صفحةَ أسئلةٍ شائعةٍ مكتوبةً
+   * في قواميسِ i18n بلا خادمٍ.
+   */
+  const [faq, setFaq] = useState(false);
+>>>>>>> 4dc488a (feat: DEC-36 FAQ page — 5 Q&A items in i18n, FaqScreen with onOpenFaq in SupportScreen)
   /**
    * شاشةُ الاستغاثةِ (`PD-020` · `ADR 0159`) — **رايةٌ لا معرّفٌ**: الحكمُ كلُّهُ
    * يُقرأُ من القاعدةِ داخلَها، فلا يُرفَعُ إلى الموجِّهِ إلّا «مفتوحةٌ» و«مغلقةٌ».
@@ -310,11 +325,13 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
           orderId={support.orderId}
           onBack={() => setSupport(null)}
           onOpenSos={onOpenSos}
+          onOpenFaq={() => setFaq(true)}
         />
       </Deferred>
     );
   }
 
+<<<<<<< HEAD
   // صفحةُ المفقوداتِ المخصَّصةِ (DEC-34) — شاشةُ الدعمِ بصنفِ `lost_item` مبدئيًّا.
   // **أعلى الترتيبِ بعدَ الدعمِ**: الرجوعُ يُطفِئُ الرايةَ.
   if (lostFound) {
@@ -325,6 +342,13 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
           onBack={() => setLostFound(false)}
           onOpenSos={onOpenSos}
         />
+=======
+  // شاشةُ الأسئلة الشائعةِ (DEC-36) — محتوى ثابتٌ في قواميسِ i18n. **فوقَ الرئيسةِ**.
+  if (faq) {
+    return (
+      <Deferred>
+        <FaqScreen language={language} onBack={() => setFaq(false)} />
+>>>>>>> 4dc488a (feat: DEC-36 FAQ page — 5 Q&A items in i18n, FaqScreen with onOpenFaq in SupportScreen)
       </Deferred>
     );
   }
