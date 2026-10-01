@@ -62,6 +62,10 @@ import {
   createDataRightsRoutes,
   type DataRightsRouteDependencies,
 } from "./routes/me-data-rights.ts";
+import {
+  createEmergencyContactRoutes,
+  type EmergencyContactRouteDependencies,
+} from "./routes/me-emergency-contact.ts";
 import { createPlacesRoutes, type PlacesRouteDependencies } from "./routes/me-places.ts";
 import {
   createNotificationRoutes,
@@ -125,6 +129,7 @@ export interface ServerDependencies {
    * غيابُ الحقلِ = لا مسارَ (`404`)، وحضورُه بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`).
    */
   readonly places?: PlacesRouteDependencies;
+  readonly emergencyContact?: EmergencyContactRouteDependencies;
   /**
    * مسارُ السياسةِ (`F12-17`) — اختياريٌّ بنفسِ المنطقِ: غيابُه = لا مسار (`404`)،
    * وحضورُه بلا تبعياتٍ = تعطيلٌ معلَنٌ (`503`).
@@ -294,6 +299,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.places !== undefined) {
     app.route("/", createPlacesRoutes(deps.places));
+  }
+  if (deps.emergencyContact !== undefined) {
+    app.route("/", createEmergencyContactRoutes(deps.emergencyContact));
   }
   if (deps.policy !== undefined) {
     app.route("/", createPolicyRoutes(deps.policy));
