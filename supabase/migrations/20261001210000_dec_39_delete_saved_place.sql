@@ -56,4 +56,4 @@ end;
 $$;
 
 grant execute on function delete_saved_place(text, text) to service_role;
-revoke execute on function delete_saved_place(text, text) from anon, authenticated;
+revoke execute on function delete_saved_place(text, text) from public, anon, authenticated;
