@@ -7,6 +7,7 @@ import { subscribeOffersChannel } from "../../apps/miniapp/src/services/offers-c
 
 interface MockSocket {
   readonly handlers: Map<string, ((...args: unknown[]) => void)[]>;
+  readonly emitted: { readonly event: string; readonly args: unknown[] }[];
   on: ReturnType<typeof mock>;
   off: ReturnType<typeof mock>;
   removeAllListeners: ReturnType<typeof mock>;
@@ -17,8 +18,10 @@ interface MockSocket {
 
 function createMockSocket(): MockSocket {
   const handlers = new Map<string, ((...args: unknown[]) => void)[]>();
+  const emitted: { readonly event: string; readonly args: unknown[] }[] = [];
   return {
     handlers,
+    emitted,
     on: mock((event: string, handler: (...args: unknown[]) => void) => {
       const list = handlers.get(event) ?? [];
       list.push(handler);
@@ -27,7 +30,9 @@ function createMockSocket(): MockSocket {
     off: mock(() => {}),
     removeAllListeners: mock(() => handlers.clear()),
     disconnect: mock(() => {}),
-    emit: mock(() => {}),
+    emit: mock((event: string, ...args: unknown[]) => {
+      emitted.push({ event, args });
+    }),
     connected: false,
   };
 }
@@ -56,6 +61,18 @@ function createMockDeps(): {
 }
 
 describe("subscribeOffersChannel", () => {
+  it("يُرسِلُ offers:join عند الاتّصال", () => {
+    const onUpdate = mock(() => {});
+    const { deps, socket } = createMockDeps();
+    const sub = subscribeOffersChannel(deps, { onUpdate });
+
+    fireHandlers(socket, "connect");
+
+    const joinEmit = socket.emitted.find((e) => e.event === "offers:join");
+    expect(joinEmit).toBeDefined();
+    sub.disconnect();
+  });
+
   it("يستدعي onUpdate عند ورودِ إشارةِ تحديثٍ", () => {
     const onUpdate = mock(() => {});
     const { deps, socket } = createMockDeps();

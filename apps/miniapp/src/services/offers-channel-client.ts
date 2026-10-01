@@ -66,6 +66,12 @@ export function subscribeOffersChannel(
     return { disconnect: () => {} };
   }
 
+  // الانضمامُ إلى غرفةِ العروضِ فورَ الاتّصالِ — الخادمُ يُصادِّقُ الجلسةَ ثم
+  // يُضمُّ المقبسَ إلى غرفةِ السائقِ. بلا هذه الخطوةِ لا تصلُ إشارةُ التحديثِ.
+  socket.on("connect", () => {
+    socket?.emit("offers:join");
+  });
+
   socket.on("offers:update", () => {
     const elapsed = now() - lastRefreshMs;
     if (elapsed < MIN_REFRESH_INTERVAL_MS) return;

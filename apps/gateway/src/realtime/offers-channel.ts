@@ -8,27 +8,33 @@
  *
  *   ــ **لا يحملُ بياناتِ عرضٍ**: الإشارةُ وحدَها — القراءةُ من الـ API.
  *   ــ **لا يُصدِّقُ حالةَ التوافر**: ذلك قرارُ السائقِ لا الخادمِ.
- *   ــ **لا يُصدِّقُ رمزَ الجلسةِ هنا**: `createSessionVerifier` يفعلُ.
+ *   ــ **لا يُصدِّقُ رمزَ الجلسةِ هنا**: `OffersSessionVerifier` يفعلُ.
  */
 
 import type { Server as IoServer, Socket as IoSocket } from "socket.io";
-import type { RideChannelSessionVerifier } from "./ride-channel.ts";
+
+/** يُحقِّقُ رمزَ جلسةِ Mini App ويُعيدُ مُعرِّفَ السائقِ (telegram_id). */
+export interface OffersSessionVerifier {
+  verify(sessionToken: string): Promise<{ telegramUserId: string } | null>;
+}
 
 export interface OffersChannelDeps {
   readonly io: IoServer;
-  readonly sessions: RideChannelSessionVerifier;
+  readonly sessions: OffersSessionVerifier;
 }
 
 export interface OffersChannel {
   readonly start: () => void;
   readonly stop: () => void;
+  /** يبثُّ إشارةَ تحديثٍ إلى غرفةِ سائقٍ بعينِه. */
+  readonly notifyDriver: (telegramUserId: string) => void;
 }
 
 export function createOffersChannel(deps: OffersChannelDeps): OffersChannel {
-  let unsub: (() => void) | null = null;
+  let connectionHandler: ((socket: IoSocket) => void) | null = null;
 
   function start(): void {
-    deps.io.on("connection", (socket: IoSocket) => {
+    connectionHandler = (socket: IoSocket) => {
       socket.on("offers:join", async () => {
         const sessionToken = socket.handshake.auth?.sessionToken as string | undefined;
         if (sessionToken === undefined) {
@@ -42,19 +48,25 @@ export function createOffersChannel(deps: OffersChannelDeps): OffersChannel {
           return;
         }
 
-        // السائقُ ينضمُّ إلى غرفةٍ خاصّةٍ به — لا غرفةَ للعرضِ نفسِه.
-        socket.join(`driver-offers:${session.riderId}`);
+        // غرفةُ السائقِ بمفتاحِ telegram_id — نفسُ المفتاحِ الذي تُبنى به العروضُ.
+        socket.join(`driver-offers:${session.telegramUserId}`);
         socket.emit("offers:joined", {});
       });
-    });
+    };
+
+    deps.io.on("connection", connectionHandler);
   }
 
   function stop(): void {
-    if (unsub !== null) {
-      unsub();
-      unsub = null;
+    if (connectionHandler !== null) {
+      deps.io.off("connection", connectionHandler);
+      connectionHandler = null;
     }
   }
 
-  return { start, stop };
+  function notifyDriver(telegramUserId: string): void {
+    deps.io.to(`driver-offers:${telegramUserId}`).emit("offers:update");
+  }
+
+  return { start, stop, notifyDriver };
 }

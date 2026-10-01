@@ -45,7 +45,7 @@
  *   ــ **لا صوتَ ولا اهتزازَ**: تنبيهُ المنصّةِ ليسَ ملكَ هذه الشاشةِ.
  */
 
-import { useCallback, useEffect, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import {
   MINIAPP_DEFAULT_LANGUAGE,
   type MiniAppLanguage,
@@ -146,6 +146,8 @@ type BoardState =
       readonly board: DriverOffersResponse;
       /** قراءةُ ساعةِ الجهازِ لحظةَ وصولِ الجوابِ — أساسُ الطرحِ لا أكثرَ. */
       readonly readAtMs: number;
+      /** تحديثٌ آنيٌّ فشلَ — القائمةُ قديمةٌ لكنها ظاهرةٌ. */
+      readonly stale?: boolean;
     }
   | { readonly kind: "failed"; readonly code: string };
 
@@ -208,6 +210,13 @@ export function OffersScreen({
   const [availabilityState, setAvailabilityState] = useState<ActionState>({ kind: "idle" });
   const [rows, setRows] = useState<Readonly<Record<string, ActionState>>>({});
 
+  // مرجعٌ للحالةِ الحاليّةِ — يُقرأُ في تحديثِ الـ realtimeِ دونَ أن يُدخِلَ الحالةَ
+  // في تبعيّاتِ الدالّةِ المُستدعاةِ (التي تُسبِّبُ إعادةَ رسمٍ غيرَ ضروريٍّ).
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   const load = useCallback(async () => {
     setState({ kind: "loading" });
     try {
@@ -221,17 +230,31 @@ export function OffersScreen({
     }
   }, [now, readBoard]);
 
+  /** تحديثٌ من realtime — لا يمسحُ القائمةَ الحاليّةَ عند الفشلِ. */
+  const refreshFromRealtime = useCallback(async () => {
+    try {
+      const board = await readBoard();
+      setState({ kind: "ready", board, readAtMs: now() });
+    } catch {
+      const current = stateRef.current;
+      if (current.kind === "ready") {
+        setState({ ...current, stale: true });
+      }
+    }
+  }, [now, readBoard]);
+
   useEffect(() => {
     void load();
   }, [load]);
 
   // `DEC-32` — اشتراكُ تحديثِ العروضِ الآنيِّ: إن وُجِدَ المنفذُ، يُجدِّدُ القائمةَ
-  // عند كلِّ إشارةٍ. والتحديثُ يُستدعى بـ`load` لا بقراءةٍ مستقلّةٍ — مصدرُ الحقيقةِ واحد.
+  // عند كلِّ إشارةٍ. والتحديثُ يُستدعى بـ`refreshFromRealtime` لا بـ`load` —
+  // ففشلُ القراءةِ لا يمسحُ القائمةَ الحاليّةَ بل يُعلِّمُها قديمةً.
   useEffect(() => {
     if (subscribeToOfferUpdates === undefined) return;
-    const unsubscribe = subscribeToOfferUpdates(() => void load());
+    const unsubscribe = subscribeToOfferUpdates(() => void refreshFromRealtime());
     return unsubscribe;
-  }, [subscribeToOfferUpdates, load]);
+  }, [subscribeToOfferUpdates, refreshFromRealtime]);
 
   const handleAvailability = useCallback(
     async (next: boolean) => {
