@@ -76,6 +76,12 @@
 import "../../../../../packages/shared/i18n/miniapp/ar-parts/driver.ts";
 import { useState } from "react";
 import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
+import { subscribeOffersChannel } from "../../services/offers-channel-client.ts";
+import {
+  productionOffersBaseUrl,
+  productionOffersSessionReader,
+  productionOffersTransport,
+} from "../../services/production-offers-channel.ts";
 import { EmptyState } from "../../system/EmptyState.tsx";
 import { AccountScreen } from "./account/AccountScreen.tsx";
 import { ActivityScreen } from "./activity/ActivityScreen.tsx";
@@ -123,6 +129,16 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
           onOpenSupport={() => setView({ kind: "support" })}
           onOpenAccount={() => setView({ kind: "account" })}
           onBack={() => setView({ kind: "documents" })}
+          subscribeToOfferUpdates={(onUpdate) =>
+            subscribeOffersChannel(
+              {
+                transport: productionOffersTransport,
+                sessions: productionOffersSessionReader,
+                baseUrl: productionOffersBaseUrl(),
+              },
+              { onUpdate },
+            ).disconnect
+          }
         />
       </>
     );

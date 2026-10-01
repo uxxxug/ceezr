@@ -156,6 +156,7 @@ import { type KeyDimension, rateLimitPolicy } from "./rate-limit/policy.ts";
 import { createActiveRideResolver, createSessionVerifier } from "./realtime/adapters.ts";
 import { createHttpBridge } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
+import { createOffersChannel } from "./realtime/offers-channel.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
 import { createUpstashRedis } from "./redis/upstash.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
@@ -362,6 +363,7 @@ let updateDrainer: TelegramUpdateDrainer | null = null;
 type GatewayServer = import("node:http").Server;
 let serverHandle: GatewayServer | null = null;
 let rideChannel: ReturnType<typeof createRideChannel> | null = null;
+let offersChannel: ReturnType<typeof createOffersChannel> | null = null;
 let ioServer: IoServer | null = null;
 
 /**
@@ -400,6 +402,10 @@ const lifecycle = createLifecycle({
       if (rideChannel !== null) {
         rideChannel.stop();
         rideChannel = null;
+      }
+      if (offersChannel !== null) {
+        offersChannel.stop();
+        offersChannel = null;
       }
       if (ioServer !== null) {
         ioServer.close();
@@ -1728,4 +1734,15 @@ if (config.miniappSessionSecret !== null && isLiveLocationBroadcastPermitted(con
     log,
   });
   rideChannel.start();
+
+  offersChannel = createOffersChannel({
+    io: ioServer,
+    sessions: createSessionVerifier(
+      container.sql,
+      config.miniappSessionSecret,
+      () => Date.now(),
+      sessionRevocationStore,
+    ),
+  });
+  offersChannel.start();
 }

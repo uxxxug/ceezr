@@ -36,8 +36,9 @@
  * ## وما لا تفعلُه هذه الشاشةُ عن قصدٍ — وحدودُها مُعلَنةٌ (`ح-5`)
  *
  *   ــ **لا تُجدِّدُ القائمةَ من نفسِها ولا تدقُّ**: لا نداءَ دوريَّ ولا مؤقّتَ
- *      عرضٍ (`F1-07`)، والدفعُ الفوريُّ (`realtime`) **دَينٌ مُعلَنٌ** — فالزرُّ
- *      ظاهرٌ، والباقي يُقرأُ لحظةَ الرسمِ.
+ *      عرضٍ (`F1-07`). والدفعُ الفوريُّ (`realtime`) الدَّينُ المُعلَنُ مُنشَطٌ —
+ *      `subscribeToOfferUpdates` prop يُجدِّدُ القائمةَ عند كلِّ إشارةٍ عبرَ Socket.IO
+ *      (DEC-32 · `ADR 0229`). والزرُّ ظاهرٌ، والباقي يُقرأُ لحظةَ الرسمِ.
  *   ــ **لا خريطةَ ولا خطَّ سيرٍ**: إحداثيّتانِ في التفاصيلِ فحسب، **دَينٌ مُعلَنٌ**.
  *   ــ **لا مدّةَ وصولٍ**: امتناعٌ مُصنَّفٌ (`ADR 0024`) لا تقديرٌ من مسافةٍ.
  *   ــ **لا هويّةَ راكبٍ**: عرضٌ مُحتَملٌ لا يُبيحُ كشفَ راكبٍ لكلِّ الجولةِ.
@@ -109,6 +110,11 @@ export interface OffersScreenProps {
   readonly readBoard?: () => Promise<DriverOffersResponse>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly setAvailability?: (isAvailable: boolean) => Promise<DriverAvailabilityResponse>;
+  /**
+   * اشتراكُ تحديثِ العروضِ الآنيِّ (`DEC-32` · `ADR 0229`) — اختياريٌّ: غيابُهُ يُبقي
+   * السلوكَ كالسابقِ (لا تحديثٌ آليٌّ). حضورُهُ يُجدِّدُ القائمةَ عند كلِّ إشارةٍ.
+   */
+  readonly subscribeToOfferUpdates?: (onUpdate: () => void) => () => void;
   /**
    * قراءةُ ساعةِ الجهازِ — **تُمرَّرُ لا تُستدعى في النطاقِ**: بها يصيرُ الباقي
    * مقيساً في الاختبارِ بلا انتظارِ ثوانٍ حقيقيّةٍ.
@@ -193,6 +199,7 @@ export function OffersScreen({
   readBoard = readDriverOffers,
   reject = rejectDriverOffer,
   setAvailability = setDriverAvailability,
+  subscribeToOfferUpdates,
   now = () => Date.now(),
 }: OffersScreenProps) {
   const t = miniAppTranslator(language);
@@ -217,6 +224,14 @@ export function OffersScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // `DEC-32` — اشتراكُ تحديثِ العروضِ الآنيِّ: إن وُجِدَ المنفذُ، يُجدِّدُ القائمةَ
+  // عند كلِّ إشارةٍ. والتحديثُ يُستدعى بـ`load` لا بقراءةٍ مستقلّةٍ — مصدرُ الحقيقةِ واحد.
+  useEffect(() => {
+    if (subscribeToOfferUpdates === undefined) return;
+    const unsubscribe = subscribeToOfferUpdates(() => void load());
+    return unsubscribe;
+  }, [subscribeToOfferUpdates, load]);
 
   const handleAvailability = useCallback(
     async (next: boolean) => {
