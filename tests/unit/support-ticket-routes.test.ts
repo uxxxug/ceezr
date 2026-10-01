@@ -8,20 +8,13 @@ import { describe, expect, it, mock } from "bun:test";
 import type { Hono } from "hono";
 import {
   createSupportRoutes,
-  type DriverSupportDeps,
-  type RiderSupportDeps,
   type SupportRouteDependencies,
 } from "../../apps/gateway/src/routes/support-tickets.ts";
 import type { PostDisputeCardDependencies } from "../../packages/application/dispute/post-dispute-card.ts";
-import type {
-  OpenedSupportTicketOf,
-  SupportTicketsPage,
-  SupportTicketType,
-} from "../../packages/domain/support/ticket-types.ts";
 
 // ── Stubs ──────────────────────────────────────────────────────────────────
 
-function makeRiderDeps(): RiderSupportDeps {
+function makeRiderDeps(): unknown {
   return {
     sessions: {
       read: async () => ({
@@ -37,18 +30,23 @@ function makeRiderDeps(): RiderSupportDeps {
           reference: "AAAA0001",
           category: "app_problem",
           createdAt: "2026-10-01T00:00:00Z",
-        } as OpenedSupportTicketOf<SupportTicketType>,
+        },
       }),
       listTickets: async () => ({
         ok: true,
-        value: { tickets: [], hasMore: false, nextCursor: null } as SupportTicketsPage,
+        value: {
+          tickets: [],
+          hasMore: false,
+          nextCursor: null,
+          expectedResponseMinutes: 30,
+        },
       }),
     },
     now: () => new Date("2026-10-01T00:00:00Z"),
-  } as unknown as RiderSupportDeps;
+  };
 }
 
-function makeDriverDeps(): DriverSupportDeps {
+function makeDriverDeps(): unknown {
   return {
     sessions: {
       read: async () => ({
@@ -64,51 +62,59 @@ function makeDriverDeps(): DriverSupportDeps {
           reference: "BBBB0002",
           category: "deduction",
           createdAt: "2026-10-01T00:00:00Z",
-        } as OpenedSupportTicketOf<SupportTicketType>,
+        },
       }),
       listTickets: async () => ({
         ok: true,
-        value: { tickets: [], hasMore: false, nextCursor: null } as SupportTicketsPage,
+        value: {
+          tickets: [],
+          hasMore: false,
+          nextCursor: null,
+          expectedResponseMinutes: 30,
+        },
       }),
     },
     now: () => new Date("2026-10-01T00:00:00Z"),
-  } as unknown as DriverSupportDeps;
+  };
 }
 
 function makeCardDeps(published: boolean): PostDisputeCardDependencies {
+  const ctx = published
+    ? {
+        ticket: {
+          id: "aaaaaaaa-0000-0000-0000-000000000001",
+          type: "ride_dispute",
+          status: "open",
+          message: "test",
+          orderId: null,
+          createdAt: new Date("2026-10-01T00:00:00Z"),
+          owner: {
+            telegramId: "111",
+            fullName: "Test",
+            phone: "",
+            telegramUsername: null,
+            languageCode: "ar",
+          },
+          cityName: "Test City",
+          subscription: null,
+          attachmentFileId: null,
+        },
+        groupId: "group-1",
+      }
+    : null;
+
   return {
     context: {
-      read: async () => ({
-        ok: true,
-        value: published
-          ? {
-              ticket: {
-                id: "aaaaaaaa-0000-0000-0000-000000000001",
-                type: "ride",
-                message: "test",
-                owner: {
-                  telegramId: "111",
-                  fullName: "Test",
-                  phone: "",
-                  telegramUsername: null,
-                },
-                cityName: "Test City",
-                subscription: null,
-                attachmentFileId: null,
-              },
-              groupId: "group-1",
-            }
-          : null,
-      }),
+      read: async () => ({ ok: true as const, value: ctx as unknown as never }),
     },
     publisher: {
       publish: async () => ({
-        ok: true,
+        ok: true as const,
         value: published ? "msg-123" : null,
       }),
     },
     recorder: {
-      attach: async () => ({ ok: true, value: undefined }),
+      attach: async () => ({ ok: true as const, value: undefined }),
     },
   };
 }
@@ -134,7 +140,7 @@ describe("مسارات الدعم — نشر البطاقة بعد الفتح (D
     cardDeps.publisher.publish = publishMock;
 
     const app = makeApp({
-      support: makeRiderDeps(),
+      support: makeRiderDeps() as never,
       card: cardDeps,
     });
 
@@ -144,7 +150,7 @@ describe("مسارات الدعم — نشر البطاقة بعد الفتح (D
     });
 
     expect(res.status).toBe(201);
-    const body = await res.json();
+    const body = (await res.json()) as { ok: boolean; reference: string };
     expect(body.ok).toBe(true);
     expect(body.reference).toBe("AAAA0001");
     expect(publishMock).toHaveBeenCalledTimes(1);
@@ -156,7 +162,7 @@ describe("مسارات الدعم — نشر البطاقة بعد الفتح (D
     cardDeps.publisher.publish = publishMock;
 
     const app = makeApp({
-      driverSupport: makeDriverDeps(),
+      driverSupport: makeDriverDeps() as never,
       card: cardDeps,
     });
 
@@ -166,7 +172,7 @@ describe("مسارات الدعم — نشر البطاقة بعد الفتح (D
     });
 
     expect(res.status).toBe(201);
-    const body = await res.json();
+    const body = (await res.json()) as { ok: boolean; reference: string };
     expect(body.ok).toBe(true);
     expect(body.reference).toBe("BBBB0002");
     expect(publishMock).toHaveBeenCalledTimes(1);
@@ -176,7 +182,7 @@ describe("مسارات الدعم — نشر البطاقة بعد الفتح (D
     const cardDeps = makeCardDeps(false);
 
     const app = makeApp({
-      support: makeRiderDeps(),
+      support: makeRiderDeps() as never,
       card: cardDeps,
     });
 
@@ -186,13 +192,13 @@ describe("مسارات الدعم — نشر البطاقة بعد الفتح (D
     });
 
     expect(res.status).toBe(201);
-    const body = await res.json();
+    const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
   });
 
   it("يعمل بلا card dependency — التذكرة تُفتَح ولا تُنشَر بطاقتُها", async () => {
     const app = makeApp({
-      support: makeRiderDeps(),
+      support: makeRiderDeps() as never,
     });
 
     const res = await postTicket(app, "/v1/support/tickets", {
@@ -201,7 +207,7 @@ describe("مسارات الدعم — نشر البطاقة بعد الفتح (D
     });
 
     expect(res.status).toBe(201);
-    const body = await res.json();
+    const body = (await res.json()) as { ok: boolean };
     expect(body.ok).toBe(true);
   });
 });
