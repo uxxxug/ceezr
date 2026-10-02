@@ -2797,9 +2797,13 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
-/* زرُّ الأسئلة الشائعةِ في ترويسةِ الدعمِ (DEC-36) — أخو `.sup__debt-item`. */
-.sup__faq {/* زرُّ كشفِ الخصومِ في ترويسةِ دعمِ السائقِ (DEC-37) */
-.dsup__deductions {  align-self: flex-start;
+/* زرُّ الأسئلة الشائعةِ في ترويسةِ الدعمِ (DEC-36) — أخو `.sup__debt-item`،
+   وزرُّ كشفِ الخصومِ في ترويسةِ دعمِ السائقِ (DEC-37) بالشكلِ نفسِه.
+   (أُصلِحَ 2026-10-03: دمجٌ متعارضٌ ترك ثمانيَ كتلٍ مفتوحةً هنا فتداخلَ كلُّ ما بعدَها
+   في الأنماطِ ولم يُطبَّق نصفُ الملفِّ — `UI-CSS-01`.) */
+.sup__faq,
+.dsup__deductions {
+  align-self: flex-start;
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.7rem;
@@ -2809,20 +2813,25 @@ a.sys__action {
   cursor: pointer;
 }
 
-/* شاشةُ الأسئلة الشائعةِ (DEC-36) — الكتلةُ `rf` */
-.rf {/* شاشةُ كشفِ الخصومِ التفصيليِّ (DEC-37) — الكتلةُ `dt` */
-.dt {  display: flex;
+/* شاشةُ الأسئلة الشائعةِ (DEC-36) — الكتلةُ `rf`، وشاشةُ كشفِ الخصومِ (DEC-37) — الكتلةُ `dt` */
+.rf,
+.dt {
+  display: flex;
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
 }
 
-.rf__title {.dt__title {  font-size: 1.1rem;
+.rf__title,
+.dt__title {
+  font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
 }
 
-.rf__back {.dt__back {  align-self: flex-start;
+.rf__back,
+.dt__back {
+  align-self: flex-start;
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.7rem;
@@ -2832,14 +2841,16 @@ a.sys__action {
   cursor: pointer;
 }
 
-.rf__list {.dt__loading,
+.dt__loading,
 .dt__error,
 .dt__empty {
   color: var(--tg-hint-color, #999);
   font-size: 0.9rem;
 }
 
-.dt__list {  list-style: none;
+.rf__list,
+.dt__list {
+  list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
@@ -2847,12 +2858,16 @@ a.sys__action {
   gap: 0.75rem;
 }
 
-.rf__item {.dt__item {  padding: 0.75rem;
+.rf__item,
+.dt__item {
+  padding: 0.75rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.7rem;
 }
 
-.rf__question {.dt__reference {  font-weight: 600;
+.rf__question,
+.dt__reference {
+  font-weight: 600;
   margin: 0 0 0.25rem;
 }
 
@@ -2860,7 +2875,10 @@ a.sys__action {
   color: var(--tg-hint-color, #999);
   margin: 0;
   font-size: 0.9rem;
-  line-height: 1.6;.dt__kind {
+  line-height: 1.6;
+}
+
+.dt__kind {
   color: var(--tg-subtitle-text-color);
   font-size: 0.85rem;
   margin: 0 0 0.25rem;
@@ -2880,7 +2898,8 @@ a.sys__action {
 .dt__date {
   color: var(--tg-hint-color, #999);
   font-size: 0.8rem;
-  margin: 0;}
+  margin: 0;
+}
 
 /* بابُ الدعمِ من شاشةِ الحسابِ، وزرُّ «مشكلةٌ في هذه الرحلةِ» في تفاصيلِها
    (`F2-12`) — قاعدتانِ صغيرتانِ في كتلتَيهما لا في كتلةِ الدعمِ: الزرُّ يُرسَمُ
