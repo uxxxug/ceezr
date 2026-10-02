@@ -12,6 +12,10 @@
  */
 
 import {
+  admitUpdate,
+  silenceUnknownInGroup,
+} from "../../../../../packages/application/bots/group-chat.ts";
+import {
   handleSurfaceUpdate,
   type MiniAppSurfaceConfig,
   type SurfacePorts,
@@ -58,6 +62,15 @@ export function createRiderBot(
     handleUpdate: async (raw) => {
       const incoming = toIncomingUpdate(raw);
       if (incoming === null) return true;
+      // `BOT-GRP-01`: أوقِفْ مؤشّرَ التحميلِ على الزرِّ فوراً — إخفاقُه لا يمسُّ المعالجةَ.
+      const callbackQueryId = raw.callback_query?.id;
+      if (callbackQueryId !== undefined && sender.answerCallbackQuery !== undefined) {
+        await sender.answerCallbackQuery(callbackQueryId).catch((error: unknown) => {
+          log("bot.rider.answer_callback_failed", { detail: String(error) });
+        });
+      }
+      // `BOT-GRP-01`: في القروبِ لا يمرُّ إلى الحوارِ إلا الأزرارُ والأوامرُ.
+      if (!admitUpdate(incoming)) return true;
 
       // قبل الحوار لا بعده: الحوار يقرأ الجلسة في أوّل سطر. ويُعادُ كلُّه — ترطيبُ اللغة
       // ثم حسابُ الردود — عند تعارضِ مراجعةِ الجلسة (BUG-007): لا تُرسَلُ رسالةٌ قبلَ
@@ -86,6 +99,8 @@ export function createRiderBot(
           return false;
         }
       }
+
+      replies = silenceUnknownInGroup(incoming, replies);
 
       for (const reply of replies) {
         const markup = toTelegramMarkup(reply.keyboard);

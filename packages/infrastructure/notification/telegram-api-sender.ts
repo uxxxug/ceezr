@@ -70,6 +70,12 @@ export interface TelegramSender {
     longitude: number,
     options?: SendOptions,
   ): Promise<string | null>;
+  /**
+   * `BOT-GRP-01` — يُنهي مؤشّرَ التحميلِ على زرٍّ ضُغِطَ. بلا هذا يبقى الزرُّ «يُحمِّلُ»
+   * فيضغطُه المستخدمُ مرّةً بعدَ مرّةٍ (رُئِيَ ثلاثَ ضغطاتٍ على «استلام» الاستغاثةِ).
+   * اختياريٌّ: المُرسِلاتُ المزيّفةُ في الاختباراتِ لا تحتاجُه.
+   */
+  answerCallbackQuery?(callbackQueryId: string): Promise<void>;
 }
 
 export function grammyTelegramSender(token: string): TelegramSender {
@@ -93,6 +99,9 @@ export function grammyTelegramSender(token: string): TelegramSender {
     sendLocation: async (chatId, latitude, longitude) => {
       const sent = await api.sendLocation(chatId, latitude, longitude);
       return String(sent.message_id);
+    },
+    answerCallbackQuery: async (callbackQueryId) => {
+      await api.answerCallbackQuery(callbackQueryId);
     },
   };
 }

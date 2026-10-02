@@ -16,6 +16,10 @@ import {
   handleDriverUpdate,
 } from "../../../../../packages/application/bots/driver-dialog.ts";
 import {
+  admitUpdate,
+  silenceUnknownInGroup,
+} from "../../../../../packages/application/bots/group-chat.ts";
+import {
   handleSurfaceUpdate,
   type MiniAppSurfaceConfig,
   type SurfacePorts,
@@ -67,8 +71,31 @@ export function createDriverBot(
   };
   return {
     handleUpdate: async (raw) => {
+      /**
+       * `BOT-GRP-01` — ترقيةُ قروبٍ تُبطلُ معرّفَه المحفوظَ في `cities` فتتوقّفُ بطاقاتُه بصمتٍ
+       * («group chat was upgraded to a supergroup chat»). لا نُعدّلُ القاعدةَ هنا تلقائياً
+       * (تعديلُ معرّفاتِ القروباتِ فعلُ مسؤولٍ مُدقَّقٌ)، بل نُسجّلُ حدثاً صريحاً بالمعرّفَين.
+       */
+      const migratedFrom = raw.message?.migrate_from_chat_id;
+      const migratedTo = raw.message?.migrate_to_chat_id;
+      if (migratedFrom !== undefined || migratedTo !== undefined) {
+        log("bot.group_migrated_to_supergroup", {
+          oldChatId: String(migratedFrom ?? raw.message?.chat?.id ?? ""),
+          newChatId: String(migratedTo ?? raw.message?.chat?.id ?? ""),
+          action: "update cities group ids via admin_update_city_group_ids",
+        });
+      }
       const incoming = toIncomingUpdate(raw);
       if (incoming === null) return true; // تحديث لا يخصّنا: نعترف بالاستلام ولا نردّ
+      // `BOT-GRP-01`: أوقِفْ مؤشّرَ التحميلِ على الزرِّ فوراً — إخفاقُه لا يمسُّ المعالجةَ.
+      const callbackQueryId = raw.callback_query?.id;
+      if (callbackQueryId !== undefined && sender.answerCallbackQuery !== undefined) {
+        await sender.answerCallbackQuery(callbackQueryId).catch((error: unknown) => {
+          log("bot.driver.answer_callback_failed", { detail: String(error) });
+        });
+      }
+      // `BOT-GRP-01`: في القروبِ لا يمرُّ إلى الحوارِ إلا الأزرارُ والأوامرُ.
+      if (!admitUpdate(incoming)) return true;
 
       // قبل الحوار لا بعده: الحوار يقرأ الجلسة في أوّل سطر، فلا ينفع ترطيبٌ بعده.
       // والحوارُ كلُّه — ترطيبُ اللغة ثم حسابُ الردود — يُعادُ بأكمله عند تعارضِ
@@ -99,6 +126,8 @@ export function createDriverBot(
           return false;
         }
       }
+
+      replies = silenceUnknownInGroup(incoming, replies);
 
       for (const reply of replies) {
         const markup = toTelegramMarkup(reply.keyboard);
