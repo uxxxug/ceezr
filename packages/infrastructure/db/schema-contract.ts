@@ -117,6 +117,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "plan_upgrade_quote",
   "provision_bootstrap_admin",
   "quote_ride",
+  "read_emergency_contact",
   "recompute_rating_averages",
   "record_agent_outcome",
   "record_attendance",
@@ -166,6 +167,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "update_rider_city",
   "update_saved_place",
   "upgrade_plan",
+  "upsert_emergency_contact",
   "upsert_saved_place",
 ];
 

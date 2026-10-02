@@ -13,6 +13,7 @@ import {
   UnconfiguredAssetReader,
 } from "../../../packages/application/driver/vehicle-asset-reader.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
+import type { EmergencyContactDeps } from "../../../packages/application/safety/emergency-contact.ts";
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
 import { parseCitySettings, subscriptionPriceFor } from "../../../packages/domain/policy/entity.ts";
 import type { SubscriptionPlan } from "../../../packages/domain/subscription/entity.ts";
@@ -76,6 +77,10 @@ import { createSettingsRepository } from "../../../packages/infrastructure/polic
 import { PostgresDataRightsStore } from "../../../packages/infrastructure/privacy/data-rights-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
 import { createDriverCannotCompletePort } from "../../../packages/infrastructure/safety/driver-cannot-complete-store.ts";
+import {
+  createEmergencyContactReader,
+  createEmergencyContactWriter,
+} from "../../../packages/infrastructure/safety/emergency-contact-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { HttpObjectExistenceChecker } from "../../../packages/infrastructure/storage/object-existence-checker.ts";
@@ -749,6 +754,25 @@ const places =
       };
 
 /**
+ * DEC-41: مسارُ جهةِ الاتصالِ في الطوارئ — نفسُ سرِّ الجلسةِ ونفسُ نمطِ الأماكنِ.
+ */
+const emergencyContact =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        emergencyContact: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          reader: createEmergencyContactReader(container.sql),
+          writer: createEmergencyContactWriter(container.sql),
+          now: () => new Date(),
+        } satisfies EmergencyContactDeps,
+        log,
+      };
+
+/**
  * مساراتُ اختيارِ الوجهةِ (`F2-03`) — تُركَّبُ مع سرِّ الجلسةِ وحدَه، ولا مزوِّدَ
  * خارجيَّ ههنا: لا مُرمِّزَ جغرافيّاً ولا مفتاحَ خرائطَ (استقلالُ المشروعِ `O-7`
  * ويفرضُه `check-egress-boundary`). والبحثُ والمصادقةُ كلاهما نداءُ دالّةٍ
@@ -1403,6 +1427,7 @@ const app = createServer({
   ...(onboarding === undefined ? {} : { onboarding }),
   ...(consents === undefined ? {} : { consents }),
   ...(places === undefined ? {} : { places }),
+  ...(emergencyContact === undefined ? {} : { emergencyContact }),
   ...(destinations === undefined ? {} : { destinations }),
   ...(quote === undefined ? {} : { quote }),
   ...(rides === undefined ? {} : { rides }),

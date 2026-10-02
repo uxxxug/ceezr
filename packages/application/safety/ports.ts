@@ -106,3 +106,31 @@ export interface SafetyDeliveryPort {
 export interface SafetyCardPublisher {
   publish(card: SafetyDelivery): Promise<Result<string, PortFailureError>>;
 }
+
+/**
+ * DEC-41: جهةُ اتصالٍ للطوارئ — منافذُ قراءةٍ وكتابة.
+ * الكتابةُ upsert (لا حذفَ منفصلٌ: القيمةُ الفارغةُ تعني «لا جهةَ»).
+ */
+export interface EmergencyContact {
+  readonly name: string | null;
+  readonly phone: string | null;
+}
+
+export interface EmergencyContactStoreFailure {
+  readonly code: "EMERGENCY_CONTACT_STORE_FAILED";
+  readonly reason: "STORE_ERROR" | "USER_NOT_FOUND";
+}
+
+export interface EmergencyContactReader {
+  read(
+    telegramUserId: string,
+  ): Promise<Result<EmergencyContact | null, EmergencyContactStoreFailure>>;
+}
+
+export interface EmergencyContactWriter {
+  upsert(input: {
+    readonly telegramUserId: string;
+    readonly name: string;
+    readonly phone: string;
+  }): Promise<Result<{ readonly status: "saved" }, EmergencyContactStoreFailure>>;
+}

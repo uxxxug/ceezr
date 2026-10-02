@@ -915,6 +915,24 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "GET",
+    path: "/v1/me/emergency-contact",
+    file: "apps/gateway/src/routes/me-emergency-contact.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "PUT",
+    path: "/v1/me/emergency-contact",
+    file: "apps/gateway/src/routes/me-emergency-contact.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
     path: "/v1/me/recent-destinations",
     file: "apps/gateway/src/routes/me-places.ts",
     exposure: "مُصادَقٌ بجلسةٍ",
@@ -1347,7 +1365,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * (`F16-03` · `ADR 0221`): مسارُ قطعِ روابطِ التتبُّعِ منَ اللوحةِ — خلفَ
  * حارسِ جلسةِ الإدارةِ كما أخواتُه من مساراتِ اللوحةِ.
  */
-export const ROUTE_POLICY_COUNT = 118;
+export const ROUTE_POLICY_COUNT = 120;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
