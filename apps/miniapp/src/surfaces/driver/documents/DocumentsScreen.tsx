@@ -49,8 +49,10 @@ import {
   recordDocument,
   requestUploadSlot,
   submitDocumentsForReview,
+  type UploadProgress,
   uploadFileToSlotWithProgress,
 } from "./documents-api.ts";
+
 import {
   type DocumentCardModel,
   type DocumentTone,
@@ -75,7 +77,7 @@ export interface DocumentsScreenProps {
     readonly uploadUrl: string;
     readonly file: Blob;
     readonly contentType: string;
-    readonly onProgress?: (progress: number | null) => void;
+    readonly onProgress?: (progress: UploadProgress) => void;
   }) => Promise<void>;
   readonly record?: (input: {
     readonly docType: ApiDriverDocumentType;
@@ -106,8 +108,8 @@ const TONE_BADGE: Record<DocumentTone, { readonly modifier: string }> = {
 
 /** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ.
  * `preview` رُفِعَ بعدَ DEC-31 (زرُّ عرضِ الوثيقةِ موصولٌ).
- * `progress` رُفِعَ بعدَ ربطِ `uploadFileToSlotWithProgress` بالشاشةِ (DEC-28 إكمالٌ). */
-const DECLARED_DEBT: readonly string[] = [];
+ * `progress` رُفِعَ بعدَ ربطِ `uploadFileToSlotWithProgress` بالشاشةِ (DEC-28 إكمالٌ). */ /** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ. */ const DECLARED_DEBT: readonly string[] =
+  [];
 
 type BoardState =
   | { readonly kind: "loading" }
@@ -117,6 +119,7 @@ type BoardState =
 type RowState =
   | { readonly kind: "idle" }
   | { readonly kind: "busy"; readonly stepKey: string; readonly progress?: number | null }
+  | { readonly kind: "busy"; readonly stepKey: string; readonly progress?: UploadProgress }
   | { readonly kind: "failed"; readonly key: string; readonly maxBytes?: number }
   | { readonly kind: "done"; readonly replaced: boolean };
 
@@ -222,12 +225,9 @@ export function DocumentsScreen({
           uploadUrl: slot.upload_url,
           file,
           contentType: file.type,
-          onProgress: (p) =>
-            setRow(docType, {
-              kind: "busy",
-              stepKey: "driver.documents.step.uploading",
-              progress: p,
-            }),
+          onProgress: (progress) => {
+            setRow(docType, { kind: "busy", stepKey: "driver.documents.step.uploading", progress });
+          },
         });
       } catch (thrown) {
         setRow(docType, { kind: "failed", key: documentsErrorKey(codeOf(thrown)) });
@@ -425,14 +425,27 @@ export function DocumentsScreen({
               ) : null}
 
               {row.kind === "busy" ? (
-                <p className="dd__step">
-                  {row.progress === undefined || row.progress === null
-                    ? t(row.stepKey)
-                    : t("driver.documents.step.uploadingProgress").replace(
-                        "{percent}",
-                        String(row.progress),
-                      )}
-                </p>
+                <>
+                  <p className="dd__step">{t(row.stepKey)}</p>
+                  {row.stepKey === "driver.documents.step.uploading" &&
+                  row.progress !== undefined ? (
+                    <div
+                      className="dd__progress"
+                      role="progressbar"
+                      aria-valuenow={row.progress ?? undefined}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    >
+                      <div
+                        className="dd__progress-bar"
+                        style={{ width: `${row.progress ?? 0}%` }}
+                      />
+                      <span className="dd__progress-text">
+                        {row.progress !== null ? `${row.progress}%` : "…"}
+                      </span>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
               {row.kind === "failed" ? (
                 <p className="dd__error" role="status">

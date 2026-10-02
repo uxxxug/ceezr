@@ -466,7 +466,7 @@ describe("القاعدة ٩ — مسافةُ الأثرِ المسجَّلِ ت�
   it("مفتاحُ مسافةٍ لا يقعُ تحتَ الوترِ ولا الأثرِ يُسقِطُ الحاجزَ", () => {
     const problems = straightLineProblems(
       input({
-        view: VIEW + '\nconst bad = "rider.summary.trip.meters";\n',
+        view: `${VIEW}\nconst bad = "rider.summary.trip.meters";\n`,
       }),
     );
     expect(problems.some((problem) => problem.includes("rider.summary.trip.meters"))).toBe(true);
