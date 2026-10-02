@@ -45,7 +45,20 @@ export interface DbOptions {
   readonly onQueryDeadline?: (info: { readonly deadlineMs: number }) => void;
   /** اسمُ التطبيقِ في `pg_stat_activity`؛ غيابُه يُبقي افتراضَ المكتبةِ. */
   readonly applicationName?: string;
+  /**
+   * `OPS-POOL-01` — ثوانٍ يُغلَقُ بعدَها اتّصالٌ خاملٌ فيعودُ مقعدُه إلى Supavisor. غيابُها ⇒
+   * `DEFAULT_DB_IDLE_TIMEOUT_SECONDS`؛ و`null` ⇒ لا إغلاقَ (تجمُّعُ الأقفالِ: القفلُ ملكُ الجلسةِ).
+   */
+  readonly idleTimeoutSeconds?: number | null;
 }
+
+/**
+ * `OPS-POOL-01` — بلا هذا لا يُحرَّرُ اتّصالٌ فُتِحَ مرّةً، ومجموعُ تجمُّعاتِ العمليةِ الواحدةِ (20)
+ * يفوقُ `pool_size` في Supavisor (15، وضعُ الجلسةِ). فنسخةُ النشرِ الجديدةُ تُقلعُ بجانبِ القديمةِ
+ * فلا تجدُ مقعداً (`EMAXCONNSESSION`) وتسقطُ فحوصُها — مرصودٌ: نشرُ 5ecfe94 فشلَ 2026-10-02.
+ * 20 ثانيةً تُبقي الاتّصالَ حارّاً بينَ دوراتِ المهامِّ (كلَّ 20–60 ثانيةً) وتحرّرُه في التداخلِ.
+ */
+export const DEFAULT_DB_IDLE_TIMEOUT_SECONDS = 20;
 
 /** وضعُ pooler المُكتشَف من رابط الاتصال. */
 export type DbPoolerMode = "transaction" | "session" | "direct" | "unknown";
@@ -91,6 +104,9 @@ export function createSql(options: DbOptions): Sql {
   const sql = postgres(options.connectionString, {
     max: options.max ?? DEFAULT_DB_POOL_MAX,
     prepare: resolvePrepare(options),
+    ...(options.idleTimeoutSeconds === null
+      ? {}
+      : { idle_timeout: options.idleTimeoutSeconds ?? DEFAULT_DB_IDLE_TIMEOUT_SECONDS }),
     onnotice: () => {},
     transform: { undefined: null },
     ...(options.applicationName === undefined
