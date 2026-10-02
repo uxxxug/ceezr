@@ -1637,6 +1637,7 @@ internal -> staging -> canary -> حمل منخفض -> حمل مُتحكَّم ->
 | 2026-10-03 | `UI-PICKUP-01` | وكيل Perplexity Computer | الطلبُ كانَ مستحيلاً بلا موقعِ الجهازِ. صارَ في شاشةِ السعرِ «اختر مكان الالتقاط بالاسم» وسطرُ «الالتقاط: …» بزرِّ تغييرٍ، بإعادةِ استعمالِ شاشةِ الوجهةِ بغرضِ `pickup` | `apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx` · `destination/DestinationScreen.tsx` · القواميس الثلاثة | مُنفَّذ | PR (هذا) |
 | 2026-10-03 | `UI-DESIGN-01` | وكيل Perplexity Computer | «ألوانٌ باهتةٌ كأنّنا في 1999» و«الشاشةُ تهتزُّ»: خطُّ النظامِ بدلَ Tahoma، طبقةُ مظهرٍ موحَّدةٌ (خلفيّةٌ ثانويّةٌ وبطاقاتٌ وفعلٌ أساسيٌّ عريضٌ وأزرارٌ افتراضيّةٌ)، المحتوى من الأعلى لا موسَّطاً عموديّاً، رئيسةُ الراكبِ ببطاقةِ طلبٍ وشبكةِ قائمةٍ وبلا صندوقِ «الخريطةُ غيرُ متاحةٍ» | `apps/miniapp/src/styles/global.css` · `home/HomeScreen.tsx` · `scripts/lib/css-class-coverage.ts` | مُنفَّذ | PR (هذا) |
 | 2026-10-03 | `UI-COPY-02` | وكيل Perplexity Computer | نزعُ التشكيلِ الإعرابيِّ من نصوصِ الواجهةِ العربيّةِ (1004 نصّاً؛ تبقى الشدّةُ واسمُ «وَصْلة») — كانَ يجعلُ الواجهةَ تُقرأُ نصّاً مدرسيّاً | `packages/shared/i18n/miniapp/ar.json` · `scripts/lib/ride-summary-contract.ts` | مُنفَّذ | PR (هذا) |
+| 2026-10-03 | `UI-POLISH-02` | وكيل Perplexity Computer | مرصودٌ بعدَ النشرِ في متصفّحٍ حقيقيٍّ: «قرب مطار مطار … نحو 0 متر» يُسكَتُ دونَ 50 م، سطرُ «مدينتك الحالية» اليتيمُ يُخفى بلا اسمٍ، وسمُ «نوع الخدمة» كانَ يتراكبُ على الإطارِ، و«أعد المحاولة» ثانويٌّ | `DestinationScreen.tsx` · `HomeScreen.tsx` · `QuoteScreen.tsx` · `global.css` | مُنفَّذ | PR (هذا) |
 
 ---
 

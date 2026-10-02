@@ -5472,8 +5472,12 @@ body {
   background: var(--tg-secondary-bg-color);
 }
 
+/* `UI-POLISH-02`: الوسمُ يطفو فيصيرُ عنصراً عاديّاً فوقَ الشبكةِ لا على حدِّ الإطارِ. */
 .rh__services > legend {
+  float: inline-start;
   grid-column: 1 / -1;
+  inline-size: 100%;
+  padding-inline: 0.25rem;
 }
 
 .rh__service {
@@ -5530,4 +5534,10 @@ body {
 .qt__pickup {
   border: 0;
   box-shadow: 0 1px 3px rgb(0 0 0 / 0.06);
+}
+
+/* `UI-POLISH-02`: «أعد المحاولة» ثانويٌّ تحتَ «اختر مكان الالتقاط بالاسم» — فعلٌ أساسيٌّ واحدٌ في الشاشةِ. */
+.qt__retry {
+  font: inherit;
+  cursor: pointer;
 }
