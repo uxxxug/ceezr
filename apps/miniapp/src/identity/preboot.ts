@@ -28,9 +28,10 @@ interface PrebootState {
   /** وعدُ تبادلِ الجلسةِ — يُستهلَكُ من `boot.ts`. */
   readonly session: Promise<ExchangeResponse>;
   /** وعدُ قراءةِ الدورِ (ردُّ `/v1/me` الخامُ أو `null`) — يُستهلَكُ من `viewer.ts`. */
-  readonly viewer: Promise<unknown>;
+  // `UI-LOOP-01`: يُستهلَكُ مرّةً واحدةً ثمّ يصيرُ `null` — القراءةُ التاليةُ من الخادمِ.
+  viewer: Promise<unknown> | null;
   /** وعدُ قراءةِ الموافقاتِ (ردُّ `/v1/consents` الخامُ أو `null`) — يُستهلَكُ من `consent-api.ts`. */
-  readonly consents: Promise<unknown>;
+  consents: Promise<unknown> | null;
   /** رمزُ الوصولِ من التبادلِ — للتحقّقِ من أنَّ النتائجَ لنفسِ الجلسةِ. */
   accessToken: string;
 }
@@ -75,7 +76,12 @@ export function consumePrebootSession(): Promise<ExchangeResponse> | null {
 export function consumePrebootViewer(accessToken: string): Promise<unknown> | null {
   const raw = readPreboot();
   if (raw === undefined || raw.accessToken !== accessToken) return null;
-  return raw.viewer;
+  // `UI-LOOP-01`: مرّةً واحدةً. كانَ يُعيدُ القراءةَ الأولى نفسَها لكلِّ نداءٍ، فبعدَ التسجيلِ
+  // بقيَ الموجّهُ يرى «غيرَ مسجَّلٍ» ويرى سطحُ التسجيلِ «مسجَّلاً» فيتبادلانِ بلا نهايةٍ —
+  // وهذا «الاهتزازُ» الذي يظهرُ ويختفي على الشاشةِ.
+  const viewer = raw.viewer;
+  raw.viewer = null;
+  return viewer;
 }
 
 /**
@@ -88,7 +94,10 @@ export function consumePrebootViewer(accessToken: string): Promise<unknown> | nu
 export function consumePrebootConsents(accessToken: string): Promise<unknown> | null {
   const raw = readPreboot();
   if (raw === undefined || raw.accessToken !== accessToken) return null;
-  return raw.consents;
+  // `UI-LOOP-01`: مرّةً واحدةً — كالقراءةِ أعلاه، وإلّا بقيَت موافقةٌ قديمةٌ تُعرَضُ بعدَ قَبولِها.
+  const consents = raw.consents;
+  raw.consents = null;
+  return consents;
 }
 
 /** يُمسحُ ما قدّمَه السكربتُ الساكنُ — بعدَ استهلاكِه أو عندَ الفشلِ. */
