@@ -14,6 +14,12 @@ export interface RawTelegramUpdate {
   readonly update_id?: number;
   readonly message?: {
     readonly chat?: { readonly id?: number | string };
+    /**
+     * `BOT-GRP-01` — ترقيةُ القروبِ إلى «سوبر قروب» تُغيّرُ معرّفَه. تلغرامُ يُبلغُ بها برسالةِ
+     * خدمةٍ: `migrate_to_chat_id` في القديمِ، و`migrate_from_chat_id` في الجديدِ.
+     */
+    readonly migrate_to_chat_id?: number;
+    readonly migrate_from_chat_id?: number;
     readonly from?: { readonly id?: number | string; readonly language_code?: string };
     readonly text?: string;
     /** ثانية Unix. تلغرام يُرسله في كل رسالة، وهو زمن الإصلاحة لا زمن وصولها إلينا. */
@@ -39,6 +45,8 @@ export interface RawTelegramUpdate {
     readonly caption?: string;
   };
   readonly callback_query?: {
+    /** معرّفُ الضغطةِ — يُجابُ به `answerCallbackQuery` فيتوقّفُ مؤشّرُ التحميلِ على الزرّ. */
+    readonly id?: string;
     readonly data?: string;
     readonly from?: { readonly id?: number | string; readonly language_code?: string };
     readonly message?: { readonly chat?: { readonly id?: number | string } };
