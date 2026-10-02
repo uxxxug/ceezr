@@ -25,7 +25,11 @@
  *   ــ **لا تُظهِرُ زرَّ إعادةٍ فوقَ تهدئةٍ**: تقولُ الثانيةَ الباقيةَ.
  */
 
-import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import {
+  MINIAPP_DEFAULT_LANGUAGE,
+  type MiniAppLanguage,
+  miniAppTranslator,
+} from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { TicketsScreen } from "../../support/TicketsScreen.tsx";
 import type { OpenTicketInput, ReadTicketsInput } from "../../support/ticket-api.ts";
 import type { OpenTicketResponse, SupportTicketsResponse } from "../../support/ticket-contract.ts";
@@ -52,7 +56,8 @@ export interface SupportScreenProps {
    * صنفٌ مبدئيٌّ إجباريٌّ (DEC-34) — حينَ يُمرَّرُ يَطغى على اشتقاقِ `orderId`.
    * يُستخدَمُ لصفحةِ المفقوداتِ المخصَّصةِ: `initialCategory={"lost_item"}`.
    */
-  readonly initialCategory?: RiderSupportCategory | null;
+  readonly initialCategory?: RiderSupportCategory | null /** مدخلُ صفحةِ الأسئلة الشائعةِ (DEC-36) — اختياريٌّ. */;
+  readonly onOpenFaq?: () => void;
   readonly openTicket?: (input: {
     readonly category: RiderSupportCategory;
     readonly message: string;
@@ -62,11 +67,11 @@ export interface SupportScreenProps {
 }
 
 /** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ.
- * `lostFound` رُفِعَ بعدَ DEC-34 (صفحةُ المفقوداتِ المخصَّصةِ موصولةٌ). */
+ * `lostFound` رُفِعَ بعدَ DEC-34 (صفحةُ المفقوداتِ المخصَّصةِ موصولةٌ).
+ * `faq` رُفِعَ بعدَ DEC-36 (صفحةُ الأسئلة الشائعةِ مكتوبةٌ وموصولةٌ). */
 const DECLARED_DEBT: readonly string[] = [
   "rider.support.debt.attachment",
   "rider.support.debt.thread",
-  "rider.support.debt.faq",
 ];
 
 export function SupportScreen({
@@ -75,9 +80,11 @@ export function SupportScreen({
   onOpenSos,
   orderId = null,
   initialCategory = null,
+  onOpenFaq,
   openTicket,
   readTickets = readSupportTickets,
 }: SupportScreenProps) {
+  const t = miniAppTranslator(language ?? MINIAPP_DEFAULT_LANGUAGE);
   const open = (input: OpenTicketInput): Promise<OpenTicketResponse> =>
     openTicket === undefined
       ? openSupportTicket(input)
@@ -95,7 +102,16 @@ export function SupportScreen({
     <TicketsScreen
       declaredDebt={DECLARED_DEBT}
       header={
-        onOpenSos === undefined ? undefined : <SosEntry onOpen={onOpenSos} language={language} />
+        onOpenSos === undefined && onOpenFaq === undefined ? undefined : (
+          <>
+            {onOpenSos !== undefined && <SosEntry onOpen={onOpenSos} language={language} />}
+            {onOpenFaq !== undefined && (
+              <button type="button" className="sup__faq" onClick={onOpenFaq}>
+                {t("rider.support.faq.open")}
+              </button>
+            )}
+          </>
+        )
       }
       // رحلةٌ جاءَ منها الراكبُ = شكوى رحلةٍ **مبدئيّاً** لا قطعاً: يُبدِّلُها.
       initialCategory={derivedCategory}

@@ -2797,6 +2797,70 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
+/* زرُّ الأسئلة الشائعةِ في ترويسةِ الدعمِ (DEC-36) — أخو `.sup__debt-item`. */
+.sup__faq {
+  align-self: flex-start;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* شاشةُ الأسئلة الشائعةِ (DEC-36) — الكتلةُ `rf` */
+.rf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.rf__title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.rf__back {
+  align-self: flex-start;
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.rf__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rf__item {
+  padding: 0.75rem;
+  border: 1px solid var(--tg-hint-color, #ccc);
+  border-radius: 0.7rem;
+}
+
+.rf__question {
+  font-weight: 600;
+  margin: 0 0 0.25rem;
+}
+
+.rf__answer {
+  color: var(--tg-hint-color, #999);
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
 /* بابُ الدعمِ من شاشةِ الحسابِ، وزرُّ «مشكلةٌ في هذه الرحلةِ» في تفاصيلِها
    (`F2-12`) — قاعدتانِ صغيرتانِ في كتلتَيهما لا في كتلةِ الدعمِ: الزرُّ يُرسَمُ
    في تلكَ الشاشتَينِ، والصنفُ يتبعُ موضعَه لا الشاشةَ التي يفتحُها. */
