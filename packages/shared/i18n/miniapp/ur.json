@@ -883,7 +883,7 @@
   "rider.history.when": "{day} {month} · {hour}:{minute}",
   "rider.history.when.unreadable": "اعلان کردہ ٹائم زون میں درخواست کا وقت پڑھا نہیں جا سکا۔",
   "rider.home.account.open": "میرا اکاؤنٹ",
-  "rider.home.city.status": "شہر کی صورتحال",
+  "rider.home.city.status": "آپ کا موجودہ شہر",
   "rider.home.destination.action": "جاری رکھیں",
   "rider.home.destination.prompt": "کہاں جانا ہے؟",
   "rider.home.error.account": "اس صارف کا کوئی اکاؤنٹ نہیں ہے۔ ایپ بوٹ سے دوبارہ کھولیں۔",
@@ -903,7 +903,7 @@
   "rider.home.retry": "دوبارہ کوشش کریں",
   "rider.home.service.delivery": "ڈیلیوری",
   "rider.home.service.transport": "سفر",
-  "rider.home.title": "کہاں جانا ہے؟",
+  "rider.home.title": "وصلہ میں خوش آمدید",
   "rider.notifications.back": "واپس",
   "rider.notifications.channel.critical": "براہ راست",
   "rider.notifications.channel.in_app": "ایپ کے اندر",
@@ -1344,5 +1344,13 @@
   "driver.documents.error.OBJECT_NOT_SUBMITTED": "یہ دستاویز ابھی اپ لوڈ نہیں کی گئی۔",
   "driver.documents.view": "دستاویز دیکھیں",
   "driver.documents.viewing": "کھول رہا ہے...",
-  "driver.documents.camera": "تصویر لیں"
+  "driver.documents.camera": "تصویر لیں",
+  "rider.pickup.title": "ہم آپ کو کہاں سے لیں؟",
+  "rider.pickup.confirm": "یہ پک اپ مقام منتخب کریں",
+  "rider.pickup.byName": "نام سے پک اپ مقام منتخب کریں",
+  "rider.pickup.current": "پک اپ: آپ کا موجودہ مقام",
+  "rider.pickup.named": "پک اپ: {label}",
+  "rider.pickup.change": "پک اپ مقام بدلیں",
+  "rider.home.service.legend": "سروس",
+  "rider.home.destination.placeholder": "مثال: کنگ عبدالعزیز ایئرپورٹ یا الروضہ"
 }

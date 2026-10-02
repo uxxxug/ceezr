@@ -205,7 +205,7 @@ export function HomeScreen({
 
   const services = (
     <fieldset className="rh__services">
-      <legend className="sys__hint">{t("rider.home.destination.prompt")}</legend>
+      <legend className="sys__hint">{t("rider.home.service.legend")}</legend>
       {HOME_SERVICES.map((name) => (
         <button
           key={name}
@@ -307,44 +307,50 @@ export function HomeScreen({
     );
   }
 
+  // `UI-DESIGN-01`: الطلبُ أوّلاً — بطاقةٌ واحدةٌ فيها الخدمةُ والوجهةُ والزرُّ، ثمَّ الأماكنُ،
+  // ثمَّ القائمةُ شبكةً في الأسفلِ. كانت أربعةُ أزرارِ تنقّلٍ وزرُّ استغاثةٍ تسبقُ حقلَ الوجهةِ
+  // فيبدو التطبيقُ قائمةَ أزرارٍ لا تطبيقَ مشاوير.
+  const hasMenu =
+    historyEntry !== null ||
+    notificationsEntry !== null ||
+    lostFoundEntry !== null ||
+    accountEntry !== null;
   return (
     <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
-      {title}
-      {historyEntry}
-      {notificationsEntry}
-      {lostFoundEntry}
-      {accountEntry}
-      {sosEntry}
-
-      {/* الحدُّ الأوّلُ مكتوبٌ حيثُ يُتوقَّعُ الرسمُ — لا فراغٌ ولا رسمٌ كاذبٌ. */}
-      {mapProvider === "none" ? (
-        <p className="rh__map rh__map--off" role="status">
-          {t("rider.home.map.unavailable")}
-        </p>
-      ) : (
-        <div className="rh__map" data-provider={mapProvider} />
-      )}
-
-      <label className="rh__field" htmlFor="rh-destination">
-        <span className="sys__hint">{t("rider.home.destination.prompt")}</span>
-        <input
-          id="rh-destination"
-          className="rh__input"
-          type="text"
-          value={typed}
-          onChange={(event) => setTyped(event.target.value)}
-        />
-      </label>
-      <button
-        type="button"
-        className="sys__action"
-        disabled={!isSubmittableDestination(typed)}
-        onClick={() => choose(typed.trim(), null, null)}
-      >
-        {t("rider.home.destination.action")}
-      </button>
-
-      {services}
+      <div className="rh__hero">
+        {title}
+        {services}
+        {mapProvider === "none" ? null : <div className="rh__map" data-provider={mapProvider} />}
+        <label className="rh__field" htmlFor="rh-destination">
+          <span className="rh__field-label">{t("rider.home.destination.prompt")}</span>
+          <input
+            id="rh-destination"
+            className="rh__input"
+            type="text"
+            enterKeyHint="search"
+            autoComplete="off"
+            placeholder={t("rider.home.destination.placeholder")}
+            value={typed}
+            onChange={(event) => setTyped(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && isSubmittableDestination(typed)) {
+                choose(typed.trim(), null, null);
+              }
+            }}
+          />
+        </label>
+        {mapProvider === "none" ? (
+          <p className="sys__hint">{t("rider.home.map.unavailable")}</p>
+        ) : null}
+        <button
+          type="button"
+          className="sys__action rh__go"
+          disabled={!isSubmittableDestination(typed)}
+          onClick={() => choose(typed.trim(), null, null)}
+        >
+          {t("rider.home.destination.action")}
+        </button>
+      </div>
 
       <h2 className="rh__heading">{t("rider.home.places.title")}</h2>
       {state.places.length === 0 ? (
@@ -385,6 +391,15 @@ export function HomeScreen({
         </ul>
       )}
 
+      {hasMenu ? (
+        <nav className="rh__menu">
+          {historyEntry}
+          {notificationsEntry}
+          {lostFoundEntry}
+          {accountEntry}
+        </nav>
+      ) : null}
+      {sosEntry}
       {cityBar}
     </section>
   );

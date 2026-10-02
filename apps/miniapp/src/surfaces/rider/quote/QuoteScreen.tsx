@@ -75,6 +75,7 @@ import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { initLocation, openLocationSettings, requestLocation } from "../../../tg/index.ts";
+import { DestinationScreen } from "../destination/DestinationScreen.tsx";
 import { locationRefusalKey, offersLocationSettings } from "../destination/destination-view.ts";
 import { newIdempotencyKey } from "../search/search-view.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
@@ -203,6 +204,17 @@ export function QuoteScreen({
   const [notes, setNotes] = useState("");
   /** خطأُ تحقُّقِ وصفِ الطردِ — يُعرَضُ عندَ الضغطِ على «اطلُبْ» للتوصيلِ. */
   const [parcelError, setParcelError] = useState<string | null>(null);
+  /**
+   * `UI-PICKUP-01`: نقطةُ التقاطٍ اختارَها الراكبُ بالاسمِ — تَغلِبُ موقعَ الجهازِ. و`null`
+   * = «موقعي الحاليُّ». كانَ الطلبُ مستحيلاً على مَن رفضَ الإذنَ أو لا يملكُ مضيفُه
+   * `LocationManager`، فلا طريقَ إلى السائقِ إلّا الجهازُ.
+   */
+  const [manualPickup, setManualPickup] = useState<{
+    readonly label: string;
+    readonly lat: number;
+    readonly lng: number;
+  } | null>(null);
+  const [pickingPickup, setPickingPickup] = useState(false);
   const mounted = useRef(true);
   /** ردٌّ متأخِّرٌ لسؤالٍ قديمٍ **يُطرَحُ** ولا يُعرَضُ (عينُ حكمِ `SR-03`). */
   const issued = useRef(0);
@@ -220,7 +232,10 @@ export function QuoteScreen({
     const ticket = ++issued.current;
     setSystem(null);
     setState({ kind: "locating" });
-    const here = await readDeviceLocation();
+    const here =
+      manualPickup === null
+        ? await readDeviceLocation()
+        : ({ ok: true, lat: manualPickup.lat, lng: manualPickup.lng } as const);
     if (!mounted.current || ticket !== issued.current) return;
     if (!here.ok) {
       setState({ kind: "location_refused", reason: here.reason });
@@ -254,15 +269,36 @@ export function QuoteScreen({
       }
       setState({ kind: "rejected", code: codeOf(thrown) ?? "UNKNOWN" });
     }
-  }, [quote, readDeviceLocation, destination.lat, destination.lng]);
+  }, [quote, readDeviceLocation, destination.lat, destination.lng, manualPickup]);
 
   useEffect(() => {
     void ask();
   }, [ask]);
 
+  if (pickingPickup) {
+    return (
+      <DestinationScreen
+        purpose="pickup"
+        initialLanguage={language}
+        onBack={() => setPickingPickup(false)}
+        {...(onOpenSos === undefined ? {} : { onOpenSos })}
+        onConfirmed={(point) => {
+          setManualPickup({ label: point.label, lat: point.lat, lng: point.lng });
+          setPickingPickup(false);
+        }}
+      />
+    );
+  }
+
   if (system !== null) {
     return <SystemScreen state={system.screen} onAction={() => void ask()} />;
   }
+
+  const pickByName = (
+    <button type="button" className="sys__action" onClick={() => setPickingPickup(true)}>
+      {t("rider.pickup.byName")}
+    </button>
+  );
 
   const cityLine = (name: { readonly ar: string; readonly en: string } | null) =>
     name === null ? null : (
@@ -287,6 +323,7 @@ export function QuoteScreen({
       return (
         <div className="sys" role="alert">
           <p className="sys__body">{t(locationRefusalKey(state.reason))}</p>
+          {pickByName}
           <button type="button" className="sys__action" onClick={() => void ask()}>
             {t("rider.quote.retry")}
           </button>
@@ -342,6 +379,20 @@ export function QuoteScreen({
     return (
       <div className="qt__result">
         {cityLine({ ar: response.city.nameAr, en: response.city.nameEn })}
+        <div className="qt__pickup">
+          <p className="qt__pickup-line">
+            {manualPickup === null
+              ? t("rider.pickup.current")
+              : t("rider.pickup.named").replace("{label}", manualPickup.label)}
+          </p>
+          <button
+            type="button"
+            className="qt__pickup-change"
+            onClick={() => setPickingPickup(true)}
+          >
+            {t("rider.pickup.change")}
+          </button>
+        </div>
 
         <section className="qt__measures" aria-label={t("rider.quote.measures")}>
           {distance === null ? (
