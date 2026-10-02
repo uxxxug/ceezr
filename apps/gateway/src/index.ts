@@ -27,6 +27,10 @@ import {
   createDestinationResolver,
   createDestinationSearcher,
 } from "../../../packages/infrastructure/destinations/destinations-store.ts";
+import {
+  createTicketThreadReader,
+  createTicketThreadWriter,
+} from "../../../packages/infrastructure/dispute/ticket-threads-store.ts";
 import { PostgresDriverActivityStore } from "../../../packages/infrastructure/driver/driver-activity-store.ts";
 import { PostgresDriverDocumentStore } from "../../../packages/infrastructure/driver/driver-documents-store.ts";
 import { PostgresDriverJobStore } from "../../../packages/infrastructure/driver/driver-job-store.ts";
@@ -81,6 +85,10 @@ import {
   createEmergencyContactReader,
   createEmergencyContactWriter,
 } from "../../../packages/infrastructure/safety/emergency-contact-store.ts";
+import {
+  createNotificationPrefsReader,
+  createNotificationPrefsWriter,
+} from "../../../packages/infrastructure/safety/notification-prefs-store.ts";
 import { createSosSurfaceReader } from "../../../packages/infrastructure/safety/sos-surface-store.ts";
 import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { HttpObjectExistenceChecker } from "../../../packages/infrastructure/storage/object-existence-checker.ts";
@@ -1070,8 +1078,37 @@ const support =
           now: () => new Date(),
           store: new PostgresDriverSupportStore(container.sql),
         },
+        threads: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          reader: createTicketThreadReader(container.sql),
+          writer: createTicketThreadWriter(container.sql),
+          now: () => new Date(),
+        },
         card: container.supportCard,
         log,
+      };
+
+/**
+ * تفضيلاتُ الإشعاراتِ (DEC-42) — مسارُ `GET/PUT /v1/me/notification-preferences`.
+ * موصولٌ دائمًا في حاويةِ البوّابةِ: القارئُ والكاتبُ على القاعدة، والجلسةُ من
+ * التطبيقِ المصغَّرِ. غيابُ `miniappSessionSecret` يُلغي المسارَ كله.
+ */
+const notificationPrefs =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        notificationPrefs: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          reader: createNotificationPrefsReader(container.sql),
+          writer: createNotificationPrefsWriter(container.sql),
+          now: () => new Date(),
+        },
       };
 
 /**
@@ -1444,6 +1481,7 @@ const app = createServer({
   ...(driverDeductions === undefined ? {} : { driverDeductions }),
   ...(driverVehicle === undefined ? {} : { driverVehicle }),
   ...(notifications === undefined ? {} : { notifications }),
+  ...(notificationPrefs === undefined ? {} : { notificationPrefs }),
   ...(driverLocation === undefined ? {} : { driverLocation }),
   ...(coreEventIntake === undefined ? {} : { coreEventIntake }),
   policy: {
