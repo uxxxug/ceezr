@@ -1219,7 +1219,7 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   {
     file: "tests/integration/safety-sos.test.ts",
     suites: ["SOS safety outbox على PostgreSQL فعلية"],
-    skipped: 7,
+    skipped: 8,
     gate: "TEST_DATABASE_URL",
     reason:
       "يُثبِت «SOS safety outbox على PostgreSQL فعلية» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرة: المقصودُ سلوكُ المحرّكِ نفسِه — القيودُ والمعاملاتُ والترتيبُ تحت التزامن — لا سلوكُ محاكٍ نكتبه نحن.",
