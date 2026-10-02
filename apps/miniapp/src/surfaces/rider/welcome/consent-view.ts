@@ -91,6 +91,14 @@ export function outstandingRows(rows: readonly ConsentRow[]): readonly ConsentRo
 }
 
 /**
+ * `UI-WELCOME-01`: هل يُتجاوَزُ الترحيبُ بلا «ابدأ»؟ نعم إن قالَ الخادمُ «مكتملةٌ» ولا
+ * وثيقةَ مطلوبةً معلَّقةٌ — شرطانِ معاً، فخادمٌ يُعلِنُ وثيقةً جديدةً يُعيدُ الشاشةَ.
+ */
+export function alreadyOnboarded(status: ConsentApiStatus): boolean {
+  return status.onboarding.satisfied && outstandingRows(consentRows(status)).length === 0;
+}
+
+/**
  * ترجمةُ رمزِ الخطأِ إلى مفتاحِ نصٍّ. ورمزٌ مجهولٌ **لا يُخفى**: يرتدُّ إلى
  * `welcome.error.rejected` وهي رسالةٌ تقولُ «لم تُقبل» وتعرضُ فعلاً — لا شاشةَ
  * بيضاءَ ولا نصَّ خطأٍ خامٌّ من الخادمِ يُعرَضُ كما هو (9.7 · UX-5).

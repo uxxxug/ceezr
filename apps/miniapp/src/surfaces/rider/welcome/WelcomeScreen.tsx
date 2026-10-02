@@ -45,6 +45,7 @@ import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { fetchConsentStatus, submitConsent } from "./consent-api.ts";
 import {
+  alreadyOnboarded,
   type ConsentApiStatus,
   type ConsentRow,
   consentErrorKey,
@@ -135,6 +136,20 @@ export function WelcomeScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  /**
+   * `UI-WELCOME-01`: مَن وافقَ من قبلُ لا يُوقَفُ على الترحيبِ عندَ كلِّ فتحٍ — كانَ كلُّ
+   * فتحٍ وكلُّ تحديثٍ يعودُ إلى «صفحةِ البدءِ» ويطلبُ «ابدأ». الحكمُ من القراءةِ
+   * **الأولى** وحدَها ومن الخادمِ (`satisfied` بلا وثيقةٍ معلَّقةٍ)، فمَن وافقَ الآنَ
+   * يرى «مسجَّلة» ويضغطُ «ابدأ» بنفسِه.
+   */
+  const firstReadJudged = useRef(false);
+  useEffect(() => {
+    if (state.kind === "loading" || firstReadJudged.current) return;
+    firstReadJudged.current = true;
+    if (state.kind !== "ready" || !onProceed) return;
+    if (alreadyOnboarded(state.status)) onProceed();
+  }, [state, onProceed]);
 
   const accept = async (row: ConsentRow) => {
     setPendingKind(row.kind);
