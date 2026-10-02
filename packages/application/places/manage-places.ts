@@ -207,3 +207,46 @@ export async function deletePlace(
   }
   return ok({ status: "deleted" });
 }
+
+/**
+ * تعديلُ مكانٍ محفوظٍ فرادى (`DEC-40`). الترتيبُ: جلسةٌ، ثمَّ تحقُّقُ المعرّفِ، ثمَّ قبولُ الجسمِ، ثمَّ تحديثٌ مُقيَّدٌ بالمستخدمِ.
+ * يُكملُ تنشيطَ `rider.account.debt.editPlaces` مع `deletePlace` (DEC-39).
+ */
+export async function updatePlace(
+  deps: PlacesDeps,
+  input: {
+    readonly accessToken: string | undefined;
+    readonly placeId: string;
+    readonly body: unknown;
+  },
+): Promise<Result<SavePlaceOutput, PlacesPublicErrorCode>> {
+  const identified = await authenticate(deps, input.accessToken);
+  if (!identified.ok) return identified;
+
+  if (!UUID_PATTERN.test(input.placeId)) return err("PLACE_NOT_FOUND");
+
+  if (typeof input.body !== "object" || input.body === null) return err("MALFORMED");
+  const body = input.body as Record<string, unknown>;
+
+  if (!isSavedPlaceKind(body.kind)) return err("UNKNOWN_PLACE_KIND");
+
+  const label = normalizePlaceLabel(body.label);
+  if (label === null) return err("MALFORMED");
+
+  const point = readPlacePoint(body.lat, body.lng);
+  if (point === null) return err("MALFORMED");
+
+  const updated = await deps.writer.update({
+    telegramUserId: identified.value,
+    placeId: input.placeId,
+    kind: body.kind,
+    label,
+    lat: point.lat,
+    lng: point.lng,
+  });
+  if (!updated.ok) {
+    if (updated.error.reason === "USER_NOT_FOUND") return err("ACCOUNT_NOT_FOUND");
+    return err("PLACE_STORE_NOT_AVAILABLE");
+  }
+  return ok({ status: "updated", place: updated.value.place });
+}

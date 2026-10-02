@@ -34,6 +34,7 @@ import {
   type PlacesPublicErrorCode,
   readRecentLimit,
   savePlace,
+  updatePlace,
 } from "../../../../packages/application/places/manage-places.ts";
 import { bearerTokenFrom } from "./me.ts";
 import { readBounded } from "./telegram-webhook.ts";
@@ -194,6 +195,41 @@ export function createPlacesRoutes(deps: PlacesRouteDependencies): Hono {
     }
 
     return c.json({ ok: true, status: "deleted" });
+  });
+
+  // DEC-40: تعديلُ مكانٍ محفوظٍ فرادى — `PATCH /v1/me/places/:id`.
+  app.patch("/v1/me/places/:id", async (c) => {
+    if (deps.places === undefined) {
+      deps.log?.("places.route_disabled", {});
+      return c.json({ ok: false, error: "PLACE_STORE_NOT_AVAILABLE" }, 503);
+    }
+
+    const accessToken = bearerTokenFrom(c.req.header("Authorization"));
+    const placeId = c.req.param("id");
+
+    let body: unknown;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ ok: false, error: "MALFORMED" }, 400);
+    }
+
+    const result = await updatePlace(deps.places, { accessToken, placeId, body });
+    if (!result.ok) return rejected(c, result.error);
+
+    const place = result.value.place;
+    return c.json({
+      ok: true,
+      status: "updated",
+      place: {
+        id: place.id,
+        kind: place.kind,
+        label: place.label,
+        lat: place.lat,
+        lng: place.lng,
+        updatedAt: new Date(place.updatedAtMs).toISOString(),
+      },
+    });
   });
 
   return app;

@@ -164,6 +164,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "update_driver_vehicle",
   "update_driver_vehicle_assets",
   "update_rider_city",
+  "update_saved_place",
   "upgrade_plan",
   "upsert_saved_place",
 ];

@@ -111,6 +111,23 @@ function buildHarness(
       return ok({ status: "created", place });
     },
     delete: async () => ok({ status: "deleted" }),
+    update: async (input: {
+      readonly placeId: string;
+      readonly kind: string;
+      readonly label: string;
+      readonly lat: number;
+      readonly lng: number;
+    }) => {
+      const place: SavedPlace = {
+        id: input.placeId,
+        kind: input.kind as SavedPlace["kind"],
+        label: input.label,
+        lat: input.lat,
+        lng: input.lng,
+        updatedAtMs: NOW.getTime(),
+      };
+      return ok({ status: "updated", place });
+    },
   };
 
   const recent: RecentDestinationReader = {

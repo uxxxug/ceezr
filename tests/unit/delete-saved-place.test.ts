@@ -20,6 +20,11 @@ function makeDeps(overrides: Partial<PlacesDeps> = {}): PlacesDeps {
     save: async () =>
       err({ code: "PLACE_STORE_FAILED", reason: "NOT_CONFIGURED" } as PlaceStoreFailure),
     delete: async () => ok({ status: "deleted" }),
+    update: async () =>
+      ok({
+        status: "updated",
+        place: { id: "test", kind: "home" as const, label: "test", lat: 0, lng: 0, updatedAtMs: 0 },
+      }),
   };
   return {
     sessions: {
@@ -72,6 +77,8 @@ describe("DEC-39 delete saved place contract", () => {
       save: async () =>
         err({ code: "PLACE_STORE_FAILED", reason: "STORE_ERROR" } as PlaceStoreFailure),
       delete: async () =>
+        err({ code: "PLACE_STORE_FAILED", reason: "STORE_ERROR" } as PlaceStoreFailure),
+      update: async () =>
         err({ code: "PLACE_STORE_FAILED", reason: "STORE_ERROR" } as PlaceStoreFailure),
     };
     const deps = makeDeps({ writer: failingWriter });

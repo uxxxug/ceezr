@@ -210,6 +210,94 @@ export function createSavedPlaceWriter(sql: Sql): SavedPlaceWriter {
       if (result.status !== "deleted") return err(failed("STORE_ERROR"));
       return ok({ status: "deleted" });
     },
+
+    update: async (input: {
+      readonly telegramUserId: string;
+      readonly placeId: string;
+      readonly kind: string;
+      readonly label: string;
+      readonly lat: number;
+      readonly lng: number;
+    }): Promise<Result<SavePlaceOutcome, PlaceStoreFailure>> => {
+      const telegramId = asTelegramId(input.telegramUserId);
+      if (telegramId === null) return err(failed("USER_NOT_FOUND"));
+
+      const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!UUID_PATTERN.test(input.placeId)) return err(failed("STORE_ERROR"));
+
+      let rows: {
+        readonly result: {
+          readonly ok?: boolean;
+          readonly error?: string;
+          readonly status?: string;
+          readonly place_id?: string;
+          readonly kind?: string;
+          readonly label?: string;
+          readonly lat?: unknown;
+          readonly lng?: unknown;
+          readonly updated_at?: string | Date;
+        };
+      }[];
+      try {
+        rows = await sql.unsafe<
+          {
+            readonly result: {
+              readonly ok?: boolean;
+              readonly error?: string;
+              readonly status?: string;
+              readonly place_id?: string;
+              readonly kind?: string;
+              readonly label?: string;
+              readonly lat?: unknown;
+              readonly lng?: unknown;
+              readonly updated_at?: string | Date;
+            };
+          }[]
+        >("select update_saved_place($1, $2, $3, $4, $5, $6) as result", [
+          telegramId,
+          input.placeId,
+          input.kind,
+          input.label,
+          input.lat,
+          input.lng,
+        ]);
+      } catch {
+        return err(failed("STORE_ERROR"));
+      }
+
+      const result = rows[0]?.result;
+      if (result === undefined) return err(failed("STORE_ERROR"));
+      if (result.ok !== true) {
+        return err(failed(result.error === "USER_NOT_FOUND" ? "USER_NOT_FOUND" : "STORE_ERROR"));
+      }
+      if (result.status !== "updated") return err(failed("STORE_ERROR"));
+
+      const lat = readNumber(result.lat);
+      const lng = readNumber(result.lng);
+      const updatedAtMs = readMs(result.updated_at);
+      if (
+        typeof result.place_id !== "string" ||
+        typeof result.label !== "string" ||
+        !isSavedPlaceKind(result.kind) ||
+        lat === null ||
+        lng === null ||
+        updatedAtMs === null
+      ) {
+        return err(failed("STORE_ERROR"));
+      }
+
+      return ok({
+        status: "updated",
+        place: {
+          id: result.place_id,
+          kind: result.kind,
+          label: result.label,
+          lat,
+          lng,
+          updatedAtMs,
+        },
+      });
+    },
   };
 }
 
