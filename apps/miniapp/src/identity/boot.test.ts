@@ -250,6 +250,22 @@ describe("استهلاكُ التقديمِ الساكنِ (DEC-19 / F1-09)", ()
     if (!result.established) expect(result.reason).toBe("REJECTED");
   });
 
+  it("UI-SESS-01: رفضُ السكربتِ الساكنِ بخطأٍ خامٍ يُعادُ بمبادلةٍ مُصنَّفةٍ — `401` يصيرُ `REJECTED` لا «لا اتصال»", async () => {
+    let exchanged = 0;
+    const result = await establishSession(
+      baseDeps({
+        consumePreboot: () => Promise.reject(new Error("preboot:401")),
+        exchange: async () => {
+          exchanged += 1;
+          throw new ApiError(401, "INIT_DATA_EXPIRED", "…");
+        },
+      }),
+    );
+    expect(exchanged).toBe(1);
+    expect(result.established).toBe(false);
+    if (!result.established) expect(result.reason).toBe("REJECTED");
+  });
+
   it("يحفظُ رمزَ التجديدِ من التبادلِ المُقدَّمِ إن وُجد", async () => {
     const persisted: string[] = [];
     const result = await establishSession(

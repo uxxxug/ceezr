@@ -64,6 +64,14 @@ const THEME_MAP: readonly (readonly [keyof ThemeParams, string])[] = [
 /** متغيّرُ نمطِ الألوانِ: يقود `color-scheme` في `global.css`. */
 export const TG_COLOR_SCHEME_VARIABLE = "--tg-color-scheme";
 
+/**
+ * `UI-THEME-01`: سمةُ المضيفِ على جذرِ المستندِ سِمةً لا متغيّراً فقط، كي يختارَ
+ * `global.css` **افتراضاتِ الوضعِ الفاتحِ** لكلِّ مفتاحٍ غائبٍ عن `ThemeParams`.
+ * كانت الافتراضاتُ داكنةً وحدَها، فعميلٌ فاتحٌ لا يُرسِلُ `section_bg_color`
+ * (سطحُ المكتبِ وإصداراتٌ أقدمُ) يرسمُ حقولاً داكنةً بنصٍّ أسودَ على صفحةٍ بيضاءَ.
+ */
+export const TG_COLOR_SCHEME_ATTRIBUTE = "data-tg-scheme";
+
 /** أسماءُ متغيّراتِ السمةِ التي تكتبها هذه الطبقة — لكلٍّ منها افتراضٌ في CSS. */
 export const TG_THEME_CSS_VARIABLES: readonly string[] = Object.freeze(
   THEME_MAP.map(([, cssVariable]) => cssVariable),
@@ -125,6 +133,15 @@ function hostColor(value: unknown): string | null {
  * جذرُ المستندِ إن وُجد. خارجَ المتصفحِ (اختبارٌ أو تصييرٌ بلا DOM) لا مستندَ ولا
  * رمي: تُقرأ السمةُ ويُبلَّغ عنها ولا تُكتَب.
  */
+function markColorScheme(scheme: TgColorScheme): void {
+  if (typeof document === "undefined") return;
+  const root: unknown = document.documentElement;
+  if (typeof root !== "object" || root === null) return;
+  const setAttribute = (root as { setAttribute?: unknown }).setAttribute;
+  if (typeof setAttribute !== "function") return;
+  setAttribute.call(root, TG_COLOR_SCHEME_ATTRIBUTE, scheme);
+}
+
 function rootStyle(): Pick<CSSStyleDeclaration, "setProperty"> | null {
   if (typeof document === "undefined") return null;
   const root: unknown = document.documentElement;
@@ -240,6 +257,7 @@ export function applyTelegramTheme(): TgThemeReport {
     style.setProperty(TG_COLOR_SCHEME_VARIABLE, colorScheme);
     applied.push(TG_COLOR_SCHEME_VARIABLE);
   }
+  markColorScheme(colorScheme);
 
   return {
     insideHost: true,

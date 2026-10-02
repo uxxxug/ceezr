@@ -69,6 +69,29 @@
   );
 }
 
+/*
+ * `UI-THEME-01`: افتراضاتُ الوضعِ الفاتحِ. تيليجرامُ الفاتحُ قد لا يُرسِلُ كلَّ
+ * مفاتيحِ `ThemeParams`؛ والمفتاحُ الغائبُ كانَ يرثُ افتراضاً داكناً فتختلطُ
+ * السمتانِ. والمتغيّرُ المكتوبُ من `tg/theme.ts` على `style` يغلبُ هذا دائماً.
+ */
+:root[data-tg-scheme="light"] {
+  --tg-bg-color: #ffffff;
+  --tg-text-color: #0f172a;
+  --tg-hint-color: #64748b;
+  --tg-link-color: #0284c7;
+  --tg-button-color: #0ea5e9;
+  --tg-button-text-color: #ffffff;
+  --tg-secondary-bg-color: #f1f5f9;
+  --tg-header-bg-color: #ffffff;
+  --tg-bottom-bar-bg-color: #ffffff;
+  --tg-accent-text-color: #0284c7;
+  --tg-section-bg-color: #ffffff;
+  --tg-section-header-text-color: #64748b;
+  --tg-section-separator-color: #e2e8f0;
+  --tg-subtitle-text-color: #64748b;
+  --tg-destructive-text-color: #dc2626;
+}
+
 *,
 *::before,
 *::after {

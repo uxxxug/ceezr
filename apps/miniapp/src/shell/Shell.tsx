@@ -43,7 +43,7 @@ import { Skeleton } from "../system/Skeleton.tsx";
 import { SystemScreen } from "../system/SystemScreen.tsx";
 import type { ScreenState } from "../system/state-text.ts";
 import type { Telemetry } from "../telemetry/telemetry.ts";
-import { bindTelegramTheme, expandApp, notifyReady } from "../tg/index.ts";
+import { bindTelegramTheme, closeApp, expandApp, notifyReady } from "../tg/index.ts";
 import type { IdentityPort } from "./identity-port.ts";
 import { Layout } from "./Layout.tsx";
 
@@ -59,7 +59,9 @@ async function screenForBootFailure(
 ): Promise<ScreenState> {
   if (reason === "OUTSIDE_TELEGRAM") return { kind: "outside_telegram" };
   if (reason === "MISSING_INIT_DATA") return { kind: "missing_init_data" };
-  if (reason === "REJECTED") return { kind: "session_invalid" };
+  // `UI-SESS-01`: الإقلاعُ لا يصلُ إلى المبادلةِ إلّا وقد فشلَ التجديدُ، فرفضُها رفضٌ
+  // لبيانِ الفتحِ نفسِه، وإعادةُ المصادقةِ بالبيانِ ذاتِه تُرفَضُ ثانيةً بلا نهايةٍ.
+  if (reason === "REJECTED") return { kind: "launch_stale" };
 
   const online = deviceOnline();
   // فشلٌ بلا استثناءٍ محمولٍ (تعطُّلٌ في التجديدِ) يُعامَل فشلَ نقلٍ: أضعفُ ما
@@ -152,6 +154,18 @@ export function Shell({ identity, telemetry }: ShellProps) {
           // يُعيدُ المحاولةَ يَعِدُ بما لا يقعُ. والوِجهةُ وحدَها، وقد تكونُ `null`
           // فلا يُعرَضُ زرٌّ — والشاشةُ تبقى سليمةً بنصِّها.
           <SystemScreen state={boot.screen} {...botLinkProp()} />
+        ) : boot.screen.kind === "launch_stale" ? (
+          <SystemScreen
+            state={boot.screen}
+            onAction={() => {
+              // إغلاقٌ يُعيدُ المستخدمَ إلى البوتِ فيفتحُ بفتحٍ جديدٍ؛ وخارجَ المضيفِ لا إغلاقَ فالرابطُ.
+              const closed = closeApp();
+              if (!closed.ok) {
+                const href = botLink();
+                if (href !== null) window.location.href = href;
+              }
+            }}
+          />
         ) : (
           <SystemScreen state={boot.screen} onAction={() => void runBoot(true)} />
         )}

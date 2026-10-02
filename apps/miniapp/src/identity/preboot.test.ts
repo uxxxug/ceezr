@@ -41,7 +41,14 @@ function setPreboot(over: Partial<{ accessToken: string }> = {}): {
 describe("consumePrebootSession", () => {
   it("يُعيد وعدَ التبادلِ إن وُجد", () => {
     const state = setPreboot();
-    expect(consumePrebootSession()).toBe(state.session);
+    const promise = state.session;
+    expect(consumePrebootSession()).toBe(promise);
+  });
+
+  it("UI-SESS-01: يُستهلَكُ مرّةً واحدةً — «إعادةُ المحاولة» لا تُعيدُ الوعدَ المرفوضَ نفسَه", () => {
+    setPreboot();
+    expect(consumePrebootSession()).not.toBeNull();
+    expect(consumePrebootSession()).toBeNull();
   });
 
   it("يُعيد `null` إن لم يُوضَع تقديمٌ", () => {

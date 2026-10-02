@@ -1,0 +1,11 @@
+[out:json][timeout:120];
+(
+  node["place"~"^(suburb|neighbourhood|quarter)$"]["name"](21.25,39.05,21.85,39.4);
+  nwr["amenity"~"^(hospital|university|college)$"]["name"](21.25,39.05,21.85,39.4);
+  nwr["shop"="mall"]["name"](21.25,39.05,21.85,39.4);
+  nwr["tourism"~"^(hotel|attraction|museum)$"]["name"](21.25,39.05,21.85,39.4);
+  nwr["leisure"~"^(stadium|park)$"]["name"](21.25,39.05,21.85,39.4);
+  nwr["aeroway"="terminal"]["name"](21.25,39.05,21.85,39.4);
+  nwr["amenity"="place_of_worship"]["religion"="muslim"]["name"](21.25,39.05,21.85,39.4);
+);
+out center tags;

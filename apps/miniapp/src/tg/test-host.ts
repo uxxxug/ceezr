@@ -203,15 +203,21 @@ export function removeFakeHost(): void {
 export type FakeDocument = {
   /** CSS custom properties written through `style.setProperty`. */
   readonly variables: Map<string, string>;
+  /** Attributes written through `setAttribute` on `<html>`. */
+  readonly attributes: Map<string, string>;
   /** Current `<html lang>` / `<html dir>`. */
   root(): { lang: string; dir: string };
 };
 
 export function installFakeDocument(): FakeDocument {
   const variables = new Map<string, string>();
+  const attributes = new Map<string, string>();
   const element = {
     lang: "",
     dir: "",
+    setAttribute: (name: string, value: string) => {
+      attributes.set(name, value);
+    },
     style: {
       setProperty: (name: string, value: string) => {
         variables.set(name, value);
@@ -222,6 +228,7 @@ export function installFakeDocument(): FakeDocument {
   container.document = { documentElement: element };
   return {
     variables,
+    attributes,
     root: () => ({ lang: element.lang, dir: element.dir }),
   };
 }
