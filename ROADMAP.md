@@ -167,6 +167,16 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `OPS-KEEPALIVE` — **قروباتُ المدنِ الحقيقيّةُ + نبضٌ يُبقي البوّابةَ المجانيّةَ مستيقظة** (recorded 2026-10-02 before the first edit of this branch · branch `ops/gateway-keep-alive` from `main`@`af4cd62e`)
+
+| الحقلُ | القيمةُ |
+|---|---|
+| الدافعُ | المالكُ سلّمَ معرِّفاتِ القروباتِ الحقيقيّةَ للمدنِ الخمس، والنومُ مقيسٌ على Render (`free`): 46 ثمَّ 65 دقيقةً بلا عاملٍ في ساعتَين. |
+| النطاقُ | `.github/workflows/gateway-keep-alive.yml` · `docs/evidence/reconciliation-2026-10-02/city-groups-and-keep-alive.md` · `SYSTEM_STATE` · §25. والقروباتُ تُكتَبُ في القاعدةِ بـ`admin_update_city_group_ids` (مسارٌ مُدقَّقٌ) **ولا تدخلُ Git**. |
+| المُنفَّذُ | أربعُ مدنٍ (جدة · الرياض · الطائف · مكة) بمعرِّفاتٍ حقيقيّةٍ وصفوفِ تدقيق. المدينةُ المنورة مؤجَّلةٌ لأنَّ كتابتَها تُطلِقُ بطاقتَي استغاثةٍ حقيقيّتَين — قرارُ مالك. |
+| مُكتشَفٌ | بوتُ السائقِ `left` في قروباتِ السائقينَ الخمسة، وليسَ في قروبِ دعمِ جدة — إعادةُ الإضافةِ عملُ المالكِ في Telegram. |
+| ما لا يُدَّعى | النبضُ ليسَ بديلًا رسميًّا عن خطّةٍ مدفوعةٍ ولا ضمانَ توفّر (جدولةُ GitHub قد تتأخّر). ولا قياسَ إنتاجيٌّ (`ح-5`). |
+
 ### Reservation `D-39` — **حجزُ استغاثةٍ متروكٌ يعلَقُ في `sending` إلى الأبد** (recorded 2026-10-02 after the reproduction test and the fix were drafted locally, before the first commit · branch `fix/d-39-sos-outbox-reclaim` from `main`@`b862b127`)
 
 لا فرعَ ولا PR مفتوحٌ يمسُّ النطاقَ (قُرِئَ: `gh pr list --state open` = فارغٌ · `git ls-remote --heads` · `grep D-39` = لا شيء). والحجزُ مُسجَّلٌ بعدَ كتابةِ الاختبارِ والهجرةِ محلّيّاً لا قبلَهما — يُقالُ كما وقع.
