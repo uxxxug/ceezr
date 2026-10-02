@@ -902,8 +902,11 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // نصوصُ شِفرةٍ: `driver_document_block_reasons` تُستدعَى داخلَ `admin_set_driver_verification`
     // في المحرِّكِ، ورفضُ `verified` بلا وثائقَ لا يُقاسُ بمزدوجٍ في الذاكرةِ.
     // والأرقامُ السابقةُ محفوظةٌ.
+    // زيادةٌ (`ح-8`): والآنَ 156 و 1433 باستردادِ حجزِ الاستغاثةِ المتروكِ (`D-39`):
+    // حالةٌ واحدةٌ في `safety-sos.test.ts` لأنَّ المُدَّعى حكمُ دالّةِ قاعدةٍ
+    // (`claim_safety_incident_delivery`) على صفٍّ `sending` بمهلةٍ منقضيةٍ.
     expect(SKIP_REGISTRY).toHaveLength(156);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1432);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1433);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

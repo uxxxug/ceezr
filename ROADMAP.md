@@ -167,6 +167,20 @@ Nothing else has been changed in this repository by the WASLA integration work.
 
 ## In progress
 
+### Reservation `D-39` — **حجزُ استغاثةٍ متروكٌ يعلَقُ في `sending` إلى الأبد** (recorded 2026-10-02 after the reproduction test and the fix were drafted locally, before the first commit · branch `fix/d-39-sos-outbox-reclaim` from `main`@`b862b127`)
+
+لا فرعَ ولا PR مفتوحٌ يمسُّ النطاقَ (قُرِئَ: `gh pr list --state open` = فارغٌ · `git ls-remote --heads` · `grep D-39` = لا شيء). والحجزُ مُسجَّلٌ بعدَ كتابةِ الاختبارِ والهجرةِ محلّيّاً لا قبلَهما — يُقالُ كما وقع.
+
+| الحقلُ | القيمةُ |
+|---|---|
+| الاكتشافُ | فحوصٌ تشغيليّةٌ محدودةٌ على البيئةِ التجريبيّةِ بعدَ نشرِ `b3705b4`: صفُّ `notification_outbox` من الصنفِ `safety_incident` في `sending` منذُ 2026-09-30 03:06 UTC بلا حركة. `claim_safety_incident_delivery` تلتقطُ `pending` وحدَه، ولا استردادَ للحجزِ المتروكِ في هذا الصنفِ خلافاً لأصنافِ الرحلةِ والبثِّ وإشعاراتِ الاشتراكِ — فعاملٌ يموتُ بينَ `claim` و`finish` يُضيِّعُ نداءَ الاستغاثةِ بصمت. |
+| النطاقُ المحجوزُ | `supabase/migrations/20261002100000_d_39_sos_outbox_reclaim_abandoned_claims.sql` · `tests/integration/safety-sos.test.ts` (حالةٌ مضافةٌ) · `scripts/lib/skip-registry.ts` (7 → 8 للملفِّ) · `tests/unit/skip-audit.test.ts` (1432 → 1433 بالزيادةِ) · `docs/evidence/reconciliation-2026-10-02/operational-checks-and-d-39.md` · `SYSTEM_STATE` · §25 |
+| العلاجُ | استردادٌ داخلَ المطالبةِ نفسِها قبلَ المسحِ، بالإعدادِ نفسِه الذي يحكمُ الصندوقَ (`notification_claim_timeout_seconds` · افتراضُ 300 كشقيقتِها `claim_notification_delivery`). التوقيعُ والمُخرَجُ لم يتغيّرا. |
+| المقيسُ محلّيّاً | PostgreSQL 18.6 + PostGIS، 214 هجرةً بـ`scripts/migrate.ts`: قبلَ العلاجِ 12/1 (الفشلُ في `claimed` بعدَ المهلة) · بعدَه **13/0**. كاملُ الوحداتِ 6601/0. |
+| ما لا يُمَسُّ | معرِّفاتُ قروباتِ التصعيدِ النائبةُ في المدنِ (تبعيّةُ مالكٍ/CORE) · سقفُ المحاولاتِ (لا سقفَ عن قصدٍ) · طوبولوجيا Render (العاملُ والإدارةُ داخلَ البوّابةِ خلافاً لـ`render.yaml` — مُسجَّلٌ في الدليلِ قراراً للمالكِ) |
+| ما لا يُدَّعى | لا قياسَ إنتاجيٌّ (`ح-5`). والتسليمُ «مرّةً على الأقلّ»: بطاقةٌ نُشِرَت قبلَ موتِ العاملِ قد تُنشَرُ ثانيةً. |
+| حكمُ CI (PR #379) | **أخضرُ من الجولةِ الأولى** على `fix/d-39-sos-outbox-reclaim` (تشغيلُ CI `37009318008` · roadmap `37009311342`): الوظائفُ الثمانيةُ `pass`؛ وفي «تكامل على PostgreSQL حقيقي» طُبِّقَت `20261002100000` بالمُطبِّقِ الآمنِ ونجحت حالةُ `D-39` على PostgreSQL 17 (لا تخطّي)، وتمرينُ مسارِ العودةِ أخضرُ. |
+
 ### Reservation `F11-01` (الشقُّ المملوكُ للمستودَعِ) — **فقدانُ البوّابةِ: لا اختبارَ يقتلُ بوابةً حقيقيّةً أثناءَ رحلةٍ قطُّ — وفوضى تعدُّدِ المثيلاتِ معطَّلةٌ بنيويًّا فلم يُقَسْ استمرارُ الرحلةِ عبرَ بديلٍ ولا صمودُ التحديثاتِ المودَعةِ عبرَ موتِ العمليةِ** (opened 2026-09-27, before any file was edited · **merged 2026-09-27 في PR #289 — CI أخضرُ على الفرعِ وعلى main بعدَ الدمجِ**)
 
 حُجِزَ **قبلَ أوّلِ تعديلِ ملفٍّ**، وفقَ قاعدةِ الحجزِ في `docs/ROADMAP-MASTER.md` §25. فرعُ `feat/f11-01-gateway-loss-continuity` من `main`@`017814e4`. لا فرعَ ولا PR ولا تنفيذَ سابقٌ يمسُّ `F11-01` (قُرِئَ: `git branch -r` · `gh pr list --state open` = فارغٌ · `grep F11-01 docs` = صفُّ الجدولِ وحدَهُ).

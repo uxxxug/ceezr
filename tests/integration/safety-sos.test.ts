@@ -274,6 +274,68 @@ describeIf("SOS safety outbox على PostgreSQL فعلية", () => {
     expect(delivered[0]).toEqual({ status: "delivered", attempts: 2, message_id: "7788" });
   });
 
+  /**
+   * `D-39`: عاملٌ حجزَ صفَّ استغاثةٍ (`sending`) ثمَّ ماتَ قبلَ أن يُعلِنَ نتيجتَه
+   * (إعادةُ نشرٍ · `SIGKILL` · انقطاعُ القاعدةِ) كانَ يتركُ الصفَّ عالقاً إلى الأبدِ:
+   * `claim_safety_incident_delivery` لا تلتقطُ إلّا `pending`، ولا جارفَ للصنفِ
+   * `safety_incident` خلافاً لأصنافِ الرحلةِ والبثِّ وإشعاراتِ الاشتراكِ. شوهِدَ
+   * حيّاً على البيئةِ التجريبيّةِ: صفٌّ عالقٌ منذُ 2026-09-30 03:06 UTC.
+   */
+  it("حجزُ استغاثةٍ متروكٌ بعدَ مهلتِه يُستردُّ ويُسلَّمُ مرّةً واحدةً (D-39)", async () => {
+    const opened = await trigger.trigger({
+      orderId,
+      actorTelegramId: RIDER_TELEGRAM_ID,
+      reporterRole: "rider",
+      reason: "sos",
+    });
+    expect(opened.ok).toBe(true);
+    // عاملٌ يحجزُ ثمَّ يموتُ: مطالبةٌ بلا `finish`.
+    const deliveries = createSafetyDeliveryPort(sql);
+    const abandoned = await deliveries.claim();
+    expect(abandoned.ok).toBe(true);
+    if (!abandoned.ok) return;
+    expect(abandoned.value.delivery).not.toBeNull();
+    const stuck = await sql<{ status: string; attempts: number }[]>`
+      select status, attempts from notification_outbox where kind = 'safety_incident'`;
+    expect(stuck[0]?.status).toBe("sending");
+    expect(stuck[0]?.attempts).toBe(1);
+
+    // ضابطٌ: حجزٌ حيٌّ داخلَ مهلتِه لا يُنتزَعُ من عاملٍ ما زالَ يعملُ عليه.
+    const published: (string | null)[] = [];
+    const succeeding: SafetyCardPublisher = {
+      publish: async (card) => {
+        published.push(card.orderId);
+        return ok("4242");
+      },
+    };
+    const live = await deliverSafetyIncidents({ deliveries, publisher: succeeding });
+    expect(live.ok).toBe(true);
+    if (live.ok) expect(live.value.claimed).toBe(0);
+    expect(published).toEqual([]);
+
+    // بعدَ المهلةِ (إعدادُ المدينةِ `notification_claim_timeout_seconds`) يُستردُّ.
+    await sql`
+      update notification_outbox set claimed_at = now() - interval '1 hour'
+       where kind = 'safety_incident'`;
+    const recovered = await deliverSafetyIncidents({ deliveries, publisher: succeeding });
+    expect(recovered.ok).toBe(true);
+    if (!recovered.ok) return;
+    expect(recovered.value.claimed).toBe(1);
+    expect(recovered.value.delivered).toBe(1);
+    expect(published).toEqual([orderId]);
+    const done = await sql<{ status: string; attempts: number; claim_token: string | null }[]>`
+      select status, attempts, claim_token from notification_outbox where kind = 'safety_incident'`;
+    expect(done[0]?.status).toBe("delivered");
+    expect(done[0]?.attempts).toBe(2);
+    expect(done[0]?.claim_token).toBeNull();
+
+    // والمُسلَّمُ لا يُستردُّ ثانيةً.
+    const again = await deliverSafetyIncidents({ deliveries, publisher: succeeding });
+    expect(again.ok).toBe(true);
+    if (again.ok) expect(again.value.claimed).toBe(0);
+    expect(published).toEqual([orderId]);
+  });
+
   it("إغلاقان متزامنان بعد الاستلام يسجلان قراراً واحداً فقط", async () => {
     const opened = await trigger.trigger({
       orderId,
