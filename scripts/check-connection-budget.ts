@@ -55,6 +55,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import {
+  type ConnectionTopology,
   DB_POOL_MAX,
   DB_POOL_ROLES,
   DB_QUERY_DEADLINE_MS,
@@ -266,17 +267,30 @@ export function servicesFromManifest(text: string): ManifestService[] {
 }
 
 /** يحكمُ على تكافؤِ المانيفستِ مع `DECLARED_TOPOLOGY`. */
-export function analyseManifest(text: string): Finding[] {
+export function analyseManifest(
+  text: string,
+  topology: ConnectionTopology = DECLARED_TOPOLOGY,
+): Finding[] {
   const findings: Finding[] = [];
   const services = servicesFromManifest(text);
   const expected: Readonly<Record<string, number>> = {
-    [GATEWAY_SERVICE]: DECLARED_TOPOLOGY.gatewayInstances,
-    [WORKER_SERVICE]: DECLARED_TOPOLOGY.workerInstances,
-    [ADMIN_SERVICE]: DECLARED_TOPOLOGY.adminInstances,
+    [GATEWAY_SERVICE]: topology.gatewayInstances,
+    [WORKER_SERVICE]: topology.workerInstances,
+    [ADMIN_SERVICE]: topology.adminInstances,
   };
 
   for (const [serviceName, declared] of Object.entries(expected)) {
     const service = services.find((candidate) => candidate.name === serviceName);
+    // صفرُ نسخٍ مُعلَنٌ ⇒ الخدمةُ غائبةٌ عن المانيفستِ حقّاً، ووجودُها تنافرٌ.
+    if (declared === 0) {
+      if (service !== undefined) {
+        findings.push({
+          code: "UNDECLARED_SERVICE",
+          detail: `الخدمةُ «${serviceName}» في ${MANIFEST_NAME} والميزانيّةُ تُعلنُ لها صفرَ نسخٍ`,
+        });
+      }
+      continue;
+    }
     if (service === undefined) {
       findings.push({
         code: "MISSING_SERVICE",
@@ -308,13 +322,13 @@ export function analyseManifest(text: string): Finding[] {
         code: "MISSING_RUN_WORKER",
         detail: `الخدمةُ «${GATEWAY_SERVICE}» بلا RUN_WORKER_IN_GATEWAY في ${MANIFEST_NAME}`,
       });
-    } else if (gateway.runWorkerInGateway !== DECLARED_TOPOLOGY.workerRunsInGateway) {
+    } else if (gateway.runWorkerInGateway !== topology.workerRunsInGateway) {
       findings.push({
         code: "RUN_WORKER_MISMATCH",
         detail:
           `تنافرُ إعلانَين: ${MANIFEST_NAME} يقولُ ` +
           `RUN_WORKER_IN_GATEWAY=${String(gateway.runWorkerInGateway)} و DECLARED_TOPOLOGY ` +
-          `تقولُ ${String(DECLARED_TOPOLOGY.workerRunsInGateway)}`,
+          `تقولُ ${String(topology.workerRunsInGateway)}`,
       });
     }
   }

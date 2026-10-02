@@ -50,7 +50,8 @@ describe("الاشتقاقُ", () => {
 
   test("كلُّ خدمةٍ إنتاجيّةٍ لها أختٌ في staging باللاحقةِ وحدَها، وبالترتيبِ نفسِه", () => {
     const prod = serviceNames(production);
-    expect(prod.length).toBeGreaterThanOrEqual(4);
+    // 2026-10-02: البوّابةُ الجامعةُ والتطبيقُ المصغَّرُ (الخطّةُ المجّانيّةُ).
+    expect(prod.length).toBeGreaterThanOrEqual(2);
     expect(serviceNames(committed)).toEqual(prod.map((name) => `${name}${STAGING_SUFFIX}`));
   });
 
@@ -96,7 +97,7 @@ describe("سالباتٌ مزروعةٌ (ح-7)", () => {
   });
 
   test("تعديلُ render.yaml بلا إعادةِ توليدٍ ⇒ STAGING_DRIFT", () => {
-    const changed = production.replace("plan: starter", "plan: standard");
+    const changed = production.replace("plan: free", "plan: standard");
     expect(changed).not.toBe(production);
     expect(stagingFindings(changed, committed).map((f) => f.code)).toContain("STAGING_DRIFT");
   });

@@ -1677,6 +1677,7 @@ log("connection_budget.declared", {
     computeConnectionBudget({
       ...DECLARED_TOPOLOGY,
       workerRunsInGateway: config.runWorkerInGateway,
+      adminRunsInGateway: config.runAdminInGateway,
     }),
   ),
 });

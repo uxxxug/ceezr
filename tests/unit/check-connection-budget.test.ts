@@ -13,7 +13,10 @@ import { describe, expect, it } from "bun:test";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { DECLARED_TOPOLOGY } from "../../packages/shared/config/connection-budget.ts";
+import {
+  type ConnectionTopology,
+  DECLARED_TOPOLOGY,
+} from "../../packages/shared/config/connection-budget.ts";
 import {
   analyseManifest,
   analyseRepo,
@@ -135,6 +138,15 @@ describe("مهلةُ الاستعلامِ من الميزانيّةِ", () => {
   });
 });
 
+/** طوبولوجيا الفصلِ (قبلَ 2026-10-02) — تُحفَظُ مُدخلاً للسالباتِ المبذورةِ. */
+const SEPARATED: ConnectionTopology = Object.freeze({
+  gatewayInstances: 1,
+  workerInstances: 1,
+  adminInstances: 1,
+  workerRunsInGateway: false,
+  adminRunsInGateway: false,
+});
+
 describe("تكافؤُ الطوبولوجيا مع مانيفستِ النشرِ", () => {
   const SOUND = [
     "services:",
@@ -162,7 +174,7 @@ describe("تكافؤُ الطوبولوجيا مع مانيفستِ النشرِ
   });
 
   it("مخطوطةٌ مكافئةٌ ⇒ قبولٌ", () => {
-    expect(analyseManifest(SOUND)).toEqual([]);
+    expect(analyseManifest(SOUND, SEPARATED)).toEqual([]);
   });
 
   it("المستودعُ الحقيقيُّ في حالتِه الراهنةِ ⇒ قبولٌ", () => {
@@ -171,13 +183,15 @@ describe("تكافؤُ الطوبولوجيا مع مانيفستِ النشرِ
 
   it("رفعُ النسخِ في المانيفستِ وحدَه ⇒ تنافرُ إعلانَين", () => {
     expect(
-      codes(analyseManifest(SOUND.replace("    numInstances: 1", "    numInstances: 2"))),
+      codes(
+        analyseManifest(SOUND.replace("    numInstances: 1", "    numInstances: 2"), SEPARATED),
+      ),
     ).toContain("INSTANCES_MISMATCH");
   });
 
   it("خدمةٌ ناقصةٌ من المانيفستِ ⇒ سقوطٌ — والميزانيّةُ تُعلنُ لها نسخاً", () => {
     const withoutAdmin = SOUND.slice(0, SOUND.indexOf("  - type: web\n    name: waslah-admin"));
-    expect(codes(analyseManifest(withoutAdmin))).toContain("MISSING_SERVICE");
+    expect(codes(analyseManifest(withoutAdmin, SEPARATED))).toContain("MISSING_SERVICE");
   });
 
   it("غيابُ numInstances ⇒ سقوطٌ — الغيابُ افتراضُ منصّةٍ لا واحدةٌ", () => {
@@ -185,7 +199,7 @@ describe("تكافؤُ الطوبولوجيا مع مانيفستِ النشرِ
       "    name: waslah-worker\n    numInstances: 1\n",
       "    name: waslah-worker\n",
     );
-    expect(codes(analyseManifest(withoutCount))).toContain("MISSING_NUM_INSTANCES");
+    expect(codes(analyseManifest(withoutCount, SEPARATED))).toContain("MISSING_NUM_INSTANCES");
   });
 
   it("غيابُ RUN_WORKER_IN_GATEWAY ⇒ سقوطٌ", () => {
@@ -193,7 +207,7 @@ describe("تكافؤُ الطوبولوجيا مع مانيفستِ النشرِ
       '      - key: RUN_WORKER_IN_GATEWAY\n        value: "false"\n',
       "",
     );
-    expect(codes(analyseManifest(withoutFlag))).toContain("MISSING_RUN_WORKER");
+    expect(codes(analyseManifest(withoutFlag, SEPARATED))).toContain("MISSING_RUN_WORKER");
   });
 
   /**
@@ -201,14 +215,48 @@ describe("تكافؤُ الطوبولوجيا مع مانيفستِ النشرِ
    * هو حرفُ العيبِ الذي عالجَه `F7-04` — ولذلك تنافرٌ لا تسامُحٌ.
    */
   it("إدماجُ المهامِّ في المانيفستِ بلا تعديلِ الطوبولوجيا ⇒ تنافرٌ", () => {
-    expect(codes(analyseManifest(SOUND.replace('value: "false"', 'value: "true"')))).toContain(
+    expect(
+      codes(analyseManifest(SOUND.replace('value: "false"', 'value: "true"'), SEPARATED)),
+    ).toContain("RUN_WORKER_MISMATCH");
+    expect(SEPARATED.workerRunsInGateway).toBe(false);
+  });
+
+  /** 2026-10-02 — المُعلَنُ الآنَ: بوّابةٌ واحدةٌ تحملُ العاملَ واللوحةَ (الخطّةُ المجّانيّةُ). */
+  const SINGLE = [
+    "services:",
+    "  - type: web",
+    "    name: waslah-gateway",
+    "    numInstances: 1",
+    "    envVars:",
+    "      - key: RUN_WORKER_IN_GATEWAY",
+    '        value: "true"',
+    "",
+  ].join("\n");
+
+  it("بوّابةٌ واحدةٌ تحملُ الكلَّ ⇒ قبولٌ بالطوبولوجيا المُعلَنةِ", () => {
+    expect(DECLARED_TOPOLOGY.workerInstances).toBe(0);
+    expect(DECLARED_TOPOLOGY.adminInstances).toBe(0);
+    expect(analyseManifest(SINGLE)).toEqual([]);
+  });
+
+  it("خدمةٌ مُعلَنةٌ بصفرِ نسخٍ وموجودةٌ في المانيفستِ ⇒ تنافرٌ", () => {
+    expect(
+      codes(
+        analyseManifest(
+          SINGLE + "  - type: worker\n    name: waslah-worker\n    numInstances: 1\n",
+        ),
+      ),
+    ).toContain("UNDECLARED_SERVICE");
+  });
+
+  it("المهامُّ خارجَ البوّابةِ في المانيفستِ والطوبولوجيا تقولُ داخلَها ⇒ تنافرٌ", () => {
+    expect(codes(analyseManifest(SINGLE.replace('value: "true"', 'value: "false"')))).toContain(
       "RUN_WORKER_MISMATCH",
     );
-    expect(DECLARED_TOPOLOGY.workerRunsInGateway).toBe(false);
   });
 
   it("مخطوطةٌ فارغةٌ ⇒ سقوطٌ لا نجاحٌ صامتٌ", () => {
-    expect(codes(analyseManifest(""))).toContain("MISSING_SERVICE");
+    expect(codes(analyseManifest("", SEPARATED))).toContain("MISSING_SERVICE");
   });
 });
 
@@ -250,6 +298,7 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
     return root;
   };
 
+  // 2026-10-02: المانيفستُ السليمُ هو ما تُعلنُه الطوبولوجيا الآنَ — بوّابةٌ جامعةٌ وحدَها.
   const SOUND_MANIFEST = [
     "services:",
     "  - type: web",
@@ -257,13 +306,7 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
     "    numInstances: 1",
     "    envVars:",
     "      - key: RUN_WORKER_IN_GATEWAY",
-    '        value: "false"',
-    "  - type: worker",
-    "    name: waslah-worker",
-    "    numInstances: 1",
-    "  - type: web",
-    "    name: waslah-admin",
-    "    numInstances: 1",
+    '        value: "true"',
     "",
   ].join("\n");
 
@@ -295,8 +338,8 @@ describe("رمزُ خروجِ الحاجزِ لا نصُّه", () => {
 
   it("تنافرُ المانيفستِ مزروعاً ⇒ رمزٌ غيرُ صفريٍّ", async () => {
     const drifted = SOUND_MANIFEST.replace(
-      "    name: waslah-worker\n    numInstances: 1",
-      "    name: waslah-worker\n    numInstances: 4",
+      "    name: waslah-gateway\n    numInstances: 1",
+      "    name: waslah-gateway\n    numInstances: 4",
     );
     expect(
       await runBarrier(

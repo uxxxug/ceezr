@@ -66,12 +66,32 @@ describe("ثوابتُ الميزانيّةِ", () => {
   });
 });
 
+/** طوبولوجيا الفصلِ (قبلَ 2026-10-02) — مرجعُ المقارنةِ. */
+const SEPARATED = Object.freeze({
+  gatewayInstances: 1,
+  workerInstances: 1,
+  adminInstances: 1,
+  workerRunsInGateway: false,
+  adminRunsInGateway: false,
+});
+
 describe("حسابُ الميزانيّةِ", () => {
-  it("الطوبولوجيا المُعلَنةُ: كلُّ عمليةٍ نسخةٌ واحدةٌ والمهامُّ خارجَ البوّابةِ", () => {
+  it("الطوبولوجيا المُعلَنةُ (2026-10-02): بوّابةٌ واحدةٌ تحملُ العاملَ واللوحةَ", () => {
     expect(DECLARED_TOPOLOGY.gatewayInstances).toBe(1);
-    expect(DECLARED_TOPOLOGY.workerInstances).toBe(1);
-    expect(DECLARED_TOPOLOGY.adminInstances).toBe(1);
-    expect(DECLARED_TOPOLOGY.workerRunsInGateway).toBe(false);
+    expect(DECLARED_TOPOLOGY.workerInstances).toBe(0);
+    expect(DECLARED_TOPOLOGY.adminInstances).toBe(0);
+    expect(DECLARED_TOPOLOGY.workerRunsInGateway).toBe(true);
+    expect(DECLARED_TOPOLOGY.adminRunsInGateway).toBe(true);
+  });
+
+  it("البوّابةُ الجامعةُ تحملُ تجمُّعاتِ الثلاثةِ ولا يضيعُ حِملٌ", () => {
+    const separated = computeConnectionBudget(SEPARATED);
+    expect(budget.steadyStateTotal).toBe(separated.steadyStateTotal);
+    expect(subtotalOf(budget, "gateway")).toBe(
+      subtotalOf(separated, "gateway") +
+        subtotalOf(separated, "worker") +
+        subtotalOf(separated, "admin"),
+    );
   });
 
   it("يُفصِّلُ كلَّ عمليةٍ مُدرَجةٍ في الميزانيّةِ ولا يزيدُ", () => {
@@ -91,13 +111,21 @@ describe("حسابُ الميزانيّةِ", () => {
    * معها. والفرقُ يجبُ أن يُساويَ حِملَ العاملِ بالضبطِ لا أن يكونَ «أكبرَ».
    */
   it("إدماجُ المهامِّ في البوّابةِ ينقلُ حِملَ العاملِ إليها ولا يُضيِّعُه", () => {
-    const embedded = computeConnectionBudget({ ...DECLARED_TOPOLOGY, workerRunsInGateway: true });
+    const embedded = computeConnectionBudget({
+      ...SEPARATED,
+      workerRunsInGateway: true,
+    });
     const workerLoad = DB_POOL_MAX.workerJobs + DB_POOL_MAX.workerLocks;
-    expect(subtotalOf(embedded, "gateway")).toBe(subtotalOf(budget, "gateway") + workerLoad);
+    expect(subtotalOf(embedded, "gateway")).toBe(
+      subtotalOf(computeConnectionBudget(SEPARATED), "gateway") + workerLoad,
+    );
   });
 
   it("رفعُ النسخِ يضاعفُ حِملَ العمليةِ خطّيّاً", () => {
-    const scaled = computeConnectionBudget({ ...DECLARED_TOPOLOGY, gatewayInstances: 3 });
+    const scaled = computeConnectionBudget({
+      ...DECLARED_TOPOLOGY,
+      gatewayInstances: 3,
+    });
     expect(subtotalOf(scaled, "gateway")).toBe(subtotalOf(budget, "gateway") * 3);
   });
 
@@ -122,7 +150,10 @@ describe("حسابُ الميزانيّةِ", () => {
   });
 
   it("صفرُ نسخٍ حالٌ مشروعةٌ: خدمةٌ موقوفةٌ لا تفتحُ اتّصالاً وسقفُها يبقى معلوماً", () => {
-    const stopped = computeConnectionBudget({ ...DECLARED_TOPOLOGY, adminInstances: 0 });
+    const stopped = computeConnectionBudget({
+      ...SEPARATED,
+      adminInstances: 0,
+    });
     const admin = stopped.rows.find((row) => row.process === "admin");
     expect(admin?.subtotal).toBe(0);
     expect(admin?.perInstance).toBe(DB_POOL_MAX.adminRequest);

@@ -163,6 +163,11 @@ export interface ConnectionTopology {
    * تعني أنّ **كلَّ** عمليةِ بوّابةٍ تحملُ تجمُّعَي العاملِ فوقَ تجمُّعِها.
    */
   readonly workerRunsInGateway: boolean;
+  /**
+   * `RUN_ADMIN_IN_GATEWAY` — صحيحةً تعني أنّ كلَّ عمليةِ بوّابةٍ تحملُ تجمُّعَ اللوحةِ
+   * فوقَ تجمُّعِها (2026-10-02: الخطّةُ المجّانيّةُ ⇒ عمليةٌ واحدةٌ تحملُ الثلاثةَ).
+   */
+  readonly adminRunsInGateway: boolean;
 }
 
 /**
@@ -171,10 +176,13 @@ export interface ConnectionTopology {
  * خطأِ أحدِهما لأنّ كلَّ قارئٍ يُصدِّقُ ما تحتَ يدِه.
  */
 export const DECLARED_TOPOLOGY: ConnectionTopology = Object.freeze({
+  // 2026-10-02: render.yaml صارَ يُطابقُ المنشورَ — بوّابةٌ واحدةٌ مجّانيّةٌ تحملُ
+  // العاملَ واللوحةَ، ولا خدمةَ عاملٍ ولا خدمةَ لوحةٍ مستقلّتَين.
   gatewayInstances: 1,
-  workerInstances: 1,
-  adminInstances: 1,
-  workerRunsInGateway: false,
+  workerInstances: 0,
+  adminInstances: 0,
+  workerRunsInGateway: true,
+  adminRunsInGateway: true,
 });
 
 /** صفٌّ في تفصيلِ الميزانيّةِ — عمليةٌ واحدةٌ بأدوارِها. */
@@ -227,9 +235,13 @@ export function computeConnectionBudget(topology: ConnectionTopology): Connectio
   }
 
   const rows = BUDGETED_PROCESSES.map((process): ConnectionBudgetRow => {
-    const roles =
-      process === "gateway" && topology.workerRunsInGateway
-        ? [...STEADY_STATE_POOLS.gateway, ...STEADY_STATE_POOLS.worker]
+    const roles: readonly DbPoolRole[] =
+      process === "gateway"
+        ? [
+            ...STEADY_STATE_POOLS.gateway,
+            ...(topology.workerRunsInGateway ? STEADY_STATE_POOLS.worker : []),
+            ...(topology.adminRunsInGateway ? STEADY_STATE_POOLS.admin : []),
+          ]
         : STEADY_STATE_POOLS[process];
     const perInstance = sumRoles(roles);
     return {

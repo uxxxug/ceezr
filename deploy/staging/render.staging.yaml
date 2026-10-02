@@ -14,13 +14,22 @@
 # لا يلتقطُه Render تلقائيّاً (ليسَ في الجذرِ)، ويُطبَّقُ بأمرٍ صريحٍ كمخطّطٍ
 # مستقلٍّ بقيمِ أسرارٍ مستقلّةٍ — والأسرارُ كلُّها sync: false.
 services:
-  # ── البوابة: تستقبل ويبهوك تلغرام وحده (F5-08: اللوحة صارت خدمةً مستقلّة) ────
+  # ── البوابة: عمليةٌ واحدةٌ تحملُ الويبهوكَ والعاملَ ولوحةَ الإدارةِ (2026-10-02) ──
+  #
+  # قرارُ المالكِ 2026-10-02: الخطّةُ المجّانيّةُ وحدَها متاحةٌ الآن. وRender لا يُتيحُ
+  # `type: worker` مجّاناً أصلاً، وكلُّ خدمةِ ويبٍ مجّانيّةٍ تستهلكُ من 750 ساعةً شهريّةً
+  # لمساحةِ العملِ (~744 ساعةً لخدمةٍ دائمةٍ). فخدمتا `waslah-worker` و`waslah-admin`
+  # حُذِفَتا من المخطوطةِ — ولم تكونا مُنشأتَينِ في Render قطُّ — والمهامُّ واللوحةُ
+  # تعملانِ داخلَ البوّابةِ بالقلبِ الطارئِ الموثَّقِ في ADR 0063/0064. والعودةُ إلى
+  # الفصلِ: استرجاعُ الكتلتَينِ من تاريخِ git (قبلَ هذا الالتزامِ) وقلبُ السطرَينِ إلى "false".
   - type: web
     name: waslah-gateway-staging
     runtime: docker
     dockerfilePath: ./docker/Dockerfile.gateway
     region: frankfurt # أقرب منطقة Render إلى السعودية حتى الانتقال إلى البحرين
-    plan: starter
+    # free يطابقُ الواقعَ المنشورَ: تنامُ بعدَ 15 دقيقةً بلا طلبٍ واردٍ، فيلزمُ نبضٌ
+    # خارجيٌّ على /health (docs/ops/free-tier-keep-alive.md).
+    plan: free
     # /ready لا /health: الأول يسأل القاعدة فعلاً، والثاني يجيب بمجرّد أن العملية
     # حيّة — ونسخة حيّة بلا قاعدة تستقبل تحديثات لتفقدها.
     healthCheckPath: /ready
@@ -94,8 +103,11 @@ services:
       # وتشغيلهما معاً — لو أُعيد هذا إلى "true" مع بقاء خدمة العامل — ليس خطراً:
       # القفل الموزّع (ADR 0009) يجعل إحداهما تتخطّى بحالة `skipped_locked_elsewhere`.
       # فطرفا الخطأ غير متكافئين، والحارسان أعلاه يحرسان الطرف المكلف منهما.
+      #
+      # 2026-10-02: صارَ "true" — خدمةُ العاملِ محذوفةٌ (الخطّةُ المجّانيّةُ لا تُتيحُ
+      # `type: worker`). والحارسُ `JOBS_ORPHANED` لا يُستثارُ لأنَّ المهامَّ ههنا.
       - key: RUN_WORKER_IN_GATEWAY
-        value: "false"
+        value: "true"
       # ── موضع سطح لوحة الإدارة: خدمة waslah-admin وحدها (F5-08 / ARCH-011 · ADR 0064) ──
       #
       # وهذا الحدّ **معكوسُ الخطرِ** عن أخيه أعلاه، فلا يُقرأ على قياسه:
@@ -114,8 +126,11 @@ services:
       # (هذا falsy ولا خدمة لوحة — فلا سطحَ إدارةٍ في أيّ موضع). و"true" يبقى
       # قيمةً مشروعةً للتراجع الطارئ: تُحذَف خدمة اللوحة ويُقلَب هذا، فترجع
       # اللوحة إلى البوابة في دفعةٍ واحدة.
+      #
+      # 2026-10-02: صارَ "true" — هذا هو «التراجعُ الطارئُ» الموصوفُ أعلاه حرفاً:
+      # خدمةُ اللوحةِ محذوفةٌ، فاللوحةُ في البوّابةِ، ولا `ADMIN_DUPLICATED` ولا `ADMIN_ORPHANED`.
       - key: RUN_ADMIN_IN_GATEWAY
-        value: "false"
+        value: "true"
       # ── سطحُ البوتِ (ADR 0213) ──────────────────────────────────────
       # miniapp: البوتُ طبقةُ دخولٍ وإشعاراتٍ وأوامرَ أساسيّةٍ، والعملُ في التطبيقِ المصغَّرِ.
       # التراجعُ: `legacy` هنا وفي العاملِ معاً ثمّ إعادةُ النشرِ (docs/rollback.md).
@@ -253,303 +268,17 @@ services:
       # الإنتاج. لا يُشتقّ من ترويسة الطلب أبداً — التفصيل في packages/shared/config.
       - key: TRACKING_TOKEN_BASE_URL
         sync: false
-
-  # ── العامل الخلفي: المهامّ الدورية بقفل موزَّع ────────────────────────────────
-  - type: worker
-    name: waslah-worker-staging
-    runtime: docker
-    dockerfilePath: ./docker/Dockerfile.worker
-    region: frankfurt
-    plan: starter
-    numInstances: 1
-    autoDeploy: false
-    envVars:
-      - key: NODE_ENV
-        value: production
-      # العامل لا يخدّم حواراً فلا يقرأ جلساتٍ فعلاً.
-      #
-      # BUG-016 — تصحيح دعوى كانت ههنا: كان مكتوباً «يُترك memory بلا أثر»
-      # وهي **دعوى كاذبة مُكلّفة**: عدم قراءة القيمة لا يعني عدم الحكم عليها.
-      # فـ`apps/workers/src/index.ts:28` يستدعي `tryLoadConfig` وينفّذ `process.exit(1)`
-      # عند الفشل، والضبط يرفض `memory` في الإنتاج **قبل أن يسأل من يقرأها**.
-      # فالعامل كان لا يُقلع في الإنتاج، لا يُقلع بلا أثر.
-      - key: SESSION_STORE
-        value: redis
-      # عمليةٌ واحدة كذلك — والقفل الموزّع يحمي المهامّ لا الطوبولوجيا (ADR 0051).
-      - key: PROCESS_TOPOLOGY
-        value: single-process
-      # هذه الخدمة لا تقرأ هذا المتغيّر: جدولها يُقلع في `apps/workers/src/index.ts`
-      # بلا شرط. ويُعلَن مع ذلك لأنّ `packages/shared/config` صار يُلزم الإعلان في
-      # الإنتاج (F5-04 · ADR 0063) فيسقط إقلاعُ أيّ عمليةٍ إنتاجيّةٍ بلا سطرِه —
-      # وسقوطُ العامل هو عين ما تمنعه هذه المرحلة. والقيمة "false" وصفٌ صادق للنظام
-      # لا حشوٌ: المهامّ ليست في البوّابة.
-      - key: RUN_WORKER_IN_GATEWAY
-        value: "false"
-      # ولا هذا المتغيّر تقرؤه هذه الخدمة، ولنفس السبب حرفاً (F5-08 · ADR 0064):
-      # الإعلانُ إلزاميٌّ في الإنتاج فيسقط إقلاعُ العامل بلا سطرِه. و"false" وصفٌ
-      # صادق: سطحُ اللوحة ليس في البوّابة ولا في العامل.
-      - key: RUN_ADMIN_IN_GATEWAY
-        value: "false"
-      # ── سطحُ البوتِ (ADR 0213) ──────────────────────────────────────
-      # miniapp: البوتُ طبقةُ دخولٍ وإشعاراتٍ وأوامرَ أساسيّةٍ، والعملُ في التطبيقِ المصغَّرِ.
-      # التراجعُ: `legacy` هنا وفي البوّابةِ معاً — العاملُ يُلحِقُ زرَّ الدخولِ بإشعاراتِه (docs/rollback.md).
-      - key: BOT_SURFACE_MODE
-        value: miniapp
-      # `sync: false` كعادةِ الملفِّ في العناوينِ الخاصّةِ بكلِّ بيئةٍ: staging المشتقّةُ من هذا الملفِّ
-      # تفتحُ تطبيقَها هي لا تطبيقَ الإنتاجِ. وغيابُه مع `miniapp` يُسقِطُ الإقلاعَ صراحةً (ADR 0213).
-      - key: MINIAPP_URL
-        sync: false
-      # ── التجميع المركزي للمقاييس (F5-07 / SCL-006 · ADR 0062) ──────────
-      # هذه الخدمةُ بلا خادمِ HTTP، فلا /metrics فيها ولا موضعَ يُكشَط منه:
-      # الدفعُ هو طريقُها الوحيدُ إلى المراقبة. وبنفس أسماءِ البوابة كي يُقرأ
-      # مجموعُ النظام من مُجمِّعٍ واحدٍ يفصل بينهما بـservice.name.
-      - key: METRICS_EXPORT_ENDPOINT
-        sync: false
-      - key: METRICS_EXPORT_HEADERS
-        sync: false
-      - key: METRICS_EXPORT_INTERVAL_SECONDS
-        value: "15"
-      - key: SERVICE_INSTANCE_ID
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      - key: UPSTASH_REDIS_REST_URL
-        sync: false
-      - key: UPSTASH_REDIS_REST_TOKEN
-        sync: false
-      - key: DRIVER_BOT_TOKEN
-        sync: false
-      - key: RIDER_BOT_TOKEN
-        sync: false
-      # العامل لا يستقبل ويبهوك، والمتغيّر إلزامي في الإعداد فيُمرَّر نفس القيمة
-      # كي لا يفشل الإقلاع على تحقّقٍ لا يخصّه.
-      - key: TELEGRAM_WEBHOOK_SECRET
-        sync: false
-      - key: BOOTSTRAP_ADMIN_TELEGRAM_ID
-        sync: false
-      - key: TRANSLATION_PROVIDER
-        value: none
-      - key: TRANSLATION_API_KEY
-        sync: false
-      - key: TRANSLATION_CONTACT_EMAIL
-        sync: false
-      # ── النسخ الاحتياطي اليومي إلى Google Drive (البند 7) ──────────────
-      # مهمّة النسخ الاحتياطي تعمل في العامل لا البوابة.
-      - key: GOOGLE_SERVICE_ACCOUNT_JSON
-        sync: false
-      - key: GOOGLE_DRIVE_BACKUP_FOLDER_ID
-        sync: false
-      - key: BACKUP_RETENTION_COUNT
-        sync: false
-      - key: BACKUP_LOCAL_DIR
-        sync: false
-      # ── طبقة الدفع: اشتراك السائق الشهري فقط (البند 8) ──────────────────
-      # العامل لا يستقبل ويبهوكاً ولا ينشئ فاتورة؛ يحتاج اسم المزوّد وحده لتسجيل
-      # مصدر الدفعات في مهامّ الاشتراك، فلا تُمرَّر إليه مفاتيح Moyasar.
-      - key: PAYMENT_PROVIDER
-        sync: false
-      - key: PAYMENT_ENVIRONMENT
-        sync: false
-      - key: ENABLE_DRIVER_SUBSCRIPTION
-        sync: false
-      # ── طبقة الخرائط والتوجيه (البند 9 والمرحلة 15) ──────────────────────
-      # ‏ROUTING_PROVIDER: none افتراضاً. ضبطه على osrm يُلزم OSRM_BASE_URL،
-      # وإلاّ مُنع الإقلاع — وهو أسلمُ من خدمةٍ موعودٍ بها وصامتة.
-      - key: ROUTING_PROVIDER
-        sync: false
-      - key: OSRM_BASE_URL
-        sync: false
-      # ‏REQ-09 / ADR 0190: حدُّ عقدِ حسابِ التوجيهِ <طلبات>/<ثوانٍ> — مطلوبٌ في الإنتاجِ
-      # متى كانَ ROUTING_PROVIDER غيرَ none، وإلّا مُنِعَ الإقلاعُ.
-      - key: ROUTING_RATE_LIMIT
-        sync: false
-      - key: MAP_STYLE_URL
-        sync: false
-      - key: MAP_PROVIDER
-        sync: false
-      - key: MAP_TILES_PUBLIC_KEY
-        sync: false
-      # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
-      # كلّها اختياريّة: الغياب يعني افتراض المجال في packages/domain/geo/gps-fix.ts.
-      # وكانت هذه الكتلة تحمل أسماءً لا وجود لها في .env.example ولا في الكود
-      # (IDLE_INTERVAL بلا GPS_، MAX_SPEED بلا REASONABLE_) فمن ضبطها هنا ضبط
-      # أسماءً لا يقرؤها أحد. الأسماء الآن موحَّدةٌ ومقروءةٌ، و scripts/check-env-drift.ts
-      # يُسقط البناء إن عاد الانحراف.
-      - key: TRACKING_GPS_INTERVAL_SECONDS
-        sync: false
-      - key: TRACKING_GPS_IDLE_INTERVAL_SECONDS
-        sync: false
-      - key: TRACKING_MIN_DISTANCE_METERS
-        sync: false
-      - key: TRACKING_TELEPORT_THRESHOLD_METERS
-        sync: false
-      - key: TRACKING_MAX_REASONABLE_SPEED_KMH
-        sync: false
-      - key: TRACKING_MAX_ACCURACY_METERS
-        sync: false
-      - key: TRACKING_MAX_TIME_DRIFT_SECONDS
-        sync: false
-      # ‏TRACKING_TOKEN_BASE_URL: أساسُ روابط التتبّع المُشارَكة (§4.2). غيابُه
-      # يُطفئ ميزةَ الرابط صريحاً بلا كسر أيّ شيء آخر، ووجودُه يُلزم https في
-      # الإنتاج. لا يُشتقّ من ترويسة الطلب أبداً — التفصيل في packages/shared/config.
-      - key: TRACKING_TOKEN_BASE_URL
-        sync: false
-
-  # ── خدمة لوحة الإدارة: سطحٌ إداريٌّ في عمليةٍ مستقلّة ─────────────────────────
-  #
-  # لماذا `type: web` لا `worker`: هذه الخدمة تُخدّم HTTP لبشرٍ يفتحون متصفّحاً،
-  # فتحتاج عنواناً عامّاً وفحصَ صحّةٍ — بخلاف `waslah-worker` الذي لا منفذَ له.
-  #
-  # ‏/health لا /ready: عقدُ /ready في البوّابة يفحص القاعدةَ وRedis والمخطَّطَ
-  # **ونبضاتِ المهامّ الحرجة**، ونسخُه ههنا كان سيسحب لوحةَ الإدارة من التوجيه
-  # لأنّ مهمّةً دوريّةً في خدمةٍ أخرى لم تنبض — أي حَجْبُ الشاشةِ التي يُشخَّص بها
-  # العطل في اللحظة التي تُحتاج فيها. فالمُعلَن ههنا حياةٌ لا جاهزيّة، والتفصيل
-  # في رأس `apps/admin/src/index.ts`.
-  - type: web
-    name: waslah-admin-staging
-    runtime: docker
-    dockerfilePath: ./docker/Dockerfile.admin
-    region: frankfurt
-    plan: starter
-    healthCheckPath: /health
-    # نسخةٌ واحدة: مشغّلون معدودون لا آلافُ راكبين. ورفعُ هذا فوق ١ يوجب
-    # multi-process أدناه وإلا أسقطه الحاجز (ADR 0051).
-    numInstances: 1
-    autoDeploy: false
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: PORT
-        value: "8080"
-      # اللوحةُ لا تُدير حواراً في تلغرام فلا تقرأ مخزنَ الجلسات. لكنّ قيمةَ
-      # `redis` ههنا **ليست حشواً**: `apps/admin/src/container.ts` يقرأ هذا
-      # المتغيّرَ نفسَه ليقرّر تغليفَ ناقلِ الأحداث بمجرى Redis. وبـ`memory` يفتح
-      # مجرى `/admin/api/live` ويُنبِض ويُعيد لقطةَ القاعدة كلَّ عشرين ثانية **ولا
-      # تصله دلتا لحظيّةٌ واحدةٌ أبداً** — لأنّ الأحداثَ تُنشَر في عمليةِ البوّابة
-      # حيث يصل ويبهوكُ الموقع. عطلٌ لا يُخفِق فيه طلبٌ ويُقرأ «شبكةً بطيئة»
-      # (SCL-004 · ADR 0058).
-      - key: SESSION_STORE
-        value: redis
-      - key: PROCESS_TOPOLOGY
-        value: single-process
-      # موضعُ المهامّ: ليست ههنا ولا في البوّابة. والإعلانُ إلزاميٌّ في الإنتاج
-      # (F5-04 · ADR 0063) فيسقط إقلاعُ هذه الخدمة بلا سطرِه.
-      - key: RUN_WORKER_IN_GATEWAY
-        value: "false"
-      # موضعُ اللوحة: **ههنا**. وقيمةُ هذا السطر تصف البوّابةَ لا هذه الخدمةَ —
-      # وهي "false" لأنّ اللوحةَ خرجت منها. ونقطةُ الدخول تُسجّل تناقضاً صريحاً إن
-      # وجدت "true" (لا تُسقِط العملية): طبقةٌ ثانية للحكم على بيئةٍ قد تُضبَط بيدٍ
-      # في لوحة المنصّة، حيث لا يرى الحاجزُ الملفَّ.
-      - key: RUN_ADMIN_IN_GATEWAY
-        value: "false"
-      # ── التجميع المركزي للمقاييس (F5-07 / SCL-006 · ADR 0062) ──────────
-      # بنفس أسماءِ الخدمتَين كي يُقرأ مجموعُ النظام من مُجمِّعٍ واحدٍ يفصل
-      # بينها بـservice.name.
-      - key: METRICS_EXPORT_ENDPOINT
-        sync: false
-      - key: METRICS_EXPORT_HEADERS
-        sync: false
-      - key: METRICS_EXPORT_INTERVAL_SECONDS
-        value: "15"
-      - key: SERVICE_INSTANCE_ID
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_ROLE_KEY
-        sync: false
-      # إلزاميّان فعلاً لا شكلاً: مجرى الأحداث العابر للعمليّات يقوم عليهما.
-      - key: UPSTASH_REDIS_REST_URL
-        sync: false
-      - key: UPSTASH_REDIS_REST_TOKEN
-        sync: false
-      # بوتُ السائق هو قناةُ رمزِ الدخول: المسؤول مسجَّلٌ عليه أصلاً، فهذا الرمزُ
-      # شرطٌ فعليٌّ لتسجيل الدخول في هذه الخدمة لا تمريرٌ للشكل.
-      - key: DRIVER_BOT_TOKEN
-        sync: false
-      # لا يُستخدَم في هذه الخدمة، والإعدادُ يُلزمه؛ يُمرَّر كي لا يفشل الإقلاع
-      # على تحقّقٍ لا يخصّها — نفس حكم العامل حرفاً.
-      - key: RIDER_BOT_TOKEN
-        sync: false
-      # هذه الخدمة لا تستقبل ويبهوكاً — والفصلُ نفسُه فائدةٌ أمنيّة: سطحُ الدخول
-      # الإداريّ لم يبقَ على العنوان العامّ الذي يستقبل تحديثاتِ تلغرام.
-      - key: TELEGRAM_WEBHOOK_SECRET
-        sync: false
-      - key: BOOTSTRAP_ADMIN_TELEGRAM_ID
-        sync: false
-      - key: TRANSLATION_PROVIDER
-        value: none
-      - key: TRANSLATION_API_KEY
-        sync: false
-      - key: TRANSLATION_CONTACT_EMAIL
-        sync: false
-      # ‏/metrics في هذه الخدمة يعرض عمليّتَها، ويفشل مغلقاً بغياب السرّ.
-      - key: METRICS_TOKEN
-        sync: false
-      # ── الخرائط: خريطةُ العمليّات الحيّة وصفحاتُ اللوحة تحتاجها فعلاً ────────
-      - key: MAP_STYLE_URL
-        sync: false
-      - key: MAP_PROVIDER
-        sync: false
-      - key: MAP_TILES_PUBLIC_KEY
-        sync: false
-      - key: ROUTING_PROVIDER
-        sync: false
-      - key: OSRM_BASE_URL
-        sync: false
-      # ‏REQ-09 / ADR 0190: حدُّ عقدِ حسابِ التوجيهِ <طلبات>/<ثوانٍ> — مطلوبٌ في الإنتاجِ
-      # متى كانَ ROUTING_PROVIDER غيرَ none، وإلّا مُنِعَ الإقلاعُ.
-      - key: ROUTING_RATE_LIMIT
-        sync: false
-      # ── طبقة التتبّع اللحظي (البند 9) ──────────────────────────────────────
-      # اللوحةُ تعرض ما يُنتجه هذا المجال، وقيمُه تُقرأ في الإعداد لا في العرض؛
-      # تُمرَّر كي تبقى قراءةُ الإعداد واحدةً في كلّ عمليّة.
-      - key: TRACKING_GPS_INTERVAL_SECONDS
-        sync: false
-      - key: TRACKING_GPS_IDLE_INTERVAL_SECONDS
-        sync: false
-      - key: TRACKING_MIN_DISTANCE_METERS
-        sync: false
-      - key: TRACKING_TELEPORT_THRESHOLD_METERS
-        sync: false
-      - key: TRACKING_MAX_REASONABLE_SPEED_KMH
-        sync: false
-      - key: TRACKING_MAX_ACCURACY_METERS
-        sync: false
-      - key: TRACKING_MAX_TIME_DRIFT_SECONDS
-        sync: false
-      - key: TRACKING_TOKEN_BASE_URL
-        sync: false
-      # ── الدفع: صفحاتُ الدفعات في اللوحة تقرأ اسمَ المزوّد لعرض المصدر ───────
-      - key: PAYMENT_PROVIDER
-        sync: false
-      - key: PAYMENT_ENVIRONMENT
-        sync: false
-      - key: ENABLE_DRIVER_SUBSCRIPTION
-        sync: false
-      # ── ناقلُ أحداثِ MOVE إلى CORE (البند W-5) ───────────────────────────
-      # عنوانُ CORE ورمزُ خدمةِ MOVE. غيابُ أيِّهما لا يُسجِّلُ مهمّةَ الإرسالِ
-      # ويُكتَبُ في السجلِّ؛ والصفوفُ محفوظةٌ في صندوقِ الصادرِ لا تُفقَد.
+      # ── ناقلُ أحداثِ MOVE إلى CORE (البند W-5) — انتقلَ من خدمةِ اللوحةِ المحذوفةِ ──
       - key: CORE_EVENTS_BASE_URL
         sync: false
       - key: CORE_EVENTS_BEARER_TOKEN
-        sync: false
-      # ── جلسة التطبيق المصغَّر: لا تُصدَر من ههنا، والإعدادُ واحد ──────────────
-      - key: MINIAPP_SESSION_SECRET
-        sync: false
-      - key: ADMIN_BREAK_GLASS_TOTP_KEY
         sync: false
 
   # ── التطبيقُ المصغَّرُ: موقعٌ ساكنٌ يُفتَحُ من داخلِ تلغرام وحدَه ─────────────
   #
   # `F1-10` · `TG-005` · ADR 0165 · DEC-07.
   #
-  # ولماذا خدمةٌ رابعةٌ ولم تُخدَم الملفّاتُ من البوّابةِ؟ لأنَّ `F1-10` يُلزِمُ
+  # ولماذا خدمةٌ مستقلّةٌ ولم تُخدَم الملفّاتُ من البوّابةِ؟ لأنَّ `F1-10` يُلزِمُ
   # **أصلاً واحداً** للتطبيقِ، والبوّابةُ سطحُ ويبهوكٍ لتلغرام: خدمتُها للملفّاتِ
   # تخلطُ سطحَ هجومٍ عامّاً بسطحٍ يستقبلُ توقيعَ البوتِ. والموقعُ الساكنُ في
   # Render مجّانيٌّ ولا يُشغِّلُ عمليّةً، فلا يُكلِّفُ خطّةً ولا يزيدُ اتّصالاً
