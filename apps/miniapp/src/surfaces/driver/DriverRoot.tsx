@@ -86,6 +86,7 @@ import {
 import { EmptyState } from "../../system/EmptyState.tsx";
 import { AccountScreen } from "./account/AccountScreen.tsx";
 import { ActivityScreen } from "./activity/ActivityScreen.tsx";
+import { DeductionTraceScreen } from "./deductions/DeductionTraceScreen.tsx";
 import { DocumentsScreen } from "./documents/DocumentsScreen.tsx";
 import { driverEntryView } from "./entry-view.ts";
 import { JobScreen } from "./job/JobScreen.tsx";
@@ -106,6 +107,7 @@ type DriverView =
   | { readonly kind: "vehicle" }
   | { readonly kind: "documents" }
   | { readonly kind: "support" }
+  | { readonly kind: "deductionTrace" }
   | { readonly kind: "account" }
   | { readonly kind: "summary"; readonly orderId: string }
   | { readonly kind: "placeholder" };
@@ -186,7 +188,16 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
     // **لا `orderId` من اللوحِ**: شكوى «راكبٌ مسيءٌ» تُفتَحُ من رحلةٍ بعينِها
     // (مَهمّةٌ أو سجلُّ نشاطٍ)، ولوحُ العروضِ ليسَ رحلةً. والشاشةُ تقولُ ذلكَ
     // نصّاً لمَن اختارَ الصنفَ ههنا ولا تعرضُ حقلَ معرّفٍ يُملأُ بيدٍ.
-    return <DriverSupportScreen onBack={() => setView({ kind: "offers" })} />;
+    return (
+      <DriverSupportScreen
+        onBack={() => setView({ kind: "offers" })}
+        onOpenDeductionTrace={() => setView({ kind: "deductionTrace" })}
+      />
+    );
+  }
+
+  if (view.kind === "deductionTrace") {
+    return <DeductionTraceScreen language={language} onBack={() => setView({ kind: "support" })} />;
   }
 
   if (view.kind === "account") {

@@ -404,6 +404,12 @@ export const BROWSER_FETCH_SITES: readonly BrowserFetchSite[] = [
       "مُبوَّبٌ بالمقصدِ `supabase-object-storage`",
   },
   {
+    path: "apps/miniapp/src/surfaces/driver/deductions/deduction-trace-api.ts",
+    reason:
+      "عميلُ تطبيقِ تلغرام المصغَّرِ يعملُ في المتصفّحِ ويُنادي بوّابةَ MOVE نفسَها " +
+      "بعنوانٍ نسبيٍّ — لا صادرَ من الخادمِ ولا مضيفَ خارجيّاً",
+  },
+  {
     path: "apps/gateway/src/public/tracking-page.ts",
     reason:
       "نصٌّ مُضمَّنٌ في صفحةِ التتبُّعِ العامّةِ يستفتي موضعَ الرحلةِ من المتصفّحِ " +

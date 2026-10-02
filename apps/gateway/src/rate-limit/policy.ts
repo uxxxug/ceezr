@@ -1250,6 +1250,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    method: "GET",
+    path: "/v1/driver/deductions",
+    file: "apps/gateway/src/routes/driver-deductions.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "POST",
     path: "/webhook/telegram/:bot",
     file: "apps/gateway/src/routes/telegram-webhook.ts",
@@ -1320,7 +1329,7 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * (`F16-03` · `ADR 0221`): مسارُ قطعِ روابطِ التتبُّعِ منَ اللوحةِ — خلفَ
  * حارسِ جلسةِ الإدارةِ كما أخواتُه من مساراتِ اللوحةِ.
  */
-export const ROUTE_POLICY_COUNT = 115;
+export const ROUTE_POLICY_COUNT = 116;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
