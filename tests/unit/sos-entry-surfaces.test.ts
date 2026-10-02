@@ -1,5 +1,5 @@
 /**
- * الغرض: قياسُ حاجزِ أسطحِ دخولِ الاستغاثةِ — **عشرةُ أسطحٍ مُلتزمةٌ** يُمرِّرُ
+ * الغرض: قياسُ حاجزِ أسطحِ دخولِ الاستغاثةِ — **أحدَ عشرَ سطحًا مُلتزمةٌ** يُمرِّرُ
  *   إليها `RiderRoot` مدخلَ الاستغاثةِ، فلا يختفي البابُ من شاشةٍ بحجّةِ أنَّ
  *   رحلةً نشطةً بطاقتُها المدمجةُ أقربُ (البند `PD-020` · `ADR 0159`).
  * الحالة: منفَّذٌ فعليّاً — البند `PD-020`.
@@ -26,6 +26,12 @@
  *      نصوصٍ.
  *   ــ **لا فتحُ الشاشةِ فعلاً**: فعلُ الفتحِ يقيسُه اختبارُ الشاشةِ نفسِها لا
  *      جردُ المصادرِ.
+ *
+ * ## لماذا أحدَ عشرَ لا عشرةٌ
+ *
+ * لأنَّ `DEC-34` أضافَ صفحةَ مفقوداتٍ مخصَّصةً (`lostFound`) تُركِّبُ `SupportScreen`
+ * بصنفِ `lost_item` مبدئيًّا — وهيَ سطحُ دعمٍ يحملُ مدخلَ الاستغاثةِ كأختِها.
+ * والزيادةُ عهدٌ مُصرَّحٌ بهِ ههنا.
  */
 
 import { describe, expect, it } from "bun:test";
@@ -58,7 +64,7 @@ function read(path: string): string {
   return readFileSync(path, "utf8");
 }
 
-describe("أسطحُ دخولِ الاستغاثةِ — عشرةٌ لا تختفي منها واحدةٌ", () => {
+describe("أسطحُ دخولِ الاستغاثةِ — أحدَ عشرَ لا تختفي منها واحدةٌ", () => {
   it("كلُّ سطحٍ ملتزَمٍ يقبلُ المدخلَ ويُحيلُ إلى المُكوِّنِ الموحَّدِ", () => {
     for (const path of COMMITTED_SURFACES) {
       const source = read(path);
@@ -74,9 +80,9 @@ describe("أسطحُ دخولِ الاستغاثةِ — عشرةٌ لا تخت�
     expect(COMMITTED_SURFACES).toHaveLength(10);
   });
 
-  it("الموجِّهُ يُمرِّرُ المدخلَ إلى الأسطحِ العشرةِ ويُركِّبُ شاشةَ الاستغاثةِ", () => {
+  it("الموجِّهُ يُمرِّرُ المدخلَ إلى الأسطحِ العشرةِ وصفحةِ المفقوداتِ (أحدَ عشرَ) ويُركِّبُ شاشةَ الاستغاثةِ", () => {
     const root = read(ROOT);
-    expect(root.match(/onOpenSos=\{onOpenSos\}/g) ?? []).toHaveLength(10);
+    expect(root.match(/onOpenSos=\{onOpenSos\}/g) ?? []).toHaveLength(11);
     expect(root.includes("import { SosScreen } from ./sos/SosScreen.tsx")).toBe(false);
     expect(root.includes('import { SosScreen } from "./sos/SosScreen.tsx"')).toBe(true);
     expect(root.includes("<SosScreen onBack={() => setSosOpen(false)} />")).toBe(true);

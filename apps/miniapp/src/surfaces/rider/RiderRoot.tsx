@@ -254,6 +254,12 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     landing.support,
   );
   /**
+   * صفحةُ المفقوداتِ المخصَّصةِ (DEC-34) — رايةٌ تفتحُ شاشةَ الدعمِ بصنفِ
+   * `lost_item` مبدئيًّا. لا تُدمَجُ معَ `support`: تلكَ تحملُ رحلةً، وهذه
+   * تحملُ صنفًا. والرجوعُ يُطفِئُ الرايةَ.
+   */
+  const [lostFound, setLostFound] = useState(false);
+  /**
    * شاشةُ الاستغاثةِ (`PD-020` · `ADR 0159`) — **رايةٌ لا معرّفٌ**: الحكمُ كلُّهُ
    * يُقرأُ من القاعدةِ داخلَها، فلا يُرفَعُ إلى الموجِّهِ إلّا «مفتوحةٌ» و«مغلقةٌ».
    * وهيَ **أعلى الترتيبِ كلِّهِ وفوقَ الدعمِ**: فيها تأكيدٌ بخطوتَينِ وسردٌ
@@ -294,6 +300,20 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
         <SupportScreen
           orderId={support.orderId}
           onBack={() => setSupport(null)}
+          onOpenSos={onOpenSos}
+        />
+      </Deferred>
+    );
+  }
+
+  // صفحةُ المفقوداتِ المخصَّصةِ (DEC-34) — شاشةُ الدعمِ بصنفِ `lost_item` مبدئيًّا.
+  // **أعلى الترتيبِ بعدَ الدعمِ**: الرجوعُ يُطفِئُ الرايةَ.
+  if (lostFound) {
+    return (
+      <Deferred>
+        <SupportScreen
+          initialCategory={"lost_item"}
+          onBack={() => setLostFound(false)}
           onOpenSos={onOpenSos}
         />
       </Deferred>
@@ -471,6 +491,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     <HomeScreen
       onDestinationChosen={(picked) => setChosen(picked)}
       onOpenHistory={() => setBrowsed(true)}
+      onOpenLostFound={() => setLostFound(true)}
       onOpenNotifications={() => setNotificationsOpen(true)}
       onOpenAccount={() => setAccount(true)}
       onOpenSos={onOpenSos}
