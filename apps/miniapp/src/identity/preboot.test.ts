@@ -52,7 +52,14 @@ describe("consumePrebootSession", () => {
 describe("consumePrebootViewer", () => {
   it("يُعيد وعدَ الدورِ إن طابقَ الرمزُ", () => {
     const state = setPreboot({ accessToken: "abc" });
-    expect(consumePrebootViewer("abc")).toBe(state.viewer);
+    const promise = state.viewer;
+    expect(consumePrebootViewer("abc")).toBe(promise);
+  });
+
+  it("`UI-LOOP-01`: مرّةً واحدةً — النداءُ الثاني `null` فيُقرَأُ الدورُ من الخادمِ", () => {
+    setPreboot({ accessToken: "abc" });
+    expect(consumePrebootViewer("abc")).not.toBeNull();
+    expect(consumePrebootViewer("abc")).toBeNull();
   });
 
   it("يُعيد `null` إن خالفَ الرمزُ — نتائجُ جلسةٍ سابقةٍ لا تُستهلَك", () => {
@@ -68,7 +75,9 @@ describe("consumePrebootViewer", () => {
 describe("consumePrebootConsents", () => {
   it("يُعيد وعدَ الموافقاتِ إن طابقَ الرمزُ", () => {
     const state = setPreboot({ accessToken: "abc" });
-    expect(consumePrebootConsents("abc")).toBe(state.consents);
+    const promise = state.consents;
+    expect(consumePrebootConsents("abc")).toBe(promise);
+    expect(consumePrebootConsents("abc")).toBeNull();
   });
 
   it("يُعيد `null` إن خالفَ الرمزُ", () => {
