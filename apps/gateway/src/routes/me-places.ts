@@ -27,6 +27,7 @@
 
 import { type Context, Hono } from "hono";
 import {
+  deletePlace,
   listRecentDestinations,
   listSavedPlaces,
   type PlacesDeps,
@@ -60,6 +61,7 @@ const STATUS_BY_ERROR: Readonly<Record<PlacesPublicErrorCode, 400 | 401 | 404 | 
   UNKNOWN_PLACE_KIND: 400,
   // الجلسةُ صحيحةٌ ولا صفَّ مستخدمٍ: `404` لا `401`، ولا يُنشَأُ الصفُّ (ADR 0035).
   ACCOUNT_NOT_FOUND: 404,
+  PLACE_NOT_FOUND: 404,
   PLACE_STORE_NOT_AVAILABLE: 503,
 };
 
@@ -160,6 +162,38 @@ export function createPlacesRoutes(deps: PlacesRouteDependencies): Hono {
         lastUsedAt: new Date(d.lastUsedAtMs).toISOString(),
       })),
     });
+  });
+
+  // DEC-39: حذفُ مكانٍ محفوظٍ فرادى — `DELETE /v1/me/places/:id`.
+  app.delete("/v1/me/places/:id", async (c) => {
+    if (deps.places === undefined) {
+      deps.log?.("places.route_disabled", {});
+      return c.json({ ok: false, error: "PLACE_STORE_NOT_AVAILABLE" }, 503);
+    }
+
+    const accessToken = bearerTokenFrom(c.req.header("Authorization"));
+    const placeId = c.req.param("id");
+
+    const result = await deletePlace(deps.places, { accessToken, placeId });
+    if (!result.ok) {
+      if (
+        result.error === "SESSION_REQUIRED" ||
+        result.error === "SESSION_INVALID" ||
+        result.error === "SESSION_EXPIRED" ||
+        result.error === "SESSION_NOT_AVAILABLE"
+      ) {
+        return c.json({ ok: false, error: result.error }, 401);
+      }
+      if (result.error === "PLACE_NOT_FOUND") {
+        return c.json({ ok: false, error: result.error }, 404);
+      }
+      if (result.error === "ACCOUNT_NOT_FOUND") {
+        return c.json({ ok: false, error: result.error }, 403);
+      }
+      return c.json({ ok: false, error: result.error }, 503);
+    }
+
+    return c.json({ ok: true, status: "deleted" });
   });
 
   return app;

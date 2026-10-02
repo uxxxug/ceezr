@@ -170,6 +170,46 @@ export function createSavedPlaceWriter(sql: Sql): SavedPlaceWriter {
         },
       });
     },
+
+    delete: async (input: {
+      readonly telegramUserId: string;
+      readonly placeId: string;
+    }): Promise<Result<{ readonly status: "deleted" }, PlaceStoreFailure>> => {
+      const telegramId = asTelegramId(input.telegramUserId);
+      if (telegramId === null) return err(failed("USER_NOT_FOUND"));
+
+      const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+      if (!UUID_PATTERN.test(input.placeId)) return err(failed("STORE_ERROR"));
+
+      let rows: {
+        readonly result: {
+          readonly ok?: boolean;
+          readonly error?: string;
+          readonly status?: string;
+        };
+      }[];
+      try {
+        rows = await sql.unsafe<
+          {
+            readonly result: {
+              readonly ok?: boolean;
+              readonly error?: string;
+              readonly status?: string;
+            };
+          }[]
+        >("select delete_saved_place($1, $2) as result", [telegramId, input.placeId]);
+      } catch {
+        return err(failed("STORE_ERROR"));
+      }
+
+      const result = rows[0]?.result;
+      if (result === undefined) return err(failed("STORE_ERROR"));
+      if (result.ok !== true) {
+        return err(failed(result.error === "USER_NOT_FOUND" ? "USER_NOT_FOUND" : "STORE_ERROR"));
+      }
+      if (result.status !== "deleted") return err(failed("STORE_ERROR"));
+      return ok({ status: "deleted" });
+    },
   };
 }
 
