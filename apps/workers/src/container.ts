@@ -506,6 +506,8 @@ export function buildWorkerContainer(
       connectionString: config.databaseUrl,
       max: DB_POOL_MAX.workerLocks,
       prepare: false,
+      // القفلُ الاستشاريُّ ملكُ الجلسةِ: إغلاقُ اتّصالٍ خاملٍ يُسقِطُ قفلاً محتجَزاً (`OPS-POOL-01`).
+      idleTimeoutSeconds: null,
     });
 
   // الافتراضي هو القفل الحقيقي لا المُعطَّل: نسيان تمريره في الإنتاج يجب أن يكون
