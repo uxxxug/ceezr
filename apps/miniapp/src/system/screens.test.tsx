@@ -35,6 +35,7 @@ const FAILURES: readonly ScreenState[] = [
   { kind: "unknown_error" },
   { kind: "surface_failed" },
   { kind: "missing_init_data" },
+  { kind: "launch_stale" },
 ];
 
 /**

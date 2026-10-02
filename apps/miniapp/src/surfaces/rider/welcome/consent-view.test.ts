@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from "bun:test";
 import {
+  alreadyOnboarded,
   type ConsentApiStatus,
   consentErrorKey,
   consentRows,
@@ -144,5 +145,23 @@ describe("ترجمةُ الأخطاءِ وقابليّةُ إعادةِ المح
     expect(isRetryable("CONSENT_STORE_NOT_AVAILABLE")).toBe(true);
     expect(isRetryable("NOT_ACCEPTED")).toBe(true);
     expect(isRetryable("UNKNOWN")).toBe(true);
+  });
+});
+
+describe("UI-WELCOME-01: تجاوزُ الترحيبِ لمَن وافقَ من قبلُ", () => {
+  const done = {
+    satisfied: true,
+    documents: [
+      { kind: TERMS.kind, currentVersion: TERMS.version, state: "satisfied" as const },
+      { kind: PRIVACY.kind, currentVersion: PRIVACY.version, state: "satisfied" as const },
+    ],
+  };
+  it("مكتملةٌ بلا وثيقةٍ معلَّقةٍ ⇒ يُتجاوَز", () => {
+    expect(alreadyOnboarded(status([TERMS, PRIVACY], done))).toBe(true);
+  });
+  it("وثيقةٌ معلَّقةٌ ⇒ لا يُتجاوَز", () => {
+    expect(alreadyOnboarded(status([TERMS, PRIVACY], { satisfied: false, documents: [] }))).toBe(
+      false,
+    );
   });
 });

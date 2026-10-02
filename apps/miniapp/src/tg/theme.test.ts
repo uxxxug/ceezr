@@ -24,6 +24,7 @@ import {
   applyTelegramSafeArea,
   applyTelegramTheme,
   bindTelegramTheme,
+  TG_COLOR_SCHEME_ATTRIBUTE,
   TG_COLOR_SCHEME_VARIABLE,
   TG_SAFE_AREA_CSS_VARIABLES,
   TG_THEME_CSS_VARIABLES,
@@ -301,6 +302,23 @@ describe("safeAreaInset", () => {
     expect(report.contentSafeArea.ok === false ? report.contentSafeArea.reason : "").toBe(
       "no-telegram",
     );
+  });
+});
+
+describe("UI-THEME-01: سمةُ الوضعِ على جذرِ المستند", () => {
+  test("عميلٌ فاتحٌ يُعلِّمُ الجذرَ `light` فتُختارُ افتراضاتُ الوضعِ الفاتحِ للمفاتيحِ الغائبة", () => {
+    const doc = installFakeDocument();
+    installFakeHost({ themeParams: { bg_color: "#ffffff" }, colorScheme: "light" }, "9.0");
+    applyTelegramTheme();
+    expect(doc.attributes.get(TG_COLOR_SCHEME_ATTRIBUTE)).toBe("light");
+    expect(doc.variables.has("--tg-section-bg-color")).toBe(false);
+  });
+
+  test("عميلٌ داكنٌ يُعلِّمُ الجذرَ `dark`", () => {
+    const doc = installFakeDocument();
+    installFakeHost({ themeParams: FULL_THEME, colorScheme: "dark" }, "9.0");
+    applyTelegramTheme();
+    expect(doc.attributes.get(TG_COLOR_SCHEME_ATTRIBUTE)).toBe("dark");
   });
 });
 

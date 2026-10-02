@@ -50,7 +50,13 @@ export type AuxiliaryScreen =
   | { readonly kind: "no_surface_yet" }
   /** المضيفُ ليس تيليجرام، أو لا بيانَ إقلاعٍ فيه. */
   | { readonly kind: "outside_telegram" }
-  | { readonly kind: "missing_init_data" };
+  | { readonly kind: "missing_init_data" }
+  /**
+   * `UI-SESS-01`: بيانُ الفتحِ نفسُه رُفِضَ (انتهت مهلتُه أو استُعمِلَ قبلُ) ولا رمزَ
+   * محفوظاً — حالُ إعادةِ تحميلِ الصفحةِ داخلَ تيليجرام. «أعد المحاولة» هنا تَعِدُ
+   * بما لا يقعُ: البيانُ ذاتُه سيُرفَضُ ثانيةً، والعلاجُ فتحٌ جديدٌ من البوت.
+   */
+  | { readonly kind: "launch_stale" };
 
 export type ScreenState = SystemState | AuxiliaryScreen;
 
@@ -104,6 +110,12 @@ const AUXILIARY_TEXT: Readonly<Record<AuxiliaryScreen["kind"], SystemScreenText>
     body: "هذا التطبيق يعمل داخل تيليجرام اليوم. تشغيله في متصفّح بمصادقة بديلة لم يُنفَّذ بعد.",
     // زرٌّ يفتحُ البوتَ لا يُعيدُ محاولةَ الإقلاعِ: الإقلاعُ ههنا يفشلُ حتماً.
     actionLabel: "العودة إلى بوت وَصْلة",
+    hint: null,
+  },
+  launch_stale: {
+    title: "أعد فتح وَصْلة",
+    body: "انتهت صلاحية هذه الجلسة بعد تحديث الصفحة. أغلق التطبيق وافتحه من جديد من زر البوت — ولن تفقد شيئاً من بياناتك.",
+    actionLabel: "إغلاق التطبيق",
     hint: null,
   },
   missing_init_data: {

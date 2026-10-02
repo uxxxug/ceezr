@@ -158,7 +158,18 @@ export async function establishSession(deps: BootDeps = {}): Promise<BootResult>
     // نفعَ قبلَ هذا السطرِ ورجعَ. وما يصلُ ههنا هو حينَ لم يُجدَّ ولم تُرفَض الشبكة.
     const preboot = (deps.consumePreboot ?? consumePrebootSession)();
     if (preboot !== null) {
-      response = await preboot;
+      try {
+        response = await preboot;
+      } catch (prebootFailure) {
+        // `UI-SESS-01`: السكربتُ الساكنُ يرفضُ بـ`Error("preboot:<status>")` لا بـ`ApiError`،
+        // فكانَ رفضُ `401` يُصنَّفُ «لا اتصال» ويَعِدُ زرُّه بما لا يقعُ. والمبادلةُ
+        // العاديّةُ تُعيدُ الجوابَ مُصنَّفاً بحالتِه؛ وإن كانَ البيانُ مُستهلَكاً رفضَته
+        // حمايةُ الإعادةِ فيُقالُ «أعد فتحَ التطبيق» صدقاً.
+        if (prebootFailure instanceof ApiError || prebootFailure instanceof ApiNetworkError) {
+          throw prebootFailure;
+        }
+        response = await (deps.exchange ?? defaultExchange)(initData, observe);
+      }
     } else {
       response = await (deps.exchange ?? defaultExchange)(initData, observe);
     }

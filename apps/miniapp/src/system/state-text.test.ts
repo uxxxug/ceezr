@@ -32,6 +32,7 @@ const ALL: readonly ScreenState[] = [
   { kind: "no_surface_yet" },
   { kind: "outside_telegram" },
   { kind: "missing_init_data" },
+  { kind: "launch_stale" },
 ];
 
 describe("لا حالةَ بلا نصّ (UX-5)", () => {

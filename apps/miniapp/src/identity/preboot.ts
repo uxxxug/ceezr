@@ -26,7 +26,8 @@ interface ExchangeResponse {
 /** ما يضعه السكربتُ الساكنُ في `index.html` على `window.__waslahPreboot`. */
 interface PrebootState {
   /** وعدُ تبادلِ الجلسةِ — يُستهلَكُ من `boot.ts`. */
-  readonly session: Promise<ExchangeResponse>;
+  // `UI-SESS-01`: يُستهلَكُ مرّةً واحدةً ثمّ يصيرُ `null`.
+  session: Promise<ExchangeResponse> | null;
   /** وعدُ قراءةِ الدورِ (ردُّ `/v1/me` الخامُ أو `null`) — يُستهلَكُ من `viewer.ts`. */
   // `UI-LOOP-01`: يُستهلَكُ مرّةً واحدةً ثمّ يصيرُ `null` — القراءةُ التاليةُ من الخادمِ.
   viewer: Promise<unknown> | null;
@@ -62,8 +63,11 @@ function writePreboot(state: PrebootState | undefined): void {
  */
 export function consumePrebootSession(): Promise<ExchangeResponse> | null {
   const raw = readPreboot();
-  if (raw === undefined) return null;
-  return raw.session;
+  if (raw === undefined || raw.session === null) return null;
+  // `UI-SESS-01`: مرّةً واحدةً كأخواتِها؛ وعدٌ مرفوضٌ يُعادُ لكلِّ «إعادةِ محاولةٍ» يجعلُ الزرَّ لا يفعلُ شيئاً.
+  const session = raw.session;
+  raw.session = null;
+  return session;
 }
 
 /**

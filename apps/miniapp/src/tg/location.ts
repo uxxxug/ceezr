@@ -69,13 +69,36 @@ export function locationAccess(): TgLocationAccess | null {
   };
 }
 
+/**
+ * `UI-LOC-01`: مهلتا انتظارِ المضيفِ. مضيفٌ لا يُجيبُ (عميلٌ قديمٌ أو سطحُ مكتبٍ أو
+ * انقطاعُ الجسرِ) كانَ يُبقي «نقرأُ موقعَك الآنَ…» إلى الأبدِ بلا زرٍّ. والقراءةُ
+ * أطولُ لأنَّها قد تنتظرُ قرارَ المستخدمِ في نافذةِ الإذنِ.
+ */
+export const LOCATION_INIT_TIMEOUT_MS = 8_000;
+export const LOCATION_READ_TIMEOUT_MS = 45_000;
+
+function withTimeout<T>(ms: number, run: (resolve: (value: TgOutcome<T>) => void) => void) {
+  return new Promise<TgOutcome<T>>((resolve) => {
+    let settled = false;
+    const finish = (value: TgOutcome<T>) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(value);
+    };
+    const timer = setTimeout(() => finish(tgUnavailable<T>("failed", "timeout")), ms);
+    run(finish);
+  });
+}
+
 /** Initialises `LocationManager`; resolves once Telegram reports it ready. */
 export function initLocation(): Promise<TgOutcome<true>> {
   const gate = resolveCapability("location");
   if (gate.host === null) return Promise.resolve(tgUnavailable<true>(gate.reason));
   const manager = gate.host.LocationManager;
   if (!manager) return Promise.resolve(tgUnavailable<true>("missing-api"));
-  return new Promise((resolve) => {
+  if (manager.isInited === true) return Promise.resolve(tgOk(true as const));
+  return withTimeout<true>(LOCATION_INIT_TIMEOUT_MS, (resolve) => {
     try {
       manager.init(() => resolve(tgOk(true as const)));
     } catch (error) {
@@ -95,7 +118,7 @@ export function requestLocation(): Promise<TgOutcome<TgLocation>> {
   if (gate.host === null) return Promise.resolve(tgUnavailable<TgLocation>(gate.reason));
   const manager = gate.host.LocationManager;
   if (!manager) return Promise.resolve(tgUnavailable<TgLocation>("missing-api"));
-  return new Promise((resolve) => {
+  return withTimeout<TgLocation>(LOCATION_READ_TIMEOUT_MS, (resolve) => {
     try {
       manager.getLocation((data) => {
         const normalized = normalizeLocation(data);
