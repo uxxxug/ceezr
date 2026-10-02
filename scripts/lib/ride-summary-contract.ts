@@ -212,7 +212,7 @@ export const TRAVELLED_TRACE_KEY_PREFIX = `${KEY_PREFIX}travelledTrace.`;
  * مسافةَ الطريقِ»).
  */
 export const TRAVELLED_TRACE_MARKERS: Readonly<Record<string, readonly string[]>> = {
-  ar: ["الأثرِ المسجَّلِ", "الأثر المسجل"],
+  ar: ["الأثرِ المسجَّلِ", "الأثر المسجل", "الأثر المسجّل"],
   en: ["recorded trace"],
   ur: ["درج شدہ نشان"],
 };

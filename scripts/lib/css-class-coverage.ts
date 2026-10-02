@@ -138,6 +138,13 @@ export interface RetainedRule {
 
 export const RETAINED_RULES: readonly RetainedRule[] = [
   {
+    className: "rh__map--off",
+    reason:
+      "صندوقُ «الخريطةُ غيرُ متاحةٍ» المتقطِّعُ في رئيسةِ الراكبِ. رُفِعَ في `UI-DESIGN-01` لأنَّه أوّلُ ما يراهُ الراكبُ ويُقرأُ عطلاً، وحلَّ محلَّه سطرُ إرشادٍ `sys__hint` تحتَ حقلِ الوجهةِ يقولُ النصَّ نفسَه (`rider.home.map.unavailable`). والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-DESIGN-01 · .sys__hint تحتَ .rh__field",
+  },
+  {
     className: "rs__stopped",
     reason:
       "مُحدِّدُ صندوقِ «تَوقَّفَ البثُّ» في شاشةِ البحثِ. نُزِعَ الاستقصاءُ الدوريُّ فحلَّ محلَّه `.rs__snapshot` بشكلِه نفسِه، ونصُّ `global.css` يقولُ حرفاً «والمُحدِّدُ الأوّلُ يبقى مكتوباً ولا يُمحى» — فالحذفُ ممنوعٌ بـ`ح-1`، والبقاءُ بلا بيانٍ عفَنٌ. فيُسجَّلُ.",

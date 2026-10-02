@@ -883,7 +883,7 @@
   "rider.history.when": "{day} {month} · {hour}:{minute}",
   "rider.history.when.unreadable": "The request instant is not readable in the declared grouping timezone.",
   "rider.home.account.open": "My account",
-  "rider.home.city.status": "City status",
+  "rider.home.city.status": "your current city",
   "rider.home.destination.action": "Continue",
   "rider.home.destination.prompt": "Where to?",
   "rider.home.error.account": "This user has no account yet. Reopen the app from the bot.",
@@ -903,7 +903,7 @@
   "rider.home.retry": "Try again",
   "rider.home.service.delivery": "Delivery",
   "rider.home.service.transport": "Ride",
-  "rider.home.title": "Where to?",
+  "rider.home.title": "Welcome to Wasla",
   "rider.notifications.back": "Back",
   "rider.notifications.channel.critical": "Direct",
   "rider.notifications.channel.in_app": "In-app",
@@ -1344,5 +1344,13 @@
   "driver.documents.error.OBJECT_NOT_SUBMITTED": "This document has not been uploaded yet.",
   "driver.documents.view": "View document",
   "driver.documents.viewing": "Opening...",
-  "driver.documents.camera": "Take photo"
+  "driver.documents.camera": "Take photo",
+  "rider.pickup.title": "Where should we pick you up?",
+  "rider.pickup.confirm": "Use this pickup point",
+  "rider.pickup.byName": "Choose pickup by name",
+  "rider.pickup.current": "Pickup: your current location",
+  "rider.pickup.named": "Pickup: {label}",
+  "rider.pickup.change": "Change pickup",
+  "rider.home.service.legend": "Service",
+  "rider.home.destination.placeholder": "e.g. King Abdulaziz Airport or Al Rawdah"
 }

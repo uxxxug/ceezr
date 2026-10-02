@@ -264,5 +264,7 @@ describe("سلامةُ الدَّينِ المُعلَنِ — سقفٌ لا ي�
       expect(statements.length).toBeGreaterThan(0);
       for (const statement of statements) expect(statement.text.trim().length).toBeGreaterThan(0);
     }
-  });
+    // مهلةٌ صريحةٌ: هجراتُ المعالمِ (`UI-DEST-*`) آلافُ الأسطرِ، وقراءتُها كلِّها تتجاوزُ
+    // مهلةَ ‎5s‎ الافتراضيّةَ على مُشغِّلٍ مُحمَّلٍ — وهذا زمنٌ لا خللٌ في القاسمةِ.
+  }, 30_000);
 });

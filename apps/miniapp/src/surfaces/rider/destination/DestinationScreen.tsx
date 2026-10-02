@@ -100,6 +100,12 @@ export interface DestinationScreenProps {
   readonly initialPoint?: { readonly label: string; readonly lat: number; readonly lng: number };
   /** اسمُ المزوّدِ المُهيَّأِ فعلاً؛ `"none"` تعني: قُلِ الحدَّ ولا ترسمْ. */
   readonly mapProvider?: string;
+  /**
+   * `UI-PICKUP-01`: الشاشةُ نفسُها تختارُ **نقطةَ الالتقاطِ** بالاسمِ لمَن لا يُتاحُ له
+   * موقعُ جهازِه (رفضَ الإذنَ، أو سطحُ مكتبٍ، أو يطلبُ لغيرِه). البحثُ والمصادقةُ
+   * بحدِّ منطقةِ الخدمةِ واحدانِ؛ يتغيّرُ العنوانُ وزرُّ التأكيدِ وحدَهما.
+   */
+  readonly purpose?: "destination" | "pickup";
 }
 
 type SearchState =
@@ -169,6 +175,7 @@ export function DestinationScreen({
   initialQuery = "",
   initialPoint,
   mapProvider = "none",
+  purpose = "destination",
 }: DestinationScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [typed, setTyped] = useState(initialQuery);
@@ -297,7 +304,7 @@ export function DestinationScreen({
 
   const title = (
     <h1 id="rd-title" className="rd__title">
-      {t("rider.destination.title")}
+      {t(purpose === "pickup" ? "rider.pickup.title" : "rider.destination.title")}
     </h1>
   );
 
@@ -436,7 +443,7 @@ export function DestinationScreen({
             })
           }
         >
-          {t("rider.destination.confirm")}
+          {t(purpose === "pickup" ? "rider.pickup.confirm" : "rider.destination.confirm")}
         </button>
       </div>
     );
