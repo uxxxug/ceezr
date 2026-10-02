@@ -541,6 +541,14 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
     exportSection: "supportTickets",
     deferredTo: null,
   },
+  ticket_messages: {
+    disposition: D.retainLegalBasis,
+    subjects: [S.rider, S.driver],
+    linkedBy: "ticket_messages.ticket_id → support_tickets.id",
+    basis: "رسائلُ الدعمِ جزءٌ من محضرِ الشكوى — تبقى مقطوعةَ النسبةِ.",
+    exportSection: "supportTickets",
+    deferredTo: null,
+  },
 
   telegram_update_jobs: reference(),
   telegram_update_receipts: reference(),

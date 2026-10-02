@@ -506,6 +506,13 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale: "إيصالُ الاستقبالِ تابعٌ للقناةِ؛ يبقى ما بقيَ الطابورُ ويُنقَلُ معَه.",
   },
   {
+    table: "ticket_messages",
+    concern: "رسائلُ تذكرةِ الدعمِ",
+    owner: "CORE",
+    disposition: "MOVE_TO_CORE",
+    rationale: "رسائلُ الدعمِ مملوكةٌ لـCORE تبعاً لتذكرةِ الدعمِ في `docs/data-ownership.md`.",
+  },
+  {
     table: "tracking_sessions",
     concern: "جلسةُ تتبّعِ رحلةٍ",
     owner: "MOVE",
