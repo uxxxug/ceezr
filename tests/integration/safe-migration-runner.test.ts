@@ -144,7 +144,9 @@ insert into probe_seed (code) select 'JED' where not exists (select 1 from probe
     expect(after.length).toBe(1);
     expect(after[0]?.name).toBe(all[all.length - 1]?.name as string);
     expect(parseArgs(["--from", cutoff]).from ?? "").toBe(cutoff);
-  });
+    // قراءتانِ للسلسلةِ كلِّها وفيها هجراتُ معالمَ بآلافِ الأسطرِ (`UI-DEST-*`): تتجاوزُ
+    // مهلةَ ‎5s‎ الافتراضيّةَ على مُشغِّلِ CI — زمنُ قراءةٍ لا خللٌ في `--from`.
+  }, 30_000);
 
   it("٣ — عبارةٌ ساقطةٌ في ملفٍّ معاملاتيٍّ لا تُخلِّفُ أثرَ ما قبلَها", async () => {
     const file = synthetic(
