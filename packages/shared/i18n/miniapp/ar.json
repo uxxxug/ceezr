@@ -207,6 +207,7 @@
   "driver.documents.step.signing": "يُجهَّزُ إذنُ الرفعِ…",
   "driver.documents.step.submitting": "يُرسَلُ للمراجعةِ…",
   "driver.documents.step.uploading": "يُرفَعُ الملفُّ…",
+  "driver.documents.step.uploadingProgress": "يُرفَعُ الملفُّ… {percent}%",
   "driver.documents.submit": "أرسِلْ للمراجعةِ",
   "driver.documents.submitted": "أُرسِلَت وثائقُك للمراجعةِ.",
   "driver.documents.submittedStillBlocked": "أُرسِلَت وثائقُك، وعملُك يبقى محجوباً حتّى تُقبَلَ كلُّها.",

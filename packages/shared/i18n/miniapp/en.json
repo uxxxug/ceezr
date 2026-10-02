@@ -207,6 +207,7 @@
   "driver.documents.step.signing": "Preparing the upload permit…",
   "driver.documents.step.submitting": "Submitting for review…",
   "driver.documents.step.uploading": "Uploading the file…",
+  "driver.documents.step.uploadingProgress": "Uploading the file… {percent}%",
   "driver.documents.submit": "Submit for review",
   "driver.documents.submitted": "Your documents were submitted for review.",
   "driver.documents.submittedStillBlocked": "Your documents were submitted; your work stays blocked until all are accepted.",
