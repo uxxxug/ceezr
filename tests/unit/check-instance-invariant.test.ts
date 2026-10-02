@@ -411,11 +411,12 @@ describe("موضعُ المهامِّ الدوريّةِ — F5-04 / SCL-007 · 
     expect(services[0]?.processTopology).toBe("single-process");
   });
 
-  it("المستودعُ الحقيقيُّ يُعلِن الفصلَ: البوّابةُ false وخدمةُ عاملٍ قائمةٌ", () => {
+  // 2026-10-02: الخطّةُ المجّانيّةُ ⇒ لا خدمةَ عاملٍ، والمهامُّ في البوّابةِ (render.yaml).
+  it("المستودعُ الحقيقيُّ يُعلِن الإدماجَ: البوّابةُ true ولا خدمةَ عاملٍ", () => {
     const services = servicesFromManifest(REAL_MANIFEST);
     const gateway = services.find((service) => service.name === "waslah-gateway");
-    expect(gateway?.runWorkerInGateway).toBe("false");
-    expect(services.some((service) => service.serviceType === "worker")).toBe(true);
+    expect(gateway?.runWorkerInGateway).toBe("true");
+    expect(services.some((service) => service.serviceType === "worker")).toBe(false);
     for (const service of processServices(REAL_MANIFEST)) {
       expect(service.runWorkerInGateway).not.toBeNull();
     }
@@ -589,11 +590,12 @@ describe("موضعُ سطحِ الإدارةِ — F5-08 / ARCH-011 · ADR 0064"
     expect(result).toContain("UNCLASSIFIED_SERVICE");
   });
 
-  it("المستودعُ الحقيقيُّ يُعلِن الفصلَ: البوّابةُ false وخدمةُ اللوحةِ قائمةٌ", () => {
+  // 2026-10-02: «التراجعُ الطارئُ» الموثَّقُ في render.yaml — اللوحةُ في البوّابةِ.
+  it("المستودعُ الحقيقيُّ يُعلِن الإدماجَ: البوّابةُ true ولا خدمةَ لوحةٍ", () => {
     const services = servicesFromManifest(REAL_MANIFEST);
     const gateway = services.find((service) => service.name === "waslah-gateway");
-    expect(gateway?.runAdminInGateway).toBe("false");
-    expect(services.some((service) => service.name === ADMIN_SERVICE_NAME)).toBe(true);
+    expect(gateway?.runAdminInGateway).toBe("true");
+    expect(services.some((service) => service.name === ADMIN_SERVICE_NAME)).toBe(false);
     // والإعلانُ في **كلِّ** خدمةٍ لا في المعنيّةِ وحدَها: الإلزامُ على كلِّ عمليّةٍ.
     // و«كلُّ خدمةٍ» ههنا «كلُّ عمليّةٍ» حرفاً — لا موقعَ ساكناً (ADR 0165).
     for (const service of processServices(REAL_MANIFEST)) {
@@ -601,13 +603,13 @@ describe("موضعُ سطحِ الإدارةِ — F5-08 / ARCH-011 · ADR 0064"
     }
   });
 
-  it("خدمةُ اللوحةِ الحقيقيّةُ نسخةٌ واحدةٌ وتُعلِن redis لمجرى الأحداثِ", () => {
+  it("البوّابةُ الحاملةُ للّوحةِ نسخةٌ واحدةٌ وتُعلِن redis لمجرى الأحداثِ", () => {
     const services = servicesFromManifest(REAL_MANIFEST);
-    const admin = services.find((service) => service.name === ADMIN_SERVICE_NAME);
-    expect(admin?.serviceType).toBe("web");
-    expect(admin?.numInstances).toBe("1");
+    const gateway = services.find((service) => service.name === "waslah-gateway");
+    expect(gateway?.serviceType).toBe("web");
+    expect(gateway?.numInstances).toBe("1");
     // ‏`memory` ههنا تعني مجرىً يعمل بلا دلتا لحظيّةٍ واحدةٍ — عطلٌ لا يُخفِق فيه طلبٌ.
-    expect(admin?.sessionStore).toBe("redis");
+    expect(gateway?.sessionStore).toBe("redis");
   });
 });
 
@@ -795,6 +797,7 @@ describe("عقدُ الإنتاجِ لمخزنِ الجلساتِ — BUG-016", 
     const declared = servicesFromManifest(REAL_MANIFEST).filter(
       (service) => service.nodeEnv === "production",
     );
-    expect(declared.length).toBeGreaterThanOrEqual(3);
+    // 2026-10-02: عمليّةٌ إنتاجيّةٌ واحدةٌ (البوّابةُ الجامعةُ) — والموقعُ الساكنُ لا يُقلِعُ.
+    expect(declared.length).toBeGreaterThanOrEqual(1);
   });
 });
