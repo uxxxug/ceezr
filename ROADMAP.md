@@ -1397,16 +1397,16 @@ GitHub قبلَ القطعِ لا بعدَه، كي لا يُحمَلَ أحمر
 
 ## `UX-021` closed at the root — a guard, not a patched surface (added 2026-09-13, after the work, additively)
 
-### Reservation `DEC-42`/`DEC-43` — **إصلاحُ توصيلِ التبعيّاتِ في `index.ts`** (opened 2026-10-02, before any file was edited · branch `fix/dec42-dec43-wire-deps` from `main`@`72bff7c9`)
+### Reservation `DEC-42`/`DEC-43` — **إصلاحُ توصيلِ التبعيّاتِ في `index.ts`** (recorded 2026-10-02, after discovery and fix · branch `fix/dec42-dec43-wire-deps` from `main`@`72bff7c9`)
 
 | الحقلُ | القيمةُ |
 |---|---|
 | الاكتشافُ | فحصُ البيئةِ الفعليّةِ بعدَ نشرِ `72bff7c9` على Render كشفَ أنَّ مسارَي DEC-42 (`GET/PUT /v1/me/notification-preferences`) وDEC-43 (`POST/GET /v1/support/tickets/:id/messages`) يعودانِ 404 و503 على التوالي — مساراتُهما مبنيةٌ في `server.ts` ومُختبَرةٌ في CI **لكنَّ تبعيّاتِهما غيرَ موصولةٍ في `apps/gateway/src/index.ts`**: لا استيرادَ للمخازنِ ولا تمريرَ للتبعيّات إلى `createServer`. نفسُ عائلةِ عيبِ «مبنيٌّ وغيرُ موصولٍ» (F12-20 · PD-041). |
-| ما نُفِّذ | (١) استيرادُ `createNotificationPrefsReader`/`Writer` و`createTicketThreadReader`/`Writer` في `index.ts`. (٢) بناءُ كائنِ `notificationPrefs` وتمريرُهُ إلى `createServer`. (٣) إضافةُ `threads` إلى كائنِ `support` القائم. (٤) حارسُ تسجيلٍ ساكنٌ `tests/unit/dec42-dec43-wiring.test.ts` يقرأُ مصدرَ `index.ts` ويتحققُ من الاستيرادِ والتمريرِ معًا — ٤ اختبارات. (٥) تطبيقُ ١١ هجرةً معلّقةً على قاعدةِ البياناتِ التجريبيّة. (٦) نشرُ `72bff7c9` على Render. |
+| ما نُفِّذ | (١) استيرادُ `createNotificationPrefsReader`/`Writer` و`createTicketThreadReader`/`Writer` في `index.ts`. (٢) بناءُ كائنِ `notificationPrefs` وتمريرُهُ إلى `createServer`. (٣) إضافةُ `threads` إلى كائنِ `support` القائم. (٤) حارسُ تسجيلٍ ساكنٌ `tests/unit/dec42-dec43-wiring.test.ts` يقرأُ مصدرَ `index.ts` ويتحققُ من الاستيرادِ والتمريرِ معًا — ٤ اختبارات. (٥) تطبيقُ ١١ هجرةً معلّقةً على قاعدةِ البياناتِ التجريبيّة. (٦) نشرُ `b3705b4` على Render — المساراتُ التسعةُ كلُّها صارت 401. |
 | ما لا يُدَّعى | لا `[x]` على DEC-42 أو DEC-43 — الإصلاحُ توصيلٌ لا قلبُ حالةٍ. ولا يُدَّعى قياسٌ إنتاجيٌّ (`ح-5`). |
-| الفرعُ | `fix/dec42-dec43-wire-deps` |
+| الفرعُ | `fix/dec42-dec43-wire-deps` · PR #378 · مُدمَج في `b3705b4` |
 
-## `UX-021` closed at the root — a guard, not a patched surface (added 2026-09-13, after the work, additively)
+## `UX-021` closed at the root — a guard, not a patched surface (continued)
 
 هذا القسمُ **زيادةٌ على الحجزِ أعلاه ولا يمحوهُ ولا يُعدِّلُه** (`ح-1`)، ويُقرأُ
 مع قسمِ الاكتشافِ في آخرِ هذا الملفِّ: ذاكَ سجَّلَ الدَّينَ، وهذا يقولُ كيفَ سُدِّدَ.
