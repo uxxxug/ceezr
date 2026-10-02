@@ -142,6 +142,7 @@ const DEFERRED_RIDER_LOADERS = {
   ride: () => import("./rider-ride-screens.ts"),
   account: () => import("./account/AccountScreen.tsx"),
   support: () => import("./support/SupportScreen.tsx"),
+  privacy: () => import("./privacy/PrivacyScreen.tsx"),
   // `D-32`: السجلُّ وتفاصيلُه والإشعاراتُ — بطلبِ الراكبِ وحدَه، خارجَ «الرئيسية، التسعير، اختيار الخدمة» (9.4).
   history: () => import("./rider-history-screens.ts"),
 } as const;
@@ -169,6 +170,9 @@ const AccountScreen = lazy(() =>
 );
 const SupportScreen = lazy(() =>
   DEFERRED_RIDER_LOADERS.support().then((m) => ({ default: m.SupportScreen })),
+);
+const PrivacyScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.privacy().then((m) => ({ default: m.PrivacyScreen })),
 );
 
 /** يجلبُ الحزمَ المؤجَّلةَ بعدَ الرسمِ؛ الفشلُ هنا لا يُعرَضُ — الشاشةُ نفسُها تُعيدُ المحاولةَ عندَ فتحِها. */
@@ -268,6 +272,11 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
    * ههنا: بطاقتُها المدمجةُ فيها أقربُ من مدخلٍ يفتحُ شاشةً فوقَها.
    */
   const [sosOpen, setSosOpen] = useState(landing.sosOpen);
+  /**
+   * شاشةُ الخصوصيّةِ (DEC-35) — رايةٌ تفتحُ شاشةَ مراجعةِ الموافقاتِ المسجَّلةِ.
+   * تعيدُ استخدامُ `consentRows` و`fetchConsentStatus` من شاشةِ الترحيبِ.
+   */
+  const [privacy, setPrivacy] = useState(false);
   /** مدخلٌ واحدٌ لكلِّ الشاشاتِ — لا يُنشَرُ لمن لا يعرفُهُ الاستغاثةَ. */
   const onOpenSos = () => setSosOpen(true);
 
@@ -330,8 +339,18 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
           {...(onLanguageChanged ? { onLanguageChanged } : {})}
           onBack={() => setAccount(false)}
           onOpenSupport={() => setSupport({ orderId: null })}
+          onOpenPrivacy={() => setPrivacy(true)}
           onOpenSos={onOpenSos}
         />
+      </Deferred>
+    );
+  }
+
+  // شاشةُ الخصوصيّةِ (DEC-35) — مراجعةُ الموافقاتِ المسجَّلةِ. **فوقَ الرئيسةِ**.
+  if (privacy) {
+    return (
+      <Deferred>
+        <PrivacyScreen language={language} onBack={() => setPrivacy(false)} />
       </Deferred>
     );
   }
