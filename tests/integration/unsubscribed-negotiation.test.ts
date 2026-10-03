@@ -779,7 +779,11 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
     // الأوّلُ يُختارُ فتُفتحُ المحادثةُ والطلبُ «جاري الاتفاق»؛ والثاني ينتظرُ وزرُّ الإنهاءِ معه.
     await post("rider", privateCallback(RIDER_CHAT, `unsub:sel:${negotiationId}:1`));
     await deliverQueued();
-    const waiting = driverSent.filter((m) => m.chatId === String(DRIVER_CHATS[1])).at(0);
+    const waiting = driverSent.find(
+      (m) =>
+        m.chatId === String(DRIVER_CHATS[1]) &&
+        m.text === ar("negotiation.claim_registered_waiting", { position: 2 }),
+    );
     expect(JSON.stringify(waiting?.markup ?? null)).toContain(`unsub:leave:${negotiationId}`);
 
     // لم يتّفقا: «إعادة فتح الطلب لسائق آخر» من بطاقةِ المحادثةِ.
