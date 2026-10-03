@@ -93,10 +93,23 @@ export function createOrderNotesReader(sql: Sql): OrderNotesReader {
       }),
     readTerms: (orderId: OrderId) =>
       guard("orders.readTerms", async () => {
-        const rows = await sql<{ pickup_at: Date | null }[]>`
-          select pickup_at from orders where id = ${orderId}
+        const rows = await sql<
+          {
+            pickup_at: Date | null;
+            rider_offer_sar: number | null;
+            pickup_label: string | null;
+            dropoff_label: string | null;
+          }[]
+        >`
+          select pickup_at, rider_offer_sar, pickup_label, dropoff_label
+            from orders where id = ${orderId}
         `;
-        return { pickupAt: rows[0]?.pickup_at ?? null };
+        return {
+          pickupAt: rows[0]?.pickup_at ?? null,
+          offerSar: rows[0]?.rider_offer_sar ?? null,
+          pickupLabel: rows[0]?.pickup_label ?? null,
+          dropoffLabel: rows[0]?.dropoff_label ?? null,
+        };
       }),
   };
 }

@@ -1090,6 +1090,17 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
+/* `ORDER-OFFER-01` — «المبلغ الذي تدفعه». */
+.qt__offer {
+  min-height: 2.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font: inherit;
+}
+
 /* `ORDER-TERMS-01` — وقتُ حضورِ السائقِ. */
 .qt__pickup-time {
   flex: 1;

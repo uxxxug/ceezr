@@ -1356,5 +1356,9 @@
   "rider.quote.notes.delivery_hint": "ڈیلیوری میں: یہاں پارسل کی قسم لکھیں (اختیاری)۔",
   "rider.quote.pickup.label": "ڈرائیور کی آمد کا وقت",
   "rider.quote.pickup.now": "ابھی",
-  "rider.quote.pickup.later": "مقررہ وقت پر"
+  "rider.quote.pickup.later": "مقررہ وقت پر",
+  "rider.quote.offer.label": "آپ کتنی رقم دیں گے (اختیاری)",
+  "rider.quote.offer.placeholder": "مثلاً 40",
+  "rider.quote.offer.hint": "یہ ڈرائیور کو آرڈر کارڈ پر دکھائی دے گی: «ادائیگی: 40 ریال»۔ خالی چھوڑیں تو «قابلِ گفت و شنید» دکھے گا۔ حتمی اتفاق آپ اور ڈرائیور کے درمیان ہے؛ وصلہ کوئی رقم وصول نہیں کرتا۔",
+  "rider.quote.offer.error": "1 سے 10000 تک ریال میں درست رقم لکھیں، یا خالی چھوڑ دیں۔"
 }

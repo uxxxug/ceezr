@@ -109,6 +109,8 @@ describe("createRideRequestCommand — قراءةُ حكمِ الإنشاءِ", 
       null,
       null,
       null,
+      // `ORDER-OFFER-01` — مبلغُ الراكبِ: غائبٌ ⇒ null («قابلٌ للتفاوض»).
+      null,
     ]);
   });
 

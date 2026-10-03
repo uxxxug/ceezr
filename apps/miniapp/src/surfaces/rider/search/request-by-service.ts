@@ -35,6 +35,8 @@ export interface ServiceRequestInput {
   readonly pickupLabel?: string | null;
   readonly destinationLabel?: string | null;
   readonly pickupAt?: string | null;
+  /** `ORDER-OFFER-01` — يُطوى غائباً أو `null`. */
+  readonly offerSar?: number | null;
 }
 
 /**
@@ -61,6 +63,7 @@ export function requestByService(
       ...(input.pickupLabel ? { pickupLabel: input.pickupLabel } : {}),
       ...(input.destinationLabel ? { destinationLabel: input.destinationLabel } : {}),
       ...(input.pickupAt == null ? {} : { pickupAt: input.pickupAt }),
+      ...(input.offerSar == null ? {} : { offerSar: input.offerSar }),
     };
     return requestDelivery(deliveryInput, fetchFn ?? (apiFetch as unknown as ApiFetchFn));
   }

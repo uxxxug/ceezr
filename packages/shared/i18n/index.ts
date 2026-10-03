@@ -37,8 +37,25 @@ export function translate(
       Object.hasOwn(params, name) ? (countedPhrase(Number(params[name]), forms) ?? match) : match,
     )
     .replace(/\{(\w+)\}/g, (match, name: string) =>
-      Object.hasOwn(params, name) ? String(params[name]) : match,
+      Object.hasOwn(params, name) ? paramText(dict, fallback, name, params[name]) : match,
     );
+}
+
+/**
+ * `MSG-AUDIT-02` — رمزُ العملةِ يُقرأُ بلغةِ الرسالةِ: الإعدادُ `currency` يحملُ «SAR» (رمزَ
+ * ISO الذي تحتاجُه بوّابةُ الدفعِ)، فكانت كلُّ رسالةٍ عربيّةٍ تقولُ «150 SAR». المعامِلُ المسمّى
+ * `currency` وحدَه يُترجَمُ بمفتاحِ `common.currency_<CODE>` إن وُجِدَ، وما سواه يبقى حرفاً.
+ */
+function paramText(
+  dict: Dictionary,
+  fallback: Dictionary,
+  name: string,
+  value: string | number | undefined,
+): string {
+  const raw = String(value);
+  if (name !== "currency" || raw === "") return raw;
+  const key = `common.currency_${raw}`;
+  return dict[key] ?? fallback[key] ?? raw;
 }
 
 /**

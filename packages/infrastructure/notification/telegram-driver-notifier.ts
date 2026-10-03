@@ -113,14 +113,15 @@ export function createOfferPublisher(
         }
         // `ORDER-TERMS-01`: وقتُ الحضورِ (ونوعُ الطردِ في التوصيلِ) بعدَ «إلى» وقبلَ المسافةِ —
         // يُقرأُ من الطلبِ لحظةَ الإرسالِ، فلا تتغيّرُ حمولةُ صفِّ العرضِ.
-        const termRows = await sql<{ pickup_at: Date | null }[]>`
-          select pickup_at from orders where id = ${notification.orderId}
+        const termRows = await sql<{ pickup_at: Date | null; rider_offer_sar: number | null }[]>`
+          select pickup_at, rider_offer_sar from orders where id = ${notification.orderId}
         `;
         const termRow = termRows[0];
         lines.push(
           ...orderTermsLines(tr, notification.service, {
             pickupAt: termRow?.pickup_at ?? null,
             parcel: notification.notes,
+            offerSar: termRow?.rider_offer_sar ?? null,
           }),
         );
         lines.push(

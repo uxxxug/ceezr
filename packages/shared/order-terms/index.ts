@@ -2,7 +2,8 @@
  * الغرض: `ORDER-TERMS-01` — سطورُ شروطِ الطلبِ على كلِّ بطاقةٍ (العرضُ الخاصُّ للمشتركِ،
  *   وبطاقةُ قروبِ غيرِ المشتركينَ): وقتُ حضورِ السائقِ، ونوعُ الطردِ في التوصيلِ. صياغةٌ
  *   واحدةٌ في مكانٍ واحدٍ فلا تختلفُ البطاقتانِ.
- *   ولا سطرَ للمبلغِ: آليّةُ الأجرةِ محجوبةٌ بـ`ADR 0039` حتى يُغلَقَ `DEC-11` بسندٍ نظاميٍّ.
+ *   و`ORDER-OFFER-01`: سطرُ «المدفوع» — ما يكتبُه الراكبُ بنفسِه أو «قابلٌ للتفاوض». المنصّةُ
+ *   لا تحسبُه ولا تُحصّلُه (DEC-11 §١)، فليس آليّةَ أجرةٍ (`ADR 0039`).
  * الحالة: منفّذ فعلياً — 2026-10-03.
  * ينتمي إلى: shared
  * ملاحظات: الوقتُ يُعرَضُ بتوقيتِ السعوديّةِ (كلُّ مدنِ الخدمةِ فيها) بنظامِ ١٢ ساعةً وص/م.
@@ -14,6 +15,11 @@ export interface OrderTerms {
   readonly pickupAt: Date | null;
   /** نوعُ الطردِ في التوصيلِ — `null` ⇒ «لم يُحدَّد». يُتجاهَلُ في النقلِ. */
   readonly parcel: string | null;
+  /**
+   * `ORDER-OFFER-01` — ما يعرضُه الراكبُ بالريال؛ `null` ⇒ «قابلٌ للتفاوض». غائبٌ (`undefined`)
+   * ⇒ لا سطرَ — مسارٌ لم يقرأ العمودَ بعدُ.
+   */
+  readonly offerSar?: number | null;
 }
 
 /** المنطقةُ الزمنيّةُ لعرضِ الوقتِ: مدنُ الخدمةِ كلُّها في السعوديّةِ (UTC+3 بلا توقيتٍ صيفيٍّ). */
@@ -36,17 +42,25 @@ export function formatPickupClock(at: Date, tr: Translate): string {
   return `${hour}:${minute} ${suffix}`;
 }
 
-/** سطرُ الوقتِ (وسطرُ الطردِ في التوصيلِ) بالترتيبِ الذي طلبَه المالكُ. */
+/** «المدفوع» ثمَّ الوقتُ (ثمَّ الطردُ في التوصيلِ) — بترتيبِ عيّنةِ المالكِ. */
 export function orderTermsLines(
   tr: Translate,
   service: string | null,
   terms: OrderTerms,
 ): readonly string[] {
-  const lines: string[] = [
+  const lines: string[] = [];
+  if (terms.offerSar !== undefined) {
+    lines.push(
+      terms.offerSar === null
+        ? tr("driver.offer_card_paid_negotiable")
+        : tr("driver.offer_card_paid", { amount: terms.offerSar }),
+    );
+  }
+  lines.push(
     terms.pickupAt === null
       ? tr("driver.offer_card_pickup_now")
       : tr("driver.offer_card_pickup_at", { time: formatPickupClock(terms.pickupAt, tr) }),
-  ];
+  );
   if (service === "delivery") {
     const parcel = terms.parcel?.trim() ?? "";
     lines.push(

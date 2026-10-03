@@ -85,6 +85,7 @@ import {
   distanceLine,
   durationLine,
   isRetryableQuoteError,
+  offerSarFrom,
   parcelValidationError,
   pickupAtFrom,
   quoteErrorKey,
@@ -132,6 +133,8 @@ export interface QuoteScreenProps {
     readonly idempotencyKey: string;
     /** `ORDER-TERMS-01` — وقتُ حضورِ السائقِ ISO؛ `null` ⇒ الآن. */
     readonly pickupAt?: string | null;
+    /** `ORDER-OFFER-01` — ما يعرضُه الراكبُ بالريال؛ `null` ⇒ قابلٌ للتفاوض. */
+    readonly offerSar?: number | null;
   }) => void;
   readonly initialLanguage?: MiniAppLanguage;
 }
@@ -209,6 +212,9 @@ export function QuoteScreen({
   /** `ORDER-TERMS-01` — «الآن» أو وقتٌ محدَّدٌ «HH:MM». */
   const [pickupMode, setPickupMode] = useState<"now" | "later">("now");
   const [pickupClock, setPickupClock] = useState("");
+  /** `ORDER-OFFER-01` — «المبلغ الذي تدفعه»: نصٌّ خامٌّ، وفارغُه «قابلٌ للتفاوض». */
+  const [offerText, setOfferText] = useState("");
+  const [offerError, setOfferError] = useState(false);
   /** خطأُ تحقُّقِ وصفِ الطردِ — يُعرَضُ عندَ الضغطِ على «اطلُبْ» للتوصيلِ. */
   const [parcelError, setParcelError] = useState<string | null>(null);
   /**
@@ -481,6 +487,12 @@ export function QuoteScreen({
                         }
                       }
                       setParcelError(null);
+                      const offer = offerSarFrom(offerText);
+                      if (!offer.ok) {
+                        setOfferError(true);
+                        return;
+                      }
+                      setOfferError(false);
                       onRequest({
                         service: card.service,
                         originLat: origin.lat,
@@ -493,6 +505,7 @@ export function QuoteScreen({
                         // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
                         idempotencyKey: newIdempotencyKey(),
                         pickupAt: pickupMode === "later" ? pickupAtFrom(pickupClock) : null,
+                        offerSar: offer.value,
                       });
                     }}
                   >
@@ -586,6 +599,31 @@ export function QuoteScreen({
               />
             )}
           </fieldset>
+
+          {/* `ORDER-OFFER-01` — «المدفوع» على بطاقةِ السائقِ: ما يكتبُه الراكبُ أو «قابلٌ للتفاوض». */}
+          <label className="qt__notes-label" htmlFor="qt-offer">
+            {t("rider.quote.offer.label")}
+          </label>
+          <input
+            id="qt-offer"
+            className="qt__offer"
+            type="text"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={6}
+            value={offerText}
+            placeholder={t("rider.quote.offer.placeholder")}
+            onChange={(event) => {
+              setOfferText(event.target.value);
+              if (offerError) setOfferError(false);
+            }}
+          />
+          {offerError && (
+            <p className="qt__notes-error" role="alert">
+              {t("rider.quote.offer.error")}
+            </p>
+          )}
+          <p className="qt__notes-hint">{t("rider.quote.offer.hint")}</p>
         </section>
       </div>
     );

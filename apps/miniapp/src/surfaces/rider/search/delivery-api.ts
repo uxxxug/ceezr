@@ -43,6 +43,8 @@ export interface RequestDeliveryInput {
   readonly pickupLabel?: string;
   readonly destinationLabel?: string;
   readonly pickupAt?: string;
+  /** `ORDER-OFFER-01` — مبلغُ الراكبِ بالريال؛ غائبٌ ⇒ قابلٌ للتفاوض. */
+  readonly offerSar?: number;
   /** ملاحظةٌ إضافيّةٌ للسائقِ — تُطوى إن كانت فارغةً. */
   readonly notes?: string;
 }

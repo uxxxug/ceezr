@@ -496,9 +496,12 @@
   "driver.offer_card_pickup_now": "🕐 وقت حضور السائق: الآن",
   "driver.offer_card_parcel": "📦 نوع الطرد: {parcel}",
   "driver.offer_card_parcel_none": "📦 نوع الطرد: لم يُحدَّد",
+  "driver.offer_card_paid": "💰 المدفوع: {amount} ريال",
+  "driver.offer_card_paid_negotiable": "💰 المدفوع: قابل للتفاوض",
   "common.time_am": "ص",
   "common.time_pm": "م",
   "group.unsub_notes_line": "📝 ملاحظات: {notes}",
   "negotiation.driver_awaiting_selection": "⏳ عرضك أمام العميل الآن ولم يختر بعد. ستُفتح المحادثة فور اختيارك.",
-  "negotiation.rider_awaiting_selection": "👆 اختر السائق أولاً من البطاقة («✅ اختيار السائق») لتُفتح المحادثة معه، أو انتقل إلى السائق التالي."
+  "negotiation.rider_awaiting_selection": "👆 اختر السائق أولاً من البطاقة («✅ اختيار السائق») لتُفتح المحادثة معه، أو انتقل إلى السائق التالي.",
+  "common.currency_SAR": "ريال"
 }

@@ -60,6 +60,14 @@ export interface UnsubscribedCard {
   readonly excludedDriverIds: readonly DriverId[];
   /** `ORDER-TERMS-01` — وقتُ حضورِ السائقِ (null ⇒ الآن). غائبٌ ⇒ لا سطرَ (مسارٌ قديمٌ). */
   readonly pickupAt?: Date | null;
+  /** `ORDER-OFFER-01` — مبلغُ الراكبِ (null ⇒ قابلٌ للتفاوض). غائبٌ ⇒ لا سطرَ. */
+  readonly offerSar?: number | null;
+  /**
+   * `GRP-CARD-01` — اسما المكانَين كما اختارَهما الراكبُ (معلمٌ أو مكانٌ مُسمّى، لا عنوانٌ دقيقٌ).
+   * غائبٌ ⇒ تبقى المنطقةُ التقريبيّةُ وحدَها كما كانت.
+   */
+  readonly pickupLabel?: string | null;
+  readonly dropoffLabel?: string | null;
 }
 
 export interface UnsubscribedGroupPublisher {
@@ -71,9 +79,17 @@ export interface UnsubscribedGroupPublisher {
 export interface OrderNotesReader {
   readNotes(orderId: OrderId): Promise<Result<string | null, PortFailureError>>;
   /** `ORDER-TERMS-01` — وقتُ الحضورِ. اختياريٌّ: من لا يقرؤه تخلو بطاقتُه منه. */
-  readTerms?(
-    orderId: OrderId,
-  ): Promise<Result<{ readonly pickupAt: Date | null }, PortFailureError>>;
+  readTerms?(orderId: OrderId): Promise<
+    Result<
+      {
+        readonly pickupAt: Date | null;
+        readonly offerSar?: number | null;
+        readonly pickupLabel?: string | null;
+        readonly dropoffLabel?: string | null;
+      },
+      PortFailureError
+    >
+  >;
 }
 
 export interface PublishToUnsubscribedGroupDependencies {
@@ -162,7 +178,18 @@ export async function publishToUnsubscribedGroup(
     areaLabel: approximateArea(order.pickup),
     notes: notes.value,
     excludedDriverIds: cycle.excludedDriverIds,
-    ...(terms === null ? {} : { pickupAt: terms.value.pickupAt }),
+    ...(terms === null
+      ? {}
+      : {
+          pickupAt: terms.value.pickupAt,
+          ...(terms.value.offerSar === undefined ? {} : { offerSar: terms.value.offerSar }),
+          ...(terms.value.pickupLabel === undefined
+            ? {}
+            : { pickupLabel: terms.value.pickupLabel }),
+          ...(terms.value.dropoffLabel === undefined
+            ? {}
+            : { dropoffLabel: terms.value.dropoffLabel }),
+        }),
   });
   if (!published.ok) return published;
   if (published.value === null) {
