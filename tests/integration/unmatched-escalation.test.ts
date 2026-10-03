@@ -104,7 +104,13 @@ const describeIf = DATABASE_URL === undefined ? describe.skip : describe;
  * القالبِ. مقارنةُ القالبِ الخامِّ كانت ستقبلَ رسالةً تقولُ للراكبِ «{cancel_button}».
  */
 function riderText(key: string): string {
-  return translate("ar", key, { cancel_button: translate("ar", "menu.rider.cancel") });
+  // `MSG-AUDIT-01`: الإحالةُ إلى الإلغاءِ سطرٌ مُعَدٌّ مسبقاً بحسبِ السطحِ؛ والمُرسِلُ
+  // في هذا الاختبارِ بلا خيارِ سطحٍ، فسطحُه الافتراضيُّ «chat» — زرُّ القائمةِ.
+  const cancelButton = translate("ar", "menu.rider.cancel");
+  return translate("ar", key, {
+    cancel_button: cancelButton,
+    cancel_hint: translate("ar", "rider.cancel_hint_menu", { cancel_button: cancelButton }),
+  });
 }
 
 /**

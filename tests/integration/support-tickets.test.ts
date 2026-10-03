@@ -287,7 +287,9 @@ describeIf("مسار الدعم والاشتراك على قاعدة حقيقي�
 
     await openTicketWithPhoto(DRIVER_CHAT, "اشتراكي منتهٍ وأريد تجديده");
     const card = groupMessages()[0]?.text ?? "";
-    expect(card.includes("expired")).toBe(true);
+    // `MSG-AUDIT-01`: الحالةُ تُعرَضُ مترجَمةً للفريقِ («منتهٍ») لا رمزاً خاماً («expired»).
+    expect(card.includes("منتهٍ")).toBe(true);
+    expect(card.includes("expired")).toBe(false);
     expect(card.includes("⚠️")).toBe(true);
   });
 
