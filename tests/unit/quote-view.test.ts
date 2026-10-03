@@ -15,13 +15,16 @@
 
 import { describe, expect, it } from "bun:test";
 import {
+  destinationIsPickup,
   distanceLine,
   durationLine,
   isRetryableQuoteError,
+  MIN_TRIP_METERS,
   quoteErrorKey,
   quoteRefusalKey,
   refusalRemedy,
   serviceCards,
+  straightMeters,
 } from "../../apps/miniapp/src/surfaces/rider/quote/quote-view.ts";
 import arabic from "../../packages/shared/i18n/miniapp/ar.json";
 
@@ -192,5 +195,34 @@ describe("العطبُ وإعادةُ المحاولةِ", () => {
     expect(isRetryableQuoteError("QUOTE_STORE_NOT_AVAILABLE")).toBe(true);
     expect(isRetryableQuoteError("SESSION_NOT_AVAILABLE")).toBe(true);
     expectTranslated("rider.quote.retry");
+  });
+});
+
+describe("RIDE-SAMESPOT-01 — وجهةٌ هيَ موضعُ الالتقاطِ نفسُه", () => {
+  // النقطةُ الحقيقيّةُ من طلبِ الإنتاجِ 2026-10-03 (المدينةُ المنورة): التقاطٌ ووجهةٌ متطابقان.
+  const here = { lat: 24.4819963, lng: 39.6849432 };
+
+  it("النقطةُ نفسُها وما دونَ 100م تُرفَضُ، وما فوقَها يُقبَلُ", () => {
+    expect(destinationIsPickup(here, here)).toBe(true);
+    // ~55م شمالاً: ضمنَ خطأِ موقعِ الهاتفِ.
+    expect(destinationIsPickup(here, { lat: here.lat + 0.0005, lng: here.lng })).toBe(true);
+    // ~1.1كم: مشوارٌ حقيقيٌّ.
+    expect(destinationIsPickup(here, { lat: here.lat + 0.01, lng: here.lng })).toBe(false);
+    expect(MIN_TRIP_METERS).toBe(100);
+  });
+
+  it("المسافةُ المستقيمةُ تقاربُ القيمةَ الجيوديسيّةَ", () => {
+    // مطارُ المدينةِ ← المسجدُ النبويُّ من صفوفِ الإنتاجِ: ~13.6كم مستقيماً.
+    const m = straightMeters({ lat: 24.4672, lng: 39.6112 }, { lat: 24.5534, lng: 39.7051 });
+    expect(m).toBeGreaterThan(13_000);
+    expect(m).toBeLessThan(14_500);
+  });
+
+  it("الرفضُ له نصٌّ مترجَمٌ وعلاجُه اختيارُ وجهةٍ أخرى", () => {
+    expect(quoteRefusalKey("DESTINATION_IS_PICKUP")).toBe(
+      "rider.quote.refused.destinationIsPickup",
+    );
+    expectTranslated("rider.quote.refused.destinationIsPickup");
+    expect(refusalRemedy("DESTINATION_IS_PICKUP")).toBe("PICK_ANOTHER_DESTINATION");
   });
 });
