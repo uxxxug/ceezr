@@ -82,6 +82,7 @@ import { SosEntry } from "../sos/SosEntry.tsx";
 
 import { type QuoteRideResponse, quoteRide as quoteViaApi } from "./quote-api.ts";
 import {
+  destinationIsPickup,
   distanceLine,
   durationLine,
   isRetryableQuoteError,
@@ -254,6 +255,11 @@ export function QuoteScreen({
       setState({ kind: "location_refused", reason: here.reason });
       return;
     }
+    // `RIDE-SAMESPOT-01`: وجهةٌ هيَ موضعُ الالتقاطِ نفسُه لا تُسأَلُ ولا تُطلَبُ.
+    if (destinationIsPickup(here, { lat: destination.lat, lng: destination.lng })) {
+      setState({ kind: "refused", refusal: "DESTINATION_IS_PICKUP", cityName: null });
+      return;
+    }
     setState({ kind: "asking" });
     try {
       const response = await quote({
@@ -378,6 +384,7 @@ export function QuoteScreen({
               {t("rider.quote.remedy.pickAnother")}
             </button>
           )}
+          {state.refusal === "DESTINATION_IS_PICKUP" && pickByName}
           {/* `NONE`: لا زرَّ — «مدينتُك بلا حدٍّ مرسومٍ» لا يُصلِحُه الراكبُ. */}
         </div>
       );
