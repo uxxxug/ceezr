@@ -136,6 +136,18 @@ export type IncomingUpdate =
       readonly updateId: number;
       readonly groupChatId: string;
       readonly userChatId: string;
+    }
+  /**
+   * `GRP-GATE-02` — عضوٌ دخلَ القروبَ مباشرةً (الرابطُ العامُّ أو إضافةٌ) لا عبرَ طلبِ انضمامٍ
+   * تحكمُ فيه البوّابةُ. يصلُ من تحديثِ `chat_member` — وتلغرامُ لا يُرسلُه إلا لبوتٍ مشرفٍ،
+   * وهوَ نفسُه شرطُ الإخراجِ. و`from` هوَ الداخلُ نفسُه لا من أضافَه.
+   */
+  | {
+      readonly kind: "member_joined";
+      readonly from: Sender;
+      readonly updateId: number;
+      readonly groupChatId: string;
+      readonly isBot: boolean;
     };
 
 export interface Sender {

@@ -261,7 +261,7 @@ export async function handleRiderUpdate(
    * وبوّابتُهُ في بوتِ السائقِ (`ADR 0157`). وإن وصلَ بوتَ العميلِ فإقرارُ استلامٍ
    * بلا حكمٍ — **قبلَ تحميلِ الجلسةِ** كي لا يُخلَقَ أثرٌ لمن لم يحاورِ البوتَ.
    */
-  if (update.kind === "join_request") return [];
+  if (update.kind === "join_request" || update.kind === "member_joined") return [];
 
   const sender = update.from;
   const { state, unreadable } = await loadState(deps, sender);

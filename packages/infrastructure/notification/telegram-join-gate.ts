@@ -82,6 +82,30 @@ export function grammyGroupJoinGate(token: string): TelegramGroupGatePort {
       }
     },
 
+    remove: async (groupChatId, telegramUserId) => {
+      const user = asTelegramNumber(telegramUserId);
+      if (user === null) return false;
+      try {
+        // `GRP-GATE-02`: إخراجٌ لا حظرٌ — الرفعُ الفوريُّ يُبقي بابَ العودةِ بعدَ التسجيلِ مفتوحاً.
+        await api.banChatMember(groupChatId, user);
+        await api.unbanChatMember(groupChatId, user, { only_if_banned: true });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+
+    isGroupAdmin: async (groupChatId, telegramUserId) => {
+      const user = asTelegramNumber(telegramUserId);
+      if (user === null) return null;
+      try {
+        const member = await api.getChatMember(groupChatId, user);
+        return member.status === "creator" || member.status === "administrator";
+      } catch {
+        return null;
+      }
+    },
+
     messageUser: async (userChatId, text) => {
       try {
         await api.sendMessage(userChatId, text);
