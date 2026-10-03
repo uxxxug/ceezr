@@ -69,6 +69,7 @@ import {
 } from "../geo/update-driver-location.ts";
 import {
   type GroupJoinGateDependencies,
+  handleDriverGroupDirectJoin,
   handleDriverGroupJoinRequest,
 } from "../groups/group-join-gate.ts";
 import type {
@@ -506,6 +507,21 @@ export async function handleDriverUpdate(
         telegramUserId: update.from.telegramUserId,
         userChatId: update.userChatId,
         languageHint: update.from.languageHint,
+      },
+      deps.groupJoinGate,
+    );
+    return [];
+  }
+
+  // `GRP-GATE-02`: دخولٌ مباشرٌ إلى قروبِ سائقين — قرارُ بوّابةٍ لا حوارٌ، وبلا جلسةٍ.
+  if (update.kind === "member_joined") {
+    if (deps.groupJoinGate === undefined) return [];
+    await handleDriverGroupDirectJoin(
+      {
+        groupChatId: update.groupChatId,
+        telegramUserId: update.from.telegramUserId,
+        languageHint: update.from.languageHint,
+        isBot: update.isBot,
       },
       deps.groupJoinGate,
     );

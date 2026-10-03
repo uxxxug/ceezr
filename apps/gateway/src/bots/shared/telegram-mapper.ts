@@ -65,7 +65,27 @@ export interface RawTelegramUpdate {
     readonly from?: { readonly id?: number | string; readonly language_code?: string };
     readonly user_chat_id?: number | string;
   };
+  /**
+   * `GRP-GATE-02` — تغيّرُ عضويّةِ عضوٍ في قروبٍ يشرفُ عليه البوتُ (ضمنَ `allowed_updates`).
+   * يُقرأُ منه الدخولُ وحدَه: من «غادرَ/أُخرِجَ» إلى «عضو/مقيَّد».
+   */
+  readonly chat_member?: {
+    readonly chat?: { readonly id?: number | string; readonly type?: string };
+    readonly old_chat_member?: { readonly status?: string };
+    readonly new_chat_member?: {
+      readonly status?: string;
+      readonly user?: {
+        readonly id?: number | string;
+        readonly is_bot?: boolean;
+        readonly language_code?: string;
+      };
+    };
+    readonly via_join_request?: boolean;
+  };
 }
+
+const OUTSIDE_STATUSES = new Set(["left", "kicked"]);
+const INSIDE_STATUSES = new Set(["member", "restricted"]);
 
 function senderFrom(
   userId: number | string | undefined,
@@ -109,6 +129,32 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
    * لا من محادثتِهِ. والمراسلةُ الخاصةُ — إن وقعتْ — تذهبُ إلى `userChatId` لا إلى
    * القروبِ، فلا يُعلَنُ رفضُ أحدٍ أمامَ الجميعِ.
    */
+  /**
+   * `GRP-GATE-02` — دخولٌ مباشرٌ. ومن دخلَ بطلبِ انضمامٍ قبِلَته البوّابةُ لا يُعادُ الحكمُ فيه
+   * (`via_join_request`)، فلا يتعارضُ قراران على عضوٍ واحد.
+   */
+  const member = raw.chat_member;
+  if (member !== undefined) {
+    const groupChatId = member.chat?.id;
+    const user = member.new_chat_member?.user;
+    const joined =
+      OUTSIDE_STATUSES.has(member.old_chat_member?.status ?? "") &&
+      INSIDE_STATUSES.has(member.new_chat_member?.status ?? "");
+    if (!joined || member.via_join_request === true) return null;
+    if (groupChatId === undefined || user?.id === undefined) return null;
+    return {
+      kind: "member_joined",
+      from: {
+        telegramUserId: String(user.id),
+        chatId: String(user.id),
+        languageHint: user.language_code ?? "ar",
+      },
+      updateId,
+      groupChatId: String(groupChatId),
+      isBot: user.is_bot === true,
+    };
+  }
+
   const joinRequest = raw.chat_join_request;
   if (joinRequest !== undefined) {
     const groupChatId = joinRequest.chat?.id;
