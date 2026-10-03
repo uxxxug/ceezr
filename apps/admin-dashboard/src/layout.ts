@@ -53,6 +53,8 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { path: "/admin/payments", label: "المدفوعات" },
   // البثّ قبل الإعدادات وبعد المدفوعات: فعلٌ تشغيليٌّ يوميٌّ لا ضبطٌ يُمسّ مرّةً.
   { path: "/admin/broadcast", label: "البثّ الجماعي" },
+  // بعد البثّ: كلاهما عن «ما يصل المستخدمَ في تيليجرام».
+  { path: "/admin/messages", label: "معرض الرسائل" },
   // الاسترداد قبل الإعدادات: فعلٌ تشغيليٌّ لا ضبطٌ.
   { path: "/admin/recovery", label: "استرداد الحسابات" },
   { path: "/admin/settings", label: "الإعدادات" },
@@ -290,6 +292,24 @@ min-width:120px}
 .bar>i{display:block;height:100%;background:var(--ok)}
 .preview{white-space:pre-wrap;background:#12141a;border:1px solid var(--line);border-radius:8px;
 padding:12px;margin:0}
+/* معرضُ الرسائل: فقاعةُ تيليجرام وأزرارُها، في الورقةِ الوحيدةِ نفسِها. */
+.tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.tg-card{background:#12141a;border:1px solid var(--line);border-radius:10px;padding:12px;
+display:flex;flex-direction:column;gap:6px}
+.tg-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.tg-chat{background:#0e1621;border-radius:10px;padding:10px;flex:1}
+.tg-bubble{background:#182533;color:#f5f5f5;border-radius:12px 12px 12px 4px;padding:9px 12px;
+white-space:pre-wrap;word-break:break-word;font-size:14px;line-height:1.55}
+.tg-photo{background:#22303f;border-radius:8px;padding:18px;text-align:center;margin-bottom:6px;color:var(--muted)}
+.tg-inline,.tg-reply{margin-top:4px;display:flex;flex-direction:column;gap:4px}
+.tg-row{display:flex;gap:4px}
+.tg-btn{flex:1;text-align:center;background:rgba(43,82,120,.55);color:#fff;border-radius:8px;
+padding:7px 6px;font-size:13px}
+.tg-key{flex:1;text-align:center;background:#232e3c;color:#fff;border-radius:6px;padding:8px 6px;font-size:13px}
+.tg-foot{display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap}
+.tg-foot .mono{color:var(--muted);font-size:11px;word-break:break-all}
+.tg-details{margin-bottom:10px}
+.tg-details summary{cursor:pointer;font-weight:600;padding:6px 0}
 `;
 
 /**
