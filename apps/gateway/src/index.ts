@@ -1167,6 +1167,7 @@ const driverOffers =
           store: new PostgresDriverOfferStore(container.sql),
           drivers: container.driverOffers.drivers,
           offers: container.driverOffers.decisions,
+          riderNotice: container.riderTripNotice,
         },
         log,
       };
@@ -1189,6 +1190,7 @@ const driverJob =
           ),
           now: () => new Date(),
           store: new PostgresDriverJobStore(container.sql),
+          riderNotice: container.riderTripNotice,
         },
         // `PD-020` · الشقُّ `ج` — فعلُ «تعذّرَ الإكمالُ»: بلاغُ سلامةٍ يُحفَظُ في
         // بيتِ السلامةِ ويدخلُ من بابِ المَهمّةِ، فمَنفذُهُ مَنفذُ السلامةِ لا

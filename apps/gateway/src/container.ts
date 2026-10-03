@@ -25,6 +25,7 @@ import type { RepublishDependencies } from "../../../packages/application/dispat
 import type { RotateNegotiationDependencies } from "../../../packages/application/dispatch/rotate-negotiation-turn.ts";
 import type { PostDisputeCardDependencies } from "../../../packages/application/dispute/post-dispute-card.ts";
 import type { SupportResolutionPort } from "../../../packages/application/dispute/resolve-dispute.ts";
+import type { RiderTripNoticeDeps } from "../../../packages/application/driver/rider-trip-notice.ts";
 import type { FinanceObjectionView } from "../../../packages/application/financial/driver-finance-overview.ts";
 import type {
   PaymentProvider,
@@ -108,6 +109,7 @@ import {
 } from "../../../packages/infrastructure/notification/miniapp-entry-sender.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
 import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
+import { createRiderTripFactsReader } from "../../../packages/infrastructure/notification/rider-trip-facts.ts";
 import { grammyGroupJoinGate } from "../../../packages/infrastructure/notification/telegram-join-gate.ts";
 import {
   grammyLiveLocationChannel,
@@ -346,6 +348,12 @@ export interface Container {
     readonly drivers: DriverDirectory;
     readonly decisions: OfferDecisionPort;
   };
+  /**
+   * `RIDE-NOTICE-01` — إخطارُ الراكبِ بطَورِ رحلتِه حينَ يضغطُ السائقُ في التطبيقِ
+   * المصغَّرِ: **نفسُ الجسرِ** `counterpartNotifier(riderSender)` الذي يُخطِرُ به حوارُ
+   * البوتِ عندَ القبولِ، لا مُرسِلٌ ثانٍ.
+   */
+  readonly riderTripNotice: RiderTripNoticeDeps;
   close(): Promise<void>;
 }
 
@@ -1133,6 +1141,11 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     reputation: { flags: ratingFlagPort, reader: reputationReader },
     safety: { trigger: safety.trigger },
     driverOffers: { drivers, decisions: offerDecisions },
+    riderTripNotice: {
+      facts: createRiderTripFactsReader(sql),
+      counterpart: counterpartNotifier(riderSender),
+      miniAppUrl: config.botSurfaceMode === "miniapp" ? config.miniAppUrl : null,
+    },
     driverLocation: {
       drivers,
       ingest: {

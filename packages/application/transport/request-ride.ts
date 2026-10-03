@@ -89,6 +89,19 @@ export function rideStoreErrorFrom(failure: RideStoreFailure): RequestRidePublic
   return "RIDE_STORE_NOT_AVAILABLE";
 }
 
+/**
+ * `RIDE-LABEL-01` — اسمُ المكانِ إخباريٌّ لا حكميٌّ: ما لا يُقرأُ يسقطُ `null` ولا
+ * يرفضُ الطلبَ. فراكبٌ أرسلَ اسماً مشوَّهاً أولى أن تُطلَبَ رحلتُه بلا اسمٍ من أن تُرَدَّ.
+ */
+export const PLACE_LABEL_MAX_LENGTH = 120;
+
+export function readPlaceLabel(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed.slice(0, PLACE_LABEL_MAX_LENGTH);
+}
+
 export async function requestRide(
   deps: RequestRideDeps,
   input: {
@@ -137,6 +150,8 @@ export async function requestRide(
     origin,
     destination,
     notes: notes.notes,
+    pickupLabel: readPlaceLabel(body.pickupLabel),
+    dropoffLabel: readPlaceLabel(body.destinationLabel),
   });
   if (!created.ok) return err(rideStoreErrorFrom(created.error));
 

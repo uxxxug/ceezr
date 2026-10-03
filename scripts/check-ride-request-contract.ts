@@ -352,7 +352,13 @@ export function findViolations(input: RepositoryInput): readonly string[] {
     }
   }
   const store = input.sliceSources["packages/infrastructure/transport/ride-request-store.ts"];
-  if (typeof store === "string" && !store.includes("request_ride(")) {
+  // `RIDE-LABEL-01` — `request_ride_labeled(` غلافٌ في القاعدةِ يُنادي `request_ride` حرفاً،
+  // فالحكمُ باقٍ في القاعدةِ.
+  if (
+    typeof store === "string" &&
+    !store.includes("request_ride(") &&
+    !store.includes("request_ride_labeled(")
+  ) {
     violations.push(
       "مخزنُ الرحلةِ لا ينادي `request_ride(` — الحكمُ في القاعدةِ لا في المحوّلِ (القاعدة 0.5).",
     );

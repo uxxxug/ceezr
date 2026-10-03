@@ -49,6 +49,7 @@ import {
   type DriverJobStoreError,
   isDriverJobRejection,
 } from "./job-ports.ts";
+import { noticeRiderOfTrip, type RiderTripNoticeDeps } from "./rider-trip-notice.ts";
 
 /**
  * رموزُ العطبِ المنشورةُ — **قائمةٌ تُقرأُ في زمنِ التشغيلِ** لا اتّحادٌ وحدَه،
@@ -78,6 +79,8 @@ export interface DriverJobDeps {
   readonly sessions: MiniAppSessionReader;
   readonly store: DriverJobStore;
   readonly now: () => Date;
+  /** `RIDE-NOTICE-01` — إخطارُ الراكبِ بالطَّورِ على بوتِه؛ غيابُه يُسكِتُ الإخطارَ وحدَه. */
+  readonly riderNotice?: RiderTripNoticeDeps;
 }
 
 function rejection(code: DriverJobPublicErrorCode): DriverJobRejection {
@@ -156,6 +159,7 @@ export async function markDriverArrived(
 
   const stamped = await deps.store.markArrived({ telegramUserId: session.value, orderId });
   if (!stamped.ok) return err(publicCodeFrom(stamped.error));
+  await noticeRiderOfTrip(deps.riderNotice, orderId, "ARRIVED");
   return ok(stamped.value);
 }
 
@@ -171,6 +175,7 @@ export async function startDriverRide(
 
   const started = await deps.store.startRide({ telegramUserId: session.value, orderId });
   if (!started.ok) return err(publicCodeFrom(started.error));
+  await noticeRiderOfTrip(deps.riderNotice, orderId, "STARTED");
   return ok(started.value);
 }
 
@@ -186,5 +191,6 @@ export async function completeDriverRide(
 
   const completed = await deps.store.completeRide({ telegramUserId: session.value, orderId });
   if (!completed.ok) return err(publicCodeFrom(completed.error));
+  await noticeRiderOfTrip(deps.riderNotice, orderId, "COMPLETED");
   return ok(completed.value);
 }
