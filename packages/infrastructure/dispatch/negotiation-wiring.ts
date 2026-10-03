@@ -26,6 +26,7 @@ import {
   createActiveNegotiationLookup,
   createClaimRegistrationPort,
   createEscalationPort,
+  createNegotiationDriverCardReader,
   createNegotiationRotationPort,
   createNegotiationSnapshotReader,
   createOrderNotesReader,
@@ -54,6 +55,8 @@ export interface NegotiationWiring {
   readonly claims: {
     readonly claims: ReturnType<typeof createClaimRegistrationPort>;
   };
+  /** `NEG-SELECT-01` — بطاقةُ السائقِ المعروضِ لصاحبِ الطلبِ («معلوماتُ السائقِ»). */
+  readonly driverCards: ReturnType<typeof createNegotiationDriverCardReader>;
 }
 
 export function createNegotiationWiring(
@@ -98,5 +101,7 @@ export function createNegotiationWiring(
     claims: {
       claims: createClaimRegistrationPort(sql),
     },
+
+    driverCards: createNegotiationDriverCardReader(sql),
   };
 }

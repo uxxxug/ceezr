@@ -61,6 +61,16 @@ export function createDriverBot(
       const found = await deps.drivers.findByTelegramId(telegramUserId);
       return found.ok ? found.value !== null : null;
     },
+    // NEG-SELECT-01 — نصُّ من في محادثةِ تفاوضٍ مفتوحةٍ رسالةٌ للطرفِ الآخرِ: يمضي للحوارِ.
+    inNegotiation: async (telegramUserId) => {
+      const relay = deps.negotiation?.relay;
+      if (relay === undefined) return false;
+      const found = await deps.drivers.findByTelegramId(telegramUserId);
+      if (!found.ok) return null;
+      if (found.value === null) return false;
+      const parties = await relay.lookup.forDriver(found.value.id);
+      return parties.ok ? parties.value !== null : null;
+    },
     onStart: async (telegramUserId) => {
       // `ADR 0212`: ترقيةُ المسؤولِ الأوّلِ عند كلِّ `/start` — في وضعِ التطبيقِ كما في القديمِ،
       // وإخفاقُها لا يمنعُ الدخولَ (مسارٌ إداريٌّ لا شرطُ استخدامٍ).
@@ -141,6 +151,21 @@ export function createDriverBot(
           }
         }
         try {
+          if (
+            reply.editMessageId !== undefined &&
+            reply.photoFileId === undefined &&
+            sender.editMessageText !== undefined &&
+            (await sender
+              .editMessageText(reply.chatId, reply.editMessageId, reply.text, markup)
+              .then(() => true)
+              .catch((error: unknown) => {
+                // رسالةٌ لا تُعدَّلُ (قديمةٌ أو مطابقةٌ) ليست إخفاقاً: تُرسَلُ جديدةً.
+                log("bot.telegram_edit_failed", { detail: String(error) });
+                return false;
+              }))
+          ) {
+            continue;
+          }
           if (reply.photoFileId === undefined) {
             await sender.sendMessage(reply.chatId, reply.text, markup);
           } else {

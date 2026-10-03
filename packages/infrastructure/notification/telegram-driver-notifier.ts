@@ -14,6 +14,7 @@ import type {
 } from "../../application/dispatch/broadcast-offers.ts";
 import { t } from "../../shared/i18n/index.ts";
 import { miniAppUrl } from "../../shared/miniapp-link/index.ts";
+import { orderTermsLines } from "../../shared/order-terms/index.ts";
 import { serviceMarker } from "../../shared/service-marker/index.ts";
 import { guard, type Sql } from "../db/client.ts";
 import type { IdentifyingSender } from "./telegram-negotiation-notifier.ts";
@@ -110,13 +111,30 @@ export function createOfferPublisher(
         if (notification.dropoffLabel !== null && notification.dropoffLabel !== "") {
           lines.push(tr("driver.offer_card_to", { dropoff: notification.dropoffLabel }));
         }
+        // `ORDER-TERMS-01`: وقتُ الحضورِ (ونوعُ الطردِ في التوصيلِ) بعدَ «إلى» وقبلَ المسافةِ —
+        // يُقرأُ من الطلبِ لحظةَ الإرسالِ، فلا تتغيّرُ حمولةُ صفِّ العرضِ.
+        const termRows = await sql<{ pickup_at: Date | null }[]>`
+          select pickup_at from orders where id = ${notification.orderId}
+        `;
+        const termRow = termRows[0];
+        lines.push(
+          ...orderTermsLines(tr, notification.service, {
+            pickupAt: termRow?.pickup_at ?? null,
+            parcel: notification.notes,
+          }),
+        );
         lines.push(
           tr("driver.offer_card_distance", {
             distance: notification.distanceKm.toFixed(KM_DECIMALS),
           }),
         );
         lines.push(tr("driver.offer_card_time", { seconds: notification.expiresInSeconds }));
-        if (notification.notes !== null && notification.notes !== "") {
+        // في التوصيلِ الملاحظةُ هي وصفُ الطردِ وقد عُرِضَت سطراً لها؛ فلا تتكرّرُ.
+        if (
+          notification.service !== "delivery" &&
+          notification.notes !== null &&
+          notification.notes !== ""
+        ) {
           lines.push(tr("driver.offer_card_notes", { notes: notification.notes }));
         }
         const text = lines.join("\n");

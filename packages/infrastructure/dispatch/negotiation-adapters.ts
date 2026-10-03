@@ -20,13 +20,17 @@ import type {
 import type {
   ClaimRegistration,
   ClaimRegistrationPort,
+  ClaimWithdrawal,
   NegotiationParties,
 } from "../../application/dispatch/register-unsubscribed-claim.ts";
 import type { ActiveNegotiationLookup } from "../../application/dispatch/relay-negotiation-message.ts";
 import type {
   AdvanceOutcome,
+  NegotiationDriverCard,
+  NegotiationDriverCardReader,
   NegotiationRotationPort,
   NegotiationSnapshotReader,
+  SelectOutcome,
   SettleOutcome,
 } from "../../application/dispatch/rotate-negotiation-turn.ts";
 import type { NegotiationSnapshot, NegotiationStatus } from "../../domain/dispatch/negotiation.ts";
@@ -87,6 +91,13 @@ export function createOrderNotesReader(sql: Sql): OrderNotesReader {
         `;
         return rows[0]?.notes ?? null;
       }),
+    readTerms: (orderId: OrderId) =>
+      guard("orders.readTerms", async () => {
+        const rows = await sql<{ pickup_at: Date | null }[]>`
+          select pickup_at from orders where id = ${orderId}
+        `;
+        return { pickupAt: rows[0]?.pickup_at ?? null };
+      }),
   };
 }
 
@@ -112,6 +123,40 @@ export function createClaimRegistrationPort(sql: Sql): ClaimRegistrationPort {
           notificationsQueued: Number(envelope.notifications_queued ?? 0),
         };
       }),
+
+    withdrawClaim: (negotiationId: string, driverId: DriverId) =>
+      guard("rpc.withdraw_unsubscribed_claim", async (): Promise<ClaimWithdrawal> => {
+        const rows = await sql<{ result: unknown }[]>`
+          select withdraw_unsubscribed_claim(${negotiationId}::uuid, ${driverId}::uuid) as result
+        `;
+        const envelope = readEnvelope(rows[0]?.result);
+        if (envelope === null) unreadable("withdraw_unsubscribed_claim");
+        if (!envelope.ok) {
+          return { withdrawn: false, reason: String(envelope.error ?? "UNKNOWN") };
+        }
+        return { withdrawn: true, position: Number(envelope.position) };
+      }),
+  };
+}
+
+function readAdvance(raw: unknown, fn: string): AdvanceOutcome {
+  const envelope = readEnvelope(raw);
+  if (envelope === null) unreadable(fn);
+  if (!envelope.ok) {
+    return { advanced: false, reason: String(envelope.error ?? "UNKNOWN") };
+  }
+  const orderId = String(envelope.order_id) as OrderId;
+  const notificationsQueued = Number(envelope.notifications_queued ?? 0);
+  if (envelope.exhausted === true) {
+    return { advanced: true, exhausted: true, orderId, notificationsQueued };
+  }
+  return {
+    advanced: true,
+    exhausted: false,
+    claimId: String(envelope.claim_id),
+    position: Number(envelope.position),
+    orderId,
+    notificationsQueued,
   };
 }
 
@@ -122,23 +167,35 @@ export function createNegotiationRotationPort(sql: Sql): NegotiationRotationPort
         const rows = await sql<{ result: unknown }[]>`
           select advance_unsubscribed_negotiation(${negotiationId}::uuid, ${reason}) as result
         `;
+        return readAdvance(rows[0]?.result, "advance_unsubscribed_negotiation");
+      }),
+
+    advanceAt: (negotiationId: string, position: number, reason: "declined" | "expired") =>
+      guard("rpc.advance_unsubscribed_negotiation_at", async (): Promise<AdvanceOutcome> => {
+        const rows = await sql<{ result: unknown }[]>`
+          select advance_unsubscribed_negotiation_at(
+            ${negotiationId}::uuid, ${position}::integer, ${reason}
+          ) as result
+        `;
+        return readAdvance(rows[0]?.result, "advance_unsubscribed_negotiation_at");
+      }),
+
+    select: (negotiationId: string, position: number) =>
+      guard("rpc.select_unsubscribed_claim", async (): Promise<SelectOutcome> => {
+        const rows = await sql<{ result: unknown }[]>`
+          select select_unsubscribed_claim(${negotiationId}::uuid, ${position}::integer) as result
+        `;
         const envelope = readEnvelope(rows[0]?.result);
-        if (envelope === null) unreadable("advance_unsubscribed_negotiation");
+        if (envelope === null) unreadable("select_unsubscribed_claim");
         if (!envelope.ok) {
-          return { advanced: false, reason: String(envelope.error ?? "UNKNOWN") };
-        }
-        const orderId = String(envelope.order_id) as OrderId;
-        const notificationsQueued = Number(envelope.notifications_queued ?? 0);
-        if (envelope.exhausted === true) {
-          return { advanced: true, exhausted: true, orderId, notificationsQueued };
+          return { selected: false, reason: String(envelope.error ?? "UNKNOWN") };
         }
         return {
-          advanced: true,
-          exhausted: false,
-          claimId: String(envelope.claim_id),
+          selected: true,
+          already: envelope.already === true,
+          orderId: String(envelope.order_id) as OrderId,
           position: Number(envelope.position),
-          orderId,
-          notificationsQueued,
+          notificationsQueued: Number(envelope.notifications_queued ?? 0),
         };
       }),
 
@@ -216,6 +273,7 @@ interface PartiesRow {
   readonly rider_chat_id: string;
   readonly rider_language: string;
   readonly position: number;
+  readonly selected: boolean;
 }
 
 /**
@@ -230,7 +288,8 @@ const PARTIES_SELECT = `
          du.language_code as driver_language,
          ru.telegram_id::text as rider_chat_id,
          ru.language_code as rider_language,
-         c.position      as position
+         c.position      as position,
+         (c.selected_at is not null) as selected
     from unsubscribed_negotiations n
     join unsubscribed_claims c on c.id = n.active_claim_id
     join drivers d  on d.id = c.driver_id
@@ -251,6 +310,7 @@ function toParties(row: PartiesRow): NegotiationParties {
     riderChatId: row.rider_chat_id,
     riderLanguage: row.rider_language,
     position: row.position,
+    selected: row.selected,
   };
 }
 
@@ -327,6 +387,71 @@ export function createNegotiationSnapshotReader(sql: Sql): NegotiationSnapshotRe
           } satisfies NegotiationSnapshot,
           maxCycles: Number(row.max_cycles),
         }));
+      }),
+  };
+}
+
+interface DriverCardRow {
+  readonly negotiation_id: string;
+  readonly position: number;
+  readonly full_name: string | null;
+  readonly rating_average: string | number | null;
+  readonly rating_count: number | null;
+  readonly completed_trips: string | number;
+  readonly vehicle_type: string | null;
+  readonly vehicle_year: number | null;
+  readonly member_since_year: number | null;
+}
+
+/**
+ * `NEG-SELECT-01` — بطاقةُ السائقِ المعروضِ لصاحبِ الطلبِ. الملكيّةُ والحداثةُ قيدانِ في
+ * الاستعلامِ: معرّفُ تيليجرام الراكبِ يُطابَقُ بصاحبِ الطلبِ، والموضعُ بالمعروضِ الآنَ.
+ * ولا يُقرأُ هاتفٌ ولا لوحةٌ: الاسمُ الأوّلُ وحدَه يُقتطَعُ في التطبيقِ.
+ */
+export function createNegotiationDriverCardReader(sql: Sql): NegotiationDriverCardReader {
+  return {
+    read: (negotiationId: string, position: number, riderTelegramId: string) =>
+      guard("negotiations.driverCard", async (): Promise<NegotiationDriverCard | null> => {
+        if (!/^[0-9]{1,20}$/.test(riderTelegramId)) return null;
+        const rows = await sql<DriverCardRow[]>`
+          select n.id as negotiation_id, c.position,
+                 du.full_name,
+                 d.rating_average, d.rating_count,
+                 (select count(*) from orders x
+                   where x.assigned_driver_id = d.id and x.status = 'completed') as completed_trips,
+                 d.vehicle_type, d.vehicle_year,
+                 extract(year from d.created_at)::integer as member_since_year
+            from unsubscribed_negotiations n
+            join unsubscribed_claims c on c.id = n.active_claim_id
+            join drivers d  on d.id = c.driver_id
+            join users   du on du.id = d.user_id
+            join orders  o  on o.id = n.order_id
+            join riders  r  on r.id = o.rider_id
+            join users   ru on ru.id = r.user_id
+           where n.id = ${negotiationId}::uuid
+             and n.status = 'negotiating'
+             and c.position = ${position}::integer
+             and ru.telegram_id = ${riderTelegramId}::bigint
+           limit 1
+        `;
+        const row = rows[0];
+        if (row === undefined) return null;
+        const first = (row.full_name ?? "").trim().split(/\s+/)[0] ?? "";
+        const average = row.rating_average === null ? null : Number(row.rating_average);
+        return {
+          negotiationId: row.negotiation_id,
+          position: row.position,
+          firstName: first === "" ? null : first,
+          ratingAverage:
+            average === null || !Number.isFinite(average) || (row.rating_count ?? 0) === 0
+              ? null
+              : average,
+          ratingCount: row.rating_count ?? 0,
+          completedTrips: Number(row.completed_trips),
+          vehicleType: row.vehicle_type,
+          vehicleYear: row.vehicle_year,
+          memberSinceYear: row.member_since_year,
+        };
       }),
   };
 }

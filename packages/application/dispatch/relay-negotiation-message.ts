@@ -80,6 +80,16 @@ export async function relayNegotiationMessage(
   if (found.value === null) return ok(empty("NO_ACTIVE_NEGOTIATION"));
 
   const parties = found.value;
+  // `NEG-SELECT-01`: الدورُ معروضٌ لم يُختَرْ — المحادثةُ لم تُفتَحْ بعدُ، فلا يُمرَّرُ حرفٌ.
+  if (parties.selected === false) {
+    return ok({
+      relayed: false,
+      orderId: parties.orderId,
+      negotiationId: parties.negotiationId,
+      redacted: 0,
+      reason: "AWAITING_SELECTION",
+    });
+  }
   const safe = redactPhoneNumbers(body);
 
   const sent = await deps.sender.relay(parties, input.from, safe.text);

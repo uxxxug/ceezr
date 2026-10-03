@@ -131,8 +131,9 @@ export function createRideRequestCommand(sql: Sql): RideRequestCommand {
       let rows: RideRow[];
       try {
         rows = await sql.unsafe<RideRow[]>(
-          // `RIDE-LABEL-01` — الغلافُ يُنادي `request_ride` حرفاً ثمَّ يكتبُ الاسمَين.
-          "select request_ride_labeled($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) as result",
+          // `RIDE-LABEL-01` · `ORDER-TERMS-01` — الغلافُ يُنادي `request_ride_labeled` حرفاً
+          // ثمَّ يكتبُ وقتَ الحضورِ في الصفِّ الجديدِ وحدَه.
+          "select request_ride_with_terms($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) as result",
           [
             telegramId,
             input.idempotencyKey,
@@ -144,6 +145,9 @@ export function createRideRequestCommand(sql: Sql): RideRequestCommand {
             input.notes,
             input.pickupLabel ?? null,
             input.destination === null ? null : (input.dropoffLabel ?? null),
+            input.pickupAt === undefined || input.pickupAt === null
+              ? null
+              : input.pickupAt.toISOString(),
           ],
         );
       } catch {

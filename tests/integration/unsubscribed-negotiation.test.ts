@@ -325,6 +325,16 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
     await post("driver", groupCallback(DRIVER_CHATS[0], `unsub:claim:${negotiationId}`));
     await post("driver", groupCallback(DRIVER_CHATS[1], `unsub:claim:${negotiationId}`));
 
+    // NEG-SELECT-01: قبلَ أن يختارَ العميلُ السائقَ لا تُفتَحُ القناةُ حتى لصاحبِ الدورِ.
+    const unselected = riderSent.length;
+    await post("driver", text(DRIVER_CHATS[0], "قبل الاختيار"));
+    expect(riderSent.filter((m) => m.text.includes("قبل الاختيار"))).toHaveLength(0);
+    expect(riderSent.length).toBe(unselected);
+    expect(driverSent.at(-1)?.text).toBe(ar("negotiation.driver_awaiting_selection"));
+    await post("rider", text(RIDER_CHAT, "مرحبا"));
+    expect(riderSent.at(-1)?.text).toBe(ar("negotiation.rider_awaiting_selection"));
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:sel:${negotiationId}:1`));
+
     const before = riderSent.length;
     await post("driver", text(DRIVER_CHATS[1], "أنا أقرب وأرخص، خذني أنا"));
     expect(riderSent).toHaveLength(before);
@@ -341,6 +351,7 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
     const orderId = await searchingOrder();
     const report = await publish(orderId);
     await post("driver", groupCallback(DRIVER_CHATS[0], `unsub:claim:${report.negotiationId}`));
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:sel:${report.negotiationId}:1`));
 
     await post("driver", text(DRIVER_CHATS[0], "كلمني على 0509998877"));
     expect(riderSent.at(-1)?.text).not.toContain("0509998877");
@@ -602,6 +613,143 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
         position: 2,
       }),
     );
+  });
+
+  it("NEG-SELECT-01: بطاقةُ العرضِ ثمَّ «معلومات السائق» ثمَّ «تجاهل» ثمَّ «اختيار» تفتحُ المحادثة", async () => {
+    await unsubscribedDriver(DRIVER_CHATS[0], "أحمد العمري", "0501111111");
+    const orderId = await searchingOrder();
+    const report = await publish(orderId);
+    const negotiationId = report.negotiationId ?? "";
+    await post("driver", groupCallback(DRIVER_CHATS[0], `unsub:claim:${negotiationId}`));
+    await deliverQueued();
+
+    // العميلُ يرى بطاقةَ العرضِ بأزرارِها الثلاثةِ، والسائقُ يعلمُ أنّ عرضَه أمامَ العميلِ.
+    const presented = riderSent.find((m) =>
+      m.text.startsWith(ar("negotiation.rider_presented", { position: 1 })),
+    );
+    expect(presented).toBeDefined();
+    const buttons = JSON.stringify(presented?.markup ?? null);
+    expect(buttons).toContain(`unsub:info:${negotiationId}:1`);
+    expect(buttons).toContain(`unsub:sel:${negotiationId}:1`);
+    expect(buttons).toContain(`unsub:next:${negotiationId}:1`);
+    const toDriver = () => driverSent.filter((m) => m.chatId === String(DRIVER_CHATS[0]));
+    expect(toDriver().some((m) => m.text.includes("عرضك أمام العميل"))).toBe(true);
+
+    // «معلومات السائق»: الاسمُ الأوّلُ وحدَه ولا رقمَ هاتفٍ.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:info:${negotiationId}:1`));
+    const info = riderSent.at(-1);
+    expect(info?.text).toContain("👤");
+    expect(info?.text).toContain("أحمد");
+    expect(info?.text).not.toContain("العمري");
+    expect(info?.text).not.toContain("0501111111");
+    expect(JSON.stringify(info?.markup ?? null)).toContain(`unsub:ign:${negotiationId}:1`);
+
+    // «تجاهل» يعودُ إلى بطاقةِ العرضِ.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:ign:${negotiationId}:1`));
+    expect(riderSent.at(-1)?.text).toBe(ar("negotiation.rider_presented", { position: 1 }));
+
+    // «اختيار السائق» يُغلِقُ العرضَ ويفتحُ المحادثةَ للطرفَين.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:sel:${negotiationId}:1`));
+    expect(riderSent.at(-1)?.text).toBe(ar("negotiation.rider_selected_closed", { position: 1 }));
+    const selected = await sql<{ selected_at: Date | null }[]>`
+      select selected_at from unsubscribed_claims where negotiation_id = ${negotiationId}
+    `;
+    expect(selected[0]?.selected_at).not.toBeNull();
+    await deliverQueued();
+    const chatCard = riderSent.find((m) => m.text.startsWith("💬"));
+    expect(JSON.stringify(chatCard?.markup ?? null)).toContain(`unsub:reopen:${negotiationId}:1`);
+    expect(toDriver().some((m) => m.text.includes("اختارك العميل"))).toBe(true);
+
+    // الضغطُ الثاني على «اختيار» لا يُودِعُ إخطاراً ثانياً.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:sel:${negotiationId}:1`));
+    const queued = await sql<{ n: number }[]>`
+      select count(*)::int as n from notification_outbox
+       where dedup_key like ${`negotiation_turn_opened:selected:%`}
+         and payload->>'claim_id' in (
+           select id::text from unsubscribed_claims where negotiation_id = ${negotiationId})
+    `;
+    expect(queued[0]?.n).toBe(2);
+  });
+
+  it("NEG-SELECT-01: «السائق التالي» ينقل الدور بحارسِ البطاقة، والزرُّ القديمُ لا يمسُّ التالي", async () => {
+    const ids = [
+      await unsubscribedDriver(DRIVER_CHATS[0], "أحمد العمري", "0501111111"),
+      await unsubscribedDriver(DRIVER_CHATS[1], "خالد الزهراني", "0502222222"),
+    ];
+    const orderId = await searchingOrder();
+    const report = await publish(orderId);
+    const negotiationId = report.negotiationId ?? "";
+    await post("driver", groupCallback(DRIVER_CHATS[0], `unsub:claim:${negotiationId}`));
+    await post("driver", groupCallback(DRIVER_CHATS[1], `unsub:claim:${negotiationId}`));
+
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:next:${negotiationId}:1`));
+    expect(riderSent.at(-1)?.text).toBe(ar("negotiation.rider_skipped"));
+    // زرٌّ على بطاقةِ السائقِ الأوّلِ بعدَ انتقالِ الدورِ: بطاقةٌ قديمةٌ لا اختيارٌ للثاني.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:sel:${negotiationId}:1`));
+    expect(riderSent.at(-1)?.text).toBe(ar("negotiation.card_stale"));
+    const active = await sql<{ driver_id: string; selected_at: Date | null }[]>`
+      select c.driver_id, c.selected_at from unsubscribed_negotiations n
+        join unsubscribed_claims c on c.id = n.active_claim_id where n.id = ${negotiationId}
+    `;
+    expect(active[0]?.driver_id).toBe(ids[1] as string);
+    expect(active[0]?.selected_at).toBeNull();
+
+    // الإخطارُ للسائقِ الذي تُخطِّيَ لطيفٌ لا جارحٌ.
+    await deliverQueued();
+    const first = driverSent.filter((m) => m.chatId === String(DRIVER_CHATS[0]));
+    expect(first.at(-1)?.text).toBe(ar("negotiation.driver_turn_closed_declined"));
+  });
+
+  it("NEG-SELECT-01: المنتظرُ يُنهي انتظارَه بزرٍّ، وصاحبُ الدورِ لا يستطيع", async () => {
+    await unsubscribedDriver(DRIVER_CHATS[0], "أحمد العمري", "0501111111");
+    const second = await unsubscribedDriver(DRIVER_CHATS[1], "خالد الزهراني", "0502222222");
+    const orderId = await searchingOrder();
+    const report = await publish(orderId);
+    const negotiationId = report.negotiationId ?? "";
+    await post("driver", groupCallback(DRIVER_CHATS[0], `unsub:claim:${negotiationId}`));
+    await post("driver", groupCallback(DRIVER_CHATS[1], `unsub:claim:${negotiationId}`));
+
+    const waiting = driverSent.filter((m) => m.chatId === String(DRIVER_CHATS[1])).at(-1);
+    expect(waiting?.text).toBe(ar("negotiation.claim_registered_waiting", { position: 2 }));
+    expect(JSON.stringify(waiting?.markup ?? null)).toContain(`unsub:leave:${negotiationId}`);
+
+    await post("driver", privateCallback(DRIVER_CHATS[1], `unsub:leave:${negotiationId}`));
+    expect(driverSent.at(-1)?.text).toBe(ar("negotiation.driver_left"));
+    const claim = await sql<{ outcome: string }[]>`
+      select outcome from unsubscribed_claims
+       where negotiation_id = ${negotiationId} and driver_id = ${second}
+    `;
+    expect(claim[0]?.outcome).toBe("cancelled");
+    const audit = await sql<{ n: number }[]>`
+      select count(*)::int as n from audit_log
+       where action = 'unsubscribed.claim_withdrawn' and payload->>'negotiation_id' = ${negotiationId}
+    `;
+    expect(audit[0]?.n).toBe(1);
+
+    await post("driver", privateCallback(DRIVER_CHATS[0], `unsub:leave:${negotiationId}`));
+    expect(driverSent.at(-1)?.text).toBe(ar("negotiation.driver_leave_active"));
+
+    // بعدَ انسحابِ المنتظِرِ يُفضي «السائق التالي» إلى النفادِ لا إلى المنسحب.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:next:${negotiationId}:1`));
+    expect(riderSent.at(-1)?.text).toBe(ar("negotiation.exhausted_rider"));
+  });
+
+  it("NEG-SELECT-01: عميلٌ آخرُ لا يرى معلوماتِ السائقِ ولا يختارُه", async () => {
+    await unsubscribedDriver(DRIVER_CHATS[0], "أحمد العمري", "0501111111");
+    const orderId = await searchingOrder();
+    const report = await publish(orderId);
+    const negotiationId = report.negotiationId ?? "";
+    await post("driver", groupCallback(DRIVER_CHATS[0], `unsub:claim:${negotiationId}`));
+
+    const stranger = DRIVER_CHATS[4];
+    await post("rider", privateCallback(stranger, `unsub:info:${negotiationId}:1`));
+    await post("rider", privateCallback(stranger, `unsub:sel:${negotiationId}:1`));
+    const toStranger = riderSent.filter((m) => m.chatId === String(stranger));
+    expect(toStranger.every((m) => !m.text.includes("أحمد"))).toBe(true);
+    const selected = await sql<{ selected_at: Date | null }[]>`
+      select selected_at from unsubscribed_claims where negotiation_id = ${negotiationId}
+    `;
+    expect(selected[0]?.selected_at).toBeNull();
   });
 
   it("لا تُفتح دورتان لطلب واحد مهما تكرّر النشر", async () => {

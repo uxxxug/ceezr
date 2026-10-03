@@ -22,7 +22,7 @@
  */
 
 import { miniAppUrl } from "../../shared/miniapp-link/index.ts";
-import type { SendOptions, TelegramSender } from "./telegram-api-sender.ts";
+import { interactiveOf, type SendOptions, type TelegramSender } from "./telegram-api-sender.ts";
 import type { InlineMarkup, InlineMarkupButton } from "./telegram-markup.ts";
 
 /**
@@ -95,5 +95,7 @@ export function withMiniAppEntry(
       ),
     sendLocation: (chatId, latitude, longitude, sendOptions) =>
       sender.sendLocation(chatId, latitude, longitude, sendOptions),
+    // التعديلُ رسالةٌ خاصّةٌ أيضاً: يبقى زرُّ التطبيقِ تحتَها كما في الإرسالِ.
+    ...interactiveOf(sender, (chatId, markup) => withEntryButton(chatId, markup, entry)),
   };
 }

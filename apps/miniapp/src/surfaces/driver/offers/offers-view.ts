@@ -46,6 +46,7 @@ import {
 } from "../../../../../../packages/domain/quote/distance-kind.ts";
 import type {
   ApiDriverOfferCard,
+  ApiDriverOfferService,
   ApiTaggedDistance,
   DriverOfferDetailResponse,
   DriverOffersResponse,
@@ -181,6 +182,8 @@ export interface OfferCardModel {
   readonly orderId: string;
   readonly round: number;
   readonly serviceKey: string;
+  /** `MSG-COLOR-01` — الخدمةُ نفسُها: يُقرأُ منها لونُ البطاقةِ في الشاشةِ. */
+  readonly service: ApiDriverOfferService;
   /** ما قالَه الخادمُ لحظةَ القراءةِ — والباقي يُحسَبُ بـ`countdownSeconds`. */
   readonly secondsLeftAtRead: number;
   readonly riderDistance: DistanceLine | null;
@@ -195,6 +198,7 @@ export function toOfferCard(card: ApiDriverOfferCard): OfferCardModel {
     orderId: card.order_id,
     round: card.round,
     serviceKey: `driver.offers.service.${card.service}`,
+    service: card.service,
     secondsLeftAtRead: card.seconds_left,
     riderDistance: distanceLine(card.rider_distance),
     tripDistance: distanceLine(card.trip_distance),
@@ -239,6 +243,8 @@ export interface OfferDetailModel {
   readonly orderId: string;
   readonly round: number;
   readonly serviceKey: string;
+  /** `MSG-COLOR-01` — الخدمةُ نفسُها: يُقرأُ منها لونُ البطاقةِ في الشاشةِ. */
+  readonly service: ApiDriverOfferService;
   readonly offerStatusKey: string;
   readonly orderStatusKey: string;
   readonly secondsLeftAtRead: number;
@@ -259,6 +265,7 @@ export function toOfferDetail(response: DriverOfferDetailResponse): OfferDetailM
     orderId: response.order_id,
     round: response.round,
     serviceKey: `driver.offers.service.${response.service}`,
+    service: response.service,
     offerStatusKey: `driver.offers.offerStatus.${response.offer_status}`,
     orderStatusKey: `driver.offers.orderStatus.${response.order_status}`,
     secondsLeftAtRead: response.seconds_left,

@@ -22,7 +22,10 @@ import {
 } from "../dispatch/relay-negotiation-message.ts";
 import {
   advanceNegotiationTurn,
+  advanceNegotiationTurnAt,
+  type NegotiationDriverCardReader,
   type RotateNegotiationDependencies,
+  selectNegotiationDriver,
   settleNegotiation,
 } from "../dispatch/rotate-negotiation-turn.ts";
 import type { ReputationReader } from "../reputation/index.ts";
@@ -48,6 +51,7 @@ import {
   requestWithMenuKeyboard,
 } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
+import { riderDriverInfoCard, riderPresentationCard } from "./negotiation-cards.ts";
 import {
   handleRatingCallback,
   type RatingDialogDependencies,
@@ -110,6 +114,8 @@ export interface RiderBotDependencies {
   readonly negotiation?: {
     readonly rotation: RotateNegotiationDependencies;
     readonly relay: RelayDependencies;
+    /** `NEG-SELECT-01` — بطاقةُ السائقِ المعروضِ. غيابُها يُعطِّلُ أزرارَ الاختيارِ وحدَها. */
+    readonly driverCards?: NegotiationDriverCardReader;
   };
   /** مسار الدعم (المرحلة 2.4) — نزاعات الرحلات فقط: العميل لا اشتراك له. */
   readonly support?: SupportDialogDependencies;
@@ -274,7 +280,9 @@ export async function handleRiderUpdate(
     if (prefix === "city") return handleCitySelected(rest.join(":"), sender, state, deps);
     if (prefix === "svc") return handleServiceSelected(rest.join(":"), sender, state, deps);
     if (prefix === "back") return handleBack(rest.join(":"), sender, state, deps);
-    if (prefix === "unsub") return handleNegotiationDecision(rest, sender, state, deps);
+    if (prefix === "unsub") {
+      return handleNegotiationDecision(rest, sender, state, deps, update.messageId);
+    }
     if (prefix === "cancel") return handleCancelChoice(rest.join(":"), sender, state, deps);
     if (prefix === "sos") return handleSosCallback(rest, sender, state, deps);
     if (prefix === "trk") return handleTrackingLinkCallback(rest, sender, state, deps);
@@ -389,6 +397,9 @@ async function handleFreeText(
     return unmatched(sender, state);
   }
   if (report.reason === "UNREACHABLE") return [reply(sender, tr("negotiation.relay_unreachable"))];
+  if (report.reason === "AWAITING_SELECTION") {
+    return [reply(sender, tr("negotiation.rider_awaiting_selection"))];
+  }
   if (report.redacted > 0) return [reply(sender, tr("negotiation.relay_redacted"))];
   return [];
 }
@@ -977,13 +988,19 @@ async function handleNegotiationDecision(
   sender: Sender,
   state: DialogState,
   deps: RiderBotDependencies,
+  messageId?: string,
 ): Promise<readonly BotReply[]> {
   const tr = t(state.language);
   const negotiation = deps.negotiation;
-  const [action, negotiationId] = rest;
+  const [action, negotiationId, positionRaw] = rest;
   if (negotiation === undefined || negotiationId === undefined) {
     return [reply(sender, tr("common.unknown_command"))];
   }
+  /** ردٌّ يُبدِّلُ البطاقةَ التي حملَت الزرَّ في مكانِها متى عُرِفَ معرّفُها. */
+  const inPlace = (text: string, keyboard: Keyboard | null = null): BotReply => ({
+    ...reply(sender, text, keyboard),
+    ...(messageId === undefined ? {} : { editMessageId: messageId }),
+  });
 
   if (action === "agree") {
     const settled = await settleNegotiation({ negotiationId }, negotiation.rotation);
@@ -993,6 +1010,7 @@ async function handleNegotiationDecision(
   }
 
   if (action === "decline") {
+    // أزرارُ بطاقةٍ أُرسِلَت قبلَ `NEG-SELECT-01` — تبقى تعملُ كما كانت.
     const moved = await advanceNegotiationTurn(
       { negotiationId, reason: "declined" },
       negotiation.rotation,
@@ -1001,6 +1019,57 @@ async function handleNegotiationDecision(
     // نفاد الثلاثة يُبلَّغ للعميل هنا؛ إعادة النشر أو التصعيد مسؤولية المهمة الدورية.
     if (moved.value.exhausted) return [reply(sender, tr("negotiation.exhausted_rider"))];
     return [];
+  }
+
+  /**
+   * `NEG-SELECT-01` — أفعالُ بطاقةِ العرضِ تحملُ موضعَ الدورِ. وقبلَ كلِّ فعلٍ تُقرأُ بطاقةُ
+   * السائقِ **لصاحبِ الطلبِ وحدَه وللمعروضِ الآنَ وحدَه**: فلا يختارُ أحدٌ سائقاً في طلبِ
+   * غيرِه، ولا يقعُ زرُّ بطاقةٍ قديمةٍ على السائقِ التالي.
+   */
+  const position = positionRaw === undefined ? Number.NaN : Number(positionRaw);
+  if (!Number.isInteger(position) || position < 1 || negotiation.driverCards === undefined) {
+    return [reply(sender, tr("common.unknown_command"))];
+  }
+  const current = await negotiation.driverCards.read(
+    negotiationId,
+    position,
+    sender.telegramUserId,
+  );
+  if (!current.ok) return technicalFailure(sender, state);
+  if (current.value === null) return [inPlace(tr("negotiation.card_stale"))];
+  const driverCard = current.value;
+
+  if (action === "info") {
+    const card = riderDriverInfoCard(tr, driverCard);
+    return [inPlace(card.text, card.keyboard)];
+  }
+
+  if (action === "ign") {
+    // «تجاهل» يُغلِقُ بطاقةَ المعلوماتِ ويعودُ إلى الأزرارِ الأخرى في المكانِ نفسِه.
+    const card = riderPresentationCard(tr, negotiationId, position, null);
+    return [inPlace(card.text, card.keyboard)];
+  }
+
+  if (action === "sel") {
+    const selected = await selectNegotiationDriver(
+      { negotiationId, position },
+      negotiation.rotation,
+    );
+    if (!selected.ok) return technicalFailure(sender, state);
+    if (!selected.value.selected) return [inPlace(tr("negotiation.card_stale"))];
+    // يُغلَقُ العرضُ؛ وبطاقةُ المحادثةِ (تم الاتفاق · إعادةُ الفتحِ) تصلُ من صندوقِ الصادرِ.
+    return [inPlace(tr("negotiation.rider_selected_closed", { position }))];
+  }
+
+  if (action === "next" || action === "reopen") {
+    const moved = await advanceNegotiationTurnAt(
+      { negotiationId, position, reason: "declined" },
+      negotiation.rotation,
+    );
+    if (!moved.ok) return technicalFailure(sender, state);
+    if (!moved.value.advanced) return [inPlace(tr("negotiation.card_stale"))];
+    if (moved.value.exhausted) return [inPlace(tr("negotiation.exhausted_rider"))];
+    return [inPlace(tr("negotiation.rider_skipped"))];
   }
 
   return [reply(sender, tr("common.unknown_command"))];

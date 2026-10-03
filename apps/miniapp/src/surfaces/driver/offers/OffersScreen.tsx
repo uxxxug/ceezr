@@ -126,6 +126,16 @@ export interface OffersScreenProps {
  * أصنافُ نغمةِ المؤقّتِ — **مكتوبةٌ حرفاً** لا مبنيّةً في زمنِ التشغيلِ: حاجزُ
  * تغطيةِ الأنماطِ (`ADR 0105` · `UX-021`) يقرأُ النصَّ الساكنَ.
  */
+/**
+ * `MSG-COLOR-01` — لونُ بطاقةِ العرضِ بحسبِ الخدمةِ (طلبُ المالكِ): التوصيلُ أصفرُ، والنقلُ
+ * أخضرُ، والشهريُّ مستقبلاً ورديٌّ فاتحٌ. جدولٌ ساكنٌ في الملفِّ نفسِه فحاجزُ الأنماطِ يقرؤه.
+ */
+const SERVICE_TONE: Readonly<Record<string, { readonly modifier: string }>> = {
+  delivery: { modifier: "dof__item--delivery" },
+  transport: { modifier: "dof__item--transport" },
+  monthly: { modifier: "dof__item--monthly" },
+};
+
 const COUNTDOWN_BADGE: Record<CountdownTone, { readonly modifier: string }> = {
   calm: { modifier: "dof__timer--calm" },
   urgent: { modifier: "dof__timer--urgent" },
@@ -395,7 +405,10 @@ export function OffersScreen({
             const row = rows[card.offerId] ?? { kind: "idle" };
             const open = canAcceptNow({ isClaimable: true, secondsRemaining });
             return (
-              <li className="dof__item" key={card.offerId}>
+              <li
+                className={`dof__item ${SERVICE_TONE[card.service]?.modifier ?? ""}`}
+                key={card.offerId}
+              >
                 <div className="dof__item-head">
                   <span className="dof__service">{t(card.serviceKey)}</span>
                   <span className={`dof__timer ${badge.modifier}`} role="status">

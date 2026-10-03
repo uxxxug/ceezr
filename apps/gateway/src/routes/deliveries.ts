@@ -102,14 +102,16 @@ export function createDeliveryRoutes(deps: DeliveryRouteDependencies): Hono {
     }
     const fields = body as Record<string, unknown>;
 
-    // وصفُ الطردِ إلزاميٌّ في التوصيل — لا اختياريٌّ كما في النقل.
+    // `ORDER-TERMS-01` — نوعُ الطردِ **اختياريٌّ** بطلبِ المالكِ (2026-10-03): يكتبُه الراكبُ أو
+    // يتركُه، والبطاقةُ تقولُ «لم يُحدَّد». وما كُتِبَ يُحاكَمُ بعقدِه كما كان.
     const parcelRaw = typeof fields.parcelDescription === "string" ? fields.parcelDescription : "";
-    if (parcelRaw.trim() === "") {
-      return rejected(c, "PARCEL_DESCRIPTION_REQUIRED");
-    }
-    const parcel = parseParcelDescription(parcelRaw);
-    if (!parcel.ok) {
-      return rejected(c, "PARCEL_DESCRIPTION_INVALID");
+    let parcelNotes: string | null = null;
+    if (parcelRaw.trim() !== "") {
+      const parcel = parseParcelDescription(parcelRaw);
+      if (!parcel.ok) {
+        return rejected(c, "PARCEL_DESCRIPTION_INVALID");
+      }
+      parcelNotes = parcel.value;
     }
 
     // الوجهةُ إلزاميّةٌ في التوصيل — لا يجوزُ أن تكونَ null.
@@ -135,7 +137,11 @@ export function createDeliveryRoutes(deps: DeliveryRouteDependencies): Hono {
         originLng: fields.originLng,
         destinationLat: fields.destinationLat,
         destinationLng: fields.destinationLng,
-        notes: parcel.value,
+        notes: parcelNotes,
+        // كانت تُسقَطُ فيرى السائقُ «مكانٌ غيرُ مسمّى» في كلِّ توصيلٍ.
+        pickupLabel: fields.pickupLabel,
+        destinationLabel: fields.destinationLabel,
+        pickupAt: fields.pickupAt,
       },
     });
     if (!result.ok) return rejected(c, result.error);

@@ -102,6 +102,13 @@ export function readPlaceLabel(value: unknown): string | null {
   return trimmed.slice(0, PLACE_LABEL_MAX_LENGTH);
 }
 
+/** `ORDER-TERMS-01` — وقتُ حضورِ السائقِ بصيغةِ ISO؛ ما لا يُقرأُ ⇒ `null` (الآن). */
+export function readPickupAt(value: unknown): Date | null {
+  if (typeof value !== "string" || value.trim() === "") return null;
+  const at = new Date(value);
+  return Number.isNaN(at.getTime()) ? null : at;
+}
+
 export async function requestRide(
   deps: RequestRideDeps,
   input: {
@@ -152,6 +159,7 @@ export async function requestRide(
     notes: notes.notes,
     pickupLabel: readPlaceLabel(body.pickupLabel),
     dropoffLabel: readPlaceLabel(body.destinationLabel),
+    pickupAt: readPickupAt(body.pickupAt),
   });
   if (!created.ok) return err(rideStoreErrorFrom(created.error));
 

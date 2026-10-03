@@ -72,6 +72,7 @@ import {
   createActiveNegotiationLookup,
   createClaimRegistrationPort,
   createEscalationPort,
+  createNegotiationDriverCardReader,
   createNegotiationRotationPort,
   createNegotiationSnapshotReader,
   createOrderNotesReader,
@@ -1051,7 +1052,12 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     pastOrdersOf: createPastOrdersLookup(sql),
     matching,
     clock: systemClock,
-    negotiation: { rotation: rotationDeps, relay: relayDeps },
+    negotiation: {
+      rotation: rotationDeps,
+      relay: relayDeps,
+      // NEG-SELECT-01 — «معلوماتُ السائقِ» وحارسُ ملكيّةِ أزرارِ الاختيارِ.
+      driverCards: createNegotiationDriverCardReader(sql),
+    },
     support: riderSupport,
     safety: { trigger: safety.trigger },
     reputation: reputationReader,

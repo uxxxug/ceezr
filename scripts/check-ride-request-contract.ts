@@ -357,7 +357,9 @@ export function findViolations(input: RepositoryInput): readonly string[] {
   if (
     typeof store === "string" &&
     !store.includes("request_ride(") &&
-    !store.includes("request_ride_labeled(")
+    !store.includes("request_ride_labeled(") &&
+    // `ORDER-TERMS-01` — `request_ride_with_terms(` غلافٌ فوقَ `request_ride_labeled` حرفاً.
+    !store.includes("request_ride_with_terms(")
   ) {
     violations.push(
       "مخزنُ الرحلةِ لا ينادي `request_ride(` — الحكمُ في القاعدةِ لا في المحوّلِ (القاعدة 0.5).",

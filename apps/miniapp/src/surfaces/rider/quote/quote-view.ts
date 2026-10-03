@@ -189,3 +189,19 @@ export function quoteErrorKey(code: string): string {
 export function isRetryableQuoteError(code: string): boolean {
   return code === "SESSION_NOT_AVAILABLE" || code === "QUOTE_STORE_NOT_AVAILABLE";
 }
+
+/**
+ * `ORDER-TERMS-01` — «HH:MM» من حقلِ الوقتِ إلى لحظةٍ ISO: اليومَ إن لم يمضِ الوقتُ، وإلّا
+ * غداً. فارغٌ أو مشوَّهٌ ⇒ `null` («الآن»). والساعةُ ساعةُ الجهازِ — ساعةُ الراكبِ نفسِه.
+ */
+export function pickupAtFrom(clock: string, now: Date = new Date()): string | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(clock.trim());
+  if (match === null) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (hours > 23 || minutes > 59) return null;
+  const at = new Date(now);
+  at.setHours(hours, minutes, 0, 0);
+  if (at.getTime() < now.getTime() - 60_000) at.setDate(at.getDate() + 1);
+  return at.toISOString();
+}

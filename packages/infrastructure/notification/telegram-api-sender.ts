@@ -76,6 +76,45 @@ export interface TelegramSender {
    * اختياريٌّ: المُرسِلاتُ المزيّفةُ في الاختباراتِ لا تحتاجُه.
    */
   answerCallbackQuery?(callbackQueryId: string): Promise<void>;
+  /**
+   * `NEG-SELECT-01` — يُبدِّلُ نصَّ رسالةٍ قائمةٍ وأزرارَها في مكانِها: بطاقةُ السائقِ تنقلبُ
+   * إلى «معلوماتِ السائقِ» وتعودُ بـ«تجاهل» بلا رسالةٍ جديدةٍ في المحادثةِ. اختياريٌّ
+   * كأخيه: من لا يُعدِّلُ يُرسِلُ رسالةً جديدةً بدلَه (المحوِّلُ يتكفّلُ بذلك).
+   */
+  editMessageText?(chatId: string, messageId: string, text: string, markup: unknown): Promise<void>;
+}
+
+/**
+ * `NEG-SELECT-01` — الأغلفةُ (القياسُ، الصمودُ، زرُّ التطبيقِ، الأولويّةُ) كانت تُعيدُ
+ * كائناً بثلاثِ دوالِّ إرسالٍ وحدَها، **فتُسقِطُ `answerCallbackQuery`** في الإنتاجِ: مؤشّرُ
+ * التحميلِ الذي أُصلِحَ في `BOT-GRP-01` لم يكن يتوقّفُ أبداً خلفَ أيِّ غلافٍ. هذه الدالّةُ
+ * تحملُ الدالّتَينِ التفاعليّتَينِ من الداخلِ إلى الغلافِ كما هما — أو تُسقِطُهما إن غابتا.
+ */
+export function interactiveOf(
+  inner: TelegramSender,
+  wrapMarkup: (chatId: string, markup: unknown) => unknown = (_chatId, markup) => markup,
+): Pick<TelegramSender, "answerCallbackQuery" | "editMessageText"> {
+  return {
+    ...(inner.answerCallbackQuery === undefined
+      ? {}
+      : {
+          answerCallbackQuery: (callbackQueryId: string) =>
+            (inner.answerCallbackQuery as (id: string) => Promise<void>)(callbackQueryId),
+        }),
+    ...(inner.editMessageText === undefined
+      ? {}
+      : {
+          editMessageText: (chatId: string, messageId: string, text: string, markup: unknown) =>
+            (
+              inner.editMessageText as (
+                c: string,
+                m: string,
+                t: string,
+                k: unknown,
+              ) => Promise<void>
+            )(chatId, messageId, text, wrapMarkup(chatId, markup)),
+        }),
+  };
 }
 
 export function grammyTelegramSender(token: string): TelegramSender {
@@ -102,6 +141,14 @@ export function grammyTelegramSender(token: string): TelegramSender {
     },
     answerCallbackQuery: async (callbackQueryId) => {
       await api.answerCallbackQuery(callbackQueryId);
+    },
+    editMessageText: async (chatId, messageId, text, markup) => {
+      await api.editMessageText(
+        chatId,
+        Number(messageId),
+        text,
+        markup === undefined ? {} : { reply_markup: markup as never },
+      );
     },
   };
 }

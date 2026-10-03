@@ -38,8 +38,11 @@ export interface RequestDeliveryInput {
   readonly originLng: number;
   readonly destinationLat: number;
   readonly destinationLng: number;
-  /** وصفُ الطردِ — إلزاميٌّ في التوصيل (٣–٢٠٠ حرفٍ، لا أمرَ بوت). */
+  /** نوعُ الطردِ — اختياريٌّ منذُ `ORDER-TERMS-01` (فارغٌ ⇒ «لم يُحدَّد»)؛ وما كُتِبَ ٣–٢٠٠ حرفٍ. */
   readonly parcelDescription: string;
+  readonly pickupLabel?: string;
+  readonly destinationLabel?: string;
+  readonly pickupAt?: string;
   /** ملاحظةٌ إضافيّةٌ للسائقِ — تُطوى إن كانت فارغةً. */
   readonly notes?: string;
 }

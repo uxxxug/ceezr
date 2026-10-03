@@ -363,6 +363,13 @@ export interface SurfacePorts {
   activeOrdersOf?(telegramUserId: string): Promise<readonly ActiveOrderSummary[] | null>;
   /** ما يجبُ أن يحدثَ عند كلِّ `/start` في أيِّ وضعٍ (ترقيةُ المسؤولِ الأوّلِ — `ADR 0212`). */
   onStart?(telegramUserId: string): Promise<void>;
+  /**
+   * `NEG-SELECT-01` — هل صاحبُ الرسالةِ في محادثةِ تفاوضٍ مفتوحةٍ الآنَ؟ النصُّ الحرُّ عندئذٍ
+   * رسالةٌ للطرفِ الآخرِ لا طلبُ دخولٍ إلى التطبيقِ — فيمضي إلى الحوارِ القديمِ الذي يُمرِّرُه.
+   * كان غيابُ هذا السؤالِ يبتلعُ كلَّ رسالةِ تفاوضٍ في وضعِ `miniapp` (وضعُ الإنتاجِ) فيردُّ
+   * «افتح التطبيق» ولا يصلُ الطرفَ الآخرَ حرفٌ. `null` ⇒ تعذّرت القراءةُ (يمضي للقديمِ أيضاً).
+   */
+  inNegotiation?(telegramUserId: string): Promise<boolean | null>;
 }
 
 /**
@@ -391,6 +398,10 @@ export async function handleSurfaceUpdate(
 
   if (decision.kind === "free_text") {
     if (freeTextBelongsToDialog(state)) return legacy();
+    if (ports.inNegotiation !== undefined) {
+      const negotiating = await ports.inNegotiation(telegramUserId);
+      if (negotiating !== false) return legacy();
+    }
     const registered = await ports.isRegistered(telegramUserId);
     if (registered === null) return legacy();
     return entryReplies(

@@ -34,6 +34,7 @@ export interface ServiceRequestInput {
   readonly notes?: string;
   readonly pickupLabel?: string | null;
   readonly destinationLabel?: string | null;
+  readonly pickupAt?: string | null;
 }
 
 /**
@@ -55,7 +56,11 @@ export function requestByService(
       originLng: input.originLng,
       destinationLat: input.destinationLat,
       destinationLng: input.destinationLng,
+      // `ORDER-TERMS-01` — نوعُ الطردِ اختياريٌّ؛ والاسمانِ ووقتُ الحضورِ تصلُ السائقَ.
       parcelDescription: input.notes ?? "",
+      ...(input.pickupLabel ? { pickupLabel: input.pickupLabel } : {}),
+      ...(input.destinationLabel ? { destinationLabel: input.destinationLabel } : {}),
+      ...(input.pickupAt == null ? {} : { pickupAt: input.pickupAt }),
     };
     return requestDelivery(deliveryInput, fetchFn ?? (apiFetch as unknown as ApiFetchFn));
   }

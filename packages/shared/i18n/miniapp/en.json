@@ -1352,5 +1352,9 @@
   "rider.pickup.named": "Pickup: {label}",
   "rider.pickup.change": "Change pickup",
   "rider.home.service.legend": "Service",
-  "rider.home.destination.placeholder": "e.g. King Abdulaziz Airport or Al Rawdah"
+  "rider.home.destination.placeholder": "e.g. King Abdulaziz Airport or Al Rawdah",
+  "rider.quote.notes.delivery_hint": "For delivery: write the parcel type here (optional).",
+  "rider.quote.pickup.label": "Driver arrival time",
+  "rider.quote.pickup.now": "Now",
+  "rider.quote.pickup.later": "At a set time"
 }
