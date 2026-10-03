@@ -324,7 +324,7 @@ export function QuoteScreen({
         <div className="sys" role="alert">
           <p className="sys__body">{t(locationRefusalKey(state.reason))}</p>
           {pickByName}
-          <button type="button" className="sys__action" onClick={() => void ask()}>
+          <button type="button" className="qt__retry" onClick={() => void ask()}>
             {t("rider.quote.retry")}
           </button>
           {offersLocationSettings(state.reason) && (

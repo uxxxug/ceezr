@@ -414,7 +414,8 @@ export function DestinationScreen({
     return (
       <div className="rd__verdict rd__verdict--ok" role="status">
         <p className="rd__chosen">{pick.label}</p>
-        {summary.nearest === null ? null : (
+        {/* `UI-POLISH-02`: المعلَمُ نفسُه (أقلُّ من 50 م) لا يُوصَفُ بأنَّه «قربَ نفسِه — نحوَ 0 متر». */}
+        {summary.nearest === null || summary.nearest.distanceM < 50 ? null : (
           <p className="sys__hint">
             {t("rider.destination.nearest")
               .replace("{kind}", t(summary.nearest.kindKey))

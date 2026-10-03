@@ -195,13 +195,13 @@ export function HomeScreen({
     onDestinationChosen?.({ label, lat, lng, service });
   };
 
-  const cityBar = (
-    <p className="rh__city" role="status">
-      {cityName === undefined
-        ? t("rider.home.city.status")
-        : `${cityName} — ${t("rider.home.city.status")}`}
-    </p>
-  );
+  // `UI-POLISH-02`: بلا اسمِ مدينةٍ لا يُكتَبُ «مدينتك الحالية» وحدَه سطراً يتيماً بلا معنى.
+  const cityBar =
+    cityName === undefined ? null : (
+      <p className="rh__city" role="status">
+        {`${t("rider.home.city.status")}: ${cityName}`}
+      </p>
+    );
 
   const services = (
     <fieldset className="rh__services">
