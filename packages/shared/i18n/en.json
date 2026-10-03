@@ -497,9 +497,12 @@
   "driver.offer_card_pickup_now": "🕐 Driver arrival time: now",
   "driver.offer_card_parcel": "📦 Parcel type: {parcel}",
   "driver.offer_card_parcel_none": "📦 Parcel type: not specified",
+  "driver.offer_card_paid": "💰 Rider offers: {amount} SAR",
+  "driver.offer_card_paid_negotiable": "💰 Rider offers: negotiable",
   "common.time_am": "AM",
   "common.time_pm": "PM",
   "group.unsub_notes_line": "📝 Notes: {notes}",
   "negotiation.driver_awaiting_selection": "⏳ Your offer is in front of the rider and they haven't chosen yet. The chat opens as soon as they choose you.",
-  "negotiation.rider_awaiting_selection": "👆 Choose the driver first from the card (“✅ Choose driver”) to open the chat, or move to the next driver."
+  "negotiation.rider_awaiting_selection": "👆 Choose the driver first from the card (“✅ Choose driver”) to open the chat, or move to the next driver.",
+  "common.currency_SAR": "SAR"
 }

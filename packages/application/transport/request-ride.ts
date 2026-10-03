@@ -109,6 +109,24 @@ export function readPickupAt(value: unknown): Date | null {
   return Number.isNaN(at.getTime()) ? null : at;
 }
 
+/**
+ * `ORDER-OFFER-01` — المبلغُ الذي يعرضُه الراكبُ بنفسِه (ريالاتٌ صحيحةٌ 1..10000). إخباريٌّ لا
+ * حكميٌّ: ما لا يُقرأُ يسقطُ `null` («قابلٌ للتفاوض») ولا يرفضُ الطلبَ. ولا تحسبُه المنصّةُ ولا
+ * تُحصّلُه (DEC-11 §١) — تنقلُه إلى السائقِ كما تنقلُ رسالتَه.
+ */
+export const RIDER_OFFER_MAX_SAR = 10_000;
+
+export function readOfferSar(value: unknown): number | null {
+  const n =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && /^\s*[0-9]{1,5}\s*$/.test(value)
+        ? Number.parseInt(value, 10)
+        : Number.NaN;
+  if (!Number.isInteger(n) || n < 1 || n > RIDER_OFFER_MAX_SAR) return null;
+  return n;
+}
+
 export async function requestRide(
   deps: RequestRideDeps,
   input: {
@@ -160,6 +178,7 @@ export async function requestRide(
     pickupLabel: readPlaceLabel(body.pickupLabel),
     dropoffLabel: readPlaceLabel(body.destinationLabel),
     pickupAt: readPickupAt(body.pickupAt),
+    offerSar: readOfferSar(body.offerSar),
   });
   if (!created.ok) return err(rideStoreErrorFrom(created.error));
 

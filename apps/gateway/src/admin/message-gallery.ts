@@ -26,6 +26,7 @@ import {
   entryReplies,
   movedReplies,
 } from "../../../../packages/application/bots/miniapp-surface.ts";
+import { driverLeaveKeyboard } from "../../../../packages/application/bots/negotiation-cards.ts";
 import type { Keyboard } from "../../../../packages/application/bots/types.ts";
 import {
   noticeRiderOfTrip,
@@ -471,7 +472,15 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
     ["negotiation.claim_rejected_full", "اكتمل العدد", "driver-claim-full"],
     ["negotiation.claim_rejected_closed", "انتهت مهلة الطلب", "driver-claim-closed"],
   ] as const) {
-    await rec.raw.sendMessage(PRIVATE_CHAT, t(LANG)(key, { position: 2 }), undefined);
+    // `NEG-SELECT-01` — بطاقةُ الانتظارِ تحملُ زرَّ «إنهاء الانتظار» كما في `driver-dialog.ts`؛
+    // كانت العيّنةُ تُرسَلُ بلا لوحةٍ فلم يرَ المالكُ الزرَّ.
+    await rec.raw.sendMessage(
+      PRIVATE_CHAT,
+      t(LANG)(key, { position: 2 }),
+      key === "negotiation.claim_registered_waiting"
+        ? toTelegramMarkup(driverLeaveKeyboard(t(LANG), FAKE.negotiation))
+        : undefined,
+    );
     add(
       {
         audience: "driver",
@@ -488,8 +497,8 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
   // ── السائقُ ────────────────────────────────────────────────────────────────
   // `ORDER-TERMS-01`: استعلامُ الشروطِ يُجابُ بعيّنةِ المالكِ (1:30 م) وما سواه بجهةِ الاتّصالِ.
   const contactSql = (async (strings: TemplateStringsArray) =>
-    strings.join("").includes("pickup_at from orders")
-      ? [{ pickup_at: new Date("2026-10-03T10:30:00.000Z") }]
+    strings.join("").includes("rider_offer_sar from orders")
+      ? [{ pickup_at: new Date("2026-10-03T10:30:00.000Z"), rider_offer_sar: 40 }]
       : [{ telegram_id: PRIVATE_CHAT, language_code: LANG }]) as unknown as Sql;
   const offers = createOfferPublisher(
     contactSql,
@@ -585,7 +594,9 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
           currency: "SAR",
           period_end: "2026-11-03T00:00:00Z",
           ends_at: "2026-11-03T00:00:00Z",
-          group_link: "",
+          // `GRP-LINK-01` — الرابطُ يُقرأُ من إعدادِ المدينةِ (`unsubscribed_drivers_group_link`)
+          // لحظةَ إنشاءِ الإشعارِ؛ والعيّنةُ تعرضُ ما يراه السائقُ حينَ يُضبَطُ — لا البديلَ.
+          group_link: "https://t.me/your_city_drivers",
         },
         attempts: 0,
         maxAttempts: 5,
@@ -795,6 +806,10 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
       notes: service === "delivery" ? "مستندات في ظرف" : null,
       excludedDriverIds: [],
       pickupAt: service === "delivery" ? null : new Date("2026-10-03T10:30:00.000Z"),
+      // `ORDER-OFFER-01` — عيّنةُ المالكِ: «المدفوع: 40 ريال» في المشوارِ، و«قابل للتفاوض» في التوصيلِ.
+      offerSar: service === "delivery" ? null : 40,
+      pickupLabel: "مطار الملك عبدالعزيز الدولي",
+      dropoffLabel: "البلد",
     });
     add(
       {

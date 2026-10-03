@@ -766,4 +766,92 @@ describeIf("دورة قروب غير المشتركين على قاعدة حقي
     `;
     expect(rows[0]?.count).toBe("1");
   });
+
+  it("NEG-SELECT-01: «اختيار» ثمَّ «إعادة فتح الطلب لسائق آخر» ينقلُ إلى التالي، ثمَّ اختيارُه فالاتفاق", async () => {
+    await unsubscribedDriver(DRIVER_CHATS[0], "أحمد العمري", "0501111111");
+    const second = await unsubscribedDriver(DRIVER_CHATS[1], "خالد الزهراني", "0502222222");
+    const orderId = await searchingOrder();
+    const report = await publish(orderId);
+    const negotiationId = report.negotiationId ?? "";
+    await post("driver", groupCallback(DRIVER_CHATS[0], `unsub:claim:${negotiationId}`));
+    await post("driver", groupCallback(DRIVER_CHATS[1], `unsub:claim:${negotiationId}`));
+
+    // الأوّلُ يُختارُ فتُفتحُ المحادثةُ والطلبُ «جاري الاتفاق»؛ والثاني ينتظرُ وزرُّ الإنهاءِ معه.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:sel:${negotiationId}:1`));
+    await deliverQueued();
+    const waiting = driverSent.find(
+      (m) =>
+        m.chatId === String(DRIVER_CHATS[1]) &&
+        m.text === ar("negotiation.claim_registered_waiting", { position: 2 }),
+    );
+    expect(JSON.stringify(waiting?.markup ?? null)).toContain(`unsub:leave:${negotiationId}`);
+
+    // لم يتّفقا: «إعادة فتح الطلب لسائق آخر» من بطاقةِ المحادثةِ.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:reopen:${negotiationId}:1`));
+    await deliverQueued();
+    const toFirst = driverSent.filter((m) => m.chatId === String(DRIVER_CHATS[0]));
+    expect(toFirst.at(-1)?.text).toBe(ar("negotiation.driver_turn_closed_declined"));
+    expect(toFirst.at(-1)?.text).not.toContain("رفض");
+    const presentedSecond = riderSent.find((m) =>
+      m.text.startsWith(ar("negotiation.rider_presented", { position: 2 })),
+    );
+    expect(presentedSecond).toBeDefined();
+    expect(JSON.stringify(presentedSecond?.markup ?? null)).toContain(
+      `unsub:sel:${negotiationId}:2`,
+    );
+
+    // زرُّ الأوّلِ القديمُ لا يمسُّ الثاني.
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:reopen:${negotiationId}:1`));
+    expect(riderSent.at(-1)?.text).toBe(ar("negotiation.card_stale"));
+
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:sel:${negotiationId}:2`));
+    await post("rider", privateCallback(RIDER_CHAT, `unsub:agree:${negotiationId}`));
+    await deliverQueued();
+    const order = await sql<{ status: string; assigned_driver_id: string | null }[]>`
+      select status, assigned_driver_id from orders where id = ${orderId}
+    `;
+    expect(order[0]?.status).toBe("matched");
+    expect(order[0]?.assigned_driver_id).toBe(second);
+    const stuck = await sql<{ n: number }[]>`
+      select count(*)::int as n from notification_outbox
+       where status in ('pending', 'sending')
+         and payload->>'claim_id' in (
+           select id::text from unsubscribed_claims where negotiation_id = ${negotiationId})
+    `;
+    expect(stuck[0]?.n).toBe(0);
+  });
+
+  it("ORDER-OFFER-01: بطاقةُ القروبِ تعرضُ «المدفوع» — مبلغُ الراكبِ أو «قابل للتفاوض»", async () => {
+    await unsubscribedDriver(DRIVER_CHATS[0], "أحمد العمري", "0501111111");
+    const orderId = await searchingOrder();
+    await sql`update orders set rider_offer_sar = 40 where id = ${orderId}`;
+    await publish(orderId);
+    const card = groupCards().at(-1)?.text ?? "";
+    expect(card).toContain(ar("driver.offer_card_paid", { amount: 40 }));
+    expect(card).not.toContain(ar("driver.offer_card_paid_negotiable"));
+  });
+
+  it("ORDER-OFFER-01: الغلافُ يكتبُ المبلغَ في الصفِّ الجديدِ وحدَه، ويُسقطُ ما خارجَ الحدود", async () => {
+    await post("rider", text(RIDER_CHAT, "/start"));
+    await post("rider", text(RIDER_CHAT, "سالم الحربي"));
+    await post("rider", privateCallback(RIDER_CHAT, `city:${cityId}`));
+    const call = (key: string, offer: number) => sql<
+      { r: { ok: boolean; order_id?: string; reused?: boolean } }[]
+    >`
+      select request_ride_with_terms(
+        ${RIDER_CHAT}::bigint, ${key}::text, 'transport'::service_type,
+        ${PICKUP.latitude}::float8, ${PICKUP.longitude}::float8,
+        ${DROPOFF.latitude}::float8, ${DROPOFF.longitude}::float8,
+        null::text, null::text, null::text, null::timestamptz, ${offer}::integer
+      ) as r
+    `;
+    const first = (await call("offer-key-1", 40))[0]?.r;
+    expect(first?.ok).toBe(true);
+    const again = (await call("offer-key-1", 99))[0]?.r;
+    expect(again?.reused).toBe(true);
+    const rows = await sql<{ rider_offer_sar: number | null }[]>`
+      select rider_offer_sar from orders where id = ${first?.order_id ?? ""}
+    `;
+    expect(rows[0]?.rider_offer_sar).toBe(40);
+  });
 });

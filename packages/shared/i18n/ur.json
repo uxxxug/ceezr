@@ -497,9 +497,12 @@
   "driver.offer_card_pickup_now": "🕐 ڈرائیور کی آمد کا وقت: ابھی",
   "driver.offer_card_parcel": "📦 پارسل کی قسم: {parcel}",
   "driver.offer_card_parcel_none": "📦 پارسل کی قسم: متعین نہیں",
+  "driver.offer_card_paid": "💰 ادائیگی: {amount} ریال",
+  "driver.offer_card_paid_negotiable": "💰 ادائیگی: قابلِ گفت و شنید",
   "common.time_am": "صبح",
   "common.time_pm": "شام",
   "group.unsub_notes_line": "📝 نوٹس: {notes}",
   "negotiation.driver_awaiting_selection": "⏳ آپ کی پیشکش گاہک کے سامنے ہے اور انہوں نے ابھی انتخاب نہیں کیا۔ آپ کو منتخب کرتے ہی بات چیت کھل جائے گی۔",
-  "negotiation.rider_awaiting_selection": "👆 بات چیت کھولنے کے لیے پہلے کارڈ سے ڈرائیور منتخب کریں («✅ ڈرائیور منتخب کریں»)، یا اگلے ڈرائیور پر جائیں۔"
+  "negotiation.rider_awaiting_selection": "👆 بات چیت کھولنے کے لیے پہلے کارڈ سے ڈرائیور منتخب کریں («✅ ڈرائیور منتخب کریں»)، یا اگلے ڈرائیور پر جائیں۔",
+  "common.currency_SAR": "ریال"
 }

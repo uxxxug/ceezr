@@ -142,6 +142,7 @@ export function createDeliveryRoutes(deps: DeliveryRouteDependencies): Hono {
         pickupLabel: fields.pickupLabel,
         destinationLabel: fields.destinationLabel,
         pickupAt: fields.pickupAt,
+        offerSar: fields.offerSar,
       },
     });
     if (!result.ok) return rejected(c, result.error);

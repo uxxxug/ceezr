@@ -43,10 +43,13 @@ export interface RequestRideInput {
   readonly destinationLabel?: string | null;
   /** `ORDER-TERMS-01` — يُطوى غائباً. */
   readonly pickupAt?: string | null;
+  /** `ORDER-OFFER-01` — مبلغُ الراكبِ بالريال؛ يُطوى غائباً. */
+  readonly offerSar?: number | null;
 }
 
 export function requestRide(input: RequestRideInput): Promise<RequestRideResponse> {
-  const { idempotencyKey, notes, pickupLabel, destinationLabel, pickupAt, ...rest } = input;
+  const { idempotencyKey, notes, pickupLabel, destinationLabel, pickupAt, offerSar, ...rest } =
+    input;
   return apiFetch<RequestRideResponse>("/v1/rides", {
     method: "POST",
     idempotencyKey,
@@ -62,6 +65,7 @@ export function requestRide(input: RequestRideInput): Promise<RequestRideRespons
         ? {}
         : { destinationLabel }),
       ...(pickupAt === undefined || pickupAt === null ? {} : { pickupAt }),
+      ...(offerSar === undefined || offerSar === null ? {} : { offerSar }),
     },
   });
 }

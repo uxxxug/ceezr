@@ -72,8 +72,12 @@ export function createUnsubscribedGroupPublisher(
                 ...orderTermsLines(tr, card.service, {
                   pickupAt: card.pickupAt ?? null,
                   parcel: card.notes,
+                  ...(card.offerSar === undefined ? {} : { offerSar: card.offerSar }),
                 }),
               ];
+        // `GRP-CARD-01` — «إلى» قبلَ الشروطِ متى سمّى الراكبُ وجهتَه، كبطاقةِ المشترك.
+        const dropoff = card.dropoffLabel?.trim() ?? "";
+        if (dropoff !== "") details.unshift(tr("driver.offer_card_to", { dropoff }));
         if (card.service !== "delivery" || details.length === 0) {
           details.push(
             tr("group.unsub_notes_line", { notes: card.notes ?? tr("group.unsub_no_notes") }),
@@ -82,7 +86,13 @@ export function createUnsubscribedGroupPublisher(
         const text = tr("group.unsub_card", {
           marker: serviceMarker(card.service),
           service: serviceLabel,
-          area: card.areaLabel,
+          // اسمُ الالتقاطِ المختارُ أوضحُ للسائقِ من إحداثيّتَين مقرَّبتَين، ولا يزيدُ دقّةً.
+          area:
+            card.pickupLabel !== undefined &&
+            card.pickupLabel !== null &&
+            card.pickupLabel.trim() !== ""
+              ? card.pickupLabel.trim()
+              : card.areaLabel,
           cycle: card.cycle,
           details: details.join("\n"),
         });

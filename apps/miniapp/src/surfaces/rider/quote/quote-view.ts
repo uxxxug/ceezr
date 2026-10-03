@@ -205,3 +205,24 @@ export function pickupAtFrom(clock: string, now: Date = new Date()): string | nu
   if (at.getTime() < now.getTime() - 60_000) at.setDate(at.getDate() + 1);
   return at.toISOString();
 }
+
+/**
+ * `ORDER-OFFER-01` — حقلُ «المبلغ الذي تدفعه» إلى عددٍ صحيحٍ بالريال. فارغٌ ⇒ `null` («قابلٌ
+ * للتفاوض»)؛ وما كُتِبَ ولم يُقرأ عدداً من 1 إلى 10000 ⇒ خطأٌ يُعرَضُ قبلَ الإرسالِ. وتُقبَلُ
+ * الأرقامُ العربيّةُ الهنديّةُ (٤٠) لأنّها ما تكتبُه لوحةُ مفاتيحِ الراكبِ العربيّةُ.
+ */
+export const OFFER_MAX_SAR = 10_000;
+
+export function offerSarFrom(
+  raw: string,
+): { readonly ok: true; readonly value: number | null } | { readonly ok: false } {
+  const western = raw
+    .trim()
+    .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+    .replace(/[\u06f0-\u06f9]/g, (d) => String(d.charCodeAt(0) - 0x06f0));
+  if (western === "") return { ok: true, value: null };
+  if (!/^[0-9]{1,5}$/.test(western)) return { ok: false };
+  const n = Number.parseInt(western, 10);
+  if (n < 1 || n > OFFER_MAX_SAR) return { ok: false };
+  return { ok: true, value: n };
+}

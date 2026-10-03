@@ -111,6 +111,8 @@ export interface SearchScreenIntent {
   readonly idempotencyKey: string;
   /** `ORDER-TERMS-01` — وقتُ حضورِ السائقِ ISO؛ `null`/غائبٌ ⇒ الآن. */
   readonly pickupAt?: string | null;
+  /** `ORDER-OFFER-01` — ما يعرضُه الراكبُ بالريال؛ `null`/غائبٌ ⇒ قابلٌ للتفاوض. */
+  readonly offerSar?: number | null;
 }
 
 export interface SearchScreenProps {
@@ -126,6 +128,7 @@ export interface SearchScreenProps {
     readonly pickupLabel?: string | null;
     readonly destinationLabel?: string | null;
     readonly pickupAt?: string | null;
+    readonly offerSar?: number | null;
   }) => Promise<RequestRideResponse>;
   readonly read?: (orderId: string) => Promise<RideSearchResponse>;
   readonly cancel?: (input: {
@@ -249,6 +252,7 @@ export function SearchScreen({
         destinationLabel: intent.destinationLabel,
         pickupLabel: intent.pickupLabel ?? null,
         pickupAt: intent.pickupAt ?? null,
+        offerSar: intent.offerSar ?? null,
       });
       if (!mounted.current || ticket !== issued.current) return;
       if (!response.accepted) {
