@@ -1352,5 +1352,9 @@
   "rider.pickup.named": "پک اپ: {label}",
   "rider.pickup.change": "پک اپ مقام بدلیں",
   "rider.home.service.legend": "سروس",
-  "rider.home.destination.placeholder": "مثال: کنگ عبدالعزیز ایئرپورٹ یا الروضہ"
+  "rider.home.destination.placeholder": "مثال: کنگ عبدالعزیز ایئرپورٹ یا الروضہ",
+  "rider.quote.notes.delivery_hint": "ڈیلیوری میں: یہاں پارسل کی قسم لکھیں (اختیاری)۔",
+  "rider.quote.pickup.label": "ڈرائیور کی آمد کا وقت",
+  "rider.quote.pickup.now": "ابھی",
+  "rider.quote.pickup.later": "مقررہ وقت پر"
 }

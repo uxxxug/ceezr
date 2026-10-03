@@ -112,6 +112,8 @@ export interface RideRequestCommand {
      */
     readonly pickupLabel?: string | null;
     readonly dropoffLabel?: string | null;
+    /** `ORDER-TERMS-01` — وقتُ حضورِ السائقِ. null ⇒ الآن. */
+    readonly pickupAt?: Date | null;
   }): Promise<Result<RideRequestVerdict, RideStoreFailure>>;
 }
 

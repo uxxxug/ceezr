@@ -58,6 +58,8 @@ export interface UnsubscribedCard {
   readonly areaLabel: string;
   readonly notes: string | null;
   readonly excludedDriverIds: readonly DriverId[];
+  /** `ORDER-TERMS-01` — وقتُ حضورِ السائقِ (null ⇒ الآن). غائبٌ ⇒ لا سطرَ (مسارٌ قديمٌ). */
+  readonly pickupAt?: Date | null;
 }
 
 export interface UnsubscribedGroupPublisher {
@@ -68,6 +70,10 @@ export interface UnsubscribedGroupPublisher {
 /** ملاحظة الطلب (وصف الطرد في التوصيل) — تُقرأ منفصلة لأن كيان Order لا يحملها. */
 export interface OrderNotesReader {
   readNotes(orderId: OrderId): Promise<Result<string | null, PortFailureError>>;
+  /** `ORDER-TERMS-01` — وقتُ الحضورِ. اختياريٌّ: من لا يقرؤه تخلو بطاقتُه منه. */
+  readTerms?(
+    orderId: OrderId,
+  ): Promise<Result<{ readonly pickupAt: Date | null }, PortFailureError>>;
 }
 
 export interface PublishToUnsubscribedGroupDependencies {
@@ -142,6 +148,9 @@ export async function publishToUnsubscribedGroup(
 
   const notes = await deps.notes.readNotes(input.orderId);
   if (!notes.ok) return notes;
+  const terms =
+    deps.notes.readTerms === undefined ? null : await deps.notes.readTerms(input.orderId);
+  if (terms !== null && !terms.ok) return terms;
 
   const published = await deps.publisher.publishCard({
     groupId: cycle.groupId,
@@ -153,6 +162,7 @@ export async function publishToUnsubscribedGroup(
     areaLabel: approximateArea(order.pickup),
     notes: notes.value,
     excludedDriverIds: cycle.excludedDriverIds,
+    ...(terms === null ? {} : { pickupAt: terms.value.pickupAt }),
   });
   if (!published.ok) return published;
   if (published.value === null) {

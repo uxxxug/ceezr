@@ -25,6 +25,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "admin_update_city_group_ids",
   "admin_update_setting",
   "advance_unsubscribed_negotiation",
+  "advance_unsubscribed_negotiation_at",
   "attach_support_ticket_card",
   "cancel_broadcast",
   "cancel_order_by_rider",
@@ -135,7 +136,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "refresh_admin_metric_snapshots",
   "refund_subscription_payment",
   "register_unsubscribed_claim",
-  "request_ride_labeled",
+  "request_ride_with_terms",
   "resolve_destination",
   "resolve_safety_incident",
   "resolve_support_ticket",
@@ -149,6 +150,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "rider_ride_share_state",
   "rider_support_tickets",
   "search_destinations",
+  "select_unsubscribed_claim",
   "set_user_language",
   "settle_subscription_wallet_system_error",
   "settle_unsubscribed_negotiation",
@@ -173,6 +175,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "upsert_emergency_contact",
   "upsert_notification_prefs",
   "upsert_saved_place",
+  "withdraw_unsubscribed_claim",
 ];
 
 /** جداولُ القاعدة التي يقرؤها كودُ التشغيل أو يكتب فيها مباشرةً. */

@@ -43,12 +43,35 @@ export type SettleOutcome =
     }
   | { readonly settled: false; readonly reason: string };
 
+/** `NEG-SELECT-01`: نتيجةُ اختيارِ الراكبِ للسائقِ المعروضِ. */
+export type SelectOutcome =
+  | {
+      readonly selected: true;
+      /** اختيارٌ سابقٌ للسائقِ نفسِه — لا إخطارَ ثانٍ ولا تجديدَ مهلةٍ. */
+      readonly already: boolean;
+      readonly orderId: OrderId;
+      readonly position: number;
+      readonly notificationsQueued: number;
+    }
+  | { readonly selected: false; readonly reason: string };
+
 /** منفذا الكتابة الذرّية — advance_unsubscribed_negotiation و settle_unsubscribed_negotiation. */
 export interface NegotiationRotationPort {
   advance(
     negotiationId: string,
     reason: "declined" | "expired",
   ): Promise<Result<AdvanceOutcome, PortFailureError>>;
+  /**
+   * `NEG-SELECT-01` — التدويرُ نفسُه بحارسِ البطاقةِ: يُرَدُّ `STALE_CARD` إن لم يكن
+   * المعروضُ الآنَ صاحبَ الموضعِ `position` (زرٌّ على بطاقةِ سائقٍ سابقٍ).
+   */
+  advanceAt(
+    negotiationId: string,
+    position: number,
+    reason: "declined" | "expired",
+  ): Promise<Result<AdvanceOutcome, PortFailureError>>;
+  /** `NEG-SELECT-01` — الراكبُ يختارُ السائقَ المعروضَ فتُفتَحُ المحادثةُ. */
+  select(negotiationId: string, position: number): Promise<Result<SelectOutcome, PortFailureError>>;
   settle(negotiationId: string): Promise<Result<SettleOutcome, PortFailureError>>;
   /** إغلاق نهائي لدورة لم يعد يُنتظر منها شيء — ما يجعل المهمة الدورية لا تُعيد معالجتها. */
   close(negotiationId: string, reason: string): Promise<Result<boolean, PortFailureError>>;
@@ -168,4 +191,81 @@ export async function settleNegotiation(
     reason: null,
     notificationsQueued: settled.value.notificationsQueued,
   });
+}
+
+/**
+ * `NEG-SELECT-01` — «اختيارُ السائقِ»: يُفتَحُ التمريرُ بين الطرفَينِ ويصيرُ الطلبُ
+ * «جاري الاتفاق». وإخطارُ الطرفَينِ مودَعٌ في معاملةِ الدالّةِ الذرّيةِ (BUG-004).
+ */
+export async function selectNegotiationDriver(
+  input: { readonly negotiationId: string; readonly position: number },
+  deps: RotateNegotiationDependencies,
+): Promise<Result<SelectOutcome, PortFailureError>> {
+  return deps.rotation.select(input.negotiationId, input.position);
+}
+
+/**
+ * `NEG-SELECT-01` — «السائقُ التالي» من بطاقةِ العرضِ، و«إعادةُ فتحِ الطلبِ لسائقٍ آخر»
+ * من المحادثةِ: التدويرُ القائمُ نفسُه، بحارسِ البطاقةِ القديمةِ.
+ */
+export async function advanceNegotiationTurnAt(
+  input: {
+    readonly negotiationId: string;
+    readonly position: number;
+    readonly reason: "declined" | "expired";
+  },
+  deps: RotateNegotiationDependencies,
+): Promise<Result<RotateReport, PortFailureError>> {
+  const advanced = await deps.rotation.advanceAt(input.negotiationId, input.position, input.reason);
+  if (!advanced.ok) return advanced;
+  const outcome = advanced.value;
+  if (!outcome.advanced) {
+    return ok({
+      negotiationId: input.negotiationId,
+      advanced: false,
+      exhausted: false,
+      nextPosition: null,
+      orderId: null,
+      reason: outcome.reason,
+      notificationsQueued: 0,
+    });
+  }
+  return ok({
+    negotiationId: input.negotiationId,
+    advanced: true,
+    exhausted: outcome.exhausted,
+    nextPosition: outcome.exhausted ? null : outcome.position,
+    orderId: outcome.orderId,
+    reason: null,
+    notificationsQueued: outcome.notificationsQueued,
+  });
+}
+
+/** `NEG-SELECT-01` — ما يراهُ الراكبُ في «معلوماتِ السائقِ». لا هاتفَ ولا لوحةَ ولا اسمَ عائلةٍ. */
+export interface NegotiationDriverCard {
+  readonly negotiationId: string;
+  readonly position: number;
+  /** الاسمُ الأوّلُ وحدَه — أو `null` إن غابَ. */
+  readonly firstName: string | null;
+  /** متوسّطُ التقييمِ أو `null` إن لم يُقيَّمْ بعدُ. */
+  readonly ratingAverage: number | null;
+  readonly ratingCount: number;
+  readonly completedTrips: number;
+  readonly vehicleType: string | null;
+  readonly vehicleYear: number | null;
+  /** سنةُ الانضمامِ إلى وَصْلة. */
+  readonly memberSinceYear: number | null;
+}
+
+/**
+ * يقرأُ بطاقةَ السائقِ المعروضِ **لصاحبِ الطلبِ وحدَه**: الملكيّةُ قيدٌ في الاستعلامِ
+ * (معرّفُ تيليجرام الراكبِ) لا فرعٌ في الكود — فمن ليس صاحبَ الطلبِ يُجابُ `null`.
+ * و`null` أيضاً إن لم يكن صاحبُ الموضعِ هو المعروضَ الآنَ (بطاقةٌ قديمةٌ).
+ */
+export interface NegotiationDriverCardReader {
+  read(
+    negotiationId: string,
+    position: number,
+    riderTelegramId: string,
+  ): Promise<Result<NegotiationDriverCard | null, PortFailureError>>;
 }

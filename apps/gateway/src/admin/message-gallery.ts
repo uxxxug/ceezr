@@ -384,6 +384,18 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
       `${s}-turn-opened`,
       true,
     );
+    await negotiation.sendTurnOpened({ ...side(s), phase: "selected" });
+    add(
+      {
+        audience: s,
+        bot,
+        title: "اختيار السائق وفتح المحادثة",
+        when: "العميل ضغط «✅ اختيار السائق» — الطلب «جاري الاتفاق»",
+        source: NEG_SOURCE,
+      },
+      `${s}-turn-selected`,
+      true,
+    );
     await negotiation.sendAgreed(side(s));
     add(
       { audience: s, bot, title: "تمّ الاتفاق", when: "وافق الطرفان", source: NEG_SOURCE },
@@ -474,9 +486,11 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
   }
 
   // ── السائقُ ────────────────────────────────────────────────────────────────
-  const contactSql = (async () => [
-    { telegram_id: PRIVATE_CHAT, language_code: LANG },
-  ]) as unknown as Sql;
+  // `ORDER-TERMS-01`: استعلامُ الشروطِ يُجابُ بعيّنةِ المالكِ (1:30 م) وما سواه بجهةِ الاتّصالِ.
+  const contactSql = (async (strings: TemplateStringsArray) =>
+    strings.join("").includes("pickup_at from orders")
+      ? [{ pickup_at: new Date("2026-10-03T10:30:00.000Z") }]
+      : [{ telegram_id: PRIVATE_CHAT, language_code: LANG }]) as unknown as Sql;
   const offers = createOfferPublisher(
     contactSql,
     rec.identifying,
@@ -492,7 +506,7 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
       service,
       pickupLabel: SAMPLE.pickup,
       dropoffLabel: SAMPLE.dropoff,
-      notes: null,
+      notes: service === "delivery" ? "مستندات في ظرف" : null,
     });
     add(
       {
@@ -778,8 +792,9 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
       service,
       cycle: 1,
       areaLabel: approximateArea(SAMPLE.pickupPoint as never),
-      notes: null,
+      notes: service === "delivery" ? "مستندات في ظرف" : null,
       excludedDriverIds: [],
+      pickupAt: service === "delivery" ? null : new Date("2026-10-03T10:30:00.000Z"),
     });
     add(
       {

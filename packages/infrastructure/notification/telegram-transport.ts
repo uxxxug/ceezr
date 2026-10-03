@@ -12,7 +12,7 @@
  */
 
 import type { OperationalMetrics, TelegramSendKind } from "../observability/metrics.ts";
-import type { TelegramSender } from "./telegram-api-sender.ts";
+import { interactiveOf, type TelegramSender } from "./telegram-api-sender.ts";
 
 /**
  * يلفّ أيّ مُرسِلٍ فيحصي ما **خرج فعلاً**.
@@ -48,6 +48,7 @@ export function measuredTelegramSender(
       count("location");
       return id;
     },
+    ...interactiveOf(inner),
   };
 }
 

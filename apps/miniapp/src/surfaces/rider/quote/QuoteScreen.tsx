@@ -86,6 +86,7 @@ import {
   durationLine,
   isRetryableQuoteError,
   parcelValidationError,
+  pickupAtFrom,
   quoteErrorKey,
   quoteRefusalKey,
   refusalRemedy,
@@ -129,6 +130,8 @@ export interface QuoteScreenProps {
     readonly pickupLabel: string | null;
     readonly notes: string | null;
     readonly idempotencyKey: string;
+    /** `ORDER-TERMS-01` — وقتُ حضورِ السائقِ ISO؛ `null` ⇒ الآن. */
+    readonly pickupAt?: string | null;
   }) => void;
   readonly initialLanguage?: MiniAppLanguage;
 }
@@ -203,6 +206,9 @@ export function QuoteScreen({
   const [system, setSystem] = useState<SystemState>(null);
   /** ملاحظةُ السائقِ — نصٌّ خامٌّ يُشذَّبُ عندَ التسليمِ لا عندَ كلِّ محرفٍ. */
   const [notes, setNotes] = useState("");
+  /** `ORDER-TERMS-01` — «الآن» أو وقتٌ محدَّدٌ «HH:MM». */
+  const [pickupMode, setPickupMode] = useState<"now" | "later">("now");
+  const [pickupClock, setPickupClock] = useState("");
   /** خطأُ تحقُّقِ وصفِ الطردِ — يُعرَضُ عندَ الضغطِ على «اطلُبْ» للتوصيلِ. */
   const [parcelError, setParcelError] = useState<string | null>(null);
   /**
@@ -465,8 +471,9 @@ export function QuoteScreen({
                     type="button"
                     className="qt__card-request"
                     onClick={() => {
-                      // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ.
-                      if (card.service === "delivery") {
+                      // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ. ونوعُ الطردِ
+                      // صارَ اختياريّاً (`ORDER-TERMS-01`): يُحاكَمُ ما كُتِبَ ولا يُلزَمُ الفارغُ.
+                      if (card.service === "delivery" && notes.trim() !== "") {
                         const error = parcelValidationError(notes);
                         if (error !== null) {
                           setParcelError(error.errorKey);
@@ -485,6 +492,7 @@ export function QuoteScreen({
                         notes: noteValue,
                         // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
                         idempotencyKey: newIdempotencyKey(),
+                        pickupAt: pickupMode === "later" ? pickupAtFrom(pickupClock) : null,
                       });
                     }}
                   >
@@ -545,6 +553,39 @@ export function QuoteScreen({
               {t(parcelError)}
             </p>
           )}
+          <p className="qt__notes-hint">{t("rider.quote.notes.delivery_hint")}</p>
+
+          {/* `ORDER-TERMS-01` — وقتُ الحضورِ يظهرُ على بطاقةِ السائقِ فيُغني عن مفاوضةٍ طويلةٍ. */}
+          <fieldset className="qt__pickup">
+            <legend className="qt__notes-label">{t("rider.quote.pickup.label")}</legend>
+            <label className="qt__pickup-option">
+              <input
+                type="radio"
+                name="qt-pickup"
+                checked={pickupMode === "now"}
+                onChange={() => setPickupMode("now")}
+              />
+              {t("rider.quote.pickup.now")}
+            </label>
+            <label className="qt__pickup-option">
+              <input
+                type="radio"
+                name="qt-pickup"
+                checked={pickupMode === "later"}
+                onChange={() => setPickupMode("later")}
+              />
+              {t("rider.quote.pickup.later")}
+            </label>
+            {pickupMode === "later" && (
+              <input
+                type="time"
+                className="qt__pickup-time"
+                aria-label={t("rider.quote.pickup.later")}
+                value={pickupClock}
+                onChange={(event) => setPickupClock(event.target.value)}
+              />
+            )}
+          </fieldset>
         </section>
       </div>
     );

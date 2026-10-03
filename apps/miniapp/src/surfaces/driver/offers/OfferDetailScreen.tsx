@@ -55,6 +55,16 @@ import {
   toOfferDetail,
 } from "./offers-view.ts";
 
+/**
+ * `MSG-COLOR-01` — لونُ بطاقةِ العرضِ بحسبِ الخدمةِ (طلبُ المالكِ): التوصيلُ أصفرُ، والنقلُ
+ * أخضرُ، والشهريُّ مستقبلاً ورديٌّ فاتحٌ. جدولٌ ساكنٌ في الملفِّ نفسِه فحاجزُ الأنماطِ يقرؤه.
+ */
+const SERVICE_TONE: Readonly<Record<string, { readonly modifier: string }>> = {
+  delivery: { modifier: "dof__item--delivery" },
+  transport: { modifier: "dof__item--transport" },
+  monthly: { modifier: "dof__item--monthly" },
+};
+
 export interface OfferDetailScreenProps {
   readonly offerId: string;
   readonly language?: MiniAppLanguage;
@@ -243,7 +253,9 @@ export function OfferDetailScreen({
         {t("driver.offers.detail.title")}
       </h1>
 
-      <div className="dof__item-head">
+      <div
+        className={`dof__item-head dof__item-head--tinted ${SERVICE_TONE[detail.service]?.modifier ?? ""}`}
+      >
         <span className="dof__service">{t(detail.serviceKey)}</span>
         <span className={`dof__timer ${badge.modifier}`} role="status">
           {secondsRemaining > 0

@@ -78,6 +78,11 @@ export type IncomingUpdate =
       readonly from: Sender;
       readonly updateId: number;
       readonly data: string;
+      /**
+       * `NEG-SELECT-01` — معرّفُ الرسالةِ التي حملَت الزرَّ: يلزمُ لتبديلِ البطاقةِ في مكانِها
+       * («معلوماتُ السائقِ» ثمَّ «تجاهل»). اختياريٌّ: الاختباراتُ القائمةُ لا تحملُه.
+       */
+      readonly messageId?: string;
     }
   /**
    * `quality` اختياري لأن المصادر تختلف فيما تُبلّغ عنه: زرّ الموقع في تلغرام
@@ -221,6 +226,11 @@ export interface BotReply {
     readonly longitude: number;
     readonly label: string;
   };
+  /**
+   * `NEG-SELECT-01` — إن وُجد، يُعدَّلُ نصُّ هذه الرسالةِ وأزرارُها في مكانِها بدلَ رسالةٍ
+   * جديدةٍ. وإن تعذّرَ التعديلُ (رسالةٌ قديمةٌ، مُرسِلٌ لا يُعدِّلُ) تُرسَلُ رسالةً جديدةً.
+   */
+  readonly editMessageId?: string;
 }
 
 /** حالة الحوار المحفوظة بين رسالتين. لا تحمل قيمة تجارية، فقط تقدّم المستخدم. */

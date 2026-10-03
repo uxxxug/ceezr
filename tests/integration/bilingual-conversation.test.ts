@@ -265,6 +265,11 @@ describeIf("محادثة بلغتين عبر الترجمة على قاعدة ح
       "driver",
       groupCallback(DRIVER_CHAT, `unsub:claim:${published.value.negotiationId}`),
     );
+    // NEG-SELECT-01: القناةُ تُفتَحُ باختيارِ العميلِ للسائقِ لا بضغطةِ «قبول» وحدَها.
+    await post(
+      "rider",
+      privateCallback(RIDER_CHAT, `unsub:sel:${published.value.negotiationId}:1`),
+    );
   }
 
   const languageOf = async (telegramId: number): Promise<string | undefined> => {

@@ -8,6 +8,7 @@
  * ملاحظات مستقبلية: تعديل بطاقة القروب بعد الاتفاق (editMessageText) يُضاف في المرحلة 4.
  */
 
+import { riderChatCard, riderPresentationCard } from "../../application/bots/negotiation-cards.ts";
 import type { Keyboard } from "../../application/bots/types.ts";
 import type {
   NegotiationMessenger,
@@ -33,6 +34,7 @@ import {
 } from "../../application/i18n-translation/index.ts";
 import { normalizeLanguageTag } from "../../domain/i18n-translation/index.ts";
 import { DEFAULT_LANGUAGE, t } from "../../shared/i18n/index.ts";
+import { orderTermsLines } from "../../shared/order-terms/index.ts";
 import { serviceMarker } from "../../shared/service-marker/index.ts";
 import { guard } from "../db/client.ts";
 import type { OutboundSender } from "./telegram-driver-notifier.ts";
@@ -61,12 +63,28 @@ export function createUnsubscribedGroupPublisher(
         const serviceLabel = tr(
           card.service === "transport" ? "driver.service_transport" : "driver.service_delivery",
         );
+        // `ORDER-TERMS-01`: وقتُ الحضورِ (ونوعُ الطردِ في التوصيلِ) — وفي النقلِ تبقى الملاحظاتُ
+        // سطراً بعدَه. بطاقةٌ بلا وقتٍ مقروءٍ (مسارٌ قديمٌ) تبقى كما كانت.
+        const details: string[] =
+          card.pickupAt === undefined
+            ? []
+            : [
+                ...orderTermsLines(tr, card.service, {
+                  pickupAt: card.pickupAt ?? null,
+                  parcel: card.notes,
+                }),
+              ];
+        if (card.service !== "delivery" || details.length === 0) {
+          details.push(
+            tr("group.unsub_notes_line", { notes: card.notes ?? tr("group.unsub_no_notes") }),
+          );
+        }
         const text = tr("group.unsub_card", {
           marker: serviceMarker(card.service),
           service: serviceLabel,
           area: card.areaLabel,
           cycle: card.cycle,
-          notes: card.notes ?? tr("group.unsub_no_notes"),
+          details: details.join("\n"),
         });
         const keyboard: Keyboard = {
           kind: "inline",
@@ -122,39 +140,28 @@ export function createTelegramNegotiationMessenger(
     sendTurnOpened: (notice: NegotiationSideNotice) =>
       guard("notifier.turnOpened", async () => {
         const tr = t(notice.language);
+        const selected = notice.phase === "selected";
         if (notice.side === "driver") {
+          // `NEG-SELECT-01`: عند العرضِ يعلمُ السائقُ أنّ عرضَه أمامَ العميلِ ولا يكتبُ بعدُ؛
+          // وعند الاختيارِ تُفتَحُ له المحادثةُ.
           return driverSender.sendReturningId(
             notice.chatId,
-            tr("negotiation.driver_turn_opened", {
+            tr(selected ? "negotiation.driver_selected" : "negotiation.driver_turn_opened", {
               seconds: notice.deadlineSeconds,
               position: notice.position,
             }),
             null,
           );
         }
-        const keyboard: Keyboard = {
-          kind: "inline",
-          rows: [
-            [
-              {
-                label: tr("negotiation.rider_agree_button"),
-                data: `unsub:agree:${notice.negotiationId}`,
-              },
-              {
-                label: tr("negotiation.rider_decline_button"),
-                data: `unsub:decline:${notice.negotiationId}`,
-              },
-            ],
-          ],
-        };
-        return riderSender.sendReturningId(
-          notice.chatId,
-          tr("negotiation.rider_turn_opened", {
-            seconds: notice.deadlineSeconds,
-            position: notice.position,
-          }),
-          keyboard,
-        );
+        const card = selected
+          ? riderChatCard(tr, notice.negotiationId, notice.position, notice.deadlineSeconds)
+          : riderPresentationCard(
+              tr,
+              notice.negotiationId,
+              notice.position,
+              notice.deadlineSeconds,
+            );
+        return riderSender.sendReturningId(notice.chatId, card.text, card.keyboard);
       }),
 
     sendTurnClosed: (notice: NegotiationSideNotice, reason: TurnClosedReason) =>

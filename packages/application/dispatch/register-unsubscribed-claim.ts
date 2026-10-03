@@ -29,11 +29,24 @@ export type ClaimRegistration =
     }
   | { readonly registered: false; readonly reason: string };
 
+/** `NEG-SELECT-01` — نتيجةُ «إنهاءِ الانتظارِ». */
+export type ClaimWithdrawal =
+  | { readonly withdrawn: true; readonly position: number }
+  | { readonly withdrawn: false; readonly reason: string };
+
 export interface ClaimRegistrationPort {
   registerClaim(
     negotiationId: string,
     driverId: DriverId,
   ): Promise<Result<ClaimRegistration, PortFailureError>>;
+  /**
+   * `NEG-SELECT-01` — السائقُ المنتظِرُ يُنهي انتظارَه ويعودُ لعروضٍ أخرى. يُغلِقُ مطالبتَه
+   * المنتظِرةَ وحدَها؛ والنشطةُ تُرَدُّ `CLAIM_ACTIVE`.
+   */
+  withdrawClaim(
+    negotiationId: string,
+    driverId: DriverId,
+  ): Promise<Result<ClaimWithdrawal, PortFailureError>>;
 }
 
 /** طرفا القناة كما يحتاجهما المُرسِل: معرّفا محادثة ولغتان، بلا رقمي هاتف. */
@@ -46,6 +59,11 @@ export interface NegotiationParties {
   readonly riderChatId: string;
   readonly riderLanguage: string;
   readonly position: number;
+  /**
+   * `NEG-SELECT-01` — هل اختارَ الراكبُ هذا السائقَ بعدُ؟ قبلَ الاختيارِ لا تمريرَ في أيِّ
+   * اتّجاهٍ. غائبٌ ⇒ مُختارٌ (منافذُ لا تعرفُ الطَّورَ — كالاختباراتِ القائمةِ).
+   */
+  readonly selected?: boolean;
 }
 
 export interface RegisterUnsubscribedClaimDependencies {

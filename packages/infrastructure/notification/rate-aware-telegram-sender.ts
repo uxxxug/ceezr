@@ -15,7 +15,7 @@
 
 import { bucketClassOfSendPriority } from "../../shared/config/traffic-priority.ts";
 import type { OutboundRateBucket } from "./outbound-rate-bucket.ts";
-import type { SendPriority, TelegramSender } from "./telegram-api-sender.ts";
+import { interactiveOf, type SendPriority, type TelegramSender } from "./telegram-api-sender.ts";
 
 /** عمليّاتُ الصادرِ الثلاثُ — تُسجَّلُ في طابورِ الموتى كي يُعرَفَ ما ضاعَ. */
 export type OutboundOperation = "sendMessage" | "sendPhoto" | "sendLocation";
@@ -364,6 +364,7 @@ export function withOutboundResilience(
       run("sendLocation", chatId, sendOptions?.priority ?? "critical", () =>
         inner.sendLocation(chatId, latitude, longitude, sendOptions),
       ),
+    ...interactiveOf(inner),
   };
 }
 

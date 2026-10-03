@@ -86,18 +86,42 @@ describe("POST /v1/deliveries", () => {
     expect(json.orderId).toBe("order-123");
   });
 
-  it("rejects when parcel description is missing", async () => {
+  it("ORDER-TERMS-01: accepts a delivery without a parcel description (optional by owner's rule)", async () => {
+    const seen: Record<string, unknown>[] = [];
+    deps = {
+      ...deps,
+      request: {
+        sessions: fakeSessions(),
+        now: () => new Date(),
+        rides: {
+          create: async (input: Record<string, unknown>) => {
+            seen.push(input);
+            return fakeRides().create();
+          },
+        } as never,
+      },
+    };
     const app = buildApp(deps);
-    const body = { ...BASE_BODY, parcelDescription: "" };
-    delete (body as Record<string, unknown>).parcelDescription;
+    const body: Record<string, unknown> = {
+      ...BASE_BODY,
+      pickupLabel: "مطار الملك عبدالعزيز الدولي",
+      destinationLabel: "البلد",
+      pickupAt: "2026-10-03T10:30:00.000Z",
+    };
+    delete body.parcelDescription;
     const res = await app.request("/v1/deliveries", {
       method: "POST",
       headers: HEADERS,
       body: JSON.stringify(body),
     });
-    expect(res.status).toBe(400);
-    const json = (await res.json()) as Record<string, unknown>;
-    expect(json.error).toBe("PARCEL_DESCRIPTION_REQUIRED");
+    expect(res.status).toBe(200);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.notes).toBeNull();
+    expect(seen[0]?.pickupLabel).toBe("مطار الملك عبدالعزيز الدولي");
+    expect(seen[0]?.dropoffLabel).toBe("البلد");
+    expect(String((seen[0]?.pickupAt as Date | undefined)?.toISOString())).toBe(
+      "2026-10-03T10:30:00.000Z",
+    );
   });
 
   it("rejects when parcel description is too short (< 3 chars)", async () => {

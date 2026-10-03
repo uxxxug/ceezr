@@ -108,6 +108,7 @@ describe("createRideRequestCommand — قراءةُ حكمِ الإنشاءِ", 
       "البوّابةُ الشماليّةُ",
       null,
       null,
+      null,
     ]);
   });
 

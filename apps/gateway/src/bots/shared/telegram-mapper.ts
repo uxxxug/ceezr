@@ -49,7 +49,10 @@ export interface RawTelegramUpdate {
     readonly id?: string;
     readonly data?: string;
     readonly from?: { readonly id?: number | string; readonly language_code?: string };
-    readonly message?: { readonly chat?: { readonly id?: number | string } };
+    readonly message?: {
+      readonly chat?: { readonly id?: number | string };
+      readonly message_id?: number;
+    };
   };
   /**
    * طلبُ انضمامٍ إلى قروبٍ (`PD-001` · `ADR 0157`) — يصلُ البوتَ لكونِهِ مشرفاً
@@ -90,7 +93,14 @@ export function toIncomingUpdate(raw: RawTelegramUpdate): IncomingUpdate | null 
     const query = raw.callback_query;
     const sender = senderFrom(query.from?.id, query.message?.chat?.id, query.from?.language_code);
     if (sender === null || query.data === undefined || query.data === "") return null;
-    return { kind: "callback", from: sender, updateId, data: query.data };
+    const messageId = query.message?.message_id;
+    return {
+      kind: "callback",
+      from: sender,
+      updateId,
+      data: query.data,
+      ...(messageId === undefined ? {} : { messageId: String(messageId) }),
+    };
   }
 
   /**

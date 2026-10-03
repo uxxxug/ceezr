@@ -16,7 +16,7 @@
 
 import type { NotificationKind } from "../../shared/config/notification-kinds.ts";
 import { priorityClassOfKind, sendPriorityOfClass } from "../../shared/config/traffic-priority.ts";
-import type { SendOptions, TelegramSender } from "./telegram-api-sender.ts";
+import { interactiveOf, type SendOptions, type TelegramSender } from "./telegram-api-sender.ts";
 
 /**
  * يلفُّ مُرسِلاً فيَسِمُ كلَّ نداءٍ منه بأولويّةِ `kind` المُشتقّةِ من السجلِّ.
@@ -38,5 +38,6 @@ export function withTrafficPriority(inner: TelegramSender, kind: NotificationKin
       inner.sendPhoto(chatId, fileId, caption, markup, stamp(options)),
     sendLocation: (chatId, latitude, longitude, options) =>
       inner.sendLocation(chatId, latitude, longitude, stamp(options)),
+    ...interactiveOf(inner),
   };
 }

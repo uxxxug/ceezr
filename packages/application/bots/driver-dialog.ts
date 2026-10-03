@@ -108,6 +108,7 @@ import {
   requestWithMenuKeyboard,
 } from "./main-menu.ts";
 import { nameErrorKey } from "./name-errors.ts";
+import { driverLeaveKeyboard } from "./negotiation-cards.ts";
 import {
   type CounterpartNotifier,
   handleCompleteRide,
@@ -517,7 +518,7 @@ export async function handleDriverUpdate(
   if (update.kind === "callback") {
     const prefix = update.data.split(":")[0] ?? "";
     if (unreadable && DRIVER_STEP_CALLBACKS.has(prefix)) return technicalFailure(sender, state);
-    return handleCallback(update.data, sender, state, deps);
+    return handleCallback(update.data, sender, state, deps, update.messageId);
   }
   /**
    * `D-36`: الرقمُ وصورةُ المركبةِ لا يُفهَمانِ إلّا بطورِ التسجيلِ. أمّا الموقعُ فيمرُّ:
@@ -670,6 +671,9 @@ async function relayIfNegotiating(
   if (report.reason === "UNREACHABLE") {
     return [reply(sender, tr("negotiation.relay_unreachable"))];
   }
+  if (report.reason === "AWAITING_SELECTION") {
+    return [reply(sender, tr("negotiation.driver_awaiting_selection"))];
+  }
   // تنبيه الحجب يُرسَل فقط عند الحجب فعلاً؛ الرسالة مُرّرت في الحالتين.
   if (report.redacted > 0) return [reply(sender, tr("negotiation.relay_redacted"))];
   return [];
@@ -693,11 +697,16 @@ async function handleUnsubscribedClaim(
   sender: Sender,
   state: DialogState,
   deps: DriverBotDependencies,
+  messageId?: string,
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
   const negotiation = deps.negotiation;
   const [action, negotiationId] = rest;
-  if (negotiation === undefined || action !== "claim" || negotiationId === undefined) {
+  if (
+    negotiation === undefined ||
+    (action !== "claim" && action !== "leave") ||
+    negotiationId === undefined
+  ) {
     return [privateReply(sender, tr("common.unknown_command"))];
   }
 
@@ -718,6 +727,24 @@ async function handleUnsubscribedClaim(
           ? tr("driver.not_registered")
           : tr("driver.not_registered_with_link", { link }),
       ),
+    ];
+  }
+
+  if (action === "leave") {
+    // `NEG-SELECT-01` — «إنهاءُ الانتظارِ والبحثُ عن عروضٍ أخرى»: يُغلِقُ مطالبتَه المنتظِرةَ
+    // وحدَها. والردُّ يُبدِّلُ رسالةَ الانتظارِ في مكانِها متى عُرِفَ معرّفُها.
+    const left = await negotiation.claims.claims.withdrawClaim(negotiationId, driver.id);
+    if (!left.ok) return technicalFailure(sender, state);
+    const key = left.value.withdrawn
+      ? "negotiation.driver_left"
+      : left.value.reason === "CLAIM_ACTIVE"
+        ? "negotiation.driver_leave_active"
+        : "negotiation.card_stale";
+    return [
+      {
+        ...privateReply(sender, tr(key)),
+        ...(messageId === undefined ? {} : { editMessageId: messageId }),
+      },
     ];
   }
 
@@ -742,6 +769,7 @@ async function handleUnsubscribedClaim(
       tr("negotiation.claim_registered_waiting", {
         position: report.position ?? 0,
       }),
+      driverLeaveKeyboard(tr, negotiationId),
     ),
   ];
 }
@@ -1966,6 +1994,7 @@ async function handleCallback(
   sender: Sender,
   state: DialogState,
   deps: DriverBotDependencies,
+  messageId?: string,
 ): Promise<readonly BotReply[]> {
   const tr = t(languageOf(state));
   const [prefix, ...rest] = data.split(":");
@@ -1999,7 +2028,7 @@ async function handleCallback(
     case "offer":
       return handleOfferDecision(rest, sender, state, deps);
     case "unsub":
-      return handleUnsubscribedClaim(rest, sender, state, deps);
+      return handleUnsubscribedClaim(rest, sender, state, deps, messageId);
     case "ride": {
       if (deps.rating === undefined) return [reply(sender, tr("common.unknown_command"))];
       const [action, orderIdRaw] = rest;

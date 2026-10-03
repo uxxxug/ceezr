@@ -1090,6 +1090,32 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
+/* `ORDER-TERMS-01` — وقتُ حضورِ السائقِ. */
+.qt__pickup-time {
+  flex: 1;
+  min-height: 2.6rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.7rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font: inherit;
+}
+.qt__pickup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.qt__pickup-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 /* خطأُ تحقُّقِ وصفِ الطردِ — يُعرَضُ عندَ الضغطِ على «اطلُبْ» بلا وصفٍ صالحٍ. */
 .qt__notes-error {
   margin: 0;
@@ -3470,6 +3496,28 @@ a.sys__action {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+/*
+ * `MSG-COLOR-01` — لونُ بطاقةِ العرضِ بحسبِ الخدمةِ (طلبُ المالكِ): التوصيلُ أصفرُ، والنقلُ
+ * أخضرُ، والشهريُّ مستقبلاً ورديٌّ فاتحٌ. خلفيّةٌ فاتحةٌ وحدٌّ جانبيٌّ أغمقُ، والنصُّ يبقى بلونِ
+ * السمةِ فوقَ مزيجٍ شفّافٍ — فيُقرأُ في الوضعَينِ الفاتحِ والداكنِ.
+ */
+.dof__item--delivery {
+  background: color-mix(in srgb, #facc15 22%, var(--tg-section-bg-color));
+  border-inline-start: 4px solid #eab308;
+}
+.dof__item--transport {
+  background: color-mix(in srgb, #22c55e 20%, var(--tg-section-bg-color));
+  border-inline-start: 4px solid #16a34a;
+}
+.dof__item--monthly {
+  background: color-mix(in srgb, #f9a8d4 26%, var(--tg-section-bg-color));
+  border-inline-start: 4px solid #ec4899;
+}
+.dof__item-head--tinted {
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.75rem;
 }
 
 .dof__item-head {

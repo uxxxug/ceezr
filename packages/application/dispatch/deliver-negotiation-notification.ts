@@ -24,6 +24,12 @@ export interface NegotiationSideNotice {
   readonly negotiationId: string;
   readonly position: number;
   readonly deadlineSeconds: number;
+  /**
+   * `NEG-SELECT-01`: طَورُ الدورِ في `negotiation_turn_opened` — `presented` بطاقةُ السائقِ
+   * أمامَ الراكبِ ليختارَه أو يتخطّاه، و`selected` المحادثةُ فُتِحَت بعدَ اختيارِه.
+   * الصفُّ القديمُ بلا طَورٍ يُقرأُ `presented`.
+   */
+  readonly phase?: "presented" | "selected";
 }
 
 /** إغلاقُ الدورِ سببانِ لا ثالثَ لهما، ونصُّ الرسالةِ يختلفُ بهما. */
@@ -71,6 +77,7 @@ function readNotice(payload: Readonly<Record<string, unknown>>): NegotiationSide
     negotiationId,
     position,
     deadlineSeconds,
+    phase: payload.phase === "selected" ? "selected" : "presented",
   };
 }
 

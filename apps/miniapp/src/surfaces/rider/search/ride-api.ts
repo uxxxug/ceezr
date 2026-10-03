@@ -41,10 +41,12 @@ export interface RequestRideInput {
   /** `RIDE-LABEL-01` — اسما المكانَين ليراهما السائقُ؛ يُطويانِ فارغَين. */
   readonly pickupLabel?: string | null;
   readonly destinationLabel?: string | null;
+  /** `ORDER-TERMS-01` — يُطوى غائباً. */
+  readonly pickupAt?: string | null;
 }
 
 export function requestRide(input: RequestRideInput): Promise<RequestRideResponse> {
-  const { idempotencyKey, notes, pickupLabel, destinationLabel, ...rest } = input;
+  const { idempotencyKey, notes, pickupLabel, destinationLabel, pickupAt, ...rest } = input;
   return apiFetch<RequestRideResponse>("/v1/rides", {
     method: "POST",
     idempotencyKey,
@@ -59,6 +61,7 @@ export function requestRide(input: RequestRideInput): Promise<RequestRideRespons
       destinationLabel.length === 0
         ? {}
         : { destinationLabel }),
+      ...(pickupAt === undefined || pickupAt === null ? {} : { pickupAt }),
     },
   });
 }

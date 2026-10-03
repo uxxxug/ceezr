@@ -1352,5 +1352,9 @@
   "rider.pickup.named": "الالتقاط: {label}",
   "rider.pickup.change": "غيّر مكان الالتقاط",
   "rider.home.service.legend": "نوع الخدمة",
-  "rider.home.destination.placeholder": "مثال: مطار الملك عبدالعزيز أو حي الروضة"
+  "rider.home.destination.placeholder": "مثال: مطار الملك عبدالعزيز أو حي الروضة",
+  "rider.quote.notes.delivery_hint": "في التوصيل: اكتب نوع الطرد هنا (اختياري).",
+  "rider.quote.pickup.label": "وقت حضور السائق",
+  "rider.quote.pickup.now": "الآن",
+  "rider.quote.pickup.later": "في وقت محدّد"
 }
