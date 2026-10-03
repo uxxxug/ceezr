@@ -70,6 +70,18 @@ export interface JobRunnerOptions {
    * والعاملُ في الإنتاج يمرّره دائماً. غيابُه يعني «لا رصد» لا «رصدٌ فاشل».
    */
   readonly heartbeat?: JobHeartbeatRecorderPort;
+  /**
+   * `JOB-LAZY-01` — آخرُ شوطٍ معروفٍ لكلِّ مهمّةٍ (مللي ثانية)، يُقرأُ من `job_heartbeats`
+   * عندَ الإقلاعِ. بلا هذا تبدأُ المهمّةُ اليوميّةُ عدَّها من الصفرِ في كلِّ إقلاعٍ، والبوابةُ
+   * على خطّةٍ مجّانيّةٍ تُنشَرُ وتنامُ مرّاتٍ في اليومِ فلا تبلغُ مهمّةٌ يوميّةٌ موعدَها أبداً.
+   */
+  readonly initialLastRunMs?: ReadonlyMap<string, number>;
+  /**
+   * `JOB-LAZY-01` — مهلةُ أوّلِ شوطٍ لمهمّةٍ بلا `runOnStart` ولا شوطٍ سابقٍ معروفٍ:
+   * `min(everySeconds, firstRunGraceMs)`. افتراضاً دقيقة: تُبعِدُ المهامَّ الكسولةَ عن زحامِ
+   * الإقلاعِ ولا تؤجّلُها يوماً.
+   */
+  readonly firstRunGraceMs?: number;
 }
 
 export interface JobOutcome {
@@ -107,6 +119,8 @@ export interface JobRunner {
 
 const DEFAULT_TICK_MS = 10_000;
 const DEFAULT_MAX_CONCURRENCY = 4;
+/** `JOB-LAZY-01` — سقفُ انتظارِ أوّلِ شوطٍ لمهمّةٍ كسولةٍ لم تَجرِ قطّ. */
+export const DEFAULT_FIRST_RUN_GRACE_MS = 60_000;
 
 /** مهلة التصريف الافتراضية: أقلّ من مهلة القتل القسري لدى منصّة النشر، ليبقى متّسعٌ للإغلاق. */
 const DEFAULT_DRAIN_MS = 20_000;
@@ -115,8 +129,16 @@ const DRAIN_POLL_MS = 50;
 export function createJobRunner(options: JobRunnerOptions): JobRunner {
   const tickMs = options.tickMs ?? DEFAULT_TICK_MS;
   const maxConcurrency = Math.max(1, options.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY);
-  const lastRunMs = new Map<string, number>();
+  const lastRunMs = new Map<string, number>(options.initialLastRunMs ?? []);
   const inFlight = new Set<string>();
+  /**
+   * `JOB-LAZY-01` — مهامُّ تنتظرُ خانةً. بلا هذا تُعادُ إضافةُ المهمّةِ المنتظِرةِ في كلِّ
+   * نبضةٍ (فهي ليست في `inFlight` بعدُ)، فيطولُ طابورُ الخاناتِ بنسخٍ مكرّرةٍ تُشغَّلُ
+   * كلُّها لاحقاً — أي أشواطٌ زائدةٌ تأكلُ الخاناتِ في الضغطِ بعينِه.
+   */
+  const queued = new Set<string>();
+  const createdAtMs = options.clock.now().getTime();
+  const firstRunGraceMs = Math.max(0, options.firstRunGraceMs ?? DEFAULT_FIRST_RUN_GRACE_MS);
   let timer: ReturnType<typeof setInterval> | null = null;
 
   /**
@@ -152,7 +174,13 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
 
   function isDue(job: JobDefinition, nowMs: number): boolean {
     const last = lastRunMs.get(job.name);
-    if (last === undefined) return job.runOnStart === true;
+    if (last === undefined) {
+      if (job.runOnStart === true) return true;
+      // `JOB-LAZY-01` — كانَ هذا `return false` أبداً: `lastRunMs` لا يُكتَبُ إلّا بعدَ شوطٍ،
+      // فالمهمّةُ بلا `runOnStart` لم تكن تُشغَّلُ ولا مرّةً (مقيسٌ على الإنتاجِ 2026-10-03:
+      // لا نبضةَ قطّ للنسخِ الاحتياطيِّ ولا لإفراغِ المواقعِ ولا لانتهاءِ روابطِ التتبّعِ).
+      return nowMs - createdAtMs >= Math.min(job.everySeconds * 1000, firstRunGraceMs);
+    }
     return nowMs - last >= job.everySeconds * 1000;
   }
 
@@ -244,8 +272,9 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
 
     // المهامّ المستحقّة تُشغَّل متوازية: مهمّة بطيئة لا يجوز أن تؤخّر أختها المستحقّة
     // في نفس النبضة، خصوصاً وأن إنهاء العروض المنتهية حسّاسٌ للتأخير.
-    const due = options.jobs.filter((job) => isDue(job, nowMs));
-    const notDue = options.jobs.filter((job) => !isDue(job, nowMs));
+    const due = options.jobs.filter((job) => !queued.has(job.name) && isDue(job, nowMs));
+    const dueNames = new Set(due.map((job) => job.name));
+    const notDue = options.jobs.filter((job) => !dueNames.has(job.name));
 
     for (const job of notDue) {
       outcomes.push({ name: job.name, status: "skipped_not_due", durationMs: 0, detail: null });
@@ -257,7 +286,12 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
     const results: JobOutcome[] = [];
     await Promise.all(
       due.map(async (job) => {
-        await acquireSlot();
+        queued.add(job.name);
+        try {
+          await acquireSlot();
+        } finally {
+          queued.delete(job.name);
+        }
         try {
           results.push(await runOne(job, nowMs));
         } finally {
@@ -312,4 +346,21 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       options.log.info("runner.stopped", {});
     },
   };
+}
+
+/**
+ * `JOB-LAZY-01` — يحوّلُ صفوفَ `job_heartbeats` إلى بذرةِ `initialLastRunMs`. المهمّةُ العامّةُ
+ * تكتبُ صفّاً لكلِّ مدينةٍ باسمِها نفسِه، فيؤخَذُ أحدثُها.
+ */
+export function lastRunMsFromHeartbeats(
+  rows: readonly { readonly jobName: string; readonly lastRunAt: Date }[],
+): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const row of rows) {
+    const at = row.lastRunAt.getTime();
+    if (!Number.isFinite(at)) continue;
+    const prev = out.get(row.jobName);
+    if (prev === undefined || at > prev) out.set(row.jobName, at);
+  }
+  return out;
 }

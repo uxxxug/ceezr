@@ -8,13 +8,18 @@
  *   ويُحذف أثره كلّه بلا مسّ أي مهمّة — لا مهمّة واحدة معرّفة هنا.
  */
 
+import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import {
   buildWorkerContainer,
   MAX_JOB_CONCURRENCY,
   type WorkerContainerOverrides,
 } from "../../workers/src/container.ts";
-import { createJobRunner, type JobLogger } from "../../workers/src/runner.ts";
+import {
+  createJobRunner,
+  type JobLogger,
+  lastRunMsFromHeartbeats,
+} from "../../workers/src/runner.ts";
 
 export interface EmbeddedWorkerHandle {
   /** عدد المهامّ التي سُجِّلت فعلاً — صفرٌ عرضٌ مشبوه يستحقّ سطر سجلّ. */
@@ -49,8 +54,21 @@ export async function startEmbeddedWorker(
     });
   }
 
+  // `JOB-LAZY-01` — آخرُ شوطٍ لكلِّ مهمّةٍ من القاعدةِ لا من الذاكرةِ: الإقلاعُ لا يُصفِّرُ عدَّ
+  // المهمّةِ اليوميّةِ. وفشلُ القراءةِ لا يُسقطُ العاملَ — تبدأُ المهامُّ الكسولةُ بعدَ مهلةِ الأوّلِ.
+  let initialLastRunMs: Map<string, number> = new Map();
+  try {
+    initialLastRunMs = lastRunMsFromHeartbeats(
+      await createJobHeartbeatReader(container.sql).list(),
+    );
+  } catch (cause) {
+    log.error("runner.last_runs_unavailable", {
+      detail: cause instanceof Error ? cause.message : String(cause),
+    });
+  }
   const runner = createJobRunner({
     jobs,
+    initialLastRunMs,
     lock: container.lock,
     maxConcurrency: MAX_JOB_CONCURRENCY,
     clock: { now: () => new Date() },
