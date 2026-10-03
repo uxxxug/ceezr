@@ -112,6 +112,14 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
     method: "post",
+    template: "/messages/:id/send",
+    kind: "admin-guard",
+    reason:
+      "`ADM-MSG-01`: المعرّفُ عيّنةٌ ثابتةٌ في الكودِ لا كائنٌ في القاعدةِ، والمستقبِلُ محادثةُ المسؤولِ الداخلِ وحدَها من جلستِه — والوسيطُ على الموجّهِ كلِّه هوَ التفويضُ.",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
     template: "/drivers/:id/verification",
     kind: "admin-guard",
     reason:

@@ -427,6 +427,24 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    method: "GET",
+    path: "/admin/messages",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/admin/messages/:id/send",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "POST",
     path: "/admin/drivers/:id/verification",
     file: "apps/gateway/src/routes/admin-ui.ts",
@@ -1418,8 +1436,10 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * خلفَ حارسِ جلسةِ الإدارةِ كما أخواتُه. 112 → 113 في 2026-09-30
  * (`F16-03` · `ADR 0221`): مسارُ قطعِ روابطِ التتبُّعِ منَ اللوحةِ — خلفَ
  * حارسِ جلسةِ الإدارةِ كما أخواتُه من مساراتِ اللوحةِ.
+ * 126 → 128 في 2026-10-03 (`ADM-MSG-01`): صفحةُ معرضِ الرسائلِ ومسلكُ «أرسلها لي»
+ * إلى محادثةِ المسؤولِ نفسِه — خلفَ حارسِ جلسةِ الإدارةِ كأخواتِهما.
  */
-export const ROUTE_POLICY_COUNT = 126;
+export const ROUTE_POLICY_COUNT = 128;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 

@@ -36,6 +36,7 @@ import {
   maplibreStylesheetUrl,
   type ResolvedMapStyle,
 } from "../../../../packages/maps/index.ts";
+import arDictionary from "../../../../packages/shared/i18n/ar.json" with { type: "json" };
 import type { OrderId } from "../../../../packages/shared/kernel/index.ts";
 import {
   type AdminUser,
@@ -56,6 +57,7 @@ import {
   renderLiveMapPage,
   renderLiveOrdersPage,
   renderLoginPage,
+  renderMessagesPage,
   renderOverviewPage,
   renderPaymentsPage,
   renderRatingsPage,
@@ -87,6 +89,12 @@ import {
   requireCsrf,
   writeSessionCookie,
 } from "../admin/guard.ts";
+import {
+  buildMessageCatalog,
+  buildMessageGallery,
+  GALLERY_AUDIENCES,
+  type GalleryBot,
+} from "../admin/message-gallery.ts";
 import {
   ATTENDANCE_WINDOWS,
   adminBreakGlassCredential,
@@ -136,6 +144,12 @@ import { createAdminSecurityHeaders } from "../admin/security-headers.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 
+/** مُرسِلُ معاينةِ معرضِ الرسائلِ — رمزا البوتينِ خلفَه لا في هذا الموجِّهِ. */
+export interface MessagePreviewPort {
+  readonly miniAppUrl: string | null;
+  send(bot: GalleryBot, chatId: string, text: string, markup: unknown): Promise<void>;
+}
+
 export interface AdminUiDependencies {
   readonly sql: Sql;
   readonly auth: AdminAuthPort;
@@ -163,6 +177,13 @@ export interface AdminUiDependencies {
    * ثم تسقط عند أوّل إرسال. الحقلُ للاستبدال في الاختبار لا للتشغيل بدونه.
    */
   readonly broadcast?: BroadcastAdminPort;
+  /**
+   * `ADM-MSG-01` — معرضُ الرسائلِ: إرسالُ عيّنةٍ إلى محادثةِ المسؤولِ **وحدَها** بالبوتِ
+   * الذي يُرسِلُها في الواقعِ. والمُرسِلُ خامٌ لا ملفوفٌ بزرِّ الدخولِ، لأنَّ العيّنةَ تحملُ
+   * لوحتَها النهائيّةَ كما تصلُ مستقبِلَها (بطاقةُ القروبِ بلا زرِّ «وَصْلة» ولو وصلَت خاصّةً).
+   * **وغيابُهُ إغلاقٌ لا تجاوُزٌ**: الصفحةُ تُعرَضُ بلا زرِّ إرسالٍ، والإرسالُ يردُّ ٥٠٣.
+   */
+  readonly messagePreview?: MessagePreviewPort;
   /**
    * `F16-01` — منفذُ تعليمِ التقييمِ المسيءِ من صفحةِ التقييماتِ. **وغيابُهُ إغلاقٌ لا
    * تجاوُزٌ**: المسلكُ يردُّ ٥٠٣ ولا يُسجِّلُ تعليماً — أثرٌ بلا إنفاذٍ كذبٌ في السجلِّ
@@ -1631,6 +1652,62 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     // إعادةُ توجيهٍ بعد الإنشاء: تحديثُ المتصفّح لصفحةٍ ناتجةٍ عن POST كان سيبثّ
     // الرسالة مرّتين، ولا شيء أسوأ من رسالةٍ جماعية مكرّرة.
     return c.redirect(`/admin/broadcast?sent=${created.value.total}`, SEE_OTHER);
+  });
+
+  // -------------------------------------------------------------------------
+  // `ADM-MSG-01` — معرضُ الرسائلِ: كلُّ ما يُرسَلُ في تيليجرام، وإرسالُ عيّنةٍ للمسؤولِ نفسِه
+  // -------------------------------------------------------------------------
+
+  app.get("/messages", async (c) => {
+    const specimens = await buildMessageGallery({
+      miniAppUrl: deps.messagePreview?.miniAppUrl ?? null,
+    });
+    const sent = c.req.query("sent");
+    const failed = c.req.query("failed");
+    const notice =
+      sent !== undefined
+        ? { kind: "ok" as const, text: "أُرسِلَت المعاينة إلى محادثتك الخاصة." }
+        : failed === "rider"
+          ? {
+              kind: "error" as const,
+              text: "تعذّر الإرسال ببوت الراكب — افتح محادثة مع بوت الراكب واضغط «ابدأ» ثم أعد المحاولة.",
+            }
+          : failed !== undefined
+            ? { kind: "error" as const, text: "تعذّر إرسال المعاينة. راجع السجلّ." }
+            : undefined;
+    const body = renderMessagesPage({
+      audiences: GALLERY_AUDIENCES,
+      specimens,
+      catalog: buildMessageCatalog(arDictionary as Record<string, string>),
+      csrfToken: c.get("csrfToken"),
+      canSend: deps.messagePreview !== undefined,
+    });
+    return page(c, "معرض الرسائل", "/admin/messages", body, undefined, notice);
+  });
+
+  app.post("/messages/:id/send", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+    const preview = deps.messagePreview;
+    if (preview === undefined) return c.text("MESSAGE_PREVIEW_UNAVAILABLE", SERVICE_UNAVAILABLE);
+    const id = c.req.param("id");
+    const specimens = await buildMessageGallery({ miniAppUrl: preview.miniAppUrl });
+    const specimen = specimens.find((s) => s.id === id);
+    if (specimen === undefined) return c.text("UNKNOWN_SPECIMEN", HTML_UNPROCESSABLE);
+    // المستقبِلُ محادثةُ المسؤولِ الداخلِ وحدَها — لا مُدخَلَ في النموذجِ يختارُ غيرَها.
+    const chatId = c.get("admin").telegramId;
+    try {
+      await preview.send(specimen.bot, chatId, specimen.text, specimen.markup);
+    } catch (error) {
+      log("admin.message_preview_failed", {
+        specimen: specimen.id,
+        bot: specimen.bot,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      return c.redirect(`/admin/messages?failed=${specimen.bot}#m-${specimen.id}`, SEE_OTHER);
+    }
+    log("admin.message_preview_sent", { specimen: specimen.id, bot: specimen.bot });
+    return c.redirect(`/admin/messages?sent=1#m-${specimen.id}`, SEE_OTHER);
   });
 
   app.post("/broadcast/:batchId/cancel", async (c) => {

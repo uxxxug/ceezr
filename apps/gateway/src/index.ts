@@ -65,6 +65,7 @@ import {
 } from "../../../packages/infrastructure/identity/telegram-init-data.ts";
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
 import { createViewerAccountLanguageWriter } from "../../../packages/infrastructure/identity/viewer-language.ts";
+import { grammyTelegramSender } from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { createUserNotificationCenter } from "../../../packages/infrastructure/notification/user-notification-center.ts";
 import {
   createConfiguredMetricsExporter,
@@ -1576,6 +1577,29 @@ if (config.runAdminInGateway) {
     mapOrigins,
     ...(mapStyle.ok ? { mapStyle: mapStyle.value } : {}),
     maplibreSri: config.maplibreSri,
+    // `ADM-MSG-01` — معاينةُ معرضِ الرسائلِ: مُرسِلٌ خامٌ لكلِّ بوتٍ (لا غلافَ دخولٍ —
+    // العيّنةُ تحملُ لوحتَها النهائيّةَ). وفي النقلِ الصامتِ لا معاينةَ: لا رسائلَ حقيقيّةً.
+    ...(config.telegramTransport === "silent"
+      ? {}
+      : {
+          messagePreview: (() => {
+            const senders = {
+              driver: grammyTelegramSender(config.driverBotToken),
+              rider: grammyTelegramSender(config.riderBotToken),
+            };
+            return {
+              miniAppUrl: config.miniAppUrl,
+              send: async (
+                bot: "driver" | "rider",
+                chatId: string,
+                text: string,
+                markup: unknown,
+              ) => {
+                await senders[bot].sendMessage(chatId, text, markup);
+              },
+            };
+          })(),
+        }),
     codeSender: {
       send: async (telegramId, text) => {
         try {

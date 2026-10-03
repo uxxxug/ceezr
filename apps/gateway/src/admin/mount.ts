@@ -50,7 +50,7 @@ import type { ResolvedMapStyle } from "../../../../packages/maps/index.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { createAdminApiRoutes } from "../routes/admin-api.ts";
 import { createAdminLiveRoutes } from "../routes/admin-live.ts";
-import { createAdminUiRoutes } from "../routes/admin-ui.ts";
+import { createAdminUiRoutes, type MessagePreviewPort } from "../routes/admin-ui.ts";
 import type { AdminAuthPort, AdminCodeSender } from "./auth.ts";
 
 export interface AdminSurfaceDependencies {
@@ -108,6 +108,8 @@ export interface AdminSurfaceDependencies {
    * `DEC-0xx` — رابطُ قراءةٍ موقَّعٌ لوثائقِ السائقين في اللوحة.
    */
   readonly readSigner?: ReadUrlSigner;
+  /** `ADM-MSG-01` — مُرسِلُ معاينةِ معرضِ الرسائلِ؛ غيابُهُ يُخفي زرَّ الإرسالِ ويردُّ ٥٠٣. */
+  readonly messagePreview?: MessagePreviewPort;
 }
 
 /**
@@ -159,6 +161,7 @@ export function mountAdminSurface(app: Hono, deps: AdminSurfaceDependencies): Ho
         ? {}
         : { limits: { breakGlassLoginPerAddress: deps.breakGlassLoginPerAddress } }),
       ...(deps.readSigner === undefined ? {} : { readSigner: deps.readSigner }),
+      ...(deps.messagePreview === undefined ? {} : { messagePreview: deps.messagePreview }),
     }),
   );
 
