@@ -66,6 +66,7 @@ import {
   type SupportSender,
 } from "../../../../packages/infrastructure/notification/telegram-support-notifier.ts";
 import { createTelegramUnmatchedMessenger } from "../../../../packages/infrastructure/notification/telegram-unmatched-notifier.ts";
+import { t } from "../../../../packages/shared/i18n/index.ts";
 import type {
   CityId,
   DriverId,
@@ -101,6 +102,8 @@ export interface MessageSpecimen {
   readonly markup: unknown;
   /** الرسالةُ في الواقعِ صورةٌ والنصُّ تعليقُها (إيصالٌ مرفقٌ بتذكرةٍ مثلاً). */
   readonly photo?: true;
+  /** لونُ البطاقةِ في المعرضِ (`MSG-COLOR-01`): أصفرُ للتوصيلِ، أخضرُ للمشوارِ. */
+  readonly service?: "delivery" | "transport";
 }
 
 export const GALLERY_AUDIENCES: readonly {
@@ -188,6 +191,14 @@ function recorder() {
   return { identifying, support, outbound, raw, take };
 }
 
+/** خدمةُ العيّنةِ من معرّفِها — بطاقاتُ العروضِ والقروبِ وحدَها تحملُ لوناً. */
+function serviceOf(id: string): "delivery" | "transport" | null {
+  if (!/(offer|unsub|wider|nodriver)/.test(id)) return null;
+  if (id.endsWith("delivery")) return "delivery";
+  if (id.endsWith("transport")) return "transport";
+  return null;
+}
+
 export async function buildMessageGallery(options: GalleryOptions): Promise<MessageSpecimen[]> {
   const rec = recorder();
   const specimens: MessageSpecimen[] = [];
@@ -220,6 +231,7 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
         text: message.text,
         markup,
         ...(message.photo === true ? { photo: true as const } : {}),
+        ...(serviceOf(id) === null ? {} : { service: serviceOf(id) as "delivery" | "transport" }),
       });
     });
   };
@@ -310,7 +322,9 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
     );
   }
 
-  const unmatched = createTelegramUnmatchedMessenger(rec.identifying);
+  const unmatched = createTelegramUnmatchedMessenger(rec.identifying, {
+    surface: options.miniAppUrl === null ? "chat" : "miniapp",
+  });
   for (const service of ["transport", "delivery"] as const) {
     const notice = {
       orderId: FAKE.order as OrderId,
@@ -438,6 +452,26 @@ export async function buildMessageGallery(options: GalleryOptions): Promise<Mess
     "driver-relay",
     true,
   );
+
+  // انتظارُ الدورِ: السائقُ الثاني والثالثُ بعدَ «قبول» في القروبِ (`driver-dialog.ts`).
+  for (const [key, title, id] of [
+    ["negotiation.claim_registered_waiting", "تسجيل الدور والانتظار", "driver-claim-waiting"],
+    ["negotiation.claim_rejected_full", "اكتمل العدد", "driver-claim-full"],
+    ["negotiation.claim_rejected_closed", "انتهت مهلة الطلب", "driver-claim-closed"],
+  ] as const) {
+    await rec.raw.sendMessage(PRIVATE_CHAT, t(LANG)(key, { position: 2 }), undefined);
+    add(
+      {
+        audience: "driver",
+        bot: "driver",
+        title,
+        when: "بعد ضغط «قبول» على بطاقة القروب",
+        source: "packages/application/bots/driver-dialog.ts",
+      },
+      id,
+      true,
+    );
+  }
 
   // ── السائقُ ────────────────────────────────────────────────────────────────
   const contactSql = (async () => [

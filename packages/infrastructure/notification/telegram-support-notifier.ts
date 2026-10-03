@@ -46,14 +46,24 @@ function formatDate(value: Date | null): string {
  * سطر الاشتراك يُبنى من لقطة قُرئت لحظة النشر لا من ذاكرة مؤقتة: موظّف الدعم
  * الذي يقرأ «فعّال» عن اشتراك منتهٍ سيفعّل اشتراكاً مفعّلاً أو يرفض طلباً محقّاً.
  */
+const PLAN_LABEL_KEYS: Readonly<Record<string, string>> = {
+  both: "driver.plan_both",
+  transport: "driver.service_transport",
+  delivery: "driver.service_delivery",
+};
+
 function subscriptionLine(
   snapshot: SubscriptionSnapshot | null,
   tr: (key: string, params?: Record<string, string | number>) => string,
 ): string {
   if (snapshot === null) return tr("support.card_no_subscription");
+  // `MSG-AUDIT-01`: كانَ السطرُ يُظهِرُ «both — active» خاماً للفريقِ العربيِّ.
+  const planKey = PLAN_LABEL_KEYS[snapshot.plan];
+  const statusKey = `support.subscription_status_${snapshot.status}`;
+  const statusLabel = tr(statusKey);
   const params = {
-    plan: snapshot.plan,
-    status: snapshot.status,
+    plan: planKey === undefined ? snapshot.plan : tr(planKey),
+    status: statusLabel === statusKey ? snapshot.status : statusLabel,
     until: formatDate(snapshot.currentPeriodEnd ?? snapshot.trialEndsAt),
   };
   return snapshot.isLive
@@ -112,7 +122,7 @@ export function createSupportCardPublisher(sender: SupportSender): SupportCardPu
         });
         const keyboard = keyboardFor(card, tr);
         // سبيلُ الردِّ يُقالُ على البطاقةِ نفسِها: أمرٌ لا يعرفُه الفريقُ أمرٌ لا وجودَ له.
-        const withHint = `${text}\n\n${tr("support.answer_hint")}`;
+        const withHint = `${text}\n\n${tr("support.answer_hint", { ticket_short: ticket.id.slice(0, 8) })}`;
 
         if (ticket.attachmentFileId === null) {
           return sender.sendReturningId(card.groupId, withHint, keyboard);

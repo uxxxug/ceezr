@@ -296,6 +296,8 @@ padding:12px;margin:0}
 .tg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
 .tg-card{background:#12141a;border:1px solid var(--line);border-radius:10px;padding:12px;
 display:flex;flex-direction:column;gap:6px}
+.tg-card--delivery{border-color:#d4a72c;box-shadow:inset 4px 0 0 #e8c547}
+.tg-card--transport{border-color:#2f9e63;box-shadow:inset 4px 0 0 #3fbf7a}
 .tg-head{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .tg-chat{background:#0e1621;border-radius:10px;padding:10px;flex:1}
 .tg-bubble{background:#182533;color:#f5f5f5;border-radius:12px 12px 12px 4px;padding:9px 12px;

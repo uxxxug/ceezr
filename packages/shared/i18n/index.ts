@@ -32,9 +32,31 @@ export function translate(
   const fallback: Dictionary = dictionaries[DEFAULT_LANGUAGE] ?? {};
   const dict = dictionaries[lang] ?? fallback;
   const template = dict[key] ?? fallback[key] ?? key;
-  return template.replace(/\{(\w+)\}/g, (match, name: string) =>
-    Object.hasOwn(params, name) ? String(params[name]) : match,
-  );
+  return template
+    .replace(COUNTED, (match, name: string, forms: string) =>
+      Object.hasOwn(params, name) ? (countedPhrase(Number(params[name]), forms) ?? match) : match,
+    )
+    .replace(/\{(\w+)\}/g, (match, name: string) =>
+      Object.hasOwn(params, name) ? String(params[name]) : match,
+    );
+}
+
+/**
+ * `MSG-AUDIT-01` — العددُ والمعدودُ في العربيّةِ: «3 يوماً» خطأٌ يقرؤه كلُّ سائقٍ في
+ * تنبيهِ اشتراكِه. والصيغةُ `{days#يوم واحد|يومان|أيام|يوماً}` تختارُ المعدودَ بالعددِ:
+ * 1 ← الأولى وحدَها · 2 ← الثانيةُ وحدَها · 3–10 ← «العددُ + الثالثةُ» · وما سواها
+ * ← «العددُ + الرابعةُ». وقيمةٌ غيرُ عدديّةٍ تُبقي النصَّ كما هوَ فلا يُختلَقُ معدودٌ.
+ */
+const COUNTED = /\{(\w+)#([^{}]+)\}/g;
+
+export function countedPhrase(count: number, forms: string): string | null {
+  const parts = forms.split("|");
+  if (parts.length !== 4 || !Number.isFinite(count)) return null;
+  const [one, two, few, many] = parts as [string, string, string, string];
+  if (count === 1) return one;
+  if (count === 2) return two;
+  const tail = Math.abs(count) % 100;
+  return tail >= 3 && tail <= 10 ? `${count} ${few}` : `${count} ${many}`;
 }
 
 export function t(lang: string) {
