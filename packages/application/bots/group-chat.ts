@@ -26,7 +26,7 @@ const LANGUAGES = ["ar", "en", "ur"] as const;
 
 /** محادثةُ قروبٍ: معرّفُ المحادثةِ غيرُ معرّفِ المرسِلِ. وطلبُ الانضمامِ موجَّهٌ للخاصِّ دائماً. */
 export function isGroupUpdate(update: IncomingUpdate): boolean {
-  if (update.kind === "join_request") return false;
+  if (update.kind === "join_request" || update.kind === "member_joined") return false;
   return update.from.chatId !== update.from.telegramUserId;
 }
 

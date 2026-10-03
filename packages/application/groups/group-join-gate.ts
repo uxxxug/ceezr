@@ -82,6 +82,13 @@ export interface GroupMembershipStore {
 export interface TelegramGroupGatePort {
   approve(groupChatId: string, telegramUserId: string): Promise<boolean>;
   decline(groupChatId: string, telegramUserId: string): Promise<boolean>;
+  /**
+   * `GRP-GATE-02` — إخراجٌ لا حظرٌ (قرارُ المالكِ): حظرٌ ثمَّ رفعُه فوراً، فيعودُ متى سجّلَ
+   * ووُثِّقَ. اختياريٌّ: منفذٌ لا يُنفِّذُه يُبقي البوّابةَ على طلباتِ الانضمامِ وحدَها.
+   */
+  remove?(groupChatId: string, telegramUserId: string): Promise<boolean>;
+  /** `GRP-GATE-02` — مشرفو القروبِ ومالكُه لا يُخرَجون. `null` ⇒ تعذّرت القراءةُ فلا يُحكَم. */
+  isGroupAdmin?(groupChatId: string, telegramUserId: string): Promise<boolean | null>;
   /** رسالةٌ خاصّةٌ — أفضلُ جهدٍ: تلغرامُ لا يضمنُ وصولَها لمن لم يبدأِ البوتَ. */
   messageUser(userChatId: string, text: string): Promise<boolean>;
   /**
@@ -217,4 +224,71 @@ export async function handleDriverGroupJoinRequest(
     log("group_join.membership_write_failed", { group: groupChatId });
   }
   return true;
+}
+
+export interface DriverGroupDirectJoin {
+  readonly groupChatId: string;
+  readonly telegramUserId: string;
+  readonly languageHint: string;
+  readonly isBot: boolean;
+}
+
+/**
+ * `GRP-GATE-02` — من دخلَ قروبَ سائقي مدينةٍ مباشرةً (الرابطُ العامُّ يتجاوزُ طلبَ الانضمامِ)
+ * يُحكَمُ فيه بالمعيارِ نفسِه: سائقٌ مسجَّلٌ موثَّقٌ في مدينةِ القروبِ يبقى، وكلُّ من سواه يُخرَجُ
+ * ويُراسَلُ خاصّةً (أفضلُ جهدٍ) بطريقِ العودةِ. ولا صفَّ عضويّةٍ: القيدُ في الجدولِ يحصرُ
+ * المصدرَ في طلبِ الانضمامِ، والإخراجُ حدثٌ يُسجَّلُ في السجلِّ المُنظَّمِ.
+ *
+ * ما لا يُمَسُّ: قروبٌ لا تعرفُه مدينةٌ (ليسَ قروبَنا لنحكمَ فيه)، والبوتاتُ، ومشرفو القروبِ —
+ * وتعذُّرُ قراءةِ الإشرافِ أو الهويّةِ يُبقي العضوَ (الخطأُ في الإبقاءِ يُصلَحُ، والإخراجُ الجزافُ
+ * لسائقٍ حقيقيٍّ يُنفِّرُه).
+ */
+export async function handleDriverGroupDirectJoin(
+  join: DriverGroupDirectJoin,
+  deps: GroupJoinGateDependencies,
+): Promise<"kept" | "removed" | "skipped"> {
+  const log = deps.log ?? (() => {});
+  const { groupChatId, telegramUserId } = join;
+  if (join.isBot || deps.gate.remove === undefined) return "skipped";
+
+  const city = await deps.cities.findByGroupChatId(groupChatId);
+  if (!city.ok || city.value === null) return "skipped";
+  const cityId = city.value.cityId;
+
+  const found = await deps.drivers.findByTelegramId(telegramUserId);
+  if (!found.ok) {
+    log("group_join.direct_driver_lookup_failed", { group: groupChatId });
+    return "skipped";
+  }
+  const driver = found.value;
+  if (driver !== null && driver.cityId === cityId && driver.isVerified) return "kept";
+
+  const admin =
+    deps.gate.isGroupAdmin === undefined
+      ? false
+      : await deps.gate.isGroupAdmin(groupChatId, telegramUserId);
+  if (admin !== false) return "skipped";
+
+  const reason =
+    driver === null
+      ? "not_registered"
+      : driver.cityId !== cityId
+        ? JOIN_GATE_DECLINE_REASONS.cityMismatch
+        : JOIN_GATE_DECLINE_REASONS.driverNotVerified;
+  const removed = await deps.gate.remove(groupChatId, telegramUserId);
+  let messaged = false;
+  if (removed) {
+    const link = await deps.gate.registrationLink();
+    const text =
+      driver === null
+        ? link === null
+          ? translate(join.languageHint, "driver.join_gate_not_registered_no_link")
+          : translate(join.languageHint, "driver.join_gate_not_registered", { link })
+        : translate(join.languageHint, "driver.join_gate_removed_not_eligible");
+    messaged = await deps.gate.messageUser(telegramUserId, text);
+  }
+  const meta = { group: groupChatId, user: pseudonymise(telegramUserId), reason, messaged };
+  if (removed) log("group_join.direct_join_removed", meta);
+  else log("group_join.direct_join_remove_failed", meta);
+  return removed ? "removed" : "skipped";
 }

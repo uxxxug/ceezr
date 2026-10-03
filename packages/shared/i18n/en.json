@@ -113,6 +113,7 @@
   "driver.not_registered_with_link": "⚠️ Register first so orders can reach you: {link}",
   "driver.join_gate_not_registered": "This group is for registered WASLA drivers. Register first, then request to join: {link}",
   "driver.join_gate_not_registered_no_link": "This group is for registered WASLA drivers. Open the WASLA drivers bot and send /start to register, then request to join.",
+  "driver.join_gate_removed_not_eligible": "You were removed from the Wasla drivers group because it is for verified drivers of this city only. Complete your registration and verification in the driver bot, then request to join again.",
   "broadcast.header": "📣 A message from the WASLA team",
   "group.escalation_card": "⚠️ Order needs manual assignment\n\n🔧 Service: {service}\n📍 Approximate area: {area}\n🔁 Cycles tried: {cycles}\n📄 Reason: {reason}\n🆔 Order: {order}",
   "group.escalation_reason_no_driver_at_all": "No available driver in the city at all",
