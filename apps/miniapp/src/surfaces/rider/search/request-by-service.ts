@@ -32,6 +32,8 @@ export interface ServiceRequestInput {
   readonly destinationLat: number;
   readonly destinationLng: number;
   readonly notes?: string;
+  readonly pickupLabel?: string | null;
+  readonly destinationLabel?: string | null;
 }
 
 /**

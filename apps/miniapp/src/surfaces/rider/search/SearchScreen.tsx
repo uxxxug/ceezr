@@ -104,6 +104,8 @@ export interface SearchScreenIntent {
   readonly destinationLat: number;
   readonly destinationLng: number;
   readonly destinationLabel: string;
+  /** `RIDE-LABEL-01` — اسمُ الالتقاطِ حينَ اختارَه الراكبُ بالاسمِ؛ `null` موقعُ الجهازِ. */
+  readonly pickupLabel?: string | null;
   readonly notes: string | null;
   /** يُولَّدُ في `SR-04` مرّةً واحدةً لكلِّ نيّةٍ — ولا يُولَّدُ ههنا. */
   readonly idempotencyKey: string;
@@ -119,6 +121,8 @@ export interface SearchScreenProps {
     readonly destinationLat: number;
     readonly destinationLng: number;
     readonly notes?: string;
+    readonly pickupLabel?: string | null;
+    readonly destinationLabel?: string | null;
   }) => Promise<RequestRideResponse>;
   readonly read?: (orderId: string) => Promise<RideSearchResponse>;
   readonly cancel?: (input: {
@@ -231,6 +235,8 @@ export function SearchScreen({
         destinationLat: intent.destinationLat,
         destinationLng: intent.destinationLng,
         ...(intent.notes === null ? {} : { notes: intent.notes }),
+        destinationLabel: intent.destinationLabel,
+        pickupLabel: intent.pickupLabel ?? null,
       });
       if (!mounted.current || ticket !== issued.current) return;
       if (!response.accepted) {

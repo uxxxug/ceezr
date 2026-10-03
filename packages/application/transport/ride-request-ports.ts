@@ -106,6 +106,12 @@ export interface RideRequestCommand {
     readonly destination: RidePoint | null;
     /** ملاحظةُ السائقِ (`SR-04`) — `null` غيابٌ، لا نصٌّ فارغٌ. */
     readonly notes: string | null;
+    /**
+     * `RIDE-LABEL-01` — اسما الالتقاطِ والوجهةِ كما اختارَهما الراكبُ، ليراهما السائقُ
+     * بدلَ «مكانٍ غيرِ مُسمّى». اختياريّانِ: مسارُ البوتِ لا يعرفُهما.
+     */
+    readonly pickupLabel?: string | null;
+    readonly dropoffLabel?: string | null;
   }): Promise<Result<RideRequestVerdict, RideStoreFailure>>;
 }
 

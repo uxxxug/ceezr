@@ -279,6 +279,55 @@ describeIf("إنشاءُ الرحلةِ نداءٌ واحدٌ ذرّيٌّ", () 
   });
 });
 
+describeIf("اسما المكانَينِ يصلانِ السائقَ (`RIDE-LABEL-01`)", () => {
+  async function labeled(key: string, pickup: string | null, dropoff: string | null) {
+    const [row] = await sql<{ result: RidePayload }[]>`
+      select request_ride_labeled(${RIDER_TELEGRAM_ID}::bigint, ${key}::text,
+                                  'transport'::service_type,
+                                  ${ORIGIN.lat}::double precision, ${ORIGIN.lng}::double precision,
+                                  ${DESTINATION.lat}::double precision,
+                                  ${DESTINATION.lng}::double precision,
+                                  null::text, ${pickup}::text, ${dropoff}::text) as result
+    `;
+    if (row === undefined) throw new Error("لا ردَّ من الدالّةِ");
+    return row.result;
+  }
+
+  it("الاسمانِ يُكتَبانِ مُشذَّبَين، والطلبُ المُعادُ لا يُبدِّلُهما", async () => {
+    await sql`delete from orders where rider_id = ${riderId}`;
+    const key = keyFor("labels");
+    const first = await labeled(key, "  باب السلام  ", "مطار المدينة");
+    expect(first.ok).toBe(true);
+    const again = await labeled(key, "اسمٌ آخرُ", "وجهةٌ أخرى");
+    expect(again.reused).toBe(true);
+    const [row] = await sql<{ pickup: string | null; dropoff: string | null }[]>`
+      select pickup_label as pickup, dropoff_label as dropoff
+        from orders where id = ${first.order_id ?? ""}::uuid
+    `;
+    expect(row?.pickup).toBe("باب السلام");
+    expect(row?.dropoff).toBe("مطار المدينة");
+    await sql`delete from orders where rider_id = ${riderId}`;
+  });
+
+  it("الفارغُ يبقى `null`، والدالّةُ منزوعةُ التنفيذِ عن `anon`", async () => {
+    const payload = await labeled(keyFor("labels-empty"), "   ", null);
+    const [row] = await sql<{ pickup: string | null; dropoff: string | null }[]>`
+      select pickup_label as pickup, dropoff_label as dropoff
+        from orders where id = ${payload.order_id ?? ""}::uuid
+    `;
+    expect(row?.pickup).toBe(null);
+    expect(row?.dropoff).toBe(null);
+    await sql`delete from orders where rider_id = ${riderId}`;
+
+    const [grant] = await sql<{ allowed: boolean }[]>`
+      select has_function_privilege('anon',
+        'request_ride_labeled(bigint, text, service_type, double precision, double precision, double precision, double precision, text, text, text)',
+        'EXECUTE') as allowed
+    `;
+    expect(grant?.allowed).toBe(false);
+  });
+});
+
 describeIf("مفتاحُ التكرارِ قيدُ مخطَّطٍ لا اتّفاقُ تطبيقٍ (`ARCH-006`)", () => {
   it("٤) نداءٌ ثانٍ **متعاقبٌ** بالمفتاحِ نفسِه: الصفُّ نفسُه و`reused: true`", async () => {
     const key = keyFor("sequential");

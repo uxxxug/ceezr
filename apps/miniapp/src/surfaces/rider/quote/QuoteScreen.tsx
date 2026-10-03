@@ -126,6 +126,7 @@ export interface QuoteScreenProps {
     readonly destinationLat: number;
     readonly destinationLng: number;
     readonly destinationLabel: string;
+    readonly pickupLabel: string | null;
     readonly notes: string | null;
     readonly idempotencyKey: string;
   }) => void;
@@ -480,6 +481,7 @@ export function QuoteScreen({
                         destinationLat: destination.lat,
                         destinationLng: destination.lng,
                         destinationLabel: destination.label,
+                        pickupLabel: manualPickup === null ? null : manualPickup.label,
                         notes: noteValue,
                         // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
                         idempotencyKey: newIdempotencyKey(),

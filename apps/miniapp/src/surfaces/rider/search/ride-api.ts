@@ -38,14 +38,28 @@ export interface RequestRideInput {
   readonly destinationLng: number;
   /** ملاحظةُ السائقِ — تُطوى إن كانَت فارغةً ولا تُرسَلُ نصّاً فارغاً. */
   readonly notes?: string;
+  /** `RIDE-LABEL-01` — اسما المكانَين ليراهما السائقُ؛ يُطويانِ فارغَين. */
+  readonly pickupLabel?: string | null;
+  readonly destinationLabel?: string | null;
 }
 
 export function requestRide(input: RequestRideInput): Promise<RequestRideResponse> {
-  const { idempotencyKey, notes, ...rest } = input;
+  const { idempotencyKey, notes, pickupLabel, destinationLabel, ...rest } = input;
   return apiFetch<RequestRideResponse>("/v1/rides", {
     method: "POST",
     idempotencyKey,
-    body: notes === undefined || notes.length === 0 ? rest : { ...rest, notes },
+    body: {
+      ...rest,
+      ...(notes === undefined || notes.length === 0 ? {} : { notes }),
+      ...(pickupLabel === undefined || pickupLabel === null || pickupLabel.length === 0
+        ? {}
+        : { pickupLabel }),
+      ...(destinationLabel === undefined ||
+      destinationLabel === null ||
+      destinationLabel.length === 0
+        ? {}
+        : { destinationLabel }),
+    },
   });
 }
 
