@@ -134,6 +134,9 @@ type LanguageState =
   | { readonly kind: "saved" }
   | { readonly kind: "error"; readonly code: string };
 
+/** `UI-LOOP-02` — هويّةٌ ثابتةٌ: قيمةٌ افتراضيّةٌ لا تُولَدُ في كلِّ رسمٍ. */
+const makeErasureKey = (): string => newIdempotencyKey(undefined, "erasure");
+
 export function AccountRights({
   view,
   language = MINIAPP_DEFAULT_LANGUAGE,
@@ -147,7 +150,7 @@ export function AccountRights({
   addToHomeScreen = () => {
     addAppToHomeScreen();
   },
-  makeKey = () => newIdempotencyKey(undefined, "erasure"),
+  makeKey = makeErasureKey,
   saveLanguage = updateAccountLanguage,
   onLanguageChanged,
 }: AccountRightsProps) {

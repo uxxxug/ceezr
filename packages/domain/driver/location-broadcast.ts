@@ -125,7 +125,11 @@ export function nextBroadcastDecision(input: BroadcastInput): BroadcastDecision 
   if (access === null || !access.available) {
     return { kind: "STOP", why: "LOCATION_UNSUPPORTED" };
   }
-  if (!access.accessGranted) return { kind: "STOP", why: "PERMISSION_NOT_GRANTED" };
+  // `UI-LOC-02` — إذنٌ **لم يُطلَبْ بعدُ** ليسَ منعاً: أوّلُ قراءةٍ هيَ التي تفتحُ نافذةَ
+  // الإذنِ في تلغرامَ. والسكونُ قبلَها كانَ يُقفِلُ السائقَ خارجَ البثِّ بلا سؤالٍ أبداً.
+  if (!access.accessGranted && access.accessRequested) {
+    return { kind: "STOP", why: "PERMISSION_NOT_GRANTED" };
+  }
 
   if (policy.intervalSeconds === null) {
     return { kind: "STOP", why: "INTERVAL_NOT_CONFIGURED" };

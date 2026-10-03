@@ -41,7 +41,12 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { ApiError } from "../../../api/client.ts";
-import { locationAccess, openLocationSettings, requestLocation } from "../../../tg/index.ts";
+import {
+  initLocation,
+  locationAccess,
+  openLocationSettings,
+  requestLocation,
+} from "../../../tg/index.ts";
 import { readDriverActiveJob } from "../job/job-api.ts";
 import type { ApiLocationBroadcast } from "../job/job-contract.ts";
 import {
@@ -66,6 +71,8 @@ export interface LocationBroadcastProps {
   readonly send?: typeof postDriverLocation;
   readonly refreshPolicy?: () => Promise<unknown>;
   readonly openSettings?: () => unknown;
+  /** `UI-LOC-02` — تهيئةُ `LocationManager`؛ تُحقَنُ في الاختبارِ. */
+  readonly init?: () => Promise<unknown>;
 }
 
 function accessNow(): LocationAccess | null {
@@ -79,6 +86,24 @@ export function LocationBroadcast(props: LocationBroadcastProps) {
   const send = props.send ?? postDriverLocation;
   const refreshPolicy = props.refreshPolicy ?? readDriverActiveJob;
   const openSettings = props.openSettings ?? openLocationSettings;
+  const init = props.init ?? initLocation;
+  /**
+   * `UI-LOC-02` — `isLocationAvailable` لا يُضبَطُ إلّا بعدَ `LocationManager.init`.
+   * وبلا تهيئةٍ كانَ كلُّ سائقٍ يُحكَمُ عليه «تلغرام عندك لا يتيح الموقع» ولو كانَ
+   * يُتيحُه. فالتهيئةُ مرّةً عندَ التركيبِ، ثمَّ يُعادُ الحكمُ بقراءةِ الحالِ بعدَها.
+   */
+  const [inited, setInited] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void init()
+      .catch(() => undefined)
+      .finally(() => {
+        if (alive) setInited(true);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [init]);
 
   const [policy, setPolicy] = useState<ApiLocationBroadcast | null>(lastLocationBroadcastPolicy);
   const [decision, setDecision] = useState<BroadcastDecision | null>(null);
@@ -139,6 +164,8 @@ export function LocationBroadcast(props: LocationBroadcastProps) {
   }, [readFix, send, refreshPolicy]);
 
   useEffect(() => {
+    // لا حكمَ قبلَ التهيئةِ: حكمٌ مبكّرٌ كانَ يُومِضُ «لا يتيح الموقع» ثمَّ يختفي.
+    if (!inited) return;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let stopped = false;
 
@@ -171,7 +198,7 @@ export function LocationBroadcast(props: LocationBroadcastProps) {
       stopped = true;
       if (timer !== null) clearTimeout(timer);
     };
-  }, [policy, pulse, readAccess]);
+  }, [policy, pulse, readAccess, inited]);
 
   if (decision === null) return null;
 

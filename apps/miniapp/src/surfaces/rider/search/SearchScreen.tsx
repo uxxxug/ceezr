@@ -189,6 +189,14 @@ function parseStamp(iso: string, fallbackMs: number): number {
   return Number.isFinite(parsed) ? parsed : fallbackMs;
 }
 
+/**
+ * `UI-LOOP-02` — ساعةٌ **ثابتةُ الهويّةِ**. كانَت قيمةً افتراضيّةً سهميّةً
+ * (`now = () => Date.now()`) تُولَدُ في كلِّ رسمٍ، وهيَ في تبعيّاتِ `useCallback`
+ * الذي يُنادى من `useEffect` — فكلُّ رسمٍ يُعيدُ القراءةَ، وكلُّ قراءةٍ تُعيدُ الرسمَ:
+ * حلقةٌ لا تنتهي تُومِضُ بها الشاشةُ وتُغرِقُ البوّابةَ بالطلباتِ.
+ */
+const systemNowMs = (): number => Date.now();
+
 export function SearchScreen({
   intent,
   request = requestViaApi,
@@ -198,7 +206,7 @@ export function SearchScreen({
   onOpenSos,
   onActiveRide,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
-  now = () => Date.now(),
+  now = systemNowMs,
 }: SearchScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<SearchState>({ kind: "creating" });
