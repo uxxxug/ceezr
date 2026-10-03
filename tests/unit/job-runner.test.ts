@@ -12,6 +12,7 @@ import {
   createJobRunner,
   type JobDefinition,
   type JobLogger,
+  lastRunMsFromHeartbeats,
 } from "../../apps/workers/src/runner.ts";
 import { createNoopLock } from "../../packages/application/scheduling/distributed-lock.ts";
 import type { Clock } from "../../packages/shared/kernel/index.ts";
@@ -417,5 +418,156 @@ describe("createJobRunner", () => {
     }).runDue();
 
     expect(outcomes[0]?.status).toBe("ran");
+  });
+
+  // `JOB-LAZY-01` — مقيسٌ على الإنتاجِ 2026-10-03: مهمّةٌ بلا `runOnStart` لم تُشغَّل قطّ.
+  test("JOB-LAZY-01: مهمّةٌ بلا runOnStart تُشغَّلُ بعدَ تواترِها من الإقلاعِ لا أبداً", async () => {
+    const clock = fakeClock(0);
+    let runs = 0;
+    const jobs: JobDefinition[] = [
+      {
+        name: "lazy",
+        everySeconds: 30,
+        run: async () => {
+          runs += 1;
+          return "ok";
+        },
+      },
+    ];
+    const runner = createJobRunner({ lock: createNoopLock(), jobs, clock, log: silentLog() });
+    await runner.runDue();
+    expect(runs).toBe(0);
+    clock.advance(29_000);
+    await runner.runDue();
+    expect(runs).toBe(0);
+    clock.advance(1_000);
+    await runner.runDue();
+    expect(runs).toBe(1);
+    clock.advance(30_000);
+    await runner.runDue();
+    expect(runs).toBe(2);
+  });
+
+  test("JOB-LAZY-01: المهمّةُ اليوميّةُ بلا شوطٍ سابقٍ تنتظرُ مهلةَ الأوّلِ لا يوماً", async () => {
+    const clock = fakeClock(0);
+    let runs = 0;
+    const jobs: JobDefinition[] = [
+      {
+        name: "daily",
+        everySeconds: 86_400,
+        run: async () => {
+          runs += 1;
+          return "ok";
+        },
+      },
+    ];
+    const runner = createJobRunner({
+      lock: createNoopLock(),
+      jobs,
+      clock,
+      log: silentLog(),
+      firstRunGraceMs: 60_000,
+    });
+    clock.advance(59_000);
+    await runner.runDue();
+    expect(runs).toBe(0);
+    clock.advance(1_000);
+    await runner.runDue();
+    expect(runs).toBe(1);
+    clock.advance(3_600_000);
+    await runner.runDue();
+    expect(runs).toBe(1);
+  });
+
+  test("JOB-LAZY-01: آخرُ شوطٍ من النبضاتِ يحكمُ بعدَ الإقلاعِ — لا تكرارَ ولا تأجيلَ", async () => {
+    const clock = fakeClock(100_000_000);
+    let runs = 0;
+    const jobs: JobDefinition[] = [
+      {
+        name: "daily",
+        everySeconds: 86_400,
+        runOnStart: true,
+        run: async () => {
+          runs += 1;
+          return "ok";
+        },
+      },
+    ];
+    const seeded = lastRunMsFromHeartbeats([
+      { jobName: "daily", lastRunAt: new Date(100_000_000 - 3_600_000) },
+      { jobName: "daily", lastRunAt: new Date(100_000_000 - 7_200_000) },
+    ]);
+    const runner = createJobRunner({
+      lock: createNoopLock(),
+      jobs,
+      clock,
+      log: silentLog(),
+      initialLastRunMs: seeded,
+    });
+    await runner.runDue();
+    expect(runs).toBe(0);
+    clock.advance(86_400_000 - 3_600_000);
+    await runner.runDue();
+    expect(runs).toBe(1);
+  });
+
+  test("JOB-LAZY-01: مهمّةٌ تنتظرُ خانةً لا تُضافُ مرّةً ثانيةً في النبضةِ التالية", async () => {
+    const clock = fakeClock(0);
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let blockerRuns = 0;
+    let waiterRuns = 0;
+    const jobs: JobDefinition[] = [
+      {
+        name: "blocker",
+        everySeconds: 1,
+        runOnStart: true,
+        run: async () => {
+          blockerRuns += 1;
+          await gate;
+          return "ok";
+        },
+      },
+      {
+        name: "waiter",
+        everySeconds: 1,
+        runOnStart: true,
+        run: async () => {
+          waiterRuns += 1;
+          return "ok";
+        },
+      },
+    ];
+    const runner = createJobRunner({
+      lock: createNoopLock(),
+      jobs,
+      clock,
+      log: silentLog(),
+      maxConcurrency: 1,
+    });
+    const first = runner.runDue();
+    await Promise.resolve();
+    clock.advance(5_000);
+    const second = runner.runDue();
+    clock.advance(5_000);
+    const third = runner.runDue();
+    release();
+    await Promise.all([first, second, third]);
+    // الحاجزُ مستحقٌّ فعلاً في النبضةِ الثانيةِ (تواترُه ثانية) فيجري مرّتَين؛ والمنتظِرُ لم
+    // يُضَف إلّا مرّةً — قبلَ الإصلاحِ كانَ يُضافُ في كلِّ نبضةٍ فيجري ثلاثاً متتالية.
+    expect(blockerRuns).toBe(2);
+    expect(waiterRuns).toBe(1);
+  });
+
+  test("JOB-LAZY-01: البذرةُ تأخذُ أحدثَ صفٍّ لكلِّ اسمٍ وتُهمِلُ الوقتَ الفاسد", () => {
+    const seeded = lastRunMsFromHeartbeats([
+      { jobName: "a", lastRunAt: new Date(10) },
+      { jobName: "a", lastRunAt: new Date(30) },
+      { jobName: "b", lastRunAt: new Date(Number.NaN) },
+    ]);
+    expect(seeded.get("a")).toBe(30);
+    expect(seeded.has("b")).toBe(false);
   });
 });

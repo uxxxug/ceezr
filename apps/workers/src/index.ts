@@ -12,9 +12,10 @@ import {
   createOperationalMetrics,
   createStructuredLogger,
 } from "../../../packages/infrastructure/observability/index.ts";
+import { createJobHeartbeatReader } from "../../../packages/infrastructure/scheduling/job-heartbeat-adapters.ts";
 import { tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import { buildWorkerContainer, MAX_JOB_CONCURRENCY } from "./container.ts";
-import { createJobRunner, type JobLogger } from "./runner.ts";
+import { createJobRunner, type JobLogger, lastRunMsFromHeartbeats } from "./runner.ts";
 
 /**
  * سجلُّ العاملِ — من المُصدِرِ الوحيدِ (`F8-03` · ADR 0078). وقبلَ اليومَ كانَ
@@ -68,8 +69,21 @@ async function main(): Promise<void> {
     log.error("worker.no_jobs", { hint: "لا مدينة مفعَّلة ولا مهامّ عامّة — راجع جدول cities" });
   }
 
+  // `JOB-LAZY-01` — آخرُ شوطٍ لكلِّ مهمّةٍ من القاعدةِ لا من الذاكرةِ: الإقلاعُ لا يُصفِّرُ عدَّ
+  // المهمّةِ اليوميّةِ. وفشلُ القراءةِ لا يُسقطُ العاملَ — تبدأُ المهامُّ الكسولةُ بعدَ مهلةِ الأوّلِ.
+  let initialLastRunMs: Map<string, number> = new Map();
+  try {
+    initialLastRunMs = lastRunMsFromHeartbeats(
+      await createJobHeartbeatReader(container.sql).list(),
+    );
+  } catch (cause) {
+    log.error("runner.last_runs_unavailable", {
+      detail: cause instanceof Error ? cause.message : String(cause),
+    });
+  }
   const runner = createJobRunner({
     jobs,
+    initialLastRunMs,
     lock: container.lock,
     maxConcurrency: MAX_JOB_CONCURRENCY,
     clock: { now: () => new Date() },
