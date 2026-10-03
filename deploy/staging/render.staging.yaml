@@ -227,16 +227,18 @@ services:
       - key: ENABLE_DRIVER_SUBSCRIPTION
         sync: false
       # ── طبقة الخرائط والتوجيه (البند 9 والمرحلة 15) ──────────────────────
-      # ‏ROUTING_PROVIDER: none افتراضاً. ضبطه على osrm يُلزم OSRM_BASE_URL،
-      # وإلاّ مُنع الإقلاع — وهو أسلمُ من خدمةٍ موعودٍ بها وصامتة.
+      # ‏OSRM العام مُفعَّلٌ (قرار المالك 2026-10-03): router.project-osrm.org لحساب المسار
+      # والمدّة. سياسةُ الخادم العامّ: طلبٌ واحدٌ في الثانية لا أكثر، واستخدامٌ غيرُ تجاريّ
+      # (https://github.com/Project-OSRM/osrm-backend/wiki/Demo-server) — فالحدُّ 1/1.
+      # للإطلاق التجاريّ: OSRM ذاتيُّ الاستضافة على خريطة الجزيرة العربية ورفعُ الحدّ.
       - key: ROUTING_PROVIDER
-        sync: false
+        value: osrm
       - key: OSRM_BASE_URL
-        sync: false
+        value: https://router.project-osrm.org
       # ‏REQ-09 / ADR 0190: حدُّ عقدِ حسابِ التوجيهِ <طلبات>/<ثوانٍ> — مطلوبٌ في الإنتاجِ
       # متى كانَ ROUTING_PROVIDER غيرَ none، وإلّا مُنِعَ الإقلاعُ.
       - key: ROUTING_RATE_LIMIT
-        sync: false
+        value: "1/1"
       - key: MAP_STYLE_URL
         sync: false
       - key: MAP_PROVIDER
