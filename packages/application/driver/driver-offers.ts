@@ -48,6 +48,7 @@ import {
   type DriverOfferStoreError,
   isDriverOfferRejection,
 } from "./offer-ports.ts";
+import { noticeRiderOfTrip, type RiderTripNoticeDeps } from "./rider-trip-notice.ts";
 
 /**
  * رموزُ العطبِ المنشورةُ — **قائمةٌ تُقرأُ في زمنِ التشغيلِ** لا اتّحادٌ وحدَه،
@@ -85,6 +86,8 @@ export interface DriverOfferDeps {
   /** **المنفذُ القائمُ** — رفضُ عرضٍ واحدٍ بمعرِّفِه (`BUG-003`). */
   readonly offers: OfferDecisionPort;
   readonly now: () => Date;
+  /** `RIDE-NOTICE-01` — إخطارُ الراكبِ بالقبولِ على بوتِه؛ غيابُه يُسكِتُ الإخطارَ وحدَه. */
+  readonly riderNotice?: RiderTripNoticeDeps;
 }
 
 /** أثرُ الرفضِ — «هل حُرِّكَ صفٌّ» جوابٌ صريحٌ لا صمتٌ يُقرأُ نجاحاً. */
@@ -195,6 +198,7 @@ export async function acceptDriverOffer(
 
   const claimed = await deps.store.accept({ telegramUserId: session.value, offerId });
   if (!claimed.ok) return err(publicCodeFrom(claimed.error));
+  await noticeRiderOfTrip(deps.riderNotice, claimed.value.orderId, "MATCHED");
   return ok(claimed.value);
 }
 
