@@ -976,6 +976,7 @@
   "rider.quote.payment.noAmount": "WASLA does not set or calculate the amount: it is between you and the driver, so ask before you ride.",
   "rider.quote.payment.noCustody": "WASLA does not take, hold, or guarantee your money. There is no card, no wallet, and no electronic payment in the app.",
   "rider.quote.payment.title": "How you pay",
+  "rider.quote.refused.destinationIsPickup": "Your destination is the same place as your pickup. Choose another destination, or change the pickup.",
   "rider.quote.refused.destinationOutside": "Your destination is outside our service area.",
   "rider.quote.refused.invalidPoint": "The coordinates could not be accepted. Read your location again.",
   "rider.quote.refused.noServiceArea": "Your city has no drawn service boundary yet.",

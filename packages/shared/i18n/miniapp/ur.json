@@ -976,6 +976,7 @@
   "rider.quote.payment.noAmount": "اور وَصْلہ رقم نہ طے کرتا ہے نہ شمار: یہ آپ اور ڈرائیور کے درمیان ہے، اس لیے سواری سے پہلے پوچھ لیں۔",
   "rider.quote.payment.noCustody": "وَصْلہ آپ کی رقم نہ لیتا ہے، نہ رکھتا ہے، نہ اس کی ضمانت دیتا ہے۔ ایپ میں نہ کارڈ ہے، نہ والٹ، نہ الیکٹرانک ادائیگی۔",
   "rider.quote.payment.title": "ادائیگی کیسے ہوگی",
+  "rider.quote.refused.destinationIsPickup": "آپ کی منزل وہی جگہ ہے جہاں سے آپ کو لیا جائے گا۔ کوئی اور منزل چنیں، یا لینے کی جگہ بدلیں۔",
   "rider.quote.refused.destinationOutside": "آپ کی منزل ہمارے خدمت کے علاقے سے باہر ہے۔",
   "rider.quote.refused.invalidPoint": "کوآرڈینیٹس قبول نہیں ہو سکے۔ اپنا مقام دوبارہ پڑھیں۔",
   "rider.quote.refused.noServiceArea": "آپ کے شہر کی خدمت کی حد ابھی متعین نہیں۔",

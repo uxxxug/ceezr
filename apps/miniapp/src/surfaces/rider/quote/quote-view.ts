@@ -150,7 +150,44 @@ const REFUSAL_KEYS: Readonly<Record<string, string>> = {
   CITY_HAS_NO_SERVICE_AREA: "rider.quote.refused.noServiceArea",
   ORIGIN_OUTSIDE_SERVICE_AREA: "rider.quote.refused.originOutside",
   DESTINATION_OUTSIDE_SERVICE_AREA: "rider.quote.refused.destinationOutside",
+  DESTINATION_IS_PICKUP: "rider.quote.refused.destinationIsPickup",
 };
+
+/**
+ * `RIDE-SAMESPOT-01`: أدنى مسافةٍ بينَ الالتقاطِ والوجهةِ تُقبَلُ رحلةً.
+ *
+ * لماذا: رُصِدَ في الإنتاجِ (2026-10-03، المدينةُ المنورة) طلبٌ التقاطُه ووجهتُه
+ * **النقطةُ نفسُها** — اختارَ الراكبُ «موقعي الحاليّ» وجهةً، والالتقاطُ موقعُ الجهازِ
+ * نفسُه، فنُشِرَ طلبٌ بمسافةِ صفرٍ لا يُنفَّذُ. والخادمُ لا يرفضُه اليومَ (لا حدَّ
+ * مسافةٍ في `request_ride`)، فالحارسُ ههنا قبلَ السؤالِ، ورفضُ الخادمِ نفسِه قرارُ
+ * هجرةٍ مُعلَّقٌ عندَ المالكِ.
+ *
+ * و100 مترٍ لأنَّ دقّةَ موقعِ الهاتفِ في المدينةِ عشراتُ الأمتارِ: قراءتانِ لموضعٍ
+ * واحدٍ قد تفترقانِ بها، وأقصرُ مشوارٍ حقيقيٍّ أطولُ منها بكثير.
+ */
+export const MIN_TRIP_METERS = 100;
+
+/** مسافةُ الدائرةِ العظمى بالأمتارِ (هافرساين) — تكفي للحكمِ على «أقلُّ من 100م». */
+export function straightMeters(
+  a: { readonly lat: number; readonly lng: number },
+  b: { readonly lat: number; readonly lng: number },
+): number {
+  const rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad;
+  const dLng = (b.lng - a.lng) * rad;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * 6_371_000 * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
+/** هل الوجهةُ هيَ موضعُ الالتقاطِ نفسُه (أقربُ من `MIN_TRIP_METERS`)؟ */
+export function destinationIsPickup(
+  pickup: { readonly lat: number; readonly lng: number },
+  destination: { readonly lat: number; readonly lng: number },
+): boolean {
+  return straightMeters(pickup, destination) < MIN_TRIP_METERS;
+}
 
 export function quoteRefusalKey(code: string): string {
   return REFUSAL_KEYS[code] ?? "rider.quote.refused.unknown";
@@ -167,7 +204,9 @@ export type RefusalRemedy = "RELOCATE" | "PICK_ANOTHER_DESTINATION" | "NONE";
 
 export function refusalRemedy(code: string): RefusalRemedy {
   if (code === "ORIGIN_OUTSIDE_SERVICE_AREA" || code === "INVALID_POINT") return "RELOCATE";
-  if (code === "DESTINATION_OUTSIDE_SERVICE_AREA") return "PICK_ANOTHER_DESTINATION";
+  if (code === "DESTINATION_OUTSIDE_SERVICE_AREA" || code === "DESTINATION_IS_PICKUP") {
+    return "PICK_ANOTHER_DESTINATION";
+  }
   return "NONE";
 }
 

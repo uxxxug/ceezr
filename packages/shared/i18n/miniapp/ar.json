@@ -976,6 +976,7 @@
   "rider.quote.payment.noAmount": "ووَصْلة لا تحدّد المبلغ ولا تحسبه: المبلغ بينك وبين السائق، فاسأله قبل الركوب.",
   "rider.quote.payment.noCustody": "وَصْلة لا تقبض مالك ولا تحتفظ به ولا تضمنه. لا بطاقة ولا محفظة ولا دفع إلكترونيّا في التطبيق.",
   "rider.quote.payment.title": "طريقة الدفع",
+  "rider.quote.refused.destinationIsPickup": "وجهتك هي موضع الالتقاط نفسه. اختر وجهة أخرى، أو غيّر موضع الالتقاط.",
   "rider.quote.refused.destinationOutside": "وجهتك خارج منطقة خدمتنا.",
   "rider.quote.refused.invalidPoint": "تعذّر قبول الإحداثيّات. أعد قراءة موقعك.",
   "rider.quote.refused.noServiceArea": "مدينتك بلا حدّ مرسوم للخدمة بعد.",
