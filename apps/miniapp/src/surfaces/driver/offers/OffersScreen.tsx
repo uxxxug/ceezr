@@ -189,6 +189,14 @@ function DistanceRow({
   );
 }
 
+/**
+ * `UI-LOOP-02` — ساعةٌ **ثابتةُ الهويّةِ**. كانَت قيمةً افتراضيّةً سهميّةً
+ * (`now = () => Date.now()`) تُولَدُ في كلِّ رسمٍ، وهيَ في تبعيّاتِ `useCallback`
+ * الذي يُنادى من `useEffect` — فكلُّ رسمٍ يُعيدُ القراءةَ، وكلُّ قراءةٍ تُعيدُ الرسمَ:
+ * حلقةٌ لا تنتهي تُومِضُ بها الشاشةُ وتُغرِقُ البوّابةَ بالطلباتِ.
+ */
+const systemNowMs = (): number => Date.now();
+
 export function OffersScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
@@ -202,7 +210,7 @@ export function OffersScreen({
   reject = rejectDriverOffer,
   setAvailability = setDriverAvailability,
   subscribeToOfferUpdates,
-  now = () => Date.now(),
+  now = systemNowMs,
 }: OffersScreenProps) {
   const t = miniAppTranslator(language);
   const formId = useId();

@@ -67,6 +67,13 @@ describe("السكونُ: سببٌ مُسمّىً لا رمزٌ عامٌّ", () 
     expect(verdict).toEqual({ kind: "STOP", why: "PERMISSION_NOT_GRANTED" });
   });
 
+  test("`UI-LOC-02` — إذنٌ لم يُطلَبْ بعدُ ⇒ قراءةٌ تفتحُ نافذةَ الإذنِ لا سكونٌ", () => {
+    const verdict = nextBroadcastDecision(
+      input({ access: { ...GRANTED, accessRequested: false, accessGranted: false } }),
+    );
+    expect(verdict).toEqual({ kind: "SEND", reason: "ON_TRIP" });
+  });
+
   test("جلسةٌ ساقطةٌ ⇒ توقُّفٌ قبلَ كلِّ فحصٍ آخرَ، ولا إعادةَ أبديّةً", () => {
     expect(nextBroadcastDecision(input({ lastError: "SESSION_EXPIRED" }))).toEqual({
       kind: "STOP",
