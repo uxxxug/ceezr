@@ -172,6 +172,10 @@ import { runBackupRestoreVerification } from "./jobs/verify-backup-restore.ts";
 import { warnExpiringDocumentsJob } from "./jobs/warn-expiring-documents.ts";
 import type { JobDefinition, JobLogger } from "./runner.ts";
 
+/** `OPS-POOL-01`: محاولاتُ قراءةِ المدنِ عندَ الإقلاعِ وخطوةُ المهلةِ المتزايدةِ بينَها. */
+const CITY_LIST_ATTEMPTS = 8;
+const CITY_LIST_RETRY_STEP_MS = 4_000;
+
 /** تواتر كل مهمّة بالثواني. تقنيّة لا تجارية: لا تُقرأ من platform_settings. */
 export const JOB_INTERVALS = {
   expireOffers: 60,
@@ -785,12 +789,20 @@ export function buildWorkerContainer(
    * يستحقّ إعادة نشر العامل، واستعلامُ المدن كل دقيقة إنفاقٌ بلا مقابل.
    */
   async function activeCityIds(): Promise<readonly CityId[]> {
-    const list = await cities.listActive();
-    if (!list.ok) {
-      log.error("worker.cities_failed", { detail: list.error.detail });
-      return [];
+    /*
+     * `OPS-POOL-01`: قراءةُ المدنِ تُعادُ عندَ الفشلِ ولا تُسلَّمُ صفراً من أوّلِ محاولةٍ.
+     * مرصودٌ في الإنتاجِ 2026-10-02: نسخةٌ جديدةٌ تُقلِعُ والقديمةُ ما زالت تحتجزُ
+     * اتّصالاتِ المُجمِّعِ (`EMAXCONNSESSION`) فتفشلُ هذه القراءةُ الواحدةُ، فيعملُ العاملُ
+     * **بلا أيِّ مهمّةٍ مدنيّةٍ** (لا بثَّ ولا إعادةَ إرسالٍ ولا انقضاءَ عروضٍ) حتّى النشرِ
+     * التالي — عطلٌ صامتٌ تامٌّ يبدو «جاهزاً». فتُعادُ بمهلٍ متزايدةٍ (~دقيقتانِ إجمالاً).
+     */
+    for (let attempt = 1; ; attempt++) {
+      const list = await cities.listActive();
+      if (list.ok) return list.value.map((city) => city.id);
+      log.error("worker.cities_failed", { detail: list.error.detail, attempt });
+      if (attempt >= CITY_LIST_ATTEMPTS) return [];
+      await new Promise((resolve) => setTimeout(resolve, CITY_LIST_RETRY_STEP_MS * attempt));
     }
-    return list.value.map((city) => city.id);
   }
 
   async function warningDays(cityId: CityId): Promise<number> {
