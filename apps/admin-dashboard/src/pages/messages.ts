@@ -21,6 +21,7 @@ export interface MessagesPageSpecimen {
   readonly text: string;
   readonly markup: unknown;
   readonly photo?: true;
+  readonly service?: "delivery" | "transport";
 }
 
 export interface MessagesPageData {
@@ -93,7 +94,8 @@ function renderSpecimen(s: MessagesPageSpecimen, data: MessagesPageData): string
   <button type="submit">أرسلها لي</button>
 </form>`
     : "";
-  return `<article class="tg-card" id="m-${escapeHtml(s.id)}">
+  const tone = s.service === undefined ? "" : ` tg-card--${s.service}`;
+  return `<article class="tg-card${tone}" id="m-${escapeHtml(s.id)}">
   <header class="tg-head"><strong>${escapeHtml(s.title)}</strong>
   <span class="badge badge--muted">${escapeHtml(BOT_LABEL[s.bot])}</span></header>
   <p class="note">${escapeHtml(s.when)}</p>

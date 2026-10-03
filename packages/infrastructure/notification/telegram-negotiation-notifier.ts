@@ -33,6 +33,7 @@ import {
 } from "../../application/i18n-translation/index.ts";
 import { normalizeLanguageTag } from "../../domain/i18n-translation/index.ts";
 import { DEFAULT_LANGUAGE, t } from "../../shared/i18n/index.ts";
+import { serviceMarker } from "../../shared/service-marker/index.ts";
 import { guard } from "../db/client.ts";
 import type { OutboundSender } from "./telegram-driver-notifier.ts";
 
@@ -61,6 +62,7 @@ export function createUnsubscribedGroupPublisher(
           card.service === "transport" ? "driver.service_transport" : "driver.service_delivery",
         );
         const text = tr("group.unsub_card", {
+          marker: serviceMarker(card.service),
           service: serviceLabel,
           area: card.areaLabel,
           cycle: card.cycle,

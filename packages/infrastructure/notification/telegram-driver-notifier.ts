@@ -14,6 +14,7 @@ import type {
 } from "../../application/dispatch/broadcast-offers.ts";
 import { t } from "../../shared/i18n/index.ts";
 import { miniAppUrl } from "../../shared/miniapp-link/index.ts";
+import { serviceMarker } from "../../shared/service-marker/index.ts";
 import { guard, type Sql } from "../db/client.ts";
 import type { IdentifyingSender } from "./telegram-negotiation-notifier.ts";
 
@@ -96,7 +97,12 @@ export function createOfferPublisher(
               : (notification.service ?? "");
         const lines: string[] = [];
         if (notification.service !== null) {
-          lines.push(tr("driver.offer_card_service", { service: serviceLabel }));
+          lines.push(
+            tr("driver.offer_card_service", {
+              service: serviceLabel,
+              marker: serviceMarker(notification.service),
+            }),
+          );
         }
         if (notification.pickupLabel !== null && notification.pickupLabel !== "") {
           lines.push(tr("driver.offer_card_from", { pickup: notification.pickupLabel }));

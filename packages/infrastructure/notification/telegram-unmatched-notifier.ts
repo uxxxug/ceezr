@@ -24,13 +24,29 @@ import type { IdentifyingSender } from "./telegram-negotiation-notifier.ts";
  * أسوأُ من يُطلَبُ منه أن يتعلّمَ أمراً مكتوباً. وقراءتُه من مفتاحِه تمنعُ أن يكذبَ
  * النصُّ يومَ يتغيّرُ اسمُ الزرِّ.
  */
-function cancelParams(language: string): Record<string, string> {
-  return { cancel_button: t(language)("menu.rider.cancel") };
+function cancelParams(language: string, surface: UnmatchedSurface): Record<string, string> {
+  const tr = t(language);
+  const cancelButton = tr("menu.rider.cancel");
+  /**
+   * `MSG-AUDIT-01`: في وضعِ التطبيقِ لا زرَّ «إلغاء طلبي» في قائمةِ المحادثةِ (فيها الطوارئُ
+   * واللغةُ وحدَهما)، فكانَ النصُّ يُحيلُ إلى زرٍّ لا وجودَ له. والإلغاءُ ثمَّ في التطبيقِ،
+   * وزرُّ «وَصْلة» يُلحِقُه المُرسِلُ الملفوفُ بالرسالةِ نفسِها.
+   */
+  const cancelHint =
+    surface === "miniapp"
+      ? tr("rider.cancel_hint_miniapp")
+      : tr("rider.cancel_hint_menu", { cancel_button: cancelButton });
+  return { cancel_button: cancelButton, cancel_hint: cancelHint };
 }
+
+/** سطحُ البوتِ: يحكمُ أينَ يُقالُ للعميلِ إنَّه يُلغي طلبَه. */
+export type UnmatchedSurface = "miniapp" | "chat";
 
 export function createTelegramUnmatchedMessenger(
   riderSender: IdentifyingSender,
+  options: { readonly surface?: UnmatchedSurface } = {},
 ): UnmatchedRiderMessenger {
+  const surface = options.surface ?? "chat";
   return {
     sendWiderCircleOpened: (notice: UnmatchedRiderNotice) =>
       guard("notifier.widerCircleOpened", async () => {
@@ -41,7 +57,7 @@ export function createTelegramUnmatchedMessenger(
             : "rider.searching_wider_circle";
         return riderSender.sendReturningId(
           notice.chatId,
-          tr(key, cancelParams(notice.language)),
+          tr(key, cancelParams(notice.language, surface)),
           null,
         );
       }),
@@ -55,7 +71,7 @@ export function createTelegramUnmatchedMessenger(
             : "rider.no_driver_found";
         return riderSender.sendReturningId(
           notice.chatId,
-          tr(key, cancelParams(notice.language)),
+          tr(key, cancelParams(notice.language, surface)),
           null,
         );
       }),

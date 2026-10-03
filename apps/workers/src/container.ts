@@ -693,7 +693,13 @@ export function buildWorkerContainer(
    */
   const unmatchedMessengerFor = (kind: NotificationKind) =>
     overrides.unmatchedMessenger ??
-    createTelegramUnmatchedMessenger(asIdentifyingSender(withTrafficPriority(riderTelegram, kind)));
+    createTelegramUnmatchedMessenger(
+      asIdentifyingSender(withTrafficPriority(riderTelegram, kind)),
+      {
+        surface:
+          config.botSurfaceMode === "miniapp" && config.miniAppUrl !== null ? "miniapp" : "chat",
+      },
+    );
   /**
    * إخطارُ الإلغاءِ ببوتِ السائقِ حصرًا (BUG-004): كان يُرسَلُ من مسارِ ضغطةِ العميلِ
    * بعدَ عودةِ الدالّةِ الذرّيةِ، فصارَ صفًّا لكلِّ سائقٍ يُودَعُ في معاملتِها.
