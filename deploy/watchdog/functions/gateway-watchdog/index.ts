@@ -46,13 +46,18 @@ const sql = postgres(Deno.env.get("SUPABASE_DB_URL")!, { max: 1, prepare: false 
 // المصدرُ الأوّلُ أسرارُ الدالّة، والبديلُ Supabase Vault (`alert_telegram_bot_token` · `brevo_api_key`).
 let TG = Deno.env.get("ALERT_TELEGRAM_BOT_TOKEN") ?? "";
 let BREVO = Deno.env.get("BREVO_API_KEY") ?? "";
+// بديلُ Brevo بلا طرفٍ ثالث: تطبيقُ Google Apps Script منشورٌ من حسابِ المالكِ يُرسِلُ بـMailApp.
+let GAS_URL = Deno.env.get("ALERT_EMAIL_WEBHOOK_URL") ?? "";
+let GAS_SECRET = Deno.env.get("ALERT_EMAIL_WEBHOOK_SECRET") ?? "";
 async function loadVaultSecrets() {
-  if (TG && BREVO) return;
+  if (TG && (BREVO || (GAS_URL && GAS_SECRET))) return;
   const rows = await sql<{ name: string; v: string }[]>`select name, decrypted_secret as v from vault.decrypted_secrets
-    where name in ('alert_telegram_bot_token', 'brevo_api_key')`;
+    where name in ('alert_telegram_bot_token', 'brevo_api_key', 'alert_email_webhook_url', 'alert_email_webhook_secret')`;
   for (const r of rows) {
     if (r.name === "alert_telegram_bot_token" && !Deno.env.get("ALERT_TELEGRAM_BOT_TOKEN")) TG = r.v;
     if (r.name === "brevo_api_key" && !Deno.env.get("BREVO_API_KEY")) BREVO = r.v;
+    if (r.name === "alert_email_webhook_url" && !Deno.env.get("ALERT_EMAIL_WEBHOOK_URL")) GAS_URL = r.v;
+    if (r.name === "alert_email_webhook_secret" && !Deno.env.get("ALERT_EMAIL_WEBHOOK_SECRET")) GAS_SECRET = r.v;
   }
 }
 
@@ -90,7 +95,19 @@ async function sendTelegram(chatIds: string[], text: string): Promise<string> {
 }
 
 async function sendEmail(cfg: Config, subject: string, text: string): Promise<string> {
-  if (!BREVO || !cfg.email_from || cfg.email_to.length === 0) return "email:skipped(not configured)";
+  if (cfg.email_to.length === 0) return "email:skipped(no recipients)";
+  if (!BREVO && GAS_URL && GAS_SECRET) {
+    try {
+      const r = await fetch(GAS_URL, {
+        method: "POST", headers: { "content-type": "text/plain" }, redirect: "follow",
+        body: JSON.stringify({ secret: GAS_SECRET, to: cfg.email_to, subject, text }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      const b = (await r.text()).slice(0, 120);
+      return r.ok && b.includes('"ok":true') ? "email:ok(gas)" : `email:gas ${r.status} ${b}`;
+    } catch (e) { return `email:gas err ${(e as Error).name}`; }
+  }
+  if (!BREVO || !cfg.email_from) return "email:skipped(not configured)";
   try {
     const r = await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
