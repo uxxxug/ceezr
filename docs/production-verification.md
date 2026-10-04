@@ -5,6 +5,11 @@
 >
 > **تحديث الحاجز (2026-09-21):** الإنتاجُ الحيُّ مُقيَّدٌ بقراراتِ المالكِ العشرةِ `[!]` وبإثباتِ البنيةِ التحتيّةِ. الحاجزُ موثَّقٌ في `ROADMAP.md` (الالتزامُ `b626538`) والتقريرُ الموحَّدُ في `docs/audits/09-final-unified-audit-20260921.md`.
 
+> **⚠️ لقطةٌ تاريخيّةٌ قديمة (وَسمٌ 2026-10-04) — لا تُتَّبَعُ كما هي.** ثلاثةُ أسسٍ فيها لم تَعُد صحيحة:
+> (1) القاعدةُ الحيّةُ `jafuchojgxzeuvibkkfx` لا `gczgllrulsqubkyehzep`؛ (2) النشرُ `autoDeploy: false` بأمرٍ يدويّ؛
+> (3) النسخُ الاحتياطيُّ لا يجري إلى Google Drive بل من `uxxxug/ceezr-backups`. المرجعُ الحاليّ: `docs/SYSTEM_STATE.md`
+> و`docs/runbook.md`، والدليلُ `docs/evidence/reconciliation-2026-10-04/claims-audit.md` (بند 14).
+
 ## المتطلبات المسبقة
 
 1. الكود منشور على Render (autoDeploy مفعّل).
