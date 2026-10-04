@@ -51,11 +51,13 @@ const DB_URL = Deno.env.get("SUPABASE_DB_URL");
 if (!DB_URL) throw new Error("SUPABASE_DB_URL is not set");
 const sql = postgres(DB_URL, { max: 1, prepare: false });
 // المصدرُ الأوّلُ أسرارُ الدالّة، والبديلُ Supabase Vault (`alert_telegram_bot_token` · `brevo_api_key`).
-let TG = Deno.env.get("ALERT_TELEGRAM_BOT_TOKEN") ?? "";
-let BREVO = Deno.env.get("BREVO_API_KEY") ?? "";
+// كلُّ سرٍّ يُقصُّ من الفراغِ في طرفَيه: لصقُ قيمةٍ في Vault قد يُلحِقُ `\r\n` (رُصِدَ 2026-10-04 في رابطِ Apps Script).
+const clean = (v: string | undefined | null) => (v ?? "").trim();
+let TG = clean(Deno.env.get("ALERT_TELEGRAM_BOT_TOKEN"));
+let BREVO = clean(Deno.env.get("BREVO_API_KEY"));
 // بديلُ Brevo بلا طرفٍ ثالث: تطبيقُ Google Apps Script منشورٌ من حسابِ المالكِ يُرسِلُ بـMailApp.
-let GAS_URL = Deno.env.get("ALERT_EMAIL_WEBHOOK_URL") ?? "";
-let GAS_SECRET = Deno.env.get("ALERT_EMAIL_WEBHOOK_SECRET") ?? "";
+let GAS_URL = clean(Deno.env.get("ALERT_EMAIL_WEBHOOK_URL"));
+let GAS_SECRET = clean(Deno.env.get("ALERT_EMAIL_WEBHOOK_SECRET"));
 async function loadVaultSecrets() {
   if (TG && (BREVO || (GAS_URL && GAS_SECRET))) return;
   const rows = await sql<
@@ -64,12 +66,12 @@ async function loadVaultSecrets() {
     where name in ('alert_telegram_bot_token', 'brevo_api_key', 'alert_email_webhook_url', 'alert_email_webhook_secret')`;
   for (const r of rows) {
     if (r.name === "alert_telegram_bot_token" && !Deno.env.get("ALERT_TELEGRAM_BOT_TOKEN"))
-      TG = r.v;
-    if (r.name === "brevo_api_key" && !Deno.env.get("BREVO_API_KEY")) BREVO = r.v;
+      TG = clean(r.v);
+    if (r.name === "brevo_api_key" && !Deno.env.get("BREVO_API_KEY")) BREVO = clean(r.v);
     if (r.name === "alert_email_webhook_url" && !Deno.env.get("ALERT_EMAIL_WEBHOOK_URL"))
-      GAS_URL = r.v;
+      GAS_URL = clean(r.v);
     if (r.name === "alert_email_webhook_secret" && !Deno.env.get("ALERT_EMAIL_WEBHOOK_SECRET"))
-      GAS_SECRET = r.v;
+      GAS_SECRET = clean(r.v);
   }
 }
 
