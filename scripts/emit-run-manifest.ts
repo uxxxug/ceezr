@@ -16,7 +16,7 @@
  * - **لا يحكمُ على نجاحٍ.** يُسجِّلُ ما جرى.
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import type { RunManifest } from "./lib/run-manifest.ts";
@@ -33,7 +33,8 @@ function probeDatabase(): "alive" | "dead" | null {
   const url = process.env.TEST_DATABASE_URL;
   if (!url) return null;
   try {
-    execSync(`psql "${url}" -c "select 1" -t`, { timeout: 5000, stdio: "pipe" });
+    // مصفوفةُ وسائطَ لا سطرُ صدفةٍ: الرابطُ من البيئةِ لا يُفسَّرُ أمراً (تدقيقٌ خارجيّ R-01، 2026-10-04).
+    execFileSync("psql", [url, "-c", "select 1", "-t"], { timeout: 5000, stdio: "pipe" });
     return "alive";
   } catch {
     return "dead";
@@ -44,7 +45,7 @@ function probeRedis(): "alive" | "dead" | null {
   const url = process.env.REDIS_URL;
   if (!url) return null;
   try {
-    execSync(`redis-cli -u "${url}" ping`, { timeout: 5000, stdio: "pipe" });
+    execFileSync("redis-cli", ["-u", url, "ping"], { timeout: 5000, stdio: "pipe" });
     return "alive";
   } catch {
     return "dead";
