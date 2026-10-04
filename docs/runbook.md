@@ -44,6 +44,31 @@ TEST_DATABASE_URL="postgres://postgres@127.0.0.1:5432/waslah" bun run test:integ
 - البداية: **Render** (فوترة شهرية ثابتة) — خدمتان: `gateway` و `workers`.
 - لاحقاً عند الحاجة الفعلية: **Fly.io — منطقة Bahrain**.
 
+> **تصحيح 2026-10-04 (`ح-8`):** السطرُ أعلاه خطّةٌ أولى. الحيُّ اليومَ: `waslah-gateway` (Docker، `free`، فرانكفورت،
+> `autoDeploy: false`، يستضيفُ العاملَ ولوحةَ الإدارة) و`waslah-miniapp` (ساكن). لا خدمةَ `workers` منفصلة.
+> القاعدةُ Supabase `jafuchojgxzeuvibkkfx`، وRedis على Upstash. الدليل: `docs/evidence/reconciliation-2026-10-04/claims-audit.md`.
+
+## التنبيهُ والمراقبة (`OPS-ALERT-01`)
+- مراقبُ Supabase (`deploy/watchdog/`) يفحصُ `/ready` كلَّ دقيقة. «متوقّفة» بعدَ فحصَين فاشلَين: Telegram كلَّ دقيقةٍ والبريدُ كلَّ 10 دقائق
+  حتى العودة؛ ونبضةٌ يوميّةٌ 09:00 بتوقيتِ الرياض. **غيابُ النبضةِ اليوميّةِ يعني أنّ المراقبَ نفسَه معطَّل.**
+- الحالةُ: `select * from ops.watchdog_state;` · السجلّ: `select * from ops.watchdog_events order by id desc limit 20;`
+- إيقافٌ مؤقّتٌ أثناءَ صيانةٍ مقصودة: `update ops.watchdog_config set enabled = false;` — **وأعِدْه `true` بعدَها.**
+- المستلِمونَ في `ops.watchdog_config` لا في المستودَع (عامّ). الأسرارُ في Vault.
+
+## تدويرُ كلمةِ سرِّ القاعدة (درسُ حادثةِ 2026-10-04 02:23 UTC)
+كلمةُ سرِّ الدورِ `postgres` يقرؤها **مكانان**؛ تغييرُها في Supabase وحدَه يقطعُ البوّابةَ فوراً
+(`password authentication failed` ثمّ قاطعُ دائرةِ Supavisor، و`/ready` 503، وRender يُعيدُ الخدمةَ كلَّ 10–20 دقيقة):
+1. Render ← `waslah-gateway` ← Environment ← `DATABASE_URL` (Session pooler) ← Save and deploy.
+2. `uxxxug/ceezr-backups` ← Settings ← Secrets ← `BACKUP_DATABASE_URL`.
+
+بالترتيب: غيّرْ الكلمةَ ← حدِّثْ الموضعَين خلالَ دقائق ← تحقّقْ: `/ready` 200، وسجلُّ `embedded_worker.started` بـ`jobCount` 71
+(لا 4)، ونبضاتٌ جديدةٌ في `job_heartbeats`. قاطعُ الدائرةِ يُغلَقُ وحدَه بعدَ توقّفِ المحاولاتِ الفاشلة (نحو دقيقتَين).
+
+## النسخُ الاحتياطيّ
+يجري من المستودَعِ الخاصِّ `uxxxug/ceezr-backups` (GitHub Actions، `nightly-backup` يوميّاً 00:17 UTC، مُشفَّرٌ بـ`age`،
+باستعادةٍ مُتحقَّقة) ويكتبُ صفّاً في `db_backups`. مهمّةُ العاملِ `backup-database` **غيرُ مسجَّلة** (تُسقَطُ بصمتٍ لغيابِ
+مخزنِها) — لا تعتمدْ عليها.
+
 ## الاستعادة والتعافي
 > أوقف العامل والبوابة أولاً عند تلف بيانات أو فشل قاعدة، ولا تطبق استعادة على قاعدة
 > حية. عيّن `DATABASE_URL` في جلسة التشغيل فقط؛ لا تضعه في الأوامر المحفوظة.
