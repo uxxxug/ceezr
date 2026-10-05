@@ -28,6 +28,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -626,6 +628,18 @@ jobs:
 
       - name: سقوطُ حاجزِ حداثةِ وثيقةِ الحالةِ مقيسٌ بسالبةٍ (ح-7)
         run: bun test tests/unit/check-system-state.test.ts
+
+      # حاجزُ مزامنةِ الحالةِ والكودِ: يمنعُ أن يُدفعَ تغييرٌ تنفيذيٌّ دونَ
+      # تحديثِ ملفاتِ الحالةِ (SYSTEM_STATE.md، ROADMAP.md، UI_UX_CANONICAL_DIRECTIVE).
+      # القاعدةُ الحاكمةُ: «الكودُ + الحالةُ + التوثيقُ يتحركُ معًا.»
+      - name: حاجزُ مزامنةِ الحالةِ والكودِ (حوكمةُ UI/UX REFOUNDATION)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: bun run scripts/check-state-sync.ts
+
+      - name: سقوطُ حاجزِ مزامنةِ الحالةِ مقيسٌ بسالبةٍ (ح-7)
+        run: bun test tests/unit/check-state-sync.test.ts
 
       # حاجزُ مقاماتِ التكلفةِ لكلِّ مستخدمٍ نشطٍ شهريّاً ولكلِّ رحلةٍ (ECO-001
       # · الزيادةُ الأولى): يمنعُ أن يُحذَفَ قياسُ المقاماتِ (المستخدمونَ النشطونَ

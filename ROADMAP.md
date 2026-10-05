@@ -1,7 +1,25 @@
 # WASLA MOVE — Roadmap
 
+> **تحديث المرحلة (2026-10-05):** الخارطة السابقة أدناه أصبحت تاريخية
+> (Historical / Superseded) بعد اعتماد مرحلة «WASLA UI/UX REFOUNDATION»
+> كالمرحلة النشطة الرسمية. الخارطة النشطة الجديدة هي
+> `docs/UI_UX_CANONICAL_DIRECTIVE.md` المدعومة بتقرير المصالحة
+> `docs/UI_UX_RECONCILIATION_REPORT.md`. لا تُحذف هذه الخارطة — تُبقى
+> كسجل تاريخي لما قُبله.
+>
+> **تحديث إضافي (2026-10-05):** أُصلح تنسيق Biome في ملفات check-state-sync،
+> وأُضيف استيراد `bun:test` لملف الاختبار، وأُضيفت خطوات `check-state-sync`
+> إلى سير عمل CI في `.github/workflows/ci.yml`، وتم تحسين المنطق: يتطلب الآن
+> تحديث `docs/SYSTEM_STATE.md` تحديدًا (لا يكفي ROADMAP.md وحده).
+>
+> **تحديث حوكمة (2026-10-05):** بُوّبت `check-state-sync` لتصبح بوابة حوكمة كاملة
+> مع آلية manifest للوثائق المتأثرة. 23 اختبارًا تشمل الحالات السلبية المطلوبة
+> واختبارات حل النطاق. توسيع تصنيف implementation ليشمل package.json وبقيّة
+> إعدادات البناء/الـCI، وتوسيع تصنيف documentation ليشمل ملفات .md في جذر
+> المستودع مثل README.md. (إصلاح نطاق CI + قراءة manifest من diff كامل PR)
+
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-09-12 (F2-01 welcome and consent record)
+**Last updated:** 2026-10-05 (UI-0: lint fix + bun:test import for state-sync tests)
 **Last milestone:** `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
