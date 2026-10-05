@@ -66,7 +66,7 @@ const HEX_RE = /^#([0-9a-f]{6})$/i;
 export function normalizeHex(hex: string): string {
   const m = HEX_RE.exec(hex.trim());
   if (!m) throw new Error(`لونٌ غيرُ صالحٍ: ${hex}`);
-  return `#${m[1].toLowerCase()}`;
+  return `#${(m[1] ?? "").toLowerCase()}`;
 }
 
 function channel(v: number): number {
@@ -100,9 +100,11 @@ export function parseDirectivePalette(markdown: string): Palette {
     if (cells.length < 4) continue;
     const token = cells[1] as LayerTwoToken;
     if (!LAYER_TWO_TOKENS.includes(token)) continue;
-    if (!HEX_RE.test(cells[2] ?? "") || !HEX_RE.test(cells[3] ?? "")) continue;
-    dark[token] = normalizeHex(cells[2]);
-    light[token] = normalizeHex(cells[3]);
+    const d = cells[2] ?? "";
+    const l = cells[3] ?? "";
+    if (!HEX_RE.test(d) || !HEX_RE.test(l)) continue;
+    dark[token] = normalizeHex(d);
+    light[token] = normalizeHex(l);
   }
   for (const t of LAYER_TWO_TOKENS) {
     if (!dark[t] || !light[t]) throw new Error(`الرمزُ ${t} غائبٌ عن جدولِ §2 في الدليلِ المعتمد`);
@@ -116,7 +118,7 @@ export function parseDirectivePalette(markdown: string): Palette {
 function readVar(block: string, name: string): string | undefined {
   const re = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`);
   const m = re.exec(block);
-  return m ? normalizeHex(m[1]) : undefined;
+  return m?.[1] ? normalizeHex(m[1]) : undefined;
 }
 
 function blockAfter(css: string, selector: string): string {
