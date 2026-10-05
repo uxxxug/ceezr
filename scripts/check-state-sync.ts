@@ -53,9 +53,7 @@ export interface StateSyncResult {
 export function checkStateSync(input: StateSyncInput): StateSyncResult {
   const { changedFiles } = input;
 
-  const implChanged = changedFiles.filter((f) =>
-    IMPL_PATTERNS.some((p) => p.test(f)),
-  );
+  const implChanged = changedFiles.filter((f) => IMPL_PATTERNS.some((p) => p.test(f)));
 
   if (implChanged.length === 0) {
     return {

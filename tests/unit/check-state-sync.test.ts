@@ -22,10 +22,7 @@ describe("check-state-sync", () => {
 
   it("passes when implementation files changed with state docs", () => {
     const input: StateSyncInput = {
-      changedFiles: [
-        "apps/miniapp/src/App.tsx",
-        "docs/SYSTEM_STATE.md",
-      ],
+      changedFiles: ["apps/miniapp/src/App.tsx", "docs/SYSTEM_STATE.md"],
     };
     const result = checkStateSync(input);
     expect(result.ok).toBe(true);
@@ -89,10 +86,7 @@ describe("check-state-sync", () => {
 
   it("passes when implementation changed with UI_UX_CANONICAL_DIRECTIVE", () => {
     const input: StateSyncInput = {
-      changedFiles: [
-        "apps/miniapp/src/styles/global.css",
-        "docs/UI_UX_CANONICAL_DIRECTIVE.md",
-      ],
+      changedFiles: ["apps/miniapp/src/styles/global.css", "docs/UI_UX_CANONICAL_DIRECTIVE.md"],
     };
     const result = checkStateSync(input);
     expect(result.ok).toBe(true);
