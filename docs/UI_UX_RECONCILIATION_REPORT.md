@@ -132,7 +132,7 @@
 | المرحلة | الاسم | النطاق | الحالة |
 |---|---|---|---|
 | UI-0 | Discovery & Reconciliation | جرد كامل + مصالحة + خارطة + state-sync gate | **مكتملة / Closed — 2026-10-05** (كانت: «جارٍ (هذه الدفعة)»؛ الدليل في «إغلاق UI-0» أدناه) |
-| UI-1 | Design System | tokens + كتل ui-* + icons + feedback | لم تبدأ |
+| UI-1 | Design System | tokens + كتل ui-* + icons + feedback | **جارية — PR 0** (2026-10-06 · ADR 0233؛ كانت: «لم تبدأ»). PR 1 لم يبدأ |
 | UI-2 | Shell & Navigation | ScreenFrame + تبويب + BackButton + ScreenTransition | لم تبدأ |
 | UI-3 | Rider Experience | R0–R15 كاملة | لم تبدأ |
 | UI-4 | Driver Experience | D0–D14 كاملة | لم تبدأ |

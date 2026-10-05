@@ -641,6 +641,20 @@ jobs:
       - name: سقوطُ حاجزِ مزامنةِ الحالةِ مقيسٌ بسالبةٍ (ح-7)
         run: bun test tests/unit/check-state-sync.test.ts
 
+      # UI-1 / PR 0 (`ADR 0233`): تباينُ لوحةِ Layer 2 مقيسٌ قبلَ أن تُكتَبَ رموزاً،
+      # وجردُ الأسطحِ القائمةِ مطابقٌ للقرصِ. لا تغييرَ بصريّاً.
+      - name: تباينُ الهويةِ اللونيةِ (UI-1 · PR 0 · ADR 0233)
+        run: bun run scripts/check-ui-contrast.ts
+
+      - name: سقوطُ حاجزِ التباينِ مقيسٌ بسالبةٍ (ح-7)
+        run: bun test tests/unit/check-ui-contrast.test.ts
+
+      - name: جردُ أسطحِ الواجهةِ مطابقٌ للقرصِ (UI-1 · PR 0 · ADR 0233)
+        run: bun run scripts/check-ui-surface-inventory.ts
+
+      - name: سقوطُ حاجزِ جردِ الأسطحِ مقيسٌ بسالبةٍ (ح-7)
+        run: bun test tests/unit/check-ui-surface-inventory.test.ts
+
       # حاجزُ مقاماتِ التكلفةِ لكلِّ مستخدمٍ نشطٍ شهريّاً ولكلِّ رحلةٍ (ECO-001
       # · الزيادةُ الأولى): يمنعُ أن يُحذَفَ قياسُ المقاماتِ (المستخدمونَ النشطونَ
       # والرحلاتُ) أو يُفرَّغَ تأكيدُه. والمقاماتُ تُقاسُ على قاعدةٍ حقيقيّةٍ، والسعرُ
