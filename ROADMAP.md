@@ -8,7 +8,8 @@
 > كسجل تاريخي لما قُبله.
 >
 > **تحديث إضافي (2026-10-05):** أُصلح تنسيق Biome في ملفات check-state-sync،
-> وأُضيف استيراد `bun:test` لملف الاختبار.
+> وأُضيف استيراد `bun:test` لملف الاختبار، وأُضيفت خطوات `check-state-sync`
+> إلى سير عمل CI في `.github/workflows/ci.yml`.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
 **Last updated:** 2026-10-05 (UI-0: lint fix + bun:test import for state-sync tests)
