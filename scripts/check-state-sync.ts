@@ -85,26 +85,56 @@ export function checkStateSync(input: StateSyncInput): StateSyncResult {
 
 // CLI entry point
 if (import.meta.main) {
-  const changedFiles: string[] = (() => {
-    const base = execSync("git merge-base HEAD origin/main", {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
+  const ZERO_SHA = "0000000000000000000000000000000000000000";
 
-    if (!base) {
-      console.error(
-        "::error::check-state-sync: تعذّر تحديد نقطة المقارنة مع origin/main — لا يُسمح بالمرور بلا فحص.",
-      );
-      process.exit(1);
+  const head = process.env.HEAD_SHA?.trim() || "HEAD";
+  let base: string | null = null;
+
+  // 1) BASE_SHA from env (GitHub Actions event.before)
+  const envBase = process.env.BASE_SHA?.trim();
+  if (envBase && envBase.length > 0 && envBase !== ZERO_SHA) {
+    try {
+      execSync(`git rev-parse --verify ${envBase}^{commit}`, {
+        encoding: "utf-8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+      base = envBase;
+    } catch {
+      /* fall through to merge-base */
     }
+  }
 
-    const diff = execSync(`git diff --name-only ${base}...HEAD`, {
-      encoding: "utf-8",
-      stdio: ["pipe", "pipe", "pipe"],
-    }).trim();
+  // 2) merge-base with origin/main or main
+  if (!base) {
+    for (const ref of ["origin/main", "main"]) {
+      try {
+        const result = execSync(`git merge-base ${ref} ${head}`, {
+          encoding: "utf-8",
+          stdio: ["pipe", "pipe", "pipe"],
+        }).trim();
+        if (result.length > 0) {
+          base = result;
+          break;
+        }
+      } catch {
+        /* try next ref */
+      }
+    }
+  }
 
-    return diff ? diff.split("\n").filter(Boolean) : [];
-  })();
+  if (!base) {
+    console.error(
+      "::error::check-state-sync: تعذّر تحديد نطاق المقارنة — لا BASE_SHA صالح ولا origin/main (shallow clone? fetch-depth: 0).",
+    );
+    process.exit(1);
+  }
+
+  const diff = execSync(`git diff --name-only ${base}...${head}`, {
+    encoding: "utf-8",
+    stdio: ["pipe", "pipe", "pipe"],
+  }).trim();
+
+  const changedFiles = diff ? diff.split("\n").filter(Boolean) : [];
 
   const result = checkStateSync({ changedFiles });
 
