@@ -139,9 +139,9 @@ export function evaluateGovernanceSync(input: GovernanceSyncInput): GovernanceSy
 
   // Check: any modified doc that's not state/roadmap/manifest must be in affected_docs
   const knownDocPatterns = [
-    (f) => isStateFile(f),
-    (f) => isRoadmapFile(f),
-    (f) => isManifestFile(f),
+    (f: string) => isStateFile(f),
+    (f: string) => isRoadmapFile(f),
+    (f: string) => isManifestFile(f),
   ];
   const unaccountedDocs = changedFiles.filter(
     (f) =>
