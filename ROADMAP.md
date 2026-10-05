@@ -1,5 +1,12 @@
 # WASLA MOVE — Roadmap
 
+> **تحديث المرحلة (2026-10-05):** الخارطة السابقة أدناه أصبحت تاريخية
+> (Historical / Superseded) بعد اعتماد مرحلة «WASLA UI/UX REFOUNDATION»
+> كالمرحلة النشطة الرسمية. الخارطة النشطة الجديدة هي
+> `docs/UI_UX_CANONICAL_DIRECTIVE.md` المدعومة بتقرير المصالحة
+> `docs/UI_UX_RECONCILIATION_REPORT.md`. لا تُحذف هذه الخارطة — تُبقى
+> كسجل تاريخي لما قُبله.
+
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
 **Last updated:** 2026-09-12 (F2-01 welcome and consent record)
 **Last milestone:** `F2-01` — the first product screen in this repository, with
