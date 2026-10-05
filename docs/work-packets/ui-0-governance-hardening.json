@@ -1,10 +1,6 @@
 {
   "id": "ui-0-governance-hardening",
-  "implementation": [
-    "scripts/check-state-sync.ts",
-    ".github/workflows/ci.yml",
-    "package.json"
-  ],
+  "implementation": ["scripts/check-state-sync.ts", ".github/workflows/ci.yml", "package.json"],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
