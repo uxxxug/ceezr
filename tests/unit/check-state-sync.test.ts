@@ -1,3 +1,4 @@
+import { describe, expect, it } from "bun:test";
 import { checkStateSync, type StateSyncInput } from "../../scripts/check-state-sync";
 
 describe("check-state-sync", () => {

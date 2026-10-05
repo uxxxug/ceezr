@@ -6,9 +6,12 @@
 > `docs/UI_UX_CANONICAL_DIRECTIVE.md` المدعومة بتقرير المصالحة
 > `docs/UI_UX_RECONCILIATION_REPORT.md`. لا تُحذف هذه الخارطة — تُبقى
 > كسجل تاريخي لما قُبله.
+>
+> **تحديث إضافي (2026-10-05):** أُصلح تنسيق Biome في ملفات check-state-sync،
+> وأُضيف استيراد `bun:test` لملف الاختبار.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-09-12 (F2-01 welcome and consent record)
+**Last updated:** 2026-10-05 (UI-0: lint fix + bun:test import for state-sync tests)
 **Last milestone:** `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
