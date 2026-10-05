@@ -11,6 +11,9 @@
 > وأُضيف استيراد `bun:test` لملف الاختبار، وأُضيفت خطوات `check-state-sync`
 > إلى سير عمل CI في `.github/workflows/ci.yml`، وتم تحسين المنطق: يتطلب الآن
 > تحديث `docs/SYSTEM_STATE.md` تحديدًا (لا يكفي ROADMAP.md وحده).
+>
+> **تحديث حوكمة (2026-10-05):** بُوّبت `check-state-sync` لتصبح بوابة حوكمة كاملة
+> مع آلية manifest للوثائق المتأثرة. 17 اختبار سالب.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
 **Last updated:** 2026-10-05 (UI-0: lint fix + bun:test import for state-sync tests)

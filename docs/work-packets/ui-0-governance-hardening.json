@@ -1,0 +1,17 @@
+{
+  "id": "ui-0-governance-hardening",
+  "implementation": [
+    "scripts/check-state-sync.ts",
+    ".github/workflows/ci.yml",
+    "package.json"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md",
+    "docs/UI_UX_RECONCILIATION_REPORT.md",
+    "docs/adr/0232-ui-ux-refoundation-canonical-phase.md",
+    "tests/unit/check-state-sync.test.ts"
+  ],
+  "no_other_affected_docs_reason": "تغيير حوكمة UI-0 فقط — لا يغيّر قرارات التصميم أو العقود أو السلوك المنتج."
+}
