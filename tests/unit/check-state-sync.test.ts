@@ -11,7 +11,7 @@ describe("check-state-sync", () => {
     expect(result.implChanged).toHaveLength(0);
   });
 
-  it("fails when implementation files changed without state docs", () => {
+  it("fails when implementation files changed without SYSTEM_STATE.md", () => {
     const input: StateSyncInput = {
       changedFiles: ["apps/miniapp/src/App.tsx", "packages/shared/index.ts"],
     };
@@ -21,7 +21,17 @@ describe("check-state-sync", () => {
     expect(result.stateChanged).toHaveLength(0);
   });
 
-  it("passes when implementation files changed with state docs", () => {
+  it("fails when only ROADMAP.md changed (not SYSTEM_STATE.md)", () => {
+    const input: StateSyncInput = {
+      changedFiles: ["apps/miniapp/src/App.tsx", "ROADMAP.md"],
+    };
+    const result = checkStateSync(input);
+    expect(result.ok).toBe(false);
+    expect(result.implChanged).toHaveLength(1);
+    expect(result.stateChanged).toHaveLength(0);
+  });
+
+  it("passes when implementation files changed with SYSTEM_STATE.md", () => {
     const input: StateSyncInput = {
       changedFiles: ["apps/miniapp/src/App.tsx", "docs/SYSTEM_STATE.md"],
     };
@@ -76,20 +86,12 @@ describe("check-state-sync", () => {
     expect(result.implChanged).toHaveLength(1);
   });
 
-  it("passes when scripts changed with ROADMAP.md", () => {
+  it("passes when scripts changed with SYSTEM_STATE.md", () => {
     const input: StateSyncInput = {
-      changedFiles: ["scripts/check-state-sync.ts", "ROADMAP.md"],
+      changedFiles: ["scripts/check-state-sync.ts", "docs/SYSTEM_STATE.md"],
     };
     const result = checkStateSync(input);
     expect(result.ok).toBe(true);
     expect(result.stateChanged).toHaveLength(1);
-  });
-
-  it("passes when implementation changed with UI_UX_CANONICAL_DIRECTIVE", () => {
-    const input: StateSyncInput = {
-      changedFiles: ["apps/miniapp/src/styles/global.css", "docs/UI_UX_CANONICAL_DIRECTIVE.md"],
-    };
-    const result = checkStateSync(input);
-    expect(result.ok).toBe(true);
   });
 });
