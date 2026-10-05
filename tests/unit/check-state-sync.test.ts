@@ -185,6 +185,69 @@ describe("check-state-sync — governance evaluation", () => {
     expect(result.ok).toBe(false);
     expect(result.unaccountedImpl).toContain("apps/miniapp/src/App.tsx");
   });
+
+  // 13. package.json alone → treated as implementation, FAIL without state+roadmap+manifest
+  it("13) package.json implementation-only → FAIL", () => {
+    const result = evaluateGovernanceSync(makeInput(["package.json"]));
+    expect(result.ok).toBe(false);
+    expect(result.implChanged).toContain("package.json");
+  });
+
+  // 14. package.json + state + roadmap without manifest → FAIL
+  it("14) package.json + state + roadmap without manifest → FAIL", () => {
+    const result = evaluateGovernanceSync(makeInput(["package.json", STATE_FILE, ROADMAP_FILE]));
+    expect(result.ok).toBe(false);
+    expect(result.manifestCount).toBe(0);
+  });
+
+  // 15. package.json + state + roadmap + manifest correct → PASS
+  it("15) package.json + state + roadmap + manifest correct → PASS", () => {
+    const manifest = makeManifest({
+      implementation: ["package.json"],
+      affected_docs: [],
+      no_other_affected_docs_reason: "dependency/config update only",
+    });
+    const result = evaluateGovernanceSync(
+      makeInput(["package.json", STATE_FILE, ROADMAP_FILE, MANIFEST_PATH], [manifest]),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  // 16. implementation + README.md unauthorized → FAIL
+  it("16) implementation + README.md unauthorized → FAIL", () => {
+    const manifest = makeManifest({
+      affected_docs: [],
+      no_other_affected_docs_reason: "no docs affected",
+    });
+    const result = evaluateGovernanceSync(
+      makeInput([IMPL_FILE, STATE_FILE, ROADMAP_FILE, MANIFEST_PATH, "README.md"], [manifest]),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.unaccountedDocs).toContain("README.md");
+  });
+
+  // 17. implementation + README.md authorized in affected_docs → PASS
+  it("17) implementation + README.md authorized → PASS", () => {
+    const manifest = makeManifest({
+      affected_docs: ["README.md"],
+    });
+    const result = evaluateGovernanceSync(
+      makeInput([IMPL_FILE, STATE_FILE, ROADMAP_FILE, MANIFEST_PATH, "README.md"], [manifest]),
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  // 18. non-doc, non-impl file outside docs/ → not flagged as unaccounted doc
+  it("18) misc/plain.txt not classified as doc → no unaccountedDocs", () => {
+    const manifest = makeManifest({
+      affected_docs: [],
+      no_other_affected_docs_reason: "no docs affected",
+    });
+    const result = evaluateGovernanceSync(
+      makeInput([IMPL_FILE, STATE_FILE, ROADMAP_FILE, MANIFEST_PATH, "misc/plain.txt"], [manifest]),
+    );
+    expect(result.unaccountedDocs).not.toContain("misc/plain.txt");
+  });
 });
 
 describe("check-state-sync — range resolver", () => {

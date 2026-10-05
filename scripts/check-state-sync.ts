@@ -45,13 +45,34 @@ const REQUIRED_STATE_FILE = "docs/SYSTEM_STATE.md";
 
 const ROADMAP_FILES = ["ROADMAP.md", "docs/ROADMAP-MASTER.md"];
 
+/**
+ * Implementation / config-executable patterns.
+ * Files matching these are treated as implementation changes that require
+ * state + roadmap + manifest synchronization.
+ *
+ * Categories:
+ * - Source/executable dirs: apps/, packages/, supabase/, scripts/, tests/
+ * - CI/deploy/build config: .github/workflows/, render.yaml, package.json,
+ *   bun.lock, tsconfig.json, biome.json, biome.jsonc, Dockerfile,
+ *   docker-compose.yml, vite.config.*, vitest.config.*, playwright.config.*
+ */
 const IMPL_PATTERNS = [
   /^apps\//,
   /^packages\//,
   /^supabase\//,
-  /^render\.yaml$/,
-  /^\.github\/workflows\//,
   /^scripts\//,
+  /^tests\//,
+  /^\.github\/workflows\//,
+  /^render\.yaml$/,
+  /^package\.json$/,
+  /^bun\.lock$/,
+  /^tsconfig\.json$/,
+  /^biome\.json[c]?$/,
+  /^Dockerfile$/,
+  /^docker-compose\.yml$/,
+  /^vite\.config\./,
+  /^vitest\.config\./,
+  /^playwright\.config\./,
 ] as const;
 
 const MANIFEST_GLOB = "docs/work-packets/";
@@ -86,6 +107,23 @@ export interface GovernanceSyncResult {
 
 function isImpl(f: string): boolean {
   return IMPL_PATTERNS.some((p) => p.test(f));
+}
+
+/**
+ * Documentation files: any file under docs/ (except manifests, handled
+ * separately), plus root-level *.md files such as README.md, CHANGELOG.md.
+ *
+ * NOT documentation:
+ * - Implementation files (apps/, scripts/, tests/, etc.) — even if .md
+ * - Non-markdown files outside docs/ (e.g. notes.txt, .env.example)
+ * - Manifest files (docs/work-packets/*.json) — handled separately
+ */
+function isDocumentationFile(f: string): boolean {
+  // Files under docs/ are documentation (manifests filtered out separately)
+  if (f.startsWith("docs/")) return true;
+  // Root-level markdown files are documentation (README.md, CHANGELOG.md, etc.)
+  if (/^[^/]+\.md$/.test(f)) return true;
+  return false;
 }
 
 function isStateFile(f: string): boolean {
@@ -145,7 +183,7 @@ export function evaluateGovernanceSync(input: GovernanceSyncInput): GovernanceSy
   ];
   const unaccountedDocs = changedFiles.filter(
     (f) =>
-      f.startsWith("docs/") &&
+      isDocumentationFile(f) &&
       !knownDocPatterns.some((p) => p(f)) &&
       !declaredDocs.has(f) &&
       !isImpl(f),

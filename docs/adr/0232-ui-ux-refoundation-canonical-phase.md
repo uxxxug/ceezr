@@ -25,7 +25,7 @@ The previous roadmap (ROADMAP.md) focused on WASLA MOVE field execution and is n
 
 - All UI/UX work must follow the PR sequence (PR 0–11) from v2.0 §15.
 - Every PR with implementation changes must include a work-packet manifest declaring affected files and documentation.
-- Every implementation file in the diff must be declared in the manifest.
+- Every implementation file in the diff must be declared in the manifest (including config files like package.json, bun.lock, tsconfig.json, etc.).
 - Every declared affected doc must actually be modified.
 - Any modified documentation not declared in the manifest causes failure.
 - The nine creative ideas must be implemented or their deferral documented.

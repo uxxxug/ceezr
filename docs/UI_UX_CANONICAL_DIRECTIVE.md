@@ -124,7 +124,7 @@ shell+identity ≤ 180KB gzip · CSS مدمج ≤ 40KB gzip · حزمة مؤجل
 
 كل Work Packet يغيّر ملفات تنفيذية يجب أن يرفق manifest في
 `docs/work-packets/*.json` يصرّح بـ:
-- `implementation`: الملفات التنفيذية المتأثرة
+- `implementation`: الملفات التنفيذية/التشغيلية المتأثرة
 - `state`: ملفات الحالة (SYSTEM_STATE.md)
 - `roadmap`: ملفات الخارطة
 - `affected_docs`: الوثائق المتأثرة بالتغيير
@@ -133,3 +133,16 @@ shell+identity ≤ 180KB gzip · CSS مدمج ≤ 40KB gzip · حزمة مؤجل
 بوابة `check-state-sync` تتحقق من أن كل ملف تنفيذي مُصرّح به، وكل وثيقة
 مُصرّح بها معدّلة فعلًا، وكل وثيقة معدّلة مُصرّح بها. لا تُعتمد على حسن
 النية.
+
+#### ما يُعتبر implementation
+
+- الأدلة المصدرية/التنفيذية: `apps/`, `packages/`, `supabase/`, `scripts/`, `tests/`
+- إعدادات CI/النشر/البناء: `.github/workflows/`, `render.yaml`, `package.json`,
+  `bun.lock`, `tsconfig.json`, `biome.json`/`biome.jsonc`, `Dockerfile`,
+  `docker-compose.yml`, `vite.config.*`, `vitest.config.*`, `playwright.config.*`
+
+#### ما يُعتبر documentation
+
+- أي ملف تحت `docs/` (عدا manifests)
+- ملفات `.md` في جذر المستودع (مثل `README.md`, `CHANGELOG.md`)
+- لا تُصنّف الملفات غير التشغيلية خارج `docs/` عشوائيًا كوثائق
