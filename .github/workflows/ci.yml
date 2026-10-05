@@ -634,7 +634,7 @@ jobs:
       # القاعدةُ الحاكمةُ: «الكودُ + الحالةُ + التوثيقُ يتحركُ معًا.»
       - name: حاجزُ مزامنةِ الحالةِ والكودِ (حوكمةُ UI/UX REFOUNDATION)
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
         run: bun run scripts/check-state-sync.ts
 

@@ -16,7 +16,7 @@
 > مع آلية manifest للوثائق المتأثرة. 23 اختبارًا تشمل الحالات السلبية المطلوبة
 > واختبارات حل النطاق. توسيع تصنيف implementation ليشمل package.json وبقيّة
 > إعدادات البناء/الـCI، وتوسيع تصنيف documentation ليشمل ملفات .md في جذر
-> المستودع مثل README.md.
+> المستودع مثل README.md. (إصلاح نطاق CI لاستخدام PR base.sha بدلاً من before)
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
 **Last updated:** 2026-10-05 (UI-0: lint fix + bun:test import for state-sync tests)
