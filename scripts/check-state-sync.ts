@@ -354,33 +354,15 @@ if (import.meta.main) {
     .map((l) => l.trim())
     .filter(Boolean);
 
-  // Find manifest files in the diff
-  const manifestPathsInDiff = changedFiles.filter((f) => isManifestFile(f));
-
-  // Also scan docs/work-packets/ on disk — the manifest may have been committed
-  // in an earlier push within the same PR, so it might not appear in this
-  // push's diff. We read all manifests from the work tree because they
-  // describe the work packet as a whole, not just one push.
-  const diskManifestPaths: string[] = [];
-  try {
-    const { readdirSync } = require("node:fs");
-    if (existsSync(MANIFEST_GLOB)) {
-      for (const entry of readdirSync(MANIFEST_GLOB)) {
-        if (entry.endsWith(".json")) {
-          diskManifestPaths.push(`${MANIFEST_GLOB}${entry}`);
-        }
-      }
-    }
-  } catch {
-    /* no manifests on disk */
-  }
-
-  const allManifestPaths = [...new Set([...manifestPathsInDiff, ...diskManifestPaths])];
-  const onDiskManifests = readManifests(allManifestPaths);
+  // Find manifest files in the full PR diff
+  // With PR-range BASE_SHA (or merge-base fallback), manifests committed
+  // in earlier pushes within the same PR will appear in changedFiles.
+  const manifestPaths = changedFiles.filter((f) => isManifestFile(f));
+  const manifests = readManifests(manifestPaths);
 
   const result = evaluateGovernanceSync({
     changedFiles,
-    manifests: onDiskManifests,
+    manifests,
   });
 
   if (!result.ok) {
