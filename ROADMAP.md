@@ -18,6 +18,11 @@
 > إعدادات البناء/الـCI، وتوسيع تصنيف documentation ليشمل ملفات .md في جذر
 > المستودع مثل README.md. (إصلاح نطاق CI + قراءة manifest من diff كامل PR)
 
+> **UI-1 / PR 0 (2026-10-06 · Work Packet `ui-1-pr0-foundations`):** مرحلة **UI-1 (Design
+> System) = جارية — PR 0**: ADR 0233، وحاجزا `check-ui-contrast` و`check-ui-surface-inventory`،
+> و`docs/UI_SURFACE_INVENTORY.md`. لا تغيير بصري. **PR 1 لم يبدأ.** التفاصيل في
+> `docs/SYSTEM_STATE.md`.
+
 > **إغلاق UI-0 (2026-10-05 · Work Packet `ui-0-closure` — توثيقيٌّ فقط):** مرحلة
 > **UI-0 — Discovery & Reconciliation = مكتملة / Closed**. الدليل: PR #404 المدموج
 > (`d28485e`)، ونجاح CI (runs `37357260598` و`37357260691`)، و23/23 من اختبارات
@@ -27,7 +32,7 @@
 > المخاطر القائمة مسجّلة في `docs/SYSTEM_STATE.md`.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-10-05 (UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
+**Last updated:** 2026-10-06 (UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
 **Last milestone:** `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
