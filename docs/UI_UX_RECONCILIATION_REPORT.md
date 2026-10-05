@@ -131,7 +131,7 @@
 
 | المرحلة | الاسم | النطاق | الحالة |
 |---|---|---|---|
-| UI-0 | Discovery & Reconciliation | جرد كامل + مصالحة + خارطة + state-sync gate | **جارٍ (هذه الدفعة)** |
+| UI-0 | Discovery & Reconciliation | جرد كامل + مصالحة + خارطة + state-sync gate | **مكتملة / Closed — 2026-10-05** (كانت: «جارٍ (هذه الدفعة)»؛ الدليل في «إغلاق UI-0» أدناه) |
 | UI-1 | Design System | tokens + كتل ui-* + icons + feedback | لم تبدأ |
 | UI-2 | Shell & Navigation | ScreenFrame + تبويب + BackButton + ScreenTransition | لم تبدأ |
 | UI-3 | Rider Experience | R0–R15 كاملة | لم تبدأ |
@@ -143,14 +143,57 @@
 | UI-9 | RTL / A11y / Responsive / Performance | اختبارات شاملة | لم تبدأ |
 | UI-10 | Production Verification & Polish | تحقق حي + صقل | لم تبدأ |
 
+### جدول الربط: مراحل UI-0 → UI-10 ↔ خطة PR 0 → PR 11
+
+المرجع الوحيد لربط الترقيمين. خطة الـPRs هي §11 في `docs/UI_UX_CANONICAL_DIRECTIVE.md`
+(§15 في v2.0)، والمراحل هي الجدول أعلاه. لا يغيّر هذا الجدول مضمون أيٍّ منهما؛
+يصرّح فقط بالانتماء. **تنبيه: «PR 0» ليس «UI-0»** — PR 0 هو أول PR في UI-1.
+
+| المرحلة | PRs من خطة §11 | ملاحظة |
+|---|---|---|
+| UI-0 Discovery & Reconciliation | — (لا PR من الخطة) | نُفّذت خارج الخطة: PR #404 (الدمج `d28485e`) + دفعة الإغلاق `ui-0-closure` |
+| UI-1 Design System | PR 0، PR 1 | PR 0: قرارات ADRs + اختبار تباين + جرد أسطح · PR 1: رموز CSS + كتل ui-* + icons + feedback |
+| UI-2 Shell & Navigation | PR 2 | ScreenFrame + تبويب + BackButton + Transition |
+| UI-3 Rider Experience | PR 3، PR 4، PR 5 | R0–R5 · R6–R10 · R11–R15 + [B] |
+| UI-4 Driver Experience | PR 6، PR 7 | D0–D7 · D8–D14 |
+| UI-5 Telegram Experience | PR 8 | تيليجرام §9 |
+| UI-6 Admin Operations Console | PR 9 | إدارة §10 |
+| UI-7 Public Tracking | PR 10 | تتبّع عام §11 |
+| UI-8 Truth & State System | — (لا PR مستقل في الخطة) | مكوّن `ui-truth` ضمن PR 1، و«شريط حقيقة» ضمن شرط قبول PR 4 |
+| UI-9 RTL / A11y / Responsive / Performance | — (لا PR مستقل في الخطة) | شروط القبول موزّعة: أداء + تباين في PR 1، RTL + قياس في PR 2 |
+| UI-10 Production Verification & Polish | PR 11 | صقل وقبول §12 + §13: مصفوفة QA + SYSTEM_STATE + الأفكار التسع |
+
+**فجوة مسجّلة لا تُحسم هنا:** UI-8 وUI-9 ليس لهما PR مستقل في خطة §11. هل تبقيان
+مرحلتين عرضيّتين تُغلقان بأدلة من PRs أخرى، أم يُضاف لهما PR؟ هذا قرار مالك قبل
+الوصول إليهما، ولا يمنع UI-1.
+
+### إغلاق UI-0 (2026-10-05)
+
+- **الدمج:** PR #404 «UI-0: Discovery & Reconciliation + state-sync gate» دُمج في
+  `main` بتاريخ 2026-10-05T18:36:43Z، commit الدمج `d28485e`.
+- **CI على `d28485e`:** `CI` (push) run `37357260598` = success · `Roadmap freshness`
+  run `37357260691` = success. فحوص PR #404 كلها success (verify، roadmap، تكامل
+  PostgreSQL وRedis، المتصفّح الحقيقي، F5-06، F9-03).
+- **بوابة الحوكمة:** `bun test tests/unit/check-state-sync.test.ts` = 23 pass / 0 fail.
+  `check-state-sync` على نطاق `d28485e~1..d28485e` = متزامنة (4 ملفات تنفيذية +
+  state + roadmap + manifest `ui-0-governance-hardening` + affected docs).
+- **قياس محلي على `d28485e`:** lint نظيف · typecheck نظيف · 6224 اختبار وحدة
+  ناجح / 0 فشل.
+- **ما لا يُدّعى:** لم يُتحقق من نقل الملفات المصدرية الثلاثة (lTryq.txt وملفّي
+  PDF) لأنها ليست في المستودع؛ ولم يُغيَّر كود المنتج في UI-0.
+
 ### الخطوة التالية الوحيدة
 
 **إغلاق UI-0** (هذه الدفعة) ثم **بدء UI-1 (Design System)** — PR 0 (قرارات وأسس) ثم PR 1 (رموز CSS + كتل ui-*).
+
+> **تحديث 2026-10-05 (إضافة لا محو):** UI-0 أُغلقت (انظر أعلاه). UI-1 **لم تبدأ**،
+> وبدؤها ينتظر توجيهًا صريحًا من المالك.
 
 ### درجة الثقة
 
 - القرارات التصميمية: عالية (الملفات الثلاثة متّفقة).
 - حالة المستودع: متوسطة (قراءة بالتجميع، لم يُتحقق سطرًا بسطر).
 - CI: غير مثبت (لم يُشغّل حيًا).
+  - **تصحيح 2026-10-05 (إضافة):** CI صار مثبتًا لـ UI-0 — runs `37357260598` و`37357260691` على `d28485e` = success.
 - Branch protection: غير مفعّل (يتطلب قرار مالك).
 - النشر: غير مثبت (render.yaml موجود لكن لم يُتحقق من النشر الحي).

@@ -18,8 +18,16 @@
 > إعدادات البناء/الـCI، وتوسيع تصنيف documentation ليشمل ملفات .md في جذر
 > المستودع مثل README.md. (إصلاح نطاق CI + قراءة manifest من diff كامل PR)
 
+> **إغلاق UI-0 (2026-10-05 · Work Packet `ui-0-closure` — توثيقيٌّ فقط):** مرحلة
+> **UI-0 — Discovery & Reconciliation = مكتملة / Closed**. الدليل: PR #404 المدموج
+> (`d28485e`)، ونجاح CI (runs `37357260598` و`37357260691`)، و23/23 من اختبارات
+> `check-state-sync`. جدول المراحل النشط (UI-0 → UI-10) وجدول ربطه بخطة PR 0 → PR 11
+> موجودان في `docs/UI_UX_RECONCILIATION_REPORT.md` §H. **«PR 0» هو أول PR في UI-1،
+> وليس UI-0.** المرحلة التالية: UI-1 (Design System) — **لم تبدأ**، وتنتظر توجيه المالك.
+> المخاطر القائمة مسجّلة في `docs/SYSTEM_STATE.md`.
+
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-10-05 (UI-0: lint fix + bun:test import for state-sync tests)
+**Last updated:** 2026-10-05 (UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
 **Last milestone:** `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
