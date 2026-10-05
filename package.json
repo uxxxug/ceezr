@@ -84,7 +84,7 @@
     "check:support-volume-budget": "bun run scripts/check-support-volume-budget.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.7",
+    "@biomejs/biome": "^2.5.15",
     "@types/bun": "1.4.2",
     "typescript": "^7.0.2"
   },
