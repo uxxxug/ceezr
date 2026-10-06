@@ -9,6 +9,7 @@
     "apps/miniapp/src/surfaces/rider/home/HomeScreen.tsx",
     "apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx",
     "apps/miniapp/src/surfaces/rider/quote/quote-view.test.ts",
+    "apps/miniapp/src/surfaces/rider/rider-flow.ts",
     "apps/miniapp/src/surfaces/rider/rider-root-screen-stack.test.tsx",
     "packages/shared/i18n/miniapp/ar.json",
     "packages/shared/i18n/miniapp/en.json",

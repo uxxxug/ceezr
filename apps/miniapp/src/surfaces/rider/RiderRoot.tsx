@@ -118,34 +118,36 @@
  * ## وصلُ UI-3 / PR 3 (2026-10-06)
  *
  * صارَت خطواتُ الراكبِ R0–R5 تبدأُ بعدَ حاجزِ الترحيبِ كما كانت، ثمَّ يستخدمُ
- * `useScreenStack` للانتقالِ بينِ `home → destination → quote`، ويغلِقُ مكدّسَ
+ * `مكدّسَ UI-2 (`screenStackReducer` داخلَ `rider-flow.ts`) للانتقالِ بينِ `home → destination → quote`، ويغلِقُ مكدّسَ
  * التدفّقِ حينَ تُسلَّمُ نيّةُ الطلبِ إلى شاشةِ البحثِ R6. إطارُ الجذرِ يحملُ
  * التبويباتِ الأربعَ من القاموسِ، وإطارا الوجهةِ والاقتباسِ يحملانِ رجوعاً واحداً؛
  * وما بعدَ R5 يبقى على حالاتِ `useState` القديمةِ في نطاقِ PR4.
  */
 
-import { lazy, type ReactNode, Suspense, useEffect, useState } from "react";
+import { lazy, type ReactNode, Suspense, useEffect, useMemo, useReducer, useState } from "react";
 import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../packages/shared/i18n/miniapp/core.ts";
 import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
-import type { ROOT_TABS, RootTabId } from "../../shell/root-tabs.ts";
+import type { ROOT_TABS } from "../../shell/root-tabs.ts";
 import { RootTabBar, ScreenFrame, ScreenTransition } from "../../shell/ScreenFrame.tsx";
-import { useScreenStack } from "../../shell/screen-stack.ts";
+import { currentScreenKey } from "../../shell/screen-stack.ts";
 import { Skeleton } from "../../system/Skeleton.tsx";
-import type { ConfirmedDestination } from "./destination/DestinationScreen.tsx";
 import { DestinationScreen } from "./destination/DestinationScreen.tsx";
 import { riderEntryState } from "./entry-view.ts";
-import type { ChosenDestination } from "./home/HomeScreen.tsx";
 import { HomeScreen } from "./home/HomeScreen.tsx";
 import { QuoteScreen } from "./quote/QuoteScreen.tsx";
+import {
+  initialRiderFlow,
+  type RiderRootTab,
+  riderFlowHandlers,
+  riderFlowReducer,
+  riderFlowView,
+} from "./rider-flow.ts";
 import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
 import { SosScreen } from "./sos/SosScreen.tsx";
 import { WelcomeScreen } from "./welcome/WelcomeScreen.tsx";
-
-type RiderRootTab = RootTabId<"rider">;
-type RiderFlowScreen = "destination" | "quote";
 
 /**
  * `F1-09` · `D-30` — تقسيمُ القسمِ 9.4 الإلزاميُّ: `rider-ride` (البحثُ والرحلةُ النشطةُ والملخّصُ والتقييمُ ومعَها قناةُ
@@ -204,7 +206,10 @@ function Deferred({ children }: { readonly children: ReactNode }) {
 
 export default function RiderRoot({ language, onLanguageChanged, entry }: LanguageSurfaceProps) {
   const [proceeded, setProceeded] = useState(false);
-  const stack = useScreenStack<RiderRootTab, RiderFlowScreen>("home");
+  // R3–R5: آلةُ الحالةِ النقيّةُ في `rider-flow.ts` (مكدّسُ UI-2 + الاختيارُ + المصادقةُ).
+  const [flow, dispatchFlow] = useReducer(riderFlowReducer, undefined, initialRiderFlow);
+  const stack = flow.stack;
+  const stackKey = currentScreenKey(stack);
   const t = miniAppTranslator(language);
   // `ADR 0213`: هدفُ الهبوطِ يُقرأُ مرّةً للحالةِ الأولى — وما بعدَها ملاحةُ المستخدمِ لا الرابطِ.
   const [landing] = useState(() => riderEntryState(entry));
@@ -213,19 +218,20 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     const timer = setTimeout(prefetchDeferredRiderScreens, 0);
     return () => clearTimeout(timer);
   }, []);
-  const [chosen, setChosen] = useState<ChosenDestination | null>(null);
+  // الوجهةُ المختارةُ والمُصادَقةُ صارتا في `flow` (`rider-flow.ts`)، ويبقى حكمُهما:
   /**
    * الوجهةُ **المُصادَقةُ** — لا المختارةُ. ولا تُدمَجُ معَ `chosen`: الأولى مرَّت
    * بحكمِ القاعدةِ والثانيةُ نصٌّ اختارَه الراكبُ، وخلطُهما يُمكِّنُ من اقتباسٍ عن
    * نقطةٍ لم يحكمْ عليها أحدٌ (القاعدة 0.5).
    */
-  const [confirmed, setConfirmed] = useState<ConfirmedDestination | null>(null);
   /**
    * نيّةُ الطلبِ — خدمةٌ وانطلاقٌ ووجهةٌ وملاحظةٌ **ومفتاحُ تكرارٍ**. ولا تُدمَجُ
    * معَ `confirmed`: الوجهةُ حكمٌ مضى، والنيّةُ أمرٌ لم يُنفَّذْ بعدُ. وبقاءُ
    * المفتاحِ في هذه الحالةِ هوَ ما يجعلُ إعادةَ المحاولةِ **المحاولةَ نفسَها**.
    */
   const [intent, setIntent] = useState<SearchScreenIntent | null>(null);
+  const flowHandlers = useMemo(() => riderFlowHandlers(dispatchFlow, setIntent), []);
+  const clearFlow = () => dispatchFlow({ type: "clear" });
   /**
    * الرحلةُ المُتابَعةُ (`F2-06`) — معرّفٌ لا نيّةٌ ولا حالةٌ. ولا يُدمَجُ معَ
    * `intent`: النيّةُ أمرٌ قد يُرفَضُ، والمعرّفُ رحلةٌ **قائمةٌ في القاعدةِ**.
@@ -308,7 +314,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
   const onOpenSupport = () => setSupport({ orderId: null });
   const onOpenAccount = () => setAccount(true);
   const selectRootTab = (tab: RiderRootTab) => {
-    stack.selectTab(tab);
+    dispatchFlow({ type: "selectTab", tab });
     switch (tab) {
       case "home":
         break;
@@ -334,7 +340,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
       surface="rider"
       label={t("rider.tabs.navigation")}
       labels={tabLabels}
-      active={stack.state.tab}
+      active={stack.tab}
       onSelect={selectRootTab}
     />
   );
@@ -488,8 +494,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
             setSummarized(null);
             setFollowed(null);
             setIntent(null);
-            setConfirmed(null);
-            setChosen(null);
+            clearFlow();
           }}
         />
       </Deferred>
@@ -507,8 +512,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
           onBack={() => {
             setFollowed(null);
             setIntent(null);
-            setConfirmed(null);
-            setChosen(null);
+            clearFlow();
           }}
         />
       </Deferred>
@@ -526,8 +530,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
           onActiveRide={(orderId) => setFollowed(orderId)}
           onBack={() => {
             setIntent(null);
-            setConfirmed(null);
-            setChosen(null);
+            clearFlow();
           }}
         />
       </Deferred>
@@ -535,14 +538,16 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
   }
 
   // الوجهةُ المُصادَقةُ تُقتبَسُ: أوّلُ شاشةٍ بعدَ الحكمِ، ولا تُركَّبُ إلّا بعدَه.
-  if (stack.current === "quote" && confirmed !== null) {
+  const view = riderFlowView(flow);
+  if (view.screen === "quote") {
+    const { confirmed } = view;
     return (
       <ScreenFrame
         mode="flow"
         title={t("rider.quote.title")}
-        back={{ label: t("rider.quote.back"), onBack: stack.pop }}
+        back={{ label: t("rider.quote.back"), onBack: flowHandlers.onBack }}
       >
-        <ScreenTransition screenKey={stack.currentKey} motion={stack.state.motion}>
+        <ScreenTransition screenKey={stackKey} motion={stack.motion}>
           <QuoteScreen
             destination={{
               label: confirmed.label,
@@ -552,12 +557,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
             initialLanguage={language}
             showTitle={false}
             onOpenSos={onOpenSos}
-            onRequest={(picked) => {
-              stack.reset();
-              setConfirmed(null);
-              setChosen(null);
-              setIntent(picked);
-            }}
+            onRequest={flowHandlers.onRequest}
           />
         </ScreenTransition>
       </ScreenFrame>
@@ -566,14 +566,15 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
 
   // الوجهةُ المختارةُ تُصادَقُ قبلَ أيِّ خطوةٍ تاليةٍ: لا شاشةَ بعدَها تقبلُ
   // إحداثيّةً لم تحكمْ عليها القاعدةُ (القاعدة 0.5).
-  if (stack.current === "destination" && chosen !== null) {
+  if (view.screen === "destination") {
+    const { chosen } = view;
     return (
       <ScreenFrame
         mode="flow"
         title={t("rider.destination.title")}
-        back={{ label: t("rider.destination.back"), onBack: stack.pop }}
+        back={{ label: t("rider.destination.back"), onBack: flowHandlers.onBack }}
       >
-        <ScreenTransition screenKey={stack.currentKey} motion={stack.state.motion}>
+        <ScreenTransition screenKey={stackKey} motion={stack.motion}>
           <DestinationScreen
             initialQuery={chosen.lat === null || chosen.lng === null ? chosen.label : ""}
             {...(chosen.lat === null || chosen.lng === null
@@ -582,10 +583,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
             initialLanguage={language}
             showTitle={false}
             onOpenSos={onOpenSos}
-            onConfirmed={(destination) => {
-              setConfirmed(destination);
-              stack.push("quote");
-            }}
+            onConfirmed={flowHandlers.onConfirmed}
           />
         </ScreenTransition>
       </ScreenFrame>
@@ -597,14 +595,11 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
   // «الأماكنُ فارغةٌ» و«لا وجهاتَ» و«لا خريطةَ» تُقالُ مفاتيحَ لا بياضاً.
   return (
     <ScreenFrame mode="root" title={t("rider.home.title")} tabs={rootTabs}>
-      <ScreenTransition screenKey={stack.currentKey} motion={stack.state.motion}>
+      <ScreenTransition screenKey={stackKey} motion={stack.motion}>
         <HomeScreen
           initialLanguage={language}
           showTitle={false}
-          onDestinationChosen={(picked) => {
-            setChosen(picked);
-            stack.push("destination");
-          }}
+          onDestinationChosen={flowHandlers.onDestinationChosen}
           onOpenHistory={onOpenHistory}
           onOpenLostFound={() => setLostFound(true)}
           onOpenNotifications={() => setNotificationsOpen(true)}
