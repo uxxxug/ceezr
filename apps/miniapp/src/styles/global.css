@@ -6965,3 +6965,103 @@ body {
     animation-duration: 2400ms;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   UI-2 / PR 2 — الهيكلُ والتنقّل (§6 · §11 · ADR 0234)
+   عناصرُ جديدةٌ في كتلةِ `app-frame` القائمةِ — لا بادئةَ جديدةٌ ولا نظامٌ موازٍ.
+   CSS مسطّحٌ: لا @layer، لا تداخلٌ، لا !important. خصائصُ منطقيّةٌ لـRTL.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── التبويبُ الجذريُّ (§6): أربعةُ أزرارٍ متساويةٍ، 44px لمساً، والترتيبُ يتبعُ الاتجاه ── */
+.app-frame__tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding-block-start: 0.25rem;
+  border-block-start: 1px solid var(--tg-section-separator-color);
+  background: var(--tg-bg-color);
+}
+
+.app-frame__tab {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding-inline: 0.25rem;
+  border: 0;
+  border-block-start: 2px solid transparent;
+  background: transparent;
+  color: var(--ui-mute);
+  font: inherit;
+  font-size: var(--ui-size-label);
+  line-height: var(--ui-line-label);
+  font-weight: var(--ui-weight-label);
+  cursor: pointer;
+}
+
+/* النشطُ يُعرَفُ بالحدِّ واللونِ معاً، و`aria-current` يقولُه للقارئِ الآليّ. */
+.app-frame__tab--on {
+  border-block-start-color: var(--ui-brand);
+  color: var(--tg-text-color);
+}
+
+.app-frame__tab:focus-visible {
+  outline: 2px solid var(--ui-brand);
+  outline-offset: 2px;
+}
+
+/* ── ScreenTransition: حاوي الشاشةِ يُركَّزُ برمجيّاً (tabindex=-1) فلا إطارَ تركيزٍ له ── */
+.app-frame__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.app-frame__screen:focus {
+  outline: none;
+}
+
+/* التقدّمُ يدخلُ من جهةِ نهايةِ السطر، والرجوعُ من بدايتِه؛ وRTL يقلبُ الإزاحة. */
+.app-frame__screen--forward {
+  animation: app-frame-enter-end 200ms ease-out;
+}
+
+.app-frame__screen--back {
+  animation: app-frame-enter-start 200ms ease-out;
+}
+
+[dir="rtl"] .app-frame__screen--forward {
+  animation-name: app-frame-enter-start;
+}
+
+[dir="rtl"] .app-frame__screen--back {
+  animation-name: app-frame-enter-end;
+}
+
+@keyframes app-frame-enter-end {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes app-frame-enter-start {
+  from {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* الانتقالُ زخرفةٌ لا معلومة: يُلغى كلُّه عندَ تقليلِ الحركة. */
+@media (prefers-reduced-motion: reduce) {
+  .app-frame__screen--forward,
+  .app-frame__screen--back {
+    animation: none;
+  }
+}
