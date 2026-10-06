@@ -1,0 +1,8 @@
+{
+  "id": "sec-15-source-map-js-1-2-2",
+  "implementation": ["bun.lock"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [],
+  "no_other_affected_docs_reason": "إصلاحٌ أمنيٌّ مستقلٌّ خارجَ UI-1: سطرٌ واحدٌ في bun.lock يرفعُ source-map-js العابرةَ (vite@8.3.1 → postcss@8.5.28 → source-map-js ^1.2.1) من 1.2.1 إلى 1.2.2 داخلَ المدى نفسِه لعلاجِ GHSA-68fv-2mgg-jv7q. لا تغييرَ في package.json ولا في أيِّ تبعيّةٍ أخرى ولا في lockfileVersion، ولا إقرارَ أمنيٌّ. حاجزُ SEC-15 (scripts/check-dependency-advisories.ts) وقواعدُه وADR 0150 لم تتغيّر، ودليلُ docs/evidence/security/SEC-15-DEPENDENCY-ADVISORIES-20260920.md لقطةٌ مؤرَّخةٌ لا تُعدَّل. لا UI ولا عقودَ ولا خادم."
+}
