@@ -350,19 +350,23 @@ function actions(profile: DriverDetailProfile, csrfToken: string): string {
   )}">`;
   const nextVerification = profile.verificationStatus === "verified" ? "suspended" : "verified";
   const verificationLabel = profile.verificationStatus === "verified" ? "تعليق" : "توثيق";
-  return `<form class="inline" method="post" action="/admin/drivers/${escapeHtml(
-    profile.driverId,
-  )}/verification">
+  const suspends = nextVerification === "suspended";
+  const name = profile.fullName ?? profile.telegramId;
+  return `<form class="inline" method="post"${
+    suspends ? ` data-confirm="${escapeHtml(`تعليقُ توثيقِ «${name}»؟`)}"` : ""
+  } action="/admin/drivers/${escapeHtml(profile.driverId)}/verification">
   ${csrf}
   ${back}
   <input type="hidden" name="status" value="${escapeHtml(nextVerification)}">
-  <button type="submit">${escapeHtml(verificationLabel)}</button>
+  <button type="submit"${suspends ? ' class="danger"' : ""}>${escapeHtml(verificationLabel)}</button>
 </form>
-<form class="inline" method="post" action="/admin/users/${escapeHtml(profile.userId)}/blocked">
+<form class="inline" method="post"${
+    profile.isBlocked ? "" : ` data-confirm="${escapeHtml(`حظرُ حسابِ «${name}»؟`)}"`
+  } action="/admin/users/${escapeHtml(profile.userId)}/blocked">
   ${csrf}
   ${back}
   <input type="hidden" name="blocked" value="${profile.isBlocked ? "0" : "1"}">
-  <button class="ghost" type="submit">${profile.isBlocked ? "رفع الحظر" : "حظر"}</button>
+  <button class="${profile.isBlocked ? "ghost" : "danger"}" type="submit">${profile.isBlocked ? "رفع الحظر" : "حظر"}</button>
 </form>`;
 }
 

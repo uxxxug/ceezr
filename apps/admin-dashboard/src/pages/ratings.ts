@@ -110,7 +110,7 @@ export function renderRatingsPage(data: RatingsPageData): string {
     row.comment === null ? EMPTY_CELL : escapeHtml(row.comment),
     row.isFlagged
       ? badge("مُعلَّم", "warn")
-      : `<form class="inline" method="post" action="/admin/ratings/${escapeHtml(row.ratingId)}/flag">
+      : `<form class="inline" method="post" data-confirm="تعليمُ هذا التقييمِ إساءةً؟" action="/admin/ratings/${escapeHtml(row.ratingId)}/flag">
   <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
   <button class="ghost" type="submit">تعليم إساءة</button>
 </form>`,
@@ -136,7 +136,7 @@ export function renderRatingsPage(data: RatingsPageData): string {
   </label>
   <button type="submit">تطبيق</button>
 </form>
-<div class="cards" style="margin-bottom:16px">${cards}</div>
+<div class="cards cards--spaced">${cards}</div>
 ${section(
   "آخر التقييمات",
   table({

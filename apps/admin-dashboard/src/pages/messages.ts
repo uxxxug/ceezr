@@ -108,15 +108,17 @@ function renderSpecimen(s: MessagesPageSpecimen, data: MessagesPageData): string
 }
 
 export function renderMessagesPage(data: MessagesPageData): string {
-  const intro = section(
-    "معرض الرسائل",
-    `<p class="note">${escapeHtml(
-      `${data.specimens.length} رسالة مولَّدة من الكود الإنتاجي نفسه ببيانات نموذجية. «أرسلها لي» يرسلها إلى محادثتك الخاصة فقط بالبوت الذي يرسلها في الواقع؛ رسائل القروبات تصلك كما تظهر في القروب. الأزرار تحمل معرّفات وهمية فلا يغيّر ضغطها شيئاً.`,
-    )}</p>
+  const intro =
+    `<h1>معرض الرسائل</h1>` +
+    section(
+      "عن المعرض",
+      `<p class="note">${escapeHtml(
+        `${data.specimens.length} رسالة مولَّدة من الكود الإنتاجي نفسه ببيانات نموذجية. «أرسلها لي» يرسلها إلى محادثتك الخاصة فقط بالبوت الذي يرسلها في الواقع؛ رسائل القروبات تصلك كما تظهر في القروب. الأزرار تحمل معرّفات وهمية فلا يغيّر ضغطها شيئاً.`,
+      )}</p>
 <nav class="chips">${data.audiences
-      .map((a) => `<a class="chip" href="#aud-${escapeHtml(a.id)}">${escapeHtml(a.label)}</a>`)
-      .join("")}<a class="chip" href="#catalog">القاموس الكامل</a></nav>`,
-  );
+        .map((a) => `<a class="chip" href="#aud-${escapeHtml(a.id)}">${escapeHtml(a.label)}</a>`)
+        .join("")}<a class="chip" href="#catalog">القاموس الكامل</a></nav>`,
+    );
   const groups = data.audiences
     .map((audience) => {
       const items = data.specimens.filter((s) => s.audience === audience.id);

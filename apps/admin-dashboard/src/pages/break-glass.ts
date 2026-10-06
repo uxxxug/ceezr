@@ -10,7 +10,7 @@
  *   وWebAuthn بديلٌ أقوى مسجَّلٌ في ADR 0176 §٧.
  */
 
-import { escapeHtml } from "../layout.ts";
+import { escapeHtml, section } from "../layout.ts";
 
 export interface BreakGlassPageData {
   readonly csrfToken: string;
@@ -27,22 +27,27 @@ export interface BreakGlassPageData {
   readonly otpauthUri?: string | undefined;
 }
 
+/**
+ * UI-6 / PR 9: البابُ عملٌ خطِرٌ متعمَّد — فالصفحةُ مقسومةٌ إلى «الحالة» ثم «التسجيل/
+ * التدوير» ثم «منطقةُ الخطر» (التعطيل) منفصلةً ببصرِها، ولكلِّ فعلٍ يمسُّ اعتماداً
+ * قائماً نيّةٌ صريحةٌ (`data-confirm`). والخادمُ يبقى الحَكَم: CSRF والجلسةُ وحدُّ المعدّل.
+ */
 export function renderBreakGlassPage(data: BreakGlassPageData): string {
   const alert =
     data.error === undefined
       ? ""
-      : `<div class="notice notice--error">${escapeHtml(data.error)}</div>`;
+      : `<div role="alert" class="notice notice--error">${escapeHtml(data.error)}</div>`;
   const okNotice =
     data.notice === undefined
       ? ""
-      : `<div class="notice notice--ok">${escapeHtml(data.notice)}</div>`;
+      : `<div role="status" class="notice notice--ok">${escapeHtml(data.notice)}</div>`;
   const otpauth =
     data.otpauthUri === undefined
       ? ""
-      : `<div class="notice notice--ok">
+      : `<div role="status" class="notice notice--ok">
 <p><strong>خطوة أخيرة — اضبط تطبيق المصادقة الآن.</strong></p>
 <p>أضِف الحساس في تطبيق المصادقة (Google Authenticator أو غيره) برابط الضبط هذا، أو أدخِل السرّ يدويًا:</p>
-<p class="mono" style="word-break:break-all">${escapeHtml(data.otpauthUri)}</p>
+<p class="mono mono--wrap">${escapeHtml(data.otpauthUri)}</p>
 <p class="note">هذا الرابط يُعرَض الآن فقط ولن يظهر مرة أخرى. انسخه أو اضبط التطبيق قبل مغادرة الصفحة.</p>
 </div>`;
 
@@ -50,31 +55,39 @@ export function renderBreakGlassPage(data: BreakGlassPageData): string {
     ? `<p>حالك: اعتمادٌ فعّالٌ باسمِ <span class="mono">${escapeHtml(data.loginName ?? "")}</span>. نداءُ التسجيلِ مرةً أخرى يُدوّرُ الاعتمادَ (يستبدلُ كلمةَ السرِّ والسرِّ معًا) ويُصفّرُ عدّادَ الإقفال.</p>`
     : "<p>حالك: لا اعتمادَ مسجّلًا. البابُ مغلقٌ أمامَك حتّى تُسجّلَ اعتمادًا من ههنا.</p>";
 
+  const rotateConfirm = data.hasActiveCredential
+    ? ' data-confirm="التسجيلُ يُدوّرُ اعتمادَك الحاليَّ: كلمةُ السرِّ والسرُّ القديمانِ يبطلانِ فوراً. متابعة؟"'
+    : "";
+
   const disableForm = data.hasActiveCredential
-    ? `<form method="post" action="/admin/break-glass/disable">
+    ? section(
+        "منطقة الخطر",
+        `<form method="post" data-confirm="تعطيلُ البابِ يُطفئ اعتمادَك الحالي؛ وقتَ تعطّلِ تلغرام لن تدخلَ من هنا حتى تُسجِّلَ من جديد. متابعة؟" action="/admin/break-glass/disable">
   <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
-  <button type="submit">تعطيلُ البابِ (يُطفئ الاعتمادَ الحاليَّ)</button>
-</form>`
+  <button type="submit" class="danger danger--solid">تعطيلُ البابِ (يُطفئ الاعتمادَ الحاليَّ)</button>
+</form>`,
+        "فعلٌ متعمَّدٌ لا يُسترجَعُ بنقرة: الاعتمادُ المعطَّلُ لا يعودُ إلا بتسجيلٍ جديد.",
+      ).replace('<section class="block">', '<section class="block danger-zone">')
     : "";
 
   return `<h1>بابُ النجاة — دخولٌ بلا تلغرام</h1>
 ${alert}${okNotice}
 <p class="note">تسجيلُ الاعتمادِ هنا ممكنٌ من داخلِ جلسةِ مسؤولٍ قائمةٍ فقط — فإثباتُ الهويّةِ الأولُ هو تلغرام، وهذا البابُ عاملٌ ثانٍ عليه لا بديلٌ عنه (ADR 0176). وقتَ تعطّلِ تلغرام يدخلُ المسجّلونَ من صفحةِ الدخولِ بوصلةِ «تعطّل تلغرام؟».</p>
 ${otpauth}
-${status}
-<h2>تسجيلُ اعتمادٍ جديدٍ أو تدويرُ الحاليِّ</h2>
-<form method="post" action="/admin/break-glass">
+${section("الحالة", status)}
+${section(
+  "تسجيلُ اعتمادٍ جديدٍ أو تدويرُ الحاليِّ",
+  `<form method="post"${rotateConfirm} action="/admin/break-glass" class="login-like">
   <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
-  <label for="login_name">اسمُ الدخول (حروفٌ لاتينيّةٌ صغيرةٌ وأرقامٌ وشرطاتٌ، 3 محارفٍ فأكثر)
+  <div class="stack"><label for="login_name">اسمُ الدخول (حروفٌ لاتينيّةٌ صغيرةٌ وأرقامٌ وشرطاتٌ، 3 محارفٍ فأكثر)</label>
     <input id="login_name" name="login_name" pattern="[a-z0-9_-]{3,64}" maxlength="64" required
-           autocomplete="username"${data.loginName === null ? "" : ` value="${escapeHtml(data.loginName)}"`}>
-  </label>
-  <label for="password">كلمةُ السرّ (12 محرفًا فأكثر — لا تُعادُ طباعتُها أبدًا)
+           autocomplete="username"${data.loginName === null ? "" : ` value="${escapeHtml(data.loginName)}"`}></div>
+  <div class="stack"><label for="password">كلمةُ السرّ (12 محرفًا فأكثر — لا تُعادُ طباعتُها أبدًا)</label>
     <input id="password" name="password" type="password" minlength="12" maxlength="200" required
-           autocomplete="new-password">
-  </label>
+           autocomplete="new-password"></div>
   <button type="submit">تسجيلُ الاعتمادِ</button>
-</form>
-<p class="note">بعدَ التسجيلِ يُعرضُ رابطُ ضبطِ تطبيقِ المُصادقةِ (رموزُ TOTP كلَّ 30 ثانيةً) مرّةً واحدةً. اضبطِ التطبيقَ فورًا: من دون رموزِهِ لا يكتملُ الدخولُ من البابِ.</p>
+</form>`,
+  "بعدَ التسجيلِ يُعرضُ رابطُ ضبطِ تطبيقِ المُصادقةِ (رموزُ TOTP كلَّ 30 ثانيةً) مرّةً واحدةً. اضبطِ التطبيقَ فورًا: من دون رموزِهِ لا يكتملُ الدخولُ من البابِ.",
+)}
 ${disableForm}`;
 }
