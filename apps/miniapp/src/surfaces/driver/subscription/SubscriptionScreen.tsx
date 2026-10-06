@@ -84,6 +84,8 @@ const HISTORY_LIMIT = 20;
 export interface SubscriptionScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   readonly readDashboard?: () => Promise<ApiDriverSubscriptionDashboardResponse>;
   readonly readHistory?: (limit: number) => Promise<ApiDriverSubscriptionHistoryResponse>;
   readonly renewSubscription?: (plan: string) => Promise<ApiDriverSubscriptionRenewalResponse>;
@@ -140,6 +142,7 @@ function codeOf(thrown: unknown): string {
 export function SubscriptionScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   readDashboard = readDriverSubscriptionDashboard,
   readHistory = readDriverSubscriptionHistory,
   renewSubscription = renewDriverSubscription,
@@ -206,10 +209,16 @@ export function SubscriptionScreen({
 
   if (dashboard.kind === "loading") {
     return (
-      <section className="dsub" aria-labelledby={`${formId}-title`} aria-busy="true">
-        <h1 id={`${formId}-title`} className="dsub__title">
-          {t("driver.subscription.title")}
-        </h1>
+      <section
+        className="dsub"
+        aria-labelledby={showTitle ? `${formId}-title` : undefined}
+        aria-busy="true"
+      >
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dsub__title">
+            {t("driver.subscription.title")}
+          </h1>
+        ) : null}
         <p className="dsub__loading">{t("driver.subscription.loading")}</p>
       </section>
     );
@@ -217,10 +226,12 @@ export function SubscriptionScreen({
 
   if (dashboard.kind === "failed") {
     return (
-      <section className="dsub" aria-labelledby={`${formId}-title`}>
-        <h1 id={`${formId}-title`} className="dsub__title">
-          {t("driver.subscription.title")}
-        </h1>
+      <section className="dsub" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dsub__title">
+            {t("driver.subscription.title")}
+          </h1>
+        ) : null}
         <EmptyState
           title={t("driver.subscription.failed")}
           body={t(subscriptionErrorKey(dashboard.code))}
@@ -242,10 +253,12 @@ export function SubscriptionScreen({
   const board = dashboard.dashboard;
 
   return (
-    <section className="dsub" aria-labelledby={`${formId}-title`}>
-      <h1 id={`${formId}-title`} className="dsub__title">
-        {t("driver.subscription.title")}
-      </h1>
+    <section className="dsub" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+      {showTitle ? (
+        <h1 id={`${formId}-title`} className="dsub__title">
+          {t("driver.subscription.title")}
+        </h1>
+      ) : null}
 
       {board.hasSubscription ? (
         <>

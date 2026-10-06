@@ -37,6 +37,8 @@ import {
 export interface VehicleScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   readonly readVehicle?: () => Promise<ApiDriverVehicleResponse>;
   readonly readAssets?: () => Promise<ApiDriverVehicleAssetsReadResponse>;
 }
@@ -63,6 +65,7 @@ function codeOf(thrown: unknown): string {
 export function VehicleScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   readVehicle = readDriverVehicle,
   readAssets = readDriverVehicleAssets,
 }: VehicleScreenProps) {
@@ -126,9 +129,12 @@ export function VehicleScreen({
   }, [vehicleType, plateNumber, vehicleYear, load]);
 
   return (
-    <section aria-labelledby="vehicle-screen-title" className="dveh__screen">
+    <section
+      aria-labelledby={showTitle ? "vehicle-screen-title" : undefined}
+      className="dveh__screen"
+    >
       <header className="dveh__header">
-        <h1 id="vehicle-screen-title">{t("driver.vehicle.title")}</h1>
+        {showTitle ? <h1 id="vehicle-screen-title">{t("driver.vehicle.title")}</h1> : null}
         {onBack !== undefined && (
           <button type="button" className="dveh__back" onClick={onBack}>
             {t("driver.vehicle.back")}

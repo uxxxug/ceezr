@@ -1367,5 +1367,19 @@
   "rider.quote.offer.label": "آپ کتنی رقم دیں گے (اختیاری)",
   "rider.quote.offer.placeholder": "مثلاً 40",
   "rider.quote.offer.hint": "یہ ڈرائیور کو آرڈر کارڈ پر دکھائی دے گی: «ادائیگی: 40 ریال»۔ خالی چھوڑیں تو «قابلِ گفت و شنید» دکھے گا۔ حتمی اتفاق آپ اور ڈرائیور کے درمیان ہے؛ وصلہ کوئی رقم وصول نہیں کرتا۔",
-  "rider.quote.offer.error": "1 سے 10000 تک ریال میں درست رقم لکھیں، یا خالی چھوڑ دیں۔"
+  "rider.quote.offer.error": "1 سے 10000 تک ریال میں درست رقم لکھیں، یا خالی چھوڑ دیں۔",
+  "driver.tabs.offers": "آفرز",
+  "driver.tabs.job": "میرا کام",
+  "driver.tabs.earnings": "میری آمدنی",
+  "driver.tabs.account": "اکاؤنٹ",
+  "driver.tabs.navigation": "مرکزی نیویگیشن",
+  "driver.nav.back": "واپس",
+  "driver.offers.timer.label": "آفر کا وقت",
+  "driver.offers.timer.leftAtRender": "دکھاتے وقت باقی: {value}",
+  "driver.documents.step.position": "مرحلہ {current} از {total}",
+  "driver.summary.retry": "دوبارہ کوشش کریں",
+  "driver.account.work.label": "کام کی پروفائل",
+  "driver.account.work.documents": "میری دستاویزات",
+  "driver.account.work.vehicle": "میری گاڑی",
+  "driver.account.work.subscription": "میری رکنیت"
 }

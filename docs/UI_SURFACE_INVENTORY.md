@@ -31,7 +31,23 @@
 
 ## ما لا يدّعيه الجرد
 
-- **لا إسنادَ لأرقامِ R0–R15 وD0–D14.** تعريفُها في PDF v2.0، وهوَ ليسَ في المستودع.
+- **إسنادُ R0–R15 وD0–D14 جزئيٌّ ومشتقّ.** تعريفُها التفصيليُّ في PDF v2.0، وهوَ ليسَ في المستودع.
+  أُسنِدَ منها ما نُفِّذ: **R0–R5** في ADR 0235 (UI-3)، و**D0–D14** في ADR 0236 (UI-4) — اشتقاقاً
+  هندسيّاً من الشِّفرةِ ومن تقسيمِ الدليلِ §11 (D0–D7 «مؤقّت CSS + بطاقة عرض»، D8–D14 «خطوات رفع
+  وثيقة حقيقية»)، لا نقلاً من المصدرِ الخارجيّ. R6–R15 بلا إسناد.
+
+  | D | ملفُّ السطح (`miniapp/driver`) | D | ملفُّ السطح |
+  |---|---|---|---|
+  | D0 | `DriverRoot.tsx` | D8 | `deductions/DeductionTraceScreen.tsx` |
+  | D1 | `offers/OffersScreen.tsx` | D9 | `account/AccountScreen.tsx` |
+  | D2–D3 | `offers/OfferDetailScreen.tsx` | D10–D11 | `documents/DocumentsScreen.tsx` |
+  | D4 | `job/JobScreen.tsx` | D12 | `vehicle/VehicleScreen.tsx` |
+  | D5 | `location/LocationBroadcast.tsx` | D13 | `subscription/SubscriptionScreen.tsx` · `PaymentInvoicePanel.tsx` |
+  | D6 | `summary/DriverRideSummaryScreen.tsx` | D14 | `support/SupportScreen.tsx` |
+  | D7 | `activity/ActivityScreen.tsx` | | |
+
+  لا ملفَّ `.tsx` جديدٌ في UI-4: آلةُ الحالةِ (`driver-flow.ts`) ومؤقّتُ العرضِ (`offer-timer.ts`)
+  وخطواتُ الرفعِ (`upload-steps.ts`) منطقٌ نقيٌّ لا سطح، فالعددُ ثابت (14 للسائق، 81 مجموعاً).
 - **لا تصنيفَ [A/B/C/D] لكلِّ ملفّ.** وجودُ الملفِّ لا يعني أنَّ السطحَ «قائمٌ بالكامل».
 - **العقودُ المحميّةُ (§0.3) ليست أسطحاً عرضيّة** ولا تدخلُ الجرد:
   `*contract.ts` و`*api.ts` و`*view.ts`. قِيسَ تحتَ `apps/miniapp/src/surfaces` **76** ملفّاً منها،

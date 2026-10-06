@@ -32,6 +32,8 @@ export interface DriverRideSummaryScreenProps {
   readonly initialLanguage?: MiniAppLanguage;
   readonly readSummary?: typeof readDriverRideSummary;
   readonly submitRating?: typeof submitDriverRideRating;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ لا يُكرَّرُ، وتصيرُ عناوينُ الحالِ H2. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
 }
 
 export function DriverRideSummaryScreen({
@@ -39,6 +41,7 @@ export function DriverRideSummaryScreen({
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   readSummary = readDriverRideSummary,
   submitRating = submitDriverRideRating,
+  showTitle = true,
 }: DriverRideSummaryScreenProps): React.ReactNode {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const t = miniAppTranslator(language);
@@ -49,30 +52,45 @@ export function DriverRideSummaryScreen({
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
 
+  // `UI-4`: إعادةُ المحاولةِ تُعيدُ القراءةَ نفسَها بزرٍّ — لا مؤقّتَ ولا استقصاء.
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
+    void attempt;
     readSummary(orderId)
       .then((res) => setSummary(res))
       .catch(() => setError("network"));
-  }, [orderId, readSummary]);
+  }, [attempt, orderId, readSummary]);
+  const StateHeading = showTitle ? "h1" : "h2";
 
   if (error !== null) {
     return (
       <section dir={directionFor(language)} aria-labelledby="dsm-err">
-        <h1 id="dsm-err">{t("common.error")}</h1>
+        <StateHeading id="dsm-err">{t("common.error")}</StateHeading>
+        <button
+          type="button"
+          className="dsm__submit"
+          onClick={() => {
+            setError(null);
+            setSummary(null);
+            setAttempt((n) => n + 1);
+          }}
+        >
+          {t("driver.summary.retry")}
+        </button>
       </section>
     );
   }
   if (summary === null) {
     return (
-      <section dir={directionFor(language)} aria-labelledby="dsm-load">
-        <h1 id="dsm-load">{t("common.loading")}</h1>
+      <section dir={directionFor(language)} aria-labelledby="dsm-load" aria-busy="true">
+        <StateHeading id="dsm-load">{t("common.loading")}</StateHeading>
       </section>
     );
   }
   if (!summary.ok || !summary.found) {
     return (
       <section dir={directionFor(language)} aria-labelledby="dsm-nf">
-        <h1 id="dsm-nf">{t("driver.summary.notFound")}</h1>
+        <StateHeading id="dsm-nf">{t("driver.summary.notFound")}</StateHeading>
       </section>
     );
   }
@@ -101,10 +119,16 @@ export function DriverRideSummaryScreen({
   }
 
   return (
-    <section className="dsm" dir={directionFor(language)} aria-labelledby="dsm-title">
-      <h1 className="dsm__title" id="dsm-title">
-        {t("driver.summary.title")}
-      </h1>
+    <section
+      className="dsm"
+      dir={directionFor(language)}
+      aria-labelledby={showTitle ? "dsm-title" : undefined}
+    >
+      {showTitle ? (
+        <h1 className="dsm__title" id="dsm-title">
+          {t("driver.summary.title")}
+        </h1>
+      ) : null}
 
       {card !== null && (
         <div className="dsm__rider-card">

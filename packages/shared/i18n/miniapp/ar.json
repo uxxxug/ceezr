@@ -1367,5 +1367,19 @@
   "rider.quote.offer.label": "المبلغ الذي تدفعه (اختياري)",
   "rider.quote.offer.placeholder": "مثلاً 40",
   "rider.quote.offer.hint": "يظهر للسائق على بطاقة الطلب: «المدفوع: 40 ريال». اتركه فارغاً ليظهر «قابل للتفاوض». الاتفاق النهائي بينك وبين السائق، ولا تحصّل وَصْلة أي مبلغ.",
-  "rider.quote.offer.error": "اكتب مبلغاً صحيحاً بالريال من 1 إلى 10000، أو اتركه فارغاً."
+  "rider.quote.offer.error": "اكتب مبلغاً صحيحاً بالريال من 1 إلى 10000، أو اتركه فارغاً.",
+  "driver.tabs.offers": "العروض",
+  "driver.tabs.job": "مهمّتي",
+  "driver.tabs.earnings": "أرباحي",
+  "driver.tabs.account": "حسابي",
+  "driver.tabs.navigation": "التنقّل الرئيسي",
+  "driver.nav.back": "رجوع",
+  "driver.offers.timer.label": "مهلة العرض",
+  "driver.offers.timer.leftAtRender": "متبقٍّ عند العرض: {value}",
+  "driver.documents.step.position": "الخطوة {current} من {total}",
+  "driver.summary.retry": "أعد المحاولة",
+  "driver.account.work.label": "ملف العمل",
+  "driver.account.work.documents": "وثائقي",
+  "driver.account.work.vehicle": "مركبتي",
+  "driver.account.work.subscription": "اشتراكي"
 }

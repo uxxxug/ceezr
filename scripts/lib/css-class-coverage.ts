@@ -170,6 +170,40 @@ export interface RetainedRule {
 
 export const RETAINED_RULES: readonly RetainedRule[] = [
   {
+    className: "dof__timer",
+    reason:
+      "شارةُ مهلةِ العرضِ النصّيّةُ في لوحِ العروضِ وتفاصيلِ العرض. حلَّ محلَّها في UI-4 (D1–D2 · §11 PR 6 «مؤقّتُ CSS + بطاقةُ عرض») مكوّنُ `UiTimer` من UI-1: شريطٌ يُفرَغُ بحركةِ CSS ونصٌّ يقولُ ما بقيَ لحظةَ العرض. والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · .ui-timer عبرَ offers/offer-timer.ts",
+  },
+  {
+    className: "dof__timer--calm",
+    reason:
+      "نغمةُ الشارةِ الهادئةُ — صارَت `ui-timer` بنغمةِ `neutral` (UI-4 · ADR 0236). والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · .ui-timer",
+  },
+  {
+    className: "dof__timer--urgent",
+    reason: "نغمةُ الشارةِ الملحّةُ — صارَت `ui-timer--amber` (UI-4 · ADR 0236). والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · .ui-timer--amber",
+  },
+  {
+    className: "dof__timer--elapsed",
+    reason:
+      "نغمةُ انقضاءِ المهلةِ — صارَت `ui-timer--bad` معَ نصِّ «انتهت المهلة» (UI-4 · ADR 0236). والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · .ui-timer--bad",
+  },
+  {
+    className: "dveh__nav",
+    reason:
+      "زرُّ «مركبتي» في الشاشةِ الفارغةِ عن قصدٍ داخلَ `DriverRoot` — وكانَ نصُّه مُضمَّناً بلا قاموس. زالَت تلكَ الشاشةُ في UI-4 وصارَ المدخلُ في «حسابي» (`driver.account.work.vehicle`) بصنفِ `sys__action`. والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · driver/account/AccountScreen.tsx",
+  },
+  {
     className: "rh__map--off",
     reason:
       "صندوقُ «الخريطةُ غيرُ متاحةٍ» المتقطِّعُ في رئيسةِ الراكبِ. رُفِعَ في `UI-DESIGN-01` لأنَّه أوّلُ ما يراهُ الراكبُ ويُقرأُ عطلاً، وحلَّ محلَّه سطرُ إرشادٍ `sys__hint` تحتَ حقلِ الوجهةِ يقولُ النصَّ نفسَه (`rider.home.map.unavailable`). والحذفُ ممنوعٌ (`ح-1`).",

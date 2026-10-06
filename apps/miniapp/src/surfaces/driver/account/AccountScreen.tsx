@@ -23,15 +23,52 @@
  * يُعلِنُه عقدُ العميلِ.
  */
 
-import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import {
+  MINIAPP_DEFAULT_LANGUAGE,
+  type MiniAppLanguage,
+  miniAppTranslator,
+} from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import type { AccountRightsProps } from "../../account/AccountRights.tsx";
 import { AccountRights } from "../../account/AccountRights.tsx";
 import { driverAccountView } from "./account-view.ts";
 
-export interface DriverAccountScreenProps extends Omit<AccountRightsProps, "view"> {
+export interface DriverAccountScreenProps extends Omit<AccountRightsProps, "view" | "header"> {
   readonly language?: MiniAppLanguage;
+  /**
+   * `UI-4` · D9: مداخلُ ملفِّ العملِ من «حسابي» — الوثائقُ والمركبةُ والاشتراك. كانَت
+   * أزراراً بنصٍّ مُضمَّنٍ في شاشةٍ فارغةٍ داخلَ `DriverRoot`؛ صارَت ههنا بمفاتيحِ القاموس.
+   * كلُّ مدخلٍ يُرسَمُ إن كانَ له مستقبِلٌ فحسب.
+   */
+  readonly onOpenDocuments?: () => void;
+  readonly onOpenVehicle?: () => void;
+  readonly onOpenSubscription?: () => void;
 }
 
-export function AccountScreen(props: DriverAccountScreenProps) {
-  return <AccountRights {...props} view={driverAccountView} />;
+export function AccountScreen({
+  onOpenDocuments,
+  onOpenVehicle,
+  onOpenSubscription,
+  ...props
+}: DriverAccountScreenProps) {
+  const t = miniAppTranslator(props.language ?? MINIAPP_DEFAULT_LANGUAGE);
+  const links = [
+    { key: "documents", label: t("driver.account.work.documents"), onOpen: onOpenDocuments },
+    { key: "vehicle", label: t("driver.account.work.vehicle"), onOpen: onOpenVehicle },
+    {
+      key: "subscription",
+      label: t("driver.account.work.subscription"),
+      onOpen: onOpenSubscription,
+    },
+  ].filter((link): link is typeof link & { onOpen: () => void } => link.onOpen !== undefined);
+  const header =
+    links.length === 0 ? undefined : (
+      <nav className="ac__links" aria-label={t("driver.account.work.label")}>
+        {links.map((link) => (
+          <button key={link.key} type="button" className="sys__action" onClick={link.onOpen}>
+            {link.label}
+          </button>
+        ))}
+      </nav>
+    );
+  return <AccountRights {...props} view={driverAccountView} header={header} />;
 }

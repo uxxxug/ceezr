@@ -36,6 +36,8 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
+import { UiCard, UiTimer } from "../../../system/ui/index.tsx";
+import { offerTimerProps } from "./offer-timer.ts";
 import {
   type AcceptDriverOfferResponse,
   acceptDriverOffer,
@@ -44,11 +46,8 @@ import {
   rejectDriverOffer,
 } from "./offers-api.ts";
 import {
-  type CountdownTone,
   canAcceptNow,
-  countdownLabel,
   countdownSeconds,
-  countdownTone,
   type DistanceLine,
   isRetryableOffersError,
   offersErrorKey,
@@ -64,23 +63,24 @@ const SERVICE_TONE: Readonly<Record<string, { readonly modifier: string }>> = {
   transport: { modifier: "dof__item--transport" },
   monthly: { modifier: "dof__item--monthly" },
 };
+/** خدمةٌ بلا لونٍ مُعلَنٍ تُرسَمُ بلا مُعدِّلٍ — لا لونَ يُخترَع. */
+const NO_SERVICE_TONE = { modifier: "" } as const;
+const serviceTone = (service: string) => SERVICE_TONE[service] ?? NO_SERVICE_TONE;
 
 export interface OfferDetailScreenProps {
   readonly offerId: string;
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   readonly onAccepted?: (orderId: string) => void;
+  /** `UI-4`: بعدَ رفضٍ نجحَ — الافتراضُ `onBack` كما كان. */
+  readonly onRejected?: () => void;
   readonly readDetail?: (offerId: string) => Promise<DriverOfferDetailResponse>;
   readonly accept?: (offerId: string) => Promise<AcceptDriverOfferResponse>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly now?: () => number;
 }
-
-const COUNTDOWN_BADGE: Record<CountdownTone, { readonly modifier: string }> = {
-  calm: { modifier: "dof__timer--calm" },
-  urgent: { modifier: "dof__timer--urgent" },
-  elapsed: { modifier: "dof__timer--elapsed" },
-};
 
 type DetailState =
   | { readonly kind: "loading" }
@@ -151,7 +151,9 @@ export function OfferDetailScreen({
   offerId,
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   onAccepted,
+  onRejected,
   readDetail = readDriverOfferDetail,
   accept = acceptDriverOffer,
   reject = rejectDriverOffer,
@@ -199,18 +201,24 @@ export function OfferDetailScreen({
     try {
       await reject(offerId);
       setClaim({ kind: "idle" });
-      onBack?.();
+      (onRejected ?? onBack)?.();
     } catch (thrown) {
       setClaim({ kind: "failed", key: offersErrorKey(codeOf(thrown)) });
     }
-  }, [onBack, offerId, reject]);
+  }, [onBack, onRejected, offerId, reject]);
 
   if (state.kind === "loading") {
     return (
-      <section className="dof" aria-labelledby={`${formId}-title`} aria-busy="true">
-        <h1 id={`${formId}-title`} className="dof__title">
-          {t("driver.offers.detail.title")}
-        </h1>
+      <section
+        className="dof"
+        aria-labelledby={showTitle ? `${formId}-title` : undefined}
+        aria-busy="true"
+      >
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dof__title">
+            {t("driver.offers.detail.title")}
+          </h1>
+        ) : null}
         <p className="dof__loading">{t("driver.offers.loading")}</p>
       </section>
     );
@@ -218,10 +226,12 @@ export function OfferDetailScreen({
 
   if (state.kind === "failed") {
     return (
-      <section className="dof" aria-labelledby={`${formId}-title`}>
-        <h1 id={`${formId}-title`} className="dof__title">
-          {t("driver.offers.detail.title")}
-        </h1>
+      <section className="dof" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dof__title">
+            {t("driver.offers.detail.title")}
+          </h1>
+        ) : null}
         <EmptyState title={t("driver.offers.failed")} body={t(offersErrorKey(state.code))} />
         {isRetryableOffersError(state.code) ? (
           <button type="button" className="dof__retry" onClick={() => void load()}>
@@ -244,56 +254,60 @@ export function OfferDetailScreen({
     secondsLeftAtRead: detail.secondsLeftAtRead,
     elapsedMs: now() - state.readAtMs,
   });
-  const badge = COUNTDOWN_BADGE[countdownTone(secondsRemaining)];
+  const tone = serviceTone(detail.service);
+  const timer = offerTimerProps({
+    secondsRemaining,
+    secondsLeftAtRead: detail.secondsLeftAtRead,
+    t,
+  });
   const acceptable = canAcceptNow({ isClaimable: detail.isClaimable, secondsRemaining });
 
   return (
-    <section className="dof" aria-labelledby={`${formId}-title`}>
-      <h1 id={`${formId}-title`} className="dof__title">
-        {t("driver.offers.detail.title")}
-      </h1>
+    <section className="dof" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+      {showTitle ? (
+        <h1 id={`${formId}-title`} className="dof__title">
+          {t("driver.offers.detail.title")}
+        </h1>
+      ) : null}
 
-      <div
-        className={`dof__item-head dof__item-head--tinted ${SERVICE_TONE[detail.service]?.modifier ?? ""}`}
-      >
-        <span className="dof__service">{t(detail.serviceKey)}</span>
-        <span className={`dof__timer ${badge.modifier}`} role="status">
-          {secondsRemaining > 0
-            ? countdownLabel(secondsRemaining)
-            : t("driver.offers.timer.elapsed")}
-        </span>
-      </div>
+      {/* D2 · §11 PR 6: بطاقةُ العرضِ (`ui-card`) ومؤقّتُ CSS (`ui-timer`) — لا عقربَ ولا موعدَ مطلق. */}
+      <UiCard>
+        <div className={`dof__item-head dof__item-head--tinted ${tone.modifier}`}>
+          <span className="dof__service">{t(detail.serviceKey)}</span>
+        </div>
+        <UiTimer {...timer} />
 
-      <p className="dof__status">
-        {t("driver.offers.detail.offerStatus")}: {t(detail.offerStatusKey)} ·{" "}
-        {t("driver.offers.detail.orderStatus")}: {t(detail.orderStatusKey)}
-      </p>
-      <p className="dof__round">
-        {t("driver.offers.detail.round")}: {detail.round}
-      </p>
+        <p className="dof__status">
+          {t("driver.offers.detail.offerStatus")}: {t(detail.offerStatusKey)} ·{" "}
+          {t("driver.offers.detail.orderStatus")}: {t(detail.orderStatusKey)}
+        </p>
+        <p className="dof__round">
+          {t("driver.offers.detail.round")}: {detail.round}
+        </p>
 
-      <p className="dof__place">
-        {t("driver.offers.pickup")}: {detail.pickupLabel ?? t("driver.offers.place.unnamed")}
-      </p>
-      <p className="dof__coords">
-        {detail.pickupLatitude} , {detail.pickupLongitude}
-      </p>
-      <p className="dof__place">
-        {t("driver.offers.dropoff")}:{" "}
-        {detail.hasDropoff
-          ? (detail.dropoffLabel ?? t("driver.offers.place.unnamed"))
-          : t("driver.offers.place.none")}
-      </p>
+        <p className="dof__place">
+          {t("driver.offers.pickup")}: {detail.pickupLabel ?? t("driver.offers.place.unnamed")}
+        </p>
+        <p className="dof__coords">
+          {detail.pickupLatitude} , {detail.pickupLongitude}
+        </p>
+        <p className="dof__place">
+          {t("driver.offers.dropoff")}:{" "}
+          {detail.hasDropoff
+            ? (detail.dropoffLabel ?? t("driver.offers.place.unnamed"))
+            : t("driver.offers.place.none")}
+        </p>
 
-      <DistanceRow line={detail.riderDistance} labelKey="driver.offers.riderDistance" t={t} />
-      <DistanceRow line={detail.tripDistance} labelKey="driver.offers.tripDistance" t={t} />
+        <DistanceRow line={detail.riderDistance} labelKey="driver.offers.riderDistance" t={t} />
+        <DistanceRow line={detail.tripDistance} labelKey="driver.offers.tripDistance" t={t} />
 
-      <p className="dof__notes">
-        {t("driver.offers.detail.notes")}:{" "}
-        {detail.notes === null || detail.notes === ""
-          ? t("driver.offers.detail.noNotes")
-          : detail.notes}
-      </p>
+        <p className="dof__notes">
+          {t("driver.offers.detail.notes")}:{" "}
+          {detail.notes === null || detail.notes === ""
+            ? t("driver.offers.detail.noNotes")
+            : detail.notes}
+        </p>
+      </UiCard>
 
       <div className="dof__actions">
         {acceptable && claim.kind !== "won" ? (
