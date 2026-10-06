@@ -27,5 +27,5 @@
   ],
   "limitations": "لا قياس على السِلك هنا: ميزانيةُ الرسائلِ تُقاسُ على قاعدةٍ حقيقيةٍ في tests/integration/telegram-message-budget.test.ts (لم تتغير شروطها). ولا نقرَ حيًّا على عميلِ تيليجرام — المُثبَتُ بنيةُ النصِّ الخامِ الذي يُسلَّمُ للمُرسِل.",
   "message_budget": "لم يتغير عددُ رسائلِ تيليجرام: لا ملفَّ تشغيليًّا تغيّر في هذا الـPR. الحاجزُ القائمُ (check-telegram-message-budget · ADR 0152) واختبارُ التكاملِ على القاعدةِ الحقيقيةِ كما هما.",
-  "status": "منفّذ على فرع ui-5-pr8-telegram-experience — PR مفتوح غير مدموج. UI-5 لم تُغلق (الإغلاق بعد الدمج). UI-6 لم تبدأ."
+  "status": "مدموج في main: #422 (PR HEAD 6067936e26c7565804113dbd37e98b5c239ebf2b) → merge commit fa80d25b930635b1e7f76ef09fb243fa8bda2f75. Main CI 37482288537 success · Roadmap freshness 37482288428 success. UI-5 = Closed (Work Packet ui-5-closure). UI-6 لم تبدأ."
 }

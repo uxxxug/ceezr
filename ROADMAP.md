@@ -18,14 +18,21 @@
 > إعدادات البناء/الـCI، وتوسيع تصنيف documentation ليشمل ملفات .md في جذر
 > المستودع مثل README.md. (إصلاح نطاق CI + قراءة manifest من diff كامل PR)
 
+> **إغلاقُ UI-5 (2026-10-06 · Work Packet `ui-5-closure` — توثيقيٌّ فقط):** مرحلة **UI-5
+> (Telegram Experience) = مكتملة / Closed** — PR 8 (#422 · PR HEAD `6067936e26c7565804113dbd37e98b5c239ebf2b` → merge commit
+> `fa80d25b930635b1e7f76ef09fb243fa8bda2f75` · ميزانيةُ رسائلٍ + fuzz تهريب · ADR 0239). CI على `main` run `37482288537` =
+> 7/7 success · Roadmap freshness run `37482288428` = success. لا تغييرَ في عددِ رسائلِ
+> تيليجرام. فجواتُ العقدِ القائمةُ (ADR 0238 · D14) باقيةٌ مستقلة. **UI-6 (Admin Operations
+> Console) لم تبدأ.**
+>
 > **UI-5 / PR 8 (2026-10-06 · Work Packet `ui-5-pr8-telegram-experience` · ADR 0239):** تجربةُ تيليجرام
 > بشرطِ القبولِ الكانونيّ «ميزانيةُ رسائلٍ + fuzz تهريب» — الميزانيةُ قائمةٌ محروسةٌ ولم تتغير،
 > والمنفَّذُ الجديدُ اختبارُ الـfuzz: `tests/unit/telegram-fuzz-escaping.test.ts` (28 اختباراً) —
 > حارسٌ ساكنٌ أنَّ المُرسِلاتِ السبعةَ بلا `parse_mode` (المحلّلُ الفعليُّ نصٌّ خام)، وfuzz على
 > مُخرَجِ الحواراتِ بسلاسلٍ عدوائيةٍ في ar/en/ur، و`callback_data` ≤ 64 بايتاً بمعرّفاتٍ كاملة،
 > وصدقُ اللغاتِ، وسلوكُ أزرارِ التفاوضِ المتكررةِ والبالية. لا تغييرَ في نصوصِ الرسائلِ ولا
-> عددها ولا في أيِّ ملفٍّ تشغيليّ. على فرعِ `ui-5-pr8-telegram-experience`، PR مفتوحٌ **غيرُ
-> مدموج**. UI-5 لم تُغلَق؛ UI-6 لم تبدأ.
+> عددها ولا في أيِّ ملفٍّ تشغيليّ. مدموجٌ في `main` (#422 → `fa80d25b`)؛ UI-5 مغلقة (انظر أعلاه).
+> (صُحِّحَ في إغلاقِ UI-5: كانَ هنا وصفُ ما قبلَ الدمج.) UI-6 لم تبدأ.
 >
 > **إغلاقُ UI-3 (2026-10-06 · Work Packet `ui-3-closure` — توثيقيٌّ فقط):** مرحلة **UI-3
 > (Rider Experience) = مكتملة / Closed** — PR 3 (#415 → `fc84ac12` · R0–R5) · PR 4 (#419 →
@@ -134,8 +141,8 @@
 > المخاطر القائمة مسجّلة في `docs/SYSTEM_STATE.md`.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-10-06 (UI-5 / PR 8 Telegram fuzz — Work Packet `ui-5-pr8-telegram-experience`; previously: 2026-10-06 (UI-3 closed — Work Packet `ui-3-closure`; previously: 2026-10-06 (UI-3 / PR 5 rider R11–R15 + [B] on branch `ui-3-pr5-rider-r11-r15`, PR open, not merged — Work Packet `ui-3-pr5-rider-r11-r15`, ADR 0238; UI-3 in progress, UI-5 not started; PR 4 docs corrected: UI-3 / PR 4 R6–R10 merged as #419 → `cd4b6356`, main CI `37447868079` success, Roadmap freshness `37447868136` success — Work Packet `ui-3-pr4-rider-r6-r10`, ADR 0237; prior: UI-3 status settled — Work Packet `ui-3-status`: in progress, #415 = PR 3 only, PR 4 and PR 5 required and not started; UI-4 formally closed — Work Packet `ui-4-closure`, #416 → `de97f788`, main CI `37437999457` success; D14 open contract gap; UI-5 not started; prior: UI-4 driver D0–D14 implementation, numbering reconciled with the original source PDF v2.0 (ADR 0236); prior: UI-3 / PR 3 merged as #415; previously: UI-3 / PR 3 implementation prepared on `ui-3-pr3-rider-r0-r5`; prior: UI-2 closed — Work Packet `ui-2-closure`; previously: UI-2 / PR 2 — Work Packet `ui-2-pr2-shell-navigation`; previously: UI-1 closed — Work Packet `ui-1-closure`; previously: SEC-15 fix — Work Packet `sec-15-source-map-js-1-2-2`, source-map-js 1.2.1→1.2.2; previously: UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)))
-**Last milestone:** UI-5 / PR 8 — Telegram experience: fuzz/escaping + message-budget evidence (Work Packet `ui-5-pr8-telegram-experience`, ADR 0239). Before it: UI-3 closed — rider R0–R15 + [B] complete (PR 3 #415 → `fc84ac12`, PR 4 #419 → `cd4b6356`, PR 5 #420 → `ac55c0aa`; Work Packet `ui-3-closure`). Before it: UI-3 / PR 4 — rider R6–R10 on the UI-2 shell (merged, #419 → `cd4b6356`). Before it: UI-4 — driver D0–D14 on the UI-2 shell (merged #416, closed; this line previously said “implementation on branch; not merged”, true before #416). Before it: UI-3 / PR 3 — rider R0–R5 shell integration (merged, #415). Historical baseline: `F2-01` — the first product screen in this repository, with
+**Last updated:** 2026-10-06 (UI-5 closed — Work Packet `ui-5-closure`; previously: 2026-10-06 (UI-5 / PR 8 Telegram fuzz — Work Packet `ui-5-pr8-telegram-experience`; previously: 2026-10-06 (UI-3 closed — Work Packet `ui-3-closure`; previously: 2026-10-06 (UI-3 / PR 5 rider R11–R15 + [B] on branch `ui-3-pr5-rider-r11-r15`, PR open, not merged — Work Packet `ui-3-pr5-rider-r11-r15`, ADR 0238; UI-3 in progress, UI-5 not started; PR 4 docs corrected: UI-3 / PR 4 R6–R10 merged as #419 → `cd4b6356`, main CI `37447868079` success, Roadmap freshness `37447868136` success — Work Packet `ui-3-pr4-rider-r6-r10`, ADR 0237; prior: UI-3 status settled — Work Packet `ui-3-status`: in progress, #415 = PR 3 only, PR 4 and PR 5 required and not started; UI-4 formally closed — Work Packet `ui-4-closure`, #416 → `de97f788`, main CI `37437999457` success; D14 open contract gap; UI-5 not started; prior: UI-4 driver D0–D14 implementation, numbering reconciled with the original source PDF v2.0 (ADR 0236); prior: UI-3 / PR 3 merged as #415; previously: UI-3 / PR 3 implementation prepared on `ui-3-pr3-rider-r0-r5`; prior: UI-2 closed — Work Packet `ui-2-closure`; previously: UI-2 / PR 2 — Work Packet `ui-2-pr2-shell-navigation`; previously: UI-1 closed — Work Packet `ui-1-closure`; previously: SEC-15 fix — Work Packet `sec-15-source-map-js-1-2-2`, source-map-js 1.2.1→1.2.2; previously: UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests))))
+**Last milestone:** UI-5 closed — Telegram experience PR 8 merged (#422 → `fa80d25b`, ADR 0239; main CI `37482288537` success). Before it: UI-5 / PR 8 — Telegram experience: fuzz/escaping + message-budget evidence (Work Packet `ui-5-pr8-telegram-experience`, ADR 0239). Before it: UI-3 closed — rider R0–R15 + [B] complete (PR 3 #415 → `fc84ac12`, PR 4 #419 → `cd4b6356`, PR 5 #420 → `ac55c0aa`; Work Packet `ui-3-closure`). Before it: UI-3 / PR 4 — rider R6–R10 on the UI-2 shell (merged, #419 → `cd4b6356`). Before it: UI-4 — driver D0–D14 on the UI-2 shell (merged #416, closed; this line previously said “implementation on branch; not merged”, true before #416). Before it: UI-3 / PR 3 — rider R0–R5 shell integration (merged, #415). Historical baseline: `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
 three languages, and a new `check-consent-documents` guard in CI. Measured, not
