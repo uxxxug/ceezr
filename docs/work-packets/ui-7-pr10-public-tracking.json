@@ -1,0 +1,65 @@
+{
+  "id": "ui-7-pr10-public-tracking",
+  "goal": "UI-7 / PR 10: سطحُ التتبّعِ العامّ القائم (GET /track/:token) وفقَ §11 PR 10 «تتبّع عام | حالات + CSP» — الحالاتُ السبعُ من حقولِ العقدِ القائمِ وحدها، بلا استقصاء، وCSP بلا تخفيف.",
+  "canonical_source": [
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §11 PR 10",
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §§2، 3، 5، 9، 10",
+    "docs/SYSTEM_STATE.md",
+    "ROADMAP.md",
+    "docs/UI_SURFACE_INVENTORY.md (public-tracking)"
+  ],
+  "implementation": [
+    "apps/gateway/src/public/tracking-page.ts",
+    "apps/gateway/src/routes/public-tracking.ts",
+    "tests/unit/public-tracking-ui7.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0241-ui-7-pr10-public-tracking.md"],
+  "no_other_affected_docs_reason": "docs/UI_SURFACE_INVENTORY.md لم يتغير: سطحُ public-tracking ملفٌّ واحدٌ كما هو ولا سطحَ أُضيف أو حُذف. سياسةُ CSP (apps/gateway/src/public/security-headers.ts) وسجلُّ الترويسات وعقدُ مشاركةِ الرحلة (scripts/lib/ride-share-contract.ts) لم تتغير. نصوصُ تيليجرام وقواميسُها لم تُمَس.",
+  "classification": {
+    "A": [
+      "الحالاتُ السبعُ من حقولِ الحمولةِ القائمة",
+      "شريطُ الحقيقة والختمُ الأصليُّ والصمتُ المصمَّمُ من قيمٍ مقيسة",
+      "إزالةُ الاستقصاء وتحديثٌ يدويٌّ على المسارِ القائم",
+      "قِدَمُ الصفحةِ بعدَ 30ث بلا JS"
+    ],
+    "C": [
+      "لا ETA في العقد",
+      "لا قناةَ دفعٍ للعامّة بلا استقصاء",
+      "حدُّ عمرِ الموقعِ ووقتُ القياسِ ليسا في الحمولة",
+      "429 على /track/:token JSON موحَّد لا صفحة",
+      "لا حالةَ رحلةٍ أدقّ من active"
+    ],
+    "D": [
+      "ETA مختلق",
+      "خريطةٌ في Mini App",
+      "استقصاء/setInterval",
+      "تخفيفُ CSP",
+      "نصوصٌ أو أرقامٌ مختلقة",
+      "إظهارُ 0 لما لم يُقَس"
+    ]
+  },
+  "decision": "أُزيل الاستفتاءُ كلَّ 5 ثوانٍ؛ الصفحةُ تُصيَّرُ بقراءةِ الخادمِ وساعتِه والتحديثُ نقرةٌ واحدة. trackingView يشتقُّ located/ended/empty/stale/unknown من الحمولة، والمسارُ refused (404) وunavailable (503)، والتحديثُ loading/error/refused(429)/unavailable/unknown. ETA صمتٌ معلَن. CSP بلا تغيير. ADR 0241.",
+  "tests": [
+    "tests/unit/public-tracking-ui7.test.ts (جديد · 27 اختباراً)",
+    "bun test كاملًا محلّياً: 7039 ناجحاً · 0 فاشلاً · 1627 متجاوَزاً (تكاملٌ يحتاج قاعدة)",
+    "lint · typecheck · check-ride-share-contract · check-security-headers · بواباتُ CI الساكنة"
+  ],
+  "evidence": "محلّياً: lint · typecheck · bun test كاملًا · build:miniapp + check-performance-budget (حزمةُ الراكبِ بلا تغيير) · check-ride-share-contract · check-security-headers · check-state-sync · check-roadmap · وسائرُ فحوصِ scripts/check-* في CI. ثم CI على الـPR.",
+  "contract_gaps": [
+    "[C] لا حقلَ ETA في get_tracking_position — قرارُ مالك.",
+    "[C] لا قناةَ دفعٍ للعامّة؛ §9 يحظرُ الاستقصاء — التتبّعُ قراءةٌ يدويّة.",
+    "[C] driver_position_max_age_seconds ووقتُ القياسِ ليسا في الحمولة.",
+    "[C] تجاوزُ الحدِّ على /track/:token يُجابُ JSON موحَّداً (SEC-07) لا صفحةً عربيّة.",
+    "[C] لا حالةَ رحلةٍ أدقّ من active في الإفصاحِ العامّ."
+  ],
+  "constraints": [
+    "لا backend ولا endpoint ولا تغييرَ في شكلِ الحمولة",
+    "لا تخفيفَ لـCSP أو الترويسات أو حدودِ المعدّل",
+    "لا setInterval ولا استقصاء ولا مكتبة",
+    "لا مساسَ بـapps/miniapp ولا بتيليجرام ولا بـUI-3…UI-6"
+  ],
+  "limitations": "لا لقطةَ متصفّحٍ ولا قارئَ شاشةٍ حيّ؛ لا ميزانيةَ أداءٍ مسجَّلةً للصفحةِ العامّة.",
+  "status": "مُنفَّذٌ في PR مفتوح — لم يُدمَج. UI-7 = قيدَ المراجعة لا مغلقة."
+}

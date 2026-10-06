@@ -1,7 +1,7 @@
 /**
  * الغرض: صفحةُ تتبّعٍ حيّ عامّة برمزٍ مؤقّت — لا تسجيلَ دخول ولا تطبيق:
  *   GET /track/:token                  صفحةُ HTML عربيّةٌ مكتفيةٌ بذاتها فيها خريطة.
- *   GET /api/track/:token/position     موقعٌ بصيغة JSON تستفتيه الصفحة كلّ ٥ ثوانٍ.
+ *   GET /api/track/:token/position     موقعٌ بصيغة JSON تطلبه الصفحةُ **بنقرةِ تحديثٍ يدويّة**.
  * الحالة: منفّذ فعلياً ومركَّب في apps/gateway/src/index.ts — أُضيف في 2026-08-14
  *   (§4.2 من أمر الإطلاق التجاري).
  * ينتمي إلى: apps/gateway/src/routes
@@ -31,6 +31,11 @@
  *
  * ## ولماذا استفتاءٌ كلّ خمس ثوانٍ لا SSE ولا WebSocket
  *
+ * (صُحِّحَ في UI-7 / PR 10 · ADR 0241: أُزيل الاستفتاءُ الدوريّ — المصدرُ الكانونيُّ §9
+ * يحظرُ الاستقصاء. الصفحةُ تُصيَّرُ بقراءةِ الخادمِ وساعتِها، وتُعلِنُ قِدَمَها بعدَ
+ * `PAGE_STALE_SECONDS`، والتحديثُ نقرةٌ واحدةٌ على مسارِ الموقعِ نفسِه. وحجّةُ رفضِ
+ * المجرى المستمرّ أدناه باقيةٌ كما هي: لا قناةَ دفعٍ للعامّة — فجوةٌ مسجَّلة.)
+ *
  * المجرى المستمرّ يحتفظ باتصالٍ مفتوحٍ لكلّ متفرّج، وهؤلاء عددٌ غيرُ محدودٍ ولا
  * معروف (الرابطُ يُشارَك في مجموعة). والاستفتاءُ طلبٌ صغير ينتهي، ويتعامل مع
  * انقطاع الشبكة بلا منطق إعادةِ اتصال — والدقّةُ المطلوبة «أين هو الآن؟» لا
@@ -43,7 +48,8 @@
  * **يُطبّق أحداثاً**. وهذه الصفحةُ ليست منه:
  *
  *   - لا تشترك في حدثٍ قطُّ. لا `SSE` ولا `WebSocket` ولا ناقلَ تتبّعٍ — تستفتي
- *     `GET /api/track/:token/position` كلَّ خمس ثوانٍ وتستبدل النقطةَ بما وصل.
+ *     `GET /api/track/:token/position` (منذ UI-7 / PR 10 بنقرةٍ يدويّةٍ لا كلَّ خمس
+ *     ثوانٍ) وتستبدل النقطةَ بما وصل.
  *     ومن لا يُطبّق حدثاً لا `lastAppliedSeq` عنده أصلاً، فلا شيءَ يُحاذى.
  *   - وقيمةُ الرقمِ هنا ستكون **مضلّلةً** لا زائدةً فقط: الردُّ يقرأ الموقعَ من
  *     `drivers.last_location` عبرَ الدالّةِ `get_tracking_position`، وكتابةُ ذاك
@@ -105,10 +111,11 @@ const NOT_FOUND = 404 as const;
 const SERVICE_UNAVAILABLE = 503 as const;
 
 /**
- * مدّةُ الاستفتاء بالثواني. فاصلٌ تقنيٌّ لا قيمةٌ تجارية: لا يُسعّر شيئاً ولا
- * يُحدّد استحقاقاً، ونظيرُه `LIVE_REFRESH_SECONDS` في لوحة الإدارة.
+ * بعدَ كم ثانيةٍ تُعلِنُ الصفحةُ أنَّ **قراءتَها** قديمة (UI-7 / PR 10). فاصلٌ في
+ * الواجهةِ لا قيمةٌ تجاريّة، وليس حدَّ عُمرِ الموقعِ (`driver_position_max_age_seconds`
+ * يحكمُ به الخادمُ وحده، ولا يصلُ إلى الصفحة). نظيرُه `LIVE_STALE_SECONDS` في اللوحة.
  */
-export const POSITION_POLL_SECONDS = 5;
+export const PAGE_STALE_SECONDS = 30;
 
 /**
  * أقصى طولٍ لرمزٍ يُقبل النظرُ فيه. الرمزُ عندنا ٦٤ محرفاً بالضبط، والحدُّ هنا
@@ -206,7 +213,7 @@ export function createPublicTrackingRoutes(deps: PublicTrackingDeps): Hono<Publi
 
   /**
    * الصفحة. تُصيَّر بالحالة الأولى مُحمّلةً فيها (لا شاشةَ تحميلٍ فارغة على شبكةٍ
-   * بطيئة)، ثمّ يُحدِّثها الاستفتاء.
+   * بطيئة)، ثمّ لا تتحدّثُ إلا بيدِ من يقرؤها.
    */
   app.get("/track/:token", async (c) => {
     const token = c.req.param("token");
@@ -243,7 +250,8 @@ export function createPublicTrackingRoutes(deps: PublicTrackingDeps): Hono<Publi
         kind: "live",
         nonce: c.get("cspNonce"),
         token,
-        pollSeconds: POSITION_POLL_SECONDS,
+        observedAt: new Date(),
+        pageStaleAfterSeconds: PAGE_STALE_SECONDS,
         initial: toPayload(result.value),
         mapStyle: deps.mapStyle,
         scriptUrl: deps.scriptUrl,
