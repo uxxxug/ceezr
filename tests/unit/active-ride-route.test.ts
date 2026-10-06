@@ -13,7 +13,7 @@
 import { describe, expect, it } from "bun:test";
 import { createServer } from "../../apps/gateway/src/server.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
-import type { EtaBandStore } from "../../packages/application/tracking/eta-band-ports.ts";
+import type { EtaBandStore } from "../../packages/application/tracking/estimate-arrival.ts";
 import type {
   ActiveRideReader,
   ActiveRideState,

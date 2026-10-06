@@ -9,7 +9,7 @@
   "implementation": [
     "supabase/migrations/20261006200000_ui_8_eta_error_band.sql",
     "packages/domain/eta/band.ts",
-    "packages/application/tracking/eta-band-ports.ts",
+    "packages/application/tracking/estimate-arrival.ts",
     "packages/application/transport/read-active-ride.ts",
     "packages/infrastructure/tracking/eta-band-store.ts",
     "packages/infrastructure/db/schema-contract.ts",

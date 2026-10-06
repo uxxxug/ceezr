@@ -47,8 +47,11 @@ import {
 import { elapsedSecondsSince } from "../../domain/transport/ride-request.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { MiniAppSessionReader } from "../identity/ports.ts";
-import { type EstimateArrivalDeps, estimateArrival } from "../tracking/estimate-arrival.ts";
-import type { EtaBandStore } from "../tracking/eta-band-ports.ts";
+import {
+  type EstimateArrivalDeps,
+  type EtaBandStore,
+  estimateArrival,
+} from "../tracking/estimate-arrival.ts";
 import type { ActiveRideReader, ActiveRideRefusal, ActiveRideState } from "./active-ride-ports.ts";
 import { type RequestRidePublicErrorCode, rideStoreErrorFrom } from "./request-ride.ts";
 

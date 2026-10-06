@@ -9,7 +9,7 @@
  */
 
 import { PortFailureError } from "../../application/ports/index.ts";
-import type { EtaBandStore } from "../../application/tracking/eta-band-ports.ts";
+import type { EtaBandStore } from "../../application/tracking/estimate-arrival.ts";
 import type { EtaErrorStats } from "../../domain/eta/band.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { Sql } from "../db/client.ts";
