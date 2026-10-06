@@ -49,6 +49,11 @@
 - **الدَّينُ المعلَن:** `RIDER_ACCOUNT_DEBT_KEYS` = `editIdentity` وحدَه (المبنيُّ في `RIDER_ACCOUNT_BUILT_FROM_DEBT`)؛
   `RIDER_SUPPORT_DECLARED_DEBT` = المرفقاتُ وحدَها؛ و`TicketsScreen` لا يرسمُ عنوانَ دَينٍ فوقَ قائمةٍ فارغة (السائقُ بلا تغيير).
 - **إضافاتٌ للمشترَكِ بلا تغييرِ سلوكٍ للسائق:** `TicketsScreen.renderTicketExtra` اختياريّ (السائقُ لا يمرّره).
+- **الحِملُ الأوّل:** لوحاتُ `rider/settings/` مؤجَّلةٌ في حزمةِ `account` (`vite.config.ts`) ومستثناةٌ في `isDeferredRiderModule`
+  (`vite/assert-rider-first-surface.ts`). أوّلُ تشغيلٍ لـCI (run `37453236821`) كشفَ أنَّ نمطَ `rider-home` طابقَها فدخلَت المسارَ
+  الحرجَ (`rider-home` 17.4 → 29.3 KB مضغوطة) وسقطَ قياسُ Slow 4G (`surface-rendered` 2068 ms > 2000 ms، و`main` 1988 ms) —
+  أُصلِحَ ولم يُخفَ: `rider-home` بعدَه 18.0 KB. ويبقى في `shell` +1.1 KB لمكوّناتِ `system/ui` التي صارَت مستعمَلةً أوّلَ مرّة
+  (`UiField` · `UiSegment` · `UiTag` · `UiToast` · `UiBanner` · `UiSkeleton` · `UiError`) — `system/` من `shell` بقرارِ ADR 0044.
 - **CSS:** كتلةُ `rset` (تخطيطٌ فوقَ `ui-*` برموزِ تيليجرامَ القائمةِ وخصائصَ منطقيّة) مسجّلةٌ في `DECLARED_BLOCKS`؛ لا لونَ
   ولا رمزَ تصميمٍ جديد. ونائبا `{label}`/`{kind}` في `ALLOWED_PLACEHOLDERS` (اللوحةُ تستبدلُهما فعلاً).
 

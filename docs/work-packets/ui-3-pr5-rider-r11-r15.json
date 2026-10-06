@@ -33,6 +33,8 @@
     "apps/miniapp/src/surfaces/rider/settings/ticket-thread.ts",
     "apps/miniapp/src/surfaces/rider/support/SupportScreen.tsx",
     "apps/miniapp/src/surfaces/support/TicketsScreen.tsx",
+    "apps/miniapp/vite.config.ts",
+    "apps/miniapp/vite/assert-rider-first-surface.ts",
     "packages/shared/i18n/miniapp/ar.json",
     "packages/shared/i18n/miniapp/en.json",
     "packages/shared/i18n/miniapp/ur.json",
@@ -41,8 +43,12 @@
     "scripts/lib/ui-surface-inventory.ts",
     "tests/unit/sos-entry-surfaces.test.ts"
   ],
-  "state": ["docs/SYSTEM_STATE.md"],
-  "roadmap": ["ROADMAP.md"],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
   "affected_docs": [
     "docs/adr/0238-ui-3-pr5-rider-r11-r15.md",
     "docs/adr/0237-ui-3-pr4-rider-r6-r10.md",
@@ -116,5 +122,6 @@
       "docs/UI_SURFACE_INVENTORY.md"
     ]
   },
-  "status": "منفّذ على فرع ui-3-pr5-rider-r11-r15 — PR مفتوح غير مدموج. UI-3 جارية لم يُعلَن إغلاقها؛ UI-5 لم تبدأ."
+  "status": "منفّذ على فرع ui-3-pr5-rider-r11-r15 — PR مفتوح غير مدموج. UI-3 جارية لم يُعلَن إغلاقها؛ UI-5 لم تبدأ.",
+  "ci_regression_fixed": "أوّلُ تشغيلٍ لـCI على الـPR (run 37453236821) أسقطَ «Slow 4G rider surface»: surface-rendered = 2068 ms > 2000 ms (main: 1988 ms). السببُ من هذا الـPR: نمطُ rider-home طابقَ rider/settings/ فدخلَت لوحاتُ [B] المسارَ الحرجَ (rider-home 17.4→29.3 KB مضغوطة). الإصلاح: rider/settings/ مؤجَّلةٌ في حزمةِ account (vite.config.ts) ومستثناةٌ في isDeferredRiderModule (حارسُ المسارِ الأوّل) — rider-home بعدَه 18.0 KB."
 }
