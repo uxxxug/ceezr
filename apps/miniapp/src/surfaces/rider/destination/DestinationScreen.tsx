@@ -87,6 +87,7 @@ export interface DestinationScreenProps {
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
   readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
+  readonly showTitle?: boolean;
   /** ما كتبَه الراكبُ في شاشةِ `SR-02` — يُبتدأُ به البحثُ بلا إعادةِ كتابةٍ. */
   readonly initialQuery?: string;
   /**
@@ -172,6 +173,7 @@ export function DestinationScreen({
   onBack,
   onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
+  showTitle = true,
   initialQuery = "",
   initialPoint,
   mapProvider = "none",
@@ -302,11 +304,12 @@ export function DestinationScreen({
     );
   }
 
-  const title = (
+  const title = showTitle ? (
     <h1 id="rd-title" className="rd__title">
       {t(purpose === "pickup" ? "rider.pickup.title" : "rider.destination.title")}
     </h1>
-  );
+  ) : null;
+  const sectionName = showTitle ? { "aria-labelledby": "rd-title" as const } : {};
 
   const highlighted = (row: SuggestionRow, query: string) => {
     const text = labelFor(row, language);
@@ -451,7 +454,7 @@ export function DestinationScreen({
   };
 
   return (
-    <section className="rd" dir={directionFor(language)} aria-labelledby="rd-title">
+    <section className="rd" dir={directionFor(language)} {...sectionName}>
       {title}
 
       {/* الحدُّ الأوّلُ مكتوبٌ حيثُ يُتوقَّعُ الرسمُ — لا فراغٌ ولا رسمٌ كاذبٌ. */}
