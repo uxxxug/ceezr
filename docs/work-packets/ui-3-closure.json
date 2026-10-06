@@ -1,0 +1,40 @@
+{
+  "id": "ui-3-closure",
+  "implementation": [],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0238-ui-3-pr5-rider-r11-r15.md",
+    "docs/adr/0235-ui-3-rider-r0-r5.md",
+    "docs/adr/0236-ui-4-driver-d0-d14.md",
+    "docs/UI_SURFACE_INVENTORY.md"
+  ],
+  "evidence": {
+    "pr": 420,
+    "head_before_merge": "92390c76d9cd4dce5ddec933a22b6b0b08f65388",
+    "merge_commit": "ac55c0aa81043de3b85b2d9db7750cc57f8dff44",
+    "merged_at": "2026-10-06T12:35:17Z",
+    "pr_checks": {
+      "result": "success",
+      "jobs": "8/8"
+    },
+    "main_ci": {
+      "run": "37464334979",
+      "result": "success",
+      "jobs": "7/7"
+    },
+    "roadmap_freshness": {
+      "run": "37464335174",
+      "result": "success"
+    },
+    "ui3_prs": {
+      "PR 3": "#415 → fc84ac12 (R0–R5 · ADR 0235)",
+      "PR 4": "#419 → cd4b6356 (R6–R10 · ADR 0237)",
+      "PR 5": "#420 → ac55c0aa (R11–R15 + [B] · ADR 0238)"
+    }
+  },
+  "contract_gaps": [
+    "فجواتُ عقدِ PR 5 الستُّ في ADR 0238 باقيةٌ مفتوحةً لا يُغلِقها هذا الإغلاق: لا حذفَ لجهةِ الطوارئ · الجهةُ لا يقرؤها مسارُ الاستغاثة · لا مرسلَ «فريقَ الدعم» في رسائلِ التذكرة · لا تعديلَ للاسمِ والرقم (editIdentity دَينٌ باقٍ) · لا مرفقاتٍ للتذاكر · إضافةُ مكانٍ من وجهةٍ حديثةٍ وحدَها. سدُّها قراراتُ خادمٍ مستقلةٌ خارجَ UI-3."
+  ],
+  "no_other_affected_docs_reason": "إغلاق UI-3 توثيقيٌّ فقط: لا تغيير في كود المنتج ولا العقود ولا قرارات التصميم. docs/UI_UX_CANONICAL_DIRECTIVE.md وdocs/UI_UX_RECONCILIATION_REPORT.md هما المرجع ولا يتغيّران (كما في إغلاقات UI-2 وUI-4). حُدِّثت الحالات القديمة المتأثرة فعليًّا فقط: ADR 0238 (حالة PR 5) وADR 0235 (حالة PR 5 في الترويسة والجدول) وADR 0236 (سطر «UI-3 لم تكتمل») وdocs/UI_SURFACE_INVENTORY.md (إسناد R11–R15). لا يبدأ UI-5 في هذا الـPR."
+}
