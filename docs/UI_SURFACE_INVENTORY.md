@@ -10,7 +10,7 @@
 
 | المجموعة | الجذر | النوع | العدد |
 |---|---|---|---|
-| miniapp/rider | `apps/miniapp/src/surfaces/rider` | `.tsx` | 19 |
+| miniapp/rider | `apps/miniapp/src/surfaces/rider` | `.tsx` | 20 |
 | miniapp/driver | `apps/miniapp/src/surfaces/driver` | `.tsx` | 14 |
 | miniapp/account | `apps/miniapp/src/surfaces/account` | `.tsx` | 1 |
 | miniapp/admin | `apps/miniapp/src/surfaces/admin` | `.tsx` | 1 |
@@ -21,18 +21,36 @@
 | admin-dashboard/pages | `apps/admin-dashboard/src/pages` | `.ts` | 15 |
 | telegram/bots | `apps/gateway/src/bots` | `.ts` | 20 |
 | public-tracking | `apps/gateway/src/routes/public-tracking.ts` | `.ts` | 1 |
-| **المجموع** | | | **81** |
+| **المجموع** | | | **82** |
 
 > **UI-2 / PR 2 (2026-10-06 · ADR 0234):** أُضيفَ `apps/miniapp/src/shell/ScreenFrame.tsx`
 > (`ScreenFrame` + التبويبُ الجذريُّ + `BackButton` + `ScreenTransition`) إلى `miniapp/shell`
 > فصارتِ المجموعةُ 4 والمجموعُ 81. لا سطحَ آخرُ تغيّر.
+>
+> **UI-3 / PR 4 (2026-10-06 · ADR 0237):** أُضيفَ `apps/miniapp/src/surfaces/rider/active/RideJourney.tsx`
+> (سكّةُ الرحلةِ `UiRail` وشريطُ حقيقتِها `UiTruth` في R6/R7) إلى `miniapp/rider` فصارتِ المجموعةُ 20
+> والمجموعُ 82.
 
 ملفّاتُ الاختبارِ (`*.test.ts`/`*.test.tsx`) خارجَ الجرد.
 
 ## ما لا يدّعيه الجرد
 
 - **إسنادُ R0–R15 وD0–D14 جزئيّ.** أُسنِدَ منها ما نُفِّذ: **R0–R5** في ADR 0235 (UI-3)، و**D0–D14** في
-  ADR 0236 (UI-4) **من المصدرِ الأصليِّ (PDF v2.0) بمطابقةٍ مباشرة** — Canonical Source Mapping. R6–R15 بلا إسناد.
+  ADR 0236 (UI-4) **من المصدرِ الأصليِّ (PDF v2.0) بمطابقةٍ مباشرة** — Canonical Source Mapping، و**R6–R15**
+  من المصدرِ الأصليِّ في ADR 0237 (UI-3 / PR 4): المنفّذُ منها R6–R10، وR11–R15 لـPR 5.
+
+  | R | التعريفُ الكانونيّ | ملفُّ السطح (`miniapp/rider`) | الحالة |
+  |---|---|---|---|
+  | R6 | البحث عن سائق | `search/SearchScreen.tsx` · `active/RideJourney.tsx` | PR 4 |
+  | R7 | الرحلة النشطة | `active/ActiveRideScreen.tsx` · `active/RideJourney.tsx` | PR 4 |
+  | R8 | مشاركة الرحلة | `share/RideShareCard.tsx` (داخلَ R7) | PR 4 |
+  | R9 | SOS | `sos/SosScreen.tsx` · `sos/SosCard.tsx` · `sos/SosEntry.tsx` | PR 4 |
+  | R10 | ملخص الرحلة والتقييم | `summary/RideSummaryScreen.tsx` | PR 4 |
+  | R11 | سجل الرحلات وتفاصيلها | `history/RideHistoryScreen.tsx` · `history/RideDetailScreen.tsx` | PR 5 |
+  | R12 | الإشعارات | `notifications/NotificationsScreen.tsx` | PR 5 |
+  | R13 | حسابي | `account/AccountScreen.tsx` | PR 5 |
+  | R14 | الخصوصية والشروط | `privacy/PrivacyScreen.tsx` | PR 5 |
+  | R15 | الدعم والتذاكر والمفقودات وFAQ | `support/SupportScreen.tsx` · `faq/FaqScreen.tsx` | PR 5 |
 
   | D | التعريفُ الكانونيّ | ملفُّ السطح (`miniapp/driver` ما لم يُذكَر) |
   |---|---|---|

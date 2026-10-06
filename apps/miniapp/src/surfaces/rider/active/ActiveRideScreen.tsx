@@ -102,7 +102,6 @@ import { readRide as readViaApi } from "./active-ride-api.ts";
 import type { ActiveRideResponse } from "./active-ride-contract.ts";
 import {
   activeErrorKey,
-  activePhaseKey,
   activeRefusalKey,
   cancelPolicyKey,
   driverIdentityLine,
@@ -114,6 +113,8 @@ import {
   rideStatusKey,
   showsCancelButton,
 } from "./active-ride-view.ts";
+import { RideJourney } from "./RideJourney.tsx";
+import { activeRideTruth, journeyFromActivePhase } from "./ride-journey.ts";
 
 export interface ActiveRideScreenProps {
   readonly orderId: string;
@@ -123,6 +124,8 @@ export interface ActiveRideScreenProps {
     readonly idempotencyKey: string;
   }) => Promise<CancelRideResponse>;
   readonly onBack?: () => void;
+  /** UI-3 / PR 4: داخلَ `ScreenFrame` العنوانُ للإطار (`false`) فلا `h1` مكرّر. */
+  readonly showTitle?: boolean;
   /**
    * مخرجُ الإنهاءِ (`F2-07`) — يُنادى بمعرّفِ الرحلةِ متى طلبَ الراكبُ الملخَّصَ.
    * **اختياريٌّ**: بغيابِه لا يُرسَمُ زرٌّ، ولا يُخترعُ مسارٌ لا يعرفُه المُركِّبُ.
@@ -176,6 +179,7 @@ export function ActiveRideScreen({
   read = readViaApi,
   cancel = cancelViaApi,
   onBack,
+  showTitle = true,
   onFinished,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   now = () => Date.now(),
@@ -399,7 +403,12 @@ export function ActiveRideScreen({
     return (
       <div className="ar__live">
         <p className="ar__status">{t(rideStatusKey(view.status))}</p>
-        <p className="ar__phase">{t(activePhaseKey(view.phase))}</p>
+        {/* R7 · §11 PR 4: شريطُ الحقيقةِ (طورُ الخادمِ بنغمتِه) وسكّةُ المراحل — من القراءةِ وحدَها. */}
+        <RideJourney
+          language={language}
+          stage={journeyFromActivePhase(view.phase)}
+          truth={activeRideTruth(view.phase)}
+        />
 
         <p className="ar__elapsed" aria-live="polite">
           {t(elapsed.key)
@@ -512,10 +521,16 @@ export function ActiveRideScreen({
   };
 
   return (
-    <section className="ar" dir={directionFor(language)} aria-labelledby="ar-title">
-      <h1 className="ar__title" id="ar-title">
-        {t("rider.active.title")}
-      </h1>
+    <section
+      className="ar"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "ar-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 className="ar__title" id="ar-title">
+          {t("rider.active.title")}
+        </h1>
+      ) : null}
       {body()}
     </section>
   );

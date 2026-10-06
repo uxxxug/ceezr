@@ -28,6 +28,7 @@ export const SURFACE_INVENTORY: readonly SurfaceGroup[] = [
       "RiderRoot.tsx",
       "account/AccountScreen.tsx",
       "active/ActiveRideScreen.tsx",
+      "active/RideJourney.tsx",
       "destination/DestinationScreen.tsx",
       "faq/FaqScreen.tsx",
       "history/RideDetailScreen.tsx",

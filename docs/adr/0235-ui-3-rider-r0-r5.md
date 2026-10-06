@@ -1,6 +1,6 @@
 # ADR 0235: UI-3 / PR 3 — وصلُ تجربةِ الراكبِ R0–R5
 
-**الحالة:** مقبول — PR 3 مدموج في `main` (#415 → `fc84ac12`)؛ UI-3 جارية (PR 4 وPR 5 لم يبدآ · Work Packet `ui-3-status`)
+**الحالة:** مقبول — PR 3 مدموج في `main` (#415 → `fc84ac12`)؛ UI-3 جارية (PR 4 = R6–R10 على فرعٍ غيرِ مدموج · ADR 0237؛ PR 5 لم يبدأ · Work Packet `ui-3-status`)
 **التاريخ:** 2026-10-06
 **المرحلة:** WASLA UI/UX REFOUNDATION — UI-3 (Rider Experience) · PR 3
 **المرجع:** `docs/UI_UX_CANONICAL_DIRECTIVE.md` §§0، 5، 6، 9، 11 · ADR 0234

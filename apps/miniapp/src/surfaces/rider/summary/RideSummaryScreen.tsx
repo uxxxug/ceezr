@@ -90,6 +90,10 @@ export interface RideSummaryScreenProps {
     },
   ) => Promise<RideRatingResponse>;
   readonly onBack?: () => void;
+  /** UI-3 / PR 4: داخلَ `ScreenFrame` العنوانُ للإطار (`false`) فلا `h1` مكرّر. */
+  readonly showTitle?: boolean;
+  /** UI-3 / PR 4: داخلَ `ScreenFrame` الرجوعُ لرأسِ الإطار (`false`) فلا زرّا رجوعٍ. */
+  readonly showBack?: boolean;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
   readonly onOpenSos?: () => void;
   /**
@@ -134,6 +138,8 @@ export function RideSummaryScreen({
   read = readViaApi,
   rate = submitViaApi,
   onBack,
+  showTitle = true,
+  showBack = true,
   onOpenSos,
   onReportProblem,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
@@ -467,9 +473,11 @@ export function RideSummaryScreen({
       <>
         {summaryBody(state.view)}
         {ratingForm(state.view)}
-        <button type="button" className="sm__back" onClick={() => onBack?.()}>
-          {t("rider.summary.back")}
-        </button>
+        {showBack ? (
+          <button type="button" className="sm__back" onClick={() => onBack?.()}>
+            {t("rider.summary.back")}
+          </button>
+        ) : null}
 
         {/* مدخلُ الاستغاثةِ (`PD-020`) — نافذةُ ما بعدَ الرحلةِ مفتوحةٌ فالبابُ كذلك. */}
         {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
@@ -478,10 +486,16 @@ export function RideSummaryScreen({
   };
 
   return (
-    <section className="sm" dir={directionFor(language)} aria-labelledby="sm-title">
-      <h1 className="sm__title" id="sm-title">
-        {t("rider.summary.title")}
-      </h1>
+    <section
+      className="sm"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "sm-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 className="sm__title" id="sm-title">
+          {t("rider.summary.title")}
+        </h1>
+      ) : null}
       {body()}
     </section>
   );

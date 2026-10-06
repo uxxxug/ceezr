@@ -1,0 +1,51 @@
+{
+  "id": "ui-3-pr4-rider-r6-r10",
+  "implementation": [
+    "apps/miniapp/src/surfaces/rider/RiderRoot.tsx",
+    "apps/miniapp/src/surfaces/rider/active/ActiveRideScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/active/RideJourney.tsx",
+    "apps/miniapp/src/surfaces/rider/active/ride-journey.ts",
+    "apps/miniapp/src/surfaces/rider/rider-r6-r10.test.tsx",
+    "apps/miniapp/src/surfaces/rider/search/SearchScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/sos/SosCard.tsx",
+    "apps/miniapp/src/surfaces/rider/sos/SosScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/summary/RideSummaryScreen.tsx",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "scripts/lib/css-class-coverage.ts",
+    "scripts/lib/ui-surface-inventory.ts",
+    "tests/unit/sos-entry-surfaces.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0237-ui-3-pr4-rider-r6-r10.md",
+    "docs/adr/0235-ui-3-rider-r0-r5.md",
+    "docs/UI_SURFACE_INVENTORY.md"
+  ],
+  "decision": "UI-3 / PR 4 = R6–R10 بالترقيم الكانوني المحسوم من المصدر الأصلي: R6 البحث عن سائق · R7 الرحلة النشطة · R8 مشاركة الرحلة · R9 SOS · R10 ملخص الرحلة والتقييم. شرط القبول (§11): سكّة + شريط حقيقة + SOS. R6/R7/R9/R10 تدفّقات ScreenFrame برجوع واحد؛ UiRail وUiTruth من الحالة المقروءة وحدها؛ R8 داخل R7 بلا تغيير؛ لا API ولا عقد ولا قاعدة ولا تبعية.",
+  "canonical_r": {
+    "R6": "البحث عن سائق",
+    "R7": "الرحلة النشطة",
+    "R8": "مشاركة الرحلة",
+    "R9": "SOS",
+    "R10": "ملخص الرحلة والتقييم",
+    "R11": "سجل الرحلات وتفاصيلها",
+    "R12": "الإشعارات",
+    "R13": "حسابي",
+    "R14": "الخصوصية والشروط",
+    "R15": "الدعم والتذاكر والمفقودات وFAQ"
+  },
+  "deferred_to_pr5": {
+    "range": "R11–R15 + [B]",
+    "b_items": [
+      "رسائل تذكرة الدعم",
+      "حفظ/تعديل/حذف الأماكن",
+      "جهة اتصال الطوارئ",
+      "تفضيلات الإشعارات"
+    ],
+    "rule": "كل واجهة [B] تعالج 503 = غير متاح، ولا يجوز اختراع endpoint أو سلوك غير موجود."
+  },
+  "status": "على فرع ui-3-pr4-rider-r6-r10 — غير مدموج. UI-3 جارية؛ PR 5 لم يبدأ؛ UI-5 لم تبدأ."
+}

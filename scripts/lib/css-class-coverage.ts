@@ -170,6 +170,13 @@ export interface RetainedRule {
 
 export const RETAINED_RULES: readonly RetainedRule[] = [
   {
+    className: "ar__phase",
+    reason:
+      "سطرُ طورِ الرحلةِ النشطةِ (R7). حلَّ محلَّه في UI-3 / PR 4 (§11 «سكّة + شريط حقيقة + SOS») شريطُ الحقيقةِ `UiTruth` بالنصِّ نفسِه (`activePhaseKey`) ونغمةٍ من الطور، ومعه سكّةُ `UiRail`. والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-3 / PR 4 · ADR 0237 · .ui-truth عبرَ active/RideJourney.tsx",
+  },
+  {
     className: "dof__timer",
     reason:
       "شارةُ مهلةِ العرضِ النصّيّةُ في لوحِ العروضِ وتفاصيلِ العرض. حلَّ محلَّها في UI-4 (D1–D2 · §11 PR 6 «مؤقّتُ CSS + بطاقةُ عرض») مكوّنُ `UiTimer` من UI-1: شريطٌ يُفرَغُ بحركةِ CSS ونصٌّ يقولُ ما بقيَ لحظةَ العرض. والحذفُ ممنوعٌ (`ح-1`).",
