@@ -82,3 +82,13 @@
 
 UI-3/UI-4 تصلُ سطحَي الراكبِ والسائقِ بـ`ScreenFrame` و`useScreenStack` و`RootTabBar` بوسومٍ من
 القاموس، ولا تبني إطاراً ثانياً.
+
+## إغلاقُ UI-2 (2026-10-06 · Work Packet `ui-2-closure`)
+
+UI-2 (Shell & Navigation) = **مكتملة / Closed**. قراراتُ هذا الـADR نافذةٌ كما هي ولا تُعدَّل بالإغلاق؛ والحالةُ تبقى «مقبول».
+
+- **PR 2:** PR #413 — HEAD قبلَ الدمج `e14426af877d12aebe3fa81c61ff3b68cef947e8`، فحوصُه 15/15 success. دُمجَ في `main` بتاريخ 2026-10-06T02:43:41Z (squash بمطابقةِ HEAD) — commit الدمج `0b8b0ea72d1652fa3547464873526e004c4d9dc0`.
+- **CI على `0b8b0ea7`:** `CI` (push) run `37405542119` = success — 7/7 وظائف (verify · تكاملُ PostgreSQL · تكاملُ Redis · متصفّحٌ حقيقيٌّ أوّلُ رسمٍ · Slow 4G/3G · F5-06 · F9-03). `Roadmap freshness` run `37405542140` = success.
+- **ما لا يُدَّعى:** لا مستهلكَ للهيكلِ في أيِّ سطحٍ بعد — الإغلاقُ إغلاقُ بناءِ الهيكلِ لا وصلِه بشاشاتِ الراكبِ والسائق (ذلك من UI-3/UI-4). لا قياسَ على جهازٍ أو عميلِ تيليجرامَ حيّ. وفجوةُ `check-css-class-coverage` (`className={x.modifier}` بلا قالب) مُسجَّلةٌ في ADR 0234 وليست مانعاً. والمخاطرُ المسجّلةُ سابقاً (Dependabot/manifest، `main` غير محمي، Redis «degraded») باقية.
+
+ما بعدَ الإغلاقِ يبدأُ في UI-3 (PR 3 — راكب أ) ويصلُ السطوحَ بـ`ScreenFrame` و`useScreenStack` و`RootTabBar` ولا يبني إطاراً ثانياً.
