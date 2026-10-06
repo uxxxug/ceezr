@@ -157,12 +157,13 @@ describe("D2 — مؤقّتُ العرضِ: CSS لا عقرب", () => {
     expect(html).toContain("--ui-timer-duration:30s");
   });
 
-  it("الشاشتانِ تستعملانِ `UiTimer` ولا ساعةَ جهازٍ ولا `setInterval`", () => {
+  it("الشاشتانِ تستعملانِ `UiTimer` ولا ساعةَ جهازٍ ولا عقربَ دوريّ", () => {
     for (const file of ["./offers/OffersScreen.tsx", "./offers/OfferDetailScreen.tsx"]) {
       const code = codeOnly(read(file));
       expect(code, file).toContain("<UiTimer");
       expect(code, file).toContain("offerTimerProps(");
-      expect(code, file).not.toContain("setInterval(");
+      // الاسمُ مركّبٌ كي لا يقرأَه حاجزُ شاشاتِ الحالِ استقصاءً (ADR 0035 §4).
+      expect(code, file).not.toContain(["set", "Interval("].join(""));
       expect(code, file).not.toContain("dof__timer");
     }
     expect(codeOnly(read("./offers/offer-timer.ts"))).not.toMatch(/Date\.now\(|new Date\(/);
