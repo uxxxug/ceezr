@@ -1876,6 +1876,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/eta-error-band.test.ts",
+    suites: ["ADR 0243 — مقياسُ خطأِ التقديرِ على القاعدة"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "مدى التنبؤِ الصادق (`ADR 0243`) **قياسٌ تُجريه القاعدةُ**: أنَّ أوّلَ تقديرٍ لكلِّ (طلب، ساق) يُحفَظُ ولا يستبدلُه ما بعدَه (`on conflict do nothing`)، وأنَّ النسبةَ (الفعليّ ÷ المقدَّر) تُحسَبُ على الساقاتِ المنتهيةِ وحدَها بـ`percentile_cont` في مدينةِ الطلب، وأنَّ الدالّةَ لا تُنادى من `anon`/`authenticated` والجدولَ تحتَ RLS، وأنَّ حذفَ الطلبِ يحذفُ رصدَه. ومزدوجٌ في الذاكرةِ يُصدِّقُ ما تصوَّرناهُ عن `percentile_cont` لا ما يحسبُه المحرِّك.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20261006200000_ui_8_eta_error_band). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/identity-bar-survives-erasure.test.ts",
     suites: ["ADR 0113 · الحظرُ والمقامُ يَعبُرانِ الحذفَ"],
     skipped: 10,

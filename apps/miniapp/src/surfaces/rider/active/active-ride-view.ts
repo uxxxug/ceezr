@@ -155,6 +155,101 @@ export function etaLine(
   return { kind: "ROUTED", key: "rider.active.eta.minutes", minutes };
 }
 
+/**
+ * سطرُ مدى التقدير (ADR 0243) — مرصودٌ بأرقامِه، أو «لا مدى بعد» بعددِ المرصودِ والمطلوب،
+ * أو غائبٌ بسببِه. وأيُّ شكلٍ مخالفٍ يُقرأُ غائباً: مدىً مُرقَّعٌ أسوأُ من لا مدى.
+ */
+export type EtaBandLine =
+  | {
+      readonly kind: "MEASURED";
+      readonly key: string;
+      readonly lowMinutes: number;
+      readonly highMinutes: number;
+      readonly samples: number;
+      readonly coveragePercent: number;
+    }
+  | {
+      readonly kind: "INSUFFICIENT";
+      readonly key: string;
+      readonly samples: number;
+      readonly required: number;
+    }
+  | { readonly kind: "UNAVAILABLE"; readonly key: string };
+
+const BAND_UNAVAILABLE: EtaBandLine = {
+  kind: "UNAVAILABLE",
+  key: "rider.active.eta.band.unavailable",
+};
+
+function wholeAtLeast(value: unknown, min: number): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= min ? value : null;
+}
+
+export function etaBandLine(band: unknown): EtaBandLine {
+  if (typeof band !== "object" || band === null) return BAND_UNAVAILABLE;
+  const raw = band as Record<string, unknown>;
+  if (raw.kind === "MEASURED") {
+    const low = wholeAtLeast(raw.lowMinutes, 1);
+    const high = wholeAtLeast(raw.highMinutes, 1);
+    const samples = wholeAtLeast(raw.samples, 1);
+    const coverage = wholeAtLeast(raw.coveragePercent, 1);
+    if (low === null || high === null || samples === null || coverage === null || low > high) {
+      return BAND_UNAVAILABLE;
+    }
+    return {
+      kind: "MEASURED",
+      key: "rider.active.eta.band.measured",
+      lowMinutes: low,
+      highMinutes: high,
+      samples,
+      coveragePercent: coverage,
+    };
+  }
+  if (raw.kind === "INSUFFICIENT") {
+    const samples = wholeAtLeast(raw.samples, 0);
+    const required = wholeAtLeast(raw.required, 1);
+    if (samples === null || required === null) return BAND_UNAVAILABLE;
+    return { kind: "INSUFFICIENT", key: "rider.active.eta.band.insufficient", samples, required };
+  }
+  return BAND_UNAVAILABLE;
+}
+
+/**
+ * لحظةُ قراءةِ اللقطة (ADR 0243) بساعةِ الخادم، تُنسَّقُ ساعةً بمنطقةِ الجهاز وأرقامٍ غربيّة.
+ * والغائبُ أو غيرُ المقروءِ «غير معروف» — لا ساعةَ الجهازِ بديلاً.
+ */
+export type ObservedLine =
+  | { readonly kind: "KNOWN"; readonly key: string; readonly iso: string; readonly time: string }
+  | { readonly kind: "UNKNOWN"; readonly key: string };
+
+export function observedLine(
+  observedAt: unknown,
+  language: string,
+  timeZone: string,
+): ObservedLine {
+  const unknown: ObservedLine = { kind: "UNKNOWN", key: "rider.active.observed.unknown" };
+  if (typeof observedAt !== "string") return unknown;
+  const ms = Date.parse(observedAt);
+  if (!Number.isFinite(ms)) return unknown;
+  try {
+    const time = new Intl.DateTimeFormat(`${language}-u-nu-latn`, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+      timeZone,
+    }).format(new Date(ms));
+    return {
+      kind: "KNOWN",
+      key: "rider.active.observed.at",
+      iso: new Date(ms).toISOString(),
+      time,
+    };
+  } catch {
+    return unknown;
+  }
+}
+
 const CANCEL_POLICY_KEYS: Readonly<Record<string, string>> = {
   FREE_BEFORE_ASSIGNMENT: "rider.active.cancel.beforeAssignment",
   AFTER_ASSIGNMENT_UNDECIDED: "rider.active.cancel.afterAssignment",

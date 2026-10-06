@@ -905,8 +905,11 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (`ح-8`): والآنَ 156 و 1433 باستردادِ حجزِ الاستغاثةِ المتروكِ (`D-39`):
     // حالةٌ واحدةٌ في `safety-sos.test.ts` لأنَّ المُدَّعى حكمُ دالّةِ قاعدةٍ
     // (`claim_safety_incident_delivery`) على صفٍّ `sending` بمهلةٍ منقضيةٍ.
-    expect(SKIP_REGISTRY).toHaveLength(156);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1433);
+    // زيادةٌ (`ح-8`): والآنَ 157 و 1438 بمقياسِ خطأِ التقديرِ (`ADR 0243`):
+    // خمسُ حالاتٍ في `eta-error-band.test.ts` لأنَّ المُدَّعى حسابُ `percentile_cont`
+    // وحفظُ الأوّلِ بـ`on conflict` وصلاحيّاتُ الأدوارِ — أحكامُ محرِّكٍ لا شِفرة.
+    expect(SKIP_REGISTRY).toHaveLength(157);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1438);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

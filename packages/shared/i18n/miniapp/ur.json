@@ -1518,5 +1518,12 @@
   "truth.age.unknown": "اِس ریڈنگ کی عمر معلوم نہیں، اس لیے غیر ناپا ہوا عدد نہیں دکھایا جاتا۔",
   "truth.source.serverRecord": "ماخذ: سرور پر سفر کا ریکارڈ۔",
   "truth.source.serverAge": "ماخذ: سرور کی ناپی ہوئی عمر، آپ کے آلے کی گھڑی نہیں۔",
-  "truth.source.routingEngine": "ماخذ: راستوں کا انجن۔"
+  "truth.source.routingEngine": "ماخذ: راستوں کا انجن۔",
+  "truth.source.serverClock": "ماخذ: سرور کی گھڑی۔",
+  "truth.source.observedTrips": "ماخذ: آپ کے شہر میں مکمل ہونے والے مشاہدہ شدہ سفر۔",
+  "rider.active.eta.band.measured": "مشاہدہ شدہ حد: {low} سے {high} منٹ؛ آپ کے شہر کے آخری {samples} سفروں میں سے {coverage}% میں آمد اسی حد میں رہی۔",
+  "rider.active.eta.band.insufficient": "ابھی کوئی حد نہیں: آپ کے شہر میں مطلوبہ {required} میں سے {samples} سفر مشاہدہ ہوئے۔",
+  "rider.active.eta.band.unavailable": "تخمینے کی حد ابھی دستیاب نہیں۔",
+  "rider.active.observed.at": "یہ حالت {time} پر پڑھی گئی۔",
+  "rider.active.observed.unknown": "یہ حالت کب پڑھی گئی، معلوم نہیں۔"
 }

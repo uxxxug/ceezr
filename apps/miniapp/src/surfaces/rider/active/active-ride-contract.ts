@@ -58,8 +58,29 @@ export type ApiActiveRidePosition =
       readonly ageSeconds: number | null;
     };
 
+/**
+ * مدى التقديرِ المرصود (ADR 0243): خطأُ المحرّكِ في آخرِ الساقاتِ المنتهيةِ في المدينة،
+ * أو عددُ ما رُصِدَ دونَ الحدّ، أو سببُ الغياب. لا مدىً مفترَض.
+ */
+export type ApiEtaBand =
+  | {
+      readonly kind: "MEASURED";
+      readonly lowMinutes: number;
+      readonly highMinutes: number;
+      readonly samples: number;
+      readonly coveragePercent: number;
+    }
+  | { readonly kind: "INSUFFICIENT"; readonly samples: number; readonly required: number }
+  | { readonly kind: "UNAVAILABLE"; readonly reason: string };
+
 export type ApiActiveRideEta =
-  | { readonly kind: "ROUTED"; readonly minutes: number; readonly source: string }
+  | {
+      readonly kind: "ROUTED";
+      readonly minutes: number;
+      readonly source: string;
+      /** ADR 0243 — غائبٌ من بوّابةٍ أقدم ⇒ يُقرأُ «لا مدى». */
+      readonly band?: ApiEtaBand;
+    }
   | { readonly kind: "UNAVAILABLE"; readonly reason: string };
 
 export type ActiveRideResponse =
@@ -79,6 +100,10 @@ export type ActiveRideResponse =
       readonly arrivedAt: string | null;
       readonly completedAt: string | null;
       readonly elapsedSeconds: number;
+      /**
+       * ADR 0243: لحظةُ القراءةِ بساعةِ الخادم (ISO). غائبٌ من بوّابةٍ أقدم ⇒ «غير معروف».
+       */
+      readonly observedAt?: string;
       readonly cancelPolicy: string;
       readonly driver: ApiActiveRideDriver | null;
       readonly position: ApiActiveRidePosition | null;

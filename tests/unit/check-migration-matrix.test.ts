@@ -96,8 +96,8 @@ describe("مصفوفةُ الهجرةِ — الحالةُ الحاضرةُ في
   // على `telegram_id`، فينتقلُ بأكملِهِ معَ `users` في `W-3` متى نُفِّذَ.
   // والأرقامُ السابقةُ محفوظةٌ لا ممحوّةٌ (`ح-8`).
   it("تغطّي كلَّ جدولٍ في جردِ الحدودِ بلا زيادةٍ", () => {
-    expect(WASLA_MIGRATION_MATRIX.length).toBe(65);
-    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(65);
+    expect(WASLA_MIGRATION_MATRIX.length).toBe(66);
+    expect(new Set(WASLA_MIGRATION_MATRIX.map((e) => e.table)).size).toBe(66);
   });
 
   it("لا مُدخلَ يدّعي تنفيذاً اليومَ — ولا خطّةَ عمودٍ", () => {

@@ -127,6 +127,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "record_attendance",
   "record_document_expiry_warning",
   "record_driver_document",
+  "record_eta_and_read_band",
   "record_job_heartbeat",
   "record_payment_checkout",
   "record_payment_provider_reference",

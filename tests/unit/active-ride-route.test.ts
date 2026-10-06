@@ -12,6 +12,8 @@
 
 import { describe, expect, it } from "bun:test";
 import { createServer } from "../../apps/gateway/src/server.ts";
+import { PortFailureError } from "../../packages/application/ports/index.ts";
+import type { EtaBandStore } from "../../packages/application/tracking/eta-band-ports.ts";
 import type {
   ActiveRideReader,
   ActiveRideState,
@@ -96,6 +98,7 @@ function buildHarness(
     readonly failure?: RideStoreFailureReason;
     readonly routing?: RoutingProvider | null;
     readonly mounted?: boolean;
+    readonly etaBands?: EtaBandStore;
   } = {},
 ): { app: ReturnType<typeof createServer>; seen: Seen } {
   const seen: Seen = { reads: [] };
@@ -116,6 +119,7 @@ function buildHarness(
     routing: {
       routing: options.routing === undefined ? routingProvider(ROUTED) : options.routing,
     },
+    ...(options.etaBands === undefined ? {} : { etaBands: options.etaBands }),
   };
 
   const app = createServer({
@@ -288,7 +292,12 @@ describe("حجبُ الموقعِ في السلكِ", () => {
 describe("مدّةُ الوصولِ", () => {
   it("مزوِّدٌ يُجيبُ ⇒ `ROUTED` بدقائقِها ومصدرِها", async () => {
     const { json } = await get(buildHarness(), `/v1/rides/${ORDER_ID}`, authed());
-    expect(json.eta).toEqual({ kind: "ROUTED", minutes: 7, source: "ROUTING" });
+    expect(json.eta).toEqual({
+      kind: "ROUTED",
+      minutes: 7,
+      source: "ROUTING",
+      band: { kind: "UNAVAILABLE", reason: "NOT_CONFIGURED" },
+    });
   });
 
   it("لا مزوِّدَ مضبوطٌ ⇒ امتناعٌ مُصنَّفٌ لا صفرٌ ولا شَرطةٌ", async () => {
@@ -319,7 +328,12 @@ describe("مدّةُ الوصولِ", () => {
       authed(),
     );
     expect(withDestination.json.phase).toBe("on_trip");
-    expect(withDestination.json.eta).toEqual({ kind: "ROUTED", minutes: 7, source: "ROUTING" });
+    expect(withDestination.json.eta).toEqual({
+      kind: "ROUTED",
+      minutes: 7,
+      source: "ROUTING",
+      band: { kind: "UNAVAILABLE", reason: "NOT_CONFIGURED" },
+    });
 
     const withoutDestination = await get(
       buildHarness({ state: state({ ...running, dropoff: null }) }),
@@ -405,5 +419,78 @@ describe("الرفضُ والعطبُ", () => {
     );
     expect(status).toBe(503);
     expect(json).toEqual({ ok: false, error: "RIDE_STORE_NOT_AVAILABLE" });
+  });
+});
+
+describe("ADR 0243 — لحظةُ القراءةِ ومدى التقدير", () => {
+  it("`observedAt` لحظةُ الخادمِ نفسُها التي قِيسَ بها `elapsedSeconds`", async () => {
+    const { json } = await get(buildHarness(), `/v1/rides/${ORDER_ID}`, authed());
+    expect(json.observedAt).toBe(NOW.toISOString());
+    expect(json.elapsedSeconds).toBe(300);
+  });
+
+  it("مدىً مرصودٌ: التقديرُ × المئينَين، والساقُ `pickup` في طورِ الإسناد", async () => {
+    const calls: { orderId: string; leg: string; predictedSeconds: number }[] = [];
+    const etaBands: EtaBandStore = {
+      recordAndRead: async (input) => {
+        calls.push({ ...input });
+        return ok({ samples: 42, lowRatio: 0.9, highRatio: 1.6 });
+      },
+    };
+    const { json } = await get(buildHarness({ etaBands }), `/v1/rides/${ORDER_ID}`, authed());
+    // 420 ث × 0.9 = 378 ث ⇒ 6 د نزولاً · 420 × 1.6 = 672 ث ⇒ 12 د صعوداً.
+    expect(json.eta).toEqual({
+      kind: "ROUTED",
+      minutes: 7,
+      source: "ROUTING",
+      band: { kind: "MEASURED", lowMinutes: 6, highMinutes: 12, samples: 42, coveragePercent: 80 },
+    });
+    expect(calls).toEqual([{ orderId: ORDER_ID, leg: "pickup", predictedSeconds: 420 }]);
+  });
+
+  it("دونَ الحدِّ: «لا مدى بعد» بالعددِ المرصودِ والمطلوب — لا مدىً مفترَض", async () => {
+    const etaBands: EtaBandStore = {
+      recordAndRead: async () => ok({ samples: 4, lowRatio: 0.8, highRatio: 1.2 }),
+    };
+    const { json } = await get(buildHarness({ etaBands }), `/v1/rides/${ORDER_ID}`, authed());
+    expect((json.eta as { band?: unknown }).band).toEqual({
+      kind: "INSUFFICIENT",
+      samples: 4,
+      required: 30,
+    });
+  });
+
+  it("سقوطُ المخزنِ لا يُسقِطُ اللقطةَ ولا التقدير: المدى غائبٌ بسببِه", async () => {
+    const etaBands: EtaBandStore = {
+      recordAndRead: async () => err(new PortFailureError("etaBands.recordAndRead", "down")),
+    };
+    const { status, json } = await get(
+      buildHarness({ etaBands }),
+      `/v1/rides/${ORDER_ID}`,
+      authed(),
+    );
+    expect(status).toBe(200);
+    expect((json.eta as { minutes?: unknown }).minutes).toBe(7);
+    expect((json.eta as { band?: unknown }).band).toEqual({
+      kind: "UNAVAILABLE",
+      reason: "STORE_DOWN",
+    });
+  });
+
+  it("لا تقديرَ محسوباً ⇒ لا نداءَ للمخزنِ أصلاً", async () => {
+    let called = 0;
+    const etaBands: EtaBandStore = {
+      recordAndRead: async () => {
+        called += 1;
+        return ok({ samples: 99, lowRatio: 1, highRatio: 1 });
+      },
+    };
+    const { json } = await get(
+      buildHarness({ etaBands, routing: null }),
+      `/v1/rides/${ORDER_ID}`,
+      authed(),
+    );
+    expect(json.eta).toEqual({ kind: "UNAVAILABLE", reason: "NOT_CONFIGURED" });
+    expect(called).toBe(0);
   });
 });

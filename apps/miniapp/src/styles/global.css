@@ -1390,6 +1390,15 @@ a.sys__action {
   font-variant-numeric: tabular-nums;
 }
 
+/* ADR 0243: مدى التقديرِ المرصود ولحظةُ القراءةِ بساعةِ الخادم — ثانويّانِ للسطرِ الرئيس. */
+.ar__eta-band,
+.ar__observed {
+  margin: 0;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--tg-subtitle-text-color);
+}
+
 .ar__snapshot {
   display: flex;
   flex-direction: column;

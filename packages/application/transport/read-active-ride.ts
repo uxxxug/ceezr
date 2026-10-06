@@ -34,6 +34,7 @@
  *      `م13-7`)، ولا تُصدِرُ رمزَ مشاركةٍ (`F2-09`) ولا بلاغَ طوارئَ (`F2-10`).
  */
 
+import { type EtaBand, type EtaLeg, etaBandFrom } from "../../domain/eta/band.ts";
 import type { EtaVerdict } from "../../domain/eta/index.ts";
 import {
   type ActiveRidePhase,
@@ -47,6 +48,7 @@ import { elapsedSecondsSince } from "../../domain/transport/ride-request.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { MiniAppSessionReader } from "../identity/ports.ts";
 import { type EstimateArrivalDeps, estimateArrival } from "../tracking/estimate-arrival.ts";
+import type { EtaBandStore } from "../tracking/eta-band-ports.ts";
 import type { ActiveRideReader, ActiveRideRefusal, ActiveRideState } from "./active-ride-ports.ts";
 import { type RequestRidePublicErrorCode, rideStoreErrorFrom } from "./request-ride.ts";
 
@@ -56,6 +58,11 @@ export interface ReadActiveRideDeps {
   readonly now: () => Date;
   /** مزوِّدُ التوجيهِ — `null` قرارُ مشغِّلٍ مُعلَنٌ لا حقلٌ منسيٌّ. */
   readonly routing: EstimateArrivalDeps;
+  /**
+   * مقياسُ خطأِ التقدير (ADR 0243). غائبٌ = لا مدى (`NOT_CONFIGURED`) — ولا يُعطَّلُ
+   * المسارُ ولا التقديرُ لأجلِه.
+   */
+  readonly etaBands?: EtaBandStore;
 }
 
 export interface ActiveRideView {
@@ -68,8 +75,15 @@ export interface ActiveRideView {
    * **الوجهةِ** في طورِ الرحلةِ. و`null` متى لا سؤالَ أصلاً (لا طورَ نشطٌ).
    */
   readonly eta: EtaVerdict | null;
+  /** مدى التقديرِ المرصود (ADR 0243) — `null` متى لا تقديرَ محسوباً (`ROUTED`). */
+  readonly etaBand: EtaBand | null;
   readonly cancelPolicy: CancelPolicyCode;
   readonly elapsedSeconds: number;
+  /**
+   * لحظةُ القراءةِ بساعةِ الخادم (ADR 0243 — فجوةُ UI-8 [C] الأولى): اللحظةُ نفسُها التي
+   * قِيسَ بها `elapsedSeconds`، فلا ساعتانِ في لقطةٍ واحدة.
+   */
+  readonly observedAtMs: number;
 }
 
 export type ReadActiveRideResult =
@@ -109,15 +123,19 @@ export async function readActiveRide(
   });
   const position = state.driver === null ? null : driverPositionVerdict(state.driver.position);
 
+  const observedAtMs = deps.now().getTime();
+  const eta = await etaFor(deps, state, phase, position);
   return ok({
     found: true,
     view: {
       state,
       phase,
       position,
-      eta: await etaFor(deps, state, phase, position),
+      eta,
+      etaBand: await etaBandFor(deps, state.orderId, phase, eta),
       cancelPolicy: cancelPolicyOf(phase),
-      elapsedSeconds: elapsedSecondsSince(state.createdAtMs, deps.now().getTime()),
+      elapsedSeconds: elapsedSecondsSince(state.createdAtMs, observedAtMs),
+      observedAtMs,
     },
   });
 }
@@ -148,4 +166,22 @@ async function etaFor(
     },
     deps.routing,
   );
+}
+
+/**
+ * مدى التقدير (ADR 0243): لا يُسألُ المقياسُ إلّا عن تقديرٍ محسوبٍ (`ROUTED`) — والساقُ من
+ * الطورِ نفسِه الذي اختارَ الهدف. فشلُ المخزنِ لا يُسقِطُ القراءة: يُقالُ «لا مدى» بسببِه.
+ */
+async function etaBandFor(
+  deps: ReadActiveRideDeps,
+  orderId: string,
+  phase: ActiveRidePhase,
+  eta: EtaVerdict | null,
+): Promise<EtaBand | null> {
+  if (eta === null || eta.kind !== "ROUTED") return null;
+  if (deps.etaBands === undefined) return { kind: "UNAVAILABLE", reason: "NOT_CONFIGURED" };
+  const leg: EtaLeg = phase === "driver_assigned" ? "pickup" : "dropoff";
+  const stats = await deps.etaBands.recordAndRead({ orderId, leg, predictedSeconds: eta.seconds });
+  if (!stats.ok) return { kind: "UNAVAILABLE", reason: "STORE_DOWN" };
+  return etaBandFrom(eta.seconds, stats.value);
 }
