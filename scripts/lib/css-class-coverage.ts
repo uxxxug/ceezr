@@ -113,6 +113,38 @@ export const DECLARED_BLOCKS: readonly string[] = [
   "rf", // شاشةُ كشفِ الخصومِ (DEC-37) — وليستْ `sup` فتلكَ لتذكرةٍ، وهذه سجلُّ محفظةٍ.
   "dt",
   "dsup",
+  // ── UI-1 / PR 1: مكوّناتُ ui-* العرضيّةُ الصرفةُ (القسم 4) ──
+  // كلُّ اسمٍ بلوكٌ مستقلٌ بقواعدِه في `global.css` وعنصرُ React في `system/ui/`.
+  "ui-btn",
+  "ui-fld",
+  "ui-tile",
+  "ui-sg",
+  "ui-chip",
+  "ui-tag",
+  "ui-pill",
+  "ui-card",
+  "ui-row",
+  "ui-kv",
+  "ui-truth",
+  "ui-rail",
+  "ui-timer",
+  "ui-stp",
+  "ui-sht",
+  "ui-dg",
+  "ui-tab",
+  "ui-act",
+  "ui-hdr",
+  "ui-skel",
+  "ui-empty",
+  "ui-err",
+  "ui-toast",
+  "ui-banner",
+  "ui-av",
+  "ui-pl",
+  "ui-st",
+  "ui-ds",
+  "ui-pg",
+  "ui-copy",
 ];
 
 /** أوراقُ النمطِ المقروءةُ — مكتوبةً لا مُكتشَفةً بنمطٍ. */

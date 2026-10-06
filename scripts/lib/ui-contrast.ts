@@ -56,10 +56,13 @@ export const FILL_TEXT: Record<Scheme, Record<LayerTwoToken, OnColor>> = {
 };
 
 /**
- * إخفاقاتٌ قائمةٌ مقيسةٌ **قبلَ** UI-1 ولا يُعالِجُها PR 0 (لا تغييرَ بصريّاً).
+ * إخفاقاتٌ قائمةٌ مقيسةٌ **قبلَ** UI-1.
  * تُؤكَّدُ حرفيّاً: تنقصُ بقرارٍ ولا تزيدُ صامتةً.
+ * `mute/light/secondaryBg` عُولِجَ في PR 1 بتغميقِ `--tg-hint-color` الفاتحِ من
+ * `#64748b` (4.34:1) إلى `#475569` (6.69:1) — قرارٌ متوافقٌ مع الدليلِ:
+ * لا مكتبةً جديدةً ولا تغييرَ عقدٍ، وقيمةُ Layer 1 الافتراضيّةُ وحدها تغيّرت.
  */
-export const KNOWN_FAILURES: readonly string[] = ["mute/light/secondaryBg"];
+export const KNOWN_FAILURES: readonly string[] = [];
 
 const HEX_RE = /^#([0-9a-f]{6})$/i;
 

@@ -61,7 +61,7 @@ describe("parseLayerOneFallbacks — global.css الحقيقيُّ", () => {
     const l1 = parseLayerOneFallbacks(globalCss);
     expect(l1.dark.bg).toBe("#0f172a");
     expect(l1.light.bg).toBe("#ffffff");
-    expect(l1.light.hint).toBe("#64748b");
+    expect(l1.light.hint).toBe("#475569");
   });
   it("سالبةٌ: كتلةُ السمةِ الفاتحةِ غائبةٌ تُسقِطُ القراءةَ", () => {
     expect(() =>
@@ -71,11 +71,11 @@ describe("parseLayerOneFallbacks — global.css الحقيقيُّ", () => {
 });
 
 describe("evaluateContrast", () => {
-  it("المستودعُ كما هوَ: أخضرُ، والإخفاقُ المعلنُ الوحيدُ قائمٌ", () => {
+  it("المستودعُ كما هوَ: أخضرُ، ولا إخفاقَ معلنٌ قائمٌ بعدَ PR 1", () => {
     const v = evaluateContrast(baseInput());
     expect(v.problems).toEqual([]);
     expect(v.ok).toBe(true);
-    expect(v.checks.filter((c) => !c.pass).map((c) => c.id)).toEqual(["mute/light/secondaryBg"]);
+    expect(v.checks.filter((c) => !c.pass).map((c) => c.id)).toEqual([]);
   });
   it("سالبةٌ: انجرافُ اللوحةِ عن الدليلِ يُسقِطُ", () => {
     const input = baseInput();
@@ -103,7 +103,8 @@ describe("evaluateContrast", () => {
   it("سالبةٌ: إخفاقٌ معلنٌ زالَ دونَ تحديثِ القائمةِ يُسقِطُ", () => {
     const input = baseInput();
     input.layerOne.light = { ...input.layerOne.light, secondaryBg: "#ffffff" };
-    const v = evaluateContrast(input);
+    input.layerOne.light = { ...input.layerOne.light, hint: "#64748b" };
+    const v = evaluateContrast({ ...input, knownFailures: ["mute/light/secondaryBg"] });
     expect(v.ok).toBe(false);
     expect(v.problems.some((p) => p.includes("لم يَعُد قائماً"))).toBe(true);
   });

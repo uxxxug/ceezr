@@ -1,0 +1,16 @@
+{
+  "id": "ui-1-pr1-design-system",
+  "implementation": [
+    "apps/miniapp/src/system/ui/index.tsx",
+    "apps/miniapp/src/system/ui/icons.tsx",
+    "apps/miniapp/src/styles/global.css",
+    "scripts/lib/ui-contrast.ts",
+    "scripts/lib/css-class-coverage.ts",
+    "tests/unit/check-ui-contrast.test.ts",
+    "tests/unit/check-connection-budget.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0233-ui-1-design-system-foundations.md"],
+  "no_other_affected_docs_reason": "PR 1 لا يُغيّر الدليلَ المعتمدَ (docs/UI_UX_CANONICAL_DIRECTIVE.md) ولا جردَ الأسطحِ (docs/UI_SURFACE_INVENTORY.md) ولا تقريرَ المصالحة: يقرؤها ولا يُعدّلها. لا تغييرَ تحت apps/miniapp/src/surfaces/ أو packages/ أو supabase/ أو .github/workflows/، فلا عقدُ سطحٍ ولا هجرةٌ ولا CI متأثّرة. tests/unit/check-connection-budget.test.ts إصلاحُ سبقٍ (lint/useTemplate) رُفِعَ لأنه يُسقِطُ البوابةَ ولا يُغيّر سلوكًا."
+}
