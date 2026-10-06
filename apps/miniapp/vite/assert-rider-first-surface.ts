@@ -23,8 +23,14 @@ import type { ChunkGraphNode } from "./assert-initial-dictionaries.ts";
 export const RIDER_RIDE =
   /\/src\/surfaces\/rider\/(?:rider-ride-screens\.ts|search\/(?!search-view)|active\/|summary\/(?!ride-summary-view)|share\/)|\/src\/services\/(?:production-ride-channel|ride-channel-client|live-tracking-reducer)|[\\/]node_modules[\\/](?:socket\.io-client|socket\.io-parser|engine\.io-client|engine\.io-parser|@socket\.io)[\\/]/;
 
-/** شاشتا الدعمِ والحسابِ للراكبِ وأساسُهما المشتركُ — حزمتا `support` و`account` عندَ الطلبِ. */
-const RIDER_ON_DEMAND = /\/src\/surfaces\/(?:rider\/)?(?:support|account)\//;
+/**
+ * شاشتا الدعمِ والحسابِ للراكبِ وأساسُهما المشتركُ — حزمتا `support` و`account` عندَ الطلبِ.
+ * ولوحاتُ [B] (`rider/settings/` · UI-3 / PR 5 · ADR 0238) مؤجَّلةٌ معَها: لا يستوردُها غيرُ الحسابِ والدعمِ
+ * والإشعارات. وقبلَ استثنائِها طابقَها نمطُ `rider-home` فدخلَت المسارَ الحرجَ (+11.6 KB مضغوطة) وسقطَ
+ * قياسُ Slow 4G (`surface-rendered` 2068 ms > 2000 ms) — فالاستثناءُ إصلاحٌ لا تجميل.
+ */
+const RIDER_ON_DEMAND =
+  /\/src\/surfaces\/(?:rider\/)?(?:support|account)\/|\/src\/surfaces\/rider\/settings\//;
 
 /**
  * `D-32` · `rider-history`: السجلُّ وتفاصيلُه والإشعاراتُ بطلبِ الراكبِ وحدَه. ووحدةُ `ride-history-view` النقيّةُ ليسَت

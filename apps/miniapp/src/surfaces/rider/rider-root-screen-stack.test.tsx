@@ -185,7 +185,10 @@ describe("RiderRoot — عقدُ الربطِ بالمعالجاتِ (حارسُ
     expect(SOURCE).toContain("onRequest={flowHandlers.onRequest}");
     expect(SOURCE.match(/onBack: flowHandlers\.onBack/g)).toHaveLength(2);
     expect(SOURCE).toContain("riderFlowHandlers(dispatchFlow, setIntent)");
-    expect(SOURCE).toContain("useReducer(riderFlowReducer, undefined, initialRiderFlow)");
+    // UI-3 / PR 5 (ADR 0238): الحالةُ الأولى على تبويبِ الهبوطِ لا على «الرئيسية» دائماً.
+    expect(SOURCE).toMatch(
+      /useReducer\(\s*riderFlowReducer,\s*riderLandingTab\(landing\),\s*initialRiderFlow,?\s*\)/,
+    );
     expect(SOURCE).toContain('view.screen === "quote"');
     expect(SOURCE).toContain('view.screen === "destination"');
   });
@@ -276,14 +279,20 @@ describe("RiderRoot — تبويباتُ الجذرِ", () => {
   });
 
   it("اختيارُ rides/support/account يصلُ إلى وجهته القائمةِ ولا يضيفُ فعلًا وهميّاً", () => {
+    // UI-3 / PR 5 (ADR 0238): التبويبُ هوَ الحالُ — لا رايةٌ تُرفَعُ بجانبِه فتُخفي شريطَ التبويبات.
+    expect(SOURCE).toContain(
+      'const selectRootTab = (tab: RiderRootTab) => dispatchFlow({ type: "selectTab", tab });',
+    );
+    expect(SOURCE).toContain("switch (stack.tab) {");
     expect(SOURCE).toContain('case "rides":');
-    expect(SOURCE).toContain("onOpenHistory();");
     expect(SOURCE).toContain('case "support":');
-    expect(SOURCE).toContain("onOpenSupport();");
     expect(SOURCE).toContain('case "account":');
-    expect(SOURCE).toContain("onOpenAccount();");
-    expect(SOURCE).toContain("setSupport({ orderId: null })");
-    expect(SOURCE).toContain("setAccount(true)");
+    expect(SOURCE).toContain('const onOpenHistory = () => selectRootTab("rides");');
+    expect(SOURCE).toContain('const onOpenAccount = () => selectRootTab("account");');
+    expect(SOURCE).toContain('onOpenSupport={() => selectRootTab("support")}');
+    expect(SOURCE).not.toContain("setBrowsed");
+    expect(SOURCE).not.toContain("setAccount");
+    expect(SOURCE).not.toContain("setSupport({ orderId: null })");
   });
 
   it("وسومُ التبويبِ واسمُ معلمِ التنقّلِ موجودةٌ في اللغاتِ الثلاثِ", () => {

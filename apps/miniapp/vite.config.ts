@@ -128,7 +128,8 @@ export default defineConfig({
             },
             {
               name: "account",
-              test: /\/src\/surfaces\/(?:rider\/)?account\//,
+              /** ولوحاتُ [B] للراكبِ (`rider/settings/` · ADR 0238) هنا: إعداداتُ الحساب، مؤجَّلةٌ لا في `rider-home`. */
+              test: /\/src\/surfaces\/(?:rider\/)?account\/|\/src\/surfaces\/rider\/settings\//,
             },
             {
               name: "driver",

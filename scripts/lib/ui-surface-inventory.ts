@@ -38,6 +38,11 @@ export const SURFACE_INVENTORY: readonly SurfaceGroup[] = [
       "privacy/PrivacyScreen.tsx",
       "quote/QuoteScreen.tsx",
       "search/SearchScreen.tsx",
+      // UI-3 / PR 5 (ADR 0238): لوحاتُ [B] على عقودِها القائمة — داخلَ R12/R13/R15.
+      "settings/EmergencyContactPanel.tsx",
+      "settings/NotificationPrefsPanel.tsx",
+      "settings/SavedPlacesPanel.tsx",
+      "settings/TicketThread.tsx",
       "share/RideShareCard.tsx",
       "sos/SosCard.tsx",
       "sos/SosEntry.tsx",

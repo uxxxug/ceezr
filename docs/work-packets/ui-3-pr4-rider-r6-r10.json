@@ -47,5 +47,19 @@
     ],
     "rule": "كل واجهة [B] تعالج 503 = غير متاح، ولا يجوز اختراع endpoint أو سلوك غير موجود."
   },
-  "status": "على فرع ui-3-pr4-rider-r6-r10 — غير مدموج. UI-3 جارية؛ PR 5 لم يبدأ؛ UI-5 لم تبدأ."
+  "status": "مدموج في main — #419 (squash). UI-3 جارية؛ PR 5 (R11–R15 + [B]) في Work Packet ui-3-pr5-rider-r11-r15 (ADR 0238)؛ UI-5 لم تبدأ.",
+  "status_history": [
+    {
+      "status": "على فرع ui-3-pr4-rider-r6-r10 — غير مدموج. UI-3 جارية؛ PR 5 لم يبدأ؛ UI-5 لم تبدأ.",
+      "note": "صدقُ لحظةِ الكتابةِ قبلَ الدمج؛ صُحِّحَ داخلَ UI-3 / PR 5 (Work Packet ui-3-pr5-rider-r11-r15)."
+    }
+  ],
+  "merge_evidence": {
+    "pr": "#419",
+    "merge_method": "squash",
+    "pr_head": "87795a55934c5d237811472cf2e4bc2cd22073bc",
+    "merge_commit": "cd4b635613cef121b993b1af0b603c42582cb0dd",
+    "main_ci_run": "37447868079 — success",
+    "roadmap_freshness_run": "37447868136 — success"
+  }
 }

@@ -46,9 +46,13 @@ export type RiderFlowAction =
   | { readonly type: "clear" }
   | { readonly type: "selectTab"; readonly tab: RiderRootTab };
 
-export function initialRiderFlow(): RiderFlowState {
+/**
+ * UI-3 / PR 5 (ADR 0238): الحالةُ الأولى على **تبويبٍ** — «رحلاتي» و«الدعم» و«حسابي» جذورٌ في
+ * `ScreenFrame mode="root"` لا راياتٌ تُخفي شريطَ التبويبات؛ فرابطُ الهبوطِ إلى أحدِها يبدأُ عليه.
+ */
+export function initialRiderFlow(tab: RiderRootTab = "home"): RiderFlowState {
   return {
-    stack: initialScreenStack<RiderRootTab, RiderFlowScreen>("home"),
+    stack: initialScreenStack<RiderRootTab, RiderFlowScreen>(tab),
     chosen: null,
     confirmed: null,
   };
@@ -93,6 +97,21 @@ export function riderFlowReducer(state: RiderFlowState, action: RiderFlowAction)
       return { stack, chosen: null, confirmed: null };
     }
   }
+}
+
+/**
+ * تبويبُ الهبوط (`ADR 0213` · UI-3 / PR 5): السجلُّ ⇒ «رحلاتي»، الحسابُ ⇒ «حسابي»، والدعمُ **العامُّ**
+ * ⇒ «الدعم». ودعمٌ مربوطٌ برحلةٍ تدفّقٌ لا تبويب — يبقى على «الرئيسية» وتُفتَحُ فوقَه.
+ */
+export function riderLandingTab(landing: {
+  readonly browsed: boolean;
+  readonly account: boolean;
+  readonly support: { readonly orderId: string | null } | null;
+}): RiderRootTab {
+  if (landing.browsed) return "rides";
+  if (landing.account) return "account";
+  if (landing.support !== null && landing.support.orderId === null) return "support";
+  return "home";
 }
 
 /** الشاشةُ التي يرسمُها `RiderRoot` لتدفّقِ R3–R5 — قرارٌ واحدٌ لا شرطانِ متفرّقان. */
