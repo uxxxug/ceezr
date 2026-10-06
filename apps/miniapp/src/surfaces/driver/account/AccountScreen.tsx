@@ -35,7 +35,7 @@ import { driverAccountView } from "./account-view.ts";
 export interface DriverAccountScreenProps extends Omit<AccountRightsProps, "view" | "header"> {
   readonly language?: MiniAppLanguage;
   /**
-   * `UI-4` · D9: مداخلُ ملفِّ العملِ من «حسابي» — الوثائقُ والمركبةُ والاشتراك. كانَت
+   * `UI-4` · D12: مداخلُ ملفِّ العملِ من «حسابي» — الوثائقُ والمركبةُ والاشتراك. كانَت
    * أزراراً بنصٍّ مُضمَّنٍ في شاشةٍ فارغةٍ داخلَ `DriverRoot`؛ صارَت ههنا بمفاتيحِ القاموس.
    * كلُّ مدخلٍ يُرسَمُ إن كانَ له مستقبِلٌ فحسب.
    */

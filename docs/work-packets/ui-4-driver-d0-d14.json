@@ -1,22 +1,42 @@
 {
   "id": "ui-4-driver-d0-d14",
   "goal": "تنفيذ UI-4 (Driver Experience) كاملةً D0–D14 على هيكل UI-2 القائم: أربعة تبويبات §6، تدفّقات برجوع وانتقال، آلة حالة نقيّة، مؤقّت عرض CSS (§11 PR 6) وخطوات رفع وثيقة حقيقية (§11 PR 7)، بلا نصوص مضمّنة ولا أفعال بلا حالة.",
+  "numbering_source": "المصدر الأصلي PDF v2.0 (ADR 0232) — مادة التصميم الأصلية المرفوعة للمشروع خارج Git، قوبل بها ترقيم D مباشرة في 2026-10-06 (ADR 0236 «مطابقة المصدر الأصلي»)",
   "scope": {
-    "D0": "الإقلاع والمدخل — DriverRoot + entry-view + initialDriverFlow",
-    "D1": "لوح العروض والتوفّر والحجب — OffersScreen (تبويب العروض)",
-    "D2": "بطاقة العرض ومؤقّت CSS — OfferDetailScreen + offer-timer + UiCard + UiTimer",
-    "D3": "قرار العرض — قبول ⇒ مهمّتي، رفض ⇒ رجوع، سبق/انقضاء معلَنان",
-    "D4": "المهمّة النشطة — JobScreen (تبويب مهمّتي)",
-    "D5": "بثّ الموقع — LocationBroadcast على جذرَي العروض والمهمّة",
-    "D6": "ملخّص الرحلة — DriverRideSummaryScreen بإعادة محاولة حقيقية",
-    "D7": "الحصيلة — ActivityScreen (تبويب أرباحي)",
-    "D8": "كشف الخصوم — DeductionTraceScreen من الدعم",
-    "D9": "الحساب — AccountScreen (تبويب حسابي) ومداخل ملف العمل",
-    "D10": "قائمة الوثائق — DocumentsScreen ببؤرة النوع المحجوب",
-    "D11": "خطوات رفع الوثيقة — upload-steps + UiStepper",
-    "D12": "المركبة — VehicleScreen",
-    "D13": "الاشتراك والفاتورة — SubscriptionScreen",
-    "D14": "الدعم — DriverSupportScreen"
+    "D0": "الهيكل وبث الموقع — DriverRoot (ScreenFrame/RootTabBar) + driver-flow + entry-view + LocationBroadcast (broadcastsLocation)",
+    "D1": "لوح العروض — OffersScreen (تبويب العروض، التوفّر والحجب وإصلاحه)",
+    "D2": "بطاقة العرض — عنصر اللوح في OffersScreen + offer-timer + UiTimer",
+    "D3": "تفاصيل العرض — OfferDetailScreen (UiCard + UiTimer، قبول ⇒ مهمّتي، رفض ⇒ رجوع، سبق/انقضاء معلنان)",
+    "D4": "المهمة الحالية — JobScreen (تبويب مهمّتي)",
+    "D5": "تعذّر الإكمال — JobScreen + reportDriverCannotComplete (POST /v1/driver/job/:orderId/cannot-complete)",
+    "D6": "ملخص رحلة السائق وتقييم الراكب — DriverRideSummaryScreen + submitDriverRideRating",
+    "D7": "SOS — JobScreen + triggerDriverSos (POST /v1/driver/safety/sos)",
+    "D8": "الوثائق — DocumentsScreen ببؤرة النوع المحجوب + upload-steps + UiStepper",
+    "D9": "المركبة — VehicleScreen",
+    "D10": "الحصيلة والنشاط — ActivityScreen (تبويب أرباحي)",
+    "D11": "الاشتراك والفاتورة — SubscriptionScreen + PaymentInvoicePanel",
+    "D12": "الحساب وحذفه — AccountScreen + AccountRights (requestErasure) ومداخل ملف العمل (تبويب حسابي)",
+    "D13": "دعم السائق وكشف الخصوم — DriverSupportScreen + DeductionTraceScreen (من الدعم وحده)",
+    "D14": "تسجيل السائق من الـMini App — OnboardingRoot فرع audience=driver: حال صريحة تدلّ على بوت السائق؛ فجوة عقد مسجّلة (لا POST /v1/onboarding/driver)"
+  },
+  "source_reconciliation": {
+    "label_drift_corrected": [
+      "D0",
+      "D2",
+      "D3",
+      "D5",
+      "D6",
+      "D7",
+      "D8",
+      "D9",
+      "D10",
+      "D11",
+      "D12",
+      "D13"
+    ],
+    "matching": ["D1", "D4"],
+    "contract_gap": ["D14"],
+    "behaviour_changed": []
   },
   "implementation": [
     "apps/miniapp/src/surfaces/account/AccountRights.tsx",
@@ -26,6 +46,7 @@
     "apps/miniapp/src/surfaces/driver/deductions/DeductionTraceScreen.tsx",
     "apps/miniapp/src/surfaces/driver/documents/DocumentsScreen.tsx",
     "apps/miniapp/src/surfaces/driver/documents/upload-steps.ts",
+    "apps/miniapp/src/surfaces/driver/driver-canonical-map.test.tsx",
     "apps/miniapp/src/surfaces/driver/driver-flow.test.ts",
     "apps/miniapp/src/surfaces/driver/driver-flow.ts",
     "apps/miniapp/src/surfaces/driver/driver-root.test.tsx",
@@ -68,15 +89,18 @@
   "tests": [
     "apps/miniapp/src/surfaces/driver/driver-flow.test.ts",
     "apps/miniapp/src/surfaces/driver/driver-root.test.tsx",
+    "apps/miniapp/src/surfaces/driver/driver-canonical-map.test.tsx",
     "mutation check: 8 planted regressions each caught, then reverted"
   ],
   "not_implemented": [
+    "D14 تسجيل السائق داخل الـMini App — فجوة عقد [C]: لا POST /v1/onboarding/driver ويحتاج مشاركة الرقم وصورة المركبة؛ المنفّذ حال صريحة لا نموذج",
     "نقر DOM حيّ وقياس عميل تيليجرام — لا بيئة DOM ولا تبعية جديدة",
     "مهلة الجولة الكاملة في المؤقّت — العقد لا يحملها ولا تغيير في API",
     "نقل إيصال محو الحساب إلى تدفّق — يبقى حالاً داخلية في AccountRights",
     "صقل الإنتاج النهائي (UI-10) وUI-5"
   ],
   "known_limitations": [
-    "تقسيمُ D0–D7 / D8–D14 كانونيٌّ من §11 (= v2.0 §15)؛ أما الإسنادُ الفرديُّ D0…D14 فمشتقٌّ هندسيّاً لأن المصدر الأصلي (PDF v2.0) ليس في المستودع ولا مادة متاحة تثبته — يحتاج قرار مالك أو مقتطف/نسخة من المصدر ليُعتمد canonical تامّاً (ADR 0236)"
+    "D5 وD7 قسمان داخل D4 (JobScreen) لا شاشتا تدفّق مستقلّتان — مكانهما المهمة الحالية ولا يغيّر ذلك السلوك",
+    "D14 محدود بالعقد القائم (فجوة عقد مسجّلة في ADR 0236)"
   ]
 }

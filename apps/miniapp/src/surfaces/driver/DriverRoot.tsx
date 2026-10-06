@@ -162,7 +162,7 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
 
   return (
     <>
-      {/* D5 · `F3-04`: بثُّ الموقعِ في جذرَي العروضِ والمَهمّةِ — حالُ السائقِ لا حالُ شاشة. */}
+      {/* D0 · `F3-04`: الهيكلُ وبثُّ الموقعِ في جذرَي العروضِ والمَهمّةِ — حالُ السائقِ لا حالُ شاشة. */}
       {broadcastsLocation(view) ? <LocationBroadcast language={language} /> : null}
       <ScreenFrame
         mode="root"
@@ -187,7 +187,7 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
   function renderRoot(tab: DriverRootTab): ReactNode {
     switch (tab) {
       case "offers":
-        // D1: لوحُ العروض. «مهمّتي» و«أرباحي» و«حسابي» تبويباتٌ فلا تُكرَّرُ أزراراً ههنا.
+        // D1–D2: لوحُ العروضِ وبطاقاتُه بمؤقّتِ CSS. «مهمّتي» و«أرباحي» و«حسابي» تبويباتٌ فلا تُكرَّرُ أزراراً ههنا.
         return (
           <OffersScreen
             language={language}
@@ -200,13 +200,13 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
           />
         );
       case "job":
-        // D4: المَهمّةُ النشطةُ تُقرأُ من القاعدةِ؛ اكتمالُها يفتحُ ملخّصَها (D6).
+        // D4: المَهمّةُ الحاليّة، وفيها تعذّرُ الإكمالِ (D5) والاستغاثةُ (D7 · SOS)؛ اكتمالُها يفتحُ D6.
         return <JobScreen language={language} showTitle={false} onCompleted={go.jobCompleted} />;
       case "earnings":
-        // D7: الحصيلةُ — عددٌ وساعاتٌ ومقامات، ولا مبلغَ مُختلَق.
+        // D10: الحصيلةُ والنشاط — عددٌ وساعاتٌ ومقامات، ولا مبلغَ مُختلَق.
         return <ActivityScreen language={language} showTitle={false} />;
       case "account":
-        // D9: الحسابُ والحقوقُ ومداخلُ ملفِّ العمل.
+        // D12: الحسابُ وحذفُه (`AccountRights`) ومداخلُ ملفِّ العمل.
         return (
           <AccountScreen
             language={language}
@@ -224,7 +224,7 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
   function renderFlow(screen: DriverFlowScreen): ReactNode {
     switch (screen.kind) {
       case "offer":
-        // D2–D3: بطاقةُ العرضِ ومؤقّتُه وقرارُه. القبولُ إلى «مهمّتي»، والرفضُ رجوعٌ إلى اللوح.
+        // D3: تفاصيلُ العرضِ ومؤقّتُه وقرارُه. القبولُ إلى «مهمّتي»، والرفضُ رجوعٌ إلى اللوح.
         return (
           <OfferDetailScreen
             offerId={screen.offerId}
@@ -235,6 +235,7 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
           />
         );
       case "summary":
+        // D6: ملخّصُ رحلةِ السائقِ وتقييمُ الراكب.
         return (
           <DriverRideSummaryScreen
             orderId={screen.orderId}
@@ -243,7 +244,7 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
           />
         );
       case "documents":
-        // D10–D11: الوثائقُ وخطواتُ رفعِها الحقيقيّة.
+        // D8: الوثائقُ وخطواتُ رفعِها الحقيقيّة.
         return (
           <DocumentsScreen
             language={language}
@@ -253,10 +254,13 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
           />
         );
       case "vehicle":
+        // D9: المركبة.
         return <VehicleScreen language={language} showTitle={false} />;
       case "subscription":
+        // D11: الاشتراكُ والفاتورة.
         return <SubscriptionScreen language={language} showTitle={false} />;
       case "support":
+        // D13: دعمُ السائق، ومنه كشفُ الخصوم.
         // **لا `orderId` من اللوحِ أو الحساب**: شكوى «راكبٌ مسيءٌ» تُفتَحُ من رحلةٍ بعينِها.
         return (
           <DriverSupportScreen
@@ -266,6 +270,7 @@ export default function DriverRoot({ language, onLanguageChanged, entry }: Langu
           />
         );
       case "deductionTrace":
+        // D13: كشفُ الخصومِ (من الدعمِ وحدَه).
         return <DeductionTraceScreen language={language} showTitle={false} />;
     }
   }

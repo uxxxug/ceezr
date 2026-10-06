@@ -47,7 +47,7 @@ export type DriverOpenable = Extract<
 export type DriverFlowState = ScreenStackState<DriverRootTab, DriverFlowScreen>;
 
 export type DriverFlowAction =
-  /** D1→D2: من لوحِ العروضِ وحدَه. */
+  /** D1/D2→D3: تفاصيلُ العرضِ من بطاقتِه في لوحِ العروضِ وحدَه. */
   | { readonly type: "openOffer"; readonly offerId: string }
   /** D3: قبولٌ ظفرَ — إلى «مهمّتي» ويُمسَحُ المكدّس. */
   | { readonly type: "offerAccepted" }
@@ -56,7 +56,7 @@ export type DriverFlowAction =
   /** D4→D6: رحلةٌ اكتملَت من «مهمّتي» — إلى ملخّصِها. */
   | { readonly type: "jobCompleted"; readonly orderId: string }
   | { readonly type: "open"; readonly screen: DriverOpenable }
-  /** D14→D8: كشفُ الخصومِ من شاشةِ الدعمِ وحدَها. */
+  /** D13: كشفُ الخصومِ من شاشةِ دعمِ السائقِ وحدَها. */
   | { readonly type: "openDeductionTrace" }
   | { readonly type: "back" }
   | { readonly type: "selectTab"; readonly tab: DriverRootTab };
@@ -135,7 +135,7 @@ export function driverFlowView(state: DriverFlowState): DriverFlowView {
 }
 
 /**
- * D5: بثُّ الموقعِ حالُ السائقِ لا حالُ شاشة — يُركَّبُ في جذرَي «العروض» و«مهمّتي» كما كانَ
+ * D0: بثُّ الموقعِ جزءُ الهيكلِ — حالُ السائقِ لا حالُ شاشة — يُركَّبُ في جذرَي «العروض» و«مهمّتي» كما كانَ
  * (`F3-04`)، ولا يُركَّبُ في تفاصيلِ عرضٍ (قرارٌ في ثوانٍ) ولا في أرشيفٍ أو ورق.
  */
 export function broadcastsLocation(view: DriverFlowView): boolean {

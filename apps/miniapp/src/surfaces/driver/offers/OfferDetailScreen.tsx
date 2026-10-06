@@ -270,7 +270,7 @@ export function OfferDetailScreen({
         </h1>
       ) : null}
 
-      {/* D2 · §11 PR 6: بطاقةُ العرضِ (`ui-card`) ومؤقّتُ CSS (`ui-timer`) — لا عقربَ ولا موعدَ مطلق. */}
+      {/* D3 · §11 PR 6: تفاصيلُ العرضِ في `ui-card` ومؤقّتُ CSS (`ui-timer`) — لا عقربَ ولا موعدَ مطلق. */}
       <UiCard>
         <div className={`dof__item-head dof__item-head--tinted ${tone.modifier}`}>
           <span className="dof__service">{t(detail.serviceKey)}</span>

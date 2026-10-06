@@ -21,12 +21,13 @@
 > **UI-4 (2026-10-06 · Work Packet `ui-4-driver-d0-d14` · ADR 0236):** تجربةُ السائقِ
 > D0–D14 على هيكلِ UI-2: أربعةُ تبويباتٍ (العروض · مهمّتي · أرباحي · حسابي) وتدفّقاتٌ برجوعٍ
 > وانتقالٍ من آلةِ حالةٍ نقيّةٍ `driver-flow.ts`؛ مؤقّتُ العرضِ `UiTimer` بحركةِ CSS (§11 PR 6)
-> وخطواتُ رفعِ الوثيقةِ الحقيقيّةُ `UiStepper` (§11 PR 7). **مصدرُ الترقيمِ (ADR 0236):**
-> تقسيمُ D0–D7 / D8–D14 كانونيٌّ من §11 (= v2.0 §15) — Canonical Source Mapping؛ والإسنادُ
-> الفرديُّ D0…D14 اشتقاقٌ هندسيٌّ لأنَّ المصدرَ الأصليَّ (PDF v2.0) ليسَ في المستودع ولا مادّةً
-> متاحةً تثبته — يحتاجُ قرارَ مالكٍ أو مقتطفًا من المصدرِ ليُعتمَدَ canonical تامًّا. لا اختلافَ مثبتًا
-> يفرضُ تعديلَ ربطِ الشاشاتِ أو الكود. الحالةُ **تنفيذٌ على فرعِ PR، غيرُ مدمج**. UI-3 / PR 3 دُمِجَ
-> في `main` (#415 → `fc84ac12`). UI-5 لم تبدأ.
+> وخطواتُ رفعِ الوثيقةِ الحقيقيّةُ `UiStepper` (§11 PR 7). **مطابقةُ المصدرِ (ADR 0236):** ترقيمُ
+> D0–D14 من المصدرِ الأصليِّ (PDF v2.0) مباشرةً — D0 الهيكلُ وبثُّ الموقع · D1 لوحُ العروض · D2 بطاقةُ
+> العرض · D3 تفاصيلُه · D4 المهمّةُ الحاليّة · D5 تعذّرُ الإكمال · D6 الملخّصُ وتقييمُ الراكب · D7 SOS ·
+> D8 الوثائق · D9 المركبة · D10 الحصيلة · D11 الاشتراكُ والفاتورة · D12 الحسابُ وحذفُه · D13 الدعمُ
+> وكشفُ الخصوم · D14 تسجيلُ السائق. D0–D13 منفّذةٌ وكانَ الفرقُ وسماً (صُحِّح)؛ D14 حالٌ صريحةٌ معَ فجوةِ
+> عقدٍ مسجّلة [C] (لا `POST /v1/onboarding/driver`). الحالةُ **تنفيذٌ على فرعِ PR، غيرُ مدمج**.
+> UI-3 / PR 3 دُمِجَ في `main` (#415 → `fc84ac12`). UI-5 لم تبدأ.
 >
 > **UI-3 / PR 3 (2026-10-06 · Work Packet `ui-3-pr3-rider-r0-r5` · ADR 0235):** جرى وصلُ
 > تجربةِ الراكبِ R0–R5 بـ`ScreenFrame` و`useScreenStack`، وإضافةُ حارسِ لا وميضِ الترحيبِ
@@ -84,7 +85,7 @@
 > المخاطر القائمة مسجّلة في `docs/SYSTEM_STATE.md`.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-10-06 (UI-4 driver D0–D14 implementation prepared on `ui-4-driver-d0-d14`; not merged; prior: UI-3 / PR 3 merged as #415; previously: UI-3 / PR 3 implementation prepared on `ui-3-pr3-rider-r0-r5`; prior: UI-2 closed — Work Packet `ui-2-closure`; previously: UI-2 / PR 2 — Work Packet `ui-2-pr2-shell-navigation`; previously: UI-1 closed — Work Packet `ui-1-closure`; previously: SEC-15 fix — Work Packet `sec-15-source-map-js-1-2-2`, source-map-js 1.2.1→1.2.2; previously: UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
+**Last updated:** 2026-10-06 (UI-4 driver D0–D14 implementation prepared on `ui-4-driver-d0-d14`, numbering reconciled with the original source PDF v2.0 (ADR 0236); not merged; prior: UI-3 / PR 3 merged as #415; previously: UI-3 / PR 3 implementation prepared on `ui-3-pr3-rider-r0-r5`; prior: UI-2 closed — Work Packet `ui-2-closure`; previously: UI-2 / PR 2 — Work Packet `ui-2-pr2-shell-navigation`; previously: UI-1 closed — Work Packet `ui-1-closure`; previously: SEC-15 fix — Work Packet `sec-15-source-map-js-1-2-2`, source-map-js 1.2.1→1.2.2; previously: UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
 **Last milestone:** UI-4 — driver D0–D14 on the UI-2 shell (implementation on branch; not merged). Before it: UI-3 / PR 3 — rider R0–R5 shell integration (merged, #415). Historical baseline: `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in

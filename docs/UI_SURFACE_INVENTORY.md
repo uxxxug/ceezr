@@ -31,21 +31,26 @@
 
 ## ما لا يدّعيه الجرد
 
-- **إسنادُ R0–R15 وD0–D14 جزئيٌّ ومشتقّ.** تقسيمُ D0–D7 / D8–D14 كانونيٌّ من §11 (= v2.0 §15) —
-  Canonical Source Mapping؛ أمّا الإسنادُ التفصيليُّ لكلِّ رقمٍ منفردٍ فمشتقٌّ هندسيّاً من الشِّفرةِ ومن
-  تقسيمِ §11، لأنَّ المصدرَ الأصليَّ (PDF v2.0) ليسَ في المستودعِ ولا مادّةً متاحةً تُثبِتُه. أُسنِدَ منها ما نُفِّذ:
-  **R0–R5** في ADR 0235 (UI-3)، و**D0–D14** في ADR 0236 (UI-4) — لا نقلاً من المصدرِ الخارجيّ،
-  ولا يُعتمَدُ canonical تامًّا إلا بقرارِ مالكٍ أو مقتطفٍ من المصدر. R6–R15 بلا إسناد.
+- **إسنادُ R0–R15 وD0–D14 جزئيّ.** أُسنِدَ منها ما نُفِّذ: **R0–R5** في ADR 0235 (UI-3)، و**D0–D14** في
+  ADR 0236 (UI-4) **من المصدرِ الأصليِّ (PDF v2.0) بمطابقةٍ مباشرة** — Canonical Source Mapping. R6–R15 بلا إسناد.
 
-  | D | ملفُّ السطح (`miniapp/driver`) | D | ملفُّ السطح |
-  |---|---|---|---|
-  | D0 | `DriverRoot.tsx` | D8 | `deductions/DeductionTraceScreen.tsx` |
-  | D1 | `offers/OffersScreen.tsx` | D9 | `account/AccountScreen.tsx` |
-  | D2–D3 | `offers/OfferDetailScreen.tsx` | D10–D11 | `documents/DocumentsScreen.tsx` |
-  | D4 | `job/JobScreen.tsx` | D12 | `vehicle/VehicleScreen.tsx` |
-  | D5 | `location/LocationBroadcast.tsx` | D13 | `subscription/SubscriptionScreen.tsx` · `PaymentInvoicePanel.tsx` |
-  | D6 | `summary/DriverRideSummaryScreen.tsx` | D14 | `support/SupportScreen.tsx` |
-  | D7 | `activity/ActivityScreen.tsx` | | |
+  | D | التعريفُ الكانونيّ | ملفُّ السطح (`miniapp/driver` ما لم يُذكَر) |
+  |---|---|---|
+  | D0 | الهيكل وبث الموقع | `DriverRoot.tsx` · `location/LocationBroadcast.tsx` |
+  | D1 | لوح العروض | `offers/OffersScreen.tsx` |
+  | D2 | بطاقة العرض | `offers/OffersScreen.tsx` (عنصرُ اللوح) |
+  | D3 | تفاصيل العرض | `offers/OfferDetailScreen.tsx` |
+  | D4 | المهمة الحالية | `job/JobScreen.tsx` |
+  | D5 | تعذّر الإكمال | `job/JobScreen.tsx` |
+  | D6 | ملخص رحلة السائق وتقييم الراكب | `summary/DriverRideSummaryScreen.tsx` |
+  | D7 | SOS | `job/JobScreen.tsx` |
+  | D8 | الوثائق | `documents/DocumentsScreen.tsx` |
+  | D9 | المركبة | `vehicle/VehicleScreen.tsx` |
+  | D10 | الحصيلة والنشاط | `activity/ActivityScreen.tsx` |
+  | D11 | الاشتراك والفاتورة | `subscription/SubscriptionScreen.tsx` · `PaymentInvoicePanel.tsx` |
+  | D12 | الحساب وحذفه | `account/AccountScreen.tsx` · `miniapp/account/AccountRights.tsx` |
+  | D13 | دعم السائق وكشف الخصوم | `support/SupportScreen.tsx` · `deductions/DeductionTraceScreen.tsx` |
+  | D14 | تسجيل السائق من الـMini App | `miniapp/onboarding/OnboardingRoot.tsx` (فجوةُ عقدٍ مسجّلة · ADR 0236) |
 
   لا ملفَّ `.tsx` جديدٌ في UI-4: آلةُ الحالةِ (`driver-flow.ts`) ومؤقّتُ العرضِ (`offer-timer.ts`)
   وخطواتُ الرفعِ (`upload-steps.ts`) منطقٌ نقيٌّ لا سطح، فالعددُ ثابت (14 للسائق، 81 مجموعاً).

@@ -79,7 +79,7 @@ describe("D0 — الحالُ الأولى من هدفِ الهبوطِ (ADR 021
   });
 });
 
-describe("D1→D3 — العروضُ وقرارُ العرض", () => {
+describe("D1→D3 — لوحُ العروضِ وبطاقةُ العرضِ وتفاصيلُه", () => {
   it("فتحُ عرضٍ من اللوحِ يدفعُ التفاصيلَ بحركةِ تقدّم", () => {
     const h = harness();
     h.go.openOffer(OFFER);
@@ -149,7 +149,7 @@ describe("D4→D6 — المَهمّةُ واكتمالُها", () => {
     expect(j.state).toBe(top);
   });
 
-  it("D5: البثُّ في جذرَي العروضِ والمَهمّةِ وحدَهما", () => {
+  it("D0: بثُّ الموقعِ جزءُ الهيكل — في جذرَي العروضِ والمَهمّةِ وحدَهما", () => {
     expect(broadcastsLocation({ screen: "root", tab: "offers" })).toBe(true);
     expect(broadcastsLocation({ screen: "root", tab: "job" })).toBe(true);
     expect(broadcastsLocation({ screen: "root", tab: "earnings" })).toBe(false);
@@ -160,8 +160,8 @@ describe("D4→D6 — المَهمّةُ واكتمالُها", () => {
   });
 });
 
-describe("D7–D14 — الحصيلةُ والحسابُ وملفُّ العملِ والدعم", () => {
-  it("D9→D10: «حسابي» ← الوثائق ← رجوعٌ إلى «حسابي»", () => {
+describe("D8–D13 — الوثائقُ والمركبةُ والاشتراكُ والحسابُ والدعم", () => {
+  it("D12→D8: «حسابي» ← الوثائق ← رجوعٌ إلى «حسابي»", () => {
     const h = harness();
     h.go.selectTab("account");
     h.go.openDocuments();
@@ -170,7 +170,7 @@ describe("D7–D14 — الحصيلةُ والحسابُ وملفُّ العمل
     expect(h.view).toEqual({ screen: "root", tab: "account" });
   });
 
-  it("D1→D10: إصلاحُ حجبٍ من اللوحِ يفتحُ الوثائقَ ببؤرةِ النوعِ نفسِه", () => {
+  it("D1→D8: إصلاحُ حجبٍ من اللوحِ يفتحُ الوثائقَ ببؤرةِ النوعِ نفسِه", () => {
     const h = harness();
     h.go.openDocuments("driving_license");
     expect(h.view).toEqual({
@@ -179,7 +179,7 @@ describe("D7–D14 — الحصيلةُ والحسابُ وملفُّ العمل
     });
   });
 
-  it("D12/D13: المركبةُ والاشتراكُ يُفتَحانِ ويُرجَعُ منهما إلى الجذرِ نفسِه", () => {
+  it("D9/D11: المركبةُ والاشتراكُ يُفتَحانِ ويُرجَعُ منهما إلى الجذرِ نفسِه", () => {
     const h = harness({ kind: "account" });
     h.go.openVehicle();
     expect(h.view.screen === "flow" ? h.view.flow.kind : null).toBe("vehicle");
@@ -190,7 +190,7 @@ describe("D7–D14 — الحصيلةُ والحسابُ وملفُّ العمل
     expect(h.view).toEqual({ screen: "root", tab: "account" });
   });
 
-  it("D14→D8: كشفُ الخصومِ من الدعمِ وحدَه، والرجوعُ منه إلى الدعم ثمّ إلى الجذر", () => {
+  it("D13: كشفُ الخصومِ من دعمِ السائقِ وحدَه، والرجوعُ منه إلى الدعم ثمّ إلى الجذر", () => {
     const h = harness();
     h.go.openSupport();
     h.go.openDeductionTrace();

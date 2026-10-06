@@ -452,7 +452,7 @@ export function DocumentsScreen({
               {row.kind === "busy" ? (
                 <>
                   {(() => {
-                    // D11: موضعُ الخطوةِ الحقيقيّةِ (إذنٌ ← رفعٌ ← تسجيل) — `ui-stp`.
+                    // D8: موضعُ الخطوةِ الحقيقيّةِ (إذنٌ ← رفعٌ ← تسجيل) — `ui-stp`.
                     const position = uploadStepPosition(row.stepKey);
                     return position === null ? null : (
                       <UiStepper
