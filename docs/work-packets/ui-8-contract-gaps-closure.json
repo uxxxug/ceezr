@@ -27,7 +27,13 @@
     "packages/shared/config/erasure-policy.ts",
     "scripts/lib/wasla-boundary-registry.ts",
     "scripts/lib/wasla-migration-matrix.ts",
-    "scripts/lib/skip-registry.ts"
+    "scripts/lib/skip-registry.ts",
+    "apps/miniapp/src/system/truth.test.tsx",
+    "tests/unit/eta-band.test.ts",
+    "tests/unit/active-ride-route.test.ts",
+    "tests/integration/eta-error-band.test.ts",
+    "tests/unit/check-migration-matrix.test.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
