@@ -88,7 +88,7 @@
     "مكان جديد من الوجهات الحديثة وحدها — لا التقاط موقع ولا خريطة"
   ],
   "tests": [
-    "apps/miniapp/src/surfaces/rider/rider-r11-r15.test.tsx (30 اختباراً · 11/11 طفرة قُتِلَت)",
+    "apps/miniapp/src/surfaces/rider/rider-r11-r15.test.tsx (30 اختباراً · 10/10 طفرات قُتِلَت)",
     "apps/miniapp/src/surfaces/rider/rider-root-screen-stack.test.tsx (محدَّث)",
     "tests/unit/sos-entry-surfaces.test.ts (محدَّث)"
   ],
