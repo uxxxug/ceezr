@@ -43,12 +43,8 @@
     "scripts/lib/ui-surface-inventory.ts",
     "tests/unit/sos-entry-surfaces.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/adr/0238-ui-3-pr5-rider-r11-r15.md",
     "docs/adr/0237-ui-3-pr4-rider-r6-r10.md",
