@@ -1514,5 +1514,9 @@
   "rider.support.thread.compose": "Add a message to the ticket",
   "rider.support.thread.remaining": "{count} characters left",
   "rider.support.thread.sending": "Sending…",
-  "rider.support.thread.send": "Send"
+  "rider.support.thread.send": "Send",
+  "truth.age.unknown": "The age of this reading is unknown, so no unmeasured number is shown.",
+  "truth.source.serverRecord": "Source: the ride record on the WASLA server.",
+  "truth.source.serverAge": "Source: age measured by the WASLA server, not your device clock.",
+  "truth.source.routingEngine": "Source: the routing engine."
 }

@@ -47,6 +47,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { TRUTH_AGE_UNKNOWN_KEY, TRUTH_SOURCE_KEYS, truthAge } from "../../../system/truth.ts";
 import { readSosSurface as readViaApi, triggerSos as triggerViaApi } from "./sos-api.ts";
 import type { SosSurfaceResponse, SosTriggerResponse } from "./sos-contract.ts";
 import {
@@ -207,11 +208,16 @@ export function SosCard({
           </p>
           <p className="sos__incident-age">
             {(() => {
+              // UI-8: عمرٌ لم يُقَس يُقالُ مجهولاً — لا «أُرسِلَ قبلَ 0 ثانية».
+              if (truthAge(incident.ageSeconds).kind === "unknown") return t(TRUTH_AGE_UNKNOWN_KEY);
               const age = incidentAgeText(incident.ageSeconds);
               return t(age.key)
                 .replace("{minutes}", String(age.minutes))
                 .replace("{seconds}", String(age.seconds));
             })()}
+            {truthAge(incident.ageSeconds).kind === "measured" ? (
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_age)}</small>
+            ) : null}
           </p>
         </div>
       )}

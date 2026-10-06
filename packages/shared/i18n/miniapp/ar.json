@@ -1514,5 +1514,9 @@
   "rider.support.thread.compose": "أضف رسالة إلى التذكرة",
   "rider.support.thread.remaining": "متبقٍ {count} حرفًا",
   "rider.support.thread.sending": "جارٍ الإرسال…",
-  "rider.support.thread.send": "إرسال"
+  "rider.support.thread.send": "إرسال",
+  "truth.age.unknown": "عمر هذه القراءة غير معروف، فلا يعرض رقم لم يقس.",
+  "truth.source.serverRecord": "المصدر: سجلّ الرحلة في خادم وَصْلة.",
+  "truth.source.serverAge": "المصدر: عمر يقيسه خادم وَصْلة، لا ساعة جهازك.",
+  "truth.source.routingEngine": "المصدر: محرّك الطرق."
 }
