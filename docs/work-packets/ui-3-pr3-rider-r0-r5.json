@@ -1,0 +1,21 @@
+{
+  "id": "ui-3-pr3-rider-r0-r5",
+  "implementation": [
+    "apps/miniapp/src/shell/ScreenFrame.tsx",
+    "apps/miniapp/src/shell/no-welcome-flash.test.tsx",
+    "apps/miniapp/src/surfaces/rider/RiderRoot.tsx",
+    "apps/miniapp/src/surfaces/rider/destination/destination-view.test.ts",
+    "apps/miniapp/src/surfaces/rider/destination/DestinationScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/home/HomeScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/quote/quote-view.test.ts",
+    "apps/miniapp/src/surfaces/rider/rider-root-screen-stack.test.tsx",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0235-ui-3-rider-r0-r5.md"],
+  "no_other_affected_docs_reason": "UI-3 يستهلك هيكل UI-2 القائمَ ولا يضيف CSS أو عقد API أو شاشةً جديدةً؛ حالة التشغيل والبوابة في SYSTEM_STATE وROADMAP، ومصفوفة الحالات والقرارات في ADR 0235. لا يتغيّر دليل التصميم المعتمد ولا جرد الأسطح لأن أسماء الأسطح وواجهات API لم تتغير."
+}

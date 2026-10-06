@@ -116,6 +116,7 @@ export interface QuoteScreenProps {
   >;
   readonly openSettings?: () => void;
   readonly onBack?: () => void;
+  readonly showTitle?: boolean;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
   readonly onOpenSos?: () => void;
   /**
@@ -201,6 +202,7 @@ export function QuoteScreen({
   readDeviceLocation = defaultDeviceLocation,
   openSettings = () => void openLocationSettings(),
   onBack,
+  showTitle = true,
   onOpenSos,
   onRequest,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
@@ -379,7 +381,7 @@ export function QuoteScreen({
               {t("rider.quote.remedy.relocate")}
             </button>
           )}
-          {remedy === "PICK_ANOTHER_DESTINATION" && (
+          {remedy === "PICK_ANOTHER_DESTINATION" && onBack !== undefined && (
             <button type="button" className="sys__action" onClick={() => onBack?.()}>
               {t("rider.quote.remedy.pickAnother")}
             </button>
@@ -465,63 +467,67 @@ export function QuoteScreen({
         </section>
         <section className="qt__services" aria-label={t("rider.quote.services")}>
           <h2 className="qt__subtitle">{t("rider.quote.services")}</h2>
-          <ul className="qt__list">
-            {cards.map((card) => (
-              <li
-                key={card.service}
-                className={`qt__card${card.available ? "" : " qt__card--off"}`}
-              >
-                <span className="qt__card-label">{t(card.labelKey)}</span>
-                {card.reasonKey !== null && (
-                  <span className="qt__card-reason">{t(card.reasonKey)}</span>
-                )}
-                {/*
-                 * الفعلُ على البطاقةِ **المتاحةِ** وحدَها: خدمةٌ غيرُ مخدومةٍ في
-                 * المدينةِ تُعرَضُ بسببِها ولا يُعرَضُ لها زرٌّ يُرفَضُ حتماً.
-                 */}
-                {card.available && onRequest !== undefined && (
-                  <button
-                    type="button"
-                    className="qt__card-request"
-                    onClick={() => {
-                      // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ. ونوعُ الطردِ
-                      // صارَ اختياريّاً (`ORDER-TERMS-01`): يُحاكَمُ ما كُتِبَ ولا يُلزَمُ الفارغُ.
-                      if (card.service === "delivery" && notes.trim() !== "") {
-                        const error = parcelValidationError(notes);
-                        if (error !== null) {
-                          setParcelError(error.errorKey);
+          {cards.length === 0 ? (
+            <p className="sys__hint">{t("rider.quote.services.empty")}</p>
+          ) : (
+            <ul className="qt__list">
+              {cards.map((card) => (
+                <li
+                  key={card.service}
+                  className={`qt__card${card.available ? "" : " qt__card--off"}`}
+                >
+                  <span className="qt__card-label">{t(card.labelKey)}</span>
+                  {card.reasonKey !== null && (
+                    <span className="qt__card-reason">{t(card.reasonKey)}</span>
+                  )}
+                  {/*
+                   * الفعلُ على البطاقةِ **المتاحةِ** وحدَها: خدمةٌ غيرُ مخدومةٍ في
+                   * المدينةِ تُعرَضُ بسببِها ولا يُعرَضُ لها زرٌّ يُرفَضُ حتماً.
+                   */}
+                  {card.available && onRequest !== undefined && (
+                    <button
+                      type="button"
+                      className="qt__card-request"
+                      onClick={() => {
+                        // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ. ونوعُ الطردِ
+                        // صارَ اختياريّاً (`ORDER-TERMS-01`): يُحاكَمُ ما كُتِبَ ولا يُلزَمُ الفارغُ.
+                        if (card.service === "delivery" && notes.trim() !== "") {
+                          const error = parcelValidationError(notes);
+                          if (error !== null) {
+                            setParcelError(error.errorKey);
+                            return;
+                          }
+                        }
+                        setParcelError(null);
+                        const offer = offerSarFrom(offerText);
+                        if (!offer.ok) {
+                          setOfferError(true);
                           return;
                         }
-                      }
-                      setParcelError(null);
-                      const offer = offerSarFrom(offerText);
-                      if (!offer.ok) {
-                        setOfferError(true);
-                        return;
-                      }
-                      setOfferError(false);
-                      onRequest({
-                        service: card.service,
-                        originLat: origin.lat,
-                        originLng: origin.lng,
-                        destinationLat: destination.lat,
-                        destinationLng: destination.lng,
-                        destinationLabel: destination.label,
-                        pickupLabel: manualPickup === null ? null : manualPickup.label,
-                        notes: noteValue,
-                        // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
-                        idempotencyKey: newIdempotencyKey(),
-                        pickupAt: pickupMode === "later" ? pickupAtFrom(pickupClock) : null,
-                        offerSar: offer.value,
-                      });
-                    }}
-                  >
-                    {t("rider.quote.request")}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+                        setOfferError(false);
+                        onRequest({
+                          service: card.service,
+                          originLat: origin.lat,
+                          originLng: origin.lng,
+                          destinationLat: destination.lat,
+                          destinationLng: destination.lng,
+                          destinationLabel: destination.label,
+                          pickupLabel: manualPickup === null ? null : manualPickup.label,
+                          notes: noteValue,
+                          // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
+                          idempotencyKey: newIdempotencyKey(),
+                          pickupAt: pickupMode === "later" ? pickupAtFrom(pickupClock) : null,
+                          offerSar: offer.value,
+                        });
+                      }}
+                    >
+                      {t("rider.quote.request")}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         {/*
@@ -636,18 +642,23 @@ export function QuoteScreen({
     );
   };
 
+  const sectionName = showTitle ? { "aria-labelledby": "qt-title" as const } : {};
   return (
-    <section className="qt" dir={directionFor(language)} aria-labelledby="qt-title">
-      <h1 className="qt__title" id="qt-title">
-        {t("rider.quote.title")}
-      </h1>
+    <section className="qt" dir={directionFor(language)} {...sectionName}>
+      {showTitle ? (
+        <h1 className="qt__title" id="qt-title">
+          {t("rider.quote.title")}
+        </h1>
+      ) : null}
       <p className="qt__destination">
         {t("rider.quote.destination").replace("{label}", destination.label)}
       </p>
       {body()}
-      <button type="button" className="qt__back" onClick={() => onBack?.()}>
-        {t("rider.quote.back")}
-      </button>
+      {onBack === undefined ? null : (
+        <button type="button" className="qt__back" onClick={() => onBack()}>
+          {t("rider.quote.back")}
+        </button>
+      )}
 
       {/* مدخلُ الاستغاثةِ (`PD-020`) — يُرسَمُ إذا مُرِّرَ، فيبقى البابُ في كلِّ سطحٍ. */}
       {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
