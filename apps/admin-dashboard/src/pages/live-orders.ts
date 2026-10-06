@@ -9,7 +9,9 @@
  *   متنافسان على شاشةٍ واحدة، وأحدُهما (الداخلي) يُعيد التحميل ولو كان المسؤول
  *   يكتب أو يقرأ نتائجَ بحثٍ مفتوحة. حُذف الداخلي: التحديثُ مسؤوليةُ الهيكل وحده،
  *   فمصدرُ الحقيقة لدوريّة التحديث واحد. (وكشفَه فحصُ سياسةِ أمن المحتوى: كان
- *   الوسمَ الوحيد بلا nonce.)
+ *   الوسمَ الوحيد بلا nonce.) وفي UI-6 / PR 9 (ADR 0240) أُزيل مؤقّتُ الهيكلِ نفسُه
+ *   (المصدرُ الكانونيُّ §9 يحظرُ الاستقصاء): الصفحةُ تُعلِنُ ساعةَ قراءتِها، وبعدَ
+ *   20 ثانيةً يظهرُ شريطُ «قراءةٌ قديمة» برابطِ تحديثٍ يدويّ.
  * ملاحظات مستقبلية: التدخّل اليدوي (إعادة بثّ، إسناد قسري) لا يُضاف إلا بأمر صريح:
  *   زرٌّ يتجاوز محرّك المطابقة يجب أن يكون قراراً معلَناً لا ميزة عابرة.
  */
@@ -110,9 +112,9 @@ export function renderLiveOrdersPage(data: LiveOrdersData): string {
           : ` ${badge(escapeHtml(row.negotiationStage), "warn")}`),
       `<div>${escapeHtml(row.riderName ?? "بلا اسم")}</div>
        <div class="card-hint mono">${escapeHtml(row.riderTelegramId)}</div>
-       <form class="inline" method="post" action="/admin/live-orders/${escapeHtml(row.orderId)}/revoke-tracking">
+       <form class="inline" method="post" data-confirm="قطعُ كلِّ روابطِ تتبّعِ هذا الطلب؟ من يحملُ رابطاً منها يفقدُ الوصولَ إليه." action="/admin/live-orders/${escapeHtml(row.orderId)}/revoke-tracking">
   <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
-  <button class="ghost" type="submit">قطع روابط التتبّع</button>
+  <button class="danger" type="submit">قطع روابط التتبّع</button>
 </form>`,
       escapeHtml(row.driverName ?? EMPTY_CELL),
       `<div>${escapeHtml(row.pickupLabel ?? EMPTY_CELL)}</div>
@@ -136,7 +138,7 @@ export function renderLiveOrdersPage(data: LiveOrdersData): string {
   </label>
   <button type="submit">تطبيق</button>
 </form>
-<div class="cards" style="margin-bottom:16px">${cards}</div>
+<div class="cards cards--spaced">${cards}</div>
 ${section(
   "الطلبات",
   table({

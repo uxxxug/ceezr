@@ -30,7 +30,11 @@ export {
   type NavItem,
   renderShell,
   type ShellOptions,
+  STATE_META,
+  STYLE,
+  type StateKind,
   section,
+  stateBlock,
   type TableOptions,
   table,
 } from "./layout.ts";
