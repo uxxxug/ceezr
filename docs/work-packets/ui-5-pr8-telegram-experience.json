@@ -8,14 +8,10 @@
     "docs/SYSTEM_STATE.md",
     "ROADMAP.md"
   ],
-  "implementation": [
-    "tests/unit/telegram-fuzz-escaping.test.ts"
-  ],
+  "implementation": ["tests/unit/telegram-fuzz-escaping.test.ts"],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
-  "affected_docs": [
-    "docs/adr/0239-ui-5-pr8-telegram-fuzz-and-message-budget.md"
-  ],
+  "affected_docs": ["docs/adr/0239-ui-5-pr8-telegram-fuzz-and-message-budget.md"],
   "decision": "لا إعادةَ تصميم: الحواراتُ والبطاقاتُ والقواميسُ كما هي ولا تغييرَ في عددِ الرسائل. المُرسِلُ نصٌّ خامٌّ بلا parse_mode — يُحرسُ ساكنًا. fuzz على مُخرَجِ الحواراتِ (BotReply) بسلاسلٍ عدوائيةٍ في ar/en/ur، وحدُّ 64 بايتاً لكلِّ callback_data بمعرّفاتٍ كاملة، وسلوكُ أزرارِ unsub:* أمامَ المتكررِ والباليِ وغيرِ الصالح. ADR 0239.",
   "tests": [
     "tests/unit/telegram-fuzz-escaping.test.ts (جديد · 28 اختباراً · 280 توكيداً)",
