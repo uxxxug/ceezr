@@ -25,6 +25,12 @@
 > بما فيها `check-state-sync` على نطاقِ الالتزام؛ اختباراتُ PostgreSQL التي تحتاج
 > `TEST_DATABASE_URL` متخطّاةٌ.
 >
+> **تصليبُ PR 3 (داخلَ #415):** استُخرِجَ تدفّقُ R3→R5 إلى آلةِ حالةٍ نقيّةٍ
+> `rider-flow.ts` فوقَ `screenStackReducer` نفسِه، ويستهلكُها `RiderRoot` بـ`useReducer`
+> والمعالجاتِ ذاتِها؛ والاختبارُ يقودُ تلك المعالجاتِ: Home→Destination→Quote، والرجوعُ
+> مرّتين، وتسليمُ النيّةِ إلى R6 مرّةً واحدةً، وأوّلُ رسمٍ لـ`RiderRoot` هيكلُ تحقّقِ الموافقةِ.
+> لا بيئةَ DOM ولا تبعيّةَ جديدة؛ النقرُ الحيُّ خارجَ حدودِ الاختبارِ (ADR 0235).
+>
 > **إغلاقُ UI-2 (2026-10-06 · Work Packet `ui-2-closure` — توثيقيٌّ فقط):** مرحلة **UI-2
 > (Shell & Navigation) = مكتملة / Closed** بـPR 2 (#413، HEAD `e14426af` → الدمج `0b8b0ea7`).
 > CI على `main` run `37405542119` = 7/7 success · Roadmap freshness `37405542140` = success.
