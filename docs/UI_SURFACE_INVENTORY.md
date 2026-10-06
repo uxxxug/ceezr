@@ -16,12 +16,16 @@
 | miniapp/admin | `apps/miniapp/src/surfaces/admin` | `.tsx` | 1 |
 | miniapp/onboarding | `apps/miniapp/src/surfaces/onboarding` | `.tsx` | 1 |
 | miniapp/support | `apps/miniapp/src/surfaces/support` | `.tsx` | 1 |
-| miniapp/shell | `apps/miniapp/src/shell` | `.tsx` | 3 |
+| miniapp/shell | `apps/miniapp/src/shell` | `.tsx` | 4 |
 | miniapp/system | `apps/miniapp/src/system` | `.tsx` | 4 |
 | admin-dashboard/pages | `apps/admin-dashboard/src/pages` | `.ts` | 15 |
 | telegram/bots | `apps/gateway/src/bots` | `.ts` | 20 |
 | public-tracking | `apps/gateway/src/routes/public-tracking.ts` | `.ts` | 1 |
-| **المجموع** | | | **80** |
+| **المجموع** | | | **81** |
+
+> **UI-2 / PR 2 (2026-10-06 · ADR 0234):** أُضيفَ `apps/miniapp/src/shell/ScreenFrame.tsx`
+> (`ScreenFrame` + التبويبُ الجذريُّ + `BackButton` + `ScreenTransition`) إلى `miniapp/shell`
+> فصارتِ المجموعةُ 4 والمجموعُ 81. لا سطحَ آخرُ تغيّر.
 
 ملفّاتُ الاختبارِ (`*.test.ts`/`*.test.tsx`) خارجَ الجرد.
 

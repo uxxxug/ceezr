@@ -101,7 +101,7 @@ export const SURFACE_INVENTORY: readonly SurfaceGroup[] = [
     root: "apps/miniapp/src/shell",
     ext: ".tsx",
     recursive: false,
-    files: ["ErrorBoundary.tsx", "Layout.tsx", "Shell.tsx"],
+    files: ["ErrorBoundary.tsx", "Layout.tsx", "ScreenFrame.tsx", "Shell.tsx"],
   },
   {
     id: "miniapp/system",
