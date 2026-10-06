@@ -150,6 +150,56 @@ export function parseLayerOneFallbacks(css: string): Record<Scheme, LayerOneFall
   return { dark: pick(darkBlock, ":root"), light: pick(lightBlock, lightSel) };
 }
 
+/** رموزُ `--ui-*` اللونيّةُ المُعلَنةُ في `global.css` لكلِّ سمةٍ (الفاتحُ يرثُ الداكنَ). */
+export type UiTokens = Record<Scheme, Readonly<Record<string, string>>>;
+
+/**
+ * يقرأُ كلَّ كتلةِ `:root {` و`:root[data-tg-scheme="light"] {` في الورقةِ (قد
+ * تتكرّرُ)، ويجمعُ منها رموزَ `--ui-*` ذاتَ القيمةِ السداسيّةِ. الفاتحُ = الداكنُ
+ * ثمَّ ما يُعيدُ الفاتحُ تعريفَه — كما يحسبُه المتصفِّحُ.
+ */
+export function parseUiTokens(css: string): UiTokens {
+  const text = css.replace(/\/\*[\s\S]*?\*\//g, " ");
+  const dark: Record<string, string> = {};
+  const lightOnly: Record<string, string> = {};
+  const blockRe = /(?<=^|\})\s*(:root(?:\[data-tg-scheme="light"\])?)\s*\{([^}]*)\}/g;
+  for (const m of text.matchAll(blockRe)) {
+    const target = m[1] === ":root" ? dark : lightOnly;
+    for (const v of (m[2] ?? "").matchAll(/--(ui-[a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) {
+      if (v[1] && v[2]) target[v[1]] = normalizeHex(v[2]);
+    }
+  }
+  return { dark, light: { ...dark, ...lightOnly } };
+}
+
+/**
+ * لا انجرافَ بينَ رموزِ CSS والمقيسِ: `--ui-<t>` = اللوحةُ، و`--ui-<t>-on` =
+ * لونُ النصِّ المعلنُ في `FILL_TEXT`. وإلّا قاسَ الحاجزُ لوحةً لا يرسمُها أحدٌ.
+ */
+export function uiTokenProblems(
+  tokens: UiTokens,
+  declared: Palette,
+  fillText: Record<Scheme, Record<LayerTwoToken, OnColor>> = FILL_TEXT,
+): readonly string[] {
+  const problems: string[] = [];
+  for (const s of SCHEMES) {
+    for (const t of LAYER_TWO_TOKENS) {
+      const expected: ReadonlyArray<readonly [string, string]> = [
+        [`ui-${t}`, normalizeHex(declared[s][t])],
+        [`ui-${t}-on`, normalizeHex(ON_COLORS[fillText[s][t]])],
+      ];
+      for (const [name, want] of expected) {
+        const got = tokens[s][name];
+        if (got === undefined) problems.push(`رمزُ CSS غائبٌ: --${name}/${s} (المتوقَّعُ ${want})`);
+        else if (got !== want) {
+          problems.push(`انجرافُ رمزِ CSS: --${name}/${s} = ${got} في global.css و${want} في المقيس`);
+        }
+      }
+    }
+  }
+  return problems;
+}
+
 export interface ContrastCheck {
   readonly id: string;
   readonly fg: string;
@@ -171,6 +221,8 @@ export interface ContrastInput {
   readonly layerOne: Record<Scheme, LayerOneFallbacks>;
   readonly fillText?: Record<Scheme, Record<LayerTwoToken, OnColor>>;
   readonly knownFailures?: readonly string[];
+  /** رموزُ `--ui-*` من `global.css`؛ إن مُرِّرَت حُكِمَ على انجرافِها أيضاً. */
+  readonly uiTokens?: UiTokens;
 }
 
 function check(id: string, fg: string, bg: string, min: number): ContrastCheck {
@@ -192,6 +244,11 @@ export function evaluateContrast(input: ContrastInput): ContrastVerdict {
       const b = normalizeHex(input.directive[s][t]);
       if (a !== b) problems.push(`انجرافُ اللوحةِ: ${t}/${s} = ${a} في الشيفرةِ و${b} في الدليل`);
     }
+  }
+
+  // 1ب) لا انجرافَ بينَ رموزِ `--ui-*` في CSS واللوحةِ المقيسةِ.
+  if (input.uiTokens !== undefined) {
+    problems.push(...uiTokenProblems(input.uiTokens, input.declared, fillText));
   }
 
   // 2) كلُّ تعبئةٍ من Layer 2 ونصُّها المعلنُ ≥ 4.5:1.

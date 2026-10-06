@@ -9,7 +9,9 @@ import {
   type Palette,
   parseDirectivePalette,
   parseLayerOneFallbacks,
+  parseUiTokens,
   type Scheme,
+  uiTokenProblems,
 } from "../../scripts/lib/ui-contrast";
 
 const directiveMd = readFileSync("docs/UI_UX_CANONICAL_DIRECTIVE.md", "utf8");
@@ -107,5 +109,44 @@ describe("evaluateContrast", () => {
     const v = evaluateContrast({ ...input, knownFailures: ["mute/light/secondaryBg"] });
     expect(v.ok).toBe(false);
     expect(v.problems.some((p) => p.includes("لم يَعُد قائماً"))).toBe(true);
+  });
+});
+
+describe("رموزُ --ui-* في global.css = اللوحةُ المقيسةُ (UI-1 / PR 1)", () => {
+  it("الورقةُ الحقيقيّةُ بلا انجرافٍ، والحكمُ الكاملُ أخضر", () => {
+    const tokens = parseUiTokens(globalCss);
+    expect(uiTokenProblems(tokens, LAYER_TWO_PALETTE)).toEqual([]);
+    expect(evaluateContrast({ ...baseInput(), uiTokens: tokens }).ok).toBe(true);
+  });
+
+  it("الفاتحُ يرثُ الداكنَ ثمَّ يُعيدُ التعريفَ، والتعليقاتُ لا تُقرأ", () => {
+    const css = `:root { --ui-brand: #111111; --ui-ok: #222222; }
+/* :root[data-tg-scheme="light"] { --ui-ok: #999999; } */
+:root[data-tg-scheme="light"] { --ui-brand: #333333; }`;
+    const t = parseUiTokens(css);
+    expect(t.dark["ui-brand"]).toBe("#111111");
+    expect(t.light["ui-brand"]).toBe("#333333");
+    expect(t.light["ui-ok"]).toBe("#222222");
+  });
+
+  it("رمزٌ منجرفٌ يُسقِطُ الحاجزَ (سلبيٌّ)", () => {
+    const drifted = globalCss.replace("--ui-ok: #0b7a42;", "--ui-ok: #34d399;");
+    const problems = uiTokenProblems(parseUiTokens(drifted), LAYER_TWO_PALETTE);
+    expect(problems.some((p) => p.includes("--ui-ok/light"))).toBe(true);
+    const v = evaluateContrast({ ...baseInput(), uiTokens: parseUiTokens(drifted) });
+    expect(v.ok).toBe(false);
+  });
+
+  it("لونُ نصٍّ فوقَ التعبئةِ منجرفٌ عن FILL_TEXT يُسقِطُ الحاجزَ (سلبيٌّ)", () => {
+    const drifted = globalCss.replace("--ui-bad-on: #ffffff;", "--ui-bad-on: #0f172a;");
+    expect(uiTokenProblems(parseUiTokens(drifted), LAYER_TWO_PALETTE)).toContain(
+      "انجرافُ رمزِ CSS: --ui-bad-on/light = #0f172a في global.css و#ffffff في المقيس",
+    );
+  });
+
+  it("رمزٌ غائبٌ يُسقِطُ الحاجزَ (سلبيٌّ)", () => {
+    const missing = globalCss.replace(/--ui-amber-on: #0f172a;/g, "");
+    const problems = uiTokenProblems(parseUiTokens(missing), LAYER_TWO_PALETTE);
+    expect(problems.some((p) => p.startsWith("رمزُ CSS غائبٌ: --ui-amber-on/dark"))).toBe(true);
   });
 });

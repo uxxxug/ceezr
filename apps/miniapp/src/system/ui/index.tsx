@@ -1,28 +1,31 @@
 /**
- * الغرض: مكوّناتُ `ui-*` العرضيّةُ الصرفةُ — تنفيذُ القسم 4 من الدليلِ المعتمدِ.
- *   كلُّ مكوّنٍ هنا React عرضيٌّ صرفٌ: لا حالةَ ولا أثرٌ جانبيٌّ، عناصرُ دلاليّةٌ
- *   (button, a, input) لا div، و`aria-label` لكلِّ أيقونةٍ، وتركيزٌ ظاهرٌ دائمًا.
- * الحالة: منفّذ فعلياً — بندُ PR 1 في القسم 11.
+ * الغرض: مكوّناتُ `ui-*` العرضيّةُ — تنفيذُ القسم 4 من الدليلِ المعتمدِ.
+ * الحالة: منفّذ فعلياً — بندُ PR 1 في القسم 11 (مُصلَّبٌ بعدَ التدقيقِ · ADR 0233 «تصليبُ PR 1»).
  * ينتمي إلى: apps/miniapp/src/system/ui
  *
- * **الكتلُ المسجَّلةٌ في `DECLARED_BLOCKS`:** `ui-btn` `ui-fld` `ui-tile` `ui-sg`
- * `ui-chip` `ui-tag` `ui-pill` `ui-card` `ui-row` `ui-kv` `ui-truth` `ui-rail`
- * `ui-timer` `ui-stp` `ui-sht` `ui-dg` `ui-tab` `ui-act` `ui-hdr` `ui-skel`
- * `ui-empty` `ui-err` `ui-toast` `ui-banner` `ui-av` `ui-pl` `ui-st` `ui-ds`
- * `ui-pg` `ui-copy`
+ * **عرضيٌّ صرفٌ:** لا حالةَ (`useState`) ولا طلبَ ولا مؤقّتَ ولا حافظةَ ولا
+ * تخزين. كلُّ فعلٍ يُسلَّمُ إلى المستدعي بـcallback إلزاميٍّ، فلا زرَّ بلا فعلٍ.
+ * الاستثناءُ الوحيدُ مُزامَنةُ `<dialog>` الأصيلِ مع خاصيّةِ `open`
+ * (`showModal()`/`close()`) — وهي ما يمنحُ حبسَ التركيزِ وEscape وإعادةَ التركيزِ.
  *
- * **لا تُخترَعُ حالةٌ ولا بياناتٌ ولا نصوصٌ:** المكوّناتُ تستقبلُ كلَّ نصٍّ وكلِّ
- * حالةٍ من الخارج. لا تُولِّدُ قيمةً ولا تُختلقُ عرضًا.
+ * **لا نصَّ مُضمَّنٌ:** كلُّ نصٍّ يراهُ المستخدمُ أو يسمعُه قارئُ الشاشةِ —
+ * عنوانٌ، وسمُ زرٍّ، «إغلاق»، «رجوع»، حالةُ خطوةٍ — يأتي من المستدعي (من
+ * القاموسِ). لا قيمةَ افتراضيّةَ نصّيّةَ ههنا؛ وحاجزُ `ui-components.test.tsx`
+ * يُسقِطُ أيَّ حرفٍ عربيٍّ خارجَ التعليقاتِ.
  *
  * **CSS مسطّحٌ:** كلُّ قاعدةٍ في `global.css` بلا `@layer` ولا تداخلٍ ولا `!important`.
- * خصائصُ منطقيّةٌ (inline-start, block-start…) لاحترامِ RTL.
- *
- * **أنماطُ الأصنافِ قابلةٌ للحلِّ ساكنةً:** كلُّ متغيّرِ نغمةٍ (tone) يُحَلُّ من
- * جدولٍ حرفيٍّ بخصيصَةِ `modifier` — كنمطِ `Skeleton.tsx` — كي يقرأَ حاجزُ
- * تغطيةِ الأصنافِ كلَّ ما يُصدَرُ ولا يَعبرَ تعبيرٌ مبهمٌ (القاعدة ٣).
+ * **أنماطُ الأصنافِ قابلةٌ للحلِّ ساكنةً:** كلُّ متغيّرٍ يُحَلُّ من جدولٍ حرفيٍّ
+ * بخصيصةِ `modifier` (القاعدة ٣ في حاجزِ تغطيةِ الأصنافِ).
  */
 
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import type {
+  ButtonHTMLAttributes,
+  CSSProperties,
+  InputHTMLAttributes,
+  KeyboardEvent,
+  ReactNode,
+} from "react";
+import { useEffect, useId, useRef } from "react";
 import {
   IconAlert,
   IconCheck,
@@ -32,11 +35,13 @@ import {
   IconCross,
   IconEmpty,
   IconError,
+  IconInfo,
   IconSpinner,
 } from "./icons.tsx";
 
-// ─── جداولُ النغماتِ الحرفيّةُ (modifier: "...") ────────────────────────────
-// كلُّ قيمةٍ تُقرأُ ساكنةً من `tableLiterals` في حاجزِ التغطيةِ (القاعدة ٣).
+export type UiTone = "brand" | "amber" | "ok" | "bad";
+
+// ─── جداولُ المتغيّراتِ الحرفيّةُ (modifier: "...") ─────────────────────────
 
 const BTN_VARIANTS = [
   { variant: "neutral", modifier: "ui-btn--neutral" },
@@ -50,6 +55,21 @@ const BTN_SIZES = [
   { size: "sm", modifier: "ui-btn--sm" },
   { size: "md", modifier: "ui-btn--md" },
   { size: "lg", modifier: "ui-btn--lg" },
+] as const;
+
+const SEGMENT_STATES = [
+  { on: false, modifier: "ui-sg__item" },
+  { on: true, modifier: "ui-sg__item ui-sg__item--on" },
+] as const;
+
+const CHIP_STATES = [
+  { on: false, modifier: "ui-chip" },
+  { on: true, modifier: "ui-chip ui-chip--on" },
+] as const;
+
+const TAB_STATES = [
+  { on: false, modifier: "ui-tab__item" },
+  { on: true, modifier: "ui-tab__item ui-tab__item--on" },
 ] as const;
 
 const TAG_TONES = [
@@ -66,6 +86,14 @@ const PILL_TONES = [
   { tone: "bad", modifier: "ui-pill--bad" },
 ] as const;
 
+const TRUTH_TONES = [
+  { tone: "brand", modifier: "ui-truth--brand" },
+  { tone: "amber", modifier: "ui-truth--amber" },
+  { tone: "ok", modifier: "ui-truth--ok" },
+  { tone: "bad", modifier: "ui-truth--bad" },
+  { tone: "unknown", modifier: "ui-truth--unknown" },
+] as const;
+
 const RAIL_STATES = [
   { state: "done", modifier: "ui-rail__item--done" },
   { state: "current", modifier: "ui-rail__item--current" },
@@ -78,6 +106,18 @@ const TIMER_TONES = [
   { tone: "bad", modifier: "ui-timer--bad" },
 ] as const;
 
+const STEP_STATES = [
+  { state: "done", modifier: "ui-stp__seg--done" },
+  { state: "current", modifier: "ui-stp__seg--current" },
+  { state: "pending", modifier: "ui-stp__seg--pending" },
+] as const;
+
+const SKEL_LINES = [
+  { id: "skel-1", modifier: "ui-skel__line" },
+  { id: "skel-2", modifier: "ui-skel__line" },
+  { id: "skel-3", modifier: "ui-skel__line ui-skel__line--short" },
+] as const;
+
 const ERR_TONES = [
   { tone: "bad", modifier: "ui-err--bad" },
   { tone: "amber", modifier: "ui-err--amber" },
@@ -85,9 +125,9 @@ const ERR_TONES = [
 
 const TOAST_TONES = [
   { tone: "brand", modifier: "ui-toast--brand" },
+  { tone: "amber", modifier: "ui-toast--amber" },
   { tone: "ok", modifier: "ui-toast--ok" },
   { tone: "bad", modifier: "ui-toast--bad" },
-  { tone: "amber", modifier: "ui-toast--amber" },
 ] as const;
 
 const BANNER_TONES = [
@@ -104,34 +144,67 @@ const STATUS_TONES = [
   { tone: "bad", modifier: "ui-st--bad" },
 ] as const;
 
+/** أيقونةُ كلِّ نغمةٍ — «كلُّ حالةٍ لها نصٌّ + أيقونةٌ» (§2)، فلا يحملُ اللونُ المعنى وحدَه. */
+function ToneIcon({ tone }: { readonly tone: UiTone }) {
+  if (tone === "ok") return <IconCheck />;
+  if (tone === "bad") return <IconError />;
+  if (tone === "amber") return <IconAlert />;
+  return <IconInfo />;
+}
+
 // ─── ui-btn ────────────────────────────────────────────────────────────────
 
-export interface UiButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  readonly variant?: "brand" | "amber" | "ok" | "bad" | "neutral";
+export interface UiButtonProps
+  extends Omit<
+    ButtonHTMLAttributes<HTMLButtonElement>,
+    "className" | "type" | "aria-busy" | "aria-disabled" | "onClick"
+  > {
+  readonly onClick?: ButtonHTMLAttributes<HTMLButtonElement>["onClick"];
+  readonly type?: "button" | "submit";
+  readonly variant?: "neutral" | UiTone;
   readonly size?: "sm" | "md" | "lg";
   readonly icon?: ReactNode;
+  /**
+   * أثناءَ الانتظار: `aria-busy` و`aria-disabled` لا `disabled` — فلا يُطرَدُ
+   * التركيزُ من زرٍّ ضغطَه المستخدمُ للتوِّ، ويُبتلَعُ الضغطُ المكرَّرُ.
+   */
   readonly loading?: boolean;
 }
 
 export function UiButton({
   variant = "neutral",
   size = "md",
+  type = "button",
   icon,
   loading = false,
   children,
-  disabled,
+  onClick,
   ...rest
 }: UiButtonProps) {
   const v = BTN_VARIANTS.find((x) => x.variant === variant) ?? BTN_VARIANTS[0];
   const s = BTN_SIZES.find((x) => x.size === size) ?? BTN_SIZES[1];
   return (
     <button
-      type="button"
-      className={`ui-btn ${v.modifier} ${s.modifier}`}
-      disabled={disabled || loading}
       {...rest}
+      type={type}
+      className={`ui-btn ${v.modifier} ${s.modifier}`}
+      aria-busy={loading ? true : undefined}
+      aria-disabled={loading ? true : undefined}
+      onClick={(event) => {
+        if (loading) {
+          event.preventDefault();
+          return;
+        }
+        onClick?.(event);
+      }}
     >
-      {loading ? <IconSpinner className="ui-btn__icon" label="جارٍ" /> : icon}
+      {loading ? (
+        <IconSpinner className="ui-btn__spinner" />
+      ) : icon !== undefined ? (
+        <span className="ui-btn__icon" aria-hidden="true">
+          {icon}
+        </span>
+      ) : null}
       {children}
     </button>
   );
@@ -139,26 +212,46 @@ export function UiButton({
 
 // ─── ui-fld ────────────────────────────────────────────────────────────────
 
-export interface UiFieldProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface UiFieldProps
+  extends Omit<
+    InputHTMLAttributes<HTMLInputElement>,
+    "className" | "id" | "aria-invalid" | "aria-describedby"
+  > {
+  /** إلزاميٌّ: بلا مُعرِّفٍ لا يرتبطُ الوسمُ بالحقلِ ولا التلميحُ ولا الخطأُ. */
+  readonly id: string;
   readonly label: string;
   readonly hint?: string;
   readonly error?: string;
 }
 
-export function UiField({ label, hint, error, id, ...rest }: UiFieldProps) {
-  const fieldId = id ?? rest.name;
+export function UiField({ id, label, hint, error, ...rest }: UiFieldProps) {
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const described = [hint !== undefined ? hintId : null, error !== undefined ? errorId : null]
+    .filter((x): x is string => x !== null)
+    .join(" ");
   return (
     <div className="ui-fld">
-      <label className="ui-fld__label" htmlFor={fieldId}>
+      <label className="ui-fld__label" htmlFor={id}>
         {label}
       </label>
-      <input className="ui-fld__input" id={fieldId} aria-invalid={error !== undefined} {...rest} />
+      <input
+        {...rest}
+        className="ui-fld__input"
+        id={id}
+        aria-invalid={error !== undefined ? true : undefined}
+        aria-describedby={described.length > 0 ? described : undefined}
+      />
+      {hint !== undefined ? (
+        <p className="ui-fld__hint" id={hintId}>
+          {hint}
+        </p>
+      ) : null}
       {error !== undefined ? (
-        <p className="ui-fld__error" role="alert">
+        <p className="ui-fld__error" id={errorId} role="alert">
+          <IconError className="ui-fld__error-icon" />
           {error}
         </p>
-      ) : hint !== undefined ? (
-        <p className="ui-fld__hint">{hint}</p>
       ) : null}
     </div>
   );
@@ -189,31 +282,35 @@ export function UiTile({ title, value, icon }: UiTileProps) {
 // ─── ui-sg (segmented control) ─────────────────────────────────────────────
 
 export interface UiSegmentProps {
+  /** اسمُ مجموعةِ الراديو — فريدٌ في الصفحةِ؛ لا يُشتقُّ من نصٍّ مرئيٍّ. */
+  readonly name: string;
+  readonly label: string;
   readonly options: ReadonlyArray<{ readonly value: string; readonly label: string }>;
   readonly value: string;
   readonly onSelect: (value: string) => void;
-  readonly label: string;
 }
 
-export function UiSegment({ options, value, onSelect, label }: UiSegmentProps) {
+/** راديو أصيلٌ: الأسهمُ والمسافةُ وTab تعملُ من المتصفِّحِ، والوسمُ يلفُّ الحقلَ. */
+export function UiSegment({ name, label, options, value, onSelect }: UiSegmentProps) {
   return (
     <div className="ui-sg" role="radiogroup" aria-label={label}>
-      {options.map((opt) => (
-        <label
-          key={opt.value}
-          className={`ui-sg__item${opt.value === value ? " ui-sg__item--on" : ""}`}
-        >
-          <input
-            type="radio"
-            className="ui-sg__radio"
-            name={label}
-            value={opt.value}
-            checked={opt.value === value}
-            onChange={() => onSelect(opt.value)}
-          />
-          {opt.label}
-        </label>
-      ))}
+      {options.map((opt) => {
+        const state =
+          SEGMENT_STATES.find((x) => x.on === (opt.value === value)) ?? SEGMENT_STATES[0];
+        return (
+          <label key={opt.value} className={state.modifier}>
+            <input
+              type="radio"
+              className="ui-sg__radio"
+              name={name}
+              value={opt.value}
+              checked={opt.value === value}
+              onChange={() => onSelect(opt.value)}
+            />
+            {opt.label}
+          </label>
+        );
+      })}
     </div>
   );
 }
@@ -222,18 +319,15 @@ export function UiSegment({ options, value, onSelect, label }: UiSegmentProps) {
 
 export interface UiChipProps {
   readonly label: string;
-  readonly selected?: boolean;
-  readonly onSelect?: () => void;
+  readonly selected: boolean;
+  /** إلزاميٌّ: رقاقةٌ بـ`aria-pressed` بلا فعلٍ تفاعلٌ وهميٌّ. */
+  readonly onToggle: () => void;
 }
 
-export function UiChip({ label, selected = false, onSelect }: UiChipProps) {
+export function UiChip({ label, selected, onToggle }: UiChipProps) {
+  const state = CHIP_STATES.find((x) => x.on === selected) ?? CHIP_STATES[0];
   return (
-    <button
-      type="button"
-      className={`ui-chip${selected ? " ui-chip--on" : ""}`}
-      aria-pressed={selected}
-      onClick={onSelect}
-    >
+    <button type="button" className={state.modifier} aria-pressed={selected} onClick={onToggle}>
       {label}
     </button>
   );
@@ -243,10 +337,10 @@ export function UiChip({ label, selected = false, onSelect }: UiChipProps) {
 
 export interface UiTagProps {
   readonly label: string;
-  readonly tone?: "brand" | "amber" | "ok" | "bad";
+  readonly tone: UiTone;
 }
 
-export function UiTag({ label, tone = "brand" }: UiTagProps) {
+export function UiTag({ label, tone }: UiTagProps) {
   const t = TAG_TONES.find((x) => x.tone === tone) ?? TAG_TONES[0];
   return <span className={`ui-tag ${t.modifier}`}>{label}</span>;
 }
@@ -255,11 +349,11 @@ export function UiTag({ label, tone = "brand" }: UiTagProps) {
 
 export interface UiPillProps {
   readonly label: string;
-  readonly tone?: "brand" | "amber" | "ok" | "bad";
+  readonly tone: UiTone;
   readonly icon?: ReactNode;
 }
 
-export function UiPill({ label, tone = "brand", icon }: UiPillProps) {
+export function UiPill({ label, tone, icon }: UiPillProps) {
   const t = PILL_TONES.find((x) => x.tone === tone) ?? PILL_TONES[0];
   return (
     <span className={`ui-pill ${t.modifier}`}>
@@ -282,10 +376,19 @@ export interface UiCardProps {
 }
 
 export function UiCard({ children, title, action }: UiCardProps) {
+  const titleId = useId();
   return (
-    <section className="ui-card">
-      {title !== undefined ? <h3 className="ui-card__title">{title}</h3> : null}
-      {action !== undefined ? <div className="ui-card__action">{action}</div> : null}
+    <section className="ui-card" aria-labelledby={title !== undefined ? titleId : undefined}>
+      {title !== undefined || action !== undefined ? (
+        <div className="ui-card__head">
+          {title !== undefined ? (
+            <h3 className="ui-card__title" id={titleId}>
+              {title}
+            </h3>
+          ) : null}
+          {action !== undefined ? <div className="ui-card__action">{action}</div> : null}
+        </div>
+      ) : null}
       <div className="ui-card__body">{children}</div>
     </section>
   );
@@ -329,48 +432,59 @@ export function UiKv({ k, v }: UiKvProps) {
   );
 }
 
-// ─── ui-truth (boolean indicator) ───────────────────────────────────────────
+// ─── ui-truth (شريطُ الحقيقة · §10.1 · يُربَطُ بالمنتجِ في PR 4) ───────────
 
 export interface UiTruthProps {
-  readonly value: boolean;
-  readonly label: string;
-  readonly onLabel?: string;
-  readonly offLabel?: string;
+  /** جملةُ الحقيقةِ الحاليّةُ كما يصوغُها المستدعي من حالةٍ مقيسةٍ. */
+  readonly text: string;
+  /** `unknown` = الصمتُ المُصمَّمُ (§10.9): المجهولُ يُقالُ مجهولاً بنغمةٍ محايدةٍ. */
+  readonly tone: UiTone | "unknown";
 }
 
-export function UiTruth({ value, label, onLabel = "نعم", offLabel = "لا" }: UiTruthProps) {
+/** شريطٌ واحدٌ يتبدّلُ نصُّه فيُعلَنُ بأدبٍ (`<output>` = role=status). */
+export function UiTruth({ text, tone }: UiTruthProps) {
+  const t = TRUTH_TONES.find((x) => x.tone === tone) ?? TRUTH_TONES[4];
   return (
-    <div className="ui-truth" role="status" aria-label={label}>
-      <span className={`ui-truth__dot${value ? " ui-truth__dot--on" : ""}`} aria-hidden="true" />
-      <span className="ui-truth__text">{value ? onLabel : offLabel}</span>
-    </div>
+    <output className={`ui-truth ${t.modifier}`}>
+      <span className="ui-truth__icon" aria-hidden="true">
+        {tone === "unknown" ? <IconInfo /> : <ToneIcon tone={tone} />}
+      </span>
+      <span className="ui-truth__text">{text}</span>
+    </output>
   );
 }
 
-// ─── ui-rail (progress track) ──────────────────────────────────────────────
+// ─── ui-rail (السكّة) ───────────────────────────────────────────────────────
+
+export type UiRailState = "done" | "current" | "pending";
 
 export interface UiRailProps {
+  readonly label: string;
   readonly steps: ReadonlyArray<{
+    readonly id: string;
     readonly label: string;
-    readonly state: "done" | "current" | "pending";
+    readonly state: UiRailState;
   }>;
+  /** نصُّ الحالةِ لقارئِ الشاشةِ — كي لا تُقالَ «تمّت/التالية» باللونِ وحدَه. */
+  readonly stateText: Readonly<Record<UiRailState, string>>;
 }
 
-export function UiRail({ steps }: UiRailProps) {
+export function UiRail({ label, steps, stateText }: UiRailProps) {
   return (
-    <ol className="ui-rail">
-      {steps.map((step) => {
+    <ol className="ui-rail" aria-label={label}>
+      {steps.map((step, position) => {
         const s = RAIL_STATES.find((x) => x.state === step.state) ?? RAIL_STATES[2];
         return (
           <li
-            key={step.label}
+            key={step.id}
             className={`ui-rail__item ${s.modifier}`}
             aria-current={step.state === "current" ? "step" : undefined}
           >
             <span className="ui-rail__dot" aria-hidden="true">
-              {steps.indexOf(step) + 1}
+              {step.state === "done" ? <IconCheck className="ui-rail__check" /> : position + 1}
             </span>
             <span className="ui-rail__label">{step.label}</span>
+            <span className="ui-rail__state">{stateText[step.state]}</span>
           </li>
         );
       })}
@@ -378,147 +492,300 @@ export function UiRail({ steps }: UiRailProps) {
   );
 }
 
-// ─── ui-timer ──────────────────────────────────────────────────────────────
+// ─── ui-timer (مؤقّتُ CSS · §11 PR 6) ───────────────────────────────────────
 
 export interface UiTimerProps {
-  readonly seconds: number;
+  /** اسمُ المهلةِ، كـ«مهلةُ العرض». */
   readonly label: string;
-  readonly tone?: "neutral" | "amber" | "bad";
+  /** الموعدُ المطلقُ مصوغاً من المستدعي، كـ«حتى ٣:٤١» — لا يتقادمُ بعدَ الرسم. */
+  readonly deadlineText: string;
+  readonly remainingSeconds: number;
+  readonly totalSeconds: number;
+  readonly tone: "neutral" | "amber" | "bad";
 }
 
-export function UiTimer({ seconds, label, tone = "neutral" }: UiTimerProps) {
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  const display = `${mins}:${secs.toString().padStart(2, "0")}`;
+/** نسبةُ المتبقّي في [0، 1]؛ والمدخلاتُ غيرُ الصالحةِ تُعطي 0 لا قيمةً مختلَقةً. */
+export function timerRatio(remainingSeconds: number, totalSeconds: number): number {
+  if (!Number.isFinite(remainingSeconds) || !Number.isFinite(totalSeconds)) return 0;
+  if (totalSeconds <= 0 || remainingSeconds <= 0) return 0;
+  return Math.min(1, remainingSeconds / totalSeconds);
+}
+
+/**
+ * لا `setInterval` (§9): الشريطُ يُفرَغُ بحركةِ CSS من النسبةِ الحاليّةِ إلى الصفرِ
+ * خلالَ المتبقّي، والنصُّ موعدٌ مطلقٌ لا عدٌّ تنازليٌّ يتجمّدُ.
+ */
+export function UiTimer({
+  label,
+  deadlineText,
+  remainingSeconds,
+  totalSeconds,
+  tone,
+}: UiTimerProps) {
+  const labelId = useId();
+  const textId = useId();
   const t = TIMER_TONES.find((x) => x.tone === tone) ?? TIMER_TONES[0];
+  const ratio = timerRatio(remainingSeconds, totalSeconds);
+  const seconds = ratio === 0 ? 0 : Math.ceil(remainingSeconds);
+  const fill = {
+    "--ui-timer-start": String(ratio),
+    "--ui-timer-duration": `${seconds}s`,
+  } as CSSProperties;
   return (
-    <div className={`ui-timer ${t.modifier}`} role="timer" aria-label={label}>
-      <IconClock className="ui-timer__icon" aria-hidden="true" />
-      <span className="ui-timer__value">{display}</span>
+    <div className={`ui-timer ${t.modifier}`} role="timer" aria-labelledby={`${labelId} ${textId}`}>
+      <span className="ui-timer__label" id={labelId}>
+        {label}
+      </span>
+      <span className="ui-timer__text" id={textId}>
+        <IconClock className="ui-timer__icon" />
+        {deadlineText}
+      </span>
+      <span className="ui-timer__track" aria-hidden="true">
+        <span className="ui-timer__fill" style={fill} />
+      </span>
     </div>
   );
 }
 
-// ─── ui-stp (stepper) ───────────────────────────────────────────────────────
+// ─── ui-stp (مؤشّرُ خطواتِ تدفّقٍ) ──────────────────────────────────────────
 
 export interface UiStepperProps {
+  /** رقمُ الخطوةِ الحاليّةِ، يبدأُ من 1. */
   readonly current: number;
   readonly total: number;
-  readonly label: string;
+  /** نصُّ الموضعِ من القاموسِ، كـ«الخطوة ٢ من ٣» — لا يُركَّبُ ههنا. */
+  readonly text: string;
 }
 
-export function UiStepper({ current, total, label }: UiStepperProps) {
+/** حالةُ قطعةٍ في المؤشّرِ — نقيّةٌ ومُختبَرةٌ. */
+export function stepState(position: number, current: number): "done" | "current" | "pending" {
+  if (position < current) return "done";
+  if (position === current) return "current";
+  return "pending";
+}
+
+/**
+ * مؤشّرٌ لا مُتحكِّمٌ: التقدّمُ بينَ الخطواتِ فعلُ الشاشةِ (زرُّها الأساسيُّ)،
+ * فلا زرَّ «زيادة/إنقاص» ههنا بلا callback. القطعُ زخرفةٌ مخفيّةٌ، والنصُّ هو المعنى.
+ */
+export function UiStepper({ current, total, text }: UiStepperProps) {
+  const count = Number.isFinite(total) && total >= 1 ? Math.floor(total) : 0;
+  const positions = Array.from({ length: count }, (_, i) => i + 1);
   return (
-    <fieldset className="ui-stp" aria-label={label}>
-      <button type="button" className="ui-stp__btn" aria-label="إنقاص" disabled={current <= 1}>
-        −
-      </button>
-      <span className="ui-stp__value" aria-live="polite">
-        {current} / {total}
+    <div className="ui-stp">
+      <span className="ui-stp__track" aria-hidden="true">
+        {positions.map((n) => {
+          const s = STEP_STATES.find((x) => x.state === stepState(n, current)) ?? STEP_STATES[2];
+          return <span key={n} className={`ui-stp__seg ${s.modifier}`} />;
+        })}
       </span>
-      <button type="button" className="ui-stp__btn" aria-label="زيادة" disabled={current >= total}>
-        +
-      </button>
-    </fieldset>
+      <p className="ui-stp__text">{text}</p>
+    </div>
   );
 }
 
-// ─── ui-sht (bottom sheet) ─────────────────────────────────────────────────
+// ─── ui-sht / ui-dg — `<dialog>` أصيلٌ ───────────────────────────────────────
+
+/** ما يلزمُ من `HTMLDialogElement` — أصغرُ واجهةٍ تُختبَرُ بلا DOM. */
+export interface ModalElement {
+  readonly open: boolean;
+  showModal?: () => void;
+  close?: () => void;
+  setAttribute(name: string, value: string): void;
+  removeAttribute(name: string): void;
+}
+
+/**
+ * يُزامِنُ `<dialog>` مع `open`: `showModal()` يحبسُ التركيزَ ويجعلُ ما خلفَه
+ * خاملاً ويُغلِقُ بـEscape، و`close()` يُعيدُ التركيزَ إلى ما فتحَه. ومتصفّحٌ بلا
+ * `showModal` يُفتَحُ فيه الحوارُ بالخاصيّةِ — ظاهراً لا مفقوداً.
+ */
+export function syncModal(el: ModalElement, open: boolean): void {
+  if (open && !el.open) {
+    if (typeof el.showModal === "function") el.showModal();
+    else el.setAttribute("open", "");
+  } else if (!open && el.open) {
+    if (typeof el.close === "function") el.close();
+    else el.removeAttribute("open");
+  }
+}
+
+/**
+ * Escape يُطلِقُ `cancel`: يُمنَعُ الإغلاقُ الأصيلُ ويُسلَّمُ القرارُ للمستدعي،
+ * فتبقى `open` مصدرَ الحقيقةِ الوحيدَ ولا يختلفُ DOM عن الحالة.
+ */
+export function cancelToClose(onClose: () => void) {
+  return (event: { preventDefault(): void }) => {
+    event.preventDefault();
+    onClose();
+  };
+}
+
+function useModal(open: boolean) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (ref.current !== null) syncModal(ref.current, open);
+  }, [open]);
+  return ref;
+}
 
 export interface UiSheetProps {
   readonly open: boolean;
   readonly title: string;
+  readonly closeLabel: string;
   readonly onClose: () => void;
   readonly children: ReactNode;
 }
 
-export function UiSheet({ open, title, onClose, children }: UiSheetProps) {
-  if (!open) return null;
+export function UiSheet({ open, title, closeLabel, onClose, children }: UiSheetProps) {
+  const ref = useModal(open);
+  const titleId = useId();
   return (
-    <div className="ui-sht" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="ui-sht__overlay" onClick={onClose} aria-hidden="true" />
-      <div className="ui-sht__panel">
-        <div className="ui-sht__head">
-          <h2 className="ui-sht__title">{title}</h2>
-          <button type="button" className="ui-sht__close" aria-label="إغلاق" onClick={onClose}>
-            <IconCross aria-hidden="true" />
-          </button>
-        </div>
-        <div className="ui-sht__body">{children}</div>
+    <dialog
+      ref={ref}
+      className="ui-sht"
+      aria-labelledby={titleId}
+      onCancel={cancelToClose(onClose)}
+    >
+      <div className="ui-sht__head">
+        <h2 className="ui-sht__title" id={titleId}>
+          {title}
+        </h2>
+        <button type="button" className="ui-sht__close" aria-label={closeLabel} onClick={onClose}>
+          <IconCross />
+        </button>
       </div>
-    </div>
+      <div className="ui-sht__body">{children}</div>
+    </dialog>
   );
 }
-
-// ─── ui-dg (dialog) ────────────────────────────────────────────────────────
 
 export interface UiDialogProps {
   readonly open: boolean;
   readonly title: string;
-  readonly children: ReactNode;
+  readonly closeLabel: string;
   readonly onClose: () => void;
+  readonly children: ReactNode;
   readonly actions?: ReactNode;
 }
 
-export function UiDialog({ open, title, children, onClose, actions }: UiDialogProps) {
-  if (!open) return null;
+export function UiDialog({ open, title, closeLabel, onClose, children, actions }: UiDialogProps) {
+  const ref = useModal(open);
+  const titleId = useId();
   return (
-    <div className="ui-dg" role="dialog" aria-modal="true" aria-label={title}>
-      <div className="ui-dg__overlay" onClick={onClose} aria-hidden="true" />
-      <div className="ui-dg__panel" role="document">
-        <div className="ui-dg__head">
-          <h2 className="ui-dg__title">{title}</h2>
-          <button type="button" className="ui-dg__close" aria-label="إغلاق" onClick={onClose}>
-            <IconCross aria-hidden="true" />
-          </button>
-        </div>
-        <div className="ui-dg__body">{children}</div>
-        {actions !== undefined ? <div className="ui-dg__actions">{actions}</div> : null}
+    <dialog ref={ref} className="ui-dg" aria-labelledby={titleId} onCancel={cancelToClose(onClose)}>
+      <div className="ui-dg__head">
+        <h2 className="ui-dg__title" id={titleId}>
+          {title}
+        </h2>
+        <button type="button" className="ui-dg__close" aria-label={closeLabel} onClick={onClose}>
+          <IconCross />
+        </button>
       </div>
-    </div>
+      <div className="ui-dg__body">{children}</div>
+      {actions !== undefined ? <div className="ui-dg__actions">{actions}</div> : null}
+    </dialog>
   );
 }
 
-// ─── ui-tab ────────────────────────────────────────────────────────────────
+// ─── ui-tab (تبويبٌ داخلَ الصفحةِ · WAI-ARIA Tabs) ──────────────────────────
+
+/**
+ * موضعُ التبويبِ التالي لمفتاحٍ: الأسهمُ تتبعُ الاتّجاهَ (في RTL السهمُ الأيمنُ
+ * يعودُ إلى السابقِ)، وHome/End للطرفين، ويلتفُّ. `null` = مفتاحٌ لا يخصُّ التبويب.
+ */
+export function tabKeyTarget(
+  index: number,
+  count: number,
+  key: string,
+  rtl: boolean,
+): number | null {
+  if (count <= 0) return null;
+  const forward = rtl ? "ArrowLeft" : "ArrowRight";
+  const backward = rtl ? "ArrowRight" : "ArrowLeft";
+  if (key === forward) return (index + 1) % count;
+  if (key === backward) return (index - 1 + count) % count;
+  if (key === "Home") return 0;
+  if (key === "End") return count - 1;
+  return null;
+}
 
 export interface UiTabProps {
-  readonly tabs: ReadonlyArray<{ readonly id: string; readonly label: string }>;
+  readonly label: string;
+  /** `id` معرّفُ زرِّ التبويبِ في الصفحةِ، و`panelId` معرّفُ لوحتِه (`UiTabPanel`). */
+  readonly tabs: ReadonlyArray<{
+    readonly id: string;
+    readonly panelId: string;
+    readonly label: string;
+  }>;
   readonly active: string;
   readonly onSelect: (id: string) => void;
 }
 
-export function UiTab({ tabs, active, onSelect }: UiTabProps) {
+/** تركيزٌ متجوّلٌ: التبويبُ النشطُ وحدَه في ترتيبِ Tab، والأسهمُ تنقلُ وتُفعِّلُ. */
+export function UiTab({ label, tabs, active, onSelect }: UiTabProps) {
+  const onKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    const rtl = getComputedStyle(event.currentTarget).direction === "rtl";
+    const target = tabKeyTarget(index, tabs.length, event.key, rtl);
+    const next = target === null ? undefined : tabs[target];
+    if (next === undefined) return;
+    event.preventDefault();
+    const list = event.currentTarget.parentElement;
+    const button = list?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[target ?? 0];
+    button?.focus();
+    onSelect(next.id);
+  };
   return (
-    <div className="ui-tab" role="tablist">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          className={`ui-tab__item${tab.id === active ? " ui-tab__item--on" : ""}`}
-          role="tab"
-          aria-selected={tab.id === active}
-          onClick={() => onSelect(tab.id)}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <div className="ui-tab" role="tablist" aria-label={label}>
+      {tabs.map((tab, index) => {
+        const on = tab.id === active;
+        const state = TAB_STATES.find((x) => x.on === on) ?? TAB_STATES[0];
+        return (
+          <button
+            key={tab.id}
+            id={tab.id}
+            type="button"
+            role="tab"
+            className={state.modifier}
+            aria-selected={on}
+            aria-controls={tab.panelId}
+            tabIndex={on ? 0 : -1}
+            onClick={() => onSelect(tab.id)}
+            onKeyDown={(event) => onKeyDown(event, index)}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
 
-// ─── ui-act (action bar) ────────────────────────────────────────────────────
+export interface UiTabPanelProps {
+  readonly id: string;
+  readonly tabId: string;
+  readonly active: boolean;
+  readonly children: ReactNode;
+}
+
+/** لا `tabIndex`: محتوى اللوحةِ يحملُ عناصرَه القابلةَ للتركيزِ، وTab يبلغُها مباشرةً. */
+export function UiTabPanel({ id, tabId, active, children }: UiTabPanelProps) {
+  return (
+    <div className="ui-tab__panel" role="tabpanel" id={id} aria-labelledby={tabId} hidden={!active}>
+      {children}
+    </div>
+  );
+}
+
+// ─── ui-act (شريطُ أفعالِ التدفّقِ · §6) ────────────────────────────────────
 
 export interface UiActionBarProps {
   readonly children: ReactNode;
-  readonly label?: string;
 }
 
-export function UiActionBar({ children, label }: UiActionBarProps) {
-  return (
-    <nav className="ui-act" aria-label={label ?? "إجراءات"}>
-      {children}
-    </nav>
-  );
+/** حاويةُ أفعالٍ لا معلمُ تنقّلٍ: الأزرارُ أفعالٌ، فلا `<nav>`. */
+export function UiActionBar({ children }: UiActionBarProps) {
+  return <div className="ui-act">{children}</div>;
 }
 
 // ─── ui-hdr (header) ────────────────────────────────────────────────────────
@@ -526,7 +793,8 @@ export function UiActionBar({ children, label }: UiActionBarProps) {
 export interface UiHeaderProps {
   readonly title: string;
   readonly subtitle?: string;
-  readonly back?: () => void;
+  /** زرُّ الرجوعِ يُرسَمُ فقط حين يمرُّ فعلُه ووسمُه معاً. */
+  readonly back?: { readonly label: string; readonly onBack: () => void };
   readonly action?: ReactNode;
 }
 
@@ -534,12 +802,13 @@ export function UiHeader({ title, subtitle, back, action }: UiHeaderProps) {
   return (
     <header className="ui-hdr">
       {back !== undefined ? (
-        <button type="button" className="ui-hdr__back" aria-label="رجوع" onClick={back}>
-          <IconChevron
-            className="ui-hdr__back-icon"
-            aria-hidden="true"
-            style={{ transform: "rotate(180deg)" }}
-          />
+        <button
+          type="button"
+          className="ui-hdr__back"
+          aria-label={back.label}
+          onClick={back.onBack}
+        >
+          <IconChevron className="ui-hdr__back-icon" />
         </button>
       ) : null}
       <div className="ui-hdr__text">
@@ -551,31 +820,25 @@ export function UiHeader({ title, subtitle, back, action }: UiHeaderProps) {
   );
 }
 
-// ─── ui-skel (skeleton / loading) ───────────────────────────────────────────
+// ─── ui-skel (Loading · §5) ─────────────────────────────────────────────────
 
 export interface UiSkeletonProps {
-  readonly lines?: number;
-  readonly label?: string;
+  /** ما يُحمَّلُ، لقارئِ الشاشةِ. */
+  readonly label: string;
+  readonly lines?: 1 | 2 | 3;
 }
 
-const SKEL_LINES = [
-  { id: "skel-1", modifier: "" },
-  { id: "skel-2", modifier: "" },
-  { id: "skel-3", modifier: "ui-skel__line--short" },
-] as const;
-
-export function UiSkeleton({ lines = 3, label = "جارٍ التحميل" }: UiSkeletonProps) {
-  const items = lines <= SKEL_LINES.length ? SKEL_LINES.slice(0, lines) : SKEL_LINES;
+export function UiSkeleton({ label, lines = 3 }: UiSkeletonProps) {
   return (
-    <div className="ui-skel" aria-busy="true" aria-label={label} role="status">
-      {items.map((item) => (
-        <span key={item.id} className={`ui-skel__line ${item.modifier}`.trimEnd()} />
+    <div className="ui-skel" role="status" aria-busy="true" aria-label={label}>
+      {SKEL_LINES.slice(0, lines).map((item) => (
+        <span key={item.id} className={item.modifier} aria-hidden="true" />
       ))}
     </div>
   );
 }
 
-// ─── ui-empty (empty state) ────────────────────────────────────────────────
+// ─── ui-empty (Empty · §5) ──────────────────────────────────────────────────
 
 export interface UiEmptyProps {
   readonly title: string;
@@ -583,36 +846,45 @@ export interface UiEmptyProps {
   readonly action?: ReactNode;
 }
 
+/** حالةٌ ساكنةٌ تُقرأُ بالتصفّحِ — لا منطقةَ حيّةً تُقاطِعُ المستخدمَ. */
 export function UiEmpty({ title, body, action }: UiEmptyProps) {
+  const titleId = useId();
   return (
-    <section className="ui-empty" aria-live="polite">
-      <IconEmpty className="ui-empty__icon" aria-hidden="true" />
-      <h2 className="ui-empty__title">{title}</h2>
+    <section className="ui-empty" aria-labelledby={titleId}>
+      <IconEmpty className="ui-empty__icon" />
+      <h2 className="ui-empty__title" id={titleId}>
+        {title}
+      </h2>
       <p className="ui-empty__body">{body}</p>
       {action !== undefined ? <div className="ui-empty__action">{action}</div> : null}
     </section>
   );
 }
 
-// ─── ui-err (error state) ───────────────────────────────────────────────────
+// ─── ui-err (Error · §5) ────────────────────────────────────────────────────
 
 export interface UiErrorProps {
   readonly title: string;
   readonly body: string;
+  readonly tone: "bad" | "amber";
   readonly action?: ReactNode;
-  readonly tone?: "bad" | "amber";
 }
 
-export function UiError({ title, body, action, tone = "bad" }: UiErrorProps) {
+export function UiError({ title, body, tone, action }: UiErrorProps) {
   const t = ERR_TONES.find((x) => x.tone === tone) ?? ERR_TONES[0];
-  const Icon = tone === "amber" ? IconAlert : IconError;
   return (
-    <section className={`ui-err ${t.modifier}`} aria-live="assertive">
-      <Icon className="ui-err__icon" aria-hidden="true" />
+    <div className={`ui-err ${t.modifier}`} role="alert">
+      <span className="ui-err__badge" aria-hidden="true">
+        {tone === "amber" ? (
+          <IconAlert className="ui-err__icon" />
+        ) : (
+          <IconError className="ui-err__icon" />
+        )}
+      </span>
       <h2 className="ui-err__title">{title}</h2>
       <p className="ui-err__body">{body}</p>
       {action !== undefined ? <div className="ui-err__action">{action}</div> : null}
-    </section>
+    </div>
   );
 }
 
@@ -620,18 +892,28 @@ export function UiError({ title, body, action, tone = "bad" }: UiErrorProps) {
 
 export interface UiToastProps {
   readonly message: string;
-  readonly tone?: "brand" | "ok" | "bad" | "amber";
-  readonly onDismiss?: () => void;
+  readonly tone: UiTone;
+  /** زرُّ الإغلاقِ يُرسَمُ فقط حين يمرُّ فعلُه ووسمُه معاً. */
+  readonly dismiss?: { readonly label: string; readonly onDismiss: () => void };
 }
 
-export function UiToast({ message, tone = "brand", onDismiss }: UiToastProps) {
+/** `<output>` = role=status: يُعلَنُ بأدبٍ دونَ `aria-live` مكرَّرٍ. */
+export function UiToast({ message, tone, dismiss }: UiToastProps) {
   const t = TOAST_TONES.find((x) => x.tone === tone) ?? TOAST_TONES[0];
   return (
-    <output className={`ui-toast ${t.modifier}`} aria-live="polite">
+    <output className={`ui-toast ${t.modifier}`}>
+      <span className="ui-toast__icon" aria-hidden="true">
+        <ToneIcon tone={tone} />
+      </span>
       <span className="ui-toast__msg">{message}</span>
-      {onDismiss !== undefined ? (
-        <button type="button" className="ui-toast__close" aria-label="إغلاق" onClick={onDismiss}>
-          <IconCross aria-hidden="true" />
+      {dismiss !== undefined ? (
+        <button
+          type="button"
+          className="ui-toast__close"
+          aria-label={dismiss.label}
+          onClick={dismiss.onDismiss}
+        >
+          <IconCross />
         </button>
       ) : null}
     </output>
@@ -642,19 +924,21 @@ export function UiToast({ message, tone = "brand", onDismiss }: UiToastProps) {
 
 export interface UiBannerProps {
   readonly message: string;
-  readonly tone?: "brand" | "amber" | "ok" | "bad";
+  readonly tone: UiTone;
   readonly action?: ReactNode;
 }
 
-export function UiBanner({ message, tone = "amber", action }: UiBannerProps) {
-  const t = BANNER_TONES.find((x) => x.tone === tone) ?? BANNER_TONES[1];
-  const Icon = tone === "ok" ? IconCheck : tone === "bad" ? IconCross : IconAlert;
+/** لافتةٌ ساكنةٌ (حالةُ سياقٍ)، لا منطقةَ حيّةً — الإعلانُ عملُ `ui-toast`/`ui-truth`. */
+export function UiBanner({ message, tone, action }: UiBannerProps) {
+  const t = BANNER_TONES.find((x) => x.tone === tone) ?? BANNER_TONES[0];
   return (
-    <section className={`ui-banner ${t.modifier}`} aria-live="polite">
-      <Icon className="ui-banner__icon" aria-hidden="true" />
+    <div className={`ui-banner ${t.modifier}`}>
+      <span className="ui-banner__icon" aria-hidden="true">
+        <ToneIcon tone={tone} />
+      </span>
       <span className="ui-banner__msg">{message}</span>
       {action !== undefined ? <div className="ui-banner__action">{action}</div> : null}
-    </section>
+    </div>
   );
 }
 
@@ -665,17 +949,27 @@ export interface UiAvatarProps {
   readonly src?: string;
 }
 
+/** أوّلُ محرفٍ مرئيٍّ (لا نصفُ زوجٍ بديلٍ)، أو فراغٌ لاسمٍ فارغٍ. */
+export function avatarInitial(name: string): string {
+  return Array.from(name.trim())[0] ?? "";
+}
+
+/** اسمٌ واحدٌ يُقرأُ مرّةً: `alt` للصورةِ، أو `role=img` للحرفِ — لا كلاهما. */
 export function UiAvatar({ name, src }: UiAvatarProps) {
-  const initial = name.charAt(0);
+  if (src !== undefined) {
+    return (
+      <span className="ui-av">
+        <img className="ui-av__img" src={src} alt={name} width={40} height={40} />
+      </span>
+    );
+  }
+  const initial = avatarInitial(name);
+  if (initial === "") return <span className="ui-av" aria-hidden="true" />;
   return (
     <span className="ui-av" role="img" aria-label={name}>
-      {src !== undefined ? (
-        <img className="ui-av__img" src={src} alt={name} width={40} height={40} />
-      ) : (
-        <span className="ui-av__initial" aria-hidden="true">
-          {initial}
-        </span>
-      )}
+      <span className="ui-av__initial" aria-hidden="true">
+        {initial}
+      </span>
     </span>
   );
 }
@@ -689,7 +983,7 @@ export interface UiPlaceholderProps {
 
 export function UiPlaceholder({ label, icon }: UiPlaceholderProps) {
   return (
-    <div className="ui-pl" role="img" aria-label={label}>
+    <div className="ui-pl">
       {icon !== undefined ? (
         <span className="ui-pl__icon" aria-hidden="true">
           {icon}
@@ -704,13 +998,14 @@ export function UiPlaceholder({ label, icon }: UiPlaceholderProps) {
 
 export interface UiStatusProps {
   readonly label: string;
-  readonly tone?: "brand" | "amber" | "ok" | "bad";
+  readonly tone: UiTone;
 }
 
-export function UiStatus({ label, tone = "ok" }: UiStatusProps) {
-  const t = STATUS_TONES.find((x) => x.tone === tone) ?? STATUS_TONES[2];
+/** شارةُ حالةٍ ساكنةٌ — لا `role=status` (منطقةٌ حيّةٌ لكلِّ شارةٍ ضجيجٌ). */
+export function UiStatus({ label, tone }: UiStatusProps) {
+  const t = STATUS_TONES.find((x) => x.tone === tone) ?? STATUS_TONES[0];
   return (
-    <span className={`ui-st ${t.modifier}`} role="status">
+    <span className={`ui-st ${t.modifier}`}>
       <span className="ui-st__dot" aria-hidden="true" />
       {label}
     </span>
@@ -724,14 +1019,13 @@ export interface UiDividerProps {
 }
 
 export function UiDivider({ label }: UiDividerProps) {
-  return label !== undefined ? (
-    <div className="ui-ds">
-      <span className="ui-ds__line" />
+  if (label === undefined) return <hr className="ui-ds" />;
+  return (
+    <div className="ui-ds ui-ds--labeled">
+      <span className="ui-ds__line" aria-hidden="true" />
       <span className="ui-ds__label">{label}</span>
-      <span className="ui-ds__line" />
+      <span className="ui-ds__line" aria-hidden="true" />
     </div>
-  ) : (
-    <hr className="ui-ds" />
   );
 }
 
@@ -739,17 +1033,21 @@ export function UiDivider({ label }: UiDividerProps) {
 
 export interface UiProgressProps {
   readonly value: number;
-  readonly max?: number;
+  readonly max: number;
   readonly label: string;
 }
 
-export function UiProgress({ value, max = 100, label }: UiProgressProps) {
-  const pct = Math.min(100, Math.max(0, (value / max) * 100));
-  return (
-    <progress className="ui-pg" value={value} max={max} aria-label={label}>
-      <span className="ui-pg__bar" style={{ width: `${pct}%` }} />
-    </progress>
-  );
+/** القيمةُ مقصورةٌ على [0، max]؛ والحدُّ غيرُ الصالحِ يُعطي 0 من 1 لا نسبةً مختلَقةً. */
+export function progressBounds(value: number, max: number): { value: number; max: number } {
+  if (!Number.isFinite(max) || max <= 0) return { value: 0, max: 1 };
+  if (!Number.isFinite(value)) return { value: 0, max };
+  return { value: Math.min(max, Math.max(0, value)), max };
+}
+
+/** `<progress>` أصيلٌ يُرسَمُ بأشباهِ عناصرِه — لا محتوى بديلٌ ميّتٌ ولا نمطٌ مُضمَّن. */
+export function UiProgress({ value, max, label }: UiProgressProps) {
+  const b = progressBounds(value, max);
+  return <progress className="ui-pg" value={b.value} max={b.max} aria-label={label} />;
 }
 
 // ─── ui-copy (copy button) ──────────────────────────────────────────────────
@@ -757,14 +1055,19 @@ export function UiProgress({ value, max = 100, label }: UiProgressProps) {
 export interface UiCopyProps {
   readonly text: string;
   readonly label: string;
+  /** النسخُ نفسُه (الحافظةُ) أثرٌ جانبيٌّ للمستدعي، لا للمكوّنِ. */
   readonly onCopy: () => void;
 }
 
+/** الاسمُ = الوسمُ + النصُّ المنسوخُ؛ لا `aria-label` يُخفي القيمةَ عن قارئِ الشاشةِ. */
 export function UiCopy({ text, label, onCopy }: UiCopyProps) {
   return (
-    <button type="button" className="ui-copy" aria-label={label} onClick={onCopy}>
-      <IconCopy className="ui-copy__icon" aria-hidden="true" />
-      <span className="ui-copy__text">{text}</span>
+    <button type="button" className="ui-copy" onClick={onCopy}>
+      <IconCopy className="ui-copy__icon" />
+      <span className="ui-copy__label">{label}</span>
+      <span className="ui-copy__text" dir="auto">
+        {text}
+      </span>
     </button>
   );
 }

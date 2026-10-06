@@ -9,6 +9,8 @@
  * 1. اللوحةُ المعلنةُ في `scripts/lib/ui-contrast.ts` = جدولُ §2 في الدليلِ حرفاً.
  * 2. كلُّ تعبئةٍ وكلُّ نصٍّ معلنٍ فوقَها ≥ 4.5:1 (WCAG AA).
  * 3. `mute` (= `--tg-hint-color` من Layer 1) على افتراضَي السطحِ في `global.css`.
+ * 3ب. (PR 1) رموزُ `--ui-*` في `global.css` = اللوحةُ و`FILL_TEXT` حرفاً — فلا تُرسَمُ
+ *     قيمةٌ غيرُ التي قِيسَت.
  * 4. الإخفاقاتُ القائمةُ قبلَ UI-1 تُؤكَّدُ حرفيّاً: لا تزيدُ ولا تختفي صامتةً.
  *
  * **ما لا يفعلُه عن قصدٍ:** لا يُعدِّلُ CSS، ولا يقيسُ سماتِ تيليجرام الحيّةَ.
@@ -19,6 +21,7 @@ import {
   LAYER_TWO_PALETTE,
   parseDirectivePalette,
   parseLayerOneFallbacks,
+  parseUiTokens,
 } from "./lib/ui-contrast.ts";
 
 const DIRECTIVE = "docs/UI_UX_CANONICAL_DIRECTIVE.md";
@@ -27,10 +30,12 @@ const GLOBAL_CSS = "apps/miniapp/src/styles/global.css";
 if (import.meta.main) {
   let verdict: ReturnType<typeof evaluateContrast>;
   try {
+    const css = readFileSync(GLOBAL_CSS, "utf8");
     verdict = evaluateContrast({
       declared: LAYER_TWO_PALETTE,
       directive: parseDirectivePalette(readFileSync(DIRECTIVE, "utf8")),
-      layerOne: parseLayerOneFallbacks(readFileSync(GLOBAL_CSS, "utf8")),
+      layerOne: parseLayerOneFallbacks(css),
+      uiTokens: parseUiTokens(css),
     });
   } catch (err) {
     console.error(`::error::check-ui-contrast: تعذّرت القراءةُ — ${(err as Error).message}`);
@@ -44,5 +49,7 @@ if (import.meta.main) {
     console.error(`::error::check-ui-contrast:\n  - ${verdict.problems.join("\n  - ")}`);
     process.exit(1);
   }
-  console.log(`✓ check-ui-contrast: ${verdict.checks.length} زوجاً مقيساً، اللوحةُ مطابقةٌ للدليل.`);
+  console.log(
+    `✓ check-ui-contrast: ${verdict.checks.length} زوجاً مقيساً، اللوحةُ ورموزُ --ui-* مطابقةٌ للدليل.`,
+  );
 }

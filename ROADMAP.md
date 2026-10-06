@@ -23,6 +23,10 @@
 > 12 أيقونةَ SVG + مكوناتُ التغذيةِ الراجعةِ. عُولِجَ الإخفاقُ القائمُ `mute/light/secondaryBg`
 > بتغميقِ `--tg-hint-color` الفاتحِ من `#64748b` إلى `#475569` وأُزيلَ من `KNOWN_FAILURES`.
 > الحملُ الأوّل 90.3 KB (الحدُّ 180). لا تغيير في الإنتاج. التفاصيل في `docs/SYSTEM_STATE.md`.
+> **تصليبٌ قبلَ الدمج (نفسُ الـWork Packet):** تدقيقٌ تنفيذيٌّ للمكوّناتِ الثلاثين — لا زرَّ بلا
+> فعلٍ (`ui-stp` مؤشّرٌ لا عدّاد)، ولا نصَّ مُضمَّن، و`<dialog>` أصيلٌ، وتبويبٌ بلوحةِ مفاتيحَ
+> تتبعُ RTL، وCSS ميّتٌ/مضلِّلٌ أُصلِح، وحاجزُ انجرافِ رموزِ `--ui-*`. **PR 2 لم يبدأ.**
+> القراراتُ في ADR 0233 «تصليبُ PR 1».
 >
 > **UI-1 / PR 0 (2026-10-06 · Work Packet `ui-1-pr0-foundations`):** مرحلة **UI-1 (Design
 > System) = جارية — PR 0**: ADR 0233، وحاجزا `check-ui-contrast` و`check-ui-surface-inventory`،
@@ -38,7 +42,7 @@
 > المخاطر القائمة مسجّلة في `docs/SYSTEM_STATE.md`.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-10-06 (UI-1 / PR 1 — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
+**Last updated:** 2026-10-06 (UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
 **Last milestone:** `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
