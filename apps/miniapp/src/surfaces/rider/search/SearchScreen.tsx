@@ -73,6 +73,8 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { RideJourney } from "../active/RideJourney.tsx";
+import { journeyFromSearchStatus } from "../active/ride-journey.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import { requestByService as requestViaApi } from "./request-by-service.ts";
 import { cancelRide as cancelViaApi, readRideSearch as readViaApi } from "./ride-api.ts";
@@ -136,6 +138,8 @@ export interface SearchScreenProps {
     readonly idempotencyKey: string;
   }) => Promise<CancelRideResponse>;
   readonly onBack?: () => void;
+  /** UI-3 / PR 4: داخلَ `ScreenFrame` العنوانُ للإطار (`false`) فلا `h1` مكرّر. */
+  readonly showTitle?: boolean;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
   readonly onOpenSos?: () => void;
   /**
@@ -209,6 +213,7 @@ export function SearchScreen({
   read = readViaApi,
   cancel = cancelViaApi,
   onBack,
+  showTitle = true,
   onOpenSos,
   onActiveRide,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
@@ -481,6 +486,12 @@ export function SearchScreen({
         {state.reused && <p className="rs__reused">{t("rider.search.reused")}</p>}
 
         <p className="rs__status">{t(rideStatusKey(view?.status ?? "searching"))}</p>
+        {/* R6 · §11 PR 4: سكّةُ المراحلِ من حالةِ الطلبِ المقروءة — لا شريطَ ثانٍ لطورٍ يقولُه السطرُ التالي. */}
+        <RideJourney
+          language={language}
+          stage={journeyFromSearchStatus(view?.status ?? "searching")}
+          truth={null}
+        />
         {view !== null && <p className="rs__phase">{t(searchPhaseKey(view.phase))}</p>}
 
         <p className="rs__elapsed" aria-live="polite">
@@ -546,10 +557,16 @@ export function SearchScreen({
   };
 
   return (
-    <section className="rs" dir={directionFor(language)} aria-labelledby="rs-title">
-      <h1 className="rs__title" id="rs-title">
-        {t("rider.search.title")}
-      </h1>
+    <section
+      className="rs"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "rs-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 className="rs__title" id="rs-title">
+          {t("rider.search.title")}
+        </h1>
+      ) : null}
       <p className="rs__destination">
         {t("rider.search.destination").replace("{label}", intent.destinationLabel)}
       </p>

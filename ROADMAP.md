@@ -18,6 +18,11 @@
 > إعدادات البناء/الـCI، وتوسيع تصنيف documentation ليشمل ملفات .md في جذر
 > المستودع مثل README.md. (إصلاح نطاق CI + قراءة manifest من diff كامل PR)
 
+> **UI-3 / PR 4 (2026-10-06 · Work Packet `ui-3-pr4-rider-r6-r10` · ADR 0237):** الراكبُ **R6–R10**
+> بالترقيمِ الكانونيّ (R6 البحث عن سائق · R7 الرحلة النشطة · R8 مشاركة الرحلة · R9 SOS · R10 ملخص الرحلة
+> والتقييم) على هيكلِ UI-2: تدفّقاتٌ برجوعٍ واحدٍ، وسكّةٌ وشريطُ حقيقةٍ من القراءةِ وحدَها، وSOS أعلى الترتيب.
+> على فرعٍ **غيرِ مدموج**. **PR 5 (R11–R15 + [B]) لم يبدأ؛ UI-3 جارية؛ UI-5 لم تبدأ.**
+>
 > **حسمُ حالةِ UI-3 (2026-10-06 · Work Packet `ui-3-status` — توثيقيٌّ فقط):** مرحلة **UI-3
 > (Rider Experience) = جارية / غير مغلقة**. #415 هو PR 3 (R0–R5) وحدَه — مدموج → `fc84ac12`.
 > بنصِّ §11 وجدولِ الربطِ يبقى **PR 4 (R6–R10 · سكّة + شريط حقيقة + SOS)** و**PR 5 (R11–R15 + [B] ·
@@ -98,7 +103,7 @@
 > المخاطر القائمة مسجّلة في `docs/SYSTEM_STATE.md`.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-10-06 (UI-3 status settled — Work Packet `ui-3-status`: in progress, #415 = PR 3 only, PR 4 and PR 5 required and not started; UI-4 formally closed — Work Packet `ui-4-closure`, #416 → `de97f788`, main CI `37437999457` success; D14 open contract gap; UI-5 not started; prior: UI-4 driver D0–D14 implementation, numbering reconciled with the original source PDF v2.0 (ADR 0236); prior: UI-3 / PR 3 merged as #415; previously: UI-3 / PR 3 implementation prepared on `ui-3-pr3-rider-r0-r5`; prior: UI-2 closed — Work Packet `ui-2-closure`; previously: UI-2 / PR 2 — Work Packet `ui-2-pr2-shell-navigation`; previously: UI-1 closed — Work Packet `ui-1-closure`; previously: SEC-15 fix — Work Packet `sec-15-source-map-js-1-2-2`, source-map-js 1.2.1→1.2.2; previously: UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
+**Last updated:** 2026-10-06 (UI-3 / PR 4 rider R6–R10 on branch `ui-3-pr4-rider-r6-r10`, not merged — Work Packet `ui-3-pr4-rider-r6-r10`, ADR 0237; PR 5 not started; prior: UI-3 status settled — Work Packet `ui-3-status`: in progress, #415 = PR 3 only, PR 4 and PR 5 required and not started; UI-4 formally closed — Work Packet `ui-4-closure`, #416 → `de97f788`, main CI `37437999457` success; D14 open contract gap; UI-5 not started; prior: UI-4 driver D0–D14 implementation, numbering reconciled with the original source PDF v2.0 (ADR 0236); prior: UI-3 / PR 3 merged as #415; previously: UI-3 / PR 3 implementation prepared on `ui-3-pr3-rider-r0-r5`; prior: UI-2 closed — Work Packet `ui-2-closure`; previously: UI-2 / PR 2 — Work Packet `ui-2-pr2-shell-navigation`; previously: UI-1 closed — Work Packet `ui-1-closure`; previously: SEC-15 fix — Work Packet `sec-15-source-map-js-1-2-2`, source-map-js 1.2.1→1.2.2; previously: UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
 **Last milestone:** UI-4 — driver D0–D14 on the UI-2 shell (implementation on branch; not merged). Before it: UI-3 / PR 3 — rider R0–R5 shell integration (merged, #415). Historical baseline: `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in

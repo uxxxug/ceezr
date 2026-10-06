@@ -122,6 +122,14 @@
  * التدفّقِ حينَ تُسلَّمُ نيّةُ الطلبِ إلى شاشةِ البحثِ R6. إطارُ الجذرِ يحملُ
  * التبويباتِ الأربعَ من القاموسِ، وإطارا الوجهةِ والاقتباسِ يحملانِ رجوعاً واحداً؛
  * وما بعدَ R5 يبقى على حالاتِ `useState` القديمةِ في نطاقِ PR4.
+ *
+ * ## وصلُ UI-3 / PR 4 (2026-10-06 · ADR 0237): R6–R10
+ *
+ * الترقيمُ الكانونيُّ: R6 البحثُ عن سائق · R7 الرحلةُ النشطة · R8 مشاركةُ الرحلة (بطاقةٌ داخلَ R7) ·
+ * R9 SOS · R10 ملخّصُ الرحلةِ والتقييم. صارَت R6 وR7 وR9 وR10 تدفّقاتٍ في `ScreenFrame mode="flow"`
+ * برجوعٍ واحدٍ من رأسِ الإطارِ (`BackButton`)؛ وترتيبُ الرايات (`intent` · `followed` · `summarized` ·
+ * `sosOpen`) باقٍ كما هوَ — لا آلةَ حالةٍ ثانيةٌ ولا تغييرَ في الانتقالات. واللغةُ تصلُ الآنَ إلى الشاشاتِ
+ * الأربع (كانَت تُرسَمُ بالافتراضيِّ). السكّةُ وشريطُ الحقيقةِ في R6/R7 من `active/ride-journey.ts`.
  */
 
 import { lazy, type ReactNode, Suspense, useEffect, useMemo, useReducer, useState } from "react";
@@ -361,8 +369,17 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
 
   // شاشةُ الاستغاثةِ (`PD-020`) — **أعلى الترتيبِ كلِّهِ وفوقَ الدعمِ**: مَن فتحَها
   // صراحةً لا تُغطَّى بشاشةٍ أخرى، والرجوعُ يُطفِئُ الرايةَ فيظهرُ ما تحتها كما كانَ.
+  // R9 · SOS: تدفّقٌ برجوعٍ واحدٍ من رأسِ الإطار، والبطاقةُ بلا عنوانٍ مكرّر.
   if (sosOpen) {
-    return <SosScreen onBack={() => setSosOpen(false)} />;
+    return (
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.sos.title")}
+        back={{ label: t("rider.sos.back"), onBack: () => setSosOpen(false) }}
+      >
+        <SosScreen language={language} showTitle={false} />
+      </ScreenFrame>
+    );
   }
 
   // شاشةُ الدعمِ (`SR-11`) — **أعلى الترتيبِ كلِّه**: فيها نموذجٌ نصفُه مكتوبٌ
@@ -481,59 +498,90 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
 
   // رحلةٌ انتهت يُقرأُ ملخَّصُها ويُقيَّمُ سائقُها (`SR-07` · `SR-08`). والرجوعُ
   // منها إلى الرئيسةِ: الرحلةُ مضَت فلا حالةَ يُعادُ إليها.
+  // R10 · ملخّصُ الرحلةِ والتقييم: تدفّقٌ برجوعِ رأسِ الإطار (لا زرَّ رجوعٍ ثانٍ في الشاشة).
   if (summarized !== null) {
+    const leaveSummary = () => {
+      setSummarized(null);
+      setFollowed(null);
+      setIntent(null);
+      clearFlow();
+    };
     return (
-      <Deferred>
-        <RideSummaryScreen
-          orderId={summarized}
-          onOpenSos={onOpenSos}
-          // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `summarized`: الدعمُ أعلى
-          // الترتيبِ، والرجوعُ منه يُظهِرُ الملخَّصَ الذي كانَ الراكبُ يقرؤه (`SR-08`).
-          onReportProblem={() => setSupport({ orderId: summarized })}
-          onBack={() => {
-            setSummarized(null);
-            setFollowed(null);
-            setIntent(null);
-            clearFlow();
-          }}
-        />
-      </Deferred>
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.summary.title")}
+        back={{ label: t("rider.summary.back"), onBack: leaveSummary }}
+      >
+        <Deferred>
+          <RideSummaryScreen
+            orderId={summarized}
+            initialLanguage={language}
+            showTitle={false}
+            showBack={false}
+            onOpenSos={onOpenSos}
+            // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `summarized`: الدعمُ أعلى
+            // الترتيبِ، والرجوعُ منه يُظهِرُ الملخَّصَ الذي كانَ الراكبُ يقرؤه (`SR-08`).
+            onReportProblem={() => setSupport({ orderId: summarized })}
+            onBack={leaveSummary}
+          />
+        </Deferred>
+      </ScreenFrame>
     );
   }
 
   // رحلةٌ قائمةٌ تُتابَعُ: لقطتُها وسائقُها وموقعُه بعُمرِه (`SR-06`). والرجوعُ
   // منها إلى الرئيسةِ لا إلى بحثٍ مضى: البحثُ انتهى بإسنادٍ.
+  // R7 · الرحلةُ النشطة (وفيها R8 مشاركةُ الرحلةِ وبطاقةُ SOS): تدفّقٌ برجوعِ رأسِ الإطار.
   if (followed !== null) {
+    const leaveActive = () => {
+      setFollowed(null);
+      setIntent(null);
+      clearFlow();
+    };
     return (
-      <Deferred>
-        <ActiveRideScreen
-          orderId={followed}
-          onFinished={(orderId) => setSummarized(orderId)}
-          onBack={() => {
-            setFollowed(null);
-            setIntent(null);
-            clearFlow();
-          }}
-        />
-      </Deferred>
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.ride.activeTitle")}
+        back={{ label: t("rider.search.back"), onBack: leaveActive }}
+      >
+        <Deferred>
+          <ActiveRideScreen
+            orderId={followed}
+            initialLanguage={language}
+            showTitle={false}
+            onFinished={(orderId) => setSummarized(orderId)}
+            onBack={leaveActive}
+          />
+        </Deferred>
+      </ScreenFrame>
     );
   }
 
   // النيّةُ تُنفَّذُ: شاشةُ البحثِ تُنشئُ الرحلةَ وتعرضُ حالتَها. وهيَ **فوقَ**
   // الاقتباسِ في الترتيبِ: ما دامَت رحلةٌ تُطلَبُ فلا يُعادُ رسمُ اقتباسٍ مضى.
+  // R6 · البحثُ عن سائق: تدفّقٌ برجوعِ رأسِ الإطار.
   if (intent !== null) {
+    const leaveSearch = () => {
+      setIntent(null);
+      clearFlow();
+    };
     return (
-      <Deferred>
-        <SearchScreen
-          intent={intent}
-          onOpenSos={onOpenSos}
-          onActiveRide={(orderId) => setFollowed(orderId)}
-          onBack={() => {
-            setIntent(null);
-            clearFlow();
-          }}
-        />
-      </Deferred>
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.search.title")}
+        back={{ label: t("rider.search.back"), onBack: leaveSearch }}
+      >
+        <Deferred>
+          <SearchScreen
+            intent={intent}
+            initialLanguage={language}
+            showTitle={false}
+            onOpenSos={onOpenSos}
+            onActiveRide={(orderId) => setFollowed(orderId)}
+            onBack={leaveSearch}
+          />
+        </Deferred>
+      </ScreenFrame>
     );
   }
 

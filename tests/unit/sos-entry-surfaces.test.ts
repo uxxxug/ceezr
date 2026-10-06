@@ -85,7 +85,11 @@ describe("أسطحُ دخولِ الاستغاثةِ — أحدَ عشرَ لا 
     expect(root.match(/onOpenSos=\{onOpenSos\}/g) ?? []).toHaveLength(11);
     expect(root.includes("import { SosScreen } from ./sos/SosScreen.tsx")).toBe(false);
     expect(root.includes('import { SosScreen } from "./sos/SosScreen.tsx"')).toBe(true);
-    expect(root.includes("<SosScreen onBack={() => setSosOpen(false)} />")).toBe(true);
+    // UI-3 / PR 4 (ADR 0237): R9 تدفّقٌ في `ScreenFrame` — الرجوعُ لرأسِ الإطارِ يُطفِئُ الرايةَ، والشاشةُ بلا زرٍّ ثانٍ.
+    expect(
+      root.includes('back={{ label: t("rider.sos.back"), onBack: () => setSosOpen(false) }}'),
+    ).toBe(true);
+    expect(root.includes("<SosScreen language={language} showTitle={false} />")).toBe(true);
   });
 
   it("الرحلةُ النشطةُ تحملُ البطاقةَ المدمجةَ لا المدخلَ — والتأكيدُ بالنصِّينِ", () => {
