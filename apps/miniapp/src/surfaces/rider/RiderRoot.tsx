@@ -130,6 +130,15 @@
  * برجوعٍ واحدٍ من رأسِ الإطارِ (`BackButton`)؛ وترتيبُ الرايات (`intent` · `followed` · `summarized` ·
  * `sosOpen`) باقٍ كما هوَ — لا آلةَ حالةٍ ثانيةٌ ولا تغييرَ في الانتقالات. واللغةُ تصلُ الآنَ إلى الشاشاتِ
  * الأربع (كانَت تُرسَمُ بالافتراضيِّ). السكّةُ وشريطُ الحقيقةِ في R6/R7 من `active/ride-journey.ts`.
+ *
+ * ## وصلُ UI-3 / PR 5 (2026-10-06 · ADR 0238): R11–R15 و[B]
+ *
+ * R11 «رحلاتي» وR15 «الدعم» وR13 «حسابي» صارَت **تبويباتٍ جذريّةً** في `ScreenFrame mode="root"` يقودُها
+ * `stack.tab` (كما في سطحِ السائق) — كانَت راياتٍ (`browsed` · `support` · `account`) تُرسَمُ بلا إطارٍ فيختفي
+ * شريطُ التبويبات. وتفاصيلُ رحلةٍ وR12 الإشعاراتُ وR14 الخصوصيّةُ والأسئلةُ والمفقوداتُ والشكوى المربوطةُ
+ * برحلةٍ تدفّقاتٌ في `ScreenFrame mode="flow"` برجوعٍ واحد. وصُحِّحَ عيبا ترتيبٍ: الخصوصيّةُ المفتوحةُ من
+ * الحسابِ والأسئلةُ المفتوحةُ من الدعمِ لم تكونا تُرسَمانِ قطّ (كانَ ما فُتِحتا منه يُفحَصُ قبلَهما).
+ * وعناصرُ [B] لوحاتٌ داخلَ R12/R13/R15 على عقودِها القائمة، وكلٌّ منها يقولُ «غيرُ متاحٍ» عندَ 503.
  */
 
 import { lazy, type ReactNode, Suspense, useEffect, useMemo, useReducer, useState } from "react";
@@ -152,6 +161,7 @@ import {
   riderFlowHandlers,
   riderFlowReducer,
   riderFlowView,
+  riderLandingTab,
 } from "./rider-flow.ts";
 import type { SearchScreenIntent } from "./search/SearchScreen.tsx";
 import { SosScreen } from "./sos/SosScreen.tsx";
@@ -208,19 +218,32 @@ export function prefetchDeferredRiderScreens(): void {
   for (const load of Object.values(DEFERRED_RIDER_LOADERS)) void load().catch(() => undefined);
 }
 
+/** عنوانُ إطارِ الجذرِ لكلِّ تبويب — مفاتيحُ `core` (الإطارُ يُرسَمُ قبلَ تحميلِ أيِّ حزمةٍ مؤجَّلة). */
+const RIDER_ROOT_TITLE_KEY = {
+  home: "rider.home.title",
+  rides: "rider.tabs.rides",
+  support: "rider.tabs.support",
+  account: "rider.tabs.account",
+} as const satisfies Record<RiderRootTab, string>;
+
 function Deferred({ children }: { readonly children: ReactNode }) {
   return <Suspense fallback={<Skeleton />}>{children}</Suspense>;
 }
 
 export default function RiderRoot({ language, onLanguageChanged, entry }: LanguageSurfaceProps) {
   const [proceeded, setProceeded] = useState(false);
+  // `ADR 0213`: هدفُ الهبوطِ يُقرأُ مرّةً للحالةِ الأولى — وما بعدَها ملاحةُ المستخدمِ لا الرابطِ.
+  const [landing] = useState(() => riderEntryState(entry));
   // R3–R5: آلةُ الحالةِ النقيّةُ في `rider-flow.ts` (مكدّسُ UI-2 + الاختيارُ + المصادقةُ).
-  const [flow, dispatchFlow] = useReducer(riderFlowReducer, undefined, initialRiderFlow);
+  // UI-3 / PR 5: تبدأُ على تبويبِ الهبوطِ (`riderLandingTab`) — «رحلاتي»/«الدعم»/«حسابي» جذورٌ.
+  const [flow, dispatchFlow] = useReducer(
+    riderFlowReducer,
+    riderLandingTab(landing),
+    initialRiderFlow,
+  );
   const stack = flow.stack;
   const stackKey = currentScreenKey(stack);
   const t = miniAppTranslator(language);
-  // `ADR 0213`: هدفُ الهبوطِ يُقرأُ مرّةً للحالةِ الأولى — وما بعدَها ملاحةُ المستخدمِ لا الرابطِ.
-  const [landing] = useState(() => riderEntryState(entry));
   useEffect(() => {
     // بعدَ الرسمِ لا قبلَه: `useEffect` يجري بعدَ أن يُرسَمَ السطحُ، فالجلبُ لا يُنافِسُ حِملَه.
     const timer = setTimeout(prefetchDeferredRiderScreens, 0);
@@ -252,11 +275,11 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
    * وهيَ **أعلى** الترتيبِ كلِّه: ما دامَ ملخَّصٌ مفتوحاً فلا شاشةَ تتبُّعٍ تحتَه.
    */
   const [summarized, setSummarized] = useState<string | null>(landing.summarized);
-  /**
-   * هل يُتصفَّحُ السجلُّ (`F2-08`)؟ — **رايةٌ لا معرِّفٌ**: القائمةُ تملِكُ
-   * موضعَ تصفُّحِها ونصَّ بحثِها داخلَها، فلا تُرفَعُ ههنا حالةٌ ثانيةٌ لها.
+  /*
+   * كانَت ههنا رايةُ `browsed` (`F2-08`): «هل يُتصفَّحُ السجلُّ؟». صارَ السجلُّ في UI-3 / PR 5 تبويبَ
+   * «رحلاتي» الجذريَّ (`stack.tab === "rides"`، ADR 0238) — والقائمةُ تملِكُ موضعَها ونصَّ بحثِها داخلَها
+   * كما كانَت، فلا حالةَ تُرفَعُ ههنا (`ح-8`: الحكمُ باقٍ والموضعُ تبدَّل).
    */
-  const [browsed, setBrowsed] = useState(landing.browsed);
   /**
    * هل مركزُ الإشعاراتِ مفتوحٌ (`SS-07`)? — رايةٌ لا معرِّفٌ: الموجَزُ يُقرأُ
    * بالتتابعِ، وكلُّ ما يُرفَعُ هنا هو «مفتوحٌ» أو «مُغلَقٌ».
@@ -273,13 +296,10 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     readonly orderId: string;
     readonly timeZone: string;
   } | null>(null);
-  /**
-   * هل شاشةُ الحسابِ مفتوحةٌ (`F2-11` · `SR-12`)؟ — **رايةٌ لا معرِّفٌ**: الشاشةُ
-   * تملِكُ حالَها كلَّه داخلَها (إيصالُ الحذفِ وكلمةُ التأكيدِ ومفتاحُ اللاتكرارِ)،
-   * ورفعُ شيءٍ منها إلى ههنا يجعلُ إيصالَ حذفٍ يعيشُ في حالةِ موجِّهٍ بعدَ أن
-   * صارَ صاحبُه محذوفاً.
+  /*
+   * وكانَت ههنا رايةُ `account` (`F2-11` · `SR-12`)، وصارَت تبويبَ «حسابي» الجذريَّ (UI-3 / PR 5) — والشاشةُ
+   * تملِكُ حالَها كلَّه داخلَها كما كانَت (إيصالُ الحذفِ وكلمةُ التأكيدِ ومفتاحُ اللاتكرار).
    */
-  const [account, setAccount] = useState(landing.account);
   /**
    * شاشةُ الدعمِ (`F2-12` · `SR-11`) — **رايةٌ تحملُ رحلةً أو لا تحملُها**، ولا
    * تُدمَجُ معَ `inspected`: تلكَ رحلةٌ تُقرأُ، وهذه شكوى تُكتَبُ **عنها أو عن
@@ -287,9 +307,14 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
    * مربوطةً بها **بلا حقلِ معرّفٍ يُملأُ بيدٍ** — وحقلٌ كذاكَ بابُ خطأٍ لا بابُ
    * دعمٍ. و`null` في الداخلِ = «شكوى عامّةٌ»، و`null` للحالةِ كلِّها = «مُغلقةٌ»؛
    * فرقٌ يضيعُ لو كانَت الحالةُ معرّفاً وحدَه.
+   *
+   * UI-3 / PR 5 (ADR 0238): «الشكوى العامّةُ» صارَت تبويبَ «الدعم» الجذريَّ، فالرايةُ ههنا للشكوى
+   * **المربوطةِ برحلةٍ** وحدَها — تدفّقٌ برجوعٍ يعودُ إلى الرحلةِ التي جاءَ منها.
    */
-  const [support, setSupport] = useState<{ readonly orderId: string | null } | null>(
-    landing.support,
+  const [support, setSupport] = useState<{ readonly orderId: string } | null>(() =>
+    landing.support !== null && landing.support.orderId !== null
+      ? { orderId: landing.support.orderId }
+      : null,
   );
   /**
    * صفحةُ المفقوداتِ المخصَّصةِ (DEC-34) — رايةٌ تفتحُ شاشةَ الدعمِ بصنفِ
@@ -318,25 +343,13 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
   const [privacy, setPrivacy] = useState(false);
   /** مدخلٌ واحدٌ لكلِّ الشاشاتِ — لا يُنشَرُ لمن لا يعرفُهُ الاستغاثةَ. */
   const onOpenSos = () => setSosOpen(true);
-  const onOpenHistory = () => setBrowsed(true);
-  const onOpenSupport = () => setSupport({ orderId: null });
-  const onOpenAccount = () => setAccount(true);
-  const selectRootTab = (tab: RiderRootTab) => {
-    dispatchFlow({ type: "selectTab", tab });
-    switch (tab) {
-      case "home":
-        break;
-      case "rides":
-        onOpenHistory();
-        break;
-      case "support":
-        onOpenSupport();
-        break;
-      case "account":
-        onOpenAccount();
-        break;
-    }
-  };
+  /**
+   * UI-3 / PR 5 (ADR 0238): التبويبُ هوَ الحالُ — لا رايةٌ تُرفَعُ بجانبِه. فشريطُ التبويباتِ يبقى ظاهراً
+   * على «رحلاتي» و«الدعم» و«حسابي» كما على «الرئيسية»، وأزرارُ الرئيسيةِ تختارُ التبويبَ نفسَه.
+   */
+  const selectRootTab = (tab: RiderRootTab) => dispatchFlow({ type: "selectTab", tab });
+  const onOpenHistory = () => selectRootTab("rides");
+  const onOpenAccount = () => selectRootTab("account");
   const tabLabels = {
     home: t("rider.tabs.home"),
     rides: t("rider.tabs.rides"),
@@ -382,117 +395,122 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     );
   }
 
-  // شاشةُ الدعمِ (`SR-11`) — **أعلى الترتيبِ كلِّه**: فيها نموذجٌ نصفُه مكتوبٌ
-  // ومرجعُ تذكرةٍ يُقرأُ ويُنسَخُ، ورسمُ شاشةٍ أخرى فوقَها يمحو الاثنَينِ. والرجوعُ
-  // **إلى ما جاءَ منه** محفوظٌ: الرايةُ تُطفأُ وحدَها فيظهرُ ما تحتَها كما كانَ.
-  if (support !== null) {
-    return (
-      <Deferred>
-        <SupportScreen
-          orderId={support.orderId}
-          onBack={() => setSupport(null)}
-          onOpenSos={onOpenSos}
-          onOpenFaq={() => setFaq(true)}
-        />
-      </Deferred>
-    );
-  }
+  // UI-3 / PR 5 (ADR 0238) — الترتيبُ الجديدُ وسببُه: كانَ «الحسابُ» يُفحَصُ قبلَ «الخصوصيّة» و«الدعمُ» قبلَ
+  // «الأسئلة الشائعة»، فما فُتِحَ منهما لا يُرسَمُ أبداً (عيبٌ لا ترتيبٌ). صارَ الحسابُ والدعمُ العامُّ تبويبَين،
+  // وما يُفتَحُ منهما تدفّقٌ **فوقَهما**: الأسئلةُ ثمَّ الخصوصيّةُ ثمَّ الشكوى المربوطةُ ثمَّ المفقوداتُ ثمَّ
+  // تفاصيلُ رحلةٍ ثمَّ الإشعارات. كلُّها `ScreenFrame mode="flow"` برجوعٍ واحدٍ من رأسِ الإطار، والشاشةُ بلا
+  // عنوانٍ ولا رجوعٍ مكرَّر (`showTitle={false}` · بلا `onBack`).
+  const flowBack = t("rider.search.back");
 
-  // صفحةُ المفقوداتِ المخصَّصةِ (DEC-34) — شاشةُ الدعمِ بصنفِ `lost_item` مبدئيًّا.
-  // **أعلى الترتيبِ بعدَ الدعمِ**: الرجوعُ يُطفِئُ الرايةَ.
-  if (lostFound) {
-    return (
-      <Deferred>
-        <SupportScreen
-          initialCategory={"lost_item"}
-          onBack={() => setLostFound(false)}
-          onOpenSos={onOpenSos}
-        />
-      </Deferred>
-    );
-  }
-
-  // شاشةُ الأسئلة الشائعةِ (DEC-36) — محتوى ثابتٌ في قواميسِ i18n. **فوقَ الرئيسةِ**.
+  // الأسئلةُ الشائعة (DEC-36) — تُفتَحُ من الدعمِ (تبويباً أو تدفّقاً) فهيَ فوقَه.
   if (faq) {
     return (
-      <Deferred>
-        <FaqScreen language={language} onBack={() => setFaq(false)} />
-      </Deferred>
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.frame.faq")}
+        back={{ label: flowBack, onBack: () => setFaq(false) }}
+      >
+        <Deferred>
+          <FaqScreen language={language} showTitle={false} />
+        </Deferred>
+      </ScreenFrame>
     );
   }
 
-  // شاشةُ الحسابِ (`SR-12`) — **أعلى الترتيبِ بعدَ الدعمِ**: فيها بابُ حذفِ الحسابِ،
-  // ورسمُ شاشةٍ أخرى فوقَها بعدَ فتحِها صراحةً قد يُخفي إيصالَ حذفٍ لم يُقرأْ.
-  if (account) {
-    return (
-      <Deferred>
-        <AccountScreen
-          language={language}
-          {...(onLanguageChanged ? { onLanguageChanged } : {})}
-          onBack={() => setAccount(false)}
-          onOpenSupport={() => setSupport({ orderId: null })}
-          onOpenPrivacy={() => setPrivacy(true)}
-          onOpenSos={onOpenSos}
-        />
-      </Deferred>
-    );
-  }
-
-  // شاشةُ الخصوصيّةِ (DEC-35) — مراجعةُ الموافقاتِ المسجَّلةِ. **فوقَ الرئيسةِ**.
+  // R14 · الخصوصيّةُ والشروط (DEC-35) — تُفتَحُ من «حسابي» فهيَ فوقَه.
   if (privacy) {
     return (
-      <Deferred>
-        <PrivacyScreen language={language} onBack={() => setPrivacy(false)} />
-      </Deferred>
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.privacy.title")}
+        back={{ label: flowBack, onBack: () => setPrivacy(false) }}
+      >
+        <Deferred>
+          <PrivacyScreen language={language} showTitle={false} />
+        </Deferred>
+      </ScreenFrame>
     );
   }
 
-  // تفاصيلُ رحلةٍ من السجلِّ (`SR-10`) — **أعلى الترتيبِ**: ما دامَت مفتوحةً
-  // فلا تُرسَمُ قائمةٌ ولا شاشةُ ملخَّصٍ تحتَها. والرجوعُ **إلى السجلِّ** لا إلى
-  // الرئيسةِ: الراكبُ جاءَ من قائمةٍ لها موضعٌ، وإلقاءُه في الرئيسةِ يُضيّعُ موضعَه.
+  // R15 · شكوى مربوطةٌ برحلةٍ (`SR-11`) — فيها نموذجٌ نصفُه مكتوبٌ، فهيَ فوقَ التفاصيلِ والملخَّص، والرجوعُ
+  // يُطفِئُ رايتَها وحدَها فيظهرُ ما جاءَ منه كما كانَ.
+  if (support !== null) {
+    return (
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.frame.supportRide")}
+        back={{ label: flowBack, onBack: () => setSupport(null) }}
+      >
+        <Deferred>
+          <SupportScreen
+            orderId={support.orderId}
+            language={language}
+            showTitle={false}
+            onOpenSos={onOpenSos}
+            onOpenFaq={() => setFaq(true)}
+          />
+        </Deferred>
+      </ScreenFrame>
+    );
+  }
+
+  // R15 · المفقوداتُ (DEC-34) — شاشةُ الدعمِ بصنفِ `lost_item` مبدئيّاً.
+  if (lostFound) {
+    return (
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.frame.lostFound")}
+        back={{ label: flowBack, onBack: () => setLostFound(false) }}
+      >
+        <Deferred>
+          <SupportScreen
+            initialCategory={"lost_item"}
+            language={language}
+            showTitle={false}
+            onOpenSos={onOpenSos}
+          />
+        </Deferred>
+      </ScreenFrame>
+    );
+  }
+
+  // R11 · تفاصيلُ رحلةٍ من «رحلاتي» (`SR-10`) — والرجوعُ **إلى السجلِّ** (التبويبُ باقٍ «رحلاتي») لا إلى
+  // الرئيسة: الراكبُ جاءَ من قائمةٍ لها موضعٌ.
   if (inspected !== null) {
     return (
-      <Deferred>
-        <RideDetailScreen
-          orderId={inspected.orderId}
-          timeZone={inspected.timeZone}
-          onBack={() => setInspected(null)}
-          onOpenSos={onOpenSos}
-          // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `inspected`: الراكبُ
-          // يرجعُ من الشكوى إلى الرحلةِ التي كانَ يقرؤها لا إلى قائمةٍ.
-          onReportProblem={() => setSupport({ orderId: inspected.orderId })}
-        />
-      </Deferred>
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.frame.rideDetail")}
+        back={{ label: flowBack, onBack: () => setInspected(null) }}
+      >
+        <Deferred>
+          <RideDetailScreen
+            orderId={inspected.orderId}
+            timeZone={inspected.timeZone}
+            initialLanguage={language}
+            showTitle={false}
+            onOpenSos={onOpenSos}
+            // الشكوى تُفتَحُ **والرحلةُ محمولةٌ**، ولا يُطفأُ `inspected`: الراكبُ
+            // يرجعُ من الشكوى إلى الرحلةِ التي كانَ يقرؤها لا إلى قائمةٍ.
+            onReportProblem={() => setSupport({ orderId: inspected.orderId })}
+          />
+        </Deferred>
+      </ScreenFrame>
     );
   }
 
-  // سجلُّ الرحلاتِ (`SR-09`) — **فوقَ الملخَّصِ والمتابعةِ**: هوَ بابٌ يُفتَحُ
-  // بطلبِ الراكبِ صراحةً، ورسمُ شاشةٍ أخرى تحتَه بعدَ طلبِه تجاوُزٌ لا ترتيبٌ.
-  // ورحلةٌ جاريةٌ تُسلَّمُ إلى `followed` **ويُغلَقُ السجلُّ**: متابعةٌ تحتَ قائمةٍ
-  // مفتوحةٍ تُعيدُ الراكبَ إلى السجلِّ من رحلةٍ يُفترَضُ أنَّه دخلَها ليُتابِعَ.
-  //
-  // مركزُ الإشعاراتِ (`SS-07`) — **أعلى من السجلِّ**: راكبٌ يَفتَحُ الإشعاراتِ
-  // يطلبُ الحدثَ الأحدثَ لا ماضيَه، فلا يُغطَّى ما تحتَه بالماضي فوقه.
+  // R12 · مركزُ الإشعاراتِ (`SS-07`) وتفضيلاتُها ([B]) — يُفتَحُ من الرئيسةِ ومن «حسابي».
   if (notificationsOpen) {
     return (
-      <Deferred>
-        <NotificationsScreen onBack={() => setNotificationsOpen(false)} onOpenSos={onOpenSos} />
-      </Deferred>
-    );
-  }
-  if (browsed) {
-    return (
-      <Deferred>
-        <RideHistoryScreen
-          onOpenDetail={(orderId, timeZone) => setInspected({ orderId, timeZone })}
-          onOpenActive={(orderId) => {
-            setBrowsed(false);
-            setFollowed(orderId);
-          }}
-          onBack={() => setBrowsed(false)}
-          onOpenSos={onOpenSos}
-        />
-      </Deferred>
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.frame.notifications")}
+        back={{ label: flowBack, onBack: () => setNotificationsOpen(false) }}
+      >
+        <Deferred>
+          <NotificationsScreen initialLanguage={language} showTitle={false} onOpenSos={onOpenSos} />
+        </Deferred>
+      </ScreenFrame>
     );
   }
 
@@ -641,19 +659,68 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
   // ما كانَ ههنا قبلَ `F2-02`: حالةُ فراغٍ من `EmptyState` تقولُ «لا شيءَ يُعرَضُ
   // بعد» — وهيَ صدقُ تلكَ اللحظةِ، وقد نُسِخَ حكمُها إلى شاشةِ `SR-02` نفسِها:
   // «الأماكنُ فارغةٌ» و«لا وجهاتَ» و«لا خريطةَ» تُقالُ مفاتيحَ لا بياضاً.
+  //
+  // UI-3 / PR 5 (ADR 0238): الجذورُ الأربعةُ في إطارٍ واحدٍ بشريطِ التبويبات — R11 «رحلاتي» · R15 «الدعم» ·
+  // R13 «حسابي» — والعنوانُ للإطارِ وحدَه (`showTitle={false}`)، ولا رجوعَ في جذر.
+  const rootBody = (): ReactNode => {
+    switch (stack.tab) {
+      case "rides":
+        return (
+          <Deferred>
+            <RideHistoryScreen
+              initialLanguage={language}
+              showTitle={false}
+              onOpenDetail={(orderId, timeZone) => setInspected({ orderId, timeZone })}
+              onOpenActive={(orderId) => setFollowed(orderId)}
+              onOpenSos={onOpenSos}
+            />
+          </Deferred>
+        );
+      case "support":
+        return (
+          <Deferred>
+            <SupportScreen
+              orderId={null}
+              language={language}
+              showTitle={false}
+              onOpenSos={onOpenSos}
+              onOpenFaq={() => setFaq(true)}
+            />
+          </Deferred>
+        );
+      case "account":
+        return (
+          <Deferred>
+            <AccountScreen
+              language={language}
+              showTitle={false}
+              {...(onLanguageChanged ? { onLanguageChanged } : {})}
+              onOpenSupport={() => selectRootTab("support")}
+              onOpenPrivacy={() => setPrivacy(true)}
+              onOpenNotifications={() => setNotificationsOpen(true)}
+              onOpenSos={onOpenSos}
+            />
+          </Deferred>
+        );
+      case "home":
+        return (
+          <HomeScreen
+            initialLanguage={language}
+            showTitle={false}
+            onDestinationChosen={flowHandlers.onDestinationChosen}
+            onOpenHistory={onOpenHistory}
+            onOpenLostFound={() => setLostFound(true)}
+            onOpenNotifications={() => setNotificationsOpen(true)}
+            onOpenAccount={onOpenAccount}
+            onOpenSos={onOpenSos}
+          />
+        );
+    }
+  };
   return (
-    <ScreenFrame mode="root" title={t("rider.home.title")} tabs={rootTabs}>
+    <ScreenFrame mode="root" title={t(RIDER_ROOT_TITLE_KEY[stack.tab])} tabs={rootTabs}>
       <ScreenTransition screenKey={stackKey} motion={stack.motion}>
-        <HomeScreen
-          initialLanguage={language}
-          showTitle={false}
-          onDestinationChosen={flowHandlers.onDestinationChosen}
-          onOpenHistory={onOpenHistory}
-          onOpenLostFound={() => setLostFound(true)}
-          onOpenNotifications={() => setNotificationsOpen(true)}
-          onOpenAccount={onOpenAccount}
-          onOpenSos={onOpenSos}
-        />
+        {rootBody()}
       </ScreenTransition>
     </ScreenFrame>
   );

@@ -90,6 +90,11 @@ export interface TicketsScreenProps {
    * السائقِ لا يُمرِّرُ شيئاً فلا يتغيَّرُ شيءٌ.
    */
   readonly header?: ReactNode | undefined;
+  /**
+   * UI-3 / PR 5 (ADR 0238): ما يُلحَقُ ببطاقةِ كلِّ تذكرةٍ — سطحُ الراكبِ يُمرِّرُ رسائلَ التذكرة ([B])؛
+   * وسطحُ السائقِ لا يُمرِّرُ شيئاً فلا يتغيَّرُ شيء.
+   */
+  readonly renderTicketExtra?: ((ticket: ApiSupportTicket) => ReactNode) | undefined;
 }
 
 type ListState =
@@ -126,6 +131,7 @@ export function TicketsScreen({
   orderId = null,
   initialCategory = null,
   header,
+  renderTicketExtra,
 }: TicketsScreenProps) {
   const t = miniAppTranslator(language);
   const messageId = useId();
@@ -331,6 +337,7 @@ export function TicketsScreen({
                 {row.hasOrder && (
                   <span className="sup__ticket-ride">{t(`${prefix}list.aboutRide`)}</span>
                 )}
+                {renderTicketExtra?.(ticket)}
               </li>
             );
           })}
@@ -348,17 +355,19 @@ export function TicketsScreen({
         )}
       </div>
 
-      {/* **الحدُّ يُقالُ** — انظرْ رأسَ المِلفِّ. */}
-      <div className="sup__debt">
-        <p className="sup__debt-title">{t(`${prefix}debt.title`)}</p>
-        <ul className="sup__debt-list">
-          {declaredDebt.map((key) => (
-            <li className="sup__debt-item" key={key}>
-              {t(key)}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* **الحدُّ يُقالُ** — انظرْ رأسَ المِلفِّ. ولا عنوانَ «غيرُ متاحٍ» فوقَ قائمةٍ فارغة. */}
+      {declaredDebt.length === 0 ? null : (
+        <div className="sup__debt">
+          <p className="sup__debt-title">{t(`${prefix}debt.title`)}</p>
+          <ul className="sup__debt-list">
+            {declaredDebt.map((key) => (
+              <li className="sup__debt-item" key={key}>
+                {t(key)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

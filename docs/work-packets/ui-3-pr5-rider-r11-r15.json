@@ -1,0 +1,120 @@
+{
+  "id": "ui-3-pr5-rider-r11-r15",
+  "goal": "UI-3 / PR 5: الراكب R11–R15 + [B] على هيكلِ UI-2 ونظامِ التصميمِ القائم، بحالاتٍ صادقةٍ و503 = غيرُ متاح لكلِّ [B]، وتصحيحُ توثيقِ PR 4 بعدَ دمجِه.",
+  "canonical_source": [
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §11 PR 5",
+    "docs/SYSTEM_STATE.md",
+    "ROADMAP.md",
+    "docs/adr/0235-ui-3-rider-r0-r5.md",
+    "docs/adr/0237-ui-3-pr4-rider-r6-r10.md (الترقيمُ الكانونيّ)",
+    "docs/UI_SURFACE_INVENTORY.md"
+  ],
+  "implementation": [
+    "apps/miniapp/src/styles/global.css",
+    "apps/miniapp/src/surfaces/rider/RiderRoot.tsx",
+    "apps/miniapp/src/surfaces/rider/account/AccountScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/account/account-view.ts",
+    "apps/miniapp/src/surfaces/rider/faq/FaqScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/history/RideDetailScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/history/RideHistoryScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/notifications/NotificationsScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/privacy/PrivacyScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/rider-flow.ts",
+    "apps/miniapp/src/surfaces/rider/rider-r11-r15.test.tsx",
+    "apps/miniapp/src/surfaces/rider/rider-root-screen-stack.test.tsx",
+    "apps/miniapp/src/surfaces/rider/settings/EmergencyContactPanel.tsx",
+    "apps/miniapp/src/surfaces/rider/settings/NotificationPrefsPanel.tsx",
+    "apps/miniapp/src/surfaces/rider/settings/SavedPlacesPanel.tsx",
+    "apps/miniapp/src/surfaces/rider/settings/TicketThread.tsx",
+    "apps/miniapp/src/surfaces/rider/settings/capability.ts",
+    "apps/miniapp/src/surfaces/rider/settings/emergency-contact.ts",
+    "apps/miniapp/src/surfaces/rider/settings/notification-prefs.ts",
+    "apps/miniapp/src/surfaces/rider/settings/saved-places.ts",
+    "apps/miniapp/src/surfaces/rider/settings/ticket-thread.ts",
+    "apps/miniapp/src/surfaces/rider/support/SupportScreen.tsx",
+    "apps/miniapp/src/surfaces/support/TicketsScreen.tsx",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "scripts/lib/account-surface-contract.ts",
+    "scripts/lib/css-class-coverage.ts",
+    "scripts/lib/ui-surface-inventory.ts",
+    "tests/unit/sos-entry-surfaces.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0238-ui-3-pr5-rider-r11-r15.md",
+    "docs/adr/0237-ui-3-pr4-rider-r6-r10.md",
+    "docs/adr/0235-ui-3-rider-r0-r5.md",
+    "docs/UI_SURFACE_INVENTORY.md"
+  ],
+  "decision": "R11/R13/R15 تبويباتٌ جذريّةٌ في ScreenFrame mode=root يقودُها stack.tab؛ التفاصيلُ وR12 وR14 والأسئلةُ والمفقوداتُ والشكوى المربوطةُ تدفّقاتٌ برجوعٍ واحد؛ عيبا الترتيبِ (الخصوصيّة من الحساب · الأسئلة من الدعم) مُصلَحان؛ [B] الأربعةُ على العقودِ القائمةِ (DEC-39–43) بمصنِّفٍ واحدٍ: 503/_NOT_AVAILABLE/404 بلا رمز = غيرُ متاح. ADR 0238.",
+  "canonical_r": {
+    "R11": "سجل الرحلات وتفاصيلها",
+    "R12": "الإشعارات",
+    "R13": "حسابي",
+    "R14": "الخصوصية والشروط",
+    "R15": "الدعم والتذاكر والمفقودات وFAQ"
+  },
+  "b_items": {
+    "رسائل تذكرة الدعم": {
+      "contract": "GET/POST /v1/support/tickets/:id/messages",
+      "surface": "settings/TicketThread.tsx (R15)",
+      "unavailable": "TICKET_THREAD_STORE_NOT_AVAILABLE 503"
+    },
+    "حفظ/تعديل/حذف الأماكن": {
+      "contract": "GET/POST /v1/me/places · PATCH/DELETE /v1/me/places/:id · GET /v1/me/recent-destinations",
+      "surface": "settings/SavedPlacesPanel.tsx (R13)",
+      "unavailable": "PLACE_STORE_NOT_AVAILABLE 503"
+    },
+    "جهة اتصال الطوارئ": {
+      "contract": "GET/PUT /v1/me/emergency-contact",
+      "surface": "settings/EmergencyContactPanel.tsx (R13)",
+      "unavailable": "EMERGENCY_CONTACT_STORE_NOT_AVAILABLE 503"
+    },
+    "تفضيلات الإشعارات": {
+      "contract": "GET/PUT /v1/me/notification-preferences",
+      "surface": "settings/NotificationPrefsPanel.tsx (R12)",
+      "unavailable": "NOTIFICATION_PREFS_STORE_NOT_AVAILABLE 503"
+    }
+  },
+  "contract_gaps": [
+    "لا DELETE لجهة اتصال الطوارئ — تُستبدَل ولا تُزال",
+    "جهة اتصال الطوارئ لا يقرؤها مسار SOS — لا إبلاغ تلقائي، والواجهة تقول ذلك",
+    "sender_type في رسائل التذكرة rider|driver فقط — لا رد موظف في المحادثة",
+    "لا عقد لتعديل الاسم/الرقم (editIdentity دين باقٍ)",
+    "لا مرفقات للتذاكر (attachment دين باقٍ)",
+    "مكان جديد من الوجهات الحديثة وحدها — لا التقاط موقع ولا خريطة"
+  ],
+  "tests": [
+    "apps/miniapp/src/surfaces/rider/rider-r11-r15.test.tsx (30 اختباراً · 11/11 طفرة قُتِلَت)",
+    "apps/miniapp/src/surfaces/rider/rider-root-screen-stack.test.tsx (محدَّث)",
+    "tests/unit/sos-entry-surfaces.test.ts (محدَّث)"
+  ],
+  "evidence": "lint · typecheck · build:miniapp · bun test · check-state-sync · check-roadmap · check-css-class-coverage · check-ui-surface-inventory · بواباتُ التباينِ والأداءِ والميزانيّة — محليّاً ثمَّ CI على الـPR.",
+  "constraints": [
+    "لا backend ولا API ولا عقد ولا migration ولا تبعية",
+    "لا polling ولا setInterval",
+    "لا ETA/خريطة/أجرة/موقع/دفع/محادثة مختلقة",
+    "لا UI-5 ولا PR منفصل للتوثيق ولا دمج ذاتي",
+    "هيكل UI-2 ونظام التصميم القائمان وحدهما"
+  ],
+  "limitations": "لا بيئة DOM في المستودع ولا تبعية جديدة: لا نقر حي ولا تأثيرات React بعد التركيب؛ الإثبات بالرسم الساكن (بذرة initial) والسلسلة الحقيقية apiFetch ضد fetch مقلد.",
+  "pr4_docs_correction": {
+    "work_packet": "docs/work-packets/ui-3-pr4-rider-r6-r10.json",
+    "pr": "#419",
+    "pr_head": "87795a55934c5d237811472cf2e4bc2cd22073bc",
+    "merge_commit": "cd4b635613cef121b993b1af0b603c42582cb0dd",
+    "main_ci_run": "37447868079 — success",
+    "roadmap_freshness_run": "37447868136 — success",
+    "docs": [
+      "docs/SYSTEM_STATE.md",
+      "ROADMAP.md",
+      "docs/adr/0237-ui-3-pr4-rider-r6-r10.md",
+      "docs/adr/0235-ui-3-rider-r0-r5.md",
+      "docs/UI_SURFACE_INVENTORY.md"
+    ]
+  },
+  "status": "منفّذ على فرع ui-3-pr5-rider-r11-r15 — PR مفتوح غير مدموج. UI-3 جارية لم يُعلَن إغلاقها؛ UI-5 لم تبدأ."
+}

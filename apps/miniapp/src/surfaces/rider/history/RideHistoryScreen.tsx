@@ -97,6 +97,8 @@ export interface RideHistoryScreenProps {
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
   readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
+  /** UI-3 / PR 5 (ADR 0238): داخلَ `ScreenFrame` العنوانُ للإطار (`false`) والرجوعُ لرأسِه (لا `onBack`). */
+  readonly showTitle?: boolean;
 }
 
 /**
@@ -196,6 +198,7 @@ export function RideHistoryScreen({
   onBack,
   onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
+  showTitle = true,
 }: RideHistoryScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<HistoryState>({ kind: "reading" });
@@ -379,9 +382,11 @@ export function RideHistoryScreen({
           >
             {t("rider.history.reset")}
           </button>
-          <button type="button" className="sys__action" onClick={() => onBack?.()}>
-            {t("rider.history.back")}
-          </button>
+          {onBack === undefined ? null : (
+            <button type="button" className="sys__action" onClick={() => onBack()}>
+              {t("rider.history.back")}
+            </button>
+          )}
         </div>
       );
     }
@@ -397,9 +402,11 @@ export function RideHistoryScreen({
           >
             {t("rider.history.retry")}
           </button>
-          <button type="button" className="sys__action" onClick={() => onBack?.()}>
-            {t("rider.history.back")}
-          </button>
+          {onBack === undefined ? null : (
+            <button type="button" className="sys__action" onClick={() => onBack()}>
+              {t("rider.history.back")}
+            </button>
+          )}
         </div>
       );
     }
@@ -463,9 +470,11 @@ export function RideHistoryScreen({
           </button>
         ) : null}
 
-        <button type="button" className="hs__back" onClick={() => onBack?.()}>
-          {t("rider.history.back")}
-        </button>
+        {onBack === undefined ? null : (
+          <button type="button" className="hs__back" onClick={() => onBack()}>
+            {t("rider.history.back")}
+          </button>
+        )}
 
         {/* مدخلُ الاستغاثةِ (`PD-020`) — رحلةٌ في السجلِّ جاريةٌ أو مضَت قريباً. */}
         {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
@@ -474,10 +483,16 @@ export function RideHistoryScreen({
   };
 
   return (
-    <section className="hs" dir={directionFor(language)} aria-labelledby="hs-title">
-      <h1 className="hs__title" id="hs-title">
-        {t("rider.history.title")}
-      </h1>
+    <section
+      className="hs"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "hs-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 className="hs__title" id="hs-title">
+          {t("rider.history.title")}
+        </h1>
+      ) : null}
       {body()}
     </section>
   );

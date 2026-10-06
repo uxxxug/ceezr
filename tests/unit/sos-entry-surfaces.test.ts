@@ -82,7 +82,9 @@ describe("أسطحُ دخولِ الاستغاثةِ — أحدَ عشرَ لا 
 
   it("الموجِّهُ يُمرِّرُ المدخلَ إلى الأسطحِ العشرةِ وصفحةِ المفقوداتِ (أحدَ عشرَ) ويُركِّبُ شاشةَ الاستغاثةِ", () => {
     const root = read(ROOT);
-    expect(root.match(/onOpenSos=\{onOpenSos\}/g) ?? []).toHaveLength(11);
+    // UI-3 / PR 5 (ADR 0238): الدعمُ يُرسَمُ موضعَين — تبويبُ «الدعم» الجذريُّ والشكوى المربوطةُ برحلةٍ —
+    // فصارَت المواضعُ اثنَي عشرَ والأسطحُ عشرةً كما كانَت (لا سطحَ زادَ ولا نقص).
+    expect(root.match(/onOpenSos=\{onOpenSos\}/g) ?? []).toHaveLength(12);
     expect(root.includes("import { SosScreen } from ./sos/SosScreen.tsx")).toBe(false);
     expect(root.includes('import { SosScreen } from "./sos/SosScreen.tsx"')).toBe(true);
     // UI-3 / PR 4 (ADR 0237): R9 تدفّقٌ في `ScreenFrame` — الرجوعُ لرأسِ الإطارِ يُطفِئُ الرايةَ، والشاشةُ بلا زرٍّ ثانٍ.

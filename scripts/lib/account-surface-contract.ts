@@ -143,6 +143,9 @@ export const ACCOUNT_ERROR_CODES: readonly string[] = [
  * يُعرَضُ حرفاً على إنسانٍ.
  */
 export const ALLOWED_PLACEHOLDERS: readonly string[] = [
+  // UI-3 / PR 5 (ADR 0238): لوحةُ الأماكنِ تستبدلُ اسمَ المكانِ ونوعَه (`SavedPlacesPanel.tsx`).
+  "label",
+  "kind",
   "orders",
   "amount",
   "rows",
