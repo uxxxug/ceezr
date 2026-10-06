@@ -60,20 +60,16 @@ function code(source: string): string {
   return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 
-/** خروقُ «لا نصَّ مُضمَّن» و«عرضيٌّ صرف» في مصدرِ مكوّنٍ. */
+/**
+ * خروقُ «لا نصَّ مُضمَّن» و«عرضيٌّ صرف» في مصدرِ مكوّنٍ. التخزينُ غيرُ مذكورٍ ههنا عن
+ * قصدٍ: `check-session-storage-policy` يحظرُه على التطبيقِ المصغَّرِ كلِّه (F1-04)،
+ * ومنه `system/ui/`، فلا يُكرَّرُ حاجزٌ ولا يُوسَّعُ استثناؤه.
+ */
 function sourceProblems(source: string): readonly string[] {
   const body = code(source);
   const problems: string[] = [];
   if (/[\u0600-\u06FF]/.test(body)) problems.push("نصٌّ عربيٌّ مُضمَّنٌ خارجَ التعليقات");
-  for (const banned of [
-    "navigator.",
-    "setInterval",
-    "setTimeout",
-    "fetch(",
-    "localStorage",
-    "sessionStorage",
-    "useState",
-  ]) {
+  for (const banned of ["navigator.", "setInterval", "setTimeout", "fetch(", "useState"]) {
     if (body.includes(banned)) problems.push(`أثرٌ جانبيٌّ أو حالةٌ: ${banned}`);
   }
   return problems;
