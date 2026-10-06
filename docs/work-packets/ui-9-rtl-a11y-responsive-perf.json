@@ -1,0 +1,44 @@
+{
+  "id": "ui-9-rtl-a11y-responsive-perf",
+  "goal": "QA شامل لأسطح UI-1 → UI-8: فحص RTL/A11y/Responsive/Performance، ثم إصلاح كل خلل مثبت، ثم تقديم دليل قابل للتحقق. لا إعادة بناء ولا تحسين تجميلي بلا مشكلة مثبتة.",
+  "canonical_source": [
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §§9، 10.5، 10.8، 10.9",
+    "UI-9 scope directive (2026-10-06): RTL / Accessibility / Responsive / Performance"
+  ],
+  "implementation": [
+    "apps/miniapp/src/styles/global.css",
+    "scripts/check-ui-9-guards.ts",
+    ".github/workflows/ci.yml",
+    "package.json",
+    "docs/adr/0244-ui-9-rtl-a11y-responsive-perf.md",
+    "docs/work-packets/ui-9-rtl-a11y-responsive-perf.json",
+    "docs/SYSTEM_STATE.md",
+    "ROADMAP.md"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0244-ui-9-rtl-a11y-responsive-perf.md"],
+  "no_other_affected_docs_reason": "UI_SURFACE_INVENTORY لم يتغيّر: لا سطحَ أُضيف أو حُذف. لا endpoint جديد، لا مكتبة جديدة، لا CSP/CSRF/auth change.",
+  "decision": "QA مرحلة مستقلة: مسح آلي ثابت للأسطح المنجزة (UI-1 → UI-8)، تحديد العيوب المثبتة وربطها بملف وسطح وقاعدة UI-9 منتهكة، إصلاح بأقل تغيير ممكن، وإضافة حرّاس انحدار ساكنين. لا يُدَّعى اختبار متصفح حيث يمنعه DOM environment — يُسجَّل الحد بصدق. Performance budgets تُقاس من build output الحالي.",
+  "tests": [
+    "scripts/check-ui-9-guards.ts — حارسٌ ساكنٌ: لا letter-spacing/text-transform/italic على العربية، لا @layer/!important، touch ≥ 44px، i18n parity"
+  ],
+  "evidence": "محليّاً: lint · typecheck · build:miniapp · check-ui-9-guards ✓ · check-state-sync ✓ · check-system-state ✓. الأداءُ: shell+identity = 27 KB gz (< 180) · CSS = 13.4 KB gz (< 40) · deferred ≤ 33.7 KB gz (< 120) · طلبات 2 (< 6). العيوبُ المُصلَحةُ: letter-spacing -0.01em على العناوين، font-style: italic على dof__distance--absent وdjb__stamp--absent، touch targets < 44px على dd__view/dd__camera (36px→44px) وsup__category/ob__city (40px→44px).",
+  "contract_gaps": [],
+  "constraints": [
+    "PR واحد مستقل لـUI-9 من main بعد إغلاق UI-8",
+    "لا تغيير عقود أو API أو منطق أعمال إلا عند ضرورة صريحة لـRTL/A11y/Responsive/Performance ومذكورة في ADR",
+    "لا endpoints جديدة، لا polling ولا setInterval، لا مكتبات جديدة",
+    "لا تغيير في CSP/CSRF/authorization، لا تغيير في سلوك Telegram أو عدد الرسائل",
+    "لا إعادة بناء ui-truth، لا قيم مخترعة، لا تحويل unknown إلى stale، لا إظهار 0 لقيمة غير مقاسة",
+    "CSS مسطح فقط: لا @layer ولا nesting ولا !important",
+    "لا تغيير الهوية البصرية إلى أسلوب جديد ولا beauty work غير مرتبط بمشكلة مثبتة",
+    "العربية بلا letter-spacing ولا text-transform ولا italic",
+    "logical properties فقط لـRTL، لا انعكاس يدوي بـleft/right",
+    "touch targets لا تقل عن 44×44 حيث ينطبق",
+    "prefers-reduced-motion محترم",
+    "كل الاختبارات الحالية تبقى خضراء"
+  ],
+  "limitations": "حارسٌ ساكنٌ لا اختبارَ متصفّحٍ. لا يُدَّعى قياسُ FCP/LCP ولا تجربةُ مستخدمٍ حيّة. لا لقطةَ متصفّحٍ ولا قارئَ شاشةٍ. قياسُ Slow 4G rider surface يبقى في CI المُدار (job 112458339560 نجح). النصوصُ العربيّةُ في SystemScreen ثابتةٌ RTL بقرارٍ مُعلَنٍ (ROADMAP).",
+  "status": "implementation started — not closed. QA audit and fixes in progress."
+}

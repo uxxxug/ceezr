@@ -652,6 +652,11 @@ jobs:
       - name: جردُ أسطحِ الواجهةِ مطابقٌ للقرصِ (UI-1 · PR 0 · ADR 0233)
         run: bun run scripts/check-ui-surface-inventory.ts
 
+      # UI-9 (ADR 0244): حرّاسٌ ساكنةٌ لـRTL/A11y/Responsive — لا letter-spacing
+      # ولا text-transform ولا italic على العربية، ولا @layer/!important، touch ≥ 44px، i18n parity.
+      - name: حرّاسُ UI-9 RTL/A11y/Responsive (ADR 0244)
+        run: bun run scripts/check-ui-9-guards.ts
+
       - name: سقوطُ حاجزِ جردِ الأسطحِ مقيسٌ بسالبةٍ (ح-7)
         run: bun test tests/unit/check-ui-surface-inventory.test.ts
 

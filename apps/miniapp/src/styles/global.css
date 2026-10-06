@@ -2764,7 +2764,7 @@ a.sys__action {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   cursor: pointer;
 }
 
@@ -3357,7 +3357,7 @@ a.sys__action {
   background: var(--tg-secondary-bg-color);
   color: var(--tg-text-color);
   font-size: 0.9rem;
-  min-height: 2.25rem;
+  min-height: 2.75rem;
   padding: 0.4rem 0.9rem;
   margin-top: 0.5rem;
 }
@@ -3375,7 +3375,7 @@ a.sys__action {
   border-radius: 0.6rem;
   font: inherit;
   font-size: 0.9rem;
-  min-height: 2.25rem;
+  min-height: 2.75rem;
   padding: 0.4rem 0.9rem;
   margin-top: 0.5rem;
   cursor: pointer;
@@ -3606,10 +3606,11 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
-/* غيابُ القياسِ يُقالُ **بخطٍّ مائلٍ** كي لا يُقرأَ رقماً: سطرٌ يقولُ «غيرُ
-   متاحةٍ» بنفسِ هيئةِ سطرٍ فيه رقمٌ يُخدَعُ به الطرفُ. */
+/* غيابُ القياسِ يُقالُ **باهتاً** كي لا يُقرأَ رقماً: سطرٌ يقولُ «غيرُ
+   متاحةٍ» بنفسِ هيئةِ سطرٍ فيه رقمٌ يُخدَعُ به الطرفُ. خطٌّ مائلٌ على العربيةِ
+   ممنوعٌ (UI-9) فالعتمُ بديلٌ صادقٌ. */
 .dof__distance--absent {
-  font-style: italic;
+  opacity: 0.7;
 }
 
 /* الوسمُ **لا يُصغَّرُ حتّى يختفيَ**: «خطٌّ مستقيمٌ» شرطُ صدقِ الرقمِ لا حاشيةٌ. */
@@ -3782,10 +3783,10 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
-/* غيابُ الختمِ يُقالُ باهتاً: **لم يحدُثْ بعدُ** لا «لا يُعرَفُ». */
+/* غيابُ الختمِ يُقالُ باهتاً: **لم يحدُثْ بعدُ** لا «لا يُعرَفُ». خطٌّ مائلٌ
+   على العربيةِ ممنوعٌ (UI-9) والعتمُ كافٍ. */
 .djb__stamp--absent {
   opacity: 0.7;
-  font-style: italic;
 }
 
 .djb__actions {
@@ -5389,7 +5390,7 @@ a.sys__action {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   cursor: pointer;
 }
 
@@ -5501,7 +5502,7 @@ body {
 
 .sys__title,
 [class$="__title"] {
-  letter-spacing: -0.01em;
+  /* UI-9: لا letter-spacing على العربية — الأثر ضئيل لكن القاعدة صريحة. */
 }
 
 /* ── رئيسةُ الراكبِ ── */
