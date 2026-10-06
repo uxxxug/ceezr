@@ -10,6 +10,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { TRUTH_SOURCE_KEYS } from "../../../system/truth.ts";
 import { UiRail, UiTruth } from "../../../system/ui/index.tsx";
 import {
   journeyRail,
@@ -31,7 +32,10 @@ export function RideJourney({ language, stage, truth }: RideJourneyProps) {
   const t = miniAppTranslator(language);
   return (
     <>
-      {truth === null ? null : <UiTruth text={t(truth.key)} tone={truth.tone} />}
+      {/* UI-8: الطورُ من سجلِّ الرحلةِ في الخادم — يُختَمُ بمصدرِه. */}
+      {truth === null ? null : (
+        <UiTruth text={t(truth.key)} tone={truth.tone} seal={t(TRUTH_SOURCE_KEYS.server_record)} />
+      )}
       {stage === null ? null : (
         <UiRail
           label={t(RIDE_JOURNEY_LABEL_KEY)}

@@ -6152,6 +6152,14 @@ body {
   min-inline-size: 0;
 }
 
+/* الختمُ الأصليّ (§10.5 · UI-8): مصدرُ الحقيقةِ سطراً ثانياً بحجمِ caption ولونِ الشريطِ نفسِه. */
+.ui-truth__seal {
+  display: block;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+}
+
 /* ── ui-rail (السكّة) ─────────────────────────────────────────────────────── */
 .ui-rail {
   display: flex;

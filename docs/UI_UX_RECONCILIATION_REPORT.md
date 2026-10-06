@@ -139,7 +139,7 @@
 | UI-5 | Telegram Experience | رسائل + تفاوض + keyboards | لم تبدأ |
 | UI-6 | Admin Operations Console | 15 صفحة + مكوّنات | لم تبدأ |
 | UI-7 | Public Tracking | صفحة التتبع + حالات | لم تبدأ |
-| UI-8 | Truth & State System | ui-truth + أعمار + مصادر | لم تبدأ |
+| UI-8 | Truth & State System | ui-truth + أعمار + مصادر | **قيدَ المراجعة** — مرحلةٌ مستقلّةٌ في PR واحد (2026-10-06 · ADR 0242 · Work Packet `ui-8-truth-state-system`؛ كانت: «لم تبدأ»). أُنجز: `system/truth.ts` (الحالاتُ السبع · عمرٌ مقيسٌ/مجهول · المجهولُ ليس قديماً · ثلاثةُ مصادر) + `UiTruth.seal` + الربطُ في R7/R8/R9 + حارسٌ ساكن. خارجَها: `*view.ts`، اللمسةُ المطوَّلة، أسطحُ السائقِ والسجلِّ والدعم، عمرُ لقطةِ الرحلة [C]، التنبؤُ بمدىً [C] |
 | UI-9 | RTL / A11y / Responsive / Performance | اختبارات شاملة | لم تبدأ |
 | UI-10 | Production Verification & Polish | تحقق حي + صقل | لم تبدأ |
 
@@ -159,11 +159,11 @@
 | UI-5 Telegram Experience | PR 8 | تيليجرام §9 |
 | UI-6 Admin Operations Console | PR 9 | إدارة §10 |
 | UI-7 Public Tracking | PR 10 | تتبّع عام §11 |
-| UI-8 Truth & State System | — (لا PR مستقل في الخطة) | مكوّن `ui-truth` ضمن PR 1، و«شريط حقيقة» ضمن شرط قبول PR 4 |
+| UI-8 Truth & State System | — (لا PR مستقل في الخطة؛ صُحِّحَ 2026-10-06: قرَّرَ المالكُ PR مستقلّاً واحداً — ADR 0242) | مكوّن `ui-truth` ضمن PR 1، و«شريط حقيقة» ضمن شرط قبول PR 4 |
 | UI-9 RTL / A11y / Responsive / Performance | — (لا PR مستقل في الخطة) | شروط القبول موزّعة: أداء + تباين في PR 1، RTL + قياس في PR 2 |
 | UI-10 Production Verification & Polish | PR 11 | صقل وقبول §12 + §13: مصفوفة QA + SYSTEM_STATE + الأفكار التسع |
 
-**فجوة مسجّلة لا تُحسم هنا:** UI-8 وUI-9 ليس لهما PR مستقل في خطة §11. هل تبقيان
+**فجوة مسجّلة لا تُحسم هنا** (صُحِّحَ 2026-10-06: حُسِمَت لـUI-8 بقرارِ المالك — مرحلةٌ مستقلّةٌ في PR واحد، ADR 0242؛ وUI-9 باقيةٌ مفتوحة)**:** UI-8 وUI-9 ليس لهما PR مستقل في خطة §11. هل تبقيان
 مرحلتين عرضيّتين تُغلقان بأدلة من PRs أخرى، أم يُضاف لهما PR؟ هذا قرار مالك قبل
 الوصول إليهما، ولا يمنع UI-1.
 

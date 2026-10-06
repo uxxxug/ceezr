@@ -439,17 +439,25 @@ export interface UiTruthProps {
   readonly text: string;
   /** `unknown` = الصمتُ المُصمَّمُ (§10.9): المجهولُ يُقالُ مجهولاً بنغمةٍ محايدةٍ. */
   readonly tone: UiTone | "unknown";
+  /**
+   * الختمُ الأصليّ (§10.5 · UI-8): مصدرُ الحقيقةِ نصّاً ظاهراً — لا لمسةً مطوَّلةً تُخفيه
+   * عن لوحةِ المفاتيحِ وقارئِ الشاشة. غائبٌ = لا مصدرَ يُدَّعى.
+   */
+  readonly seal?: string;
 }
 
 /** شريطٌ واحدٌ يتبدّلُ نصُّه فيُعلَنُ بأدبٍ (`<output>` = role=status). */
-export function UiTruth({ text, tone }: UiTruthProps) {
+export function UiTruth({ text, tone, seal }: UiTruthProps) {
   const t = TRUTH_TONES.find((x) => x.tone === tone) ?? TRUTH_TONES[4];
   return (
     <output className={`ui-truth ${t.modifier}`}>
       <span className="ui-truth__icon" aria-hidden="true">
         {tone === "unknown" ? <IconInfo /> : <ToneIcon tone={tone} />}
       </span>
-      <span className="ui-truth__text">{text}</span>
+      <span className="ui-truth__text">
+        {text}
+        {seal === undefined ? null : <small className="ui-truth__seal">{seal}</small>}
+      </span>
     </output>
   );
 }

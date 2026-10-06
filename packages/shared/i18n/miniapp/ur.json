@@ -1514,5 +1514,9 @@
   "rider.support.thread.compose": "ٹکٹ میں پیغام شامل کریں",
   "rider.support.thread.remaining": "{count} حروف باقی",
   "rider.support.thread.sending": "بھیجا جا رہا ہے…",
-  "rider.support.thread.send": "بھیجیں"
+  "rider.support.thread.send": "بھیجیں",
+  "truth.age.unknown": "اِس ریڈنگ کی عمر معلوم نہیں، اس لیے غیر ناپا ہوا عدد نہیں دکھایا جاتا۔",
+  "truth.source.serverRecord": "ماخذ: سرور پر سفر کا ریکارڈ۔",
+  "truth.source.serverAge": "ماخذ: سرور کی ناپی ہوئی عمر، آپ کے آلے کی گھڑی نہیں۔",
+  "truth.source.routingEngine": "ماخذ: راستوں کا انجن۔"
 }

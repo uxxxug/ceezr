@@ -93,6 +93,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { TRUTH_AGE_UNKNOWN_KEY, TRUTH_SOURCE_KEYS, truthAge } from "../../../system/truth.ts";
 import { cancelRide as cancelViaApi } from "../search/ride-api.ts";
 import type { CancelRideResponse } from "../search/ride-contract.ts";
 import { cancelRefusalKey, newIdempotencyKey } from "../search/search-view.ts";
@@ -397,6 +398,14 @@ export function ActiveRideScreen({
           }
         : snapshotPosition;
     const position = positionLine(livePosition);
+    /**
+     * UI-8: عمرٌ خامٌ لم يُقَس (سالبٌ/غيرُ عدد) يُحجَبُ قبلَ أن تُصفِّرَه دالّةُ العرض —
+     * موضعٌ بعمرٍ «0 ثانية» مختلَقٍ أسوأُ من لا موضع (`BUG-001`).
+     */
+    const positionAgeKnown =
+      livePosition === null ||
+      !livePosition.show ||
+      truthAge(livePosition.ageSeconds).kind === "measured";
     const eta = etaLine(view.eta);
     const driver = view.driver === null ? null : driverIdentityLine(view.driver);
 
@@ -444,7 +453,9 @@ export function ActiveRideScreen({
 
         {/* الموقعُ **معَ عُمرِه** أو سببُ حجبِه — ولا ثالثَ (`BUG-001`). */}
         {position !== null &&
-          (position.show ? (
+          (position.show && !positionAgeKnown ? (
+            <p className="ar__position-hidden">{t(TRUTH_AGE_UNKNOWN_KEY)}</p>
+          ) : position.show ? (
             <div className="ar__position" role="status">
               <p className="ar__position-point">
                 {t("rider.active.position.point")
@@ -455,6 +466,7 @@ export function ActiveRideScreen({
                 {t(position.ageKey)
                   .replace("{minutes}", String(position.ageMinutes))
                   .replace("{seconds}", String(position.ageSeconds))}
+                <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_age)}</small>
               </p>
             </div>
           ) : (
@@ -466,6 +478,9 @@ export function ActiveRideScreen({
             {eta.kind === "ROUTED"
               ? t(eta.key).replace("{minutes}", String(eta.minutes))
               : t(eta.key)}
+            {eta.kind === "ROUTED" ? (
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.routing_engine)}</small>
+            ) : null}
           </p>
         )}
 
