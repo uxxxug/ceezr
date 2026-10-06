@@ -31,7 +31,29 @@
 
 ## ما لا يدّعيه الجرد
 
-- **لا إسنادَ لأرقامِ R0–R15 وD0–D14.** تعريفُها في PDF v2.0، وهوَ ليسَ في المستودع.
+- **إسنادُ R0–R15 وD0–D14 جزئيّ.** أُسنِدَ منها ما نُفِّذ: **R0–R5** في ADR 0235 (UI-3)، و**D0–D14** في
+  ADR 0236 (UI-4) **من المصدرِ الأصليِّ (PDF v2.0) بمطابقةٍ مباشرة** — Canonical Source Mapping. R6–R15 بلا إسناد.
+
+  | D | التعريفُ الكانونيّ | ملفُّ السطح (`miniapp/driver` ما لم يُذكَر) |
+  |---|---|---|
+  | D0 | الهيكل وبث الموقع | `DriverRoot.tsx` · `location/LocationBroadcast.tsx` |
+  | D1 | لوح العروض | `offers/OffersScreen.tsx` |
+  | D2 | بطاقة العرض | `offers/OffersScreen.tsx` (عنصرُ اللوح) |
+  | D3 | تفاصيل العرض | `offers/OfferDetailScreen.tsx` |
+  | D4 | المهمة الحالية | `job/JobScreen.tsx` |
+  | D5 | تعذّر الإكمال | `job/JobScreen.tsx` |
+  | D6 | ملخص رحلة السائق وتقييم الراكب | `summary/DriverRideSummaryScreen.tsx` |
+  | D7 | SOS | `job/JobScreen.tsx` |
+  | D8 | الوثائق | `documents/DocumentsScreen.tsx` |
+  | D9 | المركبة | `vehicle/VehicleScreen.tsx` |
+  | D10 | الحصيلة والنشاط | `activity/ActivityScreen.tsx` |
+  | D11 | الاشتراك والفاتورة | `subscription/SubscriptionScreen.tsx` · `PaymentInvoicePanel.tsx` |
+  | D12 | الحساب وحذفه | `account/AccountScreen.tsx` · `miniapp/account/AccountRights.tsx` |
+  | D13 | دعم السائق وكشف الخصوم | `support/SupportScreen.tsx` · `deductions/DeductionTraceScreen.tsx` |
+  | D14 | تسجيل السائق من الـMini App | `miniapp/onboarding/OnboardingRoot.tsx` (فجوةُ عقدٍ مسجّلة · ADR 0236) |
+
+  لا ملفَّ `.tsx` جديدٌ في UI-4: آلةُ الحالةِ (`driver-flow.ts`) ومؤقّتُ العرضِ (`offer-timer.ts`)
+  وخطواتُ الرفعِ (`upload-steps.ts`) منطقٌ نقيٌّ لا سطح، فالعددُ ثابت (14 للسائق، 81 مجموعاً).
 - **لا تصنيفَ [A/B/C/D] لكلِّ ملفّ.** وجودُ الملفِّ لا يعني أنَّ السطحَ «قائمٌ بالكامل».
 - **العقودُ المحميّةُ (§0.3) ليست أسطحاً عرضيّة** ولا تدخلُ الجرد:
   `*contract.ts` و`*api.ts` و`*view.ts`. قِيسَ تحتَ `apps/miniapp/src/surfaces` **76** ملفّاً منها،

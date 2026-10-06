@@ -25,6 +25,8 @@ export interface DeductionTraceScreenProps {
   readonly language?: MiniAppLanguage;
   readonly accessToken?: string | null;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
 }
 
 type ViewState =
@@ -41,6 +43,7 @@ export function DeductionTraceScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   accessToken = null,
   onBack,
+  showTitle = true,
 }: DeductionTraceScreenProps) {
   const t = miniAppTranslator(language);
   const [state, setState] = useState<ViewState>({ kind: "loading" });
@@ -69,10 +72,16 @@ export function DeductionTraceScreen({
   }, [accessToken]);
 
   return (
-    <section className="dt" dir={directionFor(language)} aria-labelledby="dt-title">
-      <h1 id="dt-title" className="dt__title">
-        {t("driver.support.deductionTrace.title")}
-      </h1>
+    <section
+      className="dt"
+      dir={directionFor(language)}
+      aria-labelledby={showTitle ? "dt-title" : undefined}
+    >
+      {showTitle ? (
+        <h1 id="dt-title" className="dt__title">
+          {t("driver.support.deductionTrace.title")}
+        </h1>
+      ) : null}
       {onBack !== undefined && (
         <button type="button" className="dt__back" onClick={() => onBack()}>
           {t("driver.support.deductionTrace.back")}

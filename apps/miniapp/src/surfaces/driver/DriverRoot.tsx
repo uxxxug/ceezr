@@ -70,11 +70,21 @@
  * ثلاثُ شاشاتٍ لا تحتاجُ مُوجِّهاً، ومُعرِّفُ العرضِ يُحمَلُ في الحالةِ لأنَّ
  * التفاصيلَ **لا تُقرأُ إلّا بمُعرِّفٍ**: شاشةٌ تُفتَحُ بلا مُعرِّفٍ ثمَّ تسألُ
  * الخادمَ «أيُّ عرضٍ؟» بابُ عطلٍ، فجُعِلَ المُعرِّفُ شرطَ فتحٍ في النوعِ نفسِه.
+ *
+ * ## UI-4 (ADR 0236): الهيكلُ والتبويبُ والمكدّسُ — D0–D14
+ *
+ * صارَ السطحُ داخلَ هيكلِ UI-2 بلا موجِّهٍ ثانٍ: أربعةُ تبويباتٍ جذريّةٍ (§6: العروض ·
+ * مهمّتي · أرباحي · حسابي) في `ScreenFrame mode="root"` معَ `RootTabBar`، وكلُّ ما سواها
+ * تدفّقٌ في `ScreenFrame mode="flow"` برجوعٍ (`BackButton`) وانتقالٍ (`ScreenTransition`).
+ * والقرارُ كلُّه في `driver-flow.ts` النقيّ (`useReducer`)، والمعالجاتُ نفسُها تُربَطُ ههنا.
+ * وزالَت «الشاشةُ الفارغةُ عن قصدٍ» ذاتُ النصِّ المُضمَّن: كانَت المدخلَ الوحيدَ إلى «مركبتي»
+ * ومدخلاً ثانياً إلى الوثائق؛ فصارَ المدخلانِ في «حسابي» بمفاتيحِ القاموس (`ح-8`: زيادةٌ لا نقص).
  */
 
 // `D-33` · `ADR 0188`: نصوصُ جزءِ `driver` تُسجَّلُ معَ حزمتِه لا في `shell`.
 import "../../../../../packages/shared/i18n/miniapp/ar-parts/driver.ts";
-import { useState } from "react";
+import { type ReactNode, useMemo, useReducer, useState } from "react";
+import { miniAppTranslator } from "../../../../../packages/shared/i18n/miniapp/core.ts";
 import type { LanguageSurfaceProps } from "../../routing/RoleRouter.tsx";
 import { capturePhotoWithInput } from "../../services/capture-photo.ts";
 import { subscribeOffersChannel } from "../../services/offers-channel-client.ts";
@@ -83,11 +93,23 @@ import {
   productionOffersSessionReader,
   productionOffersTransport,
 } from "../../services/production-offers-channel.ts";
-import { EmptyState } from "../../system/EmptyState.tsx";
+import type { ROOT_TABS } from "../../shell/root-tabs.ts";
+import { RootTabBar, ScreenFrame, ScreenTransition } from "../../shell/ScreenFrame.tsx";
+import { currentScreenKey } from "../../shell/screen-stack.ts";
 import { AccountScreen } from "./account/AccountScreen.tsx";
 import { ActivityScreen } from "./activity/ActivityScreen.tsx";
 import { DeductionTraceScreen } from "./deductions/DeductionTraceScreen.tsx";
 import { DocumentsScreen } from "./documents/DocumentsScreen.tsx";
+import {
+  broadcastsLocation,
+  DRIVER_TITLE_KEY,
+  type DriverFlowScreen,
+  type DriverRootTab,
+  driverFlowHandlers,
+  driverFlowReducer,
+  driverFlowView,
+  initialDriverFlow,
+} from "./driver-flow.ts";
 import { driverEntryView } from "./entry-view.ts";
 import { JobScreen } from "./job/JobScreen.tsx";
 import { LocationBroadcast } from "./location/LocationBroadcast.tsx";
@@ -98,154 +120,158 @@ import { DriverRideSummaryScreen } from "./summary/DriverRideSummaryScreen.tsx";
 import { DriverSupportScreen } from "./support/SupportScreen.tsx";
 import { VehicleScreen } from "./vehicle/VehicleScreen.tsx";
 
-type DriverView =
-  | { readonly kind: "offers" }
-  | { readonly kind: "offer"; readonly offerId: string }
-  | { readonly kind: "job" }
-  | { readonly kind: "activity" }
-  | { readonly kind: "subscription" }
-  | { readonly kind: "vehicle" }
-  | { readonly kind: "documents" }
-  | { readonly kind: "support" }
-  | { readonly kind: "deductionTrace" }
-  | { readonly kind: "account" }
-  | { readonly kind: "summary"; readonly orderId: string }
-  | { readonly kind: "placeholder" };
+const subscribeToOfferUpdates = (onUpdate: () => void) =>
+  subscribeOffersChannel(
+    {
+      transport: productionOffersTransport,
+      sessions: productionOffersSessionReader,
+      baseUrl: productionOffersBaseUrl(),
+    },
+    { onUpdate },
+  ).disconnect;
 
 export default function DriverRoot({ language, onLanguageChanged, entry }: LanguageSurfaceProps) {
-  // `ADR 0213`: هدفُ الهبوطِ (زرُّ «افتح العرض في وَصْلة» مثلاً) يحدّدُ الشاشةَ الأولى وحدَها.
-  const [view, setView] = useState<DriverView>(() => driverEntryView(entry));
+  // D0 · `ADR 0213`: هدفُ الهبوطِ يحدّدُ الحالَ الأولى وحدَها، وما بعدَها ملاحةُ السائق.
+  const [entryView] = useState(() => driverEntryView(entry));
+  const [flow, dispatch] = useReducer(driverFlowReducer, entryView, initialDriverFlow);
+  const go = useMemo(() => driverFlowHandlers(dispatch), []);
+  const t = miniAppTranslator(language);
+  const view = driverFlowView(flow);
+  const screenKey = currentScreenKey(flow);
 
-  if (view.kind === "offers") {
+  const tabLabels = {
+    offers: t("driver.tabs.offers"),
+    job: t("driver.tabs.job"),
+    earnings: t("driver.tabs.earnings"),
+    account: t("driver.tabs.account"),
+  } satisfies Record<(typeof ROOT_TABS.driver)[number], string>;
+
+  if (view.screen === "flow") {
     return (
-      <>
-        {/* بثُّ الموقعِ (`F3-04`) في **جذرِ السطحِ** لا في شاشةٍ: سائقٌ متاحٌ يبثُّ
-            وهوَ في اللوحِ، وسائقٌ في رحلةٍ يبثُّ ولو عادَ إلى اللوحِ. ولو رُكِّبَ
-            في شاشةِ المَهمّةِ لَانقطعَ البثُّ بمجرَّدِ خروجِه منها — وهوَ عطبٌ
-            صامتٌ يجعلُ سائقاً يعملُ ولا يُرى موضعُه. */}
-        <LocationBroadcast />
-        <OffersScreen
-          onOpenOffer={(offerId) => setView({ kind: "offer", offerId })}
-          onOpenJob={() => setView({ kind: "job" })}
-          onOpenActivity={() => setView({ kind: "activity" })}
-          onOpenSubscription={() => setView({ kind: "subscription" })}
-          onOpenSupport={() => setView({ kind: "support" })}
-          onOpenAccount={() => setView({ kind: "account" })}
-          onBack={() => setView({ kind: "documents" })}
-          subscribeToOfferUpdates={(onUpdate) =>
-            subscribeOffersChannel(
-              {
-                transport: productionOffersTransport,
-                sessions: productionOffersSessionReader,
-                baseUrl: productionOffersBaseUrl(),
-              },
-              { onUpdate },
-            ).disconnect
-          }
-        />
-      </>
+      <ScreenFrame
+        mode="flow"
+        title={t(DRIVER_TITLE_KEY[view.flow.kind])}
+        back={{ label: t("driver.nav.back"), onBack: go.back }}
+      >
+        <ScreenTransition screenKey={screenKey} motion={flow.motion}>
+          {renderFlow(view.flow)}
+        </ScreenTransition>
+      </ScreenFrame>
     );
-  }
-
-  if (view.kind === "offer") {
-    return (
-      <OfferDetailScreen
-        offerId={view.offerId}
-        onBack={() => setView({ kind: "offers" })}
-        // القبولُ يفتحُ شاشةَ المَهمّةِ (`F3-03`)، وهيَ **تقرأُ الحالَ من
-        // القاعدةِ** ولا تُصدِّقُ جوابَ القبولِ حالاً مُقيماً: مُعرِّفُ الطلبِ لا
-        // يُحمَلُ في الحالةِ لأنَّ المَهمّةَ النشطةَ تُقرأُ بالرمزِ الموقَّعِ وحدَه.
-        onAccepted={() => setView({ kind: "job" })}
-      />
-    );
-  }
-
-  if (view.kind === "job") {
-    return (
-      <>
-        <LocationBroadcast />
-        <JobScreen
-          onBack={() => setView({ kind: "offers" })}
-          onCompleted={(orderId) => setView({ kind: "summary", orderId })}
-        />
-      </>
-    );
-  }
-
-  if (view.kind === "activity") {
-    return <ActivityScreen onBack={() => setView({ kind: "offers" })} />;
-  }
-
-  if (view.kind === "subscription") {
-    return <SubscriptionScreen onBack={() => setView({ kind: "offers" })} />;
-  }
-
-  if (view.kind === "vehicle") {
-    return <VehicleScreen onBack={() => setView({ kind: "offers" })} />;
-  }
-
-  if (view.kind === "support") {
-    // **لا `orderId` من اللوحِ**: شكوى «راكبٌ مسيءٌ» تُفتَحُ من رحلةٍ بعينِها
-    // (مَهمّةٌ أو سجلُّ نشاطٍ)، ولوحُ العروضِ ليسَ رحلةً. والشاشةُ تقولُ ذلكَ
-    // نصّاً لمَن اختارَ الصنفَ ههنا ولا تعرضُ حقلَ معرّفٍ يُملأُ بيدٍ.
-    return (
-      <DriverSupportScreen
-        onBack={() => setView({ kind: "offers" })}
-        onOpenDeductionTrace={() => setView({ kind: "deductionTrace" })}
-      />
-    );
-  }
-
-  if (view.kind === "deductionTrace") {
-    return <DeductionTraceScreen language={language} onBack={() => setView({ kind: "support" })} />;
-  }
-
-  if (view.kind === "account") {
-    // **المدخلُ الثاني للدعمِ** من ههنا كما أعلنَ رأسُ هذا المِلفِّ أنَّه الموضعُ
-    // الطبيعيُّ — والأوّلُ في اللوحِ باقٍ: مَن خُصِمَ منه مبلغٌ يشكو من موضعِ
-    // الضررِ، ومَن جاءَ يسألُ عن بيانتِه يشكو من حيثُ سألَ.
-    return (
-      <AccountScreen
-        language={language}
-        {...(onLanguageChanged ? { onLanguageChanged } : {})}
-        onBack={() => setView({ kind: "offers" })}
-        onOpenSupport={() => setView({ kind: "support" })}
-      />
-    );
-  }
-
-  if (view.kind === "documents") {
-    return (
-      <DocumentsScreen
-        capturePhoto={capturePhotoWithInput}
-        onBack={() => setView({ kind: "placeholder" })}
-      />
-    );
-  }
-
-  if (view.kind === "summary") {
-    return <DriverRideSummaryScreen orderId={view.orderId} />;
   }
 
   return (
-    <section aria-labelledby="driver-root-title">
-      <h1 id="driver-root-title" style={{ margin: 0, fontSize: "1.5rem" }}>
-        وَصْلة
-      </h1>
-      {/* `F1-07` — `UX-5`: حالةُ الفراغِ تُقال صراحةً ولا تُترَك بياضاً يُقرأ عطلاً. */}
-      <EmptyState
-        title="لا شيء يُعرَض بعد"
-        body="شاشاتُ العملِ بنودُ F3، وهذا السطحُ فارغٌ عن قصدٍ. ووثائقُك تُدار في شاشةِ الوثائقِ، وعروضُك في لوحِ العروضِ."
-      />
-      <button type="button" className="dd__back" onClick={() => setView({ kind: "documents" })}>
-        وثائقي
-      </button>
-      <button type="button" className="dof__back" onClick={() => setView({ kind: "offers" })}>
-        عروضي
-      </button>
-      <button type="button" className="dveh__nav" onClick={() => setView({ kind: "vehicle" })}>
-        مركبتي
-      </button>
-    </section>
+    <>
+      {/* D0 · `F3-04`: الهيكلُ وبثُّ الموقعِ في جذرَي العروضِ والمَهمّةِ — حالُ السائقِ لا حالُ شاشة. */}
+      {broadcastsLocation(view) ? <LocationBroadcast language={language} /> : null}
+      <ScreenFrame
+        mode="root"
+        title={t(DRIVER_TITLE_KEY[view.tab])}
+        tabs={
+          <RootTabBar
+            surface="driver"
+            label={t("driver.tabs.navigation")}
+            labels={tabLabels}
+            active={flow.tab}
+            onSelect={go.selectTab}
+          />
+        }
+      >
+        <ScreenTransition screenKey={screenKey} motion={flow.motion}>
+          {renderRoot(view.tab)}
+        </ScreenTransition>
+      </ScreenFrame>
+    </>
   );
+
+  function renderRoot(tab: DriverRootTab): ReactNode {
+    switch (tab) {
+      case "offers":
+        // D1–D2: لوحُ العروضِ وبطاقاتُه بمؤقّتِ CSS. «مهمّتي» و«أرباحي» و«حسابي» تبويباتٌ فلا تُكرَّرُ أزراراً ههنا.
+        return (
+          <OffersScreen
+            language={language}
+            showTitle={false}
+            onOpenOffer={go.openOffer}
+            onOpenDocuments={go.openDocuments}
+            onOpenSubscription={go.openSubscription}
+            onOpenSupport={go.openSupport}
+            subscribeToOfferUpdates={subscribeToOfferUpdates}
+          />
+        );
+      case "job":
+        // D4: المَهمّةُ الحاليّة، وفيها تعذّرُ الإكمالِ (D5) والاستغاثةُ (D7 · SOS)؛ اكتمالُها يفتحُ D6.
+        return <JobScreen language={language} showTitle={false} onCompleted={go.jobCompleted} />;
+      case "earnings":
+        // D10: الحصيلةُ والنشاط — عددٌ وساعاتٌ ومقامات، ولا مبلغَ مُختلَق.
+        return <ActivityScreen language={language} showTitle={false} />;
+      case "account":
+        // D12: الحسابُ وحذفُه (`AccountRights`) ومداخلُ ملفِّ العمل.
+        return (
+          <AccountScreen
+            language={language}
+            showTitle={false}
+            {...(onLanguageChanged ? { onLanguageChanged } : {})}
+            onOpenSupport={go.openSupport}
+            onOpenDocuments={() => go.openDocuments()}
+            onOpenVehicle={go.openVehicle}
+            onOpenSubscription={go.openSubscription}
+          />
+        );
+    }
+  }
+
+  function renderFlow(screen: DriverFlowScreen): ReactNode {
+    switch (screen.kind) {
+      case "offer":
+        // D3: تفاصيلُ العرضِ ومؤقّتُه وقرارُه. القبولُ إلى «مهمّتي»، والرفضُ رجوعٌ إلى اللوح.
+        return (
+          <OfferDetailScreen
+            offerId={screen.offerId}
+            language={language}
+            showTitle={false}
+            onAccepted={go.offerAccepted}
+            onRejected={go.offerRejected}
+          />
+        );
+      case "summary":
+        // D6: ملخّصُ رحلةِ السائقِ وتقييمُ الراكب.
+        return (
+          <DriverRideSummaryScreen
+            orderId={screen.orderId}
+            initialLanguage={language}
+            showTitle={false}
+          />
+        );
+      case "documents":
+        // D8: الوثائقُ وخطواتُ رفعِها الحقيقيّة.
+        return (
+          <DocumentsScreen
+            language={language}
+            showTitle={false}
+            capturePhoto={capturePhotoWithInput}
+            focusDocType={screen.focusDocType}
+          />
+        );
+      case "vehicle":
+        // D9: المركبة.
+        return <VehicleScreen language={language} showTitle={false} />;
+      case "subscription":
+        // D11: الاشتراكُ والفاتورة.
+        return <SubscriptionScreen language={language} showTitle={false} />;
+      case "support":
+        // D13: دعمُ السائق، ومنه كشفُ الخصوم.
+        // **لا `orderId` من اللوحِ أو الحساب**: شكوى «راكبٌ مسيءٌ» تُفتَحُ من رحلةٍ بعينِها.
+        return (
+          <DriverSupportScreen
+            language={language}
+            showTitle={false}
+            onOpenDeductionTrace={go.openDeductionTrace}
+          />
+        );
+      case "deductionTrace":
+        // D13: كشفُ الخصومِ (من الدعمِ وحدَه).
+        return <DeductionTraceScreen language={language} showTitle={false} />;
+    }
+  }
 }

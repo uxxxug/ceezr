@@ -1367,5 +1367,19 @@
   "rider.quote.offer.label": "Amount you will pay (optional)",
   "rider.quote.offer.placeholder": "e.g. 40",
   "rider.quote.offer.hint": "Shown to the driver on the order card: “Rider offers: 40 SAR”. Leave empty to show “negotiable”. The final agreement is between you and the driver; Waslah collects nothing.",
-  "rider.quote.offer.error": "Enter a whole amount in SAR from 1 to 10000, or leave it empty."
+  "rider.quote.offer.error": "Enter a whole amount in SAR from 1 to 10000, or leave it empty.",
+  "driver.tabs.offers": "Offers",
+  "driver.tabs.job": "My job",
+  "driver.tabs.earnings": "My earnings",
+  "driver.tabs.account": "Account",
+  "driver.tabs.navigation": "Main navigation",
+  "driver.nav.back": "Back",
+  "driver.offers.timer.label": "Offer time",
+  "driver.offers.timer.leftAtRender": "Left when shown: {value}",
+  "driver.documents.step.position": "Step {current} of {total}",
+  "driver.summary.retry": "Try again",
+  "driver.account.work.label": "Work profile",
+  "driver.account.work.documents": "My documents",
+  "driver.account.work.vehicle": "My vehicle",
+  "driver.account.work.subscription": "My subscription"
 }

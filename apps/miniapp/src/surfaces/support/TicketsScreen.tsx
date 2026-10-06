@@ -75,6 +75,8 @@ export interface TicketsScreenProps {
    */
   readonly language?: MiniAppLanguage | undefined;
   readonly onBack?: (() => void) | undefined;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   /**
    * رحلةٌ جاءَ منها صاحبُ الحسابِ — **تُثبَّتُ ولا تُكتَبُ بيدٍ**: حقلُ معرّفٍ
    * يُملأُ يدويّاً بابُ خطأٍ لا بابُ دعمٍ.
@@ -120,6 +122,7 @@ export function TicketsScreen({
   readTickets,
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   orderId = null,
   initialCategory = null,
   header,
@@ -185,10 +188,12 @@ export function TicketsScreen({
   const submittable = view.canSubmit({ category, message, orderId, busy });
 
   return (
-    <section className="sup" aria-labelledby="support-title">
-      <h1 className="sup__title" id="support-title">
-        {t(`${prefix}title`)}
-      </h1>
+    <section className="sup" aria-labelledby={showTitle ? "support-title" : undefined}>
+      {showTitle ? (
+        <h1 className="sup__title" id="support-title">
+          {t(`${prefix}title`)}
+        </h1>
+      ) : null}
       {onBack !== undefined && (
         <button type="button" className="sys__action sup__back" onClick={onBack}>
           {t(`${prefix}back`)}
