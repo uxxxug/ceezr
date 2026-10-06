@@ -42,7 +42,7 @@
 - **إسنادُ R0–R15 وD0–D14 جزئيّ.** أُسنِدَ منها ما نُفِّذ: **R0–R5** في ADR 0235 (UI-3)، و**D0–D14** في
   ADR 0236 (UI-4) **من المصدرِ الأصليِّ (PDF v2.0) بمطابقةٍ مباشرة** — Canonical Source Mapping، و**R6–R15**
   من المصدرِ الأصليِّ في ADR 0237 (UI-3 / PR 4): R6–R10 نُفِّذَت في PR 4 (مدموجٌ: #419)، وR11–R15 في PR 5
-  (ADR 0238) — على فرعِ PR 5 حتّى يُدمَج.
+  (ADR 0238) — مدموجٌ (#420).
 
   | R | التعريفُ الكانونيّ | ملفُّ السطح (`miniapp/rider`) | الحالة |
   |---|---|---|---|
@@ -51,11 +51,11 @@
   | R8 | مشاركة الرحلة | `share/RideShareCard.tsx` (داخلَ R7) | PR 4 · مدموج (#419) |
   | R9 | SOS | `sos/SosScreen.tsx` · `sos/SosCard.tsx` · `sos/SosEntry.tsx` | PR 4 · مدموج (#419) |
   | R10 | ملخص الرحلة والتقييم | `summary/RideSummaryScreen.tsx` | PR 4 · مدموج (#419) |
-  | R11 | سجل الرحلات وتفاصيلها | `history/RideHistoryScreen.tsx` · `history/RideDetailScreen.tsx` | PR 5 (تبويبُ «رحلاتي» + تدفّقُ التفاصيل) |
-  | R12 | الإشعارات | `notifications/NotificationsScreen.tsx` · `settings/NotificationPrefsPanel.tsx` [B] | PR 5 |
-  | R13 | حسابي | `account/AccountScreen.tsx` · `settings/EmergencyContactPanel.tsx` [B] · `settings/SavedPlacesPanel.tsx` [B] | PR 5 (تبويبُ «حسابي») |
-  | R14 | الخصوصية والشروط | `privacy/PrivacyScreen.tsx` | PR 5 |
-  | R15 | الدعم والتذاكر والمفقودات وFAQ | `support/SupportScreen.tsx` · `faq/FaqScreen.tsx` · `settings/TicketThread.tsx` [B] | PR 5 (تبويبُ «الدعم») |
+  | R11 | سجل الرحلات وتفاصيلها | `history/RideHistoryScreen.tsx` · `history/RideDetailScreen.tsx` | PR 5 · مدموج (#420) |
+  | R12 | الإشعارات | `notifications/NotificationsScreen.tsx` · `settings/NotificationPrefsPanel.tsx` [B] | PR 5 · مدموج (#420) |
+  | R13 | حسابي | `account/AccountScreen.tsx` · `settings/EmergencyContactPanel.tsx` [B] · `settings/SavedPlacesPanel.tsx` [B] | PR 5 · مدموج (#420) |
+  | R14 | الخصوصية والشروط | `privacy/PrivacyScreen.tsx` | PR 5 · مدموج (#420) |
+  | R15 | الدعم والتذاكر والمفقودات وFAQ | `support/SupportScreen.tsx` · `faq/FaqScreen.tsx` · `settings/TicketThread.tsx` [B] | PR 5 · مدموج (#420) |
 
   | D | التعريفُ الكانونيّ | ملفُّ السطح (`miniapp/driver` ما لم يُذكَر) |
   |---|---|---|

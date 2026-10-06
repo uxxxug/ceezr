@@ -118,6 +118,16 @@
       "docs/UI_SURFACE_INVENTORY.md"
     ]
   },
-  "status": "منفّذ على فرع ui-3-pr5-rider-r11-r15 — PR مفتوح غير مدموج. UI-3 جارية لم يُعلَن إغلاقها؛ UI-5 لم تبدأ.",
-  "ci_regression_fixed": "أوّلُ تشغيلٍ لـCI على الـPR (run 37453236821) أسقطَ «Slow 4G rider surface»: surface-rendered = 2068 ms > 2000 ms (main: 1988 ms). السببُ من هذا الـPR: نمطُ rider-home طابقَ rider/settings/ فدخلَت لوحاتُ [B] المسارَ الحرجَ (rider-home 17.4→29.3 KB مضغوطة). الإصلاح: rider/settings/ مؤجَّلةٌ في حزمةِ account (vite.config.ts) ومستثناةٌ في isDeferredRiderModule (حارسُ المسارِ الأوّل) — rider-home بعدَه 18.0 KB."
+  "status": "مدموج في main — #420 (squash؛ PR HEAD `92390c76d9cd4dce5ddec933a22b6b0b08f65388` → merge commit `ac55c0aa81043de3b85b2d9db7750cc57f8dff44` بتاريخ 2026-10-06T12:35:17Z)؛ فحوصُ PR 8/8 success؛ Main CI run 37464334979 = 7/7 success؛ Roadmap freshness run 37464335174 = success. UI-3 مغلقة (Work Packet `ui-3-closure`)؛ UI-5 لم تبدأ.",
+  "ci_regression_fixed": "أوّلُ تشغيلٍ لـCI على الـPR (run 37453236821) أسقطَ «Slow 4G rider surface»: surface-rendered = 2068 ms > 2000 ms (main: 1988 ms). السببُ من هذا الـPR: نمطُ rider-home طابقَ rider/settings/ فدخلَت لوحاتُ [B] المسارَ الحرجَ (rider-home 17.4→29.3 KB مضغوطة). الإصلاح: rider/settings/ مؤجَّلةٌ في حزمةِ account (vite.config.ts) ومستثناةٌ في isDeferredRiderModule (حارسُ المسارِ الأوّل) — rider-home بعدَه 18.0 KB.",
+  "post_merge": {
+    "pr": "#420",
+    "pr_head": "92390c76d9cd4dce5ddec933a22b6b0b08f65388",
+    "merge_commit": "ac55c0aa81043de3b85b2d9db7750cc57f8dff44",
+    "merged_at": "2026-10-06T12:35:17Z",
+    "pr_checks": "8/8 success (verify · roadmap · PostgreSQL · Redis · متصفّحٌ حقيقيٌّ أوّلُ رسمٍ · Slow 4G/3G · F5-06 · F9-03)",
+    "main_ci_run": "37464334979 — success (7/7)",
+    "roadmap_freshness_run": "37464335174 — success",
+    "closure": "UI-3 أُغلقت رسميًّا في Work Packet `ui-3-closure`"
+  }
 }
