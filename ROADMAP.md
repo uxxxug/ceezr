@@ -18,6 +18,11 @@
 > إعدادات البناء/الـCI، وتوسيع تصنيف documentation ليشمل ملفات .md في جذر
 > المستودع مثل README.md. (إصلاح نطاق CI + قراءة manifest من diff كامل PR)
 
+> **إغلاقُ UI-1 (2026-10-06 · Work Packet `ui-1-closure` — توثيقيٌّ فقط):** مرحلة **UI-1
+> (Design System) = مكتملة / Closed** بـPR 0 (#409، `0a726b0a`) وPR 1 (#410، `4765d783`).
+> معالجةُ SEC-15 (#411، `61d6b7ee`) جانبيّةٌ ولا تُعيدُ فتحَ UI-1؛ CI على `61d6b7ee` = success.
+> **UI-2 (Shell & Navigation — PR 2) لم تبدأ.** الدليلُ في `docs/SYSTEM_STATE.md` وADR 0233.
+>
 > **SEC-15 (2026-10-06 · Work Packet `sec-15-source-map-js-1-2-2`) — خارجَ UI-1:** رُفِعَت
 > `source-map-js` العابرةُ من 1.2.1 إلى 1.2.2 في `bun.lock` وحدَه لعلاجِ `GHSA-68fv-2mgg-jv7q`
 > التي أسقطَت SEC-15 على `main`. تحديثٌ لا إقرار، ولا تغييرَ في UI ولا في مسارِ UI-1.
@@ -46,7 +51,7 @@
 > المخاطر القائمة مسجّلة في `docs/SYSTEM_STATE.md`.
 
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-10-06 (SEC-15 fix — Work Packet `sec-15-source-map-js-1-2-2`, source-map-js 1.2.1→1.2.2; previously: UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
+**Last updated:** 2026-10-06 (UI-1 closed — Work Packet `ui-1-closure`; previously: SEC-15 fix — Work Packet `sec-15-source-map-js-1-2-2`, source-map-js 1.2.1→1.2.2; previously: UI-1 / PR 1 + hardening before merge — Work Packet `ui-1-pr1-design-system`; previously: UI-1 / PR 0 — Work Packet `ui-1-pr0-foundations`; previously 2026-10-05: UI-0 closed — Work Packet `ui-0-closure`; previously: UI-0: lint fix + bun:test import for state-sync tests)
 **Last milestone:** `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
