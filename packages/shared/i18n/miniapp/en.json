@@ -1518,5 +1518,12 @@
   "truth.age.unknown": "The age of this reading is unknown, so no unmeasured number is shown.",
   "truth.source.serverRecord": "Source: the ride record on the WASLA server.",
   "truth.source.serverAge": "Source: age measured by the WASLA server, not your device clock.",
-  "truth.source.routingEngine": "Source: the routing engine."
+  "truth.source.routingEngine": "Source: the routing engine.",
+  "truth.source.serverClock": "Source: the WASLA server clock.",
+  "truth.source.observedTrips": "Source: completed trips observed in your city.",
+  "rider.active.eta.band.measured": "Observed range: {low}–{high} minutes; arrival fell within it in {coverage}% of the last {samples} trips in your city.",
+  "rider.active.eta.band.insufficient": "No range yet: {samples} of the {required} required trips observed in your city.",
+  "rider.active.eta.band.unavailable": "The estimate range is unavailable right now.",
+  "rider.active.observed.at": "This status was read at {time}.",
+  "rider.active.observed.unknown": "The time this status was read is unknown."
 }

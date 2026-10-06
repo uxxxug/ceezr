@@ -1,0 +1,68 @@
+{
+  "id": "ui-8-contract-gaps-closure",
+  "goal": "إغلاقُ فجوتَي العقد [C] المسجّلتَين في UI-8 (ADR 0242) بقرارِ المالك 2026-10-06: [C1] لحظةُ قراءةِ لقطةِ الرحلةِ بساعةِ الخادم، و[C2] مدى التنبؤِ الصادق (§10.8) مقيساً من رحلاتٍ منتهيةٍ في المدينة لا مفترَضاً.",
+  "canonical_source": [
+    "قرارُ المالك 2026-10-06: «صحّح فجوتي العقد المسجلتين في UI-8»",
+    "docs/adr/0242-ui-8-truth-state-system.md (خارجَ النطاق: فجوتا [C])",
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §§9، 10.5، 10.8"
+  ],
+  "implementation": [
+    "supabase/migrations/20261006200000_ui_8_eta_error_band.sql",
+    "packages/domain/eta/band.ts",
+    "packages/application/tracking/estimate-arrival.ts",
+    "packages/application/transport/read-active-ride.ts",
+    "packages/infrastructure/tracking/eta-band-store.ts",
+    "packages/infrastructure/db/schema-contract.ts",
+    "apps/gateway/src/index.ts",
+    "apps/gateway/src/routes/rides.ts",
+    "apps/miniapp/src/surfaces/rider/active/active-ride-contract.ts",
+    "apps/miniapp/src/surfaces/rider/active/active-ride-view.ts",
+    "apps/miniapp/src/surfaces/rider/active/ActiveRideScreen.tsx",
+    "apps/miniapp/src/system/truth.ts",
+    "apps/miniapp/src/styles/global.css",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "packages/shared/config/retention-policy.ts",
+    "packages/shared/config/erasure-policy.ts",
+    "scripts/lib/wasla-boundary-registry.ts",
+    "scripts/lib/wasla-migration-matrix.ts",
+    "scripts/lib/skip-registry.ts",
+    "apps/miniapp/src/system/truth.test.tsx",
+    "tests/unit/eta-band.test.ts",
+    "tests/unit/active-ride-route.test.ts",
+    "tests/integration/eta-error-band.test.ts",
+    "tests/unit/check-migration-matrix.test.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0243-ui-8-contract-gaps-closure.md",
+    "docs/adr/0242-ui-8-truth-state-system.md",
+    "docs/work-packets/ui-8-truth-state-system.json",
+    "docs/UI_UX_RECONCILIATION_REPORT.md",
+    "docs/wasla/boundary-audit.md",
+    "docs/migration/matrix.md"
+  ],
+  "no_other_affected_docs_reason": "docs/UI_SURFACE_INVENTORY.md لم يتغيّر: لا سطحَ أُضيف أو حُذف (سطرانِ جديدانِ داخلَ R7 القائم). boundary-audit.md وmatrix.md مولَّدتانِ بـ--write من السجلّين. لا endpoint جديد: الحقلانِ إضافةٌ على GET /v1/rides/:id القائم.",
+  "decision": "C1: observedAt (ISO بساعةِ الخادم) = اللحظةُ نفسُها التي قِيسَ بها elapsedSeconds؛ اختياريٌّ في عقدِ العميل وغيابُه «غير معروف» لا ساعةَ الجهاز. C2: eta_observations + record_eta_and_read_band تحفظُ أوّلَ تقديرٍ لكلِّ ساقٍ وتُعيدُ م10/م90 لنسبةِ (الفعليّ ÷ المقدَّر) في المدينة؛ band = MEASURED (×[م10،م90]، تغطية 80٪) عند ≥30 ساقاً منتهية، وإلّا INSUFFICIENT{samples, required:30}، أو UNAVAILABLE بسببه. التقديرُ المفردُ باقٍ — إضافةٌ لا استبدال. التفصيلُ في ADR 0243.",
+  "tests": [
+    "tests/unit/eta-band.test.ts (جديد: النطاق · قارئُ الغلاف · etaBandLine · observedLine)",
+    "tests/unit/active-ride-route.test.ts (+5: observedAt · MEASURED · INSUFFICIENT · STORE_DOWN · لا نداءَ بلا تقدير)",
+    "tests/integration/eta-error-band.test.ts (جديد · 5 حالات على PostgreSQL حقيقيّ — تُتخطّى محلّياً وتُشغَّلُ في CI)",
+    "apps/miniapp/src/system/truth.test.tsx (الحارسُ الساكنُ يشترطُ server_clock وobserved_trips في ActiveRideScreen)",
+    "bun test كاملًا · lint · typecheck · build:miniapp · check-performance-budget · check-migration-safety · جميعُ scripts/check-* في CI"
+  ],
+  "evidence": "محلّياً: lint · typecheck · bun test كاملًا (7075 ناجحاً · 0 فاشلاً · 1632 متجاوَزاً) · build:miniapp · check-performance-budget (الحملُ الأوّل 95.0/180 KB · shell 24.9 KB · طلبات 6/6) · check-migration-safety · check-schema-contract · check-boundary-audit · check-migration-matrix · جميعُ فحوصِ scripts/check-* في CI · check-state-sync · check-roadmap. ثم CI على الـPR (ومنه تكاملُ PostgreSQL).",
+  "contract_gaps": [],
+  "constraints": [
+    "تغييرُ العقدِ إضافيٌّ متوافقٌ رجعيّاً — لا حقلَ أُزيل أو أُعيدَت تسميتُه",
+    "لا رقمَ مدىً مفترَضٌ أو مكتوبٌ باليد: دونَ 30 ساقاً منتهيةً لا مدى",
+    "لا setInterval ولا استقصاء ولا مؤقّت ولا مكتبة",
+    "لا تخفيفَ أمنيّ: الدالّةُ لـservice_role وحدَه، والجدولُ تحتَ RLS بلا صلاحيّةٍ لـanon/authenticated",
+    "الهجرةُ expand وتُعادُ بأمان (if not exists · on conflict · create or replace)"
+  ],
+  "limitations": "يُحفَظُ أوّلُ تقديرٍ لكلِّ ساقٍ فقط ويُطبَّقُ المدى على التقديرِ الحاليّ (افتراضٌ معلَن). «الوصول» = ضغطُ السائقِ «وصلت». القراءةُ GET تكتبُ صفّاً عندَ أوّلِ تقديرٍ لكلِّ ساق (حدٌّ أقصى صفّانِ لكلِّ طلب). لا بياناتِ إنتاجٍ اليوم: كلُّ مدينةٍ تبدأ «لا مدى بعد: 0 من 30». اختبارُ التكاملِ لم يُشغَّل محلّياً (لا PostgreSQL محلّي). لا لقطةَ متصفّحٍ ولا قارئَ شاشةٍ حيّ.",
+  "status": "مُنفَّذٌ في PR مفتوح — لم يُدمَج. الفجوتانِ مُعالَجتانِ في الشِّفرة ولا تُعَدّانِ مغلقتَين قبلَ الدمج."
+}

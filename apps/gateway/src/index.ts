@@ -104,6 +104,7 @@ import {
 } from "../../../packages/infrastructure/storage/signed-upload.ts";
 import { PostgresDriverSupportStore } from "../../../packages/infrastructure/support/driver-support-store.ts";
 import { PostgresRiderSupportStore } from "../../../packages/infrastructure/support/rider-support-store.ts";
+import { createEtaBandStore } from "../../../packages/infrastructure/tracking/eta-band-store.ts";
 import { createActiveRideReader } from "../../../packages/infrastructure/transport/active-ride-store.ts";
 import {
   createRideDetailReader,
@@ -864,6 +865,8 @@ const rides =
           rides: createActiveRideReader(container.sql),
           now: () => new Date(),
           routing: { routing: container.routing },
+          // ADR 0243: مقياسُ خطأِ التقديرِ المرصود — مدى التنبؤِ الصادق.
+          etaBands: createEtaBandStore(container.sql),
         },
         cancel: {
           sessions: createRevocableSessionReader(

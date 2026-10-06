@@ -334,7 +334,8 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
     const read = result.value;
     if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
 
-    const { state, phase, position, eta, cancelPolicy, elapsedSeconds } = read.view;
+    const { state, phase, position, eta, etaBand, cancelPolicy, elapsedSeconds, observedAtMs } =
+      read.view;
     const driver = state.driver;
     return c.json({
       ok: true,
@@ -352,6 +353,8 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       completedAt:
         state.completedAtMs === null ? null : new Date(state.completedAtMs).toISOString(),
       elapsedSeconds,
+      // ADR 0243: لحظةُ القراءةِ بساعةِ الخادم — اللحظةُ نفسُها التي قِيسَ بها `elapsedSeconds`.
+      observedAt: new Date(observedAtMs).toISOString(),
       cancelPolicy,
       driver:
         driver === null
@@ -385,7 +388,16 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
         eta === null
           ? null
           : eta.kind === "ROUTED"
-            ? { kind: "ROUTED" as const, minutes: eta.minutes, source: eta.source }
+            ? {
+                kind: "ROUTED" as const,
+                minutes: eta.minutes,
+                source: eta.source,
+                // ADR 0243: مدى الخطأِ المرصودِ في المدينة، أو سببُ غيابِه — لا مدىً مفترَض.
+                band: etaBand ?? {
+                  kind: "UNAVAILABLE" as const,
+                  reason: "NOT_CONFIGURED" as const,
+                },
+              }
             : { kind: "UNAVAILABLE" as const, reason: eta.reason },
     });
   });

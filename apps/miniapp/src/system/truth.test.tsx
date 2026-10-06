@@ -137,6 +137,9 @@ describe("UI-8 · حارسٌ ساكن: لا عمرَ يمرُّ إلى دالّ�
       "positionLine(",
       "server_age",
       "routing_engine",
+      // ADR 0243: لحظةُ القراءةِ بساعةِ الخادم، ومدى التقديرِ من رحلاتٍ مرصودة.
+      "server_clock",
+      "observed_trips",
     ],
     "../surfaces/rider/sos/SosCard.tsx": ["incidentAgeText(", "server_age"],
     "../surfaces/rider/share/RideShareCard.tsx": ["previewLine(", "server_age"],

@@ -32,10 +32,13 @@
  * طلب صراحةً وينتظر جواباً، فالنداءُ واحدٌ لكلّ طلب.
  */
 
+import type { EtaErrorStats, EtaLeg } from "../../domain/eta/band.ts";
 import type { EtaVerdict } from "../../domain/eta/index.ts";
 import { estimateEta, etaNoInput, etaUnavailable } from "../../domain/eta/index.ts";
 import type { Coordinates } from "../../domain/geo/value-objects.ts";
 import type { LatLng, RoutingErrorKind, RoutingProvider } from "../../maps/core/index.ts";
+import type { Result } from "../../shared/result/index.ts";
+import type { PortFailureError } from "../ports/index.ts";
 
 /**
  * الجسرُ الوحيد بين شكل المجال وشكل الخرائط.
@@ -124,4 +127,17 @@ export async function estimateArrival(
       ? { origin: snap.originMeters, destination: snap.destinationMeters }
       : null,
   });
+}
+
+/**
+ * منفذُ مقياسِ خطأِ التقدير (ADR 0243) — يحفظُ أوّلَ تقديرٍ عُرِضَ لكلِّ ساقٍ ويُعيدُ إحصاءَ
+ * الخطأِ المرصودِ في المدينة، في نداءٍ واحد. يُنفِّذُه
+ * `packages/infrastructure/tracking/eta-band-store.ts`.
+ */
+export interface EtaBandStore {
+  recordAndRead(input: {
+    readonly orderId: string;
+    readonly leg: EtaLeg;
+    readonly predictedSeconds: number;
+  }): Promise<Result<EtaErrorStats, PortFailureError>>;
 }

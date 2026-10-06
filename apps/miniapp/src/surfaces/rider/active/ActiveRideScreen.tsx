@@ -108,8 +108,10 @@ import {
   driverIdentityLine,
   elapsedSecondsFor,
   elapsedText,
+  etaBandLine,
   etaLine,
   isRetryableRideError,
+  observedLine,
   positionLine,
   rideStatusKey,
   showsCancelButton,
@@ -173,6 +175,15 @@ async function screenFor(thrown: unknown): Promise<ScreenState | null> {
   const online = deviceOnline();
   const probe = shouldProbeReachability(failure, online) ? await probeReachability() : "not_probed";
   return classifyFailure(failure, probe, online);
+}
+
+/** منطقةُ الجهازِ لتنسيقِ لحظةِ الخادم — التنسيقُ عرضٌ، واللحظةُ نفسُها من الخادم. */
+function deviceTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+  } catch {
+    return "UTC";
+  }
 }
 
 export function ActiveRideScreen({
@@ -407,6 +418,10 @@ export function ActiveRideScreen({
       !livePosition.show ||
       truthAge(livePosition.ageSeconds).kind === "measured";
     const eta = etaLine(view.eta);
+    /** ADR 0243: مدى التقديرِ المرصود — للمحسوبِ وحدَه، والغائبُ يُقالُ بسببِه. */
+    const band = view.eta?.kind === "ROUTED" ? etaBandLine(view.eta.band) : null;
+    /** ADR 0243: لحظةُ القراءةِ بساعةِ الخادم — لا ساعةَ الجهازِ بديلاً. */
+    const observed = observedLine(view.observedAt, language, deviceTimeZone());
     const driver = view.driver === null ? null : driverIdentityLine(view.driver);
 
     return (
@@ -483,6 +498,38 @@ export function ActiveRideScreen({
             ) : null}
           </p>
         )}
+
+        {band !== null && (
+          <p className="ar__eta-band">
+            {band.kind === "MEASURED"
+              ? t(band.key)
+                  .replace("{low}", String(band.lowMinutes))
+                  .replace("{high}", String(band.highMinutes))
+                  .replace("{coverage}", String(band.coveragePercent))
+                  .replace("{samples}", String(band.samples))
+              : band.kind === "INSUFFICIENT"
+                ? t(band.key)
+                    .replace("{samples}", String(band.samples))
+                    .replace("{required}", String(band.required))
+                : t(band.key)}
+            {band.kind === "UNAVAILABLE" ? null : (
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.observed_trips)}</small>
+            )}
+          </p>
+        )}
+
+        <p className="ar__observed">
+          {observed.kind === "KNOWN" ? (
+            <>
+              {t(observed.key).split("{time}")[0]}
+              <time dateTime={observed.iso}>{observed.time}</time>
+              {t(observed.key).split("{time}")[1] ?? ""}
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_clock)}</small>
+            </>
+          ) : (
+            t(observed.key)
+          )}
+        </p>
 
         {/* لقطةٌ بثٌّ حيٌّ: يُقالُ ذلكَ نصّاً ويُعطى بابُ سؤالٍ يدويٌّ احتياطيٌّ. */}
         <div className="ar__snapshot" role="status">

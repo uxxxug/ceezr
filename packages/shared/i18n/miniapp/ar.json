@@ -1518,5 +1518,12 @@
   "truth.age.unknown": "عمر هذه القراءة غير معروف، فلا يعرض رقم لم يقس.",
   "truth.source.serverRecord": "المصدر: سجلّ الرحلة في خادم وَصْلة.",
   "truth.source.serverAge": "المصدر: عمر يقيسه خادم وَصْلة، لا ساعة جهازك.",
-  "truth.source.routingEngine": "المصدر: محرّك الطرق."
+  "truth.source.routingEngine": "المصدر: محرّك الطرق.",
+  "truth.source.serverClock": "المصدر: ساعة خادم وَصْلة.",
+  "truth.source.observedTrips": "المصدر: رحلات منتهية رصدت في مدينتك.",
+  "rider.active.eta.band.measured": "المدى المرصود: بين {low} و{high} دقيقة، وقع فيه الوصول في {coverage}٪ من آخر {samples} رحلة في مدينتك.",
+  "rider.active.eta.band.insufficient": "لا مدى بعد: رصدت {samples} رحلة من {required} لازمة في مدينتك.",
+  "rider.active.eta.band.unavailable": "مدى التقدير غير متاح الآن.",
+  "rider.active.observed.at": "قرئت هذه الحالة الساعة {time}.",
+  "rider.active.observed.unknown": "وقت قراءة هذه الحالة غير معروف."
 }

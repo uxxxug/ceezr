@@ -67,14 +67,23 @@ export function truthFreshness(
  * - `server_record`: سجلُّ الرحلةِ في الخادم (طورُها).
  * - `server_age`: عمرٌ يقيسُه الخادمُ (`now() - …` في القاعدة) — لا ساعةَ الجهاز.
  * - `routing_engine`: محرّكُ الطرقِ (OSRM) خلفَ تقديرِ الوصول.
+ * - `server_clock`: ساعةُ الخادمِ لحظةَ القراءة (`observedAt` — ADR 0243).
+ * - `observed_trips`: ساقاتٌ منتهيةٌ رُصِدَت في المدينة (مدى التقدير — ADR 0243).
  */
-export type TruthSource = "server_record" | "server_age" | "routing_engine";
+export type TruthSource =
+  | "server_record"
+  | "server_age"
+  | "routing_engine"
+  | "server_clock"
+  | "observed_trips";
 
 /** مفتاحُ نصِّ كلِّ مصدر — في النواة لأنَّ الاستغاثةَ (النواة) تحملُ ختماً. */
 export const TRUTH_SOURCE_KEYS: Readonly<Record<TruthSource, string>> = {
   server_record: "truth.source.serverRecord",
   server_age: "truth.source.serverAge",
   routing_engine: "truth.source.routingEngine",
+  server_clock: "truth.source.serverClock",
+  observed_trips: "truth.source.observedTrips",
 };
 
 /** ما يُقالُ مكانَ عمرٍ لم يُقَس — جملةٌ لا رقم. */

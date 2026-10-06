@@ -247,6 +247,13 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
       "السائقُ وملفُّه مملوكانِ لـMOVE، ولكنَّ الجدولَ يحملُ عمودَي سمعةٍ (`rating_average` · `rating_count`) يملكُهما CORE ويشيرُ إلى `users` وهي هويّةٌ؛ فيُعادُ ربطُه بمُعرِّفِ هويّةٍ من CORE وتُنزَعُ السمعةُ.",
   },
   {
+    table: "eta_observations",
+    concern: "أوّلُ تقديرِ وصولٍ لكلِّ ساقٍ — مادّةُ مدى التنبؤِ الصادق",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale: "تقديرُ الوصولِ وقياسُ خطئِه جزءٌ من تتبّعِ الرحلةِ الذي يملكُه MOVE (ADR 0243).",
+  },
+  {
     table: "group_memberships",
     concern: "قرارُ بوّابةِ دخولِ قروبِ السائقينَ غيرِ المشتركينَ",
     owner: "MOVE",
