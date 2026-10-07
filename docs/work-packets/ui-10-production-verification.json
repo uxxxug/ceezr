@@ -62,5 +62,5 @@
     "لا إعلانَ Production Ready، ولا نشرَ ولا دمجَ ولا تطبيقَ هجرةٍ على الإنتاج — أفعالُ مالك"
   ],
   "limitations": "الإنتاجُ يشغّلُ بناءً قبلَ UI-1 وقاعدةً بلا هجرتَي UI-8/UI-10 وRedis متدهور — فلا شيءَ من UI-1…UI-10 مُتحقَّقٌ منه على الإنتاج. مضيفُ تيليجرام محاكًى في المتصفّح (لا عميلَ حقيقيّ)، ولا قارئَ شاشةٍ حقيقيّ. الأداءُ مُتحقَّقٌ منه على المضيفِ نفسِه لا «مَقيس» (§1.4)، وهامشُ السطحِ المرسومِ 16ms. لا Docker (verify-container-build.sh لم يُشغَّل). الحافّةُ المحلّيّةُ لا تمرّرُ WebSocket. ألوانُ سمةِ تيليجرامَ الافتراضيّة دونَ AA في 4 مواضع (قرارُ مالك).",
-  "status": "implemented — branch + PR open, not merged, not deployed; production deploy, migration apply, Redis repair and real-Telegram smoke are owner actions."
+  "status": "implemented and merged — PR #430 → main 6c99767ed7cb2cabec722f2f8576d12c045fdae2; not deployed; UI-10 not closed, not Production Ready; production deploy, migration apply, Redis repair and real-Telegram smoke are owner actions."
 }
