@@ -22,9 +22,8 @@
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
-    "docs/adr/0245-ui-10-production-verification-polish.md",
-    "docs/evidence/release/UI-10-20261007.md",
     "docs/UI_UX_RECONCILIATION_REPORT.md",
+    "docs/adr/0245-ui-10-production-verification-polish.md",
     "docs/evidence/archive/ui-10-20261007/browser-matrix-after-summary.txt",
     "docs/evidence/archive/ui-10-20261007/browser-matrix-after.json",
     "docs/evidence/archive/ui-10-20261007/csrf-authorization-runtime.json",
@@ -38,9 +37,11 @@
     "docs/evidence/archive/ui-10-20261007/harness-qa.mjs.txt",
     "docs/evidence/archive/ui-10-20261007/harness-run-gw.sh.txt",
     "docs/evidence/archive/ui-10-20261007/harness-summarize.py.txt",
+    "docs/evidence/archive/ui-10-20261007/integration-runs-summary.txt",
     "docs/evidence/archive/ui-10-20261007/perf-budget-after.txt",
     "docs/evidence/archive/ui-10-20261007/perf-first-paint-after.txt",
-    "docs/evidence/archive/ui-10-20261007/perf-tti-after.txt"
+    "docs/evidence/archive/ui-10-20261007/perf-tti-after.txt",
+    "docs/evidence/release/UI-10-20261007.md"
   ],
   "no_other_affected_docs_reason": "UI_SURFACE_INVENTORY بلا تغيير: لا سطحَ أُضيفَ أو حُذف. لا endpoint جديد ولا تغييرَ في عقودِ API (`GET /v1/me/emergency-contact` يعودُ إلى عقدِه المعلَنِ في DEC-41: 200 بقيمٍ فارغةٍ لمن لا جهةَ له). لا مكتبةَ جديدة، ولا تغييرَ في CSP/CSRF/authorization ولا في رسائلِ تيليجرام. والمخرجاتُ الخامُّ وأدواتُ القياسِ خارجَ المستودعِ محفوظةٌ نصّاً في docs/evidence/archive/ui-10-20261007/.",
   "decision": "تحقّقٌ حيٌّ قبلَ أيِّ إصلاح: مصفوفةُ متصفّحٍ حقيقيّ (7 هويّات × 5 مقاسات × فاتح/داكن = 35 جولةً و115 شاشة) بـinitData موقَّعٍ حقيقيّاً وaxe، وسكربتا الأداءِ في المستودع، وقراءةٌ حيّةٌ للإنتاج. ثمَّ أقلُّ إصلاحٍ لكلِّ عيبٍ مُثبَت: عمودُ الإطارِ minmax(0,1fr)، اتّجاهُ المستندِ من لغةِ الحساب، معلمُ <main> واحد، أرضيّةُ 44px للأزرار، تباينُ افتراضاتِ التطبيق، تصحيحُ read_emergency_contact (record is null)، وno-cache لـ`/` في render.yaml. ألوانُ سمةِ تيليجرامَ وخرائطُ المصدرِ وإعادةُ كتابةِ /v1 في لوحةِ Render وHSTS البوّابة قراراتُ مالكٍ مُوثَّقة لا تُغيَّرُ هنا.",
