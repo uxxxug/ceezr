@@ -1,6 +1,6 @@
 # ADR 0244: UI-9 — RTL / Accessibility / Responsive / Performance QA
 
-**الحالة:** مقبول — قيد التنفيذ (PR مفتوح)
+**الحالة:** مقبول — مُنفَّذ ومُغلَق (PR #429 مُدمَج squash → `f97cf0cb894972f93e85dcf4ac1213263c7b5182`؛ CI الرئيس بعد الدمج `37541295303` 7/7 نجاح؛ Roadmap freshness `37541295300` نجاح)
 **التاريخ:** 2026-10-06
 **المرحلة:** WASLA UI/UX REFOUNDATION — UI-9 (RTL / Accessibility / Responsive / Performance)
 **المرجع:** `docs/UI_UX_CANONICAL_DIRECTIVE.md` §§9، 10.5، 10.8، 10.9
@@ -31,3 +31,10 @@
 2. **Accessibility**: keyboard navigation، focus order وvisible focus، Dialog/Sheet trap + Escape + focus return، semantic HTML، labels وربط الحقول، tabs وtabpanel وaria، أيقونات بأسماء قابلة للقراءة، الحالات السبع تعلن لقارئ الشاشة، لا اعتماد على اللون وحده، touch targets ≥ 44×44، prefers-reduced-motion، contrast/type scale لا يتراجع.
 3. **Responsive**: narrow/normal/large + Telegram desktop، RTL وLTR، لا overflow أفقي، لا قص للنص، لا تداخل، لا أزرار لا يمكن الوصول إليها.
 4. **Performance**: shell + identity ≤ 180KB gzip، CSS ≤ 40KB gzip، deferred ≤ 120KB gzip، ≤ 6 طلبات first-render، إعادة قياس Slow 4G.
+
+## الإغلاق
+
+- PR #429 دُمِج (squash) → `f97cf0cb894972f93e85dcf4ac1213263c7b5182` في 2026-10-06T22:33:05Z.
+- CI على `main` بعد الدمج: run `37541295303` — 7/7 نجاح (verify · PostgreSQL · Redis · F5-06 · F9-03 · أوّل رسم · Slow 4G وحارس 3G). Roadmap freshness `37541295300` نجاح.
+- حدودُ الإثبات باقيةٌ كما هي: حارسٌ ساكنٌ (`scripts/check-ui-9-guards.ts`)؛ لا يُدَّعى دليلُ متصفّحٍ حيٍّ ولا FCP/LCP ولا لقطةٌ ولا قارئُ شاشة.
+- تذبذبُ CI: وظيفةُ PostgreSQL فشلت مرّةً على PR #429 في اختبارِ «ADR 0243 — مقياسُ خطأِ التقديرِ على القاعدة» (خارجَ نطاقِ تغييراتِ UI-9)، ثم نجحت في الإعادةِ بلا تعديلٍ ونجحت على `main` بعد الدمج. لم يُفتَح إصلاحٌ خارجَ نطاقِ UI-9.

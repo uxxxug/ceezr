@@ -23,7 +23,7 @@
   "tests": [
     "scripts/check-ui-9-guards.ts — حارسٌ ساكنٌ: لا letter-spacing/text-transform/italic على العربية، لا @layer/!important، touch ≥ 44px، i18n parity"
   ],
-  "evidence": "محليّاً: lint · typecheck · build:miniapp · check-ui-9-guards ✓ · check-state-sync ✓ · check-system-state ✓. الأداءُ: shell+identity = 27 KB gz (< 180) · CSS = 13.4 KB gz (< 40) · deferred ≤ 33.7 KB gz (< 120) · طلبات 2 (< 6). العيوبُ المُصلَحةُ: letter-spacing -0.01em على العناوين، font-style: italic على dof__distance--absent وdjb__stamp--absent، touch targets < 44px على dd__view/dd__camera (36px→44px) وsup__category/ob__city (40px→44px).",
+  "evidence": "محليّاً: lint · typecheck · build:miniapp · check-ui-9-guards ✓ · check-state-sync ✓ · check-system-state ✓. الأداءُ: shell+identity = 27 KB gz (< 180) · CSS = 13.4 KB gz (< 40) · deferred ≤ 33.7 KB gz (< 120) · طلبات 2 (< 6). العيوبُ المُصلَحةُ: letter-spacing -0.01em على العناوين، font-style: italic على dof__distance--absent وdjb__stamp--absent، touch targets < 44px على dd__view/dd__camera (36px→44px) وsup__category/ob__city (40px→44px). الدمجُ: PR #429 (squash) → f97cf0cb894972f93e85dcf4ac1213263c7b5182؛ CI الرئيس بعد الدمج 37541295303 — 7/7 نجاح؛ Roadmap freshness 37541295300 نجاح.",
   "contract_gaps": [],
   "constraints": [
     "PR واحد مستقل لـUI-9 من main بعد إغلاق UI-8",
@@ -39,6 +39,6 @@
     "prefers-reduced-motion محترم",
     "كل الاختبارات الحالية تبقى خضراء"
   ],
-  "limitations": "حارسٌ ساكنٌ لا اختبارَ متصفّحٍ. لا يُدَّعى قياسُ FCP/LCP ولا تجربةُ مستخدمٍ حيّة. لا لقطةَ متصفّحٍ ولا قارئَ شاشةٍ. قياسُ Slow 4G rider surface يبقى في CI المُدار (job 112458339560 نجح). النصوصُ العربيّةُ في SystemScreen ثابتةٌ RTL بقرارٍ مُعلَنٍ (ROADMAP).",
-  "status": "implementation started — not closed. QA audit and fixes in progress."
+  "limitations": "حارسٌ ساكنٌ لا اختبارَ متصفّحٍ. لا يُدَّعى قياسُ FCP/LCP ولا تجربةُ مستخدمٍ حيّة. لا لقطةَ متصفّحٍ ولا قارئَ شاشةٍ. قياسُ Slow 4G rider surface يبقى في CI المُدار (job 112458339560 نجح). النصوصُ العربيّةُ في SystemScreen ثابتةٌ RTL بقرارٍ مُعلَنٍ (ROADMAP). تذبذبُ CI: وظيفةُ PostgreSQL فشلت مرّةً على PR #429 (اختبارُ ADR 0243، خارجَ نطاقِ UI-9) ثم نجحت في الإعادةِ بلا تعديل ونجحت على main بعد الدمج؛ لم يُفتَح إصلاحٌ خارجَ النطاق.",
+  "status": "closed — merged as PR #429 → f97cf0cb894972f93e85dcf4ac1213263c7b5182; main CI 37541295303 7/7 success; Roadmap freshness 37541295300 success. UI-9 = Closed / Complete."
 }
