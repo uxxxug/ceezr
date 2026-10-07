@@ -1,0 +1,203 @@
+// UI-10 real-browser QA harness (out-of-repo tooling; Chromium via playwright-core + axe-core).
+// Simulated Telegram host — NOT a real Telegram client. initData is genuinely HMAC-signed with the
+// local gateway's bot token, so the gateway's real verification path runs.
+import { createHmac } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { chromium } from "playwright-core";
+
+const EDGE = process.env.EDGE ?? "http://127.0.0.1:5080";
+const BOT_TOKEN = "0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const OUT = process.env.OUT ?? "/tmp/ui10/out";
+const CHROME = `${process.env.HOME}/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome`;
+const AXE = readFileSync("/tmp/ui10/node_modules/axe-core/axe.min.js", "utf8");
+mkdirSync(`${OUT}/shots`, { recursive: true });
+
+const USERS = {
+  rider_ar: { id: 9001, first_name: "Rider", language_code: "ar" },
+  rider_en: { id: 9002, first_name: "Rider", language_code: "en" },
+  rider_ur: { id: 9003, first_name: "Rider", language_code: "ur" },
+  driver_ar: { id: 9004, first_name: "Driver", language_code: "ar" },
+  unregistered: { id: 9005, first_name: "New", language_code: "ar" },
+  blocked: { id: 9006, first_name: "Blocked", language_code: "ar" },
+};
+const VIEWPORTS = {
+  narrow_320: { width: 320, height: 568, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+  phone_390: { width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
+  large_430: { width: 430, height: 932, isMobile: true, hasTouch: true, deviceScaleFactor: 3 },
+  tg_desktop_384: { width: 384, height: 640, isMobile: false, hasTouch: false, deviceScaleFactor: 1 },
+  tablet_768: { width: 768, height: 1024, isMobile: true, hasTouch: true, deviceScaleFactor: 2 },
+};
+
+function signInitData(user) {
+  const params = new URLSearchParams();
+  params.set("query_id", `ui10-${Math.random().toString(36).slice(2, 10)}`);
+  params.set("user", JSON.stringify(user));
+  params.set("auth_date", String(Math.floor(Date.now() / 1000)));
+  const dcs = [...params.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join("\n");
+  const secret = createHmac("sha256", "WebAppData").update(BOT_TOKEN).digest();
+  params.set("hash", createHmac("sha256", secret).update(dcs).digest("hex"));
+  return params.toString();
+}
+
+function hostScript(initData, user, scheme) {
+  const dark = { bg_color: "#17212b", text_color: "#f5f5f5", hint_color: "#708499", link_color: "#6ab3f3", button_color: "#5288c1", button_text_color: "#ffffff", secondary_bg_color: "#232e3c" };
+  const light = { bg_color: "#ffffff", text_color: "#000000", hint_color: "#999999", link_color: "#2481cc", button_color: "#2481cc", button_text_color: "#ffffff", secondary_bg_color: "#f1f1f1" };
+  return `(() => {
+    const calls = []; window.__tgCalls = calls;
+    const rec = (n) => (...a) => { calls.push([n, a.map(x => typeof x === 'function' ? 'fn' : x)]); };
+    const handlers = {}; window.__tgHandlers = handlers;
+    const btn = (n) => ({ text: '', isVisible: false, isActive: true, isProgressVisible: false,
+      setText(t){ this.text=t; rec(n+'.setText')(t); }, onClick(cb){ (handlers[n] ||= []).push(cb); rec(n+'.onClick')(); },
+      offClick(cb){ handlers[n] = (handlers[n]||[]).filter(x=>x!==cb); rec(n+'.offClick')(); },
+      show(){ this.isVisible=true; rec(n+'.show')(); }, hide(){ this.isVisible=false; rec(n+'.hide')(); },
+      enable(){ this.isActive=true; }, disable(){ this.isActive=false; }, showProgress(){}, hideProgress(){}, setParams(){} });
+    const storage = {}; const cs = { setItem(k,v,cb){ storage[k]=v; cb && cb(null,true);}, getItem(k,cb){ cb(null, storage[k] ?? ''); },
+      getItems(ks,cb){ const o={}; ks.forEach(k=>o[k]=storage[k]??''); cb(null,o);}, removeItem(k,cb){ delete storage[k]; cb&&cb(null,true);},
+      removeItems(ks,cb){ ks.forEach(k=>delete storage[k]); cb&&cb(null,true);}, getKeys(cb){ cb(null,Object.keys(storage)); } };
+    window.Telegram = { WebApp: {
+      initData: ${JSON.stringify(initData)}, initDataUnsafe: { user: ${JSON.stringify(user)}, auth_date: ${Math.floor(Date.now() / 1000)} },
+      version: '8.0', platform: 'android', colorScheme: ${JSON.stringify(scheme)}, themeParams: ${JSON.stringify(scheme === "dark" ? dark : light)},
+      isExpanded: true, viewportHeight: innerHeight, viewportStableHeight: innerHeight,
+      safeAreaInset: {top:0,bottom:0,left:0,right:0}, contentSafeAreaInset: {top:0,bottom:0,left:0,right:0},
+      ready: rec('ready'), expand: rec('expand'), close: rec('close'),
+      onEvent: (e, cb) => { (handlers['ev:'+e] ||= []).push(cb); rec('onEvent')(e); }, offEvent: rec('offEvent'),
+      setHeaderColor: rec('setHeaderColor'), setBackgroundColor: rec('setBackgroundColor'), setBottomBarColor: rec('setBottomBarColor'),
+      enableClosingConfirmation: rec('enableClosingConfirmation'), disableClosingConfirmation: rec('disableClosingConfirmation'),
+      disableVerticalSwipes: rec('disableVerticalSwipes'), enableVerticalSwipes: rec('enableVerticalSwipes'),
+      openLink: rec('openLink'), openTelegramLink: rec('openTelegramLink'), showPopup: rec('showPopup'), showAlert: rec('showAlert'), showConfirm: rec('showConfirm'),
+      isVersionAtLeast: (v) => parseFloat(v) <= 8.0,
+      MainButton: btn('MainButton'), SecondaryButton: btn('SecondaryButton'), BackButton: btn('BackButton'), SettingsButton: btn('SettingsButton'),
+      HapticFeedback: { impactOccurred: rec('haptic.impact'), notificationOccurred: rec('haptic.notification'), selectionChanged: rec('haptic.selection') },
+      CloudStorage: cs,
+    } };
+  })();`;
+}
+
+async function audit(page, label) {
+  await page.evaluate(AXE);
+  return page.evaluate(async (label) => {
+    const vw = document.documentElement.clientWidth;
+    const scrollW = document.scrollingElement.scrollWidth;
+    const overflowing = [];
+    for (const el of document.querySelectorAll("body *")) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      const cs = getComputedStyle(el);
+      if (cs.visibility === "hidden" || cs.display === "none") continue;
+      if (r.right > vw + 1 || r.left < -1) {
+        let p = el.parentElement, clipped = false;
+        while (p) { const pc = getComputedStyle(p); if (pc.overflowX !== "visible" && pc.overflowX !== "") { clipped = true; break; } p = p.parentElement; }
+        if (!clipped) overflowing.push({ tag: el.tagName.toLowerCase(), cls: String(el.className).slice(0, 60), left: Math.round(r.left), right: Math.round(r.right) });
+      }
+      // text clipped inside its own box
+      if (el.children.length === 0 && el.textContent.trim() && cs.overflow === "hidden" && cs.textOverflow !== "ellipsis" && (el.scrollWidth > el.clientWidth + 1)) {
+        overflowing.push({ clippedText: true, tag: el.tagName.toLowerCase(), cls: String(el.className).slice(0, 60) });
+      }
+    }
+    const small = [];
+    for (const el of document.querySelectorAll('button, a[href], input:not([type=hidden]), select, textarea, [role=button], [role=tab], [tabindex]:not([tabindex="-1"])')) {
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 || r.height === 0) continue;
+      if (getComputedStyle(el).visibility === "hidden") continue;
+      const inline = el.tagName === "A" && getComputedStyle(el).display === "inline";
+      if ((r.width < 44 || r.height < 44) && !inline) small.push({ tag: el.tagName.toLowerCase(), cls: String(el.className).slice(0, 50), w: Math.round(r.width), h: Math.round(r.height), text: (el.getAttribute("aria-label") || el.textContent || "").trim().slice(0, 30) });
+    }
+    const physical = [];
+    for (const el of document.querySelectorAll("body *")) {
+      const cs = getComputedStyle(el);
+      if (cs.letterSpacing !== "normal" && cs.letterSpacing !== "0px" && /[\u0600-\u06FF]/.test(el.textContent || "")) physical.push({ letterSpacing: cs.letterSpacing, cls: String(el.className).slice(0, 50) });
+      if (cs.fontStyle === "italic" && /[\u0600-\u06FF]/.test(el.textContent || "")) physical.push({ italic: true, cls: String(el.className).slice(0, 50) });
+    }
+    let axe = null;
+    if (window.axe) {
+      const res = await window.axe.run(document, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] }, resultTypes: ["violations"] });
+      axe = res.violations.map((v) => ({ id: v.id, impact: v.impact, n: v.nodes.length, help: v.help, targets: v.nodes.slice(0, 4).map((n) => n.target.join(" ")) }));
+    }
+    const h = document.documentElement;
+    return {
+      label, dir: h.getAttribute("dir"), lang: h.getAttribute("lang"), bodyDir: getComputedStyle(document.body).direction,
+      horizontalOverflow: scrollW > vw + 1 ? { scrollW, vw } : null,
+      overflowing: overflowing.slice(0, 12), overflowingCount: overflowing.length,
+      smallTargets: small, arabicTypographyViolations: physical.slice(0, 10),
+      busy: !!document.querySelector('[aria-busy="true"]'),
+      headings: [...document.querySelectorAll("h1,h2")].map((e) => e.textContent.trim().slice(0, 40)).slice(0, 4),
+      liveRegions: document.querySelectorAll('[role=status],[role=alert],[aria-live]').length,
+      axe,
+    };
+  }, label);
+}
+
+async function openAs(browser, userKey, vpKey, scheme = "light", path = "/") {
+  const ctx = await browser.newContext({ viewport: { width: VIEWPORTS[vpKey].width, height: VIEWPORTS[vpKey].height }, isMobile: VIEWPORTS[vpKey].isMobile, hasTouch: VIEWPORTS[vpKey].hasTouch, deviceScaleFactor: VIEWPORTS[vpKey].deviceScaleFactor, colorScheme: scheme, reducedMotion: "reduce", locale: "ar-SA" });
+  const page = await ctx.newPage();
+  const ev = { console: [], pageErrors: [], csp: [], failed: [], api: [] };
+  page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") ev.console.push(`${m.type()}: ${m.text().slice(0, 200)}`); });
+  page.on("pageerror", (e) => ev.pageErrors.push(String(e).slice(0, 300)));
+  page.on("requestfailed", (r) => { if (!r.url().includes("telegram.org")) ev.failed.push(`${r.method()} ${r.url()} ${r.failure()?.errorText}`); });
+  page.on("response", (r) => { const u = new URL(r.url()); if (u.pathname.startsWith("/v1/")) ev.api.push(`${r.request().method()} ${u.pathname} ${r.status()}`); });
+  await page.route("https://telegram.org/**", (route) => route.fulfill({ status: 200, contentType: "application/javascript", body: "/* real script blocked in harness */" }));
+  await page.addInitScript(`document.addEventListener('securitypolicyviolation', e => { (window.__csp ||= []).push(e.violatedDirective + ' ' + e.blockedURI); });`);
+  if (userKey) await page.addInitScript(hostScript(signInitData(USERS[userKey]), USERS[userKey], scheme));
+  await page.goto(EDGE + path, { waitUntil: "load" });
+  await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]') && document.querySelector("#root")?.children.length > 0, null, { timeout: 15000 }).catch(() => {});
+  await page.waitForTimeout(900);
+  return { ctx, page, ev };
+}
+
+async function finish(page, ev) {
+  ev.csp = await page.evaluate(() => window.__csp || []);
+  ev.tg = await page.evaluate(() => (window.__tgCalls || []).map((c) => c[0]));
+  return ev;
+}
+
+const results = [];
+const browser = await chromium.launch({ executablePath: CHROME, args: ["--no-sandbox"] });
+const only = process.argv[2];
+
+// 1) Matrix: each identity × each viewport, root surface + every tab.
+const matrix = [
+  ["rider_ar", "light"], ["rider_en", "light"], ["rider_ur", "dark"], ["driver_ar", "dark"], ["unregistered", "light"], ["blocked", "light"], [null, "light"],
+];
+for (const [userKey, scheme] of matrix) {
+  for (const vpKey of Object.keys(VIEWPORTS)) {
+    if (only && only !== (userKey ?? "outside")) continue;
+    const id = `${userKey ?? "outside_telegram"}@${vpKey}/${scheme}`;
+    const { ctx, page, ev } = await openAs(browser, userKey, vpKey, scheme);
+    const screens = [];
+    screens.push(await audit(page, "root"));
+    await page.screenshot({ path: `${OUT}/shots/${id.replace(/[@/]/g, "_")}_root.png`, fullPage: true });
+    const tabs = await page.$$("nav.app-frame__tabs a, nav.app-frame__tabs button");
+    for (let i = 0; i < tabs.length; i++) {
+      const t = (await page.$$("nav.app-frame__tabs a, nav.app-frame__tabs button"))[i];
+      const name = ((await t.getAttribute("aria-label")) || (await t.textContent()) || `tab${i}`).trim().slice(0, 20);
+      try { await t.click({ timeout: 4000 }); } catch (e) {
+        const box = await t.boundingBox();
+        const hit = box ? await page.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return el ? el.tagName.toLowerCase() + "." + String(el.className).slice(0, 40) + " <" + (el.closest("section")?.className ?? "") : null; }, [box.x + box.width / 2, box.y + box.height / 2]) : null;
+        screens.push({ label: `tab:${name}`, tabClickBlocked: { box, hit } });
+        await page.screenshot({ path: `${OUT}/shots/${id.replace(/[@/]/g, "_")}_BLOCKED_tab${i}.png` });
+        continue;
+      }
+      await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'), null, { timeout: 10000 }).catch(() => {});
+      await page.waitForTimeout(700);
+      screens.push(await audit(page, `tab:${name}`));
+      if (vpKey === "narrow_320" || vpKey === "phone_390") await page.screenshot({ path: `${OUT}/shots/${id.replace(/[@/]/g, "_")}_tab${i}.png`, fullPage: true });
+    }
+    // keyboard: focus visibility on first 12 tab stops
+    const focus = [];
+    for (let i = 0; i < 12; i++) {
+      await page.keyboard.press("Tab");
+      focus.push(await page.evaluate(() => {
+        const el = document.activeElement; if (!el || el === document.body) return null;
+        const cs = getComputedStyle(el);
+        const visible = (cs.outlineStyle !== "none" && parseFloat(cs.outlineWidth) > 0) || (cs.boxShadow && cs.boxShadow !== "none");
+        return { tag: el.tagName.toLowerCase(), cls: String(el.className).slice(0, 40), visible };
+      }));
+    }
+    results.push({ id, screens, focusNoIndicator: focus.filter((f) => f && !f.visible), focusStops: focus.filter(Boolean).length, ev: await finish(page, ev) });
+    await ctx.close();
+    process.stdout.write(".");
+  }
+}
+writeFileSync(`${OUT}/matrix.json`, JSON.stringify(results, null, 1));
+await browser.close();
+console.log(`\nwrote ${results.length} runs`);

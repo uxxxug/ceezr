@@ -1,0 +1,53 @@
+{
+ "GET /admin no cookie": {
+  "status": 303,
+  "location": "/admin/login",
+  "body": "",
+  "csp": "default-src 'none'; script-src 'nonce-3H61dOwVBuBSgt238YWkaQ=='; style-src 'nonce-3H61dOwVBuBSgt238YWkaQ=='; style-src-a"
+ },
+ "GET /admin rider-forged admin_session": {
+  "status": 303,
+  "location": "/admin/login",
+  "body": "",
+  "csp": "default-src 'none'; script-src 'nonce-ptMpjaqX4TnxJeUd42DO2A=='; style-src 'nonce-ptMpjaqX4TnxJeUd42DO2A=='; style-src-a"
+ },
+ "GET /admin/drivers admin": {
+  "status": 200,
+  "location": null,
+  "body": "<!doctype html> <html lang=\"ar\" dir=\"rtl\"> <head> <meta char",
+  "csp": "default-src 'none'; script-src 'nonce-PHK8j6x6lx00pdoAakfZXg=='; style-src 'nonce-PHK8j6x6lx00pdoAakfZXg=='; style-src-a"
+ },
+ "derived csrf embedded in admin page": true,
+ "audit_log before": 1,
+ "POST no cookie": {
+  "status": 303,
+  "location": "/admin/login",
+  "body": "",
+  "csp": "default-src 'none'; script-src 'nonce-tL40fkniC1sHQ3LqttEOYw=='; style-src 'nonce-tL40fkniC1sHQ3LqttEOYw=='; style-src-a"
+ },
+ "POST admin, no csrf": {
+  "status": 403,
+  "location": null,
+  "body": "CSRF_MISMATCH",
+  "csp": "default-src 'none'; script-src 'nonce-KolLPvDHfG2dRQAZoe+OWQ=='; style-src 'nonce-KolLPvDHfG2dRQAZoe+OWQ=='; style-src-a"
+ },
+ "POST admin, wrong csrf": {
+  "status": 403,
+  "location": null,
+  "body": "CSRF_MISMATCH",
+  "csp": "default-src 'none'; script-src 'nonce-d91w65h5rzPFi8kHrHwLYg=='; style-src 'nonce-d91w65h5rzPFi8kHrHwLYg=='; style-src-a"
+ },
+ "POST rider-forged cookie + its derived csrf": {
+  "status": 303,
+  "location": "/admin/login",
+  "body": "",
+  "csp": "default-src 'none'; script-src 'nonce-pJ94b9UuFJ4vT+fF0bGQ7g=='; style-src 'nonce-pJ94b9UuFJ4vT+fF0bGQ7g=='; style-src-a"
+ },
+ "POST admin, correct csrf": {
+  "status": 303,
+  "location": "/admin/drivers",
+  "body": "",
+  "csp": "default-src 'none'; script-src 'nonce-g+GnMCBUp0Jjaa8IxvtHVw=='; style-src 'nonce-g+GnMCBUp0Jjaa8IxvtHVw=='; style-src-a"
+ },
+ "audit_log after": 2
+}

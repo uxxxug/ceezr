@@ -1,0 +1,65 @@
+{
+  "id": "ui-10-production-verification",
+  "goal": "UI-10 — Production Verification & Polish: أعلى درجةِ إثباتٍ عمليٍّ متاحةٍ لجاهزيّةِ الإنتاج (متصفّحٌ حقيقيٌّ على قاعدةٍ وبوّابةٍ حقيقيّتَين، أداءٌ بسكربتاتِ المستودع، قراءةٌ حيّةٌ للإنتاج)، ثمَّ إصلاحُ ما ثبتَ عيبُه فقط. لا redesign ولا إعلانُ Production Ready بلا دليل.",
+  "canonical_source": [
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §§0، 7، 9، 10، 11 (PR 11)، 12",
+    "UI-10 scope directive (2026-10-07): production build/deployment readiness · Telegram Mini App behaviour · real browser RTL/responsive/a11y · performance · CSP/CSRF/authorization · truth/public tracking · contract gaps · smoke tests · rollback safety",
+    "ADR 0244 (UI-9) — حدودُه المؤجَّلةُ إلى UI-10"
+  ],
+  "implementation": [
+    "apps/miniapp/src/styles/global.css",
+    "apps/miniapp/src/shell/Layout.tsx",
+    "apps/miniapp/src/shell/ScreenFrame.tsx",
+    "apps/miniapp/src/routing/RoleRouter.tsx",
+    "apps/miniapp/src/shell/ui-10-browser-regressions.test.tsx",
+    "supabase/migrations/20261007120000_ui_10_emergency_contact_read_found.sql",
+    "tests/integration/emergency-contact-read.test.ts",
+    "tests/unit/skip-audit.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "render.yaml",
+    "deploy/staging/render.staging.yaml"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0245-ui-10-production-verification-polish.md",
+    "docs/evidence/release/UI-10-20261007.md",
+    "docs/UI_UX_RECONCILIATION_REPORT.md",
+    "docs/evidence/archive/ui-10-20261007/browser-matrix-after-summary.txt",
+    "docs/evidence/archive/ui-10-20261007/browser-matrix-after.json",
+    "docs/evidence/archive/ui-10-20261007/csrf-authorization-runtime.json",
+    "docs/evidence/archive/ui-10-20261007/emergency-contact-after.png",
+    "docs/evidence/archive/ui-10-20261007/emergency-contact-before.png",
+    "docs/evidence/archive/ui-10-20261007/harness-contrast.mjs.txt",
+    "docs/evidence/archive/ui-10-20261007/harness-csrf.ts.txt",
+    "docs/evidence/archive/ui-10-20261007/harness-edge.ts.txt",
+    "docs/evidence/archive/ui-10-20261007/harness-flow-consent.mjs.txt",
+    "docs/evidence/archive/ui-10-20261007/harness-panel.mjs.txt",
+    "docs/evidence/archive/ui-10-20261007/harness-qa.mjs.txt",
+    "docs/evidence/archive/ui-10-20261007/harness-run-gw.sh.txt",
+    "docs/evidence/archive/ui-10-20261007/harness-summarize.py.txt",
+    "docs/evidence/archive/ui-10-20261007/perf-budget-after.txt",
+    "docs/evidence/archive/ui-10-20261007/perf-first-paint-after.txt",
+    "docs/evidence/archive/ui-10-20261007/perf-tti-after.txt"
+  ],
+  "no_other_affected_docs_reason": "UI_SURFACE_INVENTORY بلا تغيير: لا سطحَ أُضيفَ أو حُذف. لا endpoint جديد ولا تغييرَ في عقودِ API (`GET /v1/me/emergency-contact` يعودُ إلى عقدِه المعلَنِ في DEC-41: 200 بقيمٍ فارغةٍ لمن لا جهةَ له). لا مكتبةَ جديدة، ولا تغييرَ في CSP/CSRF/authorization ولا في رسائلِ تيليجرام. والمخرجاتُ الخامُّ وأدواتُ القياسِ خارجَ المستودعِ محفوظةٌ نصّاً في docs/evidence/archive/ui-10-20261007/.",
+  "decision": "تحقّقٌ حيٌّ قبلَ أيِّ إصلاح: مصفوفةُ متصفّحٍ حقيقيّ (7 هويّات × 5 مقاسات × فاتح/داكن = 35 جولةً و115 شاشة) بـinitData موقَّعٍ حقيقيّاً وaxe، وسكربتا الأداءِ في المستودع، وقراءةٌ حيّةٌ للإنتاج. ثمَّ أقلُّ إصلاحٍ لكلِّ عيبٍ مُثبَت: عمودُ الإطارِ minmax(0,1fr)، اتّجاهُ المستندِ من لغةِ الحساب، معلمُ <main> واحد، أرضيّةُ 44px للأزرار، تباينُ افتراضاتِ التطبيق، تصحيحُ read_emergency_contact (record is null)، وno-cache لـ`/` في render.yaml. ألوانُ سمةِ تيليجرامَ وخرائطُ المصدرِ وإعادةُ كتابةِ /v1 في لوحةِ Render وHSTS البوّابة قراراتُ مالكٍ مُوثَّقة لا تُغيَّرُ هنا.",
+  "tests": [
+    "apps/miniapp/src/shell/ui-10-browser-regressions.test.tsx — 15 حالةً؛ 14 تفشلُ على شيفرةِ main وتنجحُ بعدَ الإصلاح",
+    "tests/integration/emergency-contact-read.test.ts — 3 حالاتٍ على PostgreSQL حقيقيّ؛ «موجودٌ بلا جهة» تفشلُ على الدالّةِ القديمة",
+    "tests/unit/skip-audit.test.ts — العدُّ المُثبَّت 158 · 1441"
+  ],
+  "evidence": "docs/evidence/release/UI-10-20261007.md (+ docs/evidence/archive/ui-10-20261007/). قبلَ/بعدَ في المتصفّح: تجاوزٌ أفقيٌّ 506px ⇒ 0؛ نقراتُ تبويبٍ محجوبة 24 ⇒ 0؛ lang/dir لـen/ur ar/rtl ⇒ en/ltr و ur/rtl؛ <main> ×2 ⇒ ×1؛ أهدافُ لمسٍ 38–42px ⇒ 0؛ تباينُ افتراضاتِ التطبيقِ 3 إخفاقات ⇒ 0. الأداءُ Slow 4G (measure-tti): FCP 720ms · LCP 1984ms · سطحٌ مرسومٌ 1984ms (≤ 2000). الإنتاجُ حيّاً: يشغّلُ بناءً قبلَ UI-1، /ready degraded (redis)، read_emergency_contact معيبةٌ على قاعدتِه (5/5 مستخدمين بلا جهة).",
+  "contract_gaps": [],
+  "constraints": [
+    "PR واحد مستقل لـUI-10 من main b9a81641",
+    "لا مكتبات جديدة في المنتَج (Playwright وaxe خارجَ المستودع أداةَ قياسٍ فقط)",
+    "CSS مسطح: لا @layer ولا nesting ولا !important؛ logical properties",
+    "لا تغيير في CSP/CSRF/authorization ولا عقود API ولا عدد رسائل تيليجرام",
+    "لا polling ولا setInterval، لا قيم مخترعة، لا 0 لما لم يُقَس",
+    "لا redesign: كلُّ تغييرٍ مربوطٌ بعيبٍ مُثبَتٍ في المتصفّح أو القاعدة أو الإنتاج",
+    "لا إعلانَ Production Ready، ولا نشرَ ولا دمجَ ولا تطبيقَ هجرةٍ على الإنتاج — أفعالُ مالك"
+  ],
+  "limitations": "الإنتاجُ يشغّلُ بناءً قبلَ UI-1 وقاعدةً بلا هجرتَي UI-8/UI-10 وRedis متدهور — فلا شيءَ من UI-1…UI-10 مُتحقَّقٌ منه على الإنتاج. مضيفُ تيليجرام محاكًى في المتصفّح (لا عميلَ حقيقيّ)، ولا قارئَ شاشةٍ حقيقيّ. الأداءُ مُتحقَّقٌ منه على المضيفِ نفسِه لا «مَقيس» (§1.4)، وهامشُ السطحِ المرسومِ 16ms. لا Docker (verify-container-build.sh لم يُشغَّل). الحافّةُ المحلّيّةُ لا تمرّرُ WebSocket. ألوانُ سمةِ تيليجرامَ الافتراضيّة دونَ AA في 4 مواضع (قرارُ مالك).",
+  "status": "implemented — branch + PR open, not merged, not deployed; production deploy, migration apply, Redis repair and real-Telegram smoke are owner actions."
+}

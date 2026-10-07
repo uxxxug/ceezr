@@ -31,7 +31,7 @@
   --tg-text-color: #f8fafc;
   --tg-hint-color: #94a3b8;
   --tg-link-color: #38bdf8;
-  --tg-button-color: #0ea5e9;
+  --tg-button-color: #0369a1;
   --tg-button-text-color: #ffffff;
   --tg-secondary-bg-color: #1e293b;
   --tg-header-bg-color: #0f172a;
@@ -83,13 +83,13 @@
   --tg-bg-color: #ffffff;
   --tg-text-color: #0f172a;
   --tg-hint-color: #475569;
-  --tg-link-color: #0284c7;
-  --tg-button-color: #0ea5e9;
+  --tg-link-color: #0369a1;
+  --tg-button-color: #0369a1;
   --tg-button-text-color: #ffffff;
   --tg-secondary-bg-color: #f1f5f9;
   --tg-header-bg-color: #ffffff;
   --tg-bottom-bar-bg-color: #ffffff;
-  --tg-accent-text-color: #0284c7;
+  --tg-accent-text-color: #0369a1;
   --tg-section-bg-color: #ffffff;
   --tg-section-header-text-color: #475569;
   --tg-section-separator-color: #e2e8f0;
@@ -101,6 +101,14 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* `UI-10`: أرضيّةُ هدفِ اللمسِ (UI-9 §A11y: ≥ 44px) لكلِّ زرٍّ. قيسَ في متصفّحٍ حيٍّ أنَّ
+   أزراراً كثيرةً بحاشيةٍ وحدَها بلا ارتفاعٍ أدنى نزلت إلى 38–42px (`.dac__period` ·
+   `.ac__lang-option` · `.dof__*` · `.sup__faq` …) ولا يراها حاجزٌ ساكنٌ يقرأُ `min-height`.
+   ومحدِّدُ نوعٍ = أدنى أولويّةٍ: كلُّ قاعدةِ صنفٍ تُعلِنُ ارتفاعَها تغلبُه. */
+button {
+  min-block-size: 44px;
 }
 
 html,
@@ -180,6 +188,11 @@ a {
  */
 .app-frame {
   display: grid;
+  /* `UI-10`: عمودٌ لا يتجاوزُ الإطارَ. العمودُ الضمنيُّ `auto` يتّسعُ لأعرضِ min-content
+     فيه، فدفعَ حقلُ إدخالٍ بعرضِه الذاتيِّ (~400px) الصفحةَ إلى 460–506px على 320px
+     (قيسَ في متصفّحٍ حيٍّ: `.rh__input` · `.hs__search-input`). `minmax(0, 1fr)` يحسمُه
+     لكلِّ شاشةٍ لا لحقلٍ بعينِه. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
   gap: 1rem;
   min-block-size: 100%;
@@ -210,6 +223,11 @@ a {
 /* منطقةُ الفعلِ: تبقى في أسفلِ الإطارِ ولا تُلاصق حدَّ الجهازِ (`--safe-bottom`). */
 .app-frame__action:empty {
   display: none;
+}
+
+/* `UI-10`: إطارُ شاشةٍ داخلَ إطارِ الهيكلِ — الحاشيةُ والحواشي الآمنةُ للخارجيِّ وحدَه. */
+.app-frame--nested {
+  padding: 0;
 }
 
 @media (min-width: 40rem) {
@@ -575,6 +593,9 @@ a.sys__action {
 }
 
 .rh__input {
+  /* `UI-10`: عنصرٌ قابلٌ للانضغاطِ بعرضٍ نسبيٍّ = مساهمتُه في min-content صفرٌ. وبدونِه
+     فرضَ حقلُ الوجهةِ عرضَه (~414px) على العمودِ كلِّه فتجاوزَ 320px أفقيّاً (متصفّحٌ حيّ). */
+  inline-size: 100%;
   min-block-size: 44px;
   padding: 0.75rem;
   border: 1px solid var(--tg-section-separator-color);
@@ -2481,6 +2502,8 @@ a.sys__action {
 }
 
 .ac__lang-option {
+  /* `UI-10`: قيسَ في متصفّحٍ حيٍّ 39px — الهدفُ ≥ 44px (UI-9 §A11y). */
+  min-block-size: 44px;
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.6rem;
@@ -2954,6 +2977,8 @@ a.sys__action {
 .sup__faq,
 .dsup__deductions {
   align-self: flex-start;
+  /* `UI-10`: قيسَ في متصفّحٍ حيٍّ 42px — الهدفُ ≥ 44px. */
+  min-block-size: 44px;
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.7rem;
@@ -4128,6 +4153,8 @@ a.sys__action {
 }
 
 .dac__period {
+  /* `UI-10`: قيسَ في متصفّحٍ حيٍّ 38px — الهدفُ ≥ 44px. */
+  min-block-size: 44px;
   padding: 0.4rem 0.85rem;
   border: 1px solid var(--tg-hint-color, #999);
   border-radius: 0.6rem;
@@ -5598,6 +5625,9 @@ body {
   border: 0;
   border-radius: 0.875rem;
   background: color-mix(in srgb, var(--tg-destructive-text-color) 10%, transparent);
+  /* `UI-10`: نصُّ الأحمرِ على صبغتِه قيسَ 3.78:1 (فاتح) و4.32:1 (داكن) < 4.5. المزجُ نحوَ
+     لونِ النصِّ يُغمِّقُه في الفاتحِ ويُفتِّحُه في الداكنِ فيبقى أحمرَ ويتجاوزُ 4.5 مع أيِّ سمة. */
+  color: color-mix(in srgb, var(--tg-destructive-text-color) 75%, var(--tg-text-color));
 }
 
 .qt__pickup {

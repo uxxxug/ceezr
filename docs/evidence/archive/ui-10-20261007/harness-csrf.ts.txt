@@ -1,0 +1,42 @@
+import { createHash, randomBytes } from "node:crypto";
+import postgres from "postgres";
+const sql = postgres("postgres://postgres:postgres@localhost:5432/waslah", { max: 1 });
+const G = "http://127.0.0.1:8080";
+const h = (s: string) => createHash("sha256").update(s).digest("hex");
+const [{ city_id }] = await sql`select city_id from users where telegram_id=9001`;
+await sql`insert into users (city_id, telegram_id, role, full_name, language_code, is_blocked)
+  values (${city_id}, 990001, 'admin', 'UI10 Admin', 'ar', false) on conflict (telegram_id) do nothing`;
+const [admin] = await sql`select id from users where telegram_id=990001`;
+const [rider] = await sql`select id from users where telegram_id=9002`;
+const adminTok = randomBytes(32).toString("base64url"), riderTok = randomBytes(32).toString("base64url");
+for (const [uid, tok] of [[admin.id, adminTok], [rider.id, riderTok]] as const)
+  await sql`insert into admin_sessions (city_id, user_id, token_hash, expires_at) values (${city_id}, ${uid}, ${h(tok)}, now() + interval '1 hour')`;
+const out: Record<string, unknown> = {};
+const req = async (name: string, path: string, init: RequestInit = {}) => {
+  const r = await fetch(G + path, { redirect: "manual", ...init });
+  const body = await r.text();
+  out[name] = { status: r.status, location: r.headers.get("location"), body: body.slice(0, 60).replace(/\s+/g, " "), csp: r.headers.get("content-security-policy")?.slice(0, 120) };
+  return { r, body };
+};
+await req("GET /admin no cookie", "/admin");
+await req("GET /admin rider-forged admin_session", "/admin", { headers: { cookie: `waslah_admin=${riderTok}` } });
+const page = await req("GET /admin/drivers admin", "/admin/drivers", { headers: { cookie: `waslah_admin=${adminTok}` } });
+const csrf = h(`${h(adminTok)}:csrf`);
+const full = await (await fetch(G + "/admin/drivers", { headers: { cookie: `waslah_admin=${adminTok}` } })).text();
+out["derived csrf embedded in admin page"] = full.includes(csrf);
+const [{ n: before }] = await sql`select count(*)::int n from audit_log`;
+out["audit_log before"] = before;
+const post = (name: string, csrfVal: string | null, cookie: string | null, extra: Record<string, string> = {}) => {
+  const f = new URLSearchParams({ reason: "stolen_device" }); if (csrfVal !== null) f.set("csrf", csrfVal);
+  return req(name, `/admin/users/${rider.id}/revoke-sessions`, { method: "POST", body: f, headers: { "content-type": "application/x-www-form-urlencoded", ...(cookie ? { cookie } : {}), ...extra } });
+};
+await post("POST no cookie", csrf, null);
+await post("POST admin, no csrf", null, `waslah_admin=${adminTok}`);
+await post("POST admin, wrong csrf", "0".repeat(64), `waslah_admin=${adminTok}`);
+await post("POST rider-forged cookie + its derived csrf", h(`${h(riderTok)}:csrf`), `waslah_admin=${riderTok}`);
+await post("POST admin, correct csrf", csrf, `waslah_admin=${adminTok}`);
+const [{ n: after }] = await sql`select count(*)::int n from audit_log`;
+out["audit_log after"] = after;
+console.log(JSON.stringify(out, null, 1));
+await sql`delete from admin_sessions where token_hash in (${h(adminTok)}, ${h(riderTok)})`;
+await sql.end();
