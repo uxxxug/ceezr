@@ -1,0 +1,35 @@
+وقتُ التفاعلِ بمتصفّحٍ حقيقيٍّ (F1-09 الصفُّ ٥ · D-26) — /home/user/.cache/ms-playwright/chromium_headless_shell-1217/chrome-headless-shell-linux64/chrome-headless-shell
+  البوّابةُ على http://127.0.0.1:44781 · القاعدةُ postgres://***@localhost:5432/waslah
+  تحقّقُ المسار: session=201 · me=200 · role=rider · status=active · surface=rider
+  بلا تقييدٍ: FCP=84 ms · بلوغُ السطحِ المرسومِ=168 ms · surface=rider · عُقَدُ #root=1
+  chromium-slow-3g #1: FCP=2356 ms · LCP=6472 ms · بلوغُ السطحِ المرسومِ=6472 ms · surface=rider
+    chromium-slow-3g #1: طلباتٌ بدأَت قبلَ السطحِ المرسومِ=12 · بايتاتٌ منقولةٌ حتّاه=122783
+  chromium-slow-3g #2: FCP=2408 ms · LCP=6492 ms · بلوغُ السطحِ المرسومِ=6492 ms · surface=rider
+    chromium-slow-3g #2: طلباتٌ بدأَت قبلَ السطحِ المرسومِ=12 · بايتاتٌ منقولةٌ حتّاه=122783
+  chromium-slow-3g #3: FCP=2392 ms · LCP=6452 ms · بلوغُ السطحِ المرسومِ=6452 ms · surface=rider
+    chromium-slow-3g #3: طلباتٌ بدأَت قبلَ السطحِ المرسومِ=12 · بايتاتٌ منقولةٌ حتّاه=122783
+  [حارسُ انحدارٍ] الوسيطُ على chromium-slow-3g: بلوغُ السطحِ المرسومِ=6472 ms (السقفُ 18000 · الحدُّ 2000 غيرُ قابلٍ للتحقيقِ على هذا الملفِّ)
+  chromium-slow-4g #1: FCP=740 ms · LCP=1984 ms · بلوغُ السطحِ المرسومِ=1984 ms · surface=rider
+    chromium-slow-4g #1: طلباتٌ بدأَت قبلَ السطحِ المرسومِ=12 · بايتاتٌ منقولةٌ حتّاه=122783
+      0→667 ms · 17684 B · /
+      627→— ms · 0 B · /js/telegram-web-app.js
+      631→1201 ms · 465 B · /assets/rolldown-runtime-BpQH8Ho1.js
+      633→1633 ms · 25891 B · /assets/shell-N4YRSmZ4.js
+      633→1808 ms · 56922 B · /assets/vendor-react-DovihrzR.js
+      641→1249 ms · 1717 B · /assets/identity-DPoSpVRx.js
+      689→1325 ms · 1657 B · /v1/session/telegram
+      695→1591 ms · 18447 B · /assets/rider-home-4UrkYkkh.js
+      1893→2758 ms · 24106 B · /assets/rider-ride-Cg5qlvst.js
+      1893→2683 ms · 10957 B · /assets/account-DvZs-rd2.js
+      1894→2667 ms · 9541 B · /assets/rider-history-CVRDJOUT.js
+      1894→2591 ms · 4819 B · /assets/support-DI8iDjEq.js
+  chromium-slow-4g #2: FCP=720 ms · LCP=1932 ms · بلوغُ السطحِ المرسومِ=1932 ms · surface=rider
+    chromium-slow-4g #2: طلباتٌ بدأَت قبلَ السطحِ المرسومِ=12 · بايتاتٌ منقولةٌ حتّاه=122783
+  chromium-slow-4g #3: FCP=692 ms · LCP=2060 ms · بلوغُ السطحِ المرسومِ=2060 ms · surface=rider
+    chromium-slow-4g #3: طلباتٌ بدأَت قبلَ السطحِ المرسومِ=12 · بايتاتٌ منقولةٌ حتّاه=122783
+  [DEC-19 · blocking] الوسيطُ على chromium-slow-4g (سطحُ الراكبِ):
+    fcp = 720 ms · الحدُّ 1800 ms · مستوفىً
+    lcp = 1984 ms · الحدُّ 2500 ms · مستوفىً
+    surface-rendered = 1984 ms · الحدُّ 2000 ms · مستوفىً
+    الحدودُ: FCP ≤ 1800 · LCP ≤ 2500 · بلوغُ السطحِ المرسومِ ≤ 2000 — مستوفاةٌ
+✓ شرطُ الحياةِ مستوفىً على الملفّاتِ كلِّها، وحارسُ «3G» ضمنَ سقفِه — ولا يُقرأُ هذا استيفاءً لحدودِ 9.9 (DEC-19 · F1-09 [~])

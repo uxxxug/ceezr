@@ -1,0 +1,18 @@
+import { chromium } from "playwright-core";
+import { createHmac } from "node:crypto";
+const BOT="0000000000:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+function sign(u){const p=new URLSearchParams();p.set("query_id","x"+Math.random().toString(36).slice(2));p.set("user",JSON.stringify(u));p.set("auth_date",String(Math.floor(Date.now()/1000)));const d=[...p.entries()].sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>`${k}=${v}`).join("\n");p.set("hash",createHmac("sha256",createHmac("sha256","WebAppData").update(BOT).digest()).update(d).digest("hex"));return p.toString();}
+const [uid,w,tabIdx]=process.argv.slice(2).map(Number);
+const b=await chromium.launch({executablePath:`${process.env.HOME}/.cache/ms-playwright/chromium-1217/chrome-linux64/chrome`,args:["--no-sandbox"]});
+const page=await (await b.newContext({viewport:{width:w,height:800},isMobile:true,hasTouch:true})).newPage();
+const u={id:uid,first_name:"R",language_code:"ar"};
+await page.route("https://telegram.org/**",r=>r.fulfill({status:200,contentType:"application/javascript",body:""}));
+page.on("response",r=>{if(r.status()>=400)console.log("HTTP",r.status(),new URL(r.url()).pathname)});
+await page.addInitScript(`window.Telegram={WebApp:{initData:${JSON.stringify(sign(u))},initDataUnsafe:{user:${JSON.stringify(u)}},version:"8.0",platform:"android",colorScheme:"light",themeParams:{},ready(){},expand(){},onEvent(){},offEvent(){},setHeaderColor(){},setBackgroundColor(){},setBottomBarColor(){},BackButton:{show(){},hide(){},onClick(){},offClick(){}},HapticFeedback:{impactOccurred(){},notificationOccurred(){},selectionChanged(){}}}}`);
+await page.goto("http://127.0.0.1:5080/");await page.waitForTimeout(2500);
+if (tabIdx>=0){await (await page.$$("nav.app-frame__tabs button"))[tabIdx].click();await page.waitForTimeout(1500);}
+const panel=await page.evaluate(()=>{const x=[...document.querySelectorAll("h3")].find(e=>e.textContent.includes("طوارئ"));let sec=x?x.parentElement:null;for(let i=0;i<3&&sec&&sec.innerText.length<40;i++)sec=sec.parentElement;return sec?sec.innerText.replace(/\n+/g," / ").slice(0,300):"none"});console.log("PANEL",panel);
+const r=await page.evaluate(()=>{const vw=document.documentElement.clientWidth;const out=[];for(const el of document.querySelectorAll("body *")){const r=el.getBoundingClientRect();if(r.width>vw+1||r.right>vw+1||r.left<-1){const kids=[...el.children].some(c=>{const q=c.getBoundingClientRect();return q.width>vw+1||q.right>vw+1||q.left<-1});if(!kids)out.push({tag:el.tagName,cls:el.className,w:Math.round(r.width),l:Math.round(r.left),text:(el.textContent||"").slice(0,60),ws:getComputedStyle(el).whiteSpace,minw:getComputedStyle(el).minWidth,disp:getComputedStyle(el).display,parent:el.parentElement.className})}}return {sw:document.documentElement.scrollWidth,vw,out:out.slice(0,8)}});
+console.log(JSON.stringify(r,null,1));
+await page.screenshot({path:`/tmp/ui10/wide-${uid}-${w}-${tabIdx}.png`});
+await b.close();

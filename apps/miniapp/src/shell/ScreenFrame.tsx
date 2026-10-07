@@ -18,9 +18,10 @@
  * الانتقالُ حركةُ CSS، والتركيزُ يُنقَلُ مرّةً عندَ تغيّرِ الشاشة.
  */
 
-import { type ReactNode, useEffect, useRef } from "react";
+import { type ReactNode, useContext, useEffect, useRef } from "react";
 import { UiActionBar, UiHeader } from "../system/ui/index.tsx";
 import { hasCapability, onBackButtonClick, setBackButtonVisible } from "../tg/index.ts";
+import { InsideAppFrame } from "./Layout.tsx";
 import { missingTabLabels, ROOT_TABS, type RootRole, type RootTabId } from "./root-tabs.ts";
 import type { ScreenMotion } from "./screen-stack.ts";
 
@@ -211,6 +212,7 @@ export type ScreenFrameProps = RootScreenFrameProps | FlowScreenFrameProps;
 export function ScreenFrame(props: ScreenFrameProps) {
   const flow = props.mode === "flow" ? props : null;
   const native = useBackButton(flow?.back.onBack, flow?.backPort);
+  const nested = useContext(InsideAppFrame);
   const headerBack = flow !== null && !native ? flow.back : undefined;
   const header = (
     <UiHeader
@@ -223,11 +225,26 @@ export function ScreenFrame(props: ScreenFrameProps) {
   let bottom: ReactNode = null;
   if (props.mode === "root") bottom = props.tabs;
   else if (props.action !== undefined) bottom = <UiActionBar>{props.action}</UiActionBar>;
-  return (
-    <main className="app-frame" aria-busy={props.busy === true ? "true" : undefined}>
+  const busy = props.busy === true ? "true" : undefined;
+  const parts = (
+    <>
       {header}
       <div className="app-frame__content">{props.children}</div>
       <div className="app-frame__action">{bottom}</div>
+    </>
+  );
+  // `UI-10`: داخلَ إطارِ الهيكلِ لا يُرسَمُ معلمٌ `<main>` ثانٍ ولا حاشيةٌ ثانية — قرينةُ
+  // `InsideAppFrame`. وخارجَه (اختبارٌ أو مضيفٌ آخر) يبقى `<main>` كما كان.
+  if (nested) {
+    return (
+      <div className="app-frame app-frame--nested" aria-busy={busy}>
+        {parts}
+      </div>
+    );
+  }
+  return (
+    <main className="app-frame" aria-busy={busy}>
+      {parts}
     </main>
   );
 }

@@ -1,0 +1,4362 @@
+[
+ {
+  "id": "rider_ar@narrow_320/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:الرئيسية",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:رحلاتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:الدعم",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "الدعم",
+     "تذاكري"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ar@phone_390/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:الرئيسية",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:رحلاتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:الدعم",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "الدعم",
+     "تذاكري"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ar@large_430/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:الرئيسية",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:رحلاتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:الدعم",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "الدعم",
+     "تذاكري"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ar@tg_desktop_384/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:الرئيسية",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:رحلاتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:الدعم",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "الدعم",
+     "تذاكري"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ar@tablet_768/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:الرئيسية",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "أهلا بك في وَصْلة",
+     "أماكن محفوظة",
+     "آخر وجهاتك"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".app-frame__tab:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:رحلاتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:الدعم",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "الدعم",
+     "تذاكري"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_en@narrow_320/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 7,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "p:nth-child(5)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Home",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 7,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "p:nth-child(5)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:My rides",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "My rides"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 4,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".hs__search-submit",
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(3)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Support",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Support",
+     "My tickets"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(2)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Account",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Account",
+     "Your rights over your data"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 13,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".sys__action:nth-child(1)",
+       ".ac__support",
+       ".ac__privacy",
+       "section[aria-labelledby=\"_r_4_\"] > .ui-card__body > .sys__hint:nth-child(1)"
+      ]
+     }
+    ]
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_en@phone_390/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 8,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "section > p:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Home",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 8,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "section > p:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:My rides",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "My rides"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 4,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".hs__search-submit",
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(3)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Support",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Support",
+     "My tickets"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(2)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Account",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Account",
+     "Your rights over your data"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 13,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".sys__action:nth-child(1)",
+       ".ac__support",
+       ".ac__privacy",
+       "section[aria-labelledby=\"_r_4_\"] > .ui-card__body > .sys__hint:nth-child(1)"
+      ]
+     }
+    ]
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_en@large_430/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 8,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "section > p:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Home",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 8,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "section > p:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:My rides",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "My rides"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 4,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".hs__search-submit",
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(3)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Support",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Support",
+     "My tickets"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(2)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Account",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Account",
+     "Your rights over your data"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 13,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".sys__action:nth-child(1)",
+       ".ac__support",
+       ".ac__privacy",
+       "section[aria-labelledby=\"_r_4_\"] > .ui-card__body > .sys__hint:nth-child(1)"
+      ]
+     }
+    ]
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_en@tg_desktop_384/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 8,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "section > p:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Home",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 8,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "section > p:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:My rides",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "My rides"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 4,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".hs__search-submit",
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(3)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Support",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Support",
+     "My tickets"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(2)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Account",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Account",
+     "Your rights over your data"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 13,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".sys__action:nth-child(1)",
+       ".ac__support",
+       ".ac__privacy",
+       "section[aria-labelledby=\"_r_4_\"] > .ui-card__body > .sys__hint:nth-child(1)"
+      ]
+     }
+    ]
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_en@tablet_768/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 8,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "section > p:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Home",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Welcome to Wasla",
+     "Saved places",
+     "Your recent destinations"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 8,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend",
+       ".rh__service--on",
+       ".rh__hero > p",
+       "section > p:nth-child(3)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:My rides",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "My rides"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 4,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".hs__search-submit",
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(3)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Support",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Support",
+     "My tickets"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 3,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)",
+       ".app-frame__tab:nth-child(2)",
+       ".app-frame__tab:nth-child(4)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:Account",
+    "dir": "ltr",
+    "lang": "en",
+    "bodyDir": "ltr",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "Account",
+     "Your rights over your data"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 13,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".sys__action:nth-child(1)",
+       ".ac__support",
+       ".ac__privacy",
+       "section[aria-labelledby=\"_r_4_\"] > .ui-card__body > .sys__hint:nth-child(1)"
+      ]
+     }
+    ]
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ur@narrow_320/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:گھر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:میرے سفر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "میرے سفر"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:سپورٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سپورٹ",
+     "میری ٹکٹیں"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:اکاؤنٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "اکاؤنٹ",
+     "آپ کے ڈیٹا پر آپ کے حقوق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ur@phone_390/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:گھر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:میرے سفر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "میرے سفر"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:سپورٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سپورٹ",
+     "میری ٹکٹیں"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:اکاؤنٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "اکاؤنٹ",
+     "آپ کے ڈیٹا پر آپ کے حقوق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ur@large_430/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:گھر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:میرے سفر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "میرے سفر"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:سپورٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سپورٹ",
+     "میری ٹکٹیں"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:اکاؤنٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "اکاؤنٹ",
+     "آپ کے ڈیٹا پر آپ کے حقوق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ur@tg_desktop_384/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:گھر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:میرے سفر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "میرے سفر"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:سپورٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سپورٹ",
+     "میری ٹکٹیں"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:اکاؤنٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "اکاؤنٹ",
+     "آپ کے ڈیٹا پر آپ کے حقوق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "rider_ur@tablet_768/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:گھر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "وصلہ میں خوش آمدید",
+     "محفوظ مقامات",
+     "آپ کی حالیہ منزلیں"
+    ],
+    "liveRegions": 0,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       "legend"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:میرے سفر",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "میرے سفر"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:سپورٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     },
+     {
+      "tag": "input",
+      "cls": "",
+      "w": 13,
+      "h": 13,
+      "text": ""
+     }
+    ],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سپورٹ",
+     "میری ٹکٹیں"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:اکاؤنٹ",
+    "dir": "rtl",
+    "lang": "ur",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "اکاؤنٹ",
+     "آپ کے ڈیٹا پر آپ کے حقوق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me/places 200",
+    "GET /v1/me/recent-destinations 200",
+    "GET /v1/rides 200",
+    "GET /v1/support/tickets 200",
+    "GET /v1/me/places 200",
+    "GET /v1/me/emergency-contact 200",
+    "GET /v1/me/recent-destinations 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "driver_ar@narrow_320/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:العروض",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:مهمّتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "مهمّتي",
+     "لا مهمّة الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:أرباحي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حصيلتي",
+     "أدائي",
+     "كيف تختار للرحلة",
+     "جدول رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [
+    "error: WebSocket connection to 'ws://127.0.0.1:5080/socket.io/?EIO=4&transport=websocket' failed: Invalid frame header"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/offers 200",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/activity 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "driver_ar@phone_390/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:العروض",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:مهمّتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "مهمّتي",
+     "لا مهمّة الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:أرباحي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حصيلتي",
+     "أدائي",
+     "كيف تختار للرحلة",
+     "جدول رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [
+    "error: WebSocket connection to 'ws://127.0.0.1:5080/socket.io/?EIO=4&transport=websocket' failed: Invalid frame header"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/offers 200",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/activity 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "driver_ar@large_430/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:العروض",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:مهمّتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "مهمّتي",
+     "لا مهمّة الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:أرباحي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حصيلتي",
+     "أدائي",
+     "كيف تختار للرحلة",
+     "جدول رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [
+    "error: WebSocket connection to 'ws://127.0.0.1:5080/socket.io/?EIO=4&transport=websocket' failed: Invalid frame header"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/offers 200",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/activity 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "driver_ar@tg_desktop_384/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:العروض",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:مهمّتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "مهمّتي",
+     "لا مهمّة الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:أرباحي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حصيلتي",
+     "أدائي",
+     "كيف تختار للرحلة",
+     "جدول رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [
+    "error: WebSocket connection to 'ws://127.0.0.1:5080/socket.io/?EIO=4&transport=websocket' failed: Invalid frame header"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/offers 200",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/activity 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "driver_ar@tablet_768/dark",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:العروض",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "عروضي",
+     "لا عرض الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(2)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:مهمّتي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "مهمّتي",
+     "لا مهمّة الآن"
+    ],
+    "liveRegions": 1,
+    "axe": [
+     {
+      "id": "color-contrast",
+      "impact": "serious",
+      "n": 1,
+      "help": "Elements must meet minimum color contrast ratio thresholds",
+      "targets": [
+       ".app-frame__tab:nth-child(1)"
+      ]
+     }
+    ]
+   },
+   {
+    "label": "tab:أرباحي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حصيلتي",
+     "أدائي",
+     "كيف تختار للرحلة",
+     "جدول رحلاتي"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   },
+   {
+    "label": "tab:حسابي",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "حسابي",
+     "حقوقك في بياناتك"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 11,
+  "ev": {
+   "console": [
+    "error: WebSocket connection to 'ws://127.0.0.1:5080/socket.io/?EIO=4&transport=websocket' failed: Invalid frame header"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/offers 200",
+    "GET /v1/driver/job 200",
+    "GET /v1/driver/activity 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "unregistered@narrow_320/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سجّل كسائق من بوت السائق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 6,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/onboarding 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "unregistered@phone_390/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سجّل كسائق من بوت السائق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 6,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/onboarding 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "unregistered@large_430/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سجّل كسائق من بوت السائق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 6,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/onboarding 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "unregistered@tg_desktop_384/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سجّل كسائق من بوت السائق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 6,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/onboarding 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "unregistered@tablet_768/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "سجّل كسائق من بوت السائق"
+    ],
+    "liveRegions": 0,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 6,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/onboarding 200"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "blocked@narrow_320/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "هذا الحساب محجوب"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me 403",
+    "GET /v1/me 403"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "blocked@phone_390/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "هذا الحساب محجوب"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me 403",
+    "GET /v1/me 403"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "blocked@large_430/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "هذا الحساب محجوب"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me 403",
+    "GET /v1/me 403"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "blocked@tg_desktop_384/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "هذا الحساب محجوب"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me 403",
+    "GET /v1/me 403"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "blocked@tablet_768/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "هذا الحساب محجوب"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)",
+    "error: Failed to load resource: the server responded with a status of 403 (Forbidden)"
+   ],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [
+    "POST /v1/session/telegram 201",
+    "GET /v1/me 403",
+    "GET /v1/me 403"
+   ],
+   "tg": [
+    "setHeaderColor",
+    "setBackgroundColor",
+    "setBottomBarColor",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "onEvent",
+    "ready",
+    "expand"
+   ]
+  }
+ },
+ {
+  "id": "outside_telegram@narrow_320/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "افتح وَصْلة من تيليجرام"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [],
+   "tg": []
+  }
+ },
+ {
+  "id": "outside_telegram@phone_390/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "افتح وَصْلة من تيليجرام"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [],
+   "tg": []
+  }
+ },
+ {
+  "id": "outside_telegram@large_430/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "افتح وَصْلة من تيليجرام"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [],
+   "tg": []
+  }
+ },
+ {
+  "id": "outside_telegram@tg_desktop_384/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "افتح وَصْلة من تيليجرام"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [],
+   "tg": []
+  }
+ },
+ {
+  "id": "outside_telegram@tablet_768/light",
+  "screens": [
+   {
+    "label": "root",
+    "dir": "rtl",
+    "lang": "ar",
+    "bodyDir": "rtl",
+    "horizontalOverflow": null,
+    "overflowing": [],
+    "overflowingCount": 0,
+    "smallTargets": [],
+    "arabicTypographyViolations": [],
+    "busy": false,
+    "headings": [
+     "افتح وَصْلة من تيليجرام"
+    ],
+    "liveRegions": 1,
+    "axe": []
+   }
+  ],
+  "focusNoIndicator": [],
+  "focusStops": 0,
+  "ev": {
+   "console": [],
+   "pageErrors": [],
+   "csp": [],
+   "failed": [],
+   "api": [],
+   "tg": []
+  }
+ }
+]

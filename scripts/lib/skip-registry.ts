@@ -2446,6 +2446,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/emergency-contact-read.test.ts",
+    suites: ["قراءةُ جهةِ الطوارئِ: «لا جهة» ليسَ «لا حساب» (UI-10)"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `UI-10` (ADR 0245) أنَّ `read_emergency_contact` تُعيدُ `ok` بقيمٍ فارغةٍ لمستخدمٍ موجودٍ لم يحفظْ جهةً، و`USER_NOT_FOUND` لمعرّفٍ بلا مستخدمٍ وحدَه. والخطأُ المُصحَّحُ (`record is null` صادقٌ متى فرغت الحقولُ كلُّها) سلوكُ محرّكِ PL/pgSQL لا يبلغُه منفذٌ مزيّف؛ فالقياسُ على PostgreSQL حقيقيٍّ: الدالّةُ مباشرةً، ومنفذا القراءةِ والكتابةِ الحقيقيّانِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة (ومنها 20261007120000_ui_10_emergency_contact_read_found.sql). يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "السلامةُ والاستغاثة",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/account-recovery.test.ts",
     suites: ["مسارُ استردادِ حسابٍ بمراجعةٍ إداريّةٍ (SEC-20)"],
     skipped: 8,

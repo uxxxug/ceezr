@@ -908,8 +908,11 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (`ح-8`): والآنَ 157 و 1438 بمقياسِ خطأِ التقديرِ (`ADR 0243`):
     // خمسُ حالاتٍ في `eta-error-band.test.ts` لأنَّ المُدَّعى حسابُ `percentile_cont`
     // وحفظُ الأوّلِ بـ`on conflict` وصلاحيّاتُ الأدوارِ — أحكامُ محرِّكٍ لا شِفرة.
-    expect(SKIP_REGISTRY).toHaveLength(157);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1438);
+    // زيادةٌ (`ح-8`): والآنَ 158 و 1441 بقراءةِ جهةِ الطوارئِ (`UI-10` · `ADR 0245`):
+    // ثلاثُ حالاتٍ في `emergency-contact-read.test.ts` لأنَّ المُدَّعى سلوكُ `record is null`
+    // في PL/pgSQL (يصدقُ متى فرغت الحقولُ كلُّها) — حكمُ محرِّكٍ لا يبلغُه منفذٌ مزيّف.
+    expect(SKIP_REGISTRY).toHaveLength(158);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1441);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
