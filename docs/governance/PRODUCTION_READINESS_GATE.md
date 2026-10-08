@@ -44,8 +44,8 @@
 | البعد | القيمة | المرحلة |
 |---|---|---|
 | الكود على `main` | UI-0…UI-10 مُدمجة؛ لا فرقَ تشغيليٌّ بين `c01e3dd` و`c47742b` (وثائقُ وحارسُ حوكمةٍ فقط) | Merged |
-| الإنتاج (gateway) | نشرُ Render `dep-db33kmugekts739c7iv0` من `c01e3dd` — live منذ 2026-10-07 12:26 UTC | Deployed (`c01e3dd`) |
-| الإنتاج (miniapp) | نشرُ Render `dep-db33ldmgekts739c9h30` من `c01e3dd`؛ البصمةُ الحيّةُ `shell-DG3BU2l8` = بناءُ `main` بمتغيّراتِ الإنتاج | Deployed |
+| الإنتاج (gateway) | نشرُ Render `dep-db3hm3l6laks738qvkfg` من `e5282587` (رأسُ `main`) — live منذ 2026-10-08 04:26 UTC | Deployed |
+| الإنتاج (miniapp) | نشرُ Render `dep-db3hsknavr4c739sbvu0` من `e5282587`؛ البصمةُ الحيّةُ `shell-DG3BU2l8` = بناءُ `main` بمتغيّراتِ الإنتاج | Deployed |
 | هجرات الإنتاج | آخرها `20261003121359`؛ `20261006200000` و`20261007120000` غير مطبَّقتين | **غير Deployed** |
 | `/health` | 200 `ok` | — |
 | `/ready` | 200 `degraded` — `degradedChecks: ["redis"]`؛ سجلُّ Render: `session.redis_failed kind=http detail="HTTP 400"` | **غير Production-Verified** |
@@ -78,8 +78,8 @@
 | المتطلبات المسبقة | PRD-001 (Redis) أو قرارٌ موثَّقٌ بالنشرِ رغمَ التدهور |
 | الإجراء المطلوب | نشرُ `waslah-gateway` و`waslah-miniapp` من رأسِ `main` (أو successor بلا فرقٍ تشغيليٍّ) |
 | شرط القبول | نشرُ Render الحيُّ لكلِّ خدمةٍ commit = رأسُ `main` أو successor بلا فرقٍ تشغيليٍّ (`git diff --name-only <deployed> main` خارجَ `docs/` و`*.md` فارغ)؛ وبصمةُ الـminiapp الحيّةُ = بصمةُ بناءِ ذلك الـcommit **بمتغيّراتِ `VITE_*` الإنتاجيّة** (لا بناءٍ محليٍّ بلاها) |
-| الدليل | `docs/evidence/production/PRD-002-deploy-YYYYMMDD.md` يحتوي: commit، بصمة الأصول قبل/بعد، `last-modified` |
-| الحالة | **Blocked** (يحتاج صلاحية إنتاج) |
+| الدليل | `docs/evidence/production/PRD-002-deploy-20261008.md` |
+| الحالة | **Verified** (2026-10-08 — gateway وminiapp live على `e5282587` = رأسُ `main`؛ البصمةُ `shell-DG3BU2l8` مطابقة) |
 
 ### PRD-003: تطبيق هجرات UI-8 وUI-10
 
@@ -332,6 +332,7 @@
 | التاريخ | التغيير | المرجع |
 |---|---|---|
 | 2026-10-08 | الإنشاء — تحويلُ تقرير المراجعة إلى خارطة تنفيذية حاكمة | ADR 0246 |
+| 2026-10-08 | PRD-002 → Verified (الخدمتان على `e5282587`) | PRD-002 |
 | 2026-10-08 | PRD-003 → Verified (قياسٌ على قاعدة الإنتاج؛ شرطُ «آخر هجرة» صيغَ بما يقبلُ القياسَ بلا سجلِّ هجرات) | PRD-003 |
 | 2026-10-08 | PRD-001: السببُ الجذريُّ مقيسٌ (حصّةُ Upstash مستنفدةٌ بماسحِ Streams) + إصلاحُ الاستطلاعِ الخامل | PRD-001 |
 | 2026-10-08 | مواءمةُ السياسةِ والحارسِ وCI: نمطا CI/الإعلان، نطاقُ الإعلانِ P0/P1، تصحيحُ شرطِ PRD-001 (`ready` لا `ok`)، تصحيحُ لقطةِ النشرِ وشرطِ بصمةِ PRD-002 | ADR 0246 (تعديل ح-PRD-3/ح-PRD-8) |
