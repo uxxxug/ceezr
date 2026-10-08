@@ -389,7 +389,14 @@ export function SearchScreen({
   );
 
   if (system !== null) {
-    return <SystemScreen state={system.screen} onAction={() => void create()} busy={busy} />;
+    return (
+      <SystemScreen
+        language={language}
+        state={system.screen}
+        onAction={() => void create()}
+        busy={busy}
+      />
+    );
   }
 
   const body = () => {

@@ -41,6 +41,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { hasConsumer } from "../settings/consumers.ts";
 import { NotificationPrefsPanel } from "../settings/NotificationPrefsPanel.tsx";
 import type { NotificationPrefs } from "../settings/notification-prefs.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
@@ -226,6 +227,7 @@ export function NotificationsScreen({
   if (system !== null) {
     return (
       <SystemScreen
+        language={language}
         state={system.screen}
         onAction={() => void load({ previous: null })}
         busy={busy}
@@ -365,12 +367,16 @@ export function NotificationsScreen({
         </h1>
       ) : null}
       {body()}
-      {/* [B] تفضيلاتُ الإشعارات (ADR 0238) — مستقلّةٌ عن الموجَز: عطلُ القائمةِ لا يُخفيها، و503 يُقالُ «غيرُ متاحة». */}
-      <NotificationPrefsPanel
-        language={language}
-        {...(prefs?.read === undefined ? {} : { read: prefs.read })}
-        {...(prefs?.save === undefined ? {} : { save: prefs.save })}
-      />
+      {/* `TRUTH-01`: لا مستهلِكَ للتفضيلاتِ بعدُ (`settings/consumers.ts`) ⇒ يُقالُ الحدُّ ولا يُعرَضُ مفتاحٌ لا يُطفئُ شيئاً. */}
+      {hasConsumer("notificationPrefs") ? (
+        <NotificationPrefsPanel
+          language={language}
+          {...(prefs?.read === undefined ? {} : { read: prefs.read })}
+          {...(prefs?.save === undefined ? {} : { save: prefs.save })}
+        />
+      ) : (
+        <p className="sys__hint">{t("rider.notifications.prefs.pending")}</p>
+      )}
     </section>
   );
 }

@@ -25,6 +25,7 @@ import { NotificationsScreen } from "./notifications/NotificationsScreen.tsx";
 import { PrivacyScreen } from "./privacy/PrivacyScreen.tsx";
 import { initialRiderFlow, riderLandingTab } from "./rider-flow.ts";
 import { classifyCapabilityFailure, failureCode } from "./settings/capability.ts";
+import { RIDER_SETTINGS_CONSUMERS } from "./settings/consumers.ts";
 import { EmergencyContactPanel } from "./settings/EmergencyContactPanel.tsx";
 import {
   contactProblems,
@@ -56,7 +57,7 @@ import {
   threadErrorKey,
   ticketThreadApi,
 } from "./settings/ticket-thread.ts";
-import { RIDER_SUPPORT_DECLARED_DEBT } from "./support/SupportScreen.tsx";
+import { RIDER_SUPPORT_DECLARED_DEBT, SupportScreen } from "./support/SupportScreen.tsx";
 import { RIDER_SUPPORT_SPEC, RIDER_SUPPORT_VIEW } from "./support/support-view.ts";
 
 const HERE = new URL(".", import.meta.url);
@@ -267,10 +268,16 @@ describe("[B] الدالّاتُ النقيّة — مرآةُ قواعدِ ال
     expect(threadErrorKey("TICKET_CLOSED")).toBe("rider.support.thread.error.closed");
   });
 
-  it("الدَّينُ المعلَنُ: ما بُنِيَ رُفِع، و«تعديلُ الهويّة» باقٍ (لا عقد)، ورسائلُ التذكرةِ خرجَت من دَينِ الدعم", () => {
+  it("الدَّينُ المعلَنُ: ما بُنِيَ رُفِع، و«تعديلُ الهويّة» باقٍ (لا عقد)، ورسائلُ التذكرةِ عادَت دَيناً بلا قارئ (TRUTH-01)", () => {
     expect(RIDER_ACCOUNT_DEBT_KEYS).toEqual(["rider.account.debt.editIdentity"]);
-    expect(RIDER_ACCOUNT_BUILT_FROM_DEBT).toHaveLength(3);
-    expect(RIDER_SUPPORT_DECLARED_DEBT).toEqual(["rider.support.debt.attachment"]);
+    expect(RIDER_ACCOUNT_BUILT_FROM_DEBT).toEqual([
+      "rider.account.debt.emergencyContact",
+      "rider.account.debt.editPlaces",
+    ]);
+    expect(RIDER_SUPPORT_DECLARED_DEBT).toEqual([
+      "rider.support.debt.attachment",
+      "rider.support.debt.thread",
+    ]);
   });
 });
 
@@ -651,5 +658,52 @@ describe("RiderRoot — R11/R13/R15 تبويباتٌ جذريّة، والباق
     expect(ROOT).toContain('rides: "rider.tabs.rides"');
     expect(ROOT).toContain("onOpenNotifications={() => setNotificationsOpen(true)}");
     expect(ROOT).toContain("onOpenPrivacy={() => setPrivacy(true)}");
+  });
+});
+
+// ── TRUTH-01: لا واجهةَ بلا مستهلِك ─────────────────────────────────────────
+
+describe("TRUTH-01 — ما لا يقرؤه أحدٌ لا يُعرَضُ كأنّه يعمل", () => {
+  it("لا مستهلِكَ للتفضيلاتِ ولا لرسائلِ التذكرةِ في الخادمِ بعد", () => {
+    expect(RIDER_SETTINGS_CONSUMERS).toEqual({ notificationPrefs: false, ticketThread: false });
+    // البثُّ بلا تصنيفٍ ولا يقرأُ أعمدةَ التفضيل؛ ولا صفحةَ إدارةٍ تقرأُ `ticket_messages`.
+    const migrations = readFileSync(
+      new URL(
+        "../../../../../supabase/migrations/20260908030000_unified_outbox_broadcast_recipient.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    expect(migrations).not.toContain("offers_notifications_enabled");
+    expect(migrations).not.toContain("updates_notifications_enabled");
+    for (const page of ["disputes.ts", "messages.ts"]) {
+      const admin = readFileSync(
+        new URL(`../../../../admin-dashboard/src/pages/${page}`, import.meta.url),
+        "utf8",
+      );
+      expect(admin, page).not.toContain("ticket_messages");
+    }
+  });
+
+  it("شاشةُ الإشعاراتِ تقولُ الحدَّ ولا ترسمُ مفاتيحَ لا تُطفئُ شيئاً — باللغاتِ الثلاث", () => {
+    for (const language of MINIAPP_LANGUAGES) {
+      const markup = renderToStaticMarkup(
+        <NotificationsScreen initialLanguage={language} read={never} prefs={{ read: never }} />,
+      );
+      expect(markup).not.toContain("rset__form");
+      expect(markup).not.toContain('type="checkbox"');
+      expect(markup).toContain(html(t(language, "rider.notifications.prefs.pending")));
+    }
+  });
+
+  it("شاشةُ الدعمِ بلا خانةِ رسائلَ داخلَ التذكرة، والحدُّ معلَن", () => {
+    const code = codeOnly(read("./support/SupportScreen.tsx"));
+    expect(code).toContain('hasConsumer("ticketThread")');
+    for (const language of MINIAPP_LANGUAGES) {
+      const markup = renderToStaticMarkup(
+        <SupportScreen language={language} readTickets={never} />,
+      );
+      expect(markup).not.toContain(html(t(language, "rider.support.thread.compose")));
+    }
   });
 });

@@ -282,6 +282,7 @@ export function RideHistoryScreen({
   if (system !== null) {
     return (
       <SystemScreen
+        language={language}
         state={system.screen}
         onAction={() => void load({ query: null, cursor: null, previous: null })}
         busy={busy}

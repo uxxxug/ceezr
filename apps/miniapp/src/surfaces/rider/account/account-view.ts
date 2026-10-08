@@ -52,10 +52,10 @@ export const RIDER_ACCOUNT_DEBT_KEYS: readonly string[] = ["rider.account.debt.e
  * UI-3 / PR 5 (ADR 0238): ما كانَ دَيناً وصارَ مبنيّاً على عقدٍ قائمٍ ([B]) — لا يُقالُ «غيرُ متاحٍ بعدُ»
  * وهوَ مبنيّ. جهةُ الطوارئِ والأماكنُ لوحتانِ في هذه الشاشة، والتفضيلاتُ في شاشةِ الإشعارات (R12).
  * و`editIdentity` باقٍ: لا عقدَ لتعديلِ الاسمِ والرقم.
+ * `TRUTH-01`: `notificationPrefs` خرجَت من «المبنيّ» — لا مستهلِكَ لها، وحدُّها يُقالُ في شاشةِ الإشعارات.
  */
 export const RIDER_ACCOUNT_BUILT_FROM_DEBT: readonly string[] = [
   "rider.account.debt.emergencyContact",
-  "rider.account.debt.notificationPrefs",
   "rider.account.debt.editPlaces",
 ];
 
