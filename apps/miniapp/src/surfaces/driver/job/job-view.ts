@@ -104,6 +104,9 @@ export interface JobPlaceModel {
   readonly latitude: number;
   readonly longitude: number;
   readonly navigationUrl: string;
+  readonly link: string | null;
+  readonly notes: string | null;
+  readonly openUrl: string | null;
 }
 
 function toPlace(place: ApiDriverJobPlace): JobPlaceModel {
@@ -112,6 +115,9 @@ function toPlace(place: ApiDriverJobPlace): JobPlaceModel {
     latitude: place.latitude,
     longitude: place.longitude,
     navigationUrl: place.navigation_url,
+    link: place.link ?? null,
+    notes: place.notes ?? null,
+    openUrl: place.open_url ?? null,
   };
 }
 

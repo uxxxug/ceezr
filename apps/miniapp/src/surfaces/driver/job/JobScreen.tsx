@@ -374,12 +374,51 @@ export function JobScreen({
       <p className="djb__coords">
         {job.pickup.latitude} , {job.pickup.longitude}
       </p>
+      {/* `LOC-TRUST-01`: ملاحظاتُ المكانِ ورابطُ الراكبِ الأصليُّ حرفاً، وفتحُه. */}
+      {job.pickup.notes === null ? null : (
+        <p className="djb__notes">
+          {t("driver.job.place.notes")}: {job.pickup.notes}
+        </p>
+      )}
+      {job.pickup.link === null ? null : (
+        <p className="djb__coords">
+          {t("driver.job.place.link")}: {job.pickup.link}
+        </p>
+      )}
+      {job.pickup.openUrl === null ? null : (
+        <button
+          type="button"
+          className="djb__navigate"
+          onClick={() => openLink(job.pickup.openUrl ?? "")}
+        >
+          {t("driver.job.openPickup")}
+        </button>
+      )}
       <p className="djb__place">
         {t("driver.job.dropoff")}:{" "}
         {job.dropoff === null
           ? t("driver.job.place.none")
           : (job.dropoff.label ?? t("driver.job.place.unnamed"))}
       </p>
+      {job.dropoff?.notes == null ? null : (
+        <p className="djb__notes">
+          {t("driver.job.place.notes")}: {job.dropoff.notes}
+        </p>
+      )}
+      {job.dropoff?.link == null ? null : (
+        <p className="djb__coords">
+          {t("driver.job.place.link")}: {job.dropoff.link}
+        </p>
+      )}
+      {job.dropoff?.openUrl == null ? null : (
+        <button
+          type="button"
+          className="djb__navigate"
+          onClick={() => openLink(job.dropoff?.openUrl ?? "")}
+        >
+          {t("driver.job.openDropoff")}
+        </button>
+      )}
 
       <p className="djb__notes">
         {t("driver.job.notes")}:{" "}

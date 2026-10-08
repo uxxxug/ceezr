@@ -721,6 +721,13 @@ a.sys__action {
   text-align: center;
 }
 
+/* `LOC-TRUST-01` — الاسمُ والملاحظاتُ والرابطُ الملصوقُ لكلِّ مكان. */
+.rd__place {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
 .rd__field {
   display: flex;
   flex-direction: column;

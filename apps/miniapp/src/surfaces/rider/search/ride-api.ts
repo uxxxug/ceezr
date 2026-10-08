@@ -21,6 +21,7 @@
  */
 
 import { apiFetch } from "../../../api/client.ts";
+import type { PlaceWire } from "../destination/destination-view.ts";
 import type {
   CancelRideResponse,
   RequestRideResponse,
@@ -45,11 +46,23 @@ export interface RequestRideInput {
   readonly pickupAt?: string | null;
   /** `ORDER-OFFER-01` — مبلغُ الراكبِ بالريال؛ يُطوى غائباً. */
   readonly offerSar?: number | null;
+  /** `LOC-TRUST-01` — مصدرُ النقطةِ ودقّتُها ووقتُها والرابطُ الأصليُّ والملاحظات. */
+  readonly pickupPlace?: PlaceWire | null;
+  readonly dropoffPlace?: PlaceWire | null;
 }
 
 export function requestRide(input: RequestRideInput): Promise<RequestRideResponse> {
-  const { idempotencyKey, notes, pickupLabel, destinationLabel, pickupAt, offerSar, ...rest } =
-    input;
+  const {
+    idempotencyKey,
+    notes,
+    pickupLabel,
+    destinationLabel,
+    pickupAt,
+    offerSar,
+    pickupPlace,
+    dropoffPlace,
+    ...rest
+  } = input;
   return apiFetch<RequestRideResponse>("/v1/rides", {
     method: "POST",
     idempotencyKey,
@@ -66,6 +79,8 @@ export function requestRide(input: RequestRideInput): Promise<RequestRideRespons
         : { destinationLabel }),
       ...(pickupAt === undefined || pickupAt === null ? {} : { pickupAt }),
       ...(offerSar === undefined || offerSar === null ? {} : { offerSar }),
+      ...(pickupPlace == null ? {} : { pickupPlace }),
+      ...(dropoffPlace == null ? {} : { dropoffPlace }),
     },
   });
 }

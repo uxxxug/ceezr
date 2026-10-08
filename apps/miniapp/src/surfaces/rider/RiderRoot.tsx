@@ -619,6 +619,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
               label: confirmed.label,
               lat: confirmed.lat,
               lng: confirmed.lng,
+              ...(confirmed.place === undefined ? {} : { place: confirmed.place }),
             }}
             initialLanguage={language}
             showTitle={false}

@@ -51,6 +51,8 @@ export interface ApiNearestLandmark {
 export interface ApiAcceptedDestination {
   readonly lat: number;
   readonly lng: number;
+  /** `LOC-TRUST-01` — رابطُ النقطةِ نفسِها للتحقّقِ على الخريطة؛ يغيبُ من بوّابةٍ أقدم. */
+  readonly mapUrl?: string;
   readonly city: ApiDestinationCity;
   readonly nearest: ApiNearestLandmark | null;
 }

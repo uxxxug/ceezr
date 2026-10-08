@@ -37,6 +37,7 @@ import {
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
 import { UiCard, UiTimer } from "../../../system/ui/index.tsx";
+import { openExternalLink } from "../../../tg/index.ts";
 import { offerTimerProps } from "./offer-timer.ts";
 import {
   type AcceptDriverOfferResponse,
@@ -80,6 +81,8 @@ export interface OfferDetailScreenProps {
   readonly accept?: (offerId: string) => Promise<AcceptDriverOfferResponse>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly now?: () => number;
+  /** `LOC-TRUST-01` — «فتح موقع الالتقاط/الوجهة»؛ يُحقَنُ في الاختبار. */
+  readonly openLink?: (url: string) => unknown;
 }
 
 type DetailState =
@@ -158,6 +161,7 @@ export function OfferDetailScreen({
   accept = acceptDriverOffer,
   reject = rejectDriverOffer,
   now = systemNowMs,
+  openLink = openExternalLink,
 }: OfferDetailScreenProps) {
   const t = miniAppTranslator(language);
   const formId = useId();
@@ -291,12 +295,51 @@ export function OfferDetailScreen({
         <p className="dof__coords">
           {detail.pickupLatitude} , {detail.pickupLongitude}
         </p>
+        {/* `LOC-TRUST-01`: لا تسقطُ معلومةٌ أدخلَها الراكب — ملاحظاتُ المكانِ ورابطُه الأصليُّ حرفاً. */}
+        {detail.pickupNotes === null ? null : (
+          <p className="dof__notes">
+            {t("driver.offers.place.notes")}: {detail.pickupNotes}
+          </p>
+        )}
+        {detail.pickupLink === null ? null : (
+          <p className="dof__coords">
+            {t("driver.offers.place.link")}: {detail.pickupLink}
+          </p>
+        )}
+        {detail.pickupOpenUrl === null ? null : (
+          <button
+            type="button"
+            className="dof__reject"
+            onClick={() => openLink(detail.pickupOpenUrl ?? "")}
+          >
+            {t("driver.offers.openPickup")}
+          </button>
+        )}
         <p className="dof__place">
           {t("driver.offers.dropoff")}:{" "}
           {detail.hasDropoff
             ? (detail.dropoffLabel ?? t("driver.offers.place.unnamed"))
             : t("driver.offers.place.none")}
         </p>
+        {detail.dropoffNotes === null ? null : (
+          <p className="dof__notes">
+            {t("driver.offers.place.notes")}: {detail.dropoffNotes}
+          </p>
+        )}
+        {detail.dropoffLink === null ? null : (
+          <p className="dof__coords">
+            {t("driver.offers.place.link")}: {detail.dropoffLink}
+          </p>
+        )}
+        {detail.dropoffOpenUrl === null ? null : (
+          <button
+            type="button"
+            className="dof__reject"
+            onClick={() => openLink(detail.dropoffOpenUrl ?? "")}
+          >
+            {t("driver.offers.openDropoff")}
+          </button>
+        )}
 
         <DistanceRow line={detail.riderDistance} labelKey="driver.offers.riderDistance" t={t} />
         <DistanceRow line={detail.tripDistance} labelKey="driver.offers.tripDistance" t={t} />
