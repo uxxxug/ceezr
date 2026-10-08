@@ -444,9 +444,19 @@ export function OffersScreen({
                   {t("driver.offers.pickup")}:{" "}
                   {card.pickupLabel ?? t("driver.offers.place.unnamed")}
                 </p>
+                {card.pickupNotes === null ? null : (
+                  <p className="dof__notes">
+                    {t("driver.offers.place.notes")}: {card.pickupNotes}
+                  </p>
+                )}
                 <p className="dof__place">
                   {t("driver.offers.dropoff")}: {card.dropoffLabel ?? t("driver.offers.place.none")}
                 </p>
+                {card.dropoffNotes === null ? null : (
+                  <p className="dof__notes">
+                    {t("driver.offers.place.notes")}: {card.dropoffNotes}
+                  </p>
+                )}
 
                 <DistanceRow
                   line={card.riderDistance}

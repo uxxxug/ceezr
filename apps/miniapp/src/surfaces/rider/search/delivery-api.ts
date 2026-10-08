@@ -28,6 +28,7 @@
  *   ــ **لا يُسعِّرُ التوصيل**: التسعيرُ محجوبٌ بـ`DEC-11`/`F12-16`.
  */
 
+import type { PlaceWire } from "../destination/destination-view.ts";
 import type { RequestRideResponse } from "./ride-contract.ts";
 
 export type * from "./ride-contract.ts";
@@ -47,6 +48,9 @@ export interface RequestDeliveryInput {
   readonly offerSar?: number;
   /** ملاحظةٌ إضافيّةٌ للسائقِ — تُطوى إن كانت فارغةً. */
   readonly notes?: string;
+  /** `LOC-TRUST-01` — مصدرُ النقطةِ ودقّتُها ووقتُها والرابطُ الأصليُّ والملاحظات. */
+  readonly pickupPlace?: PlaceWire | null;
+  readonly dropoffPlace?: PlaceWire | null;
 }
 
 /**
