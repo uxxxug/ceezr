@@ -48,7 +48,7 @@
 | الإنتاج (miniapp) | نشرُ Render `dep-db3hsknavr4c739sbvu0` من `e5282587`؛ البصمةُ الحيّةُ `shell-DG3BU2l8` = بناءُ `main` بمتغيّراتِ الإنتاج | Deployed |
 | هجرات الإنتاج | آخرها `20261003121359`؛ `20261006200000` و`20261007120000` غير مطبَّقتين | **غير Deployed** |
 | `/health` | 200 `ok` | — |
-| `/ready` | 200 `degraded` — `degradedChecks: ["redis"]`؛ سجلُّ Render: `session.redis_failed kind=http detail="HTTP 400"` | **غير Production-Verified** |
+| `/ready` | 200 `ready` — `degradedChecks: []` (2026-10-08 10:45 UTC، بعد قاعدة Upstash الجديدة) | Production-Verified (Redis) |
 | Telegram حقيقي | لم يُختبَر (محاكاة `window.Telegram.WebApp` فقط) | **غير Production-Verified** |
 | Screen reader | لم يُختبَر (axe آليٌّ فقط) | **غير Production-Verified** |
 | UI-10 | مُدمجة، غير مُغلَقة | Merged |
@@ -66,9 +66,9 @@
 | المتطلبات المسبقة | وصول إلى لوحة Render أو خدمة Redis |
 | الإجراء المطلوب | تحديدُ سبب `degraded` في `/ready` ومعالجته |
 | شرط القبول | `GET /ready` يرجع HTTP 200 بـ`{"status":"ready","failedChecks":[],"degradedChecks":[]}` — **`"ready"` لا `"ok"`**: هذا ما يرجعُه `apps/gateway/src/routes/health.ts` عند نجاحِ كلِّ الفحوص؛ و`"ok"` قيمةُ `/health` وحدَه (تصحيح 2026-10-08: الصيغةُ الأولى كانت غيرَ قابلةٍ للتحقّق على الكود) |
-| الدليل | `docs/evidence/production/PRD-001-redis-healthy-YYYYMMDD.md` يحتوي: قبل/بعد `/ready`، سجلُّ المعالجة، اختبارُ جلسةٍ حقيقي |
+| الدليل | `docs/evidence/production/PRD-001-redis-healthy-20261008.md` (التشخيص: `docs/evidence/production/PRD-001-redis-diagnosis-20261008.md`) |
 | التشخيص (مقيس 2026-10-08) | بعد نشرِ `da5c516` أظهرَ `/ready`: `checkDetails.redis = "http: HTTP 400: ERR max requests limit exceeded. Limit: 500000, Usage: 500000"` — **حصّةُ Upstash الشهريّةُ مستنفدة**، لا اعتمادٌ خاطئٌ ولا شبكة. المستهلكُ: ماسحُ `redis-stream-event-bus` يطلبُ `XREAD` كلَّ 250ms بلا شرط (~10.4M طلبٍ/شهر للنسخة). الإصلاح: لا استطلاعَ بلا مشتركٍ محليّ (`tests/unit/redis-stream-event-bus.test.ts`). والتفصيلُ: `docs/evidence/production/PRD-001-redis-diagnosis-20261008.md` |
-| الحالة | **Blocked** (الإصلاحُ في الكود؛ الحصّةُ المستنفدةُ تحتاجُ قرارَ مالكٍ: ترقيةَ خطّةِ Upstash أو قاعدةً جديدةً أو انتظارَ تجدُّدِ الحصّة) |
+| الحالة | **Verified** (2026-10-08 — `/ready` = `ready` و`degradedChecks: []` حيًّا؛ حدُّ المعدّلِ الموزَّعُ يقطعُ عندَ 30 بـ429 على Redis الجديد؛ لا أخطاءَ Redis في السجلّ. الحدودُ المعلَنةُ في الدليل §6) |
 
 ### PRD-002: نشر آخر `main` للـgateway وminiapp
 
@@ -332,6 +332,7 @@
 | التاريخ | التغيير | المرجع |
 |---|---|---|
 | 2026-10-08 | الإنشاء — تحويلُ تقرير المراجعة إلى خارطة تنفيذية حاكمة | ADR 0246 |
+| 2026-10-08 | PRD-001 → Verified (دليلٌ حيٌّ بعد قاعدة Upstash الجديدة) | PRD-001 |
 | 2026-10-08 | PRD-002 → Verified (الخدمتان على `e5282587`) | PRD-002 |
 | 2026-10-08 | PRD-003 → Verified (قياسٌ على قاعدة الإنتاج؛ شرطُ «آخر هجرة» صيغَ بما يقبلُ القياسَ بلا سجلِّ هجرات) | PRD-003 |
 | 2026-10-08 | PRD-001: السببُ الجذريُّ مقيسٌ (حصّةُ Upstash مستنفدةٌ بماسحِ Streams) + إصلاحُ الاستطلاعِ الخامل | PRD-001 |
