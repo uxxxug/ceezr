@@ -82,8 +82,14 @@
 
 | الجزء | Implemented | Tested | Merged | Deployed | Live-verified |
 |---|---|---|---|---|---|
-| الخادم (`loc-trust-01-place-input`): هجرةُ التوسعةِ، `readPlaceMeta`، `request_ride_with_places`، `mapUrl`، بطاقةُ السائقِ وأزرارُ الفتح | نعم | وحدة (`tests/unit/loc-trust-place-input.test.ts`) + تكامل PostgreSQL في CI (`tests/integration/place-input.test.ts`) | يُحدَّثُ بعدَ الدمج | يُحدَّثُ بعدَ النشر | لا — ينتظرُ اختبارَ الجهاز |
-| الواجهة (`loc-trust-01-place-ui`): قراءةُ الجهازِ الحديثة، عرضُ النقطةِ والدقّة، التأكيدُ الصريح، الرابطُ والاسمُ والملاحظات، شاشاتُ السائق | نعم | وحدة (`tests/unit/loc-trust-place-ui.test.ts`) + حرّاسُ العقدِ والأداء | يُحدَّثُ بعدَ الدمج | يُحدَّثُ بعدَ النشر | لا — ينتظرُ اختبارَ الجهاز |
+| الخادم (`loc-trust-01-place-input`): هجرةُ التوسعةِ، `readPlaceMeta`، `request_ride_with_places`، `mapUrl`، بطاقةُ السائقِ وأزرارُ الفتح | نعم | وحدة (`tests/unit/loc-trust-place-input.test.ts`) + تكامل PostgreSQL في CI (`tests/integration/place-input.test.ts`) | نعم — #442 (`89b148a`) | نعم — هجرةٌ على الإنتاجِ ثمّ البوّابة `dep-db3rluei0phs73baq1u0` على `ce14d62` | لا — ينتظرُ اختبارَ الجهاز |
+| الواجهة (`loc-trust-01-place-ui`): قراءةُ الجهازِ الحديثة، عرضُ النقطةِ والدقّة، التأكيدُ الصريح، الرابطُ والاسمُ والملاحظات، شاشاتُ السائق | نعم | وحدة (`tests/unit/loc-trust-place-ui.test.ts`) + حرّاسُ العقدِ والأداء | نعم — #443 (`ce14d62`) | نعم — المصغَّر `dep-db3rmo2jnfac738hj57g` على `ce14d62` | لا — ينتظرُ اختبارَ الجهاز |
+
+**أدلّةُ النشر (2026-10-08، خادميّة):**
+- الهجرة `loc_trust_01_place_input` على مشروعِ الإنتاج: عشرةُ أعمدةٍ في `orders`، و`request_ride_with_places` بأربعةَ عشرَ مُعامِلاً، و`place_input_is_valid`؛ `anon` لا يُنفِّذُها؛ عددُ `orders` بعدَها 3 (لا تغيير).
+- البوّابة: `/ready` = `ready` بلا `failedChecks` (schema-contract يشترطُ الدالّةَ الجديدة)، `/health` = `ok`؛ `/v1/rides` و`/v1/destinations/resolve` و`/v1/driver/offers` بلا جلسةٍ = 401.
+- المصغَّر: الحزمةُ المخدومةُ تحملُ `maximumAge` ومفتاحَ «تحقّق على الخريطة».
+- اختبارُ CI التكامليُّ كشفَ قبلَ الدمجِ ترميزاً مزدوجاً لـ`$13::jsonb` في `sql.unsafe` (كائنُ المكانِ يصلُ نصّاً فيُرفَض) — أُصلِحَ بـ`::text::jsonb` واتّسعَ له حاجزُ `check-jsonb-binding`.
 
 لا يُعلَنُ LOC-TRUST-01 مُغلَقاً ولا PRD-008 Verified قبلَ اختبارِ الجهازِ وتحقّقِ الخادمِ من بطاقةِ السائق.
 
