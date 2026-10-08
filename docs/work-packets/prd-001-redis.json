@@ -1,0 +1,26 @@
+{
+  "id": "prd-001-redis",
+  "goal": "إصلاح Redis المتدهور في الإنتاج حتى يصبح /ready جاهزاً",
+  "canonical_source": [
+    "docs/governance/PRODUCTION_READINESS_GATE.md",
+    "docs/evidence/production/PRD-001-redis-owner-action.md"
+  ],
+  "implementation": [],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/governance/PRODUCTION_READINESS_GATE.md",
+    "docs/evidence/production/PRD-001-redis-owner-action.md"
+  ],
+  "no_other_affected_docs_reason": "تغيير حوكمة فقط — توثيق Owner Action لـ PRD-001",
+  "decision": "PRD-001 Blocked — Owner Action مطلوب: تحديث بيانات اعتماد Upstash في Render",
+  "tests": [],
+  "evidence": "docs/evidence/production/PRD-001-redis-owner-action.md",
+  "contract_gaps": [],
+  "constraints": [
+    "لا تغيير في كود المنتج",
+    "لا سرّ في Git",
+    "لا ادعاء نجاح بلا دليل",
+    "PRD-001 لا يُغلق إلا باختبار جلسة حقيقي"
+  ]
+}

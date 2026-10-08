@@ -57,12 +57,12 @@
 
 | الحقل | القيمة |
 |---|---|
-| المالك | Owner (يحتاج صلاحية Render/Redis) |
-| المتطلبات المسبقة | وصول إلى لوحة Render أو خدمة Redis |
-| الإجراء المطلوب | تحديدُ سبب `degraded` في `/ready` ومعالجته |
-| شرط القبول | `GET /ready` يرجع `{"status":"ok","degradedChecks":[]}` |
+| المالك | Owner (يحتاج صلاحية Render + Upstash) |
+| المتطلبات المسبقة | وصول إلى console.upstash.com وdashboard.render.com |
+| الإجراء المطلوب | تحديث `UPSTASH_REDIS_REST_URL` و`UPSTASH_REDIS_REST_TOKEN` في Render Environment بقيم صالحة من Upstash. تفاصيل كاملة في `docs/evidence/production/PRD-001-redis-owner-action.md` |
+| شرط القبول | `GET /ready` يرجع `{"status":"ok","degradedChecks":[]}` + اختبار جلسة حقيقية ناجح |
 | الدليل | `docs/evidence/production/PRD-001-redis-healthy-YYYYMMDD.md` يحتوي: قبل/بعد `/ready`، سجلُّ المعالجة، اختبارُ جلسةٍ حقيقي |
-| الحالة | **Blocked** (يحتاج صلاحية إنتاج) |
+| الحالة | **Blocked** — Owner Action: تحديث بيانات اعتماد Upstash في Render (القيم مضبوطة لكن PING يفشل) |
 
 ### PRD-002: نشر آخر `main` للـgateway وminiapp
 
