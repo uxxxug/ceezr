@@ -1,5 +1,7 @@
 # WASLA MOVE — Roadmap
 
+> **Production Readiness Gate (2026-10-08 · ADR 0246):** بوابة جاهزية الإنتاج هي المرجع التنفيذي لما تبقى حتى الإطلاق. خمس مراحل إلزامية: Implemented → Merged → Deployed → Production-Verified → Production Ready. خمس حالات: Open/Blocked/Ready/Verified/ADR-Closed. الحارس fail-closed. الكود على `main` في مرحلة Merged. الإنتاج غير Deployed. UI-10 غير مغلقة. ليس Production Ready. المرجع: `docs/governance/PRODUCTION_READINESS_GATE.md`. الحارس: `scripts/check-production-readiness-gate.ts`.
+>
 > **تحديث المرحلة (2026-10-05):** الخارطة السابقة أدناه أصبحت تاريخية
 > (Historical / Superseded) بعد اعتماد مرحلة «WASLA UI/UX REFOUNDATION»
 > كالمرحلة النشطة الرسمية. الخارطة النشطة الجديدة هي
