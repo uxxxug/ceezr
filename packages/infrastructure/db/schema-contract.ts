@@ -137,6 +137,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "refresh_admin_metric_snapshots",
   "refund_subscription_payment",
   "register_unsubscribed_claim",
+  "request_ride_with_places",
   "request_ride_with_terms",
   "resolve_destination",
   "resolve_safety_incident",

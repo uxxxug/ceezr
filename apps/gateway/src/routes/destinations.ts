@@ -38,6 +38,7 @@ import {
 } from "../../../../packages/application/destinations/choose-destination.ts";
 import type { DestinationVerdict } from "../../../../packages/application/destinations/ports.ts";
 import { bearerTokenFrom } from "./me.ts";
+import { navigationUrlFor } from "./place-links.ts";
 import { readBounded } from "./telegram-webhook.ts";
 
 export interface DestinationsRouteDependencies {
@@ -103,6 +104,9 @@ function publishVerdict(verdict: DestinationVerdict) {
     destination: {
       lat: destination.lat,
       lng: destination.lng,
+      // `LOC-TRUST-01` — «تحقّق على الخريطة»: رابطٌ للنقطةِ نفسِها لا للمعلَمِ الأقرب،
+      // يُبنى في الخادمِ (حاجزُ `F1-10` يمنعُ العنوانَ المطلقَ في المصغَّر).
+      mapUrl: navigationUrlFor({ latitude: destination.lat, longitude: destination.lng }),
       city: publishCity(destination.city),
       nearest:
         destination.nearest === null

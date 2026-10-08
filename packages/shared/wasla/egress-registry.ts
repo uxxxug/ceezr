@@ -357,11 +357,37 @@ export const WASLA_EGRESS_REGISTRY: readonly EgressPeer[] = [
     peerClass: "USER_LINK",
     system: "NONE",
     source: { kind: "literal", hosts: ["maps.google.com"] },
-    callSite: "apps/gateway/src/routes/driver-job.ts",
+    // `LOC-TRUST-01`: الباني انتقلَ إلى المجالِ ليقرأه مُرسِلُ بطاقةِ السائقِ أيضاً.
+    callSite: "packages/domain/places/place-open-url.ts",
     runtimeGate: {
       kind: "not-applicable",
       reason:
         "نصٌّ يُنشَرُ في الحمولةِ ليُمَرَّرَ إلى `openExternalLink` في المصغَّرِ، ولا نداءَ شبكةٍ من البوّابةِ ألبتَّةَ.",
+    },
+    removed: false,
+  },
+  {
+    id: "place-link-recognition",
+    purpose:
+      "`LOC-TRUST-01` — مضيفاتُ خرائطَ يُتعرَّفُ بها رابطُ موقعٍ لصقَه الراكبُ (قائمةُ سماحٍ) — مقارنةُ نصٍّ لا نداءَ شبكةٍ",
+    peerClass: "USER_LINK",
+    system: "NONE",
+    source: {
+      kind: "literal",
+      hosts: [
+        "maps.apple.com",
+        "waze.com",
+        "www.waze.com",
+        "ul.waze.com",
+        "openstreetmap.org",
+        "www.openstreetmap.org",
+        "osm.org",
+      ],
+    },
+    callSite: "packages/domain/places/place-input.ts",
+    runtimeGate: {
+      kind: "not-applicable",
+      reason: "الرابطُ يُحفَظُ نصّاً ويفتحُه السائقُ من جهازِه؛ ولا يُجلَبُ ولا يُتبَعُ تحويلُه من الخادمِ ألبتَّةَ.",
     },
     removed: false,
   },

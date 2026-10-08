@@ -50,6 +50,7 @@ import {
   type DriverCannotCompletePublicErrorCode,
   requestDriverCannotComplete,
 } from "../../../../packages/application/safety/driver-cannot-complete.ts";
+import { navigationUrlFor, openUrlFor } from "./place-links.ts";
 
 export interface DriverJobRouteDependencies {
   /** غيابُها **يُعطّلُ المساراتِ بـ503** ولا يجعلها تُجيبُ بلا قاعدةٍ. */
@@ -96,25 +97,9 @@ function unavailable(code: DriverJobPublicErrorCode): DriverJobRejection {
   return { code };
 }
 
-/**
- * رابطُ الملاحةِ **يُبنى في الخادمِ ويُنشَرُ في الحمولةِ** — ولا يُبنى في حزمةِ
- * التطبيقِ المصغَّرِ. والسببُ حاجزٌ لا ذوقٌ: `F1-10` و`TG-005` يقصُرانِ كلَّ
- * عنوانٍ مطلقٍ في شيفرةِ المصغَّرِ على قائمةٍ **مغلقةٍ** بسندٍ مكتوبٍ، وفيها
- * مضيفٌ واحدٌ لأصلٍ تنفيذيٍّ. ورابطُ ملاحةٍ **ليسَ أصلاً تنفيذيّاً**، لكنَّ
- * توسيعَ القائمةِ لأجلِه كانَ سيُوسِّعُ `script-src` نفسَه لِمُضيفٍ لا نُشغِّلُ
- * منه شيفرةً — أي إضعافُ حاجزٍ لِسببٍ لا يستحقُّه. فالمُضيفُ يبقى **في الخادمِ
- * وحدَه** حيثُ يُقرأُ في سجلِّ المخارجِ (`W-6`)، والشاشةُ تفتحُ **ما أُعطِيَت**
- * ولا تُركِّبُ عنواناً — وهوَ نفسُ ما فعلَته لوحةُ الإشرافِ قبلَها.
- *
- * والمُضيفُ حرفيٌّ لا من تهيئةٍ: تهيئةٌ تُغيَّرُ بلا مراجعةٍ تُحوِّلُ الرابطَ
- * إلى وجهةٍ أُخرى في يدِ مَن يملكُ متغيّرَ بيئةٍ.
- */
-export function navigationUrlFor(place: {
-  readonly latitude: number;
-  readonly longitude: number;
-}): string {
-  return `https://maps.google.com/?q=${place.latitude},${place.longitude}`;
-}
+// `LOC-TRUST-01`: الدالّةُ انتقلَت إلى `place-links.ts` (مصدرٌ واحدٌ لروابطِ المكان) —
+// وسببُ بنائِها في الخادمِ لا في المصغَّرِ (`F1-10` · `TG-005`) مكتوبٌ هناك.
+export { navigationUrlFor };
 
 /**
  * خريطةُ حالاتِ فعلِ «تعذّرَ الإكمالُ» — رموزُ قناةِ السلامةِ لا رموزَ النقلِ:
@@ -138,12 +123,24 @@ const CANNOT_COMPLETE_STATUS_BY_ERROR: Readonly<
   REPORT_REJECTED: 409,
 };
 
-function wirePlace(place: { latitude: number; longitude: number; label: string | null }) {
+function wirePlace(place: {
+  latitude: number;
+  longitude: number;
+  label: string | null;
+  link?: string | null;
+  notes?: string | null;
+}) {
+  const link = place.link ?? null;
   return {
     label: place.label,
     latitude: place.latitude,
     longitude: place.longitude,
+    // الملاحةُ من النقطةِ دائماً (القيادةُ تحتاجُ إحداثيّة)؛ والرابطُ الأصليُّ يُفتَحُ وحدَه.
     navigation_url: navigationUrlFor(place),
+    // `LOC-TRUST-01` — ما أدخلَه الراكبُ: الرابطُ حرفاً، وملاحظاتُ المكان، ورابطُ فتحِه.
+    link,
+    notes: place.notes ?? null,
+    open_url: openUrlFor({ link, latitude: place.latitude, longitude: place.longitude }),
   };
 }
 

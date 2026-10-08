@@ -88,6 +88,20 @@ export interface DriverOfferCard {
   readonly tripDistance: TaggedDistance | null;
   readonly pickupLabel: string | null;
   readonly dropoffLabel: string | null;
+  /** `LOC-TRUST-01` — ما أدخلَه الراكبُ زيادةً على الاسم. غائبٌ = لم يُقرَأ (قاعدةٌ أقدم). */
+  readonly pickupExtras?: DriverPlaceExtras;
+  readonly dropoffExtras?: DriverPlaceExtras | null;
+}
+
+/**
+ * `LOC-TRUST-01` — رابطُ الراكبِ الأصليُّ وملاحظاتُ المكانِ والنقطةُ (لبناءِ رابطِ الفتحِ
+ * حينَ لا رابط). يُقرأُ من `orders` بعدَ أن تحكمَ دالّةُ القاعدةِ بأنَّ العرضَ للسائق.
+ */
+export interface DriverPlaceExtras {
+  readonly link: string | null;
+  readonly notes: string | null;
+  readonly latitude: number | null;
+  readonly longitude: number | null;
 }
 
 export interface DriverOfferBoard {
@@ -106,6 +120,9 @@ export interface DriverOfferPlace {
   readonly label: string | null;
   readonly latitude: number;
   readonly longitude: number;
+  /** `LOC-TRUST-01` — الرابطُ الأصليُّ كما لصقَه الراكبُ حرفاً، وملاحظاتُ المكان. */
+  readonly link?: string | null;
+  readonly notes?: string | null;
 }
 
 export interface DriverOfferDetail {

@@ -48,6 +48,7 @@ import {
 import type { TaggedDistance } from "../../domain/quote/distance-kind.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { Sql } from "../db/client.ts";
+import { readOrderPlaceExtras } from "../transport/order-place-extras.ts";
 
 /** مجالُ الرفضِ المغلقُ — يُقابِلُ رموزَ الدوالِّ الثلاثِ و`claim_ride` حرفاً. */
 const REJECTIONS: readonly DriverOfferStoreRejection[] = [
@@ -228,6 +229,18 @@ export class PostgresDriverOfferStore implements DriverOfferStore {
       offers.push(card);
     }
 
+    // `LOC-TRUST-01`: الرابطُ الأصليُّ وملاحظاتُ المكانِ — لطلباتِ اللوحِ نفسِه وحدَها.
+    const extras = await readOrderPlaceExtras(
+      this.#sql,
+      offers.map((card) => card.orderId),
+    );
+    const enriched = offers.map((card): DriverOfferCard => {
+      const found = extras.get(card.orderId);
+      return found === undefined
+        ? card
+        : { ...card, pickupExtras: found.pickup, dropoffExtras: found.dropoff };
+    });
+
     return ok({
       serverTime,
       isAvailable: payload.is_available,
@@ -237,7 +250,7 @@ export class PostgresDriverOfferStore implements DriverOfferStore {
           : readInstant(payload.availability_changed_at),
       isBlocked: payload.is_blocked,
       blockReasons,
-      offers,
+      offers: enriched,
     });
   }
 
@@ -288,6 +301,8 @@ export class PostgresDriverOfferStore implements DriverOfferStore {
       return err(failed("MALFORMED_RESULT"));
     }
 
+    const extras = (await readOrderPlaceExtras(this.#sql, [orderId])).get(orderId);
+
     return ok({
       serverTime,
       offerId,
@@ -298,8 +313,14 @@ export class PostgresDriverOfferStore implements DriverOfferStore {
       orderStatus: payload.order_status,
       secondsLeft,
       isClaimable: payload.is_claimable,
-      pickup,
-      dropoff,
+      pickup:
+        extras === undefined
+          ? pickup
+          : { ...pickup, link: extras.pickup.link, notes: extras.pickup.notes },
+      dropoff:
+        dropoff === null || extras?.dropoff == null
+          ? dropoff
+          : { ...dropoff, link: extras.dropoff.link, notes: extras.dropoff.notes },
       riderDistance,
       tripDistance,
       notes: typeof payload.notes === "string" ? payload.notes : null,

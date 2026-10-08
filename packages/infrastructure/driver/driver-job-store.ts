@@ -57,6 +57,7 @@ import {
 } from "../../domain/driver/location-broadcast.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { Sql } from "../db/client.ts";
+import { readOrderPlaceExtras } from "../transport/order-place-extras.ts";
 
 /** مجالُ الرفضِ المغلقُ — يُقابِلُ رموزَ دوالِّ `F3-03` الأربعِ حرفاً. */
 const REJECTIONS: readonly DriverJobStoreRejection[] = [
@@ -237,7 +238,21 @@ export class PostgresDriverJobStore implements DriverJobStore {
     }
     const job = readJob(payload.job);
     if (job === null) return err(failed("MALFORMED_RESULT"));
-    return ok({ serverTime, job, locationBroadcast });
+    // `LOC-TRUST-01`: ما أدخلَه الراكبُ عن المكانَين — لطلبِ المَهمّةِ نفسِها وحدَه.
+    const extras = (await readOrderPlaceExtras(this.#sql, [job.orderId])).get(job.orderId);
+    if (extras === undefined) return ok({ serverTime, job, locationBroadcast });
+    return ok({
+      serverTime,
+      job: {
+        ...job,
+        pickup: { ...job.pickup, link: extras.pickup.link, notes: extras.pickup.notes },
+        dropoff:
+          job.dropoff === null || extras.dropoff === null
+            ? job.dropoff
+            : { ...job.dropoff, link: extras.dropoff.link, notes: extras.dropoff.notes },
+      },
+      locationBroadcast,
+    });
   }
 
   async markArrived(input: {

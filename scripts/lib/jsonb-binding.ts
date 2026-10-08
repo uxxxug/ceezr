@@ -60,6 +60,14 @@ function isAllowedBinding(expression: string): boolean {
 }
 
 /**
+ * `$N::jsonb` في نصِّ `sql.unsafe` — العطبُ نفسُه بلا قالب: المُعامِلُ الموضعيُّ يُستنبَطُ
+ * `jsonb` فيُرمِّزُه السائقُ ثانيةً. دُفِعَ ثمنُه في `LOC-TRUST-01` (كائنُ المكانِ وصلَ
+ * نصّاً فرُفِضَ). و`$N::text::jsonb` لا يطابقُ: ما قبلَ `::jsonb` هوَ `text` لا الرقم.
+ */
+const JSONB_CAST = "::jsonb";
+const POSITIONAL_JSONB_BINDING = /\$(\d+)\s*::\s*jsonb/g;
+
+/**
  * ملفُّ السالباتِ المزروعةِ وحدَه: واجبُهُ أن يحملَ النمطَ الممنوعَ نصّاً
  * — ومنهُ **السطرُ الذي أسقطَ CI بالفعلِ** — وإلّا لم يُقَسِ الحاجزُ.
  * والاستثناءُ ههنا — لا في الماسحِ — لأنَّ الدالّةَ مُصَدَّرةٌ ويستدعيها غيرُهُ
@@ -93,6 +101,9 @@ export function jsonbViolationsIn(file: string, source: string): readonly JsonbV
       const expression = match[1] ?? "";
       if (isAllowedBinding(expression)) continue;
       found.push({ file, line: index + 1, expression: `\${${expression}}::jsonb` });
+    }
+    for (const match of line.matchAll(POSITIONAL_JSONB_BINDING)) {
+      found.push({ file, line: index + 1, expression: `$${match[1] ?? ""}${JSONB_CAST}` });
     }
   }
   return found;
