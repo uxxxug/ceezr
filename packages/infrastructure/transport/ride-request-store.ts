@@ -174,8 +174,10 @@ export function createRideRequestCommand(sql: Sql): RideRequestCommand {
                 params,
               )
             : // `LOC-TRUST-01` — الغلافُ ذو الأربعةَ عشرَ يحكمُ على المكانَين قبلَ الإنشاء.
+              // `::text::jsonb` لا `::jsonb`: النوعُ المستنبَطُ `jsonb` يجعلُ السائقَ يُرمِّزُ النصَّ
+              // ثانيةً فيصلُ كائنُ المكانِ «نصّاً» ويُرفَضُ (`scripts/lib/jsonb-binding.ts`).
               await sql.unsafe<RideRow[]>(
-                "select request_ride_with_places($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb) as result",
+                "select request_ride_with_places($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb) as result",
                 [...params, pickupPlace, dropoffPlace],
               );
       } catch {

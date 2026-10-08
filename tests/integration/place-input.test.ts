@@ -39,6 +39,9 @@ const DESTINATION = { lat: 21.5433, lng: 39.1728 } as const;
 const SHORT_LINK = "https://maps.app.goo.gl/AbCdEf12345";
 const GOOGLE_LINK = `https://www.google.com/maps/place/x/@21.54,39.17,17z/data=!3d${DESTINATION.lat}!4d${DESTINATION.lng}`;
 
+/** نوعٌ مجهولٌ — كائنٌ صحيحُ الترميزِ (`::text::jsonb`) كي يُقاسَ الحكمُ لا عطبُ الترميز. */
+const INVALID_PLACE = JSON.stringify({ point_source: "NOPE" });
+
 function keyFor(label: string): string {
   return `ride:${label}:${crypto.randomUUID()}`;
 }
@@ -154,7 +157,7 @@ describeIf("LOC-TRUST-01 — المكانُ يصلُ القاعدةَ وبطاق
         'transport'::service_type, ${ORIGIN.lat}::double precision, ${ORIGIN.lng}::double precision,
         ${DESTINATION.lat}::double precision, ${DESTINATION.lng}::double precision,
         null::text, null::text, null::text, null::timestamptz, null::integer,
-        ${JSON.stringify({ point_source: "NOPE" })}::jsonb, null::jsonb) as result
+        ${INVALID_PLACE}::text::jsonb, null::jsonb) as result
     `;
     expect(row?.result).toEqual({ ok: false, error: "PLACE_INVALID" });
     const [count] = await sql<{ n: string }[]>`
