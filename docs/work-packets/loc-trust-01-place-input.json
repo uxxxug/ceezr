@@ -31,7 +31,9 @@
     "tests/unit/loc-trust-place-input.test.ts",
     "tests/unit/ride-request-route.test.ts",
     "tests/integration/place-input.test.ts",
-    "tests/unit/skip-audit.test.ts"
+    "tests/unit/skip-audit.test.ts",
+    "scripts/lib/jsonb-binding.ts",
+    "tests/unit/check-jsonb-binding.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],

@@ -54,6 +54,14 @@ describe("حاجزُ `jsonb`: مُعامِلٌ لا يُربَطُ بـ`::jsonb`
     expect(jsonbViolationsIn("packages/x.ts", clean)).toHaveLength(0);
   });
 
+  it("السالبةُ الثالثةُ (`LOC-TRUST-01`): `$13::jsonb` في نصِّ `sql.unsafe` خرق، و`$13::text::jsonb` يمرّ", () => {
+    const planted = 'sql.unsafe("select f($1, $13::jsonb, $14 :: jsonb)", params)';
+    const found = jsonbViolationsIn("packages/x.ts", planted);
+    expect(found.map((v) => v.expression)).toEqual(["$13::jsonb", "$14::jsonb"]);
+    const clean = 'sql.unsafe("select f($1, $13::text::jsonb)", params)';
+    expect(jsonbViolationsIn("packages/x.ts", clean)).toHaveLength(0);
+  });
+
   it("الفراغُ بينَ المُعامِلِ والتحويلِ لا يُنجي: `${x} :: jsonb` خرقٌ", () => {
     expect(jsonbViolationsIn("packages/x.ts", "sql`set v = ${x} :: jsonb`")).toHaveLength(1);
   });
