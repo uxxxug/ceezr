@@ -124,12 +124,14 @@ export default defineConfig({
             },
             {
               name: "support",
-              test: /\/src\/surfaces\/(?:rider\/)?support\//,
+              /** والأسئلةُ الشائعةُ معَ الدعمِ: تستوردُ قاموسَ `support` نفسَه (`LOC-TRUST-01`). */
+              test: /\/src\/surfaces\/(?:rider\/)?support\/|\/src\/surfaces\/rider\/faq\//,
             },
             {
               name: "account",
               /** ولوحاتُ [B] للراكبِ (`rider/settings/` · ADR 0238) هنا: إعداداتُ الحساب، مؤجَّلةٌ لا في `rider-home`. */
-              test: /\/src\/surfaces\/(?:rider\/)?account\/|\/src\/surfaces\/rider\/settings\//,
+              /** والخصوصيّةُ معَ الحساب: لا تُفتَحُ إلّا منه (`LOC-TRUST-01`). */
+              test: /\/src\/surfaces\/(?:rider\/)?account\/|\/src\/surfaces\/rider\/(?:settings|privacy)\//,
             },
             {
               name: "driver",
