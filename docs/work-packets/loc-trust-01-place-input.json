@@ -1,9 +1,7 @@
 {
   "id": "loc-trust-01-place-input",
   "goal": "LOC-TRUST-01 (الخادم): عقدُ المكان PlaceInput من الطلبِ إلى القاعدةِ إلى بطاقةِ السائق — مصدرُ النقطةِ ودقّتُها ووقتُ التقاطِها والرابطُ الأصليُّ حرفاً وملاحظاتُ كلِّ مكان، ورفضُ القراءةِ الرديئةِ والرابطِ المتعارض، وزرّا «فتح موقع الالتقاط/الوجهة»",
-  "canonical_source": [
-    "docs/adr/0247-place-input-contract.md"
-  ],
+  "canonical_source": ["docs/adr/0247-place-input-contract.md"],
   "implementation": [
     "supabase/migrations/20261008160000_loc_trust_01_place_input.sql",
     "packages/domain/places/place-input.ts",
@@ -35,12 +33,8 @@
     "tests/integration/place-input.test.ts",
     "tests/unit/skip-audit.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/adr/0247-place-input-contract.md",
     "docs/wasla/egress-boundary.md",
