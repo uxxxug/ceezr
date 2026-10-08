@@ -28,12 +28,8 @@
     "packages/shared/i18n/miniapp/en.json",
     "packages/shared/i18n/miniapp/ur.json"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/work-packets/truth-01-honest-surfaces.json",
     "docs/adr/0238-ui-3-pr5-rider-r11-r15.md"
