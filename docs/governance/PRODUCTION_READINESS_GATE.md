@@ -6,7 +6,10 @@
 **تاريخ الإنشاء:** 2026-10-08
 **الأساس:** `main` عند `c01e3ddbf1890eec9317a2f65f0b2f804ef0613f`
 **الحوكمة:** ADR 0246 (مراحل دورة حياة الإنتاج)
-**القاعدة الحاكمة:** هذه البوابة كلٌّ لا يتجزّأ — لا يُعلنُ «Production Ready» ما دامَ أيُّ بندٍ فيها `Open` أو `Blocked` أو `Ready`. الحارسُ `check-production-readiness-gate.ts` يُفشلُ CI (exit 1) عند وجودها.
+**القاعدة الحاكمة:** لا يُعلنُ «Production Ready» ما دامَ أيُّ بندٍ من P0 أو P1 `Open` أو `Blocked` أو `Ready` (بنود P2 بواباتُ إطلاقٍ تجاريٍّ تُفتحُ بعدَه). والحارسُ `check-production-readiness-gate.ts` بنمطَين (ADR 0246 · ح-PRD-8 المعدَّلة 2026-10-08):
+
+- **نمطُ CI** (`ci.yml`، كلُّ دفعةٍ وطلبِ دمج): يُفشلُ (exit 1) على ادّعاءِ «Production Ready» الكاذبِ، و`Verified` بلا دليل، و`ADR-Closed` بلا ADR، والحالةِ غيرِ المعروفة، والـparsing الناقص. البنودُ المانعةُ **تُطبَعُ ولا تُفشلُه** — فإصلاحُها نفسُه يحتاجُ CI أخضرَ ليُدمَج.
+- **نمطُ الإعلان** (`--require-ready` · `bun run check:production-readiness` · سيرُ `production-readiness.yml`): يُفشلُ (exit 1) على **أيِّ** بندٍ مانعٍ في P0/P1. **نجاحُه وحدَه** يُحتجُّ به لإعلانِ Production Ready؛ ونجاحُ نمطِ CI لا يُحتجُّ به.
 
 ### خمسُ حالاتٍ للبنود (ADR 0246)
 
@@ -34,16 +37,18 @@
 
 ---
 
-## الحالة الراهنة (لقطة 2026-10-08)
+## الحالة الراهنة (لقطة 2026-10-08 — مقيسةٌ من Render API والإنتاج مباشرةً)
+
+> **تصحيح 2026-10-08:** اللقطةُ الأولى (بناء 2026-10-03، بصمة `shell-BUjDbL5E`) كانت قديمة: Render يُظهرُ نشرَ الخدمتَين من `c01e3dd` في 2026-10-07 12:26–12:27 UTC. والبصمةُ المتوقَّعةُ `shell-C_v6rMFZ` كانت **بناءً محليًّا بلا متغيّراتِ `VITE_*`** فلا يمكنُ أن تطابقَ الإنتاج أصلًا — بناءُ `main` بمتغيّراتِ الإنتاجِ نفسِها يُعطي `shell-DG3BU2l8` حرفيًّا (الدليل: `docs/evidence/production/PRD-002-deploy-20261008.md`).
 
 | البعد | القيمة | المرحلة |
 |---|---|---|
-| الكود على `main` | `c01e3dd` — UI-0…UI-10 مُدمجة | Merged |
-| الإنتاج (gateway) | بناء 2026-10-03، بصمة `shell-BUjDbL5E` ≠ `shell-C_v6rMFZ` | **غير Deployed** |
-| الإنتاج (miniapp) | بناء 2026-10-03، بصمة `shell-BUjDbL5E` ≠ `main` | **غير Deployed** |
+| الكود على `main` | UI-0…UI-10 مُدمجة؛ لا فرقَ تشغيليٌّ بين `c01e3dd` و`c47742b` (وثائقُ وحارسُ حوكمةٍ فقط) | Merged |
+| الإنتاج (gateway) | نشرُ Render `dep-db33kmugekts739c7iv0` من `c01e3dd` — live منذ 2026-10-07 12:26 UTC | Deployed (`c01e3dd`) |
+| الإنتاج (miniapp) | نشرُ Render `dep-db33ldmgekts739c9h30` من `c01e3dd`؛ البصمةُ الحيّةُ `shell-DG3BU2l8` = بناءُ `main` بمتغيّراتِ الإنتاج | Deployed |
 | هجرات الإنتاج | آخرها `20261003121359`؛ `20261006200000` و`20261007120000` غير مطبَّقتين | **غير Deployed** |
 | `/health` | 200 `ok` | — |
-| `/ready` | 200 `degraded` — `degradedChecks: ["redis"]` | **غير Production-Verified** |
+| `/ready` | 200 `degraded` — `degradedChecks: ["redis"]`؛ سجلُّ Render: `session.redis_failed kind=http detail="HTTP 400"` | **غير Production-Verified** |
 | Telegram حقيقي | لم يُختبَر (محاكاة `window.Telegram.WebApp` فقط) | **غير Production-Verified** |
 | Screen reader | لم يُختبَر (axe آليٌّ فقط) | **غير Production-Verified** |
 | UI-10 | مُدمجة، غير مُغلَقة | Merged |
@@ -60,7 +65,7 @@
 | المالك | Owner (يحتاج صلاحية Render/Redis) |
 | المتطلبات المسبقة | وصول إلى لوحة Render أو خدمة Redis |
 | الإجراء المطلوب | تحديدُ سبب `degraded` في `/ready` ومعالجته |
-| شرط القبول | `GET /ready` يرجع `{"status":"ok","degradedChecks":[]}` |
+| شرط القبول | `GET /ready` يرجع HTTP 200 بـ`{"status":"ready","failedChecks":[],"degradedChecks":[]}` — **`"ready"` لا `"ok"`**: هذا ما يرجعُه `apps/gateway/src/routes/health.ts` عند نجاحِ كلِّ الفحوص؛ و`"ok"` قيمةُ `/health` وحدَه (تصحيح 2026-10-08: الصيغةُ الأولى كانت غيرَ قابلةٍ للتحقّق على الكود) |
 | الدليل | `docs/evidence/production/PRD-001-redis-healthy-YYYYMMDD.md` يحتوي: قبل/بعد `/ready`، سجلُّ المعالجة، اختبارُ جلسةٍ حقيقي |
 | الحالة | **Blocked** (يحتاج صلاحية إنتاج) |
 
@@ -70,8 +75,8 @@
 |---|---|
 | المالك | Owner (صلاحية Render — `autoDeploy: false`) |
 | المتطلبات المسبقة | PRD-001 (Redis) أو قرارٌ موثَّقٌ بالنشرِ رغمَ التدهور |
-| الإجراء المطلوب | نشرُ `waslah-gateway` و`waslah-miniapp` من `main` `c01e3dd` |
-| شرط القبول | بصمةُ أصولٍ في الإنتاج تطابقُ `main` (`shell-C_v6rMFZ`)؛ `last-modified` يُحدَّث |
+| الإجراء المطلوب | نشرُ `waslah-gateway` و`waslah-miniapp` من رأسِ `main` (أو successor بلا فرقٍ تشغيليٍّ) |
+| شرط القبول | نشرُ Render الحيُّ لكلِّ خدمةٍ commit = رأسُ `main` أو successor بلا فرقٍ تشغيليٍّ (`git diff --name-only <deployed> main` خارجَ `docs/` و`*.md` فارغ)؛ وبصمةُ الـminiapp الحيّةُ = بصمةُ بناءِ ذلك الـcommit **بمتغيّراتِ `VITE_*` الإنتاجيّة** (لا بناءٍ محليٍّ بلاها) |
 | الدليل | `docs/evidence/production/PRD-002-deploy-YYYYMMDD.md` يحتوي: commit، بصمة الأصول قبل/بعد، `last-modified` |
 | الحالة | **Blocked** (يحتاج صلاحية إنتاج) |
 
@@ -298,8 +303,8 @@
 
 تُغلقُ UI-10 رسميًّا عند تحقّقِ **جميع** البنود التالية:
 
-1. PRD-001: `/ready` = `ok` (Redis healthy)
-2. PRD-002: الإنتاج يشغّلُ `c01e3dd` أو successor موثَّق
+1. PRD-001: `/ready` = `ready` و`degradedChecks: []` (Redis healthy)
+2. PRD-002: الإنتاج يشغّلُ رأسَ `main` أو successor بلا فرقٍ تشغيليٍّ
 3. PRD-003: هجرات `20261006200000` و`20261007120000` مطبَّقة
 4. PRD-008: Telegram smoke حقيقي موثَّق (iOS/Android/Desktop)
 5. PRD-009: الأداء على الإنتاج ضمن الميزانية
@@ -315,7 +320,7 @@
 2. كلُّ بنود P1 (PRD-101…PRD-106) = `Verified` (بدليلٍ إنتاجي) أو `ADR-Closed` (بمسار ADR صالح)
 3. شهادةُ إغلاقٍ في `docs/evidence/production/PRODUCTION-READY-YYYYMMDD.md` موقَّعةٌ من المالك
 4. `SYSTEM_STATE.md` يُحدَّثُ ليقول: «Production Ready — <التاريخ> — <المرجع>»
-5. `check-production-readiness-gate.ts` يمرُّ (exit 0 — لا بندَ مانعٍ، لا Verified بلا دليل، لا ADR-Closed بلا ADR)
+5. `bun run check:production-readiness` (نمطُ الإعلان `--require-ready`) يمرُّ (exit 0 — لا بندَ مانعٍ في P0/P1، لا Verified بلا دليل، لا ADR-Closed بلا ADR)، وسيرُ `production-readiness.yml` أخضرُ على `main`
 
 بعد ذلك فقط تُفتَحُ بواباتُ الإطلاق التجاري (P2).
 
@@ -326,3 +331,4 @@
 | التاريخ | التغيير | المرجع |
 |---|---|---|
 | 2026-10-08 | الإنشاء — تحويلُ تقرير المراجعة إلى خارطة تنفيذية حاكمة | ADR 0246 |
+| 2026-10-08 | مواءمةُ السياسةِ والحارسِ وCI: نمطا CI/الإعلان، نطاقُ الإعلانِ P0/P1، تصحيحُ شرطِ PRD-001 (`ready` لا `ok`)، تصحيحُ لقطةِ النشرِ وشرطِ بصمةِ PRD-002 | ADR 0246 (تعديل ح-PRD-3/ح-PRD-8) |

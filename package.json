@@ -80,7 +80,7 @@
     "check:resource-usage-budget": "bun run scripts/check-resource-usage-budget.ts",
     "check:system-state": "bun run scripts/check-system-state.ts",
     "check:state-sync": "bun run scripts/check-state-sync.ts",
-    "check:production-readiness": "bun run scripts/check-production-readiness-gate.ts",
+    "check:production-readiness": "bun run scripts/check-production-readiness-gate.ts --require-ready",
     "check:eco-user-cost": "bun run scripts/check-eco-user-cost.ts",
     "check:support-volume-budget": "bun run scripts/check-support-volume-budget.ts"
   },

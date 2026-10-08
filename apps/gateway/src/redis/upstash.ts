@@ -13,5 +13,6 @@ export {
   REDIS_TIMEOUT_MS,
   type RedisClient,
   type RedisFailure,
+  sanitizeUpstashError,
   type UpstashOptions,
 } from "../../../../packages/infrastructure/redis/upstash.ts";
