@@ -16,6 +16,7 @@ import {
   ensureActiveCity,
   restoreCityBaseline,
 } from "../support/active-city.ts";
+import { seedCapableDriver } from "../support/seed-capable-driver.ts";
 
 const DATABASE_URL = process.env.TEST_DATABASE_URL;
 
@@ -29,15 +30,17 @@ if (DATABASE_URL === undefined) {
 }
 
 const RIDER_TELEGRAM_ID = 900_002_471;
+/** سائقٌ قادرٌ غيرُ متاحٍ — يُشبِعُ `city_served_services` ولا يُطابَق. */
+const DRIVER_TELEGRAM_ID = 900_002_472;
 
 let cityHandle: ActiveCityHandle | undefined;
 let riderUserId = "";
 let riderId = "";
 
-const ORIGIN = { lat: 21.4858, lng: 39.1925 } as const;
-const DESTINATION = { lat: 21.5433, lng: 39.1728 } as const;
+const ORIGIN = { lat: 21.5433, lng: 39.1728 } as const;
+const DESTINATION = { lat: 21.5551, lng: 39.1902 } as const;
 const SHORT_LINK = "https://maps.app.goo.gl/AbCdEf12345";
-const GOOGLE_LINK = `https://www.google.com/maps/place/x/@21.54,39.17,17z/data=!3d${DESTINATION.lat}!4d${DESTINATION.lng}`;
+const GOOGLE_LINK = `https://www.google.com/maps/place/x/@21.555,39.19,17z/data=!3d${DESTINATION.lat}!4d${DESTINATION.lng}`;
 
 /** نوعٌ مجهولٌ — كائنٌ صحيحُ الترميزِ (`::text::jsonb`) كي يُقاسَ الحكمُ لا عطبُ الترميز. */
 const INVALID_PLACE = JSON.stringify({ point_source: "NOPE" });
@@ -63,6 +66,7 @@ beforeAll(async () => {
   `;
   if (rider === undefined) throw new Error("تعذّر زرعُ الراكبِ");
   riderId = rider.id;
+  await seedCapableDriver({ sql, cityId, service: "transport", telegramId: DRIVER_TELEGRAM_ID });
 });
 
 afterEach(async () => {
@@ -82,6 +86,22 @@ afterAll(async () => {
     await sql`delete from audit_log where actor_user_id = ${riderUserId}`;
     await sql`delete from users where id = ${riderUserId}`;
   }
+  await sql`
+    with d as (
+      select dr.id from drivers dr join users u on u.id = dr.user_id
+      where u.telegram_id = ${DRIVER_TELEGRAM_ID}
+    )
+    delete from driver_capabilities where driver_id in (select id from d)
+  `;
+  await sql`
+    delete from subscriptions where driver_id in (
+      select dr.id from drivers dr join users u on u.id = dr.user_id
+      where u.telegram_id = ${DRIVER_TELEGRAM_ID})
+  `;
+  await sql`
+    delete from drivers where user_id in (select id from users where telegram_id = ${DRIVER_TELEGRAM_ID})
+  `;
+  await sql`delete from users where telegram_id = ${DRIVER_TELEGRAM_ID}`;
   await restoreCityBaseline(sql, cityHandle);
   await sql.end();
 });
@@ -136,7 +156,8 @@ describeIf("LOC-TRUST-01 — المكانُ يصلُ القاعدةَ وبطاق
       dropoff_accuracy_m: null,
       dropoff_captured_at: null,
     });
-    expect(new Date(String(row?.pickup_captured_at)).toISOString()).toBe(capturedAt);
+    // `Date` كما يردُّه السائق — `String(date)` يُسقِطُ المِلّي فيُقاسُ التحويلُ لا الحفظ.
+    expect((row?.pickup_captured_at as Date | undefined)?.toISOString()).toBe(capturedAt);
 
     // بطاقةُ السائق تقرأُ ما حُفِظَ — لا اسمَ يُخترَعُ ولا رابطَ يُعادُ ترميزُه.
     const extras = (await readOrderPlaceExtras(sql, [orderId])).get(orderId);
