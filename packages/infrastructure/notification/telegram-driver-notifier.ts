@@ -12,11 +12,13 @@ import type {
   OfferNotification,
   OfferPublisher,
 } from "../../application/dispatch/broadcast-offers.ts";
+import { openUrlFor } from "../../domain/places/place-open-url.ts";
 import { t } from "../../shared/i18n/index.ts";
 import { miniAppUrl } from "../../shared/miniapp-link/index.ts";
 import { orderTermsLines } from "../../shared/order-terms/index.ts";
 import { serviceMarker } from "../../shared/service-marker/index.ts";
 import { guard, type Sql } from "../db/client.ts";
+import { readOrderPlaceExtras } from "../transport/order-place-extras.ts";
 import type { IdentifyingSender } from "./telegram-negotiation-notifier.ts";
 
 /**
@@ -105,11 +107,34 @@ export function createOfferPublisher(
             }),
           );
         }
-        if (notification.pickupLabel !== null && notification.pickupLabel !== "") {
+        // `LOC-TRUST-01`: ما أدخلَه الراكبُ عن كلِّ مكانٍ — الاسمُ والملاحظاتُ والرابطُ الأصليُّ
+        // حرفاً. يُقرأُ من الطلبِ لحظةَ الإرسالِ؛ وعطبُه (قاعدةٌ قبلَ الهجرة) يُبقي البطاقةَ كما كانت.
+        const places = (await readOrderPlaceExtras(sql, [String(notification.orderId)])).get(
+          String(notification.orderId),
+        );
+        const hasPickupLabel = notification.pickupLabel !== null && notification.pickupLabel !== "";
+        if (hasPickupLabel) {
           lines.push(tr("driver.offer_card_from", { pickup: notification.pickupLabel }));
+        } else if (places !== undefined) {
+          // لا اسمَ ⇒ لا يُخترَعُ اسمٌ (ولا يُوضَعُ أقربُ معلَمٍ مكانَه): النقطةُ هيَ المرجع.
+          lines.push(tr("driver.offer_card_from_point"));
+        }
+        if (places?.pickup.notes != null) {
+          lines.push(tr("driver.offer_card_pickup_notes", { notes: places.pickup.notes }));
+        }
+        if (places?.pickup.link != null) {
+          lines.push(tr("driver.offer_card_pickup_link", { link: places.pickup.link }));
         }
         if (notification.dropoffLabel !== null && notification.dropoffLabel !== "") {
           lines.push(tr("driver.offer_card_to", { dropoff: notification.dropoffLabel }));
+        } else if (places?.dropoff != null) {
+          lines.push(tr("driver.offer_card_to_point"));
+        }
+        if (places?.dropoff?.notes != null) {
+          lines.push(tr("driver.offer_card_dropoff_notes", { notes: places.dropoff.notes }));
+        }
+        if (places?.dropoff?.link != null) {
+          lines.push(tr("driver.offer_card_dropoff_link", { link: places.dropoff.link }));
         }
         // `ORDER-TERMS-01`: وقتُ الحضورِ (ونوعُ الطردِ في التوصيلِ) بعدَ «إلى» وقبلَ المسافةِ —
         // يُقرأُ من الطلبِ لحظةَ الإرسالِ، فلا تتغيّرُ حمولةُ صفِّ العرضِ.
@@ -168,7 +193,27 @@ export function createOfferPublisher(
                 ]),
           ],
         };
-        const messageId = await sender.sendReturningId(String(contact.telegram_id), text, keyboard);
+        // `LOC-TRUST-01` — «فتح موقع الالتقاط/الوجهة»: الرابطُ الأصليُّ إن صلحَ وإلّا من النقطة.
+        const pickupUrl = places === undefined ? null : openUrlFor(places.pickup);
+        const dropoffUrl =
+          places === undefined || places.dropoff === null ? null : openUrlFor(places.dropoff);
+        const openRow = [
+          ...(pickupUrl === null
+            ? []
+            : [{ label: tr("driver.offer_open_pickup_button"), url: pickupUrl }]),
+          ...(dropoffUrl === null
+            ? []
+            : [{ label: tr("driver.offer_open_dropoff_button"), url: dropoffUrl }]),
+        ];
+        const chatId = String(contact.telegram_id);
+        if (openRow.length > 0 && keyboard.kind === "inline") {
+          const withLinks: Keyboard = { kind: "inline", rows: [openRow, ...keyboard.rows] };
+          const linked = await sender.sendReturningId(chatId, text, withLinks);
+          if (linked !== null) return linked;
+          // زرُّ رابطٍ يرفضُه Telegram يُسقِطُ الرسالةَ كلَّها؛ والرابطُ مكتوبٌ نصّاً في البطاقة،
+          // فتُعادُ بلا أزرارِ الروابطِ ولا يفوتُ السائقَ العرض.
+        }
+        const messageId = await sender.sendReturningId(chatId, text, keyboard);
         if (messageId === null) {
           throw new Error("TELEGRAM_SEND_FAILED");
         }

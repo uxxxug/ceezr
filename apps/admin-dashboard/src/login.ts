@@ -10,7 +10,7 @@
  * ملاحظات مستقبلية: عند وجود أكثر من مسؤول تُضاف صفحة إدارة الأدوار، ويبقى الدخول هو هو.
  */
 
-import { escapeHtml } from "./layout.ts";
+import { escapeHtml, STYLE } from "./layout.ts";
 
 export interface LoginPageData {
   /**
@@ -63,11 +63,11 @@ export function renderLoginPage(data: LoginPageData): string {
   const alert =
     data.error === undefined
       ? ""
-      : `<div class="notice notice--error">${escapeHtml(data.error)}</div>`;
+      : `<div role="alert" class="notice notice--error">${escapeHtml(data.error)}</div>`;
   const notice =
     data.notice === undefined
       ? ""
-      : `<div class="notice notice--ok">${escapeHtml(data.notice)}</div>`;
+      : `<div role="status" class="notice notice--ok">${escapeHtml(data.notice)}</div>`;
 
   return `<!doctype html>
 <html lang="ar" dir="rtl">
@@ -76,28 +76,14 @@ export function renderLoginPage(data: LoginPageData): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>دخول لوحة وَصْلة</title>
-<style nonce="${escapeHtml(data.cspNonce)}">
-body{margin:0;background:#0f1115;color:#e7e9ee;font-family:"Segoe UI",Tahoma,sans-serif}
-.login{max-width:380px;margin:12vh auto;background:#171a21;border:1px solid #262b36;
-border-radius:12px;padding:22px}
-h1{font-size:19px;margin:0 0 14px}
-label{display:block;color:#9aa3b2;font-size:13px}
-input{width:100%;padding:9px 11px;margin:6px 0 14px;border-radius:6px;border:1px solid #262b36;
-background:#0d0f14;color:#e7e9ee;font-family:inherit;font-size:15px}
-button{width:100%;padding:9px;border-radius:6px;border:0;background:#3f7cc4;color:#fff;
-cursor:pointer;font-size:15px;font-family:inherit}
-.note{color:#9aa3b2;font-size:13px;line-height:1.7}
-a{color:#3f7cc4}
-.notice{padding:9px 12px;border-radius:8px;margin-bottom:12px;font-size:14px}
-.notice--error{background:rgba(192,74,74,.15);border:1px solid rgba(192,74,74,.4)}
-.notice--ok{background:rgba(47,158,99,.15);border:1px solid rgba(47,158,99,.4)}
-</style>
+<meta name="color-scheme" content="dark">
+<style nonce="${escapeHtml(data.cspNonce)}">${STYLE}</style>
 </head>
 <body>
-<div class="login">
+<main class="login" id="main">
 <h1>لوحة وَصْلة — دخول</h1>
 ${alert}${notice}${body}
-</div>
+</main>
 </body>
 </html>`;
 }

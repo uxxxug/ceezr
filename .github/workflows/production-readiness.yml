@@ -1,0 +1,22 @@
+name: Production Readiness (declaration gate)
+
+# ADR 0246 · ح-PRD-7/ح-PRD-8: نمطُ الإعلانِ للحارس. يُفشلُ على أيِّ بندٍ
+# `Open`/`Blocked`/`Ready` في docs/governance/PRODUCTION_READINESS_GATE.md.
+# نجاحُ هذا السيرِ على `main` شرطٌ لازمٌ لإعلانِ «Production Ready» — ونمطُ CI
+# في ci.yml لا يُحتجُّ به لذلك. يُشغَّلُ يدويّاً ويوميّاً ليبقى الحكمُ مرئيّاً.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+
+jobs:
+  declaration-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - name: بوابة جاهزية الإنتاج — نمطُ الإعلان (--require-ready)
+        run: bun run scripts/check-production-readiness-gate.ts --require-ready

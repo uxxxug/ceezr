@@ -10,7 +10,7 @@
  */
 
 import type { LatLng, MapViewModel, ResolvedMapStyle } from "../../../packages/maps/index.ts";
-import { escapeHtml, section } from "./layout.ts";
+import { escapeHtml, section, stateBlock } from "./layout.ts";
 
 /**
  * تحويلُ قيمةٍ إلى نصٍّ صالحٍ للحقن **داخل كتلة `<script>`**.
@@ -78,7 +78,7 @@ export function renderMapPanel(options: MapPanelOptions): string {
   if (!options.style.configured) {
     return section(
       options.title,
-      `<p class="empty">${escapeHtml(options.style.reason)}</p>`,
+      stateBlock("unavailable", options.style.reason),
       "تُضبط الخريطة بمتغيّري MAP_PROVIDER وMAP_STYLE_URL؛ وبقيّة اللوحة تعمل بلا خريطة.",
     );
   }
@@ -89,7 +89,7 @@ export function renderMapPanel(options: MapPanelOptions): string {
   if (!isUsableIntegrity(options.integrity)) {
     return section(
       options.title,
-      `<p class="empty">لم تُضبَط بصمةُ سلامة (SRI) لنصّ MapLibre — لن يُحمَّل نصٌّ خارجي بلا تحقّق.</p>`,
+      stateBlock("refused", "لم تُضبَط بصمةُ سلامة (SRI) لنصّ MapLibre — لن يُحمَّل نصٌّ خارجي بلا تحقّق."),
       "تُحسب بالأمر: openssl dgst -sha384 -binary maplibre-gl.js | openssl base64 -A",
     );
   }
@@ -110,7 +110,7 @@ export function renderMapPanel(options: MapPanelOptions): string {
       integrity="${escapeHtml(options.integrity)}" crossorigin="anonymous">
 <div id="${containerId}" class="map-canvas" style="height:${height}px"
      role="img" aria-label="خريطة المواقع"></div>
-<noscript><p class="empty">الخريطة تحتاج جافاسكربت؛ الجداول أعلاه تعرض نفس البيانات نصّاً.</p></noscript>
+<noscript>${stateBlock("unavailable", "الخريطة تحتاج جافاسكربت؛ الجداول أعلاه تعرض نفس البيانات نصّاً.")}</noscript>
 <script src="${escapeHtml(options.scriptUrl)}" integrity="${escapeHtml(options.integrity)}"
         crossorigin="anonymous" nonce="${nonce}" defer></script>
 <script nonce="${nonce}">${initScript(containerId, payload)}</script>`;

@@ -74,9 +74,16 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
-import { initLocation, openLocationSettings, requestLocation } from "../../../tg/index.ts";
-import { DestinationScreen } from "../destination/DestinationScreen.tsx";
-import { locationRefusalKey, offersLocationSettings } from "../destination/destination-view.ts";
+import { openLocationSettings } from "../../../tg/index.ts";
+import { type ConfirmedDestination, DestinationScreen } from "../destination/DestinationScreen.tsx";
+import {
+  type ConfirmedPlace,
+  locationRefusalKey,
+  offersLocationSettings,
+  type PlaceWire,
+  placeWire,
+} from "../destination/destination-view.ts";
+import { type DeviceFixResult, readFreshDeviceFix } from "../destination/device-fix.ts";
 import { newIdempotencyKey } from "../search/search-view.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 
@@ -101,6 +108,8 @@ export interface QuoteScreenProps {
     readonly label: string;
     readonly lat: number;
     readonly lng: number;
+    /** `LOC-TRUST-01` — ما أدخلَه الراكبُ عن الوجهة (اسمُه وملاحظاتُه ورابطُه ومصدرُ النقطة). */
+    readonly place?: ConfirmedPlace;
   };
   /** يُحقَنُ كي تُختبَرَ الشاشةُ بلا شبكةٍ. */
   readonly quote?: (input: {
@@ -110,12 +119,10 @@ export interface QuoteScreenProps {
     readonly destinationLng: number;
   }) => Promise<QuoteRideResponse>;
   /** ويُحقَنُ جسرُ الموقعِ كي لا يُحتاجَ مُضيفُ تيليجرام في اختبارٍ. */
-  readonly readDeviceLocation?: () => Promise<
-    | { readonly ok: true; readonly lat: number; readonly lng: number }
-    | { readonly ok: false; readonly reason: string }
-  >;
+  readonly readDeviceLocation?: () => Promise<DeviceFixResult>;
   readonly openSettings?: () => void;
   readonly onBack?: () => void;
+  readonly showTitle?: boolean;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
   readonly onOpenSos?: () => void;
   /**
@@ -130,6 +137,10 @@ export interface QuoteScreenProps {
     readonly destinationLng: number;
     readonly destinationLabel: string;
     readonly pickupLabel: string | null;
+    /** `LOC-TRUST-01` — الاسمُ المُرسَلُ للوجهة: اسمُ الراكبِ أو `null` (لا وصفُ العرض). */
+    readonly destinationUserLabel?: string | null;
+    readonly pickupPlace?: PlaceWire | null;
+    readonly dropoffPlace?: PlaceWire | null;
     readonly notes: string | null;
     readonly idempotencyKey: string;
     /** `ORDER-TERMS-01` — وقتُ حضورِ السائقِ ISO؛ `null` ⇒ الآن. */
@@ -140,24 +151,9 @@ export interface QuoteScreenProps {
   readonly initialLanguage?: MiniAppLanguage;
 }
 
-/**
- * جسرُ الموقعِ الافتراضيُّ — نفسُ جسرِ `SR-03` حرفاً: تهيئةٌ ثمَّ قراءةٌ واحدةٌ،
- * والسببُ يُنقَلُ كما أعادَه الغلافُ ولا يُوحَّدُ. وكلُّ وصولٍ إلى تلغرام من
- * البرزخِ `../../../tg/index.ts` وحدَه (القسم 9.2 · حاجزُ
- * `check-telegram-wrapper-isolation`).
- */
-async function defaultDeviceLocation(): Promise<
-  | { readonly ok: true; readonly lat: number; readonly lng: number }
-  | { readonly ok: false; readonly reason: string }
-> {
-  const inited = await initLocation();
-  if (!inited.ok) return { ok: false, reason: inited.reason };
-  const read = await requestLocation();
-  if (!read.ok) return { ok: false, reason: read.reason };
-  return { ok: true, lat: read.value.latitude, lng: read.value.longitude };
-}
-
 type QuoteState =
+  /** `LOC-TRUST-01`: لا اقتباسَ ولا طلبَ قبلَ أن يُؤكِّدَ الراكبُ مكانَ الالتقاطِ صراحةً. */
+  | { readonly kind: "pickup_required" }
   | { readonly kind: "locating" }
   | { readonly kind: "asking" }
   | { readonly kind: "location_refused"; readonly reason: string }
@@ -198,15 +194,16 @@ async function screenFor(thrown: unknown): Promise<ScreenState | null> {
 export function QuoteScreen({
   destination,
   quote = quoteViaApi,
-  readDeviceLocation = defaultDeviceLocation,
+  readDeviceLocation = readFreshDeviceFix,
   openSettings = () => void openLocationSettings(),
   onBack,
+  showTitle = true,
   onOpenSos,
   onRequest,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
 }: QuoteScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
-  const [state, setState] = useState<QuoteState>({ kind: "locating" });
+  const [state, setState] = useState<QuoteState>({ kind: "pickup_required" });
   const [system, setSystem] = useState<SystemState>(null);
   /** ملاحظةُ السائقِ — نصٌّ خامٌّ يُشذَّبُ عندَ التسليمِ لا عندَ كلِّ محرفٍ. */
   const [notes, setNotes] = useState("");
@@ -219,16 +216,13 @@ export function QuoteScreen({
   /** خطأُ تحقُّقِ وصفِ الطردِ — يُعرَضُ عندَ الضغطِ على «اطلُبْ» للتوصيلِ. */
   const [parcelError, setParcelError] = useState<string | null>(null);
   /**
-   * `UI-PICKUP-01`: نقطةُ التقاطٍ اختارَها الراكبُ بالاسمِ — تَغلِبُ موقعَ الجهازِ. و`null`
-   * = «موقعي الحاليُّ». كانَ الطلبُ مستحيلاً على مَن رفضَ الإذنَ أو لا يملكُ مضيفُه
-   * `LocationManager`، فلا طريقَ إلى السائقِ إلّا الجهازُ.
+   * `UI-PICKUP-01` · `LOC-TRUST-01`: مكانُ الالتقاطِ **كما أكّدَه الراكبُ** — بموقعِ جهازِه
+   * أو اقتراحٍ أو رابطٍ أو إحداثيّات. وكانَ `null` يعني «موقعَ الجهازِ» يُقرأُ بصمتٍ ويُعتمَدُ
+   * بلا عرضٍ ولا تأكيد (PRD-008: نقطةٌ راكدةٌ قربَ معلَمٍ بعيد). الآنَ لا يُعتمَدُ مكانٌ بصمت:
+   * الشاشةُ تبدأُ باختيارِه، ولا اقتباسَ قبلَه.
    */
-  const [manualPickup, setManualPickup] = useState<{
-    readonly label: string;
-    readonly lat: number;
-    readonly lng: number;
-  } | null>(null);
-  const [pickingPickup, setPickingPickup] = useState(false);
+  const [manualPickup, setManualPickup] = useState<ConfirmedDestination | null>(null);
+  const [pickingPickup, setPickingPickup] = useState(true);
   const mounted = useRef(true);
   /** ردٌّ متأخِّرٌ لسؤالٍ قديمٍ **يُطرَحُ** ولا يُعرَضُ (عينُ حكمِ `SR-03`). */
   const issued = useRef(0);
@@ -245,16 +239,11 @@ export function QuoteScreen({
   const ask = useCallback(async () => {
     const ticket = ++issued.current;
     setSystem(null);
-    setState({ kind: "locating" });
-    const here =
-      manualPickup === null
-        ? await readDeviceLocation()
-        : ({ ok: true, lat: manualPickup.lat, lng: manualPickup.lng } as const);
-    if (!mounted.current || ticket !== issued.current) return;
-    if (!here.ok) {
-      setState({ kind: "location_refused", reason: here.reason });
+    if (manualPickup === null) {
+      setState({ kind: "pickup_required" });
       return;
     }
+    const here = { lat: manualPickup.lat, lng: manualPickup.lng };
     // `RIDE-SAMESPOT-01`: وجهةٌ هيَ موضعُ الالتقاطِ نفسُه لا تُسأَلُ ولا تُطلَبُ.
     if (destinationIsPickup(here, { lat: destination.lat, lng: destination.lng })) {
       setState({ kind: "refused", refusal: "DESTINATION_IS_PICKUP", cityName: null });
@@ -288,7 +277,7 @@ export function QuoteScreen({
       }
       setState({ kind: "rejected", code: codeOf(thrown) ?? "UNKNOWN" });
     }
-  }, [quote, readDeviceLocation, destination.lat, destination.lng, manualPickup]);
+  }, [quote, destination.lat, destination.lng, manualPickup]);
 
   useEffect(() => {
     void ask();
@@ -299,10 +288,12 @@ export function QuoteScreen({
       <DestinationScreen
         purpose="pickup"
         initialLanguage={language}
+        readDeviceLocation={readDeviceLocation}
+        openSettings={openSettings}
         onBack={() => setPickingPickup(false)}
         {...(onOpenSos === undefined ? {} : { onOpenSos })}
         onConfirmed={(point) => {
-          setManualPickup({ label: point.label, lat: point.lat, lng: point.lng });
+          setManualPickup(point);
           setPickingPickup(false);
         }}
       />
@@ -310,7 +301,7 @@ export function QuoteScreen({
   }
 
   if (system !== null) {
-    return <SystemScreen state={system.screen} onAction={() => void ask()} />;
+    return <SystemScreen language={language} state={system.screen} onAction={() => void ask()} />;
   }
 
   const pickByName = (
@@ -327,6 +318,17 @@ export function QuoteScreen({
     );
 
   const body = () => {
+    if (state.kind === "pickup_required") {
+      return (
+        <div className="sys" role="status">
+          <p className="sys__body">{t("rider.pickup.required")}</p>
+          <button type="button" className="sys__action" onClick={() => setPickingPickup(true)}>
+            {t("rider.pickup.choose")}
+          </button>
+        </div>
+      );
+    }
+
     if (state.kind === "locating" || state.kind === "asking") {
       return (
         <div className="qt__pending" aria-busy="true">
@@ -375,11 +377,11 @@ export function QuoteScreen({
           <p className="sys__body">{t(quoteRefusalKey(state.refusal))}</p>
           {cityLine(state.cityName)}
           {remedy === "RELOCATE" && (
-            <button type="button" className="sys__action" onClick={() => void ask()}>
+            <button type="button" className="sys__action" onClick={() => setPickingPickup(true)}>
               {t("rider.quote.remedy.relocate")}
             </button>
           )}
-          {remedy === "PICK_ANOTHER_DESTINATION" && (
+          {remedy === "PICK_ANOTHER_DESTINATION" && onBack !== undefined && (
             <button type="button" className="sys__action" onClick={() => onBack?.()}>
               {t("rider.quote.remedy.pickAnother")}
             </button>
@@ -402,7 +404,7 @@ export function QuoteScreen({
         <div className="qt__pickup">
           <p className="qt__pickup-line">
             {manualPickup === null
-              ? t("rider.pickup.current")
+              ? t("rider.pickup.required")
               : t("rider.pickup.named").replace("{label}", manualPickup.label)}
           </p>
           <button
@@ -465,63 +467,83 @@ export function QuoteScreen({
         </section>
         <section className="qt__services" aria-label={t("rider.quote.services")}>
           <h2 className="qt__subtitle">{t("rider.quote.services")}</h2>
-          <ul className="qt__list">
-            {cards.map((card) => (
-              <li
-                key={card.service}
-                className={`qt__card${card.available ? "" : " qt__card--off"}`}
-              >
-                <span className="qt__card-label">{t(card.labelKey)}</span>
-                {card.reasonKey !== null && (
-                  <span className="qt__card-reason">{t(card.reasonKey)}</span>
-                )}
-                {/*
-                 * الفعلُ على البطاقةِ **المتاحةِ** وحدَها: خدمةٌ غيرُ مخدومةٍ في
-                 * المدينةِ تُعرَضُ بسببِها ولا يُعرَضُ لها زرٌّ يُرفَضُ حتماً.
-                 */}
-                {card.available && onRequest !== undefined && (
-                  <button
-                    type="button"
-                    className="qt__card-request"
-                    onClick={() => {
-                      // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ. ونوعُ الطردِ
-                      // صارَ اختياريّاً (`ORDER-TERMS-01`): يُحاكَمُ ما كُتِبَ ولا يُلزَمُ الفارغُ.
-                      if (card.service === "delivery" && notes.trim() !== "") {
-                        const error = parcelValidationError(notes);
-                        if (error !== null) {
-                          setParcelError(error.errorKey);
+          {cards.length === 0 ? (
+            <p className="sys__hint">{t("rider.quote.services.empty")}</p>
+          ) : (
+            <ul className="qt__list">
+              {cards.map((card) => (
+                <li
+                  key={card.service}
+                  className={`qt__card${card.available ? "" : " qt__card--off"}`}
+                >
+                  <span className="qt__card-label">{t(card.labelKey)}</span>
+                  {card.reasonKey !== null && (
+                    <span className="qt__card-reason">{t(card.reasonKey)}</span>
+                  )}
+                  {/*
+                   * الفعلُ على البطاقةِ **المتاحةِ** وحدَها: خدمةٌ غيرُ مخدومةٍ في
+                   * المدينةِ تُعرَضُ بسببِها ولا يُعرَضُ لها زرٌّ يُرفَضُ حتماً.
+                   */}
+                  {card.available && onRequest !== undefined && (
+                    <button
+                      type="button"
+                      className="qt__card-request"
+                      onClick={() => {
+                        // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ. ونوعُ الطردِ
+                        // صارَ اختياريّاً (`ORDER-TERMS-01`): يُحاكَمُ ما كُتِبَ ولا يُلزَمُ الفارغُ.
+                        if (card.service === "delivery" && notes.trim() !== "") {
+                          const error = parcelValidationError(notes);
+                          if (error !== null) {
+                            setParcelError(error.errorKey);
+                            return;
+                          }
+                        }
+                        setParcelError(null);
+                        const offer = offerSarFrom(offerText);
+                        if (!offer.ok) {
+                          setOfferError(true);
                           return;
                         }
-                      }
-                      setParcelError(null);
-                      const offer = offerSarFrom(offerText);
-                      if (!offer.ok) {
-                        setOfferError(true);
-                        return;
-                      }
-                      setOfferError(false);
-                      onRequest({
-                        service: card.service,
-                        originLat: origin.lat,
-                        originLng: origin.lng,
-                        destinationLat: destination.lat,
-                        destinationLng: destination.lng,
-                        destinationLabel: destination.label,
-                        pickupLabel: manualPickup === null ? null : manualPickup.label,
-                        notes: noteValue,
-                        // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
-                        idempotencyKey: newIdempotencyKey(),
-                        pickupAt: pickupMode === "later" ? pickupAtFrom(pickupClock) : null,
-                        offerSar: offer.value,
-                      });
-                    }}
-                  >
-                    {t("rider.quote.request")}
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+                        setOfferError(false);
+                        onRequest({
+                          service: card.service,
+                          originLat: origin.lat,
+                          originLng: origin.lng,
+                          destinationLat: destination.lat,
+                          destinationLng: destination.lng,
+                          destinationLabel: destination.label,
+                          // الاسمُ المُرسَلُ هوَ ما كتبَه الراكبُ أو اختارَه — لا وصفُ «نقطة بلا اسم».
+                          pickupLabel:
+                            manualPickup === null
+                              ? null
+                              : manualPickup.place === undefined
+                                ? manualPickup.label
+                                : manualPickup.place.label,
+                          destinationUserLabel:
+                            destination.place === undefined
+                              ? destination.label
+                              : destination.place.label,
+                          pickupPlace:
+                            manualPickup?.place === undefined
+                              ? null
+                              : placeWire(manualPickup.place),
+                          dropoffPlace:
+                            destination.place === undefined ? null : placeWire(destination.place),
+                          notes: noteValue,
+                          // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
+                          idempotencyKey: newIdempotencyKey(),
+                          pickupAt: pickupMode === "later" ? pickupAtFrom(pickupClock) : null,
+                          offerSar: offer.value,
+                        });
+                      }}
+                    >
+                      {t("rider.quote.request")}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         {/*
@@ -636,18 +658,23 @@ export function QuoteScreen({
     );
   };
 
+  const sectionName = showTitle ? { "aria-labelledby": "qt-title" as const } : {};
   return (
-    <section className="qt" dir={directionFor(language)} aria-labelledby="qt-title">
-      <h1 className="qt__title" id="qt-title">
-        {t("rider.quote.title")}
-      </h1>
+    <section className="qt" dir={directionFor(language)} {...sectionName}>
+      {showTitle ? (
+        <h1 className="qt__title" id="qt-title">
+          {t("rider.quote.title")}
+        </h1>
+      ) : null}
       <p className="qt__destination">
         {t("rider.quote.destination").replace("{label}", destination.label)}
       </p>
       {body()}
-      <button type="button" className="qt__back" onClick={() => onBack?.()}>
-        {t("rider.quote.back")}
-      </button>
+      {onBack === undefined ? null : (
+        <button type="button" className="qt__back" onClick={() => onBack()}>
+          {t("rider.quote.back")}
+        </button>
+      )}
 
       {/* مدخلُ الاستغاثةِ (`PD-020`) — يُرسَمُ إذا مُرِّرَ، فيبقى البابُ في كلِّ سطحٍ. */}
       {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}

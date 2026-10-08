@@ -152,11 +152,16 @@ export interface RidesRouteDependencies {
 /**
  * أربعةُ حقولٍ عشريّةٍ وخدمةٌ وملاحظةٌ حدُّها 280 محرفاً.
  *
+ * `LOC-TRUST-01` رفعَ الحدَّ من 2048: صارَ الجسمُ يحملُ مكانَين، لكلٍّ رابطٌ حتّى 2048
+ * محرفاً (ASCII) وملاحظةٌ حتّى 200 (≈ 600 بايتٍ بالعربيّة) واسمٌ حتّى 120 (≈ 360).
+ * فأسوأُ حالٍ مشروعٍ ≈ 840 + 2×(2048 + 600 + 360) + ~600 للحقولِ والأقواس ≈ 7.5 KB؛
+ * و12 KiB تتركُ هامشاً لترميزِ JSON (`\uXXXX`) ولا تفتحُ بابَ حمولةٍ كبيرة.
+ *
  * و2048 بايتاً تكفي الملاحظةَ بالعربيّةِ في UTF-8 (ثلاثةُ بايتاتٍ للمحرفِ في
  * أسوأِ حالٍ شائعٍ) ولا تدعُ بابَ حمولةٍ كبيرةٍ مفتوحاً. حدُّ نقلٍ لا قيمةُ
  * منتَجٍ (القاعدة 0.3)، وحدُّ الملاحظةِ نفسُه في النطاقِ وفي القاعدةِ.
  */
-export const RIDE_REQUEST_MAX_BYTES = 2048;
+export const RIDE_REQUEST_MAX_BYTES = 12_288;
 
 const STATUS_BY_ERROR: Readonly<Record<RequestRidePublicErrorCode, 400 | 401 | 404 | 503>> = {
   SESSION_REQUIRED: 401,
@@ -168,6 +173,11 @@ const STATUS_BY_ERROR: Readonly<Record<RequestRidePublicErrorCode, 400 | 401 | 4
   IDEMPOTENCY_KEY_INVALID: 400,
   UNKNOWN_SERVICE: 400,
   NOTES_TOO_LONG: 400,
+  // `LOC-TRUST-01` — عطبُ طلبٍ يُصلِحُه المُنادي.
+  PLACE_INVALID: 400,
+  PLACE_LINK_UNSUPPORTED: 400,
+  PLACE_NOTES_TOO_LONG: 400,
+  PLACE_POINT_UNRELIABLE: 400,
   // الجلسةُ صحيحةٌ ولا صفَّ مستخدمٍ: `404` لا `401`، ولا يُنشَأُ الصفُّ (`ADR 0035`).
   ACCOUNT_NOT_FOUND: 404,
   RIDER_NOT_REGISTERED: 404,
@@ -334,7 +344,8 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
     const read = result.value;
     if (!read.found) return c.json({ ok: true, found: false as const, refusal: read.refusal });
 
-    const { state, phase, position, eta, cancelPolicy, elapsedSeconds } = read.view;
+    const { state, phase, position, eta, etaBand, cancelPolicy, elapsedSeconds, observedAtMs } =
+      read.view;
     const driver = state.driver;
     return c.json({
       ok: true,
@@ -352,6 +363,8 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
       completedAt:
         state.completedAtMs === null ? null : new Date(state.completedAtMs).toISOString(),
       elapsedSeconds,
+      // ADR 0243: لحظةُ القراءةِ بساعةِ الخادم — اللحظةُ نفسُها التي قِيسَ بها `elapsedSeconds`.
+      observedAt: new Date(observedAtMs).toISOString(),
       cancelPolicy,
       driver:
         driver === null
@@ -385,7 +398,16 @@ export function createRidesRoutes(deps: RidesRouteDependencies): Hono {
         eta === null
           ? null
           : eta.kind === "ROUTED"
-            ? { kind: "ROUTED" as const, minutes: eta.minutes, source: eta.source }
+            ? {
+                kind: "ROUTED" as const,
+                minutes: eta.minutes,
+                source: eta.source,
+                // ADR 0243: مدى الخطأِ المرصودِ في المدينة، أو سببُ غيابِه — لا مدىً مفترَض.
+                band: etaBand ?? {
+                  kind: "UNAVAILABLE" as const,
+                  reason: "NOT_CONFIGURED" as const,
+                },
+              }
             : { kind: "UNAVAILABLE" as const, reason: eta.reason },
     });
   });

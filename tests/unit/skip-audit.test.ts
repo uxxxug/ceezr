@@ -905,8 +905,17 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (`ح-8`): والآنَ 156 و 1433 باستردادِ حجزِ الاستغاثةِ المتروكِ (`D-39`):
     // حالةٌ واحدةٌ في `safety-sos.test.ts` لأنَّ المُدَّعى حكمُ دالّةِ قاعدةٍ
     // (`claim_safety_incident_delivery`) على صفٍّ `sending` بمهلةٍ منقضيةٍ.
-    expect(SKIP_REGISTRY).toHaveLength(156);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1433);
+    // زيادةٌ (`ح-8`): والآنَ 157 و 1438 بمقياسِ خطأِ التقديرِ (`ADR 0243`):
+    // خمسُ حالاتٍ في `eta-error-band.test.ts` لأنَّ المُدَّعى حسابُ `percentile_cont`
+    // وحفظُ الأوّلِ بـ`on conflict` وصلاحيّاتُ الأدوارِ — أحكامُ محرِّكٍ لا شِفرة.
+    // زيادةٌ (`ح-8`): والآنَ 158 و 1441 بقراءةِ جهةِ الطوارئِ (`UI-10` · `ADR 0245`):
+    // ثلاثُ حالاتٍ في `emergency-contact-read.test.ts` لأنَّ المُدَّعى سلوكُ `record is null`
+    // في PL/pgSQL (يصدقُ متى فرغت الحقولُ كلُّها) — حكمُ محرِّكٍ لا يبلغُه منفذٌ مزيّف.
+    // زيادةٌ (`ح-8`): والآنَ 159 و 1444 بعقدِ المكانِ (`LOC-TRUST-01` · `ADR 0247`):
+    // ثلاثُ حالاتٍ في `place-input.test.ts` لأنَّ المُدَّعى كتابةُ `request_ride_with_places`
+    // في المعاملةِ نفسِها ورفضُ الحمولةِ قبلَ الإنشاء — أحكامُ plpgsql وjsonb لا شِفرة.
+    expect(SKIP_REGISTRY).toHaveLength(159);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1444);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

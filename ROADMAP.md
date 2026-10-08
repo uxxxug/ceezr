@@ -1,5 +1,25 @@
 # WASLA MOVE — Roadmap
 
+> **RELEASE-20261008 — إصدارُ 2026-10-08 مُنشرٌ (Work Packet `release-20261008-verify-deploy` · 22:53 UTC):** البوابةُ الحمراءُ لا تُقفَل — 13 بندًا مانعًا (PRD-004 · PRD-005 · PRD-006 · PRD-007 · PRD-008 · PRD-009 · PRD-010 · PRD-101 · PRD-102 · PRD-103 · PRD-104 · PRD-105 · PRD-106) — ليس Production Ready. **لكنّ الخدمتَين** (`waslah-gateway` · `waslah-miniapp`) تشغّلانِ رأسَ `main` (`897dfd58`) فعلاً: `waslah-gateway` نُشرَت بعد أن كانت متأخرةً برأسَي عملٍ (`ce14d625`) عبرَ Render API (`trigger_deploy` · النشرُ `dep-db41t7k9v7es738q8du0` · live 22:53:05 UTC) · `/ready` = 200 `ready` · `/health` = 200 · `/v1/me` = 401 (الصحيح). `waslah-miniapp` كانت منشورةً على `897dfd58` من قبل. وتحقّقٌ قراءةً أنّ كلَّ هجراتِ `main` مطبَّقةٌ على قاعدةِ الإنتاج (eta_observations · read_emergency_contact · request_ride_with_places · place_input_is_valid · pickup_link/dropoff_link) — لا هجرةً جديدةً لازمة. وحُذفَ الفرعُ البعيدُ `v0/logistics-system-architecture-5cddfb85` بقرارِ المالكِ (لوحةُ عملياتٍ وهميّةً تخالفُ القواعدَ الإلزاميّةَ). الدليلُ: `docs/evidence/production/PRD-002-deploy-20261008-followup.md`. لا يُدّعى أيُّ تحقّقٍ حيّ لعميلِ تيليجرامَ حقيقيّ.
+>
+> **TRUTH-01 — تصحيحُ الصدق (2026-10-08):** لا واجهةَ بلا مستهلِك (الأمرُ التصميميّ §0.4 و§14.2): مفاتيحُ «العروض/تحديثات الخدمة» وخانةُ رسائلِ التذكرةِ أُخفيت حتى يُوصَلَ قارئُها (`settings/consumers.ts`)، ونصوصُ شاشاتِ الحالةِ في القاموسِ بثلاثِ لغات (§1.4 #2)، ونصوصُ FAQ a1/a2 و`driver.offers.debt.push` صُحِّحت و`driver.documents.debt.progress` حُذِف (§1.4 #8). المتبقّي قرارُ مالك: تصنيفُ البثِّ واحترامُ التفضيل، وقارئُ رسائلِ التذكرةِ في الإدارة. PRD-008 Blocked. ليس Production Ready.
+>
+> **LOC-TRUST-01 — هامشُ Slow 4G (2026-10-08):** بعدَ #443 سقطَ `surface-rendered` على `main` (2028 ms > 2000 ms) لأنَّ شاشتَي الوجهةِ والاقتباسِ زادتا ~3 KB مضغوطة. الأسئلةُ الشائعةُ والخصوصيّةُ (ومعَهما قاموسُ `support`) كانتا في `rider-home` رغمَ تحميلِهما بطلب — نُقلتا إلى `support`/`account`: 1952 ms مقيساً. لا رفعَ للسقف.
+>
+> **LOC-TRUST-01 — الواجهة (2026-10-08):** «موقعي الحالي» يقرأُ `navigator.geolocation` بـ`maximumAge: 0` أوّلاً (Telegram بديلاً بلا طابع) ويحفظُ الدقّةَ ووقتَ الالتقاط؛ شاشتا الالتقاطِ و«إلى أين؟» تعرضانِ النقطةَ نفسَها ومصدرَها ودقّتَها و«تحقّق على الخريطة»، وأقربُ معلَمٍ سطرُ وصفٍ فقط؛ لا اعتمادَ إلّا بتأكيدٍ صريح (الخشنةُ بإقرار، الرديئةُ لا تُعتمَد)؛ رابطُ موقعٍ أو إحداثيّاتٌ واسمٌ وملاحظاتٌ لكلِّ مكان؛ ولا اقتباسَ قبلَ تأكيدِ الالتقاط. السائقُ يرى الملاحظاتِ والرابطَ وزرَّي الفتح. PRD-008 Blocked. ليس Production Ready.
+>
+> **LOC-TRUST-01 — الخادم (2026-10-08):** عقدُ المكان (ADR 0247): `pickupPlace`/`dropoffPlace` اختياريّان في `/v1/rides` و`/v1/deliveries` (المصدر · الدقّة · وقت الالتقاط · الرابطُ الأصليُّ حرفاً · الملاحظات)، وهجرةُ توسعةٍ بعشرةِ أعمدةٍ و`request_ride_with_places`، ورفضُ القراءةِ الرديئةِ (> 1500 م) والرابطِ المتعارض (> 150 م)، و`mapUrl` في جوابِ المصادقة، وبطاقةُ السائقِ بالملاحظاتِ والروابطِ وزرَّي «فتح موقع الالتقاط/الوجهة». وكشفَ التكاملُ ترميزاً مزدوجاً لـ`$N::jsonb` في `sql.unsafe` فاتّسعَ حاجزُ `check-jsonb-binding` له. الواجهةُ في Work Packet مستقلّ. PRD-008 Blocked. ليس Production Ready.
+>
+> **PRD-008 — سجلُّ نجاحٍ للاقتباس (2026-10-08):** Render (الخطّة المجانيّة) لا يحفظُ سجلَّ طلباتٍ ولا مقاييسَ HTTP، والمساران `/v1/destinations/*` و`/v1/quote/ride` كانا لا يكتبانِ شيئاً عندَ النجاح؛ فلا دليلَ خادميَّ مباشرَ على Step 2. أُضيفَت أسطرُ `destinations.search_answered` و`destinations.resolve_answered` و`quote.answered` برموزِ النتيجةِ وحدَها (لا استفهامَ ولا اسمَ ولا إحداثيّةَ ولا مسافةَ ولا مدينةَ ولا مُعرِّف). بلا تغييرٍ في العقودِ أو السلوك. PRD-008 Blocked. ليس Production Ready.
+>
+> **PRD-001 — مستهلكٌ ثانٍ (2026-10-08):** `flush-driver-locations` يُرسِلُ `EVAL` لكلِّ مدينةٍ كلَّ ~20ث وهوَ خامل (~648K/شهر > حصّة 500K). الإصلاح: بوّابةُ سحبٍ خاملٍ بسقفِ 120ث (`idleDrainCeilingMs`). PRD-001 Open حتّى القياسِ الحيّ. ليس Production Ready.
+>
+> **PRD-001 — السببُ الجذريُّ (2026-10-08):** حصّةُ Upstash (500K طلب) مستنفدةٌ بماسحِ `XREAD` كلَّ 250ms بلا شرط. الإصلاح: لا استطلاعَ بلا مشتركٍ محليّ. استعادةُ Redis تنتظرُ قرارَ المالكِ في الحصّة. ليس Production Ready.
+>
+> **PRD-001/البوابة (2026-10-08 · ADR 0246 §5):** سببُ رفضِ Upstash يُقرأُ الآن مُعقَّمًا في `/ready` `checkDetails.redis` (كان `HTTP 400` مجرّدًا). الحارسُ بنمطَين: CI و`--require-ready` (الإعلان — P0/P1 فقط) + سيرُ `production-readiness.yml`. شرطُ PRD-001 مصحَّح (`ready` لا `ok`). Redis لم يُصلَح بعد. ليس Production Ready.
+>
+> **Production Readiness Gate (2026-10-08 · ADR 0246):** بوابة جاهزية الإنتاج هي المرجع التنفيذي لما تبقى حتى الإطلاق. خمس مراحل إلزامية: Implemented → Merged → Deployed → Production-Verified → Production Ready. خمس حالات: Open/Blocked/Ready/Verified/ADR-Closed. الحارس fail-closed. الكود على `main` في مرحلة Merged. الإنتاج غير Deployed. UI-10 غير مغلقة. ليس Production Ready. المرجع: `docs/governance/PRODUCTION_READINESS_GATE.md`. الحارس: `scripts/check-production-readiness-gate.ts`.
+>
 > **تحديث المرحلة (2026-10-05):** الخارطة السابقة أدناه أصبحت تاريخية
 > (Historical / Superseded) بعد اعتماد مرحلة «WASLA UI/UX REFOUNDATION»
 > كالمرحلة النشطة الرسمية. الخارطة النشطة الجديدة هي
@@ -18,9 +38,178 @@
 > إعدادات البناء/الـCI، وتوسيع تصنيف documentation ليشمل ملفات .md في جذر
 > المستودع مثل README.md. (إصلاح نطاق CI + قراءة manifest من diff كامل PR)
 
+> **UI-8 — إغلاقُ فجوتَي العقد (2026-10-06 · Work Packet `ui-8-contract-gaps-closure` · ADR 0243):**
+> بقرارِ المالك «صحّح فجوتي العقد المسجلتين في UI-8». [C1] `GET /v1/rides/:id` يُعيدُ `observedAt` (ساعةُ الخادم،
+> اللحظةُ نفسُها التي قِيسَ بها `elapsedSeconds`) ويعرضُها R7 «قُرئت هذه الحالة الساعة …» مختومةً بساعةِ الخادم —
+> وغيابُها «غير معروف» لا ساعةَ الجهاز. [C2] مدى التنبؤِ الصادق **مقيساً**: هجرةُ `expand` بجدولِ `eta_observations`
+> ودالّةِ `record_eta_and_read_band` (أوّلُ تقديرٍ لكلِّ ساقٍ · م10/م90 لنسبةِ الفعليّ ÷ المقدَّر في المدينة)؛ مدىً بتغطيةِ 80٪
+> عند ≥30 ساقاً منتهية، وإلّا «لا مدى بعد: N من 30». التقديرُ المفردُ باقٍ. منفذُ `EtaBandStore` يسكنُ `application/tracking/estimate-arrival.ts`
+> (وحدةُ أنواعٍ مستقلّةٌ لا يُحمِّلها اختبارٌ فتُسقِطُ بوابةَ التغطية OPS-005). **مُدمَجٌ — PR #428 (squash) → `d553cb49699003eb790dc98479f3bf75ddaf14d7`؛ CI الرئيس `37516400255` 8/8 نجاح؛ Slow 4G rider surface نجح في إعادةِ التشغيل (job `112458339560`). UI-8 = مُغلَقة.**
+> UI-8 الأساسُ دُمِجَ في #427 → `17f277cbccd16314188043dbc93cdee119d1bfed`، CI الرئيس `37508405991` نجح.)
+
+> **UI-9 — RTL / Accessibility / Responsive / Performance QA (2026-10-06 · Work Packet `ui-9-rtl-a11y-responsive-perf` · ADR 0244):**
+> QA شامل لأسطح UI-1 → UI-8: مسحٌ آليٌّ ثابتٌ + إصلاحُ العيوب المثبتة + حرّاسُ انحدارٍ ساكنة.
+> العيوبُ المُصلَحةُ: (١) `letter-spacing: -0.01em` على `.sys__title, [class$="__title"]` — العربيةُ بلا letter-spacing. (٢) `font-style: italic` على `.dof__distance--absent` و`.djb__stamp--absent` — العربيةُ بلا italic؛ العتمُ بديلٌ صادقٌ. (٣) touch targets < 44px: `.dd__view`/`.dd__camera` 36px→44px، `.sup__category`/`.ob__city` 40px→44px.
+> الحارسُ الساكنُ: `scripts/check-ui-9-guards.ts` — لا letter-spacing/text-transform/italic على العربية، لا @layer/!important، لا left/right، touch ≥ 44px، i18n parity.
+> الأداءُ: shell+identity = 27 KB gz (< 180) · CSS = 13.4 KB gz (< 40) · deferred ≤ 33.7 KB gz (< 120) · طلبات 2 (< 6).
+> حدودُ الإثبات: حارسٌ ساكنٌ فقط — لا يُدَّعى دليلُ متصفّحٍ حيٍّ ولا FCP/LCP ولا قارئُ شاشة.
+> ملاحظةُ CI: وظيفةُ PostgreSQL تذبذبت مرّةً على PR #429 (اختبارُ ADR 0243، خارجَ نطاقِ UI-9) ثم نجحت في الإعادةِ بلا تعديل ونجحت على main بعد الدمج؛ لا إصلاحَ خارجَ النطاق.
+> **مُدمَجٌ — PR #429 (squash) → `f97cf0cb894972f93e85dcf4ac1213263c7b5182`؛ CI الرئيس بعد الدمج `37541295303` 7/7 نجاح؛ Roadmap freshness `37541295300` نجاح. UI-9 = مُغلَقة / مكتملة.**
+
+> **UI-10 — Production Verification & Polish (2026-10-07 · Work Packet `ui-10-production-verification` · ADR 0245 · دليل `docs/evidence/release/UI-10-20261007.md`):**
+> تحقّقٌ حيٌّ من `main` `b9a81641`: Chromium حقيقيٌّ + axe على قاعدةٍ وبوّابةٍ حقيقيّتَين بـinitData موقَّع (35 جولةً · 115 شاشة)، سكربتا الأداء، وقراءةٌ حيّةٌ للإنتاج.
+> العيوبُ المُثبَتةُ المُصلَحة: تجاوزٌ أفقيٌّ 506px على كلِّ المقاسات (عمودُ الإطار `minmax(0,1fr)`)، `lang/dir` ثابتٌ `ar/rtl` لحساباتِ en/ur، `<main>` مزدوج، أهدافُ لمسٍ 38–42px، تباينُ افتراضاتِ التطبيق (2.77/4.09/3.78)، `read_emergency_contact` تُرجعُ `USER_NOT_FOUND` لكلِّ من لا جهةَ له (هجرة `20261007120000` — والعيبُ قائمٌ على قاعدةِ الإنتاج)، و`/` يُخزَّنُ `s-maxage=300` (`render.yaml` ⇒ `no-cache`).
+> الأداءُ Slow 4G: FCP 720ms · LCP 1984ms · سطحٌ مرسوم 1984ms (≤ 2000، هامش 16ms) — مُتحقَّقٌ منه لا «مَقيس».
+> **ليسَ Production Ready:** الإنتاجُ يشغّلُ بناءً قبلَ UI-1، بلا هجرتَي UI-8/UI-10، و`/ready` degraded (Redis)؛ لا عميلَ تيليجرامٍ حقيقيٌّ ولا قارئَ شاشة. النشرُ والهجرةُ وRedis ودخانُ تيليجرام الحيُّ أفعالُ مالك.
+> **مُدمَجٌ — PR #430 → `main` عند `6c99767ed7cb2cabec722f2f8576d12c045fdae2`. التنفيذُ والتحقّقُ قبلَ الإنتاجِ مكتملان؛ UI-10 غيرُ مُغلَقة — Production Readiness معلَّقٌ على أفعالِ المالكِ (النشر · هجراتُ الإنتاج · Redis · قراراتُ Render/HSTS/source maps/سمةِ تيليجرام) ودخانِ تيليجرامَ الحقيقيِّ بعدَ النشر.**
+
+> **UI-8 — Truth & State System (2026-10-06 · Work Packet `ui-8-truth-state-system` · ADR 0242):**
+> مرحلةٌ مستقلّةٌ بقرارِ المالك، نطاقُها ui-truth + أعمارُ البيانات + مصادرُها. أُنجز: `system/truth.ts`
+> (الحالاتُ السبع · عمرٌ مقيسٌ أو مجهولٌ لا صفر · المجهولُ ليس قديماً · ثلاثةُ مصادرَ حقيقيّة)، ختمُ المصدرِ
+> في `UiTruth`، والربطُ في طبقةِ الشاشةِ لـR7/R8/R9، وحارسٌ ساكن. لا view/api/contract ولا endpoint ولا مؤقّت.
+> **مُدمَجٌ — #427 → `17f277cbccd16314188043dbc93cdee119d1bfed`، CI الرئيس `37508405991` نجح؛ UI-8 = مُغلَقة.** خارجَها: `*view.ts`، اللمسةُ المطوَّلة، أسطحُ السائق
+> والسجلّ والدعم، UI-9/UI-10. [C] (أُغلِقَت في ADR 0243 / PR #428).
+>
+> **UI-7 / PR 10 (2026-10-06 · Work Packet `ui-7-pr10-public-tracking` · ADR 0241):** التتبّعُ العامّ
+> (§11 PR 10 «تتبّع عام | حالات + CSP») على `GET /track/:token` القائم: أُزيل الاستفتاءُ كلَّ 5 ثوانٍ
+> (قراءةُ الخادمِ وساعتُه + شريطُ قِدَمٍ بلا JS + تحديثٌ يدويٌّ واحد)، الحالاتُ السبعُ مشتقّةٌ من حقولِ
+> العقد (`NEVER_REPORTED`/`TOO_OLD`/`NO_TIMESTAMP`/404/503/429)، لا ETA مختلق ولا صفرَ لعمرٍ غائب، CSP
+> بلا تغيير، لا backend. **مُنفَّذٌ في PR مفتوح — لم يُدمَج؛ UI-7 قيدَ المراجعة.** (صُحِّحَ في UI-8: مدموجٌ — #426 → `9eb7c83d8459097038a3a2a4912606de9f2f20a6`، CI على `main` success.) فجواتُ [C]: لا ETA في
+> العقد، لا قناةَ دفعٍ للعامّة، حدُّ العمرِ ليس في الحمولة، 429 JSON موحَّد، لا حالةَ رحلةٍ أدقّ من `active`.
+>
+> **UI-6 / PR 9 (2026-10-06 · Work Packet `ui-6-pr9-admin-console` · ADR 0240):** لوحةُ عملياتِ
+> الإدارة (§11 PR 9 «إدارة §10 | صفحات + CSP + تحسين تدريجي») على HTML الخادمِ القائم: لا
+> استقصاء (عُمرُ قراءةٍ معلَنٌ + شريطُ قِدَمٍ بلا JS + تحديثٌ يدويّ بدلَ `setInterval`/`location.reload`)،
+> الحالاتُ السبع، تأكيدُ كلِّ فعلٍ خطِر (`data-confirm`)، إصلاحُ CSRF المفقودِ في مراجعةِ الاسترداد،
+> هيكلٌ برموزِ §2/§3 ووصولٌ (تخطٍّ · معالم · تركيز · reduced-motion). CSP بلا تغيير؛ لا backend
+> ولا عقد؛ حزمةُ الراكبِ لم تُمَس. **مُنفَّذٌ في PR مفتوح — لم يُدمَج؛ UI-6 قيدَ المراجعة.** (صُحِّحَ في UI-7 / PR 10: مدموجٌ — #425 → `e872d101c1b9af6bb2bba405f246bfabf9b56d2c`، CI على `main` success؛ UI-6 مكتملة / Closed.) فجوةُ
+> [C]: تقديمُ طلبِ الاسترداد بلا مدخلٍ في الواجهة.
+>
+> **إغلاقُ UI-5 (2026-10-06 · Work Packet `ui-5-closure` — توثيقيٌّ فقط):** مرحلة **UI-5
+> (Telegram Experience) = مكتملة / Closed** — PR 8 (#422 · PR HEAD `6067936e26c7565804113dbd37e98b5c239ebf2b` → merge commit
+> `fa80d25b930635b1e7f76ef09fb243fa8bda2f75` · ميزانيةُ رسائلٍ + fuzz تهريب · ADR 0239). CI على `main` run `37482288537` =
+> 7/7 success · Roadmap freshness run `37482288428` = success. لا تغييرَ في عددِ رسائلِ
+> تيليجرام. فجواتُ العقدِ القائمةُ (ADR 0238 · D14) باقيةٌ مستقلة. **UI-6 (Admin Operations
+> Console) لم تبدأ** (عندَ الإغلاق؛ صُحِّحَ في UI-6 / PR 9: بدأت — انظر أعلاه).
+>
+> **UI-5 / PR 8 (2026-10-06 · Work Packet `ui-5-pr8-telegram-experience` · ADR 0239):** تجربةُ تيليجرام
+> بشرطِ القبولِ الكانونيّ «ميزانيةُ رسائلٍ + fuzz تهريب» — الميزانيةُ قائمةٌ محروسةٌ ولم تتغير،
+> والمنفَّذُ الجديدُ اختبارُ الـfuzz: `tests/unit/telegram-fuzz-escaping.test.ts` (28 اختباراً) —
+> حارسٌ ساكنٌ أنَّ المُرسِلاتِ السبعةَ بلا `parse_mode` (المحلّلُ الفعليُّ نصٌّ خام)، وfuzz على
+> مُخرَجِ الحواراتِ بسلاسلٍ عدوائيةٍ في ar/en/ur، و`callback_data` ≤ 64 بايتاً بمعرّفاتٍ كاملة،
+> وصدقُ اللغاتِ، وسلوكُ أزرارِ التفاوضِ المتكررةِ والبالية. لا تغييرَ في نصوصِ الرسائلِ ولا
+> عددها ولا في أيِّ ملفٍّ تشغيليّ. مدموجٌ في `main` (#422 → `fa80d25b`)؛ UI-5 مغلقة (انظر أعلاه).
+> (صُحِّحَ في إغلاقِ UI-5: كانَ هنا وصفُ ما قبلَ الدمج.) UI-6 لم تبدأ (عندئذٍ؛ بدأت في PR 9 — انظر أعلاه).
+>
+> **إغلاقُ UI-3 (2026-10-06 · Work Packet `ui-3-closure` — توثيقيٌّ فقط):** مرحلة **UI-3
+> (Rider Experience) = مكتملة / Closed** — PR 3 (#415 → `fc84ac12` · R0–R5) · PR 4 (#419 →
+> `cd4b6356` · R6–R10) · PR 5 (#420 · PR HEAD `92390c76d9cd4dce5ddec933a22b6b0b08f65388` →
+> merge commit `ac55c0aa81043de3b85b2d9db7750cc57f8dff44` · R11–R15 + [B]). CI على `main`
+> run `37464334979` = 7/7 success · Roadmap freshness run `37464335174` = success.
+> فجواتُ عقدِ PR 5 الستُّ مسجّلةٌ في ADR 0238 ولا يُغلِقها الإغلاق. **UI-5 (Telegram Experience)
+> لم تبدأ.**
+>
+> **UI-3 / PR 5 (2026-10-06 · Work Packet `ui-3-pr5-rider-r11-r15` · ADR 0238):** الراكبُ **R11–R15 + [B]**
+> (R11 سجل الرحلات وتفاصيلها · R12 الإشعارات · R13 حسابي · R14 الخصوصية والشروط · R15 الدعم والتذاكر والمفقودات وFAQ).
+> «رحلاتي» و«الدعم» و«حسابي» تبويباتٌ جذريّةٌ في `ScreenFrame mode="root"`، والتفاصيلُ والإشعاراتُ والخصوصيّةُ
+> والأسئلةُ والمفقوداتُ والشكوى المربوطةُ برحلةٍ تدفّقاتٌ برجوعٍ واحد؛ وصُحِّحَ عيبا ترتيب (الخصوصيّةُ من الحساب والأسئلةُ
+> من الدعم لم تُرسَما). عناصرُ [B] الأربعةُ (رسائلُ التذكرة · حفظُ/تعديلُ/حذفُ الأماكن · جهةُ الطوارئ · تفضيلاتُ
+> الإشعارات) على العقودِ القائمةِ بـ503 = غيرُ متاح، وفجواتُ العقدِ مسجّلةٌ في ADR 0238. **مدموجٌ في
+> `main`:** #420 (squash) · PR HEAD `92390c76d9cd4dce5ddec933a22b6b0b08f65388` → merge commit
+> `ac55c0aa81043de3b85b2d9db7750cc57f8dff44` · Main CI `37464334979` = success · Roadmap freshness
+> `37464335174` = success. (صُحِّحَ في دفعةِ إغلاقِ UI-3: كانَ هنا «على فرعٍ، PR مفتوحٌ غيرُ مدموج … UI-3
+> جاريةٌ» — صدقُ ما قبلَ الدمج.) **UI-3 مغلقة (انظر أعلاه)؛ UI-5 لم تبدأ.**
+>
+> **UI-3 / PR 4 (2026-10-06 · Work Packet `ui-3-pr4-rider-r6-r10` · ADR 0237):** الراكبُ **R6–R10**
+> بالترقيمِ الكانونيّ (R6 البحث عن سائق · R7 الرحلة النشطة · R8 مشاركة الرحلة · R9 SOS · R10 ملخص الرحلة
+> والتقييم) على هيكلِ UI-2: تدفّقاتٌ برجوعٍ واحدٍ، وسكّةٌ وشريطُ حقيقةٍ من القراءةِ وحدَها، وSOS أعلى الترتيب.
+> **مدموجٌ في `main`:** #419 (squash) · PR HEAD `87795a55934c5d237811472cf2e4bc2cd22073bc` → merge commit
+> `cd4b635613cef121b993b1af0b603c42582cb0dd` · Main CI `37447868079` = success · Roadmap freshness `37447868136` = success.
+> (صُحِّحَ في PR 5: كانَ هنا «على فرعٍ غيرِ مدموج … PR 5 لم يبدأ» — صدقُ ما قبلَ الدمج.)
+>
+> **حسمُ حالةِ UI-3 (2026-10-06 · Work Packet `ui-3-status` — توثيقيٌّ فقط):** مرحلة **UI-3
+> (Rider Experience) = جارية / غير مغلقة**. #415 هو PR 3 (R0–R5) وحدَه — مدموج → `fc84ac12`.
+> بنصِّ §11 وجدولِ الربطِ يبقى **PR 4 (R6–R10 · سكّة + شريط حقيقة + SOS)** و**PR 5 (R11–R15 + [B] ·
+> حالات 503 لكل [B])** مطلوبتَين للإغلاقِ ولم تبدآ. قبلَ PR 4 يلزمُ جدولُ R6–R15 الكانونيُّ من المصدرِ
+> الأصليّ، وقبلَ PR 5 حصرُ عناصرِ [B]. **UI-5 لم تبدأ.**
+>
+> **إغلاقُ UI-4 (2026-10-06 · Work Packet `ui-4-closure` — توثيقيٌّ فقط):** مرحلة **UI-4
+> (Driver Experience) = مكتملة / Closed** بـ#416 (HEAD `04162cba` → الدمج `de97f788`).
+> CI على `main` run `37437999457` = 7/7 success · Roadmap freshness `37437999463` = success.
+> **فجوةُ عقدٍ مفتوحة [C] — D14 تسجيلُ السائقِ من الـMini App:** لا `POST /v1/onboarding/driver`؛
+> المنفّذُ حالٌ صريحةٌ تدلُّ على بوتِ السائق، وإضافةُ العقدِ قرارُ خادمٍ خارجَ UI-4 بلا PR الآن.
+> UI-3 جارية (PR 4 وPR 5 لم يبدآ — انظر «حسمُ حالةِ UI-3» أعلاه). **UI-5 لم تبدأ.**
+> (صُحِّحَ في دفعةِ إغلاقِ UI-3: PR 4 (#419) وPR 5 (#420) دُمجا وأُغلقت UI-3 — انظر أعلاه.)
+>
+> **UI-4 (2026-10-06 · Work Packet `ui-4-driver-d0-d14` · ADR 0236):** تجربةُ السائقِ
+> D0–D14 على هيكلِ UI-2: أربعةُ تبويباتٍ (العروض · مهمّتي · أرباحي · حسابي) وتدفّقاتٌ برجوعٍ
+> وانتقالٍ من آلةِ حالةٍ نقيّةٍ `driver-flow.ts`؛ مؤقّتُ العرضِ `UiTimer` بحركةِ CSS (§11 PR 6)
+> وخطواتُ رفعِ الوثيقةِ الحقيقيّةُ `UiStepper` (§11 PR 7). **مطابقةُ المصدرِ (ADR 0236):** ترقيمُ
+> D0–D14 من المصدرِ الأصليِّ (PDF v2.0) مباشرةً — D0 الهيكلُ وبثُّ الموقع · D1 لوحُ العروض · D2 بطاقةُ
+> العرض · D3 تفاصيلُه · D4 المهمّةُ الحاليّة · D5 تعذّرُ الإكمال · D6 الملخّصُ وتقييمُ الراكب · D7 SOS ·
+> D8 الوثائق · D9 المركبة · D10 الحصيلة · D11 الاشتراكُ والفاتورة · D12 الحسابُ وحذفُه · D13 الدعمُ
+> وكشفُ الخصوم · D14 تسجيلُ السائق. D0–D13 منفّذةٌ وكانَ الفرقُ وسماً (صُحِّح)؛ D14 حالٌ صريحةٌ معَ فجوةِ
+> عقدٍ مسجّلة [C] (لا `POST /v1/onboarding/driver`). الحالةُ **مدموجٌ (#416)، ومغلقةٌ أعلاه**.
+> UI-3 / PR 3 دُمِجَ في `main` (#415 → `fc84ac12`). UI-5 لم تبدأ.
+>
+> **UI-3 / PR 3 (2026-10-06 · Work Packet `ui-3-pr3-rider-r0-r5` · ADR 0235):** جرى وصلُ
+> تجربةِ الراكبِ R0–R5 بـ`ScreenFrame` و`useScreenStack`، وإضافةُ حارسِ لا وميضِ الترحيبِ
+> ووسومِ التبويبِ المترجمةِ. الحالةُ عندَ كتابتِها **تنفيذٌ على فرع PR، غيرُ مدمجٍ** — ثمَّ دُمِجَ
+> (#415 → `fc84ac12`؛ انظر «حسمُ حالةِ UI-3» أعلاه). فحوصُ lint وtypecheck وbuild وtest والبواباتُ المخصّصةُ نجحت محليّاً،
+> بما فيها `check-state-sync` على نطاقِ الالتزام؛ اختباراتُ PostgreSQL التي تحتاج
+> `TEST_DATABASE_URL` متخطّاةٌ.
+>
+> **تصليبُ PR 3 (داخلَ #415):** استُخرِجَ تدفّقُ R3→R5 إلى آلةِ حالةٍ نقيّةٍ
+> `rider-flow.ts` فوقَ `screenStackReducer` نفسِه، ويستهلكُها `RiderRoot` بـ`useReducer`
+> والمعالجاتِ ذاتِها؛ والاختبارُ يقودُ تلك المعالجاتِ: Home→Destination→Quote، والرجوعُ
+> مرّتين، وتسليمُ النيّةِ إلى R6 مرّةً واحدةً، وأوّلُ رسمٍ لـ`RiderRoot` هيكلُ تحقّقِ الموافقةِ.
+> لا بيئةَ DOM ولا تبعيّةَ جديدة؛ النقرُ الحيُّ خارجَ حدودِ الاختبارِ (ADR 0235).
+>
+> **إغلاقُ UI-2 (2026-10-06 · Work Packet `ui-2-closure` — توثيقيٌّ فقط):** مرحلة **UI-2
+> (Shell & Navigation) = مكتملة / Closed** بـPR 2 (#413، HEAD `e14426af` → الدمج `0b8b0ea7`).
+> CI على `main` run `37405542119` = 7/7 success · Roadmap freshness `37405542140` = success.
+> **UI-3 (Rider Experience — PR 3) كانت لم تبدأ عندَ إغلاقِ UI-2؛** تحديثُ التنفيذِ الحاليِّ أعلاه.
+>
+> **UI-2 / PR 2 (2026-10-06 · Work Packet `ui-2-pr2-shell-navigation` · ADR 0234):** مرحلة
+> **UI-2 (Shell & Navigation) = جارية — PR 2**: `ScreenFrame` + التبويبُ الجذريُّ (§6) + BackButton +
+> `ScreenTransition` + `useScreenStack` في `apps/miniapp/src/shell/`، على كتلةِ `app-frame` و`ui-*` بلا
+> نظامٍ موازٍ. لا مستهلكَ بعد ولا تغييرَ في شاشاتِ الراكبِ والسائق. **UI-3 لم تبدأ.**
+>
+> **إغلاقُ UI-1 (2026-10-06 · Work Packet `ui-1-closure` — توثيقيٌّ فقط):** مرحلة **UI-1
+> (Design System) = مكتملة / Closed** بـPR 0 (#409، `0a726b0a`) وPR 1 (#410، `4765d783`).
+> معالجةُ SEC-15 (#411، `61d6b7ee`) جانبيّةٌ ولا تُعيدُ فتحَ UI-1؛ CI على `61d6b7ee` = success.
+> **UI-2 (Shell & Navigation — PR 2) لم تبدأ.** الدليلُ في `docs/SYSTEM_STATE.md` وADR 0233.
+>
+> **SEC-15 (2026-10-06 · Work Packet `sec-15-source-map-js-1-2-2`) — خارجَ UI-1:** رُفِعَت
+> `source-map-js` العابرةُ من 1.2.1 إلى 1.2.2 في `bun.lock` وحدَه لعلاجِ `GHSA-68fv-2mgg-jv7q`
+> التي أسقطَت SEC-15 على `main`. تحديثٌ لا إقرار، ولا تغييرَ في UI ولا في مسارِ UI-1.
+>
+> **UI-1 / PR 1 (2026-10-06 · Work Packet `ui-1-pr1-design-system`):** مرحلة **UI-1 (Design
+> System) = جارية — PR 1**: رموزُ CSS (Layer 2 + الطباعة) + 30 مكوّنًا عرضيًّا (ui-*) +
+> 12 أيقونةَ SVG + مكوناتُ التغذيةِ الراجعةِ. عُولِجَ الإخفاقُ القائمُ `mute/light/secondaryBg`
+> بتغميقِ `--tg-hint-color` الفاتحِ من `#64748b` إلى `#475569` وأُزيلَ من `KNOWN_FAILURES`.
+> الحملُ الأوّل 90.3 KB (الحدُّ 180). لا تغيير في الإنتاج. التفاصيل في `docs/SYSTEM_STATE.md`.
+> **تصليبٌ قبلَ الدمج (نفسُ الـWork Packet):** تدقيقٌ تنفيذيٌّ للمكوّناتِ الثلاثين — لا زرَّ بلا
+> فعلٍ (`ui-stp` مؤشّرٌ لا عدّاد)، ولا نصَّ مُضمَّن، و`<dialog>` أصيلٌ، وتبويبٌ بلوحةِ مفاتيحَ
+> تتبعُ RTL، وCSS ميّتٌ/مضلِّلٌ أُصلِح، وحاجزُ انجرافِ رموزِ `--ui-*`. **PR 2 لم يبدأ.**
+> القراراتُ في ADR 0233 «تصليبُ PR 1».
+>
+> **UI-1 / PR 0 (2026-10-06 · Work Packet `ui-1-pr0-foundations`):** مرحلة **UI-1 (Design
+> System) = جارية — PR 0**: ADR 0233، وحاجزا `check-ui-contrast` و`check-ui-surface-inventory`،
+> و`docs/UI_SURFACE_INVENTORY.md`. لا تغيير بصري. **PR 1 لم يبدأ.** التفاصيل في
+> `docs/SYSTEM_STATE.md`.
+
+> **إغلاق UI-0 (2026-10-05 · Work Packet `ui-0-closure` — توثيقيٌّ فقط):** مرحلة
+> **UI-0 — Discovery & Reconciliation = مكتملة / Closed**. الدليل: PR #404 المدموج
+> (`d28485e`)، ونجاح CI (runs `37357260598` و`37357260691`)، و23/23 من اختبارات
+> `check-state-sync`. جدول المراحل النشط (UI-0 → UI-10) وجدول ربطه بخطة PR 0 → PR 11
+> موجودان في `docs/UI_UX_RECONCILIATION_REPORT.md` §H. **«PR 0» هو أول PR في UI-1،
+> وليس UI-0.** المرحلة التالية: UI-1 (Design System) — **لم تبدأ**، وتنتظر توجيه المالك.
+> المخاطر القائمة مسجّلة في `docs/SYSTEM_STATE.md`.
+
 **Repository:** `uxxxug/ceezr` (this repository is WASLA MOVE)
-**Last updated:** 2026-10-05 (UI-0: lint fix + bun:test import for state-sync tests)
-**Last milestone:** `F2-01` — the first product screen in this repository, with
+**Last updated:** 2026-10-07 (UI-10 Production Verification & Polish — Work Packet `ui-10-production-verification`, ADR 0245, merged PR #430 → `6c99767e`, not deployed, UI-10 not closed; previously: 2026-10-06 (UI-9 RTL/A11y/Responsive/Performance QA — Work Packet `ui-9-rtl-a11y-responsive-perf`, ADR 0244, merged PR #429 → `f97cf0cb`, main CI `37541295303` 7/7 success — UI-9 Closed; previously: 2026-10-06 (UI-8 contract gaps closure merged — PR #428 → `d553cb49`; previously: 2026-10-06 (UI-8 Truth & State System merged — #427 → `17f277cb`; previously: 2026-10-06 (UI-7 / PR 10 Public Tracking merged — #426 → `9eb7c83d`; previously: 2026-10-06 (UI-6 / PR 9 Admin Console merged — #425 → `e872d101`; previously: 2026-10-06 (UI-5 closed; previously: 2026-10-06 (UI-3 closed; previously: UI-2 closed; previously: UI-1 closed; previously: UI-0 closed)))))))))
+**Last milestone:** UI-10 Production Verification & Polish — live browser/DB/production verification + 7 proven fixes (ADR 0245; merged PR #430 → `6c99767ed7cb2cabec722f2f8576d12c045fdae2`; not deployed; UI-10 not closed; NOT Production Ready). Before it: UI-9 RTL/A11y/Responsive/Performance QA — static audit + fixes + guard — merged PR #429 → `f97cf0cb894972f93e85dcf4ac1213263c7b5182` (ADR 0244; main CI `37541295303` 7/7 success, Roadmap freshness `37541295300` success; UI-9 = Closed). Before it: UI-8 contract gaps merged PR #428 → `d553cb49` (ADR 0243; CI `37516400255` 8/8 success; UI-8 = Closed). Before it: UI-8 Truth & State System merged #427 → `17f277cb` (ADR 0242). Before it: UI-7 / PR 10 — Public Tracking merged #426 → `9eb7c83d` (ADR 0241). Before it: UI-6 / PR 9 — Admin Console merged #425 → `e872d101` (ADR 0240). Before it: UI-5 closed — #422 → `fa80d25b` (ADR 0239). Before it: UI-3 closed — #415/#419/#420. Historical baseline: `F2-01` — the first product screen in this repository, with
 consent stored as an append-only versioned row (`user_consents`, `city_id` not
 null, RLS enabled, atomic RPCs), `GET`/`POST /v1/consents`, 31 dictionary keys in
 three languages, and a new `check-consent-documents` guard in CI. Measured, not

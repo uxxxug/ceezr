@@ -158,9 +158,9 @@ export function renderDisputesPage(data: DisputesPageData): string {
          <div class="card-hint">${escapeHtml(formatDateTime(row.claimedAt))}</div>`,
     row.resolvedByName === null
       ? row.status === "open" || row.status === "claimed"
-        ? `<form class="inline" method="post" action="/admin/disputes/${escapeHtml(row.ticketId)}/close">
+        ? `<form class="inline" method="post" data-confirm="إقفالٌ إداريٌّ لهذا النزاع بالسبب المكتوب؟" action="/admin/disputes/${escapeHtml(row.ticketId)}/close">
   <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
-  <input type="text" name="note" required placeholder="سبب الإقفال" maxlength="500">
+  <input type="text" name="note" required placeholder="سبب الإقفال" maxlength="500" aria-label="سبب الإقفال">
   <button class="ghost" type="submit">إقفال إداري</button>
 </form>`
         : EMPTY_CELL
@@ -191,7 +191,7 @@ export function renderDisputesPage(data: DisputesPageData): string {
   </label>
   <button type="submit">تطبيق</button>
 </form>
-<div class="cards" style="margin-bottom:16px">${cards}</div>
+<div class="cards cards--spaced">${cards}</div>
 ${section(
   "التذاكر",
   table({

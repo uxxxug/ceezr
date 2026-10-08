@@ -93,6 +93,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { TRUTH_AGE_UNKNOWN_KEY, TRUTH_SOURCE_KEYS, truthAge } from "../../../system/truth.ts";
 import { cancelRide as cancelViaApi } from "../search/ride-api.ts";
 import type { CancelRideResponse } from "../search/ride-contract.ts";
 import { cancelRefusalKey, newIdempotencyKey } from "../search/search-view.ts";
@@ -102,18 +103,21 @@ import { readRide as readViaApi } from "./active-ride-api.ts";
 import type { ActiveRideResponse } from "./active-ride-contract.ts";
 import {
   activeErrorKey,
-  activePhaseKey,
   activeRefusalKey,
   cancelPolicyKey,
   driverIdentityLine,
   elapsedSecondsFor,
   elapsedText,
+  etaBandLine,
   etaLine,
   isRetryableRideError,
+  observedLine,
   positionLine,
   rideStatusKey,
   showsCancelButton,
 } from "./active-ride-view.ts";
+import { RideJourney } from "./RideJourney.tsx";
+import { activeRideTruth, journeyFromActivePhase } from "./ride-journey.ts";
 
 export interface ActiveRideScreenProps {
   readonly orderId: string;
@@ -123,6 +127,8 @@ export interface ActiveRideScreenProps {
     readonly idempotencyKey: string;
   }) => Promise<CancelRideResponse>;
   readonly onBack?: () => void;
+  /** UI-3 / PR 4: داخلَ `ScreenFrame` العنوانُ للإطار (`false`) فلا `h1` مكرّر. */
+  readonly showTitle?: boolean;
   /**
    * مخرجُ الإنهاءِ (`F2-07`) — يُنادى بمعرّفِ الرحلةِ متى طلبَ الراكبُ الملخَّصَ.
    * **اختياريٌّ**: بغيابِه لا يُرسَمُ زرٌّ، ولا يُخترعُ مسارٌ لا يعرفُه المُركِّبُ.
@@ -171,11 +177,21 @@ async function screenFor(thrown: unknown): Promise<ScreenState | null> {
   return classifyFailure(failure, probe, online);
 }
 
+/** منطقةُ الجهازِ لتنسيقِ لحظةِ الخادم — التنسيقُ عرضٌ، واللحظةُ نفسُها من الخادم. */
+function deviceTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone ?? "UTC";
+  } catch {
+    return "UTC";
+  }
+}
+
 export function ActiveRideScreen({
   orderId,
   read = readViaApi,
   cancel = cancelViaApi,
   onBack,
+  showTitle = true,
   onFinished,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
   now = () => Date.now(),
@@ -309,7 +325,12 @@ export function ActiveRideScreen({
 
   if (system !== null) {
     return (
-      <SystemScreen state={system.screen} onAction={() => void refresh(orderId)} busy={reading} />
+      <SystemScreen
+        language={language}
+        state={system.screen}
+        onAction={() => void refresh(orderId)}
+        busy={reading}
+      />
     );
   }
 
@@ -393,13 +414,30 @@ export function ActiveRideScreen({
           }
         : snapshotPosition;
     const position = positionLine(livePosition);
+    /**
+     * UI-8: عمرٌ خامٌ لم يُقَس (سالبٌ/غيرُ عدد) يُحجَبُ قبلَ أن تُصفِّرَه دالّةُ العرض —
+     * موضعٌ بعمرٍ «0 ثانية» مختلَقٍ أسوأُ من لا موضع (`BUG-001`).
+     */
+    const positionAgeKnown =
+      livePosition === null ||
+      !livePosition.show ||
+      truthAge(livePosition.ageSeconds).kind === "measured";
     const eta = etaLine(view.eta);
+    /** ADR 0243: مدى التقديرِ المرصود — للمحسوبِ وحدَه، والغائبُ يُقالُ بسببِه. */
+    const band = view.eta?.kind === "ROUTED" ? etaBandLine(view.eta.band) : null;
+    /** ADR 0243: لحظةُ القراءةِ بساعةِ الخادم — لا ساعةَ الجهازِ بديلاً. */
+    const observed = observedLine(view.observedAt, language, deviceTimeZone());
     const driver = view.driver === null ? null : driverIdentityLine(view.driver);
 
     return (
       <div className="ar__live">
         <p className="ar__status">{t(rideStatusKey(view.status))}</p>
-        <p className="ar__phase">{t(activePhaseKey(view.phase))}</p>
+        {/* R7 · §11 PR 4: شريطُ الحقيقةِ (طورُ الخادمِ بنغمتِه) وسكّةُ المراحل — من القراءةِ وحدَها. */}
+        <RideJourney
+          language={language}
+          stage={journeyFromActivePhase(view.phase)}
+          truth={activeRideTruth(view.phase)}
+        />
 
         <p className="ar__elapsed" aria-live="polite">
           {t(elapsed.key)
@@ -435,7 +473,9 @@ export function ActiveRideScreen({
 
         {/* الموقعُ **معَ عُمرِه** أو سببُ حجبِه — ولا ثالثَ (`BUG-001`). */}
         {position !== null &&
-          (position.show ? (
+          (position.show && !positionAgeKnown ? (
+            <p className="ar__position-hidden">{t(TRUTH_AGE_UNKNOWN_KEY)}</p>
+          ) : position.show ? (
             <div className="ar__position" role="status">
               <p className="ar__position-point">
                 {t("rider.active.position.point")
@@ -446,6 +486,7 @@ export function ActiveRideScreen({
                 {t(position.ageKey)
                   .replace("{minutes}", String(position.ageMinutes))
                   .replace("{seconds}", String(position.ageSeconds))}
+                <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_age)}</small>
               </p>
             </div>
           ) : (
@@ -457,8 +498,43 @@ export function ActiveRideScreen({
             {eta.kind === "ROUTED"
               ? t(eta.key).replace("{minutes}", String(eta.minutes))
               : t(eta.key)}
+            {eta.kind === "ROUTED" ? (
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.routing_engine)}</small>
+            ) : null}
           </p>
         )}
+
+        {band !== null && (
+          <p className="ar__eta-band">
+            {band.kind === "MEASURED"
+              ? t(band.key)
+                  .replace("{low}", String(band.lowMinutes))
+                  .replace("{high}", String(band.highMinutes))
+                  .replace("{coverage}", String(band.coveragePercent))
+                  .replace("{samples}", String(band.samples))
+              : band.kind === "INSUFFICIENT"
+                ? t(band.key)
+                    .replace("{samples}", String(band.samples))
+                    .replace("{required}", String(band.required))
+                : t(band.key)}
+            {band.kind === "UNAVAILABLE" ? null : (
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.observed_trips)}</small>
+            )}
+          </p>
+        )}
+
+        <p className="ar__observed">
+          {observed.kind === "KNOWN" ? (
+            <>
+              {t(observed.key).split("{time}")[0]}
+              <time dateTime={observed.iso}>{observed.time}</time>
+              {t(observed.key).split("{time}")[1] ?? ""}
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_clock)}</small>
+            </>
+          ) : (
+            t(observed.key)
+          )}
+        </p>
 
         {/* لقطةٌ بثٌّ حيٌّ: يُقالُ ذلكَ نصّاً ويُعطى بابُ سؤالٍ يدويٌّ احتياطيٌّ. */}
         <div className="ar__snapshot" role="status">
@@ -512,10 +588,16 @@ export function ActiveRideScreen({
   };
 
   return (
-    <section className="ar" dir={directionFor(language)} aria-labelledby="ar-title">
-      <h1 className="ar__title" id="ar-title">
-        {t("rider.active.title")}
-      </h1>
+    <section
+      className="ar"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "ar-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 className="ar__title" id="ar-title">
+          {t("rider.active.title")}
+        </h1>
+      ) : null}
       {body()}
     </section>
   );

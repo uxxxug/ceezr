@@ -11,6 +11,9 @@
  */
 
 import { describe, expect, it } from "bun:test";
+import { registerMiniAppDictionary } from "../../../../packages/shared/i18n/miniapp/core.ts";
+import en from "../../../../packages/shared/i18n/miniapp/en.json";
+import ur from "../../../../packages/shared/i18n/miniapp/ur.json";
 import type { ScreenState } from "./state-text.ts";
 import { retryAfterHint, screenText, screenTone } from "./state-text.ts";
 
@@ -127,5 +130,42 @@ describe("نبرةُ الإعلانِ للقارئِ الآليّ (UX-10)", () =
     expect(screenTone({ kind: "session_expired" })).toBe("alert");
     expect(screenTone({ kind: "unsupported_city" })).toBe("status");
     expect(screenTone({ kind: "blocked" })).toBe("status");
+  });
+});
+
+describe("TRUTH-01 — نصُّ شاشاتِ الحالةِ من القاموسِ لا حرفاً", () => {
+  const ARABIC = /[\u0600-\u06FF]/;
+  const stripComments = (code: string) =>
+    code.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+  it("لا نصَّ عربيّاً في شيفرةِ state-text.ts ولا SystemScreen.tsx", async () => {
+    for (const file of ["./state-text.ts", "./SystemScreen.tsx"]) {
+      const code = await Bun.file(new URL(file, import.meta.url)).text();
+      expect(stripComments(code)).not.toMatch(ARABIC);
+    }
+  });
+
+  it("الإنجليزيّةُ والأرديّةُ تُعرَضانِ بلغتِهما لا بالعربيّةِ ولا مفاتيحَ خاماً", () => {
+    registerMiniAppDictionary("en", en as Record<string, string>);
+    registerMiniAppDictionary("ur", ur as Record<string, string>);
+    const states: ScreenState[] = [
+      { kind: "no_connection", cause: "device_offline" },
+      { kind: "service_unavailable", retryAfterSeconds: 90 },
+      { kind: "session_expired" },
+      { kind: "outside_telegram" },
+      { kind: "launch_stale" },
+    ];
+    for (const state of states) {
+      const en = screenText(state, "en");
+      for (const value of [en.title, en.body, en.actionLabel, en.hint]) {
+        if (value === null) continue;
+        expect(value).not.toMatch(ARABIC);
+        expect(value.startsWith("sys.")).toBe(false);
+      }
+      const ur = screenText(state, "ur");
+      expect(ur.title).not.toBe(screenText(state, "ar").title);
+      expect(ur.title.startsWith("sys.")).toBe(false);
+    }
+    expect(retryAfterHint(90, "en")).toBe("Try again in about 2 minutes.");
   });
 });

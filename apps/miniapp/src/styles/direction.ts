@@ -73,3 +73,14 @@ export function applyDocumentDirection(value: unknown = DEFAULT_APP_LANGUAGE): D
   element.dir = direction;
   return { language, direction, written: true };
 }
+
+/**
+ * `TRUTH-01`: لغةُ المستندِ كما كتبَها `applyDocumentDirection` — لشاشاتِ الحالةِ التي تُرسَمُ
+ * خارجَ سطحٍ يعرفُ لغةَ الحساب (حدُّ الخطأ، الإقلاع). لا مستندَ ⇒ الافتراض.
+ */
+export function documentLanguage(): AppLanguage {
+  if (typeof document === "undefined") return DEFAULT_APP_LANGUAGE;
+  const root: unknown = document.documentElement;
+  if (typeof root !== "object" || root === null) return DEFAULT_APP_LANGUAGE;
+  return resolveLanguage((root as { lang?: unknown }).lang);
+}

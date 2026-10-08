@@ -43,6 +43,10 @@ export interface ApiDriverJobPlace {
    * لأنَّه ليسَ أصلاً تنفيذيّاً — فيبقى في الخادمِ حيثُ يُقرأُ في سجلِّ المخارجِ.
    */
   readonly navigation_url: string;
+  /** `LOC-TRUST-01` — ملاحظاتُ الراكبِ ورابطُه الأصليُّ ورابطُ الفتحِ (الأصليُّ إن صلحَ)؛ تغيبُ من بوّابةٍ أقدم. */
+  readonly link?: string | null;
+  readonly notes?: string | null;
+  readonly open_url?: string | null;
 }
 
 /** راكبٌ **بلا هويّةٍ تُتعقَّبُ** — اسمٌ أوّلُ ولغةٌ تُخاطَبُ بها. */

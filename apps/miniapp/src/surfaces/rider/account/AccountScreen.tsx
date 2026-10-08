@@ -20,6 +20,10 @@
  * وموضعُ قائمتِه الآنَ `account-view.ts` (`RIDER_ACCOUNT_DEBT_KEYS`) كي يقرأَها
  * الحاجزُ ساكناً ولا تبقى حبيسةَ مِلفِّ شاشةٍ.
  *
+ * **نُقِضَ بعضُه بالإضافةِ (`ح-8`) — UI-3 / PR 5 · ADR 0238:** صارَ لجهةِ الطوارئِ وتفضيلاتِ الإشعارِ والأماكنِ
+ * عقودٌ في البوّابةِ (DEC-39–42)، فبُنِيَت لوحاتٍ على تلكَ العقودِ تقولُ «غيرُ متاحٍ» عندَ 503 ولا تعرضُ حقلاً لا
+ * يُحفَظ — فلا وعدَ سلامةٍ كاذب. والباقي دَيناً: تعديلُ الاسمِ والرقمِ وحدَه (لا عقدَ له).
+ *
  * ## ولمَ صارَت هذه الشاشةُ سطرَينِ (`ح-8`: الحكمُ محفوظٌ والجسمُ نُقِلَ)
  *
  * كلُّ ما كانَ ههنا — كلمةُ التأكيدِ، وإفصاحُ `ADR 0113` قبلَ الضغطِ، وترتيبُ
@@ -31,8 +35,17 @@
  */
 
 import type { MiniAppLanguage } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import {
+  MINIAPP_DEFAULT_LANGUAGE,
+  miniAppTranslator,
+} from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { UiButton } from "../../../system/ui/index.tsx";
 import type { AccountRightsProps } from "../../account/AccountRights.tsx";
 import { AccountRights } from "../../account/AccountRights.tsx";
+import { EmergencyContactPanel } from "../settings/EmergencyContactPanel.tsx";
+import type { EmergencyContactResponse } from "../settings/emergency-contact.ts";
+import { SavedPlacesPanel } from "../settings/SavedPlacesPanel.tsx";
+import type { SavedPlacesApi } from "../settings/saved-places.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import { riderAccountView } from "./account-view.ts";
 
@@ -40,19 +53,49 @@ export interface AccountScreenProps extends Omit<AccountRightsProps, "view"> {
   readonly language?: MiniAppLanguage;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — راكبٌ وحدَهُ لا السائقُ. */
   readonly onOpenSos?: () => void;
+  /** UI-3 / PR 5: بابُ تفضيلاتِ الإشعارات (R12) — يُرسَمُ إذا كانَ له مُستقبِلٌ فحسب. */
+  readonly onOpenNotifications?: () => void;
+  /** [B] للاختبار — الافتراضُ العقودُ القائمة. */
+  readonly emergencyContact?: {
+    readonly read?: () => Promise<EmergencyContactResponse>;
+    readonly save?: (input: { readonly name: string; readonly phone: string }) => Promise<unknown>;
+  };
+  readonly placesApi?: SavedPlacesApi;
 }
 
+/**
+ * UI-3 / PR 5 (ADR 0238) — R13 حسابي: فوقَ حقَّي البيانةِ واللغةِ (اللبُّ المشترك) لوحتا [B] على عقدَيهما
+ * القائمَين — جهةُ اتّصالِ الطوارئ والأماكنُ المحفوظة — وبابُ تفضيلاتِ الإشعارات. كلٌّ منها يقولُ
+ * «غيرُ متاحٍ» حينَ يُعيدُ الخادمُ 503، ولا يعرضُ حقلاً لا يُحفَظ.
+ */
 export function AccountScreen(props: AccountScreenProps) {
+  const { onOpenSos, onOpenNotifications, emergencyContact, placesApi, ...rights } = props;
+  const language = props.language;
+  const t = miniAppTranslator(language ?? MINIAPP_DEFAULT_LANGUAGE);
   return (
     <AccountRights
-      {...props}
+      {...rights}
       view={riderAccountView}
       // مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — يُمرَّرُ عقدةً لا يُنشَرُ
       // إلى الشاشةِ المشتركةِ علمُ الراكبِ: الدورُ يُقرَّرُ هنا لا ههناك.
       header={
-        props.onOpenSos === undefined ? undefined : (
-          <SosEntry onOpen={props.onOpenSos} language={props.language} />
-        )
+        <>
+          {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
+          <EmergencyContactPanel
+            {...(language === undefined ? {} : { language })}
+            {...(emergencyContact?.read === undefined ? {} : { read: emergencyContact.read })}
+            {...(emergencyContact?.save === undefined ? {} : { save: emergencyContact.save })}
+          />
+          <SavedPlacesPanel
+            {...(language === undefined ? {} : { language })}
+            {...(placesApi === undefined ? {} : { api: placesApi })}
+          />
+          {onOpenNotifications === undefined ? null : (
+            <UiButton onClick={onOpenNotifications}>
+              {t("rider.account.notificationPrefs.open")}
+            </UiButton>
+          )}
+        </>
       }
     />
   );

@@ -103,7 +103,7 @@ export function renderAttendancePage(data: AttendancePageData): string {
   </label>
   <button type="submit">تطبيق</button>
 </form>
-<div class="cards" style="margin-bottom:16px">${cards}</div>
+<div class="cards cards--spaced">${cards}</div>
 ${section(
   "ملخّص الإتاحة لكل سائق",
   table({

@@ -1778,6 +1778,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/place-input.test.ts",
+    suites: ["LOC-TRUST-01 — المكانُ يصلُ القاعدةَ وبطاقةَ السائق كاملاً"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `LOC-TRUST-01` أنَّ ما أدخلَه الراكبُ عن المكانين (المصدر والدقّة ووقت الالتقاط والرابط الأصليّ والملاحظات) يُكتَبُ في الطلبِ نفسِه **في المعاملةِ نفسِها** عبرَ `request_ride_with_places`، وأنَّ الحمولةَ المعطوبةَ تُرفَضُ قبلَ الإنشاء (لا صفَّ يُكتَب)، وأنَّ الضغطةَ الثانيةَ لا تُعيدُ الكتابة، وأنَّ قارئَ بطاقةِ السائق يقرأُ الأعمدةَ كما حُفِظَت — وهذا كلُّه سلوكُ محرِّكٍ حقيقيٍّ (plpgsql وjsonb وgeography) لا يقيسُه محرِّكٌ مُصنَّعٌ؛ والوحدةُ في `tests/unit/loc-trust-place-input.test.ts` تقيسُ القراءةَ لا الحكم.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20261008160000_loc_trust_01_place_input). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/ride-request.test.ts",
     suites: [
       "إنشاءُ الرحلةِ نداءٌ واحدٌ ذرّيٌّ",
@@ -1872,6 +1886,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     // — وعليها يُبنى الإنهاءُ والتقييمُ في `F2-07`. والقائمةُ مغلقةٌ ولم
     // تُوسَّعْ لأجلِه.
     criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/integration/eta-error-band.test.ts",
+    suites: ["ADR 0243 — مقياسُ خطأِ التقديرِ على القاعدة"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "مدى التنبؤِ الصادق (`ADR 0243`) **قياسٌ تُجريه القاعدةُ**: أنَّ أوّلَ تقديرٍ لكلِّ (طلب، ساق) يُحفَظُ ولا يستبدلُه ما بعدَه (`on conflict do nothing`)، وأنَّ النسبةَ (الفعليّ ÷ المقدَّر) تُحسَبُ على الساقاتِ المنتهيةِ وحدَها بـ`percentile_cont` في مدينةِ الطلب، وأنَّ الدالّةَ لا تُنادى من `anon`/`authenticated` والجدولَ تحتَ RLS، وأنَّ حذفَ الطلبِ يحذفُ رصدَه. ومزدوجٌ في الذاكرةِ يُصدِّقُ ما تصوَّرناهُ عن `percentile_cont` لا ما يحسبُه المحرِّك.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20261006200000_ui_8_eta_error_band). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
@@ -2428,6 +2456,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
       "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة (ومنها 20260922060000 للدالّةِ) وبها مدينةٌ واحدةٌ على الأقلِّ. يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
     owner: "منفّذ المستودع",
     criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/integration/emergency-contact-read.test.ts",
+    suites: ["قراءةُ جهةِ الطوارئِ: «لا جهة» ليسَ «لا حساب» (UI-10)"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `UI-10` (ADR 0245) أنَّ `read_emergency_contact` تُعيدُ `ok` بقيمٍ فارغةٍ لمستخدمٍ موجودٍ لم يحفظْ جهةً، و`USER_NOT_FOUND` لمعرّفٍ بلا مستخدمٍ وحدَه. والخطأُ المُصحَّحُ (`record is null` صادقٌ متى فرغت الحقولُ كلُّها) سلوكُ محرّكِ PL/pgSQL لا يبلغُه منفذٌ مزيّف؛ فالقياسُ على PostgreSQL حقيقيٍّ: الدالّةُ مباشرةً، ومنفذا القراءةِ والكتابةِ الحقيقيّانِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها الهجرات مطبَّقة (ومنها 20261007120000_ui_10_emergency_contact_read_found.sql). يفعله CI في وظيفةِ «تكامل على PostgreSQL حقيقي» عبرَ `test:integration`، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "السلامةُ والاستغاثة",
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },

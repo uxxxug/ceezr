@@ -1,0 +1,58 @@
+// UI-10 local edge: mirrors Render's waslah-miniapp static site.
+// - headers copied from render.yaml (waslah-miniapp)
+// - dashboard-only rewrites recorded in DEC-20 §4.2: /v1/*, /socket.io/*, /health -> gateway
+// - SPA fallback /* -> /index.html ; missing /assets/* -> 404 (Render behaviour observed live)
+import { existsSync, readFileSync, statSync } from "node:fs";
+import { extname, join, normalize } from "node:path";
+
+const DIST = process.env.DIST ?? "/home/user/workspace/ceezr/apps/miniapp/dist";
+const GATEWAY = process.env.GATEWAY ?? "http://127.0.0.1:8080";
+const PORT = Number(process.env.EDGE_PORT ?? 5080);
+const MIME: Record<string, string> = {
+  ".html": "text/html; charset=utf-8",
+  ".js": "application/javascript",
+  ".css": "text/css",
+  ".map": "application/json",
+  ".svg": "image/svg+xml",
+};
+const BASE_HEADERS: Record<string, string> = {
+  "content-security-policy": "frame-ancestors https://telegram.org https://*.telegram.org",
+  "x-content-type-options": "nosniff",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(), microphone=(), payment=(), usb=()",
+  "strict-transport-security": "max-age=31536000",
+};
+
+Bun.serve({
+  port: PORT,
+  hostname: "127.0.0.1",
+  async fetch(req) {
+    const url = new URL(req.url);
+    const p = url.pathname;
+    if (p.startsWith("/v1/") || p.startsWith("/socket.io/") || p === "/health") {
+      const target = GATEWAY + p + url.search;
+      const headers = new Headers(req.headers);
+      headers.delete("host");
+      const res = await fetch(target, {
+        method: req.method,
+        headers,
+        body: req.method === "GET" || req.method === "HEAD" ? undefined : await req.arrayBuffer(),
+        redirect: "manual",
+      });
+      return new Response(res.body, { status: res.status, headers: res.headers });
+    }
+    const headers = new Headers(BASE_HEADERS);
+    if (p.startsWith("/assets/")) {
+      const f = normalize(join(DIST, p));
+      if (!f.startsWith(DIST) || !existsSync(f) || !statSync(f).isFile())
+        return new Response("Not Found", { status: 404, headers: { "content-type": "text/plain" } });
+      headers.set("content-type", MIME[extname(f)] ?? "application/octet-stream");
+      headers.set("cache-control", "public, max-age=31536000, immutable");
+      return new Response(readFileSync(f), { headers });
+    }
+    headers.set("content-type", MIME[".html"]);
+    if (p === "/index.html") headers.set("cache-control", "no-cache");
+    return new Response(readFileSync(join(DIST, "index.html")), { headers });
+  },
+});
+console.log(`edge on http://127.0.0.1:${PORT} -> ${GATEWAY}`);

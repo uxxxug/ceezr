@@ -1,0 +1,15 @@
+{
+  "id": "ui-2-pr2-shell-navigation",
+  "implementation": [
+    "apps/miniapp/src/shell/screen-stack.ts",
+    "apps/miniapp/src/shell/root-tabs.ts",
+    "apps/miniapp/src/shell/ScreenFrame.tsx",
+    "apps/miniapp/src/shell/shell-navigation.test.tsx",
+    "apps/miniapp/src/styles/global.css",
+    "scripts/lib/ui-surface-inventory.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0234-ui-2-shell-navigation.md", "docs/UI_SURFACE_INVENTORY.md"],
+  "no_other_affected_docs_reason": "PR 2 يُضيفُ هيكلَ التنقّلِ في apps/miniapp/src/shell/ بلا مستهلك: لا تغييرَ تحت apps/miniapp/src/surfaces/ (شاشاتُ الراكبِ والسائقِ) ولا apps/miniapp/src/tg/ ولا packages/ ولا supabase/ ولا .github/workflows/، فلا عقدَ ولا خادمَ ولا تيليجرامَ ولا CI. الدليلُ المعتمدُ (docs/UI_UX_CANONICAL_DIRECTIVE.md) وتقريرُ المصالحةِ يُقرآنِ ولا يُعدَّلان، وADR 0233 (UI-1 مغلقة) لا يتغيّر. global.css يُضيفُ عناصرَ لكتلةِ app-frame القائمةِ بلا بادئةٍ جديدة، فلا تغييرَ في DECLARED_BLOCKS. scripts/lib/ui-surface-inventory.ts يُدرِجُ ScreenFrame.tsx في miniapp/shell لأنَّ الحاجزَ يُطابِقُ القرص."
+}

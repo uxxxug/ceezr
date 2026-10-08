@@ -1,0 +1,49 @@
+{
+  "id": "loc-trust-01-place-ui",
+  "goal": "LOC-TRUST-01 (الواجهة): «موقعي الحالي» يقرأُ قراءةً جديدةً (navigator.geolocation، maximumAge: 0) ويحفظُ الدقّةَ ووقتَ الالتقاط، وتعرضُ شاشتا الالتقاطِ و«إلى أين؟» النقطةَ نفسَها ومصدرَها ودقّتَها و«تحقّق على الخريطة» وأقربَ معلَمٍ وصفاً فقط، ولا يُعتمَدُ مكانٌ إلّا بتأكيدٍ صريح (الخشنةُ بإقرار، والرديئةُ لا تُعتمَد)، وتقبلانِ رابطَ موقعٍ أو إحداثيّاتٍ واسماً وملاحظات، وتصلُ كلُّها إلى الطلبِ وشاشاتِ السائق",
+  "canonical_source": ["docs/adr/0247-place-input-contract.md"],
+  "implementation": [
+    "apps/miniapp/src/styles/global.css",
+    "apps/miniapp/src/surfaces/rider/destination/browser-fix.ts",
+    "apps/miniapp/src/surfaces/rider/destination/device-fix.ts",
+    "apps/miniapp/src/surfaces/rider/destination/DestinationScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/destination/destination-contract.ts",
+    "apps/miniapp/src/surfaces/rider/destination/destination-view.ts",
+    "apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/RiderRoot.tsx",
+    "apps/miniapp/src/surfaces/rider/search/SearchScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/search/delivery-api.ts",
+    "apps/miniapp/src/surfaces/rider/search/request-by-service.ts",
+    "apps/miniapp/src/surfaces/rider/search/ride-api.ts",
+    "apps/miniapp/src/surfaces/driver/offers/OfferDetailScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/OffersScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/offers-contract.ts",
+    "apps/miniapp/src/surfaces/driver/offers/offers-view.ts",
+    "apps/miniapp/src/surfaces/driver/job/JobScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/job/job-contract.ts",
+    "apps/miniapp/src/surfaces/driver/job/job-view.ts",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "tests/unit/loc-trust-place-ui.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/production/PRD-008-telegram-smoke-20261008.md",
+    "docs/work-packets/loc-trust-01-place-ui.json"
+  ],
+  "decision": "تفويضُ المالكِ الكامل 2026-10-08 — ADR 0247 §2، §5، §6، §8",
+  "tests": [
+    "tests/unit/loc-trust-place-ui.test.ts — قراءةُ المتصفّح تطلبُ maximumAge: 0 وenableHighAccuracy وتحفظُ الدقّةَ والطابع، والرفضُ ⇒ بديلُ Telegram بلا موقعٍ مختلَق؛ الاعتمادُ: الرديئةُ ممنوعة والخشنةُ بإقرارٍ والجيّدةُ مباشرة؛ النصُّ الملصوق (إحداثيّات · رابطٌ مختصرٌ بلا نقطة · رفض)؛ «مسجد مسجد» لا يتكرّر؛ حمولةُ السلكِ بلا اسمٍ مخترَع",
+    "tests/unit/loc-trust-place-input.test.ts (Work Packet الخادم) — العقدُ والسلسلةُ حتّى بطاقةِ السائق"
+  ],
+  "evidence": "docs/evidence/production/PRD-008-telegram-smoke-20261008.md",
+  "contract_gaps": [],
+  "constraints": [
+    "لا مزوّدَ خرائطَ جديد ولا عنوانَ مطلقاً في المصغَّر — رابطُ الخريطةِ يبنيه الخادم (mapUrl · open_url)",
+    "لا نصَّ عربيَّ في شيفرةِ العميل — مفاتيحُ في ثلاثِ لغات",
+    "لا اقتباسَ ولا طلبَ قبلَ تأكيدِ الالتقاط صراحةً",
+    "لا إعلانَ Verified لـPRD-008 ولا Production Ready"
+  ]
+}

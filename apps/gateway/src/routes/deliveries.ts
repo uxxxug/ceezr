@@ -58,6 +58,10 @@ const STATUS_BY_ERROR: Readonly<Record<DeliveryCreateErrorCode, 400 | 401 | 403 
   IDEMPOTENCY_KEY_INVALID: 400,
   UNKNOWN_SERVICE: 400,
   NOTES_TOO_LONG: 400,
+  PLACE_INVALID: 400,
+  PLACE_LINK_UNSUPPORTED: 400,
+  PLACE_NOTES_TOO_LONG: 400,
+  PLACE_POINT_UNRELIABLE: 400,
   ACCOUNT_NOT_FOUND: 404,
   RIDER_NOT_REGISTERED: 403,
   RIDE_STORE_NOT_AVAILABLE: 503,
@@ -143,6 +147,9 @@ export function createDeliveryRoutes(deps: DeliveryRouteDependencies): Hono {
         destinationLabel: fields.destinationLabel,
         pickupAt: fields.pickupAt,
         offerSar: fields.offerSar,
+        // `LOC-TRUST-01` — مكانا الطردِ بعقدِ النقلِ نفسِه (رابطٌ وملاحظاتٌ ومصدر).
+        pickupPlace: fields.pickupPlace,
+        dropoffPlace: fields.dropoffPlace,
       },
     });
     if (!result.ok) return rejected(c, result.error);

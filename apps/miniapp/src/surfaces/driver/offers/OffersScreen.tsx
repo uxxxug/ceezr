@@ -52,6 +52,8 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
+import { UiTimer } from "../../../system/ui/index.tsx";
+import { offerTimerProps } from "./offer-timer.ts";
 import {
   type DriverAvailabilityResponse,
   type DriverOffersResponse,
@@ -60,11 +62,8 @@ import {
   setDriverAvailability,
 } from "./offers-api.ts";
 import {
-  type CountdownTone,
   canAcceptNow,
-  countdownLabel,
   countdownSeconds,
-  countdownTone,
   type DistanceLine,
   isRetryableOffersError,
   type OfferCardModel,
@@ -75,7 +74,15 @@ import {
 export interface OffersScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   readonly onOpenOffer?: (offerId: string) => void;
+  /**
+   * `UI-4`: إصلاحُ حجبِ الوثيقةِ يفتحُ شاشةَ الوثائقِ داخلَ التطبيق. كانَ رابطَ
+   * `#/driver/documents` ولا موجِّهَ عناوينَ يقرؤه — فعلٌ لا يفعلُ شيئاً. بلا هذا
+   * المستقبِلِ لا يُرسَمُ زرُّ الإصلاحِ، والسببُ يبقى نصّاً.
+   */
+  readonly onOpenDocuments?: (docType: string) => void;
   /**
    * مدخلُ «مَهمّتي» (`F3-03`) — **زيادةٌ لا تغييرٌ** (`ح-8`): غيابُه يُعيدُ هذه
    * الشاشةَ إلى سلوكِها قبلَ `F3-03` حرفاً. وسائقٌ يُغلِقُ التطبيقَ وهوَ في
@@ -135,12 +142,9 @@ const SERVICE_TONE: Readonly<Record<string, { readonly modifier: string }>> = {
   transport: { modifier: "dof__item--transport" },
   monthly: { modifier: "dof__item--monthly" },
 };
-
-const COUNTDOWN_BADGE: Record<CountdownTone, { readonly modifier: string }> = {
-  calm: { modifier: "dof__timer--calm" },
-  urgent: { modifier: "dof__timer--urgent" },
-  elapsed: { modifier: "dof__timer--elapsed" },
-};
+/** خدمةٌ بلا لونٍ مُعلَنٍ تُرسَمُ بلا مُعدِّلٍ — لا لونَ يُخترَع. */
+const NO_SERVICE_TONE = { modifier: "" } as const;
+const serviceTone = (service: string) => SERVICE_TONE[service] ?? NO_SERVICE_TONE;
 
 /** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ. */
 const DECLARED_DEBT: readonly string[] = [
@@ -210,12 +214,14 @@ const systemNowMs = (): number => Date.now();
 export function OffersScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   onOpenJob,
   onOpenActivity,
   onOpenSubscription,
   onOpenSupport,
   onOpenAccount,
   onOpenOffer,
+  onOpenDocuments,
   readBoard = readDriverOffers,
   reject = rejectDriverOffer,
   setAvailability = setDriverAvailability,
@@ -307,10 +313,16 @@ export function OffersScreen({
 
   if (state.kind === "loading") {
     return (
-      <section className="dof" aria-labelledby={`${formId}-title`} aria-busy="true">
-        <h1 id={`${formId}-title`} className="dof__title">
-          {t("driver.offers.title")}
-        </h1>
+      <section
+        className="dof"
+        aria-labelledby={showTitle ? `${formId}-title` : undefined}
+        aria-busy="true"
+      >
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dof__title">
+            {t("driver.offers.title")}
+          </h1>
+        ) : null}
         <p className="dof__loading">{t("driver.offers.loading")}</p>
       </section>
     );
@@ -318,10 +330,12 @@ export function OffersScreen({
 
   if (state.kind === "failed") {
     return (
-      <section className="dof" aria-labelledby={`${formId}-title`}>
-        <h1 id={`${formId}-title`} className="dof__title">
-          {t("driver.offers.title")}
-        </h1>
+      <section className="dof" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dof__title">
+            {t("driver.offers.title")}
+          </h1>
+        ) : null}
         <EmptyState title={t("driver.offers.failed")} body={t(offersErrorKey(state.code))} />
         {isRetryableOffersError(state.code) ? (
           <button type="button" className="dof__retry" onClick={() => void load()}>
@@ -345,10 +359,12 @@ export function OffersScreen({
   const elapsedMs = now() - state.readAtMs;
 
   return (
-    <section className="dof" aria-labelledby={`${formId}-title`}>
-      <h1 id={`${formId}-title`} className="dof__title">
-        {t("driver.offers.title")}
-      </h1>
+    <section className="dof" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+      {showTitle ? (
+        <h1 id={`${formId}-title`} className="dof__title">
+          {t("driver.offers.title")}
+        </h1>
+      ) : null}
       <p className="dof__headline">{t(board.headlineKey)}</p>
 
       <div className="dof__availability">
@@ -380,10 +396,18 @@ export function OffersScreen({
             <li className="dof__block" key={line.id}>
               {line.labelKey === null ? "" : `${t(line.labelKey)}: `}
               {t(line.messageKey)}
-              {line.fixLabelKey === null || line.docType === null ? null : (
-                <a className="dof__block-fix" href={`#/driver/documents#${line.docType}`}>
+              {line.fixLabelKey === null ||
+              line.docType === null ||
+              onOpenDocuments === undefined ? null : (
+                <button
+                  type="button"
+                  className="dof__block-fix"
+                  onClick={() => {
+                    if (line.docType !== null) onOpenDocuments(line.docType);
+                  }}
+                >
                   {t(line.fixLabelKey)}
-                </a>
+                </button>
               )}
             </li>
           ))}
@@ -401,30 +425,38 @@ export function OffersScreen({
             });
             // النغمةُ تُقرأُ من الجدولِ **قبلَ** العرضِ كي يكونَ الإحلالُ
             // `badge.modifier` — تعبيراً يُحَلُّ ساكناً لحاجزِ الأنماطِ (القاعدة ٣).
-            const badge = COUNTDOWN_BADGE[countdownTone(secondsRemaining)];
+            const tone = serviceTone(card.service);
+            const timer = offerTimerProps({
+              secondsRemaining,
+              secondsLeftAtRead: card.secondsLeftAtRead,
+              t,
+            });
             const row = rows[card.offerId] ?? { kind: "idle" };
             const open = canAcceptNow({ isClaimable: true, secondsRemaining });
             return (
-              <li
-                className={`dof__item ${SERVICE_TONE[card.service]?.modifier ?? ""}`}
-                key={card.offerId}
-              >
+              <li className={`dof__item ${tone.modifier}`} key={card.offerId}>
                 <div className="dof__item-head">
                   <span className="dof__service">{t(card.serviceKey)}</span>
-                  <span className={`dof__timer ${badge.modifier}`} role="status">
-                    {secondsRemaining > 0
-                      ? countdownLabel(secondsRemaining)
-                      : t("driver.offers.timer.elapsed")}
-                  </span>
                 </div>
+                <UiTimer {...timer} />
 
                 <p className="dof__place">
                   {t("driver.offers.pickup")}:{" "}
                   {card.pickupLabel ?? t("driver.offers.place.unnamed")}
                 </p>
+                {card.pickupNotes === null ? null : (
+                  <p className="dof__notes">
+                    {t("driver.offers.place.notes")}: {card.pickupNotes}
+                  </p>
+                )}
                 <p className="dof__place">
                   {t("driver.offers.dropoff")}: {card.dropoffLabel ?? t("driver.offers.place.none")}
                 </p>
+                {card.dropoffNotes === null ? null : (
+                  <p className="dof__notes">
+                    {t("driver.offers.place.notes")}: {card.dropoffNotes}
+                  </p>
+                )}
 
                 <DistanceRow
                   line={card.riderDistance}

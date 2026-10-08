@@ -52,6 +52,8 @@ export interface AccountRightsProps {
   readonly view: AccountViewModel;
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   /**
    * فتحُ شاشةِ الدعمِ — **اختياريٌّ**: هذه الشاشةُ تُقاسُ وحدَها في الاختبارِ
    * بلا موجِّهٍ، وزرٌّ بلا مُستقبِلٍ لا يُرسَمُ أصلاً.
@@ -141,6 +143,7 @@ export function AccountRights({
   view,
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   onOpenSupport,
   onOpenPrivacy,
   header,
@@ -238,10 +241,15 @@ export function AccountRights({
   // بعدَ الحذفِ **لا شيءَ غيرُ الإيصالِ**: عرضُ أزرارِ حسابٍ لم يعُدْ قائماً عبثٌ.
   if (eraseState.kind === "done") {
     return (
-      <section className="ac ac--erased" aria-labelledby="account-erased-title">
-        <h1 className="ac__title" id="account-erased-title">
-          {t(`${k}erasure.doneTitle`)}
-        </h1>
+      <section
+        className="ac ac--erased"
+        aria-labelledby={showTitle ? "account-erased-title" : undefined}
+      >
+        {showTitle ? (
+          <h1 className="ac__title" id="account-erased-title">
+            {t(`${k}erasure.doneTitle`)}
+          </h1>
+        ) : null}
         <p className="ac__erased-at">
           {t(`${k}erasure.doneAt`).replace("{date}", eraseState.erasedAt.slice(0, 10))}
         </p>
@@ -261,10 +269,12 @@ export function AccountRights({
   }
 
   return (
-    <section className="ac" aria-labelledby="account-title">
-      <h1 className="ac__title" id="account-title">
-        {t(`${k}title`)}
-      </h1>
+    <section className="ac" aria-labelledby={showTitle ? "account-title" : undefined}>
+      {showTitle ? (
+        <h1 className="ac__title" id="account-title">
+          {t(`${k}title`)}
+        </h1>
+      ) : null}
 
       <nav className="ac__links">
         {onBack !== undefined && (

@@ -31,7 +31,7 @@
   --tg-text-color: #f8fafc;
   --tg-hint-color: #94a3b8;
   --tg-link-color: #38bdf8;
-  --tg-button-color: #0ea5e9;
+  --tg-button-color: #0369a1;
   --tg-button-text-color: #ffffff;
   --tg-secondary-bg-color: #1e293b;
   --tg-header-bg-color: #0f172a;
@@ -82,18 +82,18 @@
 :root[data-tg-scheme="light"] {
   --tg-bg-color: #ffffff;
   --tg-text-color: #0f172a;
-  --tg-hint-color: #64748b;
-  --tg-link-color: #0284c7;
-  --tg-button-color: #0ea5e9;
+  --tg-hint-color: #475569;
+  --tg-link-color: #0369a1;
+  --tg-button-color: #0369a1;
   --tg-button-text-color: #ffffff;
   --tg-secondary-bg-color: #f1f5f9;
   --tg-header-bg-color: #ffffff;
   --tg-bottom-bar-bg-color: #ffffff;
-  --tg-accent-text-color: #0284c7;
+  --tg-accent-text-color: #0369a1;
   --tg-section-bg-color: #ffffff;
-  --tg-section-header-text-color: #64748b;
+  --tg-section-header-text-color: #475569;
   --tg-section-separator-color: #e2e8f0;
-  --tg-subtitle-text-color: #64748b;
+  --tg-subtitle-text-color: #475569;
   --tg-destructive-text-color: #dc2626;
 }
 
@@ -101,6 +101,14 @@
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+/* `UI-10`: أرضيّةُ هدفِ اللمسِ (UI-9 §A11y: ≥ 44px) لكلِّ زرٍّ. قيسَ في متصفّحٍ حيٍّ أنَّ
+   أزراراً كثيرةً بحاشيةٍ وحدَها بلا ارتفاعٍ أدنى نزلت إلى 38–42px (`.dac__period` ·
+   `.ac__lang-option` · `.dof__*` · `.sup__faq` …) ولا يراها حاجزٌ ساكنٌ يقرأُ `min-height`.
+   ومحدِّدُ نوعٍ = أدنى أولويّةٍ: كلُّ قاعدةِ صنفٍ تُعلِنُ ارتفاعَها تغلبُه. */
+button {
+  min-block-size: 44px;
 }
 
 html,
@@ -180,6 +188,11 @@ a {
  */
 .app-frame {
   display: grid;
+  /* `UI-10`: عمودٌ لا يتجاوزُ الإطارَ. العمودُ الضمنيُّ `auto` يتّسعُ لأعرضِ min-content
+     فيه، فدفعَ حقلُ إدخالٍ بعرضِه الذاتيِّ (~400px) الصفحةَ إلى 460–506px على 320px
+     (قيسَ في متصفّحٍ حيٍّ: `.rh__input` · `.hs__search-input`). `minmax(0, 1fr)` يحسمُه
+     لكلِّ شاشةٍ لا لحقلٍ بعينِه. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
   gap: 1rem;
   min-block-size: 100%;
@@ -210,6 +223,11 @@ a {
 /* منطقةُ الفعلِ: تبقى في أسفلِ الإطارِ ولا تُلاصق حدَّ الجهازِ (`--safe-bottom`). */
 .app-frame__action:empty {
   display: none;
+}
+
+/* `UI-10`: إطارُ شاشةٍ داخلَ إطارِ الهيكلِ — الحاشيةُ والحواشي الآمنةُ للخارجيِّ وحدَه. */
+.app-frame--nested {
+  padding: 0;
 }
 
 @media (min-width: 40rem) {
@@ -575,6 +593,9 @@ a.sys__action {
 }
 
 .rh__input {
+  /* `UI-10`: عنصرٌ قابلٌ للانضغاطِ بعرضٍ نسبيٍّ = مساهمتُه في min-content صفرٌ. وبدونِه
+     فرضَ حقلُ الوجهةِ عرضَه (~414px) على العمودِ كلِّه فتجاوزَ 320px أفقيّاً (متصفّحٌ حيّ). */
+  inline-size: 100%;
   min-block-size: 44px;
   padding: 0.75rem;
   border: 1px solid var(--tg-section-separator-color);
@@ -698,6 +719,13 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
   font-size: 0.9rem;
   text-align: center;
+}
+
+/* `LOC-TRUST-01` — الاسمُ والملاحظاتُ والرابطُ الملصوقُ لكلِّ مكان. */
+.rd__place {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 .rd__field {
@@ -1388,6 +1416,15 @@ a.sys__action {
   margin: 0;
   font-size: 0.95rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* ADR 0243: مدى التقديرِ المرصود ولحظةُ القراءةِ بساعةِ الخادم — ثانويّانِ للسطرِ الرئيس. */
+.ar__eta-band,
+.ar__observed {
+  margin: 0;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--tg-subtitle-text-color);
 }
 
 .ar__snapshot {
@@ -2472,6 +2509,8 @@ a.sys__action {
 }
 
 .ac__lang-option {
+  /* `UI-10`: قيسَ في متصفّحٍ حيٍّ 39px — الهدفُ ≥ 44px (UI-9 §A11y). */
+  min-block-size: 44px;
   padding: 0.4rem 0.8rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.6rem;
@@ -2755,7 +2794,7 @@ a.sys__action {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   cursor: pointer;
 }
 
@@ -2945,6 +2984,8 @@ a.sys__action {
 .sup__faq,
 .dsup__deductions {
   align-self: flex-start;
+  /* `UI-10`: قيسَ في متصفّحٍ حيٍّ 42px — الهدفُ ≥ 44px. */
+  min-block-size: 44px;
   padding: 0.45rem 0.85rem;
   border: 1px solid var(--tg-hint-color, #ccc);
   border-radius: 0.7rem;
@@ -3348,7 +3389,7 @@ a.sys__action {
   background: var(--tg-secondary-bg-color);
   color: var(--tg-text-color);
   font-size: 0.9rem;
-  min-height: 2.25rem;
+  min-height: 2.75rem;
   padding: 0.4rem 0.9rem;
   margin-top: 0.5rem;
 }
@@ -3366,7 +3407,7 @@ a.sys__action {
   border-radius: 0.6rem;
   font: inherit;
   font-size: 0.9rem;
-  min-height: 2.25rem;
+  min-height: 2.75rem;
   padding: 0.4rem 0.9rem;
   margin-top: 0.5rem;
   cursor: pointer;
@@ -3597,10 +3638,11 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
-/* غيابُ القياسِ يُقالُ **بخطٍّ مائلٍ** كي لا يُقرأَ رقماً: سطرٌ يقولُ «غيرُ
-   متاحةٍ» بنفسِ هيئةِ سطرٍ فيه رقمٌ يُخدَعُ به الطرفُ. */
+/* غيابُ القياسِ يُقالُ **باهتاً** كي لا يُقرأَ رقماً: سطرٌ يقولُ «غيرُ
+   متاحةٍ» بنفسِ هيئةِ سطرٍ فيه رقمٌ يُخدَعُ به الطرفُ. خطٌّ مائلٌ على العربيةِ
+   ممنوعٌ (UI-9) فالعتمُ بديلٌ صادقٌ. */
 .dof__distance--absent {
-  font-style: italic;
+  opacity: 0.7;
 }
 
 /* الوسمُ **لا يُصغَّرُ حتّى يختفيَ**: «خطٌّ مستقيمٌ» شرطُ صدقِ الرقمِ لا حاشيةٌ. */
@@ -3773,10 +3815,10 @@ a.sys__action {
   color: var(--tg-subtitle-text-color);
 }
 
-/* غيابُ الختمِ يُقالُ باهتاً: **لم يحدُثْ بعدُ** لا «لا يُعرَفُ». */
+/* غيابُ الختمِ يُقالُ باهتاً: **لم يحدُثْ بعدُ** لا «لا يُعرَفُ». خطٌّ مائلٌ
+   على العربيةِ ممنوعٌ (UI-9) والعتمُ كافٍ. */
 .djb__stamp--absent {
   opacity: 0.7;
-  font-style: italic;
 }
 
 .djb__actions {
@@ -4118,6 +4160,8 @@ a.sys__action {
 }
 
 .dac__period {
+  /* `UI-10`: قيسَ في متصفّحٍ حيٍّ 38px — الهدفُ ≥ 44px. */
+  min-block-size: 44px;
   padding: 0.4rem 0.85rem;
   border: 1px solid var(--tg-hint-color, #999);
   border-radius: 0.6rem;
@@ -5380,7 +5424,7 @@ a.sys__action {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   cursor: pointer;
 }
 
@@ -5492,7 +5536,7 @@ body {
 
 .sys__title,
 [class$="__title"] {
-  letter-spacing: -0.01em;
+  /* UI-9: لا letter-spacing على العربية — الأثر ضئيل لكن القاعدة صريحة. */
 }
 
 /* ── رئيسةُ الراكبِ ── */
@@ -5588,6 +5632,9 @@ body {
   border: 0;
   border-radius: 0.875rem;
   background: color-mix(in srgb, var(--tg-destructive-text-color) 10%, transparent);
+  /* `UI-10`: نصُّ الأحمرِ على صبغتِه قيسَ 3.78:1 (فاتح) و4.32:1 (داكن) < 4.5. المزجُ نحوَ
+     لونِ النصِّ يُغمِّقُه في الفاتحِ ويُفتِّحُه في الداكنِ فيبقى أحمرَ ويتجاوزُ 4.5 مع أيِّ سمة. */
+  color: color-mix(in srgb, var(--tg-destructive-text-color) 75%, var(--tg-text-color));
 }
 
 .qt__pickup {
@@ -5599,4 +5646,1546 @@ body {
 .qt__retry {
   font: inherit;
   cursor: pointer;
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   UI-1 / PR 1 — نظامُ التصميم: الرموزُ + كتلُ ui-* (القسم 4 · ADR 0233)
+   Layer 2: القيمُ من `LAYER_TWO_PALETTE` و`FILL_TEXT` في `scripts/lib/ui-contrast.ts`
+   حرفاً، ويُسقِطُ `check-ui-contrast` أيَّ انجرافٍ لرمزٍ `--ui-*` عنهما.
+   `mute` = `--tg-hint-color` (Layer 1). اللونُ الدلاليُّ لا يُكتَبُ نصّاً على سطحٍ
+   مجهولٍ — داخلَ شارةٍ أو كتلةٍ مُعبَّأةٍ فقط (§2).
+   CSS مسطّحٌ: لا @layer، لا تداخلٌ، لا !important. خصائصُ منطقيّةٌ لـRTL.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Layer 2 — الهوية الثابتة (§2) · داكن */
+  --ui-brand: #8b90ff;
+  --ui-brand-on: #0f172a;
+  --ui-amber: #f5b23e;
+  --ui-amber-on: #0f172a;
+  --ui-ok: #34d399;
+  --ui-ok-on: #0f172a;
+  --ui-bad: #ef5350;
+  --ui-bad-on: #0f172a;
+  /* mute = نصٌّ ثانويٌّ من Layer 1 (ADR 0233 §2) */
+  --ui-mute: var(--tg-hint-color);
+  /* الطباعة (§3) — الحجمُ والارتفاعُ رمزانِ منفصلانِ */
+  --ui-size-display: 1.75rem;
+  --ui-line-display: 2.4;
+  --ui-size-title: 1.375rem;
+  --ui-line-title: 1.95;
+  --ui-size-heading: 1.0625rem;
+  --ui-line-heading: 1.65;
+  --ui-size-body: 0.9375rem;
+  --ui-line-body: 1.6;
+  --ui-size-label: 0.8125rem;
+  --ui-line-label: 1.3;
+  --ui-size-caption: 0.75rem;
+  --ui-line-caption: 1.15;
+  --ui-size-mono: 0.8125rem;
+  --ui-line-mono: 1.3;
+  --ui-weight-display: 800;
+  --ui-weight-title: 800;
+  --ui-weight-heading: 700;
+  --ui-weight-body: 400;
+  --ui-weight-body-strong: 600;
+  --ui-weight-label: 600;
+  --ui-weight-caption: 500;
+  --ui-weight-mono: 500;
+}
+
+:root[data-tg-scheme="light"] {
+  /* Layer 2 · فاتح */
+  --ui-brand: #4f46e5;
+  --ui-brand-on: #ffffff;
+  --ui-amber: #f5a524;
+  --ui-amber-on: #0f172a;
+  --ui-ok: #0b7a42;
+  --ui-ok-on: #ffffff;
+  --ui-bad: #c62828;
+  --ui-bad-on: #ffffff;
+}
+
+/* ── تركيزٌ ظاهرٌ لكلِّ عنصرٍ تفاعليٍّ في ui-* (§4) ───────────────────────── */
+.ui-btn:focus-visible,
+.ui-fld__input:focus-visible,
+.ui-chip:focus-visible,
+.ui-tab__item:focus-visible,
+.ui-sht__close:focus-visible,
+.ui-dg__close:focus-visible,
+.ui-toast__close:focus-visible,
+.ui-hdr__back:focus-visible,
+.ui-copy:focus-visible {
+  outline: 2px solid var(--ui-brand);
+  outline-offset: 2px;
+}
+
+/* الراديو مخفيٌّ بصريّاً فيُرسَمُ تركيزُه على وسمِه الحاوي. */
+.ui-sg__item:focus-within {
+  outline: 2px solid var(--ui-brand);
+  outline-offset: 2px;
+}
+
+/* ── نصٌّ لقارئِ الشاشةِ وحدَه (مخفيٌّ بصريّاً لا عن شجرةِ الوصول) ────────── */
+.ui-sg__radio,
+.ui-rail__state,
+.ui-timer__label,
+.ui-copy__label {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── ui-btn ─────────────────────────────────────────────────────────────── */
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.875rem;
+  font: inherit;
+  font-weight: var(--ui-weight-label);
+  cursor: pointer;
+  transition: opacity 120ms ease, background-color 120ms ease;
+}
+
+.ui-btn--sm {
+  min-block-size: 36px;
+  padding-inline: 0.75rem;
+  font-size: var(--ui-size-label);
+  line-height: var(--ui-line-label);
+}
+
+.ui-btn--md {
+  min-block-size: 44px;
+  padding-inline: 1rem;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+}
+
+.ui-btn--lg {
+  min-block-size: 52px;
+  padding-inline: 1.25rem;
+  font-size: var(--ui-size-heading);
+  line-height: var(--ui-line-heading);
+}
+
+/* المحايدُ على سطحٍ قد يساويه لوناً — الحدُّ يرسمُ حافّتَه. */
+.ui-btn--neutral {
+  border-color: var(--tg-section-separator-color);
+  background: var(--tg-section-bg-color);
+  color: var(--tg-text-color);
+}
+
+.ui-btn--brand {
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+.ui-btn--amber {
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+}
+
+.ui-btn--ok {
+  background: var(--ui-ok);
+  color: var(--ui-ok-on);
+}
+
+.ui-btn--bad {
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+}
+
+.ui-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ui-btn[aria-busy="true"] {
+  cursor: progress;
+}
+
+.ui-btn__icon {
+  display: inline-flex;
+  inline-size: 20px;
+  block-size: 20px;
+  flex-shrink: 0;
+}
+
+.ui-btn__spinner {
+  inline-size: 20px;
+  block-size: 20px;
+  flex-shrink: 0;
+  animation: ui-spin 900ms linear infinite;
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── ui-fld ──────────────────────────────────────────────────────────────── */
+.ui-fld {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.ui-fld__label {
+  font-size: var(--ui-size-label);
+  line-height: var(--ui-line-label);
+  font-weight: var(--ui-weight-label);
+  color: var(--tg-text-color);
+}
+
+.ui-fld__input {
+  min-block-size: 44px;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.75rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  font: inherit;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+}
+
+.ui-fld__input::placeholder {
+  color: var(--ui-mute);
+}
+
+.ui-fld__input[aria-invalid="true"] {
+  border-color: var(--ui-bad);
+}
+
+.ui-fld__hint {
+  margin: 0;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  color: var(--ui-mute);
+}
+
+/* الخطأُ كتلةٌ مُعبَّأةٌ بنصِّها المقيسِ — لا لونٌ دلاليٌّ نصّاً على سطحٍ مجهولٍ (§2). */
+.ui-fld__error {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  padding-block: 0.25rem;
+  padding-inline: 0.5rem;
+  border-radius: 0.5rem;
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+}
+
+.ui-fld__error-icon {
+  inline-size: 16px;
+  block-size: 16px;
+  flex-shrink: 0;
+}
+
+/* ── ui-tile ─────────────────────────────────────────────────────────────── */
+.ui-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border-radius: 0.875rem;
+  background: var(--tg-section-bg-color);
+}
+
+.ui-tile__icon {
+  display: inline-flex;
+  inline-size: 24px;
+  block-size: 24px;
+  color: var(--tg-text-color);
+}
+
+.ui-tile__value {
+  font-size: var(--ui-size-title);
+  line-height: var(--ui-line-title);
+  font-weight: var(--ui-weight-title);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--tg-text-color);
+}
+
+.ui-tile__title {
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+  color: var(--ui-mute);
+}
+
+/* ── ui-sg (segmented control) ───────────────────────────────────────────── */
+.ui-sg {
+  position: relative;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 0.75rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.ui-sg__item {
+  position: relative;
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: 44px;
+  padding-inline: 0.5rem;
+  border-radius: 0.5rem;
+  color: var(--tg-text-color);
+  font-size: var(--ui-size-label);
+  line-height: var(--ui-line-label);
+  font-weight: var(--ui-weight-label);
+  cursor: pointer;
+}
+
+.ui-sg__item--on {
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+/* ── ui-chip ─────────────────────────────────────────────────────────────── */
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 36px;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--tg-text-color);
+  font: inherit;
+  font-size: var(--ui-size-label);
+  line-height: var(--ui-line-label);
+  font-weight: var(--ui-weight-label);
+  cursor: pointer;
+}
+
+.ui-chip--on {
+  border-color: var(--ui-brand);
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+/* ── ui-tag ──────────────────────────────────────────────────────────────── */
+.ui-tag {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: 24px;
+  padding-inline: 0.5rem;
+  border-radius: 0.375rem;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-label);
+}
+
+.ui-tag--brand {
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+.ui-tag--amber {
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+}
+
+.ui-tag--ok {
+  background: var(--ui-ok);
+  color: var(--ui-ok-on);
+}
+
+.ui-tag--bad {
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+}
+
+/* ── ui-pill ─────────────────────────────────────────────────────────────── */
+.ui-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-block-size: 28px;
+  padding-inline: 0.625rem;
+  border-radius: 9999px;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-label);
+}
+
+.ui-pill--brand {
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+.ui-pill--amber {
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+}
+
+.ui-pill--ok {
+  background: var(--ui-ok);
+  color: var(--ui-ok-on);
+}
+
+.ui-pill--bad {
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+}
+
+.ui-pill__icon {
+  display: inline-flex;
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+/* ── ui-card ─────────────────────────────────────────────────────────────── */
+.ui-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 1rem;
+  background: var(--tg-section-bg-color);
+}
+
+.ui-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ui-card__title {
+  margin: 0;
+  font-size: var(--ui-size-heading);
+  line-height: var(--ui-line-heading);
+  font-weight: var(--ui-weight-heading);
+  color: var(--tg-text-color);
+}
+
+.ui-card__action {
+  flex-shrink: 0;
+  margin-inline-start: auto;
+}
+
+.ui-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* ── ui-row ──────────────────────────────────────────────────────────────── */
+.ui-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-block-size: 48px;
+  padding-block: 0.625rem;
+  padding-inline: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--tg-section-bg-color);
+}
+
+.ui-row__icon {
+  display: inline-flex;
+  inline-size: 20px;
+  block-size: 20px;
+  flex-shrink: 0;
+  color: var(--ui-mute);
+}
+
+.ui-row__label {
+  flex: 1;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  color: var(--tg-text-color);
+}
+
+.ui-row__value {
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  font-weight: var(--ui-weight-body-strong);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--tg-text-color);
+}
+
+/* ── ui-kv (key-value) ───────────────────────────────────────────────────── */
+.ui-kv {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.ui-kv__k {
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+  color: var(--ui-mute);
+}
+
+.ui-kv__v {
+  margin: 0;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  font-weight: var(--ui-weight-body-strong);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--tg-text-color);
+}
+
+/* ── ui-truth (شريطُ الحقيقة · §10.1) ─────────────────────────────────────── */
+.ui-truth {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.625rem;
+  padding-inline: 0.875rem;
+  border-radius: 0.75rem;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  font-weight: var(--ui-weight-body-strong);
+}
+
+.ui-truth--brand {
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+.ui-truth--amber {
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+}
+
+.ui-truth--ok {
+  background: var(--ui-ok);
+  color: var(--ui-ok-on);
+}
+
+.ui-truth--bad {
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+}
+
+/* المجهولُ: سطحٌ محايدٌ ونصٌّ أساسيٌّ — لا لونٌ يَدَّعي حالةً (§10.9). */
+.ui-truth--unknown {
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+}
+
+.ui-truth__icon {
+  display: inline-flex;
+  inline-size: 20px;
+  block-size: 20px;
+  flex-shrink: 0;
+}
+
+.ui-truth__text {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+/* الختمُ الأصليّ (§10.5 · UI-8): مصدرُ الحقيقةِ سطراً ثانياً بحجمِ caption ولونِ الشريطِ نفسِه. */
+.ui-truth__seal {
+  display: block;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+}
+
+/* ── ui-rail (السكّة) ─────────────────────────────────────────────────────── */
+.ui-rail {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ui-rail__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding-block: 0.5rem;
+}
+
+.ui-rail__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 28px;
+  block-size: 28px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-label);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.ui-rail__check {
+  inline-size: 16px;
+  block-size: 16px;
+}
+
+.ui-rail__item--done .ui-rail__dot {
+  background: var(--ui-ok);
+  color: var(--ui-ok-on);
+}
+
+.ui-rail__item--current .ui-rail__dot {
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+.ui-rail__item--pending .ui-rail__dot {
+  border: 1px solid var(--tg-section-separator-color);
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+}
+
+.ui-rail__label {
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  color: var(--tg-text-color);
+}
+
+.ui-rail__item--current .ui-rail__label {
+  font-weight: var(--ui-weight-body-strong);
+}
+
+.ui-rail__item--pending .ui-rail__label {
+  color: var(--ui-mute);
+}
+
+/* ── ui-timer (مؤقّتُ CSS — لا setInterval · §9) ──────────────────────────── */
+.ui-timer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.ui-timer__text {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.375rem;
+  min-block-size: 28px;
+  padding-inline: 0.625rem;
+  border-radius: 9999px;
+  font-size: var(--ui-size-label);
+  line-height: var(--ui-line-label);
+  font-weight: var(--ui-weight-label);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.ui-timer__icon {
+  inline-size: 16px;
+  block-size: 16px;
+  flex-shrink: 0;
+}
+
+.ui-timer--neutral .ui-timer__text {
+  background: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
+}
+
+.ui-timer--amber .ui-timer__text {
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+}
+
+.ui-timer--bad .ui-timer__text {
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+}
+
+.ui-timer__track {
+  display: block;
+  block-size: 4px;
+  border-radius: 9999px;
+  background: var(--tg-secondary-bg-color);
+  overflow: hidden;
+}
+
+/* يبدأُ من النسبةِ المقيسةِ ويُفرَغُ نحوَ بدايةِ السطرِ خلالَ المتبقّي. */
+.ui-timer__fill {
+  display: block;
+  block-size: 100%;
+  inline-size: calc(var(--ui-timer-start, 0) * 100%);
+  border-radius: 9999px;
+  animation: ui-timer-drain var(--ui-timer-duration, 0s) linear forwards;
+}
+
+.ui-timer--neutral .ui-timer__fill {
+  background: var(--ui-brand);
+}
+
+.ui-timer--amber .ui-timer__fill {
+  background: var(--ui-amber);
+}
+
+.ui-timer--bad .ui-timer__fill {
+  background: var(--ui-bad);
+}
+
+@keyframes ui-timer-drain {
+  to {
+    inline-size: 0;
+  }
+}
+
+/* ── ui-stp (مؤشّرُ خطواتِ تدفّقٍ) ────────────────────────────────────────── */
+.ui-stp {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.ui-stp__track {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.ui-stp__seg {
+  flex: 1;
+  block-size: 4px;
+  border-radius: 9999px;
+}
+
+.ui-stp__seg--done {
+  background: var(--ui-ok);
+}
+
+.ui-stp__seg--current {
+  background: var(--ui-brand);
+}
+
+.ui-stp__seg--pending {
+  background: var(--tg-section-separator-color);
+}
+
+.ui-stp__text {
+  margin: 0;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+  font-variant-numeric: tabular-nums lining-nums;
+  color: var(--ui-mute);
+}
+
+/* ── ui-sht (bottom sheet · <dialog> أصيلٌ) ──────────────────────────────── */
+.ui-sht {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  max-block-size: 85vh;
+  margin-block: auto 0;
+  margin-inline: 0;
+  padding: 1rem;
+  padding-block-end: max(1rem, env(safe-area-inset-bottom));
+  border: 0;
+  border-start-start-radius: 1rem;
+  border-start-end-radius: 1rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+  overflow-y: auto;
+}
+
+.ui-sht::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+
+.ui-sht__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block-end: 0.75rem;
+}
+
+.ui-sht__title {
+  margin: 0;
+  font-size: var(--ui-size-heading);
+  line-height: var(--ui-line-heading);
+  font-weight: var(--ui-weight-heading);
+}
+
+.ui-sht__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 44px;
+  block-size: 44px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  cursor: pointer;
+}
+
+.ui-sht__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* ── ui-dg (dialog · <dialog> أصيلٌ) ─────────────────────────────────────── */
+.ui-dg {
+  inline-size: calc(100% - 2rem);
+  max-inline-size: 400px;
+  padding: 1.25rem;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--tg-bg-color);
+  color: var(--tg-text-color);
+}
+
+.ui-dg::backdrop {
+  background: rgb(0 0 0 / 0.4);
+}
+
+.ui-dg__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-block-end: 0.75rem;
+}
+
+.ui-dg__title {
+  margin: 0;
+  font-size: var(--ui-size-heading);
+  line-height: var(--ui-line-heading);
+  font-weight: var(--ui-weight-heading);
+}
+
+.ui-dg__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 44px;
+  block-size: 44px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  cursor: pointer;
+}
+
+.ui-dg__body {
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+}
+
+.ui-dg__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-block-start: 1rem;
+}
+
+/* ── ui-tab (تبويبٌ داخلَ الصفحة) ─────────────────────────────────────────── */
+.ui-tab {
+  display: flex;
+  gap: 0.25rem;
+  border-block-end: 1px solid var(--tg-section-separator-color);
+}
+
+.ui-tab__item {
+  flex: 1;
+  min-block-size: 44px;
+  padding-inline: 0.75rem;
+  border: 0;
+  border-block-end: 2px solid transparent;
+  background: transparent;
+  color: var(--ui-mute);
+  font: inherit;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  font-weight: var(--ui-weight-label);
+  cursor: pointer;
+}
+
+.ui-tab__item--on {
+  border-block-end-color: var(--ui-brand);
+  color: var(--tg-text-color);
+}
+
+.ui-tab__panel {
+  padding-block-start: 0.75rem;
+}
+
+/* ── ui-act (شريطُ أفعالِ التدفّق) ────────────────────────────────────────── */
+.ui-act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--tg-bg-color);
+}
+
+/* ── ui-hdr (header) ──────────────────────────────────────────────────────── */
+.ui-hdr {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--tg-header-bg-color);
+}
+
+.ui-hdr__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 44px;
+  block-size: 44px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  cursor: pointer;
+}
+
+/* السهمُ المرسومُ يشيرُ يميناً = «رجوعٌ» في RTL؛ ويُقلَبُ في LTR فقط. */
+.ui-hdr__back-icon {
+  inline-size: 24px;
+  block-size: 24px;
+  transform: rotate(180deg);
+}
+
+[dir="rtl"] .ui-hdr__back-icon {
+  transform: none;
+}
+
+.ui-hdr__text {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.ui-hdr__title {
+  margin: 0;
+  font-size: var(--ui-size-title);
+  line-height: var(--ui-line-title);
+  font-weight: var(--ui-weight-title);
+  color: var(--tg-text-color);
+}
+
+.ui-hdr__subtitle {
+  margin: 0;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+  color: var(--ui-mute);
+}
+
+.ui-hdr__action {
+  flex-shrink: 0;
+}
+
+/* ── ui-skel (Loading · §5) ───────────────────────────────────────────────── */
+.ui-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+}
+
+.ui-skel__line {
+  display: block;
+  block-size: 0.875rem;
+  border-radius: 0.375rem;
+  background: var(--tg-secondary-bg-color);
+  animation: ui-skel-pulse 1.5s ease-in-out infinite;
+}
+
+.ui-skel__line--short {
+  inline-size: 60%;
+}
+
+@keyframes ui-skel-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* ── ui-empty (Empty · §5) ───────────────────────────────────────────────── */
+.ui-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 2rem;
+  padding-inline: 1rem;
+  text-align: center;
+}
+
+.ui-empty__icon {
+  inline-size: 48px;
+  block-size: 48px;
+  color: var(--ui-mute);
+}
+
+.ui-empty__title {
+  margin: 0;
+  font-size: var(--ui-size-heading);
+  line-height: var(--ui-line-heading);
+  font-weight: var(--ui-weight-heading);
+  color: var(--tg-text-color);
+}
+
+.ui-empty__body {
+  margin: 0;
+  max-inline-size: 320px;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  color: var(--ui-mute);
+}
+
+.ui-empty__action {
+  margin-block-start: 0.5rem;
+}
+
+/* ── ui-err (Error · §5) ──────────────────────────────────────────────────── */
+.ui-err {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 2rem;
+  padding-inline: 1rem;
+  text-align: center;
+}
+
+/* الأيقونةُ داخلَ شارةٍ مُعبَّأةٍ — لا لونٌ دلاليٌّ مكشوفٌ على سطحٍ مجهولٍ (§2). */
+.ui-err__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 56px;
+  block-size: 56px;
+  border-radius: 9999px;
+}
+
+.ui-err--bad .ui-err__badge {
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+}
+
+.ui-err--amber .ui-err__badge {
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+}
+
+.ui-err__icon {
+  inline-size: 28px;
+  block-size: 28px;
+}
+
+.ui-err__title {
+  margin: 0;
+  font-size: var(--ui-size-heading);
+  line-height: var(--ui-line-heading);
+  font-weight: var(--ui-weight-heading);
+  color: var(--tg-text-color);
+}
+
+.ui-err__body {
+  margin: 0;
+  max-inline-size: 320px;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+  color: var(--ui-mute);
+}
+
+.ui-err__action {
+  margin-block-start: 0.5rem;
+}
+
+/* ── ui-toast ─────────────────────────────────────────────────────────────── */
+.ui-toast {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+  border-radius: 0.75rem;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+}
+
+.ui-toast--brand {
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+.ui-toast--amber {
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+}
+
+.ui-toast--ok {
+  background: var(--ui-ok);
+  color: var(--ui-ok-on);
+}
+
+.ui-toast--bad {
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+}
+
+.ui-toast__icon {
+  display: inline-flex;
+  inline-size: 20px;
+  block-size: 20px;
+  flex-shrink: 0;
+}
+
+.ui-toast__msg {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.ui-toast__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 44px;
+  block-size: 44px;
+  flex-shrink: 0;
+  margin-block: -0.5rem;
+  margin-inline-end: -0.5rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* ── ui-banner ────────────────────────────────────────────────────────────── */
+.ui-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.75rem;
+  padding-inline: 1rem;
+  border-radius: 0.75rem;
+  font-size: var(--ui-size-body);
+  line-height: var(--ui-line-body);
+}
+
+.ui-banner--brand {
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+.ui-banner--amber {
+  background: var(--ui-amber);
+  color: var(--ui-amber-on);
+}
+
+.ui-banner--ok {
+  background: var(--ui-ok);
+  color: var(--ui-ok-on);
+}
+
+.ui-banner--bad {
+  background: var(--ui-bad);
+  color: var(--ui-bad-on);
+}
+
+.ui-banner__icon {
+  display: inline-flex;
+  inline-size: 20px;
+  block-size: 20px;
+  flex-shrink: 0;
+}
+
+.ui-banner__msg {
+  flex: 1;
+  min-inline-size: 0;
+}
+
+.ui-banner__action {
+  flex-shrink: 0;
+}
+
+/* ── ui-av (avatar) ──────────────────────────────────────────────────────── */
+.ui-av {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 40px;
+  block-size: 40px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+}
+
+.ui-av__img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+.ui-av__initial {
+  font-size: var(--ui-size-heading);
+  line-height: var(--ui-line-heading);
+  font-weight: var(--ui-weight-heading);
+}
+
+/* ── ui-pl (placeholder) ──────────────────────────────────────────────────── */
+.ui-pl {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--tg-secondary-bg-color);
+  text-align: center;
+}
+
+.ui-pl__icon {
+  display: inline-flex;
+  inline-size: 32px;
+  block-size: 32px;
+  color: var(--ui-mute);
+}
+
+.ui-pl__label {
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+  color: var(--ui-mute);
+}
+
+/* ── ui-st (status indicator: نقطةٌ + نصٌّ) ───────────────────────────────── */
+.ui-st {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-label);
+  color: var(--tg-text-color);
+}
+
+.ui-st__dot {
+  inline-size: 8px;
+  block-size: 8px;
+  flex-shrink: 0;
+  border-radius: 9999px;
+}
+
+.ui-st--brand .ui-st__dot {
+  background: var(--ui-brand);
+}
+
+.ui-st--amber .ui-st__dot {
+  background: var(--ui-amber);
+}
+
+.ui-st--ok .ui-st__dot {
+  background: var(--ui-ok);
+}
+
+.ui-st--bad .ui-st__dot {
+  background: var(--ui-bad);
+}
+
+/* ── ui-ds (divider) ──────────────────────────────────────────────────────── */
+/* `<hr>` بلا وسمٍ: خطٌّ مرئيٌّ فعلاً (لا `display:flex` على `hr` يمحوه). */
+.ui-ds {
+  block-size: 1px;
+  margin-block: 0.75rem;
+  margin-inline: 0;
+  border: 0;
+  background: var(--tg-section-separator-color);
+}
+
+.ui-ds--labeled {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  block-size: auto;
+  background: transparent;
+}
+
+.ui-ds__line {
+  flex: 1;
+  block-size: 1px;
+  background: var(--tg-section-separator-color);
+}
+
+.ui-ds__label {
+  font-size: var(--ui-size-caption);
+  line-height: var(--ui-line-caption);
+  font-weight: var(--ui-weight-caption);
+  color: var(--ui-mute);
+  white-space: nowrap;
+}
+
+/* ── ui-pg (progress · <progress> أصيلٌ) ──────────────────────────────────── */
+/* `appearance: none` شرطٌ كي تُطبَّقَ أشباهُ العناصرِ في WebKit/Blink؛ وFirefox
+   يرسمُ المسارَ بخلفيّةِ العنصرِ والتعبئةَ بـ`::-moz-progress-bar`. */
+.ui-pg {
+  display: block;
+  inline-size: 100%;
+  block-size: 6px;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--tg-secondary-bg-color);
+  overflow: hidden;
+  appearance: none;
+}
+
+.ui-pg::-webkit-progress-bar {
+  border-radius: 9999px;
+  background: var(--tg-secondary-bg-color);
+}
+
+.ui-pg::-webkit-progress-value {
+  border-radius: 9999px;
+  background: var(--ui-brand);
+}
+
+.ui-pg::-moz-progress-bar {
+  border-radius: 9999px;
+  background: var(--ui-brand);
+}
+
+/* ── ui-copy (copy button) ────────────────────────────────────────────────── */
+.ui-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-block-size: 44px;
+  padding-inline: 0.75rem;
+  border: 1px solid var(--tg-section-separator-color);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--tg-text-color);
+  font: inherit;
+  font-size: var(--ui-size-mono);
+  line-height: var(--ui-line-mono);
+  font-weight: var(--ui-weight-mono);
+  cursor: pointer;
+}
+
+.ui-copy__icon {
+  inline-size: 16px;
+  block-size: 16px;
+  flex-shrink: 0;
+}
+
+.ui-copy__text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ── حركةٌ مخفّفةٌ: النبضُ زخرفةٌ فيُوقَف، والدورانُ يُبطَّأُ ولا يُمحى
+   (هو المؤشّرُ الوحيدُ للانتظارِ)، وتفريغُ المؤقّتِ معلومةٌ فيبقى. ── */
+@media (prefers-reduced-motion: reduce) {
+  .ui-skel__line {
+    animation: none;
+  }
+
+  .ui-btn__spinner {
+    animation-duration: 2400ms;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   UI-2 / PR 2 — الهيكلُ والتنقّل (§6 · §11 · ADR 0234)
+   عناصرُ جديدةٌ في كتلةِ `app-frame` القائمةِ — لا بادئةَ جديدةٌ ولا نظامٌ موازٍ.
+   CSS مسطّحٌ: لا @layer، لا تداخلٌ، لا !important. خصائصُ منطقيّةٌ لـRTL.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── التبويبُ الجذريُّ (§6): أربعةُ أزرارٍ متساويةٍ، 44px لمساً، والترتيبُ يتبعُ الاتجاه ── */
+.app-frame__tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding-block-start: 0.25rem;
+  border-block-start: 1px solid var(--tg-section-separator-color);
+  background: var(--tg-bg-color);
+}
+
+.app-frame__tab {
+  flex: 1;
+  min-inline-size: 0;
+  min-block-size: 44px;
+  padding-inline: 0.25rem;
+  border: 0;
+  border-block-start: 2px solid transparent;
+  background: transparent;
+  color: var(--ui-mute);
+  font: inherit;
+  font-size: var(--ui-size-label);
+  line-height: var(--ui-line-label);
+  font-weight: var(--ui-weight-label);
+  cursor: pointer;
+}
+
+/* النشطُ يُعرَفُ بالحدِّ واللونِ معاً، و`aria-current` يقولُه للقارئِ الآليّ. */
+.app-frame__tab--on {
+  border-block-start-color: var(--ui-brand);
+  color: var(--tg-text-color);
+}
+
+.app-frame__tab:focus-visible {
+  outline: 2px solid var(--ui-brand);
+  outline-offset: 2px;
+}
+
+/* ── ScreenTransition: حاوي الشاشةِ يُركَّزُ برمجيّاً (tabindex=-1) فلا إطارَ تركيزٍ له ── */
+.app-frame__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.app-frame__screen:focus {
+  outline: none;
+}
+
+/* التقدّمُ يدخلُ من جهةِ نهايةِ السطر، والرجوعُ من بدايتِه؛ وRTL يقلبُ الإزاحة. */
+.app-frame__screen--forward {
+  animation: app-frame-enter-end 200ms ease-out;
+}
+
+.app-frame__screen--back {
+  animation: app-frame-enter-start 200ms ease-out;
+}
+
+[dir="rtl"] .app-frame__screen--forward {
+  animation-name: app-frame-enter-start;
+}
+
+[dir="rtl"] .app-frame__screen--back {
+  animation-name: app-frame-enter-end;
+}
+
+@keyframes app-frame-enter-end {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes app-frame-enter-start {
+  from {
+    opacity: 0;
+    transform: translateX(-1.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* الانتقالُ زخرفةٌ لا معلومة: يُلغى كلُّه عندَ تقليلِ الحركة. */
+@media (prefers-reduced-motion: reduce) {
+  .app-frame__screen--forward,
+  .app-frame__screen--back {
+    animation: none;
+  }
+}
+
+/* ── UI-3 / PR 5 · لوحاتُ [B] للراكب (ADR 0238) ─────────────────────────────
+   تخطيطٌ رقيقٌ فوقَ `ui-*` وحدَها: لا لونَ جديدٌ ولا رمزَ تصميمٍ جديد — رموزُ تيليجرامَ
+   القائمةُ وخصائصُ منطقيّةٌ (RTL أوّلاً). */
+.rset__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.rset__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding-block: 0.5rem;
+  border-block-end: 1px solid var(--tg-secondary-bg-color);
+}
+
+.rset__item-label {
+  flex: 1 1 8rem;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+  color: var(--tg-text-color);
+}
+
+.rset__subtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--tg-text-color);
+}
+
+.rset__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.rset__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rset__msg {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding-block: 0.5rem;
+  padding-inline: 0.75rem;
+  border-radius: 0.75rem;
+  background: var(--tg-secondary-bg-color);
+}
+
+.rset__msg-meta {
+  font-size: 0.8rem;
+  color: var(--tg-subtitle-text-color);
+}
+
+.rset__msg-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--tg-text-color);
 }

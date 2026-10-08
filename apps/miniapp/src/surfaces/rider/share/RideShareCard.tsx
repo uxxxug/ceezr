@@ -41,6 +41,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { TRUTH_AGE_UNKNOWN_KEY, TRUTH_SOURCE_KEYS, truthAge } from "../../../system/truth.ts";
 import {
   readShare as readViaApi,
   startShare as startViaApi,
@@ -193,6 +194,10 @@ export function RideShareCard({
   const live = view.links;
   const lifetime = lifetimeLine(view.lifetime);
   const preview = previewLine(view.preview);
+  /** UI-8: العمرُ الخامُ كما وصل — غيرُ المقيسِ يحجبُ الموضعَ ولا يُصفَّر. */
+  const previewAgeKnown =
+    !preview.show ||
+    truthAge((view.preview as { readonly ageSeconds?: unknown }).ageSeconds).kind === "measured";
   const canShare = view.availability === "CAN_SHARE";
 
   // رحلةٌ منتهيةٌ بلا رابطٍ حيٍّ: لا شيءَ يُقالُ ولا زرَّ يُرسَمُ. وزرٌّ لا يفعلُ
@@ -224,7 +229,9 @@ export function RideShareCard({
       {/* **جوابُ المستلمِ نفسُه**، لا وعدٌ عن جوابِه. */}
       <div className="rs__preview" role="status">
         <p className="rs__preview-title">{t("rider.share.preview.title")}</p>
-        {preview.show ? (
+        {preview.show && !previewAgeKnown ? (
+          <p className="rs__preview-hidden">{t(TRUTH_AGE_UNKNOWN_KEY)}</p>
+        ) : preview.show ? (
           <>
             <p className="rs__preview-point">
               {t("rider.share.preview.point")
@@ -235,6 +242,7 @@ export function RideShareCard({
               {t(preview.ageKey)
                 .replace("{minutes}", String(preview.ageMinutes))
                 .replace("{seconds}", String(preview.ageSeconds))}
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_age)}</small>
             </p>
           </>
         ) : (

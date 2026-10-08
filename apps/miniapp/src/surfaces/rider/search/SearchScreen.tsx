@@ -73,6 +73,9 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { RideJourney } from "../active/RideJourney.tsx";
+import { journeyFromSearchStatus } from "../active/ride-journey.ts";
+import type { PlaceWire } from "../destination/destination-view.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import { requestByService as requestViaApi } from "./request-by-service.ts";
 import { cancelRide as cancelViaApi, readRideSearch as readViaApi } from "./ride-api.ts";
@@ -106,6 +109,11 @@ export interface SearchScreenIntent {
   readonly destinationLabel: string;
   /** `RIDE-LABEL-01` — اسمُ الالتقاطِ حينَ اختارَه الراكبُ بالاسمِ؛ `null` موقعُ الجهازِ. */
   readonly pickupLabel?: string | null;
+  /** `LOC-TRUST-01` — الاسمُ المُرسَلُ للوجهة؛ غائبٌ ⇒ `destinationLabel` (سلوكٌ أقدم). */
+  readonly destinationUserLabel?: string | null;
+  /** `LOC-TRUST-01` — مصدرُ النقطةِ ودقّتُها ووقتُها والرابطُ الأصليُّ والملاحظات. */
+  readonly pickupPlace?: PlaceWire | null;
+  readonly dropoffPlace?: PlaceWire | null;
   readonly notes: string | null;
   /** يُولَّدُ في `SR-04` مرّةً واحدةً لكلِّ نيّةٍ — ولا يُولَّدُ ههنا. */
   readonly idempotencyKey: string;
@@ -129,6 +137,8 @@ export interface SearchScreenProps {
     readonly destinationLabel?: string | null;
     readonly pickupAt?: string | null;
     readonly offerSar?: number | null;
+    readonly pickupPlace?: PlaceWire | null;
+    readonly dropoffPlace?: PlaceWire | null;
   }) => Promise<RequestRideResponse>;
   readonly read?: (orderId: string) => Promise<RideSearchResponse>;
   readonly cancel?: (input: {
@@ -136,6 +146,8 @@ export interface SearchScreenProps {
     readonly idempotencyKey: string;
   }) => Promise<CancelRideResponse>;
   readonly onBack?: () => void;
+  /** UI-3 / PR 4: داخلَ `ScreenFrame` العنوانُ للإطار (`false`) فلا `h1` مكرّر. */
+  readonly showTitle?: boolean;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
   readonly onOpenSos?: () => void;
   /**
@@ -209,6 +221,7 @@ export function SearchScreen({
   read = readViaApi,
   cancel = cancelViaApi,
   onBack,
+  showTitle = true,
   onOpenSos,
   onActiveRide,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
@@ -249,8 +262,13 @@ export function SearchScreen({
         destinationLat: intent.destinationLat,
         destinationLng: intent.destinationLng,
         ...(intent.notes === null ? {} : { notes: intent.notes }),
-        destinationLabel: intent.destinationLabel,
+        destinationLabel:
+          intent.destinationUserLabel === undefined
+            ? intent.destinationLabel
+            : intent.destinationUserLabel,
         pickupLabel: intent.pickupLabel ?? null,
+        pickupPlace: intent.pickupPlace ?? null,
+        dropoffPlace: intent.dropoffPlace ?? null,
         pickupAt: intent.pickupAt ?? null,
         offerSar: intent.offerSar ?? null,
       });
@@ -371,7 +389,14 @@ export function SearchScreen({
   );
 
   if (system !== null) {
-    return <SystemScreen state={system.screen} onAction={() => void create()} busy={busy} />;
+    return (
+      <SystemScreen
+        language={language}
+        state={system.screen}
+        onAction={() => void create()}
+        busy={busy}
+      />
+    );
   }
 
   const body = () => {
@@ -481,6 +506,12 @@ export function SearchScreen({
         {state.reused && <p className="rs__reused">{t("rider.search.reused")}</p>}
 
         <p className="rs__status">{t(rideStatusKey(view?.status ?? "searching"))}</p>
+        {/* R6 · §11 PR 4: سكّةُ المراحلِ من حالةِ الطلبِ المقروءة — لا شريطَ ثانٍ لطورٍ يقولُه السطرُ التالي. */}
+        <RideJourney
+          language={language}
+          stage={journeyFromSearchStatus(view?.status ?? "searching")}
+          truth={null}
+        />
         {view !== null && <p className="rs__phase">{t(searchPhaseKey(view.phase))}</p>}
 
         <p className="rs__elapsed" aria-live="polite">
@@ -546,10 +577,16 @@ export function SearchScreen({
   };
 
   return (
-    <section className="rs" dir={directionFor(language)} aria-labelledby="rs-title">
-      <h1 className="rs__title" id="rs-title">
-        {t("rider.search.title")}
-      </h1>
+    <section
+      className="rs"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "rs-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 className="rs__title" id="rs-title">
+          {t("rider.search.title")}
+        </h1>
+      ) : null}
       <p className="rs__destination">
         {t("rider.search.destination").replace("{label}", intent.destinationLabel)}
       </p>

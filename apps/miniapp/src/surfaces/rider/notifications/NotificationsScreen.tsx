@@ -41,6 +41,9 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { hasConsumer } from "../settings/consumers.ts";
+import { NotificationPrefsPanel } from "../settings/NotificationPrefsPanel.tsx";
+import type { NotificationPrefs } from "../settings/notification-prefs.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import {
   markNotificationRead as markViaApi,
@@ -66,6 +69,13 @@ export interface NotificationsScreenProps {
   readonly onBack?: () => void;
   readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
+  /** UI-3 / PR 5: داخلَ `ScreenFrame` العنوانُ للإطار (`false`) والرجوعُ لرأسِه (لا `onBack`). */
+  readonly showTitle?: boolean;
+  /** تفضيلاتُ الإشعارات ([B] · ADR 0238) — للاختبار؛ الافتراضُ العقدُ القائم. */
+  readonly prefs?: {
+    readonly read?: () => Promise<NotificationPrefs>;
+    readonly save?: (prefs: NotificationPrefs) => Promise<unknown>;
+  };
 }
 
 interface Loaded {
@@ -112,12 +122,16 @@ export function NotificationsScreen({
   onBack,
   onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
+  showTitle = true,
+  prefs,
 }: NotificationsScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<NotificationsState>({ kind: "reading" });
   const [system, setSystem] = useState<SystemState>(null);
   const [busy, setBusy] = useState(false);
   const [marking, setMarking] = useState<string | null>(null);
+  /** UI-3 / PR 5: فشلُ الوسمِ **يُقالُ** ولا يُبلَعُ — البطاقةُ باقيةٌ غيرَ مقروءةٍ ويُعادُ الوسم. */
+  const [markFailed, setMarkFailed] = useState(false);
   const mounted = useRef(true);
   const busyRef = useRef(false);
   const timeZone = useRef(deviceTimeZone());
@@ -179,6 +193,7 @@ export function NotificationsScreen({
     async (notificationId: string) => {
       if (marking !== null) return;
       setMarking(notificationId);
+      setMarkFailed(false);
       try {
         const result = await mark(notificationId);
         if (!mounted.current) return;
@@ -200,7 +215,8 @@ export function NotificationsScreen({
           };
         });
       } catch {
-        // فشلُ الوسمِ لا يُسقِطُ الموجَزَ: البطاقةُ باقيةٌ ويمكنُ إعادتُه.
+        // فشلُ الوسمِ لا يُسقِطُ الموجَزَ: البطاقةُ باقيةٌ ويمكنُ إعادتُه — ويُقالُ (UI-3 / PR 5).
+        if (mounted.current) setMarkFailed(true);
       } finally {
         if (mounted.current) setMarking(null);
       }
@@ -211,6 +227,7 @@ export function NotificationsScreen({
   if (system !== null) {
     return (
       <SystemScreen
+        language={language}
         state={system.screen}
         onAction={() => void load({ previous: null })}
         busy={busy}
@@ -270,9 +287,11 @@ export function NotificationsScreen({
           >
             {t("rider.notifications.retry")}
           </button>
-          <button type="button" className="sys__action" onClick={() => onBack?.()}>
-            {t("rider.notifications.back")}
-          </button>
+          {onBack === undefined ? null : (
+            <button type="button" className="sys__action" onClick={() => onBack()}>
+              {t("rider.notifications.back")}
+            </button>
+          )}
         </div>
       );
     }
@@ -285,6 +304,12 @@ export function NotificationsScreen({
         {loaded.unread > 0 ? (
           <p className="nc__unread-count" role="status">
             {t("rider.notifications.unreadCount").replace("{count}", String(loaded.unread))}
+          </p>
+        ) : null}
+
+        {markFailed ? (
+          <p className="sys__hint" role="alert">
+            {t("rider.notifications.markFailed")}
           </p>
         ) : null}
 
@@ -309,9 +334,21 @@ export function NotificationsScreen({
           </button>
         ) : null}
 
-        <button type="button" className="nc__back" onClick={() => onBack?.()}>
-          {t("rider.notifications.back")}
+        {/* لحظةٌ مقروءةٌ لا موجَزٌ حيّ: التحديثُ بطلبٍ صريحٍ لا باستطلاع. */}
+        <button
+          type="button"
+          className="nc__more"
+          disabled={busy}
+          onClick={() => void load({ previous: null })}
+        >
+          {t("rider.notifications.refresh")}
         </button>
+
+        {onBack === undefined ? null : (
+          <button type="button" className="nc__back" onClick={() => onBack()}>
+            {t("rider.notifications.back")}
+          </button>
+        )}
 
         {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
       </>
@@ -319,11 +356,27 @@ export function NotificationsScreen({
   };
 
   return (
-    <section className="nc" dir={directionFor(language)} aria-labelledby="nc-title">
-      <h1 className="nc__title" id="nc-title">
-        {t("rider.notifications.title")}
-      </h1>
+    <section
+      className="nc"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "nc-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 className="nc__title" id="nc-title">
+          {t("rider.notifications.title")}
+        </h1>
+      ) : null}
       {body()}
+      {/* `TRUTH-01`: لا مستهلِكَ للتفضيلاتِ بعدُ (`settings/consumers.ts`) ⇒ يُقالُ الحدُّ ولا يُعرَضُ مفتاحٌ لا يُطفئُ شيئاً. */}
+      {hasConsumer("notificationPrefs") ? (
+        <NotificationPrefsPanel
+          language={language}
+          {...(prefs?.read === undefined ? {} : { read: prefs.read })}
+          {...(prefs?.save === undefined ? {} : { save: prefs.save })}
+        />
+      ) : (
+        <p className="sys__hint">{t("rider.notifications.prefs.pending")}</p>
+      )}
     </section>
   );
 }

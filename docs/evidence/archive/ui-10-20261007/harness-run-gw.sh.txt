@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /home/user/workspace/ceezr
+set -a; . /tmp/ui10/gw.env; set +a
+exec $HOME/.bun/bin/bun run apps/gateway/src/index.ts

@@ -40,6 +40,7 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
+import { UiStepper } from "../../../system/ui/index.tsx";
 import {
   type ApiDriverDocumentType,
   type DriverDocumentsResponse,
@@ -63,10 +64,15 @@ import {
   toBoardSummary,
   todayPlainDay,
 } from "./documents-view.ts";
+import { uploadStepPosition, uploadStepText } from "./upload-steps.ts";
 
 export interface DocumentsScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
+  /** `UI-4`: نوعُ وثيقةٍ تُنقَلُ إليه البؤرةُ بعدَ القراءة — من زرِّ إصلاحِ حجبٍ في لوحِ العروض. */
+  readonly focusDocType?: string | null;
   readonly readBoard?: () => Promise<DriverDocumentsResponse>;
   readonly requestSlot?: (input: {
     readonly docType: ApiDriverDocumentType;
@@ -137,6 +143,8 @@ function codeOf(thrown: unknown): string {
 export function DocumentsScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
+  focusDocType = null,
   readBoard = readDriverDocuments,
   requestSlot = requestUploadSlot,
   upload = uploadFileToSlotWithProgress,
@@ -167,6 +175,13 @@ export function DocumentsScreen({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // البؤرةُ تنتقلُ إلى بطاقةِ الوثيقةِ المطلوبةِ بعدَ أن تُرسَمَ — لا قبلَ القراءة.
+  const ready = state.kind === "ready";
+  useEffect(() => {
+    if (!ready || focusDocType === null || typeof document === "undefined") return;
+    document.getElementById(focusDocType)?.focus();
+  }, [ready, focusDocType]);
 
   const setRow = useCallback((docType: string, next: RowState) => {
     setRows((current) => ({ ...current, [docType]: next }));
@@ -272,10 +287,16 @@ export function DocumentsScreen({
 
   if (state.kind === "loading") {
     return (
-      <section className="dd" aria-labelledby={`${formId}-title`} aria-busy="true">
-        <h1 id={`${formId}-title`} className="dd__title">
-          {t("driver.documents.title")}
-        </h1>
+      <section
+        className="dd"
+        aria-labelledby={showTitle ? `${formId}-title` : undefined}
+        aria-busy="true"
+      >
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dd__title">
+            {t("driver.documents.title")}
+          </h1>
+        ) : null}
         <p className="dd__loading">{t("driver.documents.loading")}</p>
       </section>
     );
@@ -283,10 +304,12 @@ export function DocumentsScreen({
 
   if (state.kind === "failed") {
     return (
-      <section className="dd" aria-labelledby={`${formId}-title`}>
-        <h1 id={`${formId}-title`} className="dd__title">
-          {t("driver.documents.title")}
-        </h1>
+      <section className="dd" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dd__title">
+            {t("driver.documents.title")}
+          </h1>
+        ) : null}
         <EmptyState title={t("driver.documents.failed")} body={t(documentsErrorKey(state.code))} />
         {isRetryableDocumentsError(state.code) ? (
           <button type="button" className="dd__retry" onClick={() => void load()}>
@@ -305,10 +328,12 @@ export function DocumentsScreen({
   const summary = toBoardSummary(state.board);
 
   return (
-    <section className="dd" aria-labelledby={`${formId}-title`}>
-      <h1 id={`${formId}-title`} className="dd__title">
-        {t("driver.documents.title")}
-      </h1>
+    <section className="dd" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+      {showTitle ? (
+        <h1 id={`${formId}-title`} className="dd__title">
+          {t("driver.documents.title")}
+        </h1>
+      ) : null}
       <p className="dd__headline">{t(summary.headlineKey)}</p>
 
       {summary.blockLines.length === 0 ? null : (
@@ -426,7 +451,20 @@ export function DocumentsScreen({
 
               {row.kind === "busy" ? (
                 <>
-                  <p className="dd__step">{t(row.stepKey)}</p>
+                  {(() => {
+                    // D8: موضعُ الخطوةِ الحقيقيّةِ (إذنٌ ← رفعٌ ← تسجيل) — `ui-stp`.
+                    const position = uploadStepPosition(row.stepKey);
+                    return position === null ? null : (
+                      <UiStepper
+                        current={position.current}
+                        total={position.total}
+                        text={uploadStepText(position, t)}
+                      />
+                    );
+                  })()}
+                  <p className="dd__step" role="status">
+                    {t(row.stepKey)}
+                  </p>
                   {row.stepKey === "driver.documents.step.uploading" &&
                   row.progress !== undefined ? (
                     <div

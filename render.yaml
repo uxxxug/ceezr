@@ -363,6 +363,14 @@ services:
       - path: /index.html
         name: Cache-Control
         value: no-cache
+      # زيادةٌ 2026-10-07 (`UI-10` · ADR 0245): قاعدةُ رؤوسِ Render تُطابِقُ **مسارَ الطلبِ**
+      # لا هدفَ إعادةِ الكتابةِ، وتيليجرام يفتحُ `/` (كلُّ روابطِ الدخولِ = الأصلُ + استعلامٌ،
+      # `packages/shared/miniapp-link`). فقِيسَ حيّاً: `/index.html` = `no-cache` و`/` =
+      # `public, max-age=0, s-maxage=300` — أي نسخةٌ قديمةٌ على الحافّةِ حتى خمسِ دقائقَ بعدَ
+      # النشرِ تُحيلُ إلى أصولٍ مبصومةٍ حُذِفَت (404) = شاشةٌ بيضاء. فالجذرُ يُعلَنُ صراحةً.
+      - path: /
+        name: Cache-Control
+        value: no-cache
     envVars:
       - key: BUN_VERSION
         value: "1.4.2"

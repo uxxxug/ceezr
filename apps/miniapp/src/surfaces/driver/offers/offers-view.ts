@@ -190,6 +190,8 @@ export interface OfferCardModel {
   readonly tripDistance: DistanceLine | null;
   readonly pickupLabel: string | null;
   readonly dropoffLabel: string | null;
+  readonly pickupNotes: string | null;
+  readonly dropoffNotes: string | null;
 }
 
 export function toOfferCard(card: ApiDriverOfferCard): OfferCardModel {
@@ -204,6 +206,8 @@ export function toOfferCard(card: ApiDriverOfferCard): OfferCardModel {
     tripDistance: distanceLine(card.trip_distance),
     pickupLabel: card.pickup_label,
     dropoffLabel: card.dropoff_label,
+    pickupNotes: card.pickup_notes ?? null,
+    dropoffNotes: card.dropoff_notes ?? null,
   };
 }
 
@@ -257,6 +261,13 @@ export interface OfferDetailModel {
   readonly riderDistance: DistanceLine | null;
   readonly tripDistance: DistanceLine | null;
   readonly notes: string | null;
+  /** `LOC-TRUST-01` — ما أدخلَه الراكبُ عن كلِّ مكان، ورابطُ فتحِه (الأصليُّ أو من النقطة). */
+  readonly pickupNotes: string | null;
+  readonly pickupLink: string | null;
+  readonly pickupOpenUrl: string | null;
+  readonly dropoffNotes: string | null;
+  readonly dropoffLink: string | null;
+  readonly dropoffOpenUrl: string | null;
 }
 
 export function toOfferDetail(response: DriverOfferDetailResponse): OfferDetailModel {
@@ -278,6 +289,12 @@ export function toOfferDetail(response: DriverOfferDetailResponse): OfferDetailM
     riderDistance: distanceLine(response.rider_distance),
     tripDistance: distanceLine(response.trip_distance),
     notes: response.notes,
+    pickupNotes: response.pickup.notes ?? null,
+    pickupLink: response.pickup.link ?? null,
+    pickupOpenUrl: response.pickup.open_url ?? null,
+    dropoffNotes: response.dropoff?.notes ?? null,
+    dropoffLink: response.dropoff?.link ?? null,
+    dropoffOpenUrl: response.dropoff?.open_url ?? null,
   };
 }
 

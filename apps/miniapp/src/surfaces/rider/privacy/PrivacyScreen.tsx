@@ -33,6 +33,8 @@ export interface PrivacyScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
   readonly fetchStatus?: () => Promise<ConsentApiStatus>;
+  /** UI-3 / PR 5 (ADR 0238): داخلَ `ScreenFrame` العنوانُ للإطار (`false`) والرجوعُ لرأسِه (لا `onBack`). */
+  readonly showTitle?: boolean;
 }
 
 type PrivacyState =
@@ -44,12 +46,17 @@ export function PrivacyScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
   fetchStatus,
+  showTitle = true,
 }: PrivacyScreenProps) {
   const t = miniAppTranslator(language);
   const [state, setState] = useState<PrivacyState>({ kind: "loading" });
+  /** UI-3 / PR 5: إعادةُ القراءةِ بعدَ خطأٍ — كلُّ زيادةٍ تُعيدُ النداءَ الحقيقيّ. */
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let mounted = true;
+    void attempt;
+    setState({ kind: "loading" });
     const load = fetchStatus ?? defaultFetch;
     load()
       .then((status) => {
@@ -69,13 +76,19 @@ export function PrivacyScreen({
     return () => {
       mounted = false;
     };
-  }, [fetchStatus]);
+  }, [fetchStatus, attempt]);
 
   return (
-    <section className="rp" dir={directionFor(language)} aria-labelledby="rp-title">
-      <h1 id="rp-title" className="rp__title">
-        {t("rider.privacy.title")}
-      </h1>
+    <section
+      className="rp"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "rp-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 id="rp-title" className="rp__title">
+          {t("rider.privacy.title")}
+        </h1>
+      ) : null}
       {onBack !== undefined && (
         <button type="button" className="rp__back" onClick={() => onBack()}>
           {t("rider.privacy.back")}
@@ -89,9 +102,12 @@ export function PrivacyScreen({
       )}
 
       {state.kind === "error" && (
-        <p className="rp__error" role="alert">
-          {t(consentErrorKey(state.code))}
-        </p>
+        <div className="sys" role="alert">
+          <p className="rp__error">{t(consentErrorKey(state.code))}</p>
+          <button type="button" className="sys__action" onClick={() => setAttempt((n) => n + 1)}>
+            {t("rider.privacy.retry")}
+          </button>
+        </div>
       )}
 
       {state.kind === "ready" && (
