@@ -117,6 +117,26 @@ function publishVerdict(verdict: DestinationVerdict) {
   };
 }
 
+/**
+ * سجلُّ النجاحِ (PRD-008): رمزُ النتيجةِ وحدَه. لا استفهامَ ولا اسمَ ولا إحداثيّةَ
+ * ولا عددَ اقتراحاتٍ ولا مدينةَ ولا مُعرِّفَ — فالسطرُ يُثبِتُ أنَّ المسارَ أجابَ
+ * `200` في الإنتاجِ ولا يحملُ ما يُعرِّفُ صاحبَ الطلبِ أو وجهتَه.
+ */
+export function searchAnsweredMeta(suggestionCount: number): {
+  readonly outcome: "SUGGESTIONS" | "NO_MATCH";
+} {
+  return { outcome: suggestionCount > 0 ? "SUGGESTIONS" : "NO_MATCH" };
+}
+
+export function resolveAnsweredMeta(verdict: DestinationVerdict): {
+  readonly accepted: boolean;
+  readonly refusal: string | null;
+} {
+  return verdict.accepted
+    ? { accepted: true, refusal: null }
+    : { accepted: false, refusal: verdict.refusal };
+}
+
 export function createDestinationsRoutes(deps: DestinationsRouteDependencies): Hono {
   const app = new Hono();
 
@@ -136,6 +156,7 @@ export function createDestinationsRoutes(deps: DestinationsRouteDependencies): H
     });
     if (!result.ok) return rejected(c, result.error);
 
+    deps.log?.("destinations.search_answered", searchAnsweredMeta(result.value.suggestions.length));
     return c.json({
       ok: true,
       query: result.value.query,
@@ -183,6 +204,7 @@ export function createDestinationsRoutes(deps: DestinationsRouteDependencies): H
     });
     if (!result.ok) return rejected(c, result.error);
 
+    deps.log?.("destinations.resolve_answered", resolveAnsweredMeta(result.value.verdict));
     return c.json({ ok: true, ...publishVerdict(result.value.verdict) });
   });
 

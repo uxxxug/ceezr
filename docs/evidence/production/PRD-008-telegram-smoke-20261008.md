@@ -1,6 +1,6 @@
 # PRD-008 — Smoke من عميل Telegram حقيقي — سجلٌّ جزئيّ (2026-10-08)
 
-**البند:** PRD-008 · **الحالة:** Blocked — جزئيّ. لم يُختبَر من الرحلةِ إلا مسارُ رسائلِ البوتَين.
+**البند:** PRD-008 · **الحالة:** Blocked — جزئيّ. المُختبَرُ: مسارُ رسائلِ البوتَين، وStep 1 للـMini App (launch + sign-in) على Android وحدَه (§1ب).
 **المصدر:** رسالتان حقيقيّتان أرسلَهما المالكُ من عميلِ Telegram (11:02–11:03 UTC) + قاعدةُ الإنتاج (`telegram_update_jobs`) + Render app logs. لا لقطاتِ شاشة، ونسخةُ العميلِ ونظامُه غيرُ مُسجَّلَين.
 **ما لا يحتويه:** لا نصَّ رسائل، ولا مُعرِّفاتِ Telegram (`actor` مُجزَّأ)، ولا أسرار.
 
@@ -15,16 +15,44 @@
 
 **ما لا يُثبِتُه هذا:** أنَّ الردَّ وصلَ العميلَ وظهرَ صحيحًا (يُرى على الجهازِ وحدَه؛ ولا `bot.telegram_send_failed` في السجلّ).
 
+## 1ب. الـMini App على Android — Step 1 (launch + sign-in)
+
+**الجهاز (من المالك):** TECNO POVA Slim 5G (KM9) · HiOS 16.3.0 / Android · Telegram 12.10.6. الواجهةُ ظهرَت عربيّةً RTL بشاشةِ الراكبِ كاملة (لقطةُ المالك).
+**النشرُ الحيّ (Render API):** `waslah-gateway` على `3024990c` (`dep-db3o0h7avr4c73aihe8g` · `live` منذ 11:37 UTC)؛ `waslah-miniapp` على `e5282587` ولا فرقَ في `apps/miniapp` ولا `packages/shared` بينَه وبينَ `main`.
+
+| الخطوة | الدليلُ الخادميّ (Render app logs) | النتيجة |
+|---|---|---|
+| auth — `POST /v1/session/telegram` بـ`initData` حقيقيّ | `session.issued` `bot=rider` 12:06:31 UTC، ثمّ 12:30:40 UTC | ناجح |
+| تجديدُ الجلسة | `session.renewed` `generation=1` 12:30:16 و`generation=2` 12:30:41 | ناجح |
+| رفضٌ مرصود (غيرُ مانع) | `session.telegram_proof_rejected` `HASH_MISSING` ×2 عند 12:09:15–16 (فتحٌ بلا `initData` موقَّع — على الأرجحِ رابطٌ خارجَ زرِّ الـMini App)؛ `AUTH_DATE_STALE` 12:30:16 تلاهُ تجديدٌ ناجحٌ في الثانيةِ نفسِها؛ `session.refresh_token_rejected` `ABSOLUTE_EXPIRED` 12:06:31 (رمزٌ قديمٌ قبلَ الإصدار) | مُسجَّل |
+| consent — `/v1/consents` | آخرُ صفٍّ في `user_consents` بتاريخ 2026-10-02؛ الحسابُ وافقَ سابقاً | **Not Tested** |
+
+لا `error` في سجلِّ البوابةِ منذ النشرِ إلا `move_event_outbox.shipper_not_configured` عندَ الإقلاع (تهيئةٌ سابقة، لا علاقةَ لها بالـMini App).
+
+## 1ج. فجوةُ الدليلِ لـStep 2 وسدُّها
+
+خطّةُ Render المجانيّةُ **لا تحفظُ سجلَّ طلباتٍ** (أنواعُ السجلِّ المتاحة: `app` و`build` فقط) **ولا مقاييسَ HTTP** (`http_request_count` فارغ). والمساران `GET /v1/destinations/search` و`POST /v1/destinations/resolve` و`POST /v1/quote/ride` قراءةٌ بلا كتابةٍ في القاعدة، وكانا لا يكتبانِ سطراً عندَ النجاح — فلا أثرَ خادميَّ مباشرَ لنجاحِ Step 2.
+
+السدُّ (Work Packet `prd-008-success-logs`): سطرٌ واحدٌ عندَ جوابِ `200` وحدَه، برموزِ النتيجةِ وحدَها:
+
+| الحدث | الحقول |
+|---|---|
+| `destinations.search_answered` | `outcome`: `SUGGESTIONS` \| `NO_MATCH` |
+| `destinations.resolve_answered` | `accepted`، `refusal` (رمزٌ أو `null`) |
+| `quote.answered` | `accepted`، `refusal`، `distanceKind`، `eta` (`ROUTED` أو `UNAVAILABLE:<سبب>`) |
+
+لا استفهامَ ولا اسمَ ولا إحداثيّةَ ولا مسافةَ ولا مدينةَ ولا مُعرِّفَ Telegram؛ و`request_id` يُضافُ من المُسجِّلِ كسائرِ الأسطر. الحمولاتُ والعقودُ لم تتغيّر (اختبارُ تطابقٍ بايتيّ). **خطُّ الأساسِ لعدمِ إنشاءِ رحلة:** `orders` = 3 (آخرُها 2026-10-03) · `order_offers` = 4.
+
 ## 2. ما لم يُختبَر
 
 لا أثرَ في السجلِّ منذ 10:40 UTC لأيٍّ ممّا يلي (بحثٌ عن `auth`/`initData`/`consent`/`miniapp`: لا شيء):
 
 | خطوة شرطِ القبول | الحالة |
 |---|---|
-| launch — فتحُ الـMini App من البوت | لم يُختبَر |
-| auth — `POST /v1/session/telegram` بـ`initData` موقَّعٍ حقيقيًّا | لم يُختبَر |
-| consent — `/v1/consents` | لم يُختبَر |
-| rider — طلبُ رحلة (`/v1/quote` ← `/v1/rides`) | لم يُختبَر |
+| launch — فتحُ الـMini App من البوت | Android: ناجح (§1ب) · iOS/Desktop: لم يُختبَر |
+| auth — `POST /v1/session/telegram` بـ`initData` موقَّعٍ حقيقيًّا | Android: ناجح (§1ب) · iOS/Desktop: لم يُختبَر |
+| consent — `/v1/consents` | Not Tested (الحسابُ وافقَ سابقاً) |
+| rider — طلبُ رحلة (`/v1/quote` ← `/v1/rides`) | لم يُختبَر (Step 2 ينتظرُ نشرَ سجلِّ النجاح §1ج) |
 | driver — استلامُ العرضِ وقبولُه (`/v1/driver/offers`) | لم يُختبَر |
 | tracking — الموقعُ الحيّ وصفحةُ التتبّع | لم يُختبَر |
 | SOS — `/v1/safety/sos` · `/v1/driver/safety/sos` | لم يُختبَر |
@@ -53,4 +81,4 @@
 
 ## 4. النتيجة
 
-PRD-008 **Blocked**: المُختبَرُ حيًّا مسارُ رسائلِ البوتَين وحدَه (وصولٌ ومعالجةٌ وجلسةُ Redis). رحلةُ الـMini App كلُّها وBackButton/Haptics/themeChanged ومصفوفةُ الأجهزةِ الثلاثةِ لم تُختبَر، وتحتاجُ أجهزةَ المالك.
+PRD-008 **Blocked**: المُختبَرُ حيًّا مسارُ رسائلِ البوتَين (وصولٌ ومعالجةٌ وجلسةُ Redis) وStep 1 للـMini App على Android وحدَه. بقيّةُ رحلةِ الـMini App (Steps 2–10) وBackButton/Haptics/themeChanged ومصفوفةُ الأجهزةِ الثلاثةِ لم تُختبَر، وتحتاجُ أجهزةَ المالك.
