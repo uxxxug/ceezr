@@ -1778,6 +1778,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/place-input.test.ts",
+    suites: ["LOC-TRUST-01 — المكانُ يصلُ القاعدةَ وبطاقةَ السائق كاملاً"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في `LOC-TRUST-01` أنَّ ما أدخلَه الراكبُ عن المكانين (المصدر والدقّة ووقت الالتقاط والرابط الأصليّ والملاحظات) يُكتَبُ في الطلبِ نفسِه **في المعاملةِ نفسِها** عبرَ `request_ride_with_places`، وأنَّ الحمولةَ المعطوبةَ تُرفَضُ قبلَ الإنشاء (لا صفَّ يُكتَب)، وأنَّ الضغطةَ الثانيةَ لا تُعيدُ الكتابة، وأنَّ قارئَ بطاقةِ السائق يقرأُ الأعمدةَ كما حُفِظَت — وهذا كلُّه سلوكُ محرِّكٍ حقيقيٍّ (plpgsql وjsonb وgeography) لا يقيسُه محرِّكٌ مُصنَّعٌ؛ والوحدةُ في `tests/unit/loc-trust-place-input.test.ts` تقيسُ القراءةَ لا الحكم.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20261008160000_loc_trust_01_place_input). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/ride-request.test.ts",
     suites: [
       "إنشاءُ الرحلةِ نداءٌ واحدٌ ذرّيٌّ",

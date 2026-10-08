@@ -159,13 +159,14 @@ export interface Sender {
 
 export type ButtonRow = readonly Button[];
 
-export type Button = CallbackButton | WebAppButton;
+export type Button = CallbackButton | WebAppButton | UrlButton;
 
 export interface CallbackButton {
   readonly label: string;
   /** البيانات المرسلة عند الضغط — لأزرار inline فقط. */
   readonly data: string;
   readonly webAppUrl?: undefined;
+  readonly url?: undefined;
 }
 
 /**
@@ -178,6 +179,24 @@ export interface WebAppButton {
   readonly webAppUrl: string;
   /** غائبٌ دائماً: زرُّ التطبيقِ لا يحملُ بياناتِ رجوعٍ إلى البوت. */
   readonly data?: undefined;
+  readonly url?: undefined;
+}
+
+/**
+ * `LOC-TRUST-01` — زرٌّ يفتحُ رابطاً خارجيّاً (موقعُ الالتقاطِ/الوجهةِ في بطاقةِ السائق).
+ * لا يُرسِلُ إلى البوتِ شيئاً. والرابطُ يُبنى في الخادمِ من مضيفي الخرائطِ المقبولينَ وحدَهم
+ * (`apps/gateway/src/routes/place-links.ts`)؛ ورابطٌ يرفضُه Telegram يُسقِطُ الرسالةَ كلَّها،
+ * فالمُرسِلُ يُعيدُ المحاولةَ بلا هذه الأزرارِ ولا يُسقِطُ البطاقة.
+ */
+export interface UrlButton {
+  readonly label: string;
+  readonly url: string;
+  readonly data?: undefined;
+  readonly webAppUrl?: undefined;
+}
+
+export function isUrlButton(button: Button): button is UrlButton {
+  return typeof (button as { url?: unknown }).url === "string";
 }
 
 export function isWebAppButton(button: Button): button is WebAppButton {

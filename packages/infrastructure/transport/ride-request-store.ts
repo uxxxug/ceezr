@@ -45,6 +45,7 @@ import type {
   RideSearchVerdict,
   RideStoreFailure,
 } from "../../application/transport/ride-request-ports.ts";
+import type { PlaceMeta } from "../../domain/places/place-input.ts";
 import { isServiceKind } from "../../domain/quote/service-offer.ts";
 import { isRideStatus } from "../../domain/transport/ride-request.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
@@ -61,6 +62,7 @@ const RIDE_REFUSALS = [
   "IDEMPOTENCY_KEY_TOO_LONG",
   "NOTES_TOO_LONG",
   "ACTIVE_RIDE_EXISTS",
+  "PLACE_INVALID",
 ] as const;
 
 function isRideRefusal(value: unknown): value is RideRequestRefusal {
@@ -121,6 +123,21 @@ interface RideRow {
   readonly result: RidePayload | null;
 }
 
+/**
+ * `LOC-TRUST-01` — المكانُ إلى `jsonb` بأسماءِ أعمدتِه. `null` حينَ لا شيءَ يُكتَب، فيبقى
+ * النداءُ القديمُ (البوتُ وعميلٌ أقدمُ من العقد) حرفاً كما كان.
+ */
+function placeJson(place: PlaceMeta | null | undefined): string | null {
+  if (place === undefined || place === null) return null;
+  return JSON.stringify({
+    point_source: place.source,
+    accuracy_m: place.accuracyM,
+    captured_at: place.capturedAt,
+    link: place.link,
+    notes: place.notes,
+  });
+}
+
 export function createRideRequestCommand(sql: Sql): RideRequestCommand {
   return {
     create: async (input): Promise<Result<RideRequestVerdict, RideStoreFailure>> => {
@@ -128,30 +145,39 @@ export function createRideRequestCommand(sql: Sql): RideRequestCommand {
       if (telegramId === null) return err(failed("USER_NOT_FOUND"));
       if (!isServiceKind(input.service)) return err(failed("STORE_ERROR"));
 
+      const params = [
+        telegramId,
+        input.idempotencyKey,
+        input.service,
+        input.origin.lat,
+        input.origin.lng,
+        input.destination?.lat ?? null,
+        input.destination?.lng ?? null,
+        input.notes,
+        input.pickupLabel ?? null,
+        input.destination === null ? null : (input.dropoffLabel ?? null),
+        input.pickupAt === undefined || input.pickupAt === null
+          ? null
+          : input.pickupAt.toISOString(),
+        input.offerSar ?? null,
+      ];
+      const pickupPlace = placeJson(input.pickupPlace);
+      const dropoffPlace = input.destination === null ? null : placeJson(input.dropoffPlace);
+
       let rows: RideRow[];
       try {
-        rows = await sql.unsafe<RideRow[]>(
-          // `RIDE-LABEL-01` · `ORDER-TERMS-01` — الغلافُ يُنادي `request_ride_labeled` حرفاً
-          // ثمَّ يكتبُ وقتَ الحضورِ في الصفِّ الجديدِ وحدَه.
-          // `ORDER-OFFER-01` — والمعامِلُ الثاني عشرَ مبلغُ الراكبِ (null ⇒ قابلٌ للتفاوض).
-          "select request_ride_with_terms($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) as result",
-          [
-            telegramId,
-            input.idempotencyKey,
-            input.service,
-            input.origin.lat,
-            input.origin.lng,
-            input.destination?.lat ?? null,
-            input.destination?.lng ?? null,
-            input.notes,
-            input.pickupLabel ?? null,
-            input.destination === null ? null : (input.dropoffLabel ?? null),
-            input.pickupAt === undefined || input.pickupAt === null
-              ? null
-              : input.pickupAt.toISOString(),
-            input.offerSar ?? null,
-          ],
-        );
+        rows =
+          pickupPlace === null && dropoffPlace === null
+            ? // `RIDE-LABEL-01` · `ORDER-TERMS-01` · `ORDER-OFFER-01` — النداءُ القديمُ حرفاً.
+              await sql.unsafe<RideRow[]>(
+                "select request_ride_with_terms($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) as result",
+                params,
+              )
+            : // `LOC-TRUST-01` — الغلافُ ذو الأربعةَ عشرَ يحكمُ على المكانَين قبلَ الإنشاء.
+              await sql.unsafe<RideRow[]>(
+                "select request_ride_with_places($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::jsonb) as result",
+                [...params, pickupPlace, dropoffPlace],
+              );
       } catch {
         return err(failed("STORE_ERROR"));
       }

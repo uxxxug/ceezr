@@ -1,0 +1,65 @@
+{
+  "id": "loc-trust-01-place-input",
+  "goal": "LOC-TRUST-01 (الخادم): عقدُ المكان PlaceInput من الطلبِ إلى القاعدةِ إلى بطاقةِ السائق — مصدرُ النقطةِ ودقّتُها ووقتُ التقاطِها والرابطُ الأصليُّ حرفاً وملاحظاتُ كلِّ مكان، ورفضُ القراءةِ الرديئةِ والرابطِ المتعارض، وزرّا «فتح موقع الالتقاط/الوجهة»",
+  "canonical_source": [
+    "docs/adr/0247-place-input-contract.md"
+  ],
+  "implementation": [
+    "supabase/migrations/20261008160000_loc_trust_01_place_input.sql",
+    "packages/domain/places/place-input.ts",
+    "packages/domain/places/place-open-url.ts",
+    "packages/domain/driver/driver-offers.ts",
+    "packages/application/bots/types.ts",
+    "packages/application/transport/request-ride.ts",
+    "packages/application/transport/ride-request-ports.ts",
+    "packages/infrastructure/db/schema-contract.ts",
+    "packages/infrastructure/driver/driver-job-store.ts",
+    "packages/infrastructure/driver/driver-offers-store.ts",
+    "packages/infrastructure/notification/telegram-driver-notifier.ts",
+    "packages/infrastructure/notification/telegram-markup.ts",
+    "packages/infrastructure/transport/order-place-extras.ts",
+    "packages/infrastructure/transport/ride-request-store.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "packages/shared/wasla/egress-registry.ts",
+    "apps/gateway/src/routes/place-links.ts",
+    "apps/gateway/src/routes/rides.ts",
+    "apps/gateway/src/routes/deliveries.ts",
+    "apps/gateway/src/routes/destinations.ts",
+    "apps/gateway/src/routes/driver-job.ts",
+    "apps/gateway/src/routes/driver-offers.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/loc-trust-place-input.test.ts",
+    "tests/unit/ride-request-route.test.ts",
+    "tests/integration/place-input.test.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [
+    "docs/adr/0247-place-input-contract.md",
+    "docs/wasla/egress-boundary.md",
+    "docs/evidence/production/PRD-008-telegram-smoke-20261008.md",
+    "docs/work-packets/loc-trust-01-place-input.json"
+  ],
+  "decision": "تفويضُ المالكِ الكامل 2026-10-08: «أصلح السلسلة كاملة» — الإحداثيّةُ هيَ الحقيقةُ والاسمُ وصف؛ لا يُعتمَدُ موقعٌ بصمت",
+  "tests": [
+    "tests/unit/loc-trust-place-input.test.ts — العتباتُ تطابقُ مصادرَها (ADR 0015 · مدى وصفِ المعلَم · نصفُ قطرِ الوصول)؛ حكمُ الدقّة GOOD/COARSE/UNRELIABLE وقراءةُ Telegram بلا طابعٍ لا تبلغُ GOOD؛ رابطُ Google Maps (!3d!4d)، رابطٌ مختصرٌ بلا نقطةٍ يُحفَظُ حرفاً، مشاركةُ واتساب، مضيفٌ مجهولٌ مرفوض؛ readPlaceMeta (SHARED_LINK يطابقُ النقطة، تعارضُ الرابط، ملاحظاتٌ طويلة، قراءةٌ رديئة)؛ الطلبُ ← المخزنُ (request_ride_with_places بـjsonb)؛ بطاقةُ Telegram بالملاحظاتِ والرابطِ وزرَّي الفتحِ وإعادةُ الإرسالِ بلا أزرارِ روابط؛ لا إحداثيّةَ ولا رابطَ ولا ملاحظةَ في console",
+    "tests/integration/place-input.test.ts — على PostgreSQL: اسمٌ + نقطةٌ + ملاحظاتٌ + رابطان تُحفَظُ حرفاً ويقرؤها قارئُ بطاقةِ السائق؛ حمولةٌ معطوبةٌ ⇒ PLACE_INVALID بلا صفّ؛ الضغطةُ الثانيةُ لا تُعيدُ الكتابة"
+  ],
+  "evidence": "docs/evidence/production/PRD-008-telegram-smoke-20261008.md",
+  "contract_gaps": [],
+  "constraints": [
+    "هجرةُ توسعةٍ فقط: أعمدةٌ اختياريّة، والغلافاتُ القديمةُ باقية",
+    "الهجرةُ تُطبَّقُ على الإنتاجِ قبلَ نشرِ البوّابة (schema-contract)",
+    "لا بياناتٍ شخصيّةً في السجلّات",
+    "لا تغييرَ في Redis",
+    "بطاقةُ المجموعةِ العامّةِ لا تحملُ الملاحظاتِ ولا الروابط",
+    "لا إعلانَ Verified لـPRD-008 ولا Production Ready"
+  ]
+}

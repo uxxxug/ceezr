@@ -42,6 +42,8 @@ import {
   rejectDriverOffer,
   setDriverAvailability,
 } from "../../../../packages/application/driver/driver-offers.ts";
+import type { DriverOfferPlace } from "../../../../packages/domain/driver/driver-offers.ts";
+import { openUrlFor } from "./place-links.ts";
 
 export interface DriverOfferRouteDependencies {
   /** غيابُها **يُعطّلُ المساراتِ بـ503** ولا يجعلها تُجيبُ بلا قاعدةٍ. */
@@ -104,6 +106,22 @@ function unavailable(code: DriverOfferPublicErrorCode): DriverOfferRejection {
   return { code };
 }
 
+/**
+ * `LOC-TRUST-01` — المكانُ كما يراه السائق: الاسمُ والنقطةُ كما كانا، والرابطُ الأصليُّ
+ * حرفاً، وملاحظاتُ المكان، ورابطُ الفتحِ (الأصليُّ إن صلحَ وإلّا من النقطة).
+ */
+function wireOfferPlace(place: DriverOfferPlace) {
+  const link = place.link ?? null;
+  return {
+    label: place.label,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    link,
+    notes: place.notes ?? null,
+    open_url: openUrlFor({ link, latitude: place.latitude, longitude: place.longitude }),
+  };
+}
+
 export function createDriverOfferRoutes(deps: DriverOfferRouteDependencies): Hono {
   const app = new Hono();
 
@@ -138,6 +156,16 @@ export function createDriverOfferRoutes(deps: DriverOfferRouteDependencies): Hon
         trip_distance: offer.tripDistance,
         pickup_label: offer.pickupLabel,
         dropoff_label: offer.dropoffLabel,
+        // `LOC-TRUST-01` — ما أدخلَه الراكبُ عن المكانَين، ورابطُ الفتحِ مبنيّاً في الخادم.
+        pickup_notes: offer.pickupExtras?.notes ?? null,
+        pickup_link: offer.pickupExtras?.link ?? null,
+        pickup_open_url: offer.pickupExtras === undefined ? null : openUrlFor(offer.pickupExtras),
+        dropoff_notes: offer.dropoffExtras?.notes ?? null,
+        dropoff_link: offer.dropoffExtras?.link ?? null,
+        dropoff_open_url:
+          offer.dropoffExtras === undefined || offer.dropoffExtras === null
+            ? null
+            : openUrlFor(offer.dropoffExtras),
       })),
     });
   });
@@ -167,8 +195,8 @@ export function createDriverOfferRoutes(deps: DriverOfferRouteDependencies): Hon
       order_status: detail.orderStatus,
       seconds_left: detail.secondsLeft,
       is_claimable: detail.isClaimable,
-      pickup: detail.pickup,
-      dropoff: detail.dropoff,
+      pickup: wireOfferPlace(detail.pickup),
+      dropoff: detail.dropoff === null ? null : wireOfferPlace(detail.dropoff),
       rider_distance: detail.riderDistance,
       trip_distance: detail.tripDistance,
       notes: detail.notes,
