@@ -199,7 +199,12 @@ export function RideDetailScreen({
 
   if (system !== null) {
     return (
-      <SystemScreen state={system.screen} onAction={() => void refresh(orderId)} busy={busy} />
+      <SystemScreen
+        language={language}
+        state={system.screen}
+        onAction={() => void refresh(orderId)}
+        busy={busy}
+      />
     );
   }
 

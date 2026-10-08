@@ -245,7 +245,12 @@ export function RideSummaryScreen({
 
   if (system !== null) {
     return (
-      <SystemScreen state={system.screen} onAction={() => void refresh(orderId)} busy={reading} />
+      <SystemScreen
+        language={language}
+        state={system.screen}
+        onAction={() => void refresh(orderId)}
+        busy={reading}
+      />
     );
   }
 

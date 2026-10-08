@@ -391,6 +391,7 @@ export function DestinationScreen({
     return (
       <div dir="rtl">
         <SystemScreen
+          language={language}
           state={system.screen}
           onAction={() => {
             setSystem(null);

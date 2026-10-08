@@ -278,7 +278,7 @@ export function HomeScreen({
     // اتجاهُها عربيّاً: نصٌّ عربيٌّ في إطارٍ يساريٍّ يُقرأُ مقلوباً.
     return (
       <div dir="rtl">
-        <SystemScreen state={state.screen} onAction={() => void load()} />
+        <SystemScreen language={language} state={state.screen} onAction={() => void load()} />
       </div>
     );
   }

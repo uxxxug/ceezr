@@ -14,7 +14,12 @@
  * لا أكثر. ولذلك يبقى الملفُّ عاجزاً عن أن يخترع حالةً لا نصَّ لها.
  */
 
-import { type ScreenState, screenText, screenTone } from "./state-text.ts";
+import {
+  isMiniAppDictionaryLoaded,
+  type MiniAppLanguage,
+} from "../../../../packages/shared/i18n/miniapp/core.ts";
+import { documentLanguage } from "../styles/direction.ts";
+import { busyActionLabel, type ScreenState, screenText, screenTone } from "./state-text.ts";
 
 export interface SystemScreenProps {
   readonly state: ScreenState;
@@ -27,10 +32,28 @@ export interface SystemScreenProps {
    * والوِجهةُ **تسبقُ** `onAction` عندَ حضورِها: لا يُعرَضُ فعلانِ في زرٍّ واحدٍ.
    */
   readonly actionHref?: string;
+  /**
+   * `TRUTH-01`: لغةُ النصّ. غيابُها ⇒ لغةُ المستندِ إن حُمِّلَ قاموسُها، وإلّا العربيّة —
+   * فلا يُعرَضُ مفتاحٌ خامٌ ولا عربيّةٌ لمن لغتُه غيرُها متى عُرِفَت.
+   */
+  readonly language?: MiniAppLanguage;
 }
 
-export function SystemScreen({ state, onAction, busy = false, actionHref }: SystemScreenProps) {
-  const text = screenText(state);
+function screenLanguage(explicit: MiniAppLanguage | undefined): MiniAppLanguage {
+  if (explicit !== undefined) return explicit;
+  const fromDocument = documentLanguage();
+  return isMiniAppDictionaryLoaded(fromDocument) ? fromDocument : "ar";
+}
+
+export function SystemScreen({
+  state,
+  onAction,
+  busy = false,
+  actionHref,
+  language,
+}: SystemScreenProps) {
+  const lang = screenLanguage(language);
+  const text = screenText(state, lang);
   // **لا يُعرَضُ زرٌّ بلا فعلٍ**: عنوانٌ موجودٌ أو مُعالِجٌ موجودٌ — وإلّا فلا زرَّ.
   // فشاشةٌ لها عنوانُ فعلٍ في نصِّها ولا وِجهةَ له (متغيّرُ بناءٍ غائبٌ) تُعرَضُ
   // بنصِّها وحدَه، ولا يُعرَضُ زرٌّ يفتحُ لا شيءَ.
@@ -55,7 +78,7 @@ export function SystemScreen({ state, onAction, busy = false, actionHref }: Syst
           disabled={busy}
           aria-busy={busy ? "true" : undefined}
         >
-          {busy ? "جارٍ المحاولة…" : text.actionLabel}
+          {busy ? busyActionLabel(lang) : text.actionLabel}
         </button>
       ) : null}
     </section>
