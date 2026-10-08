@@ -1,0 +1,40 @@
+{
+  "id": "prd-001-redis-diagnosis-gate-alignment",
+  "goal": "جعلُ سببِ تدهورِ Redis في الإنتاج مقروءًا، ومواءمةُ حارسِ بوابةِ الجاهزيّةِ ووثيقتِها وCI",
+  "canonical_source": [
+    "docs/adr/0246-production-lifecycle-stages.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md"
+  ],
+  "implementation": [
+    ".github/workflows/production-readiness.yml",
+    "apps/gateway/src/index.ts",
+    "apps/gateway/src/redis/upstash.ts",
+    "package.json",
+    "packages/infrastructure/redis/upstash.ts",
+    "scripts/check-production-readiness-gate.ts",
+    "tests/unit/check-production-readiness-gate.test.ts",
+    "tests/unit/upstash-error-detail.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0246-production-lifecycle-stages.md",
+    "docs/evidence/production/PRD-002-deploy-20261008.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md",
+    "docs/work-packets/prd-001-redis-diagnosis-gate-alignment.json"
+  ],
+  "no_other_affected_docs_reason": "لا عقدَ ولا واجهةَ تتغيّر: تفصيلُ الخطأ داخليٌّ (سجلّاتٌ و/ready checkDetails) و kind يبقى http",
+  "decision": "ADR 0246 §5 — حارسٌ بنمطَين (CI/الإعلان) ونطاقُ إعلانٍ P0/P1؛ تصحيحُ شرطَي PRD-001 وPRD-002",
+  "tests": [
+    "tests/unit/upstash-error-detail.test.ts — رسالةُ Upstash تُنقَلُ مُعقَّمةً بلا رموزٍ ولا عناوين",
+    "tests/unit/check-production-readiness-gate.test.ts — النمطان، نطاقُ P2، والحارسُ كعمليّةٍ على البوابةِ الحقيقيّة"
+  ],
+  "evidence": "docs/evidence/production/PRD-002-deploy-20261008.md",
+  "contract_gaps": [],
+  "constraints": [
+    "لا ميزاتٌ جديدة",
+    "لا تغييرَ في عقودِ /v1",
+    "لا أسرارَ في السجلّاتِ ولا الردود — تعقيمُ التفصيل",
+    "لا إعلانَ Production Ready"
+  ]
+}
