@@ -101,6 +101,29 @@ function publishQuote(result: QuoteResult) {
   };
 }
 
+/**
+ * سجلُّ النجاحِ (PRD-008): رموزُ النتيجةِ وحدَها — القبولُ أو رمزُ الرفضِ، ووسمُ
+ * المسافةِ، ونوعُ المدّةِ أو سببُ امتناعِها. لا أمتارَ ولا ثوانيَ ولا إحداثيّاتٍ
+ * ولا مدينةَ ولا مُعرِّفَ: السطرُ يُثبِتُ أنَّ الاقتباسَ أُجيبَ ولا يصفُ الرحلةَ.
+ */
+export function quoteAnsweredMeta(result: QuoteResult): {
+  readonly accepted: boolean;
+  readonly refusal: string | null;
+  readonly distanceKind: string | null;
+  readonly eta: string | null;
+} {
+  if (!result.accepted) {
+    return { accepted: false, refusal: result.refusal, distanceKind: null, eta: null };
+  }
+  const { eta, distance } = result.quote;
+  return {
+    accepted: true,
+    refusal: null,
+    distanceKind: distance.kind,
+    eta: eta.kind === "ROUTED" ? "ROUTED" : `UNAVAILABLE:${eta.reason}`,
+  };
+}
+
 export function createQuoteRoutes(deps: QuoteRouteDependencies): Hono {
   const app = new Hono();
 
@@ -133,6 +156,7 @@ export function createQuoteRoutes(deps: QuoteRouteDependencies): Hono {
     });
     if (!result.ok) return rejected(c, result.error);
 
+    deps.log?.("quote.answered", quoteAnsweredMeta(result.value));
     return c.json({ ok: true, ...publishQuote(result.value) });
   });
 

@@ -47,6 +47,16 @@
  *    المُرحِّلُ يرفضُ الأقدمَ رقمًا، والقاعدةُ ذرّيّة. فالتكرارُ يُمتصُّ لا يتراكم.
  * ٣. **التقليمُ مُقنَّن.** `MAXLEN ~` يحفظُ المجرى محدودَ الحجم، فلا ينموُ
  *    بلا سقف. والرقمُ كافٍ لتجاوزِ فجوةِ الاستطلاعِ لا لتخزينِ التاريخ.
+ *
+ * ## لا استطلاعَ بلا مشتركٍ محليٍّ (PRD-001 — 2026-10-08)
+ * الناقلُ المحليُّ لا يُعيدُ حدثًا لمن يشتركُ بعدَه، فحدثٌ يُقرأُ والنسخةُ بلا
+ * مشتركٍ يُسلَّمُ إلى **لا أحد**. وكانَ الماسحُ يطلبُ `XREAD` كلَّ 250ms بلا
+ * شرطٍ = ~10.4 مليون طلبٍ شهريًّا للنسخةِ الواحدة؛ وقِيسَ في الإنتاجِ أنّه
+ * استنفدَ حصّةَ Upstash (`ERR max requests limit exceeded. Limit: 500000`)
+ * فتعطّلَت معه الجلساتُ وحدُّ المعدّل. فالدورةُ بلا مشتركٍ محليٍّ تُتخطّى بلا
+ * طلب. وفي أوّلِ دورةٍ بعدَ خمولٍ يُستأنَفُ المؤشّرُ من
+ * `الآن − RESUME_LOOKBACK_MS` لا من `$`، فلا يفوتُ حدثٌ نُشرَ حولَ لحظةِ
+ * الاشتراك؛ وما يُعادُ من الثانيتَين السابقتَين يمتصُّه الحدُّ ٢ أعلاه.
  */
 
 import type { RedisClient } from "../../../apps/gateway/src/redis/upstash.ts";
@@ -77,6 +87,8 @@ export const DEFAULT_STREAM_MAXLEN = 1_000;
 export const DEFAULT_XREAD_COUNT = 100;
 /** الفاصلُ الافتراضيُّ بينَ دوراتِ الاستطلاع. */
 export const DEFAULT_POLL_MS = 250;
+/** نافذةُ الرجوعِ عندَ الاستئنافِ بعدَ خمول — تغطّي دورةَ استطلاعٍ وانحرافَ ساعةٍ يسيرًا. */
+export const RESUME_LOOKBACK_MS = 2_000;
 
 export interface RedisStreamTrackingEventBusDeps {
   /** الناقلُ المحليُّ الذي يُوزّعُ على مشتركي هذه النسخة. */
@@ -95,6 +107,8 @@ export interface RedisStreamTrackingEventBusDeps {
   readonly readCount?: number;
   /** المؤشّرُ الابتدائيُّ — `$` (الذيلُ) افتراضًا، `0-0` في الاختبار. */
   readonly startCursor?: string;
+  /** ساعةٌ بالميلي ثانية — تُحقنُ في الاختبار لحسابِ مؤشّرِ الاستئناف. */
+  readonly now?: () => number;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -196,8 +210,11 @@ export function createRedisStreamTrackingEventBus(
   const readCount = deps.readCount ?? DEFAULT_XREAD_COUNT;
   const startCursor = deps.startCursor ?? "$";
   const log = deps.log ?? ((): void => undefined);
+  const now = deps.now ?? Date.now;
 
   let cursor = startCursor;
+  /** صحيحٌ متى تُخطّيَت دورةٌ لغيابِ المشتركين — فالمؤشّرُ متقادمٌ ويلزمُ استئناف. */
+  let idle = false;
   let timer: ReturnType<typeof setInterval> | null = null;
   let polling = false;
   let started = false;
@@ -234,6 +251,18 @@ export function createRedisStreamTrackingEventBus(
 
   const poll = async (): Promise<void> => {
     if (polling) return; // لا تداخلُ دورات.
+    if (local.subscriberCount === 0) {
+      // لا مشتركَ محليٌّ = لا مستلمَ لما يُقرأ: لا طلبَ إلى Redis.
+      idle = true;
+      return;
+    }
+    if (idle) {
+      // أوّلُ دورةٍ بعدَ خمول: المؤشّرُ متقادم. معرّفاتُ Streams طوابعُ ميلي ثانية
+      // و`XREAD` يُعيدُ ما بعدَ المؤشّر، فالرجوعُ نافذةً يسيرةً يلتقطُ ما نُشرَ منذُ
+      // الاشتراك (≤ دورةٍ واحدة) — أيًّا كانَ مسارُ الاشتراك.
+      cursor = `${Math.max(0, now() - RESUME_LOOKBACK_MS)}-0`;
+      idle = false;
+    }
     polling = true;
     try {
       const result = await redis.command([

@@ -1,0 +1,20 @@
+import json,collections,sys
+d=json.load(open(sys.argv[1]))
+axe=collections.defaultdict(set); small=collections.Counter(); blocked=[]; hov=[]; ovf=[]; errs=collections.Counter(); csp=[]; foc=[]; dirs=collections.Counter()
+for r in d:
+  for e in r['ev']['pageErrors']+r['ev']['console']+r['ev']['failed']: errs[e[:140]]+=1
+  csp+=r['ev']['csp']
+  if r['focusNoIndicator']: foc.append((r['id'],r['focusNoIndicator'][:2]))
+  for s in r['screens']:
+    if s.get('tabClickBlocked'): blocked.append((r['id'],s['label'],s['tabClickBlocked']['hit'])); continue
+    dirs[(r['id'].split('@')[0],s['dir'],s['lang'])]+=1
+    if s['horizontalOverflow']: hov.append((r['id'],s['label'],s['horizontalOverflow']))
+    if s['overflowingCount']: ovf.append((r['id'],s['label'],s['overflowing'][:2]))
+    for a in s['axe'] or []: axe[(a['id'],a['impact'])].update(a['targets'])
+    for x in s['smallTargets']: small[(x['cls'],x['w'],x['h'],x['text'][:20])]+=1
+print("RUNS",len(d),"SCREENS",sum(len(r['screens']) for r in d))
+print("BLOCKED",len(blocked),blocked[:5]); print("HOV",len(hov),hov[:6]); print("OVF",len(ovf),ovf[:6]); print("FOCUS-NO-INDICATOR",foc[:5]); print("CSP",csp[:5])
+print("DIRS",dict(dirs))
+print("AXE"); [print(' ',k,sorted(v)[:12]) for k,v in axe.items()]
+print("SMALL"); [print(' ',k,v) for k,v in small.most_common(30)]
+print("ERRS"); [print(' ',v,k) for k,v in errs.most_common(15)]

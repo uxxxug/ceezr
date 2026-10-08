@@ -63,6 +63,8 @@ const ENTRIES_LIMIT = 20;
 export interface ActivityScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   readonly readSummary?: (period: ApiActivityPeriod) => Promise<DriverActivitySummaryResponse>;
   readonly readEntries?: (
     period: ApiActivityPeriod,
@@ -122,6 +124,7 @@ function RatioRow({
 export function ActivityScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   readSummary = readDriverActivitySummary,
   readEntries = readDriverActivityEntries,
 }: ActivityScreenProps) {
@@ -181,10 +184,16 @@ export function ActivityScreen({
 
   if (state.kind === "loading") {
     return (
-      <section className="dac" aria-labelledby={`${formId}-title`} aria-busy="true">
-        <h1 id={`${formId}-title`} className="dac__title">
-          {t("driver.activity.title")}
-        </h1>
+      <section
+        className="dac"
+        aria-labelledby={showTitle ? `${formId}-title` : undefined}
+        aria-busy="true"
+      >
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dac__title">
+            {t("driver.activity.title")}
+          </h1>
+        ) : null}
         <PeriodTabs />
         <p className="dac__loading">{t("driver.activity.loading")}</p>
       </section>
@@ -193,10 +202,12 @@ export function ActivityScreen({
 
   if (state.kind === "failed") {
     return (
-      <section className="dac" aria-labelledby={`${formId}-title`}>
-        <h1 id={`${formId}-title`} className="dac__title">
-          {t("driver.activity.title")}
-        </h1>
+      <section className="dac" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="dac__title">
+            {t("driver.activity.title")}
+          </h1>
+        ) : null}
         <PeriodTabs />
         <EmptyState title={t("driver.activity.failed")} body={t(activityErrorKey(state.code))} />
         {isRetryableActivityError(state.code) ? (
@@ -216,10 +227,12 @@ export function ActivityScreen({
   const summary = state.summary;
 
   return (
-    <section className="dac" aria-labelledby={`${formId}-title`}>
-      <h1 id={`${formId}-title`} className="dac__title">
-        {t("driver.activity.title")}
-      </h1>
+    <section className="dac" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+      {showTitle ? (
+        <h1 id={`${formId}-title`} className="dac__title">
+          {t("driver.activity.title")}
+        </h1>
+      ) : null}
       <PeriodTabs />
 
       {/* النافذةُ **بمنطقةِ زمنِها**: حدُّ «اليومِ» يُقالُ ولا يُترَكُ لحسبانِ جهازٍ. */}

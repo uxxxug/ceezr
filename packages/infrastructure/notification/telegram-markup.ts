@@ -15,7 +15,8 @@ import type { Keyboard } from "../../application/bots/types.ts";
  */
 export type InlineMarkupButton =
   | { readonly text: string; readonly callback_data: string }
-  | { readonly text: string; readonly web_app: { readonly url: string } };
+  | { readonly text: string; readonly web_app: { readonly url: string } }
+  | { readonly text: string; readonly url: string };
 
 export interface InlineMarkup {
   readonly inline_keyboard: readonly InlineMarkupButton[][];
@@ -144,9 +145,11 @@ export function toTelegramMarkup(keyboard: Keyboard | null): TelegramMarkup | un
         inline_keyboard: keyboard.rows.map((row) =>
           row.map(
             (button): InlineMarkupButton =>
-              button.webAppUrl === undefined
-                ? { text: button.label, callback_data: button.data }
-                : { text: button.label, web_app: { url: button.webAppUrl } },
+              button.url !== undefined
+                ? { text: button.label, url: button.url }
+                : button.webAppUrl === undefined
+                  ? { text: button.label, callback_data: button.data }
+                  : { text: button.label, web_app: { url: button.webAppUrl } },
           ),
         ),
       };

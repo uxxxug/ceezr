@@ -338,20 +338,36 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     }
   });
 
-  it("الصفحات التشغيلية تُحدِّث نفسها، وصفحات النماذج لا تفعل", async () => {
+  it("الصفحات التشغيلية تُعلِن عُمرَ قراءتها ولا تستقصي — وصفحات النماذج بلا شريط قِدَم (UI-6)", async () => {
     const cookie = await login(ADMIN_TELEGRAM);
 
-    // اللوحة مُصيَّرة على الخادم بلا تحديث، فطلبٌ أُلغي كان يبقى معروضاً على
-    // شاشة المسؤول تحت «طلبات تبحث عن سائق» إلى أن يُحدِّث بنفسه.
-    const live = await (await request("/admin/live-orders", { cookie })).text();
-    expect(live).toContain("location.reload()");
+    // كان طلبٌ أُلغي يبقى معروضاً تحت «طلبات تبحث عن سائق»؛ كان العلاجُ مؤقّتَ
+    // إعادةِ تحميل، والمصدرُ الكانونيُّ §9 يحظرُ الاستقصاء. البديل (ADR 0240): ساعةُ
+    // القراءةِ معلنةٌ، وشريطُ «قراءةٌ قديمة» يظهرُ بعدَ العتبةِ برابطِ تحديثٍ يدويّ.
+    for (const [path, seconds] of [
+      ["/admin/live-orders", 20],
+      ["/admin", 60],
+      ["/admin/recovery", 60],
+    ] as const) {
+      const html = await (await request(path, { cookie })).text();
+      expect(html).not.toContain("location.reload");
+      expect(html).not.toContain("setInterval");
+      expect(html).toContain(`data-freshness="${seconds}"`);
+      expect(html).toContain('data-state="stale"');
+      expect(html).toContain(`.stale-reveal{animation-delay:${seconds}s}`);
+    }
 
-    const overview = await (await request("/admin", { cookie })).text();
-    expect(overview).toContain("location.reload()");
-
-    // الإعدادات تحمل نماذج: تحديثها تحت يد من يكتب فيها يمحو ما كتب
+    // الإعدادات تحمل نماذج: لا شريطَ قِدَمٍ يُشتّت من يكتب، ولا تحديثَ تحت يده.
     const settings = await (await request("/admin/settings", { cookie })).text();
-    expect(settings).not.toContain("location.reload()");
+    expect(settings).not.toContain("location.reload");
+    expect(settings).not.toContain("data-freshness");
+  });
+
+  it("كلُّ نموذجِ كتابةٍ في صفحةِ الاسترداد يحملُ رمزَ CSRF — كان غائباً فيُرفَضُ كلُّ قرار (UI-6)", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const html = await (await request("/admin/recovery", { cookie })).text();
+    const forms = html.match(/<form[^>]*method="post"[\s\S]*?<\/form>/g) ?? [];
+    for (const form of forms) expect(form).toContain('name="csrf"');
   });
 
   // -------------------------------------------------------------------------

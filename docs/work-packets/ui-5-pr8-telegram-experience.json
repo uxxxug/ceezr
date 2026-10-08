@@ -1,0 +1,31 @@
+{
+  "id": "ui-5-pr8-telegram-experience",
+  "goal": "UI-5 / PR 8: تجربةُ تيليجرام وفقَ المصدرِ الكانونيّ — شرطُ القبولِ «ميزانيةُ رسائلٍ + fuzz تهريب»: اختباراتُ fuzz على نصوصِ الرسائلِ كما تُبنى فعلاً، وحارسُ parse_mode، وحدودُ callback_data، وصدقُ اللغاتِ، وسلوكُ أزرارِ التفاوضِ المتكررةِ والبالية.",
+  "canonical_source": [
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §11 PR 8",
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §9 المحظورات",
+    "docs/adr/0152-telegram-messages-per-ride-are-counted-not-estimated.md",
+    "docs/SYSTEM_STATE.md",
+    "ROADMAP.md"
+  ],
+  "implementation": ["tests/unit/telegram-fuzz-escaping.test.ts"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0239-ui-5-pr8-telegram-fuzz-and-message-budget.md"],
+  "decision": "لا إعادةَ تصميم: الحواراتُ والبطاقاتُ والقواميسُ كما هي ولا تغييرَ في عددِ الرسائل. المُرسِلُ نصٌّ خامٌّ بلا parse_mode — يُحرسُ ساكنًا. fuzz على مُخرَجِ الحواراتِ (BotReply) بسلاسلٍ عدوائيةٍ في ar/en/ur، وحدُّ 64 بايتاً لكلِّ callback_data بمعرّفاتٍ كاملة، وسلوكُ أزرارِ unsub:* أمامَ المتكررِ والباليِ وغيرِ الصالح. ADR 0239.",
+  "tests": [
+    "tests/unit/telegram-fuzz-escaping.test.ts (جديد · 28 اختباراً · 280 توكيداً)",
+    "bun test كاملًا: 6988 ناجحاً · 0 فاشلاً · 1626 متجاوَزاً (تكاملٌ يحتاج قاعدة)",
+    "lint · typecheck نظيفان"
+  ],
+  "evidence": "lint · typecheck · bun test · check-state-sync · check-roadmap · check-telegram-message-budget · check-i18n — محليًّا، ثم CI على الـPR.",
+  "constraints": [
+    "لا تغيير في نصوص الرسائل ولا عددها — الميزانية محروسة ببواباتها ولم تُمس",
+    "لا backend ولا API ولا عقد ولا تبعية ولا كود تشغيلي",
+    "لا مساس بحزمة أول سطح الراكب (اختبار وحيد في tests/unit لا يدخل الحزمة)",
+    "لا تخفيف أمني ولا CSP ولا callback validation"
+  ],
+  "limitations": "لا قياس على السِلك هنا: ميزانيةُ الرسائلِ تُقاسُ على قاعدةٍ حقيقيةٍ في tests/integration/telegram-message-budget.test.ts (لم تتغير شروطها). ولا نقرَ حيًّا على عميلِ تيليجرام — المُثبَتُ بنيةُ النصِّ الخامِ الذي يُسلَّمُ للمُرسِل.",
+  "message_budget": "لم يتغير عددُ رسائلِ تيليجرام: لا ملفَّ تشغيليًّا تغيّر في هذا الـPR. الحاجزُ القائمُ (check-telegram-message-budget · ADR 0152) واختبارُ التكاملِ على القاعدةِ الحقيقيةِ كما هما.",
+  "status": "مدموج في main: #422 (PR HEAD 6067936e26c7565804113dbd37e98b5c239ebf2b) → merge commit fa80d25b930635b1e7f76ef09fb243fa8bda2f75. Main CI 37482288537 success · Roadmap freshness 37482288428 success. UI-5 = Closed (Work Packet ui-5-closure). UI-6 لم تبدأ."
+}

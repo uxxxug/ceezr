@@ -33,6 +33,7 @@
  *      القاعدةِ (القاعدة 0.4)، ومن أرسلَها في الجسمِ أرسلَ ما يُهمَلُ.
  */
 
+import type { PlaceMeta } from "../../domain/places/place-input.ts";
 import type { RideStatus } from "../../domain/transport/ride-request.ts";
 import type { Result } from "../../shared/result/index.ts";
 
@@ -71,7 +72,9 @@ export type RideRequestRefusal =
   | "IDEMPOTENCY_KEY_TOO_LONG"
   /** حدُّ ملاحظةِ السائقِ — يُفحَصُ في النطاقِ **وفي القاعدةِ** (القاعدة 0.6). */
   | "NOTES_TOO_LONG"
-  | "ACTIVE_RIDE_EXISTS";
+  | "ACTIVE_RIDE_EXISTS"
+  /** `LOC-TRUST-01` — مكانٌ لم يقبلْه حكمُ القاعدةِ (مصدرٌ مجهولٌ أو حدٌّ متجاوَز). */
+  | "PLACE_INVALID";
 
 export interface RidePoint {
   readonly lat: number;
@@ -116,6 +119,12 @@ export interface RideRequestCommand {
     readonly pickupAt?: Date | null;
     /** `ORDER-OFFER-01` — ما يعرضُه الراكبُ بالريال. null ⇒ قابلٌ للتفاوض. */
     readonly offerSar?: number | null;
+    /**
+     * `LOC-TRUST-01` — مصدرُ النقطةِ ودقّتُها ووقتُها والرابطُ الأصليُّ وملاحظاتُ المكان.
+     * غيابُهما (البوتُ وعميلٌ قديم) يُبقي النداءَ القديمَ حرفاً.
+     */
+    readonly pickupPlace?: PlaceMeta | null;
+    readonly dropoffPlace?: PlaceMeta | null;
   }): Promise<Result<RideRequestVerdict, RideStoreFailure>>;
 }
 

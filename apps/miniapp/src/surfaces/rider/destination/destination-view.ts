@@ -40,6 +40,14 @@ import {
   readSearchQuery,
   wordStartMatch,
 } from "../../../../../../packages/domain/destinations/search-text.ts";
+import {
+  type DeviceFixAssessment,
+  type DeviceFixReason,
+  type ParsedPlaceLink,
+  type PlacePointSource,
+  parseCoordinateText,
+  parsePlaceLink,
+} from "../../../../../../packages/domain/places/place-input.ts";
 import type {
   ApiAcceptedDestination,
   ApiDestinationSuggestion,
@@ -136,6 +144,8 @@ export const SEARCH_HINT_MIN_LENGTH = MIN_SEARCH_QUERY_LENGTH;
 export interface AcceptedSummary {
   readonly lat: number;
   readonly lng: number;
+  /** `LOC-TRUST-01` — رابطُ النقطةِ نفسِها (من الخادم)؛ `null` من بوّابةٍ أقدم. */
+  readonly mapUrl: string | null;
   readonly cityNameAr: string;
   readonly cityNameEn: string;
   /**
@@ -156,6 +166,7 @@ export function acceptedSummary(destination: ApiAcceptedDestination): AcceptedSu
   return {
     lat: destination.lat,
     lng: destination.lng,
+    mapUrl: typeof destination.mapUrl === "string" ? destination.mapUrl : null,
     cityNameAr: destination.city.nameAr,
     cityNameEn: destination.city.nameEn,
     nearest:
@@ -239,4 +250,119 @@ export function locationRefusalKey(reason: string): string {
 /** وهل يُعرَضُ زرُّ «افتَحِ الإعداداتِ»؟ لا يُعرَضُ لِما لا إعداداتِ له. */
 export function offersLocationSettings(reason: string): boolean {
   return reason === "declined";
+}
+
+// ─── `LOC-TRUST-01` — المكانُ المؤكَّدُ وعرضُه ───────────────────────────────
+
+/**
+ * ما يخرجُ من شاشةِ الالتقاطِ/الوجهةِ مع النقطة: الاسمُ **كما كتبَه الراكبُ أو اختارَه**
+ * (لا أقربُ معلَم)، ومصدرُ النقطةِ ودقّتُها ووقتُها، والرابطُ الأصليُّ حرفاً، والملاحظات.
+ */
+export interface ConfirmedPlace {
+  readonly label: string | null;
+  readonly source: PlacePointSource;
+  readonly accuracyM: number | null;
+  readonly capturedAt: string | null;
+  readonly link: string | null;
+  readonly notes: string | null;
+}
+
+/** حمولةُ السلكِ لـ`pickupPlace`/`dropoffPlace` — الاسمُ يذهبُ في حقلِه المسطّحِ القديم. */
+export interface PlaceWire {
+  readonly source: PlacePointSource;
+  readonly accuracyM: number | null;
+  readonly capturedAt: string | null;
+  readonly link: string | null;
+  readonly notes: string | null;
+}
+
+export function placeWire(place: ConfirmedPlace): PlaceWire {
+  return {
+    source: place.source,
+    accuracyM: place.accuracyM,
+    capturedAt: place.capturedAt,
+    link: place.link,
+    notes: place.notes,
+  };
+}
+
+/** النقطةُ كما سيعتمدُ عليها السائق: خمسُ منازلَ (≈ متر) لا أكثرَ ولا أقل. */
+export function formatPoint(lat: number, lng: number): string {
+  return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+}
+
+/**
+ * «مسجد مسجد بلال»: صنفُ المعلَمِ يُكرَّرُ حينَ يبدأُ الاسمُ به. فيُسقَطُ الصنفُ ويبقى الاسم.
+ */
+export function landmarkPhrase(kindLabel: string, name: string): string {
+  const kind = kindLabel.trim();
+  return kind === "" || name.trim().startsWith(kind) ? name : `${kind} ${name}`;
+}
+
+const SOURCE_KEYS: Readonly<Record<PlacePointSource, string>> = {
+  DEVICE: "rider.place.source.DEVICE",
+  MAP_PIN: "rider.place.source.MAP_PIN",
+  SHARED_LINK: "rider.place.source.SHARED_LINK",
+  SUGGESTION: "rider.place.source.SUGGESTION",
+  SAVED: "rider.place.source.SAVED",
+};
+
+export function pointSourceKey(source: PlacePointSource): string {
+  return SOURCE_KEYS[source];
+}
+
+const LINK_REFUSAL_KEYS: Readonly<Record<string, string>> = {
+  NOT_A_LINK: "rider.place.link.notALink",
+  UNSUPPORTED_HOST: "rider.place.link.unsupported",
+  TOO_LONG: "rider.place.link.tooLong",
+};
+
+export function linkRefusalKey(refusal: string): string {
+  return LINK_REFUSAL_KEYS[refusal] ?? "rider.place.link.notALink";
+}
+
+/** ما يُقرأُ من نصٍّ ملصوق: إحداثيّاتٌ (`MAP_PIN`) أو رابطٌ (بنقطةٍ أو بلا نقطة) أو رفض. */
+export type PastedPlace =
+  | { readonly kind: "coordinates"; readonly lat: number; readonly lng: number }
+  | { readonly kind: "link"; readonly link: ParsedPlaceLink }
+  | { readonly kind: "refused"; readonly messageKey: string };
+
+export function readPastedPlace(text: string): PastedPlace {
+  const coordinates = parseCoordinateText(text);
+  if (coordinates !== null) return { kind: "coordinates", ...coordinates };
+  const parsed = parsePlaceLink(text);
+  if ("refusal" in parsed) return { kind: "refused", messageKey: linkRefusalKey(parsed.refusal) };
+  return { kind: "link", link: parsed };
+}
+
+/** متى يُسمَحُ بالاعتماد؟ — الشروطُ كلُّها في مكانٍ واحدٍ يُختبَر. */
+export function confirmBlocker(input: {
+  readonly source: PlacePointSource;
+  readonly assessment: DeviceFixAssessment | null;
+  readonly acknowledged: boolean;
+  readonly linkConflict: boolean;
+  readonly notesTooLong: boolean;
+}): string | null {
+  if (input.linkConflict) return "rider.place.link.conflict";
+  if (input.notesTooLong) return "rider.place.notes.tooLong";
+  if (input.source === "DEVICE" && input.assessment !== null) {
+    if (input.assessment.verdict === "UNRELIABLE") return "rider.place.fix.unreliable";
+    if (input.assessment.verdict === "COARSE" && !input.acknowledged) {
+      return "rider.place.fix.ackRequired";
+    }
+  }
+  return null;
+}
+
+const FIX_REASON_KEYS: Readonly<Record<DeviceFixReason, string>> = {
+  ACCURACY_UNKNOWN: "rider.place.fix.reason.ACCURACY_UNKNOWN",
+  ACCURACY_COARSE: "rider.place.fix.reason.ACCURACY_COARSE",
+  ACCURACY_UNRELIABLE: "rider.place.fix.reason.ACCURACY_UNRELIABLE",
+  FRESHNESS_UNKNOWN: "rider.place.fix.reason.FRESHNESS_UNKNOWN",
+  STALE: "rider.place.fix.reason.STALE",
+  TOO_OLD: "rider.place.fix.reason.TOO_OLD",
+};
+
+export function fixReasonKey(reason: DeviceFixReason): string {
+  return FIX_REASON_KEYS[reason];
 }

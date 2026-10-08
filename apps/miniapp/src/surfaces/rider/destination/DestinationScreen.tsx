@@ -20,11 +20,25 @@
  *      يُرسَلُ نصُّه إلى مزوّدٍ خارجيٍّ (`O-7`).
  *   ٣. **لا موقعَ مُختلَقٌ عندَ الرفضِ**: إن رفضَ المستخدمُ الإذنَ أو غابَت
  *      الميزةُ يُقالُ السببُ، ولا يُستعاضُ عنه بمركزِ المدينةِ.
- *   ٤. **لم تُفتَح من مستخدمٍ حقيقيٍّ بعد**: لا نشرَ حيَّ لهذه الحزمةِ، فما ههنا
+ *   ٤. **`LOC-TRUST-01` — الإحداثيّةُ هيَ الحقيقةُ والاسمُ وصف** (ADR 0247): «موقعي
+ *      الحاليُّ» يقرأُ المتصفّحَ أوّلاً بلا تخبئةٍ ثمَّ Telegram (`device-fix.ts`)،
+ *      ويحفظُ الدقّةَ ووقتَ الالتقاط، ويعرضُ النقطةَ نفسَها وزرَّ «تحقّق على الخريطة»،
+ *      ولا يُعتمَدُ مكانٌ إلّا بتأكيدٍ صريح — وقراءةٌ خشنةٌ بإقرارٍ، والرديئةُ لا تُعتمَد.
+ *      وأقربُ معلَمٍ سطرُ وصفٍ لا يصيرُ اسمَ المكانِ أبداً. ويقبلُ رابطَ موقعٍ أو
+ *      إحداثيّاتٍ ملصوقةً (الرابطُ يُحفَظُ حرفاً)، واسماً وملاحظاتٍ للمكان.
+ *   ٥. **لم تُفتَح من مستخدمٍ حقيقيٍّ بعد**: لا نشرَ حيَّ لهذه الحزمةِ، فما ههنا
  *      مُختبَرٌ لا مُثبَتٌ عندَ مستخدمٍ (سُلَّمُ القسم 1.3).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  assessDeviceFix,
+  type DeviceFixAssessment,
+  linkConflictsWithPoint,
+  type ParsedPlaceLink,
+  PLACE_NOTES_MAX_LENGTH,
+  type PlacePointSource,
+} from "../../../../../../packages/domain/places/place-input.ts";
 import {
   directionFor,
   MINIAPP_DEFAULT_LANGUAGE,
@@ -40,20 +54,26 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
-import { initLocation, openLocationSettings, requestLocation } from "../../../tg/index.ts";
+import { openExternalLink, openLocationSettings } from "../../../tg/index.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
-
 import {
   type AcceptedSummary,
   acceptedSummary,
+  type ConfirmedPlace,
+  confirmBlocker,
   destinationErrorKey,
+  fixReasonKey,
+  formatPoint,
   highlightRange,
   isRetryableDestinationError,
   isSearchable,
   labelFor,
+  landmarkPhrase,
   locationRefusalKey,
   offersLocationSettings,
+  pointSourceKey,
   type RefusalView,
+  readPastedPlace,
   refusalView,
   type SuggestionRow,
   suggestionRows,
@@ -64,12 +84,16 @@ import {
   resolveDestination as resolveViaApi,
   searchDestinations as searchViaApi,
 } from "./destinations-api.ts";
+import { type DeviceFixResult, readFreshDeviceFix } from "./device-fix.ts";
 
 export interface ConfirmedDestination {
+  /** نصُّ العرضِ — اسمُ الراكبِ إن وُجِدَ وإلّا وصفٌ محليٌّ للنقطة (لا اسمُ معلَم). */
   readonly label: string;
   readonly lat: number;
   readonly lng: number;
   readonly cityCode: string | null;
+  /** `LOC-TRUST-01` — ما أدخلَه الراكبُ عن المكان. غائبٌ في مستهلكٍ أقدم. */
+  readonly place?: ConfirmedPlace;
 }
 
 export interface DestinationScreenProps {
@@ -77,16 +101,18 @@ export interface DestinationScreenProps {
   readonly search?: (query: string) => Promise<DestinationSearchResponse>;
   readonly resolve?: (lat: number, lng: number) => Promise<DestinationResolveResponse>;
   /** ويُحقَنُ جسرُ الموقعِ كي لا يُحتاجَ مُضيفُ تيليجرام في اختبارٍ. */
-  readonly readDeviceLocation?: () => Promise<
-    | { readonly ok: true; readonly lat: number; readonly lng: number }
-    | { readonly ok: false; readonly reason: string }
-  >;
+  readonly readDeviceLocation?: () => Promise<DeviceFixResult>;
   readonly openSettings?: () => void;
+  /** فتحُ «تحقّق على الخريطة» — يُحقَنُ في الاختبار. */
+  readonly openLink?: (url: string) => unknown;
+  /** ساعةُ الحكمِ على حداثةِ القراءة — تُحقَنُ في الاختبار. */
+  readonly now?: () => number;
   readonly onConfirmed?: (destination: ConfirmedDestination) => void;
   readonly onBack?: () => void;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ: يُرسَمُ إذا مُرِّرَ. */
   readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
+  readonly showTitle?: boolean;
   /** ما كتبَه الراكبُ في شاشةِ `SR-02` — يُبتدأُ به البحثُ بلا إعادةِ كتابةٍ. */
   readonly initialQuery?: string;
   /**
@@ -119,14 +145,31 @@ type PickState =
   | { readonly kind: "resolving" }
   | {
       readonly kind: "accepted";
-      readonly label: string;
+      /** اسمُ الاقتراحِ/المكانِ المحفوظِ إن اختيرَ بالاسم؛ `null` لنقطةٍ بلا اسم. */
+      readonly presetLabel: string | null;
       readonly summary: AcceptedSummary;
       readonly cityCode: string | null;
+      readonly origin: PointOrigin;
+      /** حكمُ قراءةِ الجهازِ وحدَها؛ `null` لغيرِها. */
+      readonly assessment: DeviceFixAssessment | null;
     }
   | { readonly kind: "refused"; readonly view: RefusalView }
   | { readonly kind: "location_refused"; readonly reason: string };
 
 type SystemState = { readonly screen: ScreenState } | null;
+
+/** مِن أينَ جاءَت النقطة — يُحفَظُ معَها ولا يُستنتَجُ من الاسم. */
+interface PointOrigin {
+  readonly source: PlacePointSource;
+  readonly accuracyM: number | null;
+  readonly capturedAtMs: number | null;
+}
+
+const SUGGESTION_ORIGIN: PointOrigin = {
+  source: "SUGGESTION",
+  accuracyM: null,
+  capturedAtMs: null,
+};
 
 function codeOf(thrown: unknown): string | null {
   if (thrown !== null && typeof thrown === "object" && "code" in thrown) {
@@ -144,21 +187,8 @@ async function screenFor(thrown: unknown): Promise<ScreenState | null> {
   return classifyFailure(failure, probe, online);
 }
 
-/**
- * جسرُ الموقعِ الافتراضيُّ: تهيئةٌ ثمَّ قراءةٌ واحدةٌ. والسببُ يُنقَلُ كما أعادَه
- * الغلافُ ولا يُوحَّدُ: «رفَضَ» و«لا يدعمُه المُضيفُ» جوابانِ مختلفانِ لِمَن
- * يقرأُ الشاشةَ.
- */
-async function defaultDeviceLocation(): Promise<
-  | { readonly ok: true; readonly lat: number; readonly lng: number }
-  | { readonly ok: false; readonly reason: string }
-> {
-  const inited = await initLocation();
-  if (!inited.ok) return { ok: false, reason: inited.reason };
-  const read = await requestLocation();
-  if (!read.ok) return { ok: false, reason: read.reason };
-  return { ok: true, lat: read.value.latitude, lng: read.value.longitude };
-}
+/** ساعةٌ ثابتةُ المرجع: دالّةٌ تُولَدُ في كلِّ رسمٍ تُعيدُ بناءَ `resolvePoint` في كلِّ رسم. */
+const systemNowMs = () => Date.now();
 
 /** مهلةُ تهدئةِ الكتابةِ. والثلاثُ مئةِ مِلّيٍ قيمةُ تجربةٍ لا حدُّ حمايةٍ. */
 const SEARCH_DEBOUNCE_MS = 300;
@@ -166,12 +196,15 @@ const SEARCH_DEBOUNCE_MS = 300;
 export function DestinationScreen({
   search = searchViaApi,
   resolve = resolveViaApi,
-  readDeviceLocation = defaultDeviceLocation,
+  readDeviceLocation = readFreshDeviceFix,
   openSettings = () => void openLocationSettings(),
+  openLink = openExternalLink,
+  now = systemNowMs,
   onConfirmed,
   onBack,
   onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
+  showTitle = true,
   initialQuery = "",
   initialPoint,
   mapProvider = "none",
@@ -182,6 +215,16 @@ export function DestinationScreen({
   const [searchState, setSearchState] = useState<SearchState>({ kind: "idle" });
   const [pick, setPick] = useState<PickState>({ kind: "none" });
   const [system, setSystem] = useState<SystemState>(null);
+  /** `LOC-TRUST-01` — اسمُ المكانِ كما يكتبُه الراكب، وملاحظاتُه، والنصُّ الملصوق. */
+  const [labelText, setLabelText] = useState("");
+  /** الاسمُ ملأَه اختيارُ اقتراحٍ لا يدُ الراكب — فيُفرَّغُ إن تغيّرَت النقطةُ إلى غيرِه. */
+  const labelFromPreset = useRef(false);
+  const [notesText, setNotesText] = useState("");
+  const [pasteText, setPasteText] = useState("");
+  const [pasteError, setPasteError] = useState<string | null>(null);
+  /** الرابطُ الأصليُّ كما لصقَه الراكب — يبقى معَ أيِّ نقطةٍ تُختارُ بعدَه. */
+  const [link, setLink] = useState<ParsedPlaceLink | null>(null);
+  const [acknowledged, setAcknowledged] = useState(false);
   const mounted = useRef(true);
   /** ترتيبُ النداءاتِ: ردٌّ متأخِّرٌ لاستفهامٍ قديمٍ **يُطرَحُ** ولا يُعرَضُ. */
   const issued = useRef(0);
@@ -233,17 +276,38 @@ export function DestinationScreen({
   }, [typed, runSearch]);
 
   const resolvePoint = useCallback(
-    async (label: string, lat: number, lng: number) => {
+    async (presetLabel: string | null, lat: number, lng: number, origin: PointOrigin) => {
       setPick({ kind: "resolving" });
+      setAcknowledged(false);
+      // الاسمُ لا يُستنتَجُ من النقطة: اقتراحٌ يملأُ الاسمَ باسمِه، ونقطةٌ بلا اسمٍ تُفرِّغُ
+      // اسماً ملأَه اقتراحٌ سابق — فلا يبقى «قباء» على قراءةِ جهازٍ في مكانٍ آخر.
+      if (presetLabel !== null) {
+        setLabelText((current) =>
+          current.trim() === "" || labelFromPreset.current ? presetLabel : current,
+        );
+        labelFromPreset.current = true;
+      } else if (labelFromPreset.current) {
+        setLabelText("");
+        labelFromPreset.current = false;
+      }
       try {
         const response = await resolve(lat, lng);
         if (!mounted.current) return;
         if (response.accepted) {
           setPick({
             kind: "accepted",
-            label,
+            presetLabel,
             summary: acceptedSummary(response.destination),
             cityCode: response.destination.city.code,
+            origin,
+            assessment:
+              origin.source === "DEVICE"
+                ? assessDeviceFix({
+                    accuracyM: origin.accuracyM,
+                    capturedAtMs: origin.capturedAtMs,
+                    nowMs: now(),
+                  })
+                : null,
           });
           return;
         }
@@ -259,7 +323,7 @@ export function DestinationScreen({
         setPick({ kind: "none" });
       }
     },
-    [resolve],
+    [resolve, now],
   );
 
   // مصادقةٌ واحدةٌ عندَ التركيبِ للوجهةِ القادمةِ بإحداثيّةٍ. و`initialPoint`
@@ -271,7 +335,12 @@ export function DestinationScreen({
   }, [resolvePoint]);
   useEffect(() => {
     if (initialPoint === undefined) return;
-    void resolveRef.current(initialPoint.label, initialPoint.lat, initialPoint.lng);
+    // مكانٌ محفوظٌ أو وجهةٌ سابقةٌ للراكبِ نفسِه — `SAVED`.
+    void resolveRef.current(initialPoint.label, initialPoint.lat, initialPoint.lng, {
+      source: "SAVED",
+      accuracyM: null,
+      capturedAtMs: null,
+    });
   }, [initialPoint]);
 
   const pickMyLocation = useCallback(async () => {
@@ -283,8 +352,38 @@ export function DestinationScreen({
       setPick({ kind: "location_refused", reason: read.reason });
       return;
     }
-    await resolvePoint(t("rider.destination.location.label"), read.lat, read.lng);
-  }, [readDeviceLocation, resolvePoint, t]);
+    await resolvePoint(null, read.lat, read.lng, {
+      source: "DEVICE",
+      accuracyM: read.accuracyM ?? null,
+      capturedAtMs: read.capturedAtMs ?? null,
+    });
+  }, [readDeviceLocation, resolvePoint]);
+
+  /** رابطٌ أو إحداثيّاتٌ ملصوقة: الرابطُ يُحفَظُ حرفاً، ونقطتُه (إن وُجِدَت) تُصادَق. */
+  const applyPasted = useCallback(async () => {
+    const pasted = readPastedPlace(pasteText);
+    if (pasted.kind === "refused") {
+      setPasteError(pasted.messageKey);
+      return;
+    }
+    setPasteError(null);
+    if (pasted.kind === "coordinates") {
+      await resolvePoint(null, pasted.lat, pasted.lng, {
+        source: "MAP_PIN",
+        accuracyM: null,
+        capturedAtMs: null,
+      });
+      return;
+    }
+    setLink(pasted.link);
+    if (pasted.link.point !== null) {
+      await resolvePoint(null, pasted.link.point.lat, pasted.link.point.lng, {
+        source: "SHARED_LINK",
+        accuracyM: null,
+        capturedAtMs: null,
+      });
+    }
+  }, [pasteText, resolvePoint]);
 
   if (system !== null) {
     // نصُّ شاشةِ النظامِ عربيٌّ اليومَ (دَينٌ مُعلَنٌ في `ROADMAP.md`)، فيُثبَّتُ
@@ -292,6 +391,7 @@ export function DestinationScreen({
     return (
       <div dir="rtl">
         <SystemScreen
+          language={language}
           state={system.screen}
           onAction={() => {
             setSystem(null);
@@ -302,11 +402,12 @@ export function DestinationScreen({
     );
   }
 
-  const title = (
+  const title = showTitle ? (
     <h1 id="rd-title" className="rd__title">
       {t(purpose === "pickup" ? "rider.pickup.title" : "rider.destination.title")}
     </h1>
-  );
+  ) : null;
+  const sectionName = showTitle ? { "aria-labelledby": "rd-title" as const } : {};
 
   const highlighted = (row: SuggestionRow, query: string) => {
     const text = labelFor(row, language);
@@ -355,7 +456,9 @@ export function DestinationScreen({
             <button
               type="button"
               className="rd__pick"
-              onClick={() => void resolvePoint(labelFor(row, language), row.lat, row.lng)}
+              onClick={() =>
+                void resolvePoint(labelFor(row, language), row.lat, row.lng, SUGGESTION_ORIGIN)
+              }
             >
               <span className="rd__row-label">{highlighted(row, searchState.query)}</span>
               <span className="rd__row-meta">
@@ -410,20 +513,98 @@ export function DestinationScreen({
       );
     }
 
-    const { summary } = pick;
+    const { summary, origin, assessment } = pick;
+    const userLabel = labelText.trim() === "" ? null : labelText.trim();
+    const notesValue = notesText.trim() === "" ? null : notesText.trim();
+    const conflict = link !== null && linkConflictsWithPoint(link.point, summary);
+    const blocker = confirmBlocker({
+      source: origin.source,
+      assessment,
+      acknowledged,
+      linkConflict: conflict,
+      notesTooLong: notesText.trim().length > PLACE_NOTES_MAX_LENGTH,
+    });
+    const ageSeconds =
+      origin.capturedAtMs === null
+        ? null
+        : Math.max(0, Math.round((now() - origin.capturedAtMs) / 1000));
+    const nearest = summary.nearest;
     return (
       <div className="rd__verdict rd__verdict--ok" role="status">
-        <p className="rd__chosen">{pick.label}</p>
-        {/* `UI-POLISH-02`: المعلَمُ نفسُه (أقلُّ من 50 م) لا يُوصَفُ بأنَّه «قربَ نفسِه — نحوَ 0 متر». */}
-        {summary.nearest === null || summary.nearest.distanceM < 50 ? null : (
+        <p className="rd__chosen">{userLabel ?? t("rider.place.unnamedPoint")}</p>
+        {/* النقطةُ نفسُها — ما سيعتمدُ عليه السائقُ — قبلَ أيِّ وصف. */}
+        <p className="sys__body">
+          {t("rider.place.point").replace("{point}", formatPoint(summary.lat, summary.lng))}
+        </p>
+        <p className="sys__hint">{t(pointSourceKey(origin.source))}</p>
+        {origin.source === "DEVICE" ? (
+          <p className="sys__hint">
+            {origin.accuracyM === null
+              ? t("rider.place.fix.accuracyUnknown")
+              : t("rider.place.fix.accuracy").replace(
+                  "{meters}",
+                  String(Math.round(origin.accuracyM)),
+                )}
+            {" · "}
+            {ageSeconds === null
+              ? t("rider.place.fix.freshnessUnknown")
+              : t("rider.place.fix.age").replace("{seconds}", String(ageSeconds))}
+          </p>
+        ) : null}
+        {origin.source === "SUGGESTION" ? (
+          <p className="sys__hint">{t("rider.place.suggestion.approximate")}</p>
+        ) : null}
+        {assessment !== null && assessment.verdict !== "GOOD" ? (
+          <div className="sys" role="alert">
+            <p className="sys__body">
+              {t(
+                assessment.verdict === "UNRELIABLE"
+                  ? "rider.place.fix.unreliable"
+                  : "rider.place.fix.coarse",
+              )}
+            </p>
+            {assessment.reasons.map((reason) => (
+              <p key={reason} className="sys__hint">
+                {t(fixReasonKey(reason))}
+              </p>
+            ))}
+            {assessment.verdict === "UNRELIABLE" ? (
+              <button type="button" className="sys__action" onClick={() => void pickMyLocation()}>
+                {t("rider.place.fix.retry")}
+              </button>
+            ) : (
+              <label className="rd__field">
+                <input
+                  type="checkbox"
+                  checked={acknowledged}
+                  onChange={(event) => setAcknowledged(event.target.checked)}
+                />
+                <span className="sys__hint">{t("rider.place.fix.ack")}</span>
+              </label>
+            )}
+          </div>
+        ) : null}
+        {summary.mapUrl === null ? null : (
+          <button
+            type="button"
+            className="sys__action"
+            onClick={() => openLink(summary.mapUrl ?? "")}
+          >
+            {t("rider.place.verifyOnMap")}
+          </button>
+        )}
+        {/* `UI-POLISH-02` · `LOC-TRUST-01`: أقربُ معلَمٍ **وصفٌ** للنقطة لا اسمُها، ولا يُقالُ عن نفسِه. */}
+        {nearest === null || nearest.distanceM < 50 ? null : (
           <p className="sys__hint">
             {t("rider.destination.nearest")
-              .replace("{kind}", t(summary.nearest.kindKey))
               .replace(
                 "{name}",
-                language === "ar" ? summary.nearest.nameAr : summary.nearest.nameEn,
+                landmarkPhrase(
+                  t(nearest.kindKey),
+                  language === "ar" ? nearest.nameAr : nearest.nameEn,
+                ),
               )
-              .replace("{meters}", String(summary.nearest.distanceM))}
+              .replace("{meters}", String(nearest.distanceM))}
           </p>
         )}
         <p className="sys__hint">
@@ -432,17 +613,46 @@ export function DestinationScreen({
             language === "ar" ? summary.cityNameAr : summary.cityNameEn,
           )}
         </p>
+        {link === null ? null : (
+          <p className="sys__hint">
+            {t(link.point === null ? "rider.place.link.keptNoPoint" : "rider.place.link.kept")}
+          </p>
+        )}
+        {conflict ? (
+          <div className="sys" role="alert">
+            <p className="sys__body">{t("rider.place.link.conflict")}</p>
+            <button type="button" className="sys__action" onClick={() => setLink(null)}>
+              {t("rider.place.link.remove")}
+            </button>
+          </div>
+        ) : null}
+        {blocker === null || blocker === "rider.place.link.conflict" ? null : (
+          <p className="qt__notes-error" role="alert">
+            {t(blocker)}
+          </p>
+        )}
         <button
           type="button"
           className="sys__action"
-          onClick={() =>
+          disabled={blocker !== null}
+          onClick={() => {
+            if (blocker !== null) return;
             onConfirmed?.({
-              label: pick.label,
+              label: userLabel ?? t("rider.place.unnamedPoint"),
               lat: summary.lat,
               lng: summary.lng,
               cityCode: pick.cityCode,
-            })
-          }
+              place: {
+                label: userLabel,
+                source: origin.source,
+                accuracyM: origin.accuracyM,
+                capturedAt:
+                  origin.capturedAtMs === null ? null : new Date(origin.capturedAtMs).toISOString(),
+                link: link === null ? null : link.raw,
+                notes: notesValue,
+              },
+            });
+          }}
         >
           {t(purpose === "pickup" ? "rider.pickup.confirm" : "rider.destination.confirm")}
         </button>
@@ -450,8 +660,77 @@ export function DestinationScreen({
     );
   };
 
+  /** الاسمُ والملاحظاتُ والرابطُ — لكلٍّ من الالتقاطِ والوجهة (`ADR 0247`). */
+  const placeFields = (
+    <div className="rd__place">
+      <label className="rd__field" htmlFor="rd-paste">
+        <span className="sys__hint">{t("rider.place.paste.prompt")}</span>
+        <input
+          id="rd-paste"
+          className="rd__input"
+          type="text"
+          inputMode="url"
+          value={pasteText}
+          onChange={(event) => {
+            setPasteText(event.target.value);
+            setPasteError(null);
+          }}
+        />
+      </label>
+      <button
+        type="button"
+        className="rd__locate"
+        disabled={pasteText.trim() === ""}
+        onClick={() => void applyPasted()}
+      >
+        {t("rider.place.paste.apply")}
+      </button>
+      {pasteError === null ? null : (
+        <p className="qt__notes-error" role="alert">
+          {t(pasteError)}
+        </p>
+      )}
+      {link !== null && link.point === null && pick.kind !== "accepted" ? (
+        <p className="sys__hint" role="status">
+          {t("rider.place.link.keptNoPoint")}
+        </p>
+      ) : null}
+      <label className="rd__field" htmlFor="rd-label">
+        <span className="sys__hint">{t("rider.place.label.prompt")}</span>
+        <input
+          id="rd-label"
+          className="rd__input"
+          type="text"
+          maxLength={120}
+          value={labelText}
+          onChange={(event) => {
+            labelFromPreset.current = false;
+            setLabelText(event.target.value);
+          }}
+        />
+      </label>
+      {pick.kind === "accepted" || labelText.trim() === "" ? null : (
+        <p className="sys__hint">{t("rider.place.pointRequired")}</p>
+      )}
+      <label className="rd__field" htmlFor="rd-notes">
+        <span className="sys__hint">{t("rider.place.notes.prompt")}</span>
+        <textarea
+          id="rd-notes"
+          className="qt__notes"
+          value={notesText}
+          onChange={(event) => setNotesText(event.target.value)}
+        />
+      </label>
+      <p className="qt__notes-hint">
+        {t("rider.place.notes.limit")
+          .replace("{used}", String(notesText.trim().length))
+          .replace("{max}", String(PLACE_NOTES_MAX_LENGTH))}
+      </p>
+    </div>
+  );
+
   return (
-    <section className="rd" dir={directionFor(language)} aria-labelledby="rd-title">
+    <section className="rd" dir={directionFor(language)} {...sectionName}>
       {title}
 
       {/* الحدُّ الأوّلُ مكتوبٌ حيثُ يُتوقَّعُ الرسمُ — لا فراغٌ ولا رسمٌ كاذبٌ. */}
@@ -478,6 +757,8 @@ export function DestinationScreen({
         {t("rider.destination.location.action")}
       </button>
 
+      {/* الاسمُ والرابطُ والملاحظاتُ قبلَ بطاقةِ النقطة: زرُّ الاعتمادِ آخرُ ما يُرى لا أوّلُه. */}
+      {placeFields}
       {verdict()}
       {results()}
 

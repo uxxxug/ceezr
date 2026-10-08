@@ -641,6 +641,25 @@ jobs:
       - name: سقوطُ حاجزِ مزامنةِ الحالةِ مقيسٌ بسالبةٍ (ح-7)
         run: bun test tests/unit/check-state-sync.test.ts
 
+      # UI-1 / PR 0 (`ADR 0233`): تباينُ لوحةِ Layer 2 مقيسٌ قبلَ أن تُكتَبَ رموزاً،
+      # وجردُ الأسطحِ القائمةِ مطابقٌ للقرصِ. لا تغييرَ بصريّاً.
+      - name: تباينُ الهويةِ اللونيةِ (UI-1 · PR 0 · ADR 0233)
+        run: bun run scripts/check-ui-contrast.ts
+
+      - name: سقوطُ حاجزِ التباينِ مقيسٌ بسالبةٍ (ح-7)
+        run: bun test tests/unit/check-ui-contrast.test.ts
+
+      - name: جردُ أسطحِ الواجهةِ مطابقٌ للقرصِ (UI-1 · PR 0 · ADR 0233)
+        run: bun run scripts/check-ui-surface-inventory.ts
+
+      # UI-9 (ADR 0244): حرّاسٌ ساكنةٌ لـRTL/A11y/Responsive — لا letter-spacing
+      # ولا text-transform ولا italic على العربية، ولا @layer/!important، touch ≥ 44px، i18n parity.
+      - name: حرّاسُ UI-9 RTL/A11y/Responsive (ADR 0244)
+        run: bun run scripts/check-ui-9-guards.ts
+
+      - name: سقوطُ حاجزِ جردِ الأسطحِ مقيسٌ بسالبةٍ (ح-7)
+        run: bun test tests/unit/check-ui-surface-inventory.test.ts
+
       # حاجزُ مقاماتِ التكلفةِ لكلِّ مستخدمٍ نشطٍ شهريّاً ولكلِّ رحلةٍ (ECO-001
       # · الزيادةُ الأولى): يمنعُ أن يُحذَفَ قياسُ المقاماتِ (المستخدمونَ النشطونَ
       # والرحلاتُ) أو يُفرَّغَ تأكيدُه. والمقاماتُ تُقاسُ على قاعدةٍ حقيقيّةٍ، والسعرُ
@@ -1146,6 +1165,12 @@ jobs:
 
       - name: سقوطُ حاجزِ اشتقاقِ staging مقيسٌ بسالباتٍ مزروعةٍ (ح-7)
         run: bun test tests/unit/staging-blueprint.test.ts
+
+      # ADR 0246 · Production Readiness Gate: منعُ الادعاء بجاهزية الإنتاج
+      # ما دامَ أيُّ بندٍ في البوابة مفتوحًا. حارسٌ ساكنٌ يقرأُ البوابة
+      # ويتحقّقُ من SYSTEM_STATE و ROADMAP و ROADMAP-MASTER.
+      - name: بوابة جاهزية الإنتاج — لا ادعاء Production Ready بلا أدلة (ADR 0246)
+        run: bun run scripts/check-production-readiness-gate.ts
 
       # F9-04: حتميّةُ بذرةِ القياس — الدوالُّ الصرفةُ تُنتجُ البصمةَ نفسَها.
       - name: حتميّةُ بذرةِ القياس — بصمةٌ ثابتةٌ وUUIDv5 صالح (F9-04)

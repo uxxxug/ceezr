@@ -228,6 +228,48 @@ export interface RedisDriverLocationHotStateOptions {
   /** بادئةُ المفاتيحِ؛ الاختباراتُ تُمرِّرُ بادئةً لكلِّ شوطٍ فلا تتلامسُ الأشواطُ. */
   readonly prefix?: string;
   readonly onFailure?: (detail: { readonly operation: string; readonly detail: string }) => void;
+  /**
+   * `PRD-001` — بوّابةُ السحبِ الخامل (اختياريّة؛ غيابُها = السلوكُ السابقُ حرفيّاً).
+   * إن وُضِعَت لم يُرسِلْ `drain` أمرَ `EVAL` إلّا إذا: لم يُسحَبْ لهذه المدينةِ بعدُ
+   * في هذه العمليّة، أو سُجِّلَت نبضةٌ «queued» أو أُعيدَت إصلاحاتٌ منذ آخرِ سحبٍ
+   * (في أيِّ محوّلٍ في العمليّةِ نفسِها)، أو أعادَ السحبُ الأخيرُ شيئاً، أو فشلَ،
+   * أو مضى هذا السقفُ (ملّي‌ثانية) منذ آخرِ سحبٍ — شبكةُ أمانٍ لنبضاتِ نسخةٍ أخرى.
+   * لماذا: السحبُ من قائمةٍ فارغةٍ كلَّ دورةٍ لكلِّ مدينةٍ كانَ ~21.6K أمرٍ/يوم
+   * وهوَ خاملٌ (مقيسٌ حيّاً 2026-10-08)، فوقَ حصّةِ Upstash المجانيّةِ (500K/شهر).
+   */
+  readonly idleDrainCeilingMs?: number;
+}
+
+/**
+ * حالُ البوّابةِ على مستوى **العمليّة** لا الكائن: البوّابةُ (الاستقبالُ) والعاملُ
+ * المضمَّنُ (الإفراغُ) يبنيانِ محوّلَينِ منفصلَينِ في العمليّةِ نفسِها، فعلامةُ
+ * «queued» من أحدِهما يجبُ أن يراها الآخر. المفتاحُ `<prefix>|<city>`.
+ */
+const drainGate = new Map<
+  string,
+  { dirty: boolean; lastDrainAtMs: number | null; lastNonEmpty: boolean }
+>();
+
+function gateEntry(key: string): {
+  dirty: boolean;
+  lastDrainAtMs: number | null;
+  lastNonEmpty: boolean;
+} {
+  let entry = drainGate.get(key);
+  if (entry === undefined) {
+    entry = { dirty: false, lastDrainAtMs: null, lastNonEmpty: false };
+    drainGate.set(key, entry);
+  }
+  return entry;
+}
+
+function markDrainDue(prefix: string, cityId: CityId): void {
+  gateEntry(`${prefix}|${cityId}`).dirty = true;
+}
+
+/** للاختباراتِ وحدَها: يُفرِغُ حالَ البوّابةِ بينَ الأشواط. */
+export function resetDriverLocationDrainGateForTests(): void {
+  drainGate.clear();
 }
 
 export interface RedisDriverLocationHotState
@@ -320,12 +362,30 @@ export function createRedisDriverLocationHotState(
       const newest = Number(value[2]);
       if (kind === "stale") return ok({ kind: "stale", newestKnownMs: newest });
       if (kind === "direct") return ok({ kind: "direct", backlog: depth });
-      if (kind === "queued") return ok({ kind: "queued", backlog: depth });
+      if (kind === "queued") {
+        markDrainDue(prefix, input.cityId);
+        return ok({ kind: "queued", backlog: depth });
+      }
       note("record", `حكمٌ غيرُ معروفٍ «${kind}»`);
       return err(new PortFailureError(PORT, `حكمُ الكتابةِ الساخنةِ غيرُ معروفٍ`));
     },
 
     drain: async (cityId, limit): Promise<Result<readonly HotLocationFix[], PortFailureError>> => {
+      const ceiling = options.idleDrainCeilingMs;
+      const gate = ceiling === undefined ? null : gateEntry(`${prefix}|${cityId}`);
+      if (gate !== null && ceiling !== undefined) {
+        const nowMs = options.clock.now().getTime();
+        const due =
+          gate.lastDrainAtMs === null ||
+          gate.dirty ||
+          gate.lastNonEmpty ||
+          nowMs - gate.lastDrainAtMs >= ceiling;
+        if (!due) return ok([]);
+        // تُستهلَكُ العلامةُ قبلَ الأمرِ لا بعدَه: نبضةٌ تصلُ أثناءَ السحبِ تُعيدُ رفعَها.
+        gate.dirty = false;
+        gate.lastNonEmpty = false;
+        gate.lastDrainAtMs = nowMs;
+      }
       const result = await options.redis.command([
         "EVAL",
         DRAIN_SCRIPT,
@@ -336,6 +396,7 @@ export function createRedisDriverLocationHotState(
       ]);
       if (!result.ok) {
         note("drain", `${result.error.kind}: ${result.error.detail}`);
+        if (gate !== null) gate.dirty = true;
         return err(new PortFailureError(PORT, `فشلَ سحبُ قائمةِ الانتظارِ: ${result.error.kind}`));
       }
       const value = result.value;
@@ -352,6 +413,7 @@ export function createRedisDriverLocationHotState(
         }
         fixes.push(fix);
       }
+      if (gate !== null && value.length > 0) gate.lastNonEmpty = true;
       return ok(fixes);
     },
 
@@ -387,9 +449,11 @@ export function createRedisDriverLocationHotState(
           ...args,
         ]);
         if (!result.ok) {
+          markDrainDue(prefix, cityId);
           note("requeue", `${result.error.kind}: ${result.error.detail}`);
           return err(new PortFailureError(PORT, `فشلَت إعادةُ الإصلاحاتِ: ${result.error.kind}`));
         }
+        markDrainDue(prefix, cityId);
       }
       return ok(undefined);
     },

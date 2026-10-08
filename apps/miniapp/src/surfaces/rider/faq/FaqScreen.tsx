@@ -24,6 +24,8 @@ import "../../../../../../packages/shared/i18n/miniapp/ar-parts/support.ts";
 export interface FaqScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** UI-3 / PR 5 (ADR 0238): داخلَ `ScreenFrame` العنوانُ للإطار (`false`) والرجوعُ لرأسِه (لا `onBack`). */
+  readonly showTitle?: boolean;
 }
 
 const FAQ_ITEMS: readonly (readonly [string, string])[] = [
@@ -34,14 +36,24 @@ const FAQ_ITEMS: readonly (readonly [string, string])[] = [
   ["rider.support.faq.q5", "rider.support.faq.a5"],
 ];
 
-export function FaqScreen({ language = MINIAPP_DEFAULT_LANGUAGE, onBack }: FaqScreenProps) {
+export function FaqScreen({
+  language = MINIAPP_DEFAULT_LANGUAGE,
+  onBack,
+  showTitle = true,
+}: FaqScreenProps) {
   const t = miniAppTranslator(language);
 
   return (
-    <section className="rf" dir={directionFor(language)} aria-labelledby="rf-title">
-      <h1 id="rf-title" className="rf__title">
-        {t("rider.support.faq.title")}
-      </h1>
+    <section
+      className="rf"
+      dir={directionFor(language)}
+      {...(showTitle ? { "aria-labelledby": "rf-title" } : {})}
+    >
+      {showTitle ? (
+        <h1 id="rf-title" className="rf__title">
+          {t("rider.support.faq.title")}
+        </h1>
+      ) : null}
       {onBack !== undefined && (
         <button type="button" className="rf__back" onClick={() => onBack()}>
           {t("rider.support.faq.back")}

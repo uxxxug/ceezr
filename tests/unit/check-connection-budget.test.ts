@@ -243,7 +243,7 @@ describe("تكافؤُ الطوبولوجيا مع مانيفستِ النشرِ
     expect(
       codes(
         analyseManifest(
-          SINGLE + "  - type: worker\n    name: waslah-worker\n    numInstances: 1\n",
+          `${SINGLE}  - type: worker\n    name: waslah-worker\n    numInstances: 1\n`,
         ),
       ),
     ).toContain("UNDECLARED_SERVICE");

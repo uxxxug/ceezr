@@ -228,7 +228,7 @@ export function renderLiveMapPage(data: LiveMapData): string {
   </label>
   <button type="submit">تطبيق</button>
 </form>
-<div class="cards" style="margin-bottom:16px" id="fleet-metrics">${cards}</div>
+<div class="cards cards--spaced" id="fleet-metrics">${cards}</div>
 ${section("حالة الأسطول", statusTable)}
 ${data.mapPanel ?? ""}
 ${sseScript(data)}`;

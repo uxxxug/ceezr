@@ -38,7 +38,7 @@ export interface PaymentPageData {
 function statusBadge(status: string): string {
   const tone: BadgeTone =
     status === "active" ? "ok" : status === "pending" || status === "past_due" ? "warn" : "bad";
-  return badge(escapeHtml(status), tone);
+  return badge(status, tone);
 }
 
 function formatAmount(minor: number, currency: string): string {
@@ -61,8 +61,8 @@ export function renderPaymentsPage(data: PaymentPageData): string {
   const cityPicker =
     data.cityOptions.length > 0
       ? `<div class="city-picker">
-        <label>المدينة:</label>
-        <select data-nav-param="city" aria-label="اختر المدينة">
+        <label for="pay-city">المدينة:</label>
+        <select id="pay-city" data-nav-param="city" aria-label="اختر المدينة">
           ${data.cityOptions
             .map(
               (city) =>
@@ -73,13 +73,13 @@ export function renderPaymentsPage(data: PaymentPageData): string {
       </div>`
       : "";
 
-  return section(
-    "المدفوعات والاشتراكات",
+  return `<h1>المدفوعات والاشتراكات — ${escapeHtml(data.cityName)}</h1>\n${section(
+    "المعاملات",
     `
     <div class="pay-status-bar">
       ${cityPicker}
-      ${data.providerName !== null ? badge(`المزوّد: ${escapeHtml(data.providerName)}`, "ok") : ""}
-      ${data.environment !== null ? badge(escapeHtml(data.environment), data.environment === "production" ? "bad" : "warn") : ""}
+      ${data.providerName !== null ? badge(`المزوّد: ${data.providerName}`, "ok") : ""}
+      ${data.environment !== null ? badge(data.environment, data.environment === "production" ? "bad" : "warn") : ""}
       ${badge(data.driverSubscriptionEnabled ? "اشتراك السائق مفعّل" : "اشتراك السائق معطّل", data.driverSubscriptionEnabled ? "ok" : "muted")}
     </div>
     ${table({
@@ -101,5 +101,5 @@ export function renderPaymentsPage(data: PaymentPageData): string {
       هياكل فقط حتى أمر تفعيل صريح. لا مزوّد دفع فعلي مدمج — البنية وحدها قائمة.
     </p>
     `,
-  );
+  )}`;
 }

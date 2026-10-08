@@ -11,7 +11,7 @@
  */
 
 import { formatNumber } from "../format.ts";
-import { escapeHtml, metricCard, section } from "../layout.ts";
+import { escapeHtml, metricCard, section, stateBlock } from "../layout.ts";
 import type { CityOption } from "./drivers.ts";
 
 export interface HeatCell {
@@ -88,13 +88,16 @@ export function renderHeatmapPage(data: HeatmapPageData): string {
   if (data.cityId === null) {
     return `<h1>خريطة الطلب والعرض</h1>
 ${filters}
-<p class="empty">اختر مدينة لعرض خريطتها. الخريطة لكل مدينة على حدة: دمج مدن متباعدة في شبكة واحدة يُنتج شبكة فارغة أغلبها.</p>`;
+${stateBlock(
+  "empty",
+  "اختر مدينة لعرض خريطتها. الخريطة لكل مدينة على حدة: دمج مدن متباعدة في شبكة واحدة يُنتج شبكة فارغة أغلبها.",
+)}`;
   }
 
   if (data.cells.length === 0) {
     return `<h1>خريطة الطلب والعرض — ${escapeHtml(data.cityName ?? "")}</h1>
 ${filters}
-<p class="empty">لا طلب ولا سائق بموقع مسجَّل في هذه النافذة، فلا خريطة تُرسم.</p>`;
+${stateBlock("empty", "لا طلب ولا سائق بموقع مسجَّل في هذه النافذة، فلا خريطة تُرسم.")}`;
   }
 
   const maxGap = data.cells.reduce(
@@ -117,9 +120,9 @@ ${filters}
           : `طلب ${demand} · عرض ${supply} · ${cell.centerLat.toFixed(3)}, ${cell.centerLng.toFixed(3)}`;
       const text = demand === 0 && supply === 0 ? "" : `${demand}/${supply}`;
       squares.push(
-        `<div class="cell" style="background:${cellColor(demand, supply, maxGap)}" title="${escapeHtml(
+        `<div class="cell" style="background:${cellColor(demand, supply, maxGap)}" role="img" aria-label="${escapeHtml(
           title,
-        )}">${escapeHtml(text)}</div>`,
+        )}" title="${escapeHtml(title)}">${escapeHtml(text)}</div>`,
       );
     }
   }
@@ -137,15 +140,15 @@ ${filters}
     "",
   )}</div>
 <div class="legend">
-  <span><span class="swatch" style="background:hsl(0 62% 40%)"></span>الطلب يفوق العرض</span>
-  <span><span class="swatch" style="background:hsl(146 48% 40%)"></span>العرض يكفي أو يزيد</span>
-  <span><span class="swatch" style="background:#1c202a"></span>لا نشاط</span>
+  <span><span class="swatch swatch--short" aria-hidden="true"></span>الطلب يفوق العرض</span>
+  <span><span class="swatch swatch--enough" aria-hidden="true"></span>العرض يكفي أو يزيد</span>
+  <span><span class="swatch swatch--none" aria-hidden="true"></span>لا نشاط</span>
   <span>الرقم في الخلية: طلب/عرض. الشمال أعلى، والشرق يمين الشبكة.</span>
 </div>`;
 
   return `<h1>خريطة الطلب والعرض — ${escapeHtml(data.cityName ?? "")}</h1>
 ${filters}
-<div class="cards" style="margin-bottom:16px">${cards}</div>
+<div class="cards cards--spaced">${cards}</div>
 ${section(
   `الشبكة — آخر ${formatNumber(data.windowHours)} ساعة`,
   grid,

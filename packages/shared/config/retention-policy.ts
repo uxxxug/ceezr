@@ -211,6 +211,11 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
   drivers: RETENTION_CLASSES.lifecycleBound,
   // PD-001/ADR 0157: عضويّةُ قروبِ غيرِ المشتركينَ تُقَيَّدُ بدورةِ حياةِ الحسابِ
   // نفسِها — فالقرارُ الحاكمُ لدخولِ السوقِ لا يُدَّعى لهُمومُ الطلباتِ العابرةِ.
+  /**
+   * ADR 0243: أوّلُ تقديرِ وصولٍ لكلِّ (طلب، ساق) — يتبعُ الطلبَ (`on delete cascade`)، ونافذةُ
+   * القياسِ نفسُها 30 يوماً؛ فلا مؤقّتَ حذفٍ مستقلٌّ قبلَ قرارِ الاستبقاءِ العامِّ للطلبات.
+   */
+  eta_observations: RETENTION_CLASSES.lifecycleBound,
   group_memberships: RETENTION_CLASSES.lifecycleBound,
   job_heartbeats: RETENTION_CLASSES.pendingDecision,
   ledger_entries: RETENTION_CLASSES.financialSixYears,

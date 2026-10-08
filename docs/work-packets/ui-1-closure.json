@@ -1,0 +1,8 @@
+{
+  "id": "ui-1-closure",
+  "implementation": [],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0233-ui-1-design-system-foundations.md"],
+  "no_other_affected_docs_reason": "إغلاقُ UI-1 توثيقيًّا فقط: لا تغييرَ في كودِ المنتجِ ولا العقودِ ولا قراراتِ التصميم. docs/UI_UX_CANONICAL_DIRECTIVE.md وdocs/UI_UX_RECONCILIATION_REPORT.md (جدولُ الربط §H يُصرّحُ أصلًا بأنَّ UI-1 = PR 0 + PR 1) وdocs/UI_SURFACE_INVENTORY.md لا تتغيّر. معالجةُ SEC-15 (#411، Work Packet sec-15-source-map-js-1-2-2) جانبيّةٌ موثَّقةٌ في دفعتِها ولا تُعيدُ فتحَ UI-1."
+}

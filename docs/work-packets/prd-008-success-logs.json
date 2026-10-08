@@ -1,0 +1,29 @@
+{
+  "id": "prd-008-success-logs",
+  "goal": "دليلٌ خادميٌّ مباشرٌ لـStep 2 في PRD-008: سطرُ نجاحٍ برمزِ النتيجةِ وحدَه لمسارَي البحثِ عن الوجهةِ والاقتباس",
+  "canonical_source": ["docs/governance/PRODUCTION_READINESS_GATE.md"],
+  "implementation": [
+    "apps/gateway/src/routes/destinations.ts",
+    "apps/gateway/src/routes/quote.ts",
+    "tests/unit/rider-quote-success-log.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/production/PRD-008-telegram-smoke-20261008.md",
+    "docs/work-packets/prd-008-success-logs.json"
+  ],
+  "no_other_affected_docs_reason": "سجلٌّ تشغيليٌّ إضافيٌّ بلا أثرٍ في العقودِ أو الحمولاتِ أو الواجهة؛ check-destination-contract وcheck-quote-contract يمرّانِ بلا تعديل",
+  "decision": "قرارُ المالك (الخيار ب) 2026-10-08: Render free بلا سجلِّ طلباتٍ ولا مقاييسِ HTTP، فيُضافُ سطرُ نجاحٍ عندَ جوابِ 200 وحدَه",
+  "tests": [
+    "tests/unit/rider-quote-success-log.test.ts — سطرٌ واحدٌ عندَ 200 بمفاتيحَ ثابتة؛ لا سطرَ عندَ 401؛ لا هويّةَ ولا استفهامَ ولا اسمَ ولا إحداثيّةَ ولا مسافةَ ولا مدينةَ في السطر؛ الحمولاتُ متطابقةٌ بايتاً بوجودِ السجلِّ وغيابِه"
+  ],
+  "evidence": "docs/evidence/production/PRD-008-telegram-smoke-20261008.md",
+  "contract_gaps": [],
+  "constraints": [
+    "لا تغييرَ في عقودِ /v1 ولا الحمولاتِ ولا الواجهة",
+    "لا بياناتٍ شخصيّةً في السجلّ",
+    "لا تغييرَ في Redis ولا إعداداتِ Render",
+    "لا إعلانَ Verified لـPRD-008 ولا Production Ready"
+  ]
+}

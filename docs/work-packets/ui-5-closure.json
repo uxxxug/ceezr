@@ -1,0 +1,44 @@
+{
+  "id": "ui-5-closure",
+  "implementation": [],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0239-ui-5-pr8-telegram-fuzz-and-message-budget.md",
+    "docs/work-packets/ui-5-pr8-telegram-experience.json"
+  ],
+  "evidence": {
+    "pr": 422,
+    "adr": "0239",
+    "head_before_merge": "6067936e26c7565804113dbd37e98b5c239ebf2b",
+    "merge_commit": "fa80d25b930635b1e7f76ef09fb243fa8bda2f75",
+    "merged_at": "2026-10-06T14:50:06Z",
+    "pr_checks": {
+      "ci_run": "37481147977",
+      "roadmap_freshness_run": "37481143543",
+      "result": "success",
+      "jobs": "8/8"
+    },
+    "main_ci": {
+      "run": "37482288537",
+      "result": "success",
+      "jobs": "7/7"
+    },
+    "roadmap_freshness": {
+      "run": "37482288428",
+      "result": "success"
+    },
+    "telegram_tests": "tests/unit/telegram-fuzz-escaping.test.ts — 28 اختباراً ناجحاً في run 37482288537؛ bun test كاملًا 6988 ناجحاً · 0 فاشلاً",
+    "message_budget": "check-telegram-message-budget أخضر على main (سقف دفع 5/رحلة · دفقة ردّ ≤ 3 · فرجة عن 30/ث) — لا تغيير في عدد الرسائل ولا نصوصها",
+    "fuzz_escaping": "المرسلات السبع بلا parse_mode (نص خام) · سلاسل عدوائية في ar/en/ur تصل حرفيًّا بلا مفتاح خام · callback_data ≤ 64 بايتًا · أزرار التفاوض صادقة أمام البالي والمتكرر وغير الصالح",
+    "performance": "Slow 4G على main في run 37482288537: الوسيط 1988 ms ≤ 2000 (122308 بايت · 12 طلبًا — مطابق لما قبل PR 8)"
+  },
+  "deferred": [
+    "هامش Slow 4G ضيّق موروث (~1%): فشل عرضي على الـPR (2004–2020 ms بالبايتات نفسها) ثم نجاح — ليس تراجعًا من PR 8؛ مخاطرة مسجّلة بلا قرار هنا.",
+    "لا قياس على السلك ولا نقر حيّ على عميل تيليجرام حقيقي — يبقيان لـUI-10."
+  ],
+  "contract_gaps": [
+    "فجوات عقد PR 5 الست في ADR 0238 وفجوة D14 من UI-4 باقية مفتوحة مستقلة؛ لا يعالجها إغلاق UI-5 — قرارات خادم خارج المرحلة."
+  ],
+  "no_other_affected_docs_reason": "إغلاق UI-5 توثيقيٌّ فقط: لا كود منتج ولا اختبار ولا تبعية ولا نص رسالة ولا عدد. حُدِّثت حالة PR 8 القديمة فعليًّا فقط: ADR 0239 وWork Packet ui-5-pr8-telegram-experience. docs/UI_SURFACE_INVENTORY.md لم يتغيّر لأن PR 8 لم يغيّر أي سطح (مجموعة telegram/bots = 20 كما هي) ولا يسند لـUI-5 حالة. docs/UI_UX_CANONICAL_DIRECTIVE.md وdocs/UI_UX_RECONCILIATION_REPORT.md مرجعان لا يتغيّران (كما في إغلاقات UI-2 وUI-3 وUI-4). لا يبدأ UI-6 في هذا الـPR."
+}

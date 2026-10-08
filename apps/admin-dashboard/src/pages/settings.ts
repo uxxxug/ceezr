@@ -131,7 +131,7 @@ ${section(
   `<p class="note">الحالة الحالية: ${badge(selectedReadiness.label, selectedReadiness.tone)}.
   لا تُفعّل المدينة إلا بعد حفظ معرّفات القروبات الثلاثة الصحيحة معاً. الحقول الفارغة
   تُبقي المدينة غير مفعّلة.</p>
-  <form method="post" action="/admin/settings/${escapeHtml(data.cityId)}/group-ids">
+  <form method="post" data-confirm="حفظُ معرّفاتِ القروباتِ يُغيّرُ جاهزيةَ المدينة. متابعة؟" action="/admin/settings/${escapeHtml(data.cityId)}/group-ids">
     <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
     <label>معرّف قروب الدعم
       <input type="text" name="support_group_id"

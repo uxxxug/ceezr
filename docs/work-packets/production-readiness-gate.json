@@ -1,0 +1,35 @@
+{
+  "id": "production-readiness-gate",
+  "goal": "تحويل تقرير المراجعة الشاملة إلى خارطة تنفيذية حاكمة لجاهزية الإنتاج",
+  "canonical_source": [
+    "docs/adr/0246-production-lifecycle-stages.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md"
+  ],
+  "implementation": [
+    "scripts/check-production-readiness-gate.ts",
+    "tests/unit/check-production-readiness-gate.test.ts",
+    "package.json",
+    ".github/workflows/ci.yml"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md", "docs/ROADMAP-MASTER.md"],
+  "affected_docs": [
+    "docs/adr/0246-production-lifecycle-stages.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md",
+    "docs/work-packets/production-readiness-gate.json"
+  ],
+  "no_other_affected_docs_reason": "هذا تغيير حوكمة فقط — لا كود منتج ولا عقد ولا واجهة",
+  "decision": "تأسيس بوابة جاهزية إنتاج حاكمة ADR 0246 — fail-closed مع خمس حالات",
+  "tests": [
+    "tests/unit/check-production-readiness-gate.test.ts — Open/Blocked/Ready يمنع، Verified بلا evidence يفشل، ADR-Closed بلا ADR يفشل، حالة غير معروفة تفشل، ادعاء Production Ready مانع"
+  ],
+  "evidence": "docs/governance/PRODUCTION_READINESS_GATE.md",
+  "contract_gaps": [],
+  "constraints": [
+    "لا تغيير في كود المنتج أو العقود أو الواجهة",
+    "لا حذف للسجل التاريخي",
+    "لا إعلان Production Ready أو إغلاق UI-10",
+    "Blocked لا يُغلق آليًا — ينتقل صراحة إلى ADR-Closed أو Verified",
+    "الحارس fail-closed: exit 1 عند أي بند مانع"
+  ]
+}

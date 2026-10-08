@@ -263,6 +263,11 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
   core_event_inbox: deferredArea("W-5"),
   db_backups: reference(),
   destination_landmarks: reference(),
+  /**
+   * ADR 0243: مدّةٌ مقدَّرةٌ ولحظتُها لساقِ طلبٍ — لا عمودَ تعريفٍ ولا نصَّ ولا موضع. نسبتُها إلى
+   * إنسانٍ تمرُّ بـ`orders` وحدَه، وتنقطعُ بتجهيلِه (`anonymize-in-place`) كبقيّةِ أثرِ الرحلة.
+   */
+  eta_observations: reference(),
 
   group_memberships: {
     disposition: D.erase,

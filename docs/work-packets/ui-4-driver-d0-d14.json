@@ -1,0 +1,106 @@
+{
+  "id": "ui-4-driver-d0-d14",
+  "goal": "تنفيذ UI-4 (Driver Experience) كاملةً D0–D14 على هيكل UI-2 القائم: أربعة تبويبات §6، تدفّقات برجوع وانتقال، آلة حالة نقيّة، مؤقّت عرض CSS (§11 PR 6) وخطوات رفع وثيقة حقيقية (§11 PR 7)، بلا نصوص مضمّنة ولا أفعال بلا حالة.",
+  "numbering_source": "المصدر الأصلي PDF v2.0 (ADR 0232) — مادة التصميم الأصلية المرفوعة للمشروع خارج Git، قوبل بها ترقيم D مباشرة في 2026-10-06 (ADR 0236 «مطابقة المصدر الأصلي»)",
+  "scope": {
+    "D0": "الهيكل وبث الموقع — DriverRoot (ScreenFrame/RootTabBar) + driver-flow + entry-view + LocationBroadcast (broadcastsLocation)",
+    "D1": "لوح العروض — OffersScreen (تبويب العروض، التوفّر والحجب وإصلاحه)",
+    "D2": "بطاقة العرض — عنصر اللوح في OffersScreen + offer-timer + UiTimer",
+    "D3": "تفاصيل العرض — OfferDetailScreen (UiCard + UiTimer، قبول ⇒ مهمّتي، رفض ⇒ رجوع، سبق/انقضاء معلنان)",
+    "D4": "المهمة الحالية — JobScreen (تبويب مهمّتي)",
+    "D5": "تعذّر الإكمال — JobScreen + reportDriverCannotComplete (POST /v1/driver/job/:orderId/cannot-complete)",
+    "D6": "ملخص رحلة السائق وتقييم الراكب — DriverRideSummaryScreen + submitDriverRideRating",
+    "D7": "SOS — JobScreen + triggerDriverSos (POST /v1/driver/safety/sos)",
+    "D8": "الوثائق — DocumentsScreen ببؤرة النوع المحجوب + upload-steps + UiStepper",
+    "D9": "المركبة — VehicleScreen",
+    "D10": "الحصيلة والنشاط — ActivityScreen (تبويب أرباحي)",
+    "D11": "الاشتراك والفاتورة — SubscriptionScreen + PaymentInvoicePanel",
+    "D12": "الحساب وحذفه — AccountScreen + AccountRights (requestErasure) ومداخل ملف العمل (تبويب حسابي)",
+    "D13": "دعم السائق وكشف الخصوم — DriverSupportScreen + DeductionTraceScreen (من الدعم وحده)",
+    "D14": "تسجيل السائق من الـMini App — OnboardingRoot فرع audience=driver: حال صريحة تدلّ على بوت السائق؛ فجوة عقد مسجّلة (لا POST /v1/onboarding/driver)"
+  },
+  "source_reconciliation": {
+    "label_drift_corrected": [
+      "D0",
+      "D2",
+      "D3",
+      "D5",
+      "D6",
+      "D7",
+      "D8",
+      "D9",
+      "D10",
+      "D11",
+      "D12",
+      "D13"
+    ],
+    "matching": ["D1", "D4"],
+    "contract_gap": ["D14"],
+    "behaviour_changed": []
+  },
+  "implementation": [
+    "apps/miniapp/src/surfaces/account/AccountRights.tsx",
+    "apps/miniapp/src/surfaces/driver/DriverRoot.tsx",
+    "apps/miniapp/src/surfaces/driver/account/AccountScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/activity/ActivityScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/deductions/DeductionTraceScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/documents/DocumentsScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/documents/upload-steps.ts",
+    "apps/miniapp/src/surfaces/driver/driver-canonical-map.test.tsx",
+    "apps/miniapp/src/surfaces/driver/driver-flow.test.ts",
+    "apps/miniapp/src/surfaces/driver/driver-flow.ts",
+    "apps/miniapp/src/surfaces/driver/driver-root.test.tsx",
+    "apps/miniapp/src/surfaces/driver/job/JobScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/OfferDetailScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/OffersScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/offer-timer.ts",
+    "apps/miniapp/src/surfaces/driver/subscription/SubscriptionScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/summary/DriverRideSummaryScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/support/SupportScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/vehicle/VehicleScreen.tsx",
+    "apps/miniapp/src/surfaces/support/TicketsScreen.tsx",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "scripts/lib/css-class-coverage.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0236-ui-4-driver-d0-d14.md", "docs/UI_SURFACE_INVENTORY.md"],
+  "no_other_affected_docs_reason": "UI-4 يستهلك هيكل UI-2 ومكوّنات UI-1 القائمة ولا يغيّر API أو عقداً أو قاعدة بيانات أو CSS (لا صنف جديد؛ الأصناف التي زال مُصدرها مسجّلة في RETAINED_RULES). لا ملفّ .tsx جديد فعدد جرد الأسطح ثابت (14 سائق / 81)، وأُضيف إلى الجرد إسناد D0–D14. دليل التصميم المعتمد لا يتغيّر.",
+  "state_transitions": [
+    "entry ⇒ initialDriverFlow: offers|offer|job|activity|account|summary|documents|subscription|support|vehicle",
+    "offers(root) --openOffer--> offer(flow)",
+    "offer --offerAccepted--> job(root, stack=[])",
+    "offer --offerRejected--> offers(root, motion=back)",
+    "job(root) --jobCompleted--> summary(flow) --back--> job(root)",
+    "any root --openDocuments(focus?)|openVehicle|openSubscription|openSupport--> flow",
+    "support --openDeductionTrace--> deductionTrace --back--> support",
+    "any --selectTab--> root(tab, stack=[])",
+    "impossible action ⇒ same state reference"
+  ],
+  "architectural_decisions": [
+    "driver-flow.ts فوق screenStackReducer نفسه — لا مكدّس موازٍ ولا موجّه ثانٍ",
+    "القبول يمسح المكدّس وينقل إلى تبويب مهمّتي",
+    "المؤقّت UiTimer بحركة CSS ونصّ «متبقٍّ عند العرض»؛ المقام seconds_left لحظة القراءة",
+    "showTitle للشاشات: الإطار يملك h1",
+    "إصلاح الحجب زرّ بمستقبِل لا رابط تجزئة"
+  ],
+  "tests": [
+    "apps/miniapp/src/surfaces/driver/driver-flow.test.ts",
+    "apps/miniapp/src/surfaces/driver/driver-root.test.tsx",
+    "apps/miniapp/src/surfaces/driver/driver-canonical-map.test.tsx",
+    "mutation check: 8 planted regressions each caught, then reverted"
+  ],
+  "not_implemented": [
+    "D14 تسجيل السائق داخل الـMini App — فجوة عقد [C]: لا POST /v1/onboarding/driver ويحتاج مشاركة الرقم وصورة المركبة؛ المنفّذ حال صريحة لا نموذج",
+    "نقر DOM حيّ وقياس عميل تيليجرام — لا بيئة DOM ولا تبعية جديدة",
+    "مهلة الجولة الكاملة في المؤقّت — العقد لا يحملها ولا تغيير في API",
+    "نقل إيصال محو الحساب إلى تدفّق — يبقى حالاً داخلية في AccountRights",
+    "صقل الإنتاج النهائي (UI-10) وUI-5"
+  ],
+  "known_limitations": [
+    "D5 وD7 قسمان داخل D4 (JobScreen) لا شاشتا تدفّق مستقلّتان — مكانهما المهمة الحالية ولا يغيّر ذلك السلوك",
+    "D14 محدود بالعقد القائم (فجوة عقد مسجّلة في ADR 0236)"
+  ]
+}

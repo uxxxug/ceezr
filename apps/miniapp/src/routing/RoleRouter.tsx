@@ -35,6 +35,7 @@ import {
 import { loadMiniAppLanguage } from "../../../../packages/shared/i18n/miniapp/load.ts";
 import type { ViewerView } from "../identity/viewer.ts";
 import { ErrorBoundary } from "../shell/ErrorBoundary.tsx";
+import { applyDocumentDirection } from "../styles/direction.ts";
 import {
   classifyFailure,
   type ReachabilityProbe,
@@ -228,6 +229,12 @@ export function RoleRouter({ fetchViewer, onReauth }: RoleRouterProps) {
   useEffect(() => {
     void resolve();
   }, [resolve]);
+
+  // `UI-10`: لغةُ الحسابِ تحكمُ `<html lang dir>` لا الافتراضُ وحدَه — وإلّا بقيَ الإطارُ
+  // والتبويبُ والعنوانُ RTL لحسابٍ إنجليزيٍّ وقُرئت الأرديّةُ بوسمِ `ar` (دليلُ متصفّحٍ حيٍّ).
+  useEffect(() => {
+    applyDocumentDirection(language);
+  }, [language]);
 
   const retry = () => void resolve();
 

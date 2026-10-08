@@ -1,0 +1,21 @@
+{
+  "id": "loc-trust-01-first-surface-budget",
+  "goal": "استعادةُ هامشِ Slow 4G بعدَ LOC-TRUST-01: الأسئلةُ الشائعةُ والخصوصيّةُ (ومعَهما قاموسُ support) تخرجانِ من حزمةِ rider-home إلى حزمتَي support وaccount المؤجَّلتَين — وهما محمَّلتانِ بطلبٍ أصلاً",
+  "canonical_source": ["docs/adr/0247-place-input-contract.md"],
+  "implementation": [
+    "apps/miniapp/vite.config.ts",
+    "apps/miniapp/vite/assert-rider-first-surface.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/work-packets/loc-trust-01-first-surface-budget.json"],
+  "decision": "إصلاحُ انحدارٍ قاسَه CI على main بعدَ #443 (surface-rendered 2028 ms > 2000 ms) — لا رفعَ للسقف",
+  "tests": [
+    "scripts/measure-tti.ts محلّيّاً على البيئةِ نفسِها: main 2028 ms (غيرُ مستوفىً) ⟵ بعدَ الإصلاح 1952 ms (مستوفىً)",
+    "gzip: rider-home 21151 ⟵ 17830 بايتاً (أصغرُ بـ240 من قبلِ LOC-TRUST-01)؛ shell +1280 بايتاً (مفاتيحُ rider.place.* العربيّة) باقٍ",
+    "scripts/check-performance-budget.ts وvite/assert-rider-first-surface.ts خضراء"
+  ],
+  "evidence": "docs/work-packets/loc-trust-01-first-surface-budget.json",
+  "contract_gaps": [],
+  "constraints": ["لا رفعَ لأيِّ سقفِ أداء", "لا تغييرَ في سلوكِ الشاشات"]
+}

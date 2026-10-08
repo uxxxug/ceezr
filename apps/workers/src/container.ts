@@ -424,6 +424,13 @@ export function grammyWarningSender(token: string): ExpiryWarningSender {
  * تبقى سارية فيُعمل مجّاناً. وبقيّةُ المهامّ تأخيرُها مُزعج لا قاتل، وحشرُها هنا كان سيجعل
  * `/ready` يسقط لأسبابٍ لا تستحقّ إيقافَ توجيه الحركة — فيُهمَل الفحصُ كلّه.
  */
+/**
+ * `PRD-001` — أقصى مدّةٍ بينَ سحبَينِ لمدينةٍ خاملةٍ. نبضاتُ هذه العمليّةِ تُوقِظُ
+ * السحبَ في الدورةِ التالية فوراً؛ والسقفُ لنبضاتِ نسخةٍ أخرى ولإعادةِ ما سُحِبَ.
+ * المقيسُ الخاملُ قبلَه: 5 مدنٍ × دورةٌ/~20ث ≈ 21.6K أمرٍ/يوم؛ وبعدَه ≈ 3.6K/يوم.
+ */
+export const DRIVER_LOCATION_IDLE_DRAIN_CEILING_MS = 120_000;
+
 const CRITICAL_CITY_JOBS: readonly { readonly prefix: string; readonly everySeconds: number }[] = [
   { prefix: "expire-offers", everySeconds: JOB_INTERVALS.expireOffers },
   { prefix: "redispatch-searching", everySeconds: JOB_INTERVALS.redispatchSearching },
@@ -611,6 +618,8 @@ export function buildWorkerContainer(
           settings,
           clock: systemClock,
           onFailure: (detail) => log.error("driver_location.hot_state_failed", detail),
+          // PRD-001: لا `EVAL` على قائمةٍ يُعلَمُ فراغُها؛ سقفُ أمانٍ دقيقتانِ.
+          idleDrainCeilingMs: DRIVER_LOCATION_IDLE_DRAIN_CEILING_MS,
         });
   const driverLocationPersistence = createDriverLocationBatchPersistence(sql);
   const driverLocationPartitions = createDriverLocationPartitionMaintenance(sql);

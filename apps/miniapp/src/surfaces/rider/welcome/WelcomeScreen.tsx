@@ -217,7 +217,7 @@ export function WelcomeScreen({
     // في إطارٍ يساريٍّ يُقرأُ مقلوباً، والكذبُ في الاتجاهِ عطلٌ مرئيٌّ.
     return (
       <div dir="rtl">
-        <SystemScreen state={state.screen} onAction={() => void load()} />
+        <SystemScreen language={language} state={state.screen} onAction={() => void load()} />
       </div>
     );
   }

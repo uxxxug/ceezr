@@ -425,7 +425,7 @@ describe("POST /v1/rides — العطبُ برمزِه ورقمِه", () => {
     const harness = buildHarness();
     const { status, json } = await post(harness, "/v1/rides", {
       headers: withKey(),
-      rawBody: JSON.stringify({ ...RIDE_BODY, notes: "م".repeat(4_000) }),
+      rawBody: JSON.stringify({ ...RIDE_BODY, notes: "م".repeat(8_000) }),
     });
     expect(status).toBe(413);
     expect(json.error).toBe("PAYLOAD_TOO_LARGE");
