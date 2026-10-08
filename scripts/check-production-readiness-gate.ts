@@ -2,9 +2,16 @@
 /**
  * # check-production-readiness-gate — حارسُ بوابة جاهزية الإنتاج (fail-closed)
  *
- * **الغرض:** يمنعُ CI من النجاح (exit 1) ما دامَ أيُّ بندٍ في
- * `docs/governance/PRODUCTION_READINESS_GATE.md` بصورةٍ مانعةٍ:
- * `Open` · `Blocked` · `Ready`.
+ * **الغرض:** حارسُ نمطَين صريحَين (ADR 0246 · ح-PRD-8 بعدَ تعديلِ 2026-10-08):
+ *
+ * - **نمطُ CI (الافتراضيُّ، كلُّ دفعةٍ وطلبِ دمج):** يُفشلُ (exit 1) على خللِ البوابةِ
+ *   وعلى ادّعاءِ «Production Ready» الكاذبِ. البنودُ المانعةُ (`Open`/`Blocked`/`Ready`)
+ *   **تُطبَعُ ولا تُفشلُ** — وإلّا صارَ كلُّ طلبِ دمجٍ أحمرَ حتّى الإطلاقِ، ومنها
+ *   طلباتُ إصلاحِ البنودِ نفسِها، فيتعلّمُ الفريقُ تجاهلَ الأحمر.
+ * - **نمطُ الإعلانِ (`--require-ready`):** يُفشلُ (exit 1) على **أيِّ** بندٍ مانعٍ.
+ *   هوَ البوابةُ الوحيدةُ التي يُحتجُّ بنجاحِها لإعلانِ Production Ready (ح-PRD-7)،
+ *   ويُشغَّلُ بـ`bun run check:production-readiness` وبسيرِ
+ *   `.github/workflows/production-readiness.yml`.
  *
  * **خمسُ حالاتٍ في البوابة (ADR 0246):**
  *
@@ -17,7 +24,7 @@
  * | `ADR-Closed` | أُغلقَ بقرارِ مالكٍ موثَّقٍ في ADR | لا (بشرط وجود مسار ADR) |
  *
  * **فشلٌ صريحٌ (exit 1) عند:**
- * 1. وجودُ بندٍ بصورةٍ مانعة (`Open`/`Blocked`/`Ready`).
+ * 1. وجودُ بندٍ بصورةٍ مانعة (`Open`/`Blocked`/`Ready`) — **في نمطِ `--require-ready` وحدَه**.
  * 2. وجودُ بندٍ `Verified` بلا مسارِ دليلٍ في `docs/evidence/production/`.
  * 3. وجودُ بندٍ `ADR-Closed` بلا مسارِ ADR في `docs/adr/`.
  * 4. وجودُ بندٍ بحالةٍ غيرِ معروفةٍ.
@@ -44,8 +51,19 @@ const VALID_STATUSES = new Set(["Open", "Blocked", "Ready", "Verified", "ADR-Clo
 /** أقلُّ عددِ بنودٍ متوقَّع. إن كانَ أقلَّ، فالـparsing ناقصٌ. */
 const MIN_EXPECTED_ITEMS = 21;
 
-/** الحالاتُ المانعةُ — وجودُ أيٍّ منها يفشلُ CI. */
+/** الحالاتُ المانعةُ — وجودُ أيٍّ منها في نطاقِ الجاهزيّةِ يمنعُ إعلانَ Production Ready. */
 const BLOCKING_STATUSES = new Set(["Open", "Blocked", "Ready"]);
+
+/**
+ * نطاقُ إعلانِ Production Ready = P0 (`PRD-0NN`) وP1 (`PRD-1NN`) وحدَهما، كما في
+ * «شروط إعلان Production Ready» في البوابة. وبنودُ P2 (`PRD-2NN`) **بواباتُ إطلاقٍ
+ * تجاريٍّ تُفتحُ بعدَه** — فعدُّها مانعةً كانَ يجعلُ الإعلانَ مستحيلاً قبلَ الإطلاقِ
+ * التجاريِّ، خلافاً للوثيقة. تُطبَعُ ولا تمنع.
+ */
+function inReadinessScope(id: string): boolean {
+  const n = Number.parseInt(id.replace(/^PRD-/, ""), 10);
+  return Number.isFinite(n) && n < 200;
+}
 
 export interface GateItem {
   readonly id: string;
@@ -59,11 +77,18 @@ export interface ProductionReadinessCheckInput {
   readonly systemStateContent: string;
   readonly roadmapContent: string;
   readonly roadmapMasterContent: string;
+  /**
+   * نمطُ الإعلانِ: البنودُ المانعةُ تُفشلُ. الافتراضُ `false` (نمطُ CI). صريحٌ لا
+   * مُستنتَجٌ، كي لا يصيرَ الفرقُ بينَ النمطَين سلوكاً خفيّاً.
+   */
+  readonly requireReady?: boolean;
 }
 
 export interface ProductionReadinessCheckResult {
-  /** بنودٌ مانعةٌ (Open/Blocked/Ready) — وجودها يفشل CI. */
+  /** بنودٌ مانعةٌ (Open/Blocked/Ready) في نطاقِ الجاهزيّةِ (P0/P1). */
   readonly blockingItems: readonly string[];
+  /** بنودُ P2 المفتوحةُ — بواباتُ إطلاقٍ تجاريٍّ لا تمنعُ إعلانَ Production Ready. */
+  readonly commercialOpenItems: readonly string[];
   /** بنودٌ Verified بلا مسار دليل — تفشل CI. */
   readonly verifiedWithoutEvidence: readonly string[];
   /** بنودٌ ADR-Closed بلا مسار ADR — تفشل CI. */
@@ -172,7 +197,11 @@ export function checkProductionReadinessGate(
   const items = parseGateItems(input.gateContent);
 
   const blockingItems = items
-    .filter((item) => BLOCKING_STATUSES.has(item.status))
+    .filter((item) => BLOCKING_STATUSES.has(item.status) && inReadinessScope(item.id))
+    .map((item) => `${item.id} (${item.status})`);
+
+  const commercialOpenItems = items
+    .filter((item) => BLOCKING_STATUSES.has(item.status) && !inReadinessScope(item.id))
     .map((item) => `${item.id} (${item.status})`);
 
   const verifiedWithoutEvidence = items
@@ -200,14 +229,16 @@ export function checkProductionReadinessGate(
       hasFalseReadyClaim(input.roadmapContent) ||
       hasFalseReadyClaim(input.roadmapMasterContent));
 
-  // الحارسُ يُفشلُ CI فقط عند:
+  // نمطُ CI يُفشلُ عند:
   // 1. ادعاء Production Ready في وثيقة حاكمة بينما البوابة مانعة
   // 2. Verified بلا دليل
   // 3. ADR-Closed بلا ADR
   // 4. حالة غير معروفة
   // 5. parsing ناقص
-  // البوابةُ المفتوحةُ (Open/Blocked/Ready) حالةٌ طبيعيةٌ لا تُفشلُ CI وحدها.
+  // ونمطُ الإعلانِ (`requireReady`) يُضيفُ: 6. أيُّ بندٍ مانعٍ (Open/Blocked/Ready).
+  const requireReady = input.requireReady === true;
   const fails =
+    (requireReady && hasBlocking) ||
     falseReadyClaim ||
     hasVerifiedWithoutEvidence ||
     hasAdrClosedWithoutAdr ||
@@ -221,7 +252,11 @@ export function checkProductionReadinessGate(
     );
   }
   if (hasBlocking) {
-    reasons.push(`بنودٌ مانعةٌ (لا تُفشل CI وحدها): ${blockingItems.join("، ")}`);
+    reasons.push(
+      requireReady
+        ? `بنودٌ مانعةٌ تمنعُ إعلانَ Production Ready: ${blockingItems.join("، ")}`
+        : `بنودٌ مانعةٌ (لا تُفشل نمطَ CI وحدها): ${blockingItems.join("، ")}`,
+    );
   }
   if (hasVerifiedWithoutEvidence) {
     reasons.push(
@@ -245,6 +280,7 @@ export function checkProductionReadinessGate(
 
   return {
     blockingItems,
+    commercialOpenItems,
     verifiedWithoutEvidence,
     adrClosedWithoutAdr,
     unknownStatusItems,
@@ -282,12 +318,15 @@ if (import.meta.main) {
     roadmapMasterContent = readFileSync(ROADMAP_MASTER_PATH, "utf-8");
   }
 
+  const requireReady = process.argv.includes("--require-ready");
   const result = checkProductionReadinessGate({
     gateContent,
     systemStateContent,
     roadmapContent,
     roadmapMasterContent,
+    requireReady,
   });
+  console.log(`النمط: ${requireReady ? "إعلان (--require-ready)" : "CI"}`);
 
   const gateStatus = result.blockingItems.length > 0 ? "مانعة" : "مُغلَقة";
   console.log(`بوابة جاهزية الإنتاج: ${result.parsedItemCount} بندًا — ${gateStatus}`);
@@ -297,7 +336,17 @@ if (import.meta.main) {
     for (const item of result.blockingItems) {
       console.log(`   — ${item}`);
     }
-    console.log(`   البوابةُ مانعةٌ — ليس Production Ready (حالةٌ طبيعيةٌ لا تُفشل CI).`);
+    console.log(
+      requireReady
+        ? "   البوابةُ مانعةٌ — إعلانُ Production Ready مرفوض."
+        : "   البوابةُ مانعةٌ — ليس Production Ready (نمطُ CI لا يُفشلُ عليها؛ نمطُ --require-ready يُفشل).",
+    );
+  }
+
+  if (result.commercialOpenItems.length > 0) {
+    console.log(
+      `ℹ️  بواباتُ الإطلاقِ التجاريِّ (P2) المفتوحةُ — لا تمنعُ الإعلان (${result.commercialOpenItems.length}): ${result.commercialOpenItems.join("، ")}`,
+    );
   }
 
   if (result.verifiedWithoutEvidence.length > 0) {

@@ -1,5 +1,7 @@
 # WASLA MOVE — Roadmap
 
+> **PRD-001/البوابة (2026-10-08 · ADR 0246 §5):** سببُ رفضِ Upstash يُقرأُ الآن مُعقَّمًا في `/ready` `checkDetails.redis` (كان `HTTP 400` مجرّدًا). الحارسُ بنمطَين: CI و`--require-ready` (الإعلان — P0/P1 فقط) + سيرُ `production-readiness.yml`. شرطُ PRD-001 مصحَّح (`ready` لا `ok`). Redis لم يُصلَح بعد. ليس Production Ready.
+>
 > **Production Readiness Gate (2026-10-08 · ADR 0246):** بوابة جاهزية الإنتاج هي المرجع التنفيذي لما تبقى حتى الإطلاق. خمس مراحل إلزامية: Implemented → Merged → Deployed → Production-Verified → Production Ready. خمس حالات: Open/Blocked/Ready/Verified/ADR-Closed. الحارس fail-closed. الكود على `main` في مرحلة Merged. الإنتاج غير Deployed. UI-10 غير مغلقة. ليس Production Ready. المرجع: `docs/governance/PRODUCTION_READINESS_GATE.md`. الحارس: `scripts/check-production-readiness-gate.ts`.
 >
 > **تحديث المرحلة (2026-10-05):** الخارطة السابقة أدناه أصبحت تاريخية

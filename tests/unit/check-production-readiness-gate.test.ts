@@ -330,4 +330,96 @@ describe("check-production-readiness-gate", () => {
     expect(result.fails).toBe(true);
     expect(result.parsedItemCount).toBe(2);
   });
+
+  // --- نمطُ الإعلانِ (--require-ready) — ADR 0246 · ح-PRD-8 ---
+
+  for (const status of ["Open", "Blocked", "Ready"] as const) {
+    test(`نمطُ الإعلانِ: ${status} وحدَه يُفشل`, () => {
+      const gate = makeGate([
+        { id: "PRD-001", status },
+        ...Array.from({ length: 20 }, (_, i) => ({
+          id: `PRD-${String(i + 2).padStart(3, "0")}`,
+          status: "Verified",
+          evidence: true,
+        })),
+      ]);
+      const ci = checkProductionReadinessGate({ gateContent: gate, ...CLEAN_INPUT });
+      const strict = checkProductionReadinessGate({
+        gateContent: gate,
+        ...CLEAN_INPUT,
+        requireReady: true,
+      });
+      expect(ci.fails).toBe(false);
+      expect(strict.fails).toBe(true);
+      expect(strict.blockingItems).toContain(`PRD-001 (${status})`);
+    });
+  }
+
+  test("نمطُ الإعلانِ: بوابةٌ مُغلقةٌ كلُّها تنجح", () => {
+    const gate = makeGate(
+      Array.from({ length: 21 }, (_, i) => ({
+        id: `PRD-${String(i + 1).padStart(3, "0")}`,
+        status: "Verified",
+        evidence: true,
+      })),
+    );
+    const strict = checkProductionReadinessGate({
+      gateContent: gate,
+      ...CLEAN_INPUT,
+      requireReady: true,
+    });
+    expect(strict.fails).toBe(false);
+  });
+
+  test("الحارسُ كعمليّةٍ على البوابةِ الحقيقيّة: CI يخرجُ 0 والإعلانُ يخرجُ 1", () => {
+    const ci = Bun.spawnSync(["bun", "scripts/check-production-readiness-gate.ts"]);
+    const strict = Bun.spawnSync([
+      "bun",
+      "scripts/check-production-readiness-gate.ts",
+      "--require-ready",
+    ]);
+    expect(ci.exitCode).toBe(0);
+    // ما دامَ في البوابةِ الحقيقيّةِ بندٌ مانعٌ فإعلانُ الجاهزيّةِ مرفوض.
+    expect(strict.exitCode).toBe(1);
+  });
+
+  test("بنودُ P2 المفتوحةُ لا تمنعُ نمطَ الإعلانِ متى أُغلِقَ P0 وP1", () => {
+    const gate = makeGate([
+      ...Array.from({ length: 16 }, (_, i) => ({
+        id: `PRD-${String(i + 1).padStart(3, "0")}`,
+        status: "Verified",
+        evidence: true,
+      })),
+      ...Array.from({ length: 5 }, (_, i) => ({
+        id: `PRD-${String(i + 201)}`,
+        status: "Blocked",
+      })),
+    ]);
+    const strict = checkProductionReadinessGate({
+      gateContent: gate,
+      ...CLEAN_INPUT,
+      requireReady: true,
+    });
+    expect(strict.fails).toBe(false);
+    expect(strict.blockingItems).toHaveLength(0);
+    expect(strict.commercialOpenItems).toContain("PRD-201 (Blocked)");
+  });
+
+  test("بندُ P1 مانعٌ يمنعُ نمطَ الإعلان", () => {
+    const gate = makeGate([
+      ...Array.from({ length: 20 }, (_, i) => ({
+        id: `PRD-${String(i + 1).padStart(3, "0")}`,
+        status: "Verified",
+        evidence: true,
+      })),
+      { id: "PRD-104", status: "Open" },
+    ]);
+    const strict = checkProductionReadinessGate({
+      gateContent: gate,
+      ...CLEAN_INPUT,
+      requireReady: true,
+    });
+    expect(strict.fails).toBe(true);
+    expect(strict.blockingItems).toContain("PRD-104 (Open)");
+  });
 });

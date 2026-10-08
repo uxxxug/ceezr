@@ -178,7 +178,8 @@ import { createHttpBridge } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createOffersChannel } from "./realtime/offers-channel.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
-import { createUpstashRedis } from "./redis/upstash.ts";
+import { createUpstashRedis, sanitizeUpstashError } from "./redis/upstash.ts";
+import type { ProbeOutcome } from "./routes/health.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
 import { createPublicTrackingRoutes } from "./routes/public-tracking.ts";
 import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
@@ -1419,9 +1420,16 @@ const app = createServer({
             {
               name: "redis",
               critical: false,
-              check: async (): Promise<boolean> => {
+              // PRD-001: النتيجةُ مفصّلةٌ لا منطقيّة — `degradedChecks: ["redis"]` بلا سببٍ
+              // بقيَ أيّاماً لا يُشخَّصُ من الخارج. والتفصيلُ مُعقَّمٌ في المحوّلِ نفسِه.
+              check: async (): Promise<ProbeOutcome> => {
                 const result = await rateRedis.command(["PING"]);
-                return result.ok;
+                return result.ok
+                  ? { ok: true }
+                  : {
+                      ok: false,
+                      detail: sanitizeUpstashError(`${result.error.kind}: ${result.error.detail}`),
+                    };
               },
             },
           ]),
