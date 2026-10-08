@@ -249,6 +249,75 @@ describe("RedisStreamTrackingEventBus (SCL-004)", () => {
     bus.stop(); // مرّتَين بلا أثر.
     expect(bus.isPolling).toBe(false);
   });
+
+  // --- PRD-001: لا استطلاعَ بلا مشتركٍ محليّ ---
+
+  /** يعدُّ طلباتِ XREAD — كلُّ طلبٍ طلبُ Upstash من الحصّة. */
+  const countingRedis = (store: FakeStreamStore): { redis: RedisClient; xreads: () => number } => {
+    const inner = fakeRedis(store);
+    let n = 0;
+    return {
+      xreads: () => n,
+      redis: {
+        command: (args) => {
+          if (args[0] === "XREAD") n += 1;
+          return inner.command(args);
+        },
+      },
+    };
+  };
+
+  it("لا يطلبُ XREAD ما دامَت النسخةُ بلا مشتركٍ محليّ", async () => {
+    const counted = countingRedis(createStore());
+    const bus = createRedisStreamTrackingEventBus({
+      local: createTrackingEventBus(),
+      redis: counted.redis,
+      streamKey: "t:test:idle",
+      instanceId: "B",
+      pollMs: 5,
+    });
+    bus.start();
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    bus.stop();
+    expect(counted.xreads()).toBe(0);
+  });
+
+  it("يستأنفُ بعدَ الخمولِ فيُسلِّمُ حدثًا نُشرَ بعدَ الاشتراكِ في نسخةٍ أخرى", async () => {
+    const store = createStore();
+    const streamKey = "t:test:resume";
+    const counted = countingRedis(store);
+    const busA = createRedisStreamTrackingEventBus({
+      local: createTrackingEventBus(),
+      redis: fakeRedis(store),
+      streamKey,
+      instanceId: "A",
+      pollMs: 5,
+    });
+    const busB = createRedisStreamTrackingEventBus({
+      local: createTrackingEventBus(),
+      redis: counted.redis,
+      streamKey,
+      instanceId: "B",
+      pollMs: 5,
+    });
+    busB.start();
+    await busA.publish(positionEvent({ sequence: 1, sessionId: "s1" }));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(counted.xreads()).toBe(0);
+
+    const collector = sinkCollector();
+    const unsubscribe = busB.subscribe(
+      { kind: "operations", scope: { kind: "all_cities" } },
+      collector.sink,
+    );
+    await busA.publish(positionEvent({ sequence: 2, sessionId: "s1" }));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    unsubscribe();
+    busB.stop();
+
+    expect(counted.xreads()).toBeGreaterThan(0);
+    expect(collector.received.map((e) => e.sequence)).toContain(2);
+  });
 });
 
 // تُستخدمُ في الكتابةِ النمطيّةِ فقط — تضمنُ أنّ النوعَ يُحقَّقُ في وقتِ الترجمة.

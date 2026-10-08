@@ -1,0 +1,29 @@
+{
+  "id": "prd-001-redis-stream-idle-poll",
+  "goal": "إيقافُ استنزافِ حصّةِ Upstash: لا XREAD بلا مشتركٍ محليٍّ في ناقلِ التتبّعِ الموزَّع",
+  "canonical_source": ["docs/governance/PRODUCTION_READINESS_GATE.md"],
+  "implementation": [
+    "packages/infrastructure/tracking/redis-stream-event-bus.ts",
+    "tests/unit/redis-stream-event-bus.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/governance/PRODUCTION_READINESS_GATE.md",
+    "docs/evidence/production/PRD-001-redis-diagnosis-20261008.md",
+    "docs/evidence/production/PRD-003-migrations-20261008.md",
+    "docs/work-packets/prd-001-redis-stream-idle-poll.json"
+  ],
+  "no_other_affected_docs_reason": "SCL-004 (التسليمُ عبرَ النسخ) باقٍ بسلوكِه: الناقلُ المحليُّ بلا إعادةٍ، فالدورةُ بلا مشتركٍ كانت تُسلِّمُ إلى لا أحد",
+  "decision": "تخطّي الاستطلاعِ بلا مشتركٍ محليّ، واستئنافُ المؤشّرِ من الآن − 2s بعدَ الخمول",
+  "tests": [
+    "tests/unit/redis-stream-event-bus.test.ts — صفرُ XREAD بلا مشترك؛ التسليمُ بعدَ الاستئنافِ عبرَ نسختَين؛ يفشلان على الكودِ القديم"
+  ],
+  "evidence": "docs/evidence/production/PRD-001-redis-diagnosis-20261008.md",
+  "contract_gaps": [],
+  "constraints": [
+    "لا تغييرَ في عقودِ /v1 ولا في SCL-004",
+    "لا أسرارَ في الدليل",
+    "لا إعلانَ Production Ready"
+  ]
+}
