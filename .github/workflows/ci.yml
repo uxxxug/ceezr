@@ -1166,6 +1166,12 @@ jobs:
       - name: سقوطُ حاجزِ اشتقاقِ staging مقيسٌ بسالباتٍ مزروعةٍ (ح-7)
         run: bun test tests/unit/staging-blueprint.test.ts
 
+      # ADR 0246 · Production Readiness Gate: منعُ الادعاء بجاهزية الإنتاج
+      # ما دامَ أيُّ بندٍ في البوابة مفتوحًا. حارسٌ ساكنٌ يقرأُ البوابة
+      # ويتحقّقُ من SYSTEM_STATE و ROADMAP و ROADMAP-MASTER.
+      - name: بوابة جاهزية الإنتاج — لا ادعاء Production Ready بلا أدلة (ADR 0246)
+        run: bun run scripts/check-production-readiness-gate.ts
+
       # F9-04: حتميّةُ بذرةِ القياس — الدوالُّ الصرفةُ تُنتجُ البصمةَ نفسَها.
       - name: حتميّةُ بذرةِ القياس — بصمةٌ ثابتةٌ وUUIDv5 صالح (F9-04)
         run: bun run scripts/check-bench-seed-determinism.ts
