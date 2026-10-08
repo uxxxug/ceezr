@@ -1,0 +1,61 @@
+{
+  "id": "ui-6-pr9-admin-console",
+  "goal": "UI-6 / PR 9: لوحةُ عملياتِ الإدارة وفقَ المصدرِ الكانونيّ §11 PR 9 «إدارة §10 | صفحات + CSP + تحسين تدريجي» — على البنيةِ القائمة (HTML من الخادم) وفوقَ العقودِ والمساراتِ الموجودة فقط.",
+  "canonical_source": [
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §10",
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §11 PR 9",
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §§2، 3، 5، 9",
+    "docs/SYSTEM_STATE.md",
+    "ROADMAP.md",
+    "docs/UI_SURFACE_INVENTORY.md"
+  ],
+  "implementation": [
+    "apps/admin-dashboard/src/index.ts",
+    "apps/admin-dashboard/src/layout.ts",
+    "apps/admin-dashboard/src/login.ts",
+    "apps/admin-dashboard/src/map.ts",
+    "apps/admin-dashboard/src/pages/attendance.ts",
+    "apps/admin-dashboard/src/pages/break-glass.ts",
+    "apps/admin-dashboard/src/pages/broadcast.ts",
+    "apps/admin-dashboard/src/pages/disputes.ts",
+    "apps/admin-dashboard/src/pages/driver-detail.ts",
+    "apps/admin-dashboard/src/pages/drivers.ts",
+    "apps/admin-dashboard/src/pages/heatmap.ts",
+    "apps/admin-dashboard/src/pages/live-map.ts",
+    "apps/admin-dashboard/src/pages/live-orders.ts",
+    "apps/admin-dashboard/src/pages/messages.ts",
+    "apps/admin-dashboard/src/pages/payments.ts",
+    "apps/admin-dashboard/src/pages/ratings.ts",
+    "apps/admin-dashboard/src/pages/recovery.ts",
+    "apps/admin-dashboard/src/pages/settings.ts",
+    "apps/gateway/src/routes/admin-ui.ts",
+    "tests/integration/admin-dashboard.test.ts",
+    "tests/unit/admin-console-ui6.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0240-ui-6-pr9-admin-operations-console.md"],
+  "no_other_affected_docs_reason": "docs/UI_SURFACE_INVENTORY.md لم يتغير: لا ملفَّ صفحةٍ أُضيف أو حُذف (admin-dashboard/pages = 15 كما هي) ولا سطحَ جديد. سياسةُ CSP (apps/gateway/src/admin/security-headers.ts) ووثائقُها لم تتغير. ADR 0007 وADR 0176 كما هما: البنيةُ والبابُ لم يتغيّرا.",
+  "decision": "لا استقصاء: أُزيل مؤقّتُ إعادةِ التحميل، وصار عُمرُ القراءةِ معلَناً مع شريطِ «قراءةٌ قديمة» بلا جافاسكربت ورابطِ تحديثٍ يدويّ. الحالاتُ السبعُ كتلةً موحّدة (stateBlock) والبحثُ يميّزُ الفراغَ عن الانقطاعِ والرفضِ وعدمِ الإتاحة. data-confirm + danger على كلِّ فعلٍ خطِر (تحسينٌ تدريجيّ؛ الخادمُ الحَكَم). إصلاحُ CSRF المفقودِ في مراجعةِ الاسترداد. هيكلٌ برموزِ §2/§3، خصائصُ منطقية، تركيز، تخطٍّ، معالم، reduced-motion. CSP بلا تغيير. ADR 0240.",
+  "tests": [
+    "tests/unit/admin-console-ui6.test.ts (جديد · 24 اختباراً)",
+    "tests/integration/admin-dashboard.test.ts (توكيدُ عُمرِ القراءةِ بدلَ location.reload + CSRF في صفحةِ الاسترداد — يعملُ في CI على PostgreSQL)",
+    "bun test كاملًا محلّياً: 7012 ناجحاً · 0 فاشلاً · 1627 متجاوَزاً (تكاملٌ يحتاج قاعدة)",
+    "lint · typecheck · build:miniapp · check-performance-budget · check-single-origin-assets · بواباتُ CI الساكنة"
+  ],
+  "evidence": "محلّياً: lint · typecheck · bun test كاملًا · build:miniapp + check-performance-budget (حزمةُ الراكبِ بلا تغيير) · check-security-headers · check-state-sync · check-roadmap · وسائرُ فحوصِ scripts/check-* في CI. ثم CI على الـPR.",
+  "contract_gaps": [
+    "[C] POST /admin/users/:id/recovery قائمٌ بلا مدخلٍ في الواجهة — إضافتُه مسارُ نقلِ ملكيّةِ حسابٍ يحتاجُ قرارَ مالك؛ لم يُضَف.",
+    "ردودُ رفضِ أفعالِ الكتابةِ نصٌّ خامٌ 422 لا صفحةٌ بحالةِ خطأ، ونجاحُ مراجعةِ الاسترداد بلا إشعار — سلوكُ خادمٍ خارجَ النطاق.",
+    "لا قناةَ دفعٍ للطلباتِ الحيّة/النظرةِ العامّة — البديلُ تحديثٌ يدويٌّ وشريطُ قِدَم، لا استقصاء.",
+    "فجواتُ ADR 0238 الستُّ وD14 باقيةٌ مستقلّة."
+  ],
+  "constraints": [
+    "لا backend ولا endpoint ولا عقدَ ولا تبعية؛ لا تغييرَ في *contract.ts/*api.ts/*view.ts",
+    "لا إضعافَ لـCSP أو CSRF أو الصلاحيات أو التحقّق؛ security-headers.ts لم يتغير",
+    "لا !important ولا @layer ولا setInterval ولا استقصاء",
+    "لا مساسَ بـapps/miniapp (حزمةُ أوّلِ رسمِ الراكب) ولا بسلوكِ تيليجرام ولا UI-3/4/5"
+  ],
+  "limitations": "الفحوصُ على HTML المُصيَّر بلا متصفّحٍ ولا قارئِ شاشةٍ حيّ. التأكيدُ تحسينٌ تدريجيّ: بلا جافاسكربت يبقى الخادمُ الحاجزَ الوحيد كما قبل.",
+  "status": "مُنفَّذٌ في PR مفتوح — لم يُدمَج. UI-6 = قيدَ المراجعة لا مغلقة."
+}

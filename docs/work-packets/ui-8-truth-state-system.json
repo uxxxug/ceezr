@@ -1,0 +1,56 @@
+{
+  "id": "ui-8-truth-state-system",
+  "goal": "UI-8 — Truth & State System كمرحلةٍ مستقلّة بنطاقٍ محكوم: ui-truth + أعمارُ البيانات + مصادرُها — طبقةٌ واحدةٌ قابلةٌ للإثبات فوقَ ما بنته UI-1 وUI-3، بلا اختلاقِ معلومة.",
+  "canonical_source": [
+    "docs/UI_UX_RECONCILIATION_REPORT.md §H (UI-8: ui-truth + أعمار + مصادر)",
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §§0، 4، 5، 9، 10.1، 10.5، 10.8، 10.9",
+    "قرارُ المالك 2026-10-06: UI-8 مرحلةٌ مستقلّةٌ في PR واحد"
+  ],
+  "implementation": [
+    "apps/miniapp/src/system/truth.ts",
+    "apps/miniapp/src/system/truth.test.tsx",
+    "apps/miniapp/src/system/ui/index.tsx",
+    "apps/miniapp/src/styles/global.css",
+    "apps/miniapp/src/surfaces/rider/active/RideJourney.tsx",
+    "apps/miniapp/src/surfaces/rider/active/ActiveRideScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/sos/SosCard.tsx",
+    "apps/miniapp/src/surfaces/rider/share/RideShareCard.tsx",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0242-ui-8-truth-state-system.md",
+    "docs/UI_UX_RECONCILIATION_REPORT.md"
+  ],
+  "no_other_affected_docs_reason": "docs/UI_SURFACE_INVENTORY.md لم يتغيّر: لا سطحَ أُضيف أو حُذف (truth.ts وحدةٌ نقيّةٌ في system لا سطح). لا عقدَ ولا view ولا api تغيّر، فلا وثيقةَ عقدٍ متأثّرة. لوحةُ الإدارة والتتبّعُ العامّ تُحقِّقُ منهما ولم يُعدَّلا.",
+  "decision": "truth.ts: TRUTH_STATE_KINDS + truthRole، truthAge (مقيس|مجهول — لا صفرَ للغياب)، truthFreshness (المجهولُ ليس قديماً)، TRUTH_SOURCE_KEYS (سجلُّ الخادم · عمرٌ يقيسه الخادم · محرّكُ الطرق). UiTruth.seal = الختمُ الأصليُّ نصّاً ظاهراً. الربط في طبقةِ الشاشة فقط: RideJourney · ActiveRideScreen · SosCard · RideShareCard. ADR 0242.",
+  "tests": [
+    "apps/miniapp/src/system/truth.test.tsx (جديد · 22 اختباراً · يشملُ حارساً ساكناً على مستدعي دوالِّ العمر)",
+    "bun test كاملًا محلّياً (انظر evidence)",
+    "lint · typecheck · build:miniapp · check-performance-budget · check-css-class-coverage · فحوصُ i18n وسائرُ scripts/check-*"
+  ],
+  "evidence": "محلّياً: lint · typecheck · bun test كاملًا (7061 ناجحاً · 0 فاشلاً · 1627 متجاوَزاً) · build:miniapp · check-performance-budget (الحملُ الأوّل 94.9/180 KB · shell 24.9 KB · طلبات 6/6) · جميعُ فحوصِ scripts/check-* في CI · check-state-sync · check-roadmap. ثم CI على الـPR.",
+  "out_of_scope": [
+    "تعديلُ *view.ts/*api.ts/*contract.ts (الصفرُ البديلُ داخلَ دوالِّ العرضِ باقٍ ومحجوبٌ بحارسِ الشاشة)",
+    "اللمسةُ المطوَّلةُ لكشفِ المصدر — اختيرَ النصُّ الظاهر",
+    "أعمارٌ ومصادرُ في أسطحِ السائقِ والسجلِّ والدعم — لا عمرَ قراءةٍ مقيساً في عقودِها اليوم",
+    "توحيدُ شيفرةِ HTML الخادم (الإدارة/التتبّع) معَ التطبيقِ المصغَّر — تحقّقٌ فقط",
+    "UI-9 وUI-10"
+  ],
+  "contract_gaps": [
+    "[C] لا حقلَ لعمرِ لقطةِ الرحلةِ نفسِها في active-ride-contract.ts — لا يُقالُ متى قُرِئت الحالة. (صُحِّحَ بالإضافةِ 2026-10-06: عُولِجَت في Work Packet ui-8-contract-gaps-closure · ADR 0243 — في PR مفتوح لم يُدمَج.)",
+    "[C] التنبؤُ الإحصائيُّ بمدىً (§10.8): محرّكُ الطرقِ يُعيدُ دقائقَ مفردةً بلا مدىً ولا ثقة. (صُحِّحَ بالإضافةِ 2026-10-06: عُولِجَت في Work Packet ui-8-contract-gaps-closure · ADR 0243 — في PR مفتوح لم يُدمَج.)"
+  ],
+  "constraints": [
+    "لا endpoint ولا حقلَ ولا عقدَ جديد",
+    "لا *view.ts/*api.ts/*contract.ts",
+    "لا setInterval ولا استقصاء ولا مؤقّت ولا مكتبة",
+    "لا تخفيفَ أمنيّ",
+    "لا إعادةَ تصميمٍ للأسطح"
+  ],
+  "limitations": "لا لقطةَ متصفّحٍ ولا قارئَ شاشةٍ حيّ؛ اختباراتُ الشاشاتِ ساكنةٌ على المصدر لأنَّ المكوّناتِ تقرأُ بعدَ التركيبِ ولا DOM في بيئةِ الاختبار.",
+  "status": "مُنفَّذٌ في PR مفتوح — لم يُدمَج. UI-8 = قيدَ المراجعة لا مغلقة. (صُحِّحَ بالإضافةِ 2026-10-06: دُمِجَ في #427 = 17f277cbccd16314188043dbc93cdee119d1bfed؛ CI على الفرعِ الرئيسِ أخضر — التشغيل 37508405991.)"
+}

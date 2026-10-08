@@ -1,0 +1,21 @@
+{
+  "id": "ui-1-pr0-foundations",
+  "implementation": [
+    "scripts/lib/ui-contrast.ts",
+    "scripts/check-ui-contrast.ts",
+    "tests/unit/check-ui-contrast.test.ts",
+    "scripts/lib/ui-surface-inventory.ts",
+    "scripts/check-ui-surface-inventory.ts",
+    "tests/unit/check-ui-surface-inventory.test.ts",
+    "package.json",
+    ".github/workflows/ci.yml"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0233-ui-1-design-system-foundations.md",
+    "docs/UI_SURFACE_INVENTORY.md",
+    "docs/UI_UX_RECONCILIATION_REPORT.md"
+  ],
+  "no_other_affected_docs_reason": "PR 0 لا يغيّر الدليل المعتمد (docs/UI_UX_CANONICAL_DIRECTIVE.md) ولا ADR 0232: يقرأ §2 منه ولا يعدّله. لا تغيير تحت apps/ أو packages/، فلا وثيقة سطح أو عقد متأثرة."
+}

@@ -1,0 +1,8 @@
+{
+  "id": "ui-0-closure",
+  "implementation": [],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/UI_UX_RECONCILIATION_REPORT.md"],
+  "no_other_affected_docs_reason": "إغلاق UI-0 توثيقيًا فقط: لا تغيير في كود المنتج ولا في العقود ولا في قرارات التصميم. docs/UI_UX_CANONICAL_DIRECTIVE.md وADR 0232 لا يتغيّران؛ جدول الربط يُصرّح بالانتماء ولا يغيّر الخطة."
+}

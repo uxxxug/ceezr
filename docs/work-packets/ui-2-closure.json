@@ -1,0 +1,23 @@
+{
+  "id": "ui-2-closure",
+  "implementation": [],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0234-ui-2-shell-navigation.md"],
+  "evidence": {
+    "pr": 413,
+    "head_before_merge": "e14426af877d12aebe3fa81c61ff3b68cef947e8",
+    "merge_commit": "0b8b0ea72d1652fa3547464873526e004c4d9dc0",
+    "merged_at": "2026-10-06T02:43:41Z",
+    "main_ci": {
+      "run": "37405542119",
+      "result": "success",
+      "jobs": "7/7"
+    },
+    "roadmap_freshness": {
+      "run": "37405542140",
+      "result": "success"
+    }
+  },
+  "no_other_affected_docs_reason": "إغلاقُ UI-2 توثيقيًّا فقط: لا تغييرَ في كودِ المنتجِ ولا العقودِ ولا قراراتِ التصميم. docs/UI_UX_CANONICAL_DIRECTIVE.md وdocs/UI_UX_RECONCILIATION_REPORT.md (جدولُ الربط §H: UI-2 = PR 2) وdocs/UI_SURFACE_INVENTORY.md (81 سطحاً منذ #413) لا تتغيّر. UI-3 لم تبدأ."
+}

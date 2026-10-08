@@ -16,7 +16,15 @@
  * يتجاوب في التنسيقِ لا يتجاوب بالنيّة.
  */
 
-import type { ReactNode } from "react";
+import { createContext, type ReactNode } from "react";
+
+/**
+ * `UI-10`: هل نحنُ داخلَ إطارِ `Layout` (معلمِ `<main>`) أصلاً؟ الهيكلُ (`Shell`) يلفُّ
+ * الموجّهَ بإطارٍ واحدٍ، وجذرا الراكبِ والسائقِ يرسمانِ `ScreenFrame` داخلَه. فبلا هذه
+ * القرينةِ تتداخلُ `<main>` في `<main>` (معلمانِ رئيسيّانِ لقارئِ الشاشةِ — غيرُ صالحٍ في
+ * HTML) وتتضاعفُ الحاشيةُ فيضيقُ العمودُ على 320px. والقيمةُ حقيقةُ بنيةٍ لا تفضيل.
+ */
+export const InsideAppFrame = createContext(false);
 
 export interface LayoutProps {
   /** رأسُ الشاشة — يُحذَف من الشجرةِ إن لم يُمرَّر، فلا فراغَ يُحجَز بلا محتوى. */
@@ -32,7 +40,9 @@ export function Layout({ header, children, action, busy = false }: LayoutProps) 
   return (
     <main className="app-frame" aria-busy={busy ? "true" : undefined}>
       {header === undefined ? <div /> : <header>{header}</header>}
-      <div className="app-frame__content">{children}</div>
+      <div className="app-frame__content">
+        <InsideAppFrame.Provider value={true}>{children}</InsideAppFrame.Provider>
+      </div>
       <div className="app-frame__action">{action}</div>
     </main>
   );

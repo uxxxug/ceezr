@@ -114,15 +114,21 @@ function actionsCell(row: DriverRow, csrfToken: string): string {
   const nextVerification = row.verificationStatus === "verified" ? "suspended" : "verified";
   const verificationLabel = row.verificationStatus === "verified" ? "تعليق" : "توثيق";
 
-  return `<form class="inline" method="post" action="/admin/drivers/${escapeHtml(row.driverId)}/verification">
+  const suspends = nextVerification === "suspended";
+  const name = row.fullName ?? row.telegramId;
+  return `<form class="inline" method="post"${
+    suspends ? ` data-confirm="${escapeHtml(`تعليقُ توثيقِ «${name}»؟`)}"` : ""
+  } action="/admin/drivers/${escapeHtml(row.driverId)}/verification">
   ${csrf}
   <input type="hidden" name="status" value="${escapeHtml(nextVerification)}">
-  <button type="submit">${escapeHtml(verificationLabel)}</button>
+  <button type="submit"${suspends ? ' class="danger"' : ""}>${escapeHtml(verificationLabel)}</button>
 </form>
-<form class="inline" method="post" action="/admin/users/${escapeHtml(row.userId)}/blocked">
+<form class="inline" method="post"${
+    row.isBlocked ? "" : ` data-confirm="${escapeHtml(`حظرُ حسابِ «${name}»؟`)}"`
+  } action="/admin/users/${escapeHtml(row.userId)}/blocked">
   ${csrf}
   <input type="hidden" name="blocked" value="${row.isBlocked ? "0" : "1"}">
-  <button class="ghost" type="submit">${row.isBlocked ? "رفع الحظر" : "حظر"}</button>
+  <button class="${row.isBlocked ? "ghost" : "danger"}" type="submit">${row.isBlocked ? "رفع الحظر" : "حظر"}</button>
 </form>`;
 }
 

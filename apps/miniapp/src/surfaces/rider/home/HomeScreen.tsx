@@ -104,6 +104,7 @@ export interface HomeScreenProps {
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — اختياريٌّ كأخوتَيهِ. */
   readonly onOpenSos?: () => void;
   readonly initialLanguage?: MiniAppLanguage;
+  readonly showTitle?: boolean;
   /** اسمُ المزوّدِ المُهيَّأِ فعلاً؛ `"none"` تعني: قُلِ الحدَّ ولا ترسمْ. */
   readonly mapProvider?: string;
   /** اسمُ المدينةِ كما يُعيدُه الخادمُ — يُعرَضُ بجانبِ حالتِها لا بدلاً منها. */
@@ -146,6 +147,7 @@ export function HomeScreen({
   onOpenAccount,
   onOpenSos,
   initialLanguage = MINIAPP_DEFAULT_LANGUAGE,
+  showTitle = true,
   mapProvider = "none",
   cityName,
 }: HomeScreenProps) {
@@ -220,11 +222,12 @@ export function HomeScreen({
     </fieldset>
   );
 
-  const title = (
+  const title = showTitle ? (
     <h1 id="rh-title" className="rh__title">
       {t("rider.home.title")}
     </h1>
-  );
+  ) : null;
+  const sectionName = showTitle ? { "aria-labelledby": "rh-title" as const } : {};
 
   const historyEntry =
     onOpenHistory === undefined ? null : (
@@ -263,12 +266,7 @@ export function HomeScreen({
 
   if (state.kind === "loading") {
     return (
-      <section
-        className="rh"
-        dir={directionFor(language)}
-        aria-busy="true"
-        aria-labelledby="rh-title"
-      >
+      <section className="rh" dir={directionFor(language)} aria-busy="true" {...sectionName}>
         {title}
         <Skeleton />
       </section>
@@ -280,14 +278,14 @@ export function HomeScreen({
     // اتجاهُها عربيّاً: نصٌّ عربيٌّ في إطارٍ يساريٍّ يُقرأُ مقلوباً.
     return (
       <div dir="rtl">
-        <SystemScreen state={state.screen} onAction={() => void load()} />
+        <SystemScreen language={language} state={state.screen} onAction={() => void load()} />
       </div>
     );
   }
 
   if (state.kind === "rejected") {
     return (
-      <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
+      <section className="rh" dir={directionFor(language)} {...sectionName}>
         {title}
         {historyEntry}
         {notificationsEntry}
@@ -316,7 +314,7 @@ export function HomeScreen({
     lostFoundEntry !== null ||
     accountEntry !== null;
   return (
-    <section className="rh" dir={directionFor(language)} aria-labelledby="rh-title">
+    <section className="rh" dir={directionFor(language)} {...sectionName}>
       <div className="rh__hero">
         {title}
         {services}

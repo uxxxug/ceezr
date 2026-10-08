@@ -238,7 +238,7 @@ export function renderBroadcastPage(data: BroadcastPageData): string {
        )}${row.silent ? " · 🔇 صامتة" : ""}${row.linkUrl === null ? "" : " · 🔗 زرّ"}</div>`,
       `<span class="mono">${escapeHtml(row.filters)}</span>`,
       `${badge(status.label, status.tone)}
-       <div class="bar" title="${ratio}%"><i style="width:${ratio}%"></i></div>`,
+       <progress class="progress" max="100" value="${ratio}" aria-label="عولج ${ratio}% من المستقبِلين">${ratio}%</progress>`,
       `<span class="mono">${formatNumber(row.sent)} ✅ · ${formatNumber(row.failed)} ⚠️ · ${formatNumber(
         row.pending,
       )} ⏳${row.canceled === 0 ? "" : ` · ${formatNumber(row.canceled)} 🚫`}</span>
@@ -246,7 +246,7 @@ export function renderBroadcastPage(data: BroadcastPageData): string {
       `${escapeHtml(row.createdBy ?? "—")}
        <div class="card-hint">${formatDateTime(row.createdAt)}</div>`,
       row.status === "sending" && row.pending > 0
-        ? `<form class="inline" method="post" action="/admin/broadcast/${escapeHtml(
+        ? `<form class="inline" method="post" data-confirm="إلغاءُ ما لم يُرسَل من هذه الحملة؟" action="/admin/broadcast/${escapeHtml(
             row.batchId,
           )}/cancel">
             <input type="hidden" name="csrf" value="${escapeHtml(data.csrfToken)}">
@@ -314,7 +314,7 @@ ${section(
     </div>
     <div class="filters">
       <button type="submit" name="action" value="preview" class="ghost">تقدير العدد</button>
-      <button type="submit" name="action" value="send">إرسال الآن</button>
+      <button type="submit" name="action" value="send" data-confirm="إرسالُ الرسالةِ الآن إلى كلِّ من تطابقُه المرشّحات؟ رسالةٌ سُلِّمت لا تُستعاد.">إرسال الآن</button>
     </div>
   </form>
   ${previewBlock}`,

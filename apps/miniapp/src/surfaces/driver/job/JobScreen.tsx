@@ -76,6 +76,8 @@ import {
 export interface JobScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   readonly readJob?: () => Promise<DriverActiveJobResponse>;
   readonly arrive?: (orderId: string) => Promise<unknown>;
   readonly start?: (orderId: string) => Promise<unknown>;
@@ -164,6 +166,7 @@ function StampRow({
 export function JobScreen({
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   onCompleted,
   readJob = readDriverActiveJob,
   arrive = markDriverArrived,
@@ -278,10 +281,16 @@ export function JobScreen({
 
   if (state.kind === "loading") {
     return (
-      <section className="djb" aria-labelledby={`${formId}-title`} aria-busy="true">
-        <h1 id={`${formId}-title`} className="djb__title">
-          {t("driver.job.title")}
-        </h1>
+      <section
+        className="djb"
+        aria-labelledby={showTitle ? `${formId}-title` : undefined}
+        aria-busy="true"
+      >
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="djb__title">
+            {t("driver.job.title")}
+          </h1>
+        ) : null}
         <p className="djb__loading">{t("driver.job.loading")}</p>
       </section>
     );
@@ -289,10 +298,12 @@ export function JobScreen({
 
   if (state.kind === "failed") {
     return (
-      <section className="djb" aria-labelledby={`${formId}-title`}>
-        <h1 id={`${formId}-title`} className="djb__title">
-          {t("driver.job.title")}
-        </h1>
+      <section className="djb" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="djb__title">
+            {t("driver.job.title")}
+          </h1>
+        ) : null}
         <EmptyState title={t("driver.job.failed")} body={t(jobErrorKey(state.code))} />
         {isRetryableJobError(state.code) ? (
           <button type="button" className="djb__retry" onClick={() => void load()}>
@@ -310,10 +321,12 @@ export function JobScreen({
 
   if (state.job === null) {
     return (
-      <section className="djb" aria-labelledby={`${formId}-title`}>
-        <h1 id={`${formId}-title`} className="djb__title">
-          {t("driver.job.title")}
-        </h1>
+      <section className="djb" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+        {showTitle ? (
+          <h1 id={`${formId}-title`} className="djb__title">
+            {t("driver.job.title")}
+          </h1>
+        ) : null}
         {/* `UX-5` — الفراغُ يُقالُ صراحةً ولا يُترَكُ بياضاً يُقرأُ عطلاً. */}
         <EmptyState title={t("driver.job.none.title")} body={t("driver.job.none.body")} />
         <button type="button" className="djb__retry" onClick={() => void load()}>
@@ -331,10 +344,12 @@ export function JobScreen({
   const job = state.job;
 
   return (
-    <section className="djb" aria-labelledby={`${formId}-title`}>
-      <h1 id={`${formId}-title`} className="djb__title">
-        {t("driver.job.title")}
-      </h1>
+    <section className="djb" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
+      {showTitle ? (
+        <h1 id={`${formId}-title`} className="djb__title">
+          {t("driver.job.title")}
+        </h1>
+      ) : null}
 
       <div className="djb__head">
         <span className="djb__service">{t(job.serviceKey)}</span>
@@ -359,12 +374,51 @@ export function JobScreen({
       <p className="djb__coords">
         {job.pickup.latitude} , {job.pickup.longitude}
       </p>
+      {/* `LOC-TRUST-01`: ملاحظاتُ المكانِ ورابطُ الراكبِ الأصليُّ حرفاً، وفتحُه. */}
+      {job.pickup.notes === null ? null : (
+        <p className="djb__notes">
+          {t("driver.job.place.notes")}: {job.pickup.notes}
+        </p>
+      )}
+      {job.pickup.link === null ? null : (
+        <p className="djb__coords">
+          {t("driver.job.place.link")}: {job.pickup.link}
+        </p>
+      )}
+      {job.pickup.openUrl === null ? null : (
+        <button
+          type="button"
+          className="djb__navigate"
+          onClick={() => openLink(job.pickup.openUrl ?? "")}
+        >
+          {t("driver.job.openPickup")}
+        </button>
+      )}
       <p className="djb__place">
         {t("driver.job.dropoff")}:{" "}
         {job.dropoff === null
           ? t("driver.job.place.none")
           : (job.dropoff.label ?? t("driver.job.place.unnamed"))}
       </p>
+      {job.dropoff?.notes == null ? null : (
+        <p className="djb__notes">
+          {t("driver.job.place.notes")}: {job.dropoff.notes}
+        </p>
+      )}
+      {job.dropoff?.link == null ? null : (
+        <p className="djb__coords">
+          {t("driver.job.place.link")}: {job.dropoff.link}
+        </p>
+      )}
+      {job.dropoff?.openUrl == null ? null : (
+        <button
+          type="button"
+          className="djb__navigate"
+          onClick={() => openLink(job.dropoff?.openUrl ?? "")}
+        >
+          {t("driver.job.openDropoff")}
+        </button>
+      )}
 
       <p className="djb__notes">
         {t("driver.job.notes")}:{" "}

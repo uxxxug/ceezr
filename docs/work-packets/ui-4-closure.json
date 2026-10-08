@@ -1,0 +1,32 @@
+{
+  "id": "ui-4-closure",
+  "implementation": [],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0236-ui-4-driver-d0-d14.md"],
+  "evidence": {
+    "pr": 416,
+    "head_before_merge": "04162cba658ea0ac4315dbe5a8be7ea8a21bce4c",
+    "merge_commit": "de97f7886f7e4b78fdfe6cc2110f74f409e01db1",
+    "merged_at": "2026-10-06T08:43:12Z",
+    "merge_method": "squash --match-head-commit",
+    "pr_checks": {
+      "result": "success",
+      "jobs": "8/8",
+      "note": "وظيفة Slow 4G للراكب فشلت أوّلًا بقياس 2004ms > 2000ms ثم نجحت بإعادة تشغيل واحدة؛ التعديل الأخير لم يمسّ سطح الراكب"
+    },
+    "main_ci": {
+      "run": "37437999457",
+      "result": "success",
+      "jobs": "7/7"
+    },
+    "roadmap_freshness": {
+      "run": "37437999463",
+      "result": "success"
+    }
+  },
+  "contract_gaps": [
+    "D14 «تسجيل السائق من الـMini App»: فجوة عقد [C] مفتوحة — لا POST /v1/onboarding/driver، والتسجيل يحتاج مشاركة رقم الهاتف من تيليجرام وصورة المركبة. المنفّذ في UI-4 حال صريحة في OnboardingRoot تدلّ على بوت السائق بثلاث لغات، بلا نموذج ولا نداء مختلق. إضافة العقد قرار خادم خارج UI-4، ولا PR لها الآن."
+  ],
+  "no_other_affected_docs_reason": "إغلاق UI-4 توثيقيًّا فقط: لا تغيير في كود المنتج ولا العقود ولا قرارات التصميم. docs/UI_SURFACE_INVENTORY.md (81 سطحًا، وجدول D0–D14 الكانوني منذ #416) وdocs/UI_UX_CANONICAL_DIRECTIVE.md وdocs/UI_UX_RECONCILIATION_REPORT.md لا تتغيّر. UI-5 لم تبدأ، ولا PR لتسجيل D14."
+}

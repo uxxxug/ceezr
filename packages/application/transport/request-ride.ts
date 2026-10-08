@@ -44,6 +44,7 @@
  *   ــ **لا تُعيدُ نصّاً معروضاً**: رموزٌ ومعرّفاتٌ وأختامٌ (القسم 9.11).
  */
 
+import { type PlaceMetaRefusal, readPlaceMeta } from "../../domain/places/place-input.ts";
 import { readPlacePoint } from "../../domain/places/place-kinds.ts";
 import { isServiceKind } from "../../domain/quote/service-offer.ts";
 import { readIdempotencyKey, readRideNotes } from "../../domain/transport/ride-request.ts";
@@ -73,6 +74,8 @@ export type RequestRidePublicErrorCode =
   | "IDEMPOTENCY_KEY_INVALID"
   | "UNKNOWN_SERVICE"
   | "NOTES_TOO_LONG"
+  /** `LOC-TRUST-01` — مكانٌ معطوبُ الشكل، أو رابطٌ لا يُقبَل، أو ملاحظةُ مكانٍ طويلة، أو قراءةُ جهازٍ لا تُوثَق. */
+  | PlaceMetaRefusal
   | "ACCOUNT_NOT_FOUND"
   | "RIDER_NOT_REGISTERED"
   | "RIDE_STORE_NOT_AVAILABLE";
@@ -168,6 +171,14 @@ export async function requestRide(
     return err(notes.refusal === "NOTES_TOO_LONG" ? "NOTES_TOO_LONG" : "MALFORMED");
   }
 
+  // `LOC-TRUST-01`: ما كانَ يسقطُ بينَ الشاشةِ والقاعدة — مصدرُ النقطةِ ودقّتُها ووقتُها
+  // والرابطُ الأصليُّ وملاحظاتُ المكان. غيابُهما مقبولٌ (عميلٌ أقدمُ من العقد).
+  const nowMs = deps.now().getTime();
+  const pickupPlace = readPlaceMeta(body.pickupPlace, origin, nowMs);
+  if ("refusal" in pickupPlace) return err(pickupPlace.refusal);
+  const dropoffPlace = readPlaceMeta(body.dropoffPlace, destination, nowMs);
+  if ("refusal" in dropoffPlace) return err(dropoffPlace.refusal);
+
   const created = await deps.rides.create({
     telegramUserId: session.value.telegramUserId,
     idempotencyKey: key.key,
@@ -179,6 +190,8 @@ export async function requestRide(
     dropoffLabel: readPlaceLabel(body.destinationLabel),
     pickupAt: readPickupAt(body.pickupAt),
     offerSar: readOfferSar(body.offerSar),
+    pickupPlace: pickupPlace.meta,
+    dropoffPlace: dropoffPlace.meta,
   });
   if (!created.ok) return err(rideStoreErrorFrom(created.error));
 

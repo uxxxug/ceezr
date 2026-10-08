@@ -43,6 +43,8 @@ import {
 export interface DriverSupportScreenProps {
   readonly language?: MiniAppLanguage;
   readonly onBack?: () => void;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ لا يُكرَّرُ. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   /**
    * رحلةٌ جاءَ منها السائقُ (شاشةُ المَهمّةِ أو سجلُّ نشاطِه) — **تُثبَّتُ ولا
    * تُكتَبُ بيدٍ**، وبها وحدَها يُفتَحُ صنفُ «راكبٍ مسيءٍ».
@@ -68,6 +70,7 @@ const DECLARED_DEBT: readonly string[] = [
 export function DriverSupportScreen({
   language,
   onBack,
+  showTitle = true,
   orderId = null,
   onOpenDeductionTrace,
   openTicket,
@@ -101,6 +104,7 @@ export function DriverSupportScreen({
       initialCategory={null}
       language={language}
       onBack={onBack}
+      showTitle={showTitle}
       openTicket={open}
       orderId={orderId}
       pageSize={DEFAULT_SUPPORT_PAGE_SIZE}

@@ -1,0 +1,31 @@
+{
+  "id": "prd-001-idle-flush-gate",
+  "goal": "إيقافُ المستهلكِ الدوريِّ الثاني لحصّةِ Upstash: لا EVAL سحبٍ على قائمةِ مواقعٍ يُعلَمُ فراغُها",
+  "canonical_source": ["docs/governance/PRODUCTION_READINESS_GATE.md"],
+  "implementation": [
+    "packages/infrastructure/geo/redis-driver-location-hot-state.ts",
+    "apps/workers/src/container.ts",
+    "tests/unit/driver-location-idle-drain-gate.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/governance/PRODUCTION_READINESS_GATE.md",
+    "docs/evidence/production/PRD-001-redis-healthy-20261008.md",
+    "docs/evidence/production/PRD-008-telegram-smoke-20261008.md",
+    "docs/work-packets/prd-001-idle-flush-gate.json"
+  ],
+  "no_other_affected_docs_reason": "F4-02/D-38 بسلوكِهما: كلُّ نبضةٍ queued تُسحَبُ في الدورةِ التالية كما كانت، وما سُحِبَ أو أُعيدَ أو فشلَ يُبقي السحبَ مستحقّاً؛ والتغيّرُ الوحيدُ: لا أمرَ على قائمةٍ فارغةٍ معلومةٍ، بسقفِ أمانٍ 120ث لنبضاتِ نسخةٍ أخرى",
+  "decision": "بوّابةٌ على مستوى العمليّة في المحوّل، اختياريّةٌ (idleDrainCeilingMs)، مُفعَّلةٌ في العامل بسقف 120000ms",
+  "tests": [
+    "tests/unit/driver-location-idle-drain-gate.test.ts — بلا السقفِ سلوكٌ سابقٌ حرفيّ؛ خاملٌ لا أمرَ حتّى السقف؛ queued من محوّلٍ آخرَ يوقظُ فوراً؛ غيرُ الفارغِ والفشلُ والإعادةُ تُبقي السحبَ مستحقّاً"
+  ],
+  "evidence": "docs/evidence/production/PRD-001-redis-healthy-20261008.md",
+  "contract_gaps": [],
+  "constraints": [
+    "لا تغييرَ في عقودِ /v1",
+    "لا تغييرَ في Redis ولا إعداداتِ Render",
+    "لا أسرارَ في الدليل",
+    "لا إعلانَ Production Ready"
+  ]
+}

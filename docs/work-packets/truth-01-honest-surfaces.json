@@ -1,0 +1,54 @@
+{
+  "id": "truth-01-honest-surfaces",
+  "goal": "لا واجهةَ تَعِدُ بما لا يحدث: إخفاءُ ما لا مستهلِكَ له (تفضيلاتُ الإشعارات، رسائلُ التذكرة) وقولُ حدِّه، ونقلُ نصوصِ شاشاتِ الحالةِ إلى القاموس، وتصحيحُ النصوصِ المتعارضة — الأمرُ التصميميّ v1.0 §0.4 و§1.4 #2 و#8 و§14.2",
+  "canonical_source": [
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md",
+    "docs/adr/0238-ui-3-pr5-rider-r11-r15.md"
+  ],
+  "implementation": [
+    "apps/miniapp/src/styles/direction.ts",
+    "apps/miniapp/src/surfaces/rider/account/account-view.ts",
+    "apps/miniapp/src/surfaces/rider/active/ActiveRideScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/destination/DestinationScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/history/RideDetailScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/history/RideHistoryScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/home/HomeScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/notifications/NotificationsScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/rider-r11-r15.test.tsx",
+    "apps/miniapp/src/surfaces/rider/search/SearchScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/settings/consumers.ts",
+    "apps/miniapp/src/surfaces/rider/summary/RideSummaryScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/support/SupportScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/welcome/WelcomeScreen.tsx",
+    "apps/miniapp/src/system/SystemScreen.tsx",
+    "apps/miniapp/src/system/state-text.test.ts",
+    "apps/miniapp/src/system/state-text.ts",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/work-packets/truth-01-honest-surfaces.json",
+    "docs/adr/0238-ui-3-pr5-rider-r11-r15.md"
+  ],
+  "decision": "بتوجيهِ المالك (2026-10-08): «صحّح مشاكلَ الصدقِ في الإشعاراتِ والتذاكرِ والنصوص». الإخفاءُ لا الحذف: عقدا DEC-42/DEC-43 في الخادمِ باقيان، والعلَمُ يُقلَبُ في PR الذي يوصِلُ المستهلِك",
+  "tests": [
+    "apps/miniapp/src/surfaces/rider/rider-r11-r15.test.tsx — TRUTH-01: لا مفاتيحَ ولا خانةَ رسائلَ في اللغاتِ الثلاث، والسجلُّ يطابقُ غيابَ المستهلِكِ في الهجرةِ وصفحاتِ الإدارة",
+    "apps/miniapp/src/system/state-text.test.ts — لا عربيّةَ حرفيّةً في state-text.ts وSystemScreen.tsx، والإنجليزيّةُ والأرديّةُ بلغتِهما",
+    "bun test: 7166 pass · 0 fail؛ lint وtypecheck وbuild وcheck-i18n وcheck-css-class-coverage وcheck-performance-budget خضراء",
+    "measure-tti محلّيّاً: 1936–2004 ms (ضجيجُ قياسٍ حولَ هامشٍ رقيق؛ shell +324 بايتاً gzip)"
+  ],
+  "evidence": "docs/work-packets/truth-01-honest-surfaces.json",
+  "contract_gaps": [
+    "تصنيفُ البثِّ الإداريِّ (عروض/تحديثات/تشغيليّ) واحترامُ التفضيلِ في broadcast_audience — قرارُ مالك",
+    "قارئُ ticket_messages في لوحةِ الإدارة/الدعم — قرارُ مالك"
+  ],
+  "constraints": [
+    "لا تغييرَ في الخادمِ ولا في القاعدة",
+    "لا رفعَ لأيِّ سقفِ أداء",
+    "لا بياناتَ متأثّرة: صفرُ تفضيلٍ مُطفأ وصفرُ رسالةِ تذكرةٍ في الإنتاج"
+  ]
+}

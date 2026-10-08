@@ -1,0 +1,14 @@
+RUNS 35 SCREENS 115
+BLOCKED 0 []
+HOV 0 []
+OVF 0 []
+FOCUS-NO-INDICATOR []
+CSP []
+DIRS {('rider_ar', 'rtl', 'ar'): 25, ('rider_en', 'ltr', 'en'): 25, ('rider_ur', 'rtl', 'ur'): 25, ('driver_ar', 'rtl', 'ar'): 25, ('unregistered', 'rtl', 'ar'): 5, ('blocked', 'rtl', 'ar'): 5, ('outside_telegram', 'rtl', 'ar'): 5}
+AXE
+  ('color-contrast', 'serious') ['.ac__privacy', '.ac__support', '.app-frame__tab:nth-child(1)', '.app-frame__tab:nth-child(2)', '.app-frame__tab:nth-child(3)', '.app-frame__tab:nth-child(4)', '.hs__search-submit', '.rh__hero > p', '.rh__service--on', '.sys__action:nth-child(1)', 'legend', 'p:nth-child(5)']
+SMALL
+  ('', 13, 13, '') 75
+ERRS
+  10 error: Failed to load resource: the server responded with a status of 403 (Forbidden)
+  5 error: WebSocket connection to 'ws://127.0.0.1:5080/socket.io/?EIO=4&transport=websocket' failed: Invalid frame header

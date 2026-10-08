@@ -399,7 +399,7 @@ function page(
   title: string,
   activePath: string,
   body: string,
-  refreshSeconds?: number,
+  freshness?: { readonly observedAt: Date; readonly staleAfterSeconds: number },
   notice?: { readonly kind: "ok" | "error"; readonly text: string },
 ): Response {
   const admin = c.get("admin");
@@ -417,18 +417,21 @@ function page(
       csrfToken: c.get("csrfToken"),
       cspNonce: c.get("cspNonce"),
       body,
-      ...(refreshSeconds === undefined ? {} : { refreshSeconds }),
+      ...(freshness === undefined ? {} : { freshness }),
       ...(notice === undefined ? {} : { notice }),
     }),
   );
 }
 
 /**
- * دورية تحديث الصفحات التشغيلية. الطلبات الحية أسرع لأنها الشاشة التي يُتابَع
- * عليها ما يجري الآن — وهي التي رُئي فيها طلب ملغى معروضاً كأنه يبحث عن سائق.
+ * عتبةُ قِدَمِ القراءةِ في الصفحاتِ التشغيلية (UI-6 / PR 9 · ADR 0240). كانت هذه
+ * دوريّةَ إعادةِ تحميلٍ بمؤقّتٍ في المتصفّح؛ والمصدرُ الكانونيُّ §9 يحظرُ الاستقصاء.
+ * صارت عتبةً يُعلَنُ بعدَها أنَّ القراءةَ قديمةٌ مع رابطِ تحديثٍ يدويّ. الطلباتُ
+ * الحيّةُ أقصرُ لأنها الشاشةُ التي رُئي فيها طلبٌ ملغىً معروضاً كأنه يبحثُ عن سائق.
  */
-const LIVE_REFRESH_SECONDS = 20;
-const OVERVIEW_REFRESH_SECONDS = 60;
+const LIVE_STALE_SECONDS = 20;
+const OVERVIEW_STALE_SECONDS = 60;
+const RECOVERY_STALE_SECONDS = 60;
 
 const VERIFICATION_VALUES = new Set(["pending", "verified", "rejected", "suspended"]);
 const TICKET_STATUS_VALUES = new Set(["open", "claimed", "resolved", "rejected"]);
@@ -960,7 +963,7 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         windowHours: DAY_WINDOW_HOURS,
         stamp: reading.stamp,
       }),
-      OVERVIEW_REFRESH_SECONDS,
+      { observedAt, staleAfterSeconds: OVERVIEW_STALE_SECONDS },
     );
   });
 
@@ -971,19 +974,20 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       listLiveOrders(deps.sql, cityId),
       stallSeconds(deps.sql, cityId),
     ]);
+    const observedAt = new Date();
     return page(
       c,
       "الطلبات الحية",
       "/admin/live-orders",
       renderLiveOrdersPage({
-        now: new Date(),
+        now: observedAt,
         csrfToken: c.get("csrfToken"),
         rows,
         cities: toCityOptions(cities),
         cityId,
         stallSeconds: stall,
       }),
-      LIVE_REFRESH_SECONDS,
+      { observedAt, staleAfterSeconds: LIVE_STALE_SECONDS },
     );
   });
 
@@ -1900,7 +1904,15 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
     const admin = c.get("admin");
     const requests = await listPendingRecoveryRequests(deps.sql, admin.userId, admin.cityId);
 
-    return page(c, "استرداد الحسابات", "/admin/recovery", renderRecoveryPage(requests), 60);
+    return page(
+      c,
+      "استرداد الحسابات",
+      "/admin/recovery",
+      // CSRF في نموذجِ المراجعة: الخادمُ يرفضُ بدونه (`requireCsrf`) — وكان النموذجُ
+      // يُرسَلُ بلا رمزٍ فيُرفَضُ كلُّ قرار (UI-6 / PR 9).
+      renderRecoveryPage(requests, c.get("csrfToken")),
+      { observedAt: new Date(), staleAfterSeconds: RECOVERY_STALE_SECONDS },
+    );
   });
 
   // هذا المسار الأخصّ يجب أن يسبق :key، وإلا عومل group-ids كمفتاح إعداد عادي.

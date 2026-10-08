@@ -55,6 +55,13 @@ export interface ApiDriverOfferCard {
   readonly trip_distance: ApiTaggedDistance | null;
   readonly pickup_label: string | null;
   readonly dropoff_label: string | null;
+  /** `LOC-TRUST-01` — ملاحظاتُ الراكبِ ورابطُه الأصليُّ ورابطُ الفتح؛ تغيبُ من بوّابةٍ أقدم. */
+  readonly pickup_notes?: string | null;
+  readonly pickup_link?: string | null;
+  readonly pickup_open_url?: string | null;
+  readonly dropoff_notes?: string | null;
+  readonly dropoff_link?: string | null;
+  readonly dropoff_open_url?: string | null;
 }
 
 export interface DriverOffersResponse {
@@ -73,6 +80,10 @@ export interface ApiDriverOfferPlace {
   readonly label: string | null;
   readonly latitude: number;
   readonly longitude: number;
+  /** `LOC-TRUST-01` — تغيبُ من بوّابةٍ أقدم. */
+  readonly link?: string | null;
+  readonly notes?: string | null;
+  readonly open_url?: string | null;
 }
 
 export interface DriverOfferDetailResponse {

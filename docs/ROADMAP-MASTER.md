@@ -16,6 +16,8 @@
 | المالك | مدير المشروع |
 | الجمهور | كل من يعمل في المشروع: مهندس بشري، أو وكيل برمجي، أو مراجع، أو مختبِر |
 
+> **Production Readiness Gate (2026-10-08 · ADR 0246):** بوابة جاهزية الإنتاج هي المرجع التنفيذي لما تبقى حتى الإطلاق. خمس مراحل إلزامية: Implemented → Merged → Deployed → Production-Verified → Production Ready. الكود على `main` في مرحلة Merged. الإنتاج غير Deployed. UI-10 غير مغلقة. ليس Production Ready. المرجع: `docs/governance/PRODUCTION_READINESS_GATE.md`. الحارس: `scripts/check-production-readiness-gate.ts`.
+
 ---
 
 # 0. كيف تُقرأ هذه الوثيقة

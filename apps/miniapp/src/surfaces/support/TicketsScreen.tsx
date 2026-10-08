@@ -75,6 +75,8 @@ export interface TicketsScreenProps {
    */
   readonly language?: MiniAppLanguage | undefined;
   readonly onBack?: (() => void) | undefined;
+  /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
+  readonly showTitle?: boolean;
   /**
    * رحلةٌ جاءَ منها صاحبُ الحسابِ — **تُثبَّتُ ولا تُكتَبُ بيدٍ**: حقلُ معرّفٍ
    * يُملأُ يدويّاً بابُ خطأٍ لا بابُ دعمٍ.
@@ -88,6 +90,11 @@ export interface TicketsScreenProps {
    * السائقِ لا يُمرِّرُ شيئاً فلا يتغيَّرُ شيءٌ.
    */
   readonly header?: ReactNode | undefined;
+  /**
+   * UI-3 / PR 5 (ADR 0238): ما يُلحَقُ ببطاقةِ كلِّ تذكرةٍ — سطحُ الراكبِ يُمرِّرُ رسائلَ التذكرة ([B])؛
+   * وسطحُ السائقِ لا يُمرِّرُ شيئاً فلا يتغيَّرُ شيء.
+   */
+  readonly renderTicketExtra?: ((ticket: ApiSupportTicket) => ReactNode) | undefined;
 }
 
 type ListState =
@@ -120,9 +127,11 @@ export function TicketsScreen({
   readTickets,
   language = MINIAPP_DEFAULT_LANGUAGE,
   onBack,
+  showTitle = true,
   orderId = null,
   initialCategory = null,
   header,
+  renderTicketExtra,
 }: TicketsScreenProps) {
   const t = miniAppTranslator(language);
   const messageId = useId();
@@ -185,10 +194,12 @@ export function TicketsScreen({
   const submittable = view.canSubmit({ category, message, orderId, busy });
 
   return (
-    <section className="sup" aria-labelledby="support-title">
-      <h1 className="sup__title" id="support-title">
-        {t(`${prefix}title`)}
-      </h1>
+    <section className="sup" aria-labelledby={showTitle ? "support-title" : undefined}>
+      {showTitle ? (
+        <h1 className="sup__title" id="support-title">
+          {t(`${prefix}title`)}
+        </h1>
+      ) : null}
       {onBack !== undefined && (
         <button type="button" className="sys__action sup__back" onClick={onBack}>
           {t(`${prefix}back`)}
@@ -326,6 +337,7 @@ export function TicketsScreen({
                 {row.hasOrder && (
                   <span className="sup__ticket-ride">{t(`${prefix}list.aboutRide`)}</span>
                 )}
+                {renderTicketExtra?.(ticket)}
               </li>
             );
           })}
@@ -343,17 +355,19 @@ export function TicketsScreen({
         )}
       </div>
 
-      {/* **الحدُّ يُقالُ** — انظرْ رأسَ المِلفِّ. */}
-      <div className="sup__debt">
-        <p className="sup__debt-title">{t(`${prefix}debt.title`)}</p>
-        <ul className="sup__debt-list">
-          {declaredDebt.map((key) => (
-            <li className="sup__debt-item" key={key}>
-              {t(key)}
-            </li>
-          ))}
-        </ul>
-      </div>
+      {/* **الحدُّ يُقالُ** — انظرْ رأسَ المِلفِّ. ولا عنوانَ «غيرُ متاحٍ» فوقَ قائمةٍ فارغة. */}
+      {declaredDebt.length === 0 ? null : (
+        <div className="sup__debt">
+          <p className="sup__debt-title">{t(`${prefix}debt.title`)}</p>
+          <ul className="sup__debt-list">
+            {declaredDebt.map((key) => (
+              <li className="sup__debt-item" key={key}>
+                {t(key)}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

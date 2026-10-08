@@ -33,6 +33,9 @@ import {
 import { TicketsScreen } from "../../support/TicketsScreen.tsx";
 import type { OpenTicketInput, ReadTicketsInput } from "../../support/ticket-api.ts";
 import type { OpenTicketResponse, SupportTicketsResponse } from "../../support/ticket-contract.ts";
+import { hasConsumer } from "../settings/consumers.ts";
+import { TicketThread } from "../settings/TicketThread.tsx";
+import type { TicketThreadApi } from "../settings/ticket-thread.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import { openSupportTicket, readSupportTickets } from "./support-api.ts";
 import {
@@ -64,15 +67,20 @@ export interface SupportScreenProps {
     readonly orderId: string | null;
   }) => Promise<OpenTicketResponse>;
   readonly readTickets?: (input: ReadTicketsInput) => Promise<SupportTicketsResponse>;
+  /** UI-3 / PR 5: داخلَ `ScreenFrame` العنوانُ للإطار (`false`). */
+  readonly showTitle?: boolean;
+  /** رسائلُ التذكرة ([B] · ADR 0238) — للاختبار؛ الافتراضُ العقدُ القائم. */
+  readonly threadApi?: TicketThreadApi;
 }
 
 /** ما لا سندَ له في هذه الشاشةِ — يُقالُ ولا يُوضَعُ له زرٌّ صوريٌّ.
  * `lostFound` رُفِعَ بعدَ DEC-34 (صفحةُ المفقوداتِ المخصَّصةِ موصولةٌ).
- * `faq` رُفِعَ بعدَ DEC-36 (صفحةُ الأسئلة الشائعةِ مكتوبةٌ وموصولةٌ). */
-const DECLARED_DEBT: readonly string[] = [
-  "rider.support.debt.attachment",
-  "rider.support.debt.thread",
-];
+ * `faq` رُفِعَ بعدَ DEC-36 (صفحةُ الأسئلة الشائعةِ مكتوبةٌ وموصولةٌ).
+ * `thread` رُفِعَ في UI-3 / PR 5 (ADR 0238) ثمّ **أُعيدَ في `TRUTH-01`**: العقدُ يحفظُ الرسالةَ ولا يقرؤها
+ *   فريقُ الدعمِ في أيِّ صفحة — فخانةُ كتابةٍ هنا وعدٌ بقارئٍ غيرِ موجود. */
+export const RIDER_SUPPORT_DECLARED_DEBT: readonly string[] = hasConsumer("ticketThread")
+  ? ["rider.support.debt.attachment"]
+  : ["rider.support.debt.attachment", "rider.support.debt.thread"];
 
 export function SupportScreen({
   language,
@@ -83,6 +91,8 @@ export function SupportScreen({
   onOpenFaq,
   openTicket,
   readTickets = readSupportTickets,
+  showTitle = true,
+  threadApi,
 }: SupportScreenProps) {
   const t = miniAppTranslator(language ?? MINIAPP_DEFAULT_LANGUAGE);
   const open = (input: OpenTicketInput): Promise<OpenTicketResponse> =>
@@ -100,7 +110,19 @@ export function SupportScreen({
 
   return (
     <TicketsScreen
-      declaredDebt={DECLARED_DEBT}
+      declaredDebt={RIDER_SUPPORT_DECLARED_DEBT}
+      showTitle={showTitle}
+      {...(hasConsumer("ticketThread")
+        ? {
+            renderTicketExtra: (ticket: { readonly id: string }) => (
+              <TicketThread
+                ticketId={ticket.id}
+                {...(language === undefined ? {} : { language })}
+                {...(threadApi === undefined ? {} : { api: threadApi })}
+              />
+            ),
+          }
+        : {})}
       header={
         onOpenSos === undefined && onOpenFaq === undefined ? undefined : (
           <>

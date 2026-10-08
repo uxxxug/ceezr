@@ -39,11 +39,20 @@ import { SosCard } from "./SosCard.tsx";
 
 export interface SosScreenProps {
   readonly language?: MiniAppLanguage;
-  /** يُطفِئُ الرايةَ فيظهرُ ما تحتَ الشاشةِ كما كانَ — بابُ رجوعٍ صريحٌ. */
-  readonly onBack: () => void;
+  /**
+   * يُطفِئُ الرايةَ فيظهرُ ما تحتَ الشاشةِ كما كانَ — بابُ رجوعٍ صريحٌ. UI-3 / PR 4: داخلَ `ScreenFrame`
+   * يحملُه رأسُ الإطارِ فلا يُمرَّرُ ههنا، ولا يُرسَمُ زرٌّ ثانٍ.
+   */
+  readonly onBack?: () => void;
+  /** داخلَ `ScreenFrame` العنوانُ للإطار (`false`). */
+  readonly showTitle?: boolean;
 }
 
-export function SosScreen({ language = MINIAPP_DEFAULT_LANGUAGE, onBack }: SosScreenProps) {
+export function SosScreen({
+  language = MINIAPP_DEFAULT_LANGUAGE,
+  onBack,
+  showTitle = true,
+}: SosScreenProps) {
   const t = miniAppTranslator(language);
   return (
     <section className="sos__screen" dir={directionFor(language)}>
@@ -51,10 +60,12 @@ export function SosScreen({ language = MINIAPP_DEFAULT_LANGUAGE, onBack }: SosSc
         البطاقةُ بلا عنوانٍ مكرَّرٍ ههنا: عنوانُها `sos__title` هو عنوانُ الشاشةِ،
         وعنوانانِ بالنصِّ نفسِهِ يُقرآنِ تكراراً في قارئِ الشاشةِ (`UX-10`).
       */}
-      <SosCard language={language} />
-      <button type="button" className="sos__back" onClick={() => onBack()}>
-        {t("rider.sos.back")}
-      </button>
+      <SosCard language={language} showTitle={showTitle} />
+      {onBack === undefined ? null : (
+        <button type="button" className="sos__back" onClick={() => onBack()}>
+          {t("rider.sos.back")}
+        </button>
+      )}
     </section>
   );
 }

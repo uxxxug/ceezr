@@ -104,6 +104,7 @@ import {
 } from "../../../packages/infrastructure/storage/signed-upload.ts";
 import { PostgresDriverSupportStore } from "../../../packages/infrastructure/support/driver-support-store.ts";
 import { PostgresRiderSupportStore } from "../../../packages/infrastructure/support/rider-support-store.ts";
+import { createEtaBandStore } from "../../../packages/infrastructure/tracking/eta-band-store.ts";
 import { createActiveRideReader } from "../../../packages/infrastructure/transport/active-ride-store.ts";
 import {
   createRideDetailReader,
@@ -177,7 +178,8 @@ import { createHttpBridge } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createOffersChannel } from "./realtime/offers-channel.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
-import { createUpstashRedis } from "./redis/upstash.ts";
+import { createUpstashRedis, sanitizeUpstashError } from "./redis/upstash.ts";
+import type { ProbeOutcome } from "./routes/health.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
 import { createPublicTrackingRoutes } from "./routes/public-tracking.ts";
 import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
@@ -864,6 +866,8 @@ const rides =
           rides: createActiveRideReader(container.sql),
           now: () => new Date(),
           routing: { routing: container.routing },
+          // ADR 0243: مقياسُ خطأِ التقديرِ المرصود — مدى التنبؤِ الصادق.
+          etaBands: createEtaBandStore(container.sql),
         },
         cancel: {
           sessions: createRevocableSessionReader(
@@ -1416,9 +1420,16 @@ const app = createServer({
             {
               name: "redis",
               critical: false,
-              check: async (): Promise<boolean> => {
+              // PRD-001: النتيجةُ مفصّلةٌ لا منطقيّة — `degradedChecks: ["redis"]` بلا سببٍ
+              // بقيَ أيّاماً لا يُشخَّصُ من الخارج. والتفصيلُ مُعقَّمٌ في المحوّلِ نفسِه.
+              check: async (): Promise<ProbeOutcome> => {
                 const result = await rateRedis.command(["PING"]);
-                return result.ok;
+                return result.ok
+                  ? { ok: true }
+                  : {
+                      ok: false,
+                      detail: sanitizeUpstashError(`${result.error.kind}: ${result.error.detail}`),
+                    };
               },
             },
           ]),

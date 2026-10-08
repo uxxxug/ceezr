@@ -47,6 +47,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { TRUTH_AGE_UNKNOWN_KEY, TRUTH_SOURCE_KEYS, truthAge } from "../../../system/truth.ts";
 import { readSosSurface as readViaApi, triggerSos as triggerViaApi } from "./sos-api.ts";
 import type { SosSurfaceResponse, SosTriggerResponse } from "./sos-contract.ts";
 import {
@@ -66,6 +67,8 @@ export interface SosCardProps {
   readonly language?: MiniAppLanguage;
   readonly read?: () => Promise<SosSurfaceResponse>;
   readonly send?: () => Promise<SosTriggerResponse>;
+  /** UI-3 / PR 4: شاشةُ R9 داخلَ `ScreenFrame` عنوانُها للإطار (`false`)؛ والبطاقةُ المدمجةُ في R7 تُبقيه. */
+  readonly showTitle?: boolean;
 }
 
 type Found = Extract<SosSurfaceResponse, { found: true }>;
@@ -88,6 +91,7 @@ export function SosCard({
   language = MINIAPP_DEFAULT_LANGUAGE,
   read = readViaApi,
   send = triggerViaApi,
+  showTitle = true,
 }: SosCardProps) {
   const t = miniAppTranslator(language);
   const [state, setState] = useState<CardState>({ kind: "reading" });
@@ -160,10 +164,16 @@ export function SosCard({
   // بطاقةً يظنُّ أنَّ لا سبيلَ، ومَن يقرأُ «تعذَّرَ» يعرفُ أن يطلبَ الطوارئَ العامّةَ.
   if (state.kind === "rejected") {
     return (
-      <section className="sos sos--broken" role="alert" aria-labelledby="sos-title">
-        <h2 className="sos__title" id="sos-title">
-          {t("rider.sos.title")}
-        </h2>
+      <section
+        className="sos sos--broken"
+        role="alert"
+        {...(showTitle ? { "aria-labelledby": "sos-title" } : {})}
+      >
+        {showTitle ? (
+          <h2 className="sos__title" id="sos-title">
+            {t("rider.sos.title")}
+          </h2>
+        ) : null}
         <p className="sos__error">{t(sosErrorKey(state.code))}</p>
         {isRetryableSosError(state.code) && (
           <button type="button" className="sys__action sos__retry" onClick={() => void refresh()}>
@@ -179,10 +189,12 @@ export function SosCard({
   if (!isSosCardVisible(view.eligible, incident)) return null;
 
   return (
-    <section className="sos" aria-labelledby="sos-title">
-      <h2 className="sos__title" id="sos-title">
-        {t("rider.sos.title")}
-      </h2>
+    <section className="sos" {...(showTitle ? { "aria-labelledby": "sos-title" } : {})}>
+      {showTitle ? (
+        <h2 className="sos__title" id="sos-title">
+          {t("rider.sos.title")}
+        </h2>
+      ) : null}
 
       {/* البلاغُ القائمُ أوّلاً: مَن أبلغَ يسألُ «هل وصلَ؟» قبلَ كلِّ شيءٍ. */}
       {incident !== null && (
@@ -196,11 +208,16 @@ export function SosCard({
           </p>
           <p className="sos__incident-age">
             {(() => {
+              // UI-8: عمرٌ لم يُقَس يُقالُ مجهولاً — لا «أُرسِلَ قبلَ 0 ثانية».
+              if (truthAge(incident.ageSeconds).kind === "unknown") return t(TRUTH_AGE_UNKNOWN_KEY);
               const age = incidentAgeText(incident.ageSeconds);
               return t(age.key)
                 .replace("{minutes}", String(age.minutes))
                 .replace("{seconds}", String(age.seconds));
             })()}
+            {truthAge(incident.ageSeconds).kind === "measured" ? (
+              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_age)}</small>
+            ) : null}
           </p>
         </div>
       )}

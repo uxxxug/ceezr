@@ -60,6 +60,39 @@ function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+/** أقصى طولٍ لرسالةِ خطأِ Upstash المنقولةِ — تشخيصٌ لا حمولة. */
+const UPSTASH_ERROR_MAX_CHARS = 160;
+
+/**
+ * **PRD-001**: Upstash يردُّ على رفضِ الأمرِ برمزِ `4xx` وجسمٍ `{"error": "..."}`
+ * (رمزٌ خاطئٌ، حدُّ طلباتٍ مُستنفَدٌ، أمرٌ مرفوضٌ). وكانَ المحوّلُ يُسقِطُ الجسمَ
+ * فلا يبقى في السجلِّ إلّا `HTTP 400` — فقِيسَ في الإنتاجِ `degradedChecks: ["redis"]`
+ * أيّاماً بلا سببٍ مقروء. فتُقرأُ الرسالةُ ههنا وتُلحَقُ بالتفصيل، **بعدَ تعقيمِها**:
+ * كلُّ عنوانٍ وكلُّ سلسلةٍ طويلةٍ تشبهُ رمزاً تُحجَبُ، والطولُ مقصوصٌ — فلا يخرجُ
+ * سرٌّ إلى سجلٍّ أو إلى `/ready` العامّ ولو أعادَه المزوّدُ في رسالتِه.
+ */
+export function sanitizeUpstashError(message: string): string {
+  return message
+    .replace(/[a-z][a-z0-9+.-]*:\/\/\S+/gi, "[url]")
+    .replace(/[A-Za-z0-9_\-=+/]{24,}/g, "[redacted]")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, UPSTASH_ERROR_MAX_CHARS);
+}
+
+async function upstashErrorOf(response: Response): Promise<string | null> {
+  try {
+    const body = (await response.json()) as { error?: unknown } | null;
+    if (body !== null && typeof body === "object" && typeof body.error === "string") {
+      const clean = sanitizeUpstashError(body.error);
+      return clean === "" ? null : clean;
+    }
+  } catch {
+    // جسمٌ غيرُ JSON — يبقى رمزُ الحالةِ وحدَه.
+  }
+  return null;
+}
+
 /**
  * Upstash يردّ دائماً بجسم JSON فيه `result` عند النجاح أو `error` عند فشل الأمر
  * نفسه — و«فشل الأمر» غير «فشل الشبكة»: الأول خطأ منّا في صياغة الأمر، والثاني
@@ -127,7 +160,14 @@ export function createUpstashRedis(options: UpstashOptions): RedisClient {
       const response = outcome.value;
 
       if (!response.ok) {
-        return err({ kind: "http", detail: `HTTP ${response.status}` });
+        const upstashError = await upstashErrorOf(response);
+        return err({
+          kind: "http",
+          detail:
+            upstashError === null
+              ? `HTTP ${response.status}`
+              : `HTTP ${response.status}: ${upstashError}`,
+        });
       }
 
       let payload: unknown;

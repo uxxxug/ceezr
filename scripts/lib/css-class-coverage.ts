@@ -68,6 +68,9 @@ export const DECLARED_BLOCKS: readonly string[] = [
   // وفيها خطرٌ فوريٌّ، ولا `ac` فتلكَ للحسابِ: ردٌّ يُنتظَرُ غيرُ خطرٍ يُستعانُ
   // فيه، وخلطُ البادئتَينِ يُورِّثُ أحدَهما إلحاحَ الأخرى أو هُدوءَها.
   "sup",
+  // لوحاتُ [B] للراكب (UI-3 / PR 5 · ADR 0238): جهةُ الطوارئِ والأماكنُ والتفضيلاتُ ورسائلُ التذكرة — تخطيطٌ
+  // فوقَ `ui-*` لا ألوانٌ؛ وليسَ `ac` ولا `sup`: اللوحاتُ تُرسَمُ في الحسابِ والإشعاراتِ والدعمِ معاً.
+  "rset",
   // وثائقُ السائقِ (`F3-01` · `SD-01` · `SD-02`) — وليسَ `ac` فتلكَ لحسابِ
   // الراكبِ تُقرأُ مرّةً، وهذه لوحُ **منعِ عملٍ** يُقرأُ عندَ كلِّ انتهاءٍ.
   "dd",
@@ -113,6 +116,38 @@ export const DECLARED_BLOCKS: readonly string[] = [
   "rf", // شاشةُ كشفِ الخصومِ (DEC-37) — وليستْ `sup` فتلكَ لتذكرةٍ، وهذه سجلُّ محفظةٍ.
   "dt",
   "dsup",
+  // ── UI-1 / PR 1: مكوّناتُ ui-* العرضيّةُ الصرفةُ (القسم 4) ──
+  // كلُّ اسمٍ بلوكٌ مستقلٌ بقواعدِه في `global.css` وعنصرُ React في `system/ui/`.
+  "ui-btn",
+  "ui-fld",
+  "ui-tile",
+  "ui-sg",
+  "ui-chip",
+  "ui-tag",
+  "ui-pill",
+  "ui-card",
+  "ui-row",
+  "ui-kv",
+  "ui-truth",
+  "ui-rail",
+  "ui-timer",
+  "ui-stp",
+  "ui-sht",
+  "ui-dg",
+  "ui-tab",
+  "ui-act",
+  "ui-hdr",
+  "ui-skel",
+  "ui-empty",
+  "ui-err",
+  "ui-toast",
+  "ui-banner",
+  "ui-av",
+  "ui-pl",
+  "ui-st",
+  "ui-ds",
+  "ui-pg",
+  "ui-copy",
 ];
 
 /** أوراقُ النمطِ المقروءةُ — مكتوبةً لا مُكتشَفةً بنمطٍ. */
@@ -137,6 +172,47 @@ export interface RetainedRule {
 }
 
 export const RETAINED_RULES: readonly RetainedRule[] = [
+  {
+    className: "ar__phase",
+    reason:
+      "سطرُ طورِ الرحلةِ النشطةِ (R7). حلَّ محلَّه في UI-3 / PR 4 (§11 «سكّة + شريط حقيقة + SOS») شريطُ الحقيقةِ `UiTruth` بالنصِّ نفسِه (`activePhaseKey`) ونغمةٍ من الطور، ومعه سكّةُ `UiRail`. والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-3 / PR 4 · ADR 0237 · .ui-truth عبرَ active/RideJourney.tsx",
+  },
+  {
+    className: "dof__timer",
+    reason:
+      "شارةُ مهلةِ العرضِ النصّيّةُ في لوحِ العروضِ وتفاصيلِ العرض. حلَّ محلَّها في UI-4 (D1–D2 · §11 PR 6 «مؤقّتُ CSS + بطاقةُ عرض») مكوّنُ `UiTimer` من UI-1: شريطٌ يُفرَغُ بحركةِ CSS ونصٌّ يقولُ ما بقيَ لحظةَ العرض. والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · .ui-timer عبرَ offers/offer-timer.ts",
+  },
+  {
+    className: "dof__timer--calm",
+    reason:
+      "نغمةُ الشارةِ الهادئةُ — صارَت `ui-timer` بنغمةِ `neutral` (UI-4 · ADR 0236). والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · .ui-timer",
+  },
+  {
+    className: "dof__timer--urgent",
+    reason: "نغمةُ الشارةِ الملحّةُ — صارَت `ui-timer--amber` (UI-4 · ADR 0236). والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · .ui-timer--amber",
+  },
+  {
+    className: "dof__timer--elapsed",
+    reason:
+      "نغمةُ انقضاءِ المهلةِ — صارَت `ui-timer--bad` معَ نصِّ «انتهت المهلة» (UI-4 · ADR 0236). والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · .ui-timer--bad",
+  },
+  {
+    className: "dveh__nav",
+    reason:
+      "زرُّ «مركبتي» في الشاشةِ الفارغةِ عن قصدٍ داخلَ `DriverRoot` — وكانَ نصُّه مُضمَّناً بلا قاموس. زالَت تلكَ الشاشةُ في UI-4 وصارَ المدخلُ في «حسابي» (`driver.account.work.vehicle`) بصنفِ `sys__action`. والحذفُ ممنوعٌ (`ح-1`).",
+    owner: "منفّذ المستودع",
+    supersededBy: "UI-4 · ADR 0236 · driver/account/AccountScreen.tsx",
+  },
   {
     className: "rh__map--off",
     reason:
