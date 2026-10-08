@@ -1,5 +1,7 @@
 # WASLA MOVE — Roadmap
 
+> **PRD-001 — مستهلكٌ ثانٍ (2026-10-08):** `flush-driver-locations` يُرسِلُ `EVAL` لكلِّ مدينةٍ كلَّ ~20ث وهوَ خامل (~648K/شهر > حصّة 500K). الإصلاح: بوّابةُ سحبٍ خاملٍ بسقفِ 120ث (`idleDrainCeilingMs`). PRD-001 Open حتّى القياسِ الحيّ. ليس Production Ready.
+>
 > **PRD-001 — السببُ الجذريُّ (2026-10-08):** حصّةُ Upstash (500K طلب) مستنفدةٌ بماسحِ `XREAD` كلَّ 250ms بلا شرط. الإصلاح: لا استطلاعَ بلا مشتركٍ محليّ. استعادةُ Redis تنتظرُ قرارَ المالكِ في الحصّة. ليس Production Ready.
 >
 > **PRD-001/البوابة (2026-10-08 · ADR 0246 §5):** سببُ رفضِ Upstash يُقرأُ الآن مُعقَّمًا في `/ready` `checkDetails.redis` (كان `HTTP 400` مجرّدًا). الحارسُ بنمطَين: CI و`--require-ready` (الإعلان — P0/P1 فقط) + سيرُ `production-readiness.yml`. شرطُ PRD-001 مصحَّح (`ready` لا `ok`). Redis لم يُصلَح بعد. ليس Production Ready.
