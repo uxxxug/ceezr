@@ -55,6 +55,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/rider-quote.ts";
 import {
   RIDE_NOTES_MAX_LENGTH,
   readRideNotes,

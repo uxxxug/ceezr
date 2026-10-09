@@ -274,7 +274,7 @@ describe("RiderRoot — تبويباتُ الجذرِ", () => {
       'back={{ label: t("rider.destination.back"), onBack: flowHandlers.onBack }}',
     );
     expect(SOURCE).toContain(
-      'back={{ label: t("rider.quote.back"), onBack: flowHandlers.onBack }}',
+      'back={{ label: t("rider.frame.back"), onBack: flowHandlers.onBack }}',
     );
   });
 

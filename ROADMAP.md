@@ -1,5 +1,7 @@
 # WASLA MOVE — Roadmap
 
+> **PERF-RIDER-QUOTE-DEFERRED — شاشةُ التسعيرِ خارجَ الحِملِ الأوّل (ADR 0251 · Work Packet `perf-rider-quote-deferred`):** بموافقةِ المالكِ على تعديلِ 9.4؛ الحِملُ الأوّلُ −8.6 KB gzip، والوسيطُ المحلّيُّ 1,996 → 1,962 ms، والحدُّ 2,000 ms ثابت. قياسُ CI في الدليل.
+
 > **OPS-EVIDENCE — أدلة التشغيل (Work Packet `ops-prd-102-104-evidence`):** PRD-102/103/106 Verified؛ PRD-104 ينتظر فك تشفير المالك؛ PRD-009 ينتظر initData حقيقيًّا وخفض السطح المرسوم تحت 1900ms.
 
 > **PRD-106 — تحديثُ الاعتماديات (Work Packet `deps-prd-106`) — مدموج #453 · Verified:** hono 4.13.13 · biome 2.5.15 · vite 8.3.4 في PR واحدٍ بديلٍ لـ #405–#407، بعدَ مراجعةِ ملاحظاتِ الإصدار وتشغيلِ الاختبارات.

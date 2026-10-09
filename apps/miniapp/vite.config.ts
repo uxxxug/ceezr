@@ -10,7 +10,9 @@ import {
   assertRiderFirstSurface,
   isDeferredRiderModule,
   RIDER_HISTORY,
+  RIDER_QUOTE,
   RIDER_RIDE,
+  RIDER_SHARED_VIEWS,
 } from "./vite/assert-rider-first-surface.ts";
 import { injectCsp } from "./vite/inject-csp.ts";
 import { inlineEntryScript } from "./vite/inline-entry-script.ts";
@@ -111,6 +113,17 @@ export default defineConfig({
               name: "rider-home",
               test: (id: string) =>
                 /\/src\/surfaces\/rider\//.test(id) && !isDeferredRiderModule(id),
+            },
+            /** ADR 0251: مساعدا عرضٍ نقيّانِ تتشاركُهما حزمٌ مؤجَّلةٌ وحدَها — قبلَ `rider-quote` كي لا تسحبَهما
+             * المجموعةُ بالتعدّي فيستوردَ الحسابُ والسائقُ حزمةَ التسعيرِ كلَّها. */
+            {
+              name: "rider-views",
+              test: RIDER_SHARED_VIEWS,
+            },
+            /** ADR 0251: التسعيرُ حزمةٌ مستقلّةٌ تُجلَبُ بعدَ رسمِ السطحِ الأوّل. */
+            {
+              name: "rider-quote",
+              test: RIDER_QUOTE,
             },
             /** `rider-ride`: البحثُ والرحلةُ النشطةُ والملخّصُ والمشاركةُ وقناتُها الحيّةُ ومكتباتُها. */
             {

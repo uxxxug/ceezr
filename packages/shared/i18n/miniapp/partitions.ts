@@ -13,6 +13,8 @@
 export const ARABIC_DEFERRED_PARTITIONS = {
   driver: ["driver."],
   "rider-ride": ["rider.active.", "rider.share."],
+  "rider-quote": ["rider.quote."],
+  "rider-views": ["rider.search.", "rider.summary."],
   account: ["rider.account."],
   support: ["rider.support."],
   "rider-history": ["rider.history.", "rider.notifications."],

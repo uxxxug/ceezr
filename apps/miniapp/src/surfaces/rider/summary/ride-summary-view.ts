@@ -34,6 +34,7 @@
  *      مُصرَّحٌ، وزرٌّ بلا مسارٍ وعدٌ لا عقدٌ.
  */
 
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/rider-views.ts";
 import {
   MAX_RATING_COMMENT_LENGTH,
   MAX_RATING_TAGS,

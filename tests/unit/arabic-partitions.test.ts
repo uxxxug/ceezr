@@ -38,10 +38,14 @@ describe("قاعدةُ التقسيمِ", () => {
 
   it("نصوصُ السطحِ الأوّلِ والإطارِ في `core`", () => {
     for (const key of Object.keys(dictionary)) {
-      if (/^(?:welcome|consent|rider\.(?:home|quote|destination|sos|search|summary))\./.test(key)) {
+      if (/^(?:welcome|consent|sys|rider\.(?:home|destination|place|sos|frame))\./.test(key)) {
         expect(arabicPartitionOf(key)).toBe("core");
       }
     }
+    // ADR 0251: نصوصُ التسعيرِ والبحثِ والملخّصِ تُجلَبُ معَ شاشاتِها لا في الحِملِ الأوّل.
+    expect(arabicPartitionOf("rider.quote.title")).toBe("rider-quote");
+    expect(arabicPartitionOf("rider.search.title")).toBe("rider-views");
+    expect(arabicPartitionOf("rider.summary.title")).toBe("rider-views");
     expect(arabicPartitionOf("driver.offers.title")).toBe("driver");
     expect(arabicPartitionOf("rider.history.title")).toBe("rider-history");
   });

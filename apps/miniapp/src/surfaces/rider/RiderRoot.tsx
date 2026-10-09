@@ -154,7 +154,6 @@ import { Skeleton } from "../../system/Skeleton.tsx";
 import { DestinationScreen } from "./destination/DestinationScreen.tsx";
 import { riderEntryState } from "./entry-view.ts";
 import { HomeScreen } from "./home/HomeScreen.tsx";
-import { QuoteScreen } from "./quote/QuoteScreen.tsx";
 import {
   initialRiderFlow,
   type RiderRootTab,
@@ -183,7 +182,14 @@ const DEFERRED_RIDER_LOADERS = {
   faq: () => import("./faq/FaqScreen.tsx"),
   // `D-32`: السجلُّ وتفاصيلُه والإشعاراتُ — بطلبِ الراكبِ وحدَه، خارجَ «الرئيسية، التسعير، اختيار الخدمة» (9.4).
   history: () => import("./rider-history-screens.ts"),
+  // ADR 0251 (يعدّل القسم 9.4 بموافقة المالك 2026-10-09): التسعيرُ ثاني خطوةٍ بعدَ الوجهة، فيُجلَبُ
+  // بعدَ رسمِ السطحِ مع بقيّةِ المؤجَّلات لا قبلَه. الاستغاثةُ تبقى ثابتةً في `rider-home`.
+  quote: () => import("./quote/QuoteScreen.tsx"),
 } as const;
+
+const QuoteScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.quote().then((m) => ({ default: m.QuoteScreen })),
+);
 
 const SearchScreen = lazy(() =>
   DEFERRED_RIDER_LOADERS.ride().then((m) => ({ default: m.SearchScreen })),
@@ -416,7 +422,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
   // وما يُفتَحُ منهما تدفّقٌ **فوقَهما**: الأسئلةُ ثمَّ الخصوصيّةُ ثمَّ الشكوى المربوطةُ ثمَّ المفقوداتُ ثمَّ
   // تفاصيلُ رحلةٍ ثمَّ الإشعارات. كلُّها `ScreenFrame mode="flow"` برجوعٍ واحدٍ من رأسِ الإطار، والشاشةُ بلا
   // عنوانٍ ولا رجوعٍ مكرَّر (`showTitle={false}` · بلا `onBack`).
-  const flowBack = t("rider.search.back");
+  const flowBack = t("rider.frame.back");
 
   // الأسئلةُ الشائعة (DEC-36) — تُفتَحُ من الدعمِ (تبويباً أو تدفّقاً) فهيَ فوقَه.
   if (faq) {
@@ -572,8 +578,8 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     return (
       <ScreenFrame
         mode="flow"
-        title={t("rider.summary.title")}
-        back={{ label: t("rider.summary.back"), onBack: leaveSummary }}
+        title={t("rider.frame.summary")}
+        back={{ label: t("rider.frame.back"), onBack: leaveSummary }}
       >
         <Deferred>
           <RideSummaryScreen
@@ -621,7 +627,7 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
       <ScreenFrame
         mode="flow"
         title={t("rider.ride.activeTitle")}
-        back={{ label: t("rider.search.back"), onBack: leaveActive }}
+        back={{ label: t("rider.frame.back"), onBack: leaveActive }}
       >
         <Deferred>
           <ActiveRideScreen
@@ -652,8 +658,8 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     return (
       <ScreenFrame
         mode="flow"
-        title={t("rider.search.title")}
-        back={{ label: t("rider.search.back"), onBack: leaveSearch }}
+        title={t("rider.frame.search")}
+        back={{ label: t("rider.frame.back"), onBack: leaveSearch }}
       >
         <Deferred>
           <SearchScreen
@@ -676,22 +682,24 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     return (
       <ScreenFrame
         mode="flow"
-        title={t("rider.quote.title")}
-        back={{ label: t("rider.quote.back"), onBack: flowHandlers.onBack }}
+        title={t("rider.frame.quote")}
+        back={{ label: t("rider.frame.back"), onBack: flowHandlers.onBack }}
       >
         <ScreenTransition screenKey={stackKey} motion={stack.motion}>
-          <QuoteScreen
-            destination={{
-              label: confirmed.label,
-              lat: confirmed.lat,
-              lng: confirmed.lng,
-              ...(confirmed.place === undefined ? {} : { place: confirmed.place }),
-            }}
-            initialLanguage={language}
-            showTitle={false}
-            onOpenSos={onOpenSos}
-            onRequest={flowHandlers.onRequest}
-          />
+          <Deferred>
+            <QuoteScreen
+              destination={{
+                label: confirmed.label,
+                lat: confirmed.lat,
+                lng: confirmed.lng,
+                ...(confirmed.place === undefined ? {} : { place: confirmed.place }),
+              }}
+              initialLanguage={language}
+              showTitle={false}
+              onOpenSos={onOpenSos}
+              onRequest={flowHandlers.onRequest}
+            />
+          </Deferred>
         </ScreenTransition>
       </ScreenFrame>
     );

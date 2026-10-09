@@ -42,8 +42,26 @@ const RIDER_ON_DEMAND =
 export const RIDER_HISTORY =
   /\/src\/surfaces\/rider\/(?:rider-history-screens\.ts|history\/|notifications\/)/;
 
+/** ADR 0251: شاشةُ التسعيرِ وعقدُها — مؤجَّلةٌ بعدَ رسمِ السطحِ الأوّل. */
+export const RIDER_QUOTE = /\/src\/surfaces\/rider\/quote\//;
+
+/**
+ * ADR 0251: مساعدا العرضِ النقيّانِ `search-view` و`ride-summary-view` بقيا في `rider-home` لأنَّ الاقتباسَ
+ * (السطحَ الأوّلَ يومَها) يستوردُ `search-view`. بعدَ تأجيلِ الاقتباسِ لا يستوردُهما من السطحِ الأوّلِ أحدٌ
+ * (مستورِدوهما: الاقتباسُ والبحثُ والرحلةُ النشطةُ والملخّصُ والحسابُ وملخّصُ السائق)، فصارا حزمةَ `rider-views`
+ * المؤجَّلةَ — مستقلّةً عن `rider-ride` كي لا يستوردَ الحسابُ والسائقُ قناةَ الرحلةِ الحيّةَ ثابتاً.
+ */
+export const RIDER_SHARED_VIEWS =
+  /\/src\/surfaces\/rider\/(?:search\/search-view|summary\/ride-summary-view)\.ts$/;
+
 export function isDeferredRiderModule(id: string): boolean {
-  return RIDER_RIDE.test(id) || RIDER_ON_DEMAND.test(id) || RIDER_HISTORY.test(id);
+  return (
+    RIDER_RIDE.test(id) ||
+    RIDER_ON_DEMAND.test(id) ||
+    RIDER_HISTORY.test(id) ||
+    RIDER_QUOTE.test(id) ||
+    RIDER_SHARED_VIEWS.test(id)
+  );
 }
 
 const RIDER_ROOT = /\/src\/surfaces\/rider\/RiderRoot\.tsx$/;

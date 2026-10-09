@@ -36,6 +36,7 @@
  *      ترتيبٍ في العميلِ تُنزِلُ أوشكَها انتهاءً إلى أسفلِ القائمةِ.
  */
 
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/rider-quote.ts";
 import {
   countdownParts,
   countdownSeconds,
