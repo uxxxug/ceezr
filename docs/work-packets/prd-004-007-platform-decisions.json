@@ -15,6 +15,7 @@
     "docs/adr/0250-prd-004-007-platform-decisions.md",
     "docs/work-packets/prd-004-007-platform-decisions.json",
     "render.yaml",
+    "scripts/check-security-headers.ts",
     "scripts/lib/staging-blueprint.ts",
     "tests/unit/prd-004-007-decisions.test.ts",
     "tests/unit/staging-blueprint.test.ts"
