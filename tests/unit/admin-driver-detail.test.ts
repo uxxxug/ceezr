@@ -17,6 +17,7 @@ import {
   type DriverDetailOrder,
   type DriverDetailProfile,
   type DriverDetailTicket,
+  documentReviewNotice,
   renderDriverDetailPage,
   renderDriversPage,
 } from "../../apps/admin-dashboard/src/index.ts";
@@ -237,7 +238,35 @@ describe("صفحة تفاصيل السائق — الوثائق", () => {
     reviewNote: null,
     submittedAt: "2026-09-01T10:00:00.000Z",
     reviewedAt: "2026-09-02T10:00:00.000Z",
+    reviewedByName: "مسؤول المراجعة",
   };
+
+  it("PD-042: تعرض من راجع الوثيقة ومتى", () => {
+    const html = render({ documents: [DOCUMENT] });
+    expect(html).toContain("مسؤول المراجعة");
+  });
+
+  it("PD-042: نموذج المراجعة يظهر للوثيقة قيد المراجعة وحدها مع CSRF", () => {
+    const pending = render({
+      documents: [{ ...DOCUMENT, status: "under_review", reviewedAt: null, reviewedByName: null }],
+    });
+    expect(pending).toContain('action="/admin/drivers/');
+    expect(pending).toContain("/documents/driving_license/review");
+    expect(pending).toContain('name="decision"');
+    expect(pending).toContain('name="csrf"');
+
+    const accepted = render({ documents: [DOCUMENT] });
+    expect(accepted).not.toContain("/documents/driving_license/review");
+  });
+
+  it("PD-042: رسالة النتيجة تُترجم الرمز المعروف وتردّ المجهول إلى «تعذّر»", () => {
+    expect(documentReviewNotice("ok").kind).toBe("ok");
+    expect(documentReviewNotice("NOTE_REQUIRED")).toEqual({
+      kind: "error",
+      text: "الرفض أو النقص يحتاج سبباً يراه السائق.",
+    });
+    expect(documentReviewNotice("<script>").text).toBe("تعذّر حفظ القرار. أعد المحاولة.");
+  });
 
   it("تعرض جدول الوثائق مع رابط عرض لكل وثيقة", () => {
     const html = render({ documents: [DOCUMENT] });
@@ -467,5 +496,78 @@ describe("مسار تفاصيل السائق — حدوده", () => {
     });
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe("PD-042 · مسار مراجعة الوثيقة", () => {
+  function reviewHarness(result: Record<string, unknown>) {
+    const calls: unknown[][] = [];
+    const sql = ((strings: TemplateStringsArray, ...values: readonly unknown[]) => {
+      if (strings.join("?").includes("admin_review_driver_document")) {
+        calls.push([...values]);
+        return Promise.resolve([{ result }]);
+      }
+      return Promise.resolve([]);
+    }) as never;
+    const app = createAdminUiRoutes({
+      sql,
+      auth: authDouble(),
+      codeSender: { send: async () => true },
+    });
+    return { app, calls };
+  }
+
+  async function postReview(
+    app: ReturnType<typeof createAdminUiRoutes>,
+    fields: Record<string, string>,
+    withCsrf = true,
+  ): Promise<Response> {
+    const body = new FormData();
+    if (withCsrf) body.set("csrf", csrfTokenFor(SESSION_HASH));
+    for (const [k, v] of Object.entries(fields)) body.set(k, v);
+    return app.request(`/drivers/${DRIVER_ID}/documents/driving_license/review`, {
+      method: "POST",
+      body,
+      headers: { cookie: `${ADMIN_SESSION_COOKIE}=${SESSION_TOKEN}` },
+    });
+  }
+
+  it("ينقل القرار والسبب ومعرّف المسؤول من الجلسة إلى الدالّة الذرّية ويعود إلى صفحة السائق", async () => {
+    const { app, calls } = reviewHarness({ ok: true, changed: true, status: "rejected" });
+    const response = await postReview(app, { decision: "rejected", note: "غير واضحة" });
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe(`/admin/drivers/${DRIVER_ID}?review=ok`);
+    expect(calls).toEqual([
+      [
+        "62798701-aaa5-494b-a7dd-04bab10c9101",
+        DRIVER_ID,
+        "driving_license",
+        "rejected",
+        "غير واضحة",
+      ],
+    ]);
+  });
+
+  it("رمز رفض القاعدة يصل إلى الصفحة لا يُبتلع", async () => {
+    const { app } = reviewHarness({ ok: false, error: "NOTE_REQUIRED" });
+    const response = await postReview(app, { decision: "rejected" });
+    expect(response.headers.get("location")).toBe(
+      `/admin/drivers/${DRIVER_ID}?review=NOTE_REQUIRED`,
+    );
+  });
+
+  it("قرار مجهول يُردّ بـ 422 ولا يمسّ القاعدة", async () => {
+    const { app, calls } = reviewHarness({ ok: true });
+    const response = await postReview(app, { decision: "verified" });
+    expect(response.status).toBe(422);
+    expect(calls).toHaveLength(0);
+  });
+
+  it("بلا CSRF لا يمسّ القاعدة", async () => {
+    const { app, calls } = reviewHarness({ ok: true });
+    const response = await postReview(app, { decision: "accepted" }, false);
+    expect(response.status).toBeGreaterThanOrEqual(400);
+    expect(calls).toHaveLength(0);
   });
 });

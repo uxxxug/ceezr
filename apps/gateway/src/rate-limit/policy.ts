@@ -455,6 +455,15 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
 
   {
     method: "POST",
+    path: "/admin/drivers/:id/documents/:docType/review",
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
     path: "/admin/users/:id/revoke-sessions",
     file: "apps/gateway/src/routes/admin-ui.ts",
     exposure: "مُصادَقٌ بجلسةِ مسؤولٍ",
@@ -1456,9 +1465,10 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * حارسِ جلسةِ الإدارةِ كما أخواتُه من مساراتِ اللوحةِ.
  * 126 → 128 في 2026-10-03 (`ADM-MSG-01`): صفحةُ معرضِ الرسائلِ ومسلكُ «أرسلها لي»
  * 128 → 130 في 2026-10-09 (R1 · ADR 0252): `GET`/`POST /v1/me/operating-city` — مُصادَقانِ بجلسةٍ كأخواتِهما.
+ * 130 → 131 في 2026-10-10 (PD-042 · ADR 0256): `POST /admin/drivers/:id/documents/:docType/review` — جلسةُ مسؤولٍ وCSRF كأخيه `/verification`.
  * إلى محادثةِ المسؤولِ نفسِه — خلفَ حارسِ جلسةِ الإدارةِ كأخواتِهما.
  */
-export const ROUTE_POLICY_COUNT = 130;
+export const ROUTE_POLICY_COUNT = 131;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 

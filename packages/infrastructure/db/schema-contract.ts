@@ -19,6 +19,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "admin_break_glass_finish_failure",
   "admin_break_glass_finish_success",
   "admin_break_glass_load_attempt",
+  "admin_review_driver_document",
   "admin_revoke_miniapp_sessions",
   "admin_set_driver_verification",
   "admin_set_user_blocked",

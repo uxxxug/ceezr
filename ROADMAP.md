@@ -1,5 +1,7 @@
 # WASLA MOVE — Roadmap
 
+> **PD-042 — مراجعةُ وثائقِ السائقِ من لوحةِ الإدارة (ADR 0256 · Work Packet `pd-042-admin-document-review`):** قبولٌ/رفضٌ/نقصٌ بسببٍ وتدقيق؛ شرطٌ سابقٌ لـPRD-105.
+
 > **RIDER-CITY-SINGLE-WRITE — مدينةُ الراكبِ من البوت (ADR 0255 · Work Packet `rider-city-single-write`):** كتابةٌ واحدةٌ للسجلَّين، ومُحوِّلا البوتِ يقرآنِ النتيجة. يُغلِقُ دَينَ ADR 0252.
 
 > **DEPLOY 2026-10-09 — `5856657f` منشور:** الأداء وPRD-004…007 (ADR-Closed) وR0 وR1 وLOST، والهجرتانِ على الإنتاج بعدَ نسخةٍ احتياطيّةٍ متحقَّقة. ليس Production Ready.
