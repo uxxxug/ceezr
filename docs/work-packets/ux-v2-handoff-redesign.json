@@ -57,7 +57,7 @@
     "check-ui-contrast · check-css-class-coverage · check-driver-vehicle-contract · check-performance-budget",
     "لقطاتُ متصفّحٍ حقيقيّةٌ (Chromium) على بوّابةٍ محلّيّةٍ وقاعدةِ PostgreSQL بذورٍ: الراكب، السائق، الإدارة، داكنٌ وفاتح"
   ],
-  "evidence": "معاينة — بانتظارِ موافقةِ المالك.",
+  "evidence": "المعاينةُ رُوجِعَت ووافقَ المالكُ (2026-10-09). محلّيّاً: bun run ci = exit 0. PR #449.",
   "contract_gaps": [
     "أُصلِح: عميلُ /v1/driver/vehicle توقّعَ snake_case والخادمُ يُعيدُ camelCase (ظهرَ undefined)."
   ],
@@ -69,5 +69,5 @@
     "لا دمجَ ولا نشرَ قبلَ موافقةِ المالك"
   ],
   "limitations": "المعاينةُ بمضيفِ تيليجرامَ محاكًى ونقلٍ صامت؛ لا سائقينَ حقيقيّينَ للبحث؛ الاشتراكُ معطَّلٌ في المعاينة فتظهرُ حالةُ «غير متاح» الحقيقيّة.",
-  "status": "preview — awaiting owner approval"
+  "status": "approved by owner — merging via PR #449"
 }
