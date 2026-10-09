@@ -55,14 +55,38 @@ describe("الاشتقاقُ", () => {
     expect(serviceNames(committed)).toEqual(prod.map((name) => `${name}${STAGING_SUFFIX}`));
   });
 
-  test("ما بعدَ «services:» لا يختلفُ إلا في أسطرِ الأسماءِ", () => {
+  test("ما بعدَ «services:» لا يختلفُ إلا في أسطرِ الأسماءِ وأصولِ خدماتِ المخطّط (ADR 0250)", () => {
     const body = (text: string) => text.slice(text.indexOf("\nservices:\n")).split("\n");
     const a = body(production);
     const b = body(committed);
     expect(b.length).toBe(a.length);
-    const differing = a.flatMap((line, index) => (line === b[index] ? [] : [line]));
-    expect(differing.length).toBe(serviceNames(production).length);
-    for (const line of differing) expect(line).toMatch(/^( {2}- | {4})name:/);
+    const names = serviceNames(production);
+    const differing = a.flatMap((line, index) =>
+      line === b[index] ? [] : [[line, b[index] ?? ""] as const],
+    );
+    const nameLines = differing.filter(([line]) => /^( {2}- | {4})name:/.test(line));
+    expect(nameLines.length).toBe(names.length);
+    for (const [line, derived] of differing) {
+      if (/^( {2}- | {4})name:/.test(line)) continue;
+      // الفرقُ الوحيدُ الآخرُ: أصلُ خدمةٍ من المخطّطِ يُلحَقُ به -staging، ولا شيءَ سواه.
+      let expected = line;
+      for (const name of names) {
+        expected = expected.replaceAll(
+          `https://${name}.onrender.com`,
+          `https://${name}${STAGING_SUFFIX}.onrender.com`,
+        );
+      }
+      expect(expected).not.toBe(line);
+      expect(derived).toBe(expected);
+    }
+  });
+
+  test("staging لا تحملُ أصلَ خدمةِ إنتاجٍ — لا إعادةَ كتابةٍ إلى بوّابةِ الإنتاج (ADR 0250)", () => {
+    for (const name of serviceNames(production)) {
+      expect(committed).not.toMatch(new RegExp(`https://${name}\\.onrender\\.com`));
+    }
+    expect(production).toContain("source: /v1/*");
+    expect(committed).toContain("destination: https://waslah-gateway-staging.onrender.com/v1/*");
   });
 
   test("المُشتقُّ بعدَ نزعِ اللاحقةِ يمرُّ على حاجزِ شرطِ الصحّةِ كالأصلِ (R-17 · BUG-016)", () => {

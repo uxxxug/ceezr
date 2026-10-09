@@ -47,10 +47,12 @@ export const STAGING_BLUEPRINT = "deploy/staging/render.staging.yaml";
 export const STAGING_HEADER = [
   "# ⚠️ ملفٌّ مُولَّدٌ — لا يُحرَّرُ باليدِ (F9-01 · OPS-001 · ADR 0206).",
   "#",
-  "# مُشتقٌّ آليّاً من render.yaml بفرقَينِ مُعلَنَينِ لا ثالثَ لهما:",
+  "# مُشتقٌّ آليّاً من render.yaml بثلاثةِ فروقٍ مُعلَنةٍ لا رابعَ لها:",
   "#   1) اسمُ كلِّ خدمةٍ يُلحَقُ به -staging،",
-  "#   2) هذا الرأسُ بدلَ رأسِ الأصلِ.",
-  "# وكلُّ ما عداهما — الحاويةُ والزمنُ التشغيليُّ ووضعُ القاعدةِ والمتغيّراتُ",
+  "#   2) أصلُ خدمةٍ من المخطّطِ (https://<اسم>.onrender.com) يُلحَقُ به -staging",
+  "#      كذلك، فلا تُعيدُ staging كتابةَ /v1/* إلى بوّابةِ الإنتاج (ADR 0250)،",
+  "#   3) هذا الرأسُ بدلَ رأسِ الأصلِ.",
+  "# وكلُّ ما عداها — الحاويةُ والزمنُ التشغيليُّ ووضعُ القاعدةِ والمتغيّراتُ",
   "# والفحوصُ وسياسةُ النشرِ — مطابقٌ للإنتاجِ حرفاً بحرفٍ، والتعليقاتُ الداخليّةُ",
   "# موروثةٌ من الأصلِ كما هي (أسماءُ الخدماتِ فيها أسماءُ الإنتاجِ).",
   "#",
@@ -71,6 +73,10 @@ const SERVICE_START = /^ {2}-\s+[A-Za-z][A-Za-z0-9_]*:/;
 
 export class StagingDerivationError extends Error {}
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * يشتقُّ نصَّ staging من نصِّ الإنتاجِ. يرمي على مُدخلٍ لا يفهمُه — فالاشتقاقُ
  * الناجحُ على ملفٍّ غيرِ مفهومٍ أسوأُ من سقوطِه:
@@ -89,6 +95,17 @@ export function deriveStagingBlueprint(production: string): string {
   }
 
   const body = lines.slice(servicesAt);
+  // ADR 0250: أصولُ خدماتِ المخطّطِ نفسِه تُشتقُّ بالقاعدةِ نفسِها — لا أصلَ خارجيّاً يُمسّ.
+  const origins = serviceNames(production).map(
+    (name) =>
+      [`https://${name}.onrender.com`, `https://${name}${STAGING_SUFFIX}.onrender.com`] as const,
+  );
+  const reorigin = (line: string): string =>
+    origins.reduce(
+      (acc, [from, to]) =>
+        acc.replace(new RegExp(`${escapeRegExp(from)}(?![A-Za-z0-9-])`, "g"), to),
+      line,
+    );
   const renamed: string[] = [];
   let serviceCount = 0;
   let namesInCurrent = 0;
@@ -119,7 +136,7 @@ export function deriveStagingBlueprint(production: string): string {
       renamed.push(`${match[1]}name:${match[2]}${name}${STAGING_SUFFIX}${match[4] ?? ""}`);
       return;
     }
-    renamed.push(line);
+    renamed.push(reorigin(line));
   });
   closeService(lines.length);
 

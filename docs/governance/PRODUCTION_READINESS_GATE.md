@@ -101,7 +101,7 @@
 | الإجراء المطلوب | إما كتابة `/v1/*` rewrite في `render.yaml` صراحةً، أو توثيقٌ رسميٌّ محروسٌ بأنَّ الإعداد يدويٌّ في Render dashboard |
 | شرط القبول | `render.yaml` يحتوي rewrite لـ`/v1/*`، أو ADR يوثِّقُ القرارَ ويربطه بـ`check-staging-blueprint` |
 | الدليل | `render.yaml` diff أو `docs/adr/NNNN-v1-rewrite-source-of-truth.md` |
-| الحالة | **Blocked** (يحتاج قرار مالك + معرفة عنوان البوابة لكل بيئة) |
+| الحالة | **Ready** — ADR 0250: القواعدُ الثلاثُ في `render.yaml` بالقيمِ المقيسةِ حيًّا، واشتقاقُ staging يُلحِقُ `-staging` بالأصل. يُغلَقُ بعدَ مزامنةِ Blueprint والقياسِ الحيّ |
 
 ### PRD-005: حسم source maps العامة
 
@@ -112,7 +112,7 @@
 | الإجراء المطلوب | قرارٌ موثَّق: (أ) إبقاؤها عامة (مع توثيقِ السبب)، أو (ب) `sourcemap: false` في build الإنتاج، أو (ج) رفعُها إلى خدمة أخطاءٍ لا الأصل العام |
 | شرط القبول | ADR يوثِّقُ القرارَ؛ `render.yaml` أو `vite.config.ts` يطابقُه |
 | الدليل | `docs/adr/NNNN-source-maps-decision.md` |
-| الحالة | **Blocked** (قرار مالك — يحتاج ADR) |
+| الحالة | **Ready** — ADR 0250: `sourcemap: false`. يُغلَقُ بعدَ النشرِ وقياسِ غيابِ `/assets/*.js.map` حيًّا |
 
 ### PRD-006: حسم HSTS للـgateway
 
@@ -123,7 +123,7 @@
 | الإجراء المطلوب | قرارٌ موثَّق: كتابةُ `Strict-Transport-Security` صريحٍ في gateway، أو الاكتفاءُ بسياسة المنصّة مع توثيقِ القرار |
 | شرط القبول | ADR يوثِّقُ القرارَ؛ `check-security-headers` لا يُسقط |
 | الدليل | `docs/adr/NNNN-hsts-gateway-decision.md` |
-| الحالة | **Blocked** (قرار مالك — يحتاج ADR) |
+| الحالة | **Ready** — ADR 0250: البوّابةُ تكتبُ `Strict-Transport-Security: max-age=31536000` على كلِّ ردّ. يُغلَقُ بعدَ النشرِ وقياسِ الرأسِ حيًّا |
 
 ### PRD-007: حسم ألوان Telegram theme
 
@@ -134,7 +134,7 @@
 | الإجراء المطلوب | قرارٌ موثَّق: (أ) معالجةٌ متوافقةٌ لـ4 مواضع (`#999999`، `#2481cc`، `#708499`/`#5288c1`)، أو (ب) قبولُها كما هي مع توثيقِ الاستثناء |
 | شرط القبول | ADR يوثِّقُ القرارَ؛ `check-ui-contrast` لا يُسقط |
 | الدليل | `docs/adr/NNNN-telegram-theme-contrast-decision.md` |
-| الحالة | **Blocked** (قرار مالك — يحتاج ADR) |
+| الحالة | **Ready** — ADR 0250 (الخيار أ): ألوانُ النصِّ دونَ 4.5:1 تُزاحُ أقلَّ إزاحةٍ في `tg/readable.ts`. يُغلَقُ بعدَ النشرِ (والتحقّقُ على عميلٍ حقيقيٍّ ضمنَ PRD-008) |
 
 ### PRD-008: Smoke test من Telegram حقيقي
 

@@ -66,7 +66,10 @@ export default defineConfig({
   build: {
     outDir: "dist",
     emptyOutDir: true,
-    sourcemap: true,
+    // PRD-005 · ADR 0250: لا خرائطَ مصدرٍ في الأصلِ العامّ. لا مستهلِكَ لها في المستودع
+    // (لا خدمةَ أخطاءٍ ترفعُها)، وخدمتُها علنًا تكشفُ الشيفرةَ الأصليّةَ بتعليقاتِها بلا فائدة.
+    // العودةُ: `true` (أو `"hidden"` مع رافعٍ إلى خدمةِ أخطاءٍ) بقرارٍ يحدّثُ الـADR.
+    sourcemap: false,
     target: "es2022",
     rolldownOptions: {
       output: {
