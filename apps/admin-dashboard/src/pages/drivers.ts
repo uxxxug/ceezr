@@ -177,7 +177,7 @@ export function renderDriversPage(data: DriversPageData): string {
     )}</a></div>
      <div class="card-hint mono">${escapeHtml(row.telegramId)}${
        row.phone === null ? "" : ` · ${escapeHtml(row.phone)}`
-}</div>`,
+     }</div>`,
     `<span class="mono">${escapeHtml(row.cityCode)}</span>`,
     badge(
       VERIFICATION_LABEL[row.verificationStatus] ?? row.verificationStatus,

@@ -85,13 +85,13 @@
     "check:support-volume-budget": "bun run scripts/check-support-volume-budget.ts"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.5.7",
+    "@biomejs/biome": "^2.5.15",
     "@types/bun": "1.4.2",
     "typescript": "^7.0.2"
   },
   "dependencies": {
     "grammy": "^1.45.1",
-    "hono": "^4.13.5",
+    "hono": "^4.13.12",
     "postgres": "^3.4.9",
     "socket.io": "^4.8.4",
     "socket.io-client": "^4.8.4"

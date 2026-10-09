@@ -275,7 +275,7 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
                    area === null
                      ? null
                      : sql`st_setsrid(st_makepoint(${area.location.longitude}, ${area.location.latitude}), 4326)::geography`
-},
+                 },
                  updated_at = now()
            where id = ${driverId}
         `;

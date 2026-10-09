@@ -226,7 +226,7 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
                  ? sql`and d.last_location_at is not null
                         and (extract(epoch from (${now}::timestamptz - d.last_location_at))) <= ${maxAge}`
                  : sql``
-}
+             }
            order by d.last_location <->
                     st_setsrid(st_makepoint(${pickup.longitude}, ${pickup.latitude}), 4326)::geography
            limit ${limit}
