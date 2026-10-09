@@ -59,13 +59,17 @@ describe("riderFirstSurfaceViolations (F1-09 · D-30)", () => {
     expect(riderFirstSurfaceViolations([])).toHaveLength(1);
   });
 
-  it("ADR 0251: التسعيرُ ومساعدا العرضِ النقيّانِ مؤجَّلةٌ؛ الرئيسيةُ والوجهةُ والاستغاثةُ لا", () => {
+  it("ADR 0251: التسعيرُ والوجهةُ (D-41) ومساعدا العرضِ النقيّانِ مؤجَّلةٌ؛ الرئيسيةُ والاستغاثةُ والترحيبُ لا", () => {
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/search/search-view.ts`)).toBe(true);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/summary/ride-summary-view.ts`)).toBe(true);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/quote/quote-view.ts`)).toBe(true);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/destination/DestinationScreen.tsx`)).toBe(
-      false,
+      true,
     );
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/destination/destination-view.ts`)).toBe(
+      true,
+    );
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/rider-flow.ts`)).toBe(false);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/sos/SosCard.tsx`)).toBe(false);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/welcome/WelcomeScreen.tsx`)).toBe(false);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/search/SearchScreen.tsx`)).toBe(true);

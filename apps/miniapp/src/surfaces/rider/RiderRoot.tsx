@@ -151,7 +151,6 @@ import type { ROOT_TABS } from "../../shell/root-tabs.ts";
 import { RootTabBar, ScreenFrame, ScreenTransition } from "../../shell/ScreenFrame.tsx";
 import { currentScreenKey } from "../../shell/screen-stack.ts";
 import { Skeleton } from "../../system/Skeleton.tsx";
-import { DestinationScreen } from "./destination/DestinationScreen.tsx";
 import { riderEntryState } from "./entry-view.ts";
 import { HomeScreen } from "./home/HomeScreen.tsx";
 import {
@@ -185,7 +184,14 @@ const DEFERRED_RIDER_LOADERS = {
   // ADR 0251 (يعدّل القسم 9.4 بموافقة المالك 2026-10-09): التسعيرُ ثاني خطوةٍ بعدَ الوجهة، فيُجلَبُ
   // بعدَ رسمِ السطحِ مع بقيّةِ المؤجَّلات لا قبلَه. الاستغاثةُ تبقى ثابتةً في `rider-home`.
   quote: () => import("./quote/QuoteScreen.tsx"),
+  // ADR 0251 · D-41: الوجهةُ (`SR-03`) ليست في صفِّ `rider-home` الأصليِّ في 9.4 («الرئيسية، التسعير، اختيار
+  // الخدمة»)، وأوّلُ سطحٍ لا يرسمُها؛ فتُجلَبُ بعدَ رسمِه كالتسعير. إطارُها وعنوانُها من `core` فيُرسَمانِ قبلَها.
+  destination: () => import("./destination/DestinationScreen.tsx"),
 } as const;
+
+const DestinationScreen = lazy(() =>
+  DEFERRED_RIDER_LOADERS.destination().then((m) => ({ default: m.DestinationScreen })),
+);
 
 const QuoteScreen = lazy(() =>
   DEFERRED_RIDER_LOADERS.quote().then((m) => ({ default: m.QuoteScreen })),
@@ -712,20 +718,22 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
     return (
       <ScreenFrame
         mode="flow"
-        title={t("rider.destination.title")}
-        back={{ label: t("rider.destination.back"), onBack: flowHandlers.onBack }}
+        title={t("rider.frame.destination")}
+        back={{ label: t("rider.frame.back"), onBack: flowHandlers.onBack }}
       >
         <ScreenTransition screenKey={stackKey} motion={stack.motion}>
-          <DestinationScreen
-            initialQuery={chosen.lat === null || chosen.lng === null ? chosen.label : ""}
-            {...(chosen.lat === null || chosen.lng === null
-              ? {}
-              : { initialPoint: { label: chosen.label, lat: chosen.lat, lng: chosen.lng } })}
-            initialLanguage={language}
-            showTitle={false}
-            onOpenSos={onOpenSos}
-            onConfirmed={flowHandlers.onConfirmed}
-          />
+          <Deferred>
+            <DestinationScreen
+              initialQuery={chosen.lat === null || chosen.lng === null ? chosen.label : ""}
+              {...(chosen.lat === null || chosen.lng === null
+                ? {}
+                : { initialPoint: { label: chosen.label, lat: chosen.lat, lng: chosen.lng } })}
+              initialLanguage={language}
+              showTitle={false}
+              onOpenSos={onOpenSos}
+              onConfirmed={flowHandlers.onConfirmed}
+            />
+          </Deferred>
         </ScreenTransition>
       </ScreenFrame>
     );

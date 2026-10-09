@@ -54,8 +54,15 @@ export const RIDER_QUOTE = /\/src\/surfaces\/rider\/quote\//;
 export const RIDER_SHARED_VIEWS =
   /\/src\/surfaces\/rider\/(?:search\/search-view|summary\/ride-summary-view)\.ts$/;
 
+/**
+ * ADR 0251 · `D-41`: شاشةُ الوجهةِ (`SR-03`) ووحداتُها — مؤجَّلةٌ بعدَ رسمِ السطحِ الأوّل. صفُّ `rider-home` الأصليُّ في 9.4
+ * لا يذكرُها، والرئيسيّةُ لا تستوردُ منها إلّا أنواعاً (`rider-flow.ts` · `ConfirmedDestination`).
+ */
+export const RIDER_DESTINATION = /\/src\/surfaces\/rider\/destination\//;
+
 export function isDeferredRiderModule(id: string): boolean {
   return (
+    RIDER_DESTINATION.test(id) ||
     RIDER_RIDE.test(id) ||
     RIDER_ON_DEMAND.test(id) ||
     RIDER_HISTORY.test(id) ||

@@ -271,7 +271,7 @@ describe("RiderRoot — تبويباتُ الجذرِ", () => {
     expect(quote).not.toContain('id="qt-title"');
     expect(quote).not.toContain("qt__back");
     expect(SOURCE).toContain(
-      'back={{ label: t("rider.destination.back"), onBack: flowHandlers.onBack }}',
+      'back={{ label: t("rider.frame.back"), onBack: flowHandlers.onBack }}',
     );
     expect(SOURCE).toContain(
       'back={{ label: t("rider.frame.back"), onBack: flowHandlers.onBack }}',

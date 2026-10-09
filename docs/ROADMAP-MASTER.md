@@ -453,7 +453,8 @@ Bun 1.3.14 + TypeScript، Hono، grammY، PostgreSQL/Supabase + PostGIS عبر `
 | `account` | عند الطلب | الملف، اللغة، الخصوصية، حذف البيانات |
 
 > **تعديلٌ بقرارِ المالكِ (2026-10-09 · `D-40` · [ADR 0251](adr/0251-rider-quote-deferred-bundle.md)) — نصُّ الجدولِ أعلاه يبقى وفقَ `ح-1`، والنافذُ بدلاً من صفِّ `rider-home`:**
-> - `rider-home` (فوراً للراكب): الرئيسية واختيار الخدمة والوجهة والاستغاثة. **التسعير ليس فيها.**
+> - `rider-home` (فوراً للراكب): الرئيسية واختيار الخدمة والاستغاثة. **التسعير ليس فيها.**
+> - `rider-destination` (`D-41` · قرارٌ تقنيٌّ قابلٌ للتراجع، ADR 0251 §6 — الصفُّ الأصليُّ لا يذكرُ الوجهة): شاشة الوجهة ووحداتها وجزء قاموسها `rider.destination.*` و`rider.place.*`، تُجلَب بعد رسم السطح الأوّل مع المؤجَّلات.
 > - `rider-quote` (بعد رسم السطح الأوّل، مع بقيّة المؤجَّلات بـ`prefetchDeferredRiderScreens`): شاشة التسعير وعقدها وجزء قاموسها `rider.quote.*`.
 > - `rider-views` (مؤجَّلة): مساعدا العرض النقيّان `search-view` و`ride-summary-view`، ولا تستوردهما إلا حزم مؤجَّلة.
 > - الحاجز: `apps/miniapp/vite/assert-rider-first-surface.ts` (`RIDER_QUOTE` · `RIDER_SHARED_VIEWS`) يُسقط البناء إن عاد أيٌّ منها إلى الحِمل الأوّل، و`assert-dictionary-partitions` يُسقطه إن بقي مفتاحٌ مؤجَّلٌ بلا تسجيل.

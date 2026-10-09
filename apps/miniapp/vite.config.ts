@@ -9,6 +9,7 @@ import { assertPrebootPlacement } from "./vite/assert-preboot-placement.ts";
 import {
   assertRiderFirstSurface,
   isDeferredRiderModule,
+  RIDER_DESTINATION,
   RIDER_HISTORY,
   RIDER_QUOTE,
   RIDER_RIDE,
@@ -119,6 +120,11 @@ export default defineConfig({
             {
               name: "rider-views",
               test: RIDER_SHARED_VIEWS,
+            },
+            /** ADR 0251 · `D-41`: الوجهةُ حزمةٌ مؤجَّلةٌ قبلَ `rider-quote` — التسعيرُ يستوردُها، فلو سبقَها لسحبَها. */
+            {
+              name: "rider-destination",
+              test: RIDER_DESTINATION,
             },
             /** ADR 0251: التسعيرُ حزمةٌ مستقلّةٌ تُجلَبُ بعدَ رسمِ السطحِ الأوّل. */
             {

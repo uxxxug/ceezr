@@ -23,6 +23,7 @@
  *      التعذّرِ مفتاحاً، ولا يُستعاضُ عنه بمركزِ المدينةِ.
  */
 
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/rider-destination.ts";
 import {
   type DestinationRefusal,
   type DestinationSource,
