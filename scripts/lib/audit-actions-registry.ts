@@ -120,6 +120,7 @@ export const AUDITED_PRIVILEGED_ACTIONS: readonly AuditedPrivilegedAction[] = [
     actions: ["admin.account_recovery_approved", "admin.account_recovery_rejected"],
   },
   { fn: "admin_revoke_miniapp_sessions", actions: ["admin.miniapp_sessions_revoked"] },
+  { fn: "admin_review_driver_document", actions: ["admin.driver_document_reviewed"] },
   {
     fn: "admin_set_driver_verification",
     actions: ["admin.driver_verification_changed", "admin.trial_auto_started"],
@@ -183,8 +184,9 @@ export const AUDIT_EXEMPT_PRIVILEGED_FUNCTIONS: readonly AuditExemption[] = [
  * 20 → 24 في 2026-09-23 (`SEC-21` · `ADR 0176`): أربعُ دوالِّ البابِ الموازي
  * (break-glass) — التسجيلُ والتدويرُ والتعطيلُ وإتمامُ الفشلِ وإتمامُ النجاحِ
  * — رُفِعَ العددُ بالزيادةِ لا بالاستبدالِ (`ح-8`).
+ * 24 → 25 في 2026-10-10 (`PD-042` · `ADR 0256`): `admin_review_driver_document`.
  */
-export const REQUIRED_AUDITED_FUNCTION_COUNT = 24;
+export const REQUIRED_AUDITED_FUNCTION_COUNT = 25;
 
 /** وعددُ الإعفاءاتِ كذلكَ: نموُّهُ خفيةً هوَ بعينِه ما يُخشى. */
 export const REQUIRED_EXEMPTION_COUNT = 1;

@@ -15,6 +15,7 @@
     "apps/admin-dashboard/src/index.ts",
     "packages/infrastructure/db/schema-contract.ts",
     "scripts/lib/skip-registry.ts",
+    "scripts/lib/audit-actions-registry.ts",
     "tests/integration/driver-document-review.test.ts",
     "tests/unit/admin-driver-detail.test.ts",
     "tests/unit/skip-audit.test.ts",
