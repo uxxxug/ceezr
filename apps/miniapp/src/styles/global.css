@@ -5964,6 +5964,39 @@ body {
   text-align: center;
 }
 
+/* R1 · ADR 0252: سطرُ المدينةِ التشغيليّةِ وزرُّ تحديثِ الموقعِ ونتيجتُه — لا اختيارَ يدويّاً. */
+.rh__city-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rh__city-update {
+  min-block-size: 44px;
+  padding: 0.375rem 0.875rem;
+  border: 1px solid var(--w-line);
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--tg-link-color);
+  font: inherit;
+  font-size: var(--ui-size-label);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.rh__city-update:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.rh__city-note {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--tg-hint-color);
+  font-size: var(--ui-size-caption);
+}
+
 .rh__city {
   display: inline-flex;
   align-items: center;

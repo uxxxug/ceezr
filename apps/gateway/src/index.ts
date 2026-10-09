@@ -13,6 +13,7 @@ import {
   UnconfiguredAssetReader,
 } from "../../../packages/application/driver/vehicle-asset-reader.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
+import type { OperatingCityDeps } from "../../../packages/application/rider-city/operating-city.ts";
 import type { EmergencyContactDeps } from "../../../packages/application/safety/emergency-contact.ts";
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
 import { parseCitySettings, subscriptionPriceFor } from "../../../packages/domain/policy/entity.ts";
@@ -81,6 +82,7 @@ import {
 import { createSettingsRepository } from "../../../packages/infrastructure/policy/settings-repository.ts";
 import { PostgresDataRightsStore } from "../../../packages/infrastructure/privacy/data-rights-store.ts";
 import { createQuoteJudge } from "../../../packages/infrastructure/quote/quote-store.ts";
+import { createOperatingCityStore } from "../../../packages/infrastructure/rider-city/operating-city-store.ts";
 import { createDriverCannotCompletePort } from "../../../packages/infrastructure/safety/driver-cannot-complete-store.ts";
 import {
   createEmergencyContactReader,
@@ -783,6 +785,22 @@ const emergencyContact =
         log,
       };
 
+/** R1 · ADR 0252: المدينةُ التشغيليّةُ للراكبِ — نفسُ سرِّ الجلسةِ ونفسُ نمطِ جهةِ الطوارئ. */
+const operatingCity =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        operatingCity: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          store: createOperatingCityStore(container.sql),
+          now: () => new Date(),
+        } satisfies OperatingCityDeps,
+        log,
+      };
+
 /**
  * مساراتُ اختيارِ الوجهةِ (`F2-03`) — تُركَّبُ مع سرِّ الجلسةِ وحدَه، ولا مزوِّدَ
  * خارجيَّ ههنا: لا مُرمِّزَ جغرافيّاً ولا مفتاحَ خرائطَ (استقلالُ المشروعِ `O-7`
@@ -1479,6 +1497,7 @@ const app = createServer({
   ...(consents === undefined ? {} : { consents }),
   ...(places === undefined ? {} : { places }),
   ...(emergencyContact === undefined ? {} : { emergencyContact }),
+  ...(operatingCity === undefined ? {} : { operatingCity }),
   ...(destinations === undefined ? {} : { destinations }),
   ...(quote === undefined ? {} : { quote }),
   ...(rides === undefined ? {} : { rides }),

@@ -57,6 +57,7 @@ import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { Glyph, IconChevron } from "../../../system/ui/icons.tsx";
+import { type DeviceFixResult, readFreshDeviceFix } from "../destination/device-fix.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import {
   HOME_SERVICES,
@@ -70,6 +71,15 @@ import {
   recentRows,
   serviceKey,
 } from "./home-view.ts";
+import {
+  type ApiOperatingCity,
+  cityLabel,
+  fetchOperatingCity,
+  type LocateCityResponse,
+  locateMessageKey,
+  type OperatingCityResponse,
+  postOperatingCityLocation,
+} from "./operating-city-api.ts";
 import {
   type ApiRecentDestination,
   type ApiSavedPlace,
@@ -110,7 +120,20 @@ export interface HomeScreenProps {
   readonly mapProvider?: string;
   /** اسمُ المدينةِ كما يُعيدُه الخادمُ — يُعرَضُ بجانبِ حالتِها لا بدلاً منها. */
   readonly cityName?: string;
+  /**
+   * R1 · ADR 0252: المدينةُ التشغيليّةُ من الخادم (`/v1/me/operating-city`) وتحديثُها من آخرِ
+   * موقعٍ صالح. حُقَنٌ للاختبار؛ والإنتاجُ يستعملُ الافتراضيّات. لا اختيارَ يدويّاً للمدينة.
+   */
+  readonly loadCity?: () => Promise<OperatingCityResponse>;
+  readonly locateCity?: (lat: number, lng: number) => Promise<LocateCityResponse>;
+  readonly readFix?: () => Promise<DeviceFixResult>;
 }
+
+type CityState =
+  | { readonly kind: "idle" }
+  | { readonly kind: "locating" }
+  | { readonly kind: "result"; readonly key: string }
+  | { readonly kind: "failed"; readonly key: string };
 
 type LoadState =
   | { readonly kind: "loading" }
@@ -151,6 +174,9 @@ export function HomeScreen({
   showTitle = true,
   mapProvider = "none",
   cityName,
+  loadCity = fetchOperatingCity,
+  locateCity = postOperatingCityLocation,
+  readFix = readFreshDeviceFix,
 }: HomeScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
@@ -194,18 +220,66 @@ export function HomeScreen({
     void load();
   }, [load]);
 
+  // R1: المدينةُ من الخادمِ بعدَ الرسمِ لا قبلَه (لا تُؤخِّرُ السطحَ الأوّل)، وفشلُ قراءتِها لا
+  // يُسقطُ الرئيسة: الحبّةُ تغيبُ ويبقى زرُّ التحديث.
+  const [city, setCity] = useState<ApiOperatingCity | null>(null);
+  const [cityState, setCityState] = useState<CityState>({ kind: "idle" });
+  useEffect(() => {
+    if (cityName !== undefined) return;
+    loadCity()
+      .then((response) => {
+        if (mounted.current) setCity(response.city);
+      })
+      .catch(() => {});
+  }, [cityName, loadCity]);
+
+  const updateCity = async () => {
+    setCityState({ kind: "locating" });
+    const fix = await readFix();
+    if (!mounted.current) return;
+    if (!fix.ok) {
+      setCityState({ kind: "failed", key: "rider.home.city.fixFailed" });
+      return;
+    }
+    try {
+      const response = await locateCity(fix.lat, fix.lng);
+      if (!mounted.current) return;
+      setCity(response.city);
+      setCityState({ kind: "result", key: locateMessageKey(response.outcome) });
+    } catch {
+      if (mounted.current) setCityState({ kind: "failed", key: "rider.home.city.updateFailed" });
+    }
+  };
+
   const choose = (label: string, lat: number | null, lng: number | null) => {
     onDestinationChosen?.({ label, lat, lng, service });
   };
 
   // `UI-POLISH-02`: بلا اسمِ مدينةٍ لا يُكتَبُ «مدينتك الحالية» وحدَه سطراً يتيماً بلا معنى.
-  const cityBar =
-    cityName === undefined ? null : (
-      <p className="rh__city" role="status">
-        <Glyph name="pin" className="rh__city-icon" />
-        <span>{`${t("rider.home.city.status")}: ${cityName}`}</span>
-      </p>
-    );
+  const shownCity = cityName ?? (city === null ? undefined : cityLabel(city, language));
+  const cityBar = (
+    <div className="rh__city-row">
+      {shownCity === undefined ? null : (
+        <p className="rh__city" role="status">
+          <Glyph name="pin" className="rh__city-icon" />
+          <span>{`${t("rider.home.city.status")}: ${shownCity}`}</span>
+        </p>
+      )}
+      <button
+        type="button"
+        className="rh__city-update"
+        disabled={cityState.kind === "locating"}
+        onClick={() => void updateCity()}
+      >
+        {t(cityState.kind === "locating" ? "rider.home.city.locating" : "rider.home.city.update")}
+      </button>
+      {cityState.kind === "result" || cityState.kind === "failed" ? (
+        <p className="rh__city-note" role="status">
+          {t(cityState.key)}
+        </p>
+      ) : null}
+    </div>
+  );
 
   const services = (
     <fieldset className="rh__services">
