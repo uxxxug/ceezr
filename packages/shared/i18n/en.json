@@ -63,6 +63,7 @@
   "driver.order_cancelled_offer": "The rider cancelled this order. The offer is no longer available.",
   "driver.lost_item_report": "🔎 Lost item report: a rider reported losing something on your trip (ticket #{reference}). Please check your car now, and if you find anything, open “Support” in the Wasla app and mention the ticket number.",
   "driver.phone_invalid": "Invalid number. Accepted format: 05XXXXXXXX",
+  "driver.phone_received_for_app": "We received your number. Go back to the Wasla app to finish registering.",
   "driver.phone_must_use_button": "📱 Please tap the share-number button below instead of typing it — one tap, and it guarantees customers reach you on the right number.",
   "driver.phone_not_yours": "🤝 That contact card belongs to someone else. Tap the button below to share your own number — customers will use it to reach you.",
   "driver.plate_invalid_empty": "I did not receive the plate number. Send it as text.",

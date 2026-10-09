@@ -1406,6 +1406,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/driver-onboarding-miniapp.test.ts",
+    suites: ["PRD-105 · تسجيلُ السائقِ من التطبيقِ حتّى المراجعة"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت «PRD-105 · تسجيلُ السائقِ من التطبيقِ حتّى المراجعة» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة: الكتابةُ الذرّيّةُ وتزامنُ المحاولاتِ وقيدُ تفرّدِ الهويّةِ ودوالُّ الوثائقِ والمراجعةِ سلوكُ المحرّكِ نفسِه لا محاكٍ نكتبه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/support-tickets.test.ts",
     suites: ["مسار الدعم والاشتراك على قاعدة حقيقية"],
     skipped: 20,

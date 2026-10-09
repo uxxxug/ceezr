@@ -1783,3 +1783,28 @@ describe("بطاقة السمعة — /rating", () => {
     expect(replies[0]?.text).toBe(ar("common.unknown_command"));
   });
 });
+
+describe("PRD-105 — بطاقةُ الرقمِ من التطبيقِ المصغَّرِ والحوارُ خامل", () => {
+  it("بطاقةُ المرسِلِ نفسِه ⇒ يُحفَظُ الرقمُ إثباتاً ولا يُفتَحُ حوارُ تسجيل", async () => {
+    const replies = await handleDriverUpdate(contact("0501234567"), deps);
+    expect(replies.map((r) => r.text)).toEqual([ar("driver.phone_received_for_app")]);
+    const saved = await deps.sessions.load(SENDER.telegramUserId);
+    expect(saved.ok && saved.value?.draftPhone).toBe("+966501234567");
+    expect(saved.ok && saved.value?.step).toBe("idle");
+  });
+
+  it("بطاقةٌ مُعادٌ توجيهُها ⇒ لا إثبات", async () => {
+    const replies = await handleDriverUpdate(contact("0509999999", "999999"), deps);
+    expect(replies[0]?.text).toBe(ar("driver.phone_not_yours"));
+    const saved = await deps.sessions.load(SENDER.telegramUserId);
+    expect(saved.ok ? (saved.value?.draftPhone ?? null) : "fail").toBeNull();
+  });
+
+  it("سائقٌ مسجَّلٌ ⇒ لا إثباتَ ولا كتابة", async () => {
+    const registered = build({ drivers: driverDirectory(verifiedDriver()) });
+    const replies = await handleDriverUpdate(contact("0501234567"), registered);
+    expect(replies[0]?.text).toBe(ar("common.unknown_command"));
+    const saved = await registered.sessions.load(SENDER.telegramUserId);
+    expect(saved.ok ? (saved.value?.draftPhone ?? null) : "fail").toBeNull();
+  });
+});

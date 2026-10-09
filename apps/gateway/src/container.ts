@@ -282,6 +282,12 @@ export interface Container {
    */
   readonly driverSender: TelegramSender;
   /**
+   * `PRD-105` — مخزنُ جلسةِ حوارِ السائق مكشوفٌ لأنَّ إثباتَ الرقمِ يكتبُه البوتُ فيه ويقرؤه
+   * `POST /v1/onboarding/driver`. مخزنٌ واحدٌ لا نسخةٌ ثانية: في وضعِ `redis` يكونُ مشتركاً
+   * بينَ المثيلات، وفي `memory` مثيلٌ واحدٌ يخدمُ البوتَ والمسارَ معاً.
+   */
+  readonly driverDialogSessions: SessionStore;
+  /**
    * تبعيات دورة غير المشتركين مكشوفة لأن مُشغّل الجوبات واختبارات التكامل
    * تحتاج تشغيل الدورة خارج مسار الـ webhook — وبنفس المحوّلات لا بنسخة موازية.
    */
@@ -1103,6 +1109,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
 
   return {
     routing,
+    driverDialogSessions: driverSessions,
     handler: createUpdateHandler({
       // ترطيب اللغة بمخزن جلسة كلّ بوت على حدة: من كتب لغته في بوت السائق يجدها
       // مطبّقة في بوت الراكب أيضاً — فالقاعدة واحدة (`users.language_code`)، والفصل في

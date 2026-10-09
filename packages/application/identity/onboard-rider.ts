@@ -10,9 +10,8 @@
  *
  * - **الهويّةُ من الرمزِ لا من الطلبِ.** معرّفُ تيليجرامَ والبوتُ الموقِّعُ يُقرآنِ من الجلسةِ
  *   الموقَّعةِ (`authorizeViewer`)؛ الطلبُ يحملُ الاسمَ والمدينةَ فقط.
- * - **الراكبُ وحدَه.** تسجيلُ السائقِ يحتاجُ إثباتَ ملكيّةِ الرقمِ ببطاقةِ جهةِ اتصالِ تيليجرامَ
- *   وصورةَ المركبةِ، ولا بديلَ مبنيٌّ لهما في التطبيقِ بعدُ — فيُعادُ `ONBOARDING_IN_BOT` صريحاً
- *   لا تسجيلٌ ناقصٌ.
+ * - **الراكبُ وحدَه هنا.** تسجيلُ السائقِ في `onboard-driver.ts` (`PRD-105`)؛ وسائقٌ يطلبُ مسارَ
+ *   الراكبِ يُردُّ بـ`ONBOARDING_IN_BOT` صريحاً لا تسجيلٌ بدورٍ خاطئ.
  * - **الدورُ لا يُقبَلُ من الطلبِ** (`check-viewer-role-authority`): الدورُ نتيجةُ الكتابةِ في
  *   القاعدةِ، يقرؤه التطبيقُ بعدَها من `GET /v1/me` كما في كلِّ إقلاعٍ.
  * - **لا تسجيلَ ثانٍ.** من له حسابٌ يُردُّ بـ`ALREADY_REGISTERED`؛ وسباقُ طلبَين متزامنَين يحسمُه
@@ -23,6 +22,7 @@ import { parseFullName } from "../../domain/identity/value-objects.ts";
 import { MINIAPP_LANGUAGES } from "../../shared/i18n/miniapp/index.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
 import type { CityDirectory, CityRef, RiderDirectory } from "../bots/types.ts";
+import type { DriverPhoneProofs } from "./onboard-driver.ts";
 import {
   type AuthorizedViewer,
   authorizeViewer,
@@ -34,6 +34,8 @@ export interface OnboardingDeps {
   readonly viewer: ResolveViewerDeps;
   readonly riders: RiderDirectory;
   readonly cities: CityDirectory;
+  /** إثباتُ رقمِ السائقِ من بوتِه — غيابُه يُبقي شاشةَ السائقِ بلا تسجيل (`PRD-105`). */
+  readonly driverPhoneProofs?: DriverPhoneProofs;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
 
@@ -46,7 +48,15 @@ export type OnboardingErrorCode =
   | "NAME_INVALID"
   | "CITY_NOT_AVAILABLE"
   | "CITIES_NOT_AVAILABLE"
-  | "REGISTRATION_FAILED";
+  | "REGISTRATION_FAILED"
+  // `PRD-105` — تسجيلُ السائقِ من التطبيق (`onboard-driver.ts`).
+  | "WRONG_AUDIENCE"
+  | "PHONE_NOT_VERIFIED"
+  | "SERVICE_INVALID"
+  | "VEHICLE_TYPE_INVALID"
+  | "PLATE_INVALID"
+  | "NATIONAL_ID_INVALID"
+  | "NATIONAL_ID_TAKEN";
 
 export interface OnboardingError {
   readonly code: OnboardingErrorCode;
@@ -57,8 +67,13 @@ export interface OnboardingError {
 export interface OnboardingStatus {
   readonly audience: OnboardingAudience;
   readonly registered: boolean;
-  /** المدنُ المفعَّلةُ — للراكبِ غيرِ المسجَّلِ وحدَه، وإلّا فارغةٌ. */
+  /** المدنُ المفعَّلةُ — لغيرِ المسجَّلِ (راكباً أو سائقاً)، وإلّا فارغةٌ. */
   readonly cities: readonly { readonly id: string; readonly name: string }[];
+  /**
+   * للسائقِ غيرِ المسجَّلِ وحدَه: هل وصلَ البوتَ إثباتُ رقمِه (`PRD-105`)؟ يقرؤه التطبيقُ بعدَ
+   * `requestContact` ليُفعِّلَ الإرسال؛ والحكمُ النهائيُّ في `POST /v1/onboarding/driver`.
+   */
+  readonly phoneVerified?: boolean;
 }
 
 function audienceOf(viewer: AuthorizedViewer): OnboardingAudience {
@@ -78,10 +93,23 @@ export async function readOnboardingStatus(
   if (!viewer.ok) return err({ code: viewer.error.publicCode });
   const audience = audienceOf(viewer.value);
   const registered = viewer.value.status !== "unregistered";
-  if (registered || audience === "driver") return ok({ audience, registered, cities: [] });
+  if (registered) return ok({ audience, registered, cities: [] });
+  if (audience === "driver" && deps.driverPhoneProofs === undefined) {
+    return ok({ audience, registered, cities: [] });
+  }
   const cities = await deps.cities.listActive();
   if (!cities.ok) return err({ code: "CITIES_NOT_AVAILABLE" });
-  return ok({ audience, registered, cities: publicCities(cities.value) });
+  if (audience === "rider" || deps.driverPhoneProofs === undefined) {
+    return ok({ audience, registered, cities: publicCities(cities.value) });
+  }
+  const proof = await deps.driverPhoneProofs.read(viewer.value.telegramUserId);
+  if (!proof.ok) return err({ code: "REGISTRATION_FAILED" });
+  return ok({
+    audience,
+    registered,
+    cities: publicCities(cities.value),
+    phoneVerified: proof.value !== null,
+  });
 }
 
 export interface OnboardRiderInput {
