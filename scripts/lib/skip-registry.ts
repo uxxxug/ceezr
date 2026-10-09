@@ -156,7 +156,7 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   {
     file: "tests/integration/admin-dashboard.test.ts",
     suites: ["لوحة الإدارة على قاعدة حقيقية"],
-    skipped: 35,
+    skipped: 37,
     gate: "TEST_DATABASE_URL",
     reason:
       "يُثبِت «لوحة الإدارة على قاعدة حقيقية» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة. ولا يُثبَت ذلك ببديلٍ في الذاكرة: المقصودُ سلوكُ المحرّكِ نفسِه — القيودُ والمعاملاتُ والترتيبُ تحت التزامن — لا سلوكُ محاكٍ نكتبه نحن.",
@@ -1394,7 +1394,7 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   {
     file: "tests/integration/driver-document-review.test.ts",
     suites: ["PD-042 · admin_review_driver_document على قاعدةٍ حقيقيّة"],
-    skipped: 7,
+    skipped: 11,
     gate: "TEST_DATABASE_URL",
     reason:
       "يُثبِت «PD-042 · admin_review_driver_document على قاعدةٍ حقيقيّة» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة: الدالّةُ الذرّيّةُ وقيودُها وسجلُّ التدقيقِ سلوكُ المحرّكِ نفسِه لا محاكٍ نكتبه نحن.",

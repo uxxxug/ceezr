@@ -128,6 +128,7 @@ import {
   listSettings,
   logMiniAppSessionRevocation,
   numericSetting,
+  openDriverDocument,
   orderRiderTelegram,
   RATINGS_LIMIT,
   ratingsTotals,
@@ -288,6 +289,7 @@ const SEE_OTHER = 303;
 const HTML_UNPROCESSABLE = 422;
 const SERVER_ERROR = 500;
 const SERVICE_UNAVAILABLE = 503;
+const FORBIDDEN = 403;
 const TELEGRAM_ID_PATTERN = /^[0-9]{5,20}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_FOUND = 404;
@@ -442,6 +444,7 @@ const DOCUMENT_DECISIONS = new Set(["accepted", "rejected", "incomplete"]);
 const REVIEW_NOTICE_CODES = new Set([
   "ok",
   "NOT_ADMIN",
+  "NOT_DOCUMENT_REVIEWER",
   "INVALID_DECISION",
   "NOTE_REQUIRED",
   "NOTE_TOO_LONG",
@@ -1165,18 +1168,26 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       return c.text("لا سائق بهذا المعرّف.", NOT_FOUND);
     }
 
-    const doc = detail.documents.find((d) => d.docType === docType);
-    if (doc === undefined) {
-      return c.text("لا وثيقة بهذا النوع لهذا السائق.", NOT_FOUND);
-    }
-
     if (deps.readSigner === undefined) {
       return c.text("عرضُ الوثائقِ غيرُ مُهيَّأٍ.", SERVICE_UNAVAILABLE);
     }
 
-    const READ_TTL_SECONDS = 300;
+    // PD-042: المسارُ من البابِ المدقَّقِ وحدَه — منحُ المراجِعِ لمدينةِ الوثيقةِ وسطرُ
+    // `admin.driver_document_viewed` قبلَ التوقيع. لا يُسجَّلُ المسارُ ولا الرابط.
+    const opened = await openDriverDocument(deps.sql, c.get("admin").userId, driverId, docType);
+    if (!opened.ok) {
+      log("admin.driver_document_view_denied", { error: opened.error });
+      if (opened.error === "DOCUMENT_NOT_FOUND") {
+        return c.text("لا وثيقة بهذا النوع لهذا السائق.", NOT_FOUND);
+      }
+      return c.text("هذا الحساب لا يملك صلاحية مراجعة وثائق هذه المدينة.", FORBIDDEN);
+    }
+
+    // دقيقةٌ — الحدُّ الأدنى للمُوقِّع: الصورةُ تُحمَّلُ فورَ فتحِ الصفحة، وكلُّ إعادةِ فتحٍ
+    // تمرُّ بالبابِ المدقَّقِ من جديد.
+    const READ_TTL_SECONDS = 60;
     const result = await deps.readSigner.signRead({
-      objectPath: doc.objectPath,
+      objectPath: opened.objectPath,
       ttlSeconds: READ_TTL_SECONDS,
     });
     if (!result.ok) {
@@ -1205,6 +1216,13 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
           periodic_inspection: string;
         }
       ] ?? docType;
+
+    // الصورةُ من مخزنِ الوثائق: يُسمَحُ بأصلِه في `img-src` لهذا الردِّ وحدَه.
+    try {
+      c.set("cspDocumentImageOrigin", new URL(result.value.readUrl).origin);
+    } catch {
+      // رابطٌ غيرُ قابلٍ للتحليلِ لا يوسِّعُ السياسة — الصورةُ تُحجَبُ ولا تُفتَحُ بابٌ.
+    }
 
     const expiresInSeconds = Math.max(
       0,

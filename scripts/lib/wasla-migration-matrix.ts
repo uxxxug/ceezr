@@ -335,6 +335,7 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
   { ...noMigration("destination_landmarks") },
   { ...noMigration("driver_availability") },
   { ...noMigration("driver_capabilities") },
+  { ...noMigration("driver_document_reviewers") },
   { ...noMigration("driver_documents") },
   { ...noMigration("driver_location_history") },
   {

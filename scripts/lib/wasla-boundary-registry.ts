@@ -224,6 +224,14 @@ export const WASLA_BOUNDARY_INVENTORY: readonly BoundaryEntry[] = [
     rationale: "القدرةُ والأهليّةُ مملوكتانِ لـMOVE صريحاً.",
   },
   {
+    table: "driver_document_reviewers",
+    concern: "منحُ مراجعةِ وثائقِ السائقينَ لمسؤولٍ في مدينة — من منحَ ومتى ومن سحب",
+    owner: "MOVE",
+    disposition: "KEEP",
+    rationale:
+      "المنحُ صلاحيّةٌ تشغيليّةٌ على وثائقِ أهليّةِ القيادةِ (`driver_documents`) التي يملكُها MOVE ويحكمُ بها في مسارِ العرض؛ فالمنحُ يتبعُ الوثيقةَ لا الهويّة. ويبقى ههنا (KEEP) لأنَّ `admin_review_driver_document` و`admin_open_driver_document` تقرآنِه في المعاملةِ نفسِها، ونقلُه يجعلُ الحكمَ على وثيقةٍ معلّقاً بنداءٍ خارجيّ. والمنحُ والسحبُ يُسجَّلانِ في `audit_log` (PD-042 · ADR 0256).",
+  },
+  {
     table: "driver_documents",
     concern: "وثائقُ السائقِ ورخصتُه وسِرَيانُها — سببُ حجبِه أو أهليّتِه",
     owner: "MOVE",

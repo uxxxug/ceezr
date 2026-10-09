@@ -48,6 +48,8 @@ let blockedAdminId = "";
 let driverId = "";
 let driverUserId = "";
 let requiredTypes: readonly string[] = [];
+let ungrantedAdminId = "";
+let otherCityId = "";
 
 beforeAll(async () => {
   if (DATABASE_URL === undefined) return;
@@ -82,6 +84,26 @@ beforeAll(async () => {
   adminUserId = admin.id;
   blockedAdminId = blocked.id;
   driverUserId = user.id;
+
+  const [ungranted] = await sql<{ id: string }[]>`
+    insert into users (city_id, telegram_id, role, full_name, phone)
+    values (${cityId}, 900_000_464, 'admin', 'مسؤولٌ بلا منح', '+966500000464')
+    returning id
+  `;
+  if (ungranted === undefined) throw new Error("تعذّر زرعُ المسؤولِ بلا منح");
+  ungrantedAdminId = ungranted.id;
+  const [other] = await sql<{ id: string }[]>`
+    select id from cities where id <> ${cityId}::uuid order by code limit 1
+  `;
+  if (other === undefined) throw new Error("تعذّر إيجادُ مدينةٍ ثانية");
+  otherCityId = other.id;
+
+  // المنحُ الصريحُ لمدينةِ الاختبارِ وحدَها — `adminUserId` يمنحُ نفسَه عبرَ بابِ الخدمة
+  // (سكربتُ التشغيل)، فلا مسارَ ويبَ في هذا كلِّه.
+  const [granted] = await sql<{ result: Payload }[]>`
+    select admin_set_document_reviewer(${admin.id}::uuid, ${admin.id}::uuid, ${cityId}::uuid, true) as result
+  `;
+  if (granted?.result.ok !== true) throw new Error("تعذّر المنحُ");
   const [driver] = await sql<{ id: string }[]>`
     insert into drivers (city_id, user_id, verification_status, vehicle_type, plate_number)
     values (${cityId}, ${user.id}, 'pending'::verification_status, 'سيدان', 'ر س د 463')
@@ -103,9 +125,10 @@ afterAll(async () => {
     await sql`delete from payment_transactions where payer_driver_id = ${driverId}`;
     await sql`delete from drivers where id = ${driverId}`;
   }
-  for (const id of [driverUserId, adminUserId, blockedAdminId]) {
+  for (const id of [driverUserId, adminUserId, blockedAdminId, ungrantedAdminId]) {
     if (id === "") continue;
-    await sql`delete from audit_log where actor_user_id = ${id}`;
+    await sql`delete from audit_log where actor_user_id = ${id} or entity_id = ${id}`;
+    await sql`delete from driver_document_reviewers where user_id = ${id} or granted_by = ${id}`;
     await sql`delete from users where id = ${id}`;
   }
   if (cityHandle !== undefined) await restoreCityBaseline(sql, cityHandle);
@@ -265,5 +288,95 @@ describeIf("PD-042 · admin_review_driver_document على قاعدةٍ حقيق�
       select admin_set_driver_verification(${adminUserId}::uuid, ${driverId}::uuid, 'verified') as result
     `);
     expect(verified).toMatchObject({ ok: true, status: "verified" });
+  });
+
+  it("صفةُ admin بلا منحٍ لا تحكمُ ولا تكشفُ حالَ الوثيقة", async () => {
+    const docType = requiredTypes[0] as string;
+    await seedDocument(docType, "under_review", await day(365));
+    expect((await review(ungrantedAdminId, docType, "accepted", null)).error).toBe(
+      "NOT_DOCUMENT_REVIEWER",
+    );
+    expect((await readDocument(docType)).status).toBe("under_review");
+  });
+
+  it("المنحُ محصورٌ بمدينتِه: منحُ مدينةٍ أخرى لا يفتحُ وثيقةَ هذه", async () => {
+    const docType = requiredTypes[0] as string;
+    await seedDocument(docType, "under_review", await day(365));
+    const granted = await callJson(sql<{ result: Payload }[]>`
+      select admin_set_document_reviewer(${adminUserId}::uuid, ${ungrantedAdminId}::uuid, ${otherCityId}::uuid, true) as result
+    `);
+    expect(granted).toMatchObject({ ok: true, changed: true });
+    expect((await review(ungrantedAdminId, docType, "accepted", null)).error).toBe(
+      "NOT_DOCUMENT_REVIEWER",
+    );
+    const opened = await callJson(sql<{ result: Payload }[]>`
+      select admin_open_driver_document(${ungrantedAdminId}::uuid, ${driverId}::uuid, ${docType}::text) as result
+    `);
+    expect(opened.error).toBe("NOT_DOCUMENT_REVIEWER");
+    expect(opened.object_path).toBeUndefined();
+  });
+
+  it("المنحُ يقبلُ مسؤولاً غيرَ محظورٍ وحدَه، ويُسحَبُ بختمٍ مدقَّقٍ لا بحذف", async () => {
+    const toDriver = await callJson(sql<{ result: Payload }[]>`
+      select admin_set_document_reviewer(${adminUserId}::uuid, ${driverUserId}::uuid, ${cityId}::uuid, true) as result
+    `);
+    expect(toDriver.error).toBe("TARGET_NOT_ADMIN");
+    const toBlocked = await callJson(sql<{ result: Payload }[]>`
+      select admin_set_document_reviewer(${adminUserId}::uuid, ${blockedAdminId}::uuid, ${cityId}::uuid, true) as result
+    `);
+    expect(toBlocked.error).toBe("TARGET_NOT_ADMIN");
+    const byDriver = await callJson(sql<{ result: Payload }[]>`
+      select admin_set_document_reviewer(${driverUserId}::uuid, ${adminUserId}::uuid, ${cityId}::uuid, true) as result
+    `);
+    expect(byDriver.error).toBe("NOT_ADMIN");
+
+    const again = await callJson(sql<{ result: Payload }[]>`
+      select admin_set_document_reviewer(${adminUserId}::uuid, ${ungrantedAdminId}::uuid, ${otherCityId}::uuid, true) as result
+    `);
+    expect(again).toMatchObject({ ok: true, changed: false });
+    const revoked = await callJson(sql<{ result: Payload }[]>`
+      select admin_set_document_reviewer(${adminUserId}::uuid, ${ungrantedAdminId}::uuid, ${otherCityId}::uuid, false) as result
+    `);
+    expect(revoked).toMatchObject({ ok: true, changed: true });
+    const rows = await sql<{ revoked: boolean }[]>`
+      select revoked_at is not null as revoked from driver_document_reviewers
+       where user_id = ${ungrantedAdminId}::uuid and city_id = ${otherCityId}::uuid
+    `;
+    expect(rows.map((r) => r.revoked)).toEqual([true]);
+    const audit = await sql<{ action: string }[]>`
+      select action from audit_log where entity_id = ${ungrantedAdminId}::uuid order by created_at
+    `;
+    expect(audit.map((a) => a.action)).toEqual([
+      "admin.document_reviewer_granted",
+      "admin.document_reviewer_revoked",
+    ]);
+  });
+
+  it("فتحُ الوثيقةِ يمرُّ بالبابِ المدقَّقِ: سطرُ تدقيقٍ بلا مسارٍ ولا رابط، ولا وثيقةَ سائقٍ آخر", async () => {
+    const docType = requiredTypes[0] as string;
+    await seedDocument(docType, "under_review", await day(365));
+    const opened = await callJson(sql<{ result: Payload }[]>`
+      select admin_open_driver_document(${adminUserId}::uuid, ${driverId}::uuid, ${docType}::text) as result
+    `);
+    expect(opened.ok).toBe(true);
+    expect(opened.object_path).toBe(`drivers/${driverId}/${docType}/${docType}.png`);
+
+    const audit = await sql<{ payload: Record<string, unknown> }[]>`
+      select payload from audit_log
+       where action = 'admin.driver_document_viewed' and actor_user_id = ${adminUserId}
+    `;
+    expect(audit.length).toBeGreaterThanOrEqual(1);
+    expect(audit[0]?.payload).toMatchObject({ driver_id: driverId, doc_type: docType });
+    expect(JSON.stringify(audit)).not.toContain(".png");
+    expect(JSON.stringify(audit)).not.toContain("drivers/");
+
+    const stranger = await callJson(sql<{ result: Payload }[]>`
+      select admin_open_driver_document(${adminUserId}::uuid, gen_random_uuid(), ${docType}::text) as result
+    `);
+    expect(stranger.error).toBe("DOCUMENT_NOT_FOUND");
+    const notAdmin = await callJson(sql<{ result: Payload }[]>`
+      select admin_open_driver_document(${driverUserId}::uuid, ${driverId}::uuid, ${docType}::text) as result
+    `);
+    expect(notAdmin.error).toBe("NOT_ADMIN");
   });
 });

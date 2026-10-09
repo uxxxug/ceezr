@@ -1836,6 +1836,34 @@ export async function reviewDriverDocument(
   return readWrite(rows[0]?.result);
 }
 
+/**
+ * PD-042 · فتحُ وثيقةٍ (ADR 0256): البابُ الوحيدُ لمسارِ الملفّ. الدالّةُ تحكمُ بمنحِ
+ * مراجِعِ الوثائقِ لمدينةِ الوثيقةِ وتُدقِّقُ الفتحَ قبلَ أن تُعيدَ المسار؛ والمسارُ لا يُسجَّلُ
+ * ولا يُعادُ إلى المتصفّحِ — البوّابةُ توقِّعُه رابطاً قصيراً فحسب.
+ */
+export async function openDriverDocument(
+  sql: Sql,
+  actorUserId: string,
+  driverId: string,
+  docType: string,
+): Promise<
+  | { readonly ok: true; readonly objectPath: string }
+  | { readonly ok: false; readonly error: string }
+> {
+  const rows = await sql<{ result: unknown }[]>`
+    select admin_open_driver_document(${actorUserId}::uuid, ${driverId}::uuid, ${docType}::text) as result
+  `;
+  const result = rows[0]?.result;
+  if (typeof result === "object" && result !== null) {
+    const record = result as Record<string, unknown>;
+    if (record.ok === true && typeof record.object_path === "string") {
+      return { ok: true, objectPath: record.object_path };
+    }
+    if (typeof record.error === "string") return { ok: false, error: record.error };
+  }
+  return { ok: false, error: "UNKNOWN" };
+}
+
 export async function setDriverVerification(
   sql: Sql,
   actorUserId: string,

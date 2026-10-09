@@ -31,6 +31,11 @@ export interface AdminVariables {
    * بيئةٍ ثانية كان سيجعل الوسيط والحارس يعملان على سياقين لا يعرف أحدهما الآخر.
    */
   readonly cspNonce: string;
+  /**
+   * PD-042: أصلُ مخزنِ الوثائقِ يُضافُ إلى `img-src` **لهذا الردِّ وحدَه** — صفحةُ عرضِ
+   * الوثيقةِ تضعُه بعدَ التوقيع. بقيّةُ صفحاتِ اللوحةِ لا تُحمِّلُ صورةً من خارجِ الأصل.
+   */
+  readonly cspDocumentImageOrigin?: string;
 }
 
 export type AdminEnv = { Variables: AdminVariables };

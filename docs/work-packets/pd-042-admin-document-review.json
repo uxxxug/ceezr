@@ -8,6 +8,7 @@
   ],
   "implementation": [
     "supabase/migrations/20261010100000_pd_042_admin_document_review.sql",
+    "supabase/migrations/20261010100100_pd_042_document_reviewer_active_index.sql",
     "apps/gateway/src/admin/queries.ts",
     "apps/gateway/src/routes/admin-ui.ts",
     "apps/gateway/src/rate-limit/policy.ts",
@@ -20,26 +21,44 @@
     "tests/unit/admin-driver-detail.test.ts",
     "tests/unit/skip-audit.test.ts",
     "docs/adr/0256-admin-driver-document-review.md",
-    "docs/work-packets/pd-042-admin-document-review.json"
+    "docs/work-packets/pd-042-admin-document-review.json",
+    "scripts/grant-document-reviewer.ts",
+    "apps/gateway/src/admin/security-headers.ts",
+    "apps/gateway/src/admin/guard.ts",
+    "scripts/lib/object-authorization-contract.ts",
+    "scripts/lib/wasla-boundary-registry.ts",
+    "scripts/lib/wasla-migration-matrix.ts",
+    "packages/shared/config/retention-policy.ts",
+    "packages/shared/config/erasure-policy.ts",
+    "tests/integration/admin-dashboard.test.ts",
+    "tests/unit/check-migration-matrix.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
-  "affected_docs": ["docs/adr/0256-admin-driver-document-review.md"],
+  "affected_docs": [
+    "docs/adr/0256-admin-driver-document-review.md",
+    "docs/wasla/boundary-audit.md",
+    "docs/migration/matrix.md"
+  ],
   "no_other_affected_docs_reason": "مسارٌ إداريٌّ HTML خلفَ جلسةِ مسؤول، لا عقدَ API عامّاً؛ مساراتُ السائقِ وعقودُها كما هي.",
   "decision": "ADR 0256",
   "tests": [
     "tests/integration/driver-document-review.test.ts",
+    "tests/integration/admin-dashboard.test.ts",
     "tests/integration/driver-documents-approval-guard.test.ts",
     "tests/integration/driver-documents.test.ts",
     "tests/unit/admin-driver-detail.test.ts",
     "CI كامل"
   ],
-  "evidence": "تكامل 7/7 على PostgreSQL محلّيّ حقيقيّ + 13 قائمة؛ وحدات 31/31 لصفحةِ السائقِ ومسارِها.",
+  "evidence": "تكامل 11/11 على الدالّة + 2 عبرَ HTTP (جلسة وCSRF ومنح وتدقيقُ فتحٍ وCSP) على PostgreSQL محلّيّ حقيقيّ؛ وحدات 6439/6439.",
   "constraints": [
     "لا قروبَ لتبادلِ الوثائق",
     "القبولُ لا يوثّقُ السائق",
-    "لا نصَّ سببٍ ولا مسارَ ملفٍّ في التدقيق"
+    "لا نصَّ سببٍ ولا مسارَ ملفٍّ في التدقيق",
+    "صفةُ admin لا تكفي: منحُ مراجِعٍ لكلِّ مدينة",
+    "المنحُ من سكربتِ التشغيلِ لا من الويب",
+    "كلُّ فتحِ وثيقةٍ مدقَّقٌ بلا مسارٍ ولا رابط"
   ],
-  "limitations": "لا دورَ أضيقَ من admin؛ لا تدقيقَ لفتحِ الوثيقة؛ لا إشعارَ قروبٍ ولا إشعارَ بوتٍ بالقرار — مُدرَجةٌ في ADR 0256 حدّاً أدنى لاحقاً.",
+  "limitations": "لا دخولَ لمراجِعٍ غيرِ مسؤولٍ إلى اللوحة؛ لا إشعارَ قروبٍ ولا إشعارَ بوتٍ بالقرار — مُدرَجةٌ في ADR 0256.",
   "status": "open"
 }
