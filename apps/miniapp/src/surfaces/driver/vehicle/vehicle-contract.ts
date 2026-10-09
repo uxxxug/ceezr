@@ -16,23 +16,26 @@
  *      (F12-06 · `ADR 0094`).
  */
 
+/**
+ * شكلُ الجوابِ **كما يُرسِلُه الخادمُ حرفاً**: `GET /v1/driver/vehicle` يُعيدُ
+ * `DriverVehicle` من `packages/domain/driver/driver-vehicle.ts` بمفاتيحَ
+ * `camelCase` ووثائقَ متداخلةٍ (`UX-V2`: كانَ العقدُ هنا `snake_case` فتُقرأُ
+ * القيمُ `undefined` على الشاشةِ). والخادمُ مصدرُ الحقيقةِ، فالعميلُ يتبعُه.
+ */
 export interface ApiVehicleDocument {
   readonly status: string | null;
-  readonly expires_at: string | null;
+  readonly expiresAt: string | null;
 }
 
 export interface ApiDriverVehicleResponse {
-  readonly vehicle_type: string | null;
-  readonly plate_number: string | null;
-  readonly vehicle_year: number | null;
-  readonly logo_object_path: string | null;
-  readonly barcode_object_path: string | null;
-  readonly registration_status: string | null;
-  readonly registration_expires_at: string | null;
-  readonly insurance_status: string | null;
-  readonly insurance_expires_at: string | null;
-  readonly inspection_status: string | null;
-  readonly inspection_expires_at: string | null;
+  readonly vehicleType: string | null;
+  readonly plateNumber: string | null;
+  readonly vehicleYear: number | null;
+  readonly logoObjectPath: string | null;
+  readonly barcodeObjectPath: string | null;
+  readonly registration: ApiVehicleDocument | null;
+  readonly insurance: ApiVehicleDocument | null;
+  readonly inspection: ApiVehicleDocument | null;
 }
 
 export interface ApiDriverVehicleUpdateResponse {

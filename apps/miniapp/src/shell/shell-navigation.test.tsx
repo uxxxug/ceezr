@@ -178,8 +178,9 @@ describe("RootTabBar — معلمُ تنقّلٍ بوسومٍ من المستد�
 
   it("النشطُ وحدَه aria-current=page وصنفُ --on", () => {
     expect(html.match(/aria-current="page"/g)?.length).toBe(1);
-    expect(html).toContain(
-      'class="app-frame__tab app-frame__tab--on" aria-current="page">t-rides<',
+    // `UX-V2`: الزرُّ يحملُ رمزاً زخرفيّاً مخفيّاً ثمَّ وسمَه — والوسمُ داخلَ الزرِّ النشطِ نفسِه.
+    expect(html).toMatch(
+      /class="app-frame__tab app-frame__tab--on" aria-current="page"><span class="app-frame__tab-icon">(?:(?!<\/button>).)*<span class="app-frame__tab-label">t-rides<\/span><\/button>/,
     );
     expect(html.match(/app-frame__tab--on/g)?.length).toBe(1);
   });

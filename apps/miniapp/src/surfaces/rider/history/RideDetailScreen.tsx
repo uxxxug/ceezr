@@ -52,6 +52,8 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { Glyph } from "../../../system/ui/icons.tsx";
+import { vehicleTypeText } from "../../../system/vehicle-type.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import { readRideDetail as readViaApi } from "./ride-history-api.ts";
 
@@ -217,16 +219,18 @@ export function RideDetailScreen({
 
     return (
       <div className="hd__body">
-        <p className={`hd__badge ${badge.modifier}`}>{t(outcomeKey(view.outcome))}</p>
-        <p className="hd__status">
-          {status.known ? t(status.key) : t(status.key).replace("{status}", status.raw)}
-        </p>
-        <p className="hd__service">{t(serviceKey(view.service))}</p>
-        <p className="hd__route">
-          {t("rider.history.route")
-            .replace("{pickup}", view.pickupLabel ?? t("rider.history.point.unlabeled"))
-            .replace("{dropoff}", view.dropoffLabel ?? t("rider.history.point.unlabeled"))}
-        </p>
+        <div className="hd__summary">
+          <p className={`hd__badge ${badge.modifier}`}>{t(outcomeKey(view.outcome))}</p>
+          <p className="hd__status">
+            {status.known ? t(status.key) : t(status.key).replace("{status}", status.raw)}
+          </p>
+          <p className="hd__service">{t(serviceKey(view.service))}</p>
+          <p className="hd__route">
+            {t("rider.history.route")
+              .replace("{pickup}", view.pickupLabel ?? t("rider.history.point.unlabeled"))
+              .replace("{dropoff}", view.dropoffLabel ?? t("rider.history.point.unlabeled"))}
+          </p>
+        </div>
 
         {/* سببُ الإلغاءِ **نصُّ القاعدةِ خامّاً**: مُعجَمُ الأسبابِ ليسَ محصوراً
             في هذا البندِ، ومفتاحٌ مُترجَمٌ لسببٍ غيرِ محصورٍ يُنتِجُ نصّاً
@@ -241,6 +245,9 @@ export function RideDetailScreen({
           <p className="hd__no-driver">{t("rider.history.detail.driver.none")}</p>
         ) : (
           <div className="hd__driver">
+            <span className="hd__driver-avatar">
+              <Glyph name="car" />
+            </span>
             <p className="hd__driver-name">
               {t("rider.history.detail.driver.name").replace(
                 "{name}",
@@ -251,7 +258,8 @@ export function RideDetailScreen({
               {t("rider.history.detail.driver.vehicle")
                 .replace(
                   "{vehicle}",
-                  driver.vehicleType ?? t("rider.history.detail.driver.noVehicle"),
+                  vehicleTypeText(t, driver.vehicleType) ??
+                    t("rider.history.detail.driver.noVehicle"),
                 )
                 .replace("{plate}", driver.plateNumber ?? t("rider.history.detail.driver.noPlate"))}
             </p>
@@ -314,6 +322,7 @@ export function RideDetailScreen({
           <p className="hd__absent">{t("rider.history.detail.noSupport")}</p>
         ) : (
           <button type="button" className="sys__action hd__report" onClick={onReportProblem}>
+            <Glyph name="flag" className="hd__report-icon" />
             {t("rider.history.detail.reportProblem")}
           </button>
         )}

@@ -13,7 +13,8 @@
  *   ــ **لا يُخفي حقلاً غابَ**: «غيرُ معروفٍ» يُقالُ صراحةً لا يُمسَحُ.
  */
 
-import type { ApiDriverVehicleResponse } from "./vehicle-contract.ts";
+import { isKnownVehicleType } from "../../../system/vehicle-type.ts";
+import type { ApiDriverVehicleResponse, ApiVehicleDocument } from "./vehicle-contract.ts";
 
 const KNOWN_ERRORS: ReadonlySet<string> = new Set([
   "SESSION_REQUIRED",
@@ -60,7 +61,9 @@ function documentLabelKey(status: string | null): string | null {
   return `driver.vehicle.document.status.${status}`;
 }
 
-function toDocument(status: string | null, expiresAt: string | null): VehicleDocumentModel | null {
+function toDocument(document: ApiVehicleDocument | null | undefined): VehicleDocumentModel | null {
+  const status = document?.status ?? null;
+  const expiresAt = document?.expiresAt ?? null;
   if (status === null && expiresAt === null) return null;
   return {
     status,
@@ -69,17 +72,27 @@ function toDocument(status: string | null, expiresAt: string | null): VehicleDoc
   };
 }
 
-export function toVehicleDashboard(response: ApiDriverVehicleResponse): VehicleDashboardModel {
+export { isKnownVehicleType } from "../../../system/vehicle-type.ts";
+
+/** جوابُ `null` (لا صفَّ مركبةٍ بعدُ) يُقرأُ مركبةً بلا قيمٍ — لا انهيارَ ولا تخمينَ. */
+export function toVehicleDashboard(
+  response: ApiDriverVehicleResponse | null,
+): VehicleDashboardModel {
+  const vehicleType = response?.vehicleType ?? null;
   return {
-    vehicleType: response.vehicle_type,
+    vehicleType,
+    // العمودُ `drivers.vehicle_type` نصٌّ حرٌّ (تسجيلُ البوتِ يكتبُه بكلماتِ السائقِ)،
+    // فالمفتاحُ للأنواعِ المعروفةِ وحدَها، وما عداها يُعرَضُ كما كُتِبَ لا مفتاحاً خاماً.
     vehicleTypeLabelKey:
-      response.vehicle_type === null ? null : `driver.vehicle.type.${response.vehicle_type}`,
-    plateNumber: response.plate_number,
-    vehicleYear: response.vehicle_year,
-    logoObjectPath: response.logo_object_path,
-    barcodeObjectPath: response.barcode_object_path,
-    registration: toDocument(response.registration_status, response.registration_expires_at),
-    insurance: toDocument(response.insurance_status, response.insurance_expires_at),
-    inspection: toDocument(response.inspection_status, response.inspection_expires_at),
+      vehicleType !== null && isKnownVehicleType(vehicleType)
+        ? `driver.vehicle.type.${vehicleType}`
+        : null,
+    plateNumber: response?.plateNumber ?? null,
+    vehicleYear: response?.vehicleYear ?? null,
+    logoObjectPath: response?.logoObjectPath ?? null,
+    barcodeObjectPath: response?.barcodeObjectPath ?? null,
+    registration: toDocument(response?.registration),
+    insurance: toDocument(response?.insurance),
+    inspection: toDocument(response?.inspection),
   };
 }

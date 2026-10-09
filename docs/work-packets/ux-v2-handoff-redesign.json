@@ -1,0 +1,73 @@
+{
+  "id": "ux-v2-handoff-redesign",
+  "goal": "إعادةُ تصميمِ أسطحِ الراكبِ والسائقِ ولوحةِ الإدارةِ القائمةِ وفقَ حزمةِ wasla-ux-handoff-ar.zip، داخلَ الوظائفِ والعقودِ القائمةِ وحدَها، ومعاينةٌ قابلةٌ للتجربةِ قبلَ الدمج.",
+  "canonical_source": [
+    "wasla-ux-handoff-ar.zip (اللوحات 00–13 · README_AR.md)",
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md §2 · §9",
+    "docs/governance/PRODUCTION_READINESS_GATE.md PRD-010"
+  ],
+  "implementation": [
+    "apps/admin-dashboard/src/layout.ts",
+    "apps/admin-dashboard/src/pages/live-orders.ts",
+    "apps/gateway/src/admin/message-gallery.ts",
+    "apps/miniapp/src/shell/ScreenFrame.tsx",
+    "apps/miniapp/src/shell/shell-navigation.test.tsx",
+    "apps/miniapp/src/styles/global.css",
+    "apps/miniapp/src/surfaces/account/AccountRights.tsx",
+    "apps/miniapp/src/surfaces/driver/account/AccountScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/activity/ActivityScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/job/JobScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/OfferDetailScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/offers/OffersScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/vehicle/VehicleScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/vehicle/vehicle-api.ts",
+    "apps/miniapp/src/surfaces/driver/vehicle/vehicle-contract.ts",
+    "apps/miniapp/src/surfaces/driver/vehicle/vehicle-view.ts",
+    "apps/miniapp/src/surfaces/rider/account/AccountScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/active/ActiveRideScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/destination/DestinationScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/history/RideDetailScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/history/RideHistoryScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/home/HomeScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/search/SearchScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/sos/SosCard.tsx",
+    "apps/miniapp/src/surfaces/rider/sos/SosEntry.tsx",
+    "apps/miniapp/src/surfaces/rider/summary/RideSummaryScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/support/SupportScreen.tsx",
+    "apps/miniapp/src/system/ui/icons.tsx",
+    "apps/miniapp/src/system/ui/ui-components.test.tsx",
+    "apps/miniapp/src/system/vehicle-type.ts",
+    "docs/UI_UX_CANONICAL_DIRECTIVE.md",
+    "docs/adr/0248-ux-v2-handoff-redesign.md",
+    "docs/work-packets/ux-v2-handoff-redesign.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "scripts/lib/ui-contrast.ts",
+    "tests/unit/check-ui-contrast.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0248-ux-v2-handoff-redesign.md", "docs/UI_UX_CANONICAL_DIRECTIVE.md"],
+  "no_other_affected_docs_reason": "لا سطحَ أُضيفَ أو حُذف (UI_SURFACE_INVENTORY ثابت)، لا endpoint ولا هجرة ولا مكتبة، لا تغييرَ في CSP/CSRF/auth أو نصوصِ رسائلِ تيليجرام.",
+  "decision": "ADR 0248: إعادةُ تصميمِ الموجودِ مسموحةٌ تحتَ PRD-010 ما دامت لا تضيفُ ميزةً ولا عقداً؛ لوحةُ الحزمةِ تُعتمَدُ في الدليلِ والحاجزِ معاً.",
+  "tests": [
+    "bun test — كاملاً",
+    "check-ui-contrast · check-css-class-coverage · check-driver-vehicle-contract · check-performance-budget",
+    "لقطاتُ متصفّحٍ حقيقيّةٌ (Chromium) على بوّابةٍ محلّيّةٍ وقاعدةِ PostgreSQL بذورٍ: الراكب، السائق، الإدارة، داكنٌ وفاتح"
+  ],
+  "evidence": "معاينة — بانتظارِ موافقةِ المالك.",
+  "contract_gaps": [
+    "أُصلِح: عميلُ /v1/driver/vehicle توقّعَ snake_case والخادمُ يُعيدُ camelCase (ظهرَ undefined)."
+  ],
+  "constraints": [
+    "لا ميزةَ جديدة ولا endpoint ولا هجرة ولا مكتبة ولا polling",
+    "لا خريطةَ ولا أجرةَ ولا مدّةَ وصولٍ محسوبة ولا دفعَ للراكب",
+    "لا دورَ مزوّدِ خدمة",
+    "CSS مسطّح: لا @layer ولا nesting ولا !important، خصائصُ منطقيّة",
+    "لا دمجَ ولا نشرَ قبلَ موافقةِ المالك"
+  ],
+  "limitations": "المعاينةُ بمضيفِ تيليجرامَ محاكًى ونقلٍ صامت؛ لا سائقينَ حقيقيّينَ للبحث؛ الاشتراكُ معطَّلٌ في المعاينة فتظهرُ حالةُ «غير متاح» الحقيقيّة.",
+  "status": "preview — awaiting owner approval"
+}

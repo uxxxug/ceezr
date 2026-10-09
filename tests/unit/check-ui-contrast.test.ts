@@ -46,9 +46,10 @@ describe("contrastRatio — WCAG 2.x", () => {
 });
 
 describe("parseDirectivePalette — جدولُ §2 من الدليلِ الحقيقيِّ", () => {
-  it("يقرأُ الرموزَ الأربعةَ بالقيمِ المعلنةِ", () => {
+  it("يقرأُ الرموزَ الستّةَ بالقيمِ المعلنةِ", () => {
     const p = parseDirectivePalette(directiveMd);
-    expect(p.dark.brand).toBe("#8b90ff");
+    expect(p.dark.brand).toBe("#36d7c1");
+    expect(p.light.info).toBe("#1d5fd6");
     expect(p.light.amber).toBe("#f5a524");
     expect(p).toEqual(LAYER_TWO_PALETTE);
   });
@@ -61,9 +62,9 @@ describe("parseDirectivePalette — جدولُ §2 من الدليلِ الحق�
 describe("parseLayerOneFallbacks — global.css الحقيقيُّ", () => {
   it("يقرأُ افتراضَي السمتَين", () => {
     const l1 = parseLayerOneFallbacks(globalCss);
-    expect(l1.dark.bg).toBe("#0f172a");
+    expect(l1.dark.bg).toBe("#07121e");
     expect(l1.light.bg).toBe("#ffffff");
-    expect(l1.light.hint).toBe("#475569");
+    expect(l1.light.hint).toBe("#5b6b7c");
   });
   it("سالبةٌ: كتلةُ السمةِ الفاتحةِ غائبةٌ تُسقِطُ القراءةَ", () => {
     expect(() =>
@@ -145,7 +146,7 @@ describe("رموزُ --ui-* في global.css = اللوحةُ المقيسةُ (U
   });
 
   it("رمزٌ غائبٌ يُسقِطُ الحاجزَ (سلبيٌّ)", () => {
-    const missing = globalCss.replace(/--ui-amber-on: #0f172a;/g, "");
+    const missing = globalCss.replace(/--ui-amber-on: #07121e;/g, "");
     const problems = uiTokenProblems(parseUiTokens(missing), LAYER_TWO_PALETTE);
     expect(problems.some((p) => p.startsWith("رمزُ CSS غائبٌ: --ui-amber-on/dark"))).toBe(true);
   });

@@ -56,6 +56,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { Glyph, IconChevron } from "../../../system/ui/icons.tsx";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import {
   HOME_SERVICES,
@@ -201,7 +202,8 @@ export function HomeScreen({
   const cityBar =
     cityName === undefined ? null : (
       <p className="rh__city" role="status">
-        {`${t("rider.home.city.status")}: ${cityName}`}
+        <Glyph name="pin" className="rh__city-icon" />
+        <span>{`${t("rider.home.city.status")}: ${cityName}`}</span>
       </p>
     );
 
@@ -216,7 +218,8 @@ export function HomeScreen({
           aria-pressed={name === service}
           onClick={() => setService(name)}
         >
-          {t(serviceKey(name))}
+          <Glyph name={name === "transport" ? "car" : "parcel"} className="rh__service-icon" />
+          <span>{t(serviceKey(name))}</span>
         </button>
       ))}
     </fieldset>
@@ -232,14 +235,20 @@ export function HomeScreen({
   const historyEntry =
     onOpenHistory === undefined ? null : (
       <button type="button" className="rh__history" onClick={() => onOpenHistory()}>
-        {t("rider.home.history.open")}
+        <span className="rh__menu-icon">
+          <Glyph name="rides" />
+        </span>
+        <span className="rh__menu-label">{t("rider.home.history.open")}</span>
       </button>
     );
 
   const notificationsEntry =
     onOpenNotifications === undefined ? null : (
       <button type="button" className="rh__notifications" onClick={() => onOpenNotifications()}>
-        {t("rider.home.notifications.open")}
+        <span className="rh__menu-icon">
+          <Glyph name="bell" />
+        </span>
+        <span className="rh__menu-label">{t("rider.home.notifications.open")}</span>
       </button>
     );
 
@@ -248,7 +257,10 @@ export function HomeScreen({
   const accountEntry =
     onOpenAccount === undefined ? null : (
       <button type="button" className="rh__account" onClick={() => onOpenAccount()}>
-        {t("rider.home.account.open")}
+        <span className="rh__menu-icon">
+          <Glyph name="account" />
+        </span>
+        <span className="rh__menu-label">{t("rider.home.account.open")}</span>
       </button>
     );
 
@@ -256,7 +268,10 @@ export function HomeScreen({
   const lostFoundEntry =
     onOpenLostFound === undefined ? null : (
       <button type="button" className="rh__lost-found" onClick={() => onOpenLostFound()}>
-        {t("rider.home.lostFound.open")}
+        <span className="rh__menu-icon">
+          <Glyph name="box" />
+        </span>
+        <span className="rh__menu-label">{t("rider.home.lostFound.open")}</span>
       </button>
     );
 
@@ -315,27 +330,31 @@ export function HomeScreen({
     accountEntry !== null;
   return (
     <section className="rh" dir={directionFor(language)} {...sectionName}>
+      {cityBar}
       <div className="rh__hero">
         {title}
         {services}
         {mapProvider === "none" ? null : <div className="rh__map" data-provider={mapProvider} />}
         <label className="rh__field" htmlFor="rh-destination">
           <span className="rh__field-label">{t("rider.home.destination.prompt")}</span>
-          <input
-            id="rh-destination"
-            className="rh__input"
-            type="text"
-            enterKeyHint="search"
-            autoComplete="off"
-            placeholder={t("rider.home.destination.placeholder")}
-            value={typed}
-            onChange={(event) => setTyped(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && isSubmittableDestination(typed)) {
-                choose(typed.trim(), null, null);
-              }
-            }}
-          />
+          <span className="rh__input-wrap">
+            <Glyph name="pin" className="rh__input-icon" />
+            <input
+              id="rh-destination"
+              className="rh__input"
+              type="text"
+              enterKeyHint="search"
+              autoComplete="off"
+              placeholder={t("rider.home.destination.placeholder")}
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && isSubmittableDestination(typed)) {
+                  choose(typed.trim(), null, null);
+                }
+              }}
+            />
+          </span>
         </label>
         {mapProvider === "none" ? (
           <p className="sys__hint">{t("rider.home.map.unavailable")}</p>
@@ -362,8 +381,16 @@ export function HomeScreen({
                 className="rh__pick"
                 onClick={() => choose(place.label, place.lat, place.lng)}
               >
-                <span className="rh__place-kind">{t(place.kindKey)}</span>
-                <span className="rh__place-label">{place.label}</span>
+                <span className="rh__pick-icon">
+                  <Glyph name={placeGlyph(place.kindKey)} />
+                </span>
+                <span className="rh__pick-text">
+                  <span className="rh__place-label">{place.label}</span>
+                  {t(place.kindKey) === place.label ? null : (
+                    <span className="rh__place-kind">{t(place.kindKey)}</span>
+                  )}
+                </span>
+                <IconChevron className="rh__pick-chevron" />
               </button>
             </li>
           ))}
@@ -382,7 +409,13 @@ export function HomeScreen({
                 className="rh__pick"
                 onClick={() => choose(row.label, row.lat, row.lng)}
               >
-                {row.label}
+                <span className="rh__pick-icon">
+                  <Glyph name="recent" />
+                </span>
+                <span className="rh__pick-text">
+                  <span className="rh__place-label">{row.label}</span>
+                </span>
+                <IconChevron className="rh__pick-chevron" />
               </button>
             </li>
           ))}
@@ -398,7 +431,13 @@ export function HomeScreen({
         </nav>
       ) : null}
       {sosEntry}
-      {cityBar}
     </section>
   );
+}
+
+/** `UX-V2`: رمزُ نوعِ المكانِ المحفوظِ — من مفتاحِ نوعِه المعلنِ، والمجهولُ دبّوسٌ عامّ. */
+function placeGlyph(kindKey: string): "homePlace" | "work" | "pin" {
+  if (kindKey.endsWith(".home")) return "homePlace";
+  if (kindKey.endsWith(".work")) return "work";
+  return "pin";
 }

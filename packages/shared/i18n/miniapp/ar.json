@@ -1419,7 +1419,7 @@
   "rider.ride.activeTitle": "رحلتك",
   "driver.tabs.offers": "العروض",
   "driver.tabs.job": "مهمّتي",
-  "driver.tabs.earnings": "أرباحي",
+  "driver.tabs.earnings": "حصيلتي",
   "driver.tabs.account": "حسابي",
   "driver.tabs.navigation": "التنقّل الرئيسي",
   "driver.nav.back": "رجوع",
@@ -1612,5 +1612,10 @@
   "sys.launch_stale.action": "إغلاق التطبيق",
   "sys.missing_init_data.title": "تعذّر قراءة بيانات تيليجرام",
   "sys.missing_init_data.body": "لم يسلّمنا تيليجرام بيان الفتح، فلا يمكن التحقّق من هويتك. أعد فتح التطبيق من البوت.",
-  "rider.notifications.prefs.pending": "تفضيلات الإشعارات — لم تبنَ بعد. إشعارات رحلتك تصلك دائمًا، وقد يصلك إعلان عام من فريق وَصْلة في مدينتك."
+  "rider.notifications.prefs.pending": "تفضيلات الإشعارات — لم تبنَ بعد. إشعارات رحلتك تصلك دائمًا، وقد يصلك إعلان عام من فريق وَصْلة في مدينتك.",
+  "vehicle.type.motorcycle": "درّاجة ناريّة",
+  "vehicle.type.pickup": "بيك أب",
+  "vehicle.type.sedan": "سيدان",
+  "vehicle.type.suv": "دفع رباعيّ",
+  "vehicle.type.van": "فان"
 }

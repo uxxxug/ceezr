@@ -266,51 +266,55 @@ export function ActivityScreen({
       <p className="dac__money">{t(summary.moneyBasisKey)}</p>
 
       <h2 className="dac__section">{t("driver.activity.performance")}</h2>
-      <RatioRow labelKey="driver.activity.acceptance" ratio={summary.acceptance} t={t} />
-      <RatioRow labelKey="driver.activity.cancellation" ratio={summary.cancellation} t={t} />
+      <div className="dac__card">
+        <RatioRow labelKey="driver.activity.acceptance" ratio={summary.acceptance} t={t} />
+        <RatioRow labelKey="driver.activity.cancellation" ratio={summary.cancellation} t={t} />
 
-      <p className="dac__rating">
-        <span className="dac__rating-label">{t("driver.activity.rating")}</span>
-        <span className="dac__rating-value">
-          {summary.ratingAverage === null
-            ? t("driver.activity.rating.none")
-            : summary.ratingAverage.toFixed(2)}
-        </span>
-        <span className="dac__rating-count">
-          {t("driver.activity.rating.count").replace("{count}", String(summary.ratingCount))}
-        </span>
-      </p>
-      {/* حدُّ الثقةِ يُقالُ **رقماً** لا وصفاً: سائقٌ يعرفُ كم يبقى له. */}
-      {summary.ratingTrustMinCount === null ? null : (
-        <p className="dac__trust">
-          {summary.ratingBelowTrust === true
-            ? t("driver.activity.rating.belowTrust").replace(
-                "{count}",
-                String(summary.ratingTrustMinCount),
-              )
-            : t("driver.activity.rating.trusted")}
+        <p className="dac__rating">
+          <span className="dac__rating-label">{t("driver.activity.rating")}</span>
+          <span className="dac__rating-value">
+            {summary.ratingAverage === null
+              ? t("driver.activity.rating.none")
+              : summary.ratingAverage.toFixed(2)}
+          </span>
+          <span className="dac__rating-count">
+            {t("driver.activity.rating.count").replace("{count}", String(summary.ratingCount))}
+          </span>
         </p>
-      )}
+        {/* حدُّ الثقةِ يُقالُ **رقماً** لا وصفاً: سائقٌ يعرفُ كم يبقى له. */}
+        {summary.ratingTrustMinCount === null ? null : (
+          <p className="dac__trust">
+            {summary.ratingBelowTrust === true
+              ? t("driver.activity.rating.belowTrust").replace(
+                  "{count}",
+                  String(summary.ratingTrustMinCount),
+                )
+              : t("driver.activity.rating.trusted")}
+          </p>
+        )}
+      </div>
 
       <h2 className="dac__section">{t("driver.activity.ranking")}</h2>
-      <ul className="dac__factors">
-        {summary.rankingFactors.map((factor) => (
-          <li key={factor.key} className="dac__factor">
-            <span className="dac__factor-label">{t(factor.labelKey)}</span>
-            <span className="dac__factor-weight">
-              {factor.weight === null
-                ? t("driver.activity.ranking.weight.unknown")
-                : String(factor.weight)}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {/* **الحقيقةُ من الخادمِ**: نصٌّ لكلِّ حالٍ، ولا يُخمَّنُ في الترجمةِ. */}
-      <p className="dac__behaviour">
-        {summary.behaviourAffectsRanking
-          ? t("driver.activity.ranking.behaviourCounts")
-          : t("driver.activity.ranking.behaviourIgnored")}
-      </p>
+      <div className="dac__card">
+        <ul className="dac__factors">
+          {summary.rankingFactors.map((factor) => (
+            <li key={factor.key} className="dac__factor">
+              <span className="dac__factor-label">{t(factor.labelKey)}</span>
+              <span className="dac__factor-weight">
+                {factor.weight === null
+                  ? t("driver.activity.ranking.weight.unknown")
+                  : String(factor.weight)}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {/* **الحقيقةُ من الخادمِ**: نصٌّ لكلِّ حالٍ، ولا يُخمَّنُ في الترجمةِ. */}
+        <p className="dac__behaviour">
+          {summary.behaviourAffectsRanking
+            ? t("driver.activity.ranking.behaviourCounts")
+            : t("driver.activity.ranking.behaviourIgnored")}
+        </p>
+      </div>
 
       <h2 className="dac__section">{t("driver.activity.log")}</h2>
       {log.kind === "closed" ? (

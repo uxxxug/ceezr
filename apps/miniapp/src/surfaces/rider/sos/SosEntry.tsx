@@ -35,6 +35,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { Glyph } from "../../../system/ui/icons.tsx";
 
 export interface SosEntryProps {
   readonly language?: MiniAppLanguage | undefined;
@@ -51,7 +52,8 @@ export function SosEntry({ language = MINIAPP_DEFAULT_LANGUAGE, onOpen }: SosEnt
       dir={directionFor(language)}
       onClick={() => onOpen()}
     >
-      {t("rider.sos.entry")}
+      <Glyph name="shield" className="sos__entry-icon" />
+      <span>{t("rider.sos.entry")}</span>
     </button>
   );
 }

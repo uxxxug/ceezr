@@ -53,6 +53,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { Glyph, IconSearch } from "../../../system/ui/icons.tsx";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import { readRideHistory as readViaApi } from "./ride-history-api.ts";
 
@@ -295,18 +296,26 @@ export function RideHistoryScreen({
       <label className="hs__search-label" htmlFor="hs-query">
         {t("rider.history.search.label")}
       </label>
-      <input
-        className="hs__search-input"
-        id="hs-query"
-        type="search"
-        maxLength={MAX_RIDE_HISTORY_QUERY_LENGTH}
-        value={draft}
-        disabled={busy}
-        onChange={(event) => setDraft(event.target.value)}
-      />
-      <button type="button" className="hs__search-submit" disabled={busy} onClick={() => search()}>
-        {t(busy ? "rider.history.search.searching" : "rider.history.search.submit")}
-      </button>
+      <span className="hs__search-row">
+        <input
+          className="hs__search-input"
+          id="hs-query"
+          type="search"
+          maxLength={MAX_RIDE_HISTORY_QUERY_LENGTH}
+          value={draft}
+          disabled={busy}
+          onChange={(event) => setDraft(event.target.value)}
+        />
+        <button
+          type="button"
+          className="hs__search-submit"
+          disabled={busy}
+          onClick={() => search()}
+        >
+          <IconSearch className="hs__search-icon" />
+          {t(busy ? "rider.history.search.searching" : "rider.history.search.submit")}
+        </button>
+      </span>
       {/* «بحثٌ حرفيٌّ» يُقالُ صراحةً: وعدٌ بأقلَّ مما يُتوقَّعُ أصدقُ من صمتٍ
           يُقرأُ وعداً بأكثرَ. */}
       <p className="hs__search-hint">{t("rider.history.search.hint")}</p>
@@ -337,11 +346,18 @@ export function RideHistoryScreen({
           disabled={open === undefined}
           onClick={() => open?.()}
         >
-          <span className={`hs__badge ${badge.modifier}`}>{t(outcomeKey(outcome))}</span>
-          <span className="hs__status">
-            {label.known ? t(label.key) : t(label.key).replace("{status}", label.raw)}
+          <span className="hs__card-top">
+            <span className="hs__card-icon">
+              <Glyph name={ride.service === "delivery" ? "parcel" : "car"} />
+            </span>
+            <span className="hs__card-head">
+              <span className="hs__status">
+                {label.known ? t(label.key) : t(label.key).replace("{status}", label.raw)}
+              </span>
+              <span className="hs__service">{t(serviceKey(ride.service))}</span>
+            </span>
+            <span className={`hs__badge ${badge.modifier}`}>{t(outcomeKey(outcome))}</span>
           </span>
-          <span className="hs__service">{t(serviceKey(ride.service))}</span>
           <span className="hs__route">
             {t("rider.history.route")
               .replace("{pickup}", ride.pickupLabel ?? t("rider.history.point.unlabeled"))

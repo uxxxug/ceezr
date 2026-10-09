@@ -40,6 +40,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../packages/shared/i18n/miniapp/core.ts";
+import { Glyph, IconChevron } from "../../system/ui/icons.tsx";
 import { addAppToHomeScreen } from "../../tg/index.ts";
 import { newIdempotencyKey } from "../rider/search/search-view.ts";
 import { requestDataExport, requestErasure, updateAccountLanguage } from "./account-api.ts";
@@ -283,8 +284,12 @@ export function AccountRights({
           </button>
         )}
         {/* الوحيدُ ههنا الذي **يفعلُ شيئاً حقيقيّاً**: نداءُ مُضيفِ تيليجرامَ. */}
-        <button type="button" className="sys__action" onClick={addToHomeScreen}>
-          {t(`${k}addToHomeScreen`)}
+        <button type="button" className="ac__link" onClick={addToHomeScreen}>
+          <span className="ac__link-icon">
+            <Glyph name="download" />
+          </span>
+          <span className="ac__link-label">{t(`${k}addToHomeScreen`)}</span>
+          <IconChevron className="ac__link-chevron" />
         </button>
         {/*
           بابُ الدعمِ — **يُرسَمُ إذا كانَ له مُستقبِلٌ فحسب**: زرُّ «الدعمُ» لا
@@ -292,13 +297,21 @@ export function AccountRights({
           مِلفِّها.
         */}
         {onOpenSupport !== undefined && (
-          <button type="button" className="sys__action ac__support" onClick={onOpenSupport}>
-            {t(`${k}support.open`)}
+          <button type="button" className="ac__link ac__support" onClick={onOpenSupport}>
+            <span className="ac__link-icon">
+              <Glyph name="support" />
+            </span>
+            <span className="ac__link-label">{t(`${k}support.open`)}</span>
+            <IconChevron className="ac__link-chevron" />
           </button>
         )}
         {onOpenPrivacy !== undefined && (
-          <button type="button" className="sys__action ac__privacy" onClick={onOpenPrivacy}>
-            {t(`${k}privacy.open`)}
+          <button type="button" className="ac__link ac__privacy" onClick={onOpenPrivacy}>
+            <span className="ac__link-icon">
+              <Glyph name="lock" />
+            </span>
+            <span className="ac__link-label">{t(`${k}privacy.open`)}</span>
+            <IconChevron className="ac__link-chevron" />
           </button>
         )}
       </nav>
@@ -338,18 +351,6 @@ export function AccountRights({
             {t(`${k}language.error`)}
           </p>
         )}
-      </div>
-
-      {/* **الحدُّ يُقالُ**: انظرْ رأسَ المِلفِّ — حقلٌ لا يُحفَظُ أسوأُ من غيابِه. */}
-      <div className="ac__debt">
-        <p className="ac__debt-title">{t(`${k}debt.title`)}</p>
-        <ul className="ac__debt-list">
-          {view.declaredDebtKeys.map((key) => (
-            <li className="ac__debt-item" key={key}>
-              {t(key)}
-            </li>
-          ))}
-        </ul>
       </div>
 
       <div className="ac__rights">
@@ -449,6 +450,18 @@ export function AccountRights({
             </div>
           )}
         </div>
+      </div>
+
+      {/* **الحدُّ يُقالُ**: انظرْ رأسَ المِلفِّ — حقلٌ لا يُحفَظُ أسوأُ من غيابِه. */}
+      <div className="ac__debt">
+        <p className="ac__debt-title">{t(`${k}debt.title`)}</p>
+        <ul className="ac__debt-list">
+          {view.declaredDebtKeys.map((key) => (
+            <li className="ac__debt-item" key={key}>
+              {t(key)}
+            </li>
+          ))}
+        </ul>
       </div>
 
       {error !== null && (

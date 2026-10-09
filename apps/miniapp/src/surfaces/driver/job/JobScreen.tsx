@@ -49,6 +49,7 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
+import { Glyph } from "../../../system/ui/icons.tsx";
 import { openExternalLink } from "../../../tg/index.ts";
 import type { SosSurfaceResponse, SosTriggerResponse } from "../../rider/sos/sos-contract.ts";
 import {
@@ -351,83 +352,91 @@ export function JobScreen({
         </h1>
       ) : null}
 
-      <div className="djb__head">
-        <span className="djb__service">{t(job.serviceKey)}</span>
-        <span className="djb__phase" role="status">
-          {t(job.phaseKey)}
-        </span>
+      <div className="djb__hero">
+        <div className="djb__head">
+          <span className="djb__service">{t(job.serviceKey)}</span>
+          <span className="djb__phase" role="status">
+            {t(job.phaseKey)}
+          </span>
+        </div>
+
+        <p className="djb__rider">
+          {t("driver.job.rider")}:{" "}
+          {job.riderFirstName === null || job.riderFirstName === ""
+            ? t("driver.job.rider.unnamed")
+            : job.riderFirstName}
+          {job.riderLanguageCode === null ? null : (
+            <span className="djb__rider-language"> · {job.riderLanguageCode}</span>
+          )}
+        </p>
       </div>
 
-      <p className="djb__rider">
-        {t("driver.job.rider")}:{" "}
-        {job.riderFirstName === null || job.riderFirstName === ""
-          ? t("driver.job.rider.unnamed")
-          : job.riderFirstName}
-        {job.riderLanguageCode === null ? null : (
-          <span className="djb__rider-language"> · {job.riderLanguageCode}</span>
+      <div className="djb__stop djb__stop--pickup">
+        <p className="djb__place">
+          {t("driver.job.pickup")}: {job.pickup.label ?? t("driver.job.place.unnamed")}
+        </p>
+        <p className="djb__coords">
+          {job.pickup.latitude} , {job.pickup.longitude}
+        </p>
+        {/* `LOC-TRUST-01`: ملاحظاتُ المكانِ ورابطُ الراكبِ الأصليُّ حرفاً، وفتحُه. */}
+        {job.pickup.notes === null ? null : (
+          <p className="djb__notes">
+            {t("driver.job.place.notes")}: {job.pickup.notes}
+          </p>
         )}
-      </p>
+        {job.pickup.link === null ? null : (
+          <p className="djb__coords">
+            {t("driver.job.place.link")}: {job.pickup.link}
+          </p>
+        )}
+        {job.pickup.openUrl === null ? null : (
+          <button
+            type="button"
+            className="djb__navigate"
+            onClick={() => openLink(job.pickup.openUrl ?? "")}
+          >
+            {t("driver.job.openPickup")}
+          </button>
+        )}
+      </div>
+      <div className="djb__stop djb__stop--dropoff">
+        <p className="djb__place">
+          {t("driver.job.dropoff")}:{" "}
+          {job.dropoff === null
+            ? t("driver.job.place.none")
+            : (job.dropoff.label ?? t("driver.job.place.unnamed"))}
+        </p>
+        {job.dropoff?.notes == null ? null : (
+          <p className="djb__notes">
+            {t("driver.job.place.notes")}: {job.dropoff.notes}
+          </p>
+        )}
+        {job.dropoff?.link == null ? null : (
+          <p className="djb__coords">
+            {t("driver.job.place.link")}: {job.dropoff.link}
+          </p>
+        )}
+        {job.dropoff?.openUrl == null ? null : (
+          <button
+            type="button"
+            className="djb__navigate"
+            onClick={() => openLink(job.dropoff?.openUrl ?? "")}
+          >
+            {t("driver.job.openDropoff")}
+          </button>
+        )}
+      </div>
 
-      <p className="djb__place">
-        {t("driver.job.pickup")}: {job.pickup.label ?? t("driver.job.place.unnamed")}
-      </p>
-      <p className="djb__coords">
-        {job.pickup.latitude} , {job.pickup.longitude}
-      </p>
-      {/* `LOC-TRUST-01`: ملاحظاتُ المكانِ ورابطُ الراكبِ الأصليُّ حرفاً، وفتحُه. */}
-      {job.pickup.notes === null ? null : (
+      <div className="djb__facts">
         <p className="djb__notes">
-          {t("driver.job.place.notes")}: {job.pickup.notes}
+          {t("driver.job.notes")}:{" "}
+          {job.notes === null || job.notes === "" ? t("driver.job.noNotes") : job.notes}
         </p>
-      )}
-      {job.pickup.link === null ? null : (
-        <p className="djb__coords">
-          {t("driver.job.place.link")}: {job.pickup.link}
-        </p>
-      )}
-      {job.pickup.openUrl === null ? null : (
-        <button
-          type="button"
-          className="djb__navigate"
-          onClick={() => openLink(job.pickup.openUrl ?? "")}
-        >
-          {t("driver.job.openPickup")}
-        </button>
-      )}
-      <p className="djb__place">
-        {t("driver.job.dropoff")}:{" "}
-        {job.dropoff === null
-          ? t("driver.job.place.none")
-          : (job.dropoff.label ?? t("driver.job.place.unnamed"))}
-      </p>
-      {job.dropoff?.notes == null ? null : (
-        <p className="djb__notes">
-          {t("driver.job.place.notes")}: {job.dropoff.notes}
-        </p>
-      )}
-      {job.dropoff?.link == null ? null : (
-        <p className="djb__coords">
-          {t("driver.job.place.link")}: {job.dropoff.link}
-        </p>
-      )}
-      {job.dropoff?.openUrl == null ? null : (
-        <button
-          type="button"
-          className="djb__navigate"
-          onClick={() => openLink(job.dropoff?.openUrl ?? "")}
-        >
-          {t("driver.job.openDropoff")}
-        </button>
-      )}
 
-      <p className="djb__notes">
-        {t("driver.job.notes")}:{" "}
-        {job.notes === null || job.notes === "" ? t("driver.job.noNotes") : job.notes}
-      </p>
-
-      <StampRow labelKey="driver.job.stamp.matchedAt" value={job.matchedAt} t={t} />
-      <StampRow labelKey="driver.job.stamp.arrivedAt" value={job.arrivedAt} t={t} />
-      <StampRow labelKey="driver.job.stamp.startedAt" value={job.startedAt} t={t} />
+        <StampRow labelKey="driver.job.stamp.matchedAt" value={job.matchedAt} t={t} />
+        <StampRow labelKey="driver.job.stamp.arrivedAt" value={job.arrivedAt} t={t} />
+        <StampRow labelKey="driver.job.stamp.startedAt" value={job.startedAt} t={t} />
+      </div>
 
       <div className="djb__actions">
         {/* الملاحةُ **خارجَ التطبيقِ**: رابطٌ يُنقَرُ، لا خريطةٌ تُحمَّلُ. */}
@@ -438,6 +447,7 @@ export function JobScreen({
             openLink(job.navigateTo.navigationUrl);
           }}
         >
+          <Glyph name="navigate" className="djb__navigate-icon" />
           {t("driver.job.navigate")}
         </button>
         <button

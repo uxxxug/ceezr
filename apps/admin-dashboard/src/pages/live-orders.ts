@@ -129,7 +129,7 @@ export function renderLiveOrdersPage(data: LiveOrdersData): string {
   });
 
   return `<h1>الطلبات الحية</h1>
-<p class="note">تحديث تلقائي كل نصف دقيقة. «قطع روابط التتبّع» يُلغي روابط الطلب بالنيابة عن صاحبه بطلب دعم — والملكية محكومة في القاعدة. حالة اللحظة: ${escapeHtml(formatDateTime(data.now))}</p>
+<p class="note">الصفحة لا تتحدّث وحدها؛ حدّثها يدويًا. «قطع روابط التتبّع» يُلغي روابط الطلب بالنيابة عن صاحبه بطلب دعم — والملكية محكومة في القاعدة. حالة اللحظة: ${escapeHtml(formatDateTime(data.now))}</p>
 <form class="filters" method="get" action="/admin/live-orders">
   <label>المدينة
     <select name="city">

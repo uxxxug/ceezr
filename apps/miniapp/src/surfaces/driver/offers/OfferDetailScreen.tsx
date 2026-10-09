@@ -309,7 +309,7 @@ export function OfferDetailScreen({
         {detail.pickupOpenUrl === null ? null : (
           <button
             type="button"
-            className="dof__reject"
+            className="dof__place-open"
             onClick={() => openLink(detail.pickupOpenUrl ?? "")}
           >
             {t("driver.offers.openPickup")}
@@ -334,7 +334,7 @@ export function OfferDetailScreen({
         {detail.dropoffOpenUrl === null ? null : (
           <button
             type="button"
-            className="dof__reject"
+            className="dof__place-open"
             onClick={() => openLink(detail.dropoffOpenUrl ?? "")}
           >
             {t("driver.offers.openDropoff")}

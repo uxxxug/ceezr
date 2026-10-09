@@ -28,6 +28,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { Glyph, type GlyphName, IconChevron } from "../../../system/ui/icons.tsx";
 import type { AccountRightsProps } from "../../account/AccountRights.tsx";
 import { AccountRights } from "../../account/AccountRights.tsx";
 import { driverAccountView } from "./account-view.ts";
@@ -52,10 +53,21 @@ export function AccountScreen({
 }: DriverAccountScreenProps) {
   const t = miniAppTranslator(props.language ?? MINIAPP_DEFAULT_LANGUAGE);
   const links = [
-    { key: "documents", label: t("driver.account.work.documents"), onOpen: onOpenDocuments },
-    { key: "vehicle", label: t("driver.account.work.vehicle"), onOpen: onOpenVehicle },
+    {
+      key: "documents",
+      glyph: "file",
+      label: t("driver.account.work.documents"),
+      onOpen: onOpenDocuments,
+    },
+    {
+      key: "vehicle",
+      glyph: "car",
+      label: t("driver.account.work.vehicle"),
+      onOpen: onOpenVehicle,
+    },
     {
       key: "subscription",
+      glyph: "card",
       label: t("driver.account.work.subscription"),
       onOpen: onOpenSubscription,
     },
@@ -64,8 +76,12 @@ export function AccountScreen({
     links.length === 0 ? undefined : (
       <nav className="ac__links" aria-label={t("driver.account.work.label")}>
         {links.map((link) => (
-          <button key={link.key} type="button" className="sys__action" onClick={link.onOpen}>
-            {link.label}
+          <button key={link.key} type="button" className="ac__link" onClick={link.onOpen}>
+            <span className="ac__link-icon">
+              <Glyph name={link.glyph as GlyphName} />
+            </span>
+            <span className="ac__link-label">{link.label}</span>
+            <IconChevron className="ac__link-chevron" />
           </button>
         ))}
       </nav>

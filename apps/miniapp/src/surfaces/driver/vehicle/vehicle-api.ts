@@ -22,7 +22,7 @@ import type {
 
 export type * from "./vehicle-contract.ts";
 
-export function readDriverVehicle(): Promise<ApiDriverVehicleResponse> {
+export function readDriverVehicle(): Promise<ApiDriverVehicleResponse | null> {
   return apiFetch<ApiDriverVehicleResponse>("/v1/driver/vehicle", {
     method: "GET",
   });

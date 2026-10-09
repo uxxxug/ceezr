@@ -54,6 +54,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { Glyph, IconSearch } from "../../../system/ui/icons.tsx";
 import { openExternalLink, openLocationSettings } from "../../../tg/index.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import {
@@ -460,6 +461,9 @@ export function DestinationScreen({
                 void resolvePoint(labelFor(row, language), row.lat, row.lng, SUGGESTION_ORIGIN)
               }
             >
+              <span className="rd__row-icon">
+                <Glyph name="pin" />
+              </span>
               <span className="rd__row-label">{highlighted(row, searchState.query)}</span>
               <span className="rd__row-meta">
                 {t(row.sourceKey)}
@@ -587,9 +591,10 @@ export function DestinationScreen({
         {summary.mapUrl === null ? null : (
           <button
             type="button"
-            className="sys__action"
+            className="rd__verify"
             onClick={() => openLink(summary.mapUrl ?? "")}
           >
+            <Glyph name="globe" className="rd__locate-icon" />
             {t("rider.place.verifyOnMap")}
           </button>
         )}
@@ -742,8 +747,9 @@ export function DestinationScreen({
         <div className="rd__map" data-provider={mapProvider} />
       )}
 
-      <label className="rd__field" htmlFor="rd-query">
+      <label className="rd__field rd__field--query" htmlFor="rd-query">
         <span className="sys__hint">{t("rider.destination.search.prompt")}</span>
+        <IconSearch className="rd__query-icon" />
         <input
           id="rd-query"
           className="rd__input"
@@ -754,13 +760,15 @@ export function DestinationScreen({
       </label>
 
       <button type="button" className="rd__locate" onClick={() => void pickMyLocation()}>
+        <Glyph name="navigate" className="rd__locate-icon" />
         {t("rider.destination.location.action")}
       </button>
 
-      {/* الاسمُ والرابطُ والملاحظاتُ قبلَ بطاقةِ النقطة: زرُّ الاعتمادِ آخرُ ما يُرى لا أوّلُه. */}
+      {/* `UX-V2`: الاقتراحاتُ تلي حقلَ البحثِ مباشرةً (اللوحة 01 · R2). ثمّ الاسمُ والرابطُ
+          والملاحظاتُ قبلَ بطاقةِ النقطة: زرُّ الاعتمادِ آخرُ ما يُرى لا أوّلُه. */}
+      {results()}
       {placeFields}
       {verdict()}
-      {results()}
 
       {onBack === undefined ? null : (
         <button type="button" className="rd__back" onClick={() => onBack()}>
