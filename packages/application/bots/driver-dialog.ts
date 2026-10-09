@@ -552,6 +552,7 @@ export async function handleDriverUpdate(
     if (update.ownerTelegramId !== sender.telegramUserId) {
       return [reply(sender, t(languageOf(state))("driver.phone_not_yours"), phoneRequest(state))];
     }
+    if (state.step === "idle") return recordMiniAppPhoneProof(update.phone, sender, state, deps);
     return handlePhone(update.phone, sender, state, deps);
   }
   if (update.kind === "location")
@@ -1971,6 +1972,32 @@ async function handleName(
   if (!saved.ok) return technicalFailure(sender, state);
 
   return [reply(sender, tr("driver.ask_phone"), phoneRequest(state))];
+}
+
+/**
+ * `PRD-105` — البطاقةُ تصلُ والحوارُ خاملٌ: هذا مسارُ التطبيقِ المصغَّر (`requestContact` يُرسِلُ
+ * جهةَ الاتّصالِ إلى البوت). يُحفَظُ الرقمُ في الجلسةِ إثباتاً مضموناً بتيليجرام — المقارنةُ بصاحبِ
+ * البطاقةِ تمَّت قبلَ هذا السطر — ويقرؤه `POST /v1/onboarding/driver`؛ ولا تُغيَّرُ الخطوةُ فلا
+ * يُفتَحُ حوارُ تسجيلٍ في البوت. ومَن سُجِّلَ سائقاً لا يحتاجُ إثباتاً: يبقى الردُّ القديم.
+ */
+async function recordMiniAppPhoneProof(
+  raw: string,
+  sender: Sender,
+  state: DialogState,
+  deps: DriverBotDependencies,
+): Promise<readonly BotReply[]> {
+  const tr = t(languageOf(state));
+  const existing = await deps.drivers.findByTelegramId(sender.telegramUserId);
+  if (!existing.ok) return technicalFailure(sender, state);
+  if (existing.value !== null) return [reply(sender, tr("common.unknown_command"))];
+  const parsed = parsePhone(raw);
+  if (!parsed.ok) return [reply(sender, tr("driver.phone_invalid"))];
+  const saved = await deps.sessions.save(sender.telegramUserId, {
+    ...state,
+    draftPhone: parsed.value,
+  });
+  if (!saved.ok) return technicalFailure(sender, state);
+  return [reply(sender, tr("driver.phone_received_for_app"))];
 }
 
 async function handlePhone(

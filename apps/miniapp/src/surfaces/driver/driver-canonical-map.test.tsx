@@ -219,8 +219,12 @@ describe("D14 — تسجيلُ السائقِ من الـMini App", () => {
     keysPresent(["onboarding.driver.title", "onboarding.driver.body", "onboarding.driver.close"]);
   });
 
-  it("فجوةُ عقدٍ مسجّلة: لا نداءَ تسجيلِ سائقٍ في العميل — إن أُضيفَ فليُحدَّث ADR 0236", () => {
+  it("الفجوةُ أُغلِقَت (PRD-105 · ADR 0257 · تعديلُ ADR 0236): نداءُ التسجيلِ بلا رقمٍ في الجسم", () => {
     expect(ONBOARDING_API).toContain('"/v1/onboarding/rider"');
-    expect(ONBOARDING_API).not.toContain("/v1/onboarding/driver");
+    expect(ONBOARDING_API).toContain('"/v1/onboarding/driver"');
+    // الرقمُ يُقرأُ من إثباتِ البوتِ في الخادم — لا حقلَ `phone` في نوعِ الطلب.
+    expect(ONBOARDING_API).not.toMatch(/readonly phone\b/);
+    expect(ONBOARDING).toContain("shareContact()");
+    expect(ONBOARDING).toContain("state.status.phoneVerified !== undefined");
   });
 });

@@ -12,6 +12,7 @@ import {
   ReadUrlSignerAdapter,
   UnconfiguredAssetReader,
 } from "../../../packages/application/driver/vehicle-asset-reader.ts";
+import { createDriverPhoneProofs } from "../../../packages/application/identity/onboard-driver.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { OperatingCityDeps } from "../../../packages/application/rider-city/operating-city.ts";
 import type { EmergencyContactDeps } from "../../../packages/application/safety/emergency-contact.ts";
@@ -631,6 +632,9 @@ const me =
  * تسجيلُ الراكبِ من التطبيقِ المصغَّرِ (`ADR 0213`) — **نفسُ** مصادقةِ `me` ونفسُ منفذَي
  * التسجيلِ اللذَين يستعملُهما حوارُ البوتِ؛ فلا قاعدةَ تسجيلٍ ثانيةٌ تتباعد.
  */
+/** إثباتُ رقمِ السائقِ كما كتبَه بوتُه (`recordMiniAppPhoneProof`) — قراءةُ `draftPhone` ومسحُه. */
+const driverPhoneProofs = createDriverPhoneProofs(container.driverDialogSessions);
+
 const onboarding =
   me === undefined
     ? undefined
@@ -639,6 +643,15 @@ const onboarding =
           viewer: me.viewer,
           riders: createRiderDirectory(container.sql),
           cities: createCityDirectory(container.sql),
+          driverPhoneProofs,
+          log,
+        },
+        // `PRD-105` — تسجيلُ السائقِ: الرقمُ من إثباتِ بوتِه في جلستِه، والكتابةُ بمنفذِ الحوارِ نفسِه.
+        driverOnboarding: {
+          viewer: me.viewer,
+          drivers: createDriverDirectory(container.sql),
+          cities: createCityDirectory(container.sql),
+          phoneProofs: driverPhoneProofs,
           log,
         },
         log,

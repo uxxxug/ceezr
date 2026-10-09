@@ -1,0 +1,64 @@
+{
+  "id": "prd-105-driver-onboarding-miniapp",
+  "goal": "تسجيلُ السائقِ داخلَ التطبيقِ المصغَّر (قرارُ المالكِ «أ»): بياناتٌ ومركبةٌ ورقمٌ مُثبَتٌ عبرَ البوت، حالُه pending بلا توثيقٍ آليّ، ثمَّ الوثائقُ والمراجعةُ في لوحةِ الإدارة (ADR 0257).",
+  "canonical_source": [
+    "قرارُ المالك PRD-105 (الخيار أ)",
+    "docs/adr/0213-*",
+    "docs/adr/0236-ui-4-driver-d0-d14.md",
+    "docs/adr/0256-admin-driver-document-review.md"
+  ],
+  "implementation": [
+    "packages/application/identity/onboard-driver.ts",
+    "packages/application/identity/onboard-rider.ts",
+    "packages/application/bots/driver-dialog.ts",
+    "packages/application/bots/types.ts",
+    "apps/gateway/src/routes/onboarding.ts",
+    "apps/gateway/src/container.ts",
+    "apps/gateway/src/index.ts",
+    "apps/gateway/src/rate-limit/policy.ts",
+    "apps/miniapp/src/surfaces/onboarding/OnboardingRoot.tsx",
+    "apps/miniapp/src/surfaces/onboarding/onboarding-api.ts",
+    "apps/miniapp/src/surfaces/onboarding/onboarding-view.ts",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts",
+    "docs/adr/0257-driver-onboarding-in-miniapp.md",
+    "docs/work-packets/prd-105-driver-onboarding-miniapp.json",
+    "apps/miniapp/src/surfaces/driver/driver-canonical-map.test.tsx",
+    "apps/miniapp/src/surfaces/onboarding/onboarding-view.test.ts",
+    "tests/integration/driver-onboarding-miniapp.test.ts",
+    "tests/unit/driver-dialog.test.ts",
+    "tests/unit/onboard-driver.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0257-driver-onboarding-in-miniapp.md",
+    "docs/adr/0236-ui-4-driver-d0-d14.md"
+  ],
+  "no_other_affected_docs_reason": "مسارٌ جديدٌ مصادَقٌ بجلسةٍ بجانبِ مسارِ الراكبِ القائم؛ لا هجرةَ ولا تغييرَ في عقودِ الوثائقِ أو المراجعة.",
+  "decision": "ADR 0257",
+  "tests": [
+    "tests/unit/onboard-driver.test.ts",
+    "tests/unit/onboard-rider.test.ts",
+    "tests/unit/driver-dialog.test.ts",
+    "tests/integration/driver-onboarding-miniapp.test.ts",
+    "apps/miniapp/src/surfaces/onboarding/onboarding-view.test.ts",
+    "apps/miniapp/src/surfaces/driver/driver-canonical-map.test.tsx",
+    "CI كامل"
+  ],
+  "evidence": "تكامل 5/5 على PostgreSQL محلّيّ حقيقيّ (تزامنٌ بلا تكرار، pending، هويّةٌ مكرَّرة، وثائقُ ومراجعة)؛ وحدات onboard-driver 17/17 وdriver-dialog 104/104.",
+  "constraints": [
+    "لا توثيقَ آليّ: pending دائماً",
+    "الرقمُ من إثباتِ البوتِ لا من الجسم",
+    "المراجعةُ في لوحةِ الإدارةِ وحدَها",
+    "لا دفعَ إلكترونيّ"
+  ],
+  "limitations": "صورةُ المركبةِ null في مسارِ التطبيق (لا مسارَ رفعٍ لها بعد)؛ لا قياسَ في عميلِ تيليجرامَ حقيقيّ — مُدرَجٌ في ADR 0257.",
+  "status": "open"
+}

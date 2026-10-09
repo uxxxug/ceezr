@@ -414,7 +414,11 @@ export interface RegisterDriverInput {
   readonly vehicleType: string;
   readonly plateNumber: string;
   readonly nationalId: string;
-  readonly vehiclePhotoFileId: string;
+  /**
+   * معرّفُ ملفِّ تيليجرامَ لصورةِ المركبة. `null` في التسجيلِ من التطبيقِ المصغَّر (`PRD-105`):
+   * لا مسارَ رفعٍ لها هناك بعدُ، فتبقى ناقصةً ظاهرةً لا قيمةً مختلَقة.
+   */
+  readonly vehiclePhotoFileId: string | null;
 }
 
 export interface DriverDirectory {
