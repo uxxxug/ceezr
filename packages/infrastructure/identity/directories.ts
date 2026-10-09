@@ -291,12 +291,16 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
 
     changeCity: (driverId: DriverId, newCityId: CityId) =>
       guard("drivers.changeCity", async () => {
-        const rows = await sql<{ ok: boolean; error: string | null }[]>`
-          select * from update_driver_city(${driverId}::uuid, ${newCityId}::uuid)
+        // الدالّةُ تُعيدُ `jsonb` واحداً: `select *` كانَ يُعيدُ عموداً باسمِ الدالّةِ لا `ok`/`error`،
+        // فيقرأُ البوتُ كلَّ نتيجةٍ فشلاً ولو تغيّرَت المدينةُ فعلاً (ADR 0255).
+        const rows = await sql<{ result: { ok?: unknown; error?: unknown } | null }[]>`
+          select update_driver_city(${driverId}::uuid, ${newCityId}::uuid) as result
         `;
-        const row = rows[0];
-        if (row === undefined) throw new Error("update_driver_city لم تُعِد نتيجة");
-        return { ok: row.ok, error: row.error };
+        const result = rows[0]?.result;
+        if (result === undefined || result === null || typeof result.ok !== "boolean") {
+          throw new Error("update_driver_city لم تُعِد نتيجةً مقروءة");
+        }
+        return { ok: result.ok, error: typeof result.error === "string" ? result.error : null };
       }),
   };
 }
@@ -368,12 +372,16 @@ export function createRiderDirectory(sql: Sql): RiderDirectory {
 
     changeCity: (riderId: RiderId, newCityId: CityId) =>
       guard("riders.changeCity", async () => {
-        const rows = await sql<{ ok: boolean; error: string | null }[]>`
-          select * from update_rider_city(${riderId}::uuid, ${newCityId}::uuid)
+        // الدالّةُ تُعيدُ `jsonb` واحداً: `select *` كانَ يُعيدُ عموداً باسمِ الدالّةِ لا `ok`/`error`،
+        // فيقرأُ البوتُ كلَّ نتيجةٍ فشلاً ولو تغيّرَت المدينةُ فعلاً (ADR 0255).
+        const rows = await sql<{ result: { ok?: unknown; error?: unknown } | null }[]>`
+          select update_rider_city(${riderId}::uuid, ${newCityId}::uuid) as result
         `;
-        const row = rows[0];
-        if (row === undefined) throw new Error("update_rider_city لم تُعِد نتيجة");
-        return { ok: row.ok, error: row.error };
+        const result = rows[0]?.result;
+        if (result === undefined || result === null || typeof result.ok !== "boolean") {
+          throw new Error("update_rider_city لم تُعِد نتيجةً مقروءة");
+        }
+        return { ok: result.ok, error: typeof result.error === "string" ? result.error : null };
       }),
   };
 }

@@ -1168,6 +1168,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: "التتبّعُ وموقعُ السائق",
     documentedIn: null,
   },
+  {
+    migration: "20261010090000_rider_city_single_write.sql",
+    change: "revoke_function:update_rider_city(2)",
+    why: "الهجرةُ تُعيدُ تعريفَ `update_rider_city(uuid, uuid)` بـ`create or replace` **بالتوقيعِ والمردِّ نفسِهما** لتكتبَ `users.city_id` معَ `riders.city_id` (ADR 0255)، والسحبُ بعدَها إعادةُ قفلِ السطحِ كما كانَ — ممنوحةٌ لـ`service_role` وحدَها قبلُ وبعدُ، فلا تضييقَ فعليَّ. و**لا نشرَ مقروناً**: الشيفرةُ القديمةُ معَ الدالّةِ الجديدةِ تقرأُ النتيجةَ كما كانت (والرمزُ الجديدُ `NOT_A_RIDER` فشلٌ عامٌّ قائم)، والشيفرةُ الجديدةُ معَ الدالّةِ القديمةِ تقرأُ مفاتيحَها نفسَها. والعودةُ إعادةُ تطبيقِ النسخةِ من `20260814140000` وحدَها: يعودُ عيبُ الكتابةِ في `riders.city_id` وحدَه المعروفُ، ولا يُفقَدُ صفّ.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**
