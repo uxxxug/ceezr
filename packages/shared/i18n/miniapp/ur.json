@@ -1628,5 +1628,11 @@
   "driver.job.stamp.justNow": "ایک منٹ سے کم پہلے",
   "rider.frame.share": "سفر شیئر کریں",
   "rider.frame.savedPlaces": "محفوظ مقامات",
-  "rider.frame.emergency": "ہنگامی رابطہ"
+  "rider.frame.emergency": "ہنگامی رابطہ",
+  "driver.offers.detail.section.request": "درخواست کی تفصیل",
+  "driver.offers.detail.section.places": "مقامات",
+  "driver.offers.detail.section.distance": "فاصلہ",
+  "driver.job.rider.language.ar": "العربية",
+  "driver.job.rider.language.en": "English",
+  "driver.job.rider.language.ur": "اردو"
 }

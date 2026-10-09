@@ -272,12 +272,20 @@ export function RideSummaryScreen({
             <button
               type="button"
               key={value}
-              className={stars === value ? "sm__star sm__star--chosen" : "sm__star"}
+              className={
+                stars === value
+                  ? "sm__star sm__star--chosen"
+                  : stars !== null && value < stars
+                    ? "sm__star sm__star--lit"
+                    : "sm__star"
+              }
               aria-pressed={stars === value}
+              aria-label={t("rider.summary.stars.one").replace("{stars}", String(value))}
               disabled={busy}
               onClick={() => setStars(value)}
             >
-              {t("rider.summary.stars.one").replace("{stars}", String(value))}
+              {/* ADR 0249 (R8): نجومٌ كما في اللوحة 02؛ العددُ يُقرأ من `aria-label`. */}
+              <span aria-hidden="true">{stars !== null && value <= stars ? "★" : "☆"}</span>
             </button>
           ))}
         </fieldset>

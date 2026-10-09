@@ -21,7 +21,7 @@ import "../../../../packages/shared/i18n/miniapp/ar-parts/account.ts";
 import "../../../../packages/shared/i18n/miniapp/ar-parts/onboarding.ts";
 import "../../../../packages/shared/i18n/miniapp/ar-parts/driver.ts";
 import { windowBoundText } from "./driver/activity/activity-view.ts";
-import { stampAgeMinutes } from "./driver/job/job-view.ts";
+import { riderLanguageText, stampAgeMinutes } from "./driver/job/job-view.ts";
 import { FaqScreen } from "./rider/faq/FaqScreen.tsx";
 import { SearchScreen, type SearchScreenIntent } from "./rider/search/SearchScreen.tsx";
 
@@ -194,5 +194,78 @@ describe("R0 · نصُّ الترحيبِ لا يَعِدُ بمدّةٍ بلا 
         expect(d[key], `${language}:${key}`).toBeTruthy();
       }
     }
+  });
+});
+
+describe("D2 · تفاصيلُ العرضِ ثلاثُ بطاقاتٍ كما في اللوحة 06 (بلا وقتٍ مختلَق)", () => {
+  const DETAIL = codeOnly(read("./driver/offers/OfferDetailScreen.tsx"));
+  it("ثلاثُ بطاقاتٍ معنونة: بياناتُ الطلب ← المواقع ← المسافة", () => {
+    const order = [
+      DETAIL.indexOf('t("driver.offers.detail.section.request")'),
+      DETAIL.indexOf('t("driver.offers.detail.section.places")'),
+      DETAIL.indexOf('t("driver.offers.detail.section.distance")'),
+    ];
+    expect(order.every((i) => i > 0)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
+    expect(DETAIL.match(/<UiCard\b/g)?.length).toBe(3);
+  });
+  it("بطاقةُ المسافةِ لا تحملُ إلّا صفَّي المسافة — لا مدّةَ ولا ETA", () => {
+    const start = DETAIL.indexOf('t("driver.offers.detail.section.distance")');
+    const card = DETAIL.slice(start, DETAIL.indexOf("</UiCard>", start));
+    expect(card.match(/<DistanceRow\b/g)?.length).toBe(2);
+    expect(card).not.toMatch(/\beta\b|duration|minutes/i);
+  });
+  it("العناوينُ مترجمةٌ في اللغاتِ الثلاث، والعربيّةُ «المسافة» لا «المسافة والوقت»", () => {
+    for (const lang of MINIAPP_LANGUAGES) {
+      const t = miniAppTranslator(lang);
+      for (const k of ["request", "places", "distance"]) {
+        const key = `driver.offers.detail.section.${k}`;
+        expect(t(key)).not.toBe(key);
+      }
+    }
+    expect(miniAppTranslator("ar")("driver.offers.detail.section.distance")).toBe("المسافة");
+  });
+});
+
+describe("D3 · لغةُ الراكبِ باسمِها لا برمزِها الخامّ", () => {
+  it("الرموزُ الثلاثةُ أسماءٌ، والمجهولُ يُعرَضُ كما ورد", () => {
+    const t = miniAppTranslator("ar");
+    expect(riderLanguageText("ar", t)).toBe("العربية");
+    expect(riderLanguageText("EN", t)).toBe("English");
+    expect(riderLanguageText("ur", t)).toBe("اردو");
+    expect(riderLanguageText("fr", t)).toBe("fr");
+  });
+  it("المهمّةُ ترسمُ الاسمَ عبرَ الدالّة، لا `riderLanguageCode` خامًّا", () => {
+    expect(JOB).toContain("riderLanguageText(job.riderLanguageCode, t)");
+    expect(JOB).not.toMatch(/·\s*\{job\.riderLanguageCode\}/);
+  });
+});
+
+describe("D4 · بعدَ «أنهِ الرحلة» يبقى زرُّ الملخّص (القراءةُ تعيدُ job: null)", () => {
+  it("فرعُ «لا مهمّة» يرسمُ نتيجةَ الإكمالِ وزرَّ الملخّصِ من حالِ الفعل", () => {
+    const start = JOB.indexOf("if (state.job === null)");
+    const branch = JOB.slice(start, JOB.indexOf("const job = state.job;", start));
+    expect(start).toBeGreaterThan(0);
+    expect(branch).toContain('t("driver.job.viewSummary")');
+    expect(branch).toContain("onCompleted?.(completedOrderId)");
+    expect(branch).toContain("t(DONE_KEY.COMPLETE_RIDE)");
+  });
+  it("الزرُّ مشروطٌ بإكمالٍ فعليٍّ ومستقبِلٍ مُمرَّر — لا زرَّ بلا مستقبِل", () => {
+    expect(JOB).toMatch(
+      /const completedOrderId =\s*act\.kind === "done" &&\s*act\.key === DONE_KEY\.COMPLETE_RIDE &&\s*onCompleted !== undefined/,
+    );
+  });
+});
+
+describe("حاجزُ الترميزِ المزدوج: `apiFetch` يرمّزُ `body` بنفسِه", () => {
+  it("لا مستدعٍ لـ`apiFetch` يمرّرُ `body: JSON.stringify(...)` (كان يصلُ الخادمَ نصًّا فيُرفَضُ MALFORMED)", async () => {
+    const { Glob } = await import("bun");
+    const offenders: string[] = [];
+    for await (const file of new Glob("apps/miniapp/src/**/*.{ts,tsx}").scan(".")) {
+      if (file.includes(".test.") || file.endsWith("api/client.ts")) continue;
+      const src = await Bun.file(file).text();
+      if (src.includes("apiFetch") && /body:\s*JSON\.stringify\(/.test(src)) offenders.push(file);
+    }
+    expect(offenders).toEqual([]);
   });
 });

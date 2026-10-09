@@ -257,3 +257,18 @@ export function stampAgeMinutes(stampIso: string, serverTimeIso: string): number
   if (elapsedMs < 0) return null;
   return Math.floor(elapsedMs / 60_000);
 }
+
+/**
+ * ADR 0249 (D3): لغةُ الراكبِ تُعرَضُ باسمِها لا برمزِها الخامّ («ar»). الرموزُ الثلاثةُ
+ * التي يدعمُها التطبيقُ لها أسماءٌ في القاموس؛ ورمزٌ غيرُها يُعرَضُ كما ورد — لا اسمَ يُخترَع.
+ */
+const RIDER_LANGUAGE_KEYS: Readonly<Record<string, string>> = {
+  ar: "driver.job.rider.language.ar",
+  en: "driver.job.rider.language.en",
+  ur: "driver.job.rider.language.ur",
+};
+
+export function riderLanguageText(code: string, t: (key: string) => string): string {
+  const key = RIDER_LANGUAGE_KEYS[code.trim().toLowerCase()];
+  return key === undefined ? code : t(key);
+}

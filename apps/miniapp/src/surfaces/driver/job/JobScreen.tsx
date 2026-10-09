@@ -70,6 +70,7 @@ import {
   cannotCompleteRefusalKey,
   isRetryableJobError,
   jobErrorKey,
+  riderLanguageText,
   shouldReloadAfterJobError,
   stampAgeMinutes,
   toActiveJob,
@@ -340,6 +341,14 @@ export function JobScreen({
     );
   }
 
+  const completedOrderId =
+    act.kind === "done" &&
+    act.key === DONE_KEY.COMPLETE_RIDE &&
+    onCompleted !== undefined &&
+    act.completedOrderId !== undefined
+      ? act.completedOrderId
+      : null;
+
   if (state.job === null) {
     return (
       <section className="djb" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
@@ -348,6 +357,25 @@ export function JobScreen({
             {t("driver.job.title")}
           </h1>
         ) : null}
+        {/*
+          ADR 0249 (D4): بعدَ «أنهِ الرحلة» تُعيدُ القراءةُ `job: null` — فالمهمّةُ انتهت حقًّا.
+          كانَ هذا الفرعُ يُسقِطُ نتيجةَ الفعلِ وزرَّ الملخّص، فلا يبلغُ السائقُ ملخّصَ رحلتِه.
+          النتيجةُ تُقالُ هنا من حالِ الفعلِ نفسِه، لا من تخمين.
+        */}
+        {completedOrderId === null ? null : (
+          <>
+            <p className="djb__done" role="status">
+              {t(DONE_KEY.COMPLETE_RIDE)}
+            </p>
+            <button
+              type="button"
+              className="djb__summary"
+              onClick={() => onCompleted?.(completedOrderId)}
+            >
+              {t("driver.job.viewSummary")}
+            </button>
+          </>
+        )}
         {/* `UX-5` — الفراغُ يُقالُ صراحةً ولا يُترَكُ بياضاً يُقرأُ عطلاً. */}
         <EmptyState title={t("driver.job.none.title")} body={t("driver.job.none.body")} />
         <button type="button" className="djb__retry" onClick={() => void load()}>
@@ -386,7 +414,10 @@ export function JobScreen({
             ? t("driver.job.rider.unnamed")
             : job.riderFirstName}
           {job.riderLanguageCode === null ? null : (
-            <span className="djb__rider-language"> · {job.riderLanguageCode}</span>
+            <span className="djb__rider-language">
+              {" "}
+              · {riderLanguageText(job.riderLanguageCode, t)}
+            </span>
           )}
         </p>
       </div>

@@ -8645,3 +8645,25 @@ body {
   color: var(--ui-brand-on);
   box-shadow: 0 6px 18px color-mix(in srgb, var(--ui-brand) 22%, transparent);
 }
+
+/* ADR 0249 (R8) — ملخّصُ الرحلة كما في اللوحة 02: «أرسل التقييم» هو الفعلُ الرئيسيّ،
+   و«مشكلة في هذه الرحلة» ثانويّ؛ والنجومُ رموزٌ بحجمِ لمسٍ ≥44px والعددُ في `aria-label`. */
+.sys__action.sm__report {
+  border: 1px solid var(--w-line);
+  background: var(--w-surface);
+  color: var(--tg-text-color);
+  box-shadow: none;
+}
+
+.sm__star {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* المضاءُ يُعرَفُ بالرمزِ المصمَتِ «★» لا باللون؛ ونصُّه بلونِ النصِّ كي لا يُكتَبَ
+   لونٌ دلاليٌّ على سطحٍ مجهول (حاجزُ PR 1). */
+.sm__star--lit {
+  color: var(--tg-text-color);
+}

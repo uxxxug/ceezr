@@ -274,8 +274,10 @@ export function OfferDetailScreen({
         </h1>
       ) : null}
 
-      {/* D3 · §11 PR 6: تفاصيلُ العرضِ في `ui-card` ومؤقّتُ CSS (`ui-timer`) — لا عقربَ ولا موعدَ مطلق. */}
-      <UiCard>
+      {/* D3 · §11 PR 6: تفاصيلُ العرضِ في `ui-card` ومؤقّتُ CSS (`ui-timer`) — لا عقربَ ولا موعدَ مطلق.
+          ADR 0249 (D2): ثلاثُ بطاقاتٍ كما في اللوحة 06 — بياناتُ الطلب، المواقع، المسافة.
+          عنوانُ الثالثةِ «المسافة» لا «المسافة والوقت»: لا مصدرَ زمنٍ للعرض (ADR 0024). */}
+      <UiCard title={t("driver.offers.detail.section.request")}>
         <div className={`dof__item-head dof__item-head--tinted ${tone.modifier}`}>
           <span className="dof__service">{t(detail.serviceKey)}</span>
         </div>
@@ -288,7 +290,15 @@ export function OfferDetailScreen({
         <p className="dof__round">
           {t("driver.offers.detail.round")}: {detail.round}
         </p>
+        <p className="dof__notes">
+          {t("driver.offers.detail.notes")}:{" "}
+          {detail.notes === null || detail.notes === ""
+            ? t("driver.offers.detail.noNotes")
+            : detail.notes}
+        </p>
+      </UiCard>
 
+      <UiCard title={t("driver.offers.detail.section.places")}>
         <p className="dof__place">
           {t("driver.offers.pickup")}: {detail.pickupLabel ?? t("driver.offers.place.unnamed")}
         </p>
@@ -340,16 +350,11 @@ export function OfferDetailScreen({
             {t("driver.offers.openDropoff")}
           </button>
         )}
+      </UiCard>
 
+      <UiCard title={t("driver.offers.detail.section.distance")}>
         <DistanceRow line={detail.riderDistance} labelKey="driver.offers.riderDistance" t={t} />
         <DistanceRow line={detail.tripDistance} labelKey="driver.offers.tripDistance" t={t} />
-
-        <p className="dof__notes">
-          {t("driver.offers.detail.notes")}:{" "}
-          {detail.notes === null || detail.notes === ""
-            ? t("driver.offers.detail.noNotes")
-            : detail.notes}
-        </p>
       </UiCard>
 
       <div className="dof__actions">

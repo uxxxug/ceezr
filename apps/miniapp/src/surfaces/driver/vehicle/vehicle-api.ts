@@ -35,7 +35,7 @@ export function updateDriverVehicle(
 ): Promise<ApiDriverVehicleUpdateResponse> {
   return apiFetch<ApiDriverVehicleUpdateResponse>("/v1/driver/vehicle", {
     method: "PATCH",
-    body: JSON.stringify({ vehicleType, plateNumber, vehicleYear }),
+    body: { vehicleType, plateNumber, vehicleYear },
   });
 }
 
@@ -45,7 +45,7 @@ export function updateDriverVehicleAssets(
 ): Promise<ApiDriverVehicleAssetsResponse> {
   return apiFetch<ApiDriverVehicleAssetsResponse>("/v1/driver/vehicle/assets", {
     method: "POST",
-    body: JSON.stringify({ logoObjectPath, barcodeObjectPath }),
+    body: { logoObjectPath, barcodeObjectPath },
   });
 }
 

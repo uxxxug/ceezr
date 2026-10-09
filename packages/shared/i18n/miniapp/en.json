@@ -1628,5 +1628,11 @@
   "driver.job.stamp.justNow": "Less than a minute ago",
   "rider.frame.share": "Share the ride",
   "rider.frame.savedPlaces": "Saved places",
-  "rider.frame.emergency": "Emergency contact"
+  "rider.frame.emergency": "Emergency contact",
+  "driver.offers.detail.section.request": "Request details",
+  "driver.offers.detail.section.places": "Locations",
+  "driver.offers.detail.section.distance": "Distance",
+  "driver.job.rider.language.ar": "العربية",
+  "driver.job.rider.language.en": "English",
+  "driver.job.rider.language.ur": "اردو"
 }
