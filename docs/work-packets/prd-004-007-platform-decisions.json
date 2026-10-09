@@ -24,6 +24,7 @@
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/adr/0250-prd-004-007-platform-decisions.md",
+    "docs/evidence/production/PRD-002-deploy-20261009-5856657f.md",
     "docs/governance/PRODUCTION_READINESS_GATE.md"
   ],
   "no_other_affected_docs_reason": "لا endpoint ولا هجرة ولا عقد؛ رأسٌ أمنيٌّ واحدٌ وإعداداتُ بناءٍ ونشر.",
@@ -37,5 +38,5 @@
   "evidence": "قياسٌ حيٌّ قبلَ القرار في ADR 0250؛ القياسُ بعدَ النشر في دليلِ النشر.",
   "constraints": ["لا includeSubDomains ولا preload", "لا لونَ مخترَع لمفتاحٍ غائب"],
   "limitations": "سريانُ render.yaml يحتاجُ مزامنةَ Blueprint على Render.",
-  "status": "open"
+  "status": "closed — #454 → d3fd8bb7، منشور (d3fd8bb7 ثمَّ 5856657f، 2026-10-09)؛ PRD-004…007 ADR-Closed بقياسٍ حيٍّ في docs/evidence/production/PRD-002-deploy-20261009-5856657f.md. Blueprint غيرُ مُزامَن. Not Production Ready."
 }
