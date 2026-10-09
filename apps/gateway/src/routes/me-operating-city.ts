@@ -20,9 +20,9 @@ export interface OperatingCityRouteDependencies {
   readonly log?: (event: string, payload: Record<string, unknown>) => void;
 }
 
-const STATUS_BY_ERROR: Readonly<
-  Record<OperatingCityPublicErrorCode, 400 | 401 | 403 | 404 | 422 | 503>
-> = {
+type ErrorCode = OperatingCityPublicErrorCode;
+
+const STATUS_BY_ERROR: Readonly<Record<ErrorCode, 400 | 401 | 403 | 404 | 422 | 503>> = {
   SESSION_REQUIRED: 401,
   SESSION_REJECTED: 401,
   MALFORMED: 400,
