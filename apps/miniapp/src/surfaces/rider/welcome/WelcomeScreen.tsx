@@ -52,6 +52,7 @@ import {
   consentRows,
   isRetryable,
   outstandingRows,
+  recordPendingInOrder,
 } from "./consent-view.ts";
 import { riderSurfaceTimingAttribute } from "./surface-timing.ts";
 
@@ -104,6 +105,8 @@ export function WelcomeScreen({
   const [language, setLanguage] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
   const [pendingKind, setPendingKind] = useState<string | null>(null);
+  // R0 · ADR 0254: «أوافق وأتابع» واحدٌ يسجّلُ كلَّ وثيقةٍ معلّقةٍ بإصدارِها في طلبِها المستقلّ.
+  const [acceptingAll, setAcceptingAll] = useState(false);
   const [rowError, setRowError] = useState<{ kind: string; code: string } | null>(null);
   const mounted = useRef(true);
 
@@ -170,6 +173,45 @@ export function WelcomeScreen({
     } finally {
       if (mounted.current) setPendingKind(null);
     }
+  };
+
+  /**
+   * R0 · ADR 0254: فعلٌ واحدٌ للوثائقِ المطلوبةِ المعلّقة (`missing` و`superseded`) **بالتتابع** عبرَ العقدِ
+   * القائمِ نفسِه (`POST /v1/consents` لكلِّ وثيقةٍ بإصدارِها): سجلٌّ مستقلٌّ وختمٌ من الخادمِ لكلّ وثيقة،
+   * وما وُوفِقَ عليه من قبلُ لا يُعادُ إرسالُه. أوّلُ رفضٍ يوقِفُ التتابعَ ويُقالُ تحتَ وثيقتِه، والقراءةُ
+   * تُعادُ فيبقى المعلّقُ وحدَه معلّقاً — وإعادةُ الضغطِ ترسلُ الباقيَ لا الكلّ. ولا متابعةَ إلّا بحكمِ الخادم.
+   */
+  const acceptAll = async (pending: readonly ConsentRow[]) => {
+    setAcceptingAll(true);
+    setRowError(null);
+    const { failure } = await recordPendingInOrder(pending, recordOne, (kind) => {
+      if (mounted.current) setPendingKind(kind);
+    });
+    if (!mounted.current) return;
+    setPendingKind(null);
+    if (failure !== null) {
+      const screen = await screenFor(failure.thrown);
+      if (!mounted.current) return;
+      if (screen !== null) {
+        setAcceptingAll(false);
+        setState({ kind: "screen", screen });
+        return;
+      }
+      setRowError({ kind: failure.kind, code: codeOf(failure.thrown) ?? "UNKNOWN" });
+    }
+    let status: ConsentApiStatus;
+    try {
+      status = await loadStatus();
+    } catch {
+      if (!mounted.current) return;
+      setAcceptingAll(false);
+      if (failure === null) await load();
+      return;
+    }
+    if (!mounted.current) return;
+    setState({ kind: "ready", status });
+    setAcceptingAll(false);
+    if (failure === null && alreadyOnboarded(status) && onProceed) onProceed();
   };
 
   const languagePicker = (
@@ -278,7 +320,7 @@ export function WelcomeScreen({
               <p className="wc__doc-state">
                 {busy ? t("welcome.consent_recording") : t(row.statusKey)}
               </p>
-              {done ? null : (
+              {done || row.required ? null : (
                 <button
                   type="button"
                   className="sys__action"
@@ -301,13 +343,18 @@ export function WelcomeScreen({
 
       <p className="sys__hint">{t("welcome.location_note")}</p>
 
+      {outstanding.length > 0 ? <p className="sys__hint">{t("welcome.accept_all_note")}</p> : null}
       <button
         type="button"
         className="sys__action wc__primary"
-        disabled={!satisfied || outstanding.length > 0}
-        onClick={onProceed}
+        disabled={acceptingAll || (outstanding.length === 0 && !satisfied)}
+        onClick={outstanding.length > 0 ? () => void acceptAll(outstanding) : onProceed}
       >
-        {t("welcome.start")}
+        {acceptingAll
+          ? t("welcome.consent_recording")
+          : outstanding.length > 0
+            ? t("welcome.accept_all")
+            : t("welcome.start")}
       </button>
 
       <section className="wc__after">

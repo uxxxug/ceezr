@@ -140,3 +140,29 @@ export function isRetryable(code: string): boolean {
       return true;
   }
 }
+
+/**
+ * R0 · ADR 0254: تسجيلُ الوثائقِ المعلّقةِ **بالتتابعِ** بالعقدِ القائم — طلبٌ مستقلٌّ لكلِّ وثيقةٍ بإصدارِها.
+ * يتوقّفُ عندَ أوّلِ رفضٍ ويعيدُه مع وثيقتِه، ولا يُرسِلُ ما بعدَها؛ فإعادةُ المحاولةِ بعدَ إعادةِ القراءةِ
+ * ترسلُ المعلّقَ وحدَه. وما كانَ `satisfied` لا يُمرَّرُ إليه أصلاً (`outstandingRows`).
+ */
+export async function recordPendingInOrder(
+  pending: readonly ConsentRow[],
+  record: (kind: string, version: string) => Promise<unknown>,
+  onStart: (kind: string) => void = () => {},
+): Promise<{
+  readonly recorded: readonly string[];
+  readonly failure: { readonly kind: string; readonly thrown: unknown } | null;
+}> {
+  const recorded: string[] = [];
+  for (const row of pending) {
+    onStart(row.kind);
+    try {
+      await record(row.kind, row.version);
+      recorded.push(row.kind);
+    } catch (thrown) {
+      return { recorded, failure: { kind: row.kind, thrown } };
+    }
+  }
+  return { recorded, failure: null };
+}
