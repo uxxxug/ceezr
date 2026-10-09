@@ -303,6 +303,15 @@ export const TABLE_ERASURE: Readonly<Record<string, ErasureRule>> = {
    * في مخزنٍ بلا مرجعٍ يدلُّ عليها. فحذفُ الأجسامِ بندٌ من `SD-12` نفسِه لا
    * ملحوظةٌ ههنا، وهوَ مكتوبٌ في دليلِ `F3-01`.
    */
+  driver_document_reviewers: {
+    disposition: D.retainLegalBasis,
+    subjects: [S.admin],
+    linkedBy: "driver_document_reviewers.user_id",
+    basis:
+      "سجلُّ صلاحيّةٍ إداريّةٍ على وثائقِ السائقين — دليلُ من كانَ مخوَّلاً بالقراءةِ والحكمِ ومتى، لا بياناتُ تشغيل.",
+    exportSection: "adminSessions",
+    deferredTo: "F12-10",
+  },
   driver_documents: {
     disposition: D.erase,
     subjects: [S.driver],

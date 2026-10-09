@@ -107,6 +107,8 @@ export interface DriverDetailDocument {
   readonly reviewNote: string | null;
   readonly submittedAt: string | null;
   readonly reviewedAt: string | null;
+  /** PD-042: اسمُ المسؤولِ الذي راجع — `null` إن لم يُراجَع أو حُذِفَ حسابُه. */
+  readonly reviewedByName: string | null;
 }
 
 /**
@@ -370,6 +372,53 @@ function actions(profile: DriverDetailProfile, csrfToken: string): string {
 </form>`;
 }
 
+/**
+ * PD-042 · نموذجُ مراجعةِ وثيقةٍ (ADR 0256) — يظهرُ للوثيقةِ المُرسَلةِ وحدَها، لأنَّ
+ * الدالّةَ لا تحكمُ إلّا على `under_review`. السببُ إلزاميٌّ للرفضِ والنقصِ وتفرضُه
+ * القاعدةُ لا هذا النموذجُ، والقبولُ يعتمدُ تاريخَ الانتهاءِ الذي أدخلَه السائق.
+ */
+function reviewForm(driverId: string, doc: DriverDetailDocument, csrfToken: string): string {
+  const action = `/admin/drivers/${escapeHtml(driverId)}/documents/${escapeHtml(doc.docType)}/review`;
+  const label = DOCUMENT_TYPE_LABEL[doc.docType] ?? doc.docType;
+  return `<form method="post" action="${action}" class="doc-review">
+  <input type="hidden" name="csrf" value="${escapeHtml(csrfToken)}">
+  <label>القرار
+    <select name="decision" required>
+      <option value="accepted">قبول</option>
+      <option value="incomplete">ناقصة</option>
+      <option value="rejected">رفض</option>
+    </select>
+  </label>
+  <label>السبب (إلزاميٌّ للرفض والنقص)
+    <input type="text" name="note" maxlength="500" aria-label="${escapeHtml(`سبب قرار ${label}`)}">
+  </label>
+  <button type="submit">حفظ القرار</button>
+</form>`;
+}
+
+const DOCUMENT_REVIEW_NOTICE: Readonly<Record<string, string>> = {
+  ok: "حُفِظ قرارُ الوثيقة وسُجِّل في سجلّ التدقيق.",
+  NOT_ADMIN: "هذا الحساب لا يملك صلاحية مراجعة الوثائق.",
+  NOT_DOCUMENT_REVIEWER: "هذا الحساب لا يملك منحَ مراجعة وثائق هذه المدينة.",
+  INVALID_DECISION: "القرار غير صالح.",
+  NOTE_REQUIRED: "الرفض أو النقص يحتاج سبباً يراه السائق.",
+  NOTE_TOO_LONG: "السبب أطول من 500 حرف.",
+  DOCUMENT_NOT_FOUND: "لا وثيقة بهذا النوع لهذا السائق.",
+  NOT_UNDER_REVIEW: "الوثيقة ليست قيد المراجعة — ربما رُوجعت أو لم تُرسَل بعد.",
+  EXPIRY_REQUIRED: "لا يُقبَل مستندٌ بلا تاريخ انتهاء.",
+  DOCUMENT_EXPIRED: "الوثيقة منتهية — لا تُقبَل.",
+};
+
+/** نتيجةُ المراجعةِ كما تُعرَضُ للمسؤولِ بعدَ التحويل. الرمزُ المجهولُ «تعذّر» لا صدى. */
+export function documentReviewNotice(code: string): {
+  readonly kind: "ok" | "error";
+  readonly text: string;
+} {
+  const text = DOCUMENT_REVIEW_NOTICE[code];
+  if (text === undefined) return { kind: "error", text: "تعذّر حفظ القرار. أعد المحاولة." };
+  return { kind: code === "ok" ? "ok" : "error", text };
+}
+
 function ratingNote(profile: DriverDetailProfile): string {
   const stored = profile.storedRatingAverage;
   const live = profile.liveRatingAverage;
@@ -423,8 +472,14 @@ export function renderDriverDetailPage(data: DriverDetailData): string {
       : `${escapeHtml(formatDateTime(doc.submittedAt))}<div class="card-hint">${escapeHtml(
           formatAge(doc.submittedAt, data.now),
         )}</div>`,
-    doc.reviewedAt === null ? EMPTY_CELL : escapeHtml(formatDateTime(doc.reviewedAt)),
-    `<a href="/admin/drivers/${escapeHtml(data.profile.driverId)}/documents/${escapeHtml(doc.docType)}">عرض</a>`,
+    doc.reviewedAt === null
+      ? EMPTY_CELL
+      : `${escapeHtml(formatDateTime(doc.reviewedAt))}<div class="card-hint">${
+          doc.reviewedByName === null ? "" : escapeHtml(doc.reviewedByName)
+        }</div>`,
+    `<a href="/admin/drivers/${escapeHtml(data.profile.driverId)}/documents/${escapeHtml(doc.docType)}">عرض</a>${
+      doc.status === "under_review" ? reviewForm(data.profile.driverId, doc, data.csrfToken) : ""
+    }`,
   ]);
 
   const ticketRows = data.tickets.map((ticket) => [
@@ -502,7 +557,7 @@ ${section(
     rows: documentRows,
     emptyText: "لا وثائق مرفوعة لهذا السائق.",
   }),
-  "الرابطُ موقَّعٌ لمدّةٍ قصيرةٍ ويُفتَحُ في صفحةٍ مستقلّةٍ.",
+  "الرابطُ موقَّعٌ لدقيقةٍ ويُفتَحُ في صفحةٍ مستقلّةٍ، وكلُّ فتحٍ يُسجَّلُ في سجلّ التدقيق لمراجِعي الوثائق الممنوحين وحدَهم. افتح الوثيقة وتحقّق منها قبل القرار؛ القبولُ وحدَه لا يوثّق السائق — التوثيقُ قرارٌ مستقلّ بعد قبول كل الوثائق الإلزامية.",
 )}
 ${section(
   "الرحلات المكتملة",

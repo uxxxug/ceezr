@@ -48,8 +48,17 @@ export interface SecurityHeaderOptions {
  * تُنفِّذ شيئاً: أسوأُ ما تفعله تشويهُ شكلٍ، لا تنفيذُ كود. فالتنازل محدودُ الأثر
  * ومُعلَن، ويبقى `script-src` مقصوراً على الـ`nonce`.
  */
-function contentSecurityPolicy(nonce: string, mapOrigins: readonly string[]): string {
+function contentSecurityPolicy(
+  nonce: string,
+  mapOrigins: readonly string[],
+  documentImageOrigin?: string,
+): string {
   const external = mapOrigins.join(" ");
+  const documentImage =
+    documentImageOrigin === undefined ||
+    !/^https:\/\/[A-Za-z0-9.-]+(:\d+)?$/.test(documentImageOrigin)
+      ? ""
+      : ` ${documentImageOrigin}`;
   const hasMap = mapOrigins.length > 0;
 
   const directives: string[] = [
@@ -59,7 +68,7 @@ function contentSecurityPolicy(nonce: string, mapOrigins: readonly string[]): st
     `style-src 'nonce-${nonce}'${hasMap ? ` ${external}` : ""}`,
     "style-src-attr 'unsafe-inline'",
     // `data:` لأن أدوات MapLibre تُولّد أيقوناتها، و`blob:` لبلاطاتٍ تُفكَّك في عاملٍ.
-    `img-src 'self' data:${hasMap ? ` blob: ${external}` : ""}`,
+    `img-src 'self' data:${hasMap ? ` blob: ${external}` : ""}${documentImage}`,
     `connect-src 'self'${hasMap ? ` ${external}` : ""}`,
     "font-src 'self' data:",
     // MapLibre يُنشئ عمّاله من blob؛ وبلا خريطةٍ لا عاملَ أصلاً فلا يُسمح بشيء.
@@ -93,7 +102,13 @@ export function createAdminSecurityHeaders(
     const nonce = randomBytes(NONCE_BYTES).toString("base64");
     c.set("cspNonce", nonce);
     await next();
-    c.header("Content-Security-Policy", contentSecurityPolicy(nonce, options.mapOrigins));
+    c.header(
+      "Content-Security-Policy",
+      contentSecurityPolicy(nonce, options.mapOrigins, c.get("cspDocumentImageOrigin")),
+    );
+    // PD-042: صفحاتُ اللوحةِ تحملُ بياناتٍ شخصيّةً وروابطَ وثائقَ موقَّعة — لا تُخزَّنُ في
+    // ذاكرةِ المتصفّحِ ولا في وسيط.
+    c.header("Cache-Control", "no-store, private");
     c.header("X-Frame-Options", "DENY");
     c.header("X-Content-Type-Options", "nosniff");
     // لا يُرسَل المُحيل إلى أي مكان: مسارات اللوحة تحمل معرّفات سائقين وطلبات في

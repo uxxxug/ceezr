@@ -964,18 +964,21 @@ export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDe
         review_note: string | null;
         submitted_at: string | null;
         reviewed_at: string | null;
+        reviewed_by_name: string | null;
       }[]
     >`
-      select doc_type::text as doc_type,
-             status::text as status,
-             object_path,
-             expires_at::text as expires_at,
-             review_note,
-             submitted_at,
-             reviewed_at
-        from driver_documents
-       where driver_id = ${driverId}::uuid
-       order by doc_type
+      select d.doc_type::text as doc_type,
+             d.status::text as status,
+             d.object_path,
+             d.expires_at::text as expires_at,
+             d.review_note,
+             d.submitted_at,
+             d.reviewed_at,
+             r.full_name as reviewed_by_name
+        from driver_documents d
+        left join users r on r.id = d.reviewed_by
+       where d.driver_id = ${driverId}::uuid
+       order by d.doc_type
     `,
   ]);
 
@@ -1061,6 +1064,7 @@ export async function driverDetail(sql: Sql, driverId: string): Promise<DriverDe
       reviewNote: doc.review_note,
       submittedAt: doc.submitted_at === null ? null : String(doc.submitted_at),
       reviewedAt: doc.reviewed_at === null ? null : String(doc.reviewed_at),
+      reviewedByName: doc.reviewed_by_name,
     })),
   };
 }
@@ -1810,6 +1814,54 @@ export async function updateCityGroupIds(
     ) as result
   `;
   return readWrite(rows[0]?.result);
+}
+
+/**
+ * PD-042 · مراجعةُ وثيقةٍ مُرسَلةٍ (ADR 0256). الحكمُ كلُّه في الدالّةِ الذرّيّةِ —
+ * المسؤوليّةُ والقرارُ والسببُ والحالةُ والانتهاءُ والتدقيقُ — والمسارُ ناقلٌ لا حَكَم.
+ */
+export async function reviewDriverDocument(
+  sql: Sql,
+  actorUserId: string,
+  driverId: string,
+  docType: string,
+  decision: string,
+  note: string | null,
+): Promise<WriteOutcome> {
+  const rows = await sql<{ result: unknown }[]>`
+    select admin_review_driver_document(
+      ${actorUserId}::uuid, ${driverId}::uuid, ${docType}::text, ${decision}::text, ${note}::text
+    ) as result
+  `;
+  return readWrite(rows[0]?.result);
+}
+
+/**
+ * PD-042 · فتحُ وثيقةٍ (ADR 0256): البابُ الوحيدُ لمسارِ الملفّ. الدالّةُ تحكمُ بمنحِ
+ * مراجِعِ الوثائقِ لمدينةِ الوثيقةِ وتُدقِّقُ الفتحَ قبلَ أن تُعيدَ المسار؛ والمسارُ لا يُسجَّلُ
+ * ولا يُعادُ إلى المتصفّحِ — البوّابةُ توقِّعُه رابطاً قصيراً فحسب.
+ */
+export async function openDriverDocument(
+  sql: Sql,
+  actorUserId: string,
+  driverId: string,
+  docType: string,
+): Promise<
+  | { readonly ok: true; readonly objectPath: string }
+  | { readonly ok: false; readonly error: string }
+> {
+  const rows = await sql<{ result: unknown }[]>`
+    select admin_open_driver_document(${actorUserId}::uuid, ${driverId}::uuid, ${docType}::text) as result
+  `;
+  const result = rows[0]?.result;
+  if (typeof result === "object" && result !== null) {
+    const record = result as Record<string, unknown>;
+    if (record.ok === true && typeof record.object_path === "string") {
+      return { ok: true, objectPath: record.object_path };
+    }
+    if (typeof record.error === "string") return { ok: false, error: record.error };
+  }
+  return { ok: false, error: "UNKNOWN" };
 }
 
 export async function setDriverVerification(

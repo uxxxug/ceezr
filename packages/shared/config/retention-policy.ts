@@ -199,6 +199,11 @@ export const TABLE_RETENTION: Readonly<Record<string, RetentionClass>> = {
    * ومسارُ الإخراجِ الشرعيُّ واحدٌ: محوُ حسابِ صاحبِه (`erasure-policy.ts`)،
    * ومعَه يُحذَفُ الجسمُ من المخزنِ لا الصفُّ وحدَه.
    */
+  /**
+   * `PD-042` · `ADR 0256`: منحُ مراجِعِ الوثائق — عمرُه عمرُ الحساب (`on delete cascade`)،
+   * والسحبُ ختمٌ مدقَّقٌ لا تقادمٌ صامت.
+   */
+  driver_document_reviewers: RETENTION_CLASSES.lifecycleBound,
   driver_documents: RETENTION_CLASSES.lifecycleBound,
   driver_location_history: RETENTION_CLASSES.locationHotThenArchive,
   /**

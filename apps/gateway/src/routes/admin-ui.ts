@@ -46,6 +46,7 @@ import {
   type BroadcastPreview,
   type CityGroupStatus,
   type CityOption,
+  documentReviewNotice,
   escapeHtml,
   renderAttendancePage,
   renderBreakGlassPage,
@@ -127,12 +128,14 @@ import {
   listSettings,
   logMiniAppSessionRevocation,
   numericSetting,
+  openDriverDocument,
   orderRiderTelegram,
   RATINGS_LIMIT,
   ratingsTotals,
   readUserTelegramId,
   recentAudit,
   reviewAccountRecoveryRequest,
+  reviewDriverDocument,
   setDriverVerification,
   setUserBlocked,
   stallSeconds,
@@ -286,6 +289,7 @@ const SEE_OTHER = 303;
 const HTML_UNPROCESSABLE = 422;
 const SERVER_ERROR = 500;
 const SERVICE_UNAVAILABLE = 503;
+const FORBIDDEN = 403;
 const TELEGRAM_ID_PATTERN = /^[0-9]{5,20}$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const NOT_FOUND = 404;
@@ -434,6 +438,21 @@ const OVERVIEW_STALE_SECONDS = 60;
 const RECOVERY_STALE_SECONDS = 60;
 
 const VERIFICATION_VALUES = new Set(["pending", "verified", "rejected", "suspended"]);
+/** PD-042: القراراتُ الثلاثةُ التي تقبلُها `admin_review_driver_document` لا غير. */
+const DOCUMENT_DECISIONS = new Set(["accepted", "rejected", "incomplete"]);
+/** رموزُ نتيجةِ المراجعةِ التي تُعرَضُ للمسؤولِ — ما سواها يُعرَضُ «تعذّر». */
+const REVIEW_NOTICE_CODES = new Set([
+  "ok",
+  "NOT_ADMIN",
+  "NOT_DOCUMENT_REVIEWER",
+  "INVALID_DECISION",
+  "NOTE_REQUIRED",
+  "NOTE_TOO_LONG",
+  "DOCUMENT_NOT_FOUND",
+  "NOT_UNDER_REVIEW",
+  "EXPIRY_REQUIRED",
+  "DOCUMENT_EXPIRED",
+]);
 const TICKET_STATUS_VALUES = new Set(["open", "claimed", "resolved", "rejected"]);
 const DIRECTION_VALUES = new Set(["rider_to_driver", "driver_to_rider"]);
 
@@ -1113,6 +1132,12 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       return c.text("لا سائق بهذا المعرّف.", NOT_FOUND);
     }
 
+    const reviewParam = c.req.query("review");
+    const reviewNotice =
+      reviewParam === undefined
+        ? undefined
+        : documentReviewNotice(REVIEW_NOTICE_CODES.has(reviewParam) ? reviewParam : "UNKNOWN");
+
     return page(
       c,
       detail.profile.fullName ?? "سائق",
@@ -1126,6 +1151,8 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
         ticketsLimit: DRIVER_TICKETS_LIMIT,
         csrfToken: c.get("csrfToken"),
       }),
+      undefined,
+      reviewNotice,
     );
   });
 
@@ -1141,18 +1168,26 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
       return c.text("لا سائق بهذا المعرّف.", NOT_FOUND);
     }
 
-    const doc = detail.documents.find((d) => d.docType === docType);
-    if (doc === undefined) {
-      return c.text("لا وثيقة بهذا النوع لهذا السائق.", NOT_FOUND);
-    }
-
     if (deps.readSigner === undefined) {
       return c.text("عرضُ الوثائقِ غيرُ مُهيَّأٍ.", SERVICE_UNAVAILABLE);
     }
 
-    const READ_TTL_SECONDS = 300;
+    // PD-042: المسارُ من البابِ المدقَّقِ وحدَه — منحُ المراجِعِ لمدينةِ الوثيقةِ وسطرُ
+    // `admin.driver_document_viewed` قبلَ التوقيع. لا يُسجَّلُ المسارُ ولا الرابط.
+    const opened = await openDriverDocument(deps.sql, c.get("admin").userId, driverId, docType);
+    if (!opened.ok) {
+      log("admin.driver_document_view_denied", { error: opened.error });
+      if (opened.error === "DOCUMENT_NOT_FOUND") {
+        return c.text("لا وثيقة بهذا النوع لهذا السائق.", NOT_FOUND);
+      }
+      return c.text("هذا الحساب لا يملك صلاحية مراجعة وثائق هذه المدينة.", FORBIDDEN);
+    }
+
+    // دقيقةٌ — الحدُّ الأدنى للمُوقِّع: الصورةُ تُحمَّلُ فورَ فتحِ الصفحة، وكلُّ إعادةِ فتحٍ
+    // تمرُّ بالبابِ المدقَّقِ من جديد.
+    const READ_TTL_SECONDS = 60;
     const result = await deps.readSigner.signRead({
-      objectPath: doc.objectPath,
+      objectPath: opened.objectPath,
       ttlSeconds: READ_TTL_SECONDS,
     });
     if (!result.ok) {
@@ -1181,6 +1216,13 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
           periodic_inspection: string;
         }
       ] ?? docType;
+
+    // الصورةُ من مخزنِ الوثائق: يُسمَحُ بأصلِه في `img-src` لهذا الردِّ وحدَه.
+    try {
+      c.set("cspDocumentImageOrigin", new URL(result.value.readUrl).origin);
+    } catch {
+      // رابطٌ غيرُ قابلٍ للتحليلِ لا يوسِّعُ السياسة — الصورةُ تُحجَبُ ولا تُفتَحُ بابٌ.
+    }
 
     const expiresInSeconds = Math.max(
       0,
@@ -1738,6 +1780,43 @@ export function createAdminUiRoutes(deps: AdminUiDependencies): Hono<AdminEnv> {
   // -------------------------------------------------------------------------
   // الأفعال الكتابية الأربعة — كلها تمرّ بدوالّ ذرّية تتحقّق من الصفة في القاعدة
   // -------------------------------------------------------------------------
+
+  /**
+   * PD-042 · مراجعةُ وثيقةٍ (ADR 0256): جلسةُ مسؤولٍ + CSRF، والحكمُ في الدالّةِ
+   * الذرّيّةِ. **السجلُّ بلا السببِ النصّيِّ** — قد يحملُ بيانةً شخصيّةً.
+   */
+  app.post("/drivers/:id/documents/:docType/review", async (c) => {
+    const checked = await requireCsrf(c);
+    if (!checked.ok) return checked.response;
+
+    const driverId = c.req.param("id");
+    if (!UUID_PATTERN.test(driverId)) {
+      return c.text("معرّف سائق غير صالح.", HTML_UNPROCESSABLE);
+    }
+    const decision = formText(checked.form, "decision");
+    if (decision === null || !DOCUMENT_DECISIONS.has(decision)) {
+      return c.text("INVALID_DECISION", HTML_UNPROCESSABLE);
+    }
+
+    const outcome = await reviewDriverDocument(
+      deps.sql,
+      c.get("admin").userId,
+      driverId,
+      c.req.param("docType"),
+      decision,
+      formText(checked.form, "note"),
+    );
+    log("admin.driver_document_reviewed", {
+      ok: outcome.ok,
+      error: outcome.error,
+      decision,
+    });
+    const code = outcome.ok ? "ok" : (outcome.error ?? "UNKNOWN");
+    return c.redirect(
+      `/admin/drivers/${encodeURIComponent(driverId)}?review=${encodeURIComponent(code)}`,
+      SEE_OTHER,
+    );
+  });
 
   app.post("/drivers/:id/verification", async (c) => {
     const checked = await requireCsrf(c);

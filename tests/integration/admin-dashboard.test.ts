@@ -40,6 +40,8 @@ let cityId: string;
 let cityGroupsId: string;
 let adminUserId: string;
 let sentCodes: { chatId: string; text: string }[];
+/** PD-042: ما طلبَه البابُ من المُوقِّع — المسارُ والمدّة — لا رابطٌ حقيقيّ. */
+let signedReads: { objectPath: string; ttlSeconds: number }[];
 
 /** يلتقط الرمز من نصّ الرسالة كما يقرأه المسؤول فعلاً، لا من القاعدة. */
 function extractCode(text: string): string {
@@ -162,6 +164,7 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
     `;
 
     sentCodes = [];
+    signedReads = [];
     // مخزنٌ جديدٌ لكلِّ حالةٍ: عتبةُ حالةٍ سابقةٍ لا تُقرأُ إنفاذاً في هذه.
     revocationStore = createMemorySessionRevocationStore();
     app = new Hono();
@@ -187,6 +190,19 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
         disputeResolutions: createSupportResolutionPort(sql),
         // `F16-03` — منفذُ رموزِ التتبُّعِ: نفسُ منفذِ زرِّ الراكبِ.
         trackingTokens: createTrackingTokenRpc(sql),
+        // PD-042 — مُوقِّعٌ مزيّفٌ يُسجِّلُ ما طُلِب: الحكمُ في القاعدةِ لا فيه.
+        readSigner: {
+          signRead: async (input) => {
+            signedReads.push({ objectPath: input.objectPath, ttlSeconds: input.ttlSeconds });
+            return {
+              ok: true,
+              value: {
+                readUrl: "https://storage.example.org/signed/opaque-token",
+                expiresAtEpochMs: Date.now() + input.ttlSeconds * 1000,
+              },
+            };
+          },
+        },
       }),
     );
   });
@@ -515,6 +531,106 @@ describeIf("لوحة الإدارة على قاعدة حقيقية", () => {
       select action from audit_log where entity_id = ${driverId}
     `;
     expect(audits.length).toBeGreaterThan(0);
+  });
+
+  /** PD-042 · وثيقةٌ مُرسَلةٌ للمراجعةِ كما تتركُها `submit_driver_documents_for_review`. */
+  async function submittedDocument(driverId: string): Promise<string> {
+    const [type] = await sql<{ t: string }[]>`
+      select (driver_required_document_types(${cityId}::uuid))[1]::text as t
+    `;
+    const docType = type?.t;
+    if (docType === undefined) throw new Error("لا نوعَ إلزاميّ");
+    await sql`
+      insert into driver_documents (city_id, driver_id, doc_type, status, object_path, expires_at, submitted_at)
+      values (${cityId}, ${driverId}, ${docType}::driver_document_type, 'under_review',
+              ${`drivers/${driverId}/${docType}/front.png`}, current_date + 365, now())
+    `;
+    return docType;
+  }
+
+  it("PD-042: مسؤولٌ بلا منحِ مراجِعٍ لا يفتحُ الوثيقةَ ولا يحكمُ عليها (403 · لا توقيع)", async () => {
+    const cookie = await login(ADMIN_TELEGRAM);
+    const { driverId } = await createDriver();
+    const docType = await submittedDocument(driverId);
+
+    const FORBIDDEN = 403;
+    const view = await request(`/admin/drivers/${driverId}/documents/${docType}`, { cookie });
+    expect(view.status).toBe(FORBIDDEN);
+    expect(signedReads).toHaveLength(0);
+
+    const csrf = await csrfFrom(cookie, `/admin/drivers/${driverId}`);
+    const SEE_OTHER = 303;
+    const review = await request(`/admin/drivers/${driverId}/documents/${docType}/review`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, decision: "accepted" }),
+    });
+    expect(review.status).toBe(SEE_OTHER);
+    expect(review.headers.get("location")).toContain("review=NOT_DOCUMENT_REVIEWER");
+    const [row] = await sql<{ status: string }[]>`
+      select status::text as status from driver_documents where driver_id = ${driverId}
+    `;
+    expect(row?.status).toBe("under_review");
+  });
+
+  it("PD-042: المراجِعُ الممنوحُ يفتحُ برابطِ دقيقةٍ مدقَّقٍ ويحكمُ بـCSRF، ولا يُوثَّقُ السائقُ تلقائيّاً", async () => {
+    const [granted] = await sql<{ result: { ok: boolean } }[]>`
+      select admin_set_document_reviewer(${adminUserId}::uuid, ${adminUserId}::uuid, ${cityId}::uuid, true) as result
+    `;
+    expect(granted?.result.ok).toBe(true);
+    const cookie = await login(ADMIN_TELEGRAM);
+    const { driverId } = await createDriver();
+    const docType = await submittedDocument(driverId);
+
+    const view = await request(`/admin/drivers/${driverId}/documents/${docType}`, { cookie });
+    expect(view.status).toBe(200);
+    expect(view.headers.get("cache-control") ?? "").toContain("no-store");
+    // الصورةُ من أصلِ المخزنِ مسموحةٌ في هذا الردِّ وحدَه، وصفحةُ السائقِ لا تسمحُ بها.
+    expect(view.headers.get("content-security-policy") ?? "").toContain(
+      "https://storage.example.org",
+    );
+    const detailPage = await request(`/admin/drivers/${driverId}`, { cookie });
+    expect(detailPage.headers.get("content-security-policy") ?? "").not.toContain(
+      "storage.example.org",
+    );
+    expect(signedReads).toEqual([
+      { objectPath: `drivers/${driverId}/${docType}/front.png`, ttlSeconds: 60 },
+    ]);
+    const viewed = await sql<{ payload: Record<string, unknown> }[]>`
+      select payload from audit_log where action = 'admin.driver_document_viewed'
+    `;
+    expect(viewed).toHaveLength(1);
+    expect(JSON.stringify(viewed)).not.toContain("front.png");
+    expect(JSON.stringify(viewed)).not.toContain("opaque-token");
+
+    // بلا CSRF: لا حكم.
+    const noCsrf = await request(`/admin/drivers/${driverId}/documents/${docType}/review`, {
+      method: "POST",
+      cookie,
+      body: form({ decision: "accepted" }),
+    });
+    expect(noCsrf.status).toBe(403);
+
+    const csrf = await csrfFrom(cookie, `/admin/drivers/${driverId}`);
+    const incomplete = await request(`/admin/drivers/${driverId}/documents/${docType}/review`, {
+      method: "POST",
+      cookie,
+      body: form({ csrf, decision: "incomplete", note: "الوجه الخلفي مفقود" }),
+    });
+    expect(incomplete.status).toBe(303);
+    expect(incomplete.headers.get("location")).toContain("review=ok");
+    const [row] = await sql<{ status: string; reviewed_by: string | null }[]>`
+      select status::text as status, reviewed_by from driver_documents where driver_id = ${driverId}
+    `;
+    expect(row).toEqual({ status: "incomplete", reviewed_by: adminUserId });
+    const reviewed = await sql<{ payload: Record<string, unknown> }[]>`
+      select payload from audit_log where action = 'admin.driver_document_reviewed'
+    `;
+    expect(JSON.stringify(reviewed)).not.toContain("الوجه الخلفي");
+    const [driver] = await sql<{ s: string }[]>`
+      select verification_status::text as s from drivers where id = ${driverId}
+    `;
+    expect(driver?.s).toBe("pending");
   });
 
   it("سحب التوثيق يُنزل السائق عن الإتاحة في نفس العملية", async () => {

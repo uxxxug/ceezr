@@ -82,6 +82,7 @@ export {
   type DriverDetailProfile,
   type DriverDetailSubscription,
   type DriverDetailTicket,
+  documentReviewNotice,
   renderDriverDetailPage,
 } from "./pages/driver-detail.ts";
 export {

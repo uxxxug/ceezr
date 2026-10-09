@@ -120,9 +120,15 @@ export const AUDITED_PRIVILEGED_ACTIONS: readonly AuditedPrivilegedAction[] = [
     actions: ["admin.account_recovery_approved", "admin.account_recovery_rejected"],
   },
   { fn: "admin_revoke_miniapp_sessions", actions: ["admin.miniapp_sessions_revoked"] },
+  { fn: "admin_open_driver_document", actions: ["admin.driver_document_viewed"] },
+  { fn: "admin_review_driver_document", actions: ["admin.driver_document_reviewed"] },
   {
     fn: "admin_set_driver_verification",
     actions: ["admin.driver_verification_changed", "admin.trial_auto_started"],
+  },
+  {
+    fn: "admin_set_document_reviewer",
+    actions: ["admin.document_reviewer_granted", "admin.document_reviewer_revoked"],
   },
   { fn: "admin_set_user_blocked", actions: ["admin.user_blocked_changed"] },
   { fn: "admin_update_city_group_ids", actions: ["admin.city_group_ids_updated"] },
@@ -183,8 +189,11 @@ export const AUDIT_EXEMPT_PRIVILEGED_FUNCTIONS: readonly AuditExemption[] = [
  * 20 → 24 في 2026-09-23 (`SEC-21` · `ADR 0176`): أربعُ دوالِّ البابِ الموازي
  * (break-glass) — التسجيلُ والتدويرُ والتعطيلُ وإتمامُ الفشلِ وإتمامُ النجاحِ
  * — رُفِعَ العددُ بالزيادةِ لا بالاستبدالِ (`ح-8`).
+ * 24 → 25 في 2026-10-10 (`PD-042` · `ADR 0256`): `admin_review_driver_document`.
+ * 25 → 27 في 2026-10-10 (`PD-042` · مراجعةُ PR #463): `admin_open_driver_document` (تدقيقُ الفتح)
+ * و`admin_set_document_reviewer` (منحُ المراجِعِ وسحبُه).
  */
-export const REQUIRED_AUDITED_FUNCTION_COUNT = 24;
+export const REQUIRED_AUDITED_FUNCTION_COUNT = 27;
 
 /** وعددُ الإعفاءاتِ كذلكَ: نموُّهُ خفيةً هوَ بعينِه ما يُخشى. */
 export const REQUIRED_EXEMPTION_COUNT = 1;

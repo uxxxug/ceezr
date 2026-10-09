@@ -99,7 +99,15 @@ export const OBJECT_ROUTE_EXEMPTIONS: readonly ObjectRouteExemption[] = [
     template: "/drivers/:id/documents/:docType",
     kind: "admin-guard",
     reason:
-      "عرضُ وثيقةِ سائقٍ في اللوحةِ سلطةُ إدارةٍ بطبيعتِها: المسؤولُ يرى ما يتحقَّقُ منه. والسلطةُ من وسيطِ جلسةِ الإدارةِ على الموجّهِ كلِّه لا من رمزِ ناظرٍ في المُعالِجِ.",
+      "عرضُ وثيقةِ سائقٍ في اللوحةِ سلطةُ إدارةٍ بطبيعتِها: المسؤولُ يرى ما يتحقَّقُ منه. والسلطةُ من وسيطِ جلسةِ الإدارةِ على الموجّهِ كلِّه، ثمَّ منحُ مراجِعِ الوثائقِ لمدينتِها يُحكَمُ ثانيةً في `admin_open_driver_document` (security definer) التي تُدقِّقُ كلَّ فتحٍ (PD-042 · ADR 0256).",
+  },
+  {
+    file: "apps/gateway/src/routes/admin-ui.ts",
+    method: "post",
+    template: "/drivers/:id/documents/:docType/review",
+    kind: "admin-guard",
+    reason:
+      "قرارُ وثيقةِ سائقٍ سلطةُ مراجعةٍ لا مِلكيّةُ صاحبِها: الوسيطُ على الموجّهِ كلِّه جلسةُ مسؤولٍ وCSRF، والمعرّفُ من الجلسةِ، ومنحُ مراجِعِ الوثائقِ لمدينةِ الوثيقةِ يُحكَمُ ثانيةً في `admin_review_driver_document` (security definer · PD-042 · ADR 0256).",
   },
   {
     file: "apps/gateway/src/routes/admin-ui.ts",
