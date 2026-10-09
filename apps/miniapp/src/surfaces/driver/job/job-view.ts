@@ -243,3 +243,17 @@ export function sosStateKey(state: SosButtonState): string | null {
 export function isSosButtonDisabled(state: SosButtonState): boolean {
   return state.kind === "busy" || state.kind === "sent";
 }
+
+/**
+ * عمرُ ختمِ طَورٍ بالدقائقِ الكاملةِ **من لحظةِ الخادمِ** (`server_time`) — لا من ساعةِ الجهاز.
+ * لوحة التسليم 06 (D3) لا تعرضُ ختمَ ISO خامّاً، والجهازُ قد تنحرفُ ساعتُه. فختمٌ معطوبٌ أو
+ * لحظةُ خادمٍ معطوبةٌ أو ختمٌ **بعدَ** لحظةِ الخادمِ = `null`: عمرٌ لم يُقَس لا يُعرَضُ صفراً.
+ */
+export function stampAgeMinutes(stampIso: string, serverTimeIso: string): number | null {
+  const stamp = Date.parse(stampIso);
+  const server = Date.parse(serverTimeIso);
+  if (!Number.isFinite(stamp) || !Number.isFinite(server)) return null;
+  const elapsedMs = server - stamp;
+  if (elapsedMs < 0) return null;
+  return Math.floor(elapsedMs / 60_000);
+}

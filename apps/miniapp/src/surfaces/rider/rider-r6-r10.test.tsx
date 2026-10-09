@@ -210,9 +210,10 @@ describe("R6–R10 داخلَ إطارِ UI-2 — رجوعٌ واحدٌ ولا �
     expect(branch("if (intent !== null)")).toContain(
       "onActiveRide={(orderId) => setFollowed(orderId)}",
     );
-    expect(branch("if (followed !== null)")).toContain(
-      "onFinished={(orderId) => setSummarized(orderId)}",
-    );
+    // لوحة التسليم 02: الانتهاءُ يُطفِئُ شاشةَ المشاركةِ أوّلاً ثمَّ يفتحُ الملخّصَ — الانتقالُ نفسُه.
+    const followedBranch = branch("if (followed !== null) {");
+    expect(followedBranch).toContain("onFinished={(orderId) => {");
+    expect(followedBranch).toContain("setSummarized(orderId);");
   });
 
   for (const language of MINIAPP_LANGUAGES) {

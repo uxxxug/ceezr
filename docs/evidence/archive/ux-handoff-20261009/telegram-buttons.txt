@@ -1,0 +1,16 @@
+miniAppUrl= null total 55
+  rider-trip-matched null
+  rider-trip-arrived null
+  rider-trip-started null
+  rider-trip-completed null
+  driver-offer-delivery {"inline_keyboard":[[{"text":"✅ قبول الطلب","callback_data":"offer:accept:00000000-0000-4000-8000-00000000a001"},{"text":"❌ تخطّي","callback_data":"offer:reject
+  driver-offer-transport {"inline_keyboard":[[{"text":"✅ قبول الطلب","callback_data":"offer:accept:00000000-0000-4000-8000-00000000a001"},{"text":"❌ تخطّي","callback_data":"offer:reject
+  driver-cancelled-offer null
+miniAppUrl= https://waslah-miniapp.example/ total 60
+  rider-trip-matched {"inline_keyboard":[[{"text":"📱 تابع رحلتك في وَصْلة","web_app":{"url":"https://waslah-miniapp.example/?open=ride_00000000-0000-4000-8000-00000000a001"}}]]}
+  rider-trip-arrived {"inline_keyboard":[[{"text":"📱 تابع رحلتك في وَصْلة","web_app":{"url":"https://waslah-miniapp.example/?open=ride_00000000-0000-4000-8000-00000000a001"}}]]}
+  rider-trip-started {"inline_keyboard":[[{"text":"📱 تابع رحلتك في وَصْلة","web_app":{"url":"https://waslah-miniapp.example/?open=ride_00000000-0000-4000-8000-00000000a001"}}]]}
+  rider-trip-completed {"inline_keyboard":[[{"text":"📱 تابع رحلتك في وَصْلة","web_app":{"url":"https://waslah-miniapp.example/?open=summary_00000000-0000-4000-8000-00000000a001"}}]]}
+  driver-offer-delivery {"inline_keyboard":[[{"text":"✅ قبول الطلب","callback_data":"offer:accept:00000000-0000-4000-8000-00000000a001"},{"text":"❌ تخطّي","callback_data":"offer:reject
+  driver-offer-transport {"inline_keyboard":[[{"text":"✅ قبول الطلب","callback_data":"offer:accept:00000000-0000-4000-8000-00000000a001"},{"text":"❌ تخطّي","callback_data":"offer:reject
+  driver-cancelled-offer {"inline_keyboard":[[{"text":"📱 وَصْلة","web_app":{"url":"https://waslah-miniapp.example/"}}]]}

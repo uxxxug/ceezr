@@ -55,6 +55,7 @@ import {
   type RatioModel,
   toActivityLog,
   toActivitySummary,
+  windowBoundText,
 } from "./activity-view.ts";
 
 /** سقفُ الجدولِ المطلوبُ — والمُنفَذُ يُقرأُ من الجوابِ لا يُفترَضُ ههنا. */
@@ -238,8 +239,8 @@ export function ActivityScreen({
       {/* النافذةُ **بمنطقةِ زمنِها**: حدُّ «اليومِ» يُقالُ ولا يُترَكُ لحسبانِ جهازٍ. */}
       <p className="dac__window">
         {t("driver.activity.window")
-          .replace("{from}", summary.from)
-          .replace("{to}", summary.to)
+          .replace("{from}", windowBoundText(summary.from, summary.timezone))
+          .replace("{to}", windowBoundText(summary.to, summary.timezone))
           .replace("{timezone}", summary.timezone)}
       </p>
 

@@ -58,6 +58,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { isServiceKind } from "../../../../../../packages/domain/quote/service-offer.ts";
 import {
   directionFor,
   MINIAPP_DEFAULT_LANGUAGE,
@@ -593,9 +594,20 @@ export function SearchScreen({
           {t("rider.search.title")}
         </h1>
       ) : null}
-      <p className="rs__destination">
-        {t("rider.search.destination").replace("{label}", intent.destinationLabel)}
-      </p>
+      <div className="rs__destination">
+        <p className="rs__destination-to">
+          {t("rider.search.destination").replace("{label}", intent.destinationLabel)}
+        </p>
+        {/* الخدمةُ من النيّةِ نفسِها التي أُرسِلَت — وخدمةٌ لا نصَّ لها تُطرَحُ ولا تُعرَضُ خامّاً. */}
+        {isServiceKind(intent.service) ? (
+          <p className="rs__destination-service">
+            {t("rider.search.service").replace(
+              "{label}",
+              t(`rider.quote.service.${intent.service}`),
+            )}
+          </p>
+        ) : null}
+      </div>
 
       {/* مدخلُ الاستغاثةِ (`PD-020`) — يُرسَمُ إذا مُرِّرَ، فيبقى البابُ في كلِّ سطحٍ. */}
       {body()}

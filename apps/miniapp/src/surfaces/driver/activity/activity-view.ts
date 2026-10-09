@@ -204,3 +204,41 @@ export interface ActivityLogModel {
 export function toActivityLog(response: DriverActivityEntriesResponse): ActivityLogModel {
   return { limit: response.limit, entries: response.entries.map(toActivityEntry) };
 }
+
+/**
+ * حدُّ النافذةِ للعرضِ — **بمنطقةِ النافذةِ المُعلَنةِ** لا بمنطقةِ الجهاز، وبصيغةٍ مقروءةٍ
+ * `YYYY/MM/DD HH:MM` بدلَ ختمِ ISO خامٍّ (لوحة التسليم 07 · D5). حدٌّ لا يُحلَّلُ أو منطقةٌ
+ * مجهولةٌ تُعيدُ النصَّ **كما وردَ**: إخفاءُ الحدِّ أسوأُ من عرضِه خامّاً، وتخمينُ منطقةٍ أسوأُ منهما.
+ */
+export function windowBoundText(iso: string, timeZone: string): string {
+  const parsed = Date.parse(iso);
+  if (!Number.isFinite(parsed)) return iso;
+  let parts: Intl.DateTimeFormatPart[];
+  try {
+    parts = new Intl.DateTimeFormat("en-US-u-ca-gregory", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(parsed);
+  } catch {
+    return iso;
+  }
+  const read: Record<string, string> = {};
+  for (const part of parts) if (part.type !== "literal") read[part.type] = part.value;
+  const { year, month, day, minute } = read;
+  const hour = read.hour === "24" ? "00" : read.hour;
+  if (
+    year === undefined ||
+    month === undefined ||
+    day === undefined ||
+    hour === undefined ||
+    minute === undefined
+  ) {
+    return iso;
+  }
+  return `${year}/${month}/${day} ${hour}:${minute}`;
+}

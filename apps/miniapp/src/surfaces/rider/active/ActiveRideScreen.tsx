@@ -149,6 +149,13 @@ export interface ActiveRideScreenProps {
   readonly sessionReader?: SessionTokenReader;
   /** أساسُ عنوانِ الخادمِ — يُحقَنُ كي يُقاسَ بلا عنوانٍ حقيقيٍّ. */
   readonly channelBaseUrl?: string;
+  /**
+   * لوحةُ التسليمِ R5→R6: «مشاركة الرحلة» شاشةٌ مستقلّةٌ يفتحُها المُركِّبُ. حين يُمرَّرُ يُرسَمُ زرٌّ
+   * يفتحُها بدلَ بطاقةِ المشاركةِ المدمجةِ؛ وبلا مُستقبِلٍ تبقى البطاقةُ مدمجةً كما كانَت — فلا زرَّ بلا مستقبِل.
+   */
+  readonly onOpenShare?: () => void;
+  /** لوحةُ التسليمِ R5→R7: «طلب المساعدة» يفتحُ شاشةَ الاستغاثةِ نفسَها بتأكيدِها ذي الخطوتَين. */
+  readonly onOpenHelp?: () => void;
 }
 
 type Found = Extract<ActiveRideResponse, { found: true }>;
@@ -200,6 +207,8 @@ export function ActiveRideScreen({
   channelTransport,
   sessionReader,
   channelBaseUrl = "",
+  onOpenShare,
+  onOpenHelp,
 }: ActiveRideScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<ActiveState>({ kind: "reading" });
@@ -567,11 +576,29 @@ export function ActiveRideScreen({
 
         {/* مشاركةُ الرحلةِ (`F2-09`) — بطاقةٌ تقرأُ حالَها بنفسِها، وتُخفي نفسَها
             متى لم يكنْ ثمَّةَ ما يُشارَكُ ولا ما يُوقَفُ. */}
-        <RideShareCard orderId={orderId} language={language} />
+        {onOpenShare === undefined && <RideShareCard orderId={orderId} language={language} />}
 
         {/* الاستغاثةُ (`F2-10`) — بطاقةٌ تقرأُ حكمَها بنفسِها من القاعدةِ، ولا
             تُمرَّرُ إليها رحلةٌ: الطلبُ يُحَلَّ خادميًّا تحتَ القفلِ (`ADR 0077`). */}
-        <SosCard language={language} />
+        {onOpenHelp === undefined && <SosCard language={language} />}
+
+        {/* R5: صفُّ «مشاركة الرحلة» (محايدٌ) و«طلب المساعدة» (خطرٌ) — كلٌّ يفتحُ شاشتَه الحقيقيّةَ. */}
+        {onOpenShare !== undefined || onOpenHelp !== undefined ? (
+          <div className="ar__actions">
+            {onOpenShare === undefined ? null : (
+              <button type="button" className="ar__open-share" onClick={() => onOpenShare()}>
+                <Glyph name="share" className="ar__action-icon" />
+                {t("rider.active.openShare")}
+              </button>
+            )}
+            {onOpenHelp === undefined ? null : (
+              <button type="button" className="ar__open-help" onClick={() => onOpenHelp()}>
+                <Glyph name="shield" className="ar__action-icon" />
+                {t("rider.active.openHelp")}
+              </button>
+            )}
+          </div>
+        ) : null}
 
         {/* بابُ الملخَّصِ (`F2-07`) — **بحكمِ القاعدةِ `completed` وحدَه**، وبمُركِّبٍ
             أعطى مساراً. ولا زرَّ قبلَ الانتهاءِ: ملخَّصُ رحلةٍ جاريةٍ ليسَ ملخَّصاً. */}

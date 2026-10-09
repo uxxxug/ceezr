@@ -213,6 +213,17 @@ const PrivacyScreen = lazy(() =>
   DEFERRED_RIDER_LOADERS.privacy().then((m) => ({ default: m.PrivacyScreen })),
 );
 const FaqScreen = lazy(() => DEFERRED_RIDER_LOADERS.faq().then((m) => ({ default: m.FaqScreen })));
+/** R6 · مشاركةُ الرحلةِ شاشةً مستقلّةً — البطاقةُ نفسُها من حزمةِ الرحلةِ، لا نسخةٌ ثانية. */
+const RideShareCard = lazy(() =>
+  DEFERRED_RIDER_LOADERS.ride().then((m) => ({ default: m.RideShareCard })),
+);
+/** R13 · لوحتا الحسابِ تُفتحانِ شاشتَين — من حزمةِ الحسابِ نفسِها. */
+const SavedPlacesPanel = lazy(() =>
+  DEFERRED_RIDER_LOADERS.account().then((m) => ({ default: m.SavedPlacesPanel })),
+);
+const EmergencyContactPanel = lazy(() =>
+  DEFERRED_RIDER_LOADERS.account().then((m) => ({ default: m.EmergencyContactPanel })),
+);
 /** يجلبُ الحزمَ المؤجَّلةَ بعدَ الرسمِ؛ الفشلُ هنا لا يُعرَضُ — الشاشةُ نفسُها تُعيدُ المحاولةَ عندَ فتحِها. */
 export function prefetchDeferredRiderScreens(): void {
   for (const load of Object.values(DEFERRED_RIDER_LOADERS)) void load().catch(() => undefined);
@@ -332,8 +343,8 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
    * يُقرأُ من القاعدةِ داخلَها، فلا يُرفَعُ إلى الموجِّهِ إلّا «مفتوحةٌ» و«مغلقةٌ».
    * وهيَ **أعلى الترتيبِ كلِّهِ وفوقَ الدعمِ**: فيها تأكيدٌ بخطوتَينِ وسردٌ
    * يُقرأُ بعدَ الإرسالِ، ورسمُ شاشةٍ أخرى فوقَها بعدَ فتحِها يمحو مقصودَهما —
-   * والدعمُ لا يُفتَحُ منها فلا يُختلَطُ الترتيبُ. والرحلةُ النشطةُ **بلا مدخلٍ**
-   * ههنا: بطاقتُها المدمجةُ فيها أقربُ من مدخلٍ يفتحُ شاشةً فوقَها.
+   * والدعمُ لا يُفتَحُ منها فلا يُختلَطُ الترتيبُ. والرحلةُ النشطةُ تفتحُها بزرِّ «طلب المساعدة»
+   * (لوحة التسليم 02: R5→R7) بدلَ بطاقةٍ مدمجةٍ، والرجوعُ منها يُعيدُ الرحلةَ نفسَها.
    */
   const [sosOpen, setSosOpen] = useState(landing.sosOpen);
   /**
@@ -341,6 +352,11 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
    * تعيدُ استخدامُ `consentRows` و`fetchConsentStatus` من شاشةِ الترحيبِ.
    */
   const [privacy, setPrivacy] = useState(false);
+  /** R6 (لوحة 02): مشاركةُ الرحلةِ المُتابَعةِ شاشةً — رايةٌ لا معرّفٌ: الرحلةُ هيَ `followed` نفسُها. */
+  const [shareOpen, setShareOpen] = useState(false);
+  /** R13 (لوحة 04): «الأماكن المحفوظة» و«جهة اتصال للطوارئ» شاشتانِ فوقَ «حسابي». */
+  const [savedPlacesOpen, setSavedPlacesOpen] = useState(false);
+  const [emergencyOpen, setEmergencyOpen] = useState(false);
   /** مدخلٌ واحدٌ لكلِّ الشاشاتِ — لا يُنشَرُ لمن لا يعرفُهُ الاستغاثةَ. */
   const onOpenSos = () => setSosOpen(true);
   /**
@@ -427,6 +443,35 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
       >
         <Deferred>
           <PrivacyScreen language={language} showTitle={false} />
+        </Deferred>
+      </ScreenFrame>
+    );
+  }
+
+  // R13 · الأماكنُ المحفوظةُ وجهةُ اتصالِ الطوارئ — تُفتحانِ من «حسابي» فهما فوقَه، والرجوعُ يُعيدُه كما كانَ.
+  if (savedPlacesOpen) {
+    return (
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.frame.savedPlaces")}
+        back={{ label: flowBack, onBack: () => setSavedPlacesOpen(false) }}
+      >
+        <Deferred>
+          <SavedPlacesPanel language={language} />
+        </Deferred>
+      </ScreenFrame>
+    );
+  }
+
+  if (emergencyOpen) {
+    return (
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.frame.emergency")}
+        back={{ label: flowBack, onBack: () => setEmergencyOpen(false) }}
+      >
+        <Deferred>
+          <EmergencyContactPanel language={language} />
         </Deferred>
       </ScreenFrame>
     );
@@ -550,8 +595,24 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
   // رحلةٌ قائمةٌ تُتابَعُ: لقطتُها وسائقُها وموقعُه بعُمرِه (`SR-06`). والرجوعُ
   // منها إلى الرئيسةِ لا إلى بحثٍ مضى: البحثُ انتهى بإسنادٍ.
   // R7 · الرحلةُ النشطة (وفيها R8 مشاركةُ الرحلةِ وبطاقةُ SOS): تدفّقٌ برجوعِ رأسِ الإطار.
+  // R6 · مشاركةُ الرحلةِ — شاشةٌ فوقَ الرحلةِ النشطةِ، والرجوعُ يُعيدُ الرحلةَ نفسَها لا الرئيسة.
+  if (followed !== null && shareOpen) {
+    return (
+      <ScreenFrame
+        mode="flow"
+        title={t("rider.frame.share")}
+        back={{ label: flowBack, onBack: () => setShareOpen(false) }}
+      >
+        <Deferred>
+          <RideShareCard orderId={followed} language={language} standalone />
+        </Deferred>
+      </ScreenFrame>
+    );
+  }
+
   if (followed !== null) {
     const leaveActive = () => {
+      setShareOpen(false);
       setFollowed(null);
       setIntent(null);
       clearFlow();
@@ -567,8 +628,13 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
             orderId={followed}
             initialLanguage={language}
             showTitle={false}
-            onFinished={(orderId) => setSummarized(orderId)}
+            onFinished={(orderId) => {
+              setShareOpen(false);
+              setSummarized(orderId);
+            }}
             onBack={leaveActive}
+            onOpenShare={() => setShareOpen(true)}
+            onOpenHelp={onOpenSos}
           />
         </Deferred>
       </ScreenFrame>
@@ -699,6 +765,8 @@ export default function RiderRoot({ language, onLanguageChanged, entry }: Langua
               onOpenSupport={() => selectRootTab("support")}
               onOpenPrivacy={() => setPrivacy(true)}
               onOpenNotifications={() => setNotificationsOpen(true)}
+              onOpenSavedPlaces={() => setSavedPlacesOpen(true)}
+              onOpenEmergencyContact={() => setEmergencyOpen(true)}
               onOpenSos={onOpenSos}
             />
           </Deferred>

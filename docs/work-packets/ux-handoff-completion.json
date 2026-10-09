@@ -1,0 +1,58 @@
+{
+  "id": "ux-handoff-completion",
+  "goal": "مصفوفةُ تغطيةٍ تربطُ كلَّ لوحةٍ وشاشةٍ في wasla-ux-handoff-ar.zip بتنفيذِها الفعليّ بأدلّة، وإغلاقُ الفجواتِ المثبتةِ داخلَ العقودِ القائمة، ومعاينةٌ للمراجعةِ قبلَ الدمج.",
+  "canonical_source": [
+    "wasla-ux-handoff-ar.zip (اللوحات 00–13 · README_AR.md)",
+    "docs/adr/0248-ux-v2-handoff-redesign.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md PRD-010"
+  ],
+  "implementation": [
+    "apps/miniapp/src/styles/global.css",
+    "apps/miniapp/src/surfaces/driver/activity/ActivityScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/activity/activity-view.ts",
+    "apps/miniapp/src/surfaces/driver/job/JobScreen.tsx",
+    "apps/miniapp/src/surfaces/driver/job/job-view.ts",
+    "apps/miniapp/src/surfaces/rider/RiderRoot.tsx",
+    "apps/miniapp/src/surfaces/rider/account/AccountScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/active/ActiveRideScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/rider-r6-r10.test.tsx",
+    "apps/miniapp/src/surfaces/rider/rider-ride-screens.ts",
+    "apps/miniapp/src/surfaces/rider/search/SearchScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/share/RideShareCard.tsx",
+    "apps/miniapp/src/surfaces/ux-handoff-completion.test.tsx",
+    "docs/adr/0249-ux-handoff-completion.md",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md",
+    "docs/work-packets/ux-handoff-completion.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0249-ux-handoff-completion.md",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md"
+  ],
+  "no_other_affected_docs_reason": "لا سطحَ أُضيفَ أو حُذفَ من الجرد (المشاركةُ والأماكنُ المحفوظةُ وجهةُ الطوارئ أسطحٌ قائمةٌ نُقلت إلى إطارِ تدفّق)، لا endpoint ولا هجرة ولا مكتبة، ولا تغييرَ في نصوصِ رسائلِ تيليجرام.",
+  "decision": "ADR 0249: المصفوفةُ مرجعُ حالةِ التصميم؛ تُغلَقُ الفجواتُ المثبتةُ فقط ولا زرَّ بلا مستقبِل.",
+  "tests": [
+    "bun run ci — كاملاً",
+    "apps/miniapp/src/surfaces/ux-handoff-completion.test.tsx",
+    "apps/miniapp/src/surfaces/rider/rider-r6-r10.test.tsx",
+    "لقطاتُ Chromium حقيقيّةٌ على بوّابةٍ محلّيّةٍ وPostgreSQL ببذور: docs/evidence/archive/ux-handoff-20261009/"
+  ],
+  "evidence": "docs/evidence/archive/ux-handoff-20261009/ (لوحة | قبل | بعد) · docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md",
+  "contract_gaps": [
+    "R1: /v1/me لا يعيدُ مدينةَ الراكب",
+    "المفقودات: لا حقلَي الوقت التقريبيّ والمقعد في عقدِ الشكوى"
+  ],
+  "constraints": [
+    "لا ميزةَ جديدة ولا endpoint ولا هجرة ولا مكتبة ولا polling",
+    "لا خريطةَ ولا أجرةَ ولا مدّةَ وصولٍ محسوبة ولا دفعَ للراكب",
+    "لا دورَ مزوّدِ خدمة",
+    "لا زرَّ بلا مستقبِل",
+    "لا دمجَ ولا نشرَ قبلَ موافقةِ المالك"
+  ],
+  "limitations": "مضيفُ تيليجرامَ محاكًى ونقلٌ صامت؛ الاختبارُ داخلَ تيليجرامَ الحقيقيّ غيرُ منفّذ؛ الاشتراكُ غيرُ متاحٍ محلّيًّا (503).",
+  "status": "open — PR للمراجعة البصريّة؛ لا دمجَ ولا نشر. Not Production Ready (gate red)."
+}
