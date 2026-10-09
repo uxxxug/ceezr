@@ -52,6 +52,7 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { EmptyState } from "../../../system/EmptyState.tsx";
+import { Glyph, IconChevron } from "../../../system/ui/icons.tsx";
 import { UiTimer } from "../../../system/ui/index.tsx";
 import { offerTimerProps } from "./offer-timer.ts";
 import {
@@ -367,7 +368,10 @@ export function OffersScreen({
       ) : null}
       <p className="dof__headline">{t(board.headlineKey)}</p>
 
-      <div className="dof__availability">
+      <div className={`dof__availability${board.isAvailable ? " dof__availability--on" : ""}`}>
+        <span className="dof__availability-dot" aria-hidden="true">
+          <Glyph name="power" />
+        </span>
         <span className="dof__availability-state">
           {board.isAvailable
             ? t("driver.offers.availability.on")
@@ -496,38 +500,62 @@ export function OffersScreen({
       )}
 
       <button type="button" className="dof__refresh" onClick={() => void load()}>
+        <Glyph name="refresh" className="dof__refresh-icon" />
         {t("driver.offers.refresh")}
       </button>
 
-      {onOpenJob === undefined ? null : (
-        <button type="button" className="dof__job" onClick={onOpenJob}>
-          {t("driver.offers.openJob")}
-        </button>
-      )}
+      {/* `UX-V2`: أبوابُ الشاشةِ قائمةٌ واحدةٌ — كلُّ صفٍّ يُرسَمُ إن كانَ له مستقبِلٌ فحسب. */}
+      <nav className="dof__links" aria-label={t("driver.tabs.navigation")}>
+        {onOpenJob === undefined ? null : (
+          <button type="button" className="dof__job" onClick={onOpenJob}>
+            <span className="dof__link-icon">
+              <Glyph name="job" />
+            </span>
+            <span className="dof__link-label">{t("driver.offers.openJob")}</span>
+            <IconChevron className="dof__link-chevron" />
+          </button>
+        )}
 
-      {onOpenActivity === undefined ? null : (
-        <button type="button" className="dof__activity" onClick={onOpenActivity}>
-          {t("driver.offers.openActivity")}
-        </button>
-      )}
+        {onOpenActivity === undefined ? null : (
+          <button type="button" className="dof__activity" onClick={onOpenActivity}>
+            <span className="dof__link-icon">
+              <Glyph name="earnings" />
+            </span>
+            <span className="dof__link-label">{t("driver.offers.openActivity")}</span>
+            <IconChevron className="dof__link-chevron" />
+          </button>
+        )}
 
-      {onOpenSubscription === undefined ? null : (
-        <button type="button" className="dof__subscription" onClick={onOpenSubscription}>
-          {t("driver.offers.openSubscription")}
-        </button>
-      )}
+        {onOpenSubscription === undefined ? null : (
+          <button type="button" className="dof__subscription" onClick={onOpenSubscription}>
+            <span className="dof__link-icon">
+              <Glyph name="card" />
+            </span>
+            <span className="dof__link-label">{t("driver.offers.openSubscription")}</span>
+            <IconChevron className="dof__link-chevron" />
+          </button>
+        )}
 
-      {onOpenSupport === undefined ? null : (
-        <button type="button" className="dof__support" onClick={onOpenSupport}>
-          {t("driver.offers.openSupport")}
-        </button>
-      )}
+        {onOpenSupport === undefined ? null : (
+          <button type="button" className="dof__support" onClick={onOpenSupport}>
+            <span className="dof__link-icon">
+              <Glyph name="support" />
+            </span>
+            <span className="dof__link-label">{t("driver.offers.openSupport")}</span>
+            <IconChevron className="dof__link-chevron" />
+          </button>
+        )}
 
-      {onOpenAccount === undefined ? null : (
-        <button type="button" className="dof__account" onClick={onOpenAccount}>
-          {t("driver.offers.openAccount")}
-        </button>
-      )}
+        {onOpenAccount === undefined ? null : (
+          <button type="button" className="dof__account" onClick={onOpenAccount}>
+            <span className="dof__link-icon">
+              <Glyph name="account" />
+            </span>
+            <span className="dof__link-label">{t("driver.offers.openAccount")}</span>
+            <IconChevron className="dof__link-chevron" />
+          </button>
+        )}
+      </nav>
 
       <ul className="dof__debt" aria-label={t("driver.offers.debtLabel")}>
         {DECLARED_DEBT.map((key) => (

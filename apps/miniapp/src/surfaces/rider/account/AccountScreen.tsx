@@ -39,7 +39,7 @@ import {
   MINIAPP_DEFAULT_LANGUAGE,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
-import { UiButton } from "../../../system/ui/index.tsx";
+import { Glyph, IconChevron } from "../../../system/ui/icons.tsx";
 import type { AccountRightsProps } from "../../account/AccountRights.tsx";
 import { AccountRights } from "../../account/AccountRights.tsx";
 import { EmergencyContactPanel } from "../settings/EmergencyContactPanel.tsx";
@@ -80,6 +80,17 @@ export function AccountScreen(props: AccountScreenProps) {
       // إلى الشاشةِ المشتركةِ علمُ الراكبِ: الدورُ يُقرَّرُ هنا لا ههناك.
       header={
         <>
+          {onOpenNotifications === undefined ? null : (
+            <div className="ac__links">
+              <button type="button" className="ac__link" onClick={onOpenNotifications}>
+                <span className="ac__link-icon">
+                  <Glyph name="bell" />
+                </span>
+                <span className="ac__link-label">{t("rider.account.notificationPrefs.open")}</span>
+                <IconChevron className="ac__link-chevron" />
+              </button>
+            </div>
+          )}
           {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
           <EmergencyContactPanel
             {...(language === undefined ? {} : { language })}
@@ -90,11 +101,6 @@ export function AccountScreen(props: AccountScreenProps) {
             {...(language === undefined ? {} : { language })}
             {...(placesApi === undefined ? {} : { api: placesApi })}
           />
-          {onOpenNotifications === undefined ? null : (
-            <UiButton onClick={onOpenNotifications}>
-              {t("rider.account.notificationPrefs.open")}
-            </UiButton>
-          )}
         </>
       }
     />

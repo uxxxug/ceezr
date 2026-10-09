@@ -12,9 +12,9 @@
  */
 
 export type Scheme = "dark" | "light";
-export type LayerTwoToken = "brand" | "amber" | "ok" | "bad";
+export type LayerTwoToken = "brand" | "amber" | "ok" | "bad" | "info";
 
-export const LAYER_TWO_TOKENS: readonly LayerTwoToken[] = ["brand", "amber", "ok", "bad"];
+export const LAYER_TWO_TOKENS: readonly LayerTwoToken[] = ["brand", "amber", "ok", "bad", "info"];
 export const SCHEMES: readonly Scheme[] = ["dark", "light"];
 
 /** حدُّ WCAG 2.x AA للنصِّ العاديِّ. */
@@ -35,8 +35,20 @@ export interface LayerOneFallbacks {
  * والحاجزُ يُسقِطُ أيَّ انجرافٍ بينَهما. PR 1 يحوِّلُها رموزَ CSS ويقرأُها من هنا.
  */
 export const LAYER_TWO_PALETTE: Palette = {
-  dark: { brand: "#8b90ff", amber: "#f5b23e", ok: "#34d399", bad: "#ef5350" },
-  light: { brand: "#4f46e5", amber: "#f5a524", ok: "#0b7a42", bad: "#c62828" },
+  dark: {
+    brand: "#36d7c1",
+    amber: "#ffc56e",
+    ok: "#4fe0a0",
+    bad: "#ff7d86",
+    info: "#7cb0ff",
+  },
+  light: {
+    brand: "#0b7266",
+    amber: "#f5a524",
+    ok: "#0b7a42",
+    bad: "#c2303f",
+    info: "#1d5fd6",
+  },
 };
 
 /**
@@ -45,14 +57,26 @@ export const LAYER_TWO_PALETTE: Palette = {
  */
 export type OnColor = "on-dark" | "on-light";
 export const ON_COLORS: Record<OnColor, string> = {
-  "on-dark": "#0f172a",
+  "on-dark": "#07121e",
   "on-light": "#ffffff",
 };
 
 /** لونُ النصِّ المعلنُ فوقَ كلِّ تعبئةٍ (`ADR 0233` §3). */
 export const FILL_TEXT: Record<Scheme, Record<LayerTwoToken, OnColor>> = {
-  dark: { brand: "on-dark", amber: "on-dark", ok: "on-dark", bad: "on-dark" },
-  light: { brand: "on-light", amber: "on-dark", ok: "on-light", bad: "on-light" },
+  dark: {
+    brand: "on-dark",
+    amber: "on-dark",
+    ok: "on-dark",
+    bad: "on-dark",
+    info: "on-dark",
+  },
+  light: {
+    brand: "on-light",
+    amber: "on-dark",
+    ok: "on-light",
+    bad: "on-light",
+    info: "on-light",
+  },
 };
 
 /**

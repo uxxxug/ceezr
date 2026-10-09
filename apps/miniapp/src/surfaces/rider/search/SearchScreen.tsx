@@ -73,6 +73,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { Glyph } from "../../../system/ui/icons.tsx";
 import { RideJourney } from "../active/RideJourney.tsx";
 import { journeyFromSearchStatus } from "../active/ride-journey.ts";
 import type { PlaceWire } from "../destination/destination-view.ts";
@@ -505,7 +506,17 @@ export function SearchScreen({
       <div className="rs__live">
         {state.reused && <p className="rs__reused">{t("rider.search.reused")}</p>}
 
-        <p className="rs__status">{t(rideStatusKey(view?.status ?? "searching"))}</p>
+        <div className="rs__hero">
+          <span className="rs__pulse" aria-hidden="true">
+            <Glyph name="car" />
+          </span>
+          <p className="rs__status">{t(rideStatusKey(view?.status ?? "searching"))}</p>
+          <p className="rs__elapsed" aria-live="polite">
+            {t(elapsed.key)
+              .replace("{minutes}", String(elapsed.minutes))
+              .replace("{seconds}", String(elapsed.seconds))}
+          </p>
+        </div>
         {/* R6 · §11 PR 4: سكّةُ المراحلِ من حالةِ الطلبِ المقروءة — لا شريطَ ثانٍ لطورٍ يقولُه السطرُ التالي. */}
         <RideJourney
           language={language}
@@ -513,12 +524,6 @@ export function SearchScreen({
           truth={null}
         />
         {view !== null && <p className="rs__phase">{t(searchPhaseKey(view.phase))}</p>}
-
-        <p className="rs__elapsed" aria-live="polite">
-          {t(elapsed.key)
-            .replace("{minutes}", String(elapsed.minutes))
-            .replace("{seconds}", String(elapsed.seconds))}
-        </p>
 
         {/* الصفرُ يُقالُ نصّاً مُعلَناً: «لم يُبلَّغْ سائقٌ بعدُ» (`ADR 0023`). */}
         <p className="rs__notified" aria-live="polite">
@@ -536,10 +541,11 @@ export function SearchScreen({
             <p className="sys__hint">{t("rider.search.snapshot")}</p>
             <button
               type="button"
-              className="sys__action"
+              className="sys__action rs__refresh"
               disabled={reading}
               onClick={() => void refresh(state.orderId)}
             >
+              <Glyph name="refresh" className="ar__refresh-icon" />
               {t(reading ? "rider.search.refreshing" : "rider.search.refresh")}
             </button>
           </div>
@@ -592,8 +598,8 @@ export function SearchScreen({
       </p>
 
       {/* مدخلُ الاستغاثةِ (`PD-020`) — يُرسَمُ إذا مُرِّرَ، فيبقى البابُ في كلِّ سطحٍ. */}
-      {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
       {body()}
+      {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
     </section>
   );
 }

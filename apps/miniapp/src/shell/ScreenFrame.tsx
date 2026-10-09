@@ -19,6 +19,7 @@
  */
 
 import { type ReactNode, useContext, useEffect, useRef } from "react";
+import { Glyph, type GlyphName } from "../system/ui/icons.tsx";
 import { UiActionBar, UiHeader } from "../system/ui/index.tsx";
 import { hasCapability, onBackButtonClick, setBackButtonVisible } from "../tg/index.ts";
 import { InsideAppFrame } from "./Layout.tsx";
@@ -73,6 +74,17 @@ export function useBackButton(
 
 // ─── RootTabBar (التبويبُ الجذريُّ · §6) ──────────────────────────────────────
 
+/** `UX-V2`: رمزُ كلِّ تبويبٍ جذريٍّ — زخرفةٌ بجانبِ الاسمِ لا بديلٌ عنه. */
+const TAB_GLYPHS = {
+  home: "home",
+  rides: "rides",
+  support: "support",
+  account: "account",
+  offers: "offers",
+  job: "job",
+  earnings: "earnings",
+} as const satisfies Record<string, GlyphName>;
+
 const ROOT_TAB_STATES = [
   { on: false, modifier: "" },
   { on: true, modifier: "app-frame__tab--on" },
@@ -115,7 +127,10 @@ export function RootTabBar<R extends RootRole>({
             aria-current={on ? "page" : undefined}
             onClick={() => onSelect(id)}
           >
-            {labels[id]}
+            <span className="app-frame__tab-icon">
+              <Glyph name={TAB_GLYPHS[id as keyof typeof TAB_GLYPHS]} />
+            </span>
+            <span className="app-frame__tab-label">{labels[id]}</span>
           </button>
         );
       })}

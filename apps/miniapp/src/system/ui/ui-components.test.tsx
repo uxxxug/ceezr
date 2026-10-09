@@ -486,7 +486,10 @@ function cssProblems(block: string): readonly string[] {
   }
   for (const name of defined) {
     // ألوانُ Layer 2 وسُلَّمُ §3 واجهةٌ عامّةٌ كاملةٌ (يُثبَتُ تطابقُها أدناه)؛ سواهما يُستعمَلُ أو يُحذَف.
-    if (!used.has(name) && !/^--ui-(brand|amber|ok|bad|size-|line-|weight-)/.test(name ?? "")) {
+    if (
+      !used.has(name) &&
+      !/^--ui-(brand|amber|ok|bad|info|size-|line-|weight-)/.test(name ?? "")
+    ) {
       problems.push(`رمزٌ معرَّفٌ لا يُستعمَل: ${name}`);
     }
   }
@@ -554,5 +557,21 @@ describe("CSS — كتلةُ PR 1", () => {
       if (!colorTone) continue;
       expect(`${rule[1]?.trim()} → ${/background:\s*var\(--ui-/.test(body)}`).toContain("→ true");
     }
+  });
+});
+
+describe("UX-V2 · رموزُ الرسمِ الزخرفيِّ (ADR 0248)", () => {
+  it("`--w-glyph-*` لا يلوِّنُ إلا حاويَ رمزٍ زخرفيٍّ (icon/avatar/pulse) — لا نصّاً", () => {
+    const flat = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+    const offenders: string[] = [];
+    for (const rule of flat.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const selector = rule[1]?.trim() ?? "";
+      const body = rule[2] ?? "";
+      if (!/var\(--w-glyph-/.test(body) || selector === ":root") continue;
+      const parts = selector.split(",").map((part) => part.trim());
+      if (!parts.every((part) => /(icon|avatar|pulse)\b[^\s]*$/.test(part)))
+        offenders.push(selector);
+    }
+    expect(offenders).toEqual([]);
   });
 });

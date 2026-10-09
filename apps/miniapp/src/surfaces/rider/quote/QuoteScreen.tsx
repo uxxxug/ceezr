@@ -74,6 +74,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { Glyph } from "../../../system/ui/icons.tsx";
 import { openLocationSettings } from "../../../tg/index.ts";
 import { type ConfirmedDestination, DestinationScreen } from "../destination/DestinationScreen.tsx";
 import {
@@ -442,111 +443,6 @@ export function QuoteScreen({
         </section>
 
         {/*
-         * ## طريقةُ الدفعِ **قبلَ** الطلبِ لا بعدَه — الخطوةُ ٩
-         *
-         * وموضعُها ههنا **حكمٌ لا تنسيقٌ**: زرُّ `rider.quote.request` أسفلَ هذا
-         * الموضعِ هوَ **نقطةُ اللاعودةِ** — لا شاشةَ تأكيدٍ بعدَه، بل يُسنَدُ
-         * `intent` فتُركَّبُ `SearchScreen` فتُنادي `request_ride` فوراً. فراكبٌ
-         * يطلُبُ وهوَ لا يعلمُ كيفَ يدفعُ قد صعِدَ على صمتِنا لا على علمِه.
-         *
-         * **والصمتُ ههنا ليسَ حياداً**: تطبيقٌ في هاتفٍ يُقرأُ افتراضاً «التطبيقُ
-         * يتولّى الدفعَ»، فغيابُ البيانِ يزرعُ الظنَّ الكاذبَ نفسَه الذي يزرعُه
-         * زرُّ دفعٍ لا يعملُ. فالبيانُ **نفيٌ ثلاثيٌّ صريحٌ**: لا قبضَ، ولا
-         * حفظَ، ولا تحديدَ مبلغٍ.
-         *
-         * **ولا يُخالِفُ `ADR 0039` §٤ بل يُنفِذُه**: المحجوبُ هناكَ **آليّةُ
-         * أجرةٍ** — حقلٌ أو حسبةٌ أو عمولةٌ. وهذا نصٌّ يقولُ إنَّ الآليةَ
-         * **غيرُ موجودةٍ**، وهوَ ضدُّ بنائِها لا تمهيدٌ لها. ولا رقمَ ههنا ولا
-         * حقلَ عرضٍ ولا زرَّ دفعٍ.
-         */}
-        <section className="qt__payment" aria-label={t("rider.quote.payment.title")}>
-          <h2 className="qt__subtitle">{t("rider.quote.payment.title")}</h2>
-          <p className="qt__payment-line">{t("rider.quote.payment.direct")}</p>
-          <p className="qt__payment-line">{t("rider.quote.payment.noCustody")}</p>
-          <p className="qt__payment-line">{t("rider.quote.payment.noAmount")}</p>
-        </section>
-        <section className="qt__services" aria-label={t("rider.quote.services")}>
-          <h2 className="qt__subtitle">{t("rider.quote.services")}</h2>
-          {cards.length === 0 ? (
-            <p className="sys__hint">{t("rider.quote.services.empty")}</p>
-          ) : (
-            <ul className="qt__list">
-              {cards.map((card) => (
-                <li
-                  key={card.service}
-                  className={`qt__card${card.available ? "" : " qt__card--off"}`}
-                >
-                  <span className="qt__card-label">{t(card.labelKey)}</span>
-                  {card.reasonKey !== null && (
-                    <span className="qt__card-reason">{t(card.reasonKey)}</span>
-                  )}
-                  {/*
-                   * الفعلُ على البطاقةِ **المتاحةِ** وحدَها: خدمةٌ غيرُ مخدومةٍ في
-                   * المدينةِ تُعرَضُ بسببِها ولا يُعرَضُ لها زرٌّ يُرفَضُ حتماً.
-                   */}
-                  {card.available && onRequest !== undefined && (
-                    <button
-                      type="button"
-                      className="qt__card-request"
-                      onClick={() => {
-                        // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ. ونوعُ الطردِ
-                        // صارَ اختياريّاً (`ORDER-TERMS-01`): يُحاكَمُ ما كُتِبَ ولا يُلزَمُ الفارغُ.
-                        if (card.service === "delivery" && notes.trim() !== "") {
-                          const error = parcelValidationError(notes);
-                          if (error !== null) {
-                            setParcelError(error.errorKey);
-                            return;
-                          }
-                        }
-                        setParcelError(null);
-                        const offer = offerSarFrom(offerText);
-                        if (!offer.ok) {
-                          setOfferError(true);
-                          return;
-                        }
-                        setOfferError(false);
-                        onRequest({
-                          service: card.service,
-                          originLat: origin.lat,
-                          originLng: origin.lng,
-                          destinationLat: destination.lat,
-                          destinationLng: destination.lng,
-                          destinationLabel: destination.label,
-                          // الاسمُ المُرسَلُ هوَ ما كتبَه الراكبُ أو اختارَه — لا وصفُ «نقطة بلا اسم».
-                          pickupLabel:
-                            manualPickup === null
-                              ? null
-                              : manualPickup.place === undefined
-                                ? manualPickup.label
-                                : manualPickup.place.label,
-                          destinationUserLabel:
-                            destination.place === undefined
-                              ? destination.label
-                              : destination.place.label,
-                          pickupPlace:
-                            manualPickup?.place === undefined
-                              ? null
-                              : placeWire(manualPickup.place),
-                          dropoffPlace:
-                            destination.place === undefined ? null : placeWire(destination.place),
-                          notes: noteValue,
-                          // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
-                          idempotencyKey: newIdempotencyKey(),
-                          pickupAt: pickupMode === "later" ? pickupAtFrom(pickupClock) : null,
-                          offerSar: offer.value,
-                        });
-                      }}
-                    >
-                      {t("rider.quote.request")}
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/*
          * ما كانَ ههنا قبلَ `F2-05`: سطرٌ يقولُ «طلبُ الرحلةِ لم يُبنَ بعدُ»
          * (`rider.quote.next.notBuilt`) — وهوَ صدقُ تلكَ اللحظةِ، ومفتاحُه ونصُّه
          * **باقيانِ في القواميسِ الثلاثةِ** (القاعدة ح-1) ولم يُحذَفا. وقد بُني
@@ -653,6 +549,115 @@ export function QuoteScreen({
             </p>
           )}
           <p className="qt__notes-hint">{t("rider.quote.offer.hint")}</p>
+        </section>
+        {/*
+         * ## طريقةُ الدفعِ **قبلَ** الطلبِ لا بعدَه — الخطوةُ ٩
+         *
+         * وموضعُها ههنا **حكمٌ لا تنسيقٌ**: زرُّ `rider.quote.request` أسفلَ هذا
+         * الموضعِ هوَ **نقطةُ اللاعودةِ** — لا شاشةَ تأكيدٍ بعدَه، بل يُسنَدُ
+         * `intent` فتُركَّبُ `SearchScreen` فتُنادي `request_ride` فوراً. فراكبٌ
+         * يطلُبُ وهوَ لا يعلمُ كيفَ يدفعُ قد صعِدَ على صمتِنا لا على علمِه.
+         *
+         * **والصمتُ ههنا ليسَ حياداً**: تطبيقٌ في هاتفٍ يُقرأُ افتراضاً «التطبيقُ
+         * يتولّى الدفعَ»، فغيابُ البيانِ يزرعُ الظنَّ الكاذبَ نفسَه الذي يزرعُه
+         * زرُّ دفعٍ لا يعملُ. فالبيانُ **نفيٌ ثلاثيٌّ صريحٌ**: لا قبضَ، ولا
+         * حفظَ، ولا تحديدَ مبلغٍ.
+         *
+         * **ولا يُخالِفُ `ADR 0039` §٤ بل يُنفِذُه**: المحجوبُ هناكَ **آليّةُ
+         * أجرةٍ** — حقلٌ أو حسبةٌ أو عمولةٌ. وهذا نصٌّ يقولُ إنَّ الآليةَ
+         * **غيرُ موجودةٍ**، وهوَ ضدُّ بنائِها لا تمهيدٌ لها. ولا رقمَ ههنا ولا
+         * حقلَ عرضٍ ولا زرَّ دفعٍ.
+         */}
+        <section className="qt__payment" aria-label={t("rider.quote.payment.title")}>
+          <h2 className="qt__subtitle">{t("rider.quote.payment.title")}</h2>
+          <p className="qt__payment-line">{t("rider.quote.payment.direct")}</p>
+          <p className="qt__payment-line">{t("rider.quote.payment.noCustody")}</p>
+          <p className="qt__payment-line">{t("rider.quote.payment.noAmount")}</p>
+        </section>
+        <section className="qt__services" aria-label={t("rider.quote.services")}>
+          <h2 className="qt__subtitle">{t("rider.quote.services")}</h2>
+          {cards.length === 0 ? (
+            <p className="sys__hint">{t("rider.quote.services.empty")}</p>
+          ) : (
+            <ul className="qt__list">
+              {cards.map((card) => (
+                <li
+                  key={card.service}
+                  className={`qt__card${card.available ? "" : " qt__card--off"}`}
+                >
+                  <span className="qt__card-head">
+                    <span className="qt__card-icon">
+                      <Glyph name={card.service === "delivery" ? "parcel" : "car"} />
+                    </span>
+                    <span className="qt__card-label">{t(card.labelKey)}</span>
+                  </span>
+                  {card.reasonKey !== null && (
+                    <span className="qt__card-reason">{t(card.reasonKey)}</span>
+                  )}
+                  {/*
+                   * الفعلُ على البطاقةِ **المتاحةِ** وحدَها: خدمةٌ غيرُ مخدومةٍ في
+                   * المدينةِ تُعرَضُ بسببِها ولا يُعرَضُ لها زرٌّ يُرفَضُ حتماً.
+                   */}
+                  {card.available && onRequest !== undefined && (
+                    <button
+                      type="button"
+                      className="qt__card-request"
+                      onClick={() => {
+                        // التحقُّقُ من وصفِ الطردِ للتوصيلِ فقط — قبلَ الإرسالِ. ونوعُ الطردِ
+                        // صارَ اختياريّاً (`ORDER-TERMS-01`): يُحاكَمُ ما كُتِبَ ولا يُلزَمُ الفارغُ.
+                        if (card.service === "delivery" && notes.trim() !== "") {
+                          const error = parcelValidationError(notes);
+                          if (error !== null) {
+                            setParcelError(error.errorKey);
+                            return;
+                          }
+                        }
+                        setParcelError(null);
+                        const offer = offerSarFrom(offerText);
+                        if (!offer.ok) {
+                          setOfferError(true);
+                          return;
+                        }
+                        setOfferError(false);
+                        onRequest({
+                          service: card.service,
+                          originLat: origin.lat,
+                          originLng: origin.lng,
+                          destinationLat: destination.lat,
+                          destinationLng: destination.lng,
+                          destinationLabel: destination.label,
+                          // الاسمُ المُرسَلُ هوَ ما كتبَه الراكبُ أو اختارَه — لا وصفُ «نقطة بلا اسم».
+                          pickupLabel:
+                            manualPickup === null
+                              ? null
+                              : manualPickup.place === undefined
+                                ? manualPickup.label
+                                : manualPickup.place.label,
+                          destinationUserLabel:
+                            destination.place === undefined
+                              ? destination.label
+                              : destination.place.label,
+                          pickupPlace:
+                            manualPickup?.place === undefined
+                              ? null
+                              : placeWire(manualPickup.place),
+                          dropoffPlace:
+                            destination.place === undefined ? null : placeWire(destination.place),
+                          notes: noteValue,
+                          // مفتاحٌ واحدٌ لهذه النيّةِ، ويُعادُ في كلِّ محاولةٍ (`ARCH-006`).
+                          idempotencyKey: newIdempotencyKey(),
+                          pickupAt: pickupMode === "later" ? pickupAtFrom(pickupClock) : null,
+                          offerSar: offer.value,
+                        });
+                      }}
+                    >
+                      {t("rider.quote.request")}
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
     );

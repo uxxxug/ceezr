@@ -94,6 +94,8 @@ import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { TRUTH_AGE_UNKNOWN_KEY, TRUTH_SOURCE_KEYS, truthAge } from "../../../system/truth.ts";
+import { Glyph } from "../../../system/ui/icons.tsx";
+import { vehicleTypeText } from "../../../system/vehicle-type.ts";
 import { cancelRide as cancelViaApi } from "../search/ride-api.ts";
 import type { CancelRideResponse } from "../search/ride-contract.ts";
 import { cancelRefusalKey, newIdempotencyKey } from "../search/search-view.ts";
@@ -431,34 +433,39 @@ export function ActiveRideScreen({
 
     return (
       <div className="ar__live">
-        <p className="ar__status">{t(rideStatusKey(view.status))}</p>
-        {/* R7 · §11 PR 4: شريطُ الحقيقةِ (طورُ الخادمِ بنغمتِه) وسكّةُ المراحل — من القراءةِ وحدَها. */}
-        <RideJourney
-          language={language}
-          stage={journeyFromActivePhase(view.phase)}
-          truth={activeRideTruth(view.phase)}
-        />
+        <div className="ar__hero">
+          <p className="ar__status">{t(rideStatusKey(view.status))}</p>
+          {/* R7 · §11 PR 4: شريطُ الحقيقةِ (طورُ الخادمِ بنغمتِه) وسكّةُ المراحل — من القراءةِ وحدَها. */}
+          <RideJourney
+            language={language}
+            stage={journeyFromActivePhase(view.phase)}
+            truth={activeRideTruth(view.phase)}
+          />
 
-        <p className="ar__elapsed" aria-live="polite">
-          {t(elapsed.key)
-            .replace("{minutes}", String(elapsed.minutes))
-            .replace("{seconds}", String(elapsed.seconds))}
-        </p>
+          <p className="ar__elapsed" aria-live="polite">
+            {t(elapsed.key)
+              .replace("{minutes}", String(elapsed.minutes))
+              .replace("{seconds}", String(elapsed.seconds))}
+          </p>
 
-        <p className="ar__route">
-          {t("rider.active.route")
-            .replace("{pickup}", view.pickup.label ?? t("rider.active.point.unlabeled"))
-            .replace("{dropoff}", view.dropoff?.label ?? t("rider.active.point.unlabeled"))}
-        </p>
+          <p className="ar__route">
+            {t("rider.active.route")
+              .replace("{pickup}", view.pickup.label ?? t("rider.active.point.unlabeled"))
+              .replace("{dropoff}", view.dropoff?.label ?? t("rider.active.point.unlabeled"))}
+          </p>
+        </div>
 
         {/* كتلةُ السائقِ تُرسَمُ إن أسندَته القاعدةُ — ولا صفَّ فارغٍ ينتظرُه. */}
         {driver === null ? (
           <p className="ar__no-driver">{t("rider.active.driver.none")}</p>
         ) : (
           <div className="ar__driver">
+            <span className="ar__driver-avatar">
+              <Glyph name="car" />
+            </span>
             <p className="ar__driver-name">{t(driver.nameKey).replace("{name}", driver.name)}</p>
             <p className="ar__driver-vehicle">
-              {t(driver.vehicleKey).replace("{vehicle}", driver.vehicle)}
+              {t(driver.vehicleKey).replace("{vehicle}", vehicleTypeText(t, driver.vehicle) ?? "")}
             </p>
             <p className="ar__driver-plate">
               {t(driver.plateKey).replace("{plate}", driver.plate)}
@@ -471,88 +478,91 @@ export function ActiveRideScreen({
           </div>
         )}
 
-        {/* الموقعُ **معَ عُمرِه** أو سببُ حجبِه — ولا ثالثَ (`BUG-001`). */}
-        {position !== null &&
-          (position.show && !positionAgeKnown ? (
-            <p className="ar__position-hidden">{t(TRUTH_AGE_UNKNOWN_KEY)}</p>
-          ) : position.show ? (
-            <div className="ar__position" role="status">
-              <p className="ar__position-point">
-                {t("rider.active.position.point")
-                  .replace("{lat}", position.lat.toFixed(5))
-                  .replace("{lng}", position.lng.toFixed(5))}
-              </p>
-              <p className="ar__position-age">
-                {t(position.ageKey)
-                  .replace("{minutes}", String(position.ageMinutes))
-                  .replace("{seconds}", String(position.ageSeconds))}
-                <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_age)}</small>
-              </p>
-            </div>
-          ) : (
-            <p className="ar__position-hidden">{t(position.key)}</p>
-          ))}
+        <div className="ar__facts">
+          {/* الموقعُ **معَ عُمرِه** أو سببُ حجبِه — ولا ثالثَ (`BUG-001`). */}
+          {position !== null &&
+            (position.show && !positionAgeKnown ? (
+              <p className="ar__position-hidden">{t(TRUTH_AGE_UNKNOWN_KEY)}</p>
+            ) : position.show ? (
+              <div className="ar__position" role="status">
+                <p className="ar__position-point">
+                  {t("rider.active.position.point")
+                    .replace("{lat}", position.lat.toFixed(5))
+                    .replace("{lng}", position.lng.toFixed(5))}
+                </p>
+                <p className="ar__position-age">
+                  {t(position.ageKey)
+                    .replace("{minutes}", String(position.ageMinutes))
+                    .replace("{seconds}", String(position.ageSeconds))}
+                  <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_age)}</small>
+                </p>
+              </div>
+            ) : (
+              <p className="ar__position-hidden">{t(position.key)}</p>
+            ))}
 
-        {eta !== null && (
-          <p className="ar__eta" aria-live="polite">
-            {eta.kind === "ROUTED"
-              ? t(eta.key).replace("{minutes}", String(eta.minutes))
-              : t(eta.key)}
-            {eta.kind === "ROUTED" ? (
-              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.routing_engine)}</small>
-            ) : null}
-          </p>
-        )}
-
-        {band !== null && (
-          <p className="ar__eta-band">
-            {band.kind === "MEASURED"
-              ? t(band.key)
-                  .replace("{low}", String(band.lowMinutes))
-                  .replace("{high}", String(band.highMinutes))
-                  .replace("{coverage}", String(band.coveragePercent))
-                  .replace("{samples}", String(band.samples))
-              : band.kind === "INSUFFICIENT"
-                ? t(band.key)
-                    .replace("{samples}", String(band.samples))
-                    .replace("{required}", String(band.required))
-                : t(band.key)}
-            {band.kind === "UNAVAILABLE" ? null : (
-              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.observed_trips)}</small>
-            )}
-          </p>
-        )}
-
-        <p className="ar__observed">
-          {observed.kind === "KNOWN" ? (
-            <>
-              {t(observed.key).split("{time}")[0]}
-              <time dateTime={observed.iso}>{observed.time}</time>
-              {t(observed.key).split("{time}")[1] ?? ""}
-              <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_clock)}</small>
-            </>
-          ) : (
-            t(observed.key)
+          {eta !== null && (
+            <p className="ar__eta" aria-live="polite">
+              {eta.kind === "ROUTED"
+                ? t(eta.key).replace("{minutes}", String(eta.minutes))
+                : t(eta.key)}
+              {eta.kind === "ROUTED" ? (
+                <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.routing_engine)}</small>
+              ) : null}
+            </p>
           )}
-        </p>
 
-        {/* لقطةٌ بثٌّ حيٌّ: يُقالُ ذلكَ نصّاً ويُعطى بابُ سؤالٍ يدويٌّ احتياطيٌّ. */}
-        <div className="ar__snapshot" role="status">
-          <p className="sys__hint">
-            {t(
-              channelTransport !== undefined && liveTracking.position !== null
-                ? "rider.active.liveTracking"
-                : "rider.active.snapshot",
+          {band !== null && (
+            <p className="ar__eta-band">
+              {band.kind === "MEASURED"
+                ? t(band.key)
+                    .replace("{low}", String(band.lowMinutes))
+                    .replace("{high}", String(band.highMinutes))
+                    .replace("{coverage}", String(band.coveragePercent))
+                    .replace("{samples}", String(band.samples))
+                : band.kind === "INSUFFICIENT"
+                  ? t(band.key)
+                      .replace("{samples}", String(band.samples))
+                      .replace("{required}", String(band.required))
+                  : t(band.key)}
+              {band.kind === "UNAVAILABLE" ? null : (
+                <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.observed_trips)}</small>
+              )}
+            </p>
+          )}
+
+          <p className="ar__observed">
+            {observed.kind === "KNOWN" ? (
+              <>
+                {t(observed.key).split("{time}")[0]}
+                <time dateTime={observed.iso}>{observed.time}</time>
+                {t(observed.key).split("{time}")[1] ?? ""}
+                <small className="ui-truth__seal">{t(TRUTH_SOURCE_KEYS.server_clock)}</small>
+              </>
+            ) : (
+              t(observed.key)
             )}
           </p>
-          <button
-            type="button"
-            className="sys__action"
-            disabled={reading}
-            onClick={() => void refresh(orderId)}
-          >
-            {t(reading ? "rider.active.refreshing" : "rider.active.refresh")}
-          </button>
+
+          {/* لقطةٌ بثٌّ حيٌّ: يُقالُ ذلكَ نصّاً ويُعطى بابُ سؤالٍ يدويٌّ احتياطيٌّ. */}
+          <div className="ar__snapshot" role="status">
+            <p className="sys__hint">
+              {t(
+                channelTransport !== undefined && liveTracking.position !== null
+                  ? "rider.active.liveTracking"
+                  : "rider.active.snapshot",
+              )}
+            </p>
+            <button
+              type="button"
+              className="sys__action ar__refresh"
+              disabled={reading}
+              onClick={() => void refresh(orderId)}
+            >
+              <Glyph name="refresh" className="ar__refresh-icon" />
+              {t(reading ? "rider.active.refreshing" : "rider.active.refresh")}
+            </button>
+          </div>
         </div>
 
         {/* مشاركةُ الرحلةِ (`F2-09`) — بطاقةٌ تقرأُ حالَها بنفسِها، وتُخفي نفسَها

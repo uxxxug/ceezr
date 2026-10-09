@@ -1419,7 +1419,7 @@
   "rider.ride.activeTitle": "Your ride",
   "driver.tabs.offers": "Offers",
   "driver.tabs.job": "My job",
-  "driver.tabs.earnings": "My earnings",
+  "driver.tabs.earnings": "My activity",
   "driver.tabs.account": "Account",
   "driver.tabs.navigation": "Main navigation",
   "driver.nav.back": "Back",
@@ -1612,5 +1612,10 @@
   "sys.launch_stale.action": "Close the app",
   "sys.missing_init_data.title": "Could not read Telegram data",
   "sys.missing_init_data.body": "Telegram did not hand us the launch data, so we cannot verify who you are. Reopen the app from the bot.",
-  "rider.notifications.prefs.pending": "Notification preferences are not built yet. Your ride notifications always reach you, and you may also receive general announcements from the Wasla team in your city."
+  "rider.notifications.prefs.pending": "Notification preferences are not built yet. Your ride notifications always reach you, and you may also receive general announcements from the Wasla team in your city.",
+  "vehicle.type.motorcycle": "Motorcycle",
+  "vehicle.type.pickup": "Pickup",
+  "vehicle.type.sedan": "Sedan",
+  "vehicle.type.suv": "SUV",
+  "vehicle.type.van": "Van"
 }

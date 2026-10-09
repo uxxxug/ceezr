@@ -30,6 +30,7 @@ import {
   type MiniAppLanguage,
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
+import { Glyph, IconChevron } from "../../../system/ui/icons.tsx";
 import { TicketsScreen } from "../../support/TicketsScreen.tsx";
 import type { OpenTicketInput, ReadTicketsInput } from "../../support/ticket-api.ts";
 import type { OpenTicketResponse, SupportTicketsResponse } from "../../support/ticket-contract.ts";
@@ -129,7 +130,11 @@ export function SupportScreen({
             {onOpenSos !== undefined && <SosEntry onOpen={onOpenSos} language={language} />}
             {onOpenFaq !== undefined && (
               <button type="button" className="sup__faq" onClick={onOpenFaq}>
-                {t("rider.support.faq.open")}
+                <span className="sup__faq-icon">
+                  <Glyph name="support" />
+                </span>
+                <span className="sup__faq-label">{t("rider.support.faq.open")}</span>
+                <IconChevron className="sup__faq-chevron" />
               </button>
             )}
           </>

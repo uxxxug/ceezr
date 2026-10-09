@@ -28,6 +28,7 @@ import {
   updateDriverVehicle,
 } from "./vehicle-api.ts";
 import {
+  isKnownVehicleType,
   isRetryableVehicleError,
   toVehicleDashboard,
   type VehicleDashboardModel,
@@ -39,7 +40,7 @@ export interface VehicleScreenProps {
   readonly onBack?: () => void;
   /** `UI-4`: حينَ يرسمُ `ScreenFrame` العنوانَ (H1) لا يُكرَّرُ ههنا. الافتراضُ `true`. */
   readonly showTitle?: boolean;
-  readonly readVehicle?: () => Promise<ApiDriverVehicleResponse>;
+  readonly readVehicle?: () => Promise<ApiDriverVehicleResponse | null>;
   readonly readAssets?: () => Promise<ApiDriverVehicleAssetsReadResponse>;
 }
 
@@ -87,13 +88,14 @@ export function VehicleScreen({
     setState({ kind: "loading" });
     try {
       const response = await readVehicle();
-      setState({ kind: "ready", vehicle: toVehicleDashboard(response) });
-      setVehicleType(response.vehicle_type ?? "");
-      setPlateNumber(response.plate_number ?? "");
-      setVehicleYear(response.vehicle_year !== null ? String(response.vehicle_year) : "");
+      const vehicle = toVehicleDashboard(response);
+      setState({ kind: "ready", vehicle });
+      setVehicleType(vehicle.vehicleType ?? "");
+      setPlateNumber(vehicle.plateNumber ?? "");
+      setVehicleYear(vehicle.vehicleYear !== null ? String(vehicle.vehicleYear) : "");
       // تحميل روابط القراءة الموقعة للشعار والباركود بعد قراءة المركبة.
       // لا يُعطَّل قراءة المركبة بغياب المُوقِّع — روابطُ القراءةِ تكميليّةٌ.
-      if (response.logo_object_path !== null || response.barcode_object_path !== null) {
+      if (vehicle.logoObjectPath !== null || vehicle.barcodeObjectPath !== null) {
         try {
           const assets = await readAssets();
           setAssetUrls({
@@ -173,7 +175,7 @@ export function VehicleScreen({
                 <dd>
                   {state.vehicle.vehicleTypeLabelKey !== null
                     ? t(state.vehicle.vehicleTypeLabelKey)
-                    : t("driver.vehicle.value.not_set")}
+                    : (state.vehicle.vehicleType ?? t("driver.vehicle.value.not_set"))}
                 </dd>
               </div>
               <div className="dveh__info-row">
@@ -299,6 +301,10 @@ export function VehicleScreen({
                 onChange={(e) => setVehicleType(e.target.value)}
               >
                 <option value="">{t("driver.vehicle.value.not_set")}</option>
+                {/* قيمةٌ حرّةٌ قائمةٌ تبقى خياراً كي لا يمحوَها الحفظُ صامتاً. */}
+                {vehicleType !== "" && !isKnownVehicleType(vehicleType) ? (
+                  <option value={vehicleType}>{vehicleType}</option>
+                ) : null}
                 <option value="sedan">{t("driver.vehicle.type.sedan")}</option>
                 <option value="suv">{t("driver.vehicle.type.suv")}</option>
                 <option value="van">{t("driver.vehicle.type.van")}</option>

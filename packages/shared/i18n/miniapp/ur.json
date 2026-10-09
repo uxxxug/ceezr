@@ -1419,7 +1419,7 @@
   "rider.ride.activeTitle": "آپ کا سفر",
   "driver.tabs.offers": "آفرز",
   "driver.tabs.job": "میرا کام",
-  "driver.tabs.earnings": "میری آمدنی",
+  "driver.tabs.earnings": "میری کارکردگی",
   "driver.tabs.account": "اکاؤنٹ",
   "driver.tabs.navigation": "مرکزی نیویگیشن",
   "driver.nav.back": "واپس",
@@ -1612,5 +1612,10 @@
   "sys.launch_stale.action": "ایپ بند کریں",
   "sys.missing_init_data.title": "ٹیلیگرام کا ڈیٹا نہیں پڑھا جا سکا",
   "sys.missing_init_data.body": "ٹیلیگرام نے ہمیں کھولنے کا ڈیٹا نہیں دیا، اس لیے آپ کی شناخت کی تصدیق نہیں ہو سکتی۔ بوٹ سے ایپ دوبارہ کھولیں۔",
-  "rider.notifications.prefs.pending": "اطلاعات کی ترجیحات ابھی نہیں بنیں۔ آپ کی سواری کی اطلاعات ہمیشہ آپ تک پہنچتی ہیں، اور آپ کے شہر میں وصلہ ٹیم کے عمومی اعلانات بھی آ سکتے ہیں۔"
+  "rider.notifications.prefs.pending": "اطلاعات کی ترجیحات ابھی نہیں بنیں۔ آپ کی سواری کی اطلاعات ہمیشہ آپ تک پہنچتی ہیں، اور آپ کے شہر میں وصلہ ٹیم کے عمومی اعلانات بھی آ سکتے ہیں۔",
+  "vehicle.type.motorcycle": "موٹر سائیکل",
+  "vehicle.type.pickup": "پک اپ",
+  "vehicle.type.sedan": "سیڈان",
+  "vehicle.type.suv": "ایس یو وی",
+  "vehicle.type.van": "وین"
 }

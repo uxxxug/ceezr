@@ -111,8 +111,8 @@ export const GALLERY_AUDIENCES: readonly {
   readonly id: GalleryAudience;
   readonly label: string;
 }[] = [
-  { id: "rider", label: "طالب الخدمة (بوت الراكب)" },
-  { id: "driver", label: "السائق — مزوّد الخدمة (بوت السائق)" },
+  { id: "rider", label: "الراكب (بوت الراكب)" },
+  { id: "driver", label: "السائق (بوت السائق)" },
   { id: "drivers_group", label: "قروب السائقين غير المشتركين" },
   { id: "support_group", label: "قروب الدعم" },
   { id: "escalation_group", label: "قروب التصعيد والسلامة" },
@@ -1009,7 +1009,7 @@ const CATALOG_RULES: readonly (readonly [string, CatalogAudience])[] = [
 ];
 
 const CATALOG_LABELS: Record<CatalogAudience, string> = {
-  rider: "طالب الخدمة",
+  rider: "الراكب",
   driver: "السائق",
   drivers_group: "قروب السائقين",
   support_group: "قروب الدعم",

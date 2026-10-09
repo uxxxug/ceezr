@@ -48,6 +48,7 @@ import {
   miniAppTranslator,
 } from "../../../../../../packages/shared/i18n/miniapp/core.ts";
 import { TRUTH_AGE_UNKNOWN_KEY, TRUTH_SOURCE_KEYS, truthAge } from "../../../system/truth.ts";
+import { Glyph } from "../../../system/ui/icons.tsx";
 import { readSosSurface as readViaApi, triggerSos as triggerViaApi } from "./sos-api.ts";
 import type { SosSurfaceResponse, SosTriggerResponse } from "./sos-contract.ts";
 import {
@@ -298,6 +299,7 @@ export function SosCard({
               setArmed(true);
             }}
           >
+            <Glyph name="shield" className="sos__arm-icon" />
             {t("rider.sos.arm")}
           </button>
         ))}

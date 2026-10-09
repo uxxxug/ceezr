@@ -56,6 +56,7 @@ import { deviceOnline, probeReachability } from "../../../system/health.ts";
 import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
+import { vehicleTypeText } from "../../../system/vehicle-type.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import {
   readRideSummary as readViaApi,
@@ -381,7 +382,10 @@ export function RideSummaryScreen({
             </p>
             <p className="sm__driver-vehicle">
               {t("rider.summary.driver.vehicle")
-                .replace("{vehicle}", driver.vehicleType ?? t("rider.summary.driver.noVehicle"))
+                .replace(
+                  "{vehicle}",
+                  vehicleTypeText(t, driver.vehicleType) ?? t("rider.summary.driver.noVehicle"),
+                )
                 .replace("{plate}", driver.plateNumber ?? t("rider.summary.driver.noPlate"))}
             </p>
             {/* `null` = لا تقييمَ بعدُ: يُقالُ نصّاً ولا يُعرَضُ صفرٌ. */}
