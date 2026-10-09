@@ -33,12 +33,8 @@
     "packages/shared/i18n/miniapp/en.json",
     "packages/shared/i18n/miniapp/ur.json"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/adr/0249-ux-handoff-completion.md",
     "docs/evidence/archive/ux-handoff-20261009/D1-D2-offers.jpg",
