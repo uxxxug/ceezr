@@ -1,0 +1,61 @@
+{
+  "id": "perf-rider-quote-deferred",
+  "goal": "إخراجُ شاشةِ التسعيرِ ومساعدَي العرضِ ونصوصِها من الحِملِ الأوّلِ للراكب بموافقةِ المالكِ على تعديلِ 9.4، لاستعادةِ حارسِ Slow 4G بهامشٍ مقيسٍ دونَ تخفيضِ الحدّ أو إعادةِ التشغيل.",
+  "canonical_source": [
+    "docs/ROADMAP-MASTER.md §9.4 (ملاحظةُ التعديل · ح-1) · §9.9",
+    "موافقةُ المالكِ الصريحة 2026-10-09 على إخراجِ التسعيرِ من مسارِ التحميلِ الأوّل",
+    "ADR 0185 · ADR 0188"
+  ],
+  "implementation": [
+    "apps/miniapp/src/surfaces/rider/RiderRoot.tsx",
+    "apps/miniapp/src/surfaces/rider/quote/QuoteScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/search/search-view.ts",
+    "apps/miniapp/src/surfaces/rider/summary/ride-summary-view.ts",
+    "apps/miniapp/src/surfaces/driver/offers/offers-view.ts",
+    "apps/miniapp/vite.config.ts",
+    "apps/miniapp/vite/assert-rider-first-surface.ts",
+    "packages/shared/i18n/miniapp/partitions.ts",
+    "packages/shared/i18n/miniapp/ar-parts/rider-quote.ts",
+    "packages/shared/i18n/miniapp/ar-parts/rider-views.ts",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "scripts/lib/performance-budget.ts",
+    "tests/unit/assert-rider-first-surface.test.ts",
+    "tests/unit/arabic-partitions.test.ts",
+    "apps/miniapp/src/surfaces/rider/rider-r6-r10.test.tsx",
+    "apps/miniapp/src/surfaces/rider/rider-root-screen-stack.test.tsx",
+    "packages/shared/i18n/miniapp/ar-parts/rider-destination.ts",
+    "apps/miniapp/src/surfaces/rider/destination/DestinationScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/destination/destination-view.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0251-rider-quote-deferred-bundle.md",
+    "docs/ROADMAP-MASTER.md",
+    "docs/evidence/architecture/F1-09-20261009-rider-quote-deferred.md",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md"
+  ],
+  "decision": "ADR 0251: `rider-quote` و`rider-views` حزمتانِ مؤجَّلتانِ بعدَ رسمِ السطحِ الأوّل؛ الرئيسيةُ والوجهةُ والاستغاثةُ تبقى في `rider-home`. لا تغييرَ في التنقّلِ ولا العقودِ ولا سلوكِ الطلب. · D-41 (ADR 0251 §6): الوجهةُ مؤجَّلةٌ أيضاً بعدَ أن أعطى CI وسيطاً على الحدِّ بلا هامش.",
+  "tests": [
+    "bun test apps/miniapp — 656 نجاحاً",
+    "bun test tests/unit",
+    "bun run lint · bun run typecheck",
+    "check-performance-budget",
+    "assert-rider-first-surface · assert-dictionary-partitions داخلَ البناء",
+    "scripts/measure-tti.ts Slow 4G — A/B محلّيٌّ متناوبٌ وCI"
+  ],
+  "evidence": "docs/evidence/architecture/F1-09-20261009-rider-quote-deferred.md · CI 37960017993 (6bc0a919): Slow 4G 1936/1948/1936 → 1,936 ms.",
+  "constraints": [
+    "لا تخفيضَ لحدِّ 2,000 ms",
+    "لا إعادةَ تشغيلٍ حتّى النجاح",
+    "لا تغييرَ في عقودِ API أو تدفّقِ الطلب",
+    "الوجهةُ لا تُؤجَّلُ (خارجَ إذنِ المالك)"
+  ],
+  "limitations": [
+    "الأرقامُ محاكاةُ Chromium لا جهازٌ حقيقيّ (ح-5)",
+    "نقرٌ سريعٌ جداً على التسعيرِ قبلَ وصولِ حزمتِه يعرضُ هيكلَ التحميلِ داخلَ الإطار"
+  ],
+  "status": "open"
+}

@@ -54,7 +54,9 @@
  *   ــ **لا تحفظُ الاقتباسَ محلّيّاً**: يُعادُ سؤالُه في كلِّ تركيبٍ.
  */
 
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/rider-destination.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/rider-quote.ts";
 import {
   RIDE_NOTES_MAX_LENGTH,
   readRideNotes,

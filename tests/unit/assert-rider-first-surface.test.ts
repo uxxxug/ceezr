@@ -59,18 +59,28 @@ describe("riderFirstSurfaceViolations (F1-09 · D-30)", () => {
     expect(riderFirstSurfaceViolations([])).toHaveLength(1);
   });
 
-  it("مساعداتُ العرضِ النقيّةُ ليست مؤجَّلةً (يستوردُها السطحُ الأوّلُ والسائقُ)", () => {
-    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/search/search-view.ts`)).toBe(false);
-    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/summary/ride-summary-view.ts`)).toBe(false);
+  it("ADR 0251: التسعيرُ والوجهةُ (D-41) ومساعدا العرضِ النقيّانِ مؤجَّلةٌ؛ الرئيسيةُ والاستغاثةُ والترحيبُ لا", () => {
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/search/search-view.ts`)).toBe(true);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/summary/ride-summary-view.ts`)).toBe(true);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/quote/quote-view.ts`)).toBe(true);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/destination/DestinationScreen.tsx`)).toBe(
+      true,
+    );
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/destination/destination-view.ts`)).toBe(
+      true,
+    );
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/rider-flow.ts`)).toBe(false);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/sos/SosCard.tsx`)).toBe(false);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/welcome/WelcomeScreen.tsx`)).toBe(false);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/search/SearchScreen.tsx`)).toBe(true);
     expect(isDeferredRiderModule(`${SRC}/surfaces/account/AccountRights.tsx`)).toBe(true);
-    // `D-32`: السجلُّ وتفاصيلُه والإشعاراتُ مؤجَّلةٌ، والرئيسيةُ والتسعيرُ لا.
+    // `D-32`: السجلُّ وتفاصيلُه والإشعاراتُ مؤجَّلةٌ، والرئيسيةُ لا. و`D-40`: التسعيرُ مؤجَّلٌ (ADR 0251).
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/history/ride-history-view.ts`)).toBe(true);
     expect(
       isDeferredRiderModule(`${SRC}/surfaces/rider/notifications/NotificationsScreen.tsx`),
     ).toBe(true);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/rider-history-screens.ts`)).toBe(true);
     expect(isDeferredRiderModule(`${SRC}/surfaces/rider/home/HomeScreen.tsx`)).toBe(false);
-    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/quote/QuoteScreen.tsx`)).toBe(false);
+    expect(isDeferredRiderModule(`${SRC}/surfaces/rider/quote/QuoteScreen.tsx`)).toBe(true);
   });
 });

@@ -30,6 +30,7 @@
  *      مُختبَرٌ لا مُثبَتٌ عندَ مستخدمٍ (سُلَّمُ القسم 1.3).
  */
 
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/rider-destination.ts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   assessDeviceFix,

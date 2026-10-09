@@ -169,9 +169,9 @@ describe("R6–R10 داخلَ إطارِ UI-2 — رجوعٌ واحدٌ ولا �
   it("R6: البحثُ تدفّقٌ برجوعِ الإطار، ولغةٌ موصولة، ومدخلُ SOS", () => {
     const b = branch("if (intent !== null)");
     expect(b).toContain(
-      '<ScreenFrame\n        mode="flow"\n        title={t("rider.search.title")}',
+      '<ScreenFrame\n        mode="flow"\n        title={t("rider.frame.search")}',
     );
-    expect(b).toContain('back={{ label: t("rider.search.back"), onBack: leaveSearch }}');
+    expect(b).toContain('back={{ label: t("rider.frame.back"), onBack: leaveSearch }}');
     expect(b).toContain("initialLanguage={language}");
     expect(b).toContain("showTitle={false}");
     expect(b).toContain("onOpenSos={onOpenSos}");
@@ -181,7 +181,7 @@ describe("R6–R10 داخلَ إطارِ UI-2 — رجوعٌ واحدٌ ولا �
   it("R7: الرحلةُ النشطةُ تدفّقٌ، وفيها السكّةُ والشريطُ وR8 وبطاقةُ SOS", () => {
     const b = branch("if (followed !== null)");
     expect(b).toContain('title={t("rider.ride.activeTitle")}');
-    expect(b).toContain('back={{ label: t("rider.search.back"), onBack: leaveActive }}');
+    expect(b).toContain('back={{ label: t("rider.frame.back"), onBack: leaveActive }}');
     expect(b).toContain("initialLanguage={language}");
     expect(b).toContain("showTitle={false}");
     expect(ACTIVE).toContain("truth={activeRideTruth(view.phase)}");
@@ -199,7 +199,7 @@ describe("R6–R10 داخلَ إطارِ UI-2 — رجوعٌ واحدٌ ولا �
 
   it("R10: الملخّصُ تدفّقٌ برجوعِ الإطارِ وحدَه، ومدخلُ SOS والشكوى موصولان", () => {
     const b = branch("if (summarized !== null)");
-    expect(b).toContain('back={{ label: t("rider.summary.back"), onBack: leaveSummary }}');
+    expect(b).toContain('back={{ label: t("rider.frame.back"), onBack: leaveSummary }}');
     expect(b).toContain("showBack={false}");
     expect(b).toContain("showTitle={false}");
     expect(b).toContain("onOpenSos={onOpenSos}");

@@ -29,6 +29,7 @@
  *   ــ **لا يُصيغُ نصّاً**: مفاتيحٌ وأعدادٌ، والنصُّ في `packages/shared/i18n`.
  */
 
+import "../../../../../../packages/shared/i18n/miniapp/ar-parts/rider-views.ts";
 import {
   elapsedSecondsSince,
   isRideStatus,

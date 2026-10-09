@@ -38,10 +38,18 @@ describe("قاعدةُ التقسيمِ", () => {
 
   it("نصوصُ السطحِ الأوّلِ والإطارِ في `core`", () => {
     for (const key of Object.keys(dictionary)) {
-      if (/^(?:welcome|consent|rider\.(?:home|quote|destination|sos|search|summary))\./.test(key)) {
+      if (/^(?:welcome|consent|sys|rider\.(?:home|sos|frame))\./.test(key)) {
         expect(arabicPartitionOf(key)).toBe("core");
       }
     }
+    // ADR 0251 · D-41: نصوصُ الوجهةِ وأماكنِها معَ شاشتِها، وعنوانُ إطارِها `rider.frame.destination` في `core`.
+    expect(arabicPartitionOf("rider.destination.title")).toBe("rider-destination");
+    expect(arabicPartitionOf("rider.place.kind.home")).toBe("rider-destination");
+    expect(arabicPartitionOf("rider.frame.destination")).toBe("core");
+    // ADR 0251: نصوصُ التسعيرِ والبحثِ والملخّصِ تُجلَبُ معَ شاشاتِها لا في الحِملِ الأوّل.
+    expect(arabicPartitionOf("rider.quote.title")).toBe("rider-quote");
+    expect(arabicPartitionOf("rider.search.title")).toBe("rider-views");
+    expect(arabicPartitionOf("rider.summary.title")).toBe("rider-views");
     expect(arabicPartitionOf("driver.offers.title")).toBe("driver");
     expect(arabicPartitionOf("rider.history.title")).toBe("rider-history");
   });
