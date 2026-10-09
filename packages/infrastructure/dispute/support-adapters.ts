@@ -118,6 +118,7 @@ export function createSupportTicketContextReader(sql: Sql): SupportTicketContext
             attachmentFileId: toText(envelope.attachment_file_id),
             orderId: toText(envelope.order_id),
             createdAt: created,
+            lostAt: toDate(envelope.lost_at),
             owner: {
               fullName: String(envelope.full_name ?? ""),
               // الهاتف قد يكون فارغاً لعميل سجّل بلا مشاركة رقمه

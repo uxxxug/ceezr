@@ -56,6 +56,7 @@ export class PostgresRiderSupportStore implements RiderSupportStore {
     readonly category: Parameters<RiderSupportStore["openTicket"]>[0]["category"];
     readonly message: string;
     readonly orderId: string | null;
+    readonly lostAt?: string | null;
   }): Promise<Result<OpenedSupportTicket, SupportStoreError>> {
     const telegramId = asTelegramId(input.telegramUserId);
     if (telegramId === null) return err(failed("MALFORMED_RESULT"));
@@ -63,12 +64,13 @@ export class PostgresRiderSupportStore implements RiderSupportStore {
     let rows: ResultRow[];
     try {
       rows = await this.#sql<ResultRow[]>`
-        select open_support_ticket(
+        select open_support_ticket_with_lost_at(
           ${telegramId}::bigint,
           ${input.category}::support_ticket_type,
           ${input.message}::text,
           null::text,
-          ${input.orderId}::uuid
+          ${input.orderId}::uuid,
+          ${input.lostAt ?? null}::timestamptz
         ) as result`;
     } catch {
       return err(failed("STORE_ERROR"));

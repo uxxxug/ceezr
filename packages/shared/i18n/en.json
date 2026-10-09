@@ -296,6 +296,7 @@
   "support.answer_hint": "💬 To reply in writing: /answer {ticket_short} <reply text> — it reaches the owner verbatim and closes the ticket.",
   "support.answer_needs_command": "💬 /answer",
   "support.card": "🎫 Ticket {ticket_short} — {type}\n👤 {name}\n📞 {phone}\n🆔 {telegram}\n📍 {city}\n💳 {subscription}\n\n📝 {message}",
+  "support.card_lost_at": "Approximate time of loss as reported: {at}",
   "support.card_no_subscription": "No subscription",
   "support.card_subscription": "{plan} — {status} (until {until})",
   "support.card_subscription_expired": "{plan} — {status} ⚠️ not live",

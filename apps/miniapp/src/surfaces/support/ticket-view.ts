@@ -57,6 +57,10 @@ export const SUPPORT_SURFACE_ERROR_CODES: readonly string[] = [
   "CITY_NOT_READY",
   "LIMIT_OUT_OF_RANGE",
   "CURSOR_INVALID",
+  "LOST_AT_INVALID",
+  "LOST_AT_NOT_ALLOWED",
+  "LOST_AT_IN_FUTURE",
+  "LOST_AT_BEFORE_RIDE",
 ];
 
 const KNOWN_ERRORS: ReadonlySet<string> = new Set(SUPPORT_SURFACE_ERROR_CODES);
@@ -97,6 +101,8 @@ export interface SupportTicketRow {
   readonly createdAt: string;
   /** هل لها رحلةٌ؟ — الشاشةُ تُظهِرُ سطراً لا معرّفاً خاماً بطولِ ٣٦ محرفاً. */
   readonly hasOrder: boolean;
+  /** ADR 0253: ما قدّمَه صاحبُ البلاغِ أو `null`. */
+  readonly lostAt: string | null;
 }
 
 /**
@@ -115,6 +121,8 @@ export interface SupportSurfaceSpec {
   readonly requiresOrder: (category: string) => boolean;
   /** حدُّ نصِّ الشكوى **بالمحارفِ** كما نشرَه النطاقُ. */
   readonly maxMessageChars: number;
+  /** ADR 0253: الأصنافُ التي تقبلُ وقتَ فقدٍ تقريبيّاً اختياريّاً — غيابُها = لا صنف. */
+  readonly acceptsLostAt?: (category: string) => boolean;
 }
 
 /** نموذجُ عرضٍ مربوطٌ بدورٍ — يُبنى مرّةً في سطحِ الدورِ. */
@@ -163,6 +171,7 @@ export function supportViewModel(spec: SupportSurfaceSpec): SupportViewModel {
       resolution: ticket.resolution,
       createdAt: ticket.createdAt,
       hasOrder: ticket.orderId !== null,
+      lostAt: ticket.lostAt ?? null,
     }),
     /**
      * هل النموذجُ صالحٌ للإرسالِ؟ — **فحصٌ للزرِّ لا بديلٌ عن الخادمِ**: يمنعُ
@@ -181,4 +190,36 @@ export function supportViewModel(spec: SupportSurfaceSpec): SupportViewModel {
     /** المتبقّي من الحدِّ — عدٌّ يُعرَضُ، وسالبُه صفرٌ لا رقمٌ سالبٌ على شاشةٍ. */
     remainingChars: (message) => Math.max(0, spec.maxMessageChars - [...message].length),
   };
+}
+
+/**
+ * ADR 0253: قيمةُ `datetime-local` (بساعةِ الجهاز، بلا منطقة) ← لحظةٌ ISO بمنطقةٍ صريحة.
+ * فارغٌ = `null` (لا وقتَ يُخترَع)، وقيمةٌ لا تُقرأ = `undefined` (يُقالُ للراكبِ ولا تُرسَل).
+ */
+export function lostAtFromLocalInput(value: string): string | null | undefined {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) return undefined;
+  const at = new Date(trimmed);
+  return Number.isFinite(at.getTime()) ? at.toISOString() : undefined;
+}
+
+/** حدُّ `max` لحقلِ `datetime-local` — الآنَ بساعةِ الجهاز، بالدقيقة. */
+export function localInputNow(now: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+/** لحظةٌ للعرضِ بساعةِ الجهازِ — الساعةُ نفسُها التي كتبَ بها الراكبُ الوقت. */
+export function formatLostAt(iso: string, language: string): string | null {
+  const at = new Date(iso);
+  if (!Number.isFinite(at.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat(`${language}-u-ca-gregory`, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(at);
+  } catch {
+    return null;
+  }
 }

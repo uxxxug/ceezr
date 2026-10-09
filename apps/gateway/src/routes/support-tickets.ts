@@ -106,6 +106,11 @@ const STATUS_BY_ERROR: Readonly<Record<RiderSupportPublicErrorCode, 401 | 403 | 
     // مدينةٌ بلا قروبِ دعمٍ: تهيئةٌ ناقصةٌ عندَنا لا خطأُ المستخدمِ.
     CITY_NOT_READY: 503,
     COOLDOWN_ACTIVE: 409,
+    // ADR 0253: وقتُ الفقدِ قيمةٌ مفهومةٌ خارجَ مجالِها.
+    LOST_AT_INVALID: 422,
+    LOST_AT_NOT_ALLOWED: 422,
+    LOST_AT_IN_FUTURE: 422,
+    LOST_AT_BEFORE_RIDE: 422,
   };
 
 function rejected(c: Context, rejection: RiderSupportRejection) {
@@ -163,6 +168,7 @@ export function createSupportRoutes(deps: SupportRouteDependencies): Hono {
       category: body?.category,
       message: body?.message,
       orderId: body?.order_id,
+      lostAt: body?.lost_at,
     });
     if (!result.ok) return rejected(c, result.error);
 

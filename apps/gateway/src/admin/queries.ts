@@ -1407,6 +1407,7 @@ export async function listDisputes(
       party_telegram_id: string | null;
       order_id: string | null;
       message: string;
+      lost_at: string | null;
       claimed_by_name: string | null;
       claimed_at: string | null;
       resolved_by_name: string | null;
@@ -1422,7 +1423,7 @@ export async function listDisputes(
            coalesce(du.full_name, ru.full_name) as party_name,
            case when t.driver_id is not null then 'driver' else 'rider' end as party_role,
            coalesce(du.telegram_id, ru.telegram_id)::text as party_telegram_id,
-           t.order_id, t.message,
+           t.order_id, t.message, t.lost_at,
            cu.full_name as claimed_by_name, t.claimed_at,
            ru2.full_name as resolved_by_name, t.resolved_at,
            t.resolution as resolution_note,
@@ -1469,6 +1470,8 @@ export async function listDisputes(
     partyTelegramId: row.party_telegram_id,
     orderId: row.order_id,
     message: row.message,
+    // ADR 0253: ما قدّمَه صاحبُ البلاغِ أو `null` — لا يُستنتَج.
+    lostAt: row.lost_at === null ? null : String(row.lost_at),
     claimedByName: row.claimed_by_name,
     claimedAt: row.claimed_at === null ? null : String(row.claimed_at),
     resolvedByName: row.resolved_by_name,

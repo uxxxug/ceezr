@@ -43,6 +43,14 @@ function formatDate(value: Date | null): string {
 }
 
 /**
+ * ADR 0253: لحظةٌ بتوقيتِ السعوديّةِ (UTC+3 ثابتٌ بلا توقيتٍ صيفيّ) — الدقيقةُ تهمُّ البحثَ عن مفقود.
+ */
+function formatInstant(value: Date): string {
+  const shifted = new Date(value.getTime() + 3 * 60 * 60 * 1000);
+  return `${shifted.toISOString().slice(0, 16).replace("T", " ")} (UTC+3)`;
+}
+
+/**
  * سطر الاشتراك يُبنى من لقطة قُرئت لحظة النشر لا من ذاكرة مؤقتة: موظّف الدعم
  * الذي يقرأ «فعّال» عن اشتراك منتهٍ سيفعّل اشتراكاً مفعّلاً أو يرفض طلباً محقّاً.
  */
@@ -120,9 +128,15 @@ export function createSupportCardPublisher(sender: SupportSender): SupportCardPu
           subscription: subscriptionLine(ticket.subscription, tr),
           message: ticket.message,
         });
+        // ADR 0253: سطرُ وقتِ الفقدِ حينَ قدّمَه صاحبُ البلاغِ وحدَه — لا سطرَ «غيرُ معروف».
+        const lostAt = ticket.lostAt ?? null;
+        const withLost =
+          lostAt === null
+            ? text
+            : `${text}\n${tr("support.card_lost_at", { at: formatInstant(lostAt) })}`;
         const keyboard = keyboardFor(card, tr);
         // سبيلُ الردِّ يُقالُ على البطاقةِ نفسِها: أمرٌ لا يعرفُه الفريقُ أمرٌ لا وجودَ له.
-        const withHint = `${text}\n\n${tr("support.answer_hint", { ticket_short: ticket.id.slice(0, 8) })}`;
+        const withHint = `${withLost}\n\n${tr("support.answer_hint", { ticket_short: ticket.id.slice(0, 8) })}`;
 
         if (ticket.attachmentFileId === null) {
           return sender.sendReturningId(card.groupId, withHint, keyboard);

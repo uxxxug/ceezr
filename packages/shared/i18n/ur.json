@@ -296,6 +296,7 @@
   "support.answer_hint": "💬 تحریری جواب کے لیے: /answer {ticket_short} <جواب کا متن> — مالک تک لفظ بلفظ پہنچے گا اور ٹکٹ بند ہو جائے گا۔",
   "support.answer_needs_command": "💬 /answer",
   "support.card": "🎫 ٹکٹ {ticket_short} — {type}\n👤 {name}\n📞 {phone}\n🆔 {telegram}\n📍 {city}\n💳 {subscription}\n\n📝 {message}",
+  "support.card_lost_at": "رپورٹ کے مطابق گمشدگی کا تقریبی وقت: {at}",
   "support.card_no_subscription": "کوئی سبسکرپشن نہیں",
   "support.card_subscription": "{plan} — {status} ({until} تک)",
   "support.card_subscription_expired": "{plan} — {status} ⚠️ غیر فعال",

@@ -72,6 +72,8 @@ export const RIDER_SUPPORT_SPEC: SupportSurfaceSpec = {
   readOnlyCategories: RIDER_READ_ONLY_CATEGORIES,
   requiresOrder: (category) => categoryRequiresOrder(category as RiderSupportCategory),
   maxMessageChars: MAX_SUPPORT_MESSAGE_CHARS,
+  // ADR 0253: بلاغُ المفقوداتِ وحدَه يحملُ وقتاً تقريبيّاً — حكمُ الخادمِ نفسُه.
+  acceptsLostAt: (category) => category === "lost_item",
 };
 
 const view = supportViewModel(RIDER_SUPPORT_SPEC);

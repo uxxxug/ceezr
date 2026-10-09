@@ -2986,6 +2986,30 @@ a.sys__action {
   resize: vertical;
 }
 
+/* ADR 0253: وقتُ الفقدِ التقريبيُّ — حقلٌ اختياريٌّ لبلاغِ المفقوداتِ وحدَه، بشكلِ حقلِ الرسالة. */
+.sup__lost-at {
+  display: grid;
+  gap: 0.375rem;
+}
+
+.sup__lost-at-input {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--w-line);
+  border-radius: var(--r-md);
+  background: var(--w-page);
+  color: var(--tg-text-color);
+  font: inherit;
+}
+
+.sup__ticket-lost-at {
+  margin: 0;
+  color: var(--tg-hint-color);
+  font-size: var(--ui-size-caption);
+}
+
 .sup__submit,
 .sup__retry,
 .sup__more {

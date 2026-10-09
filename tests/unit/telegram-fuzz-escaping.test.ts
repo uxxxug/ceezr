@@ -183,6 +183,7 @@ function ticketWith(resolution: string | null): SupportTicketView {
     orderId: "order-9",
     createdAt: "2026-10-06T09:00:00.000Z",
     resolvedAt: "2026-10-06T10:00:00.000Z",
+    lostAt: null,
   };
 }
 

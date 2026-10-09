@@ -296,6 +296,7 @@
   "support.answer_hint": "💬 للردّ كتابةً: /answer {ticket_short} <نصّ الردّ> — يصل صاحب التذكرة حرفاً ويغلقها.",
   "support.answer_needs_command": "💬 /answer",
   "support.card": "🎫 تذكرة {ticket_short} — {type}\n👤 {name}\n📞 {phone}\n🆔 {telegram}\n📍 {city}\n💳 {subscription}\n\n📝 {message}",
+  "support.card_lost_at": "وقت الفقد التقريبي كما ذكره المبلّغ: {at}",
   "support.card_no_subscription": "لا يوجد اشتراك",
   "support.card_subscription": "{plan} — {status} (حتى {until})",
   "support.card_subscription_expired": "{plan} — {status} ⚠️ غير فعّال",

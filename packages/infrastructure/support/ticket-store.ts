@@ -48,6 +48,9 @@ const REJECTIONS: readonly SupportStoreRejection[] = [
   "ORDER_NOT_YOURS",
   "LIMIT_OUT_OF_RANGE",
   "CURSOR_INCOMPLETE",
+  "LOST_AT_NOT_ALLOWED",
+  "LOST_AT_IN_FUTURE",
+  "LOST_AT_BEFORE_RIDE",
 ];
 
 export function failed(
@@ -127,6 +130,8 @@ export function readTicket(value: unknown): SupportTicketView | null {
     orderId: typeof value.order_id === "string" ? value.order_id : null,
     createdAt,
     resolvedAt: readInstant(value.resolved_at),
+    // ADR 0253: ما قدّمَه صاحبُ البلاغِ أو `null` — والدالّةُ القديمةُ بلا الحقلِ تُقرأُ `null`.
+    lostAt: readInstant(value.lost_at),
   };
 }
 
