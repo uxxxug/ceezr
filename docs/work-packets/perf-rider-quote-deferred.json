@@ -34,7 +34,8 @@
   "affected_docs": [
     "docs/adr/0251-rider-quote-deferred-bundle.md",
     "docs/ROADMAP-MASTER.md",
-    "docs/evidence/architecture/F1-09-20261009-rider-quote-deferred.md"
+    "docs/evidence/architecture/F1-09-20261009-rider-quote-deferred.md",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md"
   ],
   "decision": "ADR 0251: `rider-quote` و`rider-views` حزمتانِ مؤجَّلتانِ بعدَ رسمِ السطحِ الأوّل؛ الرئيسيةُ والوجهةُ والاستغاثةُ تبقى في `rider-home`. لا تغييرَ في التنقّلِ ولا العقودِ ولا سلوكِ الطلب. · D-41 (ADR 0251 §6): الوجهةُ مؤجَّلةٌ أيضاً بعدَ أن أعطى CI وسيطاً على الحدِّ بلا هامش.",
   "tests": [
@@ -45,7 +46,7 @@
     "assert-rider-first-surface · assert-dictionary-partitions داخلَ البناء",
     "scripts/measure-tti.ts Slow 4G — A/B محلّيٌّ متناوبٌ وCI"
   ],
-  "evidence": "docs/evidence/architecture/F1-09-20261009-rider-quote-deferred.md",
+  "evidence": "docs/evidence/architecture/F1-09-20261009-rider-quote-deferred.md · CI 37960017993 (6bc0a919): Slow 4G 1936/1948/1936 → 1,936 ms.",
   "constraints": [
     "لا تخفيضَ لحدِّ 2,000 ms",
     "لا إعادةَ تشغيلٍ حتّى النجاح",
