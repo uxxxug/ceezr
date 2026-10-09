@@ -1,0 +1,41 @@
+{
+  "id": "prd-004-007-platform-decisions",
+  "goal": "PRD-004..007: كتابةُ قراراتِ المنصّةِ الأربعةِ في مصادرِها بحرّاس (ADR 0250).",
+  "canonical_source": [
+    "docs/governance/PRODUCTION_READINESS_GATE.md PRD-004..007",
+    "docs/adr/0245-ui-10-production-verification-polish.md"
+  ],
+  "implementation": [
+    "apps/gateway/src/server.ts",
+    "apps/miniapp/src/tg/readable.test.ts",
+    "apps/miniapp/src/tg/readable.ts",
+    "apps/miniapp/src/tg/theme.ts",
+    "apps/miniapp/vite.config.ts",
+    "deploy/staging/render.staging.yaml",
+    "docs/adr/0250-prd-004-007-platform-decisions.md",
+    "docs/work-packets/prd-004-007-platform-decisions.json",
+    "render.yaml",
+    "scripts/check-security-headers.ts",
+    "scripts/lib/staging-blueprint.ts",
+    "tests/unit/prd-004-007-decisions.test.ts",
+    "tests/unit/staging-blueprint.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0250-prd-004-007-platform-decisions.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md"
+  ],
+  "no_other_affected_docs_reason": "لا endpoint ولا هجرة ولا عقد؛ رأسٌ أمنيٌّ واحدٌ وإعداداتُ بناءٍ ونشر.",
+  "decision": "ADR 0250",
+  "tests": [
+    "tests/unit/prd-004-007-decisions.test.ts",
+    "tests/unit/staging-blueprint.test.ts",
+    "apps/miniapp/src/tg/readable.test.ts",
+    "CI كامل"
+  ],
+  "evidence": "قياسٌ حيٌّ قبلَ القرار في ADR 0250؛ القياسُ بعدَ النشر في دليلِ النشر.",
+  "constraints": ["لا includeSubDomains ولا preload", "لا لونَ مخترَع لمفتاحٍ غائب"],
+  "limitations": "سريانُ render.yaml يحتاجُ مزامنةَ Blueprint على Render.",
+  "status": "open"
+}

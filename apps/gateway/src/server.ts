@@ -253,6 +253,10 @@ export interface ServerDependencies {
   readonly httpMetrics?: OperationalMetrics;
 }
 
+/** PRD-006 · ADR 0250 — قيمةُ HSTS المملوكةُ للبوّابة. */
+export const GATEWAY_HSTS_HEADER = "Strict-Transport-Security";
+export const GATEWAY_HSTS_VALUE = "max-age=31536000";
+
 export function createServer(deps: ServerDependencies): Hono {
   const app = new Hono();
 
@@ -264,6 +268,15 @@ export function createServer(deps: ServerDependencies): Hono {
       ? createRequestIdMiddleware()
       : createRequestIdMiddleware(deps.newRequestId),
   );
+
+  // PRD-006 · ADR 0250: HSTS سياسةٌ مملوكةٌ للبوّابةِ على كلِّ ردٍّ (المسارُ و`404`
+  // والاستثناء)، لا اعتمادًا على حافّةِ المنصّة التي لم تُرسِله حيًّا. سنةٌ بلا
+  // `includeSubDomains` ولا `preload`: `onrender.com` نطاقٌ مشتركٌ لا نملكُه — كقاعدةِ
+  // التطبيقِ المصغَّرِ في `render.yaml`. والمتصفّحُ يتجاهلُه على HTTP المحلّيّ.
+  app.use("*", async (c, next) => {
+    await next();
+    c.header(GATEWAY_HSTS_HEADER, GATEWAY_HSTS_VALUE);
+  });
 
   // `F8-02`: ثانيَ وسيطٍ — بعدَ معرِّفِ الطلبِ كي يُلحَقَ الرأسُ بالردِّ الذي
   // نعُدُّه، وقبلَ المساراتِ كي يُعَدَّ `404` والاستثناءُ لا الناجحُ وحدَه.

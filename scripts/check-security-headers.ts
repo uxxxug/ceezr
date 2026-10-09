@@ -67,5 +67,5 @@ console.log(
     `الوسيطُ مُركَّبٌ على كلٍّ بلا شرطٍ، و${REQUIRED_PAGE_HEADERS.length} ترويساتٍ واجبةٍ مكتوبةٌ.`,
 );
 console.log(
-  "  ولا يُدَّعى `Strict-Transport-Security`: يُنهيهِ الوسيطُ العكسيُّ — بنيةٌ تحتيّةٌ لا شيفرةٌ، وهيَ فجوةٌ باقيةٌ مُسمّاةٌ.",
+  "  و`Strict-Transport-Security` تكتبُه البوّابةُ على كلِّ ردٍّ (PRD-006 · ADR 0250)، ويحرسُه tests/unit/prd-004-007-decisions.test.ts.",
 );

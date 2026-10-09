@@ -35,6 +35,7 @@
 import { isVersionAtLeast, resolveCapability } from "./capabilities.ts";
 import { onTelegramEvent, type TgUnsubscribe } from "./events.ts";
 import { type TgOutcome, tgOk, tgUnavailable } from "./outcome.ts";
+import { farPole, readableShift } from "./readable.ts";
 import { getContentSafeAreaInsets, getSafeAreaInsets, type TgInsets } from "./viewport.ts";
 import { getWebApp, type ThemeParams } from "./webapp.ts";
 
@@ -97,6 +98,8 @@ export type TgThemeReport = {
   readonly applied: readonly string[];
   /** متغيّراتٌ وردت لها قيمةٌ غيرُ مقبولةٍ فتُركت على افتراضِها. */
   readonly rejected: readonly string[];
+  /** PRD-007 · ADR 0250: ألوانُ نصٍّ دونَ 4.5:1 أُزيحت أقلَّ إزاحةٍ لتبلغَ AA. */
+  readonly adjusted: readonly string[];
   readonly header: TgOutcome<true>;
   readonly background: TgOutcome<true>;
   readonly bottomBar: TgOutcome<true>;
@@ -219,6 +222,50 @@ function sendBottomBarColor(params: ThemeParams): TgOutcome<true> {
  * لا يرمي في أيِّ حالة: غيابُ المضيفِ وغيابُ المستندِ وقيمةٌ فاسدةٌ كلُّها
  * حالاتٌ متوقَّعةٌ تُوصَف في التقريرِ العائد.
  */
+/**
+ * PRD-007 · ADR 0250 — ألوانُ النصِّ من سمةِ المضيفِ تُزاحُ أقلَّ إزاحةٍ إن سقطت دونَ
+ * AA على خلفيّتَي المضيف. ألوانُ إطارِ المضيفِ (`setHeaderColor`…) تبقى كما أرسلَها.
+ */
+export function readableThemeParams(params: ThemeParams): {
+  readonly params: ThemeParams;
+  readonly adjusted: readonly string[];
+} {
+  const out: Record<string, unknown> = { ...params };
+  const adjusted: string[] = [];
+  const valid = (v: unknown): string | null => hostColor(v);
+  const bgs = [valid(params.bg_color), valid(params.secondary_bg_color)].filter(
+    (v): v is string => v !== null,
+  );
+  if (bgs.length > 0) {
+    const toward = valid(params.text_color) ?? farPole(bgs[0] as string);
+    for (const key of [
+      "hint_color",
+      "subtitle_text_color",
+      "link_color",
+      "section_header_text_color",
+      "accent_text_color",
+    ] as const) {
+      const color = valid(params[key]);
+      if (color === null) continue;
+      const shifted = readableShift(color, bgs, toward);
+      if (shifted !== null) {
+        out[key] = shifted;
+        adjusted.push(`--tg-${key.replaceAll("_", "-")}`);
+      }
+    }
+  }
+  const button = valid(params.button_color);
+  const buttonText = valid(params.button_text_color);
+  if (button !== null && buttonText !== null) {
+    const shifted = readableShift(button, [buttonText], farPole(buttonText));
+    if (shifted !== null) {
+      out.button_color = shifted;
+      adjusted.push("--tg-button-color");
+    }
+  }
+  return { params: out as ThemeParams, adjusted };
+}
+
 export function applyTelegramTheme(): TgThemeReport {
   const host = getWebApp();
   const style = rootStyle();
@@ -231,6 +278,7 @@ export function applyTelegramTheme(): TgThemeReport {
       colorScheme: "light",
       applied,
       rejected,
+      adjusted: [],
       header: tgUnavailable<true>("no-telegram"),
       background: tgUnavailable<true>("no-telegram"),
       bottomBar: tgUnavailable<true>("no-telegram"),
@@ -238,8 +286,9 @@ export function applyTelegramTheme(): TgThemeReport {
   }
 
   const params = readThemeParams();
+  const { params: readable, adjusted } = readableThemeParams(params);
   for (const [key, cssVariable] of THEME_MAP) {
-    const raw = params[key];
+    const raw = readable[key];
     /** مفتاحٌ غائبٌ يبقى على افتراضِ `global.css` — لا لونَ يُخترَع. */
     if (raw === undefined || raw === null) continue;
     const color = cssColor(raw);
@@ -264,6 +313,7 @@ export function applyTelegramTheme(): TgThemeReport {
     colorScheme,
     applied,
     rejected,
+    adjusted,
     header: sendHeaderColor(params),
     background: sendBackgroundColor(params),
     bottomBar: sendBottomBarColor(params),
