@@ -1,0 +1,31 @@
+{
+  "id": "deps-prd-106",
+  "goal": "PRD-106: تحديثُ الاعتمادياتِ الثلاث (#405 vite · #406 biome · #407 hono) في PR واحدٍ مع manifest، بعدَ فحصِ التوافق وملاحظاتِ الإصدار.",
+  "canonical_source": ["docs/governance/PRODUCTION_READINESS_GATE.md PRD-106"],
+  "implementation": [
+    "apps/admin-dashboard/src/pages/disputes.ts",
+    "apps/admin-dashboard/src/pages/drivers.ts",
+    "apps/miniapp/package.json",
+    "biome.json",
+    "bun.lock",
+    "docs/work-packets/deps-prd-106.json",
+    "package-lock.json",
+    "package.json",
+    "packages/infrastructure/dispatch/dispatch-adapters.ts",
+    "packages/infrastructure/identity/directories.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [],
+  "no_other_affected_docs_reason": "تحديثاتُ إصداراتٍ ثانويّةٍ متوافقة: لا endpoint ولا هجرة ولا تغييرَ سلوك. تعديلاتُ الملفّاتِ الأربعةِ مسافاتٌ داخلَ `${…}` يفرضُها منسّقُ biome 2.5.15، ولا تغيّرُ نصَّ القالبِ الناتج.",
+  "decision": "hono ^4.13.12 (يحلُّ 4.13.13؛ يتضمّنُ إصلاحَ serveStatic GHSA-5r4p-p66f-jhc7 — الكودُ لا يستعملُ serveStatic ولا app.mount المُهمَل)، @biomejs/biome ^2.5.15 (مع مخطّطِ biome.json)، vite ^8.3.2 (يحلُّ 8.3.4). Dependabot فشلت فقط في check-state-sync لغيابِ manifest؛ هذا PR يحلُّ محلَّها.",
+  "tests": [
+    "bun run lint · typecheck · build:miniapp",
+    "bun test tests/unit (6413 pass) · bun test apps/miniapp (631 pass)",
+    "CI كامل على هذا PR"
+  ],
+  "evidence": "نتيجةُ CI على هذا PR",
+  "constraints": ["لا ترقيةَ رئيسيّة", "لا تغييرَ في الكودِ التنفيذيّ سوى التنسيق"],
+  "limitations": "قياسُ الأداءِ الإنتاجيّ بعدَ النشر يُسجَّلُ في PRD-009 لا هنا.",
+  "status": "open"
+}

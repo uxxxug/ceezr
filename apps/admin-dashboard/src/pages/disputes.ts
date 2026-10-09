@@ -170,7 +170,7 @@ export function renderDisputesPage(data: DisputesPageData): string {
            row.resolutionNote === null
              ? ""
              : `<div class="card-hint">${escapeHtml(row.resolutionNote)}</div>`
-}`,
+         }`,
     renderAdvice(row),
     row.status === "open"
       ? badge(formatAge(row.createdAt, data.now), "bad")
