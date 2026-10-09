@@ -70,7 +70,9 @@ import {
   cannotCompleteRefusalKey,
   isRetryableJobError,
   jobErrorKey,
+  riderLanguageText,
   shouldReloadAfterJobError,
+  stampAgeMinutes,
   toActiveJob,
 } from "./job-view.ts";
 
@@ -99,7 +101,12 @@ export interface JobScreenProps {
 
 type JobState =
   | { readonly kind: "loading" }
-  | { readonly kind: "ready"; readonly job: ActiveJobModel | null }
+  | {
+      readonly kind: "ready";
+      readonly job: ActiveJobModel | null;
+      /** لحظةُ الخادمِ وقتَ القراءةِ — أعمارُ الأختامِ تُحسَبُ منها لا من ساعةِ الجهاز. */
+      readonly serverTime: string;
+    }
   | { readonly kind: "failed"; readonly code: string };
 
 type ActState =
@@ -151,15 +158,29 @@ const DONE_KEY: Readonly<Record<ApiDriverJobAction, string>> = {
 function StampRow({
   labelKey,
   value,
+  serverTime,
   t,
 }: {
   readonly labelKey: string;
   readonly value: string | null;
+  readonly serverTime: string;
   readonly t: (key: string) => string;
 }) {
+  // لوحة 06 (D3): لا يُعرَضُ ختمُ ISO خامٌّ. العمرُ يُقاسُ من لحظةِ الخادمِ نفسِها، وما لا يُقاسُ
+  // (ختمٌ معطوبٌ أو في المستقبلِ) يُقالُ «لم يُسجَّل» ولا يُخترَعُ له عمر.
+  const age = value === null ? null : stampAgeMinutes(value, serverTime);
   return (
-    <p className={value === null ? "djb__stamp djb__stamp--absent" : "djb__stamp"}>
-      {t(labelKey)}: {value ?? t("driver.job.stamp.none")}
+    <p className={age === null ? "djb__stamp djb__stamp--absent" : "djb__stamp"}>
+      {t(labelKey)}:{" "}
+      {age === null ? (
+        t("driver.job.stamp.none")
+      ) : (
+        <time dateTime={value ?? undefined}>
+          {age === 0
+            ? t("driver.job.stamp.justNow")
+            : t("driver.job.stamp.ago").replace("{minutes}", String(age))}
+        </time>
+      )}
     </p>
   );
 }
@@ -227,7 +248,7 @@ export function JobScreen({
     try {
       const response = await readJob();
       const job = response.job === null ? null : toActiveJob(response.job);
-      setState({ kind: "ready", job });
+      setState({ kind: "ready", job, serverTime: response.server_time });
       // `PD-020` — سردُ بلاغٍ قائمٍ يُقرأُ مع المَهمّةِ: سائقٌ عادَ إلى شاشةٍ
       // بعدَ بلاغٍ يجدُ أثرَهُ، لا شاشةً تقولُ إنَّ شيئاً لم يقعْ.
       if (job !== null) void refreshNarrative();
@@ -320,6 +341,14 @@ export function JobScreen({
     );
   }
 
+  const completedOrderId =
+    act.kind === "done" &&
+    act.key === DONE_KEY.COMPLETE_RIDE &&
+    onCompleted !== undefined &&
+    act.completedOrderId !== undefined
+      ? act.completedOrderId
+      : null;
+
   if (state.job === null) {
     return (
       <section className="djb" aria-labelledby={showTitle ? `${formId}-title` : undefined}>
@@ -328,6 +357,25 @@ export function JobScreen({
             {t("driver.job.title")}
           </h1>
         ) : null}
+        {/*
+          ADR 0249 (D4): بعدَ «أنهِ الرحلة» تُعيدُ القراءةُ `job: null` — فالمهمّةُ انتهت حقًّا.
+          كانَ هذا الفرعُ يُسقِطُ نتيجةَ الفعلِ وزرَّ الملخّص، فلا يبلغُ السائقُ ملخّصَ رحلتِه.
+          النتيجةُ تُقالُ هنا من حالِ الفعلِ نفسِه، لا من تخمين.
+        */}
+        {completedOrderId === null ? null : (
+          <>
+            <p className="djb__done" role="status">
+              {t(DONE_KEY.COMPLETE_RIDE)}
+            </p>
+            <button
+              type="button"
+              className="djb__summary"
+              onClick={() => onCompleted?.(completedOrderId)}
+            >
+              {t("driver.job.viewSummary")}
+            </button>
+          </>
+        )}
         {/* `UX-5` — الفراغُ يُقالُ صراحةً ولا يُترَكُ بياضاً يُقرأُ عطلاً. */}
         <EmptyState title={t("driver.job.none.title")} body={t("driver.job.none.body")} />
         <button type="button" className="djb__retry" onClick={() => void load()}>
@@ -366,7 +414,10 @@ export function JobScreen({
             ? t("driver.job.rider.unnamed")
             : job.riderFirstName}
           {job.riderLanguageCode === null ? null : (
-            <span className="djb__rider-language"> · {job.riderLanguageCode}</span>
+            <span className="djb__rider-language">
+              {" "}
+              · {riderLanguageText(job.riderLanguageCode, t)}
+            </span>
           )}
         </p>
       </div>
@@ -433,9 +484,24 @@ export function JobScreen({
           {job.notes === null || job.notes === "" ? t("driver.job.noNotes") : job.notes}
         </p>
 
-        <StampRow labelKey="driver.job.stamp.matchedAt" value={job.matchedAt} t={t} />
-        <StampRow labelKey="driver.job.stamp.arrivedAt" value={job.arrivedAt} t={t} />
-        <StampRow labelKey="driver.job.stamp.startedAt" value={job.startedAt} t={t} />
+        <StampRow
+          labelKey="driver.job.stamp.matchedAt"
+          value={job.matchedAt}
+          serverTime={state.serverTime}
+          t={t}
+        />
+        <StampRow
+          labelKey="driver.job.stamp.arrivedAt"
+          value={job.arrivedAt}
+          serverTime={state.serverTime}
+          t={t}
+        />
+        <StampRow
+          labelKey="driver.job.stamp.startedAt"
+          value={job.startedAt}
+          serverTime={state.serverTime}
+          t={t}
+        />
       </div>
 
       <div className="djb__actions">

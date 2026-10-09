@@ -42,12 +42,12 @@ export function submitRideRating(
 ): Promise<RideRatingResponse> {
   return apiFetch<RideRatingResponse>(`/v1/rides/${encodeURIComponent(orderId)}/rating`, {
     method: "POST",
-    body: JSON.stringify({
+    body: {
       stars: input.stars,
       // النصُّ الفارغُ **غيابٌ** لا ملاحظةٌ: يُرسَلُ `null` فلا يُخزَّنُ وجهانِ
       // لمعنىً واحدٍ في القاعدةِ.
       comment: input.comment === null || input.comment.trim().length === 0 ? null : input.comment,
       tags: input.tags,
-    }),
+    },
   });
 }

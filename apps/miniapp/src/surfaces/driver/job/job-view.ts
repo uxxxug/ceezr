@@ -243,3 +243,32 @@ export function sosStateKey(state: SosButtonState): string | null {
 export function isSosButtonDisabled(state: SosButtonState): boolean {
   return state.kind === "busy" || state.kind === "sent";
 }
+
+/**
+ * عمرُ ختمِ طَورٍ بالدقائقِ الكاملةِ **من لحظةِ الخادمِ** (`server_time`) — لا من ساعةِ الجهاز.
+ * لوحة التسليم 06 (D3) لا تعرضُ ختمَ ISO خامّاً، والجهازُ قد تنحرفُ ساعتُه. فختمٌ معطوبٌ أو
+ * لحظةُ خادمٍ معطوبةٌ أو ختمٌ **بعدَ** لحظةِ الخادمِ = `null`: عمرٌ لم يُقَس لا يُعرَضُ صفراً.
+ */
+export function stampAgeMinutes(stampIso: string, serverTimeIso: string): number | null {
+  const stamp = Date.parse(stampIso);
+  const server = Date.parse(serverTimeIso);
+  if (!Number.isFinite(stamp) || !Number.isFinite(server)) return null;
+  const elapsedMs = server - stamp;
+  if (elapsedMs < 0) return null;
+  return Math.floor(elapsedMs / 60_000);
+}
+
+/**
+ * ADR 0249 (D3): لغةُ الراكبِ تُعرَضُ باسمِها لا برمزِها الخامّ («ar»). الرموزُ الثلاثةُ
+ * التي يدعمُها التطبيقُ لها أسماءٌ في القاموس؛ ورمزٌ غيرُها يُعرَضُ كما ورد — لا اسمَ يُخترَع.
+ */
+const RIDER_LANGUAGE_KEYS: Readonly<Record<string, string>> = {
+  ar: "driver.job.rider.language.ar",
+  en: "driver.job.rider.language.en",
+  ur: "driver.job.rider.language.ur",
+};
+
+export function riderLanguageText(code: string, t: (key: string) => string): string {
+  const key = RIDER_LANGUAGE_KEYS[code.trim().toLowerCase()];
+  return key === undefined ? code : t(key);
+}

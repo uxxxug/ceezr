@@ -68,6 +68,11 @@ export interface RideShareCardProps {
   readonly read?: (orderId: string) => Promise<ShareStateResponse>;
   readonly start?: (orderId: string) => Promise<StartShareResponse>;
   readonly stop?: (orderId: string) => Promise<StopShareResponse>;
+  /**
+   * R6 شاشةٌ مستقلّةٌ: حين تكونُ البطاقةُ هيَ الشاشةَ كلَّها لا تختفي — تقولُ إنَّ المشاركةَ غيرُ
+   * متاحةٍ الآن بحكمِ القراءةِ نفسِها، فلا تُترَكُ شاشةٌ فارغةٌ بعنوانٍ وحدَه.
+   */
+  readonly standalone?: boolean;
 }
 
 type Found = Extract<ShareStateResponse, { found: true }>;
@@ -92,6 +97,7 @@ export function RideShareCard({
   read = readViaApi,
   start = startViaApi,
   stop = stopViaApi,
+  standalone = false,
 }: RideShareCardProps) {
   const t = miniAppTranslator(language);
   const [state, setState] = useState<CardState>({ kind: "reading" });
@@ -202,7 +208,13 @@ export function RideShareCard({
 
   // رحلةٌ منتهيةٌ بلا رابطٍ حيٍّ: لا شيءَ يُقالُ ولا زرَّ يُرسَمُ. وزرٌّ لا يفعلُ
   // شيئاً كذبٌ (عينُ حكمِ `F2-06`).
-  if (!canShare && live.length === 0) return null;
+  if (!canShare && live.length === 0) {
+    return standalone ? (
+      <div className="rs" role="status">
+        <p className="sys__hint">{t("rider.share.unavailable")}</p>
+      </div>
+    ) : null;
+  }
 
   return (
     <section className="rs" aria-labelledby="rs-title">

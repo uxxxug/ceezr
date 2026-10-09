@@ -49,6 +49,10 @@ import type { SavedPlacesApi } from "../settings/saved-places.ts";
 import { SosEntry } from "../sos/SosEntry.tsx";
 import { riderAccountView } from "./account-view.ts";
 
+// R13: «الأماكن المحفوظة» و«جهة اتصال للطوارئ» شاشتانِ تُفتحانِ من صفِّهما — تُصدَّرانِ من حزمةِ الحسابِ نفسِها
+// فلا تُنزَّلُ حزمةٌ ثانيةٌ ولا يُكرَّرُ مكوِّنٌ.
+export { EmergencyContactPanel, SavedPlacesPanel };
+
 export interface AccountScreenProps extends Omit<AccountRightsProps, "view"> {
   readonly language?: MiniAppLanguage;
   /** مدخلُ الاستغاثةِ (`PD-020` · `ADR 0159`) — راكبٌ وحدَهُ لا السائقُ. */
@@ -61,6 +65,10 @@ export interface AccountScreenProps extends Omit<AccountRightsProps, "view"> {
     readonly save?: (input: { readonly name: string; readonly phone: string }) => Promise<unknown>;
   };
   readonly placesApi?: SavedPlacesApi;
+  /** R13: صفٌّ يفتحُ «الأماكن المحفوظة» شاشةً — وبلا مُستقبِلٍ تبقى اللوحةُ مدمجةً كما كانَت. */
+  readonly onOpenSavedPlaces?: () => void;
+  /** R13: صفٌّ يفتحُ «جهة اتصال للطوارئ» شاشةً — وبلا مُستقبِلٍ تبقى اللوحةُ مدمجةً كما كانَت. */
+  readonly onOpenEmergencyContact?: () => void;
 }
 
 /**
@@ -69,7 +77,15 @@ export interface AccountScreenProps extends Omit<AccountRightsProps, "view"> {
  * «غيرُ متاحٍ» حينَ يُعيدُ الخادمُ 503، ولا يعرضُ حقلاً لا يُحفَظ.
  */
 export function AccountScreen(props: AccountScreenProps) {
-  const { onOpenSos, onOpenNotifications, emergencyContact, placesApi, ...rights } = props;
+  const {
+    onOpenSos,
+    onOpenNotifications,
+    onOpenSavedPlaces,
+    onOpenEmergencyContact,
+    emergencyContact,
+    placesApi,
+    ...rights
+  } = props;
   const language = props.language;
   const t = miniAppTranslator(language ?? MINIAPP_DEFAULT_LANGUAGE);
   return (
@@ -80,27 +96,55 @@ export function AccountScreen(props: AccountScreenProps) {
       // إلى الشاشةِ المشتركةِ علمُ الراكبِ: الدورُ يُقرَّرُ هنا لا ههناك.
       header={
         <>
-          {onOpenNotifications === undefined ? null : (
+          {onOpenNotifications === undefined &&
+          onOpenSavedPlaces === undefined &&
+          onOpenEmergencyContact === undefined ? null : (
             <div className="ac__links">
-              <button type="button" className="ac__link" onClick={onOpenNotifications}>
-                <span className="ac__link-icon">
-                  <Glyph name="bell" />
-                </span>
-                <span className="ac__link-label">{t("rider.account.notificationPrefs.open")}</span>
-                <IconChevron className="ac__link-chevron" />
-              </button>
+              {onOpenSavedPlaces === undefined ? null : (
+                <button type="button" className="ac__link" onClick={onOpenSavedPlaces}>
+                  <span className="ac__link-icon">
+                    <Glyph name="pin" />
+                  </span>
+                  <span className="ac__link-label">{t("rider.account.savedPlaces.open")}</span>
+                  <IconChevron className="ac__link-chevron" />
+                </button>
+              )}
+              {onOpenEmergencyContact === undefined ? null : (
+                <button type="button" className="ac__link" onClick={onOpenEmergencyContact}>
+                  <span className="ac__link-icon">
+                    <Glyph name="phone" />
+                  </span>
+                  <span className="ac__link-label">{t("rider.account.emergency.open")}</span>
+                  <IconChevron className="ac__link-chevron" />
+                </button>
+              )}
+              {onOpenNotifications === undefined ? null : (
+                <button type="button" className="ac__link" onClick={onOpenNotifications}>
+                  <span className="ac__link-icon">
+                    <Glyph name="bell" />
+                  </span>
+                  <span className="ac__link-label">
+                    {t("rider.account.notificationPrefs.open")}
+                  </span>
+                  <IconChevron className="ac__link-chevron" />
+                </button>
+              )}
             </div>
           )}
           {onOpenSos === undefined ? null : <SosEntry onOpen={onOpenSos} language={language} />}
-          <EmergencyContactPanel
-            {...(language === undefined ? {} : { language })}
-            {...(emergencyContact?.read === undefined ? {} : { read: emergencyContact.read })}
-            {...(emergencyContact?.save === undefined ? {} : { save: emergencyContact.save })}
-          />
-          <SavedPlacesPanel
-            {...(language === undefined ? {} : { language })}
-            {...(placesApi === undefined ? {} : { api: placesApi })}
-          />
+          {onOpenEmergencyContact === undefined ? (
+            <EmergencyContactPanel
+              {...(language === undefined ? {} : { language })}
+              {...(emergencyContact?.read === undefined ? {} : { read: emergencyContact.read })}
+              {...(emergencyContact?.save === undefined ? {} : { save: emergencyContact.save })}
+            />
+          ) : null}
+          {onOpenSavedPlaces === undefined ? (
+            <SavedPlacesPanel
+              {...(language === undefined ? {} : { language })}
+              {...(placesApi === undefined ? {} : { api: placesApi })}
+            />
+          ) : null}
         </>
       }
     />

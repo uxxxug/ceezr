@@ -1211,15 +1211,15 @@ a.sys__action {
 }
 
 .rs__destination {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
   margin: 0;
   padding: 0.75rem 1rem;
   border: 1px solid var(--w-line);
   border-inline-start: 4px solid var(--ui-brand);
   border-radius: var(--r-lg);
   background: var(--w-surface);
-  font-size: 1rem;
-  font-weight: 800;
-  color: var(--tg-text-color);
 }
 
 .rs__pending {
@@ -8153,11 +8153,7 @@ body {
 
 .sys__action.ar__refresh {
   align-self: stretch;
-  min-block-size: 48px;
-  border: 1px solid var(--w-line);
-  background: var(--w-page);
-  color: var(--tg-text-color);
-  box-shadow: none;
+  min-block-size: 52px;
 }
 
 .ar__refresh-icon {
@@ -8588,4 +8584,86 @@ body {
 
 .djb__stop--pickup::before {
   background: var(--ui-brand);
+}
+
+.rs__destination-to {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--tg-text-color);
+}
+
+.rs__destination-service {
+  margin: 0;
+  font-size: var(--ui-size-caption);
+  font-weight: 600;
+  color: var(--tg-hint-color);
+}
+
+.ar__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.ar__open-share, .ar__open-help {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-block-size: 48px;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--r-md);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.ar__open-share {
+  border: 1px solid var(--w-line);
+  background: var(--w-surface);
+  color: var(--tg-text-color);
+}
+
+.ar__open-help {
+  border: 1px solid color-mix(in srgb, var(--ui-bad) 45%, transparent);
+  background: var(--w-bad-soft);
+  color: color-mix(in srgb, var(--tg-destructive-text-color) 75%, var(--tg-text-color));
+}
+
+.ar__action-icon {
+  inline-size: 18px;
+  block-size: 18px;
+  flex-shrink: 0;
+}
+
+.rs__snapshot > .sys__action.rs__refresh {
+  align-self: stretch;
+  min-block-size: 52px;
+  border: 0;
+  background: var(--ui-brand);
+  color: var(--ui-brand-on);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ui-brand) 22%, transparent);
+}
+
+/* ADR 0249 (R8) — ملخّصُ الرحلة كما في اللوحة 02: «أرسل التقييم» هو الفعلُ الرئيسيّ،
+   و«مشكلة في هذه الرحلة» ثانويّ؛ والنجومُ رموزٌ بحجمِ لمسٍ ≥44px والعددُ في `aria-label`. */
+.sys__action.sm__report {
+  border: 1px solid var(--w-line);
+  background: var(--w-surface);
+  color: var(--tg-text-color);
+  box-shadow: none;
+}
+
+.sm__star {
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+/* المضاءُ يُعرَفُ بالرمزِ المصمَتِ «★» لا باللون؛ ونصُّه بلونِ النصِّ كي لا يُكتَبَ
+   لونٌ دلاليٌّ على سطحٍ مجهول (حاجزُ PR 1). */
+.sm__star--lit {
+  color: var(--tg-text-color);
 }

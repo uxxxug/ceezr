@@ -17,6 +17,7 @@ import {
 import { ActiveRideScreen } from "./active/ActiveRideScreen.tsx";
 
 export { SearchScreen } from "./search/SearchScreen.tsx";
+export { RideShareCard } from "./share/RideShareCard.tsx";
 export { RideSummaryScreen } from "./summary/RideSummaryScreen.tsx";
 
 type ActiveRideProps = Parameters<typeof ActiveRideScreen>[0];

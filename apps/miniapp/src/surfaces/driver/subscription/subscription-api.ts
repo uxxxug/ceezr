@@ -49,6 +49,6 @@ export function renewDriverSubscription(
 ): Promise<ApiDriverSubscriptionRenewalResponse> {
   return apiFetch<ApiDriverSubscriptionRenewalResponse>("/v1/driver/subscription/renew", {
     method: "POST",
-    body: JSON.stringify({ plan }),
+    body: { plan },
   });
 }
