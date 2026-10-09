@@ -155,8 +155,8 @@
 | المتطلبات المسبقة | PRD-002 (النشر) |
 | الإجراء المطلوب | إعادةُ تشغيل `measure-tti` و`measure-first-paint` و`check-performance-budget` على الإنتاج الحقيقي بعد النشر |
 | شرط القبول | LCP ≤ 2500ms؛ سطحٌ مرسوم ≤ 2000ms؛ الهامشُ لا يقلُّ عن 100ms (UI-10 كان 16ms فقط) |
-| الدليل | `docs/evidence/production/PRD-009-perf-YYYYMMDD.md` |
-| الحالة | **Blocked** (يحتاج نشر) |
+| الدليل | `docs/evidence/production/PRD-009-perf-20261009.md` |
+| الحالة | **Blocked** (قياس جزئي 2026-10-09: LCP 2012ms خارج تيليجرام؛ السطح المرسوم يحتاج initData حقيقيًّا، و`measure-tti` في CI 2004–2036ms > 2000) |
 
 ### PRD-010: تجميد features جديدة
 
@@ -192,8 +192,8 @@
 | المتطلبات المسبقة | PRD-001 (Redis healthy) |
 | الإجراء المطلوب | اختبارُ الجلسات، rate limiting، Socket.IO، jobs المجدولة، lazy jobs بعد إصلاح Redis |
 | شرط القبول | جلسةٌ تُنشَأ وتُستهلك؛ rate limit يعمل؛ Socket.IO يتصل؛ jobs تعمل وفق الجدول |
-| الدليل | `docs/evidence/production/PRD-102-redis-functional-YYYYMMDD.md` |
-| الحالة | **Blocked** (يحتاج Redis healthy) |
+| الدليل | `docs/evidence/production/PRD-102-redis-functional-20261009.md` |
+| الحالة | **Verified** (2026-10-09) |
 
 ### PRD-103: Runbooks ومراقبة وتنبيهات
 
@@ -203,8 +203,8 @@
 | المتطلبات المسبقة | PRD-001 (Redis) |
 | الإجراء المطلوب | إنشاءُ runbooks للعمليات الحرجة، تنبيهات على `/ready` و`/health`، SLO وRTO/RPO، مناوبة |
 | شرط القبول | runbook لكل عملية حرجة؛ تنبيهٌ يعمل؛ RTO/RPO موثَّق |
-| الدليل | `docs/runbook.md` + `docs/evidence/production/PRD-103-ops-YYYYMMDD.md` |
-| الحالة | **Open** |
+| الدليل | `docs/runbook.md` + `docs/evidence/production/PRD-103-ops-20261009.md` |
+| الحالة | **Verified** (2026-10-09) |
 
 ### PRD-104: تدريب استعادة احتياطي دوري
 
@@ -214,8 +214,8 @@
 | المتطلبات المسبقة | لا يوجد |
 | الإجراء المطلوب | تدريبُ استعادةٍ احتياطيٍّ من `uxxxug/ceezr-backups` بزمنٍ موثَّق (OPS-008) |
 | شرط القبول | استعادةٌ ناجحةٌ في زمنٍ أقلَّ من RTO المعلَن |
-| الدليل | `docs/evidence/production/PRD-104-backup-restore-YYYYMMDD.md` |
-| الحالة | **Open** |
+| الدليل | `docs/evidence/production/PRD-104-backup-restore-20261009.md` |
+| الحالة | **Blocked** (فك تشفير النسخة يحتاج مفتاح `age` الخاص لدى المالك؛ الاستعادة الآلية الليلية ناجحة) |
 
 ### PRD-105: فجوات العقود — تسجيل السائق
 
@@ -236,8 +236,8 @@
 | المتطلبات المسبقة | لا يوجد |
 | الإجراء المطلوب | rebase كل PR على `main` الحالي، تشغيل CI كامل، مراجعة changelog/security advisory، التحقق من `bun.lock` |
 | شرط القبول | CI أخضر؛ `bun install --frozen-lockfile` ينجح؛ لا انحدار في الأداء |
-| الدليل | نتيجة CI على كل PR |
-| الحالة | **Open** (يحتاج rebase أولاً) |
+| الدليل | `docs/evidence/production/PRD-106-deps-20261009.md` |
+| الحالة | **Verified** (2026-10-09، #453) |
 
 ---
 
