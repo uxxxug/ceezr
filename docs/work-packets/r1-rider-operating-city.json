@@ -1,0 +1,52 @@
+{
+  "id": "r1-rider-operating-city",
+  "goal": "المدينةُ التشغيليّةُ للراكبِ من آخرِ موقعٍ صالحٍ بحكمِ القاعدة، بلا اختيارٍ يدويٍّ ولا حقلٍ جديدٍ في /v1/me، وبلا أثرٍ رجعيٍّ على الرحلات.",
+  "canonical_source": [
+    "قرارُ المالك 2026-10-09 (R1)",
+    "docs/MASTER_DIRECTIVE.md القاعدة 0.4",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md R1"
+  ],
+  "implementation": [
+    "supabase/migrations/20261009120000_r1_rider_operating_city.sql",
+    "packages/application/rider-city/operating-city.ts",
+    "packages/infrastructure/rider-city/operating-city-store.ts",
+    "packages/infrastructure/db/schema-contract.ts",
+    "apps/gateway/src/routes/me-operating-city.ts",
+    "apps/gateway/src/server.ts",
+    "apps/gateway/src/index.ts",
+    "apps/gateway/src/rate-limit/policy.ts",
+    "apps/miniapp/src/surfaces/rider/home/HomeScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/home/operating-city-api.ts",
+    "apps/miniapp/src/styles/global.css",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "tests/integration/rider-operating-city.test.ts",
+    "tests/unit/rider-operating-city.test.ts",
+    "apps/miniapp/src/surfaces/rider/home/operating-city.test.tsx",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0252-rider-operating-city-from-location.md",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md"
+  ],
+  "decision": "ADR 0252: دالّةُ قاعدةٍ تحكمُ بالمدينةِ المفعَّلةِ من نقطة وتكتبُ صفَّ المستخدم؛ request_ride وكلُّ قارئٍ للمدينةِ بلا تغيير.",
+  "tests": [
+    "tests/integration/rider-operating-city.test.ts — 10 على PostgreSQL محلّيّ (انتقالٌ بينَ مدينتَين مفعَّلتَين، مدينةٌ غيرُ مفعَّلة، خارجَ المدن، نقطةٌ غيرُ صالحة، رحلةٌ قائمة، لا أثرَ رجعيّ، غيرُ الراكب، request_ride في المدينةِ الجديدة)",
+    "tests/unit/rider-operating-city.test.ts — 7",
+    "apps/miniapp/src/surfaces/rider/home/operating-city.test.tsx — 5",
+    "check-rate-limit-coverage · check-schema-contract · check-migration-safety"
+  ],
+  "evidence": "اختباراتُ التكاملِ على PostgreSQL محلّيّ؛ الهجرةُ طُبِّقَت على القاعدةِ المحلّيّةِ قبلَ الإنتاج. التحقّقُ على جهازٍ داخلَ تيليجرام غيرُ منفَّذ.",
+  "constraints": [
+    "لا اختيارَ يدويّاً للمدينة",
+    "لا حقلَ مدينةٍ في GET /v1/me",
+    "لا تغييرَ لمدينةِ رحلةٍ قائمةٍ أو سابقة",
+    "لا إحداثيّاتٍ في سجلِّ التدقيق"
+  ],
+  "limitations": ["التحديثُ بفعلِ الراكبِ لا تلقائيّ", "لم يُختبَر داخلَ عميلِ تيليجرام حقيقيّ"],
+  "status": "open"
+}

@@ -1350,6 +1350,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/rider-operating-city.test.ts",
+    suites: ["R1 — المدينةُ التشغيليّةُ من آخرِ موقعٍ صالح"],
+    skipped: 10,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت «R1 — المدينةُ التشغيليّةُ من آخرِ موقعٍ صالح» على PostgreSQL حقيقيةٍ بالهجرات مطبَّقة: الدالّةُ الذرّيّةُ وقيودُها وسجلُّ التدقيقِ سلوكُ المحرّكِ نفسِه لا محاكٍ نكتبه نحن.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/support-tickets.test.ts",
     suites: ["مسار الدعم والاشتراك على قاعدة حقيقية"],
     skipped: 20,

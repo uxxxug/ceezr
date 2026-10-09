@@ -70,6 +70,10 @@ import {
   createNotificationPrefsRoutes,
   type NotificationPrefsRouteDependencies,
 } from "./routes/me-notification-prefs.ts";
+import {
+  createOperatingCityRoutes,
+  type OperatingCityRouteDependencies,
+} from "./routes/me-operating-city.ts";
 import { createPlacesRoutes, type PlacesRouteDependencies } from "./routes/me-places.ts";
 import {
   createNotificationRoutes,
@@ -134,6 +138,8 @@ export interface ServerDependencies {
    */
   readonly places?: PlacesRouteDependencies;
   readonly emergencyContact?: EmergencyContactRouteDependencies;
+  /** R1 · ADR 0252: المدينةُ التشغيليّةُ للراكبِ من آخرِ موقعٍ صالح — بنمطِ أخواتِها. */
+  readonly operatingCity?: OperatingCityRouteDependencies;
   readonly notificationPrefs?: NotificationPrefsRouteDependencies;
   /**
    * مسارُ السياسةِ (`F12-17`) — اختياريٌّ بنفسِ المنطقِ: غيابُه = لا مسار (`404`)،
@@ -320,6 +326,9 @@ export function createServer(deps: ServerDependencies): Hono {
   }
   if (deps.emergencyContact !== undefined) {
     app.route("/", createEmergencyContactRoutes(deps.emergencyContact));
+  }
+  if (deps.operatingCity !== undefined) {
+    app.route("/", createOperatingCityRoutes(deps.operatingCity));
   }
   if (deps.notificationPrefs !== undefined) {
     app.route("/", createNotificationPrefsRoutes(deps.notificationPrefs));

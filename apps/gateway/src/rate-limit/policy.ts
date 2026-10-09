@@ -941,6 +941,24 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    method: "GET",
+    path: "/v1/me/operating-city",
+    file: "apps/gateway/src/routes/me-operating-city.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/v1/me/operating-city",
+    file: "apps/gateway/src/routes/me-operating-city.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "PUT",
     path: "/v1/me/emergency-contact",
     file: "apps/gateway/src/routes/me-emergency-contact.ts",
@@ -1437,9 +1455,10 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  * (`F16-03` · `ADR 0221`): مسارُ قطعِ روابطِ التتبُّعِ منَ اللوحةِ — خلفَ
  * حارسِ جلسةِ الإدارةِ كما أخواتُه من مساراتِ اللوحةِ.
  * 126 → 128 في 2026-10-03 (`ADM-MSG-01`): صفحةُ معرضِ الرسائلِ ومسلكُ «أرسلها لي»
+ * 128 → 130 في 2026-10-09 (R1 · ADR 0252): `GET`/`POST /v1/me/operating-city` — مُصادَقانِ بجلسةٍ كأخواتِهما.
  * إلى محادثةِ المسؤولِ نفسِه — خلفَ حارسِ جلسةِ الإدارةِ كأخواتِهما.
  */
-export const ROUTE_POLICY_COUNT = 128;
+export const ROUTE_POLICY_COUNT = 130;
 export const LIMITED_ROUTE_COUNT = 10;
 export const EXEMPT_ROUTE_COUNT = 3;
 
