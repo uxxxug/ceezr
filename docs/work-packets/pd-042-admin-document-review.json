@@ -22,15 +22,9 @@
     "docs/adr/0256-admin-driver-document-review.md",
     "docs/work-packets/pd-042-admin-document-review.json"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
-  "affected_docs": [
-    "docs/adr/0256-admin-driver-document-review.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/adr/0256-admin-driver-document-review.md"],
   "no_other_affected_docs_reason": "مسارٌ إداريٌّ HTML خلفَ جلسةِ مسؤول، لا عقدَ API عامّاً؛ مساراتُ السائقِ وعقودُها كما هي.",
   "decision": "ADR 0256",
   "tests": [
