@@ -57,7 +57,15 @@ import { Skeleton } from "../../../system/Skeleton.tsx";
 import { SystemScreen } from "../../../system/SystemScreen.tsx";
 import type { ScreenState } from "../../../system/state-text.ts";
 import { Glyph, IconChevron } from "../../../system/ui/icons.tsx";
-import { type DeviceFixResult, readFreshDeviceFix } from "../destination/device-fix.ts";
+import type { DeviceFixResult } from "../destination/device-fix.ts";
+
+/**
+ * ADR 0252 · ADR 0251 §6 (`D-41`): قراءةُ الموقعِ من وحدةِ الوجهةِ المؤجَّلة — تُستورَدُ عندَ ضغطِ «حدّث موقعي»
+ * لا في الحِملِ الأوّل (حاجزُ `assert-rider-first-surface`). وغالباً تكونُ الحزمةُ قد جُلِبَت بعدَ رسمِ السطح.
+ */
+const readFreshDeviceFixDeferred = (): Promise<DeviceFixResult> =>
+  import("../destination/device-fix.ts").then((m) => m.readFreshDeviceFix());
+
 import { SosEntry } from "../sos/SosEntry.tsx";
 import {
   HOME_SERVICES,
@@ -176,7 +184,7 @@ export function HomeScreen({
   cityName,
   loadCity = fetchOperatingCity,
   locateCity = postOperatingCityLocation,
-  readFix = readFreshDeviceFix,
+  readFix = readFreshDeviceFixDeferred,
 }: HomeScreenProps) {
   const [language] = useState<MiniAppLanguage>(initialLanguage);
   const [state, setState] = useState<LoadState>({ kind: "loading" });
