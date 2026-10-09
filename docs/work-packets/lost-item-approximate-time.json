@@ -37,7 +37,8 @@
     "tests/integration/lost-item-time.test.ts",
     "tests/unit/lost-item-time.test.ts",
     "apps/miniapp/src/surfaces/rider/support/lost-at.test.tsx",
-    "tests/unit/telegram-fuzz-escaping.test.ts"
+    "tests/unit/telegram-fuzz-escaping.test.ts",
+    "scripts/lib/skip-registry.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
