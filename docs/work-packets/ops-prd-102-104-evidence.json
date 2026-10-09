@@ -1,0 +1,39 @@
+{
+  "id": "ops-prd-102-104-evidence",
+  "goal": "أدلة إنتاجية لبنود البوابة PRD-102 وPRD-103 وPRD-104 وPRD-106 وقياس PRD-009 الجزئي، وتوثيق RTO/RPO، وإصلاح اختبار تكامل متقلب.",
+  "canonical_source": [
+    "docs/governance/PRODUCTION_READINESS_GATE.md PRD-009 · PRD-102 · PRD-103 · PRD-104 · PRD-106"
+  ],
+  "implementation": [
+    "docs/evidence/production/PRD-009-perf-20261009.md",
+    "docs/evidence/production/PRD-102-redis-functional-20261009.md",
+    "docs/evidence/production/PRD-103-ops-20261009.md",
+    "docs/evidence/production/PRD-104-backup-restore-20261009.md",
+    "docs/evidence/production/PRD-106-deps-20261009.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md",
+    "docs/runbook.md",
+    "docs/work-packets/ops-prd-102-104-evidence.json",
+    "tests/integration/eta-error-band.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/runbook.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md",
+    "docs/evidence/production/PRD-009-perf-20261009.md",
+    "docs/evidence/production/PRD-102-redis-functional-20261009.md",
+    "docs/evidence/production/PRD-103-ops-20261009.md",
+    "docs/evidence/production/PRD-104-backup-restore-20261009.md",
+    "docs/evidence/production/PRD-106-deps-20261009.md"
+  ],
+  "decision": "تُرفع الحالة إلى Verified فقط حيث تحقق شرط القبول بدليل إنتاجي مقيس؛ PRD-104 وPRD-009 يبقيان Blocked. لا تخفيف لأي حد أداء.",
+  "tests": [
+    "bun test tests/integration/eta-error-band.test.ts (3 تشغيلات متتالية، 5 pass)",
+    "bun scripts/check-production-readiness-gate.ts",
+    "CI كامل على هذا PR"
+  ],
+  "evidence": "docs/evidence/production/*-20261009.md",
+  "constraints": ["لا أسرار ولا بيانات مستخدمين في الأدلة", "لا كتابة على قاعدة الإنتاج"],
+  "limitations": "PRD-104 يحتاج مفتاح age لدى المالك؛ PRD-009 يحتاج initData حقيقيًّا وقرار مالك بشأن تقسيم القسم 9.4.",
+  "status": "open"
+}

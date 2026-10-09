@@ -133,15 +133,18 @@ describeIf("ADR 0243 — مقياسُ خطأِ التقديرِ على القا�
     const baseline = before.samples ?? 0;
 
     // 30 ساقاً منتهيةً بنسبٍ 1.00 … 1.29 بالضبط: تقديرٌ 1000 ث ووصولٌ بعدَ 1000+10i ث.
+    // لحظةُ التقديرِ ثابتةٌ واحدةٌ للعبارتَين: `now()` في عبارتَين منفصلتَين (خارجَ معاملةٍ)
+    // يختلفُ بأجزاءِ ميلّي ثانية فتنحرفُ النسبةُ عن 1.029 بأكثرَ من دقّةِ 6 منازل (CI 37935391806).
+    const predictedAt = new Date(Date.now() - 2 * 60 * 60 * 1000);
     for (let i = 0; i < 30; i += 1) {
       const orderId = await seedOrder("completed");
       await sql`
         insert into eta_observations (order_id, leg, city_id, predicted_seconds, predicted_at)
-        values (${orderId}, 'pickup', ${cityId}, 1000, now() - interval '2 hours')
+        values (${orderId}, 'pickup', ${cityId}, 1000, ${predictedAt})
       `;
       await sql`
         update orders set
-          arrived_at = now() - interval '2 hours' + make_interval(secs => ${1000 + 10 * i}),
+          arrived_at = ${predictedAt}::timestamptz + make_interval(secs => ${1000 + 10 * i}),
           completed_at = now() - interval '30 minutes'
         where id = ${orderId}
       `;
