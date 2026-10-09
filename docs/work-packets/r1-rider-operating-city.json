@@ -23,7 +23,8 @@
     "packages/shared/i18n/miniapp/ur.json",
     "tests/integration/rider-operating-city.test.ts",
     "tests/unit/rider-operating-city.test.ts",
-    "apps/miniapp/src/surfaces/rider/home/operating-city.test.tsx"
+    "apps/miniapp/src/surfaces/rider/home/operating-city.test.tsx",
+    "scripts/lib/skip-registry.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
