@@ -1,0 +1,41 @@
+{
+  "id": "rider-city-single-write",
+  "goal": "تغييرُ مدينةِ الراكبِ من البوت يكتبُ users.city_id وriders.city_id معاً فيصلُ حكمَ request_ride، ومُحوِّلا البوت يقرآنِ نتيجةَ الدالّة (ADR 0255).",
+  "canonical_source": [
+    "توجيهُ المالك 2026-10-10 §3",
+    "docs/adr/0252-rider-operating-city-from-location.md «ما اكتُشِفَ ولم يُغيَّر»",
+    "docs/MASTER_DIRECTIVE.md القاعدة 0.4"
+  ],
+  "implementation": [
+    "supabase/migrations/20261010090000_rider_city_single_write.sql",
+    "packages/infrastructure/identity/directories.ts",
+    "tests/integration/rider-city-bot-sync.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts",
+    "docs/adr/0255-rider-city-single-write.md",
+    "docs/work-packets/rider-city-single-write.json",
+    "scripts/lib/rollback-registry.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0252-rider-operating-city-from-location.md",
+    "docs/adr/0255-rider-city-single-write.md"
+  ],
+  "no_other_affected_docs_reason": "لا endpoint ولا تغييرَ في عقدِ HTTP؛ توقيعُ الدالّةِ ومنحُها كما هما.",
+  "decision": "ADR 0255",
+  "tests": [
+    "tests/integration/rider-city-bot-sync.test.ts",
+    "tests/integration/city-change.test.ts",
+    "tests/integration/rider-operating-city.test.ts",
+    "CI كامل"
+  ],
+  "evidence": "قبلَ الهجرة 4/11 إخفاقاتٍ والمُحوِّلُ يُعيدُ {}؛ بعدَها 11/11 و29/29 معَ المجموعتَين القائمتَين. الإنتاجُ: 0 تباعد.",
+  "constraints": [
+    "لا تغييرَ لمدينةِ رحلةٍ قائمة",
+    "لا تُمَسُّ مدينةُ سائقٍ أو مشرف",
+    "لا اختيارَ يدويّاً في التطبيقِ المصغَّر"
+  ],
+  "limitations": "لا اختبارَ داخلَ تيليجرامَ حقيقيّ.",
+  "status": "open"
+}

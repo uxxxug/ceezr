@@ -916,8 +916,9 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // في المعاملةِ نفسِها ورفضُ الحمولةِ قبلَ الإنشاء — أحكامُ plpgsql وjsonb لا شِفرة.
     // زيادةٌ (`ح-8`): والآنَ 160 و 1454 بالمدينةِ التشغيليّة (R1 · ADR 0252): عشرُ حالاتٍ في `rider-operating-city.test.ts` — دالّةُ قاعدةٍ ذرّيّةٌ وسجلُّ تدقيق.
     // زيادةٌ (`ح-8`): والآنَ 161 و 1459 بوقتِ الفقدِ (LOST · ADR 0253): خمسُ حالاتٍ في `lost-item-time.test.ts` — غلافُ قاعدةٍ وقيودُه.
-    expect(SKIP_REGISTRY).toHaveLength(161);
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1459);
+    // زيادةٌ (`ح-8`): والآنَ 162 و 1470 بمدينةِ الراكبِ من البوت (ADR 0255): إحدى عشرةَ حالةً في `rider-city-bot-sync.test.ts` — أقفالُ قاعدةٍ وحراساتُها و`request_ride` الحقيقيّة.
+    expect(SKIP_REGISTRY).toHaveLength(162);
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1470);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
