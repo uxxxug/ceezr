@@ -24,7 +24,8 @@
     "tests/integration/rider-operating-city.test.ts",
     "tests/unit/rider-operating-city.test.ts",
     "apps/miniapp/src/surfaces/rider/home/operating-city.test.tsx",
-    "scripts/lib/skip-registry.ts"
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
