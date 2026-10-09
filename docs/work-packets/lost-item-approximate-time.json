@@ -1,0 +1,65 @@
+{
+  "id": "lost-item-approximate-time",
+  "goal": "وقتٌ تقريبيٌّ اختياريٌّ للفقدِ أو ملاحظتِه في بلاغِ المفقودات، من الواجهةِ إلى التحقّقِ والتخزينِ والقراءةِ والعرض، بتوافقٍ رجعيٍّ وبلا وقتٍ مخترَع.",
+  "canonical_source": [
+    "قرارُ المالك 2026-10-09 (LOST)",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md LOST والملاحظة 4",
+    "F12-07"
+  ],
+  "implementation": [
+    "supabase/migrations/20261009130000_lost_item_time.sql",
+    "packages/application/support/intake.ts",
+    "packages/application/support/ports.ts",
+    "packages/application/support/rider-support.ts",
+    "packages/domain/support/ticket-types.ts",
+    "packages/domain/dispute/entity.ts",
+    "packages/infrastructure/support/ticket-store.ts",
+    "packages/infrastructure/support/rider-support-store.ts",
+    "packages/infrastructure/dispute/support-adapters.ts",
+    "packages/infrastructure/notification/telegram-support-notifier.ts",
+    "packages/infrastructure/db/schema-contract.ts",
+    "apps/gateway/src/routes/support-tickets.ts",
+    "apps/gateway/src/admin/queries.ts",
+    "apps/admin-dashboard/src/pages/disputes.ts",
+    "apps/miniapp/src/surfaces/support/TicketsScreen.tsx",
+    "apps/miniapp/src/surfaces/support/ticket-api.ts",
+    "apps/miniapp/src/surfaces/support/ticket-contract.ts",
+    "apps/miniapp/src/surfaces/support/ticket-view.ts",
+    "apps/miniapp/src/surfaces/rider/support/SupportScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/support/support-view.ts",
+    "apps/miniapp/src/styles/global.css",
+    "packages/shared/i18n/ar.json",
+    "packages/shared/i18n/en.json",
+    "packages/shared/i18n/ur.json",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json",
+    "tests/integration/lost-item-time.test.ts",
+    "tests/unit/lost-item-time.test.ts",
+    "apps/miniapp/src/surfaces/rider/support/lost-at.test.tsx",
+    "tests/unit/telegram-fuzz-escaping.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0253-lost-item-approximate-time.md",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md"
+  ],
+  "decision": "ADR 0253: عمودٌ معدومٌ وغلافٌ جديدٌ للكتابةِ يُبقي open_support_ticket كما هي؛ القراءاتُ الثلاثُ تُعيدُ الحقلَ كما هو أو null.",
+  "tests": [
+    "tests/integration/lost-item-time.test.ts — 5 على PostgreSQL محلّيّ",
+    "tests/integration (support · lost-item · export · pdpl · erasure · dispute · admin) — 241 نجحت محلّيّاً",
+    "tests/unit/lost-item-time.test.ts — 7",
+    "apps/miniapp/src/surfaces/rider/support/lost-at.test.tsx — 3"
+  ],
+  "evidence": "اختباراتُ التكاملِ على PostgreSQL محلّيّ؛ الهجرةُ طُبِّقَت على القاعدةِ المحلّيّةِ قبلَ الإنتاج. التحقّقُ على جهازٍ داخلَ تيليجرام غيرُ منفَّذ.",
+  "constraints": [
+    "لا وقتَ يُخترَعُ حينَ يغيب",
+    "open_support_ticket بلا تغيير",
+    "مسارُ السائقِ بلا تغيير"
+  ],
+  "limitations": ["حقلُ «المقعد» غيرُ مُضاف — لا قرار", "لم يُختبَر داخلَ عميلِ تيليجرامَ حقيقيّ"],
+  "status": "open"
+}

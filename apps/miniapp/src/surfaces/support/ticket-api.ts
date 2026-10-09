@@ -31,6 +31,8 @@ export interface OpenTicketInput {
   readonly category: string;
   readonly message: string;
   readonly orderId: string | null;
+  /** ADR 0253: لحظةٌ بمنطقةٍ صريحة (ISO) أو غياب — لا يُرسَلُ الحقلُ إن لم يقدّمه صاحبُه. */
+  readonly lostAt?: string | null;
 }
 
 export interface ReadTicketsInput {
@@ -55,6 +57,7 @@ export function supportTicketsApi(basePath: string): SupportTicketsApi {
           // `null` **يُرسَلُ صريحاً** ولا يُحذَفُ الحقلُ: غيابُ الرحلةِ قرارٌ
           // مقروءٌ في أثرِ الطلبِ لا حقلٌ نُسيَ.
           order_id: input.orderId,
+          ...(input.lostAt === undefined || input.lostAt === null ? {} : { lost_at: input.lostAt }),
         },
       }),
     readTickets: (input) => {

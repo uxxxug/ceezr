@@ -24,6 +24,8 @@ export interface DisputeRow {
   readonly partyTelegramId: string | null;
   readonly orderId: string | null;
   readonly message: string;
+  /** ADR 0253: الوقتُ التقريبيُّ للفقدِ كما قدّمَه صاحبُ البلاغ — غيابُه أو `null` = لم يُقدَّم. */
+  readonly lostAt?: string | null;
   readonly claimedByName: string | null;
   readonly claimedAt: string | null;
   /**
@@ -151,7 +153,11 @@ export function renderDisputesPage(data: DisputesPageData): string {
     row.orderId === null
       ? EMPTY_CELL
       : `<span class="mono">${escapeHtml(shortId(row.orderId))}</span>`,
-    escapeHtml(row.message),
+    `${escapeHtml(row.message)}${
+      row.lostAt === undefined || row.lostAt === null
+        ? ""
+        : `<div class="card-hint">وقت الفقد التقريبي (من المبلّغ): ${escapeHtml(formatDateTime(row.lostAt))}</div>`
+    }`,
     row.claimedByName === null
       ? EMPTY_CELL
       : `<div>${escapeHtml(row.claimedByName)}</div>

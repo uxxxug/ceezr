@@ -55,7 +55,11 @@ export type SupportStoreRejection =
   | "COOLDOWN_ACTIVE"
   | "ORDER_NOT_YOURS"
   | "LIMIT_OUT_OF_RANGE"
-  | "CURSOR_INCOMPLETE";
+  | "CURSOR_INCOMPLETE"
+  // ADR 0253: أحكامُ وقتِ الفقدِ التقريبيِّ في القاعدة.
+  | "LOST_AT_NOT_ALLOWED"
+  | "LOST_AT_IN_FUTURE"
+  | "LOST_AT_BEFORE_RIDE";
 
 /** عطبُ مخزنٍ أو حمولةٌ لا تُفهَمُ — يُنشَرُ `503`، ولا يُخلَطُ برفضٍ مُصنَّفٍ. */
 export interface SupportStoreFailure {
@@ -86,6 +90,8 @@ export interface SupportTicketStore<C extends SupportTicketType> {
     readonly category: C;
     readonly message: string;
     readonly orderId: string | null;
+    /** ADR 0253: لحظةُ الفقدِ التقريبيّةُ (ISO) كما قدّمَها صاحبُ البلاغ، أو `null`. */
+    readonly lostAt?: string | null;
   }): Promise<Result<OpenedSupportTicketOf<C>, SupportStoreError>>;
 
   /** **يقرأُ ولا يكتبُ** — صفحةٌ بترقيمِ مفتاحٍ. */

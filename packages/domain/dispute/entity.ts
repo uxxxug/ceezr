@@ -44,6 +44,8 @@ export interface SupportTicket {
   readonly attachmentFileId: string | null;
   readonly orderId: string | null;
   readonly createdAt: Date;
+  /** ADR 0253: الوقتُ التقريبيُّ للفقدِ كما قدّمَه صاحبُ البلاغ — غيابُه أو `null` = لم يُقدَّم. */
+  readonly lostAt?: Date | null;
   readonly owner: TicketOwner;
   /** null لعميل بلا اشتراك، أو لسائق لم يُنشأ له اشتراك قط. */
   readonly subscription: SubscriptionSnapshot | null;

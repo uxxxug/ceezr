@@ -66,6 +66,7 @@ export interface SupportScreenProps {
     readonly category: RiderSupportCategory;
     readonly message: string;
     readonly orderId: string | null;
+    readonly lostAt?: string | null;
   }) => Promise<OpenTicketResponse>;
   readonly readTickets?: (input: ReadTicketsInput) => Promise<SupportTicketsResponse>;
   /** UI-3 / PR 5: داخلَ `ScreenFrame` العنوانُ للإطار (`false`). */
@@ -103,6 +104,7 @@ export function SupportScreen({
           category: input.category as RiderSupportCategory,
           message: input.message,
           orderId: input.orderId,
+          ...(input.lostAt === undefined ? {} : { lostAt: input.lostAt }),
         });
 
   // DEC-34: `initialCategory` يَطغى على اشتقاقِ `orderId` حينَ يُمرَّرُ.

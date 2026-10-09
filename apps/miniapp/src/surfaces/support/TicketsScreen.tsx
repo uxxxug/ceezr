@@ -44,7 +44,12 @@ import type {
   SupportTicketsResponse,
 } from "./ticket-contract.ts";
 import type { SupportStatusTone, SupportSurfaceSpec, SupportViewModel } from "./ticket-view.ts";
-import { isRetryableSupportError } from "./ticket-view.ts";
+import {
+  formatLostAt,
+  isRetryableSupportError,
+  localInputNow,
+  lostAtFromLocalInput,
+} from "./ticket-view.ts";
 
 /**
  * أصنافُ شارةِ الحالةِ — **مكتوبةٌ حرفاً في هذا المِلفِّ** لا مبنيّةٌ من اسمِ
@@ -135,9 +140,12 @@ export function TicketsScreen({
 }: TicketsScreenProps) {
   const t = miniAppTranslator(language);
   const messageId = useId();
+  const lostAtId = useId();
   const prefix = spec.keyPrefix;
   const [category, setCategory] = useState<string | null>(initialCategory);
   const [message, setMessage] = useState("");
+  // ADR 0253: وقتُ الفقدِ التقريبيّ — اختياريٌّ، وفارغُه لا يُرسَل.
+  const [lostLocal, setLostLocal] = useState("");
   const [busy, setBusy] = useState(false);
   const [opened, setOpened] = useState<OpenTicketResponse | null>(null);
   const [formError, setFormError] = useState<{ code: string; retryAfter: number | null } | null>(
@@ -176,12 +184,24 @@ export function TicketsScreen({
 
   const submit = useCallback(async () => {
     if (category === null) return;
+    const acceptsLost = spec.acceptsLostAt?.(category) === true;
+    const lostAt = acceptsLost ? lostAtFromLocalInput(lostLocal) : null;
+    if (lostAt === undefined) {
+      setFormError({ code: "LOST_AT_INVALID", retryAfter: null });
+      return;
+    }
     setBusy(true);
     setFormError(null);
     try {
-      const response = await openTicket({ category, message: message.trim(), orderId });
+      const response = await openTicket({
+        category,
+        message: message.trim(),
+        orderId,
+        ...(lostAt === null ? {} : { lostAt }),
+      });
       setOpened(response);
       setMessage("");
+      setLostLocal("");
       // القائمةُ تُقرأُ من القاعدةِ بعدَ الكتابةِ — لا صفَّ يُدَسُّ محليّاً.
       await loadPage(null);
     } catch (thrown) {
@@ -189,7 +209,7 @@ export function TicketsScreen({
     } finally {
       setBusy(false);
     }
-  }, [category, loadPage, message, openTicket, orderId]);
+  }, [category, loadPage, lostLocal, message, openTicket, orderId, spec]);
 
   const submittable = view.canSubmit({ category, message, orderId, busy });
 
@@ -255,6 +275,22 @@ export function TicketsScreen({
         )}
         {orderId !== null && <p className="sup__order-bound">{t(`${prefix}form.orderBound`)}</p>}
 
+        {category !== null && spec.acceptsLostAt?.(category) === true && (
+          <div className="sup__lost-at">
+            <label className="sup__message-label" htmlFor={lostAtId}>
+              {t(`${prefix}form.lostAt`)}
+            </label>
+            <input
+              className="sup__lost-at-input"
+              id={lostAtId}
+              type="datetime-local"
+              max={localInputNow(new Date())}
+              onChange={(event) => setLostLocal(event.target.value)}
+              value={lostLocal}
+            />
+            <p className="sup__remaining">{t(`${prefix}form.lostAtHint`)}</p>
+          </div>
+        )}
         <label className="sup__message-label" htmlFor={messageId}>
           {t(`${prefix}form.message`)}
         </label>
@@ -332,6 +368,14 @@ export function TicketsScreen({
                 {row.resolution !== null && (
                   <p className="sup__ticket-resolution">
                     {t(`${prefix}list.resolution`).replace("{text}", row.resolution)}
+                  </p>
+                )}
+                {row.lostAt !== null && formatLostAt(row.lostAt, language) !== null && (
+                  <p className="sup__ticket-lost-at">
+                    {t(`${prefix}list.lostAt`).replace(
+                      "{time}",
+                      formatLostAt(row.lostAt, language) as string,
+                    )}
                   </p>
                 )}
                 {row.hasOrder && (

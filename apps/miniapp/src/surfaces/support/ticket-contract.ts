@@ -43,6 +43,8 @@ export interface ApiSupportTicket {
   readonly orderId: string | null;
   readonly createdAt: string;
   readonly resolvedAt: string | null;
+  /** ADR 0253: الوقتُ التقريبيُّ للفقدِ كما قدّمَه صاحبُه — خادمٌ أقدمُ لا يُرسِلُه، فاختياريّ. */
+  readonly lostAt?: string | null;
 }
 
 export interface ApiSupportCursor {

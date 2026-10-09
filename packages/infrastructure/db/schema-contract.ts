@@ -116,6 +116,7 @@ export const CONTRACT_FUNCTIONS: readonly string[] = [
   "open_admin_session",
   "open_offer_round",
   "open_support_ticket",
+  "open_support_ticket_with_lost_at",
   "open_unsubscribed_cycle",
   "persist_driver_location_batch",
   "plan_upgrade_quote",

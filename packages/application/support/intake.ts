@@ -71,6 +71,11 @@ export const SUPPORT_PUBLIC_ERROR_CODES = [
   "CITY_NOT_READY",
   "LIMIT_OUT_OF_RANGE",
   "CURSOR_INVALID",
+  // ADR 0253: وقتُ الفقدِ التقريبيّ — صيغةٌ، وصنفٌ لا يقبلُه، ومستقبلٌ، وقبلَ الرحلة.
+  "LOST_AT_INVALID",
+  "LOST_AT_NOT_ALLOWED",
+  "LOST_AT_IN_FUTURE",
+  "LOST_AT_BEFORE_RIDE",
 ] as const;
 
 export type SupportPublicErrorCode = (typeof SUPPORT_PUBLIC_ERROR_CODES)[number];
@@ -94,7 +99,15 @@ export interface SupportIntakeDeps<C extends SupportTicketType> {
 export interface SupportRoleSpec<C extends SupportTicketType> {
   readonly isCategory: (value: unknown) => value is C;
   readonly requiresOrder: (category: C) => boolean;
+  /** ADR 0253: الأصنافُ التي تقبلُ وقتَ فقدٍ تقريبيّاً — غيابُها = لا صنف. */
+  readonly acceptsLostAt?: (category: C) => boolean;
 }
+
+/** هامشُ ساعةِ الجهازِ للمستقبلِ — نفسُه في القاعدة (`open_support_ticket_with_lost_at`). */
+export const LOST_AT_FUTURE_SKEW_MS = 5 * 60 * 1000;
+
+/** لحظةٌ بمنطقةٍ صريحةٍ (`Z` أو `±hh:mm`) وحدَها: لحظةٌ بلا منطقةٍ تُفسَّرُ بساعةِ الخادمِ فتكذب. */
+const ISO_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,3})?)?(Z|[+-]\d{2}:\d{2})$/;
 
 export function rejection(
   code: SupportPublicErrorCode,
@@ -149,6 +162,12 @@ export function publicCodeFrom(error: SupportStoreError): SupportRejection {
       return rejection("LIMIT_OUT_OF_RANGE");
     case "CURSOR_INCOMPLETE":
       return rejection("CURSOR_INVALID");
+    case "LOST_AT_NOT_ALLOWED":
+      return rejection("LOST_AT_NOT_ALLOWED");
+    case "LOST_AT_IN_FUTURE":
+      return rejection("LOST_AT_IN_FUTURE");
+    case "LOST_AT_BEFORE_RIDE":
+      return rejection("LOST_AT_BEFORE_RIDE");
   }
 }
 
@@ -163,6 +182,8 @@ export async function openSupportTicket<C extends SupportTicketType>(
     readonly category: unknown;
     readonly message: unknown;
     readonly orderId: unknown;
+    /** ADR 0253: اختياريٌّ؛ غيابُه أو `null` = لا وقتَ (لا يُخترَع). */
+    readonly lostAt?: unknown;
   },
 ): Promise<Result<OpenedSupportTicketOf<C>, SupportRejection>> {
   const session = await openSession(deps, input.accessToken);
@@ -188,11 +209,26 @@ export async function openSupportTicket<C extends SupportTicketType>(
     return err(rejection("ORDER_REQUIRED"));
   }
 
+  let lostAt: string | null = null;
+  if (input.lostAt !== undefined && input.lostAt !== null) {
+    if (typeof input.lostAt !== "string" || !ISO_INSTANT.test(input.lostAt)) {
+      return err(rejection("LOST_AT_INVALID"));
+    }
+    const at = Date.parse(input.lostAt);
+    if (!Number.isFinite(at)) return err(rejection("LOST_AT_INVALID"));
+    if (spec.acceptsLostAt?.(input.category) !== true) return err(rejection("LOST_AT_NOT_ALLOWED"));
+    if (at > deps.now().getTime() + LOST_AT_FUTURE_SKEW_MS) {
+      return err(rejection("LOST_AT_IN_FUTURE"));
+    }
+    lostAt = new Date(at).toISOString();
+  }
+
   const written = await deps.store.openTicket({
     telegramUserId: session.value,
     category: input.category,
     message,
     orderId,
+    ...(lostAt === null ? {} : { lostAt }),
   });
   if (!written.ok) return err(publicCodeFrom(written.error));
   return ok(written.value);

@@ -97,6 +97,8 @@ export interface SupportTicketView {
   readonly orderId: string | null;
   readonly createdAt: string;
   readonly resolvedAt: string | null;
+  /** ADR 0253: الوقتُ التقريبيُّ للفقدِ أو ملاحظتِه كما قدّمَه صاحبُ البلاغ — `null` لم يُقدَّم. */
+  readonly lostAt: string | null;
 }
 
 /** صفحةُ تذاكرَ بترقيمِ مفتاحٍ — شكلٌ واحدٌ للدورَينِ لأنَّ الدالّتَينِ نظيرتانِ. */

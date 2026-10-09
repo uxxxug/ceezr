@@ -84,6 +84,8 @@ export interface RiderSupportDeps {
 const RIDER_ROLE: SupportRoleSpec<RiderSupportCategory> = {
   isCategory: isRiderSupportCategory,
   requiresOrder: categoryRequiresOrder,
+  // ADR 0253: بلاغُ المفقوداتِ وحدَه يحملُ وقتاً تقريبيّاً.
+  acceptsLostAt: (category) => category === "lost_item",
 };
 
 export function openRiderSupportTicket(
@@ -93,6 +95,7 @@ export function openRiderSupportTicket(
     readonly category: unknown;
     readonly message: unknown;
     readonly orderId: unknown;
+    readonly lostAt?: unknown;
   },
 ): Promise<Result<OpenedSupportTicket, RiderSupportRejection>> {
   return openSupportTicket(deps, RIDER_ROLE, input);
