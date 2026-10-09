@@ -57,7 +57,7 @@
     "check-ui-contrast · check-css-class-coverage · check-driver-vehicle-contract · check-performance-budget",
     "لقطاتُ متصفّحٍ حقيقيّةٌ (Chromium) على بوّابةٍ محلّيّةٍ وقاعدةِ PostgreSQL بذورٍ: الراكب، السائق، الإدارة، داكنٌ وفاتح"
   ],
-  "evidence": "المعاينةُ رُوجِعَت ووافقَ المالكُ (2026-10-09). محلّيّاً: bun run ci = exit 0. PR #449.",
+  "evidence": "وافقَ المالكُ (2026-10-09). PR #449 → e3d741be؛ CI main 37872069051 نجاح؛ Roadmap freshness 37872069076 نجاح. نشر: waslah-gateway dep-db44j7dg1s2s7387f7hg live 01:56:32 UTC · waslah-miniapp dep-db44j7jbc2fs73aji9bg live 01:55:59 UTC. الدليل: docs/evidence/production/PRD-002-deploy-20261009-ux-v2.md",
   "contract_gaps": [
     "أُصلِح: عميلُ /v1/driver/vehicle توقّعَ snake_case والخادمُ يُعيدُ camelCase (ظهرَ undefined)."
   ],
@@ -69,5 +69,5 @@
     "لا دمجَ ولا نشرَ قبلَ موافقةِ المالك"
   ],
   "limitations": "المعاينةُ بمضيفِ تيليجرامَ محاكًى ونقلٍ صامت؛ لا سائقينَ حقيقيّينَ للبحث؛ الاشتراكُ معطَّلٌ في المعاينة فتظهرُ حالةُ «غير متاح» الحقيقيّة.",
-  "status": "approved by owner — merging via PR #449"
+  "status": "closed — merged as PR #449 → e3d741be and deployed (2026-10-09 01:56 UTC). Not Production Ready (gate red)."
 }
