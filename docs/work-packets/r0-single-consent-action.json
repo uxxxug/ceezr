@@ -1,0 +1,28 @@
+{
+  "id": "r0-single-consent-action",
+  "goal": "زرٌّ واحدٌ «أوافق وأتابع» في ترحيبِ الراكب يسجّلُ كلَّ وثيقةٍ معلّقةٍ بإصدارِها في سجلٍّ مستقلّ عبرَ العقدِ القائم.",
+  "canonical_source": ["قرارُ المالك 2026-10-09 (R0)", "اللوحة 05 في حزمةِ التصميم", "ADR 0092"],
+  "implementation": [
+    "apps/miniapp/src/surfaces/rider/welcome/WelcomeScreen.tsx",
+    "apps/miniapp/src/surfaces/rider/welcome/consent-view.ts",
+    "apps/miniapp/src/surfaces/rider/welcome/r0-single-consent.test.ts",
+    "packages/shared/i18n/miniapp/ar.json",
+    "packages/shared/i18n/miniapp/en.json",
+    "packages/shared/i18n/miniapp/ur.json"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/adr/0254-r0-single-consent-action.md",
+    "docs/ux/UX-HANDOFF-COVERAGE-MATRIX.md"
+  ],
+  "decision": "ADR 0254: تتابعُ طلباتِ POST /v1/consents القائمة، لا نقطةَ دفعةٍ جديدة.",
+  "tests": [
+    "apps/miniapp/src/surfaces/rider/welcome/r0-single-consent.test.ts — 5",
+    "apps/miniapp/src/surfaces/rider/welcome — 28 نجحت محلّيّاً"
+  ],
+  "evidence": "اختباراتُ وحدةٍ محلّيّة؛ لا لقطةَ من عميلِ تيليجرامَ حقيقيّ.",
+  "constraints": ["لا تغييرَ لعقدِ /v1/consents", "سجلٌّ مستقلٌّ لكلِّ وثيقة", "لا متابعةَ قبلَ حكمِ الخادم"],
+  "limitations": ["لم يُختبَر داخلَ تيليجرام على جهاز"],
+  "status": "open"
+}
