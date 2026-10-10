@@ -79,7 +79,7 @@
 | الإجراء المطلوب | نشرُ `waslah-gateway` و`waslah-miniapp` من رأسِ `main` (أو successor بلا فرقٍ تشغيليٍّ) |
 | شرط القبول | نشرُ Render الحيُّ لكلِّ خدمةٍ commit = رأسُ `main` أو successor بلا فرقٍ تشغيليٍّ (`git diff --name-only <deployed> main` خارجَ `docs/` و`*.md` فارغ)؛ وبصمةُ الـminiapp الحيّةُ = بصمةُ بناءِ ذلك الـcommit **بمتغيّراتِ `VITE_*` الإنتاجيّة** (لا بناءٍ محليٍّ بلاها) |
 | الدليل | `docs/evidence/production/PRD-002-deploy-20261008.md` |
-| الحالة | **Verified** (2026-10-08 — gateway وminiapp live على `e5282587` = رأسُ `main`؛ البصمةُ `shell-DG3BU2l8` مطابقة) |
+| الحالة | **Verified** (2026-10-08 — gateway وminiapp live على `e5282587` = رأسُ `main`؛ البصمةُ `shell-DG3BU2l8` مطابقة). **ملاحظةٌ 2026-10-10:** النشرُ الحيُّ أحدثُ (`9519056`)؛ أصلُ التطبيقِ **مثبتٌ** بايت-ببايت (6 حزم، `VITE_WASLAH_BOT_LINK=https://t.me/ODD_R_BOT`)؛ **بصمةُ البوابةِ (SHA) غيرُ مثبتةٍ مستقلًّا** — الدليلُ: `docs/evidence/production/PRD-002-deploy-20261010-9519056f.md` |
 
 ### PRD-003: تطبيق هجرات UI-8 وUI-10
 
