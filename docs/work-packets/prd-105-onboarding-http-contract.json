@@ -1,0 +1,27 @@
+{
+  "id": "prd-105-onboarding-http-contract",
+  "goal": "سدُّ فجوةِ تغطيةِ HTTP لمسارِ POST /v1/onboarding/driver: الاختباراتُ القائمةُ تستدعي onboardDriver وقاعدةَ البياناتِ مباشرةً، ولا اختبارَ يمرُّ بالموجِّهِ createOnboardingRoutes.",
+  "canonical_source": [
+    "docs/adr/0257-driver-onboarding-in-miniapp.md",
+    "docs/governance/PRODUCTION_READINESS_GATE.md#PRD-105"
+  ],
+  "implementation": [
+    "tests/unit/onboarding-driver-route.test.ts",
+    "docs/work-packets/prd-105-onboarding-http-contract.json"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [],
+  "no_other_affected_docs_reason": "اختباراتٌ فقط؛ لا تغييرَ في الشيفرةِ ولا العقدِ ولا الهجرات — العقدُ الموثَّقُ في ADR 0257 يُختبَرُ كما هو.",
+  "decision": "ADR 0257",
+  "tests": [
+    "tests/unit/onboarding-driver-route.test.ts",
+    "tests/unit/onboard-driver.test.ts",
+    "tests/integration/driver-onboarding-miniapp.test.ts",
+    "CI كامل"
+  ],
+  "evidence": "11/11 محلّيّاً (bun 1.4.2). طفرتانِ يدويّتانِ على onboarding.ts (تمريرُ phone من الجسمِ وإرجاعُ verified؛ حذفُ حارسِ الجسم) أسقطتا اختباراً لكلٍّ منهما ثمَّ أُعيدَ الملفُّ.",
+  "constraints": ["لا سجلَّ إنتاجيّ: منافذُ في الذاكرة", "لا تغييرَ في الشيفرةِ التنفيذيّة"],
+  "limitations": "لا يُثبِتُ سلوكَ القاعدة (pending · التزامن) — مُغطّىً في اختبارِ التكامل؛ ولا يُغني عن تسجيلٍ حقيقيٍّ عبرَ تيليجرام (PRD-008).",
+  "status": "open"
+}
