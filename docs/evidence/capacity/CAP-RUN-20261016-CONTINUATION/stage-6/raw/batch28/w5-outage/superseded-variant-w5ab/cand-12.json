@@ -1,0 +1,219 @@
+{
+  "W1": {
+    "jobs": 60,
+    "acquisitionsTotal": 201,
+    "acquisitionsPerJob": 3.35,
+    "bySig": {
+      "select claim_telegram_update_jobs_for_bot": 21,
+      "select 1 as b28_prepare_stub": 60,
+      "select record_telegram_update_effect": 60,
+      "select finish_telegram_update_replies": 60
+    },
+    "effectCheckAcquisitionsPerJob": 0,
+    "backends": 5,
+    "poolMax": 5
+  },
+  "W2": {
+    "jobs": 80,
+    "done": 80,
+    "dup": 0,
+    "prepared": 80
+  },
+  "W3": {
+    "staleEffectChecks": 1,
+    "reExecuted": 0
+  },
+  "W4": {
+    "rows": [
+      {
+        "update_id": 9346770,
+        "status": "done",
+        "attempts": 2,
+        "recorded": true
+      },
+      {
+        "update_id": 9346771,
+        "status": "done",
+        "attempts": 2,
+        "recorded": true
+      }
+    ],
+    "prepared": {
+      "9346770": 2,
+      "9346771": 2
+    }
+  },
+  "W5": {
+    "killed": 5,
+    "recoveryMs": 1375,
+    "events": [
+      [
+        "query",
+        0,
+        3,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        0,
+        "select 1 as b28_prepare_stub"
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select record_telegram_update_effect("
+      ],
+      [
+        "query",
+        0,
+        0,
+        "select finish_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        13,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        3,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        3,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        4,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        5,
+        "select 1 as b28_prepare_stub"
+      ],
+      [
+        "query",
+        0,
+        1,
+        "select finish_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        22,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        1,
+        "select 1 as b28_prepare_stub"
+      ],
+      [
+        "query",
+        0,
+        4,
+        "select record_telegram_update_effect("
+      ],
+      [
+        "query",
+        0,
+        6,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select finish_telegram_update_replies("
+      ]
+    ],
+    "logs": [
+      [
+        62,
+        "telegram.drainer.job_error",
+        {
+          "bot": "driver",
+          "updateId": 9346870,
+          "error": "write CONNECTION_CLOSED localhost:5432"
+        }
+      ],
+      [
+        1095,
+        "telegram.drainer.job_error",
+        {
+          "bot": "driver",
+          "updateId": 9346870,
+          "error": "terminating connection due to administrator command"
+        }
+      ]
+    ],
+    "rows": [
+      {
+        "update_id": 9346870,
+        "status": "done",
+        "attempts": 3,
+        "recorded": true
+      }
+    ],
+    "backendsAfter": 2
+  },
+  "W6": {
+    "order": [
+      9346970,
+      9346971,
+      9346972,
+      9346973,
+      9346974
+    ],
+    "replies": [
+      {
+        "update_id": 9346970,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9346971,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9346972,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9346973,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9346974,
+        "reply_status": "done",
+        "replies_sent": 1
+      }
+    ]
+  }
+}
