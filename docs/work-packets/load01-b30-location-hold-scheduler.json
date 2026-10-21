@@ -13,6 +13,7 @@
     "packages/infrastructure/dispatch/dispatch-adapters.ts",
     "packages/infrastructure/tracking/session-repository.ts",
     "packages/tracking/session-store.ts",
+    "scripts/lib/skip-registry.ts",
     "tests/integration/driver-location-pool-acquisitions.test.ts",
     "tests/integration/redispatch-live-round-priority.test.ts",
     "tests/unit/immediate-redispatch.test.ts",
@@ -546,6 +547,7 @@
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch30/tests/integ-full-main-19e30b5b.log.gz",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch30/tests/unit-full-final.log.gz",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch30/witness/driver-location-acquisitions.json",
-    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch30/witness/witness-run.log.gz"
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch30/witness/witness-run.log.gz",
+    "docs/roadmap/execution/STATUS.md"
   ]
 }
