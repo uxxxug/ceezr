@@ -1,5 +1,6 @@
 name: LOAD-01 الدفعة 29 — مقعد 4 vCPU (إسناد فشل N2 والسعة الصافية لخفض حجوزات الدرينر)
 
+# الملحق (PLAN-b29-addendum.md): n2d وn2e بديلتا n2a وn2c غيرِ الصالحتَين (iowait)، مرّةً واحدة.
 # الدفعة 29 (PLAN-b29.md مثبَّتةٌ قبلَ أوّلِ موجة): ثلاثُ سلاسلَ مستقلّةٍ متطابقةٍ (n2a/n2b/n2c) على مقاعدَ منفصلة،
 # كلٌّ منها تصميمُ ب28 حرفًا (الـSHAs والترتيبُ والمحلّل)، معَ سطورِ إسنادٍ رقميّةٍ في السجلّ (seat-b29.sh).
 # تشخيصٌ معزولٌ على فرعِ التجربةِ وحدَه ولا يُدمَج. تصميمُ ب28 (PLAN-b28.md):
@@ -29,9 +30,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { series: main, limit: 50, run_tag: n2a, r_sha: 45571268e75e191862ea731d89c7361bed3d0050, c_sha: 3aace81e42dbc24db7b4e04fc20f512ec8ba1eca }
-          - { series: main, limit: 50, run_tag: n2b, r_sha: 45571268e75e191862ea731d89c7361bed3d0050, c_sha: 3aace81e42dbc24db7b4e04fc20f512ec8ba1eca }
-          - { series: main, limit: 50, run_tag: n2c, r_sha: 45571268e75e191862ea731d89c7361bed3d0050, c_sha: 3aace81e42dbc24db7b4e04fc20f512ec8ba1eca }
+          - { series: main, limit: 50, run_tag: n2d, r_sha: 45571268e75e191862ea731d89c7361bed3d0050, c_sha: 3aace81e42dbc24db7b4e04fc20f512ec8ba1eca }
+          - { series: main, limit: 50, run_tag: n2e, r_sha: 45571268e75e191862ea731d89c7361bed3d0050, c_sha: 3aace81e42dbc24db7b4e04fc20f512ec8ba1eca }
     env:
       R_SHA: ${{ matrix.r_sha }}
       C_SHA: ${{ matrix.c_sha }}
