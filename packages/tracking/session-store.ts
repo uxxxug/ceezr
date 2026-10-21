@@ -91,6 +91,14 @@ export interface TrackingSessionStore {
   ): Promise<TrackingSessionRecord>;
 
   /**
+   * `LOAD-01` (ب30) — اختياريّ: يفتح جلسةً **رحلتُها تُقرأ داخلَ جملةِ الفتحِ نفسِها**
+   * (الطلبُ المسنَدُ إلى السائقِ بحالة `matched`/`in_progress` — شرطُ قارئِ الرحلةِ النشطةِ
+   * حرفًا). عقدُه عقدُ `open` بعدَ قراءةٍ طازجةٍ للرحلة (`live-tracking-open-race.test.ts`)
+   * وأحدثُ منها، في رحلةٍ واحدةٍ إلى القاعدةِ بدلَ اثنتَين. غيابُه = المسارُ ذو القراءتَين.
+   */
+  openOnActiveTrip?(driverId: string, startedAtMs: number): Promise<TrackingSessionRecord>;
+
+  /**
    * يربط الجلسة المفتوحة برحلة (أو يفصلها بـ`null`).
    *
    * **ولا يستهلك رقماً**: لا حدثَ يُنشَر عن الربطِ، ورقمٌ يُستهلَك بلا حدثٍ فجوةٌ

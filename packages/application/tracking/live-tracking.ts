@@ -213,6 +213,16 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
    * صفٌّ لا يُقرأ نشطاً (السقف الزمني)، فلا يُضلّل العمليات ولا يُعطّل فهرس
    * الجلسة الواحدة، لأنّ الإصلاحة التالية من نفس السائق تُغلقه قبل أن تفتح.
    */
+  /**
+   * `LOAD-01` (ب30) — فتحُ جلسةٍ على رحلةٍ مقروءةٍ طازجةً. متى قدّمَ المخزنُ
+   * `openOnActiveTrip` قُرِئت الرحلةُ داخلَ جملةِ الفتح (رحلةٌ واحدةٌ إلى القاعدة)، وإلّا
+   * فالقراءتانِ كما كانتا. العقدُ واحدٌ: لا تُفتَحُ جلسةٌ على رحلةٍ أقدمَ من لحظةِ الفتح.
+   */
+  const openFresh = async (driverId: string, startAtMs: number): Promise<TrackingSessionRecord> =>
+    deps.sessions.openOnActiveTrip !== undefined
+      ? deps.sessions.openOnActiveTrip(driverId, startAtMs)
+      : deps.sessions.open(driverId, await deps.trips.activeTripOf(driverId), startAtMs);
+
   const currentSession = async (
     driverId: string,
     nowMs: number,
@@ -222,11 +232,7 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
     if (existing !== null && !acceptsFixes(existing.facts, nowMs, policy)) {
       await closeAndAnnounce(driverId, existing.facts.tripId, "EXPIRED", nowMs);
       log("tracking.session_expired", { driverId, startedAtMs: existing.facts.startedAtMs });
-      const replacement = await deps.sessions.open(
-        driverId,
-        await deps.trips.activeTripOf(driverId),
-        startAtMs,
-      );
+      const replacement = await openFresh(driverId, startAtMs);
       return { record: replacement, opened: true };
     }
 
@@ -241,8 +247,7 @@ export function createLiveTracking(deps: LiveTrackingDeps): LiveTrackingPort {
        * المرجعيِّ على `main` (`tests/unit/live-tracking-open-race.test.ts` (ج)).
        * والكلفةُ قراءةٌ واحدةٌ في عمرِ الجلسةِ لا في كلِّ إصلاحة.
        */
-      const trip = await deps.trips.activeTripOf(driverId);
-      return { record: await deps.sessions.open(driverId, trip, startAtMs), opened: true };
+      return { record: await openFresh(driverId, startAtMs), opened: true };
     }
 
     /**
