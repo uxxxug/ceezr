@@ -135,6 +135,30 @@ export function createTrackingSessionRepository(sql: Sql): TrackingSessionStore 
       throw new Error("تعذّر فتح جلسة تتبّع ولا توجد جلسة مفتوحة");
     },
 
+    openOnActiveTrip: async (driverId, startedAtMs) => {
+      // `LOAD-01` (ب30) — الرحلةُ تُقرأُ في جملةِ الإدراجِ نفسِها: لقطةُ الجملةِ هيَ لحظةُ الفتح،
+      // فلا نافذةَ بينَ قراءةِ الرحلةِ وإنشاءِ الجلسة، ورحلةٌ واحدةٌ إلى تجمُّعِ الطلبِ لا اثنتان.
+      const inserted = await sql<SessionRow[]>`
+        insert into tracking_sessions (driver_id, city_id, trip_id, started_at)
+        select d.id, d.city_id,
+               (select o.id from orders o
+                 where o.assigned_driver_id = d.id
+                   and o.status in ('matched', 'in_progress')
+                 limit 1),
+               ${new Date(startedAtMs)}
+          from drivers d
+         where d.id = ${driverId}::uuid
+        on conflict do nothing
+        returning ${sql.unsafe(SELECT_COLUMNS)}
+      `;
+      const row = inserted[0];
+      if (row !== undefined) return toRecord(row);
+
+      const existing = await openOf(driverId);
+      if (existing !== null) return existing;
+      throw new Error("تعذّر فتح جلسة تتبّع ولا توجد جلسة مفتوحة");
+    },
+
     attachTrip: async (driverId, tripId) => {
       const rows = await sql<SessionRow[]>`
         update tracking_sessions
