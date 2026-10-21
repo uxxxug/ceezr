@@ -1,0 +1,32 @@
+{
+  "id": "load01-b30-location-hold-scheduler",
+  "goal": "LOAD-01 الدفعة 30: خفضُ حجزِ اتصالاتِ gatewayRequest في POST /v1/driver/location (فتحُ الجلسةِ على الرحلةِ داخلَ جملةِ الإدراج، 7→6 حجوزات بعدَ قراءةِ السائق بشاهدِ PG حقيقيّ) ثمّ قياسُ صافي الأثرِ معَ جدولةٍ حافظةٍ للعملِ في immediate-redispatch.ts (الحدُّ 50 نفسُه). مقارنةٌ مسجَّلةٌ مسبقًا بثلاثةِ أذرع (12 موجةً VALID عندَ 750): L=REGRESSION (N2: L3 أسقطت P1/P2)، S=REGRESSION (P4 يمرّ لكنّ G1 يسقطُ 4/4). لا دمجَ للشِّفرة؛ LOAD-01 = FAIL بلا تغيير.",
+  "canonical_source": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/ACCEPTANCE-PROTOCOL.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-30-LOAD01-LOCATION-HOLD-SCHEDULER.md"
+  ],
+  "implementation": [
+    "apps/gateway/src/background/immediate-redispatch.ts",
+    "apps/gateway/src/container.ts",
+    "packages/application/dispatch/redispatch-searching-orders.ts",
+    "packages/application/tracking/live-tracking.ts",
+    "packages/infrastructure/dispatch/dispatch-adapters.ts",
+    "packages/infrastructure/tracking/session-repository.ts",
+    "packages/tracking/session-store.ts",
+    "tests/integration/driver-location-pool-acquisitions.test.ts",
+    "tests/integration/redispatch-live-round-priority.test.ts",
+    "tests/unit/immediate-redispatch.test.ts",
+    "tests/unit/live-tracking-fresh-open.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-30-LOAD01-LOCATION-HOLD-SCHEDULER.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch30/SHA256SUMS"
+  ]
+}
