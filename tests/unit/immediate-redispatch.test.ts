@@ -322,7 +322,8 @@ describe("LOAD-01 — إعادةُ العرضِ الفوريّةُ: جدولةٌ
     scheduler.trigger(CITY);
     for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
     expect(calls.map((c) => c.drain)).toEqual([false, true, true]);
-    expect(calls[1]!.at - calls[0]!.at).toBe(800); // فورًا بعدَ الشوط، لا بعدَ 2000
+    const [first, second] = calls;
+    expect((second?.at ?? Number.NaN) - (first?.at ?? Number.NaN)).toBe(800); // فورًا بعدَ الشوط، لا بعدَ 2000
     expect(timers.size()).toBe(0); // لا لاحقَ: الأخيرُ غيرُ مشبع
   });
 

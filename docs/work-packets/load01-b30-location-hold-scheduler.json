@@ -19,13 +19,8 @@
     "tests/unit/immediate-redispatch.test.ts",
     "tests/unit/live-tracking-fresh-open.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md",
-    "docs/roadmap/execution/STATUS.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md", "docs/roadmap/execution/STATUS.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-30-LOAD01-LOCATION-HOLD-SCHEDULER.md",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch30/SHA256SUMS",
