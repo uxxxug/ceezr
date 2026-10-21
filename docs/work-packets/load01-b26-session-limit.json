@@ -7,13 +7,8 @@
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch26/VERIFICATION-INDEPENDENT.md"
   ],
   "implementation": [],
-  "state": [
-    "docs/SYSTEM_STATE.md",
-    "docs/roadmap/execution/STATUS.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md", "docs/roadmap/execution/STATUS.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-26-LOAD01-SESSION-LIMIT.md",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch26/PLAN-preregistered-a02f3185.md",
