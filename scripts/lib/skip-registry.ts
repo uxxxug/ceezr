@@ -210,6 +210,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/telegram-drainer-claim-ahead.test.ts",
+    suites: ["ب31 على قاعدةٍ حقيقية: المخزَّنُ بالالتقاطِ المسبَقِ لا يُفلتُ إيجارَه"],
+    skipped: 1,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "شاهدُ LOAD-01 (ب31): الوظيفةُ الملتقَطةُ مسبقًا المنتظرةُ مسارًا يُجدَّدُ إيجارُها فلا يلتقطُها شوطٌ متداخلٌ فتُعالَجَ مرّتين — الإيجارُ وانتهاؤه و`skip locked` وختمُ الوظيفةِ لا يشهدُ عليها إلا PostgreSQL حقيقيٌّ بالهجراتِ مطبَّقة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/redispatch-live-round-priority.test.ts",
     suites: ["LOAD-01 P4 — الجولة الحية لا تحجب الطلب الذي لم يُعرَض"],
     skipped: 2,

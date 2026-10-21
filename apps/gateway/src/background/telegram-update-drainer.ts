@@ -535,8 +535,15 @@ async function drainConcurrently(
       open.sort((a, b) => (busy.get(a) ?? 0) - (busy.get(b) ?? 0));
       const bot = open[0] as string;
       if (batchClaim !== undefined) {
+        /**
+         * LOAD-01 (الدفعةُ 31) — التقاطٌ مسبَق: الدُّفعةُ بحصّةِ البوتِ من المساراتِ لا بالفارغِ منها لحظةَ
+         * الرحلة. المقيسُ قبلَه (ب30، ذراعُ S، التشغيل 39640036712): المجمّعُ مشبعٌ فرحلةُ الالتقاطِ ~176ms
+         * وأغلبُها انتظارُ اتصال، والدُّفعةُ = الفارغُ لحظتَها (~6) ⇒ 17 رحلةً متتاليةً لكلِّ 100 وظيفة،
+         * والشوطُ 3.2ث منها 3.0ث التقاط ⇒ سقفُ الإتمامِ ~31/ث والطابورُ ~500 وG1 يسقط. الفائضُ ينتظرُ
+         * في المخزَّنِ بترتيبِه حتى يفرغَ مسار (الجاري لا يتجاوزُ `lanes`)، وإيجارُه يُجدَّدُ من لحظةِ
+         * استلامِه (`held`). لا اتصالَ إضافيّ: رحلاتٌ أقلّ، والسقفُ والإنصافُ وترتيبُ المستخدمِ كما هي.
+         */
         const room = Math.min(
-          Math.max(1, lanes - inflight.size),
           Math.max(1, Math.ceil(lanes / fair.length)),
           Math.max(1, maxJobsPerRun - claimed),
         );
@@ -545,6 +552,13 @@ async function drainConcurrently(
         claimTrips += 1;
         claimMs += performance.now() - t0;
         if (jobs.length > 0) {
+          for (const j of jobs.slice(1)) {
+            held.set(`${j.bot}:${j.updateId}`, {
+              bot: j.bot,
+              updateId: j.updateId,
+              claimToken: j.claimToken,
+            });
+          }
           batched.push(...jobs.slice(1));
           return jobs[0] as ClaimedJob;
         }
