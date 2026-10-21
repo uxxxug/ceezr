@@ -69,6 +69,12 @@ export interface SearchingOrderRef {
    * وفحصُ الأهليةِ النهائيُّ للسائقِ يقعُ في `claim_ride` لحظةَ القبولِ لا هنا.
    */
   readonly order?: Order;
+  /**
+   * `LOAD-01` (ب30) — جولتُه الحاليّةُ حيّةٌ في مهلةِ `liveRoundGraceSeconds` (علامةُ ترتيبِ النافذةِ
+   * العادلةِ نفسُها). يقرؤها مُجدوِلُ الإعادةِ الفوريّة ليحكمَ هل يُعادُ الشوطُ بلا انتظار، ولا يبني
+   * عليها `redispatchSearchingOrders` حكمًا. غيابُها = غيرُ معروف (يُعامَلُ كأنّه حيّ: الأحوط).
+   */
+  readonly inLiveGrace?: boolean;
 }
 
 export interface SearchingOrderFinder {

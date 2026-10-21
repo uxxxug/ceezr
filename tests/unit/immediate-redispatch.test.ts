@@ -294,4 +294,91 @@ describe("LOAD-01 — إعادةُ العرضِ الفوريّةُ: جدولةٌ
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(logs.some((entry) => entry.message === "redispatch.immediate_failed")).toBe(true);
   });
+
+  /**
+   * ب30 — الجدولةُ الحافظةُ للعمل: `drainNow` = شوطُ تصريفٍ فورًا (لا انتظارَ لبقيّةِ النافذة)،
+   * بالخيار `drain: true`؛ وبدونِه السلوكُ القائمُ حرفًا (لاحقٌ واحدٌ بعدَ النافذة).
+   */
+  it("٩) drainNow: شوطُ تصريفٍ فوريٌّ بلا مؤقّت، ويتوقّفُ عندَ أوّلِ شوطٍ لا يطلبُه", async () => {
+    const calls: { at: number; drain: boolean }[] = [];
+    let nowMs = NOW_MS;
+    const timers = manualTimers();
+    const plan = [
+      { saturated: true, drainNow: true },
+      { saturated: true, drainNow: true },
+      { saturated: false },
+    ];
+    const scheduler = createImmediateRedispatchScheduler({
+      run: async (_city, opts) => {
+        calls.push({ at: nowMs, drain: opts?.drain === true });
+        nowMs += 800; // مدّةُ الشوط
+        return plan.shift();
+      },
+      debounceMs: 2_000,
+      now: () => nowMs,
+      ...immediateSchedule(),
+      scheduleAfter: timers.scheduleAfter,
+    });
+    scheduler.trigger(CITY);
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls.map((c) => c.drain)).toEqual([false, true, true]);
+    expect(calls[1]!.at - calls[0]!.at).toBe(800); // فورًا بعدَ الشوط، لا بعدَ 2000
+    expect(timers.size()).toBe(0); // لا لاحقَ: الأخيرُ غيرُ مشبع
+  });
+
+  it("١٠) مشبعٌ بلا drainNow = السلوكُ القائم: لاحقٌ واحدٌ بعدَ بقيّةِ النافذة، وليس تصريفًا", async () => {
+    const calls: boolean[] = [];
+    let nowMs = NOW_MS;
+    const timers = manualTimers();
+    const plan = [{ saturated: true, drainNow: false }, { saturated: false }];
+    const scheduler = createImmediateRedispatchScheduler({
+      run: async (_city, opts) => {
+        calls.push(opts?.drain === true);
+        nowMs += 800;
+        return plan.shift();
+      },
+      debounceMs: 2_000,
+      now: () => nowMs,
+      ...immediateSchedule(),
+      scheduleAfter: timers.scheduleAfter,
+    });
+    scheduler.trigger(CITY);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(calls).toEqual([false]);
+    expect(timers.size()).toBe(1);
+    nowMs += 1_200;
+    const fired = timers.fireAll();
+    expect(fired[0]?.ms).toBe(1_200);
+    expect(calls).toEqual([false, false]);
+  });
+
+  it("١١) محفّزاتٌ أثناءَ التصريف تُدمَجُ ولا تُضاعِفُ الأشواط (لا تداخل)", async () => {
+    let inflight = 0;
+    let maxInflight = 0;
+    let runs = 0;
+    let nowMs = NOW_MS;
+    const timers = manualTimers();
+    let scheduler: ReturnType<typeof createImmediateRedispatchScheduler> | null = null;
+    scheduler = createImmediateRedispatchScheduler({
+      run: async () => {
+        runs++;
+        inflight++;
+        maxInflight = Math.max(maxInflight, inflight);
+        for (let i = 0; i < 10; i++) scheduler?.trigger(CITY);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        nowMs += 800;
+        inflight--;
+        return runs < 3 ? { saturated: true, drainNow: true } : { saturated: false };
+      },
+      debounceMs: 2_000,
+      now: () => nowMs,
+      schedule: (fn) => setTimeout(fn, 0),
+      scheduleAfter: timers.scheduleAfter,
+    });
+    scheduler.trigger(CITY);
+    for (let i = 0; i < 20; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(maxInflight).toBe(1);
+    expect(runs).toBe(3);
+    expect(timers.size()).toBe(1); // المحفّزاتُ المدمَجةُ = لاحقٌ واحدٌ بعدَ النافذة
+  });
 });

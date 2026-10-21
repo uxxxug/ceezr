@@ -194,6 +194,7 @@ import {
 } from "../../../packages/shared/config/connection-budget.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
+import { ok } from "../../../packages/shared/result/index.ts";
 import { resolveGpsPolicy } from "../../../packages/tracking/config.ts";
 import type { TrackingSessionStore } from "../../../packages/tracking/session-store.ts";
 import {
@@ -979,9 +980,27 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
   };
   const immediateRedispatchScheduler = createImmediateRedispatchScheduler({
     // LOAD-01 ب32: الشوطُ يُعلِنُ مسارَه في أثرِ الحِملِ (لا يرثُ مسارَ الطلبِ الذي حفّزه)؛ بلا أثرٍ لا شيء.
-    run: (cityId) =>
+    run: (cityId, opts) =>
       withLoadPath("redispatch:immediate", async () => {
-        const finder = createSearchingOrderFinder(dispatchSql);
+        /**
+         * `LOAD-01 · P4` (ب30) — المنفذُ يحكمُ بـ`drainNow` لأنّه وحدَه يرى النافذة: يُطلَبُ شوطُ تصريفٍ
+         * فوريٌّ متى امتلأَ الحدُّ، وأُعيدَ عرضُ أغلبِ النافذة، ولم يكن فيها طلبٌ جولتُه حيّةٌ في مهلتِها
+         * أو علامتُه مجهولة (النافذةُ العادلةُ غيرُ مفعّلة ⇒ لا تصريفَ: السلوكُ القائمُ حرفًا). وشوطُ
+         * التصريفِ (`drain`) يُسقِطُ من نافذتِه ما جولتُه حيّةٌ أو مجهولة، فلا يُصعَّدُ طلبٌ أسرعَ ممّا
+         * كانَ يُصعَّدُ بالإيقاعِ القائم. الحدُّ نفسُه (50) والمنافذُ نفسُها.
+         */
+        const base = createSearchingOrderFinder(dispatchSql);
+        let notDrainable = 0;
+        const finder: typeof base = {
+          findSearching: async (...args) => {
+            const found = await base.findSearching(...args);
+            if (!found.ok) return found;
+            notDrainable = found.value.filter((r) => r.inLiveGrace !== false).length;
+            return opts?.drain === true
+              ? ok(found.value.filter((r) => r.inLiveGrace === false))
+              : found;
+          },
+        };
         const pass = dispatchTrace?.beginPass(cityId, finder, immediateMatching) ?? null;
         const report = await redispatchSearchingOrders(cityId, {
           finder: pass?.finder ?? finder,
@@ -996,10 +1015,15 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
           return;
         }
         // امتلأَ الحدُّ وتقدّمَ ⇒ بقيَ مستحقٌّ على الأرجحِ: شوطٌ لاحقٌ واحدٌ بعدَ النافذةِ.
+        const saturated =
+          report.value.examined >= IMMEDIATE_REDISPATCH_LIMIT &&
+          report.value.rebroadcast.length > 0;
         return {
-          saturated:
-            report.value.examined >= IMMEDIATE_REDISPATCH_LIMIT &&
-            report.value.rebroadcast.length > 0,
+          saturated,
+          drainNow:
+            saturated &&
+            notDrainable === 0 &&
+            report.value.rebroadcast.length * 2 >= report.value.examined,
         };
       }),
     debounceMs: IMMEDIATE_REDISPATCH_DEBOUNCE_MS,
