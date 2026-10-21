@@ -1,0 +1,81 @@
+name: LOAD-01 الدفعة 30 — مقعد 4 vCPU (ABBA بثلاثة أذرع — الموقع + الجدولة الحافظة للعمل)
+
+# تشخيصٌ معزولٌ على فرعِ التجربةِ وحدَه ولا يُدمَج. PLAN-b30.md مثبَّتةٌ قبلَ أوّلِ موجة:
+#   A=19e30b5b (main) · L=7352dc58 (A+الموقع) · S=2ea1aa87 (L+الجدولة) — الحدُّ 50 وgatewayRequest 5 في الثلاثة.
+on:
+  push:
+    branches: [exp/load01-b30-loc-sched]
+    paths:
+      - deploy/capacity-run/b24-runner/**
+      - deploy/capacity-run/monitor/**
+      - .github/workflows/load01-b30-loc-sched.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load01-b30-seat
+  cancel-in-progress: false
+
+jobs:
+  seat:
+    name: مقعد B30 (${{ matrix.series }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - series: main
+            limit: 50
+            a_sha: 19e30b5bde50ffb9d47c63d7583bd1e8817498f0
+            l_sha: 7352dc58ad6de46e9abc1c9b2be88f5f0a2c25b4
+            s_sha: 2ea1aa87f49414396f5bb3699c0eb1c8a7d226b7
+            run_tag: main
+    env:
+      A_SHA: ${{ matrix.a_sha }}
+      L_SHA: ${{ matrix.l_sha }}
+      S_SHA: ${{ matrix.s_sha }}
+      LIMIT: ${{ matrix.limit }}
+      RUN_TAG: ${{ matrix.run_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد (حزم المقعد الأصلي والمستخدم user)
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$A_SHA" "$L_SHA" "$S_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$A_SHA" "$L_SHA"
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$L_SHA" "$S_SHA"
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          MODE=$(cat deploy/capacity-run/b24-runner/MODE)
+          echo "MODE=$MODE"
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
+            --setenv=A_SHA="$A_SHA" --setenv=L_SHA="$L_SHA" --setenv=S_SHA="$S_SHA" --setenv=LIMIT="$LIMIT" --setenv=RUN_TAG="$RUN_TAG" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b30.sh "$MODE"
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرارِ — الفشلُ يحجرُ الخامَّ في المقعدِ)
+        uses: actions/upload-artifact@v5
+        with:
+          name: b30-seat-evidence-${{ matrix.run_tag }}
+          path: /home/user/b30-out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: b30-seat-failure-report-${{ matrix.run_tag }}
+          path: /home/user/b30-out/secret-audit.txt
+          if-no-files-found: ignore
+          retention-days: 14
