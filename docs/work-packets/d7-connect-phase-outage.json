@@ -7,7 +7,9 @@
   ],
   "implementation": [
     "patches/postgres@3.4.9.patch",
-    "tests/integration/pg-connect-phase-outage.test.ts"
+    "tests/integration/pg-connect-phase-outage.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
