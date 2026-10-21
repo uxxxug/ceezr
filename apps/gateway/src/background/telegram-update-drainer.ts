@@ -521,34 +521,95 @@ async function drainConcurrently(
    * LOAD-01 (الدفعةُ السابعةُ) — التقاطٌ دُفعيٌّ: رحلةٌ واحدةٌ تجلبُ حتى عددِ المساراتِ الفارغةِ
    * (مقسومًا على البوتاتِ للإنصافِ) مرتّبةً، فيُستهلَكُ المخزَّنُ بترتيبِه قبلَ رحلةٍ تاليةٍ.
    * المقيسُ قبلَه: رحلةُ الالتقاطِ المفردِ ~40ms تحتَ 500 متزامنٍ ⇒ الجاري 4–5 من 32 والإتمامُ
-   * ~25/ث (`diag-r12-jobtiming-500`). والمخزَّنُ لا يتجاوزُ المساراتِ الفارغةَ فيُسنَدُ فورًا.
+   * ~25/ث (`diag-r12-jobtiming-500`). (كانَ المخزَّنُ لا يتجاوزُ المساراتِ الفارغةَ — نسخَه ب27 أدناه.)
    */
   const batched: ClaimedJob[] = [];
   const batchClaim = deps.queue.claimBatchFor;
+  /**
+   * LOAD-01 (الدفعةُ 27) — **التقاطٌ مسبَقٌ متداخلٌ معَ تنفيذِ المسارات.** المقيسُ قبلَه (الدفعةُ 26،
+   * موجاتُ المرشّحِ الأربعُ عندَ 750): الطابورُ لم يفرغْ قطُّ ومعَ ذلك جرى ~22 من 32 مسارًا، لأنَّ
+   * الرحلةَ كانت تطلبُ عددَ المساراتِ الشاغرةِ **لحظتَها** (5.9 وظيفةً في المتوسّط) ولا تُطلَقُ إلا بعدَ
+   * نفادِ المخزَّن، وكلُّ رحلةٍ ~0.20ث على تجمُّعِ الطلبِ المشبَع — فسقفُ الإتمامِ ≈ 5.9/0.20 ≈ 29.5/ث
+   * (المقيسُ 28.7–31.3/ث) دونَ وصولِ إثباتِ الهاتفِ 31.6–34.4/ث ⇒ `driver_onboarding_failed`.
+   *
+   * فالرحلةُ صارت بنصيبِ البوتِ من المساراتِ (لا بالشاغرِ لحظتَها)، وتُطلَقُ رحلةٌ واحدةٌ على الأكثرِ
+   * **في الخلفيّةِ** حينَ ينزلُ المخزَّنُ دونَ ذلك النصيب، فتجري المساراتُ ما في المخزَّنِ ريثما تعود.
+   * والحدودُ باقيةٌ: لا رحلتانِ في آنٍ (ترتيبُ `created_at` بينَ الرحلاتِ محفوظٌ)، ولا دفعةَ فوقَ نصيبِ
+   * البوت، والملتقَطُ + المخزَّنُ لا يتجاوزانِ سقفَ الشوطِ (فلا يُتركُ مخزَّنٌ محجوزٌ عندَ قطعِه)،
+   * والمخزَّنُ يدخلُ تجديدَ الإيجارِ منذُ وصولِه. لا يتغيّرُ عددُ الاتّصالاتِ ولا الاستعلاماتُ لكلِّ وظيفة.
+   */
+  const share = fair === null ? 1 : Math.max(1, Math.ceil(lanes / fair.length));
+  let prefetch: Promise<void> | null = null;
+  let prefetchError: unknown = null;
+  const pickBot = (): string | null => {
+    if (fair === null) return null;
+    const open = fair.filter((b) => !drained.has(b));
+    if (open.length === 0) return null;
+    open.sort((a, b) => (busy.get(a) ?? 0) - (busy.get(b) ?? 0));
+    return open[0] as string;
+  };
+  // `inHand`: وظيفةٌ أُخرِجَت منَ المخزَّنِ ولم تُعَدَّ في `claimed` بعدُ (يعدُّها المُستدعي بعدَ العودة).
+  const sweepBudget = (inHand = 0): number => maxJobsPerRun - claimed - batched.length - inHand;
+  const batchTrip = async (bot: string, room: number): Promise<void> => {
+    const t0 = performance.now();
+    const { jobs } = await (batchClaim as NonNullable<typeof batchClaim>).call(
+      deps.queue,
+      bot,
+      room,
+    );
+    claimTrips += 1;
+    claimMs += performance.now() - t0;
+    if (jobs.length === 0) {
+      drained.add(bot);
+      return;
+    }
+    for (const j of jobs) {
+      held.set(`${j.bot}:${j.updateId}`, {
+        bot: j.bot,
+        updateId: j.updateId,
+        claimToken: j.claimToken,
+      });
+    }
+    batched.push(...jobs);
+  };
+  const startPrefetch = (inHand: number): void => {
+    if (fair === null || batchClaim === undefined) return;
+    if (prefetch !== null || batched.length >= share) return;
+    const room = Math.min(share, sweepBudget(inHand));
+    if (room < 1) return;
+    const bot = pickBot();
+    if (bot === null) return;
+    prefetch = batchTrip(bot, room)
+      .catch((error: unknown) => {
+        prefetchError = error;
+      })
+      .finally(() => {
+        prefetch = null;
+      });
+  };
   const nextClaim = async (): Promise<ClaimedJob | null> => {
-    const buffered = batched.shift();
-    if (buffered !== undefined) return buffered;
-    if (fair === null) return (await deps.queue.claim()).job;
+    if (fair === null) {
+      const buffered = batched.shift();
+      if (buffered !== undefined) return buffered;
+      return (await deps.queue.claim()).job;
+    }
     for (;;) {
-      const open = fair.filter((b) => !drained.has(b));
-      if (open.length === 0) return null;
-      open.sort((a, b) => (busy.get(a) ?? 0) - (busy.get(b) ?? 0));
-      const bot = open[0] as string;
+      const buffered = batched.shift();
+      if (buffered !== undefined) {
+        startPrefetch(1);
+        return buffered;
+      }
+      if (prefetch !== null) await prefetch;
+      if (prefetchError !== null) {
+        const error = prefetchError;
+        prefetchError = null;
+        throw error;
+      }
+      if (batched.length > 0) continue;
+      const bot = pickBot();
+      if (bot === null) return null;
       if (batchClaim !== undefined) {
-        const room = Math.min(
-          Math.max(1, lanes - inflight.size),
-          Math.max(1, Math.ceil(lanes / fair.length)),
-          Math.max(1, maxJobsPerRun - claimed),
-        );
-        const t0 = performance.now();
-        const { jobs } = await batchClaim.call(deps.queue, bot, room);
-        claimTrips += 1;
-        claimMs += performance.now() - t0;
-        if (jobs.length > 0) {
-          batched.push(...jobs.slice(1));
-          return jobs[0] as ClaimedJob;
-        }
-        drained.add(bot);
+        await batchTrip(bot, Math.min(share, Math.max(1, sweepBudget())));
         continue;
       }
       const job = (await deps.queue.claimFor?.(bot))?.job ?? null;
@@ -604,6 +665,20 @@ async function drainConcurrently(
     // جاريَه كما كان، فلا دوَرانَ فارغٌ ولا وظيفةٌ تُتركُ بلا تجديدِ إيجار.
     if (!(truncated && carry !== undefined)) await Promise.all(inflight);
   } finally {
+    // ب27: رحلةٌ مسبَقةٌ لا تبقى معلّقةً بعدَ الشوط — ولا يصلُ إليها شيءٌ يُترَك: حجمُها مقيّدٌ بما
+    // بقيَ من سقفِ الشوطِ، والحلقةُ لا تخرجُ قبلَ استهلاكِه (أو فراغِ البوتات/فشلِ الالتقاطِ بعدَ انتظارِها).
+    if (prefetch !== null) await prefetch;
+    if (prefetchError !== null) {
+      deps.log?.("telegram.drainer.claim_failed", {
+        error: prefetchError instanceof Error ? prefetchError.message : String(prefetchError),
+      });
+    }
+    // غيرُ بالغٍ بالبناءِ (المخزَّنُ مقيّدٌ بسقفِ الشوط): إن بقيَ مخزَّنٌ فلا يُقتَلُ (`abandon` موتٌ نهائيّ)
+    // بل يُعلَنُ ويُترَكُ لانقضاءِ إيجارِه فيُستردُّ — «مرّةً على الأقلّ» كما كان.
+    if (batched.length > 0) {
+      deps.log?.("telegram.drainer.prefetch_leftover", { count: batched.length });
+      for (const j of batched.splice(0)) held.delete(`${j.bot}:${j.updateId}`);
+    }
     if (renewTimer !== null) clearInterval(renewTimer);
   }
   deps.timing?.onSweep({
