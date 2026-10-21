@@ -14,6 +14,7 @@ import {
   collectEvidence,
   loadManifest,
 } from "../../deploy/capacity-run/monitor/collect-evidence.ts";
+import { verifyEvidenceManifests } from "../../scripts/lib/evidence-manifests.ts";
 
 const MANIFEST = loadManifest();
 
@@ -60,7 +61,8 @@ describe("الدفعة 28: جامعُ أدلّةِ المقعد", () => {
     const manifest = JSON.parse(readFileSync(join(d, "MANIFEST.json"), "utf8"));
     expect(manifest.entries).toHaveLength(MANIFEST.length);
     const sums = readFileSync(join(d, "SHA256SUMS"), "utf8").trim().split("\n");
-    expect(sums).toHaveLength(MANIFEST.length);
+    expect(sums).toHaveLength(MANIFEST.length + 1);
+    expect(sums.some((l) => l.endsWith("  MANIFEST.json"))).toBe(true);
     for (const line of sums) {
       const [h, name] = line.split("  ");
       expect(
@@ -101,5 +103,13 @@ describe("الدفعة 28: جامعُ أدلّةِ المقعد", () => {
       ok.d,
     ]);
     expect(ok2.exitCode).toBe(0);
+  });
+
+  test("ناتجُ الجامعِ يجتازُ حاجزَ EVIDENCE-01 كما هو (كلُّ ملفٍّ مكتوبٍ مُدرَجٌ ومطابق)", () => {
+    const { e, d } = seed([]);
+    collectEvidence(e, d, MANIFEST);
+    const r = verifyEvidenceManifests(d, ".", []);
+    expect(r.manifests).toBe(1);
+    expect(r.problems).toEqual([]);
   });
 });

@@ -108,11 +108,15 @@ export function collectEvidence(
     undeclaredPresent,
     entries: entries.map(({ sha256: _h, ...rest }) => rest),
   };
-  writeFileSync(join(destDir, "MANIFEST.json"), `${JSON.stringify(out, null, 2)}\n`);
-  writeFileSync(
-    join(destDir, "SHA256SUMS"),
-    entries.map((e) => `${e.sha256}  ${e.stored}\n`).join(""),
-  );
+  const manifestBody = Buffer.from(`${JSON.stringify(out, null, 2)}\n`);
+  writeFileSync(join(destDir, "MANIFEST.json"), manifestBody);
+  // SHA256SUMS يُدرِجُ MANIFEST.json أيضًا: كلُّ ملفٍّ يكتبُه الجامعُ مُدرَجٌ (قاعدةُ EVIDENCE-01،
+  // scripts/lib/evidence-manifests.ts) — وما يُضيفُه سكربتُ المقعدِ لاحقًا مسؤوليّتُه هو.
+  const sums = [
+    ...entries.map((e) => ({ h: e.sha256, n: e.stored })),
+    { h: sha256(manifestBody), n: "MANIFEST.json" },
+  ].sort((a, b) => (a.n < b.n ? -1 : a.n > b.n ? 1 : 0));
+  writeFileSync(join(destDir, "SHA256SUMS"), sums.map((x) => `${x.h}  ${x.n}\n`).join(""));
   return { entries, missing, absentOptional, undeclaredPresent };
 }
 
