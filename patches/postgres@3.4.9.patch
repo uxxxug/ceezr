@@ -1,8 +1,6 @@
-diff --git a/src/connection.js b/src/connection.js
-index 1b1cccde43b4570d5d071d6ffaab2669b3c2065a..d55023b16d3d25584ad7ff14ebae2b4f7e293c43 100644
 --- a/src/connection.js
 +++ b/src/connection.js
-@@ -252,6 +252,18 @@ function Connection(options, queues = {}, { onopen = noop, onend = noop, onclose
+@@ -252,6 +252,18 @@
    }
  
    function nextWrite(fn) {
@@ -21,3 +19,28 @@ index 1b1cccde43b4570d5d071d6ffaab2669b3c2065a..d55023b16d3d25584ad7ff14ebae2b4f
      const x = socket.write(chunk, fn)
      nextWriteTimer !== null && clearImmediate(nextWriteTimer)
      chunk = nextWriteTimer = null
+@@ -561,7 +573,14 @@
+ 
+       if (needsTypes) {
+         initial.reserve && (initial = null)
+-        return fetchArrayTypes()
++        // CEEZR D7 follow-up: fetchArrayTypes() runs from an event handler
++        // with nobody awaiting it, so a failure here (connection killed
++        // mid-fetch) escaped as an unhandled rejection and crashed the
++        // process. Route it through the connection error path instead:
++        // error() rejects the still-pending initial/user queries and is a
++        // no-op when they were already rejected by the socket teardown.
++        fetchArrayTypes().catch(error)
++        return
+       }
+ 
+       initial && !initial.reserve && execute(initial)
+@@ -806,7 +825,7 @@
+       backendParameters.default_transaction_read_only = a.transaction_read_only
+       backendParameters.in_hot_standby = b.pg_is_in_recovery ? 'on' : 'off'
+     }
+-    query.execute()
++    query.execute().catch(error)
+   }
+ 
+   function ErrorResponse(x) {
