@@ -39,7 +39,23 @@ export interface ClaimedTelegramUpdateJob {
   readonly claimToken: string;
   readonly attempts: number;
   readonly maxAttempts: number;
+  /**
+   * LOAD-01 (الدفعةُ 28): حالةُ ختمِ الأثرِ كما قرأها الالتقاطُ في الصفِّ المقفول
+   * (`effect_recorded_at is not null`). يُعادُ من الالتقاطِ الدُّفعيِّ فقط؛ غيابُه = لا علمَ (يُسأل).
+   */
+  readonly effectRecordedAtClaim?: boolean;
+  /**
+   * LOAD-01 (الدفعةُ 28): مهلةُ «الإيجارِ الطازج» بساعةِ `performance.now()` الرتيبة — لحظةُ
+   * إرسالِ طلبِ الالتقاطِ مضافًا إليها نصفُ مهلةِ الإيجار. قبلَها يستحيلُ أن يكونَ الإيجارُ
+   * انقضى واستُرجِع (الاسترجاعُ يشترطُ `claimed_at < now() - lease` و`claimed_at` لا يسبقُ
+   * الإرسال)، فلا يكتبُ `effect_recorded_at` أحدٌ غيرُ حاملِ رمزِنا — فـ`effectRecordedAtClaim`
+   * صادقٌ حتى المهلة. يُضبَطُ مع `effectRecordedAtClaim` فقط.
+   */
+  readonly freshUntilMs?: number;
 }
+
+/** نسبةُ مهلةِ الإيجارِ التي تُعَدُّ فيها الوظيفةُ طازجةً — هامشُ أمانٍ 50% ضدَّ انحرافِ الساعة. */
+export const TELEGRAM_JOB_FRESH_LEASE_FRACTION = 0.5;
 
 /** مُعرِّفُ وظيفةٍ مُحتجَزةٍ — ما يحتاجُه الدرينرُ ليختمَ أو يتركَ. */
 export interface JobLease {
@@ -132,6 +148,9 @@ export function createPostgresTelegramUpdateQueue(
   const leaseTimeout = options?.leaseTimeoutSeconds ?? TELEGRAM_JOB_LEASE_TIMEOUT_SECONDS;
   const maxAttempts = options?.maxAttempts ?? TELEGRAM_JOB_MAX_ATTEMPTS;
   const retryDelay = options?.retryDelaySeconds ?? TELEGRAM_JOB_RETRY_DELAY_SECONDS;
+  // يُحسَبُ قبلَ إرسالِ الطلب: كلُّ تأخيرٍ (انتظارُ المجمّعِ، الشبكةُ، طابورُ الدرينر) يأكلُ من الهامش.
+  const freshUntil = () =>
+    performance.now() + leaseTimeout * 1000 * TELEGRAM_JOB_FRESH_LEASE_FRACTION;
 
   return {
     claim: async () => {
@@ -183,6 +202,7 @@ export function createPostgresTelegramUpdateQueue(
     },
 
     claimBatchFor: async (bot: string, limit: number) => {
+      const freshUntilMs = freshUntil();
       const rows = await sql<{ result: unknown }[]>`
         select claim_telegram_update_jobs_for_bot(${leaseTimeout}, ${maxAttempts}, ${bot}, ${limit}) as result
       `;
@@ -202,6 +222,10 @@ export function createPostgresTelegramUpdateQueue(
               claimToken: String(delivery.claim_token),
               attempts: Number(delivery.attempts),
               maxAttempts: Number(delivery.max_attempts),
+              // هجرةٌ أقدمُ لا تُعيدُ العلَمَ ⇒ لا علمَ ولا مهلة ⇒ يسألُ الدرينرُ كما كان.
+              ...(typeof delivery.effect_recorded === "boolean"
+                ? { effectRecordedAtClaim: delivery.effect_recorded, freshUntilMs }
+                : {}),
             }) satisfies ClaimedTelegramUpdateJob,
         ),
       };

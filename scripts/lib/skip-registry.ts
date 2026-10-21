@@ -252,6 +252,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/telegram-drainer-pool-acquisitions.test.ts",
+    suites: ["الدفعة 28: حجوزاتُ المجمّعِ لكلِّ وظيفةٍ في الدرينر (PostgreSQL حقيقي)"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "شاهدُ الدفعة 28 (LOAD-01): حجوزاتُ مجمّعِ الاتصالاتِ لكلِّ وظيفةٍ تُعَدُّ من بوّابةِ المجمّعِ نفسِها على اتصالاتِ PostgreSQL حقيقية، مع درينرَين متزامنَين وقطعِ الاتصالِ بـpg_terminate_backend — سلوكُ قاعدةٍ ومجمّعٍ لا محاكٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة (ومنها 20261021090000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/telegram-update-batch-claim.test.ts",
     suites: ["الالتقاطُ الدُّفعيُّ لوظائفِ تحديثِ تيليجرام — قاعدةٌ حقيقيّة"],
     skipped: 3,

@@ -293,7 +293,15 @@ async function processDurably(
   const bot = job.bot as BotKind;
   try {
     let t = performance.now();
-    const alreadyRecorded = await ledger.effectRecorded(job.bot, job.updateId);
+    // LOAD-01 (الدفعةُ 28): داخلَ نافذةِ الإيجارِ الطازجِ جوابُ الالتقاطِ صادقٌ (انظر `freshUntilMs`)
+    // فلا يُحجَزُ لسؤالِه مقعدٌ من المجمّع. خارجَها، أو بلا علَمٍ من الالتقاط، يُسألُ كما كان.
+    const known =
+      job.effectRecordedAtClaim !== undefined &&
+      job.freshUntilMs !== undefined &&
+      t < job.freshUntilMs;
+    const alreadyRecorded = known
+      ? job.effectRecordedAtClaim === true
+      : await ledger.effectRecorded(job.bot, job.updateId);
     if (phases !== null) phases.effectCheckMs = performance.now() - t;
     if (alreadyRecorded) {
       const replay = await ledger.recordEffect(lease, []);

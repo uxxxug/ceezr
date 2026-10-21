@@ -1478,6 +1478,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: null,
     documentedIn: null,
   },
+  {
+    migration: "20261021090000_load01_b28_batch_claim_effect_flag.sql",
+    change: "revoke_function:claim_telegram_update_jobs_for_bot(4)",
+    why: "الهجرةُ `20261021090000` (`LOAD-01` · الدفعةُ 28) تُعيدُ تعريفَ `claim_telegram_update_jobs_for_bot(integer, integer, text, integer)` **بالتوقيعِ نفسِه** وتُضيفُ إلى كلِّ عنصرٍ في `jobs` حقلًا واحدًا `effect_recorded` (= `effect_recorded_at is not null` في الصفِّ المقفولِ لحظةَ الالتقاط). كلُّ ما عداه حرفيٌّ من `20261020090000`. والسحبُ بعدَ `create or replace` إعادةُ قفلٍ كما كانَ (لـ`service_role` وحدَها). الشيفرةُ السابقةُ تتجاهلُ الحقل، والجديدةُ بغيابِه تسألُ `telegram_update_effect_recorded` كما كانت — فلا اقترانَ نشر. والعودةُ إعادةُ تطبيقِ النصِّ من `20261020090000_load01_batch_claim_lane_order` — فيعودُ حجزُ مقعدِ الفحصِ لكلِّ وظيفة — تراجعُ أداءٍ بحتٌ لا فقدُ عقد.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**
