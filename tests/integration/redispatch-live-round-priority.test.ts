@@ -159,6 +159,31 @@ describeIf("LOAD-01 P4 — الجولة الحية لا تحجب الطلب ال
     expect(wide).toEqual([staleLive, expired, fresh, ...freshLive, exhausted]);
   });
 
+  it("ب30: علامةُ inLiveGrace = علامةُ الترتيبِ نفسُها؛ وبلا نافذةٍ عادلةٍ مجهولةٌ (لا تصريف)", async () => {
+    const live = await order(1, 120);
+    await pendingOffer(live, 1, 44, 0);
+    const staleLive = await order(1, 110);
+    await pendingOffer(staleLive, 1, 35, LIVE_ROUND_ESCALATION_GRACE_SECONDS + 7);
+    const expired = await order(1, 100);
+    await pendingOffer(expired, 1, -5, 50);
+    const fresh = await order(0, 2);
+    const mine = [live, staleLive, expired, fresh];
+
+    const fair = await createSearchingOrderFinder(sql).findSearching(cityId, 500, {
+      maxBroadcastRounds: MAX_ROUNDS,
+      liveRoundGraceSeconds: LIVE_ROUND_ESCALATION_GRACE_SECONDS,
+    });
+    if (!fair.ok) throw new Error(fair.error.detail);
+    const flag = new Map(fair.value.map((o) => [o.orderId as string, o.inLiveGrace]));
+    expect(mine.map((id) => flag.get(id))).toEqual([true, false, false, false]);
+
+    const legacy = await createSearchingOrderFinder(sql).findSearching(cityId, 500);
+    if (!legacy.ok) throw new Error(legacy.error.detail);
+    const unknown = legacy.value.filter((o) => mine.includes(o.orderId));
+    expect(unknown.length).toBe(mine.length);
+    expect(unknown.every((o) => o.inLiveGrace === undefined)).toBe(true);
+  });
+
   it("الشوطُ يقرأُ إعداداتِ المدينةِ مرّةً واحدةً مهما عدَدُ طلباتِه (لا رحلةَ لكلِّ طلبٍ)", async () => {
     const ids = [await order(0, 30), await order(0, 20), await order(0, 10)];
     const settings = createSettingsRepository(sql);

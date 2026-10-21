@@ -51,7 +51,10 @@ export interface ImmediateRedispatchSchedulerDeps {
    * الشوطُ الفعليُّ لإعادةِ عرضِ مدينةٍ — نفسُ منفذِ الدوريّةِ بحدِّهِ القائمِ.
    * `saturated=true` = امتلأَ الحدُّ وتقدّمَ (بقيَ مستحقٌّ على الأرجحِ) ⇒ شوطٌ لاحقٌ واحدٌ.
    */
-  readonly run: (cityId: CityId) => Promise<{ readonly saturated: boolean } | undefined>;
+  readonly run: (
+    cityId: CityId,
+    opts?: { readonly drain: boolean },
+  ) => Promise<{ readonly saturated: boolean; readonly drainNow?: boolean } | undefined>;
   /** نافذةُ الخفضِ بالملّي ثانيةِ. */
   readonly debounceMs: number;
   /** ساعةٌ قابلةٌ للحقنِ — للاختبارِ لا لإنتاجٍ. */
@@ -134,13 +137,28 @@ export function createImmediateRedispatchScheduler(
       return;
     }
     deps.onTrigger?.(cityId, "accepted");
+    start(cityId, now, false);
+  };
+
+  /**
+   * `LOAD-01 · P4` (ب30) — **جدولةٌ حافظةٌ للعمل.** كانَ الشوطُ المشبعُ يطلبُ لاحقًا يُسلَّحُ
+   * بعدَ ما بقيَ من نافذةِ الخفض (≈ 2000 − 800ms)، فالموزّعُ خاملٌ 57–69% من كلِّ دورةٍ والطابورُ
+   * ممتلئ (ب29: 98–99% من الأشواطِ عندَ الحدّ، والخدمةُ 50 ÷ 2s = 25/ث بالضبط في 12 موجة).
+   * الآن: متى أعلنَ الشوطُ `drainNow` (مشبعٌ، وأغلبُ نافذتِه أُعيدَ عرضُه، ولا طلبَ فيها جولتُه
+   * حيّةٌ في مهلتِها — يحكمُ بها المنفذُ لا هنا) يبدأُ شوطُ تصريفٍ فورًا بالحدِّ نفسِه (50)،
+   * وشوطُ التصريفِ لا يمسُّ طلبًا جولتُه حيّة (`drain: true`) فلا تتسارعُ جولاتُ العرضِ عمّا كانت.
+   * حارسُ التداخلِ كما هو (لا شوطَ فوقَ جارٍ)، والمحفّزاتُ داخلَ النافذةِ تُدمَجُ كما كانت.
+   */
+  const start = (cityId: CityId, now: number, drain: boolean): void => {
     lastAcceptedAtMs.set(cityId, now);
+    let drainNext = false;
     deps.schedule(() => {
       running.add(cityId);
       void deps
-        .run(cityId)
+        .run(cityId, { drain })
         .then((report) => {
           if (report?.saturated === true) pending.add(cityId);
+          drainNext = report?.saturated === true && report.drainNow === true;
         })
         .catch((cause: unknown) => {
           // فشلُ الشوطِ الخلفيِّ يُسجَّلُ ولا يُرمى ولا يُصمتُ — والحاويةُ
@@ -152,6 +170,12 @@ export function createImmediateRedispatchScheduler(
         })
         .finally(() => {
           running.delete(cityId);
+          if (drainNext) {
+            pending.delete(cityId);
+            deps.log?.("redispatch.immediate_drain", { cityId });
+            start(cityId, deps.now(), true);
+            return;
+          }
           if (pending.has(cityId)) {
             const since = deps.now() - (lastAcceptedAtMs.get(cityId) ?? 0);
             armTrailing(cityId, deps.debounceMs - since);

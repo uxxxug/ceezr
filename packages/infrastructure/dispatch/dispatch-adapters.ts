@@ -585,6 +585,7 @@ export function createSearchingOrderFinder(sql: Sql): SearchingOrderFinder {
             assigned_driver_id: string | null;
             broadcast_round: number;
             waiting_seconds: string | number;
+            in_live_grace: boolean | null;
           }[]
         >`
           select o.id      as id,
@@ -598,7 +599,21 @@ export function createSearchingOrderFinder(sql: Sql): SearchingOrderFinder {
                  st_y(o.dropoff::geometry) as dropoff_lat, st_x(o.dropoff::geometry) as dropoff_lng,
                  o.assigned_driver_id as assigned_driver_id,
                  o.broadcast_round as broadcast_round,
-                 extract(epoch from (now() - coalesce(o.searching_since, o.created_at)))::bigint as waiting_seconds
+                 extract(epoch from (now() - coalesce(o.searching_since, o.created_at)))::bigint as waiting_seconds,
+                 -- LOAD-01 (ب30): العلامةُ نفسُها التي يُرتَّبُ بها أدناه (جولةٌ حيّةٌ في مهلتِها) تُعادُ
+                 -- للمستدعي ليحكمَ بها شوطُ التصريف (لا يمسُّ طلبًا جولتُه حيّة). خارجَ النافذةِ العادلة: null (غيرُ معروف).
+                 ${
+                   fairWindow
+                     ? sql`exists (
+                         select 1 from order_offers f
+                          where f.order_id = o.id
+                            and f.round = o.broadcast_round
+                            and f.status = 'pending'
+                            and f.expires_at > now()
+                            and f.created_at > now() - make_interval(secs => ${graceSec})
+                       )`
+                     : sql`null::boolean`
+                 } as in_live_grace
             from orders o
            where o.city_id = ${cityId}::uuid
              and o.status = 'searching'
@@ -650,6 +665,7 @@ export function createSearchingOrderFinder(sql: Sql): SearchingOrderFinder {
           orderId: row.id as OrderId,
           cityId: row.city_id as CityId,
           waitingSeconds: Number(row.waiting_seconds),
+          ...(row.in_live_grace === null ? {} : { inLiveGrace: row.in_live_grace }),
           order: toOrder({
             id: row.id,
             city_id: row.city_id,
