@@ -19,13 +19,8 @@
     "deploy/capacity-run/monitor/collect-evidence.ts",
     "deploy/capacity-run/monitor/wave-evidence-manifest.json"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md",
-    "docs/roadmap/execution/STATUS.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md", "docs/roadmap/execution/STATUS.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-28-LOAD01-DRAINER-ACQUISITIONS.md",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch28/SHA256SUMS",
