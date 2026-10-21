@@ -72,10 +72,11 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
   let window = new Map<string, { ms: number[]; errors: number }>();
   // توقيتُ الاستعلاماتِ لكلِّ تجمُّعٍ ونوعٍ: انتظارُ المقعدِ وزمنُ التنفيذِ/الاحتجاز.
   let dbWindow = new Map<string, { wait: number[]; run: number[] }>();
-  // عددُ كلِّ استعلامٍ بتوقيعِه وزمنُ احتجازِه المقعدَ — يُصبُّ كاملًا عندَ الإيقاف.
-  const sigWindow = new Map<string, { n: number; runMs: number }>();
+  // عددُ كلِّ استعلامٍ بتوقيعِه وزمنُ احتجازِه المقعدَ وانتظارُه البوّابةَ — يُصبُّ كاملًا عندَ الإيقاف.
+  // (`waitMs` — الدفعةُ 28: يفصلُ انتظارَ المجمّعِ بينَ HTTP والدرينرِ بالمسارِ والتوقيع.)
+  const sigWindow = new Map<string, { n: number; runMs: number; waitMs: number }>();
   const routeScope = new AsyncLocalStorage<string>();
-  const routeSig = new Map<string, { n: number; runMs: number }>();
+  const routeSig = new Map<string, { n: number; runMs: number; waitMs: number }>();
   observeQueryTimings((t) => {
     const key = `${t.label}|${t.kind}`;
     let w = dbWindow.get(key);
@@ -87,14 +88,16 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
     w.run.push(t.runMs);
     if (t.sig !== undefined) {
       const sk = `${t.label}|${t.kind}|${t.sig}`;
-      const c = sigWindow.get(sk) ?? { n: 0, runMs: 0 };
+      const c = sigWindow.get(sk) ?? { n: 0, runMs: 0, waitMs: 0 };
       c.n += 1;
       c.runMs += t.runMs;
+      c.waitMs += t.waitMs;
       sigWindow.set(sk, c);
       const rk = `${routeScope.getStore() ?? "(background)"}|${t.label}|${t.kind}|${t.sig}`;
-      const r = routeSig.get(rk) ?? { n: 0, runMs: 0 };
+      const r = routeSig.get(rk) ?? { n: 0, runMs: 0, waitMs: 0 };
       r.n += 1;
       r.runMs += t.runMs;
+      r.waitMs += t.waitMs;
       routeSig.set(rk, r);
     }
   });
@@ -214,11 +217,20 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
           sig: rest.join("|"),
           n: c.n,
           runMs: Math.round(c.runMs),
+          waitMs: Math.round(c.waitMs),
         });
       }
       for (const [key, c] of sigWindow) {
         const [pool, kind, ...rest] = key.split("|");
-        emit({ k: "sig", pool, kind, sig: rest.join("|"), n: c.n, runMs: Math.round(c.runMs) });
+        emit({
+          k: "sig",
+          pool,
+          kind,
+          sig: rest.join("|"),
+          n: c.n,
+          runMs: Math.round(c.runMs),
+          waitMs: Math.round(c.waitMs),
+        });
       }
       clearInterval(timer);
       clearInterval(lagTimer);
