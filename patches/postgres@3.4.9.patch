@@ -35,12 +35,3 @@
        }
  
        initial && !initial.reserve && execute(initial)
-@@ -806,7 +825,7 @@
-       backendParameters.default_transaction_read_only = a.transaction_read_only
-       backendParameters.in_hot_standby = b.pg_is_in_recovery ? 'on' : 'off'
-     }
--    query.execute()
-+    query.execute().catch(error)
-   }
- 
-   function ErrorResponse(x) {

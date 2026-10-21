@@ -2982,7 +2982,7 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   {
     file: "tests/integration/pg-connect-phase-outage.test.ts",
     suites: ["انقطاعُ PostgreSQL أثناءَ إنشاءِ الاتصالِ (استمرارُ D7)"],
-    skipped: 1,
+    skipped: 2,
     gate: "TEST_DATABASE_URL",
     reason:
       "المُدَّعى أنّ انقطاعَ PostgreSQL **أثناء إنشاءِ الاتصالِ** لا يُسقطُ العمليةَ برفضٍ غيرِ معالَجٍ من `postgres@3.4.9` (فئةُ D7 — مجسّاتُ الدفعة 28 رصدت العطلَ في main). وهذا لا يُثبَتُ بمحاكاةِ في الذاكرةِ ولا بقتلٍ زائفٍ: المقصودُ سلوكُ المحرّكِ والسوكيتِ الحقيقيَّينِ — `pg_terminate_backend` على اتصالٍ في طورِ الإقلاعِ، وأثرُ ذلك في وعودِ المكتبةِ — والقاطعُ يقرأُ ويقتلُ من `pg_stat_activity` حقيقةً.",

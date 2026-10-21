@@ -16,8 +16,7 @@
   "affected_docs": ["docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021.md"],
   "decision": "الجذرُ: fetchArrayTypes() يُستدعى من معالجِ حدثٍ بلا منتظِرٍ (return fetchArrayTypes()) ففشلُهُ أثناءَ موتِ الاتصالِ يصيرُ unhandledRejection. الإصلاحُ امتدادٌ للرقعةِ القائمةِ (لا استبدالٌ): توجيهُ الفشلِ عبرَ مسارِ خطأِ الاتصالِ (fetchArrayTypes().catch(error) وquery.execute().catch(error) في fetchState احترازيًا) — لا تغييرَ في مسارِ النجاحِ ولا في أصنافِ الأخطاءِ الظاهرةِ ولا في حدودِ المجمّعِ.",
   "tests": [
-    "TEST_DATABASE_URL=… bun test tests/integration/pg-connect-phase-outage.test.ts — يسقطُ على الرقعةِ القديمةِ (رفضانِ غيرُ معالَجَينِ من فئةِ 57P01) وينجحُ بعدَها (3 جولاتٍ، ~11.5s)",
-    "TEST_DATABASE_URL=… bun test tests/integration/pg-brownout.test.ts — 2/2 بعدَ الرقعةِ"
+    "TEST_DATABASE_URL=… bun test tests/integration/pg-connect-phase-outage.test.ts — شاهدُ عمليةٍ فرعيّةٍ بلا معالجاتٍ: قبلَ الرقعةِ ينهارُ (exit=1) برفضاتٍ متسربةٍ بعدَ اكتمالِ السيناريو (CHILD-OK ظهرتْ ثمّ الانهيار)، وبعدَها exit=0؛ والحدُّ الداخليُّ كذلك؛ وpg-brownout 2/2"
   ],
   "evidence": "محليًا على PostgreSQL 18.6 + PostGIS (قاعدةٌ مهجّرةٌ كاملةً 290 هجرةً): قبل/بعد موثّقان في docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021.md §5.",
   "constraints": [
