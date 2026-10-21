@@ -9,7 +9,8 @@
     "patches/postgres@3.4.9.patch",
     "tests/integration/pg-connect-phase-outage.test.ts",
     "scripts/lib/skip-registry.ts",
-    "tests/unit/skip-audit.test.ts"
+    "tests/unit/skip-audit.test.ts",
+    "tests/integration/claim-skip-decided-offers.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
@@ -19,7 +20,7 @@
     "docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021-raw/before/bun-test-old.log.gz",
     "docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021-raw/after/bun-test-new.log.gz"
   ],
-  "decision": "الجذرُ: fetchArrayTypes() يُستدعى من معالجِ حدثٍ بلا منتظِرٍ (return fetchArrayTypes()) ففشلُهُ أثناءَ موتِ الاتصالِ يصيرُ unhandledRejection. الإصلاحُ امتدادٌ للرقعةِ القائمةِ (لا استبدالٌ): توجيهُ الفشلِ عبرَ مسارِ خطأِ الاتصالِ (fetchArrayTypes().catch(error) وquery.execute().catch(error) في fetchState احترازيًا) — لا تغييرَ في مسارِ النجاحِ ولا في أصنافِ الأخطاءِ الظاهرةِ ولا في حدودِ المجمّعِ.",
+  "decision": "الجذرُ: fetchArrayTypes() يُستدعى من معالجِ حدثٍ بلا منتظِرٍ (return fetchArrayTypes()) ففشلُهُ أثناءَ موتِ الاتصالِ يصيرُ unhandledRejection. الإصلاحُ امتدادٌ للرقعةِ القائمةِ (لا استبدالٌ): توجيهُ الفشلِ عبرَ مسارِ خطأِ الاتصالِ (fetchArrayTypes().catch(error) وquery.execute().catch(error) في fetchState احترازيًا) — لا تغييرَ في مسارِ النجاحِ ولا في أصنافِ الأخطاءِ الظاهرةِ ولا في حدودِ المجمّعِ. وإصلاحٌ تابعٌ في نفس الطلبِ: مهلةٌ سخيةٌ (120s) لخطافِ afterAll في claim-skip-decided-offers.test.ts — بعدAll كان مكشوفًا لمهلةِ Bun الافتراضيةِ (5s) التي خنقتْ تنظيفَهُ في CI (كلُّ اختباراتِهِ الستةِ نجحتْ ثمّ فشلَ الخطافُ بالضبطِ 5000ms)، نفسُ علةِ beforeAll الموثّقةِ في الملفِ نفسِهِ وعلاجِها.",
   "tests": [
     "TEST_DATABASE_URL=… bun test tests/integration/pg-connect-phase-outage.test.ts — شاهدُ عمليةٍ فرعيّةٍ بلا معالجاتٍ: قبلَ الرقعةِ ينهارُ (exit=1) برفضاتٍ متسربةٍ بعدَ اكتمالِ السيناريو (CHILD-OK ظهرتْ ثمّ الانهيار)، وبعدَها exit=0؛ والحدُّ الداخليُّ كذلك؛ وpg-brownout 2/2"
   ],

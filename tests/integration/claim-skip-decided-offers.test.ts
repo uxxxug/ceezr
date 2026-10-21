@@ -203,7 +203,10 @@ describeIf("LOAD-01 — الالتقاطُ لا يستهلكُ المحسومَ"
     const admin = createSql({ connectionString: adminUrl.toString() });
     await admin.unsafe(`drop database if exists "${isoDatabaseName}" with (force)`);
     await admin.end({ timeout: 5 });
-  });
+    // المهلةُ الافتراضيةُ للخطافاتِ (5ث) كانت تقطعُ هذا التنظيفَ في CI — نفسُ علةِ
+    // beforeAll الموثّقةِ أعلاه: سلسلةُ (إسقاطُ القاعدةِ المعزولةِ + اتصالٌ إداريٌّ
+    // جديدٌ + إسقاطٌ بقوةٍ) قد تتجاوزُها على مشغّلٍ مشتركٍ باردٍ. مهلةٌ سخيةٌ كسابقتِها.
+  }, 120_000);
 
   it("١) المحسومُ لا يُلتقطُ: صفُّهُ يبقى `pending` بعدَّدِ محاولاتٍ كما هو", async () => {
     const before = await sql<{ attempts: number; status: string }[]>`
