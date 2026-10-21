@@ -17,7 +17,8 @@
     "tests/integration/driver-location-pool-acquisitions.test.ts",
     "tests/integration/redispatch-live-round-priority.test.ts",
     "tests/unit/immediate-redispatch.test.ts",
-    "tests/unit/live-tracking-fresh-open.test.ts"
+    "tests/unit/live-tracking-fresh-open.test.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md", "docs/roadmap/execution/STATUS.md"],
   "roadmap": ["ROADMAP.md"],
