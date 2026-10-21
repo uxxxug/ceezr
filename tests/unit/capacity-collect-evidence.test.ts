@@ -59,12 +59,25 @@ describe("الدفعة 28: جامعُ أدلّةِ المقعد", () => {
     expect(existsSync(join(d, "gateway.log.gz"))).toBe(false);
     const manifest = JSON.parse(readFileSync(join(d, "MANIFEST.json"), "utf8"));
     expect(manifest.entries).toHaveLength(MANIFEST.length);
-    for (const x of manifest.entries)
+    const sums = readFileSync(join(d, "SHA256SUMS"), "utf8").trim().split("\n");
+    expect(sums).toHaveLength(MANIFEST.length);
+    for (const line of sums) {
+      const [h, name] = line.split("  ");
       expect(
         createHash("sha256")
-          .update(readFileSync(join(d, x.stored)))
+          .update(readFileSync(join(d, name ?? "")))
           .digest("hex"),
-      ).toBe(x.sha256);
+      ).toBe(h ?? "");
+    }
+  });
+
+  test("ناتجُ الجامعِ لا يُطابقُ نمطَ السلاسلِ الطويلةِ في تدقيقِ أسرارِ المقعد إلّا في SHA256SUMS (المستثنى بالتصميم)", () => {
+    // نمطُ seat-bin/b24-secret-audit.py حرفًا (فرعُ التجربة): \b[A-Za-z0-9+/]{40,}={0,2}\b — وSHA256SUMS ضمنَ HASH_EVIDENCE.
+    const LONG = /\b[A-Za-z0-9+/]{40,}={0,2}\b/;
+    const { e, d } = seed();
+    collectEvidence(e, d, MANIFEST);
+    expect(readFileSync(join(d, "MANIFEST.json"), "utf8")).not.toMatch(LONG);
+    expect(readFileSync(join(d, "SHA256SUMS"), "utf8")).toMatch(LONG);
   });
 
   test("غيابُ مطلوبٍ يُسمّى ويُفشِلُ الجمعَ (رمزُ خروجٍ 3)، وغيابُ اختياريٍّ لا يُفشِل", () => {
