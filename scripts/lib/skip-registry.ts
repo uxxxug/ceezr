@@ -210,9 +210,23 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/driver-location-pool-acquisitions.test.ts",
+    suites: ["الدفعة 30: حجوزاتُ تجمُّعِ الطلبِ في مسارِ موقعِ السائق (PostgreSQL حقيقي)"],
+    skipped: 7,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "شاهدُ LOAD-01 (ب30): عددُ حجوزاتِ مجمّعِ الطلبِ لكلِّ إصلاحةِ موقعٍ يُعَدُّ من داخلِ بوّابةِ المجمّعِ الحقيقيّة، وعقدُ فتحِ الجلسةِ على الرحلةِ داخلَ جملةِ الإدراجِ (التزامنُ عبرَ الفهرسِ الفريدِ الجزئيّ، ورؤيةُ الإسنادِ الملتزَم) لا يشهدُ عليهما إلا PostgreSQL حقيقيٌّ بالهجراتِ مطبَّقة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/redispatch-live-round-priority.test.ts",
     suites: ["LOAD-01 P4 — الجولة الحية لا تحجب الطلب الذي لم يُعرَض"],
-    skipped: 2,
+    skipped: 3,
     gate: "TEST_DATABASE_URL",
     reason:
       "انحدارُ LOAD-01 P4: ترتيبُ نافذةِ الشوطِ بمهلةِ سماحِ الجولةِ الحيّةِ وقراءةُ الإعداداتِ مرّةً للشوطِ لا يُثبَتانِ إلا على PostgreSQL حقيقي بالهجراتِ مطبَّقة.",
