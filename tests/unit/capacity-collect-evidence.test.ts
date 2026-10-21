@@ -1,45 +1,64 @@
 /**
- * الغرض: LOAD-01 (الدفعةُ 28) — جامعُ أدلّةِ المقعد لا يُسقِطُ ملفًّا: كلُّ ما في مجلّدِ الدليلِ يُنقَل
- *   (ومنه `telegram-jobs.csv` الذي أسقطته القائمةُ البيضاءُ في الدفعة 26)، والبيانُ يطابقُ المنقولَ
- *   بالبايت، وغيابُ مُعلَنٍ يُعلَنُ ويُفشِلُ الجمعَ ولا يُبتلَع.
+ * الغرض: LOAD-01 (الدفعةُ 28) — جامعُ أدلّةِ المقعد يتبعُ البيانَ وحدَه: كلُّ مُعلَنٍ يُنقَلُ بطريقتِه
+ *   (ومنه `telegram-jobs.csv` الذي سقطَ من أرشيفاتِ 26–27)، والبيانُ الناتجُ يطابقُ المنقولَ بالبايت،
+ *   وغيابُ مطلوبٍ يُفشِلُ الجمعَ ولا يُبتلَع، وما ليس في البيانِ لا يُرفَعُ بل يُسمّى.
  * ينتمي إلى: tests/unit
  */
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { gunzipSync } from "node:zlib";
 import {
   collectEvidence,
-  DECLARED_DEFAULT,
+  loadManifest,
 } from "../../deploy/capacity-run/monitor/collect-evidence.ts";
 
-function seed(files: Record<string, string>) {
+const MANIFEST = loadManifest();
+
+function seed(skip: readonly string[] = [], extra: Record<string, string> = {}) {
   const root = mkdtempSync(join(tmpdir(), "b28-collect-"));
   const e = join(root, "evidence");
-  mkdirSync(e);
-  mkdirSync(join(e, "subdir"));
-  for (const [n, body] of Object.entries(files)) writeFileSync(join(e, n), body);
+  mkdirSync(join(e, "subdir"), { recursive: true });
+  for (const f of MANIFEST)
+    if (!skip.includes(f.name)) writeFileSync(join(e, f.name), `${f.name}\n1,2,3\n`);
+  for (const [n, body] of Object.entries(extra)) writeFileSync(join(e, n), body);
   return { e, d: join(root, "out") };
 }
 
-const ALL = Object.fromEntries(DECLARED_DEFAULT.map((n) => [n, `${n}\n1,2,3\n`]));
-
 describe("الدفعة 28: جامعُ أدلّةِ المقعد", () => {
-  test("telegram-jobs.csv وكلُّ ملفٍّ غيرُ مُعلَنٍ يُنقَلانِ، والبيانُ يطابقُ البايتات", () => {
-    const { e, d } = seed({ ...ALL, "new-signal.jsonl": '{"k":1}\n', "gates.json": "{}" });
-    const r = collectEvidence(e, d);
+  test("البيانُ يُعلنُ telegram-jobs.csv مطلوبًا، وطرقُ الحفظِ كما في أرشيفِ الدفعة 27", () => {
+    const by = new Map(MANIFEST.map((f) => [f.name, f]));
+    expect(by.get("telegram-jobs.csv")).toEqual({
+      name: "telegram-jobs.csv",
+      mode: "gzip",
+      required: true,
+    });
+    for (const n of ["resources.jsonl", "timeline.jsonl", "wave-report.json", "db-audit-post.json"])
+      expect(by.get(n)?.mode).toBe("copy");
+    for (const n of [
+      "load-trace.jsonl",
+      "update-jobs.csv",
+      "pgss-full.csv",
+      "miniapp-load-events.jsonl",
+    ])
+      expect(by.get(n)?.mode).toBe("gzip");
+  });
+
+  test("كلُّ مُعلَنٍ يُنقَلُ بطريقتِه، والبيانُ الناتجُ يطابقُ البايتات، وغيرُ المُعلَنِ يُسمّى ولا يُرفَع", () => {
+    const { e, d } = seed([], { "gateway.log": "token=should-not-upload\n" });
+    const r = collectEvidence(e, d, MANIFEST);
     expect(r.missing).toEqual([]);
-    const stored = new Map(r.entries.map((x) => [x.source, x.stored]));
-    expect(stored.get("telegram-jobs.csv")).toBe("telegram-jobs.csv.gz");
-    expect(stored.get("new-signal.jsonl")).toBe("new-signal.jsonl.gz");
-    expect(stored.get("gates.json")).toBe("gates.json");
-    expect(stored.has("subdir")).toBe(false);
     expect(gunzipSync(readFileSync(join(d, "telegram-jobs.csv.gz"))).toString()).toBe(
       "telegram-jobs.csv\n1,2,3\n",
     );
+    expect(readFileSync(join(d, "resources.jsonl"), "utf8")).toBe("resources.jsonl\n1,2,3\n");
+    expect(r.undeclaredPresent).toEqual([{ name: "gateway.log", bytes: 24 }]);
+    expect(existsSync(join(d, "gateway.log"))).toBe(false);
+    expect(existsSync(join(d, "gateway.log.gz"))).toBe(false);
     const manifest = JSON.parse(readFileSync(join(d, "MANIFEST.json"), "utf8"));
+    expect(manifest.entries).toHaveLength(MANIFEST.length);
     for (const x of manifest.entries)
       expect(
         createHash("sha256")
@@ -48,12 +67,11 @@ describe("الدفعة 28: جامعُ أدلّةِ المقعد", () => {
       ).toBe(x.sha256);
   });
 
-  test("غيابُ مُعلَنٍ يُسمّى في البيانِ ويُفشِلُ الجمعَ (رمزُ خروجٍ 3)", () => {
-    const partial = Object.fromEntries(
-      Object.entries(ALL).filter(([n]) => n !== "telegram-jobs.csv"),
-    );
-    const { e, d } = seed(partial);
-    expect(collectEvidence(e, d).missing).toEqual(["telegram-jobs.csv"]);
+  test("غيابُ مطلوبٍ يُسمّى ويُفشِلُ الجمعَ (رمزُ خروجٍ 3)، وغيابُ اختياريٍّ لا يُفشِل", () => {
+    const { e, d } = seed(["telegram-jobs.csv", "orders.csv"]);
+    const r = collectEvidence(e, d, MANIFEST);
+    expect(r.missing).toEqual(["telegram-jobs.csv"]);
+    expect(r.absentOptional).toEqual(["orders.csv"]);
     const proc = Bun.spawnSync([
       process.execPath,
       "deploy/capacity-run/monitor/collect-evidence.ts",
@@ -62,5 +80,13 @@ describe("الدفعة 28: جامعُ أدلّةِ المقعد", () => {
     ]);
     expect(proc.exitCode).toBe(3);
     expect(proc.stdout.toString()).toContain("COLLECT_MISSING telegram-jobs.csv");
+    const ok = seed(["orders.csv"]);
+    const ok2 = Bun.spawnSync([
+      process.execPath,
+      "deploy/capacity-run/monitor/collect-evidence.ts",
+      ok.e,
+      ok.d,
+    ]);
+    expect(ok2.exitCode).toBe(0);
   });
 });
