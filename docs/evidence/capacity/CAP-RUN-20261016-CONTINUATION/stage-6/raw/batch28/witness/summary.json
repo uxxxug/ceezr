@@ -1,0 +1,216 @@
+{
+ "main": [
+  {
+   "run": 1,
+   "acqPerJob": 4.466666666666667,
+   "effChk": 1,
+   "drainerPerJob": 3.466666666666667,
+   "claims": 28,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 341,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 1,
+   "W7st": "done"
+  },
+  {
+   "run": 2,
+   "acqPerJob": 4.533333333333333,
+   "effChk": 1,
+   "drainerPerJob": 3.533333333333333,
+   "claims": 32,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 1088,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 1,
+   "W7st": "done"
+  },
+  {
+   "run": 3,
+   "acqPerJob": 4.483333333333333,
+   "effChk": 1,
+   "drainerPerJob": 3.4833333333333334,
+   "claims": 29,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 1092,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 1,
+   "W7st": "done"
+  },
+  {
+   "run": 4,
+   "acqPerJob": 4.516666666666667,
+   "effChk": 1,
+   "drainerPerJob": 3.5166666666666666,
+   "claims": 31,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 1088,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 1,
+   "W7st": "done"
+  },
+  {
+   "run": 5,
+   "acqPerJob": 4.5,
+   "effChk": 1,
+   "drainerPerJob": 3.5,
+   "claims": 30,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 1089,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 1,
+   "W7st": "done"
+  }
+ ],
+ "cand": [
+  {
+   "run": 1,
+   "acqPerJob": 3.4833333333333334,
+   "effChk": 0,
+   "drainerPerJob": 2.4833333333333334,
+   "claims": 29,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 340,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 0,
+   "W7st": "done"
+  },
+  {
+   "run": 2,
+   "acqPerJob": 3.45,
+   "effChk": 0,
+   "drainerPerJob": 2.45,
+   "claims": 27,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 341,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 0,
+   "W7st": "done"
+  },
+  {
+   "run": 3,
+   "acqPerJob": 3.45,
+   "effChk": 0,
+   "drainerPerJob": 2.45,
+   "claims": 27,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 16349,
+   "W5att": 3,
+   "W7re": 0,
+   "W7chk": 0,
+   "W7st": "done"
+  },
+  {
+   "run": 4,
+   "acqPerJob": 3.4166666666666665,
+   "effChk": 0,
+   "drainerPerJob": 2.4166666666666665,
+   "claims": 25,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 1090,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 0,
+   "W7st": "done"
+  },
+  {
+   "run": 5,
+   "acqPerJob": 3.4833333333333334,
+   "effChk": 0,
+   "drainerPerJob": 2.4833333333333334,
+   "claims": 29,
+   "backends": 5,
+   "W2dup": 0,
+   "W2done": 80,
+   "W3chk": 1,
+   "W3re": 0,
+   "W4": [
+    "done",
+    "done"
+   ],
+   "W5ms": 1095,
+   "W5att": 2,
+   "W7re": 0,
+   "W7chk": 0,
+   "W7st": "done"
+  }
+ ]
+}

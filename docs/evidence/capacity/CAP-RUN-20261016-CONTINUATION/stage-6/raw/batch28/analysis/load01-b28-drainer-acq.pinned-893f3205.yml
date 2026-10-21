@@ -1,0 +1,79 @@
+name: LOAD-01 الدفعة 28 — مقعد 4 vCPU (خفض حجوزات مجمّع PG لكل وظيفة في درينر تيليجرام)
+
+# تشخيصٌ معزولٌ على فرعِ التجربةِ وحدَه ولا يُدمَج. سلسلةٌ واحدة (PLAN-b28.md مثبَّتةٌ قبلَ أوّلِ موجة):
+#   main: R=45571268 (main + waitMs في الأثر، حدُّ 50) مقابلَ C=3aace81e (R + الإصلاح)
+# المقعدُ والمولّدُ وحدُّ الجلسةِ للمقعد (24000) كما في ب26 حرفًا. لا أسرار حقيقية؛ تدقيقُ الأسرارِ قبلَ الرفع.
+on:
+  push:
+    branches: [exp/load01-b28-drainer-acq]
+    paths:
+      - deploy/capacity-run/b24-runner/**
+      - deploy/capacity-run/monitor/**
+      - .github/workflows/load01-b28-drainer-acq.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load01-b28-seat
+  cancel-in-progress: false
+
+jobs:
+  seat:
+    name: مقعد B28 (${{ matrix.series }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - series: main
+            limit: 50
+            r_sha: 45571268e75e191862ea731d89c7361bed3d0050
+            c_sha: 3aace81e42dbc24db7b4e04fc20f512ec8ba1eca
+    env:
+      R_SHA: ${{ matrix.r_sha }}
+      C_SHA: ${{ matrix.c_sha }}
+      SERIES: ${{ matrix.series }}
+      LIMIT: ${{ matrix.limit }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد (حزم المقعد الأصلي والمستخدم user)
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$R_SHA^{commit}"
+          sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$C_SHA^{commit}"
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$R_SHA" "$C_SHA"
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          MODE=$(cat deploy/capacity-run/b24-runner/MODE)
+          echo "MODE=$MODE"
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
+            --setenv=R_SHA="$R_SHA" --setenv=C_SHA="$C_SHA" --setenv=SERIES="$SERIES" --setenv=LIMIT="$LIMIT" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b28.sh "$MODE"
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرارِ — الفشلُ يحجرُ الخامَّ في المقعدِ)
+        uses: actions/upload-artifact@v5
+        with:
+          name: b28-seat-evidence-${{ matrix.series }}
+          path: /home/user/b28-out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: b28-seat-failure-report-${{ matrix.series }}
+          path: /home/user/b28-out/secret-audit.txt
+          if-no-files-found: ignore
+          retention-days: 14

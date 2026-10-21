@@ -1,0 +1,191 @@
+{
+  "W1": {
+    "jobs": 60,
+    "acquisitionsTotal": 203,
+    "acquisitionsPerJob": 3.3833333333333333,
+    "bySig": {
+      "select claim_telegram_update_jobs_for_bot": 23,
+      "select 1 as b28_prepare_stub": 60,
+      "select record_telegram_update_effect": 60,
+      "select finish_telegram_update_replies": 60
+    },
+    "effectCheckAcquisitionsPerJob": 0,
+    "backends": 5,
+    "poolMax": 5
+  },
+  "W2": {
+    "jobs": 80,
+    "done": 80,
+    "dup": 0,
+    "prepared": 80
+  },
+  "W3": {
+    "staleEffectChecks": 1,
+    "reExecuted": 0
+  },
+  "W4": {
+    "rows": [
+      {
+        "update_id": 9325660,
+        "status": "done",
+        "attempts": 2,
+        "recorded": true
+      },
+      {
+        "update_id": 9325661,
+        "status": "done",
+        "attempts": 2,
+        "recorded": true
+      }
+    ],
+    "prepared": {
+      "9325660": 2,
+      "9325661": 2
+    }
+  },
+  "W5": {
+    "killed": 5,
+    "recoveryMs": 347,
+    "events": [
+      [
+        "query",
+        0,
+        3,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        3,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        3,
+        "select telegram_update_effect_recorded("
+      ],
+      [
+        "query",
+        0,
+        0,
+        "select 1 as b28_prepare_stub"
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select record_telegram_update_effect("
+      ],
+      [
+        "query",
+        0,
+        14,
+        "select finish_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        7,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        3,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        8,
+        "select telegram_update_effect_recorded("
+      ],
+      [
+        "query",
+        0,
+        0,
+        "select 1 as b28_prepare_stub"
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select record_telegram_update_effect("
+      ],
+      [
+        "query",
+        0,
+        1,
+        "select finish_telegram_update_replies("
+      ]
+    ],
+    "logs": [
+      [
+        78,
+        "telegram.drainer.job_error",
+        {
+          "bot": "driver",
+          "updateId": 9325760,
+          "error": "read ECONNRESET"
+        }
+      ]
+    ],
+    "rows": [
+      {
+        "update_id": 9325760,
+        "status": "done",
+        "attempts": 2,
+        "recorded": true
+      }
+    ],
+    "backendsAfter": 2
+  },
+  "W6": {
+    "order": [
+      9325860,
+      9325861,
+      9325862,
+      9325863,
+      9325864
+    ],
+    "replies": [
+      {
+        "update_id": 9325860,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9325861,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9325862,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9325863,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9325864,
+        "reply_status": "done",
+        "replies_sent": 1
+      }
+    ]
+  },
+  "W7": {
+    "reExecuted": 0,
+    "bySig": {
+      "select claim_telegram_update_jobs_for_bot": 3,
+      "select record_telegram_update_effect": 1
+    },
+    "status": "done",
+    "log": [
+      "telegram.drainer.effect_replay_skipped"
+    ]
+  }
+}
