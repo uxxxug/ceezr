@@ -1,0 +1,7643 @@
+{
+ "waves": {
+  "b28rep-s1-R1-750": {
+   "wave": "b28rep-s1-R1-750",
+   "limit": 50,
+   "inputs": {
+    "orders_csv": true,
+    "trace_passes": 106,
+    "trace_orders": 5270
+   },
+   "gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "summary_line": {
+     "G1": "99.51% (4102/4122)",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "P1": "127ms",
+     "P2": "110ms",
+     "P3": "101ms",
+     "P4": "42591ms✗",
+     "P5": "42889ms",
+     "P6a": "181ms",
+     "P6b": "151ms",
+     "P6c": "160ms",
+     "P7": "72s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "gates": {
+     "G1": {
+      "value": "99.51% (4102/4122)",
+      "pass": true
+     },
+     "G2": {
+      "value": "0",
+      "pass": true
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true
+     },
+     "G5": {
+      "value": "0",
+      "pass": true
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true
+     },
+     "G8": {
+      "value": "0",
+      "pass": true
+     },
+     "I1-identities": {
+      "value": "riders 4122/4122 · drivers 4122/4122",
+      "pass": true
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true
+     }
+    }
+   },
+   "P4": {
+    "n": 4102,
+    "p50": 36362.5,
+    "p95": 42591,
+    "p99": 45454,
+    "max": 48583,
+    "mean": 33275.1
+   },
+   "queue_before_first_exec_ms": {
+    "n": 3842,
+    "p50": 34491.5,
+    "p95": 38330.0,
+    "p99": 39793.0,
+    "max": 41421.0,
+    "mean": 31187.1
+   },
+   "first_exec_ms": {
+    "n": 3842,
+    "p50": 10.0,
+    "p95": 21,
+    "p99": 30,
+    "max": 53,
+    "mean": 10.8
+   },
+   "target_in_round1_share": 0.7145,
+   "window": {
+    "inject_sec": 178.7,
+    "orders": 4122,
+    "never_reached_pass": 260
+   },
+   "passes": {
+    "in_window": 90,
+    "in_drain": 16,
+    "per_s": 0.504,
+    "saturated_share": 1.0,
+    "passMs": {
+     "n": 90,
+     "p50": 510.0,
+     "p95": 768.3,
+     "p99": 904.4,
+     "max": 964,
+     "mean": 525.1
+    },
+    "cycle_ms": {
+     "n": 89,
+     "p50": 2000.0,
+     "p95": 2003.6,
+     "p99": 2005.1,
+     "max": 2006,
+     "mean": 2000.5
+    },
+    "gap_ms": {
+     "n": 89,
+     "p50": 1493.0,
+     "p95": 1691.4,
+     "p99": 1756.2,
+     "max": 1758,
+     "mean": 1476.3
+    },
+    "followup_delay_ms": {
+     "n": 90,
+     "p50": 1936.0,
+     "p95": 2000.0,
+     "p99": 2000.1,
+     "max": 2001,
+     "mean": 1864.7
+    },
+    "finderMs": {
+     "n": 90,
+     "p50": 5.6,
+     "p95": 11.8,
+     "p99": 14.5,
+     "max": 23.1,
+     "mean": 6.2
+    },
+    "picked": {
+     "n": 90,
+     "p50": 50.0,
+     "p95": 50.0,
+     "p99": 50.0,
+     "max": 50,
+     "mean": 50.0
+    },
+    "longer_than_2s": 0,
+    "counts_window": {
+     "picked": 4500,
+     "rebroadcast": 4420,
+     "stillNoDriver": 50,
+     "exhausted": 0,
+     "raced": 30,
+     "failed": 0
+    },
+    "counts_drain": {
+     "picked": 770,
+     "rebroadcast": 711,
+     "stillNoDriver": 0,
+     "exhausted": 38,
+     "raced": 21,
+     "failed": 0
+    }
+   },
+   "rates": {
+    "arrival_per_s": 23.07,
+    "first_exec_per_s": 18.23,
+    "exec_per_s": 25.15,
+    "repeat_share": 0.275,
+    "per_order_exec_ms": {
+     "n": 4494,
+     "p50": 10.0,
+     "p95": 19.0,
+     "p99": 25.0,
+     "max": 39,
+     "mean": 10.3
+    }
+   },
+   "queue": {
+    "max": 688,
+    "at_inject_end": 591,
+    "slope_second_half_per_s": -0.342,
+    "drain_to_zero_s": 31.3,
+    "every_5s": [
+     {
+      "t": 0,
+      "queue": 1
+     },
+     {
+      "t": 5,
+      "queue": 311
+     },
+     {
+      "t": 10,
+      "queue": 550
+     },
+     {
+      "t": 15,
+      "queue": 608
+     },
+     {
+      "t": 20,
+      "queue": 646
+     },
+     {
+      "t": 25,
+      "queue": 634
+     },
+     {
+      "t": 30,
+      "queue": 630
+     },
+     {
+      "t": 35,
+      "queue": 603
+     },
+     {
+      "t": 40,
+      "queue": 687
+     },
+     {
+      "t": 45,
+      "queue": 653
+     },
+     {
+      "t": 50,
+      "queue": 674
+     },
+     {
+      "t": 55,
+      "queue": 665
+     },
+     {
+      "t": 60,
+      "queue": 685
+     },
+     {
+      "t": 65,
+      "queue": 671
+     },
+     {
+      "t": 70,
+      "queue": 688
+     },
+     {
+      "t": 75,
+      "queue": 655
+     },
+     {
+      "t": 80,
+      "queue": 685
+     },
+     {
+      "t": 85,
+      "queue": 665
+     },
+     {
+      "t": 90,
+      "queue": 665
+     },
+     {
+      "t": 95,
+      "queue": 635
+     },
+     {
+      "t": 100,
+      "queue": 661
+     },
+     {
+      "t": 105,
+      "queue": 644
+     },
+     {
+      "t": 110,
+      "queue": 633
+     },
+     {
+      "t": 115,
+      "queue": 603
+     },
+     {
+      "t": 120,
+      "queue": 630
+     },
+     {
+      "t": 125,
+      "queue": 640
+     },
+     {
+      "t": 130,
+      "queue": 638
+     },
+     {
+      "t": 135,
+      "queue": 617
+     },
+     {
+      "t": 140,
+      "queue": 634
+     },
+     {
+      "t": 145,
+      "queue": 640
+     },
+     {
+      "t": 150,
+      "queue": 638
+     },
+     {
+      "t": 155,
+      "queue": 621
+     },
+     {
+      "t": 160,
+      "queue": 623
+     },
+     {
+      "t": 165,
+      "queue": 632
+     },
+     {
+      "t": 170,
+      "queue": 639
+     },
+     {
+      "t": 175,
+      "queue": 591
+     },
+     {
+      "t": 180,
+      "queue": 600
+     },
+     {
+      "t": 185,
+      "queue": 483
+     },
+     {
+      "t": 190,
+      "queue": 402
+     },
+     {
+      "t": 195,
+      "queue": 283
+     },
+     {
+      "t": 200,
+      "queue": 192
+     },
+     {
+      "t": 205,
+      "queue": 62
+     },
+     {
+      "t": 210,
+      "queue": 0
+     },
+     {
+      "t": 215,
+      "queue": 0
+     },
+     {
+      "t": 220,
+      "queue": 0
+     },
+     {
+      "t": 225,
+      "queue": 0
+     },
+     {
+      "t": 230,
+      "queue": 0
+     },
+     {
+      "t": 235,
+      "queue": 0
+     },
+     {
+      "t": 240,
+      "queue": 0
+     },
+     {
+      "t": 245,
+      "queue": 0
+     },
+     {
+      "t": 250,
+      "queue": 0
+     },
+     {
+      "t": 255,
+      "queue": 0
+     },
+     {
+      "t": 260,
+      "queue": 0
+     },
+     {
+      "t": 265,
+      "queue": 0
+     },
+     {
+      "t": 270,
+      "queue": 0
+     },
+     {
+      "t": 275,
+      "queue": 0
+     },
+     {
+      "t": 280,
+      "queue": 0
+     },
+     {
+      "t": 285,
+      "queue": 0
+     },
+     {
+      "t": 290,
+      "queue": 0
+     },
+     {
+      "t": 295,
+      "queue": 0
+     },
+     {
+      "t": 300,
+      "queue": 0
+     },
+     {
+      "t": 305,
+      "queue": 0
+     },
+     {
+      "t": 310,
+      "queue": 0
+     },
+     {
+      "t": 315,
+      "queue": 0
+     },
+     {
+      "t": 320,
+      "queue": 0
+     },
+     {
+      "t": 325,
+      "queue": 0
+     },
+     {
+      "t": 330,
+      "queue": 0
+     },
+     {
+      "t": 335,
+      "queue": 0
+     },
+     {
+      "t": 340,
+      "queue": 0
+     },
+     {
+      "t": 345,
+      "queue": 0
+     },
+     {
+      "t": 350,
+      "queue": 0
+     },
+     {
+      "t": 355,
+      "queue": 0
+     }
+    ]
+   },
+   "cpu_pct_window": {
+    "gateway": {
+     "n": 35,
+     "p50": 72.7,
+     "p95": 101.7,
+     "p99": 115.4,
+     "max": 116.1,
+     "mean": 75.6
+    },
+    "postgres": {
+     "n": 35,
+     "p50": 172.8,
+     "p95": 225.2,
+     "p99": 229.6,
+     "max": 231.8,
+     "mean": 175.3
+    },
+    "generator": {
+     "n": 35,
+     "p50": 15.6,
+     "p95": 24.3,
+     "p99": 31.1,
+     "max": 33.1,
+     "mean": 16.8
+    }
+   },
+   "psi_some_pct_window": {
+    "n": 177,
+    "p50": 35.9,
+    "p95": 48.2,
+    "p99": 52.2,
+    "max": 62.0,
+    "mean": 35.0
+   },
+   "pg_runq_wait_pct_window": {
+    "n": 177,
+    "p50": 131.2,
+    "p95": 204.5,
+    "p99": 244.0,
+    "max": 359.5,
+    "mean": 128.2
+   },
+   "pool_acquire_select1_ms": {
+    "n": 179,
+    "p50": 5.5,
+    "p95": 106.4,
+    "p99": 139.7,
+    "max": 203.6,
+    "mean": 21.1
+   },
+   "conn_states_window": {
+    "ceezr:gatewayDispatch|active": 57,
+    "ceezr:gatewayDispatch|idle": 33,
+    "ceezr:gatewayRequest|active": 141,
+    "ceezr:gatewayRequest|idle": 283,
+    "ceezr:gatewayRequest|idle in transaction": 26,
+    "ceezr:workerJobs|active": 111,
+    "ceezr:workerJobs|idle": 332,
+    "ceezr:workerJobs|idle in transaction": 7,
+    "ceezr:workerLocks|idle": 360,
+    "driver-onboarding|active": 9,
+    "driver-onboarding|idle": 351,
+    "genA|active": 3,
+    "genA|idle": 717
+   },
+   "pg_exec": {
+    "total_exec_ms": 350530.1,
+    "top": [
+     {
+      "calls": 26568,
+      "total_ms": 70920.2,
+      "mean_ms": 2.669,
+      "query": "select claim_notification_delivery() result"
+     },
+     {
+      "calls": 72035,
+      "total_ms": 68345.3,
+      "mean_ms": 0.949,
+      "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+     },
+     {
+      "calls": 5732,
+      "total_ms": 58270.5,
+      "mean_ms": 10.166,
+      "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+     },
+     {
+      "calls": 11300,
+      "total_ms": 26672.6,
+      "mean_ms": 2.36,
+      "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+     },
+     {
+      "calls": 4122,
+      "total_ms": 25746.4,
+      "mean_ms": 6.246,
+      "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+     },
+     {
+      "calls": 5682,
+      "total_ms": 16786.7,
+      "mean_ms": 2.954,
+      "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+     },
+     {
+      "calls": 4122,
+      "total_ms": 14608.5,
+      "mean_ms": 3.544,
+      "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+     },
+     {
+      "calls": 22300,
+      "total_ms": 9036.4,
+      "mean_ms": 0.405,
+      "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+     }
+    ]
+   },
+   "all_gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "rows": {
+     "G1": {
+      "value": "99.51% (4102/4122)",
+      "pass": true,
+      "rule": "دورات مكتملة مثبتة من القاعدة"
+     },
+     "G2": {
+      "value": "0",
+      "pass": true,
+      "rule": "إسناد مزدوج"
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true,
+      "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true,
+      "rule": "تدقيق ما بعد الموجة"
+     },
+     "G5": {
+      "value": "0",
+      "pass": true,
+      "rule": "سائقون بقوا متاحين بعد الجولة"
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true,
+      "rule": "إسناد لسائق سيناريو آخر"
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "5xx من الطلبات"
+     },
+     "G8": {
+      "value": "0",
+      "pass": true,
+      "rule": "تعثر قراءة لوح العروض"
+     },
+     "I1-identities": {
+      "value": "riders 4122/4122 · drivers 4122/4122",
+      "pass": true,
+      "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true,
+      "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true,
+      "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true,
+      "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+     },
+     "P1": {
+      "value": "127ms",
+      "pass": true,
+      "rule": "p95 إنشاء الرحلة"
+     },
+     "P2": {
+      "value": "110ms",
+      "pass": true,
+      "rule": "p95 قبول العرض"
+     },
+     "P3": {
+      "value": "101ms",
+      "pass": true,
+      "rule": "p95 قراءة لوح العروض"
+     },
+     "P4": {
+      "value": "42591ms",
+      "pass": false,
+      "rule": "p95 ظهور العرض على اللوح"
+     },
+     "P5": {
+      "value": "42889ms",
+      "pass": true,
+      "rule": "p95 دورة السيناريو كاملة"
+     },
+     "P6a": {
+      "value": "181ms",
+      "pass": true,
+      "rule": "p99 إنشاء الرحلة"
+     },
+     "P6b": {
+      "value": "151ms",
+      "pass": true,
+      "rule": "p99 قبول العرض"
+     },
+     "P6c": {
+      "value": "160ms",
+      "pass": true,
+      "rule": "p99 قراءة اللوح"
+     },
+     "P7": {
+      "value": "72s",
+      "pass": true,
+      "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+     },
+     "P8": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "429 واجهات Mini App"
+     },
+     "P9": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "أخطاء شبكة"
+     }
+    },
+    "total": 4122,
+    "verified": 4102
+   },
+   "completions": {
+    "inject_s": 180.0,
+    "verified_in_inject": 3364,
+    "verified_per_s": 18.69,
+    "verified_total": 4102,
+    "scenarios_total": 4122,
+    "not_verified_reasons": {
+     "offer:offer_not_found_in_time": 20
+    }
+   },
+   "session_exchange": {
+    "limit_check": {
+     "gateway_comm": "bun",
+     "sha": "45571268e75e191862ea731d89c7361bed3d0050",
+     "env_in_live_gateway": "24000",
+     "effective_limit": 24000,
+     "window_seconds": 60,
+     "expected": 24000,
+     "run_env_value_unchanged": "6000",
+     "default_without_var": 30,
+     "ok": true
+    },
+    "offered": 12366,
+    "rejected_429_by_step": {},
+    "rejected_429": 0,
+    "accepted": 12366,
+    "offered_per_s_inject": 67.8,
+    "first_429_s": null,
+    "max_sliding60_offered_bins": 5505,
+    "redis_window": {
+     "samples": 252,
+     "errors": 0,
+     "max": 5596,
+     "max_utilisation": 0.2332,
+     "p50": 3344.5
+    }
+   },
+   "errors": {
+    "generator_counters_present": true,
+    "requests_counted": 164537,
+    "api429_total": 0,
+    "webhookInbound429": 0,
+    "http5xx": 0,
+    "networkErrors": 0,
+    "api429_by_source": {
+     "session_exchange_limit(rider/driver_session)": 0,
+     "accept": 0,
+     "unattributed_other_routes": 0
+    },
+    "outside_P8_counter": {
+     "session_exchange_limit(driver_onboarding)": 0
+    },
+    "telegram_outbound_mock_429": 3,
+    "gateway_5xx_by_route": {}
+   },
+   "onboarding": {
+    "scenario_driver_onboarding_failed": 0,
+    "onboarding_failed_events": 0,
+    "by_steps": {}
+   },
+   "phone_proof": {
+    "n": 4122,
+    "not_done": 0,
+    "status": {
+     "done": 4122
+    },
+    "p50_ms": 80,
+    "p95_ms": 5856,
+    "max_ms": 8282,
+    "over_20s": 0
+   },
+   "drainer": {
+    "jobs": 4122,
+    "mean_in_service": 2.6,
+    "jobs_per_s": 23.04,
+    "claim_trips": 2964,
+    "jobs_per_trip": 1.39
+   },
+   "pool": {
+    "jobs": 4122,
+    "drainer_by_sig": {
+     "select finish_telegram_update_replies(": 4133,
+     "select telegram_update_effect_recorded(": 4122,
+     "select get_user_language(": 4122,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_n": 4122,
+     "select record_telegram_update_effect(": 4122,
+     "select claim_telegram_update_jobs_for_bot(": 2964
+    },
+    "drainer": {
+     "acquisitions": 23585,
+     "wait_ms_per_acq": 22.983,
+     "query_run_ms_mean": 1.811,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "http": {
+     "acquisitions": 242905,
+     "wait_ms_per_acq": 24.115,
+     "query_run_ms_mean": 2.471,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 20610
+    },
+    "background": {
+     "acquisitions": 329,
+     "wait_ms_per_acq": 16.556,
+     "query_run_ms_mean": 3.082,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "drainer_acq_per_job": 5.722,
+    "effect_check_acq_per_job": 1.0,
+    "drainer_share_of_acq": 0.088
+   },
+   "jobs_state": {
+    "status": {
+     "driver:done": 4122
+    },
+    "not_done": 0,
+    "late_over_20s": 0
+   },
+   "side": "R",
+   "validity": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  },
+  "b28rep-s1-C1-750": {
+   "wave": "b28rep-s1-C1-750",
+   "limit": 50,
+   "inputs": {
+    "orders_csv": true,
+    "trace_passes": 105,
+    "trace_orders": 5216
+   },
+   "gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "summary_line": {
+     "G1": "99.47% (4132/4154)",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "P1": "144ms",
+     "P2": "93ms",
+     "P3": "90ms",
+     "P4": "42457ms✗",
+     "P5": "42709ms",
+     "P6a": "178ms",
+     "P6b": "164ms",
+     "P6c": "148ms",
+     "P7": "85s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "gates": {
+     "G1": {
+      "value": "99.47% (4132/4154)",
+      "pass": true
+     },
+     "G2": {
+      "value": "0",
+      "pass": true
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true
+     },
+     "G5": {
+      "value": "0",
+      "pass": true
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true
+     },
+     "G8": {
+      "value": "0",
+      "pass": true
+     },
+     "I1-identities": {
+      "value": "riders 4154/4154 · drivers 4154/4154",
+      "pass": true
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true
+     }
+    }
+   },
+   "P4": {
+    "n": 4132,
+    "p50": 35205.0,
+    "p95": 42457,
+    "p99": 44678,
+    "max": 47124,
+    "mean": 32859.2
+   },
+   "queue_before_first_exec_ms": {
+    "n": 3865,
+    "p50": 33895.0,
+    "p95": 37986.0,
+    "p99": 39076.0,
+    "max": 41659.0,
+    "mean": 30813.9
+   },
+   "first_exec_ms": {
+    "n": 3865,
+    "p50": 11,
+    "p95": 22,
+    "p99": 32,
+    "max": 59,
+    "mean": 12.1
+   },
+   "target_in_round1_share": 0.728,
+   "window": {
+    "inject_sec": 178.6,
+    "orders": 4154,
+    "never_reached_pass": 267
+   },
+   "passes": {
+    "in_window": 90,
+    "in_drain": 15,
+    "per_s": 0.504,
+    "saturated_share": 0.989,
+    "passMs": {
+     "n": 90,
+     "p50": 591.0,
+     "p95": 820.9,
+     "p99": 873.2,
+     "max": 948,
+     "mean": 586.2
+    },
+    "cycle_ms": {
+     "n": 89,
+     "p50": 2000.0,
+     "p95": 2003.0,
+     "p99": 2004.1,
+     "max": 2005,
+     "mean": 2000.6
+    },
+    "gap_ms": {
+     "n": 89,
+     "p50": 1411.0,
+     "p95": 1672.6,
+     "p99": 1727.3,
+     "max": 1788,
+     "mean": 1415.3
+    },
+    "followup_delay_ms": {
+     "n": 90,
+     "p50": 1903.0,
+     "p95": 1998.5,
+     "p99": 2001.1,
+     "max": 2002,
+     "mean": 1837.6
+    },
+    "finderMs": {
+     "n": 90,
+     "p50": 5.1,
+     "p95": 12.4,
+     "p99": 15.7,
+     "max": 16.5,
+     "mean": 6.1
+    },
+    "picked": {
+     "n": 90,
+     "p50": 50.0,
+     "p95": 50.0,
+     "p99": 50.0,
+     "max": 50,
+     "mean": 49.8
+    },
+    "longer_than_2s": 0,
+    "counts_window": {
+     "picked": 4485,
+     "rebroadcast": 4425,
+     "stillNoDriver": 35,
+     "exhausted": 0,
+     "raced": 25,
+     "failed": 0
+    },
+    "counts_drain": {
+     "picked": 731,
+     "rebroadcast": 682,
+     "stillNoDriver": 0,
+     "exhausted": 30,
+     "raced": 19,
+     "failed": 0
+    }
+   },
+   "rates": {
+    "arrival_per_s": 23.26,
+    "first_exec_per_s": 18.45,
+    "exec_per_s": 25.02,
+    "repeat_share": 0.263,
+    "per_order_exec_ms": {
+     "n": 4467,
+     "p50": 11.0,
+     "p95": 20.0,
+     "p99": 26.0,
+     "max": 46,
+     "mean": 11.5
+    }
+   },
+   "queue": {
+    "max": 696,
+    "at_inject_end": 588,
+    "slope_second_half_per_s": -0.465,
+    "drain_to_zero_s": 31.4,
+    "every_5s": [
+     {
+      "t": 0,
+      "queue": 1
+     },
+     {
+      "t": 5,
+      "queue": 345
+     },
+     {
+      "t": 10,
+      "queue": 556
+     },
+     {
+      "t": 15,
+      "queue": 607
+     },
+     {
+      "t": 20,
+      "queue": 656
+     },
+     {
+      "t": 25,
+      "queue": 630
+     },
+     {
+      "t": 30,
+      "queue": 641
+     },
+     {
+      "t": 35,
+      "queue": 609
+     },
+     {
+      "t": 40,
+      "queue": 676
+     },
+     {
+      "t": 45,
+      "queue": 651
+     },
+     {
+      "t": 50,
+      "queue": 678
+     },
+     {
+      "t": 55,
+      "queue": 680
+     },
+     {
+      "t": 60,
+      "queue": 687
+     },
+     {
+      "t": 65,
+      "queue": 671
+     },
+     {
+      "t": 70,
+      "queue": 696
+     },
+     {
+      "t": 75,
+      "queue": 659
+     },
+     {
+      "t": 80,
+      "queue": 681
+     },
+     {
+      "t": 85,
+      "queue": 676
+     },
+     {
+      "t": 90,
+      "queue": 660
+     },
+     {
+      "t": 95,
+      "queue": 640
+     },
+     {
+      "t": 100,
+      "queue": 662
+     },
+     {
+      "t": 105,
+      "queue": 633
+     },
+     {
+      "t": 110,
+      "queue": 626
+     },
+     {
+      "t": 115,
+      "queue": 615
+     },
+     {
+      "t": 120,
+      "queue": 614
+     },
+     {
+      "t": 125,
+      "queue": 625
+     },
+     {
+      "t": 130,
+      "queue": 642
+     },
+     {
+      "t": 135,
+      "queue": 608
+     },
+     {
+      "t": 140,
+      "queue": 620
+     },
+     {
+      "t": 145,
+      "queue": 620
+     },
+     {
+      "t": 150,
+      "queue": 616
+     },
+     {
+      "t": 155,
+      "queue": 603
+     },
+     {
+      "t": 160,
+      "queue": 620
+     },
+     {
+      "t": 165,
+      "queue": 606
+     },
+     {
+      "t": 170,
+      "queue": 644
+     },
+     {
+      "t": 175,
+      "queue": 588
+     },
+     {
+      "t": 180,
+      "queue": 575
+     },
+     {
+      "t": 185,
+      "queue": 472
+     },
+     {
+      "t": 190,
+      "queue": 392
+     },
+     {
+      "t": 195,
+      "queue": 261
+     },
+     {
+      "t": 200,
+      "queue": 169
+     },
+     {
+      "t": 205,
+      "queue": 46
+     },
+     {
+      "t": 210,
+      "queue": 0
+     },
+     {
+      "t": 215,
+      "queue": 0
+     },
+     {
+      "t": 220,
+      "queue": 0
+     },
+     {
+      "t": 225,
+      "queue": 0
+     },
+     {
+      "t": 230,
+      "queue": 0
+     },
+     {
+      "t": 235,
+      "queue": 0
+     },
+     {
+      "t": 240,
+      "queue": 0
+     },
+     {
+      "t": 245,
+      "queue": 0
+     },
+     {
+      "t": 250,
+      "queue": 0
+     },
+     {
+      "t": 255,
+      "queue": 0
+     },
+     {
+      "t": 260,
+      "queue": 0
+     },
+     {
+      "t": 265,
+      "queue": 0
+     },
+     {
+      "t": 270,
+      "queue": 0
+     },
+     {
+      "t": 275,
+      "queue": 0
+     },
+     {
+      "t": 280,
+      "queue": 0
+     },
+     {
+      "t": 285,
+      "queue": 0
+     },
+     {
+      "t": 290,
+      "queue": 0
+     },
+     {
+      "t": 295,
+      "queue": 0
+     },
+     {
+      "t": 300,
+      "queue": 0
+     },
+     {
+      "t": 305,
+      "queue": 0
+     },
+     {
+      "t": 310,
+      "queue": 0
+     },
+     {
+      "t": 315,
+      "queue": 0
+     },
+     {
+      "t": 320,
+      "queue": 0
+     },
+     {
+      "t": 325,
+      "queue": 0
+     },
+     {
+      "t": 330,
+      "queue": 0
+     },
+     {
+      "t": 335,
+      "queue": 0
+     },
+     {
+      "t": 340,
+      "queue": 0
+     },
+     {
+      "t": 345,
+      "queue": 0
+     },
+     {
+      "t": 350,
+      "queue": 0
+     },
+     {
+      "t": 355,
+      "queue": 0
+     }
+    ]
+   },
+   "cpu_pct_window": {
+    "gateway": {
+     "n": 35,
+     "p50": 73.2,
+     "p95": 102.1,
+     "p99": 115.9,
+     "max": 116.9,
+     "mean": 76.5
+    },
+    "postgres": {
+     "n": 35,
+     "p50": 177.1,
+     "p95": 227.3,
+     "p99": 229.8,
+     "max": 231.0,
+     "mean": 178.9
+    },
+    "generator": {
+     "n": 35,
+     "p50": 16.1,
+     "p95": 24.1,
+     "p99": 31.3,
+     "max": 33.4,
+     "mean": 17.2
+    }
+   },
+   "psi_some_pct_window": {
+    "n": 177,
+    "p50": 38.1,
+    "p95": 48.5,
+    "p99": 51.8,
+    "max": 52.7,
+    "mean": 36.1
+   },
+   "pg_runq_wait_pct_window": {
+    "n": 177,
+    "p50": 136.6,
+    "p95": 208.3,
+    "p99": 232.6,
+    "max": 306.9,
+    "mean": 131.9
+   },
+   "pool_acquire_select1_ms": {
+    "n": 179,
+    "p50": 5.0,
+    "p95": 91.0,
+    "p99": 137.9,
+    "max": 151.3,
+    "mean": 20.6
+   },
+   "conn_states_window": {
+    "ceezr:gatewayDispatch|active": 50,
+    "ceezr:gatewayDispatch|idle": 40,
+    "ceezr:gatewayRequest|active": 139,
+    "ceezr:gatewayRequest|idle": 295,
+    "ceezr:gatewayRequest|idle in transaction": 16,
+    "ceezr:workerJobs|active": 110,
+    "ceezr:workerJobs|idle": 328,
+    "ceezr:workerJobs|idle in transaction": 12,
+    "ceezr:workerLocks|idle": 360,
+    "driver-onboarding|active": 8,
+    "driver-onboarding|idle": 352,
+    "genA|active": 15,
+    "genA|idle": 705
+   },
+   "pg_exec": {
+    "total_exec_ms": 352861.3,
+    "top": [
+     {
+      "calls": 24810,
+      "total_ms": 68626.0,
+      "mean_ms": 2.766,
+      "query": "select claim_notification_delivery() result"
+     },
+     {
+      "calls": 71816,
+      "total_ms": 67531.3,
+      "mean_ms": 0.94,
+      "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+     },
+     {
+      "calls": 5686,
+      "total_ms": 59152.8,
+      "mean_ms": 10.403,
+      "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+     },
+     {
+      "calls": 11374,
+      "total_ms": 27546.1,
+      "mean_ms": 2.422,
+      "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+     },
+     {
+      "calls": 4154,
+      "total_ms": 27078.2,
+      "mean_ms": 6.519,
+      "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+     },
+     {
+      "calls": 5651,
+      "total_ms": 17832.9,
+      "mean_ms": 3.156,
+      "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+     },
+     {
+      "calls": 4154,
+      "total_ms": 14846.5,
+      "mean_ms": 3.574,
+      "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+     },
+     {
+      "calls": 20789,
+      "total_ms": 8803.4,
+      "mean_ms": 0.423,
+      "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+     }
+    ]
+   },
+   "all_gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "rows": {
+     "G1": {
+      "value": "99.47% (4132/4154)",
+      "pass": true,
+      "rule": "دورات مكتملة مثبتة من القاعدة"
+     },
+     "G2": {
+      "value": "0",
+      "pass": true,
+      "rule": "إسناد مزدوج"
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true,
+      "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true,
+      "rule": "تدقيق ما بعد الموجة"
+     },
+     "G5": {
+      "value": "0",
+      "pass": true,
+      "rule": "سائقون بقوا متاحين بعد الجولة"
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true,
+      "rule": "إسناد لسائق سيناريو آخر"
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "5xx من الطلبات"
+     },
+     "G8": {
+      "value": "0",
+      "pass": true,
+      "rule": "تعثر قراءة لوح العروض"
+     },
+     "I1-identities": {
+      "value": "riders 4154/4154 · drivers 4154/4154",
+      "pass": true,
+      "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true,
+      "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true,
+      "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true,
+      "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+     },
+     "P1": {
+      "value": "144ms",
+      "pass": true,
+      "rule": "p95 إنشاء الرحلة"
+     },
+     "P2": {
+      "value": "93ms",
+      "pass": true,
+      "rule": "p95 قبول العرض"
+     },
+     "P3": {
+      "value": "90ms",
+      "pass": true,
+      "rule": "p95 قراءة لوح العروض"
+     },
+     "P4": {
+      "value": "42457ms",
+      "pass": false,
+      "rule": "p95 ظهور العرض على اللوح"
+     },
+     "P5": {
+      "value": "42709ms",
+      "pass": true,
+      "rule": "p95 دورة السيناريو كاملة"
+     },
+     "P6a": {
+      "value": "178ms",
+      "pass": true,
+      "rule": "p99 إنشاء الرحلة"
+     },
+     "P6b": {
+      "value": "164ms",
+      "pass": true,
+      "rule": "p99 قبول العرض"
+     },
+     "P6c": {
+      "value": "148ms",
+      "pass": true,
+      "rule": "p99 قراءة اللوح"
+     },
+     "P7": {
+      "value": "85s",
+      "pass": true,
+      "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+     },
+     "P8": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "429 واجهات Mini App"
+     },
+     "P9": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "أخطاء شبكة"
+     }
+    },
+    "total": 4154,
+    "verified": 4132
+   },
+   "completions": {
+    "inject_s": 180.1,
+    "verified_in_inject": 3395,
+    "verified_per_s": 18.85,
+    "verified_total": 4132,
+    "scenarios_total": 4154,
+    "not_verified_reasons": {
+     "offer:offer_not_found_in_time": 22
+    }
+   },
+   "session_exchange": {
+    "limit_check": {
+     "gateway_comm": "bun",
+     "sha": "3aace81e42dbc24db7b4e04fc20f512ec8ba1eca",
+     "env_in_live_gateway": "24000",
+     "effective_limit": 24000,
+     "window_seconds": 60,
+     "expected": 24000,
+     "run_env_value_unchanged": "6000",
+     "default_without_var": 30,
+     "ok": true
+    },
+    "offered": 12462,
+    "rejected_429_by_step": {},
+    "rejected_429": 0,
+    "accepted": 12462,
+    "offered_per_s_inject": 68.6,
+    "first_429_s": null,
+    "max_sliding60_offered_bins": 5444,
+    "redis_window": {
+     "samples": 242,
+     "errors": 0,
+     "max": 5572,
+     "max_utilisation": 0.2322,
+     "p50": 3381.5
+    }
+   },
+   "errors": {
+    "generator_counters_present": true,
+    "requests_counted": 164831,
+    "api429_total": 0,
+    "webhookInbound429": 0,
+    "http5xx": 0,
+    "networkErrors": 0,
+    "api429_by_source": {
+     "session_exchange_limit(rider/driver_session)": 0,
+     "accept": 0,
+     "unattributed_other_routes": 0
+    },
+    "outside_P8_counter": {
+     "session_exchange_limit(driver_onboarding)": 0
+    },
+    "telegram_outbound_mock_429": 0,
+    "gateway_5xx_by_route": {}
+   },
+   "onboarding": {
+    "scenario_driver_onboarding_failed": 0,
+    "onboarding_failed_events": 0,
+    "by_steps": {}
+   },
+   "phone_proof": {
+    "n": 4154,
+    "not_done": 0,
+    "status": {
+     "done": 4154
+    },
+    "p50_ms": 73,
+    "p95_ms": 5632,
+    "max_ms": 8324,
+    "over_20s": 0
+   },
+   "drainer": {
+    "jobs": 4154,
+    "mean_in_service": 2.26,
+    "jobs_per_s": 23.23,
+    "claim_trips": 3038,
+    "jobs_per_trip": 1.37
+   },
+   "pool": {
+    "jobs": 4154,
+    "drainer_by_sig": {
+     "select finish_telegram_update_replies(": 4161,
+     "select get_user_language(": 4154,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_n": 4154,
+     "select record_telegram_update_effect(": 4154,
+     "select claim_telegram_update_jobs_for_bot(": 3038
+    },
+    "drainer": {
+     "acquisitions": 19661,
+     "wait_ms_per_acq": 25.009,
+     "query_run_ms_mean": 2.057,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "http": {
+     "acquisitions": 243798,
+     "wait_ms_per_acq": 24.187,
+     "query_run_ms_mean": 2.553,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 20770
+    },
+    "background": {
+     "acquisitions": 312,
+     "wait_ms_per_acq": 15.981,
+     "query_run_ms_mean": 2.192,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "drainer_acq_per_job": 4.733,
+    "effect_check_acq_per_job": 0.0,
+    "drainer_share_of_acq": 0.075
+   },
+   "jobs_state": {
+    "status": {
+     "driver:done": 4154
+    },
+    "not_done": 0,
+    "late_over_20s": 0
+   },
+   "side": "C",
+   "validity": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  },
+  "b28rep-s1-C2-750": {
+   "wave": "b28rep-s1-C2-750",
+   "limit": 50,
+   "inputs": {
+    "orders_csv": true,
+    "trace_passes": 105,
+    "trace_orders": 5208
+   },
+   "gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "summary_line": {
+     "G1": "99.71% (4198/4210)",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "P1": "213ms",
+     "P2": "190ms",
+     "P3": "139ms",
+     "P4": "42417ms✗",
+     "P5": "42659ms",
+     "P6a": "272ms",
+     "P6b": "253ms",
+     "P6c": "233ms",
+     "P7": "68s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "gates": {
+     "G1": {
+      "value": "99.71% (4198/4210)",
+      "pass": true
+     },
+     "G2": {
+      "value": "0",
+      "pass": true
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true
+     },
+     "G5": {
+      "value": "0",
+      "pass": true
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true
+     },
+     "G8": {
+      "value": "0",
+      "pass": true
+     },
+     "I1-identities": {
+      "value": "riders 4210/4210 · drivers 4210/4210",
+      "pass": true
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true
+     }
+    }
+   },
+   "P4": {
+    "n": 4198,
+    "p50": 34738.0,
+    "p95": 42417,
+    "p99": 44743,
+    "max": 46988,
+    "mean": 31722.1
+   },
+   "queue_before_first_exec_ms": {
+    "n": 3941,
+    "p50": 33753.0,
+    "p95": 37669.0,
+    "p99": 38832.0,
+    "max": 41268.0,
+    "mean": 29670.6
+   },
+   "first_exec_ms": {
+    "n": 3941,
+    "p50": 12,
+    "p95": 23,
+    "p99": 31,
+    "max": 112,
+    "mean": 12.5
+   },
+   "target_in_round1_share": 0.7387,
+   "window": {
+    "inject_sec": 178.7,
+    "orders": 4210,
+    "never_reached_pass": 257
+   },
+   "passes": {
+    "in_window": 90,
+    "in_drain": 15,
+    "per_s": 0.504,
+    "saturated_share": 0.989,
+    "passMs": {
+     "n": 90,
+     "p50": 628.0,
+     "p95": 867.8,
+     "p99": 889.7,
+     "max": 895,
+     "mean": 610.7
+    },
+    "cycle_ms": {
+     "n": 89,
+     "p50": 2001.0,
+     "p95": 2002.0,
+     "p99": 2004.0,
+     "max": 2004,
+     "mean": 2000.6
+    },
+    "gap_ms": {
+     "n": 89,
+     "p50": 1377.0,
+     "p95": 1673.8,
+     "p99": 1724.1,
+     "max": 1732,
+     "mean": 1390.9
+    },
+    "followup_delay_ms": {
+     "n": 90,
+     "p50": 1898.0,
+     "p95": 1999.5,
+     "p99": 2001.2,
+     "max": 2003,
+     "mean": 1839.6
+    },
+    "finderMs": {
+     "n": 90,
+     "p50": 6.0,
+     "p95": 14.1,
+     "p99": 31.8,
+     "max": 32.9,
+     "mean": 7.0
+    },
+    "picked": {
+     "n": 90,
+     "p50": 50.0,
+     "p95": 50.0,
+     "p99": 50.0,
+     "max": 50,
+     "mean": 49.8
+    },
+    "longer_than_2s": 0,
+    "counts_window": {
+     "picked": 4480,
+     "rebroadcast": 4429,
+     "stillNoDriver": 20,
+     "exhausted": 0,
+     "raced": 31,
+     "failed": 0
+    },
+    "counts_drain": {
+     "picked": 728,
+     "rebroadcast": 706,
+     "stillNoDriver": 0,
+     "exhausted": 17,
+     "raced": 5,
+     "failed": 0
+    }
+   },
+   "rates": {
+    "arrival_per_s": 23.55,
+    "first_exec_per_s": 18.77,
+    "exec_per_s": 25.02,
+    "repeat_share": 0.25,
+    "per_order_exec_ms": {
+     "n": 4471,
+     "p50": 12.0,
+     "p95": 21.0,
+     "p99": 26.0,
+     "max": 112,
+     "mean": 12.0
+    }
+   },
+   "queue": {
+    "max": 700,
+    "at_inject_end": 600,
+    "slope_second_half_per_s": -0.321,
+    "drain_to_zero_s": 31.3,
+    "every_5s": [
+     {
+      "t": 0,
+      "queue": 2
+     },
+     {
+      "t": 5,
+      "queue": 204
+     },
+     {
+      "t": 10,
+      "queue": 356
+     },
+     {
+      "t": 15,
+      "queue": 390
+     },
+     {
+      "t": 20,
+      "queue": 509
+     },
+     {
+      "t": 25,
+      "queue": 582
+     },
+     {
+      "t": 30,
+      "queue": 649
+     },
+     {
+      "t": 35,
+      "queue": 615
+     },
+     {
+      "t": 40,
+      "queue": 678
+     },
+     {
+      "t": 45,
+      "queue": 644
+     },
+     {
+      "t": 50,
+      "queue": 680
+     },
+     {
+      "t": 55,
+      "queue": 637
+     },
+     {
+      "t": 60,
+      "queue": 692
+     },
+     {
+      "t": 65,
+      "queue": 676
+     },
+     {
+      "t": 70,
+      "queue": 700
+     },
+     {
+      "t": 75,
+      "queue": 653
+     },
+     {
+      "t": 80,
+      "queue": 688
+     },
+     {
+      "t": 85,
+      "queue": 669
+     },
+     {
+      "t": 90,
+      "queue": 661
+     },
+     {
+      "t": 95,
+      "queue": 656
+     },
+     {
+      "t": 100,
+      "queue": 661
+     },
+     {
+      "t": 105,
+      "queue": 643
+     },
+     {
+      "t": 110,
+      "queue": 634
+     },
+     {
+      "t": 115,
+      "queue": 614
+     },
+     {
+      "t": 120,
+      "queue": 636
+     },
+     {
+      "t": 125,
+      "queue": 640
+     },
+     {
+      "t": 130,
+      "queue": 635
+     },
+     {
+      "t": 135,
+      "queue": 617
+     },
+     {
+      "t": 140,
+      "queue": 635
+     },
+     {
+      "t": 145,
+      "queue": 610
+     },
+     {
+      "t": 150,
+      "queue": 642
+     },
+     {
+      "t": 155,
+      "queue": 619
+     },
+     {
+      "t": 160,
+      "queue": 647
+     },
+     {
+      "t": 165,
+      "queue": 644
+     },
+     {
+      "t": 170,
+      "queue": 640
+     },
+     {
+      "t": 175,
+      "queue": 600
+     },
+     {
+      "t": 180,
+      "queue": 590
+     },
+     {
+      "t": 185,
+      "queue": 482
+     },
+     {
+      "t": 190,
+      "queue": 400
+     },
+     {
+      "t": 195,
+      "queue": 272
+     },
+     {
+      "t": 200,
+      "queue": 182
+     },
+     {
+      "t": 205,
+      "queue": 57
+     },
+     {
+      "t": 210,
+      "queue": 0
+     },
+     {
+      "t": 215,
+      "queue": 0
+     },
+     {
+      "t": 220,
+      "queue": 0
+     },
+     {
+      "t": 225,
+      "queue": 0
+     },
+     {
+      "t": 230,
+      "queue": 0
+     },
+     {
+      "t": 235,
+      "queue": 0
+     },
+     {
+      "t": 240,
+      "queue": 0
+     },
+     {
+      "t": 245,
+      "queue": 0
+     },
+     {
+      "t": 250,
+      "queue": 0
+     },
+     {
+      "t": 255,
+      "queue": 0
+     },
+     {
+      "t": 260,
+      "queue": 0
+     },
+     {
+      "t": 265,
+      "queue": 0
+     },
+     {
+      "t": 270,
+      "queue": 0
+     },
+     {
+      "t": 275,
+      "queue": 0
+     },
+     {
+      "t": 280,
+      "queue": 0
+     },
+     {
+      "t": 285,
+      "queue": 0
+     },
+     {
+      "t": 290,
+      "queue": 0
+     },
+     {
+      "t": 295,
+      "queue": 0
+     },
+     {
+      "t": 300,
+      "queue": 0
+     },
+     {
+      "t": 305,
+      "queue": 0
+     },
+     {
+      "t": 310,
+      "queue": 0
+     },
+     {
+      "t": 315,
+      "queue": 0
+     },
+     {
+      "t": 320,
+      "queue": 0
+     },
+     {
+      "t": 325,
+      "queue": 0
+     },
+     {
+      "t": 330,
+      "queue": 0
+     },
+     {
+      "t": 335,
+      "queue": 0
+     },
+     {
+      "t": 340,
+      "queue": 0
+     },
+     {
+      "t": 345,
+      "queue": 0
+     },
+     {
+      "t": 350,
+      "queue": 0
+     },
+     {
+      "t": 355,
+      "queue": 0
+     }
+    ]
+   },
+   "cpu_pct_window": {
+    "gateway": {
+     "n": 35,
+     "p50": 77.6,
+     "p95": 102.0,
+     "p99": 112.1,
+     "max": 114.4,
+     "mean": 79.3
+    },
+    "postgres": {
+     "n": 35,
+     "p50": 178.9,
+     "p95": 229.5,
+     "p99": 233.1,
+     "max": 233.3,
+     "mean": 182.8
+    },
+    "generator": {
+     "n": 35,
+     "p50": 16.6,
+     "p95": 24.4,
+     "p99": 30.1,
+     "max": 32.8,
+     "mean": 17.6
+    }
+   },
+   "psi_some_pct_window": {
+    "n": 177,
+    "p50": 40.0,
+    "p95": 49.0,
+    "p99": 51.8,
+    "max": 53.1,
+    "mean": 38.3
+   },
+   "pg_runq_wait_pct_window": {
+    "n": 177,
+    "p50": 146.0,
+    "p95": 212.8,
+    "p99": 232.9,
+    "max": 238.1,
+    "mean": 142.6
+   },
+   "pool_acquire_select1_ms": {
+    "n": 179,
+    "p50": 11.6,
+    "p95": 179.3,
+    "p99": 213.9,
+    "max": 229.7,
+    "mean": 36.2
+   },
+   "conn_states_window": {
+    "ceezr:gatewayDispatch|active": 38,
+    "ceezr:gatewayDispatch|idle": 52,
+    "ceezr:gatewayRequest|active": 138,
+    "ceezr:gatewayRequest|idle": 296,
+    "ceezr:gatewayRequest|idle in transaction": 16,
+    "ceezr:workerJobs|active": 109,
+    "ceezr:workerJobs|idle": 327,
+    "ceezr:workerJobs|idle in transaction": 14,
+    "ceezr:workerLocks|idle": 360,
+    "driver-onboarding|active": 6,
+    "driver-onboarding|idle": 354,
+    "genA|active": 16,
+    "genA|idle": 704
+   },
+   "pg_exec": {
+    "total_exec_ms": 370616.7,
+    "top": [
+     {
+      "calls": 69267,
+      "total_ms": 69602.8,
+      "mean_ms": 1.005,
+      "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+     },
+     {
+      "calls": 31723,
+      "total_ms": 67655.9,
+      "mean_ms": 2.133,
+      "query": "select claim_notification_delivery() result"
+     },
+     {
+      "calls": 5691,
+      "total_ms": 60685.4,
+      "mean_ms": 10.663,
+      "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+     },
+     {
+      "calls": 11873,
+      "total_ms": 29483.9,
+      "mean_ms": 2.483,
+      "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+     },
+     {
+      "calls": 4210,
+      "total_ms": 29423.6,
+      "mean_ms": 6.989,
+      "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+     },
+     {
+      "calls": 5671,
+      "total_ms": 18782.4,
+      "mean_ms": 3.312,
+      "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+     },
+     {
+      "calls": 4210,
+      "total_ms": 15194.2,
+      "mean_ms": 3.609,
+      "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+     },
+     {
+      "calls": 26557,
+      "total_ms": 11205.8,
+      "mean_ms": 0.422,
+      "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+     }
+    ]
+   },
+   "all_gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "rows": {
+     "G1": {
+      "value": "99.71% (4198/4210)",
+      "pass": true,
+      "rule": "دورات مكتملة مثبتة من القاعدة"
+     },
+     "G2": {
+      "value": "0",
+      "pass": true,
+      "rule": "إسناد مزدوج"
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true,
+      "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true,
+      "rule": "تدقيق ما بعد الموجة"
+     },
+     "G5": {
+      "value": "0",
+      "pass": true,
+      "rule": "سائقون بقوا متاحين بعد الجولة"
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true,
+      "rule": "إسناد لسائق سيناريو آخر"
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "5xx من الطلبات"
+     },
+     "G8": {
+      "value": "0",
+      "pass": true,
+      "rule": "تعثر قراءة لوح العروض"
+     },
+     "I1-identities": {
+      "value": "riders 4210/4210 · drivers 4210/4210",
+      "pass": true,
+      "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true,
+      "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true,
+      "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true,
+      "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+     },
+     "P1": {
+      "value": "213ms",
+      "pass": true,
+      "rule": "p95 إنشاء الرحلة"
+     },
+     "P2": {
+      "value": "190ms",
+      "pass": true,
+      "rule": "p95 قبول العرض"
+     },
+     "P3": {
+      "value": "139ms",
+      "pass": true,
+      "rule": "p95 قراءة لوح العروض"
+     },
+     "P4": {
+      "value": "42417ms",
+      "pass": false,
+      "rule": "p95 ظهور العرض على اللوح"
+     },
+     "P5": {
+      "value": "42659ms",
+      "pass": true,
+      "rule": "p95 دورة السيناريو كاملة"
+     },
+     "P6a": {
+      "value": "272ms",
+      "pass": true,
+      "rule": "p99 إنشاء الرحلة"
+     },
+     "P6b": {
+      "value": "253ms",
+      "pass": true,
+      "rule": "p99 قبول العرض"
+     },
+     "P6c": {
+      "value": "233ms",
+      "pass": true,
+      "rule": "p99 قراءة اللوح"
+     },
+     "P7": {
+      "value": "68s",
+      "pass": true,
+      "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+     },
+     "P8": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "429 واجهات Mini App"
+     },
+     "P9": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "أخطاء شبكة"
+     }
+    },
+    "total": 4210,
+    "verified": 4198
+   },
+   "completions": {
+    "inject_s": 180.1,
+    "verified_in_inject": 3455,
+    "verified_per_s": 19.18,
+    "verified_total": 4198,
+    "scenarios_total": 4210,
+    "not_verified_reasons": {
+     "offer:offer_not_found_in_time": 12
+    }
+   },
+   "session_exchange": {
+    "limit_check": {
+     "gateway_comm": "bun",
+     "sha": "3aace81e42dbc24db7b4e04fc20f512ec8ba1eca",
+     "env_in_live_gateway": "24000",
+     "effective_limit": 24000,
+     "window_seconds": 60,
+     "expected": 24000,
+     "run_env_value_unchanged": "6000",
+     "default_without_var": 30,
+     "ok": true
+    },
+    "offered": 12630,
+    "rejected_429_by_step": {},
+    "rejected_429": 0,
+    "accepted": 12630,
+    "offered_per_s_inject": 69.5,
+    "first_429_s": null,
+    "max_sliding60_offered_bins": 5566,
+    "redis_window": {
+     "samples": 272,
+     "errors": 0,
+     "max": 5690,
+     "max_utilisation": 0.2371,
+     "p50": 3360.0
+    }
+   },
+   "errors": {
+    "generator_counters_present": true,
+    "requests_counted": 162933,
+    "api429_total": 0,
+    "webhookInbound429": 0,
+    "http5xx": 0,
+    "networkErrors": 0,
+    "api429_by_source": {
+     "session_exchange_limit(rider/driver_session)": 0,
+     "accept": 0,
+     "unattributed_other_routes": 0
+    },
+    "outside_P8_counter": {
+     "session_exchange_limit(driver_onboarding)": 0
+    },
+    "telegram_outbound_mock_429": 2,
+    "gateway_5xx_by_route": {}
+   },
+   "onboarding": {
+    "scenario_driver_onboarding_failed": 0,
+    "onboarding_failed_events": 0,
+    "by_steps": {}
+   },
+   "phone_proof": {
+    "n": 4210,
+    "not_done": 0,
+    "status": {
+     "done": 4210
+    },
+    "p50_ms": 112,
+    "p95_ms": 8157,
+    "max_ms": 12072,
+    "over_20s": 0
+   },
+   "drainer": {
+    "jobs": 4210,
+    "mean_in_service": 3.61,
+    "jobs_per_s": 23.54,
+    "claim_trips": 2909,
+    "jobs_per_trip": 1.45
+   },
+   "pool": {
+    "jobs": 4210,
+    "drainer_by_sig": {
+     "select finish_telegram_update_replies(": 4214,
+     "select get_user_language(": 4210,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_n": 4210,
+     "select record_telegram_update_effect(": 4210,
+     "select claim_telegram_update_jobs_for_bot(": 2909
+    },
+    "drainer": {
+     "acquisitions": 19753,
+     "wait_ms_per_acq": 40.11,
+     "query_run_ms_mean": 2.335,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "http": {
+     "acquisitions": 242953,
+     "wait_ms_per_acq": 37.353,
+     "query_run_ms_mean": 2.699,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 21050
+    },
+    "background": {
+     "acquisitions": 361,
+     "wait_ms_per_acq": 25.421,
+     "query_run_ms_mean": 2.737,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "drainer_acq_per_job": 4.692,
+    "effect_check_acq_per_job": 0.0,
+    "drainer_share_of_acq": 0.075
+   },
+   "jobs_state": {
+    "status": {
+     "driver:done": 4210
+    },
+    "not_done": 0,
+    "late_over_20s": 0
+   },
+   "side": "C",
+   "validity": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  },
+  "b28rep-s1-R2-750": {
+   "wave": "b28rep-s1-R2-750",
+   "limit": 50,
+   "inputs": {
+    "orders_csv": true,
+    "trace_passes": 105,
+    "trace_orders": 5213
+   },
+   "gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "summary_line": {
+     "G1": "99.47% (4104/4126)",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "P1": "145ms",
+     "P2": "120ms",
+     "P3": "101ms",
+     "P4": "42491ms✗",
+     "P5": "42783ms",
+     "P6a": "202ms",
+     "P6b": "173ms",
+     "P6c": "170ms",
+     "P7": "75s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "gates": {
+     "G1": {
+      "value": "99.47% (4104/4126)",
+      "pass": true
+     },
+     "G2": {
+      "value": "0",
+      "pass": true
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true
+     },
+     "G5": {
+      "value": "0",
+      "pass": true
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true
+     },
+     "G8": {
+      "value": "0",
+      "pass": true
+     },
+     "I1-identities": {
+      "value": "riders 4126/4126 · drivers 4126/4126",
+      "pass": true
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true
+     }
+    }
+   },
+   "P4": {
+    "n": 4104,
+    "p50": 35288.0,
+    "p95": 42491,
+    "p99": 44710,
+    "max": 48576,
+    "mean": 32937.6
+   },
+   "queue_before_first_exec_ms": {
+    "n": 3835,
+    "p50": 33996.0,
+    "p95": 38494.0,
+    "p99": 39770.0,
+    "max": 41539.0,
+    "mean": 30824.9
+   },
+   "first_exec_ms": {
+    "n": 3835,
+    "p50": 9,
+    "p95": 21,
+    "p99": 29,
+    "max": 60,
+    "mean": 10.5
+   },
+   "target_in_round1_share": 0.72,
+   "window": {
+    "inject_sec": 178.7,
+    "orders": 4126,
+    "never_reached_pass": 269
+   },
+   "passes": {
+    "in_window": 90,
+    "in_drain": 15,
+    "per_s": 0.504,
+    "saturated_share": 0.989,
+    "passMs": {
+     "n": 90,
+     "p50": 490.0,
+     "p95": 795.3,
+     "p99": 843.4,
+     "max": 871,
+     "mean": 516.2
+    },
+    "cycle_ms": {
+     "n": 89,
+     "p50": 2000.0,
+     "p95": 2002.6,
+     "p99": 2005.1,
+     "max": 2006,
+     "mean": 2000.6
+    },
+    "gap_ms": {
+     "n": 89,
+     "p50": 1511.0,
+     "p95": 1728.0,
+     "p99": 1786.0,
+     "max": 1801,
+     "mean": 1485.9
+    },
+    "followup_delay_ms": {
+     "n": 90,
+     "p50": 1942.5,
+     "p95": 2000.0,
+     "p99": 2002.1,
+     "max": 2003,
+     "mean": 1858.6
+    },
+    "finderMs": {
+     "n": 90,
+     "p50": 5.7,
+     "p95": 10.5,
+     "p99": 14.0,
+     "max": 14.2,
+     "mean": 6.0
+    },
+    "picked": {
+     "n": 90,
+     "p50": 50.0,
+     "p95": 50.0,
+     "p99": 50.0,
+     "max": 50,
+     "mean": 49.9
+    },
+    "longer_than_2s": 0,
+    "counts_window": {
+     "picked": 4491,
+     "rebroadcast": 4424,
+     "stillNoDriver": 41,
+     "exhausted": 0,
+     "raced": 26,
+     "failed": 0
+    },
+    "counts_drain": {
+     "picked": 722,
+     "rebroadcast": 667,
+     "stillNoDriver": 0,
+     "exhausted": 33,
+     "raced": 22,
+     "failed": 0
+    }
+   },
+   "rates": {
+    "arrival_per_s": 23.09,
+    "first_exec_per_s": 18.3,
+    "exec_per_s": 25.11,
+    "repeat_share": 0.271,
+    "per_order_exec_ms": {
+     "n": 4487,
+     "p50": 9.0,
+     "p95": 19.0,
+     "p99": 24.0,
+     "max": 40,
+     "mean": 10.2
+    }
+   },
+   "queue": {
+    "max": 710,
+    "at_inject_end": 583,
+    "slope_second_half_per_s": -0.322,
+    "drain_to_zero_s": 31.3,
+    "every_5s": [
+     {
+      "t": 0,
+      "queue": 1
+     },
+     {
+      "t": 5,
+      "queue": 312
+     },
+     {
+      "t": 10,
+      "queue": 544
+     },
+     {
+      "t": 15,
+      "queue": 611
+     },
+     {
+      "t": 20,
+      "queue": 636
+     },
+     {
+      "t": 25,
+      "queue": 617
+     },
+     {
+      "t": 30,
+      "queue": 619
+     },
+     {
+      "t": 35,
+      "queue": 583
+     },
+     {
+      "t": 40,
+      "queue": 667
+     },
+     {
+      "t": 45,
+      "queue": 654
+     },
+     {
+      "t": 50,
+      "queue": 648
+     },
+     {
+      "t": 55,
+      "queue": 642
+     },
+     {
+      "t": 60,
+      "queue": 708
+     },
+     {
+      "t": 65,
+      "queue": 670
+     },
+     {
+      "t": 70,
+      "queue": 710
+     },
+     {
+      "t": 75,
+      "queue": 671
+     },
+     {
+      "t": 80,
+      "queue": 691
+     },
+     {
+      "t": 85,
+      "queue": 662
+     },
+     {
+      "t": 90,
+      "queue": 667
+     },
+     {
+      "t": 95,
+      "queue": 634
+     },
+     {
+      "t": 100,
+      "queue": 658
+     },
+     {
+      "t": 105,
+      "queue": 637
+     },
+     {
+      "t": 110,
+      "queue": 633
+     },
+     {
+      "t": 115,
+      "queue": 609
+     },
+     {
+      "t": 120,
+      "queue": 631
+     },
+     {
+      "t": 125,
+      "queue": 614
+     },
+     {
+      "t": 130,
+      "queue": 615
+     },
+     {
+      "t": 135,
+      "queue": 611
+     },
+     {
+      "t": 140,
+      "queue": 625
+     },
+     {
+      "t": 145,
+      "queue": 621
+     },
+     {
+      "t": 150,
+      "queue": 634
+     },
+     {
+      "t": 155,
+      "queue": 610
+     },
+     {
+      "t": 160,
+      "queue": 634
+     },
+     {
+      "t": 165,
+      "queue": 628
+     },
+     {
+      "t": 170,
+      "queue": 657
+     },
+     {
+      "t": 175,
+      "queue": 583
+     },
+     {
+      "t": 180,
+      "queue": 583
+     },
+     {
+      "t": 185,
+      "queue": 467
+     },
+     {
+      "t": 190,
+      "queue": 387
+     },
+     {
+      "t": 195,
+      "queue": 253
+     },
+     {
+      "t": 200,
+      "queue": 159
+     },
+     {
+      "t": 205,
+      "queue": 29
+     },
+     {
+      "t": 210,
+      "queue": 0
+     },
+     {
+      "t": 215,
+      "queue": 0
+     },
+     {
+      "t": 220,
+      "queue": 0
+     },
+     {
+      "t": 225,
+      "queue": 0
+     },
+     {
+      "t": 230,
+      "queue": 0
+     },
+     {
+      "t": 235,
+      "queue": 0
+     },
+     {
+      "t": 240,
+      "queue": 0
+     },
+     {
+      "t": 245,
+      "queue": 0
+     },
+     {
+      "t": 250,
+      "queue": 0
+     },
+     {
+      "t": 255,
+      "queue": 0
+     },
+     {
+      "t": 260,
+      "queue": 0
+     },
+     {
+      "t": 265,
+      "queue": 0
+     },
+     {
+      "t": 270,
+      "queue": 0
+     },
+     {
+      "t": 275,
+      "queue": 0
+     },
+     {
+      "t": 280,
+      "queue": 0
+     },
+     {
+      "t": 285,
+      "queue": 0
+     },
+     {
+      "t": 290,
+      "queue": 0
+     },
+     {
+      "t": 295,
+      "queue": 0
+     },
+     {
+      "t": 300,
+      "queue": 0
+     },
+     {
+      "t": 305,
+      "queue": 0
+     },
+     {
+      "t": 310,
+      "queue": 0
+     },
+     {
+      "t": 315,
+      "queue": 0
+     },
+     {
+      "t": 320,
+      "queue": 0
+     },
+     {
+      "t": 325,
+      "queue": 0
+     },
+     {
+      "t": 330,
+      "queue": 0
+     },
+     {
+      "t": 335,
+      "queue": 0
+     },
+     {
+      "t": 340,
+      "queue": 0
+     },
+     {
+      "t": 345,
+      "queue": 0
+     },
+     {
+      "t": 350,
+      "queue": 0
+     },
+     {
+      "t": 355,
+      "queue": 0
+     }
+    ]
+   },
+   "cpu_pct_window": {
+    "gateway": {
+     "n": 35,
+     "p50": 71.7,
+     "p95": 102.2,
+     "p99": 113.8,
+     "max": 114.0,
+     "mean": 75.3
+    },
+    "postgres": {
+     "n": 35,
+     "p50": 175.6,
+     "p95": 224.3,
+     "p99": 228.5,
+     "max": 230.3,
+     "mean": 178.0
+    },
+    "generator": {
+     "n": 35,
+     "p50": 15.8,
+     "p95": 24.7,
+     "p99": 31.0,
+     "max": 32.5,
+     "mean": 16.9
+    }
+   },
+   "psi_some_pct_window": {
+    "n": 177,
+    "p50": 36.9,
+    "p95": 48.4,
+    "p99": 51.8,
+    "max": 53.8,
+    "mean": 35.3
+   },
+   "pg_runq_wait_pct_window": {
+    "n": 177,
+    "p50": 127.7,
+    "p95": 198.8,
+    "p99": 220.8,
+    "max": 414.4,
+    "mean": 126.5
+   },
+   "pool_acquire_select1_ms": {
+    "n": 179,
+    "p50": 5.4,
+    "p95": 94.5,
+    "p99": 177.5,
+    "max": 202.9,
+    "mean": 21.5
+   },
+   "conn_states_window": {
+    "ceezr:gatewayDispatch|active": 36,
+    "ceezr:gatewayDispatch|idle": 54,
+    "ceezr:gatewayRequest|active": 98,
+    "ceezr:gatewayRequest|idle": 345,
+    "ceezr:gatewayRequest|idle in transaction": 7,
+    "ceezr:workerJobs|active": 93,
+    "ceezr:workerJobs|idle": 352,
+    "ceezr:workerJobs|idle in transaction": 5,
+    "ceezr:workerLocks|idle": 360,
+    "driver-onboarding|active": 4,
+    "driver-onboarding|idle": 356,
+    "genA|active": 12,
+    "genA|idle": 708
+   },
+   "pg_exec": {
+    "total_exec_ms": 372037.0,
+    "top": [
+     {
+      "calls": 26910,
+      "total_ms": 94834.4,
+      "mean_ms": 3.524,
+      "query": "select claim_notification_delivery() result"
+     },
+     {
+      "calls": 71475,
+      "total_ms": 67697.2,
+      "mean_ms": 0.947,
+      "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+     },
+     {
+      "calls": 5680,
+      "total_ms": 56139.0,
+      "mean_ms": 9.884,
+      "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+     },
+     {
+      "calls": 4126,
+      "total_ms": 26229.7,
+      "mean_ms": 6.357,
+      "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+     },
+     {
+      "calls": 11380,
+      "total_ms": 26209.3,
+      "mean_ms": 2.303,
+      "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+     },
+     {
+      "calls": 5639,
+      "total_ms": 16439.1,
+      "mean_ms": 2.915,
+      "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+     },
+     {
+      "calls": 4126,
+      "total_ms": 14592.4,
+      "mean_ms": 3.537,
+      "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+     },
+     {
+      "calls": 22237,
+      "total_ms": 8924.6,
+      "mean_ms": 0.401,
+      "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+     }
+    ]
+   },
+   "all_gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "rows": {
+     "G1": {
+      "value": "99.47% (4104/4126)",
+      "pass": true,
+      "rule": "دورات مكتملة مثبتة من القاعدة"
+     },
+     "G2": {
+      "value": "0",
+      "pass": true,
+      "rule": "إسناد مزدوج"
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true,
+      "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true,
+      "rule": "تدقيق ما بعد الموجة"
+     },
+     "G5": {
+      "value": "0",
+      "pass": true,
+      "rule": "سائقون بقوا متاحين بعد الجولة"
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true,
+      "rule": "إسناد لسائق سيناريو آخر"
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "5xx من الطلبات"
+     },
+     "G8": {
+      "value": "0",
+      "pass": true,
+      "rule": "تعثر قراءة لوح العروض"
+     },
+     "I1-identities": {
+      "value": "riders 4126/4126 · drivers 4126/4126",
+      "pass": true,
+      "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true,
+      "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true,
+      "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true,
+      "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+     },
+     "P1": {
+      "value": "145ms",
+      "pass": true,
+      "rule": "p95 إنشاء الرحلة"
+     },
+     "P2": {
+      "value": "120ms",
+      "pass": true,
+      "rule": "p95 قبول العرض"
+     },
+     "P3": {
+      "value": "101ms",
+      "pass": true,
+      "rule": "p95 قراءة لوح العروض"
+     },
+     "P4": {
+      "value": "42491ms",
+      "pass": false,
+      "rule": "p95 ظهور العرض على اللوح"
+     },
+     "P5": {
+      "value": "42783ms",
+      "pass": true,
+      "rule": "p95 دورة السيناريو كاملة"
+     },
+     "P6a": {
+      "value": "202ms",
+      "pass": true,
+      "rule": "p99 إنشاء الرحلة"
+     },
+     "P6b": {
+      "value": "173ms",
+      "pass": true,
+      "rule": "p99 قبول العرض"
+     },
+     "P6c": {
+      "value": "170ms",
+      "pass": true,
+      "rule": "p99 قراءة اللوح"
+     },
+     "P7": {
+      "value": "75s",
+      "pass": true,
+      "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+     },
+     "P8": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "429 واجهات Mini App"
+     },
+     "P9": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "أخطاء شبكة"
+     }
+    },
+    "total": 4126,
+    "verified": 4104
+   },
+   "completions": {
+    "inject_s": 180.1,
+    "verified_in_inject": 3372,
+    "verified_per_s": 18.72,
+    "verified_total": 4104,
+    "scenarios_total": 4126,
+    "not_verified_reasons": {
+     "offer:offer_not_found_in_time": 22
+    }
+   },
+   "session_exchange": {
+    "limit_check": {
+     "gateway_comm": "bun",
+     "sha": "45571268e75e191862ea731d89c7361bed3d0050",
+     "env_in_live_gateway": "24000",
+     "effective_limit": 24000,
+     "window_seconds": 60,
+     "expected": 24000,
+     "run_env_value_unchanged": "6000",
+     "default_without_var": 30,
+     "ok": true
+    },
+    "offered": 12378,
+    "rejected_429_by_step": {},
+    "rejected_429": 0,
+    "accepted": 12378,
+    "offered_per_s_inject": 67.9,
+    "first_429_s": null,
+    "max_sliding60_offered_bins": 5430,
+    "redis_window": {
+     "samples": 272,
+     "errors": 0,
+     "max": 5573,
+     "max_utilisation": 0.2322,
+     "p50": 3321.5
+    }
+   },
+   "errors": {
+    "generator_counters_present": true,
+    "requests_counted": 163858,
+    "api429_total": 0,
+    "webhookInbound429": 0,
+    "http5xx": 0,
+    "networkErrors": 0,
+    "api429_by_source": {
+     "session_exchange_limit(rider/driver_session)": 0,
+     "accept": 0,
+     "unattributed_other_routes": 0
+    },
+    "outside_P8_counter": {
+     "session_exchange_limit(driver_onboarding)": 0
+    },
+    "telegram_outbound_mock_429": 0,
+    "gateway_5xx_by_route": {}
+   },
+   "onboarding": {
+    "scenario_driver_onboarding_failed": 0,
+    "onboarding_failed_events": 0,
+    "by_steps": {}
+   },
+   "phone_proof": {
+    "n": 4126,
+    "not_done": 0,
+    "status": {
+     "done": 4126
+    },
+    "p50_ms": 84,
+    "p95_ms": 5848,
+    "max_ms": 8407,
+    "over_20s": 0
+   },
+   "drainer": {
+    "jobs": 4126,
+    "mean_in_service": 2.7,
+    "jobs_per_s": 23.06,
+    "claim_trips": 2970,
+    "jobs_per_trip": 1.39
+   },
+   "pool": {
+    "jobs": 4126,
+    "drainer_by_sig": {
+     "select finish_telegram_update_replies(": 4135,
+     "select telegram_update_effect_recorded(": 4126,
+     "select get_user_language(": 4126,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_n": 4126,
+     "select record_telegram_update_effect(": 4126,
+     "select claim_telegram_update_jobs_for_bot(": 2970
+    },
+    "drainer": {
+     "acquisitions": 23609,
+     "wait_ms_per_acq": 23.85,
+     "query_run_ms_mean": 1.82,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "http": {
+     "acquisitions": 242279,
+     "wait_ms_per_acq": 25.01,
+     "query_run_ms_mean": 2.481,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 20630
+    },
+    "background": {
+     "acquisitions": 359,
+     "wait_ms_per_acq": 15.819,
+     "query_run_ms_mean": 3.103,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "drainer_acq_per_job": 5.722,
+    "effect_check_acq_per_job": 1.0,
+    "drainer_share_of_acq": 0.089
+   },
+   "jobs_state": {
+    "status": {
+     "driver:done": 4126
+    },
+    "not_done": 0,
+    "late_over_20s": 0
+   },
+   "side": "R",
+   "validity": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  },
+  "b28rep-s1-C3-750": {
+   "wave": "b28rep-s1-C3-750",
+   "limit": 50,
+   "inputs": {
+    "orders_csv": true,
+    "trace_passes": 105,
+    "trace_orders": 5238
+   },
+   "gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "summary_line": {
+     "G1": "99.34% (4068/4095)",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "P1": "168ms",
+     "P2": "106ms",
+     "P3": "94ms",
+     "P4": "42621ms✗",
+     "P5": "42978ms",
+     "P6a": "224ms",
+     "P6b": "141ms",
+     "P6c": "160ms",
+     "P7": "84s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "gates": {
+     "G1": {
+      "value": "99.34% (4068/4095)",
+      "pass": true
+     },
+     "G2": {
+      "value": "0",
+      "pass": true
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true
+     },
+     "G5": {
+      "value": "0",
+      "pass": true
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true
+     },
+     "G8": {
+      "value": "0",
+      "pass": true
+     },
+     "I1-identities": {
+      "value": "riders 4095/4095 · drivers 4095/4095",
+      "pass": true
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true
+     }
+    }
+   },
+   "P4": {
+    "n": 4068,
+    "p50": 36356.0,
+    "p95": 42621,
+    "p99": 45160,
+    "max": 48851,
+    "mean": 33272.4
+   },
+   "queue_before_first_exec_ms": {
+    "n": 3818,
+    "p50": 34397.0,
+    "p95": 39078.0,
+    "p99": 40390.0,
+    "max": 43632.0,
+    "mean": 31090.0
+   },
+   "first_exec_ms": {
+    "n": 3818,
+    "p50": 10.0,
+    "p95": 21,
+    "p99": 30,
+    "max": 48,
+    "mean": 10.9
+   },
+   "target_in_round1_share": 0.7129,
+   "window": {
+    "inject_sec": 178.7,
+    "orders": 4095,
+    "never_reached_pass": 250
+   },
+   "passes": {
+    "in_window": 90,
+    "in_drain": 15,
+    "per_s": 0.504,
+    "saturated_share": 0.989,
+    "passMs": {
+     "n": 90,
+     "p50": 526.5,
+     "p95": 780.9,
+     "p99": 826.4,
+     "max": 846,
+     "mean": 543.1
+    },
+    "cycle_ms": {
+     "n": 89,
+     "p50": 2000.0,
+     "p95": 2004.0,
+     "p99": 2007.4,
+     "max": 2010,
+     "mean": 2000.7
+    },
+    "gap_ms": {
+     "n": 89,
+     "p50": 1474.0,
+     "p95": 1679.0,
+     "p99": 1733.4,
+     "max": 1744,
+     "mean": 1459.3
+    },
+    "followup_delay_ms": {
+     "n": 90,
+     "p50": 1909.5,
+     "p95": 1998.5,
+     "p99": 2001.1,
+     "max": 2002,
+     "mean": 1830.0
+    },
+    "finderMs": {
+     "n": 90,
+     "p50": 5.7,
+     "p95": 13.5,
+     "p99": 19.6,
+     "max": 25.8,
+     "mean": 6.4
+    },
+    "picked": {
+     "n": 90,
+     "p50": 50.0,
+     "p95": 50.0,
+     "p99": 50.0,
+     "max": 50,
+     "mean": 50.0
+    },
+    "longer_than_2s": 0,
+    "counts_window": {
+     "picked": 4496,
+     "rebroadcast": 4426,
+     "stillNoDriver": 44,
+     "exhausted": 0,
+     "raced": 26,
+     "failed": 0
+    },
+    "counts_drain": {
+     "picked": 742,
+     "rebroadcast": 692,
+     "stillNoDriver": 0,
+     "exhausted": 30,
+     "raced": 20,
+     "failed": 0
+    }
+   },
+   "rates": {
+    "arrival_per_s": 22.91,
+    "first_exec_per_s": 18.22,
+    "exec_per_s": 25.12,
+    "repeat_share": 0.275,
+    "per_order_exec_ms": {
+     "n": 4489,
+     "p50": 10.0,
+     "p95": 20.0,
+     "p99": 24.1,
+     "max": 41,
+     "mean": 10.7
+    }
+   },
+   "queue": {
+    "max": 707,
+    "at_inject_end": 584,
+    "slope_second_half_per_s": -0.459,
+    "drain_to_zero_s": 31.3,
+    "every_5s": [
+     {
+      "t": 0,
+      "queue": 2
+     },
+     {
+      "t": 5,
+      "queue": 335
+     },
+     {
+      "t": 10,
+      "queue": 537
+     },
+     {
+      "t": 15,
+      "queue": 616
+     },
+     {
+      "t": 20,
+      "queue": 626
+     },
+     {
+      "t": 25,
+      "queue": 590
+     },
+     {
+      "t": 30,
+      "queue": 634
+     },
+     {
+      "t": 35,
+      "queue": 628
+     },
+     {
+      "t": 40,
+      "queue": 657
+     },
+     {
+      "t": 45,
+      "queue": 649
+     },
+     {
+      "t": 50,
+      "queue": 638
+     },
+     {
+      "t": 55,
+      "queue": 637
+     },
+     {
+      "t": 60,
+      "queue": 693
+     },
+     {
+      "t": 65,
+      "queue": 676
+     },
+     {
+      "t": 70,
+      "queue": 707
+     },
+     {
+      "t": 75,
+      "queue": 674
+     },
+     {
+      "t": 80,
+      "queue": 697
+     },
+     {
+      "t": 85,
+      "queue": 641
+     },
+     {
+      "t": 90,
+      "queue": 669
+     },
+     {
+      "t": 95,
+      "queue": 645
+     },
+     {
+      "t": 100,
+      "queue": 664
+     },
+     {
+      "t": 105,
+      "queue": 644
+     },
+     {
+      "t": 110,
+      "queue": 626
+     },
+     {
+      "t": 115,
+      "queue": 612
+     },
+     {
+      "t": 120,
+      "queue": 638
+     },
+     {
+      "t": 125,
+      "queue": 645
+     },
+     {
+      "t": 130,
+      "queue": 644
+     },
+     {
+      "t": 135,
+      "queue": 625
+     },
+     {
+      "t": 140,
+      "queue": 641
+     },
+     {
+      "t": 145,
+      "queue": 645
+     },
+     {
+      "t": 150,
+      "queue": 620
+     },
+     {
+      "t": 155,
+      "queue": 610
+     },
+     {
+      "t": 160,
+      "queue": 631
+     },
+     {
+      "t": 165,
+      "queue": 633
+     },
+     {
+      "t": 170,
+      "queue": 635
+     },
+     {
+      "t": 175,
+      "queue": 584
+     },
+     {
+      "t": 180,
+      "queue": 582
+     },
+     {
+      "t": 185,
+      "queue": 470
+     },
+     {
+      "t": 190,
+      "queue": 395
+     },
+     {
+      "t": 195,
+      "queue": 265
+     },
+     {
+      "t": 200,
+      "queue": 175
+     },
+     {
+      "t": 205,
+      "queue": 37
+     },
+     {
+      "t": 210,
+      "queue": 0
+     },
+     {
+      "t": 215,
+      "queue": 0
+     },
+     {
+      "t": 220,
+      "queue": 0
+     },
+     {
+      "t": 225,
+      "queue": 0
+     },
+     {
+      "t": 230,
+      "queue": 0
+     },
+     {
+      "t": 235,
+      "queue": 0
+     },
+     {
+      "t": 240,
+      "queue": 0
+     },
+     {
+      "t": 245,
+      "queue": 0
+     },
+     {
+      "t": 250,
+      "queue": 0
+     },
+     {
+      "t": 255,
+      "queue": 0
+     },
+     {
+      "t": 260,
+      "queue": 0
+     },
+     {
+      "t": 265,
+      "queue": 0
+     },
+     {
+      "t": 270,
+      "queue": 0
+     },
+     {
+      "t": 275,
+      "queue": 0
+     },
+     {
+      "t": 280,
+      "queue": 0
+     },
+     {
+      "t": 285,
+      "queue": 0
+     },
+     {
+      "t": 290,
+      "queue": 0
+     },
+     {
+      "t": 295,
+      "queue": 0
+     },
+     {
+      "t": 300,
+      "queue": 0
+     },
+     {
+      "t": 305,
+      "queue": 0
+     },
+     {
+      "t": 310,
+      "queue": 0
+     },
+     {
+      "t": 315,
+      "queue": 0
+     },
+     {
+      "t": 320,
+      "queue": 0
+     },
+     {
+      "t": 325,
+      "queue": 0
+     },
+     {
+      "t": 330,
+      "queue": 0
+     },
+     {
+      "t": 335,
+      "queue": 0
+     },
+     {
+      "t": 340,
+      "queue": 0
+     },
+     {
+      "t": 345,
+      "queue": 0
+     },
+     {
+      "t": 350,
+      "queue": 0
+     },
+     {
+      "t": 355,
+      "queue": 0
+     }
+    ]
+   },
+   "cpu_pct_window": {
+    "gateway": {
+     "n": 35,
+     "p50": 73.1,
+     "p95": 101.5,
+     "p99": 115.6,
+     "max": 116.5,
+     "mean": 75.6
+    },
+    "postgres": {
+     "n": 35,
+     "p50": 176.2,
+     "p95": 222.4,
+     "p99": 227.2,
+     "max": 227.6,
+     "mean": 179.9
+    },
+    "generator": {
+     "n": 35,
+     "p50": 16.2,
+     "p95": 24.2,
+     "p99": 30.9,
+     "max": 32.9,
+     "mean": 16.9
+    }
+   },
+   "psi_some_pct_window": {
+    "n": 177,
+    "p50": 36.5,
+    "p95": 48.3,
+    "p99": 50.6,
+    "max": 51.0,
+    "mean": 35.6
+   },
+   "pg_runq_wait_pct_window": {
+    "n": 177,
+    "p50": 128.8,
+    "p95": 194.2,
+    "p99": 223.1,
+    "max": 233.9,
+    "mean": 126.0
+   },
+   "pool_acquire_select1_ms": {
+    "n": 179,
+    "p50": 7.0,
+    "p95": 96.4,
+    "p99": 160.4,
+    "max": 167.9,
+    "mean": 20.8
+   },
+   "conn_states_window": {
+    "ceezr:gatewayDispatch|active": 53,
+    "ceezr:gatewayDispatch|idle": 37,
+    "ceezr:gatewayRequest|active": 130,
+    "ceezr:gatewayRequest|idle": 303,
+    "ceezr:gatewayRequest|idle in transaction": 17,
+    "ceezr:workerJobs|active": 100,
+    "ceezr:workerJobs|idle": 344,
+    "ceezr:workerJobs|idle in transaction": 6,
+    "ceezr:workerLocks|idle": 360,
+    "driver-onboarding|active": 6,
+    "driver-onboarding|idle": 354,
+    "genA|active": 7,
+    "genA|idle": 713
+   },
+   "pg_exec": {
+    "total_exec_ms": 361385.0,
+    "top": [
+     {
+      "calls": 26467,
+      "total_ms": 80169.3,
+      "mean_ms": 3.029,
+      "query": "select claim_notification_delivery() result"
+     },
+     {
+      "calls": 71809,
+      "total_ms": 69101.9,
+      "mean_ms": 0.962,
+      "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+     },
+     {
+      "calls": 5708,
+      "total_ms": 57023.6,
+      "mean_ms": 9.99,
+      "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+     },
+     {
+      "calls": 11280,
+      "total_ms": 27350.1,
+      "mean_ms": 2.425,
+      "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+     },
+     {
+      "calls": 4095,
+      "total_ms": 26953.1,
+      "mean_ms": 6.582,
+      "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+     },
+     {
+      "calls": 5664,
+      "total_ms": 17499.7,
+      "mean_ms": 3.09,
+      "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+     },
+     {
+      "calls": 4095,
+      "total_ms": 13994.4,
+      "mean_ms": 3.417,
+      "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+     },
+     {
+      "calls": 22244,
+      "total_ms": 8951.8,
+      "mean_ms": 0.402,
+      "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+     }
+    ]
+   },
+   "all_gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "rows": {
+     "G1": {
+      "value": "99.34% (4068/4095)",
+      "pass": true,
+      "rule": "دورات مكتملة مثبتة من القاعدة"
+     },
+     "G2": {
+      "value": "0",
+      "pass": true,
+      "rule": "إسناد مزدوج"
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true,
+      "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true,
+      "rule": "تدقيق ما بعد الموجة"
+     },
+     "G5": {
+      "value": "0",
+      "pass": true,
+      "rule": "سائقون بقوا متاحين بعد الجولة"
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true,
+      "rule": "إسناد لسائق سيناريو آخر"
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "5xx من الطلبات"
+     },
+     "G8": {
+      "value": "0",
+      "pass": true,
+      "rule": "تعثر قراءة لوح العروض"
+     },
+     "I1-identities": {
+      "value": "riders 4095/4095 · drivers 4095/4095",
+      "pass": true,
+      "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true,
+      "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true,
+      "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true,
+      "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+     },
+     "P1": {
+      "value": "168ms",
+      "pass": true,
+      "rule": "p95 إنشاء الرحلة"
+     },
+     "P2": {
+      "value": "106ms",
+      "pass": true,
+      "rule": "p95 قبول العرض"
+     },
+     "P3": {
+      "value": "94ms",
+      "pass": true,
+      "rule": "p95 قراءة لوح العروض"
+     },
+     "P4": {
+      "value": "42621ms",
+      "pass": false,
+      "rule": "p95 ظهور العرض على اللوح"
+     },
+     "P5": {
+      "value": "42978ms",
+      "pass": true,
+      "rule": "p95 دورة السيناريو كاملة"
+     },
+     "P6a": {
+      "value": "224ms",
+      "pass": true,
+      "rule": "p99 إنشاء الرحلة"
+     },
+     "P6b": {
+      "value": "141ms",
+      "pass": true,
+      "rule": "p99 قبول العرض"
+     },
+     "P6c": {
+      "value": "160ms",
+      "pass": true,
+      "rule": "p99 قراءة اللوح"
+     },
+     "P7": {
+      "value": "84s",
+      "pass": true,
+      "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+     },
+     "P8": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "429 واجهات Mini App"
+     },
+     "P9": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "أخطاء شبكة"
+     }
+    },
+    "total": 4095,
+    "verified": 4068
+   },
+   "completions": {
+    "inject_s": 180.1,
+    "verified_in_inject": 3339,
+    "verified_per_s": 18.54,
+    "verified_total": 4068,
+    "scenarios_total": 4095,
+    "not_verified_reasons": {
+     "offer:offer_not_found_in_time": 27
+    }
+   },
+   "session_exchange": {
+    "limit_check": {
+     "gateway_comm": "bun",
+     "sha": "3aace81e42dbc24db7b4e04fc20f512ec8ba1eca",
+     "env_in_live_gateway": "24000",
+     "effective_limit": 24000,
+     "window_seconds": 60,
+     "expected": 24000,
+     "run_env_value_unchanged": "6000",
+     "default_without_var": 30,
+     "ok": true
+    },
+    "offered": 12285,
+    "rejected_429_by_step": {},
+    "rejected_429": 0,
+    "accepted": 12285,
+    "offered_per_s_inject": 67.3,
+    "first_429_s": null,
+    "max_sliding60_offered_bins": 5429,
+    "redis_window": {
+     "samples": 252,
+     "errors": 0,
+     "max": 5573,
+     "max_utilisation": 0.2322,
+     "p50": 3305.0
+    }
+   },
+   "errors": {
+    "generator_counters_present": true,
+    "requests_counted": 164839,
+    "api429_total": 0,
+    "webhookInbound429": 0,
+    "http5xx": 0,
+    "networkErrors": 0,
+    "api429_by_source": {
+     "session_exchange_limit(rider/driver_session)": 0,
+     "accept": 0,
+     "unattributed_other_routes": 0
+    },
+    "outside_P8_counter": {
+     "session_exchange_limit(driver_onboarding)": 0
+    },
+    "telegram_outbound_mock_429": 0,
+    "gateway_5xx_by_route": {}
+   },
+   "onboarding": {
+    "scenario_driver_onboarding_failed": 0,
+    "onboarding_failed_events": 0,
+    "by_steps": {}
+   },
+   "phone_proof": {
+    "n": 4095,
+    "not_done": 0,
+    "status": {
+     "done": 4095
+    },
+    "p50_ms": 74,
+    "p95_ms": 5736,
+    "max_ms": 8351,
+    "over_20s": 0
+   },
+   "drainer": {
+    "jobs": 4095,
+    "mean_in_service": 2.32,
+    "jobs_per_s": 22.89,
+    "claim_trips": 3022,
+    "jobs_per_trip": 1.36
+   },
+   "pool": {
+    "jobs": 4095,
+    "drainer_by_sig": {
+     "select finish_telegram_update_replies(": 4101,
+     "select get_user_language(": 4095,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_n": 4095,
+     "select record_telegram_update_effect(": 4095,
+     "select claim_telegram_update_jobs_for_bot(": 3022
+    },
+    "drainer": {
+     "acquisitions": 19408,
+     "wait_ms_per_acq": 25.957,
+     "query_run_ms_mean": 2.071,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "http": {
+     "acquisitions": 242676,
+     "wait_ms_per_acq": 24.897,
+     "query_run_ms_mean": 2.491,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 20475
+    },
+    "background": {
+     "acquisitions": 329,
+     "wait_ms_per_acq": 15.55,
+     "query_run_ms_mean": 2.116,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "drainer_acq_per_job": 4.739,
+    "effect_check_acq_per_job": 0.0,
+    "drainer_share_of_acq": 0.074
+   },
+   "jobs_state": {
+    "status": {
+     "driver:done": 4095
+    },
+    "not_done": 0,
+    "late_over_20s": 0
+   },
+   "side": "C",
+   "validity": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  },
+  "b28rep-s1-R3-750": {
+   "wave": "b28rep-s1-R3-750",
+   "limit": 50,
+   "inputs": {
+    "orders_csv": true,
+    "trace_passes": 106,
+    "trace_orders": 5257
+   },
+   "gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "summary_line": {
+     "G1": "99.30% (4092/4121)",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "P1": "142ms",
+     "P2": "121ms",
+     "P3": "107ms",
+     "P4": "42516ms✗",
+     "P5": "42793ms",
+     "P6a": "189ms",
+     "P6b": "149ms",
+     "P6c": "164ms",
+     "P7": "75s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "gates": {
+     "G1": {
+      "value": "99.30% (4092/4121)",
+      "pass": true
+     },
+     "G2": {
+      "value": "0",
+      "pass": true
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true
+     },
+     "G5": {
+      "value": "0",
+      "pass": true
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true
+     },
+     "G8": {
+      "value": "0",
+      "pass": true
+     },
+     "I1-identities": {
+      "value": "riders 4121/4121 · drivers 4121/4121",
+      "pass": true
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true
+     }
+    }
+   },
+   "P4": {
+    "n": 4092,
+    "p50": 36335.0,
+    "p95": 42516,
+    "p99": 44708,
+    "max": 48538,
+    "mean": 33050.1
+   },
+   "queue_before_first_exec_ms": {
+    "n": 3859,
+    "p50": 34334.0,
+    "p95": 38129.0,
+    "p99": 39622.0,
+    "max": 42234.0,
+    "mean": 30974.8
+   },
+   "first_exec_ms": {
+    "n": 3859,
+    "p50": 10,
+    "p95": 21,
+    "p99": 30,
+    "max": 45,
+    "mean": 10.7
+   },
+   "target_in_round1_share": 0.7195,
+   "window": {
+    "inject_sec": 178.7,
+    "orders": 4121,
+    "never_reached_pass": 233
+   },
+   "passes": {
+    "in_window": 90,
+    "in_drain": 16,
+    "per_s": 0.504,
+    "saturated_share": 0.989,
+    "passMs": {
+     "n": 90,
+     "p50": 538.0,
+     "p95": 781.2,
+     "p99": 916.7,
+     "max": 947,
+     "mean": 536.5
+    },
+    "cycle_ms": {
+     "n": 89,
+     "p50": 2000.0,
+     "p95": 2002.6,
+     "p99": 2003.1,
+     "max": 2004,
+     "mean": 2000.5
+    },
+    "gap_ms": {
+     "n": 89,
+     "p50": 1457.0,
+     "p95": 1730.0,
+     "p99": 1759.2,
+     "max": 1849,
+     "mean": 1463.7
+    },
+    "followup_delay_ms": {
+     "n": 90,
+     "p50": 1926.0,
+     "p95": 2000.0,
+     "p99": 2000.1,
+     "max": 2001,
+     "mean": 1831.9
+    },
+    "finderMs": {
+     "n": 90,
+     "p50": 5.0,
+     "p95": 10.3,
+     "p99": 16.8,
+     "max": 22.4,
+     "mean": 5.7
+    },
+    "picked": {
+     "n": 90,
+     "p50": 50.0,
+     "p95": 50.0,
+     "p99": 50.0,
+     "max": 50,
+     "mean": 49.8
+    },
+    "longer_than_2s": 0,
+    "counts_window": {
+     "picked": 4478,
+     "rebroadcast": 4412,
+     "stillNoDriver": 28,
+     "exhausted": 0,
+     "raced": 38,
+     "failed": 0
+    },
+    "counts_drain": {
+     "picked": 779,
+     "rebroadcast": 715,
+     "stillNoDriver": 0,
+     "exhausted": 57,
+     "raced": 7,
+     "failed": 0
+    }
+   },
+   "rates": {
+    "arrival_per_s": 23.06,
+    "first_exec_per_s": 18.46,
+    "exec_per_s": 25.06,
+    "repeat_share": 0.264,
+    "per_order_exec_ms": {
+     "n": 4478,
+     "p50": 10.0,
+     "p95": 20.0,
+     "p99": 26.0,
+     "max": 38,
+     "mean": 10.6
+    }
+   },
+   "queue": {
+    "max": 710,
+    "at_inject_end": 593,
+    "slope_second_half_per_s": -0.634,
+    "drain_to_zero_s": 31.3,
+    "every_5s": [
+     {
+      "t": 0,
+      "queue": 2
+     },
+     {
+      "t": 5,
+      "queue": 330
+     },
+     {
+      "t": 10,
+      "queue": 549
+     },
+     {
+      "t": 15,
+      "queue": 604
+     },
+     {
+      "t": 20,
+      "queue": 650
+     },
+     {
+      "t": 25,
+      "queue": 648
+     },
+     {
+      "t": 30,
+      "queue": 641
+     },
+     {
+      "t": 35,
+      "queue": 657
+     },
+     {
+      "t": 40,
+      "queue": 674
+     },
+     {
+      "t": 45,
+      "queue": 662
+     },
+     {
+      "t": 50,
+      "queue": 680
+     },
+     {
+      "t": 55,
+      "queue": 636
+     },
+     {
+      "t": 60,
+      "queue": 710
+     },
+     {
+      "t": 65,
+      "queue": 677
+     },
+     {
+      "t": 70,
+      "queue": 708
+     },
+     {
+      "t": 75,
+      "queue": 674
+     },
+     {
+      "t": 80,
+      "queue": 682
+     },
+     {
+      "t": 85,
+      "queue": 667
+     },
+     {
+      "t": 90,
+      "queue": 677
+     },
+     {
+      "t": 95,
+      "queue": 654
+     },
+     {
+      "t": 100,
+      "queue": 671
+     },
+     {
+      "t": 105,
+      "queue": 643
+     },
+     {
+      "t": 110,
+      "queue": 628
+     },
+     {
+      "t": 115,
+      "queue": 616
+     },
+     {
+      "t": 120,
+      "queue": 642
+     },
+     {
+      "t": 125,
+      "queue": 636
+     },
+     {
+      "t": 130,
+      "queue": 620
+     },
+     {
+      "t": 135,
+      "queue": 596
+     },
+     {
+      "t": 140,
+      "queue": 612
+     },
+     {
+      "t": 145,
+      "queue": 609
+     },
+     {
+      "t": 150,
+      "queue": 615
+     },
+     {
+      "t": 155,
+      "queue": 593
+     },
+     {
+      "t": 160,
+      "queue": 624
+     },
+     {
+      "t": 165,
+      "queue": 631
+     },
+     {
+      "t": 170,
+      "queue": 632
+     },
+     {
+      "t": 175,
+      "queue": 593
+     },
+     {
+      "t": 180,
+      "queue": 590
+     },
+     {
+      "t": 185,
+      "queue": 480
+     },
+     {
+      "t": 190,
+      "queue": 406
+     },
+     {
+      "t": 195,
+      "queue": 278
+     },
+     {
+      "t": 200,
+      "queue": 188
+     },
+     {
+      "t": 205,
+      "queue": 50
+     },
+     {
+      "t": 210,
+      "queue": 0
+     },
+     {
+      "t": 215,
+      "queue": 0
+     },
+     {
+      "t": 220,
+      "queue": 0
+     },
+     {
+      "t": 225,
+      "queue": 0
+     },
+     {
+      "t": 230,
+      "queue": 0
+     },
+     {
+      "t": 235,
+      "queue": 0
+     },
+     {
+      "t": 240,
+      "queue": 0
+     },
+     {
+      "t": 245,
+      "queue": 0
+     },
+     {
+      "t": 250,
+      "queue": 0
+     },
+     {
+      "t": 255,
+      "queue": 0
+     },
+     {
+      "t": 260,
+      "queue": 0
+     },
+     {
+      "t": 265,
+      "queue": 0
+     },
+     {
+      "t": 270,
+      "queue": 0
+     },
+     {
+      "t": 275,
+      "queue": 0
+     },
+     {
+      "t": 280,
+      "queue": 0
+     },
+     {
+      "t": 285,
+      "queue": 0
+     },
+     {
+      "t": 290,
+      "queue": 0
+     },
+     {
+      "t": 295,
+      "queue": 0
+     },
+     {
+      "t": 300,
+      "queue": 0
+     },
+     {
+      "t": 305,
+      "queue": 0
+     },
+     {
+      "t": 310,
+      "queue": 0
+     },
+     {
+      "t": 315,
+      "queue": 0
+     },
+     {
+      "t": 320,
+      "queue": 0
+     },
+     {
+      "t": 325,
+      "queue": 0
+     },
+     {
+      "t": 330,
+      "queue": 0
+     },
+     {
+      "t": 335,
+      "queue": 0
+     },
+     {
+      "t": 340,
+      "queue": 0
+     },
+     {
+      "t": 345,
+      "queue": 0
+     },
+     {
+      "t": 350,
+      "queue": 0
+     },
+     {
+      "t": 355,
+      "queue": 0
+     }
+    ]
+   },
+   "cpu_pct_window": {
+    "gateway": {
+     "n": 35,
+     "p50": 72.8,
+     "p95": 101.5,
+     "p99": 115.2,
+     "max": 115.8,
+     "mean": 75.9
+    },
+    "postgres": {
+     "n": 35,
+     "p50": 178.0,
+     "p95": 222.2,
+     "p99": 224.2,
+     "max": 224.7,
+     "mean": 180.1
+    },
+    "generator": {
+     "n": 35,
+     "p50": 15.8,
+     "p95": 24.1,
+     "p99": 30.9,
+     "max": 32.8,
+     "mean": 16.8
+    }
+   },
+   "psi_some_pct_window": {
+    "n": 177,
+    "p50": 37.5,
+    "p95": 49.2,
+    "p99": 52.1,
+    "max": 53.9,
+    "mean": 35.8
+   },
+   "pg_runq_wait_pct_window": {
+    "n": 177,
+    "p50": 126.0,
+    "p95": 209.2,
+    "p99": 248.0,
+    "max": 251.1,
+    "mean": 129.4
+   },
+   "pool_acquire_select1_ms": {
+    "n": 179,
+    "p50": 6.7,
+    "p95": 103.5,
+    "p99": 166.9,
+    "max": 207.4,
+    "mean": 22.7
+   },
+   "conn_states_window": {
+    "ceezr:gatewayDispatch|active": 40,
+    "ceezr:gatewayDispatch|idle": 50,
+    "ceezr:gatewayRequest|active": 105,
+    "ceezr:gatewayRequest|idle": 337,
+    "ceezr:gatewayRequest|idle in transaction": 8,
+    "ceezr:workerJobs|active": 94,
+    "ceezr:workerJobs|idle": 347,
+    "ceezr:workerJobs|idle in transaction": 9,
+    "ceezr:workerLocks|active": 1,
+    "ceezr:workerLocks|idle": 359,
+    "driver-onboarding|active": 3,
+    "driver-onboarding|idle": 357,
+    "genA|active": 6,
+    "genA|idle": 714
+   },
+   "pg_exec": {
+    "total_exec_ms": 361169.5,
+    "top": [
+     {
+      "calls": 26435,
+      "total_ms": 75957.9,
+      "mean_ms": 2.873,
+      "query": "select claim_notification_delivery() result"
+     },
+     {
+      "calls": 71914,
+      "total_ms": 69930.4,
+      "mean_ms": 0.972,
+      "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+     },
+     {
+      "calls": 5700,
+      "total_ms": 61817.3,
+      "mean_ms": 10.845,
+      "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+     },
+     {
+      "calls": 4121,
+      "total_ms": 26281.1,
+      "mean_ms": 6.377,
+      "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+     },
+     {
+      "calls": 11298,
+      "total_ms": 26243.3,
+      "mean_ms": 2.323,
+      "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+     },
+     {
+      "calls": 5672,
+      "total_ms": 16706.1,
+      "mean_ms": 2.945,
+      "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+     },
+     {
+      "calls": 4121,
+      "total_ms": 14328.2,
+      "mean_ms": 3.477,
+      "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+     },
+     {
+      "calls": 22117,
+      "total_ms": 8954.4,
+      "mean_ms": 0.405,
+      "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+     }
+    ]
+   },
+   "all_gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "rows": {
+     "G1": {
+      "value": "99.30% (4092/4121)",
+      "pass": true,
+      "rule": "دورات مكتملة مثبتة من القاعدة"
+     },
+     "G2": {
+      "value": "0",
+      "pass": true,
+      "rule": "إسناد مزدوج"
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true,
+      "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true,
+      "rule": "تدقيق ما بعد الموجة"
+     },
+     "G5": {
+      "value": "0",
+      "pass": true,
+      "rule": "سائقون بقوا متاحين بعد الجولة"
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true,
+      "rule": "إسناد لسائق سيناريو آخر"
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "5xx من الطلبات"
+     },
+     "G8": {
+      "value": "0",
+      "pass": true,
+      "rule": "تعثر قراءة لوح العروض"
+     },
+     "I1-identities": {
+      "value": "riders 4121/4121 · drivers 4121/4121",
+      "pass": true,
+      "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true,
+      "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true,
+      "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true,
+      "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+     },
+     "P1": {
+      "value": "142ms",
+      "pass": true,
+      "rule": "p95 إنشاء الرحلة"
+     },
+     "P2": {
+      "value": "121ms",
+      "pass": true,
+      "rule": "p95 قبول العرض"
+     },
+     "P3": {
+      "value": "107ms",
+      "pass": true,
+      "rule": "p95 قراءة لوح العروض"
+     },
+     "P4": {
+      "value": "42516ms",
+      "pass": false,
+      "rule": "p95 ظهور العرض على اللوح"
+     },
+     "P5": {
+      "value": "42793ms",
+      "pass": true,
+      "rule": "p95 دورة السيناريو كاملة"
+     },
+     "P6a": {
+      "value": "189ms",
+      "pass": true,
+      "rule": "p99 إنشاء الرحلة"
+     },
+     "P6b": {
+      "value": "149ms",
+      "pass": true,
+      "rule": "p99 قبول العرض"
+     },
+     "P6c": {
+      "value": "164ms",
+      "pass": true,
+      "rule": "p99 قراءة اللوح"
+     },
+     "P7": {
+      "value": "75s",
+      "pass": true,
+      "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+     },
+     "P8": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "429 واجهات Mini App"
+     },
+     "P9": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "أخطاء شبكة"
+     }
+    },
+    "total": 4121,
+    "verified": 4092
+   },
+   "completions": {
+    "inject_s": 180.1,
+    "verified_in_inject": 3362,
+    "verified_per_s": 18.67,
+    "verified_total": 4092,
+    "scenarios_total": 4121,
+    "not_verified_reasons": {
+     "offer:offer_not_found_in_time": 29
+    }
+   },
+   "session_exchange": {
+    "limit_check": {
+     "gateway_comm": "bun",
+     "sha": "45571268e75e191862ea731d89c7361bed3d0050",
+     "env_in_live_gateway": "24000",
+     "effective_limit": 24000,
+     "window_seconds": 60,
+     "expected": 24000,
+     "run_env_value_unchanged": "6000",
+     "default_without_var": 30,
+     "ok": true
+    },
+    "offered": 12363,
+    "rejected_429_by_step": {},
+    "rejected_429": 0,
+    "accepted": 12363,
+    "offered_per_s_inject": 68.0,
+    "first_429_s": null,
+    "max_sliding60_offered_bins": 5454,
+    "redis_window": {
+     "samples": 252,
+     "errors": 0,
+     "max": 5622,
+     "max_utilisation": 0.2343,
+     "p50": 3311.5
+    }
+   },
+   "errors": {
+    "generator_counters_present": true,
+    "requests_counted": 164500,
+    "api429_total": 0,
+    "webhookInbound429": 0,
+    "http5xx": 0,
+    "networkErrors": 0,
+    "api429_by_source": {
+     "session_exchange_limit(rider/driver_session)": 0,
+     "accept": 0,
+     "unattributed_other_routes": 0
+    },
+    "outside_P8_counter": {
+     "session_exchange_limit(driver_onboarding)": 0
+    },
+    "telegram_outbound_mock_429": 0,
+    "gateway_5xx_by_route": {}
+   },
+   "onboarding": {
+    "scenario_driver_onboarding_failed": 0,
+    "onboarding_failed_events": 0,
+    "by_steps": {}
+   },
+   "phone_proof": {
+    "n": 4121,
+    "not_done": 0,
+    "status": {
+     "done": 4121
+    },
+    "p50_ms": 89,
+    "p95_ms": 5753,
+    "max_ms": 8301,
+    "over_20s": 0
+   },
+   "drainer": {
+    "jobs": 4121,
+    "mean_in_service": 2.76,
+    "jobs_per_s": 23.04,
+    "claim_trips": 2991,
+    "jobs_per_trip": 1.38
+   },
+   "pool": {
+    "jobs": 4121,
+    "drainer_by_sig": {
+     "select finish_telegram_update_replies(": 4125,
+     "select telegram_update_effect_recorded(": 4121,
+     "select get_user_language(": 4121,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_n": 4121,
+     "select record_telegram_update_effect(": 4121,
+     "select claim_telegram_update_jobs_for_bot(": 2991
+    },
+    "drainer": {
+     "acquisitions": 23600,
+     "wait_ms_per_acq": 24.521,
+     "query_run_ms_mean": 1.869,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "http": {
+     "acquisitions": 242825,
+     "wait_ms_per_acq": 24.929,
+     "query_run_ms_mean": 2.485,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 20605
+    },
+    "background": {
+     "acquisitions": 329,
+     "wait_ms_per_acq": 17.106,
+     "query_run_ms_mean": 3.535,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "drainer_acq_per_job": 5.727,
+    "effect_check_acq_per_job": 1.0,
+    "drainer_share_of_acq": 0.088
+   },
+   "jobs_state": {
+    "status": {
+     "driver:done": 4121
+    },
+    "not_done": 0,
+    "late_over_20s": 0
+   },
+   "side": "R",
+   "validity": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  },
+  "b28rep-s1-R4-750": {
+   "wave": "b28rep-s1-R4-750",
+   "limit": 50,
+   "inputs": {
+    "orders_csv": true,
+    "trace_passes": 105,
+    "trace_orders": 5223
+   },
+   "gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "summary_line": {
+     "G1": "99.47% (4137/4159)",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "P1": "167ms",
+     "P2": "141ms",
+     "P3": "100ms",
+     "P4": "42595ms✗",
+     "P5": "42865ms",
+     "P6a": "271ms",
+     "P6b": "246ms",
+     "P6c": "204ms",
+     "P7": "57s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "gates": {
+     "G1": {
+      "value": "99.47% (4137/4159)",
+      "pass": true
+     },
+     "G2": {
+      "value": "0",
+      "pass": true
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true
+     },
+     "G5": {
+      "value": "0",
+      "pass": true
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true
+     },
+     "G8": {
+      "value": "0",
+      "pass": true
+     },
+     "I1-identities": {
+      "value": "riders 4159/4159 · drivers 4159/4159",
+      "pass": true
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true
+     }
+    }
+   },
+   "P4": {
+    "n": 4137,
+    "p50": 36284,
+    "p95": 42595,
+    "p99": 46454,
+    "max": 48515,
+    "mean": 32086.7
+   },
+   "queue_before_first_exec_ms": {
+    "n": 3885,
+    "p50": 34594.0,
+    "p95": 38595.0,
+    "p99": 39483.0,
+    "max": 43279.0,
+    "mean": 30017.2
+   },
+   "first_exec_ms": {
+    "n": 3885,
+    "p50": 10,
+    "p95": 21,
+    "p99": 34,
+    "max": 73,
+    "mean": 11.1
+   },
+   "target_in_round1_share": 0.7273,
+   "window": {
+    "inject_sec": 178.7,
+    "orders": 4159,
+    "never_reached_pass": 252
+   },
+   "passes": {
+    "in_window": 90,
+    "in_drain": 15,
+    "per_s": 0.504,
+    "saturated_share": 0.989,
+    "passMs": {
+     "n": 90,
+     "p50": 526.0,
+     "p95": 750.9,
+     "p99": 854.0,
+     "max": 862,
+     "mean": 534.0
+    },
+    "cycle_ms": {
+     "n": 89,
+     "p50": 2000.0,
+     "p95": 2003.0,
+     "p99": 2004.0,
+     "max": 2004,
+     "mean": 2000.6
+    },
+    "gap_ms": {
+     "n": 89,
+     "p50": 1471.0,
+     "p95": 1724.6,
+     "p99": 1740.2,
+     "max": 1749,
+     "mean": 1465.9
+    },
+    "followup_delay_ms": {
+     "n": 90,
+     "p50": 1938.5,
+     "p95": 2000.0,
+     "p99": 2001.0,
+     "max": 2001,
+     "mean": 1846.2
+    },
+    "finderMs": {
+     "n": 90,
+     "p50": 5.1,
+     "p95": 11.1,
+     "p99": 12.6,
+     "max": 15.8,
+     "mean": 5.7
+    },
+    "picked": {
+     "n": 90,
+     "p50": 50.0,
+     "p95": 50.0,
+     "p99": 50.0,
+     "max": 50,
+     "mean": 49.8
+    },
+    "longer_than_2s": 0,
+    "counts_window": {
+     "picked": 4482,
+     "rebroadcast": 4425,
+     "stillNoDriver": 14,
+     "exhausted": 0,
+     "raced": 43,
+     "failed": 0
+    },
+    "counts_drain": {
+     "picked": 741,
+     "rebroadcast": 711,
+     "stillNoDriver": 0,
+     "exhausted": 22,
+     "raced": 8,
+     "failed": 0
+    }
+   },
+   "rates": {
+    "arrival_per_s": 23.27,
+    "first_exec_per_s": 18.57,
+    "exec_per_s": 25.08,
+    "repeat_share": 0.259,
+    "per_order_exec_ms": {
+     "n": 4482,
+     "p50": 10.0,
+     "p95": 19.0,
+     "p99": 25.0,
+     "max": 73,
+     "mean": 10.5
+    }
+   },
+   "queue": {
+    "max": 715,
+    "at_inject_end": 595,
+    "slope_second_half_per_s": -0.302,
+    "drain_to_zero_s": 31.3,
+    "every_5s": [
+     {
+      "t": 0,
+      "queue": 1
+     },
+     {
+      "t": 5,
+      "queue": 186
+     },
+     {
+      "t": 10,
+      "queue": 355
+     },
+     {
+      "t": 15,
+      "queue": 404
+     },
+     {
+      "t": 20,
+      "queue": 556
+     },
+     {
+      "t": 25,
+      "queue": 624
+     },
+     {
+      "t": 30,
+      "queue": 641
+     },
+     {
+      "t": 35,
+      "queue": 644
+     },
+     {
+      "t": 40,
+      "queue": 666
+     },
+     {
+      "t": 45,
+      "queue": 651
+     },
+     {
+      "t": 50,
+      "queue": 664
+     },
+     {
+      "t": 55,
+      "queue": 657
+     },
+     {
+      "t": 60,
+      "queue": 697
+     },
+     {
+      "t": 65,
+      "queue": 676
+     },
+     {
+      "t": 70,
+      "queue": 715
+     },
+     {
+      "t": 75,
+      "queue": 676
+     },
+     {
+      "t": 80,
+      "queue": 689
+     },
+     {
+      "t": 85,
+      "queue": 656
+     },
+     {
+      "t": 90,
+      "queue": 666
+     },
+     {
+      "t": 95,
+      "queue": 636
+     },
+     {
+      "t": 100,
+      "queue": 657
+     },
+     {
+      "t": 105,
+      "queue": 638
+     },
+     {
+      "t": 110,
+      "queue": 632
+     },
+     {
+      "t": 115,
+      "queue": 618
+     },
+     {
+      "t": 120,
+      "queue": 631
+     },
+     {
+      "t": 125,
+      "queue": 637
+     },
+     {
+      "t": 130,
+      "queue": 639
+     },
+     {
+      "t": 135,
+      "queue": 627
+     },
+     {
+      "t": 140,
+      "queue": 630
+     },
+     {
+      "t": 145,
+      "queue": 646
+     },
+     {
+      "t": 150,
+      "queue": 644
+     },
+     {
+      "t": 155,
+      "queue": 608
+     },
+     {
+      "t": 160,
+      "queue": 641
+     },
+     {
+      "t": 165,
+      "queue": 640
+     },
+     {
+      "t": 170,
+      "queue": 631
+     },
+     {
+      "t": 175,
+      "queue": 595
+     },
+     {
+      "t": 180,
+      "queue": 587
+     },
+     {
+      "t": 185,
+      "queue": 482
+     },
+     {
+      "t": 190,
+      "queue": 403
+     },
+     {
+      "t": 195,
+      "queue": 271
+     },
+     {
+      "t": 200,
+      "queue": 186
+     },
+     {
+      "t": 205,
+      "queue": 56
+     },
+     {
+      "t": 210,
+      "queue": 0
+     },
+     {
+      "t": 215,
+      "queue": 0
+     },
+     {
+      "t": 220,
+      "queue": 0
+     },
+     {
+      "t": 225,
+      "queue": 0
+     },
+     {
+      "t": 230,
+      "queue": 0
+     },
+     {
+      "t": 235,
+      "queue": 0
+     },
+     {
+      "t": 240,
+      "queue": 0
+     },
+     {
+      "t": 245,
+      "queue": 0
+     },
+     {
+      "t": 250,
+      "queue": 0
+     },
+     {
+      "t": 255,
+      "queue": 0
+     },
+     {
+      "t": 260,
+      "queue": 0
+     },
+     {
+      "t": 265,
+      "queue": 0
+     },
+     {
+      "t": 270,
+      "queue": 0
+     },
+     {
+      "t": 275,
+      "queue": 0
+     },
+     {
+      "t": 280,
+      "queue": 0
+     },
+     {
+      "t": 285,
+      "queue": 0
+     },
+     {
+      "t": 290,
+      "queue": 0
+     },
+     {
+      "t": 295,
+      "queue": 0
+     },
+     {
+      "t": 300,
+      "queue": 0
+     },
+     {
+      "t": 305,
+      "queue": 0
+     },
+     {
+      "t": 310,
+      "queue": 0
+     },
+     {
+      "t": 315,
+      "queue": 0
+     },
+     {
+      "t": 320,
+      "queue": 0
+     },
+     {
+      "t": 325,
+      "queue": 0
+     },
+     {
+      "t": 330,
+      "queue": 0
+     },
+     {
+      "t": 335,
+      "queue": 0
+     },
+     {
+      "t": 340,
+      "queue": 0
+     },
+     {
+      "t": 345,
+      "queue": 0
+     },
+     {
+      "t": 350,
+      "queue": 0
+     },
+     {
+      "t": 355,
+      "queue": 0
+     }
+    ]
+   },
+   "cpu_pct_window": {
+    "gateway": {
+     "n": 35,
+     "p50": 72.9,
+     "p95": 102.2,
+     "p99": 111.7,
+     "max": 114.8,
+     "mean": 76.5
+    },
+    "postgres": {
+     "n": 35,
+     "p50": 175.8,
+     "p95": 227.5,
+     "p99": 227.7,
+     "max": 227.8,
+     "mean": 179.3
+    },
+    "generator": {
+     "n": 35,
+     "p50": 15.8,
+     "p95": 25.1,
+     "p99": 30.3,
+     "max": 32.9,
+     "mean": 17.1
+    }
+   },
+   "psi_some_pct_window": {
+    "n": 177,
+    "p50": 38.5,
+    "p95": 47.4,
+    "p99": 49.4,
+    "max": 52.4,
+    "mean": 36.4
+   },
+   "pg_runq_wait_pct_window": {
+    "n": 177,
+    "p50": 133.4,
+    "p95": 203.7,
+    "p99": 221.3,
+    "max": 230.6,
+    "mean": 131.8
+   },
+   "pool_acquire_select1_ms": {
+    "n": 179,
+    "p50": 4.3,
+    "p95": 129.8,
+    "p99": 203.9,
+    "max": 235.6,
+    "mean": 25.8
+   },
+   "conn_states_window": {
+    "ceezr:gatewayDispatch|active": 36,
+    "ceezr:gatewayDispatch|idle": 54,
+    "ceezr:gatewayRequest|active": 123,
+    "ceezr:gatewayRequest|idle": 311,
+    "ceezr:gatewayRequest|idle in transaction": 16,
+    "ceezr:workerJobs|active": 112,
+    "ceezr:workerJobs|idle": 334,
+    "ceezr:workerJobs|idle in transaction": 4,
+    "ceezr:workerLocks|idle": 360,
+    "driver-onboarding|active": 4,
+    "driver-onboarding|idle": 356,
+    "genA|active": 4,
+    "genA|idle": 716
+   },
+   "pg_exec": {
+    "total_exec_ms": 363263.2,
+    "top": [
+     {
+      "calls": 29534,
+      "total_ms": 78369.5,
+      "mean_ms": 2.654,
+      "query": "select claim_notification_delivery() result"
+     },
+     {
+      "calls": 70164,
+      "total_ms": 68715.2,
+      "mean_ms": 0.979,
+      "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+     },
+     {
+      "calls": 5701,
+      "total_ms": 59222.0,
+      "mean_ms": 10.388,
+      "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+     },
+     {
+      "calls": 4159,
+      "total_ms": 26970.1,
+      "mean_ms": 6.485,
+      "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+     },
+     {
+      "calls": 11711,
+      "total_ms": 26851.7,
+      "mean_ms": 2.293,
+      "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+     },
+     {
+      "calls": 5687,
+      "total_ms": 17071.7,
+      "mean_ms": 3.002,
+      "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+     },
+     {
+      "calls": 4159,
+      "total_ms": 14363.0,
+      "mean_ms": 3.454,
+      "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+     },
+     {
+      "calls": 24398,
+      "total_ms": 9646.2,
+      "mean_ms": 0.395,
+      "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+     }
+    ]
+   },
+   "all_gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "rows": {
+     "G1": {
+      "value": "99.47% (4137/4159)",
+      "pass": true,
+      "rule": "دورات مكتملة مثبتة من القاعدة"
+     },
+     "G2": {
+      "value": "0",
+      "pass": true,
+      "rule": "إسناد مزدوج"
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true,
+      "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true,
+      "rule": "تدقيق ما بعد الموجة"
+     },
+     "G5": {
+      "value": "0",
+      "pass": true,
+      "rule": "سائقون بقوا متاحين بعد الجولة"
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true,
+      "rule": "إسناد لسائق سيناريو آخر"
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "5xx من الطلبات"
+     },
+     "G8": {
+      "value": "0",
+      "pass": true,
+      "rule": "تعثر قراءة لوح العروض"
+     },
+     "I1-identities": {
+      "value": "riders 4159/4159 · drivers 4159/4159",
+      "pass": true,
+      "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true,
+      "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true,
+      "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true,
+      "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+     },
+     "P1": {
+      "value": "167ms",
+      "pass": true,
+      "rule": "p95 إنشاء الرحلة"
+     },
+     "P2": {
+      "value": "141ms",
+      "pass": true,
+      "rule": "p95 قبول العرض"
+     },
+     "P3": {
+      "value": "100ms",
+      "pass": true,
+      "rule": "p95 قراءة لوح العروض"
+     },
+     "P4": {
+      "value": "42595ms",
+      "pass": false,
+      "rule": "p95 ظهور العرض على اللوح"
+     },
+     "P5": {
+      "value": "42865ms",
+      "pass": true,
+      "rule": "p95 دورة السيناريو كاملة"
+     },
+     "P6a": {
+      "value": "271ms",
+      "pass": true,
+      "rule": "p99 إنشاء الرحلة"
+     },
+     "P6b": {
+      "value": "246ms",
+      "pass": true,
+      "rule": "p99 قبول العرض"
+     },
+     "P6c": {
+      "value": "204ms",
+      "pass": true,
+      "rule": "p99 قراءة اللوح"
+     },
+     "P7": {
+      "value": "57s",
+      "pass": true,
+      "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+     },
+     "P8": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "429 واجهات Mini App"
+     },
+     "P9": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "أخطاء شبكة"
+     }
+    },
+    "total": 4159,
+    "verified": 4137
+   },
+   "completions": {
+    "inject_s": 180.1,
+    "verified_in_inject": 3408,
+    "verified_per_s": 18.92,
+    "verified_total": 4137,
+    "scenarios_total": 4159,
+    "not_verified_reasons": {
+     "offer:offer_not_found_in_time": 22
+    }
+   },
+   "session_exchange": {
+    "limit_check": {
+     "gateway_comm": "bun",
+     "sha": "45571268e75e191862ea731d89c7361bed3d0050",
+     "env_in_live_gateway": "24000",
+     "effective_limit": 24000,
+     "window_seconds": 60,
+     "expected": 24000,
+     "run_env_value_unchanged": "6000",
+     "default_without_var": 30,
+     "ok": true
+    },
+    "offered": 12477,
+    "rejected_429_by_step": {},
+    "rejected_429": 0,
+    "accepted": 12477,
+    "offered_per_s_inject": 68.7,
+    "first_429_s": null,
+    "max_sliding60_offered_bins": 5660,
+    "redis_window": {
+     "samples": 262,
+     "errors": 0,
+     "max": 5822,
+     "max_utilisation": 0.2426,
+     "p50": 3275.5
+    }
+   },
+   "errors": {
+    "generator_counters_present": true,
+    "requests_counted": 163983,
+    "api429_total": 0,
+    "webhookInbound429": 0,
+    "http5xx": 0,
+    "networkErrors": 0,
+    "api429_by_source": {
+     "session_exchange_limit(rider/driver_session)": 0,
+     "accept": 0,
+     "unattributed_other_routes": 0
+    },
+    "outside_P8_counter": {
+     "session_exchange_limit(driver_onboarding)": 0
+    },
+    "telegram_outbound_mock_429": 0,
+    "gateway_5xx_by_route": {}
+   },
+   "onboarding": {
+    "scenario_driver_onboarding_failed": 0,
+    "onboarding_failed_events": 0,
+    "by_steps": {}
+   },
+   "phone_proof": {
+    "n": 4159,
+    "not_done": 0,
+    "status": {
+     "done": 4159
+    },
+    "p50_ms": 85,
+    "p95_ms": 8786,
+    "max_ms": 11985,
+    "over_20s": 0
+   },
+   "drainer": {
+    "jobs": 4159,
+    "mean_in_service": 3.6,
+    "jobs_per_s": 23.25,
+    "claim_trips": 3053,
+    "jobs_per_trip": 1.36
+   },
+   "pool": {
+    "jobs": 4159,
+    "drainer_by_sig": {
+     "select finish_telegram_update_replies(": 4167,
+     "select telegram_update_effect_recorded(": 4159,
+     "select get_user_language(": 4159,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_n": 4159,
+     "select record_telegram_update_effect(": 4159,
+     "select claim_telegram_update_jobs_for_bot(": 3053
+    },
+    "drainer": {
+     "acquisitions": 23856,
+     "wait_ms_per_acq": 30.821,
+     "query_run_ms_mean": 1.861,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "http": {
+     "acquisitions": 243036,
+     "wait_ms_per_acq": 28.071,
+     "query_run_ms_mean": 2.49,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 20795
+    },
+    "background": {
+     "acquisitions": 347,
+     "wait_ms_per_acq": 18.997,
+     "query_run_ms_mean": 3.545,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "drainer_acq_per_job": 5.736,
+    "effect_check_acq_per_job": 1.0,
+    "drainer_share_of_acq": 0.089
+   },
+   "jobs_state": {
+    "status": {
+     "driver:done": 4159
+    },
+    "not_done": 0,
+    "late_over_20s": 0
+   },
+   "side": "R",
+   "validity": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  },
+  "b28rep-s1-C4-750": {
+   "wave": "b28rep-s1-C4-750",
+   "limit": 50,
+   "inputs": {
+    "orders_csv": true,
+    "trace_passes": 105,
+    "trace_orders": 5214
+   },
+   "gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "summary_line": {
+     "G1": "99.57% (4162/4180)",
+     "G2": "0",
+     "G3": "0 + 0",
+     "G4": "CLEAN",
+     "G5": "0",
+     "G6": "0.00% (0)",
+     "G7": "0.00%",
+     "G8": "0",
+     "P1": "206ms",
+     "P2": "181ms",
+     "P3": "126ms",
+     "P4": "42550ms✗",
+     "P5": "42899ms",
+     "P6a": "268ms",
+     "P6b": "233ms",
+     "P6c": "206ms",
+     "P7": "80s",
+     "P8": "0.00%",
+     "P9": "0.00%"
+    },
+    "gates": {
+     "G1": {
+      "value": "99.57% (4162/4180)",
+      "pass": true
+     },
+     "G2": {
+      "value": "0",
+      "pass": true
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true
+     },
+     "G5": {
+      "value": "0",
+      "pass": true
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true
+     },
+     "G8": {
+      "value": "0",
+      "pass": true
+     },
+     "I1-identities": {
+      "value": "riders 4180/4180 · drivers 4180/4180",
+      "pass": true
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true
+     }
+    }
+   },
+   "P4": {
+    "n": 4162,
+    "p50": 36323.0,
+    "p95": 42550,
+    "p99": 44857,
+    "max": 48495,
+    "mean": 31884.2
+   },
+   "queue_before_first_exec_ms": {
+    "n": 3910,
+    "p50": 34440.5,
+    "p95": 38663.0,
+    "p99": 39833.0,
+    "max": 42447.0,
+    "mean": 29849.1
+   },
+   "first_exec_ms": {
+    "n": 3910,
+    "p50": 10.0,
+    "p95": 20,
+    "p99": 27,
+    "max": 59,
+    "mean": 10.8
+   },
+   "target_in_round1_share": 0.7352,
+   "window": {
+    "inject_sec": 178.7,
+    "orders": 4180,
+    "never_reached_pass": 252
+   },
+   "passes": {
+    "in_window": 90,
+    "in_drain": 15,
+    "per_s": 0.504,
+    "saturated_share": 0.989,
+    "passMs": {
+     "n": 90,
+     "p50": 567.5,
+     "p95": 729.2,
+     "p99": 759.8,
+     "max": 815,
+     "mean": 540.0
+    },
+    "cycle_ms": {
+     "n": 89,
+     "p50": 2000.0,
+     "p95": 2003.0,
+     "p99": 2005.1,
+     "max": 2006,
+     "mean": 2000.6
+    },
+    "gap_ms": {
+     "n": 89,
+     "p50": 1436.0,
+     "p95": 1705.2,
+     "p99": 1775.1,
+     "max": 1805,
+     "mean": 1461.3
+    },
+    "followup_delay_ms": {
+     "n": 90,
+     "p50": 1927.0,
+     "p95": 1998.7,
+     "p99": 2002.2,
+     "max": 2004,
+     "mean": 1851.0
+    },
+    "finderMs": {
+     "n": 90,
+     "p50": 5.2,
+     "p95": 12.9,
+     "p99": 18.7,
+     "max": 24.0,
+     "mean": 6.1
+    },
+    "picked": {
+     "n": 90,
+     "p50": 50.0,
+     "p95": 50.0,
+     "p99": 50.0,
+     "max": 50,
+     "mean": 49.8
+    },
+    "longer_than_2s": 0,
+    "counts_window": {
+     "picked": 4478,
+     "rebroadcast": 4418,
+     "stillNoDriver": 12,
+     "exhausted": 0,
+     "raced": 48,
+     "failed": 0
+    },
+    "counts_drain": {
+     "picked": 736,
+     "rebroadcast": 694,
+     "stillNoDriver": 0,
+     "exhausted": 23,
+     "raced": 19,
+     "failed": 0
+    }
+   },
+   "rates": {
+    "arrival_per_s": 23.39,
+    "first_exec_per_s": 18.68,
+    "exec_per_s": 25.06,
+    "repeat_share": 0.255,
+    "per_order_exec_ms": {
+     "n": 4478,
+     "p50": 10.0,
+     "p95": 19.0,
+     "p99": 24.0,
+     "max": 40,
+     "mean": 10.7
+    }
+   },
+   "queue": {
+    "max": 708,
+    "at_inject_end": 590,
+    "slope_second_half_per_s": -0.342,
+    "drain_to_zero_s": 31.3,
+    "every_5s": [
+     {
+      "t": 0,
+      "queue": 3
+     },
+     {
+      "t": 5,
+      "queue": 209
+     },
+     {
+      "t": 10,
+      "queue": 346
+     },
+     {
+      "t": 15,
+      "queue": 373
+     },
+     {
+      "t": 20,
+      "queue": 532
+     },
+     {
+      "t": 25,
+      "queue": 605
+     },
+     {
+      "t": 30,
+      "queue": 628
+     },
+     {
+      "t": 35,
+      "queue": 605
+     },
+     {
+      "t": 40,
+      "queue": 683
+     },
+     {
+      "t": 45,
+      "queue": 642
+     },
+     {
+      "t": 50,
+      "queue": 665
+     },
+     {
+      "t": 55,
+      "queue": 644
+     },
+     {
+      "t": 60,
+      "queue": 693
+     },
+     {
+      "t": 65,
+      "queue": 687
+     },
+     {
+      "t": 70,
+      "queue": 708
+     },
+     {
+      "t": 75,
+      "queue": 670
+     },
+     {
+      "t": 80,
+      "queue": 694
+     },
+     {
+      "t": 85,
+      "queue": 659
+     },
+     {
+      "t": 90,
+      "queue": 677
+     },
+     {
+      "t": 95,
+      "queue": 642
+     },
+     {
+      "t": 100,
+      "queue": 653
+     },
+     {
+      "t": 105,
+      "queue": 642
+     },
+     {
+      "t": 110,
+      "queue": 639
+     },
+     {
+      "t": 115,
+      "queue": 630
+     },
+     {
+      "t": 120,
+      "queue": 648
+     },
+     {
+      "t": 125,
+      "queue": 645
+     },
+     {
+      "t": 130,
+      "queue": 654
+     },
+     {
+      "t": 135,
+      "queue": 650
+     },
+     {
+      "t": 140,
+      "queue": 652
+     },
+     {
+      "t": 145,
+      "queue": 646
+     },
+     {
+      "t": 150,
+      "queue": 652
+     },
+     {
+      "t": 155,
+      "queue": 623
+     },
+     {
+      "t": 160,
+      "queue": 638
+     },
+     {
+      "t": 165,
+      "queue": 645
+     },
+     {
+      "t": 170,
+      "queue": 639
+     },
+     {
+      "t": 175,
+      "queue": 590
+     },
+     {
+      "t": 180,
+      "queue": 590
+     },
+     {
+      "t": 185,
+      "queue": 474
+     },
+     {
+      "t": 190,
+      "queue": 392
+     },
+     {
+      "t": 195,
+      "queue": 261
+     },
+     {
+      "t": 200,
+      "queue": 175
+     },
+     {
+      "t": 205,
+      "queue": 37
+     },
+     {
+      "t": 210,
+      "queue": 0
+     },
+     {
+      "t": 215,
+      "queue": 0
+     },
+     {
+      "t": 220,
+      "queue": 0
+     },
+     {
+      "t": 225,
+      "queue": 0
+     },
+     {
+      "t": 230,
+      "queue": 0
+     },
+     {
+      "t": 235,
+      "queue": 0
+     },
+     {
+      "t": 240,
+      "queue": 0
+     },
+     {
+      "t": 245,
+      "queue": 0
+     },
+     {
+      "t": 250,
+      "queue": 0
+     },
+     {
+      "t": 255,
+      "queue": 0
+     },
+     {
+      "t": 260,
+      "queue": 0
+     },
+     {
+      "t": 265,
+      "queue": 0
+     },
+     {
+      "t": 270,
+      "queue": 0
+     },
+     {
+      "t": 275,
+      "queue": 0
+     },
+     {
+      "t": 280,
+      "queue": 0
+     },
+     {
+      "t": 285,
+      "queue": 0
+     },
+     {
+      "t": 290,
+      "queue": 0
+     },
+     {
+      "t": 295,
+      "queue": 0
+     },
+     {
+      "t": 300,
+      "queue": 0
+     },
+     {
+      "t": 305,
+      "queue": 0
+     },
+     {
+      "t": 310,
+      "queue": 0
+     },
+     {
+      "t": 315,
+      "queue": 0
+     },
+     {
+      "t": 320,
+      "queue": 0
+     },
+     {
+      "t": 325,
+      "queue": 0
+     },
+     {
+      "t": 330,
+      "queue": 0
+     },
+     {
+      "t": 335,
+      "queue": 0
+     },
+     {
+      "t": 340,
+      "queue": 0
+     },
+     {
+      "t": 345,
+      "queue": 0
+     },
+     {
+      "t": 350,
+      "queue": 0
+     },
+     {
+      "t": 355,
+      "queue": 0
+     }
+    ]
+   },
+   "cpu_pct_window": {
+    "gateway": {
+     "n": 35,
+     "p50": 73.9,
+     "p95": 100.1,
+     "p99": 111.0,
+     "max": 113.1,
+     "mean": 77.7
+    },
+    "postgres": {
+     "n": 35,
+     "p50": 174.5,
+     "p95": 224.9,
+     "p99": 229.3,
+     "max": 230.4,
+     "mean": 178.7
+    },
+    "generator": {
+     "n": 35,
+     "p50": 15.7,
+     "p95": 23.6,
+     "p99": 30.0,
+     "max": 32.6,
+     "mean": 17.0
+    }
+   },
+   "psi_some_pct_window": {
+    "n": 177,
+    "p50": 39.4,
+    "p95": 48.7,
+    "p99": 50.9,
+    "max": 52.5,
+    "mean": 36.6
+   },
+   "pg_runq_wait_pct_window": {
+    "n": 177,
+    "p50": 135.2,
+    "p95": 198.5,
+    "p99": 208.0,
+    "max": 231.8,
+    "mean": 133.6
+   },
+   "pool_acquire_select1_ms": {
+    "n": 179,
+    "p50": 5.0,
+    "p95": 152.7,
+    "p99": 245.0,
+    "max": 260.9,
+    "mean": 31.1
+   },
+   "conn_states_window": {
+    "ceezr:gatewayDispatch|active": 38,
+    "ceezr:gatewayDispatch|idle": 52,
+    "ceezr:gatewayRequest|active": 114,
+    "ceezr:gatewayRequest|idle": 320,
+    "ceezr:gatewayRequest|idle in transaction": 16,
+    "ceezr:workerJobs|active": 134,
+    "ceezr:workerJobs|idle": 304,
+    "ceezr:workerJobs|idle in transaction": 12,
+    "ceezr:workerLocks|idle": 360,
+    "driver-onboarding|active": 3,
+    "driver-onboarding|idle": 357,
+    "genA|active": 7,
+    "genA|idle": 713
+   },
+   "pg_exec": {
+    "total_exec_ms": 343116.1,
+    "top": [
+     {
+      "calls": 69611,
+      "total_ms": 66248.3,
+      "mean_ms": 0.952,
+      "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+     },
+     {
+      "calls": 5691,
+      "total_ms": 58350.3,
+      "mean_ms": 10.253,
+      "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+     },
+     {
+      "calls": 34897,
+      "total_ms": 54716.4,
+      "mean_ms": 1.568,
+      "query": "select claim_notification_delivery() result"
+     },
+     {
+      "calls": 4180,
+      "total_ms": 28736.9,
+      "mean_ms": 6.875,
+      "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+     },
+     {
+      "calls": 11598,
+      "total_ms": 28563.4,
+      "mean_ms": 2.463,
+      "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+     },
+     {
+      "calls": 5679,
+      "total_ms": 16901.1,
+      "mean_ms": 2.976,
+      "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+     },
+     {
+      "calls": 4180,
+      "total_ms": 14561.9,
+      "mean_ms": 3.484,
+      "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+     },
+     {
+      "calls": 30064,
+      "total_ms": 12175.0,
+      "mean_ms": 0.405,
+      "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+     }
+    ]
+   },
+   "all_gates": {
+    "verdict": "FAIL",
+    "failed": [
+     "P4"
+    ],
+    "rows": {
+     "G1": {
+      "value": "99.57% (4162/4180)",
+      "pass": true,
+      "rule": "دورات مكتملة مثبتة من القاعدة"
+     },
+     "G2": {
+      "value": "0",
+      "pass": true,
+      "rule": "إسناد مزدوج"
+     },
+     "G3": {
+      "value": "0 + 0",
+      "pass": true,
+      "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+     },
+     "G4": {
+      "value": "CLEAN",
+      "pass": true,
+      "rule": "تدقيق ما بعد الموجة"
+     },
+     "G5": {
+      "value": "0",
+      "pass": true,
+      "rule": "سائقون بقوا متاحين بعد الجولة"
+     },
+     "G6": {
+      "value": "0.00% (0)",
+      "pass": true,
+      "rule": "إسناد لسائق سيناريو آخر"
+     },
+     "G7": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "5xx من الطلبات"
+     },
+     "G8": {
+      "value": "0",
+      "pass": true,
+      "rule": "تعثر قراءة لوح العروض"
+     },
+     "I1-identities": {
+      "value": "riders 4180/4180 · drivers 4180/4180",
+      "pass": true,
+      "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+     },
+     "GW-STABILITY": {
+      "value": "stable",
+      "pass": true,
+      "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+     },
+     "EGRESS-CLASSIFIED": {
+      "value": "unknown +0",
+      "pass": true,
+      "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+     },
+     "CONC-peak": {
+      "value": "peak 750 / target 750",
+      "pass": true,
+      "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+     },
+     "P1": {
+      "value": "206ms",
+      "pass": true,
+      "rule": "p95 إنشاء الرحلة"
+     },
+     "P2": {
+      "value": "181ms",
+      "pass": true,
+      "rule": "p95 قبول العرض"
+     },
+     "P3": {
+      "value": "126ms",
+      "pass": true,
+      "rule": "p95 قراءة لوح العروض"
+     },
+     "P4": {
+      "value": "42550ms",
+      "pass": false,
+      "rule": "p95 ظهور العرض على اللوح"
+     },
+     "P5": {
+      "value": "42899ms",
+      "pass": true,
+      "rule": "p95 دورة السيناريو كاملة"
+     },
+     "P6a": {
+      "value": "268ms",
+      "pass": true,
+      "rule": "p99 إنشاء الرحلة"
+     },
+     "P6b": {
+      "value": "233ms",
+      "pass": true,
+      "rule": "p99 قبول العرض"
+     },
+     "P6c": {
+      "value": "206ms",
+      "pass": true,
+      "rule": "p99 قراءة اللوح"
+     },
+     "P7": {
+      "value": "80s",
+      "pass": true,
+      "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+     },
+     "P8": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "429 واجهات Mini App"
+     },
+     "P9": {
+      "value": "0.00%",
+      "pass": true,
+      "rule": "أخطاء شبكة"
+     }
+    },
+    "total": 4180,
+    "verified": 4162
+   },
+   "completions": {
+    "inject_s": 180.0,
+    "verified_in_inject": 3427,
+    "verified_per_s": 19.03,
+    "verified_total": 4162,
+    "scenarios_total": 4180,
+    "not_verified_reasons": {
+     "offer:offer_not_found_in_time": 18
+    }
+   },
+   "session_exchange": {
+    "limit_check": {
+     "gateway_comm": "bun",
+     "sha": "3aace81e42dbc24db7b4e04fc20f512ec8ba1eca",
+     "env_in_live_gateway": "24000",
+     "effective_limit": 24000,
+     "window_seconds": 60,
+     "expected": 24000,
+     "run_env_value_unchanged": "6000",
+     "default_without_var": 30,
+     "ok": true
+    },
+    "offered": 12540,
+    "rejected_429_by_step": {},
+    "rejected_429": 0,
+    "accepted": 12540,
+    "offered_per_s_inject": 68.9,
+    "first_429_s": null,
+    "max_sliding60_offered_bins": 5700,
+    "redis_window": {
+     "samples": 262,
+     "errors": 0,
+     "max": 5817,
+     "max_utilisation": 0.2424,
+     "p50": 3315.5
+    }
+   },
+   "errors": {
+    "generator_counters_present": true,
+    "requests_counted": 163282,
+    "api429_total": 0,
+    "webhookInbound429": 0,
+    "http5xx": 0,
+    "networkErrors": 0,
+    "api429_by_source": {
+     "session_exchange_limit(rider/driver_session)": 0,
+     "accept": 0,
+     "unattributed_other_routes": 0
+    },
+    "outside_P8_counter": {
+     "session_exchange_limit(driver_onboarding)": 0
+    },
+    "telegram_outbound_mock_429": 0,
+    "gateway_5xx_by_route": {}
+   },
+   "onboarding": {
+    "scenario_driver_onboarding_failed": 0,
+    "onboarding_failed_events": 0,
+    "by_steps": {}
+   },
+   "phone_proof": {
+    "n": 4180,
+    "not_done": 0,
+    "status": {
+     "done": 4180
+    },
+    "p50_ms": 77,
+    "p95_ms": 8549,
+    "max_ms": 12259,
+    "over_20s": 0
+   },
+   "drainer": {
+    "jobs": 4180,
+    "mean_in_service": 3.36,
+    "jobs_per_s": 23.37,
+    "claim_trips": 2999,
+    "jobs_per_trip": 1.39
+   },
+   "pool": {
+    "jobs": 4180,
+    "drainer_by_sig": {
+     "select finish_telegram_update_replies(": 4185,
+     "select get_user_language(": 4180,
+     "select d.id as driver_id, d.city_id, u.telegram_id, u.full_n": 4180,
+     "select record_telegram_update_effect(": 4180,
+     "select claim_telegram_update_jobs_for_bot(": 2999
+    },
+    "drainer": {
+     "acquisitions": 19724,
+     "wait_ms_per_acq": 36.608,
+     "query_run_ms_mean": 2.055,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "http": {
+     "acquisitions": 242729,
+     "wait_ms_per_acq": 33.913,
+     "query_run_ms_mean": 2.527,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 20900
+    },
+    "background": {
+     "acquisitions": 347,
+     "wait_ms_per_acq": 22.17,
+     "query_run_ms_mean": 2.741,
+     "tx_hold_ms_mean": null,
+     "tx": 0,
+     "tx_queries": 0
+    },
+    "drainer_acq_per_job": 4.719,
+    "effect_check_acq_per_job": 0.0,
+    "drainer_share_of_acq": 0.075
+   },
+   "jobs_state": {
+    "status": {
+     "driver:done": 4180
+    },
+    "not_done": 0,
+    "late_over_20s": 0
+   },
+   "side": "C",
+   "validity": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  }
+ },
+ "result": {
+  "series": "main",
+  "limit": 50,
+  "session_limit": 24000,
+  "runs": [
+   "b28rep-s1-R1-750",
+   "b28rep-s1-C1-750",
+   "b28rep-s1-C2-750",
+   "b28rep-s1-R2-750",
+   "b28rep-s1-C3-750",
+   "b28rep-s1-R3-750",
+   "b28rep-s1-R4-750",
+   "b28rep-s1-C4-750"
+  ],
+  "validity": {
+   "b28rep-s1-R1-750": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   },
+   "b28rep-s1-C1-750": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   },
+   "b28rep-s1-C2-750": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   },
+   "b28rep-s1-R2-750": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   },
+   "b28rep-s1-C3-750": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   },
+   "b28rep-s1-R3-750": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   },
+   "b28rep-s1-R4-750": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   },
+   "b28rep-s1-C4-750": {
+    "preflight": "VALID",
+    "inflight": "VALID"
+   }
+  },
+  "condition": {
+   "b28rep-s1-R1-750": true,
+   "b28rep-s1-C1-750": true,
+   "b28rep-s1-C2-750": true,
+   "b28rep-s1-R2-750": true,
+   "b28rep-s1-C3-750": true,
+   "b28rep-s1-R3-750": true,
+   "b28rep-s1-R4-750": true,
+   "b28rep-s1-C4-750": true
+  },
+  "collect": {
+   "b28rep-s1-R1-750": {
+    "complete": true,
+    "missing": [],
+    "files": 21,
+    "undeclared_present": [
+     "db-audit-post.out",
+     "db-audit-pre.out",
+     "diag-env.txt",
+     "dispatch-trace.jsonl.load.jsonl",
+     "gateway.pid",
+     "gateway.wave.log",
+     "pgss-top.txt",
+     "telegram-mock.jsonl",
+     "wave-report.err"
+    ]
+   },
+   "b28rep-s1-C1-750": {
+    "complete": true,
+    "missing": [],
+    "files": 21,
+    "undeclared_present": [
+     "db-audit-post.out",
+     "db-audit-pre.out",
+     "diag-env.txt",
+     "dispatch-trace.jsonl.load.jsonl",
+     "gateway.pid",
+     "gateway.wave.log",
+     "pgss-top.txt",
+     "telegram-mock.jsonl",
+     "wave-report.err"
+    ]
+   },
+   "b28rep-s1-C2-750": {
+    "complete": true,
+    "missing": [],
+    "files": 21,
+    "undeclared_present": [
+     "db-audit-post.out",
+     "db-audit-pre.out",
+     "diag-env.txt",
+     "dispatch-trace.jsonl.load.jsonl",
+     "gateway.pid",
+     "gateway.wave.log",
+     "pgss-top.txt",
+     "telegram-mock.jsonl",
+     "wave-report.err"
+    ]
+   },
+   "b28rep-s1-R2-750": {
+    "complete": true,
+    "missing": [],
+    "files": 21,
+    "undeclared_present": [
+     "db-audit-post.out",
+     "db-audit-pre.out",
+     "diag-env.txt",
+     "dispatch-trace.jsonl.load.jsonl",
+     "gateway.pid",
+     "gateway.wave.log",
+     "pgss-top.txt",
+     "telegram-mock.jsonl",
+     "wave-report.err"
+    ]
+   },
+   "b28rep-s1-C3-750": {
+    "complete": true,
+    "missing": [],
+    "files": 21,
+    "undeclared_present": [
+     "db-audit-post.out",
+     "db-audit-pre.out",
+     "diag-env.txt",
+     "dispatch-trace.jsonl.load.jsonl",
+     "gateway.pid",
+     "gateway.wave.log",
+     "pgss-top.txt",
+     "telegram-mock.jsonl",
+     "wave-report.err"
+    ]
+   },
+   "b28rep-s1-R3-750": {
+    "complete": true,
+    "missing": [],
+    "files": 21,
+    "undeclared_present": [
+     "db-audit-post.out",
+     "db-audit-pre.out",
+     "diag-env.txt",
+     "dispatch-trace.jsonl.load.jsonl",
+     "gateway.pid",
+     "gateway.wave.log",
+     "pgss-top.txt",
+     "telegram-mock.jsonl",
+     "wave-report.err"
+    ]
+   },
+   "b28rep-s1-R4-750": {
+    "complete": true,
+    "missing": [],
+    "files": 21,
+    "undeclared_present": [
+     "db-audit-post.out",
+     "db-audit-pre.out",
+     "diag-env.txt",
+     "dispatch-trace.jsonl.load.jsonl",
+     "gateway.pid",
+     "gateway.wave.log",
+     "pgss-top.txt",
+     "telegram-mock.jsonl",
+     "wave-report.err"
+    ]
+   },
+   "b28rep-s1-C4-750": {
+    "complete": true,
+    "missing": [],
+    "files": 21,
+    "undeclared_present": [
+     "db-audit-post.out",
+     "db-audit-pre.out",
+     "diag-env.txt",
+     "dispatch-trace.jsonl.load.jsonl",
+     "gateway.pid",
+     "gateway.wave.log",
+     "pgss-top.txt",
+     "telegram-mock.jsonl",
+     "wave-report.err"
+    ]
+   }
+  },
+  "aggregate": {
+   "drainer_acq_per_job": {
+    "R": {
+     "median": 5.724500000000001,
+     "min": 5.722,
+     "max": 5.736,
+     "values": [
+      5.722,
+      5.722,
+      5.727,
+      5.736
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 4.726,
+     "min": 4.692,
+     "max": 4.739,
+     "values": [
+      4.733,
+      4.692,
+      4.739,
+      4.719
+     ],
+     "missing": 0
+    }
+   },
+   "effect_check_acq_per_job": {
+    "R": {
+     "median": 1.0,
+     "min": 1.0,
+     "max": 1.0,
+     "values": [
+      1.0,
+      1.0,
+      1.0,
+      1.0
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 0.0,
+     "min": 0.0,
+     "max": 0.0,
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ],
+     "missing": 0
+    }
+   },
+   "http_wait_ms_per_acq": {
+    "R": {
+     "median": 24.9695,
+     "min": 24.115,
+     "max": 28.071,
+     "values": [
+      24.115,
+      25.01,
+      24.929,
+      28.071
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 29.404999999999998,
+     "min": 24.187,
+     "max": 37.353,
+     "values": [
+      24.187,
+      37.353,
+      24.897,
+      33.913
+     ],
+     "missing": 0
+    }
+   },
+   "drainer_wait_ms_per_acq": {
+    "R": {
+     "median": 24.1855,
+     "min": 22.983,
+     "max": 30.821,
+     "values": [
+      22.983,
+      23.85,
+      24.521,
+      30.821
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 31.2825,
+     "min": 25.009,
+     "max": 40.11,
+     "values": [
+      25.009,
+      40.11,
+      25.957,
+      36.608
+     ],
+     "missing": 0
+    }
+   },
+   "http_query_run_ms": {
+    "R": {
+     "median": 2.4829999999999997,
+     "min": 2.471,
+     "max": 2.49,
+     "values": [
+      2.471,
+      2.481,
+      2.485,
+      2.49
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 2.54,
+     "min": 2.491,
+     "max": 2.699,
+     "values": [
+      2.553,
+      2.699,
+      2.491,
+      2.527
+     ],
+     "missing": 0
+    }
+   },
+   "drainer_query_run_ms": {
+    "R": {
+     "median": 1.8405,
+     "min": 1.811,
+     "max": 1.869,
+     "values": [
+      1.811,
+      1.82,
+      1.869,
+      1.861
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 2.064,
+     "min": 2.055,
+     "max": 2.335,
+     "values": [
+      2.057,
+      2.335,
+      2.071,
+      2.055
+     ],
+     "missing": 0
+    }
+   },
+   "http_tx_hold_ms": {
+    "R": {
+     "median": null,
+     "min": null,
+     "max": null,
+     "values": [
+      null,
+      null,
+      null,
+      null
+     ],
+     "missing": 4
+    },
+    "C": {
+     "median": null,
+     "min": null,
+     "max": null,
+     "values": [
+      null,
+      null,
+      null,
+      null
+     ],
+     "missing": 4
+    }
+   },
+   "drainer_share_of_acq": {
+    "R": {
+     "median": 0.0885,
+     "min": 0.088,
+     "max": 0.089,
+     "values": [
+      0.088,
+      0.089,
+      0.088,
+      0.089
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 0.075,
+     "min": 0.074,
+     "max": 0.075,
+     "values": [
+      0.075,
+      0.075,
+      0.074,
+      0.075
+     ],
+     "missing": 0
+    }
+   },
+   "verified_per_s": {
+    "R": {
+     "median": 18.705,
+     "min": 18.67,
+     "max": 18.92,
+     "values": [
+      18.69,
+      18.72,
+      18.67,
+      18.92
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 18.94,
+     "min": 18.54,
+     "max": 19.18,
+     "values": [
+      18.85,
+      19.18,
+      18.54,
+      19.03
+     ],
+     "missing": 0
+    }
+   },
+   "driver_onboarding_failed": {
+    "R": {
+     "median": 0.0,
+     "min": 0,
+     "max": 0,
+     "values": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 0.0,
+     "min": 0,
+     "max": 0,
+     "values": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "missing": 0
+    }
+   },
+   "jobs_not_done": {
+    "R": {
+     "median": 0.0,
+     "min": 0,
+     "max": 0,
+     "values": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 0.0,
+     "min": 0,
+     "max": 0,
+     "values": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "missing": 0
+    }
+   },
+   "jobs_late_over_20s": {
+    "R": {
+     "median": 0.0,
+     "min": 0,
+     "max": 0,
+     "values": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 0.0,
+     "min": 0,
+     "max": 0,
+     "values": [
+      0,
+      0,
+      0,
+      0
+     ],
+     "missing": 0
+    }
+   },
+   "phone_proof_p95_ms": {
+    "R": {
+     "median": 5852.0,
+     "min": 5753,
+     "max": 8786,
+     "values": [
+      5856,
+      5848,
+      5753,
+      8786
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 6946.5,
+     "min": 5632,
+     "max": 8549,
+     "values": [
+      5632,
+      8157,
+      5736,
+      8549
+     ],
+     "missing": 0
+    }
+   },
+   "drainer_mean_in_service": {
+    "R": {
+     "median": 2.73,
+     "min": 2.6,
+     "max": 3.6,
+     "values": [
+      2.6,
+      2.7,
+      2.76,
+      3.6
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 2.84,
+     "min": 2.26,
+     "max": 3.61,
+     "values": [
+      2.26,
+      3.61,
+      2.32,
+      3.36
+     ],
+     "missing": 0
+    }
+   },
+   "P4_p95_ms": {
+    "R": {
+     "median": 42553.5,
+     "min": 42491,
+     "max": 42595,
+     "values": [
+      42591,
+      42491,
+      42516,
+      42595
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 42503.5,
+     "min": 42417,
+     "max": 42621,
+     "values": [
+      42457,
+      42417,
+      42621,
+      42550
+     ],
+     "missing": 0
+    }
+   },
+   "G1_pct": {
+    "R": {
+     "median": 99.47,
+     "min": 99.3,
+     "max": 99.51,
+     "values": [
+      99.51,
+      99.47,
+      99.3,
+      99.47
+     ],
+     "missing": 0
+    },
+    "C": {
+     "median": 99.52,
+     "min": 99.34,
+     "max": 99.71,
+     "values": [
+      99.47,
+      99.71,
+      99.34,
+      99.57
+     ],
+     "missing": 0
+    }
+   }
+  },
+  "gate_fail_counts": {
+   "G1": {
+    "R": 0,
+    "C": 0
+   },
+   "G2": {
+    "R": 0,
+    "C": 0
+   },
+   "G3": {
+    "R": 0,
+    "C": 0
+   },
+   "G4": {
+    "R": 0,
+    "C": 0
+   },
+   "G5": {
+    "R": 0,
+    "C": 0
+   },
+   "G6": {
+    "R": 0,
+    "C": 0
+   },
+   "G7": {
+    "R": 0,
+    "C": 0
+   },
+   "G8": {
+    "R": 0,
+    "C": 0
+   },
+   "P1": {
+    "R": 0,
+    "C": 0
+   },
+   "P2": {
+    "R": 0,
+    "C": 0
+   },
+   "P3": {
+    "R": 0,
+    "C": 0
+   },
+   "P4": {
+    "R": 4,
+    "C": 4
+   },
+   "P5": {
+    "R": 0,
+    "C": 0
+   },
+   "P6a": {
+    "R": 0,
+    "C": 0
+   },
+   "P6b": {
+    "R": 0,
+    "C": 0
+   },
+   "P6c": {
+    "R": 0,
+    "C": 0
+   },
+   "P7": {
+    "R": 0,
+    "C": 0
+   },
+   "P8": {
+    "R": 0,
+    "C": 0
+   },
+   "P9": {
+    "R": 0,
+    "C": 0
+   }
+  },
+  "criteria": {
+   "M1_drainer_acq_per_job_median_drop_ge_0.8": true,
+   "M1b_separated_max_C_lt_min_R": true,
+   "M2_effect_check_per_job_each_C_le_0.05": true,
+   "N1_hard_gates_each_C": true,
+   "N2_perf_fail_count_C_le_R": true,
+   "N3_verified_median_C_ge_097R": true,
+   "N4_onboarding_failures_C_le_max_R": true,
+   "N5_jobs_not_done_each_C_le_max_R": true,
+   "H1_http_wait_median_C_le_105R": false
+  },
+  "decision": "REGRESSION",
+  "info_all_C_gates_pass": false
+ }
+}

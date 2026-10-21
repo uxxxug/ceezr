@@ -1,0 +1,26 @@
+{
+  "purpose": "LOAD-01 الدفعة 28 — بيانُ أدلّةِ موجةِ المقعد: كلُّ ملفٍّ يُعلنُه منتجو الدليل (wave-full.sh وb24-trace.sh وpost-diag.sh والمراقب)، وطريقةُ حفظِه كما في أرشيفِ الدفعة 27 حرفًا. required=true وغائبٌ ⇒ COLLECT_MISSING ورمزُ خروجٍ 3. ما ليس هنا لا يُرفَع (حمايةُ تدقيقِ الأسرار) بل يُسمّى في MANIFEST.json تحت undeclared_present.",
+  "files": [
+    { "name": "b24-env.json", "mode": "copy", "required": true },
+    { "name": "db-audit-post.json", "mode": "copy", "required": true },
+    { "name": "db-audit-pre.json", "mode": "copy", "required": true },
+    { "name": "resources.jsonl", "mode": "copy", "required": true },
+    { "name": "timeline.jsonl", "mode": "copy", "required": true },
+    { "name": "wave-report.json", "mode": "copy", "required": true },
+    { "name": "session-limit.json", "mode": "copy", "required": true },
+    { "name": "mock-stats-pre.json", "mode": "copy", "required": true },
+    { "name": "mock-stats-post.json", "mode": "copy", "required": true },
+    { "name": "conn-samples.csv", "mode": "gzip", "required": true },
+    { "name": "load-trace.jsonl", "mode": "gzip", "required": true },
+    { "name": "miniapp-load-events.jsonl", "mode": "gzip", "required": true },
+    { "name": "load-events.jsonl", "mode": "gzip", "required": true },
+    { "name": "rl-window.jsonl", "mode": "gzip", "required": true },
+    { "name": "pgss-full.csv", "mode": "gzip", "required": true },
+    { "name": "telegram-jobs.csv", "mode": "gzip", "required": true },
+    { "name": "update-jobs.csv", "mode": "gzip", "required": true },
+    { "name": "sched-samples.jsonl", "mode": "gzip", "required": true },
+    { "name": "dispatch-trace.jsonl", "mode": "gzip", "required": false },
+    { "name": "orders.csv", "mode": "gzip", "required": false },
+    { "name": "offers.csv", "mode": "gzip", "required": false }
+  ]
+}
