@@ -2,8 +2,11 @@
  * الغرض: LOAD-01 (الدفعةُ 28) — جامعُ أدلّةِ موجةِ المقعد. يحلُّ محلَّ القائمةِ المضمَّنةِ في `collect()`
  *   (`seat-b2x.sh`) التي أسقطت `telegram-jobs.csv` من أرشيفاتِ الدفعاتِ 26–27 مع أنَّ `post-diag.sh`
  *   يكتبُه ويُعلنُه (`wc -l` في post-diag.out). القاعدة: البيانُ (`wave-evidence-manifest.json`) هو
- *   المصدرُ الوحيدُ لما يُرفَع وكيف (`copy` حرفًا أو `gzip`)، ويُكتَبُ `MANIFEST.json` بالأحجامِ وSHA256
- *   لكلِّ ما نُقِل. مُعلَنٌ مطلوبٌ غائبٌ ⇒ سطرُ `COLLECT_MISSING <اسم>` ورمزُ خروجٍ 3 — لا يُبتلَعُ صامتًا.
+ *   المصدرُ الوحيدُ لما يُرفَع وكيف (`copy` حرفًا أو `gzip`)، ويُكتَبُ `MANIFEST.json` بالأسماءِ والأحجام،
+ *   و`SHA256SUMS` (صيغةُ sha256sum) بالبصماتِ الكاملة. البصماتُ لا تُكتَبُ في MANIFEST.json: سلسلةُ 64 hex
+ *   تطابقُ نمطَ السلاسلِ الطويلةِ في تدقيقِ أسرارِ المقعد (seat-bin/b24-secret-audit.py) فيُحجَرُ الدليلُ كلُّه —
+ *   وهذا ما أسقطَ خامَّ التشغيلِ الأوّلِ للدفعة 28 (39559093346)؛ وملفُّ SHA256SUMS ضمنَ استثناءِ «ملفّاتِ البصمات»
+ *   المصمَّمِ في التدقيق (والتطابقُ الحرفيُّ مع الأسرارِ يجري عليه كغيره). مُعلَنٌ مطلوبٌ غائبٌ ⇒ سطرُ `COLLECT_MISSING <اسم>` ورمزُ خروجٍ 3 — لا يُبتلَعُ صامتًا.
  *   ما في مجلّدِ الدليلِ وليس في البيانِ لا يُرفَع (قد يحملُ سرًّا فيُسقِطُ تدقيقَ الأسرارِ الأرشيفَ كلَّه)
  *   بل يُسمّى بحجمِه تحتَ `undeclared_present` ليُرى ويُعلَنَ في البيانِ إن لزم.
  *   الاستعمال: bun deploy/capacity-run/monitor/collect-evidence.ts <مجلّدُ الدليل> <الوجهة> [مسارُ البيان]
@@ -99,12 +102,17 @@ export function collectEvidence(
     .map((x) => ({ name: x.name, bytes: x.st.size }));
   const out = {
     generatedBy: "deploy/capacity-run/monitor/collect-evidence.ts",
+    hashes: "SHA256SUMS",
     missing,
     absentOptional,
     undeclaredPresent,
-    entries,
+    entries: entries.map(({ sha256: _h, ...rest }) => rest),
   };
   writeFileSync(join(destDir, "MANIFEST.json"), `${JSON.stringify(out, null, 2)}\n`);
+  writeFileSync(
+    join(destDir, "SHA256SUMS"),
+    entries.map((e) => `${e.sha256}  ${e.stored}\n`).join(""),
+  );
   return { entries, missing, absentOptional, undeclaredPresent };
 }
 

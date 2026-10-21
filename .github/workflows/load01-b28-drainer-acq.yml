@@ -31,11 +31,14 @@ jobs:
             limit: 50
             r_sha: 45571268e75e191862ea731d89c7361bed3d0050
             c_sha: 3aace81e42dbc24db7b4e04fc20f512ec8ba1eca
+            # rep = النسخةُ التشخيصيّةُ غيرُ الحاكمة (PLAN-b28-replicate.md)؛ التشغيلُ المحكومُ 39559093346 = main.
+            run_tag: rep
     env:
       R_SHA: ${{ matrix.r_sha }}
       C_SHA: ${{ matrix.c_sha }}
       SERIES: ${{ matrix.series }}
       LIMIT: ${{ matrix.limit }}
+      RUN_TAG: ${{ matrix.run_tag }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -58,13 +61,13 @@ jobs:
           echo "MODE=$MODE"
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
-            --setenv=R_SHA="$R_SHA" --setenv=C_SHA="$C_SHA" --setenv=SERIES="$SERIES" --setenv=LIMIT="$LIMIT" \
+            --setenv=R_SHA="$R_SHA" --setenv=C_SHA="$C_SHA" --setenv=SERIES="$SERIES" --setenv=LIMIT="$LIMIT" --setenv=RUN_TAG="$RUN_TAG" \
             bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b28.sh "$MODE"
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرارِ — الفشلُ يحجرُ الخامَّ في المقعدِ)
         uses: actions/upload-artifact@v5
         with:
-          name: b28-seat-evidence-${{ matrix.series }}
+          name: b28-seat-evidence-${{ matrix.run_tag }}
           path: /home/user/b28-out/
           if-no-files-found: warn
           retention-days: 14
@@ -73,7 +76,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v5
         with:
-          name: b28-seat-failure-report-${{ matrix.series }}
+          name: b28-seat-failure-report-${{ matrix.run_tag }}
           path: /home/user/b28-out/secret-audit.txt
           if-no-files-found: ignore
           retention-days: 14

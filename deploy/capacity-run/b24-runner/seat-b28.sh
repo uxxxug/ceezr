@@ -9,6 +9,8 @@ export HOME=/home/user PATH=/home/user/.bun/bin:/home/user/.local/bin:/usr/lib/p
 export CAP_SEAT_CG=ceezrseat.slice CAP_SIBS="system.slice init.scope user.slice"
 B=/srv/ceezr-cap-20261016; W=/home/user/workspace; H=$W/ceezr; OUT=/home/user/b28-out
 R_SHA=${R_SHA:?}; C_SHA=${C_SHA:?}; SERIES=${SERIES:?}; LIMIT=${LIMIT:?}
+# بادئةُ أسماءِ الموجات: b28main للتشغيلِ المحكوم، وb28rep للنسخةِ التشخيصيّة (PLAN-b28-replicate.md).
+RUN_TAG=${RUN_TAG:-$SERIES}
 mkdir -p "$OUT"
 log() { echo "[$(date -u +%T)] $*"; }
 
@@ -24,7 +26,10 @@ grep -H "^  gatewayRequest: " "$W/wt-ref/packages/shared/config/connection-budge
 # الدفعة 28 (M3): لا تغييرَ في سعةِ المجمّعِ ولا في طبقةِ الاتصال بين R وC — وإلّا لا موجة.
 if git -C "$H" diff --quiet "$R_SHA" "$C_SHA" -- packages/shared/config/connection-budget.ts packages/infrastructure/db/client.ts; then
   echo "POOL_UNCHANGED R=$R_SHA C=$C_SHA"; else echo "POOL_CHANGED — لا موجة"; exit 1; fi
-echo "COLLECTOR sha256=$(sha256sum "$H/deploy/capacity-run/monitor/collect-evidence.ts" | cut -d" " -f1) manifest=$(sha256sum "$H/deploy/capacity-run/monitor/wave-evidence-manifest.json" | cut -d" " -f1)" | tee "$OUT/collector.txt"
+# البصماتُ الكاملةُ في ملفِّ *.sha256sums (ضمنَ استثناءِ ملفّاتِ البصماتِ في التدقيق) لا في سطرٍ نصّيٍّ — سطرُ
+# collector.txt في التشغيلِ الأوّل (39559093346) أسقطَ تدقيقَ الأسرارِ فحُجِرَ الخامّ.
+sha256sum "$H/deploy/capacity-run/monitor/collect-evidence.ts" "$H/deploy/capacity-run/monitor/wave-evidence-manifest.json" > "$OUT/collector.sha256sums"
+echo "COLLECTOR $(cut -c1-16 "$OUT/collector.sha256sums" | tr "\n" " ")"
 
 log "setup-env (infra|db|migrate) من wt-acc"
 (cd "$W/wt-acc" && bash deploy/capacity-run/setup-env-20261016.sh all) >"$OUT/setup-env.log" 2>&1 || { tail -20 "$OUT/setup-env.log"; exit 1; }
@@ -93,7 +98,7 @@ python3 "$H/deploy/capacity-run/b24-runner/derive-validity.py" "$B/qual/idle-b24
 cp "$B/bin/validity.json" "$OUT/validity.json"; cp -r "$B/qual/idle-b24" "$OUT/idle-b24"
 echo "VALIDITY_PINNED $(date -Is) sha256=$(sha256sum $B/bin/validity.json | cut -c1-16)"
 
-export SEQ_PREFIX=b28$SERIES
+export SEQ_PREFIX=b28$RUN_TAG
 collect() {
   for r in "$@"; do
     E=$B/runs/$r/evidence; D=$OUT/raw/$r; mkdir -p "$D"; [ -d "$E" ] || { echo "MISSING $r"; continue; }
@@ -110,9 +115,9 @@ AN28="$H/deploy/capacity-run/b24-runner/b28-analyze.py"
 
 log "فحصٌ تمهيديٌّ (ليس موجةَ قياس): C عند 750 لمدّة 120s — إثباتُ الحدِّ الفعليِّ وغيابِ 429 حدِّ الجلسة"
 WAVE_SEC=120 "$B/bin/b24-seq.sh" smoke 750 38 "S1:cand:$C_SHA" > "$OUT/seq-smoke.log" 2>&1 || true
-collect b28$SERIES-smoke-S1-750
+collect b28$RUN_TAG-smoke-S1-750
 SMOKE_RC=0
-python3 "$AN" smoke "$OUT" b28$SERIES-smoke-S1-750 "$B26_SESSION_LIMIT" > "$OUT/b28-smoke.json" 2>"$OUT/b28-smoke.err" || SMOKE_RC=$?
+python3 "$AN" smoke "$OUT" b28$RUN_TAG-smoke-S1-750 "$B26_SESSION_LIMIT" > "$OUT/b28-smoke.json" 2>"$OUT/b28-smoke.err" || SMOKE_RC=$?
  cat "$OUT/b28-smoke.err"
 RUNS=""
 if [ $SMOKE_RC -ne 0 ]; then
@@ -122,7 +127,7 @@ else
     log "السلسلة $TAG: R-C-C-R ثمّ C-R-R-C عند 750"
     "$B/bin/b24-seq.sh" $TAG 750 30 "R1:ref:$R_SHA" "C1:cand:$C_SHA" "C2:cand:$C_SHA" "R2:ref:$R_SHA" \
       "C3:cand:$C_SHA" "R3:ref:$R_SHA" "R4:ref:$R_SHA" "C4:cand:$C_SHA" > "$OUT/seq-$TAG.log" 2>&1 || true
-    RUNS=$(for n in R1 C1 C2 R2 C3 R3 R4 C4; do printf "b28%s-%s-%s-750 " $SERIES $TAG $n; done)
+    RUNS=$(for n in R1 C1 C2 R2 C3 R3 R4 C4; do printf "b28%s-%s-%s-750 " $RUN_TAG $TAG $n; done)
     # shellcheck disable=SC2086
     collect $RUNS
     grep -E "^SEQ|QUAL_DONE|WAVE_DONE|INVALID|MISMATCH" "$OUT/seq-$TAG.log" || true
