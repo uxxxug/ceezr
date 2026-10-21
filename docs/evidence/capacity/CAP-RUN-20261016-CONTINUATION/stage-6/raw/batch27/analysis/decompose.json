@@ -1,0 +1,362 @@
+{
+ "R1": {
+  "n": 4186,
+  "queue_wait_p50": 515.285400390625,
+  "queue_wait_p95": 6079.298828125,
+  "lane_wait_p50": 0.00732421875,
+  "svc_p50": 341.527587890625,
+  "svc_p95": 1539.63134765625,
+  "svc_mean": 515.8580981900233,
+  "effectCheck_mean": 129.3776479756331,
+  "prepare_mean": 264.47274223387495,
+  "record_mean": 121.99877030864792,
+  "effectCheck_p95": 432.75339600000007,
+  "prepare_p95": 834.2476539999989,
+  "total_p50": 609.44921875,
+  "total_p95": 6641.023681640625,
+  "max_concurrency": 32,
+  "mean_concurrency": 12.062888825840302,
+  "implied_capacity_per_s": 62.032563048399346,
+  "claim_trip_mean_ms": 68.04809727272725,
+  "loop_lag_p95_max": 4.790066999998089,
+  "main_cpu_p50": 55.4,
+  "proc_cpu_p50": 71.4,
+  "pools": {
+   "ceezr:gatewayRequest/query": {
+    "n": 247130,
+    "wait_mean": 121.12079067697164,
+    "run_mean": 3.383008942661757
+   },
+   "ceezr:gatewayRequest/txQuery": {
+    "n": 20930,
+    "wait_mean": 0.0001433349259436216,
+    "run_mean": 1.6438127090301002
+   },
+   "ceezr:gatewayRequest/tx": {
+    "n": 4186,
+    "wait_mean": 145.83946488294313,
+    "run_mean": 11.741758241758241
+   },
+   "ceezr:gatewayDispatch/query": {
+    "n": 15751,
+    "wait_mean": 0.0,
+    "run_mean": 4.928004571138341
+   }
+  }
+ },
+ "C1": {
+  "n": 6164,
+  "queue_wait_p50": 16278.6728515625,
+  "queue_wait_p95": 20599.958740234375,
+  "lane_wait_p50": 0.006591796875,
+  "svc_p50": 722.11376953125,
+  "svc_p95": 1183.085205078125,
+  "svc_mean": 699.9628524037632,
+  "effectCheck_mean": 174.63596425356903,
+  "prepare_mean": 352.6628209810188,
+  "record_mean": 172.6549244759897,
+  "effectCheck_p95": 309.1821990000026,
+  "prepare_p95": 617.9290729999993,
+  "total_p50": 16983.872314453125,
+  "total_p95": 21364.046630859375,
+  "max_concurrency": 32,
+  "mean_concurrency": 21.896976688659894,
+  "implied_capacity_per_s": 45.7167118085022,
+  "claim_trip_mean_ms": 181.5115036434781,
+  "loop_lag_p95_max": 7.586317000008421,
+  "main_cpu_p50": 61.2,
+  "proc_cpu_p50": 79.7,
+  "pools": {
+   "ceezr:gatewayRequest/query": {
+    "n": 245621,
+    "wait_mean": 196.97410237723972,
+    "run_mean": 3.7742945432190242
+   },
+   "ceezr:gatewayRequest/txQuery": {
+    "n": 29020,
+    "wait_mean": 0.00031013094417643006,
+    "run_mean": 1.9901102687801515
+   },
+   "ceezr:gatewayRequest/tx": {
+    "n": 5804,
+    "wait_mean": 189.54427980702962,
+    "run_mean": 14.24052377670572
+   },
+   "ceezr:gatewayDispatch/query": {
+    "n": 21053,
+    "wait_mean": 0.0001899966750581865,
+    "run_mean": 8.961715669975776
+   }
+  }
+ },
+ "R2": {
+  "n": 4097,
+  "queue_wait_p50": 861.828369140625,
+  "queue_wait_p95": 7769.394287109375,
+  "lane_wait_p50": 0.0078125,
+  "svc_p50": 506.5078125,
+  "svc_p95": 1579.66650390625,
+  "svc_mean": 573.4171945554674,
+  "effectCheck_mean": 148.7405902157675,
+  "prepare_mean": 286.88796273395167,
+  "record_mean": 137.77848793702708,
+  "effectCheck_p95": 480.2723879999976,
+  "prepare_p95": 786.5280390000044,
+  "total_p50": 1291.755615234375,
+  "total_p95": 8934.973388671875,
+  "max_concurrency": 32,
+  "mean_concurrency": 13.101198082153198,
+  "implied_capacity_per_s": 55.805790799153655,
+  "claim_trip_mean_ms": 82.65048917482068,
+  "loop_lag_p95_max": 4.808903999990434,
+  "main_cpu_p50": 65.2,
+  "proc_cpu_p50": 80,
+  "pools": {
+   "ceezr:gatewayRequest/query": {
+    "n": 240868,
+    "wait_mean": 133.96129830446552,
+    "run_mean": 3.6344055665343675
+   },
+   "ceezr:gatewayRequest/txQuery": {
+    "n": 20485,
+    "wait_mean": 0.0001464486209421528,
+    "run_mean": 1.8159628996826946
+   },
+   "ceezr:gatewayRequest/tx": {
+    "n": 4097,
+    "wait_mean": 158.3187698315841,
+    "run_mean": 12.913107151574323
+   },
+   "ceezr:gatewayDispatch/query": {
+    "n": 15688,
+    "wait_mean": 0.0,
+    "run_mean": 5.590578786333503
+   }
+  }
+ },
+ "C2": {
+  "n": 5826,
+  "queue_wait_p50": 15697.592041015625,
+  "queue_wait_p95": 20432.273681640625,
+  "lane_wait_p50": 0.006591796875,
+  "svc_p50": 762.119140625,
+  "svc_p95": 1526.951416015625,
+  "svc_mean": 742.5789189389429,
+  "effectCheck_mean": 189.43858029042227,
+  "prepare_mean": 368.14537053450044,
+  "record_mean": 184.9858492221079,
+  "effectCheck_p95": 368.58219100000133,
+  "prepare_p95": 730.4748229999968,
+  "total_p50": 16432.057373046875,
+  "total_p95": 21255.6279296875,
+  "max_concurrency": 32,
+  "mean_concurrency": 22.003489839967685,
+  "implied_capacity_per_s": 43.09306281644004,
+  "claim_trip_mean_ms": 193.5057954684595,
+  "loop_lag_p95_max": 7.812320999975782,
+  "main_cpu_p50": 61.8,
+  "proc_cpu_p50": 78.7,
+  "pools": {
+   "ceezr:gatewayRequest/query": {
+    "n": 233116,
+    "wait_mean": 215.8591173493025,
+    "run_mean": 4.012954923728959
+   },
+   "ceezr:gatewayRequest/txQuery": {
+    "n": 27530,
+    "wait_mean": 3.6324010170722845e-05,
+    "run_mean": 1.9538321830730112
+   },
+   "ceezr:gatewayRequest/tx": {
+    "n": 5506,
+    "wait_mean": 209.97203051216854,
+    "run_mean": 13.975481293134763
+   },
+   "ceezr:gatewayDispatch/query": {
+    "n": 21912,
+    "wait_mean": 4.5637093829864916e-05,
+    "run_mean": 8.345792259948887
+   }
+  }
+ },
+ "R3": {
+  "n": 4251,
+  "queue_wait_p50": 740.335205078125,
+  "queue_wait_p95": 9656.956787109375,
+  "lane_wait_p50": 0.007568359375,
+  "svc_p50": 406.567626953125,
+  "svc_p95": 1574.09521484375,
+  "svc_mean": 521.2489448714273,
+  "effectCheck_mean": 132.4632244481301,
+  "prepare_mean": 257.9289661505527,
+  "record_mean": 130.84652038155718,
+  "effectCheck_p95": 391.44506000000547,
+  "prepare_p95": 677.072329999999,
+  "total_p50": 1192.708984375,
+  "total_p95": 10705.638916015625,
+  "max_concurrency": 32,
+  "mean_concurrency": 12.360080707296742,
+  "implied_capacity_per_s": 61.391011559540345,
+  "claim_trip_mean_ms": 72.33421532275456,
+  "loop_lag_p95_max": 5.093248000004678,
+  "main_cpu_p50": 63.8,
+  "proc_cpu_p50": 80.6,
+  "pools": {
+   "ceezr:gatewayRequest/query": {
+    "n": 245763,
+    "wait_mean": 122.88957247429434,
+    "run_mean": 3.4282011531434757
+   },
+   "ceezr:gatewayRequest/txQuery": {
+    "n": 21255,
+    "wait_mean": 4.7047753469771816e-05,
+    "run_mean": 1.728440366972477
+   },
+   "ceezr:gatewayRequest/tx": {
+    "n": 4251,
+    "wait_mean": 148.50999764761232,
+    "run_mean": 12.343919077864031
+   },
+   "ceezr:gatewayDispatch/query": {
+    "n": 15784,
+    "wait_mean": 0.0,
+    "run_mean": 5.184490623416117
+   }
+  }
+ },
+ "C3": {
+  "n": 5648,
+  "queue_wait_p50": 16410.12060546875,
+  "queue_wait_p95": 20041.577392578125,
+  "lane_wait_p50": 0.00634765625,
+  "svc_p50": 754.711181640625,
+  "svc_p95": 1730.56298828125,
+  "svc_mean": 768.0739737880804,
+  "effectCheck_mean": 187.48855535127467,
+  "prepare_mean": 388.4335262091008,
+  "record_mean": 192.14159180966715,
+  "effectCheck_p95": 348.78153100000054,
+  "prepare_p95": 880.3347530000028,
+  "total_p50": 17174.0126953125,
+  "total_p95": 20713.509765625,
+  "max_concurrency": 32,
+  "mean_concurrency": 21.9904448562276,
+  "implied_capacity_per_s": 41.662653718337204,
+  "claim_trip_mean_ms": 196.94336809004213,
+  "loop_lag_p95_max": 6.144553000020096,
+  "main_cpu_p50": 61.4,
+  "proc_cpu_p50": 78.2,
+  "pools": {
+   "ceezr:gatewayRequest/query": {
+    "n": 230350,
+    "wait_mean": 219.36290427610157,
+    "run_mean": 4.014347731712611
+   },
+   "ceezr:gatewayRequest/txQuery": {
+    "n": 27150,
+    "wait_mean": 0.00014732965009208102,
+    "run_mean": 1.9482872928176795
+   },
+   "ceezr:gatewayRequest/tx": {
+    "n": 5430,
+    "wait_mean": 207.36519337016574,
+    "run_mean": 14.005156537753223
+   },
+   "ceezr:gatewayDispatch/query": {
+    "n": 22341,
+    "wait_mean": 4.476075377109351e-05,
+    "run_mean": 8.230249317398505
+   }
+  }
+ },
+ "R4": {
+  "n": 4295,
+  "queue_wait_p50": 258.884765625,
+  "queue_wait_p95": 11496.972900390625,
+  "lane_wait_p50": 0.00732421875,
+  "svc_p50": 285.322509765625,
+  "svc_p95": 923.978759765625,
+  "svc_mean": 395.9113468263424,
+  "effectCheck_mean": 95.24086047031437,
+  "prepare_mean": 202.10613480186254,
+  "record_mean": 98.55426672991861,
+  "effectCheck_p95": 241.38881899999978,
+  "prepare_p95": 483.54381000000285,
+  "total_p50": 537.266845703125,
+  "total_p95": 12141.074951171875,
+  "max_concurrency": 32,
+  "mean_concurrency": 9.506890279656195,
+  "implied_capacity_per_s": 80.82617549740517,
+  "claim_trip_mean_ms": 52.964263400099746,
+  "loop_lag_p95_max": 4.8968560000066645,
+  "main_cpu_p50": 63.2,
+  "proc_cpu_p50": 80.3,
+  "pools": {
+   "ceezr:gatewayRequest/query": {
+    "n": 260918,
+    "wait_mean": 85.12905970458152,
+    "run_mean": 3.2292865957887154
+   },
+   "ceezr:gatewayRequest/txQuery": {
+    "n": 21475,
+    "wait_mean": 0.00013969732246798603,
+    "run_mean": 1.811082654249127
+   },
+   "ceezr:gatewayRequest/tx": {
+    "n": 4295,
+    "wait_mean": 101.02025611175786,
+    "run_mean": 12.871711292200233
+   },
+   "ceezr:gatewayDispatch/query": {
+    "n": 15803,
+    "wait_mean": 0.0,
+    "run_mean": 5.297032209074226
+   }
+  }
+ },
+ "C4": {
+  "n": 5663,
+  "queue_wait_p50": 15480.8427734375,
+  "queue_wait_p95": 20467.813720703125,
+  "lane_wait_p50": 0.006591796875,
+  "svc_p50": 716.463134765625,
+  "svc_p95": 1793.28515625,
+  "svc_mean": 744.507540336877,
+  "effectCheck_mean": 187.36907150768147,
+  "prepare_mean": 374.05270909835775,
+  "record_mean": 183.07704061221972,
+  "effectCheck_p95": 370.38298799999757,
+  "prepare_p95": 746.6752989999986,
+  "total_p50": 16180.40283203125,
+  "total_p95": 21598.03271484375,
+  "max_concurrency": 32,
+  "mean_concurrency": 21.84925322910778,
+  "implied_capacity_per_s": 42.981431706548655,
+  "claim_trip_mean_ms": 193.6405265866102,
+  "loop_lag_p95_max": 6.843423999991501,
+  "main_cpu_p50": 62.8,
+  "proc_cpu_p50": 80,
+  "pools": {
+   "ceezr:gatewayRequest/query": {
+    "n": 228425,
+    "wait_mean": 219.47658093466126,
+    "run_mean": 4.030044872496443
+   },
+   "ceezr:gatewayRequest/txQuery": {
+    "n": 26985,
+    "wait_mean": 3.7057624606262736e-05,
+    "run_mean": 1.9404483972577358
+   },
+   "ceezr:gatewayRequest/tx": {
+    "n": 5397,
+    "wait_mean": 209.5302946081156,
+    "run_mean": 13.900129701686122
+   },
+   "ceezr:gatewayDispatch/query": {
+    "n": 21690,
+    "wait_mean": 9.220839096357768e-05,
+    "run_mean": 8.24822498847395
+   }
+  }
+ }
+}
