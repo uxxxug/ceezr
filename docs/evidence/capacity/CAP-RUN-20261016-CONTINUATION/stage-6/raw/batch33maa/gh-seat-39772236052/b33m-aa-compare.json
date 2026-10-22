@@ -1,0 +1,199 @@
+{
+ "protocol": "PROTOCOL-b33m-aa.md",
+ "decision": "UNRESOLVED",
+ "why": "Δ(G1 fail) = +2.85pp بينَ عتبتَي القرارِ (§5.3)",
+ "delta_g1_fail_pp": 2.85,
+ "delta_over20s_pp": 2.82,
+ "adjacent_pairs_pp": {
+  "w2on_minus_w1off": 2.1,
+  "w3on_minus_w4off": 3.61
+ },
+ "arms": {
+  "ON": {
+   "valid_waves": [
+    "b33maa-w2-on-M-750",
+    "b33maa-w3-on-M-750"
+   ],
+   "invalid_waves": [],
+   "scenario_outcomes": 11996,
+   "scenario_completed": 11444,
+   "g1_fail_share": 0.046,
+   "phoneproof_jobs": 11996,
+   "over_20s": 456,
+   "over_20s_share": 0.038,
+   "p95_s_list": [
+    19.65,
+    19.626
+   ],
+   "iowait_mean_list": [
+    0.466,
+    0.473
+   ]
+  },
+  "OFF": {
+   "valid_waves": [
+    "b33maa-w1-off-M-750",
+    "b33maa-w4-off-M-750"
+   ],
+   "invalid_waves": [],
+   "scenario_outcomes": 12238,
+   "scenario_completed": 12024,
+   "g1_fail_share": 0.0175,
+   "phoneproof_jobs": 12238,
+   "over_20s": 120,
+   "over_20s_share": 0.0098,
+   "p95_s_list": [
+    19.272,
+    19.061
+   ],
+   "iowait_mean_list": [
+    0.493,
+    0.496
+   ]
+  }
+ },
+ "arms_summary": {
+  "ON": {
+   "valid": 2,
+   "g1_fail_share": 0.046,
+   "over_20s_share": 0.038
+  },
+  "OFF": {
+   "valid": 2,
+   "g1_fail_share": 0.0175,
+   "over_20s_share": 0.0098
+  }
+ },
+ "waves": {
+  "w1-off": {
+   "run": "b33maa-w1-off-M-750",
+   "verdict": "FAIL",
+   "g1_gate": {
+    "value": "97.74% (5959/6097)",
+    "pass": false
+   },
+   "scenario_outcomes": 6097,
+   "scenario_completed": 5959,
+   "g1_fail_share": 0.0226,
+   "driver_onboarding_failed": 138,
+   "phoneproofjob_outcomes": {
+    "timeout": 138
+   },
+   "phoneproof_jobs": {
+    "done_count": 6097,
+    "p50_s": 16.446,
+    "p95_s": 19.272,
+    "p99_s": 20.08,
+    "max_s": 20.629,
+    "over_20s": 74,
+    "over_20s_share": 0.0121
+   },
+   "host_health": {
+    "iowait_mean_pct": 0.493,
+    "iowait_p99_pct": 1.8,
+    "steal_mean_pct": 0.0,
+    "foreign_mean_pct": 2.689
+   },
+   "valid": true,
+   "arm": "OFF"
+  },
+  "w2-on": {
+   "run": "b33maa-w2-on-M-750",
+   "verdict": "FAIL",
+   "g1_gate": {
+    "value": "95.64% (5815/6080)",
+    "pass": false
+   },
+   "scenario_outcomes": 6080,
+   "scenario_completed": 5815,
+   "g1_fail_share": 0.0436,
+   "driver_onboarding_failed": 265,
+   "phoneproofjob_outcomes": {
+    "timeout": 265
+   },
+   "phoneproof_jobs": {
+    "done_count": 6080,
+    "p50_s": 17.019,
+    "p95_s": 19.65,
+    "p99_s": 21.13,
+    "max_s": 21.602,
+    "over_20s": 215,
+    "over_20s_share": 0.0354
+   },
+   "host_health": {
+    "iowait_mean_pct": 0.466,
+    "iowait_p99_pct": 1.29,
+    "steal_mean_pct": 0.0,
+    "foreign_mean_pct": 2.74
+   },
+   "valid": true,
+   "arm": "ON"
+  },
+  "w3-on": {
+   "run": "b33maa-w3-on-M-750",
+   "verdict": "FAIL",
+   "g1_gate": {
+    "value": "95.15% (5629/5916)",
+    "pass": false
+   },
+   "scenario_outcomes": 5916,
+   "scenario_completed": 5629,
+   "g1_fail_share": 0.0485,
+   "driver_onboarding_failed": 287,
+   "phoneproofjob_outcomes": {
+    "timeout": 287
+   },
+   "phoneproof_jobs": {
+    "done_count": 5916,
+    "p50_s": 16.302,
+    "p95_s": 19.626,
+    "p99_s": 22.281,
+    "max_s": 22.515,
+    "over_20s": 241,
+    "over_20s_share": 0.0407
+   },
+   "host_health": {
+    "iowait_mean_pct": 0.473,
+    "iowait_p99_pct": 1.52,
+    "steal_mean_pct": 0.0,
+    "foreign_mean_pct": 2.637
+   },
+   "valid": true,
+   "arm": "ON"
+  },
+  "w4-off": {
+   "run": "b33maa-w4-off-M-750",
+   "verdict": "FAIL",
+   "g1_gate": {
+    "value": "98.76% (6065/6141)",
+    "pass": false
+   },
+   "scenario_outcomes": 6141,
+   "scenario_completed": 6065,
+   "g1_fail_share": 0.0124,
+   "driver_onboarding_failed": 76,
+   "phoneproofjob_outcomes": {
+    "timeout": 76
+   },
+   "phoneproof_jobs": {
+    "done_count": 6141,
+    "p50_s": 16.234,
+    "p95_s": 19.061,
+    "p99_s": 19.786,
+    "max_s": 20.58,
+    "over_20s": 46,
+    "over_20s_share": 0.0075
+   },
+   "host_health": {
+    "iowait_mean_pct": 0.496,
+    "iowait_p99_pct": 1.54,
+    "steal_mean_pct": 0.0,
+    "foreign_mean_pct": 2.665
+   },
+   "valid": true,
+   "arm": "OFF"
+  }
+ },
+ "phone_proof_deadline_ms": 20000,
+ "note": "فشلُ G1 في الذراعينِ معًا لا يبرّئُ المعايِنَ (§5.4)؛ والحكمُ هنا على الفرقِ بينَ الذراعينِ لا على سببِ G1 المطلق"
+}
