@@ -5,12 +5,8 @@
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/B33M-AA-RESULT-20261022.md"
   ],
   "implementation": [],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch33maa/analysis/PROTOCOL-b33m-aa.pinned-cf2c591d.md",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch33maa/analysis/b33m-aa-compare.py.pinned-207d9dfa",
