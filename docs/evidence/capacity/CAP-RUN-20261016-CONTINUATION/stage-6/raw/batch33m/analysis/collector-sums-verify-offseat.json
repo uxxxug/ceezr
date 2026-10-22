@@ -1,0 +1,7 @@
+[
+  {"wave": "b33mmain-m1-M-750", "entries": 22, "sha256sum_c": "OK"},
+  {"wave": "b33mmain-smoke-S0-750", "entries": 22, "sha256sum_c": "OK"},
+  {"wave": "b33mconfirm-m1-M-750", "entries": 22, "sha256sum_c": "OK"},
+  {"wave": "b33mconfirm-m2-M-750", "entries": 22, "sha256sum_c": "OK"},
+  {"wave": "b33mconfirm-smoke-S0-750", "entries": 22, "sha256sum_c": "OK"}
+]
