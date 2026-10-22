@@ -1,0 +1,80 @@
+name: LOAD-01 b33m — موجةُ قياسٍ تشخيصيّة على ذراعِ المرجع C′ (مقعد 4 vCPU، لا حكمَ قبول)
+
+# تشخيصٌ معزولٌ على فرعِ القياسِ وحدَه ولا يُدمَج. PROTOCOL-b33m.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة:
+#   main=36ce8d3f · C=16c7ad70 (مرجعُ ب32: I+L+S) · C′=63b20aa2 (C + أداةُ الرصدِ p7-attribution من main حرفًا)
+#   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاجٍ، لا Render، لا تيليجرامَ حقيقيّ.
+on:
+  push:
+    branches: [exp/load01-b33-measure]
+    paths:
+      - deploy/capacity-run/b24-runner/**
+      - .github/workflows/load01-b33-measure.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load01-b33m-seat
+  cancel-in-progress: false
+
+jobs:
+  seat:
+    name: مقعد b33m (${{ matrix.run_tag }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - run_tag: main
+            main_sha: 36ce8d3f26cce0e4a8622f80701cd1bed4b5bcd8
+            c_base: 16c7ad70eeba298819ef32c8434569ccd8a4eebe
+            c_arm: 63b20aa296b57ca363427c6c9e5623186158054a
+    env:
+      MAIN_SHA: ${{ matrix.main_sha }}
+      C_BASE: ${{ matrix.c_base }}
+      C_ARM: ${{ matrix.c_arm }}
+      RUN_TAG: ${{ matrix.run_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد (حزم المقعد الأصلي والمستخدم user)
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$MAIN_SHA" "$C_BASE" "$C_ARM"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$C_BASE" "$C_ARM"
+          # النسب: C′ فوقَ C مباشرةً (وإلّا لا موجة)
+          [ "$(sudo -u user git -C /home/user/workspace/ceezr rev-parse "$C_ARM^")" = "$C_BASE" ]
+          echo ARM_LINEAGE_OK
+
+      - name: المقعد والموجة (داخل ceezrseat.slice)
+        run: |
+          MODE=$(cat deploy/capacity-run/b24-runner/MODE)
+          echo "MODE=$MODE"
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=C_BASE="$C_BASE" --setenv=C_ARM="$C_ARM" --setenv=RUN_TAG="$RUN_TAG" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b33m.sh "$MODE"
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرارِ — الفشلُ يحجرُ الخامَّ في المقعدِ)
+        uses: actions/upload-artifact@v5
+        with:
+          name: b33m-seat-evidence-${{ matrix.run_tag }}
+          path: /home/user/b33m-out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: b33m-seat-failure-report-${{ matrix.run_tag }}
+          path: /home/user/b33m-out/secret-audit.txt
+          if-no-files-found: ignore
+          retention-days: 14
