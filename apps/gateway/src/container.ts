@@ -206,6 +206,7 @@ import {
   createImmediateRedispatchScheduler,
   IMMEDIATE_REDISPATCH_DEBOUNCE_MS,
 } from "./background/immediate-redispatch.ts";
+import { withLoadPath } from "./background/load-path-scope.ts";
 import { createDriverBot, grammyTelegramSender, type TelegramSender } from "./bots/driver/index.ts";
 import { createRiderBot } from "./bots/rider/index.ts";
 import { counterpartNotifier } from "./bots/shared/counterpart-notifier.ts";
@@ -977,28 +978,30 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
         : instrumentOfferWriter(createOfferWriter(dispatchSql), overrides.metrics),
   };
   const immediateRedispatchScheduler = createImmediateRedispatchScheduler({
-    run: async (cityId) => {
-      const finder = createSearchingOrderFinder(dispatchSql);
-      const pass = dispatchTrace?.beginPass(cityId, finder, immediateMatching) ?? null;
-      const report = await redispatchSearchingOrders(cityId, {
-        finder: pass?.finder ?? finder,
-        broadcast: pass?.broadcast ?? immediateMatching,
-        limit: IMMEDIATE_REDISPATCH_LIMIT,
-        ...(pass ? { aroundOrder: pass.aroundOrder } : {}),
-        log,
-      });
-      pass?.end(report);
-      if (!report.ok) {
-        log("redispatch.immediate_failed", { cityId, detail: report.error.detail });
-        return;
-      }
-      // امتلأَ الحدُّ وتقدّمَ ⇒ بقيَ مستحقٌّ على الأرجحِ: شوطٌ لاحقٌ واحدٌ بعدَ النافذةِ.
-      return {
-        saturated:
-          report.value.examined >= IMMEDIATE_REDISPATCH_LIMIT &&
-          report.value.rebroadcast.length > 0,
-      };
-    },
+    // LOAD-01 ب32: الشوطُ يُعلِنُ مسارَه في أثرِ الحِملِ (لا يرثُ مسارَ الطلبِ الذي حفّزه)؛ بلا أثرٍ لا شيء.
+    run: (cityId) =>
+      withLoadPath("redispatch:immediate", async () => {
+        const finder = createSearchingOrderFinder(dispatchSql);
+        const pass = dispatchTrace?.beginPass(cityId, finder, immediateMatching) ?? null;
+        const report = await redispatchSearchingOrders(cityId, {
+          finder: pass?.finder ?? finder,
+          broadcast: pass?.broadcast ?? immediateMatching,
+          limit: IMMEDIATE_REDISPATCH_LIMIT,
+          ...(pass ? { aroundOrder: pass.aroundOrder } : {}),
+          log,
+        });
+        pass?.end(report);
+        if (!report.ok) {
+          log("redispatch.immediate_failed", { cityId, detail: report.error.detail });
+          return;
+        }
+        // امتلأَ الحدُّ وتقدّمَ ⇒ بقيَ مستحقٌّ على الأرجحِ: شوطٌ لاحقٌ واحدٌ بعدَ النافذةِ.
+        return {
+          saturated:
+            report.value.examined >= IMMEDIATE_REDISPATCH_LIMIT &&
+            report.value.rebroadcast.length > 0,
+        };
+      }),
     debounceMs: IMMEDIATE_REDISPATCH_DEBOUNCE_MS,
     now: () => Date.now(),
     schedule: (fn) => setTimeout(fn, 0),

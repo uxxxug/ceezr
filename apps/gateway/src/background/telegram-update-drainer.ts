@@ -49,6 +49,7 @@ import {
   TELEGRAM_JOB_CONSUMER_CONCURRENCY,
 } from "../../../../packages/shared/config/domain-ingress.ts";
 import type { BotKind, UpdateHandler } from "../routes/telegram-webhook.ts";
+import { telegramUpdateKind } from "./load-path-scope.ts";
 import type { TelegramReplyPool } from "./telegram-reply-pool.ts";
 
 export interface TelegramUpdateDrainDeps {
@@ -98,6 +99,12 @@ export interface DrainerJobTiming {
   readonly prepareMs: number | null;
   readonly recordMs: number | null;
   readonly ok: boolean;
+  /** LOAD-01 ب32 (حينَ يُفعَّلُ النطاق): نوعُ التحديث (`contact` = إثباتُ الهاتف)، وما راكمَته الوظيفةُ
+   *  من انتظارِ مقعدِ البوّابةِ واحتجازِه وعددِ حجوزاتِه — قياسٌ مباشرٌ لا باقٍ مُشتقّ. */
+  readonly kind?: string;
+  readonly gateWaitMs?: number;
+  readonly gateHoldMs?: number;
+  readonly gateAcq?: number;
 }
 
 export interface DrainerSweepTiming {
@@ -113,6 +120,19 @@ export interface DrainerSweepTiming {
 export interface DrainerTiming {
   readonly onJob: (timing: DrainerJobTiming) => void;
   readonly onSweep: (timing: DrainerSweepTiming) => void;
+  /**
+   * LOAD-01 ب32 (اختياريّ): يُشغِّلُ العملَ داخلَ نطاقِ مسارٍ مُعلَنٍ فيُنسَبُ إليه انتظارُ مقعدِ
+   * البوّابةِ واحتجازُه (`drainer:sweep` · `drainer:job:<bot>:<نوع>` · `drainer:replies`).
+   */
+  readonly scope?: <T>(path: string, fn: () => Promise<T>) => Promise<T>;
+  /** عدّادُ النطاقِ الجاري (انتظار/احتجاز/حجوزات) — يُقرَأُ في آخرِ الوظيفةِ فيُلحَقُ بسطرِها. */
+  readonly gateOf?: () => DrainerJobGate | undefined;
+}
+
+export interface DrainerJobGate {
+  readonly waitMs: number;
+  readonly holdMs: number;
+  readonly acquisitions: number;
 }
 
 const wallNow = (): number => performance.timeOrigin + performance.now();
@@ -225,20 +245,36 @@ async function processClaimedJob(
   job: ClaimedJob,
   claimedAt?: number,
 ): Promise<boolean> {
-  if (deps.timing === undefined) return processClaimedJobUntimed(deps, job, null);
-  const startedAt = wallNow();
-  const phases: PhaseClock = { effectCheckMs: null, prepareMs: null, recordMs: null };
-  const ok = await processClaimedJobUntimed(deps, job, phases);
-  deps.timing.onJob({
-    bot: job.bot,
-    updateId: job.updateId,
-    claimedAt: claimedAt ?? startedAt,
-    startedAt,
-    endedAt: wallNow(),
-    ...phases,
-    ok,
-  });
-  return ok;
+  const timing = deps.timing;
+  if (timing === undefined) return processClaimedJobUntimed(deps, job, null);
+  const kind = telegramUpdateKind(job.payload);
+  const timed = async (): Promise<boolean> => {
+    const startedAt = wallNow();
+    const phases: PhaseClock = { effectCheckMs: null, prepareMs: null, recordMs: null };
+    const ok = await processClaimedJobUntimed(deps, job, phases);
+    const gate = timing.gateOf?.();
+    timing.onJob({
+      bot: job.bot,
+      updateId: job.updateId,
+      claimedAt: claimedAt ?? startedAt,
+      startedAt,
+      endedAt: wallNow(),
+      ...phases,
+      ok,
+      ...(timing.scope === undefined ? {} : { kind }),
+      ...(gate === undefined
+        ? {}
+        : {
+            gateWaitMs: Math.round(gate.waitMs * 100) / 100,
+            gateHoldMs: Math.round(gate.holdMs * 100) / 100,
+            gateAcq: gate.acquisitions,
+          }),
+    });
+    return ok;
+  };
+  return timing.scope === undefined
+    ? timed()
+    : timing.scope(`drainer:job:${job.bot}:${kind}`, timed);
 }
 
 async function processClaimedJobUntimed(
@@ -665,7 +701,11 @@ export function startTelegramUpdateDrainer(
     running = true;
     rerun = false;
     try {
-      const report = await drainTelegramUpdateJobsOnce(deps, laneState);
+      const scope = deps.timing?.scope;
+      const report =
+        scope === undefined
+          ? await drainTelegramUpdateJobsOnce(deps, laneState)
+          : await scope("drainer:sweep", () => drainTelegramUpdateJobsOnce(deps, laneState));
       if (report.claimed > 0) {
         deps.log?.("telegram.drainer.sweep_completed", { ...report });
       }
@@ -711,7 +751,12 @@ export function startTelegramUpdateDrainer(
       : (setInterval(() => {
           if (replying || stopped) return;
           replying = true;
-          void drainTelegramUpdateRepliesOnce(deps)
+          const scope = deps.timing?.scope;
+          void (
+            scope === undefined
+              ? drainTelegramUpdateRepliesOnce(deps)
+              : scope("drainer:replies", () => drainTelegramUpdateRepliesOnce(deps))
+          )
             .then((report) => {
               if (report.claimed > 0) deps.log?.("telegram.replies.sweep_completed", { ...report });
             })
