@@ -9,13 +9,8 @@
     "apps/workers/src/runner.ts (fix/job-runner-inflight-before-heartbeat: إصلاح JOB-TICK-01)",
     "tests/unit/job-runner-tick-boundary.test.ts (اختبارُ الحدودِ كاختبارِ انحدارٍ للإصلاح)"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md",
-    "docs/roadmap/execution/STATUS.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md", "docs/roadmap/execution/STATUS.md"],
   "affected_docs": [
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/B33M-IDLE-RESULT-20261022.md",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/B33M-IDLE-V2-RESULT-20261022.md",
