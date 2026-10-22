@@ -1,0 +1,19 @@
+{
+  "id": "load01-b32-gate-wait-instrumentation",
+  "goal": "LOAD-01 الدفعة 32: دمجُ أداةِ القياسِ التشخيصيّةِ (I = a38db57a) في main — نطاقُ مسارٍ صريحٍ في أثرِ الحِملِ (load-path-scope.ts) يقيسُ انتظارَ مقعدِ بوّابةِ gatewayRequest واحتجازَه لكلِّ مسارٍ مُعلَن (HTTP · أشواطُ الدرينر · إعادةُ العرض)، معطَّلٌ افتراضيًا وبلا أيِّ أثرٍ سلوكيٍّ أو كلفةٍ عندَ التعطيل. هذه الأداةُ أنتجتْ جدولَ المساراتِ الذي أسّسَ حكمَ الدفعةِ 32 (H1_SUPPORTED) وبقيتْ على فرعِها (انحرافٌ عن §8 من خطّتِها)؛ دمجُها يجعلُ أذرعَ التجاربِ القادمةِ تُقاسُ من main مباشرةً بلا فرعِ أداةٍ منفصلٍ. الكلفةُ المقيسةُ عندَ التفعيلِ ≈ 0.25–0.4µs/استعلام (PLAN-b32 §9). اختباراتُ الوحدةِ: tests/unit/load-path-scope.test.ts (190 سطرًا). لا تغييرَ في gatewayRequest: 5 ولا في IMMEDIATE_REDISPATCH_LIMIT = 50 ولا في أيِّ عتبةِ قبولٍ.",
+  "canonical_source": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-32-LOAD01-GATE-WAIT-PER-PATH.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch32/analysis/PLAN-b32.pinned-c2c78d23.md"
+  ],
+  "implementation": [
+    "apps/gateway/src/background/load-path-scope.ts",
+    "apps/gateway/src/background/load-trace.ts",
+    "apps/gateway/src/background/telegram-update-drainer.ts",
+    "apps/gateway/src/container.ts",
+    "tests/unit/load-path-scope.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [],
+  "no_other_affected_docs_reason": "أداةُ قياسٍ تشخيصيّةٌ معطَّلةٌ افتراضيًا بلا أيِّ أثرٍ سلوكيٍّ؛ لا عقدًا ولا قرارًا ولا هجرةً تتغيّر — حكمُ الدفعةِ 32 وقواعدُه الموثّقةُ (BATCH-32 وPLAN-b32) باقيةٌ كما هي ولا تُعدَّل، والدليلُ المرجعيُّ موصولٌ في canonical_source."
+}

@@ -17,11 +17,16 @@
  * - `rsig` (الدفعةُ 21): عددُ كلِّ استعلامٍ بتوقيعِه **منسوبًا إلى مسارِ HTTP الذي أطلقَه**
  *   (`AsyncLocalStorage` حولَ `app.fetch`)، وما لا طلبَ له (الدرينر، العمّال) يُنسَبُ إلى
  *   `(background)`. يُصبُّ عندَ الإيقاف، فيُحصى «استعلامٌ لكلِّ طلبٍ» لكلِّ مسارٍ من الأثرِ لا تخمينًا.
+ * - `pdb` / `pagg` (الدفعةُ 32): انتظارُ مقعدِ البوّابةِ (`waitMs`) واحتجازُه (`runMs`) **لكلِّ مسارٍ
+ *   مُعلَنٍ** (`load-path-scope.ts`): `http:<مسار>` · `drainer:sweep` · `drainer:job:<bot>:<نوع>` ·
+ *   `drainer:replies` · `redispatch:immediate` · وما سواها `(background)`. `pdb` كلَّ 5ث، و`pagg`
+ *   للموجةِ كلِّها عندَ الإيقاف (n، المجموع، p50/p95/p99/max). و`rsig` باقٍ بمعناه القديمِ دونَ تغيير.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
 import { appendFile } from "node:fs/promises";
 import { observeQueryTimings } from "../../../../packages/infrastructure/db/query-deadline.ts";
+import { currentLoadPath, enableLoadPathScope, withLoadPath } from "./load-path-scope.ts";
 import type { DrainerTiming } from "./telegram-update-drainer.ts";
 
 export interface LoadTrace {
@@ -62,6 +67,34 @@ function percentile(sorted: readonly number[], q: number): number | null {
   return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))] ?? null;
 }
 
+const round2 = (x: number): number => Math.round(x * 100) / 100;
+
+/** ملخّصُ مسارٍ (`path|pool|kind`): العدد، والمجموع، والمئينات — `full` يُضيفُ p99 وأقصى الاحتجاز. */
+function pathSummary(
+  key: string,
+  w: { wait: number[]; run: number[] },
+  full: boolean,
+): Record<string, unknown> {
+  const [path, pool, kind] = key.split("|");
+  const wait = [...w.wait].sort((a, b) => a - b);
+  const run = [...w.run].sort((a, b) => a - b);
+  return {
+    path,
+    pool,
+    kind,
+    n: run.length,
+    waitSumMs: round2(wait.reduce((s, x) => s + x, 0)),
+    runSumMs: round2(run.reduce((s, x) => s + x, 0)),
+    waitP50Ms: percentile(wait, 0.5),
+    waitP95Ms: percentile(wait, 0.95),
+    ...(full ? { waitP99Ms: percentile(wait, 0.99) } : {}),
+    waitMaxMs: wait[wait.length - 1] ?? null,
+    runP50Ms: percentile(run, 0.5),
+    runP95Ms: percentile(run, 0.95),
+    ...(full ? { runP99Ms: percentile(run, 0.99), runMaxMs: run[run.length - 1] ?? null } : {}),
+  };
+}
+
 export function createLoadTrace(file: string | undefined): LoadTrace | null {
   if (file === undefined || file === "") return null;
   const out = `${file}.load.jsonl`;
@@ -76,7 +109,35 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
   const sigWindow = new Map<string, { n: number; runMs: number }>();
   const routeScope = new AsyncLocalStorage<string>();
   const routeSig = new Map<string, { n: number; runMs: number }>();
+  // ب32: انتظارُ المقعدِ واحتجازُه لكلِّ مسارٍ مُعلَن — نافذةُ 5ث، ومجموعُ الموجةِ كلِّها.
+  enableLoadPathScope(true);
+  let pathWindow = new Map<string, { wait: number[]; run: number[] }>();
+  const pathTotal = new Map<string, { wait: number[]; run: number[] }>();
+  const pushPath = (
+    m: Map<string, { wait: number[]; run: number[] }>,
+    key: string,
+    wait: number,
+    run: number,
+  ): void => {
+    let w = m.get(key);
+    if (w === undefined) {
+      w = { wait: [], run: [] };
+      m.set(key, w);
+    }
+    w.wait.push(wait);
+    w.run.push(run);
+  };
   observeQueryTimings((t) => {
+    const store = currentLoadPath();
+    if (store !== undefined && t.kind !== "txQuery") {
+      // استعلامُ المعاملةِ لا يحجزُ مقعداً جديداً: احتجازُه داخلٌ في احتجازِ المعاملة.
+      store.gate.waitMs += t.waitMs;
+      store.gate.holdMs += t.runMs;
+      store.gate.acquisitions += 1;
+    }
+    const pk = `${store?.path ?? "(background)"}|${t.label}|${t.kind}`;
+    pushPath(pathWindow, pk, t.waitMs, t.runMs);
+    pushPath(pathTotal, pk, t.waitMs, t.runMs);
     const key = `${t.label}|${t.kind}`;
     let w = dbWindow.get(key);
     if (w === undefined) {
@@ -140,6 +201,11 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       }
       dbWindow = new Map();
     }
+    if (pathWindow.size > 0) {
+      const at = Date.now();
+      for (const [key, w] of pathWindow) emit({ k: "pdb", at, ...pathSummary(key, w, false) });
+      pathWindow = new Map();
+    }
     if (buffer.length === 0) return;
     const text = `${buffer.join("\n")}\n`;
     buffer = [];
@@ -191,6 +257,8 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
     drainer: {
       onJob: (t) => emit({ k: "job", ...t }),
       onSweep: (t) => emit({ k: "sweep", ...t }),
+      scope: (path, fn) => withLoadPath(path, fn),
+      gateOf: () => currentLoadPath()?.gate,
     },
     onHttp: (pathname, method, ms, status) => {
       const route = normaliseRoute(method, pathname);
@@ -202,7 +270,10 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       w.ms.push(ms);
       if (status >= 500) w.errors += 1;
     },
-    inRoute: (pathname, method, fn) => routeScope.run(normaliseRoute(method, pathname), fn),
+    inRoute: (pathname, method, fn) => {
+      const route = normaliseRoute(method, pathname);
+      return routeScope.run(route, () => withLoadPath(`http:${route}`, fn));
+    },
     stop: async () => {
       for (const [key, c] of routeSig) {
         const [route, pool, kind, ...rest] = key.split("|");
@@ -223,6 +294,10 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       clearInterval(timer);
       clearInterval(lagTimer);
       observeQueryTimings(null);
+      await flush();
+      for (const [key, w] of pathTotal) emit({ k: "pagg", ...pathSummary(key, w, true) });
+      pathTotal.clear();
+      enableLoadPathScope(false);
       await flush();
     },
   };
