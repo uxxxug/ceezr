@@ -16,9 +16,9 @@
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-33-READINESS-20261022.md",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/reproduce.sh",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/query-map.py",
-    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/query-map.out.txt",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/query-map.out.txt.gz",
     "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/p7-model.py",
-    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/p7-model.out.txt",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/p7-model.out.txt.gz",
     "docs/roadmap/execution/STATUS.md"
   ]
 }

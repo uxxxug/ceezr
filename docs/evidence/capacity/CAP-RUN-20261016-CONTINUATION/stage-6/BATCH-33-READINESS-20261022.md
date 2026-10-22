@@ -27,7 +27,7 @@ bash docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-2
 
 ## 2. خريطة «العبارة ← المسار ← التجمّع» لاستعلام البحث عن المرشحين — مُثبت (مع بند مدعوم جزئيًا)
 
-الأمر: `python3 reproduction-20261022/query-map.py > query-map.out.txt` (18 موجة من Batch32: s1r/s2/a1). الناتج ملتزم.
+الأمر: `python3 reproduction-20261022/query-map.py | gzip -n -9 > query-map.out.txt.gz` (18 موجة من Batch32: s1r/s2/a1). الناتج ملتزم.
 
 ### 2.1 العبارة
 
@@ -43,7 +43,7 @@ bash docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-2
 
 مسار Mini App لطلب الرحلة (`POST /v1/rides` ← `request_ride_with_offer`، `ride-request-store.ts:178`) **لا يبحث عن مرشحين**. هو ينشئ الطلب، ثم يتولى المجدول الفوري A البحث.
 
-### 2.3 النسب المقيسة (موجة C5، والموجات الـ18 كلها في `query-map.out.txt`)
+### 2.3 النسب المقيسة (موجة C5، والموجات الـ18 كلها في `query-map.out.txt.gz`)
 
 - **A — 8,465 نداء (94.4%) — مُثبت:** أثر الشوط (`dispatch-trace`) سجّل `nearby` لكل أمر في 8,465 أمرًا. ومجموع استعلامات `redispatch:immediate@gatewayDispatch` في `load-trace` هو 25,747، ويساوي **بالضبط** offers + nearby + openRound + all + 2×passes (8,465 + 8,465 + 8,420 + 45 + 2×176). هذه المساواة صحيحة في **18/18** موجة، ولا يوجد مسار آخر على `gatewayDispatch`.
 - **B — 0 نداء — مُثبت لهذا الملف من الحمل:** لا يوجد مسار HTTP على `gatewayRequest` يستدعي البحث. `POST /v1/rides` = 15,482 استعلامًا ÷ 7,741 طلبًا = 2 لكل طلب. المولّد لا يستعمل بوت الراكب ولا التوصيل.
@@ -122,6 +122,6 @@ bash docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-2
 ## 6. الملفات
 
 - `reproduction-20261022/reproduce.sh`: إعادة إنتاج 25/29/30.
-- `reproduction-20261022/query-map.py` و`query-map.out.txt`: خريطة الاستعلام وإشغال المقاعد، 18 موجة.
-- `reproduction-20261022/p7-model.py` و`p7-model.out.txt`: نموذج P7.
+- `reproduction-20261022/query-map.py` و`query-map.out.txt.gz`: خريطة الاستعلام وإشغال المقاعد، 18 موجة.
+- `reproduction-20261022/p7-model.py` و`p7-model.out.txt.gz`: نموذج P7.
 - `deploy/capacity-run/load/p7-attribution.ts`، و`deploy/capacity-run/load/db-audit.ts` (الربط)، و`tests/unit/capacity-p7-attribution.test.ts`.
