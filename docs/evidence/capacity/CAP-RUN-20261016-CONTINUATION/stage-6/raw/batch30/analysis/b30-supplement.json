@@ -1,0 +1,109 @@
+{
+ "note": "وصفيٌّ تكميليّ — ليس معيارَ قرار؛ الحكمُ في b30-decision.json",
+ "waves": {
+  "b30main-s1-A1-750": {
+   "acq": 268629,
+   "wait_ms_per_acq": 57.47,
+   "window_wait_p95_ms_median": 81.0,
+   "telegram_job_done_p50_s": 0.3,
+   "telegram_job_done_p95_s": 10.9
+  },
+  "b30main-s1-A2-750": {
+   "acq": 268801,
+   "wait_ms_per_acq": 36.02,
+   "window_wait_p95_ms_median": 50.9,
+   "telegram_job_done_p50_s": 0.1,
+   "telegram_job_done_p95_s": 9.4
+  },
+  "b30main-s1-L1-750": {
+   "acq": 262456,
+   "wait_ms_per_acq": 46.24,
+   "window_wait_p95_ms_median": 60.0,
+   "telegram_job_done_p50_s": 0.2,
+   "telegram_job_done_p95_s": 9.7
+  },
+  "b30main-s1-L2-750": {
+   "acq": 265703,
+   "wait_ms_per_acq": 40.14,
+   "window_wait_p95_ms_median": 47.7,
+   "telegram_job_done_p50_s": 0.1,
+   "telegram_job_done_p95_s": 9.7
+  },
+  "b30main-s1-S1-750": {
+   "acq": 268901,
+   "wait_ms_per_acq": 179.14,
+   "window_wait_p95_ms_median": 256.7,
+   "telegram_job_done_p50_s": 16.3,
+   "telegram_job_done_p95_s": 18.8
+  },
+  "b30main-s1-S2-750": {
+   "acq": 268786,
+   "wait_ms_per_acq": 177.64,
+   "window_wait_p95_ms_median": 255.9,
+   "telegram_job_done_p50_s": 16.3,
+   "telegram_job_done_p95_s": 18.7
+  },
+  "b30main-s2-A3-750": {
+   "acq": 269925,
+   "wait_ms_per_acq": 52.84,
+   "window_wait_p95_ms_median": 56.6,
+   "telegram_job_done_p50_s": 0.2,
+   "telegram_job_done_p95_s": 10.4
+  },
+  "b30main-s2-A4-750": {
+   "acq": 268614,
+   "wait_ms_per_acq": 57.89,
+   "window_wait_p95_ms_median": 58.7,
+   "telegram_job_done_p50_s": 0.3,
+   "telegram_job_done_p95_s": 10.7
+  },
+  "b30main-s2-L3-750": {
+   "acq": 254612,
+   "wait_ms_per_acq": 97.43,
+   "window_wait_p95_ms_median": 90.0,
+   "telegram_job_done_p50_s": 0.5,
+   "telegram_job_done_p95_s": 6.9
+  },
+  "b30main-s2-L4-750": {
+   "acq": 265468,
+   "wait_ms_per_acq": 39.65,
+   "window_wait_p95_ms_median": 53.7,
+   "telegram_job_done_p50_s": 0.1,
+   "telegram_job_done_p95_s": 9.5
+  },
+  "b30main-s2-S3-750": {
+   "acq": 271615,
+   "wait_ms_per_acq": 184.0,
+   "window_wait_p95_ms_median": 261.1,
+   "telegram_job_done_p50_s": 15.7,
+   "telegram_job_done_p95_s": 19
+  },
+  "b30main-s2-S4-750": {
+   "acq": 257300,
+   "wait_ms_per_acq": 188.45,
+   "window_wait_p95_ms_median": 249.9,
+   "telegram_job_done_p50_s": 16,
+   "telegram_job_done_p95_s": 21
+  }
+ },
+ "arm_median": {
+  "A": {
+   "wait_ms_per_acq": 55.155,
+   "window_wait_p95_ms_median": 57.650000000000006,
+   "telegram_job_done_p50_s": 0.25,
+   "telegram_job_done_p95_s": 10.55
+  },
+  "L": {
+   "wait_ms_per_acq": 43.19,
+   "window_wait_p95_ms_median": 56.85,
+   "telegram_job_done_p50_s": 0.15000000000000002,
+   "telegram_job_done_p95_s": 9.6
+  },
+  "S": {
+   "wait_ms_per_acq": 181.57,
+   "window_wait_p95_ms_median": 256.3,
+   "telegram_job_done_p50_s": 16.15,
+   "telegram_job_done_p95_s": 18.9
+  }
+ }
+}
