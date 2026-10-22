@@ -15,6 +15,7 @@
  * الزائدُ ينتظرُ ههنا حيثُ رفضُه عندَ المهلةِ مضمونٌ ولا يبلغُ الخادمَ. و`max_pipeline: 0` ليسَ
  * البديلَ: يقطعُ `onexecute` فيسقطُ `sql.begin` بـ`UNSAFE_TRANSACTION` (مقيسٌ).
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import type postgres from "postgres";
 
 type AnySql = postgres.Sql<Record<string, never>>;
@@ -80,7 +81,25 @@ export function queryDeadlineError(deadlineMs: number): Error {
   });
 }
 
-/** بوّابةٌ بسعةٍ: منحٌ فوريٌّ أو انتظارٌ بترتيبِ الوصولِ، ويُسحَبُ المنتظِرُ عندَ مهلتِه. */
+/**
+ * `LOAD-01` (الدفعةُ 32 · ذراعُ P) — أولويّةُ الحجزِ في البوّابةِ نفسِها، **لا** مقاعدُ إضافيّة: ما يُشغَّلُ
+ * داخلَ `runWithGatePriority` (أشواطُ درينرِ تحديثاتِ تيليجرام: الالتقاطُ والوظائفُ والردود) يُقدَّمُ
+ * منتظِروه على منتظري الطلباتِ حينَ يُفرَغُ مقعد. السعةُ هيَ هيَ (`slots`)، والمنحُ الفوريُّ حينَ يفرغُ
+ * مقعدٌ لا يتغيّر، والمهلةُ تسحبُ المنتظِرَ من أيِّ الصفّين. وبلا نطاقٍ: ترتيبُ الوصولِ حرفاً.
+ */
+const gatePriority = new AsyncLocalStorage<true>();
+
+/** يُشغِّلُ `fn` بأولويّةِ حجزٍ في بوّابةِ كلِّ تجمُّع — ويرثُها كلُّ ما يُطلقُه `fn` من عملٍ غيرِ متزامن. */
+export function runWithGatePriority<T>(fn: () => T): T {
+  return gatePriority.run(true, fn);
+}
+
+/** هل العملُ الجاري بأولويّةِ حجز؟ (للاختبارِ والتشخيص.) */
+export function hasGatePriority(): boolean {
+  return gatePriority.getStore() === true;
+}
+
+/** بوّابةٌ بسعةٍ: منحٌ فوريٌّ أو انتظارٌ بترتيبِ الوصولِ (صفُّ الأولويّةِ أوّلاً)، ويُسحَبُ المنتظِرُ عندَ مهلتِه. */
 interface Gate {
   /** يُنادي `grant` حالاً أو لاحقاً؛ ويُعيدُ دالّةَ سحبٍ تصدقُ إن سُحِبَ قبلَ المنحِ. */
   acquire(grant: () => void): () => boolean;
@@ -90,6 +109,7 @@ interface Gate {
 function createGate(capacity: number): Gate {
   let active = 0;
   const waiting: (() => void)[] = [];
+  const priority: (() => void)[] = [];
   return {
     acquire(grant) {
       if (active < capacity) {
@@ -97,17 +117,18 @@ function createGate(capacity: number): Gate {
         grant();
         return () => false;
       }
-      waiting.push(grant);
+      const queue = gatePriority.getStore() === true ? priority : waiting;
+      queue.push(grant);
       return () => {
-        const index = waiting.indexOf(grant);
+        const index = queue.indexOf(grant);
         if (index === -1) return false;
-        waiting.splice(index, 1);
+        queue.splice(index, 1);
         return true;
       };
     },
     release() {
       active -= 1;
-      const next = waiting.shift();
+      const next = priority.shift() ?? waiting.shift();
       if (next !== undefined) {
         active += 1;
         next();

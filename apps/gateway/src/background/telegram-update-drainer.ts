@@ -39,6 +39,7 @@
  * لم يفرُغ فيُرصَدُ طولُ الطابورِ لا يُكتَم.
  */
 
+import { runWithGatePriority } from "../../../../packages/infrastructure/db/query-deadline.ts";
 import type {
   PendingUpdateReplies,
   TelegramUpdateEffectLedger,
@@ -702,10 +703,9 @@ export function startTelegramUpdateDrainer(
     rerun = false;
     try {
       const scope = deps.timing?.scope;
-      const report =
-        scope === undefined
-          ? await drainTelegramUpdateJobsOnce(deps, laneState)
-          : await scope("drainer:sweep", () => drainTelegramUpdateJobsOnce(deps, laneState));
+      // LOAD-01 ب32 (P): الشوطُ — التقاطُه ووظائفُه وما تُطلقُه — بأولويّةِ حجزٍ في البوّابةِ نفسِها.
+      const sweep = () => runWithGatePriority(() => drainTelegramUpdateJobsOnce(deps, laneState));
+      const report = scope === undefined ? await sweep() : await scope("drainer:sweep", sweep);
       if (report.claimed > 0) {
         deps.log?.("telegram.drainer.sweep_completed", { ...report });
       }
@@ -752,11 +752,8 @@ export function startTelegramUpdateDrainer(
           if (replying || stopped) return;
           replying = true;
           const scope = deps.timing?.scope;
-          void (
-            scope === undefined
-              ? drainTelegramUpdateRepliesOnce(deps)
-              : scope("drainer:replies", () => drainTelegramUpdateRepliesOnce(deps))
-          )
+          const replies = () => runWithGatePriority(() => drainTelegramUpdateRepliesOnce(deps));
+          void (scope === undefined ? replies() : scope("drainer:replies", replies))
             .then((report) => {
               if (report.claimed > 0) deps.log?.("telegram.replies.sweep_completed", { ...report });
             })
