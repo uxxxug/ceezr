@@ -60,6 +60,78 @@ export const EVIDENCE_MANIFEST_EXCEPTIONS: readonly ManifestException[] = [
     supersededBy: `${STAGE6}/batch17`,
   },
   {
+    dir: `${STAGE6}/b33midle/gh-seat-39790831944/raw/b33midle-smoke-S0-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v1)؛ والمرجعُ الحاكمُ gh-seat-39790831944/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle/gh-seat-39790831944`,
+  },
+  {
+    dir: `${STAGE6}/b33midle/gh-seat-39790831944/raw/b33midle-w1-off-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v1)؛ والمرجعُ الحاكمُ gh-seat-39790831944/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle/gh-seat-39790831944`,
+  },
+  {
+    dir: `${STAGE6}/b33midle/gh-seat-39790831944/raw/b33midle-w2-on-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v1)؛ والمرجعُ الحاكمُ gh-seat-39790831944/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle/gh-seat-39790831944`,
+  },
+  {
+    dir: `${STAGE6}/b33midle/gh-seat-39790831944/raw/b33midle-w2-on-r-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v1)؛ والمرجعُ الحاكمُ gh-seat-39790831944/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle/gh-seat-39790831944`,
+  },
+  {
+    dir: `${STAGE6}/b33midle/gh-seat-39790831944/raw/b33midle-w3-on-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v1)؛ والمرجعُ الحاكمُ gh-seat-39790831944/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle/gh-seat-39790831944`,
+  },
+  {
+    dir: `${STAGE6}/b33midle/gh-seat-39790831944/raw/b33midle-w4-off-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v1)؛ والمرجعُ الحاكمُ gh-seat-39790831944/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle/gh-seat-39790831944`,
+  },
+  {
+    dir: `${STAGE6}/b33midle/gh-seat-39790831944/raw/b33midle-w4-off-r-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v1)؛ والمرجعُ الحاكمُ gh-seat-39790831944/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle/gh-seat-39790831944`,
+  },
+  {
+    dir: `${STAGE6}/b33midle2/gh-seat-39803941984/raw/b33midle2-smoke-S0-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v2)؛ والمرجعُ الحاكمُ gh-seat-39803941984/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle2/gh-seat-39803941984`,
+  },
+  {
+    dir: `${STAGE6}/b33midle2/gh-seat-39803941984/raw/b33midle2-w1-off-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v2)؛ والمرجعُ الحاكمُ gh-seat-39803941984/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle2/gh-seat-39803941984`,
+  },
+  {
+    dir: `${STAGE6}/b33midle2/gh-seat-39803941984/raw/b33midle2-w2-on-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v2)؛ والمرجعُ الحاكمُ gh-seat-39803941984/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle2/gh-seat-39803941984`,
+  },
+  {
+    dir: `${STAGE6}/b33midle2/gh-seat-39803941984/raw/b33midle2-w3-on-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v2)؛ والمرجعُ الحاكمُ gh-seat-39803941984/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle2/gh-seat-39803941984`,
+  },
+  {
+    dir: `${STAGE6}/b33midle2/gh-seat-39803941984/raw/b33midle2-w4-off-M-750`,
+    reason:
+      "بيانُ الموجةِ الداخليُّ من مقعدِ التشغيلِ يسبقُ مخرجاتِ التحليلِ اللاحقةَ للموجةِ (b33m-idle v2)؛ والمرجعُ الحاكمُ gh-seat-39803941984/SHA256SUMS الذي يغطّي كلَّ ملفّاتِ المجلّد",
+    supersededBy: `${STAGE6}/b33midle2/gh-seat-39803941984`,
+  },
+  {
     dir: `${STAGE6}/batch9/b9-isoReq6-500`,
     reason:
       "ملاحظةُ code_dirty=1 نُقلت من diag-env.env إلى ANNOTATIONS.md (الدفعة 19) لتعودَ البصمةُ مطابقة",
