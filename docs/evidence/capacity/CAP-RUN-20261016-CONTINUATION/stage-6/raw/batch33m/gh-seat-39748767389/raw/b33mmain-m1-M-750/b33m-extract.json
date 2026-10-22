@@ -1,0 +1,25 @@
+{
+ "window": {
+  "from_ms": 1792658835570,
+  "to_ms": 1792659056190
+ },
+ "gateway_log": {
+  "present": true,
+  "events": 156410,
+  "kept": 14711,
+  "non_json_lines": 0
+ },
+ "mock_log": {
+  "present": true,
+  "lines_total": 13321,
+  "in_window": 7581
+ },
+ "b33m-outbox-rows.csv": {
+  "present": true,
+  "lines": 51973
+ },
+ "b33m-outbox-samples.jsonl": {
+  "present": true,
+  "lines": 43
+ }
+}

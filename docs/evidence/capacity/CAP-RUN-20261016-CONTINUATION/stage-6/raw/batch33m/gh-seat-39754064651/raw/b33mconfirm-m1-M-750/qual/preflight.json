@@ -1,0 +1,20 @@
+{
+ "samples": 60,
+ "steal_mean": 0.0,
+ "steal_max_1s": 0.0,
+ "siblings_mean": 0.69,
+ "foreign_mean": 1.07,
+ "iowait_mean": 0.04,
+ "throttled": 0,
+ "foreign_top": [
+  "/home/runner/actions-runner/cached/2.338.0/bin/Runner.Listener run"
+ ],
+ "procs_blocked_max": 0,
+ "speed_probe_median_ms": 296.3,
+ "pg_probe_median_ms": 304.6,
+ "leftover": [],
+ "validity_version": "B23-RUNNER-V1",
+ "mode": "preflight",
+ "violations": [],
+ "verdict": "VALID"
+}

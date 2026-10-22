@@ -1,0 +1,2 @@
+{"t":"2026-10-22T08:42:37+00:00","event":"round.start","round":"b33mmain-smoke-S0-750","profile":[{"name":"wave-750","sec":120,"conc":750}],"drain_sec":180,"code_sha":"63b20aa296b57ca363427c6c9e5623186158054a","code_dirty":0,"docs_dirty":0}
+{"t":"2026-10-22T08:42:37+00:00","event":"gateway.pid","pid":"6092"}
