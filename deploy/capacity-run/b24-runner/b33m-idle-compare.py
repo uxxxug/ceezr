@@ -130,7 +130,27 @@ def load_wave(raw: Path) -> dict | None:
         m = re.search(r"=(\d+)$", t)
         if m:
             budget = int(m.group(1))
-    med = durs[len(durs) // 2] if durs else None
+    med = (durs[(len(durs) - 1) // 2] + durs[len(durs) // 2]) / 2 if durs else None
+    # gap_p95 (v2 §4): صمّامُ فواتِ النبضةِ — وسيطُ حقيقيٌّ للفجواتِ داخلَ النافذةِ (بالملي ثانية)
+    win_gaps = [max(0.0, b - a) for a, b in gaps if a >= lo and b <= hi]
+    gap_p95 = None
+    if win_gaps:
+        s = sorted(win_gaps)
+        gap_p95 = round(s[min(len(s) - 1, int(0.95 * (len(s) - 1) + 0.5))], 0)
+    # G1 الرسميُّ (v2 §3): من wave-report.json (تحققُ قاعدةٍ) — هذا هوَ الذي يقرأُهُ القرارُ؛
+    # مقياسُ scenario.end يبقى وصفيًّا (g1_outcomes/g1_completed) كما في تعريفِ مقارنةِ AA.
+    g1v_off = g1o_off = None
+    wr = raw / "wave-report.json"
+    if wr.exists():
+        try:
+            for g in json.loads(wr.read_text()).get("gates", []):
+                if g.get("id") == "G1":
+                    m2 = re.search(r"\((\d+)/(\d+)\)", str(g.get("value", "")))
+                    if m2:
+                        g1v_off, g1o_off = int(m2.group(1)), int(m2.group(2))
+                    break
+        except Exception:
+            pass
     return {
         "rider_sends": len(sends), "rider_rate_overall": round(len(sends) / (WAVE_SEC / 1000), 2),
         "rider_rate_in_runs": round(len(in_run) / (busy / 1000), 2) if busy else None,
@@ -138,6 +158,9 @@ def load_wave(raw: Path) -> dict | None:
         "run_count": len(durs), "idle_with_eligible": round(idle_e, 3) if idle_e is not None else None,
         "g1_outcomes": outcomes, "g1_completed": completed,
         "g1_fail_share": round(1 - completed / outcomes, 4) if outcomes else None,
+        "g1_official_verified": g1v_off, "g1_official_outcomes": g1o_off,
+        "g1_official_fail_share": round(1 - g1v_off / g1o_off, 4) if g1v_off and g1o_off else None,
+        "gap_ms_p95": gap_p95,
         "phoneproof_timeouts": pp_to, "p7_s": p7, "p7_during_load_s": p7_load,
         "budget_recorded": budget,
     }
@@ -159,33 +182,39 @@ def main() -> int:
         if not name.endswith("-r") and f"{name}-r" in waves:
             del waves[name]
     arms = {"ON": [n for n in waves if "-on" in n], "OFF": [n for n in waves if "-off" in n]}
+
+    def med(xs):
+        xs = sorted(x for x in xs if x is not None)
+        if not xs:
+            return None
+        n = len(xs)
+        return xs[n // 2] if n % 2 else (xs[(n - 1) // 2] + xs[n // 2]) / 2
+
     arm = {}
     for a, names in arms.items():
         ws = [waves[n] for n in names]
         if not ws:
             arm[a] = {"valid_waves": 0}
             continue
-        g1o = sum(w["g1_outcomes"] for w in ws)
-        g1v = sum(w["g1_completed"] for w in ws)
+        g1o = sum(w["g1_official_outcomes"] or 0 for w in ws)
+        g1v = sum(w["g1_official_verified"] or 0 for w in ws)
         rates = sorted(w["rider_rate_overall"] for w in ws)
         p7s = sorted(w["p7_s"] for w in ws if w["p7_s"] is not None)
+        gaps95 = sorted(w["gap_ms_p95"] for w in ws if w["gap_ms_p95"] is not None)
         arm[a] = {
             "valid_waves": len(ws), "waves": names,
-            "rate_median": rates[len(rates) // 2], "rate_list": rates,
-            "p7_median_s": p7s[len(p7s) // 2] if p7s else None,
+            "rate_median": med(rates), "rate_list": rates,
+            "p7_median_s": med(p7s) if p7s else None,
             "g1_verified": g1v, "g1_outcomes": g1o,
             "g1_fail_share": round(1 - g1v / g1o, 4) if g1o else None,
+            "gap_p95_median_ms": med(gaps95) if gaps95 else None,
             "pp_timeouts_list": [w["phoneproof_timeouts"] for w in ws],
             "idle_list": [w["idle_with_eligible"] for w in ws],
             "run_p50_list": [w["run_duration_p50_s"] for w in ws],
             "budget_recorded_list": [w["budget_recorded"] for w in ws],
             "per_wave": {n: waves[n] for n in names},
         }
-    # فحصُ التلاعبِ (§5 — شرطٌ سابقٌ لأيِّ استنتاج)
-    def med(xs):
-        xs = sorted(x for x in xs if x is not None)
-        return xs[len(xs) // 2] if xs else None
-
+    # فحصُ التلاعبِ (v2 §4 — شرطٌ سابقٌ لأيِّ استنتاج؛ العتباتُ كما سُجّلتْ قبلَ بياناتِ v2)
     manip = None
     if arm.get("ON", {}).get("valid_waves") and arm.get("OFF", {}).get("valid_waves"):
         on_p50, off_p50 = med(arm["ON"]["run_p50_list"]), med(arm["OFF"]["run_p50_list"])
@@ -193,29 +222,38 @@ def main() -> int:
             x is not None for x in arm["ON"]["idle_list"]) else None
         off_idle = min(x for x in arm["OFF"]["idle_list"] if x is not None) if any(
             x is not None for x in arm["OFF"]["idle_list"]) else None
-        budgets_ok = (all(b == 9800 for b in arm["ON"]["budget_recorded_list"]) and
+        on_gap95 = med(arm["ON"]["per_wave"][n]["gap_ms_p95"] for n in arm["ON"]["waves"]
+                        if arm["ON"]["per_wave"][n]["gap_ms_p95"] is not None)
+        budgets_ok = (all(b == 9400 for b in arm["ON"]["budget_recorded_list"]) and
                       all(b == 8000 for b in arm["OFF"]["budget_recorded_list"]))
         manip = {
             "budgets_recorded_ok": budgets_ok,
             "on_run_p50_s": on_p50, "off_run_p50_s": off_p50,
             "on_idle_max": on_idle, "off_idle_min": off_idle,
-            "ok": bool(budgets_ok and on_p50 and off_p50 and 9.0 <= on_p50 <= 10.0
-                       and 7.0 <= off_p50 <= 8.5 and on_idle is not None and on_idle <= 0.05
+            "on_gap_p95_median_ms": on_gap95,
+            "ok": bool(budgets_ok and on_p50 and off_p50 and 9.2 <= on_p50 <= 9.7
+                       and 7.0 <= off_p50 <= 8.5 and on_idle is not None and on_idle <= 0.08
+                       and on_gap95 is not None and on_gap95 < 2000
                        and off_idle is not None and off_idle >= 0.10),
         }
-    # قرارُ التدخلِ (§5) — محسومٌ فقط عندَ اكتمالِ الذراعينِ ونجاحِ التلاعب
-    decision, why = "INCOMPLETE", "مقارنةٌ غيرُ مكتملةٍ (§5: بلا موجةٍ صالحةٍ لأحدِ الذراعينِ بعدَ الإعادة)"
+    # قرارُ التدخلِ (v2 §5 — جدولُ v1 حرفيًا) — محسومٌ فقط عندَ اكتمالِ الذراعينِ ونجاحِ التلاعب؛
+    # v2 §2: ذراعٌ بموجةٍ صالحةٍ واحدةٍ ⇒ UNRESOLVED_DATA (لا يُقرأُ الجدولُ أصلًا)
+    decision, why = "INCOMPLETE", "مقارنةٌ غيرُ مكتملةٍ (v2 §2: بلا موجةٍ صالحةٍ لأحدِ الذراعينِ بعدَ الإعادة)"
     adjacent = None
-    if arm.get("ON", {}).get("valid_waves", 0) >= 1 and arm.get("OFF", {}).get("valid_waves", 0) >= 1:
+    if (arm.get("ON", {}).get("valid_waves", 0) >= 1 and arm.get("OFF", {}).get("valid_waves", 0) >= 1
+            and (arm.get("ON", {}).get("valid_waves", 0) < 2 or arm.get("OFF", {}).get("valid_waves", 0) < 2)):
+        decision = "UNRESOLVED_DATA"
+        why = "ذراعٌ بموجةٍ صالحةٍ واحدةٍ (v2 §2: الحدُّ الأدنى موجمتان لكلَّ ذراع) — تُحفظُ الموجاتُ وتُعرضُ الحصصُ ولا يُقرأُ جدولُ القرار"
+    elif arm.get("ON", {}).get("valid_waves", 0) >= 2 and arm.get("OFF", {}).get("valid_waves", 0) >= 2:
         if manip is None or not manip["ok"]:
             decision = "INTERVENTION_FAILED"
-            why = "فشلُ التلاعبِ (الميزانيةُ لم تصلْ أو الفجواتُ لم تنخفضْ ضمنَ الحدود) — لا استنتاجَ عن الفرضية (§5)"
+            why = "فشلُ التلاعبِ (الميزانيةُ لم تصلْ أو الفجواتُ لم تنخفضْ ضمنَ الحدود) — لا استنتاجَ عن الفرضية (v2 §4)"
         else:
             on, off = arm["ON"], arm["OFF"]
             d_rate = on["rate_median"] / off["rate_median"] - 1
             p7o = [w["p7_s"] for w in on["per_wave"].values() if w["p7_s"] is not None]
             p7f = [w["p7_s"] for w in off["per_wave"].values() if w["p7_s"] is not None]
-            d_p7 = (sorted(p7o)[len(p7o) // 2] - sorted(p7f)[len(p7f) // 2]) if p7o and p7f else None
+            d_p7 = (med(p7o) - med(p7f)) if p7o and p7f else None
             d_g1 = round((on["g1_fail_share"] - off["g1_fail_share"]) * 100, 2)
             # اتساقُ الزوجينِ المتجاورينِ في اتجاهِ المعدل
             def wv(n):
@@ -250,7 +288,7 @@ def main() -> int:
                 why = (f"D_rate={d_rate:+.1%} (بينَ +5% و+10%) أو تحسُّنٌ جزئيٌّ غيرُ متسقٍ "
                        f"(ΔP7={d_p7}s، ΔG1fail={d_g1}pp، adjacent={adjacent})")
     print(json.dumps({
-        "protocol": "PROTOCOL-b33m-idle.md", "decision": decision, "why": why,
+        "protocol": "PROTOCOL-b33m-idle-v2.md", "decision": decision, "why": why,
         "manipulation": manip, "adjacent_pairs": adjacent, "arms": arm,
     }, ensure_ascii=False, indent=1))
     return 0
