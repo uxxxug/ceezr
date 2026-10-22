@@ -1,0 +1,24 @@
+{
+  "id": "load01-b33-readiness-p7-attribution",
+  "goal": "LOAD-01 (2026-10-22): إعادةُ إنتاجِ أحكامِ الدفعاتِ 25/29/30 آليًّا من الملفاتِ الملتزَمةِ والالتزاماتِ المثبَّتة (مطابقةٌ بايتًا ببايت)، وإثباتُ خريطةِ «العبارة ← المسار ← التجمّع» لاستعلامِ البحثِ عن المرشّحين (findNearbyAvailableForDispatch: 94.4% على gatewayDispatch من المجدولِ الفوريّ، 0 على gatewayRequest، ~5.6% من عاملِ redispatch-searching على workerJobs) مع إشغالِ مقاعدِ التجمّعات من load-trace، وإثباتُ أنَّ G4 وP7 عرَضٌ واحد (المُدخلُ نفسُه oldestPendingSec) وهو الفشلُ الوحيدُ لذراعِ C عندَ 750، ونموذجُ طابورٍ لـP7. وإضافةُ رصدٍ لا بوابةٍ في تدقيقِ ما بعدَ الموجة (p7-attribution.ts: عمرُ أقدمِ معلَّقٍ لكلِّ نوعٍ وخطُّ زمنِ قبولِ المحاكي لكلِّ بوتٍ بالثانية) لحسمِ متغيّرِ Batch33 قبلَ تسجيلِه. لا تغييرَ في المنتج ولا في أيِّ عتبةٍ أو قاعدةِ قبولٍ (قاعدةُ stale_pending_outbox وP7 ≤ 120s يحرسُها اختبار)، ولا في gatewayRequest: 5 ولا IMMEDIATE_REDISPATCH_LIMIT = 50. Batch33 لم تُشغَّل: مرشّحُ استعلامِ المرشّحين سقطَ قبلَ التجربة لأنه لا يشغلُ مقعدًا في التجمّعِ المشبع.",
+  "canonical_source": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-33-READINESS-20261022.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-32-LOAD01-GATE-WAIT-PER-PATH.md"
+  ],
+  "implementation": [
+    "deploy/capacity-run/load/p7-attribution.ts",
+    "deploy/capacity-run/load/db-audit.ts",
+    "tests/unit/capacity-p7-attribution.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-33-READINESS-20261022.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/reproduce.sh",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/query-map.py",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/query-map.out.txt",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/p7-model.py",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/reproduction-20261022/p7-model.out.txt",
+    "docs/roadmap/execution/STATUS.md"
+  ]
+}
