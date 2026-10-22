@@ -10,7 +10,7 @@ fail() { echo "FAIL: $*"; exit 1; }
 
 echo "— التحققُ من بصماتِ الأرشيف"
 (cd "$SEAT" && sha256sum -c SHA256SUMS --quiet) || fail "SHA256SUMS"
-echo "PASS: SHA256SUMS على الخامِّ الملتزَم (252 ملفًا)"
+echo "PASS: SHA256SUMS على الخامِّ الملتزَم (251 ملفًا)"
 
 echo "— إعادةُ إنتاجِ مقارنةِ A/A (b33m-aa-compare.py كما شُغِّلَ على المقعد)"
 git -C "$H" show "$BR:deploy/capacity-run/b24-runner/b33m-aa-compare.py" > "$R/_aa-compare.py"

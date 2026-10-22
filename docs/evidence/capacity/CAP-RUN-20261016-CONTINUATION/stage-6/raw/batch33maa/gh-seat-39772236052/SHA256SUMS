@@ -35,6 +35,7 @@ a03b2d9dbbf350e8c6634fa1982936daa1f1a93c0c8d5f9e432b62a758dce829  ./raw/b33maa-s
 c9ae8d3c3bd9ac1742977fe0269dcab19b2a812e455443e402d37627f4606316  ./raw/b33maa-smoke-S0-750/b33m-outbox-samples.jsonl.gz
 a8f5a3da661d99a836040de8bf2b3dc3a3eb02c6055793a254c0ce8479d10078  ./raw/b33maa-smoke-S0-750/b33m.sha256sums
 f9f3a59f65a7bfd9799b1122420f0f5d45e35104f9748930d29f57ac1aab9638  ./raw/b33maa-smoke-S0-750/collect.out.gz
+c264cb802d3008303188393fb31cc01a501861c455c78a1ee714302e8b562d7f  ./raw/b33maa-smoke-S0-750/collector-SHA256SUMS.at-collect
 9a6f5794de577b5a3c668034cddd171ba1531ee6538add89731becc47e9f7fec  ./raw/b33maa-smoke-S0-750/conn-samples.csv.gz
 44bd2d2b535c597e57a3d91aba54feee4dd08afc855807e9c71ba2dc481e32ec  ./raw/b33maa-smoke-S0-750/db-audit-post.json
 a3592f7a87a68fcb47b932010c44e7be8f69a4d70c089f8533e153e5af4d6264  ./raw/b33maa-smoke-S0-750/db-audit-pre.json
@@ -71,6 +72,7 @@ ff6d1bb130ae371724dac15f688f894abd32be3ad44ef944a98b8401aec3056e  ./raw/b33maa-s
 090d0ec438744e8d67825aa509f611f74ee2ede82d7680c95df07ac9c76fe208  ./raw/b33maa-w1-off-M-750/MANIFEST.json
 9cfebdc53d516ba8dc0c161bc03c37b180c6346b4a32d4912a2975588ff09bf5  ./raw/b33maa-w1-off-M-750/b24-env.json
 a6ef6c89000b397cda8ed0b124751dad7540e919500d9ef515bd06411da987e2  ./raw/b33maa-w1-off-M-750/collect.out.gz
+5754ee01c6632d52e6b23d57c29b10f51ee84b1bcce97dd348c698891236c4de  ./raw/b33maa-w1-off-M-750/collector-SHA256SUMS.at-collect
 0f93645a084b906b46fddc67510c51cb00caf0d961702b5b73660fe4acf37f82  ./raw/b33maa-w1-off-M-750/conn-samples.csv.gz
 2e8d99737f0c8391d33d7f57f89ffae4b4276aa1b56a4dfda1c6152566f060e5  ./raw/b33maa-w1-off-M-750/db-audit-post.json
 56527eec5636a8faa6d365874543fa04ab08df8f773ad0b4fc266837a8c0436f  ./raw/b33maa-w1-off-M-750/db-audit-pre.json
@@ -115,6 +117,7 @@ d74078bd15ff76f0838629c9366f3cae0ad1a9f3a1fda4b24b7c09f28f42a5dc  ./raw/b33maa-w
 ecdf6e58bca7d49218954c3e2b61a5be05f54aecfb0bce70e637e04976080b72  ./raw/b33maa-w2-on-M-750/b33m-outbox-samples.jsonl.gz
 a9b141a46a94d771c2550e027ff400c75e8e218cd5f51181ca7bdd2e01a9c363  ./raw/b33maa-w2-on-M-750/b33m.sha256sums
 ea10323d1f5d2aaaeb8b9f0a772a21ba3c96ed24f67ff8a3c6b254abc4389d3a  ./raw/b33maa-w2-on-M-750/collect.out.gz
+40bd75818a915599cd8fbc20dc585a595c34a5f8a1ea656c6498a5d7de469faa  ./raw/b33maa-w2-on-M-750/collector-SHA256SUMS.at-collect
 4d870752be1c72e36b40653438ac22c6ea7b61148734b11c1d731f966fc95d9c  ./raw/b33maa-w2-on-M-750/conn-samples.csv.gz
 4af732f4e2dcbddeafc7977102fe8468727fcbae8cf76cc4a9ec9769de097f27  ./raw/b33maa-w2-on-M-750/db-audit-post.json
 cd4563500f0be77e3118673c719c796981092ba4f98f210663290c0396b1fadd  ./raw/b33maa-w2-on-M-750/db-audit-pre.json
@@ -159,6 +162,7 @@ d1d156eb575b967b5bcd2d081017c532c6b8964c127ffd3bd9e66be82e24d5d1  ./raw/b33maa-w
 1796532c9ddd620d117cb95b2c67272770bca5b43d3ff3e7d803de24077bcc62  ./raw/b33maa-w3-on-M-750/b33m-outbox-samples.jsonl.gz
 ff0f067dc972b9863f168945f0636d8739637b8bea6eae00f931e31d2958bd6a  ./raw/b33maa-w3-on-M-750/b33m.sha256sums
 a2b7e69724435a7e9d3011c552e03132adf653876ae17c0b92628255f1a8de16  ./raw/b33maa-w3-on-M-750/collect.out.gz
+7dc5d6a8f9643f6412eee248f22dd3e60abe50b3f342532901822fb3ce859171  ./raw/b33maa-w3-on-M-750/collector-SHA256SUMS.at-collect
 c0d6915366a5a661d9a116ff51fae1ea14c3b6e2c486da11f28f560d1d561b1b  ./raw/b33maa-w3-on-M-750/conn-samples.csv.gz
 ed5dcd57ef348f708233b5ac283d8a50621a8f5ec2b82367b7bc6de2cf9d1f2d  ./raw/b33maa-w3-on-M-750/db-audit-post.json
 4d7195a805309d207704d9a07eff425cd460c063d44a1e4645abed5fdc57ab8c  ./raw/b33maa-w3-on-M-750/db-audit-pre.json
@@ -195,6 +199,7 @@ f2abae575f90f7ca1e4f96cc2669f387c7eed61d68a4894c9996b17e46b331cd  ./raw/b33maa-w
 2cfff51eaf8937b5f579b66b7138af1c9864236ec02956648aca3bcef125901e  ./raw/b33maa-w4-off-M-750/MANIFEST.json
 9cfebdc53d516ba8dc0c161bc03c37b180c6346b4a32d4912a2975588ff09bf5  ./raw/b33maa-w4-off-M-750/b24-env.json
 bbb74e4fda06523faea15587a85d729fe29642c4f136f90a719183147d704fa3  ./raw/b33maa-w4-off-M-750/collect.out.gz
+8b8aa42878b49ddb76ae92f211ca27effbda57375537ef8c9906b77b34583b0f  ./raw/b33maa-w4-off-M-750/collector-SHA256SUMS.at-collect
 34f3aa6db86d277c100cf2fb80b85ef82576d846562f7dd4202569e661ec1ef1  ./raw/b33maa-w4-off-M-750/conn-samples.csv.gz
 7f67f7ad72de3d5304c773392af5df61bc5a57b5a0f275e7c0db92686b954b00  ./raw/b33maa-w4-off-M-750/db-audit-post.json
 7199a9b49212959d14b1e5150d633a6c9801fa3a44ab2f303cf2811989e7f308  ./raw/b33maa-w4-off-M-750/db-audit-pre.json
