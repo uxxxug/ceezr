@@ -1,0 +1,163 @@
+{
+ "checks": {
+  "effective_limit_eq_declared": true,
+  "gateway_process_is_bun": true,
+  "no_session_exchange_429": true,
+  "redis_window_sampled": true
+ },
+ "ok": true,
+ "info": {
+  "redis_window_max": 5557,
+  "exceeded_old_6000": false,
+  "errors": {
+   "generator_counters_present": true,
+   "requests_counted": 75142,
+   "api429_total": 0,
+   "webhookInbound429": 0,
+   "http5xx": 0,
+   "networkErrors": 0,
+   "api429_by_source": {
+    "session_exchange_limit(rider/driver_session)": 0,
+    "accept": 0,
+    "unattributed_other_routes": 0
+   },
+   "outside_P8_counter": {
+    "session_exchange_limit(driver_onboarding)": 0
+   },
+   "telegram_outbound_mock_429": 0,
+   "gateway_5xx_by_route": {}
+  },
+  "gates": {
+   "verdict": "FAIL",
+   "failed": [
+    "G1",
+    "P1",
+    "P2",
+    "P3"
+   ],
+   "rows": {
+    "G1": {
+     "value": "94.30% (3738/3964)",
+     "pass": false,
+     "rule": "دورات مكتملة مثبتة من القاعدة"
+    },
+    "G2": {
+     "value": "0",
+     "pass": true,
+     "rule": "إسناد مزدوج"
+    },
+    "G3": {
+     "value": "0 + 0",
+     "pass": true,
+     "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+    },
+    "G4": {
+     "value": "CLEAN",
+     "pass": true,
+     "rule": "تدقيق ما بعد الموجة"
+    },
+    "G5": {
+     "value": "0",
+     "pass": true,
+     "rule": "سائقون بقوا متاحين بعد الجولة"
+    },
+    "G6": {
+     "value": "0.00% (0)",
+     "pass": true,
+     "rule": "إسناد لسائق سيناريو آخر"
+    },
+    "G7": {
+     "value": "0.00%",
+     "pass": true,
+     "rule": "5xx من الطلبات"
+    },
+    "G8": {
+     "value": "0",
+     "pass": true,
+     "rule": "تعثر قراءة لوح العروض"
+    },
+    "I1-identities": {
+     "value": "riders 3964/3964 · drivers 3964/3964",
+     "pass": true,
+     "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+    },
+    "GW-STABILITY": {
+     "value": "stable",
+     "pass": true,
+     "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+    },
+    "EGRESS-CLASSIFIED": {
+     "value": "unknown +0",
+     "pass": true,
+     "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+    },
+    "CONC-peak": {
+     "value": "peak 750 / target 750",
+     "pass": true,
+     "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+    },
+    "P1": {
+     "value": "1287ms",
+     "pass": false,
+     "rule": "p95 إنشاء الرحلة"
+    },
+    "P2": {
+     "value": "1226ms",
+     "pass": false,
+     "rule": "p95 قبول العرض"
+    },
+    "P3": {
+     "value": "1209ms",
+     "pass": false,
+     "rule": "p95 قراءة لوح العروض"
+    },
+    "P4": {
+     "value": "11471ms",
+     "pass": true,
+     "rule": "p95 ظهور العرض على اللوح"
+    },
+    "P5": {
+     "value": "20376ms",
+     "pass": true,
+     "rule": "p95 دورة السيناريو كاملة"
+    },
+    "P6a": {
+     "value": "1511ms",
+     "pass": true,
+     "rule": "p99 إنشاء الرحلة"
+    },
+    "P6b": {
+     "value": "1474ms",
+     "pass": true,
+     "rule": "p99 قبول العرض"
+    },
+    "P6c": {
+     "value": "1420ms",
+     "pass": true,
+     "rule": "p99 قراءة اللوح"
+    },
+    "P7": {
+     "value": "69s",
+     "pass": true,
+     "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+    },
+    "P8": {
+     "value": "0.00%",
+     "pass": true,
+     "rule": "429 واجهات Mini App"
+    },
+    "P9": {
+     "value": "0.00%",
+     "pass": true,
+     "rule": "أخطاء شبكة"
+    }
+   },
+   "total": 3964,
+   "verified": 3738
+  },
+  "validity": {
+   "preflight": "VALID",
+   "inflight": "VALID"
+  }
+ }
+}

@@ -1,0 +1,126 @@
+{
+ "protocol": "PROTOCOL-b33m-idle.md",
+ "decision": "INTERVENTION_FAILED",
+ "why": "فشلُ التلاعبِ (الميزانيةُ لم تصلْ أو الفجواتُ لم تنخفضْ ضمنَ الحدود) — لا استنتاجَ عن الفرضية (§5)",
+ "manipulation": {
+  "budgets_recorded_ok": true,
+  "on_run_p50_s": 9.89,
+  "off_run_p50_s": 8.09,
+  "on_idle_max": 0.229,
+  "off_idle_min": 0.17,
+  "ok": false
+ },
+ "adjacent_pairs": null,
+ "arms": {
+  "ON": {
+   "valid_waves": 2,
+   "waves": [
+    "w2-on-r",
+    "w3-on"
+   ],
+   "rate_median": 16.42,
+   "rate_list": [
+    15.58,
+    16.42
+   ],
+   "p7_median_s": 200,
+   "g1_verified": 15225,
+   "g1_outcomes": 15225,
+   "g1_fail_share": 0.0,
+   "pp_timeouts_list": [
+    0,
+    0
+   ],
+   "idle_list": [
+    0.229,
+    0.175
+   ],
+   "run_p50_list": [
+    9.89,
+    9.87
+   ],
+   "budget_recorded_list": [
+    9800,
+    9800
+   ],
+   "per_wave": {
+    "w2-on-r": {
+     "rider_sends": 2805,
+     "rider_rate_overall": 15.58,
+     "rider_rate_in_runs": 22.13,
+     "busy_s": 126.8,
+     "run_duration_p50_s": 9.89,
+     "run_count": 14,
+     "idle_with_eligible": 0.229,
+     "g1_outcomes": 7814,
+     "g1_completed": 7814,
+     "g1_fail_share": 0.0,
+     "phoneproof_timeouts": 0,
+     "p7_s": 143,
+     "p7_during_load_s": 126.1,
+     "budget_recorded": 9800
+    },
+    "w3-on": {
+     "rider_sends": 2955,
+     "rider_rate_overall": 16.42,
+     "rider_rate_in_runs": 21.64,
+     "busy_s": 136.6,
+     "run_duration_p50_s": 9.87,
+     "run_count": 15,
+     "idle_with_eligible": 0.175,
+     "g1_outcomes": 7411,
+     "g1_completed": 7411,
+     "g1_fail_share": 0.0,
+     "phoneproof_timeouts": 0,
+     "p7_s": 200,
+     "p7_during_load_s": 115.8,
+     "budget_recorded": 9800
+    }
+   }
+  },
+  "OFF": {
+   "valid_waves": 1,
+   "waves": [
+    "w1-off"
+   ],
+   "rate_median": 16.97,
+   "rate_list": [
+    16.97
+   ],
+   "p7_median_s": 145,
+   "g1_verified": 7546,
+   "g1_outcomes": 7546,
+   "g1_fail_share": 0.0,
+   "pp_timeouts_list": [
+    0
+   ],
+   "idle_list": [
+    0.17
+   ],
+   "run_p50_list": [
+    8.09
+   ],
+   "budget_recorded_list": [
+    8000
+   ],
+   "per_wave": {
+    "w1-off": {
+     "rider_sends": 3055,
+     "rider_rate_overall": 16.97,
+     "rider_rate_in_runs": 22.16,
+     "busy_s": 137.9,
+     "run_duration_p50_s": 8.09,
+     "run_count": 18,
+     "idle_with_eligible": 0.17,
+     "g1_outcomes": 7546,
+     "g1_completed": 7546,
+     "g1_fail_share": 0.0,
+     "phoneproof_timeouts": 0,
+     "p7_s": 145,
+     "p7_during_load_s": 115.8,
+     "budget_recorded": 8000
+    }
+   }
+  }
+ }
+}
