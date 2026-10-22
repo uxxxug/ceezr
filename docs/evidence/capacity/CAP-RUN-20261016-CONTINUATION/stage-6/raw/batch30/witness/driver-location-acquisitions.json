@@ -1,0 +1,169 @@
+{
+ "newDriver": {
+  "runs": [
+   {
+    "side": "reference",
+    "total": 7,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "select id from orders where assigned_driver_id =": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 30.729400999999967,
+    "waitMs": 0.04504199999999514
+   },
+   {
+    "side": "candidate",
+    "total": 6,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 3.1856610000000103,
+    "waitMs": 0.005894999999952688
+   },
+   {
+    "side": "reference",
+    "total": 7,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "select id from orders where assigned_driver_id =": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 3.2858629999999778,
+    "waitMs": 0.00718699999998762
+   },
+   {
+    "side": "candidate",
+    "total": 6,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 4.222889999999978,
+    "waitMs": 0.007702999999992244
+   },
+   {
+    "side": "reference",
+    "total": 7,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "select id from orders where assigned_driver_id =": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 6.669344999999993,
+    "waitMs": 0.0075880000000267955
+   },
+   {
+    "side": "candidate",
+    "total": 6,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 2.9471790000000055,
+    "waitMs": 0.05285300000005577
+   },
+   {
+    "side": "reference",
+    "total": 7,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "select id from orders where assigned_driver_id =": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 2.37593899999996,
+    "waitMs": 0.004689000000041688
+   },
+   {
+    "side": "candidate",
+    "total": 6,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 2.6697869999999853,
+    "waitMs": 0.004376999999976761
+   },
+   {
+    "side": "reference",
+    "total": 7,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "select id from orders where assigned_driver_id =": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 2.3088709999999537,
+    "waitMs": 0.004046000000073491
+   },
+   {
+    "side": "candidate",
+    "total": 6,
+    "bySig": {
+     "select d.id as driver_id, d.city_id, u.telegram_": 1,
+     "with current as ( select id from drivers where i": 1,
+     "select coalesce( (select a.is_available from dri": 1,
+     "select": 1,
+     "insert into tracking_sessions (driver_id, city_i": 1,
+     "with current as ( select": 1
+    },
+    "holdMs": 1.9656140000000164,
+    "waitMs": 0.003270000000043183
+   }
+  ],
+  "ref": [
+   7,
+   7,
+   7,
+   7,
+   7
+  ],
+  "cand": [
+   6,
+   6,
+   6,
+   6,
+   6
+  ]
+ },
+ "concurrentOpen": {
+  "calls": 8,
+  "distinctSessions": 1
+ }
+}

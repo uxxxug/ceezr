@@ -169,6 +169,7 @@ import {
 import { createTrackingSessionRepository } from "../../../packages/infrastructure/tracking/session-repository.ts";
 import {
   createActiveTripReader,
+  createDriverDutyAndTripReader,
   createDriverDutyReader,
   createDriverTripCardReader,
   createTrackingProofReader,
@@ -917,6 +918,14 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     publisher: trackingBus,
     trips: createActiveTripReader(sql),
     duty: createDriverDutyReader(sql),
+    /**
+     * القارئُ الموحّد: يقرأُ بوابةَ الخدمةِ والرحلةَ النشطةَ في استعلامٍ واحدٍ
+     * في مسارِ `POST /v1/driver/location` — فلا تعبرَ الإصلاحةُ الواحدةُ طابورَ
+     * مجموعةِ الطلباتِ ثلاثَ مراتٍ كما كانت (بوابةُ الخدمةِ ثمّ الرحلةُ للجلسةِ
+     * ثمّ الرحلةُ للإرفاق). مسارٌ ساخنٌ بلا شرطِ منتجٍ يتغيّر: نفسُ الجداولِ
+     * ونفسُ الأحكامِ ولقطةٌ واحدةٌ أبعدُ عن التمزّق.
+     */
+    dutyAndTrip: createDriverDutyAndTripReader(sql),
     clock: systemClock,
     log,
   });
@@ -993,6 +1002,8 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     debounceMs: IMMEDIATE_REDISPATCH_DEBOUNCE_MS,
     now: () => Date.now(),
     schedule: (fn) => setTimeout(fn, 0),
+    // ربطُ قرارِ الجدولةِ بأثرِ التشخيصِ: لحظةُ قبولِ المحفّزِ تُسجّلُ فتُربطُ ببدءِ الشوطِ.
+    ...(dispatchTrace ? { onTrigger: dispatchTrace.onTrigger } : {}),
     log,
   });
 

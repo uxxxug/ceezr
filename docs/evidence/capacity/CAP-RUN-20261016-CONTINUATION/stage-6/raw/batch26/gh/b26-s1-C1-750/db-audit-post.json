@@ -1,0 +1,292 @@
+{
+  "gen": "genA",
+  "phase": "post",
+  "sinceT0Sec": 1,
+  "snapshot": {
+    "at": "2026-10-20T11:40:08.968Z",
+    "ordersByStatus": {
+      "searching": 1,
+      "completed": 5413
+    },
+    "telegramUpdates": {
+      "jobs": 6164,
+      "jobsByStatus": {
+        "done": 6164
+      },
+      "repliesByStatus": {
+        "done": 3697,
+        "pending": 1,
+        "sending": 2466
+      },
+      "jobDoneLatencySec": {
+        "p50": 17,
+        "p95": 21.4,
+        "max": 23.2
+      }
+    },
+    "offersByStatus": {
+      "cancelled": 24243,
+      "accepted": 5413,
+      "expired": 12
+    },
+    "availability": {
+      "available": 0,
+      "total": 5804
+    },
+    "outbox": {
+      "byStatus": {
+        "dead": 25597,
+        "pending": 7105,
+        "delivered": 18618
+      },
+      "byKind": {
+        "offer": {
+          "total": 29668,
+          "delivered": 1,
+          "pending": 4070,
+          "dead": 25597
+        },
+        "rider_trip_notice": {
+          "total": 21652,
+          "delivered": 18617,
+          "pending": 3035,
+          "dead": 0
+        }
+      },
+      "byKindAllTime": {
+        "offer": {
+          "total": 29668,
+          "delivered": 1,
+          "pending": 4070,
+          "dead": 25597
+        },
+        "rider_trip_notice": {
+          "total": 21652,
+          "delivered": 18617,
+          "pending": 3035,
+          "dead": 0
+        }
+      },
+      "oldestPendingSec": 106
+    },
+    "egress": {
+      "byBot": {
+        "driver": {
+          "accepted": 3677,
+          "rejected": 3
+        },
+        "rider": {
+          "accepted": 3461,
+          "rejected": 0
+        }
+      }
+    },
+    "engagedDuplicates": 0,
+    "activeRides": 1,
+    "riderTripChannel": {
+      "phaseRows": 21652,
+      "miniappAck": 15156,
+      "telegram": 3461,
+      "pending": 3035,
+      "other": 0,
+      "receipts": 15156,
+      "lateReceiptsAfterTelegram": 0,
+      "duplicateReceipts": 0,
+      "ackLatencySec": {
+        "p50": 0.5,
+        "p95": 1,
+        "p99": 1.3
+      },
+      "telegramLatencySec": {
+        "p50": 65,
+        "p95": 97.4,
+        "p99": 100.8
+      }
+    }
+  },
+  "preSnapshot": {
+    "at": "2026-10-20T11:36:37.476Z",
+    "ordersByStatus": {},
+    "telegramUpdates": {
+      "jobs": 0,
+      "jobsByStatus": {},
+      "repliesByStatus": {},
+      "jobDoneLatencySec": {
+        "p50": null,
+        "p95": null,
+        "max": null
+      }
+    },
+    "offersByStatus": {},
+    "availability": {
+      "available": 0,
+      "total": 0
+    },
+    "outbox": {
+      "byStatus": {},
+      "byKind": {},
+      "byKindAllTime": {},
+      "oldestPendingSec": null
+    },
+    "egress": null,
+    "engagedDuplicates": 0,
+    "activeRides": 0,
+    "riderTripChannel": {
+      "phaseRows": 0,
+      "miniappAck": 0,
+      "telegram": 0,
+      "pending": 0,
+      "other": 0,
+      "receipts": 0,
+      "lateReceiptsAfterTelegram": 0,
+      "duplicateReceipts": 0,
+      "ackLatencySec": {
+        "p50": null,
+        "p95": null,
+        "p99": null
+      },
+      "telegramLatencySec": {
+        "p50": null,
+        "p95": null,
+        "p99": null
+      }
+    }
+  },
+  "diff": {
+    "availabilityLeftover": 0,
+    "activeRidesDelta": 1,
+    "ordersDelta": {
+      "searching": 1,
+      "completed": 5413
+    }
+  },
+  "outcomes": {
+    "total": 6164,
+    "verified": 5413,
+    "failed": 751,
+    "closeDeadlineHits": 0
+  },
+  "mismatches": [],
+  "failuresDetail": [
+    {
+      "index": 7,
+      "orderId": "05793fc4-4f57-4bd3-89e4-d44b9164d633",
+      "kind": "undecided",
+      "reason": "offer:offer_not_found_in_time",
+      "orderStatus": "searching",
+      "assignedDriver": null,
+      "offers": [
+        {
+          "id": "edcadd43",
+          "status": "expired",
+          "driver": "64fe1f0f",
+          "round": 1,
+          "createdAt": "2026-10-20 11:36:41.532138+00",
+          "expiresAt": "2026-10-20 11:37:26.531+00",
+          "respondedAt": "2026-10-20 11:37:30.616066+00"
+        },
+        {
+          "id": "a33c0681",
+          "status": "expired",
+          "driver": "63362710",
+          "round": 1,
+          "createdAt": "2026-10-20 11:36:41.532138+00",
+          "expiresAt": "2026-10-20 11:37:26.531+00",
+          "respondedAt": "2026-10-20 11:37:30.616066+00"
+        },
+        {
+          "id": "7d60d927",
+          "status": "expired",
+          "driver": "552dcc42",
+          "round": 2,
+          "createdAt": "2026-10-20 11:36:45.70527+00",
+          "expiresAt": "2026-10-20 11:37:30.704+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "e72ad486",
+          "status": "expired",
+          "driver": "d166e42c",
+          "round": 2,
+          "createdAt": "2026-10-20 11:36:45.70527+00",
+          "expiresAt": "2026-10-20 11:37:30.704+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "2a331867",
+          "status": "expired",
+          "driver": "097529a7",
+          "round": 2,
+          "createdAt": "2026-10-20 11:36:45.70527+00",
+          "expiresAt": "2026-10-20 11:37:30.704+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "04d12679",
+          "status": "expired",
+          "driver": "45211dad",
+          "round": 2,
+          "createdAt": "2026-10-20 11:36:45.70527+00",
+          "expiresAt": "2026-10-20 11:37:30.704+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "9f0a4b4c",
+          "status": "expired",
+          "driver": "b4eca345",
+          "round": 2,
+          "createdAt": "2026-10-20 11:36:45.70527+00",
+          "expiresAt": "2026-10-20 11:37:30.704+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "186aa16e",
+          "status": "expired",
+          "driver": "59232ade",
+          "round": 3,
+          "createdAt": "2026-10-20 11:36:49.353685+00",
+          "expiresAt": "2026-10-20 11:37:34.353+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "392ac356",
+          "status": "expired",
+          "driver": "350fc13f",
+          "round": 3,
+          "createdAt": "2026-10-20 11:36:49.353685+00",
+          "expiresAt": "2026-10-20 11:37:34.353+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "c52e801c",
+          "status": "expired",
+          "driver": "c794212c",
+          "round": 3,
+          "createdAt": "2026-10-20 11:36:49.353685+00",
+          "expiresAt": "2026-10-20 11:37:34.353+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "2f665f22",
+          "status": "expired",
+          "driver": "723f75d6",
+          "round": 3,
+          "createdAt": "2026-10-20 11:36:49.353685+00",
+          "expiresAt": "2026-10-20 11:37:34.353+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        },
+        {
+          "id": "ee71dbb7",
+          "status": "expired",
+          "driver": "21665622",
+          "round": 3,
+          "createdAt": "2026-10-20 11:36:49.353685+00",
+          "expiresAt": "2026-10-20 11:37:34.353+00",
+          "respondedAt": "2026-10-20 11:38:30.53029+00"
+        }
+      ]
+    }
+  ],
+  "violations": [],
+  "verdict": "CLEAN"
+}

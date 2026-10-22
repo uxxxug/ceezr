@@ -1,0 +1,35 @@
+{
+  "id": "d7-connect-phase-outage",
+  "goal": "إغلاقُ عيبِ D7 المتبقّي: انقطاعُ PostgreSQL أثناءَ إنشاءِ الاتصالِ يُفلتُ رفضًا غيرَ معالَجٍ من postgres@3.4.9 فيُسقطُ العمليةَ — المُرصودِ في مجسّاتِ الدفعة 28 («قتلٌ أثناءَ الاتصالِ يُفلِتُ أخطاءً غيرَ معالَجةٍ — موجودٌ في main أيضًا»).",
+  "canonical_source": [
+    "docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-28-LOAD01-DRAINER-ACQUISITIONS.md"
+  ],
+  "implementation": [
+    "patches/postgres@3.4.9.patch",
+    "tests/integration/pg-connect-phase-outage.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts",
+    "tests/integration/claim-skip-decided-offers.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021.md",
+    "docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021-raw/SHA256SUMS",
+    "docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021-raw/before/bun-test-old.log.gz",
+    "docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021-raw/after/bun-test-new.log.gz"
+  ],
+  "decision": "الجذرُ: fetchArrayTypes() يُستدعى من معالجِ حدثٍ بلا منتظِرٍ (return fetchArrayTypes()) ففشلُهُ أثناءَ موتِ الاتصالِ يصيرُ unhandledRejection يُسقطُ العمليةَ. الإصلاحُ امتدادٌ حدّيٌّ للرقعةِ القائمةِ (لا استبدالٌ): حزمةٌ واحدةٌ — توجيهُ فشلِ جلبِ الأنواعِ عبرَ مسارِ خطأِ الاتصالِ (fetchArrayTypes().catch(error) وحدها؛ تعديلُ fetchState استُبعدَ قصدًا لأنهُ غيرُ مُعادِ الإنتاجِ في إعدادِنا) — لا تغييرَ في مسارِ النجاحِ ولا في أصنافِ الأخطاءِ الظاهرةِ ولا في حدودِ المجمّعِ. الشاهدُ: عمليةٌ فرعيّةٌ بلا أيِّ معالجاتٍ — قبلَ الرقعةِ تُكملُ السيناريو ثمّ تُسقطُها رفضاتُ المكتبةِ المتسربةُ وحدها، وبعدَها تخرجُ صفريًا؛ وحقنُ العطلِ فاشلٌ مغلقًا (عدُّ الإنهاءاتِ والرفوضاتِ بعتبتَي إلزام). وإصلاحٌ تابعٌ في نفسِ الطلبِ: مهلةٌ سخيةٌ (120s) لخطافِ afterAll في claim-skip-decided-offers.test.ts — كانَ مكشوفًا لمهلةِ Bun الافتراضيةِ (5s) التي خنقتْ تنظيفَهُ في CI (اختباراتُهُ الستةُ نجحتْ كلُّها ثمّ فشلَ الخطافُ بالضبطِ 5000ms؛ السببُ الجذريُّ لبطءِ التنظيفِ لم يُعزل — الإصلاحُ على سابقةِ beforeAll الموثّقةِ في الملفِ نفسِهِ).",
+  "tests": [
+    "TEST_DATABASE_URL=… bun test tests/integration/pg-connect-phase-outage.test.ts — شاهدُ عمليةٍ فرعيّةٍ بلا معالجاتٍ: قبلَ الرقعةِ ينهارُ (exit=1) برفضاتٍ متسربةٍ بعدَ اكتمالِ السيناريو (CHILD-OK ظهرتْ ثمّ الانهيار)، وبعدَها exit=0؛ والحدُّ الداخليُّ كذلك؛ وpg-brownout 2/2"
+  ],
+  "evidence": "محليًا على PostgreSQL 18.6 + PostGIS (قاعدةٌ مهجّرةٌ كاملةً 290 هجرةً): قبل/بعد موثّقان في docs/evidence/chaos/D7-CONNECT-PHASE-OUTAGE-20261021.md §5.",
+  "constraints": [
+    "لا كتابةً على الإنتاج",
+    "لا هجرةَ قاعدةِ بيانات",
+    "لا تغييرَ في حدودِ المجمّعِ أو gatewayRequest أو أيِّ إعدادٍ تشغيليّ",
+    "لا ابتلاعًا صامتًا: الفشلُ يُوجَّهُ إلى مسارِ الخطأِ لا يُخفى"
+  ],
+  "limitations": "شاهدُ سلامةٍ محليٌّ لمسارِ الإنقطاعِ أثناءَ الإنشاءِ — ليس مقارنةَ سعةٍ ولا موجاتِ قبولٍ؛ LOAD-01 يبقى FAIL بلا تغيير. علةُ تعليقِ المهلةِ على اتصالٍ نصفِ ميّتٍ (ملاحظةُ W5 في BATCH-28 §4) باقيةٌ وغيرُ معالَجةٍ هنا."
+}
