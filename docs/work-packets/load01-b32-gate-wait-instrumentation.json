@@ -12,9 +12,11 @@
     "apps/gateway/src/container.ts",
     "tests/unit/load-path-scope.test.ts"
   ],
-  "state": ["docs/SYSTEM_STATE.md"],
-  "roadmap": ["ROADMAP.md"],
-  "affected_docs": [
-    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/BATCH-32-LOAD01-GATE-WAIT-PER-PATH.md"
-  ]
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "n_affected_docs_reason": "أداةُ قياسٍ تشخيصيّةٌ معطَّلةٌ افتراضيًا بلا أيِّ أثرٍ سلوكيٍّ؛ لا عقدًا ولا قرارًا ولا هجرةً تتغيّر — حكمُ الدفعةِ 32 وقواعدُه الموثّقةُ (BATCH-32 وPLAN-b32) باقيةٌ كما هي ولا تُعدَّل، والدليلُ المرجعيُّ موصولٌ في canonical_source."
 }
