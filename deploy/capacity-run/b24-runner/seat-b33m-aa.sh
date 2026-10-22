@@ -140,7 +140,9 @@ P=b33maa
 AACOMP="$H/deploy/capacity-run/b24-runner/b33m-aa-compare.py"
 
 log "فحصٌ تمهيديٌّ (ليس موجةَ قياس): C′ عند 750 لمدّة 120s — الحدُّ الفعليّ، وحضورُ الأداةِ والعيّناتِ والاستخراج"
-WAVE_SEC=120 "$B/bin/b24-seq.sh" smoke 750 28 "S0:ref:$C_ARM" > "$OUT/seq-smoke.log" 2>&1 || true
+# الفحصُ التمهيديُّ يتحققُ من أداةِ ذراعِ ON (المُعايِنُ مُطلقٌ فيه) — التشغيلُ الأولُ (39769205541) فشل
+# لأنّ الاستدعاءَ لم يمرّر B33M_OUTBOX=1 فسقط INSTR_MISSING قبلَ أيِّ موجة؛ لا تغييرَ في القواعد.
+WAVE_SEC=120 B33M_OUTBOX=1 "$B/bin/b24-seq.sh" smoke 750 28 "S0:ref:$C_ARM" > "$OUT/seq-smoke.log" 2>&1 || true
 collect 1 $P-smoke-S0-750
 SMOKE_RC=0
 python3 "$AN" smoke "$OUT" $P-smoke-S0-750 "$B26_SESSION_LIMIT" > "$OUT/b33m-smoke.json" 2>"$OUT/b33m-smoke.err" || SMOKE_RC=$?
