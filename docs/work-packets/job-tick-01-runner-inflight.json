@@ -1,0 +1,8 @@
+{
+  "id": "job-tick-01-runner-inflight",
+  "implementation": ["apps/workers/src/runner.ts", "tests/unit/job-runner-tick-boundary.test.ts"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [],
+  "no_other_affected_docs_reason": "إصلاحُ عيبِ JOB-TICK-01 في مشغِّلِ المهامّ (تحريرُ حارسِ التراكبِ بانتهاءِ الشوطِ لا نبضتِه) معَ اختبارِ الحدودِ كاختبارِ انحدارٍ — لا وثائقَ متأثرةً أخرى؛ حدودُ الادّعاءِ (مكسبٌ ≤ +22.5% معدلًا عندَ 750، لا إصلاحَ لG1/P7، لا حلَّ لبوابةِ LOAD-01) موثقةٌ في ROADMAP.md وتقريرَي تجربةِ b33m-idle على فرعِ الأدلة"
+}

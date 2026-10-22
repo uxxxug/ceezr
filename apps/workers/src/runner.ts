@@ -308,6 +308,12 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
 
       const detail = attempt.value;
       lastRunMs.set(job.name, nowMs);
+      // `JOB-TICK-01` — حراسةُ التراكبِ تنتهي بانتهاءِ الشوطِ نفسِه لا بانتهاءِ دفترِه:
+      // النبضةُ كتابةُ رصدٍ لا عملٌ، فبقاؤها داخلَ نافذةِ `inFlight` كان يجعلُ كلَّ كتابةٍ
+      // تتجاوزُ حدودَ النبضةِ (كلَّ 60 ثانيةٍ في حالةِ `ok` المتكرّر) تُسقِطُ الشوطَ
+      // التالي بأكملهِ (`skipped_overlapping`) فيخملُ التصريفُ دورةً كاملةً بلا سببٍ.
+      // القفلُ الموزّعُ حُرَّ بانتهاءِ الشوطِ، فالحارسُ المحليُّ يجبُ أن يتبعَه لا أن يسبقَه.
+      inFlight.delete(job.name);
       const durationMs = options.clock.now().getTime() - startedAt;
       options.log.info("job.ran", { job: job.name, durationMs, detail });
       await beat(job, "ok", detail);
@@ -316,6 +322,9 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       // التوقيت يُسجَّل حتى عند الفشل: مهمّة تفشل كل مرّة لا يجوز أن تُشغَّل في
       // كل نبضة، وإلّا صارت هجوماً على القاعدة بدل أن تكون مهمّة دورية.
       lastRunMs.set(job.name, nowMs);
+      // `JOB-TICK-01` — المِثلُ في مسارِ الفشل: الشوطُ انتهى (رمى) فالدفاترُ — نبضُه
+      // وسجلُّه — لا يُبقيان الحارسَ. فشلُ الشوطِ لا يعني منعَ الشوطِ التالي.
+      inFlight.delete(job.name);
       const durationMs = options.clock.now().getTime() - startedAt;
       const detail = error instanceof Error ? error.message : String(error);
       options.log.error("job.failed", { job: job.name, durationMs, detail });
