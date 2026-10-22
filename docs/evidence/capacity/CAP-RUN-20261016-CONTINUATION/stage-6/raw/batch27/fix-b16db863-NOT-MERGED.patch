@@ -1,0 +1,391 @@
+From b16db863c1ac2b10db316a59aa41d30c92ddebb6 Mon Sep 17 00:00:00 2001
+From: uxxxug <uxxxug@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 04:34:50 +0000
+Subject: [PATCH] =?UTF-8?q?LOAD-01=20=D8=A827:=20=D8=AF=D8=B1=D9=8A=D9=86?=
+ =?UTF-8?q?=D8=B1=D9=8F=20=D8=AA=D9=8A=D9=84=D9=8A=D8=AC=D8=B1=D8=A7=D9=85?=
+ =?UTF-8?q?=20=E2=80=94=20=D8=A7=D9=84=D8=AA=D9=82=D8=A7=D8=B7=D9=8C=20?=
+ =?UTF-8?q?=D9=85=D8=B3=D8=A8=D9=8E=D9=82=D9=8C=20=D9=85=D8=AA=D8=AF=D8=A7?=
+ =?UTF-8?q?=D8=AE=D9=84=D9=8C=20=D8=A8=D8=AD=D8=B5=D9=91=D8=A9=D9=90=20?=
+ =?UTF-8?q?=D8=A7=D9=84=D8=A8=D9=88=D8=AA=20(=D8=B3=D9=82=D9=81=D9=8F=20?=
+ =?UTF-8?q?=D8=AD=D9=84=D9=82=D8=A9=D9=90=20=D8=A7=D9=84=D8=A7=D9=84=D8=AA?=
+ =?UTF-8?q?=D9=82=D8=A7=D8=B7=D9=90=20=D8=A7=D9=84=D9=85=D8=AA=D8=B3=D9=84?=
+ =?UTF-8?q?=D8=B3=D9=84=D8=A9=D9=90=20=E2=89=88=205.9=20=D9=88=D8=B8=D9=8A?=
+ =?UTF-8?q?=D9=81=D8=A9/0.2s)=20+=20=D8=B4=D8=A7=D9=87=D8=AF=D9=8C=20?=
+ =?UTF-8?q?=D9=8A=D9=81=D8=B4=D9=84=D9=8F=20=D9=82=D8=A8=D9=84=D9=8E=D9=87?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+---
+ .../src/background/telegram-update-drainer.ts | 119 ++++++++--
+ ...gram-update-drainer-claim-prefetch.test.ts | 215 ++++++++++++++++++
+ 2 files changed, 312 insertions(+), 22 deletions(-)
+ create mode 100644 tests/unit/telegram-update-drainer-claim-prefetch.test.ts
+
+diff --git a/apps/gateway/src/background/telegram-update-drainer.ts b/apps/gateway/src/background/telegram-update-drainer.ts
+index 3fe10f96..88f0fdcc 100644
+--- a/apps/gateway/src/background/telegram-update-drainer.ts
++++ b/apps/gateway/src/background/telegram-update-drainer.ts
+@@ -521,34 +521,95 @@ async function drainConcurrently(
+    * LOAD-01 (الدفعةُ السابعةُ) — التقاطٌ دُفعيٌّ: رحلةٌ واحدةٌ تجلبُ حتى عددِ المساراتِ الفارغةِ
+    * (مقسومًا على البوتاتِ للإنصافِ) مرتّبةً، فيُستهلَكُ المخزَّنُ بترتيبِه قبلَ رحلةٍ تاليةٍ.
+    * المقيسُ قبلَه: رحلةُ الالتقاطِ المفردِ ~40ms تحتَ 500 متزامنٍ ⇒ الجاري 4–5 من 32 والإتمامُ
+-   * ~25/ث (`diag-r12-jobtiming-500`). والمخزَّنُ لا يتجاوزُ المساراتِ الفارغةَ فيُسنَدُ فورًا.
++   * ~25/ث (`diag-r12-jobtiming-500`). (كانَ المخزَّنُ لا يتجاوزُ المساراتِ الفارغةَ — نسخَه ب27 أدناه.)
+    */
+   const batched: ClaimedJob[] = [];
+   const batchClaim = deps.queue.claimBatchFor;
++  /**
++   * LOAD-01 (الدفعةُ 27) — **التقاطٌ مسبَقٌ متداخلٌ معَ تنفيذِ المسارات.** المقيسُ قبلَه (الدفعةُ 26،
++   * موجاتُ المرشّحِ الأربعُ عندَ 750): الطابورُ لم يفرغْ قطُّ ومعَ ذلك جرى ~22 من 32 مسارًا، لأنَّ
++   * الرحلةَ كانت تطلبُ عددَ المساراتِ الشاغرةِ **لحظتَها** (5.9 وظيفةً في المتوسّط) ولا تُطلَقُ إلا بعدَ
++   * نفادِ المخزَّن، وكلُّ رحلةٍ ~0.20ث على تجمُّعِ الطلبِ المشبَع — فسقفُ الإتمامِ ≈ 5.9/0.20 ≈ 29.5/ث
++   * (المقيسُ 28.7–31.3/ث) دونَ وصولِ إثباتِ الهاتفِ 31.6–34.4/ث ⇒ `driver_onboarding_failed`.
++   *
++   * فالرحلةُ صارت بنصيبِ البوتِ من المساراتِ (لا بالشاغرِ لحظتَها)، وتُطلَقُ رحلةٌ واحدةٌ على الأكثرِ
++   * **في الخلفيّةِ** حينَ ينزلُ المخزَّنُ دونَ ذلك النصيب، فتجري المساراتُ ما في المخزَّنِ ريثما تعود.
++   * والحدودُ باقيةٌ: لا رحلتانِ في آنٍ (ترتيبُ `created_at` بينَ الرحلاتِ محفوظٌ)، ولا دفعةَ فوقَ نصيبِ
++   * البوت، والملتقَطُ + المخزَّنُ لا يتجاوزانِ سقفَ الشوطِ (فلا يُتركُ مخزَّنٌ محجوزٌ عندَ قطعِه)،
++   * والمخزَّنُ يدخلُ تجديدَ الإيجارِ منذُ وصولِه. لا يتغيّرُ عددُ الاتّصالاتِ ولا الاستعلاماتُ لكلِّ وظيفة.
++   */
++  const share = fair === null ? 1 : Math.max(1, Math.ceil(lanes / fair.length));
++  let prefetch: Promise<void> | null = null;
++  let prefetchError: unknown = null;
++  const pickBot = (): string | null => {
++    if (fair === null) return null;
++    const open = fair.filter((b) => !drained.has(b));
++    if (open.length === 0) return null;
++    open.sort((a, b) => (busy.get(a) ?? 0) - (busy.get(b) ?? 0));
++    return open[0] as string;
++  };
++  // `inHand`: وظيفةٌ أُخرِجَت منَ المخزَّنِ ولم تُعَدَّ في `claimed` بعدُ (يعدُّها المُستدعي بعدَ العودة).
++  const sweepBudget = (inHand = 0): number => maxJobsPerRun - claimed - batched.length - inHand;
++  const batchTrip = async (bot: string, room: number): Promise<void> => {
++    const t0 = performance.now();
++    const { jobs } = await (batchClaim as NonNullable<typeof batchClaim>).call(
++      deps.queue,
++      bot,
++      room,
++    );
++    claimTrips += 1;
++    claimMs += performance.now() - t0;
++    if (jobs.length === 0) {
++      drained.add(bot);
++      return;
++    }
++    for (const j of jobs) {
++      held.set(`${j.bot}:${j.updateId}`, {
++        bot: j.bot,
++        updateId: j.updateId,
++        claimToken: j.claimToken,
++      });
++    }
++    batched.push(...jobs);
++  };
++  const startPrefetch = (inHand: number): void => {
++    if (fair === null || batchClaim === undefined) return;
++    if (prefetch !== null || batched.length >= share) return;
++    const room = Math.min(share, sweepBudget(inHand));
++    if (room < 1) return;
++    const bot = pickBot();
++    if (bot === null) return;
++    prefetch = batchTrip(bot, room)
++      .catch((error: unknown) => {
++        prefetchError = error;
++      })
++      .finally(() => {
++        prefetch = null;
++      });
++  };
+   const nextClaim = async (): Promise<ClaimedJob | null> => {
+-    const buffered = batched.shift();
+-    if (buffered !== undefined) return buffered;
+-    if (fair === null) return (await deps.queue.claim()).job;
++    if (fair === null) {
++      const buffered = batched.shift();
++      if (buffered !== undefined) return buffered;
++      return (await deps.queue.claim()).job;
++    }
+     for (;;) {
+-      const open = fair.filter((b) => !drained.has(b));
+-      if (open.length === 0) return null;
+-      open.sort((a, b) => (busy.get(a) ?? 0) - (busy.get(b) ?? 0));
+-      const bot = open[0] as string;
++      const buffered = batched.shift();
++      if (buffered !== undefined) {
++        startPrefetch(1);
++        return buffered;
++      }
++      if (prefetch !== null) await prefetch;
++      if (prefetchError !== null) {
++        const error = prefetchError;
++        prefetchError = null;
++        throw error;
++      }
++      if (batched.length > 0) continue;
++      const bot = pickBot();
++      if (bot === null) return null;
+       if (batchClaim !== undefined) {
+-        const room = Math.min(
+-          Math.max(1, lanes - inflight.size),
+-          Math.max(1, Math.ceil(lanes / fair.length)),
+-          Math.max(1, maxJobsPerRun - claimed),
+-        );
+-        const t0 = performance.now();
+-        const { jobs } = await batchClaim.call(deps.queue, bot, room);
+-        claimTrips += 1;
+-        claimMs += performance.now() - t0;
+-        if (jobs.length > 0) {
+-          batched.push(...jobs.slice(1));
+-          return jobs[0] as ClaimedJob;
+-        }
+-        drained.add(bot);
++        await batchTrip(bot, Math.min(share, Math.max(1, sweepBudget())));
+         continue;
+       }
+       const job = (await deps.queue.claimFor?.(bot))?.job ?? null;
+@@ -604,6 +665,20 @@ async function drainConcurrently(
+     // جاريَه كما كان، فلا دوَرانَ فارغٌ ولا وظيفةٌ تُتركُ بلا تجديدِ إيجار.
+     if (!(truncated && carry !== undefined)) await Promise.all(inflight);
+   } finally {
++    // ب27: رحلةٌ مسبَقةٌ لا تبقى معلّقةً بعدَ الشوط — ولا يصلُ إليها شيءٌ يُترَك: حجمُها مقيّدٌ بما
++    // بقيَ من سقفِ الشوطِ، والحلقةُ لا تخرجُ قبلَ استهلاكِه (أو فراغِ البوتات/فشلِ الالتقاطِ بعدَ انتظارِها).
++    if (prefetch !== null) await prefetch;
++    if (prefetchError !== null) {
++      deps.log?.("telegram.drainer.claim_failed", {
++        error: prefetchError instanceof Error ? prefetchError.message : String(prefetchError),
++      });
++    }
++    // غيرُ بالغٍ بالبناءِ (المخزَّنُ مقيّدٌ بسقفِ الشوط): إن بقيَ مخزَّنٌ فلا يُقتَلُ (`abandon` موتٌ نهائيّ)
++    // بل يُعلَنُ ويُترَكُ لانقضاءِ إيجارِه فيُستردُّ — «مرّةً على الأقلّ» كما كان.
++    if (batched.length > 0) {
++      deps.log?.("telegram.drainer.prefetch_leftover", { count: batched.length });
++      for (const j of batched.splice(0)) held.delete(`${j.bot}:${j.updateId}`);
++    }
+     if (renewTimer !== null) clearInterval(renewTimer);
+   }
+   deps.timing?.onSweep({
+diff --git a/tests/unit/telegram-update-drainer-claim-prefetch.test.ts b/tests/unit/telegram-update-drainer-claim-prefetch.test.ts
+new file mode 100644
+index 00000000..f741f6c1
+--- /dev/null
++++ b/tests/unit/telegram-update-drainer-claim-prefetch.test.ts
+@@ -0,0 +1,215 @@
++/**
++ * الغرض: LOAD-01 (الدفعةُ 27) — شاهدُ فشلِ «سقفِ حلقةِ الالتقاطِ» في درينرِ تحديثاتِ تيليجرام، ثمّ
++ *   حارسُ انحدارِ إصلاحِه (الالتقاطُ المسبَقُ المتداخلُ معَ تنفيذِ المسارات).
++ *
++ * المقيسُ (الدفعةُ 26، موجاتُ المرشّحِ الأربعُ عندَ 750، أثرُ `load-trace` لكلِّ وظيفة): طابورُ إثباتِ
++ * الهاتفِ لم يفرغْ قطُّ (> 32 وظيفةً منتظرةً في كلِّ عيّنةٍ تقريبًا)، ومعَ ذلك لم يجرِ إلا ~22 من 32
++ * مسارًا، وحلقةُ الالتقاطِ مشغولةٌ 95% من زمنِ الشوطِ برحلاتٍ متسلسلةٍ ~0.20ث تجلبُ 5.9 وظيفةً في
++ * المتوسّطِ — لأنَّ الرحلةَ لا تطلبُ إلا عددَ المساراتِ الشاغرةِ لحظتَها، ولا تُطلَقُ إلا بعدَ نفادِ
++ * المخزَّن. فسقفُ الإتمامِ ≈ 5.9 / 0.20 ≈ 29.5/ث (المقيسُ 28.7–31.3/ث) دونَ وصولٍ 31.6–34.4/ث، فتراكمَ
++ * الطابورُ إلى ~16–17ث p50 وتجاوزَ مهلةَ المولّدِ (20ث) ⇒ `driver_onboarding_failed`.
++ *
++ * هذا الاختبارُ يُشغّلُ **الدرينرَ الحقيقيَّ** (`drainTelegramUpdateJobsOnce`) بطابورٍ زائفٍ زمنُ رحلتِه
++ * وزمنُ معالجةِ الوظيفةِ بنسبةِ المقيسِ نفسِها (0.20 : 0.73، مُصغَّرةً ×0.2)، و32 مسارًا وبوتين وسقفِ شوطٍ
++ * 100 بحالةٍ ممتدّةٍ — كما في البوّابة. والحكمُ على **إشغالِ المساراتِ أثناءَ التراكم** لا على 2xx.
++ * ينتمي إلى: tests/unit
++ */
++import { describe, expect, test } from "bun:test";
++import {
++  createDrainLaneState,
++  drainTelegramUpdateJobsOnce,
++} from "../../apps/gateway/src/background/telegram-update-drainer.ts";
++import type {
++  ClaimedTelegramUpdateJob,
++  TelegramUpdateQueue,
++} from "../../packages/infrastructure/db/telegram-update-queue.ts";
++
++type J = ClaimedTelegramUpdateJob;
++
++/** نسبةُ المقيسِ (0.20ث رحلةُ التقاطٍ · 0.73ث معالجةُ وظيفةٍ) مُصغَّرةً ×0.2. */
++const TRIP_MS = 40;
++const JOB_MS = 146;
++const LANES = 32;
++const SWEEP_CAP = 100;
++const JOBS = 480;
++
++function job(bot: string, updateId: number, userId: number): J {
++  return {
++    bot,
++    updateId,
++    payload: { message: { from: { id: userId } } },
++    claimToken: `t${updateId}`,
++    attempts: 1,
++    maxAttempts: 5,
++  };
++}
++
++interface Harness {
++  readonly queue: TelegramUpdateQueue;
++  readonly trips: number[];
++  readonly finished: number[];
++  /** لحظةُ فراغِ الطابورِ في القاعدةِ (آخرُ وظيفةٍ التُقِطَت) — نهايةُ نافذةِ «التراكم». */
++  backlogEndedAt: number | null;
++  readonly held: Set<number>;
++}
++
++function slowQueue(jobs: J[]): Harness {
++  const pending = [...jobs];
++  const h: Harness = {
++    queue: undefined as never,
++    trips: [],
++    finished: [],
++    backlogEndedAt: null,
++    held: new Set(),
++  };
++  const take = (bot: string, limit: number): J[] => {
++    const out: J[] = [];
++    for (let i = 0; i < pending.length && out.length < limit; ) {
++      if ((pending[i] as J).bot === bot) out.push(pending.splice(i, 1)[0] as J);
++      else i += 1;
++    }
++    return out;
++  };
++  const trip = () => new Promise((r) => setTimeout(r, TRIP_MS));
++  (h as { queue: TelegramUpdateQueue }).queue = {
++    claim: async () => {
++      await trip();
++      return { job: pending.shift() ?? null };
++    },
++    claimFor: async (bot) => {
++      await trip();
++      return { job: take(bot, 1)[0] ?? null };
++    },
++    claimBatchFor: async (bot: string, limit: number) => {
++      await trip();
++      const jobs = take(bot, limit);
++      h.trips.push(jobs.length);
++      for (const j of jobs) h.held.add(j.updateId);
++      if (pending.length === 0 && h.backlogEndedAt === null) h.backlogEndedAt = performance.now();
++      return { jobs };
++    },
++    renew: async (leases) => leases.length,
++    finish: async (lease) => {
++      h.held.delete(lease.updateId);
++      h.finished.push(lease.updateId);
++      return true;
++    },
++    abandon: async () => true,
++  };
++  return h;
++}
++
++/** يدفعُ أشواطًا متتاليةً بحالةٍ ممتدّةٍ كما يفعلُ `startTelegramUpdateDrainer` حتّى يفرغَ كلُّ شيء. */
++async function drainAll(h: Harness, handler: unknown): Promise<void> {
++  const state = createDrainLaneState();
++  for (let sweeps = 0; sweeps < 1000; sweeps++) {
++    const report = await drainTelegramUpdateJobsOnce(
++      {
++        queue: h.queue,
++        handler: handler as never,
++        maxJobsPerRun: SWEEP_CAP,
++        lanes: LANES,
++        fairBots: ["driver", "rider"],
++      },
++      state,
++    );
++    if (!report.truncated && report.claimed === 0 && state.inflight.size === 0) return;
++  }
++  throw new Error("الدرينرُ لم يفرغ");
++}
++
++/** إشغالٌ دقيقٌ: عدٌّ جارٍ مُعادُ البناءِ من أحداثِ البدءِ والانتهاء. */
++function busyLanesDuring(starts: number[], ends: number[], from: number, until: number): number {
++  const ev = [...starts.map((t) => [t, 1] as const), ...ends.map((t) => [t, -1] as const)].sort(
++    (a, b) => a[0] - b[0] || a[1] - b[1],
++  );
++  let cur = 0;
++  let prev = from;
++  let area = 0;
++  for (const [t, d] of ev) {
++    const tt = Math.min(Math.max(t, from), until);
++    area += (tt - prev) * cur;
++    prev = tt;
++    cur += d;
++  }
++  area += (until - prev) * cur;
++  return area / Math.max(1, until - from);
++}
++
++describe("LOAD-01 ب27 — سقفُ حلقةِ الالتقاطِ في درينرِ تيليجرام", () => {
++  test("أثناءَ التراكمِ المستمرِّ تبقى المساراتُ ممتلئةً (≥ 85% من 32) — لا يحكمُها زمنُ رحلةِ الالتقاط", async () => {
++    const jobs = Array.from({ length: JOBS }, (_, i) => job("driver", i + 1, 50_000 + i));
++    const h = slowQueue(jobs);
++    const starts: number[] = [];
++    const ends: number[] = [];
++    const handler = {
++      handle: async () => {
++        starts.push(performance.now());
++        await new Promise((r) => setTimeout(r, JOB_MS));
++        ends.push(performance.now());
++        return true;
++      },
++    };
++    await drainAll(h, handler);
++
++    // الكلُّ أُنجِزَ مرّةً واحدةً بالضبط، ولا محجوزَ متروكٌ.
++    expect(h.finished.length).toBe(JOBS);
++    expect(new Set(h.finished).size).toBe(JOBS);
++    expect(h.held.size).toBe(0);
++    // لا دفعةَ تتجاوزُ نصيبَ البوتِ من المسارات (32 / بوتين).
++    expect(Math.max(...h.trips)).toBeLessThanOrEqual(LANES / 2);
++
++    const from = Math.min(...starts);
++    const until = h.backlogEndedAt ?? Math.max(...ends);
++    const busy = busyLanesDuring(starts, ends, from, until);
++    // قبلَ الإصلاحِ (main 66528457): ~22/32 كما في المقيس. الحدُّ 0.85 × 32 = 27.2.
++    expect(busy).toBeGreaterThanOrEqual(0.85 * LANES);
++  }, 30_000);
++
++  test("ترتيبُ المستخدمِ الواحدِ محفوظٌ معَ الالتقاطِ المسبَق، والإيجاراتُ المخزَّنةُ تُجدَّد", async () => {
++    const jobs: J[] = [];
++    let id = 0;
++    for (let round = 0; round < 8; round++)
++      for (let user = 0; user < 12; user++) jobs.push(job("driver", ++id, 7000 + user));
++    const h = slowQueue(jobs);
++    const handler = {
++      handle: async () => {
++        await new Promise((r) => setTimeout(r, 5 + Math.random() * 20));
++        return true;
++      },
++    };
++    await drainAll(h, handler);
++    expect(h.finished.length).toBe(jobs.length);
++    expect(new Set(h.finished).size).toBe(jobs.length);
++    // ترتيبُ الختمِ لكلِّ مستخدمٍ = ترتيبُ الإيداع.
++    const byUser = new Map<number, number[]>();
++    for (const u of h.finished) {
++      const user = 7000 + ((u - 1) % 12);
++      byUser.set(user, [...(byUser.get(user) ?? []), u]);
++    }
++    expect(byUser.size).toBe(12);
++    for (const ids of byUser.values()) expect(ids).toEqual([...ids].sort((a, b) => a - b));
++  }, 30_000);
++
++  test("المخزَّنُ المسبَقُ لا يُتركُ محجوزًا عندَ قطعِ الشوطِ بسقفِه", async () => {
++    const jobs = Array.from({ length: 250 }, (_, i) => job("driver", i + 1, 60_000 + i));
++    const h = slowQueue(jobs);
++    const state = createDrainLaneState();
++    const report = await drainTelegramUpdateJobsOnce(
++      {
++        queue: h.queue,
++        handler: { handle: async () => true } as never,
++        maxJobsPerRun: SWEEP_CAP,
++        lanes: LANES,
++        fairBots: ["driver", "rider"],
++      },
++      state,
++    );
++    expect(report.truncated).toBe(true);
++    expect(report.claimed).toBe(SWEEP_CAP);
++    // ما التُقِطَ = ما عُدَّ في الشوط: لا وظيفةَ محجوزةٌ خارجَ حسابِ الشوطِ تنتظرُ انقضاءَ إيجارِها.
++    await Promise.allSettled([...state.inflight]);
++    expect(h.held.size).toBe(0);
++    expect(h.finished.length).toBe(SWEEP_CAP);
++  }, 30_000);
++});
+-- 
+2.53.0
+

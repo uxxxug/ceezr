@@ -23,9 +23,13 @@
 import { apiFetch } from "../../../api/client.ts";
 import type {
   AcceptDriverOfferResponse,
+  ClaimNegotiationResponse,
   DriverAvailabilityResponse,
+  DriverNegotiationsResponse,
   DriverOfferDetailResponse,
+  DriverOffersReceiptsResponse,
   DriverOffersResponse,
+  LeaveNegotiationResponse,
   RejectDriverOfferResponse,
 } from "./offers-contract.ts";
 
@@ -33,6 +37,21 @@ export type * from "./offers-contract.ts";
 
 export function readDriverOffers(): Promise<DriverOffersResponse> {
   return apiFetch<DriverOffersResponse>("/v1/driver/offers", { method: "GET" });
+}
+
+/**
+ * `LOAD-01 Recovery` — إقرارُ استلامِ اللوحِ: يُرسِلُه العميلُ **بعدَ تطبيقِ**
+ * اللقطةِ (لا عندَ جلبِها)، فيفصلُ «سلّمها الخادمُ» عنِ «وصلَتْ». الإيصالُ
+ * تراكميٌّ لا مُعوِّقٌ: فشلُهُ لا يُوقفُ العرضَ — التحديثُ التالي يُقرُّ بما
+ * بقيَ، وشوطُ التسليمِ ينتظرُهُ دوراتٍ مسقوفةً ثمَّ بطاقةُ البوتِ.
+ */
+export function ackDriverOfferBoard(
+  offerIds: readonly string[],
+): Promise<DriverOffersReceiptsResponse> {
+  return apiFetch<DriverOffersReceiptsResponse>("/v1/driver/offers/receipts", {
+    method: "POST",
+    body: { offer_ids: offerIds.slice(0, 50) },
+  });
 }
 
 export function readDriverOfferDetail(offerId: string): Promise<DriverOfferDetailResponse> {
@@ -55,5 +74,25 @@ export function setDriverAvailability(isAvailable: boolean): Promise<DriverAvail
   return apiFetch<DriverAvailabilityResponse>("/v1/driver/availability", {
     method: "POST",
     body: { is_available: isAvailable },
+  });
+}
+
+/**
+ * `ADR 0286` — دوراتُ القروبِ المفتوحةُ: المطالبةُ من التطبيقِ عبرَ المنفذِ الذرّيِّ
+ * نفسِهِ، وثواني النافذةِ من الخادمِ لا من ساعةِ الجهازِ.
+ */
+export function readDriverNegotiations(): Promise<DriverNegotiationsResponse> {
+  return apiFetch<DriverNegotiationsResponse>("/v1/driver/negotiations", { method: "GET" });
+}
+
+export function claimDriverNegotiation(negotiationId: string): Promise<ClaimNegotiationResponse> {
+  return apiFetch<ClaimNegotiationResponse>(`/v1/driver/negotiations/${negotiationId}/claim`, {
+    method: "POST",
+  });
+}
+
+export function leaveDriverNegotiation(negotiationId: string): Promise<LeaveNegotiationResponse> {
+  return apiFetch<LeaveNegotiationResponse>(`/v1/driver/negotiations/${negotiationId}/leave`, {
+    method: "POST",
   });
 }

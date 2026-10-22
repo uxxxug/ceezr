@@ -31,6 +31,7 @@ import type {
   DriverOfferDetail,
 } from "../../domain/driver/driver-offers.ts";
 import type { Result } from "../../shared/result/index.ts";
+import type { RiderTripDepositOutcome } from "./rider-trip-notice.ts";
 
 /**
  * رفضٌ **مُصنَّفٌ** من القاعدةِ — مجالٌ مغلقٌ يُقابِلُ رموزَ `driver_offer_board`
@@ -50,7 +51,9 @@ export type DriverOfferStoreRejection =
   /** سائقٌ من مدينةٍ وطلبٌ من أخرى — يُردُّ ولا يُطابَقُ. */
   | "CITY_MISMATCH"
   /** رفضٌ من `claim_ride` بلا رمزٍ معروفٍ — يُنقَلُ ولا يُخترَعُ له معنًى. */
-  | "CLAIM_REFUSED";
+  | "CLAIM_REFUSED"
+  /** `I1` · `ADR 0286` — السائقُ يحملُ التزامًا قائمًا؛ لا إسنادَ ثانياً له. */
+  | "DRIVER_HAS_ACTIVE_ORDER";
 
 /** عطبُ مخزنٍ أو حمولةٌ لا تُفهَمُ — يُنشَرُ `503`، ولا يُخلَطُ برفضٍ مُصنَّفٍ. */
 export interface DriverOfferStoreFailure {
@@ -75,6 +78,17 @@ export interface DriverOfferStore {
     readonly telegramUserId: string;
   }): Promise<Result<DriverOfferBoard, DriverOfferStoreError>>;
 
+  /**
+   * `LOAD-01 Recovery` — إيصالاتُ لوحِ العروضِ: العميلُ يُقرُّ بأنَّه طبّقَ لقطةً
+   * فيها هذهِ العروضُ، فيُثبَتُ وصولُها منَ الجهةِ التي يملكُ الحكمَ (الخادمُ)
+   * لا منَ ادعاءِ إرسالٍ. **يكتبُ إيصالًا لا يغيّرُ عرضًا**: `on conflict do
+   * nothing` — إيصالٌ مرتانِ إيصالٌ واحدٌ، ولا يُمسُّ حالةُ العرضِ هنا.
+   */
+  recordBoardReceipts(input: {
+    readonly telegramUserId: string;
+    readonly offerIds: readonly string[];
+  }): Promise<Result<{ readonly recorded: number }, DriverOfferStoreError>>;
+
   /** **يقرأُ ولا يكتبُ**: تفاصيلُ `SD-04` لعرضٍ يملكُه هذا السائقُ وحدَه. */
   readDetail(input: {
     readonly telegramUserId: string;
@@ -89,4 +103,20 @@ export interface DriverOfferStore {
     readonly telegramUserId: string;
     readonly offerId: string;
   }): Promise<Result<DriverOfferClaim, DriverOfferStoreError>>;
+
+  /**
+   * LOAD-01 (الدفعةُ الخامسةَ عشرةَ) — القبولُ **نفسُه** (`driver_accept_offer` بلا تغيير) مع إيداعِ
+   * إشعارِ MATCHED في معاملتِه، في رحلةِ ذهابٍ وإيابٍ واحدة. `matchedNotice` غائبٌ حينَ لا إيداعَ
+   * (رفضٌ، أو حجزٌ بانتظارِ الراكب — `WR-09` يودِعُ إشعارَ المرشَّح بنفسِه). اختياريٌّ: غيابُه =
+   * المسارُ القديمُ (قبولٌ ثمّ إيداعٌ مستقلّ).
+   */
+  acceptWithMatchedNotice?(input: {
+    readonly telegramUserId: string;
+    readonly offerId: string;
+  }): Promise<
+    Result<
+      { readonly claim: DriverOfferClaim; readonly matchedNotice?: RiderTripDepositOutcome },
+      DriverOfferStoreError
+    >
+  >;
 }

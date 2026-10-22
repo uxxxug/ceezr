@@ -8,6 +8,7 @@ import { describe, expect, it } from "bun:test";
 import type { OutboundRateBucket } from "../../packages/infrastructure/notification/outbound-rate-bucket.ts";
 import {
   createMemoryDeadLetterSink,
+  OutboundCongestionError,
   type OutboundEvent,
   OutboundSendError,
   withOutboundResilience,
@@ -182,6 +183,57 @@ describe("غلافُ صمودِ الصادرِ (CAP-002)", () => {
     expect(events.some((event) => event.type === "gave_up")).toBe(true);
   });
 
+  it("`D8` — سياسةُ الإحالةِ على مستوى النداءِ: مسارُ الطابورِ يرمي ولا يقتل", async () => {
+    let sends = 0;
+    const closedBucket: OutboundRateBucket = {
+      acquire: async () => ({ granted: false, waitMs: 400 }),
+    };
+    const { sender, events, deadLetter } = harness(
+      stubSender(async () => {
+        sends += 1;
+        return "ok";
+      }),
+      {
+        bucket: closedBucket,
+        maxBucketWaitMs: 100,
+        congestionAbortMaxWaitMs: 300,
+        informationalMaxAttempts: 1,
+      },
+    );
+
+    // النداءُ موسومٌ بسياسةِ الإحالةِ (مسارُ صندوقِ الصادرِ الذي يملكُ `requeue`):
+    // الضغطُ يُرمى `OutboundCongestionError` فوراً لا انتظارَ ولا قتلًا.
+    await expect(
+      sender.sendMessage("111", "نصٌّ", undefined, { congestion: "abort" }),
+    ).rejects.toMatchObject({ name: "OutboundCongestionError", retryAfterMs: 400 });
+    expect(sends).toBe(0);
+    expect(deadLetter.entries()).toEqual([]);
+    expect(events.some((event) => event.type === "gave_up")).toBe(false);
+  });
+
+  it("`D8` — سياسةُ الإحالةِ تحترمُ ميزانيّتَها: فتحةٌ تُنتظَرُ قصيراً تُستعمَل", async () => {
+    let sends = 0;
+    let acquires = 0;
+    // فتحةٌ تُتاحُ بعدَ 150ms — دونَ ميزانيّةِ الإحالةِ (300ms) فتُنتظَرُ وتُرسَلُ الرسالة.
+    const slowBucket: OutboundRateBucket = {
+      acquire: async () => {
+        acquires += 1;
+        return acquires === 1 ? { granted: false, waitMs: 150 } : { granted: true, waitMs: 0 };
+      },
+    };
+    const { sender, sleeps } = harness(
+      stubSender(async () => {
+        sends += 1;
+        return "42";
+      }),
+      { bucket: slowBucket, congestionAbortMaxWaitMs: 300 },
+    );
+
+    expect(await sender.sendMessage("111", "نصٌّ", undefined, { congestion: "abort" })).toBe("42");
+    expect(sends).toBe(1);
+    expect(sleeps).toEqual([150]);
+  });
+
   it("`sendLocation` حرجةٌ افتراضاً و`sendMessage` ليست كذلك", async () => {
     const attempts = { message: 0, location: 0 };
     const { sender } = harness({
@@ -234,5 +286,60 @@ describe("غلافُ صمودِ الصادرِ (CAP-002)", () => {
       });
     }
     expect(sink.entries().map((letter) => letter.reason)).toEqual(["ثانٍ", "ثالثٌ"]);
+  });
+
+  // `LOAD-01` (الدفعةُ الخامسةُ) — انحدارُ ترتيبِ اقتناءِ الفتحتينِ: ازدحامُ
+  // المحادثةِ لا يجوزُ أن يستهلكَ فتحةً من الدلوِ العالميِّ المشتركِ للبوتِ كلِّهِ.
+  // قبلَ الإصلاحِ كانَ العالميُّ يُقتنى أولًا فيُمنَحُ ويُهدَرُ عندَ رفضِ فتحةِ
+  // المحادثةِ — فانخفضَ السقفُ الفعليُّ من 25/ث إلى ~12.5/ث (قياسُ r3-wave-50).
+  it("ازدحامُ المحادثةِ لا يستهلكُ فتحةً من الدلوِ العالميِّ المشتركِ", async () => {
+    const calls: string[] = [];
+    const chatAcquires = new Map<string, number>();
+    const bucket: OutboundRateBucket = {
+      acquire: async (scope, key) => {
+        calls.push(`${scope}:${key}`);
+        if (scope === "global") return { granted: true, waitMs: 0 };
+        // محادثةٌ واحدةٌ في الثانيةِ: أولُ اقتناءٍ يُمنَحُ والثاني خلالَ الثانيةِ يُرفضُ
+        const n = (chatAcquires.get(String(key)) ?? 0) + 1;
+        chatAcquires.set(String(key), n);
+        return n <= 1 ? { granted: true, waitMs: 0 } : { granted: false, waitMs: 1000 };
+      },
+    };
+    const { sender } = harness(
+      stubSender(async () => "42"),
+      { bucket },
+    );
+    // أولُ رسالةٍ للمحادثةِ A: تُمنَحُ فتحةُ المحادثةِ ثمَّ العالميُّ فتُرسَلُ.
+    expect(await sender.sendMessage("A", "أولى", undefined)).toBe("42");
+    // ثاني رسالةٍ للمحادثةِ نفسِها خلالَ الثانيةِ: ازدحامُ محادثةٍ — يجبُ أن
+    // يُرفَضَ عندَ فتحةِ المحادثةِ نفسِها **قبلَ الاقتناءِ منَ العالميِّ**.
+    await expect(
+      sender.sendMessage("A", "ثانية", undefined, { congestion: "abort" }),
+    ).rejects.toBeInstanceOf(OutboundCongestionError);
+    // الاقتناءُ الأخيرُ منَ العالميِّ هوَ لرسالةِ «أولى» وحدَها: ازدحامُ
+    // «ثانية» لم يمسَّ الدلوَ العالميَّ إطلاقاً.
+    expect(calls.filter((c) => c.startsWith("global")).length).toBe(1);
+    expect(calls.filter((c) => c === "chat:A").length).toBe(2);
+  });
+
+  it("رفضُ فتحةِ العالميِّ بعدَ منحِ المحادثةِ يُعادُ سببُهُ العالميَّ لا المحادثيَّ", async () => {
+    let grants = 0;
+    const bucket: OutboundRateBucket = {
+      acquire: async (scope) => {
+        if (scope === "chat") return { granted: true, waitMs: 0 };
+        grants += 1;
+        return grants === 1 ? { granted: true, waitMs: 0 } : { granted: false, waitMs: 900 };
+      },
+    };
+    const { sender, events } = harness(
+      stubSender(async () => "42"),
+      { bucket },
+    );
+    expect(await sender.sendMessage("A", "أولى", undefined)).toBe("42");
+    // العالميُّ ممتلئٌ: الرفضُ سببُهُ العالميُّ حتى لو كانت فتحةُ المحادثةِ مُنِحَتْ أولًا.
+    await expect(
+      sender.sendMessage("B", "ثانية", undefined, { congestion: "abort" }),
+    ).rejects.toBeInstanceOf(OutboundCongestionError);
+    expect(events.some((e) => e.type === "backpressure" && e.detail === "global")).toBe(false);
   });
 });

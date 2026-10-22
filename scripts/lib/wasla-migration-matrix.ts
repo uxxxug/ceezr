@@ -339,6 +339,7 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
   { ...noMigration("driver_document_reviewers") },
   { ...noMigration("driver_documents") },
   { ...noMigration("driver_location_history") },
+  { ...noMigration("driver_offers_board_receipts") },
   {
     table: "drivers",
     mechanism: "COLUMN_SPLIT",
@@ -457,6 +458,7 @@ export const WASLA_MIGRATION_MATRIX: readonly MatrixEntry[] = [
       "عددُ التقييماتِ ومتوسّطُها لكلِّ سائقٍ متساويانِ في الطرفَينِ، وسباقُ تقييمَينِ متزامنَينِ لا يُنتِجُ متوسّطاً مكرَّراً — يُقاسُ على قاعدةٍ حقيقيّةٍ كما يُقاسُ اليومَ في `race-rating-average`.",
     executed: false,
   },
+  { ...noMigration("rider_trip_event_receipts") },
   {
     table: "riders",
     mechanism: "SPLIT_TABLE",

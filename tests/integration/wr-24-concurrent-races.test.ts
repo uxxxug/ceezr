@@ -79,6 +79,13 @@ describeIf("WR-24 — سباقاتٌ متزامنةٌ على قاعدةٍ حقي
     offered: readonly string[],
     expiresIn = "45 seconds",
   ): Promise<{ orderId: string; offers: Map<string, string> }> {
+    // `I1` (`ADR 0286`): السائقُ لا يحملُ التزامًا ثانيًا — وجولاتُ هذا الملفِ
+    // وجولاتُ من سبقَهُ تُبقي السائقَ الفائزَ مشغولًا. فتُنهى التزاماتُ السائقينَ
+    // المعروضينَ قبلَ كلِّ جولةٍ — هذا هو إتمامُ رحلاتِهم لا تعطيلُ الحارسِ.
+    await sql`
+      update orders set status = 'completed', completed_at = now()
+       where assigned_driver_id = any(${offered}::uuid[])
+         and is_driver_engaged_order_status(status)`;
     const orderId = (
       await sql<{ id: string }[]>`
         insert into orders (city_id, rider_id, service, status, pickup)
@@ -451,6 +458,16 @@ describeIf("WR-24 — سباقاتٌ متزامنةٌ على قاعدةٍ حقي
   it("٧أ — اتفاقُ القروبِ واستلامُ البوتِ معًا: إسنادٌ واحدٌ، ولا عرضٌ معلَّقٌ ولا مسارا إسناد", async () => {
     for (let round = 0; round < ROUNDS; round++) {
       const [a, , c] = drivers as [string, string, string];
+      // إتمامُ التزاماتِ طرفَيِ السباقِ قبلَ الجولةِ: `freshOrder` يُنهي التزاماتِ
+      // المعروضِ لهم (a) فقط، والفائزُ بالسباقِ قد يكونُ مرشَّحَ الاتفاقِ (c) — فإن فازَ
+      // الاتفاقُ جولةً بقي c مشغولًا وطلباتُه عندَ الراكبِ قائمة، فتفشلُ الجولةُ
+      // التاليةُ من الطرفينِ معًا (ORDER_NOT_CLAIMABLE وDRIVER_HAS_ACTIVE_ORDER) رغمَ
+      // أنّ العينَ واحدةٌ فعلًا — هشاشةٌ كشفتها موجةُ تغيّرِ توقيتِ الالتقاطِ،
+      // فتُنهى التزاماتُ الطرفينِ قبلَ كلِّ جولةٍ كما يفعلُ `freshOrder` للمعروضِ لهم.
+      await sql`
+        update orders set status = 'completed', completed_at = now()
+         where assigned_driver_id = any(${[a, c]}::uuid[])
+           and is_driver_engaged_order_status(status)`;
       const { orderId } = await freshOrder([a]);
       const negotiation = await groupNegotiation(orderId, c);
       const [bot, group] = await Promise.all([
@@ -460,6 +477,12 @@ describeIf("WR-24 — سباقاتٌ متزامنةٌ على قاعدةٍ حقي
           (r) => r[0]?.r as Json,
         ),
       ]);
+      // تشخيصُ حالتِ «كلاهما فشل» (تحتَ الحملِ): أسبابُ الرفضِ لا تُبتلع.
+      if (bot.ok !== true && group.ok !== true) {
+        console.error(
+          `WR24_7A_BOTH_FAILED bot=${JSON.stringify(bot)} group=${JSON.stringify(group)}`,
+        );
+      }
       expect([bot.ok, group.ok].filter((ok) => ok === true)).toHaveLength(1);
       const state = await settled(orderId);
       expect(state.status).toBe("matched");

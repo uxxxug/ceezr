@@ -78,6 +78,7 @@ import {
 import { createStaleEscalationCardPort } from "../../../packages/infrastructure/dispatch/escalation-card-adapters.ts";
 import { createStaleGroupCardPort } from "../../../packages/infrastructure/dispatch/negotiation-adapters.ts";
 import { createNegotiationWiring } from "../../../packages/infrastructure/dispatch/negotiation-wiring.ts";
+import { createOfferBoardDelivery } from "../../../packages/infrastructure/dispatch/offer-board-delivery.ts";
 import { createDeadOfferCardPort } from "../../../packages/infrastructure/dispatch/offer-card-adapters.ts";
 import {
   createPickupReminderStateReader,
@@ -104,7 +105,11 @@ import {
 } from "../../../packages/infrastructure/notification/miniapp-entry-sender.ts";
 import { createNotificationOutboxPort } from "../../../packages/infrastructure/notification/notification-outbox-adapters.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
-import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
+import {
+  outboundBucketKeyOfToken,
+  withOutboundResilience,
+} from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
+import { createRiderTripAppDelivery } from "../../../packages/infrastructure/notification/rider-trip-app-delivery.ts";
 import {
   createRiderCandidateFactsReader,
   createRiderTripFactsReader,
@@ -181,7 +186,10 @@ import { err, ok } from "../../../packages/shared/result/index.ts";
 import { type BackupConfig, createPgDumper, runDatabaseBackup } from "./jobs/backup-database.ts";
 import { cleanupStaleSessions } from "./jobs/cleanup-stale-sessions.ts";
 import { deliverBroadcasts } from "./jobs/deliver-broadcasts.ts";
-import { deliverNotifications } from "./jobs/deliver-notifications.ts";
+import {
+  deliverNotifications,
+  notificationDrainSettingsFromEnv,
+} from "./jobs/deliver-notifications.ts";
 import { deliverSafetyIncidents } from "./jobs/deliver-safety-incidents.ts";
 import { deliverSubscriptionNotices } from "./jobs/deliver-subscription-notices.ts";
 import { detectCeilingExceededOrders } from "./jobs/detect-ceiling-exceeded.ts";
@@ -194,6 +202,7 @@ import { runReconcilePendingPayments } from "./jobs/reconcile-pending-payments.t
 import { runRedispatchSearching } from "./jobs/redispatch-searching.ts";
 import { refreshAdminMetrics } from "./jobs/refresh-admin-metrics.ts";
 import { rotateUnsubscribedNegotiations } from "./jobs/rotate-unsubscribed-negotiation.ts";
+import { sweepDecidedOfferNotifications } from "./jobs/sweep-decided-offer-notifications.ts";
 import { runSweepUnmatchedOrders } from "./jobs/sweep-unmatched-orders.ts";
 import { runBackupRestoreVerification } from "./jobs/verify-backup-restore.ts";
 import { warnExpiringDocumentsJob } from "./jobs/warn-expiring-documents.ts";
@@ -213,6 +222,14 @@ export const WORKER_SETTINGS_REMEMBER_MS = 60_000;
 /** تواتر كل مهمّة بالثواني. تقنيّة لا تجارية: لا تُقرأ من platform_settings. */
 export const JOB_INTERVALS = {
   expireOffers: 60,
+  /**
+   * `LOAD-01 Recovery` — كنسُّ العروضِ المحسومةِ من طابورِ الإشعاراتِ جملةً: مهلةُ
+   * العرضِ (٤٥ث) وزمنُ حسمِهِ الفعليُّ (~١٠ث) يَدَعانِ هامشًا واسعًا للدقيقةِ
+   * الكاملةِ (الحسمُ + الكنسُ ≈ ٧٠ث « ١٢٠ث بوابةَ P7) — والدقيقةُ الأخفُّ حملًا
+   * على القاعدةِ: جولةُ ٥٠ب قاستْ ٨٪ فشلَ تحديثِ موقعٍ تحتَ الكنسِ كلَّ ١٥ث
+   * (ازدحامُ القاعدةِ يظهرُ في المسارِ الأضعفِ لا في الكنسِ نفسِهِ).
+   */
+  sweepDecidedOffers: 60,
   rotateNegotiations: 60,
   cleanupStale: 1800,
   expireSubscriptions: 900,
@@ -566,6 +583,7 @@ export function buildWorkerContainer(
     createSql({
       connectionString: config.databaseUrl,
       max: DB_POOL_MAX.workerJobs,
+      applicationName: "ceezr:workerJobs",
       prepare: false,
     });
   // سجلٌّ من المُصدِرِ الوحيدِ لا دالّةٌ رابعةٌ بشكلٍ رابعٍ (`F8-03` · ADR 0078).
@@ -586,6 +604,7 @@ export function buildWorkerContainer(
     createSql({
       connectionString: config.databaseUrl,
       max: DB_POOL_MAX.workerLocks,
+      applicationName: "ceezr:workerLocks",
       prepare: false,
       // القفلُ الاستشاريُّ ملكُ الجلسةِ: إغلاقُ اتّصالٍ خاملٍ يُسقِطُ قفلاً محتجَزاً (`OPS-POOL-01`).
       idleTimeoutSeconds: null,
@@ -713,7 +732,10 @@ export function buildWorkerContainer(
       ? withMiniAppEntry(sender, { miniAppUrl: config.miniAppUrl, label: MINIAPP_ENTRY_LABEL })
       : sender;
   const telegram = entryFor(
-    withOutboundResilience(grammyTelegramSender(config.driverBotToken), outboundResilience.options),
+    withOutboundResilience(grammyTelegramSender(config.driverBotToken), {
+      ...outboundResilience.options,
+      bucketKey: outboundBucketKeyOfToken(config.driverBotToken), // CAP-RUN-20261015 / D6
+    }),
   );
   const driverOut = overrides.driverOut ?? asOutboundSender(telegram);
 
@@ -725,7 +747,10 @@ export function buildWorkerContainer(
    * في الإنتاج بـ403 بلا أثر مرئي — لا خطأ يوقظ أحداً، ولا رسالة تصل.
    */
   const riderTelegram = entryFor(
-    withOutboundResilience(grammyTelegramSender(config.riderBotToken), outboundResilience.options),
+    withOutboundResilience(grammyTelegramSender(config.riderBotToken), {
+      ...outboundResilience.options,
+      bucketKey: outboundBucketKeyOfToken(config.riderBotToken), // CAP-RUN-20261015 / D6
+    }),
   );
   const riderOut = overrides.riderOut ?? asOutboundSender(riderTelegram);
   const safetyPublisher = overrides.safetyPublisher ?? createSafetyCardPublisher(telegram);
@@ -764,6 +789,8 @@ export function buildWorkerContainer(
     createTelegramNegotiationMessenger(
       asIdentifyingSender(withTrafficPriority(telegram, kind)),
       asIdentifyingSender(withTrafficPriority(riderTelegram, kind)),
+      // `ADR 0286` — بطاقاتُ الراكبِ تُحيلُ إلى التطبيقِ لا أن تُنفِّذَ من المحادثةِ.
+      { miniAppUrl: config.miniAppUrl },
     );
   /**
    * إخطارا صاحبِ الطلبِ العالقِ ببوتِ الراكبِ حصرًا (BUG-004): كانا يُرسَلانِ من
@@ -807,6 +834,14 @@ export function buildWorkerContainer(
    */
   const riderTripNoticeHandler = createRiderTripNoticeHandler({
     facts: createRiderTripFactsReader(sql),
+    // ADR 0287 — أطوارُ الرحلةِ Mini App أولًا بإقرارِ العميلِ، وتيليجرامُ
+    // احتياطًا لغيرِ المتصلِ أو لمن لم يُقرَّ ضمنَ المهلةِ.
+    app: createRiderTripAppDelivery({
+      sql,
+      gatewayInternalUrl: config.gatewayInternalUrl,
+      secret: config.internalSignalSecret,
+      log: (message, meta) => log.info(message, meta),
+    }),
     // `WR-09` — حدثُ `CANDIDATE`: يُطوى إن فاتَ المرشَّحُ قبلَ الإرسال.
     candidates: createRiderCandidateFactsReader(sql),
     sender: asIdentifyingSender(withTrafficPriority(riderTelegram, "rider_trip_notice")),
@@ -861,8 +896,18 @@ export function buildWorkerContainer(
       event === "driver_city_notice.final_failure" ? log.error(event, meta) : log.info(event, meta),
   });
   const notificationHandlers = {
-    offer: createOfferNotificationHandler(offerPublisher, (event, meta) =>
-      event === "offer_notice.final_failure" ? log.error(event, meta) : log.info(event, meta),
+    offer: createOfferNotificationHandler(
+      offerPublisher,
+      (event, meta) =>
+        event === "offer_notice.final_failure" ? log.error(event, meta) : log.info(event, meta),
+      // `LOAD-01 Recovery` — لوحُ العروضِ والإشارةُ للسائقِ المتصلِ، والبطاقةُ
+      // البديلةُ لغيرِ المتصلِ: فصلُ «ضجيجِ العروضِ» عنِ الإشعاراتِ الحرجةِ.
+      createOfferBoardDelivery({
+        sql,
+        gatewayInternalUrl: config.gatewayInternalUrl,
+        secret: config.internalSignalSecret,
+        log: (message, meta) => log.info(message, meta),
+      }),
     ),
     dispute_resolution: createDisputeResolutionHandler({
       driver: createTicketOwnerNotifier(
@@ -1488,6 +1533,18 @@ export function buildWorkerContainer(
       }
 
       const global: JobDefinition[] = [
+        {
+          // `LOAD-01 Recovery` — كنسٌّ عالميٌّ (لا مدينةَ بعينِها): الدالّةُ تنظرُ
+          // الطابورَ كلَّهُ. عطلُهُ لا يفتحُ رابطًا ولا يُبطِلُ إشعارًا حيًّا —
+          // الصفوفُ تعودُ إلى انتظارِ المعالجِ كما كانَ (أبطأُ لا مكسورٌ).
+          name: "sweep-decided-offers",
+          everySeconds: JOB_INTERVALS.sweepDecidedOffers,
+          run: async () => {
+            const report = await sweepDecidedOfferNotifications(sql);
+            if (!report.ok) throw new Error(report.error.detail);
+            return `swept=${report.value.swept}`;
+          },
+        },
         ...(cityIds.length === 0
           ? []
           : [
@@ -1577,22 +1634,26 @@ export function buildWorkerContainer(
                 everySeconds: JOB_INTERVALS.deliverNotifications,
                 runOnStart: true,
                 run: async () => {
-                  const report = await deliverNotifications({
-                    outbox: notificationOutbox,
-                    handlers: notificationHandlers,
-                    // `F8-01` — عبورُ الطابورِ: معالجةُ الصفِّ وإعلانُ نتيجتِه
-                    // تجريانِ **بمعرِّفِ الطلبِ الذي أنشأَ الصفَّ**، فمَن بحثَ
-                    // بمعرِّفٍ من ردٍّ وجدَ أثرَ الإرسالِ في العاملِ أيضاً لا في
-                    // البوّابةِ وحدَها. وصفٌّ بلا معرِّفٍ يمضي بسياقِ الشوطِ نفسِه
-                    // (`job-…`) ولا يُلفَّقُ له معرِّفُ طلبٍ.
-                    withDeliveryCorrelation: (delivery, run) =>
-                      delivery.requestId === null
-                        ? run()
-                        : runWithCorrelationId(
-                            { requestId: delivery.requestId, entry: "worker" },
-                            run,
-                          ),
-                  });
+                  const report = await deliverNotifications(
+                    {
+                      outbox: notificationOutbox,
+                      handlers: notificationHandlers,
+                      // `F8-01` — عبورُ الطابورِ: معالجةُ الصفِّ وإعلانُ نتيجتِه
+                      // تجريانِ **بمعرِّفِ الطلبِ الذي أنشأَ الصفَّ**، فمَن بحثَ
+                      // بمعرِّفٍ من ردٍّ وجدَ أثرَ الإرسالِ في العاملِ أيضاً لا في
+                      // البوّابةِ وحدَها. وصفٌّ بلا معرِّفٍ يمضي بسياقِ الشوطِ نفسِه
+                      // (`job-…`) ولا يُلفَّقُ له معرِّفُ طلبٍ.
+                      withDeliveryCorrelation: (delivery, run) =>
+                        delivery.requestId === null
+                          ? run()
+                          : runWithCorrelationId(
+                              { requestId: delivery.requestId, entry: "worker" },
+                              run,
+                            ),
+                    },
+                    // CAP-RUN-20261015 / N1: استنزافٌ متزامنٌ محدود؛ NOTIFICATION_DRAIN_BUDGET_MS=0 = السلوكُ القديم.
+                    notificationDrainSettingsFromEnv(process.env),
+                  );
                   if (!report.ok) throw new Error(report.error.detail);
                   return [
                     `claimed=${report.value.claimed}`,

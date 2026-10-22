@@ -97,6 +97,10 @@ export type KeyDimension = (typeof KEY_DIMENSIONS)[number];
  * `404` (`ADR 0139`).
  */
 export const PUBLIC_PATH_PREFIXES = [
+  // `LOAD-01 Recovery` — سطحُ الخدمةِ الداخليِّ (سرٌّ مشتركٌ بينَ العاملِ
+  // والبوابةِ، لا عميلَ): بادئةٌ معلَنةٌ كي لا يُرفَدَ مسارُها كمسارٍ رُكِّبَ
+  // سهوًا على الجذرِ — والتصنيفُ في السِجلِّ هوَ الحاجزَ لا البادئةَ وحدها.
+  "/internal/",
   "/v1/",
   "/webhook/",
   "/admin",
@@ -788,6 +792,52 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    // `LOAD-01 Recovery` — إيصالاتُ اللوحِ: إقرارُ العميلِ بوصولِ العروضِ بعدَ
+    // تطبيقِ اللقطةِ. جلستُهُ تُحَدُّ نداءاتِهِ لا سِجلُّهِ: التطبيقُ يُحدِّثُ
+    // اللوحَ على الإشارةِ بخانقٍ داخليٍّ (ثانيتانِ)، والدفعاتُ بلا معرّفاتٍ
+    // صالحةٍ تُهمَلُ في المخزنِ (50 كحدٍّ أقصى للنداءِ). كأختِهِ قراءةِ اللوحِ.
+    method: "POST",
+    path: "/v1/driver/offers/receipts",
+    file: "apps/gateway/src/routes/driver-offers.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+  {
+    // `LOAD-01 Recovery` — مسارُ إشارةِ لوحِ العروضِ الداخليُّ: نداءُ شوطِ
+    // التسليمِ (العاملُ) لا عميلٍ — سرٌّ مشتركٌ في ترويسةٍ يَرِدُّ 401 بلا سرٍّ
+    // و503 حينَ يُعطَّلُ. **إعفاءٌ مكتوبٌ**: الحاجزُ الحقيقيُّ هنا هوَ السرُّ
+    // المشتركُ لا حصرُ المعدَّلِ — فالمتصلُّ خدمةٌ واحدةٌ تُدمِجُ إشاراتِها
+    // (إشارةٌ واحدةٌ لكلِّ سائقٍ كلَّ ثانيتينِ في الطالبِ نفسِهِ)، وحدُّ معدَّلٍ
+    // على العنوانِ لا يحمي مسارًا لا يعرفُ العميلَ أصلًا.
+    method: "POST",
+    path: "/internal/realtime/offers-signal",
+    file: "apps/gateway/src/routes/internal-offers-signal.ts",
+    exposure: "ويبهوكٌ موقَّعٌ",
+    limits: [],
+    exemption: {
+      reason:
+        "مسارُ خدمةٍ لخدمةٍ بسرٍّ مشتركٍ لا يعرفُهُ عميلٌ؛ الحاجزُ هوَ السرُّ (401 بلا سرٍّ) والتقارُنُ في الطالبِ (دمجُ إشارةٍ كلَّ ثانيتينِ لكلِّ سائقٍ) — وحدُّ المعدَّلِ هنا يحجبُ خدمةً صادقةً عندَ عاصفةِ عروضٍ ولا يمنعُ شريرًا يعرفُ السرَّ أصلًا.",
+      owner: REPO_EXECUTOR,
+    },
+  },
+
+  {
+    // ADR 0287 — إشارةُ حدثِ رحلةِ الراكبِ الداخليةُ: الحكمُ نفسُه لأختِها
+    // (سرٌّ مشتركٌ، 401 بلا سرٍّ و503 حينَ يُعطَّلُ) — نداءُ العاملِ لا عميلٍ.
+    method: "POST",
+    path: "/internal/realtime/rider-trip-signal",
+    file: "apps/gateway/src/routes/internal-offers-signal.ts",
+    exposure: "ويبهوكٌ موقَّعٌ",
+    limits: [],
+    exemption: {
+      reason:
+        "مسارُ خدمةٍ لخدمةٍ بسرٍّ مشتركٍ لا يعرفُهُ عميلٌ؛ الحاجزُ هوَ السرُّ (401 بلا سرٍّ) والسقفُ في الطالبِ (ثلاثُ إشاراتٍ على الأكثرِ لكلِّ حدثٍ ثمَّ تيليجرامُ) — وحدُّ المعدَّلِ هنا يحجبُ خدمةً صادقةً عندَ ذروةِ الرحلاتِ ولا يمنعُ شريرًا يعرفُ السرَّ أصلًا.",
+      owner: REPO_EXECUTOR,
+    },
+  },
+
+  {
     method: "POST",
     path: "/v1/driver/offers/:offerId/reject",
     file: "apps/gateway/src/routes/driver-offers.ts",
@@ -890,6 +940,78 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
     method: "GET",
     path: "/v1/driver/vehicle/assets",
     file: "apps/gateway/src/routes/driver-vehicle.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
+    path: "/v1/driver/negotiations",
+    file: "apps/gateway/src/routes/negotiations.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/v1/driver/negotiations/:id/claim",
+    file: "apps/gateway/src/routes/negotiations.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/v1/driver/negotiations/:id/leave",
+    file: "apps/gateway/src/routes/negotiations.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
+    path: "/v1/negotiations",
+    file: "apps/gateway/src/routes/negotiations.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "GET",
+    path: "/v1/negotiations/:id/card",
+    file: "apps/gateway/src/routes/negotiations.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/v1/negotiations/:id/select",
+    file: "apps/gateway/src/routes/negotiations.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/v1/negotiations/:id/settle",
+    file: "apps/gateway/src/routes/negotiations.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    method: "POST",
+    path: "/v1/negotiations/:id/advance",
+    file: "apps/gateway/src/routes/negotiations.ts",
     exposure: "مُصادَقٌ بجلسةٍ",
     limits: [],
     exemption: null,
@@ -1257,6 +1379,27 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
   },
 
   {
+    // ADR 0287 — أحداثُ رحلةِ الراكبِ (قراءةٌ لا تُسجّلُ إيصالًا) — كأختِها `candidate`.
+    method: "GET",
+    path: "/v1/rides/:id/trip-events",
+    file: "apps/gateway/src/routes/rides.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
+    // ADR 0287 — إقرارُ العميلِ بعدَ تطبيقِ الأحداثِ: ثمانيةُ معرّفاتٍ على الأكثرِ،
+    // وما لا يملكُه صاحبُ الجلسةِ يُهمَلُ في المخزنِ، والتكرارُ لا يُنشئُ إيصالًا ثانيًا.
+    method: "POST",
+    path: "/v1/rides/:id/trip-events/ack",
+    file: "apps/gateway/src/routes/rides.ts",
+    exposure: "مُصادَقٌ بجلسةٍ",
+    limits: [],
+    exemption: null,
+  },
+
+  {
     method: "POST",
     path: "/v1/rides/:id/cancel",
     file: "apps/gateway/src/routes/rides.ts",
@@ -1354,7 +1497,12 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
     exposure: "قبلَ المصادقةِ",
     limits: [
       {
-        limit: 30,
+        /* مفتاحُ ضبطٍ لبيئةِ اختبارِ السعةِ: المولّدُ الأحاديُّ العنوانِ يحتاجُ
+         * آلافَ المبادلاتِ في الدقيقةِ (كلُّ هويةٍ جلسةً) بينما الإنسانُ يفتحُ
+         * التطبيقَ مراتٍ معدودةً. الافتراضيُّ 30 هو عتبةُ الإنتاجِ؛ ورفعُه في
+         * بيئةِ الاختبارِ يُعلَنُ في أدلةِ الجولةِ ولا يُغيّرُ سلوكَ الإنتاجِ.
+         * قيمةٌ غيرُ صالحةٍ تُرفَضُ وتُعادُ الافتراضيةُ. */
+        limit: sessionExchangePerMinute(),
         windowSeconds: 60,
         keyDimension: "عنوانُ العميلِ",
         wiredIn:
@@ -1526,10 +1674,13 @@ export const ROUTE_POLICIES: readonly RoutePolicy[] = [
  *   والطرفُ يحكمُه الخادمُ.
  * 135 → 137 في 2026-10-12 (WR-09 · ADR 0266): `GET`/`POST /v1/rides/:id/candidate` — مُصادَقانِ
  *   بجلسةٍ، والطلبُ مقيَّدٌ بصاحبِه في القاعدة.
+ * 147 → 150 في 2026-10-18 (ADR 0287): `GET /v1/rides/:id/trip-events` و`POST …/ack` مُصادَقانِ
+ *   بجلسةٍ، و`POST /internal/realtime/rider-trip-signal` خدمةٌ لخدمةٍ بسرٍّ مشتركٍ.
  */
-export const ROUTE_POLICY_COUNT = 137;
+export const ROUTE_POLICY_COUNT = 150;
 export const LIMITED_ROUTE_COUNT = 10;
-export const EXEMPT_ROUTE_COUNT = 3;
+/** 4 → 5 في 2026-10-18 (ADR 0287): `/internal/realtime/rider-trip-signal` بسرٍّ مشتركٍ كأختِه. */
+export const EXEMPT_ROUTE_COUNT = 5;
 
 /** حدودُ مسارٍ بعينِه — يُعيدُ مصفوفةً فارغةً لِما لا حدَّ له. */
 export function limitsFor(method: string, path: string): readonly RateLimitPolicy[] {
@@ -1543,6 +1694,14 @@ export function limitsFor(method: string, path: string): readonly RateLimitPolic
  * موضعُ تركيبٍ يطلبُ حدَّاً غيرَ مُعلَنٍ خطأٌ يُكتشَفُ عندَ الإقلاعِ، **لا حدٌّ
  * مُخترَعٌ في التشغيلِ** يُقرأُ سياسةً ولم يُقرِّرْهُ أحدٌ.
  */
+function sessionExchangePerMinute(): number {
+  const raw = process.env.SESSION_EXCHANGE_PER_MINUTE;
+  if (raw === undefined || raw.trim() === "") return 30;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100_000) return 30;
+  return parsed;
+}
+
 export function rateLimitPolicy(
   method: string,
   path: string,

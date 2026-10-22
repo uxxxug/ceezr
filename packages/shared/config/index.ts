@@ -262,6 +262,17 @@ export interface AppConfig {
    * وهذا السرُّ يوقّع تفويضَ نظامِنا؛ فتسريبُ أحدهما لا يُسقِط الآخر.
    */
   readonly miniappSessionSecret: string | null;
+  /**
+   * `LOAD-01 Recovery` — سرُّ مسارِ الإشارةِ الداخليِّ بينَ العاملِ والبوابةِ
+   * (`INTERNAL_SIGNAL_SECRET`). غيابُهُ = مسارُ الإشارةِ معطَّلٌ (البطاقةُ
+   * البديلةُ تعملُ كما كانَت) — لا يُفطَرُ على قيمةٍ افتراضيةٍ مفتوحةٍ.
+   */
+  readonly internalSignalSecret: string | null;
+  /**
+   * `LOAD-01 Recovery` — رابطُ البوابةِ لمسارِ الإشارةِ الداخليِّ
+   * (`GATEWAY_INTERNAL_URL`، مثلُ `http://127.0.0.1:54300`). معطَّلٌ بالغيابِ.
+   */
+  readonly gatewayInternalUrl: string | null;
 
   /**
    * `SEC-21` · `ADR 0176` — مفتاحُ تشفيرِ أسرارِ TOTP للبابِ الموازي
@@ -323,9 +334,11 @@ export const TELEGRAM_TRANSPORT_NAMES = ["real", "silent"] as const;
 export type TelegramTransportName = (typeof TELEGRAM_TRANSPORT_NAMES)[number];
 
 /**
- * أوضاعُ سطحِ البوتِ (`ADR 0213`). الافتراضُ عند الغيابِ `legacy`: بيئةٌ لا تعرفُ أصلَ التطبيقِ
- * لا تستطيعُ أن تبنيَ زرَّه، فالافتراضُ الآمنُ هو السلوكُ الذي لا يحتاجُه. والإنتاجُ يُعلِنُ
- * `miniapp` صراحةً في `render.yaml`.
+ * أوضاعُ سطحِ البوتِ (`ADR 0213` · `ADR 0286`). الافتراضُ عند الغيابِ `miniapp`:
+ * هو سطحَ المنتجِ الوحيدَ في التشغيلِ الفعليّ، فلا بيئةٌ تعملُ بالحوارِ القديمِ إلا
+ * بِعَلمٍ صريحٍ. و`legacy` **مسارُ اختبارِ توافقٍ معزولٌ فقط** (`ADR 0286`):
+ * يُرفضُ في `NODE_ENV=production` رفضاً قاطعاً، ولا يُقبلُ خارجها إلّا مع
+ * `BOT_SURFACE_TEST_LEGACY=1` صريحاً — فلا يعودُ الوضعُ القديمُ بالسهوِ ولا بالضبطِ العرضيّ.
  */
 export const BOT_SURFACE_MODE_NAMES = ["legacy", "miniapp"] as const;
 
@@ -653,6 +666,28 @@ export function tryLoadConfig(
   // سرُّ جلسةِ التطبيقِ المصغَّر: اختياريٌّ، لكنْ إن ورد فطولُه شرطٌ في كلِّ بيئة.
   // سرٌّ قصيرٌ ليس «ضبطاً ناقصاً» بل توقيعٌ قابلٌ للتخمين، فيُرفض صريحاً بدلاً من
   // أن يمضي النظامُ موقِّعاً جلساتٍ بسرٍّ لا يحمي.
+  // `LOAD-01 Recovery` — سرُّ الإشارةِ الداخليِّ ورابطُ البوابةِ: اختياريانِ،
+  // وغيابُهما يعطّلُ مسارَ الإشارةِ (البطاقةُ البديلةُ كما كانَت) لا يفطرُهُ
+  // على قيمةٍ مفتوحةٍ. السرُّ القصيرُ يُرفَضُ صريحًا لا يُقبَلُ ضعيفًا.
+  const internalSignalSecret = isBlank(source.INTERNAL_SIGNAL_SECRET)
+    ? null
+    : (source.INTERNAL_SIGNAL_SECRET as string).trim();
+  if (internalSignalSecret !== null && internalSignalSecret.length < 16) {
+    return err(
+      new InvalidEnvVarError(
+        "INTERNAL_SIGNAL_SECRET",
+        `يجب ألا يقلّ عن 16 محرفاً — وردت ${internalSignalSecret.length}`,
+      ),
+    );
+  }
+  let gatewayInternalUrl: string | null = null;
+  if (!isBlank(source.GATEWAY_INTERNAL_URL)) {
+    try {
+      gatewayInternalUrl = new URL(source.GATEWAY_INTERNAL_URL as string).toString();
+    } catch {
+      return err(new InvalidEnvVarError("GATEWAY_INTERNAL_URL", "ليس رابطًا صالحًا"));
+    }
+  }
   const miniappSessionSecret = isBlank(source.MINIAPP_SESSION_SECRET)
     ? null
     : (source.MINIAPP_SESSION_SECRET as string).trim();
@@ -803,7 +838,7 @@ export function tryLoadConfig(
     );
   }
 
-  const rawBotSurfaceMode = (source.BOT_SURFACE_MODE ?? "legacy").trim().toLowerCase();
+  const rawBotSurfaceMode = (source.BOT_SURFACE_MODE ?? "miniapp").trim().toLowerCase();
   if (!(BOT_SURFACE_MODE_NAMES as readonly string[]).includes(rawBotSurfaceMode)) {
     return err(
       new InvalidEnvVarError(
@@ -811,6 +846,22 @@ export function tryLoadConfig(
         `المتاح: ${BOT_SURFACE_MODE_NAMES.join(", ")} — وردت: ${rawBotSurfaceMode}`,
       ),
     );
+  }
+  // `ADR 0286` — لا واجهةَ بوتٍ في تشغيلٍ فعليّ: `legacy` مسارُ اختبارِ توافقٍ معزول.
+  // في الإنتاج يُرفضُ مطلقاً؛ وخارجَه لا يُقبلُ إلا بعلمٍ صريحٍ من اختبارٍ لا من سهوٍ.
+  if (rawBotSurfaceMode === "legacy") {
+    const testLegacyOptIn = (source.BOT_SURFACE_TEST_LEGACY ?? "").trim().toLowerCase() === "1";
+    if (env === "production" || !testLegacyOptIn) {
+      return err(
+        new InvalidEnvVarError(
+          "BOT_SURFACE_MODE",
+          "وضعُ `legacy` مسارُ اختبارِ توافقٍ معزولٌ فقط (`ADR 0286`): Mini App هو سطحُ المنتجِ الوحيد. " +
+            (env === "production"
+              ? "وهو مرفوضٌ في الإنتاجِ رفضاً قاطعاً."
+              : "ويُفعَّلُ خارجَ الإنتاجِ بـ`BOT_SURFACE_TEST_LEGACY=1` صريحاً فقط."),
+        ),
+      );
+    }
   }
   let miniAppUrl: string | null = null;
   if (!isBlank(source.MINIAPP_URL)) {
@@ -1170,6 +1221,8 @@ export function tryLoadConfig(
     tracking,
     trackingTokenBaseUrl,
     miniappSessionSecret,
+    internalSignalSecret,
+    gatewayInternalUrl,
     adminBreakGlassTotpKey,
     liveLocationFallbackEnabled: parseBooleanEnv(source.LIVE_LOCATION_FALLBACK_ENABLED, false),
     metricsExport,

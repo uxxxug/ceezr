@@ -56,8 +56,14 @@ import { Glyph, IconChevron } from "../../../system/ui/icons.tsx";
 import { UiTimer } from "../../../system/ui/index.tsx";
 import { offerTimerProps } from "./offer-timer.ts";
 import {
+  type ApiDriverNegotiationCard,
+  ackDriverOfferBoard,
+  claimDriverNegotiation,
   type DriverAvailabilityResponse,
+  type DriverNegotiationsResponse,
   type DriverOffersResponse,
+  leaveDriverNegotiation,
+  readDriverNegotiations,
   readDriverOffers,
   rejectDriverOffer,
   setDriverAvailability,
@@ -121,6 +127,19 @@ export interface OffersScreenProps {
    */
   readonly onOpenAccount?: () => void;
   readonly readBoard?: () => Promise<DriverOffersResponse>;
+  /**
+   * `LOAD-01 Recovery` — إقرارُ استلامِ اللوحِ بعدَ تطبيقِهِ (لا عندَ جلبِهِ):
+   * يُفصِلُ «سلّمها الخادمُ» عنِ «وصلَتْ»، وشوطُ التسليمِ يقرأُ الإيصالَ
+   * موثَّقًا فلا يُدّعى وصولٌ لم يُقَس. فشلُهُ صامتٌ — إيصالٌ تراكميٌّ.
+   */
+  readonly ackBoard?: (offerIds: readonly string[]) => Promise<unknown>;
+  /**
+   * `ADR 0286` — دوراتُ القروبِ المفتوحةُ: إشعارٌ ومطالبةٌ من التطبيقِ لا من زرِّ
+   * القروبِ. **زيادةٌ لا تغييرٌ** (`ح-8`): غيابُها يُخفي القسمَ وحدَه.
+   */
+  readonly readNegotiations?: () => Promise<DriverNegotiationsResponse>;
+  readonly claimNegotiation?: (negotiationId: string) => Promise<unknown>;
+  readonly leaveNegotiation?: (negotiationId: string) => Promise<unknown>;
   readonly reject?: (offerId: string) => Promise<unknown>;
   readonly setAvailability?: (isAvailable: boolean) => Promise<DriverAvailabilityResponse>;
   /**
@@ -224,6 +243,10 @@ export function OffersScreen({
   onOpenOffer,
   onOpenDocuments,
   readBoard = readDriverOffers,
+  ackBoard = ackDriverOfferBoard,
+  readNegotiations = readDriverNegotiations,
+  claimNegotiation = claimDriverNegotiation,
+  leaveNegotiation = leaveDriverNegotiation,
   reject = rejectDriverOffer,
   setAvailability = setDriverAvailability,
   subscribeToOfferUpdates,
@@ -232,6 +255,28 @@ export function OffersScreen({
   const t = miniAppTranslator(language);
   const formId = useId();
   const [state, setState] = useState<BoardState>({ kind: "loading" });
+  /**
+   * `ADR 0286` — دوراتُ القروبِ: قسمٌ مستقلٌّ لا يسقطُ اللوحَ عندَ فشلِهِ (زيادةٌ
+   * لا تغييرٌ)، وفشلُهُ يُقالُ في القسمِ وحدَه.
+   */
+  const [negotiations, setNegotiations] = useState<
+    | { readonly kind: "loading" }
+    | { readonly kind: "ready"; readonly items: readonly ApiDriverNegotiationCard[] }
+    | { readonly kind: "failed" }
+    | { readonly kind: "hidden" }
+  >({ kind: "loading" });
+  /**
+   * حالةُ صفٍّ واحدٍ في قسمِ دوراتِ القروبِ — بلا مفتاحِ خطأٍ (الفشلُ يُقالُ بنصٍّ
+   * واحدٍ ثابتٍ لا برمزٍ يُترجَمُ).
+   */
+  const [negotiationRows, setNegotiationRows] = useState<
+    Readonly<
+      Record<
+        string,
+        { readonly kind: "idle" } | { readonly kind: "busy" } | { readonly kind: "failed" }
+      >
+    >
+  >({});
   const [availabilityState, setAvailabilityState] = useState<ActionState>({ kind: "idle" });
   const [rows, setRows] = useState<Readonly<Record<string, ActionState>>>({});
   const [refresh, setRefresh] = useState<BoardRefreshState>({ kind: "idle" });
@@ -243,31 +288,55 @@ export function OffersScreen({
     stateRef.current = state;
   }, [state]);
 
+  /**
+   * `LOAD-01 Recovery` — إيصالُ اللوحِ المطبَّقِ: يُرسَلُ **بعدَ** ضبطِ الحالةِ
+   * (التطبيقِ) لا قبلهُ، وفشلُهُ صامتٌ — الإيصالُ تراكميٌّ يلحقُهُ التحديثُ
+   * التالي، لا مُعوِّقٌ للعرضِ.
+   */
+  const ackAppliedBoard = useCallback(
+    (board: DriverOffersResponse) => {
+      const ids = board.offers.map((offer) => offer.offer_id);
+      if (ids.length === 0) return;
+      void ackBoard(ids).catch(() => undefined);
+    },
+    [ackBoard],
+  );
+
   const load = useCallback(async () => {
     setState({ kind: "loading" });
+    // `ADR 0286` — القسمُ مستقلٌّ: فشلُهُ لا يسقطُ اللوحَ.
+    if (readNegotiations !== undefined) {
+      void readNegotiations()
+        .then((read) => setNegotiations({ kind: "ready", items: read.negotiations }))
+        .catch(() => setNegotiations({ kind: "failed" }));
+    } else {
+      setNegotiations({ kind: "hidden" });
+    }
     try {
       const board = await readBoard();
       // **الترتيبُ مقصودٌ**: القراءةُ تُسجَّلُ بعدَ وصولِ الجوابِ لا قبلَ إرسالِه،
       // فزمنُ الشبكةِ لا يُحسَبُ من مهلةِ العرضِ مرّتَينِ.
       const readAtMs = now();
       setState({ kind: "ready", board, readAtMs });
+      ackAppliedBoard(board);
     } catch (thrown) {
       setState({ kind: "failed", code: codeOf(thrown) });
     }
-  }, [now, readBoard]);
+  }, [ackAppliedBoard, now, readBoard, readNegotiations]);
 
   /** تحديثٌ من realtime — لا يمسحُ القائمةَ الحاليّةَ عند الفشلِ. */
   const refreshFromRealtime = useCallback(async () => {
     try {
       const board = await readBoard();
       setState({ kind: "ready", board, readAtMs: now() });
+      ackAppliedBoard(board);
     } catch {
       const current = stateRef.current;
       if (current.kind === "ready") {
         setState({ ...current, stale: true });
       }
     }
-  }, [now, readBoard]);
+  }, [ackAppliedBoard, now, readBoard]);
 
   /**
    * `WR-16A` — «حدّث اللوح» جلبٌ فعليٌّ من الخادم: اللوحُ المعروضُ يبقى أثناءَه، والفشلُ يُقالُ
@@ -283,13 +352,14 @@ export function OffersScreen({
     try {
       const board = await readBoard();
       setState({ kind: "ready", board, readAtMs: now() });
+      ackAppliedBoard(board);
       setRefresh({ kind: "done" });
     } catch (thrown) {
       const current = stateRef.current;
       if (current.kind === "ready") setState({ ...current, stale: true });
       setRefresh({ kind: "failed", code: codeOf(thrown) });
     }
-  }, [load, now, readBoard]);
+  }, [ackAppliedBoard, load, now, readBoard]);
 
   useEffect(() => {
     void load();
@@ -316,6 +386,42 @@ export function OffersScreen({
       }
     },
     [load, setAvailability],
+  );
+
+  /**
+   * `ADR 0286` — مطالبةٌ في دورةِ قروبٍ من التطبيقِ: المنفذُ الذرّيُّ نفسُهُ، والنتيجةُ
+   * تُقالُ كما ردَّتها القاعدةُ (ممتلئٌ · مدينةٌ أخرى · …) لا تُفسَّرُ هنا.
+   */
+  const handleClaimNegotiation = useCallback(
+    async (negotiationId: string) => {
+      if (claimNegotiation === undefined) return;
+      setNegotiationRows((current) => ({ ...current, [negotiationId]: { kind: "busy" } }));
+      try {
+        await claimNegotiation(negotiationId);
+        const read = await readNegotiations();
+        setNegotiations({ kind: "ready", items: read.negotiations });
+        setNegotiationRows((current) => ({ ...current, [negotiationId]: { kind: "idle" } }));
+      } catch {
+        setNegotiationRows((current) => ({ ...current, [negotiationId]: { kind: "failed" } }));
+      }
+    },
+    [claimNegotiation, readNegotiations],
+  );
+
+  const handleLeaveNegotiation = useCallback(
+    async (negotiationId: string) => {
+      if (leaveNegotiation === undefined) return;
+      setNegotiationRows((current) => ({ ...current, [negotiationId]: { kind: "busy" } }));
+      try {
+        await leaveNegotiation(negotiationId);
+        const read = await readNegotiations();
+        setNegotiations({ kind: "ready", items: read.negotiations });
+        setNegotiationRows((current) => ({ ...current, [negotiationId]: { kind: "idle" } }));
+      } catch {
+        setNegotiationRows((current) => ({ ...current, [negotiationId]: { kind: "failed" } }));
+      }
+    },
+    [leaveNegotiation, readNegotiations],
   );
 
   const handleReject = useCallback(
@@ -448,6 +554,62 @@ export function OffersScreen({
           ))}
         </ul>
       )}
+
+      {negotiations.kind === "ready" && negotiations.items.length > 0 ? (
+        <section className="dof__negotiations" aria-label={t("driver.offers.negotiations.title")}>
+          <h2 className="dof__negotiations-title">{t("driver.offers.negotiations.title")}</h2>
+          <ul className="dof__negotiations-list">
+            {negotiations.items.map((item) => {
+              const row = negotiationRows[item.negotiationId] ?? { kind: "idle" };
+              return (
+                <li className="dof__negotiations-item" key={item.negotiationId}>
+                  <span className="dof__service">{t(`driver.offers.service.${item.service}`)}</span>
+                  <p className="dof__place">
+                    {t("driver.offers.pickup")}:{" "}
+                    {item.pickupLabel ?? t("driver.offers.place.unnamed")}
+                  </p>
+                  <p className="dof__place">
+                    {t("driver.offers.dropoff")}:{" "}
+                    {item.dropoffLabel ?? t("driver.offers.place.none")}
+                  </p>
+                  {item.myPosition === null ? (
+                    <button
+                      type="button"
+                      className="dof__open"
+                      disabled={row.kind === "busy"}
+                      onClick={() => void handleClaimNegotiation(item.negotiationId)}
+                    >
+                      {t("driver.offers.negotiations.claim")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="dof__reject"
+                      disabled={row.kind === "busy"}
+                      onClick={() => void handleLeaveNegotiation(item.negotiationId)}
+                    >
+                      {t("driver.offers.negotiations.leave")}
+                    </button>
+                  )}
+                  {row.kind === "failed" ? (
+                    <p className="dof__error" role="status">
+                      {t("driver.offers.negotiations.failed")}
+                    </p>
+                  ) : null}
+                  {row.kind === "idle" && item.myPosition !== null ? (
+                    <p className="dof__notes">
+                      {t("driver.offers.negotiations.position").replace(
+                        "{position}",
+                        String(item.myPosition),
+                      )}
+                    </p>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       {board.cards.length === 0 ? (
         <EmptyState title={t("driver.offers.empty.title")} body={t("driver.offers.empty.body")} />

@@ -1,0 +1,232 @@
+{
+  "W1": {
+    "jobs": 60,
+    "acquisitionsTotal": 264,
+    "acquisitionsPerJob": 4.4,
+    "bySig": {
+      "select claim_telegram_update_jobs_for_bot": 24,
+      "select telegram_update_effect_recorded": 60,
+      "select 1 as b28_prepare_stub": 60,
+      "select record_telegram_update_effect": 60,
+      "select finish_telegram_update_replies": 60
+    },
+    "effectCheckAcquisitionsPerJob": 1,
+    "backends": 5,
+    "poolMax": 5
+  },
+  "W2": {
+    "jobs": 80,
+    "done": 80,
+    "dup": 0,
+    "prepared": 80
+  },
+  "W3": {
+    "staleEffectChecks": 1,
+    "reExecuted": 0
+  },
+  "W4": {
+    "rows": [
+      {
+        "update_id": 9392040,
+        "status": "done",
+        "attempts": 2,
+        "recorded": true
+      },
+      {
+        "update_id": 9392041,
+        "status": "done",
+        "attempts": 2,
+        "recorded": true
+      }
+    ],
+    "prepared": {
+      "9392040": 2,
+      "9392041": 2
+    }
+  },
+  "W5": {
+    "killed": 5,
+    "recoveryMs": 1354,
+    "events": [
+      [
+        "query",
+        0,
+        2,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        0,
+        "select telegram_update_effect_recorded("
+      ],
+      [
+        "query",
+        0,
+        0,
+        "select 1 as b28_prepare_stub"
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select record_telegram_update_effect("
+      ],
+      [
+        "query",
+        0,
+        0,
+        "select finish_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        13,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        3,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        3,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        4,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        5,
+        "select telegram_update_effect_recorded("
+      ],
+      [
+        "query",
+        0,
+        1,
+        "select finish_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        7,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select telegram_update_effect_recorded("
+      ],
+      [
+        "query",
+        0,
+        0,
+        "select 1 as b28_prepare_stub"
+      ],
+      [
+        "query",
+        0,
+        2,
+        "select claim_telegram_update_job("
+      ],
+      [
+        "query",
+        0,
+        1,
+        "select record_telegram_update_effect("
+      ],
+      [
+        "query",
+        0,
+        1,
+        "select finish_telegram_update_replies("
+      ]
+    ],
+    "logs": [
+      [
+        62,
+        "telegram.drainer.job_error",
+        {
+          "bot": "driver",
+          "updateId": 9392140,
+          "error": "write CONNECTION_CLOSED localhost:5432"
+        }
+      ],
+      [
+        1092,
+        "telegram.drainer.job_error",
+        {
+          "bot": "driver",
+          "updateId": 9392140,
+          "error": "terminating connection due to administrator command"
+        }
+      ]
+    ],
+    "rows": [
+      {
+        "update_id": 9392140,
+        "status": "done",
+        "attempts": 3,
+        "recorded": true
+      }
+    ],
+    "backendsAfter": 2
+  },
+  "W6": {
+    "order": [
+      9392240,
+      9392241,
+      9392242,
+      9392243,
+      9392244
+    ],
+    "replies": [
+      {
+        "update_id": 9392240,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9392241,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9392242,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9392243,
+        "reply_status": "done",
+        "replies_sent": 1
+      },
+      {
+        "update_id": 9392244,
+        "reply_status": "done",
+        "replies_sent": 1
+      }
+    ]
+  }
+}

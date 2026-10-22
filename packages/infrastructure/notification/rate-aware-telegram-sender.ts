@@ -13,9 +13,15 @@
  *   كاملاً بمزدوجٍ في الاختبارِ، ويصمدُ لو بدَّلَ grammY أصنافَه.
  */
 
+import { createHash } from "node:crypto";
 import { bucketClassOfSendPriority } from "../../shared/config/traffic-priority.ts";
 import type { OutboundRateBucket } from "./outbound-rate-bucket.ts";
-import { interactiveOf, type SendPriority, type TelegramSender } from "./telegram-api-sender.ts";
+import {
+  interactiveOf,
+  type SendOptions,
+  type SendPriority,
+  type TelegramSender,
+} from "./telegram-api-sender.ts";
 
 /** عمليّاتُ الصادرِ الثلاثُ — تُسجَّلُ في طابورِ الموتى كي يُعرَفَ ما ضاعَ. */
 export type OutboundOperation = "sendMessage" | "sendPhoto" | "sendLocation";
@@ -26,7 +32,7 @@ export type OutboundOperation = "sendMessage" | "sendPhoto" | "sendLocation";
  * فمن أعادَ إرسالَ رسالةٍ إلى مستخدمٍ حظرَ البوتَ أنفقَ حصّةَ الحدِّ العالميِّ على
  * فشلٍ مضمونٍ، وحرمَ منها رسالةً كانت ستصلُ.
  */
-export type OutboundFailureClass = "transient" | "throttled" | "permanent";
+export type OutboundFailureClass = "transient" | "throttled" | "permanent" | "congestion";
 
 export interface OutboundDeadLetter {
   readonly chatId: string;
@@ -41,6 +47,23 @@ export interface OutboundDeadLetter {
 export interface OutboundDeadLetterSink {
   /** **لا يرمي أبداً**: من رمى في طابورِ الموتى أضاعَ الخبرَ والرسالةَ معاً. */
   record(letter: OutboundDeadLetter): Promise<void>;
+}
+
+/**
+ * ازدحامُ دلائِنا (لا خطأُ تيليجرام): الفتحةُ لم تُتَح في مهلةِ المسارِ القصيرةِ.
+ * `D8` (CAP-RUN-20261016-CONTINUATION): يُرمى **فوراً** — لا انتظارَ داخلَ المسارِ
+ * ولا إعادةً داخلَ المُرسِلِ — فالمسارُ يتفرّغُ لصفٍّ آخرَ لمحادثةٍ باردةٍ، والصفُّ
+ * يعودُ إلى الطابورِ بموعدِ الفتحةِ القادمِ دون أن يُحسَبَ لهذه الدورةِ محاولةٌ
+ * (الازدحامُ ضغطٌ عابرٌ لا فشلُ إرسالٍ). `retryAfterMs` = تقديرُ فتحةِ الدلوِ.
+ */
+export class OutboundCongestionError extends Error {
+  readonly retryAfterMs: number;
+
+  constructor(retryAfterMs: number) {
+    super(`ازدحامُ دلاءِ الإرسالِ — الفتحةُ القادمةُ بعدَ ${retryAfterMs} مللي ثانية`);
+    this.name = "OutboundCongestionError";
+    this.retryAfterMs = retryAfterMs;
+  }
 }
 
 /**
@@ -72,6 +95,12 @@ export class OutboundSendError extends Error {
 
 export interface OutboundResilienceOptions {
   readonly bucket: OutboundRateBucket;
+  /**
+   * CAP-RUN-20261015 / D6 — مفتاحُ الدلوِ العالميِّ لهذا البوت. حدُّ Bot API لكلِّ رمزِ بوتٍ على حِدَة، فبوتا
+   * السائقِ والزبونِ دلوان لا دلوٌ واحد. غيابُه = المفتاحُ القديمُ المشتركُ "bot" (توافقٌ للاختبارات والمستدعين
+   * القدامى). يُبنى بـ`outboundBucketKeyOfToken` فلا يدخلُ الرمزُ نفسُه Redis ولا السجلّ.
+   */
+  readonly bucketKey?: string;
   readonly deadLetter: OutboundDeadLetterSink;
   /** مهلةُ النداءِ الواحدِ. نداءٌ بلا مهلةٍ يحجزُ العاملَ إلى الأبدِ عندَ تعليقِ شبكةٍ. */
   readonly callTimeoutMs?: number;
@@ -87,8 +116,19 @@ export interface OutboundResilienceOptions {
    * البوتِ استُنفِدَت، والوقوفُ فيه دقائقَ لأجلِ إشعارٍ ثانويٍّ يحجبُ ما هو أهمُّ.
    */
   readonly maxThrottleWaitMs?: number;
-  /** أقصى ما يُنتظَرُ فتحةً من الدلوِ قبلَ اعتبارِ الضغطِ العكسيِّ فشلاً عابراً. */
+  /**
+   * أقصى ما يُنتظَرُ فتحةً من الدلوِ قبلَ اعتبارِ الضغطِ العكسيِّ فشلاً عابراً —
+   * سياسةُ الانتظارِ الافتراضيّةِ (مسارُ النداءِ المباشرِ).
+   */
   readonly maxBucketWaitMs?: number;
+  /**
+   * `D8` — ميزانيّةُ سياسةِ الإحالةِ (`congestion: "abort"`) على مستوى النداء:
+   * ما دامَ الضغطُ العكسيُّ أطولَ منها يُرمى `OutboundCongestionError` فوراً
+   * فيتفرّغُ المسارُ ويعودُ الصفُّ إلى الطابورِ بموعدِ الفتحةِ. مسارُ صندوقِ
+   * الصادرِ وحدَهُ يملكُ عقدَ `requeue` فيُوسَمُ به، والمساراتُ المباشرةُ
+   * تبقى على سياسةِ الانتظارِ (`F11-05`).
+   */
+  readonly congestionAbortMaxWaitMs?: number;
   readonly sleep?: (ms: number) => Promise<void>;
   readonly random?: () => number;
   readonly nowIso?: () => string;
@@ -112,6 +152,7 @@ const DEFAULTS = {
   maxBackoffMs: 30_000,
   maxThrottleWaitMs: 60_000,
   maxBucketWaitMs: 5_000,
+  congestionAbortMaxWaitMs: 300,
 } as const;
 
 function describe(error: unknown): string {
@@ -169,6 +210,14 @@ const defaultSleep = (ms: number): Promise<void> =>
  * عندَ إنشاءِ المُرسِلِ وحدَه (`container`)، فيرثُه كلُّ ما بُنيَ فوقَه — المحوّلاتُ
  * ومعالجاتُ صندوقِ الصادرِ والمُبلِّغاتُ — بلا تعديلِ موضعِ نداءٍ واحدٍ.
  */
+/**
+ * CAP-RUN-20261015 / D6 — مفتاحُ دلوٍ ثابتٌ لرمزِ بوت: بصمةٌ (sha256، 16 خانة) لا الرمزُ نفسُه. الرمزُ نفسُه مُهيَّأً
+ * لبوتين يعطي المفتاحَ نفسَه، فلا يتضاعفُ الحدُّ.
+ */
+export function outboundBucketKeyOfToken(token: string): string {
+  return `bot-${createHash("sha256").update(token).digest("hex").slice(0, 16)}`;
+}
+
 export function withOutboundResilience(
   inner: TelegramSender,
   options: OutboundResilienceOptions,
@@ -180,6 +229,8 @@ export function withOutboundResilience(
   const maxBackoffMs = options.maxBackoffMs ?? DEFAULTS.maxBackoffMs;
   const maxThrottleWaitMs = options.maxThrottleWaitMs ?? DEFAULTS.maxThrottleWaitMs;
   const maxBucketWaitMs = options.maxBucketWaitMs ?? DEFAULTS.maxBucketWaitMs;
+  const congestionAbortMaxWaitMs =
+    options.congestionAbortMaxWaitMs ?? DEFAULTS.congestionAbortMaxWaitMs;
   const sleep = options.sleep ?? defaultSleep;
   const random = options.random ?? Math.random;
   const nowIso = options.nowIso ?? (() => new Date().toISOString());
@@ -215,49 +266,69 @@ export function withOutboundResilience(
     }
   };
 
-  /** انتظارُ فتحةٍ من الدلوِ بنطاقَيه. يُعيدُ سببَ العجزِ إن لم تُفتَح في المهلةِ. */
+  /** انتظارُ فتحةٍ من الدلوِ بنطاقَيه. يُعيدُ سببَ العجزِ وموعدَ الفتحةِ القادمةِ.
+   * `D8`: ما لم يُتَح في مسارِ الإرسالِ لا يُنتظرُ داخلَ المسارِ.
+   *
+   * `LOAD-01` (الدفعةُ الخامسةُ) — **فتحةُ المحادثةِ أولًا ثمَّ العالميُّ**:
+   * الدلوُ العالميُّ موردٌ مشتركٌ للبوتِ كلِّهِ (25/ث)، وفتحةُ المحادثةِ ملكُ
+   * محادثةٍ واحدةٍ (1/ث تتجدّدُ في ثانيةٍ). ولما كانَ الاقتناءُ يستهلكُ الفتحةَ
+   * عندَ المنحِ، كانَ اقتناءُ العالميِّ أولًا يُهدِرُ فتحةً مشتركةً في كلِّ ازدحامِ
+   * محادثةٍ: قياسُ موجةِ `r3-wave-50` الرسميةِ — 60% من فتحاتِ البوتِ هُدرتْ
+   * على محادثاتٍ مزدحمةٍ (12.5 رسالة/ث مُسلَّمةً من سقفِ 25/ث، وفي التصريفِ
+   * 1.6/ث) — والفتحةُ المُهدَرةُ لا تمنعُ شيئاً: رفضُ فتحةِ المحادثةِ هوَ ما
+   * يمنعُ الإرسالَ للمحادثةِ المزدحمةِ، فلا معنى لحرقِ نصيبِ البوتِ كلِّهِ معها.
+   * وبعكسِ الترتيبِ ينتقلُ الهدرُ إلى دلوِ المحادثةِ نفسِها: محدودٌ بمالكِهِ،
+   * يتجدّدُ في ثانيةٍ، فلا يمسُّ محادثةً أخرى ولا سقفَ البوتِ المشتركَ. */
   const awaitSlot = async (
     chatId: string,
     operation: OutboundOperation,
     attempt: number,
     priority: SendPriority,
-  ): Promise<string | null> => {
+    budgetMs: number,
+  ): Promise<{ reason: string | null; retryAfterMs: number }> => {
     let waited = 0;
     // القسمُ ١٥ / `F6-07`: غيرُ الحرجِ يُمنَعُ قبلَ آخِرِ فتحاتِ الدلوِ العالميِّ
     // فيبقى للحرجِ متنفَّسٌ. ودلوُ المحادثةِ لا حِصّةَ فيه (فتحةٌ واحدةٌ لا تُقسَمُ).
     const bucketClass = bucketClassOfSendPriority(priority);
     for (;;) {
-      const globalSlot = await options.bucket.acquire("global", "bot", bucketClass);
-      if (!globalSlot.granted) {
-        if (waited + globalSlot.waitMs > maxBucketWaitMs) return "ازدحامُ الدلوِ العالميِّ";
+      const chatSlot = await options.bucket.acquire("chat", chatId, bucketClass);
+      if (!chatSlot.granted) {
+        if (waited + chatSlot.waitMs > budgetMs) {
+          return { reason: "ازدحامُ دلوِ المحادثةِ", retryAfterMs: chatSlot.waitMs };
+        }
         options.onEvent?.({
           type: "backpressure",
           operation,
           chatId,
           attempt,
-          waitMs: globalSlot.waitMs,
-          detail: "global",
+          waitMs: chatSlot.waitMs,
+          detail: "chat",
         });
-        await sleep(globalSlot.waitMs);
-        waited += globalSlot.waitMs;
+        await sleep(chatSlot.waitMs);
+        waited += chatSlot.waitMs;
         continue;
       }
-      const chatSlot = await options.bucket.acquire("chat", chatId, bucketClass);
-      if (chatSlot.granted) return null;
-      // الفتحةُ العالميّةُ استُهلِكَت ولم تُستعمَل. مقصودٌ ومُحتسَبٌ: الاحتياطُ
-      // أن نُنفِقَ فتحةً من خمسٍ وعشرينَ لا أن نُرسِلَ إلى محادثةٍ تجاوزَت حدَّها
-      // فنستدعيَ `429` على البوتِ كلِّه.
-      if (waited + chatSlot.waitMs > maxBucketWaitMs) return "ازدحامُ دلوِ المحادثةِ";
+      const globalSlot = await options.bucket.acquire(
+        "global",
+        options.bucketKey ?? "bot",
+        bucketClass,
+      );
+      if (globalSlot.granted) return { reason: null, retryAfterMs: 0 };
+      // فتحةُ المحادثةِ استُهلِكَت ولم تُرسَلِ الرسالةُ: الهدرُ محدودٌ بمالكِهِ —
+      // يتجدّدُ في ثانيةٍ ولا يمسُّ محادثةً أخرى ولا سقفَ البوتِ المشتركَ.
+      if (waited + globalSlot.waitMs > budgetMs) {
+        return { reason: "ازدحامُ الدلوِ العالميِّ", retryAfterMs: globalSlot.waitMs };
+      }
       options.onEvent?.({
         type: "backpressure",
         operation,
         chatId,
         attempt,
-        waitMs: chatSlot.waitMs,
-        detail: "chat",
+        waitMs: globalSlot.waitMs,
+        detail: "global",
       });
-      await sleep(chatSlot.waitMs);
-      waited += chatSlot.waitMs;
+      await sleep(globalSlot.waitMs);
+      waited += globalSlot.waitMs;
     }
   };
 
@@ -266,15 +337,32 @@ export function withOutboundResilience(
     chatId: string,
     priority: SendPriority,
     call: () => Promise<string | null>,
+    sendOptions?: SendOptions,
   ): Promise<string | null> => {
     const maxAttempts = priority === "critical" ? criticalMax : informationalMax;
+    // `D8` — سياسةُ الضغطِ العكسيِّ على مستوى النداءِ لا المُرسِلِ: مسارُ صندوقِ
+    // الصادرِ يملكُ عقدَ `requeue` فيُوسَمُ بـ`congestion: "abort"` (يُرمى
+    // `OutboundCongestionError` فورَ تجاوزِ ميزانيّةٍ قصيرةٍ فيتفرّغُ المسارُ)،
+    // وسائرُ النداءاتِ المباشرةِ تبقى على سياسةِ الانتظارِ وإعادةِ المحاولةِ
+    // القديمةِ (الضغطُ فشلٌ عابرٌ يُعادُ عليهِ حتى استنفادِ المحاولاتِ).
+    const abortOnCongestion = sendOptions?.congestion === "abort";
+    const budgetMs = abortOnCongestion ? congestionAbortMaxWaitMs : maxBucketWaitMs;
     let lastReason = "لا سببَ مُسجَّلٌ";
     let lastFailure: OutboundFailureClass = "transient";
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      const blocked = await awaitSlot(chatId, operation, attempt, priority);
-      if (blocked !== null) {
-        lastReason = blocked;
+      const slot = await awaitSlot(chatId, operation, attempt, priority, budgetMs);
+      if (slot.reason !== null) {
+        if (abortOnCongestion) {
+          // ازدحامُ الدلاءِ ضغطٌ عابرٌ لا فشلَ إرسالٍ: يُرمى فوراً فيتفرّغُ
+          // المسارُ لصفٍّ آخرَ، ويعودُ الصفُّ إلى الطابورِ بموعدِ الفتحةِ
+          // (بلا محاولةٍ محتسَبةٍ) — عقدُ المستهلِكِ الذي يملكُ `requeue`.
+          throw new OutboundCongestionError(slot.retryAfterMs);
+        }
+        // السياسةُ الافتراضيّةُ (الانتظار): الضغطُ العكسيُّ فشلٌ عابرٌ يُعادُ
+        // عليهِ كما كانَ — والمستهلِكُ المباشرُ لا يملكُ طابوراً يعيدُ الصفَّ
+        // فيعتمدُ إعادةَ المحاولةِ هنا (عقدُ `F11-05` القديم).
+        lastReason = slot.reason;
         lastFailure = "transient";
         if (attempt < maxAttempts) {
           await sleep(backoffFor(attempt));
@@ -353,16 +441,28 @@ export function withOutboundResilience(
 
   return {
     sendMessage: (chatId, text, markup, sendOptions) =>
-      run("sendMessage", chatId, sendOptions?.priority ?? "informational", () =>
-        inner.sendMessage(chatId, text, markup, sendOptions),
+      run(
+        "sendMessage",
+        chatId,
+        sendOptions?.priority ?? "informational",
+        () => inner.sendMessage(chatId, text, markup, sendOptions),
+        sendOptions,
       ),
     sendPhoto: (chatId, fileId, caption, markup, sendOptions) =>
-      run("sendPhoto", chatId, sendOptions?.priority ?? "informational", () =>
-        inner.sendPhoto(chatId, fileId, caption, markup, sendOptions),
+      run(
+        "sendPhoto",
+        chatId,
+        sendOptions?.priority ?? "informational",
+        () => inner.sendPhoto(chatId, fileId, caption, markup, sendOptions),
+        sendOptions,
       ),
     sendLocation: (chatId, latitude, longitude, sendOptions) =>
-      run("sendLocation", chatId, sendOptions?.priority ?? "critical", () =>
-        inner.sendLocation(chatId, latitude, longitude, sendOptions),
+      run(
+        "sendLocation",
+        chatId,
+        sendOptions?.priority ?? "critical",
+        () => inner.sendLocation(chatId, latitude, longitude, sendOptions),
+        sendOptions,
       ),
     ...interactiveOf(inner),
   };

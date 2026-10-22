@@ -39,6 +39,7 @@ import type {
 import type { Order } from "../../domain/transport/entity.ts";
 import type { CityId, DriverId, OfferId, OrderId, ServiceType } from "../../shared/kernel/index.ts";
 import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
+import { toOrder } from "../transport/order-adapters.ts";
 
 interface CandidateRow {
   readonly driver_id: string;
@@ -558,11 +559,45 @@ export function createExpireOffersRpc(sql: Sql): ExpireOffersRpcPort {
  */
 export function createSearchingOrderFinder(sql: Sql): SearchingOrderFinder {
   return {
-    findSearching: (cityId: CityId, limit: number) =>
+    findSearching: (
+      cityId: CityId,
+      limit: number,
+      opts?: { readonly maxBroadcastRounds?: number; readonly liveRoundGraceSeconds?: number },
+    ) =>
       guard("orders.findSearching", async (): Promise<readonly SearchingOrderRef[]> => {
-        const rows = await sql<{ id: string; city_id: string; waiting_seconds: string | number }[]>`
+        const fairWindow =
+          opts !== undefined &&
+          opts.maxBroadcastRounds !== undefined &&
+          Number.isFinite(opts.maxBroadcastRounds) &&
+          opts.maxBroadcastRounds >= 1;
+        const maxRounds = opts?.maxBroadcastRounds ?? 0;
+        const graceSec = Math.max(0, opts?.liveRoundGraceSeconds ?? 0);
+        const rows = await sql<
+          {
+            id: string;
+            city_id: string;
+            service: string;
+            status: string;
+            pickup_lat: number;
+            pickup_lng: number;
+            dropoff_lat: number | null;
+            dropoff_lng: number | null;
+            assigned_driver_id: string | null;
+            broadcast_round: number;
+            waiting_seconds: string | number;
+          }[]
+        >`
           select o.id      as id,
                  o.city_id as city_id,
+                 o.service as service,
+                 o.status  as status,
+                 -- LOAD-01 · P4 (ب24): أعمدةُ اللقطةِ من ORDER_SELECT نفسِها — يُعيدُ
+                 -- الشوطُ استخدامَ قراءةِ القارئِ بدلَ رحلةٍ فرديةٍ لكلِّ طلبٍ على الاتصالِ
+                 -- التسلسليّ. التحويلُ بدالّةِ toOrder نفسِها فلا معنى ثانٍ لصفِّ الطلبِ.
+                 st_y(o.pickup::geometry) as pickup_lat, st_x(o.pickup::geometry) as pickup_lng,
+                 st_y(o.dropoff::geometry) as dropoff_lat, st_x(o.dropoff::geometry) as dropoff_lng,
+                 o.assigned_driver_id as assigned_driver_id,
+                 o.broadcast_round as broadcast_round,
                  extract(epoch from (now() - coalesce(o.searching_since, o.created_at)))::bigint as waiting_seconds
             from orders o
            where o.city_id = ${cityId}::uuid
@@ -570,13 +605,63 @@ export function createSearchingOrderFinder(sql: Sql): SearchingOrderFinder {
              and o.assigned_driver_id is null
              -- WR-09: لا جولةَ جديدةَ والراكبُ يقرّرُ في مرشَّحٍ حيّ.
              and (o.candidate_expires_at is null or o.candidate_expires_at <= now())
-           order by o.created_at asc
+             -- النافذة العادلة (LOAD-01 · 2026-10-17): حين يمرر المستدعي حد الدورات
+             -- الأقصى — قراءة من إعدادات المدينة في المجال لا قيمة هنا — تُقدَّم
+             -- الطلبات غير المستنفدة بالأقدم أولا، والمستنفدة (الدورة >= الحد) لا
+             -- تدخل النافذة إلا بفضل سعتها: فلا تحتكرها (عيب D8) ولا يُحرم رصدها
+             -- (تبقى مصنفة exhausted عند المجال متى فُحصت). والقيمة تمر من الخارج
+             -- فليس هنا سياسة مملوكة: الباب ينفذ معيار من يملك الحكم
+             -- (hasExhaustedBroadcastRounds والقيمة من parseCitySettings عند المستدعي).
+             -- والأقدم أولا هو ما يمنع تجويع القديم خلف تدفق الجديد: قيس في موجة
+             -- 250 أن 36 طلبا ذا سائق مؤهل متاح لم تخدم في 120ث لأن ترتيب الدورة
+             -- الأدنى (إصلاح D8) قدم كل طلب جديد عليها في كل شوط.
+             -- غياب المعامل = السلوك القائم حرفيا (توافق خلفي يحفظ انحدار D8).
+           -- D8 (CAP-RUN-20261015): الترتيب بـcreated_at وحده جعل الطلباتِ المستنفِدةَ دوراتِها
+           -- (تبقى searching حتى يلغيها الراكب) تملأ نافذةَ الـlimit في كلّ شوط فلا يُفحَص طلبٌ جديد
+           -- أبداً («examined=50 rebroadcast=0 exhausted=50»). تقديمُ الدورة الأدنى ترتيبٌ لا فتوى:
+           -- لا يُستبعَد أحد، والحكمُ بالاستنفاد يبقى في المجال (hasExhaustedBroadcastRounds).
+           -- LOAD-01 · P4 (2026-10-18): داخلَ النافذةِ العادلةِ يتأخّرُ الطلبُ الذي جولتُه الأخيرةُ
+           -- **حيّةٌ وحديثةٌ** (عرضٌ معلَّقٌ لم تنقضِ مهلتُه وعمرُه دونَ مهلةِ السماحِ) خلفَ كلِّ ما
+           -- سواه، والأقدمُ أولاً داخلَ كلِّ صنفٍ. قيسَ في موجةِ 500 على 1ac6b860 أنَّ 38.6% من
+           -- مقاعدِ الشوطِ ذهبت لإعادةِ بثِّ طلباتٍ جولتُها حيّةٌ (1508 جولاتٍ فُتحت بعدَ ≤3.8ث من
+           -- سابقتِها والمهلةُ 45ث) قبلَ أن يرى سائقُها العرضَ، فانتظرَ الجديدُ ~35ث قبلَ أوّلِ
+           -- معالجةٍ تستغرقُ ~15ms. وتأخيرُ كلِّ جولةٍ حيّةٍ حتى انقضائِها (التجربةُ «أ» b9-fixA500)
+           -- جوّعَ الطلباتِ التي فاتَت جولتُها الأولى سائقَها حتى 45ث (P4=72ث) — فالمهلةُ قصيرةٌ
+           -- بقدرِ ظهورِ العرضِ وقبولِه لا بقدرِ مهلةِ العرضِ. لا يُستبعَدُ أحدٌ ولا يُجوَّعُ قديمٌ:
+           -- بعدَ المهلةِ يعودُ الطلبُ إلى ترتيبِ العمرِ فيسبقُ الأحدثَ منه.
+           order by
+             ${
+               fairWindow
+                 ? sql`(o.broadcast_round >= ${maxRounds}) asc,
+                       exists (
+                         select 1 from order_offers f
+                          where f.order_id = o.id
+                            and f.round = o.broadcast_round
+                            and f.status = 'pending'
+                            and f.expires_at > now()
+                            and f.created_at > now() - make_interval(secs => ${graceSec})
+                       ) asc,
+                       o.created_at asc`
+                 : sql`o.broadcast_round asc, o.created_at asc`
+             }
            limit ${limit}
         `;
         return rows.map((row) => ({
           orderId: row.id as OrderId,
           cityId: row.city_id as CityId,
           waitingSeconds: Number(row.waiting_seconds),
+          order: toOrder({
+            id: row.id,
+            city_id: row.city_id,
+            service: row.service,
+            status: row.status,
+            pickup_lat: row.pickup_lat,
+            pickup_lng: row.pickup_lng,
+            dropoff_lat: row.dropoff_lat,
+            dropoff_lng: row.dropoff_lng,
+            assigned_driver_id: row.assigned_driver_id,
+            broadcast_round: row.broadcast_round,
+          }),
         }));
       }),
   };

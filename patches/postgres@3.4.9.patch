@@ -1,0 +1,37 @@
+--- a/src/connection.js
++++ b/src/connection.js
+@@ -252,6 +252,18 @@
+   }
+ 
+   function nextWrite(fn) {
++    // CEEZR D7 (ADR 0286): the socket can be gone by the time this write
++    // runs — closed() nulls it after clearImmediate, and a submit in the
++    // same tick calls here synchronously. Reject the affected queries with
++    // CONNECTION_DESTROYED and drop the pending chunk instead of crashing
++    // the process on `socket.write` of null.
++    if (!socket) {
++      chunk = null
++      nextWriteTimer !== null && clearImmediate(nextWriteTimer)
++      nextWriteTimer = null
++      error(Errors.connection('CONNECTION_DESTROYED', options))
++      return false
++    }
+     const x = socket.write(chunk, fn)
+     nextWriteTimer !== null && clearImmediate(nextWriteTimer)
+     chunk = nextWriteTimer = null
+@@ -561,7 +573,14 @@
+ 
+       if (needsTypes) {
+         initial.reserve && (initial = null)
+-        return fetchArrayTypes()
++        // CEEZR D7 follow-up: fetchArrayTypes() runs from an event handler
++        // with nobody awaiting it, so a failure here (connection killed
++        // mid-fetch) escaped as an unhandled rejection and crashed the
++        // process. Route it through the connection error path instead:
++        // error() rejects the still-pending initial/user queries and is a
++        // no-op when they were already rejected by the socket teardown.
++        fetchArrayTypes().catch(error)
++        return
+       }
+ 
+       initial && !initial.reserve && execute(initial)

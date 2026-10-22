@@ -830,6 +830,14 @@ jobs:
       - name: سقوطُ حاجزِ نظافةِ التوثيقِ مقيسٌ بخرقٍ مزروعٍ لكلِّ قاعدة
         run: bun test tests/unit/check-docs-hygiene.test.ts
 
+      # EVIDENCE-01 (الدفعة 19): كلُّ `SHA256SUMS` تحتَ `docs/evidence/` يطابقُ ما في المستودعِ
+      # فعلًا، وكلُّ ملفٍّ مُدرَج، والاستثناءاتُ مُسمّاةٌ بأسبابِها — وجودُ البيانِ وحدَه لا يُثبتُ شيئًا.
+      - name: بياناتُ الأدلةِ تطابقُ المستودع (EVIDENCE-01)
+        run: bun run scripts/check-evidence-manifests.ts
+
+      - name: سقوطُ حاجزِ بياناتِ الأدلةِ مقيسٌ بخرقٍ مزروعٍ لكلِّ قاعدة
+        run: bun test tests/unit/check-evidence-manifests.test.ts
+
       # D-15: ملفّاتُ القوالبِ الفارغةُ (export {};) مُقيسةٌ — لا يُستوردُ منها
       # في الإنتاجِ. القالبُ الفارغُ مشروعٌ ما دامَ لا يُستعملُ.
       - name: لا استيرادَ من ملفّاتٍ فارغةٍ في الإنتاجِ (D-15)
@@ -1335,6 +1343,32 @@ jobs:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/audit-trail-authority.test.ts
 
+      # `I1` (ADR 0286) — قيدُ الإسنادِ الأحاديِّ كاختبارِ انحدارٍ محميٍّ في مسارِ CI
+      # نفسِه: سباقاتٌ متزامنةٌ حقيقيّةٌ بتداخلٍ مُثبَتٍ بقفلِ تحكُّمٍ (يُعدُّ المحجوبانِ
+      # من مساراتِ الاختبارِ نفسِها بمعرّفِ الجلسةِ — لا بنمطٍ نصيٍّ)، وهويّاتُ الملفِ
+      # معزولةٌ بتنقيةٍ موجّهةٍ (لا truncate عامّاً يزاحم الملفاتِ المتوازيةَ — درسُ
+      # المرحلةِ 9). وبإزالةِ الفهرسِ أو حارسِ claim_ride يفشلُ عمدًا (أدلةُ المرحلةِ 3
+      # من CAP-RUN-20261016-CONTINUATION).
+      - name: سباقاتُ الإسنادِ الأحاديِّ المتزامنةُ على PostgreSQL حقيقيٍّ (I1)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/i1-concurrent-engagement-races.test.ts
+
+      # `LOAD-01` (P4) · الدفعةُ الثامنةُ: قراءةُ لوحِ العروضِ بجولةِ قاعدةٍ واحدةٍ —
+      # تكافؤٌ حرفيٌّ مع المسارِ القديمِ (لوحٌ + ملاحقٌ + أهليةٌ) وعدّادُ عباراتٍ = 1
+      # على قاعدةٍ حقيقيةٍ، واللوحُ الفارغُ ورفضُ USER_NOT_FOUND كما كانَا.
+      - name: لوحُ العروضِ بجولةِ قاعدةٍ واحدةٍ على PostgreSQL حقيقيٍّ (LOAD-01 · P4)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/driver-offer-board-single-read.test.ts
+
+      # `LOAD-01` (P2) · الدفعةُ 15 (ADR 0290): القبولُ وإيداعُ MATCHED في عبارةٍ واحدة —
+      # ردُّ القبولِ حرفاً، ونقطةُ الحفظِ تعزلُ فشلَ الإيداعِ والقبولُ يُثبَّت، وWR-09 والسباقُ وI1.
+      - name: القبولُ وإيداعُ MATCHED في رحلةٍ واحدةٍ على PostgreSQL حقيقيٍّ (LOAD-01 · P2)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/accept-with-matched-notice.test.ts
+
       # `F8-06`: أطوارُ دورةِ حياةِ الدفعِ (نجاحٌ · فشلٌ · معلّقٌ · مكرّرٌ · استرجاعٌ ·
       # تناقضٌ) **يُشغِّلُها المحرِّكُ** لا الحاجزُ الساكنُ. وخطوةٌ باسمِها كي يُقرأَ
       # حُكمُها مفرَداً لا مُبتلَعاً في حزمةٍ من خمسٍ وخمسينَ.
@@ -1433,6 +1467,14 @@ jobs:
         env:
           TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
         run: bun test tests/integration/worker-loss-reclaim.test.ts
+
+      # `LOAD-01` (P4) · الدفعةُ الثامنةُ: الالتقاطُ لا يستهلكُ العروضَ المحسومةَ —
+      # لا التقاطَ ولا حجبًا ولا عدّادَ محاولاتٍ يزيدُ، وتزامنُ مُلتقطَينِ ومسارُ إعادةِ
+      # المحاولةِ والكنسُ الدوريُّ على قاعدةٍ حقيقيةٍ (هجرةُ 20261018130000).
+      - name: الالتقاطُ لا يستهلكُ المحسومَ على PostgreSQL حقيقيٍّ (LOAD-01 · P4)
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/waslah
+        run: bun test tests/integration/claim-skip-decided-offers.test.ts
 
       # `ECO-003`: رسائلُ تيليجرام تُعَدُّ على **السِلكِ** — مُرسِلٌ يُلتقَطُ خروجُه
       # نصّاً وصورةً ودبّوساً، وبوّابةٌ من `buildContainer` تمرُّ بالـwebhook وصندوقِ

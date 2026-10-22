@@ -15,9 +15,11 @@ import {
 import { probeTranslation } from "../../../packages/application/i18n-translation/probe-translation.ts";
 import { translateMessage } from "../../../packages/application/i18n-translation/translate-message.ts";
 import { createDriverPhoneProofs } from "../../../packages/application/identity/onboard-driver.ts";
+import { createNegotiationApp } from "../../../packages/application/negotiation/negotiation-app.ts";
 import { PortFailureError } from "../../../packages/application/ports/index.ts";
 import type { OperatingCityDeps } from "../../../packages/application/rider-city/operating-city.ts";
 import type { EmergencyContactDeps } from "../../../packages/application/safety/emergency-contact.ts";
+import type { RideRequestCommand } from "../../../packages/application/transport/ride-request-ports.ts";
 import { createFulfillmentLifecycle } from "../../../packages/application/wasla/fulfillment-lifecycle.ts";
 import { isSupportedLanguage } from "../../../packages/domain/i18n-translation/value-objects.ts";
 import { parseCitySettings, subscriptionPriceFor } from "../../../packages/domain/policy/entity.ts";
@@ -71,6 +73,7 @@ import {
 import { createViewerAccountReader } from "../../../packages/infrastructure/identity/viewer-account.ts";
 import { createViewerAccountLanguageWriter } from "../../../packages/infrastructure/identity/viewer-language.ts";
 import { createOrderChatStore } from "../../../packages/infrastructure/messaging/order-chat-store.ts";
+import { createNegotiationAppStore } from "../../../packages/infrastructure/negotiation/negotiation-app-store.ts";
 import { grammyTelegramSender } from "../../../packages/infrastructure/notification/telegram-api-sender.ts";
 import { createUserNotificationCenter } from "../../../packages/infrastructure/notification/user-notification-center.ts";
 import {
@@ -129,6 +132,7 @@ import {
   createRideSummaryReader,
 } from "../../../packages/infrastructure/transport/ride-summary-store.ts";
 import { createRideTraceReader } from "../../../packages/infrastructure/transport/ride-trace-store.ts";
+import { createRiderTripEventsStore } from "../../../packages/infrastructure/transport/rider-trip-events-store.ts";
 import { createOperationalJobRepository } from "../../../packages/infrastructure/wasla/operational-job-repository.ts";
 import {
   MAPLIBRE_CDN_ORIGIN,
@@ -143,6 +147,11 @@ import {
   describeConnectionBudget,
 } from "../../../packages/shared/config/connection-budget.ts";
 import { CORE_EVENT_TRANSPORT_ENV } from "../../../packages/shared/config/core-event-transport.ts";
+import {
+  TELEGRAM_REPLY_POOL_CONCURRENCY,
+  TELEGRAM_REPLY_POOL_MAX_QUEUED,
+  TELEGRAM_REPLY_POOL_MAX_WAIT_MS,
+} from "../../../packages/shared/config/domain-ingress.ts";
 import { missingEnvKeys, tryLoadConfig } from "../../../packages/shared/config/index.ts";
 import {
   DECIDED_EVENT_DISTRIBUTION,
@@ -154,7 +163,10 @@ import { assertEgressEnvironment } from "../../../packages/shared/wasla/egress-g
 import { jobHealthExpectations } from "../../workers/src/container.ts";
 import { createAdminAuthPort } from "./admin/auth.ts";
 import { mountAdminSurface } from "./admin/mount.ts";
+import { createLoadTrace, type LoadTrace } from "./background/load-trace.ts";
+import { createTelegramReplyPool } from "./background/telegram-reply-pool.ts";
 import {
+  parseTelegramDrainLanes,
   startTelegramUpdateDrainer,
   TELEGRAM_DRAINER_FALLBACK_INTERVAL_MS,
   type TelegramUpdateDrainer,
@@ -195,8 +207,10 @@ import { createHttpBridge } from "./realtime/http-bridge.ts";
 import { isLiveLocationBroadcastPermitted } from "./realtime/live-tracking-policy.ts";
 import { createOffersChannel } from "./realtime/offers-channel.ts";
 import { createRideChannel } from "./realtime/ride-channel.ts";
+import { createRiderTripChannel } from "./realtime/rider-trip-channel.ts";
 import { createUpstashRedis, sanitizeUpstashError } from "./redis/upstash.ts";
 import type { ProbeOutcome } from "./routes/health.ts";
+import { createInternalOffersSignalRoutes } from "./routes/internal-offers-signal.ts";
 import { createMetricsRoutes } from "./routes/metrics.ts";
 import { createPublicTrackingRoutes } from "./routes/public-tracking.ts";
 import { createUpdateDeduplicator } from "./routes/update-dedup.ts";
@@ -392,6 +406,8 @@ let embeddedWorker: EmbeddedWorkerHandle | null = null;
  * التصريفِ بعدَ انتظارِ الشوطِ الجاري.
  */
 let updateDrainer: TelegramUpdateDrainer | null = null;
+// يُعلَنُ هنا لا عندَ إنشائه: `close()` قد يُستدعى أثناءَ الإقلاعِ قبلَ سطرِ الإنشاءِ (لا TDZ).
+let loadTrace: LoadTrace | null = null;
 
 /**
  * مقبضُ خادمِ HTTP من Node — يُملأ آخرَ الإقلاع. التصريفُ الرشيقُ يقرؤه عبر الإغلاقِ
@@ -402,6 +418,7 @@ type GatewayServer = import("node:http").Server;
 let serverHandle: GatewayServer | null = null;
 let rideChannel: ReturnType<typeof createRideChannel> | null = null;
 let offersChannel: ReturnType<typeof createOffersChannel> | null = null;
+let riderTripChannel: ReturnType<typeof createRiderTripChannel> | null = null;
 /** `WR-04` — قناةُ غرفِ المحادثة؛ تُركَّبُ بعدَ `ioServer`، والمساراتُ تبثُّ عبرَها متى وُجِدَت. */
 let chatChannel: ChatChannel | null = null;
 let ioServer: IoServer | null = null;
@@ -430,6 +447,7 @@ const lifecycle = createLifecycle({
         await updateDrainer.stop();
         updateDrainer = null;
       }
+      await loadTrace?.stop();
       // العاملُ أولاً: مهمّةٌ جاريةٌ تستعلمُ القاعدةَ، وإغلاقُ التجمّعِ تحتها يجعلها
       // تفشلُ بخطأِ اتصالٍ لا معنىً له بدلَ أن تنتهي أو تُوقَفَ نظيفة.
       if (embeddedWorker !== null) await embeddedWorker.stop();
@@ -442,6 +460,10 @@ const lifecycle = createLifecycle({
       if (rideChannel !== null) {
         rideChannel.stop();
         rideChannel = null;
+      }
+      if (riderTripChannel !== null) {
+        riderTripChannel.stop();
+        riderTripChannel = null;
       }
       if (offersChannel !== null) {
         offersChannel.stop();
@@ -885,6 +907,28 @@ const quote =
  * قراءةٌ منها. والقارئُ والآمرُ والمُلغي **ثلاثةُ كائناتٍ** لا واحدٌ: مسارُ
  * القراءةِ لا يجبُ أن يملكَ حقَّ الكتابةِ ولا حقَّ الإلغاءِ.
  */
+/**
+ * التكليفُ السابعُ (P4) — طلبٌ جديدٌ (لا إعادةُ مفتاحٍ) في طورِ البحثِ يُطلِقُ عرضَ مدينتِه
+ * فورًا بدلَ انتظارِ محفّزِ موقعٍ أو الدوريِّ (20ث). المجدوَلُ لا يُطلَقُ (يبدأُ بموعدِه).
+ */
+function withNewOrderDispatch(command: RideRequestCommand): RideRequestCommand {
+  return {
+    ...command,
+    create: async (input) => {
+      const result = await command.create(input);
+      if (
+        result.ok &&
+        result.value.accepted &&
+        !result.value.ride.reused &&
+        (result.value.ride.status === undefined || result.value.ride.status === "searching")
+      ) {
+        container.dispatchNewOrder(result.value.ride.orderId);
+      }
+      return result;
+    },
+  };
+}
+
 const rides =
   config.miniappSessionSecret === null
     ? undefined
@@ -894,7 +938,7 @@ const rides =
             createMiniAppSessionReader(config.miniappSessionSecret),
             sessionRevocationStore,
           ),
-          rides: createRideRequestCommand(container.sql),
+          rides: withNewOrderDispatch(createRideRequestCommand(container.sql)),
           now: () => new Date(),
         },
         search: {
@@ -912,6 +956,15 @@ const rides =
             sessionRevocationStore,
           ),
           store: createRideCandidateStore(container.sql),
+          now: () => new Date(),
+        },
+        // ADR 0287 — أحداثُ رحلةِ الراكبِ في Mini App وإقرارُه بعدَ التطبيقِ.
+        tripEvents: {
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          store: createRiderTripEventsStore(container.sql),
           now: () => new Date(),
         },
         // الرحلةُ النشطةُ (`F2-06`) **تملكُ مزوِّدَ التوجيهِ** خلافاً لأخواتِها:
@@ -1034,7 +1087,7 @@ const deliveries =
             createMiniAppSessionReader(config.miniappSessionSecret),
             sessionRevocationStore,
           ),
-          rides: createRideRequestCommand(container.sql),
+          rides: withNewOrderDispatch(createRideRequestCommand(container.sql)),
           now: () => new Date(),
         },
         log,
@@ -1285,6 +1338,31 @@ const driverOffers =
           offers: container.driverOffers.decisions,
           riderNotice: container.riderTripNotice,
         },
+        log,
+      };
+
+/**
+ * `ADR 0286` — أعمالُ التفاوضِ من التطبيقِ المصغَّرِ: مطالبةُ السائقِ في دورةِ
+ * القروبِ وقرارُ الراكبِ (اختيارٌ · اتفاقٌ · تجاوزٌ). **المنافذُ هي نفسُها** التي
+ * يناديها حوارُ البوتِ — لا كاتبَ ثانٍ ولا نسخةً ثانيةً من الحقيقةِ — والهويّةُ
+ * من الجلسةِ الموقَّعةِ لا من جسمِ الطلبِ. وغيابُ سرِّ الجلسةِ **يُسقِطُ السطحَ
+ * كلَّه**: مطالبةٌ بلا رمزٍ موقَّعٍ تعني مطالبةً باسمِ غيرِكَ.
+ */
+const negotiationApp =
+  config.miniappSessionSecret === null
+    ? undefined
+    : {
+        negotiation: createNegotiationApp({
+          sessions: createRevocableSessionReader(
+            createMiniAppSessionReader(config.miniappSessionSecret),
+            sessionRevocationStore,
+          ),
+          now: () => new Date(),
+          store: createNegotiationAppStore(container.sql),
+          claims: container.negotiationApp.claims,
+          rotation: container.negotiationApp.rotation,
+          drivers: container.driverOffers.drivers,
+        }),
         log,
       };
 
@@ -1605,6 +1683,7 @@ const app = createServer({
   ...(support === undefined ? {} : { support }),
   ...(driverDocuments === undefined ? {} : { driverDocuments }),
   ...(driverOffers === undefined ? {} : { driverOffers }),
+  ...(negotiationApp === undefined ? {} : { negotiationApp }),
   ...(driverJob === undefined ? {} : { driverJob }),
   ...(orderChat === undefined ? {} : { orderChat }),
   ...(driverActivity === undefined ? {} : { driverActivity }),
@@ -1931,11 +2010,33 @@ for (const [audience, token] of [
  * لا إيقاظَ له: إعادةٌ مؤجّلةٌ بـ`next_attempt_at`، أو صفٌّ أودعته نسخةٌ أخرى. والدرينرُ
  * يفرغُ الطابورَ كاملاً في كلِّ شوطٍ (claim حتى null)، ومانعُ التداخلِ باقٍ.
  */
+// LOAD-01 (الدفعةُ الحاديةَ عشرةَ): أثرُ كلفةِ السيناريو — بغيابِ `DISPATCH_TRACE_FILE` هو `null` ولا أثرَ له.
+loadTrace = createLoadTrace(process.env.DISPATCH_TRACE_FILE);
+const drainLanes = parseTelegramDrainLanes(process.env.TELEGRAM_DRAIN_LANES);
+if (drainLanes.invalid)
+  log("telegram.drainer.lanes_invalid", {
+    raw: process.env.TELEGRAM_DRAIN_LANES ?? null,
+    using: drainLanes.lanes,
+  });
 updateDrainer = startTelegramUpdateDrainer(
   {
     queue: createPostgresTelegramUpdateQueue(container.sql),
     handler: container.handler,
     log,
+    // SANDBOX-SOAK-01: مساراتٌ متوازيةٌ لكلِّ مستخدم. الافتراضُ ١ = السلوكُ التسلسليُّ القائم،
+    // وقيمةٌ غيرُ عدديّةٍ تُسقِطُ إلى ١ داخلَ الدرينر (`Number.NaN > 1` باطل).
+    lanes: drainLanes.lanes,
+    // CAP-RUN-20261015 / D2+D3: توزيعُ المساراتِ بين البوتين وتجديدُ إيجارِ المحجوزِ المنتظر.
+    fairBots: ["driver", "rider"],
+    ...(loadTrace === null ? {} : { timing: loadTrace.drainer }),
+    // S5 (ADR 0288 §ملحق): الردُّ لا يحجزُ مسارَ الوظيفةِ — `r11-wave-500` أثبتَ أنَّ انتظارَه
+    // جعلَ إتمامَ وظائفِ إثباتِ الهاتفِ بمعدّلِ دلوِ البوتِ (22ث → 62ث).
+    replyPool: createTelegramReplyPool({
+      concurrency: TELEGRAM_REPLY_POOL_CONCURRENCY,
+      maxQueued: TELEGRAM_REPLY_POOL_MAX_QUEUED,
+      maxWaitMs: TELEGRAM_REPLY_POOL_MAX_WAIT_MS,
+      log,
+    }),
   },
   { intervalMs: TELEGRAM_DRAINER_FALLBACK_INTERVAL_MS },
 );
@@ -1962,10 +2063,24 @@ const httpHandler = createHttpBridge(
       }
 
       inFlightRequests += 1;
+      if (loadTrace === null) {
+        try {
+          return await app.fetch(request, server);
+        } finally {
+          inFlightRequests -= 1;
+        }
+      }
+      const t0 = performance.now();
+      let status = 500;
       try {
-        return await app.fetch(request, server);
+        const response = await loadTrace.inRoute(pathname, request.method, async () =>
+          app.fetch(request, server),
+        );
+        status = response.status;
+        return response;
       } finally {
         inFlightRequests -= 1;
+        loadTrace.onHttp(pathname, request.method, performance.now() - t0, status);
       }
     },
   },
@@ -2001,7 +2116,15 @@ if (config.miniappSessionSecret !== null && isLiveLocationBroadcastPermitted(con
     log,
   });
   rideChannel.start();
+}
 
+/**
+ * `LOAD-01 Recovery` + `WR-04` — قناةُ العروضِ **خارجَ** حكمِ منعِ بثِّ الموقعِ:
+ * لا تحملُ موقعًا (إشارةُ «حدّثْ لوحَك» فحسب)، فقرارُ 2026-09-19 لا يشملُها —
+ * كانَ إقفالُها عليهِ خطأً تصنيفٍ أبقى إشارةَ العروضِ ميتةً في الإنتاجِ.
+ * وتشترطُ سرَّ الجلسةِ وحدَهُ.
+ */
+if (config.miniappSessionSecret !== null) {
   offersChannel = createOffersChannel({
     io: ioServer,
     sessions: createOffersSessionVerifier(
@@ -2011,6 +2134,46 @@ if (config.miniappSessionSecret !== null && isLiveLocationBroadcastPermitted(con
     ),
   });
   offersChannel.start();
+  // ADR 0287 — غرفةُ أحداثِ رحلةِ الراكبِ بالمحقِّقِ نفسِه (الهويةُ منَ الجلسةِ).
+  riderTripChannel = createRiderTripChannel({
+    io: ioServer,
+    sessions: createOffersSessionVerifier(
+      config.miniappSessionSecret,
+      () => Date.now(),
+      sessionRevocationStore,
+    ),
+  });
+  riderTripChannel.start();
+  const channel = riderTripChannel;
+  container.riderTripSignal.notify = (telegramUserId, orderId) => {
+    if (channel.isRiderConnected(telegramUserId)) channel.notifyRider(telegramUserId, orderId);
+  };
+}
+
+/**
+ * `LOAD-01 Recovery` — مسارُ الإشارةِ الداخليُّ: نداءُ شوطِ التسليمِ (العاملُ)
+ * يسألُ: «هل السائقُ متصلٌ؟ بُثَّتْ لهُ إشارةُ اللوحِ». سرٌّ مشتركٌ
+ * (`INTERNAL_SIGNAL_SECRET`) يُعطَّلُ المسارُ بغيابِهِ (503) لا يُفتَحُ لكلِّ
+ * أحدٍ، ومهلةُ الطالبِ قصيرةٌ كي لا يُعلَّقَ الشوطُ على بوابةٍ بطيئةٍ.
+ */
+if (offersChannel !== null) {
+  app.route(
+    "/",
+    createInternalOffersSignalRoutes({
+      isDriverConnected: offersChannel.isDriverConnected,
+      notifyDriver: offersChannel.notifyDriver,
+      secret: process.env.INTERNAL_SIGNAL_SECRET ?? null,
+      log,
+      ...(riderTripChannel === null
+        ? {}
+        : {
+            rider: {
+              isRiderConnected: riderTripChannel.isRiderConnected,
+              notifyRider: riderTripChannel.notifyRider,
+            },
+          }),
+    }),
+  );
 }
 
 /**

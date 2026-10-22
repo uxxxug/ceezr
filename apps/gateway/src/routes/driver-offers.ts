@@ -39,6 +39,7 @@ import {
   type DriverOfferRejection,
   readDriverOfferBoard,
   readDriverOfferDetail,
+  recordDriverOfferBoardReceipts,
   rejectDriverOffer,
   setDriverAvailability,
 } from "../../../../packages/application/driver/driver-offers.ts";
@@ -75,6 +76,7 @@ const STATUS_BY_ERROR: Readonly<
   ORDER_HELD: 409,
   CITY_MISMATCH: 409,
   CLAIM_REFUSED: 409,
+  DRIVER_HAS_ACTIVE_ORDER: 409,
 };
 
 function rejected(c: Context, rejection: DriverOfferRejection) {
@@ -176,6 +178,31 @@ export function createDriverOfferRoutes(deps: DriverOfferRouteDependencies): Hon
         pickup_at: offer.offerTerms?.pickupAt ?? null,
       })),
     });
+  });
+
+  /**
+   * `LOAD-01 Recovery` — إيصالاتُ اللوحِ: إقرارُ العميلِ بأنَّهُ طبّقَ لقطةً
+   * فيها هذهِ العروضُ. **جلبُ اللوحِ (GET) لا يُسجِّلُ إيصالًا**: الإيصالُ
+   * إقرارٌ لاحقٌ منَ العميلِ — فصلُ «سلّمها الخادمُ» عنِ «وصلَتْ».
+   */
+  app.post("/v1/driver/offers/receipts", async (c) => {
+    if (deps.offers === undefined) {
+      deps.log?.("driver_offers.board_disabled", {});
+      return rejected(c, unavailable("OFFER_STORE_NOT_AVAILABLE"));
+    }
+
+    const body = await c.req.json().catch(() => null);
+    const offerIds = Array.isArray((body as Record<string, unknown> | null)?.offer_ids)
+      ? ((body as { offer_ids: unknown }).offer_ids as unknown[])
+          .filter((id): id is string => typeof id === "string")
+          .slice(0, 50)
+      : [];
+    const result = await recordDriverOfferBoardReceipts(deps.offers, {
+      accessToken: bearerTokenFrom(c.req.header("authorization")),
+      offerIds,
+    });
+    if (!result.ok) return rejected(c, result.error);
+    return c.json({ ok: true, recorded: result.value.recorded });
   });
 
   /** «تفاصيلُ عرضٍ» — `SD-04`: موضعانِ وملاحظةٌ وقياساتٌ ومؤقّتٌ. */

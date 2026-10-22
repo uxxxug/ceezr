@@ -13,11 +13,13 @@ import type { MiniAppSurfaceConfig } from "../../../packages/application/bots/mi
 import type { RiderBotDependencies } from "../../../packages/application/bots/rider-dialog.ts";
 import type { SupportDialogDependencies } from "../../../packages/application/bots/support-dialog.ts";
 import type {
+  BotReply,
   DriverDirectory,
   OfferDecisionPort,
   OrderCancellationPort,
   SessionStore,
 } from "../../../packages/application/bots/types.ts";
+import { RIDER_TRIP_APP_FIRST_EVENTS } from "../../../packages/application/dispatch/deliver-rider-trip-notice.ts";
 import type { EscalateUnmatchedOrderDependencies } from "../../../packages/application/dispatch/escalate-unmatched-order.ts";
 import type { PublishToUnsubscribedGroupDependencies } from "../../../packages/application/dispatch/publish-to-unsubscribed-group.ts";
 import { redispatchSearchingOrders } from "../../../packages/application/dispatch/redispatch-searching-orders.ts";
@@ -112,8 +114,12 @@ import {
   withMiniAppEntry,
 } from "../../../packages/infrastructure/notification/miniapp-entry-sender.ts";
 import { createOutboundResilience } from "../../../packages/infrastructure/notification/outbound-resilience.ts";
-import { withOutboundResilience } from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
+import {
+  outboundBucketKeyOfToken,
+  withOutboundResilience,
+} from "../../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
 import { createRiderTripNoticeOutbox } from "../../../packages/infrastructure/notification/rider-trip-notice-outbox.ts";
+import { botUsernameProvider } from "../../../packages/infrastructure/notification/telegram-client.ts";
 import { grammyGroupJoinGate } from "../../../packages/infrastructure/notification/telegram-join-gate.ts";
 import {
   grammyLiveLocationChannel,
@@ -163,6 +169,7 @@ import {
 import { createTrackingSessionRepository } from "../../../packages/infrastructure/tracking/session-repository.ts";
 import {
   createActiveTripReader,
+  createDriverDutyAndTripReader,
   createDriverDutyReader,
   createDriverTripCardReader,
   createTrackingProofReader,
@@ -181,7 +188,10 @@ import {
 import { createRideRequestCommand } from "../../../packages/infrastructure/transport/ride-request-store.ts";
 import type { RoutingProvider, RoutingQuota } from "../../../packages/maps/index.ts";
 import { createOsrmProvider } from "../../../packages/maps/index.ts";
-import { DB_QUERY_DEADLINE_MS } from "../../../packages/shared/config/connection-budget.ts";
+import {
+  DB_POOL_MAX,
+  DB_QUERY_DEADLINE_MS,
+} from "../../../packages/shared/config/connection-budget.ts";
 import type { AppConfig } from "../../../packages/shared/config/index.ts";
 import { type CityId, systemClock } from "../../../packages/shared/kernel/index.ts";
 import { resolveGpsPolicy } from "../../../packages/tracking/config.ts";
@@ -191,6 +201,12 @@ import {
   createSupportAdvicePublisher,
   createTicketAdvisor,
 } from "./agent-advisor.ts";
+import { createDispatchTrace } from "./background/dispatch-trace.ts";
+import {
+  createImmediateRedispatchScheduler,
+  IMMEDIATE_REDISPATCH_DEBOUNCE_MS,
+} from "./background/immediate-redispatch.ts";
+import { withLoadPath } from "./background/load-path-scope.ts";
 import { createDriverBot, grammyTelegramSender, type TelegramSender } from "./bots/driver/index.ts";
 import { createRiderBot } from "./bots/rider/index.ts";
 import { counterpartNotifier } from "./bots/shared/counterpart-notifier.ts";
@@ -253,6 +269,15 @@ export function createUpdateHandler(wiring: BotWiring): UpdateHandler {
       if (typeof update !== "object" || update === null) return false;
       return routes[bot](update as RawTelegramUpdate);
     },
+    prepare: async (bot, update) => {
+      if (typeof update !== "object" || update === null) return { handled: false, replies: [] };
+      const target = bot === "driver" ? driverBot : riderBot;
+      return target.prepare(update as RawTelegramUpdate);
+    },
+    deliver: (bot, replies, from) => {
+      const target = bot === "driver" ? driverBot : riderBot;
+      return target.deliver(replies as readonly BotReply[], from);
+    },
   };
 }
 
@@ -272,6 +297,20 @@ export { asIdentifyingSender, asOutboundSender, asSupportSender };
 export interface Container {
   readonly handler: UpdateHandler;
   readonly sql: Sql;
+  /** `ADR 0289` — اتّصالُ شوطِ البثِّ الفوريِّ (`gatewayDispatch`)؛ يُغلَقُ مع `sql` عندَ الإيقافِ. */
+  readonly dispatchSql: Sql;
+  /**
+   * ADR 0287 — خطّافُ الإشارةِ الآنيةِ لأطوارِ الرحلةِ: يُركَّبُ في `index.ts` بعدَ
+   * إنشاءِ القناةِ؛ فإن أُودِعَ طورٌ جديدٌ بُثَّ `trip:update` للراكبِ فورًا (لا
+   * بعدَ دورةِ العاملِ). الإشارةُ لا تُعدُّ تسليمًا — الإقرارُ وحدَه يُغلقُ الصفَّ.
+   */
+  readonly riderTripSignal: { notify: ((telegramUserId: string, orderId: string) => void) | null };
+  /**
+   * التكليفُ السابعُ (P4) — طلبٌ جديدٌ باحثٌ يُطلِقُ شوطَ العرضِ الفوريَّ لمدينتِه
+   * (المُجدوِلُ نفسُه بخفضِه ومانعِ تداخلِه وحافتِه اللاحقةِ). كانَ أوّلُ عرضٍ ينتظرُ محفّزَ
+   * موقعِ سائقٍ أو الدوريَّ (20ث). لا يحجبُ: يعودُ فورًا وفشلُه يُسجَّلُ.
+   */
+  readonly dispatchNewOrder: (orderId: string) => void;
   /**
    * `F2-04` — مزوِّدُ التوجيهِ مكشوفٌ لأنَّ مسارَ الاقتباسِ يحتاجُ **نفسَ** قرارِ
    * التهيئةِ الذي بُنيَ ههنا: `null` عندَ `ROUTING_PROVIDER=none` لا مزوِّدٌ
@@ -300,6 +339,14 @@ export interface Container {
    * تحتاج تشغيل الدورة خارج مسار الـ webhook — وبنفس المحوّلات لا بنسخة موازية.
    */
   readonly negotiation: NegotiationWiring;
+  /**
+   * `ADR 0286` — منافذُ أعمالِ التفاوضِ للتطبيقِ المصغَّرِ: نفسُ منافذِ الحوارِ
+   * (`register/withdraw` · `select/settle/advanceAt`) — لا كاتبَ ثانٍ.
+   */
+  readonly negotiationApp: {
+    readonly claims: ReturnType<typeof createClaimRegistrationPort>;
+    readonly rotation: ReturnType<typeof createNegotiationRotationPort>;
+  };
   /**
    * عمليات الائتمان والاسترداد والفاتورة والتصحيح مالية إدارية/ويبهوك فقط؛ لا
    * تُوصل لحوار السائق حتى لا يصبح البوت قناة قرار استرداد أو تسوية. لوحة الإدارة
@@ -461,12 +508,18 @@ export interface ContainerOverrides {
  * المُرسِلان قابلان للاستبدال ليُختبر المسار كاملاً بلا شبكة تلغرام.
  */
 /**
- * حدُّ المحاولةِ الفوريّة أضيقُ من حدِّ العامل (٥٠) عن قصد: هذه تجري داخل معالجةِ
- * تحديثٍ من تلغرام، ولتلغرام مهلةٌ على الـwebhook. فحصُ خمسين طلباً — كلٌّ منها دورةُ
- * مطابقةٍ كاملةٍ باستعلاماتها — يُخاطر بتجاوز المهلة فيُعيد تلغرام التحديثَ نفسَه،
- * فيُعالَج موقعُ السائق مرّتين. والأقدمُ أوّلاً، والباقي تتولّاه الأرضيّةُ الدوريّة.
+ * حدُّ المحاولةِ الفوريّة. القيمةُ القديمةُ (١٠) كان مبررُها أنّ الشوطَ كان يجري
+ * داخل معالجةِ تحديثِ تلغرامَ نفسِه فخيفَ تجاوزُ مهلةِ الـwebhook — وقد زالَ هذا
+ * المبررُ كليًّا منذَ صارَ الشوطُ مجدوَلًا في الخلفيةِ (`immediate-redispatch.ts`:
+ * جدولةٌ خارجَ مسارِ الطلبِ + خفضُ ثانيتينَ + مانعُ تداخلٍ لكلِّ مدينةٍ)، فالردُّ
+ * لا ينتظرُه أصلًا. والقياسُ (موجةُ 250 · 2026-10-17): ٩٣ شوطًا فوريًّا بلغت
+ * الحدَّ العشرةَ كلُّها (متوسطُ ٩٫٤ طلباً للشوط) بينما وصولُ الطلباتِ ٧٫٣/ث —
+ * فصارَ الحدُّ نفسُه سقفَ خدمةٍ (≈٥/ث) دونَه يتجاوزُ انتظارُ العرضِ ثلاثينَ ثانيةً
+ * ويجوّعُ مَن أُهدرت دورتُه الأولى. القيمةُ الجديدةُ (٥٠) توازي حدَّ العاملِ
+ * الدوريّ، ويبقى الخفضُ ومانعُ التداخلِ حمايةَ التزاحمِ، والأرضيّةُ الدوريّةُ
+ * الضمانةَ المعلنةَ.
  */
-const IMMEDIATE_REDISPATCH_LIMIT = 10;
+const IMMEDIATE_REDISPATCH_LIMIT = 50;
 
 /**
  * حصّةُ مزوّدِ التوجيهِ المُعلَنةُ (`REQ-09` · `ADR 0190`). على `Redis` متى وُجِدَ:
@@ -496,6 +549,9 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    */
   const sql = createSql({
     connectionString: config.databaseUrl,
+    // اسمُ الدورِ في `pg_stat_activity.application_name`: يُنسَبُ به CPU كلِّ خادمٍ خلفيٍّ
+    // إلى تجمُّعِه (LOAD-01 · الدفعةُ الحاديةَ عشرة)، ولا يغيّرُ سلوكاً.
+    applicationName: "ceezr:gatewayRequest",
     queryDeadlineMs: DB_QUERY_DEADLINE_MS.gatewayRequest,
     onQueryDeadline: ({ deadlineMs }) =>
       log("db.query_deadline_exceeded", { pool: "gatewayRequest", deadlineMs }),
@@ -532,7 +588,11 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     // نداءً منطقيّاً واحداً يُخفي خمسَ محاولاتٍ. ولو لُفَّ القياسُ فوقَ الصمودِ
     // لأظهرَ الرسمُ البيانيُّ صادراً هادئاً بينما البوتُ يضربُ حدَّه فعلاً.
     // و`silent` لا يُستثنى: الاختبارُ يجبُ أن يسلكَ المسارَ الذي يسلكُه الإنتاجُ.
-    const resilient = withOutboundResilience(measured, outboundResilience.options);
+    // CAP-RUN-20261015 / D6: دلوٌ عالميٌّ لكلِّ رمزِ بوت — حدُّ Bot API لكلِّ بوتٍ على حِدَة.
+    const resilient = withOutboundResilience(measured, {
+      ...outboundResilience.options,
+      bucketKey: outboundBucketKeyOfToken(token),
+    });
     // `ADR 0213`: في وضعِ التطبيقِ كلُّ رسالةٍ خاصّةٍ بابٌ إليه — زرٌّ واحدٌ يُلحَقُ عند المُرسِلِ
     // لا في كلِّ مُخطِرٍ. الغلافُ **فوقَ** الصمودِ: إعادةُ المحاولةِ تُعيدُ الرسالةَ نفسَها بزرِّها.
     return config.botSurfaceMode === "miniapp" && config.miniAppUrl !== null
@@ -653,11 +713,20 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     rotation: rotationPort,
   };
 
+  /**
+   * `ADR 0286` — هويّةُ بوتِ السائقينَ لمرةٍ واحدةٍ (`getMe` مُخزَّنةً): زرُّ بطاقةِ القروبِ
+   * رابطُ `startapp` لا زرَّ `web_app` (فهو للمحادثاتِ الخاصةِ وحدَها)، والهويّةُ من
+   * البوتِ نفسِهِ لا من إعدادٍ يدويٍّ يتقادمُ بصمتٍ. وتعذُّرُها لا يُسقِطُ البطاقةَ:
+   * يبقى زرُّ المطالبةِ القديمَ (وضعُ `legacy` المعزولُ) لا بلا زرٍّ.
+   */
+  const driverBotUsername = botUsernameProvider(config.driverBotToken);
   const publishDeps = {
     orders,
     notes: createOrderNotesReader(sql),
     cycles: createUnsubscribedCyclePort(sql),
-    publisher: createUnsubscribedGroupPublisher(asIdentifyingSender(driverSender)),
+    publisher: createUnsubscribedGroupPublisher(asIdentifyingSender(driverSender), {
+      driverBotUsername,
+    }),
   };
 
   const escalationDeps = {
@@ -850,6 +919,14 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     publisher: trackingBus,
     trips: createActiveTripReader(sql),
     duty: createDriverDutyReader(sql),
+    /**
+     * القارئُ الموحّد: يقرأُ بوابةَ الخدمةِ والرحلةَ النشطةَ في استعلامٍ واحدٍ
+     * في مسارِ `POST /v1/driver/location` — فلا تعبرَ الإصلاحةُ الواحدةُ طابورَ
+     * مجموعةِ الطلباتِ ثلاثَ مراتٍ كما كانت (بوابةُ الخدمةِ ثمّ الرحلةُ للجلسةِ
+     * ثمّ الرحلةُ للإرفاق). مسارٌ ساخنٌ بلا شرطِ منتجٍ يتغيّر: نفسُ الجداولِ
+     * ونفسُ الأحكامِ ولقطةٌ واحدةٌ أبعدُ عن التمزّق.
+     */
+    dutyAndTrip: createDriverDutyAndTripReader(sql),
     clock: systemClock,
     log,
   });
@@ -863,15 +940,85 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    * محاولةِ إعادةِ العرض لا يجوز أن يُظهر له «عطلٌ تقنيّ» عن عملٍ نجح — والأرضيّةُ
    * الدوريّة في العامل تُدرك ما فات بعد ثوانٍ.
    */
+  /**
+   * `LOAD-01` (الدفعةُ الرابعةُ) — إعادةُ العرضِ الفوريّةُ **تُجدوَلُ ولا تُنتظرُ
+   * في مسارِ الطلبِ**: أولُ موقعٍ لسائقٍ متاحٍ كانَ يحجبُ ردَّ `POST
+   * /v1/driver/location` حتى تكتملَ مطابقةُ طلباتِ المدينةِ (قيسَ: وسيطُ 10.4ث
+   * وأقصى 17.9ث تحتَ 50 متزامنًا فماتتْ مهلةُ العميلِ 15ث) — والجدولةُ الخلفيّةُ
+   * المخفوضةُ للمدينةِ (ثانيتانِ + مانعُ تداخلٍ) في `background/immediate-redispatch.ts`
+   * تُبقي الاستجابةَ للكتابةِ والبثِّ وحدهما، والدوريّةَ (20ث) أرضًا صلبةً.
+   */
+  // `LOAD-01 · P4` — أثرٌ تشخيصيٌّ اختياريٌّ (`DISPATCH_TRACE_FILE`)؛ غيابُه = المسارُ الأصلُ حرفيّاً.
+  const dispatchTrace = createDispatchTrace({ file: process.env.DISPATCH_TRACE_FILE, sql });
+  /**
+   * `LOAD-01 · P4` · `ADR 0289` — **شوطُ البثِّ الفوريِّ على اتّصالِه المُعلَنِ** (`gatewayDispatch`)
+   * لا على تجمُّعِ الطلبِ. الشوطُ تسلسليٌّ لكلِّ مدينةٍ، فطاقتُه = 1 ÷ مجموعِ رحلاتِ الطلبِ الواحدِ،
+   * وكلُّ رحلةٍ على تجمُّعِ الطلبِ كانت تنتظرُ اتّصالاً خلفَ حركةِ الراكبِ والسائقِ. تجربةُ العزلِ
+   * بمتغيّرٍ واحدٍ (`b9-isoPool1-500`): انتظارُ ما قبلَ أوّلِ معالجةٍ p95 من ~35ث إلى ~3ث.
+   * المنافذُ هي منافذُ `matching` نفسُها مبنيّةً على هذا الاتّصالِ (والعدّادُ على كاتبِ العروضِ
+   * باقٍ)، فلا يتغيّرُ معنى عرضٍ ولا جولةٍ: الذرّيّةُ في `open_offer_round` و`driver_accept_offer`.
+   */
+  const dispatchSql = createSql({
+    connectionString: config.databaseUrl,
+    max: DB_POOL_MAX.gatewayDispatch,
+    applicationName: "ceezr:gatewayDispatch",
+    queryDeadlineMs: DB_QUERY_DEADLINE_MS.gatewayDispatch,
+    onQueryDeadline: ({ deadlineMs }) =>
+      log("db.query_deadline_exceeded", { pool: "gatewayDispatch", deadlineMs }),
+  });
+  const immediateMatching = {
+    ...matching,
+    orders: createOrderRepository(dispatchSql),
+    offers: createOfferRepository(dispatchSql),
+    candidates: createDriverCandidateRepository(dispatchSql),
+    settings: createSettingsRepository(dispatchSql),
+    offerWriter:
+      overrides.metrics === undefined
+        ? createOfferWriter(dispatchSql)
+        : instrumentOfferWriter(createOfferWriter(dispatchSql), overrides.metrics),
+  };
+  const immediateRedispatchScheduler = createImmediateRedispatchScheduler({
+    // LOAD-01 ب32: الشوطُ يُعلِنُ مسارَه في أثرِ الحِملِ (لا يرثُ مسارَ الطلبِ الذي حفّزه)؛ بلا أثرٍ لا شيء.
+    run: (cityId) =>
+      withLoadPath("redispatch:immediate", async () => {
+        const finder = createSearchingOrderFinder(dispatchSql);
+        const pass = dispatchTrace?.beginPass(cityId, finder, immediateMatching) ?? null;
+        const report = await redispatchSearchingOrders(cityId, {
+          finder: pass?.finder ?? finder,
+          broadcast: pass?.broadcast ?? immediateMatching,
+          limit: IMMEDIATE_REDISPATCH_LIMIT,
+          ...(pass ? { aroundOrder: pass.aroundOrder } : {}),
+          log,
+        });
+        pass?.end(report);
+        if (!report.ok) {
+          log("redispatch.immediate_failed", { cityId, detail: report.error.detail });
+          return;
+        }
+        // امتلأَ الحدُّ وتقدّمَ ⇒ بقيَ مستحقٌّ على الأرجحِ: شوطٌ لاحقٌ واحدٌ بعدَ النافذةِ.
+        return {
+          saturated:
+            report.value.examined >= IMMEDIATE_REDISPATCH_LIMIT &&
+            report.value.rebroadcast.length > 0,
+        };
+      }),
+    debounceMs: IMMEDIATE_REDISPATCH_DEBOUNCE_MS,
+    now: () => Date.now(),
+    schedule: (fn) => setTimeout(fn, 0),
+    // ربطُ قرارِ الجدولةِ بأثرِ التشخيصِ: لحظةُ قبولِ المحفّزِ تُسجّلُ فتُربطُ ببدءِ الشوطِ.
+    ...(dispatchTrace ? { onTrigger: dispatchTrace.onTrigger } : {}),
+    log,
+  });
+
   const redispatchDeps = {
+    /**
+     * `LOAD-01` — جدولةٌ لا حجبٌ: يعودُ فورًا، والشوطُ الخلفيُّ المخفوضُ للمدينةِ
+     * (المعرَّفُ أعلاه) هوَ الذي يعملُ. عقدُ الخطوةِ الخامسةِ في حالةِ الاستخدامِ
+     * («إعادةُ العرضِ بعدَ الكتابةِ») قائمٌ — لكنهُ غيرُ حاجبٍ للردِّ.
+     */
     onDriverBecameDispatchable: async (cityId: CityId): Promise<void> => {
-      const report = await redispatchSearchingOrders(cityId, {
-        finder: createSearchingOrderFinder(sql),
-        broadcast: matching,
-        limit: IMMEDIATE_REDISPATCH_LIMIT,
-        log,
-      });
-      if (!report.ok) log("redispatch.immediate_failed", { cityId, detail: report.error.detail });
+      dispatchTrace?.onTrigger(cityId, "accepted");
+      immediateRedispatchScheduler.trigger(cityId);
     },
   };
 
@@ -935,8 +1082,39 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
    * `WR-15` (ADR 0265) — منفذُ إيداعِ إخطاراتِ الطورِ للراكب، واحدٌ لكلِّ المسارات:
    * Mini App وأزرارُ بوتِ السائق. المفتاحُ `rider_trip:<order>:<event>` يمنعُ التكرار.
    */
+  const riderTripSignal: Container["riderTripSignal"] = { notify: null };
+  const riderTripOutbox = createRiderTripNoticeOutbox(sql);
+  // ADR 0287 — إشارةٌ لحظيةٌ للطورِ الجديدِ وحدَه، بعدَ ثباتِ صفِّه، وبلا انتظارٍ: فشلُها لا يمسُّ
+  // الانتقالَ (العاملُ يُشيرُ ثانيةً ثم تيليجرامُ). LOAD-01 (الدفعةُ الحاديةَ عشرةَ): معرّفُ الراكبِ يأتي
+  // في ردِّ الإيداعِ نفسِه (20261018150000). والدفعةُ الخامسةَ عشرةَ: الموضعُ الواحدُ للإشارةِ سواءٌ أودَعَ
+  // `enqueue` أم أودعَت عبارةُ القبولِ نفسُها (`deposited`) — فلا يختلفُ السلوكُ باختلافِ المسار.
+  const signalAfterDeposit = (
+    orderId: string,
+    event: Parameters<RiderTripNoticeDeps["outbox"]["enqueue"]>[1],
+    result: { readonly created: boolean; readonly riderTelegramId?: string | null } | null,
+  ): void => {
+    const notify = riderTripSignal.notify;
+    if (result?.created === true && notify !== null && RIDER_TRIP_APP_FIRST_EVENTS.has(event)) {
+      const tg = result.riderTelegramId;
+      if (typeof tg === "string") {
+        // كما كانَ تمامًا: فشلُ الإشارةِ لا يمسُّ الانتقال (كانَ `.catch(() => undefined)`).
+        try {
+          notify(tg, orderId);
+        } catch {
+          // لا شيء: العاملُ يُشيرُ ثانيةً ثم تيليجرام.
+        }
+      }
+    }
+  };
   const riderTripNoticeDeps: RiderTripNoticeDeps = {
-    outbox: createRiderTripNoticeOutbox(sql),
+    outbox: {
+      enqueue: async (orderId, event) => {
+        const result = await riderTripOutbox.enqueue(orderId, event);
+        signalAfterDeposit(orderId, event, result);
+        return result;
+      },
+      deposited: (orderId, event, result) => signalAfterDeposit(orderId, event, result),
+    },
     log,
   };
   /**
@@ -1133,7 +1311,27 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     tracking: liveTracking,
   };
 
+  const dispatchNewOrder = (orderId: string): void => {
+    void sql<
+      { city_id: string }[]
+    >`select city_id::text as city_id from orders where id = ${orderId}::uuid`
+      .then((rows) => {
+        const cityId = rows[0]?.city_id;
+        if (cityId !== undefined) {
+          dispatchTrace?.onTrigger(cityId, "accepted");
+          immediateRedispatchScheduler.trigger(cityId as CityId);
+        }
+      })
+      .catch((cause: unknown) =>
+        log("redispatch.new_order_trigger_failed", {
+          detail: cause instanceof Error ? cause.message : String(cause),
+        }),
+      );
+  };
+
   return {
+    dispatchNewOrder,
+    riderTripSignal,
     routing,
     translation,
     driverDialogSessions: driverSessions,
@@ -1165,6 +1363,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
         : {}),
     }),
     sql,
+    dispatchSql,
     driverSender,
     financial,
     trackingTokens: trackingTokens,
@@ -1181,6 +1380,15 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     reputation: { flags: ratingFlagPort, reader: reputationReader },
     safety: { trigger: safety.trigger },
     driverOffers: { drivers, decisions: offerDecisions },
+    /**
+     * `ADR 0286` — منافذُ أعمالِ التفاوضِ للتطبيقِ المصغَّرِ: نفسُ المنافذِ الذرّيّةِ
+     * التي يناديها حوارُ البوتِ (`register/withdraw` للمطالبةِ · `select/settle/
+     * advanceAt` لقرارِ الراكبِ) — لا كاتبَ ثانٍ ولا نسخةً ثانيةً من الحقيقةِ.
+     */
+    negotiationApp: {
+      claims: claimDeps.claims,
+      rotation: rotationDeps.rotation,
+    },
     // `WR-15` (ADR 0265) — الإيداعُ في صندوقِ الصادرِ لا الإرسالُ: العاملُ يُرسلُ ويُعيد.
     riderTripNotice: riderTripNoticeDeps,
     driverLocation: {
@@ -1217,7 +1425,7 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
     },
     close: async () => {
       distributedTrackingBus?.stop();
-      await sql.end({ timeout: 5 });
+      await Promise.all([sql.end({ timeout: 5 }), dispatchSql.end({ timeout: 5 })]);
     },
   };
 }
