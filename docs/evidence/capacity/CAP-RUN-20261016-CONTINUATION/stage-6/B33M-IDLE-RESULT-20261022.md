@@ -1,7 +1,7 @@
 # B33M-IDLE-RESULT — نتيجة التجربة التمييزية الأولى: عزل أثر خمول حلقة التصريف عند 750
 
 > **التاريخ:** 2026-10-22 · **التشغيل:** [`39790831944`](https://github.com/uxxxug/ceezr/actions/runs/39790831944) (SUCCESS، ~100 دقيقة)
-> · **الفرع:** `exp/load01-b33m-idle` @ `665bdda5` · **البروتوكول:** [`PROTOCOL-b33m-idle.md`](../../../deploy/capacity-run/b24-runner/PROTOCOL-b33m-idle.md) مُثبَّتٌ في الالتزام نفسه قبل أي موجة
+> · **الفرع:** `exp/load01-b33m-idle` @ `665bdda5` · **البروتوكول:** [`PROTOCOL-b33m-idle.md`](raw/b33midle/analysis/PROTOCOL-b33m-idle.pinned-665bdda5.md) مُثبَّتٌ في الالتزام نفسه قبل أي موجة
 > · **الحكم المسجَّل مسبقًا (§5): INTERVENTION_FAILED** — فشل التلاعب، لا استنتاج عن الفرضية
 
 ## 1. الحكم والسبب
@@ -76,7 +76,7 @@
 (9.80–10.03ث) وردت في نبضات تأخرت عن الشبكة (+0.03–0.4ث انزياح setInterval المتراكم).
 
 **الإثبات الحتمي على الشيفرة الفعلية:** اختبار الوحدة الجديد
-[`tests/unit/job-runner-tick-boundary.test.ts`](../../../../tests/unit/job-runner-tick-boundary.test.ts)
+`tests/unit/job-runner-tick-boundary.test.ts`
 (يعمل على `createJobRunner` نفسه بساعة زائفة وقلب صامت، لا محاكاة خارجية) يثبت الحدين:
 - شوط مدته المقيسة 9.83ث مع كتابة نبضة 0.25ث تعبر النبضة التالية (10ث) ⇒ `skipped_overlapping`
   والشوط التالي لا يبدأ إلا عند t=20ث (فجوة بنبضة كاملة).

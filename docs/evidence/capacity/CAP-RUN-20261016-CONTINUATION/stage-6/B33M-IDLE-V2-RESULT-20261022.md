@@ -1,7 +1,7 @@
 # B33M-IDLE-V2-RESULT — نتيجة التجربة التمييزية الثانية: عزل أثر خمول حلقة التصريف عند 750 (ميزانية تحت جدار النبضة)
 
 > **التاريخ:** 2026-10-22 · **التشغيل:** [`39803941984`](https://github.com/uxxxug/ceezr/actions/runs/39803941984) (SUCCESS، ~25 دقيقة)
-> · **الفرع:** `exp/load01-b33m-idle-v2` @ `6a1e1f3a` · **البروتوكول:** [`PROTOCOL-b33m-idle-v2.md`](../../../deploy/capacity-run/b24-runner/PROTOCOL-b33m-idle-v2.md) مُثبَّتٌ في الالتزام نفسه قبل أي موجة v2
+> · **الفرع:** `exp/load01-b33m-idle-v2` @ `6a1e1f3a` · **البروتوكول:** [`PROTOCOL-b33m-idle-v2.md`](raw/b33midle2/analysis/PROTOCOL-b33m-idle-v2.md.pinned-6a1e1f3a) مُثبَّتٌ في الالتزام نفسه قبل أي موجة v2
 > · **الحكم المسجَّل مسبقًا (§5، جدول v1 حرفيًا): CAPACITY_LOSS_ONLY** — نجح التلاعب: مكسبُ معدلٍ +22.5% بلا تحسُّنٍ متسقٍ في P7 أو G1
 
 ## 1. الحكم والسبب
