@@ -1,8 +1,25 @@
 {
- "recomputed_by": "استلام 2026-10-22: إعادة تشغيل b31-analyze.py decide على الخام المستخرج من أرشيف التشغيل 39672264025 خارج المقعد",
- "matches_saved_decision": true,
- "analyzer": "analysis/b31-analyze.pinned-ed32f884.py",
- "decision": {
+ "purpose": "إعادة حساب حكم الدفعة 31 من الملفات الملتزَمة نفسها (لا من نسخة خارجية) — إثبات قابلية إعادة الإنتاج",
+ "command": "bash docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch31/analysis/reproduce.sh",
+ "exit_code": 0,
+ "stderr": "",
+ "full_output_equals_saved_decision": true,
+ "saved_decision": "gh-seat-39672264025/b31-decision.json",
+ "analyzer_chain_pinned_at_ed32f884": [
+  "b31-analyze.py (نسخة محفوظة من ed32f884)",
+  "b30-analyze.py",
+  "b28-analyze.py",
+  "b27-analyze.py",
+  "b26-analyze.py",
+  "b25-analyze.py"
+ ],
+ "verification_log": {
+  "per_wave_collector_manifests": "17/17 اجتازت التحقق (sha256sum -c) على الخام المستخرج غير الممَس من أرشيف التشغيل",
+  "collector_identity": "collect-evidence.ts عند ed32f884 = c504bfdfbd07acc32a19f9e6ffb21450bd17d0d7fff046e1c0e02a442d25fd4d مطابق لما سجله جامع التشغيل في collector.sha256sums",
+  "tpl_fingerprint": "بصمة مقعد ب31 (fn/col/idx/rows) مطابقة تمامًا لبصمة مقعد ب30 المحفوظة في raw/batch30؛ والفرق عن expected-fingerprint.txt (col/idx/rows) موثق مسبقًا في الالتزام 6b0e5d67 قبل موجة ب30 — البوابة المسجلة تفحص fn_md5 وfn_count وnonempty وقد تطابقت",
+  "n2_run_39559093346": "فُحص أرشيف التشغيل (الوحيد الباقي تقرير فشل حارس الأسرار) وسجل الوظيفة الكامل: لا قياسات موجة قابلة للاسترداد — الخام حُجز قبل الرفع (SECRET_AUDIT_FAIL)؛ الحكم يبقى UNKNOWN"
+ },
+ "recomputed_decision": {
   "waves": {
    "b31main-s1-A1-750": {
     "wave": "b31main-s1-A1-750",
@@ -17310,5 +17327,5 @@
    "LOAD01_official": "NOT_RUN (مقارنةٌ تشخيصيّةٌ عندَ 750؛ لا موجاتِ 1000 ولا بروتوكولَ قبول)"
   }
  },
- "files_covered_by_sha256sums": 645
+ "reproduction_note": "السكربتُ يستعملُ الملفاتِ الملتزَمةَ وحدَها مع فكِّ ضغطٍ حتميٍّ واحدٍ لـ gates.txt.gz في نسخةِ عملٍ مؤقتةٍ (المحلّلُ يقرأُ gates.txt بمسارٍ مباشرٍ وADR 0094 §3 يمنعُ نشرَ .txt خامٍ خارجَ الأرشيف) ثم يقارنُ الناتجَ كاملًا (موجاتًا ونتيجةً) بالقرارِ المحفوظ."
 }
