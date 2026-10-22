@@ -1,0 +1,90 @@
+name: LOAD-01 الدفعة 32 — مقعد 4 vCPU (ABBA بذراعين C/P — تمييزُ سببِ الاختناق — انتظارُ مقعدِ البوّابةِ لكلِّ مسار)
+
+# تشخيصٌ معزولٌ على فرعِ التجربةِ وحدَه ولا يُدمَج. PLAN-b32.md مثبَّتةٌ قبلَ أوّلِ موجة:
+#   main=8a96fd88 · I=a38db57a (main+الأداة) · C=16c7ad70 (I+L+S ب30) · P=6dbbf8d6 (C+أولويّةُ الدرينرِ في البوّابة)
+#   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 في الأذرعِ الثلاثة.
+on:
+  push:
+    branches: [exp/load01-b32-gate]
+    paths:
+      - deploy/capacity-run/b24-runner/**
+      - deploy/capacity-run/monitor/**
+      - .github/workflows/load01-b32-gate.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load01-b32-seat
+  cancel-in-progress: false
+
+jobs:
+  seat:
+    name: مقعد B32 (${{ matrix.series }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - series: main
+            limit: 50
+            main_sha: 8a96fd8882e4b1705e97beae38ebd008e332c9d0
+            i_arm: a38db57a8080832d8ba9d5ef72ac83c9401a7dc9
+            c_arm: 16c7ad70eeba298819ef32c8434569ccd8a4eebe
+            p_arm: 6dbbf8d66a6faba530761808a56e446785dc2a6c
+            run_tag: main
+    env:
+      MAIN_SHA: ${{ matrix.main_sha }}
+      I_ARM: ${{ matrix.i_arm }}
+      C_ARM: ${{ matrix.c_arm }}
+      P_ARM: ${{ matrix.p_arm }}
+      LIMIT: ${{ matrix.limit }}
+      RUN_TAG: ${{ matrix.run_tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد (حزم المقعد الأصلي والمستخدم user)
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$MAIN_SHA" "$I_ARM" "$C_ARM" "$P_ARM"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$MAIN_SHA" "$I_ARM"
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$I_ARM" "$C_ARM"
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$C_ARM" "$P_ARM"
+          # النسبُ: I فوقَ main، وC فوقَ I، وP فوقَ C (وإلّا لا موجة)
+          sudo -u user git -C /home/user/workspace/ceezr merge-base --is-ancestor "$MAIN_SHA" "$I_ARM"
+          sudo -u user git -C /home/user/workspace/ceezr merge-base --is-ancestor "$I_ARM" "$C_ARM"
+          sudo -u user git -C /home/user/workspace/ceezr merge-base --is-ancestor "$C_ARM" "$P_ARM"
+          echo ARM_LINEAGE_OK
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          MODE=$(cat deploy/capacity-run/b24-runner/MODE)
+          echo "MODE=$MODE"
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=I_ARM="$I_ARM" --setenv=C_ARM="$C_ARM" --setenv=P_ARM="$P_ARM" --setenv=LIMIT="$LIMIT" --setenv=RUN_TAG="$RUN_TAG" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b32.sh "$MODE"
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرارِ — الفشلُ يحجرُ الخامَّ في المقعدِ)
+        uses: actions/upload-artifact@v5
+        with:
+          name: b32-seat-evidence-${{ matrix.run_tag }}
+          path: /home/user/b32-out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: b32-seat-failure-report-${{ matrix.run_tag }}
+          path: /home/user/b32-out/secret-audit.txt
+          if-no-files-found: ignore
+          retention-days: 14
