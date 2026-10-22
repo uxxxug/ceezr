@@ -1,0 +1,21 @@
+{
+  "id": "load01-b33-drain-h1h2-instrumentation",
+  "goal": "LOAD-01: رصدٌ دائمٌ لشوطِ درينرِ الإشعاراتِ المتزامنِ (سببُ الانتهاء، إعاداتُ الازدحام، نومُ الازدحام، انتظارُ ذيلِ المسار، زمنُ الإرسال) لتمييزِ H1 عن H2 في B33M-AA قبلَ تسجيلِ Batch33. لا تغييرَ في السلوكِ ولا الحدودِ ولا العتبات. اختبارات: tests/unit/notification-outbox-concurrent-drain.test.ts (4 حالاتٍ جديدة).",
+  "canonical_source": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/B33M-AA-RESULT-20261022.md"
+  ],
+  "implementation": [
+    "packages/application/notification/deliver-notification.ts",
+    "apps/workers/src/jobs/deliver-notifications.ts",
+    "apps/workers/src/container.ts",
+    "tests/unit/notification-outbox-concurrent-drain.test.ts"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md"
+  ],
+  "affected_docs": [],
+  "no_other_affected_docs_reason": "رصدٌ إضافيٌّ في نتيجةِ الشوطِ وسطرِ الوظيفةِ فقط؛ لا عقدَ ولا قرارَ ولا هجرةَ تتغيّر، وحكمُ B33M-AA وقواعدُه باقيةٌ كما هي."
+}
