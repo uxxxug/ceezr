@@ -1,0 +1,82 @@
+name: LOAD-01 الدفعة 27 — مقعد 4 vCPU (إصلاح سقف حلقة التقاط درينر تيليجرام)
+
+# تشخيصٌ معزولٌ على فرعِ التجربةِ وحدَه ولا يُدمَج. سلسلتانِ متوازيتانِ (PLAN-b27.md مثبَّتةٌ قبلَ أوّلِ موجة):
+#   cand: R=3d4dcbd0 (حدُّ 100) مقابلَ C=d89924c6 (R + الإصلاح)  · main: R=66528457 (حدُّ 50) مقابلَ C=b16db863
+# المقعدُ والمولّدُ وحدُّ الجلسةِ للمقعد (24000) كما في ب26 حرفًا. لا أسرار حقيقية؛ تدقيقُ الأسرارِ قبلَ الرفع.
+on:
+  push:
+    branches: [exp/load01-b27-onboarding]
+    paths:
+      - deploy/capacity-run/b24-runner/**
+      - .github/workflows/load01-b27-onboarding.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load01-b27-seat
+  cancel-in-progress: false
+
+jobs:
+  seat:
+    name: مقعد B27 (${{ matrix.series }})
+    runs-on: ubuntu-26.04
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - series: cand
+            limit: 100
+            r_sha: 3d4dcbd0bbe7ad9a8ab29bb6f9a25661f469ab70
+            c_sha: d89924c67be45a249dd57f19a868f1474a5f348f
+          - series: main
+            limit: 50
+            r_sha: 66528457ec454564db686c650dadbf9dd16cc07a
+            c_sha: b16db863c1ac2b10db316a59aa41d30c92ddebb6
+    env:
+      R_SHA: ${{ matrix.r_sha }}
+      C_SHA: ${{ matrix.c_sha }}
+      SERIES: ${{ matrix.series }}
+      LIMIT: ${{ matrix.limit }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد (حزم المقعد الأصلي والمستخدم user)
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$R_SHA^{commit}"
+          sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$C_SHA^{commit}"
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$R_SHA" "$C_SHA"
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          MODE=$(cat deploy/capacity-run/b24-runner/MODE)
+          echo "MODE=$MODE"
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
+            --setenv=R_SHA="$R_SHA" --setenv=C_SHA="$C_SHA" --setenv=SERIES="$SERIES" --setenv=LIMIT="$LIMIT" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b27.sh "$MODE"
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرارِ — الفشلُ يحجرُ الخامَّ في المقعدِ)
+        uses: actions/upload-artifact@v5
+        with:
+          name: b27-seat-evidence-${{ matrix.series }}
+          path: /home/user/b27-out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: b27-seat-failure-report-${{ matrix.series }}
+          path: /home/user/b27-out/secret-audit.txt
+          if-no-files-found: ignore
+          retention-days: 14

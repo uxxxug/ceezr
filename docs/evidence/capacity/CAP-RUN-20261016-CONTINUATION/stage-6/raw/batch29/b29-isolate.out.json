@@ -1,0 +1,3436 @@
+[
+ {
+  "wave": "b26-s1-C1-750",
+  "verdict_line": "verdict FAIL ['G1'] notverified {'driver_onboarding_failed': 750, 'offer:offer_not_found_in_time': 1}",
+  "dispatch": {
+   "passes": 80,
+   "cap_observed": 100,
+   "passes_at_cap": 44,
+   "gap_p50_ms": 2297,
+   "passMs_p50": 2350,
+   "passMs_p95": 4051,
+   "duty_cycle_p50": 1.023,
+   "served_per_s": 35.04,
+   "oldestWait_p95_s": 133
+  },
+  "phone_proof_jobs": {
+   "n": 6164,
+   "latency_p50_ms": 16982,
+   "latency_p95_ms": 21362,
+   "over_20s": 611,
+   "backlog_10s_bins": [
+    302,
+    399,
+    555,
+    546,
+    536,
+    567,
+    515,
+    549,
+    571,
+    492,
+    581,
+    555,
+    529,
+    501,
+    522,
+    554,
+    510,
+    564
+   ],
+   "backlog_median_after_30s": 546
+  },
+  "drainer": {
+   "jobs": 6164,
+   "mean_inflight_of_32": 21.9,
+   "proc_p50_ms": 722.1
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1236,
+    "run_ms_per_s": 4706,
+    "wait_mean_ms": 176.5,
+    "run_mean_ms": 3.81
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 103,
+    "run_ms_per_s": 920,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.96
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5414,
+    "mean_ms": 1564.9,
+    "gwReq_queries": 43316,
+    "q_per_req": 8.0,
+    "share_pct": 15.8
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 6164,
+    "mean_ms": 578.6,
+    "gwReq_queries": 41348,
+    "q_per_req": 6.71,
+    "share_pct": 15.1
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 6164,
+    "mean_ms": 203.5,
+    "gwReq_queries": 35845,
+    "q_per_req": 5.82,
+    "share_pct": 13.1
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 16992,
+    "mean_ms": 217.8,
+    "gwReq_queries": 33984,
+    "q_per_req": 2.0,
+    "share_pct": 12.4
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10828,
+    "mean_ms": 419.1,
+    "gwReq_queries": 21656,
+    "q_per_req": 2.0,
+    "share_pct": 7.9
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 15156,
+    "mean_ms": 222.0,
+    "gwReq_queries": 15156,
+    "q_per_req": 1.0,
+    "share_pct": 5.5
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 15155,
+    "mean_ms": 226.7,
+    "gwReq_queries": 15155,
+    "q_per_req": 1.0,
+    "share_pct": 5.5
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 6164,
+    "mean_ms": 386.2,
+    "gwReq_queries": 12328,
+    "q_per_req": 2.0,
+    "share_pct": 4.5
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5414,
+    "mean_ms": 215.7,
+    "gwReq_queries": 10828,
+    "q_per_req": 2.0,
+    "share_pct": 3.9
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 9796,
+    "mean_ms": 204.1,
+    "gwReq_queries": 9796,
+    "q_per_req": 1.0,
+    "share_pct": 3.6
+   }
+  ]
+ },
+ {
+  "wave": "b26-s1-C2-750",
+  "verdict_line": "verdict FAIL ['G1', 'P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 678}",
+  "dispatch": {
+   "passes": 81,
+   "cap_observed": 100,
+   "passes_at_cap": 53,
+   "gap_p50_ms": 2106,
+   "passMs_p50": 2103,
+   "passMs_p95": 3707,
+   "duty_cycle_p50": 0.999,
+   "served_per_s": 36.88,
+   "oldestWait_p95_s": 12
+  },
+  "phone_proof_jobs": {
+   "n": 5826,
+   "latency_p50_ms": 16429,
+   "latency_p95_ms": 21253,
+   "over_20s": 565,
+   "backlog_10s_bins": [
+    134,
+    99,
+    237,
+    367,
+    451,
+    619,
+    512,
+    577,
+    579,
+    492,
+    571,
+    548,
+    517,
+    485,
+    531,
+    563,
+    523,
+    593
+   ],
+   "backlog_median_after_30s": 531
+  },
+  "drainer": {
+   "jobs": 5826,
+   "mean_inflight_of_32": 22.0,
+   "proc_p50_ms": 762.1
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1157,
+    "run_ms_per_s": 4632,
+    "wait_mean_ms": 193.4,
+    "run_mean_ms": 4.0
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 107,
+    "run_ms_per_s": 892,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.35
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5148,
+    "mean_ms": 1678.9,
+    "gwReq_queries": 41244,
+    "q_per_req": 8.01,
+    "share_pct": 15.8
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5826,
+    "mean_ms": 625.3,
+    "gwReq_queries": 39182,
+    "q_per_req": 6.73,
+    "share_pct": 15.0
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5826,
+    "mean_ms": 226.3,
+    "gwReq_queries": 34058,
+    "q_per_req": 5.85,
+    "share_pct": 13.1
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 16122,
+    "mean_ms": 244.3,
+    "gwReq_queries": 32244,
+    "q_per_req": 2.0,
+    "share_pct": 12.4
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10296,
+    "mean_ms": 458.0,
+    "gwReq_queries": 20592,
+    "q_per_req": 2.0,
+    "share_pct": 7.9
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 14288,
+    "mean_ms": 242.6,
+    "gwReq_queries": 14288,
+    "q_per_req": 1.0,
+    "share_pct": 5.5
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 14287,
+    "mean_ms": 245.6,
+    "gwReq_queries": 14287,
+    "q_per_req": 1.0,
+    "share_pct": 5.5
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5826,
+    "mean_ms": 415.0,
+    "gwReq_queries": 11652,
+    "q_per_req": 2.0,
+    "share_pct": 4.5
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5148,
+    "mean_ms": 268.2,
+    "gwReq_queries": 10296,
+    "q_per_req": 2.0,
+    "share_pct": 4.0
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 9355,
+    "mean_ms": 218.0,
+    "gwReq_queries": 9355,
+    "q_per_req": 1.0,
+    "share_pct": 3.6
+   }
+  ]
+ },
+ {
+  "wave": "b26-s1-C3-750",
+  "verdict_line": "verdict FAIL ['G1', 'P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 571}",
+  "dispatch": {
+   "passes": 81,
+   "cap_observed": 100,
+   "passes_at_cap": 56,
+   "gap_p50_ms": 2185,
+   "passMs_p50": 2177,
+   "passMs_p95": 3626,
+   "duty_cycle_p50": 0.996,
+   "served_per_s": 37.72,
+   "oldestWait_p95_s": 14
+  },
+  "phone_proof_jobs": {
+   "n": 5648,
+   "latency_p50_ms": 17173,
+   "latency_p95_ms": 20712,
+   "over_20s": 450,
+   "backlog_10s_bins": [
+    118,
+    62,
+    176,
+    343,
+    427,
+    480,
+    458,
+    502,
+    513,
+    543,
+    508,
+    515,
+    566,
+    551,
+    555,
+    493,
+    525,
+    498
+   ],
+   "backlog_median_after_30s": 508
+  },
+  "drainer": {
+   "jobs": 5648,
+   "mean_inflight_of_32": 21.99,
+   "proc_p50_ms": 754.7
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1144,
+    "run_ms_per_s": 4583,
+    "wait_mean_ms": 196.5,
+    "run_mean_ms": 4.01
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 112,
+    "run_ms_per_s": 919,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.23
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5077,
+    "mean_ms": 1683.5,
+    "gwReq_queries": 40675,
+    "q_per_req": 8.01,
+    "share_pct": 15.8
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5648,
+    "mean_ms": 637.3,
+    "gwReq_queries": 38446,
+    "q_per_req": 6.81,
+    "share_pct": 14.9
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5648,
+    "mean_ms": 231.4,
+    "gwReq_queries": 33160,
+    "q_per_req": 5.87,
+    "share_pct": 12.9
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 15802,
+    "mean_ms": 246.4,
+    "gwReq_queries": 31604,
+    "q_per_req": 2.0,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10154,
+    "mean_ms": 467.1,
+    "gwReq_queries": 20308,
+    "q_per_req": 2.0,
+    "share_pct": 7.9
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 14348,
+    "mean_ms": 243.2,
+    "gwReq_queries": 14348,
+    "q_per_req": 1.0,
+    "share_pct": 5.6
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 14346,
+    "mean_ms": 248.9,
+    "gwReq_queries": 14346,
+    "q_per_req": 1.0,
+    "share_pct": 5.6
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5648,
+    "mean_ms": 423.8,
+    "gwReq_queries": 11296,
+    "q_per_req": 2.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5077,
+    "mean_ms": 275.7,
+    "gwReq_queries": 10154,
+    "q_per_req": 2.0,
+    "share_pct": 3.9
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 9716,
+    "mean_ms": 222.5,
+    "gwReq_queries": 9716,
+    "q_per_req": 1.0,
+    "share_pct": 3.8
+   }
+  ]
+ },
+ {
+  "wave": "b26-s1-C4-750",
+  "verdict_line": "verdict FAIL ['G1', 'P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 619, 'offer:offer_not_found_in_time': 1}",
+  "dispatch": {
+   "passes": 81,
+   "cap_observed": 100,
+   "passes_at_cap": 60,
+   "gap_p50_ms": 2004,
+   "passMs_p50": 1944,
+   "passMs_p95": 3817,
+   "duty_cycle_p50": 0.97,
+   "served_per_s": 38.4,
+   "oldestWait_p95_s": 136
+  },
+  "phone_proof_jobs": {
+   "n": 5663,
+   "latency_p50_ms": 16178,
+   "latency_p95_ms": 21595,
+   "over_20s": 509,
+   "backlog_10s_bins": [
+    90,
+    100,
+    194,
+    372,
+    389,
+    514,
+    374,
+    539,
+    569,
+    569,
+    578,
+    494,
+    508,
+    604,
+    507,
+    483,
+    494,
+    507
+   ],
+   "backlog_median_after_30s": 507
+  },
+  "drainer": {
+   "jobs": 5663,
+   "mean_inflight_of_32": 21.85,
+   "proc_p50_ms": 716.5
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1154,
+    "run_ms_per_s": 4635,
+    "wait_mean_ms": 196.5,
+    "run_mean_ms": 4.01
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 108,
+    "run_ms_per_s": 894,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.25
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5044,
+    "mean_ms": 1672.8,
+    "gwReq_queries": 40400,
+    "q_per_req": 8.01,
+    "share_pct": 15.8
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5663,
+    "mean_ms": 633.3,
+    "gwReq_queries": 38311,
+    "q_per_req": 6.77,
+    "share_pct": 15.0
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5663,
+    "mean_ms": 244.6,
+    "gwReq_queries": 33129,
+    "q_per_req": 5.85,
+    "share_pct": 13.0
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 15751,
+    "mean_ms": 246.0,
+    "gwReq_queries": 31502,
+    "q_per_req": 2.0,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10088,
+    "mean_ms": 464.7,
+    "gwReq_queries": 20176,
+    "q_per_req": 2.0,
+    "share_pct": 7.9
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 13996,
+    "mean_ms": 246.0,
+    "gwReq_queries": 13996,
+    "q_per_req": 1.0,
+    "share_pct": 5.5
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 13994,
+    "mean_ms": 253.8,
+    "gwReq_queries": 13994,
+    "q_per_req": 1.0,
+    "share_pct": 5.5
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5663,
+    "mean_ms": 418.7,
+    "gwReq_queries": 11326,
+    "q_per_req": 2.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5044,
+    "mean_ms": 275.6,
+    "gwReq_queries": 10088,
+    "q_per_req": 2.0,
+    "share_pct": 3.9
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 9470,
+    "mean_ms": 220.3,
+    "gwReq_queries": 9470,
+    "q_per_req": 1.0,
+    "share_pct": 3.7
+   }
+  ]
+ },
+ {
+  "wave": "b26-s1-R1-750",
+  "verdict_line": "verdict FAIL ['P1', 'P2', 'P4'] notverified {'offer:offer_not_found_in_time': 11}",
+  "dispatch": {
+   "passes": 104,
+   "cap_observed": 50,
+   "passes_at_cap": 102,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 790,
+   "passMs_p95": 975,
+   "duty_cycle_p50": 0.395,
+   "served_per_s": 25.2,
+   "oldestWait_p95_s": 43
+  },
+  "phone_proof_jobs": {
+   "n": 4186,
+   "latency_p50_ms": 608,
+   "latency_p95_ms": 6637,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    118,
+    96,
+    68,
+    18,
+    69,
+    68,
+    180,
+    133,
+    14,
+    0,
+    0,
+    0,
+    0,
+    11,
+    0,
+    5,
+    13,
+    0
+   ],
+   "backlog_median_after_30s": 11
+  },
+  "drainer": {
+   "jobs": 4186,
+   "mean_inflight_of_32": 12.06,
+   "proc_p50_ms": 341.5
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1124,
+    "run_ms_per_s": 3799,
+    "wait_mean_ms": 112.2,
+    "run_mean_ms": 3.38
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 75,
+    "run_ms_per_s": 370,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.93
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 53938,
+    "mean_ms": 91.6,
+    "gwReq_queries": 53938,
+    "q_per_req": 1.0,
+    "share_pct": 20.1
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4186,
+    "mean_ms": 1059.8,
+    "gwReq_queries": 33537,
+    "q_per_req": 8.01,
+    "share_pct": 12.5
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4186,
+    "mean_ms": 457.7,
+    "gwReq_queries": 29302,
+    "q_per_req": 7.0,
+    "share_pct": 10.9
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4186,
+    "mean_ms": 156.1,
+    "gwReq_queries": 26385,
+    "q_per_req": 6.3,
+    "share_pct": 9.8
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12558,
+    "mean_ms": 173.5,
+    "gwReq_queries": 25116,
+    "q_per_req": 2.0,
+    "share_pct": 9.4
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 20941,
+    "mean_ms": 106.1,
+    "gwReq_queries": 20941,
+    "q_per_req": 1.0,
+    "share_pct": 7.8
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8372,
+    "mean_ms": 273.6,
+    "gwReq_queries": 16744,
+    "q_per_req": 2.0,
+    "share_pct": 6.2
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11824,
+    "mean_ms": 129.4,
+    "gwReq_queries": 11824,
+    "q_per_req": 1.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11822,
+    "mean_ms": 133.7,
+    "gwReq_queries": 11822,
+    "q_per_req": 1.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4186,
+    "mean_ms": 278.4,
+    "gwReq_queries": 8372,
+    "q_per_req": 2.0,
+    "share_pct": 3.1
+   }
+  ]
+ },
+ {
+  "wave": "b26-s1-R2-750",
+  "verdict_line": "verdict FAIL ['P1', 'P2', 'P4'] notverified {'offer:offer_not_found_in_time': 26}",
+  "dispatch": {
+   "passes": 104,
+   "cap_observed": 50,
+   "passes_at_cap": 103,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 867,
+   "passMs_p95": 1052,
+   "duty_cycle_p50": 0.433,
+   "served_per_s": 25.17,
+   "oldestWait_p95_s": 46
+  },
+  "phone_proof_jobs": {
+   "n": 4097,
+   "latency_p50_ms": 1290,
+   "latency_p95_ms": 8932,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    155,
+    111,
+    106,
+    79,
+    109,
+    141,
+    232,
+    186,
+    67,
+    2,
+    0,
+    4,
+    7,
+    2,
+    12,
+    0,
+    4,
+    0
+   ],
+   "backlog_median_after_30s": 7
+  },
+  "drainer": {
+   "jobs": 4097,
+   "mean_inflight_of_32": 13.1,
+   "proc_p50_ms": 506.5
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1097,
+    "run_ms_per_s": 3989,
+    "wait_mean_ms": 124.0,
+    "run_mean_ms": 3.64
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 75,
+    "run_ms_per_s": 418,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 5.59
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 51920,
+    "mean_ms": 105.8,
+    "gwReq_queries": 51920,
+    "q_per_req": 1.0,
+    "share_pct": 19.9
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4097,
+    "mean_ms": 1190.0,
+    "gwReq_queries": 32815,
+    "q_per_req": 8.01,
+    "share_pct": 12.6
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4097,
+    "mean_ms": 500.2,
+    "gwReq_queries": 28679,
+    "q_per_req": 7.0,
+    "share_pct": 11.0
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4097,
+    "mean_ms": 157.2,
+    "gwReq_queries": 25688,
+    "q_per_req": 6.27,
+    "share_pct": 9.8
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12291,
+    "mean_ms": 191.1,
+    "gwReq_queries": 24582,
+    "q_per_req": 2.0,
+    "share_pct": 9.4
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 20838,
+    "mean_ms": 113.7,
+    "gwReq_queries": 20838,
+    "q_per_req": 1.0,
+    "share_pct": 8.0
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8194,
+    "mean_ms": 301.7,
+    "gwReq_queries": 16388,
+    "q_per_req": 2.0,
+    "share_pct": 6.3
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11452,
+    "mean_ms": 143.5,
+    "gwReq_queries": 11452,
+    "q_per_req": 1.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11450,
+    "mean_ms": 144.7,
+    "gwReq_queries": 11450,
+    "q_per_req": 1.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4097,
+    "mean_ms": 305.2,
+    "gwReq_queries": 8194,
+    "q_per_req": 2.0,
+    "share_pct": 3.1
+   }
+  ]
+ },
+ {
+  "wave": "b26-s1-R3-750",
+  "verdict_line": "verdict FAIL ['P1', 'P2', 'P4'] notverified {'offer:offer_not_found_in_time': 12}",
+  "dispatch": {
+   "passes": 105,
+   "cap_observed": 50,
+   "passes_at_cap": 104,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 820,
+   "passMs_p95": 1057,
+   "duty_cycle_p50": 0.41,
+   "served_per_s": 25.05,
+   "oldestWait_p95_s": 43
+  },
+  "phone_proof_jobs": {
+   "n": 4251,
+   "latency_p50_ms": 1192,
+   "latency_p95_ms": 10704,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    156,
+    139,
+    134,
+    128,
+    153,
+    218,
+    314,
+    190,
+    3,
+    2,
+    6,
+    1,
+    0,
+    0,
+    0,
+    11,
+    7,
+    0
+   ],
+   "backlog_median_after_30s": 6
+  },
+  "drainer": {
+   "jobs": 4251,
+   "mean_inflight_of_32": 12.36,
+   "proc_p50_ms": 406.6
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1195,
+    "run_ms_per_s": 4105,
+    "wait_mean_ms": 113.7,
+    "run_mean_ms": 3.43
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 75,
+    "run_ms_per_s": 390,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 5.18
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 51659,
+    "mean_ms": 89.2,
+    "gwReq_queries": 51659,
+    "q_per_req": 1.0,
+    "share_pct": 19.3
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4251,
+    "mean_ms": 1084.7,
+    "gwReq_queries": 34055,
+    "q_per_req": 8.01,
+    "share_pct": 12.8
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4251,
+    "mean_ms": 459.1,
+    "gwReq_queries": 29757,
+    "q_per_req": 7.0,
+    "share_pct": 11.1
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4251,
+    "mean_ms": 150.1,
+    "gwReq_queries": 26717,
+    "q_per_req": 6.28,
+    "share_pct": 10.0
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12753,
+    "mean_ms": 177.9,
+    "gwReq_queries": 25506,
+    "q_per_req": 2.0,
+    "share_pct": 9.6
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 19684,
+    "mean_ms": 102.1,
+    "gwReq_queries": 19684,
+    "q_per_req": 1.0,
+    "share_pct": 7.4
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8502,
+    "mean_ms": 282.2,
+    "gwReq_queries": 17004,
+    "q_per_req": 2.0,
+    "share_pct": 6.4
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11908,
+    "mean_ms": 136.9,
+    "gwReq_queries": 11908,
+    "q_per_req": 1.0,
+    "share_pct": 4.5
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11905,
+    "mean_ms": 139.7,
+    "gwReq_queries": 11905,
+    "q_per_req": 1.0,
+    "share_pct": 4.5
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4251,
+    "mean_ms": 285.0,
+    "gwReq_queries": 8502,
+    "q_per_req": 2.0,
+    "share_pct": 3.2
+   }
+  ]
+ },
+ {
+  "wave": "b26-s1-R4-750",
+  "verdict_line": "verdict FAIL ['P4'] notverified {'offer:offer_not_found_in_time': 22}",
+  "dispatch": {
+   "passes": 106,
+   "cap_observed": 50,
+   "passes_at_cap": 104,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 812,
+   "passMs_p95": 1116,
+   "duty_cycle_p50": 0.406,
+   "served_per_s": 24.89,
+   "oldestWait_p95_s": 45
+  },
+  "phone_proof_jobs": {
+   "n": 4295,
+   "latency_p50_ms": 536,
+   "latency_p95_ms": 12139,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    408,
+    324,
+    190,
+    162,
+    100,
+    81,
+    0,
+    6,
+    8,
+    0,
+    7,
+    0,
+    0,
+    0,
+    6,
+    0,
+    1,
+    0
+   ],
+   "backlog_median_after_30s": 1
+  },
+  "drainer": {
+   "jobs": 4295,
+   "mean_inflight_of_32": 9.51,
+   "proc_p50_ms": 285.3
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1160,
+    "run_ms_per_s": 3792,
+    "wait_mean_ms": 79.0,
+    "run_mean_ms": 3.27
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 75,
+    "run_ms_per_s": 398,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 5.3
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 60844,
+    "mean_ms": 71.1,
+    "gwReq_queries": 60844,
+    "q_per_req": 1.0,
+    "share_pct": 21.5
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4295,
+    "mean_ms": 823.3,
+    "gwReq_queries": 34364,
+    "q_per_req": 8.0,
+    "share_pct": 12.2
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4295,
+    "mean_ms": 321.8,
+    "gwReq_queries": 30065,
+    "q_per_req": 7.0,
+    "share_pct": 10.6
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4295,
+    "mean_ms": 106.8,
+    "gwReq_queries": 27318,
+    "q_per_req": 6.36,
+    "share_pct": 9.7
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12885,
+    "mean_ms": 124.1,
+    "gwReq_queries": 25770,
+    "q_per_req": 2.0,
+    "share_pct": 9.1
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 22915,
+    "mean_ms": 73.8,
+    "gwReq_queries": 22915,
+    "q_per_req": 1.0,
+    "share_pct": 8.1
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8590,
+    "mean_ms": 197.9,
+    "gwReq_queries": 17180,
+    "q_per_req": 2.0,
+    "share_pct": 6.1
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 12294,
+    "mean_ms": 92.4,
+    "gwReq_queries": 12294,
+    "q_per_req": 1.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 12282,
+    "mean_ms": 96.1,
+    "gwReq_queries": 12282,
+    "q_per_req": 1.0,
+    "share_pct": 4.3
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4295,
+    "mean_ms": 211.2,
+    "gwReq_queries": 8590,
+    "q_per_req": 2.0,
+    "share_pct": 3.0
+   }
+  ]
+ },
+ {
+  "wave": "b27cand-s1-C1-750",
+  "verdict_line": "verdict FAIL ['P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 37, 'offer:offer_not_found_in_time': 7}",
+  "dispatch": {
+   "passes": 87,
+   "cap_observed": 100,
+   "passes_at_cap": 84,
+   "gap_p50_ms": 2178,
+   "passMs_p50": 2141,
+   "passMs_p95": 3080,
+   "duty_cycle_p50": 0.983,
+   "served_per_s": 43.43,
+   "oldestWait_p95_s": 48
+  },
+  "phone_proof_jobs": {
+   "n": 5134,
+   "latency_p50_ms": 10235,
+   "latency_p95_ms": 15257,
+   "over_20s": 25,
+   "backlog_10s_bins": [
+    58,
+    0,
+    164,
+    285,
+    252,
+    267,
+    289,
+    293,
+    262,
+    298,
+    338,
+    318,
+    316,
+    281,
+    323,
+    280,
+    306,
+    267,
+    12
+   ],
+   "backlog_median_after_30s": 289
+  },
+  "drainer": {
+   "jobs": 5134,
+   "mean_inflight_of_32": 27.28,
+   "proc_p50_ms": 1007.5
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1148,
+    "run_ms_per_s": 4721,
+    "wait_mean_ms": 238.3,
+    "run_mean_ms": 4.11
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 127,
+    "run_ms_per_s": 914,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 7.18
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5097,
+    "mean_ms": 2099.8,
+    "gwReq_queries": 40839,
+    "q_per_req": 8.01,
+    "share_pct": 16.4
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5134,
+    "mean_ms": 823.0,
+    "gwReq_queries": 35938,
+    "q_per_req": 7.0,
+    "share_pct": 14.4
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 15328,
+    "mean_ms": 294.0,
+    "gwReq_queries": 30656,
+    "q_per_req": 2.0,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5134,
+    "mean_ms": 270.0,
+    "gwReq_queries": 29864,
+    "q_per_req": 5.82,
+    "share_pct": 12.0
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10194,
+    "mean_ms": 551.8,
+    "gwReq_queries": 20388,
+    "q_per_req": 2.0,
+    "share_pct": 8.2
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 14268,
+    "mean_ms": 271.7,
+    "gwReq_queries": 14268,
+    "q_per_req": 1.0,
+    "share_pct": 5.7
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 14265,
+    "mean_ms": 278.9,
+    "gwReq_queries": 14265,
+    "q_per_req": 1.0,
+    "share_pct": 5.7
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5134,
+    "mean_ms": 519.1,
+    "gwReq_queries": 10268,
+    "q_per_req": 2.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5097,
+    "mean_ms": 331.3,
+    "gwReq_queries": 10194,
+    "q_per_req": 2.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 8782,
+    "mean_ms": 272.1,
+    "gwReq_queries": 8782,
+    "q_per_req": 1.0,
+    "share_pct": 3.5
+   }
+  ]
+ },
+ {
+  "wave": "b27cand-s1-C2-750",
+  "verdict_line": "verdict FAIL ['G1', 'P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 133, 'offer:offer_not_found_in_time': 4}",
+  "dispatch": {
+   "passes": 81,
+   "cap_observed": 100,
+   "passes_at_cap": 64,
+   "gap_p50_ms": 2212,
+   "passMs_p50": 2209,
+   "passMs_p95": 3412,
+   "duty_cycle_p50": 0.999,
+   "served_per_s": 39.69,
+   "oldestWait_p95_s": 121
+  },
+  "phone_proof_jobs": {
+   "n": 5305,
+   "latency_p50_ms": 15779,
+   "latency_p95_ms": 18587,
+   "over_20s": 126,
+   "backlog_10s_bins": [
+    86,
+    57,
+    233,
+    318,
+    269,
+    269,
+    461,
+    470,
+    493,
+    463,
+    483,
+    513,
+    529,
+    508,
+    416,
+    434,
+    466,
+    438
+   ],
+   "backlog_median_after_30s": 463
+  },
+  "drainer": {
+   "jobs": 5305,
+   "mean_inflight_of_32": 27.65,
+   "proc_p50_ms": 1017.8
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1132,
+    "run_ms_per_s": 4680,
+    "wait_mean_ms": 237.3,
+    "run_mean_ms": 4.14
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 113,
+    "run_ms_per_s": 903,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.02
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5172,
+    "mean_ms": 2093.4,
+    "gwReq_queries": 41409,
+    "q_per_req": 8.01,
+    "share_pct": 16.5
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5305,
+    "mean_ms": 827.7,
+    "gwReq_queries": 37135,
+    "q_per_req": 7.0,
+    "share_pct": 14.8
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 15649,
+    "mean_ms": 297.9,
+    "gwReq_queries": 31298,
+    "q_per_req": 2.0,
+    "share_pct": 12.4
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5305,
+    "mean_ms": 270.6,
+    "gwReq_queries": 30838,
+    "q_per_req": 5.81,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10344,
+    "mean_ms": 549.1,
+    "gwReq_queries": 20688,
+    "q_per_req": 2.0,
+    "share_pct": 8.2
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 14136,
+    "mean_ms": 268.7,
+    "gwReq_queries": 14136,
+    "q_per_req": 1.0,
+    "share_pct": 5.6
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 14135,
+    "mean_ms": 276.0,
+    "gwReq_queries": 14135,
+    "q_per_req": 1.0,
+    "share_pct": 5.6
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5305,
+    "mean_ms": 530.9,
+    "gwReq_queries": 10610,
+    "q_per_req": 2.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5172,
+    "mean_ms": 332.6,
+    "gwReq_queries": 10344,
+    "q_per_req": 2.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 7802,
+    "mean_ms": 268.5,
+    "gwReq_queries": 7802,
+    "q_per_req": 1.0,
+    "share_pct": 3.1
+   }
+  ]
+ },
+ {
+  "wave": "b27cand-s1-C3-750",
+  "verdict_line": "verdict PASS [] notverified {}",
+  "dispatch": {
+   "passes": 87,
+   "cap_observed": 100,
+   "passes_at_cap": 85,
+   "gap_p50_ms": 2138,
+   "passMs_p50": 2131,
+   "passMs_p95": 3274,
+   "duty_cycle_p50": 0.997,
+   "served_per_s": 42.4,
+   "oldestWait_p95_s": 10
+  },
+  "phone_proof_jobs": {
+   "n": 5819,
+   "latency_p50_ms": 10701,
+   "latency_p95_ms": 13823,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    353,
+    361,
+    342,
+    300,
+    345,
+    277,
+    279,
+    288,
+    312,
+    305,
+    327,
+    359,
+    282,
+    327,
+    282,
+    288,
+    285,
+    276,
+    19
+   ],
+   "backlog_median_after_30s": 288
+  },
+  "drainer": {
+   "jobs": 5819,
+   "mean_inflight_of_32": 28.53,
+   "proc_p50_ms": 947.1
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1293,
+    "run_ms_per_s": 4710,
+    "wait_mean_ms": 209.1,
+    "run_mean_ms": 3.64
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 128,
+    "run_ms_per_s": 927,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 7.22
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5819,
+    "mean_ms": 1902.2,
+    "gwReq_queries": 46579,
+    "q_per_req": 8.0,
+    "share_pct": 16.6
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5819,
+    "mean_ms": 719.8,
+    "gwReq_queries": 40733,
+    "q_per_req": 7.0,
+    "share_pct": 14.5
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 17457,
+    "mean_ms": 253.0,
+    "gwReq_queries": 34914,
+    "q_per_req": 2.0,
+    "share_pct": 12.4
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5819,
+    "mean_ms": 235.6,
+    "gwReq_queries": 33392,
+    "q_per_req": 5.74,
+    "share_pct": 11.9
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 11638,
+    "mean_ms": 476.3,
+    "gwReq_queries": 23276,
+    "q_per_req": 2.0,
+    "share_pct": 8.3
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 16364,
+    "mean_ms": 239.3,
+    "gwReq_queries": 16364,
+    "q_per_req": 1.0,
+    "share_pct": 5.8
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 16364,
+    "mean_ms": 247.0,
+    "gwReq_queries": 16364,
+    "q_per_req": 1.0,
+    "share_pct": 5.8
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5819,
+    "mean_ms": 472.9,
+    "gwReq_queries": 11638,
+    "q_per_req": 2.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5819,
+    "mean_ms": 256.0,
+    "gwReq_queries": 11638,
+    "q_per_req": 2.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 8731,
+    "mean_ms": 239.4,
+    "gwReq_queries": 8731,
+    "q_per_req": 1.0,
+    "share_pct": 3.1
+   }
+  ]
+ },
+ {
+  "wave": "b27cand-s1-C4-750",
+  "verdict_line": "verdict FAIL ['G1', 'P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 132}",
+  "dispatch": {
+   "passes": 81,
+   "cap_observed": 100,
+   "passes_at_cap": 61,
+   "gap_p50_ms": 2276,
+   "passMs_p50": 2260,
+   "passMs_p95": 3438,
+   "duty_cycle_p50": 0.993,
+   "served_per_s": 38.63,
+   "oldestWait_p95_s": 15
+  },
+  "phone_proof_jobs": {
+   "n": 5232,
+   "latency_p50_ms": 16415,
+   "latency_p95_ms": 18621,
+   "over_20s": 106,
+   "backlog_10s_bins": [
+    70,
+    157,
+    261,
+    348,
+    285,
+    291,
+    486,
+    425,
+    466,
+    486,
+    498,
+    514,
+    500,
+    452,
+    480,
+    431,
+    426,
+    444
+   ],
+   "backlog_median_after_30s": 452
+  },
+  "drainer": {
+   "jobs": 5232,
+   "mean_inflight_of_32": 27.62,
+   "proc_p50_ms": 1049.2
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1119,
+    "run_ms_per_s": 4693,
+    "wait_mean_ms": 240.4,
+    "run_mean_ms": 4.19
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 115,
+    "run_ms_per_s": 927,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.07
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5100,
+    "mean_ms": 2104.7,
+    "gwReq_queries": 40865,
+    "q_per_req": 8.01,
+    "share_pct": 16.4
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5232,
+    "mean_ms": 833.9,
+    "gwReq_queries": 36624,
+    "q_per_req": 7.0,
+    "share_pct": 14.7
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 15432,
+    "mean_ms": 296.7,
+    "gwReq_queries": 30864,
+    "q_per_req": 2.0,
+    "share_pct": 12.4
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5232,
+    "mean_ms": 275.8,
+    "gwReq_queries": 30433,
+    "q_per_req": 5.82,
+    "share_pct": 12.2
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10200,
+    "mean_ms": 552.1,
+    "gwReq_queries": 20400,
+    "q_per_req": 2.0,
+    "share_pct": 8.2
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 14216,
+    "mean_ms": 276.2,
+    "gwReq_queries": 14216,
+    "q_per_req": 1.0,
+    "share_pct": 5.7
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 14214,
+    "mean_ms": 281.6,
+    "gwReq_queries": 14214,
+    "q_per_req": 1.0,
+    "share_pct": 5.7
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5232,
+    "mean_ms": 541.5,
+    "gwReq_queries": 10464,
+    "q_per_req": 2.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5100,
+    "mean_ms": 337.5,
+    "gwReq_queries": 10200,
+    "q_per_req": 2.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 7857,
+    "mean_ms": 265.6,
+    "gwReq_queries": 7857,
+    "q_per_req": 1.0,
+    "share_pct": 3.2
+   }
+  ]
+ },
+ {
+  "wave": "b27cand-s1-R1-750",
+  "verdict_line": "verdict FAIL ['G1', 'P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 1204, 'offer:offer_not_found_in_time': 1}",
+  "dispatch": {
+   "passes": 78,
+   "cap_observed": 100,
+   "passes_at_cap": 50,
+   "gap_p50_ms": 2352,
+   "passMs_p50": 2348,
+   "passMs_p95": 4006,
+   "duty_cycle_p50": 0.998,
+   "served_per_s": 35.32,
+   "oldestWait_p95_s": 150
+  },
+  "phone_proof_jobs": {
+   "n": 5857,
+   "latency_p50_ms": 15767,
+   "latency_p95_ms": 21856,
+   "over_20s": 1076,
+   "backlog_10s_bins": [
+    157,
+    148,
+    257,
+    398,
+    453,
+    547,
+    482,
+    677,
+    475,
+    582,
+    480,
+    528,
+    553,
+    497,
+    641,
+    499,
+    544,
+    509
+   ],
+   "backlog_median_after_30s": 509
+  },
+  "drainer": {
+   "jobs": 5857,
+   "mean_inflight_of_32": 21.83,
+   "proc_p50_ms": 740.0
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1099,
+    "run_ms_per_s": 4649,
+    "wait_mean_ms": 199.9,
+    "run_mean_ms": 4.23
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 104,
+    "run_ms_per_s": 909,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.72
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5857,
+    "mean_ms": 639.6,
+    "gwReq_queries": 37549,
+    "q_per_req": 6.41,
+    "share_pct": 15.4
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4653,
+    "mean_ms": 1784.9,
+    "gwReq_queries": 37255,
+    "q_per_req": 8.01,
+    "share_pct": 15.3
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5857,
+    "mean_ms": 227.8,
+    "gwReq_queries": 34166,
+    "q_per_req": 5.83,
+    "share_pct": 14.0
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 15163,
+    "mean_ms": 250.2,
+    "gwReq_queries": 30326,
+    "q_per_req": 2.0,
+    "share_pct": 12.4
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 9306,
+    "mean_ms": 479.5,
+    "gwReq_queries": 18612,
+    "q_per_req": 2.0,
+    "share_pct": 7.6
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 13156,
+    "mean_ms": 254.9,
+    "gwReq_queries": 13156,
+    "q_per_req": 1.0,
+    "share_pct": 5.4
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 13156,
+    "mean_ms": 259.0,
+    "gwReq_queries": 13156,
+    "q_per_req": 1.0,
+    "share_pct": 5.4
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5857,
+    "mean_ms": 418.7,
+    "gwReq_queries": 11714,
+    "q_per_req": 2.0,
+    "share_pct": 4.8
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 4653,
+    "mean_ms": 280.5,
+    "gwReq_queries": 9306,
+    "q_per_req": 2.0,
+    "share_pct": 3.8
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 8497,
+    "mean_ms": 226.2,
+    "gwReq_queries": 8497,
+    "q_per_req": 1.0,
+    "share_pct": 3.5
+   }
+  ]
+ },
+ {
+  "wave": "b27cand-s1-R2-750",
+  "verdict_line": "verdict FAIL ['G1', 'P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 300, 'offer:offer_not_found_in_time': 13}",
+  "dispatch": {
+   "passes": 84,
+   "cap_observed": 100,
+   "passes_at_cap": 67,
+   "gap_p50_ms": 2037,
+   "passMs_p50": 2040,
+   "passMs_p95": 3528,
+   "duty_cycle_p50": 1.001,
+   "served_per_s": 41.18,
+   "oldestWait_p95_s": 131
+  },
+  "phone_proof_jobs": {
+   "n": 5565,
+   "latency_p50_ms": 16661,
+   "latency_p95_ms": 20056,
+   "over_20s": 293,
+   "backlog_10s_bins": [
+    118,
+    95,
+    190,
+    326,
+    398,
+    469,
+    357,
+    509,
+    466,
+    498,
+    572,
+    533,
+    509,
+    488,
+    548,
+    529,
+    500,
+    490
+   ],
+   "backlog_median_after_30s": 498
+  },
+  "drainer": {
+   "jobs": 5565,
+   "mean_inflight_of_32": 21.76,
+   "proc_p50_ms": 762.5
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1190,
+    "run_ms_per_s": 4660,
+    "wait_mean_ms": 196.0,
+    "run_mean_ms": 3.92
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 115,
+    "run_ms_per_s": 891,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 7.76
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5265,
+    "mean_ms": 1651.7,
+    "gwReq_queries": 42181,
+    "q_per_req": 8.01,
+    "share_pct": 16.1
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5565,
+    "mean_ms": 640.6,
+    "gwReq_queries": 38185,
+    "q_per_req": 6.86,
+    "share_pct": 14.5
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5565,
+    "mean_ms": 237.2,
+    "gwReq_queries": 32619,
+    "q_per_req": 5.86,
+    "share_pct": 12.4
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 16095,
+    "mean_ms": 249.1,
+    "gwReq_queries": 32190,
+    "q_per_req": 2.0,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10530,
+    "mean_ms": 459.2,
+    "gwReq_queries": 21060,
+    "q_per_req": 2.0,
+    "share_pct": 8.0
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 14612,
+    "mean_ms": 241.1,
+    "gwReq_queries": 14612,
+    "q_per_req": 1.0,
+    "share_pct": 5.6
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 14612,
+    "mean_ms": 249.6,
+    "gwReq_queries": 14612,
+    "q_per_req": 1.0,
+    "share_pct": 5.6
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5565,
+    "mean_ms": 420.7,
+    "gwReq_queries": 11130,
+    "q_per_req": 2.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 10607,
+    "mean_ms": 216.0,
+    "gwReq_queries": 10607,
+    "q_per_req": 1.0,
+    "share_pct": 4.0
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5265,
+    "mean_ms": 276.5,
+    "gwReq_queries": 10530,
+    "q_per_req": 2.0,
+    "share_pct": 4.0
+   }
+  ]
+ },
+ {
+  "wave": "b27cand-s1-R3-750",
+  "verdict_line": "verdict FAIL ['G1'] notverified {'driver_onboarding_failed': 239}",
+  "dispatch": {
+   "passes": 81,
+   "cap_observed": 100,
+   "passes_at_cap": 60,
+   "gap_p50_ms": 2236,
+   "passMs_p50": 2233,
+   "passMs_p95": 3615,
+   "duty_cycle_p50": 0.999,
+   "served_per_s": 37.45,
+   "oldestWait_p95_s": 7
+  },
+  "phone_proof_jobs": {
+   "n": 5958,
+   "latency_p50_ms": 17606,
+   "latency_p95_ms": 19521,
+   "over_20s": 205,
+   "backlog_10s_bins": [
+    434,
+    499,
+    478,
+    506,
+    559,
+    519,
+    444,
+    497,
+    511,
+    508,
+    517,
+    591,
+    536,
+    516,
+    527,
+    516,
+    520,
+    510
+   ],
+   "backlog_median_after_30s": 516
+  },
+  "drainer": {
+   "jobs": 5958,
+   "mean_inflight_of_32": 21.85,
+   "proc_p50_ms": 737.0
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1264,
+    "run_ms_per_s": 4666,
+    "wait_mean_ms": 170.2,
+    "run_mean_ms": 3.69
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 110,
+    "run_ms_per_s": 914,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.31
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5719,
+    "mean_ms": 1488.7,
+    "gwReq_queries": 45762,
+    "q_per_req": 8.0,
+    "share_pct": 16.1
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5958,
+    "mean_ms": 556.7,
+    "gwReq_queries": 41121,
+    "q_per_req": 6.9,
+    "share_pct": 14.5
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5958,
+    "mean_ms": 200.9,
+    "gwReq_queries": 34839,
+    "q_per_req": 5.85,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 17396,
+    "mean_ms": 205.0,
+    "gwReq_queries": 34792,
+    "q_per_req": 2.0,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 11438,
+    "mean_ms": 395.6,
+    "gwReq_queries": 22876,
+    "q_per_req": 2.0,
+    "share_pct": 8.1
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 16224,
+    "mean_ms": 212.1,
+    "gwReq_queries": 16224,
+    "q_per_req": 1.0,
+    "share_pct": 5.7
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 16219,
+    "mean_ms": 217.0,
+    "gwReq_queries": 16219,
+    "q_per_req": 1.0,
+    "share_pct": 5.7
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5958,
+    "mean_ms": 380.8,
+    "gwReq_queries": 11916,
+    "q_per_req": 2.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5719,
+    "mean_ms": 205.0,
+    "gwReq_queries": 11438,
+    "q_per_req": 2.0,
+    "share_pct": 4.0
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 10849,
+    "mean_ms": 199.7,
+    "gwReq_queries": 10849,
+    "q_per_req": 1.0,
+    "share_pct": 3.8
+   }
+  ]
+ },
+ {
+  "wave": "b27cand-s1-R4-750",
+  "verdict_line": "verdict FAIL ['G1', 'P1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 382}",
+  "dispatch": {
+   "passes": 81,
+   "cap_observed": 100,
+   "passes_at_cap": 61,
+   "gap_p50_ms": 2087,
+   "passMs_p50": 2084,
+   "passMs_p95": 3627,
+   "duty_cycle_p50": 0.999,
+   "served_per_s": 38.77,
+   "oldestWait_p95_s": 13
+  },
+  "phone_proof_jobs": {
+   "n": 5762,
+   "latency_p50_ms": 16235,
+   "latency_p95_ms": 19894,
+   "over_20s": 265,
+   "backlog_10s_bins": [
+    121,
+    72,
+    234,
+    362,
+    421,
+    536,
+    508,
+    491,
+    531,
+    545,
+    504,
+    494,
+    522,
+    608,
+    518,
+    546,
+    487,
+    514
+   ],
+   "backlog_median_after_30s": 514
+  },
+  "drainer": {
+   "jobs": 5762,
+   "mean_inflight_of_32": 21.9,
+   "proc_p50_ms": 738.6
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1265,
+    "run_ms_per_s": 4861,
+    "wait_mean_ms": 188.4,
+    "run_mean_ms": 3.84
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 114,
+    "run_ms_per_s": 913,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 8.01
+   }
+  },
+  "http_top": [
+   {
+    "route": "POST /v1/driver/location",
+    "req": 5380,
+    "mean_ms": 1623.2,
+    "gwReq_queries": 43093,
+    "q_per_req": 8.01,
+    "share_pct": 16.0
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 5762,
+    "mean_ms": 618.3,
+    "gwReq_queries": 39764,
+    "q_per_req": 6.9,
+    "share_pct": 14.8
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 5762,
+    "mean_ms": 221.7,
+    "gwReq_queries": 33550,
+    "q_per_req": 5.82,
+    "share_pct": 12.5
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 16522,
+    "mean_ms": 236.3,
+    "gwReq_queries": 33044,
+    "q_per_req": 2.0,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 10760,
+    "mean_ms": 442.8,
+    "gwReq_queries": 21520,
+    "q_per_req": 2.0,
+    "share_pct": 8.0
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 14976,
+    "mean_ms": 232.7,
+    "gwReq_queries": 14976,
+    "q_per_req": 1.0,
+    "share_pct": 5.6
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 14975,
+    "mean_ms": 236.6,
+    "gwReq_queries": 14975,
+    "q_per_req": 1.0,
+    "share_pct": 5.6
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 5762,
+    "mean_ms": 405.3,
+    "gwReq_queries": 11524,
+    "q_per_req": 2.0,
+    "share_pct": 4.3
+   },
+   {
+    "route": "POST /v1/rides",
+    "req": 5380,
+    "mean_ms": 263.2,
+    "gwReq_queries": 10760,
+    "q_per_req": 2.0,
+    "share_pct": 4.0
+   },
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 10198,
+    "mean_ms": 208.7,
+    "gwReq_queries": 10198,
+    "q_per_req": 1.0,
+    "share_pct": 3.8
+   }
+  ]
+ },
+ {
+  "wave": "b27main-s1-C1-750",
+  "verdict_line": "verdict FAIL ['P4'] notverified {'offer:offer_not_found_in_time': 27}",
+  "dispatch": {
+   "passes": 105,
+   "cap_observed": 50,
+   "passes_at_cap": 103,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 627,
+   "passMs_p95": 863,
+   "duty_cycle_p50": 0.314,
+   "served_per_s": 25.02,
+   "oldestWait_p95_s": 45
+  },
+  "phone_proof_jobs": {
+   "n": 4124,
+   "latency_p50_ms": 111,
+   "latency_p95_ms": 8255,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    255,
+    67,
+    0,
+    0,
+    11,
+    0,
+    0,
+    0,
+    0,
+    0,
+    12,
+    0,
+    0,
+    7,
+    0,
+    0,
+    0,
+    0
+   ],
+   "backlog_median_after_30s": 0
+  },
+  "drainer": {
+   "jobs": 4124,
+   "mean_inflight_of_32": 4.94,
+   "proc_p50_ms": 75.6
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1303,
+    "run_ms_per_s": 3471,
+    "wait_mean_ms": 36.6,
+    "run_mean_ms": 2.66
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 75,
+    "run_ms_per_s": 311,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.15
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 69277,
+    "mean_ms": 29.0,
+    "gwReq_queries": 69277,
+    "q_per_req": 1.0,
+    "share_pct": 24.3
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4124,
+    "mean_ms": 444.9,
+    "gwReq_queries": 33005,
+    "q_per_req": 8.0,
+    "share_pct": 11.6
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4124,
+    "mean_ms": 184.5,
+    "gwReq_queries": 28868,
+    "q_per_req": 7.0,
+    "share_pct": 10.1
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4124,
+    "mean_ms": 63.3,
+    "gwReq_queries": 27365,
+    "q_per_req": 6.64,
+    "share_pct": 9.6
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12372,
+    "mean_ms": 79.0,
+    "gwReq_queries": 24744,
+    "q_per_req": 2.0,
+    "share_pct": 8.7
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 24423,
+    "mean_ms": 29.2,
+    "gwReq_queries": 24423,
+    "q_per_req": 1.0,
+    "share_pct": 8.6
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8248,
+    "mean_ms": 99.2,
+    "gwReq_queries": 16496,
+    "q_per_req": 2.0,
+    "share_pct": 5.8
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11695,
+    "mean_ms": 41.3,
+    "gwReq_queries": 11695,
+    "q_per_req": 1.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11656,
+    "mean_ms": 44.5,
+    "gwReq_queries": 11656,
+    "q_per_req": 1.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4124,
+    "mean_ms": 116.1,
+    "gwReq_queries": 8248,
+    "q_per_req": 2.0,
+    "share_pct": 2.9
+   }
+  ]
+ },
+ {
+  "wave": "b27main-s1-C2-750",
+  "verdict_line": "verdict FAIL ['P4'] notverified {'offer:offer_not_found_in_time': 26}",
+  "dispatch": {
+   "passes": 104,
+   "cap_observed": 50,
+   "passes_at_cap": 102,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 664,
+   "passMs_p95": 948,
+   "duty_cycle_p50": 0.332,
+   "served_per_s": 25.12,
+   "oldestWait_p95_s": 46
+  },
+  "phone_proof_jobs": {
+   "n": 4076,
+   "latency_p50_ms": 137,
+   "latency_p95_ms": 2632,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    37,
+    0,
+    0,
+    0,
+    10,
+    0,
+    12,
+    0,
+    0,
+    0,
+    0,
+    6,
+    0,
+    4,
+    2,
+    0,
+    0,
+    0
+   ],
+   "backlog_median_after_30s": 0
+  },
+  "drainer": {
+   "jobs": 4076,
+   "mean_inflight_of_32": 2.92,
+   "proc_p50_ms": 56.9
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1325,
+    "run_ms_per_s": 3632,
+    "wait_mean_ms": 35.2,
+    "run_mean_ms": 2.74
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 74,
+    "run_ms_per_s": 322,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.33
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 70130,
+    "mean_ms": 38.7,
+    "gwReq_queries": 70130,
+    "q_per_req": 1.0,
+    "share_pct": 24.7
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4076,
+    "mean_ms": 312.7,
+    "gwReq_queries": 32671,
+    "q_per_req": 8.02,
+    "share_pct": 11.5
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4076,
+    "mean_ms": 168.0,
+    "gwReq_queries": 28532,
+    "q_per_req": 7.0,
+    "share_pct": 10.1
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4076,
+    "mean_ms": 55.7,
+    "gwReq_queries": 26937,
+    "q_per_req": 6.61,
+    "share_pct": 9.5
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 24788,
+    "mean_ms": 36.8,
+    "gwReq_queries": 24788,
+    "q_per_req": 1.0,
+    "share_pct": 8.7
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12228,
+    "mean_ms": 79.1,
+    "gwReq_queries": 24456,
+    "q_per_req": 2.0,
+    "share_pct": 8.6
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8152,
+    "mean_ms": 94.3,
+    "gwReq_queries": 16304,
+    "q_per_req": 2.0,
+    "share_pct": 5.8
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11256,
+    "mean_ms": 38.1,
+    "gwReq_queries": 11256,
+    "q_per_req": 1.0,
+    "share_pct": 4.0
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11255,
+    "mean_ms": 41.7,
+    "gwReq_queries": 11255,
+    "q_per_req": 1.0,
+    "share_pct": 4.0
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4076,
+    "mean_ms": 87.5,
+    "gwReq_queries": 8152,
+    "q_per_req": 2.0,
+    "share_pct": 2.9
+   }
+  ]
+ },
+ {
+  "wave": "b27main-s1-C3-750",
+  "verdict_line": "verdict FAIL ['P1', 'P2', 'P4'] notverified {'offer:offer_not_found_in_time': 14}",
+  "dispatch": {
+   "passes": 104,
+   "cap_observed": 50,
+   "passes_at_cap": 103,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 768,
+   "passMs_p95": 984,
+   "duty_cycle_p50": 0.384,
+   "served_per_s": 25.16,
+   "oldestWait_p95_s": 43
+  },
+  "phone_proof_jobs": {
+   "n": 4089,
+   "latency_p50_ms": 819,
+   "latency_p95_ms": 6085,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    58,
+    44,
+    0,
+    81,
+    76,
+    52,
+    43,
+    25,
+    15,
+    12,
+    11,
+    0,
+    0,
+    0,
+    0,
+    8,
+    0,
+    0
+   ],
+   "backlog_median_after_30s": 11
+  },
+  "drainer": {
+   "jobs": 4089,
+   "mean_inflight_of_32": 12.82,
+   "proc_p50_ms": 570.0
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1129,
+    "run_ms_per_s": 3776,
+    "wait_mean_ms": 123.9,
+    "run_mean_ms": 3.34
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 75,
+    "run_ms_per_s": 354,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.74
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 54379,
+    "mean_ms": 110.3,
+    "gwReq_queries": 54379,
+    "q_per_req": 1.0,
+    "share_pct": 20.6
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4089,
+    "mean_ms": 1194.0,
+    "gwReq_queries": 32781,
+    "q_per_req": 8.02,
+    "share_pct": 12.4
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4089,
+    "mean_ms": 495.0,
+    "gwReq_queries": 28623,
+    "q_per_req": 7.0,
+    "share_pct": 10.9
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4089,
+    "mean_ms": 158.5,
+    "gwReq_queries": 25696,
+    "q_per_req": 6.28,
+    "share_pct": 9.7
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12267,
+    "mean_ms": 190.8,
+    "gwReq_queries": 24534,
+    "q_per_req": 2.0,
+    "share_pct": 9.3
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 20548,
+    "mean_ms": 116.5,
+    "gwReq_queries": 20548,
+    "q_per_req": 1.0,
+    "share_pct": 7.8
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8178,
+    "mean_ms": 296.3,
+    "gwReq_queries": 16356,
+    "q_per_req": 2.0,
+    "share_pct": 6.2
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11620,
+    "mean_ms": 136.9,
+    "gwReq_queries": 11620,
+    "q_per_req": 1.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11618,
+    "mean_ms": 138.3,
+    "gwReq_queries": 11618,
+    "q_per_req": 1.0,
+    "share_pct": 4.4
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4089,
+    "mean_ms": 294.7,
+    "gwReq_queries": 8178,
+    "q_per_req": 2.0,
+    "share_pct": 3.1
+   }
+  ]
+ },
+ {
+  "wave": "b27main-s1-C4-750",
+  "verdict_line": "verdict FAIL ['P4'] notverified {'offer:offer_not_found_in_time': 14}",
+  "dispatch": {
+   "passes": 105,
+   "cap_observed": 50,
+   "passes_at_cap": 103,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 642,
+   "passMs_p95": 900,
+   "duty_cycle_p50": 0.321,
+   "served_per_s": 24.93,
+   "oldestWait_p95_s": 46
+  },
+  "phone_proof_jobs": {
+   "n": 4173,
+   "latency_p50_ms": 120,
+   "latency_p95_ms": 8718,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    258,
+    114,
+    2,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "backlog_median_after_30s": 0
+  },
+  "drainer": {
+   "jobs": 4173,
+   "mean_inflight_of_32": 5.65,
+   "proc_p50_ms": 78.2
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1275,
+    "run_ms_per_s": 3438,
+    "wait_mean_ms": 42.9,
+    "run_mean_ms": 2.7
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 75,
+    "run_ms_per_s": 308,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.12
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 68009,
+    "mean_ms": 34.0,
+    "gwReq_queries": 68009,
+    "q_per_req": 1.0,
+    "share_pct": 23.8
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4173,
+    "mean_ms": 512.8,
+    "gwReq_queries": 33396,
+    "q_per_req": 8.0,
+    "share_pct": 11.7
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4173,
+    "mean_ms": 202.4,
+    "gwReq_queries": 29211,
+    "q_per_req": 7.0,
+    "share_pct": 10.2
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4173,
+    "mean_ms": 67.9,
+    "gwReq_queries": 27452,
+    "q_per_req": 6.58,
+    "share_pct": 9.6
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12519,
+    "mean_ms": 84.2,
+    "gwReq_queries": 25038,
+    "q_per_req": 2.0,
+    "share_pct": 8.8
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 23761,
+    "mean_ms": 34.9,
+    "gwReq_queries": 23761,
+    "q_per_req": 1.0,
+    "share_pct": 8.3
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8346,
+    "mean_ms": 114.8,
+    "gwReq_queries": 16692,
+    "q_per_req": 2.0,
+    "share_pct": 5.9
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11822,
+    "mean_ms": 50.6,
+    "gwReq_queries": 11822,
+    "q_per_req": 1.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11770,
+    "mean_ms": 52.6,
+    "gwReq_queries": 11770,
+    "q_per_req": 1.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4173,
+    "mean_ms": 129.2,
+    "gwReq_queries": 8346,
+    "q_per_req": 2.0,
+    "share_pct": 2.9
+   }
+  ]
+ },
+ {
+  "wave": "b27main-s1-R1-750",
+  "verdict_line": "verdict FAIL ['P1', 'P2', 'P4'] notverified {'offer:offer_not_found_in_time': 16}",
+  "dispatch": {
+   "passes": 104,
+   "cap_observed": 50,
+   "passes_at_cap": 102,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 683,
+   "passMs_p95": 890,
+   "duty_cycle_p50": 0.342,
+   "served_per_s": 25.02,
+   "oldestWait_p95_s": 44
+  },
+  "phone_proof_jobs": {
+   "n": 4176,
+   "latency_p50_ms": 483,
+   "latency_p95_ms": 6409,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    58,
+    33,
+    73,
+    38,
+    100,
+    108,
+    142,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    3,
+    0,
+    0,
+    0
+   ],
+   "backlog_median_after_30s": 0
+  },
+  "drainer": {
+   "jobs": 4176,
+   "mean_inflight_of_32": 10.3,
+   "proc_p50_ms": 198.1
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1161,
+    "run_ms_per_s": 3473,
+    "wait_mean_ms": 92.1,
+    "run_mean_ms": 2.99
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 74,
+    "run_ms_per_s": 322,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.33
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 57117,
+    "mean_ms": 67.7,
+    "gwReq_queries": 57117,
+    "q_per_req": 1.0,
+    "share_pct": 21.1
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4176,
+    "mean_ms": 905.7,
+    "gwReq_queries": 33438,
+    "q_per_req": 8.01,
+    "share_pct": 12.3
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4176,
+    "mean_ms": 383.3,
+    "gwReq_queries": 29232,
+    "q_per_req": 7.0,
+    "share_pct": 10.8
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4176,
+    "mean_ms": 120.6,
+    "gwReq_queries": 26657,
+    "q_per_req": 6.38,
+    "share_pct": 9.8
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12528,
+    "mean_ms": 151.3,
+    "gwReq_queries": 25056,
+    "q_per_req": 2.0,
+    "share_pct": 9.2
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 21618,
+    "mean_ms": 82.6,
+    "gwReq_queries": 21618,
+    "q_per_req": 1.0,
+    "share_pct": 8.0
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8352,
+    "mean_ms": 230.5,
+    "gwReq_queries": 16704,
+    "q_per_req": 2.0,
+    "share_pct": 6.2
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11468,
+    "mean_ms": 107.4,
+    "gwReq_queries": 11468,
+    "q_per_req": 1.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11467,
+    "mean_ms": 110.4,
+    "gwReq_queries": 11467,
+    "q_per_req": 1.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4176,
+    "mean_ms": 240.8,
+    "gwReq_queries": 8352,
+    "q_per_req": 2.0,
+    "share_pct": 3.1
+   }
+  ]
+ },
+ {
+  "wave": "b27main-s1-R2-750",
+  "verdict_line": "verdict FAIL ['P4'] notverified {'offer:offer_not_found_in_time': 29}",
+  "dispatch": {
+   "passes": 105,
+   "cap_observed": 50,
+   "passes_at_cap": 103,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 669,
+   "passMs_p95": 925,
+   "duty_cycle_p50": 0.335,
+   "served_per_s": 24.99,
+   "oldestWait_p95_s": 45
+  },
+  "phone_proof_jobs": {
+   "n": 4213,
+   "latency_p50_ms": 193,
+   "latency_p95_ms": 9552,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    310,
+    223,
+    8,
+    9,
+    0,
+    0,
+    3,
+    0,
+    5,
+    0,
+    9,
+    6,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "backlog_median_after_30s": 0
+  },
+  "drainer": {
+   "jobs": 4213,
+   "mean_inflight_of_32": 5.21,
+   "proc_p50_ms": 123.4
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1260,
+    "run_ms_per_s": 3472,
+    "wait_mean_ms": 41.2,
+    "run_mean_ms": 2.76
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 74,
+    "run_ms_per_s": 324,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.35
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 67776,
+    "mean_ms": 37.1,
+    "gwReq_queries": 67776,
+    "q_per_req": 1.0,
+    "share_pct": 23.5
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4213,
+    "mean_ms": 449.6,
+    "gwReq_queries": 33720,
+    "q_per_req": 8.0,
+    "share_pct": 11.7
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4213,
+    "mean_ms": 179.2,
+    "gwReq_queries": 29491,
+    "q_per_req": 7.0,
+    "share_pct": 10.2
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4213,
+    "mean_ms": 67.5,
+    "gwReq_queries": 27735,
+    "q_per_req": 6.58,
+    "share_pct": 9.6
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12639,
+    "mean_ms": 78.7,
+    "gwReq_queries": 25278,
+    "q_per_req": 2.0,
+    "share_pct": 8.8
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 24687,
+    "mean_ms": 35.1,
+    "gwReq_queries": 24687,
+    "q_per_req": 1.0,
+    "share_pct": 8.6
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8426,
+    "mean_ms": 110.2,
+    "gwReq_queries": 16852,
+    "q_per_req": 2.0,
+    "share_pct": 5.8
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 12052,
+    "mean_ms": 50.1,
+    "gwReq_queries": 12052,
+    "q_per_req": 1.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 12041,
+    "mean_ms": 53.9,
+    "gwReq_queries": 12041,
+    "q_per_req": 1.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4213,
+    "mean_ms": 118.4,
+    "gwReq_queries": 8426,
+    "q_per_req": 2.0,
+    "share_pct": 2.9
+   }
+  ]
+ },
+ {
+  "wave": "b27main-s1-R3-750",
+  "verdict_line": "verdict FAIL ['P4'] notverified {'offer:offer_not_found_in_time': 23}",
+  "dispatch": {
+   "passes": 106,
+   "cap_observed": 50,
+   "passes_at_cap": 104,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 636,
+   "passMs_p95": 939,
+   "duty_cycle_p50": 0.318,
+   "served_per_s": 25.04,
+   "oldestWait_p95_s": 46
+  },
+  "phone_proof_jobs": {
+   "n": 4216,
+   "latency_p50_ms": 149,
+   "latency_p95_ms": 9492,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    340,
+    114,
+    0,
+    0,
+    0,
+    11,
+    0,
+    8,
+    0,
+    24,
+    6,
+    8,
+    0,
+    11,
+    0,
+    0,
+    0,
+    0
+   ],
+   "backlog_median_after_30s": 0
+  },
+  "drainer": {
+   "jobs": 4216,
+   "mean_inflight_of_32": 4.82,
+   "proc_p50_ms": 103.8
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1259,
+    "run_ms_per_s": 3373,
+    "wait_mean_ms": 36.8,
+    "run_mean_ms": 2.68
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 74,
+    "run_ms_per_s": 311,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.22
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 69070,
+    "mean_ms": 33.3,
+    "gwReq_queries": 69070,
+    "q_per_req": 1.0,
+    "share_pct": 24.0
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4216,
+    "mean_ms": 392.0,
+    "gwReq_queries": 33742,
+    "q_per_req": 8.0,
+    "share_pct": 11.7
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4216,
+    "mean_ms": 164.4,
+    "gwReq_queries": 29512,
+    "q_per_req": 7.0,
+    "share_pct": 10.2
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4216,
+    "mean_ms": 65.4,
+    "gwReq_queries": 27725,
+    "q_per_req": 6.58,
+    "share_pct": 9.6
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12648,
+    "mean_ms": 72.4,
+    "gwReq_queries": 25296,
+    "q_per_req": 2.0,
+    "share_pct": 8.8
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 23983,
+    "mean_ms": 31.3,
+    "gwReq_queries": 23983,
+    "q_per_req": 1.0,
+    "share_pct": 8.3
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8432,
+    "mean_ms": 98.1,
+    "gwReq_queries": 16864,
+    "q_per_req": 2.0,
+    "share_pct": 5.9
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 11694,
+    "mean_ms": 45.8,
+    "gwReq_queries": 11694,
+    "q_per_req": 1.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 11672,
+    "mean_ms": 49.5,
+    "gwReq_queries": 11672,
+    "q_per_req": 1.0,
+    "share_pct": 4.1
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4216,
+    "mean_ms": 108.9,
+    "gwReq_queries": 8432,
+    "q_per_req": 2.0,
+    "share_pct": 2.9
+   }
+  ]
+ },
+ {
+  "wave": "b27main-s1-R4-750",
+  "verdict_line": "verdict FAIL ['P4'] notverified {'offer:offer_not_found_in_time': 22}",
+  "dispatch": {
+   "passes": 105,
+   "cap_observed": 50,
+   "passes_at_cap": 103,
+   "gap_p50_ms": 2000,
+   "passMs_p50": 671,
+   "passMs_p95": 895,
+   "duty_cycle_p50": 0.336,
+   "served_per_s": 25.02,
+   "oldestWait_p95_s": 47
+  },
+  "phone_proof_jobs": {
+   "n": 4262,
+   "latency_p50_ms": 148,
+   "latency_p95_ms": 9842,
+   "over_20s": 0,
+   "backlog_10s_bins": [
+    350,
+    241,
+    58,
+    13,
+    9,
+    0,
+    0,
+    8,
+    0,
+    0,
+    0,
+    0,
+    9,
+    3,
+    0,
+    0,
+    0,
+    0
+   ],
+   "backlog_median_after_30s": 0
+  },
+  "drainer": {
+   "jobs": 4262,
+   "mean_inflight_of_32": 5.41,
+   "proc_p50_ms": 92.4
+  },
+  "pools_busy": {
+   "ceezr:gatewayRequest": {
+    "q_per_s": 1264,
+    "run_ms_per_s": 3453,
+    "wait_mean_ms": 42.3,
+    "run_mean_ms": 2.73
+   },
+   "ceezr:gatewayDispatch": {
+    "q_per_s": 75,
+    "run_ms_per_s": 315,
+    "wait_mean_ms": 0.0,
+    "run_mean_ms": 4.21
+   }
+  },
+  "http_top": [
+   {
+    "route": "GET /v1/driver/offers",
+    "req": 67415,
+    "mean_ms": 36.3,
+    "gwReq_queries": 67415,
+    "q_per_req": 1.0,
+    "share_pct": 23.3
+   },
+   {
+    "route": "POST /v1/driver/location",
+    "req": 4262,
+    "mean_ms": 467.5,
+    "gwReq_queries": 34108,
+    "q_per_req": 8.0,
+    "share_pct": 11.8
+   },
+   {
+    "route": "POST /v1/onboarding/driver",
+    "req": 4262,
+    "mean_ms": 186.4,
+    "gwReq_queries": 29834,
+    "q_per_req": 7.0,
+    "share_pct": 10.3
+   },
+   {
+    "route": "POST /webhook/telegram/driver",
+    "req": 4262,
+    "mean_ms": 70.1,
+    "gwReq_queries": 28003,
+    "q_per_req": 6.57,
+    "share_pct": 9.7
+   },
+   {
+    "route": "POST /v1/session/telegram",
+    "req": 12786,
+    "mean_ms": 78.9,
+    "gwReq_queries": 25572,
+    "q_per_req": 2.0,
+    "share_pct": 8.8
+   },
+   {
+    "route": "POST /v1/driver/offers/receipts",
+    "req": 23823,
+    "mean_ms": 36.1,
+    "gwReq_queries": 23823,
+    "q_per_req": 1.0,
+    "share_pct": 8.2
+   },
+   {
+    "route": "POST /v1/driver/availability",
+    "req": 8524,
+    "mean_ms": 112.6,
+    "gwReq_queries": 17048,
+    "q_per_req": 2.0,
+    "share_pct": 5.9
+   },
+   {
+    "route": "GET /v1/rides/:id/trip-events",
+    "req": 12145,
+    "mean_ms": 53.5,
+    "gwReq_queries": 12145,
+    "q_per_req": 1.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "POST /v1/rides/:id/trip-events/ack",
+    "req": 12093,
+    "mean_ms": 56.0,
+    "gwReq_queries": 12093,
+    "q_per_req": 1.0,
+    "share_pct": 4.2
+   },
+   {
+    "route": "GET /v1/onboarding",
+    "req": 4262,
+    "mean_ms": 122.5,
+    "gwReq_queries": 8524,
+    "q_per_req": 2.0,
+    "share_pct": 2.9
+   }
+  ]
+ }
+]

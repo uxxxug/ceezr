@@ -1,0 +1,21 @@
+{
+ "samples": 159,
+ "steal_mean": 0.0,
+ "steal_max_1s": 0.0,
+ "siblings_mean": 1.39,
+ "foreign_mean": 2.74,
+ "iowait_mean": 0.54,
+ "throttled": 0,
+ "foreign_top": [
+  "/tmp/provjobd1005358239"
+ ],
+ "steal_10s_rolling_max": 0.0,
+ "post_speed_probe_median_ms": 340.1,
+ "post_pg_probe_median_ms": 374.7,
+ "host_busy_mean_pct": 79.7,
+ "procs_running_mean": 7.83,
+ "validity_version": "B23-RUNNER-V1",
+ "mode": "inflight",
+ "violations": [],
+ "verdict": "VALID"
+}

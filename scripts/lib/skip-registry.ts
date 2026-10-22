@@ -196,6 +196,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/redispatch-order-snapshot.test.ts",
+    suites: ["LOAD-01 P4 (ب24) — لقطةُ الطلبِ من القارئ"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "انحدارُ LOAD-01 P4 (الدفعةُ 24): تكافؤُ لقطةِ القارئِ معَ findById، وحاجزُ الجولةِ المتقادمةِ (رفضٌ ذرّيٌّ CAS وتصنيفُ سباقٍ منَ اتصالٍ مستقلّ)، وحاجزُ الإلغاءِ، وعدمُ نداءِ findById في الشوطِ معَ اللقطةِ — سلامةُ محرّكِ البثّ لا تُثبَتُ إلا على PostgreSQL حقيقي بالهجراتِ مطبَّقة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/redispatch-live-round-priority.test.ts",
     suites: ["LOAD-01 P4 — الجولة الحية لا تحجب الطلب الذي لم يُعرَض"],
     skipped: 2,
@@ -204,6 +218,34 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
       "انحدارُ LOAD-01 P4: ترتيبُ نافذةِ الشوطِ بمهلةِ سماحِ الجولةِ الحيّةِ وقراءةُ الإعداداتِ مرّةً للشوطِ لا يُثبَتانِ إلا على PostgreSQL حقيقي بالهجراتِ مطبَّقة.",
     activation:
       "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/integration/trip-phase-with-notice.test.ts",
+    suites: ["أطوارُ الرحلةِ مع إيداعِ الإشعارِ في رحلةٍ واحدة (الدفعة 21)"],
+    skipped: 8,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى في LOAD-01 (الدفعةُ 21) أنَّ `driver_mark_arrived_with_notice` و`driver_start_ride_with_notice` و`driver_complete_ride_with_notice` تُعيدُ ردَّ الطورِ حرفاً كالدالّةِ المنفردة (ومنه رفضُ تغيّرِ الملكيّةِ بينَ طلبَين) وتودِعُ إشعارَ الراكبِ في المعاملةِ نفسِها، وأنَّ فشلَ الإيداعِ تعزلُه نقطةُ الحفظِ والطورُ يُثبَّت — سلوكُ محرّكٍ لا يُقاسُ إلّا على PostgreSQL حقيقيّ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بها postgis والهجرات مطبَّقة (ومنها 20261020120000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي».",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/integration/telegram-update-batch-claim-lane-order.test.ts",
+    suites: ["ترتيبُ المستخدمِ (D4) في الالتقاطِ الدُّفعيّ — قاعدةٌ حقيقيّة"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "شرطُ D4 في الالتقاطِ الدُّفعيِّ (LOAD-01، الدفعة 20): وظيفةٌ أقدمُ معلّقةٌ أو محجوزةٌ تحجبُ لاحقةَ المستخدمِ نفسِه — سلوكُ PostgreSQL (skip locked والاستعلامُ الفرعيُّ على lane_key) لا سلوكُ محاكٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة (ومنها 20261020090000). يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
     owner: "منفّذ المستودع",
     criticalPath: null,
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
@@ -1981,6 +2023,20 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   {
+    file: "tests/integration/tracking-duty-and-trip-reader.test.ts",
+    suites: ["القارئ الموحّد للخدمة والرحلة النشطة — على PostgreSQL حقيقي"],
+    skipped: 5,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "يُثبِت تكافؤَ القارئِ الموحّدِ (`DriverDutyAndTripReader` — استعلامٌ واحدٌ للخدمةِ والرحلةِ النشطةِ) معَ القارئينِ المنفصلينِ عبرَ كلِّ حالةٍ يمرُّ بها سائقٌ حقيقيٌّ، وعقدَ السباقِ الذي حفظهُ الإصلاحُ (إسنادٌ بعدَ لقطةِ الإصلاحةِ تراهُ الإصلاحةُ التاليةُ وتُرفِقُهُ عبرَ مسارِ الويب هوكِ الكاملِ). والمقصودُ سلوكُ المحرّكِ نفسِهِ — الفروعُ المُرسّبةُ وحالاتُ عدمِ الوجودِ وعددُ الرحلاتِ إلى القاعدةِ — لا سلوكُ محاكاةٍ نكتبُهُ نحن؛ فمزدوجُ الذاكرةِ يقرّرُ الجوابَ بيدِهِ فلا يشهدُ على شيءٍ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجرات مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً بحاويةِ postgres.",
+    owner: "منفّذ المستودع",
+    criticalPath: "التتبّعُ وموقعُ السائق",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
     file: "tests/integration/tracking-sequence.test.ts",
     suites: ["ترتيبُ أحداثِ التتبُّعِ على PostgreSQL حقيقيٍّ — BUG-009 / ADR 0053"],
     skipped: 8,
@@ -2919,6 +2975,22 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     owner: "منفّذ المستودع",
     // «دورةُ الرحلةِ والإسناد»: بطءٌ على جدولِ الطلباتِ كانَ يحتجزُ اتّصالاتِ البوّابةِ
     // الخمسةَ فيقفُ كلُّ مسارٍ طولَ البطءِ — الطلبُ والقبولُ والويبهوكُ معاً.
+    criticalPath: "دورةُ الرحلةِ والإسناد",
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+  {
+    file: "tests/integration/pg-connect-phase-outage.test.ts",
+    suites: ["انقطاعُ PostgreSQL أثناءَ إنشاءِ الاتصالِ (استمرارُ D7)"],
+    skipped: 2,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "المُدَّعى أنّ انقطاعَ PostgreSQL **أثناء إنشاءِ الاتصالِ** لا يُسقطُ العمليةَ برفضٍ غيرِ معالَجٍ من `postgres@3.4.9` (فئةُ D7 — مجسّاتُ الدفعة 28 رصدت العطلَ في main). وهذا لا يُثبَتُ بمحاكاةِ في الذاكرةِ ولا بقتلٍ زائفٍ: المقصودُ سلوكُ المحرّكِ والسوكيتِ الحقيقيَّينِ — `pg_terminate_backend` على اتصالٍ في طورِ الإقلاعِ، وأثرُ ذلك في وعودِ المكتبةِ — والقاطعُ يقرأُ ويقتلُ من `pg_stat_activity` حقيقةً.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ. يفعله CI في «اختبارات التكامل على قاعدة حقيقية» داخلَ وظيفةِ «تكامل على PostgreSQL حقيقي»، ويفعله المطورُ محليًا بحاويةِ postgres. والملفُّ يغلقُ تجميعَه ومسحوباتِه في `afterAll` ولا يتركُ اتصالًا باسمِه.",
+    owner: "منفّذ المستودع",
+    // «دورةُ الرحلةِ والإسناد»: كلُّ مسارِ الأعمالِ يمرُّ بمجمّعِ PG — سقوطُ
+    // العمليةِ عند انقطاعِه يُوقفُ الطلبَ والقبولَ والويبهوكَ معًا.
     criticalPath: "دورةُ الرحلةِ والإسناد",
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
