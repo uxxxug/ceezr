@@ -24,4 +24,4 @@ print(("PASS: الناتجُ المعادُ حسابُه مطابقٌ بالكا
        else "FAIL: الناتجُ المعادُ حسابُه يخالفُ القرارَ المحفوظ"))
 sys.exit(0 if ok else 1)
 PY
-python3 "$HERE/b32-paths-table.py" "$WORK/recomputed.json" | cmp - "$HERE/b32-paths-table.out.txt" && echo "PASS: جدولُ المساراتِ مطابق"
+python3 "$HERE/b32-paths-table.py" "$WORK/recomputed.json" | cmp - <(gzip -dc "$HERE/b32-paths-table.out.txt.gz") && echo "PASS: جدولُ المساراتِ مطابق"

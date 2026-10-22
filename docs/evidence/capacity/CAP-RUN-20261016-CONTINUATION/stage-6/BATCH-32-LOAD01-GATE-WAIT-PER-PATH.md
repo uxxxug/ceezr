@@ -122,7 +122,7 @@ G4 وP7 في 8/8 (أقدمُ مهمّةِ صندوقِ الصادرِ المعل
 bash docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/batch32/analysis/reproduce.sh
 ```
 تنسخُ الحزمة، وتفكُّ `gates.txt.gz`، وتُشغّلُ `b32-analyze.py decide` (المطابقُ بايتًا لـ`b32-analyze.pinned-c2c78d23.py`) على الموجاتِ الثماني عشرة،
-وتطابقُ الناتجَ مع `b32-decision.json` المحفوظ، ثمّ تطابقُ جدولَ المسارات (`b32-paths-table.out.txt`). النتيجة: **PASS / PASS**. وسلسلةُ المحلّلات
+وتطابقُ الناتجَ مع `b32-decision.json` المحفوظ، ثمّ تطابقُ جدولَ المسارات (`b32-paths-table.out.txt.gz`). النتيجة: **PASS / PASS**. وسلسلةُ المحلّلات
 b25–b31 في `analysis/` مطابقةٌ بايتًا لنسخِ ب31، ولم يتغيّرْ حكمُ أيِّ دفعةٍ سابقة (إعادةُ إنتاجِ ب31 على الشجرةِ نفسِها: PASS).
 بصمةُ الحزمةِ المنزَّلة (`b32-seat-evidence-main.zip`): `f829b5a339fb31642742a46fd5ef7baa9f902674418f18fd8fba6fc5d1bdba99`.
 
