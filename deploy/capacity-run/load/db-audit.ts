@@ -16,6 +16,13 @@
 
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { EV, GEN_ID, sql, T0 } from "./lib.ts";
+import {
+  type EgressTimeline,
+  oldestPendingKind,
+  type PendingAgeByKind,
+  pendingAgeByKind,
+  summarizeEgressTimeline,
+} from "./p7-attribution.ts";
 
 const args = new Set(process.argv.slice(2));
 const phase = args.has("--phase=post") ? "post" : args.has("--phase=pre") ? "pre" : "";
@@ -38,7 +45,15 @@ interface Snapshot {
       { total: number; delivered: number; pending: number; dead: number }
     >;
     oldestPendingSec: number | null;
+    /**
+     * رصدٌ لا بوابة: عمرُ أقدمِ معلّقٍ لكلِّ نوعٍ (المجالُ نفسُه الذي يقرأه
+     * `oldestPendingSec` — كلُّ الصفوفِ المعلّقة)، ونوعُ الأقدم. يفسّرُ P7/G4 ولا يغيّرهما.
+     */
+    readonly pendingAgeByKind: PendingAgeByKind;
+    readonly oldestPendingKind: string | null;
   };
+  /** رصدٌ لا بوابة: خطُّ زمنِ قبولِ المحاكي لكلِّ بوتٍ بالثانية (`p7-attribution.ts`). */
+  readonly egressTimeline: EgressTimeline | null;
   /** قياسُ قناةِ الإرسالِ من سجلِ المحاكي في نافذةِ الموجةِ — دليلُ سببِ P7
    *  لا افتراضَهُ: لكلِّ بوتٍ مقبولٌ (200) ومرفوضٌ (429) من إرسالياتِ المحاكي. */
   readonly egress: { byBot: Record<string, { accepted: number; rejected: number }> } | null;
@@ -90,26 +105,27 @@ async function snapshot(): Promise<Snapshot> {
       sinceMs = null;
     }
   }
-  const [orders, offers, avail, outbox, dups, byKindRows, byKindAllRows] = await Promise.all([
-    sql<
-      { status: string; n: string }[]
-    >`select status::text as status, count(*)::text as n from orders group by 1`,
-    sql<
-      { status: string; n: string }[]
-    >`select status::text as status, count(*)::text as n from order_offers group by 1`,
-    sql<{ available: string; total: string }[]>`
+  const [orders, offers, avail, outbox, dups, byKindRows, byKindAllRows, pendingAgeRows] =
+    await Promise.all([
+      sql<
+        { status: string; n: string }[]
+      >`select status::text as status, count(*)::text as n from orders group by 1`,
+      sql<
+        { status: string; n: string }[]
+      >`select status::text as status, count(*)::text as n from order_offers group by 1`,
+      sql<{ available: string; total: string }[]>`
       select count(*) filter (where is_available)::text as available, count(*)::text as total from driver_availability`,
-    sql<{ status: string; n: string; oldest: string | null }[]>`
+      sql<{ status: string; n: string; oldest: string | null }[]>`
       select status::text as status, count(*)::text as n,
              extract(epoch from (now() - min(created_at)))::text as oldest
         from notification_outbox group by 1`,
-    sql<{ count: string }[]>`
+      sql<{ count: string }[]>`
       select count(*)::text as count from (
         select assigned_driver_id from orders
          where assigned_driver_id is not null and is_driver_engaged_order_status(status)
          group by assigned_driver_id having count(*) > 1
       ) as d`,
-    sql<{ kind: string; total: string; delivered: string; pending: string; dead: string }[]>`
+      sql<{ kind: string; total: string; delivered: string; pending: string; dead: string }[]>`
       select kind, count(*)::text as total,
              count(*) filter (where status = 'delivered')::text as delivered,
              count(*) filter (where status = 'pending')::text as pending,
@@ -117,13 +133,17 @@ async function snapshot(): Promise<Snapshot> {
         from notification_outbox
         ${sql`where created_at >= ${sinceMs === null ? new Date(0) : new Date(sinceMs)}`}
         group by 1`,
-    sql<{ kind: string; total: string; delivered: string; pending: string; dead: string }[]>`
+      sql<{ kind: string; total: string; delivered: string; pending: string; dead: string }[]>`
       select kind, count(*)::text as total,
              count(*) filter (where status = 'delivered')::text as delivered,
              count(*) filter (where status = 'pending')::text as pending,
              count(*) filter (where status = 'dead')::text as dead
         from notification_outbox group by 1`,
-  ]);
+      sql<{ kind: string; n: string; oldest: string | null }[]>`
+      select kind, count(*)::text as n,
+             extract(epoch from (now() - min(created_at)))::text as oldest
+        from notification_outbox where status = 'pending' group by 1`,
+    ]);
   const byStatus = (rows: { status: string; n: string }[]) =>
     Object.fromEntries(rows.map((r) => [r.status, Number(r.n)]));
   const pendingOldest = outbox.find((r) => r.status === "pending")?.oldest ?? null;
@@ -155,6 +175,8 @@ async function snapshot(): Promise<Snapshot> {
   // سجلُ المحاكي: عدُّ الإرسالياتِ في نافذةِ الموجةِ (بوسمِ الوقتِ لا قراءةِ كلِّ
   // الملفِّ) — يقرأُ آخرَ ما أمكنَهُ من الصفوفِ بكفاءةٍ (الملفُ حلقةٌ متراكمةٌ).
   const egress = readMockEgress(sinceMs);
+  const egressTimeline = readMockEgressTimeline(sinceMs);
+  const ageByKind = pendingAgeByKind(pendingAgeRows);
   const since = sinceMs === null ? new Date(0) : new Date(sinceMs);
   let telegramUpdates: Snapshot["telegramUpdates"] = null;
   try {
@@ -247,8 +269,11 @@ async function snapshot(): Promise<Snapshot> {
       byKind,
       byKindAllTime,
       oldestPendingSec: pendingOldest === null ? null : Math.round(Number(pendingOldest)),
+      pendingAgeByKind: ageByKind,
+      oldestPendingKind: oldestPendingKind(ageByKind),
     },
     egress,
+    egressTimeline,
     engagedDuplicates: Number(dups[0]?.count ?? "0"),
     activeRides,
     riderTripChannel,
@@ -280,6 +305,13 @@ function readMockEgress(sinceMs: number | null): Snapshot["egress"] {
     else if (rec.status === 429) byBot[bot].rejected += 1;
   }
   return { byBot };
+}
+
+/** خطُّ زمنِ القبولِ لكلِّ بوتٍ من سجلِّ المحاكي نفسِه (رصدٌ لا بوابة). */
+function readMockEgressTimeline(sinceMs: number | null): EgressTimeline | null {
+  const path = `${EV}/telegram-mock.jsonl`;
+  if (!existsSync(path)) return null;
+  return summarizeEgressTimeline(readFileSync(path, "utf8").split("\n"), sinceMs);
 }
 
 function readOutcomes(): {
