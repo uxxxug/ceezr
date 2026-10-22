@@ -1,0 +1,32 @@
+{
+  "id": "load01-b33m-idle",
+  "goal": "LOAD-01 (2026-10-22): التجربتانِ التمييزيتانِ b33m-idle v1 (ميزانية 9800 معانقةً لحدِّ النبضة) وv2 (ميزانية 9400 تحتَ الجدار) لعزلِ أثرِ خمولِ حلقةِ التصريفِ عند 750 — بتصميمٍ مضادٍّ للترتيب (OFF-ON-ON-OFF) على مشغّلٍ واحدٍ وذراعِ المرجع C′ (63b20aa2)، بلا تغييرٍ في المنتج أو الحمل أو أيِّ عتبة (G1–G8، P1–P9، N1–N5، gatewayRequest: 5، IMMEDIATE_REDISPATCH_LIMIT = 50). النتيجة: v1 = INTERVENTION_FAILED (فواتُ نبضةٍ عشوائي — الاختبارُ الحتميُّ job-runner-tick-boundary.test.ts أثبتَ الجدارَ)، وv2 = نجحَ التلاعبُ والحكمُ (جدولُ v1 حرفيًا) CAPACITY_LOSS_ONLY: مكسبُ معدلٍ +22.5% بلا تحسُّنٍ في P7 أو G1 — الخمولُ خسارةُ سعةٍ فعليةٌ لكنه ليسَ سببَ فشلِ G1. الجدارُ البنيويُّ عولجَ في الشيفرةِ بفرعِ fix/job-runner-inflight-before-heartbeat (JOB-TICK-01: تحريرُ حارسِ التراكبِ بانتهاءِ الشوطِ لا بانتهاءِ نبضتِه) — ولا يُدَّعى به حلُّ البوابة. خطُّ أساسِ G1 غيرُ مستقرٍّ بينَ التشغيلات (v2 على نمطِ AA لا v1 — انزياحٌ بيئيٌّ). Batch33 لم تُسجَّل ولم تُشغَّل. LOAD-01 = FAIL بلا تغيير.",
+  "canonical_source": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/B33M-IDLE-RESULT-20261022.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/B33M-IDLE-V2-RESULT-20261022.md"
+  ],
+  "implementation": [
+    "apps/workers/src/runner.ts (fix/job-runner-inflight-before-heartbeat: إصلاح JOB-TICK-01)",
+    "tests/unit/job-runner-tick-boundary.test.ts (اختبارُ الحدودِ كاختبارِ انحدارٍ للإصلاح)"
+  ],
+  "state": [
+    "docs/SYSTEM_STATE.md"
+  ],
+  "roadmap": [
+    "ROADMAP.md",
+    "docs/roadmap/execution/STATUS.md"
+  ],
+  "affected_docs": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/B33M-IDLE-RESULT-20261022.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/B33M-IDLE-V2-RESULT-20261022.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle/gh-seat-39790831944/ (أرشيف v1: 365 ملفًا + SHA256SUMS)",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle/analysis/ (التحليلاتُ المثبتةُ لv1)",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle2/gh-seat-39803941984/ (أرشيف v2: 282 ملفًا + SHA256SUMS + ARCHIVE-PROVENANCE.md + b33m-idle-compare.local-rerun.json)",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle2/analysis/ (البروتوكولُ والمقعدُ والمقارنُ المثبتةُ لv2 + النسخةُ المصحَّحةُ RUN_RE)",
+    "docs/SYSTEM_STATE.md",
+    "ROADMAP.md",
+    "docs/roadmap/execution/STATUS.md",
+    "apps/workers/src/runner.ts",
+    "tests/unit/job-runner-tick-boundary.test.ts"
+  ]
+}

@@ -1,0 +1,75 @@
+name: LOAD-01 b33m-idle — عزلُ أثرِ خمولِ حلقةِ التصريفِ عند 750 (مقعد 4 vCPU)
+
+# تشخيصٌ معزولٌ على فرعِ القياسِ وحدَه ولا يُدمَج. PROTOCOL-b33m-idle.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة:
+#   main=01060c77 · C=16c7ad70 (مرجعُ ب32: I+L+S) · C′=63b20aa2 (C + أداةُ الرصدِ p7-attribution من main حرفًا)
+#   أربعُ موجاتٍ على مشغِّلٍ واحد: OFF، ON، ON، OFF (الميزانيةُ 8000/9800/9800/8000، فهارسُ الطرازِ 52–55)،
+#   والفرقُ الوحيدُ المسموحُ بينَ الذراعين: NOTIFICATION_DRAIN_BUDGET_MS (8000 مقابلَ 9800).
+#   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاجٍ، لا Render، لا تيليجرامَ حقيقيّ.
+#   النتيجةُ لا تسجِّلُ Batch33 ولا تعلنُ LOAD-01 (PROTOCOL-b33m-idle.md §5).
+on:
+  push:
+    branches: [exp/load01-b33m-idle]
+    paths:
+      - deploy/capacity-run/b24-runner/**
+      - .github/workflows/load01-b33m-idle.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load01-b33m-idle-seat
+  cancel-in-progress: false
+
+env:
+  MAIN_SHA: 01060c771c37bcd1418fec8d8bd52e477d127525
+  C_BASE: 16c7ad70eeba298819ef32c8434569ccd8a4eebe
+  C_ARM: 63b20aa296b57ca363427c6c9e5623186158054a
+  B33M_ANALYZER: b33m-analyze-v2.py
+
+jobs:
+  seat:
+    name: مقعد b33m-idle (التدخلُ في الميزانية)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد (حزم المقعد الأصلي والمستخدم user)
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$MAIN_SHA" "$C_BASE" "$C_ARM"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$C_BASE" "$C_ARM"
+          # النسب: C′ فوقَ C مباشرةً (وإلّا لا موجة)
+          [ "$(sudo -u user git -C /home/user/workspace/ceezr rev-parse "$C_ARM^")" = "$C_BASE" ]
+          echo ARM_LINEAGE_OK
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          MODE=$(cat deploy/capacity-run/b24-runner/MODE)
+          echo "MODE=$MODE"
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=C_BASE="$C_BASE" --setenv=C_ARM="$C_ARM" --setenv=B33M_ANALYZER="$B33M_ANALYZER" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b33m-idle.sh "$MODE"
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرارِ — الفشلُ يحجرُ الخامَّ في المقعدِ)
+        uses: actions/upload-artifact@v5
+        with:
+          name: b33midle-seat-evidence
+          path: /home/user/b33m-idle-out/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: b33midle-seat-failure-report
+          path: /home/user/b33m-idle-out/secret-audit.txt
+          if-no-files-found: ignore
