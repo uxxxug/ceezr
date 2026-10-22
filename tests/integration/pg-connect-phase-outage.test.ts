@@ -80,8 +80,8 @@ describeIf("انقطاعُ PostgreSQL أثناءَ إنشاءِ الاتصالِ
   it("العمليةُ تنجو (شاهدُ عمليةٍ فرعيّةٍ بلا معالجات)", async () => {
     expect(DATABASE_URL, "TEST_DATABASE_URL مطلوبٌ لاختبارِ قاعدةٍ حقيقيّة").toBeDefined();
     const proc = Bun.spawn(["bun", "-e", CHILD_SCENARIO], {
-      cwd: import.meta.dir + "/../..",
-      env: { ...process.env, CHILD_ROOT: import.meta.dir + "/../.." },
+      cwd: `${import.meta.dir}/../..`,
+      env: { ...process.env, CHILD_ROOT: `${import.meta.dir}/../..` },
       stdout: "pipe",
       stderr: "pipe",
     });
