@@ -26,7 +26,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - run_tag: main
+          - run_tag: confirm
+            analyzer: b33m-analyze-v2.py
             main_sha: 36ce8d3f26cce0e4a8622f80701cd1bed4b5bcd8
             c_base: 16c7ad70eeba298819ef32c8434569ccd8a4eebe
             c_arm: 63b20aa296b57ca363427c6c9e5623186158054a
@@ -35,6 +36,7 @@ jobs:
       C_BASE: ${{ matrix.c_base }}
       C_ARM: ${{ matrix.c_arm }}
       RUN_TAG: ${{ matrix.run_tag }}
+      B33M_ANALYZER: ${{ matrix.analyzer }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -59,7 +61,7 @@ jobs:
           echo "MODE=$MODE"
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
-            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=C_BASE="$C_BASE" --setenv=C_ARM="$C_ARM" --setenv=RUN_TAG="$RUN_TAG" \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=C_BASE="$C_BASE" --setenv=C_ARM="$C_ARM" --setenv=RUN_TAG="$RUN_TAG" --setenv=B33M_ANALYZER="$B33M_ANALYZER" \
             bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b33m.sh "$MODE"
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرارِ — الفشلُ يحجرُ الخامَّ في المقعدِ)

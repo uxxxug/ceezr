@@ -127,6 +127,8 @@ collect() {
 }
 AN="$H/deploy/capacity-run/b24-runner/b26-analyze.py"
 AN33="$H/deploy/capacity-run/b24-runner/b33m-analyze.py"
+# PROTOCOL-b33m-confirm.md: محلِّلُ القرارِ للموجةِ التأكيديّة v2؛ وv1 يُحسَبُ معه للإعلامِ (b33m-analysis-v1.json).
+AN33W="$H/deploy/capacity-run/b24-runner/${B33M_ANALYZER:-b33m-analyze.py}"
 P=b33m$RUN_TAG
 
 log "فحصٌ تمهيديٌّ (ليس موجةَ قياس): C′ عند 750 لمدّة 120s — الحدُّ الفعليّ، وحضورُ الأداةِ والعيّناتِ والاستخراج"
@@ -156,7 +158,8 @@ else
     measure m2 31
   fi
   if [ "$V" = VALID ]; then
-    python3 "$AN33" wave "$OUT/raw/$RUN" > "$OUT/b33m-analysis.json" 2>"$OUT/b33m-analysis.err" || tail -5 "$OUT/b33m-analysis.err"
+    python3 "$AN33" wave "$OUT/raw/$RUN" > "$OUT/b33m-analysis-v1.json" 2>/dev/null || true
+    python3 "$AN33W" wave "$OUT/raw/$RUN" > "$OUT/b33m-analysis.json" 2>"$OUT/b33m-analysis.err" || tail -5 "$OUT/b33m-analysis.err"
     python3 -c "import json;d=json.load(open('$OUT/b33m-analysis.json'));print('B33M_RESULT',json.dumps({'run':'$RUN','complete':d['completeness']['complete'],'choice':d['b33_choice_rule'],'H':{k:v.get('verdict') for k,v in d['hypotheses'].items()}},ensure_ascii=False))" || true
   else
     echo "B33M_NO_VALID_WAVE — لا تشخيصَ من موجةٍ غيرِ صالحة"
