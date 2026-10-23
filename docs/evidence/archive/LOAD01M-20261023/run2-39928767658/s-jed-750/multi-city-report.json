@@ -1,0 +1,35 @@
+{
+  "cities": [
+    "JED"
+  ],
+  "totals": {
+    "launched": 4077,
+    "verified": 4047
+  },
+  "perCity": [
+    {
+      "city": "JED",
+      "launched": 4077,
+      "verified": 4047,
+      "completionRate": 0.9926416482707874,
+      "offerAppearP95Ms": 43010,
+      "topReasons": [
+        [
+          "offer:offer_not_found_in_time",
+          30
+        ]
+      ]
+    }
+  ],
+  "fairnessGap": 0,
+  "isolation": {
+    "I1_order_vs_rider_city": 0,
+    "I2_offer_driver_other_city": 0,
+    "I3_assigned_driver_other_city": 0,
+    "I4_outbox_city_vs_order_city": 0,
+    "I5_outbox_chat_user_other_city": 0,
+    "I5b_outbox_group_chat_other_city": 0,
+    "I6_order_city_vs_scenario_city": 0
+  },
+  "isolationVerdict": "CLEAN"
+}

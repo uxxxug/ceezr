@@ -101,6 +101,16 @@ for (const c of CITY_LIST) {
   if (CITY_CENTERS[c] === undefined) throw new Error(`مدينةٌ غيرُ معروفةٍ في CITIES: ${c}`);
 }
 /** حصّةُ كلِّ مدينةٍ من تزامنِ المرحلةِ — يرفضُ القسمةَ غيرَ التامّةِ بدلَ التقريبِ الصامت. */
+/**
+ * `SOAK-02` — وضعُ معدّلِ الوصولِ الثابت (حلقةٌ مفتوحة): كم سيناريو مستحقٌّ الإطلاقَ الآن
+ * ليبقى المعدّلُ الكلّيُّ `rate`/ث منذ بدءِ المرحلة. بغيابِ `ARRIVAL_RATE` لا يُستعمل
+ * (الحلقةُ المغلقةُ لـ`LOAD-01` كما هي).
+ */
+export function dueLaunches(elapsedMs: number, rate: number, launchedSoFar: number): number {
+  if (!(rate > 0) || elapsedMs <= 0) return 0;
+  return Math.max(0, Math.floor((elapsedMs / 1000) * rate) - launchedSoFar);
+}
+
 export function perCityConcurrency(conc: number, cities: number): number {
   if (cities < 1) throw new Error("لا مدنَ في الجولة");
   if (conc % cities !== 0) throw new Error(`التزامنُ ${conc} لا ينقسمُ على ${cities} مدن`);
@@ -1188,13 +1198,55 @@ async function main() {
         ...(outcome.offerFoundAt === undefined ? {} : { offerFoundAt: outcome.offerFoundAt }),
       });
     };
-    while (Date.now() < stopAt) {
-      for (const city of CITY_LIST) {
-        const running = runningByCity.get(city);
-        if (running === undefined) continue;
-        while (running.size < share && Date.now() < stopAt) {
+    const arrivalRate = Number(process.env.ARRIVAL_RATE ?? "0");
+    if (arrivalRate > 0) {
+      // `SOAK-02`: معدّلُ وصولٍ ثابتٌ موزَّعٌ دوّارًا على المدن؛ الحصّةُ سقفٌ لا هدف، وكلُّ
+      // إطلاقٍ يمنعُه السقفُ يُحصى (rate.capped) فلا يختفي تشبّعٌ خلفَ معدّلٍ أقلَّ من المعلن.
+      ev("phase.arrival_rate", { name: ph.name, rate: arrivalRate, capPerCity: share });
+      const phaseStart = Date.now();
+      let launchedTotal = 0;
+      let cityCursor = 0;
+      let capped = 0;
+      while (Date.now() < stopAt) {
+        let due = dueLaunches(Date.now() - phaseStart, arrivalRate, launchedTotal + capped);
+        while (due > 0) {
+          due -= 1;
+          const city = CITY_LIST[cityCursor % CITY_LIST.length] ?? CITY_LIST[0];
+          cityCursor += 1;
+          const running = city === undefined ? undefined : runningByCity.get(city);
+          if (city === undefined || running === undefined || running.size >= share) {
+            capped += 1;
+            continue;
+          }
           const p = launch(city);
           running.add(p);
+          launchedTotal += 1;
+          void p.then(
+            () => {
+              running.delete(p);
+            },
+            () => {
+              running.delete(p);
+            },
+          );
+        }
+        await sleep(100);
+      }
+      ev("rate.summary", { name: ph.name, rate: arrivalRate, launched: launchedTotal, capped });
+    }
+    while (arrivalRate <= 0 && Date.now() < stopAt) {
+      // تشابكٌ دوّارٌ بينَ المدن (واحدٌ لكلِّ مدينةٍ في كلِّ دورة) لا ملءُ حصّةِ مدينةٍ ثمَّ التي
+      // تليها: الملءُ المتتابعُ وضعَ دفعةَ MED/TIF الأولى آخرَ طابورِ الدرينرِ FIFO فظهرت فجوةُ
+      // عدالةٍ مصطنعةٌ من المولّد (التشغيلُ الثالث m5-2500: JED 32.8% مقابلَ MED 0.5%).
+      let launched = true;
+      while (launched && Date.now() < stopAt) {
+        launched = false;
+        for (const city of CITY_LIST) {
+          const running = runningByCity.get(city);
+          if (running === undefined || running.size >= share) continue;
+          const p = launch(city);
+          running.add(p);
+          launched = true;
           void p.then(
             () => {
               running.delete(p);

@@ -15,6 +15,7 @@ import {
 } from "../../packages/application/dispatch/close-dead-offer-cards.ts";
 import { PortFailureError } from "../../packages/application/ports/index.ts";
 import { offerCardOutcome } from "../../packages/infrastructure/dispatch/offer-card-adapters.ts";
+import { OutboundCongestionError } from "../../packages/infrastructure/notification/rate-aware-telegram-sender.ts";
 import { translate } from "../../packages/shared/i18n/index.ts";
 import type { CityId } from "../../packages/shared/kernel/index.ts";
 import { err, ok } from "../../packages/shared/result/index.ts";
@@ -157,5 +158,68 @@ describe("WR-08 — إغلاقُ بطاقةِ العرضِ الميّت", () => 
     expect(translate("ar", "driver.offer_expired")).toBe("انتهت مهلة هذا الطلب.");
     expect(isTerminalOfferCardError("Bad Request: chat not found")).toBe(true);
     expect(isTerminalOfferCardError("Internal Server Error")).toBe(false);
+  });
+  test("ازدحامُ دلوِ الإرسالِ (D8) لا يستهلكُ محاولةَ البطاقةِ — تُعادُ كاملةً المحاولاتِ في الشوطِ القادمِ", async () => {
+    const s = setup([card("a"), card("b")]);
+    const congest = new OutboundCongestionError(2000);
+    s.deps.edit = async () => {
+      throw congest;
+    };
+    const r = await closeDeadOfferCards(CITY, s.deps);
+    expect(r.ok && r.value).toEqual({ closed: 0, failed: 2 });
+    // صفرُ محاولاتٍ مستهلكةٍ: البطاقاتُ لم تُعلَّمْ فاشلةً فتبقى قابلةً للإغلاقِ
+    // مهما تكرّرَ الازدحامُ (لا تُتركُ أزرارُ «قبول/رفض» بعدَ خمسِ دوراتٍ).
+    expect(s.attempts).toEqual([]);
+    expect(s.closed).toEqual([]);
+    expect(s.logs.filter((l) => l.event === "offer_card.close_congested").length).toBe(2);
+  });
+
+  test("البطاقةُ المزدحمةُ ستَّ دوراتٍ تبقى قابلةً للإغلاقِ وتُغلقُ بعدَ زوالِ الازدحامِ", async () => {
+    // ميناءُ بطاقاتٍ حقيقيُّ الدلالةِ: listDead يستبعدُ ما استنفدَ محاولاتِه الخمسَ.
+    const attempts = new Map<string, number>();
+    let congested = true;
+    const closed: string[] = [];
+    const edits: string[] = [];
+    const deps = {
+      cards: {
+        listDead: async (_city: CityId, _limit: number, maxAttempts: number) =>
+          ok(cards.filter((c) => (attempts.get(c.deliveryId) ?? 0) < maxAttempts)),
+        markClosed: async (id: string) => {
+          closed.push(id);
+          return ok(undefined);
+        },
+        markAttemptFailed: async (id: string) => {
+          attempts.set(id, (attempts.get(id) ?? 0) + 1);
+          return ok(undefined);
+        },
+      },
+      edit: async (_chatId: string, messageId: string) => {
+        if (congested) throw new OutboundCongestionError(2000);
+        edits.push(messageId);
+      },
+      text: (outcome: OfferCardOutcome, lang: string) => `${lang}:${outcome}`,
+      log: () => {},
+    };
+    const cards = [card("a"), card("b")];
+
+    // ستُّ دوراتِ ازدحامٍ (فوقَ سقفِ المحاولاتِ الخمسِ): لا استهلاكَ ولا فقدانَ.
+    for (let round = 0; round < 6; round += 1) {
+      const r = await closeDeadOfferCards(CITY, deps);
+      expect(r.ok && r.value).toEqual({ closed: 0, failed: 2 });
+      expect(attempts.size).toBe(0);
+    }
+    // زوالُ الازدحامِ: البطاقاتُ ما زالت مختارةً وتُغلقُ في الشوطِ التالي.
+    congested = false;
+    const r = await closeDeadOfferCards(CITY, deps);
+    expect(r.ok && r.value).toEqual({ closed: 2, failed: 0 });
+    expect(closed).toEqual(["a", "b"]);
+    expect(edits).toEqual(["m-a", "m-b"]);
+  });
+
+  test("فشلُ الإرسالِ الحقيقيِّ (429) يستهلكُ المحاولةَ كما كان — الازدحامُ وحدهُ المستثنى", async () => {
+    const s = setup([card("a")], { a: "Too Many Requests: retry after 3" });
+    const r = await closeDeadOfferCards(CITY, s.deps);
+    expect(r.ok && r.value).toEqual({ closed: 0, failed: 1 });
+    expect(s.attempts).toEqual(["a"]);
   });
 });

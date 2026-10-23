@@ -1,0 +1,2 @@
+verdict FAIL ['G4', 'P1', 'P2', 'P3', 'P6a', 'P6b', 'P6c', 'P7'] notverified {}
+G1=100.00% (44895/44895) | G2=0 | G3=0 + 0 | G4=VIOLATIONS✗ | G5=215 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 44895/44895 · drivers 44895/44895 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 350 / target 350 | P1=n/a✗ | P2=n/a✗ | P3=n/a✗ | P4=22056ms | P5=29466ms | P6a=n/a✗ | P6b=n/a✗ | P6c=n/a✗ | P7=1600s✗ | P8=0.00% | P9=0.00%

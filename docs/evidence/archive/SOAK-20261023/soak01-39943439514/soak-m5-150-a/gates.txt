@@ -1,0 +1,2 @@
+verdict FAIL ['G4', 'P1', 'P2', 'P3', 'P6a', 'P6b', 'P6c', 'P7'] notverified {'driver_session:TypeError': 1, 'accept:0': 2, 'job_arrived:0': 1}
+G1=99.99% (42847/42851) | G2=0 | G3=0 + 0 | G4=VIOLATIONS✗ | G5=135 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 42851/42851 · drivers 42851/42851 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 150 / target 150 | P1=n/a✗ | P2=n/a✗ | P3=n/a✗ | P4=13189ms | P5=16004ms | P6a=n/a✗ | P6b=n/a✗ | P6c=n/a✗ | P7=720s✗ | P8=0.00% | P9=0.00%

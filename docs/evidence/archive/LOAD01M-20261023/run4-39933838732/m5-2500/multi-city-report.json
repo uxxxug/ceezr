@@ -1,0 +1,103 @@
+{
+  "cities": [
+    "JED",
+    "MKK",
+    "RUH",
+    "TIF",
+    "MED"
+  ],
+  "totals": {
+    "launched": 18265,
+    "verified": 3316
+  },
+  "perCity": [
+    {
+      "city": "JED",
+      "launched": 3647,
+      "verified": 667,
+      "completionRate": 0.18289004661365507,
+      "offerAppearP95Ms": 6241,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2980
+        ]
+      ]
+    },
+    {
+      "city": "MED",
+      "launched": 3666,
+      "verified": 571,
+      "completionRate": 0.15575559192580468,
+      "offerAppearP95Ms": 5756,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          3095
+        ]
+      ]
+    },
+    {
+      "city": "MKK",
+      "launched": 3646,
+      "verified": 703,
+      "completionRate": 0.19281404278661546,
+      "offerAppearP95Ms": 7165,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2942
+        ],
+        [
+          "offer:offer_not_found_in_time",
+          1
+        ]
+      ]
+    },
+    {
+      "city": "RUH",
+      "launched": 3649,
+      "verified": 701,
+      "completionRate": 0.19210742669224445,
+      "offerAppearP95Ms": 6161,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2947
+        ],
+        [
+          "offer:offer_not_found_in_time",
+          1
+        ]
+      ]
+    },
+    {
+      "city": "TIF",
+      "launched": 3657,
+      "verified": 674,
+      "completionRate": 0.18430407437790539,
+      "offerAppearP95Ms": 6540,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2982
+        ],
+        [
+          "offer:offer_not_found_in_time",
+          1
+        ]
+      ]
+    }
+  ],
+  "fairnessGap": 0.03705845086081078,
+  "isolation": {
+    "I1_order_vs_rider_city": 0,
+    "I2_offer_driver_other_city": 0,
+    "I3_assigned_driver_other_city": 0,
+    "I4_outbox_city_vs_order_city": 0,
+    "I5_outbox_chat_user_other_city": 0,
+    "I5b_outbox_group_chat_other_city": 0,
+    "I6_order_city_vs_scenario_city": 0
+  },
+  "isolationVerdict": "CLEAN"
+}

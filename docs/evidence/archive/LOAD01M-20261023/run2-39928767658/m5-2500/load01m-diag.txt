@@ -1,0 +1,32 @@
+=== DIAG mock-telegram
+mock_pre_total 10 mock_post_total 5275
+by_bot_delta {"driver": 4457, "rider": 808}
+by_method {"setMyCommands": 8, "setChatMenuButton": 2, "sendMessage": 5265}
+rejected_429 4 soft_private_1ps 9 soft_group_20pm 0
+outcomes_per_10s 0s:347/347 10s:2008/174 20s:464/140 30s:253/0 40s:2246/0 50s:189/0 60s:1865/0 70s:635/0 80s:1499/0 90s:1001/0 100s:1358/0 110s:1142/0 120s:1270/0 130s:1230/0 140s:1204/0 150s:1296/0 160s:1080/0 170s:1420/0 180s:1033/0 190s:73/0
+onboarding_failed_step_patterns 2
+  20886 {"adminVerification": "not_run", "capability": "not_run", "dbPendingVerified": false, "onboardingPost": 409, "phoneProofJob": "timeout", "phoneProofWebhook": 200, "session": "ok", "trial": "not_run"}
+  66 {"adminVerification": "ok", "capability": "ok", "dbPendingVerified": true, "onboardingPost": 201, "phoneProofJob": "timeout", "phoneProofWebhook": 200, "session": "ok", "trial": "ok"}
+db_audit CLEAN
+=== DIAG telegram_update_jobs (per bot)
+driver | done | 13500 | 51.35 | 98.75 | 100.78 | 112
+driver | pending | 8113 |  |  |  | 66
+=== DIAG telegram_update_jobs completions per 10s (per bot)
+driver 0s:429 10s:219 20s:285 30s:1751 40s:236 50s:289 60s:1677 70s:236 80s:247 90s:421 100s:1326 110s:257 120s:177 130s:1703 140s:257 150s:253 160s:1626 170s:239 180s:273 190s:1599
+=== DIAG notification_outbox (per kind)
+offer | dead | 4966 |  |  | 
+rider_trip_notice | delivered | 2644 | 0.66 | 29.81 | 
+=== DIAG pg_stat_statements top by total time
+21613 | 61339 | 2.84 | select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result
+46 | 14663 | 318.75 | select claim_telegram_update_replies($1::integer, $2::integer) as result
+4929 | 12653 | 2.57 | select claim_notification_delivery() result
+4410 | 9261 | 2.10 | select claim_telegram_update_jobs_for_bot($1, $2, $3, $4) as result
+1061228 | 9127 | 0.01 | select status from telegram_update_jobs where bot = $2 and update_id = $1::bigint
+1836 | 6890 | 3.75 | select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result
+21613 | 6786 | 0.31 | insert into users (city_id, telegram_id, full_name, phone, role, language_code) values ((select id from cities where code = $1), $2::bigint,
+13500 | 5102 | 0.38 | select record_telegram_update_effect( $1, $2, $3::uuid, $4::jsonb ) as result
+1109 | 4805 | 4.33 | select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result
+21613 | 4440 | 0.21 | insert into riders (city_id, user_id) values ((select id from cities where code = $1), $2::uuid) on conflict (user_id) do nothing
+1161 | 4335 | 3.73 | select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (extract($1 from d.last
+661 | 2674 | 4.05 | select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $15) as result
+=== DIAG END

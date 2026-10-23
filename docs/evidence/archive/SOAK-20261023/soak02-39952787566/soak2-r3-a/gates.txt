@@ -1,0 +1,2 @@
+verdict FAIL ['CONC-peak'] notverified {}
+G1=100.00% (10799/10799) | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 10799/10799 · drivers 10799/10799 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 9 / target 500✗ | P1=8ms | P2=7ms | P3=5ms | P4=2015ms | P5=2047ms | P6a=11ms | P6b=10ms | P6c=7ms | P7=47s | P8=0.00% | P9=0.00%

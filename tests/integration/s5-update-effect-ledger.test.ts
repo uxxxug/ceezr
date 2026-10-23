@@ -381,4 +381,64 @@ d("S5 — دفترُ أثرِ التحديثِ ونيّةُ الردِّ الد�
     expect((await job(idB))?.reply_status).toBe("done");
     expect(h.effects.get(idB)).toBe(1);
   }, 30_000);
+
+  /**
+   * LOAD-01M (2026-10-23) — المقيسُ في `m5-2500` (تشغيل 39928767658): امتلاءُ المُرسِلِ الفوريِّ كانَ
+   * يُرسِلُ داخلَ المسارِ فيربطُ إتمامَ وظائفِ webhook بدلوِ البوتِ (25/ث): p95 99ث و8,113 وظيفةً
+   * معلّقةً ⇒ G1 = 3.06%. هنا: الطابورُ ممتلئٌ والإرسالُ معلّقٌ تمامًا، والوظائفُ كلُّها `done`
+   * دونَ أيِّ إرسالٍ داخلَ المسار (السلوكُ القديمُ يعلقُ هنا حتى المهلة)، والمؤجَّلُ يُرسَلُ مرّةً
+   * واحدةً من المُرسِلِ الخلفيِّ بعدَ الإيجار.
+   */
+  it("(١٠) امتلاءُ المُرسِلِ الفوريِّ يؤجِّلُ للخلفيِّ ولا يحجزُ المسار", async () => {
+    const idA = nextUpdateId();
+    const idB = nextUpdateId();
+    const idC = nextUpdateId();
+    await enqueue(idA, 51_011);
+    await enqueue(idB, 51_012);
+    await enqueue(idC, 51_013);
+    const h = harness();
+    let open: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      open = resolve;
+    });
+    let gatedCalls = 0;
+    const inner = h.handler.deliver as NonNullable<UpdateHandler["deliver"]>;
+    const handler: UpdateHandler = {
+      ...h.handler,
+      deliver: async (bot, replies, from) => {
+        gatedCalls += 1;
+        await gate;
+        return inner(bot, replies, from);
+      },
+    };
+    const logs: string[] = [];
+    const pool = createTelegramReplyPool({ concurrency: 1, maxQueued: 1, maxWaitMs: 30_000 });
+    const queue = createPostgresTelegramUpdateQueue(sql);
+    const report = await drainTelegramUpdateJobsOnce({
+      ...deps(queue, h, logs),
+      handler,
+      replyPool: pool,
+    });
+    expect(report.done).toBe(3);
+    for (const id of [idA, idB, idC]) expect((await job(id))?.status).toBe("done");
+    // A يجري في المُرسِلِ الفوريِّ وB في طابورِه، وC مؤجَّلٌ: لا استدعاءَ إرسالٍ له.
+    expect(gatedCalls).toBe(1);
+    expect(logs).toContain("telegram.replies.deferred_overflow");
+    expect((await job(idC))?.reply_status).toBe("sending");
+    open();
+    await pool.idle();
+    expect(h.sends.filter((x) => x.updateId === idC)).toEqual([]);
+    // الإيجارُ قائمٌ ⇒ الخلفيُّ لا يتسابقُ عليه.
+    await drainTelegramUpdateRepliesOnce({ ...deps(queue, h), handler: h.handler });
+    expect(h.sends.filter((x) => x.updateId === idC)).toEqual([]);
+    await sql`update telegram_update_jobs set reply_claimed_at = now() - interval '61 seconds'
+               where bot = 'driver' and update_id = ${idC}`;
+    await drainTelegramUpdateRepliesOnce({ ...deps(queue, h), handler: h.handler });
+    expect(h.sends.filter((x) => x.updateId === idC)).toEqual([
+      { updateId: idC, index: 0 },
+      { updateId: idC, index: 1 },
+    ]);
+    expect((await job(idC))?.reply_status).toBe("done");
+    for (const id of [idA, idB, idC]) expect(h.effects.get(id)).toBe(1);
+  }, 30_000);
 });

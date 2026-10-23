@@ -1,0 +1,25 @@
+
+Expected to contain: "global:bot"
+Received: []
+
+      at <anonymous> (/home/user/workspace/ceezr/tests/unit/rate-aware-telegram-sender.test.ts:374:22)
+(fail) غلافُ صمودِ الصادرِ (CAP-002) > تعديلُ رسالةٍ قائمةٍ يحجزُ فتحةً منَ الدلوِ العالميِّ قبلَ التنفيذِ [0.51ms]
+390 |     };
+391 |     const { sender, deadLetter } = harness(inner, { bucket, maxBucketWaitMs: 100 });
+392 | 
+393 |     await expect(
+394 |       sender.editMessageText?.("111", "42", "نصٌّ محدَّثٌ", undefined),
+395 |     ).rejects.toBeInstanceOf(OutboundSendError);
+                    ^
+error: expect(received).rejects.toBeInstanceOf(expected)
+
+Expected promise that rejects
+Received promise that resolved: Promise { <resolved> }
+
+      at <anonymous> (/home/user/workspace/ceezr/tests/unit/rate-aware-telegram-sender.test.ts:395:15)
+(fail) غلافُ صمودِ الصادرِ (CAP-002) > امتلاءُ الدلوِ العالميِّ يمنعُ تعديلَ الرسالةِ ولا يتسللُ إلى الداخلِ [0.26ms]
+
+ 15 pass
+ 2 fail
+ 55 expect() calls
+Ran 17 tests across 1 file. [62.00ms]

@@ -9,6 +9,7 @@
  * ملاحظات مستقبلية: البطاقاتُ القديمةُ قبلَ الهجرةِ عُلِّمَت مغلقةً دونَ تعديل.
  */
 
+import { OutboundCongestionError } from "../../infrastructure/notification/rate-aware-telegram-sender.ts";
 import type { CityId } from "../../shared/kernel/index.ts";
 import { ok, type Result } from "../../shared/result/index.ts";
 import type { PortFailureError } from "../ports/index.ts";
@@ -87,6 +88,18 @@ export async function closeDeadOfferCards(
     try {
       await deps.edit(card.chatId, card.messageId, deps.text(card.outcome, card.languageCode));
     } catch (thrown) {
+      if (thrown instanceof OutboundCongestionError) {
+        // `D8` — ازدحامُ دلوِ الإرسالِ ضغطٌ عابرٌ لا فشلَ إرسالٍ: لا شيءَ حاولَ
+        // الوصولَ فلا تُستهلكُ محاولةُ البطاقةِ (لو استُهلكت لتُركت أزرارُ
+        // «قبول/رفض» على بطاقةٍ ميّتةٍ بعدَ خمسِ دوراتِ ازدحامٍ) — تُعادُ في
+        // الشوطِ القادمِ كاملةَ المحاولاتِ.
+        failed += 1;
+        log("offer_card.close_congested", {
+          ...meta,
+          retry_after_ms: thrown.retryAfterMs,
+        });
+        continue;
+      }
       const detail = thrown instanceof Error ? thrown.message : String(thrown);
       if (!isTerminalOfferCardError(detail)) {
         failed += 1;
