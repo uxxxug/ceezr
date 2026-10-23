@@ -8,6 +8,7 @@
     "packages/application/notification/deliver-notification.ts",
     "apps/workers/src/jobs/deliver-notifications.ts",
     "apps/workers/src/container.ts",
+    "tests/integration/pg-connect-phase-outage.test.ts",
     "tests/unit/notification-outbox-concurrent-drain.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
