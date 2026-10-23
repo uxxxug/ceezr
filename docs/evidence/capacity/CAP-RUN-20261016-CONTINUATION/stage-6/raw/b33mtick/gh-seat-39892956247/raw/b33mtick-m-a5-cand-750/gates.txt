@@ -1,2 +1,0 @@
-verdict FAIL ['P4'] notverified {'offer:offer_not_found_in_time': 19}
-G1=99.53% (4010/4029) | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 4029/4029 · drivers 4029/4029 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 750 / target 750 | P1=292ms | P2=35ms | P3=45ms | P4=44290ms✗ | P5=44422ms | P6a=347ms | P6b=80ms | P6c=100ms | P7=99s | P8=0.00% | P9=0.00%

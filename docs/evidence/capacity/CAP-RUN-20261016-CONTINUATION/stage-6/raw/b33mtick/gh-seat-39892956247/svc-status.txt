@@ -1,4 +1,0 @@
-telegram-mock=up
-shim=up
-gateway=down
-ready=000

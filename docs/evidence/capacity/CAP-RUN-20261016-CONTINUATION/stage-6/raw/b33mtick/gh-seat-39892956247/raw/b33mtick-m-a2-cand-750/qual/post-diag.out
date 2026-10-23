@@ -1,5 +1,0 @@
-pkill: killing pid 9740 failed: Operation not permitted
-   129 /srv/ceezr-cap-20261016/runs/b33mtick-m-a2-cand-750/evidence/pgss-full.csv
-  4135 /srv/ceezr-cap-20261016/runs/b33mtick-m-a2-cand-750/evidence/telegram-jobs.csv
-  4264 total
-POST_DIAG_DONE
