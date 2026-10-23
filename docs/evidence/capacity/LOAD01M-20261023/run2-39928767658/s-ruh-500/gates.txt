@@ -1,0 +1,2 @@
+verdict PASS [] notverified {'offer:offer_not_found_in_time': 2}
+G1=99.96% (4443/4445) | G2=0 | G3=0 + 0 | G4=CLEAN | G5=1 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 4445/4445 · drivers 4445/4445 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 500 / target 500 | P1=833ms | P2=44ms | P3=58ms | P4=24264ms | P5=24579ms | P6a=902ms | P6b=81ms | P6c=87ms | P7=99s | P8=0.00% | P9=0.00%

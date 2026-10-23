@@ -1,0 +1,111 @@
+{
+  "cities": [
+    "JED",
+    "MKK",
+    "RUH",
+    "TIF",
+    "MED"
+  ],
+  "totals": {
+    "launched": 12426,
+    "verified": 1840
+  },
+  "perCity": [
+    {
+      "city": "JED",
+      "launched": 2563,
+      "verified": 451,
+      "completionRate": 0.1759656652360515,
+      "offerAppearP95Ms": 8157,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2109
+        ],
+        [
+          "offer:offer_not_found_in_time",
+          3
+        ]
+      ]
+    },
+    {
+      "city": "MED",
+      "launched": 2399,
+      "verified": 267,
+      "completionRate": 0.11129637348895373,
+      "offerAppearP95Ms": 6990,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2131
+        ],
+        [
+          "offer:offer_not_found_in_time",
+          1
+        ]
+      ]
+    },
+    {
+      "city": "MKK",
+      "launched": 2557,
+      "verified": 448,
+      "completionRate": 0.1752053187328901,
+      "offerAppearP95Ms": 8177,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2106
+        ],
+        [
+          "offer:offer_not_found_in_time",
+          3
+        ]
+      ]
+    },
+    {
+      "city": "RUH",
+      "launched": 2506,
+      "verified": 402,
+      "completionRate": 0.160415003990423,
+      "offerAppearP95Ms": 7708,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2100
+        ],
+        [
+          "offer:offer_not_found_in_time",
+          4
+        ]
+      ]
+    },
+    {
+      "city": "TIF",
+      "launched": 2401,
+      "verified": 272,
+      "completionRate": 0.11328613077884214,
+      "offerAppearP95Ms": 7109,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          2128
+        ],
+        [
+          "offer:offer_not_found_in_time",
+          1
+        ]
+      ]
+    }
+  ],
+  "fairnessGap": 0.06466929174709778,
+  "isolation": {
+    "I1_order_vs_rider_city": 0,
+    "I2_offer_driver_other_city": 0,
+    "I3_assigned_driver_other_city": 0,
+    "I4_outbox_city_vs_order_city": 0,
+    "I5_outbox_chat_user_other_city": 0,
+    "I5b_outbox_group_chat_other_city": 0,
+    "I6_order_city_vs_scenario_city": 0
+  },
+  "isolationVerdict": "CLEAN"
+}

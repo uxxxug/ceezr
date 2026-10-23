@@ -1,0 +1,32 @@
+=== DIAG mock-telegram
+mock_pre_total 10 mock_post_total 8086
+by_bot_delta {"driver": 4094, "rider": 3982}
+by_method {"setMyCommands": 8, "setChatMenuButton": 2, "sendMessage": 8076}
+rejected_429 0 soft_private_1ps 14 soft_group_20pm 0
+outcomes_per_10s 0s:227/227 10s:221/221 20s:244/244 30s:230/230 40s:189/189 50s:213/213 60s:218/218 70s:221/221 80s:235/235 90s:228/228 100s:198/198 110s:227/227 120s:188/188 130s:217/216 140s:238/238 150s:214/214 160s:222/222 170s:227/227 180s:253/252 190s:152/152
+onboarding_failed_step_patterns 0
+db_audit CLEAN
+=== DIAG telegram_update_jobs (per bot)
+driver | done | 4362 | 0.16 | 4.11 | 8.06 | 179
+=== DIAG telegram_update_jobs completions per 10s (per bot)
+driver 0s:580 10s:306 20s:228 30s:216 40s:224 50s:221 60s:177 70s:255 80s:226 90s:224 100s:183 110s:230 120s:215 130s:214 140s:218 150s:197 160s:242 170s:206
+=== DIAG notification_outbox (per kind)
+offer | dead | 24914 |  |  | 
+rider_trip_notice | delivered | 16254 | 0.12 | 51.97 | 
+rider_trip_notice | pending | 1185 |  |  | 91
+rider_trip_notice | sending | 1 |  |  | 89
+wider_circle_opened | pending | 2 |  |  | 103
+=== DIAG pg_stat_statements top by total time
+45519 | 54989 | 1.21 | with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.verification_status::text as verification_status, d.l
+5477 | 51451 | 9.39 | select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (extract($1 from d.last
+20397 | 36969 | 1.81 | select claim_notification_delivery() result
+4362 | 24569 | 5.63 | select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $15) as result
+5382 | 20523 | 3.81 | select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result
+4362 | 18527 | 4.25 | select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null
+12270 | 16390 | 1.34 | select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result
+4360 | 9511 | 2.18 | select driver_accept_offer_with_matched_notice($1::bigint, $2::uuid) as result
+4360 | 8088 | 1.86 | select driver_complete_ride_with_notice($1::bigint, $2::uuid) as result
+16409 | 8074 | 0.49 | select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result
+4360 | 7574 | 1.74 | select driver_start_ride_with_notice($1::bigint, $2::uuid) as result
+4360 | 6368 | 1.46 | select driver_mark_arrived_with_notice($1::bigint, $2::uuid) as result
+=== DIAG END
