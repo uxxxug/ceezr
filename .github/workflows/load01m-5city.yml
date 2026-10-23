@@ -16,7 +16,9 @@ permissions:
 
 env:
   MAIN_SHA: 2aa557aa2813b77bc12d37b257de22ae733378af
-  EXP_SHA: 8f1059f35cfc5cea4a6493a32fb518d5c23cbd0f
+  EXP_SHA: 20afcfb9e0c87073146bec793fbd19b9c7436b0f
+  # التشغيلُ الثالث: main + المولّد + إصلاحُ PR #632 — الفرقُ المسموحُ في المنتجِ هذانِ الملفّانِ فقط.
+  EXPECTED_PRODUCT_DIFF: "apps/gateway/src/background/telegram-reply-pool.ts apps/gateway/src/background/telegram-update-drainer.ts"
 
 jobs:
   seat:
@@ -56,7 +58,7 @@ jobs:
         run: |
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
-            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" --setenv=EXPECTED_PRODUCT_DIFF="$EXPECTED_PRODUCT_DIFF" \
             bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m.sh "${{ matrix.name }}" "${{ matrix.conc }}" "${{ matrix.cities }}"
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)

@@ -25,8 +25,9 @@ git -C "$H" show "$EXP_SHA:apps/gateway/src/container.ts" | grep -q "IMMEDIATE_R
 echo "FROZEN_CONSTANTS_OK gatewayRequest=5 IMMEDIATE_REDISPATCH_LIMIT=50"
 # الفرقُ عن main محصورٌ في المولّدِ وتقريرِه واختباراتِه وعدّةِ المقعد — لا تغييرَ في المنتج.
 PROD_DIFF=$(git -C "$H" diff --name-only "${MAIN_SHA:?}" "$EXP_SHA" -- apps packages supabase deploy/capacity-run/config | tr '\n' ' ')
-[ -z "$PROD_DIFF" ] || { echo "PRODUCT_CHANGED [$PROD_DIFF] — لا موجة"; exit 1; }
-echo "PRODUCT_UNCHANGED main=$MAIN_SHA exp=$EXP_SHA"
+# التشغيلُ الثالث: فرقُ المنتجِ يجبُ أن يساويَ EXPECTED_PRODUCT_DIFF حرفيًّا (إصلاحُ PR #632 وحدَه).
+[ "$(echo $PROD_DIFF)" = "$(echo ${EXPECTED_PRODUCT_DIFF:-})" ] || { echo "PRODUCT_DIFF_UNEXPECTED [$PROD_DIFF] — لا موجة"; exit 1; }
+echo "PRODUCT_DIFF_AS_EXPECTED main=$MAIN_SHA exp=$EXP_SHA [${PROD_DIFF:-none}]"
 grep -H "^TELEGRAM_DRAIN_LANES=" "$W/wt-acc/deploy/capacity-run/config/run.env" || true
 
 log "setup-env (infra|db|migrate)"
