@@ -1,0 +1,76 @@
+name: LOAD-01M — المدن الخمس المتزامنة (هدفٌ مكمِّلٌ لـLOAD-01، مقعد 4 vCPU)
+
+# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01m.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
+#   الشيفرةُ = EXP_SHA (main + المولّدُ متعدّدُ المدن) — لا تغييرَ في المنتج (يُتحقَّقُ آليًّا في المقعد).
+#   كلُّ موجةٍ على مشغِّلٍ مستقلٍّ بمرجعِ خمولٍ خاصٍّ به. gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير.
+#   لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
+on:
+  push:
+    branches: [exp/load01m-5city]
+    paths:
+      - deploy/capacity-run/b24-runner/**
+      - .github/workflows/load01m-5city.yml
+
+permissions:
+  contents: read
+
+env:
+  MAIN_SHA: 2aa557aa2813b77bc12d37b257de22ae733378af
+  EXP_SHA: 8f1059f35cfc5cea4a6493a32fb518d5c23cbd0f
+
+jobs:
+  seat:
+    name: "${{ matrix.name }} (scenarios=${{ matrix.conc }}, cities=${{ matrix.cities }})"
+    runs-on: ubuntu-26.04
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: s-jed-500, conc: 500, cities: "JED" }
+          - { name: s-mkk-500, conc: 500, cities: "MKK" }
+          - { name: s-ruh-500, conc: 500, cities: "RUH" }
+          - { name: s-tif-500, conc: 500, cities: "TIF" }
+          - { name: s-med-500, conc: 500, cities: "MED" }
+          - { name: s-jed-750, conc: 750, cities: "JED" }
+          - { name: m5-250, conc: 250, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: m5-500, conc: 500, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: m5-750, conc: 750, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: m5-1500, conc: 1500, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: m5-2500, conc: 2500, cities: "JED,MKK,RUH,TIF,MED" }
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$MAIN_SHA" "$EXP_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+
+      - name: المقعد والموجة (داخل ceezrseat.slice)
+        run: |
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m.sh "${{ matrix.name }}" "${{ matrix.conc }}" "${{ matrix.cities }}"
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01m-${{ matrix.name }}
+          path: /home/user/load01m-out/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01m-${{ matrix.name }}-failure-report
+          path: /home/user/load01m-out/secret-audit.txt
+          if-no-files-found: ignore
