@@ -1,0 +1,776 @@
+{
+ "a1-ref": {
+  "wave": "a1-ref",
+  "و1_per_type_match": {
+   "outbound.resilience_event": [
+    13902,
+    13902
+   ],
+   "job.ran": [
+    654,
+    654
+   ]
+  },
+  "و1_pass": true,
+  "ب_backpressure": {
+   "backpressure|global": 7499,
+   "backpressure|chat": 6349,
+   "gave_up|None": 51,
+   "throttled|None": 3
+  },
+  "د_mock_429": 3,
+  "هـ": {
+   "job.ran": 654,
+   "redispatch.immediate_debounced": 7797,
+   "redispatch.rebroadcast": 5349,
+   "telegram.drainer.sweep_cap_reached": 7,
+   "telegram.drainer.sweep_completed": 468,
+   "telegram.replies.sweep_completed": 5
+  },
+  "و2_job_ran_count": 25,
+  "و2_span_sec": 242.6,
+  "ج_status": {
+   "delivered": 14413,
+   "pending": 1364,
+   "dead": 26466
+  },
+  "ج_last_error_at_export": {
+   "OUTBOUND_CONGESTION": 682,
+   "SIGNAL_WAIT": 7
+  },
+  "ج_dead_by_reason": {
+   "ABANDONED": 26466
+  },
+  "ج_snapshot_at": "2026-10-23T03:23:17.135Z",
+  "ج_rows_updated_after_snapshot": 0,
+  "ج_pending_age_at_snapshot": {
+   "n": 1364,
+   "max": 96.8,
+   "p50": 58.1
+  },
+  "و3_resilience_fields": [
+   "at",
+   "attempt",
+   "chat",
+   "detail",
+   "event",
+   "operation",
+   "outbound_event",
+   "waitMs"
+  ],
+  "و3_mock_fields": [
+   "bot",
+   "chat",
+   "group",
+   "method",
+   "seq",
+   "status",
+   "t"
+  ],
+  "و3_outbox_fields": [
+   "id8",
+   "kind",
+   "status",
+   "created_ms",
+   "delivered_ms",
+   "died_ms",
+   "next_attempt_ms",
+   "updated_ms",
+   "attempts",
+   "signal_wait_count",
+   "delivered_channel",
+   "last_error",
+   "dead_reason",
+   "error_code",
+   "has_offer",
+   "order8"
+  ],
+  "و3_row_linkage_available": false,
+  "و4_ranges": {
+   "outbox_delivered": [
+    1792725552350,
+    1792725790420
+   ],
+   "mock_t": [
+    1792725538268,
+    1792725790419
+   ]
+  }
+ },
+ "a2-cand": {
+  "wave": "a2-cand",
+  "و1_per_type_match": {
+   "outbound.resilience_event": [
+    14554,
+    14554
+   ],
+   "job.ran": [
+    694,
+    694
+   ]
+  },
+  "و1_pass": true,
+  "ب_backpressure": {
+   "backpressure|global": 8093,
+   "backpressure|chat": 6428,
+   "throttled|None": 7,
+   "gave_up|None": 26
+  },
+  "د_mock_429": 7,
+  "هـ": {
+   "job.ran": 694,
+   "redispatch.immediate_debounced": 8267,
+   "redispatch.rebroadcast": 5547,
+   "telegram.drainer.sweep_cap_reached": 7,
+   "telegram.drainer.sweep_completed": 521,
+   "telegram.replies.sweep_completed": 8
+  },
+  "و2_job_ran_count": 27,
+  "و2_span_sec": 268.1,
+  "ج_status": {
+   "delivered": 16227,
+   "dead": 27730,
+   "pending": 261
+  },
+  "ج_last_error_at_export": {
+   "OUTBOUND_CONGESTION": 149
+  },
+  "ج_dead_by_reason": {
+   "ABANDONED": 27730
+  },
+  "ج_snapshot_at": "2026-10-23T03:29:47.398Z",
+  "ج_rows_updated_after_snapshot": 0,
+  "ج_pending_age_at_snapshot": {
+   "n": 261,
+   "max": 80.4,
+   "p50": 62.4
+  },
+  "و3_resilience_fields": [
+   "at",
+   "attempt",
+   "chat",
+   "detail",
+   "event",
+   "operation",
+   "outbound_event",
+   "waitMs"
+  ],
+  "و3_mock_fields": [
+   "bot",
+   "chat",
+   "group",
+   "method",
+   "seq",
+   "status",
+   "t"
+  ],
+  "و3_outbox_fields": [
+   "id8",
+   "kind",
+   "status",
+   "created_ms",
+   "delivered_ms",
+   "died_ms",
+   "next_attempt_ms",
+   "updated_ms",
+   "attempts",
+   "signal_wait_count",
+   "delivered_channel",
+   "last_error",
+   "dead_reason",
+   "error_code",
+   "has_offer",
+   "order8"
+  ],
+  "و3_row_linkage_available": false,
+  "و4_ranges": {
+   "outbox_delivered": [
+    1792725922357,
+    1792726185883
+   ],
+   "mock_t": [
+    1792725908338,
+    1792726185882
+   ]
+  }
+ },
+ "a3-cand": {
+  "wave": "a3-cand",
+  "و1_per_type_match": {
+   "outbound.resilience_event": [
+    14292,
+    14292
+   ],
+   "job.ran": [
+    681,
+    681
+   ]
+  },
+  "و1_pass": true,
+  "ب_backpressure": {
+   "backpressure|global": 7854,
+   "backpressure|chat": 6417,
+   "throttled|None": 4,
+   "gave_up|None": 17
+  },
+  "د_mock_429": 4,
+  "هـ": {
+   "job.ran": 681,
+   "redispatch.immediate_debounced": 8185,
+   "redispatch.rebroadcast": 5462,
+   "telegram.drainer.sweep_cap_reached": 7,
+   "telegram.drainer.sweep_completed": 519,
+   "telegram.replies.sweep_completed": 7
+  },
+  "و2_job_ran_count": 26,
+  "و2_span_sec": 258.1,
+  "ج_status": {
+   "delivered": 15253,
+   "dead": 27310,
+   "pending": 1045
+  },
+  "ج_last_error_at_export": {
+   "OUTBOUND_CONGESTION": 259
+  },
+  "ج_dead_by_reason": {
+   "ABANDONED": 27310
+  },
+  "ج_snapshot_at": "2026-10-23T03:36:07.407Z",
+  "ج_rows_updated_after_snapshot": 0,
+  "ج_pending_age_at_snapshot": {
+   "n": 1045,
+   "max": 92.4,
+   "p50": 67.1
+  },
+  "و3_resilience_fields": [
+   "at",
+   "attempt",
+   "chat",
+   "detail",
+   "event",
+   "operation",
+   "outbound_event",
+   "waitMs"
+  ],
+  "و3_mock_fields": [
+   "bot",
+   "chat",
+   "group",
+   "method",
+   "seq",
+   "status",
+   "t"
+  ],
+  "و3_outbox_fields": [
+   "id8",
+   "kind",
+   "status",
+   "created_ms",
+   "delivered_ms",
+   "died_ms",
+   "next_attempt_ms",
+   "updated_ms",
+   "attempts",
+   "signal_wait_count",
+   "delivered_channel",
+   "last_error",
+   "dead_reason",
+   "error_code",
+   "has_offer",
+   "order8"
+  ],
+  "و3_row_linkage_available": false,
+  "و4_ranges": {
+   "outbox_delivered": [
+    1792726312799,
+    1792726566144
+   ],
+   "mock_t": [
+    1792726298417,
+    1792726566143
+   ]
+  }
+ },
+ "a4-ref": {
+  "wave": "a4-ref",
+  "و1_per_type_match": {
+   "outbound.resilience_event": [
+    14093,
+    14093
+   ],
+   "job.ran": [
+    694,
+    694
+   ]
+  },
+  "و1_pass": true,
+  "ب_backpressure": {
+   "backpressure|global": 7711,
+   "backpressure|chat": 6359,
+   "throttled|None": 3,
+   "gave_up|None": 20
+  },
+  "د_mock_429": 3,
+  "هـ": {
+   "job.ran": 694,
+   "redispatch.immediate_debounced": 8051,
+   "redispatch.rebroadcast": 5463,
+   "telegram.drainer.sweep_cap_reached": 7,
+   "telegram.drainer.sweep_completed": 534,
+   "telegram.replies.sweep_completed": 7
+  },
+  "و2_job_ran_count": 27,
+  "و2_span_sec": 263.3,
+  "ج_status": {
+   "delivered": 15070,
+   "pending": 952,
+   "dead": 27315
+  },
+  "ج_last_error_at_export": {
+   "OUTBOUND_CONGESTION": 579
+  },
+  "ج_dead_by_reason": {
+   "ABANDONED": 27315
+  },
+  "ج_snapshot_at": "2026-10-23T03:42:37.556Z",
+  "ج_rows_updated_after_snapshot": 0,
+  "ج_pending_age_at_snapshot": {
+   "n": 952,
+   "max": 106.7,
+   "p50": 77.8
+  },
+  "و3_resilience_fields": [
+   "at",
+   "attempt",
+   "chat",
+   "detail",
+   "event",
+   "operation",
+   "outbound_event",
+   "waitMs"
+  ],
+  "و3_mock_fields": [
+   "bot",
+   "chat",
+   "group",
+   "method",
+   "seq",
+   "status",
+   "t"
+  ],
+  "و3_outbox_fields": [
+   "id8",
+   "kind",
+   "status",
+   "created_ms",
+   "delivered_ms",
+   "died_ms",
+   "next_attempt_ms",
+   "updated_ms",
+   "attempts",
+   "signal_wait_count",
+   "delivered_channel",
+   "last_error",
+   "dead_reason",
+   "error_code",
+   "has_offer",
+   "order8"
+  ],
+  "و3_row_linkage_available": false,
+  "و4_ranges": {
+   "outbox_delivered": [
+    1792726692329,
+    1792726951605
+   ],
+   "mock_t": [
+    1792726678476,
+    1792726951605
+   ]
+  }
+ },
+ "a5-cand": {
+  "wave": "a5-cand",
+  "و1_per_type_match": {
+   "outbound.resilience_event": [
+    14497,
+    14497
+   ],
+   "job.ran": [
+    694,
+    694
+   ]
+  },
+  "و1_pass": true,
+  "ب_backpressure": {
+   "backpressure|global": 8045,
+   "backpressure|chat": 6410,
+   "gave_up|None": 42
+  },
+  "د_mock_429": 0,
+  "هـ": {
+   "job.ran": 694,
+   "redispatch.immediate_debounced": 8057,
+   "redispatch.rebroadcast": 5407,
+   "telegram.drainer.sweep_cap_reached": 7,
+   "telegram.drainer.sweep_completed": 517,
+   "telegram.replies.sweep_completed": 6
+  },
+  "و2_job_ran_count": 27,
+  "و2_span_sec": 268.1,
+  "ج_status": {
+   "delivered": 15387,
+   "dead": 27032,
+   "pending": 662
+  },
+  "ج_last_error_at_export": {
+   "OUTBOUND_CONGESTION": 130
+  },
+  "ج_dead_by_reason": {
+   "ABANDONED": 27032
+  },
+  "ج_snapshot_at": "2026-10-23T03:49:07.828Z",
+  "ج_rows_updated_after_snapshot": 0,
+  "ج_pending_age_at_snapshot": {
+   "n": 662,
+   "max": 98.7,
+   "p50": 68.3
+  },
+  "و3_resilience_fields": [
+   "at",
+   "attempt",
+   "chat",
+   "detail",
+   "event",
+   "operation",
+   "outbound_event",
+   "waitMs"
+  ],
+  "و3_mock_fields": [
+   "bot",
+   "chat",
+   "group",
+   "method",
+   "seq",
+   "status",
+   "t"
+  ],
+  "و3_outbox_fields": [
+   "id8",
+   "kind",
+   "status",
+   "created_ms",
+   "delivered_ms",
+   "died_ms",
+   "next_attempt_ms",
+   "updated_ms",
+   "attempts",
+   "signal_wait_count",
+   "delivered_channel",
+   "last_error",
+   "dead_reason",
+   "error_code",
+   "has_offer",
+   "order8"
+  ],
+  "و3_row_linkage_available": false,
+  "و4_ranges": {
+   "outbox_delivered": [
+    1792727082625,
+    1792727346312
+   ],
+   "mock_t": [
+    1792727068739,
+    1792727346312
+   ]
+  }
+ },
+ "a6-ref": {
+  "wave": "a6-ref",
+  "و1_per_type_match": {
+   "outbound.resilience_event": [
+    14224,
+    14224
+   ],
+   "job.ran": [
+    681,
+    681
+   ]
+  },
+  "و1_pass": true,
+  "ب_backpressure": {
+   "backpressure|global": 7889,
+   "backpressure|chat": 6326,
+   "gave_up|None": 9
+  },
+  "د_mock_429": 0,
+  "هـ": {
+   "job.ran": 681,
+   "redispatch.immediate_debounced": 8161,
+   "redispatch.rebroadcast": 5531,
+   "telegram.drainer.sweep_cap_reached": 7,
+   "telegram.drainer.sweep_completed": 396,
+   "telegram.replies.sweep_completed": 10
+  },
+  "و2_job_ran_count": 26,
+  "و2_span_sec": 253.4,
+  "ج_status": {
+   "delivered": 15151,
+   "dead": 27655,
+   "pending": 1063
+  },
+  "ج_last_error_at_export": {
+   "OUTBOUND_CONGESTION": 527
+  },
+  "ج_dead_by_reason": {
+   "ABANDONED": 27655
+  },
+  "ج_snapshot_at": "2026-10-23T03:55:27.848Z",
+  "ج_rows_updated_after_snapshot": 0,
+  "ج_pending_age_at_snapshot": {
+   "n": 1063,
+   "max": 99.7,
+   "p50": 67.3
+  },
+  "و3_resilience_fields": [
+   "at",
+   "attempt",
+   "chat",
+   "detail",
+   "event",
+   "operation",
+   "outbound_event",
+   "waitMs"
+  ],
+  "و3_mock_fields": [
+   "bot",
+   "chat",
+   "group",
+   "method",
+   "seq",
+   "status",
+   "t"
+  ],
+  "و3_outbox_fields": [
+   "id8",
+   "kind",
+   "status",
+   "created_ms",
+   "delivered_ms",
+   "died_ms",
+   "next_attempt_ms",
+   "updated_ms",
+   "attempts",
+   "signal_wait_count",
+   "delivered_channel",
+   "last_error",
+   "dead_reason",
+   "error_code",
+   "has_offer",
+   "order8"
+  ],
+  "و3_row_linkage_available": false,
+  "و4_ranges": {
+   "outbox_delivered": [
+    1792727473047,
+    1792727721821
+   ],
+   "mock_t": [
+    1792727458667,
+    1792727721820
+   ]
+  }
+ },
+ "a7-ref": {
+  "wave": "a7-ref",
+  "و1_per_type_match": {
+   "outbound.resilience_event": [
+    14295,
+    14295
+   ],
+   "job.ran": [
+    654,
+    654
+   ]
+  },
+  "و1_pass": true,
+  "ب_backpressure": {
+   "backpressure|global": 7788,
+   "backpressure|chat": 6493,
+   "throttled|None": 1,
+   "gave_up|None": 13
+  },
+  "د_mock_429": 1,
+  "هـ": {
+   "job.ran": 654,
+   "redispatch.immediate_debounced": 8197,
+   "redispatch.rebroadcast": 5502,
+   "telegram.drainer.sweep_cap_reached": 7,
+   "telegram.drainer.sweep_completed": 503,
+   "telegram.replies.sweep_completed": 8
+  },
+  "و2_job_ran_count": 25,
+  "و2_span_sec": 248.1,
+  "ج_status": {
+   "delivered": 15185,
+   "dead": 27509,
+   "pending": 1152
+  },
+  "ج_last_error_at_export": {
+   "OUTBOUND_CONGESTION": 355
+  },
+  "ج_dead_by_reason": {
+   "ABANDONED": 27509
+  },
+  "ج_snapshot_at": "2026-10-23T04:01:37.944Z",
+  "ج_rows_updated_after_snapshot": 0,
+  "ج_pending_age_at_snapshot": {
+   "n": 1152,
+   "max": 87.6,
+   "p50": 57.0
+  },
+  "و3_resilience_fields": [
+   "at",
+   "attempt",
+   "chat",
+   "detail",
+   "event",
+   "operation",
+   "outbound_event",
+   "waitMs"
+  ],
+  "و3_mock_fields": [
+   "bot",
+   "chat",
+   "group",
+   "method",
+   "seq",
+   "status",
+   "t"
+  ],
+  "و3_outbox_fields": [
+   "id8",
+   "kind",
+   "status",
+   "created_ms",
+   "delivered_ms",
+   "died_ms",
+   "next_attempt_ms",
+   "updated_ms",
+   "attempts",
+   "signal_wait_count",
+   "delivered_channel",
+   "last_error",
+   "dead_reason",
+   "error_code",
+   "has_offer",
+   "order8"
+  ],
+  "و3_row_linkage_available": false,
+  "و4_ranges": {
+   "outbox_delivered": [
+    1792727853039,
+    1792728096604
+   ],
+   "mock_t": [
+    1792727838888,
+    1792728096604
+   ]
+  }
+ },
+ "a8-cand": {
+  "wave": "a8-cand",
+  "و1_per_type_match": {
+   "outbound.resilience_event": [
+    13746,
+    13746
+   ],
+   "job.ran": [
+    681,
+    681
+   ]
+  },
+  "و1_pass": true,
+  "ب_backpressure": {
+   "backpressure|global": 7406,
+   "backpressure|chat": 6330,
+   "gave_up|None": 10
+  },
+  "د_mock_429": 0,
+  "هـ": {
+   "job.ran": 681,
+   "redispatch.immediate_debounced": 8025,
+   "redispatch.rebroadcast": 5400,
+   "telegram.drainer.sweep_cap_reached": 7,
+   "telegram.drainer.sweep_completed": 443,
+   "telegram.replies.sweep_completed": 7
+  },
+  "و2_job_ran_count": 26,
+  "و2_span_sec": 253.7,
+  "ج_status": {
+   "delivered": 15057,
+   "dead": 27000,
+   "pending": 883
+  },
+  "ج_last_error_at_export": {
+   "OUTBOUND_CONGESTION": 485
+  },
+  "ج_dead_by_reason": {
+   "ABANDONED": 27000
+  },
+  "ج_snapshot_at": "2026-10-23T04:07:58.389Z",
+  "ج_rows_updated_after_snapshot": 0,
+  "ج_pending_age_at_snapshot": {
+   "n": 883,
+   "max": 87.3,
+   "p50": 62.8
+  },
+  "و3_resilience_fields": [
+   "at",
+   "attempt",
+   "chat",
+   "detail",
+   "event",
+   "operation",
+   "outbound_event",
+   "waitMs"
+  ],
+  "و3_mock_fields": [
+   "bot",
+   "chat",
+   "group",
+   "method",
+   "seq",
+   "status",
+   "t"
+  ],
+  "و3_outbox_fields": [
+   "id8",
+   "kind",
+   "status",
+   "created_ms",
+   "delivered_ms",
+   "died_ms",
+   "next_attempt_ms",
+   "updated_ms",
+   "attempts",
+   "signal_wait_count",
+   "delivered_channel",
+   "last_error",
+   "dead_reason",
+   "error_code",
+   "has_offer",
+   "order8"
+  ],
+  "و3_row_linkage_available": false,
+  "و4_ranges": {
+   "outbox_delivered": [
+    1792728223213,
+    1792728472364
+   ],
+   "mock_t": [
+    1792728209191,
+    1792728472363
+   ]
+  }
+ }
+}

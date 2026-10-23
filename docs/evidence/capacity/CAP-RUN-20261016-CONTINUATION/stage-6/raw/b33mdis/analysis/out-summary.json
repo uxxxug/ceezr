@@ -1,0 +1,290 @@
+{
+ "a1-ref": {
+  "G1": "99.31% (3872/3899)",
+  "P7_official": "97s",
+  "P7_pass": true,
+  "v2_H1": {
+   "idle_with_eligible": 0.386,
+   "verdict": "مدعوم"
+  },
+  "v2_H2": {
+   "requeue_share_of_claims": 0.91,
+   "cap_binding_in_runs": true,
+   "verdict": "مرفوض",
+   "note": "الإعادةُ مع دلوٍ مشبَعٍ نتيجةٌ للسقف لا سببٌ مستقلّ"
+  },
+  "v2_H5": {
+   "rider_rate_in_runs": 25.03,
+   "threshold": 22.5,
+   "verdict": "مدعوم"
+  },
+  "rider_rate_overall": 14.34,
+  "egress_run_vs_gap": {
+   "driver|gap": {
+    "n": 1479,
+    "per_s": 14.27
+   },
+   "driver|run": {
+    "n": 2410,
+    "per_s": 17.34
+   },
+   "rider|run": {
+    "n": 3478,
+    "per_s": 25.03
+   }
+  },
+  "delivered_per_run_p50": 150
+ },
+ "a2-cand": {
+  "G1": "99.66% (4120/4134)",
+  "P7_official": "80s",
+  "P7_pass": true,
+  "v2_H1": {
+   "idle_with_eligible": 0.279,
+   "verdict": "مدعوم"
+  },
+  "v2_H2": {
+   "requeue_share_of_claims": 0.887,
+   "cap_binding_in_runs": true,
+   "verdict": "مرفوض",
+   "note": "الإعادةُ مع دلوٍ مشبَعٍ نتيجةٌ للسقف لا سببٌ مستقلّ"
+  },
+  "v2_H5": {
+   "rider_rate_in_runs": 24.43,
+   "threshold": 22.5,
+   "verdict": "مدعوم"
+  },
+  "rider_rate_overall": 16.71,
+  "egress_run_vs_gap": {
+   "driver|gap": {
+    "n": 1195,
+    "per_s": 14.1
+   },
+   "driver|run": {
+    "n": 2922,
+    "per_s": 15.94
+   },
+   "rider|run": {
+    "n": 4479,
+    "per_s": 24.43
+   }
+  },
+  "delivered_per_run_p50": 175
+ },
+ "a3-cand": {
+  "G1": "99.49% (4072/4093)",
+  "P7_official": "92s",
+  "P7_pass": true,
+  "v2_H1": {
+   "idle_with_eligible": 0.352,
+   "verdict": "مدعوم"
+  },
+  "v2_H2": {
+   "requeue_share_of_claims": 0.901,
+   "cap_binding_in_runs": true,
+   "verdict": "مرفوض",
+   "note": "الإعادةُ مع دلوٍ مشبَعٍ نتيجةٌ للسقف لا سببٌ مستقلّ"
+  },
+  "v2_H5": {
+   "rider_rate_in_runs": 24.43,
+   "threshold": 22.5,
+   "verdict": "مدعوم"
+  },
+  "rider_rate_overall": 14.88,
+  "egress_run_vs_gap": {
+   "driver|gap": {
+    "n": 1485,
+    "per_s": 14.72
+   },
+   "driver|run": {
+    "n": 2598,
+    "per_s": 16.52
+   },
+   "rider|run": {
+    "n": 3841,
+    "per_s": 24.43
+   }
+  },
+  "delivered_per_run_p50": 150
+ },
+ "a4-ref": {
+  "G1": "99.43% (4003/4026)",
+  "P7_official": "107s",
+  "P7_pass": true,
+  "v2_H1": {
+   "idle_with_eligible": 0.379,
+   "verdict": "مدعوم"
+  },
+  "v2_H2": {
+   "requeue_share_of_claims": 0.913,
+   "cap_binding_in_runs": true,
+   "verdict": "مرفوض",
+   "note": "الإعادةُ مع دلوٍ مشبَعٍ نتيجةٌ للسقف لا سببٌ مستقلّ"
+  },
+  "v2_H5": {
+   "rider_rate_in_runs": 25.03,
+   "threshold": 22.5,
+   "verdict": "مدعوم"
+  },
+  "rider_rate_overall": 14.59,
+  "egress_run_vs_gap": {
+   "driver|gap": {
+    "n": 1357,
+    "per_s": 12.36
+   },
+   "driver|run": {
+    "n": 2659,
+    "per_s": 17.32
+   },
+   "rider|run": {
+    "n": 3842,
+    "per_s": 25.03
+   }
+  },
+  "delivered_per_run_p50": 150
+ },
+ "a5-cand": {
+  "G1": "99.53% (4010/4029)",
+  "P7_official": "99s",
+  "P7_pass": true,
+  "v2_H1": {
+   "idle_with_eligible": 0.335,
+   "verdict": "مدعوم"
+  },
+  "v2_H2": {
+   "requeue_share_of_claims": 0.895,
+   "cap_binding_in_runs": true,
+   "verdict": "مرفوض",
+   "note": "الإعادةُ مع دلوٍ مشبَعٍ نتيجةٌ للسقف لا سببٌ مستقلّ"
+  },
+  "v2_H5": {
+   "rider_rate_in_runs": 24.68,
+   "threshold": 22.5,
+   "verdict": "مدعوم"
+  },
+  "rider_rate_overall": 15.48,
+  "egress_run_vs_gap": {
+   "driver|gap": {
+    "n": 1427,
+    "per_s": 14.29
+   },
+   "driver|run": {
+    "n": 2591,
+    "per_s": 15.4
+   },
+   "rider|run": {
+    "n": 4151,
+    "per_s": 24.68
+   }
+  },
+  "delivered_per_run_p50": 165
+ },
+ "a6-ref": {
+  "G1": "99.26% (4051/4081)",
+  "P7_official": "100s",
+  "P7_pass": true,
+  "v2_H1": {
+   "idle_with_eligible": 0.323,
+   "verdict": "مدعوم"
+  },
+  "v2_H2": {
+   "requeue_share_of_claims": 0.906,
+   "cap_binding_in_runs": true,
+   "verdict": "مرفوض",
+   "note": "الإعادةُ مع دلوٍ مشبَعٍ نتيجةٌ للسقف لا سببٌ مستقلّ"
+  },
+  "v2_H5": {
+   "rider_rate_in_runs": 23.92,
+   "threshold": 22.5,
+   "verdict": "مدعوم"
+  },
+  "rider_rate_overall": 15.24,
+  "egress_run_vs_gap": {
+   "driver|gap": {
+    "n": 1283,
+    "per_s": 13.96
+   },
+   "driver|run": {
+    "n": 2788,
+    "per_s": 17.26
+   },
+   "rider|run": {
+    "n": 3863,
+    "per_s": 23.92
+   }
+  },
+  "delivered_per_run_p50": 150
+ },
+ "a7-ref": {
+  "G1": "99.59% (4082/4099)",
+  "P7_official": "87s",
+  "P7_pass": true,
+  "v2_H1": {
+   "idle_with_eligible": 0.325,
+   "verdict": "مدعوم"
+  },
+  "v2_H2": {
+   "requeue_share_of_claims": 0.898,
+   "cap_binding_in_runs": true,
+   "verdict": "مرفوض",
+   "note": "الإعادةُ مع دلوٍ مشبَعٍ نتيجةٌ للسقف لا سببٌ مستقلّ"
+  },
+  "v2_H5": {
+   "rider_rate_in_runs": 24.36,
+   "threshold": 22.5,
+   "verdict": "مدعوم"
+  },
+  "rider_rate_overall": 15.45,
+  "egress_run_vs_gap": {
+   "driver|gap": {
+    "n": 1383,
+    "per_s": 15.24
+   },
+   "driver|run": {
+    "n": 2705,
+    "per_s": 17.19
+   },
+   "rider|run": {
+    "n": 3833,
+    "per_s": 24.36
+   }
+  },
+  "delivered_per_run_p50": 153
+ },
+ "a8-cand": {
+  "G1": "99.25% (3983/4013)",
+  "P7_official": "87s",
+  "P7_pass": true,
+  "v2_H1": {
+   "idle_with_eligible": 0.318,
+   "verdict": "مدعوم"
+  },
+  "v2_H2": {
+   "requeue_share_of_claims": 0.905,
+   "cap_binding_in_runs": true,
+   "verdict": "مرفوض",
+   "note": "الإعادةُ مع دلوٍ مشبَعٍ نتيجةٌ للسقف لا سببٌ مستقلّ"
+  },
+  "v2_H5": {
+   "rider_rate_in_runs": 23.51,
+   "threshold": 22.5,
+   "verdict": "مدعوم"
+  },
+  "rider_rate_overall": 15.09,
+  "egress_run_vs_gap": {
+   "driver|gap": {
+    "n": 1240,
+    "per_s": 13.66
+   },
+   "driver|run": {
+    "n": 2761,
+    "per_s": 16.95
+   },
+   "rider|run": {
+    "n": 3829,
+    "per_s": 23.51
+   }
+  },
+  "delivered_per_run_p50": 173
+ }
+}
