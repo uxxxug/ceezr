@@ -1,0 +1,131 @@
+{
+  "cities": [
+    "JED",
+    "MKK",
+    "RUH",
+    "TIF",
+    "MED"
+  ],
+  "totals": {
+    "launched": 53526,
+    "verified": 49199
+  },
+  "perCity": [
+    {
+      "city": "JED",
+      "launched": 10879,
+      "verified": 9957,
+      "completionRate": 0.915249563378987,
+      "offerAppearP95Ms": 12442,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          922
+        ]
+      ]
+    },
+    {
+      "city": "MED",
+      "launched": 10745,
+      "verified": 9935,
+      "completionRate": 0.9246161005118659,
+      "offerAppearP95Ms": 11954,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          804
+        ],
+        [
+          "driver_session:HTTP N",
+          5
+        ],
+        [
+          "rider_session:HTTP N",
+          1
+        ]
+      ]
+    },
+    {
+      "city": "MKK",
+      "launched": 10556,
+      "verified": 9621,
+      "completionRate": 0.9114247821144373,
+      "offerAppearP95Ms": 11925,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          935
+        ]
+      ]
+    },
+    {
+      "city": "RUH",
+      "launched": 10713,
+      "verified": 9930,
+      "completionRate": 0.9269112293475217,
+      "offerAppearP95Ms": 12069,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          771
+        ],
+        [
+          "driver_session:HTTP N",
+          4
+        ],
+        [
+          "ride_create:N",
+          3
+        ],
+        [
+          "rider_session:HTTP N",
+          2
+        ],
+        [
+          "accept:N",
+          1
+        ]
+      ]
+    },
+    {
+      "city": "TIF",
+      "launched": 10633,
+      "verified": 9756,
+      "completionRate": 0.9175209254208596,
+      "offerAppearP95Ms": 11989,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          860
+        ],
+        [
+          "driver_session:HTTP N",
+          5
+        ],
+        [
+          "ride_create:N",
+          5
+        ],
+        [
+          "rider_session:HTTP N",
+          3
+        ],
+        [
+          "location:N/?/Nms@NdNcN-dNfN-NbN-aNe-NfNabN",
+          1
+        ]
+      ]
+    }
+  ],
+  "fairnessGap": 0.015486447233084344,
+  "isolation": {
+    "I1_order_vs_rider_city": 0,
+    "I2_offer_driver_other_city": 0,
+    "I3_assigned_driver_other_city": 0,
+    "I4_outbox_city_vs_order_city": 0,
+    "I5_outbox_chat_user_other_city": 0,
+    "I5b_outbox_group_chat_other_city": 0,
+    "I6_order_city_vs_scenario_city": 0
+  },
+  "isolationVerdict": "CLEAN"
+}
