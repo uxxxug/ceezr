@@ -19,13 +19,16 @@ interface Recorded {
   readonly values: readonly unknown[];
   /** مسارُ الإرسالِ: قالبُ الوسومِ أم `unsafe` — الحارسُ يُلزمُ الثاني. */
   readonly via: "tagged" | "unsafe";
+  /** خياراتُ الاستدعاءِ (الوسيطُ الثالثُ لـunsafe) — يجبُ أن تظلَّ معدومةً: أيُّ
+   * خيارٍ (كتجاوزِ `prepare`) قد يعيدُ العبارةَ المُسمّاةَ فيعودَ العمى المُخَطِّطُ. */
+  readonly options: unknown;
 }
 
 /** يُرجِعُ مصفوفةَ الصفوفِ مباشرةً — كما يفعلُ postgres.js في `sql<Row[]>` و`unsafe`. */
 function fakeSqlReturning(rows: unknown[]): { sql: Sql; calls: Recorded[] } {
   const calls: Recorded[] = [];
   const tagged = async (strings: TemplateStringsArray, ...values: readonly unknown[]) => {
-    calls.push({ text: strings.join("?"), values, via: "tagged" });
+    calls.push({ text: strings.join("?"), values, via: "tagged", options: undefined });
     return rows;
   };
   // الاستعلامُ في المحوّلِ يُرسَلُ عبرَ `sql.unsafe` بنصٍّ ثابتٍ ووسائطَ مُرقَّمةٍ —
@@ -34,8 +37,9 @@ function fakeSqlReturning(rows: unknown[]): { sql: Sql; calls: Recorded[] } {
   (tagged as unknown as { unsafe: unknown }).unsafe = async (
     text: string,
     values: readonly unknown[],
+    options?: unknown,
   ) => {
-    calls.push({ text, values, via: "unsafe" });
+    calls.push({ text, values, via: "unsafe", options });
     return rows;
   };
   return { sql: tagged as unknown as Sql, calls };
@@ -156,6 +160,7 @@ describe("findNearbyAvailableForDispatch — الترجمة والتفريع ع�
     // يُلزمُ المسارَ غيرَ المُعَدَّ (خطةٌ مخصَّصةٌ ترى الفهرسَ الجزئيَّ) وترتيبَ الوسائطِ.
     const plain = await run([row()], query());
     expect(plain.calls.map((call) => call.via)).toEqual(["unsafe"]);
+    expect(plain.calls.map((call) => call.options)).toEqual([undefined]);
     expect(plain.calls[0]?.values).toEqual([
       CITY,
       PICKUP.longitude,
@@ -171,6 +176,7 @@ describe("findNearbyAvailableForDispatch — الترجمة والتفريع ع�
 
     const withAge = await run([row()], query({ driverLocationMaxAgeSeconds: 120 }));
     expect(withAge.calls.map((call) => call.via)).toEqual(["unsafe"]);
+    expect(withAge.calls.map((call) => call.options)).toEqual([undefined]);
     expect(withAge.calls[0]?.values).toEqual([
       CITY,
       PICKUP.longitude,
