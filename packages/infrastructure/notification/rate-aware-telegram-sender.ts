@@ -23,8 +23,10 @@ import {
   type TelegramSender,
 } from "./telegram-api-sender.ts";
 
-/** عمليّاتُ الصادرِ الثلاثُ — تُسجَّلُ في طابورِ الموتى كي يُعرَفَ ما ضاعَ. */
-export type OutboundOperation = "sendMessage" | "sendPhoto" | "sendLocation";
+/** عمليّاتُ الصادرِ — تُسجَّلُ في طابورِ الموتى كي يُعرَفَ ما ضاعَ. `editMessageText`
+ *   نداءٌ صادرٌ يحتسبُهُ تيليجرامُ على نافذةِ البوتِ (`SOAK-02` §5.3: المحاكي
+ *   رفضَ 4,311 نداءَ تعديلٍ بـ429 وبوتُ السائقِ بلغَ 30/ث) فيجبُ أن يمرَّ بالدلوِ. */
+export type OutboundOperation = "sendMessage" | "sendPhoto" | "sendLocation" | "editMessageText";
 
 /**
  * تصنيفُ الفشلِ. **الفارقُ بينَ الثلاثةِ قرارٌ لا وصفٌ**: العابرُ يُعادُ بتراجعٍ،
@@ -439,6 +441,145 @@ export function withOutboundResilience(
     });
   };
 
+  /**
+   * `SOAK-02` §5.3 (تدقيقُ 2026-10-23) — **التعديلُ نداءٌ صادرٌ خاضعٌ للدلوِ**:
+   * كانَ `editMessageText` يمرُّ عبرَ `interactiveOf` إلى الداخلِ مباشرةً فلا
+   * يرى الدلوَ — ومحاكي المشروعِ (المرجعُ المعتمدُ لحدودِ الإرسالِ في
+   * اختباراتِه) يُدخِلُ التعديلاتِ في نافذةِ البوتِ كما يفعلُ حدُّهُ المعلَنُ
+   * للإرسالاتِ، فكانَ بوتُ السائقِ وحدهُ يتجاوزُ 25 رسالة/ث في المحاكيِ بينما
+   * بوتُ الراكبِ ذروتُهُ السقفُ وصفرُ رفضٍ — والبطاقاتُ الميتةُ أكبرُ مستهلكٍ
+   * معروفٍ لهذا المسارِ. الإسنادُ التاريخيُّ الكمّيُّ (نسبةُ رفضاتِ 429 التي
+   * سببّها هذا المسارُ دونَ الإرسالاتِ) لم يُحسم: سجلُّ الطرائقِ الخامُّ
+   * (`telegram-mock.jsonl`) لم يُرفَع في الأرشيفِ.
+   *
+   * **النطاقُ العالميُّ وحدَه**: محاكي المشروعِ يفرضُ نافذةَ البوتِ على
+   * التعديلاتِ ويكتفي بتتبّعِ نافذةِ المحادثةِ لها تتبّعًا ناعمًا (لا رفضَ)،
+   * وهذا هوَ الحدُّ الذي ثبتَ تجاوزُهُ بالقياسِ؛ والتعديلُ لا يضيفُ رسالةً
+   * جديدةً للمحادثةِ أصلًا. والفشلُ هنا ليس فادحًا: المتصلونَ يتعاملونَ معَ
+   * رميِهِ (بطاقاتُ العروضِ تُعادُ في شوطٍ لاحقٍ، وردودُ البوتِ تسقطُ إلى
+   * رسالةٍ جديدةٍ) — فصنفُهُ `informational` لا يحرقَ محاولاتِ الحرجةِ ولا
+   * حصّتَها. **والازدحامُ (D8) يُرمى فورًا** بـ`OutboundCongestionError` بلا
+   * طابورِ موتى ولا محاولةٍ محتسبةٍ: لم يُرسَلْ شيءٌ فلا يُعَدُّ فشلَ إرسالٍ.
+   */
+  const editMessageText =
+    inner.editMessageText === undefined
+      ? undefined
+      : async (chatId: string, messageId: string, text: string, markup: unknown): Promise<void> => {
+          const bucketClass = bucketClassOfSendPriority("informational");
+          let lastReason = "لا سببَ مُسجَّلٌ";
+          let lastFailure: OutboundFailureClass = "transient";
+
+          for (let attempt = 1; attempt <= informationalMax; attempt += 1) {
+            /**
+             * `D8` — ازدحامُ الدلوِ ضغطٌ عابرٌ لا فشلَ إرسالٍ: ميزانيّةٌ قصيرةٌ
+             * (كمسارِ الطابورِ) ثم رميٌ فوريٌ بلا طابورِ موتى ولا محاولةٍ
+             * محتسبةٍ — فالمتصلُ الصوتيُّ (شوطُ إغلاقِ البطاقاتِ: حتى 20 بطاقةً
+             * متتابعةً) لا يُحجَزُ ثوانيَ لكلِّ بطاقةٍ، ويعودُ في الشوطِ القادمِ.
+             */
+            let waited = 0;
+            let congestedAfterMs = 0;
+            for (;;) {
+              const slot = await options.bucket.acquire(
+                "global",
+                options.bucketKey ?? "bot",
+                bucketClass,
+              );
+              if (slot.granted) break;
+              if (waited + slot.waitMs > congestionAbortMaxWaitMs) {
+                congestedAfterMs = slot.waitMs;
+                break;
+              }
+              options.onEvent?.({
+                type: "backpressure",
+                operation: "editMessageText",
+                chatId,
+                attempt,
+                waitMs: slot.waitMs,
+                detail: "global",
+              });
+              await sleep(slot.waitMs);
+              waited += slot.waitMs;
+            }
+            if (congestedAfterMs > 0) {
+              // لم يُرسَلْ شيءٌ ولم تُستهلكْ محاولةُ بطاقةٍ: ازدحامٌ صِرف.
+              throw new OutboundCongestionError(congestedAfterMs);
+            }
+            try {
+              await withTimeout(
+                () =>
+                  (
+                    inner.editMessageText as (
+                      c: string,
+                      m: string,
+                      t: string,
+                      k: unknown,
+                    ) => Promise<void>
+                  )(chatId, messageId, text, markup),
+                "editMessageText",
+              );
+              return;
+            } catch (error) {
+              const { failure, retryAfterMs } = classify(error);
+              lastReason = describe(error);
+              lastFailure = failure;
+
+              if (failure === "permanent") break;
+
+              if (failure === "throttled") {
+                const wait = retryAfterMs ?? backoffFor(attempt);
+                options.onEvent?.({
+                  type: "throttled",
+                  operation: "editMessageText",
+                  chatId,
+                  attempt,
+                  waitMs: wait,
+                  detail: lastReason,
+                });
+                if (wait > maxThrottleWaitMs || attempt >= informationalMax) break;
+                await sleep(wait + Math.floor(random() * 250));
+                continue;
+              }
+
+              if (attempt >= informationalMax) break;
+              const wait = backoffFor(attempt);
+              options.onEvent?.({
+                type: "retry",
+                operation: "editMessageText",
+                chatId,
+                attempt,
+                waitMs: wait,
+                detail: lastReason,
+              });
+              await sleep(wait);
+            }
+          }
+
+          await options.deadLetter.record({
+            chatId,
+            operation: "editMessageText",
+            priority: "informational",
+            failure: lastFailure,
+            attempts: informationalMax,
+            reason: lastReason,
+            atIso: nowIso(),
+          });
+          options.onEvent?.({
+            type: "gave_up",
+            operation: "editMessageText",
+            chatId,
+            attempt: informationalMax,
+            waitMs: 0,
+            detail: lastReason,
+          });
+          throw new OutboundSendError({
+            message: `تعذّرَ editMessageText إلى ${chatId}: ${lastReason}`,
+            failure: lastFailure,
+            attempts: informationalMax,
+            operation: "editMessageText",
+            chatId,
+          });
+        };
+
   return {
     sendMessage: (chatId, text, markup, sendOptions) =>
       run(
@@ -464,7 +605,11 @@ export function withOutboundResilience(
         () => inner.sendLocation(chatId, latitude, longitude, sendOptions),
         sendOptions,
       ),
+    // `answerCallbackQuery` ليسَ رسالةً ولا يُحتسَبُ في نافذةِ البوتِ (ولا في
+    // المحاكي): يمرُّ كما هو. أما `editMessageText` فقد صارَ فوقَه الدلوُ — يُستبدَلُ
+    // بعدَ التفريقِ لا قَبلَهُ كي لا يمرَّ المسارُ القديمُ بلا قيدٍ.
     ...interactiveOf(inner),
+    ...(editMessageText === undefined ? {} : { editMessageText }),
   };
 }
 

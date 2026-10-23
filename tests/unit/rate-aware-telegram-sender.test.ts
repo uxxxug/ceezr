@@ -342,4 +342,61 @@ describe("غلافُ صمودِ الصادرِ (CAP-002)", () => {
     ).rejects.toBeInstanceOf(OutboundCongestionError);
     expect(events.some((e) => e.type === "backpressure" && e.detail === "global")).toBe(false);
   });
+
+  // `SOAK-02` §5.3 (تدقيقُ 2026-10-23): بوتُ السائقِ تجاوزَ 25 رسالة/ث في المحاكيِ
+  // الذي يُدخِلُ التعديلاتِ في نافذةِ البوتِ — والسببُ أنَّ `editMessageText` كانَ
+  // يمرُّ عبرَ `interactiveOf` إلى الداخلِ مباشرةً فلا يرى الدلوَ أصلاً. البطاقاتُ
+  // الميتةُ (`WR-08`) وحدها ~135 ألفَ تعديلٍ في ساعةٍ عندَ 10 رحلات/ث.
+  it("تعديلُ رسالةٍ قائمةٍ يحجزُ فتحةً منَ الدلوِ العالميِّ قبلَ التنفيذِ", async () => {
+    const acquired: string[] = [];
+    const bucket: OutboundRateBucket = {
+      acquire: async (scope, key) => {
+        acquired.push(`${scope}:${key}`);
+        return { granted: true, waitMs: 0 };
+      },
+    };
+    let edits = 0;
+    const inner: TelegramSender = {
+      sendMessage: async () => "42",
+      sendPhoto: async () => null,
+      sendLocation: async () => "loc",
+      editMessageText: async () => {
+        edits += 1;
+      },
+    };
+    const { sender } = harness(inner, { bucket });
+
+    await sender.editMessageText?.("111", "42", "نصٌّ محدَّثٌ", undefined);
+
+    // التعديلُ نداءٌ صادرٌ يحتسبُهُ تيليجرامُ على نافذةِ البوتِ فيجبُ أن يمرَّ
+    // بالدلوِ العالميِّ — لا أن يتسللَ إلى الداخلِ خلفَ ظهرِهِ.
+    expect(edits).toBe(1);
+    expect(acquired).toContain("global:bot");
+  });
+
+  it("امتلاءُ الدلوِ العالميِّ يمنعُ تعديلَ الرسالةِ ولا يتسللُ إلى الداخلِ — ازدحامٌ لا فشلَ إرسالٍ", async () => {
+    const bucket: OutboundRateBucket = {
+      acquire: async (scope) =>
+        scope === "global" ? { granted: false, waitMs: 2_000 } : { granted: true, waitMs: 0 },
+    };
+    let edits = 0;
+    const inner: TelegramSender = {
+      sendMessage: async () => "42",
+      sendPhoto: async () => null,
+      sendLocation: async () => "loc",
+      editMessageText: async () => {
+        edits += 1;
+      },
+    };
+    const { sender, deadLetter } = harness(inner, { bucket });
+
+    // `D8`: الازدحامُ يُرمى فورًا `OutboundCongestionError` بلا طابورِ موتى — لم
+    // يُرسَلْ شيءٌ فلا يُعَدُّ فشلَ إرسالٍ ولا يستهلكُ محاولةَ بطاقةٍ لدى المتصل.
+    await expect(
+      sender.editMessageText?.("111", "42", "نصٌّ محدَّثٌ", undefined),
+    ).rejects.toBeInstanceOf(OutboundCongestionError);
+    // لم يصلْ شيءٌ إلى تيليجرامَ: الدلوُّ ممتلئٌ والتعديلُ يُرمى قبلَ أيِّ نداءٍ.
+    expect(edits).toBe(0);
+    expect(deadLetter.entries()).toEqual([]);
+  });
 });

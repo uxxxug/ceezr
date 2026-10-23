@@ -1,0 +1,13 @@
+تحليلُ صادرِ المحاكي من تدقيقِ SOAK-02 (بما في المرفوعِ من السجلِّ الخام)
+soak2-r3-a: driver accepted=13187 rejected_429=0 peak_per_s=10 seconds_over_25=0 | rider accepted=12879 rejected_429=0 peak_per_s=13 seconds_over_25=0
+soak2-r3-b: driver accepted=13152 rejected_429=0 peak_per_s=10 seconds_over_25=0 | rider accepted=12863 rejected_429=0 peak_per_s=15 seconds_over_25=0
+soak2-r5-a: driver accepted=23451 rejected_429=122 peak_per_s=30 seconds_over_25=22 | rider accepted=21764 rejected_429=0 peak_per_s=22 seconds_over_25=0
+soak2-r5-b: driver accepted=23798 rejected_429=623 peak_per_s=30 seconds_over_25=52 | rider accepted=21558 rejected_429=0 peak_per_s=25 seconds_over_25=0
+soak2-r7-a: driver accepted=31987 rejected_429=2932 peak_per_s=30 seconds_over_25=59 | rider accepted=30417 rejected_429=0 peak_per_s=25 seconds_over_25=0
+soak2-r7-b: driver accepted=32056 rejected_429=2913 peak_per_s=30 seconds_over_25=54 | rider accepted=30686 rejected_429=0 peak_per_s=25 seconds_over_25=0
+soak2-r10-a: driver accepted=45223 rejected_429=4311 peak_per_s=30 seconds_over_25=68 | rider accepted=42847 rejected_429=0 peak_per_s=25 seconds_over_25=0
+soak2-r10-b: driver accepted=44846 rejected_429=4709 peak_per_s=30 seconds_over_25=61 | rider accepted=43241 rejected_429=0 peak_per_s=25 seconds_over_25=0
+
+القاعدةُ المرصودةُ: بوتُ السائقِ وحدَهُ يتجاوزُ 25/ث ويُرفضُ بـ429، وبوتُ الراكبِ ذروتُهُ 25 بالضبطِ وصفرُ رفضٍ — أي أنَّ الإرسالاتِ مقيدةٌ بالدلوِ ومسارًا آخرَ يمرُّ خارجه.
+
+r10-a offersByStatus: {"accepted": 35998, "cancelled": 124994, "expired": 15}
