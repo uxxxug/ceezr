@@ -1,0 +1,1553 @@
+{
+ "facts": {
+  "p7_tool": {
+   "oldestPendingSec": 87,
+   "oldestPendingKind": "rider_trip_notice",
+   "pendingAgeByKind": {
+    "wider_circle_opened": {
+     "pending": 8,
+     "oldestPendingSec": 29
+    },
+    "rider_trip_notice": {
+     "pending": 875,
+     "oldestPendingSec": 87
+    }
+   },
+   "byKind": {
+    "offer": {
+     "total": 27000,
+     "delivered": 0,
+     "pending": 0,
+     "dead": 27000
+    },
+    "wider_circle_opened": {
+     "total": 8,
+     "delivered": 0,
+     "pending": 8,
+     "dead": 0
+    },
+    "rider_trip_notice": {
+     "total": 15932,
+     "delivered": 15057,
+     "pending": 875,
+     "dead": 0
+    }
+   },
+   "riderTripChannel": {
+    "phaseRows": 15932,
+    "miniappAck": 11228,
+    "telegram": 3829,
+    "pending": 875,
+    "other": 0,
+    "receipts": 11228,
+    "lateReceiptsAfterTelegram": 0,
+    "duplicateReceipts": 0,
+    "ackLatencySec": {
+     "p50": 0,
+     "p95": 0.3,
+     "p99": 0.8
+    },
+    "telegramLatencySec": {
+     "p50": 32.4,
+     "p95": 70.2,
+     "p99": 82
+    }
+   },
+   "audit_at": "2026-10-23T04:07:58.389Z"
+  },
+  "egressTimeline": {
+   "driver": {
+    "accepted": 4021,
+    "rejected": 0,
+    "firstAcceptedSecMs": 1792728218000,
+    "lastAcceptedSecMs": 1792728456000,
+    "busySeconds": 214,
+    "peakPerSec": 20,
+    "meanPerBusySec": 18.8,
+    "meanPerSpanSec": 16.8
+   },
+   "rider": {
+    "accepted": 3829,
+    "rejected": 0,
+    "firstAcceptedSecMs": 1792728230000,
+    "lastAcceptedSecMs": 1792728472000,
+    "busySeconds": 172,
+    "peakPerSec": 25,
+    "meanPerBusySec": 22.3,
+    "meanPerSpanSec": 15.8
+   }
+  },
+  "outbox_samples": {
+   "n": 53,
+   "errors": 0,
+   "kinds": {
+    "offer": {
+     "max_oldest_pending_s": 101.6,
+     "max_oldest_at_s_since_t0": 239,
+     "max_oldest_eligible_s": 101.6,
+     "max_oldest_deferred_s": 0,
+     "max_pending": 7855,
+     "max_eligible": 7855,
+     "max_deferred": 0,
+     "max_sending": 0,
+     "max_signal_wait_count": 0,
+     "timeline_10s": [
+      {
+       "s": 9,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 19,
+       "pending": 750,
+       "eligible": 750,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 5.7,
+       "oldest_eligible_s": 5.7,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 750
+      },
+      {
+       "s": 29,
+       "pending": 2070,
+       "eligible": 2070,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 15.7,
+       "oldest_eligible_s": 15.7,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 2070
+      },
+      {
+       "s": 39,
+       "pending": 3320,
+       "eligible": 3320,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 25.7,
+       "oldest_eligible_s": 25.7,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 3320
+      },
+      {
+       "s": 49,
+       "pending": 4650,
+       "eligible": 4650,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 35.7,
+       "oldest_eligible_s": 35.7,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 4650
+      },
+      {
+       "s": 59,
+       "pending": 5900,
+       "eligible": 5900,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 45.7,
+       "oldest_eligible_s": 45.7,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 5900
+      },
+      {
+       "s": 69,
+       "pending": 1420,
+       "eligible": 1420,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 49.6,
+       "oldest_eligible_s": 49.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 1420
+      },
+      {
+       "s": 79,
+       "pending": 2670,
+       "eligible": 2670,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 59.6,
+       "oldest_eligible_s": 59.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 2670
+      },
+      {
+       "s": 89,
+       "pending": 3930,
+       "eligible": 3930,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 69.7,
+       "oldest_eligible_s": 69.7,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 3930
+      },
+      {
+       "s": 99,
+       "pending": 5180,
+       "eligible": 5180,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 79.6,
+       "oldest_eligible_s": 79.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 5180
+      },
+      {
+       "s": 109,
+       "pending": 6435,
+       "eligible": 6435,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 89.6,
+       "oldest_eligible_s": 89.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 6435
+      },
+      {
+       "s": 119,
+       "pending": 7685,
+       "eligible": 7685,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 99.6,
+       "oldest_eligible_s": 99.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 7685
+      },
+      {
+       "s": 129,
+       "pending": 1260,
+       "eligible": 1260,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 31.3,
+       "oldest_eligible_s": 31.3,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 1260
+      },
+      {
+       "s": 139,
+       "pending": 2510,
+       "eligible": 2510,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 41.3,
+       "oldest_eligible_s": 41.3,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 2510
+      },
+      {
+       "s": 149,
+       "pending": 3930,
+       "eligible": 3930,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 51.3,
+       "oldest_eligible_s": 51.3,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 3930
+      },
+      {
+       "s": 159,
+       "pending": 5180,
+       "eligible": 5180,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 61.3,
+       "oldest_eligible_s": 61.3,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 5180
+      },
+      {
+       "s": 169,
+       "pending": 6605,
+       "eligible": 6605,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 71.3,
+       "oldest_eligible_s": 71.3,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 6605
+      },
+      {
+       "s": 179,
+       "pending": 7855,
+       "eligible": 7855,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 81.3,
+       "oldest_eligible_s": 81.3,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 7855
+      },
+      {
+       "s": 189,
+       "pending": 1550,
+       "eligible": 1550,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 51.6,
+       "oldest_eligible_s": 51.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 1550
+      },
+      {
+       "s": 199,
+       "pending": 2800,
+       "eligible": 2800,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 61.7,
+       "oldest_eligible_s": 61.7,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 2800
+      },
+      {
+       "s": 209,
+       "pending": 4240,
+       "eligible": 4240,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 71.7,
+       "oldest_eligible_s": 71.7,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 4240
+      },
+      {
+       "s": 219,
+       "pending": 5490,
+       "eligible": 5490,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 81.6,
+       "oldest_eligible_s": 81.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 5490
+      },
+      {
+       "s": 229,
+       "pending": 5785,
+       "eligible": 5785,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 91.6,
+       "oldest_eligible_s": 91.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 5785
+      },
+      {
+       "s": 239,
+       "pending": 5785,
+       "eligible": 5785,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 101.6,
+       "oldest_eligible_s": 101.6,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 5785
+      },
+      {
+       "s": 249,
+       "pending": 0,
+       "eligible": 0,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 0
+      },
+      {
+       "s": 259,
+       "pending": 0,
+       "eligible": 0,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 0
+      },
+      {
+       "s": 269,
+       "pending": 0,
+       "eligible": 0,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 0
+      }
+     ]
+    },
+    "rider_trip_notice": {
+     "max_oldest_pending_s": 86.2,
+     "max_oldest_at_s_since_t0": 269,
+     "max_oldest_eligible_s": 86.2,
+     "max_oldest_deferred_s": 81.2,
+     "max_pending": 1309,
+     "max_eligible": 1309,
+     "max_deferred": 492,
+     "max_sending": 8,
+     "max_signal_wait_count": 0,
+     "timeline_10s": [
+      {
+       "s": 9,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 19,
+       "pending": 109,
+       "eligible": 109,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 4.4,
+       "oldest_eligible_s": 4.4,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 109
+      },
+      {
+       "s": 29,
+       "pending": 316,
+       "eligible": 291,
+       "deferred": 25,
+       "sending": 1,
+       "delivered_tg": 87,
+       "oldest_pending_s": 13.9,
+       "oldest_eligible_s": 13.9,
+       "pending_congestion": 33,
+       "pending_signal_wait": 0,
+       "pending_fresh": 283
+      },
+      {
+       "s": 39,
+       "pending": 348,
+       "eligible": 331,
+       "deferred": 17,
+       "sending": 0,
+       "delivered_tg": 264,
+       "oldest_pending_s": 17.6,
+       "oldest_eligible_s": 15.4,
+       "pending_congestion": 17,
+       "pending_signal_wait": 0,
+       "pending_fresh": 331
+      },
+      {
+       "s": 49,
+       "pending": 411,
+       "eligible": 394,
+       "deferred": 17,
+       "sending": 1,
+       "delivered_tg": 380,
+       "oldest_pending_s": 21.3,
+       "oldest_eligible_s": 20.7,
+       "pending_congestion": 17,
+       "pending_signal_wait": 0,
+       "pending_fresh": 394
+      },
+      {
+       "s": 59,
+       "pending": 562,
+       "eligible": 549,
+       "deferred": 13,
+       "sending": 0,
+       "delivered_tg": 475,
+       "oldest_pending_s": 27.4,
+       "oldest_eligible_s": 25.9,
+       "pending_congestion": 13,
+       "pending_signal_wait": 0,
+       "pending_fresh": 549
+      },
+      {
+       "s": 69,
+       "pending": 648,
+       "eligible": 603,
+       "deferred": 45,
+       "sending": 3,
+       "delivered_tg": 638,
+       "oldest_pending_s": 31.6,
+       "oldest_eligible_s": 25.9,
+       "pending_congestion": 45,
+       "pending_signal_wait": 0,
+       "pending_fresh": 603
+      },
+      {
+       "s": 79,
+       "pending": 626,
+       "eligible": 626,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 818,
+       "oldest_pending_s": 35.2,
+       "oldest_eligible_s": 35.2,
+       "pending_congestion": 299,
+       "pending_signal_wait": 0,
+       "pending_fresh": 327
+      },
+      {
+       "s": 89,
+       "pending": 610,
+       "eligible": 503,
+       "deferred": 107,
+       "sending": 8,
+       "delivered_tg": 1018,
+       "oldest_pending_s": 38.7,
+       "oldest_eligible_s": 38.2,
+       "pending_congestion": 189,
+       "pending_signal_wait": 0,
+       "pending_fresh": 421
+      },
+      {
+       "s": 99,
+       "pending": 637,
+       "eligible": 374,
+       "deferred": 263,
+       "sending": 0,
+       "delivered_tg": 1218,
+       "oldest_pending_s": 35.7,
+       "oldest_eligible_s": 32.5,
+       "pending_congestion": 284,
+       "pending_signal_wait": 0,
+       "pending_fresh": 353
+      },
+      {
+       "s": 109,
+       "pending": 638,
+       "eligible": 468,
+       "deferred": 170,
+       "sending": 0,
+       "delivered_tg": 1418,
+       "oldest_pending_s": 42.3,
+       "oldest_eligible_s": 25.1,
+       "pending_congestion": 194,
+       "pending_signal_wait": 0,
+       "pending_fresh": 444
+      },
+      {
+       "s": 119,
+       "pending": 709,
+       "eligible": 709,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 1591,
+       "oldest_pending_s": 50.1,
+       "oldest_eligible_s": 50.1,
+       "pending_congestion": 333,
+       "pending_signal_wait": 0,
+       "pending_fresh": 376
+      },
+      {
+       "s": 129,
+       "pending": 705,
+       "eligible": 539,
+       "deferred": 166,
+       "sending": 8,
+       "delivered_tg": 1791,
+       "oldest_pending_s": 44.9,
+       "oldest_eligible_s": 24.5,
+       "pending_congestion": 217,
+       "pending_signal_wait": 0,
+       "pending_fresh": 488
+      },
+      {
+       "s": 139,
+       "pending": 717,
+       "eligible": 706,
+       "deferred": 11,
+       "sending": 0,
+       "delivered_tg": 1967,
+       "oldest_pending_s": 40.1,
+       "oldest_eligible_s": 40.1,
+       "pending_congestion": 341,
+       "pending_signal_wait": 0,
+       "pending_fresh": 376
+      },
+      {
+       "s": 149,
+       "pending": 761,
+       "eligible": 685,
+       "deferred": 76,
+       "sending": 0,
+       "delivered_tg": 2167,
+       "oldest_pending_s": 45.1,
+       "oldest_eligible_s": 44.5,
+       "pending_congestion": 300,
+       "pending_signal_wait": 0,
+       "pending_fresh": 461
+      },
+      {
+       "s": 159,
+       "pending": 766,
+       "eligible": 766,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 2342,
+       "oldest_pending_s": 50.3,
+       "oldest_eligible_s": 50.3,
+       "pending_congestion": 294,
+       "pending_signal_wait": 0,
+       "pending_fresh": 472
+      },
+      {
+       "s": 169,
+       "pending": 845,
+       "eligible": 836,
+       "deferred": 9,
+       "sending": 0,
+       "delivered_tg": 2523,
+       "oldest_pending_s": 51.4,
+       "oldest_eligible_s": 51.4,
+       "pending_congestion": 293,
+       "pending_signal_wait": 0,
+       "pending_fresh": 552
+      },
+      {
+       "s": 179,
+       "pending": 890,
+       "eligible": 890,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 2698,
+       "oldest_pending_s": 57.3,
+       "oldest_eligible_s": 57.3,
+       "pending_congestion": 335,
+       "pending_signal_wait": 0,
+       "pending_fresh": 555
+      },
+      {
+       "s": 189,
+       "pending": 886,
+       "eligible": 676,
+       "deferred": 210,
+       "sending": 0,
+       "delivered_tg": 2898,
+       "oldest_pending_s": 53.7,
+       "oldest_eligible_s": 48.3,
+       "pending_congestion": 259,
+       "pending_signal_wait": 0,
+       "pending_fresh": 627
+      },
+      {
+       "s": 199,
+       "pending": 936,
+       "eligible": 936,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 3048,
+       "oldest_pending_s": 58.8,
+       "oldest_eligible_s": 58.8,
+       "pending_congestion": 353,
+       "pending_signal_wait": 0,
+       "pending_fresh": 583
+      },
+      {
+       "s": 209,
+       "pending": 1126,
+       "eligible": 1126,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 3198,
+       "oldest_pending_s": 55.2,
+       "oldest_eligible_s": 55.2,
+       "pending_congestion": 392,
+       "pending_signal_wait": 0,
+       "pending_fresh": 734
+      },
+      {
+       "s": 219,
+       "pending": 1309,
+       "eligible": 1309,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 3323,
+       "oldest_pending_s": 60.6,
+       "oldest_eligible_s": 60.6,
+       "pending_congestion": 424,
+       "pending_signal_wait": 0,
+       "pending_fresh": 885
+      },
+      {
+       "s": 229,
+       "pending": 1275,
+       "eligible": 1275,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 3429,
+       "oldest_pending_s": 69.6,
+       "oldest_eligible_s": 69.6,
+       "pending_congestion": 491,
+       "pending_signal_wait": 0,
+       "pending_fresh": 784
+      },
+      {
+       "s": 239,
+       "pending": 1175,
+       "eligible": 1175,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 3529,
+       "oldest_pending_s": 72.3,
+       "oldest_eligible_s": 72.3,
+       "pending_congestion": 482,
+       "pending_signal_wait": 0,
+       "pending_fresh": 693
+      },
+      {
+       "s": 249,
+       "pending": 1075,
+       "eligible": 1075,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 3629,
+       "oldest_pending_s": 79.3,
+       "oldest_eligible_s": 79.3,
+       "pending_congestion": 489,
+       "pending_signal_wait": 0,
+       "pending_fresh": 586
+      },
+      {
+       "s": 259,
+       "pending": 975,
+       "eligible": 975,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 3729,
+       "oldest_pending_s": 82.8,
+       "oldest_eligible_s": 82.8,
+       "pending_congestion": 482,
+       "pending_signal_wait": 0,
+       "pending_fresh": 493
+      },
+      {
+       "s": 269,
+       "pending": 875,
+       "eligible": 875,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 3829,
+       "oldest_pending_s": 86.2,
+       "oldest_eligible_s": 86.2,
+       "pending_congestion": 485,
+       "pending_signal_wait": 0,
+       "pending_fresh": 390
+      }
+     ]
+    },
+    "wider_circle_opened": {
+     "max_oldest_pending_s": 28.1,
+     "max_oldest_at_s_since_t0": 269,
+     "max_oldest_eligible_s": 28.1,
+     "max_oldest_deferred_s": 0,
+     "max_pending": 8,
+     "max_eligible": 8,
+     "max_deferred": 0,
+     "max_sending": 0,
+     "max_signal_wait_count": 0,
+     "timeline_10s": [
+      {
+       "s": 9,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 19,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 29,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 39,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 49,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 59,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 69,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 79,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 89,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 99,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 109,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 119,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 129,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 139,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 149,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 159,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 169,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 179,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 189,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 199,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 209,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 219,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 229,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 239,
+       "pending": null,
+       "eligible": null,
+       "deferred": null,
+       "sending": null,
+       "delivered_tg": null,
+       "oldest_pending_s": null,
+       "oldest_eligible_s": null,
+       "pending_congestion": null,
+       "pending_signal_wait": null,
+       "pending_fresh": null
+      },
+      {
+       "s": 249,
+       "pending": 8,
+       "eligible": 8,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 8.1,
+       "oldest_eligible_s": 8.1,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 8
+      },
+      {
+       "s": 259,
+       "pending": 8,
+       "eligible": 8,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 18.1,
+       "oldest_eligible_s": 18.1,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 8
+      },
+      {
+       "s": 269,
+       "pending": 8,
+       "eligible": 8,
+       "deferred": 0,
+       "sending": 0,
+       "delivered_tg": 0,
+       "oldest_pending_s": 28.1,
+       "oldest_eligible_s": 28.1,
+       "pending_congestion": 0,
+       "pending_signal_wait": 0,
+       "pending_fresh": 8
+      }
+     ]
+    }
+   },
+   "oldest_kind_share_of_samples": {
+    "offer": 40,
+    "rider_trip_notice": 12
+   },
+   "q_ms_p95": 74
+  },
+  "drain_loop": {
+   "runs": 26,
+   "dur_ms_p50": 7105.0,
+   "dur_ms_p95": 8224.0,
+   "dur_ms_max": 8282.0,
+   "budget_hit_share": 0.385,
+   "gap_ms_p50": 2900.0,
+   "gap_ms_p95": 6335.0,
+   "gap_ms_max": 10022.0,
+   "duty_all": 0.642,
+   "backlog_window_s": 255,
+   "runs_in_backlog": 25,
+   "idle_share_in_backlog": 0.331,
+   "idle_with_eligible_share": 0.296,
+   "budget_hit_share_in_backlog": 0.4,
+   "claimed": 39520,
+   "delivered": 3829,
+   "failed": 35691,
+   "abandoned": 0,
+   "undeliverable": 0,
+   "delivered_per_busy_s": 23.51
+  },
+  "sender": {
+   "events": 13746,
+   "by_event_detail_operation": {
+    "backpressure|global|sendMessage": {
+     "n": 7406,
+     "wait_s": 5969.9
+    },
+    "backpressure|chat|sendMessage": {
+     "n": 6330,
+     "wait_s": 459.5
+    },
+    "gave_up|-|sendMessage": {
+     "n": 10,
+     "wait_s": 0.0
+    }
+   },
+   "wait_s_total": 6429.4,
+   "lane_busy_s_upper": 1303.2,
+   "wait_share_of_lane_s": 4.934
+  },
+  "pgss": {
+   "claim": {
+    "calls": 41522,
+    "mean_ms": 1.8117,
+    "total_ms": 75226.548
+   },
+   "finish": {
+    "calls": 3929,
+    "mean_ms": 0.247,
+    "total_ms": 970.521
+   },
+   "requeue_congestion": {
+    "calls": 37591,
+    "mean_ms": 0.2485,
+    "total_ms": 9341.174
+   },
+   "requeue_signal_wait": {
+    "calls": 0,
+    "mean_ms": null,
+    "total_ms": 0.0
+   },
+   "finish_via_board": {
+    "calls": 0,
+    "mean_ms": null,
+    "total_ms": 0.0
+   },
+   "congestion_requeue_share_of_claims": 0.905,
+   "claims_per_telegram_finish": 10.57
+  },
+  "rows": {
+   "n": 42940,
+   "by_kind_status_channel": {
+    "offer|dead|-": 27000,
+    "rider_trip_notice|delivered|-": 3829,
+    "rider_trip_notice|delivered|miniapp_ack": 11228,
+    "rider_trip_notice|pending|-": 875,
+    "wider_circle_opened|pending|-": 8
+   },
+   "latency_s": {
+    "rider_trip_notice|miniapp_ack": {
+     "n": 11228,
+     "p50": 0.0,
+     "p95": 0.3,
+     "max": 1.357
+    },
+    "rider_trip_notice|telegram": {
+     "n": 3829,
+     "p50": 32.4,
+     "p95": 70.2,
+     "max": 86.178
+    }
+   },
+   "pending_by_kind_lasterror_eligibility_at_audit": {
+    "rider_trip_notice|-|eligible": 390,
+    "rider_trip_notice|OUTBOUND_CONGESTION|eligible": 485,
+    "wider_circle_opened|-|eligible": 8
+   },
+   "oldest20_pending": [
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.3,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.3,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.2,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.2,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.2,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 87.1,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 86.9,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 86.8,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 86.8,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 86.8,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    },
+    {
+     "kind": "rider_trip_notice",
+     "age_at_audit_s": 86.6,
+     "last_error": "OUTBOUND_CONGESTION",
+     "attempts": 0,
+     "signal_wait_count": 0,
+     "has_offer": "f"
+    }
+   ],
+   "attempts_dist_tg_delivered": {
+    "1": 3829
+   },
+   "error_code_counts": {},
+   "dead_reason_counts": {
+    "ABANDONED": 27000
+   }
+  },
+  "mock": {
+   "driver": {
+    "accepted": 4021,
+    "busy_s": 214,
+    "peak_per_s": 20,
+    "mean_per_busy_s": 18.79,
+    "p50_per_busy_s": 20,
+    "rejected_429": 0,
+    "same_chat_gap_ms_p05": 998,
+    "same_chat_gap_ms_p50": 1000
+   },
+   "rider": {
+    "accepted": 3829,
+    "busy_s": 172,
+    "peak_per_s": 25,
+    "mean_per_busy_s": 22.26,
+    "p50_per_busy_s": 25,
+    "rejected_429": 0,
+    "same_chat_gap_ms_p05": 1006,
+    "same_chat_gap_ms_p50": 1091
+   }
+  },
+  "wave_report_info_only": {
+   "failedGates": [
+    "P4"
+   ],
+   "perf": {
+    "P1": "369ms",
+    "P2": "195ms",
+    "P3": "235ms",
+    "P4": "42403ms",
+    "P5": "43693ms",
+    "P6a": "701ms",
+    "P6b": "519ms",
+    "P6c": "586ms",
+    "P7": "87s",
+    "P8": "0.00%",
+    "P9": "0.00%"
+   }
+  }
+ },
+ "hypotheses": {
+  "H1_drain_loop": {
+   "verdict": "مدعوم",
+   "why": "خمولُ الحلقةِ وفي الطابورِ صفوفٌ مستحقّة 0.296 ≥ 0.1",
+   "gain_upper": 1.42
+  },
+  "H2_sender_wait": {
+   "congestion_share_of_pending_in_backlog": 0.106,
+   "wait_share_of_lane_s": 4.934,
+   "verdict": "مدعوم",
+   "gain_upper": null
+  },
+  "H3_retry_ack": {
+   "real_failures": 35691,
+   "telegram_delivered": 3829,
+   "share": 9.321,
+   "verdict": "مدعوم"
+  },
+  "H4_lifecycle_kind": {
+   "oldestPendingKind": "rider_trip_notice",
+   "oldest20_by_kind_lasterror": {
+    "rider_trip_notice|OUTBOUND_CONGESTION": 20
+   },
+   "verdict": "يُقرأ مع §7 (نوعُ الأقدمِ مقيسٌ مباشرةً)"
+  },
+  "H5_structural_rate": {
+   "rider_mean_per_busy_s": 22.26,
+   "budget": 25,
+   "verdict": "مرفوض"
+  },
+  "H6_mixed_or_other": {
+   "supported": [
+    "H1_drain_loop",
+    "H2_sender_wait",
+    "H3_retry_ack"
+   ],
+   "verdict": "مختلط"
+  }
+ },
+ "completeness": {
+  "oldest_kind_measured": true,
+  "egressTimeline_present": true,
+  "sample_coverage": 0.982,
+  "sample_coverage_ok": true,
+  "drain_runs_ok": true,
+  "sender_events_logged": true,
+  "rows_present": true,
+  "complete": true
+ },
+ "limits": [],
+ "b33_choice_rule": {
+  "decision": "B33_VARIABLE",
+  "variable": "drain_loop_scheduling",
+  "gain_upper": 1.42,
+  "gains": {
+   "H1": 1.42,
+   "H2": null,
+   "needed": 1.179
+  }
+ }
+}

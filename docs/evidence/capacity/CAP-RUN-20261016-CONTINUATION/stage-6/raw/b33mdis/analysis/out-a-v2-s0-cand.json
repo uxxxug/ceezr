@@ -1,0 +1,191 @@
+{
+ "facts": {
+  "p7_tool": {
+   "oldestPendingSec": null,
+   "oldestPendingKind": null,
+   "pendingAgeByKind": null,
+   "byKind": null,
+   "riderTripChannel": null,
+   "audit_at": null
+  },
+  "egressTimeline": {},
+  "outbox_samples": {
+   "n": 0,
+   "errors": 0,
+   "kinds": {},
+   "oldest_kind_share_of_samples": {},
+   "q_ms_p95": null
+  },
+  "drain_loop": {
+   "runs": 0,
+   "dur_ms_p50": null,
+   "dur_ms_p95": null,
+   "dur_ms_max": null,
+   "budget_hit_share": null,
+   "gap_ms_p50": null,
+   "gap_ms_p95": null,
+   "gap_ms_max": null,
+   "duty_all": null,
+   "backlog_window_s": 0,
+   "runs_in_backlog": 0,
+   "idle_share_in_backlog": null,
+   "idle_with_eligible_share": null,
+   "budget_hit_share_in_backlog": null,
+   "claimed": 0,
+   "delivered": 0,
+   "failed": 0,
+   "abandoned": 0,
+   "undeliverable": 0,
+   "delivered_per_busy_s": null
+  },
+  "sender": {
+   "events": 0,
+   "by_event_detail_operation": {},
+   "wait_s_total": 0.0,
+   "lane_busy_s_upper": 0.0,
+   "wait_share_of_lane_s": null
+  },
+  "pgss": {
+   "claim": {
+    "calls": 0,
+    "mean_ms": null,
+    "total_ms": 0.0
+   },
+   "finish": {
+    "calls": 0,
+    "mean_ms": null,
+    "total_ms": 0.0
+   },
+   "requeue_congestion": {
+    "calls": 0,
+    "mean_ms": null,
+    "total_ms": 0.0
+   },
+   "requeue_signal_wait": {
+    "calls": 0,
+    "mean_ms": null,
+    "total_ms": 0.0
+   },
+   "finish_via_board": {
+    "calls": 0,
+    "mean_ms": null,
+    "total_ms": 0.0
+   },
+   "congestion_requeue_share_of_claims": null,
+   "claims_per_telegram_finish": null
+  },
+  "rows": {
+   "n": 0,
+   "by_kind_status_channel": {},
+   "latency_s": {},
+   "pending_by_kind_lasterror_eligibility_at_audit": {},
+   "oldest20_pending": [],
+   "attempts_dist_tg_delivered": {},
+   "error_code_counts": {},
+   "dead_reason_counts": {}
+  },
+  "mock": {},
+  "wave_report_info_only": {
+   "failedGates": null,
+   "perf": {}
+  },
+  "v2": {
+   "idle_with_eligible_bracketed": null,
+   "idle_share_all": null,
+   "egress_run_vs_gap": {},
+   "rider_rate_in_runs": null,
+   "rider_rate_overall": null,
+   "delivered_per_run_p50": null,
+   "delivered_per_run_max": null,
+   "run_start_offsets_mod_10s": []
+  }
+ },
+ "completeness": {
+  "oldest_kind_measured": false,
+  "egressTimeline_present": false,
+  "sample_coverage": null,
+  "sample_coverage_ok": false,
+  "drain_runs_ok": false,
+  "sender_events_logged": false,
+  "rows_present": false,
+  "complete": false
+ },
+ "limits": [],
+ "hypotheses_v1_as_computed": {
+  "H1_drain_loop": {
+   "verdict": "غير محسوم",
+   "why": "لا دوراتِ تصريفٍ أو لا تراكمَ مقيس",
+   "gain_upper": null
+  },
+  "H2_sender_wait": {
+   "congestion_share_of_pending_in_backlog": null,
+   "wait_share_of_lane_s": null,
+   "verdict": "غير محسوم",
+   "gain_upper": null
+  },
+  "H3_retry_ack": {
+   "real_failures": 0,
+   "telegram_delivered": 0,
+   "share": null,
+   "verdict": "غير محسوم"
+  },
+  "H4_lifecycle_kind": {
+   "oldestPendingKind": null,
+   "oldest20_by_kind_lasterror": {},
+   "verdict": "غير محسوم"
+  },
+  "H5_structural_rate": {
+   "rider_mean_per_busy_s": null,
+   "budget": 25,
+   "verdict": "غير محسوم"
+  },
+  "H6_mixed_or_other": {
+   "supported": [],
+   "verdict": "لا فرضيةَ مدعومة"
+  }
+ },
+ "b33_choice_rule_v1_as_computed": {
+  "decision": "NOT_READY",
+  "why": "بياناتٌ ناقصة — §7.1",
+  "gains": {
+   "H1": null,
+   "H2": null,
+   "needed": 1.179
+  }
+ },
+ "hypotheses": {
+  "H1_drain_loop": {
+   "verdict": "غير محسوم"
+  },
+  "H5_cap_in_runs": {
+   "rider_rate_in_runs": null,
+   "threshold": 22.5,
+   "verdict": "غير محسوم"
+  },
+  "H2_sender_requeue_independent": {
+   "requeue_share_of_claims": null,
+   "cap_binding_in_runs": false,
+   "verdict": "غير محسوم",
+   "note": null
+  },
+  "H3_retry_ack": {
+   "mock_429": 0,
+   "rows_with_error_code": 0,
+   "telegram_delivered": 0,
+   "verdict": "غير محسوم"
+  },
+  "H4_lifecycle_kind": {
+   "oldestPendingKind": null,
+   "verdict": "غير محسوم"
+  },
+  "H6_mixed_or_other": {
+   "supported": [],
+   "verdict": "لا شيء"
+  }
+ },
+ "b33_choice_rule": {
+  "decision": "NOT_READY",
+  "why": "بياناتٌ ناقصة (§7.1 من PROTOCOL-b33m.md)",
+  "note_1000": "عندَ 1000 يلزمُ ≈27/ث > 25/ث (BATCH-33-READINESS §3) — متوقّفٌ على المالكِ أيًّا كان متغيّرُ 750"
+ }
+}
