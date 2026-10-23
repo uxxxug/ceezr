@@ -15,9 +15,10 @@ permissions:
   contents: read
 
 env:
-  MAIN_SHA: af6aa4a4fa8e953d51ed46bcda84b150be829fc7
-  EXP_SHA: 2846483292afbc5143757b4a822fcae5200cf1ea
-  # SOAK-02: الشيفرةُ = main + وضعُ معدّلِ الوصولِ في المولّد (أدواتُ قياسٍ فقط) — لا فرقَ منتجٍ مسموح.
+  # §11: main بعدَ دمجِ إصلاحِ editMessageText (#636) — الشيفرةُ تحتَ الاختبار.
+  MAIN_SHA: 4ce0cd35
+  # §11: main + أدواتُ القياسِ المصلَحةُ (استعلامٌ مفهرسٌ + رفعُ الأدلةِ) — لا فرقَ منتج.
+  EXP_SHA: 17b7cfc7
   EXPECTED_PRODUCT_DIFF: ""
 
 jobs:
@@ -29,13 +30,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # SOAK-02: معدّلُ وصولٍ ثابتٌ (رحلة/ث) لـ60 دقيقة، المدنُ الخمسُ، سقفُ 500 سيناريو، كلُّ معدّلٍ مرّتان.
-          - { name: soak2-r3-a, conc: 500, rate: "3", cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak2-r3-b, conc: 500, rate: "3", cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak2-r5-a, conc: 500, rate: "5", cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak2-r5-b, conc: 500, rate: "5", cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak2-r7-a, conc: 500, rate: "7", cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak2-r7-b, conc: 500, rate: "7", cities: "JED,MKK,RUH,TIF,MED" }
+          # §11 (تدقيقُ §8-3 — أصغرُ اختبارٍ تالٍ): 10 رحلات/ث × 60 دقيقة × تشغيلان بالأداةِ المصلَحةِ فقط.
+          # المعدّلاتُ الأدنى لا تُعاد: التجاوزُ لا يظهرُ إلا عندَ التشبع. لا 12 ولا 15 قبلَ حكمِ هاتينِ الموجتين.
           - { name: soak2-r10-a, conc: 500, rate: "10", cities: "JED,MKK,RUH,TIF,MED" }
           - { name: soak2-r10-b, conc: 500, rate: "10", cities: "JED,MKK,RUH,TIF,MED" }
     steps:

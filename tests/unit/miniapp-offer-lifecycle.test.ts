@@ -8,9 +8,9 @@
 import { describe, expect, test } from "bun:test";
 import {
   buildOfferLifecycleEvent,
-  outboxOfferIds,
   type OfferLifecycleOutboxRow,
   type OfferLifecycleRow,
+  outboxOfferIds,
 } from "../../deploy/capacity-run/load/miniapp-load.ts";
 
 const corr = { index: 42, orderId: "11111111-2222-3333-4444-555555555555" } as Parameters<
