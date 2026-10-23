@@ -1,0 +1,25 @@
+{
+  "id": "telegram-edit-bucket-20261023",
+  "goal": "إغلاقُ فجوةِ §5.3 من تدقيقِ SOAK-02 (AUDIT-20261023): بوتُ السائقِ تجاوزَ 25 رسالة/ث في المحاكي (4,311–4,709 رفضَ 429 في r10، ذروةُ 30/ث في 45–48 ثانيةً) بينما بوتُ الراكبِ ذروتُهُ 25 بالضبطِ وصفرُ رفضٍ — فالعلةُ مسارٌ يمرُّ خارجَ الدلو. الجذرُ في الكود: withOutboundResilience يقيّدُ sendMessage/sendPhoto/sendLocation بالدلوِ ثم يمرِّرُ editMessageText عبرَ interactiveOf إلى الداخلِ مباشرةً بلا اقتناءِ فتحة — وتيليجرامُ يُدخِلُ التعديلاتِ في نافذةِ البوتِ كما يفعلُ محاكي المشروعُ نفسُه. أكبرُ مستهلكٍ لهذا المسارِ بطاقاتُ العروضِ الميتةُ (بند WR‑08 المسطَّرُ أدناه): 124,994 عرضًا ميتًا في r10-a وحدها (ساعةٌ عندَ 10 رحلات/ث). الإصلاحُ: التعديلُ يقتني فتحةً منَ الدلوِ العالميِّ قبلَ التنفيذِ بتصنيفِ informational، والنطاقُ العالميُّ وحدَه (التعديلُ لا يضيفُ رسالةً جديدةً للمحادثةِ)، والازدجاحُ (D8) يُرمى فورًا OutboundCongestionError بلا طابورِ موتى ولا محاولةٍ محتسبةٍ — وبطاقاتُ العروضِ (close-dead-offer-cards) لا تستهلكُ محاولتَها عندَ الازدجاحِ فتبقى قابلةً للإغلاقِ مهما تكرّرَ، وفشلُ الإرسالِ الحقيقيُّ يُسجَّلُ في طابورِ الموتى بعمليةِ editMessageText ثم يُرمى والمتصلونَ يتعاملونَ معَ الرميِ سلفًا. answerCallbackQuery بقيَ مرورًا مباشرًا (ليسَ رسالةً ولا يُحتسَبُ في نافذةِ البوتِ). اختباراتُ انحدارٍ أحمر/أخضر في ملفَّين (فشلا قبلَ الإصلاحِ ونجحا بعده 27/27) وكاملُ الحزمةِ المحليةِ 9,964 ناجحًا و0 فاشلًا. لا تغييرَ في الحدودِ المحميةِ (25/ث ودلوُّ المحادثةِ كما هما) — الإصلاحُ يُنفِّذُ الحدَّ لا يخفضُه.",
+  "canonical_source": [
+    "docs/evidence/capacity/SOAK-20261023/edit-bucket-bypass/RESULT.md",
+    "docs/evidence/capacity/SOAK-20261023/AUDIT-20261023.md"
+  ],
+  "implementation": [
+    "packages/infrastructure/notification/rate-aware-telegram-sender.ts",
+    "packages/application/dispatch/close-dead-offer-cards.ts",
+    "tests/unit/rate-aware-telegram-sender.test.ts",
+    "tests/unit/wr-08-offer-card-close.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/capacity/SOAK-20261023/edit-bucket-bypass/RESULT.md",
+    "docs/evidence/capacity/SOAK-20261023/edit-bucket-bypass/SHA256SUMS",
+    "docs/evidence/archive/SOAK-20261023/edit-bucket-bypass/red-run.txt",
+    "docs/evidence/archive/SOAK-20261023/edit-bucket-bypass/green-run.txt",
+    "docs/evidence/archive/SOAK-20261023/edit-bucket-bypass/mock-egress-analysis.txt",
+    "docs/evidence/archive/SOAK-20261023/edit-bucket-bypass/SHA256SUMS"
+  ],
+  "no_other_affected_docs_reason": "لا عقدًا ولا قرارًا معماريًّا ولا هجرةَ قاعدةِ بياناتٍ ولا واجهةً تتغيّر؛ التغييرُ داخلَ غلافِ صمودِ الصادرِ وحدَه وحزمةُ العملِ هذه."
+}
