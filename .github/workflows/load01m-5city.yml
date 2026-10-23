@@ -16,7 +16,7 @@ permissions:
 
 env:
   MAIN_SHA: 2aa557aa2813b77bc12d37b257de22ae733378af
-  EXP_SHA: 20afcfb9e0c87073146bec793fbd19b9c7436b0f
+  EXP_SHA: 8b4736cffb1a9d3117daeab8ee254e9e1a9aa3f6
   # التشغيلُ الثالث: main + المولّد + إصلاحُ PR #632 — الفرقُ المسموحُ في المنتجِ هذانِ الملفّانِ فقط.
   EXPECTED_PRODUCT_DIFF: "apps/gateway/src/background/telegram-reply-pool.ts apps/gateway/src/background/telegram-update-drainer.ts"
 
@@ -29,14 +29,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: s-jed-500, conc: 500, cities: "JED" }
-          - { name: s-mkk-500, conc: 500, cities: "MKK" }
-          - { name: s-ruh-500, conc: 500, cities: "RUH" }
-          - { name: s-tif-500, conc: 500, cities: "TIF" }
-          - { name: s-med-500, conc: 500, cities: "MED" }
-          - { name: s-jed-750, conc: 750, cities: "JED" }
-          - { name: m5-250, conc: 250, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: m5-500, conc: 500, cities: "JED,MKK,RUH,TIF,MED" }
+          # التشغيلُ الرابع: موجاتُ المدنِ الخمسِ فوقَ 500 فقط (فحصُ فجوةِ العدالة بعدَ تشابكِ الإطلاق).
           - { name: m5-750, conc: 750, cities: "JED,MKK,RUH,TIF,MED" }
           - { name: m5-1500, conc: 1500, cities: "JED,MKK,RUH,TIF,MED" }
           - { name: m5-2500, conc: 2500, cities: "JED,MKK,RUH,TIF,MED" }
