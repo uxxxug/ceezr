@@ -15,24 +15,29 @@ permissions:
   contents: read
 
 env:
-  MAIN_SHA: 2aa557aa2813b77bc12d37b257de22ae733378af
-  EXP_SHA: 8b4736cffb1a9d3117daeab8ee254e9e1a9aa3f6
-  # التشغيلُ الثالث: main + المولّد + إصلاحُ PR #632 — الفرقُ المسموحُ في المنتجِ هذانِ الملفّانِ فقط.
-  EXPECTED_PRODUCT_DIFF: "apps/gateway/src/background/telegram-reply-pool.ts apps/gateway/src/background/telegram-update-drainer.ts"
+  MAIN_SHA: af6aa4a4fa8e953d51ed46bcda84b150be829fc7
+  EXP_SHA: af6aa4a4fa8e953d51ed46bcda84b150be829fc7
+  # SOAK-01: الشيفرةُ = main نفسُه (بعدَ دمجِ #631 و#632) — لا فرقَ منتجٍ مسموح.
+  EXPECTED_PRODUCT_DIFF: ""
 
 jobs:
   seat:
     name: "${{ matrix.name }} (scenarios=${{ matrix.conc }}, cities=${{ matrix.cities }})"
     runs-on: ubuntu-26.04
-    timeout-minutes: 120
+    timeout-minutes: 200
     strategy:
       fail-fast: false
       matrix:
         include:
-          # التشغيلُ الرابع: موجاتُ المدنِ الخمسِ فوقَ 500 فقط (فحصُ فجوةِ العدالة بعدَ تشابكِ الإطلاق).
-          - { name: m5-750, conc: 750, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: m5-1500, conc: 1500, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: m5-2500, conc: 2500, cities: "JED,MKK,RUH,TIF,MED" }
+          # SOAK-01: تحمّلٌ مستدامٌ 60 دقيقةً لكلِّ موجةٍ، المدنُ الخمسُ معًا، كلُّ مستوى مرّتان على مشغِّلَين مستقلَّين.
+          - { name: soak-m5-150-a, conc: 150, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak-m5-150-b, conc: 150, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak-m5-250-a, conc: 250, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak-m5-250-b, conc: 250, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak-m5-350-a, conc: 350, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak-m5-350-b, conc: 350, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak-m5-500-a, conc: 500, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak-m5-500-b, conc: 500, cities: "JED,MKK,RUH,TIF,MED" }
     steps:
       - uses: actions/checkout@v7
         with:
@@ -51,7 +56,7 @@ jobs:
         run: |
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
-            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" --setenv=EXPECTED_PRODUCT_DIFF="$EXPECTED_PRODUCT_DIFF" \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" --setenv=EXPECTED_PRODUCT_DIFF="$EXPECTED_PRODUCT_DIFF" --setenv=WAVE_SEC=3600 \
             bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m.sh "${{ matrix.name }}" "${{ matrix.conc }}" "${{ matrix.cities }}"
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)

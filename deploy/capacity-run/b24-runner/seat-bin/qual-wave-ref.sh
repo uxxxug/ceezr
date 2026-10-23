@@ -21,7 +21,7 @@ python3 $B/bin/qual-check.py preflight $Q/pre-host.jsonl $Q/pre-speed.jsonl $Q/p
 PRC=$?
 cat $Q/preflight.json | python3 -c 'import json,sys;d=json.load(sys.stdin);print("PREFLIGHT",d["verdict"],d["violations"])'
 if [ $PRC -ne 0 ]; then echo "PREFLIGHT_INVALID $ROUND — لا حقن"; echo "QUAL_DONE $ROUND rc=3"; exit 3; fi
-python3 $B/bin/host-sampler.py $Q/wave-host.jsonl 1200 "$ROUND" &
+python3 $B/bin/host-sampler.py $Q/wave-host.jsonl $(( ${WAVE_SEC:-180} + 1020 )) "$ROUND" &
 HS=$!
 T0=$(ms)
 ROUND_ID=$ROUND $B/bin/wave-full-ref.sh $ROUND $CONC $IDX

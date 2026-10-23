@@ -11,9 +11,9 @@ GWLOG=$B/runs/current/evidence/gateway.log; START_LINE=$(wc -l < $GWLOG)
 # الدفعة 26: الحدُّ الفعليُّ الذي قرأته البوابةُ الحيّة + عيّناتُ نافذتِه منَ Redis (للجانبَين بالتساوي)
 if [ -n "${B26_SESSION_LIMIT:-}" ]; then
   $B/bin/session-limit-check.sh /home/user/workspace/wt-ref "$B26_SESSION_LIMIT" > $B/runs/$ROUND.side/session-limit.json 2>&1
-  $B/bin/nsx python3 $B/bin/rl-sampler.py $B/runs/$ROUND.side/rl-window.jsonl 420 "$B26_SESSION_LIMIT" &
+  $B/bin/nsx python3 $B/bin/rl-sampler.py $B/runs/$ROUND.side/rl-window.jsonl $(( ${WAVE_SEC:-180} + 240 )) "$B26_SESSION_LIMIT" &
 fi
-python3 $B/bin/res-sampler.py $B/runs/$ROUND.side/resources.jsonl 420 &
+python3 $B/bin/res-sampler.py $B/runs/$ROUND.side/resources.jsonl $(( ${WAVE_SEC:-180} + 240 )) &
 SP=$!
 # b33m (PROTOCOL-b33m.md): عيّناتُ الصادرِ كلَّ 5 ث أثناءَ الموجةِ — بغيابِ B33M_OUTBOX لا شيءَ يتغيّر.
 OS=""
