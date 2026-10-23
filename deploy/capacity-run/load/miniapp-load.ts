@@ -1189,12 +1189,18 @@ async function main() {
       });
     };
     while (Date.now() < stopAt) {
-      for (const city of CITY_LIST) {
-        const running = runningByCity.get(city);
-        if (running === undefined) continue;
-        while (running.size < share && Date.now() < stopAt) {
+      // تشابكٌ دوّارٌ بينَ المدن (واحدٌ لكلِّ مدينةٍ في كلِّ دورة) لا ملءُ حصّةِ مدينةٍ ثمَّ التي
+      // تليها: الملءُ المتتابعُ وضعَ دفعةَ MED/TIF الأولى آخرَ طابورِ الدرينرِ FIFO فظهرت فجوةُ
+      // عدالةٍ مصطنعةٌ من المولّد (التشغيلُ الثالث m5-2500: JED 32.8% مقابلَ MED 0.5%).
+      let launched = true;
+      while (launched && Date.now() < stopAt) {
+        launched = false;
+        for (const city of CITY_LIST) {
+          const running = runningByCity.get(city);
+          if (running === undefined || running.size >= share) continue;
           const p = launch(city);
           running.add(p);
+          launched = true;
           void p.then(
             () => {
               running.delete(p);
