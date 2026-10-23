@@ -1084,31 +1084,18 @@ async function offerStateSafe(offerId: string) {
 /** دورةُ حياةِ العرضِ منَ القاعدةِ — طوابعُ العروضِ للطلبِ (الإنشاءُ/الصلاحيةُ/
  * الاستجابةُ) وحالةُ كلٍّ منها ومستقبِلُه، وإشعارُ البوابةِ للعرضِ (delivered_at)
  * — لا يُسجَّلُ payload ولا رموزٌ. */
-async function recordOfferLifecycle(corr: ScenarioCorr): Promise<void> {
-  const orderId = corr.orderId;
-  if (orderId === undefined) return;
-  const offers = await sql<
-    {
-      id: string;
-      status: string;
-      driver_id: string;
-      round: number;
-      created_at: string;
-      expires_at: string;
-      responded_at: string | null;
-    }[]
-  >`
-    select id::text, status::text, driver_id::text, round,
-           created_at::text, expires_at::text, responded_at::text
-      from order_offers where order_id = ${orderId} order by round, created_at
-  `;
-  const outbox = await sql<{ status: string; attempts: number; delivered_at: string | null }[]>`
-    select status::text, attempts, delivered_at::text
-      from notification_outbox where order_id = ${orderId} and offer_id is not null
-  `;
-  ev("scenario.offer_lifecycle", {
+/**
+ * بناءُ حدثِ دورةِ حياةِ العرضِ — دالةٌ نقيةٌ تختبرُها الوحدةُ (تدقيقُ SOAK-02 2026-10-23:
+ * تغييرُ مسارِ الاستعلامِ إلى الفهرسِ لا يجوزُ أن يغيّرَ حقولَ الحدثِ ولا عدّاداتِه).
+ */
+export function buildOfferLifecycleEvent(
+  corr: ScenarioCorr,
+  offers: readonly OfferLifecycleRow[],
+  outbox: readonly OfferLifecycleOutboxRow[],
+): Record<string, unknown> {
+  return {
     index: corr.index,
-    orderId,
+    orderId: corr.orderId as string,
     offers: offers.map((o) => ({
       id: o.id.slice(0, 8),
       status: o.status,
@@ -1123,7 +1110,55 @@ async function recordOfferLifecycle(corr: ScenarioCorr): Promise<void> {
       attempts: n.attempts,
       deliveredAt: n.delivered_at,
     })),
-  });
+  };
+}
+
+export interface OfferLifecycleRow {
+  id: string;
+  status: string;
+  driver_id: string;
+  round: number;
+  created_at: string;
+  expires_at: string;
+  responded_at: string | null;
+}
+
+export interface OfferLifecycleOutboxRow {
+  status: string;
+  attempts: number;
+  delivered_at: string | null;
+}
+
+/**
+ * معرّفاتُ العروضِ لاستعلامِ الصادرِ — عبرَ `offer_id` المفهرسِ
+ * (`notification_outbox_offer_uidx` وقيودُ التفردِ) لا `order_id` الذي لا فهرسَ عليه
+ * (تدقيقُ 2026-10-23: مسحٌ كاملٌ ~25ث كلَّ سيناريوٍ يشوّهُ الموجةَ الخفيفةَ).
+ */
+export function outboxOfferIds(offers: readonly OfferLifecycleRow[]): string[] {
+  return offers.map((o) => o.id);
+}
+
+/**
+ * توثيقُ دورةِ حياةِ العرضِ لسيناريو منتهٍ — قراءتُهُ مفهرسةٌ عبرَ `offer_id` بعدَ أن كانت
+ * تمسحُ `notification_outbox` كاملًا على `order_id` غيرِ المفهرسِ (أداةُ قياسٍ فقط؛ لا يمسُّ
+ * المنتجَ ولا عدّاداتِ الموجةِ — يثبتُهُ اختبارُ `buildOfferLifecycleEvent`).
+ */
+async function recordOfferLifecycle(corr: ScenarioCorr): Promise<void> {
+  const orderId = corr.orderId;
+  if (orderId === undefined) return;
+  const offers = await sql<OfferLifecycleRow[]>`
+    select id::text, status::text, driver_id::text, round,
+           created_at::text, expires_at::text, responded_at::text
+      from order_offers where order_id = ${orderId} order by round, created_at
+  `;
+  // مفهرسٌ حصرًا: فهرسُ offer_id الجزئيُّ يغطي كلَّ صفٍّ ذي offer_id (المطلوبَ أصلًا)،
+  // والاستعلامُ بلا عروضٍ يعودُ فارغًا بلا مسحٍ (any(مصفوفةٌ فارغة) لا يطابقُ شيئًا).
+  const outbox = await sql<OfferLifecycleOutboxRow[]>`
+    select status::text, attempts, delivered_at::text
+      from notification_outbox
+      where offer_id = any(${sql.array(outboxOfferIds(offers))}::uuid[])
+  `;
+  ev("scenario.offer_lifecycle", buildOfferLifecycleEvent(corr, offers, outbox));
 }
 
 /* ───────── الحلقةُ الرئيسةُ ───────── */
