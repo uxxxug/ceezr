@@ -1,0 +1,26 @@
+{
+  "id": "load01m-reply-overflow-defers",
+  "goal": "إزالةُ ربطِ إتمامِ وظائفِ webhook بدلوِ البوتِ (25 رسالة/ث) عندَ امتلاءِ مُرسِلِ الردودِ الفوري — كشفَه قياسُ LOAD-01M.",
+  "canonical_source": ["docs/roadmap/capacity/LOAD-01M.md"],
+  "implementation": [
+    "apps/gateway/src/background/telegram-reply-pool.ts",
+    "apps/gateway/src/background/telegram-update-drainer.ts",
+    "tests/integration/s5-update-effect-ledger.test.ts",
+    "tests/unit/telegram-reply-pool.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [],
+  "decision": "عندَ امتلاءِ المُرسِلِ الفوريِّ لا يُرسِلُ الدرينرُ الردَّ داخلَ مسارِ الوظيفة؛ الردُّ محفوظٌ في الدفترِ (sending بإيجار) منذ recordEffect فيلتقطُه المُرسِلُ الخلفيُّ القائم (drainTelegramUpdateRepliesOnce) بعدَ انقضاءِ الإيجار، ويُسجَّلُ telegram.replies.deferred_overflow. المسارُ (lane) المؤجَّلُ يبقى مؤجَّلًا 2×maxWaitMs حفظًا لترتيبِ ردودِ المستخدم. لا تغييرَ في الدلوِ ولا gatewayRequest ولا IMMEDIATE_REDISPATCH_LIMIT ولا حدودِ المُرسِل.",
+  "tests": [
+    "bun test tests/unit/telegram-reply-pool.test.ts (7)(8)",
+    "tests/integration/s5-update-effect-ledger.test.ts (10): ينتهي بالمهلةِ على الشيفرةِ القديمةِ وينجحُ على الجديدة",
+    "مقعد LOAD-01M: التشغيلان 39931672504 و39933838732 مقابلَ 39925887251 و39928767658"
+  ],
+  "evidence": "m5-2500 (5,000 هوية): G1 3.15%/3.06% → 17.21%/18.15%؛ وظائفُ webhook المعلّقةُ 8,113 → 0؛ p95 زمنِ الوظيفة 98.8ث → ~32.6ث. m5-1500: G1 19.44%/14.81% → 38.79%/41.85%. موجاتُ 500 لكلِّ مدينة لم تتراجع. التفصيل: docs/evidence/capacity/LOAD01M-20261023/RESULT.md §5 (في PR #631).",
+  "constraints": [
+    "gatewayRequest: 5 وIMMEDIATE_REDISPATCH_LIMIT = 50 و25 رسالة/ث دونَ تغيير",
+    "لا تغييرَ في عتباتِ G/P/N"
+  ],
+  "limitations": "تحسُّنٌ لا يكفي لهدفِ LOAD-01M: بعدَه الحدُّ هو سقفُ مجمّعِ نسخةِ البوّابةِ الواحدة (~1,700 استعلام/ث). الردُّ المؤجَّلُ عندَ الامتلاءِ يتأخّرُ حتى انقضاءِ إيجارِه (60ث) بدلَ حجزِ مسارِ الدرينر."
+}
