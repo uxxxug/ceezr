@@ -78,6 +78,34 @@ const PROFILE: Phase[] = JSON.parse(
   process.env.PROFILE ?? '[{"name":"smoke","sec":120,"conc":10}]',
 );
 const CITY = process.env.CITY ?? "JED";
+/**
+ * `LOAD-01M` (هدفُ المدنِ الخمسِ المكمِّلُ) — قائمةُ مدنٍ متزامنةٍ في الجولةِ نفسِها.
+ * `CITIES=JED,MKK,RUH,TIF,MED` يوزّعُ تزامنَ كلِّ مرحلةٍ بالتساوي على المدنِ (حصّةٌ
+ * ثابتةٌ لكلِّ مدينةٍ لا طابورٌ مشترك: مدينةٌ بطيئةٌ لا تسرقُ مقاعدَ غيرِها)، والراكبُ
+ * والسائقُ في السيناريو من المدينةِ نفسِها. غيابُها ⇒ مدينةٌ واحدةٌ هي `CITY` بالسلوكِ
+ * السابقِ حرفيًّا (موجاتُ `LOAD-01` الرسميةُ لا تتغيّر).
+ */
+export const CITY_LIST: readonly string[] = (process.env.CITIES ?? CITY)
+  .split(",")
+  .map((c) => c.trim())
+  .filter((c) => c.length > 0);
+/** نقاطٌ داخلَ مستطيلِ خدمةِ كلِّ مدينةٍ (`city_service_areas`) بهامشٍ يتّسعُ لاهتزازِ ±0.02. */
+export const CITY_CENTERS: Record<string, { lat: number; lng: number }> = {
+  JED: { lat: 21.4858, lng: 39.1925 },
+  MKK: { lat: 21.4225, lng: 39.8262 },
+  RUH: { lat: 24.7136, lng: 46.6753 },
+  TIF: { lat: 21.2703, lng: 40.4158 },
+  MED: { lat: 24.4672, lng: 39.6111 },
+};
+for (const c of CITY_LIST) {
+  if (CITY_CENTERS[c] === undefined) throw new Error(`مدينةٌ غيرُ معروفةٍ في CITIES: ${c}`);
+}
+/** حصّةُ كلِّ مدينةٍ من تزامنِ المرحلةِ — يرفضُ القسمةَ غيرَ التامّةِ بدلَ التقريبِ الصامت. */
+export function perCityConcurrency(conc: number, cities: number): number {
+  if (cities < 1) throw new Error("لا مدنَ في الجولة");
+  if (conc % cities !== 0) throw new Error(`التزامنُ ${conc} لا ينقسمُ على ${cities} مدن`);
+  return conc / cities;
+}
 
 /**
  * `LOAD-01 Recovery` — مزيجُ اتصالِ السائقينَ بالقناةِ الآنيةِ: واقعُ التطبيقِ
@@ -247,10 +275,14 @@ interface SeededUser {
   readonly userId: string;
 }
 
-async function seedUser(telegramId: number, role: "rider" | "driver"): Promise<SeededUser> {
+async function seedUser(
+  telegramId: number,
+  role: "rider" | "driver",
+  city: string,
+): Promise<SeededUser> {
   const users = await sql<{ id: string }[]>`
     insert into users (city_id, telegram_id, full_name, phone, role, language_code)
-    values ((select id from cities where code = ${CITY}), ${telegramId}::bigint,
+    values ((select id from cities where code = ${city}), ${telegramId}::bigint,
             ${`حمل ${GEN_ID} ${telegramId}`}, ${`+9665${String(telegramId).padStart(8, "0").slice(-8)}`},
             ${role}::user_role, 'ar')
     on conflict (telegram_id) do update set full_name = excluded.full_name
@@ -264,12 +296,12 @@ async function seedUser(telegramId: number, role: "rider" | "driver"): Promise<S
 let riderSeq = Number(process.env.RIDER_SEQ_START ?? 6_000_000);
 let driverSeq = Number(process.env.DRIVER_SEQ_START ?? 7_000_000);
 
-async function seedRider(): Promise<SeededUser> {
+async function seedRider(city: string): Promise<SeededUser> {
   riderSeq += 1;
-  const rider = await seedUser(riderSeq, "rider");
+  const rider = await seedUser(riderSeq, "rider", city);
   await sql`
     insert into riders (city_id, user_id)
-    values ((select id from cities where code = ${CITY}), ${rider.userId}::uuid)
+    values ((select id from cities where code = ${city}), ${rider.userId}::uuid)
     on conflict (user_id) do nothing
   `;
   return rider;
@@ -282,14 +314,12 @@ async function seedRider(): Promise<SeededUser> {
  * فالتحققُ منَ القاعدةِ (pending). خطواتُ المشرفِ (التوثيقُ والقدرةُ والتجربةُ)
  * موثقةٌ داخلَ المسارِ نفسِهِ بأنها فعلُ مشرفٍ لا فعلِ المستخدمِ.
  */
-async function seedDriverViaApp(): Promise<DriverOnboardingRecord> {
+async function seedDriverViaApp(city: string): Promise<DriverOnboardingRecord> {
   driverSeq += 1;
-  return onboardDriverViaApp({ telegramId: driverSeq, cityCode: CITY });
+  return onboardDriverViaApp({ telegramId: driverSeq, cityCode: city });
 }
 
 /* ───────── السيناريو ───────── */
-
-const JED = { lat: 21.4858, lng: 39.1925 };
 
 export interface ScenarioOutcome {
   readonly kind: "verified" | "rejected" | "undecided";
@@ -337,6 +367,8 @@ export function classifyOfferWait(stats: {
 /** الحالةُ المشتركةُ التي يملؤها السيناريو كلما توافرَ حقلاً — يُرفقُ بالمآلِ. */
 export interface ScenarioCorr {
   index: number;
+  /** `LOAD-01M` — مدينةُ السيناريو (الراكبُ والسائقُ والرحلةُ). */
+  city: string;
   riderTelegramId?: number;
   driverTelegramId?: number;
   orderId?: string;
@@ -680,7 +712,7 @@ export function outcomeWithCorr(outcome: ScenarioOutcome, corr: ScenarioCorr): S
   };
 }
 
-async function runScenario(index: number, closeAt: number): Promise<ScenarioOutcome> {
+async function runScenario(index: number, closeAt: number, city: string): Promise<ScenarioOutcome> {
   // `LOAD-01` — الغلافُ يرفقُ الارتباطَ بالمآلِ أيًّا كانَ موضعُ الخروجِ: لا
   // خروجَ مبكرًا يُفلتُ منَ الربطِ (هذا عينُ ما أضاعَ أسبابَ فشلِ الجولةِ
   // التاريخيةِ: مآلٌ بلا معرّفاتٍ لا يُشخَّصُ منَ القاعدةِ).
@@ -691,16 +723,17 @@ async function runScenario(index: number, closeAt: number): Promise<ScenarioOutc
   // فيَنخفضُ الذروةُ زورًا وتَفقدُ لقطةُ «التزامنِ الفعليِّ» دلالتَها. البدايةُ
   // هنا والنهايةُ عندَ المآلِ في الغلافِ — توازنٌ مضمونٌ لكلِّ مخرجٍ.
   rec.scenarioStart(`launch-${index}`);
-  const corr: ScenarioCorr = { index };
+  const corr: ScenarioCorr = { index, city };
   const outcome = await runScenarioSteps(corr, closeAt);
   return outcomeWithCorr(outcome, corr);
 }
 
 async function runScenarioSteps(corr: ScenarioCorr, closeAt: number): Promise<ScenarioOutcome> {
-  const rider = await seedRider();
+  const center = CITY_CENTERS[corr.city] ?? { lat: 21.4858, lng: 39.1925 };
+  const rider = await seedRider(corr.city);
   corr.riderTelegramId = rider.telegramId;
   // تجهيزُ السائقِ منَ التطبيقِ (لا حوارَ بوتٍ) — فشلُهُ يُسجَّلُ لا يُخفى
-  const driver = await seedDriverViaApp();
+  const driver = await seedDriverViaApp(corr.city);
   if (!driver.ok) {
     // `LOAD-01` — فشلُ التجهيزِ يُسجَّل بخطواتِهِ لا يُخفى: سببُ الجولةِ الأولىِ
     // الفاشلةِ (مدنٌ غيرُ مفعّلةٍ) ضاع لولا تشخيصُ الخطواتِ.
@@ -742,8 +775,8 @@ async function runScenarioSteps(corr: ScenarioCorr, closeAt: number): Promise<Sc
     // (±110م) فيكونُ أقربَ من أيِّ سائقٍ مزروعٍ بعيدًا عنها — المطابقةُ على
     // القربِ لا تحتملُ أن يخسرَ سائقُ السيناريو السباقَ لسائقٍ أقربَ.
     const pickup = {
-      lat: JED.lat + rnd(-0.01, 0.01),
-      lng: JED.lng + rnd(-0.01, 0.01),
+      lat: center.lat + rnd(-0.01, 0.01),
+      lng: center.lng + rnd(-0.01, 0.01),
     };
     // ADR 0287 — شاشةُ الراكبِ مفتوحةٌ (بالمزيجِ المسجَّلِ) قبلَ الإنشاءِ.
     riderSocket = Math.random() < RIDER_SOCKET_MIX ? openRiderTripSocket(riderSession.token) : null;
@@ -757,8 +790,8 @@ async function runScenarioSteps(corr: ScenarioCorr, closeAt: number): Promise<Sc
         service: "transport",
         originLat: pickup.lat,
         originLng: pickup.lng,
-        destinationLat: JED.lat + rnd(-0.02, 0.02),
-        destinationLng: JED.lng + rnd(-0.02, 0.02),
+        destinationLat: center.lat + rnd(-0.02, 0.02),
+        destinationLng: center.lng + rnd(-0.02, 0.02),
       },
       timeoutMs: 20_000,
     });
@@ -1090,6 +1123,7 @@ async function main() {
     profile: PROFILE,
     depth: DEPTH,
     city: CITY,
+    cities: CITY_LIST,
     drainSec: DRAIN_SEC,
     driverSocketMix: DRIVER_SOCKET_MIX,
     riderSocketMix: RIDER_SOCKET_MIX,
@@ -1117,9 +1151,15 @@ async function main() {
     // كلُّ انتظارٍ في السيناريو محدودٌ بهِ فلا انتظارَ بلا سقفٍ.
     const closeAt = stopAt + DRAIN_SEC * 1000;
     let index = 0;
-    const running = new Set<Promise<void>>();
-    const launch = async (): Promise<void> => {
-      const outcome = await runScenario(index++, closeAt);
+    // `LOAD-01M` — مقاعدُ كلِّ مدينةٍ مستقلّةٌ: حصّةٌ ثابتةٌ = تزامنُ المرحلةِ ÷ عددِ المدن.
+    const share = perCityConcurrency(ph.conc, CITY_LIST.length);
+    const runningByCity = new Map<string, Set<Promise<void>>>(
+      CITY_LIST.map((c) => [c, new Set<Promise<void>>()]),
+    );
+    const runningSize = (): number =>
+      [...runningByCity.values()].reduce((acc, set) => acc + set.size, 0);
+    const launch = async (city: string): Promise<void> => {
+      const outcome = await runScenario(index++, closeAt, city);
       if (outcome.kind === "verified") rec.scenarioEnd("verified");
       else if (outcome.kind === "rejected") rec.scenarioEnd("rejected");
       else rec.scenarioEnd("undecided");
@@ -1128,6 +1168,7 @@ async function main() {
       // يبدو الحملُ كلهُ فاشلًا في سجلِّ الأحداثِ رغمَ نجاحِهِ في القاعدةِ.
       ev("scenario.outcome", {
         kind: outcome.kind,
+        city,
         ...(outcome.reason === undefined ? {} : { reason: outcome.reason }),
         // `LOAD-01` — الارتباطُ الكاملُ في الحدثِ نفسِهِ (لا رموزَ جلساتٍ).
         ...(outcome.index === undefined ? {} : { index: outcome.index }),
@@ -1148,27 +1189,37 @@ async function main() {
       });
     };
     while (Date.now() < stopAt) {
-      while (running.size < ph.conc && Date.now() < stopAt) {
-        const p = launch();
-        running.add(p);
-        void p.then(
-          () => {
-            running.delete(p);
-          },
-          () => {
-            running.delete(p);
-          },
-        );
+      // تشابكٌ دوّارٌ بينَ المدن (واحدٌ لكلِّ مدينةٍ في كلِّ دورة) لا ملءُ حصّةِ مدينةٍ ثمَّ التي
+      // تليها: الملءُ المتتابعُ وضعَ دفعةَ MED/TIF الأولى آخرَ طابورِ الدرينرِ FIFO فظهرت فجوةُ
+      // عدالةٍ مصطنعةٌ من المولّد (التشغيلُ الثالث m5-2500: JED 32.8% مقابلَ MED 0.5%).
+      let launched = true;
+      while (launched && Date.now() < stopAt) {
+        launched = false;
+        for (const city of CITY_LIST) {
+          const running = runningByCity.get(city);
+          if (running === undefined || running.size >= share) continue;
+          const p = launch(city);
+          running.add(p);
+          launched = true;
+          void p.then(
+            () => {
+              running.delete(p);
+            },
+            () => {
+              running.delete(p);
+            },
+          );
+        }
       }
       await sleep(250);
     }
     // `LOAD-01` — نافذةُ الختامِ: تصريفٌ محدودٌ بموعدِ الإغلاقِ لا `Promise.all`
     // بلا سقفٍ؛ ما بقيَ بعدَ الموعدِ يُحصى عالقًا ولا يُهملُ.
-    ev("phase.drain_start", { name: ph.name, running: running.size, closeAt });
-    while (running.size > 0 && Date.now() < closeAt) {
+    ev("phase.drain_start", { name: ph.name, running: runningSize(), closeAt });
+    while (runningSize() > 0 && Date.now() < closeAt) {
       await sleep(250);
     }
-    const stuck = running.size;
+    const stuck = runningSize();
     closeStats.stuckAtClose += stuck;
     const drainMs = DRAIN_SEC * 1000 - (closeAt - Date.now());
     closeStats.drainMsTotal += Math.max(0, drainMs);

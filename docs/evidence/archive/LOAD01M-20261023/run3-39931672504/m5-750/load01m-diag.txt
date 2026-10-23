@@ -1,0 +1,32 @@
+=== DIAG mock-telegram
+mock_pre_total 10 mock_post_total 7840
+by_bot_delta {"driver": 3860, "rider": 3970}
+by_method {"setMyCommands": 8, "setChatMenuButton": 2, "sendMessage": 7830}
+rejected_429 0 soft_private_1ps 49 soft_group_20pm 0
+outcomes_per_10s 0s:468/468 10s:442/442 20s:378/378 30s:433/433 40s:484/484 50s:466/466 60s:441/441 70s:422/422 80s:400/400 90s:348/348 100s:402/402 110s:385/385 120s:420/420 130s:393/393 140s:365/365 150s:376/376 160s:319/319 170s:365/365 180s:471/471 190s:151/151
+onboarding_failed_step_patterns 0
+db_audit VIOLATIONS
+  violation stale_pending_outbox أقدم مهمة معلقة عمرها 127ث (> 120ث)
+=== DIAG telegram_update_jobs (per bot)
+driver | done | 7929 | 12.25 | 14.69 | 16.11 | 179
+=== DIAG telegram_update_jobs completions per 10s (per bot)
+driver 0s:533 10s:447 20s:381 30s:519 40s:400 50s:452 60s:432 70s:433 80s:400 90s:368 100s:451 110s:348 120s:400 130s:364 140s:368 150s:337 160s:400 170s:396 180s:403 190s:97
+=== DIAG notification_outbox (per kind)
+offer | dead | 48415 |  |  | 
+offer | delivered | 1 | 0.60 | 0.60 | 
+rider_trip_notice | delivered | 25998 | 0.38 | 88.90 | 
+rider_trip_notice | pending | 5718 |  |  | 161
+=== DIAG pg_stat_statements top by total time
+12833 | 80251 | 6.25 | select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (extract($1 from d.last
+7929 | 39870 | 5.03 | select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null
+20125 | 39053 | 1.94 | select claim_notification_delivery() result
+7929 | 31168 | 3.93 | select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $15) as result
+12781 | 23507 | 1.84 | select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result
+22030 | 22609 | 1.03 | select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result
+12957 | 18221 | 1.41 | with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.verification_status::text as verification_status, d.l
+7936 | 12352 | 1.56 | select driver_accept_offer_with_matched_notice($1::bigint, $2::uuid) as result
+59 | 11498 | 194.89 | select claim_telegram_update_replies($1::integer, $2::integer) as result
+7929 | 10083 | 1.27 | select driver_complete_ride_with_notice($1::bigint, $2::uuid) as result
+7929 | 9574 | 1.21 | select driver_start_ride_with_notice($1::bigint, $2::uuid) as result
+7929 | 8101 | 1.02 | select start_trial($1::uuid, $2::subscription_plan) as result where not exists (select $4 from subscriptions s where s.driver_id = $3::uuid)
+=== DIAG END

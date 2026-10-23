@@ -1,0 +1,31 @@
+=== DIAG mock-telegram
+mock_pre_total 10 mock_post_total 8086
+by_bot_delta {"driver": 4006, "rider": 4070}
+by_method {"setMyCommands": 8, "setChatMenuButton": 2, "sendMessage": 8067, "editMessageText": 9}
+rejected_429 0 soft_private_1ps 37 soft_group_20pm 0
+outcomes_per_10s 0s:400/400 10s:327/327 20s:425/425 30s:337/337 40s:400/400 50s:398/398 60s:335/335 70s:341/341 80s:335/335 90s:353/353 100s:334/334 110s:349/349 120s:278/278 130s:339/339 140s:293/293 150s:285/285 160s:343/343 170s:291/291 180s:375/375 190s:5/5
+onboarding_failed_step_patterns 0
+db_audit CLEAN
+=== DIAG telegram_update_jobs (per bot)
+driver | done | 6543 | 8.20 | 9.84 | 10.91 | 179
+=== DIAG telegram_update_jobs completions per 10s (per bot)
+driver 0s:532 10s:300 20s:397 30s:331 40s:405 50s:367 60s:365 70s:331 80s:352 90s:320 100s:329 110s:334 120s:337 130s:330 140s:282 150s:317 160s:332 170s:300 180s:282
+=== DIAG notification_outbox (per kind)
+offer | dead | 41253 |  |  | 
+offer | delivered | 31 | 0.37 | 0.56 | 
+rider_trip_notice | delivered | 22254 | 0.42 | 96.39 | 
+rider_trip_notice | pending | 3918 |  |  | 158
+=== DIAG pg_stat_statements top by total time
+11242 | 68747 | 6.12 | select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (extract($1 from d.last
+17244 | 40717 | 2.36 | select claim_notification_delivery() result
+6543 | 37873 | 5.79 | select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null
+6543 | 27202 | 4.16 | select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $15) as result
+18196 | 26413 | 1.45 | select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result
+11073 | 25817 | 2.33 | select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result
+10196 | 16994 | 1.67 | with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.verification_status::text as verification_status, d.l
+6549 | 12760 | 1.95 | select driver_accept_offer_with_matched_notice($1::bigint, $2::uuid) as result
+6543 | 10586 | 1.62 | select driver_complete_ride_with_notice($1::bigint, $2::uuid) as result
+6543 | 9767 | 1.49 | select driver_start_ride_with_notice($1::bigint, $2::uuid) as result
+6543 | 8244 | 1.26 | select driver_mark_arrived_with_notice($1::bigint, $2::uuid) as result
+64 | 8129 | 127.01 | select claim_telegram_update_replies($1::integer, $2::integer) as result
+=== DIAG END

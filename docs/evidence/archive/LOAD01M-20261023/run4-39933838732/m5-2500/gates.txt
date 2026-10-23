@@ -1,0 +1,2 @@
+verdict FAIL ['G1', 'P2', 'P3'] notverified {'driver_onboarding_failed': 14946, 'offer:offer_not_found_in_time': 3}
+G1=18.15% (3316/18265)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 18265/18265 · drivers 18265/18265 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 2500 / target 2500 | P1=639ms | P2=1701ms✗ | P3=1042ms✗ | P4=6390ms | P5=14408ms | P6a=1154ms | P6b=2054ms | P6c=1808ms | P7=119s | P8=0.00% | P9=0.00%
