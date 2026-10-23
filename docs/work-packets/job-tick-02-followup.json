@@ -1,0 +1,11 @@
+{
+  "id": "job-tick-02-followup",
+  "goal": "استكمالُ إغلاقِ ملاحظاتِ المراجعةِ على PR #628: (أ) اختبارٌ حاسمٌ ثانٍ لمسارِ رفضِ كتابةِ النبضةِ — كتابةُ نبضةِ الشوطِ الأولِ تُرفَضُ أثناءَ شوطٍ ثانٍ جارٍ فيُنفَّذُ مسارُ الفشلِ (catch ثم finally) ولا يُسقِطُ حارسَ اللاحقِ (الثالثُ skipped_overlapping)؛ (ب) تصحيحُ ترويسةِ نسخةِ العرضِ المشتقةِ للبروتوكولِ المُسجَّلِ مسبقًا: «التغييراتُ: ترويسةُ تعريفٍ بالاشتقاقِ وتصحيحُ مسارِ رابطٍ واحد؛ متنُ شروطِ التجربةِ وقاعدةِ القرارِ دونَ تغيير» مع توثيقِ الحسمِ السياساتيِّ للأصلِ الحرفيِّ بحسبِ ADR 0094 (البندُ ٤): البروتوكولُ المُسجَّلُ مسبقًا وثيقةُ تصميمٍ لا مُخرَجُ اختبارٍ خام، فلا تسري عليه قاعدةُ الحصرِ في docs/evidence/archive/. لا تغييرَ في أيِّ عتبة (G1–G8، P1–P9، N1–N5، gatewayRequest: 5، IMMEDIATE_REDISPATCH_LIMIT = 50). LOAD-01 = FAIL بلا تغيير؛ لا يُدَّعى حلُّ البوابة.",
+  "implementation": ["tests/unit/job-runner-guard-ownership.test.ts"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md", "docs/roadmap/execution/STATUS.md"],
+  "affected_docs": [
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle/analysis/PROTOCOL-b33m-idle.pinned-665bdda5.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle/SHA256SUMS"
+  ]
+}
