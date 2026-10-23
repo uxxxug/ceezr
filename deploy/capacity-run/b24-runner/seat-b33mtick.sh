@@ -192,20 +192,57 @@ if [ $SMOKE_RC -ne 0 ]; then
   cat "$OUT/secret-audit.txt"
   exit 1
 fi
-# تثبيتُ سقفِ الإرسالِ الفعليِّ (§5): دلوُ المحاكي MOCK_GLOBAL_PER_BOT_PER_SEC من بيئةِ عمليةِ
-# المحاكيِ الحيّةِ (الافتراضيُّ 30/ث لكلِّ بوتٍ إن لم يُضبَط) — المحاكيُّ عمليةٌ واحدةٌ تخدمُ
-# الذراعينِ معًا فالسقفُ متطابقٌ بالبناء؛ تُسجَّلُ قيمتُهُ الفعليةُ في بيانِ العدّة.
-MOCKPID=$(sudo -n ip netns exec ceezrsbx2 pgrep -f 'telegram-mock-server.ts' | tail -1)
-# فشلُ فتحِ /proc يُعلَنُ فشلَ قراءةٍ ولا يُستبدلُ بلافتِ الافتراضيِّ (فشلٌ مُغلقٌ لا يُجمِّلُ).
-MOCK_READ_FAIL=0
-if [ -n "$MOCKPID" ]; then
-  MOCK_CAP=$(sudo -n ip netns exec ceezrsbx2 bash -c "tr '\0' '\n' < /proc/$MOCKPID/environ" 2>/dev/null | grep -m1 '^MOCK_GLOBAL_PER_BOT_PER_SEC=') || MOCK_READ_FAIL=1
+# هويةُ المحاكي من ملفِ PID الذي يكتبُهُ start_bg عندَ الإطلاقِ (نفسُ نمطِ هويةِ البوابةِ
+# المثبتِ في wave-full.sh) — لا بحثًا بنمطِ سطرِ الأمرِ الذي قد يطابقَ الأغلفةَ العابرة.
+# ثمّ تُقرأُ البيئةُ بفواصلِ NUL الأصليةِ ويُطابَقُ المفتاحُ الكاملُ وحده (لا تحويلَ
+# للبيئةِ كلِّها إلى أسطرٍ فتُقرأَ قيمةٌ متعددةُ الأسطرِ خطأً كمفتاحٍ مستقلٍّ).
+# فشلُ القراءةِ (ملفُ PID غائبٌ، عمليةٌ ميتة، هويةٌ لا تطابقُ المحاكي، أو بيئةٌ غيرُ
+# قابلةٍ للقراءةِ/فارغةٌ — احترازًا) يُنهي الموجاتِ ولا يُستبدلُ بلافتِ الافتراضيِّ.
+# أمّا قراءةٌ ناجحةٌ والمتغيرُ غيرُ مضبوطٍ فتُسجَّلُ unset ⇒ الافتراضيُّ 30/ث (الكودُ)
+# بقراءةٍ فعليةٍ موثَّقةٍ (pid) — لا افتراضًا بلا دليل.
+MOCKPID=$(cat "$B/pids/telegram-mock.pid" 2>/dev/null || true)
+MOCK_IDENTITY_OK=0
+if [ -n "$MOCKPID" ] && [ -d "/proc/$MOCKPID" ]; then
+  grep -aq 'telegram-mock-server\.ts' "/proc/$MOCKPID/cmdline" 2>/dev/null && MOCK_IDENTITY_OK=1
 fi
-if [ $MOCK_READ_FAIL -ne 0 ] || [ -z "$MOCKPID" ]; then
-  echo "MOCK_ENV_READ_FAIL pid=${MOCKPID:-none} — لا موجاتِ قياس (§5: لا تثبيتَ بلا قراءةٍ فعليةٍ)"
+MOCK_CAP=""
+MOCK_N=0
+MOCK_RAW=""
+if [ "$MOCK_IDENTITY_OK" = 1 ]; then
+  # قراءةٌ واحدةٌ بفواصلِ NUL: تطابقُ المفتاحِ الكاملِ وحده، وتعدُّ المداخلَ المقروءةَ
+  # فعليًا (دليلٌ ذاتيٌّ على نجاحِ القراءةِ — ملفاتُ /proc حجمُها 0 فلا يُستدلُّ بالحجمِ).
+  # المخرَجُ: العددُ ثمَّ المفتاحُ المطابقُ (إن وُجدَ) — لا تُطبَعُ البيئةُ كاملةً.
+  # القارئُ يفتحُ الملفَّ صراحةً (exec 3<) ويفشلُ برمزٍ غيرِ صفريٍّ عندَ تعذرِ الفتحِ —
+  # لا استمرارًا إلى printf بعدَ فشلِ التحويلِ؛ والمخرَجُ: القيمةُ ثمَّ العددُ.
+  MOCK_READER='
+    exec 3< "/proc/$1/environ" || exit 1
+    n=0; found=""
+    while IFS= read -r -d "" kv <&3; do
+      n=$((n+1))
+      case "$kv" in MOCK_GLOBAL_PER_BOT_PER_SEC=*) found="$kv";; esac
+    done
+    exec 3<&-
+    printf "%s\n%d" "$found" "$n"
+  '
+  MOCK_RAW=$(bash -c "$MOCK_READER" _ "$MOCKPID" 2>/dev/null) || MOCK_RAW=""
+  # إن منعت الأذوناتُ القراءةَ المباشرةَ (اختلافُ UID عن مالكِ العمليةِ): إعادةٌ بالصلاحيةِ
+  # اللازمةِ وحدَها (sudo) — والقارئُ نفسُهُ لا يُخرِجُ سوى القيمةِ المطابقةِ والعددِ،
+  # والانتقالُ مبنيٌّ على رمزِ خروجِ القراءةِ لا فراغِ المخرَجِ.
+  if [ -z "$MOCK_RAW" ]; then
+    MOCK_RAW=$(sudo -n bash -c "$MOCK_READER" _ "$MOCKPID" 2>/dev/null) || MOCK_RAW=""
+  fi
+  # القيمةُ أولًا والعدُّ أخيرًا بلا سطرٍ ختاميٍّ — لأنَّ جردَ الأسطرِ الختاميةِ في $()
+  # يُفسدُ الفصلَ لو كانَ العددُ آخرَ المخرَجِ معَ سطرٍ زائدٍ
+  MOCK_N=${MOCK_RAW##*$'\n'}
+  MOCK_CAP=${MOCK_RAW%$'\n'*}
+  # صلاحيةُ العددِ صراحةً (رقمٌ ≥ 0) — لا مقارنةً على نصٍّ غيرِ رقميٍّ تمرُّ بالخطأِ
+  case "$MOCK_N" in ''|*[!0-9]*) MOCK_N=0;; esac
+fi
+if [ "$MOCK_IDENTITY_OK" != 1 ] || [ "$MOCK_N" -lt 1 ]; then
+  echo "MOCK_ENV_READ_FAIL pid=${MOCKPID:-none} identity_ok=$MOCK_IDENTITY_OK entries=$MOCK_N — لا موجاتِ قياسٍ (§5: لا تثبيتَ بلا قراءةٍ فعليةٍ)"
   exit 1
 fi
-echo "MOCK_SEND_BUCKET=${MOCK_CAP:-MOCK_GLOBAL_PER_BOT_PER_SEC=(default 30, unset)} (pid=$MOCKPID — سقفٌ ثانويٌّ لا يُلزِمُ: الحاكمُ دلوُ الصادرِ 25/ث)" | tee "$OUT/mock-send-bucket.txt"
+echo "MOCK_SEND_BUCKET=${MOCK_CAP:-MOCK_GLOBAL_PER_BOT_PER_SEC=unset ⇒ الافتراضيُّ 30/ث لكلِّ بوتٍ} (قراءةٌ فعليةٌ موثَّقةٌ pid=$MOCKPID, ${MOCK_N} مدخلَ بيئةٍ؛ سقفٌ ثانويٌّ لا يُلزِمُ: الحاكمُ دلوُ الصادرِ 25/ث)" | tee "$OUT/mock-send-bucket.txt"
 
 # ثماني موجاتٍ ABBA BAAB (PROTOCOL-b33mtick §1: a1:ref a2:cand a3:cand a4:ref a5:cand a6:ref a7:ref a8:cand)
 # الميزانيةُ 8000 في الجميع؛ إعادةٌ واحدةٌ لكلِّ موجةٍ غيرِ صالحةٍ (§2: فهرسُ +10)
