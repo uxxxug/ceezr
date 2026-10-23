@@ -20,12 +20,12 @@ import {
 } from "../../scripts/lib/hot-query-indexes.ts";
 
 describe("F7-02 — سجلُّ فهارسِ الاستعلاماتِ الساخنةِ", () => {
-  it("١ — ستّةُ فهارسَ، أسماؤها ورُتبُها فريدةٌ ومتّصلةٌ من واحدٍ", () => {
-    expect(HOT_QUERY_INDEXES.length).toBe(6);
+  it("١ — سبعةُ فهارسَ، أسماؤها ورُتبُها فريدةٌ ومتّصلةٌ من واحدٍ", () => {
+    expect(HOT_QUERY_INDEXES.length).toBe(7);
     const names = HOT_QUERY_INDEXES.map((entry) => entry.name);
     expect(new Set(names).size).toBe(names.length);
     const ranks = HOT_QUERY_INDEXES.map((entry) => entry.rank).sort((a, b) => a - b);
-    expect(ranks).toEqual([1, 2, 3, 4, 5, 6]);
+    expect(ranks).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it("٢ — لكلِّ فهرسٍ مُستدعٍ إنتاجيٌّ مُصرَّحٌ وسببٌ مكتوبٌ — القاعدةُ 0.1", () => {
