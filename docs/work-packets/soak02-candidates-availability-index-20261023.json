@@ -19,6 +19,16 @@
     }
   ],
   "roadmap": ["ROADMAP.md"],
-  "affected_docs": ["docs/SYSTEM_STATE.md"],
-  "no_other_affected_docs_reason": "سجلُّ الفهارسِ الساخنةِ واختباراتُه هما مسارُ حوكمةِ الفهرسِ الوحيدُ، وأثرُ التحقيقِ في دليلِ الأرشيفِ المعفى من ميزانيةِ التوثيق."
+  "affected_docs": [
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/EXPLAIN-INVESTIGATION.md",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/SHA256SUMS",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/explain-7197-with-index.txt",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/explain-7197-without-index.txt",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/reproduce-seed.sql",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/timing-scales.txt",
+    "docs/evidence/capacity/SOAK-20261023-RERUN/RESULT.md",
+    "docs/evidence/capacity/SOAK-20261023-RERUN/SHA256SUMS",
+    "docs/SYSTEM_STATE.md"
+  ],
+  "no_other_affected_docs_reason": "أثرُ التحقيقِ الخامُّ وتقريرُهُ في دليلِ الأرشيفِ المعفى من ميزانيةِ التوثيقِ، وصفُ RESULT للإعادةِ يُحدَّثُ بتسجيلِ إنجازِ الخطوةِ."
 }
