@@ -376,12 +376,27 @@ async function processDurably(
         attempts: 0,
       };
       // الوظيفةُ مُتمّةٌ منذُ `recordEffect`؛ والردُّ لا يحجزُ المسارَ عن الوظيفةِ التاليةِ.
-      // الامتلاءُ (أو غيابُ المُرسِلِ) ⇒ إرسالٌ داخلَ المسارِ: ضغطٌ خلفيٌّ صريحٌ.
-      const queued =
-        deps.replyPool?.submit(laneKeyOf(job.bot, job.payload, String(job.updateId)), () =>
+      // غيابُ المُرسِلِ الفوريِّ ⇒ إرسالٌ داخلَ المسار (السلوكُ القديم).
+      //
+      // LOAD-01M (2026-10-23) — **الامتلاءُ ⇒ تأجيلٌ للمُرسِلِ الخلفيِّ لا إرسالٌ داخلَ المسار.**
+      // المقيسُ (`m5-2500`، تشغيل 39928767658): الطلبُ على دلوِ بوتِ السائقِ (25/ث عالميًّا، محميٌّ)
+      // تجاوزَه، فامتلأ الطابورُ (2000) وصارَ كلُّ مسارٍ ينتظرُ الدلوَ داخلَه: إتمامُ وظائفِ webhook
+      // ~25/ث بالضبط بينَ دفعاتِ انقضاءِ المهلة، p50 51ث وp95 99ث، 8,113 وظيفةً لم تُلتقَط،
+      // و20,952 تسجيلَ سائقٍ فشلَ بمهلةِ إثباتِ الهاتف ⇒ G1 = 3.06%. الردُّ محفوظٌ في الدفترِ
+      // (`sending` بإيجارِه) فلا يضيعُ: يلتقطُه `drainTelegramUpdateRepliesOnce` بعدَ الإيجارِ
+      // بالترتيبِ — كمسارِ الانقضاءِ المحلّيِّ القائمِ تمامًا. فلا ذاكرةَ بلا سقفٍ، والدلوُ لم يُمَسّ.
+      if (deps.replyPool === undefined) {
+        await sendRepliesFrom(deps, ledger, pending);
+      } else if (
+        !deps.replyPool.submit(laneKeyOf(job.bot, job.payload, String(job.updateId)), () =>
           sendRepliesFrom(deps, ledger, pending),
-        ) ?? false;
-      if (!queued) await sendRepliesFrom(deps, ledger, pending);
+        )
+      ) {
+        deps.log?.("telegram.replies.deferred_overflow", {
+          bot: job.bot,
+          updateId: job.updateId,
+        });
+      }
     }
     return true;
   } catch (error) {
