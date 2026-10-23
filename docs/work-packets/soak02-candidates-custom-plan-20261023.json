@@ -30,7 +30,10 @@
   ],
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
+    "ROADMAP.md",
+    "docs/SYSTEM_STATE.md",
     "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/EXPLAIN-INVESTIGATION.md",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/SHA256SUMS",
     "docs/evidence/archive/SOAK-20261023-RERUN2/ARTIFACT-SHA256SUMS.txt",
     "docs/evidence/archive/SOAK-20261023-RERUN2/SHA256SUMS",
     "docs/evidence/archive/SOAK-20261023-RERUN2/r10-a/gates.txt",
@@ -43,8 +46,7 @@
     "docs/evidence/archive/SOAK-20261023-RERUN2/r10-b/wave-report.json",
     "docs/evidence/archive/SOAK-20261023-RERUN2/stability-and-outbox-analysis.txt",
     "docs/evidence/capacity/SOAK-20261023-RERUN/RESULT.md",
-    "docs/SYSTEM_STATE.md",
-    "ROADMAP.md"
+    "docs/evidence/capacity/SOAK-20261023-RERUN/SHA256SUMS"
   ],
   "no_other_affected_docs_reason": "أثرُ التنفيذِ محصورٌ في المحوّلِ وحارسِ وحدتِهِ، وأثرُ التوثيقِ في دليلِ التحقيقِ وأثرِ التشغيلِ الثاني ونتيجةِ الإعادةِ والحالةِ وخارطةِ الطريق."
 }
