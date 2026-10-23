@@ -1,0 +1,50 @@
+{
+  "id": "SOAK02-CANDIDATES-CUSTOM-PLAN-20261023",
+  "goal": "إتمامُ علاجِ تدهورِ استعلامِ المرشّحينَ في SOAK-02 بعدَ إثباتِ التشغيلِ الثاني (40007552032) أنّ الفهرسَ الجزئيَّ وحدهُ لا يكفي: شرطُ الاستقرارِ فشلَ حدّيًّا (r10-a: 1.52×، r10-b: 1.56×) وطورُ nearby تدهورَ كما هو. الجذرُ الثاني مُثبَتٌ محليًّا: postgres.js يُعِدُّ الاستعلامَ باسمٍ فتتحوّلُ خطّتُهُ بعدَ خمسِ تنفيذاتٍ إلى الخطةِ العامةِ التي لا ترى قيمَ الوسائطِ (المدينةَ والنقطةَ والقطرَ) فيُساوَقُ من صندوقِ GiST بدلَ الفهرسِ الجزئيّ. المُصلِحُ: تنفيذُ هذا الاستعلامِ وحدَهُ عبرَ sql.unsafe بنصٍّ ثابتٍ ووسائطَ مُرقَّمةٍ (عبارةٌ غيرُ مسمّاةٍ ← خطةٌ مخصَّصةٌ ترى القيمَ والفهرسَ) معَ حارسِ وحدةٍ يُلزمُ unsafe وترتيبَ الوسائطِ للفرعين. التحققُ بالنصِّ الحقيقيِّ من ملفِ المحوّلِ عبرَ مسارِ المنتجِ: pg_prepared_statements صفرُ عباراتٍ مسمّاةٍ تلمسُ driver_availability، والخطةُ عندَ 7,200 سائقًا و30 متاحًا تنطلقُ من الفهرسِ الجزئيِّ (30 صفًّا) ثمّ مسباراتُ المفاتيحِ — بلا مسحِ صندوقِ ولا KNN (وسيطٌ 2.95ms مقابلَ 7.95ms للمسارِ القديمِ). لا يُعلنُ هذا أيَّ رقمِ سعةٍ جديد: 10/ث تظلُّ غيرَ مؤكدةٍ حتى تنجحَ إعادةُ زوجِ r10 بعدَ هذا الدمجِ بشرطِ الاستقرار.",
+  "canonical_source": "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/EXPLAIN-INVESTIGATION.md",
+  "implementation": [
+    "packages/infrastructure/dispatch/dispatch-adapters.ts",
+    "tests/unit/dispatch-nearby-candidates.test.ts"
+  ],
+  "state": [
+    {
+      "doc": "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/EXPLAIN-INVESTIGATION.md",
+      "change": "تعديل — أُضيفت §7–§10: نتيجةُ التشغيلِ الثاني (الفهرسُ وحدهُ لم يكفِ)، الجذرُ الثاني (العمى المُخَطِّطُ للخطةِ العامةِ)، المُصلِحُ الثاني وتحقيقُه، وخلاصةُ الحالة"
+    },
+    {
+      "doc": "docs/evidence/archive/SOAK-20261023-RERUN2/",
+      "change": "إضافة — أثرُ التشغيلِ الثاني: الملفاتُ الحاسمةُ لكلِّ موجةٍ + تحليلُ الاستقرارِ المُعادُ إنتاجُ مقياسِه حرفيًّا + بصماتُ كلِّ الملفات"
+    },
+    {
+      "doc": "docs/evidence/capacity/SOAK-20261023-RERUN/RESULT.md",
+      "change": "تعديل — §7 و§8 يسجّلان حكمَ التشغيلِ الثاني (فشلٌ حدّيٌّ) والمُصلِحَ الثاني"
+    },
+    {
+      "doc": "docs/SYSTEM_STATE.md",
+      "change": "تعديل — سطرُ CANDIDATES-CUSTOM-PLAN وآخرُ تحديث"
+    },
+    {
+      "doc": "ROADMAP.md",
+      "change": "تعديل — سطرُ المُصلِحِ الثاني"
+    }
+  ],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/EXPLAIN-INVESTIGATION.md",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/ARTIFACT-SHA256SUMS.txt",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/SHA256SUMS",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/r10-a/gates.txt",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/r10-a/mock-stats-post.json",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/r10-a/telegram-mock.jsonl.gz",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/r10-a/wave-report.json",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/r10-b/gates.txt",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/r10-b/mock-stats-post.json",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/r10-b/telegram-mock.jsonl.gz",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/r10-b/wave-report.json",
+    "docs/evidence/archive/SOAK-20261023-RERUN2/stability-and-outbox-analysis.txt",
+    "docs/evidence/capacity/SOAK-20261023-RERUN/RESULT.md",
+    "docs/SYSTEM_STATE.md",
+    "ROADMAP.md"
+  ],
+  "no_other_affected_docs_reason": "أثرُ التنفيذِ محصورٌ في المحوّلِ وحارسِ وحدتِهِ، وأثرُ التوثيقِ في دليلِ التحقيقِ وأثرِ التشغيلِ الثاني ونتيجةِ الإعادةِ والحالةِ وخارطةِ الطريق."
+}
