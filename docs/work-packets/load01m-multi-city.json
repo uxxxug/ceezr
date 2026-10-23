@@ -1,21 +1,15 @@
 {
   "id": "load01m-multi-city",
   "goal": "LOAD-01M (هدفٌ مكمِّلٌ لـLOAD-01 بطلبِ المالك): قياسُ 5,000 مستخدمٍ متزامنٍ عبرَ خمسِ مدنٍ (500 راكب + 500 سائق لكلِّ مدينة) في موجةٍ مشتركةٍ واحدة، وتشخيصُ ما يمنعُه بالأدلّة.",
-  "canonical_source": [
-    "docs/roadmap/capacity/LOAD-01M.md"
-  ],
+  "canonical_source": ["docs/roadmap/capacity/LOAD-01M.md"],
   "implementation": [
     "deploy/capacity-run/load/miniapp-load.ts",
     "deploy/capacity-run/load/multi-city-report.ts",
     "tests/unit/miniapp-load-correlation.test.ts",
     "tests/unit/miniapp-load-multi-city.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/roadmap/capacity/LOAD-01M.md",
     "docs/roadmap/execution/STATUS.md",
