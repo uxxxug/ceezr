@@ -170,7 +170,7 @@
 
 ## 9. ملفاتُ الأدلّة
 
-- لكلِّ تشغيلٍ وموجة: `run{1..4}-<id>/<wave>/` — `gates.txt`، `wave-report.json`، `multi-city-report.json`، `load01m-diag.txt`، `db-audit-post.json`، `qual-preflight.json`، `qual-inflight.json`، `validity*.json`، `seat-env.txt`، `MANIFEST.json`، `SHA256SUMS` (بصماتُ الدليلِ الخامِ الكامل)، `secret-audit.txt`.
-- `waves-from-job-logs.json`: المستخلصُ من سجلّاتِ المهامِّ لكلِّ الموجات، ومنها الأربعُ التي أسقطَ تدقيقُ الأسرارِ أدلّتَها الخامَ في التشغيلِ الأوّلِ (إنذارٌ كاذبٌ على قيمةِ `CITIES`، أُصلِح — البروتوكول §6).
+- لكلِّ تشغيلٍ وموجة: `docs/evidence/archive/LOAD01M-20261023/run{1..4}-<id>/<wave>/` — `gates.txt`، `wave-report.json`، `multi-city-report.json`، `load01m-diag.txt`، `db-audit-post.json`، `qual-preflight.json`، `qual-inflight.json`، `validity*.json`، `seat-env.txt`، `MANIFEST.json`، `RAW-SHA256SUMS.txt` (بصماتُ الدليلِ الخامِ الكاملِ كما صدرَ من المقعد)، `secret-audit.txt`.
+- `archive/LOAD01M-20261023/waves-from-job-logs.json`: المستخلصُ من سجلّاتِ المهامِّ لكلِّ الموجات، ومنها الأربعُ التي أسقطَ تدقيقُ الأسرارِ أدلّتَها الخامَ في التشغيلِ الأوّلِ (إنذارٌ كاذبٌ على قيمةِ `CITIES`، أُصلِح — البروتوكول §6).
 - الأدلّةُ الخامُ الكاملةُ (أحداثُ المولّد، `load-trace`، `pgss-full`، `update-jobs`، `conn-samples`) في عناصرِ GitHub Actions لكلِّ تشغيل (الاحتفاظ 30 يومًا): [r1](https://github.com/uxxxug/ceezr/actions/runs/39925887251) · [r2](https://github.com/uxxxug/ceezr/actions/runs/39928767658) · [r3](https://github.com/uxxxug/ceezr/actions/runs/39931672504) · [r4](https://github.com/uxxxug/ceezr/actions/runs/39933838732).
-- `PACKAGE-SHA256SUMS`: بصماتُ هذه الحزمة.
+- `archive/LOAD01M-20261023/SHA256SUMS`: بصماتُ كلِّ ملفّاتِ الأرشيف.
