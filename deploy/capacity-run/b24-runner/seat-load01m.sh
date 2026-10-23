@@ -91,9 +91,13 @@ MRC=0
 $NSX bash -c "export RUN_DIR='$B/runs/$RUN' DATABASE_URL='$DBURL'; cd '$W/wt-acc' && exec /home/user/.bun/bin/bun deploy/capacity-run/load/multi-city-report.ts" > "$D/multi-city-report.out" 2>&1 || MRC=$?
 cp "$E/multi-city-report.json" "$D/" 2>/dev/null || true
 echo "MULTI_CITY_RC=$MRC"; head -c 4000 "$D/multi-city-report.out"; echo
+bash "$H/deploy/capacity-run/b24-runner/load01m-diag.sh" "$RUN" 2>&1 | tee "$D/load01m-diag.txt"
 echo "{\"name\":\"$NAME\",\"conc\":$CONC,\"cities\":\"$CITIES\",\"users\":$((CONC*2)),\"validity\":\"$V\",\"exp_sha\":\"$EXP_SHA\",\"main_sha\":\"$MAIN_SHA\",\"multi_city_rc\":$MRC}" > "$OUT/wave-summary.json"
 cat "$OUT/wave-summary.json"
 log "تدقيقُ الأسرار"
+# CITIES/CITY قائمةُ مدنٍ عامّةٌ لا سرّ؛ تُزالُ من secrets.env قبلَ التدقيقِ لئلّا تُطابِقَ اسمَ المدنِ في
+# الملخّصِ (إنذارٌ كاذبٌ أسقطَ أدلّةَ m5-* في التشغيلِ الأوّل 39925887251). بقيّةُ الأسرارِ تُدقَّقُ كما هي.
+sed -i '/^CITIES=/d;/^CITY=/d' "$B/secrets.env"
 SA_RC=0
 python3 "$H/deploy/capacity-run/b24-runner/seat-bin/b24-secret-audit.py" "$B/secrets.env" "$OUT" > "$OUT/secret-audit.txt" 2>&1 || SA_RC=$?
 cat "$OUT/secret-audit.txt"
