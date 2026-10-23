@@ -1,0 +1,793 @@
+{
+ "wave": "b33mtick-m-a1-ref-750",
+ "limit": 50,
+ "inputs": {
+  "orders_csv": true,
+  "trace_passes": 106,
+  "trace_orders": 5269
+ },
+ "gates": {
+  "verdict": "FAIL",
+  "failed": [
+   "P4"
+  ],
+  "summary_line": {
+   "G1": "99.31% (3872/3899)",
+   "G2": "0",
+   "G3": "0 + 0",
+   "G4": "CLEAN",
+   "G5": "0",
+   "G6": "0.00% (0)",
+   "G7": "0.00%",
+   "G8": "0",
+   "P1": "263ms",
+   "P2": "32ms",
+   "P3": "39ms",
+   "P4": "44220ms✗",
+   "P5": "44380ms",
+   "P6a": "385ms",
+   "P6b": "111ms",
+   "P6c": "88ms",
+   "P7": "97s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "gates": {
+   "G1": {
+    "value": "99.31% (3872/3899)",
+    "pass": true
+   },
+   "G2": {
+    "value": "0",
+    "pass": true
+   },
+   "G3": {
+    "value": "0 + 0",
+    "pass": true
+   },
+   "G4": {
+    "value": "CLEAN",
+    "pass": true
+   },
+   "G5": {
+    "value": "0",
+    "pass": true
+   },
+   "G6": {
+    "value": "0.00% (0)",
+    "pass": true
+   },
+   "G7": {
+    "value": "0.00%",
+    "pass": true
+   },
+   "G8": {
+    "value": "0",
+    "pass": true
+   },
+   "I1-identities": {
+    "value": "riders 3899/3899 · drivers 3899/3899",
+    "pass": true
+   },
+   "GW-STABILITY": {
+    "value": "stable",
+    "pass": true
+   },
+   "EGRESS-CLASSIFIED": {
+    "value": "unknown +0",
+    "pass": true
+   },
+   "CONC-peak": {
+    "value": "peak 750 / target 750",
+    "pass": true
+   }
+  }
+ },
+ "P4": {
+  "n": 3872,
+  "p50": 38364.5,
+  "p95": 44220,
+  "p99": 48166,
+  "max": 50176,
+  "mean": 35982.3
+ },
+ "queue_before_first_exec_ms": {
+  "n": 3838,
+  "p50": 37488.0,
+  "p95": 39574.0,
+  "p99": 40387.0,
+  "max": 41538.0,
+  "mean": 33611.5
+ },
+ "first_exec_ms": {
+  "n": 3838,
+  "p50": 4.0,
+  "p95": 12,
+  "p99": 16,
+  "max": 82,
+  "mean": 5.2
+ },
+ "target_in_round1_share": 0.6934,
+ "window": {
+  "inject_sec": 178.6,
+  "orders": 3899,
+  "never_reached_pass": 34
+ },
+ "passes": {
+  "in_window": 90,
+  "in_drain": 16,
+  "per_s": 0.504,
+  "saturated_share": 0.989,
+  "passMs": {
+   "n": 90,
+   "p50": 237.5,
+   "p95": 425.2,
+   "p99": 548.9,
+   "max": 597,
+   "mean": 252.8
+  },
+  "cycle_ms": {
+   "n": 89,
+   "p50": 2000.0,
+   "p95": 2001.0,
+   "p99": 2002.1,
+   "max": 2003,
+   "mean": 2000.2
+  },
+  "gap_ms": {
+   "n": 89,
+   "p50": 1763.0,
+   "p95": 1874.6,
+   "p99": 1894.2,
+   "max": 1903,
+   "mean": 1749.5
+  },
+  "followup_delay_ms": {
+   "n": 90,
+   "p50": 1852.0,
+   "p95": 1999.0,
+   "p99": 2000.0,
+   "max": 2000,
+   "mean": 1718.4
+  },
+  "finderMs": {
+   "n": 90,
+   "p50": 2.8,
+   "p95": 6.9,
+   "p99": 9.5,
+   "max": 13.9,
+   "mean": 3.2
+  },
+  "picked": {
+   "n": 90,
+   "p50": 50.0,
+   "p95": 50.0,
+   "p99": 50.0,
+   "max": 50,
+   "mean": 49.8
+  },
+  "longer_than_2s": 0,
+  "counts_window": {
+   "picked": 4480,
+   "rebroadcast": 4444,
+   "stillNoDriver": 30,
+   "exhausted": 0,
+   "raced": 6,
+   "failed": 0
+  },
+  "counts_drain": {
+   "picked": 789,
+   "rebroadcast": 760,
+   "stillNoDriver": 0,
+   "exhausted": 27,
+   "raced": 2,
+   "failed": 0
+  }
+ },
+ "rates": {
+  "arrival_per_s": 21.83,
+  "first_exec_per_s": 17.86,
+  "exec_per_s": 24.98,
+  "repeat_share": 0.285,
+  "per_order_exec_ms": {
+   "n": 4461,
+   "p50": 4.0,
+   "p95": 11.0,
+   "p99": 15.0,
+   "max": 35,
+   "mean": 5.0
+  }
+ },
+ "queue": {
+  "max": 709,
+  "at_inject_end": 665,
+  "slope_second_half_per_s": -0.382,
+  "drain_to_zero_s": 31.4,
+  "every_5s": [
+   {
+    "t": 0,
+    "queue": 2
+   },
+   {
+    "t": 5,
+    "queue": 624
+   },
+   {
+    "t": 10,
+    "queue": 656
+   },
+   {
+    "t": 15,
+    "queue": 641
+   },
+   {
+    "t": 20,
+    "queue": 695
+   },
+   {
+    "t": 25,
+    "queue": 664
+   },
+   {
+    "t": 30,
+    "queue": 697
+   },
+   {
+    "t": 35,
+    "queue": 680
+   },
+   {
+    "t": 40,
+    "queue": 709
+   },
+   {
+    "t": 45,
+    "queue": 686
+   },
+   {
+    "t": 50,
+    "queue": 701
+   },
+   {
+    "t": 55,
+    "queue": 681
+   },
+   {
+    "t": 60,
+    "queue": 688
+   },
+   {
+    "t": 65,
+    "queue": 681
+   },
+   {
+    "t": 70,
+    "queue": 685
+   },
+   {
+    "t": 75,
+    "queue": 660
+   },
+   {
+    "t": 80,
+    "queue": 681
+   },
+   {
+    "t": 85,
+    "queue": 682
+   },
+   {
+    "t": 90,
+    "queue": 699
+   },
+   {
+    "t": 95,
+    "queue": 669
+   },
+   {
+    "t": 100,
+    "queue": 704
+   },
+   {
+    "t": 105,
+    "queue": 678
+   },
+   {
+    "t": 110,
+    "queue": 708
+   },
+   {
+    "t": 115,
+    "queue": 674
+   },
+   {
+    "t": 120,
+    "queue": 691
+   },
+   {
+    "t": 125,
+    "queue": 664
+   },
+   {
+    "t": 130,
+    "queue": 677
+   },
+   {
+    "t": 135,
+    "queue": 668
+   },
+   {
+    "t": 140,
+    "queue": 677
+   },
+   {
+    "t": 145,
+    "queue": 655
+   },
+   {
+    "t": 150,
+    "queue": 672
+   },
+   {
+    "t": 155,
+    "queue": 662
+   },
+   {
+    "t": 160,
+    "queue": 662
+   },
+   {
+    "t": 165,
+    "queue": 657
+   },
+   {
+    "t": 170,
+    "queue": 675
+   },
+   {
+    "t": 175,
+    "queue": 665
+   },
+   {
+    "t": 180,
+    "queue": 656
+   },
+   {
+    "t": 185,
+    "queue": 543
+   },
+   {
+    "t": 190,
+    "queue": 466
+   },
+   {
+    "t": 195,
+    "queue": 329
+   },
+   {
+    "t": 200,
+    "queue": 241
+   },
+   {
+    "t": 205,
+    "queue": 100
+   },
+   {
+    "t": 210,
+    "queue": 0
+   },
+   {
+    "t": 215,
+    "queue": 0
+   },
+   {
+    "t": 220,
+    "queue": 0
+   },
+   {
+    "t": 225,
+    "queue": 0
+   },
+   {
+    "t": 230,
+    "queue": 0
+   },
+   {
+    "t": 235,
+    "queue": 0
+   },
+   {
+    "t": 240,
+    "queue": 0
+   },
+   {
+    "t": 245,
+    "queue": 0
+   },
+   {
+    "t": 250,
+    "queue": 0
+   },
+   {
+    "t": 255,
+    "queue": 0
+   },
+   {
+    "t": 260,
+    "queue": 0
+   },
+   {
+    "t": 265,
+    "queue": 0
+   },
+   {
+    "t": 270,
+    "queue": 0
+   },
+   {
+    "t": 275,
+    "queue": 0
+   },
+   {
+    "t": 280,
+    "queue": 0
+   },
+   {
+    "t": 285,
+    "queue": 0
+   },
+   {
+    "t": 290,
+    "queue": 0
+   },
+   {
+    "t": 295,
+    "queue": 0
+   },
+   {
+    "t": 300,
+    "queue": 0
+   },
+   {
+    "t": 305,
+    "queue": 0
+   },
+   {
+    "t": 310,
+    "queue": 0
+   },
+   {
+    "t": 315,
+    "queue": 0
+   },
+   {
+    "t": 320,
+    "queue": 0
+   },
+   {
+    "t": 325,
+    "queue": 0
+   },
+   {
+    "t": 330,
+    "queue": 0
+   },
+   {
+    "t": 335,
+    "queue": 0
+   },
+   {
+    "t": 340,
+    "queue": 0
+   },
+   {
+    "t": 345,
+    "queue": 0
+   },
+   {
+    "t": 350,
+    "queue": 0
+   },
+   {
+    "t": 355,
+    "queue": 0
+   }
+  ]
+ },
+ "cpu_pct_window": {
+  "gateway": {
+   "n": 35,
+   "p50": 54.0,
+   "p95": 74.1,
+   "p99": 102.6,
+   "max": 117.2,
+   "mean": 58.4
+  },
+  "postgres": {
+   "n": 35,
+   "p50": 131.9,
+   "p95": 178.2,
+   "p99": 192.0,
+   "max": 195.6,
+   "mean": 125.6
+  },
+  "generator": {
+   "n": 35,
+   "p50": 12.3,
+   "p95": 14.7,
+   "p99": 17.5,
+   "max": 18.6,
+   "mean": 12.4
+  }
+ },
+ "psi_some_pct_window": {
+  "n": 178,
+  "p50": 20.9,
+  "p95": 36.6,
+  "p99": 39.6,
+  "max": 42.3,
+  "mean": 20.8
+ },
+ "pg_runq_wait_pct_window": {
+  "n": 178,
+  "p50": 65.7,
+  "p95": 136.9,
+  "p99": 165.6,
+  "max": 180.0,
+  "mean": 67.3
+ },
+ "pool_acquire_select1_ms": {
+  "n": 179,
+  "p50": 0.3,
+  "p95": 30.0,
+  "p99": 81.1,
+  "max": 230.8,
+  "mean": 6.5
+ },
+ "conn_states_window": {
+  "ceezr:gatewayDispatch|idle": 89,
+  "ceezr:gatewayRequest|active": 59,
+  "ceezr:gatewayRequest|idle": 377,
+  "ceezr:gatewayRequest|idle in transaction": 9,
+  "ceezr:workerJobs|active": 79,
+  "ceezr:workerJobs|idle": 361,
+  "ceezr:workerJobs|idle in transaction": 5,
+  "ceezr:workerLocks|idle": 356,
+  "driver-onboarding|idle": 356,
+  "genA|active": 2,
+  "genA|idle": 710
+ },
+ "pg_exec": {
+  "total_exec_ms": 219522.0,
+  "top": [
+   {
+    "calls": 42744,
+    "total_ms": 53489.3,
+    "mean_ms": 1.251,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "calls": 74467,
+    "total_ms": 37724.5,
+    "mean_ms": 0.507,
+    "query": "with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.ver"
+   },
+   {
+    "calls": 5755,
+    "total_ms": 34355.0,
+    "mean_ms": 5.97,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_l"
+   },
+   {
+    "calls": 3899,
+    "total_ms": 13672.1,
+    "mean_ms": 3.507,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::tex"
+   },
+   {
+    "calls": 10663,
+    "total_ms": 12637.1,
+    "mean_ms": 1.185,
+    "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+   },
+   {
+    "calls": 38887,
+    "total_ms": 9725.8,
+    "mean_ms": 0.25,
+    "query": "select requeue_notification_delivery($1::uuid, $2::uuid, $3::integer) result"
+   },
+   {
+    "calls": 3899,
+    "total_ms": 9668.9,
+    "mean_ms": 2.48,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id "
+   },
+   {
+    "calls": 5725,
+    "total_ms": 8202.3,
+    "mean_ms": 1.433,
+    "query": "select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result"
+   }
+  ]
+ },
+ "all_gates": {
+  "verdict": "FAIL",
+  "failed": [
+   "P4"
+  ],
+  "rows": {
+   "G1": {
+    "value": "99.31% (3872/3899)",
+    "pass": true,
+    "rule": "دورات مكتملة مثبتة من القاعدة"
+   },
+   "G2": {
+    "value": "0",
+    "pass": true,
+    "rule": "إسناد مزدوج"
+   },
+   "G3": {
+    "value": "0 + 0",
+    "pass": true,
+    "rule": "تجاوز نافذة الختام / عالقون عند الإغلاق"
+   },
+   "G4": {
+    "value": "CLEAN",
+    "pass": true,
+    "rule": "تدقيق ما بعد الموجة"
+   },
+   "G5": {
+    "value": "0",
+    "pass": true,
+    "rule": "سائقون بقوا متاحين بعد الجولة"
+   },
+   "G6": {
+    "value": "0.00% (0)",
+    "pass": true,
+    "rule": "إسناد لسائق سيناريو آخر"
+   },
+   "G7": {
+    "value": "0.00%",
+    "pass": true,
+    "rule": "5xx من الطلبات"
+   },
+   "G8": {
+    "value": "0",
+    "pass": true,
+    "rule": "تعثر قراءة لوح العروض"
+   },
+   "I1-identities": {
+    "value": "riders 3899/3899 · drivers 3899/3899",
+    "pass": true,
+    "rule": "هويات فريدة من أحداث المولد (راكب + سائق لكل سيناريو)"
+   },
+   "GW-STABILITY": {
+    "value": "stable",
+    "pass": true,
+    "rule": "البوابة نفس العملية عبر الموجة (لا انهيار خفي)"
+   },
+   "EGRESS-CLASSIFIED": {
+    "value": "unknown +0",
+    "pass": true,
+    "rule": "كل إرسالية في المحاكي مصنفة لبوتها (لا unknown)"
+   },
+   "CONC-peak": {
+    "value": "peak 750 / target 750",
+    "pass": true,
+    "rule": "ذروة السيناريوهات المتزامنة الفعلية من لقطات المولد"
+   },
+   "P1": {
+    "value": "263ms",
+    "pass": true,
+    "rule": "p95 إنشاء الرحلة"
+   },
+   "P2": {
+    "value": "32ms",
+    "pass": true,
+    "rule": "p95 قبول العرض"
+   },
+   "P3": {
+    "value": "39ms",
+    "pass": true,
+    "rule": "p95 قراءة لوح العروض"
+   },
+   "P4": {
+    "value": "44220ms",
+    "pass": false,
+    "rule": "p95 ظهور العرض على اللوح"
+   },
+   "P5": {
+    "value": "44380ms",
+    "pass": true,
+    "rule": "p95 دورة السيناريو كاملة"
+   },
+   "P6a": {
+    "value": "385ms",
+    "pass": true,
+    "rule": "p99 إنشاء الرحلة"
+   },
+   "P6b": {
+    "value": "111ms",
+    "pass": true,
+    "rule": "p99 قبول العرض"
+   },
+   "P6c": {
+    "value": "88ms",
+    "pass": true,
+    "rule": "p99 قراءة اللوح"
+   },
+   "P7": {
+    "value": "97s",
+    "pass": true,
+    "rule": "أقدم مهمة إشعار معلقة عند التدقيق"
+   },
+   "P8": {
+    "value": "0.00%",
+    "pass": true,
+    "rule": "429 واجهات Mini App"
+   },
+   "P9": {
+    "value": "0.00%",
+    "pass": true,
+    "rule": "أخطاء شبكة"
+   }
+  },
+  "total": 3899,
+  "verified": 3872
+ },
+ "completions": {
+  "inject_s": 180.2,
+  "verified_in_inject": 3141,
+  "verified_per_s": 17.43,
+  "verified_total": 3872,
+  "scenarios_total": 3899,
+  "not_verified_reasons": {
+   "offer:offer_not_found_in_time": 27
+  }
+ },
+ "session_exchange": {
+  "limit_check": {
+   "gateway_comm": "bun",
+   "sha": "e47ca99ddd7b4b74b73323fbc17963fede309cec",
+   "env_in_live_gateway": "24000",
+   "effective_limit": 24000,
+   "window_seconds": 60,
+   "expected": 24000,
+   "run_env_value_unchanged": "6000",
+   "default_without_var": 30,
+   "ok": true
+  },
+  "offered": 11697,
+  "rejected_429_by_step": {},
+  "rejected_429": 0,
+  "accepted": 11697,
+  "offered_per_s_inject": 63.9,
+  "first_429_s": null,
+  "max_sliding60_offered_bins": 5135,
+  "redis_window": {
+   "samples": 252,
+   "errors": 0,
+   "max": 5306,
+   "max_utilisation": 0.2211,
+   "p50": 3153.0
+  }
+ },
+ "errors": {
+  "generator_counters_present": true,
+  "requests_counted": 163673,
+  "api429_total": 0,
+  "webhookInbound429": 0,
+  "http5xx": 0,
+  "networkErrors": 0,
+  "api429_by_source": {
+   "session_exchange_limit(rider/driver_session)": 0,
+   "accept": 0,
+   "unattributed_other_routes": 0
+  },
+  "outside_P8_counter": {
+   "session_exchange_limit(driver_onboarding)": 0
+  },
+  "telegram_outbound_mock_429": 3,
+  "gateway_5xx_by_route": {}
+ }
+}

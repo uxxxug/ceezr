@@ -1,0 +1,1 @@
+B33M_EXTRACT {"window": {"from_ms": 1792726297649, "to_ms": 1792726568047}, "gateway_log": {"present": true, "events": 209038, "kept": 14973, "non_json_lines": 0}, "mock_log": {"present": true, "lines_total": 29910, "in_window": 7958}, "b33m-outbox-rows.csv": {"present": true, "lines": 43609}, "b33m-outbox-samples.jsonl": {"present": true, "lines": 53}}

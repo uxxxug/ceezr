@@ -1,0 +1,5 @@
+pkill: killing pid 17874 failed: Operation not permitted
+   129 /srv/ceezr-cap-20261016/runs/b33mtick-m-a7-ref-750/evidence/pgss-full.csv
+  4100 /srv/ceezr-cap-20261016/runs/b33mtick-m-a7-ref-750/evidence/telegram-jobs.csv
+  4229 total
+POST_DIAG_DONE

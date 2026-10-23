@@ -1,0 +1,13 @@
+COLLECT_UNDECLARED b33m-outbox-rows.csv 4768222
+COLLECT_UNDECLARED b33m-outbox-samples.jsonl 44484
+COLLECT_UNDECLARED db-audit-post.out 50
+COLLECT_UNDECLARED db-audit-pre.out 733
+COLLECT_UNDECLARED diag-env.txt 94
+COLLECT_UNDECLARED dispatch-trace.jsonl.load.jsonl 1937916
+COLLECT_UNDECLARED gateway-proc.json 103
+COLLECT_UNDECLARED gateway.pid 6
+COLLECT_UNDECLARED gateway.wave.log 52728727
+COLLECT_UNDECLARED pgss-top.txt 3553
+COLLECT_UNDECLARED telegram-mock.jsonl 12000890
+COLLECT_UNDECLARED wave-report.err 0
+COLLECT_DONE files=21 missing=0 undeclared=12

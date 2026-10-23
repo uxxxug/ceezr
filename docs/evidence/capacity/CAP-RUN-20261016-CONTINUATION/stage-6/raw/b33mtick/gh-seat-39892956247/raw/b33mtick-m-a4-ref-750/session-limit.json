@@ -1,0 +1,1 @@
+{"gateway_comm":"bun","sha":"e47ca99ddd7b4b74b73323fbc17963fede309cec","env_in_live_gateway":"24000","effective_limit":24000,"window_seconds":60,"expected":24000,"run_env_value_unchanged":"6000","default_without_var":30,"ok":true}
