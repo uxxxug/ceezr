@@ -1,5 +1,14 @@
-50432986594f4ec4bf8e83572c33e66d3e4f19b6fd4a43f696262c6b3f3e71b0  ./EXPLAIN-INVESTIGATION.md
+49add8b4e2e0f30863a82a2fd57002aec1e9d8d28857aea78984840d99384e6c  ./EXPLAIN-INVESTIGATION.md
 1352c1b72f4976c745b9fa028f533c975c3f5cae97640ec14e614ade605f9923  ./explain-7197-with-index.txt
 6e07d0404c6211a67c9b2449c5e310483305ab90788afe3e9817b250f275976c  ./explain-7197-without-index.txt
+2dc7797ffdb344281da78453a018ca93f3b6ca649fbb6b026b186a08132a25ae  ./explain-analyze-7200-unsafe-plain.txt
+e3e486decfe1749949a7626970f731e73e8e6c2e252d0b5a0ddbdf4f4693a35c  ./explain-analyze-7200-unsafe-with-max-age.txt
 e2e0bb0547a5976f2b13e94688a6e0975dde9d8eca99069d11180f7f124e3c79  ./reproduce-seed.sql
 83b626571c0ac74907e931d62b568879ba5e4f290b5a4a7899cc2599ec47dc41  ./timing-scales.txt
+af91014b14e352c91784c48f827a5f4a41a2c56aa588362109a55a1b7f9e94aa  ./verify-scripts/README.md
+4caddf6bc9be71870afff5cba814552eca9f0f53553c799fb985c9b3391dc520  ./verify-scripts/adapter-prepare-true-verify.ts
+1c6ac32211f1be7908e2e091efa8205ace527e94fc4db102fdffcc135fb556c2  ./verify-scripts/gen-explain-analyze.py
+269b14117438aece934008af70b893a2453fcb398a9005f4c79a11b2d681e0e3  ./verify-scripts/product-path-verify.ts
+fddac4c36d18d6d860c112120ab380b829207a7b44f9f8a01b64a7fc0ade2236  ./verify-scripts/stability-scenario.py
+42ddac6636cfe7241d6f26da67c5bbbf62fa04c2a4421dd495eb932f1d6fbe6e  ./verify-scripts/timing-old.ts
+3792e6cad4914cfc5de1ace57da080bc425a2c60fbdc41330e07fc19ba18e106  ./verify-scripts/timing-real.ts

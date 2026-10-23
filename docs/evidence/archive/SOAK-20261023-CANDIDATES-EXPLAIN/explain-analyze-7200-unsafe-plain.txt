@@ -1,0 +1,57 @@
+-- EXPLAIN (ANALYZE, BUFFERS) — النص الحقيقي من المحوّل عبر الاستبدال الحرفي للوسائط
+-- بذر المختبر: 7,200 سائقًا / 30 متاحًا (نهاية الموجة) — تنفيذ فعلي لا تقدير
+-- التاريخ: 2026-10-23T21:11:10.361530
+
+                                                                                                                                                                                              QUERY PLAN                                                                                                                                                                                               
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=674.29..682.90 rows=1 width=185) (actual time=1.483..1.530 rows=6.00 loops=1)
+   Buffers: shared hit=291
+   ->  Result  (cost=674.29..682.90 rows=1 width=185) (actual time=1.483..1.528 rows=6.00 loops=1)
+         Buffers: shared hit=291
+         ->  Sort  (cost=674.29..674.29 rows=1 width=153) (actual time=1.438..1.440 rows=6.00 loops=1)
+               Sort Key: ((d.last_location <-> '0101000020E6100000B81E85EB51984340CDCCCCCCCC8C3540'::geography))
+               Sort Method: quicksort  Memory: 26kB
+               Buffers: shared hit=270
+               ->  Nested Loop Left Join  (cost=1.00..674.28 rows=1 width=153) (actual time=1.133..1.417 rows=6.00 loops=1)
+                     Buffers: shared hit=267
+                     ->  Nested Loop  (cost=0.72..665.68 rows=1 width=128) (actual time=1.057..1.309 rows=6.00 loops=1)
+                           Buffers: shared hit=249
+                           ->  Nested Loop  (cost=0.43..657.38 rows=1 width=143) (actual time=1.038..1.254 rows=6.00 loops=1)
+                                 Buffers: shared hit=231
+                                 ->  Index Scan using driver_availability_available_city_driver_idx on driver_availability a  (cost=0.14..56.34 rows=30 width=17) (actual time=0.008..0.017 rows=30.00 loops=1)
+                                       Index Searches: 1
+                                       Buffers: shared hit=2
+                                 ->  Memoize  (cost=0.30..20.02 rows=1 width=142) (actual time=0.041..0.041 rows=0.20 loops=30)
+                                       Cache Key: a.driver_id
+                                       Cache Mode: logical
+                                       Hits: 0  Misses: 30  Evictions: 0  Overflows: 0  Memory Usage: 4kB
+                                       Buffers: shared hit=229
+                                       ->  Index Scan using drivers_pkey on drivers d  (cost=0.29..20.01 rows=1 width=142) (actual time=0.040..0.040 rows=0.20 loops=30)
+                                             Index Cond: (id = a.driver_id)
+                                             Filter: ((last_location IS NOT NULL) AND (last_location_quality IS DISTINCT FROM 'ALERT'::text) AND (city_id = 'e0cc1fa6-4477-4e95-92d2-ef8eccb361ae'::uuid) AND (verification_status = 'verified'::verification_status) AND st_dwithin(last_location, '0101000020E6100000B81E85EB51984340CDCCCCCCCC8C3540'::geography, '10000'::double precision, true))
+                                             Rows Removed by Filter: 1
+                                             Index Searches: 30
+                                             Buffers: shared hit=223
+                           ->  Index Scan using users_pkey on users u  (cost=0.28..8.30 rows=1 width=17) (actual time=0.008..0.008 rows=1.00 loops=6)
+                                 Index Cond: (id = d.user_id)
+                                 Filter: (NOT is_blocked)
+                                 Index Searches: 6
+                                 Buffers: shared hit=18
+                     ->  Index Scan using subscriptions_one_live_per_driver on subscriptions s  (cost=0.28..8.30 rows=1 width=41) (actual time=0.007..0.007 rows=1.00 loops=6)
+                           Index Cond: (driver_id = d.id)
+                           Index Searches: 6
+                           Buffers: shared hit=18
+         SubPlan 1
+           ->  Aggregate  (cost=8.31..8.32 rows=1 width=32) (actual time=0.013..0.013 rows=1.00 loops=6)
+                 Buffers: shared hit=21
+                 ->  Index Scan using driver_capabilities_driver_id_service_key on driver_capabilities c  (cost=0.28..8.30 rows=1 width=4) (actual time=0.009..0.009 rows=1.00 loops=6)
+                       Index Cond: (driver_id = d.id)
+                       Filter: is_enabled
+                       Index Searches: 6
+                       Buffers: shared hit=18
+ Planning:
+   Buffers: shared hit=852
+ Planning Time: 11.391 ms
+ Execution Time: 1.705 ms
+(49 rows)
+
