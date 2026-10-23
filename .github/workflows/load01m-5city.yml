@@ -16,8 +16,8 @@ permissions:
 
 env:
   MAIN_SHA: af6aa4a4fa8e953d51ed46bcda84b150be829fc7
-  EXP_SHA: af6aa4a4fa8e953d51ed46bcda84b150be829fc7
-  # SOAK-01: الشيفرةُ = main نفسُه (بعدَ دمجِ #631 و#632) — لا فرقَ منتجٍ مسموح.
+  EXP_SHA: 2846483292afbc5143757b4a822fcae5200cf1ea
+  # SOAK-02: الشيفرةُ = main + وضعُ معدّلِ الوصولِ في المولّد (أدواتُ قياسٍ فقط) — لا فرقَ منتجٍ مسموح.
   EXPECTED_PRODUCT_DIFF: ""
 
 jobs:
@@ -29,15 +29,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # SOAK-01: تحمّلٌ مستدامٌ 60 دقيقةً لكلِّ موجةٍ، المدنُ الخمسُ معًا، كلُّ مستوى مرّتان على مشغِّلَين مستقلَّين.
-          - { name: soak-m5-150-a, conc: 150, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak-m5-150-b, conc: 150, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak-m5-250-a, conc: 250, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak-m5-250-b, conc: 250, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak-m5-350-a, conc: 350, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak-m5-350-b, conc: 350, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak-m5-500-a, conc: 500, cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak-m5-500-b, conc: 500, cities: "JED,MKK,RUH,TIF,MED" }
+          # SOAK-02: معدّلُ وصولٍ ثابتٌ (رحلة/ث) لـ60 دقيقة، المدنُ الخمسُ، سقفُ 500 سيناريو، كلُّ معدّلٍ مرّتان.
+          - { name: soak2-r3-a, conc: 500, rate: "3", cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak2-r3-b, conc: 500, rate: "3", cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak2-r5-a, conc: 500, rate: "5", cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak2-r5-b, conc: 500, rate: "5", cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak2-r7-a, conc: 500, rate: "7", cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak2-r7-b, conc: 500, rate: "7", cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak2-r10-a, conc: 500, rate: "10", cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: soak2-r10-b, conc: 500, rate: "10", cities: "JED,MKK,RUH,TIF,MED" }
     steps:
       - uses: actions/checkout@v7
         with:
@@ -56,7 +56,7 @@ jobs:
         run: |
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
-            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" --setenv=EXPECTED_PRODUCT_DIFF="$EXPECTED_PRODUCT_DIFF" --setenv=WAVE_SEC=3600 \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" --setenv=EXPECTED_PRODUCT_DIFF="$EXPECTED_PRODUCT_DIFF" --setenv=WAVE_SEC=3600 --setenv=ARRIVAL_RATE="${{ matrix.rate }}" \
             bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m.sh "${{ matrix.name }}" "${{ matrix.conc }}" "${{ matrix.cities }}"
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)

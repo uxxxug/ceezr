@@ -73,6 +73,8 @@ python3 "$H/deploy/capacity-run/b24-runner/derive-validity.py" "$B/qual/idle-b24
 cp "$B/bin/validity.json" "$OUT/validity.json"; cp -r "$B/qual/idle-b24" "$OUT/idle-b24"
 
 export SEQ_PREFIX=load01m
+# SOAK-02: انتظارُ gen.end يتّسعُ لمدّةِ الموجة (finish-wave.sh)؛ ARRIVAL_RATE يمرُّ كما هو من المشغِّل.
+export GEN_WAIT_ITERS=$(( (${WAVE_SEC:-180} + 900) / 10 ))
 N=$(echo "$CITIES" | tr ',' '\n' | grep -c .)
 if [ "$N" -gt 1 ]; then export LOAD01M_CITIES="$CITIES"; unset LOAD01M_CITY; else export LOAD01M_CITY="$CITIES"; unset LOAD01M_CITIES; fi
 log "موجةُ القياس $NAME conc=$CONC (مدن=$N: $CITIES)"
