@@ -12,8 +12,12 @@
  * - ردودُ المستخدمِ الواحدِ (`laneKey` = البوت+المستخدم) تُرسَلُ بالتسلسلِ وبترتيبِ الإيداعِ.
  * - `concurrency` مستخدمًا مختلفًا في آنٍ — الدلوُ (25/ث عالميًّا و1/ث للمحادثةِ) هو الحاكمُ
  *   لا هذا الرقمُ، ولم يُمَسَّ.
- * - طابورٌ محدودٌ (`maxQueued`): الامتلاءُ يعيدُ `false` فينتظرُ المستدعي الإرسالَ بنفسِه —
- *   ضغطٌ خلفيٌّ صريحٌ لا ذاكرةٌ بلا سقفٍ.
+ * - طابورٌ محدودٌ (`maxQueued`): الامتلاءُ يعيدُ `false` — لا ذاكرةَ بلا سقفٍ. **المستدعي
+ *   (المستنزفُ) لا يُرسِلُ بنفسِه** منذ LOAD-01M (2026-10-23): الردُّ محفوظٌ `sending` في الدفترِ
+ *   فيلتقطُه المُرسِلُ الخلفيُّ بعدَ الإيجار؛ الإرسالُ داخلَ المسارِ ربطَ إتمامَ الوظائفِ بالدلو.
+ * - **ترتيبُ المستخدمِ عبرَ التأجيل:** مسارٌ أُجِّلَ له ردٌّ (امتلاءً أو انقضاءً) يبقى مؤجَّلًا
+ *   `deferStickyMs` (افتراضًا ضعفُ `maxWaitMs` ≈ الإيجار): كلُّ ردٍّ لاحقٍ له يُرفَضُ هنا أيضًا
+ *   فيذهبُ إلى الخلفيِّ الذي يحجبُ اللاحقَ ما دامَ سابقُه معلّقًا — فلا يسبقُ اللاحقُ السابق.
  * - **لا إرسالَ بعدَ نصفِ الإيجارِ:** ردٌّ انتظرَ أكثرَ من `maxWaitMs` لا يُرسَلُ هنا، ومعه كلُّ
  *   ما بعدَه للمستخدمِ نفسِه (حفظًا للترتيبِ)؛ يبقى صفُّه `sending` فينقضي إيجارُه ويلتقطُه
  *   المُرسِلُ الخلفيُّ (`claim_telegram_update_replies` يحجبُ اللاحقَ ما دامَ سابقُه معلّقًا).
@@ -38,6 +42,8 @@ export interface TelegramReplyPoolOptions {
   readonly maxQueued: number;
   /** أقلُّ من إيجارِ الردِّ (`TELEGRAM_REPLY_LEASE_SECONDS`) بهامشِ زمنِ إرسالٍ. */
   readonly maxWaitMs: number;
+  /** مدّةُ بقاءِ المسارِ مؤجَّلًا بعدَ تأجيلِ ردٍّ له (افتراضًا 2×maxWaitMs). */
+  readonly deferStickyMs?: number;
   readonly now?: () => number;
   readonly log?: (message: string, meta: Record<string, unknown>) => void;
 }
@@ -57,6 +63,17 @@ export function createTelegramReplyPool(options: TelegramReplyPoolOptions): Tele
   let expiredLocal = 0;
   let sent = 0;
   let waiters: (() => void)[] = [];
+  const stickyMs = Math.max(0, options.deferStickyMs ?? options.maxWaitMs * 2);
+  /** مسارٌ ← حتى متى يبقى مؤجَّلًا (حفظُ ترتيبِ المستخدمِ عبرَ التأجيل). */
+  const deferredUntil = new Map<string, number>();
+  const markDeferred = (lane: string): void => {
+    const t = now();
+    // تقليمٌ عرضيٌّ: لا خريطةَ تنمو بعددِ المستخدمينَ إلى الأبد.
+    if (deferredUntil.size >= 10_000) {
+      for (const [k, until] of deferredUntil) if (until <= t) deferredUntil.delete(k);
+    }
+    deferredUntil.set(lane, t + stickyMs);
+  };
 
   const settleIdle = (): void => {
     if (queued > 0 || running.size > 0) return;
@@ -81,6 +98,7 @@ export function createTelegramReplyPool(options: TelegramReplyPoolOptions): Tele
         queued -= items.length;
         expiredLocal += dropped;
         lanes.delete(lane);
+        markDeferred(lane);
         options.log?.("telegram.replies.local_expired", { lane, dropped });
         continue;
       }
@@ -110,7 +128,15 @@ export function createTelegramReplyPool(options: TelegramReplyPoolOptions): Tele
 
   return {
     submit: (laneKey, run) => {
-      if (queued >= options.maxQueued) return false;
+      const until = deferredUntil.get(laneKey);
+      if (until !== undefined) {
+        if (now() < until) return false;
+        deferredUntil.delete(laneKey);
+      }
+      if (queued >= options.maxQueued) {
+        markDeferred(laneKey);
+        return false;
+      }
       const items = lanes.get(laneKey);
       if (items === undefined) {
         lanes.set(laneKey, [{ run, at: now() }]);
