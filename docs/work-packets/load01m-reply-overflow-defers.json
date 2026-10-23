@@ -1,21 +1,15 @@
 {
   "id": "load01m-reply-overflow-defers",
   "goal": "إزالةُ ربطِ إتمامِ وظائفِ webhook بدلوِ البوتِ (25 رسالة/ث) عندَ امتلاءِ مُرسِلِ الردودِ الفوري — كشفَه قياسُ LOAD-01M.",
-  "canonical_source": [
-    "docs/roadmap/capacity/LOAD-01M.md"
-  ],
+  "canonical_source": ["docs/roadmap/capacity/LOAD-01M.md"],
   "implementation": [
     "apps/gateway/src/background/telegram-reply-pool.ts",
     "apps/gateway/src/background/telegram-update-drainer.ts",
     "tests/integration/s5-update-effect-ledger.test.ts",
     "tests/unit/telegram-reply-pool.test.ts"
   ],
-  "state": [
-    "docs/SYSTEM_STATE.md"
-  ],
-  "roadmap": [
-    "ROADMAP.md"
-  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
   "affected_docs": [],
   "decision": "عندَ امتلاءِ المُرسِلِ الفوريِّ لا يُرسِلُ الدرينرُ الردَّ داخلَ مسارِ الوظيفة؛ الردُّ محفوظٌ في الدفترِ (sending بإيجار) منذ recordEffect فيلتقطُه المُرسِلُ الخلفيُّ القائم (drainTelegramUpdateRepliesOnce) بعدَ انقضاءِ الإيجار، ويُسجَّلُ telegram.replies.deferred_overflow. المسارُ (lane) المؤجَّلُ يبقى مؤجَّلًا 2×maxWaitMs حفظًا لترتيبِ ردودِ المستخدم. لا تغييرَ في الدلوِ ولا gatewayRequest ولا IMMEDIATE_REDISPATCH_LIMIT ولا حدودِ المُرسِل.",
   "tests": [
