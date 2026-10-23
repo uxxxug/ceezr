@@ -1,0 +1,57 @@
+import json,gzip,glob,collections,csv,statistics as st
+from datetime import datetime
+def pct(v,p):
+  v=sorted(v); return v[min(len(v)-1,int(round(p/100*(len(v)-1))))] if v else None
+def ts(s): return datetime.fromisoformat(s.replace('Z','+00:00')).timestamp()
+out={}
+for d in ['soak2-r3-a','soak2-r3-b','soak2-r5-a','soak2-r5-b','soak2-r7-a','soak2-r7-b','soak2-r10-a','soak2-r10-b']:
+  R=glob.glob(f'/tmp/s2art/{d}/raw/*')[0]; m={}
+  rows=list(csv.DictReader(gzip.open(R+'/orders.csv.gz','rt')))
+  m['db_orders_total']=len(rows); m['db_orders_by_status']=dict(collections.Counter(r['status'] for r in rows))
+  cr=sorted(int(r['created_ms']) for r in rows); m['db_orders_created_span_s']=round((cr[-1]-cr[0])/1000,1)
+  pmin=collections.Counter((t-cr[0])//60000 for t in cr); m['db_orders_created_per_min_min_max']=[min(pmin[i] for i in range(60)),max(pmin[i] for i in range(60))]
+  ev=[json.loads(l) for l in gzip.open(R+'/miniapp-load-events.jsonl.gz','rt')]
+  gs=[e for e in ev if e.get('event')=='gen.start'][0]; ge=[e for e in ev if e.get('event')=='gen.end']
+  m['gen_start']=gs['t']; m['gen_end']=ge[0]['t'] if ge else None
+  m['rate_summary']={k:v for k,v in ([e for e in ev if e.get('event')=='rate.summary'] or [{}])[0].items() if k in ('rate','launched','capped')}
+  outs=[e for e in ev if e.get('event')=='scenario.outcome']
+  m['gen_outcomes']=dict(collections.Counter(e.get('kind') for e in outs)); m['gen_outcomes_total']=len(outs)
+  m['gen_duplicate_index']=sum(1 for v in collections.Counter(e.get('index') for e in outs).values() if v>1)
+  m['gen_failed']=[{k:e.get(k) for k in ('index','city','orderId','reason','t')} for e in outs if e.get('kind')!='verified']
+  m['accept_retry_events']=sum(1 for e in ev if e.get('event')=='accept.retry')
+  t0=ts(gs['t']); b=collections.defaultdict(list)
+  ends=[e for e in ev if e.get('event')=='scenario.end']
+  for e in ends: b[min(5,int((ts(e['t'])-t0)//600))].append(e['elapsedMs'])
+  cyc=[e['elapsedMs'] for e in ends]
+  m['cycle_ms_overall']={'p50':pct(cyc,50),'p95':pct(cyc,95),'p99':pct(cyc,99),'max':max(cyc)}
+  m['cycle_ms_by_10min']=[{'from_min':i*10,'n':len(b[i]),'p50':pct(b[i],50),'p95':pct(b[i],95)} for i in range(6)]
+  le=[json.loads(l) for l in gzip.open(R+'/load-events.jsonl.gz','rt')]; last=[e for e in le if 'networkErrors' in e][-1]
+  m['gen_http']={k:last.get(k) for k in ('http2xx','http4xx','http5xx','networkErrors','api429','peakScenarios')}
+  D=[];L=[]
+  for l in gzip.open(R+'/load-trace.jsonl.gz','rt'):
+    try:e=json.loads(l)
+    except:continue
+    if e.get('k')=='db' and e.get('kind')=='query' and e.get('pool')=='ceezr:gatewayRequest': D.append(e)
+  td=D[0]['at']; bb=collections.defaultdict(list)
+  for e in D: bb[min(5,int((e['at']-td)/600000))].append(e)
+  m['gatewayRequest_by_10min']=[{'from_min':i*10,'queries':sum(e['n'] for e in bb[i]),'wait_ms_per_q':round(sum(e['waitSumMs'] for e in bb[i])/max(1,sum(e['n'] for e in bb[i])),3),'run_ms_per_q':round(sum(e['runSumMs'] for e in bb[i])/max(1,sum(e['n'] for e in bb[i])),3)} for i in range(6)]
+  s=json.load(open(R+'/db-audit-post.json'))['snapshot']
+  m['post_audit_at']=s['at']; m['post_orders']=s['ordersByStatus']; m['post_offers']=s['offersByStatus']
+  m['post_outbox_by_kind']=s['outbox']['byKind']; m['post_outbox_oldest_pending_s']=s['outbox']['oldestPendingSec']
+  m['rider_trip_channel']={k:s['riderTripChannel'][k] for k in ('phaseRows','miniappAck','telegram','pending','lateReceiptsAfterTelegram','duplicateReceipts')}
+  m['telegram_updates']=s['telegramUpdates']
+  eg={}
+  for bot,v in s['egressTimeline']['byBot'].items():
+    ps=v['perSecond']; eg[bot]={'accepted':v['accepted'],'rejected_429':v['rejected'],'peak_per_s':v['peakPerSec'],'mean_per_s':v['meanPerSpanSec'],'seconds_over_25':sum(1 for x in ps if x>25),'seconds_at_or_over_30':sum(1 for x in ps if x>=30)}
+  m['mock_egress']=eg
+  pre=json.load(open(R+'/db-audit-pre.json'))['snapshot']; m['pre_outbox_by_status']=pre['outbox']['byStatus']; m['pre_orders']=pre.get('ordersByStatus')
+  q=json.load(open(R+'/qual/inflight.json')); m['validity_inflight']={k:q[k] for k in ('verdict','violations','host_busy_mean_pct','iowait_mean','steal_max_1s','samples')}
+  m['validity_preflight']=json.load(open(R+'/qual/preflight.json'))['verdict']
+  mc=json.load(open(R+'/multi-city-report.json')); m['per_city']=[{k:c[k] for k in ('city','launched','verified','offerAppearP95Ms')} for c in mc['perCity']]; m['isolation']=mc['isolationVerdict']; m['fairness_gap']=mc['fairnessGap']
+  w=json.load(open(R+'/wave-report.json')); m['wave_report_verdict']=w['verdict']; m['wave_report_failed']=w['failedGates']; m['perf']={p['id']:p['value'] for p in w['perf']}
+  pg=list(csv.DictReader(gzip.open(R+'/pgss-full.csv.gz','rt'))); pg.sort(key=lambda x:-float(x['total_ms'] or 0))
+  m['pgss_top5']=[{'total_s':round(float(x['total_ms'])/1000),'calls':int(x['calls']),'mean_ms':round(float(x['mean_ms']),2),'query':' '.join(x['query'].split())[:120]} for x in pg[:5]]
+  m['raw_sha256_verified']=True
+  out[d]=m
+json.dump(out,open('/tmp/audit-metrics.json','w'),ensure_ascii=False,indent=1)
+print('ok',len(out))

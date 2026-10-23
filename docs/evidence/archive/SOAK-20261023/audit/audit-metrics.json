@@ -1,0 +1,2206 @@
+{
+ "soak2-r3-a": {
+  "db_orders_total": 10799,
+  "db_orders_by_status": {
+   "completed": 10799
+  },
+  "db_orders_created_span_s": 3599.2,
+  "db_orders_created_per_min_min_max": [
+   178,
+   181
+  ],
+  "gen_start": "2026-10-23T12:31:19.430Z",
+  "gen_end": "2026-10-23T13:31:21.784Z",
+  "rate_summary": {
+   "rate": 3,
+   "launched": 10799,
+   "capped": 0
+  },
+  "gen_outcomes": {
+   "verified": 10799
+  },
+  "gen_outcomes_total": 10799,
+  "gen_duplicate_index": 0,
+  "gen_failed": [],
+  "accept_retry_events": 0,
+  "cycle_ms_overall": {
+   "p50": 2031,
+   "p95": 2046,
+   "p99": 2068,
+   "max": 3522
+  },
+  "cycle_ms_by_10min": [
+   {
+    "from_min": 0,
+    "n": 1792,
+    "p50": 2029,
+    "p95": 2039
+   },
+   {
+    "from_min": 10,
+    "n": 1800,
+    "p50": 1979,
+    "p95": 2043
+   },
+   {
+    "from_min": 20,
+    "n": 1800,
+    "p50": 2032,
+    "p95": 2045
+   },
+   {
+    "from_min": 30,
+    "n": 1800,
+    "p50": 2035,
+    "p95": 2048
+   },
+   {
+    "from_min": 40,
+    "n": 1800,
+    "p50": 2036,
+    "p95": 2050
+   },
+   {
+    "from_min": 50,
+    "n": 1807,
+    "p50": 2038,
+    "p95": 2054
+   }
+  ],
+  "gen_http": {
+   "http2xx": 217457,
+   "http4xx": 0,
+   "http5xx": 0,
+   "networkErrors": 0,
+   "api429": 0,
+   "peakScenarios": 9
+  },
+  "gatewayRequest_by_10min": [
+   {
+    "from_min": 0,
+    "queries": 83950,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.722
+   },
+   {
+    "from_min": 10,
+    "queries": 89284,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.751
+   },
+   {
+    "from_min": 20,
+    "queries": 90055,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.784
+   },
+   {
+    "from_min": 30,
+    "queries": 89145,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.807
+   },
+   {
+    "from_min": 40,
+    "queries": 89396,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.818
+   },
+   {
+    "from_min": 50,
+    "queries": 95154,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.831
+   }
+  ],
+  "post_audit_at": "2026-10-23T13:31:28.140Z",
+  "post_orders": {
+   "completed": 10799
+  },
+  "post_offers": {
+   "cancelled": 3611,
+   "accepted": 10799
+  },
+  "post_outbox_by_kind": {
+   "offer": {
+    "total": 14410,
+    "delivered": 3845,
+    "pending": 109,
+    "dead": 10456
+   },
+   "rider_trip_notice": {
+    "total": 43196,
+    "delivered": 43196,
+    "pending": 0,
+    "dead": 0
+   }
+  },
+  "post_outbox_oldest_pending_s": 47,
+  "rider_trip_channel": {
+   "phaseRows": 43196,
+   "miniappAck": 30317,
+   "telegram": 12879,
+   "pending": 0,
+   "lateReceiptsAfterTelegram": 11,
+   "duplicateReceipts": 0
+  },
+  "telegram_updates": {
+   "jobs": 10799,
+   "jobsByStatus": {
+    "done": 10799
+   },
+   "repliesByStatus": {
+    "done": 10799
+   },
+   "jobDoneLatencySec": {
+    "p50": 0,
+    "p95": 0,
+    "max": 0.1
+   }
+  },
+  "mock_egress": {
+   "driver": {
+    "accepted": 13187,
+    "rejected_429": 0,
+    "peak_per_s": 10,
+    "mean_per_s": 3.7,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   },
+   "rider": {
+    "accepted": 12879,
+    "rejected_429": 0,
+    "peak_per_s": 13,
+    "mean_per_s": 3.6,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   }
+  },
+  "pre_outbox_by_status": {},
+  "pre_orders": {},
+  "validity_inflight": {
+   "verdict": "VALID",
+   "violations": [],
+   "host_busy_mean_pct": 10.1,
+   "iowait_mean": 0.27,
+   "steal_max_1s": 0.0,
+   "samples": 3640
+  },
+  "validity_preflight": "VALID",
+  "per_city": [
+   {
+    "city": "JED",
+    "launched": 2160,
+    "verified": 2160,
+    "offerAppearP95Ms": 2015
+   },
+   {
+    "city": "MED",
+    "launched": 2159,
+    "verified": 2159,
+    "offerAppearP95Ms": 2015
+   },
+   {
+    "city": "MKK",
+    "launched": 2160,
+    "verified": 2160,
+    "offerAppearP95Ms": 2014
+   },
+   {
+    "city": "RUH",
+    "launched": 2160,
+    "verified": 2160,
+    "offerAppearP95Ms": 2014
+   },
+   {
+    "city": "TIF",
+    "launched": 2160,
+    "verified": 2160,
+    "offerAppearP95Ms": 2014
+   }
+  ],
+  "isolation": "CLEAN",
+  "fairness_gap": 0,
+  "wave_report_verdict": "FAIL",
+  "wave_report_failed": [
+   "CONC-peak"
+  ],
+  "perf": {
+   "P1": "8ms",
+   "P2": "7ms",
+   "P3": "5ms",
+   "P4": "2015ms",
+   "P5": "2047ms",
+   "P6a": "11ms",
+   "P6b": "10ms",
+   "P6c": "7ms",
+   "P7": "47s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "pgss_top5": [
+   {
+    "total_s": 103,
+    "calls": 61331,
+    "mean_ms": 1.68,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "total_s": 72,
+    "calls": 11889,
+    "mean_ms": 6.02,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (ex"
+   },
+   {
+    "total_s": 36,
+    "calls": 10799,
+    "mean_ms": 3.33,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $1"
+   },
+   {
+    "total_s": 29,
+    "calls": 10799,
+    "mean_ms": 2.64,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null"
+   },
+   {
+    "total_s": 28,
+    "calls": 32718,
+    "mean_ms": 0.87,
+    "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+   }
+  ],
+  "raw_sha256_verified": true
+ },
+ "soak2-r3-b": {
+  "db_orders_total": 10799,
+  "db_orders_by_status": {
+   "completed": 10799
+  },
+  "db_orders_created_span_s": 3599.3,
+  "db_orders_created_per_min_min_max": [
+   178,
+   181
+  ],
+  "gen_start": "2026-10-23T12:33:05.911Z",
+  "gen_end": "2026-10-23T13:33:08.279Z",
+  "rate_summary": {
+   "rate": 3,
+   "launched": 10799,
+   "capped": 0
+  },
+  "gen_outcomes": {
+   "verified": 10799
+  },
+  "gen_outcomes_total": 10799,
+  "gen_duplicate_index": 0,
+  "gen_failed": [],
+  "accept_retry_events": 0,
+  "cycle_ms_overall": {
+   "p50": 2031,
+   "p95": 2048,
+   "p99": 2068,
+   "max": 4046
+  },
+  "cycle_ms_by_10min": [
+   {
+    "from_min": 0,
+    "n": 1793,
+    "p50": 2028,
+    "p95": 2042
+   },
+   {
+    "from_min": 10,
+    "n": 1799,
+    "p50": 2030,
+    "p95": 2041
+   },
+   {
+    "from_min": 20,
+    "n": 1800,
+    "p50": 2031,
+    "p95": 2046
+   },
+   {
+    "from_min": 30,
+    "n": 1802,
+    "p50": 2027,
+    "p95": 2049
+   },
+   {
+    "from_min": 40,
+    "n": 1799,
+    "p50": 2036,
+    "p95": 2051
+   },
+   {
+    "from_min": 50,
+    "n": 1806,
+    "p50": 2038,
+    "p95": 2055
+   }
+  ],
+  "gen_http": {
+   "http2xx": 217033,
+   "http4xx": 0,
+   "http5xx": 0,
+   "networkErrors": 0,
+   "api429": 0,
+   "peakScenarios": 9
+  },
+  "gatewayRequest_by_10min": [
+   {
+    "from_min": 0,
+    "queries": 83716,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.739
+   },
+   {
+    "from_min": 10,
+    "queries": 89314,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.725
+   },
+   {
+    "from_min": 20,
+    "queries": 89435,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.796
+   },
+   {
+    "from_min": 30,
+    "queries": 89441,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 0.863
+   },
+   {
+    "from_min": 40,
+    "queries": 89520,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.826
+   },
+   {
+    "from_min": 50,
+    "queries": 95134,
+    "wait_ms_per_q": 0.005,
+    "run_ms_per_q": 0.868
+   }
+  ],
+  "post_audit_at": "2026-10-23T13:33:14.549Z",
+  "post_orders": {
+   "completed": 10799
+  },
+  "post_offers": {
+   "cancelled": 3388,
+   "accepted": 10799
+  },
+  "post_outbox_by_kind": {
+   "offer": {
+    "total": 14187,
+    "delivered": 3734,
+    "pending": 114,
+    "dead": 10339
+   },
+   "rider_trip_notice": {
+    "total": 43196,
+    "delivered": 43196,
+    "pending": 0,
+    "dead": 0
+   }
+  },
+  "post_outbox_oldest_pending_s": 47,
+  "rider_trip_channel": {
+   "phaseRows": 43196,
+   "miniappAck": 30333,
+   "telegram": 12863,
+   "pending": 0,
+   "lateReceiptsAfterTelegram": 15,
+   "duplicateReceipts": 0
+  },
+  "telegram_updates": {
+   "jobs": 10799,
+   "jobsByStatus": {
+    "done": 10799
+   },
+   "repliesByStatus": {
+    "done": 10799
+   },
+   "jobDoneLatencySec": {
+    "p50": 0,
+    "p95": 0,
+    "max": 0
+   }
+  },
+  "mock_egress": {
+   "driver": {
+    "accepted": 13152,
+    "rejected_429": 0,
+    "peak_per_s": 10,
+    "mean_per_s": 3.7,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   },
+   "rider": {
+    "accepted": 12863,
+    "rejected_429": 0,
+    "peak_per_s": 15,
+    "mean_per_s": 3.6,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   }
+  },
+  "pre_outbox_by_status": {},
+  "pre_orders": {},
+  "validity_inflight": {
+   "verdict": "VALID",
+   "violations": [],
+   "host_busy_mean_pct": 9.7,
+   "iowait_mean": 0.42,
+   "steal_max_1s": 0.0,
+   "samples": 3640
+  },
+  "validity_preflight": "VALID",
+  "per_city": [
+   {
+    "city": "JED",
+    "launched": 2160,
+    "verified": 2160,
+    "offerAppearP95Ms": 2015
+   },
+   {
+    "city": "MED",
+    "launched": 2159,
+    "verified": 2159,
+    "offerAppearP95Ms": 2016
+   },
+   {
+    "city": "MKK",
+    "launched": 2160,
+    "verified": 2160,
+    "offerAppearP95Ms": 2015
+   },
+   {
+    "city": "RUH",
+    "launched": 2160,
+    "verified": 2160,
+    "offerAppearP95Ms": 2015
+   },
+   {
+    "city": "TIF",
+    "launched": 2160,
+    "verified": 2160,
+    "offerAppearP95Ms": 2014
+   }
+  ],
+  "isolation": "CLEAN",
+  "fairness_gap": 0,
+  "wave_report_verdict": "FAIL",
+  "wave_report_failed": [
+   "CONC-peak"
+  ],
+  "perf": {
+   "P1": "8ms",
+   "P2": "7ms",
+   "P3": "5ms",
+   "P4": "2015ms",
+   "P5": "2048ms",
+   "P6a": "12ms",
+   "P6b": "10ms",
+   "P6c": "7ms",
+   "P7": "47s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "pgss_top5": [
+   {
+    "total_s": 101,
+    "calls": 59850,
+    "mean_ms": 1.69,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "total_s": 69,
+    "calls": 11758,
+    "mean_ms": 5.9,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (ex"
+   },
+   {
+    "total_s": 36,
+    "calls": 10799,
+    "mean_ms": 3.34,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $1"
+   },
+   {
+    "total_s": 28,
+    "calls": 32519,
+    "mean_ms": 0.88,
+    "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+   },
+   {
+    "total_s": 28,
+    "calls": 10799,
+    "mean_ms": 2.61,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null"
+   }
+  ],
+  "raw_sha256_verified": true
+ },
+ "soak2-r5-a": {
+  "db_orders_total": 17999,
+  "db_orders_by_status": {
+   "completed": 17999
+  },
+  "db_orders_created_span_s": 3599.6,
+  "db_orders_created_per_min_min_max": [
+   299,
+   301
+  ],
+  "gen_start": "2026-10-23T12:31:39.765Z",
+  "gen_end": "2026-10-23T13:31:42.439Z",
+  "rate_summary": {
+   "rate": 5,
+   "launched": 17999,
+   "capped": 0
+  },
+  "gen_outcomes": {
+   "verified": 17999
+  },
+  "gen_outcomes_total": 17999,
+  "gen_duplicate_index": 0,
+  "gen_failed": [],
+  "accept_retry_events": 6,
+  "cycle_ms_overall": {
+   "p50": 1951,
+   "p95": 2070,
+   "p99": 2098,
+   "max": 4091
+  },
+  "cycle_ms_by_10min": [
+   {
+    "from_min": 0,
+    "n": 2990,
+    "p50": 2029,
+    "p95": 2050
+   },
+   {
+    "from_min": 10,
+    "n": 2998,
+    "p50": 1926,
+    "p95": 2055
+   },
+   {
+    "from_min": 20,
+    "n": 3001,
+    "p50": 1864,
+    "p95": 2064
+   },
+   {
+    "from_min": 30,
+    "n": 3001,
+    "p50": 1885,
+    "p95": 2072
+   },
+   {
+    "from_min": 40,
+    "n": 3000,
+    "p50": 1949,
+    "p95": 2078
+   },
+   {
+    "from_min": 50,
+    "n": 3009,
+    "p50": 1986,
+    "p95": 2088
+   }
+  ],
+  "gen_http": {
+   "http2xx": 362284,
+   "http4xx": 6,
+   "http5xx": 0,
+   "networkErrors": 0,
+   "api429": 0,
+   "peakScenarios": 14
+  },
+  "gatewayRequest_by_10min": [
+   {
+    "from_min": 0,
+    "queries": 138734,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 0.735
+   },
+   {
+    "from_min": 10,
+    "queries": 147373,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.758
+   },
+   {
+    "from_min": 20,
+    "queries": 148282,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.855
+   },
+   {
+    "from_min": 30,
+    "queries": 149138,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 0.933
+   },
+   {
+    "from_min": 40,
+    "queries": 148774,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 0.952
+   },
+   {
+    "from_min": 50,
+    "queries": 158321,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 1.006
+   }
+  ],
+  "post_audit_at": "2026-10-23T13:31:49.941Z",
+  "post_orders": {
+   "completed": 17999
+  },
+  "post_offers": {
+   "cancelled": 19053,
+   "accepted": 17999
+  },
+  "post_outbox_by_kind": {
+   "offer": {
+    "total": 37052,
+    "delivered": 10490,
+    "pending": 275,
+    "dead": 26287
+   },
+   "rider_trip_notice": {
+    "total": 71996,
+    "delivered": 71996,
+    "pending": 0,
+    "dead": 0
+   }
+  },
+  "post_outbox_oldest_pending_s": 47,
+  "rider_trip_channel": {
+   "phaseRows": 71996,
+   "miniappAck": 50232,
+   "telegram": 21764,
+   "pending": 0,
+   "lateReceiptsAfterTelegram": 24,
+   "duplicateReceipts": 0
+  },
+  "telegram_updates": {
+   "jobs": 17999,
+   "jobsByStatus": {
+    "done": 17999
+   },
+   "repliesByStatus": {
+    "done": 17999
+   },
+   "jobDoneLatencySec": {
+    "p50": 0,
+    "p95": 0,
+    "max": 0
+   }
+  },
+  "mock_egress": {
+   "driver": {
+    "accepted": 23451,
+    "rejected_429": 122,
+    "peak_per_s": 30,
+    "mean_per_s": 6.5,
+    "seconds_over_25": 22,
+    "seconds_at_or_over_30": 10
+   },
+   "rider": {
+    "accepted": 21764,
+    "rejected_429": 0,
+    "peak_per_s": 22,
+    "mean_per_s": 6,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   }
+  },
+  "pre_outbox_by_status": {},
+  "pre_orders": {},
+  "validity_inflight": {
+   "verdict": "VALID",
+   "violations": [],
+   "host_busy_mean_pct": 17.7,
+   "iowait_mean": 0.22,
+   "steal_max_1s": 0.0,
+   "samples": 3642
+  },
+  "validity_preflight": "VALID",
+  "per_city": [
+   {
+    "city": "JED",
+    "launched": 3600,
+    "verified": 3600,
+    "offerAppearP95Ms": 2019
+   },
+   {
+    "city": "MED",
+    "launched": 3599,
+    "verified": 3599,
+    "offerAppearP95Ms": 2026
+   },
+   {
+    "city": "MKK",
+    "launched": 3600,
+    "verified": 3600,
+    "offerAppearP95Ms": 2018
+   },
+   {
+    "city": "RUH",
+    "launched": 3600,
+    "verified": 3600,
+    "offerAppearP95Ms": 2015
+   },
+   {
+    "city": "TIF",
+    "launched": 3600,
+    "verified": 3600,
+    "offerAppearP95Ms": 2020
+   }
+  ],
+  "isolation": "CLEAN",
+  "fairness_gap": 0,
+  "wave_report_verdict": "FAIL",
+  "wave_report_failed": [
+   "CONC-peak"
+  ],
+  "perf": {
+   "P1": "13ms",
+   "P2": "7ms",
+   "P3": "6ms",
+   "P4": "2020ms",
+   "P5": "2070ms",
+   "P6a": "18ms",
+   "P6b": "10ms",
+   "P6c": "8ms",
+   "P7": "47s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "pgss_top5": [
+   {
+    "total_s": 271,
+    "calls": 106486,
+    "mean_ms": 2.55,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "total_s": 195,
+    "calls": 19437,
+    "mean_ms": 10.01,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (ex"
+   },
+   {
+    "total_s": 123,
+    "calls": 17999,
+    "mean_ms": 6.83,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null"
+   },
+   {
+    "total_s": 93,
+    "calls": 17999,
+    "mean_ms": 5.19,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $1"
+   },
+   {
+    "total_s": 47,
+    "calls": 54283,
+    "mean_ms": 0.87,
+    "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+   }
+  ],
+  "raw_sha256_verified": true
+ },
+ "soak2-r5-b": {
+  "db_orders_total": 17999,
+  "db_orders_by_status": {
+   "completed": 17999
+  },
+  "db_orders_created_span_s": 3599.6,
+  "db_orders_created_per_min_min_max": [
+   298,
+   301
+  ],
+  "gen_start": "2026-10-23T12:38:28.242Z",
+  "gen_end": "2026-10-23T13:38:30.887Z",
+  "rate_summary": {
+   "rate": 5,
+   "launched": 17999,
+   "capped": 0
+  },
+  "gen_outcomes": {
+   "verified": 17999
+  },
+  "gen_outcomes_total": 17999,
+  "gen_duplicate_index": 0,
+  "gen_failed": [],
+  "accept_retry_events": 10,
+  "cycle_ms_overall": {
+   "p50": 1854,
+   "p95": 2061,
+   "p99": 2089,
+   "max": 4517
+  },
+  "cycle_ms_by_10min": [
+   {
+    "from_min": 0,
+    "n": 2990,
+    "p50": 2027,
+    "p95": 2048
+   },
+   {
+    "from_min": 10,
+    "n": 2998,
+    "p50": 1914,
+    "p95": 2051
+   },
+   {
+    "from_min": 20,
+    "n": 3003,
+    "p50": 1744,
+    "p95": 2057
+   },
+   {
+    "from_min": 30,
+    "n": 2999,
+    "p50": 1808,
+    "p95": 2063
+   },
+   {
+    "from_min": 40,
+    "n": 3000,
+    "p50": 1782,
+    "p95": 2069
+   },
+   {
+    "from_min": 50,
+    "n": 3009,
+    "p50": 1810,
+    "p95": 2074
+   }
+  ],
+  "gen_http": {
+   "http2xx": 368030,
+   "http4xx": 10,
+   "http5xx": 0,
+   "networkErrors": 0,
+   "api429": 0,
+   "peakScenarios": 15
+  },
+  "gatewayRequest_by_10min": [
+   {
+    "from_min": 0,
+    "queries": 138858,
+    "wait_ms_per_q": 0.005,
+    "run_ms_per_q": 0.682
+   },
+   {
+    "from_min": 10,
+    "queries": 148969,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.726
+   },
+   {
+    "from_min": 20,
+    "queries": 148994,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.812
+   },
+   {
+    "from_min": 30,
+    "queries": 149586,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.865
+   },
+   {
+    "from_min": 40,
+    "queries": 150334,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 0.885
+   },
+   {
+    "from_min": 50,
+    "queries": 159597,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.898
+   }
+  ],
+  "post_audit_at": "2026-10-23T13:38:37.466Z",
+  "post_orders": {
+   "completed": 17999
+  },
+  "post_offers": {
+   "cancelled": 19356,
+   "accepted": 17999
+  },
+  "post_outbox_by_kind": {
+   "offer": {
+    "total": 37355,
+    "delivered": 10446,
+    "pending": 282,
+    "dead": 26627
+   },
+   "rider_trip_notice": {
+    "total": 71996,
+    "delivered": 71996,
+    "pending": 0,
+    "dead": 0
+   }
+  },
+  "post_outbox_oldest_pending_s": 48,
+  "rider_trip_channel": {
+   "phaseRows": 71996,
+   "miniappAck": 50438,
+   "telegram": 21558,
+   "pending": 0,
+   "lateReceiptsAfterTelegram": 38,
+   "duplicateReceipts": 0
+  },
+  "telegram_updates": {
+   "jobs": 17999,
+   "jobsByStatus": {
+    "done": 17999
+   },
+   "repliesByStatus": {
+    "done": 17999
+   },
+   "jobDoneLatencySec": {
+    "p50": 0,
+    "p95": 0,
+    "max": 0.1
+   }
+  },
+  "mock_egress": {
+   "driver": {
+    "accepted": 23798,
+    "rejected_429": 623,
+    "peak_per_s": 30,
+    "mean_per_s": 6.6,
+    "seconds_over_25": 52,
+    "seconds_at_or_over_30": 41
+   },
+   "rider": {
+    "accepted": 21558,
+    "rejected_429": 0,
+    "peak_per_s": 25,
+    "mean_per_s": 6,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   }
+  },
+  "pre_outbox_by_status": {},
+  "pre_orders": {},
+  "validity_inflight": {
+   "verdict": "VALID",
+   "violations": [],
+   "host_busy_mean_pct": 16.3,
+   "iowait_mean": 0.33,
+   "steal_max_1s": 0.0,
+   "samples": 3641
+  },
+  "validity_preflight": "VALID",
+  "per_city": [
+   {
+    "city": "JED",
+    "launched": 3600,
+    "verified": 3600,
+    "offerAppearP95Ms": 2016
+   },
+   {
+    "city": "MED",
+    "launched": 3599,
+    "verified": 3599,
+    "offerAppearP95Ms": 2019
+   },
+   {
+    "city": "MKK",
+    "launched": 3600,
+    "verified": 3600,
+    "offerAppearP95Ms": 2017
+   },
+   {
+    "city": "RUH",
+    "launched": 3600,
+    "verified": 3600,
+    "offerAppearP95Ms": 2015
+   },
+   {
+    "city": "TIF",
+    "launched": 3600,
+    "verified": 3600,
+    "offerAppearP95Ms": 2013
+   }
+  ],
+  "isolation": "CLEAN",
+  "fairness_gap": 0,
+  "wave_report_verdict": "FAIL",
+  "wave_report_failed": [
+   "CONC-peak"
+  ],
+  "perf": {
+   "P1": "12ms",
+   "P2": "7ms",
+   "P3": "5ms",
+   "P4": "2016ms",
+   "P5": "2061ms",
+   "P6a": "17ms",
+   "P6b": "10ms",
+   "P6c": "7ms",
+   "P7": "48s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "pgss_top5": [
+   {
+    "total_s": 230,
+    "calls": 116109,
+    "mean_ms": 1.98,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "total_s": 191,
+    "calls": 19469,
+    "mean_ms": 9.79,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (ex"
+   },
+   {
+    "total_s": 114,
+    "calls": 17999,
+    "mean_ms": 6.31,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null"
+   },
+   {
+    "total_s": 86,
+    "calls": 17999,
+    "mean_ms": 4.79,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $1"
+   },
+   {
+    "total_s": 47,
+    "calls": 56767,
+    "mean_ms": 0.82,
+    "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+   }
+  ],
+  "raw_sha256_verified": true
+ },
+ "soak2-r7-a": {
+  "db_orders_total": 25199,
+  "db_orders_by_status": {
+   "completed": 25199
+  },
+  "db_orders_created_span_s": 3599.6,
+  "db_orders_created_per_min_min_max": [
+   418,
+   421
+  ],
+  "gen_start": "2026-10-23T12:48:40.602Z",
+  "gen_end": "2026-10-23T13:48:43.280Z",
+  "rate_summary": {
+   "rate": 7,
+   "launched": 25199,
+   "capped": 0
+  },
+  "gen_outcomes": {
+   "verified": 25199
+  },
+  "gen_outcomes_total": 25199,
+  "gen_duplicate_index": 0,
+  "gen_failed": [],
+  "accept_retry_events": 9,
+  "cycle_ms_overall": {
+   "p50": 2039,
+   "p95": 2096,
+   "p99": 2427,
+   "max": 4130
+  },
+  "cycle_ms_by_10min": [
+   {
+    "from_min": 0,
+    "n": 4187,
+    "p50": 2032,
+    "p95": 2056
+   },
+   {
+    "from_min": 10,
+    "n": 4202,
+    "p50": 2038,
+    "p95": 2068
+   },
+   {
+    "from_min": 20,
+    "n": 4194,
+    "p50": 2044,
+    "p95": 2079
+   },
+   {
+    "from_min": 30,
+    "n": 4206,
+    "p50": 2048,
+    "p95": 2092
+   },
+   {
+    "from_min": 40,
+    "n": 4195,
+    "p50": 2052,
+    "p95": 2103
+   },
+   {
+    "from_min": 50,
+    "n": 4215,
+    "p50": 2060,
+    "p95": 2141
+   }
+  ],
+  "gen_http": {
+   "http2xx": 506500,
+   "http4xx": 9,
+   "http5xx": 0,
+   "networkErrors": 0,
+   "api429": 0,
+   "peakScenarios": 22
+  },
+  "gatewayRequest_by_10min": [
+   {
+    "from_min": 0,
+    "queries": 193192,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 0.807
+   },
+   {
+    "from_min": 10,
+    "queries": 207095,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.891
+   },
+   {
+    "from_min": 20,
+    "queries": 206658,
+    "wait_ms_per_q": 0.002,
+    "run_ms_per_q": 0.957
+   },
+   {
+    "from_min": 30,
+    "queries": 207255,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 1.023
+   },
+   {
+    "from_min": 40,
+    "queries": 207407,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 1.06
+   },
+   {
+    "from_min": 50,
+    "queries": 222006,
+    "wait_ms_per_q": 0.007,
+    "run_ms_per_q": 1.293
+   }
+  ],
+  "post_audit_at": "2026-10-23T13:48:49.487Z",
+  "post_orders": {
+   "completed": 25199
+  },
+  "post_offers": {
+   "cancelled": 50027,
+   "accepted": 25199
+  },
+  "post_outbox_by_kind": {
+   "offer": {
+    "total": 75226,
+    "delivered": 18283,
+    "pending": 595,
+    "dead": 56348
+   },
+   "rider_trip_notice": {
+    "total": 100796,
+    "delivered": 100796,
+    "pending": 0,
+    "dead": 0
+   }
+  },
+  "post_outbox_oldest_pending_s": 47,
+  "rider_trip_channel": {
+   "phaseRows": 100796,
+   "miniappAck": 70379,
+   "telegram": 30417,
+   "pending": 0,
+   "lateReceiptsAfterTelegram": 37,
+   "duplicateReceipts": 0
+  },
+  "telegram_updates": {
+   "jobs": 25199,
+   "jobsByStatus": {
+    "done": 25199
+   },
+   "repliesByStatus": {
+    "done": 25199
+   },
+   "jobDoneLatencySec": {
+    "p50": 0,
+    "p95": 0,
+    "max": 0.1
+   }
+  },
+  "mock_egress": {
+   "driver": {
+    "accepted": 31987,
+    "rejected_429": 2932,
+    "peak_per_s": 30,
+    "mean_per_s": 8.9,
+    "seconds_over_25": 59,
+    "seconds_at_or_over_30": 54
+   },
+   "rider": {
+    "accepted": 30417,
+    "rejected_429": 0,
+    "peak_per_s": 25,
+    "mean_per_s": 8.4,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   }
+  },
+  "pre_outbox_by_status": {},
+  "pre_orders": {},
+  "validity_inflight": {
+   "verdict": "VALID",
+   "violations": [],
+   "host_busy_mean_pct": 26.6,
+   "iowait_mean": 0.73,
+   "steal_max_1s": 0.0,
+   "samples": 3643
+  },
+  "validity_preflight": "VALID",
+  "per_city": [
+   {
+    "city": "JED",
+    "launched": 5040,
+    "verified": 5040,
+    "offerAppearP95Ms": 2028
+   },
+   {
+    "city": "MED",
+    "launched": 5039,
+    "verified": 5039,
+    "offerAppearP95Ms": 2027
+   },
+   {
+    "city": "MKK",
+    "launched": 5040,
+    "verified": 5040,
+    "offerAppearP95Ms": 2029
+   },
+   {
+    "city": "RUH",
+    "launched": 5040,
+    "verified": 5040,
+    "offerAppearP95Ms": 2031
+   },
+   {
+    "city": "TIF",
+    "launched": 5040,
+    "verified": 5040,
+    "offerAppearP95Ms": 2031
+   }
+  ],
+  "isolation": "CLEAN",
+  "fairness_gap": 0,
+  "wave_report_verdict": "FAIL",
+  "wave_report_failed": [
+   "CONC-peak"
+  ],
+  "perf": {
+   "P1": "17ms",
+   "P2": "8ms",
+   "P3": "7ms",
+   "P4": "2029ms",
+   "P5": "2096ms",
+   "P6a": "29ms",
+   "P6b": "12ms",
+   "P6c": "10ms",
+   "P7": "47s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "pgss_top5": [
+   {
+    "total_s": 407,
+    "calls": 143697,
+    "mean_ms": 2.83,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "total_s": 405,
+    "calls": 27355,
+    "mean_ms": 14.81,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (ex"
+   },
+   {
+    "total_s": 308,
+    "calls": 25199,
+    "mean_ms": 12.21,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null"
+   },
+   {
+    "total_s": 165,
+    "calls": 25199,
+    "mean_ms": 6.53,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $1"
+   },
+   {
+    "total_s": 71,
+    "calls": 75584,
+    "mean_ms": 0.94,
+    "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+   }
+  ],
+  "raw_sha256_verified": true
+ },
+ "soak2-r7-b": {
+  "db_orders_total": 25199,
+  "db_orders_by_status": {
+   "completed": 25199
+  },
+  "db_orders_created_span_s": 3599.6,
+  "db_orders_created_per_min_min_max": [
+   417,
+   424
+  ],
+  "gen_start": "2026-10-23T12:49:04.399Z",
+  "gen_end": "2026-10-23T13:49:07.573Z",
+  "rate_summary": {
+   "rate": 7,
+   "launched": 25199,
+   "capped": 0
+  },
+  "gen_outcomes": {
+   "verified": 25199
+  },
+  "gen_outcomes_total": 25199,
+  "gen_duplicate_index": 0,
+  "gen_failed": [],
+  "accept_retry_events": 8,
+  "cycle_ms_overall": {
+   "p50": 2038,
+   "p95": 2275,
+   "p99": 2974,
+   "max": 4741
+  },
+  "cycle_ms_by_10min": [
+   {
+    "from_min": 0,
+    "n": 4181,
+    "p50": 2027,
+    "p95": 2144
+   },
+   {
+    "from_min": 10,
+    "n": 4207,
+    "p50": 2035,
+    "p95": 2214
+   },
+   {
+    "from_min": 20,
+    "n": 4197,
+    "p50": 2036,
+    "p95": 2156
+   },
+   {
+    "from_min": 30,
+    "n": 4204,
+    "p50": 2041,
+    "p95": 2263
+   },
+   {
+    "from_min": 40,
+    "n": 4187,
+    "p50": 2048,
+    "p95": 2407
+   },
+   {
+    "from_min": 50,
+    "n": 4223,
+    "p50": 2059,
+    "p95": 2541
+   }
+  ],
+  "gen_http": {
+   "http2xx": 504768,
+   "http4xx": 8,
+   "http5xx": 0,
+   "networkErrors": 0,
+   "api429": 0,
+   "peakScenarios": 28
+  },
+  "gatewayRequest_by_10min": [
+   {
+    "from_min": 0,
+    "queries": 192175,
+    "wait_ms_per_q": 0.122,
+    "run_ms_per_q": 1.433
+   },
+   {
+    "from_min": 10,
+    "queries": 205306,
+    "wait_ms_per_q": 0.163,
+    "run_ms_per_q": 1.826
+   },
+   {
+    "from_min": 20,
+    "queries": 207448,
+    "wait_ms_per_q": 0.076,
+    "run_ms_per_q": 1.479
+   },
+   {
+    "from_min": 30,
+    "queries": 207200,
+    "wait_ms_per_q": 0.129,
+    "run_ms_per_q": 1.656
+   },
+   {
+    "from_min": 40,
+    "queries": 207504,
+    "wait_ms_per_q": 0.263,
+    "run_ms_per_q": 1.982
+   },
+   {
+    "from_min": 50,
+    "queries": 219615,
+    "wait_ms_per_q": 0.48,
+    "run_ms_per_q": 2.555
+   }
+  ],
+  "post_audit_at": "2026-10-23T13:49:13.742Z",
+  "post_orders": {
+   "completed": 25199
+  },
+  "post_offers": {
+   "cancelled": 50229,
+   "accepted": 25199
+  },
+  "post_outbox_by_kind": {
+   "offer": {
+    "total": 75428,
+    "delivered": 17602,
+    "pending": 647,
+    "dead": 57179
+   },
+   "rider_trip_notice": {
+    "total": 100796,
+    "delivered": 100796,
+    "pending": 0,
+    "dead": 0
+   }
+  },
+  "post_outbox_oldest_pending_s": 48,
+  "rider_trip_channel": {
+   "phaseRows": 100796,
+   "miniappAck": 70110,
+   "telegram": 30686,
+   "pending": 0,
+   "lateReceiptsAfterTelegram": 34,
+   "duplicateReceipts": 0
+  },
+  "telegram_updates": {
+   "jobs": 25199,
+   "jobsByStatus": {
+    "done": 25199
+   },
+   "repliesByStatus": {
+    "done": 25199
+   },
+   "jobDoneLatencySec": {
+    "p50": 0,
+    "p95": 0,
+    "max": 0.4
+   }
+  },
+  "mock_egress": {
+   "driver": {
+    "accepted": 32056,
+    "rejected_429": 2913,
+    "peak_per_s": 30,
+    "mean_per_s": 8.9,
+    "seconds_over_25": 54,
+    "seconds_at_or_over_30": 44
+   },
+   "rider": {
+    "accepted": 30686,
+    "rejected_429": 0,
+    "peak_per_s": 25,
+    "mean_per_s": 8.5,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   }
+  },
+  "pre_outbox_by_status": {},
+  "pre_orders": {},
+  "validity_inflight": {
+   "verdict": "INVALID",
+   "violations": [
+    "iowait_mean 4.32 > 2.0"
+   ],
+   "host_busy_mean_pct": 23.1,
+   "iowait_mean": 4.32,
+   "steal_max_1s": 0.0,
+   "samples": 3642
+  },
+  "validity_preflight": "VALID",
+  "per_city": [
+   {
+    "city": "JED",
+    "launched": 5040,
+    "verified": 5040,
+    "offerAppearP95Ms": 2065
+   },
+   {
+    "city": "MED",
+    "launched": 5039,
+    "verified": 5039,
+    "offerAppearP95Ms": 2076
+   },
+   {
+    "city": "MKK",
+    "launched": 5040,
+    "verified": 5040,
+    "offerAppearP95Ms": 2111
+   },
+   {
+    "city": "RUH",
+    "launched": 5040,
+    "verified": 5040,
+    "offerAppearP95Ms": 2055
+   },
+   {
+    "city": "TIF",
+    "launched": 5040,
+    "verified": 5040,
+    "offerAppearP95Ms": 2086
+   }
+  ],
+  "isolation": "CLEAN",
+  "fairness_gap": 0,
+  "wave_report_verdict": "FAIL",
+  "wave_report_failed": [
+   "CONC-peak"
+  ],
+  "perf": {
+   "P1": "30ms",
+   "P2": "57ms",
+   "P3": "6ms",
+   "P4": "2078ms",
+   "P5": "2276ms",
+   "P6a": "140ms",
+   "P6b": "155ms",
+   "P6c": "14ms",
+   "P7": "48s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "pgss_top5": [
+   {
+    "total_s": 383,
+    "calls": 138746,
+    "mean_ms": 2.76,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "total_s": 342,
+    "calls": 27356,
+    "mean_ms": 12.51,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (ex"
+   },
+   {
+    "total_s": 307,
+    "calls": 25199,
+    "mean_ms": 12.18,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null"
+   },
+   {
+    "total_s": 159,
+    "calls": 25199,
+    "mean_ms": 6.32,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $1"
+   },
+   {
+    "total_s": 113,
+    "calls": 74619,
+    "mean_ms": 1.52,
+    "query": "select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result"
+   }
+  ],
+  "raw_sha256_verified": true
+ },
+ "soak2-r10-a": {
+  "db_orders_total": 35999,
+  "db_orders_by_status": {
+   "completed": 35998,
+   "searching": 1
+  },
+  "db_orders_created_span_s": 3599.8,
+  "db_orders_created_per_min_min_max": [
+   599,
+   601
+  ],
+  "gen_start": "2026-10-23T12:46:17.769Z",
+  "gen_end": "2026-10-23T13:46:22.554Z",
+  "rate_summary": {
+   "rate": 10,
+   "launched": 35999,
+   "capped": 0
+  },
+  "gen_outcomes": {
+   "verified": 35998,
+   "rejected": 1
+  },
+  "gen_outcomes_total": 35999,
+  "gen_duplicate_index": 0,
+  "gen_failed": [
+   {
+    "index": 33260,
+    "city": "JED",
+    "orderId": "64e0e516-41c9-423b-80a8-398ccf95b720",
+    "reason": "accept:0",
+    "t": "2026-10-23T13:41:49.375Z"
+   }
+  ],
+  "accept_retry_events": 11,
+  "cycle_ms_overall": {
+   "p50": 2075,
+   "p95": 5537,
+   "p99": 7776,
+   "max": 11393
+  },
+  "cycle_ms_by_10min": [
+   {
+    "from_min": 0,
+    "n": 5974,
+    "p50": 2038,
+    "p95": 2072
+   },
+   {
+    "from_min": 10,
+    "n": 6010,
+    "p50": 2046,
+    "p95": 2096
+   },
+   {
+    "from_min": 20,
+    "n": 5992,
+    "p50": 2061,
+    "p95": 2134
+   },
+   {
+    "from_min": 30,
+    "n": 5998,
+    "p50": 2085,
+    "p95": 2738
+   },
+   {
+    "from_min": 40,
+    "n": 5978,
+    "p50": 2201,
+    "p95": 4839
+   },
+   {
+    "from_min": 50,
+    "n": 6047,
+    "p50": 4300,
+    "p95": 8133
+   }
+  ],
+  "gen_http": {
+   "http2xx": 733971,
+   "http4xx": 11,
+   "http5xx": 0,
+   "networkErrors": 1,
+   "api429": 0,
+   "peakScenarios": 92
+  },
+  "gatewayRequest_by_10min": [
+   {
+    "from_min": 0,
+    "queries": 274998,
+    "wait_ms_per_q": 0.006,
+    "run_ms_per_q": 0.9
+   },
+   {
+    "from_min": 10,
+    "queries": 293605,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 1.054
+   },
+   {
+    "from_min": 20,
+    "queries": 294310,
+    "wait_ms_per_q": 0.006,
+    "run_ms_per_q": 1.251
+   },
+   {
+    "from_min": 30,
+    "queries": 295939,
+    "wait_ms_per_q": 0.025,
+    "run_ms_per_q": 1.672
+   },
+   {
+    "from_min": 40,
+    "queries": 297774,
+    "wait_ms_per_q": 0.515,
+    "run_ms_per_q": 2.505
+   },
+   {
+    "from_min": 50,
+    "queries": 324977,
+    "wait_ms_per_q": 4.817,
+    "run_ms_per_q": 3.449
+   }
+  ],
+  "post_audit_at": "2026-10-23T13:46:26.042Z",
+  "post_orders": {
+   "searching": 1,
+   "completed": 35998
+  },
+  "post_offers": {
+   "accepted": 35998,
+   "cancelled": 124994,
+   "expired": 15
+  },
+  "post_outbox_by_kind": {
+   "offer": {
+    "total": 161007,
+    "delivered": 23863,
+    "pending": 1845,
+    "dead": 135299
+   },
+   "rider_trip_notice": {
+    "total": 143992,
+    "delivered": 143970,
+    "pending": 22,
+    "dead": 0
+   },
+   "wider_circle_opened": {
+    "total": 1,
+    "delivered": 1,
+    "pending": 0,
+    "dead": 0
+   }
+  },
+  "post_outbox_oldest_pending_s": 45,
+  "rider_trip_channel": {
+   "phaseRows": 143992,
+   "miniappAck": 101108,
+   "telegram": 42879,
+   "pending": 5,
+   "lateReceiptsAfterTelegram": 32,
+   "duplicateReceipts": 0
+  },
+  "telegram_updates": {
+   "jobs": 35999,
+   "jobsByStatus": {
+    "done": 35999
+   },
+   "repliesByStatus": {
+    "done": 35999
+   },
+   "jobDoneLatencySec": {
+    "p50": 0,
+    "p95": 0,
+    "max": 1.1
+   }
+  },
+  "mock_egress": {
+   "driver": {
+    "accepted": 45223,
+    "rejected_429": 4311,
+    "peak_per_s": 30,
+    "mean_per_s": 12.5,
+    "seconds_over_25": 68,
+    "seconds_at_or_over_30": 45
+   },
+   "rider": {
+    "accepted": 42847,
+    "rejected_429": 0,
+    "peak_per_s": 25,
+    "mean_per_s": 11.9,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   }
+  },
+  "pre_outbox_by_status": {},
+  "pre_orders": {},
+  "validity_inflight": {
+   "verdict": "VALID",
+   "violations": [],
+   "host_busy_mean_pct": 57.8,
+   "iowait_mean": 0.57,
+   "steal_max_1s": 0.0,
+   "samples": 3637
+  },
+  "validity_preflight": "VALID",
+  "per_city": [
+   {
+    "city": "JED",
+    "launched": 7200,
+    "verified": 7199,
+    "offerAppearP95Ms": 5426
+   },
+   {
+    "city": "MED",
+    "launched": 7199,
+    "verified": 7199,
+    "offerAppearP95Ms": 5405
+   },
+   {
+    "city": "MKK",
+    "launched": 7200,
+    "verified": 7200,
+    "offerAppearP95Ms": 4621
+   },
+   {
+    "city": "RUH",
+    "launched": 7200,
+    "verified": 7200,
+    "offerAppearP95Ms": 5624
+   },
+   {
+    "city": "TIF",
+    "launched": 7200,
+    "verified": 7200,
+    "offerAppearP95Ms": 5303
+   }
+  ],
+  "isolation": "CLEAN",
+  "fairness_gap": 0.0001388888888889106,
+  "wave_report_verdict": "FAIL",
+  "wave_report_failed": [
+   "CONC-peak"
+  ],
+  "perf": {
+   "P1": "63ms",
+   "P2": "23ms",
+   "P3": "15ms",
+   "P4": "5277ms",
+   "P5": "5538ms",
+   "P6a": "126ms",
+   "P6b": "85ms",
+   "P6c": "56ms",
+   "P7": "45s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "pgss_top5": [
+   {
+    "total_s": 1552,
+    "calls": 41935,
+    "mean_ms": 37.0,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (ex"
+   },
+   {
+    "total_s": 1167,
+    "calls": 35999,
+    "mean_ms": 32.43,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null"
+   },
+   {
+    "total_s": 1149,
+    "calls": 185966,
+    "mean_ms": 6.18,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "total_s": 585,
+    "calls": 35999,
+    "mean_ms": 16.24,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $1"
+   },
+   {
+    "total_s": 160,
+    "calls": 35999,
+    "mean_ms": 4.45,
+    "query": "select start_trial($1::uuid, $2::subscription_plan) as result where not exists (select $4 from subscriptions s where s.d"
+   }
+  ],
+  "raw_sha256_verified": true
+ },
+ "soak2-r10-b": {
+  "db_orders_total": 35999,
+  "db_orders_by_status": {
+   "completed": 35999
+  },
+  "db_orders_created_span_s": 3599.8,
+  "db_orders_created_per_min_min_max": [
+   598,
+   601
+  ],
+  "gen_start": "2026-10-23T12:31:24.794Z",
+  "gen_end": "2026-10-23T13:31:29.444Z",
+  "rate_summary": {
+   "rate": 10,
+   "launched": 35999,
+   "capped": 0
+  },
+  "gen_outcomes": {
+   "verified": 35999
+  },
+  "gen_outcomes_total": 35999,
+  "gen_duplicate_index": 0,
+  "gen_failed": [],
+  "accept_retry_events": 15,
+  "cycle_ms_overall": {
+   "p50": 2058,
+   "p95": 3492,
+   "p99": 4517,
+   "max": 7608
+  },
+  "cycle_ms_by_10min": [
+   {
+    "from_min": 0,
+    "n": 5981,
+    "p50": 2035,
+    "p95": 2065
+   },
+   {
+    "from_min": 10,
+    "n": 5999,
+    "p50": 2044,
+    "p95": 2093
+   },
+   {
+    "from_min": 20,
+    "n": 6002,
+    "p50": 2053,
+    "p95": 2115
+   },
+   {
+    "from_min": 30,
+    "n": 5992,
+    "p50": 2071,
+    "p95": 2234
+   },
+   {
+    "from_min": 40,
+    "n": 5996,
+    "p50": 2100,
+    "p95": 3093
+   },
+   {
+    "from_min": 50,
+    "n": 6029,
+    "p50": 2204,
+    "p95": 4796
+   }
+  ],
+  "gen_http": {
+   "http2xx": 723955,
+   "http4xx": 15,
+   "http5xx": 0,
+   "networkErrors": 0,
+   "api429": 0,
+   "peakScenarios": 64
+  },
+  "gatewayRequest_by_10min": [
+   {
+    "from_min": 0,
+    "queries": 274614,
+    "wait_ms_per_q": 0.003,
+    "run_ms_per_q": 0.802
+   },
+   {
+    "from_min": 10,
+    "queries": 294492,
+    "wait_ms_per_q": 0.004,
+    "run_ms_per_q": 1.001
+   },
+   {
+    "from_min": 20,
+    "queries": 295503,
+    "wait_ms_per_q": 0.005,
+    "run_ms_per_q": 1.133
+   },
+   {
+    "from_min": 30,
+    "queries": 296935,
+    "wait_ms_per_q": 0.017,
+    "run_ms_per_q": 1.521
+   },
+   {
+    "from_min": 40,
+    "queries": 294895,
+    "wait_ms_per_q": 0.027,
+    "run_ms_per_q": 1.716
+   },
+   {
+    "from_min": 50,
+    "queries": 317321,
+    "wait_ms_per_q": 0.268,
+    "run_ms_per_q": 2.428
+   }
+  ],
+  "post_audit_at": "2026-10-23T13:31:31.344Z",
+  "post_orders": {
+   "completed": 35999
+  },
+  "post_offers": {
+   "accepted": 35999,
+   "cancelled": 120651
+  },
+  "post_outbox_by_kind": {
+   "offer": {
+    "total": 156650,
+    "delivered": 25633,
+    "pending": 1907,
+    "dead": 129110
+   },
+   "rider_trip_notice": {
+    "total": 143996,
+    "delivered": 143937,
+    "pending": 58,
+    "dead": 0
+   }
+  },
+  "post_outbox_oldest_pending_s": 43,
+  "rider_trip_channel": {
+   "phaseRows": 143996,
+   "miniappAck": 100694,
+   "telegram": 43261,
+   "pending": 41,
+   "lateReceiptsAfterTelegram": 26,
+   "duplicateReceipts": 0
+  },
+  "telegram_updates": {
+   "jobs": 35999,
+   "jobsByStatus": {
+    "done": 35999
+   },
+   "repliesByStatus": {
+    "done": 35999
+   },
+   "jobDoneLatencySec": {
+    "p50": 0,
+    "p95": 0,
+    "max": 0.4
+   }
+  },
+  "mock_egress": {
+   "driver": {
+    "accepted": 44846,
+    "rejected_429": 4709,
+    "peak_per_s": 30,
+    "mean_per_s": 12.5,
+    "seconds_over_25": 61,
+    "seconds_at_or_over_30": 48
+   },
+   "rider": {
+    "accepted": 43241,
+    "rejected_429": 0,
+    "peak_per_s": 25,
+    "mean_per_s": 12,
+    "seconds_over_25": 0,
+    "seconds_at_or_over_30": 0
+   }
+  },
+  "pre_outbox_by_status": {},
+  "pre_orders": {},
+  "validity_inflight": {
+   "verdict": "VALID",
+   "violations": [],
+   "host_busy_mean_pct": 52.6,
+   "iowait_mean": 0.6,
+   "steal_max_1s": 0.0,
+   "samples": 3636
+  },
+  "validity_preflight": "VALID",
+  "per_city": [
+   {
+    "city": "JED",
+    "launched": 7200,
+    "verified": 7200,
+    "offerAppearP95Ms": 2886
+   },
+   {
+    "city": "MED",
+    "launched": 7199,
+    "verified": 7199,
+    "offerAppearP95Ms": 3575
+   },
+   {
+    "city": "MKK",
+    "launched": 7200,
+    "verified": 7200,
+    "offerAppearP95Ms": 3355
+   },
+   {
+    "city": "RUH",
+    "launched": 7200,
+    "verified": 7200,
+    "offerAppearP95Ms": 3162
+   },
+   {
+    "city": "TIF",
+    "launched": 7200,
+    "verified": 7200,
+    "offerAppearP95Ms": 3549
+   }
+  ],
+  "isolation": "CLEAN",
+  "fairness_gap": 0,
+  "wave_report_verdict": "FAIL",
+  "wave_report_failed": [
+   "CONC-peak"
+  ],
+  "perf": {
+   "P1": "46ms",
+   "P2": "13ms",
+   "P3": "10ms",
+   "P4": "3337ms",
+   "P5": "3493ms",
+   "P6a": "75ms",
+   "P6b": "22ms",
+   "P6c": "16ms",
+   "P7": "43s",
+   "P8": "0.00%",
+   "P9": "0.00%"
+  },
+  "pgss_top5": [
+   {
+    "total_s": 1234,
+    "calls": 40898,
+    "mean_ms": 30.17,
+    "query": "select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (ex"
+   },
+   {
+    "total_s": 1069,
+    "calls": 195419,
+    "mean_ms": 5.47,
+    "query": "select claim_notification_delivery() result"
+   },
+   {
+    "total_s": 1002,
+    "calls": 35999,
+    "mean_ms": 27.85,
+    "query": "select status::text, attempts, delivered_at::text from notification_outbox where order_id = $1 and offer_id is not null"
+   },
+   {
+    "total_s": 476,
+    "calls": 35999,
+    "mean_ms": 13.21,
+    "query": "select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $1"
+   },
+   {
+    "total_s": 136,
+    "calls": 35999,
+    "mean_ms": 3.77,
+    "query": "select start_trial($1::uuid, $2::subscription_plan) as result where not exists (select $4 from subscriptions s where s.d"
+   }
+  ],
+  "raw_sha256_verified": true
+ }
+}
