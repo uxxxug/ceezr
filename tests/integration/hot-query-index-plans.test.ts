@@ -10,7 +10,7 @@
  *   فهرسَ يُفقَدُ، والقاعدةُ بعدَ الاختبارِ كما قبلَه حرفاً.
  *
  * الحالة: اختبارُ تكاملٍ فعليٌّ — يتطلّبُ `TEST_DATABASE_URL` بها الهجراتُ
- *   مُطبَّقةً (ومنها هجراتُ `F7-02` الستُّ).
+ *   مُطبَّقةً (ومنها هجراتُ `F7-02` السبعُ).
  * ينتمي إلى: tests/integration
  * يُتوقع أن يستخدمه لاحقاً: CI (وظيفةُ «تكامل على PostgreSQL حقيقي»)، وكلُّ فهرسٍ
  *   يُضافُ إلى السجلِّ يلزمُه قياسٌ ههنا وإلّا أسقطَ الحاجزُ البناءَ.
@@ -59,6 +59,12 @@ type PlanCase = {
   readonly fallback: readonly FallbackNode[];
   /** مُعامِلاتُ الاستعلامِ — تُحسَبُ بعدَ البذرِ. */
   readonly params: (seeded: Seeded) => (string | undefined)[];
+  /**
+   * بذرٌ إضافيٌّ لحالةٍ تحتاجُ حجمًا يُري المخطِّطَ الجدوى — حالةُ فهرسِ المتاحينَ
+   * لا ينقلبُ المخطِّطُ عندها إلّا إذا نما الجدولُ إلى آلافِ الصفوفِ (انقلبَ عندَ
+   * ٧٢٠٠ ولم ينقلب عندَ ٤٠٠)، فالبذرُ المشتركُ الصغيرُ لا يكفيها.
+   */
+  readonly seedExtra?: (tx: Sql, cityId: string) => Promise<void>;
 };
 
 type Seeded = {
@@ -99,6 +105,46 @@ const PLAN_CASES: readonly PlanCase[] = [
     index: "attendance_log_changed_at_idx",
     fallback: ["Seq Scan", "Index Scan"],
     params: () => [],
+  },
+  {
+    index: "driver_availability_available_city_driver_idx",
+    // إسقاطُ الفهرسِ الجزئيِّ يُرجِعُ المخطِّطَ إلى مسحِ الجدولِ كلِّهِ (أو مسحِ
+    // GiST مكانيًّا) — وكلٌّ منهما O(الكلِّ) لا O(المتاحينَ).
+    fallback: ["Seq Scan", "Index Scan"],
+    params: () => [CITY_ID_PLACEHOLDER.value],
+    seedExtra: async (tx, cityId) => {
+      // ٨٠٠٠ سائقٍ موزَّعينَ على محيطِ جدةَ، والمتاحُ منهم ٣٠ وحدَهم — شكلُ
+      // الموجةِ المُقيسِ: المشروعُ ينمو وغالبيتُه غيرُ متاحٍ.
+      await tx`
+        insert into users (city_id, telegram_id, full_name, language_code, role)
+        select ${cityId}::uuid, 970200000 + g,
+               'سائقُ قياسِ الترشيحِ ' || g, 'ar', 'driver'
+          from generate_series(1, 8000) g`;
+      const waveDriverRows = await tx<{ id: string }[]>`
+        insert into drivers (user_id, city_id, verification_status, national_id,
+                             plate_number, last_location, last_location_at,
+                             last_location_quality)
+        select u.id, ${cityId}::uuid, 'verified',
+               'IDF704' || row_number() over (order by u.telegram_id),
+               'PLF704' || row_number() over (order by u.telegram_id),
+               st_setsrid(
+                 st_makepoint(39.05 + random() * 0.35, 21.25 + random() * 0.6),
+                 4326)::geography,
+               now() - interval '30 seconds', 'ACCEPT'
+          from users u
+         where u.telegram_id between 970200001 and 970208000
+        returning id`;
+      await tx`
+        insert into driver_availability (city_id, driver_id, is_available)
+        select ${cityId}::uuid, d.id,
+               (row_number() over (order by d.id)) <= 30
+          from drivers d
+         where d.id = any(${waveDriverRows.map((row) => row.id)}::uuid[])`;
+      // إحصاءاتٌ طازجةٌ للجداولِ الثلاثةِ — فانقلابُ المخطِّطِ حكمُ كلفةٍ يحتاجُها.
+      await tx.unsafe("analyze users");
+      await tx.unsafe("analyze drivers");
+      await tx.unsafe("analyze driver_availability");
+    },
   },
 ];
 
@@ -256,6 +302,9 @@ describeIf("F7-02 — خطّةُ التنفيذِ قبلَ الفهرسِ وبع
       const measured = await sql
         .begin(async (tx) => {
           const seeded = await seedVolume(tx as unknown as Sql, CITY_ID_PLACEHOLDER.value);
+          if (planCase.seedExtra !== undefined) {
+            await planCase.seedExtra(tx as unknown as Sql, CITY_ID_PLACEHOLDER.value);
+          }
           const params = planCase.params(seeded);
           await (tx as unknown as Sql).unsafe(`analyze ${entry.table}`);
           const after = await explainOf(tx as unknown as Sql, entry.probe, params);
@@ -294,7 +343,7 @@ describeIf("F7-02 — خطّةُ التنفيذِ قبلَ الفهرسِ وبع
     });
   }
 
-  it("٣ — الارتدادُ تامٌّ: الفهارسُ الستُّ قائمةٌ بعدَ القياسِ كلِّه", async () => {
+  it("٣ — الارتدادُ تامٌّ: الفهارسُ السبعةُ قائمةٌ بعدَ القياسِ كلِّه", async () => {
     const rows = await sql<{ indexname: string }[]>`
       select indexname from pg_indexes
        where schemaname = 'public'

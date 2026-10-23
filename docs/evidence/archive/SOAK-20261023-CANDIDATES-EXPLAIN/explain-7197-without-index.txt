@@ -1,0 +1,44 @@
+-- PostgreSQL 18.4 · بذر الموجة: 7197 سائقًا في جدة، المتاح 30 · بلا فهرس جزئي
+                                                                                                                                                                           QUERY PLAN                                                                                                                                                                           
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=769.68..769.68 rows=1 width=41) (actual time=1.838..1.840 rows=7.00 loops=1)
+   Buffers: shared hit=291
+   InitPlan 1
+     ->  Index Scan using cities_code_key on cities  (cost=0.15..8.17 rows=1 width=16) (actual time=0.014..0.014 rows=1.00 loops=1)
+           Index Cond: (code = 'JED'::text)
+           Index Searches: 1
+           Buffers: shared hit=2
+   ->  Sort  (cost=761.51..761.52 rows=1 width=41) (actual time=1.837..1.838 rows=7.00 loops=1)
+         Sort Key: ((d.last_location <-> '0101000020E6100000B81E85EB51984340CDCCCCCCCC8C3540'::geography))
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=291
+         ->  Nested Loop  (cost=0.57..761.50 rows=1 width=41) (actual time=1.171..1.809 rows=7.00 loops=1)
+               Buffers: shared hit=288
+               ->  Nested Loop  (cost=0.29..752.94 rows=1 width=65) (actual time=1.157..1.749 rows=7.00 loops=1)
+                     Buffers: shared hit=267
+                     ->  Seq Scan on driver_availability a  (cost=0.00..167.97 rows=30 width=17) (actual time=0.011..0.532 rows=30.00 loops=1)
+                           Filter: is_available
+                           Rows Removed by Filter: 7167
+                           Buffers: shared hit=96
+                     ->  Memoize  (cost=0.29..19.48 rows=1 width=64) (actual time=0.040..0.040 rows=0.23 loops=30)
+                           Cache Key: a.driver_id
+                           Cache Mode: logical
+                           Hits: 0  Misses: 30  Evictions: 0  Overflows: 0  Memory Usage: 3kB
+                           Buffers: shared hit=171
+                           ->  Index Scan using drivers_pkey on drivers d  (cost=0.28..19.47 rows=1 width=64) (actual time=0.040..0.040 rows=0.23 loops=30)
+                                 Index Cond: (id = a.driver_id)
+                                 Filter: ((last_location IS NOT NULL) AND (last_location_quality IS DISTINCT FROM 'ALERT'::text) AND (city_id = (InitPlan 1).col1) AND (verification_status = 'verified'::verification_status) AND st_dwithin(last_location, '0101000020E6100000B81E85EB51984340CDCCCCCCCC8C3540'::geography, '10000'::double precision, true))
+                                 Rows Removed by Filter: 1
+                                 Index Searches: 30
+                                 Buffers: shared hit=171
+               ->  Index Scan using users_pkey on users u  (cost=0.28..8.30 rows=1 width=16) (actual time=0.007..0.007 rows=1.00 loops=7)
+                     Index Cond: (id = d.user_id)
+                     Filter: (NOT is_blocked)
+                     Index Searches: 7
+                     Buffers: shared hit=21
+ Planning:
+   Buffers: shared hit=673
+ Planning Time: 10.803 ms
+ Execution Time: 1.965 ms
+(39 rows)
+

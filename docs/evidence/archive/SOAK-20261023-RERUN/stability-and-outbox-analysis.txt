@@ -1,0 +1,27 @@
+شرط الاستقرار (§11): p95 زمن الدورة في آخر 10 دقائق ≤ 1.5× أول 10 دقائق
+
+== r10-a (n=35999) ==
+  + 0min: n= 6002 p95= 2045ms
+  +10min: n= 5998 p95= 2049ms
+  +20min: n= 6000 p95= 2053ms
+  +30min: n= 6001 p95= 2063ms
+  +40min: n= 5999 p95= 2065ms
+  +50min: n= 5999 p95= 2697ms
+  النسبة: 1.32 (2045ms → 2697ms) — PASS
+
+== r10-b (n=35999) ==
+  + 0min: n= 5983 p95= 2063ms
+  +10min: n= 6002 p95= 2077ms
+  +20min: n= 5996 p95= 2085ms
+  +30min: n= 6004 p95= 2117ms
+  +40min: n= 5999 p95= 2849ms
+  +50min: n= 5997 p95= 3426ms
+  النسبة: 1.66 (2063ms → 3426ms) — FAIL
+
+== صندوق الصادر النهائي (notification-outbox.csv) ==
+  r10-a: {"rider_trip_notice": {"delivered": 143996}, "offer": {"dead": 126403, "delivered": 22949, "pending": 1580}}
+  r10-b: {"offer": {"delivered": 20739, "dead": 131520, "pending": 1708}, "rider_trip_notice": {"delivered": 143635, "pending": 361}}
+
+== p95 لتسليم الإشعارات (created→delivered) لكل 10 دقائق ==
+  r10-a: +0min:5.2s +10min:6.9s +20min:5.6s +30min:5.6s +40min:6.4s +50min:7.6s
+  r10-b: +0min:6.6s +10min:9.7s +20min:7.0s +30min:6.5s +40min:8.4s +50min:12.9s

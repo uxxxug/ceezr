@@ -182,6 +182,36 @@ export const HOT_QUERY_INDEXES: readonly HotQueryIndex[] = Object.freeze([
       "select id from attendance_log where changed_at >= now() - interval '7 days' " +
       "order by changed_at desc limit 100",
   },
+  {
+    name: "driver_availability_available_city_driver_idx",
+    table: "driver_availability",
+    migration: "20261023210000_load01_driver_availability_available_index.sql",
+    rank: 7,
+    why:
+      "استعلامُ الترشيحِ (`findNearbyAvailableForDispatch`) يرشِّحُ المتاحينَ ثم " +
+      "يفرزُهم بالمسافةِ KNN؛ والمخطِّطُ يمشي على فهرسِ GiST فيفحصُ توافرَ كلِّ " +
+      "سائقي الصندوقِ — فالكلفةُ O(الكلِّ) لا O(المتاحينَ). وفي SOAK-02 نما " +
+      "المشروعُ إلى ٣٦ ألفَ سائقٍ غالبيتُهم غيرُ متاحينَ فتدهورَ زمنُ الطورِ " +
+      "خطِّيًّا (EXPLAIN مُثبَتٌ في أثرِ ٢٠٢٦-١٠-٢٣). والفهرسُ الجزئيُّ يقلبُ " +
+      "الانطلاقَ إلى المتاحينَ وحدَهم.",
+    callers: [
+      {
+        file: "packages/infrastructure/dispatch/dispatch-adapters.ts",
+        what: "نافذةُ المرشحينَ القريبينَ (`findNearbyAvailableForDispatch`) — أشدُّ استعلاماتِ الإرسالِ أثرًا في SOAK-02",
+      },
+    ],
+    probe:
+      "select d.id from drivers d join users u on u.id = d.user_id " +
+      "left join driver_availability a on a.driver_id = d.id " +
+      "where d.city_id = $1 and u.is_blocked = false " +
+      "and d.verification_status = 'verified' and a.is_available = true " +
+      "and d.last_location is not null " +
+      "and d.last_location_quality is distinct from 'ALERT' " +
+      "and st_dwithin(d.last_location, " +
+      "st_setsrid(st_makepoint(39.19, 21.55), 4326)::geography, 10000) " +
+      "order by d.last_location <-> " +
+      "st_setsrid(st_makepoint(39.19, 21.55), 4326)::geography limit 50",
+  },
 ]);
 
 /** الطورُ الذي تُطبَّقُ فيهِ هذه الهجراتُ — بلا معاملةٍ (F7-07). */
