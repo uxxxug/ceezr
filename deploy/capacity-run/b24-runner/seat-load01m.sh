@@ -20,8 +20,12 @@ for wt in wt-ref wt-acc; do
   (cd "$W/$wt" && bun install --frozen-lockfile >"$OUT/bun-install-$wt.log" 2>&1)
   (cd "$W/$wt/docker/upstash-rest-shim" && bun install --frozen-lockfile >>"$OUT/bun-install-$wt.log" 2>&1)
 done
-git -C "$H" show "$EXP_SHA:packages/shared/config/connection-budget.ts" | grep -q "^  gatewayRequest: 5," || { echo "GATEWAY_REQUEST_NOT_5 — لا موجة"; exit 1; }
-git -C "$H" show "$EXP_SHA:apps/gateway/src/container.ts" | grep -q "IMMEDIATE_REDISPATCH_LIMIT = 50;" || { echo "REDISPATCH_LIMIT_NOT_50 — لا موجة"; exit 1; }
+# بلا `| grep -q` تحتَ pipefail: خروجُ grep المبكّرُ يُميتُ git show بـSIGPIPE فيبدو الثابتُ مختلفًا
+# (أسقطَ s-jed-500 في التشغيلِ الثاني بـREDISPATCH_LIMIT_NOT_50 كاذب). نقرأُ الملفَّ كاملًا أوّلًا.
+BUDGET_SRC=$(git -C "$H" show "$EXP_SHA:packages/shared/config/connection-budget.ts")
+CONTAINER_SRC=$(git -C "$H" show "$EXP_SHA:apps/gateway/src/container.ts")
+[[ "$BUDGET_SRC" == *$'\n  gatewayRequest: 5,'* ]] || { echo "GATEWAY_REQUEST_NOT_5 — لا موجة"; exit 1; }
+[[ "$CONTAINER_SRC" == *"IMMEDIATE_REDISPATCH_LIMIT = 50;"* ]] || { echo "REDISPATCH_LIMIT_NOT_50 — لا موجة"; exit 1; }
 echo "FROZEN_CONSTANTS_OK gatewayRequest=5 IMMEDIATE_REDISPATCH_LIMIT=50"
 # الفرقُ عن main محصورٌ في المولّدِ وتقريرِه واختباراتِه وعدّةِ المقعد — لا تغييرَ في المنتج.
 PROD_DIFF=$(git -C "$H" diff --name-only "${MAIN_SHA:?}" "$EXP_SHA" -- apps packages supabase deploy/capacity-run/config | tr '\n' ' ')
