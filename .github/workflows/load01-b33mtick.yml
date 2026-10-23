@@ -1,0 +1,89 @@
+name: LOAD-01 b33mtick — قياس أثر إصلاحات JOB-TICK المدموجة عند 750 (مقعد 4 vCPU)
+
+# تشخيصٌ معزولٌ على فرعِ القياسِ وحدَه ولا يُدمَج. PROTOCOL-b33mtick.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة:
+#   ref=e47ca99d (حالةُ main قبلَ دمجِ #627 مباشرةً) · cand=2aa557aa (main الحاليُّ بعدَ #629).
+#   ثماني موجاتٍ ABBA BAAB على مشغِّلٍ واحد عندَ 750 مستخدمًا (فهارسُ الطرازِ 77–84، الإعادةُ +10)،
+#   والفرقُ الوحيدُ المسموحُ بينَ الذراعين: شيفرةُ apps/workers/src/runner.ts (يتحقَّقُ آليًا أنَّهُ الفرقُ التشغيليُّ الوحيد).
+#   الميزانيةُ 8000 (الافتراضيةُ المعتمدة) في جميعِ الموجاتِ والذراعين — لا تجاوزَ للميزانيةِ ولا للحملِ ولا العتبات.
+#   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
+#   النتيجةُ لا تسجِّلُ Batch33 ولا تعلنُ LOAD-01 (PROTOCOL-b33mtick §6: يبقى FAIL حتى بواباتِ القبولِ الرسمية).
+on:
+  push:
+    branches: [exp/load01-b33mtick]
+    paths:
+      - deploy/capacity-run/b24-runner/**
+      - .github/workflows/load01-b33mtick.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: load01-b33mtick-seat
+  cancel-in-progress: false
+
+env:
+  R_SHA: e47ca99ddd7b4b74b73323fbc17963fede309cec
+  C_SHA: 2aa557aa2813b77bc12d37b257de22ae733378af
+
+jobs:
+  seat:
+    name: مقعد b33mtick (إصلاحات JOB-TICK عند 750)
+    runs-on: ubuntu-26.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد (حزم المقعد الأصلي والمستخدم user)
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$R_SHA" "$C_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+          sudo -u user git -C /home/user/workspace/ceezr diff --stat "$R_SHA" "$C_SHA" -- apps packages deploy
+          sudo -u user git -C /home/user/workspace/ceezr diff --name-only "$R_SHA" "$C_SHA" -- apps packages deploy
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          MODE=$(cat deploy/capacity-run/b24-runner/MODE)
+          echo "MODE=$MODE"
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=4096 -p WorkingDirectory=/home/user \
+            --setenv=R_SHA="$R_SHA" --setenv=C_SHA="$C_SHA" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-b33mtick.sh "$MODE"
+
+      - name: بوابةُ التدقيق (علامةُ .audit-ok على نجاحِ تدقيقِ الأسرارِ — بوّابةُ كلِّ رفعٍ للدليل)
+        if: always()
+        id: audit
+        run: |
+          if sudo test -f /home/user/b33mtick-out/.audit-ok; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            echo "AUDIT_OK — رفعُ الدليلِ مسموحٌ (نجحَ تدقيقُ الأسرارِ وكُتبَت العلامةُ)"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "AUDIT_NOT_OK — لا رفعَ للدليلِ إلا تقريرَ الحجرِ (الفخُّ عقّمَ المشتبهَ وأبقى البيانَ والبصماتِ)"
+          fi
+
+      - name: رفع الدليل (مسموحٌ بتصريحِ تدقيقِ الأسرارِ وحدَه — العلامةُ .audit-ok)
+        if: always() && steps.audit.outputs.ok == 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: b33mtick-seat-evidence
+          path: /home/user/b33mtick-out/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: رفع تقرير الحجر (فشلُ التدقيقِ أو بلا علامةٍ — بيانُ البصماتِ بلا محتوى)
+        if: always() && steps.audit.outputs.ok != 'true'
+        uses: actions/upload-artifact@v5
+        with:
+          name: b33mtick-seat-quarantine-report
+          path: |
+            /home/user/b33mtick-out/secret-audit.txt
+            /home/user/b33mtick-out/quarantine-manifest.txt
+          if-no-files-found: ignore
+          retention-days: 14
