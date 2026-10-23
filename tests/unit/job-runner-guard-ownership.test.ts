@@ -92,4 +92,76 @@ describe("حدُّ ملكيةِ الحارسِ: نبضةُ شوطٍ سابقٍ �
     await second;
     expect(starts).toBe(2);
   });
+
+  test("رفضُ كتابةِ نبضةِ الشوطِ الأولِ أثناءَ شوطٍ ثانٍ جارٍ — الحارسُ لا يسقط", async () => {
+    const clock = fakeClock(0);
+    const runDurationMs = 9_000;
+    let starts = 0;
+    let records = 0;
+    const rejectGate = gate(); // يوقف كتابةَ نبضةِ الشوطِ الأولِ ثم يرفضها
+    const run2Gate = gate(); // يوقف الشوطَ الثانيَ في منتصفِ مدِّه
+
+    const jobs: JobDefinition[] = [
+      {
+        name: "drain",
+        everySeconds: 5,
+        runOnStart: true,
+        run: async () => {
+          starts += 1;
+          if (starts === 2) await run2Gate.promise; // الشوطُ الثاني: يبقى جاريًا
+          clock.advance(runDurationMs);
+          return "ok";
+        },
+      },
+    ];
+
+    const runner = createJobRunner({
+      lock: createNoopLock(),
+      jobs,
+      clock,
+      log: silentLog(),
+      heartbeat: {
+        // الكتابةُ الأولى (نبضةُ الشوطِ الأولِ "ok") تُرفَضُ بعدَ البوّابة،
+        // والثانية (نبضةُ الفشلِ التابعةُ لها) تُكتَبُ بلا رمي — فيكتملُ مسارُ
+        // الفشلِ داخلَ runOneTraced لا خارجه، وتُختبرُ شبكةُ الأمانِ في مكانِها.
+        record: async () => {
+          records += 1;
+          if (records === 1) {
+            await rejectGate.promise;
+            throw new Error("write rejected");
+          }
+          clock.advance(500);
+        },
+      },
+    });
+
+    // t=0: الشوطُ الأولُ يبدأُ وينتهي مدُّه عند 9ث، وسلسلةُ إنهائِه تنتظرُ
+    // بوّابةَ كتابةِ النبضة.
+    const first = runner.runDue();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    // t=10ث: الشوطُ الثاني يبدأُ ويبقى جاريًا خلفَ بوّابتِه، ونبضةُ الأولِ
+    // ما تزالُ معلّقةً عندَ الكتابة.
+    clock.advance(10_000 - runDurationMs);
+    const second = runner.runDue();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    expect(starts).toBe(2);
+
+    // كتابةُ نبضةِ الشوطِ الأولِ تُرفَضُ الآن: مسارُ الفشلِ (catch ثم finally)
+    // يُنفَّذُ للشوطِ الأولِ — ولا يجوزُ أن يُسقِطَ حارسَ الشوطِ الثاني الجاري.
+    rejectGate.release();
+    const outcome = await first;
+    expect(outcome[0]?.status).toBe("failed");
+
+    // t=20ث: الشوطُ الثاني ما زالَ جاريًا — الثالثُ يجبُ أن يُقصى.
+    clock.advance(10_000);
+    const third = await runner.runDue();
+    expect(third[0]?.status).toBe("skipped_overlapping");
+    expect(starts).toBe(2);
+
+    // يكتملُ الشوطُ الثاني فتبدأُ الأشواطُ من جديد.
+    run2Gate.release();
+    await second;
+    expect(starts).toBe(2);
+  });
 });
