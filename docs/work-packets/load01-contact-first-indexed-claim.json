@@ -1,0 +1,18 @@
+{
+  "id": "load01-contact-first-indexed-claim",
+  "goal": "LOAD-01 (فجوةُ السعةِ، الدورةُ الثانيةُ): إعادةُ خطةِ الفهرسِ إلى التقاطِ أولويةِ contact بعدَ أن كسرها تعبيرُ الترتيبِ في 20261024120000 (المُدمَجِ عبرَ #645). الدليلُ المُقاسُ (موجةُ m5-1500 على رأسِ #645، التشغيلُ 40082574451، VALID): عقدةُ Sort كاملةٌ فوقَ مجموعةِ المعلَّقِ (~1,700) معَ تقييمٍ غيرِ كسولٍ لتعبيرِ jsonb لكلِّ صفٍّ ⇒ claim_telegram_update_jobs_for_bot ‏10.13ms/نداءً بعدَ <4.7ms، وانتظارُ p50 من 18.26ث إلى 23.16ث فوقَ مهلةِ إثباتِ الهاتفِ (20ث)، وG1 من 63.14% (خطُّ الأساسِ) إلى 40.25% — التنبؤُ المُسجَّلُ انكسرَ. الإصلاحُ: تجزئةُ الترتيبِ المُعلَنِ نفسِهِ (الفئةُ العليا = contact ∪ متقادمٌ >120ث ثمّ created_at) إلى ثلاثِ مراحلَ مُفهرسةٍ متعاقبةٍ: (1) المتقادمُ >120ث أيَّ نوعٍ بمسحِ فهرسِ المعلَّقِ بحدٍّ علويٍّ على created_at، (2) contact الطازجُ عبرَ فهرسٍ جزئيٍّ جديدٍ telegram_update_jobs_contact_pending_idx (created_at, update_id) بمحمولٍ حرفيٍّ كاملٍ ينجو منَ الخطةِ العامةِ المعلمةِ، (3) تعويضٌ FIFO خالصٌ كخطِّ الأساسِ قبلَ #645 معَ استبعادِ ما الُتقطَ في الدُّفعيِّ. لا رفعَ سعةٍ ولا مساسَ بأيِّ حدٍّ محميٍّ؛ الدلالةُ محفوظةٌ بالتكافؤِ المُثبتِ باختبارٍ يطابقُ دفعةَ الدالةِ حرفيًّا معَ الترتيبِ الموحدِ القديمِ (تعبيرِ #645). الأدلةُ المحليةُ: قياسُ الخطةِ قبل/بعد (قبل: BitmapAnd+Sort كاملٌ؛ بعد: Index Scan/Incremental Sort بلا Sort كاملٍ، وفي مرحلةِ contact مسحُ الفهرسِ الجزئيِّ خالصًا) في الخاصتينِ (الخاصةِ والعامةِ المعلمةِ)، وقياسُ كلفةِ الالتقاطِ تحتَ تنازسِ 4 عمالٍ على طابورِ 1,700 contact (قبل: p50 6.5ms / p95 11.5 / p99 17.77 و2,475 التقاطًا/ث؛ بعد: p50 2.71 / p95 5.35 / p99 7.6 و4,334/ث) بأداةِ scripts/bench-telegram-claim-contention.ts. التنبؤُ المُسجَّلُ للتحققِ بالموجةِ: عودةُ زمنِ الالتقاطِ إلى دونَ خطِّ الأساسِ (أقلَّ من ~4.7ms/نداءً في pg_stat_statements) وانتظارُ p50 دونَ 20ث وG1 في m5-1500 لا يهبطُ عن خطِّ الأساسِ 63.14% — لا يُعلَنُ نجاحٌ إلا بالموجةِ على المقعدِ الحاكمِ.",
+  "canonical_source": ["docs/evidence/capacity/LOAD01M-CONTACT-FIRST-20261024/RESULT.md"],
+  "implementation": [
+    "supabase/migrations/20261024140000_load01_contact_first_claim_contact_index.sql",
+    "supabase/migrations/20261024140100_load01_contact_first_indexed_claim.sql",
+    "tests/integration/telegram-update-claim-plan.test.ts",
+    "scripts/bench-telegram-claim-contention.ts",
+    "scripts/lib/rollback-registry.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": ["docs/roadmap/execution/STATUS.md"],
+  "no_other_affected_docs_reason": null
+}
