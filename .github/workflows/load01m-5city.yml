@@ -51,7 +51,7 @@ jobs:
         run: |
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
-            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" --setenv=EXPECTED_PRODUCT_DIFF="$EXPECTED_PRODUCT_DIFF" --setenv=WAVE_SEC=3600 --setenv=ARRIVAL_RATE="${{ matrix.rate }}" \
+            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" --setenv=EXPECTED_PRODUCT_DIFF="$EXPECTED_PRODUCT_DIFF" \
             bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m.sh "${{ matrix.name }}" "${{ matrix.conc }}" "${{ matrix.cities }}"
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
