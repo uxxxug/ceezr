@@ -350,6 +350,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
     whyNotRun: null,
   },
+
+  {
+    file: "tests/integration/telegram-update-claim-plan.test.ts",
+    suites: ["خطةُ التقاطِ تيليجرام المُفهرسةِ — ثلاثُ مراحلَ بلا Sort كاملٍ"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "انحدارُ خطةِ فهرسِ التقاطِ وظائفِ تيليجرام (LOAD-01 الدورةُ الثانيةُ): تأكيداتُ EXPLAIN على الخطةِ الخاصةِ والعامةِ المعلمةِ (لا Seq Scan ولا Sort كاملٌ، واستخدامُ الفهرسِ الجزئيِّ contact_pending_idx) والتكافؤُ الدلاليُّ وزمنُ الالتقاطِ تحتَ التراكمِ — لا بديلَ لها في الذاكرةِ لأنها اختبارُ خطةِ محلّلِ PostgreSQL نفسِهِ.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقةً بما فيها 20261024140000. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
   {
     file: "tests/integration/telegram-jobs-lane-order.test.ts",
     suites: ["D4: ترتيبُ وظائفِ المستخدمِ عبرَ الإعادة"],
