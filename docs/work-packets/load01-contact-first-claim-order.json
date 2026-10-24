@@ -4,7 +4,8 @@
   "canonical_source": ["docs/evidence/capacity/LOAD01M-BASELINE-20261024/RESULT.md"],
   "implementation": [
     "supabase/migrations/20261024120000_load01_contact_first_claim_order.sql",
-    "tests/integration/telegram-update-contact-first-claim.test.ts"
+    "tests/integration/telegram-update-contact-first-claim.test.ts",
+    "scripts/lib/rollback-registry.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
