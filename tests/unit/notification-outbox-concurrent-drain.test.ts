@@ -350,4 +350,64 @@ describe("N1: استنزافُ صندوقِ الصادرِ المتزامن", ()
     expect(f.st.sent.length).toBe(0);
     if (r.ok) expect(r.value.failed).toBeGreaterThanOrEqual(1);
   });
+
+  // `LOAD-01` (تمييزُ H1/H2 لـP7) — الرصدُ لا يغيّرُ السلوكَ ويقيسُ ما يلزمُ للتمييز.
+  test("الرصد: إعادةُ الازدحامِ تُعَدُّ لكلِّ صفّ، والميزانيةُ تُنهي الشوط", async () => {
+    const f = fakeOutbox(offers(5));
+    const congested = async () =>
+      ok({ abandon: false, messageId: null, failure: "OutboundCongestionError" });
+    let clock = 0;
+    const r = await deliverNotificationsConcurrently(
+      { outbox: f.port, handlers: { offer: congested } },
+      {
+        lanes: 8,
+        budgetMs: 500,
+        maxClaims: 2000,
+        now: () => clock,
+        sleep: async (ms) => {
+          clock += ms;
+        },
+      },
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.congestionRequeues).toBe(5);
+    expect(r.value.congestionSleepMs).toBe(500);
+    expect(r.value.stopReason).toBe("budget");
+  });
+  test("الرصد: طابورٌ يفرغُ بلا ازدحامٍ ⇒ empty وصفرُ إعادات", async () => {
+    const f = fakeOutbox(offers(20));
+    const r = await deliverNotificationsConcurrently(
+      { outbox: f.port, handlers: f.handlers },
+      { lanes: 4, budgetMs: 5000, maxClaims: 2000 },
+    );
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.value.delivered).toBe(20);
+    expect(r.value.congestionRequeues).toBe(0);
+    expect(r.value.stopReason).toBe("empty");
+    expect(r.value.sendMs).toBeGreaterThan(0);
+  });
+  test("الرصد: maxClaims ⇒ stopReason=max_claims", async () => {
+    const f = fakeOutbox(offers(30));
+    const r = await deliverNotificationsConcurrently(
+      { outbox: f.port, handlers: f.handlers },
+      { lanes: 4, budgetMs: 5000, maxClaims: 10 },
+    );
+    expect(r.ok && r.value.stopReason).toBe("max_claims");
+  });
+  test("الرصد: صفوفُ المفتاحِ نفسِه تنتظرُ خلفَ ذيلِ مسارِها (laneWaitMs > 0)", async () => {
+    const rows: Row[] = Array.from({ length: 6 }, (_, i) => ({
+      id: `s${i}`,
+      kind: "unmatched_rider",
+      payload: { order_id: "same" },
+    }));
+    const f = fakeOutbox(rows);
+    const r = await deliverNotificationsConcurrently(
+      { outbox: f.port, handlers: f.handlers },
+      { lanes: 8, budgetMs: 5000, maxClaims: 2000 },
+    );
+    expect(r.ok && r.value.delivered).toBe(6);
+    expect(r.ok && r.value.laneWaitMs).toBeGreaterThan(0);
+  });
 });

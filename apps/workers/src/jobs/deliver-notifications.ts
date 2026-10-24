@@ -8,6 +8,7 @@
  */
 
 import {
+  type ConcurrentDrainOutcome,
   type DeliveryBatchOutcome,
   deliverNotificationBatch,
   deliverNotificationsConcurrently,
@@ -70,7 +71,7 @@ export function notificationDrainSettingsFromEnv(
 export function deliverNotifications(
   deps: NotificationDeliveryDeps,
   settings: NotificationDrainSettings = { ...NOTIFICATION_DRAIN_DEFAULTS, budgetMs: 0 },
-): Promise<Result<DeliveryBatchOutcome, PortFailureError>> {
+): Promise<Result<DeliveryBatchOutcome | ConcurrentDrainOutcome, PortFailureError>> {
   if (settings.budgetMs <= 0) return deliverNotificationBatch(deps);
   return deliverNotificationsConcurrently(deps, settings);
 }
