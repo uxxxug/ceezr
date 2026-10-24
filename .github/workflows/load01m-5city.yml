@@ -16,9 +16,9 @@ permissions:
 
 env:
   # §11 (الإعادة الثالثة): main بعدَ دمجِ فهرسِ المتاحينَ الجزئيِّ (#638) + التنفيذُ غيرُ المُعَدِّ عبرَ unsafe (#639 — الخطةُ المخصَّصةُ ترى الفهرسَ) — الشيفرةُ تحتَ الاختبار.
-  MAIN_SHA: f90eb7ff
+  MAIN_SHA: 2d53ad55
   # §11 (الإعادة الثالثة): main + أدواتُ القياسِ المصلَحةُ (بلا فرقِ منتجٍ) — نفسُ أدواتِ الإعادةِ الثانية.
-  EXP_SHA: 81f8023c
+  EXP_SHA: f9f598c28e48779d9bdda1fea52f2d8d1c3bacc2
   EXPECTED_PRODUCT_DIFF: ""
 
 jobs:
@@ -30,10 +30,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # §11 (تدقيقُ §8-3 — أصغرُ اختبارٍ تالٍ): 10 رحلات/ث × 60 دقيقة × تشغيلان بالأداةِ المصلَحةِ فقط.
-          # المعدّلاتُ الأدنى لا تُعاد: التجاوزُ لا يظهرُ إلا عندَ التشبع. لا 12 ولا 15 قبلَ حكمِ هاتينِ الموجتين.
-          - { name: soak2-r10-a, conc: 500, rate: "10", cities: "JED,MKK,RUH,TIF,MED" }
-          - { name: soak2-r10-b, conc: 500, rate: "10", cities: "JED,MKK,RUH,TIF,MED" }
+          # خط الأساس التشخيصي لفجوة السعة: m5-1500 (الحد الفاصل التاريخي) على main الحالي
+          # بعد دمج رصد H1/H2 (#625) — أدلة الفشل السابقة تعود لـ main 2aa557aa قبل إصلاحات SOAK-02.
+          - { name: m5-1500-baseline, conc: 1500, cities: "JED,MKK,RUH,TIF,MED" }
     steps:
       - uses: actions/checkout@v7
         with:
