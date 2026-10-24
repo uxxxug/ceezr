@@ -1478,6 +1478,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: null,
     documentedIn: null,
   },
+  {
+    migration: "20261024120000_load01_contact_first_claim_order.sql",
+    change: "revoke_function:claim_telegram_update_jobs_for_bot(4)",
+    why: "الهجرةُ `20261024120000` (`LOAD-01M` · أولويةُ contact في الالتقاطِ) تُعيدُ تعريفَ `claim_telegram_update_jobs_for_bot(integer, integer, text, integer)` **بالتوقيعِ والمردِّ نفسِهما**، وتبدِّلُ ترتيبَ اختيارِ الدُّفعةِ من `created_at` وحده إلى ترتيبٍ نوعيٍّ معلنٍ: وظائفُ إثباتِ الهاتفِ (contact) أولًا، ثمّ ما تقادمَ من وظائفِ الرسائلِ والأزرارِ عن 120 ثانيةً (حدُّ الجوعِ)، ثمّ الباقي بـ`created_at` — وشرطُ D4 (ترتيبُ المستخدمِ الواحدِ) والاسترجاعُ والإماتةُ و`skip locked` والمحاولةُ ومرآةُ الإيصالِ والسقفُ حرفيًّا كما كانت. والسحبُ بعدَ `create or replace` إعادةُ قفلٍ كما كانَ (لـ`service_role` وحدَها). والعودةُ إعادةُ تطبيقِ النصِّ من `20261020090000_load01_batch_claim_lane_order` — فيعودَ انتظارُ وظائفِ contact خلفَ طابورِ الرسائلِ فتفشلُ مهلةُ إثباتِ الهاتفِ (20ث) عندَ التراكم — تراجعٌ سلوكيٌّ بحتٌ لا فقدُ عقد.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**
