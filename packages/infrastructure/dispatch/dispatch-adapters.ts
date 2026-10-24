@@ -41,6 +41,102 @@ import type { CityId, DriverId, OfferId, OrderId, ServiceType } from "../../shar
 import { guard, readEnvelope, type Sql, withRequestContext } from "../db/client.ts";
 import { toOrder } from "../transport/order-adapters.ts";
 
+/**
+ * استعلامُ المرشّحينَ القريبينَ — نصٌّ ثابتٌ بوسائطَ مُرقَّمةٍ (لا يُركَّبُ من مُدخَلٍ).
+ * الترتيبُ والحدُّ والمرشّحاتُ مطابقةٌ حرفيًّا للنسخةِ السابقةِ؛ الوحيدُ المتغيّرُ
+ * مسارُ الإرسالِ (راجعْ التعليقَ فوقَ الاستدعاءِ).
+ */
+const CANDIDATES_NEARBY_SQL = `
+  select d.id as driver_id,
+         d.city_id,
+         st_y(d.last_location::geometry) as lat,
+         st_x(d.last_location::geometry) as lng,
+         (extract(epoch from d.last_location_at) * 1000)::bigint::text as location_at_ms,
+         d.last_location_quality as location_quality,
+         st_y(d.preferred_area_location::geometry) as preferred_lat,
+         st_x(d.preferred_area_location::geometry) as preferred_lng,
+         a.is_available,
+         d.verification_status,
+         u.is_blocked,
+         d.rating_average,
+         d.rating_count,
+         (select array_agg(c.service::text)
+            from driver_capabilities c
+           where c.driver_id = d.id and c.is_enabled) as services,
+         s.plan as sub_plan,
+         s.status as sub_status,
+         s.trial_ends_at as sub_trial_ends_at,
+         s.current_period_end as sub_current_period_end,
+         s.cancel_at_period_end as sub_cancel_at_period_end
+    from drivers d
+    join users u on u.id = d.user_id
+    left join driver_availability a on a.driver_id = d.id
+    left join subscriptions s
+           on s.driver_id = d.id and s.status in ('trialing', 'active')
+   where d.city_id = $1
+     and u.is_blocked = false
+     and d.verification_status = 'verified'
+     and a.is_available = true
+     and d.last_location is not null
+     -- WR-23: موقعٌ حكمُه ALERT لا يملأُ نافذةَ LIMIT ولا يُرتَّبُ به (السببُ مُسمّىً في
+     -- findAvailableInCity حينَ تفرغُ النافذة).
+     and d.last_location_quality is distinct from 'ALERT'
+     and st_dwithin(
+           d.last_location,
+           st_setsrid(st_makepoint($2, $3), 4326)::geography,
+           $4
+         )
+   order by d.last_location <->
+            st_setsrid(st_makepoint($5, $6), 4326)::geography
+   limit $7
+`;
+
+/** النصُّ نفسُهُ مع قيدِ طراوةِ الموقعِ ($5 = now، $6 = الحدُّ بالثواني). */
+const CANDIDATES_NEARBY_SQL_WITH_MAX_AGE = `
+  select d.id as driver_id,
+         d.city_id,
+         st_y(d.last_location::geometry) as lat,
+         st_x(d.last_location::geometry) as lng,
+         (extract(epoch from d.last_location_at) * 1000)::bigint::text as location_at_ms,
+         d.last_location_quality as location_quality,
+         st_y(d.preferred_area_location::geometry) as preferred_lat,
+         st_x(d.preferred_area_location::geometry) as preferred_lng,
+         a.is_available,
+         d.verification_status,
+         u.is_blocked,
+         d.rating_average,
+         d.rating_count,
+         (select array_agg(c.service::text)
+            from driver_capabilities c
+           where c.driver_id = d.id and c.is_enabled) as services,
+         s.plan as sub_plan,
+         s.status as sub_status,
+         s.trial_ends_at as sub_trial_ends_at,
+         s.current_period_end as sub_current_period_end,
+         s.cancel_at_period_end as sub_cancel_at_period_end
+    from drivers d
+    join users u on u.id = d.user_id
+    left join driver_availability a on a.driver_id = d.id
+    left join subscriptions s
+           on s.driver_id = d.id and s.status in ('trialing', 'active')
+   where d.city_id = $1
+     and u.is_blocked = false
+     and d.verification_status = 'verified'
+     and a.is_available = true
+     and d.last_location is not null
+     and d.last_location_quality is distinct from 'ALERT'
+     and st_dwithin(
+           d.last_location,
+           st_setsrid(st_makepoint($2, $3), 4326)::geography,
+           $4
+         )
+     and d.last_location_at is not null
+     and (extract(epoch from ($5::timestamptz - d.last_location_at))) <= $6
+   order by d.last_location <->
+            st_setsrid(st_makepoint($7, $8), 4326)::geography
+   limit $9
+`;
+
 interface CandidateRow {
   readonly driver_id: string;
   readonly city_id: string;
@@ -195,56 +291,42 @@ export function createDriverCandidateRepository(sql: Sql): DriverCandidateReposi
         const { cityId, pickup, searchRadiusKm, driverLocationMaxAgeSeconds, limit, now } = args;
         const radiusMeters = Math.max(0, searchRadiusKm * 1000);
         const maxAge = driverLocationMaxAgeSeconds ?? 0;
-        const rows = await sql<CandidateRow[]>`
-          select d.id as driver_id,
-                 d.city_id,
-                 st_y(d.last_location::geometry) as lat,
-                 st_x(d.last_location::geometry) as lng,
-                 (extract(epoch from d.last_location_at) * 1000)::bigint::text as location_at_ms,
-                 d.last_location_quality as location_quality,
-                 st_y(d.preferred_area_location::geometry) as preferred_lat,
-                 st_x(d.preferred_area_location::geometry) as preferred_lng,
-                 a.is_available,
-                 d.verification_status,
-                 u.is_blocked,
-                 d.rating_average,
-                 d.rating_count,
-                 (select array_agg(c.service::text)
-                    from driver_capabilities c
-                   where c.driver_id = d.id and c.is_enabled) as services,
-                 s.plan as sub_plan,
-                 s.status as sub_status,
-                 s.trial_ends_at as sub_trial_ends_at,
-                 s.current_period_end as sub_current_period_end,
-                 s.cancel_at_period_end as sub_cancel_at_period_end
-            from drivers d
-            join users u on u.id = d.user_id
-            left join driver_availability a on a.driver_id = d.id
-            left join subscriptions s
-                   on s.driver_id = d.id and s.status in ('trialing', 'active')
-           where d.city_id = ${cityId}
-             and u.is_blocked = false
-             and d.verification_status = 'verified'
-             and a.is_available = true
-             and d.last_location is not null
-             -- WR-23: موقعٌ حكمُه ALERT لا يملأُ نافذةَ LIMIT ولا يُرتَّبُ به (السببُ مُسمّىً في
-             -- findAvailableInCity حينَ تفرغُ النافذة).
-             and d.last_location_quality is distinct from 'ALERT'
-             and st_dwithin(
-                   d.last_location,
-                   st_setsrid(st_makepoint(${pickup.longitude}, ${pickup.latitude}), 4326)::geography,
-                   ${radiusMeters}
-                 )
-             ${
-               maxAge > 0
-                 ? sql`and d.last_location_at is not null
-                        and (extract(epoch from (${now}::timestamptz - d.last_location_at))) <= ${maxAge}`
-                 : sql``
-             }
-           order by d.last_location <->
-                    st_setsrid(st_makepoint(${pickup.longitude}, ${pickup.latitude}), 4326)::geography
-           limit ${limit}
-        `;
+        /**
+         * ## لماذا `sql.unsafe` بوسائطَ مُرقَّمةٍ هنا دونَ قالبِ الوسوم
+         *
+         * قالبُ الوسومِ يُعِدُّ العبارةَ **باسمٍ** على الخادمِ، وبعدَ خمسةِ تنفيذاتٍ
+         * يتحوّلُ المخطِّطُ إلى **الخطةِ العامةِ** التي لا ترى قيمَ الوسائطِ (المدينةَ
+         * والنقطةَ ونصفَ القطرِ) فيُقدّرُ مسحَ صندوقِ GiST المكانيِّ أرخصَ مما هوَ —
+         * فينطلقُ منه ويمسحُ كلَّ سائقي الصندوقِ ويفحصُ توافرَ كلٍّ منهم (مُقاسٌ في
+         * SOAK-02: تدهورٌ خطّيٌّ معَ نموِّ المشروعِ حتى معَ الفهرسِ الجزئيِّ قائمًا،
+         * لأنَّ الخطةَ العامةَ لا تختارُه مُنطلَقًا). النصُّ الثابتُ بالوسائطِ المُرقَّمةِ
+         * يُرسَلُ عبارةً **غيرَ مُسمّاةٍ** فتُخطَّطُ بخطةٍ مخصَّصةٍ ترى القيمَ فتختارُ
+         * الانطلاقَ من فهرسِ المتاحينَ (مُثبَتٌ بـEXPLAIN في أثرِ ٢٠٢٦-١٠-٢٣:
+         * Index Only Scan على الفهرسِ الجزئيِّ مُنطلَقًا، بلا مسحِ صندوقٍ). والنصُّ هنا
+         * ثابتٌ في الملفِّ لا يُركَّبُ من مُدخَلٍ.
+         */
+        const rows =
+          maxAge > 0
+            ? await sql.unsafe<CandidateRow[]>(CANDIDATES_NEARBY_SQL_WITH_MAX_AGE, [
+                cityId,
+                pickup.longitude,
+                pickup.latitude,
+                radiusMeters,
+                now,
+                maxAge,
+                pickup.longitude,
+                pickup.latitude,
+                limit,
+              ])
+            : await sql.unsafe<CandidateRow[]>(CANDIDATES_NEARBY_SQL, [
+                cityId,
+                pickup.longitude,
+                pickup.latitude,
+                radiusMeters,
+                pickup.longitude,
+                pickup.latitude,
+                limit,
+              ]);
         return rows.map(toCandidate);
       }),
   };

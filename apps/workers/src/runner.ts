@@ -180,7 +180,14 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
   const tickMs = options.tickMs ?? DEFAULT_TICK_MS;
   const maxConcurrency = Math.max(1, options.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY);
   const lastRunMs = new Map<string, number>(options.initialLastRunMs ?? []);
-  const inFlight = new Set<string>();
+  /**
+   * `JOB-TICK-02` — حارسُ التراكبِ صارَ يملكُهُ كلُّ شوطٍ برمزِهِ لا اسمُهُ وحدَه:
+   * النبضةُ كتابةٌ تتجاوزُ النبضاتِ (JOB-TICK-01)، فقد تكتملُ نبضةُ شوطٍ سابقٍ
+   * أثناءَ شوطٍ لاحقٍ بالاسمِ نفسِه — ولو حذفَ الـfinally الخاصُّ بالسابقِ الحارسَ
+   * بالاسمِ لحذفَ حارسَ اللاحقِ الجاري، فيدخلُ ثالثٌ بالتوازي. الحذفُ لا يتمُّ
+   * إلّا إذا ظلَّ رمزُ هذا الشوطِ هوَ المالك.
+   */
+  const inFlight = new Map<string, object>();
   /** `OPS-EGRESS-01` — آخرُ نبضةٍ كتبتها هذه النسخةُ لكلِّ مهمّة: الحالُ ولحظتُها. */
   const lastBeat = new Map<
     string,
@@ -271,7 +278,8 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       return { name: job.name, status: "skipped_overlapping", durationMs: 0, detail: null };
     }
 
-    inFlight.add(job.name);
+    const runToken: object = {};
+    inFlight.set(job.name, runToken);
     // `F8-01` — لكلِّ شوطٍ معرِّفُ ارتباطٍ خاصٌّ به (`job-…`) يجري في سياقِه كلُّ
     // سطرِ سجلٍّ وكلُّ كتابةٍ في القاعدةِ من هذا الشوطِ. والبادئةُ مقصودةٌ: شوطٌ
     // دوريٌّ لا ينشأُ عن طلبِ مستخدمٍ فلا يجوزُ أن يتنكّرَ بمعرِّفِ طلبٍ. وما
@@ -279,7 +287,7 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
     // هذا السياقِ فيَغلبُه — سلسلةُ السببِ أصدقُ من سلسلةِ الجدولةِ.
     return await runWithCorrelationId(
       { requestId: newWorkerCorrelationId(), entry: "worker" },
-      () => runOneTraced(job, nowMs),
+      () => runOneTraced(job, nowMs, runToken),
     );
   }
 
@@ -287,8 +295,17 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
    * جسمُ الشوطِ. فُصِلَ عن `runOne` ليجريَ كلُّه داخلَ سياقِ ارتباطِ الشوطِ
    * (`F8-01`) بلا تكرارٍ للفِّ في كلِّ فرعٍ — والسلوكُ لم يتغيّرْ حرفاً.
    */
-  async function runOneTraced(job: JobDefinition, nowMs: number): Promise<JobOutcome> {
+  async function runOneTraced(
+    job: JobDefinition,
+    nowMs: number,
+    runToken: object,
+  ): Promise<JobOutcome> {
     const startedAt = options.clock.now().getTime();
+    // `JOB-TICK-02` — تحريرُ الحارسِ لا يتمُّ إلّا لمنْ ما زالَ يملكُهُ: نبضةُ شوطٍ
+    // سابقٍ معلّقةٍ لا يجوزُ أن تُسقِطَ حارسَ شوطٍ لاحقٍ جارٍ بالاسمِ نفسِه.
+    const releaseGuard = () => {
+      if (inFlight.get(job.name) === runToken) inFlight.delete(job.name);
+    };
 
     try {
       // القفل باسم المهمّة نفسه، وأسماء مهامّ المدن تحمل معرّف المدينة، فمدينتان
@@ -308,6 +325,12 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
 
       const detail = attempt.value;
       lastRunMs.set(job.name, nowMs);
+      // `JOB-TICK-01` — حراسةُ التراكبِ تنتهي بانتهاءِ الشوطِ نفسِه لا بانتهاءِ دفترِه:
+      // النبضةُ كتابةُ رصدٍ لا عملٌ، فبقاؤها داخلَ نافذةِ `inFlight` كان يجعلُ كلَّ كتابةٍ
+      // تتجاوزُ حدودَ النبضةِ (كلَّ 60 ثانيةٍ في حالةِ `ok` المتكرّر) تُسقِطُ الشوطَ
+      // التالي بأكملهِ (`skipped_overlapping`) فيخملُ التصريفُ دورةً كاملةً بلا سببٍ.
+      // القفلُ الموزّعُ حُرَّ بانتهاءِ الشوطِ، فالحارسُ المحليُّ يجبُ أن يتبعَه لا أن يسبقَه.
+      releaseGuard();
       const durationMs = options.clock.now().getTime() - startedAt;
       options.log.info("job.ran", { job: job.name, durationMs, detail });
       await beat(job, "ok", detail);
@@ -316,6 +339,9 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       // التوقيت يُسجَّل حتى عند الفشل: مهمّة تفشل كل مرّة لا يجوز أن تُشغَّل في
       // كل نبضة، وإلّا صارت هجوماً على القاعدة بدل أن تكون مهمّة دورية.
       lastRunMs.set(job.name, nowMs);
+      // المِثلُ في مسارِ الفشل: الشوطُ انتهى (رمى) فالدفاترُ — نبضُه
+      // وسجلُّه — لا يُبقيان الحارسَ. فشلُ الشوطِ لا يعني منعَ الشوطِ التالي.
+      releaseGuard();
       const durationMs = options.clock.now().getTime() - startedAt;
       const detail = error instanceof Error ? error.message : String(error);
       options.log.error("job.failed", { job: job.name, durationMs, detail });
@@ -324,7 +350,8 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       await beat(job, "failed", detail);
       return { name: job.name, status: "failed", durationMs, detail };
     } finally {
-      inFlight.delete(job.name);
+      // شبكةُ أمانٍ تملِكُها هذا الشوطُ وحدَه: لا تحذفُ إلّا حارسَهُ هو.
+      releaseGuard();
     }
   }
 
@@ -409,7 +436,7 @@ export function createJobRunner(options: JobRunnerOptions): JobRunner {
       const deadline = options.clock.now().getTime() + timeoutMs;
       while (inFlight.size > 0) {
         if (options.clock.now().getTime() >= deadline) {
-          options.log.error("runner.drain_timeout", { pending: [...inFlight] });
+          options.log.error("runner.drain_timeout", { pending: [...inFlight.keys()] });
           return false;
         }
         await new Promise((resolve) => setTimeout(resolve, DRAIN_POLL_MS));

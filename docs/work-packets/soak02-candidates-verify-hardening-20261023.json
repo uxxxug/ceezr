@@ -1,0 +1,41 @@
+{
+  "id": "SOAK02-CANDIDATES-VERIFY-HARDENING-20261023",
+  "goal": "تحصينُ تحققِ المُصلِحِ الثاني (PR #639) استجابةً لمراجعةٍ مستقلةٍ — بلا أيِّ تغييرٍ في سلوكِ المنتجِ: (١) حارسُ الوحدةِ يسجّلُ خياراتِ الاستدعاءِ (الوسيطَ الثالثَ لـunsafe) ويُلزمُ خلوَّها — فأيُّ خيارٍ مستقبليٍّ قد يعيدُ العبارةَ المُسمّاةَ فيعودَ العمى المُخَطِّطُ للخطةِ العامةِ؛ (٢) خطةُ تنفيذٍ فعليةٌ (ANALYZE, BUFFERS) للفرعينِ من النصِّ الحقيقيِّ محفوظةٌ في الأرشيفِ (الفهرسُ الجزئيُّ منطلَقٌ بـ30 صفًّا مقيسًا وصفرُ ظهورٍ لـdrivers_location_gix)؛ (٣) المحوّلُ الفعليُّ اختُبرَ عبرَ اتصالِ prepare:true كاملًا (صفرُ عباراتٍ مسمّاةٍ بعدَ 10 تنفيذاتٍ للفرعين)؛ (٤) سكربتاتُ التحققِ والبذرِ محفوظةٌ مع تجميدِ طريقةِ حسابِ الاستقرارِ التي أعادت أرقامَ التوثيقِ حرفيًّا قبلَ التطبيقِ؛ (٥) تصحيحُ صياغاتِ الأدلةِ (المسحُ التسلسليُّ يقرأُ الجدولَ كلَّهُ؛ تحوّلُ الخطةِ مقياسٌ محددٌ؛ claim_notification_delivery فرضيةُ الضغطِ المشتركِ تُعادُ معاينتُها). لا يغيّر هذا أيَّ رقمِ سعةٍ ولا حكمًا: الزوجُ الثالثُ لـr10 جارٍ على f90eb7ff وقرارُ الاستدامةِ له.",
+  "canonical_source": "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/EXPLAIN-INVESTIGATION.md",
+  "implementation": ["tests/unit/dispatch-nearby-candidates.test.ts"],
+  "state": [
+    {
+      "doc": "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/",
+      "change": "تعديل وإضافة — خطتا ANALYZE الفعليتان، مجلدُ verify-scripts (سكربتاتُ التحققِ والبذرِ وقانونُ حسابِ الاستقرارِ المجمدُ)، وتصحيحُ صياغاتِ §9"
+    },
+    {
+      "doc": "docs/evidence/capacity/SOAK-20261023-RERUN/RESULT.md",
+      "change": "تعديل — صياغةُ الحذرِ في claim_notification_delivery (فرضيةٌ تُعادُ معاينتُها لا استنتاجٌ مغلق)"
+    },
+    {
+      "doc": "docs/SYSTEM_STATE.md",
+      "change": "تعديل — سطرُ التحصين"
+    },
+    {
+      "doc": "ROADMAP.md",
+      "change": "تعديل — سطرُ التحصين"
+    }
+  ],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/EXPLAIN-INVESTIGATION.md",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/SHA256SUMS",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/explain-analyze-7200-unsafe-plain.txt",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/explain-analyze-7200-unsafe-with-max-age.txt",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/verify-scripts/README.md",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/verify-scripts/adapter-prepare-true-verify.ts",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/verify-scripts/gen-explain-analyze.py",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/verify-scripts/product-path-verify.ts",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/verify-scripts/stability-scenario.py",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/verify-scripts/timing-old.ts",
+    "docs/evidence/archive/SOAK-20261023-CANDIDATES-EXPLAIN/verify-scripts/timing-real.ts",
+    "docs/evidence/capacity/SOAK-20261023-RERUN/RESULT.md",
+    "docs/evidence/capacity/SOAK-20261023-RERUN/SHA256SUMS"
+  ],
+  "no_other_affected_docs_reason": "تحصينُ تحققٍ وتوثيقٍ فقط على المُصلِحِ الثاني — لا مساسٍ بأيِّ عتبةٍ أو حدِّ سعةٍ محميٍّ."
+}

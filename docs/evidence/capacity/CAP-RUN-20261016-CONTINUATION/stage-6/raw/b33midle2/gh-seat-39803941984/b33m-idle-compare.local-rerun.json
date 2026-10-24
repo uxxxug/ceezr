@@ -1,0 +1,173 @@
+{
+ "protocol": "PROTOCOL-b33m-idle-v2.md",
+ "decision": "CAPACITY_LOSS_ONLY",
+ "why": "D_rate=+22.5% بلا تحسُّنٍ متسقٍ (ΔP7=2.5s، ΔG1fail=-0.29pp) — الخمولُ خسارةُ سعةٍ فعلية؛ تفسيرُ فشلِ G1 غيرُ محسوم (H2/السقفُ مرشحان)",
+ "manipulation": {
+  "budgets_recorded_ok": true,
+  "on_run_p50_s": 9.455,
+  "off_run_p50_s": 8.1,
+  "on_idle_max": 0.05,
+  "off_idle_min": 0.163,
+  "on_gap_p95_median_ms": 983.5,
+  "ok": true
+ },
+ "adjacent_pairs": {
+  "rate_pair_diffs": [
+   3.2500000000000018,
+   3.710000000000001
+  ],
+  "consistent": true
+ },
+ "arms": {
+  "ON": {
+   "valid_waves": 2,
+   "waves": [
+    "w2-on",
+    "w3-on"
+   ],
+   "rate_median": 18.96,
+   "rate_list": [
+    18.78,
+    19.14
+   ],
+   "p7_median_s": 95.0,
+   "g1_verified": 10781,
+   "g1_outcomes": 12448,
+   "g1_fail_share": 0.1339,
+   "gap_p95_median_ms": 983.5,
+   "pp_timeouts_list": [
+    784,
+    883
+   ],
+   "idle_list": [
+    0.046,
+    0.05
+   ],
+   "run_p50_list": [
+    9.46,
+    9.45
+   ],
+   "budget_recorded_list": [
+    9400,
+    9400
+   ],
+   "per_wave": {
+    "w2-on": {
+     "rider_sends": 3381,
+     "rider_rate_overall": 18.78,
+     "rider_rate_in_runs": 21.15,
+     "busy_s": 159.8,
+     "run_duration_p50_s": 9.46,
+     "run_count": 18,
+     "idle_with_eligible": 0.046,
+     "g1_outcomes": 6225,
+     "g1_completed": 5441,
+     "g1_fail_share": 0.1259,
+     "g1_official_verified": 5441,
+     "g1_official_outcomes": 6225,
+     "g1_official_fail_share": 0.1259,
+     "gap_ms_p95": 957.0,
+     "phoneproof_timeouts": 784,
+     "p7_s": 95,
+     "p7_during_load_s": 84.7,
+     "budget_recorded": 9400
+    },
+    "w3-on": {
+     "rider_sends": 3446,
+     "rider_rate_overall": 19.14,
+     "rider_rate_in_runs": 21.64,
+     "busy_s": 159.2,
+     "run_duration_p50_s": 9.45,
+     "run_count": 18,
+     "idle_with_eligible": 0.05,
+     "g1_outcomes": 6223,
+     "g1_completed": 5340,
+     "g1_fail_share": 0.1419,
+     "g1_official_verified": 5340,
+     "g1_official_outcomes": 6223,
+     "g1_official_fail_share": 0.1419,
+     "gap_ms_p95": 1010.0,
+     "phoneproof_timeouts": 883,
+     "p7_s": 95,
+     "p7_during_load_s": 83.4,
+     "budget_recorded": 9400
+    }
+   }
+  },
+  "OFF": {
+   "valid_waves": 2,
+   "waves": [
+    "w1-off",
+    "w4-off"
+   ],
+   "rate_median": 15.48,
+   "rate_list": [
+    15.43,
+    15.53
+   ],
+   "p7_median_s": 92.5,
+   "g1_verified": 10099,
+   "g1_outcomes": 11700,
+   "g1_fail_share": 0.1368,
+   "gap_p95_median_ms": 2400.5,
+   "pp_timeouts_list": [
+    601,
+    1000
+   ],
+   "idle_list": [
+    0.171,
+    0.163
+   ],
+   "run_p50_list": [
+    8.09,
+    8.11
+   ],
+   "budget_recorded_list": [
+    8000,
+    8000
+   ],
+   "per_wave": {
+    "w1-off": {
+     "rider_sends": 2796,
+     "rider_rate_overall": 15.53,
+     "rider_rate_in_runs": 20.32,
+     "busy_s": 137.6,
+     "run_duration_p50_s": 8.09,
+     "run_count": 18,
+     "idle_with_eligible": 0.171,
+     "g1_outcomes": 5824,
+     "g1_completed": 5223,
+     "g1_fail_share": 0.1032,
+     "g1_official_verified": 5223,
+     "g1_official_outcomes": 5824,
+     "g1_official_fail_share": 0.1032,
+     "gap_ms_p95": 2424.0,
+     "phoneproof_timeouts": 601,
+     "p7_s": 95,
+     "p7_during_load_s": 82.1,
+     "budget_recorded": 8000
+    },
+    "w4-off": {
+     "rider_sends": 2778,
+     "rider_rate_overall": 15.43,
+     "rider_rate_in_runs": 19.98,
+     "busy_s": 139.0,
+     "run_duration_p50_s": 8.11,
+     "run_count": 18,
+     "idle_with_eligible": 0.163,
+     "g1_outcomes": 5876,
+     "g1_completed": 4876,
+     "g1_fail_share": 0.1702,
+     "g1_official_verified": 4876,
+     "g1_official_outcomes": 5876,
+     "g1_official_fail_share": 0.1702,
+     "gap_ms_p95": 2377.0,
+     "phoneproof_timeouts": 1000,
+     "p7_s": 90,
+     "p7_during_load_s": 80.7,
+     "budget_recorded": 8000
+    }
+   }
+  }
+ }
+}

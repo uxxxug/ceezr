@@ -1,0 +1,28 @@
+{
+  "id": "soak-audit-20261023",
+  "goal": "تدقيقُ ادعاءِ SOAK-02 (10 رحلات مكتملة/ث لساعةٍ ×2) من الأدلّةِ الخامِ قبلَ اعتمادِ أيِّ سعة، بطلبِ المالك.",
+  "canonical_source": ["docs/roadmap/capacity/LOAD-01M.md"],
+  "implementation": [],
+  "no_implementation_reason": "تدقيقُ أدلّةٍ ووثائقُ فقط؛ لا تغييرَ في المنتجِ ولا الأدواتِ ولا الحدودِ ولا العتبات.",
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/evidence/capacity/SOAK-20261023/AUDIT-20261023.md",
+    "docs/evidence/capacity/SOAK-20261023/RESULT.md",
+    "docs/evidence/archive/SOAK-20261023/SHA256SUMS",
+    "docs/evidence/archive/SOAK-20261023/audit/audit-metrics.json",
+    "docs/evidence/archive/SOAK-20261023/audit/audit_metrics.py.txt"
+  ],
+  "decision": "الحكم: مؤكدٌ جزئيًّا. مثبت: 71,997/71,998 رحلةً completed في القاعدة، 9.999 رحلة/ث، 60 دقيقةً ×2، إشعاراتُ الراكبِ مُسلَّمة. غيرُ مثبت: الاستدامة (تدهورٌ داخلَ الساعة)، عددُ المستخدمينَ المتزامنين، تسليمُ كلِّ إشعاراتِ العروض، التزامُ بوتِ السائقِ بـ25/ث. لا تغييرَ لحالةِ LOAD-01 (FAIL) ولا LOAD-01M (NOT_MET).",
+  "tests": [
+    "sha256sum -c SHA256SUMS لكلِّ عناصرِ الموجاتِ الثماني في التشغيل 39952787566",
+    "audit_metrics.py.txt يعيدُ إنتاجَ audit-metrics.json من العناصرِ الخام"
+  ],
+  "evidence": "docs/evidence/capacity/SOAK-20261023/AUDIT-20261023.md",
+  "constraints": [
+    "لا تشغيلَ لأيِّ حمل، لا إنتاج، لا Render، لا موارد مدفوعة",
+    "gatewayRequest: 5 وIMMEDIATE_REDISPATCH_LIMIT = 50 و25 رسالة/ث دونَ تغيير",
+    "لا دمج"
+  ],
+  "limitations": "سجلُّ البوابةِ وسجلُّ المحاكي وتصديرُ صفوفِ notification_outbox غيرُ محفوظةٍ في الأدلّة؛ فسببُ الرحلةِ الفاشلةِ وأسبابُ dead لإشعاراتِ العروضِ غيرُ مثبتة."
+}

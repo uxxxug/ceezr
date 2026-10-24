@@ -9,7 +9,9 @@ SEAT=${SEAT:-/home/user/cap-seat}
 export PATH="$HOME/bin:$HOME/envs/pg/bin:$PATH"
 ROUND=${1:?ROUND}
 RUN_DIR=${RUN_DIR:-$SEAT/runs/$ROUND}
-for i in $(seq 1 240); do
+# انتظارُ gen.end: 240×10ث افتراضيًّا؛ موجاتُ التحمّلِ الطويلةُ تمرّرُ GEN_WAIT_ITERS (أسقطَ الحدُّ الثابتُ
+# مولّدَ SOAK-01 بـkill -9 عندَ ~45 دقيقةً من موجةِ 60 دقيقة فضاعت عيّناتُ الزمنِ P1–P3).
+for i in $(seq 1 "${GEN_WAIT_ITERS:-240}"); do
   rg -q '"event":"gen.end"' "$RUN_DIR/evidence/miniapp-load-events.jsonl" 2>/dev/null && break
   ps -p "$(cat "$RUN_DIR/gen.pid")" >/dev/null 2>&1 || break
   sleep 10

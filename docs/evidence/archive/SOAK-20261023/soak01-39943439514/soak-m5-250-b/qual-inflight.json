@@ -1,0 +1,23 @@
+{
+ "samples": 2755,
+ "steal_mean": 0.0,
+ "steal_max_1s": 0.0,
+ "siblings_mean": 0.88,
+ "foreign_mean": 1.71,
+ "iowait_mean": 0.83,
+ "throttled": 0,
+ "foreign_top": [
+  "/home/runner/actions-runner/cached/2.338.0/bin/Runner.Listener run",
+  "/tmp/provjobd3373693571",
+  "/usr/bin/python3 -u bin/WALinuxAgent-2.16.0.2-py3.12.egg -collect-logs"
+ ],
+ "steal_10s_rolling_max": 0.0,
+ "post_speed_probe_median_ms": 297.4,
+ "post_pg_probe_median_ms": 304.2,
+ "host_busy_mean_pct": 90.2,
+ "procs_running_mean": 11.06,
+ "validity_version": "B23-RUNNER-V1",
+ "mode": "inflight",
+ "violations": [],
+ "verdict": "VALID"
+}

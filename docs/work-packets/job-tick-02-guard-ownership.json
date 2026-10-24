@@ -1,0 +1,13 @@
+{
+  "id": "job-tick-02-guard-ownership",
+  "goal": "JOB-TICK-02 (2026-10-22): انحدارٌ في حارسِ التراكبِ كشفَهُ المراجعُ بعدَ دمجِ JOB-TICK-01 (#627) وأثبتَهُ اختبارُ حدودٍ حتميٌّ: الـfinally ظلَّ يحذفُ الحارسَ بالاسمِ وحدَه، فإذا اكتملتْ نبضةُ شوطٍ سابقٍ (كتابتُها معلّقة) أثناءَ شوطٍ لاحقٍ بالاسمِ نفسِه حذفَ حارسَ اللاحقِ الجاري فيدخلُ ثالثٌ بالتوازي (وفي `createNoopLock` الحارسُ المحليُّ هوَ الحمايةُ الوحيدة). الاختبارُ الحاسمُ فشلَ على الشيفرةِ المدموجةِ (أثبتَ `ran` بالتوازي) ونجحَ بعدَ الإصلاح. الإصلاحُ: `inFlight` خريطةٌ برمزِ ملكيةٍ لكلِّ شوطٍ والحذفُ لا يتمُّ إلّا لمنْ ما زالَ يملكُه (مسارا النجاحِ والفشلِ وشبكةُ الأمان). كما يُغلقُ هذا الطلبُ إغفالَ #627 الموثَّقَ (تحديثَ STATUS.md) ويُصحّحُ أرشيفَ البروتوكولِ المُسجَّلِ مسبقًا (الأصلُ الحرفيُّ محفوظٌ ببصمتِه والنسخةُ الحاملةُ للرابطِ المصحّحِ موسومةٌ صراحةً كنسخةِ عرضٍ مشتقة) ويُضيّقُ صياغةَ ادعاءِ JOB-TICK-01 في ROADMAP وSTATUS (مكسبُ +22.5% نتيجةُ تدخّلِ v2 المختبرِ لا قياسٌ للإصلاحِ المدموج). لا تغييرَ في أيِّ عتبة (G1–G8، P1–P9، N1–N5، gatewayRequest: 5، IMMEDIATE_REDISPATCH_LIMIT = 50). لا يُدَّعى به حلُّ بوابةِ LOAD-01؛ LOAD-01 = FAIL بلا تغيير.",
+  "implementation": ["apps/workers/src/runner.ts", "tests/unit/job-runner-guard-ownership.test.ts"],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md", "docs/roadmap/execution/STATUS.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle/analysis/PROTOCOL-b33m-idle.pinned-665bdda5.md",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle/analysis/PROTOCOL-b33m-idle.pinned-665bdda5.orig",
+    "docs/evidence/capacity/CAP-RUN-20261016-CONTINUATION/stage-6/raw/b33midle/SHA256SUMS"
+  ]
+}

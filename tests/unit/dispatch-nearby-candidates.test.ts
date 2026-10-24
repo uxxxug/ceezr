@@ -17,13 +17,29 @@ import { isOk } from "../../packages/shared/result/index.ts";
 interface Recorded {
   readonly text: string;
   readonly values: readonly unknown[];
+  /** مسارُ الإرسالِ: قالبُ الوسومِ أم `unsafe` — الحارسُ يُلزمُ الثاني. */
+  readonly via: "tagged" | "unsafe";
+  /** خياراتُ الاستدعاءِ (الوسيطُ الثالثُ لـunsafe) — يجبُ أن تظلَّ معدومةً: أيُّ
+   * خيارٍ (كتجاوزِ `prepare`) قد يعيدُ العبارةَ المُسمّاةَ فيعودَ العمى المُخَطِّطُ. */
+  readonly options: unknown;
 }
 
-/** يُرجِعُ مصفوفةَ الصفوفِ مباشرةً — كما يفعلُ postgres.js في `sql<Row[]>`. */
+/** يُرجِعُ مصفوفةَ الصفوفِ مباشرةً — كما يفعلُ postgres.js في `sql<Row[]>` و`unsafe`. */
 function fakeSqlReturning(rows: unknown[]): { sql: Sql; calls: Recorded[] } {
   const calls: Recorded[] = [];
   const tagged = async (strings: TemplateStringsArray, ...values: readonly unknown[]) => {
-    calls.push({ text: strings.join("?"), values });
+    calls.push({ text: strings.join("?"), values, via: "tagged", options: undefined });
+    return rows;
+  };
+  // الاستعلامُ في المحوّلِ يُرسَلُ عبرَ `sql.unsafe` بنصٍّ ثابتٍ ووسائطَ مُرقَّمةٍ —
+  // فالبديلُ يسجّلُهُ بالبنيةِ نفسِها (راجعْ تعليقَ المحوّلِ: الخطةُ العامةُ للعبارةِ
+  // المُسمّاةِ لا ترى قيمَ الوسائطِ فيُساوَقُ مسحُ الصندوقِ بدلَ فهرسِ المتاحينَ).
+  (tagged as unknown as { unsafe: unknown }).unsafe = async (
+    text: string,
+    values: readonly unknown[],
+    options?: unknown,
+  ) => {
+    calls.push({ text, values, via: "unsafe", options });
     return rows;
   };
   return { sql: tagged as unknown as Sql, calls };
@@ -136,5 +152,44 @@ describe("findNearbyAvailableForDispatch — الترجمة والتفريع ع�
     );
     const first = result[0] as { subscription: unknown };
     expect(first.subscription).toBeNull();
+  });
+
+  it("الحارسُ: الاستعلامُ يُرسَلُ عبرَ unsafe لا قالبَ الوسومِ — وبترتيبِ وسائطَ صحيحٍ للفرعين", async () => {
+    // قالبُ الوسومِ يُعِدُّ العبارةَ باسمٍ فتتحوّلُ خطّتُها بعدَ تنفيذاتٍ إلى العامةِ
+    // التي لا ترى قيمَ الوسائطِ فيُساوَقُ مسحُ صندوقِ GiST (تدهورُ SOAK-02) — فالحارسُ
+    // يُلزمُ المسارَ غيرَ المُعَدَّ (خطةٌ مخصَّصةٌ ترى الفهرسَ الجزئيَّ) وترتيبَ الوسائطِ.
+    const plain = await run([row()], query());
+    expect(plain.calls.map((call) => call.via)).toEqual(["unsafe"]);
+    expect(plain.calls.map((call) => call.options)).toEqual([undefined]);
+    expect(plain.calls[0]?.values).toEqual([
+      CITY,
+      PICKUP.longitude,
+      PICKUP.latitude,
+      7000,
+      PICKUP.longitude,
+      PICKUP.latitude,
+      50,
+    ]);
+    expect(plain.calls[0]?.text).toContain("order by d.last_location <->");
+    expect(plain.calls[0]?.text).not.toContain("${");
+    expect(plain.calls[0]?.text).toContain("a.is_available = true");
+
+    const withAge = await run([row()], query({ driverLocationMaxAgeSeconds: 120 }));
+    expect(withAge.calls.map((call) => call.via)).toEqual(["unsafe"]);
+    expect(withAge.calls.map((call) => call.options)).toEqual([undefined]);
+    expect(withAge.calls[0]?.values).toEqual([
+      CITY,
+      PICKUP.longitude,
+      PICKUP.latitude,
+      7000,
+      new Date("2026-09-07T19:00:00Z"),
+      120,
+      PICKUP.longitude,
+      PICKUP.latitude,
+      50,
+    ]);
+    expect(withAge.calls[0]?.text).toContain(
+      "(extract(epoch from ($5::timestamptz - d.last_location_at))) <= $6",
+    );
   });
 });

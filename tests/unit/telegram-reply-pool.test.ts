@@ -65,7 +65,7 @@ describe("S5 — مُرسِلُ الردودِ الفوريُّ", () => {
     expect(pool.stats().sent).toBe(3);
   });
 
-  it("٤) الطابورُ الممتلئُ يرفضُ (فيُرسِلُ المستدعي بنفسِه) — ذاكرةٌ بسقفٍ", () => {
+  it("٤) الطابورُ الممتلئُ يرفضُ (فيُؤجَّلُ الردُّ للمُرسِلِ الخلفيِّ) — ذاكرةٌ بسقفٍ", () => {
     const pool = createTelegramReplyPool({ concurrency: 1, maxQueued: 2, maxWaitMs: 30_000 });
     const g = gate();
     expect(pool.submit("u:1", () => g.promise)).toBe(true); // يجري
@@ -118,5 +118,57 @@ describe("S5 — مُرسِلُ الردودِ الفوريُّ", () => {
     await pool.idle();
     expect(sent).toEqual(["2"]);
     expect(logs).toContain("telegram.replies.local_failed");
+  });
+
+  it("٧) LOAD-01M — المسارُ المرفوضُ لامتلاءٍ يبقى مؤجَّلًا: لاحقُه لا يسبقُه ولو فرغَ الطابور", async () => {
+    let nowMs = 5_000_000;
+    const pool = createTelegramReplyPool({
+      concurrency: 1,
+      maxQueued: 1,
+      maxWaitMs: 30_000,
+      now: () => nowMs,
+    });
+    const g = gate();
+    const sent: string[] = [];
+    expect(pool.submit("u:A", () => g.promise)).toBe(true); // يجري
+    expect(pool.submit("u:B", async () => sent.push("B1"))).toBe(true); // queued=1
+    expect(pool.submit("u:C", async () => sent.push("C1"))).toBe(false); // ممتلئ ⇒ مؤجَّل
+    g.open();
+    await pool.idle();
+    expect(sent).toEqual(["B1"]);
+    // الطابورُ فارغٌ الآن، لكنَّ C مؤجَّلٌ: ردُّه التالي يذهبُ للخلفيِّ أيضًا (لا يسبقُ C1).
+    expect(pool.submit("u:C", async () => sent.push("C2"))).toBe(false);
+    // مسارٌ آخرُ غيرُ مؤجَّلٍ يُقبَل.
+    expect(pool.submit("u:D", async () => sent.push("D1"))).toBe(true);
+    await pool.idle();
+    // بعدَ نافذةِ التأجيلِ (2×maxWaitMs) يعودُ C للمُرسِلِ الفوريّ.
+    nowMs += 60_001;
+    expect(pool.submit("u:C", async () => sent.push("C3"))).toBe(true);
+    await pool.idle();
+    expect(sent).toEqual(["B1", "D1", "C3"]);
+  });
+
+  it("٨) LOAD-01M — المسارُ المنقضي محلّيًّا يبقى مؤجَّلًا أيضًا (لا يُرسَلُ لاحقُه قبلَ الخلفيّ)", async () => {
+    let nowMs = 9_000_000;
+    const pool = createTelegramReplyPool({
+      concurrency: 1,
+      maxQueued: 10,
+      maxWaitMs: 30_000,
+      now: () => nowMs,
+    });
+    const g = gate();
+    const sent: string[] = [];
+    pool.submit("u:X", async () => {
+      await g.promise;
+      sent.push("X1");
+    });
+    pool.submit("u:Y", async () => sent.push("Y1"));
+    nowMs += 31_000;
+    g.open();
+    await pool.idle();
+    expect(sent).toEqual(["X1"]); // Y1 انقضى ⇒ للخلفيّ
+    expect(pool.submit("u:Y", async () => sent.push("Y2"))).toBe(false);
+    await tick();
+    expect(sent).toEqual(["X1"]);
   });
 });

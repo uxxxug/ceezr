@@ -1,0 +1,15 @@
+{
+ "protocol": "PROTOCOL-b33m-idle-v2.md",
+ "decision": "INCOMPLETE",
+ "why": "مقارنةٌ غيرُ مكتملةٍ (v2 §2: بلا موجةٍ صالحةٍ لأحدِ الذراعينِ بعدَ الإعادة)",
+ "manipulation": null,
+ "adjacent_pairs": null,
+ "arms": {
+  "ON": {
+   "valid_waves": 0
+  },
+  "OFF": {
+   "valid_waves": 0
+  }
+ }
+}

@@ -37,6 +37,7 @@ describe("تصنيف انتظار العرض — فشل القراءة صنف م
 describe("ربط المآل بالمعرّفات — كل مخرج يحمل الشهود المتوافرين", () => {
   const full: ScenarioCorr = {
     index: 42,
+    city: "JED",
     riderTelegramId: 11500042,
     driverTelegramId: 12500042,
     orderId: "ord-42",
@@ -64,6 +65,7 @@ describe("ربط المآل بالمعرّفات — كل مخرج يحمل ال
     // فشل قبل إنشاء الطلب: لا orderId ولا offerPolls — والهويتان موجودتان
     const partial: ScenarioCorr = {
       index: 7,
+      city: "JED",
       riderTelegramId: 11500007,
       driverTelegramId: 12500007,
     };
@@ -77,7 +79,7 @@ describe("ربط المآل بالمعرّفات — كل مخرج يحمل ال
   });
 
   test("الاستثناء: مآل الاستثناء يحمل ما توافر من هويات (لا يضيع السيناريو بلا شهود)", () => {
-    const partial: ScenarioCorr = { index: 9, driverTelegramId: 12500009 };
+    const partial: ScenarioCorr = { index: 9, city: "JED", driverTelegramId: 12500009 };
     const out = outcomeWithCorr({ kind: "undecided", reason: "exception" }, partial);
     expect(out.kind).toBe("undecided");
     expect(out.index).toBe(9);
@@ -98,7 +100,7 @@ describe("ربط المآل بالمعرّفات — كل مخرج يحمل ال
   });
 
   test("الفشل بلا سبب مفصل يبقى بلا سبب مفصل — الربط إضافة حقول لا اختراعها", () => {
-    const out = outcomeWithCorr({ kind: "undecided" }, { index: 1 });
+    const out = outcomeWithCorr({ kind: "undecided" }, { index: 1, city: "JED" });
     expect(out.reason).toBeUndefined();
     expect(out.index).toBe(1);
   });
