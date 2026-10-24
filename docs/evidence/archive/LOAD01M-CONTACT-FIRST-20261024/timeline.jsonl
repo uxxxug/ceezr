@@ -1,0 +1,2 @@
+{"t":"2026-10-24T10:01:43+00:00","event":"round.start","round":"load01m-m5-1500-baseline-M-1500","profile":[{"name":"wave-1500","sec":180,"conc":1500}],"drain_sec":180,"code_sha":"d983a080185e96998101054221f611866d312331","code_dirty":0,"docs_dirty":0}
+{"t":"2026-10-24T10:01:43+00:00","event":"gateway.pid","pid":"6118"}

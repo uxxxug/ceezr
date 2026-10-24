@@ -1,0 +1,5 @@
+pkill: killing pid 6116 failed: Operation not permitted
+   121 /srv/ceezr-cap-20261016/runs/load01m-m5-1500-baseline-M-1500/evidence/pgss-full.csv
+ 12234 /srv/ceezr-cap-20261016/runs/load01m-m5-1500-baseline-M-1500/evidence/telegram-jobs.csv
+ 12355 total
+POST_DIAG_DONE
