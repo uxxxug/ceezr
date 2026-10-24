@@ -1,38 +1,37 @@
 name: LOAD-01M — المدن الخمس المتزامنة (هدفٌ مكمِّلٌ لـLOAD-01، مقعد 4 vCPU)
 
 # تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01m.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
-#   الشيفرةُ = EXP_SHA (main + المولّدُ متعدّدُ المدن) — لا تغييرَ في المنتج (يُتحقَّقُ آليًّا في المقعد).
-#   كلُّ موجةٍ على مشغِّلٍ مستقلٍّ بمرجعِ خمولٍ خاصٍّ به. gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير.
+#   الدورةُ الثالثة: الذراعانِ A/B على المشغِّلِ نفسِه (seat-load01m-ab.sh، PROTOCOL-load01m-ab.md) لأنّ المقارنةَ
+#   عبرَ مشغِّلاتٍ مختلفةِ العتادِ غيرُ صالحة (LOAD01M-DRAINER-DECOMPOSE-20261024). gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير.
 #   لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
 on:
   push:
     branches: [exp/load01m-5city]
     paths:
       - deploy/capacity-run/b24-runner/**
+      - deploy/capacity-run/monitor/drainer-decompose.ts
       - .github/workflows/load01m-5city.yml
 
 permissions:
   contents: read
 
 env:
-  # §11 (الإعادة الثالثة): main بعدَ دمجِ فهرسِ المتاحينَ الجزئيِّ (#638) + التنفيذُ غيرُ المُعَدِّ عبرَ unsafe (#639 — الخطةُ المخصَّصةُ ترى الفهرسَ) — الشيفرةُ تحتَ الاختبار.
-  MAIN_SHA: 2559a742af626a164def31cf98997755e9ecfe8e
-  # §11 (الإعادة الثالثة): main + أدواتُ القياسِ المصلَحةُ (بلا فرقِ منتجٍ) — نفسُ أدواتِ الإعادةِ الثانية.
-  EXP_SHA: c7e63971af42084f36c9b6d80f734d7d6ea7a21e
-  EXPECTED_PRODUCT_DIFF: ""
+  # الدورةُ الثالثة (PROTOCOL-load01m-ab.md): مقارنةٌ مقترنةٌ على مشغِّلٍ واحد، ABBA×2، الفرقُ الوحيدُ قالبُ القاعدة.
+  # A = خطُّ الأساس (main 2d53ad55 + أدواتُ القياس) — نفسُ التزامِ موجةِ 40072049298.
+  A_SHA: f9f598c28e48779d9bdda1fea52f2d8d1c3bacc2
+  # B = #647 (main 2559a742 + الأدواتُ نفسُها) — نفسُ التزامِ موجةِ 40093933836.
+  B_SHA: c7e63971af42084f36c9b6d80f734d7d6ea7a21e
 
 jobs:
   seat:
     name: "${{ matrix.name }} (scenarios=${{ matrix.conc }}, cities=${{ matrix.cities }})"
     runs-on: ubuntu-26.04
-    timeout-minutes: 200
+    timeout-minutes: 330
     strategy:
       fail-fast: false
       matrix:
         include:
-          # خط الأساس التشخيصي لفجوة السعة: m5-1500 (الحد الفاصل التاريخي) على main الحالي
-          # بعد دمج رصد H1/H2 (#625) — أدلة الفشل السابقة تعود لـ main 2aa557aa قبل إصلاحات SOAK-02.
-          - { name: m5-1500-baseline, conc: 1500, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: m5-1500-ab, conc: 1500, cities: "JED,MKK,RUH,TIF,MED" }
     steps:
       - uses: actions/checkout@v7
         with:
@@ -45,14 +44,14 @@ jobs:
         run: |
           sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
           sudo chown -R user:user /home/user/workspace/ceezr
-          for X in "$MAIN_SHA" "$EXP_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+          for X in "$A_SHA" "$B_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
 
       - name: المقعد والموجة (داخل ceezrseat.slice)
         run: |
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
-            --setenv=MAIN_SHA="$MAIN_SHA" --setenv=EXP_SHA="$EXP_SHA" --setenv=EXPECTED_PRODUCT_DIFF="$EXPECTED_PRODUCT_DIFF" \
-            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m.sh "${{ matrix.name }}" "${{ matrix.conc }}" "${{ matrix.cities }}"
+            --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=CONC="${{ matrix.conc }}" --setenv=CITIES="${{ matrix.cities }}" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m-ab.sh
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
         uses: actions/upload-artifact@v5
