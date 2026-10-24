@@ -11,12 +11,23 @@ const pickup = { latitude: 21.55, longitude: 39.19 };
 const repo = createDriverCandidateRepository(sql as never);
 const base = { cityId, pickup, searchRadiusKm: 10, limit: 50, now };
 
-// الفرعان عبر المحوّل الفعلي، 10 مرات (تجاوز أي عتبة تحويل خطة)
+// الفرعان عبر المحوّل الفعلي، 10 مرات (تجاوز أي عتبة تحويل خطة) — والنتيجة يجب أن تكون
+// ok: true مع صفوف مؤهلة فعلًا (البذر: 30 متاحًا داخل نصف القطر؛ الفرع العمري 30 ثانية < 120)
+let okPlain = 0, okAged = 0;
 for (let i = 0; i < 10; i++) {
   const a = await repo.findNearbyAvailableForDispatch({ ...base, driverLocationMaxAgeSeconds: 0 });
   const b = await repo.findNearbyAvailableForDispatch({ ...base, driverLocationMaxAgeSeconds: 120 });
-  if (!("ok" in (a as object)) || !("ok" in (b as object))) throw new Error("adapter failed");
+  const ra = a as { ok: boolean; value?: unknown[] };
+  const rb = b as { ok: boolean; value?: unknown[] };
+  if (ra.ok !== true || !Array.isArray(ra.value) || ra.value.length === 0) {
+    throw new Error(`الفرع بلا قِدَمٍ: ok=${ra.ok} rows=${ra.value?.length}`);
+  }
+  if (rb.ok !== true || !Array.isArray(rb.value) || rb.value.length === 0) {
+    throw new Error(`الفرع العمريّ: ok=${rb.ok} rows=${rb.value?.length}`);
+  }
+  okPlain = ra.value.length; okAged = rb.value.length;
 }
+console.log(`نتائج مؤهلة: بلا قِدَمٍ ${okPlain} صفًّا، مع القِدَمِ ${okAged} صفًّا (30 متاحًا متوقعًا)`);
 // استعلام الفحص بلا إعداد كي لا يحسب نفسه (unsafe)
 const named = await sql.unsafe(
   "select name, generic_plans, custom_plans from pg_prepared_statements where statement like '%driver_availability%'",
