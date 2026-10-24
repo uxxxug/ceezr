@@ -510,9 +510,24 @@ export interface ConcurrentDrainOptions {
   readonly sleep?: (ms: number) => Promise<void>;
 }
 
+export type ConcurrentDrainStopReason = "budget" | "max_claims" | "empty" | "failure";
+
+/**
+ * `LOAD-01` (تمييزُ H1/H2 لـP7) — رصدٌ لكلِّ شوطٍ بلا أيِّ تغييرٍ في السلوك:
+ * - `congestionRequeues`: صفوفٌ أعادَها المرسِلُ ازدحامًا (H2: تضخيمُ إعادةِ الاصطفاف).
+ * - `congestionSleepMs`: زمنُ انتظارِ فتحةِ الازدحامِ داخلَ الشوط.
+ * - `laneWaitMs`: مجموعُ انتظارِ الصفوفِ خلفَ ذيلِ مسارِ مفتاحِها قبلَ الإرسال.
+ * - `sendMs`: مجموعُ زمنِ الإرسالِ الفعليِّ (المرسِلُ + الختم).
+ * - `stopReason`: سببُ انتهاءِ الشوط؛ `budget` مع عملٍ مستحقٍّ = فجوةُ خمولٍ حتّى الدقّةِ التالية (H1).
+ */
 export interface ConcurrentDrainOutcome extends DeliveryBatchOutcome {
   readonly peakInFlight: number;
   readonly elapsedMs: number;
+  readonly congestionRequeues: number;
+  readonly congestionSleepMs: number;
+  readonly laneWaitMs: number;
+  readonly sendMs: number;
+  readonly stopReason: ConcurrentDrainStopReason;
 }
 
 export function notificationLaneKey(delivery: OutboxDelivery): string {
@@ -563,6 +578,11 @@ export async function deliverNotificationsConcurrently(
    * واحدٍ عندَ فتحاتِها.
    */
   let congestionUntil = 0;
+  let congestionRequeues = 0;
+  let congestionSleepMs = 0;
+  let laneWaitMs = 0;
+  let sendMs = 0;
+  let stopReason: ConcurrentDrainStopReason = "empty";
 
   const record = (r: Result<DeliveryAttemptOutcome, PortFailureError>) => {
     if (!r.ok) {
@@ -572,6 +592,7 @@ export async function deliverNotificationsConcurrently(
     const a = r.value;
     if (a.failure === "OutboundCongestionError") {
       congestionUntil = Math.max(congestionUntil, now() + 1_000);
+      congestionRequeues += 1;
     }
     if (a.delivered) delivered += 1;
     if (a.abandoned) abandoned += 1;
@@ -579,17 +600,27 @@ export async function deliverNotificationsConcurrently(
     if (a.died) died += 1;
     if (a.failure !== null) failed += 1;
   };
-  const runOne = (delivery: OutboxDelivery) => {
+  const runOne = async (delivery: OutboxDelivery, enqueuedAt: number) => {
+    const t0 = now();
+    laneWaitMs += t0 - enqueuedAt;
     const wrap = deps.withDeliveryCorrelation;
-    return wrap === undefined
-      ? deliverClaimed(deps, delivery)
-      : wrap(delivery, () => deliverClaimed(deps, delivery));
+    try {
+      return await (wrap === undefined
+        ? deliverClaimed(deps, delivery)
+        : wrap(delivery, () => deliverClaimed(deps, delivery)));
+    } finally {
+      sendMs += now() - t0;
+    }
   };
 
   while (failure.error === null) {
-    if (now() - started >= options.budgetMs) break;
+    if (now() - started >= options.budgetMs) {
+      stopReason = "budget";
+      break;
+    }
     if (claimed >= options.maxClaims) {
       backpressure = "BATCH_LIMIT";
+      stopReason = "max_claims";
       break;
     }
     if (inFlight.size >= lanes) {
@@ -619,7 +650,9 @@ export async function deliverNotificationsConcurrently(
       // قصيرٌ مقيدٌ بالميزانيةِ لا انكسارٌ يتركُها لدورةِ التشغيلِ القادمةِ (10ث).
       if (now() < congestionUntil && now() - started < options.budgetMs) {
         const budgetEnd = started + options.budgetMs;
+        const s0 = now();
         await sleep(Math.max(1, Math.min(congestionUntil, budgetEnd) - now()));
+        congestionSleepMs += now() - s0;
         continue;
       }
       break;
@@ -627,8 +660,9 @@ export async function deliverNotificationsConcurrently(
     claimed += 1;
     const key = notificationLaneKey(delivery);
     const prev = laneTails.get(key);
+    const enqueuedAt = now();
     const task: Promise<void> = (prev ?? Promise.resolve())
-      .then(() => runOne(delivery))
+      .then(() => runOne(delivery, enqueuedAt))
       .then(record, (e: unknown) => {
         failure.error ??= new PortFailureError(
           "outbox.deliver",
@@ -655,5 +689,10 @@ export async function deliverNotificationsConcurrently(
     backpressure,
     peakInFlight,
     elapsedMs: now() - started,
+    congestionRequeues,
+    congestionSleepMs,
+    laneWaitMs,
+    sendMs,
+    stopReason,
   });
 }

@@ -1661,6 +1661,17 @@ export function buildWorkerContainer(
                     `failed=${report.value.failed}`,
                     `abandoned=${report.value.abandoned}`,
                     `undeliverable=${report.value.undeliverable}`,
+                    // `LOAD-01` (تمييزُ H1/H2 لـP7): رصدُ الشوطِ المتزامنِ فقط.
+                    ...("stopReason" in report.value
+                      ? [
+                          `elapsed_ms=${report.value.elapsedMs}`,
+                          `stop=${report.value.stopReason}`,
+                          `congestion_requeues=${report.value.congestionRequeues}`,
+                          `congestion_sleep_ms=${report.value.congestionSleepMs}`,
+                          `lane_wait_ms=${report.value.laneWaitMs}`,
+                          `send_ms=${report.value.sendMs}`,
+                        ]
+                      : []),
                   ].join(" ");
                 },
               },
