@@ -1,0 +1,1223 @@
+[
+ {
+  "raw": "baseline-run2-40072049298a2",
+  "seat": {
+   "cpuModel": "Intel(R) Xeon(R) 6973P-C",
+   "idleSpeedProbeMs": 265.3,
+   "idlePgProbeMs": 210.7
+  },
+  "contactJobs": {
+   "matched": 12763,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 12763,
+    "p50": 16992.77,
+    "p90": 23348.97,
+    "p99": 24602.54,
+    "mean": 17634.96
+   },
+   "laneMs": {
+    "n": 12763,
+    "p50": 0,
+    "p90": 0.01,
+    "p99": 0.03,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 12763,
+    "p50": 335.11,
+    "p90": 667.17,
+    "p99": 845.26,
+    "mean": 332.83
+   },
+   "effectCheckMs": {
+    "n": 12763,
+    "p50": 81.2,
+    "p90": 172.41,
+    "p99": 244.8,
+    "mean": 82.54
+   },
+   "prepareMs": {
+    "n": 12763,
+    "p50": 166.54,
+    "p90": 341.12,
+    "p99": 447.99,
+    "mean": 168.77
+   },
+   "recordMs": {
+    "n": 12763,
+    "p50": 79.04,
+    "p90": 169.87,
+    "p99": 228.04,
+    "mean": 81.51
+   },
+   "gateWaitMs": {
+    "n": 12763,
+    "p50": 327.2,
+    "p90": 656.95,
+    "p99": 830.35,
+    "mean": 324.55
+   },
+   "gateHoldMs": {
+    "n": 12763,
+    "p50": 4.86,
+    "p90": 8.53,
+    "p99": 14.3,
+    "mean": 5.46
+   },
+   "queueShareOfTotal": 0.981
+  },
+  "allJobs": {
+   "matched": 12763,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 12763,
+    "p50": 16992.77,
+    "p90": 23348.97,
+    "p99": 24602.54,
+    "mean": 17634.96
+   },
+   "laneMs": {
+    "n": 12763,
+    "p50": 0,
+    "p90": 0.01,
+    "p99": 0.03,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 12763,
+    "p50": 335.11,
+    "p90": 667.17,
+    "p99": 845.26,
+    "mean": 332.83
+   },
+   "effectCheckMs": {
+    "n": 12763,
+    "p50": 81.2,
+    "p90": 172.41,
+    "p99": 244.8,
+    "mean": 82.54
+   },
+   "prepareMs": {
+    "n": 12763,
+    "p50": 166.54,
+    "p90": 341.12,
+    "p99": 447.99,
+    "mean": 168.77
+   },
+   "recordMs": {
+    "n": 12763,
+    "p50": 79.04,
+    "p90": 169.87,
+    "p99": 228.04,
+    "mean": 81.51
+   },
+   "gateWaitMs": {
+    "n": 12763,
+    "p50": 327.2,
+    "p90": 656.95,
+    "p99": 830.35,
+    "mean": 324.55
+   },
+   "gateHoldMs": {
+    "n": 12763,
+    "p50": 4.86,
+    "p90": 8.53,
+    "p99": 14.3,
+    "mean": 5.46
+   },
+   "queueShareOfTotal": 0.981
+  },
+  "sweeps": {
+   "active": 128,
+   "truncatedShare": 0.992,
+   "claimedPerSweep": {
+    "n": 128,
+    "p50": 100,
+    "p90": 100,
+    "p99": 100,
+    "mean": 99.71
+   },
+   "sweepMs": {
+    "n": 128,
+    "p50": 1603.07,
+    "p90": 2930.47,
+    "p99": 3455.5,
+    "mean": 1507.63
+   },
+   "claimMsPerSweep": {
+    "n": 128,
+    "p50": 1548.62,
+    "p90": 2716.18,
+    "p99": 3325.39,
+    "mean": 1433.62
+   },
+   "claimMsPerTrip": {
+    "n": 128,
+    "p50": 92.17,
+    "p90": 159.78,
+    "p99": 195.61,
+    "mean": 85.09
+   },
+   "claimShareOfSweep": 0.951,
+   "gapBetweenSweepsMs": {
+    "n": 127,
+    "p50": 0.2,
+    "p90": 0.76,
+    "p99": 2.02,
+    "mean": 0.39
+   }
+  },
+  "pool": {
+   "pool": "ceezr:gatewayRequest",
+   "totalHoldS": 1038.69,
+   "top": [
+    {
+     "path": "http:POST /v1/driver/location",
+     "kind": "query",
+     "n": 63095,
+     "holdS": 117.79,
+     "holdMsPerCall": 1.87
+    },
+    {
+     "path": "http:POST /v1/session/telegram",
+     "kind": "query",
+     "n": 57050,
+     "holdS": 114.5,
+     "holdMsPerCall": 2.01
+    },
+    {
+     "path": "http:POST /v1/driver/availability",
+     "kind": "query",
+     "n": 31524,
+     "holdS": 81.07,
+     "holdMsPerCall": 2.57
+    },
+    {
+     "path": "http:POST /v1/onboarding/driver",
+     "kind": "tx",
+     "n": 8494,
+     "holdS": 81.05,
+     "holdMsPerCall": 9.54
+    },
+    {
+     "path": "drainer:job:driver:contact",
+     "kind": "query",
+     "n": 55014,
+     "holdS": 78.91,
+     "holdMsPerCall": 1.43
+    },
+    {
+     "path": "http:POST /v1/rides/:id/trip-events/ack",
+     "kind": "query",
+     "n": 22145,
+     "holdS": 75.78,
+     "holdMsPerCall": 3.42
+    },
+    {
+     "path": "http:POST /v1/rides",
+     "kind": "query",
+     "n": 15762,
+     "holdS": 62.8,
+     "holdMsPerCall": 3.98
+    },
+    {
+     "path": "http:POST /v1/onboarding/driver",
+     "kind": "txQuery",
+     "n": 42470,
+     "holdS": 55.27,
+     "holdMsPerCall": 1.3
+    }
+   ]
+  },
+  "compareToRef": {
+   "ref": "baseline-run2-40072049298a2",
+   "verdict": "COMPARABLE",
+   "reasons": [
+    "same cpu model"
+   ],
+   "controlStatements": 21,
+   "hardwareFactor": 1,
+   "claimMeanMs": 1.79,
+   "claimMeanHwNormalisedMs": 1.79
+  }
+ },
+ {
+  "raw": "baseline-run1-40072049298a1",
+  "seat": {
+   "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+   "idleSpeedProbeMs": 256.9,
+   "idlePgProbeMs": 219
+  },
+  "contactJobs": {
+   "matched": 13392,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 13392,
+    "p50": 17812.12,
+    "p90": 23325.03,
+    "p99": 25175.99,
+    "mean": 17650.86
+   },
+   "laneMs": {
+    "n": 13392,
+    "p50": 0,
+    "p90": 0.01,
+    "p99": 0.03,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 13392,
+    "p50": 359.23,
+    "p90": 673.49,
+    "p99": 979.24,
+    "mean": 337.64
+   },
+   "effectCheckMs": {
+    "n": 13392,
+    "p50": 83.89,
+    "p90": 167.5,
+    "p99": 269.71,
+    "mean": 82.68
+   },
+   "prepareMs": {
+    "n": 13392,
+    "p50": 176.06,
+    "p90": 344.21,
+    "p99": 509.72,
+    "mean": 170.92
+   },
+   "recordMs": {
+    "n": 13392,
+    "p50": 83.63,
+    "p90": 169.47,
+    "p99": 298.45,
+    "mean": 84.03
+   },
+   "gateWaitMs": {
+    "n": 13392,
+    "p50": 350.58,
+    "p90": 662.89,
+    "p99": 967.51,
+    "mean": 329.5
+   },
+   "gateHoldMs": {
+    "n": 13392,
+    "p50": 4.44,
+    "p90": 8.39,
+    "p99": 16.14,
+    "mean": 5.16
+   },
+   "queueShareOfTotal": 0.981
+  },
+  "allJobs": {
+   "matched": 13392,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 13392,
+    "p50": 17812.12,
+    "p90": 23325.03,
+    "p99": 25175.99,
+    "mean": 17650.86
+   },
+   "laneMs": {
+    "n": 13392,
+    "p50": 0,
+    "p90": 0.01,
+    "p99": 0.03,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 13392,
+    "p50": 359.23,
+    "p90": 673.49,
+    "p99": 979.24,
+    "mean": 337.64
+   },
+   "effectCheckMs": {
+    "n": 13392,
+    "p50": 83.89,
+    "p90": 167.5,
+    "p99": 269.71,
+    "mean": 82.68
+   },
+   "prepareMs": {
+    "n": 13392,
+    "p50": 176.06,
+    "p90": 344.21,
+    "p99": 509.72,
+    "mean": 170.92
+   },
+   "recordMs": {
+    "n": 13392,
+    "p50": 83.63,
+    "p90": 169.47,
+    "p99": 298.45,
+    "mean": 84.03
+   },
+   "gateWaitMs": {
+    "n": 13392,
+    "p50": 350.58,
+    "p90": 662.89,
+    "p99": 967.51,
+    "mean": 329.5
+   },
+   "gateHoldMs": {
+    "n": 13392,
+    "p50": 4.44,
+    "p90": 8.39,
+    "p99": 16.14,
+    "mean": 5.16
+   },
+   "queueShareOfTotal": 0.981
+  },
+  "sweeps": {
+   "active": 134,
+   "truncatedShare": 0.993,
+   "claimedPerSweep": {
+    "n": 134,
+    "p50": 100,
+    "p90": 100,
+    "p99": 100,
+    "mean": 99.94
+   },
+   "sweepMs": {
+    "n": 134,
+    "p50": 1663.59,
+    "p90": 2859.1,
+    "p99": 3497.92,
+    "mean": 1525.72
+   },
+   "claimMsPerSweep": {
+    "n": 134,
+    "p50": 1635.42,
+    "p90": 2709.08,
+    "p99": 3287.06,
+    "mean": 1455.34
+   },
+   "claimMsPerTrip": {
+    "n": 134,
+    "p50": 96.2,
+    "p90": 159.36,
+    "p99": 193.36,
+    "mean": 86.06
+   },
+   "claimShareOfSweep": 0.954,
+   "gapBetweenSweepsMs": {
+    "n": 133,
+    "p50": 0.22,
+    "p90": 0.92,
+    "p99": 2.22,
+    "mean": 0.36
+   }
+  },
+  "pool": {
+   "pool": "ceezr:gatewayRequest",
+   "totalHoldS": 1090.42,
+   "top": [
+    {
+     "path": "http:POST /v1/driver/location",
+     "kind": "query",
+     "n": 67669,
+     "holdS": 118.97,
+     "holdMsPerCall": 1.76
+    },
+    {
+     "path": "http:POST /v1/session/telegram",
+     "kind": "query",
+     "n": 60608,
+     "holdS": 109.59,
+     "holdMsPerCall": 1.81
+    },
+    {
+     "path": "http:POST /v1/rides/:id/trip-events/ack",
+     "kind": "query",
+     "n": 23628,
+     "holdS": 85.06,
+     "holdMsPerCall": 3.6
+    },
+    {
+     "path": "http:POST /v1/driver/availability",
+     "kind": "query",
+     "n": 33824,
+     "holdS": 84.47,
+     "holdMsPerCall": 2.5
+    },
+    {
+     "path": "http:POST /v1/onboarding/driver",
+     "kind": "tx",
+     "n": 9085,
+     "holdS": 80.45,
+     "holdMsPerCall": 8.86
+    },
+    {
+     "path": "drainer:job:driver:contact",
+     "kind": "query",
+     "n": 57585,
+     "holdS": 77.55,
+     "holdMsPerCall": 1.35
+    },
+    {
+     "path": "http:POST /v1/rides",
+     "kind": "query",
+     "n": 16912,
+     "holdS": 71.34,
+     "holdMsPerCall": 4.22
+    },
+    {
+     "path": "http:POST /v1/onboarding/driver",
+     "kind": "txQuery",
+     "n": 45425,
+     "holdS": 54.04,
+     "holdMsPerCall": 1.19
+    }
+   ]
+  },
+  "compareToRef": {
+   "ref": "baseline-run2-40072049298a2",
+   "verdict": "COMPARABLE",
+   "reasons": [
+    "cpu AMD EPYC 9V45 96-Core Processor ≠ ref Intel(R) Xeon(R) 6973P-C"
+   ],
+   "controlStatements": 21,
+   "hardwareFactor": 1.08,
+   "claimMeanMs": 1.77,
+   "claimMeanHwNormalisedMs": 1.64
+  }
+ },
+ {
+  "raw": "pr645-40082574451a1",
+  "seat": {
+   "cpuModel": "AMD EPYC 7763 64-Core Processor",
+   "idleSpeedProbeMs": 339.8,
+   "idlePgProbeMs": 372.9
+  },
+  "contactJobs": {
+   "matched": 12233,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 12233,
+    "p50": 22719.8,
+    "p90": 25638.42,
+    "p99": 25946.4,
+    "mean": 20344.76
+   },
+   "laneMs": {
+    "n": 12233,
+    "p50": 0.01,
+    "p90": 0.02,
+    "p99": 0.04,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 12233,
+    "p50": 79.03,
+    "p90": 871.18,
+    "p99": 1277.12,
+    "mean": 324.69
+   },
+   "effectCheckMs": {
+    "n": 12233,
+    "p50": 14.33,
+    "p90": 215.32,
+    "p99": 321.33,
+    "mean": 78.56
+   },
+   "prepareMs": {
+    "n": 12233,
+    "p50": 39.3,
+    "p90": 442.33,
+    "p99": 639.19,
+    "mean": 164.66
+   },
+   "recordMs": {
+    "n": 12233,
+    "p50": 16.93,
+    "p90": 218.52,
+    "p99": 321.06,
+    "mean": 81.46
+   },
+   "gateWaitMs": {
+    "n": 12233,
+    "p50": 65.81,
+    "p90": 855.74,
+    "p99": 1257.54,
+    "mean": 313.5
+   },
+   "gateHoldMs": {
+    "n": 12233,
+    "p50": 6.37,
+    "p90": 11.41,
+    "p99": 18.53,
+    "mean": 7.08
+   },
+   "queueShareOfTotal": 0.984
+  },
+  "allJobs": {
+   "matched": 12233,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 12233,
+    "p50": 22719.8,
+    "p90": 25638.42,
+    "p99": 25946.4,
+    "mean": 20344.76
+   },
+   "laneMs": {
+    "n": 12233,
+    "p50": 0.01,
+    "p90": 0.02,
+    "p99": 0.04,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 12233,
+    "p50": 79.03,
+    "p90": 871.18,
+    "p99": 1277.12,
+    "mean": 324.69
+   },
+   "effectCheckMs": {
+    "n": 12233,
+    "p50": 14.33,
+    "p90": 215.32,
+    "p99": 321.33,
+    "mean": 78.56
+   },
+   "prepareMs": {
+    "n": 12233,
+    "p50": 39.3,
+    "p90": 442.33,
+    "p99": 639.19,
+    "mean": 164.66
+   },
+   "recordMs": {
+    "n": 12233,
+    "p50": 16.93,
+    "p90": 218.52,
+    "p99": 321.06,
+    "mean": 81.46
+   },
+   "gateWaitMs": {
+    "n": 12233,
+    "p50": 65.81,
+    "p90": 855.74,
+    "p99": 1257.54,
+    "mean": 313.5
+   },
+   "gateHoldMs": {
+    "n": 12233,
+    "p50": 6.37,
+    "p90": 11.41,
+    "p99": 18.53,
+    "mean": 7.08
+   },
+   "queueShareOfTotal": 0.984
+  },
+  "sweeps": {
+   "active": 123,
+   "truncatedShare": 0.992,
+   "claimedPerSweep": {
+    "n": 123,
+    "p50": 100,
+    "p90": 100,
+    "p99": 100,
+    "mean": 99.46
+   },
+   "sweepMs": {
+    "n": 123,
+    "p50": 659.49,
+    "p90": 3862.14,
+    "p99": 5292.8,
+    "mean": 1550.72
+   },
+   "claimMsPerSweep": {
+    "n": 123,
+    "p50": 641.29,
+    "p90": 3596.41,
+    "p99": 5048.24,
+    "mean": 1463.79
+   },
+   "claimMsPerTrip": {
+    "n": 123,
+    "p50": 42.75,
+    "p90": 213.3,
+    "p99": 296.96,
+    "mean": 90.73
+   },
+   "claimShareOfSweep": 0.944,
+   "gapBetweenSweepsMs": {
+    "n": 122,
+    "p50": 0.3,
+    "p90": 0.93,
+    "p99": 2.52,
+    "mean": 0.47
+   }
+  },
+  "pool": {
+   "pool": "ceezr:gatewayRequest",
+   "totalHoldS": 1035.89,
+   "top": [
+    {
+     "path": "http:POST /v1/session/telegram",
+     "kind": "query",
+     "n": 44162,
+     "holdS": 119.51,
+     "holdMsPerCall": 2.71
+    },
+    {
+     "path": "http:POST /v1/driver/location",
+     "kind": "query",
+     "n": 39417,
+     "holdS": 98.65,
+     "holdMsPerCall": 2.5
+    },
+    {
+     "path": "drainer:job:driver:contact",
+     "kind": "query",
+     "n": 52620,
+     "holdS": 97.29,
+     "holdMsPerCall": 1.85
+    },
+    {
+     "path": "http:POST /v1/onboarding/driver",
+     "kind": "tx",
+     "n": 5404,
+     "holdS": 69.42,
+     "holdMsPerCall": 12.85
+    },
+    {
+     "path": "http:POST /v1/driver/availability",
+     "kind": "query",
+     "n": 19696,
+     "holdS": 68.13,
+     "holdMsPerCall": 3.46
+    },
+    {
+     "path": "http:POST /v1/rides/:id/trip-events/ack",
+     "kind": "query",
+     "n": 13792,
+     "holdS": 66.73,
+     "holdMsPerCall": 4.84
+    },
+    {
+     "path": "http:GET /v1/onboarding",
+     "kind": "query",
+     "n": 24466,
+     "holdS": 54.63,
+     "holdMsPerCall": 2.23
+    },
+    {
+     "path": "http:POST /v1/onboarding/driver",
+     "kind": "query",
+     "n": 24466,
+     "holdS": 54.36,
+     "holdMsPerCall": 2.22
+    }
+   ]
+  },
+  "compareToRef": {
+   "ref": "baseline-run2-40072049298a2",
+   "verdict": "NOT_COMPARABLE",
+   "reasons": [
+    "idle speed probe ratio 1.28 outside ±10%",
+    "idle pg probe ratio 1.77 outside ±10%",
+    "cpu AMD EPYC 7763 64-Core Processor ≠ ref Intel(R) Xeon(R) 6973P-C"
+   ],
+   "controlStatements": 21,
+   "hardwareFactor": 1.37,
+   "claimMeanMs": 10.13,
+   "claimMeanHwNormalisedMs": 7.39
+  }
+ },
+ {
+  "raw": "pr647-run1-40093933836a1",
+  "seat": {
+   "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+   "idleSpeedProbeMs": 409.7,
+   "idlePgProbeMs": 341.2
+  },
+  "contactJobs": {
+   "matched": 12199,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 12199,
+    "p50": 21360.62,
+    "p90": 25695.88,
+    "p99": 26451.46,
+    "mean": 19852.64
+   },
+   "laneMs": {
+    "n": 12199,
+    "p50": 0.01,
+    "p90": 0.02,
+    "p99": 0.04,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 12199,
+    "p50": 97.98,
+    "p90": 918.41,
+    "p99": 1199.91,
+    "mean": 344.81
+   },
+   "effectCheckMs": {
+    "n": 12199,
+    "p50": 18.98,
+    "p90": 229.99,
+    "p99": 322.66,
+    "mean": 82.57
+   },
+   "prepareMs": {
+    "n": 12199,
+    "p50": 54.11,
+    "p90": 462.4,
+    "p99": 624.9,
+    "mean": 175.37
+   },
+   "recordMs": {
+    "n": 12199,
+    "p50": 23.18,
+    "p90": 230.11,
+    "p99": 333.17,
+    "mean": 86.86
+   },
+   "gateWaitMs": {
+    "n": 12199,
+    "p50": 86.38,
+    "p90": 903.75,
+    "p99": 1183.81,
+    "mean": 333.73
+   },
+   "gateHoldMs": {
+    "n": 12199,
+    "p50": 6.38,
+    "p90": 11.83,
+    "p99": 20.49,
+    "mean": 7.22
+   },
+   "queueShareOfTotal": 0.983
+  },
+  "allJobs": {
+   "matched": 12199,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 12199,
+    "p50": 21360.62,
+    "p90": 25695.88,
+    "p99": 26451.46,
+    "mean": 19852.64
+   },
+   "laneMs": {
+    "n": 12199,
+    "p50": 0.01,
+    "p90": 0.02,
+    "p99": 0.04,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 12199,
+    "p50": 97.98,
+    "p90": 918.41,
+    "p99": 1199.91,
+    "mean": 344.81
+   },
+   "effectCheckMs": {
+    "n": 12199,
+    "p50": 18.98,
+    "p90": 229.99,
+    "p99": 322.66,
+    "mean": 82.57
+   },
+   "prepareMs": {
+    "n": 12199,
+    "p50": 54.11,
+    "p90": 462.4,
+    "p99": 624.9,
+    "mean": 175.37
+   },
+   "recordMs": {
+    "n": 12199,
+    "p50": 23.18,
+    "p90": 230.11,
+    "p99": 333.17,
+    "mean": 86.86
+   },
+   "gateWaitMs": {
+    "n": 12199,
+    "p50": 86.38,
+    "p90": 903.75,
+    "p99": 1183.81,
+    "mean": 333.73
+   },
+   "gateHoldMs": {
+    "n": 12199,
+    "p50": 6.38,
+    "p90": 11.83,
+    "p99": 20.49,
+    "mean": 7.22
+   },
+   "queueShareOfTotal": 0.983
+  },
+  "sweeps": {
+   "active": 122,
+   "truncatedShare": 0.992,
+   "claimedPerSweep": {
+    "n": 122,
+    "p50": 100,
+    "p90": 100,
+    "p99": 100,
+    "mean": 99.99
+   },
+   "sweepMs": {
+    "n": 122,
+    "p50": 1108.18,
+    "p90": 3896.51,
+    "p99": 4957.32,
+    "mean": 1573.53
+   },
+   "claimMsPerSweep": {
+    "n": 122,
+    "p50": 1050.7,
+    "p90": 3717.55,
+    "p99": 4706.9,
+    "mean": 1498.33
+   },
+   "claimMsPerTrip": {
+    "n": 122,
+    "p50": 66.67,
+    "p90": 218.68,
+    "p99": 276.88,
+    "mean": 89.88
+   },
+   "claimShareOfSweep": 0.952,
+   "gapBetweenSweepsMs": {
+    "n": 121,
+    "p50": 0.22,
+    "p90": 0.96,
+    "p99": 1.69,
+    "mean": 0.4
+   }
+  },
+  "pool": {
+   "pool": "ceezr:gatewayRequest",
+   "totalHoldS": 1046.84,
+   "top": [
+    {
+     "path": "http:POST /v1/session/telegram",
+     "kind": "query",
+     "n": 44138,
+     "holdS": 118.47,
+     "holdMsPerCall": 2.68
+    },
+    {
+     "path": "http:POST /v1/driver/location",
+     "kind": "query",
+     "n": 39512,
+     "holdS": 100.6,
+     "holdMsPerCall": 2.55
+    },
+    {
+     "path": "drainer:job:driver:contact",
+     "kind": "query",
+     "n": 52520,
+     "holdS": 98.92,
+     "holdMsPerCall": 1.88
+    },
+    {
+     "path": "http:POST /v1/onboarding/driver",
+     "kind": "tx",
+     "n": 5591,
+     "holdS": 72.85,
+     "holdMsPerCall": 13.03
+    },
+    {
+     "path": "http:POST /v1/driver/availability",
+     "kind": "query",
+     "n": 19740,
+     "holdS": 69.63,
+     "holdMsPerCall": 3.53
+    },
+    {
+     "path": "http:POST /v1/rides/:id/trip-events/ack",
+     "kind": "query",
+     "n": 13701,
+     "holdS": 65.9,
+     "holdMsPerCall": 4.81
+    },
+    {
+     "path": "http:POST /v1/rides",
+     "kind": "query",
+     "n": 9870,
+     "holdS": 55.81,
+     "holdMsPerCall": 5.65
+    },
+    {
+     "path": "http:GET /v1/onboarding",
+     "kind": "query",
+     "n": 24398,
+     "holdS": 54.36,
+     "holdMsPerCall": 2.23
+    }
+   ]
+  },
+  "compareToRef": {
+   "ref": "baseline-run2-40072049298a2",
+   "verdict": "NOT_COMPARABLE",
+   "reasons": [
+    "idle speed probe ratio 1.54 outside ±10%",
+    "idle pg probe ratio 1.62 outside ±10%",
+    "cpu Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz ≠ ref Intel(R) Xeon(R) 6973P-C"
+   ],
+   "controlStatements": 21,
+   "hardwareFactor": 1.48,
+   "claimMeanMs": 4,
+   "claimMeanHwNormalisedMs": 2.7
+  }
+ },
+ {
+  "raw": "pr647-run2-40093933836a2",
+  "seat": {
+   "cpuModel": "AMD EPYC 7763 64-Core Processor",
+   "idleSpeedProbeMs": 339.7,
+   "idlePgProbeMs": 374.6
+  },
+  "contactJobs": {
+   "matched": 12203,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 12203,
+    "p50": 23812,
+    "p90": 27218.54,
+    "p99": 27797.18,
+    "mean": 21205.97
+   },
+   "laneMs": {
+    "n": 12203,
+    "p50": 0.01,
+    "p90": 0.02,
+    "p99": 0.04,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 12203,
+    "p50": 77.14,
+    "p90": 928.57,
+    "p99": 1276.69,
+    "mean": 354.08
+   },
+   "effectCheckMs": {
+    "n": 12203,
+    "p50": 15.42,
+    "p90": 237.41,
+    "p99": 340.24,
+    "mean": 86.09
+   },
+   "prepareMs": {
+    "n": 12203,
+    "p50": 38.53,
+    "p90": 476.7,
+    "p99": 672,
+    "mean": 179.16
+   },
+   "recordMs": {
+    "n": 12203,
+    "p50": 18.01,
+    "p90": 241.62,
+    "p99": 348.65,
+    "mean": 88.82
+   },
+   "gateWaitMs": {
+    "n": 12203,
+    "p50": 64.51,
+    "p90": 911.95,
+    "p99": 1257.02,
+    "mean": 342.19
+   },
+   "gateHoldMs": {
+    "n": 12203,
+    "p50": 6.99,
+    "p90": 12.14,
+    "p99": 19.38,
+    "mean": 7.69
+   },
+   "queueShareOfTotal": 0.984
+  },
+  "allJobs": {
+   "matched": 12203,
+   "unmatched": 0,
+   "queueMs": {
+    "n": 12203,
+    "p50": 23812,
+    "p90": 27218.54,
+    "p99": 27797.18,
+    "mean": 21205.97
+   },
+   "laneMs": {
+    "n": 12203,
+    "p50": 0.01,
+    "p90": 0.02,
+    "p99": 0.04,
+    "mean": 0.01
+   },
+   "execMs": {
+    "n": 12203,
+    "p50": 77.14,
+    "p90": 928.57,
+    "p99": 1276.69,
+    "mean": 354.08
+   },
+   "effectCheckMs": {
+    "n": 12203,
+    "p50": 15.42,
+    "p90": 237.41,
+    "p99": 340.24,
+    "mean": 86.09
+   },
+   "prepareMs": {
+    "n": 12203,
+    "p50": 38.53,
+    "p90": 476.7,
+    "p99": 672,
+    "mean": 179.16
+   },
+   "recordMs": {
+    "n": 12203,
+    "p50": 18.01,
+    "p90": 241.62,
+    "p99": 348.65,
+    "mean": 88.82
+   },
+   "gateWaitMs": {
+    "n": 12203,
+    "p50": 64.51,
+    "p90": 911.95,
+    "p99": 1257.02,
+    "mean": 342.19
+   },
+   "gateHoldMs": {
+    "n": 12203,
+    "p50": 6.99,
+    "p90": 12.14,
+    "p99": 19.38,
+    "mean": 7.69
+   },
+   "queueShareOfTotal": 0.984
+  },
+  "sweeps": {
+   "active": 123,
+   "truncatedShare": 0.992,
+   "claimedPerSweep": {
+    "n": 123,
+    "p50": 100,
+    "p90": 100,
+    "p99": 100,
+    "mean": 99.21
+   },
+   "sweepMs": {
+    "n": 123,
+    "p50": 515.82,
+    "p90": 4231.66,
+    "p99": 5045.83,
+    "mean": 1611.44
+   },
+   "claimMsPerSweep": {
+    "n": 123,
+    "p50": 510.66,
+    "p90": 3922.66,
+    "p99": 4802.35,
+    "mean": 1524.55
+   },
+   "claimMsPerTrip": {
+    "n": 123,
+    "p50": 34.04,
+    "p90": 230.74,
+    "p99": 282.49,
+    "mean": 91.72
+   },
+   "claimShareOfSweep": 0.946,
+   "gapBetweenSweepsMs": {
+    "n": 122,
+    "p50": 0.34,
+    "p90": 0.94,
+    "p99": 2.75,
+    "mean": 0.49
+   }
+  },
+  "pool": {
+   "pool": "ceezr:gatewayRequest",
+   "totalHoldS": 1066.96,
+   "top": [
+    {
+     "path": "http:POST /v1/session/telegram",
+     "kind": "query",
+     "n": 41802,
+     "holdS": 124.8,
+     "holdMsPerCall": 2.99
+    },
+    {
+     "path": "drainer:job:driver:contact",
+     "kind": "query",
+     "n": 52724,
+     "holdS": 105.94,
+     "holdMsPerCall": 2.01
+    },
+    {
+     "path": "http:POST /v1/driver/location",
+     "kind": "query",
+     "n": 34830,
+     "holdS": 95.59,
+     "holdMsPerCall": 2.74
+    },
+    {
+     "path": "http:POST /v1/onboarding/driver",
+     "kind": "tx",
+     "n": 5092,
+     "holdS": 71.18,
+     "holdMsPerCall": 13.98
+    },
+    {
+     "path": "http:POST /v1/driver/availability",
+     "kind": "query",
+     "n": 17396,
+     "holdS": 66.83,
+     "holdMsPerCall": 3.84
+    },
+    {
+     "path": "drainer:replies",
+     "kind": "query",
+     "n": 110,
+     "holdS": 63.61,
+     "holdMsPerCall": 578.25
+    },
+    {
+     "path": "http:POST /v1/rides/:id/trip-events/ack",
+     "kind": "query",
+     "n": 12125,
+     "holdS": 61.74,
+     "holdMsPerCall": 5.09
+    },
+    {
+     "path": "http:GET /v1/onboarding",
+     "kind": "query",
+     "n": 24406,
+     "holdS": 60.31,
+     "holdMsPerCall": 2.47
+    }
+   ]
+  },
+  "compareToRef": {
+   "ref": "baseline-run2-40072049298a2",
+   "verdict": "NOT_COMPARABLE",
+   "reasons": [
+    "idle speed probe ratio 1.28 outside ±10%",
+    "idle pg probe ratio 1.78 outside ±10%",
+    "cpu AMD EPYC 7763 64-Core Processor ≠ ref Intel(R) Xeon(R) 6973P-C"
+   ],
+   "controlStatements": 21,
+   "hardwareFactor": 1.53,
+   "claimMeanMs": 3.99,
+   "claimMeanHwNormalisedMs": 2.61
+  }
+ }
+]
