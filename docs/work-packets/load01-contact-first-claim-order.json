@@ -1,0 +1,16 @@
+{
+  "id": "load01-contact-first-claim-order",
+  "goal": "LOAD-01 (فجوةُ السعةِ): أولويةُ وظائفِ contact (إثباتِ الهاتفِ — المسارُ الحرجُ ذي المهلةِ 20ث في المولّدِ) في دوالِّ التقاطِ وظائفِ تحديثِ تيليجرام الثلاثِ، معَ ترقيةِ تقادمِ 120ث لمنعِ التجويعِ المستمرِّ للوظائفِ الأخرى، وحفاظِ D4 وFIFO داخلَ الفئةِ وskip-locked ومنعِ الالتقاطِ المزدوجِ. إعادةُ ترتيبٍ فقط — لا رفعَ سعةٍ ولا مساسَ بأيِّ حدٍّ محميٍّ (gatewayRequest: 5 وIMMEDIATE_REDISPATCH_LIMIT = 50 و25/ث لكلِّ بوتٍ و1/ث لكلِّ محادثةٍ كما هي) ولا رفعَ TELEGRAM_JOB_CONSUMER_CONCURRENCY. التنبؤُ المُسجَّلُ مسبقًا: في m5-1500 (طابورٌ متجانسٌ 100% contact) لن يتحركَ G1 ماديًّا؛ يُختبرُ بإعادةِ التشغيلِ. اختبارات: tests/integration/telegram-update-contact-first-claim.test.ts (5 حالاتٍ — أحمرٌ/أخضرُ مُثبتانِ على قاعدةٍ حقيقيةٍ قبلَ الهجرةِ وبعدَها).",
+  "canonical_source": ["docs/evidence/capacity/LOAD01M-BASELINE-20261024/RESULT.md"],
+  "implementation": [
+    "supabase/migrations/20261024120000_load01_contact_first_claim_order.sql",
+    "tests/integration/telegram-update-contact-first-claim.test.ts",
+    "scripts/lib/rollback-registry.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [],
+  "no_other_affected_docs_reason": "إصلاحُ ترتيبٍ في دوالِّ الالتقاطِ واختبارٌ جديدٌ فقط؛ نتيجةُ خطِّ الأساسِ (RESULT.md) مُوثَّقةٌ في الطلبِ #644 المدموجِ ولم تتغيّرْ هنا — مرجعُها canonical_source لا ملفًّا متأثرًا."
+}
