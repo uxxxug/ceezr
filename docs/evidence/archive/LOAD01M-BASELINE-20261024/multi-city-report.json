@@ -1,0 +1,91 @@
+{
+  "cities": [
+    "JED",
+    "MKK",
+    "RUH",
+    "TIF",
+    "MED"
+  ],
+  "totals": {
+    "launched": 13392,
+    "verified": 8456
+  },
+  "perCity": [
+    {
+      "city": "JED",
+      "launched": 2682,
+      "verified": 1714,
+      "completionRate": 0.639075316927666,
+      "offerAppearP95Ms": 5499,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          968
+        ]
+      ]
+    },
+    {
+      "city": "MED",
+      "launched": 2670,
+      "verified": 1677,
+      "completionRate": 0.6280898876404495,
+      "offerAppearP95Ms": 4471,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          993
+        ]
+      ]
+    },
+    {
+      "city": "MKK",
+      "launched": 2690,
+      "verified": 1699,
+      "completionRate": 0.6315985130111524,
+      "offerAppearP95Ms": 5078,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          991
+        ]
+      ]
+    },
+    {
+      "city": "RUH",
+      "launched": 2678,
+      "verified": 1700,
+      "completionRate": 0.6348020911127707,
+      "offerAppearP95Ms": 5451,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          978
+        ]
+      ]
+    },
+    {
+      "city": "TIF",
+      "launched": 2672,
+      "verified": 1666,
+      "completionRate": 0.6235029940119761,
+      "offerAppearP95Ms": 5050,
+      "topReasons": [
+        [
+          "driver_onboarding_failed",
+          1006
+        ]
+      ]
+    }
+  ],
+  "fairnessGap": 0.015572322915689885,
+  "isolation": {
+    "I1_order_vs_rider_city": 0,
+    "I2_offer_driver_other_city": 0,
+    "I3_assigned_driver_other_city": 0,
+    "I4_outbox_city_vs_order_city": 0,
+    "I5_outbox_chat_user_other_city": 0,
+    "I5b_outbox_group_chat_other_city": 0,
+    "I6_order_city_vs_scenario_city": 0
+  },
+  "isolationVerdict": "CLEAN"
+}
