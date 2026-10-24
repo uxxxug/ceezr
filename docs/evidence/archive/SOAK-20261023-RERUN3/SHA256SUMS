@@ -15,4 +15,4 @@ f994db692fa6250397a16da8b0e431a4ea3404590ebaca5d1049b82d889245bb  ./r10-b/gates.
 10b65a4d5a156fe3e4cad9a753664da6ea80c150d4e605c062aba55151ababa0  ./r10-b/telegram-mock.jsonl.gz
 5672fe963e0288538d11aaeeda4159eff58091332955e38a47b0e1abae5c52f5  ./r10-b/validity-soak2-r10-b.json
 9fc1f920ab901ae98ef089d1a395931561efc0010e1b19bc51f38f5d18a09ae7  ./r10-b/wave-report.json
-f03ddf71e6672fed1023e71f29aea1624fd10410ddbac105af2e77fed8573a84  ./stability-and-outbox-analysis.txt
+7b2847b577e9b7738699e9f1a00db78d992aae5d17ddecf0cc3e0185c21d5973  ./stability-and-outbox-analysis.txt
