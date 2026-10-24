@@ -50,22 +50,24 @@ $PSQL -d postgres -qc "alter system set shared_preload_libraries = 'pg_stat_stat
 $NSX bash -c "/usr/lib/postgresql/18/bin/pg_ctl -D $B/pg -l $B/pg.log -w restart" >/dev/null
 
 FP="$H/deploy/capacity-run/b24-runner/fingerprint.sql"
-fingerprint() { $PSQL -d "$1" -q -f "$FP" 2>&1 | grep -v '^$'; }
-log "قالبُ A: هجراتُ A + seat-seed.sql ⇒ ceezr_cap_tpl_A"
+# أسماءُ القواعدِ بحروفٍ صغيرة: SQL يطوي الاسمَ غيرَ المقتبَس، و-d يطابقُه حرفيًّا (أسقطَ التشغيلَ 40118151074).
+fingerprint() { $PSQL -d "$1" -v ON_ERROR_STOP=1 -q -f "$FP" 2>&1 | grep -v '^$'; }
+log "قالبُ A: هجراتُ A + seat-seed.sql ⇒ ceezr_cap_tpl_a"
 $PSQL -d ceezr_cap_20261016 -v ON_ERROR_STOP=1 -q -f "$W/wt-acc/deploy/capacity-run/config/seat-seed.sql"
-$PSQL -d postgres -v ON_ERROR_STOP=1 -qc "create database ceezr_cap_tpl_A template ceezr_cap_20261016"
-log "قالبُ B: قاعدةٌ مستقلّةٌ بهجراتِ wt-ref (B) + seat-seed.sql ⇒ ceezr_cap_tpl_B"
+$PSQL -d postgres -v ON_ERROR_STOP=1 -qc "create database ceezr_cap_tpl_a template ceezr_cap_20261016"
+log "قالبُ B: قاعدةٌ مستقلّةٌ بهجراتِ wt-ref (B) + seat-seed.sql ⇒ ceezr_cap_tpl_b"
 (CAP_MAIN_DB=ceezr_cap_bbuild CAP_TEST_DB=ceezr_cap_bbuild_t bash "$W/wt-ref/deploy/capacity-run/setup-env-20261016.sh" db \
   && CAP_MAIN_DB=ceezr_cap_bbuild CAP_TEST_DB=ceezr_cap_bbuild_t bash "$W/wt-ref/deploy/capacity-run/setup-env-20261016.sh" migrate) \
   >"$OUT/setup-env-B.log" 2>&1 || { tail -20 "$OUT/setup-env-B.log"; exit 1; }
 tail -2 "$OUT/setup-env-B.log"
 $PSQL -d ceezr_cap_bbuild -v ON_ERROR_STOP=1 -q -f "$W/wt-ref/deploy/capacity-run/config/seat-seed.sql"
-$PSQL -d postgres -v ON_ERROR_STOP=1 -qc "create database ceezr_cap_tpl_B template ceezr_cap_bbuild"
+$PSQL -d postgres -v ON_ERROR_STOP=1 -qc "create database ceezr_cap_tpl_b template ceezr_cap_bbuild"
 $PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "drop database ceezr_cap_bbuild" -c "drop database ceezr_cap_bbuild_t"
-fingerprint ceezr_cap_tpl_A > "$OUT/tpl-fingerprint-A.txt"; fingerprint ceezr_cap_tpl_B > "$OUT/tpl-fingerprint-B.txt"
+fingerprint ceezr_cap_tpl_a > "$OUT/tpl-fingerprint-A.txt" || { cat "$OUT/tpl-fingerprint-A.txt"; exit 1; }
+fingerprint ceezr_cap_tpl_b > "$OUT/tpl-fingerprint-B.txt" || { cat "$OUT/tpl-fingerprint-B.txt"; exit 1; }
 cp "$OUT/tpl-fingerprint-A.txt" "$OUT/tpl-fingerprint.txt"
 for arm in A B; do
-  f=$(grep -o 'fn_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt"); i=$(grep -o 'idx_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt")
+  f=$(grep -o 'fn_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt" || true); i=$(grep -o 'idx_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt" || true)
   ef=EXP_FN_$arm; ei=EXP_IDX_$arm
   [ "$f" = "${!ef}" ] && [ "$i" = "${!ei}" ] || { echo "TPL_${arm}_FINGERPRINT_MISMATCH got[$f $i] expected[${!ef} ${!ei}] — لا موجة"; exit 1; }
   echo "TPL_${arm}_FINGERPRINT_MATCH $f $i"
@@ -76,8 +78,8 @@ for k in col_md5 nonempty; do
 done
 echo "TPL_AB_SAME_COLUMNS_AND_SEED"
 activate() { # ARM NAME
-  $PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "drop database if exists ceezr_cap_tpl with (force)" -c "create database ceezr_cap_tpl template ceezr_cap_tpl_$1"
-  local f ef=EXP_FN_$1; f=$(fingerprint ceezr_cap_tpl | grep -o 'fn_md5=[^ ]*')
+  $PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "drop database if exists ceezr_cap_tpl with (force)" -c "create database ceezr_cap_tpl template ceezr_cap_tpl_${1,,}"
+  local f ef=EXP_FN_$1; f=$(fingerprint ceezr_cap_tpl | grep -o 'fn_md5=[^ ]*') || { echo "TPL_ACTIVE_FINGERPRINT_FAIL arm=$1"; return 1; }
   [ "$f" = "${!ef}" ] || { echo "TPL_ACTIVE_MISMATCH arm=$1 $f"; return 1; }
   echo "TPL_ACTIVE arm=$1 $f" | tee "$OUT/tpl-active-$2.txt"
 }
