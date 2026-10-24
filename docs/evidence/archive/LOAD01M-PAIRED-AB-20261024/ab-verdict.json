@@ -1,0 +1,260 @@
+{
+ "rule": {
+  "minPairs": 3,
+  "effectPp": 5,
+  "nullPp": 2
+ },
+ "controlStatements": 24,
+ "waves": [
+  {
+   "slot": "A1",
+   "superseded": false,
+   "raw": "A1-i80",
+   "seat": {
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "idleSpeedProbeMs": 408.2,
+    "idlePgProbeMs": 328.8
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5561,
+    "total": 12343,
+    "pct": 45.05
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 2.95,
+   "contactQueueP50Ms": 20980.25,
+   "contactExecMeanMs": 341.72,
+   "sweepsTruncatedShare": 0.992
+  },
+  {
+   "slot": "B1",
+   "superseded": false,
+   "raw": "B1-i81",
+   "seat": {
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "idleSpeedProbeMs": 408.4,
+    "idlePgProbeMs": 330.6
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5520,
+    "total": 12323,
+    "pct": 44.79
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.02,
+   "claimMeanMs": 3.84,
+   "contactQueueP50Ms": 20510.05,
+   "contactExecMeanMs": 339.28,
+   "sweepsTruncatedShare": 0.992
+  },
+  {
+   "slot": "B2",
+   "superseded": false,
+   "raw": "B2-i82",
+   "seat": {
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "idleSpeedProbeMs": 409.5,
+    "idlePgProbeMs": 330.3
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5286,
+    "total": 12343,
+    "pct": 42.83
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.04,
+   "claimMeanMs": 4.06,
+   "contactQueueP50Ms": 21531.11,
+   "contactExecMeanMs": 336.47,
+   "sweepsTruncatedShare": 0.992
+  },
+  {
+   "slot": "A2",
+   "superseded": false,
+   "raw": "A2-i83",
+   "seat": {
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "idleSpeedProbeMs": 408.3,
+    "idlePgProbeMs": 330.8
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5664,
+    "total": 12462,
+    "pct": 45.45
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 2.97,
+   "contactQueueP50Ms": 20355.86,
+   "contactExecMeanMs": 335.24,
+   "sweepsTruncatedShare": 0.992
+  },
+  {
+   "slot": "A3",
+   "superseded": false,
+   "raw": "A3-i84",
+   "seat": {
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "idleSpeedProbeMs": 408.1,
+    "idlePgProbeMs": 331.9
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4970,
+    "total": 12161,
+    "pct": 40.87
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.09,
+   "claimMeanMs": 3.19,
+   "contactQueueP50Ms": 22400.19,
+   "contactExecMeanMs": 343,
+   "sweepsTruncatedShare": 0.992
+  },
+  {
+   "slot": "B3",
+   "superseded": false,
+   "raw": "B3-i85",
+   "seat": {
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "idleSpeedProbeMs": 409.2,
+    "idlePgProbeMs": 331.2
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5040,
+    "total": 12098,
+    "pct": 41.66
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.06,
+   "claimMeanMs": 4.14,
+   "contactQueueP50Ms": 22200.22,
+   "contactExecMeanMs": 346.82,
+   "sweepsTruncatedShare": 0.992
+  },
+  {
+   "slot": "B4",
+   "superseded": false,
+   "raw": "B4-i86",
+   "seat": {
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "idleSpeedProbeMs": 409.7,
+    "idlePgProbeMs": 330.7
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5177,
+    "total": 12219,
+    "pct": 42.37
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.07,
+   "claimMeanMs": 3.89,
+   "contactQueueP50Ms": 21896.82,
+   "contactExecMeanMs": 341.53,
+   "sweepsTruncatedShare": 0.992
+  },
+  {
+   "slot": "A4",
+   "superseded": false,
+   "raw": "A4-i87",
+   "seat": {
+    "cpuModel": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "idleSpeedProbeMs": 409.6,
+    "idlePgProbeMs": 333.8
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4833,
+    "total": 12113,
+    "pct": 39.9
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.09,
+   "claimMeanMs": 3.14,
+   "contactQueueP50Ms": 22433.13,
+   "contactExecMeanMs": 346.74,
+   "sweepsTruncatedShare": 0.992
+  }
+ ],
+ "claimMeanMsByArm": {
+  "A": 3.06,
+  "B": 3.98
+ },
+ "verdict": {
+  "decision": "NO_DETECTABLE_EFFECT",
+  "why": "|mean Δ| 0.1pp < 2",
+  "pairs": [
+   {
+    "pair": 1,
+    "a": 45.05,
+    "b": 44.79,
+    "dPp": -0.26
+   },
+   {
+    "pair": 2,
+    "a": 45.45,
+    "b": 42.83,
+    "dPp": -2.62
+   },
+   {
+    "pair": 3,
+    "a": 40.87,
+    "b": 41.66,
+    "dPp": 0.79
+   },
+   {
+    "pair": 4,
+    "a": 39.9,
+    "b": 42.37,
+    "dPp": 2.47
+   }
+  ],
+  "excluded": [],
+  "meanDPp": 0.1,
+  "armG1": {
+   "A": {
+    "n": 4,
+    "pooledPct": 42.85,
+    "min": 39.9,
+    "max": 45.45
+   },
+   "B": {
+    "n": 4,
+    "pooledPct": 42.92,
+    "min": 41.66,
+    "max": 44.79
+   }
+  }
+ }
+}
