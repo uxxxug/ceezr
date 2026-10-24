@@ -1,0 +1,3 @@
+calls,total_ms,mean_ms,stddev_ms,query
+64,15740.564,245.9463,733.3526,select claim_telegram_update_replies($1::integer, $2::integer) as result
+1867,7440.634,3.9853,2.6182,select claim_telegram_update_jobs_for_bot($1, $2, $3, $4) as result

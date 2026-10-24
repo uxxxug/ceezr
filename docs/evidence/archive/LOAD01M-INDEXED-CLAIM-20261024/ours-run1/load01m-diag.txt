@@ -1,0 +1,32 @@
+=== DIAG mock-telegram
+mock_pre_total 10 mock_post_total 7637
+by_bot_delta {"driver": 3760, "rider": 3867}
+by_method {"setMyCommands": 8, "setChatMenuButton": 2, "sendMessage": 7627}
+rejected_429 0 soft_private_1ps 48 soft_group_20pm 0
+outcomes_per_10s 0s:346/346 10s:644/287 20s:530/163 30s:579/458 40s:904/146 50s:314/314 60s:1179/199 70s:292/292 80s:1120/222 90s:213/213 100s:491/335 110s:892/150 120s:314/314 130s:1181/214 140s:193/193 150s:975/237 160s:351/145 170s:322/322 180s:1162/188 190s:197/197
+onboarding_failed_step_patterns 2
+  6608 {"adminVerification": "not_run", "capability": "not_run", "dbPendingVerified": false, "onboardingPost": 409, "phoneProofJob": "timeout", "phoneProofWebhook": 200, "session": "ok", "trial": "not_run"}
+  656 {"adminVerification": "ok", "capability": "ok", "dbPendingVerified": true, "onboardingPost": 201, "phoneProofJob": "timeout", "phoneProofWebhook": 200, "session": "ok", "trial": "ok"}
+db_audit CLEAN
+=== DIAG telegram_update_jobs (per bot)
+driver | done | 12199 | 21.59 | 26.20 | 26.54 | 179
+=== DIAG telegram_update_jobs completions per 10s (per bot)
+driver 0s:506 10s:279 20s:1011 30s:269 40s:1048 50s:335 60s:963 70s:554 80s:235 90s:1133 100s:264 110s:1131 120s:265 130s:240 140s:1164 150s:236 160s:1155 170s:240 180s:1076 190s:95
+=== DIAG notification_outbox (per kind)
+offer | dead | 33288 |  |  | 
+rider_trip_notice | delivered | 17679 | 0.76 | 68.40 | 
+rider_trip_notice | pending | 2061 |  |  | 117
+=== DIAG pg_stat_statements top by total time
+8752 | 46817 | 5.35 | select d.id as driver_id, d.city_id, st_y(d.last_location::geometry) as lat, st_x(d.last_location::geometry) as lng, (extract($1 from d.last
+15203 | 39187 | 2.58 | select claim_notification_delivery() result
+8675 | 27609 | 3.18 | select open_offer_round( $1::uuid, $2::integer, $3::timestamptz, $4::jsonb ) as result
+4935 | 23890 | 4.84 | select request_ride_with_offer($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::text::jsonb, $14::text::jsonb, $15) as result
+13701 | 20687 | 1.51 | select ack_rider_trip_events( $1::bigint, $2::uuid, $3::uuid[] ) as result
+12199 | 14980 | 1.23 | select claim_and_enqueue_telegram_update( $1, $2, $3, $4, $5 ) as result
+8281 | 14620 | 1.77 | with board as ( select driver_offer_board($1::bigint) as payload ), elig as ( select d.verification_status::text as verification_status, d.l
+64 | 13001 | 203.13 | select claim_telegram_update_replies($1::integer, $2::integer) as result
+4942 | 10778 | 2.18 | select driver_accept_offer_with_matched_notice($1::bigint, $2::uuid) as result
+4935 | 8965 | 1.82 | select driver_complete_ride_with_notice($1::bigint, $2::uuid) as result
+4935 | 8572 | 1.74 | select driver_start_ride_with_notice($1::bigint, $2::uuid) as result
+1848 | 7390 | 4.00 | select claim_telegram_update_jobs_for_bot($1, $2, $3, $4) as result
+=== DIAG END
