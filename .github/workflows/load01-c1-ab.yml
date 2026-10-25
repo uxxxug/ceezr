@@ -1,0 +1,67 @@
+name: LOAD-01 · C1 — فحصُ الأثرِ في الالتقاطِ (مقارنةٌ مقترنة، مقعد 4 vCPU)
+
+# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01-c1-ab.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
+#   التصميمُ: بوّابةٌ واحدةٌ منَ الشيفرةِ المتوافقةِ رجوعيًّا (REF = B = فرعُ C1) تُشغَّلُ أمامَ قالبَي قاعدة:
+#   قالبُ A = هجراتُ main قبلَ C1 (لا حقلَ في ردِّ الالتقاطِ ⇒ فحصٌ منفصلٌ كما كان)، وقالبُ B = هجراتُ C1
+#   (الحقلُ حاضرٌ ⇒ لا فحصًا منفصلًا). الفرقُ الوحيدُ بينَ الذراعينِ قالبُ القاعدةِ — وهوَ عينُ ما تنشرُهُ الحزمةُ (هجرةٌ + شيفرة).
+#   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
+on:
+  push:
+    branches: [exp/load01-c1-ab]
+    paths:
+      - deploy/capacity-run/b24-runner/seat-load01-c1-ab.sh
+      - deploy/capacity-run/b24-runner/PROTOCOL-load01-c1-ab.md
+      - .github/workflows/load01-c1-ab.yml
+
+permissions:
+  contents: read
+
+env:
+  # PROTOCOL-load01-c1-ab.md §2: A = main قبلَ C1 (FIFO + psig)؛ B = فرعُ C1؛ REF = B حرفيًّا (البوّابةُ والمولّدان).
+  A_SHA: fe4dba8ed6e4c8584f7f317b7f99538090489da7
+  B_SHA: 83cc4adb09df5b70dcdbd428b72960f172224d46
+  REF_SHA: 83cc4adb09df5b70dcdbd428b72960f172224d46
+  MIXED_RATE: "20"
+  MIXED_SEED: "1"
+
+jobs:
+  seat:
+    name: "c1-ab (scenarios=1500, cities=5)"
+    runs-on: ubuntu-26.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$A_SHA" "$B_SHA" "$REF_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+
+      - name: المقعد والموجة (داخل ceezrseat.slice)
+        run: |
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
+            --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=REF_SHA="$REF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-c1-ab.sh
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01c1-c1-ab
+          path: /home/user/load01c1-out/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01c1-c1-ab-failure-report
+          path: /home/user/load01c1-out/secret-audit.txt
+          if-no-files-found: ignore
