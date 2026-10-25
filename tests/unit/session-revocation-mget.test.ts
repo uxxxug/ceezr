@@ -16,9 +16,9 @@ import type {
   SessionRevocationStore,
   VerifiedViewerSession,
 } from "../../packages/application/identity/ports.ts";
+import { createMemorySessionRevocationStore } from "../../packages/infrastructure/identity/memory-session-revocation-store.ts";
 import { createRedisSessionRevocationStore } from "../../packages/infrastructure/identity/redis-session-revocation-store.ts";
 import { createRevocableSessionReader } from "../../packages/infrastructure/identity/revocable-session-reader.ts";
-import { createMemorySessionRevocationStore } from "../../packages/infrastructure/identity/memory-session-revocation-store.ts";
 import type { RedisClient } from "../../packages/infrastructure/redis/upstash.ts";
 import { ok } from "../../packages/shared/result/index.ts";
 
