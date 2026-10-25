@@ -16,7 +16,8 @@
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/roadmap/execution/STATUS.md",
-    "docs/evidence/capacity/LOAD01-C1-EFFECT-IN-CLAIM-20261025/RESULT.md"
+    "docs/evidence/capacity/LOAD01-C1-EFFECT-IN-CLAIM-20261025/RESULT.md",
+    "docs/evidence/capacity/LOAD01-C1-EFFECT-IN-CLAIM-20261025/acq-per-job.py"
   ],
   "no_other_affected_docs_reason": null
 }
