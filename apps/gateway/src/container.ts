@@ -93,6 +93,7 @@ import {
 } from "../../../packages/infrastructure/dispute/support-adapters.ts";
 import { createPaymentRepository } from "../../../packages/infrastructure/financial/payment-adapters.ts";
 import { createSubscriptionWalletRpc } from "../../../packages/infrastructure/financial/subscription-wallet-adapters.ts";
+import { createCachedCityDirectory } from "../../../packages/infrastructure/geo/cached-city-directory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import { createRedisDriverLocationHotState } from "../../../packages/infrastructure/geo/redis-driver-location-hot-state.ts";
 import {
@@ -621,7 +622,8 @@ export function buildContainer(config: AppConfig, overrides: ContainerOverrides 
 
   const settings = createSettingsRepository(sql);
   const financial = createSubscriptionWalletRpc(sql);
-  const cities = createCityDirectory(sql);
+  // LOAD-01: قائمةُ المدنِ المفعَّلةِ بذاكرةٍ حدُّ تقادمِها 5 ثوانٍ (`cached-city-directory.ts`).
+  const cities = createCachedCityDirectory(createCityDirectory(sql));
   const drivers = createDriverDirectory(sql);
   const riders = createRiderDirectory(sql);
   const orders = createOrderRepository(sql);
