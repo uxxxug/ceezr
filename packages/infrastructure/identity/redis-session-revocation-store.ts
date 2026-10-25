@@ -12,6 +12,7 @@
 
 import type {
   RevocationStoreFailure,
+  SessionRevocationStatus,
   SessionRevocationStore,
 } from "../../application/identity/ports.ts";
 import { err, ok, type Result } from "../../shared/result/index.ts";
@@ -23,6 +24,19 @@ const KEY_PREFIX = "revoked-session:";
  * الإبطالِ بالمللي ثانيةِ لا `1`، إذ المطلوبُ مقارنةٌ بـ`iat` لا وجودٌ مجرَّدٌ.
  */
 const USER_KEY_PREFIX = "revoked-user:";
+
+/**
+ * قيمةُ مفتاحِ العتبةِ إلى مللي ثوانٍ. قيمةٌ موجودةٌ لا تُقرَأُ عتبةً **ليسَت لاعتبةَ**:
+ * المفتاحُ موجودٌ فالإبطالُ مضروبٌ، والقراءةُ هي التي أعجزتْ. فتُردُّ إخفاقاً — والقارئُ يُغلِقُ.
+ */
+function readEpoch(raw: unknown): Result<number | null, RevocationStoreFailure> {
+  if (raw === null || raw === undefined) return ok(null);
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) {
+    return err({ kind: "STORE_UNAVAILABLE", detail: "revocation epoch is unreadable" });
+  }
+  return ok(parsed);
+}
 
 export function createRedisSessionRevocationStore(redis: RedisClient): SessionRevocationStore {
   return {
@@ -57,17 +71,38 @@ export function createRedisSessionRevocationStore(redis: RedisClient): SessionRe
       if (!result.ok) {
         return err({ kind: "STORE_UNAVAILABLE", detail: result.error.detail });
       }
-      const raw = result.value;
-      if (raw === null || raw === undefined) return ok(null);
+      return readEpoch(result.value);
+    },
+
+    async checkSession(
+      sessionId: string,
+      telegramUserId: string,
+    ): Promise<Result<SessionRevocationStatus, RevocationStoreFailure>> {
       /*
-       * قيمةٌ موجودةٌ لا تُقرَأُ عتبةً **ليسَت لاعتبةَ**: المفتاحُ موجودٌ فالإبطالُ
-       * مضروبٌ، والقراءةُ هي التي أعجزتْ. فتُردُّ إخفاقاً — والقارئُ يُغلِقُ.
+       * `LOAD-01`: `MGET` بدلَ `GET` ثمَّ `GET` — رحلةٌ واحدةٌ إلى Upstash لكلِّ تحقُّقٍ من
+       * جلسة. والمعنى حرفاً كالفحصَين المتتابعَين: وجودُ أيِّ قيمةٍ في مفتاحِ الجلسةِ إبطالٌ،
+       * والعتبةُ تُقرأُ بـ`readEpoch` نفسِها، وأيُّ ردٍّ لا يُفهَمُ شكلُه إخفاقٌ والقارئُ يُغلِق.
        */
-      const parsed = Number(raw);
-      if (!Number.isFinite(parsed)) {
-        return err({ kind: "STORE_UNAVAILABLE", detail: "revocation epoch is unreadable" });
+      const result = await redis.command([
+        "MGET",
+        `${KEY_PREFIX}${sessionId}`,
+        `${USER_KEY_PREFIX}${telegramUserId}`,
+      ]);
+      if (!result.ok) {
+        return err({ kind: "STORE_UNAVAILABLE", detail: result.error.detail });
       }
-      return ok(parsed);
+      const values = result.value;
+      if (!Array.isArray(values) || values.length !== 2) {
+        return err({ kind: "STORE_UNAVAILABLE", detail: "revocation status is unreadable" });
+      }
+      // ترتيبُ الحكمِ كالمتتابعِ: جلسةٌ مُبطَلةٌ تُرفَضُ «مُبطَلةً» قبلَ أن تُقرأَ العتبةُ أصلاً،
+      // فعتبةٌ لا تُقرَأُ لا تُحوِّلُ «مُبطَلة» إلى «غيرِ مُهيَّأ» (اختبارُ التكافؤِ يحرسُ هذا).
+      if (values[0] !== null && values[0] !== undefined) {
+        return ok({ sessionRevoked: true, userRevokedAtMs: null });
+      }
+      const epoch = readEpoch(values[1]);
+      if (!epoch.ok) return epoch;
+      return ok({ sessionRevoked: false, userRevokedAtMs: epoch.value });
     },
 
     async revokeAllForUser(
