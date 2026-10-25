@@ -1008,9 +1008,16 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // (أربعُ حالاتٍ: مطابقةُ الحقلِ للعمودِ في الدوالّ الثلاث، الكاتبُ الحقيقيّ مشروطٌ برمزِ
     // إيجارٍ حيّ، القيمةُ طازجةٌ بعدَ الاسترجاعِ، وFIFO معَ الحقلِ ومُحلّلُ TypeScript) —
     // قفلُ الصفّ وسلوكُ الكاتبِ الوحيدِ في PostgreSQL لا يُثبِتُه بديلٌ في الذاكرةِ.
+    // زيادةٌ (LOAD-01 · فهرسا التقاطِ الردودِ · 2026-10-25 · حزمةُ `load01-reply-claim-lane-index`):
+    // 211 — `telegram-reply-claim-plan.test.ts` (ثلاثُ حالاتٍ: الخطةُ العامةُ بالفهرسين، رؤوسُ
+    // المساراتِ بترتيبِ الإنشاء، الصفحاتُ المحدودة).
+    // زيادةٌ (LOAD-01 · قراءةُ الإقلاعِ المُدمَجة · 2026-10-25 · حزمةُ `load01-session-bootstrap-coalesce`):
+    // 212 — `session-bootstrap-snapshot.test.ts` (ثلاثُ حالاتٍ: التكافؤُ بعبارةٍ واحدة، غيرُ الرقميّ
+    // بلا عبارة، فشلُ العبارةِ خطأٌ مصنَّفٌ للقراءتَين).
+    expect(SKIP_REGISTRY).toHaveLength(213);
     // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25 · حزمةُ `load01-revocation-mget`):
-    // 211 — `session-revocation-mget-real.test.ts` (حالةٌ واحدةٌ على Redis حقيقيّ).
-    expect(SKIP_REGISTRY).toHaveLength(211);
+    // 213 — `session-revocation-mget-real.test.ts` (حالةٌ واحدةٌ على Redis حقيقيّ).
+    expect(SKIP_REGISTRY).toHaveLength(213);
     // زيادةٌ (الدفعةُ 19 · تدقيقُ PR #595): 1689 — حالةُ سباقِ فتحِ الجلسةِ على PostgreSQL
     // حقيقيٍّ في `tracking-duty-and-trip-reader.test.ts` (تعملُ في وظيفةِ التكاملِ).
     // زيادةٌ (الدفعةُ 20): 1692 — حالاتُ الملفِّ الثلاث.
@@ -1022,8 +1029,11 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · الدورةُ الثانيةُ · 2026-10-24): 1716 — حالاتُ الملفِّ الأربعُ
     // (`telegram-update-claim-plan.test.ts`).
     // زيادةٌ (LOAD-01 · C1 · 2026-10-25): 1720 — حالاتُ `telegram-update-claim-effect-in-claim.test.ts` الأربعُ.
-    // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25): 1721 — حالةُ `session-revocation-mget-real.test.ts`.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1721);
+    // زيادةٌ (LOAD-01 · فهرسا التقاطِ الردودِ · 2026-10-25): 1723 — حالاتُ `telegram-reply-claim-plan.test.ts` الثلاث.
+    // زيادةٌ (LOAD-01 · قراءةُ الإقلاعِ المُدمَجة · 2026-10-25): 1726 — حالاتُ `session-bootstrap-snapshot.test.ts` الثلاث.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1727);
+    // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25): 1727 — حالةُ `session-revocation-mget-real.test.ts`.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1727);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
