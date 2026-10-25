@@ -161,6 +161,10 @@ log "موجتا التحقّقِ منَ المسار (S1=A ثمّ S2=B عند co
 for SLOT in S1 S2; do
   V=INVALID
   wave "$SLOT" 90 "$SMOKE_CONC"
+  if [ "$V" != VALID ]; then
+    echo "إعادةُ موجةِ التحقّقِ $SLOT (نفسُ قاعدةِ الإعادةِ §4: iowait عابرٌ ونحوه ⇒ إعادةٌ واحدةٌ بفهرس 100)"
+    wave "$SLOT" 100 "$SMOKE_CONC"
+  fi
   [ "$V" = VALID ] || { echo "SMOKE_INVALID $SLOT — إيقافٌ قبلَ الموجاتِ الثماني (تحقّقُ التبديلِ فشل)"; exit 1; }
 done
 echo "SMOKE_OK — مسارُ التبديلِ (cand/قالب/شيفرة) يعملُ للذراعين"
