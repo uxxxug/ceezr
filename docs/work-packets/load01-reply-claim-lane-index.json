@@ -1,0 +1,19 @@
+{
+  "id": "load01-reply-claim-lane-index",
+  "goal": "LOAD-01 — فهرسا التقاطِ الردودِ المؤجَّلة: claim_telegram_update_replies بلغتْ 88.8–177.7ms/نداءً داخلَ PG (أقصاها 2,517ms) واحتجزتْ مقعدَ gatewayRequest 782ms وسطيًّا (~5.6% من احتجازِ المجمّعِ في موجةِ C1 B1) لأنّ قيدَ ترتيبِ المسارِ لا يجدُ فهرسًا يطابقُ محمولَ reply_status. هجرتانِ أماميّتانِ بفهرسينِ جزئيّينِ (20261025160000 و20261025160100) تُخفِّضانِ النداءَ محلّيًا 2,540→~2–3ms و810,860→~800 صفحة، بلا مساسٍ بالدالةِ ولا بحدٍّ محميّ. أثرُ G1 غيرُ مُقاسٍ؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
+  "canonical_source": ["docs/evidence/capacity/LOAD01-REPLY-CLAIM-INDEX-20261025/RESULT.md"],
+  "implementation": [
+    "supabase/migrations/20261025160000_load01_reply_claim_lane_index.sql",
+    "supabase/migrations/20261025160100_load01_reply_claim_created_index.sql",
+    "tests/integration/telegram-reply-claim-plan.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-REPLY-CLAIM-INDEX-20261025/RESULT.md"
+  ],
+  "no_other_affected_docs_reason": null
+}

@@ -367,6 +367,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
 
   {
+    file: "tests/integration/telegram-reply-claim-plan.test.ts",
+    suites: ["خطةُ التقاطِ الردودِ المؤجَّلةِ — فهرسُ المسارِ وفهرسُ الترتيب"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "فهرسا التقاطِ الردودِ المؤجَّلة (LOAD-01، هجرتا 20261025160000/20261025160100): الخطةُ العامةُ لاستعلامِ claim_telegram_update_replies بلا فحصٍ تسلسليٍّ وتستعملُ الفهرسينِ بالاسم، والدفعةُ رؤوسُ مساراتٍ بترتيبِ الإنشاء، والصفحاتُ المقروءةُ محدودةٌ تحتَ تراكمٍ مزروعٍ — خطةُ المُخطِّطِ في PostgreSQL لا يُثبِتُها بديلٌ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقةً بما فيها 20261025160100. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+
+  {
     file: "tests/integration/telegram-update-claim-plan.test.ts",
     suites: ["خطةُ التقاطِ تيليجرام FIFO المُفهرسةِ — بلا Sort كاملٍ ولا أولويّةٍ نوعيّة"],
     skipped: 4,
