@@ -1511,6 +1511,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: null,
     documentedIn: null,
   },
+  {
+    migration: "20261025140000_load01_c1_effect_in_claim.sql",
+    change: "revoke_function:claim_telegram_update_jobs_for_bot(4)",
+    why: "LOAD-01 · C1 — ضمُّ فحصِ الأثرِ إلى الالتقاط: `create or replace` لدوالِّ الالتقاطِ الثلاثِ بنصِّها حرفيًّا كما في `20261025120000` (FIFO الخالصِ) معَ زيادةٍ واحدةٍ — إعادةُ `effect_recorded` (`effect_recorded_at is not null`) في حزمِ الوظائفِ الملتقَطة، فيستغني الكنّاسُ عن نداءِ `telegram_update_effect_recorded` المنفصلِ لكلِّ وظيفة (حجزُ مقعدِ `gatewayRequest` واحدٌ أقلُّ؛ الخريطةُ المُقاسةُ في `LOAD01-POOL-ACQ-20261025`: 4.15–4.21 حجزًا/وظيفة، وسقفُ التوفيرِ 0.0346 من الطلبِ الكلّيِّ). التكافؤُ: القيمةُ تُقرأُ من صفِّ الوظيفةِ داخلَ معاملةِ الالتقاطِ، والكاتبُ الوحيدُ للعمودِ (`record_telegram_update_effect`، هجرةُ `20261018100000`) يشترطُ رمزَ إيجارٍ حيًّا فيتطلبُ الأمرُ ختمًا وإتمامًا في معاملةٍ واحدةٍ — فلا تتغيّرُ القيمةُ ما دامَ الإيجارُ حيًّا، وعندَ انقضائِه يقرأُها الملتقطُ التالي طازجةً. والشيفرةُ تحتملُ القاعدةَ قبلَ الهجرةِ (غيابُ الحقلِ ⇒ الفحصُ بالنداءِ كما كان). والعودةُ إعادةُ تطبيقِ نصِّ الدوالِّ في `20261025120000` — تراجعٌ سلوكيٌّ (عودةُ نداءِ الفحصِ) لا فقدُ عقدٍ ولا تضييقُ صلاحياتٍ جديد.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**

@@ -352,6 +352,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
 
   {
+    file: "tests/integration/telegram-update-claim-effect-in-claim.test.ts",
+    suites: ["LOAD-01 · C1 — فحصُ الأثرِ داخلَ الالتقاطِ على قاعدةٍ حقيقية"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "ضمُّ فحصِ الأثرِ إلى الالتقاط (LOAD-01 · C1، هجرةُ 20261025140000): دوالُّ الالتقاطِ الثلاثُ تُعيدُ effect_recorded مطابقًا للعمود، والكاتبُ الحقيقيُّ مشروطٌ برمزِ إيجارٍ حيٍّ، والقيمةُ طازجةٌ بعدَ استرجاعِ إيجارٍ منقضٍ، والمختومةُ لا تعودُ، وFIFO محفوظٌ معَ الحقلِ — قفلُ الصفِّ وسلوكُ الكاتبِ الوحيدِ في PostgreSQL لا يُثبِتُه بديلٌ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقةً بما فيها 20261025140000. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+
+  {
     file: "tests/integration/telegram-update-claim-plan.test.ts",
     suites: ["خطةُ التقاطِ تيليجرام FIFO المُفهرسةِ — بلا Sort كاملٍ ولا أولويّةٍ نوعيّة"],
     skipped: 4,
