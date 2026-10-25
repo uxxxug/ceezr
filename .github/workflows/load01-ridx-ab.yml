@@ -1,0 +1,65 @@
+name: LOAD-01 — فهرسا التقاطِ الردودِ المؤجَّلة (مقارنةٌ مقترنة، مقعد 4 vCPU)
+
+# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01-ridx-ab.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
+#   بوّابةٌ واحدةٌ (REF = B) أمامَ قالبَي قاعدة: A = هجراتُ main 24c05a6b، وB = هجراتُ A + الفهرسانِ الجزئيّان.
+#   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
+on:
+  push:
+    branches: [exp/load01-reply-idx-ab]
+    paths:
+      - deploy/capacity-run/b24-runner/seat-load01-ridx-ab.sh
+      - deploy/capacity-run/b24-runner/PROTOCOL-load01-ridx-ab.md
+      - .github/workflows/load01-ridx-ab.yml
+
+permissions:
+  contents: read
+
+env:
+  # PROTOCOL-load01-ridx-ab.md §2: A = main بعدَ #654؛ B = فرعُ الفهرسين؛ REF = B حرفيًّا (البوّابةُ والمولّدان).
+  A_SHA: 24c05a6b30ca65717802df099971fefe9112c18e
+  B_SHA: f9ddcc12cd274a39d645e2ee7e66529dec6a8413
+  REF_SHA: f9ddcc12cd274a39d645e2ee7e66529dec6a8413
+  MIXED_RATE: "20"
+  MIXED_SEED: "1"
+
+jobs:
+  seat:
+    name: "ridx-ab (scenarios=1500, cities=5)"
+    runs-on: ubuntu-26.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$A_SHA" "$B_SHA" "$REF_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+
+      - name: المقعد والموجة (داخل ceezrseat.slice)
+        run: |
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
+            --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=REF_SHA="$REF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-ridx-ab.sh
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01ridx-ab
+          path: /home/user/load01ridx-out/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01ridx-ab-failure-report
+          path: /home/user/load01ridx-out/secret-audit.txt
+          if-no-files-found: ignore
