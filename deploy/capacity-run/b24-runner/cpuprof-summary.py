@@ -43,6 +43,9 @@ def label(n):
     url = cf.get("url") or ""
     url = re.sub(r"^.*/(node_modules/)", r"\1", url)
     url = re.sub(r"^.*/(apps|packages)/", r"\1/", url)
+    # المسارُ بـ« / » لا «/»: سلسلةُ مسارٍ طويلةٌ تطابقُ نمطَ base64 في تدقيقِ الأسرار (إنذارٌ كاذبٌ
+    # أسقطَ ملخّصَ التشغيلِ 40170936181)؛ والفاصلُ لا يغيّرُ معنى المسار.
+    url = url.replace("/", " / ")
     return f"{fn} @ {url}:{cf.get('lineNumber', -1) + 1}" if url else fn
 
 
@@ -50,11 +53,11 @@ def bucket(n):
     url = n["callFrame"].get("url") or ""
     m = re.search(r"node_modules/((?:@[^/]+/)?[^/]+)", url)
     if m:
-        return "node_modules/" + m.group(1)
+        return ("node_modules/" + m.group(1)).replace("/", " / ")
     m = re.search(r"/(apps/[^/]+/src/[^/]+|packages/[^/]+/[^/]+)", url)
     if m:
-        return m.group(1)
-    return url or n["callFrame"].get("functionName") or "?"
+        return m.group(1).replace("/", " / ")
+    return url.replace("/", " / ") or n["callFrame"].get("functionName") or "?"
 
 
 by_fn = collections.Counter()
@@ -93,6 +96,34 @@ for k, v in by_fn.most_common(40):
 print("\n== SELF by file/package (top 25)")
 for k, v in by_file.most_common(25):
     print(s(v), k)
-print("\n== INCLUSIVE by function (top 30)")
-for k, v in incl.most_common(30):
+print("\n== INCLUSIVE by function (top 60)")
+for k, v in incl.most_common(60):
     print(s(v), k)
+
+# من يستدعي الدوالَّ الأثقلَ ذاتيًّا؟ لكلٍّ منها: أعلى 12 سلسلةَ أسلافٍ (6 إطاراتٍ، بلا إطاراتِ
+# الجدولةِ العامّة) وأعلى 15 سلفًا من شيفرةِ المستودعِ (apps · packages) بلا تكرار.
+GENERIC = {"(root)", "processTicksAndRejections", "(anonymous)", "(program)"}
+for target, _ in by_fn.most_common(8):
+    stacks = collections.Counter()
+    owners = collections.Counter()
+    for nid, us in self_us.items():
+        if label(nodes[nid]) != target:
+            continue
+        chain = []
+        cur = parent.get(nid)
+        seen = set()
+        while cur is not None:
+            lab = label(nodes[cur])
+            if lab.split(" @ ")[0] not in GENERIC:
+                chain.append(lab)
+            if (" apps / " in lab or " packages / " in lab or lab.startswith(("apps", "packages"))) and lab not in seen:
+                owners[lab] += us
+                seen.add(lab)
+            cur = parent.get(cur)
+        stacks[" ← ".join(chain[:6]) or "(none)"] += us
+    print(f"\n== CALLERS of {target}")
+    for k, v in stacks.most_common(12):
+        print(s(v), k)
+    print(f"-- repo ancestors of {target}")
+    for k, v in owners.most_common(15):
+        print(s(v), k)

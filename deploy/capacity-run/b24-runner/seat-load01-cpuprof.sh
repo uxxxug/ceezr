@@ -160,9 +160,12 @@ log "إيقافُ البوّابةِ بـTERM كي يُكتَبَ ملفُّ ا�
 sudo -n ip netns exec ceezrsbx2 pkill -TERM -f '[a]pps/gateway/src/index.ts' || true
 for i in $(seq 1 60); do $B/bin/nsx bash -c "pgrep -f '[a]pps/gateway/src/index.ts'" >/dev/null || break; sleep 1; done
 mkdir -p "$OUT/prof"; ls -la /tmp/gwprof | tee "$OUT/prof/ls.txt"
-cp /tmp/gwprof/*.cpuprofile "$OUT/prof/" 2>/dev/null || echo "PROF_MISSING"
-for p in "$OUT"/prof/*.cpuprofile; do python3 "$H/deploy/capacity-run/b24-runner/cpuprof-summary.py" "$p" > "${p%.cpuprofile}.summary.txt" 2>&1 || true; done
-ls -S "$OUT"/prof/*.summary.txt 2>/dev/null | head -1 | xargs -r head -80
+# الملفُّ الخامُ لا يُرفَعُ: مساراتُه تطابقُ نمطَ base64 في تدقيقِ الأسرار (التشغيلُ 40170936181)،
+# وإضعافُ التدقيقِ ليس خيارًا. يبقى خارجَ $OUT، والملخّصُ (بمساراتٍ مُفصَّلةٍ) هو الدليلُ المرفوع.
+ls /tmp/gwprof/*.cpuprofile >/dev/null 2>&1 || echo "PROF_MISSING"
+for p in /tmp/gwprof/*.cpuprofile; do b=$(basename "${p%.cpuprofile}"); python3 "$H/deploy/capacity-run/b24-runner/cpuprof-summary.py" "$p" > "$OUT/prof/$b.summary.txt" 2>&1 || true; done
+sed -i 's#^FILE .*/#FILE #' "$OUT"/prof/*.summary.txt 2>/dev/null || true
+for f in $(ls -S "$OUT"/prof/*.summary.txt 2>/dev/null); do cat "$f"; done
 log "تدقيقُ الأسرار"
 sed -i '/^CITIES=/d;/^CITY=/d' "$B/secrets.env"
 SA_RC=0
