@@ -73,12 +73,19 @@ $PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "drop database ceezr_cap_bbuild" -c "
 fingerprint ceezr_cap_tpl_a > "$OUT/tpl-fingerprint-A.txt" || { cat "$OUT/tpl-fingerprint-A.txt"; exit 1; }
 fingerprint ceezr_cap_tpl_b > "$OUT/tpl-fingerprint-B.txt" || { cat "$OUT/tpl-fingerprint-B.txt"; exit 1; }
 cp "$OUT/tpl-fingerprint-A.txt" "$OUT/tpl-fingerprint.txt"
+# PROTOCOL §2 (تعديلٌ قبلَ أيِّ موجة): fn_md5 مطابقٌ حرفيًّا للتاريخيّ؛ وidx_md5 الخامُّ يتبعُ تاريخَ التشغيل (أقسامٌ يوميّةٌ
+# بـcurrent_date) فلا يُقارَنُ بثابت — بل تُقارَنُ مجموعتا الفهارسِ (مطبَّعتَي التاريخ) بينَ القالبين: B − A = فهرسُ #647 وحدَه، وA − B = ∅.
 for arm in A B; do
-  f=$(grep -o 'fn_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt" || true); i=$(grep -o 'idx_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt" || true)
-  ef=EXP_FN_$arm; ei=EXP_IDX_$arm
-  [ "$f" = "${!ef}" ] && [ "$i" = "${!ei}" ] || { echo "TPL_${arm}_FINGERPRINT_MISMATCH got[$f $i] expected[${!ef} ${!ei}] — لا موجة"; exit 1; }
-  echo "TPL_${arm}_FINGERPRINT_MATCH $f $i"
+  f=$(grep -o 'fn_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt" || true)
+  ef=EXP_FN_$arm
+  [ "$f" = "${!ef}" ] || { echo "TPL_${arm}_FINGERPRINT_MISMATCH got[$f] expected[${!ef}] — لا موجة"; exit 1; }
+  echo "TPL_${arm}_FN_MATCH $f $(grep -o 'idx_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt") $(grep -o 'idxn_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt")"
 done
+idxset() { $PSQL -d "$1" -Atc "select distinct regexp_replace(indexname, '_[0-9]{8}(_|\M)', '_YYYYMMDD\1', 'g')||' '||md5(regexp_replace(indexdef, '_[0-9]{8}(_|\M)', '_YYYYMMDD\1', 'g')) from pg_indexes where schemaname='public' and tablename not in ('spatial_ref_sys') order by 1" | LC_ALL=C sort; }
+idxset ceezr_cap_tpl_a > "$OUT/tpl-idxset-A.txt"; idxset ceezr_cap_tpl_b > "$OUT/tpl-idxset-B.txt"
+B_ONLY=$(comm -13 "$OUT/tpl-idxset-A.txt" "$OUT/tpl-idxset-B.txt" | cut -d' ' -f1 | tr '\n' ' '); A_ONLY=$(comm -23 "$OUT/tpl-idxset-A.txt" "$OUT/tpl-idxset-B.txt" | cut -d' ' -f1 | tr '\n' ' ')
+[ "$(echo $B_ONLY)" = "telegram_update_jobs_contact_pending_idx" ] && [ -z "$(echo $A_ONLY)" ] || { echo "TPL_AB_INDEX_DIFF_UNEXPECTED B_only[$B_ONLY] A_only[$A_ONLY] — لا موجة"; exit 1; }
+echo "TPL_AB_INDEX_DIFF_OK B_only[$B_ONLY] A_only[]"
 # الأعمدةُ والصفوفُ غيرُ الفارغةِ متطابقةٌ بينَ القالبين (لا فرقَ إلّا الدوالُّ والفهارس)
 for k in col_md5 nonempty; do
   [ "$(grep -o "$k=.*" "$OUT/tpl-fingerprint-A.txt")" = "$(grep -o "$k=.*" "$OUT/tpl-fingerprint-B.txt")" ] || { echo "TPL_AB_${k}_DIFFER — لا موجة"; exit 1; }

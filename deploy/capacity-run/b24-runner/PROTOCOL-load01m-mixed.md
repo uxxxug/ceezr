@@ -22,7 +22,11 @@
 - `git diff A B` في ملفّاتِ التشغيل = الهجراتُ الثلاثُ وحدَها (كالدورةِ الثالثة).
 - `git diff B REF -- apps packages docker supabase package.json bun.lock` = `load-trace.ts` و`telegram-update-drainer.ts` وحدَهما:
   قياسُ زمنِ كلِّ وظيفة (`claimTripMs`/`claimBatch`/`claimPos` وسطرُ `k=reply`)، خامدٌ بلا `timing` ولا يمسُّ الترتيبَ ولا الالتقاط.
-- `gatewayRequest: 5` و`IMMEDIATE_REDISPATCH_LIMIT = 50` في A وB وREF. بصمتا القالبين كما في الجدول، وبصمةُ القالبِ النشطِ قبلَ كلِّ موجة.
+- `gatewayRequest: 5` و`IMMEDIATE_REDISPATCH_LIMIT = 50` في A وB وREF. `fn_md5` للقالبين مطابقٌ للجدولِ حرفيًّا، وللقالبِ النشطِ قبلَ كلِّ موجة.
+- **تعديلٌ قبلَ أيِّ موجة (التشغيل 40149430183 توقّفَ عندَ الحارسِ ولم تُجرَ موجة):** `idx_md5` الخامُّ يتبعُ تاريخَ التشغيل، لأنّ الهجرةَ
+  `20260910050000` تُنشئُ أقسامًا يوميّةً `driver_location_history_YYYYMMDD` بـ`current_date`؛ فالقيمتانِ في الجدولِ صحيحتانِ ليومِ قياسِهما فقط
+  ولا تصلحانِ ثابتًا. الحارسُ صار: مجموعتا الفهارسِ (الاسمُ والتعريفُ مطبَّعَي التاريخ) بينَ القالبين — B − A = `telegram_update_jobs_contact_pending_idx`
+  وحدَه، وA − B = ∅ — وإلّا لا موجة. ويُسجَّلُ `idx_md5` الخامُّ و`idxn_md5` المطبَّعُ لكلِّ قالب.
 
 ## 3. الحِمل (ثابتٌ حرفيًّا في الموجاتِ الثماني)
 
