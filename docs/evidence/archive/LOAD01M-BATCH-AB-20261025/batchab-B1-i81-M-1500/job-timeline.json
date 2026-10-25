@@ -1,0 +1,729 @@
+{
+  "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-B1-i81-M-1500",
+  "instrumented": {
+    "kindColumn": true,
+    "claimTrip": true,
+    "replies": true
+  },
+  "all": {
+    "kind": "all",
+    "n": 15852,
+    "status": {
+      "done": 15852
+    },
+    "untraced": 0,
+    "queue": {
+      "n": 15852,
+      "p50": 20051.63,
+      "p90": 25785.61,
+      "p99": 27794.26,
+      "mean": 20206.67
+    },
+    "claim": {
+      "n": 15852,
+      "p50": 41.29,
+      "p90": 230.42,
+      "p99": 317.72,
+      "mean": 84.22
+    },
+    "lane": {
+      "n": 15852,
+      "p50": 0.01,
+      "p90": 0.01,
+      "p99": 0.04,
+      "mean": 0.01
+    },
+    "exec": {
+      "n": 15852,
+      "p50": 126.48,
+      "p90": 690.32,
+      "p99": 905.77,
+      "mean": 249.97
+    },
+    "gateWait": {
+      "n": 15852,
+      "p50": 113.24,
+      "p90": 678.91,
+      "p99": 891.63,
+      "mean": 238.8
+    },
+    "finish": {
+      "n": 15852,
+      "p50": 20458.2,
+      "p90": 25843.72,
+      "p99": 27874.02,
+      "mean": 20456.65
+    },
+    "sendWait": {
+      "n": 3759,
+      "p50": 29461.96,
+      "p90": 29955.66,
+      "p99": 29999.41,
+      "mean": 26292.85
+    },
+    "send": {
+      "n": 3759,
+      "p50": 2111.24,
+      "p90": 3148.29,
+      "p99": 6012.5,
+      "mean": 1882.61
+    },
+    "reply": {
+      "n": 3805,
+      "p50": 50825.43,
+      "p90": 55803.03,
+      "p99": 141541.97,
+      "mean": 47518.25
+    },
+    "replyPaths": {
+      "pool": 3759,
+      "overflow": 4411,
+      "background": 60
+    },
+    "overflowed": 4411,
+    "late": {
+      "refMs": 20000,
+      "lateFinish": 8368,
+      "lateFinishPct": 52.79,
+      "overBy": {
+        "n": 8368,
+        "p50": 3909.24,
+        "p90": 6259.82,
+        "p99": 7912.1,
+        "mean": 3758.82
+      }
+    },
+    "notDone": 0,
+    "maxQueueMs": 27933.74609375
+  },
+  "nonContact": {
+    "kind": "non-contact",
+    "n": 3600,
+    "status": {
+      "done": 3600
+    },
+    "untraced": 0,
+    "queue": {
+      "n": 3600,
+      "p50": 19674.31,
+      "p90": 24269.59,
+      "p99": 26629.27,
+      "mean": 19889.88
+    },
+    "claim": {
+      "n": 3600,
+      "p50": 18.32,
+      "p90": 179.95,
+      "p99": 286.83,
+      "mean": 59.35
+    },
+    "lane": {
+      "n": 3600,
+      "p50": 0.01,
+      "p90": 0.01,
+      "p99": 0.04,
+      "mean": 0.01
+    },
+    "exec": {
+      "n": 3600,
+      "p50": 51.91,
+      "p90": 600.73,
+      "p99": 984.36,
+      "mean": 195.97
+    },
+    "gateWait": {
+      "n": 3600,
+      "p50": 40.86,
+      "p90": 589.22,
+      "p99": 972.27,
+      "mean": 185.28
+    },
+    "finish": {
+      "n": 3600,
+      "p50": 19846.02,
+      "p90": 24381.93,
+      "p99": 26733.8,
+      "mean": 20085.85
+    },
+    "sendWait": {
+      "n": 543,
+      "p50": 29756.01,
+      "p90": 29989.79,
+      "p99": 29999.82,
+      "mean": 27638.48
+    },
+    "send": {
+      "n": 543,
+      "p50": 2205.3,
+      "p90": 3301.05,
+      "p99": 7027.46,
+      "mean": 2271.48
+    },
+    "reply": {
+      "n": 539,
+      "p50": 51683.58,
+      "p90": 54665.87,
+      "p99": 58614.78,
+      "mean": 48748.33
+    },
+    "replyPaths": {
+      "pool": 543,
+      "overflow": 1350,
+      "background": 1
+    },
+    "overflowed": 1350,
+    "late": {
+      "refMs": 20000,
+      "lateFinish": 1736,
+      "lateFinishPct": 48.22,
+      "overBy": {
+        "n": 1736,
+        "p50": 2207.22,
+        "p90": 5341.27,
+        "p99": 7592.72,
+        "mean": 2631.86
+      }
+    },
+    "notDone": 0,
+    "maxQueueMs": 27905.931396484375
+  },
+  "byKind": [
+    {
+      "kind": "contact",
+      "n": 12252,
+      "status": {
+        "done": 12252
+      },
+      "untraced": 0,
+      "queue": {
+        "n": 12252,
+        "p50": 20288.07,
+        "p90": 25858.03,
+        "p99": 27850.36,
+        "mean": 20299.75
+      },
+      "claim": {
+        "n": 12252,
+        "p50": 58.96,
+        "p90": 237.03,
+        "p99": 323.14,
+        "mean": 91.52
+      },
+      "lane": {
+        "n": 12252,
+        "p50": 0.01,
+        "p90": 0.01,
+        "p99": 0.04,
+        "mean": 0.01
+      },
+      "exec": {
+        "n": 12252,
+        "p50": 173.32,
+        "p90": 699.9,
+        "p99": 870.3,
+        "mean": 265.84
+      },
+      "gateWait": {
+        "n": 12252,
+        "p50": 162.61,
+        "p90": 686.62,
+        "p99": 861.27,
+        "mean": 254.53
+      },
+      "finish": {
+        "n": 12252,
+        "p50": 20775.22,
+        "p90": 25882.3,
+        "p99": 27897.48,
+        "mean": 20565.6
+      },
+      "sendWait": {
+        "n": 3216,
+        "p50": 29427.55,
+        "p90": 29944.53,
+        "p99": 29999.19,
+        "mean": 26065.65
+      },
+      "send": {
+        "n": 3216,
+        "p50": 2095.57,
+        "p90": 3092.72,
+        "p99": 5253.8,
+        "mean": 1816.96
+      },
+      "reply": {
+        "n": 3266,
+        "p50": 50661.1,
+        "p90": 56191.72,
+        "p99": 151528.88,
+        "mean": 47315.24
+      },
+      "replyPaths": {
+        "pool": 3216,
+        "overflow": 3061,
+        "background": 59
+      },
+      "overflowed": 3061,
+      "late": {
+        "refMs": 20000,
+        "lateFinish": 6632,
+        "lateFinishPct": 54.13,
+        "overBy": {
+          "n": 6632,
+          "p50": 4424.88,
+          "p90": 6379.93,
+          "p99": 7913.86,
+          "mean": 4053.82
+        }
+      },
+      "notDone": 0,
+      "maxQueueMs": 27933.74609375
+    },
+    {
+      "kind": "command",
+      "n": 1811,
+      "status": {
+        "done": 1811
+      },
+      "untraced": 0,
+      "queue": {
+        "n": 1811,
+        "p50": 19585.37,
+        "p90": 24237.86,
+        "p99": 26979.56,
+        "mean": 19833.95
+      },
+      "claim": {
+        "n": 1811,
+        "p50": 18.32,
+        "p90": 180.79,
+        "p99": 286.83,
+        "mean": 59.92
+      },
+      "lane": {
+        "n": 1811,
+        "p50": 0.01,
+        "p90": 0.01,
+        "p99": 0.05,
+        "mean": 0.01
+      },
+      "exec": {
+        "n": 1811,
+        "p50": 48.3,
+        "p90": 526.1,
+        "p99": 800.13,
+        "mean": 170.45
+      },
+      "gateWait": {
+        "n": 1811,
+        "p50": 38.46,
+        "p90": 512.55,
+        "p99": 789.6,
+        "mean": 161.4
+      },
+      "finish": {
+        "n": 1811,
+        "p50": 19740.19,
+        "p90": 24313.16,
+        "p99": 27044.16,
+        "mean": 20004.41
+      },
+      "sendWait": {
+        "n": 264,
+        "p50": 29697,
+        "p90": 29987.87,
+        "p99": 29999.82,
+        "mean": 27244.49
+      },
+      "send": {
+        "n": 264,
+        "p50": 3078.58,
+        "p90": 4114.17,
+        "p99": 7027.46,
+        "mean": 2780.6
+      },
+      "reply": {
+        "n": 262,
+        "p50": 52203.04,
+        "p90": 55033.47,
+        "p99": 59480.55,
+        "mean": 48347.48
+      },
+      "replyPaths": {
+        "pool": 264,
+        "overflow": 678
+      },
+      "overflowed": 678,
+      "late": {
+        "refMs": 20000,
+        "lateFinish": 850,
+        "lateFinishPct": 46.94,
+        "overBy": {
+          "n": 850,
+          "p50": 2235.85,
+          "p90": 5349.58,
+          "p99": 7691.8,
+          "mean": 2662.21
+        }
+      },
+      "notDone": 0,
+      "maxQueueMs": 27905.931396484375
+    },
+    {
+      "kind": "message",
+      "n": 1789,
+      "status": {
+        "done": 1789
+      },
+      "untraced": 0,
+      "queue": {
+        "n": 1789,
+        "p50": 19729.26,
+        "p90": 24312.57,
+        "p99": 26576.27,
+        "mean": 19946.49
+      },
+      "claim": {
+        "n": 1789,
+        "p50": 18.33,
+        "p90": 179.56,
+        "p99": 283.86,
+        "mean": 58.78
+      },
+      "lane": {
+        "n": 1789,
+        "p50": 0.01,
+        "p90": 0.01,
+        "p99": 0.04,
+        "mean": 0.01
+      },
+      "exec": {
+        "n": 1789,
+        "p50": 56,
+        "p90": 684.67,
+        "p99": 1022.35,
+        "mean": 221.8
+      },
+      "gateWait": {
+        "n": 1789,
+        "p50": 44.4,
+        "p90": 667,
+        "p99": 1002.67,
+        "mean": 209.45
+      },
+      "finish": {
+        "n": 1789,
+        "p50": 19947.14,
+        "p90": 24410.28,
+        "p99": 26615.05,
+        "mean": 20168.3
+      },
+      "sendWait": {
+        "n": 279,
+        "p50": 29823.28,
+        "p90": 29993.35,
+        "p99": 29999.86,
+        "mean": 28011.28
+      },
+      "send": {
+        "n": 279,
+        "p50": 2007.35,
+        "p90": 3006.84,
+        "p99": 10010.81,
+        "mean": 1789.73
+      },
+      "reply": {
+        "n": 277,
+        "p50": 51305.22,
+        "p90": 54117.53,
+        "p99": 57371.04,
+        "mean": 49127.48
+      },
+      "replyPaths": {
+        "pool": 279,
+        "overflow": 672,
+        "background": 1
+      },
+      "overflowed": 672,
+      "late": {
+        "refMs": 20000,
+        "lateFinish": 886,
+        "lateFinishPct": 49.52,
+        "overBy": {
+          "n": 886,
+          "p50": 2192.71,
+          "p90": 5333.25,
+          "p99": 7367.01,
+          "mean": 2602.74
+        }
+      },
+      "notDone": 0,
+      "maxQueueMs": 27871.484375
+    }
+  ],
+  "fairness": {
+    "jainQueueMean": 0.9999,
+    "jainFinishMean": 0.9999,
+    "queueP50Ratio": {
+      "contact": 1.012,
+      "command": 0.977,
+      "message": 0.984
+    },
+    "kindsCounted": [
+      "contact",
+      "command",
+      "message"
+    ]
+  },
+  "pool": {
+    "pool": "ceezr:gatewayRequest",
+    "seats": 5,
+    "windows": 53,
+    "windowMs": 5001,
+    "occupancy": {
+      "n": 53,
+      "p50": 1,
+      "p90": 1,
+      "p99": 1,
+      "mean": 0.74
+    },
+    "saturatedWindows": 38,
+    "waitMsPerCall": {
+      "n": 53,
+      "p50": 131.42,
+      "p90": 222.68,
+      "p99": 264.49,
+      "mean": 121.1
+    },
+    "totalWaitS": 39964.62,
+    "totalHoldS": 982.18,
+    "byPath": [
+      {
+        "path": "http:POST /v1/driver/location",
+        "n": 43325,
+        "waitS": 6269.31,
+        "waitMsPerCall": 144.7,
+        "holdS": 122.25,
+        "maxWindowP95Ms": 332.14,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/session/telegram",
+        "n": 23078,
+        "waitS": 3917.48,
+        "waitMsPerCall": 169.75,
+        "holdS": 97.72,
+        "maxWindowP95Ms": 335.48,
+        "drainer": false
+      },
+      {
+        "path": "drainer:job:driver:contact",
+        "n": 38225,
+        "waitS": 3346.8,
+        "waitMsPerCall": 87.56,
+        "holdS": 88.66,
+        "maxWindowP95Ms": 376.01,
+        "drainer": true
+      },
+      {
+        "path": "http:POST /webhook/telegram/driver",
+        "n": 15852,
+        "waitS": 2999.64,
+        "waitMsPerCall": 189.23,
+        "holdS": 77.14,
+        "maxWindowP95Ms": 353.88,
+        "drainer": false
+      },
+      {
+        "path": "http:GET /v1/rides/:id/trip-events",
+        "n": 15416,
+        "waitS": 2933.4,
+        "waitMsPerCall": 190.28,
+        "holdS": 41.45,
+        "maxWindowP95Ms": 356.52,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/rides/:id/trip-events/ack",
+        "n": 15375,
+        "waitS": 2906.12,
+        "waitMsPerCall": 189.02,
+        "holdS": 79.85,
+        "maxWindowP95Ms": 366.64,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/onboarding/driver",
+        "n": 18460,
+        "waitS": 2902.75,
+        "waitMsPerCall": 157.25,
+        "holdS": 71.88,
+        "maxWindowP95Ms": 333.7,
+        "drainer": false
+      },
+      {
+        "path": "http:GET /v1/onboarding",
+        "n": 12270,
+        "waitS": 2066.15,
+        "waitMsPerCall": 168.39,
+        "holdS": 44.36,
+        "maxWindowP95Ms": 360.26,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/driver/availability",
+        "n": 10826,
+        "waitS": 1814.5,
+        "waitMsPerCall": 167.61,
+        "holdS": 40.29,
+        "maxWindowP95Ms": 350.93,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/rides",
+        "n": 10826,
+        "waitS": 1579.42,
+        "waitMsPerCall": 145.89,
+        "holdS": 67.45,
+        "maxWindowP95Ms": 331.14,
+        "drainer": false
+      },
+      {
+        "path": "http:GET /v1/driver/offers",
+        "n": 9537,
+        "waitS": 1572.98,
+        "waitMsPerCall": 164.93,
+        "holdS": 41.14,
+        "maxWindowP95Ms": 325.8,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/driver/offers/receipts",
+        "n": 6890,
+        "waitS": 1269.21,
+        "waitMsPerCall": 184.21,
+        "holdS": 24.64,
+        "maxWindowP95Ms": 372.55,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/driver/job/:id/complete",
+        "n": 5413,
+        "waitS": 1047.25,
+        "waitMsPerCall": 193.47,
+        "holdS": 32.95,
+        "maxWindowP95Ms": 363.06,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/driver/job/:id/arrived",
+        "n": 5413,
+        "waitS": 1035.35,
+        "waitMsPerCall": 191.27,
+        "holdS": 27.79,
+        "maxWindowP95Ms": 372.27,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/driver/job/:id/start",
+        "n": 5413,
+        "waitS": 1034.95,
+        "waitMsPerCall": 191.2,
+        "holdS": 29.84,
+        "maxWindowP95Ms": 365.31,
+        "drainer": false
+      },
+      {
+        "path": "http:POST /v1/driver/offers/:id/accept",
+        "n": 5418,
+        "waitS": 1033.05,
+        "waitMsPerCall": 190.67,
+        "holdS": 32.21,
+        "maxWindowP95Ms": 368.8,
+        "drainer": false
+      },
+      {
+        "path": "http:GET /v1/rides/:id/candidate",
+        "n": 5413,
+        "waitS": 1006.19,
+        "waitMsPerCall": 185.88,
+        "holdS": 13.36,
+        "maxWindowP95Ms": 327.26,
+        "drainer": false
+      },
+      {
+        "path": "drainer:job:driver:command",
+        "n": 7357,
+        "waitS": 578.51,
+        "waitMsPerCall": 78.63,
+        "holdS": 18.28,
+        "maxWindowP95Ms": 377.32,
+        "drainer": true
+      },
+      {
+        "path": "drainer:job:driver:message",
+        "n": 7522,
+        "waitS": 428.58,
+        "waitMsPerCall": 56.98,
+        "holdS": 19.05,
+        "maxWindowP95Ms": 375.29,
+        "drainer": true
+      },
+      {
+        "path": "drainer:sweep",
+        "n": 2162,
+        "waitS": 175.65,
+        "waitMsPerCall": 81.24,
+        "holdS": 10.86,
+        "maxWindowP95Ms": 379.87,
+        "drainer": true
+      },
+      {
+        "path": "(background)",
+        "n": 268,
+        "waitS": 31.64,
+        "waitMsPerCall": 118.05,
+        "holdS": 0.49,
+        "maxWindowP95Ms": 328.06,
+        "drainer": false
+      },
+      {
+        "path": "drainer:replies",
+        "n": 125,
+        "waitS": 15.71,
+        "waitMsPerCall": 125.66,
+        "holdS": 0.52,
+        "maxWindowP95Ms": 305.38,
+        "drainer": true
+      }
+    ],
+    "drainerWaitShare": 0.114
+  },
+  "mixed": {
+    "planned": 3600,
+    "sent": 3600,
+    "ok2xx": 3600,
+    "byKind": {
+      "message": 1789,
+      "command": 1811
+    },
+    "scheduleLag": {
+      "n": 3600,
+      "p50": 0,
+      "p90": 1,
+      "p99": 3,
+      "mean": 0.42
+    },
+    "skipped": 0
+  },
+  "mixedValidity": {
+    "valid": true,
+    "reasons": []
+  },
+  "g1": {
+    "ok": 5413,
+    "total": 12252,
+    "pct": 44.18
+  },
+  "valid": null
+}

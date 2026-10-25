@@ -1,0 +1,5 @@
+pkill: killing pid 19581 failed: Operation not permitted
+   116 /srv/ceezr-cap-20261016/runs/load01mbatch-batchab-B4-i86-M-1500/evidence/pgss-full.csv
+ 16234 /srv/ceezr-cap-20261016/runs/load01mbatch-batchab-B4-i86-M-1500/evidence/telegram-jobs.csv
+ 16350 total
+POST_DIAG_DONE

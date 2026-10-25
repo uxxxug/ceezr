@@ -1,0 +1,5 @@
+{"t": 1792937286593, "workers": [{"wall_ms": 383.1, "cpu_ms": 383.1}, {"wall_ms": 382.2, "cpu_ms": 382.2}], "max_wall_ms": 383.1, "total_ms": 383.8}
+{"t": 1792937289479, "workers": [{"wall_ms": 382.0, "cpu_ms": 382.0}, {"wall_ms": 382.4, "cpu_ms": 382.4}], "max_wall_ms": 382.4, "total_ms": 383.2}
+{"t": 1792937292368, "workers": [{"wall_ms": 382.2, "cpu_ms": 382.0}, {"wall_ms": 382.5, "cpu_ms": 382.5}], "max_wall_ms": 382.5, "total_ms": 383.3}
+{"t": 1792937295265, "workers": [{"wall_ms": 382.5, "cpu_ms": 382.4}, {"wall_ms": 383.2, "cpu_ms": 383.2}], "max_wall_ms": 383.2, "total_ms": 384.0}
+{"t": 1792937298154, "workers": [{"wall_ms": 385.4, "cpu_ms": 385.4}, {"wall_ms": 385.5, "cpu_ms": 385.4}], "max_wall_ms": 385.5, "total_ms": 386.2}

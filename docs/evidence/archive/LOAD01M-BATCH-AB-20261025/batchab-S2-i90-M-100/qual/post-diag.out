@@ -1,0 +1,5 @@
+pkill: killing pid 8144 failed: Operation not permitted
+   116 /srv/ceezr-cap-20261016/runs/load01mbatch-batchab-S2-i90-M-100/evidence/pgss-full.csv
+  8733 /srv/ceezr-cap-20261016/runs/load01mbatch-batchab-S2-i90-M-100/evidence/telegram-jobs.csv
+  8849 total
+POST_DIAG_DONE

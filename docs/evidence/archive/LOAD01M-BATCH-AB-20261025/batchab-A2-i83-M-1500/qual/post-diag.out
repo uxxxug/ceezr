@@ -1,0 +1,5 @@
+pkill: killing pid 14757 failed: Operation not permitted
+   122 /srv/ceezr-cap-20261016/runs/load01mbatch-batchab-A2-i83-M-1500/evidence/pgss-full.csv
+ 16107 /srv/ceezr-cap-20261016/runs/load01mbatch-batchab-A2-i83-M-1500/evidence/telegram-jobs.csv
+ 16229 total
+POST_DIAG_DONE

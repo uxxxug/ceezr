@@ -157,6 +157,9 @@ PY
   echo "VALIDITY_$NAME $V"; cat "$D/validity.json"; echo
   case "$SLOT" in S*) ;; *) SLOTS+=("$SLOT:$D") ;; esac
 }
+# تصليبٌ بعدَ التشغيلِ 40195896828 (حارسٌ لم يُمارسه ذلك التشغيلُ — موثّقٌ في §8): التمريرُ عبرَ netns موجودٌ.
+bash "$H/deploy/capacity-run/b24-runner/seat-bin/run-wave-handoff.test.sh" || exit 1
+
 log "موجتا التحقّقِ منَ المسار (S1=A ثمّ S2=B عند conc=$SMOKE_CONC) — PROTOCOL §4: لا تدخلانِ في الحكم"
 for SLOT in S1 S2; do
   V=INVALID
