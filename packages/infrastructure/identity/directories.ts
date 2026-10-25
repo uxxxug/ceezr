@@ -289,6 +289,28 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
         if (result[0]?.ok !== true) throw new Error("record_attendance رفض التغيير");
       }),
 
+    /**
+     * LOAD-01 (`perf/load01-availability-single-statement`) — رحلةٌ واحدةٌ بدلَ اثنتين لـ
+     * `POST /v1/driver/availability`: الـCTE يحدّدُ السائقَ (المعرّفُ فريدٌ فصفٌّ واحدٌ على الأكثر) و
+     * `record_attendance` تُستدعى مرّةً لصفِّه وحدَه؛ لا صفّ ⇒ لا كتابةَ و`not_a_driver`.
+     */
+    setAvailabilityByTelegramId: (telegramUserId: string, isAvailable: boolean) =>
+      guard("drivers.setAvailabilityByTelegramId", async () => {
+        const rows = await sql<{ found: boolean; ok: boolean | null }[]>`
+          with d as (
+            select d.id from drivers d join users u on u.id = d.user_id
+             where u.telegram_id = ${telegramUserId}::bigint
+          )
+          select exists (select 1 from d) as found,
+                 (select (record_attendance(d.id, ${isAvailable}, 'driver_bot') ->> 'ok')::boolean from d) as ok
+        `;
+        const row = rows[0];
+        if (row === undefined) throw new Error("لا ردّ من القاعدة");
+        if (!row.found) return "not_a_driver" as const;
+        if (row.ok !== true) throw new Error("record_attendance رفض التغيير");
+        return "set" as const;
+      }),
+
     changeCity: (driverId: DriverId, newCityId: CityId) =>
       guard("drivers.changeCity", async () => {
         // الدالّةُ تُعيدُ `jsonb` واحداً: `select *` كانَ يُعيدُ عموداً باسمِ الدالّةِ لا `ok`/`error`،

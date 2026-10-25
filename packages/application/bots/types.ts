@@ -429,6 +429,15 @@ export interface DriverDirectory {
     isAvailable: boolean,
   ): Promise<Result<void, PortFailureError>>;
   /**
+   * LOAD-01 — العثورُ على السائقِ بمعرّفِ تيليجرام وكتابةُ توفُّرِه (`record_attendance`) **بجملةٍ واحدة**
+   * بدلَ `findByTelegramId` ثمّ `setAvailability`. اختياريٌّ: غيابُه يُبقي المسارَ ذا الخطوتين.
+   * `not_a_driver` = لا سائقَ بهذا المعرّف (لا كتابة)؛ رفضُ `record_attendance` أو تعذّرُ القاعدةِ ⇒ خطأ.
+   */
+  setAvailabilityByTelegramId?(
+    telegramUserId: string,
+    isAvailable: boolean,
+  ): Promise<Result<"set" | "not_a_driver", PortFailureError>>;
+  /**
    * يحفظ آخر موقع للسائق — يغذّي المطابقة مباشرة.
    *
    * `quality` ليس زينةً في السجل: مُقيِّم المرحلة ٣ يُنتج ثلاثة أحكام، فإن خُزّن
