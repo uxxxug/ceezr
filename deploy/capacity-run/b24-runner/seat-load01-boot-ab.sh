@@ -1,26 +1,24 @@
 #!/usr/bin/env bash
-# LOAD-01 — فهرسا التقاطِ الردودِ المؤجَّلة: مقارنةٌ مقترنةٌ على حِملٍ مختلط (PROTOCOL-load01-ridx-ab.md):
+# LOAD-01 — قراءةُ الإقلاعِ المُدمَجةُ (#656) وفحصُ الإبطالِ بأمرٍ واحد (#657): مقارنةٌ مقترنةٌ (PROTOCOL-load01-boot-ab.md):
 #   ثماني موجاتِ m5-1500 + حِملٌ مختلطٌ ثابتٌ لبوتِ السائق بالترتيب A1 B1 B2 A2 A3 B3 B4 A4.
-#   البوّابةُ والمولّدانِ منَ REF (= B حرفيًّا) للذراعين، والفرقُ الوحيدُ قالبُ القاعدة:
-#   قالبُ A = هجراتُ main (24c05a6b) بلا الفهرسين، وقالبُ B = هجراتُ B (الفهرسانِ الجزئيّانِ معًا).
-#   الدوالُّ متطابقةٌ في القالبين (fn_md5 واحد) فلا تتغيّرُ الشيفرةُ ولا الدلالة.
+#   الفرقُ الوحيدُ شيفرةُ البوّابة: wt-ref يُبدَّلُ إلى A_SHA أو B_SHA قبلَ كلِّ موجة، وكلُّ ما عداهُ (المسارُ ref
+#   نفسُه، المولّدان، الحِملُ، القالبُ الواحد) واحدٌ للذراعين؛ وحارسٌ آليٌّ يقصرُ فرقَ A..B على الملفّاتِ المتوقَّعة.
 # لا تغييرَ في الحملِ ولا العتبات؛ gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 محروسان.
 # لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقيّ. أسرارُ المقعدِ عشوائيّةٌ محلّيّةٌ لا تُطبَع.
 set -euo pipefail
 export HOME=/home/user PATH=/home/user/.bun/bin:/home/user/.local/bin:/usr/lib/postgresql/18/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export CAP_SEAT_CG=ceezrseat.slice CAP_SIBS="system.slice init.scope user.slice"
-B=/srv/ceezr-cap-20261016; W=/home/user/workspace; H=$W/ceezr; OUT=/home/user/load01ridx-out
+B=/srv/ceezr-cap-20261016; W=/home/user/workspace; H=$W/ceezr; OUT=/home/user/load01boot-out
 A_SHA=${A_SHA:?}; B_SHA=${B_SHA:?}; REF_SHA=${REF_SHA:?}; CONC=${CONC:-1500}; CITIES=${CITIES:-JED,MKK,RUH,TIF,MED}
-# بصمةُ الدوالِّ للقالبين واحدةٌ (الفهرسانِ لا يمسّانِ دالّةً) — مقيسةٌ محلّيًا على PostgreSQL 18.6 — PROTOCOL §2
+# بصمةُ الدوالِّ لقالبِ A (هجراتُ #655) — الفهرسانِ لا يمسّانِ دالّةً فهيَ بصمةُ التشغيلِ 40170539016 نفسُها — PROTOCOL §2
 EXP_FN_A=fn_md5=9d7035c825d977ca3f8ba5d78c73af4f
-EXP_FN_B=fn_md5=9d7035c825d977ca3f8ba5d78c73af4f
-EXPECTED_AB_DIFF="supabase/migrations/20261025160000_load01_reply_claim_lane_index.sql supabase/migrations/20261025160100_load01_reply_claim_created_index.sql"
+EXPECTED_AB_DIFF="apps/gateway/src/index.ts apps/gateway/src/routes/session-telegram.ts apps/gateway/src/server.ts packages/application/identity/ports.ts packages/application/identity/session-bootstrap.ts packages/infrastructure/consent/consent-store.ts packages/infrastructure/identity/redis-session-revocation-store.ts packages/infrastructure/identity/revocable-session-reader.ts packages/infrastructure/identity/session-bootstrap-snapshot.ts packages/infrastructure/identity/viewer-account.ts"
 export MIXED_RATE=${MIXED_RATE:?} MIXED_SEC=${MIXED_SEC:-${WAVE_SEC:-180}} MIXED_SEED=${MIXED_SEED:-1}
 mkdir -p "$OUT"
 log() { echo "[$(date -u +%T)] $*"; }
 
-log "worktrees wt-ref=REF=$REF_SHA (التشغيلُ = B حرفيًّا) wt-acc=A=$A_SHA (هجراتُ قالبِ A)"
-git -C "$H" worktree add -f --detach "$W/wt-ref" "$REF_SHA" >/dev/null 2>&1
+log "worktrees wt-ref=A=$A_SHA (يُبدَّلُ لكلِّ ذراع) wt-acc=A=$A_SHA (هجراتُ القالبِ الواحد)"
+git -C "$H" worktree add -f --detach "$W/wt-ref" "$A_SHA" >/dev/null 2>&1
 git -C "$H" worktree add -f --detach "$W/wt-acc" "$A_SHA" >/dev/null 2>&1
 for wt in wt-ref wt-acc; do
   (cd "$W/$wt" && bun install --frozen-lockfile >"$OUT/bun-install-$wt.log" 2>&1)
@@ -35,11 +33,7 @@ done
 echo "FROZEN_CONSTANTS_OK gatewayRequest=5 IMMEDIATE_REDISPATCH_LIMIT=50 (A و B و REF)"
 AB_DIFF=$(git -C "$H" diff --name-only "$A_SHA" "$B_SHA" -- apps packages deploy docker supabase package.json bun.lock | sort | tr '\n' ' ')
 [ "$(echo $AB_DIFF)" = "$(echo $EXPECTED_AB_DIFF)" ] || { echo "AB_DIFF_UNEXPECTED [$AB_DIFF] — لا موجة"; exit 1; }
-echo "AB_DIFF_INDEXES_ONLY [$AB_DIFF]"
-# REF = B حرفيًّا: البوّابةُ والمولّدانِ من شيفرةِ B نفسِها (لا تغييرَ تشغيليّ عن A إلّا الهجرتان)
-REF_DIFF=$(git -C "$H" diff --name-only "$B_SHA" "$REF_SHA" -- apps packages docker supabase package.json bun.lock | sort | tr '\n' ' ')
-[ -z "$(echo $REF_DIFF)" ] || { echo "REF_DIFF_UNEXPECTED [$REF_DIFF] — لا موجة"; exit 1; }
-echo "REF_EQUALS_B [بوّابةٌ واحدةٌ للذراعين: شيفرةُ B معَ قالبَي قاعدة]"
+echo "AB_DIFF_GATEWAY_CODE_ONLY [$AB_DIFF]"
 echo "MIXED rate=$MIXED_RATE sec=$MIXED_SEC seed=$MIXED_SEED kinds=command:message=1:1"
 grep -H "^TELEGRAM_DRAIN_LANES=" "$W/wt-ref/deploy/capacity-run/config/run.env" "$W/wt-acc/deploy/capacity-run/config/run.env" || true
 
@@ -62,39 +56,27 @@ fingerprint() { $PSQL -d "$1" -v ON_ERROR_STOP=1 -q -f "$FP" 2>&1 | grep -v '^$'
 log "قالبُ A: هجراتُ A + seat-seed.sql ⇒ ceezr_cap_tpl_a"
 $PSQL -d ceezr_cap_20261016 -v ON_ERROR_STOP=1 -q -f "$W/wt-acc/deploy/capacity-run/config/seat-seed.sql"
 $PSQL -d postgres -v ON_ERROR_STOP=1 -qc "create database ceezr_cap_tpl_a template ceezr_cap_20261016"
-log "قالبُ B: قاعدةٌ مستقلّةٌ بهجراتِ wt-ref (REF = B حرفيًّا) + seat-seed.sql ⇒ ceezr_cap_tpl_b"
-(CAP_MAIN_DB=ceezr_cap_bbuild CAP_TEST_DB=ceezr_cap_bbuild_t bash "$W/wt-ref/deploy/capacity-run/setup-env-20261016.sh" db \
-  && CAP_MAIN_DB=ceezr_cap_bbuild CAP_TEST_DB=ceezr_cap_bbuild_t bash "$W/wt-ref/deploy/capacity-run/setup-env-20261016.sh" migrate) \
-  >"$OUT/setup-env-B.log" 2>&1 || { tail -20 "$OUT/setup-env-B.log"; exit 1; }
-tail -2 "$OUT/setup-env-B.log"
-$PSQL -d ceezr_cap_bbuild -v ON_ERROR_STOP=1 -q -f "$W/wt-ref/deploy/capacity-run/config/seat-seed.sql"
-$PSQL -d postgres -v ON_ERROR_STOP=1 -qc "create database ceezr_cap_tpl_b template ceezr_cap_bbuild"
-$PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "drop database ceezr_cap_bbuild" -c "drop database ceezr_cap_bbuild_t"
 fingerprint ceezr_cap_tpl_a > "$OUT/tpl-fingerprint-A.txt" || { cat "$OUT/tpl-fingerprint-A.txt"; exit 1; }
-fingerprint ceezr_cap_tpl_b > "$OUT/tpl-fingerprint-B.txt" || { cat "$OUT/tpl-fingerprint-B.txt"; exit 1; }
 cp "$OUT/tpl-fingerprint-A.txt" "$OUT/tpl-fingerprint.txt"
-for arm in A B; do
+for arm in A; do
   f=$(grep -o 'fn_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt" || true)
   ef=EXP_FN_$arm
   [ "$f" = "${!ef}" ] || { echo "TPL_${arm}_FINGERPRINT_MISMATCH got[$f] expected[${!ef}] — لا موجة"; exit 1; }
   echo "TPL_${arm}_FN_MATCH $f $(grep -o 'idx_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt") $(grep -o 'idxn_md5=[^ ]*' "$OUT/tpl-fingerprint-$arm.txt")"
 done
-# الفرقُ الوحيدُ في الفهارسِ بينَ القالبين هو الفهرسانِ الجديدانِ في B (PROTOCOL §2)، وإلّا لا موجة
-idxset() { $PSQL -d "$1" -Atc "select distinct regexp_replace(indexname, '_[0-9]{8}(_|\M)', '_YYYYMMDD\1', 'g')||' '||md5(regexp_replace(indexdef, '_[0-9]{8}(_|\M)', '_YYYYMMDD\1', 'g')) from pg_indexes where schemaname='public' and tablename not in ('spatial_ref_sys') order by 1" | LC_ALL=C sort; }
-idxset ceezr_cap_tpl_a > "$OUT/tpl-idxset-A.txt"; idxset ceezr_cap_tpl_b > "$OUT/tpl-idxset-B.txt"
-B_ONLY=$(comm -13 "$OUT/tpl-idxset-A.txt" "$OUT/tpl-idxset-B.txt" | cut -d' ' -f1 | LC_ALL=C sort | tr '\n' ' '); A_ONLY=$(comm -23 "$OUT/tpl-idxset-A.txt" "$OUT/tpl-idxset-B.txt" | cut -d' ' -f1 | tr '\n' ' ')
-[ "$(echo $B_ONLY)" = "telegram_update_jobs_reply_lane_open_idx telegram_update_jobs_reply_open_created_idx" ] && [ -z "$(echo $A_ONLY)" ] || { echo "TPL_AB_INDEX_DIFF_UNEXPECTED B_only[$B_ONLY] A_only[$A_ONLY] — لا موجة"; exit 1; }
-echo "TPL_AB_INDEX_DIFF_EXACT B_only[$B_ONLY]"
-# الأعمدةُ والصفوفُ غيرُ الفارغةِ متطابقةٌ بينَ القالبين (لا فرقَ إلّا الفهرسان)
-for k in col_md5 nonempty; do
-  [ "$(grep -o "$k=.*" "$OUT/tpl-fingerprint-A.txt")" = "$(grep -o "$k=.*" "$OUT/tpl-fingerprint-B.txt")" ] || { echo "TPL_AB_${k}_DIFFER — لا موجة"; exit 1; }
-done
-echo "TPL_AB_SAME_COLUMNS_AND_SEED"
-activate() { # ARM NAME
-  $PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "drop database if exists ceezr_cap_tpl with (force)" -c "create database ceezr_cap_tpl template ceezr_cap_tpl_${1,,}"
-  local f ef=EXP_FN_$1; f=$(fingerprint ceezr_cap_tpl | grep -o 'fn_md5=[^ ]*') || { echo "TPL_ACTIVE_FINGERPRINT_FAIL arm=$1"; return 1; }
-  [ "$f" = "${!ef}" ] || { echo "TPL_ACTIVE_MISMATCH arm=$1 $f"; return 1; }
-  echo "TPL_ACTIVE arm=$1 $f" | tee "$OUT/tpl-active-$2.txt"
+# قالبٌ واحدٌ للذراعين: لا هجرةَ في فرقِ A..B (الحارسُ أعلاه)؛ فالفهرسانِ الجديدانِ حاضرانِ في القالبِ للذراعين.
+idxn=$($PSQL -d ceezr_cap_tpl_a -Atc "select count(*) from pg_indexes where indexname in ('telegram_update_jobs_reply_lane_open_idx','telegram_update_jobs_reply_open_created_idx')")
+[ "$idxn" = 2 ] || { echo "TPL_A_REPLY_INDEXES_MISSING n=$idxn — لا موجة"; exit 1; }
+echo "TPL_SINGLE_FOR_BOTH_ARMS reply_indexes=2"
+activate() { # ARM NAME — القالبُ الواحدُ (A) للذراعين، وشيفرةُ البوّابةِ في wt-ref تُبدَّلُ إلى شيفرةِ الذراع
+  $PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "drop database if exists ceezr_cap_tpl with (force)" -c "create database ceezr_cap_tpl template ceezr_cap_tpl_a"
+  local f; f=$(fingerprint ceezr_cap_tpl | grep -o 'fn_md5=[^ ]*') || { echo "TPL_ACTIVE_FINGERPRINT_FAIL arm=$1"; return 1; }
+  [ "$f" = "$EXP_FN_A" ] || { echo "TPL_ACTIVE_MISMATCH arm=$1 $f"; return 1; }
+  local want sha=${1}_SHA; want=${!sha}
+  git -C "$W/wt-ref" checkout -q --detach "$want" || { echo "CODE_CHECKOUT_FAIL arm=$1"; return 1; }
+  [ "$(git -C "$W/wt-ref" rev-parse HEAD)" = "$want" ] || { echo "CODE_ARM_MISMATCH arm=$1"; return 1; }
+  [ -z "$(git -C "$W/wt-ref" status --porcelain --untracked-files=no)" ] || { echo "CODE_DIRTY arm=$1"; return 1; }
+  echo "TPL_ACTIVE arm=$1 $f code=$want" | tee "$OUT/tpl-active-$2.txt"
 }
 activate A pre
 
@@ -116,23 +98,27 @@ log "مرجعُ الخمول ← validity (مرّةً واحدةً قبلَ أو
 python3 "$H/deploy/capacity-run/b24-runner/derive-validity.py" "$B/qual/idle-b24" "$B/bin/validity.json"
 cp "$B/bin/validity.json" "$OUT/validity.json"; cp -r "$B/qual/idle-b24" "$OUT/idle-b24"
 
-export SEQ_PREFIX=load01ridx
+export SEQ_PREFIX=load01boot
 export GEN_WAIT_ITERS=$(( (${WAVE_SEC:-180} + 900) / 10 ))
 N=$(echo "$CITIES" | tr ',' '\n' | grep -c .)
 if [ "$N" -gt 1 ]; then export LOAD01M_CITIES="$CITIES"; unset LOAD01M_CITY; else export LOAD01M_CITY="$CITIES"; unset LOAD01M_CITIES; fi
 SLOTS=()
 wave() { # SLOT(A1…) IDX ⇒ يضبطُ V
-  local SLOT=$1 IDX=$2 ARM=${1:0:1} NAME=ridx-$1-i$2
+  local SLOT=$1 IDX=$2 ARM=${1:0:1} NAME=boot-$1-i$2
   activate "$ARM" "$NAME" || { V=INVALID; return; }
   log "موجةُ القياس $NAME arm=$ARM conc=$CONC (مدن=$N)"
-  "$B/bin/b24-seq.sh" "$NAME" "$CONC" "$IDX" "M:ref:$REF_SHA" > "$OUT/seq-$NAME.log" 2>&1 || true
-  local RUN=load01ridx-$NAME-M-$CONC E D
+  $NSX redis-cli -p 56379 config resetstat >/dev/null 2>&1 || echo "REDIS_RESETSTAT_FAIL $NAME"
+  local ARMSHA=${ARM}_SHA
+  "$B/bin/b24-seq.sh" "$NAME" "$CONC" "$IDX" "M:ref:${!ARMSHA}" > "$OUT/seq-$NAME.log" 2>&1 || true
+  local RUN=load01boot-$NAME-M-$CONC E D
   grep -E "^SEQ|QUAL_DONE|WAVE_DONE|INVALID|PREFLIGHT|INFLIGHT|TEMPLATE" "$OUT/seq-$NAME.log" || true
   E=$B/runs/$RUN/evidence; D=$OUT/raw/$RUN; mkdir -p "$D"
   local CRC=0; bun "$H/deploy/capacity-run/monitor/collect-evidence.ts" "$E" "$D" > "$D/collect.out" 2>&1 || CRC=$?
   echo "$NAME COLLECT_RC=$CRC"
   cp -r "$B/qual/$RUN" "$D/qual" 2>/dev/null || true
   cp "$OUT/tpl-active-$NAME.txt" "$D/tpl-active.txt"; echo "$ARM" > "$D/arm.txt"
+  $NSX redis-cli -p 56379 info commandstats > "$D/redis-cmdstats.txt" 2>&1 || echo "REDIS_CMDSTATS_FAIL $NAME"
+  grep -E "cmdstat_(get|mget|set|eval|evalsha|incr|expire|pexpire):" "$D/redis-cmdstats.txt" | sed "s/^/REDIS_$NAME /" || true
   bun "$H/deploy/capacity-run/monitor/job-timeline.ts" "$D" > "$D/job-timeline.json" 2>"$D/job-timeline.err" || true
   python3 - "$D/job-timeline.json" <<'PY' || true
 import json,sys
@@ -173,12 +159,12 @@ import json;d=json.load(open('$OUT/ab-verdict.json'));v=d['verdict']
 print('AB_RESULT',json.dumps({'decision':v['decision'],'why':v['why'],'meanDPp':v['meanDPp'],'pairs':v['pairs'],'excluded':v['excluded'],'armG1':v['armG1'],'claimMeanMsByArm':d['claimMeanMsByArm']},ensure_ascii=False))
 for w in d['waves']: print('AB_WAVE',w['slot'],'superseded' if w['superseded'] else '',w['valid'],w['pairedComparability']['verdict'],w['g1'],w['claimMeanMs'],w['hardwareFactor'])
 " || true
-log "محكُّ الآليّة (PROTOCOL §6 RIDX_RULE)"
-python3 "$H/deploy/capacity-run/b24-runner/ridx-mech.py" "${SLOTS[@]}" > "$OUT/ridx-mech.json" 2>"$OUT/ridx-mech.err" || cat "$OUT/ridx-mech.err"
+log "محكُّ الآليّة (PROTOCOL §6 BOOT_RULE)"
+python3 "$H/deploy/capacity-run/b24-runner/boot-mech.py" "${SLOTS[@]}" > "$OUT/boot-mech.json" 2>"$OUT/boot-mech.err" || cat "$OUT/boot-mech.err"
 python3 -c "
-import json;d=json.load(open('$OUT/ridx-mech.json'))
-print('RIDX_RESULT',d['verdict'],'pgMeanA',d['pgMeanA'],'pgMeanB',d['pgMeanB'])
-for w in d['waves']: print('RIDX_WAVE',w['slot'],w['pg'],w['holdMeanMs'],w['holdShare'])
+import json;d=json.load(open('$OUT/boot-mech.json'))
+print('BOOT_RESULT',json.dumps({k:d[k] for k in ('verdict','why')},ensure_ascii=False))
+for w in d['waves']: print('BOOT_WAVE',json.dumps(w,ensure_ascii=False))
 " || true
 echo "{\"a_sha\":\"$A_SHA\",\"b_sha\":\"$B_SHA\",\"ref_sha\":\"$REF_SHA\",\"mixed_rate\":$MIXED_RATE,\"mixed_sec\":$MIXED_SEC,\"mixed_seed\":$MIXED_SEED,\"conc\":$CONC,\"cities\":\"$CITIES\",\"slots\":\"${SLOTS[*]}\"}" > "$OUT/wave-summary.json"
 
