@@ -1008,7 +1008,9 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // (أربعُ حالاتٍ: مطابقةُ الحقلِ للعمودِ في الدوالّ الثلاث، الكاتبُ الحقيقيّ مشروطٌ برمزِ
     // إيجارٍ حيّ، القيمةُ طازجةٌ بعدَ الاسترجاعِ، وFIFO معَ الحقلِ ومُحلّلُ TypeScript) —
     // قفلُ الصفّ وسلوكُ الكاتبِ الوحيدِ في PostgreSQL لا يُثبِتُه بديلٌ في الذاكرةِ.
-    expect(SKIP_REGISTRY).toHaveLength(210);
+    // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25 · حزمةُ `load01-revocation-mget`):
+    // 211 — `session-revocation-mget-real.test.ts` (حالةٌ واحدةٌ على Redis حقيقيّ).
+    expect(SKIP_REGISTRY).toHaveLength(211);
     // زيادةٌ (الدفعةُ 19 · تدقيقُ PR #595): 1689 — حالةُ سباقِ فتحِ الجلسةِ على PostgreSQL
     // حقيقيٍّ في `tracking-duty-and-trip-reader.test.ts` (تعملُ في وظيفةِ التكاملِ).
     // زيادةٌ (الدفعةُ 20): 1692 — حالاتُ الملفِّ الثلاث.
@@ -1020,7 +1022,8 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · الدورةُ الثانيةُ · 2026-10-24): 1716 — حالاتُ الملفِّ الأربعُ
     // (`telegram-update-claim-plan.test.ts`).
     // زيادةٌ (LOAD-01 · C1 · 2026-10-25): 1720 — حالاتُ `telegram-update-claim-effect-in-claim.test.ts` الأربعُ.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1720);
+    // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25): 1721 — حالةُ `session-revocation-mget-real.test.ts`.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1721);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {
