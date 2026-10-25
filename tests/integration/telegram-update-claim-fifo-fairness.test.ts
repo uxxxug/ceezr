@@ -1,10 +1,13 @@
 /**
- * الغرض: LOAD-01 (فجوةُ السعةِ 2026-10-24) — أولويةُ وظائفِ contact في التقاطِ وظائفِ
- *   تحديثِ تيليجرام على PostgreSQL حقيقيّ. إثباتُ الهاتفِ (contact) مسارٌ حرجٌ ذو مهلةٍ
- *   (20ث في المولّدِ)؛ فلا يجوزُ أن تنتظرَ خلفَ طابورٍ من الوظائفِ غيرِ الحرجةِ (رسائلَ/
- *   أزرارٍ) في الترتيبِ FIFO الخالصِ. هذا الملفُّ يُثبتُ الخللَ قبلَ الهجرةِ (أحمر) ويحرسُه
- *   بعدَها (أخضر)، ويحرسُ معَهُ: FIFO داخلَ الفئةِ، ترقيةَ تقادمِ 120ث (منعَ التجويعِ)،
- *   وحفاظَ D4 (ترتيبِ المستخدمِ الواحدِ) معَ الأولويةِ النوعيةِ.
+ * الغرض: LOAD-01 (قرارُ المالكِ بعدَ PR #651، 2026-10-25) — عدالةُ الالتقاطِ FIFO في دوالِّ التقاطِ
+ *   وظائفِ تحديثِ تيليجرام على PostgreSQL حقيقيّ، بعدَ إيقافِ أولويّةِ contact بالهجرةِ
+ *   `20261025120000_load01_claim_fifo_fairness_restore.sql`.
+ *
+ *   الدليلُ: على حِملٍ مختلطٍ (`docs/evidence/capacity/LOAD01M-MIXED-AB-20261025/RESULT.md`) انتظرتِ
+ *   الوظائفُ غيرُ contact تحتَ ترتيبِ #645/#647 نحو 6.2 ضعفِ خطِّ الأساسِ حتى عتبةِ التقادمِ 120ث،
+ *   وقيمةُ الأولويّةِ لـcontact غيرُ مُثبَتة. هذا الملفُّ أحمرُ على ترتيبِ #645/#647 وأخضرُ بعدَ الهجرة:
+ *   لا قفزَ بالنوعِ في الدفعةِ ولا في المفرد، وFIFO داخلَ النوعِ وعبرَه، وD4 (ترتيبُ المستخدمِ الواحد) محفوظ،
+ *   ونصُّ الدوالِّ الثلاثِ بلا أيِّ محمولٍ على contact ولا ترقيةِ تقادم.
  * يتطلّبُ TEST_DATABASE_URL بقاعدةٍ مهاجَرة. معرّفاتٌ فريدةٌ وcreated_at مضبوطٌ نسبيًّا إلى الآن.
  * ينتمي إلى: tests/integration
  */
@@ -66,7 +69,7 @@ async function seal(ids: number[]) {
              where bot = 'driver' and update_id = any(${ids}::bigint[])`;
 }
 
-d("أولويةُ contact في التقاطِ وظائفِ تحديثِ تيليجرام — قاعدةٌ حقيقية", () => {
+d("عدالةُ الالتقاطِ FIFO في وظائفِ تحديثِ تيليجرام بلا أولويّةٍ نوعيّة — قاعدةٌ حقيقية", () => {
   beforeAll(async () => {
     sql = createSql({ connectionString: URL ?? "" });
   });
@@ -76,16 +79,15 @@ d("أولويةُ contact في التقاطِ وظائفِ تحديثِ تيلي
     await sql.end({ timeout: 2 });
   });
 
-  it("وظيفةُ contact أحدثُ تُلتقطُ قبلَ رسائلَ أقدمَ منها (الحملُ المختلطُ)", async () => {
+  it("الحِملُ المختلط: contact أحدثُ لا تقفزُ فوقَ رسائلَ أقدمَ منها — الدفعةُ بترتيبِ الإنشاء", async () => {
     const u1 = 92_000_001,
       u2 = 92_000_002,
       u3 = 92_000_003;
     await enqueue(BASE + 1, u1, 30); // رسالةٌ منذُ 30ث
     await enqueue(BASE + 2, u2, 20); // رسالةٌ منذُ 20ث
-    await enqueueContact(BASE + 3, u3, 10); // contact منذُ 10ث — يجبُ أن يكونَ أولًا
+    await enqueueContact(BASE + 3, u3, 10); // contact منذُ 10ث — الأحدث، فالأخيرة
     const ids = await claimBatch(3);
-    expect(ids[0]).toBe(BASE + 3); // الأولويةُ النوعيةُ
-    expect(ids.slice(1).sort((a, b) => a - b)).toEqual([BASE + 1, BASE + 2]); // FIFO للرسائل
+    expect(ids).toEqual([BASE + 1, BASE + 2, BASE + 3]);
     await seal([BASE + 1, BASE + 2, BASE + 3]);
   });
 
@@ -99,19 +101,19 @@ d("أولويةُ contact في التقاطِ وظائفِ تحديثِ تيلي
     await seal([BASE + 11, BASE + 12]);
   });
 
-  it("منعُ التجويعِ: رسالةٌ معلقةٌ أكثرَ من 120ث تُرقَّى فوقَ contact حديثةٍ", async () => {
+  it("لا عتبةَ تقادم: رسالةٌ عمرُها 60ث (دونَ 120ث) تسبقُ contact أحدثَ منها، والدفعةُ المحدودةُ تأخذُ الأقدم", async () => {
     const u6 = 92_000_006,
       u7 = 92_000_007;
-    await enqueue(BASE + 21, u6, 200); // رسالةٌ منذُ 200ث — تُرقَّى بترقيةِ التقادمِ
-    await enqueueContact(BASE + 22, u7, 10); // contact حديثة
-    const ids = await claimBatch(2);
-    // الرسالةُ المرقَّاةُ (200ث) تسبقُ contact الحديثةَ — حدُّ التجويعِ مقيَّدٌ بـ120ث.
-    expect(ids[0]).toBe(BASE + 21);
-    expect(ids[1]).toBe(BASE + 22);
+    await enqueue(BASE + 21, u6, 60); // رسالةٌ طازجةٌ بمعيارِ #647 (< 120ث)
+    await enqueueContact(BASE + 22, u7, 10);
+    const first = await claimBatch(1); // تحتَ #647 كانت contact تُلتقطُ هنا
+    expect(first).toEqual([BASE + 21]);
+    const second = await claimBatch(1);
+    expect(second).toEqual([BASE + 22]);
     await seal([BASE + 21, BASE + 22]);
   });
 
-  it("D4 محفوظٌ معَ الأولويةِ: contact لا تُلتقطُ أمامَ وظيفةٍ أقدمَ لنفسِ المستخدمِ", async () => {
+  it("D4 محفوظ: وظيفةٌ أحدثُ لا تُلتقطُ أمامَ وظيفةٍ أقدمَ معلّقةٍ لنفسِ المستخدم", async () => {
     const u8 = 92_000_008;
     await enqueue(BASE + 31, u8, 30); // رسالةٌ أقدمُ لنفسِ المستخدمِ — مستحقة
     await enqueueContact(BASE + 32, u8, 20); // contact أحدثُ لنفسِ المستخدمِ — يحجبُها D4
@@ -119,20 +121,39 @@ d("أولويةُ contact في التقاطِ وظائفِ تحديثِ تيلي
     expect(ids).toContain(BASE + 31);
     expect(ids).not.toContain(BASE + 32);
     await seal([BASE + 31]);
-    // بعدَ ختمِ الأقدمِ تُلتقطُ contact.
     const second = await claimBatch(2);
     expect(second).toContain(BASE + 32);
     await seal([BASE + 32]);
   });
 
-  it("الالتقاطُ المفردُ كذلك يقدّمُ contact", async () => {
+  it("الالتقاطُ المفردُ يأخذُ الأقدم، ونصُّ الدوالِّ الثلاثِ بلا محمولِ contact ولا ترقيةِ تقادم", async () => {
     const u9 = 92_000_009,
       u10 = 92_000_010;
     await enqueue(BASE + 41, u9, 30);
     await enqueueContact(BASE + 42, u10, 10);
     const [row] = await sql<{ r: { ok: boolean; delivery: { update_id: string } | null } }[]>`
       select claim_telegram_update_job_for_bot(30, 5, 'driver') as r`;
-    expect(Number(row?.r.delivery?.update_id)).toBe(BASE + 42);
+    const got = Number(row?.r.delivery?.update_id);
+    if (got < BASE || got > BASE + SPAN) {
+      // وظيفةٌ أقدمُ من خارجِ الاختبارِ على القاعدةِ المشتركة: تُعادُ ولا يُحكَمُ بها.
+      await sql`update telegram_update_jobs set status = 'pending', claim_token = null, claimed_at = null, attempts = attempts - 1
+                 where bot = 'driver' and update_id = ${got}`;
+    } else {
+      expect(got).toBe(BASE + 41);
+    }
+    const defs = await sql<{ name: string; def: string }[]>`
+      select p.proname as name, pg_get_functiondef(p.oid) as def from pg_proc p
+       where p.proname in ('claim_telegram_update_job', 'claim_telegram_update_job_for_bot', 'claim_telegram_update_jobs_for_bot')`;
+    expect(defs.map((d) => d.name).sort()).toEqual([
+      "claim_telegram_update_job",
+      "claim_telegram_update_job_for_bot",
+      "claim_telegram_update_jobs_for_bot",
+    ]);
+    for (const d of defs) {
+      expect(d.def).not.toContain("contact");
+      expect(d.def).not.toContain("120 seconds");
+      expect(d.def).toContain("order by j.created_at");
+    }
     await seal([BASE + 41, BASE + 42]);
   });
 });

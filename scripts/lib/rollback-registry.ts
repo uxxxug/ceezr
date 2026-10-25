@@ -1500,6 +1500,17 @@ export const ROLLBACK_DECLARATIONS: readonly RollbackDeclaration[] = [
     criticalPath: null,
     documentedIn: null,
   },
+  {
+    migration: "20261025120000_load01_claim_fifo_fairness_restore.sql",
+    change: "revoke_function:claim_telegram_update_jobs_for_bot(4)",
+    why: "إيقافُ أولويةِ contact واستعادةُ عدالةِ الالتقاطِ FIFO (قرارُ المالكِ بعدَ PR #651): `create or replace` لدوالِّ الالتقاطِ الثلاثِ بنصِّها حرفيًّا قبلَ #645 (`20261015000200` و`20261020090000`)، معَ إعادةِ المنحِ والسحبِ نفسَيهما على الدُّفعيّةِ — لا تضييقَ جديدًا في الصلاحيات. الدليلُ: على حِملٍ مختلطٍ (`LOAD01M-MIXED-AB-20261025`) انتظرتِ الوظائفُ غيرُ contact نحو 6.2 ضعفِ خطِّ الأساسِ حتى عتبةِ التقادمِ 120ث، وقيمةُ الأولويةِ لـcontact غيرُ مُثبَتة. والعودةُ إعادةُ تطبيقِ نصِّ الدوالِّ في `20261024140100` (والفهرسُ الجزئيُّ باقٍ) — تراجعٌ سلوكيٌّ لا فقدُ عقد.",
+    breaksPreviousRelease: false,
+    rollbackPath: "code-only",
+    coupledDeploy: false,
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    documentedIn: null,
+  },
 ];
 
 /**
