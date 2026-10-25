@@ -1,21 +1,21 @@
-name: LOAD-01 — فهرسا التقاطِ الردودِ المؤجَّلة (مقارنةٌ مقترنة، مقعد 4 vCPU)
+name: LOAD-01 — تشخيصُ معالجِ البوّابة (موجةٌ واحدةٌ بمُعرِّف، مقعد 4 vCPU)
 
-# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01-ridx-ab.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
+# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01-cpuprof.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
 #   بوّابةٌ واحدةٌ (REF = B) أمامَ قالبَي قاعدة: A = هجراتُ main 24c05a6b، وB = هجراتُ A + الفهرسانِ الجزئيّان.
 #   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
 on:
   push:
-    branches: [exp/load01-reply-idx-ab]
+    branches: [exp/load01-cpuprof]
     paths:
-      - deploy/capacity-run/b24-runner/seat-load01-ridx-ab.sh
-      - deploy/capacity-run/b24-runner/PROTOCOL-load01-ridx-ab.md
-      - .github/workflows/load01-ridx-ab.yml
+      - deploy/capacity-run/b24-runner/seat-load01-cpuprof.sh
+      - deploy/capacity-run/b24-runner/PROTOCOL-load01-cpuprof.md
+      - .github/workflows/load01-cpuprof.yml
 
 permissions:
   contents: read
 
 env:
-  # PROTOCOL-load01-ridx-ab.md §2: A = main بعدَ #654؛ B = فرعُ الفهرسين؛ REF = B حرفيًّا (البوّابةُ والمولّدان).
+  # PROTOCOL-load01-cpuprof.md §2: A = main بعدَ #654؛ B = فرعُ الفهرسين؛ REF = B حرفيًّا (البوّابةُ والمولّدان).
   A_SHA: 24c05a6b30ca65717802df099971fefe9112c18e
   B_SHA: f9ddcc12cd274a39d645e2ee7e66529dec6a8413
   REF_SHA: f9ddcc12cd274a39d645e2ee7e66529dec6a8413
@@ -24,7 +24,7 @@ env:
 
 jobs:
   seat:
-    name: "ridx-ab (scenarios=1500, cities=5)"
+    name: "cpuprof (scenarios=1500, cities=5)"
     runs-on: ubuntu-26.04
     timeout-minutes: 330
     steps:
@@ -46,13 +46,13 @@ jobs:
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
             --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=REF_SHA="$REF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
-            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-ridx-ab.sh
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-cpuprof.sh
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
         uses: actions/upload-artifact@v5
         with:
-          name: load01ridx-ab
-          path: /home/user/load01ridx-out/
+          name: load01prof
+          path: /home/user/load01prof-out/
           if-no-files-found: warn
           retention-days: 30
 
@@ -60,6 +60,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v5
         with:
-          name: load01ridx-ab-failure-report
-          path: /home/user/load01ridx-out/secret-audit.txt
+          name: load01prof-failure-report
+          path: /home/user/load01prof-out/secret-audit.txt
           if-no-files-found: ignore
