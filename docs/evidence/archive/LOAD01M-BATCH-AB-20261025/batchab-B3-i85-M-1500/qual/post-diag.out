@@ -1,0 +1,5 @@
+pkill: killing pid 17995 failed: Operation not permitted
+   116 /srv/ceezr-cap-20261016/runs/load01mbatch-batchab-B3-i85-M-1500/evidence/pgss-full.csv
+ 15986 /srv/ceezr-cap-20261016/runs/load01mbatch-batchab-B3-i85-M-1500/evidence/telegram-jobs.csv
+ 16102 total
+POST_DIAG_DONE

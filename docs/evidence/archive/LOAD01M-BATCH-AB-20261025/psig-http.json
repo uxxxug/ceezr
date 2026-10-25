@@ -1,0 +1,204 @@
+{
+ "http:GET /v1/driver/offers": {
+  "query": {
+   "A": {
+    "n": 28509,
+    "waitMs_sum": 4836044
+   },
+   "B": {
+    "n": 41571,
+    "waitMs_sum": 6724910
+   }
+  }
+ },
+ "http:GET /v1/onboarding": {
+  "query": {
+   "A": {
+    "n": 99172,
+    "waitMs_sum": 15527992
+   },
+   "B": {
+    "n": 49808,
+    "waitMs_sum": 7990270
+   }
+  }
+ },
+ "http:GET /v1/rides/:id/candidate": {
+  "query": {
+   "A": {
+    "n": 17462,
+    "waitMs_sum": 3461109
+   },
+   "B": {
+    "n": 22501,
+    "waitMs_sum": 4119422
+   }
+  }
+ },
+ "http:GET /v1/rides/:id/trip-events": {
+  "query": {
+   "A": {
+    "n": 48852,
+    "waitMs_sum": 9717202
+   },
+   "B": {
+    "n": 63444,
+    "waitMs_sum": 11764847
+   }
+  }
+ },
+ "http:POST /v1/driver/availability": {
+  "query": {
+   "A": {
+    "n": 69864,
+    "waitMs_sum": 11723807
+   },
+   "B": {
+    "n": 45002,
+    "waitMs_sum": 7314442
+   }
+  }
+ },
+ "http:POST /v1/driver/job/:id/arrived": {
+  "query": {
+   "A": {
+    "n": 17462,
+    "waitMs_sum": 3492875
+   },
+   "B": {
+    "n": 22501,
+    "waitMs_sum": 4194484
+   }
+  }
+ },
+ "http:POST /v1/driver/job/:id/complete": {
+  "query": {
+   "A": {
+    "n": 17462,
+    "waitMs_sum": 3525290
+   },
+   "B": {
+    "n": 22501,
+    "waitMs_sum": 4228492
+   }
+  }
+ },
+ "http:POST /v1/driver/job/:id/start": {
+  "query": {
+   "A": {
+    "n": 17462,
+    "waitMs_sum": 3468092
+   },
+   "B": {
+    "n": 22501,
+    "waitMs_sum": 4162970
+   }
+  }
+ },
+ "http:POST /v1/driver/location": {
+  "query": {
+   "A": {
+    "n": 139817,
+    "waitMs_sum": 20622210
+   },
+   "B": {
+    "n": 180137,
+    "waitMs_sum": 25355954
+   }
+  }
+ },
+ "http:POST /v1/driver/offers/:id/accept": {
+  "query": {
+   "A": {
+    "n": 17481,
+    "waitMs_sum": 3477381
+   },
+   "B": {
+    "n": 22523,
+    "waitMs_sum": 4209094
+   }
+  }
+ },
+ "http:POST /v1/driver/offers/receipts": {
+  "query": {
+   "A": {
+    "n": 21602,
+    "waitMs_sum": 4155402
+   },
+   "B": {
+    "n": 29466,
+    "waitMs_sum": 5338840
+   }
+  }
+ },
+ "http:POST /v1/onboarding/driver": {
+  "query": {
+   "A": {
+    "n": 99172,
+    "waitMs_sum": 15693650
+   },
+   "B": {
+    "n": 75111,
+    "waitMs_sum": 11363593
+   }
+  },
+  "txQuery": {
+   "A": {
+    "n": 103290,
+    "waitMs_sum": 74
+   },
+   "B": {
+    "n": 0,
+    "waitMs_sum": 0
+   }
+  }
+ },
+ "http:POST /v1/rides": {
+  "query": {
+   "A": {
+    "n": 34932,
+    "waitMs_sum": 5159859
+   },
+   "B": {
+    "n": 45002,
+    "waitMs_sum": 6367270
+   }
+  }
+ },
+ "http:POST /v1/rides/:id/trip-events/ack": {
+  "query": {
+   "A": {
+    "n": 48724,
+    "waitMs_sum": 9564842
+   },
+   "B": {
+    "n": 63293,
+    "waitMs_sum": 11663726
+   }
+  }
+ },
+ "http:POST /v1/session/telegram": {
+  "query": {
+   "A": {
+    "n": 169036,
+    "waitMs_sum": 29486510
+   },
+   "B": {
+    "n": 94730,
+    "waitMs_sum": 15458550
+   }
+  }
+ },
+ "http:POST /webhook/telegram/driver": {
+  "query": {
+   "A": {
+    "n": 63986,
+    "waitMs_sum": 11980625
+   },
+   "B": {
+    "n": 64128,
+    "waitMs_sum": 11681550
+   }
+  }
+ }
+}

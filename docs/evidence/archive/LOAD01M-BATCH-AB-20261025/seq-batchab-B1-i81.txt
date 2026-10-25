@@ -1,0 +1,22 @@
+SEQ M side=cand sha=7a3d0df1e4b32b0fa1a82d366fc1753d815a353d acc=7a3d0df1 ref=7a3d0df1
+=== 2026-10-25T13:30:17+00:00 START load01mbatch-batchab-B1-i81-M-1500 conc=1500 side=cand (diag+trace+conn)
+PREFLIGHT_START 1792935017337
+PREFLIGHT VALID []
+ISOLATION_OK pg=/srv/ceezr-cap-20261016/pg redis=/srv/ceezr-cap-20261016/redis netns=ceezrsbx2(lo-only)
+FRESH_DB_OK sha=7a3d0df1 gateway_pid=11388 budget=
+warning: unable to access '/home/runner/.config/git/ignore': Permission denied
+warning: unable to access '/home/runner/.config/git/ignore': Permission denied
+warning: unable to access '/home/runner/.config/git/ignore': Permission denied
+warning: unable to access '/home/runner/.config/git/ignore': Permission denied
+started mixed rate=20 sec=180 pid=11785
+started round=load01mbatch-batchab-B1-i81-M-1500 pid=11784
+gen_exit_marker 11784
+WAVE load01mbatch-batchab-B1-i81-M-1500: FAIL | failed: ['G1']
+  GATE FAIL G1 44.18% (5413/12252) limit ≥ 99.0%
+   96318 total
+WAVE_DONE load01mbatch-batchab-B1-i81-M-1500 rc=1
+INFLIGHT VALID []
+QUAL_DONE load01mbatch-batchab-B1-i81-M-1500 wave_rc=0 inflight_rc=0
+=== 2026-10-25T13:36:33+00:00 END rc=0
+TRACE_DONE
+SEQ_DONE

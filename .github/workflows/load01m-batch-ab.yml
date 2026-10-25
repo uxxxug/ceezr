@@ -1,0 +1,67 @@
+name: LOAD-01M · الدفعةُ التراكميّةُ (#654–#660) — مقارنةٌ مقترنة (مقعد 4 vCPU)
+
+# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01m-batch-ab.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
+#   التصميم: كلُّ ذراعٍ يُشغَّلُ من شيفرتِه عبرَ مسارِ cand الواحدِ نفسِه (wt-acc يُبدَّلُ التزامُه قبلَ كلِّ موجة):
+#   موجةُ A = بوّابةٌ من شيفرةِ A أمامَ قالبِ A (هجراتُ main قبلَ الدفعة)، وموجةُ B = بوّابةٌ من شيفرةِ B أمامَ قالبِ B.
+#   تسبقُهما موجتا تحقّقٍ S1/S2 عندَ conc=100 لا تدخلانِ الحكمَ، وإن فشلت إحداهما توقفَ التشغيلُ قبلَ الموجاتِ الثماني.
+#   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
+on:
+  push:
+    branches: [exp/load01m-batch-ab]
+    paths:
+      - deploy/capacity-run/b24-runner/seat-load01m-batch-ab.sh
+      - deploy/capacity-run/b24-runner/PROTOCOL-load01m-batch-ab.md
+      - .github/workflows/load01m-batch-ab.yml
+
+permissions:
+  contents: read
+
+env:
+  # PROTOCOL-load01m-batch-ab.md §2: A = main قبلَ الدفعة (FIFO + psig)؛ B = main الحالي (بعدَ #654–#660).
+  A_SHA: fe4dba8ed6e4c8584f7f317b7f99538090489da7
+  B_SHA: 7a3d0df1e4b32b0fa1a82d366fc1753d815a353d
+  REF_SHA: 7a3d0df1e4b32b0fa1a82d366fc1753d815a353d
+  MIXED_RATE: "20"
+  MIXED_SEED: "1"
+
+jobs:
+  seat:
+    name: "batch-ab (scenarios=1500, cities=5)"
+    runs-on: ubuntu-26.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: تجهيز المقعد
+        run: sudo bash deploy/capacity-run/b24-runner/provision-root.sh
+
+      - name: نسخة المستودع للمستخدم user
+        run: |
+          sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
+          sudo chown -R user:user /home/user/workspace/ceezr
+          for X in "$A_SHA" "$B_SHA" "$REF_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+
+      - name: المقعد والموجات (داخل ceezrseat.slice)
+        run: |
+          sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+            --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
+            --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=REF_SHA="$REF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=SMOKE_CONC="100" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m-batch-ab.sh
+
+      - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01mbatch-batch-ab
+          path: /home/user/load01mbatch-out/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: رفع تقرير الفشل المنقح (تدقيقُ الأسرارِ وحدَه)
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: load01mbatch-batch-ab-failure-report
+          path: /home/user/load01mbatch-out/secret-audit.txt
+          if-no-files-found: ignore

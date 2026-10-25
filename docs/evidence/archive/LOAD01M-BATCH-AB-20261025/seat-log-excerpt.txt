@@ -1,0 +1,228 @@
+﻿2026-10-25T13:04:58.6463578Z ##[group]Run sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
+2026-10-25T13:04:58.6464237Z ^[[36;1msudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \^[[0m
+2026-10-25T13:04:58.6464784Z ^[[36;1m  --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \^[[0m
+2026-10-25T13:04:58.6465775Z ^[[36;1m  --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=REF_SHA="$REF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=SMOKE_CONC="100" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \^[[0m
+2026-10-25T13:04:58.6466819Z ^[[36;1m  bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m-batch-ab.sh^[[0m
+2026-10-25T13:04:58.6532699Z shell: /usr/bin/bash -e {0}
+2026-10-25T13:04:58.6532963Z env:
+2026-10-25T13:04:58.6533204Z   A_SHA: fe4dba8ed6e4c8584f7f317b7f99538090489da7
+2026-10-25T13:04:58.6533551Z   B_SHA: 7a3d0df1e4b32b0fa1a82d366fc1753d815a353d
+2026-10-25T13:04:58.6533882Z   REF_SHA: 7a3d0df1e4b32b0fa1a82d366fc1753d815a353d
+2026-10-25T13:04:58.6534239Z   MIXED_RATE: 20
+2026-10-25T13:04:58.6534461Z   MIXED_SEED: 1
+2026-10-25T13:04:58.6534673Z ##[endgroup]
+2026-10-25T13:04:59.0853062Z [13:04:59] worktree اثنان: wt-acc (مسارُ التشغيلِ للذراعين، يبدأُ من A) وwt-ref (سجلُ b24-env.json وحده، على B)
+2026-10-25T13:05:05.2392756Z FROZEN_CONSTANTS_OK gatewayRequest=5 IMMEDIATE_REDISPATCH_LIMIT=50 (A و B)
+2026-10-25T13:05:05.2594271Z AB_DIFF_BATCH [apps/gateway/src/background/telegram-update-drainer.ts apps/gateway/src/container.ts apps/gateway/src/index.ts apps/gateway/src/routes/session-telegram.ts apps/gateway/src/server.ts packages/application/bots/types.ts packages/application/driver/driver-offers.ts packages/application/identity/ports.ts packages/application/identity/session-bootstrap.ts packages/infrastructure/consent/consent-store.ts packages/infrastructure/db/telegram-update-queue.ts packages/infrastructure/geo/cached-city-directory.ts packages/infrastructure/identity/directories.ts packages/infrastructure/identity/redis-session-revocation-store.ts packages/infrastructure/identity/revocable-session-reader.ts packages/infrastructure/identity/session-bootstrap-snapshot.ts packages/infrastructure/identity/viewer-account.ts supabase/migrations/20261025140000_load01_c1_effect_in_claim.sql supabase/migrations/20261025160000_load01_reply_claim_lane_index.sql supabase/migrations/20261025160100_load01_reply_claim_created_index.sql ]
+2026-10-25T13:05:05.2598530Z MIXED rate=20 sec=180 seed=1 kinds=command:message=1:1
+2026-10-25T13:05:05.2603329Z /home/user/workspace/wt-acc/deploy/capacity-run/config/run.env:TELEGRAM_DRAIN_LANES=32
+2026-10-25T13:05:05.2638565Z [13:05:05] setup-env (infra|db|migrate) من wt-acc ⇒ قاعدةٌ بهجراتِ A
+2026-10-25T13:05:24.2238726Z ✅ طُبِّقَت 295 هجرةً بالترتيبِ · مهلةُ قفلٍ 3s.
+2026-10-25T13:05:24.2239690Z ✅ طُبِّقَت 295 هجرةً بالترتيبِ · مهلةُ قفلٍ 3s.
+2026-10-25T13:05:24.2240637Z MIGRATE_OK
+2026-10-25T13:05:24.7038153Z [13:05:24] قالبُ A: هجراتُ A + seat-seed.sql ⇒ ceezr_cap_tpl_a
+2026-10-25T13:05:24.9584413Z [13:05:24] قالبُ B: قاعدةٌ مستقلّةٌ بهجراتِ wt-acc@B + seat-seed.sql ⇒ ceezr_cap_tpl_b
+2026-10-25T13:05:25.5443318Z [13:05:25] wt-acc الآن على B=7a3d0df1e4b32b0fa1a82d366fc1753d815a353d (سيُبدَّلُ التزامُه قبلَ كلِّ موجةٍ عبرَ b24-seq)
+2026-10-25T13:05:41.4952397Z ✅ طُبِّقَت 298 هجرةً بالترتيبِ · مهلةُ قفلٍ 3s.
+2026-10-25T13:05:41.4953038Z MIGRATE_OK
+2026-10-25T13:05:42.3032466Z TPL_A_FN_MATCH fn_md5=84c3b6b457283d6922b139c3dfbcd6c4 idx_md5=c61fca86173deff8fbdeda9e1b0301bb idxn_md5=a81178c899c482fd317cda06af8bc793
+2026-10-25T13:05:42.3082639Z TPL_B_FN_MATCH fn_md5=9d7035c825d977ca3f8ba5d78c73af4f idx_md5=5c2f27efe8fc5269ed453dbe09aa0152 idxn_md5=4ec8df10bbce6643442cd84f42570b86
+2026-10-25T13:05:42.4455012Z TPL_AB_INDEX_DIFF_AS_EXPECTED [telegram_update_jobs_reply_lane_open_idx cd7b68b55ce8031b587cd52f661d056b telegram_update_jobs_reply_open_created_idx 28c0bb882e290b1cc885ed1cff5f4541]
+2026-10-25T13:05:42.4520469Z TPL_AB_SAME_COLUMNS_AND_SEED
+2026-10-25T13:05:42.4963064Z NOTICE:  database "ceezr_cap_tpl" does not exist, skipping
+2026-10-25T13:05:42.7134931Z TPL_ACTIVE arm=A fn_md5=84c3b6b457283d6922b139c3dfbcd6c4
+2026-10-25T13:05:50.7671728Z telegram-mock=up
+2026-10-25T13:05:50.7799360Z shim=up
+2026-10-25T13:05:50.7920205Z gateway=down
+2026-10-25T13:05:50.8137752Z ready=000
+2026-10-25T13:05:51.0104538Z ISOLATION_OK pg=/srv/ceezr-cap-20261016/pg redis=/srv/ceezr-cap-20261016/redis netns=ceezrsbx2(lo-only)
+2026-10-25T13:05:51.0144841Z [13:05:51] مرجعُ الخمول ← validity (مرّةً واحدةً قبلَ أوّلِ موجة)
+2026-10-25T13:11:12.6780641Z {"speed_max": 421, "pg_max": 421, "cpu_max": "max 100000", "ncpu": 4}
+2026-10-25T13:11:12.6938638Z [13:11:12] موجتا التحقّقِ منَ المسار (S1=A ثمّ S2=B عند conc=100) — PROTOCOL §4: لا تدخلانِ في الحكم
+2026-10-25T13:11:12.9984551Z TPL_ACTIVE arm=A fn_md5=84c3b6b457283d6922b139c3dfbcd6c4
+2026-10-25T13:11:13.0022509Z [13:11:13] موجةُ القياس batchab-S1-i90 arm=A conc=100 (مدن=5)
+2026-10-25T13:17:19.2734717Z SEQ M side=cand sha=fe4dba8ed6e4c8584f7f317b7f99538090489da7 acc=fe4dba8e ref=7a3d0df1
+2026-10-25T13:17:19.2735332Z PREFLIGHT_START 1792933873209
+2026-10-25T13:17:19.2735604Z PREFLIGHT VALID []
+2026-10-25T13:17:19.2735918Z WAVE_DONE load01mbatch-batchab-S1-i90-M-100 rc=0
+2026-10-25T13:17:19.2736282Z INFLIGHT VALID []
+2026-10-25T13:17:19.2736944Z QUAL_DONE load01mbatch-batchab-S1-i90-M-100 wave_rc=0 inflight_rc=0
+2026-10-25T13:17:19.2737750Z SEQ_DONE
+2026-10-25T13:17:19.8100438Z batchab-S1-i90 COLLECT_RC=0 conc=100
+2026-10-25T13:17:20.0130922Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 4969, "notDone": 0, "queueP50": 30.52, "finishP50": 119.27, "replyP50": 30944.22}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 22.99, "finishP50": 117.04, "replyP50": 31836.5}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 19.4, "finishP50": 136.3, "replyP50": 30810.33}], "poolOccP50": 0.76}
+2026-10-25T13:17:20.4499650Z G1=100.00% (4969/4969) | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 4969/4969 · drivers 4969/4969 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 100 / target 100 | P1=115ms | P2=124ms | P3=92ms | P4=2701ms | P5=3623ms | P6a=151ms | P6b=179ms | P6c=135ms | P7=88s | P8=0.00% | P9=0.00%
+2026-10-25T13:17:21.0642471Z MIXED_OK
+2026-10-25T13:17:21.0646683Z VALIDITY_batchab-S1-i90 VALID
+2026-10-25T13:17:21.0674510Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T13:17:21.0677790Z 
+2026-10-25T13:17:21.5148062Z TPL_ACTIVE arm=B fn_md5=9d7035c825d977ca3f8ba5d78c73af4f
+2026-10-25T13:17:21.5186400Z [13:17:21] موجةُ القياس batchab-S2-i90 arm=B conc=100 (مدن=5)
+2026-10-25T13:23:25.7661748Z SEQ M side=cand sha=7a3d0df1e4b32b0fa1a82d366fc1753d815a353d acc=7a3d0df1 ref=7a3d0df1
+2026-10-25T13:23:25.7662478Z PREFLIGHT_START 1792934241703
+2026-10-25T13:23:25.7662914Z PREFLIGHT VALID []
+2026-10-25T13:23:25.7663324Z WAVE_DONE load01mbatch-batchab-S2-i90-M-100 rc=0
+2026-10-25T13:23:25.7663840Z INFLIGHT VALID []
+2026-10-25T13:23:25.7664515Z QUAL_DONE load01mbatch-batchab-S2-i90-M-100 wave_rc=0 inflight_rc=0
+2026-10-25T13:23:25.7665199Z SEQ_DONE
+2026-10-25T13:23:26.3135266Z batchab-S2-i90 COLLECT_RC=0 conc=100
+2026-10-25T13:23:26.5034062Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 5132, "notDone": 0, "queueP50": 32.79, "finishP50": 105.9, "replyP50": 30670.22}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 12.54, "finishP50": 55.41, "replyP50": 31195.38}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 10.5, "finishP50": 58.26, "replyP50": 30208.3}], "poolOccP50": 0.57}
+2026-10-25T13:23:26.9515707Z G1=100.00% (5132/5132) | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 5132/5132 · drivers 5132/5132 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 100 / target 100 | P1=111ms | P2=117ms | P3=88ms | P4=2590ms | P5=3336ms | P6a=147ms | P6b=147ms | P6c=112ms | P7=100s | P8=0.00% | P9=0.00%
+2026-10-25T13:23:27.5667320Z MIXED_OK
+2026-10-25T13:23:27.5671053Z VALIDITY_batchab-S2-i90 VALID
+2026-10-25T13:23:27.5698308Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T13:23:27.5701631Z 
+2026-10-25T13:23:27.5703702Z SMOKE_OK — مسارُ التبديلِ (cand/قالب/شيفرة) يعملُ للذراعين
+2026-10-25T13:23:28.0101024Z TPL_ACTIVE arm=A fn_md5=84c3b6b457283d6922b139c3dfbcd6c4
+2026-10-25T13:23:28.0137283Z [13:23:28] موجةُ القياس batchab-A1-i80 arm=A conc=1500 (مدن=5)
+2026-10-25T13:30:14.2912636Z SEQ M side=cand sha=fe4dba8ed6e4c8584f7f317b7f99538090489da7 acc=fe4dba8e ref=7a3d0df1
+2026-10-25T13:30:14.2913221Z PREFLIGHT_START 1792934608215
+2026-10-25T13:30:14.2913559Z PREFLIGHT VALID []
+2026-10-25T13:30:14.2913834Z WAVE_DONE load01mbatch-batchab-A1-i80-M-1500 rc=1
+2026-10-25T13:30:14.2914183Z INFLIGHT VALID []
+2026-10-25T13:30:14.2914554Z QUAL_DONE load01mbatch-batchab-A1-i80-M-1500 wave_rc=0 inflight_rc=0
+2026-10-25T13:30:14.2915050Z SEQ_DONE
+2026-10-25T13:30:15.0105954Z batchab-A1-i80 COLLECT_RC=0 conc=1500
+2026-10-25T13:30:15.2864412Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 12194, "notDone": 0, "queueP50": 22384.82, "finishP50": 23012.38, "replyP50": 51178.03}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 20250.37, "finishP50": 20552.83, "replyP50": 51997.23}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 20235.77, "finishP50": 20586.23, "replyP50": 51004.53}], "poolOccP50": 1}
+2026-10-25T13:30:15.8325841Z verdict FAIL ['G1', 'P2'] notverified {'driver_onboarding_failed': 8000, 'offer:offer_not_found_in_time': 2}
+2026-10-25T13:30:15.8329360Z G1=34.38% (4192/12194)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12194/12194 · drivers 12194/12194 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=549ms | P2=1073ms✗ | P3=912ms | P4=5673ms | P5=10628ms | P6a=1060ms | P6b=1434ms | P6c=1199ms | P7=73s | P8=0.00% | P9=0.00%
+2026-10-25T13:30:16.7119980Z MIXED_OK
+2026-10-25T13:30:16.7123667Z VALIDITY_batchab-A1-i80 VALID
+2026-10-25T13:30:16.7151595Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T13:30:16.7154753Z 
+2026-10-25T13:30:17.1427726Z TPL_ACTIVE arm=B fn_md5=9d7035c825d977ca3f8ba5d78c73af4f
+2026-10-25T13:30:17.1467219Z [13:30:17] موجةُ القياس batchab-B1-i81 arm=B conc=1500 (مدن=5)
+2026-10-25T13:36:33.4072138Z SEQ M side=cand sha=7a3d0df1e4b32b0fa1a82d366fc1753d815a353d acc=7a3d0df1 ref=7a3d0df1
+2026-10-25T13:36:33.4072951Z PREFLIGHT_START 1792935017337
+2026-10-25T13:36:33.4073320Z PREFLIGHT VALID []
+2026-10-25T13:36:33.4073717Z WAVE_DONE load01mbatch-batchab-B1-i81-M-1500 rc=1
+2026-10-25T13:36:33.4074327Z INFLIGHT VALID []
+2026-10-25T13:36:33.4075099Z QUAL_DONE load01mbatch-batchab-B1-i81-M-1500 wave_rc=0 inflight_rc=0
+2026-10-25T13:36:33.4075642Z SEQ_DONE
+2026-10-25T13:36:34.1490804Z batchab-B1-i81 COLLECT_RC=0 conc=1500
+2026-10-25T13:36:34.4211910Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 12252, "notDone": 0, "queueP50": 20288.07, "finishP50": 20775.22, "replyP50": 50661.1}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 19585.37, "finishP50": 19740.19, "replyP50": 52203.04}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 19729.26, "finishP50": 19947.14, "replyP50": 51305.22}], "poolOccP50": 1}
+2026-10-25T13:36:35.0222529Z verdict FAIL ['G1'] notverified {'driver_onboarding_failed': 6839}
+2026-10-25T13:36:35.0225388Z G1=44.18% (5413/12252)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12252/12252 · drivers 12252/12252 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=504ms | P2=735ms | P3=587ms | P4=5729ms | P5=8695ms | P6a=773ms | P6b=1030ms | P6c=988ms | P7=95s | P8=0.00% | P9=0.00%
+2026-10-25T13:36:35.9185699Z MIXED_OK
+2026-10-25T13:36:35.9190013Z VALIDITY_batchab-B1-i81 VALID
+2026-10-25T13:36:35.9216532Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T13:36:35.9220134Z 
+2026-10-25T13:36:36.3809035Z TPL_ACTIVE arm=B fn_md5=9d7035c825d977ca3f8ba5d78c73af4f
+2026-10-25T13:36:36.3847202Z [13:36:36] موجةُ القياس batchab-B2-i82 arm=B conc=1500 (مدن=5)
+2026-10-25T13:42:52.6233474Z SEQ M side=cand sha=7a3d0df1e4b32b0fa1a82d366fc1753d815a353d acc=7a3d0df1 ref=7a3d0df1
+2026-10-25T13:42:52.6234333Z PREFLIGHT_START 1792935396553
+2026-10-25T13:42:52.6234739Z PREFLIGHT VALID []
+2026-10-25T13:42:52.6235190Z WAVE_DONE load01mbatch-batchab-B2-i82-M-1500 rc=1
+2026-10-25T13:42:52.6235858Z INFLIGHT VALID []
+2026-10-25T13:42:52.6236600Z QUAL_DONE load01mbatch-batchab-B2-i82-M-1500 wave_rc=0 inflight_rc=0
+2026-10-25T13:42:52.6237176Z SEQ_DONE
+2026-10-25T13:42:53.3695541Z batchab-B2-i82 COLLECT_RC=0 conc=1500
+2026-10-25T13:42:53.6341993Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 12458, "notDone": 0, "queueP50": 20128.23, "finishP50": 20540.23, "replyP50": 49941.94}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 19013.48, "finishP50": 19225.97, "replyP50": 50646.26}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 19104.89, "finishP50": 19462.98, "replyP50": 50357.87}], "poolOccP50": 1}
+2026-10-25T13:42:54.2215600Z verdict FAIL ['G1'] notverified {'driver_onboarding_failed': 7019}
+2026-10-25T13:42:54.2218394Z G1=43.66% (5439/12458)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12458/12458 · drivers 12458/12458 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=514ms | P2=690ms | P3=612ms | P4=5720ms | P5=8774ms | P6a=943ms | P6b=932ms | P6c=870ms | P7=97s | P8=0.00% | P9=0.00%
+2026-10-25T13:42:55.1004515Z MIXED_OK
+2026-10-25T13:42:55.1008103Z VALIDITY_batchab-B2-i82 VALID
+2026-10-25T13:42:55.1033435Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T13:42:55.1037346Z 
+2026-10-25T13:42:55.5602871Z TPL_ACTIVE arm=A fn_md5=84c3b6b457283d6922b139c3dfbcd6c4
+2026-10-25T13:42:55.5642089Z [13:42:55] موجةُ القياس batchab-A2-i83 arm=A conc=1500 (مدن=5)
+2026-10-25T13:49:45.8375272Z SEQ M side=cand sha=fe4dba8ed6e4c8584f7f317b7f99538090489da7 acc=fe4dba8e ref=7a3d0df1
+2026-10-25T13:49:45.8375985Z PREFLIGHT_START 1792935775767
+2026-10-25T13:49:45.8376257Z PREFLIGHT VALID []
+2026-10-25T13:49:45.8376532Z WAVE_DONE load01mbatch-batchab-A2-i83-M-1500 rc=1
+2026-10-25T13:49:45.8376877Z INFLIGHT VALID []
+2026-10-25T13:49:45.8377332Z QUAL_DONE load01mbatch-batchab-A2-i83-M-1500 wave_rc=0 inflight_rc=0
+2026-10-25T13:49:45.8377829Z SEQ_DONE
+2026-10-25T13:49:46.5832857Z batchab-A2-i83 COLLECT_RC=0 conc=1500
+2026-10-25T13:49:46.8754793Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 12506, "notDone": 0, "queueP50": 21700.03, "finishP50": 22008.76, "replyP50": 50887.21}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 20066.32, "finishP50": 20285.57, "replyP50": 51669.96}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 20193.3, "finishP50": 20442.14, "replyP50": 50018.15}], "poolOccP50": 1.03}
+2026-10-25T13:49:47.4338295Z verdict FAIL ['G1', 'P2'] notverified {'driver_onboarding_failed': 8140, 'offer:offer_not_found_in_time': 2}
+2026-10-25T13:49:47.4341414Z G1=34.90% (4364/12506)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12506/12506 · drivers 12506/12506 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=539ms | P2=1064ms✗ | P3=833ms | P4=5574ms | P5=10572ms | P6a=964ms | P6b=1415ms | P6c=1269ms | P7=101s | P8=0.00% | P9=0.00%
+2026-10-25T13:49:48.3127219Z MIXED_OK
+2026-10-25T13:49:48.3131084Z VALIDITY_batchab-A2-i83 VALID
+2026-10-25T13:49:48.3160309Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T13:49:48.3161253Z 
+2026-10-25T13:49:48.7248566Z TPL_ACTIVE arm=A fn_md5=84c3b6b457283d6922b139c3dfbcd6c4
+2026-10-25T13:49:48.7286539Z [13:49:48] موجةُ القياس batchab-A3-i84 arm=A conc=1500 (مدن=5)
+2026-10-25T13:55:58.9560737Z SEQ M side=cand sha=fe4dba8ed6e4c8584f7f317b7f99538090489da7 acc=fe4dba8e ref=7a3d0df1
+2026-10-25T13:55:58.9561563Z PREFLIGHT_START 1792936188887
+2026-10-25T13:55:58.9561975Z PREFLIGHT VALID []
+2026-10-25T13:55:58.9562506Z WAVE_DONE load01mbatch-batchab-A3-i84-M-1500 rc=1
+2026-10-25T13:55:58.9563147Z INFLIGHT VALID []
+2026-10-25T13:55:58.9563837Z QUAL_DONE load01mbatch-batchab-A3-i84-M-1500 wave_rc=0 inflight_rc=0
+2026-10-25T13:55:58.9564498Z SEQ_DONE
+2026-10-25T13:55:59.6819777Z batchab-A3-i84 COLLECT_RC=0 conc=1500
+2026-10-25T13:55:59.9414647Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 12485, "notDone": 0, "queueP50": 22070.19, "finishP50": 22421.72, "replyP50": 50574.48}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 19640.98, "finishP50": 19832.4, "replyP50": 50966.73}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 19868.6, "finishP50": 20008.15, "replyP50": 49903.01}], "poolOccP50": 1.04}
+2026-10-25T13:56:00.5009429Z verdict FAIL ['G1'] notverified {'driver_onboarding_failed': 8048}
+2026-10-25T13:56:00.5011703Z G1=35.54% (4437/12485)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12485/12485 · drivers 12485/12485 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=406ms | P2=891ms | P3=704ms | P4=5353ms | P5=9334ms | P6a=1078ms | P6b=1176ms | P6c=1141ms | P7=88s | P8=0.00% | P9=0.00%
+2026-10-25T13:56:01.3797621Z MIXED_OK
+2026-10-25T13:56:01.3801694Z VALIDITY_batchab-A3-i84 VALID
+2026-10-25T13:56:01.3828002Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T13:56:01.3831279Z 
+2026-10-25T13:56:01.8278557Z TPL_ACTIVE arm=B fn_md5=9d7035c825d977ca3f8ba5d78c73af4f
+2026-10-25T13:56:01.8317933Z [13:56:01] موجةُ القياس batchab-B3-i85 arm=B conc=1500 (مدن=5)
+2026-10-25T14:02:10.0914371Z SEQ M side=cand sha=7a3d0df1e4b32b0fa1a82d366fc1753d815a353d acc=7a3d0df1 ref=7a3d0df1
+2026-10-25T14:02:10.0915134Z PREFLIGHT_START 1792936562021
+2026-10-25T14:02:10.0915406Z PREFLIGHT VALID []
+2026-10-25T14:02:10.0915719Z WAVE_DONE load01mbatch-batchab-B3-i85-M-1500 rc=1
+2026-10-25T14:02:10.0916086Z INFLIGHT VALID []
+2026-10-25T14:02:10.0916524Z QUAL_DONE load01mbatch-batchab-B3-i85-M-1500 wave_rc=0 inflight_rc=0
+2026-10-25T14:02:10.0916980Z SEQ_DONE
+2026-10-25T14:02:10.8332449Z batchab-B3-i85 COLLECT_RC=0 conc=1500
+2026-10-25T14:02:11.0955184Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 12385, "notDone": 0, "queueP50": 20518.12, "finishP50": 20990.18, "replyP50": 49111.11}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 17727.32, "finishP50": 18000.96, "replyP50": 50146.75}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 17819.75, "finishP50": 18235.16, "replyP50": 49163.27}], "poolOccP50": 1}
+2026-10-25T14:02:11.7014532Z verdict FAIL ['G1'] notverified {'driver_onboarding_failed': 6623}
+2026-10-25T14:02:11.7016387Z G1=46.52% (5762/12385)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12385/12385 · drivers 12385/12385 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=503ms | P2=606ms | P3=524ms | P4=6627ms | P5=8770ms | P6a=731ms | P6b=846ms | P6c=758ms | P7=110s | P8=0.00% | P9=0.00%
+2026-10-25T14:02:12.6020385Z MIXED_OK
+2026-10-25T14:02:12.6024181Z VALIDITY_batchab-B3-i85 VALID
+2026-10-25T14:02:12.6050568Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T14:02:12.6054309Z 
+2026-10-25T14:02:13.0614746Z TPL_ACTIVE arm=B fn_md5=9d7035c825d977ca3f8ba5d78c73af4f
+2026-10-25T14:02:13.0653742Z [14:02:13] موجةُ القياس batchab-B4-i86 arm=B conc=1500 (مدن=5)
+2026-10-25T14:08:29.2968729Z SEQ M side=cand sha=7a3d0df1e4b32b0fa1a82d366fc1753d815a353d acc=7a3d0df1 ref=7a3d0df1
+2026-10-25T14:08:29.2969701Z PREFLIGHT_START 1792936933228
+2026-10-25T14:08:29.2970291Z PREFLIGHT VALID []
+2026-10-25T14:08:29.2971112Z WAVE_DONE load01mbatch-batchab-B4-i86-M-1500 rc=1
+2026-10-25T14:08:29.2971899Z INFLIGHT VALID []
+2026-10-25T14:08:29.2972461Z QUAL_DONE load01mbatch-batchab-B4-i86-M-1500 wave_rc=0 inflight_rc=0
+2026-10-25T14:08:29.2972838Z SEQ_DONE
+2026-10-25T14:08:30.0455035Z batchab-B4-i86 COLLECT_RC=0 conc=1500
+2026-10-25T14:08:30.3068478Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 12633, "notDone": 0, "queueP50": 19819.1, "finishP50": 20222.35, "replyP50": 48919.11}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 18302.95, "finishP50": 18533.42, "replyP50": 50186.29}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 18390.4, "finishP50": 18777.59, "replyP50": 49526.71}], "poolOccP50": 1}
+2026-10-25T14:08:30.9175626Z verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 6746}
+2026-10-25T14:08:30.9178894Z G1=46.60% (5887/12633)✗ | G2=0 | G3=0 + 0 | G4=VIOLATIONS✗ | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12633/12633 · drivers 12633/12633 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=505ms | P2=581ms | P3=520ms | P4=6102ms | P5=8598ms | P6a=641ms | P6b=759ms | P6c=698ms | P7=127s✗ | P8=0.00% | P9=0.00%
+2026-10-25T14:08:31.8223057Z MIXED_OK
+2026-10-25T14:08:31.8227406Z VALIDITY_batchab-B4-i86 VALID
+2026-10-25T14:08:31.8253997Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T14:08:31.8257258Z 
+2026-10-25T14:08:32.2800537Z TPL_ACTIVE arm=A fn_md5=84c3b6b457283d6922b139c3dfbcd6c4
+2026-10-25T14:08:32.2839190Z [14:08:32] موجةُ القياس batchab-A4-i87 arm=A conc=1500 (مدن=5)
+2026-10-25T14:14:48.5524949Z SEQ M side=cand sha=fe4dba8ed6e4c8584f7f317b7f99538090489da7 acc=fe4dba8e ref=7a3d0df1
+2026-10-25T14:14:48.5525666Z PREFLIGHT_START 1792937312487
+2026-10-25T14:14:48.5525935Z PREFLIGHT VALID []
+2026-10-25T14:14:48.5526210Z WAVE_DONE load01mbatch-batchab-A4-i87-M-1500 rc=1
+2026-10-25T14:14:48.5526556Z INFLIGHT VALID []
+2026-10-25T14:14:48.5526911Z QUAL_DONE load01mbatch-batchab-A4-i87-M-1500 wave_rc=0 inflight_rc=0
+2026-10-25T14:14:48.5527382Z SEQ_DONE
+2026-10-25T14:14:49.2794450Z batchab-A4-i87 COLLECT_RC=0 conc=1500
+2026-10-25T14:14:49.5458148Z TIMELINE {"instrumented": {"kindColumn": true, "claimTrip": true, "replies": true}, "mixed": {"planned": 3600, "sent": 3600, "ok2xx": 3600, "skipped": 0, "byKind": {"message": 1789, "command": 1811}}, "byKind": [{"kind": "contact", "n": 12401, "notDone": 0, "queueP50": 22357.72, "finishP50": 22593.81, "replyP50": 50159.87}, {"kind": "command", "n": 1811, "notDone": 0, "queueP50": 19574.02, "finishP50": 19880.6, "replyP50": 51732.78}, {"kind": "message", "n": 1789, "notDone": 0, "queueP50": 19559.76, "finishP50": 19871.03, "replyP50": 50955.05}], "poolOccP50": 1.04}
+2026-10-25T14:14:50.1062688Z verdict FAIL ['G1'] notverified {'driver_onboarding_failed': 7932}
+2026-10-25T14:14:50.1065545Z G1=36.04% (4469/12401)✗ | G2=0 | G3=0 + 0 | G4=CLEAN | G5=0 | G6=0.00% (0) | G7=0.00% | G8=0 | I1-identities=riders 12401/12401 · drivers 12401/12401 | GW-STABILITY=stable | EGRESS-CLASSIFIED=unknown +0 | CONC-peak=peak 1500 / target 1500 | P1=465ms | P2=671ms | P3=559ms | P4=5442ms | P5=8315ms | P6a=654ms | P6b=1046ms | P6c=902ms | P7=96s | P8=0.00% | P9=0.00%
+2026-10-25T14:14:50.9804151Z MIXED_OK
+2026-10-25T14:14:50.9808259Z VALIDITY_batchab-A4-i87 VALID
+2026-10-25T14:14:50.9836799Z {"validity": {"preflight": "VALID", "inflight": "VALID"}, "is_valid": true, "condition_ok": true, "error": null}
+2026-10-25T14:14:50.9840363Z 
+2026-10-25T14:14:50.9875597Z [14:14:50] الحكمُ المقترن (PROTOCOL §5): G1 بقاعدةِ AB_RULE، والآليّةُ بقاعدةِ MECH_RULE
+2026-10-25T14:14:53.4010362Z MECH contactQueueP50 {"ratios": [0.906, 0.928, 0.93, 0.886], "median": 0.93, "direction": "UNDECIDED"}
+2026-10-25T14:14:53.4011223Z MECH nonContactQueueP50 {"ratios": [0.972, 0.945, 0.899, 0.937], "median": 0.95, "direction": "UNDECIDED"}
+2026-10-25T14:14:53.4011870Z MECH contactFinishP50 {"ratios": [0.903, 0.933, 0.936, 0.895], "median": 0.93, "direction": "UNDECIDED"}
+2026-10-25T14:14:53.4012508Z MECH nonContactFinishP50 {"ratios": [0.965, 0.95, 0.911, 0.938], "median": 0.95, "direction": "UNDECIDED"}
+2026-10-25T14:14:53.4225842Z AB_RESULT {"decision": "B_BETTER", "why": "mean Δ 10.03pp ≥ 5 and every pair Δ > 0", "meanDPp": 10.03, "pairs": [{"pair": 1, "a": 34.38, "b": 44.18, "dPp": 9.8}, {"pair": 2, "a": 34.9, "b": 43.66, "dPp": 8.76}, {"pair": 3, "a": 35.54, "b": 46.52, "dPp": 10.98}, {"pair": 4, "a": 36.04, "b": 46.6, "dPp": 10.56}], "excluded": [], "armG1": {"A": {"n": 4, "pooledPct": 35.22, "min": 34.38, "max": 36.04}, "B": {"n": 4, "pooledPct": 45.25, "min": 43.66, "max": 46.6}}, "claimMeanMsByArm": {"A": 2.66, "B": 2.9}}
+2026-10-25T14:14:53.4227340Z AB_WAVE A1  True COMPARABLE {'ok': 4192, 'total': 12194, 'pct': 34.38} 2.65 1
+2026-10-25T14:14:53.4228303Z AB_WAVE B1  True COMPARABLE {'ok': 5413, 'total': 12252, 'pct': 44.18} 2.82 0.98
+2026-10-25T14:14:53.4228780Z AB_WAVE B2  True COMPARABLE {'ok': 5439, 'total': 12458, 'pct': 43.66} 3.01 0.97
+2026-10-25T14:14:53.4229486Z AB_WAVE A2  True COMPARABLE {'ok': 4364, 'total': 12506, 'pct': 34.9} 2.78 0.96
+2026-10-25T14:14:53.4229950Z AB_WAVE A3  True COMPARABLE {'ok': 4437, 'total': 12485, 'pct': 35.54} 2.51 0.94
+2026-10-25T14:14:53.4230394Z AB_WAVE B3  True COMPARABLE {'ok': 5762, 'total': 12385, 'pct': 46.52} 2.9 0.93
+2026-10-25T14:14:53.4230830Z AB_WAVE B4  True COMPARABLE {'ok': 5887, 'total': 12633, 'pct': 46.6} 2.85 0.93
+2026-10-25T14:14:53.4231297Z AB_WAVE A4  True COMPARABLE {'ok': 4469, 'total': 12401, 'pct': 36.04} 2.71 0.96
+2026-10-25T14:14:53.4295075Z [14:14:53] تدقيقُ الأسرار
+2026-10-25T14:15:13.4518872Z AUDIT_CLEAN
+2026-10-25T14:15:13.4523209Z SECRET_AUDIT_CLEAN
+2026-10-25T14:15:13.4556998Z [14:15:13] DONE

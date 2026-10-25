@@ -1,0 +1,21 @@
+SEQ M side=cand sha=7a3d0df1e4b32b0fa1a82d366fc1753d815a353d acc=7a3d0df1 ref=7a3d0df1
+=== 2026-10-25T13:17:21+00:00 START load01mbatch-batchab-S2-i90-M-100 conc=100 side=cand (diag+trace+conn)
+PREFLIGHT_START 1792934241703
+PREFLIGHT VALID []
+ISOLATION_OK pg=/srv/ceezr-cap-20261016/pg redis=/srv/ceezr-cap-20261016/redis netns=ceezrsbx2(lo-only)
+FRESH_DB_OK sha=7a3d0df1 gateway_pid=8146 budget=
+warning: unable to access '/home/runner/.config/git/ignore': Permission denied
+warning: unable to access '/home/runner/.config/git/ignore': Permission denied
+warning: unable to access '/home/runner/.config/git/ignore': Permission denied
+warning: unable to access '/home/runner/.config/git/ignore': Permission denied
+started mixed rate=20 sec=180 pid=8536
+started round=load01mbatch-batchab-S2-i90-M-100 pid=8535
+gen_exit_marker 8535
+WAVE load01mbatch-batchab-S2-i90-M-100: PASS | failed: []
+   82987 total
+WAVE_DONE load01mbatch-batchab-S2-i90-M-100 rc=0
+INFLIGHT VALID []
+QUAL_DONE load01mbatch-batchab-S2-i90-M-100 wave_rc=0 inflight_rc=0
+=== 2026-10-25T13:23:25+00:00 END rc=0
+TRACE_DONE
+SEQ_DONE

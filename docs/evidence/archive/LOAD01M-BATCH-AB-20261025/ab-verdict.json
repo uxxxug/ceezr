@@ -1,0 +1,260 @@
+{
+ "rule": {
+  "minPairs": 3,
+  "effectPp": 5,
+  "nullPp": 2
+ },
+ "controlStatements": 22,
+ "waves": [
+  {
+   "slot": "A1",
+   "superseded": false,
+   "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-A1-i80-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "idleSpeedProbeMs": 383,
+    "idlePgProbeMs": 383
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4192,
+    "total": 12194,
+    "pct": 34.38
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 2.65,
+   "contactQueueP50Ms": 22384.82,
+   "contactExecMeanMs": 304.13,
+   "sweepsTruncatedShare": 0.957
+  },
+  {
+   "slot": "B1",
+   "superseded": false,
+   "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-B1-i81-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "idleSpeedProbeMs": 383.3,
+    "idlePgProbeMs": 384.7
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5413,
+    "total": 12252,
+    "pct": 44.18
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.98,
+   "claimMeanMs": 2.82,
+   "contactQueueP50Ms": 20288.07,
+   "contactExecMeanMs": 265.84,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B2",
+   "superseded": false,
+   "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-B2-i82-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "idleSpeedProbeMs": 383.1,
+    "idlePgProbeMs": 384
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5439,
+    "total": 12458,
+    "pct": 43.66
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.97,
+   "claimMeanMs": 3.01,
+   "contactQueueP50Ms": 20128.23,
+   "contactExecMeanMs": 254.6,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "A2",
+   "superseded": false,
+   "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-A2-i83-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "idleSpeedProbeMs": 383.4,
+    "idlePgProbeMs": 383.2
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4364,
+    "total": 12506,
+    "pct": 34.9
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.96,
+   "claimMeanMs": 2.78,
+   "contactQueueP50Ms": 21700.03,
+   "contactExecMeanMs": 297.85,
+   "sweepsTruncatedShare": 0.964
+  },
+  {
+   "slot": "A3",
+   "superseded": false,
+   "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-A3-i84-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "idleSpeedProbeMs": 383,
+    "idlePgProbeMs": 381.9
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4437,
+    "total": 12485,
+    "pct": 35.54
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.94,
+   "claimMeanMs": 2.51,
+   "contactQueueP50Ms": 22070.19,
+   "contactExecMeanMs": 290.23,
+   "sweepsTruncatedShare": 0.964
+  },
+  {
+   "slot": "B3",
+   "superseded": false,
+   "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-B3-i85-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "idleSpeedProbeMs": 383.1,
+    "idlePgProbeMs": 382.8
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5762,
+    "total": 12385,
+    "pct": 46.52
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.93,
+   "claimMeanMs": 2.9,
+   "contactQueueP50Ms": 20518.12,
+   "contactExecMeanMs": 244.01,
+   "sweepsTruncatedShare": 0.958
+  },
+  {
+   "slot": "B4",
+   "superseded": false,
+   "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-B4-i86-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "idleSpeedProbeMs": 383.5,
+    "idlePgProbeMs": 384
+   },
+   "valid": true,
+   "g1": {
+    "ok": 5887,
+    "total": 12633,
+    "pct": 46.6
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.93,
+   "claimMeanMs": 2.85,
+   "contactQueueP50Ms": 19819.1,
+   "contactExecMeanMs": 249.06,
+   "sweepsTruncatedShare": 0.964
+  },
+  {
+   "slot": "A4",
+   "superseded": false,
+   "raw": "/home/user/load01mbatch-out/raw/load01mbatch-batchab-A4-i87-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V74 80-Core Processor",
+    "idleSpeedProbeMs": 382.9,
+    "idlePgProbeMs": 385.6
+   },
+   "valid": true,
+   "g1": {
+    "ok": 4469,
+    "total": 12401,
+    "pct": 36.04
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.96,
+   "claimMeanMs": 2.71,
+   "contactQueueP50Ms": 22357.72,
+   "contactExecMeanMs": 278.57,
+   "sweepsTruncatedShare": 0.958
+  }
+ ],
+ "claimMeanMsByArm": {
+  "A": 2.66,
+  "B": 2.9
+ },
+ "verdict": {
+  "decision": "B_BETTER",
+  "why": "mean Δ 10.03pp ≥ 5 and every pair Δ > 0",
+  "pairs": [
+   {
+    "pair": 1,
+    "a": 34.38,
+    "b": 44.18,
+    "dPp": 9.8
+   },
+   {
+    "pair": 2,
+    "a": 34.9,
+    "b": 43.66,
+    "dPp": 8.76
+   },
+   {
+    "pair": 3,
+    "a": 35.54,
+    "b": 46.52,
+    "dPp": 10.98
+   },
+   {
+    "pair": 4,
+    "a": 36.04,
+    "b": 46.6,
+    "dPp": 10.56
+   }
+  ],
+  "excluded": [],
+  "meanDPp": 10.03,
+  "armG1": {
+   "A": {
+    "n": 4,
+    "pooledPct": 35.22,
+    "min": 34.38,
+    "max": 36.04
+   },
+   "B": {
+    "n": 4,
+    "pooledPct": 45.25,
+    "min": 43.66,
+    "max": 46.6
+   }
+  }
+ }
+}

@@ -1,0 +1,100 @@
+{
+ "per_wave": {
+  "batchab-A1-i80-M-1500": {
+   "arm": "A",
+   "jobs": 15794,
+   "acq_total": 64965,
+   "acq_per_job": 4.113,
+   "contact_completed": 12194,
+   "acq_per_completed_contact_job": 4.0,
+   "g1_verified": 4192,
+   "acq_per_g1_verified": 15.5
+  },
+  "batchab-A2-i83-M-1500": {
+   "arm": "A",
+   "jobs": 16106,
+   "acq_total": 66213,
+   "acq_per_job": 4.111,
+   "contact_completed": 12506,
+   "acq_per_completed_contact_job": 4.0,
+   "g1_verified": 4364,
+   "acq_per_g1_verified": 15.17
+  },
+  "batchab-A3-i84-M-1500": {
+   "arm": "A",
+   "jobs": 16085,
+   "acq_total": 66129,
+   "acq_per_job": 4.111,
+   "contact_completed": 12485,
+   "acq_per_completed_contact_job": 4.0,
+   "g1_verified": 4437,
+   "acq_per_g1_verified": 14.9
+  },
+  "batchab-A4-i87-M-1500": {
+   "arm": "A",
+   "jobs": 16001,
+   "acq_total": 65793,
+   "acq_per_job": 4.112,
+   "contact_completed": 12401,
+   "acq_per_completed_contact_job": 4.0,
+   "g1_verified": 4469,
+   "acq_per_g1_verified": 14.72
+  },
+  "batchab-B1-i81-M-1500": {
+   "arm": "B",
+   "jobs": 15852,
+   "acq_total": 49345,
+   "acq_per_job": 3.113,
+   "contact_completed": 12252,
+   "acq_per_completed_contact_job": 3.0,
+   "g1_verified": 5413,
+   "acq_per_g1_verified": 9.12
+  },
+  "batchab-B2-i82-M-1500": {
+   "arm": "B",
+   "jobs": 16058,
+   "acq_total": 49963,
+   "acq_per_job": 3.111,
+   "contact_completed": 12458,
+   "acq_per_completed_contact_job": 3.0,
+   "g1_verified": 5439,
+   "acq_per_g1_verified": 9.19
+  },
+  "batchab-B3-i85-M-1500": {
+   "arm": "B",
+   "jobs": 15985,
+   "acq_total": 49744,
+   "acq_per_job": 3.112,
+   "contact_completed": 12385,
+   "acq_per_completed_contact_job": 3.0,
+   "g1_verified": 5762,
+   "acq_per_g1_verified": 8.63
+  },
+  "batchab-B4-i86-M-1500": {
+   "arm": "B",
+   "jobs": 16233,
+   "acq_total": 50488,
+   "acq_per_job": 3.11,
+   "contact_completed": 12633,
+   "acq_per_completed_contact_job": 3.0,
+   "g1_verified": 5887,
+   "acq_per_g1_verified": 8.58
+  }
+ },
+ "per_arm": {
+  "A": {
+   "acq_total_4waves": 263100,
+   "acq_per_job_mean": 4.112,
+   "acq_per_completed_contact_job_mean": 4.0,
+   "acq_per_g1_verified_mean": 15.07
+  },
+  "B": {
+   "acq_total_4waves": 199540,
+   "acq_per_job_mean": 3.111,
+   "acq_per_completed_contact_job_mean": 3.0,
+   "acq_per_g1_verified_mean": 8.88
+  }
+ },
+ "note": "gateAcq = حجوزات وظائف الكنّاس حصرًا (ليست طلب المجمّع الكلي). psig.n = عمليات استعلام مسجّلة على المجمّع (مجمععة عبر موجات الذراع). مقام G1 = دورات رحلة كاملة مثبتة من القاعدة (SCENARIO_DEPTH=full).",
+ "drainer_acq_reduction_pct": 24.2
+}
