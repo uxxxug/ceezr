@@ -1,0 +1,20 @@
+{
+  "id": "load01-city-directory-cache",
+  "goal": "LOAD-01 — ذاكرةُ قائمةِ المدنِ المفعَّلةِ بحدِّ تقادمٍ 5 ثوانٍ: 24,376 حجزًا من مجمَّعِ gatewayRequest لكلِّ موجةٍ m5-1500 (≈5.2% من زمنِ الحجز) لنتيجةٍ لا تتغيّرُ إلّا إداريًّا خارجَ العملية. لا يُخزَّنُ الإخفاق، وقراءةٌ واحدةٌ في الطيران. حدُّ التقادمِ قرارٌ ينتظرُ إقرارَ المالك؛ أثرُ G1 غيرُ مُقاس؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
+  "canonical_source": [
+    "docs/evidence/capacity/LOAD01-CITY-DIRECTORY-CACHE-20261025/RESULT.md"
+  ],
+  "implementation": [
+    "packages/infrastructure/geo/cached-city-directory.ts",
+    "apps/gateway/src/container.ts",
+    "apps/gateway/src/index.ts",
+    "tests/unit/cached-city-directory.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-CITY-DIRECTORY-CACHE-20261025/RESULT.md"
+  ],
+  "no_other_affected_docs_reason": null
+}
