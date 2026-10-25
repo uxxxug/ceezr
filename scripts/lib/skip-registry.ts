@@ -382,6 +382,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
 
   {
+    file: "tests/integration/session-bootstrap-snapshot.test.ts",
+    suites: ["LOAD-01 — قراءةُ الإقلاعِ المُدمَجةُ على قاعدةٍ حقيقيّة"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "قراءةُ الإقلاعِ المُدمَجة (LOAD-01، حزمة load01-session-bootstrap-coalesce): عبارةٌ واحدةٌ تُكافئُ محوّلَي الحسابِ والموافقاتِ المنفردَينِ نتيجةً بنتيجةٍ (ترتيبُ list_user_consents وختمُ الميكروثانيةِ عبرَ json_agg، والمحظورُ والغائبُ وغيرُ الرقميّ)، وفشلُ العبارةِ خطأٌ مصنَّفٌ للقراءتَين — سلوكُ PostgreSQL ودالّتُه لا يُثبِتُه بديلٌ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+
+  {
     file: "tests/integration/telegram-update-claim-plan.test.ts",
     suites: ["خطةُ التقاطِ تيليجرام FIFO المُفهرسةِ — بلا Sort كاملٍ ولا أولويّةٍ نوعيّة"],
     skipped: 4,
