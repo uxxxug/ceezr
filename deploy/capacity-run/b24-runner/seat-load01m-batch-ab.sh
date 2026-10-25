@@ -62,7 +62,8 @@ FP="$H/deploy/capacity-run/b24-runner/fingerprint.sql"
 fingerprint() { $PSQL -d "$1" -v ON_ERROR_STOP=1 -q -f "$FP" 2>&1 | grep -v '^$'; }
 log "قالبُ A: هجراتُ A + seat-seed.sql ⇒ ceezr_cap_tpl_a"
 $PSQL -d ceezr_cap_20261016 -v ON_ERROR_STOP=1 -q -f "$W/wt-acc/deploy/capacity-run/config/seat-seed.sql"
-$PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "create database ceezr_cap_tpl_a template ceezr_cap_20261016" -c "drop database ceezr_cap_20261016 with (force)"
+# تُبقى ceezr_cap_20261016 كما في C1-AB: فحصُ العزلِ في svc.sh يستعلمُ عنها حرفيًا (حذفُها أسقطَ التشغيلَ 40192627179).
+$PSQL -d postgres -v ON_ERROR_STOP=1 -q -c "create database ceezr_cap_tpl_a template ceezr_cap_20261016"
 log "قالبُ B: قاعدةٌ مستقلّةٌ بهجراتِ wt-acc@B + seat-seed.sql ⇒ ceezr_cap_tpl_b"
 git -C "$W/wt-acc" checkout -q "$B_SHA"
 log "wt-acc الآن على B=$B_SHA (سيُبدَّلُ التزامُه قبلَ كلِّ موجةٍ عبرَ b24-seq)"
