@@ -105,6 +105,35 @@ export interface DrainerJobTiming {
   readonly gateWaitMs?: number;
   readonly gateHoldMs?: number;
   readonly gateAcq?: number;
+  /**
+   * LOAD-01M (الدورةُ الرابعة) — رحلةُ الالتقاطِ التي جلبَت هذه الوظيفة: مدّتُها (مللي ثانية)،
+   * وعددُ ما جلبَته، وموضعُ الوظيفةِ فيها (0 = الأولى). قياسٌ مباشرٌ لـclaimMs لكلِّ وظيفةٍ بدلَ
+   * متوسّطِ الشوط. غيابُه = التقاطٌ مفردٌ بلا دُفعة أو مسارٌ تسلسليّ.
+   */
+  readonly claimTripMs?: number;
+  readonly claimBatch?: number;
+  readonly claimPos?: number;
+}
+
+/**
+ * LOAD-01M (الدورةُ الرابعة) — زمنُ إرسالِ ردودِ وظيفةٍ (claim → send → finish): متى قُدِّمَ الردُّ،
+ * ومتى بدأَ إرسالُه، ومتى خُتِمَ في الدفتر، وبأيِّ مسار. `pool` = المُرسِلُ الفوريُّ، `inline` = داخلَ
+ * مسارِ الوظيفة، `overflow` = رُفِضَ لامتلاءِ المُرسِلِ فأُجِّلَ (لا إرسالَ الآن)، `background` = المُرسِلُ
+ * الخلفيُّ للمؤجَّل. زمنُ الإرسالِ يشملُ انتظارَ دلوِ البوتِ (25/ث و1/ث للمحادثة، محميّان) ولا يفصلُه.
+ */
+export interface DrainerReplyTiming {
+  readonly bot: string;
+  readonly updateId: number;
+  readonly path: "pool" | "inline" | "overflow" | "background";
+  readonly submittedAt: number;
+  readonly startedAt: number | null;
+  readonly endedAt: number | null;
+  readonly sent: number;
+  readonly total: number;
+  /** مآلُ ختمِ الدفتر (`done` · `retry` · …) أو null إن لم يُختَم/لم يُرسَل. */
+  readonly outcome: string | null;
+  readonly error: boolean;
+  readonly retryAfterSec: number | null;
 }
 
 export interface DrainerSweepTiming {
@@ -120,6 +149,8 @@ export interface DrainerSweepTiming {
 export interface DrainerTiming {
   readonly onJob: (timing: DrainerJobTiming) => void;
   readonly onSweep: (timing: DrainerSweepTiming) => void;
+  /** LOAD-01M (الدورةُ الرابعة، اختياريّ): سطرٌ لكلِّ محاولةِ إرسالِ ردود. */
+  readonly onReply?: (timing: DrainerReplyTiming) => void;
   /**
    * LOAD-01 ب32 (اختياريّ): يُشغِّلُ العملَ داخلَ نطاقِ مسارٍ مُعلَنٍ فيُنسَبُ إليه انتظارُ مقعدِ
    * البوّابةِ واحتجازُه (`drainer:sweep` · `drainer:job:<bot>:<نوع>` · `drainer:replies`).
@@ -244,6 +275,7 @@ async function processClaimedJob(
   deps: TelegramUpdateDrainDeps,
   job: ClaimedJob,
   claimedAt?: number,
+  trip?: ClaimTrip,
 ): Promise<boolean> {
   const timing = deps.timing;
   if (timing === undefined) return processClaimedJobUntimed(deps, job, null);
@@ -262,6 +294,13 @@ async function processClaimedJob(
       ...phases,
       ok,
       ...(timing.scope === undefined ? {} : { kind }),
+      ...(trip === undefined
+        ? {}
+        : {
+            claimTripMs: Math.round(trip.ms * 100) / 100,
+            claimBatch: trip.n,
+            claimPos: trip.pos,
+          }),
       ...(gate === undefined
         ? {}
         : {
@@ -385,16 +424,30 @@ async function processDurably(
       // و20,952 تسجيلَ سائقٍ فشلَ بمهلةِ إثباتِ الهاتف ⇒ G1 = 3.06%. الردُّ محفوظٌ في الدفترِ
       // (`sending` بإيجارِه) فلا يضيعُ: يلتقطُه `drainTelegramUpdateRepliesOnce` بعدَ الإيجارِ
       // بالترتيبِ — كمسارِ الانقضاءِ المحلّيِّ القائمِ تمامًا. فلا ذاكرةَ بلا سقفٍ، والدلوُ لم يُمَسّ.
+      const submittedAt = deps.timing?.onReply === undefined ? 0 : wallNow();
       if (deps.replyPool === undefined) {
-        await sendRepliesFrom(deps, ledger, pending);
+        await sendRepliesFrom(deps, ledger, pending, "inline", submittedAt);
       } else if (
         !deps.replyPool.submit(laneKeyOf(job.bot, job.payload, String(job.updateId)), () =>
-          sendRepliesFrom(deps, ledger, pending),
+          sendRepliesFrom(deps, ledger, pending, "pool", submittedAt),
         )
       ) {
         deps.log?.("telegram.replies.deferred_overflow", {
           bot: job.bot,
           updateId: job.updateId,
+        });
+        deps.timing?.onReply?.({
+          bot: job.bot,
+          updateId: job.updateId,
+          path: "overflow",
+          submittedAt,
+          startedAt: null,
+          endedAt: null,
+          sent: 0,
+          total: pending.replies.length,
+          outcome: null,
+          error: false,
+          retryAfterSec: null,
         });
       }
     }
@@ -416,7 +469,11 @@ async function sendRepliesFrom(
   deps: TelegramUpdateDrainDeps,
   ledger: TelegramUpdateEffectLedger,
   pending: PendingUpdateReplies,
+  path: DrainerReplyTiming["path"] = "background",
+  submittedAt?: number,
 ): Promise<string | null> {
+  const onReply = deps.timing?.onReply;
+  const startedAt = onReply === undefined ? 0 : wallNow();
   const deliver = deps.handler.deliver as NonNullable<UpdateHandler["deliver"]>;
   let result: Awaited<ReturnType<typeof deliver>>;
   try {
@@ -449,6 +506,19 @@ async function sendRepliesFrom(
       });
       return null;
     });
+  onReply?.({
+    bot: pending.bot,
+    updateId: pending.updateId,
+    path,
+    submittedAt: submittedAt ?? startedAt,
+    startedAt,
+    endedAt: wallNow(),
+    sent: result.sent,
+    total: pending.replies.length,
+    outcome,
+    error: result.error !== null,
+    retryAfterSec: result.error?.retryAfterSec ?? null,
+  });
   if (result.error !== null) {
     deps.log?.("telegram.replies.deferred", {
       bot: pending.bot,
@@ -493,6 +563,13 @@ export async function drainTelegramUpdateRepliesOnce(
 }
 
 type ClaimedJob = NonNullable<Awaited<ReturnType<TelegramUpdateQueue["claim"]>>["job"]>;
+
+/** LOAD-01M (الدورةُ الرابعة) — رحلةُ الالتقاطِ التي جلبَت وظيفةً: مدّتُها وحجمُها وموضعُها فيها. */
+interface ClaimTrip {
+  readonly ms: number;
+  readonly n: number;
+  readonly pos: number;
+}
 
 /**
  * LOAD-01 (الدفعةُ الحاديةَ عشرةَ) — حالةُ المساراتِ الممتدّةُ عبرَ الأشواط: سلاسلُ كلِّ مستخدمٍ،
@@ -575,6 +652,8 @@ async function drainConcurrently(
    * ~25/ث (`diag-r12-jobtiming-500`). والمخزَّنُ لا يتجاوزُ المساراتِ الفارغةَ فيُسنَدُ فورًا.
    */
   const batched: ClaimedJob[] = [];
+  // القياسُ وحدَه (حينَ timing): رحلةُ كلِّ وظيفةٍ ملتقَطة. لا أثرَ في الترتيبِ ولا في الالتقاط.
+  const trips = deps.timing === undefined ? null : new WeakMap<ClaimedJob, ClaimTrip>();
   const batchClaim = deps.queue.claimBatchFor;
   const nextClaim = async (): Promise<ClaimedJob | null> => {
     const buffered = batched.shift();
@@ -594,7 +673,12 @@ async function drainConcurrently(
         const t0 = performance.now();
         const { jobs } = await batchClaim.call(deps.queue, bot, room);
         claimTrips += 1;
-        claimMs += performance.now() - t0;
+        const tripMs = performance.now() - t0;
+        claimMs += tripMs;
+        if (trips !== null)
+          jobs.forEach((j, pos) => {
+            trips.set(j as ClaimedJob, { ms: tripMs, n: jobs.length, pos });
+          });
         if (jobs.length > 0) {
           batched.push(...jobs.slice(1));
           return jobs[0] as ClaimedJob;
@@ -638,7 +722,7 @@ async function drainConcurrently(
       const key = laneKeyOf(claimedJob.bot, claimedJob.payload, String(claimedJob.updateId));
       const prev = tails.get(key) ?? Promise.resolve();
       const run = prev.then(async () => {
-        if (await processClaimedJob(deps, claimedJob, claimedAt)) done += 1;
+        if (await processClaimedJob(deps, claimedJob, claimedAt, trips?.get(claimedJob))) done += 1;
         else failed += 1;
       });
       tails.set(key, run);

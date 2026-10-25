@@ -53,4 +53,12 @@ for sig in offers-signal rider-trip-signal; do
 done
 setsid bun run "$HERE/load/miniapp-load.ts" > "$RUN_DIR/gen.out" 2>&1 < /dev/null &
 echo $! > "$RUN_DIR/gen.pid"
+# LOAD-01M (الدورةُ الرابعة) — حِملٌ مختلطٌ اختياريّ لبوتِ السائق بجوارِ مولّدِ contact (لا يعملُ إلّا
+# بـMIXED_RATE > 0؛ غيابُه = الموجةُ كما كانت حرفيًّا). جدولٌ حتميٌّ من MIXED_SEED، وسجلُّه دليلُ صلاحية.
+if [ "${MIXED_RATE:-0}" != "0" ]; then
+  MIXED_OUT="$RUN_DIR/evidence/mixed-sent.jsonl" MIXED_SEC="${MIXED_SEC:-180}" \
+    setsid bun run "$HERE/load/mixed-telegram.ts" > "$RUN_DIR/mixed.out" 2>&1 < /dev/null &
+  echo $! > "$RUN_DIR/mixed.pid"
+  echo "started mixed rate=$MIXED_RATE sec=${MIXED_SEC:-180} pid=$(cat "$RUN_DIR/mixed.pid")"
+fi
 echo "started round=$ROUND pid=$(cat "$RUN_DIR/gen.pid")"
