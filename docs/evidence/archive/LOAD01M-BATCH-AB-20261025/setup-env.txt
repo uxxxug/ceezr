@@ -1,0 +1,11 @@
+INFRA_OK base=/srv/ceezr-cap-20261016 netns=ceezrsbx2
+ ?column? 
+----------
+(0 rows)
+
+NOTICE:  database "ceezr_cap_20261016" does not exist, skipping
+NOTICE:  database "ceezr_cap_test_20261016" does not exist, skipping
+DB_OK ceezr_cap_20261016 ceezr_cap_test_20261016
+✅ طُبِّقَت 295 هجرةً بالترتيبِ · مهلةُ قفلٍ 3s.
+✅ طُبِّقَت 295 هجرةً بالترتيبِ · مهلةُ قفلٍ 3s.
+MIGRATE_OK

@@ -1,0 +1,10 @@
+ ?column? 
+----------
+(0 rows)
+
+NOTICE:  database "ceezr_cap_bbuild" does not exist, skipping
+NOTICE:  database "ceezr_cap_bbuild_t" does not exist, skipping
+DB_OK ceezr_cap_bbuild ceezr_cap_bbuild_t
+✅ طُبِّقَت 298 هجرةً بالترتيبِ · مهلةُ قفلٍ 3s.
+✅ طُبِّقَت 298 هجرةً بالترتيبِ · مهلةُ قفلٍ 3s.
+MIGRATE_OK
