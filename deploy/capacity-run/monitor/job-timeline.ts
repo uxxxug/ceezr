@@ -449,6 +449,27 @@ export function parseMixed(jsonl: string | null): MixedCheck | null {
   };
 }
 
+/**
+ * صلاحيّةُ الحِملِ المختلطِ في موجة (مسجَّلةٌ مسبقًا، PROTOCOL-load01m-mixed.md §6): أُرسِلَ كلُّ المخطَّط
+ * بلا تخطٍّ، و≥ 99% منه قُبِلَ 2xx، وp99 تأخّرِ المولّدِ عن جدولِه ≤ 1000ms. وإلّا فالحِملُ المعروضُ
+ * لم يكن هو المخطَّط، والموجةُ غيرُ صالحةٍ للمقارنة (تُعادُ مرّةً واحدة).
+ */
+export const MIXED_RULE = { minOkShare: 0.99, maxLagP99Ms: 1000 };
+
+export function mixedValidity(m: MixedCheck | null): { valid: boolean; reasons: string[] } {
+  if (m === null) return { valid: false, reasons: ["mixed-sent.jsonl غائب"] };
+  const reasons: string[] = [];
+  if (m.planned === 0) reasons.push("لا مخطَّط");
+  if (m.skipped > 0) reasons.push(`تخطٍّ ${m.skipped}`);
+  if (m.sent !== m.planned - m.skipped || m.sent < m.planned)
+    reasons.push(`أُرسِلَ ${m.sent} من ${m.planned}`);
+  if (m.sent > 0 && m.ok2xx / m.sent < MIXED_RULE.minOkShare)
+    reasons.push(`2xx ${m.ok2xx}/${m.sent}`);
+  if (m.scheduleLag.p99 === null || m.scheduleLag.p99 > MIXED_RULE.maxLagP99Ms)
+    reasons.push(`تأخّرُ الجدول p99=${m.scheduleLag.p99}ms`);
+  return { valid: reasons.length === 0, reasons };
+}
+
 function readMaybe(path: string): string | null {
   for (const p of [path, `${path}.gz`]) {
     if (!existsSync(p)) continue;
@@ -491,6 +512,7 @@ export function analyseTimeline(raw: string, refMs = LATENESS_REF_MS) {
     fairness: fairness(byKind, all),
     pool: poolWait(trace),
     mixed: parseMixed(readMaybe(join(raw, "mixed-sent.jsonl"))),
+    mixedValidity: mixedValidity(parseMixed(readMaybe(join(raw, "mixed-sent.jsonl")))),
     g1: parseG1(readMaybe(join(raw, "wave-report.json"))),
     valid: parseValid(readMaybe(join(raw, "validity.json"))),
   };
@@ -544,7 +566,14 @@ if (import.meta.main) {
     for (let i = 1; i <= 9; i++) {
       const a = waves.get(`A${i}`);
       const b = waves.get(`B${i}`);
-      if (a !== undefined && b !== undefined && a.valid !== false && b.valid !== false)
+      if (
+        a !== undefined &&
+        b !== undefined &&
+        a.valid !== false &&
+        b.valid !== false &&
+        a.mixedValidity.valid &&
+        b.mixedValidity.valid
+      )
         pairs.push({ a, b });
     }
     const contact = (w: WaveTimeline) => w.byKind.find((k) => k.kind === "contact");
@@ -552,6 +581,7 @@ if (import.meta.main) {
       JSON.stringify(
         {
           rule: MECH_RULE,
+          mixedRule: MIXED_RULE,
           pairs: pairs.length,
           contactQueueP50: mechanismPairs(pairs, (w) => contact(w)?.queue.p50 ?? null),
           nonContactQueueP50: mechanismPairs(pairs, (w) => w.nonContact.queue.p50),
@@ -580,6 +610,7 @@ if (import.meta.main) {
                   drainerWaitShare: w.pool.drainerWaitShare,
                 },
                 mixed: w.mixed,
+                mixedValidity: w.mixedValidity,
               },
             ]),
           ),
