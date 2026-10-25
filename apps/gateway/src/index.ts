@@ -51,6 +51,7 @@ import {
   createPaymentRepository,
   createWebhookEventStore,
 } from "../../../packages/infrastructure/financial/index.ts";
+import { createCachedCityDirectory } from "../../../packages/infrastructure/geo/cached-city-directory.ts";
 import { createCityDirectory } from "../../../packages/infrastructure/geo/city-directory.ts";
 import {
   createDriverDirectory,
@@ -680,6 +681,8 @@ const me =
 /** إثباتُ رقمِ السائقِ كما كتبَه بوتُه (`recordMiniAppPhoneProof`) — قراءةُ `draftPhone` ومسحُه. */
 const driverPhoneProofs = createDriverPhoneProofs(container.driverDialogSessions);
 
+// LOAD-01: نسخةٌ واحدةٌ مخزَّنةٌ لمساري التسجيل — حدُّ التقادمِ 5 ثوانٍ (`cached-city-directory.ts`).
+const onboardingCities = createCachedCityDirectory(createCityDirectory(container.sql));
 const onboarding =
   me === undefined
     ? undefined
@@ -687,7 +690,7 @@ const onboarding =
         onboarding: {
           viewer: me.viewer,
           riders: createRiderDirectory(container.sql),
-          cities: createCityDirectory(container.sql),
+          cities: onboardingCities,
           driverPhoneProofs,
           log,
         },
@@ -695,7 +698,7 @@ const onboarding =
         driverOnboarding: {
           viewer: me.viewer,
           drivers: createDriverDirectory(container.sql),
-          cities: createCityDirectory(container.sql),
+          cities: onboardingCities,
           phoneProofs: driverPhoneProofs,
           log,
         },
