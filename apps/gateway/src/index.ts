@@ -66,6 +66,7 @@ import {
 import { createRedisInitDataReplayGuard } from "../../../packages/infrastructure/identity/redis-init-data-replay-guard.ts";
 import { createRedisSessionRevocationStore } from "../../../packages/infrastructure/identity/redis-session-revocation-store.ts";
 import { createRevocableSessionReader } from "../../../packages/infrastructure/identity/revocable-session-reader.ts";
+import { createSessionBootstrapSnapshotReader } from "../../../packages/infrastructure/identity/session-bootstrap-snapshot.ts";
 import {
   createTelegramInitDataVerifier,
   TELEGRAM_INIT_DATA_MAX_AGE_SECONDS,
@@ -626,6 +627,8 @@ const sessionTelegram =
           log,
         },
         limits: { perAddress: limiterFor("POST", "/v1/session/telegram", "عنوانُ العميلِ") },
+        // `LOAD-01`: قراءتا الإقلاعِ المُضمَّنتانِ بأخذةِ اتصالٍ واحدةٍ (`session-bootstrap.ts`).
+        bootstrap: { snapshot: createSessionBootstrapSnapshotReader(container.sql) },
         log,
       };
 
