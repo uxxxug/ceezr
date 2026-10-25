@@ -14,7 +14,10 @@
   "roadmap": ["ROADMAP.md"],
   "affected_docs": [
     "docs/roadmap/execution/STATUS.md",
-    "docs/evidence/capacity/LOAD01-DRIVER-REGISTER-SINGLE-STATEMENT-20261025/RESULT.md"
+    "docs/evidence/capacity/LOAD01-DRIVER-REGISTER-SINGLE-STATEMENT-20261025/RESULT.md",
+    "docs/evidence/capacity/LOAD01-CITY-DIRECTORY-CACHE-20261025/RESULT.md",
+    "docs/evidence/capacity/LOAD01-REVOCATION-MGET-20261025/RESULT.md",
+    "docs/evidence/capacity/LOAD01-SESSION-BOOTSTRAP-COALESCE-20261025/RESULT.md"
   ],
   "no_other_affected_docs_reason": null
 }
