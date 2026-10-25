@@ -1000,6 +1000,9 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // `load01-contact-first-indexed-claim`): 209 — `telegram-update-claim-plan.test.ts`
     // (أربعُ حالاتٍ: خطةُ المراحلِ الثلاثِ في الخاصتينِ، الفهرسُ الجزئيُّ، التكافؤُ الدلاليُّ،
     // وزمنُ الالتقاطِ تحتَ التراكمِ) — اختبارُ خطةِ محلّلِ PostgreSQL لا بديلَ لهُ في الذاكرةِ.
+    // إعادةُ تسميةٍ (LOAD-01 · إيقافُ أولويّةِ contact · 2026-10-25): الملفُّ صارَ
+    // `telegram-update-claim-fifo-fairness.test.ts` بحالاتِه الخمس، و`telegram-update-claim-plan.test.ts`
+    // بحالاتِه الأربعِ يحرسُ خطةَ FIFO — العددانِ دونَ تغيير.
     expect(SKIP_REGISTRY).toHaveLength(209);
     // زيادةٌ (الدفعةُ 19 · تدقيقُ PR #595): 1689 — حالةُ سباقِ فتحِ الجلسةِ على PostgreSQL
     // حقيقيٍّ في `tracking-duty-and-trip-reader.test.ts` (تعملُ في وظيفةِ التكاملِ).

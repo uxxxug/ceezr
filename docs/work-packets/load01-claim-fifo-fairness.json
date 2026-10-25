@@ -1,0 +1,20 @@
+{
+  "id": "load01-claim-fifo-fairness",
+  "goal": "LOAD-01 (قرارُ المالكِ بعدَ PR #651): إيقافُ أولويّةِ contact واستعادةُ عدالةِ الالتقاطِ FIFO بهجرةٍ أماميّةٍ 20261025120000 تُعيدُ claim_telegram_update_job وclaim_telegram_update_job_for_bot (من 20261015000200) وclaim_telegram_update_jobs_for_bot (من 20261020090000) بمتنِها حرفيًّا قبلَ #645 — مع إبقاءِ p_limit default 10 والفهرسِ الجزئيِّ telegram_update_jobs_contact_pending_idx (إزالتُهما طورُ contract لاحق). الدافعُ: على حِملٍ مختلطٍ (LOAD01M-MIXED-AB-20261025) كلفةُ الأولويّةِ على غيرِ contact نحو 6.2 ضعفٍ وقيمتُها غيرُ مُثبَتة. اختباراتُ تكاملٍ تفشلُ على ترتيبِ #647 وتنجحُ بعدَ الهجرة. لا مساسَ بحدٍّ محميّ؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL؛ لا أثرَ على G1 مُثبَت.",
+  "canonical_source": ["docs/evidence/capacity/LOAD01-CLAIM-FIFO-20261025/RESULT.md"],
+  "implementation": [
+    "supabase/migrations/20261025120000_load01_claim_fifo_fairness_restore.sql",
+    "tests/integration/telegram-update-claim-fifo-fairness.test.ts",
+    "tests/integration/telegram-update-claim-plan.test.ts",
+    "scripts/lib/rollback-registry.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-CLAIM-FIFO-20261025/RESULT.md"
+  ],
+  "no_other_affected_docs_reason": null
+}
