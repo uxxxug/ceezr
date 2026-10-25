@@ -93,10 +93,21 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
         return row === undefined ? null : toDriverProfile(row);
       }),
 
+    /**
+     * LOAD-01 (`perf/load01-driver-register-single-statement`) — **جملةٌ واحدة** بدلَ معاملةٍ من
+     * سبعِ رحلات (BEGIN + خمسُ جُمَلٍ + COMMIT) تحجزُ مقعدًا من `gatewayRequest` طوالَها.
+     * الجملةُ الواحدةُ ذرّيّةٌ بذاتها (معاملةٌ ضمنيّة): كلُّ الكتاباتِ أو لا شيء — العقدُ نفسُه.
+     * ــ CTEs الكتابةِ تُنفَّذُ مرّةً وإلى الإكمالِ وإن لم يُقرأ ناتجُها (`cap` مثلًا) — توثيقُ PostgreSQL.
+     * ــ الجملةُ الرئيسةُ ترى لقطةً قبلَ الجملة، فالملفُّ يُبنى من `returning` لا من `DRIVER_SELECT`:
+     *   `is_available` = صفُّ `av` المُدرَجُ حديثًا وإلّا الصفُّ السابقُ (لم يمسَّه `do nothing`).
+     * ــ لا مشغِّلَ على هذه الجداولِ يقرأُ جدولًا شقيقًا (فحصُ `pg_trigger` في RESULT.md)؛ مشغِّلُ
+     *   `apply_identity_mark_on_signup` على `users` يقرأُ علاماتِ الهويّةِ وحدَها.
+     * ملاحظة: لا يُطبع national_id في أي سجل ولا رسالة خطأ.
+     */
     register: (input: RegisterDriverInput) =>
-      guard("drivers.register", async () =>
-        sql.begin(async (tx) => {
-          const users = await tx<{ id: string }[]>`
+      guard("drivers.register", async () => {
+        const rows = await sql<DriverRow[]>`
+          with u as (
             insert into users (city_id, telegram_id, full_name, phone, language_code, role)
             values (${input.cityId}, ${input.telegramUserId}, ${input.fullName},
                     ${input.phone}, ${input.language}, 'driver')
@@ -108,21 +119,13 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
                   -- تسجيلَه سائقاً الآن، فكانَ يُنزَّلُ ثمَّ يُرقّى بصفِّ تدقيقٍ ثانٍ.
                   role = case when users.role = 'admin' then users.role else 'driver' end,
                   updated_at = now()
-            returning id
-          `;
-          const userId = users[0]?.id;
-          if (userId === undefined) throw new Error("تعذّر إنشاء المستخدم");
-
-          /**
-           * الملفّ التوثيقي يُكتب هنا في نفس المعاملة لا في تحديث لاحق: تحديثٌ
-           * منفصل قد يفشل بعد نجاح الإدراج، فيبقى سائقٌ بلا مركبة ولا هوية —
-           * وهو بالضبط ما كانت عليه الحال قبل هذه المرحلة.
-           * ملاحظة: لا يُطبع national_id في أي سجل ولا رسالة خطأ.
-           */
-          const drivers = await tx<{ id: string }[]>`
+            returning id, telegram_id, full_name, phone
+          ),
+          d as (
+            -- الملفّ التوثيقي في الجملةِ نفسِها لا في تحديثٍ لاحق: لا سائقَ بلا مركبةٍ ولا هوية.
             insert into drivers (city_id, user_id, vehicle_type, plate_number,
                                  national_id, vehicle_photo_file_id)
-            values (${input.cityId}, ${userId}, ${input.vehicleType}, ${input.plateNumber},
+            values (${input.cityId}, (select id from u), ${input.vehicleType}, ${input.plateNumber},
                     ${input.nationalId}, ${input.vehiclePhotoFileId})
             on conflict (user_id) do update
               set city_id = excluded.city_id,
@@ -131,29 +134,36 @@ export function createDriverDirectory(sql: Sql): DriverDirectory {
                   national_id = excluded.national_id,
                   vehicle_photo_file_id = excluded.vehicle_photo_file_id,
                   updated_at = now()
-            returning id
-          `;
-          const driverId = drivers[0]?.id;
-          if (driverId === undefined) throw new Error("تعذّر إنشاء السائق");
-
-          await tx`
+            returning id, city_id, verification_status, last_location, last_location_recorded_at
+          ),
+          cap as (
             insert into driver_capabilities (city_id, driver_id, service, is_enabled)
-            values (${input.cityId}, ${driverId}, ${input.service}, true)
+            values (${input.cityId}, (select id from d), ${input.service}, true)
             on conflict (driver_id, service) do update
               set is_enabled = true, updated_at = now()
-          `;
-          await tx`
+            returning 1
+          ),
+          av as (
             insert into driver_availability (city_id, driver_id, is_available)
-            values (${input.cityId}, ${driverId}, false)
+            values (${input.cityId}, (select id from d), false)
             on conflict (driver_id) do nothing
-          `;
-
-          const rows = await tx.unsafe<DriverRow[]>(`${DRIVER_SELECT} where d.id = $1`, [driverId]);
-          const row = rows[0];
-          if (row === undefined) throw new Error("تعذّرت قراءة السائق بعد التسجيل");
-          return toDriverProfile(row);
-        }),
-      ) as Promise<Result<DriverProfile, PortFailureError>>,
+            returning is_available
+          )
+          select d.id as driver_id, d.city_id, u.telegram_id, u.full_name, u.phone,
+                 d.verification_status,
+                 coalesce((select is_available from av),
+                          (select a.is_available from driver_availability a where a.driver_id = d.id))
+                   as is_available,
+                 (d.last_location is not null) as has_location,
+                 st_y(d.last_location::geometry) as last_lat,
+                 st_x(d.last_location::geometry) as last_lng,
+                 (extract(epoch from d.last_location_recorded_at) * 1000)::bigint::text as last_location_at_ms
+            from d cross join u
+        `;
+        const row = rows[0];
+        if (row === undefined) throw new Error("تعذّرت قراءة السائق بعد التسجيل");
+        return toDriverProfile(row);
+      }) as Promise<Result<DriverProfile, PortFailureError>>,
 
     /**
      * ## `BUG-001` — ولماذا الشرطُ في `where` لا في `JS`

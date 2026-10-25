@@ -397,6 +397,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
 
   {
+    file: "tests/integration/driver-register-single-statement.test.ts",
+    suites: ["LOAD-01 · تسجيلُ السائقِ بجملةٍ واحدة"],
+    skipped: 4,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "تسجيلُ السائقِ بجملةٍ واحدة (LOAD-01، حزمة load01-driver-register-single-statement): CTEs كتابةٍ على users وdrivers وdriver_capabilities وdriver_availability برحلةٍ واحدةٍ تحفظُ عقدَ المعاملةِ السابقة (الملفُّ = قراءةُ findByTelegramId، إعادةُ التسجيلِ لا تمسُّ الإتاحةَ ولا تُنزِلُ المسؤول، والذرّيّة) — لقطةُ PostgreSQL ومشغِّلاتُه لا يُثبِتُها بديلٌ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+
+  {
     file: "tests/integration/telegram-update-claim-plan.test.ts",
     suites: ["خطةُ التقاطِ تيليجرام FIFO المُفهرسةِ — بلا Sort كاملٍ ولا أولويّةٍ نوعيّة"],
     skipped: 4,
