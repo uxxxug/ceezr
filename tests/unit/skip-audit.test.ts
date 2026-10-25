@@ -1014,10 +1014,12 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · قراءةُ الإقلاعِ المُدمَجة · 2026-10-25 · حزمةُ `load01-session-bootstrap-coalesce`):
     // 212 — `session-bootstrap-snapshot.test.ts` (ثلاثُ حالاتٍ: التكافؤُ بعبارةٍ واحدة، غيرُ الرقميّ
     // بلا عبارة، فشلُ العبارةِ خطأٌ مصنَّفٌ للقراءتَين).
-    expect(SKIP_REGISTRY).toHaveLength(213);
     // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25 · حزمةُ `load01-revocation-mget`):
     // 213 — `session-revocation-mget-real.test.ts` (حالةٌ واحدةٌ على Redis حقيقيّ).
-    expect(SKIP_REGISTRY).toHaveLength(213);
+    // زيادةٌ (LOAD-01 · تسجيلُ السائقِ بجملةٍ واحدة · 2026-10-25 · حزمةُ `load01-driver-register-single-statement`):
+    // 214 — `driver-register-single-statement.test.ts` (أربعُ حالات: سائقٌ جديدٌ برحلةٍ واحدة، إعادةُ التسجيل،
+    // المسؤولُ لا يُنزَل، الذرّيّة).
+    expect(SKIP_REGISTRY).toHaveLength(214);
     // زيادةٌ (الدفعةُ 19 · تدقيقُ PR #595): 1689 — حالةُ سباقِ فتحِ الجلسةِ على PostgreSQL
     // حقيقيٍّ في `tracking-duty-and-trip-reader.test.ts` (تعملُ في وظيفةِ التكاملِ).
     // زيادةٌ (الدفعةُ 20): 1692 — حالاتُ الملفِّ الثلاث.
@@ -1031,9 +1033,9 @@ describe("السجلُّ الحقيقيُّ — أرقامٌ مقيسةٌ مُث
     // زيادةٌ (LOAD-01 · C1 · 2026-10-25): 1720 — حالاتُ `telegram-update-claim-effect-in-claim.test.ts` الأربعُ.
     // زيادةٌ (LOAD-01 · فهرسا التقاطِ الردودِ · 2026-10-25): 1723 — حالاتُ `telegram-reply-claim-plan.test.ts` الثلاث.
     // زيادةٌ (LOAD-01 · قراءةُ الإقلاعِ المُدمَجة · 2026-10-25): 1726 — حالاتُ `session-bootstrap-snapshot.test.ts` الثلاث.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1727);
     // زيادةٌ (LOAD-01 · فحصُ الإبطالِ بأمرٍ واحد · 2026-10-25): 1727 — حالةُ `session-revocation-mget-real.test.ts`.
-    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1727);
+    // زيادةٌ (LOAD-01 · تسجيلُ السائقِ بجملةٍ واحدة · 2026-10-25): 1731 — حالاتُ `driver-register-single-statement.test.ts` الأربع.
+    expect(SKIP_REGISTRY.reduce((sum, entry) => sum + entry.skipped, 0)).toBe(1731);
   });
 
   it("لا تجاوزَ على مسارٍ حرجٍ بلا مُشغِّلٍ، وما لا مُشغِّلَ له مُعلَنٌ ببيانٍ", () => {

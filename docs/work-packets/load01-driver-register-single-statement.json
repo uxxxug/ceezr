@@ -1,0 +1,20 @@
+{
+  "id": "load01-driver-register-single-statement",
+  "goal": "LOAD-01 — تسجيلُ السائقِ بجملةٍ واحدةٍ (CTEs كتابة) بدلَ معاملةٍ من سبعِ رحلاتٍ تحجزُ مقعدًا من gatewayRequest؛ 7,803 تسجيلًا لكلِّ موجةٍ m5-1500. العقدُ محفوظٌ باختبارِ تكاملٍ حقيقيّ وتحكّمٍ سلبيّ. أثرُ G1 غيرُ مُقاس؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
+  "canonical_source": [
+    "docs/evidence/capacity/LOAD01-DRIVER-REGISTER-SINGLE-STATEMENT-20261025/RESULT.md"
+  ],
+  "implementation": [
+    "packages/infrastructure/identity/directories.ts",
+    "tests/integration/driver-register-single-statement.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-DRIVER-REGISTER-SINGLE-STATEMENT-20261025/RESULT.md"
+  ],
+  "no_other_affected_docs_reason": null
+}
