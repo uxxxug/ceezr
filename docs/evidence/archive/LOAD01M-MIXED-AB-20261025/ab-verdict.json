@@ -1,0 +1,260 @@
+{
+ "rule": {
+  "minPairs": 3,
+  "effectPp": 5,
+  "nullPp": 2
+ },
+ "controlStatements": 21,
+ "waves": [
+  {
+   "slot": "A1",
+   "superseded": false,
+   "raw": "/home/user/load01m-out/raw/load01m-mx-A1-i80-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+    "idleSpeedProbeMs": 259,
+    "idlePgProbeMs": 208.9
+   },
+   "valid": true,
+   "g1": {
+    "ok": 8504,
+    "total": 13519,
+    "pct": 62.9
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 1.65,
+   "contactQueueP50Ms": 18269.53,
+   "contactExecMeanMs": 266.54,
+   "sweepsTruncatedShare": 0.972
+  },
+  {
+   "slot": "B1",
+   "superseded": false,
+   "raw": "/home/user/load01m-out/raw/load01m-mx-B1-i81-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+    "idleSpeedProbeMs": 255.1,
+    "idlePgProbeMs": 222.7
+   },
+   "valid": true,
+   "g1": {
+    "ok": 8781,
+    "total": 13572,
+    "pct": 64.7
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1,
+   "claimMeanMs": 3.85,
+   "contactQueueP50Ms": 17385.37,
+   "contactExecMeanMs": 269.93,
+   "sweepsTruncatedShare": 0.972
+  },
+  {
+   "slot": "B2",
+   "superseded": false,
+   "raw": "/home/user/load01m-out/raw/load01m-mx-B2-i82-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+    "idleSpeedProbeMs": 248.2,
+    "idlePgProbeMs": 214.2
+   },
+   "valid": true,
+   "g1": {
+    "ok": 8864,
+    "total": 13469,
+    "pct": 65.81
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 0.98,
+   "claimMeanMs": 3.87,
+   "contactQueueP50Ms": 17283.76,
+   "contactExecMeanMs": 270.96,
+   "sweepsTruncatedShare": 0.971
+  },
+  {
+   "slot": "A2",
+   "superseded": false,
+   "raw": "/home/user/load01m-out/raw/load01m-mx-A2-i83-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+    "idleSpeedProbeMs": 261,
+    "idlePgProbeMs": 215.3
+   },
+   "valid": true,
+   "g1": {
+    "ok": 8198,
+    "total": 13526,
+    "pct": 60.61
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.02,
+   "claimMeanMs": 1.73,
+   "contactQueueP50Ms": 18034.33,
+   "contactExecMeanMs": 264.38,
+   "sweepsTruncatedShare": 0.977
+  },
+  {
+   "slot": "A3",
+   "superseded": false,
+   "raw": "/home/user/load01m-out/raw/load01m-mx-A3-i84-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+    "idleSpeedProbeMs": 244.8,
+    "idlePgProbeMs": 209.2
+   },
+   "valid": true,
+   "g1": {
+    "ok": 8740,
+    "total": 13279,
+    "pct": 65.82
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.01,
+   "claimMeanMs": 1.63,
+   "contactQueueP50Ms": 18344.72,
+   "contactExecMeanMs": 269.74,
+   "sweepsTruncatedShare": 0.971
+  },
+  {
+   "slot": "B3",
+   "superseded": false,
+   "raw": "/home/user/load01m-out/raw/load01m-mx-B3-i85-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+    "idleSpeedProbeMs": 255.9,
+    "idlePgProbeMs": 220.9
+   },
+   "valid": true,
+   "g1": {
+    "ok": 8635,
+    "total": 13284,
+    "pct": 65
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.02,
+   "claimMeanMs": 3.93,
+   "contactQueueP50Ms": 17159.89,
+   "contactExecMeanMs": 278.03,
+   "sweepsTruncatedShare": 0.971
+  },
+  {
+   "slot": "B4",
+   "superseded": false,
+   "raw": "/home/user/load01m-out/raw/load01m-mx-B4-i86-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+    "idleSpeedProbeMs": 265.7,
+    "idlePgProbeMs": 218.5
+   },
+   "valid": true,
+   "g1": {
+    "ok": 8591,
+    "total": 13474,
+    "pct": 63.76
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.03,
+   "claimMeanMs": 4,
+   "contactQueueP50Ms": 17630.51,
+   "contactExecMeanMs": 269.87,
+   "sweepsTruncatedShare": 0.971
+  },
+  {
+   "slot": "A4",
+   "superseded": false,
+   "raw": "/home/user/load01m-out/raw/load01m-mx-A4-i87-M-1500",
+   "seat": {
+    "cpuModel": "AMD EPYC 9V45 96-Core Processor",
+    "idleSpeedProbeMs": 257.9,
+    "idlePgProbeMs": 215.6
+   },
+   "valid": true,
+   "g1": {
+    "ok": 8246,
+    "total": 13476,
+    "pct": 61.19
+   },
+   "pairedComparability": {
+    "verdict": "COMPARABLE",
+    "reasons": []
+   },
+   "hardwareFactor": 1.04,
+   "claimMeanMs": 1.7,
+   "contactQueueP50Ms": 18203.78,
+   "contactExecMeanMs": 262.07,
+   "sweepsTruncatedShare": 0.971
+  }
+ ],
+ "claimMeanMsByArm": {
+  "A": 1.68,
+  "B": 3.91
+ },
+ "verdict": {
+  "decision": "UNRESOLVED",
+  "why": "mean Δ 2.19pp between thresholds or pair signs disagree",
+  "pairs": [
+   {
+    "pair": 1,
+    "a": 62.9,
+    "b": 64.7,
+    "dPp": 1.8
+   },
+   {
+    "pair": 2,
+    "a": 60.61,
+    "b": 65.81,
+    "dPp": 5.2
+   },
+   {
+    "pair": 3,
+    "a": 65.82,
+    "b": 65,
+    "dPp": -0.82
+   },
+   {
+    "pair": 4,
+    "a": 61.19,
+    "b": 63.76,
+    "dPp": 2.57
+   }
+  ],
+  "excluded": [],
+  "meanDPp": 2.19,
+  "armG1": {
+   "A": {
+    "n": 4,
+    "pooledPct": 62.62,
+    "min": 60.61,
+    "max": 65.82
+   },
+   "B": {
+    "n": 4,
+    "pooledPct": 64.82,
+    "min": 63.76,
+    "max": 65.81
+   }
+  }
+ }
+}

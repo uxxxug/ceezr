@@ -1,0 +1,58 @@
+  MIXED_RATE: 20
+  MIXED_SEED: 1
+  MIXED_RATE: 20
+  MIXED_SEED: 1
+  MIXED_RATE: 20
+  MIXED_SEED: 1
+[36;1m  --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=REF_SHA="$REF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \[0m
+  MIXED_RATE: 20
+  MIXED_SEED: 1
+TPL_A_FN_MATCH fn_md5=ba159019383b0ff487b9b53cebc214dc idx_md5=f0acf431d7c66c27a097f81aa6ce75c2 idxn_md5=566886c24f4ba58af6fa63e958f7a7cd
+TPL_B_FN_MATCH fn_md5=db6d947096fe114e001ca377d966d3ff idx_md5=c61fca86173deff8fbdeda9e1b0301bb idxn_md5=a81178c899c482fd317cda06af8bc793
+TPL_AB_INDEX_DIFF_OK B_only[telegram_update_jobs_contact_pending_idx ] A_only[]
+TPL_AB_SAME_COLUMNS_AND_SEED
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+WAVE_DONE load01m-mx-A1-i80-M-1500 rc=1
+verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 5015}
+MIXED_OK
+TPL_ACTIVE arm=B fn_md5=db6d947096fe114e001ca377d966d3ff
+WAVE_DONE load01m-mx-B1-i81-M-1500 rc=1
+verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 4791}
+MIXED_OK
+TPL_ACTIVE arm=B fn_md5=db6d947096fe114e001ca377d966d3ff
+WAVE_DONE load01m-mx-B2-i82-M-1500 rc=1
+verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 4605}
+MIXED_OK
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+WAVE_DONE load01m-mx-A2-i83-M-1500 rc=1
+verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 5328}
+MIXED_OK
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+WAVE_DONE load01m-mx-A3-i84-M-1500 rc=1
+verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 4539}
+MIXED_OK
+TPL_ACTIVE arm=B fn_md5=db6d947096fe114e001ca377d966d3ff
+WAVE_DONE load01m-mx-B3-i85-M-1500 rc=1
+verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 4649}
+MIXED_OK
+TPL_ACTIVE arm=B fn_md5=db6d947096fe114e001ca377d966d3ff
+WAVE_DONE load01m-mx-B4-i86-M-1500 rc=1
+verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 4883}
+MIXED_OK
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+WAVE_DONE load01m-mx-A4-i87-M-1500 rc=1
+verdict FAIL ['G1', 'G4', 'P7'] notverified {'driver_onboarding_failed': 5230}
+MIXED_OK
+AB_WAVE A1  True COMPARABLE {'ok': 8504, 'total': 13519, 'pct': 62.9} 1.65 1
+AB_WAVE B1  True COMPARABLE {'ok': 8781, 'total': 13572, 'pct': 64.7} 3.85 1
+AB_WAVE B2  True COMPARABLE {'ok': 8864, 'total': 13469, 'pct': 65.81} 3.87 0.98
+AB_WAVE A2  True COMPARABLE {'ok': 8198, 'total': 13526, 'pct': 60.61} 1.73 1.02
+AB_WAVE A3  True COMPARABLE {'ok': 8740, 'total': 13279, 'pct': 65.82} 1.63 1.01
+AB_WAVE B3  True COMPARABLE {'ok': 8635, 'total': 13284, 'pct': 65} 3.93 1.02
+AB_WAVE B4  True COMPARABLE {'ok': 8591, 'total': 13474, 'pct': 63.76} 4 1.03
+AB_WAVE A4  True COMPARABLE {'ok': 8246, 'total': 13476, 'pct': 61.19} 1.7 1.04
+AUDIT_CLEAN
+SECRET_AUDIT_CLEAN
+  MIXED_RATE: 20
+  MIXED_SEED: 1

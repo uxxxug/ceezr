@@ -1,0 +1,5 @@
+fn_md5=db6d947096fe114e001ca377d966d3ff fn_count=313
+col_md5=e7519d07f706ffb5d15bd278dfd2aa01
+idx_md5=c61fca86173deff8fbdeda9e1b0301bb
+idxn_md5=a81178c899c482fd317cda06af8bc793
+rows_md5=c3bcad7d8fb869d666f0c8673a9fb069 nonempty=cities=5 city_service_areas=5 destination_landmarks=3632 identity_hash_pepper=1 notification_kind_policy=95 platform_settings=500
