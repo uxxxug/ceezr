@@ -10,6 +10,7 @@ on:
     paths:
       - deploy/capacity-run/b24-runner/**
       - deploy/capacity-run/monitor/drainer-decompose.ts
+      - deploy/capacity-run/monitor/job-timeline.ts
       - .github/workflows/load01m-5city.yml
 
 permissions:
@@ -21,6 +22,11 @@ env:
   A_SHA: f9f598c28e48779d9bdda1fea52f2d8d1c3bacc2
   # B = #647 (main 2559a742 + الأدواتُ نفسُها) — نفسُ التزامِ موجةِ 40093933836.
   B_SHA: c7e63971af42084f36c9b6d80f734d7d6ea7a21e
+  # الدورةُ الرابعة (PROTOCOL-load01m-mixed.md): REF = B + قياسُ زمنِ كلِّ وظيفةٍ وحدَه، يشغّلُ البوّابةَ والمولّدَين للذراعين؛
+  # وحِملٌ مختلطٌ ثابتٌ لبوتِ السائق (20/ث، command:message = 1:1، بذرة 1) بجوارِ m5-1500.
+  REF_SHA: bca1c743289bb780af96afcff49900a1f78e7e8c
+  MIXED_RATE: "20"
+  MIXED_SEED: "1"
 
 jobs:
   seat:
@@ -31,7 +37,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: m5-1500-ab, conc: 1500, cities: "JED,MKK,RUH,TIF,MED" }
+          - { name: m5-1500-mixed, conc: 1500, cities: "JED,MKK,RUH,TIF,MED" }
     steps:
       - uses: actions/checkout@v7
         with:
@@ -44,14 +50,14 @@ jobs:
         run: |
           sudo cp -a "$GITHUB_WORKSPACE" /home/user/workspace/ceezr
           sudo chown -R user:user /home/user/workspace/ceezr
-          for X in "$A_SHA" "$B_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
+          for X in "$A_SHA" "$B_SHA" "$REF_SHA"; do sudo -u user git -C /home/user/workspace/ceezr cat-file -e "$X^{commit}"; done
 
       - name: المقعد والموجة (داخل ceezrseat.slice)
         run: |
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
-            --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=CONC="${{ matrix.conc }}" --setenv=CITIES="${{ matrix.cities }}" \
-            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m-ab.sh
+            --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=REF_SHA="$REF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="${{ matrix.conc }}" --setenv=CITIES="${{ matrix.cities }}" \
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01m-mixed.sh
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
         uses: actions/upload-artifact@v5

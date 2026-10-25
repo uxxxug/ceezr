@@ -17,7 +17,7 @@ rc=$?
 $PSQL -d postgres -Atc "select count(pg_terminate_backend(pid)) from pg_stat_activity where application_name='b24-conn-sampler'" >/dev/null; wait $SP 2>/dev/null
 kill $SS 2>/dev/null; wait $SS 2>/dev/null
 E=$B/runs/$R/evidence; cp $B/trace-cur.jsonl.load.jsonl $E/load-trace.jsonl 2>/dev/null; cp $B/conn-cur.txt $E/conn-samples.csv; cp $B/sched-cur.jsonl $E/sched-samples.jsonl
-$PSQL -d ceezr_cap_20261016 -Atc "copy (select bot, update_id, (extract(epoch from created_at)*1000)::bigint, (extract(epoch from completed_at)*1000)::bigint, status, attempts from telegram_update_jobs) to stdout with csv" > $E/update-jobs.csv
+$PSQL -d ceezr_cap_20261016 -Atc "copy (select bot, update_id, (extract(epoch from created_at)*1000)::bigint, (extract(epoch from completed_at)*1000)::bigint, status, attempts, case when payload ? 'callback_query' then 'callback' when jsonb_typeof(payload->'message') is distinct from 'object' then 'other' when jsonb_typeof(payload->'message'->'contact') is not null and jsonb_typeof(payload->'message'->'contact') <> 'null' then 'contact' when jsonb_typeof(payload->'message'->'text') = 'string' and left(payload->'message'->>'text',1) = '/' then 'command' else 'message' end from telegram_update_jobs) to stdout with csv" > $E/update-jobs.csv
 gw() { grep -m1 -oE '^  gatewayRequest: [0-9]+,' "$1/packages/shared/config/connection-budget.ts" | grep -oE '[0-9]+'; }
 WR=/home/user/workspace/wt-ref; WA=/home/user/workspace/wt-acc
 printf '{"tpl_level_ok":"%s","side":"%s","code_ref":"%s","code_acc":"%s","gateway_request_ref":%s,"gateway_request_acc":%s,"nproc":%s}\n' "$lvl" "$SIDE" "$(git -C $WR rev-parse HEAD)" "$(git -C $WA rev-parse HEAD)" "$(gw $WR)" "$(gw $WA)" "$(nproc)" > $E/b24-env.json

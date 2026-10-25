@@ -4,4 +4,4 @@
 set -u
 B=/srv/ceezr-cap-20261016; REPO=/home/user/workspace/wt-ref
 ROUND=${1:?ROUND}; PROFILE=${2:?PROFILE}; DRAIN=${3:?DRAIN}; IDX=${4:-0}
-exec $B/bin/nsx bash -c "cd $REPO && export ${RIDER_SOCKET_MIX:+RIDER_SOCKET_MIX=$RIDER_SOCKET_MIX} ${ARRIVAL_RATE:+ARRIVAL_RATE=$ARRIVAL_RATE} ${GEN_WAIT_ITERS:+GEN_WAIT_ITERS=$GEN_WAIT_ITERS} SEAT=$B RUN_BASE=$B PATH=/home/user/.local/bin:\$PATH && bash deploy/capacity-run/wave.sh '$ROUND' '$PROFILE' '$DRAIN' '$IDX' && bash deploy/capacity-run/finish-wave.sh '$ROUND'"
+exec $B/bin/nsx bash -c "cd $REPO && export ${RIDER_SOCKET_MIX:+RIDER_SOCKET_MIX=$RIDER_SOCKET_MIX} ${ARRIVAL_RATE:+ARRIVAL_RATE=$ARRIVAL_RATE} ${GEN_WAIT_ITERS:+GEN_WAIT_ITERS=$GEN_WAIT_ITERS} ${MIXED_RATE:+MIXED_RATE=$MIXED_RATE} ${MIXED_SEC:+MIXED_SEC=$MIXED_SEC} ${MIXED_SEED:+MIXED_SEED=$MIXED_SEED} SEAT=$B RUN_BASE=$B PATH=/home/user/.local/bin:\$PATH && bash deploy/capacity-run/wave.sh '$ROUND' '$PROFILE' '$DRAIN' '$IDX' && bash deploy/capacity-run/finish-wave.sh '$ROUND'"
