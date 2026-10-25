@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# LOAD-01 — قراءةُ الإقلاعِ المُدمَجةُ (#656) وفحصُ الإبطالِ بأمرٍ واحد (#657): مقارنةٌ مقترنةٌ (PROTOCOL-load01-boot-ab.md):
+# LOAD-01 — ذاكرةُ قائمةِ المدن (#658) وتسجيلُ السائقِ بجملةٍ واحدة (#659): مقارنةٌ مقترنةٌ (PROTOCOL-load01-reg-ab.md):
 #   ثماني موجاتِ m5-1500 + حِملٌ مختلطٌ ثابتٌ لبوتِ السائق بالترتيب A1 B1 B2 A2 A3 B3 B4 A4.
 #   الفرقُ الوحيدُ شيفرةُ البوّابة: wt-ref يُبدَّلُ إلى A_SHA أو B_SHA قبلَ كلِّ موجة، وكلُّ ما عداهُ (المسارُ ref
 #   نفسُه، المولّدان، الحِملُ، القالبُ الواحد) واحدٌ للذراعين؛ وحارسٌ آليٌّ يقصرُ فرقَ A..B على الملفّاتِ المتوقَّعة.
@@ -8,11 +8,11 @@
 set -euo pipefail
 export HOME=/home/user PATH=/home/user/.bun/bin:/home/user/.local/bin:/usr/lib/postgresql/18/bin:/usr/sbin:/usr/bin:/sbin:/bin
 export CAP_SEAT_CG=ceezrseat.slice CAP_SIBS="system.slice init.scope user.slice"
-B=/srv/ceezr-cap-20261016; W=/home/user/workspace; H=$W/ceezr; OUT=/home/user/load01boot-out
+B=/srv/ceezr-cap-20261016; W=/home/user/workspace; H=$W/ceezr; OUT=/home/user/load01reg-out
 A_SHA=${A_SHA:?}; B_SHA=${B_SHA:?}; REF_SHA=${REF_SHA:?}; CONC=${CONC:-1500}; CITIES=${CITIES:-JED,MKK,RUH,TIF,MED}
-# بصمةُ الدوالِّ لقالبِ A (هجراتُ #655) — الفهرسانِ لا يمسّانِ دالّةً فهيَ بصمةُ التشغيلِ 40170539016 نفسُها — PROTOCOL §2
+# بصمةُ الدوالِّ لقالبِ A (لا هجرةَ بعدَ #655) = بصمةُ التشغيلَين 40170539016 و40174864257 — PROTOCOL §2
 EXP_FN_A=fn_md5=9d7035c825d977ca3f8ba5d78c73af4f
-EXPECTED_AB_DIFF="apps/gateway/src/index.ts apps/gateway/src/routes/session-telegram.ts apps/gateway/src/server.ts packages/application/identity/ports.ts packages/application/identity/session-bootstrap.ts packages/infrastructure/consent/consent-store.ts packages/infrastructure/identity/redis-session-revocation-store.ts packages/infrastructure/identity/revocable-session-reader.ts packages/infrastructure/identity/session-bootstrap-snapshot.ts packages/infrastructure/identity/viewer-account.ts"
+EXPECTED_AB_DIFF="apps/gateway/src/container.ts apps/gateway/src/index.ts packages/infrastructure/geo/cached-city-directory.ts packages/infrastructure/identity/directories.ts"
 export MIXED_RATE=${MIXED_RATE:?} MIXED_SEC=${MIXED_SEC:-${WAVE_SEC:-180}} MIXED_SEED=${MIXED_SEED:-1}
 mkdir -p "$OUT"
 log() { echo "[$(date -u +%T)] $*"; }
@@ -98,19 +98,19 @@ log "مرجعُ الخمول ← validity (مرّةً واحدةً قبلَ أو
 python3 "$H/deploy/capacity-run/b24-runner/derive-validity.py" "$B/qual/idle-b24" "$B/bin/validity.json"
 cp "$B/bin/validity.json" "$OUT/validity.json"; cp -r "$B/qual/idle-b24" "$OUT/idle-b24"
 
-export SEQ_PREFIX=load01boot
+export SEQ_PREFIX=load01reg
 export GEN_WAIT_ITERS=$(( (${WAVE_SEC:-180} + 900) / 10 ))
 N=$(echo "$CITIES" | tr ',' '\n' | grep -c .)
 if [ "$N" -gt 1 ]; then export LOAD01M_CITIES="$CITIES"; unset LOAD01M_CITY; else export LOAD01M_CITY="$CITIES"; unset LOAD01M_CITIES; fi
 SLOTS=()
 wave() { # SLOT(A1…) IDX ⇒ يضبطُ V
-  local SLOT=$1 IDX=$2 ARM=${1:0:1} NAME=boot-$1-i$2
+  local SLOT=$1 IDX=$2 ARM=${1:0:1} NAME=reg-$1-i$2
   activate "$ARM" "$NAME" || { V=INVALID; return; }
   log "موجةُ القياس $NAME arm=$ARM conc=$CONC (مدن=$N)"
   $NSX redis-cli -p 56379 config resetstat >/dev/null 2>&1 || echo "REDIS_RESETSTAT_FAIL $NAME"
   local ARMSHA=${ARM}_SHA
   "$B/bin/b24-seq.sh" "$NAME" "$CONC" "$IDX" "M:ref:${!ARMSHA}" > "$OUT/seq-$NAME.log" 2>&1 || true
-  local RUN=load01boot-$NAME-M-$CONC E D
+  local RUN=load01reg-$NAME-M-$CONC E D
   grep -E "^SEQ|QUAL_DONE|WAVE_DONE|INVALID|PREFLIGHT|INFLIGHT|TEMPLATE" "$OUT/seq-$NAME.log" || true
   E=$B/runs/$RUN/evidence; D=$OUT/raw/$RUN; mkdir -p "$D"
   local CRC=0; bun "$H/deploy/capacity-run/monitor/collect-evidence.ts" "$E" "$D" > "$D/collect.out" 2>&1 || CRC=$?
@@ -159,12 +159,12 @@ import json;d=json.load(open('$OUT/ab-verdict.json'));v=d['verdict']
 print('AB_RESULT',json.dumps({'decision':v['decision'],'why':v['why'],'meanDPp':v['meanDPp'],'pairs':v['pairs'],'excluded':v['excluded'],'armG1':v['armG1'],'claimMeanMsByArm':d['claimMeanMsByArm']},ensure_ascii=False))
 for w in d['waves']: print('AB_WAVE',w['slot'],'superseded' if w['superseded'] else '',w['valid'],w['pairedComparability']['verdict'],w['g1'],w['claimMeanMs'],w['hardwareFactor'])
 " || true
-log "محكُّ الآليّة (PROTOCOL §6 BOOT_RULE)"
-python3 "$H/deploy/capacity-run/b24-runner/boot-mech.py" "${SLOTS[@]}" > "$OUT/boot-mech.json" 2>"$OUT/boot-mech.err" || cat "$OUT/boot-mech.err"
+log "محكُّ الآليّة (PROTOCOL §6 REG_RULE)"
+python3 "$H/deploy/capacity-run/b24-runner/reg-mech.py" "${SLOTS[@]}" > "$OUT/reg-mech.json" 2>"$OUT/reg-mech.err" || cat "$OUT/reg-mech.err"
 python3 -c "
-import json;d=json.load(open('$OUT/boot-mech.json'))
-print('BOOT_RESULT',json.dumps({k:d[k] for k in ('verdict','why')},ensure_ascii=False))
-for w in d['waves']: print('BOOT_WAVE',json.dumps(w,ensure_ascii=False))
+import json;d=json.load(open('$OUT/reg-mech.json'))
+print('REG_RESULT',json.dumps({k:d[k] for k in ('verdict','why')},ensure_ascii=False))
+for w in d['waves']: print('REG_WAVE',json.dumps(w,ensure_ascii=False))
 " || true
 echo "{\"a_sha\":\"$A_SHA\",\"b_sha\":\"$B_SHA\",\"ref_sha\":\"$REF_SHA\",\"mixed_rate\":$MIXED_RATE,\"mixed_sec\":$MIXED_SEC,\"mixed_seed\":$MIXED_SEED,\"conc\":$CONC,\"cities\":\"$CITIES\",\"slots\":\"${SLOTS[*]}\"}" > "$OUT/wave-summary.json"
 

@@ -1,30 +1,30 @@
 name: LOAD-01 — قراءةُ الإقلاعِ المُدمَجةُ وفحصُ الإبطالِ بأمرٍ واحد (مقارنةٌ مقترنة، مقعد 4 vCPU)
 
-# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01-boot-ab.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
+# تجربةُ قياسٍ على فرعِ القياسِ وحدَه ولا تُدمَج. PROTOCOL-load01-reg-ab.md مثبَّتٌ في الالتزامِ نفسِه قبلَ أوّلِ موجة.
 #   ذراعا شيفرة: A = رأسُ #655 وB = A + #656 + #657، أمامَ قالبِ قاعدةٍ واحدٍ (لا هجرةَ في الفرق). البوّابةُ والمولّدانِ من wt-ref مُبدَّلًا إلى شيفرةِ الذراعِ قبلَ كلِّ موجة.
 #   gatewayRequest 5 وIMMEDIATE_REDISPATCH_LIMIT 50 دونَ تغيير. لا قاعدةَ إنتاج، لا Render، لا تيليجرامَ حقيقي.
 on:
   push:
-    branches: [exp/load01-boot-ab]
+    branches: [exp/load01-reg-ab]
     paths:
-      - deploy/capacity-run/b24-runner/seat-load01-boot-ab.sh
-      - deploy/capacity-run/b24-runner/PROTOCOL-load01-boot-ab.md
-      - .github/workflows/load01-boot-ab.yml
+      - deploy/capacity-run/b24-runner/seat-load01-reg-ab.sh
+      - deploy/capacity-run/b24-runner/PROTOCOL-load01-reg-ab.md
+      - .github/workflows/load01-reg-ab.yml
 
 permissions:
   contents: read
 
 env:
-  # PROTOCOL-load01-boot-ab.md §2: A = رأسُ #655؛ B = A + #656 + #657 (شيفرةُ البوّابةِ وحدَها، القالبُ واحد). البوّابةُ من wt-ref مُبدَّلًا لكلِّ ذراع.
-  A_SHA: 5789a2e2bff18b6710f03ab96943aa1048c74d88
-  B_SHA: ea022af6bd08d0fb7970493f5f1178c1dcf2102a
-  REF_SHA: 5789a2e2bff18b6710f03ab96943aa1048c74d88
+  # PROTOCOL-load01-reg-ab.md §2: A = main بعدَ #657؛ B = A + #658 + #659 (شيفرةُ البوّابةِ وحدَها، القالبُ واحد). البوّابةُ من wt-ref مُبدَّلًا لكلِّ ذراع.
+  A_SHA: 4f2f1f7c2a0356b54873a596cdeec90ab39e7cac
+  B_SHA: e11c567ce3cf2759b3741a7066cd7f5a9cb67a41
+  REF_SHA: 4f2f1f7c2a0356b54873a596cdeec90ab39e7cac
   MIXED_RATE: "20"
   MIXED_SEED: "1"
 
 jobs:
   seat:
-    name: "boot-ab (scenarios=1500, cities=5)"
+    name: "reg-ab (scenarios=1500, cities=5)"
     runs-on: ubuntu-26.04
     timeout-minutes: 330
     steps:
@@ -46,13 +46,13 @@ jobs:
           sudo systemd-run --quiet --wait --pipe --collect --slice=ceezrseat.slice \
             --uid=user --gid=user -p LimitNOFILE=65536 -p WorkingDirectory=/home/user \
             --setenv=A_SHA="$A_SHA" --setenv=B_SHA="$B_SHA" --setenv=REF_SHA="$REF_SHA" --setenv=MIXED_RATE="$MIXED_RATE" --setenv=MIXED_SEED="$MIXED_SEED" --setenv=CONC="1500" --setenv=CITIES="JED,MKK,RUH,TIF,MED" \
-            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-boot-ab.sh
+            bash /home/user/workspace/ceezr/deploy/capacity-run/b24-runner/seat-load01-reg-ab.sh
 
       - name: رفع الدليل (لا يُرفعُ إلا بنجاحِ تدقيقِ الأسرار)
         uses: actions/upload-artifact@v5
         with:
-          name: load01boot-ab
-          path: /home/user/load01boot-out/
+          name: load01reg-ab
+          path: /home/user/load01reg-out/
           if-no-files-found: warn
           retention-days: 30
 
@@ -60,6 +60,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v5
         with:
-          name: load01boot-ab-failure-report
-          path: /home/user/load01boot-out/secret-audit.txt
+          name: load01reg-ab-failure-report
+          path: /home/user/load01reg-out/secret-audit.txt
           if-no-files-found: ignore
