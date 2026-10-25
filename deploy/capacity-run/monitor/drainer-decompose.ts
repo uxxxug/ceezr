@@ -4,8 +4,14 @@
  * وحدَها، مع فحصِ قابليّةِ المقارنةِ بينَ الموجاتِ (عتادُ المقعد). أداةُ قياسٍ لا تمسُّ سلوكَ المنتج.
  *
  * الاستعمال:
- *   bun deploy/capacity-run/monitor/drainer-decompose.ts <raw-dir> [<raw-dir> ...]
+ *   bun deploy/capacity-run/monitor/drainer-decompose.ts [--require-comparable] <raw-dir> [<raw-dir> ...]
  *   (raw-dir = .../raw/<RUN>/ من عُدّةِ موجةٍ؛ الأوّلُ مرجعُ المقارنة)
+ *   --require-comparable: رمزُ خروجٍ 3 إن كانت أيُّ موجةٍ غيرَ قابلةٍ للمقارنةِ بالمرجع (رفضٌ آليٌّ للمقارنة).
+ *
+ *   bun deploy/capacity-run/monitor/drainer-decompose.ts --paired A1:<raw> B1:<raw> B2:<raw> A2:<raw> ...
+ *   مقارنةٌ مقترنةٌ على مشغِّلٍ واحد (PROTOCOL-load01m-ab.md): الزوجُ i = (Ai, Bi)، وA1 مرجعُ العتاد.
+ *   تكرارُ الخانةِ نفسِها (إعادةُ موجةٍ غيرِ صالحة) ⇒ الأخيرةُ هي المعتمَدة والسابقةُ محفوظةٌ «مُستبدَلة».
+ *   الحكمُ بقاعدةِ abVerdict المسجَّلةِ مسبقًا؛ ولا يُحتسبُ زوجٌ فيه موجةٌ غيرُ صالحةٍ أو غيرُ قابلةٍ للمقارنة.
  *
  * المدخلاتُ لكلِّ موجة (كلُّها مُجمَّعةٌ أصلًا في العُدّة؛ لا قياسَ جديدٌ في المقعد):
  *   load-trace.jsonl.gz   أثرُ `DISPATCH_TRACE_FILE` (k=job|sweep|pagg) — telegram-update-drainer.ts/load-trace.ts
@@ -403,6 +409,173 @@ export function comparability(ref: Seat, run: Seat): { verdict: Comparability; r
   return { verdict: ok ? "COMPARABLE" : "NOT_COMPARABLE", reasons };
 }
 
+/**
+ * قابليّةُ المقارنةِ المقترنةِ (المشغِّلُ نفسُه): الطرازُ نفسُه **و**المِجسّانِ كلاهما ضمنَ ±10% من المرجع.
+ * أشدُّ من comparability: تطابقُ الطرازِ وحدَه لا يكفي، لأنّ ضجيجَ الجارِ على المشغِّلِ نفسِه يغيّرُ السرعة.
+ */
+export function pairedComparability(
+  ref: Seat,
+  run: Seat,
+): { verdict: Comparability; reasons: string[] } {
+  const reasons: string[] = [];
+  if (ref.cpuModel === null || run.cpuModel === null)
+    return { verdict: "UNKNOWN", reasons: ["cpu model missing"] };
+  let ok = ref.cpuModel === run.cpuModel;
+  if (!ok) reasons.push(`cpu ${run.cpuModel} ≠ ref ${ref.cpuModel}`);
+  for (const [name, a, b] of [
+    ["idle speed probe", ref.idleSpeedProbeMs, run.idleSpeedProbeMs],
+    ["idle pg probe", ref.idlePgProbeMs, run.idlePgProbeMs],
+  ] as const) {
+    if (a === null || b === null || a === 0)
+      return { verdict: "UNKNOWN", reasons: [...reasons, `${name} missing`] };
+    const ratio = b / a;
+    if (Math.abs(ratio - 1) > PROBE_TOLERANCE) {
+      ok = false;
+      reasons.push(`${name} ratio ${ratio.toFixed(2)} outside ±${PROBE_TOLERANCE * 100}%`);
+    }
+  }
+  return { verdict: ok ? "COMPARABLE" : "NOT_COMPARABLE", reasons };
+}
+
+export interface G1 {
+  readonly ok: number;
+  readonly total: number;
+  readonly pct: number;
+}
+
+/** G1 من wave-report.json: القيمةُ بصيغةِ «35.64% (4349/12203)». */
+export function parseG1(waveReport: string | null): G1 | null {
+  if (waveReport === null) return null;
+  try {
+    const o = JSON.parse(waveReport) as { gates?: { id?: string; value?: string }[] };
+    const g = o.gates?.find((x) => x.id === "G1");
+    const m = g?.value?.match(/\((\d+)\s*\/\s*(\d+)\)/);
+    if (!m) return null;
+    const ok = Number(m[1]);
+    const total = Number(m[2]);
+    if (total === 0) return null;
+    return { ok, total, pct: Math.round((ok / total) * 10000) / 100 };
+  } catch {
+    return null;
+  }
+}
+
+/** صلاحيةُ الموجة من validity.json الذي يكتبُه المقعدُ (b33m-analyze.py valid) في مجلّدِ الخام. */
+export function parseValid(validity: string | null): boolean | null {
+  if (validity === null) return null;
+  try {
+    const o = JSON.parse(validity) as { is_valid?: unknown };
+    return typeof o.is_valid === "boolean" ? o.is_valid : null;
+  } catch {
+    return null;
+  }
+}
+
+/** قاعدةُ القرارِ المسجَّلةُ مسبقًا (PROTOCOL-load01m-ab.md §5) — بنقاطٍ مئويّةٍ على G1. */
+export const AB_RULE = {
+  minPairs: 3,
+  effectPp: 5,
+  nullPp: 2,
+} as const;
+
+export type AbDecision =
+  | "B_BETTER"
+  | "B_WORSE"
+  | "NO_DETECTABLE_EFFECT"
+  | "UNRESOLVED"
+  | "NO_VERDICT";
+
+export interface AbSlot {
+  readonly arm: "A" | "B";
+  readonly pair: number;
+  readonly valid: boolean | null;
+  readonly comparable: Comparability;
+  readonly g1: G1 | null;
+}
+
+export function abVerdict(slots: readonly AbSlot[]): {
+  decision: AbDecision;
+  why: string;
+  pairs: { pair: number; a: number; b: number; dPp: number }[];
+  excluded: { pair: number; reason: string }[];
+  meanDPp: number | null;
+  armG1: Record<
+    "A" | "B",
+    { n: number; pooledPct: number | null; min: number | null; max: number | null }
+  >;
+} {
+  const usable = (s: AbSlot | undefined): s is AbSlot & { g1: G1 } =>
+    s !== undefined && s.valid === true && s.comparable === "COMPARABLE" && s.g1 !== null;
+  const pairIds = [...new Set(slots.map((s) => s.pair))].sort((x, y) => x - y);
+  const pairs: { pair: number; a: number; b: number; dPp: number }[] = [];
+  const excluded: { pair: number; reason: string }[] = [];
+  for (const p of pairIds) {
+    const a = slots.find((s) => s.pair === p && s.arm === "A");
+    const b = slots.find((s) => s.pair === p && s.arm === "B");
+    const bad = [a, b]
+      .map((s, i) => {
+        const arm = i === 0 ? "A" : "B";
+        if (s === undefined) return `${arm}${p} missing`;
+        if (s.valid !== true) return `${arm}${p} validity=${String(s.valid)}`;
+        if (s.comparable !== "COMPARABLE") return `${arm}${p} ${s.comparable}`;
+        if (s.g1 === null) return `${arm}${p} G1 missing`;
+        return null;
+      })
+      .filter((x): x is string => x !== null);
+    if (bad.length > 0 || !usable(a) || !usable(b)) {
+      excluded.push({ pair: p, reason: bad.join("; ") });
+      continue;
+    }
+    pairs.push({
+      pair: p,
+      a: a.g1.pct,
+      b: b.g1.pct,
+      dPp: Math.round((b.g1.pct - a.g1.pct) * 100) / 100,
+    });
+  }
+  const arm = (x: "A" | "B") => {
+    const g = slots.filter((s) => s.arm === x && usable(s)).map((s) => s.g1 as G1);
+    const ok = g.reduce((t, v) => t + v.ok, 0);
+    const total = g.reduce((t, v) => t + v.total, 0);
+    const pct = g.map((v) => v.pct);
+    return {
+      n: g.length,
+      pooledPct: total === 0 ? null : Math.round((ok / total) * 10000) / 100,
+      min: pct.length ? Math.min(...pct) : null,
+      max: pct.length ? Math.max(...pct) : null,
+    };
+  };
+  const armG1 = { A: arm("A"), B: arm("B") };
+  if (pairs.length < AB_RULE.minPairs)
+    return {
+      decision: "NO_VERDICT",
+      why: `${pairs.length} usable pairs < ${AB_RULE.minPairs}`,
+      pairs,
+      excluded,
+      meanDPp: null,
+      armG1,
+    };
+  const meanD = Math.round((pairs.reduce((t, p) => t + p.dPp, 0) / pairs.length) * 100) / 100;
+  const allPos = pairs.every((p) => p.dPp > 0);
+  const allNeg = pairs.every((p) => p.dPp < 0);
+  let decision: AbDecision;
+  let why: string;
+  if (meanD >= AB_RULE.effectPp && allPos) {
+    decision = "B_BETTER";
+    why = `mean Δ ${meanD}pp ≥ ${AB_RULE.effectPp} and every pair Δ > 0`;
+  } else if (meanD <= -AB_RULE.effectPp && allNeg) {
+    decision = "B_WORSE";
+    why = `mean Δ ${meanD}pp ≤ -${AB_RULE.effectPp} and every pair Δ < 0`;
+  } else if (Math.abs(meanD) < AB_RULE.nullPp) {
+    decision = "NO_DETECTABLE_EFFECT";
+    why = `|mean Δ| ${Math.abs(meanD)}pp < ${AB_RULE.nullPp}`;
+  } else {
+    decision = "UNRESOLVED";
+    why = `mean Δ ${meanD}pp between thresholds or pair signs disagree`;
+  }
+  return { decision, why, pairs, excluded, meanDPp: meanD, armG1 };
+}
+
 const readMaybe = (p: string, gz = false): string | null => {
   if (!existsSync(p)) return null;
   const buf = readFileSync(p);
@@ -424,14 +597,97 @@ export function analyseWave(raw: string) {
     allJobs: decomposeJobs(trace, created),
     sweeps: decomposeSweeps(trace.sweeps),
     pool: poolHold(trace.paths),
+    g1: parseG1(readMaybe(join(raw, "wave-report.json"))),
+    valid: parseValid(readMaybe(join(raw, "validity.json"))),
     pgss,
   };
 }
 
+/** يحلّلُ «A1:<dir>» إلى خانة؛ تكرارُ الخانةِ نفسِها ⇒ الأخيرةُ معتمَدة. */
+export function parseSlotArgs(
+  args: readonly string[],
+): { arm: "A" | "B"; pair: number; dir: string; superseded: boolean }[] {
+  const parsed = args.map((a) => {
+    const m = a.match(/^([AB])(\d+):(.+)$/);
+    if (!m) throw new Error(`bad slot "${a}" (want A1:<dir>)`);
+    return { arm: m[1] as "A" | "B", pair: Number(m[2]), dir: m[3] as string };
+  });
+  return parsed.map((p, i) => ({
+    ...p,
+    superseded: parsed.slice(i + 1).some((q) => q.arm === p.arm && q.pair === p.pair),
+  }));
+}
+
+function paired(args: readonly string[]): number {
+  const slots = parseSlotArgs(args);
+  const ref = slots.find((s) => s.arm === "A" && s.pair === 1 && !s.superseded);
+  if (ref === undefined) {
+    console.error("paired: A1 (hardware reference) missing");
+    return 2;
+  }
+  const waves = slots.map((s) => ({ slot: s, w: analyseWave(s.dir) }));
+  const refWave = (waves.find((x) => x.slot === ref) as (typeof waves)[number]).w;
+  const controls = controlStatements(waves.map((x) => x.w.pgss));
+  const rows = waves.map(({ slot, w }) => {
+    const hf = hardwareFactor(refWave.pgss, w.pgss, controls);
+    const cm = claimMean(w.pgss);
+    return {
+      slot: `${slot.arm}${slot.pair}`,
+      superseded: slot.superseded,
+      raw: w.raw,
+      seat: w.seat,
+      valid: w.valid,
+      g1: w.g1,
+      pairedComparability: pairedComparability(refWave.seat, w.seat),
+      hardwareFactor: hf,
+      claimMeanMs: cm,
+      contactQueueP50Ms: w.contactJobs.queueMs.p50,
+      contactExecMeanMs: w.contactJobs.execMs.mean,
+      sweepsTruncatedShare: w.sweeps.truncatedShare,
+    };
+  });
+  const verdict = abVerdict(
+    rows
+      .filter((r) => !r.superseded)
+      .map((r) => ({
+        arm: r.slot[0] as "A" | "B",
+        pair: Number(r.slot.slice(1)),
+        valid: r.valid,
+        comparable: r.pairedComparability.verdict,
+        g1: r.g1,
+      })),
+  );
+  const mean = (arm: "A" | "B") => {
+    const v = rows
+      .filter((r) => !r.superseded && r.slot[0] === arm && r.claimMeanMs !== null)
+      .map((r) => r.claimMeanMs as number);
+    return v.length ? Math.round((v.reduce((t, x) => t + x, 0) / v.length) * 100) / 100 : null;
+  };
+  console.log(
+    JSON.stringify(
+      {
+        rule: AB_RULE,
+        controlStatements: controls.length,
+        waves: rows,
+        claimMeanMsByArm: { A: mean("A"), B: mean("B") },
+        verdict,
+      },
+      null,
+      1,
+    ),
+  );
+  return 0;
+}
+
 if (import.meta.main) {
-  const dirs = process.argv.slice(2);
+  const argv = process.argv.slice(2);
+  if (argv[0] === "--paired") process.exit(paired(argv.slice(1)));
+  const requireComparable = argv[0] === "--require-comparable";
+  const dirs = requireComparable ? argv.slice(1) : argv;
   if (dirs.length === 0) {
-    console.error("usage: drainer-decompose.ts <raw-dir> [<raw-dir> ...]");
+    console.error(
+      "usage: drainer-decompose.ts [--require-comparable] <raw-dir> [...] | --paired A1:<dir> B1:<dir> ...",
+    );
     process.exit(2);
   }
   const waves = dirs.map(analyseWave);
@@ -455,4 +711,13 @@ if (import.meta.main) {
     };
   });
   console.log(JSON.stringify(out, null, 1));
+  if (requireComparable) {
+    const bad = out.filter((w) => w.compareToRef.verdict !== "COMPARABLE");
+    if (bad.length > 0) {
+      console.error(
+        `COMPARISON_REJECTED ${bad.map((w) => `${w.raw}=${w.compareToRef.verdict}`).join(" ")}`,
+      );
+      process.exit(3);
+    }
+  }
 }

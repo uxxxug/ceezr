@@ -1,16 +1,23 @@
 import { describe, expect, test } from "bun:test";
 import {
+  AB_RULE,
+  type AbSlot,
+  abVerdict,
   claimMean,
   comparability,
   controlStatements,
   decomposeJobs,
   decomposeSweeps,
   hardwareFactor,
+  pairedComparability,
   parseCreated,
   parseCsv,
+  parseG1,
   parsePgss,
   parseSeat,
+  parseSlotArgs,
   parseTrace,
+  parseValid,
   poolHold,
   summarise,
 } from "../../deploy/capacity-run/monitor/drainer-decompose.ts";
@@ -168,5 +175,153 @@ describe("drainer-decompose — أداةُ قياسِ الدورةِ الثال�
     expect(comparability(parseSeat(null, null), parseSeat("Model name: X\n", null)).verdict).toBe(
       "UNKNOWN",
     );
+  });
+
+  test("pairedComparability: الطرازُ نفسُه لا يكفي — المِجسّانِ ضمنَ ±10% أيضًا، والغيابُ UNKNOWN", () => {
+    const ref = { cpuModel: "EPYC 7763", idleSpeedProbeMs: 340, idlePgProbeMs: 370 };
+    expect(pairedComparability(ref, { ...ref, idleSpeedProbeMs: 360 }).verdict).toBe("COMPARABLE");
+    expect(pairedComparability(ref, { ...ref, idlePgProbeMs: 420 }).verdict).toBe("NOT_COMPARABLE");
+    expect(pairedComparability(ref, { ...ref, cpuModel: "Xeon 8370C" }).verdict).toBe(
+      "NOT_COMPARABLE",
+    );
+    expect(pairedComparability(ref, { ...ref, idlePgProbeMs: null }).verdict).toBe("UNKNOWN");
+    expect(pairedComparability(ref, { ...ref, cpuModel: null }).verdict).toBe("UNKNOWN");
+  });
+
+  test("parseG1 وparseValid يقرآنِ صيغتَي المقعدِ ويرجعانِ null عندَ الغياب", () => {
+    const wr = JSON.stringify({ gates: [{ id: "G1", value: "35.64% (4349/12203)" }] });
+    expect(parseG1(wr)).toEqual({ ok: 4349, total: 12203, pct: 35.64 });
+    expect(parseG1(JSON.stringify({ gates: [{ id: "G2", value: "1 (1/1)" }] }))).toBeNull();
+    expect(parseG1(null)).toBeNull();
+    expect(parseG1("{")).toBeNull();
+    expect(parseValid('{"is_valid": true}')).toBe(true);
+    expect(parseValid('{"is_valid": false}')).toBe(false);
+    expect(parseValid("{}")).toBeNull();
+    expect(parseValid(null)).toBeNull();
+  });
+
+  test("parseSlotArgs: تكرارُ الخانةِ ⇒ الأخيرةُ معتمَدة والسابقةُ مُستبدَلة، والصيغةُ الخاطئةُ ترمي", () => {
+    const s = parseSlotArgs(["A1:/a", "B1:/b", "B1:/b-r", "A2:/c"]);
+    expect(s.map((x) => [x.arm, x.pair, x.dir, x.superseded])).toEqual([
+      ["A", 1, "/a", false],
+      ["B", 1, "/b", true],
+      ["B", 1, "/b-r", false],
+      ["A", 2, "/c", false],
+    ]);
+    expect(() => parseSlotArgs(["C1:/x"])).toThrow();
+  });
+
+  describe("abVerdict — قاعدةُ القرارِ المسجَّلةُ مسبقًا", () => {
+    const g = (pct: number) => ({ ok: Math.round(pct * 100), total: 10000, pct });
+    const slots = (pairs: [number, number][], over: Partial<AbSlot>[] = []): AbSlot[] =>
+      pairs.flatMap(([a, b], i) => [
+        {
+          arm: "A" as const,
+          pair: i + 1,
+          valid: true,
+          comparable: "COMPARABLE" as const,
+          g1: g(a),
+          ...over[2 * i],
+        },
+        {
+          arm: "B" as const,
+          pair: i + 1,
+          valid: true,
+          comparable: "COMPARABLE" as const,
+          g1: g(b),
+          ...over[2 * i + 1],
+        },
+      ]);
+
+    test("الثوابتُ كما سُجِّلت", () => {
+      expect(AB_RULE).toEqual({ minPairs: 3, effectPp: 5, nullPp: 2 });
+    });
+
+    test("B_BETTER يتطلّبُ متوسّطًا ≥ 5 **و**كلَّ زوجٍ موجبًا", () => {
+      const v = abVerdict(
+        slots([
+          [40, 47],
+          [41, 46],
+          [39, 45],
+          [40, 46],
+        ]),
+      );
+      expect(v.decision).toBe("B_BETTER");
+      expect(v.meanDPp).toBe(6);
+      expect(v.armG1.A.n).toBe(4);
+      // متوسّطٌ كبيرٌ وزوجٌ واحدٌ سالب ⇒ ليس تحسّنًا
+      expect(
+        abVerdict(
+          slots([
+            [40, 55],
+            [41, 52],
+            [39, 50],
+            [40, 39],
+          ]),
+        ).decision,
+      ).toBe("UNRESOLVED");
+    });
+
+    test("B_WORSE متناظر، وNO_DETECTABLE_EFFECT عندَ |Δ| < 2، وما بينهما UNRESOLVED", () => {
+      expect(
+        abVerdict(
+          slots([
+            [40, 34],
+            [41, 35],
+            [39, 33],
+          ]),
+        ).decision,
+      ).toBe("B_WORSE");
+      expect(
+        abVerdict(
+          slots([
+            [40, 41],
+            [41, 40],
+            [39, 40],
+          ]),
+        ).decision,
+      ).toBe("NO_DETECTABLE_EFFECT");
+      expect(
+        abVerdict(
+          slots([
+            [40, 43],
+            [41, 44],
+            [39, 42],
+          ]),
+        ).decision,
+      ).toBe("UNRESOLVED");
+    });
+
+    test("الموجةُ غيرُ الصالحةِ أو غيرُ القابلةِ للمقارنةِ تُسقِطُ زوجَها، وأقلُّ من 3 أزواجٍ ⇒ NO_VERDICT", () => {
+      const v = abVerdict(
+        slots(
+          [
+            [40, 50],
+            [41, 50],
+            [39, 50],
+            [40, 50],
+          ],
+          [{}, { valid: false }, { comparable: "NOT_COMPARABLE" }, {}, {}, {}, {}, {}],
+        ),
+      );
+      expect(v.decision).toBe("NO_VERDICT");
+      expect(v.pairs.map((p) => p.pair)).toEqual([3, 4]);
+      expect(v.excluded.map((e) => e.pair)).toEqual([1, 2]);
+      expect(v.excluded[0]?.reason).toContain("B1 validity=false");
+      expect(v.excluded[1]?.reason).toContain("A2 NOT_COMPARABLE");
+      // موجةٌ بلا حكمِ صلاحيةٍ (null) لا تُحتسبُ صالحة
+      expect(
+        abVerdict(
+          slots(
+            [
+              [40, 50],
+              [41, 50],
+              [39, 50],
+            ],
+            [{ valid: null }],
+          ),
+        ).pairs.length,
+      ).toBe(2);
+    });
   });
 });
