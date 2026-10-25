@@ -220,6 +220,62 @@ describe("محوّل بوت السائق — القراءة المدمجة لم�
     expect(state.ok && state.value?.language).toBe("en");
   });
 
+  it("تداخلُ تسجيلٍ متزامنٍ بين القراءةِ المدمجةِ واستهلاكِها: البوّابةُ استشاريّةٌ والنتيجةُ حالةٌ يصلُ إليها المسارُ القديمُ كذلك", async () => {
+    /**
+     * السباقُ المُحاكى: القراءةُ المدمجةُ (موضعُ الترطيبِ) رأتْ مرسلًا بلا صفِّ سائقٍ
+     * (`driver = null`)، ثمَّ أكملَ `POST /v1/onboarding/driver` تسجيلَه — الكاتبُ الوحيدُ
+     * غيرِ المتسلسلِ معَ طابورِ البوتِ على وجودِ السائق — ثمَّ استهلكَ الحوارُ اللقطةَ.
+     * مسارُ contact لا يستهلكُ من ملفِّ السائقِ سوى **وجودِهِ** (`recordMiniAppPhoneProof`:
+     * `existing.value !== null`؟)، ولا يستهلكُ `handlePhone` (طورُ awaiting_phone) شيئًا منهُ أصلًا.
+     *
+     * **لماذا هذه حالةٌ يصلُ إليها المسارُ القديمُ كذلك:** بوّابةُ الوجودِ استشاريّةٌ
+     * وتوقيتيّةٌ بطبيعتِها — القراءةُ الحيّةُ في المسارِ القديمِ تجري عند الاستهلاكِ، فإن
+     * أكملَ التسجيلُ **بعدَها وقبلَ حفظِ الجلسةِ** أخذَ الحوارُ الفرعَ نفسَهُ الذي يأخذُهُ هنا.
+     * الدمجُ لا يُنشئُ حالةً جديدةً؛ يحرّكُ حدودِ السباقِ مبكرًا بمقدارِ نافذةِ الترطيبِ
+     * (عمليتا Redis: hydrate ثمَّ loadState) فحسب. ولما لم يكن في المستودعِ مسارٌ يحذفُ صفَّ
+     * `drivers`، فاللقطةُ لا تُقدمُ إلا نحوَ null — لا يمكنٌ لسائقٍ حُذف أن يُحكَمَ موجودًا.
+     * والقراءةُ تُعادُ عندَ كلِّ محاولةِ CAS (الاختبارُ السابقُ) فالنافذةُ لا تتّسعُ بالمحاولاتِ.
+     */
+    const sessions = createMemorySessionStore(fixedClock(NOW));
+    const profile = verifiedDriver({ telegramUserId: CHAT });
+    // القراءةُ الحيّةُ لو نُوديت لرأتْ سائقًا — التسجيلُ أكملَ بينَ القراءةِ المدمجةِ والاستهلاكِ.
+    const live = driverDirectory(profile);
+    let contextCalls = 0;
+    let liveLookups = 0;
+    const underlying = live.findByTelegramId.bind(live);
+    const drivers = {
+      ...live,
+      findSenderContext: async (): Promise<
+        Result<DriverSenderContext | null, PortFailureError>
+      > => {
+        contextCalls += 1;
+        return ok({ language: "ar", driver: null });
+      },
+      findByTelegramId: async (
+        telegramUserId: string,
+      ): Promise<Result<DriverProfile | null, PortFailureError>> => {
+        liveLookups += 1;
+        return underlying(telegramUserId);
+      },
+    };
+    const sent: SentMessage[] = [];
+    const bot = createDriverBot(buildDeps(sessions, drivers), capturing(sent), () => {});
+
+    const accepted = await bot.handleUpdate(contactUpdate() as never);
+
+    expect(accepted).toBe(true);
+    expect(contextCalls).toBe(1);
+    // الاستهلاكُ الأحاديّ: الحوارُ حكَمَ باللقطةِ (null) ولم يقرأْ حيًّا بعدَها.
+    expect(liveLookups).toBe(0);
+    // الفرعُ المأخوذُ هو فرعُ غيرِ المسجّلِ نفسَهُ الذي يأخذُهُ المسارُ القديمُ حينَ يُكملُ
+    // التسجيلُ بعدَ قراءتِهِ الحيّة: الرقمُ قُبِلَ وحُفِظَ في الجلسةِ (draftPhone) ورُدَّ بنصِّ
+    // الاستلامِ — لا حالةً جديدةً ولا عطلًا.
+    expect(sent.length).toBe(1);
+    const state = await sessions.load(CHAT);
+    expect(state.ok && state.value?.draftPhone).toBe("+966501234567");
+    expect(sent[0]?.text).toContain("استلمنا رقم");
+  });
+
   it("فشل القراءة المدمجة يُرجِع المسار كاملاً إلى القراءتين المنفصلتين كما كانا", async () => {
     const sessions = createMemorySessionStore(fixedClock(NOW));
     const merged = mergedDirectory(() =>
