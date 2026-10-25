@@ -33,6 +33,26 @@ export function createRevocableSessionReader(
       const session = await reader.read(accessToken, nowMs);
       if (!session.ok) return session;
 
+      // `LOAD-01`: المخزنُ الذي يجمعُ الفحصَين في رحلةٍ واحدةٍ يُستشارُ بها، والحكمُ نفسُه.
+      if (revocation.checkSession !== undefined) {
+        const status = await revocation.checkSession(
+          session.value.sessionId,
+          session.value.telegramUserId,
+        );
+        if (!status.ok) {
+          // الفشلُ في الوصولِ إلى المخزنِ — إغلاقٌ لا فتحٌ.
+          return err({ code: "SESSION_REJECTED", reason: "NOT_CONFIGURED" });
+        }
+        if (status.value.sessionRevoked) {
+          return err({ code: "SESSION_REJECTED", reason: "REVOKED" });
+        }
+        const atMs = status.value.userRevokedAtMs;
+        if (atMs !== null && session.value.issuedAtSeconds * 1000 < atMs) {
+          return err({ code: "SESSION_REJECTED", reason: "REVOKED" });
+        }
+        return ok(session.value);
+      }
+
       // فحصُ الإبطالِ (`SEC-18`): بعدَ التحقّقِ التشفيريِّ وقبلَ قبولِ الجلسة.
       const revoked = await revocation.isRevoked(session.value.sessionId);
       if (!revoked.ok) {

@@ -367,7 +367,6 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
 
   {
-<<<<<<< HEAD
     file: "tests/integration/telegram-reply-claim-plan.test.ts",
     suites: ["خطةُ التقاطِ الردودِ المؤجَّلةِ — فهرسُ المسارِ وفهرسُ الترتيب"],
     skipped: 3,
@@ -376,7 +375,13 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
       "فهرسا التقاطِ الردودِ المؤجَّلة (LOAD-01، هجرتا 20261025160000/20261025160100): الخطةُ العامةُ لاستعلامِ claim_telegram_update_replies بلا فحصٍ تسلسليٍّ وتستعملُ الفهرسينِ بالاسم، والدفعةُ رؤوسُ مساراتٍ بترتيبِ الإنشاء، والصفحاتُ المقروءةُ محدودةٌ تحتَ تراكمٍ مزروعٍ — خطةُ المُخطِّطِ في PostgreSQL لا يُثبِتُها بديلٌ في الذاكرة.",
     activation:
       "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقةً بما فيها 20261025160100. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
-=======
+    owner: "منفّذ المستودع",
+    criticalPath: null,
+    runsIn: "اختبارات التكامل على قاعدة حقيقية",
+    whyNotRun: null,
+  },
+
+  {
     file: "tests/integration/session-bootstrap-snapshot.test.ts",
     suites: ["LOAD-01 — قراءةُ الإقلاعِ المُدمَجةُ على قاعدةٍ حقيقيّة"],
     skipped: 3,
@@ -385,7 +390,6 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
       "قراءةُ الإقلاعِ المُدمَجة (LOAD-01، حزمة load01-session-bootstrap-coalesce): عبارةٌ واحدةٌ تُكافئُ محوّلَي الحسابِ والموافقاتِ المنفردَينِ نتيجةً بنتيجةٍ (ترتيبُ list_user_consents وختمُ الميكروثانيةِ عبرَ json_agg، والمحظورُ والغائبُ وغيرُ الرقميّ)، وفشلُ العبارةِ خطأٌ مصنَّفٌ للقراءتَين — سلوكُ PostgreSQL ودالّتُه لا يُثبِتُه بديلٌ في الذاكرة.",
     activation:
       "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
->>>>>>> origin/perf/load01-session-bootstrap-coalesce
     owner: "منفّذ المستودع",
     criticalPath: null,
     runsIn: "اختبارات التكامل على قاعدة حقيقية",
@@ -2303,6 +2307,21 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
     whyNotRun: null,
   },
   // زيادةٌ تُقرأُ معَ ما قبلَها (`ح-8`) — `SEC-07`: حدُّ المسارِ المكشوفِ.
+  // زيادةٌ (`LOAD-01` · 2026-10-25 · حزمةُ `load01-revocation-mget`): فحصُ الإبطالِ بأمرٍ واحد.
+  {
+    file: "tests/real-redis/session-revocation-mget-real.test.ts",
+    suites: ["LOAD-01 — فحصُ الإبطالِ بأمرِ MGET واحدٍ على Redis حقيقيّ"],
+    skipped: 1,
+    gate: "UPSTASH_REDIS_REST_URL",
+    reason:
+      "يُثبِتُ أنَّ فحصَ الإبطالِ (`SEC-18` · `SEC-18-ب`) بأمرِ `MGET` واحدٍ يُعطي حكمَ `GET` ثمَّ `GET` حرفاً في كلِّ حالةٍ، وأنَّ شكلَ ردِّ `MGET` من الخادمِ والقشرةِ مصفوفةٌ بقيمتَين بترتيبِ المفاتيح — وهذا الشكلُ هوَ المقيسُ فلا يشهدُ عليه مزدوج.",
+    activation:
+      "يُضبَط UPSTASH_REDIS_REST_URL وUPSTASH_REDIS_REST_TOKEN على قشرةِ REST التي تنشرُها وظيفةُ CI نفسُها فوقَ خادمِ `redis:7-alpine` مُستضافٍ في الشغلةِ (`S-3` · ADR 0096) — لا سرَّ خارجيٌّ ولا حسابٌ عندَ مُزوِّدٍ. ويفعلُه المطوّرُ محلّياً بالقشرةِ نفسِها فوقَ `redis-server`.",
+    owner: "منفّذ المستودع",
+    criticalPath: "الهويةُ والجلسةُ والصلاحيات",
+    runsIn: "اختبارات الجلسات على Redis حقيقي",
+    whyNotRun: null,
+  },
   {
     file: "tests/real-redis/rate-limit-routes-real.test.ts",
     suites: ["حدُّ المسارِ المكشوفِ نافذةٌ واحدةٌ بينَ نسختَينِ على Redis حقيقيٍّ (SEC-07)"],

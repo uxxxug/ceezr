@@ -1,0 +1,21 @@
+{
+  "id": "load01-revocation-mget",
+  "goal": "LOAD-01 — فحصُ الإبطالِ (SEC-18 · SEC-18-ب) في رحلةٍ واحدةٍ إلى Upstash: ملفُّ معالجِ البوّابةِ (التشغيل 40172025237) يُظهِرُ قارئَ الجلسةِ القابلَ للإبطالِ 11.1% من زمنِ الخيطِ الرئيسيِّ بأمرَي GET متتابعَين في كلِّ طلبٍ موثَّق. MGET واحدٌ بالحكمِ نفسِه حرفاً (مصفوفةُ تكافؤٍ 20 حالةً + Redis حقيقيّ + تحكّمٌ سلبيّ). الأثرُ على G1 غيرُ مُقاس؛ LOAD-01M = NOT_MET وLOAD-01 = FAIL.",
+  "canonical_source": ["docs/evidence/capacity/LOAD01-REVOCATION-MGET-20261025/RESULT.md"],
+  "implementation": [
+    "packages/application/identity/ports.ts",
+    "packages/infrastructure/identity/redis-session-revocation-store.ts",
+    "packages/infrastructure/identity/revocable-session-reader.ts",
+    "tests/unit/session-revocation-mget.test.ts",
+    "tests/real-redis/session-revocation-mget-real.test.ts",
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
+  ],
+  "state": ["docs/SYSTEM_STATE.md"],
+  "roadmap": ["ROADMAP.md"],
+  "affected_docs": [
+    "docs/roadmap/execution/STATUS.md",
+    "docs/evidence/capacity/LOAD01-REVOCATION-MGET-20261025/RESULT.md"
+  ],
+  "no_other_affected_docs_reason": null
+}

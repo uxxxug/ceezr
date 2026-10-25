@@ -362,6 +362,14 @@ export interface RevocationStoreFailure {
  *
  * والفشلُ في الوصولِ إلى المخزنِ **إغلاقٌ لا فتحٌ**: لا تُقبَل الجلسةُ ولا تُجدَّد.
  */
+/** نتيجةُ فحصِ الإبطالِ في رحلةٍ واحدة (`checkSession`). */
+export interface SessionRevocationStatus {
+  /** هل في قائمةِ المنعِ مفتاحٌ لهذه الجلسة؟ */
+  readonly sessionRevoked: boolean;
+  /** عتبةُ إبطالِ جلساتِ المستخدمِ بالمللي ثانية، أو `null`. */
+  readonly userRevokedAtMs: number | null;
+}
+
 export interface SessionRevocationStore {
   /**
    * هل أُبطِلَت هذه الجلسةُ؟ يُستشارُ بعدَ التحقّقِ التشفيريِّ وقبلَ قبولِ الجلسة.
@@ -391,6 +399,16 @@ export interface SessionRevocationStore {
   revokedAtMsForUser(
     telegramUserId: string,
   ): Promise<Result<number | null, RevocationStoreFailure>>;
+
+  /**
+   * `LOAD-01`: الفحصانِ أعلاه **في رحلةٍ واحدةٍ** إلى المخزن — قائمةُ المنعِ بـ`jti` وعتبةُ
+   * المستخدمِ معاً، بالمعنى نفسِه حرفاً: فشلُ أيٍّ منهما أو قيمةٌ لا تُقرَأُ = `STORE_UNAVAILABLE`.
+   * اختياريٌّ: غيابُه يعني أنَّ القارئَ يستشيرُ الفحصَين متتابعَين كما كان.
+   */
+  checkSession?(
+    sessionId: string,
+    telegramUserId: string,
+  ): Promise<Result<SessionRevocationStatus, RevocationStoreFailure>>;
 
   /**
    * ضربُ عتبةِ إبطالٍ لكلِّ جلساتِ مستخدمٍ عندَ `atMs`. يُستدعى من مسارِ اللوحةِ
