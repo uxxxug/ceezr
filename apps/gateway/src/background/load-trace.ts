@@ -257,6 +257,7 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
     drainer: {
       onJob: (t) => emit({ k: "job", ...t }),
       onSweep: (t) => emit({ k: "sweep", ...t }),
+      onReply: (t) => emit({ k: "reply", ...t }),
       scope: (path, fn) => withLoadPath(path, fn),
       gateOf: () => currentLoadPath()?.gate,
     },

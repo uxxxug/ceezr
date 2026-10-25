@@ -1,0 +1,23 @@
+FROZEN_CONSTANTS_OK gatewayRequest=5 IMMEDIATE_REDISPATCH_LIMIT=50 (A و B)
+AB_DIFF_MIGRATIONS_ONLY [supabase/migrations/20261024120000_load01_contact_first_claim_order.sql supabase/migrations/20261024140000_load01_contact_first_claim_contact_index.sql supabase/migrations/20261024140100_load01_contact_first_indexed_claim.sql ]
+TPL_A_FINGERPRINT_MATCH fn_md5=ba159019383b0ff487b9b53cebc214dc idx_md5=93ff71e47c49e78a13f9c7b969dc85af
+TPL_B_FINGERPRINT_MATCH fn_md5=db6d947096fe114e001ca377d966d3ff idx_md5=db010b197746659fc2a4e007a86756f7
+TPL_AB_SAME_COLUMNS_AND_SEED
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+TPL_ACTIVE arm=B fn_md5=db6d947096fe114e001ca377d966d3ff
+TPL_ACTIVE arm=B fn_md5=db6d947096fe114e001ca377d966d3ff
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+TPL_ACTIVE arm=B fn_md5=db6d947096fe114e001ca377d966d3ff
+TPL_ACTIVE arm=B fn_md5=db6d947096fe114e001ca377d966d3ff
+TPL_ACTIVE arm=A fn_md5=ba159019383b0ff487b9b53cebc214dc
+AB_RESULT {"decision": "NO_DETECTABLE_EFFECT", "why": "|mean Δ| 0.1pp < 2", "meanDPp": 0.1, "pairs": [{"pair": 1, "a": 45.05, "b": 44.79, "dPp": -0.26}, {"pair": 2, "a": 45.45, "b": 42.83, "dPp": -2.62}, {"pair": 3, "a": 40.87, "b": 41.66, "dPp": 0.79}, {"pair": 4, "a": 39.9, "b": 42.37, "dPp": 2.47}], "excluded": [], "armG1": {"A": {"n": 4, "pooledPct": 42.85, "min": 39.9, "max": 45.45}, "B": {"n": 4, "pooledPct": 42.92, "min": 41.66, "max": 44.79}}, "claimMeanMsByArm": {"A": 3.06, "B": 3.98}}
+AB_WAVE A1  True COMPARABLE {'ok': 5561, 'total': 12343, 'pct': 45.05} 2.95 1
+AB_WAVE B1  True COMPARABLE {'ok': 5520, 'total': 12323, 'pct': 44.79} 3.84 1.02
+AB_WAVE B2  True COMPARABLE {'ok': 5286, 'total': 12343, 'pct': 42.83} 4.06 1.04
+AB_WAVE A2  True COMPARABLE {'ok': 5664, 'total': 12462, 'pct': 45.45} 2.97 1
+AB_WAVE A3  True COMPARABLE {'ok': 4970, 'total': 12161, 'pct': 40.87} 3.19 1.09
+AB_WAVE B3  True COMPARABLE {'ok': 5040, 'total': 12098, 'pct': 41.66} 4.14 1.06
+AB_WAVE B4  True COMPARABLE {'ok': 5177, 'total': 12219, 'pct': 42.37} 3.89 1.07
+AB_WAVE A4  True COMPARABLE {'ok': 4833, 'total': 12113, 'pct': 39.9} 3.14 1.09

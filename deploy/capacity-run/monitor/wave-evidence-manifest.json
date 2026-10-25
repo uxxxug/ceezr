@@ -120,6 +120,11 @@
       "name": "notification-outbox.csv",
       "mode": "gzip",
       "required": true
+    },
+    {
+      "name": "mixed-sent.jsonl",
+      "mode": "gzip",
+      "required": false
     }
   ]
 }
