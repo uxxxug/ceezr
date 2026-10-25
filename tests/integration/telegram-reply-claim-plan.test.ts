@@ -87,7 +87,9 @@ d("خطةُ التقاطِ الردودِ المؤجَّلةِ — فهرسُ ا
     await sql.begin(async (tx) => {
       await tx.unsafe("set local plan_cache_mode = force_generic_plan");
       await tx.unsafe(`prepare reply_due_probe(integer, integer) as ${DUE}`);
-      const rows = await tx.unsafe<{ "QUERY PLAN": string }[]>("explain execute reply_due_probe(60, 20)");
+      const rows = await tx.unsafe<{ "QUERY PLAN": string }[]>(
+        "explain execute reply_due_probe(60, 20)",
+      );
       const plan = rows.map((r) => r["QUERY PLAN"]).join("\n");
       await tx.unsafe("deallocate reply_due_probe");
       expect(plan).not.toContain("Seq Scan");
@@ -112,19 +114,21 @@ d("خطةُ التقاطِ الردودِ المؤجَّلةِ — فهرسُ ا
   });
 
   it("النداءُ الواحدُ يقرأُ صفحاتٍ محدودةً تحتَ تراكمِ الردود", async () => {
-    await sql.begin(async (tx) => {
-      const rows = await tx.unsafe<{ "QUERY PLAN": string }[]>(
-        "explain (analyze, buffers, format text) select claim_telegram_update_replies(20, 60)",
-      );
-      const plan = rows.map((r) => r["QUERY PLAN"]).join("\n");
-      const m = /shared hit=(\d+)(?: read=(\d+))?/.exec(plan);
-      const pages = Number(m?.[1] ?? 0) + Number(m?.[2] ?? 0);
-      expect(pages).toBeGreaterThan(0);
-      expect(pages).toBeLessThan(BUFFER_CEILING);
-      throw new RollbackProbe();
-    }).catch((e) => {
-      if (!(e instanceof RollbackProbe)) throw e;
-    });
+    await sql
+      .begin(async (tx) => {
+        const rows = await tx.unsafe<{ "QUERY PLAN": string }[]>(
+          "explain (analyze, buffers, format text) select claim_telegram_update_replies(20, 60)",
+        );
+        const plan = rows.map((r) => r["QUERY PLAN"]).join("\n");
+        const m = /shared hit=(\d+)(?: read=(\d+))?/.exec(plan);
+        const pages = Number(m?.[1] ?? 0) + Number(m?.[2] ?? 0);
+        expect(pages).toBeGreaterThan(0);
+        expect(pages).toBeLessThan(BUFFER_CEILING);
+        throw new RollbackProbe();
+      })
+      .catch((e) => {
+        if (!(e instanceof RollbackProbe)) throw e;
+      });
   });
 });
 
