@@ -21,6 +21,10 @@
  *   مُعلَنٍ** (`load-path-scope.ts`): `http:<مسار>` · `drainer:sweep` · `drainer:job:<bot>:<نوع>` ·
  *   `drainer:replies` · `redispatch:immediate` · وما سواها `(background)`. `pdb` كلَّ 5ث، و`pagg`
  *   للموجةِ كلِّها عندَ الإيقاف (n، المجموع، p50/p95/p99/max). و`rsig` باقٍ بمعناه القديمِ دونَ تغيير.
+ * - `psig` (دورةُ حجوزاتِ المجمّع، 2026-10-25): عددُ كلِّ استعلامٍ بتوقيعِه وانتظارُه واحتجازُه
+ *   **منسوبًا إلى المسارِ المُعلَن** (`drainer:job:<bot>:<نوع>` وسواه) لا إلى مسارِ HTTP وحدَه،
+ *   فيُحصى «أيُّ استعلامٍ يحجزُ المقعدَ في كلِّ وظيفة» من الأثرِ لا تخمينًا. يُصبُّ عندَ الإيقاف.
+ *   ما لا نطاقَ مُعلَنًا له لا يدخلُه (`rsig` يغطّيه). قياسٌ فقط: لا يغيّرُ سلوكًا ولا حدًّا.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { readFileSync } from "node:fs";
@@ -107,6 +111,7 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
   let dbWindow = new Map<string, { wait: number[]; run: number[] }>();
   // عددُ كلِّ استعلامٍ بتوقيعِه وزمنُ احتجازِه المقعدَ — يُصبُّ كاملًا عندَ الإيقاف.
   const sigWindow = new Map<string, { n: number; runMs: number }>();
+  const pathSig = new Map<string, { n: number; waitMs: number; runMs: number }>();
   const routeScope = new AsyncLocalStorage<string>();
   const routeSig = new Map<string, { n: number; runMs: number }>();
   // ب32: انتظارُ المقعدِ واحتجازُه لكلِّ مسارٍ مُعلَن — نافذةُ 5ث، ومجموعُ الموجةِ كلِّها.
@@ -157,6 +162,14 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
       r.n += 1;
       r.runMs += t.runMs;
       routeSig.set(rk, r);
+      if (store !== undefined) {
+        const xk = `${store.path}|${t.label}|${t.kind}|${t.sig}`;
+        const x = pathSig.get(xk) ?? { n: 0, waitMs: 0, runMs: 0 };
+        x.n += 1;
+        x.waitMs += t.waitMs;
+        x.runMs += t.runMs;
+        pathSig.set(xk, x);
+      }
     }
   });
   const flush = async (): Promise<void> => {
@@ -286,6 +299,19 @@ export function createLoadTrace(file: string | undefined): LoadTrace | null {
           sig: rest.join("|"),
           n: c.n,
           runMs: Math.round(c.runMs),
+        });
+      }
+      for (const [key, c] of pathSig) {
+        const [path, pool, kind, ...rest] = key.split("|");
+        emit({
+          k: "psig",
+          path,
+          pool,
+          kind,
+          sig: rest.join("|"),
+          n: c.n,
+          waitMs: Math.round(c.waitMs * 100) / 100,
+          runMs: Math.round(c.runMs * 100) / 100,
         });
       }
       for (const [key, c] of sigWindow) {

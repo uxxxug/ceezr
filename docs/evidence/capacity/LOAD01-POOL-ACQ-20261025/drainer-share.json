@@ -1,0 +1,13 @@
+{
+  "all_acq": 3943047,
+  "drainer_job_acq": 590543,
+  "acq_share": 0.1498,
+  "wait_share": 0.1016,
+  "jobs": 136398,
+  "one_acq_per_job_share": 0.0346,
+  "by_path": {
+    "drainer:job:driver:contact": 448679,
+    "drainer:job:driver:message": 72175,
+    "drainer:job:driver:command": 69689
+  }
+}

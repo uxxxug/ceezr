@@ -70,6 +70,14 @@ function lazySql(ms: number): AnySql {
   return s as unknown as AnySql;
 }
 
+/** كـ`lazySql` لكنّه يحملُ نصَّ القالبِ (`strings`) كـ`postgres` فيُستخرَجُ التوقيع. */
+function sigSql(ms: number): AnySql {
+  const s = ((strings: readonly string[], ..._a: unknown[]) =>
+    Object.assign(new LazyQuery(ms), { strings })) as unknown as Record<string, unknown>;
+  s.options = { max: 2 };
+  return s as unknown as AnySql;
+}
+
 const rows = (file: string): Record<string, unknown>[] =>
   readFileSync(`${file}.load.jsonl`, "utf8")
     .split("\n")
@@ -186,5 +194,43 @@ describe("LOAD-01 ب32 — حقولُ البوّابةِ في سطرِ الوظ�
     expect(Number(job?.gateHoldMs)).toBeGreaterThan(0);
     const pagg = rows(file).filter((r) => r.k === "pagg");
     expect(pagg.some((r) => r.path === "drainer:job:driver:contact" && r.n === 2)).toBe(true);
+  });
+});
+
+describe("LOAD-01 دورةُ حجوزاتِ المجمّع — psig لكلِّ مسارٍ مُعلَن", () => {
+  test("كلُّ استعلامٍ يُنسَبُ بتوقيعِه إلى مسارِه المُعلَن، وما خارجَ النطاقِ لا يدخلُ psig", async () => {
+    const file = join(mkdtempSync(join(tmpdir(), "psig-")), "trace");
+    const trace = createLoadTrace(file);
+    if (trace === null) throw new Error("الأثرُ معطَّل");
+    const sql = withQueryDeadline(sigSql(2), { deadlineMs: 5_000, slots: 2, label: "ceezr:t" });
+    await trace.drainer.scope?.("drainer:job:driver:contact", async () => {
+      await (sql`select telegram_update_effect_recorded(${"driver"}, ${1})` as unknown as Promise<unknown>);
+      await (sql`select get_user_language(${9})` as unknown as Promise<unknown>);
+      await (sql`select get_user_language(${10})` as unknown as Promise<unknown>);
+    });
+    await trace.inRoute("/v1/rides", "POST", async () => {
+      await (sql`select 7` as unknown as Promise<unknown>);
+    });
+    await (sql`select 8` as unknown as Promise<unknown>); // بلا نطاقٍ مُعلَن
+    await trace.stop();
+    const psig = rows(file).filter((r) => r.k === "psig");
+    const job = psig.filter((r) => r.path === "drainer:job:driver:contact");
+    expect(job.length).toBe(2);
+    const bySig = new Map(job.map((r) => [String(r.sig), r]));
+    expect(bySig.get("select telegram_update_effect_recorded(")?.n).toBe(1);
+    expect(bySig.get("select get_user_language(")?.n).toBe(2);
+    expect(bySig.get("select get_user_language(")?.pool).toBe("ceezr:t");
+    expect(bySig.get("select get_user_language(")?.kind).toBe("query");
+    expect(Number(bySig.get("select get_user_language(")?.runMs)).toBeGreaterThan(0);
+    expect(typeof bySig.get("select get_user_language(")?.waitMs).toBe("number");
+    expect(psig.some((r) => r.path === "http:POST /v1/rides" && r.sig === "select 7")).toBe(true);
+    expect(psig.some((r) => r.sig === "select 8")).toBe(false);
+    // `rsig` بمعناه القديم: استعلاماتُ الوظيفةِ تحتَ `(background)`.
+    const rsig = rows(file).filter((r) => r.k === "rsig");
+    expect(
+      rsig.some(
+        (r) => r.route === "(background)" && r.sig === "select get_user_language(" && r.n === 2,
+      ),
+    ).toBe(true);
   });
 });
