@@ -9,7 +9,8 @@
     "tests/unit/telegram-update-drainer-effect-in-claim.test.ts",
     "tests/integration/telegram-update-claim-effect-in-claim.test.ts",
     "scripts/lib/rollback-registry.ts",
-    "scripts/lib/skip-registry.ts"
+    "scripts/lib/skip-registry.ts",
+    "tests/unit/skip-audit.test.ts"
   ],
   "state": ["docs/SYSTEM_STATE.md"],
   "roadmap": ["ROADMAP.md"],
