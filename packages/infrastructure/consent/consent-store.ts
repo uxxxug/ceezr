@@ -36,7 +36,7 @@ function asTelegramId(value: string): string | null {
   return /^[0-9]{1,19}$/.test(value) ? value : null;
 }
 
-interface ConsentRow {
+export interface ConsentRow {
   readonly kind: string;
   readonly version: string;
   readonly accepted_at: string | Date;
@@ -45,6 +45,25 @@ interface ConsentRow {
 function readAcceptedAtMs(value: string | Date): number | null {
   const ms = value instanceof Date ? value.getTime() : Date.parse(value);
   return Number.isFinite(ms) ? ms : null;
+}
+
+/**
+ * صفوفٌ إلى سجلٍّ — **المصدرُ الوحيدُ** لهذا التحويلِ: يستعملُه هذا المحوّلُ وقراءةُ الإقلاعِ
+ * المُدمَجةُ (`session-bootstrap-snapshot.ts`، حيثُ يصلُ الختمُ نصّاً من `json`).
+ */
+export function consentsFromRows(
+  rows: readonly ConsentRow[],
+): Result<readonly RecordedConsent[], ConsentStoreFailure> {
+  const recorded: RecordedConsent[] = [];
+  for (const row of rows) {
+    const acceptedAtMs = readAcceptedAtMs(row.accepted_at);
+    // ختمٌ لا يُقرأُ زمناً **يُعلَنُ خطأً** ولا يُطرَحُ صامتاً: صفٌّ مطروحٌ
+    // قد يحوِّلُ «وافقَ» إلى «ناقصٌ» فيُعادُ سؤالُه بلا سببٍ، أو أخطرُ من ذاكَ
+    // يحوِّلُ «منسوخٌ» إلى «مُستوفىً» لو كانَ المطروحُ هوَ الأحدثَ.
+    if (acceptedAtMs === null) return err(failed("STORE_ERROR"));
+    recorded.push({ kind: row.kind, version: row.version, acceptedAtMs });
+  }
+  return ok(recorded);
 }
 
 export function createConsentRecordReader(sql: Sql): ConsentRecordReader {
@@ -66,16 +85,7 @@ export function createConsentRecordReader(sql: Sql): ConsentRecordReader {
         return err(failed("STORE_ERROR"));
       }
 
-      const recorded: RecordedConsent[] = [];
-      for (const row of rows) {
-        const acceptedAtMs = readAcceptedAtMs(row.accepted_at);
-        // ختمٌ لا يُقرأُ زمناً **يُعلَنُ خطأً** ولا يُطرَحُ صامتاً: صفٌّ مطروحٌ
-        // قد يحوِّلُ «وافقَ» إلى «ناقصٌ» فيُعادُ سؤالُه بلا سببٍ، أو أخطرُ من ذاكَ
-        // يحوِّلُ «منسوخٌ» إلى «مُستوفىً» لو كانَ المطروحُ هوَ الأحدثَ.
-        if (acceptedAtMs === null) return err(failed("STORE_ERROR"));
-        recorded.push({ kind: row.kind, version: row.version, acceptedAtMs });
-      }
-      return ok(recorded);
+      return consentsFromRows(rows);
     },
   };
 }

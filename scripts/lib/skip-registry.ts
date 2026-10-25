@@ -367,6 +367,7 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
   },
 
   {
+<<<<<<< HEAD
     file: "tests/integration/telegram-reply-claim-plan.test.ts",
     suites: ["خطةُ التقاطِ الردودِ المؤجَّلةِ — فهرسُ المسارِ وفهرسُ الترتيب"],
     skipped: 3,
@@ -375,6 +376,16 @@ export const SKIP_REGISTRY: readonly SkipEntry[] = [
       "فهرسا التقاطِ الردودِ المؤجَّلة (LOAD-01، هجرتا 20261025160000/20261025160100): الخطةُ العامةُ لاستعلامِ claim_telegram_update_replies بلا فحصٍ تسلسليٍّ وتستعملُ الفهرسينِ بالاسم، والدفعةُ رؤوسُ مساراتٍ بترتيبِ الإنشاء، والصفحاتُ المقروءةُ محدودةٌ تحتَ تراكمٍ مزروعٍ — خطةُ المُخطِّطِ في PostgreSQL لا يُثبِتُها بديلٌ في الذاكرة.",
     activation:
       "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقةً بما فيها 20261025160100. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+=======
+    file: "tests/integration/session-bootstrap-snapshot.test.ts",
+    suites: ["LOAD-01 — قراءةُ الإقلاعِ المُدمَجةُ على قاعدةٍ حقيقيّة"],
+    skipped: 3,
+    gate: "TEST_DATABASE_URL",
+    reason:
+      "قراءةُ الإقلاعِ المُدمَجة (LOAD-01، حزمة load01-session-bootstrap-coalesce): عبارةٌ واحدةٌ تُكافئُ محوّلَي الحسابِ والموافقاتِ المنفردَينِ نتيجةً بنتيجةٍ (ترتيبُ list_user_consents وختمُ الميكروثانيةِ عبرَ json_agg، والمحظورُ والغائبُ وغيرُ الرقميّ)، وفشلُ العبارةِ خطأٌ مصنَّفٌ للقراءتَين — سلوكُ PostgreSQL ودالّتُه لا يُثبِتُه بديلٌ في الذاكرة.",
+    activation:
+      "تُضبَط TEST_DATABASE_URL على قاعدةٍ حقيقيّةٍ بالهجراتِ مطبَّقة. يفعله CI في الوظيفة «تكامل على PostgreSQL حقيقي»، ويفعله المطوّرُ محلّياً.",
+>>>>>>> origin/perf/load01-session-bootstrap-coalesce
     owner: "منفّذ المستودع",
     criticalPath: null,
     runsIn: "اختبارات التكامل على قاعدة حقيقية",

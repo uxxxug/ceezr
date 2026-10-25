@@ -32,6 +32,10 @@ import {
   type ResolveViewerDeps,
   resolveViewer,
 } from "../../../../packages/application/identity/resolve-viewer.ts";
+import {
+  coalescedBootstrapPorts,
+  type SessionBootstrapSnapshotReader,
+} from "../../../../packages/application/identity/session-bootstrap.ts";
 import type { RateLimiter } from "../rate-limit/fixed-window.ts";
 import { clientAddress, rateLimitRejection } from "../rate-limit/guard.ts";
 import { readBounded } from "./telegram-webhook.ts";
@@ -63,6 +67,11 @@ export interface SessionTelegramDependencies {
   readonly bootstrap?: {
     readonly viewer?: ResolveViewerDeps;
     readonly consent?: ConsentDeps;
+    /**
+     * `LOAD-01`: قراءةٌ واحدةٌ تُغذّي منفذَي القراءتَينِ **في هذا النداءِ وحدَه** — أخذةُ اتصالٍ
+     * واحدةٌ بدلَ اثنتَينِ. لا تُستعمَلُ إلا والقراءتانِ مُركَّبتانِ كلتاهما؛ وغيابُها = كما كان.
+     */
+    readonly snapshot?: SessionBootstrapSnapshotReader;
   };
 }
 
@@ -75,10 +84,25 @@ export async function bootstrapReads(
   accessToken: string,
 ): Promise<Record<string, unknown>> {
   if (bootstrap === undefined) return {};
+  // المنفذانِ يُستبدَلانِ وحدَهما؛ الجلسةُ والزمنُ والسجلُّ وحالتا الاستخدامِ كما هي.
+  const shared =
+    bootstrap.snapshot === undefined ||
+    bootstrap.viewer === undefined ||
+    bootstrap.consent === undefined
+      ? undefined
+      : coalescedBootstrapPorts(bootstrap.snapshot);
+  const viewerDeps =
+    shared === undefined || bootstrap.viewer === undefined
+      ? bootstrap.viewer
+      : { ...bootstrap.viewer, accounts: shared.accounts };
+  const consentDeps =
+    shared === undefined || bootstrap.consent === undefined
+      ? bootstrap.consent
+      : { ...bootstrap.consent, reader: shared.consents };
   const viewer =
-    bootstrap.viewer === undefined
+    viewerDeps === undefined
       ? Promise.resolve(undefined)
-      : resolveViewer({ accessToken }, bootstrap.viewer).then(
+      : resolveViewer({ accessToken }, viewerDeps).then(
           (r) =>
             r.ok
               ? {
@@ -91,9 +115,9 @@ export async function bootstrapReads(
           () => undefined,
         );
   const consents =
-    bootstrap.consent === undefined
+    consentDeps === undefined
       ? Promise.resolve(undefined)
-      : readConsentStatus(bootstrap.consent, { accessToken }).then(
+      : readConsentStatus(consentDeps, { accessToken }).then(
           (r) =>
             r.ok
               ? { ok: true, documents: r.value.documents, onboarding: r.value.onboarding }
